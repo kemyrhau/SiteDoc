@@ -1,0 +1,28 @@
+{
+  "name": "@siteflow/api",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/"
+  },
+  "dependencies": {
+    "@fastify/cors": "^10.0.0",
+    "@siteflow/db": "workspace:*",
+    "@siteflow/shared": "workspace:*",
+    "@trpc/server": "^11.10.0",
+    "fastify": "^5.2.0",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.56.1",
+    "@typescript-eslint/parser": "^8.56.1",
+    "eslint": "^10.0.2",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}

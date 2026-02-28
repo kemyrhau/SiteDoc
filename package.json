@@ -1,0 +1,23 @@
+{
+  "name": "siteflow",
+  "private": true,
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "test": "turbo test",
+    "lint": "turbo lint",
+    "typecheck": "turbo typecheck",
+    "clean": "turbo clean",
+    "db:migrate": "pnpm --filter @siteflow/db migrate",
+    "db:seed": "pnpm --filter @siteflow/db seed",
+    "db:studio": "pnpm --filter @siteflow/db studio",
+    "db:generate": "pnpm --filter @siteflow/db generate"
+  },
+  "packageManager": "pnpm@9.15.4",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "devDependencies": {
+    "turbo": "^2.8.12"
+  }
+}

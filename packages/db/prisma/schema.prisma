@@ -1,0 +1,238 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  clerkId   String   @unique @map("clerk_id")
+  email     String   @unique
+  firstName String?  @map("first_name")
+  lastName  String?  @map("last_name")
+  role      String   @default("user")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  projects             ProjectMember[]
+  createdChecklists    Checklist[]       @relation("ChecklistCreator")
+  createdTasks         Task[]            @relation("TaskCreator")
+  sentTransfers        DocumentTransfer[] @relation("TransferSender")
+
+  @@map("users")
+}
+
+model Project {
+  id            String   @id @default(uuid())
+  projectNumber String   @unique @map("project_number")
+  name          String
+  description   String?
+  address       String?
+  status        String   @default("active")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  members     ProjectMember[]
+  enterprises Enterprise[]
+  drawings    Drawing[]
+  templates   ReportTemplate[]
+  folders     Folder[]
+
+  @@map("projects")
+}
+
+model ProjectMember {
+  id           String   @id @default(uuid())
+  userId       String   @map("user_id")
+  projectId    String   @map("project_id")
+  enterpriseId String?  @map("enterprise_id")
+  role         String   @default("member")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project    Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  enterprise Enterprise? @relation(fields: [enterpriseId], references: [id])
+
+  @@unique([userId, projectId])
+  @@map("project_members")
+}
+
+model Enterprise {
+  id                 String   @id @default(uuid())
+  projectId          String   @map("project_id")
+  name               String
+  organizationNumber String?  @map("organization_number")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  project            Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  members            ProjectMember[]
+  createdChecklists  Checklist[]      @relation("ChecklistCreatorEnterprise")
+  respondChecklists  Checklist[]      @relation("ChecklistResponderEnterprise")
+  createdTasks       Task[]           @relation("TaskCreatorEnterprise")
+  respondTasks       Task[]           @relation("TaskResponderEnterprise")
+
+  @@map("enterprises")
+}
+
+model Drawing {
+  id        String   @id @default(uuid())
+  projectId String   @map("project_id")
+  name      String
+  version   Int      @default(1)
+  fileUrl   String   @map("file_url")
+  fileType  String   @map("file_type")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@map("drawings")
+}
+
+model ReportTemplate {
+  id          String   @id @default(uuid())
+  projectId   String   @map("project_id")
+  name        String
+  description String?
+  version     Int      @default(1)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  project    Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  objects    ReportObject[]
+  checklists Checklist[]
+
+  @@map("report_templates")
+}
+
+model ReportObject {
+  id         String   @id @default(uuid())
+  templateId String   @map("template_id")
+  type       String
+  label      String
+  config     Json     @default("{}")
+  sortOrder  Int      @map("sort_order")
+  required   Boolean  @default(false)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  template ReportTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@map("report_objects")
+}
+
+model Checklist {
+  id                   String   @id @default(uuid())
+  templateId           String   @map("template_id")
+  creatorUserId        String   @map("creator_user_id")
+  creatorEnterpriseId  String   @map("creator_enterprise_id")
+  responderEnterpriseId String  @map("responder_enterprise_id")
+  status               String   @default("draft")
+  title                String
+  data                 Json     @default("{}")
+  dueDate              DateTime? @map("due_date")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  template           ReportTemplate     @relation(fields: [templateId], references: [id])
+  creator            User               @relation("ChecklistCreator", fields: [creatorUserId], references: [id])
+  creatorEnterprise  Enterprise         @relation("ChecklistCreatorEnterprise", fields: [creatorEnterpriseId], references: [id])
+  responderEnterprise Enterprise        @relation("ChecklistResponderEnterprise", fields: [responderEnterpriseId], references: [id])
+  transfers          DocumentTransfer[]
+  images             Image[]
+
+  @@map("checklists")
+}
+
+model Task {
+  id                   String    @id @default(uuid())
+  creatorUserId        String    @map("creator_user_id")
+  creatorEnterpriseId  String    @map("creator_enterprise_id")
+  responderEnterpriseId String   @map("responder_enterprise_id")
+  status               String    @default("draft")
+  title                String
+  description          String?
+  priority             String    @default("medium")
+  dueDate              DateTime? @map("due_date")
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+
+  creator            User               @relation("TaskCreator", fields: [creatorUserId], references: [id])
+  creatorEnterprise  Enterprise         @relation("TaskCreatorEnterprise", fields: [creatorEnterpriseId], references: [id])
+  responderEnterprise Enterprise        @relation("TaskResponderEnterprise", fields: [responderEnterpriseId], references: [id])
+  transfers          DocumentTransfer[]
+  images             Image[]
+
+  @@map("tasks")
+}
+
+model DocumentTransfer {
+  id           String   @id @default(uuid())
+  checklistId  String?  @map("checklist_id")
+  taskId       String?  @map("task_id")
+  senderId     String   @map("sender_id")
+  fromStatus   String   @map("from_status")
+  toStatus     String   @map("to_status")
+  comment      String?
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  checklist Checklist? @relation(fields: [checklistId], references: [id])
+  task      Task?      @relation(fields: [taskId], references: [id])
+  sender    User       @relation("TransferSender", fields: [senderId], references: [id])
+
+  @@map("document_transfers")
+}
+
+model Image {
+  id          String   @id @default(uuid())
+  checklistId String?  @map("checklist_id")
+  taskId      String?  @map("task_id")
+  fileUrl     String   @map("file_url")
+  fileName    String   @map("file_name")
+  fileSize    Int      @map("file_size")
+  gpsLat      Float?   @map("gps_lat")
+  gpsLng      Float?   @map("gps_lng")
+  gpsEnabled  Boolean  @default(true) @map("gps_enabled")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  checklist Checklist? @relation(fields: [checklistId], references: [id])
+  task      Task?      @relation(fields: [taskId], references: [id])
+
+  @@map("images")
+}
+
+model Folder {
+  id        String   @id @default(uuid())
+  projectId String   @map("project_id")
+  parentId  String?  @map("parent_id")
+  name      String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  project  Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  parent   Folder?   @relation("FolderHierarchy", fields: [parentId], references: [id])
+  children Folder[]  @relation("FolderHierarchy")
+  documents Document[]
+
+  @@map("folders")
+}
+
+model Document {
+  id        String   @id @default(uuid())
+  folderId  String   @map("folder_id")
+  name      String
+  fileUrl   String   @map("file_url")
+  fileType  String   @map("file_type")
+  fileSize  Int      @map("file_size")
+  version   Int      @default(1)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  folder Folder @relation(fields: [folderId], references: [id], onDelete: Cascade)
+
+  @@map("documents")
+}

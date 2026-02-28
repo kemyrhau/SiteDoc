@@ -1,0 +1,30 @@
+{
+  "expo": {
+    "name": "SiteFlow",
+    "slug": "siteflow",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "siteflow",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.siteflow.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#1e40af"
+      },
+      "package": "com.siteflow.app"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "SiteFlow trenger tilgang til posisjonen din for GPS-tagging av bilder."
+        }
+      ]
+    ]
+  }
+}
