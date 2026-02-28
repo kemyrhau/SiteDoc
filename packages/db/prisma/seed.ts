@@ -8,30 +8,24 @@ async function seed() {
   // Opprett testbrukere
   const bruker1 = await prisma.user.create({
     data: {
-      clerkId: "test_bruker_1",
       email: "ole.nordmann@siteflow.no",
-      firstName: "Ole",
-      lastName: "Nordmann",
+      name: "Ole Nordmann",
       role: "admin",
     },
   });
 
   const bruker2 = await prisma.user.create({
     data: {
-      clerkId: "test_bruker_2",
       email: "kari.hansen@siteflow.no",
-      firstName: "Kari",
-      lastName: "Hansen",
+      name: "Kari Hansen",
       role: "user",
     },
   });
 
   const bruker3 = await prisma.user.create({
     data: {
-      clerkId: "test_bruker_3",
       email: "per.johansen@uebygg.no",
-      firstName: "Per",
-      lastName: "Johansen",
+      name: "Per Johansen",
       role: "user",
     },
   });

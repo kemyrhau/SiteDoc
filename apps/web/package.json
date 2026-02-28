@@ -3,16 +3,20 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --port 3000",
+    "dev": "next dev --port 3100",
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "lint": "next lint"
   },
   "dependencies": {
+    "@auth/core": "0.41.0",
+    "@auth/prisma-adapter": "^2.11.1",
+    "@siteflow/db": "workspace:*",
     "@siteflow/shared": "workspace:*",
     "@siteflow/ui": "workspace:*",
     "next": "^14.2.0",
+    "next-auth": "5.0.0-beta.30",
     "react": "^18.3.0",
     "react-dom": "^18.3.0"
   },

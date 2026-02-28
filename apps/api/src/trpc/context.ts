@@ -8,11 +8,36 @@ export interface CreateContextOptions {
 
 /**
  * Opprett tRPC-kontekst for hver forespørsel.
- * Inkluderer databasetilkobling og brukerinfo (fra Clerk i Fase 4).
+ * Verifiserer sesjonstoken fra Auth.js via database-oppslag.
  */
 export async function createContext({ req, res }: CreateContextOptions) {
-  // TODO Fase 4: Hent bruker fra Clerk-token
-  const userId = req.headers["x-user-id"] as string | undefined;
+  let userId: string | null = null;
+
+  // Hent sesjonstoken fra cookie eller Authorization-header
+  const cookieHeader = req.headers.cookie ?? "";
+  const sessionTokenMatch = cookieHeader.match(
+    /(?:__Secure-)?authjs\.session-token=([^;]+)/,
+  );
+  const sessionToken =
+    sessionTokenMatch?.[1] ??
+    req.headers.authorization?.replace("Bearer ", "") ??
+    null;
+
+  if (sessionToken) {
+    try {
+      // Slå opp sesjonen direkte i databasen (Auth.js database-strategi)
+      const session = await prisma.session.findUnique({
+        where: { sessionToken },
+        select: { userId: true, expires: true },
+      });
+
+      if (session && session.expires > new Date()) {
+        userId = session.userId;
+      }
+    } catch {
+      // Ugyldig token — bruker forblir uautentisert
+    }
+  }
 
   return {
     prisma,

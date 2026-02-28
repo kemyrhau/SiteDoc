@@ -11,7 +11,7 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 - **Database (server):** PostgreSQL med Prisma ORM
 - **Database (lokal):** SQLite via expo-sqlite, Drizzle ORM
 - **Fillagring:** S3-kompatibel (AWS S3 / Cloudflare R2 / MinIO)
-- **Auth:** Clerk (rollebasert tilgang)
+- **Auth:** Auth.js v5 (next-auth) med Google og Microsoft Entra ID (Office 365), PrismaAdapter, database-sesjoner
 - **Bildekomprimering:** expo-image-manipulator (mål: 300–400 KB)
 - **GPS:** expo-location (deaktiverbar per objekt)
 - **PDF-eksport:** react-pdf
