@@ -29,6 +29,16 @@ siteflow/
 │   │       │   ├── layout.tsx              # Tre-kolonne layout (Toppbar + Sidebar + innhold)
 │   │       │   ├── page.tsx                # Dashbord med prosjektliste
 │   │       │   ├── oppsett/               # Innstillinger
+│   │       │   │   ├── layout.tsx          # Innstillings-sidebar med navigasjon
+│   │       │   │   ├── brukere/           # Brukergrupper og roller
+│   │       │   │   ├── lokasjoner/        # Lokasjoner + bygninger
+│   │       │   │   ├── field/             # Field-innstillinger
+│   │       │   │   │   ├── entrepriser/   # Entrepriser med arbeidsforløp
+│   │       │   │   │   ├── box/           # Box (filstruktur/dokumenthåndtering)
+│   │       │   │   │   ├── oppgavemaler/  # Oppgavens arbeidsflyt
+│   │       │   │   │   └── kontrollplaner/# Kontrollplaner
+│   │       │   │   ├── prosjektoppsett/   # Prosjektoppsett (navn, status, adresse)
+│   │       │   │   └── eierportal-brukere/# Owners Portal brukere
 │   │       │   └── [prosjektId]/          # Prosjektspesifikke ruter
 │   │       │       ├── layout.tsx          # Verktøylinje-wrapper
 │   │       │       ├── page.tsx            # Prosjektoversikt
@@ -72,12 +82,15 @@ siteflow/
 
 ### Database (PostgreSQL)
 
-Kjernetabeller: `projects`, `enterprises`, `drawings`, `report_templates`, `report_objects`, `checklists`, `tasks`, `document_transfers`, `images`, `folders`, `documents`, `users`.
+Kjernetabeller: `projects`, `enterprises`, `drawings`, `report_templates`, `report_objects`, `checklists`, `tasks`, `document_transfers`, `images`, `folders`, `documents`, `users`, `buildings`, `workflows`, `workflow_templates`.
 
 Viktige relasjoner:
 - Sjekklister og oppgaver har ALLTID `creator_enterprise_id` (oppretter) og `responder_enterprise_id` (svarer)
 - `document_transfers` logger all sending mellom entrepriser med full sporbarhet
 - Bilder har valgfri GPS-data (`gps_lat`, `gps_lng`, `gps_enabled`)
+- `workflows` tilhører en entreprise og kobler til maler via `workflow_templates`
+- `report_templates` har `category` (`oppgave` | `sjekkliste`) for å skille maltyper
+- `buildings` tilhører et prosjekt, med tegninger koblet via `building_id`
 
 ### Entrepriseflyt
 
@@ -88,6 +101,23 @@ Statusverdier: `draft` → `sent` → `received` → `in_progress` → `responde
 - Oppretter-entreprise initierer og godkjenner/avviser
 - Svar-entreprise mottar, fyller ut og besvarer
 - Alle overganger logges i `document_transfers`
+
+### Arbeidsforløp
+
+Arbeidsforløp kobler maler til entrepriser. Konfigureres under Innstillinger > Field > Entrepriser:
+
+- Hver entreprise kan ha flere arbeidsforløp (f.eks. "Uavhengig Kontroll", "Produksjon")
+- Hvert arbeidsforløp velger hvilke maler (oppgavetyper og sjekklistetyper) som er tilgjengelige
+- Maler kategoriseres som `oppgave` eller `sjekkliste` via `report_templates.category`
+- Treprikk-menyer (⋮) på to nivåer: entreprise-header og arbeidsforløp-rad
+
+### Innstillings-sidebar
+
+Sidebaren under `/dashbord/oppsett/` er organisert i seksjoner:
+- **Brukere** — Brukergrupper og rollestyring
+- **Lokasjoner** — Bygninger
+- **Field** — Entrepriser, Oppgavens arbeidsflyt, Kontrollplan, Box
+- **Owners Portal** — Eierportalens brukere, Prosjektoppsett
 
 ### Rapportobjekter (15 typer)
 
@@ -144,7 +174,16 @@ Dalux-inspirert tre-kolonne layout:
 /dashbord/[prosjektId]/maler/[id]          -> Mal-detalj / malbygger
 /dashbord/[prosjektId]/entrepriser         -> Entreprise-liste
 /dashbord/[prosjektId]/tegninger           -> Tegninger
-/dashbord/oppsett                          -> Innstillinger
+/dashbord/oppsett                          -> Innstillinger (redirect til brukere)
+/dashbord/oppsett/brukere                  -> Brukergrupper og roller
+/dashbord/oppsett/lokasjoner              -> Lokasjonsoversikt
+/dashbord/oppsett/lokasjoner/bygninger    -> Bygningsliste
+/dashbord/oppsett/field                    -> Field-oversikt (kategorikort)
+/dashbord/oppsett/field/entrepriser        -> Entrepriser med arbeidsforløp
+/dashbord/oppsett/field/box                -> Box (filstruktur/mappestruktur)
+/dashbord/oppsett/field/oppgavemaler       -> Oppgavens arbeidsflyt
+/dashbord/oppsett/field/kontrollplaner     -> Kontrollplaner
+/dashbord/oppsett/prosjektoppsett          -> Prosjektoppsett
 ```
 
 ### Kontekster og hooks
@@ -167,7 +206,7 @@ Dalux-inspirert tre-kolonne layout:
 - Named exports, ikke default exports (unntak: Next.js pages/layouts)
 - Zod-validering på alle API-endepunkter og skjemadata
 - Prisma for server-side DB, Drizzle for lokal SQLite
-- Alle API-ruter i `apps/api/src/routes/`
+- Alle API-ruter i `apps/api/src/routes/` (prosjekt, entreprise, sjekkliste, oppgave, mal, bygning, tegning, arbeidsforlop, mappe, medlem)
 - Alle Expo-skjermer i `apps/mobile/src/screens/`
 - Layout-komponenter i `apps/web/src/components/layout/`
 - Seksjonspaneler i `apps/web/src/components/paneler/`
@@ -187,6 +226,9 @@ Dalux-inspirert tre-kolonne layout:
 - **Tegning:** Prosjekttegning (PDF/DWG) med versjonering
 - **Rapportobjekt:** Byggeblokk i en sjekklistemal (15 typer)
 - **Mal (template):** Gjenbrukbar oppskrift for sjekklister/rapporter bygget med drag-and-drop
+- **Arbeidsforløp (workflow):** Navngitt kobling mellom en entreprise og et sett maler (oppgave-/sjekklistetyper)
+- **Box:** Filstruktur/dokumenthåndteringsmodul med rekursiv mappestruktur
+- **Bygning:** Fysisk bygning i et prosjekt, med tilknyttede tegninger
 
 ## Språk
 
