@@ -3,7 +3,11 @@
 import { useState, useRef } from "react";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { trpc } from "@/lib/trpc";
-import { Button, Input, Modal, Spinner, EmptyState } from "@siteflow/ui";
+import { Button, Input, Select, Textarea, Modal, Spinner, EmptyState } from "@siteflow/ui";
+import {
+  DRAWING_DISCIPLINES,
+  DRAWING_TYPES,
+} from "@siteflow/shared";
 import {
   Plus,
   LayoutGrid,
@@ -16,6 +20,7 @@ import {
   Building2,
   FileText,
   ChevronDown,
+  Loader2,
 } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
@@ -36,6 +41,27 @@ function RedigerBygning({
   const [visMerMeny, setVisMerMeny] = useState(false);
   const [valgtTegningId, setValgtTegningId] = useState<string | null>(null);
 
+  // Opplastingstilstand
+  const [lasterOpp, setLasterOpp] = useState(false);
+  const [visMetadataModal, setVisMetadataModal] = useState(false);
+  const [opplastetFil, setOpplastetFil] = useState<{
+    fileUrl: string;
+    fileName: string;
+    fileType: string;
+    fileSize: number;
+  } | null>(null);
+
+  // Metadata-skjema
+  const [metaNavn, setMetaNavn] = useState("");
+  const [metaTegningsnr, setMetaTegningsnr] = useState("");
+  const [metaDisiplin, setMetaDisiplin] = useState("");
+  const [metaType, setMetaType] = useState("");
+  const [metaRevisjon, setMetaRevisjon] = useState("A");
+  const [metaEtasje, setMetaEtasje] = useState("");
+  const [metaMålestokk, setMetaMålestokk] = useState("");
+  const [metaOpphav, setMetaOpphav] = useState("");
+  const [metaBeskrivelse, setMetaBeskrivelse] = useState("");
+
   const { data: bygning } = trpc.bygning.hentMedId.useQuery({ id: bygningId });
 
   // Alle prosjekttegninger uten bygning (for tilknytning)
@@ -55,6 +81,80 @@ function RedigerBygning({
       });
     },
   });
+
+  const opprettTegningMutation = trpc.tegning.opprett.useMutation({
+    onSuccess: () => {
+      utils.bygning.hentMedId.invalidate({ id: bygningId });
+      utils.tegning.hentForProsjekt.invalidate({ projectId: prosjektId! });
+      utils.bygning.hentForProsjekt.invalidate({ projectId: prosjektId! });
+      setVisMetadataModal(false);
+      nullstillMetadata();
+    },
+  });
+
+  function nullstillMetadata() {
+    setOpplastetFil(null);
+    setMetaNavn("");
+    setMetaTegningsnr("");
+    setMetaDisiplin("");
+    setMetaType("");
+    setMetaRevisjon("A");
+    setMetaEtasje("");
+    setMetaMålestokk("");
+    setMetaOpphav("");
+    setMetaBeskrivelse("");
+  }
+
+  async function handleFilValgt(e: React.ChangeEvent<HTMLInputElement>) {
+    const fil = e.target.files?.[0];
+    if (!fil) return;
+
+    setLasterOpp(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", fil);
+
+      const res = await fetch("/api/upload", { method: "POST", body: formData });
+      if (!res.ok) {
+        const err = await res.json();
+        alert(err.error ?? "Opplasting feilet");
+        return;
+      }
+
+      const data = await res.json();
+      setOpplastetFil(data);
+      setMetaNavn(fil.name.replace(/\.[^.]+$/, ""));
+      setVisMetadataModal(true);
+    } catch {
+      alert("Kunne ikke laste opp filen");
+    } finally {
+      setLasterOpp(false);
+      // Nullstill input slik at samme fil kan velges igjen
+      e.target.value = "";
+    }
+  }
+
+  function handleLagreTegning(e: React.FormEvent) {
+    e.preventDefault();
+    if (!prosjektId || !opplastetFil) return;
+
+    opprettTegningMutation.mutate({
+      projectId: prosjektId,
+      buildingId: bygningId,
+      name: metaNavn,
+      drawingNumber: metaTegningsnr || undefined,
+      discipline: (metaDisiplin || undefined) as typeof DRAWING_DISCIPLINES[number] | undefined,
+      drawingType: (metaType || undefined) as typeof DRAWING_TYPES[number] | undefined,
+      revision: metaRevisjon || "A",
+      floor: metaEtasje || undefined,
+      scale: metaMålestokk || undefined,
+      originator: metaOpphav || undefined,
+      description: metaBeskrivelse || undefined,
+      fileUrl: opplastetFil.fileUrl,
+      fileType: opplastetFil.fileType,
+      fileSize: opplastetFil.fileSize,
+    });
+  }
 
   const utilknyttede =
     alleTegninger?.filter((t) => !t.buildingId) ?? [];
@@ -176,12 +276,18 @@ function RedigerBygning({
       <input
         ref={filInputRef}
         type="file"
-        accept=".pdf,.dwg,.ifc,.png,.jpg,.jpeg"
+        accept=".pdf,.dwg,.dxf,.ifc,.png,.jpg,.jpeg"
         className="hidden"
-        onChange={() => {
-          // Fremtidig: håndter filopplasting
-        }}
+        onChange={handleFilValgt}
       />
+
+      {/* Opplastingsindikator */}
+      {lasterOpp && (
+        <div className="flex items-center gap-2 border-b border-gray-200 bg-blue-50 px-6 py-2 text-sm text-blue-700">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Laster opp fil...
+        </div>
+      )}
 
       {/* To-kolonne innhold */}
       <div className="flex flex-1 overflow-hidden">
@@ -238,6 +344,103 @@ function RedigerBygning({
           </div>
         </div>
       </div>
+
+      {/* Metadata-modal for ny tegning */}
+      <Modal
+        open={visMetadataModal}
+        onClose={() => {
+          setVisMetadataModal(false);
+          nullstillMetadata();
+        }}
+        title="Tegningsdetaljer"
+      >
+        <form onSubmit={handleLagreTegning} className="flex flex-col gap-4">
+          <Input
+            label="Navn"
+            value={metaNavn}
+            onChange={(e) => setMetaNavn(e.target.value)}
+            required
+          />
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              label="Tegningsnummer"
+              value={metaTegningsnr}
+              onChange={(e) => setMetaTegningsnr(e.target.value)}
+              placeholder="f.eks. ARK-P-101"
+            />
+            <Select
+              label="Fagdisiplin"
+              value={metaDisiplin}
+              onChange={(e) => setMetaDisiplin(e.target.value)}
+              placeholder="Velg disiplin"
+              options={DRAWING_DISCIPLINES.map((d) => ({ value: d, label: d }))}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <Select
+              label="Tegningstype"
+              value={metaType}
+              onChange={(e) => setMetaType(e.target.value)}
+              placeholder="Velg type"
+              options={DRAWING_TYPES.map((t) => ({
+                value: t,
+                label: t.charAt(0).toUpperCase() + t.slice(1),
+              }))}
+            />
+            <Input
+              label="Revisjon"
+              value={metaRevisjon}
+              onChange={(e) => setMetaRevisjon(e.target.value)}
+              placeholder="A"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              label="Etasje"
+              value={metaEtasje}
+              onChange={(e) => setMetaEtasje(e.target.value)}
+              placeholder="f.eks. 1. etasje"
+            />
+            <Input
+              label="Målestokk"
+              value={metaMålestokk}
+              onChange={(e) => setMetaMålestokk(e.target.value)}
+              placeholder="f.eks. 1:100"
+            />
+          </div>
+          <Input
+            label="Opphav (firma)"
+            value={metaOpphav}
+            onChange={(e) => setMetaOpphav(e.target.value)}
+          />
+          <Textarea
+            label="Beskrivelse"
+            value={metaBeskrivelse}
+            onChange={(e) => setMetaBeskrivelse(e.target.value)}
+            rows={2}
+          />
+          {opplastetFil && (
+            <p className="text-xs text-gray-400">
+              Fil: {opplastetFil.fileName} ({Math.round(opplastetFil.fileSize / 1024)} KB)
+            </p>
+          )}
+          <div className="flex justify-end gap-3 pt-2">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                setVisMetadataModal(false);
+                nullstillMetadata();
+              }}
+            >
+              Avbryt
+            </Button>
+            <Button type="submit" disabled={opprettTegningMutation.isPending}>
+              {opprettTegningMutation.isPending ? "Lagrer..." : "Lagre tegning"}
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

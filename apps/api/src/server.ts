@@ -1,7 +1,11 @@
+import { join } from "path";
 import Fastify from "fastify";
 import cors from "@fastify/cors";
+import multipart from "@fastify/multipart";
+import fastifyStatic from "@fastify/static";
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { healthRoute } from "./routes/health";
+import { uploadRoute } from "./routes/upload";
 import { appRouter } from "./trpc/router";
 import { createContext } from "./trpc/context";
 
@@ -14,8 +18,22 @@ async function start() {
     origin: true,
   });
 
+  // Multipart filopplasting (maks 100 MB)
+  await server.register(multipart, {
+    limits: { fileSize: 100 * 1024 * 1024 },
+  });
+
+  // Server opplastede filer
+  await server.register(fastifyStatic, {
+    root: join(process.cwd(), "uploads"),
+    prefix: "/uploads/",
+  });
+
   // Helsesjekk
   await server.register(healthRoute);
+
+  // Filopplasting
+  await server.register(uploadRoute);
 
   // tRPC-endepunkt via fetch-adapter
   server.all("/trpc/*", async (req, res) => {

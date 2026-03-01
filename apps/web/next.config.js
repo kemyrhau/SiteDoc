@@ -44,6 +44,18 @@ const nextConfig = {
       },
     ];
   },
+  async rewrites() {
+    return [
+      {
+        source: "/api/upload",
+        destination: "http://localhost:3001/upload",
+      },
+      {
+        source: "/api/uploads/:path*",
+        destination: "http://localhost:3001/uploads/:path*",
+      },
+    ];
+  },
 };
 
 module.exports = nextConfig;

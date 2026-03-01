@@ -40,6 +40,9 @@ pnpm-debug.log*
 # Coverage
 coverage/
 
+# Opplastede filer
+uploads/
+
 # Expo
 ios/
 android/

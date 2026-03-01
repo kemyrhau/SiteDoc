@@ -11,6 +11,8 @@
   },
   "dependencies": {
     "@fastify/cors": "^10.0.0",
+    "@fastify/multipart": "^9.4.0",
+    "@fastify/static": "^9.0.0",
     "@siteflow/db": "workspace:*",
     "@siteflow/shared": "workspace:*",
     "@trpc/server": "^11.10.0",
