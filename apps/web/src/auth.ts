@@ -8,11 +8,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: PrismaAdapter(prisma),
   providers: [
     Google,
-    MicrosoftEntraID({
-      clientId: process.env.AUTH_MICROSOFT_ENTRA_ID_ID,
-      clientSecret: process.env.AUTH_MICROSOFT_ENTRA_ID_SECRET,
-      issuer: process.env.AUTH_MICROSOFT_ENTRA_ID_ISSUER,
-    }),
+    ...(process.env.AUTH_MICROSOFT_ENTRA_ID_ID
+      ? [
+          MicrosoftEntraID({
+            clientId: process.env.AUTH_MICROSOFT_ENTRA_ID_ID,
+            clientSecret: process.env.AUTH_MICROSOFT_ENTRA_ID_SECRET,
+            issuer: process.env.AUTH_MICROSOFT_ENTRA_ID_ISSUER,
+          }),
+        ]
+      : []),
   ],
   pages: {
     signIn: "/logg-inn",

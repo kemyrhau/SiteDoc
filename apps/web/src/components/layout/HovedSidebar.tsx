@@ -67,7 +67,7 @@ const bunnelementer: SidebarElement[] = [
     id: "oppsett",
     label: "Oppsett",
     ikon: <Settings className="h-5 w-5" />,
-    kreverProsjekt: false,
+    kreverProsjekt: true,
   },
 ];
 
@@ -110,15 +110,22 @@ export function HovedSidebar() {
 
       {/* Bunnelementer */}
       <div className="flex flex-col items-center gap-1 border-t border-white/10 pt-3">
-        {bunnelementer.map((element) => (
-          <SidebarIkon
-            key={element.id}
-            ikon={element.ikon}
-            label={element.label}
-            aktiv={aktivSeksjon === element.id}
-            onClick={() => naviger(element)}
-          />
-        ))}
+        {bunnelementer.map((element) => {
+          const deaktivert = element.kreverProsjekt && !prosjektId;
+          return (
+            <div
+              key={element.id}
+              className={deaktivert ? "opacity-40" : ""}
+            >
+              <SidebarIkon
+                ikon={element.ikon}
+                label={element.label}
+                aktiv={aktivSeksjon === element.id}
+                onClick={deaktivert ? undefined : () => naviger(element)}
+              />
+            </div>
+          );
+        })}
         <SidebarIkon
           ikon={<HelpCircle className="h-5 w-5" />}
           label="Hjelp"
