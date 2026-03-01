@@ -1,0 +1,199 @@
+"use client";
+
+import { useState } from "react";
+import { useParams, useSearchParams } from "next/navigation";
+import { trpc } from "@/lib/trpc";
+import { Button, Input, Textarea, Select, Modal, Spinner, EmptyState, StatusBadge, Badge, Table } from "@siteflow/ui";
+import { useVerktoylinje } from "@/hooks/useVerktoylinje";
+import { Plus } from "lucide-react";
+
+const prioriteter = [
+  { value: "low", label: "Lav" },
+  { value: "medium", label: "Medium" },
+  { value: "high", label: "Høy" },
+  { value: "critical", label: "Kritisk" },
+];
+
+const prioritetFarge: Record<string, "default" | "primary" | "warning" | "danger"> = {
+  low: "default",
+  medium: "primary",
+  high: "warning",
+  critical: "danger",
+};
+
+export default function OppgaverSide() {
+  const params = useParams<{ prosjektId: string }>();
+  const searchParams = useSearchParams();
+  const statusFilter = searchParams.get("status");
+  const utils = trpc.useUtils();
+  const [visModal, setVisModal] = useState(false);
+  const [tittel, setTittel] = useState("");
+  const [beskrivelse, setBeskrivelse] = useState("");
+  const [prioritet, setPrioritet] = useState<"low" | "medium" | "high" | "critical">("medium");
+  const [valgtSvarer, setValgtSvarer] = useState("");
+
+  const { data: oppgaver, isLoading } = trpc.oppgave.hentForProsjekt.useQuery(
+    { projectId: params.prosjektId },
+  );
+
+  const { data: entrepriser } = trpc.entreprise.hentForProsjekt.useQuery({ projectId: params.prosjektId });
+
+  const opprettMutation = trpc.oppgave.opprett.useMutation({
+    onSuccess: () => {
+      utils.oppgave.hentForProsjekt.invalidate({ projectId: params.prosjektId });
+      setVisModal(false);
+      setTittel("");
+      setBeskrivelse("");
+      setPrioritet("medium");
+      setValgtSvarer("");
+    },
+  });
+
+  useVerktoylinje([
+    {
+      id: "ny-oppgave",
+      label: "Ny oppgave",
+      ikon: <Plus className="h-4 w-4" />,
+      onClick: () => setVisModal(true),
+      variant: "primary",
+    },
+  ]);
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!tittel.trim() || !valgtSvarer) return;
+
+    const oppretterEntreprise = entrepriser?.[0];
+    if (!oppretterEntreprise) return;
+
+    opprettMutation.mutate({
+      creatorUserId: "",
+      creatorEnterpriseId: oppretterEntreprise.id,
+      responderEnterpriseId: valgtSvarer,
+      title: tittel.trim(),
+      description: beskrivelse.trim() || undefined,
+      priority: prioritet,
+    });
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center py-12">
+        <Spinner size="lg" />
+      </div>
+    );
+  }
+
+  const filtrerte = oppgaver
+    ? statusFilter
+      ? oppgaver.filter((o) => o.status === statusFilter)
+      : oppgaver
+    : [];
+
+  type OppgaveRad = {
+    id: string;
+    title: string;
+    status: string;
+    priority: string;
+    dueDate: string | null;
+    description: string | null;
+    responderEnterprise: { name: string };
+  };
+
+  return (
+    <div>
+      {!oppgaver?.length ? (
+        <EmptyState
+          title="Ingen oppgaver"
+          description="Opprett oppgaver for å tildele arbeid til entrepriser."
+          action={<Button onClick={() => setVisModal(true)}>Opprett oppgave</Button>}
+        />
+      ) : (
+        <Table<OppgaveRad>
+          kolonner={[
+            {
+              id: "title",
+              header: "Tittel",
+              celle: (rad) => (
+                <div className="flex items-center gap-2">
+                  <span className="font-medium text-gray-900">{rad.title}</span>
+                  <Badge variant={prioritetFarge[rad.priority] ?? "default"}>
+                    {prioriteter.find((p) => p.value === rad.priority)?.label ?? rad.priority}
+                  </Badge>
+                </div>
+              ),
+            },
+            {
+              id: "responder",
+              header: "Svarer",
+              celle: (rad) => (
+                <span className="text-gray-600">{rad.responderEnterprise.name}</span>
+              ),
+            },
+            {
+              id: "dueDate",
+              header: "Frist",
+              celle: (rad) =>
+                rad.dueDate ? (
+                  <span className="text-gray-500">
+                    {new Date(rad.dueDate).toLocaleDateString("nb-NO")}
+                  </span>
+                ) : (
+                  <span className="text-gray-300">—</span>
+                ),
+              bredde: "120px",
+            },
+            {
+              id: "status",
+              header: "Status",
+              celle: (rad) => <StatusBadge status={rad.status} />,
+              bredde: "120px",
+            },
+          ]}
+          data={filtrerte as OppgaveRad[]}
+          radNokkel={(rad) => rad.id}
+          tomMelding="Ingen oppgaver med denne statusen"
+        />
+      )}
+
+      <Modal open={visModal} onClose={() => setVisModal(false)} title="Ny oppgave">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <Input
+            label="Tittel"
+            placeholder="F.eks. Monter brannventiler i 5. etasje"
+            value={tittel}
+            onChange={(e) => setTittel(e.target.value)}
+            required
+          />
+          <Textarea
+            label="Beskrivelse"
+            placeholder="Beskriv oppgaven..."
+            value={beskrivelse}
+            onChange={(e) => setBeskrivelse(e.target.value)}
+          />
+          <Select
+            label="Prioritet"
+            options={prioriteter}
+            value={prioritet}
+            onChange={(e) => setPrioritet(e.target.value as "low" | "medium" | "high" | "critical")}
+          />
+          <Select
+            label="Ansvarlig entreprise"
+            options={entrepriser?.map((ent) => ({ value: ent.id, label: ent.name })) ?? []}
+            value={valgtSvarer}
+            onChange={(e) => setValgtSvarer(e.target.value)}
+            placeholder="Velg entreprise..."
+          />
+          <div className="flex gap-3 pt-2">
+            <Button type="submit" loading={opprettMutation.isPending}>
+              Opprett
+            </Button>
+            <Button type="button" variant="secondary" onClick={() => setVisModal(false)}>
+              Avbryt
+            </Button>
+          </div>
+        </form>
+      </Modal>
+    </div>
+  );
+}

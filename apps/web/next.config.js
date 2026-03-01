@@ -5,6 +5,45 @@ const nextConfig = {
     // Lint kjøres separat via turbo lint
     ignoreDuringBuilds: true,
   },
+  async redirects() {
+    return [
+      {
+        source: "/dashbord/prosjekter/:id",
+        destination: "/dashbord/:id",
+        permanent: true,
+      },
+      {
+        source: "/dashbord/prosjekter/:id/sjekklister",
+        destination: "/dashbord/:id/sjekklister",
+        permanent: true,
+      },
+      {
+        source: "/dashbord/prosjekter/:id/sjekklister/:sjekklisteId",
+        destination: "/dashbord/:id/sjekklister/:sjekklisteId",
+        permanent: true,
+      },
+      {
+        source: "/dashbord/prosjekter/:id/oppgaver",
+        destination: "/dashbord/:id/oppgaver",
+        permanent: true,
+      },
+      {
+        source: "/dashbord/prosjekter/:id/maler",
+        destination: "/dashbord/:id/maler",
+        permanent: true,
+      },
+      {
+        source: "/dashbord/prosjekter/:id/maler/:malId",
+        destination: "/dashbord/:id/maler/:malId",
+        permanent: true,
+      },
+      {
+        source: "/dashbord/prosjekter/:id/entrepriser",
+        destination: "/dashbord/:id/entrepriser",
+        permanent: true,
+      },
+    ];
+  },
 };
 
 module.exports = nextConfig;

@@ -1,33 +1,94 @@
-import { auth } from "@/auth";
+"use client";
 
-export default async function DashbordSide() {
-  const session = await auth();
+import Link from "next/link";
+import { useSession } from "next-auth/react";
+import { trpc } from "@/lib/trpc";
+import { Card, Spinner, StatusBadge, Button, EmptyState } from "@siteflow/ui";
+import { SekundaertPanel } from "@/components/layout/SekundaertPanel";
+import { DashbordPanel } from "@/components/paneler/DashbordPanel";
+import { Plus } from "lucide-react";
+
+export default function DashbordSide() {
+  const { data: session } = useSession();
+  const { data: prosjekter, isLoading } = trpc.prosjekt.hentAlle.useQuery();
 
   return (
-    <div>
-      <h2 className="mb-6 text-2xl font-bold">
-        Velkommen, {session?.user?.name ?? "bruker"}
-      </h2>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-          <h3 className="mb-2 text-xl font-semibold">Prosjekter</h3>
-          <p className="text-sm text-gray-500">
-            Opprett og administrer byggeprosjekter
-          </p>
+    <>
+      <SekundaertPanel tittel="Prosjekter">
+        <DashbordPanel />
+      </SekundaertPanel>
+      <main className="flex-1 overflow-auto bg-gray-50 p-6">
+        <div className="mb-6 flex items-center justify-between">
+          <h2 className="text-xl font-bold text-gray-900">
+            Velkommen, {session?.user?.name ?? "bruker"}
+          </h2>
+          <Link href="/dashbord/prosjekter/nytt">
+            <Button size="sm">
+              <Plus className="mr-1.5 h-4 w-4" />
+              Nytt prosjekt
+            </Button>
+          </Link>
         </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-          <h3 className="mb-2 text-xl font-semibold">Sjekklister</h3>
-          <p className="text-sm text-gray-500">
-            Bygg maler og fyll ut sjekklister
-          </p>
-        </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-          <h3 className="mb-2 text-xl font-semibold">Oppgaver</h3>
-          <p className="text-sm text-gray-500">
-            Tildel og følg opp arbeidsoppgaver
-          </p>
-        </div>
-      </div>
-    </div>
+
+        {isLoading ? (
+          <div className="flex justify-center py-12">
+            <Spinner size="lg" />
+          </div>
+        ) : !prosjekter?.length ? (
+          <EmptyState
+            title="Ingen prosjekter ennå"
+            description="Opprett ditt første byggeprosjekt for å komme i gang."
+            action={
+              <Link href="/dashbord/prosjekter/nytt">
+                <Button>Opprett prosjekt</Button>
+              </Link>
+            }
+          />
+        ) : (
+          <>
+            <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <Card className="text-center">
+                <p className="text-3xl font-bold text-siteflow-primary">
+                  {prosjekter.length}
+                </p>
+                <p className="mt-1 text-sm text-gray-500">Prosjekter</p>
+              </Card>
+              <Card className="text-center">
+                <p className="text-3xl font-bold text-siteflow-secondary">0</p>
+                <p className="mt-1 text-sm text-gray-500">Aktive sjekklister</p>
+              </Card>
+              <Card className="text-center">
+                <p className="text-3xl font-bold text-siteflow-accent">0</p>
+                <p className="mt-1 text-sm text-gray-500">Åpne oppgaver</p>
+              </Card>
+            </div>
+
+            <h3 className="mb-3 text-lg font-semibold">Siste prosjekter</h3>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {prosjekter.slice(0, 6).map((prosjekt) => (
+                <Link key={prosjekt.id} href={`/dashbord/${prosjekt.id}`}>
+                  <Card className="transition-shadow hover:shadow-md">
+                    <div className="mb-2 flex items-start justify-between">
+                      <div>
+                        <h4 className="font-semibold">{prosjekt.name}</h4>
+                        <p className="text-xs text-gray-500">
+                          {prosjekt.projectNumber}
+                        </p>
+                      </div>
+                      <StatusBadge status={prosjekt.status} />
+                    </div>
+                    {prosjekt.description && (
+                      <p className="text-sm text-gray-600 line-clamp-2">
+                        {prosjekt.description}
+                      </p>
+                    )}
+                  </Card>
+                </Link>
+              ))}
+            </div>
+          </>
+        )}
+      </main>
+    </>
   );
 }

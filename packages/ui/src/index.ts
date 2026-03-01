@@ -1,3 +1,14 @@
-// Delte UI-komponenter legges til her
-// Komponenter som fungerer på tvers av web og mobil (via NativeWind/Tailwind)
-export {};
+export { Button } from "./button";
+export { Input } from "./input";
+export { Textarea } from "./textarea";
+export { Select } from "./select";
+export { Card } from "./card";
+export { Badge } from "./badge";
+export { StatusBadge } from "./status-badge";
+export { Spinner } from "./spinner";
+export { Modal } from "./modal";
+export { EmptyState } from "./empty-state";
+export { Tooltip } from "./tooltip";
+export { SidebarIkon } from "./sidebar-ikon";
+export { Table } from "./table";
+export { SearchInput } from "./search-input";
