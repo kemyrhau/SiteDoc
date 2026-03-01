@@ -200,6 +200,59 @@ export type TemplateZone = (typeof TEMPLATE_ZONES)[number];
 // Entreprisevelger-roller
 export type EnterpriseRole = "creator" | "responder";
 
+// Gruppekategorier
+export const GROUP_CATEGORIES = ["generelt", "field", "brukergrupper"] as const;
+export type GroupCategory = (typeof GROUP_CATEGORIES)[number];
+
+// Standardgrupper for prosjekter
+export interface StandardProjectGroup {
+  slug: string;
+  name: string;
+  category: GroupCategory;
+  permissions: string[];
+}
+
+export const STANDARD_PROJECT_GROUPS: StandardProjectGroup[] = [
+  {
+    slug: "field-admin",
+    name: "Field-administratorer",
+    category: "field",
+    permissions: ["manage_field", "create_tasks", "create_checklists"],
+  },
+  {
+    slug: "oppgave-sjekkliste-koord",
+    name: "Oppgave- og sjekklistekoordinatorer",
+    category: "field",
+    permissions: ["create_tasks", "create_checklists"],
+  },
+  {
+    slug: "field-observatorer",
+    name: "Field-observatorer",
+    category: "field",
+    permissions: ["view_field"],
+  },
+  {
+    slug: "hms-ledere",
+    name: "HMS-ledere",
+    category: "field",
+    permissions: ["create_tasks", "create_checklists"],
+  },
+];
+
+// Entreprisebransjer
+export const ENTERPRISE_INDUSTRIES = [
+  "Bygg", "Elektro", "VVS", "Rør", "Ventilasjon", "Tele/data",
+  "Heis", "Maler", "Gulv", "Tømrer", "Murer", "Grunnarbeid",
+  "Prosjektledelse", "Byggherre", "Annet",
+] as const;
+export type EnterpriseIndustry = (typeof ENTERPRISE_INDUSTRIES)[number];
+
+// Entreprisefarger
+export const ENTERPRISE_COLORS = [
+  "blue", "emerald", "purple", "amber", "rose", "teal", "indigo", "orange",
+] as const;
+export type EnterpriseColor = (typeof ENTERPRISE_COLORS)[number];
+
 // Grunnleggende entitetsgrensesnitt
 export interface BaseEntity {
   id: string;

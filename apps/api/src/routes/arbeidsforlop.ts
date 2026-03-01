@@ -3,6 +3,22 @@ import { router, publicProcedure } from "../trpc/trpc";
 import { createWorkflowSchema, updateWorkflowSchema } from "@siteflow/shared";
 
 export const arbeidsforlopRouter = router({
+  // Hent alle arbeidsforløp for alle entrepriser i et prosjekt
+  hentForProsjekt: publicProcedure
+    .input(z.object({ projectId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      return ctx.prisma.workflow.findMany({
+        where: { enterprise: { projectId: input.projectId } },
+        include: {
+          responderEnterprise: { select: { id: true, name: true } },
+          templates: {
+            include: { template: { select: { id: true, name: true, category: true } } },
+          },
+        },
+        orderBy: { name: "asc" },
+      });
+    }),
+
   // Hent alle arbeidsforløp for en entreprise
   hentForEntreprise: publicProcedure
     .input(z.object({ enterpriseId: z.string().uuid() }))
@@ -10,6 +26,7 @@ export const arbeidsforlopRouter = router({
       return ctx.prisma.workflow.findMany({
         where: { enterpriseId: input.enterpriseId },
         include: {
+          responderEnterprise: { select: { id: true, name: true } },
           templates: {
             include: { template: { select: { id: true, name: true, category: true } } },
           },
@@ -31,6 +48,7 @@ export const arbeidsforlopRouter = router({
           },
         },
         include: {
+          responderEnterprise: { select: { id: true, name: true } },
           templates: {
             include: { template: { select: { id: true, name: true, category: true } } },
           },
@@ -38,13 +56,13 @@ export const arbeidsforlopRouter = router({
       });
     }),
 
-  // Oppdater arbeidsforløp — navn og/eller maltilknytninger
+  // Oppdater arbeidsforløp — navn, svarer-entreprise og/eller maltilknytninger
   oppdater: publicProcedure
     .input(updateWorkflowSchema)
     .mutation(async ({ ctx, input }) => {
       const { id, templateIds, ...data } = input;
 
-      // Oppdater navn hvis gitt
+      // Oppdater navn og/eller responderEnterpriseId hvis gitt
       if (Object.keys(data).length > 0) {
         await ctx.prisma.workflow.update({ where: { id }, data });
       }
@@ -62,6 +80,7 @@ export const arbeidsforlopRouter = router({
       return ctx.prisma.workflow.findUniqueOrThrow({
         where: { id },
         include: {
+          responderEnterprise: { select: { id: true, name: true } },
           templates: {
             include: { template: { select: { id: true, name: true, category: true } } },
           },

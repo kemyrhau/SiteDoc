@@ -170,6 +170,9 @@ model Enterprise {
   projectId          String   @map("project_id")
   name               String
   organizationNumber String?  @map("organization_number")
+  color              String?
+  industry           String?
+  companyName        String?  @map("company_name")
   createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @updatedAt @map("updated_at")
 

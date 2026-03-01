@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { DOCUMENT_STATUSES, REPORT_OBJECT_TYPES, TEMPLATE_ZONES } from "../types";
+import { DOCUMENT_STATUSES, REPORT_OBJECT_TYPES, TEMPLATE_ZONES, GROUP_CATEGORIES } from "../types";
 
 // Dokumentstatus-validering
 export const documentStatusSchema = z.enum(DOCUMENT_STATUSES);
@@ -32,6 +32,15 @@ export const createEnterpriseSchema = z.object({
   name: z.string().min(1).max(255),
   projectId: z.string().uuid(),
   organizationNumber: z.string().optional(),
+  color: z.string().max(50).optional(),
+  industry: z.string().max(100).optional(),
+  companyName: z.string().max(255).optional(),
+});
+
+// Kopier entreprise
+export const copyEnterpriseSchema = z.object({
+  sourceEnterpriseId: z.string().uuid(),
+  targetProjectId: z.string().uuid(),
 });
 
 // Bygningsvalidering
@@ -45,15 +54,34 @@ export const createBuildingSchema = z.object({
 // Malkategori-validering
 export const templateCategorySchema = z.enum(["oppgave", "sjekkliste"]);
 
+// Prefiks-validering (kan ikke avsluttes med tall)
+export const templatePrefixSchema = z
+  .string()
+  .max(20)
+  .refine((val) => !val || !/\d$/.test(val), "Prefiks kan ikke avsluttes med et nummer")
+  .optional();
+
+// Opprett mal-validering
+export const createTemplateSchema = z.object({
+  projectId: z.string().uuid(),
+  name: z.string().min(1, "Navn er påkrevd").max(255),
+  prefix: templatePrefixSchema,
+  description: z.string().optional(),
+  category: templateCategorySchema.default("sjekkliste"),
+  workflowIds: z.array(z.string().uuid()).default([]),
+});
+
 // Arbeidsforløpvalidering
 export const createWorkflowSchema = z.object({
   enterpriseId: z.string().uuid(),
+  responderEnterpriseId: z.string().uuid().nullable().optional(),
   name: z.string().min(1).max(255),
   templateIds: z.array(z.string().uuid()).default([]),
 });
 
 export const updateWorkflowSchema = z.object({
   id: z.string().uuid(),
+  responderEnterpriseId: z.string().uuid().nullable().optional(),
   name: z.string().min(1).max(255).optional(),
   templateIds: z.array(z.string().uuid()).optional(),
 });
@@ -106,4 +134,30 @@ export const createDrawingSchema = z.object({
   fileUrl: z.string(),
   fileType: z.string(),
   fileSize: z.number().int().optional(),
+});
+
+// Gruppekategori-validering
+export const groupCategorySchema = z.enum(GROUP_CATEGORIES);
+
+// Prosjektgruppe-validering
+export const createProjectGroupSchema = z.object({
+  projectId: z.string().uuid(),
+  name: z.string().min(1).max(255),
+  slug: z.string().max(100).optional(),
+  category: groupCategorySchema.default("brukergrupper"),
+});
+
+export const updateProjectGroupSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string().min(1).max(255).optional(),
+});
+
+// Legg til gruppemedlem via e-post
+export const addGroupMemberByEmailSchema = z.object({
+  groupId: z.string().uuid(),
+  projectId: z.string().uuid(),
+  email: z.string().email("Ugyldig e-postadresse"),
+  firstName: z.string().min(1, "Fornavn er påkrevd"),
+  lastName: z.string().min(1, "Etternavn er påkrevd"),
+  phone: z.string().optional(),
 });

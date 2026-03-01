@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { trpc } from "@/lib/trpc";
 import { Button, Input, Textarea, Modal, Spinner, EmptyState, SearchInput } from "@siteflow/ui";
-import { Plus, Pencil, Trash2, MoreVertical, ChevronDown, Lock } from "lucide-react";
+import { Plus, Pencil, Trash2, MoreVertical, ChevronDown, Lock, Building2 } from "lucide-react";
+import { EntrepriseTilknytningModal } from "./EntrepriseTilknytningModal";
 
 type MalKategori = "oppgave" | "sjekkliste";
 
@@ -112,6 +113,10 @@ export function MalListe({
   const [navn, setNavn] = useState("");
   const [prefiks, setPrefiks] = useState("");
   const [beskrivelse, setBeskrivelse] = useState("");
+  const [prefiksFeil, setPrefiksFeil] = useState<string | null>(null);
+  const [valgteWorkflowIds, setValgteWorkflowIds] = useState<Set<string>>(new Set());
+  const [visEntrepriseTilknytning, setVisEntrepriseTilknytning] = useState(false);
+  const [aktiverOppretting, setAktiverOppretting] = useState(true);
 
   // Rediger-felter
   const [redigerNavn, setRedigerNavn] = useState("");
@@ -126,10 +131,13 @@ export function MalListe({
   const opprettMutation = trpc.mal.opprett.useMutation({
     onSuccess: () => {
       utils.mal.hentForProsjekt.invalidate({ projectId: prosjektId! });
+      utils.arbeidsforlop.hentForProsjekt.invalidate({ projectId: prosjektId! });
       setVisOpprettModal(false);
       setNavn("");
       setPrefiks("");
       setBeskrivelse("");
+      setPrefiksFeil(null);
+      setValgteWorkflowIds(new Set());
     },
   });
 
@@ -148,15 +156,26 @@ export function MalListe({
     },
   });
 
+  function handlePrefiksEndring(verdi: string) {
+    setPrefiks(verdi);
+    if (verdi && /\d$/.test(verdi)) {
+      setPrefiksFeil("Prefiks kan ikke avsluttes med et nummer");
+    } else {
+      setPrefiksFeil(null);
+    }
+  }
+
   function handleOpprett(e: React.FormEvent) {
     e.preventDefault();
     if (!navn.trim() || !prosjektId) return;
+    if (prefiksFeil) return;
     opprettMutation.mutate({
       projectId: prosjektId,
       name: navn.trim(),
       prefix: prefiks.trim() || undefined,
       description: beskrivelse.trim() || undefined,
       category: kategori,
+      workflowIds: Array.from(valgteWorkflowIds),
     });
   }
 
@@ -401,18 +420,55 @@ export function MalListe({
             label="Prefiks"
             placeholder="F.eks. BHO, S-BET, KBO..."
             value={prefiks}
-            onChange={(e) => setPrefiks(e.target.value)}
+            onChange={(e) => handlePrefiksEndring(e.target.value)}
+            error={prefiksFeil ?? undefined}
           />
-          <Textarea
-            label="Beskrivelse"
-            placeholder="Beskriv hva malen skal brukes til..."
-            value={beskrivelse}
-            onChange={(e) => setBeskrivelse(e.target.value)}
-          />
+
+          {/* Entreprisetilknytning */}
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium text-gray-700">
+              Entreprise
+            </label>
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-gray-500">
+                {valgteWorkflowIds.size === 0
+                  ? "Ingen entrepriser er valgt"
+                  : `${valgteWorkflowIds.size} arbeidsforløp valgt`}
+              </span>
+              <button
+                type="button"
+                onClick={() => setVisEntrepriseTilknytning(true)}
+                className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                <Building2 className="h-3.5 w-3.5" />
+                Velg
+              </button>
+            </div>
+          </div>
+
+          {/* Innstillinger */}
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium text-gray-700">
+              Innstillinger
+            </label>
+            <label className="flex items-center gap-2 cursor-not-allowed opacity-60">
+              <input
+                type="checkbox"
+                className="h-4 w-4 rounded border-gray-300"
+                checked={aktiverOppretting}
+                disabled
+                readOnly
+              />
+              <span className="text-sm text-gray-500">
+                Aktiver oppretting av nye {kategori === "sjekkliste" ? "sjekklister" : "oppgaver"}
+              </span>
+              <span className="ml-1 rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-400">
+                kommer snart
+              </span>
+            </label>
+          </div>
+
           <div className="flex gap-3 pt-2">
-            <Button type="submit" loading={opprettMutation.isPending}>
-              Opprett
-            </Button>
             <Button
               type="button"
               variant="secondary"
@@ -420,9 +476,27 @@ export function MalListe({
             >
               Avbryt
             </Button>
+            <Button type="submit" loading={opprettMutation.isPending} disabled={!!prefiksFeil}>
+              OK
+            </Button>
           </div>
         </form>
       </Modal>
+
+      {/* Entreprisetilknytning-modal (sekundær, z-60) */}
+      {prosjektId && (
+        <EntrepriseTilknytningModal
+          open={visEntrepriseTilknytning}
+          onClose={() => setVisEntrepriseTilknytning(false)}
+          prosjektId={prosjektId}
+          kategori={kategori}
+          valgteWorkflowIds={valgteWorkflowIds}
+          onBekreft={(ids) => {
+            setValgteWorkflowIds(ids);
+            setVisEntrepriseTilknytning(false);
+          }}
+        />
+      )}
 
       {/* Rediger-modal */}
       <Modal

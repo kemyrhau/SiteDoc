@@ -277,6 +277,68 @@ async function seed() {
   });
 
   console.log("  Mappestruktur opprettet");
+
+  // Opprett standardgrupper for prosjektet
+  const fieldAdminGruppe = await prisma.projectGroup.create({
+    data: {
+      projectId: prosjekt.id,
+      name: "Field-administratorer",
+      slug: "field-admin",
+      category: "field",
+      permissions: ["manage_field", "create_tasks", "create_checklists"],
+      isDefault: true,
+    },
+  });
+
+  await prisma.projectGroup.createMany({
+    data: [
+      {
+        projectId: prosjekt.id,
+        name: "Oppgave- og sjekklistekoordinatorer",
+        slug: "oppgave-sjekkliste-koord",
+        category: "field",
+        permissions: ["create_tasks", "create_checklists"],
+        isDefault: true,
+      },
+      {
+        projectId: prosjekt.id,
+        name: "Field-observatorer",
+        slug: "field-observatorer",
+        category: "field",
+        permissions: ["view_field"],
+        isDefault: true,
+      },
+      {
+        projectId: prosjekt.id,
+        name: "HMS-ledere",
+        slug: "hms-ledere",
+        category: "field",
+        permissions: ["create_tasks", "create_checklists"],
+        isDefault: true,
+      },
+    ],
+  });
+
+  // Hent bruker1 sitt prosjektmedlemskap og legg til i Field-admin
+  const bruker1Medlem = await prisma.projectMember.findUnique({
+    where: {
+      userId_projectId: {
+        userId: bruker1.id,
+        projectId: prosjekt.id,
+      },
+    },
+  });
+
+  if (bruker1Medlem) {
+    await prisma.projectGroupMember.create({
+      data: {
+        groupId: fieldAdminGruppe.id,
+        projectMemberId: bruker1Medlem.id,
+      },
+    });
+  }
+
+  console.log("  Prosjektgrupper opprettet (bruker1 i Field-admin)");
   console.log("\nSeeding fullført!");
 }
 

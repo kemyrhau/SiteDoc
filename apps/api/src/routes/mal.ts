@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { Prisma } from "@siteflow/db";
 import { router, publicProcedure } from "../trpc/trpc";
-import { reportObjectTypeSchema, templateZoneSchema } from "@siteflow/shared";
+import { reportObjectTypeSchema, templateZoneSchema, createTemplateSchema } from "@siteflow/shared";
 
 // Config-schema: aksepterer vilkårlig JSON for rapportobjekt-konfigurasjon
 const configSchema = z.preprocess(
@@ -36,19 +36,26 @@ export const malRouter = router({
       });
     }),
 
-  // Opprett ny mal
+  // Opprett ny mal (med valgfri entreprisetilknytning via arbeidsforløp)
   opprett: publicProcedure
-    .input(
-      z.object({
-        projectId: z.string().uuid(),
-        name: z.string().min(1).max(255),
-        description: z.string().optional(),
-        prefix: z.string().max(20).optional(),
-        category: z.enum(["oppgave", "sjekkliste"]).default("sjekkliste"),
-      }),
-    )
+    .input(createTemplateSchema)
     .mutation(async ({ ctx, input }) => {
-      return ctx.prisma.reportTemplate.create({ data: input });
+      const { workflowIds, ...malData } = input;
+
+      return ctx.prisma.$transaction(async (tx) => {
+        const mal = await tx.reportTemplate.create({ data: malData });
+
+        if (workflowIds.length > 0) {
+          await tx.workflowTemplate.createMany({
+            data: workflowIds.map((workflowId) => ({
+              workflowId,
+              templateId: mal.id,
+            })),
+          });
+        }
+
+        return mal;
+      });
     }),
 
   // Oppdater mal (navn, beskrivelse, prefiks)

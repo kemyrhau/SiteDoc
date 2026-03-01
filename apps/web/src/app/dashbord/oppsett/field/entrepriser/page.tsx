@@ -6,6 +6,7 @@ import { trpc } from "@/lib/trpc";
 import {
   Button,
   Input,
+  Select,
   Modal,
   Spinner,
   EmptyState,
@@ -21,25 +22,70 @@ import {
   Pencil,
   Trash2,
   Workflow as WorkflowIcon,
+  ArrowRight,
+  Check,
 } from "lucide-react";
+import { ENTERPRISE_INDUSTRIES, ENTERPRISE_COLORS } from "@siteflow/shared";
 
 /* ------------------------------------------------------------------ */
-/*  Fargepalett for entrepriser                                        */
+/*  Fargepalett for entrepriser (delt modul)                            */
 /* ------------------------------------------------------------------ */
 
-const entrepriseFarger = [
-  { bg: "bg-blue-600", border: "border-blue-700", tekst: "text-white" },
-  { bg: "bg-emerald-600", border: "border-emerald-700", tekst: "text-white" },
-  { bg: "bg-purple-600", border: "border-purple-700", tekst: "text-white" },
-  { bg: "bg-amber-500", border: "border-amber-600", tekst: "text-white" },
-  { bg: "bg-rose-600", border: "border-rose-700", tekst: "text-white" },
-  { bg: "bg-teal-600", border: "border-teal-700", tekst: "text-white" },
-  { bg: "bg-indigo-600", border: "border-indigo-700", tekst: "text-white" },
-  { bg: "bg-orange-600", border: "border-orange-700", tekst: "text-white" },
-];
+import {
+  hentFarge,
+  hentFargeForEntreprise,
+  FARGE_MAP,
+} from "../_components/entreprise-farger";
 
-function hentFarge(indeks: number) {
-  return entrepriseFarger[indeks % entrepriseFarger.length]!;
+/* ------------------------------------------------------------------ */
+/*  Fargevelger-komponent                                              */
+/* ------------------------------------------------------------------ */
+
+function FargeVelger({
+  valgt,
+  onChange,
+}: {
+  valgt: string;
+  onChange: (farge: string) => void;
+}) {
+  const fargeKlasser: Record<string, string> = {
+    blue: "bg-blue-600",
+    emerald: "bg-emerald-600",
+    purple: "bg-purple-600",
+    amber: "bg-amber-500",
+    rose: "bg-rose-600",
+    teal: "bg-teal-600",
+    indigo: "bg-indigo-600",
+    orange: "bg-orange-600",
+  };
+
+  return (
+    <div className="flex items-center gap-2">
+      {ENTERPRISE_COLORS.map((farge) => (
+        <button
+          key={farge}
+          type="button"
+          onClick={() => onChange(farge)}
+          className={`h-6 w-6 rounded-full ${fargeKlasser[farge]} ${
+            valgt === farge ? "ring-2 ring-offset-2 ring-gray-400" : ""
+          }`}
+          title={farge}
+        />
+      ))}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Hjelpefunksjon for svarer-farge                                    */
+/* ------------------------------------------------------------------ */
+
+function hentEntrepriseFargeIndeks(
+  entrepriseId: string,
+  alleEntrepriser: EntrepriseData[],
+): number {
+  const idx = alleEntrepriser.findIndex((e) => e.id === entrepriseId);
+  return idx >= 0 ? idx : 0;
 }
 
 /* ------------------------------------------------------------------ */
@@ -101,12 +147,14 @@ function TreprikkMeny({
 }
 
 /* ------------------------------------------------------------------ */
-/*  Arbeidsforløp-rad                                                  */
+/*  Arbeidsforløp-rad (to-kolonne med pil)                             */
 /* ------------------------------------------------------------------ */
 
 interface ArbeidsforlopData {
   id: string;
   name: string;
+  responderEnterpriseId: string | null;
+  responderEnterprise: { id: string; name: string } | null;
   templates: Array<{
     template: { id: string; name: string; category: string };
   }>;
@@ -114,12 +162,14 @@ interface ArbeidsforlopData {
 
 function ArbeidsforlopRad({
   arbeidsforlop,
-  entrepriseNavn,
-  onRediger: _onRediger,
+  entreprise,
+  alleEntrepriser,
+  onRediger,
   onSlett,
 }: {
   arbeidsforlop: ArbeidsforlopData;
-  entrepriseNavn: string;
+  entreprise: EntrepriseData;
+  alleEntrepriser: EntrepriseData[];
   onRediger: (af: ArbeidsforlopData) => void;
   onSlett: (id: string) => void;
 }) {
@@ -133,57 +183,94 @@ function ArbeidsforlopRad({
   );
 
   const oppsummering = [
-    oppgaveMaler.length > 0 ? `Oppgaver: ${oppgaveMaler.length}` : null,
-    sjekklisteMaler.length > 0
-      ? `Sjekklister: ${sjekklisteMaler.length}`
-      : null,
+    oppgaveMaler.length > 0 ? `${oppgaveMaler.length} oppg.` : null,
+    sjekklisteMaler.length > 0 ? `${sjekklisteMaler.length} sjekk.` : null,
   ]
     .filter(Boolean)
-    .join(" · ");
+    .join(" + ");
+
+  // Svarer-info
+  const svarerNavn = arbeidsforlop.responderEnterprise?.name ?? entreprise.name;
+  const svarerErSamme = !arbeidsforlop.responderEnterpriseId ||
+    arbeidsforlop.responderEnterpriseId === entreprise.id;
+  const svarerFargeIdx = arbeidsforlop.responderEnterpriseId
+    ? hentEntrepriseFargeIndeks(arbeidsforlop.responderEnterpriseId, alleEntrepriser)
+    : entreprise.fargeIndeks;
+  const svarerFarge = hentFargeForEntreprise(
+    alleEntrepriser.find((e) => e.id === arbeidsforlop.responderEnterpriseId)?.color ?? null,
+    svarerFargeIdx,
+  );
 
   return (
     <div>
-      <div className="flex items-center gap-1 py-2 pl-4 pr-2">
-        <button
-          onClick={() => setEkspandert(!ekspandert)}
-          className="flex flex-1 items-center gap-2 text-left"
-        >
-          {ekspandert ? (
-            <ChevronDown className="h-4 w-4 text-gray-400" />
-          ) : (
-            <ChevronRight className="h-4 w-4 text-gray-400" />
-          )}
-          <WorkflowIcon className="h-4 w-4 text-gray-400" />
-          <span className="text-sm font-medium text-gray-800">
-            {arbeidsforlop.name}
-          </span>
-          {oppsummering && (
-            <span className="ml-2 text-xs text-gray-400">{oppsummering}</span>
-          )}
-        </button>
+      <div className="flex items-center gap-0 py-1.5">
+        {/* Venstre: Arbeidsforløp-navn (i oppretter-kolonnen) */}
+        <div className="w-[248px] pl-4 pr-2">
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setEkspandert(!ekspandert)}
+              className="flex flex-1 items-center gap-1.5 text-left"
+            >
+              {ekspandert ? (
+                <ChevronDown className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+              ) : (
+                <ChevronRight className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+              )}
+              <WorkflowIcon className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+              <span className="truncate text-sm font-medium text-gray-700">
+                {arbeidsforlop.name}
+              </span>
+              {oppsummering && (
+                <span className="ml-1 shrink-0 text-xs text-gray-400">
+                  ({oppsummering})
+                </span>
+              )}
+            </button>
+            <TreprikkMeny
+              handlinger={[
+                {
+                  label: "Rediger arbeidsforløp",
+                  ikon: <Pencil className="h-4 w-4 text-gray-400" />,
+                  onClick: () => onRediger(arbeidsforlop),
+                },
+                {
+                  label: "Slett arbeidsforløp",
+                  ikon: <Trash2 className="h-4 w-4 text-red-400" />,
+                  onClick: () => onSlett(arbeidsforlop.id),
+                  fare: true,
+                },
+              ]}
+            />
+          </div>
+        </div>
 
-        <TreprikkMeny
-          handlinger={[
-            {
-              label: "Rediger arbeidsforløp",
-              ikon: <Pencil className="h-4 w-4 text-gray-400" />,
-              onClick: () => _onRediger(arbeidsforlop),
-            },
-            {
-              label: "Slett arbeidsforløp",
-              ikon: <Trash2 className="h-4 w-4 text-red-400" />,
-              onClick: () => onSlett(arbeidsforlop.id),
-              fare: true,
-            },
-          ]}
-        />
+        {/* Midt: Pil */}
+        <div className="flex w-[64px] items-center justify-center">
+          <div className="flex items-center">
+            <div className="h-px w-4 bg-gray-300" />
+            <ArrowRight className="h-4 w-4 text-gray-400" />
+            <div className="h-px w-4 bg-gray-300" />
+          </div>
+        </div>
+
+        {/* Høyre: Svarer-entreprise badge */}
+        <div className="w-[248px]">
+          <div
+            className={`inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 ${svarerFarge.lyseBg} ${svarerFarge.lyseBorder}`}
+          >
+            <span className={`text-sm font-medium ${svarerFarge.lyseTekst}`}>
+              {svarerNavn}
+            </span>
+            {svarerErSamme && (
+              <span className="text-xs text-gray-400">(samme)</span>
+            )}
+          </div>
+        </div>
       </div>
 
+      {/* Ekspandert detaljer */}
       {ekspandert && (
-        <div className="mb-2 ml-12 mr-4 rounded-lg border border-gray-100 bg-gray-50 px-4 py-3">
-          <p className="mb-1 text-xs font-medium text-gray-500">
-            Entreprise: {entrepriseNavn}
-          </p>
+        <div className="mb-1 ml-10 mr-4 rounded-lg border border-gray-100 bg-gray-50 px-4 py-3">
           {oppgaveMaler.length > 0 && (
             <div className="mb-2">
               <p className="text-xs font-semibold text-gray-600">Oppgavetyper</p>
@@ -220,19 +307,23 @@ function ArbeidsforlopRad({
 }
 
 /* ------------------------------------------------------------------ */
-/*  Entreprise-gruppe                                                  */
+/*  Entreprise-gruppe (to-kolonne)                                     */
 /* ------------------------------------------------------------------ */
 
 interface EntrepriseData {
   id: string;
   name: string;
   organizationNumber: string | null;
+  color: string | null;
+  industry: string | null;
+  companyName: string | null;
   fargeIndeks: number;
 }
 
 function EntrepriseGruppeKomponent({
   entreprise,
   arbeidsforloper,
+  alleEntrepriser,
   onRedigerEntreprise,
   onSlettEntreprise,
   onLeggTilArbeidsforlop,
@@ -241,6 +332,7 @@ function EntrepriseGruppeKomponent({
 }: {
   entreprise: EntrepriseData;
   arbeidsforloper: ArbeidsforlopData[];
+  alleEntrepriser: EntrepriseData[];
   onRedigerEntreprise: (id: string) => void;
   onSlettEntreprise: (id: string) => void;
   onLeggTilArbeidsforlop: (enterpriseId: string) => void;
@@ -248,13 +340,19 @@ function EntrepriseGruppeKomponent({
   onSlettArbeidsforlop: (id: string) => void;
 }) {
   const [ekspandert, setEkspandert] = useState(true);
-  const farge = hentFarge(entreprise.fargeIndeks);
+  const farge = hentFargeForEntreprise(entreprise.color, entreprise.fargeIndeks);
+
+  // Vis "Navn, FIRMA" i header som Dalux
+  const headerTekst = entreprise.companyName
+    ? `${entreprise.name}, ${entreprise.companyName.toUpperCase()}`
+    : entreprise.name;
 
   return (
     <div className="mb-4">
-      {/* Entreprise-header */}
+      {/* Entreprise-header — kun oppretter-kolonnen */}
       <div
         className={`flex items-center rounded-t-lg ${farge.bg} ${farge.border} border`}
+        style={{ width: 280 }}
       >
         <button
           onClick={() => setEkspandert(!ekspandert)}
@@ -265,14 +363,14 @@ function EntrepriseGruppeKomponent({
           ) : (
             <ChevronRight className={`h-4 w-4 ${farge.tekst}`} />
           )}
-          <span className={`text-sm font-semibold ${farge.tekst}`}>
-            {entreprise.name}
+          <span className={`text-sm font-semibold ${farge.tekst} truncate`}>
+            {headerTekst}
           </span>
         </button>
 
         <div className="mr-2">
           <TreprikkMeny
-            className={`[&_button]:${farge.tekst} [&>button]:text-white [&>button]:hover:bg-white/20`}
+            className="[&>button]:text-white [&>button]:hover:bg-white/20"
             handlinger={[
               {
                 label: "Legg til arbeidsforløp",
@@ -298,13 +396,15 @@ function EntrepriseGruppeKomponent({
       {ekspandert && (
         <div
           className={`rounded-b-lg border border-t-0 ${farge.border} bg-white py-1`}
+          style={{ width: "fit-content", minWidth: 280 }}
         >
           {arbeidsforloper.length > 0 ? (
             arbeidsforloper.map((af) => (
               <ArbeidsforlopRad
                 key={af.id}
                 arbeidsforlop={af}
-                entrepriseNavn={entreprise.name}
+                entreprise={entreprise}
+                alleEntrepriser={alleEntrepriser}
                 onRediger={(data) =>
                   onRedigerArbeidsforlop(data, entreprise.name)
                 }
@@ -333,7 +433,9 @@ function RedigerArbeidsforlopModal({
   arbeidsforlopId,
   initialNavn,
   initialTemplateIds,
+  initialResponderEnterpriseId,
   maler,
+  entrepriser,
   erLagrer,
   onLagre,
 }: {
@@ -343,13 +445,22 @@ function RedigerArbeidsforlopModal({
   arbeidsforlopId: string | null;
   initialNavn: string;
   initialTemplateIds: string[];
+  initialResponderEnterpriseId: string | null;
   maler: Array<{ id: string; name: string; category: string }>;
+  entrepriser: Array<{ id: string; name: string }>;
   erLagrer: boolean;
-  onLagre: (data: { navn: string; templateIds: string[] }) => void;
+  onLagre: (data: {
+    navn: string;
+    templateIds: string[];
+    responderEnterpriseId: string | null;
+  }) => void;
 }) {
   const [navn, setNavn] = useState(initialNavn);
   const [valgte, setValgte] = useState<Set<string>>(
     new Set(initialTemplateIds),
+  );
+  const [svarerEntrepriseId, setSvarerEntrepriseId] = useState<string>(
+    initialResponderEnterpriseId ?? "",
   );
 
   // Synkroniser ved åpning
@@ -357,6 +468,7 @@ function RedigerArbeidsforlopModal({
   if (open && !forrigeOpen) {
     setNavn(initialNavn);
     setValgte(new Set(initialTemplateIds));
+    setSvarerEntrepriseId(initialResponderEnterpriseId ?? "");
   }
   if (open !== forrigeOpen) setForrigeOpen(open);
 
@@ -375,6 +487,11 @@ function RedigerArbeidsforlopModal({
     });
   }
 
+  const svarerOptions = [
+    { value: "", label: "Samme entreprise" },
+    ...entrepriser.map((e) => ({ value: e.id, label: e.name })),
+  ];
+
   return (
     <Modal
       open={open}
@@ -385,12 +502,16 @@ function RedigerArbeidsforlopModal({
         onSubmit={(e) => {
           e.preventDefault();
           if (!navn.trim()) return;
-          onLagre({ navn: navn.trim(), templateIds: Array.from(valgte) });
+          onLagre({
+            navn: navn.trim(),
+            templateIds: Array.from(valgte),
+            responderEnterpriseId: svarerEntrepriseId || null,
+          });
         }}
         className="flex flex-col gap-4"
       >
         <div className="text-sm text-gray-600">
-          <span className="font-medium text-gray-900">Entreprise</span>{" "}
+          <span className="font-medium text-gray-900">Oppretter-entreprise:</span>{" "}
           {entrepriseNavn}
         </div>
 
@@ -400,6 +521,13 @@ function RedigerArbeidsforlopModal({
           value={navn}
           onChange={(e) => setNavn(e.target.value)}
           required
+        />
+
+        <Select
+          label="Svarer-entreprise"
+          options={svarerOptions}
+          value={svarerEntrepriseId}
+          onChange={(e) => setSvarerEntrepriseId(e.target.value)}
         />
 
         {/* To-kolonne avhukingsliste */}
@@ -515,23 +643,398 @@ function RedigerArbeidsforlopModal({
 }
 
 /* ------------------------------------------------------------------ */
+/*  Entreprise-veiviser (multi-step wizard)                            */
+/* ------------------------------------------------------------------ */
+
+type VeiviserMetode = "kopier" | "mal" | "importer" | "tom";
+
+function EntrepriseVeiviser({
+  open,
+  onClose,
+  prosjektId,
+  entrepriser,
+  prosjekter,
+  onOpprettet,
+}: {
+  open: boolean;
+  onClose: () => void;
+  prosjektId: string;
+  entrepriser: EntrepriseData[];
+  prosjekter: Array<{ id: string; name: string; projectNumber: string }>;
+  onOpprettet: () => void;
+}) {
+  const [steg, setSteg] = useState(1);
+  const [metode, setMetode] = useState<VeiviserMetode>("tom");
+
+  // Steg 1 — Kopier fra nåværende
+  const [kopierEntrepriseId, setKopierEntrepriseId] = useState("");
+
+  // Steg 2b — Importer fra annet prosjekt
+  const [importProsjektId, setImportProsjektId] = useState("");
+  const [importEntrepriseId, setImportEntrepriseId] = useState("");
+
+  // Steg 2c — Opprett tom
+  const [nyNavn, setNyNavn] = useState("");
+  const [nyFarge, setNyFarge] = useState<string>("blue");
+  const [nyBransje, setNyBransje] = useState("");
+  const [nyFirma, setNyFirma] = useState("");
+
+  // Lazy-loaded entrepriser for import-prosjektet
+  const { data: importEntrepriser } =
+    trpc.entreprise.hentForProsjekt.useQuery(
+      { projectId: importProsjektId },
+      { enabled: !!importProsjektId && metode === "importer" },
+    );
+
+  const utils = trpc.useUtils();
+
+  const opprettMutation = trpc.entreprise.opprett.useMutation({
+    onSuccess: () => {
+      utils.entreprise.hentForProsjekt.invalidate({ projectId: prosjektId });
+      utils.arbeidsforlop.hentForProsjekt.invalidate({ projectId: prosjektId });
+      onOpprettet();
+      lukkOgNullstill();
+    },
+  });
+
+  const kopierMutation = trpc.entreprise.kopier.useMutation({
+    onSuccess: () => {
+      utils.entreprise.hentForProsjekt.invalidate({ projectId: prosjektId });
+      utils.arbeidsforlop.hentForProsjekt.invalidate({ projectId: prosjektId });
+      onOpprettet();
+      lukkOgNullstill();
+    },
+  });
+
+  function lukkOgNullstill() {
+    setSteg(1);
+    setMetode("tom");
+    setKopierEntrepriseId("");
+    setImportProsjektId("");
+    setImportEntrepriseId("");
+    setNyNavn("");
+    setNyFarge("blue");
+    setNyBransje("");
+    setNyFirma("");
+    onClose();
+  }
+
+  const erLagrer = opprettMutation.isPending || kopierMutation.isPending;
+  const andreProsjekter = prosjekter.filter((p) => p.id !== prosjektId);
+  const harAndreProsjekter = andreProsjekter.length > 0;
+  const harEntrepriser = entrepriser.length > 0;
+
+  // Synkroniser state ved åpning
+  const [forrigeOpen, setForrigeOpen] = useState(false);
+  if (open && !forrigeOpen) {
+    setSteg(1);
+    setMetode("tom");
+    setKopierEntrepriseId("");
+    setImportProsjektId("");
+    setImportEntrepriseId("");
+    setNyNavn("");
+    setNyFarge("blue");
+    setNyBransje("");
+    setNyFirma("");
+  }
+  if (open !== forrigeOpen) setForrigeOpen(open);
+
+  function handleNeste() {
+    if (steg === 1) {
+      if (metode === "kopier" && kopierEntrepriseId) {
+        kopierMutation.mutate({
+          sourceEnterpriseId: kopierEntrepriseId,
+          targetProjectId: prosjektId,
+        });
+        return;
+      }
+      setSteg(2);
+      return;
+    }
+
+    if (steg === 2) {
+      if (metode === "importer" && importEntrepriseId) {
+        kopierMutation.mutate({
+          sourceEnterpriseId: importEntrepriseId,
+          targetProjectId: prosjektId,
+        });
+        return;
+      }
+
+      if (metode === "tom" && nyNavn.trim()) {
+        opprettMutation.mutate({
+          name: nyNavn.trim(),
+          projectId: prosjektId,
+          color: nyFarge || undefined,
+          industry: nyBransje.trim() || undefined,
+          companyName: nyFirma.trim() || undefined,
+        });
+        return;
+      }
+    }
+  }
+
+  const kanGaVidere = (() => {
+    if (steg === 1) {
+      if (metode === "kopier") return !!kopierEntrepriseId;
+      if (metode === "mal") return false;
+      if (metode === "importer") return harAndreProsjekter;
+      return true; // tom
+    }
+    if (steg === 2) {
+      if (metode === "importer") return !!importEntrepriseId;
+      if (metode === "tom") return !!nyNavn.trim();
+    }
+    return false;
+  })();
+
+  return (
+    <Modal
+      open={open}
+      onClose={lukkOgNullstill}
+      title="Legg til entreprise"
+    >
+      <div className="flex flex-col gap-5">
+        {steg === 1 && (
+          <>
+            <p className="text-sm text-gray-600">
+              Velg hvordan du vil legge til en entreprise:
+            </p>
+            <div className="flex flex-col gap-2">
+              {/* Kopier fra nåværende prosjekt */}
+              <label
+                className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 ${
+                  metode === "kopier" ? "border-blue-500 bg-blue-50" : "border-gray-200 hover:bg-gray-50"
+                } ${!harEntrepriser ? "cursor-not-allowed opacity-50" : ""}`}
+              >
+                <input
+                  type="radio"
+                  name="metode"
+                  value="kopier"
+                  checked={metode === "kopier"}
+                  onChange={() => setMetode("kopier")}
+                  disabled={!harEntrepriser}
+                  className="mt-0.5 accent-siteflow-primary"
+                />
+                <div className="flex-1">
+                  <span className="text-sm font-medium text-gray-900">
+                    Kopier entreprise fra nåværende prosjekt
+                  </span>
+                  {metode === "kopier" && harEntrepriser && (
+                    <div className="mt-2">
+                      <Select
+                        options={[
+                          { value: "", label: "Velg entreprise..." },
+                          ...entrepriser.map((e) => ({ value: e.id, label: e.name })),
+                        ]}
+                        value={kopierEntrepriseId}
+                        onChange={(e) => setKopierEntrepriseId(e.target.value)}
+                      />
+                    </div>
+                  )}
+                </div>
+              </label>
+
+              {/* Fra prosjektstandard (disabled) */}
+              <label className="flex cursor-not-allowed items-start gap-3 rounded-lg border border-gray-200 p-3 opacity-50">
+                <input
+                  type="radio"
+                  name="metode"
+                  disabled
+                  className="mt-0.5 accent-siteflow-primary"
+                />
+                <div>
+                  <span className="text-sm font-medium text-gray-900">
+                    Opprett entreprise fra en mal i en prosjektstandard
+                  </span>
+                  <span className="ml-1 text-xs text-gray-400">(kommer)</span>
+                </div>
+              </label>
+
+              {/* Importer fra annet prosjekt */}
+              <label
+                className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 ${
+                  metode === "importer" ? "border-blue-500 bg-blue-50" : "border-gray-200 hover:bg-gray-50"
+                } ${!harAndreProsjekter ? "cursor-not-allowed opacity-50" : ""}`}
+              >
+                <input
+                  type="radio"
+                  name="metode"
+                  value="importer"
+                  checked={metode === "importer"}
+                  onChange={() => setMetode("importer")}
+                  disabled={!harAndreProsjekter}
+                  className="mt-0.5 accent-siteflow-primary"
+                />
+                <span className="text-sm font-medium text-gray-900">
+                  Importer fra annet prosjekt
+                </span>
+              </label>
+
+              {/* Opprett tom */}
+              <label
+                className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 ${
+                  metode === "tom" ? "border-blue-500 bg-blue-50" : "border-gray-200 hover:bg-gray-50"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="metode"
+                  value="tom"
+                  checked={metode === "tom"}
+                  onChange={() => setMetode("tom")}
+                  className="mt-0.5 accent-siteflow-primary"
+                />
+                <span className="text-sm font-medium text-gray-900">
+                  Opprett tom entreprise
+                </span>
+              </label>
+            </div>
+          </>
+        )}
+
+        {/* Steg 2b — Importer fra annet prosjekt */}
+        {steg === 2 && metode === "importer" && (
+          <>
+            <Select
+              label="Velg prosjekt"
+              options={[
+                { value: "", label: "Velg prosjekt..." },
+                ...andreProsjekter.map((p) => ({
+                  value: p.id,
+                  label: `${p.name} (${p.projectNumber})`,
+                })),
+              ]}
+              value={importProsjektId}
+              onChange={(e) => {
+                setImportProsjektId(e.target.value);
+                setImportEntrepriseId("");
+              }}
+            />
+
+            {importProsjektId && (
+              <Select
+                label="Velg entreprise"
+                options={[
+                  { value: "", label: "Velg entreprise..." },
+                  ...(importEntrepriser?.map((e) => ({
+                    value: e.id,
+                    label: e.name,
+                  })) ?? []),
+                ]}
+                value={importEntrepriseId}
+                onChange={(e) => setImportEntrepriseId(e.target.value)}
+              />
+            )}
+          </>
+        )}
+
+        {/* Steg 2c — Opprett tom entreprise */}
+        {steg === 2 && metode === "tom" && (
+          <>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                Entreprise <span className="text-red-500">*</span>
+              </label>
+              <div className="flex items-center gap-3">
+                <FargeVelger valgt={nyFarge} onChange={setNyFarge} />
+                <input
+                  type="text"
+                  value={nyNavn}
+                  onChange={(e) => setNyNavn(e.target.value)}
+                  placeholder="F.eks. Elektro AS"
+                  className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  required
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                Bransje
+              </label>
+              <input
+                type="text"
+                list="bransje-liste"
+                value={nyBransje}
+                onChange={(e) => setNyBransje(e.target.value)}
+                placeholder="Velg eller skriv inn bransje"
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+              <datalist id="bransje-liste">
+                {ENTERPRISE_INDUSTRIES.map((b) => (
+                  <option key={b} value={b} />
+                ))}
+              </datalist>
+            </div>
+
+            <Input
+              label="Firma"
+              placeholder="Firmanavn"
+              value={nyFirma}
+              onChange={(e) => setNyFirma(e.target.value)}
+            />
+          </>
+        )}
+
+        {/* Knapper */}
+        <div className="flex gap-3 pt-2">
+          <Button
+            variant="secondary"
+            type="button"
+            onClick={lukkOgNullstill}
+          >
+            Avbryt
+          </Button>
+          {steg === 2 && (
+            <Button
+              variant="secondary"
+              type="button"
+              onClick={() => setSteg(1)}
+            >
+              Forrige
+            </Button>
+          )}
+          <Button
+            onClick={handleNeste}
+            loading={erLagrer}
+            disabled={!kanGaVidere}
+          >
+            {steg === 1 && metode === "kopier" && kopierEntrepriseId
+              ? "Kopier"
+              : steg === 2 && (metode === "tom" || metode === "importer")
+                ? metode === "tom"
+                  ? "Opprett"
+                  : "Importer"
+                : "Neste"}
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Hovedside                                                          */
 /* ------------------------------------------------------------------ */
 
 export default function EntrepriserSide() {
-  const { prosjektId } = useProsjekt();
+  const { prosjektId, prosjekter } = useProsjekt();
   const utils = trpc.useUtils();
 
   // Søk
   const [sok, setSok] = useState("");
 
-  // Entreprise-modaler
-  const [visNyEntrepriseModal, setVisNyEntrepriseModal] = useState(false);
-  const [nyEntrepriseNavn, setNyEntrepriseNavn] = useState("");
-  const [nyOrgNummer, setNyOrgNummer] = useState("");
+  // Entreprise-veiviser
+  const [visVeiviser, setVisVeiviser] = useState(false);
+
+  // Rediger entreprise-modal
   const [redigerEntrepriseId, setRedigerEntrepriseId] = useState<string | null>(null);
   const [redigerNavn, setRedigerNavn] = useState("");
   const [redigerOrgNummer, setRedigerOrgNummer] = useState("");
+  const [redigerFarge, setRedigerFarge] = useState("");
+  const [redigerBransje, setRedigerBransje] = useState("");
+  const [redigerFirma, setRedigerFirma] = useState("");
   const [slettEntrepriseId, setSlettEntrepriseId] = useState<string | null>(null);
 
   // Arbeidsforløp-modal
@@ -541,6 +1044,8 @@ export default function EntrepriserSide() {
   const [afId, setAfId] = useState<string | null>(null);
   const [afInitialNavn, setAfInitialNavn] = useState("");
   const [afInitialTemplateIds, setAfInitialTemplateIds] = useState<string[]>([]);
+  const [afInitialResponderEnterpriseId, setAfInitialResponderEnterpriseId] =
+    useState<string | null>(null);
   const [slettAfId, setSlettAfId] = useState<string | null>(null);
 
   // Data
@@ -555,35 +1060,25 @@ export default function EntrepriserSide() {
     { enabled: !!prosjektId },
   );
 
-  // Hent arbeidsforløp for alle entrepriser
-  const entrepriseIds = entrepriser?.map((e) => e.id) ?? [];
-  const arbeidsforlopQueries = entrepriseIds.map((eid) =>
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    trpc.arbeidsforlop.hentForEntreprise.useQuery(
-      { enterpriseId: eid },
-      { enabled: !!eid },
-    ),
-  );
+  // Hent alle arbeidsforløp for prosjektet i én query
+  const { data: alleArbeidsforlop } =
+    trpc.arbeidsforlop.hentForProsjekt.useQuery(
+      { projectId: prosjektId! },
+      { enabled: !!prosjektId },
+    );
 
   // Bygg map: entrepriseId -> arbeidsforløp[]
   const arbeidsforlopMap = new Map<string, ArbeidsforlopData[]>();
-  entrepriseIds.forEach((eid, i) => {
-    const query = arbeidsforlopQueries[i];
-    if (query?.data) {
-      arbeidsforlopMap.set(eid, query.data as ArbeidsforlopData[]);
+  if (alleArbeidsforlop) {
+    for (const af of alleArbeidsforlop) {
+      const eid = af.enterpriseId;
+      const liste = arbeidsforlopMap.get(eid) ?? [];
+      liste.push(af as ArbeidsforlopData);
+      arbeidsforlopMap.set(eid, liste);
     }
-  });
+  }
 
   // Mutasjoner — entreprise
-  const opprettEntrepriseMutation = trpc.entreprise.opprett.useMutation({
-    onSuccess: () => {
-      utils.entreprise.hentForProsjekt.invalidate({ projectId: prosjektId! });
-      setVisNyEntrepriseModal(false);
-      setNyEntrepriseNavn("");
-      setNyOrgNummer("");
-    },
-  });
-
   const oppdaterEntrepriseMutation = trpc.entreprise.oppdater.useMutation({
     onSuccess: () => {
       utils.entreprise.hentForProsjekt.invalidate({ projectId: prosjektId! });
@@ -594,35 +1089,29 @@ export default function EntrepriserSide() {
   const slettEntrepriseMutation = trpc.entreprise.slett.useMutation({
     onSuccess: () => {
       utils.entreprise.hentForProsjekt.invalidate({ projectId: prosjektId! });
+      utils.arbeidsforlop.hentForProsjekt.invalidate({ projectId: prosjektId! });
       setSlettEntrepriseId(null);
     },
   });
 
   // Mutasjoner — arbeidsforløp
   const opprettAfMutation = trpc.arbeidsforlop.opprett.useMutation({
-    onSuccess: (_d: unknown, vars: { enterpriseId: string }) => {
-      utils.arbeidsforlop.hentForEntreprise.invalidate({
-        enterpriseId: vars.enterpriseId,
-      });
+    onSuccess: () => {
+      utils.arbeidsforlop.hentForProsjekt.invalidate({ projectId: prosjektId! });
       setAfModalOpen(false);
     },
   });
 
   const oppdaterAfMutation = trpc.arbeidsforlop.oppdater.useMutation({
     onSuccess: () => {
-      // Invalidere alle entreprisers arbeidsforløp
-      for (const eid of entrepriseIds) {
-        utils.arbeidsforlop.hentForEntreprise.invalidate({ enterpriseId: eid });
-      }
+      utils.arbeidsforlop.hentForProsjekt.invalidate({ projectId: prosjektId! });
       setAfModalOpen(false);
     },
   });
 
   const slettAfMutation = trpc.arbeidsforlop.slett.useMutation({
     onSuccess: () => {
-      for (const eid of entrepriseIds) {
-        utils.arbeidsforlop.hentForEntreprise.invalidate({ enterpriseId: eid });
-      }
+      utils.arbeidsforlop.hentForProsjekt.invalidate({ projectId: prosjektId! });
       setSlettAfId(null);
     },
   });
@@ -634,6 +1123,9 @@ export default function EntrepriserSide() {
     setRedigerEntrepriseId(id);
     setRedigerNavn(ent.name);
     setRedigerOrgNummer(ent.organizationNumber ?? "");
+    setRedigerFarge(ent.color ?? "");
+    setRedigerBransje(ent.industry ?? "");
+    setRedigerFirma(ent.companyName ?? "");
   }
 
   function handleLeggTilArbeidsforlop(enterpriseId: string) {
@@ -643,6 +1135,7 @@ export default function EntrepriserSide() {
     setAfId(null);
     setAfInitialNavn("");
     setAfInitialTemplateIds([]);
+    setAfInitialResponderEnterpriseId(null);
     setAfModalOpen(true);
   }
 
@@ -661,24 +1154,28 @@ export default function EntrepriserSide() {
     setAfId(af.id);
     setAfInitialNavn(af.name);
     setAfInitialTemplateIds(af.templates.map((t) => t.template.id));
+    setAfInitialResponderEnterpriseId(af.responderEnterpriseId);
     setAfModalOpen(true);
   }
 
   function handleLagreArbeidsforlop(data: {
     navn: string;
     templateIds: string[];
+    responderEnterpriseId: string | null;
   }) {
     if (afId) {
       oppdaterAfMutation.mutate({
         id: afId,
         name: data.navn,
         templateIds: data.templateIds,
+        responderEnterpriseId: data.responderEnterpriseId,
       });
     } else if (afEntrepriseId) {
       opprettAfMutation.mutate({
         enterpriseId: afEntrepriseId,
         name: data.navn,
         templateIds: data.templateIds,
+        responderEnterpriseId: data.responderEnterpriseId,
       });
     }
   }
@@ -697,6 +1194,9 @@ export default function EntrepriserSide() {
       id: e.id,
       name: e.name,
       organizationNumber: e.organizationNumber ?? null,
+      color: e.color ?? null,
+      industry: e.industry ?? null,
+      companyName: e.companyName ?? null,
       fargeIndeks: i,
     })) ?? [];
 
@@ -705,6 +1205,7 @@ export default function EntrepriserSide() {
     ? entrepriseData.filter((e) => {
         const soketekst = sok.toLowerCase();
         if (e.name.toLowerCase().includes(soketekst)) return true;
+        if (e.companyName?.toLowerCase().includes(soketekst)) return true;
         const afs = arbeidsforlopMap.get(e.id) ?? [];
         return afs.some((af) => af.name.toLowerCase().includes(soketekst));
       })
@@ -719,11 +1220,17 @@ export default function EntrepriserSide() {
       category: m.category ?? "sjekkliste",
     })) ?? [];
 
+  // Entreprise-liste for modal dropdown
+  const entrepriseListe = entrepriseData.map((e) => ({
+    id: e.id,
+    name: e.name,
+  }));
+
   return (
     <div>
       {/* Verktøylinje */}
       <div className="mb-4 flex items-center gap-3">
-        <Button size="sm" onClick={() => setVisNyEntrepriseModal(true)}>
+        <Button size="sm" onClick={() => setVisVeiviser(true)}>
           <Plus className="mr-1.5 h-4 w-4" />
           Legg til entreprise
         </Button>
@@ -752,11 +1259,11 @@ export default function EntrepriserSide() {
       </div>
 
       {/* Kolonne-header */}
-      <div className="mb-3 flex items-center gap-0 pl-8">
+      <div className="mb-3 flex items-center gap-0">
         <div className="w-[280px]">
           <span className="text-sm font-semibold text-gray-700">Oppretter</span>
         </div>
-        <div className="w-[60px]" />
+        <div className="w-[64px]" />
         <div className="w-[280px]">
           <span className="text-sm font-semibold text-gray-700">Svarer</span>
         </div>
@@ -768,71 +1275,38 @@ export default function EntrepriserSide() {
           title="Ingen entrepriser"
           description="Legg til entrepriser for å konfigurere dokumentflyt mellom oppretter og svarer."
           action={
-            <Button onClick={() => setVisNyEntrepriseModal(true)}>
+            <Button onClick={() => setVisVeiviser(true)}>
               Legg til entreprise
             </Button>
           }
         />
       ) : (
-        filtrert.map((ent) => (
-          <EntrepriseGruppeKomponent
-            key={ent.id}
-            entreprise={ent}
-            arbeidsforloper={arbeidsforlopMap.get(ent.id) ?? []}
-            onRedigerEntreprise={handleRedigerEntreprise}
-            onSlettEntreprise={setSlettEntrepriseId}
-            onLeggTilArbeidsforlop={handleLeggTilArbeidsforlop}
-            onRedigerArbeidsforlop={handleRedigerArbeidsforlop}
-            onSlettArbeidsforlop={setSlettAfId}
-          />
-        ))
+        <div>
+          {filtrert.map((ent) => (
+            <EntrepriseGruppeKomponent
+              key={ent.id}
+              entreprise={ent}
+              arbeidsforloper={arbeidsforlopMap.get(ent.id) ?? []}
+              alleEntrepriser={entrepriseData}
+              onRedigerEntreprise={handleRedigerEntreprise}
+              onSlettEntreprise={setSlettEntrepriseId}
+              onLeggTilArbeidsforlop={handleLeggTilArbeidsforlop}
+              onRedigerArbeidsforlop={handleRedigerArbeidsforlop}
+              onSlettArbeidsforlop={setSlettAfId}
+            />
+          ))}
+        </div>
       )}
 
-      {/* Ny entreprise modal */}
-      <Modal
-        open={visNyEntrepriseModal}
-        onClose={() => setVisNyEntrepriseModal(false)}
-        title="Legg til entreprise"
-      >
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (!nyEntrepriseNavn.trim() || !prosjektId) return;
-            opprettEntrepriseMutation.mutate({
-              name: nyEntrepriseNavn.trim(),
-              projectId: prosjektId,
-              organizationNumber: nyOrgNummer.trim() || undefined,
-            });
-          }}
-          className="flex flex-col gap-4"
-        >
-          <Input
-            label="Navn"
-            placeholder="F.eks. Elektro AS"
-            value={nyEntrepriseNavn}
-            onChange={(e) => setNyEntrepriseNavn(e.target.value)}
-            required
-          />
-          <Input
-            label="Organisasjonsnummer"
-            placeholder="Valgfritt"
-            value={nyOrgNummer}
-            onChange={(e) => setNyOrgNummer(e.target.value)}
-          />
-          <div className="flex gap-3 pt-2">
-            <Button type="submit" loading={opprettEntrepriseMutation.isPending}>
-              Opprett
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => setVisNyEntrepriseModal(false)}
-            >
-              Avbryt
-            </Button>
-          </div>
-        </form>
-      </Modal>
+      {/* Entreprise-veiviser */}
+      <EntrepriseVeiviser
+        open={visVeiviser}
+        onClose={() => setVisVeiviser(false)}
+        prosjektId={prosjektId!}
+        entrepriser={entrepriseData}
+        prosjekter={prosjekter}
+        onOpprettet={() => {}}
+      />
 
       {/* Rediger entreprise modal */}
       <Modal
@@ -848,22 +1322,62 @@ export default function EntrepriserSide() {
               id: redigerEntrepriseId,
               name: redigerNavn.trim(),
               organizationNumber: redigerOrgNummer.trim() || undefined,
+              color: redigerFarge || undefined,
+              industry: redigerBransje.trim() || undefined,
+              companyName: redigerFirma.trim() || undefined,
             });
           }}
           className="flex flex-col gap-4"
         >
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700">
+              Navn <span className="text-red-500">*</span>
+            </label>
+            <div className="flex items-center gap-3">
+              <FargeVelger valgt={redigerFarge} onChange={setRedigerFarge} />
+              <input
+                type="text"
+                value={redigerNavn}
+                onChange={(e) => setRedigerNavn(e.target.value)}
+                className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                required
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700">
+              Bransje
+            </label>
+            <input
+              type="text"
+              list="bransje-rediger-liste"
+              value={redigerBransje}
+              onChange={(e) => setRedigerBransje(e.target.value)}
+              placeholder="Velg eller skriv inn bransje"
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+            <datalist id="bransje-rediger-liste">
+              {ENTERPRISE_INDUSTRIES.map((b) => (
+                <option key={b} value={b} />
+              ))}
+            </datalist>
+          </div>
+
           <Input
-            label="Navn"
-            value={redigerNavn}
-            onChange={(e) => setRedigerNavn(e.target.value)}
-            required
+            label="Firma"
+            placeholder="Firmanavn"
+            value={redigerFirma}
+            onChange={(e) => setRedigerFirma(e.target.value)}
           />
+
           <Input
             label="Organisasjonsnummer"
             placeholder="Valgfritt"
             value={redigerOrgNummer}
             onChange={(e) => setRedigerOrgNummer(e.target.value)}
           />
+
           <div className="flex gap-3 pt-2">
             <Button
               type="submit"
@@ -922,7 +1436,9 @@ export default function EntrepriserSide() {
         arbeidsforlopId={afId}
         initialNavn={afInitialNavn}
         initialTemplateIds={afInitialTemplateIds}
+        initialResponderEnterpriseId={afInitialResponderEnterpriseId}
         maler={malListe}
+        entrepriser={entrepriseListe}
         erLagrer={opprettAfMutation.isPending || oppdaterAfMutation.isPending}
         onLagre={handleLagreArbeidsforlop}
       />
