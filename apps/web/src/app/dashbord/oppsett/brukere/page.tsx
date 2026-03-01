@@ -164,6 +164,12 @@ function RedigerGruppeModal({
     },
   });
 
+  const trekkTilbake = trpc.invitasjon.trekkTilbake.useMutation({
+    onSuccess: () => {
+      utils.invitasjon.hentForProsjekt.invalidate({ projectId: prosjektId });
+    },
+  });
+
   const sendPaNytt = trpc.invitasjon.sendPaNytt.useMutation({
     onSuccess: () => {
       utils.invitasjon.hentForProsjekt.invalidate({ projectId: prosjektId });
@@ -245,12 +251,13 @@ function RedigerGruppeModal({
     }
   }
 
-  function handleFjern() {
-    if (!valgtMedlemId) return;
+  function handleFjern(medlemId?: string) {
+    const id = medlemId ?? valgtMedlemId;
+    if (!id) return;
     if (erDbGruppe) {
-      fjernGruppeMedlem.mutate({ id: valgtMedlemId });
+      fjernGruppeMedlem.mutate({ id });
     } else {
-      fjernMedlem.mutate({ id: valgtMedlemId });
+      fjernMedlem.mutate({ id });
     }
   }
 
@@ -323,7 +330,7 @@ function RedigerGruppeModal({
               Rediger
             </button>
             <button
-              onClick={handleFjern}
+              onClick={() => handleFjern()}
               disabled={
                 !valgtMedlemId ||
                 fjernMedlem.isPending ||
@@ -380,7 +387,7 @@ function RedigerGruppeModal({
                       valgtMedlemId === medlem.id ? null : medlem.id,
                     )
                   }
-                  className={`cursor-pointer border-b border-gray-100 transition-colors ${
+                  className={`group/row cursor-pointer border-b border-gray-100 transition-colors ${
                     valgtMedlemId === medlem.id
                       ? "bg-blue-50"
                       : "hover:bg-gray-50"
@@ -414,19 +421,47 @@ function RedigerGruppeModal({
                   </td>
                   <td className="py-2.5 text-sm text-gray-600">
                     <div className="flex items-center gap-2">
-                      <span>{medlem.firma ?? "—"}</span>
+                      <span className="flex-1">{medlem.firma ?? "—"}</span>
                       {medlem.ventendeInvitasjon && (
+                        <>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              sendPaNytt.mutate({ id: medlem.ventendeInvitasjon!.id });
+                            }}
+                            disabled={sendPaNytt.isPending}
+                            className="flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-siteflow-primary hover:bg-blue-50"
+                            title="Ettersend invitasjon"
+                          >
+                            <RefreshCw className={`h-3 w-3 ${sendPaNytt.isPending ? "animate-spin" : ""}`} />
+                            Ettersend
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              trekkTilbake.mutate({ id: medlem.ventendeInvitasjon!.id });
+                            }}
+                            disabled={trekkTilbake.isPending}
+                            className="flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-red-600 hover:bg-red-50"
+                            title="Deaktiver invitasjon"
+                          >
+                            <X className="h-3 w-3" />
+                            Deaktiver
+                          </button>
+                        </>
+                      )}
+                      {!medlem.ventendeInvitasjon && (
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            sendPaNytt.mutate({ id: medlem.ventendeInvitasjon!.id });
+                            handleFjern(medlem.id);
                           }}
-                          disabled={sendPaNytt.isPending}
-                          className="flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-siteflow-primary hover:bg-blue-50"
-                          title="Ettersend invitasjon"
+                          disabled={fjernMedlem.isPending || fjernGruppeMedlem.isPending}
+                          className="flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-red-600 opacity-0 group-hover/row:opacity-100 hover:bg-red-50"
+                          title="Fjern medlem"
                         >
-                          <RefreshCw className={`h-3 w-3 ${sendPaNytt.isPending ? "animate-spin" : ""}`} />
-                          Ettersend
+                          <Trash2 className="h-3 w-3" />
+                          Fjern
                         </button>
                       )}
                     </div>
