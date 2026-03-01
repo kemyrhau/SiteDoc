@@ -41,24 +41,68 @@ function RedigerBygning({
   const [visMerMeny, setVisMerMeny] = useState(false);
   const [valgtTegningId, setValgtTegningId] = useState<string | null>(null);
 
-  // Zoom
+  // Zoom og panorering
   const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [erDraging, setErDraging] = useState(false);
+  const dragStart = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
   const forhåndsvisningRef = useRef<HTMLDivElement>(null);
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
     if (!e.shiftKey) return;
     e.preventDefault();
+
+    const container = forhåndsvisningRef.current;
+    if (!container) return;
+
+    const rect = container.getBoundingClientRect();
+    // Musposisjon relativt til container (0–1)
+    const mx = (e.clientX - rect.left) / rect.width;
+    const my = (e.clientY - rect.top) / rect.height;
+
     setZoom((prev) => {
-      // Proporsjonal zoom — føles naturlig på alle nivåer
       const faktor = e.deltaY > 0 ? 0.9 : 1.1;
-      return Math.min(5, Math.max(0.1, prev * faktor));
+      const neste = Math.min(10, Math.max(0.1, prev * faktor));
+      const skalaDiff = neste - prev;
+
+      // Juster pan slik at zoom sentreres rundt musepekeren
+      setPan((p) => ({
+        x: p.x - skalaDiff * (mx - 0.5) * rect.width,
+        y: p.y - skalaDiff * (my - 0.5) * rect.height,
+      }));
+
+      return neste;
     });
+  }, []);
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setErDraging(true);
+    dragStart.current = { x: e.clientX, y: e.clientY, panX: pan.x, panY: pan.y };
+  }, [pan]);
+
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!erDraging) return;
+    setPan({
+      x: dragStart.current.panX + (e.clientX - dragStart.current.x),
+      y: dragStart.current.panY + (e.clientY - dragStart.current.y),
+    });
+  }, [erDraging]);
+
+  const handleMouseUp = useCallback(() => {
+    setErDraging(false);
+  }, []);
+
+  const nullstillVisning = useCallback(() => {
+    setZoom(1);
+    setPan({ x: 0, y: 0 });
   }, []);
 
   // Nullstill zoom ved bytte av tegning
   const velgTegning = useCallback((id: string | null) => {
     setValgtTegningId(id);
     setZoom(1);
+    setPan({ x: 0, y: 0 });
   }, []);
 
   // Opplastingstilstand
@@ -361,13 +405,19 @@ function RedigerBygning({
         <div
           ref={forhåndsvisningRef}
           onWheel={handleWheel}
-          className="relative flex flex-1 overflow-auto bg-gray-50"
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
+          onDoubleClick={nullstillVisning}
+          className="relative flex flex-1 overflow-hidden bg-gray-50"
+          style={{ cursor: valgtTegning?.fileUrl ? (erDraging ? "grabbing" : "grab") : "default" }}
         >
           {valgtTegning?.fileUrl ? (
             <div
-              className="flex min-h-full min-w-full items-center justify-center"
+              className="flex min-h-full min-w-full items-center justify-center transition-transform duration-100 ease-out"
               style={{
-                transform: `scale(${zoom})`,
+                transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
                 transformOrigin: "center center",
               }}
             >
@@ -397,7 +447,7 @@ function RedigerBygning({
             </div>
           )}
           {valgtTegning?.fileUrl && zoom !== 1 && (
-            <div className="absolute bottom-3 right-3 rounded-md bg-black/60 px-2.5 py-1 text-xs text-white">
+            <div className="pointer-events-none absolute bottom-3 right-3 rounded-md bg-black/60 px-2.5 py-1 text-xs text-white">
               {Math.round(zoom * 100)}%
             </div>
           )}
