@@ -1,7 +1,13 @@
 import { z } from "zod";
 import type { Prisma } from "@siteflow/db";
 import { router, publicProcedure } from "../trpc/trpc";
-import { reportObjectTypeSchema } from "@siteflow/shared";
+import { reportObjectTypeSchema, templateZoneSchema } from "@siteflow/shared";
+
+// Config-schema: aksepterer vilkårlig JSON for rapportobjekt-konfigurasjon
+const configSchema = z.preprocess(
+  (val) => val,
+  z.record(z.string(), z.unknown()),
+) as z.ZodType<Record<string, unknown>>;
 
 export const malRouter = router({
   // Hent alle maler for et prosjekt
@@ -50,7 +56,7 @@ export const malRouter = router({
         templateId: z.string().uuid(),
         type: reportObjectTypeSchema,
         label: z.string().min(1),
-        config: z.record(z.string(), z.unknown()).default({}),
+        config: configSchema.default({}),
         sortOrder: z.number().int().min(0),
         required: z.boolean().default(false),
       }),
@@ -64,7 +70,30 @@ export const malRouter = router({
       });
     }),
 
-  // Oppdater rekkefølge på objekter
+  // Oppdater et enkelt rapportobjekt
+  oppdaterObjekt: publicProcedure
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        label: z.string().min(1).optional(),
+        required: z.boolean().optional(),
+        config: configSchema.optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { id, config, ...rest } = input;
+      return ctx.prisma.reportObject.update({
+        where: { id },
+        data: {
+          ...rest,
+          ...(config !== undefined
+            ? { config: config as Prisma.InputJsonValue }
+            : {}),
+        },
+      });
+    }),
+
+  // Oppdater rekkefølge og sone på objekter
   oppdaterRekkefølge: publicProcedure
     .input(
       z.object({
@@ -72,18 +101,44 @@ export const malRouter = router({
           z.object({
             id: z.string().uuid(),
             sortOrder: z.number().int().min(0),
+            zone: templateZoneSchema.optional(),
           }),
         ),
       }),
     )
     .mutation(async ({ ctx, input }) => {
       return ctx.prisma.$transaction(
-        input.objekter.map((obj) =>
-          ctx.prisma.reportObject.update({
-            where: { id: obj.id },
-            data: { sortOrder: obj.sortOrder },
-          }),
-        ),
+        async (tx) => {
+          const resultater = [];
+          for (const obj of input.objekter) {
+            if (obj.zone) {
+              const eksisterende = await tx.reportObject.findUniqueOrThrow({
+                where: { id: obj.id },
+              });
+              const eksisterendeConfig =
+                typeof eksisterende.config === "object" && eksisterende.config !== null
+                  ? (eksisterende.config as Record<string, unknown>)
+                  : {};
+              resultater.push(
+                await tx.reportObject.update({
+                  where: { id: obj.id },
+                  data: {
+                    sortOrder: obj.sortOrder,
+                    config: { ...eksisterendeConfig, zone: obj.zone } as Prisma.InputJsonValue,
+                  },
+                }),
+              );
+            } else {
+              resultater.push(
+                await tx.reportObject.update({
+                  where: { id: obj.id },
+                  data: { sortOrder: obj.sortOrder },
+                }),
+              );
+            }
+          }
+          return resultater;
+        },
       );
     }),
 

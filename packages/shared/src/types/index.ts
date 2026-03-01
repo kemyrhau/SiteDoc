@@ -12,26 +12,190 @@ export const DOCUMENT_STATUSES = [
 
 export type DocumentStatus = (typeof DOCUMENT_STATUSES)[number];
 
-// Rapportobjekttyper (15 typer)
+// Rapportobjekttyper (21 typer)
 export const REPORT_OBJECT_TYPES = [
+  "heading",
+  "subtitle",
   "text_field",
-  "camera_field",
-  "image_picker",
-  "checkbox",
-  "multi_select",
-  "number_value",
+  "list_single",
+  "list_multi",
+  "integer",
+  "decimal",
+  "calculation",
+  "traffic_light",
+  "date",
   "date_time",
+  "person",
+  "persons",
+  "company",
+  "attachments",
+  "bim_property",
+  "zone_property",
+  "room_property",
+  "weather",
   "signature",
-  "location_picker",
-  "comment_field",
-  "status_picker",
-  "enterprise_picker",
-  "file_attachment",
-  "drawing_reference",
-  "section_divider",
+  "repeater",
 ] as const;
 
 export type ReportObjectType = (typeof REPORT_OBJECT_TYPES)[number];
+
+// Kategorier for rapportobjekttyper
+export type ReportObjectCategory =
+  | "tekst"
+  | "valg"
+  | "tall"
+  | "dato"
+  | "person"
+  | "fil"
+  | "spesial";
+
+// Metadata for rapportobjekttyper
+export interface ReportObjectTypeMeta {
+  label: string;
+  icon: string;
+  category: ReportObjectCategory;
+  defaultConfig: Record<string, unknown>;
+}
+
+// Metadata-map for alle rapportobjekttyper
+export const REPORT_OBJECT_TYPE_META: Record<ReportObjectType, ReportObjectTypeMeta> = {
+  heading: {
+    label: "Overskrift",
+    icon: "Heading",
+    category: "tekst",
+    defaultConfig: {},
+  },
+  subtitle: {
+    label: "Undertittel",
+    icon: "Type",
+    category: "tekst",
+    defaultConfig: {},
+  },
+  text_field: {
+    label: "Tekstfelt",
+    icon: "AlignLeft",
+    category: "tekst",
+    defaultConfig: { multiline: false },
+  },
+  list_single: {
+    label: "Enkeltvalg",
+    icon: "CircleDot",
+    category: "valg",
+    defaultConfig: { options: [] },
+  },
+  list_multi: {
+    label: "Flervalg",
+    icon: "ListChecks",
+    category: "valg",
+    defaultConfig: { options: [] },
+  },
+  integer: {
+    label: "Heltall",
+    icon: "Hash",
+    category: "tall",
+    defaultConfig: { min: null, max: null, unit: "" },
+  },
+  decimal: {
+    label: "Desimaltall",
+    icon: "Percent",
+    category: "tall",
+    defaultConfig: { min: null, max: null, decimals: 2, unit: "" },
+  },
+  calculation: {
+    label: "Beregning",
+    icon: "Calculator",
+    category: "tall",
+    defaultConfig: { formula: "" },
+  },
+  traffic_light: {
+    label: "Trafikklys",
+    icon: "CircleDot",
+    category: "valg",
+    defaultConfig: {
+      options: [
+        { value: "green", label: "Godkjent" },
+        { value: "yellow", label: "Anmerkning" },
+        { value: "red", label: "Avvik" },
+      ],
+    },
+  },
+  date: {
+    label: "Dato",
+    icon: "Calendar",
+    category: "dato",
+    defaultConfig: {},
+  },
+  date_time: {
+    label: "Dato og tid",
+    icon: "Clock",
+    category: "dato",
+    defaultConfig: {},
+  },
+  person: {
+    label: "Person",
+    icon: "User",
+    category: "person",
+    defaultConfig: { role: "" },
+  },
+  persons: {
+    label: "Flere personer",
+    icon: "Users",
+    category: "person",
+    defaultConfig: { role: "", max: null },
+  },
+  company: {
+    label: "Firma",
+    icon: "Building2",
+    category: "person",
+    defaultConfig: { role: "" },
+  },
+  attachments: {
+    label: "Vedlegg",
+    icon: "Paperclip",
+    category: "fil",
+    defaultConfig: { maxFiles: 10, acceptedTypes: [] },
+  },
+  bim_property: {
+    label: "BIM-egenskap",
+    icon: "Box",
+    category: "spesial",
+    defaultConfig: { propertyName: "" },
+  },
+  zone_property: {
+    label: "Soneegenskap",
+    icon: "Map",
+    category: "spesial",
+    defaultConfig: { propertyName: "" },
+  },
+  room_property: {
+    label: "Romegenskap",
+    icon: "DoorOpen",
+    category: "spesial",
+    defaultConfig: { propertyName: "" },
+  },
+  weather: {
+    label: "Vær",
+    icon: "CloudSun",
+    category: "spesial",
+    defaultConfig: {},
+  },
+  signature: {
+    label: "Signatur",
+    icon: "PenLine",
+    category: "spesial",
+    defaultConfig: {},
+  },
+  repeater: {
+    label: "Repeater",
+    icon: "Repeat",
+    category: "spesial",
+    defaultConfig: { children: [] },
+  },
+};
+
+// Malsonene
+export const TEMPLATE_ZONES = ["topptekst", "datafelter"] as const;
+export type TemplateZone = (typeof TEMPLATE_ZONES)[number];
 
 // Entreprisevelger-roller
 export type EnterpriseRole = "creator" | "responder";

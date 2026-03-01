@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { DOCUMENT_STATUSES, REPORT_OBJECT_TYPES } from "../types";
+import { DOCUMENT_STATUSES, REPORT_OBJECT_TYPES, TEMPLATE_ZONES } from "../types";
 
 // Dokumentstatus-validering
 export const documentStatusSchema = z.enum(DOCUMENT_STATUSES);
@@ -9,6 +9,9 @@ export const reportObjectTypeSchema = z.enum(REPORT_OBJECT_TYPES);
 
 // Entrepriserolle-validering
 export const enterpriseRoleSchema = z.enum(["creator", "responder"]);
+
+// Malsone-validering
+export const templateZoneSchema = z.enum(TEMPLATE_ZONES);
 
 // GPS-data-validering
 export const gpsDataSchema = z.object({

@@ -12,6 +12,9 @@
   "dependencies": {
     "@auth/core": "0.41.0",
     "@auth/prisma-adapter": "^2.11.1",
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
     "@siteflow/db": "workspace:*",
     "@siteflow/shared": "workspace:*",
     "@siteflow/ui": "workspace:*",
