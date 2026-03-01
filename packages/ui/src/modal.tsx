@@ -28,6 +28,7 @@ export function Modal({ open, onClose, title, children, className = "" }: ModalP
     <dialog
       ref={dialogRef}
       onClose={onClose}
+      suppressHydrationWarning
       className={`w-full max-w-lg rounded-lg border-0 p-0 shadow-xl backdrop:bg-black/50 ${className}`}
     >
       <div className="p-6">
