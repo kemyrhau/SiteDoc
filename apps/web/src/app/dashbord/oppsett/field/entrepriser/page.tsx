@@ -7,7 +7,6 @@ import {
   Button,
   Input,
   Modal,
-  Select,
   Spinner,
   EmptyState,
   SearchInput,
@@ -18,12 +17,10 @@ import {
   Printer,
   ChevronDown,
   ChevronRight,
-  ClipboardCheck,
-  ListTodo,
-  ArrowRight,
   MoreVertical,
+  Pencil,
   Trash2,
-  UserPlus,
+  Workflow as WorkflowIcon,
 } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
@@ -31,14 +28,14 @@ import {
 /* ------------------------------------------------------------------ */
 
 const entrepriseFarger = [
-  { bg: "bg-blue-100", border: "border-blue-200", tekst: "text-blue-900" },
-  { bg: "bg-green-100", border: "border-green-200", tekst: "text-green-900" },
-  { bg: "bg-purple-100", border: "border-purple-200", tekst: "text-purple-900" },
-  { bg: "bg-amber-100", border: "border-amber-200", tekst: "text-amber-900" },
-  { bg: "bg-rose-100", border: "border-rose-200", tekst: "text-rose-900" },
-  { bg: "bg-teal-100", border: "border-teal-200", tekst: "text-teal-900" },
-  { bg: "bg-indigo-100", border: "border-indigo-200", tekst: "text-indigo-900" },
-  { bg: "bg-orange-100", border: "border-orange-200", tekst: "text-orange-900" },
+  { bg: "bg-blue-600", border: "border-blue-700", tekst: "text-white" },
+  { bg: "bg-emerald-600", border: "border-emerald-700", tekst: "text-white" },
+  { bg: "bg-purple-600", border: "border-purple-700", tekst: "text-white" },
+  { bg: "bg-amber-500", border: "border-amber-600", tekst: "text-white" },
+  { bg: "bg-rose-600", border: "border-rose-700", tekst: "text-white" },
+  { bg: "bg-teal-600", border: "border-teal-700", tekst: "text-white" },
+  { bg: "bg-indigo-600", border: "border-indigo-700", tekst: "text-white" },
+  { bg: "bg-orange-600", border: "border-orange-700", tekst: "text-white" },
 ];
 
 function hentFarge(indeks: number) {
@@ -46,96 +43,176 @@ function hentFarge(indeks: number) {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Typer                                                              */
+/*  Treprikk-meny (gjenbrukbar)                                       */
 /* ------------------------------------------------------------------ */
 
-interface DokumentFlyt {
-  id: string;
-  navn: string;
-  type: "sjekkliste" | "oppgave";
-  oppretterNavn: string;
-  oppretterEntreprise: string;
-  svarerNavn: string;
-  svarerEntreprise: string;
-}
-
-interface EntrepriseGruppe {
-  id: string;
-  navn: string;
-  flyter: DokumentFlyt[];
-  fargeIndeks: number;
-}
-
-/* ------------------------------------------------------------------ */
-/*  Flyt-kort (Oppretter → Svarer)                                    */
-/* ------------------------------------------------------------------ */
-
-function FlytKort({
-  flyt,
+function TreprikkMeny({
+  handlinger,
+  className = "",
 }: {
-  flyt: DokumentFlyt;
+  handlinger: Array<{
+    label: string;
+    ikon: React.ReactNode;
+    onClick: () => void;
+    fare?: boolean;
+  }>;
+  className?: string;
 }) {
+  const [apen, setApen] = useState(false);
+
   return (
-    <div className="flex items-stretch gap-0 py-2 pl-8">
-      {/* Oppretter-boks */}
-      <div className="flex min-h-[56px] w-[280px] flex-col justify-center rounded-lg border border-gray-300 bg-white px-4 py-2">
-        <p className="text-sm font-medium text-gray-900">{flyt.oppretterNavn}</p>
-        <p className="text-xs text-gray-500">{flyt.oppretterEntreprise}</p>
-      </div>
+    <div className={`relative ${className}`}>
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          setApen(!apen);
+        }}
+        className="rounded p-1 text-gray-400 hover:bg-black/10 hover:text-gray-600"
+      >
+        <MoreVertical className="h-4 w-4" />
+      </button>
 
-      {/* Kobling */}
-      <div className="flex w-[60px] items-center justify-center">
-        <div className="flex items-center">
-          <div className="h-px w-4 bg-gray-300" />
-          <ArrowRight className="h-4 w-4 text-gray-400" />
-          <div className="h-px w-4 bg-gray-300" />
-        </div>
-      </div>
-
-      {/* Svarer-boks */}
-      <div className="flex min-h-[56px] w-[280px] flex-col justify-center rounded-lg border border-gray-300 bg-white px-4 py-2">
-        <p className="text-sm font-medium text-gray-900">{flyt.svarerNavn}</p>
-        <p className="text-xs text-gray-500">{flyt.svarerEntreprise}</p>
-      </div>
+      {apen && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setApen(false)} />
+          <div className="absolute right-0 top-full z-20 mt-1 w-52 rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
+            {handlinger.map((h) => (
+              <button
+                key={h.label}
+                onClick={() => {
+                  setApen(false);
+                  h.onClick();
+                }}
+                className={`flex w-full items-center gap-2.5 px-4 py-2 text-left text-sm ${
+                  h.fare
+                    ? "text-red-600 hover:bg-red-50"
+                    : "text-gray-700 hover:bg-gray-50"
+                }`}
+              >
+                {h.ikon}
+                {h.label}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }
 
 /* ------------------------------------------------------------------ */
-/*  Dokumenttype-seksjon (ekspanderbar)                                */
+/*  Arbeidsforløp-rad                                                  */
 /* ------------------------------------------------------------------ */
 
-function DokumentTypeSeksjon({
-  flyter,
-  typeNavn,
-  typeIkon,
+interface ArbeidsforlopData {
+  id: string;
+  name: string;
+  templates: Array<{
+    template: { id: string; name: string; category: string };
+  }>;
+}
+
+function ArbeidsforlopRad({
+  arbeidsforlop,
+  entrepriseNavn,
+  onRediger: _onRediger,
+  onSlett,
 }: {
-  flyter: DokumentFlyt[];
-  typeNavn: string;
-  typeIkon: React.ReactNode;
+  arbeidsforlop: ArbeidsforlopData;
+  entrepriseNavn: string;
+  onRediger: (af: ArbeidsforlopData) => void;
+  onSlett: (id: string) => void;
 }) {
-  const [ekspandert, setEkspandert] = useState(true);
+  const [ekspandert, setEkspandert] = useState(false);
+
+  const oppgaveMaler = arbeidsforlop.templates.filter(
+    (t) => t.template.category === "oppgave",
+  );
+  const sjekklisteMaler = arbeidsforlop.templates.filter(
+    (t) => t.template.category === "sjekkliste",
+  );
+
+  const oppsummering = [
+    oppgaveMaler.length > 0 ? `Oppgaver: ${oppgaveMaler.length}` : null,
+    sjekklisteMaler.length > 0
+      ? `Sjekklister: ${sjekklisteMaler.length}`
+      : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
-    <div className="mb-1">
-      <button
-        onClick={() => setEkspandert(!ekspandert)}
-        className="flex w-full items-center gap-2 py-2 pl-4 text-left"
-      >
-        {ekspandert ? (
-          <ChevronDown className="h-4 w-4 text-gray-400" />
-        ) : (
-          <ChevronRight className="h-4 w-4 text-gray-400" />
-        )}
-        <span className="text-gray-400">{typeIkon}</span>
-        <span className="text-sm font-medium text-gray-700">{typeNavn}</span>
-      </button>
+    <div>
+      <div className="flex items-center gap-1 py-2 pl-4 pr-2">
+        <button
+          onClick={() => setEkspandert(!ekspandert)}
+          className="flex flex-1 items-center gap-2 text-left"
+        >
+          {ekspandert ? (
+            <ChevronDown className="h-4 w-4 text-gray-400" />
+          ) : (
+            <ChevronRight className="h-4 w-4 text-gray-400" />
+          )}
+          <WorkflowIcon className="h-4 w-4 text-gray-400" />
+          <span className="text-sm font-medium text-gray-800">
+            {arbeidsforlop.name}
+          </span>
+          {oppsummering && (
+            <span className="ml-2 text-xs text-gray-400">{oppsummering}</span>
+          )}
+        </button>
+
+        <TreprikkMeny
+          handlinger={[
+            {
+              label: "Rediger arbeidsforløp",
+              ikon: <Pencil className="h-4 w-4 text-gray-400" />,
+              onClick: () => _onRediger(arbeidsforlop),
+            },
+            {
+              label: "Slett arbeidsforløp",
+              ikon: <Trash2 className="h-4 w-4 text-red-400" />,
+              onClick: () => onSlett(arbeidsforlop.id),
+              fare: true,
+            },
+          ]}
+        />
+      </div>
 
       {ekspandert && (
-        <div>
-          {flyter.map((flyt) => (
-            <FlytKort key={flyt.id} flyt={flyt} />
-          ))}
+        <div className="mb-2 ml-12 mr-4 rounded-lg border border-gray-100 bg-gray-50 px-4 py-3">
+          <p className="mb-1 text-xs font-medium text-gray-500">
+            Entreprise: {entrepriseNavn}
+          </p>
+          {oppgaveMaler.length > 0 && (
+            <div className="mb-2">
+              <p className="text-xs font-semibold text-gray-600">Oppgavetyper</p>
+              <ul className="mt-1 space-y-0.5">
+                {oppgaveMaler.map((t) => (
+                  <li key={t.template.id} className="text-xs text-gray-500">
+                    {t.template.name}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {sjekklisteMaler.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-gray-600">
+                Sjekklistetyper
+              </p>
+              <ul className="mt-1 space-y-0.5">
+                {sjekklisteMaler.map((t) => (
+                  <li key={t.template.id} className="text-xs text-gray-500">
+                    {t.template.name}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {arbeidsforlop.templates.length === 0 && (
+            <p className="text-xs text-gray-400">Ingen maler tilknyttet</p>
+          )}
         </div>
       )}
     </div>
@@ -143,57 +220,100 @@ function DokumentTypeSeksjon({
 }
 
 /* ------------------------------------------------------------------ */
-/*  Entreprise-gruppe (farget header)                                  */
+/*  Entreprise-gruppe                                                  */
 /* ------------------------------------------------------------------ */
 
+interface EntrepriseData {
+  id: string;
+  name: string;
+  organizationNumber: string | null;
+  fargeIndeks: number;
+}
+
 function EntrepriseGruppeKomponent({
-  gruppe,
+  entreprise,
+  arbeidsforloper,
+  onRedigerEntreprise,
+  onSlettEntreprise,
+  onLeggTilArbeidsforlop,
+  onRedigerArbeidsforlop,
+  onSlettArbeidsforlop,
 }: {
-  gruppe: EntrepriseGruppe;
+  entreprise: EntrepriseData;
+  arbeidsforloper: ArbeidsforlopData[];
+  onRedigerEntreprise: (id: string) => void;
+  onSlettEntreprise: (id: string) => void;
+  onLeggTilArbeidsforlop: (enterpriseId: string) => void;
+  onRedigerArbeidsforlop: (af: ArbeidsforlopData, entrepriseNavn: string) => void;
+  onSlettArbeidsforlop: (id: string) => void;
 }) {
   const [ekspandert, setEkspandert] = useState(true);
-  const farge = hentFarge(gruppe.fargeIndeks);
-
-  // Grupper flyter etter type
-  const sjekklisteFlyter = gruppe.flyter.filter((f) => f.type === "sjekkliste");
-  const oppgaveFlyter = gruppe.flyter.filter((f) => f.type === "oppgave");
+  const farge = hentFarge(entreprise.fargeIndeks);
 
   return (
     <div className="mb-4">
       {/* Entreprise-header */}
-      <button
-        onClick={() => setEkspandert(!ekspandert)}
-        className={`flex w-full items-center gap-2 rounded-t-lg px-4 py-2.5 text-left ${farge.bg} ${farge.border} border`}
+      <div
+        className={`flex items-center rounded-t-lg ${farge.bg} ${farge.border} border`}
       >
-        {ekspandert ? (
-          <ChevronDown className={`h-4 w-4 ${farge.tekst}`} />
-        ) : (
-          <ChevronRight className={`h-4 w-4 ${farge.tekst}`} />
-        )}
-        <span className={`text-sm font-semibold ${farge.tekst}`}>
-          {gruppe.navn}
-        </span>
-      </button>
+        <button
+          onClick={() => setEkspandert(!ekspandert)}
+          className="flex flex-1 items-center gap-2 px-4 py-2.5 text-left"
+        >
+          {ekspandert ? (
+            <ChevronDown className={`h-4 w-4 ${farge.tekst}`} />
+          ) : (
+            <ChevronRight className={`h-4 w-4 ${farge.tekst}`} />
+          )}
+          <span className={`text-sm font-semibold ${farge.tekst}`}>
+            {entreprise.name}
+          </span>
+        </button>
+
+        <div className="mr-2">
+          <TreprikkMeny
+            className={`[&_button]:${farge.tekst} [&>button]:text-white [&>button]:hover:bg-white/20`}
+            handlinger={[
+              {
+                label: "Legg til arbeidsforløp",
+                ikon: <Plus className="h-4 w-4 text-gray-400" />,
+                onClick: () => onLeggTilArbeidsforlop(entreprise.id),
+              },
+              {
+                label: "Rediger entreprise",
+                ikon: <Pencil className="h-4 w-4 text-gray-400" />,
+                onClick: () => onRedigerEntreprise(entreprise.id),
+              },
+              {
+                label: "Slett entreprise",
+                ikon: <Trash2 className="h-4 w-4 text-red-400" />,
+                onClick: () => onSlettEntreprise(entreprise.id),
+                fare: true,
+              },
+            ]}
+          />
+        </div>
+      </div>
 
       {ekspandert && (
-        <div className={`rounded-b-lg border border-t-0 ${farge.border} bg-white py-2`}>
-          {sjekklisteFlyter.length > 0 && (
-            <DokumentTypeSeksjon
-              typeNavn="Sjekklister"
-              typeIkon={<ClipboardCheck className="h-4 w-4" />}
-              flyter={sjekklisteFlyter}
-            />
-          )}
-          {oppgaveFlyter.length > 0 && (
-            <DokumentTypeSeksjon
-              typeNavn="Oppgaver"
-              typeIkon={<ListTodo className="h-4 w-4" />}
-              flyter={oppgaveFlyter}
-            />
-          )}
-          {gruppe.flyter.length === 0 && (
+        <div
+          className={`rounded-b-lg border border-t-0 ${farge.border} bg-white py-1`}
+        >
+          {arbeidsforloper.length > 0 ? (
+            arbeidsforloper.map((af) => (
+              <ArbeidsforlopRad
+                key={af.id}
+                arbeidsforlop={af}
+                entrepriseNavn={entreprise.name}
+                onRediger={(data) =>
+                  onRedigerArbeidsforlop(data, entreprise.name)
+                }
+                onSlett={onSlettArbeidsforlop}
+              />
+            ))
+          ) : (
             <p className="px-8 py-4 text-sm text-gray-400">
-              Ingen dokumentflyter konfigurert
+              Ingen arbeidsforløp konfigurert
             </p>
           )}
         </div>
@@ -203,33 +323,365 @@ function EntrepriseGruppeKomponent({
 }
 
 /* ------------------------------------------------------------------ */
+/*  Rediger arbeidsforløp modal                                        */
+/* ------------------------------------------------------------------ */
+
+function RedigerArbeidsforlopModal({
+  open,
+  onClose,
+  entrepriseNavn,
+  arbeidsforlopId,
+  initialNavn,
+  initialTemplateIds,
+  maler,
+  erLagrer,
+  onLagre,
+}: {
+  open: boolean;
+  onClose: () => void;
+  entrepriseNavn: string;
+  arbeidsforlopId: string | null;
+  initialNavn: string;
+  initialTemplateIds: string[];
+  maler: Array<{ id: string; name: string; category: string }>;
+  erLagrer: boolean;
+  onLagre: (data: { navn: string; templateIds: string[] }) => void;
+}) {
+  const [navn, setNavn] = useState(initialNavn);
+  const [valgte, setValgte] = useState<Set<string>>(
+    new Set(initialTemplateIds),
+  );
+
+  // Synkroniser ved åpning
+  const [forrigeOpen, setForrigeOpen] = useState(false);
+  if (open && !forrigeOpen) {
+    setNavn(initialNavn);
+    setValgte(new Set(initialTemplateIds));
+  }
+  if (open !== forrigeOpen) setForrigeOpen(open);
+
+  const oppgaveMaler = maler.filter((m) => m.category === "oppgave");
+  const sjekklisteMaler = maler.filter((m) => m.category === "sjekkliste");
+
+  function toggleMal(id: string) {
+    setValgte((prev) => {
+      const neste = new Set(prev);
+      if (neste.has(id)) {
+        neste.delete(id);
+      } else {
+        neste.add(id);
+      }
+      return neste;
+    });
+  }
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={arbeidsforlopId ? "Rediger arbeidsforløp" : "Nytt arbeidsforløp"}
+    >
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (!navn.trim()) return;
+          onLagre({ navn: navn.trim(), templateIds: Array.from(valgte) });
+        }}
+        className="flex flex-col gap-4"
+      >
+        <div className="text-sm text-gray-600">
+          <span className="font-medium text-gray-900">Entreprise</span>{" "}
+          {entrepriseNavn}
+        </div>
+
+        <Input
+          label="Navn på arbeidsforløp"
+          placeholder="F.eks. Uavhengig Kontroll"
+          value={navn}
+          onChange={(e) => setNavn(e.target.value)}
+          required
+        />
+
+        {/* To-kolonne avhukingsliste */}
+        <div className="grid grid-cols-2 gap-6">
+          {/* Oppgavetyper */}
+          <div>
+            <label className="mb-2 flex items-center gap-2">
+              <input
+                type="checkbox"
+                className="h-4 w-4 rounded border-gray-300 text-siteflow-primary accent-siteflow-primary"
+                checked={
+                  oppgaveMaler.length > 0 &&
+                  oppgaveMaler.every((m) => valgte.has(m.id))
+                }
+                onChange={() => {
+                  const alleValgt = oppgaveMaler.every((m) => valgte.has(m.id));
+                  setValgte((prev) => {
+                    const neste = new Set(prev);
+                    for (const m of oppgaveMaler) {
+                      if (alleValgt) neste.delete(m.id);
+                      else neste.add(m.id);
+                    }
+                    return neste;
+                  });
+                }}
+              />
+              <span className="text-sm font-semibold text-gray-900">
+                Oppgavetype
+              </span>
+            </label>
+            <div className="space-y-1.5">
+              {oppgaveMaler.map((mal) => (
+                <label
+                  key={mal.id}
+                  className="flex items-center gap-2 rounded px-1 py-0.5 hover:bg-gray-50"
+                >
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded border-gray-300 text-siteflow-primary accent-siteflow-primary"
+                    checked={valgte.has(mal.id)}
+                    onChange={() => toggleMal(mal.id)}
+                  />
+                  <span className="text-sm text-gray-700">{mal.name}</span>
+                </label>
+              ))}
+              {oppgaveMaler.length === 0 && (
+                <p className="text-xs text-gray-400">Ingen oppgavemaler</p>
+              )}
+            </div>
+          </div>
+
+          {/* Sjekklistetyper */}
+          <div>
+            <label className="mb-2 flex items-center gap-2">
+              <input
+                type="checkbox"
+                className="h-4 w-4 rounded border-gray-300 text-siteflow-primary accent-siteflow-primary"
+                checked={
+                  sjekklisteMaler.length > 0 &&
+                  sjekklisteMaler.every((m) => valgte.has(m.id))
+                }
+                onChange={() => {
+                  const alleValgt = sjekklisteMaler.every((m) =>
+                    valgte.has(m.id),
+                  );
+                  setValgte((prev) => {
+                    const neste = new Set(prev);
+                    for (const m of sjekklisteMaler) {
+                      if (alleValgt) neste.delete(m.id);
+                      else neste.add(m.id);
+                    }
+                    return neste;
+                  });
+                }}
+              />
+              <span className="text-sm font-semibold text-gray-900">
+                Sjekklistetype
+              </span>
+            </label>
+            <div className="space-y-1.5">
+              {sjekklisteMaler.map((mal) => (
+                <label
+                  key={mal.id}
+                  className="flex items-center gap-2 rounded px-1 py-0.5 hover:bg-gray-50"
+                >
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded border-gray-300 text-siteflow-primary accent-siteflow-primary"
+                    checked={valgte.has(mal.id)}
+                    onChange={() => toggleMal(mal.id)}
+                  />
+                  <span className="text-sm text-gray-700">{mal.name}</span>
+                </label>
+              ))}
+              {sjekklisteMaler.length === 0 && (
+                <p className="text-xs text-gray-400">Ingen sjekklistemaler</p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex gap-3 pt-2">
+          <Button variant="secondary" type="button" onClick={onClose}>
+            Avbryt
+          </Button>
+          <Button type="submit" loading={erLagrer}>
+            OK
+          </Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Hovedside                                                          */
 /* ------------------------------------------------------------------ */
 
 export default function EntrepriserSide() {
   const params = useParams<{ prosjektId: string }>();
-  const [sok, setSok] = useState("");
-  const [visNyFlytModal, setVisNyFlytModal] = useState(false);
-  const [nyFlytType, setNyFlytType] = useState<"sjekkliste" | "oppgave">("sjekkliste");
-  const [nyFlytNavn, setNyFlytNavn] = useState("");
-  const [valgtOppretter, setValgtOppretter] = useState("");
-  const [valgtSvarer, setValgtSvarer] = useState("");
+  const utils = trpc.useUtils();
 
+  // Søk
+  const [sok, setSok] = useState("");
+
+  // Entreprise-modaler
+  const [visNyEntrepriseModal, setVisNyEntrepriseModal] = useState(false);
+  const [nyEntrepriseNavn, setNyEntrepriseNavn] = useState("");
+  const [nyOrgNummer, setNyOrgNummer] = useState("");
+  const [redigerEntrepriseId, setRedigerEntrepriseId] = useState<string | null>(null);
+  const [redigerNavn, setRedigerNavn] = useState("");
+  const [redigerOrgNummer, setRedigerOrgNummer] = useState("");
+  const [slettEntrepriseId, setSlettEntrepriseId] = useState<string | null>(null);
+
+  // Arbeidsforløp-modal
+  const [afModalOpen, setAfModalOpen] = useState(false);
+  const [afEntrepriseId, setAfEntrepriseId] = useState<string | null>(null);
+  const [afEntrepriseNavn, setAfEntrepriseNavn] = useState("");
+  const [afId, setAfId] = useState<string | null>(null);
+  const [afInitialNavn, setAfInitialNavn] = useState("");
+  const [afInitialTemplateIds, setAfInitialTemplateIds] = useState<string[]>([]);
+  const [slettAfId, setSlettAfId] = useState<string | null>(null);
+
+  // Data
   const { data: entrepriser, isLoading } =
     trpc.entreprise.hentForProsjekt.useQuery(
       { projectId: params.prosjektId! },
       { enabled: !!params.prosjektId },
     );
 
-  const { data: sjekklister } = trpc.sjekkliste.hentForProsjekt.useQuery(
+  const { data: maler } = trpc.mal.hentForProsjekt.useQuery(
     { projectId: params.prosjektId! },
     { enabled: !!params.prosjektId },
   );
 
-  const { data: oppgaver } = trpc.oppgave.hentForProsjekt.useQuery(
-    { projectId: params.prosjektId! },
-    { enabled: !!params.prosjektId },
+  // Hent arbeidsforløp for alle entrepriser
+  const entrepriseIds = entrepriser?.map((e) => e.id) ?? [];
+  const arbeidsforlopQueries = entrepriseIds.map((eid) =>
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    trpc.arbeidsforlop.hentForEntreprise.useQuery(
+      { enterpriseId: eid },
+      { enabled: !!eid },
+    ),
   );
+
+  // Bygg map: entrepriseId -> arbeidsforløp[]
+  const arbeidsforlopMap = new Map<string, ArbeidsforlopData[]>();
+  entrepriseIds.forEach((eid, i) => {
+    const query = arbeidsforlopQueries[i];
+    if (query?.data) {
+      arbeidsforlopMap.set(eid, query.data as ArbeidsforlopData[]);
+    }
+  });
+
+  // Mutasjoner — entreprise
+  const opprettEntrepriseMutation = trpc.entreprise.opprett.useMutation({
+    onSuccess: () => {
+      utils.entreprise.hentForProsjekt.invalidate({ projectId: params.prosjektId! });
+      setVisNyEntrepriseModal(false);
+      setNyEntrepriseNavn("");
+      setNyOrgNummer("");
+    },
+  });
+
+  const oppdaterEntrepriseMutation = trpc.entreprise.oppdater.useMutation({
+    onSuccess: () => {
+      utils.entreprise.hentForProsjekt.invalidate({ projectId: params.prosjektId! });
+      setRedigerEntrepriseId(null);
+    },
+  });
+
+  const slettEntrepriseMutation = trpc.entreprise.slett.useMutation({
+    onSuccess: () => {
+      utils.entreprise.hentForProsjekt.invalidate({ projectId: params.prosjektId! });
+      setSlettEntrepriseId(null);
+    },
+  });
+
+  // Mutasjoner — arbeidsforløp
+  const opprettAfMutation = trpc.arbeidsforlop.opprett.useMutation({
+    onSuccess: (_d: unknown, vars: { enterpriseId: string }) => {
+      utils.arbeidsforlop.hentForEntreprise.invalidate({
+        enterpriseId: vars.enterpriseId,
+      });
+      setAfModalOpen(false);
+    },
+  });
+
+  const oppdaterAfMutation = trpc.arbeidsforlop.oppdater.useMutation({
+    onSuccess: () => {
+      // Invalidere alle entreprisers arbeidsforløp
+      for (const eid of entrepriseIds) {
+        utils.arbeidsforlop.hentForEntreprise.invalidate({ enterpriseId: eid });
+      }
+      setAfModalOpen(false);
+    },
+  });
+
+  const slettAfMutation = trpc.arbeidsforlop.slett.useMutation({
+    onSuccess: () => {
+      for (const eid of entrepriseIds) {
+        utils.arbeidsforlop.hentForEntreprise.invalidate({ enterpriseId: eid });
+      }
+      setSlettAfId(null);
+    },
+  });
+
+  // Handlinger
+  function handleRedigerEntreprise(id: string) {
+    const ent = entrepriser?.find((e) => e.id === id);
+    if (!ent) return;
+    setRedigerEntrepriseId(id);
+    setRedigerNavn(ent.name);
+    setRedigerOrgNummer(ent.organizationNumber ?? "");
+  }
+
+  function handleLeggTilArbeidsforlop(enterpriseId: string) {
+    const ent = entrepriser?.find((e) => e.id === enterpriseId);
+    setAfEntrepriseId(enterpriseId);
+    setAfEntrepriseNavn(ent?.name ?? "");
+    setAfId(null);
+    setAfInitialNavn("");
+    setAfInitialTemplateIds([]);
+    setAfModalOpen(true);
+  }
+
+  function handleRedigerArbeidsforlop(
+    af: ArbeidsforlopData,
+    entrepriseNavn: string,
+  ) {
+    // Finn entrepriseId for dette arbeidsforløpet
+    for (const [eid, afs] of arbeidsforlopMap) {
+      if (afs.some((a) => a.id === af.id)) {
+        setAfEntrepriseId(eid);
+        break;
+      }
+    }
+    setAfEntrepriseNavn(entrepriseNavn);
+    setAfId(af.id);
+    setAfInitialNavn(af.name);
+    setAfInitialTemplateIds(af.templates.map((t) => t.template.id));
+    setAfModalOpen(true);
+  }
+
+  function handleLagreArbeidsforlop(data: {
+    navn: string;
+    templateIds: string[];
+  }) {
+    if (afId) {
+      oppdaterAfMutation.mutate({
+        id: afId,
+        name: data.navn,
+        templateIds: data.templateIds,
+      });
+    } else if (afEntrepriseId) {
+      opprettAfMutation.mutate({
+        enterpriseId: afEntrepriseId,
+        name: data.navn,
+        templateIds: data.templateIds,
+      });
+    }
+  }
 
   if (isLoading) {
     return (
@@ -239,90 +691,39 @@ export default function EntrepriserSide() {
     );
   }
 
-  // Bygg entreprise-grupper fra faktiske data
-  const grupperMap = new Map<string, EntrepriseGruppe>();
-
-  // Legg til alle entrepriser som grupper
-  entrepriser?.forEach((ent, indeks) => {
-    grupperMap.set(ent.id, {
-      id: ent.id,
-      navn: ent.name,
-      flyter: [],
-      fargeIndeks: indeks,
-    });
-  });
-
-  // Legg til sjekkliste-flyter
-  type SjekklisteData = {
-    id: string;
-    title: string;
-    creatorEnterprise: { id: string; name: string };
-    responderEnterprise: { id: string; name: string };
-  };
-  (sjekklister as SjekklisteData[] | undefined)?.forEach((sjekk) => {
-    const gruppeId = sjekk.creatorEnterprise?.id;
-    if (!gruppeId) return;
-    const gruppe = grupperMap.get(gruppeId);
-    if (gruppe) {
-      gruppe.flyter.push({
-        id: `sjekk-${sjekk.id}`,
-        navn: sjekk.title,
-        type: "sjekkliste",
-        oppretterNavn: sjekk.title,
-        oppretterEntreprise: sjekk.creatorEnterprise.name,
-        svarerNavn: sjekk.title,
-        svarerEntreprise: sjekk.responderEnterprise.name,
-      });
-    }
-  });
-
-  // Legg til oppgave-flyter
-  type OppgaveData = {
-    id: string;
-    title: string;
-    creatorEnterprise: { id: string; name: string };
-    responderEnterprise: { id: string; name: string };
-  };
-  (oppgaver as OppgaveData[] | undefined)?.forEach((oppgave) => {
-    const gruppeId = oppgave.creatorEnterprise?.id;
-    if (!gruppeId) return;
-    const gruppe = grupperMap.get(gruppeId);
-    if (gruppe) {
-      gruppe.flyter.push({
-        id: `oppg-${oppgave.id}`,
-        navn: oppgave.title,
-        type: "oppgave",
-        oppretterNavn: oppgave.title,
-        oppretterEntreprise: oppgave.creatorEnterprise.name,
-        svarerNavn: oppgave.title,
-        svarerEntreprise: oppgave.responderEnterprise.name,
-      });
-    }
-  });
-
-  const grupper = Array.from(grupperMap.values());
+  // Entreprise-data med fargeindeks
+  const entrepriseData: EntrepriseData[] =
+    entrepriser?.map((e, i) => ({
+      id: e.id,
+      name: e.name,
+      organizationNumber: e.organizationNumber ?? null,
+      fargeIndeks: i,
+    })) ?? [];
 
   // Søkefiltrering
   const filtrert = sok
-    ? grupper.filter(
-        (g) =>
-          g.navn.toLowerCase().includes(sok.toLowerCase()) ||
-          g.flyter.some((f) =>
-            f.navn.toLowerCase().includes(sok.toLowerCase()),
-          ),
-      )
-    : grupper;
+    ? entrepriseData.filter((e) => {
+        const soketekst = sok.toLowerCase();
+        if (e.name.toLowerCase().includes(soketekst)) return true;
+        const afs = arbeidsforlopMap.get(e.id) ?? [];
+        return afs.some((af) => af.name.toLowerCase().includes(soketekst));
+      })
+    : entrepriseData;
 
-  const entrepriseOptions = entrepriser?.map((e) => ({
-    value: e.id,
-    label: e.name,
-  })) ?? [];
+  // Mal-data for modal (id, name, category)
+  type MalItem = { id: string; name: string; category: string };
+  const malListe: MalItem[] =
+    (maler as Array<{ id: string; name: string; category?: string }> | undefined)?.map((m) => ({
+      id: m.id,
+      name: m.name,
+      category: m.category ?? "sjekkliste",
+    })) ?? [];
 
   return (
     <div>
       {/* Verktøylinje */}
       <div className="mb-4 flex items-center gap-3">
-        <Button size="sm" onClick={() => setVisNyFlytModal(true)}>
+        <Button size="sm" onClick={() => setVisNyEntrepriseModal(true)}>
           <Plus className="mr-1.5 h-4 w-4" />
           Legg til entreprise
         </Button>
@@ -367,94 +768,194 @@ export default function EntrepriserSide() {
           title="Ingen entrepriser"
           description="Legg til entrepriser for å konfigurere dokumentflyt mellom oppretter og svarer."
           action={
-            <Button onClick={() => setVisNyFlytModal(true)}>
+            <Button onClick={() => setVisNyEntrepriseModal(true)}>
               Legg til entreprise
             </Button>
           }
         />
       ) : (
-        filtrert.map((gruppe) => (
-          <EntrepriseGruppeKomponent key={gruppe.id} gruppe={gruppe} />
+        filtrert.map((ent) => (
+          <EntrepriseGruppeKomponent
+            key={ent.id}
+            entreprise={ent}
+            arbeidsforloper={arbeidsforlopMap.get(ent.id) ?? []}
+            onRedigerEntreprise={handleRedigerEntreprise}
+            onSlettEntreprise={setSlettEntrepriseId}
+            onLeggTilArbeidsforlop={handleLeggTilArbeidsforlop}
+            onRedigerArbeidsforlop={handleRedigerArbeidsforlop}
+            onSlettArbeidsforlop={setSlettAfId}
+          />
         ))
       )}
 
-      {/* Ny flyt modal */}
+      {/* Ny entreprise modal */}
       <Modal
-        open={visNyFlytModal}
-        onClose={() => setVisNyFlytModal(false)}
-        title="Ny dokumentflyt"
+        open={visNyEntrepriseModal}
+        onClose={() => setVisNyEntrepriseModal(false)}
+        title="Legg til entreprise"
       >
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            // Fremtidig: opprett flyt via tRPC
-            setVisNyFlytModal(false);
-            setNyFlytNavn("");
-            setValgtOppretter("");
-            setValgtSvarer("");
+            if (!nyEntrepriseNavn.trim() || !params.prosjektId) return;
+            opprettEntrepriseMutation.mutate({
+              name: nyEntrepriseNavn.trim(),
+              projectId: params.prosjektId,
+              organizationNumber: nyOrgNummer.trim() || undefined,
+            });
           }}
           className="flex flex-col gap-4"
         >
           <Input
             label="Navn"
-            placeholder="F.eks. Kontroll elektro"
-            value={nyFlytNavn}
-            onChange={(e) => setNyFlytNavn(e.target.value)}
+            placeholder="F.eks. Elektro AS"
+            value={nyEntrepriseNavn}
+            onChange={(e) => setNyEntrepriseNavn(e.target.value)}
             required
           />
-          <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium text-gray-700">Type</label>
-            <select
-              className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-siteflow-primary focus:outline-none focus:ring-1 focus:ring-siteflow-primary"
-              value={nyFlytType}
-              onChange={(e) => setNyFlytType(e.target.value as "sjekkliste" | "oppgave")}
-            >
-              <option value="sjekkliste">Sjekkliste</option>
-              <option value="oppgave">Oppgave</option>
-            </select>
-          </div>
-          <Select
-            label="Oppretter-entreprise"
-            options={entrepriseOptions}
-            value={valgtOppretter}
-            onChange={(e) => setValgtOppretter(e.target.value)}
-            placeholder="Velg entreprise..."
+          <Input
+            label="Organisasjonsnummer"
+            placeholder="Valgfritt"
+            value={nyOrgNummer}
+            onChange={(e) => setNyOrgNummer(e.target.value)}
           />
-          <Select
-            label="Svarer-entreprise"
-            options={entrepriseOptions}
-            value={valgtSvarer}
-            onChange={(e) => setValgtSvarer(e.target.value)}
-            placeholder="Velg entreprise..."
-          />
-
-          {/* Forhåndsvisning */}
-          {valgtOppretter && valgtSvarer && (
-            <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-              <p className="mb-2 text-xs font-medium text-gray-500">Forhåndsvisning</p>
-              <div className="flex items-center gap-2">
-                <div className="rounded border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium">
-                  {entrepriseOptions.find((e) => e.value === valgtOppretter)?.label}
-                </div>
-                <ArrowRight className="h-3.5 w-3.5 text-gray-400" />
-                <div className="rounded border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium">
-                  {entrepriseOptions.find((e) => e.value === valgtSvarer)?.label}
-                </div>
-              </div>
-            </div>
-          )}
-
           <div className="flex gap-3 pt-2">
-            <Button type="submit">Opprett</Button>
+            <Button type="submit" loading={opprettEntrepriseMutation.isPending}>
+              Opprett
+            </Button>
             <Button
               type="button"
               variant="secondary"
-              onClick={() => setVisNyFlytModal(false)}
+              onClick={() => setVisNyEntrepriseModal(false)}
             >
               Avbryt
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Rediger entreprise modal */}
+      <Modal
+        open={redigerEntrepriseId !== null}
+        onClose={() => setRedigerEntrepriseId(null)}
+        title="Rediger entreprise"
+      >
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!redigerEntrepriseId || !redigerNavn.trim()) return;
+            oppdaterEntrepriseMutation.mutate({
+              id: redigerEntrepriseId,
+              name: redigerNavn.trim(),
+              organizationNumber: redigerOrgNummer.trim() || undefined,
+            });
+          }}
+          className="flex flex-col gap-4"
+        >
+          <Input
+            label="Navn"
+            value={redigerNavn}
+            onChange={(e) => setRedigerNavn(e.target.value)}
+            required
+          />
+          <Input
+            label="Organisasjonsnummer"
+            placeholder="Valgfritt"
+            value={redigerOrgNummer}
+            onChange={(e) => setRedigerOrgNummer(e.target.value)}
+          />
+          <div className="flex gap-3 pt-2">
+            <Button
+              type="submit"
+              loading={oppdaterEntrepriseMutation.isPending}
+            >
+              Lagre
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setRedigerEntrepriseId(null)}
+            >
+              Avbryt
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Slett entreprise bekreftelse */}
+      <Modal
+        open={slettEntrepriseId !== null}
+        onClose={() => setSlettEntrepriseId(null)}
+        title="Slett entreprise"
+      >
+        <div className="flex flex-col gap-4">
+          <p className="text-sm text-gray-600">
+            Er du sikker på at du vil slette denne entreprisen? Alle tilknyttede
+            arbeidsforløp vil også bli fjernet.
+          </p>
+          <div className="flex gap-3 pt-2">
+            <Button
+              variant="danger"
+              loading={slettEntrepriseMutation.isPending}
+              onClick={() => {
+                if (!slettEntrepriseId) return;
+                slettEntrepriseMutation.mutate({ id: slettEntrepriseId });
+              }}
+            >
+              Slett
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => setSlettEntrepriseId(null)}
+            >
+              Avbryt
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Rediger/Opprett arbeidsforløp modal */}
+      <RedigerArbeidsforlopModal
+        open={afModalOpen}
+        onClose={() => setAfModalOpen(false)}
+        entrepriseNavn={afEntrepriseNavn}
+        arbeidsforlopId={afId}
+        initialNavn={afInitialNavn}
+        initialTemplateIds={afInitialTemplateIds}
+        maler={malListe}
+        erLagrer={opprettAfMutation.isPending || oppdaterAfMutation.isPending}
+        onLagre={handleLagreArbeidsforlop}
+      />
+
+      {/* Slett arbeidsforløp bekreftelse */}
+      <Modal
+        open={slettAfId !== null}
+        onClose={() => setSlettAfId(null)}
+        title="Slett arbeidsforløp"
+      >
+        <div className="flex flex-col gap-4">
+          <p className="text-sm text-gray-600">
+            Er du sikker på at du vil slette dette arbeidsforløpet?
+          </p>
+          <div className="flex gap-3 pt-2">
+            <Button
+              variant="danger"
+              loading={slettAfMutation.isPending}
+              onClick={() => {
+                if (!slettAfId) return;
+                slettAfMutation.mutate({ id: slettAfId });
+              }}
+            >
+              Slett
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => setSlettAfId(null)}
+            >
+              Avbryt
+            </Button>
+          </div>
+        </div>
       </Modal>
     </div>
   );

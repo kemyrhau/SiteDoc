@@ -57,4 +57,11 @@ export const entrepriseRouter = router({
       const { id, ...data } = input;
       return ctx.prisma.enterprise.update({ where: { id }, data });
     }),
+
+  // Slett entreprise
+  slett: publicProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      return ctx.prisma.enterprise.delete({ where: { id: input.id } });
+    }),
 });

@@ -33,3 +33,27 @@ export const createEnterpriseSchema = z.object({
   projectId: z.string().uuid(),
   organizationNumber: z.string().optional(),
 });
+
+// Bygningsvalidering
+export const createBuildingSchema = z.object({
+  name: z.string().min(1, "Navn er påkrevd").max(255),
+  projectId: z.string().uuid(),
+  description: z.string().optional(),
+  address: z.string().optional(),
+});
+
+// Malkategori-validering
+export const templateCategorySchema = z.enum(["oppgave", "sjekkliste"]);
+
+// Arbeidsforløpvalidering
+export const createWorkflowSchema = z.object({
+  enterpriseId: z.string().uuid(),
+  name: z.string().min(1).max(255),
+  templateIds: z.array(z.string().uuid()).default([]),
+});
+
+export const updateWorkflowSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string().min(1).max(255).optional(),
+  templateIds: z.array(z.string().uuid()).optional(),
+});
