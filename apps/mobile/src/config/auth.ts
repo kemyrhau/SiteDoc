@@ -1,5 +1,9 @@
+import { Platform } from "react-native";
+
 export const AUTH_CONFIG = {
-  googleClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID ?? "",
+  googleClientId: Platform.OS === "ios"
+    ? (process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ?? "")
+    : (process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID ?? ""),
   microsoftClientId: process.env.EXPO_PUBLIC_MICROSOFT_CLIENT_ID ?? "",
   apiUrl: process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3001",
 } as const;

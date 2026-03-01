@@ -6,13 +6,14 @@ import {
   useState,
 } from "react";
 import type { ReactNode } from "react";
+import { Platform } from "react-native";
 import {
   hentSessionToken,
   hentBrukerData,
   lagreSessionToken,
   lagreBrukerData,
   loggUt as loggUtTjeneste,
-  loggInnMedGoogle as googleFlyt,
+  loggInnMedGoogleWeb,
   loggInnMedMicrosoft as microsoftFlyt,
 } from "../services/auth";
 import type { BrukerData } from "../services/auth";
@@ -83,16 +84,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const loggInnMedGoogle = useCallback(async () => {
-    setLaster(true);
-    try {
-      const accessToken = await googleFlyt();
-      if (accessToken) {
-        await byttOgLagre("google", accessToken);
-      }
-    } finally {
-      setLaster(false);
+    if (Platform.OS === "web") {
+      // På web: redirect til Google OAuth (void, ingen return)
+      loggInnMedGoogleWeb();
     }
-  }, [byttOgLagre]);
+    // På native: Google-innlogging håndteres via hook i logg-inn-skjermen
+  }, []);
 
   const loggInnMedMicrosoft = useCallback(async () => {
     setLaster(true);

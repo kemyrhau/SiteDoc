@@ -83,42 +83,16 @@ function hentRedirectUri(): string {
   return AuthSession.makeRedirectUri({ scheme: "siteflow" });
 }
 
-export async function loggInnMedGoogle(): Promise<string | null> {
+export function loggInnMedGoogleWeb(): void {
   const redirectUri = hentRedirectUri();
-
-  if (Platform.OS === "web") {
-    // På web: redirect direkte uten PKCE
-    const params = new URLSearchParams({
-      client_id: AUTH_CONFIG.googleClientId,
-      redirect_uri: redirectUri,
-      response_type: "token",
-      scope: "openid email profile",
-      state: Math.random().toString(36).substring(2),
-    });
-    window.location.href = `${GOOGLE_AUTH.authorizationEndpoint}?${params.toString()}`;
-    return null;
-  }
-
-  // På native: bruk AuthSession
-  const discovery = await AuthSession.fetchDiscoveryAsync(
-    "https://accounts.google.com",
-  );
-
-  const request = new AuthSession.AuthRequest({
-    clientId: AUTH_CONFIG.googleClientId,
-    redirectUri,
-    scopes: ["openid", "email", "profile"],
-    responseType: AuthSession.ResponseType.Token,
-    usePKCE: false,
+  const params = new URLSearchParams({
+    client_id: AUTH_CONFIG.googleClientId,
+    redirect_uri: redirectUri,
+    response_type: "token",
+    scope: "openid email profile",
+    state: Math.random().toString(36).substring(2),
   });
-
-  const result = await request.promptAsync(discovery);
-
-  if (result.type === "success" && result.authentication?.accessToken) {
-    return result.authentication.accessToken;
-  }
-
-  return null;
+  window.location.href = `${GOOGLE_AUTH.authorizationEndpoint}?${params.toString()}`;
 }
 
 export async function loggInnMedMicrosoft(): Promise<string | null> {
