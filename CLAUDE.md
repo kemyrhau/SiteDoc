@@ -11,7 +11,8 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 - **Database (server):** PostgreSQL med Prisma ORM (v6.19)
 - **Database (lokal):** SQLite via expo-sqlite, Drizzle ORM
 - **Fillagring:** S3-kompatibel (AWS S3 / Cloudflare R2 / MinIO)
-- **Auth:** Auth.js v5 (next-auth) med Google og Microsoft Entra ID (Office 365), PrismaAdapter, database-sesjoner
+- **Auth:** Auth.js v5 (next-auth) med Google og Microsoft Entra ID (Office 365), PrismaAdapter, database-sesjoner, `allowDangerousEmailAccountLinking` for inviterte brukere
+- **E-post:** Resend (invitasjons-e-poster ved brukeropprettelse)
 - **Bildekomprimering:** expo-image-manipulator (mål: 300–400 KB)
 - **GPS:** expo-location (deaktiverbar per objekt)
 - **PDF-eksport:** react-pdf
@@ -30,6 +31,7 @@ siteflow/
 │   │       │   ├── page.tsx                  # Landingsside med innlogging
 │   │       │   ├── logg-inn/                 # OAuth-innlogging (Google + Entra ID)
 │   │       │   ├── registrer/                # Redirect til innlogging
+│   │       │   ├── aksepter-invitasjon/      # Aksept av prosjektinvitasjon (Server Component)
 │   │       │   ├── api/trpc/                 # tRPC API-rutehåndterer for Next.js
 │   │       │   ├── providers.tsx             # TRPCProvider + SessionProvider
 │   │       │   └── dashbord/
@@ -75,6 +77,8 @@ siteflow/
 │       └── src/
 │           ├── routes/                       # tRPC-routere (se API-seksjonen)
 │           │   └── health.ts                 # REST: GET /health
+│           ├── services/
+│           │   └── epost.ts                  # E-posttjeneste (Resend) for invitasjoner
 │           └── trpc/
 │               ├── trpc.ts                   # publicProcedure + protectedProcedure
 │               ├── context.ts                # Auth-verifisering fra sesjonstokens
@@ -107,7 +111,7 @@ siteflow/
 
 ### Database (PostgreSQL)
 
-20 tabeller totalt. Kjernetabeller:
+21 tabeller totalt. Kjernetabeller:
 
 | Tabell | Beskrivelse |
 |--------|-------------|
@@ -131,6 +135,7 @@ siteflow/
 | `documents` | Dokumenter i mapper med fil-URL og versjon |
 | `workflows` | Arbeidsforløp under entrepriser |
 | `workflow_templates` | Kobling mellom arbeidsforløp og maler (mange-til-mange) |
+| `project_invitations` | E-postinvitasjoner med token, status (pending/accepted/expired), utløpsdato |
 
 Viktige relasjoner:
 - Sjekklister og oppgaver har ALLTID `creator_enterprise_id` (oppretter) og `responder_enterprise_id` (svarer)
@@ -141,6 +146,7 @@ Viktige relasjoner:
 - `buildings` tilhører et prosjekt, med tegninger koblet via `building_id`
 - `drawings` har full metadata (tegningsnummer, fagdisiplin, revisjon, etasje, målestokk, status) med `drawing_revisions` for historikk
 - `folders` bruker selvrefererande relasjon (`parent_id`) for mappetreet i Box
+- `project_invitations` kobles til project, enterprise (valgfri), group (valgfri) og invitedBy (User)
 
 ### API-routere (tRPC)
 
@@ -157,7 +163,9 @@ Alle routere i `apps/api/src/routes/`:
 | `tegning` | hentForProsjekt (m/filtre), hentForBygning, hentMedId, opprett, oppdater, lastOppRevisjon, hentRevisjoner, tilknyttBygning, slett |
 | `arbeidsforlop` | hentForEnterprise, opprett, oppdater, slett |
 | `mappe` | hentForProsjekt, opprett, oppdater, slett |
-| `medlem` | hentForProsjekt, leggTil, fjern, oppdaterRolle, sokBrukere |
+| `medlem` | hentForProsjekt, leggTil (m/invitasjon), fjern, oppdaterRolle, sokBrukere |
+| `gruppe` | hentForProsjekt, opprettStandardgrupper, opprett, oppdater, slett, leggTilMedlem (m/invitasjon), fjernMedlem |
+| `invitasjon` | hentForProsjekt, validerToken, aksepter, sendPaNytt, trekkTilbake |
 
 **Auth-nivåer:** `publicProcedure` (åpen) og `protectedProcedure` (krever autentisert userId i context). Context bygges i `context.ts` som verifiserer Auth.js-sesjonstokens.
 
@@ -174,6 +182,22 @@ Sentral forretningslogikk. Dokumenter (sjekklister/oppgaver) flyter mellom entre
 - Oppretter-entreprise initierer og godkjenner/avviser
 - Svar-entreprise mottar, fyller ut og besvarer
 - Alle overganger logges i `document_transfers`
+
+### Invitasjonsflyt
+
+Når admin legger til en bruker (via `medlem.leggTil` eller `gruppe.leggTilMedlem`):
+
+1. Bruker opprettes/finnes i `users`-tabellen, `ProjectMember` opprettes
+2. Sjekker om brukeren har `Account`-kobling (har logget inn med OAuth)
+3. Hvis ikke → oppretter `ProjectInvitation` med unik token (7 dagers utløp), sender e-post via Resend
+4. E-posten inneholder akseptlenke → `/aksepter-invitasjon?token=...`
+5. Brukeren klikker → ser prosjektnavn og innloggingsknapper (Google/Microsoft)
+6. Etter OAuth-innlogging → `allowDangerousEmailAccountLinking` kobler til eksisterende User-rad
+7. Siden matcher innlogget e-post → markerer invitasjon som akseptert → redirect til `/dashbord/[projectId]`
+
+**E-posttjeneste:** `apps/api/src/services/epost.ts` — lazy-initialisert Resend-klient (krasjer ikke uten API-nøkkel ved oppstart)
+**Aksept-side:** `apps/web/src/app/aksepter-invitasjon/page.tsx` — Server Component med token-validering
+**Brukere-side:** Viser gul "Ventende"-badge og "Send på nytt"-knapp for aktive invitasjoner
 
 ### Arbeidsforløp
 
@@ -288,6 +312,7 @@ Dalux-inspirert tre-kolonne layout:
 ```
 /                                             -> Landingsside med OAuth-innlogging
 /logg-inn                                     -> Google + Microsoft Entra ID innlogging
+/aksepter-invitasjon?token=...                -> Aksepter prosjektinvitasjon (Server Component)
 /dashbord                                     -> Dashbord (prosjektliste)
 /dashbord/[prosjektId]                        -> Prosjektoversikt
 /dashbord/[prosjektId]/sjekklister            -> Sjekkliste-tabell
@@ -446,6 +471,7 @@ Tre eksportpunkter: `types`, `validation`, `utils`
 - **Bygning:** Fysisk bygning i et prosjekt, med tilknyttede tegninger og publiseringsstatus
 - **Prosjektnummer:** Unikt, autogenerert nummer på format `SF-YYYYMMDD-XXXX`
 - **Prefiks:** Kort kode for en mal (f.eks. BHO, S-BET, KBO)
+- **Invitasjon (ProjectInvitation):** E-postinvitasjon til et prosjekt med unik token, utløpsdato og status (pending/accepted/expired)
 
 ## Språk
 
@@ -465,3 +491,5 @@ Tre eksportpunkter: `types`, `validation`, `utils`
 - Mobil-appen må fungere fullt offline — test alltid med flymodus
 - Alle delte typer, schemaer og utils skal ligge i `@siteflow/shared` (viktig for mobilapp-gjenbruk)
 - Statusoverganger valideres via `isValidStatusTransition()` — bruk samme logikk på server og klient
+- E-postsending (Resend) er valgfri — API-en starter uten `RESEND_API_KEY`, feiler først ved faktisk sending
+- Invitasjons-e-post sendes i try/catch — feil blokkerer ikke brukeropprettelsen
