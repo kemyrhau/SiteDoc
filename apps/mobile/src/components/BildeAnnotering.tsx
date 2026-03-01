@@ -11,7 +11,7 @@ import {
   Type,
   Undo2,
 } from "lucide-react-native";
-import { File, Paths } from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 import { ANNOTERINGS_HTML } from "../assets/annoterings-html";
 
 type Verktoy = "arrow" | "circle" | "rect" | "draw" | "text";
@@ -57,16 +57,18 @@ export function BildeAnnotering({ bildeUri, onFerdig, onAvbryt }: BildeAnnoterin
         if (data.type === "klar") {
           settErKlar(true);
           // Send bildet til WebView — les filen som base64
-          const kildeFil = new File(bildeUri);
-          const base64 = await kildeFil.base64();
+          const base64 = await FileSystem.readAsStringAsync(bildeUri, {
+            encoding: FileSystem.EncodingType.Base64,
+          });
           sendMelding({ type: "settBilde", bildeUrl: `data:image/jpeg;base64,${base64}` });
         } else if (data.type === "ferdig" && data.dataUrl) {
           // Lagre annotert bilde lokalt
           const base64Data = (data.dataUrl as string).split(",")[1];
-          const målFil = new File(Paths.cache, `annotert_${Date.now()}.png`);
-          målFil.create();
-          målFil.write(base64Data, { encoding: "base64" });
-          onFerdig(målFil.uri);
+          const filsti = `${FileSystem.cacheDirectory}annotert_${Date.now()}.png`;
+          await FileSystem.writeAsStringAsync(filsti, base64Data, {
+            encoding: FileSystem.EncodingType.Base64,
+          });
+          onFerdig(filsti);
         }
       } catch {
         // Ignorer ugyldig melding

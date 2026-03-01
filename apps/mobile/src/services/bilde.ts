@@ -1,7 +1,7 @@
 import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
 import * as Location from "expo-location";
-import { File } from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 
 export interface BildeResultat {
   uri: string;
@@ -22,9 +22,9 @@ async function komprimer(uri: string): Promise<{ uri: string; filstorrelse: numb
     { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG },
   );
 
-  // Sjekk størrelse via File API
-  let fil = new File(resultat.uri);
-  let storrelseKB = (fil.size ?? 0) / 1024;
+  // Sjekk størrelse
+  let info = await FileSystem.getInfoAsync(resultat.uri);
+  let storrelseKB = info.exists && "size" in info ? info.size / 1024 : 0;
 
   // Steg 2: Iterativt reduser kvalitet til innenfor mål
   let kvalitet = 0.7;
@@ -34,8 +34,8 @@ async function komprimer(uri: string): Promise<{ uri: string; filstorrelse: numb
       [{ resize: { width: MAKS_BREDDE } }],
       { compress: kvalitet, format: ImageManipulator.SaveFormat.JPEG },
     );
-    fil = new File(resultat.uri);
-    storrelseKB = (fil.size ?? 0) / 1024;
+    info = await FileSystem.getInfoAsync(resultat.uri);
+    storrelseKB = info.exists && "size" in info ? info.size / 1024 : 0;
     kvalitet -= 0.1;
   }
 
@@ -47,8 +47,8 @@ async function komprimer(uri: string): Promise<{ uri: string; filstorrelse: numb
       [{ resize: { width: MAKS_BREDDE } }],
       { compress: mellomKvalitet, format: ImageManipulator.SaveFormat.JPEG },
     );
-    const mellomFil = new File(mellomResultat.uri);
-    const mellomKB = (mellomFil.size ?? 0) / 1024;
+    const mellomInfo = await FileSystem.getInfoAsync(mellomResultat.uri);
+    const mellomKB = mellomInfo.exists && "size" in mellomInfo ? mellomInfo.size / 1024 : 0;
     if (mellomKB <= MAL_MAKS_KB) {
       return { uri: mellomResultat.uri, filstorrelse: mellomKB * 1024 };
     }
