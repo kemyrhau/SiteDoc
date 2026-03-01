@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
-import { View, Text, ActivityIndicator } from "react-native";
-import * as Location from "expo-location";
+import { View, Text, ActivityIndicator, Platform } from "react-native";
 import { MapPin } from "lucide-react-native";
 
 // Fallback: Oslo sentrum
@@ -17,7 +16,14 @@ export function KartVisning() {
     let avbrutt = false;
 
     async function hentPosisjon() {
+      // expo-location støttes ikke på web
+      if (Platform.OS === "web") {
+        setLaster(false);
+        return;
+      }
+
       try {
+        const Location = await import("expo-location");
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== "granted") {
           setLaster(false);
@@ -61,7 +67,7 @@ export function KartVisning() {
 
   return (
     <View className="flex-1 items-center justify-center bg-gray-100">
-      <MapPin size={48} color="#15803d" />
+      <MapPin size={48} color="#1e40af" />
       <Text className="mt-4 text-base font-medium text-gray-700">
         Kartvisning
       </Text>

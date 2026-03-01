@@ -133,7 +133,7 @@ siteflow/
 | `images` | Bilder med valgfri GPS-data |
 | `folders` | Rekursiv mappestruktur (Box-modul) med parent_id |
 | `documents` | Dokumenter i mapper med fil-URL og versjon |
-| `workflows` | Arbeidsforløp under entrepriser |
+| `workflows` | Arbeidsforløp med oppretter- og svarer-entreprise |
 | `workflow_templates` | Kobling mellom arbeidsforløp og maler (mange-til-mange) |
 | `project_invitations` | E-postinvitasjoner med token, status (pending/accepted/expired), utløpsdato |
 
@@ -141,7 +141,7 @@ Viktige relasjoner:
 - Sjekklister og oppgaver har ALLTID `creator_enterprise_id` (oppretter) og `responder_enterprise_id` (svarer)
 - `document_transfers` logger all sending mellom entrepriser med full sporbarhet
 - Bilder har valgfri GPS-data (`gps_lat`, `gps_lng`, `gps_enabled`)
-- `workflows` tilhører en entreprise og kobler til maler via `workflow_templates`
+- `workflows` tilhører en oppretter-entreprise (`enterpriseId`) med valgfri svarer-entreprise (`responderEnterpriseId`), kobler til maler via `workflow_templates`
 - `report_templates` har `category` (`oppgave` | `sjekkliste`) og valgfritt `prefix`
 - `buildings` tilhører et prosjekt, med tegninger koblet via `building_id`
 - `drawings` har full metadata (tegningsnummer, fagdisiplin, revisjon, etasje, målestokk, status) med `drawing_revisions` for historikk
@@ -201,12 +201,19 @@ Når admin legger til en bruker (via `medlem.leggTil` eller `gruppe.leggTilMedle
 
 ### Arbeidsforløp
 
-Arbeidsforløp kobler maler til entrepriser. Konfigureres under Innstillinger > Field > Entrepriser:
+Arbeidsforløp kobler maler til entrepriser og definerer oppretter/svarer-flyten. Konfigureres under Innstillinger > Field > Entrepriser:
 
-- Hver entreprise kan ha flere arbeidsforløp (f.eks. "Uavhengig Kontroll", "Produksjon")
+- Hver entreprise (oppretter) kan ha flere arbeidsforløp (f.eks. "Uavhengig Kontroll", "Produksjon")
+- Hvert arbeidsforløp har en valgfri `responderEnterpriseId` som angir svarer-entreprisen
+  - Når `responderEnterpriseId` er `null` → svarer er samme entreprise som oppretter (intern flyt)
+  - Når satt → dokumenter sendes til en annen entreprise (f.eks. admin sender til UE for utbedring)
 - Hvert arbeidsforløp velger hvilke maler (oppgavetyper og sjekklistetyper) som er tilgjengelige
 - Maler kategoriseres som `oppgave` eller `sjekkliste` via `report_templates.category`
+- Visningen bruker to-kolonne layout: Oppretter (venstre) → pil → Svarer (høyre)
 - Treprikk-menyer (⋮) på to nivåer: entreprise-header og arbeidsforløp-rad
+
+### TODO
+- Nedtrekksmeny for å velge eksisterende prosjektmedlemmer i brukergrupper (erstatt e-postfelt)
 
 ### Tegninger (drawings)
 
@@ -479,6 +486,20 @@ Tre eksportpunkter: `types`, `validation`, `utils`
 - Variabelnavn og tekniske identifikatorer kan være på engelsk der det er naturlig (f.eks. `id`, `status`, `config`)
 - Brukervendt tekst (knapper, labels, feilmeldinger, hjelpetekst) skal ALLTID være på norsk
 - Bruk alltid norske tegn (æ, ø, å) i all UI-tekst, kommentarer og strenger — ALDRI ASCII-erstatninger (aa, oe, ae)
+
+## Fargepalett
+
+Mobilappen skal bruke samme fargepalett som web-appen. Primærfargen er SiteFlow-blå (`#1e40af`), brukt i toppbar, aktive elementer og knapper. Fargene er definert i Tailwind-konfigurasjon:
+
+| Farge | Hex | Bruk |
+|-------|-----|------|
+| `siteflow-primary` / `siteflow-blue` | `#1e40af` | Primærfarge (toppbar, aktive ikoner, knapper) |
+| `siteflow-secondary` / `siteflow-blue-light` | `#3b82f6` | Sekundær blå (lenker, hover) |
+| `siteflow-accent` | `#f59e0b` | Aksent (varsler, markering) |
+| `siteflow-success` | `#10b981` | Suksess (godkjent, ferdig) |
+| `siteflow-error` | `#ef4444` | Feil (avvist, slett) |
+
+Bruk den blå primærfargen (`#1e40af`) konsekvent på tvers av web og mobil for et enhetlig utseende.
 
 ## Viktige regler
 

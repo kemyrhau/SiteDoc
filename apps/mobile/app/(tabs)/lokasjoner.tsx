@@ -15,6 +15,7 @@ import {
 } from "lucide-react-native";
 import { trpc } from "../../src/lib/trpc";
 import { useProsjekt } from "../../src/kontekst/ProsjektKontekst";
+import { AUTH_CONFIG } from "../../src/config/auth";
 import { KartVisning } from "../../src/components/KartVisning";
 import { TegningsVisning } from "../../src/components/TegningsVisning";
 import { TegningsVelger } from "../../src/components/TegningsVelger";
@@ -146,7 +147,7 @@ export default function LokasjonerSkjerm() {
   return (
     <SafeAreaView className="flex-1 bg-gray-50" edges={["top"]}>
       {/* Grønn filterbar */}
-      <View className="flex-row items-center justify-between bg-green-700 px-4 py-3">
+      <View className="flex-row items-center justify-between bg-siteflow-blue px-4 py-3">
         <Pressable className="flex-row items-center gap-1">
           <Text className="text-base font-semibold text-white">Oppgaver</Text>
           <ChevronDown size={18} color="#ffffff" />
@@ -167,7 +168,11 @@ export default function LokasjonerSkjerm() {
           </View>
         ) : valgtTegningId && valgtTegningDetalj?.fileUrl ? (
           <TegningsVisning
-            tegningUrl={valgtTegningDetalj.fileUrl}
+            tegningUrl={
+              valgtTegningDetalj.fileUrl.startsWith("http")
+                ? valgtTegningDetalj.fileUrl
+                : `${AUTH_CONFIG.apiUrl}${valgtTegningDetalj.fileUrl}`
+            }
             tegningNavn={valgtTegningDetalj.name}
             onLukk={håndterLukkTegning}
           />

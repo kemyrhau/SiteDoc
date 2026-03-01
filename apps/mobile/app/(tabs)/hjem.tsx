@@ -160,12 +160,12 @@ export default function HjemSkjerm() {
   return (
     <SafeAreaView className="flex-1 bg-gray-50" edges={["top"]}>
       {/* Gronn header med prosjektvelger */}
-      <View className="flex-row items-center justify-between bg-siteflow-header px-4 py-3">
+      <View className="flex-row items-center justify-between bg-siteflow-blue px-4 py-3">
         <Pressable
           onPress={() => setVelgerSynlig(true)}
           className="flex-row items-center gap-2"
         >
-          <View className="h-2.5 w-2.5 rounded-full bg-green-300" />
+          <View className="h-2.5 w-2.5 rounded-full bg-blue-300" />
           <Text className="text-lg font-semibold text-white" numberOfLines={1}>
             {valgtProsjekt?.name ?? "Velg prosjekt"}
           </Text>

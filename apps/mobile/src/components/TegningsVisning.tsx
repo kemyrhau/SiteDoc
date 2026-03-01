@@ -6,14 +6,20 @@ import {
   ScrollView,
   Pressable,
   ActivityIndicator,
+  Platform,
   useWindowDimensions,
 } from "react-native";
+import { WebView } from "react-native-webview";
 import { X } from "lucide-react-native";
 
 interface TegningsVisningProps {
   tegningUrl: string;
   tegningNavn: string;
   onLukk: () => void;
+}
+
+function erPdf(url: string): boolean {
+  return url.toLowerCase().endsWith(".pdf");
 }
 
 export function TegningsVisning({
@@ -23,6 +29,7 @@ export function TegningsVisning({
 }: TegningsVisningProps) {
   const [laster, setLaster] = useState(true);
   const { width, height } = useWindowDimensions();
+  const erPdfFil = erPdf(tegningUrl);
 
   return (
     <View className="flex-1 bg-black">
@@ -41,38 +48,64 @@ export function TegningsVisning({
         >
           {tegningNavn}
         </Text>
-        {/* Plasshodler for å balansere layouten */}
         <View style={{ width: 36 }} />
       </View>
 
-      {/* Tegningsbilde med zoom/pan */}
-      <ScrollView
-        contentContainerStyle={{
-          flexGrow: 1,
-          justifyContent: "center",
-          alignItems: "center",
-        }}
-        maximumZoomScale={5}
-        minimumZoomScale={1}
-        bouncesZoom
-        showsHorizontalScrollIndicator={false}
-        showsVerticalScrollIndicator={false}
-      >
-        {laster && (
-          <View className="absolute inset-0 items-center justify-center">
-            <ActivityIndicator size="large" color="#ffffff" />
-            <Text className="mt-3 text-sm text-gray-300">
-              Laster tegning…
-            </Text>
-          </View>
-        )}
-        <Image
-          source={{ uri: tegningUrl }}
-          style={{ width, height: height * 0.8 }}
-          resizeMode="contain"
-          onLoadEnd={() => setLaster(false)}
-        />
-      </ScrollView>
+      {/* Innhold: PDF via WebView eller bilde med zoom/pan */}
+      {erPdfFil ? (
+        <View className="flex-1 pt-12">
+          {laster && (
+            <View className="absolute inset-0 z-0 items-center justify-center">
+              <ActivityIndicator size="large" color="#ffffff" />
+              <Text className="mt-3 text-sm text-gray-300">
+                Laster tegning…
+              </Text>
+            </View>
+          )}
+          {Platform.OS === "web" ? (
+            <iframe
+              src={tegningUrl}
+              style={{ flex: 1, width: "100%", height: "100%", border: "none" }}
+              onLoad={() => setLaster(false)}
+            />
+          ) : (
+            <WebView
+              source={{ uri: tegningUrl }}
+              style={{ flex: 1 }}
+              onLoadEnd={() => setLaster(false)}
+              scalesPageToFit
+            />
+          )}
+        </View>
+      ) : (
+        <ScrollView
+          contentContainerStyle={{
+            flexGrow: 1,
+            justifyContent: "center",
+            alignItems: "center",
+          }}
+          maximumZoomScale={5}
+          minimumZoomScale={1}
+          bouncesZoom
+          showsHorizontalScrollIndicator={false}
+          showsVerticalScrollIndicator={false}
+        >
+          {laster && (
+            <View className="absolute inset-0 items-center justify-center">
+              <ActivityIndicator size="large" color="#ffffff" />
+              <Text className="mt-3 text-sm text-gray-300">
+                Laster tegning…
+              </Text>
+            </View>
+          )}
+          <Image
+            source={{ uri: tegningUrl }}
+            style={{ width, height: height * 0.8 }}
+            resizeMode="contain"
+            onLoadEnd={() => setLaster(false)}
+          />
+        </ScrollView>
+      )}
     </View>
   );
 }

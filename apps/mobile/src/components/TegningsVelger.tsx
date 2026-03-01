@@ -1,21 +1,21 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   View,
   Text,
   Pressable,
   TextInput,
   FlatList,
-  Animated,
-  PanResponder,
-  useWindowDimensions,
+  Modal,
 } from "react-native";
 import {
   ChevronDown,
   ChevronRight,
+  ChevronUp,
   Check,
   Search,
-  GripHorizontal,
+  Map,
 } from "lucide-react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 interface Bygning {
   id: string;
@@ -58,64 +58,7 @@ export function TegningsVelger({
   onAvbryt,
   laster,
 }: TegningsVelgerProps) {
-  const { height: skjermHøyde } = useWindowDimensions();
-
-  // Snap-punkter i piksler (8%, 50%, 90% av skjermhøyde)
-  const snapPunkter = useMemo(
-    () => [skjermHøyde * 0.08, skjermHøyde * 0.5, skjermHøyde * 0.9],
-    [skjermHøyde],
-  );
-
-  const animertHøyde = useRef(new Animated.Value(snapPunkter[0])).current;
-  const gjeldeneHøyde = useRef(snapPunkter[0]);
-
-  // Oppdater gjeldende høyde når animert verdi endres
-  animertHøyde.addListener(({ value }) => {
-    gjeldeneHøyde.current = value;
-  });
-
-  const snapTilNærmeste = useCallback(
-    (verdi: number) => {
-      // Finn nærmeste snap-punkt
-      let nærmeste = snapPunkter[0];
-      let minAvstand = Math.abs(verdi - snapPunkter[0]);
-      for (const punkt of snapPunkter) {
-        const avstand = Math.abs(verdi - punkt);
-        if (avstand < minAvstand) {
-          minAvstand = avstand;
-          nærmeste = punkt;
-        }
-      }
-      Animated.spring(animertHøyde, {
-        toValue: nærmeste,
-        useNativeDriver: false,
-        tension: 80,
-        friction: 12,
-      }).start();
-    },
-    [animertHøyde, snapPunkter],
-  );
-
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: (_, gestureState) =>
-        Math.abs(gestureState.dy) > 5,
-      onPanResponderMove: (_, gestureState) => {
-        const nyHøyde = gjeldeneHøyde.current - gestureState.dy;
-        const clamped = Math.max(
-          snapPunkter[0],
-          Math.min(snapPunkter[2], nyHøyde),
-        );
-        animertHøyde.setValue(clamped);
-      },
-      onPanResponderRelease: (_, gestureState) => {
-        const nyHøyde = gjeldeneHøyde.current - gestureState.dy;
-        snapTilNærmeste(nyHøyde);
-      },
-    }),
-  ).current;
-
+  const [utvidet, setUtvidet] = useState(false);
   const [søkTekst, setSøkTekst] = useState("");
   const [åpneEtasjer, setÅpneEtasjer] = useState<Set<string>>(new Set());
   const [visBygningListe, setVisBygningListe] = useState(false);
@@ -143,16 +86,17 @@ export function TegningsVelger({
 
   // Grupper tegninger etter etasje
   const etasjeGrupper = useMemo(() => {
-    const grupper = new Map<string, Tegning[]>();
+    const grupper: Record<string, Tegning[]> = {};
 
     for (const tegning of filtreretTegninger) {
       const etasje = tegning.floor || "Uten etasje";
-      const eksisterende = grupper.get(etasje) ?? [];
-      eksisterende.push(tegning);
-      grupper.set(etasje, eksisterende);
+      if (!grupper[etasje]) {
+        grupper[etasje] = [];
+      }
+      grupper[etasje].push(tegning);
     }
 
-    const sortert: EtasjeGruppe[] = Array.from(grupper.entries())
+    const sortert: EtasjeGruppe[] = Object.entries(grupper)
       .sort(([a], [b]) => {
         if (a === "Uten etasje") return 1;
         if (b === "Uten etasje") return -1;
@@ -187,42 +131,12 @@ export function TegningsVelger({
     });
   }, []);
 
-  const renderBygningListe = () => (
-    <View className="px-4">
-      <Pressable
-        onPress={() => {
-          onVelgBygning(null);
-          setVisBygningListe(false);
-        }}
-        className="flex-row items-center border-b border-gray-100 py-3"
-      >
-        <Text
-          className={`flex-1 text-sm ${!valgtBygningId ? "font-semibold text-green-700" : "text-gray-700"}`}
-        >
-          Alle bygninger
-        </Text>
-        {!valgtBygningId && <Check size={18} color="#15803d" />}
-      </Pressable>
-      {bygninger.map((bygning) => (
-        <Pressable
-          key={bygning.id}
-          onPress={() => {
-            onVelgBygning(bygning.id);
-            setVisBygningListe(false);
-          }}
-          className="flex-row items-center border-b border-gray-100 py-3"
-        >
-          <Text
-            className={`flex-1 text-sm ${valgtBygningId === bygning.id ? "font-semibold text-green-700" : "text-gray-700"}`}
-          >
-            {bygning.name}
-          </Text>
-          {valgtBygningId === bygning.id && (
-            <Check size={18} color="#15803d" />
-          )}
-        </Pressable>
-      ))}
-    </View>
+  const håndterVelgTegning = useCallback(
+    (id: string) => {
+      onVelgTegning(id);
+      setUtvidet(false);
+    },
+    [onVelgTegning],
   );
 
   const renderEtasjeGruppe = ({ item }: { item: EtasjeGruppe }) => {
@@ -253,8 +167,8 @@ export function TegningsVelger({
             return (
               <Pressable
                 key={tegning.id}
-                onPress={() => onVelgTegning(tegning.id)}
-                className={`flex-row items-center border-b border-gray-50 px-4 py-2.5 pl-10 ${erValgt ? "bg-green-50" : "bg-white"}`}
+                onPress={() => håndterVelgTegning(tegning.id)}
+                className={`flex-row items-center border-b border-gray-50 px-4 py-2.5 pl-10 ${erValgt ? "bg-blue-50" : "bg-white"}`}
               >
                 <View className="flex-1">
                   <View className="flex-row items-center gap-2">
@@ -264,7 +178,7 @@ export function TegningsVelger({
                       </Text>
                     )}
                     <Text
-                      className={`text-sm ${erValgt ? "font-semibold text-green-700" : "text-gray-800"}`}
+                      className={`text-sm ${erValgt ? "font-semibold text-blue-700" : "text-gray-800"}`}
                       numberOfLines={1}
                     >
                       {tegning.name}
@@ -272,7 +186,7 @@ export function TegningsVelger({
                   </View>
                 </View>
                 <View className="flex-row items-center gap-2">
-                  {erValgt && <Check size={16} color="#15803d" />}
+                  {erValgt && <Check size={16} color="#1e40af" />}
                   {tegning._count.revisions > 0 && (
                     <View className="rounded-full bg-gray-200 px-1.5 py-0.5">
                       <Text className="text-[10px] font-medium text-gray-600">
@@ -289,94 +203,129 @@ export function TegningsVelger({
   };
 
   return (
-    <Animated.View
-      style={{
-        position: "absolute",
-        left: 0,
-        right: 0,
-        bottom: 0,
-        height: animertHøyde,
-        backgroundColor: "#ffffff",
-        borderTopLeftRadius: 16,
-        borderTopRightRadius: 16,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: -3 },
-        shadowOpacity: 0.1,
-        shadowRadius: 6,
-        elevation: 10,
-      }}
-    >
-      {/* Drag-håndtak */}
-      <View {...panResponder.panHandlers} className="items-center py-2">
-        <GripHorizontal size={24} color="#d1d5db" />
-      </View>
-
-      {/* Kollapset header-tekst */}
-      <View className="border-b border-gray-200 px-4 pb-2">
-        <Text className="text-center text-sm font-medium text-gray-600">
-          {kollapsetTekst}
-        </Text>
-      </View>
-
-      {/* Grønn header med Avbryt og bygningsvelger */}
-      <View className="flex-row items-center justify-between bg-green-700 px-4 py-2.5">
-        <Pressable onPress={onAvbryt} hitSlop={8}>
-          <Text className="text-sm font-medium text-white">Avbryt</Text>
-        </Pressable>
-
-        <Pressable
-          onPress={() => setVisBygningListe(!visBygningListe)}
-          className="flex-row items-center gap-1"
-        >
-          <Text className="text-sm font-semibold text-white">
-            {valgtBygning?.name ?? "Alle bygninger"}
-          </Text>
-          <ChevronDown size={16} color="#ffffff" />
-        </Pressable>
-
-        <View style={{ width: 50 }} />
-      </View>
-
-      {/* Bygningsvelger-dropdown */}
-      {visBygningListe && renderBygningListe()}
-
-      {/* Søkefelt */}
-      <View className="border-b border-gray-200 bg-gray-50 px-4 py-2">
-        <View className="flex-row items-center rounded-lg bg-white px-3 py-2">
-          <Search size={16} color="#9ca3af" />
-          <TextInput
-            className="ml-2 flex-1 text-sm text-gray-800"
-            placeholder="Søk tegninger…"
-            placeholderTextColor="#9ca3af"
-            value={søkTekst}
-            onChangeText={setSøkTekst}
-            autoCapitalize="none"
-            autoCorrect={false}
-          />
-        </View>
-      </View>
-
-      {/* Innhold */}
-      {laster ? (
-        <View className="flex-1 items-center justify-center py-8">
-          <Text className="text-sm text-gray-400">Henter tegninger…</Text>
-        </View>
-      ) : filtreretTegninger.length === 0 ? (
-        <View className="flex-1 items-center justify-center py-8">
-          <Text className="text-sm text-gray-400">
-            {søkTekst
-              ? "Ingen tegninger funnet"
-              : "Ingen tegninger tilgjengelig"}
+    <>
+      {/* Kollapset bar — alltid synlig over tab-baren */}
+      <Pressable
+        onPress={() => setUtvidet(true)}
+        className="flex-row items-center justify-between border-t border-gray-200 bg-white px-4 py-3"
+      >
+        <View className="flex-row items-center gap-2">
+          <Map size={18} color="#1e40af" />
+          <Text className="text-sm font-medium text-gray-700">
+            {kollapsetTekst}
           </Text>
         </View>
-      ) : (
-        <FlatList
-          data={etasjeGrupper}
-          keyExtractor={(item) => item.etasje}
-          renderItem={renderEtasjeGruppe}
-          contentContainerStyle={{ paddingBottom: 40 }}
-        />
-      )}
-    </Animated.View>
+        <ChevronUp size={18} color="#9ca3af" />
+      </Pressable>
+
+      {/* Utvidet modal med tegningsliste */}
+      <Modal visible={utvidet} animationType="slide" presentationStyle="pageSheet">
+        <SafeAreaView className="flex-1 bg-white">
+          {/* Grønn header med Avbryt og bygningsvelger */}
+          <View className="flex-row items-center justify-between bg-siteflow-blue px-4 py-3">
+            <Pressable
+              onPress={() => {
+                setUtvidet(false);
+                onAvbryt();
+              }}
+              hitSlop={8}
+            >
+              <Text className="text-sm font-medium text-white">Avbryt</Text>
+            </Pressable>
+
+            <Pressable
+              onPress={() => setVisBygningListe(!visBygningListe)}
+              className="flex-row items-center gap-1"
+            >
+              <Text className="text-sm font-semibold text-white">
+                {valgtBygning?.name ?? "Alle bygninger"}
+              </Text>
+              <ChevronDown size={16} color="#ffffff" />
+            </Pressable>
+
+            <Pressable onPress={() => setUtvidet(false)} hitSlop={8}>
+              <Text className="text-sm font-medium text-white">Ferdig</Text>
+            </Pressable>
+          </View>
+
+          {/* Bygningsvelger-dropdown */}
+          {visBygningListe && (
+            <View className="border-b border-gray-200 bg-white px-4">
+              <Pressable
+                onPress={() => {
+                  onVelgBygning(null);
+                  setVisBygningListe(false);
+                }}
+                className="flex-row items-center border-b border-gray-100 py-3"
+              >
+                <Text
+                  className={`flex-1 text-sm ${!valgtBygningId ? "font-semibold text-blue-700" : "text-gray-700"}`}
+                >
+                  Alle bygninger
+                </Text>
+                {!valgtBygningId && <Check size={18} color="#1e40af" />}
+              </Pressable>
+              {bygninger.map((bygning) => (
+                <Pressable
+                  key={bygning.id}
+                  onPress={() => {
+                    onVelgBygning(bygning.id);
+                    setVisBygningListe(false);
+                  }}
+                  className="flex-row items-center border-b border-gray-100 py-3"
+                >
+                  <Text
+                    className={`flex-1 text-sm ${valgtBygningId === bygning.id ? "font-semibold text-blue-700" : "text-gray-700"}`}
+                  >
+                    {bygning.name}
+                  </Text>
+                  {valgtBygningId === bygning.id && (
+                    <Check size={18} color="#1e40af" />
+                  )}
+                </Pressable>
+              ))}
+            </View>
+          )}
+
+          {/* Søkefelt */}
+          <View className="border-b border-gray-200 bg-gray-50 px-4 py-2">
+            <View className="flex-row items-center rounded-lg bg-white px-3 py-2">
+              <Search size={16} color="#9ca3af" />
+              <TextInput
+                className="ml-2 flex-1 text-sm text-gray-800"
+                placeholder="Søk tegninger…"
+                placeholderTextColor="#9ca3af"
+                value={søkTekst}
+                onChangeText={setSøkTekst}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+            </View>
+          </View>
+
+          {/* Innhold */}
+          {laster ? (
+            <View className="flex-1 items-center justify-center py-8">
+              <Text className="text-sm text-gray-400">Henter tegninger…</Text>
+            </View>
+          ) : filtreretTegninger.length === 0 ? (
+            <View className="flex-1 items-center justify-center py-8">
+              <Text className="text-sm text-gray-400">
+                {søkTekst
+                  ? "Ingen tegninger funnet"
+                  : "Ingen tegninger tilgjengelig"}
+              </Text>
+            </View>
+          ) : (
+            <FlatList
+              data={etasjeGrupper}
+              keyExtractor={(item) => item.etasje}
+              renderItem={renderEtasjeGruppe}
+              contentContainerStyle={{ paddingBottom: 40 }}
+            />
+          )}
+        </SafeAreaView>
+      </Modal>
+    </>
   );
 }
