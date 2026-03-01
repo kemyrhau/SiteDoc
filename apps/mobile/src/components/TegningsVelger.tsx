@@ -1,11 +1,20 @@
 import { useCallback, useMemo, useRef, useState } from "react";
-import { View, Text, Pressable, TextInput, FlatList } from "react-native";
-import BottomSheet, { BottomSheetView } from "@gorhom/bottom-sheet";
+import {
+  View,
+  Text,
+  Pressable,
+  TextInput,
+  FlatList,
+  Animated,
+  PanResponder,
+  useWindowDimensions,
+} from "react-native";
 import {
   ChevronDown,
   ChevronRight,
   Check,
   Search,
+  GripHorizontal,
 } from "lucide-react-native";
 
 interface Bygning {
@@ -49,8 +58,63 @@ export function TegningsVelger({
   onAvbryt,
   laster,
 }: TegningsVelgerProps) {
-  const bottomSheetRef = useRef<BottomSheet>(null);
-  const snapPunkter = useMemo(() => ["8%", "50%", "90%"], []);
+  const { height: skjermHøyde } = useWindowDimensions();
+
+  // Snap-punkter i piksler (8%, 50%, 90% av skjermhøyde)
+  const snapPunkter = useMemo(
+    () => [skjermHøyde * 0.08, skjermHøyde * 0.5, skjermHøyde * 0.9],
+    [skjermHøyde],
+  );
+
+  const animertHøyde = useRef(new Animated.Value(snapPunkter[0])).current;
+  const gjeldeneHøyde = useRef(snapPunkter[0]);
+
+  // Oppdater gjeldende høyde når animert verdi endres
+  animertHøyde.addListener(({ value }) => {
+    gjeldeneHøyde.current = value;
+  });
+
+  const snapTilNærmeste = useCallback(
+    (verdi: number) => {
+      // Finn nærmeste snap-punkt
+      let nærmeste = snapPunkter[0];
+      let minAvstand = Math.abs(verdi - snapPunkter[0]);
+      for (const punkt of snapPunkter) {
+        const avstand = Math.abs(verdi - punkt);
+        if (avstand < minAvstand) {
+          minAvstand = avstand;
+          nærmeste = punkt;
+        }
+      }
+      Animated.spring(animertHøyde, {
+        toValue: nærmeste,
+        useNativeDriver: false,
+        tension: 80,
+        friction: 12,
+      }).start();
+    },
+    [animertHøyde, snapPunkter],
+  );
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, gestureState) =>
+        Math.abs(gestureState.dy) > 5,
+      onPanResponderMove: (_, gestureState) => {
+        const nyHøyde = gjeldeneHøyde.current - gestureState.dy;
+        const clamped = Math.max(
+          snapPunkter[0],
+          Math.min(snapPunkter[2], nyHøyde),
+        );
+        animertHøyde.setValue(clamped);
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        const nyHøyde = gjeldeneHøyde.current - gestureState.dy;
+        snapTilNærmeste(nyHøyde);
+      },
+    }),
+  ).current;
 
   const [søkTekst, setSøkTekst] = useState("");
   const [åpneEtasjer, setÅpneEtasjer] = useState<Set<string>>(new Set());
@@ -88,7 +152,6 @@ export function TegningsVelger({
       grupper.set(etasje, eksisterende);
     }
 
-    // Sorter etasjer: numeriske først, "Uten etasje" sist
     const sortert: EtasjeGruppe[] = Array.from(grupper.entries())
       .sort(([a], [b]) => {
         if (a === "Uten etasje") return 1;
@@ -226,79 +289,94 @@ export function TegningsVelger({
   };
 
   return (
-    <BottomSheet
-      ref={bottomSheetRef}
-      snapPoints={snapPunkter}
-      enablePanDownToClose={false}
-      handleIndicatorStyle={{ backgroundColor: "#d1d5db", width: 40 }}
-      backgroundStyle={{ backgroundColor: "#ffffff" }}
+    <Animated.View
+      style={{
+        position: "absolute",
+        left: 0,
+        right: 0,
+        bottom: 0,
+        height: animertHøyde,
+        backgroundColor: "#ffffff",
+        borderTopLeftRadius: 16,
+        borderTopRightRadius: 16,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: -3 },
+        shadowOpacity: 0.1,
+        shadowRadius: 6,
+        elevation: 10,
+      }}
     >
-      <BottomSheetView style={{ flex: 1 }}>
-        {/* Kollapset header-tekst (synlig ved 8%) */}
-        <View className="border-b border-gray-200 px-4 pb-2">
-          <Text className="text-center text-sm font-medium text-gray-600">
-            {kollapsetTekst}
+      {/* Drag-håndtak */}
+      <View {...panResponder.panHandlers} className="items-center py-2">
+        <GripHorizontal size={24} color="#d1d5db" />
+      </View>
+
+      {/* Kollapset header-tekst */}
+      <View className="border-b border-gray-200 px-4 pb-2">
+        <Text className="text-center text-sm font-medium text-gray-600">
+          {kollapsetTekst}
+        </Text>
+      </View>
+
+      {/* Grønn header med Avbryt og bygningsvelger */}
+      <View className="flex-row items-center justify-between bg-green-700 px-4 py-2.5">
+        <Pressable onPress={onAvbryt} hitSlop={8}>
+          <Text className="text-sm font-medium text-white">Avbryt</Text>
+        </Pressable>
+
+        <Pressable
+          onPress={() => setVisBygningListe(!visBygningListe)}
+          className="flex-row items-center gap-1"
+        >
+          <Text className="text-sm font-semibold text-white">
+            {valgtBygning?.name ?? "Alle bygninger"}
+          </Text>
+          <ChevronDown size={16} color="#ffffff" />
+        </Pressable>
+
+        <View style={{ width: 50 }} />
+      </View>
+
+      {/* Bygningsvelger-dropdown */}
+      {visBygningListe && renderBygningListe()}
+
+      {/* Søkefelt */}
+      <View className="border-b border-gray-200 bg-gray-50 px-4 py-2">
+        <View className="flex-row items-center rounded-lg bg-white px-3 py-2">
+          <Search size={16} color="#9ca3af" />
+          <TextInput
+            className="ml-2 flex-1 text-sm text-gray-800"
+            placeholder="Søk tegninger…"
+            placeholderTextColor="#9ca3af"
+            value={søkTekst}
+            onChangeText={setSøkTekst}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+        </View>
+      </View>
+
+      {/* Innhold */}
+      {laster ? (
+        <View className="flex-1 items-center justify-center py-8">
+          <Text className="text-sm text-gray-400">Henter tegninger…</Text>
+        </View>
+      ) : filtreretTegninger.length === 0 ? (
+        <View className="flex-1 items-center justify-center py-8">
+          <Text className="text-sm text-gray-400">
+            {søkTekst
+              ? "Ingen tegninger funnet"
+              : "Ingen tegninger tilgjengelig"}
           </Text>
         </View>
-
-        {/* Grønn header med Avbryt og bygningsvelger */}
-        <View className="flex-row items-center justify-between bg-green-700 px-4 py-2.5">
-          <Pressable onPress={onAvbryt} hitSlop={8}>
-            <Text className="text-sm font-medium text-white">Avbryt</Text>
-          </Pressable>
-
-          <Pressable
-            onPress={() => setVisBygningListe(!visBygningListe)}
-            className="flex-row items-center gap-1"
-          >
-            <Text className="text-sm font-semibold text-white">
-              {valgtBygning?.name ?? "Alle bygninger"}
-            </Text>
-            <ChevronDown size={16} color="#ffffff" />
-          </Pressable>
-
-          <View style={{ width: 50 }} />
-        </View>
-
-        {/* Bygningsvelger-dropdown */}
-        {visBygningListe && renderBygningListe()}
-
-        {/* Søkefelt */}
-        <View className="border-b border-gray-200 bg-gray-50 px-4 py-2">
-          <View className="flex-row items-center rounded-lg bg-white px-3 py-2">
-            <Search size={16} color="#9ca3af" />
-            <TextInput
-              className="ml-2 flex-1 text-sm text-gray-800"
-              placeholder="Søk tegninger…"
-              placeholderTextColor="#9ca3af"
-              value={søkTekst}
-              onChangeText={setSøkTekst}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-          </View>
-        </View>
-
-        {/* Innhold */}
-        {laster ? (
-          <View className="flex-1 items-center justify-center py-8">
-            <Text className="text-sm text-gray-400">Henter tegninger…</Text>
-          </View>
-        ) : filtreretTegninger.length === 0 ? (
-          <View className="flex-1 items-center justify-center py-8">
-            <Text className="text-sm text-gray-400">
-              {søkTekst ? "Ingen tegninger funnet" : "Ingen tegninger tilgjengelig"}
-            </Text>
-          </View>
-        ) : (
-          <FlatList
-            data={etasjeGrupper}
-            keyExtractor={(item) => item.etasje}
-            renderItem={renderEtasjeGruppe}
-            contentContainerStyle={{ paddingBottom: 40 }}
-          />
-        )}
-      </BottomSheetView>
-    </BottomSheet>
+      ) : (
+        <FlatList
+          data={etasjeGrupper}
+          keyExtractor={(item) => item.etasje}
+          renderItem={renderEtasjeGruppe}
+          contentContainerStyle={{ paddingBottom: 40 }}
+        />
+      )}
+    </Animated.View>
   );
 }
