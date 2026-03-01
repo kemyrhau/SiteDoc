@@ -62,6 +62,9 @@ export const updateWorkflowSchema = z.object({
 export const addMemberSchema = z.object({
   projectId: z.string().uuid(),
   email: z.string().email("Ugyldig e-postadresse"),
+  firstName: z.string().min(1, "Fornavn er påkrevd"),
+  lastName: z.string().min(1, "Etternavn er påkrevd"),
+  phone: z.string().optional(),
   role: z.enum(["member", "admin"]).default("member"),
   enterpriseId: z.string().uuid().optional(),
 });

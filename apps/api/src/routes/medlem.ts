@@ -28,7 +28,19 @@ export const medlemRouter = router({
 
       if (!user) {
         user = await ctx.prisma.user.create({
-          data: { email: input.email },
+          data: {
+            email: input.email,
+            name: `${input.firstName} ${input.lastName}`,
+            phone: input.phone,
+          },
+        });
+      } else if (!user.name) {
+        user = await ctx.prisma.user.update({
+          where: { id: user.id },
+          data: {
+            name: `${input.firstName} ${input.lastName}`,
+            phone: input.phone ?? user.phone,
+          },
         });
       }
 

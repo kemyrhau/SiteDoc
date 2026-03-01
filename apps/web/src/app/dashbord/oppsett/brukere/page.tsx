@@ -109,13 +109,23 @@ function RedigerGruppeModal({
   const [valgtMedlemId, setValgtMedlemId] = useState<string | null>(null);
   const [visLeggTil, setVisLeggTil] = useState(false);
   const [nyEpost, setNyEpost] = useState("");
+  const [leggTilSteg, setLeggTilSteg] = useState<1 | 2>(1);
+  const [nyFornavn, setNyFornavn] = useState("");
+  const [nyEtternavn, setNyEtternavn] = useState("");
+  const [nyTelefon, setNyTelefon] = useState("");
   const [leggerTil, setLeggerTil] = useState(false);
   const [feilmelding, setFeilmelding] = useState("");
+  const [redigererNavn, setRedigererNavn] = useState(false);
+  const [nyttGruppeNavn, setNyttGruppeNavn] = useState(gruppe.navn);
 
   const utils = trpc.useUtils();
   const leggTilMedlem = trpc.medlem.leggTil.useMutation({
     onSuccess: () => {
       setNyEpost("");
+      setNyFornavn("");
+      setNyEtternavn("");
+      setNyTelefon("");
+      setLeggTilSteg(1);
       setVisLeggTil(false);
       setFeilmelding("");
       // Oppdater data
@@ -150,9 +160,25 @@ function RedigerGruppeModal({
       )
     : gruppe.medlemmer;
 
-  function handleLeggTil(e: React.FormEvent) {
+  function handleEpostNeste(e: React.FormEvent) {
     e.preventDefault();
     if (!nyEpost.trim()) return;
+    // Enkel e-postvalidering
+    const epostRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!epostRegex.test(nyEpost.trim())) {
+      setFeilmelding("Ugyldig e-postadresse");
+      return;
+    }
+    setFeilmelding("");
+    setLeggTilSteg(2);
+  }
+
+  function handleLeggTil(e: React.FormEvent) {
+    e.preventDefault();
+    if (!nyFornavn.trim() || !nyEtternavn.trim()) {
+      setFeilmelding("Fornavn og etternavn er påkrevd");
+      return;
+    }
     setLeggerTil(true);
     setFeilmelding("");
 
@@ -164,6 +190,9 @@ function RedigerGruppeModal({
     leggTilMedlem.mutate({
       projectId: prosjektId,
       email: nyEpost.trim(),
+      firstName: nyFornavn.trim(),
+      lastName: nyEtternavn.trim(),
+      phone: nyTelefon.trim() || undefined,
       role: gruppe.kategori === "generelt" ? "admin" : "member",
       enterpriseId,
     });
@@ -182,11 +211,34 @@ function RedigerGruppeModal({
       className="max-w-2xl"
     >
       <div className="flex flex-col gap-4">
-        {/* Gruppenavn */}
+        {/* Gruppenavn (dobbeltklikk for å redigere) */}
         <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-4 py-2.5">
-          <span className="flex-1 text-sm font-medium text-gray-900">
-            {gruppe.navn}
-          </span>
+          {redigererNavn ? (
+            <input
+              value={nyttGruppeNavn}
+              onChange={(e) => setNyttGruppeNavn(e.target.value)}
+              onBlur={() => setRedigererNavn(false)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") setRedigererNavn(false);
+                if (e.key === "Escape") {
+                  setNyttGruppeNavn(gruppe.navn);
+                  setRedigererNavn(false);
+                }
+              }}
+              autoFocus
+              className="flex-1 border-b border-siteflow-primary bg-transparent text-sm font-medium outline-none"
+            />
+          ) : (
+            <span
+              onDoubleClick={() => {
+                setRedigererNavn(true);
+                setNyttGruppeNavn(nyttGruppeNavn || gruppe.navn);
+              }}
+              className="flex-1 cursor-text text-sm font-medium text-gray-900"
+            >
+              {nyttGruppeNavn || gruppe.navn}
+            </span>
+          )}
           <Info className="h-4 w-4 text-gray-400" />
         </div>
 
@@ -309,39 +361,117 @@ function RedigerGruppeModal({
             </tbody>
           </table>
 
-          {/* Inline legg til */}
+          {/* Inline legg til — flersteg */}
           {visLeggTil && (
-            <form onSubmit={handleLeggTil} className="mt-2 flex items-center gap-2">
-              <input
-                type="email"
-                placeholder="E-postadresse..."
-                value={nyEpost}
-                onChange={(e) => {
-                  setNyEpost(e.target.value);
-                  setFeilmelding("");
-                }}
-                autoFocus
-                className="flex-1 rounded border border-gray-300 px-3 py-2 text-sm focus:border-siteflow-primary focus:outline-none focus:ring-1 focus:ring-siteflow-primary"
-              />
-              <Button
-                type="submit"
-                size="sm"
-                disabled={leggerTil || !nyEpost.trim()}
+            <div className="mt-2 rounded border border-gray-200 bg-gray-50 p-3">
+              {/* Steg 1: E-post */}
+              <form
+                onSubmit={leggTilSteg === 1 ? handleEpostNeste : handleLeggTil}
+                className="flex flex-col gap-3"
               >
-                {leggerTil ? "Legger til..." : "Legg til"}
-              </Button>
-              <button
-                type="button"
-                onClick={() => {
-                  setVisLeggTil(false);
-                  setNyEpost("");
-                  setFeilmelding("");
-                }}
-                className="rounded p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </form>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="email"
+                    placeholder="E-postadresse..."
+                    value={nyEpost}
+                    onChange={(e) => {
+                      setNyEpost(e.target.value);
+                      setFeilmelding("");
+                    }}
+                    disabled={leggTilSteg === 2}
+                    autoFocus={leggTilSteg === 1}
+                    className="flex-1 rounded border border-gray-300 px-3 py-2 text-sm focus:border-siteflow-primary focus:outline-none focus:ring-1 focus:ring-siteflow-primary disabled:bg-gray-100 disabled:text-gray-500"
+                  />
+                  {leggTilSteg === 2 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLeggTilSteg(1);
+                        setNyFornavn("");
+                        setNyEtternavn("");
+                        setNyTelefon("");
+                      }}
+                      className="rounded p-1 text-gray-400 hover:text-gray-600"
+                      title="Endre e-post"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setVisLeggTil(false);
+                      setNyEpost("");
+                      setNyFornavn("");
+                      setNyEtternavn("");
+                      setNyTelefon("");
+                      setLeggTilSteg(1);
+                      setFeilmelding("");
+                    }}
+                    className="rounded p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+
+                {/* Steg 2: Navn og telefon */}
+                {leggTilSteg === 2 && (
+                  <div className="flex flex-col gap-2">
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="text"
+                        placeholder="Fornavn *"
+                        value={nyFornavn}
+                        onChange={(e) => {
+                          setNyFornavn(e.target.value);
+                          setFeilmelding("");
+                        }}
+                        autoFocus
+                        className="rounded border border-gray-300 px-3 py-2 text-sm focus:border-siteflow-primary focus:outline-none focus:ring-1 focus:ring-siteflow-primary"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Etternavn *"
+                        value={nyEtternavn}
+                        onChange={(e) => {
+                          setNyEtternavn(e.target.value);
+                          setFeilmelding("");
+                        }}
+                        className="rounded border border-gray-300 px-3 py-2 text-sm focus:border-siteflow-primary focus:outline-none focus:ring-1 focus:ring-siteflow-primary"
+                      />
+                    </div>
+                    <input
+                      type="tel"
+                      placeholder="Telefonnummer (valgfritt)"
+                      value={nyTelefon}
+                      onChange={(e) => setNyTelefon(e.target.value)}
+                      className="rounded border border-gray-300 px-3 py-2 text-sm focus:border-siteflow-primary focus:outline-none focus:ring-1 focus:ring-siteflow-primary"
+                    />
+                  </div>
+                )}
+
+                {/* Handlingsknapper */}
+                <div className="flex items-center gap-2">
+                  {leggTilSteg === 1 ? (
+                    <Button
+                      type="submit"
+                      size="sm"
+                      disabled={!nyEpost.trim()}
+                    >
+                      Neste
+                    </Button>
+                  ) : (
+                    <Button
+                      type="submit"
+                      size="sm"
+                      disabled={leggerTil || !nyFornavn.trim() || !nyEtternavn.trim()}
+                    >
+                      {leggerTil ? "Legger til..." : "Legg til"}
+                    </Button>
+                  )}
+                </div>
+              </form>
+            </div>
           )}
           {feilmelding && (
             <p className="mt-1 text-sm text-red-600">{feilmelding}</p>
