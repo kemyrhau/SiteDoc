@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
 import {
   ChevronDown,
   ChevronRight,
@@ -67,6 +68,7 @@ const PRIORITETS_TEKST: Record<string, string> = {
 export default function HjemSkjerm() {
   const { valgtProsjektId } = useProsjekt();
   const [velgerSynlig, setVelgerSynlig] = useState(false);
+  const router = useRouter();
 
   // Hent prosjektdata for valgt prosjekt
   const prosjektQuery = trpc.prosjekt.hentMine.useQuery();
@@ -233,6 +235,11 @@ export default function HjemSkjerm() {
                 <Pressable
                   key={element.id}
                   className="flex-row items-center border-b border-gray-100 bg-white px-4 py-3"
+                  onPress={() => {
+                    if (element.type === "sjekkliste") {
+                      router.push(`/sjekkliste/${element.id}`);
+                    }
+                  }}
                 >
                   <View className="mr-3">
                     {element.type === "sjekkliste" ? (

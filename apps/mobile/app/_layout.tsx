@@ -1,5 +1,5 @@
 import "../src/global.css";
-import { Slot } from "expo-router";
+import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { Providers } from "../src/providers";
 
@@ -7,7 +7,14 @@ export default function RotLayout() {
   return (
     <Providers>
       <StatusBar style="light" />
-      <Slot />
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="logg-inn" />
+        <Stack.Screen
+          name="sjekkliste/[id]"
+          options={{ presentation: "fullScreenModal" }}
+        />
+      </Stack>
     </Providers>
   );
 }

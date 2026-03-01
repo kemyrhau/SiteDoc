@@ -33,6 +33,13 @@
         {
           "useAppleMap": true
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "SiteFlow trenger tilgang til bildegalleriet for vedlegg.",
+          "cameraPermission": "SiteFlow trenger tilgang til kameraet for å ta bilder."
+        }
       ]
     ]
   }

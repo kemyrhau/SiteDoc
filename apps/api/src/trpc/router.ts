@@ -12,6 +12,7 @@ import { medlemRouter } from "../routes/medlem";
 import { mobilAuthRouter } from "../routes/mobilAuth";
 import { gruppeRouter } from "../routes/gruppe";
 import { invitasjonRouter } from "../routes/invitasjon";
+import { bildeRouter } from "../routes/bilde";
 
 export const appRouter = router({
   prosjekt: prosjektRouter,
@@ -27,6 +28,7 @@ export const appRouter = router({
   mobilAuth: mobilAuthRouter,
   gruppe: gruppeRouter,
   invitasjon: invitasjonRouter,
+  bilde: bildeRouter,
 });
 
 export type AppRouter = typeof appRouter;
