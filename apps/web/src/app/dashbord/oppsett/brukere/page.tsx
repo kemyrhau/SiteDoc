@@ -118,6 +118,7 @@ function RedigerGruppeModal({
       utils.prosjekt.hentMedId.invalidate({ id: prosjektId });
       utils.entreprise.hentForProsjekt.invalidate({ projectId: prosjektId });
       utils.medlem.hentForProsjekt.invalidate({ projectId: prosjektId });
+      utils.invitasjon.hentForProsjekt.invalidate({ projectId: prosjektId });
     },
     onError: (error) => {
       setFeilmelding(error.message);
@@ -131,6 +132,7 @@ function RedigerGruppeModal({
     onSuccess: () => {
       resetLeggTilSkjema();
       utils.gruppe.hentForProsjekt.invalidate({ projectId: prosjektId });
+      utils.invitasjon.hentForProsjekt.invalidate({ projectId: prosjektId });
     },
     onError: (error) => {
       setFeilmelding(error.message);
@@ -405,7 +407,7 @@ function RedigerGruppeModal({
                       {medlem.ventendeInvitasjon && (
                         <span className="flex items-center gap-1 rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-700">
                           <Mail className="h-3 w-3" />
-                          Ventende
+                          Invitasjon sendt
                         </span>
                       )}
                     </div>
@@ -421,10 +423,10 @@ function RedigerGruppeModal({
                           }}
                           disabled={sendPaNytt.isPending}
                           className="flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-siteflow-primary hover:bg-blue-50"
-                          title="Send invitasjon på nytt"
+                          title="Ettersend invitasjon"
                         >
                           <RefreshCw className={`h-3 w-3 ${sendPaNytt.isPending ? "animate-spin" : ""}`} />
-                          Send på nytt
+                          Ettersend
                         </button>
                       )}
                     </div>
@@ -633,6 +635,12 @@ function GruppeKort({
                 {medlem.rolle && (
                   <span className="text-xs text-gray-400">{medlem.rolle}</span>
                 )}
+                {medlem.ventendeInvitasjon && (
+                  <span className="flex items-center gap-0.5 text-xs text-amber-600">
+                    <Mail className="h-3 w-3" />
+                    Invitasjon sendt
+                  </span>
+                )}
               </div>
             ))}
             {!visAlle && skjulte > 0 && (
@@ -746,14 +754,31 @@ export default function BrukereSide() {
     { enabled: !!prosjektId },
   );
 
-  // Bygg et map fra e-post til ventende invitasjon
+  // Bygg map: "gruppeNøkkel:e-post" → invitasjon
+  // Nøkkel-format: groupId, "ent-enterpriseId", eller "prosjektadmin"
   const ventendeInvitasjonerMap = new Map<string, { id: string }>();
   if (invitasjoner) {
     for (const inv of invitasjoner) {
-      if (inv.status === "pending") {
-        ventendeInvitasjonerMap.set(inv.email.toLowerCase(), { id: inv.id });
+      if (inv.status !== "pending") continue;
+      const epost = inv.email.toLowerCase();
+      if (inv.group?.id) {
+        ventendeInvitasjonerMap.set(`${inv.group.id}:${epost}`, { id: inv.id });
+      } else if (inv.enterprise?.id) {
+        ventendeInvitasjonerMap.set(`ent-${inv.enterprise.id}:${epost}`, { id: inv.id });
+      } else if (inv.role === "admin") {
+        ventendeInvitasjonerMap.set(`prosjektadmin:${epost}`, { id: inv.id });
+      }
+      // Også global fallback for tilfeller der gruppen ikke er spesifisert
+      if (!ventendeInvitasjonerMap.has(`global:${epost}`)) {
+        ventendeInvitasjonerMap.set(`global:${epost}`, { id: inv.id });
       }
     }
+  }
+
+  function finnInvitasjon(gruppeId: string, epost?: string): { id: string } | undefined {
+    if (!epost) return undefined;
+    const e = epost.toLowerCase();
+    return ventendeInvitasjonerMap.get(`${gruppeId}:${e}`) ?? ventendeInvitasjonerMap.get(`global:${e}`);
   }
 
   // Lazy opprettelse av standardgrupper
@@ -789,9 +814,7 @@ export default function BrukereSide() {
       navn: m.projectMember.user.name ?? m.projectMember.user.email ?? "Ukjent",
       epost: m.projectMember.user.email ?? undefined,
       firma: m.projectMember.enterprise?.name ?? undefined,
-      ventendeInvitasjon: ventendeInvitasjonerMap.get(
-        (m.projectMember.user.email ?? "").toLowerCase(),
-      ),
+      ventendeInvitasjon: finnInvitasjon(g.id, m.projectMember.user.email),
     })),
   }));
 
@@ -810,9 +833,7 @@ export default function BrukereSide() {
           navn: m.user.name ?? m.user.email ?? "Ukjent",
           epost: m.user.email ?? undefined,
           rolle: m.role === "owner" ? "Kontaktperson" : undefined,
-          ventendeInvitasjon: ventendeInvitasjonerMap.get(
-            (m.user.email ?? "").toLowerCase(),
-          ),
+          ventendeInvitasjon: finnInvitasjon("prosjektadmin", m.user.email),
         })) ?? [],
     },
     // Field-grupper fra DB
@@ -827,9 +848,7 @@ export default function BrukereSide() {
         navn: m.user?.name ?? m.user?.email ?? "Ukjent",
         epost: m.user?.email ?? undefined,
         firma: ent.name,
-        ventendeInvitasjon: ventendeInvitasjonerMap.get(
-          (m.user?.email ?? "").toLowerCase(),
-        ),
+        ventendeInvitasjon: finnInvitasjon(`ent-${ent.id}`, m.user?.email ?? undefined),
       })),
       ikon: <Building2 className="h-4 w-4" />,
     })) ?? []),
