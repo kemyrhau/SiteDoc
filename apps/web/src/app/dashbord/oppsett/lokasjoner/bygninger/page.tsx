@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { trpc } from "@/lib/trpc";
 import { Button, Input, Select, Textarea, Modal, Spinner, EmptyState } from "@siteflow/ui";
@@ -40,6 +40,25 @@ function RedigerBygning({
   const [visTilføyMeny, setVisTilføyMeny] = useState(false);
   const [visMerMeny, setVisMerMeny] = useState(false);
   const [valgtTegningId, setValgtTegningId] = useState<string | null>(null);
+
+  // Zoom
+  const [zoom, setZoom] = useState(1);
+  const forhåndsvisningRef = useRef<HTMLDivElement>(null);
+
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    if (!e.shiftKey) return;
+    e.preventDefault();
+    setZoom((prev) => {
+      const delta = e.deltaY > 0 ? -0.1 : 0.1;
+      return Math.min(5, Math.max(0.2, prev + delta));
+    });
+  }, []);
+
+  // Nullstill zoom ved bytte av tegning
+  const velgTegning = useCallback((id: string | null) => {
+    setValgtTegningId(id);
+    setZoom(1);
+  }, []);
 
   // Opplastingstilstand
   const [lasterOpp, setLasterOpp] = useState(false);
@@ -160,6 +179,7 @@ function RedigerBygning({
     alleTegninger?.filter((t) => !t.buildingId) ?? [];
 
   const tegninger = bygning?.drawings ?? [];
+  const valgtTegning = tegninger.find((t) => t.id === valgtTegningId) ?? null;
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-white">
@@ -300,7 +320,7 @@ function RedigerBygning({
                   <li key={tegning.id}>
                     <button
                       onClick={() =>
-                        setValgtTegningId(
+                        velgTegning(
                           valgtTegningId === tegning.id ? null : tegning.id,
                         )
                       }
@@ -337,11 +357,49 @@ function RedigerBygning({
         </div>
 
         {/* Høyre — forhåndsvisning */}
-        <div className="flex flex-1 items-center justify-center bg-gray-50">
-          <div className="text-center">
-            <LayoutGrid className="mx-auto mb-4 h-16 w-16 text-gray-300" />
-            <p className="text-lg text-gray-400">Ingen forhåndsvisning</p>
-          </div>
+        <div
+          ref={forhåndsvisningRef}
+          onWheel={handleWheel}
+          className="relative flex flex-1 overflow-auto bg-gray-50"
+        >
+          {valgtTegning?.fileUrl ? (
+            <div
+              className="flex min-h-full min-w-full items-center justify-center"
+              style={{
+                transform: `scale(${zoom})`,
+                transformOrigin: "center center",
+              }}
+            >
+              {["png", "jpg", "jpeg"].includes(valgtTegning.fileType ?? "") ? (
+                <img
+                  src={`/api${valgtTegning.fileUrl}`}
+                  alt={valgtTegning.name}
+                  className="max-w-full object-contain"
+                  draggable={false}
+                />
+              ) : (
+                <iframe
+                  src={`/api${valgtTegning.fileUrl}`}
+                  title={valgtTegning.name}
+                  className="h-[calc(100vh-120px)] w-[calc(100vw-480px)] border-0"
+                />
+              )}
+            </div>
+          ) : (
+            <div className="flex flex-1 items-center justify-center">
+              <div className="text-center">
+                <LayoutGrid className="mx-auto mb-4 h-16 w-16 text-gray-300" />
+                <p className="text-lg text-gray-400">
+                  {valgtTegningId ? "Ingen fil tilgjengelig" : "Velg en tegning for forhåndsvisning"}
+                </p>
+              </div>
+            </div>
+          )}
+          {valgtTegning?.fileUrl && zoom !== 1 && (
+            <div className="absolute bottom-3 right-3 rounded-md bg-black/60 px-2.5 py-1 text-xs text-white">
+              {Math.round(zoom * 100)}%
+            </div>
+          )}
         </div>
       </div>
 
