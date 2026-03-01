@@ -1,6 +1,6 @@
 import * as AuthSession from "expo-auth-session";
 import * as WebBrowser from "expo-web-browser";
-import * as SecureStore from "expo-secure-store";
+import { Platform } from "react-native";
 import { AUTH_CONFIG, GOOGLE_AUTH, MICROSOFT_AUTH } from "../config/auth";
 
 WebBrowser.maybeCompleteAuthSession();
@@ -15,26 +15,52 @@ export interface BrukerData {
   image: string | null;
 }
 
-// --- Token-lagring (SecureStore) ---
+// --- Plattformspesifikk lagring (SecureStore på native, localStorage på web) ---
+
+async function lagreVerdi(key: string, value: string): Promise<void> {
+  if (Platform.OS === "web") {
+    localStorage.setItem(key, value);
+  } else {
+    const SecureStore = await import("expo-secure-store");
+    await SecureStore.setItemAsync(key, value);
+  }
+}
+
+async function hentVerdi(key: string): Promise<string | null> {
+  if (Platform.OS === "web") {
+    return localStorage.getItem(key);
+  }
+  const SecureStore = await import("expo-secure-store");
+  return SecureStore.getItemAsync(key);
+}
+
+async function slettVerdi(key: string): Promise<void> {
+  if (Platform.OS === "web") {
+    localStorage.removeItem(key);
+  } else {
+    const SecureStore = await import("expo-secure-store");
+    await SecureStore.deleteItemAsync(key);
+  }
+}
 
 export async function lagreSessionToken(token: string): Promise<void> {
-  await SecureStore.setItemAsync(SESSION_TOKEN_KEY, token);
+  await lagreVerdi(SESSION_TOKEN_KEY, token);
 }
 
 export async function hentSessionToken(): Promise<string | null> {
-  return SecureStore.getItemAsync(SESSION_TOKEN_KEY);
+  return hentVerdi(SESSION_TOKEN_KEY);
 }
 
 export async function slettSessionToken(): Promise<void> {
-  await SecureStore.deleteItemAsync(SESSION_TOKEN_KEY);
+  await slettVerdi(SESSION_TOKEN_KEY);
 }
 
 export async function lagreBrukerData(bruker: BrukerData): Promise<void> {
-  await SecureStore.setItemAsync(USER_DATA_KEY, JSON.stringify(bruker));
+  await lagreVerdi(USER_DATA_KEY, JSON.stringify(bruker));
 }
 
 export async function hentBrukerData(): Promise<BrukerData | null> {
-  const data = await SecureStore.getItemAsync(USER_DATA_KEY);
+  const data = await hentVerdi(USER_DATA_KEY);
   if (!data) return null;
   try {
     return JSON.parse(data);
@@ -44,26 +70,49 @@ export async function hentBrukerData(): Promise<BrukerData | null> {
 }
 
 export async function slettBrukerData(): Promise<void> {
-  await SecureStore.deleteItemAsync(USER_DATA_KEY);
+  await slettVerdi(USER_DATA_KEY);
 }
 
 // --- OAuth-flyt ---
 
-const redirectUri = AuthSession.makeRedirectUri({
-  scheme: "siteflow",
-});
+function hentRedirectUri(): string {
+  if (Platform.OS === "web" && typeof window !== "undefined") {
+    // På web: bruk origin + /logg-inn (der vi håndterer callback)
+    return `${window.location.origin}/logg-inn`;
+  }
+  return AuthSession.makeRedirectUri({ scheme: "siteflow" });
+}
 
 export async function loggInnMedGoogle(): Promise<string | null> {
+  const redirectUri = hentRedirectUri();
+
+  if (Platform.OS === "web") {
+    // På web: redirect direkte uten PKCE
+    const params = new URLSearchParams({
+      client_id: AUTH_CONFIG.googleClientId,
+      redirect_uri: redirectUri,
+      response_type: "token",
+      scope: "openid email profile",
+      state: Math.random().toString(36).substring(2),
+    });
+    window.location.href = `${GOOGLE_AUTH.authorizationEndpoint}?${params.toString()}`;
+    return null;
+  }
+
+  // På native: bruk AuthSession
+  const discovery = await AuthSession.fetchDiscoveryAsync(
+    "https://accounts.google.com",
+  );
+
   const request = new AuthSession.AuthRequest({
     clientId: AUTH_CONFIG.googleClientId,
     redirectUri,
     scopes: ["openid", "email", "profile"],
     responseType: AuthSession.ResponseType.Token,
+    usePKCE: false,
   });
 
-  const result = await request.promptAsync({
-    authorizationEndpoint: GOOGLE_AUTH.authorizationEndpoint,
-  });
+  const result = await request.promptAsync(discovery);
 
   if (result.type === "success" && result.authentication?.accessToken) {
     return result.authentication.accessToken;
@@ -73,11 +122,14 @@ export async function loggInnMedGoogle(): Promise<string | null> {
 }
 
 export async function loggInnMedMicrosoft(): Promise<string | null> {
+  const redirectUri = hentRedirectUri();
+
   const request = new AuthSession.AuthRequest({
     clientId: AUTH_CONFIG.microsoftClientId,
     redirectUri,
     scopes: ["openid", "email", "profile", "User.Read"],
     responseType: AuthSession.ResponseType.Token,
+    usePKCE: false,
   });
 
   const result = await request.promptAsync({

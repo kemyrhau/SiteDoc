@@ -1,9 +1,31 @@
-import { View, Text, Pressable, Image } from "react-native";
+import { useEffect } from "react";
+import { View, Text, Pressable, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { Redirect } from "expo-router";
 import { useAuth } from "../src/providers/AuthProvider";
 
 export default function LoggInnSkjerm() {
-  const { loggInnMedGoogle, loggInnMedMicrosoft, laster } = useAuth();
+  const { loggInnMedGoogle, loggInnMedMicrosoft, haandterOAuthCallback, erInnlogget, laster } = useAuth();
+
+  // Håndter OAuth-callback på web (token i URL-hash)
+  useEffect(() => {
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      const hash = window.location.hash;
+      if (hash && hash.includes("access_token")) {
+        const params = new URLSearchParams(hash.substring(1));
+        const accessToken = params.get("access_token");
+        if (accessToken) {
+          // Rydd opp URL-en
+          window.history.replaceState(null, "", window.location.pathname);
+          haandterOAuthCallback("google", accessToken);
+        }
+      }
+    }
+  }, [haandterOAuthCallback]);
+
+  if (erInnlogget) {
+    return <Redirect href="/(tabs)/hjem" />;
+  }
 
   return (
     <SafeAreaView className="flex-1 bg-white">

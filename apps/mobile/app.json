@@ -25,7 +25,8 @@
         {
           "locationAlwaysAndWhenInUsePermission": "SiteFlow trenger tilgang til posisjonen din for GPS-tagging av bilder."
         }
-      ]
+      ],
+      "expo-sqlite"
     ]
   }
 }

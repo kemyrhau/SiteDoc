@@ -24,6 +24,7 @@ interface AuthKontekst {
   laster: boolean;
   loggInnMedGoogle: () => Promise<void>;
   loggInnMedMicrosoft: () => Promise<void>;
+  haandterOAuthCallback: (provider: "google" | "microsoft", accessToken: string) => Promise<void>;
   loggUt: () => Promise<void>;
 }
 
@@ -33,6 +34,7 @@ const AuthContext = createContext<AuthKontekst>({
   laster: true,
   loggInnMedGoogle: async () => {},
   loggInnMedMicrosoft: async () => {},
+  haandterOAuthCallback: async () => {},
   loggUt: async () => {},
 });
 
@@ -104,6 +106,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [byttOgLagre]);
 
+  const haandterOAuthCallback = useCallback(
+    async (provider: "google" | "microsoft", accessToken: string) => {
+      setLaster(true);
+      try {
+        await byttOgLagre(provider, accessToken);
+      } finally {
+        setLaster(false);
+      }
+    },
+    [byttOgLagre],
+  );
+
   const loggUt = useCallback(async () => {
     await loggUtTjeneste();
     setBruker(null);
@@ -117,6 +131,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         laster,
         loggInnMedGoogle,
         loggInnMedMicrosoft,
+        haandterOAuthCallback,
         loggUt,
       }}
     >
