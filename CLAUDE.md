@@ -18,6 +18,8 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 - **PDF-eksport:** react-pdf
 - **Styling:** Tailwind CSS (web), NativeWind (mobil)
 - **Drag-and-drop:** dnd-kit (malbygger på PC)
+- **Kart:** Leaflet + react-leaflet (kartvelger i prosjektinnstillinger), OpenStreetMap tiles
+- **Værdata:** Open-Meteo API (gratis, ingen API-nøkkel) for automatisk værhenting
 - **Ikoner:** lucide-react
 
 ## Prosjektstruktur
@@ -131,7 +133,7 @@ siteflow/
 | `accounts` | OAuth-tilkoblinger (Google, Microsoft Entra ID) |
 | `sessions` | Database-sesjoner for Auth.js |
 | `verification_tokens` | E-postverifiseringstokens |
-| `projects` | Prosjekter med prosjektnummer (SF-YYYYMMDD-XXXX), status |
+| `projects` | Prosjekter med prosjektnummer (SF-YYYYMMDD-XXXX), status, valgfri lokasjon (`latitude`, `longitude`) |
 | `project_members` | Prosjektmedlemmer med rolle (member/admin), entrepriser via `member_enterprises` |
 | `member_enterprises` | Mange-til-mange join-tabell mellom `project_members` og `enterprises` |
 | `enterprises` | Entrepriser med `enterprise_number` (Dalux-format: "04 Tømrer, Econor"), bransje, firma, farge |
@@ -139,7 +141,7 @@ siteflow/
 | `drawings` | Tegninger med metadata: tegningsnummer, fagdisiplin, revisjon, status, etasje, målestokk, opphav |
 | `drawing_revisions` | Revisjonshistorikk for tegninger med fil, status og hvem som lastet opp |
 | `report_templates` | Maler med category (oppgave/sjekkliste), prefix, versjon |
-| `report_objects` | Rapportobjekter i maler (21 typer, JSON-konfig), rekursiv nesting via `parent_id` |
+| `report_objects` | Rapportobjekter i maler (23 typer, JSON-konfig), rekursiv nesting via `parent_id` |
 | `checklists` | Sjekklister med oppretter/svarer-entreprise, status, data (JSON) |
 | `tasks` | Oppgaver med mal-tilknytning (`template_id`), prefiks+løpenummer (`number`), prioritet, frist, oppretter/svarer, utfylt data (JSON), valgfri tegningsposisjon og sjekkliste-kobling (`checklist_id`, `checklist_field_id`) |
 | `document_transfers` | Sporbarhet: all sending mellom entrepriser |
@@ -163,6 +165,7 @@ Viktige relasjoner:
 - `drawings` har full metadata (tegningsnummer, fagdisiplin, revisjon, etasje, målestokk, status) med `drawing_revisions` for historikk
 - `folders` bruker selvrefererande relasjon (`parent_id`) for mappetreet i Box
 - `project_invitations` kobles til project, enterprise (valgfri), group (valgfri) og invitedBy (User)
+- `projects` har valgfri `latitude`/`longitude` (Float?) — brukes til kartvisning og automatisk værhenting i sjekklister
 
 ### API-routere (tRPC)
 
@@ -182,6 +185,7 @@ Alle routere i `apps/api/src/routes/`:
 | `medlem` | hentForProsjekt, hentMineEntrepriser, leggTil (m/invitasjon), fjern, oppdaterRolle, sokBrukere |
 | `gruppe` | hentForProsjekt, opprettStandardgrupper, opprett, oppdater, slett, leggTilMedlem (m/invitasjon), fjernMedlem |
 | `invitasjon` | hentForProsjekt, validerToken, aksepter, sendPaNytt, trekkTilbake |
+| `vaer` | hentVaerdata (Open-Meteo proxy: latitude, longitude, dato → temperatur, værkode, vind) |
 
 **Auth-nivåer:** `publicProcedure` (åpen) og `protectedProcedure` (krever autentisert userId i context). Context bygges i `context.ts` som verifiserer Auth.js-sesjonstokens.
 
@@ -304,9 +308,10 @@ Komponenter:
 ### TODO
 - Nedtrekksmeny for å velge eksisterende prosjektmedlemmer i brukergrupper (erstatt e-postfelt)
 - Oppgave-fra-tegning: Android-tilpasning for tegningstrykk (iOS/web implementert)
-- Kvalitetssikring av alle 21 rapportobjekttyper (mobil-renderere)
+- Kvalitetssikring av alle 23 rapportobjekttyper (mobil-renderere)
+- TegningPosisjonObjekt (mobil): full implementasjon med tegningsvelger og TegningsVisning-markering
 - Oppgave-fra-felt i sjekkliste-utfylling (knapp per rapportobjekt + visning av oppgavenummer)
-- Oppgave-utfylling med maler (tilsvarende sjekkliste-utfylling, med samme 21 rapportobjekttyper)
+- Oppgave-utfylling med maler (tilsvarende sjekkliste-utfylling, med samme 23 rapportobjekttyper)
 - Databasemigrering: nye felter på Task-modellen (`number`, `templateId`, `data`, `checklistId`, `checklistFieldId`)
 - Adgangskontroll: Field-admin kan sende kryssentreprise, brukergruppe-brukere kun til eget arbeidsforløp
 - Videresending av sjekklister/oppgaver til annen entreprise (svarer og oppretter)
@@ -322,7 +327,7 @@ Brukeren kan opprette oppgaver direkte fra tegningsvisningen i Lokasjoner-taben:
 
 ### Oppgavesystem
 
-Oppgaver bruker samme malsystem som sjekklister. Oppgavemaler bygges i malbyggeren på PC med `report_templates` der `category: "oppgave"` — alle 21 rapportobjekttyper er tilgjengelige.
+Oppgaver bruker samme malsystem som sjekklister. Oppgavemaler bygges i malbyggeren på PC med `report_templates` der `category: "oppgave"` — alle 23 rapportobjekttyper er tilgjengelige.
 
 **Oppgavenummerering:**
 - Format: `mal.prefix + "-" + løpenummer` (f.eks. `BHO-001`, `S-BET-042`)
@@ -366,7 +371,7 @@ Metadatafelter: tegningsnummer (f.eks. ARK-P-101), fagdisiplin, tegningstype, re
 - Egendefinerte metadata-felter per prosjekt
 - Filnavnmaler for automatisk utlesing av metadata
 
-### Rapportobjekter (21 typer)
+### Rapportobjekter (23 typer)
 
 Maler bygges på PC med drag-and-drop. Hver mal inneholder objekter med definert type og konfigurasjon. Typene er definert i `packages/shared/src/types/index.ts`:
 
@@ -393,6 +398,8 @@ Maler bygges på PC med drag-and-drop. Hver mal inneholder objekter med definert
 | `weather` | spesial | Vær |
 | `signature` | spesial | Signatur |
 | `repeater` | spesial | Repeterende seksjon |
+| `location` | spesial | Lokasjon (read-only, viser prosjektets posisjon på kart) |
+| `drawing_position` | spesial | Posisjon i tegning (tegningsvelger + klikkbar markør) |
 
 Hvert objekt har metadata (`REPORT_OBJECT_TYPE_META`) med label, ikon, kategori og standardkonfigurasjon. Objektkonfigurasjon lagres som JSON i `report_objects.config`.
 
@@ -423,7 +430,7 @@ Drag-and-drop-editor for å bygge maler med rekursiv kontainer-nesting (Dalux-st
 | Komponent | Beskrivelse |
 |-----------|-------------|
 | `MalBygger` | Hovedkomponent: tre-kolonne layout (FeltPalett, DropSoner, FeltKonfigurasjon), bygger tre fra flat array |
-| `FeltPalett` | Venstre panel med draggbare felttyper (21 typer) |
+| `FeltPalett` | Venstre panel med draggbare felttyper (23 typer) |
 | `DropSone` | Droppbar sone (topptekst/datafelter) med rekursiv `RekursivtFelt`-rendering |
 | `DraggbartFelt` | Individuelt sorterbart felt med `nestingNivå`, `parentId` og `children`-prop for inline barn |
 | `FeltKonfigurasjon` | Høyre panel for å redigere valgt felts label, påkrevd-status og type-spesifikk config |
@@ -460,6 +467,69 @@ Sidebaren under `/dashbord/oppsett/` er organisert i seksjoner:
 - **Lokasjoner** — Bygninger (med publisering/status)
 - **Field** — Entrepriser (med arbeidsforløp), Oppgavemaler, Sjekklistemaler, Kontrollplan, Box
 - **Owners Portal** — Eierportalens brukere, Prosjektoppsett
+
+### Prosjektlokasjon og kartvelger
+
+Prosjekter kan ha valgfri GPS-lokasjon (`latitude`, `longitude` på Project-modellen). Koordinatene brukes til:
+1. Kartvisning i `LokasjonObjekt` (rapportobjekt type `location`)
+2. Automatisk værhenting basert på prosjektposisjon + befaringsdato
+
+**Kartvelger (`apps/web/src/components/KartVelger.tsx`):**
+- Leaflet MapContainer med OpenStreetMap tiles (gratis, ingen API-nøkkel)
+- Klikkbar — plasserer draggbar markør
+- Default senter Oslo (59.91, 10.75), zoom 5 uten koordinater / 15 med
+- MÅ importeres med `dynamic(..., { ssr: false })` — Leaflet krever `window`
+- Fix Leaflet-ikon-bug: sett icon URL manuelt med `L.icon()` (unpkg CDN)
+
+**Prosjektoppsett-siden** (`/dashbord/oppsett/prosjektoppsett`):
+- Seksjon "Prosjektlokasjon" med kartvelger
+- Viser koordinater + "Fjern lokasjon"-knapp
+- Lagres via `prosjekt.oppdater` med `latitude`/`longitude`
+
+### Automatisk værhenting
+
+Sjekklister med vær-felt (`weather`) og dato-felt (`date`/`date_time`) kan auto-hente værdata fra Open-Meteo:
+
+**Flyt:**
+1. `useAutoVaer` hook finner vær-felt og dato-felt i malen
+2. Når dato er utfylt + prosjektet har koordinater → kaller `trpc.vaer.hentVaerdata`
+3. Open-Meteo returnerer timebasert data → hook plukker kl. 12:00 (middag)
+4. Auto-fyller temperatur, forhold (WMO-kode → norsk tekst) og vind
+5. Setter `kilde: "automatisk"` — bruker kan overstyre (setter `kilde: "manuell"`)
+
+**Vær-router (`apps/api/src/routes/vaer.ts`):**
+- `hentVaerdata` prosedyre: tar `latitude`, `longitude`, `dato` (YYYY-MM-DD)
+- Proxy til Open-Meteo API (gratis, ingen nøkkel, cachet av React Query)
+- Returnerer `hourly.temperature_2m`, `hourly.weather_code`, `hourly.wind_speed_10m`
+
+**VaerObjekt (web):**
+- Viser "Automatisk hentet fra Open-Meteo"-badge når `kilde === "automatisk"`
+- Ved manuell endring → `kilde` endres til `"manuell"`, badge forsvinner
+
+**WMO-koder (`packages/shared/src/utils/vaer.ts`):**
+- `vaerkodeTilTekst(code)` — konverterer WMO-værkode til norsk tekst (Klart, Overskyet, Lett regn, osv.)
+
+**VaerVerdi-interface (`packages/shared/src/types/`):**
+```
+{ temp?: string, conditions?: string, wind?: string, kilde?: "manuell" | "automatisk" }
+```
+
+### LokasjonObjekt og TegningPosisjonObjekt
+
+To nye rapportobjekttyper (23 totalt):
+
+**`location` — Lokasjon:**
+- Display-only (som `heading`/`subtitle`) — ingen redigerbar verdi, i `DISPLAY_TYPER`
+- **Web:** Viser liten Leaflet-kart (200px) + adressetekst, henter prosjektkoordinater via `trpc.prosjekt.hentMedId`
+- **Mobil:** Tekstbasert visning med adresse, koordinater og "Åpne i kart"-lenke (Google Maps)
+- Uten koordinater: "Prosjektet har ikke satt lokasjon"
+
+**`drawing_position` — Posisjon i tegning:**
+- **Web:** Tegningsvelger (dropdown) + klikkbar tegning med rød markør (0-100% koordinater)
+- **Mobil:** Viser posisjonsinformasjon (full tegningsvelger kommer i neste iterasjon)
+- Verdi: `TegningPosisjonVerdi { drawingId, positionX, positionY, drawingName }`
+- Config-filtre i malbygger: `buildingFilter` (bygning-ID), `disciplineFilter` (fagdisiplin)
+- Lesemodus: viser tegning med markør (ikke klikkbar)
 
 ### Malliste-UI (Dalux-inspirert)
 
@@ -655,6 +725,7 @@ Dalux-inspirert tre-kolonne layout:
 - `NavigasjonKontekst` — Aktiv seksjon + kontekstuelle verktøylinje-handlinger
 - `useAktivSeksjon()` — Utleder aktiv seksjon fra pathname, oppdaterer NavigasjonKontekst
 - `useVerktoylinje(handlinger)` — Registrerer kontekstuelle handlinger per side med auto-cleanup
+- `useAutoVaer({ prosjektId, alleObjekter, hentFeltVerdi, settVerdi })` — Auto-henter værdata fra Open-Meteo når sjekklisten har vær-felt + dato-felt + prosjektkoordinater
 
 ### Layout-komponenter
 
@@ -702,9 +773,11 @@ Tre eksportpunkter: `types`, `validation`, `utils`
 
 **Typer** (`packages/shared/src/types/`):
 - `DocumentStatus` — 9 statusverdier for sjekklister/oppgaver (draft, sent, received, in_progress, responded, approved, rejected, closed, cancelled)
-- `ReportObjectType` — 21 rapportobjekttyper
+- `ReportObjectType` — 23 rapportobjekttyper
 - `ReportObjectCategory` — 7 kategorier (tekst, valg, tall, dato, person, fil, spesial)
-- `REPORT_OBJECT_TYPE_META` — Komplett metadata for alle 21 typer med label, ikon, kategori, standardkonfig
+- `REPORT_OBJECT_TYPE_META` — Komplett metadata for alle 23 typer med label, ikon, kategori, standardkonfig
+- `TegningPosisjonVerdi` — Interface for tegningsposisjon: `{ drawingId, positionX, positionY, drawingName }`
+- `VaerVerdi` — Interface for vær: `{ temp?, conditions?, wind?, kilde?: "manuell" | "automatisk" }`
 - `TemplateZone` — Malsoner: `topptekst` | `datafelter`
 - `EnterpriseRole` — `creator` | `responder`
 - `GroupCategory` — 3 gruppekategorier (`generelt`, `field`, `brukergrupper`)
@@ -726,7 +799,7 @@ Tre eksportpunkter: `types`, `validation`, `utils`
 - `templateZoneSchema` — Enum for malsoner
 - `templateCategorySchema` — Enum for `oppgave` | `sjekkliste`
 - `gpsDataSchema` — GPS med lat/lng-grenser
-- `createProjectSchema` — Prosjektopprettelse (navn, beskrivelse, adresse)
+- `createProjectSchema` — Prosjektopprettelse (navn, beskrivelse, adresse, latitude, longitude)
 - `createEnterpriseSchema` — Entrepriseopprettelse (navn, prosjektId, org.nr)
 - `createBuildingSchema` — Bygningsopprettelse (navn, prosjektId, beskrivelse, adresse)
 - `createWorkflowSchema` — Arbeidsforløp (enterpriseId, responderEnterpriseId, navn, malIder)
@@ -749,6 +822,7 @@ Tre eksportpunkter: `types`, `validation`, `utils`
 **Utilities** (`packages/shared/src/utils/`):
 - `generateProjectNumber(sekvens)` — Format: `SF-YYYYMMDD-XXXX`
 - `isValidStatusTransition(current, next)` — Validerer lovlige statusoverganger
+- `vaerkodeTilTekst(code)` — WMO-værkode → norsk tekst (Klart, Overskyet, Lett regn, osv.)
 
 ## Kodestil
 
@@ -797,7 +871,7 @@ Hele monorepoet bruker ESLint v8 med `.eslintrc.json` (legacy-format). Web bruke
 - **Sjekkliste:** Strukturert dokument med objekter som fylles ut
 - **Oppgave:** Enkeltstående arbeidsoppgave med ansvarlig og frist
 - **Tegning:** Prosjekttegning (PDF/DWG) med versjonering
-- **Rapportobjekt:** Byggeblokk i en mal (21 typer)
+- **Rapportobjekt:** Byggeblokk i en mal (23 typer)
 - **Mal (template):** Gjenbrukbar oppskrift for sjekklister/rapporter bygget med drag-and-drop, med prefiks og versjon
 - **Arbeidsforløp (workflow):** Navngitt kobling mellom en oppretter-entreprise, valgfri svarer-entreprise, og et sett maler (oppgave-/sjekklistetyper)
 - **Box:** Filstruktur/dokumenthåndteringsmodul med rekursiv mappestruktur
@@ -813,6 +887,11 @@ Hele monorepoet bruker ESLint v8 med `.eslintrc.json` (legacy-format). Web bruke
 - **Betingelse:** Logikk på en kontainer som styrer synligheten av barnefelt. Defineres av `conditionValues` (trigger-verdier) i config. Når brukerens valg matcher en trigger-verdi, vises barnefeltene.
 - **Eske-i-eske:** Metafor for rekursiv nesting — en kontainer kan inneholde andre kontainere med egne betingelser og barn, i ubegrenset dybde.
 - **Flerforetagsbruker:** Bruker som tilhører flere entrepriser i samme prosjekt. Koblet via `MemberEnterprise` join-tabell. Ved opprettelse av sjekklister/oppgaver velger brukeren hvilken entreprise de handler på vegne av.
+- **Prosjektlokasjon:** Valgfri GPS-koordinater (`latitude`/`longitude`) på prosjektet. Settes via kartvelger i prosjektinnstillinger. Brukes til kartvisning i `LokasjonObjekt` og automatisk værhenting.
+- **Lokasjon (`location`):** Display-only rapportobjekt som viser prosjektets posisjon på kart (web) eller med kart-lenke (mobil). Krever ingen brukerinndata.
+- **Posisjon i tegning (`drawing_position`):** Rapportobjekt der brukeren velger en tegning og markerer en posisjon (0–100% X/Y). Config-filtre: `buildingFilter`, `disciplineFilter`.
+- **Automatisk værhenting:** Sjekklister med vær-felt og dato-felt auto-henter værdata fra Open-Meteo basert på prosjektkoordinater. Kilde-sporing: `"automatisk"` (fra API) eller `"manuell"` (bruker-overstyrt).
+- **WMO-værkode:** Internasjonal standard (WMO Code Table 4677) for å beskrive værforhold som tall. Konverteres til norsk tekst via `vaerkodeTilTekst()`.
 
 ## Språk
 
