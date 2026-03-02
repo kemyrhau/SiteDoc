@@ -643,11 +643,28 @@ Tre eksportpunkter: `types`, `validation`, `utils`
 - Delte UI-komponenter i `packages/ui/src/`
 - Delte typer i `packages/shared/src/types/`
 
+### ESLint
+
+Hele monorepoet bruker ESLint v8 med `.eslintrc.json` (legacy-format). Web bruker `next lint` med `eslint-config-next@14`.
+
+**Konfigurasjon:** Root `.eslintrc.json` med `@typescript-eslint/recommended`. Regler:
+- `@typescript-eslint/no-unused-vars`: `error` med `argsIgnorePattern: "^_"` og `varsIgnorePattern: "^_"` — prefiks ubrukte variabler med `_`
+- `@typescript-eslint/no-explicit-any`: `error`
+- `prefer-const`: `error`
+
+**Viktig:**
+- ESLint v8 brukes konsekvent — IKKE oppgrader til v9/v10 (krever flat config-migrering)
+- `eslint-config-next` MÅ matche Next.js-versjonen (v14 → `eslint-config-next@14`)
+- `react-hooks/exhaustive-deps`-pluginen er ikke konfigurert i web — bruk generisk `// eslint-disable-next-line` ved behov
+- Ubrukte destrukturerte verdier: bruk `_`-prefiks (f.eks. `{ conditionActive: _conditionActive, ...rest }`)
+- Ikon-props i layout-komponenter: bruk `JSX.Element` (ikke `React.ReactNode`) for å unngå dual `@types/react`-kollisjon mellom web (v18) og mobile (v19)
+
 ### TypeScript-mønstre
 
 - **tRPC mutation-callbacks:** Bruk `_data: unknown, variabler: { id: string }` for å unngå TS2589 (excessively deep type instantiation)
 - **Prisma-migreringer:** Bruk prosjektets lokale Prisma (`pnpm --filter @siteflow/db exec prisma migrate dev`), IKKE global `npx prisma` (versjonskonflikter med Prisma 7)
 - **MalRad-type:** Cast `alleMaler as MalRad[]` ved filtrering siden tRPC-inferens kan bli for dyp
+- **Ikon-typer:** Bruk `JSX.Element` for ikon-props i interfaces, ikke `React.ReactNode` (unngår `@types/react` v18/v19-kollisjon i monorepoet)
 
 ## Terminologi
 
