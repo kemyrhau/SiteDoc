@@ -69,7 +69,7 @@ export function TreprikkMeny({
             Rediger
           </button>
 
-          {kanHaBetingelse && !erBarnFelt && onTilfoyjBetingelse && (
+          {kanHaBetingelse && onTilfoyjBetingelse && (
             <button
               type="button"
               className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-blue-700 hover:bg-blue-50"

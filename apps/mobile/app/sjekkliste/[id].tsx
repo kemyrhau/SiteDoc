@@ -101,14 +101,17 @@ export default function SjekklisteUtfylling() {
     (handling: StatusHandling) => {
       if (!bruker?.id) return;
 
+      const bekreftTekst = handling.nyStatus === "cancelled" ? "Ja, avbryt" : handling.tekst;
+      const erDestruktiv = handling.nyStatus === "rejected" || handling.nyStatus === "cancelled";
+
       Alert.alert(
         "Bekreft statusendring",
         `Er du sikker på at du vil endre status til "${handling.tekst.toLowerCase()}"?`,
         [
-          { text: "Avbryt", style: "cancel" },
+          { text: "Nei", style: "cancel" },
           {
-            text: handling.tekst,
-            style: handling.nyStatus === "rejected" ? "destructive" : "default",
+            text: bekreftTekst,
+            style: erDestruktiv ? "destructive" : "default",
             onPress: async () => {
               try {
                 await endreStatusMutasjon.mutateAsync({

@@ -53,15 +53,15 @@ export function DropSone({
       <SortableContext items={alleIder} strategy={verticalListSortingStrategy}>
         <div
           ref={setNodeRef}
-          className={`min-h-[80px] rounded-lg border-2 border-dashed p-3 transition-colors ${
+          className={`min-h-[120px] rounded-lg border-2 border-dashed p-3 transition-colors ${
             isOver
               ? "border-blue-400 bg-blue-50"
               : "border-gray-200 bg-gray-50/50"
           }`}
         >
           {treObjekter.length === 0 ? (
-            <p className="py-6 text-center text-sm text-gray-400">
-              Dra felter hit
+            <p className="py-12 text-center text-lg font-medium text-gray-300">
+              Dropp her
             </p>
           ) : (
             <div className="flex flex-col gap-1.5">

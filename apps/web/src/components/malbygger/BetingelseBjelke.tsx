@@ -3,6 +3,17 @@
 import { useState, useRef, useEffect } from "react";
 import type { MalObjekt } from "./DraggbartFelt";
 
+// Hent streng-verdi fra opsjon (støtter både string og {label, value}-format)
+function opsjonTilStreng(opsjon: unknown): string {
+  if (typeof opsjon === "string") return opsjon;
+  if (typeof opsjon === "object" && opsjon !== null) {
+    const obj = opsjon as Record<string, unknown>;
+    if (typeof obj.label === "string") return obj.label;
+    if (typeof obj.value === "string") return obj.value;
+  }
+  return String(opsjon);
+}
+
 interface BetingelseBjelkeProps {
   parentObjekt: MalObjekt;
   aktiveVerdier: string[];
@@ -19,8 +30,11 @@ export function BetingelseBjelke({
   const [dropdownÅpen, setDropdownÅpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const tilgjengeligeOpsjoner = (parentObjekt.config.options as string[]) ?? [];
-  const ikkeValgte = tilgjengeligeOpsjoner.filter((o) => !aktiveVerdier.includes(o));
+  // Normaliser verdier i tilfelle de er objekter fra eksisterende data
+  const normaliserteVerdier = (aktiveVerdier as unknown[]).map(opsjonTilStreng);
+  const råOpsjoner = (parentObjekt.config.options as unknown[]) ?? [];
+  const tilgjengeligeOpsjoner = råOpsjoner.map(opsjonTilStreng);
+  const ikkeValgte = tilgjengeligeOpsjoner.filter((o) => !normaliserteVerdier.includes(o));
 
   useEffect(() => {
     function handleKlikk(e: MouseEvent) {
@@ -59,7 +73,7 @@ export function BetingelseBjelke({
       </span>
 
       <div className="flex flex-wrap items-center gap-1.5">
-        {aktiveVerdier.map((verdi) => (
+        {normaliserteVerdier.map((verdi) => (
           <span
             key={verdi}
             className="inline-flex items-center gap-1 rounded-full bg-blue-200 px-2.5 py-0.5 text-xs font-medium text-blue-800"

@@ -5,6 +5,17 @@ import { REPORT_OBJECT_TYPE_META, type ReportObjectType } from "@siteflow/shared
 import { Input, Button, Badge } from "@siteflow/ui";
 import type { MalObjekt } from "./DraggbartFelt";
 
+// Hent streng-verdi fra opsjon (støtter både string og {label, value}-format)
+function opsjonTilStreng(opsjon: unknown): string {
+  if (typeof opsjon === "string") return opsjon;
+  if (typeof opsjon === "object" && opsjon !== null) {
+    const obj = opsjon as Record<string, unknown>;
+    if (typeof obj.label === "string") return obj.label;
+    if (typeof obj.value === "string") return obj.value;
+  }
+  return String(opsjon);
+}
+
 interface FeltKonfigurasjonProps {
   objekt: MalObjekt;
   alleObjekter: MalObjekt[];
@@ -84,7 +95,7 @@ export function FeltKonfigurasjon({
         {/* Typespesifikk konfigurasjon */}
         {(objekt.type === "list_single" || objekt.type === "list_multi") && (
           <ValglisteKonfig
-            options={(config.options as string[]) ?? []}
+            options={((config.options as unknown[]) ?? []).map(opsjonTilStreng)}
             onChange={(options) => setConfig({ ...config, options })}
           />
         )}
@@ -166,9 +177,10 @@ export function FeltKonfigurasjon({
                 <div className="text-sm text-gray-600">
                   <span>Utløserverdier: </span>
                   <span className="flex flex-wrap gap-1 mt-1">
-                    {((objekt.config.conditionValues as string[]) ?? []).map((v) => (
-                      <Badge key={v} variant="primary">{v}</Badge>
-                    ))}
+                    {((objekt.config.conditionValues as unknown[]) ?? []).map((v) => {
+                      const label = opsjonTilStreng(v);
+                      return <Badge key={label} variant="primary">{label}</Badge>;
+                    })}
                   </span>
                 </div>
                 <p className="text-sm text-gray-500">

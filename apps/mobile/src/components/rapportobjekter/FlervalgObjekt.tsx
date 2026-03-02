@@ -2,13 +2,21 @@ import { View, Text, Pressable } from "react-native";
 import { Check } from "lucide-react-native";
 import type { RapportObjektProps } from "./typer";
 
-interface ValgAlternativ {
-  value: string;
-  label: string;
+// Normaliser opsjon — støtter både string og {value, label}-format
+function normaliserOpsjon(opsjon: unknown): { value: string; label: string } {
+  if (typeof opsjon === "string") return { value: opsjon, label: opsjon };
+  if (typeof opsjon === "object" && opsjon !== null) {
+    const obj = opsjon as Record<string, unknown>;
+    const value = typeof obj.value === "string" ? obj.value : String(obj.value ?? "");
+    const label = typeof obj.label === "string" ? obj.label : value;
+    return { value, label };
+  }
+  return { value: String(opsjon), label: String(opsjon) };
 }
 
 export function FlervalgObjekt({ objekt, verdi, onEndreVerdi, leseModus }: RapportObjektProps) {
-  const alternativer = (objekt.config.options as ValgAlternativ[]) ?? [];
+  const råOpsjoner = (objekt.config.options as unknown[]) ?? [];
+  const alternativer = råOpsjoner.map(normaliserOpsjon);
   const valgteVerdier = Array.isArray(verdi) ? (verdi as string[]) : [];
 
   const håndterToggle = (alternativVerdi: string) => {

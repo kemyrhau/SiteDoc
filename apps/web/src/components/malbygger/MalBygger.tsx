@@ -26,6 +26,17 @@ import { DragOverlayKomponent } from "./DragOverlay_";
 import type { MalObjekt } from "./DraggbartFelt";
 import type { TreObjekt } from "./typer";
 
+// Hent streng-verdi fra opsjon (støtter både string og {label, value}-format)
+function opsjonTilStreng(opsjon: unknown): string {
+  if (typeof opsjon === "string") return opsjon;
+  if (typeof opsjon === "object" && opsjon !== null) {
+    const obj = opsjon as Record<string, unknown>;
+    if (typeof obj.label === "string") return obj.label;
+    if (typeof obj.value === "string") return obj.value;
+  }
+  return String(opsjon);
+}
+
 interface MalData {
   id: string;
   name: string;
@@ -204,16 +215,18 @@ export function MalBygger({ mal }: MalByggerProps) {
       const forelder = neste[idx];
       if (!forelder) return prev;
 
-      const opsjoner = (forelder.config.options as string[]) ?? [];
-      const førsteOpsjon = opsjoner[0];
+      const råOpsjoner = (forelder.config.options as unknown[]) ?? [];
+      const førsteOpsjon = råOpsjoner[0];
       if (!førsteOpsjon) return prev;
+
+      const førsteVerdi = opsjonTilStreng(førsteOpsjon);
 
       neste[idx] = {
         ...forelder,
         config: {
           ...forelder.config,
           conditionActive: true,
-          conditionValues: [førsteOpsjon],
+          conditionValues: [førsteVerdi],
         },
       };
 
@@ -223,15 +236,16 @@ export function MalBygger({ mal }: MalByggerProps) {
     // Lagre til server
     const forelder = objekter.find((o) => o.id === parentId);
     if (forelder) {
-      const opsjoner = (forelder.config.options as string[]) ?? [];
-      const førsteOpsjon = opsjoner[0];
+      const råOpsjoner = (forelder.config.options as unknown[]) ?? [];
+      const førsteOpsjon = råOpsjoner[0];
       if (førsteOpsjon) {
+        const førsteVerdi = opsjonTilStreng(førsteOpsjon);
         oppdaterObjektMutation.mutate({
           id: parentId,
           config: {
             ...forelder.config,
             conditionActive: true,
-            conditionValues: [førsteOpsjon],
+            conditionValues: [førsteVerdi],
           },
         });
       }
