@@ -46,7 +46,7 @@ const navigasjon: NavElement[] = [
       { label: "Entrepriser", href: "/dashbord/oppsett/field/entrepriser" },
       { label: "Oppgavens arbeidsflyt", href: "/dashbord/oppsett/field/oppgavemaler" },
       { label: "Kontrollplan", href: "/dashbord/oppsett/field/kontrollplaner" },
-      { label: "Box", href: "/dashbord/oppsett/field/box" },
+      { label: "Mappeoppsett", href: "/dashbord/oppsett/field/box" },
     ],
   },
   {

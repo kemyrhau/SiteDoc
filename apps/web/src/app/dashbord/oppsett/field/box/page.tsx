@@ -17,51 +17,6 @@ import {
 } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
-/*  Box Light kort                                                     */
-/* ------------------------------------------------------------------ */
-
-function BoxLightKort({
-  aktivert,
-  onToggle,
-}: {
-  aktivert: boolean;
-  onToggle: () => void;
-}) {
-  return (
-    <div className="max-w-md rounded-lg border border-gray-200 bg-white">
-      <div className="border-b border-gray-200 px-5 py-3">
-        <h3 className="text-base font-bold text-gray-900">Box Light</h3>
-      </div>
-      <div className="flex items-center gap-5 px-5 py-5">
-        <div className="flex-shrink-0">
-          <FolderOpen className="h-16 w-16 text-gray-300" strokeWidth={1} />
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <p className="text-sm font-medium text-gray-900">
-            Box Light-aktivering
-          </p>
-          <p className={`text-xs ${aktivert ? "text-green-600" : "text-gray-400"}`}>
-            {aktivert ? "Aktivert" : "Deaktivert"}
-          </p>
-          <button
-            onClick={onToggle}
-            className={`mt-1 inline-flex w-11 items-center rounded-full p-0.5 transition-colors ${
-              aktivert ? "bg-siteflow-primary" : "bg-gray-300"
-            }`}
-          >
-            <span
-              className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform ${
-                aktivert ? "translate-x-5" : "translate-x-0"
-              }`}
-            />
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
 /*  Treprikk-meny                                                      */
 /* ------------------------------------------------------------------ */
 
@@ -223,7 +178,6 @@ export default function BoxSide() {
   const { prosjektId } = useProsjekt();
   const utils = trpc.useUtils();
 
-  const [boxAktivert, setBoxAktivert] = useState(true);
   const [visNyMappeModal, setVisNyMappeModal] = useState(false);
   const [nyMappeNavn, setNyMappeNavn] = useState("");
   const [nyMappeParentId, setNyMappeParentId] = useState<string | null>(null);
@@ -307,24 +261,41 @@ export default function BoxSide() {
 
   return (
     <div>
-      <h2 className="mb-6 text-xl font-bold text-gray-900">Box</h2>
+      <h2 className="mb-6 text-xl font-bold text-gray-900">Mappeoppsett</h2>
 
-      {/* Box Light aktiveringskort */}
-      <BoxLightKort
-        aktivert={boxAktivert}
-        onToggle={() => setBoxAktivert(!boxAktivert)}
-      />
+      {/* Mappestruktur */}
+      <div>
+        <div className="mb-3 flex items-center gap-3">
+          <h3 className="text-sm font-semibold text-gray-700">
+            Mappestruktur
+          </h3>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => {
+              setNyMappeParentId(null);
+              setNyMappeNavn("");
+              setVisNyMappeModal(true);
+            }}
+          >
+            <Plus className="mr-1 h-3.5 w-3.5" />
+            Ny mappe
+          </Button>
+        </div>
 
-      {/* Filstruktur */}
-      {boxAktivert && (
-        <div className="mt-6">
-          <div className="mb-3 flex items-center gap-3">
-            <h3 className="text-sm font-semibold text-gray-700">
-              Mappestruktur
-            </h3>
+        {isLoading ? (
+          <div className="flex justify-center py-6">
+            <Spinner size="md" />
+          </div>
+        ) : mappeTre.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-gray-300 bg-white px-6 py-8 text-center">
+            <FolderOpen className="mx-auto mb-2 h-10 w-10 text-gray-300" />
+            <p className="text-sm text-gray-500">
+              Ingen mapper ennå. Opprett den første mappen for prosjektet.
+            </p>
             <Button
               size="sm"
-              variant="ghost"
+              className="mt-3"
               onClick={() => {
                 setNyMappeParentId(null);
                 setNyMappeNavn("");
@@ -332,49 +303,24 @@ export default function BoxSide() {
               }}
             >
               <Plus className="mr-1 h-3.5 w-3.5" />
-              Ny mappe
+              Opprett mappe
             </Button>
           </div>
-
-          {isLoading ? (
-            <div className="flex justify-center py-6">
-              <Spinner size="md" />
-            </div>
-          ) : mappeTre.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-gray-300 bg-white px-6 py-8 text-center">
-              <FolderOpen className="mx-auto mb-2 h-10 w-10 text-gray-300" />
-              <p className="text-sm text-gray-500">
-                Ingen mapper ennå. Opprett den første mappen for prosjektet.
-              </p>
-              <Button
-                size="sm"
-                className="mt-3"
-                onClick={() => {
-                  setNyMappeParentId(null);
-                  setNyMappeNavn("");
-                  setVisNyMappeModal(true);
-                }}
-              >
-                <Plus className="mr-1 h-3.5 w-3.5" />
-                Opprett mappe
-              </Button>
-            </div>
-          ) : (
-            <div className="rounded-lg border border-gray-200 bg-white py-2">
-              {mappeTre.map((mappe) => (
-                <MappeTreRad
-                  key={mappe.id}
-                  mappe={mappe}
-                  dybde={0}
-                  onLeggTilUndermappe={handleLeggTilUndermappe}
-                  onGiNyttNavn={handleGiNyttNavn}
-                  onSlett={setSlettMappeId}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+        ) : (
+          <div className="rounded-lg border border-gray-200 bg-white py-2">
+            {mappeTre.map((mappe) => (
+              <MappeTreRad
+                key={mappe.id}
+                mappe={mappe}
+                dybde={0}
+                onLeggTilUndermappe={handleLeggTilUndermappe}
+                onGiNyttNavn={handleGiNyttNavn}
+                onSlett={setSlettMappeId}
+              />
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Ny mappe modal */}
       <Modal

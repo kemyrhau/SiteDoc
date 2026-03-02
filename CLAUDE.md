@@ -744,6 +744,21 @@ Dalux-inspirert tre-kolonne layout:
 - `EntrepriserPanel` — Entrepriseliste med søk
 - `TegningerPanel` — Tegninger (placeholder med søk)
 
+### Mer-meny
+
+**Web** (`[prosjektId]/page.tsx`): ⋮-knapp (MoreVertical) øverst til høyre ved prosjektnavnet. Dropdown med:
+- **Prosjektinnstillinger** — navigerer til `/dashbord/oppsett`, deaktivert for ikke-admin (`disabled:opacity-40`)
+- **Skriv ut** — `window.print()`
+- **Eksporter** — placeholder (TODO)
+
+Admin-sjekk via `prosjekt.members` matchet mot `session.user.email`.
+
+**Mobil** (`app/(tabs)/mer.tsx`): Mer-fanen med to seksjoner:
+- **Prosjekt** — Prosjektinnstillinger (deaktivert + alert for ikke-admin), Skriv ut, Eksporter
+- **Generelt** — Kontakter, Grupper, Forbered til offline, Skann QR-kode
+
+Admin-sjekk via `trpc.medlem.hentForProsjekt` matchet mot `bruker.email`.
+
 ## Pakker
 
 ### @siteflow/ui — UI-komponentbibliotek
