@@ -80,7 +80,7 @@ const PRIORITETS_TEKST: Record<string, string> = {
 
 function formaterNummer(prefix: string | null | undefined, nummer: number | null | undefined): string | null {
   if (!prefix || nummer == null) return null;
-  return `${prefix}-${String(nummer).padStart(3, "0")}`;
+  return `${prefix}${nummer}`;
 }
 
 export default function HjemSkjerm() {
@@ -309,10 +309,10 @@ export default function HjemSkjerm() {
                   </View>
                   <View className="flex-1">
                     <Text
-                      className="text-sm font-medium text-gray-900"
+                      className="text-sm text-gray-900"
                       numberOfLines={1}
                     >
-                      {element.nummer ? `${element.nummer} ` : ""}{element.tittel}
+                      {element.nummer ? <Text className="font-bold">{element.nummer} </Text> : null}{element.tittel}
                     </Text>
                     <Text className="text-xs text-gray-500" numberOfLines={1}>
                       {element.undertekst}

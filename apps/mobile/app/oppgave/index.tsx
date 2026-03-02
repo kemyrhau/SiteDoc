@@ -47,7 +47,7 @@ interface OppgaveRad {
 
 function formaterNummer(prefix: string | null | undefined, nummer: number | null | undefined): string | null {
   if (!prefix || nummer == null) return null;
-  return `${prefix}-${String(nummer).padStart(3, "0")}`;
+  return `${prefix}${nummer}`;
 }
 
 export default function OppgaveListe() {
@@ -88,8 +88,8 @@ export default function OppgaveListe() {
           className="flex-row items-center border-b border-gray-100 bg-white px-4 py-3"
         >
           <View className="flex-1">
-            <Text className="text-sm font-medium text-gray-900" numberOfLines={1}>
-              {nummer ? `${nummer} ` : ""}{item.title}
+            <Text className="text-sm text-gray-900" numberOfLines={1}>
+              {nummer ? <Text className="font-bold">{nummer} </Text> : null}{item.title}
             </Text>
             <View className="mt-0.5 flex-row items-center gap-2">
               <Text className={`text-xs font-medium ${PRIORITETS_FARGE[item.priority] ?? "text-gray-500"}`}>
