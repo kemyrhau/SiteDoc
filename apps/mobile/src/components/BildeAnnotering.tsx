@@ -20,6 +20,7 @@ import {
 } from "lucide-react-native";
 import * as FileSystem from "expo-file-system/legacy";
 import { ANNOTERINGS_HTML } from "../assets/annoterings-html";
+import { AUTH_CONFIG } from "../config/auth";
 
 type Verktoy = "arrow" | "circle" | "rect" | "draw" | "text";
 
@@ -99,7 +100,14 @@ export function BildeAnnotering({ bildeUri, onFerdig, onAvbryt }: BildeAnnoterin
         const data = JSON.parse(e.nativeEvent.data);
         if (data.type === "klar") {
           settErKlar(true);
-          const base64 = await FileSystem.readAsStringAsync(bildeUri, {
+          let lokalSti = bildeUri;
+          // Server-URL → last ned til lokal fil først
+          if (bildeUri.startsWith("/") || bildeUri.startsWith("http")) {
+            const fullUrl = bildeUri.startsWith("/") ? `${AUTH_CONFIG.apiUrl}${bildeUri}` : bildeUri;
+            lokalSti = `${FileSystem.cacheDirectory}annoterings_kilde_${Date.now()}.jpg`;
+            await FileSystem.downloadAsync(fullUrl, lokalSti);
+          }
+          const base64 = await FileSystem.readAsStringAsync(lokalSti, {
             encoding: FileSystem.EncodingType.Base64,
           });
           sendMelding({ type: "settBilde", bildeUrl: `data:image/jpeg;base64,${base64}` });

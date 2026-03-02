@@ -3,6 +3,7 @@ import { View, Text, Pressable, ActivityIndicator, SafeAreaView } from "react-na
 import ViewShot from "react-native-view-shot";
 import { Camera, X } from "lucide-react-native";
 import { trpc } from "../lib/trpc";
+import { AUTH_CONFIG } from "../config/auth";
 import { TegningsVelger } from "./TegningsVelger";
 import { TegningsVisning } from "./TegningsVisning";
 
@@ -52,7 +53,15 @@ export function TegningsSkjermbilde({ prosjektId, onFerdig, onAvbryt }: Tegnings
     { enabled: !!valgtTegningId },
   );
 
-  const tegningData = valgtTegningDetalj.data as { fileUrl: string; name: string } | undefined;
+  const tegningRådata = valgtTegningDetalj.data as { fileUrl: string; name: string } | undefined;
+  const tegningData = tegningRådata
+    ? {
+        ...tegningRådata,
+        fileUrl: tegningRådata.fileUrl.startsWith("/")
+          ? `${AUTH_CONFIG.apiUrl}${tegningRådata.fileUrl}`
+          : tegningRådata.fileUrl,
+      }
+    : undefined;
 
   const håndterSkjermbilde = useCallback(async () => {
     if (!viewShotRef.current?.capture) return;
