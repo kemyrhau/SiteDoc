@@ -31,6 +31,7 @@ export const createProjectSchema = z.object({
 export const createEnterpriseSchema = z.object({
   name: z.string().min(1).max(255),
   projectId: z.string().uuid(),
+  enterpriseNumber: z.string().max(20).optional(),
   organizationNumber: z.string().optional(),
   color: z.string().max(50).optional(),
   industry: z.string().max(100).optional(),

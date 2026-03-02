@@ -169,6 +169,7 @@ model Enterprise {
   id                 String   @id @default(uuid())
   projectId          String   @map("project_id")
   name               String
+  enterpriseNumber   String?  @map("enterprise_number")
   organizationNumber String?  @map("organization_number")
   color              String?
   industry           String?

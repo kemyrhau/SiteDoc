@@ -69,6 +69,7 @@ export const entrepriseRouter = router({
       z.object({
         id: z.string().uuid(),
         name: z.string().min(1).max(255).optional(),
+        enterpriseNumber: z.string().max(20).optional(),
         organizationNumber: z.string().optional(),
         color: z.string().max(50).optional(),
         industry: z.string().max(100).optional(),
@@ -96,6 +97,7 @@ export const entrepriseRouter = router({
           data: {
             projectId: input.targetProjectId,
             name: kilde.name,
+            enterpriseNumber: kilde.enterpriseNumber,
             organizationNumber: kilde.organizationNumber,
             color: kilde.color,
             industry: kilde.industry,

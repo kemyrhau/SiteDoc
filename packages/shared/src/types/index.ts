@@ -79,7 +79,7 @@ export const REPORT_OBJECT_TYPE_META: Record<ReportObjectType, ReportObjectTypeM
     defaultConfig: { multiline: false },
   },
   list_single: {
-    label: "Sjekkboks",
+    label: "Enkeltvalg",
     icon: "SquareCheck",
     category: "valg",
     defaultConfig: { options: [] },

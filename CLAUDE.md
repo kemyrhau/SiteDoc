@@ -133,7 +133,7 @@ siteflow/
 | `verification_tokens` | E-postverifiseringstokens |
 | `projects` | Prosjekter med prosjektnummer (SF-YYYYMMDD-XXXX), status |
 | `project_members` | Prosjektmedlemmer med rolle (member/admin) og valgfri entreprisetilknytning |
-| `enterprises` | Entrepriser/kontrakter per prosjekt |
+| `enterprises` | Entrepriser med `enterprise_number` (Dalux-format: "04 Tømrer, Econor"), bransje, firma, farge |
 | `buildings` | Bygninger med status (unpublished/published) |
 | `drawings` | Tegninger med metadata: tegningsnummer, fagdisiplin, revisjon, status, etasje, målestokk, opphav |
 | `drawing_revisions` | Revisjonshistorikk for tegninger med fil, status og hvem som lastet opp |
@@ -294,6 +294,8 @@ Komponenter:
 - Adgangskontroll: Field-admin kan sende kryssentreprise, brukergruppe-brukere kun til eget arbeidsforløp
 - Videresending av sjekklister/oppgaver til annen entreprise (svarer og oppretter)
 - Flerforetagsbrukere: velg entreprise å sende fra ved opprettelse
+- Dato/tid-felter (Dalux-stil): automatisk datoforslag (dagens dato), redigerbart, tid med scrollhjul + "Nå"-knapp for nåværende tidspunkt
+- TrafikklysObjekt (mobil): legge til 4. farge grå/"Ikke relevant" i mobilrenderer
 
 ### Oppgave fra tegning (mobil)
 
@@ -363,7 +365,7 @@ Maler bygges på PC med drag-and-drop. Hver mal inneholder objekter med definert
 | `integer` | tall | Heltall |
 | `decimal` | tall | Desimaltall |
 | `calculation` | tall | Beregning (formel) |
-| `traffic_light` | valg | Trafikklys (rød/gul/grønn) |
+| `traffic_light` | valg | Trafikklys (grønn/gul/rød/grå — 4 farger: Godkjent, Anmerkning, Avvik, Ikke relevant) |
 | `date` | dato | Dato |
 | `date_time` | dato | Dato og tid |
 | `person` | person | Enkeltperson |
@@ -408,6 +410,13 @@ Drag-and-drop-editor for å bygge maler med rekursiv kontainer-nesting (Dalux-st
 - Trebygging: flat array → tre med `byggTre()` i MalBygger, splittes i topptekst/datafelter
 - `harForelderObjekt(obj)` fra `@siteflow/shared` sjekker `obj.parentId != null`
 - `harBetingelse(config)` er deprecated — bruk `harForelderObjekt()` for nye kall
+
+**Opsjon-normalisering:**
+- Alternativer (`config.options`) kan lagres som strenger (`"Ja"`) eller objekter (`{value: "green", label: "Godkjent"}`)
+- Malbyggeren lagrer som strenger, trafikklys bruker objekter
+- All rendering-kode MÅ normalisere opsjoner: `opsjonTilStreng()` (web) og `normaliserOpsjon()` (mobil)
+- `opsjonTilStreng(opsjon)` → returnerer string (sjekker string → obj.label → obj.value)
+- `normaliserOpsjon(opsjon)` → returnerer `{value, label}` (sjekker string → obj med value/label)
 
 ### Innstillings-sidebar
 
@@ -657,7 +666,7 @@ Dalux-inspirert tre-kolonne layout:
 Tre eksportpunkter: `types`, `validation`, `utils`
 
 **Typer** (`packages/shared/src/types/`):
-- `DocumentStatus` — 8 statusverdier for sjekklister/oppgaver
+- `DocumentStatus` — 9 statusverdier for sjekklister/oppgaver (draft, sent, received, in_progress, responded, approved, rejected, closed, cancelled)
 - `ReportObjectType` — 21 rapportobjekttyper
 - `ReportObjectCategory` — 7 kategorier (tekst, valg, tall, dato, person, fil, spesial)
 - `REPORT_OBJECT_TYPE_META` — Komplett metadata for alle 21 typer med label, ikon, kategori, standardkonfig
@@ -746,7 +755,7 @@ Hele monorepoet bruker ESLint v8 med `.eslintrc.json` (legacy-format). Web bruke
 
 ## Terminologi
 
-- **Entreprise:** Kontrakt/arbeidspakke utført av en entreprenør/UE i et prosjekt
+- **Entreprise:** Kontrakt/arbeidspakke utført av en entreprenør/UE i et prosjekt. Dalux-format: `NUMMER Navn, Firma` (f.eks. "04 Tømrer, Econor"). Felter: `enterpriseNumber`, `name`, `industry` (fra `ENTERPRISE_INDUSTRIES` enum), `companyName`, `color`
 - **Oppretter (creator):** Entreprisen som initierer en sjekkliste/oppgave
 - **Svarer (responder):** Entreprisen som mottar og besvarer
 - **UE:** Underentreprenør
@@ -763,10 +772,15 @@ Hele monorepoet bruker ESLint v8 med `.eslintrc.json` (legacy-format). Web bruke
 - **Invitasjon (ProjectInvitation):** E-postinvitasjon til et prosjekt med unik token, utløpsdato og status (pending/accepted/expired)
 - **Prosjektgruppe (ProjectGroup):** Navngitt gruppe med kategori og tillatelser, brukes for rollestyring (f.eks. Field-admin, HMS-ledere)
 - **Tegningsmarkør:** Posisjon (0–100% X/Y) på en tegning der en oppgave er opprettet fra mobilappen
+- **Enkeltvalg (`list_single`):** Rapportobjekt der brukeren velger én verdi fra en liste med alternativer (radioknapper). Kan brukes som kontainer med betingelse.
+- **Flervalg (`list_multi`):** Rapportobjekt der brukeren kan velge flere verdier (avkrysningsbokser). Kan brukes som kontainer med betingelse.
+- **Kontainer:** Et Enkeltvalg- eller Flervalg-felt som har betingelse aktivert (`conditionActive: true`) og dermed kan inneholde barnefelt. Kontainere kan nestes rekursivt (eske-i-eske-prinsippet).
+- **Betingelse:** Logikk på en kontainer som styrer synligheten av barnefelt. Defineres av `conditionValues` (trigger-verdier) i config. Når brukerens valg matcher en trigger-verdi, vises barnefeltene.
+- **Eske-i-eske:** Metafor for rekursiv nesting — en kontainer kan inneholde andre kontainere med egne betingelser og barn, i ubegrenset dybde.
 
 ## Språk
 
-- All kode, kommentarer, UI-tekst, dokumentasjon og commit-meldinger skal skrives på **norsk**
+- All kode, kommentarer, UI-tekst, dokumentasjon og commit-meldinger skal skrives på **norsk bokmål** (IKKE nynorsk)
 - Variabelnavn og tekniske identifikatorer kan være på engelsk der det er naturlig (f.eks. `id`, `status`, `config`)
 - Brukervendt tekst (knapper, labels, feilmeldinger, hjelpetekst) skal ALLTID være på norsk
 - Bruk alltid norske tegn (æ, ø, å) i all UI-tekst, kommentarer og strenger — ALDRI ASCII-erstatninger (aa, oe, ae)

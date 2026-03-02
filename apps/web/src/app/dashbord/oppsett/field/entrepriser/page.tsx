@@ -310,6 +310,7 @@ function ArbeidsforlopRad({
 interface EntrepriseData {
   id: string;
   name: string;
+  enterpriseNumber: string | null;
   organizationNumber: string | null;
   color: string | null;
   industry: string | null;
@@ -339,10 +340,12 @@ function EntrepriseGruppeKomponent({
   const [ekspandert, setEkspandert] = useState(true);
   const farge = hentFargeForEntreprise(entreprise.color, entreprise.fargeIndeks);
 
-  // Vis "Navn, FIRMA" i header som Dalux
-  const headerTekst = entreprise.companyName
-    ? `${entreprise.name}, ${entreprise.companyName.toUpperCase()}`
-    : entreprise.name;
+  // Dalux-format: "NUMMER Navn, Firma" (f.eks. "04 Tømrer, Econor")
+  const headerTekst = [
+    entreprise.enterpriseNumber,
+    entreprise.name,
+  ].filter(Boolean).join(" ")
+    + (entreprise.companyName ? `, ${entreprise.companyName}` : "");
 
   return (
     <div className="mb-4">
@@ -672,6 +675,7 @@ function EntrepriseVeiviser({
 
   // Steg 2c — Opprett tom
   const [nyNavn, setNyNavn] = useState("");
+  const [nyNummer, setNyNummer] = useState("");
   const [nyFarge, setNyFarge] = useState<string>("blue");
   const [nyBransje, setNyBransje] = useState("");
   const [nyFirma, setNyFirma] = useState("");
@@ -721,6 +725,7 @@ function EntrepriseVeiviser({
     setImportProsjektId("");
     setImportEntrepriseId("");
     setNyNavn("");
+    setNyNummer("");
     setNyFarge("blue");
     setNyBransje("");
     setNyFirma("");
@@ -753,6 +758,7 @@ function EntrepriseVeiviser({
     setImportProsjektId("");
     setImportEntrepriseId("");
     setNyNavn("");
+    setNyNummer("");
     setNyFarge("blue");
     setNyBransje("");
     setNyFirma("");
@@ -768,6 +774,7 @@ function EntrepriseVeiviser({
         opprettMutation.mutate({
           name: nyNavn.trim(),
           projectId: prosjektId,
+          enterpriseNumber: nyNummer.trim() || undefined,
           color: nyFarge || undefined,
           industry: nyBransje.trim() || undefined,
           companyName: nyFirma.trim() || undefined,
@@ -1006,33 +1013,31 @@ function EntrepriseVeiviser({
                 <FargeVelger valgt={nyFarge} onChange={setNyFarge} />
                 <input
                   type="text"
+                  value={nyNummer}
+                  onChange={(e) => setNyNummer(e.target.value)}
+                  placeholder="Nr."
+                  className="w-[60px] rounded-md border border-gray-300 px-2 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                />
+                <input
+                  type="text"
                   value={nyNavn}
                   onChange={(e) => setNyNavn(e.target.value)}
-                  placeholder="F.eks. Elektro AS"
+                  placeholder="F.eks. Tømrer"
                   className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   required
                 />
               </div>
             </div>
 
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700">
-                Bransje
-              </label>
-              <input
-                type="text"
-                list="bransje-liste"
-                value={nyBransje}
-                onChange={(e) => setNyBransje(e.target.value)}
-                placeholder="Velg eller skriv inn bransje"
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              />
-              <datalist id="bransje-liste">
-                {ENTERPRISE_INDUSTRIES.map((b) => (
-                  <option key={b} value={b} />
-                ))}
-              </datalist>
-            </div>
+            <Select
+              label="Bransje"
+              options={[
+                { value: "", label: "Velg bransje..." },
+                ...ENTERPRISE_INDUSTRIES.map((b) => ({ value: b, label: b })),
+              ]}
+              value={nyBransje}
+              onChange={(e) => setNyBransje(e.target.value)}
+            />
 
             <Input
               label="Firma"
@@ -1136,6 +1141,7 @@ export default function EntrepriserSide() {
   // Rediger entreprise-modal
   const [redigerEntrepriseId, setRedigerEntrepriseId] = useState<string | null>(null);
   const [redigerNavn, setRedigerNavn] = useState("");
+  const [redigerNummer, setRedigerNummer] = useState("");
   const [redigerOrgNummer, setRedigerOrgNummer] = useState("");
   const [redigerFarge, setRedigerFarge] = useState("");
   const [redigerBransje, setRedigerBransje] = useState("");
@@ -1227,6 +1233,7 @@ export default function EntrepriserSide() {
     if (!ent) return;
     setRedigerEntrepriseId(id);
     setRedigerNavn(ent.name);
+    setRedigerNummer(ent.enterpriseNumber ?? "");
     setRedigerOrgNummer(ent.organizationNumber ?? "");
     setRedigerFarge(ent.color ?? "");
     setRedigerBransje(ent.industry ?? "");
@@ -1298,6 +1305,7 @@ export default function EntrepriserSide() {
     entrepriser?.map((e, i) => ({
       id: e.id,
       name: e.name,
+      enterpriseNumber: e.enterpriseNumber ?? null,
       organizationNumber: e.organizationNumber ?? null,
       color: e.color ?? null,
       industry: e.industry ?? null,
@@ -1426,6 +1434,7 @@ export default function EntrepriserSide() {
             oppdaterEntrepriseMutation.mutate({
               id: redigerEntrepriseId,
               name: redigerNavn.trim(),
+              enterpriseNumber: redigerNummer.trim() || undefined,
               organizationNumber: redigerOrgNummer.trim() || undefined,
               color: redigerFarge || undefined,
               industry: redigerBransje.trim() || undefined,
@@ -1436,38 +1445,37 @@ export default function EntrepriserSide() {
         >
           <div>
             <label className="mb-1.5 block text-sm font-medium text-gray-700">
-              Navn <span className="text-red-500">*</span>
+              Entreprise <span className="text-red-500">*</span>
             </label>
             <div className="flex items-center gap-3">
               <FargeVelger valgt={redigerFarge} onChange={setRedigerFarge} />
               <input
                 type="text"
+                value={redigerNummer}
+                onChange={(e) => setRedigerNummer(e.target.value)}
+                placeholder="Nr."
+                className="w-[60px] rounded-md border border-gray-300 px-2 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+              <input
+                type="text"
                 value={redigerNavn}
                 onChange={(e) => setRedigerNavn(e.target.value)}
+                placeholder="Navn"
                 className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 required
               />
             </div>
           </div>
 
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">
-              Bransje
-            </label>
-            <input
-              type="text"
-              list="bransje-rediger-liste"
-              value={redigerBransje}
-              onChange={(e) => setRedigerBransje(e.target.value)}
-              placeholder="Velg eller skriv inn bransje"
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
-            <datalist id="bransje-rediger-liste">
-              {ENTERPRISE_INDUSTRIES.map((b) => (
-                <option key={b} value={b} />
-              ))}
-            </datalist>
-          </div>
+          <Select
+            label="Bransje"
+            options={[
+              { value: "", label: "Velg bransje..." },
+              ...ENTERPRISE_INDUSTRIES.map((b) => ({ value: b, label: b })),
+            ]}
+            value={redigerBransje}
+            onChange={(e) => setRedigerBransje(e.target.value)}
+          />
 
           <Input
             label="Firma"
