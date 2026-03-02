@@ -282,10 +282,10 @@ Arbeidsforløp kobler maler til entrepriser og definerer oppretter/svarer-flyten
 Prosjektgrupper kategoriserer brukere med tilhørende tillatelser. Gruppekategorier: `generelt`, `field`, `brukergrupper`.
 
 **Standardgrupper** (opprettes automatisk via seed/`opprettStandardgrupper`):
-- **Field-administratorer** (`field-admin`) — `manage_field`, `create_tasks`, `create_checklists`
-- **Oppgave- og sjekklistekoordinatorer** (`oppgave-sjekkliste-koord`) — `create_tasks`, `create_checklists`
-- **Field-observatorer** (`field-observatorer`) — `view_field`
-- **HMS-ledere** (`hms-ledere`) — `create_tasks`, `create_checklists`
+- **Feltarbeid-administratorer** (`field-admin`) — `manage_field`, `create_tasks`, `create_checklists`
+- **Oppgave- og sjekklisteregistratorer** (`oppgave-sjekkliste-koord`) — `create_tasks`, `create_checklists`
+- **Feltarbeid-registrator** (`field-observatorer`) — `view_field`
+- **HMS** (`hms-ledere`) — `create_tasks`, `create_checklists`
 
 Standardgruppene er definert i `@siteflow/shared` (`STANDARD_PROJECT_GROUPS`).
 

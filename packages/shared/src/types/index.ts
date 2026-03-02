@@ -237,19 +237,19 @@ export const STANDARD_PROJECT_GROUPS: StandardProjectGroup[] = [
   },
   {
     slug: "oppgave-sjekkliste-koord",
-    name: "Oppgave- og sjekklistekoordinatorer",
+    name: "Oppgave- og sjekklisteregistratorer",
     category: "field",
     permissions: ["create_tasks", "create_checklists"],
   },
   {
     slug: "field-observatorer",
-    name: "Feltarbeid-observatorer",
+    name: "Feltarbeid-registrator",
     category: "field",
     permissions: ["view_field"],
   },
   {
     slug: "hms-ledere",
-    name: "HMS-ledere",
+    name: "HMS",
     category: "field",
     permissions: ["create_tasks", "create_checklists"],
   },

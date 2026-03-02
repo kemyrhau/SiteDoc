@@ -304,7 +304,7 @@ async function seed() {
     data: [
       {
         projectId: prosjekt.id,
-        name: "Oppgave- og sjekklistekoordinatorer",
+        name: "Oppgave- og sjekklisteregistratorer",
         slug: "oppgave-sjekkliste-koord",
         category: "field",
         permissions: ["create_tasks", "create_checklists"],
@@ -312,7 +312,7 @@ async function seed() {
       },
       {
         projectId: prosjekt.id,
-        name: "Feltarbeid-observatorer",
+        name: "Feltarbeid-registrator",
         slug: "field-observatorer",
         category: "field",
         permissions: ["view_field"],
@@ -320,7 +320,7 @@ async function seed() {
       },
       {
         projectId: prosjekt.id,
-        name: "HMS-ledere",
+        name: "HMS",
         slug: "hms-ledere",
         category: "field",
         permissions: ["create_tasks", "create_checklists"],
