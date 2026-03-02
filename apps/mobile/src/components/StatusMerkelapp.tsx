@@ -9,6 +9,7 @@ const STATUS_MAP: Record<string, { tekst: string; bg: string; tekstFarge: string
   approved: { tekst: "Godkjent", bg: "bg-green-100", tekstFarge: "text-green-700" },
   rejected: { tekst: "Avvist", bg: "bg-red-100", tekstFarge: "text-red-700" },
   closed: { tekst: "Lukket", bg: "bg-gray-200", tekstFarge: "text-gray-600" },
+  cancelled: { tekst: "Avbrutt", bg: "bg-red-100", tekstFarge: "text-red-700" },
 };
 
 interface StatusMerkelappProps {

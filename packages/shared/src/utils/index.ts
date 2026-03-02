@@ -17,14 +17,15 @@ export function isValidStatusTransition(
   next: string,
 ): boolean {
   const validTransitions: Record<string, string[]> = {
-    draft: ["sent"],
-    sent: ["received"],
-    received: ["in_progress"],
-    in_progress: ["responded"],
+    draft: ["sent", "cancelled"],
+    sent: ["received", "cancelled"],
+    received: ["in_progress", "cancelled"],
+    in_progress: ["responded", "cancelled"],
     responded: ["approved", "rejected"],
     approved: ["closed"],
     rejected: ["in_progress", "closed"],
     closed: [],
+    cancelled: [],
   };
 
   return validTransitions[current]?.includes(next) ?? false;

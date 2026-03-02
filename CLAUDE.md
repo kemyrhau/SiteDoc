@@ -187,6 +187,7 @@ Alle routere i `apps/api/src/routes/`:
 ```
 draft → sent → received → in_progress → responded → approved | rejected → closed
                                                       rejected → in_progress (tilbake til arbeid)
+draft / sent / received / in_progress → cancelled (avbryt — irreversibel)
 ```
 
 ### Entrepriseflyt
@@ -211,6 +212,9 @@ Sjekkliste-detaljskjermen (`apps/mobile/app/sjekkliste/[id].tsx`) har kontekstue
 | `rejected` | "Start arbeid igjen" | `in_progress` | Amber |
 | `approved` | "Lukk" | `closed` | Grå |
 | `closed` | (ingen knapp) | — | — |
+| `cancelled` | (ingen knapp) | — | — |
+
+- For `draft`, `sent`, `received`, `in_progress` vises "Avbryt"-knapp (rød) side om side med hovedhandlingen
 
 - For `responded`-status vises to knapper side om side (flex-row)
 - Bekreftelsesdialog (`Alert.alert`) før hver statusendring

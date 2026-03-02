@@ -9,6 +9,7 @@ const statusKonfig: Record<string, { label: string; variant: "default" | "primar
   approved: { label: "Godkjent", variant: "success" },
   rejected: { label: "Avvist", variant: "danger" },
   closed: { label: "Lukket", variant: "default" },
+  cancelled: { label: "Avbrutt", variant: "danger" },
   active: { label: "Aktiv", variant: "success" },
   archived: { label: "Arkivert", variant: "default" },
   completed: { label: "Fullført", variant: "success" },

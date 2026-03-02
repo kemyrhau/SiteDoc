@@ -8,6 +8,7 @@ export const DOCUMENT_STATUSES = [
   "approved",
   "rejected",
   "closed",
+  "cancelled",
 ] as const;
 
 export type DocumentStatus = (typeof DOCUMENT_STATUSES)[number];

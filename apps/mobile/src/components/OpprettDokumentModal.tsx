@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import {
   View,
   Text,
@@ -26,6 +26,29 @@ interface MalData {
   name: string;
   prefix: string | null;
   category: string;
+}
+
+interface ArbeidsforlopData {
+  id: string;
+  name: string;
+  enterpriseId: string;
+  responderEnterpriseId: string | null;
+  responderEnterprise: { id: string; name: string } | null;
+  templates: Array<{
+    templateId: string;
+    template: { id: string; name: string; category: string };
+  }>;
+}
+
+interface BygningData {
+  id: string;
+  name: string;
+}
+
+interface TegningData {
+  id: string;
+  name: string;
+  drawingNumber: string | null;
 }
 
 interface OpprettDokumentModalProps {
@@ -59,19 +82,71 @@ export function OpprettDokumentModal({
 }: OpprettDokumentModalProps) {
   const { valgtProsjektId } = useProsjekt();
 
-  const [tittel, setTittel] = useState("");
+  const [emne, setEmne] = useState("");
   const [prioritet, setPrioritet] = useState<Prioritet>("medium");
   const [oppretterEntrepriseId, setOppretterEntrepriseId] = useState<string | null>(null);
-  const [svarerEntrepriseId, setSvarerEntrepriseId] = useState<string | null>(null);
+  const [valgtBygningId, setValgtBygningId] = useState<string | null>(null);
+  const [valgtTegningId, setValgtTegningId] = useState<string | null>(null);
   const [visOppretterListe, setVisOppretterListe] = useState(false);
-  const [visSvarerListe, setVisSvarerListe] = useState(false);
+  const [visBygningListe, setVisBygningListe] = useState(false);
+  const [visTegningListe, setVisTegningListe] = useState(false);
+
+  // Hent prosjektnavn for auto-tittel
+  const prosjektQuery = trpc.prosjekt.hentMine.useQuery(undefined, {
+    enabled: synlig,
+  });
+  const prosjekter = prosjektQuery.data ?? [];
+  const valgtProsjekt = prosjekter.find((p: { id: string }) => p.id === valgtProsjektId);
+  const prosjektNavn = valgtProsjekt?.name ?? "";
 
   const entrepriseQuery = trpc.entreprise.hentForProsjekt.useQuery(
     { projectId: valgtProsjektId! },
     { enabled: !!valgtProsjektId && synlig },
   );
-
   const entrepriser = (entrepriseQuery.data ?? []) as EntrepriseData[];
+
+  // Hent arbeidsforløp for prosjektet
+  const arbeidsforlopQuery = trpc.arbeidsforlop.hentForProsjekt.useQuery(
+    { projectId: valgtProsjektId! },
+    { enabled: !!valgtProsjektId && synlig },
+  );
+  const alleArbeidsforlop = (arbeidsforlopQuery.data ?? []) as ArbeidsforlopData[];
+
+  // Auto-utled arbeidsforløp fra valgt entreprise + mal (uten eget valg)
+  const matchendeArbeidsforlop = useMemo(() => {
+    if (!oppretterEntrepriseId) return null;
+    const treff = alleArbeidsforlop.filter(
+      (af) =>
+        af.enterpriseId === oppretterEntrepriseId &&
+        af.templates.some((t) => t.templateId === mal.id),
+    );
+    // Bruk første treff — entreprisen skal være satt opp korrekt
+    return treff[0] ?? null;
+  }, [alleArbeidsforlop, oppretterEntrepriseId, mal.id]);
+
+  // Svarer-entreprise utledes fra arbeidsforløpet
+  const autoSvarerEntrepriseId = matchendeArbeidsforlop
+    ? matchendeArbeidsforlop.responderEnterpriseId ?? matchendeArbeidsforlop.enterpriseId
+    : null;
+  const autoSvarerNavn = matchendeArbeidsforlop
+    ? matchendeArbeidsforlop.responderEnterprise?.name ??
+      entrepriser.find((e) => e.id === matchendeArbeidsforlop.enterpriseId)?.name ??
+      ""
+    : "";
+
+  // Hent bygninger for prosjektet
+  const bygningQuery = trpc.bygning.hentForProsjekt.useQuery(
+    { projectId: valgtProsjektId! },
+    { enabled: !!valgtProsjektId && synlig },
+  );
+  const bygninger = (bygningQuery.data ?? []) as BygningData[];
+
+  // Hent tegninger — filtrert etter bygning
+  const tegningQuery = trpc.tegning.hentForProsjekt.useQuery(
+    { projectId: valgtProsjektId!, buildingId: valgtBygningId ?? undefined },
+    { enabled: !!valgtProsjektId && !!valgtBygningId && synlig },
+  );
+  const tegninger = (tegningQuery.data ?? []) as TegningData[];
 
   // eslint-disable-next-line
   const opprettSjekkliste = trpc.sjekkliste.opprett.useMutation({
@@ -100,12 +175,14 @@ export function OpprettDokumentModal({
   const erPending = opprettSjekkliste.isPending || opprettOppgave.isPending;
 
   const nullstillSkjema = useCallback(() => {
-    setTittel("");
+    setEmne("");
     setPrioritet("medium");
     setOppretterEntrepriseId(null);
-    setSvarerEntrepriseId(null);
+    setValgtBygningId(null);
+    setValgtTegningId(null);
     setVisOppretterListe(false);
-    setVisSvarerListe(false);
+    setVisBygningListe(false);
+    setVisTegningListe(false);
   }, []);
 
   const håndterAvbryt = useCallback(() => {
@@ -114,16 +191,15 @@ export function OpprettDokumentModal({
   }, [nullstillSkjema, onLukk]);
 
   const håndterOpprett = useCallback(() => {
-    if (!tittel.trim()) {
-      Alert.alert("Mangler tittel", "Skriv inn en tittel");
-      return;
-    }
     if (!oppretterEntrepriseId) {
       Alert.alert("Mangler oppretter", "Velg en oppretter-entreprise");
       return;
     }
-    if (!svarerEntrepriseId) {
-      Alert.alert("Mangler svarer", "Velg en svarer-entreprise");
+    if (!matchendeArbeidsforlop || !autoSvarerEntrepriseId) {
+      Alert.alert(
+        "Mangler arbeidsforløp",
+        "Denne entreprisen har ikke et arbeidsforløp konfigurert for denne malen. Sett opp arbeidsforløp under Innstillinger > Field > Entrepriser.",
+      );
       return;
     }
 
@@ -131,37 +207,49 @@ export function OpprettDokumentModal({
       opprettSjekkliste.mutate({
         templateId: mal.id,
         creatorEnterpriseId: oppretterEntrepriseId,
-        responderEnterpriseId: svarerEntrepriseId,
-        title: tittel.trim(),
+        responderEnterpriseId: autoSvarerEntrepriseId,
+        title: prosjektNavn,
+        workflowId: matchendeArbeidsforlop.id,
+        subject: emne.trim() || undefined,
+        buildingId: valgtBygningId || undefined,
+        drawingId: valgtTegningId || undefined,
       });
     } else {
       opprettOppgave.mutate({
         templateId: mal.id,
         creatorEnterpriseId: oppretterEntrepriseId,
-        responderEnterpriseId: svarerEntrepriseId,
-        title: tittel.trim(),
+        responderEnterpriseId: autoSvarerEntrepriseId,
+        title: prosjektNavn,
         priority: prioritet,
       });
     }
   }, [
-    tittel,
-    prioritet,
     oppretterEntrepriseId,
-    svarerEntrepriseId,
+    matchendeArbeidsforlop,
+    autoSvarerEntrepriseId,
     kategori,
     mal.id,
+    prosjektNavn,
+    emne,
+    valgtBygningId,
+    valgtTegningId,
+    prioritet,
     opprettSjekkliste,
     opprettOppgave,
   ]);
 
-  const valgtOppretter = entrepriser.find((e) => e.id === oppretterEntrepriseId);
-  const valgtSvarer = entrepriser.find((e) => e.id === svarerEntrepriseId);
+  const kanOpprett = !!oppretterEntrepriseId && !!matchendeArbeidsforlop && !erPending;
 
-  const kanOpprett =
-    tittel.trim().length > 0 &&
-    !!oppretterEntrepriseId &&
-    !!svarerEntrepriseId &&
-    !erPending;
+  // Lukk alle åpne dropdowns
+  const lukkAlleDropdowns = () => {
+    setVisOppretterListe(false);
+    setVisBygningListe(false);
+    setVisTegningListe(false);
+  };
+
+  const valgtOppretter = entrepriser.find((e) => e.id === oppretterEntrepriseId);
+  const valgtBygning = bygninger.find((b) => b.id === valgtBygningId);
+  const valgtTegning = tegninger.find((t) => t.id === valgtTegningId);
 
   return (
     <Modal visible={synlig} animationType="slide" presentationStyle="pageSheet">
@@ -188,7 +276,7 @@ export function OpprettDokumentModal({
         </View>
 
         <ScrollView className="flex-1" keyboardShouldPersistTaps="handled">
-          {/* Mal-info med prefix-badge */}
+          {/* 1. Mal-info med prefix-badge */}
           <View className="border-b border-gray-100 bg-gray-50 px-4 py-3">
             <Text className="text-xs font-medium text-gray-500">Mal</Text>
             <View className="mt-1 flex-row items-center gap-2">
@@ -201,20 +289,27 @@ export function OpprettDokumentModal({
             </View>
           </View>
 
-          {/* Tittel */}
+          {/* 2. Prosjekt (read-only, auto fra kontekst) */}
           <View className="border-b border-gray-100 px-4 py-3">
-            <Text className="mb-1 text-xs font-medium text-gray-500">Tittel *</Text>
+            <Text className="text-xs font-medium text-gray-500">Prosjekt</Text>
+            <Text className="mt-1 text-sm text-gray-800">
+              {prosjektNavn || "Laster…"}
+            </Text>
+          </View>
+
+          {/* 3. Emne (valgfritt tekstfelt) */}
+          <View className="border-b border-gray-100 px-4 py-3">
+            <Text className="mb-1 text-xs font-medium text-gray-500">Emne</Text>
             <TextInput
               className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-800"
-              placeholder="Skriv tittel…"
+              placeholder="Beskriv emnet (valgfritt)…"
               placeholderTextColor="#9ca3af"
-              value={tittel}
-              onChangeText={setTittel}
-              autoFocus
+              value={emne}
+              onChangeText={setEmne}
             />
           </View>
 
-          {/* Prioritet — kun for oppgaver */}
+          {/* 4. Prioritet — kun for oppgaver */}
           {kategori === "oppgave" && (
             <View className="border-b border-gray-100 px-4 py-3">
               <Text className="mb-2 text-xs font-medium text-gray-500">Prioritet</Text>
@@ -239,15 +334,15 @@ export function OpprettDokumentModal({
             </View>
           )}
 
-          {/* Oppretter-entreprise */}
+          {/* 5. Oppretter-entreprise */}
           <View className="border-b border-gray-100 px-4 py-3">
             <Text className="mb-1 text-xs font-medium text-gray-500">
               Oppretter-entreprise *
             </Text>
             <Pressable
               onPress={() => {
+                lukkAlleDropdowns();
                 setVisOppretterListe(!visOppretterListe);
-                setVisSvarerListe(false);
               }}
               className="flex-row items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5"
             >
@@ -280,46 +375,126 @@ export function OpprettDokumentModal({
             )}
           </View>
 
-          {/* Svarer-entreprise */}
+          {/* 6. Svarer-entreprise (read-only, auto-utledet fra arbeidsforløp) */}
+          {oppretterEntrepriseId && (
+            <View className="border-b border-gray-100 bg-gray-50 px-4 py-3">
+              <Text className="text-xs font-medium text-gray-500">Svarer-entreprise</Text>
+              {matchendeArbeidsforlop ? (
+                <View className="mt-1 flex-row items-center gap-2">
+                  <Text className="text-sm text-gray-800">{autoSvarerNavn}</Text>
+                  {!matchendeArbeidsforlop.responderEnterpriseId && (
+                    <Text className="text-xs text-gray-400">(intern flyt)</Text>
+                  )}
+                </View>
+              ) : (
+                <Text className="mt-1 text-sm text-amber-600">
+                  Ingen arbeidsforløp konfigurert for denne malen
+                </Text>
+              )}
+            </View>
+          )}
+
+          {/* 7. Lokasjon — valgfri bygning */}
           <View className="border-b border-gray-100 px-4 py-3">
-            <Text className="mb-1 text-xs font-medium text-gray-500">
-              Svarer-entreprise *
-            </Text>
+            <Text className="mb-1 text-xs font-medium text-gray-500">Lokasjon</Text>
             <Pressable
               onPress={() => {
-                setVisSvarerListe(!visSvarerListe);
-                setVisOppretterListe(false);
+                lukkAlleDropdowns();
+                setVisBygningListe(!visBygningListe);
               }}
               className="flex-row items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5"
             >
               <Text
-                className={`text-sm ${valgtSvarer ? "text-gray-800" : "text-gray-400"}`}
+                className={`text-sm ${valgtBygning ? "text-gray-800" : "text-gray-400"}`}
               >
-                {valgtSvarer?.name ?? "Velg entreprise…"}
+                {valgtBygning?.name ?? "Velg bygning (valgfritt)…"}
               </Text>
               <ChevronDown size={16} color="#9ca3af" />
             </Pressable>
-            {visSvarerListe && (
+            {visBygningListe && (
               <View className="mt-1 rounded-lg border border-gray-200 bg-white">
-                {entrepriser.map((e) => (
+                <Pressable
+                  onPress={() => {
+                    setValgtBygningId(null);
+                    setValgtTegningId(null);
+                    setVisBygningListe(false);
+                  }}
+                  className="border-b border-gray-50 px-3 py-2.5"
+                >
+                  <Text className="text-sm italic text-gray-400">Ingen bygning</Text>
+                </Pressable>
+                {bygninger.map((b) => (
                   <Pressable
-                    key={e.id}
+                    key={b.id}
                     onPress={() => {
-                      setSvarerEntrepriseId(e.id);
-                      setVisSvarerListe(false);
+                      setValgtBygningId(b.id);
+                      setValgtTegningId(null);
+                      setVisBygningListe(false);
                     }}
-                    className={`border-b border-gray-50 px-3 py-2.5 ${svarerEntrepriseId === e.id ? "bg-blue-50" : ""}`}
+                    className={`border-b border-gray-50 px-3 py-2.5 ${valgtBygningId === b.id ? "bg-blue-50" : ""}`}
                   >
                     <Text
-                      className={`text-sm ${svarerEntrepriseId === e.id ? "font-medium text-blue-700" : "text-gray-700"}`}
+                      className={`text-sm ${valgtBygningId === b.id ? "font-medium text-blue-700" : "text-gray-700"}`}
                     >
-                      {e.name}
+                      {b.name}
                     </Text>
                   </Pressable>
                 ))}
               </View>
             )}
           </View>
+
+          {/* 8. Tegning — kun når bygning er valgt */}
+          {valgtBygningId && (
+            <View className="border-b border-gray-100 px-4 py-3">
+              <Text className="mb-1 text-xs font-medium text-gray-500">Tegning</Text>
+              <Pressable
+                onPress={() => {
+                  lukkAlleDropdowns();
+                  setVisTegningListe(!visTegningListe);
+                }}
+                className="flex-row items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5"
+              >
+                <Text
+                  className={`text-sm ${valgtTegning ? "text-gray-800" : "text-gray-400"}`}
+                >
+                  {valgtTegning
+                    ? `${valgtTegning.drawingNumber ?? ""} ${valgtTegning.name}`.trim()
+                    : "Velg tegning (valgfritt)…"}
+                </Text>
+                <ChevronDown size={16} color="#9ca3af" />
+              </Pressable>
+              {visTegningListe && (
+                <View className="mt-1 rounded-lg border border-gray-200 bg-white">
+                  <Pressable
+                    onPress={() => {
+                      setValgtTegningId(null);
+                      setVisTegningListe(false);
+                    }}
+                    className="border-b border-gray-50 px-3 py-2.5"
+                  >
+                    <Text className="text-sm italic text-gray-400">Ingen tegning</Text>
+                  </Pressable>
+                  {tegninger.map((t) => (
+                    <Pressable
+                      key={t.id}
+                      onPress={() => {
+                        setValgtTegningId(t.id);
+                        setVisTegningListe(false);
+                      }}
+                      className={`border-b border-gray-50 px-3 py-2.5 ${valgtTegningId === t.id ? "bg-blue-50" : ""}`}
+                    >
+                      <Text
+                        className={`text-sm ${valgtTegningId === t.id ? "font-medium text-blue-700" : "text-gray-700"}`}
+                      >
+                        {`${t.drawingNumber ?? ""} ${t.name}`.trim()}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              )}
+            </View>
+          )}
         </ScrollView>
       </SafeAreaView>
     </Modal>
