@@ -146,6 +146,27 @@ export function FeltKonfigurasjon({
           />
         )}
 
+        {objekt.type === "drawing_position" && (
+          <div className="flex flex-col gap-2">
+            <Input
+              label="Bygningsfilter (ID)"
+              placeholder="Valgfritt — begrens til bygning"
+              value={(config.buildingFilter as string) ?? ""}
+              onChange={(e) =>
+                setConfig({ ...config, buildingFilter: e.target.value || null })
+              }
+            />
+            <Input
+              label="Fagdisiplinfilter"
+              placeholder="f.eks. ARK, RIB, RIE"
+              value={(config.disciplineFilter as string) ?? ""}
+              onChange={(e) =>
+                setConfig({ ...config, disciplineFilter: e.target.value || null })
+              }
+            />
+          </div>
+        )}
+
         {/* Betingelse-seksjon */}
         {(erBarn || harAktivBetingelse) && (
           <div className="mt-2 border-t border-gray-200 pt-4">

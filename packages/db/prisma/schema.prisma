@@ -77,6 +77,8 @@ model Project {
   name          String
   description   String?
   address       String?
+  latitude      Float?   @map("latitude")
+  longitude     Float?   @map("longitude")
   status        String   @default("active")
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")

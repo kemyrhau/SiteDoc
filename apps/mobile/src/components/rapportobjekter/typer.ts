@@ -9,4 +9,5 @@ export interface RapportObjektProps {
   verdi: unknown;
   onEndreVerdi: (verdi: unknown) => void;
   leseModus?: boolean;
+  prosjektId?: string;
 }

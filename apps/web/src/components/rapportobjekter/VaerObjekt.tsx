@@ -1,16 +1,23 @@
+import { Cloud } from "lucide-react";
 import type { RapportObjektProps } from "./typer";
 
 interface VaerVerdi {
   temp?: string;
   conditions?: string;
   wind?: string;
+  kilde?: "manuell" | "automatisk";
 }
 
 export function VaerObjekt({ verdi, onEndreVerdi, leseModus }: RapportObjektProps) {
   const vaerVerdi = (verdi as VaerVerdi) ?? {};
 
-  const oppdater = (felt: keyof VaerVerdi, nyVerdi: string) => {
-    onEndreVerdi({ ...vaerVerdi, [felt]: nyVerdi || undefined });
+  const oppdater = (felt: keyof Omit<VaerVerdi, "kilde">, nyVerdi: string) => {
+    // Ved manuell endring: sett kilde til "manuell"
+    onEndreVerdi({
+      ...vaerVerdi,
+      [felt]: nyVerdi || undefined,
+      kilde: "manuell",
+    });
   };
 
   const inputKlasse = `w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 ${
@@ -19,6 +26,12 @@ export function VaerObjekt({ verdi, onEndreVerdi, leseModus }: RapportObjektProp
 
   return (
     <div className="flex flex-col gap-3">
+      {vaerVerdi.kilde === "automatisk" && (
+        <div className="flex items-center gap-1.5 rounded-md bg-blue-50 px-2.5 py-1.5 text-xs text-blue-700">
+          <Cloud className="h-3.5 w-3.5" />
+          Automatisk hentet fra Open-Meteo
+        </div>
+      )}
       <div>
         <label className="mb-1 block text-xs font-medium text-gray-600">Temperatur</label>
         <input

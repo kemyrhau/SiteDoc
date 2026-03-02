@@ -1,3 +1,5 @@
+export { vaerkodeTilTekst } from "./vaer";
+
 /**
  * Generer et unikt prosjektnummer med prefiks og sekvensielt nummer.
  * Format: SF-YYYYMMDD-XXXX (f.eks. SF-20260228-0001)

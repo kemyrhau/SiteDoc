@@ -6,6 +6,7 @@ import { Spinner, StatusBadge, Card } from "@siteflow/ui";
 import { Check, AlertCircle, Loader2 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useSjekklisteSkjema } from "@/hooks/useSjekklisteSkjema";
+import { useAutoVaer } from "@/hooks/useAutoVaer";
 import { RapportObjektRenderer, DISPLAY_TYPER } from "@/components/rapportobjekter/RapportObjektRenderer";
 import { FeltWrapper } from "@/components/rapportobjekter/FeltWrapper";
 import type { RapportObjekt } from "@/components/rapportobjekter/typer";
@@ -53,6 +54,19 @@ export default function SjekklisteDetaljSide() {
     lagreStatus,
   } = useSjekklisteSkjema(params.sjekklisteId);
 
+  const objekter = useMemo(
+    () => (sjekkliste?.template?.objects ?? []) as RapportObjekt[],
+    [sjekkliste],
+  );
+
+  // Automatisk værhenting basert på prosjektkoordinater og dato
+  useAutoVaer({
+    prosjektId: params.prosjektId,
+    alleObjekter: objekter,
+    hentFeltVerdi,
+    settVerdi,
+  });
+
   // Beregn nesting-nivå for et objekt (rekursivt)
   const hentNestingNivå = useCallback(
     (objekt: RapportObjekt, alleObjekter: RapportObjekt[]): number => {
@@ -63,11 +77,6 @@ export default function SjekklisteDetaljSide() {
       return 1 + hentNestingNivå(forelder, alleObjekter);
     },
     [],
-  );
-
-  const objekter = useMemo(
-    () => (sjekkliste?.template?.objects ?? []) as RapportObjekt[],
-    [sjekkliste],
   );
 
   const leseModus = !erRedigerbar;

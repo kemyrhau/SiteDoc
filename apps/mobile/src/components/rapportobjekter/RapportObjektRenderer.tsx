@@ -20,10 +20,12 @@ import { RomEgenskapObjekt } from "./RomEgenskapObjekt";
 import { VaerObjekt } from "./VaerObjekt";
 import { SignaturObjekt } from "./SignaturObjekt";
 import { RepeaterObjekt } from "./RepeaterObjekt";
+import { LokasjonObjekt } from "./LokasjonObjekt";
+import { TegningPosisjonObjekt } from "./TegningPosisjonObjekt";
 import { UkjentObjekt } from "./UkjentObjekt";
 
 // Display-only typer som ikke wrappes med FeltDokumentasjon
-export const DISPLAY_TYPER = new Set(["heading", "subtitle"]);
+export const DISPLAY_TYPER = new Set(["heading", "subtitle", "location"]);
 
 // Read-only typer (viser verdi men kan ikke endres av bruker)
 export const READONLY_TYPER = new Set(["calculation"]);
@@ -50,6 +52,8 @@ const KOMPONENT_MAP: Record<string, React.ComponentType<RapportObjektProps>> = {
   weather: VaerObjekt,
   signature: SignaturObjekt,
   repeater: RepeaterObjekt,
+  location: LokasjonObjekt,
+  drawing_position: TegningPosisjonObjekt,
 };
 
 export function RapportObjektRenderer(props: RapportObjektProps) {

@@ -72,6 +72,8 @@ export const prosjektRouter = router({
         name: z.string().min(1).max(255).optional(),
         description: z.string().optional(),
         address: z.string().optional(),
+        latitude: z.number().min(-90).max(90).nullable().optional(),
+        longitude: z.number().min(-180).max(180).nullable().optional(),
         status: z.enum(["active", "archived", "completed"]).optional(),
       }),
     )

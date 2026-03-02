@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import dynamic from "next/dynamic";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { trpc } from "@/lib/trpc";
 import { Button, Input, Spinner } from "@siteflow/ui";
@@ -13,7 +14,14 @@ import {
   CheckCircle2,
   Archive,
   CircleDot,
+  X,
 } from "lucide-react";
+
+// Leaflet krever window — laster dynamisk uten SSR
+const KartVelgerDynamic = dynamic(
+  () => import("@/components/KartVelger").then((m) => m.KartVelger),
+  { ssr: false, loading: () => <div className="h-[300px] animate-pulse rounded-lg bg-gray-100" /> },
+);
 
 /* ------------------------------------------------------------------ */
 /*  Status-alternativ                                                  */
@@ -89,6 +97,8 @@ export default function ProsjektoppsettSide() {
   const [beskrivelse, setBeskrivelse] = useState("");
   const [adresse, setAdresse] = useState("");
   const [status, setStatus] = useState("active");
+  const [latitude, setLatitude] = useState<number | null>(null);
+  const [longitude, setLongitude] = useState<number | null>(null);
   const [harEndringer, setHarEndringer] = useState(false);
 
   // Synkroniser skjemafelter med prosjektdata
@@ -98,6 +108,8 @@ export default function ProsjektoppsettSide() {
       setBeskrivelse(prosjekt.description ?? "");
       setAdresse(prosjekt.address ?? "");
       setStatus(prosjekt.status);
+      setLatitude(prosjekt.latitude ?? null);
+      setLongitude(prosjekt.longitude ?? null);
       setHarEndringer(false);
     }
   }, [prosjekt]);
@@ -124,6 +136,8 @@ export default function ProsjektoppsettSide() {
       name: navn.trim(),
       description: beskrivelse.trim() || undefined,
       address: adresse.trim() || undefined,
+      latitude,
+      longitude,
       status: status as "active" | "archived" | "completed",
     });
   }
@@ -203,6 +217,43 @@ export default function ProsjektoppsettSide() {
                 />
               </div>
             </div>
+          </div>
+        </Seksjon>
+
+        {/* Prosjektlokasjon */}
+        <Seksjon
+          tittel="Prosjektlokasjon"
+          beskrivelse="Klikk i kartet for å sette prosjektets posisjon. Brukes til automatisk værhenting i sjekklister."
+        >
+          <div className="flex flex-col gap-3">
+            <KartVelgerDynamic
+              latitude={latitude}
+              longitude={longitude}
+              onVelgPosisjon={(lat, lng) => {
+                setLatitude(lat);
+                setLongitude(lng);
+                setHarEndringer(true);
+              }}
+            />
+            {latitude != null && longitude != null && (
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-gray-500">
+                  <MapPin className="mr-1 inline h-3 w-3" />
+                  {latitude.toFixed(6)}, {longitude.toFixed(6)}
+                </p>
+                <button
+                  onClick={() => {
+                    setLatitude(null);
+                    setLongitude(null);
+                    setHarEndringer(true);
+                  }}
+                  className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700"
+                >
+                  <X className="h-3 w-3" />
+                  Fjern lokasjon
+                </button>
+              </div>
+            )}
           </div>
         </Seksjon>
 
