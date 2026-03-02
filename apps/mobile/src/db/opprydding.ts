@@ -10,6 +10,7 @@ import { slettLokaltBilde, listLokalebilder } from "../services/lokalBilde";
 export function ryddFullforteOpplastinger() {
   try {
     const db = hentDatabase();
+    if (!db) return;
     db.delete(opplastingsKo)
       .where(eq(opplastingsKo.status, "fullfort"))
       .run();
@@ -27,6 +28,7 @@ export async function ryddOppForProsjekt(sjekklisteIder: string[]) {
 
   try {
     const db = hentDatabase();
+    if (!db) return;
 
     // Hent lokale stier fra køoppføringer som ikke er fullført
     const ufullforte = db
@@ -61,6 +63,7 @@ export async function ryddOppForProsjekt(sjekklisteIder: string[]) {
 export async function ryddForeldreloseBilder() {
   try {
     const db = hentDatabase();
+    if (!db) return;
     const alleKoStier = db
       .select({ lokalSti: opplastingsKo.lokalSti })
       .from(opplastingsKo)

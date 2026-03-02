@@ -1,11 +1,15 @@
 import { openDatabaseSync } from "expo-sqlite";
+import { erDatabaseTilgjengelig } from "./database";
 
 /**
  * Kjør SQLite-migreringer.
  * Idempotent — trygt å kjøre flere ganger (CREATE TABLE IF NOT EXISTS).
  * Resetter krasj-tilstander (laster_opp → venter).
+ * Hopper over på web (SQLite ikke tilgjengelig).
  */
 export function kjorMigreringer() {
+  if (!erDatabaseTilgjengelig()) return;
+
   const db = openDatabaseSync("siteflow.db");
 
   db.execSync(`

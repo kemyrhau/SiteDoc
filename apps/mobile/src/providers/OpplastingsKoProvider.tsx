@@ -61,6 +61,7 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
 
   const oppdaterTellere = useCallback(() => {
     const db = hentDatabase();
+    if (!db) return;
     const ventendeRader = db
       .select()
       .from(opplastingsKo)
@@ -104,6 +105,7 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
   const oppdaterFeltdataVedlegg = useCallback(
     (sjekklisteId: string, vedleggId: string, serverUrl: string) => {
       const db = hentDatabase();
+      if (!db) return;
       const rader = db
         .select()
         .from(sjekklisteFeltdata)
@@ -153,6 +155,11 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
     settErAktiv(true);
 
     const db = hentDatabase();
+    if (!db) {
+      prosessererRef.current = false;
+      settErAktiv(false);
+      return;
+    }
 
     try {
       // Hent neste oppføring som er klar for opplasting
@@ -266,6 +273,7 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
   const leggIKo = useCallback(
     async (oppforing: NyKoOppforing) => {
       const db = hentDatabase();
+      if (!db) return;
 
       db.insert(opplastingsKo)
         .values({

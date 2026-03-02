@@ -75,6 +75,7 @@ const REDIGERBARE_STATUSER = new Set(["draft", "received", "in_progress"]);
 function lesSQLiteFeltdata(sjekklisteId: string): Record<string, FeltVerdi> | null {
   try {
     const db = hentDatabase();
+    if (!db) return null;
     const rader = db
       .select()
       .from(sjekklisteFeltdata)
@@ -90,6 +91,7 @@ function lesSQLiteFeltdata(sjekklisteId: string): Record<string, FeltVerdi> | nu
 function erSQLiteSynkronisert(sjekklisteId: string): boolean {
   try {
     const db = hentDatabase();
+    if (!db) return true;
     const rader = db
       .select({ erSynkronisert: sjekklisteFeltdata.erSynkronisert })
       .from(sjekklisteFeltdata)
@@ -109,6 +111,7 @@ function skrivTilSQLite(
 ) {
   try {
     const db = hentDatabase();
+    if (!db) return;
     const json = JSON.stringify(feltVerdier);
     const rader = db
       .select({ id: sjekklisteFeltdata.id })
