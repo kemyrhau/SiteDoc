@@ -1,20 +1,33 @@
-import { View, Text, Pressable, ScrollView } from "react-native";
+import { View, Text, Pressable, ScrollView, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { LucideIcon } from "lucide-react-native";
 import {
+  Settings,
+  Printer,
+  Download,
   Users,
   Building2,
   WifiOff,
   QrCode,
-  HelpCircle,
-  Info,
   ChevronRight,
   LogOut,
 } from "lucide-react-native";
 import { useAuth } from "../../src/providers/AuthProvider";
+import { useProsjekt } from "../../src/kontekst/ProsjektKontekst";
+import { trpc } from "../../src/lib/trpc";
 
 export default function MerSkjerm() {
   const { bruker, loggUt } = useAuth();
+  const { valgtProsjektId } = useProsjekt();
+
+  const { data: medlemmer } = trpc.medlem.hentForProsjekt.useQuery(
+    { projectId: valgtProsjektId! },
+    { enabled: !!valgtProsjektId },
+  );
+
+  const erAdmin = medlemmer?.some(
+    (m) => m.user.email === bruker?.email && m.role === "admin",
+  );
 
   const initialer = bruker?.name
     ? bruker.name
@@ -32,14 +45,53 @@ export default function MerSkjerm() {
       </View>
 
       <ScrollView className="flex-1" contentContainerClassName="pb-8">
-        {/* Menyvalg */}
+        {/* Prosjekthandlinger */}
         <View className="mt-4">
+          <View className="border-b border-gray-200 px-4 pb-1.5 pt-3">
+            <Text className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+              Prosjekt
+            </Text>
+          </View>
+          <MenyRad
+            ikon={Settings}
+            tekst="Prosjektinnstillinger"
+            deaktivert={!erAdmin}
+            onPress={() => {
+              if (!erAdmin) {
+                Alert.alert(
+                  "Ingen tilgang",
+                  "Kun prosjektadministratorer har tilgang til prosjektinnstillinger.",
+                );
+              }
+            }}
+          />
+          <MenyRad
+            ikon={Printer}
+            tekst="Skriv ut"
+            onPress={() => {
+              Alert.alert("Skriv ut", "Utskriftsfunksjonalitet kommer snart.");
+            }}
+          />
+          <MenyRad
+            ikon={Download}
+            tekst="Eksporter"
+            onPress={() => {
+              Alert.alert("Eksporter", "Eksportfunksjonalitet kommer snart.");
+            }}
+          />
+        </View>
+
+        {/* Generelt */}
+        <View className="mt-4">
+          <View className="border-b border-gray-200 px-4 pb-1.5 pt-3">
+            <Text className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+              Generelt
+            </Text>
+          </View>
           <MenyRad ikon={Users} tekst="Kontakter" />
           <MenyRad ikon={Building2} tekst="Grupper" />
           <MenyRad ikon={WifiOff} tekst="Forbered til offline" />
           <MenyRad ikon={QrCode} tekst="Skann QR-kode" />
-          <MenyRad ikon={HelpCircle} tekst="Hjelp" />
-          <MenyRad ikon={Info} tekst="Om" />
         </View>
 
         {/* Brukerprofil */}
@@ -83,12 +135,20 @@ export default function MerSkjerm() {
 function MenyRad({
   ikon: Ikon,
   tekst,
+  deaktivert,
+  onPress,
 }: {
   ikon: LucideIcon;
   tekst: string;
+  deaktivert?: boolean;
+  onPress?: () => void;
 }) {
   return (
-    <Pressable className="flex-row items-center justify-between border-b border-gray-100 bg-white px-4 py-3.5 active:bg-gray-50">
+    <Pressable
+      onPress={onPress}
+      className="flex-row items-center justify-between border-b border-gray-100 bg-white px-4 py-3.5 active:bg-gray-50"
+      style={deaktivert ? { opacity: 0.4 } : undefined}
+    >
       <View className="flex-row items-center gap-3">
         <Ikon size={20} color="#6b7280" />
         <Text className="text-base text-gray-900">{tekst}</Text>

@@ -1,7 +1,10 @@
 "use client";
 
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
+import { useState, useRef, useEffect } from "react";
+import { MoreVertical, Settings, Printer, Download } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { Card, Spinner, StatusBadge } from "@siteflow/ui";
 import { SekundaertPanel } from "@/components/layout/SekundaertPanel";
@@ -9,9 +12,24 @@ import { DashbordPanel } from "@/components/paneler/DashbordPanel";
 
 export default function ProsjektOversikt() {
   const params = useParams<{ prosjektId: string }>();
+  const router = useRouter();
+  const { data: session } = useSession();
   const { data: prosjekt, isLoading } = trpc.prosjekt.hentMedId.useQuery(
     { id: params.prosjektId },
   );
+
+  const [merMenyAapen, setMerMenyAapen] = useState(false);
+  const merRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleKlikk(e: MouseEvent) {
+      if (merRef.current && !merRef.current.contains(e.target as Node)) {
+        setMerMenyAapen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleKlikk);
+    return () => document.removeEventListener("mousedown", handleKlikk);
+  }, []);
 
   if (isLoading || !prosjekt) {
     return (
@@ -25,6 +43,11 @@ export default function ProsjektOversikt() {
       </>
     );
   }
+
+  const brukerMedlem = prosjekt.members.find(
+    (m) => m.user.email === session?.user?.email,
+  );
+  const erAdmin = brukerMedlem?.role === "admin";
 
   const basePath = `/dashbord/${params.prosjektId}`;
 
@@ -55,6 +78,52 @@ export default function ProsjektOversikt() {
         <div className="mb-6 flex items-center gap-3">
           <h2 className="text-xl font-bold">{prosjekt.name}</h2>
           <StatusBadge status={prosjekt.status} />
+          <div className="ml-auto" ref={merRef}>
+            <div className="relative">
+              <button
+                onClick={() => setMerMenyAapen(!merMenyAapen)}
+                className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-gray-200 hover:text-gray-600"
+                title="Mer"
+              >
+                <MoreVertical className="h-5 w-5" />
+              </button>
+              {merMenyAapen && (
+                <div className="absolute right-0 top-full z-50 mt-1 w-52 rounded-lg border border-gray-200 bg-white py-1 shadow-xl">
+                  <button
+                    onClick={() => {
+                      setMerMenyAapen(false);
+                      router.push("/dashbord/oppsett");
+                    }}
+                    disabled={!erAdmin}
+                    className="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <Settings className="h-4 w-4" />
+                    Prosjektinnstillinger
+                  </button>
+                  <button
+                    onClick={() => {
+                      setMerMenyAapen(false);
+                      window.print();
+                    }}
+                    className="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                  >
+                    <Printer className="h-4 w-4" />
+                    Skriv ut
+                  </button>
+                  <button
+                    onClick={() => {
+                      setMerMenyAapen(false);
+                      // TODO: Implementer eksport
+                    }}
+                    className="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                  >
+                    <Download className="h-4 w-4" />
+                    Eksporter
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
         <p className="mb-1 text-sm text-gray-500">{prosjekt.projectNumber}</p>
         {prosjekt.address && (

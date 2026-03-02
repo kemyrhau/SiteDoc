@@ -9,7 +9,6 @@ import {
   Map,
   Building2,
   Settings,
-  HelpCircle,
 } from "lucide-react";
 import { SidebarIkon } from "@siteflow/ui";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
@@ -126,11 +125,6 @@ export function HovedSidebar() {
             </div>
           );
         })}
-        <SidebarIkon
-          ikon={<HelpCircle className="h-5 w-5" />}
-          label="Hjelp"
-          onClick={() => {/* Fremtidig hjelp-dialog */}}
-        />
       </div>
     </aside>
   );
