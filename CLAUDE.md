@@ -196,6 +196,29 @@ Sentral forretningslogikk. Dokumenter (sjekklister/oppgaver) flyter mellom entre
 - Svar-entreprise mottar, fyller ut og besvarer
 - Alle overganger logges i `document_transfers`
 
+### Statusendring (mobil)
+
+Sjekkliste-detaljskjermen (`apps/mobile/app/sjekkliste/[id].tsx`) har kontekstuelle statusknapper i bunnpanelet, over lagre-knappen. Knappene viser neste gyldige handling basert på nåværende status:
+
+| Status | Knapp(er) | Neste status | Farge |
+|--------|-----------|--------------|-------|
+| `draft` | "Send" | `sent` | Blå |
+| `sent` | "Motta" | `received` | Blå |
+| `received` | "Start arbeid" | `in_progress` | Amber |
+| `in_progress` | "Besvar" | `responded` | Lilla |
+| `responded` | "Godkjenn" + "Avvis" | `approved` / `rejected` | Grønn + Rød |
+| `rejected` | "Start arbeid igjen" | `in_progress` | Amber |
+| `approved` | "Lukk" | `closed` | Grå |
+| `closed` | (ingen knapp) | — | — |
+
+- For `responded`-status vises to knapper side om side (flex-row)
+- Bekreftelsesdialog (`Alert.alert`) før hver statusendring
+- Bruker `trpc.sjekkliste.endreStatus.useMutation()` med `senderId` fra `useAuth().bruker.id`
+- Cache-invalidering etter suksess: `hentMedId` + `hentForProsjekt`
+- `StatusMerkelapp` i metadata-bar oppdateres automatisk etter endring
+- Overgang logges i `document_transfers` og vises i historikk-seksjonen
+- `hentStatusHandlinger()` hjelpefunksjon mapper status til handlinger med `DocumentStatus`-type
+
 ### Invitasjonsflyt
 
 Når admin legger til en bruker (via `medlem.leggTil` eller `gruppe.leggTilMedlem`):
