@@ -3,11 +3,10 @@
 import { useState, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
-import { Button, Input, Modal, Spinner, SearchInput, Card } from "@siteflow/ui";
+import { Button, Input, Modal, SearchInput } from "@siteflow/ui";
 import {
   Plus,
   Search,
-  Filter,
   LayoutGrid,
   LayoutList,
   Users,
@@ -896,7 +895,7 @@ export default function BrukereSide() {
     if (prosjektId && dbGrupper && dbGrupper.length === 0 && !opprettStandardgrupper.isPending) {
       opprettStandardgrupper.mutate({ projectId: prosjektId });
     }
-  }, [prosjektId, dbGrupper]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [prosjektId, dbGrupper]); // eslint-disable-line
 
   // Opprett ny gruppe
   const opprettGruppe = trpc.gruppe.opprett.useMutation({

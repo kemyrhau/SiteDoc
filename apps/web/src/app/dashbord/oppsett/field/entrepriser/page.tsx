@@ -31,9 +31,7 @@ import { ENTERPRISE_INDUSTRIES, ENTERPRISE_COLORS } from "@siteflow/shared";
 /* ------------------------------------------------------------------ */
 
 import {
-  hentFarge,
   hentFargeForEntreprise,
-  FARGE_MAP,
 } from "../_components/entreprise-farger";
 
 /* ------------------------------------------------------------------ */
@@ -739,7 +737,7 @@ function EntrepriseVeiviser({
   // kopier: steg 1 (metode+valg) → steg 2 (medlemmer) → submit
   // importer: steg 1 (metode) → steg 2 (velg prosjekt+entreprise) → steg 3 (medlemmer) → submit
   // tom: steg 1 (metode) → steg 2 (detaljer) → steg 3 (medlemmer) → submit
-  const sisteSteg =
+  const _sisteSteg =
     metode === "kopier" ? 2 : 3;
 
   const erPaMedlemSteg =

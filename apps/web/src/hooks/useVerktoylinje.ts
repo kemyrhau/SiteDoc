@@ -14,6 +14,6 @@ export function useVerktoylinje(handlinger: VerktoylinjeHandling[]) {
     return () => {
       settVerktoylinjeHandlinger([]);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line
   }, [settVerktoylinjeHandlinger]);
 }

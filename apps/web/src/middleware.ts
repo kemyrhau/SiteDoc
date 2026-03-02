@@ -7,7 +7,7 @@ import type { NextRequest } from "next/server";
  * Faktisk sesjonsvalidering skjer i API-rutene via auth().
  */
 export default function middleware(request: NextRequest) {
-  const sessionCookie =
+  const _sessionCookie =
     request.cookies.get("authjs.session-token") ??
     request.cookies.get("__Secure-authjs.session-token");
 

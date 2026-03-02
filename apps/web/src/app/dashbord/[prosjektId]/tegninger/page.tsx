@@ -1,7 +1,6 @@
 "use client";
 
 import { EmptyState } from "@siteflow/ui";
-import { Map } from "lucide-react";
 
 export default function TegningerSide() {
   return (

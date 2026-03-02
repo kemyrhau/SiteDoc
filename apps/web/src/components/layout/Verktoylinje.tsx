@@ -19,9 +19,9 @@ export function Verktoylinje() {
           size="sm"
           onClick={handling.onClick}
         >
-          {handling.ikon && (
+          {handling.ikon ? (
             <span className="mr-1.5 inline-flex">{handling.ikon}</span>
-          )}
+          ) : null}
           {handling.label}
         </Button>
       ))}

@@ -14,7 +14,7 @@ export type Seksjon =
 export interface VerktoylinjeHandling {
   id: string;
   label: string;
-  ikon?: React.ReactNode;
+  ikon?: JSX.Element;
   onClick: () => void;
   variant?: "primary" | "secondary" | "danger";
 }

@@ -94,7 +94,7 @@ function DropdownItem({
 
 export function MalListe({
   kategori,
-  tittel,
+  tittel: _tittel,
   opprettTekst,
   tomTittel,
   tomBeskrivelse,
@@ -116,7 +116,7 @@ export function MalListe({
   const [prefiksFeil, setPrefiksFeil] = useState<string | null>(null);
   const [valgteWorkflowIds, setValgteWorkflowIds] = useState<Set<string>>(new Set());
   const [visEntrepriseTilknytning, setVisEntrepriseTilknytning] = useState(false);
-  const [aktiverOppretting, setAktiverOppretting] = useState(true);
+  const [aktiverOppretting, _setAktiverOppretting] = useState(true);
 
   // Rediger-felter
   const [redigerNavn, setRedigerNavn] = useState("");

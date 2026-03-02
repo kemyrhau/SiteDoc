@@ -19,7 +19,7 @@ import type { Seksjon } from "@/kontekst/navigasjon-kontekst";
 interface SidebarElement {
   id: Seksjon;
   label: string;
-  ikon: React.ReactNode;
+  ikon: JSX.Element;
   kreverProsjekt: boolean;
 }
 

@@ -2,7 +2,7 @@
 
 import { SearchInput } from "@siteflow/ui";
 import { useState } from "react";
-import { FolderClosed, Map } from "lucide-react";
+import { Map } from "lucide-react";
 
 export function TegningerPanel() {
   const [sok, setSok] = useState("");
