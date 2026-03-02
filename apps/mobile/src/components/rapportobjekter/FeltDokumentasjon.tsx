@@ -1,15 +1,17 @@
 import { useState, useCallback } from "react";
-import { View, Text, TextInput, Pressable, Image, Alert, Modal, ScrollView, InteractionManager } from "react-native";
+import { View, Text, TextInput, Pressable, Image, Alert, Modal, ScrollView, InteractionManager, SafeAreaView, KeyboardAvoidingView, Platform } from "react-native";
 import { Camera, Paperclip, Map, FileText, Trash2, Pencil } from "lucide-react-native";
 import * as DocumentPicker from "expo-document-picker";
 import { randomUUID } from "expo-crypto";
 import type { Vedlegg } from "../../hooks/useSjekklisteSkjema";
-import { taBilde, velgBilde } from "../../services/bilde";
+import { komprimer, hentGps } from "../../services/bilde";
 import { lastOppFil } from "../../services/opplasting";
 import { trpc } from "../../lib/trpc";
 import { BildeAnnotering } from "../BildeAnnotering";
+import { KameraModal } from "../KameraModal";
 import { TegningsSkjermbilde } from "../TegningsSkjermbilde";
 import { useProsjekt } from "../../kontekst/ProsjektKontekst";
+import { AUTH_CONFIG } from "../../config/auth";
 
 interface FeltDokumentasjonProps {
   kommentar: string;
@@ -35,7 +37,10 @@ export function FeltDokumentasjon({
   const [lasterOpp, settLasterOpp] = useState(false);
   const [annoteringBilde, settAnnoteringBilde] = useState<string | null>(null);
   const [visTegningsModal, settVisTegningsModal] = useState(false);
+  const [visKamera, settVisKamera] = useState(false);
   const [valgtVedleggId, settValgtVedleggId] = useState<string | null>(null);
+  const [visKommentarModal, settVisKommentarModal] = useState(false);
+  const [lokalKommentar, settLokalKommentar] = useState("");
   const { valgtProsjektId } = useProsjekt();
 
   const bildeOpprettMutasjon = trpc.bilde.opprettForSjekkliste.useMutation();
@@ -46,11 +51,11 @@ export function FeltDokumentasjon({
       const filnavn = `IMG_${Date.now()}.jpg`;
       const opplastet = await lastOppFil(bildeUri, filnavn, "image/jpeg");
 
-      // Legg til vedlegg i skjema umiddelbart
+      // Legg til vedlegg med lokal URI for umiddelbar visning i filmrullen
       onLeggTilVedlegg({
         id: randomUUID(),
         type: "bilde",
-        url: opplastet.fileUrl,
+        url: bildeUri,
         filnavn: opplastet.fileName,
       });
 
@@ -73,23 +78,13 @@ export function FeltDokumentasjon({
     }
   }, [sjekklisteId, bildeOpprettMutasjon, onLeggTilVedlegg]);
 
-  const håndterTaBilde = useCallback(async () => {
-    const resultat = await taBilde();
-    if (!resultat) return;
-    // Vent til React Navigation har gjenopprettet tilstand etter kamera
-    await new Promise<void>((resolve) => {
-      InteractionManager.runAfterInteractions(() => resolve());
-    });
-    await håndterBilde(resultat.uri, resultat.gpsLat, resultat.gpsLng);
-  }, [håndterBilde]);
-
-  const håndterVelgBilde = useCallback(async () => {
-    const resultat = await velgBilde();
-    if (!resultat) return;
-    await new Promise<void>((resolve) => {
-      InteractionManager.runAfterInteractions(() => resolve());
-    });
-    await håndterBilde(resultat.uri, resultat.gpsLat, resultat.gpsLng);
+  const håndterKameraBilde = useCallback((uri: string) => {
+    // Kameraet forblir åpent — prosesser bildet i bakgrunnen
+    (async () => {
+      const komprimert = await komprimer(uri);
+      const gps = await hentGps();
+      await håndterBilde(komprimert.uri, gps?.lat, gps?.lng);
+    })();
   }, [håndterBilde]);
 
   const håndterVelgFil = useCallback(async () => {
@@ -142,20 +137,62 @@ export function FeltDokumentasjon({
 
   return (
     <View className="mt-2 gap-2">
-      {/* Kommentarfelt */}
+      {/* Kommentarfelt — tappbar visning → modal */}
       {!skjulKommentar && (
-        <TextInput
-          value={kommentar}
-          onChangeText={onEndreKommentar}
-          placeholder="Kommentar..."
-          multiline
-          numberOfLines={2}
-          textAlignVertical="top"
-          editable={!leseModus}
-          className={`rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 ${
-            leseModus ? "text-gray-500" : ""
-          }`}
-        />
+        <>
+          <Pressable
+            onPress={() => {
+              if (leseModus) return;
+              settLokalKommentar(kommentar);
+              settVisKommentarModal(true);
+            }}
+            className={`rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 ${
+              leseModus ? "" : ""
+            }`}
+          >
+            <Text
+              className={`text-sm ${
+                kommentar ? "text-gray-700" : "text-gray-400"
+              } ${leseModus ? "text-gray-500" : ""}`}
+            >
+              {kommentar || "Kommentar..."}
+            </Text>
+          </Pressable>
+
+          <Modal visible={visKommentarModal} animationType="slide" onRequestClose={() => {
+            onEndreKommentar(lokalKommentar);
+            settVisKommentarModal(false);
+          }}>
+            <SafeAreaView className="flex-1 bg-white">
+              <KeyboardAvoidingView
+                behavior={Platform.OS === "ios" ? "padding" : undefined}
+                className="flex-1"
+              >
+                <View className="flex-row items-center justify-between border-b border-gray-200 bg-[#1e40af] px-4 py-3">
+                  <Text className="flex-1 text-base font-semibold text-white">Kommentar</Text>
+                  <Pressable
+                    onPress={() => {
+                      onEndreKommentar(lokalKommentar);
+                      settVisKommentarModal(false);
+                    }}
+                    className="ml-3 rounded-lg bg-white/20 px-4 py-1.5"
+                  >
+                    <Text className="text-sm font-semibold text-white">Ferdig</Text>
+                  </Pressable>
+                </View>
+                <TextInput
+                  value={lokalKommentar}
+                  onChangeText={settLokalKommentar}
+                  placeholder="Skriv kommentar..."
+                  multiline
+                  autoFocus
+                  textAlignVertical="top"
+                  className="flex-1 px-4 py-3 text-base text-gray-900"
+                />
+              </KeyboardAvoidingView>
+            </SafeAreaView>
+          </Modal>
+        </>
       )}
 
       {/* Verktøylinje (kun synlig når vedlegg er valgt) */}
@@ -189,6 +226,8 @@ export function FeltDokumentasjon({
         >
           {vedlegg.map((v) => {
             const erValgt = v.id === valgtVedleggId;
+            // Relativ server-URL → full URL, lokal fil-URI → bruk direkte
+            const bildeUrl = v.url.startsWith("/") ? `${AUTH_CONFIG.apiUrl}${v.url}` : v.url;
             return (
               <Pressable
                 key={v.id}
@@ -199,7 +238,7 @@ export function FeltDokumentasjon({
               >
                 {v.type === "bilde" ? (
                   <Image
-                    source={{ uri: v.url }}
+                    source={{ uri: bildeUrl }}
                     className={`h-[72px] w-[72px] rounded-lg ${
                       erValgt ? "border-2 border-blue-500" : ""
                     }`}
@@ -227,7 +266,7 @@ export function FeltDokumentasjon({
       {!leseModus && (
         <View className="flex-row gap-2">
           <Pressable
-            onPress={håndterTaBilde}
+            onPress={() => settVisKamera(true)}
             disabled={lasterOpp}
             className="flex-1 flex-row items-center justify-center gap-1.5 rounded-lg border border-gray-300 bg-white py-2"
           >
@@ -280,6 +319,13 @@ export function FeltDokumentasjon({
           />
         </Modal>
       )}
+
+      {/* Kamera modal */}
+      <KameraModal
+        synlig={visKamera}
+        onBilde={håndterKameraBilde}
+        onLukk={() => settVisKamera(false)}
+      />
 
       {/* Tegnings-skjermbilde modal */}
       {visTegningsModal && valgtProsjektId && (

@@ -318,11 +318,34 @@ Oppgavemaler og Sjekklistemaler deler `MalListe`-komponenten med:
 
 ### Bildehåndtering
 
-Bilder fra mobil komprimeres ALLTID før lagring:
+**Kameraflyt (mobil):** Kontinuerlig kameraflyt uten avbrytende dialoger:
+- Kamera bruker `expo-camera` (`CameraView` + `takePictureAsync()`) — IKKE `expo-image-picker` — for å unngå iOS "Use Photo/Retake"-bekreftelsen
+- Bilde tas → komprimeres → lastes opp → vises i horisontal filmrull med én gang (ingen Alert-dialoger)
+- Bruker kan ta flere bilder raskt etter hverandre
+- Annotering og sletting skjer via verktøylinje som vises når et bilde i filmrullen er valgt (trykk = blå ramme)
+- Verktøylinje: [Slett] [Annoter] — Annoter kun for bilder, ikke filer
+- `FeltDokumentasjon` er delt komponent brukt av `FeltWrapper` for ALLE utfyllbare rapportobjekter
+- `FeltDokumentasjon` har `skjulKommentar`-prop — satt til `true` for `text_field`-typen (som har eget modal tekstfelt)
+
+**Modal tekstredigering (mobil):**
+- Alle tekstfelt i sjekkliste-utfylling bruker tappbar visning → fullskjerm modal med "Ferdig"-knapp
+- `TekstfeltObjekt` — hovedverdi redigeres i modal (Pressable → Modal med blå header, label, autoFocus TextInput)
+- `FeltDokumentasjon` kommentarfelt — redigeres i modal (samme mønster: Pressable → Modal med "Kommentar"-header)
+- Modal bruker `SafeAreaView` + `KeyboardAvoidingView` (iOS padding) slik at tastaturet aldri dekker innholdet
+- Lokal state under redigering — verdien lagres først når "Ferdig" trykkes
+
+**Filmrull (vedlegg-visning):**
+- Horisontal `ScrollView` med 72×72px thumbnails (IKKE `FlatList` — unngår VirtualizedList-nesting i ScrollView)
+- Vedlegg-URL-er fra server er relative (`/uploads/...`) — må prefikses med `AUTH_CONFIG.apiUrl` for visning i React Native Image
+- Lokale bilder bruker `file://`-URI direkte
+
+**Komprimering:**
 1. Maks 1920px bredde
 2. Iterativ kvalitetsjustering til 300–400 KB
 3. GPS-tag legges til hvis aktivert
 4. Lagres lokalt i SQLite, synkroniseres til S3
+
+**Viktig:** `InteractionManager.runAfterInteractions` MÅ brukes etter at kamera/picker lukkes, før state-oppdateringer, for å unngå React Navigation "Cannot read property 'stale' of undefined"-krasj.
 
 ### Offline-first
 
