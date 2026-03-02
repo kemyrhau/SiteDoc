@@ -11,6 +11,7 @@ export default function RotLayout() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="logg-inn" />
         <Stack.Screen name="sjekkliste" />
+        <Stack.Screen name="oppgave" />
       </Stack>
     </Providers>
   );

@@ -108,6 +108,7 @@ export default function HjemSkjerm() {
   );
 
   const innboksAntall = aktiveSjekklister.length + aktiveOppgaver.length;
+  const totaleOppgaver = oppgaver?.length ?? 0;
   const totaleSjekklister = sjekklister?.length ?? 0;
 
   // Kombiner og sorter innbokselementer etter sist oppdatert
@@ -267,6 +268,25 @@ export default function HjemSkjerm() {
 
             {/* Seksjonslenker */}
             <View className="mt-4">
+              <Pressable
+                onPress={() => router.push("/oppgave")}
+                className="flex-row items-center justify-between border-b border-gray-200 bg-white px-4 py-3"
+              >
+                <View className="flex-row items-center gap-2">
+                  <Text className="text-base font-semibold text-gray-900">
+                    Oppgaver
+                  </Text>
+                  {totaleOppgaver > 0 && (
+                    <View className="rounded-full bg-gray-100 px-2 py-0.5">
+                      <Text className="text-xs font-medium text-gray-600">
+                        {totaleOppgaver}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+                <ChevronRight size={20} color="#9ca3af" />
+              </Pressable>
+
               <Pressable
                 onPress={() => router.push("/sjekkliste")}
                 className="flex-row items-center justify-between border-b border-gray-200 bg-white px-4 py-3"
