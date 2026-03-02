@@ -46,6 +46,7 @@ siteflow/
 │   │       │       │   ├── oppgaver/         # Oppgave-tabell (med layout + panel)
 │   │       │       │   ├── maler/            # Mal-liste + malbygger (med layout + panel)
 │   │       │       │   ├── entrepriser/      # Entreprise-liste (med layout + panel)
+│   │       │       │   ├── mapper/           # Mapper (mappestruktur med layout + panel)
 │   │       │       │   └── tegninger/        # Tegninger (med layout + panel)
 │   │       │       ├── oppsett/              # Innstillinger
 │   │       │       │   ├── layout.tsx        # Innstillings-sidebar med navigasjon
@@ -57,7 +58,7 @@ siteflow/
 │   │       │       │   │   ├── oppgavemaler/ # Oppgavemaler (filtrert malliste)
 │   │       │       │   │   ├── sjekklistemaler/ # Sjekklistemaler (filtrert malliste)
 │   │       │       │   │   ├── _components/  # Delt MalListe-komponent
-│   │       │       │   │   ├── box/          # Box (filstruktur/dokumenthåndtering)
+│   │       │       │   │   ├── box/          # Mappeoppsett (filstruktur/dokumenthåndtering)
 │   │       │       │   │   └── kontrollplaner/ # Kontrollplaner (kommer)
 │   │       │       │   ├── prosjektoppsett/  # Prosjektoppsett (navn, status, adresse)
 │   │       │       │   └── eierportal-brukere/ # Owners Portal brukere
@@ -68,7 +69,7 @@ siteflow/
 │   │       ├── components/
 │   │       │   ├── Toppmeny.tsx              # LEGACY: Gammel toppmeny
 │   │       │   ├── layout/                   # Toppbar, HovedSidebar, SekundaertPanel, Verktoylinje, ProsjektVelger
-│   │       │   └── paneler/                  # Seksjonspaneler (Dashbord, Sjekklister, Oppgaver, Maler, Entrepriser, Tegninger)
+│   │       │   └── paneler/                  # Seksjonspaneler (Dashbord, Sjekklister, Oppgaver, Maler, Entrepriser, Tegninger, Mapper)
 │   │       ├── kontekst/                     # ProsjektKontekst, NavigasjonKontekst
 │   │       ├── hooks/                        # useAktivSeksjon, useVerktoylinje
 │   │       ├── lib/
@@ -146,7 +147,7 @@ siteflow/
 | `tasks` | Oppgaver med mal-tilknytning (`template_id`), prefiks+løpenummer (`number`), prioritet, frist, oppretter/svarer, utfylt data (JSON), valgfri tegningsposisjon og sjekkliste-kobling (`checklist_id`, `checklist_field_id`) |
 | `document_transfers` | Sporbarhet: all sending mellom entrepriser |
 | `images` | Bilder med valgfri GPS-data |
-| `folders` | Rekursiv mappestruktur (Box-modul) med parent_id |
+| `folders` | Rekursiv mappestruktur (Mapper-modul) med parent_id |
 | `documents` | Dokumenter i mapper med fil-URL og versjon |
 | `workflows` | Arbeidsforløp med oppretter-entreprise og valgfri svarer-entreprise (`responder_enterprise_id`) |
 | `workflow_templates` | Kobling mellom arbeidsforløp og maler (mange-til-mange) |
@@ -163,7 +164,7 @@ Viktige relasjoner:
 - `report_templates` har `category` (`oppgave` | `sjekkliste`) og valgfritt `prefix`
 - `buildings` tilhører et prosjekt, med tegninger koblet via `building_id`
 - `drawings` har full metadata (tegningsnummer, fagdisiplin, revisjon, etasje, målestokk, status) med `drawing_revisions` for historikk
-- `folders` bruker selvrefererande relasjon (`parent_id`) for mappetreet i Box
+- `folders` bruker selvrefererande relasjon (`parent_id`) for mappetreet i Mapper-modulen
 - `project_invitations` kobles til project, enterprise (valgfri), group (valgfri) og invitedBy (User)
 - `projects` har valgfri `latitude`/`longitude` (Float?) — brukes til kartvisning og automatisk værhenting i sjekklister
 
@@ -465,7 +466,7 @@ Drag-and-drop-editor for å bygge maler med rekursiv kontainer-nesting (Dalux-st
 Sidebaren under `/dashbord/oppsett/` er organisert i seksjoner:
 - **Brukere** — Brukergrupper, rollestyring, legg til medlemmer (med bruker-søk)
 - **Lokasjoner** — Bygninger (med publisering/status)
-- **Field** — Entrepriser (med arbeidsforløp), Oppgavemaler, Sjekklistemaler, Kontrollplan, Box
+- **Field** — Entrepriser (med arbeidsforløp), Oppgavemaler, Sjekklistemaler, Kontrollplan, Mappeoppsett
 - **Owners Portal** — Eierportalens brukere, Prosjektoppsett
 
 ### Prosjektlokasjon og kartvelger
@@ -672,9 +673,9 @@ Dalux-inspirert tre-kolonne layout:
 | Maler|                  |                                |
 | Tegn |                  |                                |
 | Entr |                  |                                |
+| Mapp |                  |                                |
 |      |                  |                                |
 | Opps |                  |                                |
-| Hjelp|                  |                                |
 +------+------------------+--------------------------------+
 ```
 
@@ -692,6 +693,7 @@ Dalux-inspirert tre-kolonne layout:
 /dashbord/[prosjektId]/maler                  -> Mal-liste
 /dashbord/[prosjektId]/maler/[id]             -> Mal-detalj / malbygger
 /dashbord/[prosjektId]/entrepriser            -> Entreprise-liste
+/dashbord/[prosjektId]/mapper                 -> Mapper (mappestruktur)
 /dashbord/[prosjektId]/tegninger              -> Tegninger
 /dashbord/oppsett                             -> Innstillinger (redirect til brukere)
 /dashbord/oppsett/brukere                     -> Brukergrupper, roller, medlemmer
@@ -701,7 +703,7 @@ Dalux-inspirert tre-kolonne layout:
 /dashbord/oppsett/field/entrepriser           -> Entrepriser med arbeidsforløp
 /dashbord/oppsett/field/oppgavemaler          -> Oppgavemaler (filtrert malliste)
 /dashbord/oppsett/field/sjekklistemaler       -> Sjekklistemaler (filtrert malliste)
-/dashbord/oppsett/field/box                   -> Box (filstruktur/mappestruktur)
+/dashbord/oppsett/field/box                   -> Mappeoppsett (filstruktur/mappestruktur)
 /dashbord/oppsett/field/kontrollplaner        -> Kontrollplaner (kommer)
 /dashbord/oppsett/prosjektoppsett             -> Prosjektoppsett (navn, status, adresse)
 ```
@@ -730,7 +732,7 @@ Dalux-inspirert tre-kolonne layout:
 ### Layout-komponenter
 
 - `Toppbar` — Mørk blå bar med logo, prosjektvelger (dropdown med søk), brukermeny med utlogging
-- `HovedSidebar` — 60px ikonbar med Tooltip, deaktiverte ikoner uten valgt prosjekt
+- `HovedSidebar` — 60px ikonbar med Tooltip, deaktiverte ikoner uten valgt prosjekt. Seksjoner: Dashbord, Sjekklister, Oppgaver, Maler, Tegninger, Entrepriser, Mapper (bunn: Oppsett)
 - `SekundaertPanel` — 280px panel med seksjonsspesifikt innhold (filtre, lister, søk)
 - `Verktoylinje` — Kontekstuell handlingsbar, registreres via `useVerktoylinje`
 - `ProsjektVelger` — Dropdown med søk på prosjektnavn og prosjektnummer
@@ -743,6 +745,7 @@ Dalux-inspirert tre-kolonne layout:
 - `MalerPanel` — Malliste med søk
 - `EntrepriserPanel` — Entrepriseliste med søk
 - `TegningerPanel` — Tegninger (placeholder med søk)
+- `MapperPanel` — Mappestruktur med søk og trevisning
 
 ### Mer-meny
 
@@ -889,7 +892,7 @@ Hele monorepoet bruker ESLint v8 med `.eslintrc.json` (legacy-format). Web bruke
 - **Rapportobjekt:** Byggeblokk i en mal (23 typer)
 - **Mal (template):** Gjenbrukbar oppskrift for sjekklister/rapporter bygget med drag-and-drop, med prefiks og versjon
 - **Arbeidsforløp (workflow):** Navngitt kobling mellom en oppretter-entreprise, valgfri svarer-entreprise, og et sett maler (oppgave-/sjekklistetyper)
-- **Box:** Filstruktur/dokumenthåndteringsmodul med rekursiv mappestruktur
+- **Mapper (Mappeoppsett):** Filstruktur/dokumenthåndteringsmodul med rekursiv mappestruktur. Tilgjengelig fra HovedSidebar (mappe-ikon under `/dashbord/[prosjektId]/mapper`) og under Innstillinger > Field > Mappeoppsett (`/dashbord/oppsett/field/box`)
 - **Bygning:** Fysisk bygning i et prosjekt, med tilknyttede tegninger og publiseringsstatus
 - **Prosjektnummer:** Unikt, autogenerert nummer på format `SF-YYYYMMDD-XXXX`
 - **Prefiks:** Kort kode for en mal (f.eks. BHO, S-BET, KBO)

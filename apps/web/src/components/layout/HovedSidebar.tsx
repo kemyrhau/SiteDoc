@@ -8,6 +8,7 @@ import {
   FileText,
   Map,
   Building2,
+  FolderOpen,
   Settings,
 } from "lucide-react";
 import { SidebarIkon } from "@siteflow/ui";
@@ -57,6 +58,12 @@ const hovedelementer: SidebarElement[] = [
     id: "entrepriser",
     label: "Entrepriser",
     ikon: <Building2 className="h-5 w-5" />,
+    kreverProsjekt: true,
+  },
+  {
+    id: "mapper",
+    label: "Mapper",
+    ikon: <FolderOpen className="h-5 w-5" />,
     kreverProsjekt: true,
   },
 ];

@@ -9,6 +9,7 @@ export type Seksjon =
   | "maler"
   | "tegninger"
   | "entrepriser"
+  | "mapper"
   | "oppsett";
 
 export interface VerktoylinjeHandling {
