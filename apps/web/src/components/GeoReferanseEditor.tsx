@@ -25,6 +25,46 @@ interface Punkt {
   gps: { lat: string; lng: string };
 }
 
+/** Parser DMS-format (69°38'39.9"N 18°55'24.2"E) eller desimal (69.644, 18.923) til { lat, lng } */
+function parserKoordinater(tekst: string): { lat: string; lng: string } | null {
+  const trimmet = tekst.trim();
+
+  // Desimalformat: "69.644, 18.923" eller "69.644 18.923"
+  const desimalMatch = trimmet.match(/^(-?\d+[.,]\d+)[,\s]+(-?\d+[.,]\d+)$/);
+  if (desimalMatch) {
+    return {
+      lat: desimalMatch[1].replace(",", "."),
+      lng: desimalMatch[2].replace(",", "."),
+    };
+  }
+
+  // DMS-format: 69°38'39.9"N 18°55'24.2"E
+  const dmsRegex = /(\d+)[°](\d+)[′'](\d+[.,]?\d*)[″"]\s*([NSns])\s*[,\s]*(\d+)[°](\d+)[′'](\d+[.,]?\d*)[″"]\s*([EWew])/;
+  const dmsMatch = trimmet.match(dmsRegex);
+  if (dmsMatch) {
+    const latGrader = Number(dmsMatch[1]);
+    const latMin = Number(dmsMatch[2]);
+    const latSek = Number(dmsMatch[3].replace(",", "."));
+    const latRetning = dmsMatch[4].toUpperCase();
+    const lngGrader = Number(dmsMatch[5]);
+    const lngMin = Number(dmsMatch[6]);
+    const lngSek = Number(dmsMatch[7].replace(",", "."));
+    const lngRetning = dmsMatch[8].toUpperCase();
+
+    let lat = latGrader + latMin / 60 + latSek / 3600;
+    let lng = lngGrader + lngMin / 60 + lngSek / 3600;
+    if (latRetning === "S") lat = -lat;
+    if (lngRetning === "W") lng = -lng;
+
+    return {
+      lat: lat.toFixed(6),
+      lng: lng.toFixed(6),
+    };
+  }
+
+  return null;
+}
+
 export function GeoReferanseEditor({
   tegningId,
   tegning,
@@ -259,25 +299,38 @@ export function GeoReferanseEditor({
                 Piksel: {punkt1.pixel.x}%, {punkt1.pixel.y}%
               </p>
               <Input
-                label="Breddegrad (lat)"
-                value={punkt1.gps.lat}
-                onChange={(e) =>
-                  setPunkt1((p) =>
-                    p ? { ...p, gps: { ...p.gps, lat: e.target.value } } : p,
-                  )
-                }
-                placeholder="f.eks. 59.911"
+                label="Lim inn fra Google Maps"
+                value=""
+                onChange={(e) => {
+                  const resultat = parserKoordinater(e.target.value);
+                  if (resultat) {
+                    setPunkt1((p) => p ? { ...p, gps: resultat } : p);
+                  }
+                }}
+                placeholder="69°38'39.9&quot;N 18°55'24.2&quot;E"
               />
-              <Input
-                label="Lengdegrad (lng)"
-                value={punkt1.gps.lng}
-                onChange={(e) =>
-                  setPunkt1((p) =>
-                    p ? { ...p, gps: { ...p.gps, lng: e.target.value } } : p,
-                  )
-                }
-                placeholder="f.eks. 10.750"
-              />
+              <div className="grid grid-cols-2 gap-2">
+                <Input
+                  label="Breddegrad"
+                  value={punkt1.gps.lat}
+                  onChange={(e) =>
+                    setPunkt1((p) =>
+                      p ? { ...p, gps: { ...p.gps, lat: e.target.value } } : p,
+                    )
+                  }
+                  placeholder="59.911"
+                />
+                <Input
+                  label="Lengdegrad"
+                  value={punkt1.gps.lng}
+                  onChange={(e) =>
+                    setPunkt1((p) =>
+                      p ? { ...p, gps: { ...p.gps, lng: e.target.value } } : p,
+                    )
+                  }
+                  placeholder="10.750"
+                />
+              </div>
             </div>
           ) : (
             <p className="text-sm text-gray-400">
@@ -313,25 +366,38 @@ export function GeoReferanseEditor({
                 Piksel: {punkt2.pixel.x}%, {punkt2.pixel.y}%
               </p>
               <Input
-                label="Breddegrad (lat)"
-                value={punkt2.gps.lat}
-                onChange={(e) =>
-                  setPunkt2((p) =>
-                    p ? { ...p, gps: { ...p.gps, lat: e.target.value } } : p,
-                  )
-                }
-                placeholder="f.eks. 59.912"
+                label="Lim inn fra Google Maps"
+                value=""
+                onChange={(e) => {
+                  const resultat = parserKoordinater(e.target.value);
+                  if (resultat) {
+                    setPunkt2((p) => p ? { ...p, gps: resultat } : p);
+                  }
+                }}
+                placeholder="69°38'39.9&quot;N 18°55'24.2&quot;E"
               />
-              <Input
-                label="Lengdegrad (lng)"
-                value={punkt2.gps.lng}
-                onChange={(e) =>
-                  setPunkt2((p) =>
-                    p ? { ...p, gps: { ...p.gps, lng: e.target.value } } : p,
-                  )
-                }
-                placeholder="f.eks. 10.760"
-              />
+              <div className="grid grid-cols-2 gap-2">
+                <Input
+                  label="Breddegrad"
+                  value={punkt2.gps.lat}
+                  onChange={(e) =>
+                    setPunkt2((p) =>
+                      p ? { ...p, gps: { ...p.gps, lat: e.target.value } } : p,
+                    )
+                  }
+                  placeholder="59.912"
+                />
+                <Input
+                  label="Lengdegrad"
+                  value={punkt2.gps.lng}
+                  onChange={(e) =>
+                    setPunkt2((p) =>
+                      p ? { ...p, gps: { ...p.gps, lng: e.target.value } } : p,
+                    )
+                  }
+                  placeholder="10.760"
+                />
+              </div>
             </div>
           ) : (
             <p className="text-sm text-gray-400">
