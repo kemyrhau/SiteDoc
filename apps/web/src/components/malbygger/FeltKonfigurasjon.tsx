@@ -263,9 +263,16 @@ function ValglisteKonfig({
       <p className="text-sm font-medium text-gray-700">Valgalternativer</p>
       {options.map((opt, i) => (
         <div key={i} className="flex items-center gap-2">
-          <span className="flex-1 truncate rounded border border-gray-200 bg-white px-2 py-1 text-sm">
-            {opt}
-          </span>
+          <input
+            type="text"
+            value={opt}
+            onChange={(e) => {
+              const oppdatert = [...options];
+              oppdatert[i] = e.target.value;
+              onChange(oppdatert);
+            }}
+            className="flex-1 truncate rounded border border-gray-200 bg-white px-2 py-1 text-sm focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
+          />
           <button
             type="button"
             onClick={() => fjern(i)}
