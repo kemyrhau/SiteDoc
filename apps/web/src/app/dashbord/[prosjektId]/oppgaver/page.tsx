@@ -32,12 +32,21 @@ export default function OppgaverSide() {
   const [prioritet, setPrioritet] = useState<"low" | "medium" | "high" | "critical">("medium");
   const [valgtOppretter, setValgtOppretter] = useState("");
   const [valgtSvarer, setValgtSvarer] = useState("");
+  const [valgtMalId, setValgtMalId] = useState("");
 
-  const { data: oppgaver, isLoading } = trpc.oppgave.hentForProsjekt.useQuery(
+  const oppgaveQuery = trpc.oppgave.hentForProsjekt.useQuery(
     { projectId: params.prosjektId },
   );
+  const oppgaver = oppgaveQuery.data as Array<{
+    id: string; title: string; status: string; priority: string;
+    dueDate: string | null; description: string | null;
+    responderEnterprise: { name: string };
+  }> | undefined;
+  const isLoading = oppgaveQuery.isLoading;
 
   const { data: entrepriser } = trpc.entreprise.hentForProsjekt.useQuery({ projectId: params.prosjektId });
+  const { data: maler } = trpc.mal.hentForProsjekt.useQuery({ projectId: params.prosjektId });
+  const oppgaveMaler = (maler ?? []).filter((m: { category: string }) => m.category === "oppgave");
   const { data: mineEntrepriser } = trpc.medlem.hentMineEntrepriser.useQuery(
     { projectId: params.prosjektId },
   );
@@ -51,6 +60,7 @@ export default function OppgaverSide() {
       setPrioritet("medium");
       setValgtOppretter("");
       setValgtSvarer("");
+      setValgtMalId("");
     },
   });
 
@@ -66,9 +76,10 @@ export default function OppgaverSide() {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!tittel.trim() || !valgtOppretter || !valgtSvarer) return;
+    if (!tittel.trim() || !valgtOppretter || !valgtSvarer || !valgtMalId) return;
 
     opprettMutation.mutate({
+      templateId: valgtMalId,
       creatorEnterpriseId: valgtOppretter,
       responderEnterpriseId: valgtSvarer,
       title: tittel.trim(),
@@ -171,6 +182,13 @@ export default function OppgaverSide() {
 
       <Modal open={visModal} onClose={() => setVisModal(false)} title="Ny oppgave">
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <Select
+            label="Oppgavemal"
+            options={oppgaveMaler.map((m: { id: string; name: string }) => ({ value: m.id, label: m.name }))}
+            value={valgtMalId}
+            onChange={(e) => setValgtMalId(e.target.value)}
+            placeholder="Velg mal..."
+          />
           <Input
             label="Tittel"
             placeholder="F.eks. Monter brannventiler i 5. etasje"

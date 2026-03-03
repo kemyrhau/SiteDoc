@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { Prisma } from "@siteflow/db";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { documentStatusSchema } from "@siteflow/shared";
 import { isValidStatusTransition } from "@siteflow/shared";
@@ -45,7 +46,11 @@ export const oppgaveRouter = router({
       const oppgave = await ctx.prisma.task.findUniqueOrThrow({
         where: { id: input.id },
         include: {
-          template: true,
+          template: {
+            include: {
+              objects: { orderBy: { sortOrder: "asc" } },
+            },
+          },
           creator: true,
           creatorEnterprise: true,
           responderEnterprise: true,
@@ -115,7 +120,7 @@ export const oppgaveRouter = router({
         description: z.string().optional(),
         priority: z.enum(["low", "medium", "high", "critical"]).default("medium"),
         dueDate: z.string().datetime().optional(),
-        templateId: z.string().uuid().optional(),
+        templateId: z.string().uuid(),
         drawingId: z.string().uuid().optional(),
         positionX: z.number().min(0).max(100).optional(),
         positionY: z.number().min(0).max(100).optional(),
@@ -131,23 +136,21 @@ export const oppgaveRouter = router({
       return ctx.prisma.$transaction(async (tx) => {
         let nummer: number | undefined;
 
-        if (input.templateId) {
-          // Finn malens prefix for autonummerering
-          const mal = await tx.reportTemplate.findUniqueOrThrow({
-            where: { id: input.templateId },
-            select: { prefix: true },
-          });
+        // Finn malens prefix for autonummerering
+        const mal = await tx.reportTemplate.findUniqueOrThrow({
+          where: { id: input.templateId },
+          select: { prefix: true },
+        });
 
-          if (mal.prefix) {
-            const maks = await tx.task.aggregate({
-              where: {
-                templateId: input.templateId,
-                number: { not: null },
-              },
-              _max: { number: true },
-            });
-            nummer = (maks._max.number ?? 0) + 1;
-          }
+        if (mal.prefix) {
+          const maks = await tx.task.aggregate({
+            where: {
+              templateId: input.templateId,
+              number: { not: null },
+            },
+            _max: { number: true },
+          });
+          nummer = (maks._max.number ?? 0) + 1;
         }
 
         // Utled svarer-entreprise fra arbeidsforløp hvis oppgitt
@@ -220,6 +223,37 @@ export const oppgaveRouter = router({
           ...data,
           dueDate: data.dueDate ? new Date(data.dueDate) : undefined,
         },
+      });
+    }),
+
+  // Oppdater oppgavedata (fylling av felter)
+  oppdaterData: protectedProcedure
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        data: z.record(z.string(), z.unknown()),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Tilgangssjekk
+      const oppgave = await ctx.prisma.task.findUniqueOrThrow({
+        where: { id: input.id },
+        include: {
+          creatorEnterprise: { select: { projectId: true } },
+          template: { select: { domain: true } },
+        },
+      });
+      await verifiserDokumentTilgang(
+        ctx.userId,
+        oppgave.creatorEnterprise.projectId,
+        oppgave.creatorEnterpriseId,
+        oppgave.responderEnterpriseId,
+        oppgave.template?.domain,
+      );
+
+      return ctx.prisma.task.update({
+        where: { id: input.id },
+        data: { data: input.data as Prisma.InputJsonValue },
       });
     }),
 

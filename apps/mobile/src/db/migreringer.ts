@@ -46,7 +46,26 @@ export function kjorMigreringer() {
 
     CREATE INDEX IF NOT EXISTS idx_ko_status
       ON opplastings_ko(status);
+
+    CREATE TABLE IF NOT EXISTS oppgave_feltdata (
+      id TEXT PRIMARY KEY NOT NULL,
+      oppgave_id TEXT NOT NULL,
+      felt_verdier TEXT NOT NULL,
+      er_synkronisert INTEGER NOT NULL DEFAULT 0,
+      sist_endret_lokalt INTEGER NOT NULL,
+      sist_synkronisert INTEGER
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_feltdata_oppgave
+      ON oppgave_feltdata(oppgave_id);
   `);
+
+  // Legg til oppgave_id-kolonne på opplastings_ko (idempotent)
+  try {
+    db.execSync(`ALTER TABLE opplastings_ko ADD COLUMN oppgave_id TEXT`);
+  } catch {
+    // Kolonnen finnes allerede — ignorer
+  }
 
   // Resett krasj-tilstander: opplasting som ble avbrutt → prøv på nytt
   db.runSync(

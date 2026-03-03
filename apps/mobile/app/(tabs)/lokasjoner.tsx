@@ -23,6 +23,8 @@ import { TegningsVisning } from "../../src/components/TegningsVisning";
 import type { Markør } from "../../src/components/TegningsVisning";
 import { TegningsVelger } from "../../src/components/TegningsVelger";
 import { OppgaveModal } from "../../src/components/OppgaveModal";
+import { MalVelger } from "../../src/components/MalVelger";
+import { useRouter } from "expo-router";
 import {
   beregnTransformasjon,
   gpsTilTegning,
@@ -65,9 +67,13 @@ export default function LokasjonerSkjerm() {
   const [valgtBygningId, setValgtBygningId] = useState<string | null>(null);
   const [valgtTegningId, setValgtTegningId] = useState<string | null>(null);
 
+  const router = useRouter();
+
   // Markør- og oppgavemodal-state
   const [markørPosisjon, setMarkørPosisjon] = useState<{ x: number; y: number } | null>(null);
   const [visOppgaveModal, setVisOppgaveModal] = useState(false);
+  const [visMalVelger, setVisMalVelger] = useState(false);
+  const [valgtMalId, setValgtMalId] = useState<string | null>(null);
   const [gpsHenter, setGpsHenter] = useState(false);
 
   // Hent bygninger for valgt prosjekt med type-filter
@@ -200,7 +206,7 @@ export default function LokasjonerSkjerm() {
 
           const posisjon = gpsTilTegning(gps, transformasjon);
           setMarkørPosisjon({ x: posisjon.x, y: posisjon.y });
-          setVisOppgaveModal(true);
+          setVisMalVelger(true);
         } catch (feil) {
           Alert.alert("GPS-feil", "Kunne ikke hente GPS-posisjon. Prøv igjen.");
         } finally {
@@ -209,22 +215,26 @@ export default function LokasjonerSkjerm() {
       } else {
         // Vanlig Bygg-modus: bruk trykk-posisjon direkte
         setMarkørPosisjon({ x: posX, y: posY });
-        setVisOppgaveModal(true);
+        setVisMalVelger(true);
       }
     },
     [aktivTab, valgtTegningDetalj],
   );
 
-  // Håndter oppgave opprettet
-  const håndterOppgaveOpprettet = useCallback(() => {
+  // Håndter oppgave opprettet — naviger til utfylling
+  const håndterOppgaveOpprettet = useCallback((oppgaveId: string) => {
     setVisOppgaveModal(false);
+    setVisMalVelger(false);
+    setValgtMalId(null);
     setMarkørPosisjon(null);
-    Alert.alert("Oppgave opprettet", "Oppgaven ble opprettet og koblet til tegningen.");
-  }, []);
+    router.push(`/oppgave/${oppgaveId}`);
+  }, [router]);
 
   // Håndter lukking av oppgavemodal
   const håndterLukkOppgaveModal = useCallback(() => {
     setVisOppgaveModal(false);
+    setVisMalVelger(false);
+    setValgtMalId(null);
     setMarkørPosisjon(null);
   }, []);
 
@@ -319,8 +329,23 @@ export default function LokasjonerSkjerm() {
         laster={lasterData}
       />
 
+      {/* Malvelger for oppgave fra tegning */}
+      <MalVelger
+        synlig={visMalVelger && !valgtMalId}
+        kategori="oppgave"
+        onVelg={(mal) => {
+          setValgtMalId(mal.id);
+          setVisMalVelger(false);
+          setVisOppgaveModal(true);
+        }}
+        onLukk={() => {
+          setVisMalVelger(false);
+          setMarkørPosisjon(null);
+        }}
+      />
+
       {/* Oppgave-opprettelsesmodal */}
-      {valgtTegningId && valgtTegning && markørPosisjon && (
+      {valgtTegningId && valgtTegning && markørPosisjon && valgtMalId && (
         <OppgaveModal
           synlig={visOppgaveModal}
           onLukk={håndterLukkOppgaveModal}
@@ -330,6 +355,7 @@ export default function LokasjonerSkjerm() {
           posisjonX={markørPosisjon.x}
           posisjonY={markørPosisjon.y}
           gpsPositionert={aktivTab === "anlegg"}
+          templateId={valgtMalId}
         />
       )}
     </SafeAreaView>

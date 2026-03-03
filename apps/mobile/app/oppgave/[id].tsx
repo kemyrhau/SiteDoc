@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useCallback, useState } from "react";
 import {
   View,
   Text,
@@ -7,20 +7,34 @@ import {
   TextInput,
   ActivityIndicator,
   Alert,
+  Modal,
+  SafeAreaView as RNSafeAreaView,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   ArrowLeft,
+  Save,
+  Check,
+  AlertTriangle,
   Clock,
+  CloudOff,
+  Cloud,
   ClipboardCheck,
-  CalendarDays,
+  MapPin,
 } from "lucide-react-native";
+import { harBetingelse, harForelderObjekt } from "@siteflow/shared";
 import { hentStatusHandlinger } from "@siteflow/shared";
 import type { StatusHandling } from "@siteflow/shared";
-import { trpc } from "../../src/lib/trpc";
+import { useOppgaveSkjema } from "../../src/hooks/useOppgaveSkjema";
+import { useOpplastingsKo } from "../../src/providers/OpplastingsKoProvider";
 import { useAuth } from "../../src/providers/AuthProvider";
 import { StatusMerkelapp } from "../../src/components/StatusMerkelapp";
+import { RapportObjektRenderer, DISPLAY_TYPER } from "../../src/components/rapportobjekter";
+import { FeltWrapper } from "../../src/components/rapportobjekter/FeltWrapper";
+import { trpc } from "../../src/lib/trpc";
 
 const PRIORITETER = [
   { verdi: "low", label: "Lav", farge: "bg-gray-200 text-gray-700" },
@@ -63,39 +77,25 @@ export default function OppgaveDetalj() {
   const { bruker } = useAuth();
   const utils = trpc.useUtils();
 
-  const [redigererTittel, setRedigererTittel] = useState(false);
-  const [redigererBeskrivelse, setRedigererBeskrivelse] = useState(false);
-  const [tittelUtkast, setTittelUtkast] = useState("");
-  const [beskrivelseUtkast, setBeskrivelseUtkast] = useState("");
+  // State for inline redigering av tittel og beskrivelse
+  const [visTittelModal, settVisTittelModal] = useState(false);
+  const [visBeskrivelseModal, settVisBeskrivelseModal] = useState(false);
+  const [tittelUtkast, settTittelUtkast] = useState("");
+  const [beskrivelseUtkast, settBeskrivelseUtkast] = useState("");
 
-  const oppgaveQuery = trpc.oppgave.hentMedId.useQuery(
+  const { ventende } = useOpplastingsKo();
+
+  // Hent overføringer for historikk
+  const detaljQuery = trpc.oppgave.hentMedId.useQuery(
     { id: id! },
     { enabled: !!id },
   );
-
   // eslint-disable-next-line
-  const oppgave = oppgaveQuery.data as {
-    id: string;
-    title: string;
-    description: string | null;
-    status: string;
-    priority: string;
-    number: number | null;
-    dueDate: Date | string | null;
-    createdAt: Date | string;
-    template?: { name: string; prefix?: string | null } | null;
-    creator?: { name: string | null } | null;
-    creatorEnterprise?: { name: string } | null;
-    responderEnterprise?: { name: string } | null;
-    checklist?: {
-      id: string;
-      number: number | null;
-      title: string;
-      template?: { prefix?: string | null; name?: string | null } | null;
-    } | null;
-    checklistFieldId?: string | null;
+  const oppgaveDetalj = detaljQuery.data as {
     transfers?: Transfer[];
+    drawing?: { id: string; name: string; drawingNumber?: string | null } | null;
   } | undefined;
+  const overforinger = oppgaveDetalj?.transfers;
 
   const endreStatusMutasjon = trpc.oppgave.endreStatus.useMutation({
     onSuccess: () => {
@@ -143,17 +143,41 @@ export default function OppgaveDetalj() {
     [bruker?.id, id, endreStatusMutasjon],
   );
 
-  const lagreTittel = useCallback(() => {
-    if (!oppgave || !tittelUtkast.trim()) return;
-    oppdaterMutasjon.mutate({ id: oppgave.id, title: tittelUtkast.trim() });
-    setRedigererTittel(false);
-  }, [oppgave, tittelUtkast, oppdaterMutasjon]);
+  const {
+    oppgave,
+    erLaster,
+    hentFeltVerdi,
+    settVerdi,
+    settKommentar,
+    leggTilVedlegg,
+    fjernVedlegg,
+    erSynlig,
+    valideringsfeil,
+    valider,
+    lagre,
+    erLagrer,
+    harEndringer,
+    erRedigerbar,
+    lagreStatus,
+    synkStatus,
+  } = useOppgaveSkjema(id!);
 
-  const lagreBeskrivelse = useCallback(() => {
-    if (!oppgave) return;
-    oppdaterMutasjon.mutate({ id: oppgave.id, description: beskrivelseUtkast.trim() || undefined });
-    setRedigererBeskrivelse(false);
-  }, [oppgave, beskrivelseUtkast, oppdaterMutasjon]);
+  const håndterTilbake = useCallback(async () => {
+    if (harEndringer) {
+      await lagre();
+    }
+    router.back();
+  }, [harEndringer, lagre, router]);
+
+  const håndterLagre = useCallback(async () => {
+    const erGyldig = valider();
+    if (!erGyldig) {
+      Alert.alert("Valideringsfeil", "Fyll inn alle påkrevde felt før du lagrer.");
+      return;
+    }
+    await lagre();
+    Alert.alert("Lagret", "Utfyllingen er lagret.");
+  }, [valider, lagre]);
 
   const endrePrioritet = useCallback(
     (nyPrioritet: string) => {
@@ -163,7 +187,19 @@ export default function OppgaveDetalj() {
     [oppgave, oppdaterMutasjon],
   );
 
-  if (oppgaveQuery.isLoading) {
+  const lagreTittel = useCallback(() => {
+    if (!oppgave || !tittelUtkast.trim()) return;
+    oppdaterMutasjon.mutate({ id: oppgave.id, title: tittelUtkast.trim() });
+    settVisTittelModal(false);
+  }, [oppgave, tittelUtkast, oppdaterMutasjon]);
+
+  const lagreBeskrivelse = useCallback(() => {
+    if (!oppgave) return;
+    oppdaterMutasjon.mutate({ id: oppgave.id, description: beskrivelseUtkast.trim() || undefined });
+    settVisBeskrivelseModal(false);
+  }, [oppgave, beskrivelseUtkast, oppdaterMutasjon]);
+
+  if (erLaster) {
     return (
       <SafeAreaView className="flex-1 items-center justify-center bg-gray-50">
         <ActivityIndicator size="large" color="#1e40af" />
@@ -184,8 +220,10 @@ export default function OppgaveDetalj() {
   }
 
   const nummer = formaterNummer(oppgave.template?.prefix, oppgave.number);
-  const handlinger = hentStatusHandlinger(oppgave.status);
-  const overforinger = oppgave.transfers ?? [];
+  const objekter = (oppgave.template?.objects ?? [])
+    .slice()
+    .sort((a, b) => a.sortOrder - b.sortOrder);
+  const leseModus = !erRedigerbar;
 
   // Sjekkliste-referanse
   const sjekklisteNummer = oppgave.checklist
@@ -196,15 +234,80 @@ export default function OppgaveDetalj() {
     <SafeAreaView className="flex-1 bg-gray-100" edges={["top"]}>
       {/* Header */}
       <View className="flex-row items-center justify-between bg-siteflow-blue px-4 py-3">
-        <Pressable onPress={() => router.back()} hitSlop={12} className="flex-row items-center gap-2">
+        <Pressable onPress={håndterTilbake} hitSlop={12} className="flex-row items-center gap-2">
           <ArrowLeft size={22} color="#ffffff" />
         </Pressable>
         <Text className="flex-1 px-3 text-center text-base font-semibold text-white" numberOfLines={1}>
           {nummer ? `${nummer} ` : ""}Oppgave
         </Text>
-        <View style={{ width: 22 }} />
+        {erRedigerbar ? (
+          <View className="flex-row items-center gap-2">
+            {/* Opplastingskø-fremdrift */}
+            {ventende > 0 && (
+              <View className="flex-row items-center gap-1">
+                <ActivityIndicator size="small" color="#fbbf24" />
+                <Text className="text-[10px] text-yellow-200">{ventende}</Text>
+              </View>
+            )}
+            {/* Synkroniseringsstatus */}
+            {synkStatus === "synkroniserer" && (
+              <ActivityIndicator size="small" color="#93c5fd" />
+            )}
+            {synkStatus === "lokalt_lagret" && ventende === 0 && (
+              <CloudOff size={16} color="#fbbf24" />
+            )}
+            {synkStatus === "synkronisert" && ventende === 0 && lagreStatus !== "lagret" && lagreStatus !== "lagrer" && (
+              <Cloud size={16} color="#86efac" />
+            )}
+            {/* Lagrestatus */}
+            {lagreStatus === "lagrer" && (
+              <ActivityIndicator size="small" color="#93c5fd" />
+            )}
+            {lagreStatus === "lagret" && (
+              <Check size={18} color="#86efac" />
+            )}
+            {lagreStatus === "feil" && (
+              <AlertTriangle size={18} color="#fca5a5" />
+            )}
+            <Pressable onPress={håndterLagre} hitSlop={12} disabled={erLagrer}>
+              <Save size={22} color={erLagrer ? "#93c5fd" : "#ffffff"} />
+            </Pressable>
+          </View>
+        ) : (
+          <View style={{ width: 22 }} />
+        )}
       </View>
 
+      {/* Metadata-bar */}
+      <View className="flex-row items-center justify-between border-b border-gray-200 bg-white px-4 py-2">
+        <View className="flex-row items-center gap-2">
+          {oppgave.template?.prefix && (
+            <Text className="text-xs font-medium text-gray-500">
+              {oppgave.template.prefix}
+            </Text>
+          )}
+          <Text className="text-sm text-gray-700" numberOfLines={1}>
+            {oppgave.template?.name}
+          </Text>
+        </View>
+        <StatusMerkelapp status={oppgave.status} />
+      </View>
+
+      {/* Entrepriser */}
+      <View className="flex-row border-b border-gray-200 bg-white px-4 py-1.5">
+        {oppgave.creatorEnterprise && (
+          <Text className="flex-1 text-xs text-gray-500">
+            Oppretter: {oppgave.creatorEnterprise.name}
+          </Text>
+        )}
+        {oppgave.responderEnterprise && (
+          <Text className="flex-1 text-right text-xs text-gray-500">
+            Svarer: {oppgave.responderEnterprise.name}
+          </Text>
+        )}
+      </View>
+
+      {/* Innhold */}
       <ScrollView
         className="flex-1"
         contentContainerClassName="gap-2 p-3 pb-8"
@@ -213,87 +316,15 @@ export default function OppgaveDetalj() {
         {/* Tittel */}
         <View className="rounded-lg bg-white p-4">
           <Text className="mb-1 text-xs font-medium text-gray-500">Tittel</Text>
-          {redigererTittel ? (
-            <View>
-              <TextInput
-                className="rounded-lg border border-blue-300 bg-blue-50 px-3 py-2 text-sm text-gray-900"
-                value={tittelUtkast}
-                onChangeText={setTittelUtkast}
-                autoFocus
-                onSubmitEditing={lagreTittel}
-              />
-              <View className="mt-2 flex-row gap-2">
-                <Pressable
-                  onPress={lagreTittel}
-                  className="rounded-lg bg-blue-600 px-4 py-2"
-                >
-                  <Text className="text-xs font-medium text-white">Lagre</Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => setRedigererTittel(false)}
-                  className="rounded-lg bg-gray-100 px-4 py-2"
-                >
-                  <Text className="text-xs font-medium text-gray-600">Avbryt</Text>
-                </Pressable>
-              </View>
-            </View>
-          ) : (
-            <Pressable
-              onPress={() => {
-                setTittelUtkast(oppgave.title);
-                setRedigererTittel(true);
-              }}
-            >
-              <Text className="text-base font-semibold text-gray-900">{oppgave.title}</Text>
-            </Pressable>
-          )}
-        </View>
-
-        {/* Metadata */}
-        <View className="rounded-lg bg-white p-4">
-          <View className="flex-row items-center gap-3">
-            <StatusMerkelapp status={oppgave.status} />
-            {nummer && (
-              <Text className="text-sm font-medium text-gray-600">{nummer}</Text>
-            )}
-          </View>
-
-          <View className="mt-3 gap-2">
-            {oppgave.template && (
-              <View className="flex-row items-center gap-2">
-                <Text className="text-xs text-gray-500">Mal:</Text>
-                <Text className="text-xs text-gray-700">{oppgave.template.name}</Text>
-              </View>
-            )}
-            {oppgave.creatorEnterprise && (
-              <View className="flex-row items-center gap-2">
-                <Text className="text-xs text-gray-500">Oppretter:</Text>
-                <Text className="text-xs text-gray-700">{oppgave.creatorEnterprise.name}</Text>
-              </View>
-            )}
-            {oppgave.responderEnterprise && (
-              <View className="flex-row items-center gap-2">
-                <Text className="text-xs text-gray-500">Svarer:</Text>
-                <Text className="text-xs text-gray-700">{oppgave.responderEnterprise.name}</Text>
-              </View>
-            )}
-            {oppgave.creator?.name && (
-              <View className="flex-row items-center gap-2">
-                <Text className="text-xs text-gray-500">Opprettet av:</Text>
-                <Text className="text-xs text-gray-700">{oppgave.creator.name}</Text>
-              </View>
-            )}
-            <View className="flex-row items-center gap-2">
-              <CalendarDays size={12} color="#9ca3af" />
-              <Text className="text-xs text-gray-500">
-                {new Date(oppgave.createdAt).toLocaleDateString("nb-NO", {
-                  day: "numeric",
-                  month: "long",
-                  year: "numeric",
-                })}
-              </Text>
-            </View>
-          </View>
+          <Pressable
+            onPress={() => {
+              if (leseModus) return;
+              settTittelUtkast(oppgave.title);
+              settVisTittelModal(true);
+            }}
+          >
+            <Text className="text-base font-semibold text-gray-900">{oppgave.title}</Text>
+          </Pressable>
         </View>
 
         {/* Prioritet */}
@@ -305,7 +336,7 @@ export default function OppgaveDetalj() {
               return (
                 <Pressable
                   key={p.verdi}
-                  onPress={() => endrePrioritet(p.verdi)}
+                  onPress={() => !leseModus && endrePrioritet(p.verdi)}
                   className={`rounded-full px-3 py-1.5 ${erValgt ? p.farge : "bg-gray-100"}`}
                 >
                   <Text
@@ -322,43 +353,17 @@ export default function OppgaveDetalj() {
         {/* Beskrivelse */}
         <View className="rounded-lg bg-white p-4">
           <Text className="mb-1 text-xs font-medium text-gray-500">Beskrivelse</Text>
-          {redigererBeskrivelse ? (
-            <View>
-              <TextInput
-                className="min-h-[80px] rounded-lg border border-blue-300 bg-blue-50 px-3 py-2 text-sm text-gray-900"
-                value={beskrivelseUtkast}
-                onChangeText={setBeskrivelseUtkast}
-                multiline
-                autoFocus
-                textAlignVertical="top"
-              />
-              <View className="mt-2 flex-row gap-2">
-                <Pressable
-                  onPress={lagreBeskrivelse}
-                  className="rounded-lg bg-blue-600 px-4 py-2"
-                >
-                  <Text className="text-xs font-medium text-white">Lagre</Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => setRedigererBeskrivelse(false)}
-                  className="rounded-lg bg-gray-100 px-4 py-2"
-                >
-                  <Text className="text-xs font-medium text-gray-600">Avbryt</Text>
-                </Pressable>
-              </View>
-            </View>
-          ) : (
-            <Pressable
-              onPress={() => {
-                setBeskrivelseUtkast(oppgave.description ?? "");
-                setRedigererBeskrivelse(true);
-              }}
-            >
-              <Text className={`text-sm ${oppgave.description ? "text-gray-800" : "text-gray-400 italic"}`}>
-                {oppgave.description || "Trykk for å legge til beskrivelse…"}
-              </Text>
-            </Pressable>
-          )}
+          <Pressable
+            onPress={() => {
+              if (leseModus) return;
+              settBeskrivelseUtkast(oppgave.description ?? "");
+              settVisBeskrivelseModal(true);
+            }}
+          >
+            <Text className={`text-sm ${oppgave.description ? "text-gray-800" : "text-gray-400 italic"}`}>
+              {oppgave.description || "Trykk for å legge til beskrivelse…"}
+            </Text>
+          </Pressable>
         </View>
 
         {/* Sjekkliste-kobling */}
@@ -377,9 +382,82 @@ export default function OppgaveDetalj() {
           </Pressable>
         )}
 
+        {/* Tegning-kobling */}
+        {oppgave.drawing && (
+          <View className="flex-row items-center gap-3 rounded-lg bg-purple-50 p-4">
+            <MapPin size={18} color="#7c3aed" />
+            <View className="flex-1">
+              <Text className="text-xs font-medium text-purple-600">Fra tegning</Text>
+              <Text className="text-sm text-purple-800">
+                {oppgave.drawing.drawingNumber ? `${oppgave.drawing.drawingNumber} ` : ""}{oppgave.drawing.name}
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {/* Malobjekter */}
+        {objekter.map((objekt) => {
+          // Sjekk synlighet (betinget felt)
+          if (!erSynlig(objekt)) return null;
+
+          const erDisplay = DISPLAY_TYPER.has(objekt.type);
+          // Bruk parentId fra DB (ny) med fallback til config (gammel)
+          const erBetinget = harForelderObjekt(objekt) || harBetingelse(objekt.config);
+
+          // Beregn nesting-nivå for gradert innrykk
+          const hentNestingNivå = (obj: typeof objekt): number => {
+            const pid = obj.parentId ?? (obj.config.conditionParentId as string | undefined);
+            if (!pid) return 0;
+            const forelder = objekter.find((o) => o.id === pid);
+            if (!forelder) return 0;
+            return 1 + hentNestingNivå(forelder);
+          };
+          const nestingNivå = hentNestingNivå(objekt);
+
+          // Display-typer (heading, subtitle) rendres uten wrapper
+          if (erDisplay) {
+            return (
+              <View key={objekt.id} className={erBetinget ? "ml-4 border-l-2 border-l-blue-300 pl-3" : ""}>
+                <RapportObjektRenderer
+                  objekt={objekt}
+                  verdi={null}
+                  onEndreVerdi={() => {}}
+                  leseModus={leseModus}
+                />
+              </View>
+            );
+          }
+
+          // Utfyllbare felt med FeltWrapper
+          const feltVerdi = hentFeltVerdi(objekt.id);
+
+          return (
+            <FeltWrapper
+              key={objekt.id}
+              objekt={objekt}
+              kommentar={feltVerdi.kommentar}
+              vedlegg={feltVerdi.vedlegg}
+              onEndreKommentar={(k) => settKommentar(objekt.id, k)}
+              onLeggTilVedlegg={(v) => leggTilVedlegg(objekt.id, v)}
+              onFjernVedlegg={(vId) => fjernVedlegg(objekt.id, vId)}
+              leseModus={leseModus}
+              oppgaveIdForKo={oppgave.id}
+              nestingNivå={nestingNivå}
+              valideringsfeil={valideringsfeil[objekt.id]}
+            >
+              <RapportObjektRenderer
+                objekt={objekt}
+                verdi={feltVerdi.verdi}
+                onEndreVerdi={(v) => settVerdi(objekt.id, v)}
+                leseModus={leseModus}
+              />
+            </FeltWrapper>
+          );
+        })}
+
         {/* Historikk */}
-        {overforinger.length > 0 && (
-          <View className="mt-2">
+        {overforinger && overforinger.length > 0 && (
+          <View className="mt-4">
             <View className="flex-row items-center gap-2 px-1 pb-2">
               <Clock size={16} color="#6b7280" />
               <Text className="text-sm font-semibold text-gray-700">Historikk</Text>
@@ -413,27 +491,101 @@ export default function OppgaveDetalj() {
         )}
       </ScrollView>
 
-      {/* Statusknapper i bunn */}
-      {handlinger.length > 0 && (
-        <View className="border-t border-gray-200 bg-white px-4 py-3">
-          <View className={handlinger.length > 1 ? "flex-row gap-2" : ""}>
-            {handlinger.map((handling) => (
+      {/* Statusknapper + lagre-knapp i bunn */}
+      <View className="border-t border-gray-200 bg-white px-4 py-3">
+        {/* Statushandlinger */}
+        {oppgave && (() => {
+          const handlinger = hentStatusHandlinger(oppgave.status);
+          if (handlinger.length === 0) return null;
+          return (
+            <View className={`mb-2 ${handlinger.length > 1 ? "flex-row gap-2" : ""}`}>
+              {handlinger.map((handling) => (
+                <Pressable
+                  key={handling.nyStatus}
+                  onPress={() => håndterStatusEndring(handling)}
+                  disabled={endreStatusMutasjon.isPending}
+                  className={`items-center rounded-lg py-3 ${handlinger.length > 1 ? "flex-1" : ""} ${endreStatusMutasjon.isPending ? handling.aktivFarge : handling.farge}`}
+                >
+                  {endreStatusMutasjon.isPending ? (
+                    <ActivityIndicator size="small" color="#ffffff" />
+                  ) : (
+                    <Text className="font-medium text-white">{handling.tekst}</Text>
+                  )}
+                </Pressable>
+              ))}
+            </View>
+          );
+        })()}
+
+        {/* Lagre-knapp */}
+        {erRedigerbar && (
+          <Pressable
+            onPress={håndterLagre}
+            disabled={erLagrer}
+            className={`items-center rounded-lg py-3 ${erLagrer ? "bg-blue-400" : "bg-blue-600"}`}
+          >
+            <Text className="font-medium text-white">
+              {erLagrer ? "Lagrer..." : "Lagre utfylling"}
+            </Text>
+          </Pressable>
+        )}
+      </View>
+
+      {/* Tittel-redigeringsmodal */}
+      <Modal visible={visTittelModal} animationType="slide" onRequestClose={() => settVisTittelModal(false)}>
+        <RNSafeAreaView className="flex-1 bg-white">
+          <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : undefined}
+            className="flex-1"
+          >
+            <View className="flex-row items-center justify-between border-b border-gray-200 bg-[#1e40af] px-4 py-3">
+              <Text className="flex-1 text-base font-semibold text-white">Rediger tittel</Text>
               <Pressable
-                key={handling.nyStatus}
-                onPress={() => håndterStatusEndring(handling)}
-                disabled={endreStatusMutasjon.isPending}
-                className={`items-center rounded-lg py-3 ${handlinger.length > 1 ? "flex-1" : ""} ${endreStatusMutasjon.isPending ? handling.aktivFarge : handling.farge}`}
+                onPress={lagreTittel}
+                className="ml-3 rounded-lg bg-white/20 px-4 py-1.5"
               >
-                {endreStatusMutasjon.isPending ? (
-                  <ActivityIndicator size="small" color="#ffffff" />
-                ) : (
-                  <Text className="font-medium text-white">{handling.tekst}</Text>
-                )}
+                <Text className="text-sm font-semibold text-white">Ferdig</Text>
               </Pressable>
-            ))}
-          </View>
-        </View>
-      )}
+            </View>
+            <TextInput
+              value={tittelUtkast}
+              onChangeText={settTittelUtkast}
+              placeholder="Tittel..."
+              autoFocus
+              className="flex-1 px-4 py-3 text-base text-gray-900"
+            />
+          </KeyboardAvoidingView>
+        </RNSafeAreaView>
+      </Modal>
+
+      {/* Beskrivelse-redigeringsmodal */}
+      <Modal visible={visBeskrivelseModal} animationType="slide" onRequestClose={() => settVisBeskrivelseModal(false)}>
+        <RNSafeAreaView className="flex-1 bg-white">
+          <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : undefined}
+            className="flex-1"
+          >
+            <View className="flex-row items-center justify-between border-b border-gray-200 bg-[#1e40af] px-4 py-3">
+              <Text className="flex-1 text-base font-semibold text-white">Beskrivelse</Text>
+              <Pressable
+                onPress={lagreBeskrivelse}
+                className="ml-3 rounded-lg bg-white/20 px-4 py-1.5"
+              >
+                <Text className="text-sm font-semibold text-white">Ferdig</Text>
+              </Pressable>
+            </View>
+            <TextInput
+              value={beskrivelseUtkast}
+              onChangeText={settBeskrivelseUtkast}
+              placeholder="Skriv beskrivelse..."
+              multiline
+              autoFocus
+              textAlignVertical="top"
+              className="flex-1 px-4 py-3 text-base text-gray-900"
+            />
+          </KeyboardAvoidingView>
+        </RNSafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }

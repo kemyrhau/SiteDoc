@@ -34,7 +34,7 @@ export function OppgaverPanel() {
     trpc.oppgave.hentForProsjekt.useQuery(
       { projectId: params.prosjektId },
       { enabled: !!params.prosjektId },
-    );
+    ) as { data: Array<{ status: string; priority: string; title: string }> | undefined; isLoading: boolean };
 
   function tellForStatus(statusId: string): number {
     if (!oppgaver) return 0;

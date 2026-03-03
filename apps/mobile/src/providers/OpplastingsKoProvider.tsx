@@ -3,13 +3,14 @@ import type { ReactNode } from "react";
 import { eq, or, and, lt } from "drizzle-orm";
 import { randomUUID } from "expo-crypto";
 import { hentDatabase } from "../db/database";
-import { opplastingsKo, sjekklisteFeltdata } from "../db/schema";
+import { opplastingsKo, sjekklisteFeltdata, oppgaveFeltdata } from "../db/schema";
 import { lastOppFil } from "../services/opplasting";
 import { slettLokaltBilde } from "../services/lokalBilde";
 import { useNettverk } from "./NettverkProvider";
 
 export interface NyKoOppforing {
-  sjekklisteId: string;
+  sjekklisteId?: string;
+  oppgaveId?: string;
   objektId: string;
   vedleggId: string;
   lokalSti: string;
@@ -22,7 +23,8 @@ export interface NyKoOppforing {
 }
 
 type OpplastingFullfortCallback = (
-  sjekklisteId: string,
+  dokumentId: string,
+  dokumentType: "sjekkliste" | "oppgave",
   objektId: string,
   vedleggId: string,
   serverUrl: string,
@@ -94,23 +96,23 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const publiserFullfort = useCallback(
-    (sjekklisteId: string, objektId: string, vedleggId: string, serverUrl: string) => {
+    (dokumentId: string, dokumentType: "sjekkliste" | "oppgave", objektId: string, vedleggId: string, serverUrl: string) => {
       for (const cb of callbacksRef.current) {
-        cb(sjekklisteId, objektId, vedleggId, serverUrl);
+        cb(dokumentId, dokumentType, objektId, vedleggId, serverUrl);
       }
     },
     [],
   );
 
   const oppdaterFeltdataVedlegg = useCallback(
-    (sjekklisteId: string, vedleggId: string, serverUrl: string) => {
+    (dokumentId: string, dokumentType: "sjekkliste" | "oppgave", vedleggId: string, serverUrl: string) => {
       const db = hentDatabase();
       if (!db) return;
-      const rader = db
-        .select()
-        .from(sjekklisteFeltdata)
-        .where(eq(sjekklisteFeltdata.sjekklisteId, sjekklisteId))
-        .all();
+
+      // Hent riktig tabell basert på dokumenttype
+      const rader = dokumentType === "sjekkliste"
+        ? db.select().from(sjekklisteFeltdata).where(eq(sjekklisteFeltdata.sjekklisteId, dokumentId)).all()
+        : db.select().from(oppgaveFeltdata).where(eq(oppgaveFeltdata.oppgaveId, dokumentId)).all();
 
       if (rader.length === 0) return;
 
@@ -134,13 +136,17 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
         }
 
         if (endret) {
-          db.update(sjekklisteFeltdata)
-            .set({
-              feltVerdier: JSON.stringify(feltVerdier),
-              erSynkronisert: false,
-            })
-            .where(eq(sjekklisteFeltdata.id, rad.id))
-            .run();
+          if (dokumentType === "sjekkliste") {
+            db.update(sjekklisteFeltdata)
+              .set({ feltVerdier: JSON.stringify(feltVerdier), erSynkronisert: false })
+              .where(eq(sjekklisteFeltdata.id, rad.id))
+              .run();
+          } else {
+            db.update(oppgaveFeltdata)
+              .set({ feltVerdier: JSON.stringify(feltVerdier), erSynkronisert: false })
+              .where(eq(oppgaveFeltdata.id, rad.id))
+              .run();
+          }
         }
       } catch (feil) {
         console.warn("Kunne ikke oppdatere feltdata-vedlegg:", feil);
@@ -208,12 +214,17 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
           .where(eq(opplastingsKo.id, oppforing.id))
           .run();
 
+        // Utled dokumenttype og -ID
+        const dokumentType = oppforing.oppgaveId ? "oppgave" as const : "sjekkliste" as const;
+        const dokumentId = oppforing.oppgaveId ?? oppforing.sjekklisteId ?? "";
+
         // Oppdater vedlegg-URL i feltdata
-        oppdaterFeltdataVedlegg(oppforing.sjekklisteId, oppforing.vedleggId, resultat.fileUrl);
+        oppdaterFeltdataVedlegg(dokumentId, dokumentType, oppforing.vedleggId, resultat.fileUrl);
 
         // Publiser til aktive hooks
         publiserFullfort(
-          oppforing.sjekklisteId,
+          dokumentId,
+          dokumentType,
           oppforing.objektId,
           oppforing.vedleggId,
           resultat.fileUrl,
@@ -278,7 +289,8 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
       db.insert(opplastingsKo)
         .values({
           id: randomUUID(),
-          sjekklisteId: oppforing.sjekklisteId,
+          sjekklisteId: oppforing.sjekklisteId ?? null,
+          oppgaveId: oppforing.oppgaveId ?? null,
           objektId: oppforing.objektId,
           vedleggId: oppforing.vedleggId,
           lokalSti: oppforing.lokalSti,

@@ -27,12 +27,15 @@ export default function OppgaverSide() {
   const [beskrivelse, setBeskrivelse] = useState("");
   const [prioritet, setPrioritet] = useState<"low" | "medium" | "high" | "critical">("medium");
   const [valgtSvarer, setValgtSvarer] = useState("");
+  const [valgtMalId, setValgtMalId] = useState("");
 
   const { data: oppgaver, isLoading } = trpc.oppgave.hentForProsjekt.useQuery(
     { projectId: params.id },
   );
 
   const { data: entrepriser } = trpc.entreprise.hentForProsjekt.useQuery({ projectId: params.id });
+  const { data: maler } = trpc.mal.hentForProsjekt.useQuery({ projectId: params.id });
+  const oppgaveMaler = (maler ?? []).filter((m: { category: string }) => m.category === "oppgave");
 
   const opprettMutation = trpc.oppgave.opprett.useMutation({
     onSuccess: () => {
@@ -42,17 +45,19 @@ export default function OppgaverSide() {
       setBeskrivelse("");
       setPrioritet("medium");
       setValgtSvarer("");
+      setValgtMalId("");
     },
   });
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!tittel.trim() || !valgtSvarer) return;
+    if (!tittel.trim() || !valgtSvarer || !valgtMalId) return;
 
     const oppretterEntreprise = entrepriser?.[0];
     if (!oppretterEntreprise) return;
 
     opprettMutation.mutate({
+      templateId: valgtMalId,
       creatorEnterpriseId: oppretterEntreprise.id,
       responderEnterpriseId: valgtSvarer,
       title: tittel.trim(),
@@ -113,6 +118,13 @@ export default function OppgaverSide() {
 
       <Modal open={visModal} onClose={() => setVisModal(false)} title="Ny oppgave">
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <Select
+            label="Oppgavemal"
+            options={oppgaveMaler.map((m: { id: string; name: string }) => ({ value: m.id, label: m.name }))}
+            value={valgtMalId}
+            onChange={(e) => setValgtMalId(e.target.value)}
+            placeholder="Velg mal..."
+          />
           <Input
             label="Tittel"
             placeholder="F.eks. Monter brannventiler i 5. etasje"

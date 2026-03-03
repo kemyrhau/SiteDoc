@@ -1,6 +1,6 @@
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, or, and, isNotNull } from "drizzle-orm";
 import { hentDatabase } from "./database";
-import { sjekklisteFeltdata, opplastingsKo } from "./schema";
+import { sjekklisteFeltdata, oppgaveFeltdata, opplastingsKo } from "./schema";
 import { slettLokaltBilde, listLokalebilder } from "../services/lokalBilde";
 
 /**
@@ -21,36 +21,58 @@ export function ryddFullforteOpplastinger() {
 
 /**
  * Rydd opp data for et avsluttet prosjekt.
- * Sletter feltdata og køoppføringer for de gitte sjekklistene.
+ * Sletter feltdata og køoppføringer for de gitte sjekklistene og oppgavene.
  */
-export async function ryddOppForProsjekt(sjekklisteIder: string[]) {
-  if (sjekklisteIder.length === 0) return;
+export async function ryddOppForProsjekt(
+  sjekklisteIder: string[],
+  oppgaveIder: string[] = [],
+) {
+  if (sjekklisteIder.length === 0 && oppgaveIder.length === 0) return;
 
   try {
     const db = hentDatabase();
     if (!db) return;
 
     // Hent lokale stier fra køoppføringer som ikke er fullført
-    const ufullforte = db
-      .select({ lokalSti: opplastingsKo.lokalSti })
-      .from(opplastingsKo)
-      .where(inArray(opplastingsKo.sjekklisteId, sjekklisteIder))
-      .all();
+    const sjekklisteFilter = sjekklisteIder.length > 0
+      ? inArray(opplastingsKo.sjekklisteId, sjekklisteIder)
+      : undefined;
+    const oppgaveFilter = oppgaveIder.length > 0
+      ? and(isNotNull(opplastingsKo.oppgaveId), inArray(opplastingsKo.oppgaveId, oppgaveIder))
+      : undefined;
+    const koFilter = sjekklisteFilter && oppgaveFilter
+      ? or(sjekklisteFilter, oppgaveFilter)
+      : sjekklisteFilter ?? oppgaveFilter;
 
-    // Slett lokale filer
-    for (const rad of ufullforte) {
-      await slettLokaltBilde(rad.lokalSti);
+    if (koFilter) {
+      const ufullforte = db
+        .select({ lokalSti: opplastingsKo.lokalSti })
+        .from(opplastingsKo)
+        .where(koFilter)
+        .all();
+
+      // Slett lokale filer
+      for (const rad of ufullforte) {
+        await slettLokaltBilde(rad.lokalSti);
+      }
+
+      // Slett køoppføringer
+      db.delete(opplastingsKo).where(koFilter).run();
     }
 
-    // Slett køoppføringer
-    db.delete(opplastingsKo)
-      .where(inArray(opplastingsKo.sjekklisteId, sjekklisteIder))
-      .run();
+    // Slett sjekkliste-feltdata
+    if (sjekklisteIder.length > 0) {
+      db.delete(sjekklisteFeltdata)
+        .where(inArray(sjekklisteFeltdata.sjekklisteId, sjekklisteIder))
+        .run();
+    }
 
-    // Slett feltdata
-    db.delete(sjekklisteFeltdata)
-      .where(inArray(sjekklisteFeltdata.sjekklisteId, sjekklisteIder))
-      .run();
+    // Slett oppgave-feltdata
+    if (oppgaveIder.length > 0) {
+      db.delete(oppgaveFeltdata)
+        .where(inArray(oppgaveFeltdata.oppgaveId, oppgaveIder))
+        .run();
+    }
   } catch (feil) {
     console.warn("Opprydding for prosjekt feilet:", feil);
   }

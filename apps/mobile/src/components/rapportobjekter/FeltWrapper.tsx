@@ -18,7 +18,8 @@ interface FeltWrapperProps {
   onLeggTilVedlegg: (vedlegg: Vedlegg) => void;
   onFjernVedlegg: (vedleggId: string) => void;
   leseModus?: boolean;
-  sjekklisteId: string;
+  sjekklisteId?: string;
+  oppgaveIdForKo?: string;
   /** @deprecated Bruk nestingNivå istedenfor */
   erBetinget?: boolean;
   nestingNivå?: number;
@@ -39,6 +40,7 @@ export function FeltWrapper({
   onFjernVedlegg,
   leseModus,
   sjekklisteId,
+  oppgaveIdForKo,
   erBetinget,
   nestingNivå = 0,
   valideringsfeil,
@@ -88,12 +90,13 @@ export function FeltWrapper({
         onFjernVedlegg={onFjernVedlegg}
         leseModus={leseModus}
         sjekklisteId={sjekklisteId}
+        oppgaveIdForKo={oppgaveIdForKo}
         objektId={objekt.id}
         skjulKommentar={objekt.type === "text_field"}
       />
 
-      {/* Oppgave-badge og opprett-knapp */}
-      {oppgaveNummer && oppgaveId ? (
+      {/* Oppgave-badge og opprett-knapp (skjul når vi er i en oppgave) */}
+      {!oppgaveIdForKo && oppgaveNummer && oppgaveId ? (
         <Pressable
           onPress={() => onNavigerTilOppgave?.(oppgaveId)}
           className="mt-2 self-start rounded-full bg-blue-100 px-3 py-1"

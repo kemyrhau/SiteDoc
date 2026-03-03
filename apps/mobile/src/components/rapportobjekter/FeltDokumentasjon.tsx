@@ -21,7 +21,8 @@ interface FeltDokumentasjonProps {
   onLeggTilVedlegg: (vedlegg: Vedlegg) => void;
   onFjernVedlegg: (vedleggId: string) => void;
   leseModus?: boolean;
-  sjekklisteId: string;
+  sjekklisteId?: string;
+  oppgaveIdForKo?: string;
   objektId: string;
   skjulKommentar?: boolean;
 }
@@ -34,6 +35,7 @@ export function FeltDokumentasjon({
   onFjernVedlegg,
   leseModus,
   sjekklisteId,
+  oppgaveIdForKo,
   objektId,
   skjulKommentar,
 }: FeltDokumentasjonProps) {
@@ -69,6 +71,7 @@ export function FeltDokumentasjon({
       // 4. Legg i bakgrunnskø (asynkront, ikke-blokkerende)
       await leggIKo({
         sjekklisteId,
+        oppgaveId: oppgaveIdForKo,
         objektId,
         vedleggId,
         lokalSti,
@@ -83,7 +86,7 @@ export function FeltDokumentasjon({
       const melding = e instanceof Error ? e.message : "Ukjent feil";
       console.error("Bildehåndtering feilet:", melding);
     }
-  }, [sjekklisteId, objektId, leggIKo, onLeggTilVedlegg]);
+  }, [sjekklisteId, oppgaveIdForKo, objektId, leggIKo, onLeggTilVedlegg]);
 
   const håndterKameraBilde = useCallback((uri: string) => {
     // Kameraet forblir åpent — prosesser bildet i bakgrunnen

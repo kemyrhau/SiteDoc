@@ -24,12 +24,13 @@ interface EntrepriseData {
 interface OppgaveModalProps {
   synlig: boolean;
   onLukk: () => void;
-  onOpprettet: () => void;
+  onOpprettet: (oppgaveId: string) => void;
   tegningNavn: string;
   tegningId: string;
   posisjonX: number;
   posisjonY: number;
   gpsPositionert?: boolean;
+  templateId: string;
 }
 
 const PRIORITETER: { verdi: Prioritet; label: string }[] = [
@@ -55,6 +56,7 @@ export function OppgaveModal({
   posisjonX,
   posisjonY,
   gpsPositionert,
+  templateId,
 }: OppgaveModalProps) {
   const { valgtProsjektId } = useProsjekt();
 
@@ -75,11 +77,11 @@ export function OppgaveModal({
   const entrepriser = (entrepriseQuery.data ?? []) as EntrepriseData[];
 
   const opprettMutasjon = trpc.oppgave.opprett.useMutation({
-    onSuccess: () => {
+    onSuccess: (_data: unknown, _variabler: { title: string }) => {
       nullstillSkjema();
-      onOpprettet();
+      onOpprettet((_data as { id: string }).id);
     },
-    onError: (feil) => {
+    onError: (feil: { message?: string }) => {
       Alert.alert("Feil", feil.message || "Kunne ikke opprette oppgave");
     },
   });
@@ -119,6 +121,7 @@ export function OppgaveModal({
       title: tittel.trim(),
       description: beskrivelse.trim() || undefined,
       priority: prioritet,
+      templateId,
       drawingId: tegningId,
       positionX: posisjonX,
       positionY: posisjonY,
@@ -129,6 +132,7 @@ export function OppgaveModal({
     prioritet,
     oppretterEntrepriseId,
     svarerEntrepriseId,
+    templateId,
     tegningId,
     posisjonX,
     posisjonY,

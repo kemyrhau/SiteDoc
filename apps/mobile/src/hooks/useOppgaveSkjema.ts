@@ -3,25 +3,14 @@ import { eq } from "drizzle-orm";
 import { randomUUID } from "expo-crypto";
 import { trpc } from "../lib/trpc";
 import { hentDatabase } from "../db/database";
-import { sjekklisteFeltdata } from "../db/schema";
+import { oppgaveFeltdata } from "../db/schema";
 import { useNettverk } from "../providers/NettverkProvider";
 import { useOpplastingsKo } from "../providers/OpplastingsKoProvider";
+import { useAuth } from "../providers/AuthProvider";
+import type { Vedlegg, FeltVerdi } from "./useSjekklisteSkjema";
 
 type LagreStatus = "idle" | "lagrer" | "lagret" | "feil";
 type SynkStatus = "synkronisert" | "lokalt_lagret" | "synkroniserer";
-
-export interface Vedlegg {
-  id: string;
-  type: "bilde" | "fil";
-  url: string;
-  filnavn: string;
-}
-
-export interface FeltVerdi {
-  verdi: unknown;
-  kommentar: string;
-  vedlegg: Vedlegg[];
-}
 
 interface RapportObjekt {
   id: string;
@@ -38,11 +27,17 @@ const TOM_FELTVERDI: FeltVerdi = { verdi: null, kommentar: "", vedlegg: [] };
 // Typer som ikke har utfyllbar verdi
 const DISPLAY_TYPER = new Set(["heading", "subtitle"]);
 
-export interface UseSjekklisteSkjemaResultat {
-  sjekkliste: {
+// Typer som kan auto-fylles
+const AUTO_FILL_TYPER = new Set(["date", "date_time", "person", "company", "drawing_position"]);
+
+export interface UseOppgaveSkjemaResultat {
+  oppgave: {
     id: string;
     title: string;
     status: string;
+    priority: string;
+    description: string | null;
+    number: number | null;
     template: {
       id: string;
       name: string;
@@ -51,6 +46,8 @@ export interface UseSjekklisteSkjemaResultat {
     };
     creatorEnterprise: { id: string; name: string } | null;
     responderEnterprise: { id: string; name: string } | null;
+    drawing?: { id: string; name: string; drawingNumber?: string | null } | null;
+    checklist?: { id: string; number?: number | null; title: string; template?: { prefix?: string | null; name?: string | null } | null } | null;
   } | undefined;
   erLaster: boolean;
   hentFeltVerdi: (objektId: string) => FeltVerdi;
@@ -73,14 +70,14 @@ const REDIGERBARE_STATUSER = new Set(["draft", "received", "in_progress"]);
 
 // --- SQLite-hjelpere ---
 
-function lesSQLiteFeltdata(sjekklisteId: string): Record<string, FeltVerdi> | null {
+function lesSQLiteFeltdata(oppgaveId: string): Record<string, FeltVerdi> | null {
   try {
     const db = hentDatabase();
     if (!db) return null;
     const rader = db
       .select()
-      .from(sjekklisteFeltdata)
-      .where(eq(sjekklisteFeltdata.sjekklisteId, sjekklisteId))
+      .from(oppgaveFeltdata)
+      .where(eq(oppgaveFeltdata.oppgaveId, oppgaveId))
       .all();
     if (rader.length === 0) return null;
     return JSON.parse(rader[0]!.feltVerdier) as Record<string, FeltVerdi>;
@@ -89,14 +86,14 @@ function lesSQLiteFeltdata(sjekklisteId: string): Record<string, FeltVerdi> | nu
   }
 }
 
-function erSQLiteSynkronisert(sjekklisteId: string): boolean {
+function erSQLiteSynkronisert(oppgaveId: string): boolean {
   try {
     const db = hentDatabase();
     if (!db) return true;
     const rader = db
-      .select({ erSynkronisert: sjekklisteFeltdata.erSynkronisert })
-      .from(sjekklisteFeltdata)
-      .where(eq(sjekklisteFeltdata.sjekklisteId, sjekklisteId))
+      .select({ erSynkronisert: oppgaveFeltdata.erSynkronisert })
+      .from(oppgaveFeltdata)
+      .where(eq(oppgaveFeltdata.oppgaveId, oppgaveId))
       .all();
     if (rader.length === 0) return true;
     return rader[0]!.erSynkronisert;
@@ -106,7 +103,7 @@ function erSQLiteSynkronisert(sjekklisteId: string): boolean {
 }
 
 function skrivTilSQLite(
-  sjekklisteId: string,
+  oppgaveId: string,
   feltVerdier: Record<string, FeltVerdi>,
   synkronisert: boolean,
 ) {
@@ -115,26 +112,26 @@ function skrivTilSQLite(
     if (!db) return;
     const json = JSON.stringify(feltVerdier);
     const rader = db
-      .select({ id: sjekklisteFeltdata.id })
-      .from(sjekklisteFeltdata)
-      .where(eq(sjekklisteFeltdata.sjekklisteId, sjekklisteId))
+      .select({ id: oppgaveFeltdata.id })
+      .from(oppgaveFeltdata)
+      .where(eq(oppgaveFeltdata.oppgaveId, oppgaveId))
       .all();
 
     if (rader.length > 0) {
-      db.update(sjekklisteFeltdata)
+      db.update(oppgaveFeltdata)
         .set({
           feltVerdier: json,
           erSynkronisert: synkronisert,
           sistEndretLokalt: Date.now(),
           ...(synkronisert ? { sistSynkronisert: Date.now() } : {}),
         })
-        .where(eq(sjekklisteFeltdata.id, rader[0]!.id))
+        .where(eq(oppgaveFeltdata.id, rader[0]!.id))
         .run();
     } else {
-      db.insert(sjekklisteFeltdata)
+      db.insert(oppgaveFeltdata)
         .values({
           id: randomUUID(),
-          sjekklisteId,
+          oppgaveId,
           feltVerdier: json,
           erSynkronisert: synkronisert,
           sistEndretLokalt: Date.now(),
@@ -147,7 +144,7 @@ function skrivTilSQLite(
   }
 }
 
-export function useSjekklisteSkjema(sjekklisteId: string): UseSjekklisteSkjemaResultat {
+export function useOppgaveSkjema(oppgaveId: string): UseOppgaveSkjemaResultat {
   const [feltVerdier, settFeltVerdier] = useState<Record<string, FeltVerdi>>({});
   const [valideringsfeil, settValideringsfeil] = useState<Record<string, string>>({});
   const [harEndringer, settHarEndringer] = useState(false);
@@ -163,35 +160,40 @@ export function useSjekklisteSkjema(sjekklisteId: string): UseSjekklisteSkjemaRe
 
   const { erPaaNettet } = useNettverk();
   const { registrerCallback } = useOpplastingsKo();
+  const { bruker } = useAuth();
 
   // tRPC utils for å invalidere query-cache etter lagring
   const utils = trpc.useUtils();
 
-  // Hent sjekklistedata
-  const sjekklisteQuery = trpc.sjekkliste.hentMedId.useQuery(
-    { id: sjekklisteId },
-    { enabled: !!sjekklisteId },
+  // Hent oppgavedata
+  const oppgaveQuery = trpc.oppgave.hentMedId.useQuery(
+    { id: oppgaveId },
+    { enabled: !!oppgaveId },
   );
 
   // Cast for å unngå TS2589
-  const sjekkliste = sjekklisteQuery.data as UseSjekklisteSkjemaResultat["sjekkliste"] & {
+  const oppgave = oppgaveQuery.data as UseOppgaveSkjemaResultat["oppgave"] & {
     data: Record<string, unknown> | null;
+    drawingId?: string | null;
+    positionX?: number | null;
+    positionY?: number | null;
+    creatorEnterpriseId?: string;
   } | undefined;
 
   const alleObjekter = useMemo(
-    () => (sjekkliste?.template?.objects ?? []) as RapportObjekt[],
-    [sjekkliste],
+    () => (oppgave?.template?.objects ?? []) as RapportObjekt[],
+    [oppgave],
   );
 
-  // Initialiser feltVerdier — SQLite først, så server
+  // Initialiser feltVerdier — SQLite først, så server, med auto-fill
   useEffect(() => {
-    if (!sjekkliste || erInitialisert) return;
+    if (!oppgave || erInitialisert) return;
 
-    const eksisterendeData = (sjekkliste.data ?? {}) as Record<string, Record<string, unknown>>;
+    const eksisterendeData = (oppgave.data ?? {}) as Record<string, Record<string, unknown>>;
 
     // Prøv SQLite først (instant, <10ms)
-    const sqliteData = lesSQLiteFeltdata(sjekklisteId);
-    const sqliteSynkronisert = erSQLiteSynkronisert(sjekklisteId);
+    const sqliteData = lesSQLiteFeltdata(oppgaveId);
+    const sqliteSynkronisert = erSQLiteSynkronisert(oppgaveId);
 
     if (sqliteData && !sqliteSynkronisert) {
       // SQLite har usynkroniserte lokale endringer — bruk dem
@@ -203,6 +205,7 @@ export function useSjekklisteSkjema(sjekklisteId: string): UseSjekklisteSkjemaRe
 
     // Bruk server-data (eller SQLite hvis synkronisert)
     const initialisert: Record<string, FeltVerdi> = {};
+    const harServerData = Object.keys(eksisterendeData).length > 0;
 
     for (const objekt of alleObjekter) {
       if (DISPLAY_TYPER.has(objekt.type)) continue;
@@ -215,23 +218,60 @@ export function useSjekklisteSkjema(sjekklisteId: string): UseSjekklisteSkjemaRe
           vedlegg: (lagret.vedlegg as Vedlegg[]) ?? [],
         };
       } else {
-        initialisert[objekt.id] = { ...TOM_FELTVERDI };
+        // Auto-fill for nye oppgaver uten eksisterende data
+        let autoVerdi: unknown = null;
+
+        if (!harServerData && AUTO_FILL_TYPER.has(objekt.type)) {
+          switch (objekt.type) {
+            case "date":
+              autoVerdi = new Date().toISOString().split("T")[0];
+              break;
+            case "date_time":
+              autoVerdi = new Date().toISOString();
+              break;
+            case "person":
+              autoVerdi = bruker?.id ?? null;
+              break;
+            case "company":
+              autoVerdi = oppgave.creatorEnterpriseId ?? null;
+              break;
+            case "drawing_position":
+              if (oppgave.drawingId && oppgave.positionX != null && oppgave.positionY != null) {
+                autoVerdi = {
+                  drawingId: oppgave.drawingId,
+                  positionX: oppgave.positionX,
+                  positionY: oppgave.positionY,
+                  drawingName: oppgave.drawing?.name ?? null,
+                };
+              }
+              break;
+          }
+        }
+
+        initialisert[objekt.id] = {
+          verdi: autoVerdi,
+          kommentar: "",
+          vedlegg: [],
+        };
       }
     }
 
     settFeltVerdier(initialisert);
     settErInitialisert(true);
 
-    // Lagre server-data til SQLite (synkronisert)
-    skrivTilSQLite(sjekklisteId, initialisert, true);
-    settSynkStatus("synkronisert");
-  }, [sjekkliste, alleObjekter, erInitialisert, sjekklisteId]);
+    // Lagre til SQLite (synkronisert med server-data, eller lokalt_lagret med auto-fill)
+    const harAutoFylt = !harServerData && alleObjekter.some(
+      (o) => !DISPLAY_TYPER.has(o.type) && AUTO_FILL_TYPER.has(o.type) && initialisert[o.id]?.verdi != null,
+    );
+    skrivTilSQLite(oppgaveId, initialisert, !harAutoFylt);
+    settSynkStatus(harAutoFylt ? "lokalt_lagret" : "synkronisert");
+  }, [oppgave, alleObjekter, erInitialisert, oppgaveId, bruker?.id]);
 
   // Lytt på opplastingsfullføringer — oppdater vedlegg-URL i minnet
   useEffect(() => {
     const avregistrer = registrerCallback(
       (dokumentId, dokumentType, _objektId, vedleggId, serverUrl) => {
-        if (dokumentType !== "sjekkliste" || dokumentId !== sjekklisteId) return;
+        if (dokumentType !== "oppgave" || dokumentId !== oppgaveId) return;
 
         settFeltVerdier((prev) => {
           const oppdatert = { ...prev };
@@ -255,7 +295,7 @@ export function useSjekklisteSkjema(sjekklisteId: string): UseSjekklisteSkjemaRe
       },
     );
     return avregistrer;
-  }, [sjekklisteId, registrerCallback]);
+  }, [oppgaveId, registrerCallback]);
 
   const hentFeltVerdi = useCallback(
     (objektId: string): FeltVerdi => feltVerdier[objektId] ?? TOM_FELTVERDI,
@@ -263,15 +303,15 @@ export function useSjekklisteSkjema(sjekklisteId: string): UseSjekklisteSkjemaRe
   );
 
   // Lagre til server
-  const oppdaterDataMutasjon = trpc.sjekkliste.oppdaterData.useMutation();
+  const oppdaterDataMutasjon = trpc.oppgave.oppdaterData.useMutation();
 
   const lagreIntern = useCallback(async () => {
-    if (!sjekklisteId) return;
+    if (!oppgaveId) return;
 
     const data = feltVerdierRef.current;
 
     // 1. Skriv til SQLite umiddelbart (alltid suksess)
-    skrivTilSQLite(sjekklisteId, data, false);
+    skrivTilSQLite(oppgaveId, data, false);
     settLagreStatus("lagret");
     settSynkStatus("lokalt_lagret");
 
@@ -283,21 +323,21 @@ export function useSjekklisteSkjema(sjekklisteId: string): UseSjekklisteSkjemaRe
       settSynkStatus("synkroniserer");
       try {
         await oppdaterDataMutasjon.mutateAsync({
-          id: sjekklisteId,
+          id: oppgaveId,
           data,
         });
-        await utils.sjekkliste.hentMedId.invalidate({ id: sjekklisteId });
+        await utils.oppgave.hentMedId.invalidate({ id: oppgaveId });
         settHarEndringer(false);
 
         // Marker som synkronisert i SQLite
-        skrivTilSQLite(sjekklisteId, data, true);
+        skrivTilSQLite(oppgaveId, data, true);
         settSynkStatus("synkronisert");
       } catch {
         // Server feilet — data er trygg i SQLite
         settSynkStatus("lokalt_lagret");
       }
     }
-  }, [sjekklisteId, erPaaNettet, oppdaterDataMutasjon, utils]);
+  }, [oppgaveId, erPaaNettet, oppdaterDataMutasjon, utils]);
 
   const planleggLagring = useCallback(() => {
     if (lagreTimerRef.current) clearTimeout(lagreTimerRef.current);
@@ -432,20 +472,25 @@ export function useSjekklisteSkjema(sjekklisteId: string): UseSjekklisteSkjemaRe
     return Object.keys(feil).length === 0;
   }, [alleObjekter, erSynlig, hentFeltVerdi]);
 
-  const erRedigerbar = sjekkliste ? REDIGERBARE_STATUSER.has(sjekkliste.status) : false;
+  const erRedigerbar = oppgave ? REDIGERBARE_STATUSER.has(oppgave.status) : false;
 
   return {
-    sjekkliste: sjekkliste
+    oppgave: oppgave
       ? {
-          id: sjekkliste.id,
-          title: sjekkliste.title,
-          status: sjekkliste.status,
-          template: sjekkliste.template,
-          creatorEnterprise: sjekkliste.creatorEnterprise,
-          responderEnterprise: sjekkliste.responderEnterprise,
+          id: oppgave.id,
+          title: oppgave.title,
+          status: oppgave.status,
+          priority: oppgave.priority,
+          description: oppgave.description,
+          number: oppgave.number,
+          template: oppgave.template,
+          creatorEnterprise: oppgave.creatorEnterprise,
+          responderEnterprise: oppgave.responderEnterprise,
+          drawing: oppgave.drawing,
+          checklist: oppgave.checklist,
         }
       : undefined,
-    erLaster: sjekklisteQuery.isLoading,
+    erLaster: oppgaveQuery.isLoading,
     hentFeltVerdi,
     settVerdi,
     settKommentar,
