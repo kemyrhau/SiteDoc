@@ -3,7 +3,17 @@
 import { useState, useRef, useCallback } from "react";
 import { trpc } from "@/lib/trpc";
 import { Button, Input } from "@siteflow/ui";
-import { MapPin, Trash2, Check, ExternalLink } from "lucide-react";
+import {
+  MapPin,
+  Trash2,
+  Check,
+  ExternalLink,
+  Hand,
+  ZoomIn,
+  ZoomOut,
+  RotateCcw,
+  Crosshair,
+} from "lucide-react";
 import type { GeoReferanse } from "@siteflow/shared";
 
 interface TegningInfo {
@@ -25,13 +35,97 @@ interface Punkt {
   gps: { lat: string; lng: string };
 }
 
-/** Parser DMS-format (69°38'39.9"N 18°55'24.2"E) eller desimal (69.644, 18.923) til { lat, lng } */
+/** Konverterer UTM sone 33N (EUREF89) til WGS84 lat/lng */
+function utm33TilLatLng(nord: number, ost: number): { lat: number; lng: number } {
+  // WGS84-ellipsoiden
+  const a = 6378137.0; // stor halvakse
+  const f = 1 / 298.257223563; // flattrykking
+  const e2 = 2 * f - f * f; // eksentrisitet²
+  const e1 = (1 - Math.sqrt(1 - e2)) / (1 + Math.sqrt(1 - e2));
+  const k0 = 0.9996; // skalafaktor
+  const lng0 = 15 * Math.PI / 180; // sentralmeridian sone 33
+
+  const M = nord / k0;
+  const mu = M / (a * (1 - e2 / 4 - 3 * e2 * e2 / 64 - 5 * e2 * e2 * e2 / 256));
+
+  const phi1 =
+    mu +
+    (3 * e1 / 2 - 27 * e1 * e1 * e1 / 32) * Math.sin(2 * mu) +
+    (21 * e1 * e1 / 16 - 55 * e1 * e1 * e1 * e1 / 32) * Math.sin(4 * mu) +
+    (151 * e1 * e1 * e1 / 96) * Math.sin(6 * mu) +
+    (1097 * e1 * e1 * e1 * e1 / 512) * Math.sin(8 * mu);
+
+  const ep2 = e2 / (1 - e2);
+  const sinPhi1 = Math.sin(phi1);
+  const cosPhi1 = Math.cos(phi1);
+  const tanPhi1 = Math.tan(phi1);
+  const N1 = a / Math.sqrt(1 - e2 * sinPhi1 * sinPhi1);
+  const T1 = tanPhi1 * tanPhi1;
+  const C1 = ep2 * cosPhi1 * cosPhi1;
+  const R1 = a * (1 - e2) / Math.pow(1 - e2 * sinPhi1 * sinPhi1, 1.5);
+  const D = (ost - 500000) / (N1 * k0);
+
+  const lat =
+    phi1 -
+    (N1 * tanPhi1 / R1) *
+      (D * D / 2 -
+        (5 + 3 * T1 + 10 * C1 - 4 * C1 * C1 - 9 * ep2) * D * D * D * D / 24 +
+        (61 + 90 * T1 + 298 * C1 + 45 * T1 * T1 - 252 * ep2 - 3 * C1 * C1) *
+          D * D * D * D * D * D / 720);
+
+  const lng =
+    lng0 +
+    (D -
+      (1 + 2 * T1 + C1) * D * D * D / 6 +
+      (5 - 2 * C1 + 28 * T1 - 3 * C1 * C1 + 8 * ep2 + 24 * T1 * T1) *
+        D * D * D * D * D / 120) /
+      cosPhi1;
+
+  return {
+    lat: (lat * 180) / Math.PI,
+    lng: (lng * 180) / Math.PI,
+  };
+}
+
+/**
+ * Parser koordinater fra ulike formater:
+ * - DMS: 69°38'39.9"N 18°55'24.2"E
+ * - Desimal: 69.644, 18.923
+ * - UTM33 (Norgeskart): Nord 7731109.65 Øst 652332.37
+ */
 function parserKoordinater(tekst: string): { lat: string; lng: string } | null {
   const trimmet = tekst.trim();
 
+  // UTM33-format fra Norgeskart: "Nord 7731109.65 Øst 652332.37" eller bare tallene
+  // Prøv med labels først
+  const utmLabelMatch = trimmet.match(
+    /[Nn]ord\s+(\d{6,8}[.,]?\d*)\s*[ØøOo]st\s+(\d{5,7}[.,]?\d*)/
+  );
+  if (utmLabelMatch?.[1] && utmLabelMatch[2]) {
+    const nord = Number(utmLabelMatch[1].replace(",", "."));
+    const ost = Number(utmLabelMatch[2].replace(",", "."));
+    if (nord > 6000000 && nord < 8500000 && ost > 100000 && ost < 900000) {
+      const resultat = utm33TilLatLng(nord, ost);
+      return { lat: resultat.lat.toFixed(6), lng: resultat.lng.toFixed(6) };
+    }
+  }
+
+  // UTM33 uten labels: to tall der første er 7-sifret (northing) og andre er 6-sifret (easting)
+  const utmTallMatch = trimmet.match(
+    /^(\d{6,8}[.,]?\d*)[,\s]+(\d{5,7}[.,]?\d*)$/
+  );
+  if (utmTallMatch?.[1] && utmTallMatch[2]) {
+    const a = Number(utmTallMatch[1].replace(",", "."));
+    const b = Number(utmTallMatch[2].replace(",", "."));
+    if (a > 6000000 && a < 8500000 && b > 100000 && b < 900000) {
+      const resultat = utm33TilLatLng(a, b);
+      return { lat: resultat.lat.toFixed(6), lng: resultat.lng.toFixed(6) };
+    }
+  }
+
   // Desimalformat: "69.644, 18.923" eller "69.644 18.923"
   const desimalMatch = trimmet.match(/^(-?\d+[.,]\d+)[,\s]+(-?\d+[.,]\d+)$/);
-  if (desimalMatch) {
+  if (desimalMatch?.[1] && desimalMatch[2]) {
     return {
       lat: desimalMatch[1].replace(",", "."),
       lng: desimalMatch[2].replace(",", "."),
@@ -41,7 +135,7 @@ function parserKoordinater(tekst: string): { lat: string; lng: string } | null {
   // DMS-format: 69°38'39.9"N 18°55'24.2"E
   const dmsRegex = /(\d+)[°](\d+)[′'](\d+[.,]?\d*)[″"]\s*([NSns])\s*[,\s]*(\d+)[°](\d+)[′'](\d+[.,]?\d*)[″"]\s*([EWew])/;
   const dmsMatch = trimmet.match(dmsRegex);
-  if (dmsMatch) {
+  if (dmsMatch?.[1] && dmsMatch[2] && dmsMatch[3] && dmsMatch[4] && dmsMatch[5] && dmsMatch[6] && dmsMatch[7] && dmsMatch[8]) {
     const latGrader = Number(dmsMatch[1]);
     const latMin = Number(dmsMatch[2]);
     const latSek = Number(dmsMatch[3].replace(",", "."));
@@ -72,6 +166,14 @@ export function GeoReferanseEditor({
 }: GeoReferanseEditorProps) {
   const utils = trpc.useUtils();
   const bildeRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Zoom og panorering
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [erDraging, setErDraging] = useState(false);
+  const dragStart = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
+  const [modus, setModus] = useState<"peker" | "hånd">("peker");
 
   // Eksisterende georeferanse
   const eksisterende = tegning?.geoReference as GeoReferanse | null | undefined;
@@ -122,13 +224,28 @@ export function GeoReferanseEditor({
 
   const handleBildeKlikk = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
+      if (modus === "hånd") return;
       if (!aktivtPunkt) return;
-      const container = bildeRef.current;
-      if (!container) return;
+      if (erDraging) return;
+      const container = containerRef.current;
+      const bilde = bildeRef.current;
+      if (!container || !bilde) return;
 
-      const rect = container.getBoundingClientRect();
-      const x = ((e.clientX - rect.left) / rect.width) * 100;
-      const y = ((e.clientY - rect.top) / rect.height) * 100;
+      // Konverter skjermkoordinater til lokale koordinater
+      // ved å invertere CSS-transform: translate(pan) scale(zoom) med origin center
+      const containerRect = container.getBoundingClientRect();
+      const bildeBredd = bilde.offsetWidth;
+      const bildeHoyde = bilde.offsetHeight;
+      const ox = bildeBredd / 2;
+      const oy = bildeHoyde / 2;
+
+      const klikkX = e.clientX - containerRect.left;
+      const klikkY = e.clientY - containerRect.top;
+      const lokalX = (klikkX - pan.x - ox) / zoom + ox;
+      const lokalY = (klikkY - pan.y - oy) / zoom + oy;
+
+      const x = Math.max(0, Math.min(100, (lokalX / bildeBredd) * 100));
+      const y = Math.max(0, Math.min(100, (lokalY / bildeHoyde) * 100));
 
       const pixel = { x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10 };
 
@@ -140,8 +257,71 @@ export function GeoReferanseEditor({
         setAktivtPunkt(null);
       }
     },
-    [aktivtPunkt],
+    [aktivtPunkt, modus, erDraging, zoom, pan],
   );
+
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    e.preventDefault();
+    const container = containerRef.current;
+    if (!container) return;
+
+    const rect = container.getBoundingClientRect();
+    const mx = (e.clientX - rect.left) / rect.width;
+    const my = (e.clientY - rect.top) / rect.height;
+
+    setZoom((prev) => {
+      const faktor = e.deltaY > 0 ? 0.9 : 1.1;
+      const neste = Math.min(10, Math.max(0.5, prev * faktor));
+      const skalaDiff = neste - prev;
+
+      setPan((p) => ({
+        x: p.x - skalaDiff * (mx - 0.5) * rect.width,
+        y: p.y - skalaDiff * (my - 0.5) * rect.height,
+      }));
+
+      return neste;
+    });
+  }, []);
+
+  const handleMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      if (modus !== "hånd" && !aktivtPunkt) return;
+      if (modus === "hånd") {
+        e.preventDefault();
+        setErDraging(true);
+        dragStart.current = { x: e.clientX, y: e.clientY, panX: pan.x, panY: pan.y };
+      }
+    },
+    [modus, pan, aktivtPunkt],
+  );
+
+  const handleMouseMove = useCallback(
+    (e: React.MouseEvent) => {
+      if (!erDraging) return;
+      setPan({
+        x: dragStart.current.panX + (e.clientX - dragStart.current.x),
+        y: dragStart.current.panY + (e.clientY - dragStart.current.y),
+      });
+    },
+    [erDraging],
+  );
+
+  const handleMouseUp = useCallback(() => {
+    setErDraging(false);
+  }, []);
+
+  const nullstillVisning = useCallback(() => {
+    setZoom(1);
+    setPan({ x: 0, y: 0 });
+  }, []);
+
+  const zoomInn = useCallback(() => {
+    setZoom((prev) => Math.min(10, prev * 1.3));
+  }, []);
+
+  const zoomUt = useCallback(() => {
+    setZoom((prev) => Math.max(0.5, prev / 1.3));
+  }, []);
 
   const kanLagre =
     punkt1 &&
@@ -208,74 +388,166 @@ export function GeoReferanseEditor({
       <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
         <div className="border-b border-gray-200 bg-gray-50 px-4 py-2">
           <div className="flex items-center justify-between">
-            <p className="text-sm font-medium text-gray-700">{tegning.name}</p>
-            {aktivtPunkt && (
-              <span className="rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
-                Klikk på tegningen for å plassere punkt {aktivtPunkt}
+            <div className="flex items-center gap-2">
+              <p className="text-sm font-medium text-gray-700">{tegning.name}</p>
+              {aktivtPunkt && (
+                <span className="rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+                  Klikk på tegningen for å plassere punkt {aktivtPunkt}
+                </span>
+              )}
+            </div>
+
+            {/* Verktøylinje for zoom/pan */}
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setModus(modus === "peker" ? "hånd" : "peker")}
+                className={`rounded p-1.5 transition-colors ${
+                  modus === "hånd"
+                    ? "bg-blue-100 text-blue-700"
+                    : "text-gray-500 hover:bg-gray-200"
+                }`}
+                title={modus === "hånd" ? "Bytt til peker" : "Bytt til hånd (panorer)"}
+              >
+                {modus === "hånd" ? (
+                  <Hand className="h-4 w-4" />
+                ) : (
+                  <Crosshair className="h-4 w-4" />
+                )}
+              </button>
+
+              <div className="mx-1 h-5 w-px bg-gray-300" />
+
+              <button
+                type="button"
+                onClick={zoomUt}
+                className="rounded p-1.5 text-gray-500 transition-colors hover:bg-gray-200"
+                title="Zoom ut"
+              >
+                <ZoomOut className="h-4 w-4" />
+              </button>
+
+              <span className="min-w-[3rem] text-center text-xs font-medium text-gray-600">
+                {Math.round(zoom * 100)}%
               </span>
-            )}
+
+              <button
+                type="button"
+                onClick={zoomInn}
+                className="rounded p-1.5 text-gray-500 transition-colors hover:bg-gray-200"
+                title="Zoom inn"
+              >
+                <ZoomIn className="h-4 w-4" />
+              </button>
+
+              {zoom !== 1 && (
+                <>
+                  <div className="mx-1 h-5 w-px bg-gray-300" />
+                  <button
+                    type="button"
+                    onClick={nullstillVisning}
+                    className="rounded p-1.5 text-gray-500 transition-colors hover:bg-gray-200"
+                    title="Nullstill visning"
+                  >
+                    <RotateCcw className="h-4 w-4" />
+                  </button>
+                </>
+              )}
+            </div>
           </div>
         </div>
 
         <div
-          ref={bildeRef}
-          onClick={handleBildeKlikk}
-          className="relative"
-          style={{ cursor: aktivtPunkt ? "crosshair" : "default" }}
+          ref={containerRef}
+          onWheel={handleWheel}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
+          onDoubleClick={modus === "hånd" ? nullstillVisning : undefined}
+          className="relative overflow-hidden"
+          style={{
+            cursor:
+              modus === "hånd"
+                ? erDraging
+                  ? "grabbing"
+                  : "grab"
+                : aktivtPunkt
+                  ? "crosshair"
+                  : "default",
+            maxHeight: "600px",
+          }}
         >
-          {erBilde ? (
-            <img
-              src={`/api${tegning.fileUrl}`}
-              alt={tegning.name}
-              className="w-full"
-              draggable={false}
-            />
-          ) : (
-            <div className="relative">
-              <iframe
+          <div
+            ref={bildeRef}
+            onClick={handleBildeKlikk}
+            className="relative origin-center"
+            style={{
+              transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+              transformOrigin: "center center",
+            }}
+          >
+            {erBilde ? (
+              <img
                 src={`/api${tegning.fileUrl}`}
-                title={tegning.name}
-                className="h-[500px] w-full border-0"
+                alt={tegning.name}
+                className="w-full"
+                draggable={false}
               />
-              {/* Gjennomsiktig overlay for å fange klikk over PDF-iframe */}
-              {aktivtPunkt && (
-                <div
-                  className="absolute inset-0"
-                  style={{ cursor: "crosshair" }}
+            ) : (
+              <div className="relative">
+                <iframe
+                  src={`/api${tegning.fileUrl}`}
+                  title={tegning.name}
+                  className="h-[500px] w-full border-0"
                 />
-              )}
-            </div>
-          )}
-
-          {/* Punkt 1 markør */}
-          {punkt1 && (
-            <div
-              className="pointer-events-none absolute -translate-x-1/2 -translate-y-full"
-              style={{ left: `${punkt1.pixel.x}%`, top: `${punkt1.pixel.y}%` }}
-            >
-              <div className="flex flex-col items-center">
-                <span className="mb-0.5 rounded bg-red-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
-                  1
-                </span>
-                <div className="h-4 w-4 rounded-full border-2 border-white bg-red-500 shadow-md" />
+                {/* Gjennomsiktig overlay for å fange klikk over PDF-iframe */}
+                {(aktivtPunkt || modus === "hånd") && (
+                  <div
+                    className="absolute inset-0"
+                    style={{
+                      cursor:
+                        modus === "hånd"
+                          ? erDraging
+                            ? "grabbing"
+                            : "grab"
+                          : "crosshair",
+                    }}
+                  />
+                )}
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Punkt 2 markør */}
-          {punkt2 && (
-            <div
-              className="pointer-events-none absolute -translate-x-1/2 -translate-y-full"
-              style={{ left: `${punkt2.pixel.x}%`, top: `${punkt2.pixel.y}%` }}
-            >
-              <div className="flex flex-col items-center">
-                <span className="mb-0.5 rounded bg-blue-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
-                  2
-                </span>
-                <div className="h-4 w-4 rounded-full border-2 border-white bg-blue-500 shadow-md" />
+            {/* Punkt 1 markør */}
+            {punkt1 && (
+              <div
+                className="pointer-events-none absolute -translate-x-1/2 -translate-y-full"
+                style={{ left: `${punkt1.pixel.x}%`, top: `${punkt1.pixel.y}%` }}
+              >
+                <div className="flex flex-col items-center">
+                  <span className="mb-0.5 rounded bg-red-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                    1
+                  </span>
+                  <div className="h-4 w-4 rounded-full border-2 border-white bg-red-500 shadow-md" />
+                </div>
               </div>
-            </div>
-          )}
+            )}
+
+            {/* Punkt 2 markør */}
+            {punkt2 && (
+              <div
+                className="pointer-events-none absolute -translate-x-1/2 -translate-y-full"
+                style={{ left: `${punkt2.pixel.x}%`, top: `${punkt2.pixel.y}%` }}
+              >
+                <div className="flex flex-col items-center">
+                  <span className="mb-0.5 rounded bg-blue-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                    2
+                  </span>
+                  <div className="h-4 w-4 rounded-full border-2 border-white bg-blue-500 shadow-md" />
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -308,7 +580,7 @@ export function GeoReferanseEditor({
                 Piksel: {punkt1.pixel.x}%, {punkt1.pixel.y}%
               </p>
               <Input
-                label="Lim inn fra Google Maps"
+                label="Lim inn koordinater"
                 value=""
                 onChange={(e) => {
                   const resultat = parserKoordinater(e.target.value);
@@ -316,7 +588,7 @@ export function GeoReferanseEditor({
                     setPunkt1((p) => p ? { ...p, gps: resultat } : p);
                   }
                 }}
-                placeholder="69°38'39.9&quot;N 18°55'24.2&quot;E"
+                placeholder="Nord 7731109 Øst 652332 / 69.644, 18.923"
               />
               <div className="grid grid-cols-2 gap-2">
                 <Input
@@ -375,7 +647,7 @@ export function GeoReferanseEditor({
                 Piksel: {punkt2.pixel.x}%, {punkt2.pixel.y}%
               </p>
               <Input
-                label="Lim inn fra Google Maps"
+                label="Lim inn koordinater"
                 value=""
                 onChange={(e) => {
                   const resultat = parserKoordinater(e.target.value);
@@ -383,7 +655,7 @@ export function GeoReferanseEditor({
                     setPunkt2((p) => p ? { ...p, gps: resultat } : p);
                   }
                 }}
-                placeholder="69°38'39.9&quot;N 18°55'24.2&quot;E"
+                placeholder="Nord 7731109 Øst 652332 / 69.644, 18.923"
               />
               <div className="grid grid-cols-2 gap-2">
                 <Input

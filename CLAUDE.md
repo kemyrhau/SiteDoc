@@ -70,6 +70,7 @@ siteflow/
 │   │       ├── components/
 │   │       │   ├── Toppmeny.tsx              # LEGACY: Gammel toppmeny
 │   │       │   ├── RapportObjektVisning.tsx   # Read-only renderer for alle 23 rapportobjekttyper (print)
+│   │       │   ├── GeoReferanseEditor.tsx    # Georeferanse-kalibrering med zoom/pan og koordinatparser (UTM33, DMS, desimal)
 │   │       │   ├── layout/                   # Toppbar, HovedSidebar, SekundaertPanel, Verktoylinje, ProsjektVelger
 │   │       │   └── paneler/                  # Seksjonspaneler (Dashbord, Sjekklister, Oppgaver, Maler, Entrepriser, Tegninger, Mapper)
 │   │       ├── kontekst/                     # ProsjektKontekst, NavigasjonKontekst
@@ -893,7 +894,7 @@ Dalux-inspirert tre-kolonne layout:
 ### Layout-komponenter
 
 - `Toppbar` — Mørk blå bar med logo, prosjektvelger (dropdown med søk), brukermeny med utlogging
-- `HovedSidebar` — 60px ikonbar med Tooltip, deaktiverte ikoner uten valgt prosjekt. Seksjoner: Dashbord, Sjekklister, Oppgaver, Maler, Tegninger, Entrepriser, Mapper (bunn: Oppsett)
+- `HovedSidebar` — 60px ikonbar med Tooltip, deaktiverte ikoner uten valgt prosjekt. Seksjoner: Dashbord, Sjekklister, Oppgaver, Maler (krever `manage_field`-tillatelse), Tegninger, Entrepriser, Mapper (bunn: Oppsett)
 - `SekundaertPanel` — 280px panel med seksjonsspesifikt innhold (filtre, lister, søk)
 - `Verktoylinje` — Kontekstuell handlingsbar, registreres via `useVerktoylinje`
 - `ProsjektVelger` — Dropdown med søk på prosjektnavn og prosjektnummer
@@ -1019,6 +1020,8 @@ Tre eksportpunkter: `types`, `validation`, `utils`
 - `gpsTilTegning(gps, transformasjon)` — GPS → tegningsposisjon (prosent 0-100, clampet)
 - `tegningTilGps(pixel, transformasjon)` — Tegningsposisjon → GPS
 - `erInnenforTegning(gps, transformasjon, margin?)` — Sjekker om GPS-posisjon er innenfor tegningens dekningsområde
+- `utm33TilLatLng(nord, ost)` — Konverterer UTM sone 33N (EUREF89/Norgeskart) til WGS84 lat/lng (i `GeoReferanseEditor.tsx`)
+- `parserKoordinater(tekst)` — Parser koordinater fra UTM33 (`Nord 7731109 Øst 652332`), DMS (`69°38'39.9"N 18°55'24.2"E`) og desimal (`69.644, 18.923`) (i `GeoReferanseEditor.tsx`)
 
 ## Kodestil
 
@@ -1074,7 +1077,7 @@ Hele monorepoet bruker ESLint v8 med `.eslintrc.json` (legacy-format). Web bruke
 - **Mappeadgangskontroll:** Fleksibel tilgangsstyring per mappe med arv. `accessMode: "inherit"` arver fra overordnet mappe (rotmappe med inherit = åpen for alle), `accessMode: "custom"` bruker en tilgangsliste med entrepriser, grupper og/eller brukere. `beregnSynligeMapper()` beregner synlige mapper klient-side. Admin ser alltid alt. Foreldre-mapper til synlige barn vises som "kun sti" (grå, lås-ikon, uten innholdstilgang)
 - **Bygg:** Innendørs lokasjon (tidligere "Bygning") i et prosjekt, med tilknyttede tegninger og publiseringsstatus. `type: "bygg"` på Building-modellen
 - **Anlegg:** Utendørs/infrastrukturlokasjon med georefererte tegninger. `type: "anlegg"` på Building-modellen. Admin kalibrerer tegninger med 2 GPS-referansepunkter, feltarbeidere får automatisk posisjon fra GPS via similaritetstransformasjon. Opprettelse åpner redigeringsvisningen direkte. Upubliserte anlegg kan redigeres (legge inn tegninger) — publisering skjer etterpå
-- **Georeferanse:** Kalibrering av en tegning med 2 referansepunkter (pixel ↔ GPS). Lagres som `geoReference` JSON på Drawing-modellen. Brukes til automatisk markørplassering fra GPS i mobilappen. Format: `{ point1: { pixel: {x,y}, gps: {lat,lng} }, point2: ... }`
+- **Georeferanse:** Kalibrering av en tegning med 2 referansepunkter (pixel ↔ GPS). Lagres som `geoReference` JSON på Drawing-modellen. Brukes til automatisk markørplassering fra GPS i mobilappen. Format: `{ point1: { pixel: {x,y}, gps: {lat,lng} }, point2: ... }`. GeoReferanseEditor-komponenten har zoom/pan-navigering (håndverktøy, +/- knapper, musehjul) og støtter koordinat-innliming fra Norgeskart (UTM33 EUREF89), Google Maps (DMS) og desimalformat
 - **Similaritetstransformasjon:** 2D-transformasjon (skalering + rotasjon + translasjon) som mapper mellom tegningskoordinater (prosent 0-100) og GPS-koordinater. Beregnes fra 2 referansepunkter via `beregnTransformasjon()` i `@siteflow/shared`
 - **Prosjektnummer:** Unikt, autogenerert nummer på format `SF-YYYYMMDD-XXXX`
 - **Prefiks:** Kort kode for en mal (f.eks. BHO, S-BET, KBO)
