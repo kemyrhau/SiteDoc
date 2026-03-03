@@ -3,7 +3,7 @@
 import { useParams } from "next/navigation";
 import { useMemo, useCallback } from "react";
 import { Spinner, StatusBadge, Card } from "@siteflow/ui";
-import { Check, AlertCircle, Loader2, Printer } from "lucide-react";
+import { Check, AlertCircle, Loader2, Printer, FileText } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useSjekklisteSkjema } from "@/hooks/useSjekklisteSkjema";
 import { useAutoVaer } from "@/hooks/useAutoVaer";
@@ -177,7 +177,14 @@ export default function SjekklisteDetaljSide() {
           <h3 className="text-xl font-bold">{sjekkliste.title}</h3>
           <StatusBadge status={sjekkliste.status} />
           <LagreIndikator status={lagreStatus} />
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-2">
+            <button
+              onClick={() => window.open(`/utskrift/sjekkliste/${params.sjekklisteId}`, "_blank")}
+              className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
+            >
+              <FileText className="h-4 w-4" />
+              Vis PDF
+            </button>
             <button
               onClick={() => window.print()}
               className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
