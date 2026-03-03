@@ -271,7 +271,7 @@ export function GeoReferanseEditor({
 
     setZoom((prev) => {
       const faktor = e.deltaY > 0 ? 0.9 : 1.1;
-      const neste = Math.min(10, Math.max(0.5, prev * faktor));
+      const neste = Math.min(10, Math.max(1, prev * faktor));
       const skalaDiff = neste - prev;
 
       setPan((p) => ({
@@ -320,7 +320,7 @@ export function GeoReferanseEditor({
   }, []);
 
   const zoomUt = useCallback(() => {
-    setZoom((prev) => Math.max(0.5, prev / 1.3));
+    setZoom((prev) => Math.max(1, prev / 1.3));
   }, []);
 
   const kanLagre =
@@ -465,7 +465,7 @@ export function GeoReferanseEditor({
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseUp}
           onDoubleClick={modus === "hånd" ? nullstillVisning : undefined}
-          className="relative overflow-hidden"
+          className="relative overflow-hidden bg-gray-100"
           style={{
             cursor:
               modus === "hånd"
@@ -475,7 +475,7 @@ export function GeoReferanseEditor({
                 : aktivtPunkt
                   ? "crosshair"
                   : "default",
-            height: "calc(100vh - 350px)",
+            maxHeight: "calc(100vh - 350px)",
             minHeight: "400px",
           }}
         >
@@ -486,23 +486,22 @@ export function GeoReferanseEditor({
             style={{
               transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
               transformOrigin: "center center",
-              width: "100%",
-              height: "100%",
             }}
           >
             {erBilde ? (
               <img
                 src={`/api${tegning.fileUrl}`}
                 alt={tegning.name}
-                className="h-full w-full object-contain"
+                className="w-full"
                 draggable={false}
               />
             ) : (
-              <div className="relative h-full w-full">
+              <div className="relative">
                 <iframe
-                  src={`/api${tegning.fileUrl}`}
+                  src={`/api${tegning.fileUrl}#toolbar=0`}
                   title={tegning.name}
-                  className="h-full w-full border-0"
+                  className="w-full border-0"
+                  style={{ height: "800px" }}
                   scrolling="no"
                 />
                 {/* Permanent overlay — fanger alle mus/scroll-hendelser over PDF-iframe */}
