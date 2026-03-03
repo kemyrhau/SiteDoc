@@ -649,8 +649,18 @@ Sjekkliste-detaljsiden (`/dashbord/[prosjektId]/sjekklister/[sjekklisteId]`) har
 - Props: `logoUrl`, `prosjektAdresse`, `status`, `bygningNavn`, `tegningNavn`, `visInterntNummer` (default true), URL-konvertering for `/uploads/...` → `/api/uploads/...`
 
 **Skjerm-header** (skjult ved print via `.print-skjul`):
-- Tittel, StatusBadge, LagreIndikator, "Skriv ut"-knapp (`window.print()`)
+- Tittel, StatusBadge, LagreIndikator, "Vis PDF"-knapp (åpner forhåndsvisning i ny fane) + "Skriv ut"-knapp (`window.print()`)
 - Metadata: mal, oppretter, svarer, sjekkliste-nummer
+
+**PDF-forhåndsvisning** (`/utskrift/sjekkliste/[sjekklisteId]`):
+- Egen rute utenfor `/dashbord/`-layouten — ingen sidebar, toolbar eller navigasjon
+- Ren A4-visning (`max-w-[210mm]`, hvit bakgrunn med skygge, `px-[15mm] py-[15mm]`)
+- PrintHeader synlig på skjerm (inline, ikke `.print-header`-klassen)
+- Read-only rapportobjekter via `RapportObjektVisning` + `byggObjektTre`
+- Vedlegg og kommentarer vist under hvert felt via `FeltVedlegg`-komponent
+- Flytende verktøylinje (sticky) med «Skriv ut / Lagre PDF» og «Åpne sjekkliste»-lenke
+- Henter sjekkliste via `trpc.sjekkliste.hentMedId`, prosjekt via `trpc.prosjekt.hentMedId`
+- Ved print: A4-arket fyller hele siden (reset margin/shadow/rounded)
 
 **Print CSS** (`apps/web/src/app/globals.css`):
 - `@page { margin: 15mm; size: A4; }` — korrekt A4-format
@@ -863,6 +873,7 @@ Dalux-inspirert tre-kolonne layout:
 /                                             -> Landingsside med OAuth-innlogging
 /logg-inn                                     -> Google + Microsoft Entra ID innlogging
 /aksepter-invitasjon?token=...                -> Aksepter prosjektinvitasjon (Server Component)
+/utskrift/sjekkliste/[sjekklisteId]           -> PDF-forhåndsvisning (ren A4, utenfor dashbord-layout)
 /dashbord                                     -> Dashbord (prosjektliste)
 /dashbord/[prosjektId]                        -> Prosjektoversikt
 /dashbord/[prosjektId]/sjekklister            -> Sjekkliste-tabell
