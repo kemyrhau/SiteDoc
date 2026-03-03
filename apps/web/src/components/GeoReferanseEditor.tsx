@@ -521,36 +521,54 @@ export function GeoReferanseEditor({
               </div>
             )}
 
-            {/* Punkt 1 markør */}
-            {punkt1 && (
+          </div>
+
+          {/* Markører — utenfor transformert div for fast størrelse */}
+          {punkt1 && bildeRef.current && (() => {
+            const b = bildeRef.current;
+            const ox = b.offsetWidth / 2;
+            const oy = b.offsetHeight / 2;
+            const lx = (punkt1.pixel.x / 100) * b.offsetWidth;
+            const ly = (punkt1.pixel.y / 100) * b.offsetHeight;
+            const vx = (lx - ox) * zoom + ox + pan.x;
+            const vy = (ly - oy) * zoom + oy + pan.y;
+            return (
               <div
-                className="pointer-events-none absolute -translate-x-1/2 -translate-y-full"
-                style={{ left: `${punkt1.pixel.x}%`, top: `${punkt1.pixel.y}%` }}
+                className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2"
+                style={{ left: vx, top: vy }}
               >
                 <div className="flex flex-col items-center">
-                  <span className="mb-0.5 rounded bg-red-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                  <span className="mb-0.5 rounded bg-red-600 px-1 py-0.5 text-[9px] font-bold leading-none text-white">
                     1
                   </span>
-                  <div className="h-4 w-4 rounded-full border-2 border-white bg-red-500 shadow-md" />
+                  <div className="h-2.5 w-2.5 rounded-full border-[1.5px] border-white bg-red-500 shadow" />
                 </div>
               </div>
-            )}
+            );
+          })()}
 
-            {/* Punkt 2 markør */}
-            {punkt2 && (
+          {punkt2 && bildeRef.current && (() => {
+            const b = bildeRef.current;
+            const ox = b.offsetWidth / 2;
+            const oy = b.offsetHeight / 2;
+            const lx = (punkt2.pixel.x / 100) * b.offsetWidth;
+            const ly = (punkt2.pixel.y / 100) * b.offsetHeight;
+            const vx = (lx - ox) * zoom + ox + pan.x;
+            const vy = (ly - oy) * zoom + oy + pan.y;
+            return (
               <div
-                className="pointer-events-none absolute -translate-x-1/2 -translate-y-full"
-                style={{ left: `${punkt2.pixel.x}%`, top: `${punkt2.pixel.y}%` }}
+                className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2"
+                style={{ left: vx, top: vy }}
               >
                 <div className="flex flex-col items-center">
-                  <span className="mb-0.5 rounded bg-blue-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                  <span className="mb-0.5 rounded bg-blue-600 px-1 py-0.5 text-[9px] font-bold leading-none text-white">
                     2
                   </span>
-                  <div className="h-4 w-4 rounded-full border-2 border-white bg-blue-500 shadow-md" />
+                  <div className="h-2.5 w-2.5 rounded-full border-[1.5px] border-white bg-blue-500 shadow" />
                 </div>
               </div>
-            )}
-          </div>
+            );
+          })()}
         </div>
       </div>
 
