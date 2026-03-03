@@ -7,7 +7,24 @@
   display: none;
 }
 
+/* Print-vedlegg fullvisning: skjult på skjerm */
+.print-vedlegg-fullvisning {
+  display: none;
+}
+
 @media print {
+  /* A4-sideoppsett */
+  @page {
+    margin: 15mm;
+    size: A4;
+  }
+
+  /* Bevar farger (logo, trafikklys, badges) */
+  * {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
   /* Skjul navigasjon og chrome */
   header,
   aside,
@@ -34,6 +51,11 @@
     display: none !important;
   }
 
+  /* Vis print-vedlegg i fullformat */
+  .print-vedlegg-fullvisning {
+    display: block !important;
+  }
+
   /* Unngå sideskift inni felter */
   .print-no-break {
     page-break-inside: avoid;
@@ -42,5 +64,10 @@
   /* Sideskift mellom sjekklister */
   .print-sideskift {
     page-break-after: always;
+  }
+
+  /* Fjern skygger i print */
+  * {
+    box-shadow: none !important;
   }
 }

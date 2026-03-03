@@ -8,6 +8,14 @@ export interface PrintHeaderProps {
   oppretterBruker?: string | null;
   svarer?: string | null;
   vaerTekst?: string | null;
+  logoUrl?: string | null;
+  prosjektAdresse?: string | null;
+  status?: string | null;
+}
+
+function logoSrc(url: string): string {
+  if (url.startsWith("/uploads/")) return `/api/uploads${url.replace("/uploads", "")}`;
+  return url;
 }
 
 export function PrintHeader({
@@ -20,27 +28,39 @@ export function PrintHeader({
   oppretterBruker,
   svarer,
   vaerTekst,
+  logoUrl,
+  prosjektAdresse,
 }: PrintHeaderProps) {
   const dato = new Date().toLocaleDateString("nb-NO", {
     day: "2-digit",
     month: "2-digit",
-    year: "2-digit",
+    year: "numeric",
   });
 
   return (
     <div className="print-header mb-6 border border-gray-300">
-      {/* Rad 1: Prosjekt */}
-      <div className="flex items-center justify-between border-b border-gray-300 px-4 py-2">
-        <div>
-          <p className="text-base font-bold text-gray-900">{prosjektnavn}</p>
-          <p className="text-xs text-gray-600">Prosjektnr: {prosjektnummer}</p>
-        </div>
-        <div className="text-right">
-          {eksterntNummer && (
-            <p className="text-xs text-gray-600">Eksternt nr: {eksterntNummer}</p>
+      {/* Rad 1: Prosjekt med logo */}
+      <div className="flex items-start justify-between border-b border-gray-300 px-4 py-2">
+        <div className="flex items-start gap-4">
+          {logoUrl && (
+            <img
+              src={logoSrc(logoUrl)}
+              alt="Firmalogo"
+              className="max-h-[60px] max-w-[120px] object-contain"
+            />
           )}
-          <p className="text-xs text-gray-600">Dato: {dato}</p>
+          <div>
+            <p className="text-base font-bold text-gray-900">{prosjektnavn}</p>
+            <p className="text-xs text-gray-600">
+              Prosjektnr: {prosjektnummer}
+              {eksterntNummer && <> &middot; Ekst: {eksterntNummer}</>}
+            </p>
+            {prosjektAdresse && (
+              <p className="text-xs text-gray-500">Adresse: {prosjektAdresse}</p>
+            )}
+          </div>
         </div>
+        <p className="whitespace-nowrap text-xs text-gray-600">Dato: {dato}</p>
       </div>
 
       {/* Rad 2: Sjekkliste */}
@@ -49,15 +69,16 @@ export function PrintHeader({
           <p className="text-sm font-semibold text-gray-900">
             Sjekkliste: {sjekklisteTittel}
           </p>
-          {oppretter && (
-            <p className="text-xs text-gray-600">
-              Oppretter: {oppretter}
-              {oppretterBruker && ` (${oppretterBruker})`}
-            </p>
-          )}
-          {svarer && (
-            <p className="text-xs text-gray-600">Svarer: {svarer}</p>
-          )}
+          <p className="text-xs text-gray-600">
+            {oppretter && (
+              <>
+                Oppretter: {oppretter}
+                {oppretterBruker && ` (${oppretterBruker})`}
+              </>
+            )}
+            {oppretter && svarer && <> &middot; </>}
+            {svarer && <>Svarer: {svarer}</>}
+          </p>
         </div>
         {sjekklisteNummer && (
           <p className="text-sm font-medium text-gray-700">

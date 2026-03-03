@@ -13,7 +13,7 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 - **Fillagring:** S3-kompatibel (AWS S3 / Cloudflare R2 / MinIO)
 - **Auth:** Auth.js v5 (next-auth) med Google og Microsoft Entra ID (Office 365), PrismaAdapter, database-sesjoner, `allowDangerousEmailAccountLinking` for inviterte brukere
 - **E-post:** Resend (invitasjons-e-poster ved brukeropprettelse)
-- **Bildekomprimering:** expo-image-manipulator (mål: 300–400 KB)
+- **Bildekomprimering:** expo-image-manipulator (5:4 senter-crop + mål: 300–400 KB)
 - **GPS:** expo-location (deaktiverbar per objekt)
 - **PDF-eksport:** react-pdf
 - **Styling:** Tailwind CSS (web), NativeWind (mobil)
@@ -135,7 +135,7 @@ siteflow/
 | `accounts` | OAuth-tilkoblinger (Google, Microsoft Entra ID) |
 | `sessions` | Database-sesjoner for Auth.js |
 | `verification_tokens` | E-postverifiseringstokens |
-| `projects` | Prosjekter med prosjektnummer (SF-YYYYMMDD-XXXX), status, valgfri lokasjon (`latitude`, `longitude`), valgfritt eksternt prosjektnummer (`external_project_number`) |
+| `projects` | Prosjekter med prosjektnummer (SF-YYYYMMDD-XXXX), status, valgfri lokasjon (`latitude`, `longitude`), valgfritt eksternt prosjektnummer (`external_project_number`), valgfri firmalogo (`logo_url`) |
 | `project_members` | Prosjektmedlemmer med rolle (member/admin), entrepriser via `member_enterprises` |
 | `member_enterprises` | Mange-til-mange join-tabell mellom `project_members` og `enterprises` |
 | `enterprises` | Entrepriser med `enterprise_number` (Dalux-format: "04 Tømrer, Econor"), bransje, firma, farge |
@@ -484,9 +484,10 @@ Prosjekter kan ha valgfri GPS-lokasjon (`latitude`, `longitude` på Project-mode
 - Fix Leaflet-ikon-bug: sett icon URL manuelt med `L.icon()` (unpkg CDN)
 
 **Prosjektoppsett-siden** (`/dashbord/oppsett/prosjektoppsett`):
+- Seksjon "Firmalogo": opplasting (PNG/JPG), forhåndsvisning (maks 60×200px), slett-knapp, stiplet tom-boks
 - Seksjon "Generell informasjon": prosjektnummer (read-only), eksternt prosjektnummer, navn, beskrivelse, adresse
 - Seksjon "Prosjektlokasjon" med kartvelger, koordinater + "Fjern lokasjon"-knapp
-- Lagres via `prosjekt.oppdater` med `latitude`/`longitude`, `externalProjectNumber`
+- Lagres via `prosjekt.oppdater` med `latitude`/`longitude`, `externalProjectNumber`, `logoUrl`
 
 ### Automatisk værhenting
 
@@ -547,20 +548,25 @@ Oppgavemaler og Sjekklistemaler deler `MalListe`-komponenten med:
 Sjekkliste-detaljsiden (`/dashbord/[prosjektId]/sjekklister/[sjekklisteId]`) har utskriftsstøtte via `@media print` CSS og nettleserens "Lagre som PDF":
 
 **Print-header** (`PrintHeader`-komponent, skjult på skjerm via `.print-header`):
-- Rad 1: Prosjektnavn, prosjektnummer, eksternt prosjektnummer, dato
-- Rad 2: Sjekkliste-tittel, nummer (prefiks+løpenummer), oppretter (entreprise + bruker), svarer
+- Rad 1: Firmalogo (venstre, `max-h-[60px] max-w-[120px]`), prosjektnavn, prosjektnr + eksternt nr, adresse, dato (høyrejustert, dd.mm.yyyy)
+- Rad 2: Sjekkliste-tittel, nummer (prefiks+løpenummer), oppretter (entreprise + bruker) + svarer på samme linje
 - Rad 3: Værdata (temperatur, forhold, vind) — kun hvis vær-felt har verdi
+- Props: `logoUrl`, `prosjektAdresse`, `status` (nye), URL-konvertering for `/uploads/...` → `/api/uploads/...`
 
 **Skjerm-header** (skjult ved print via `.print-skjul`):
 - Tittel, StatusBadge, LagreIndikator, "Skriv ut"-knapp (`window.print()`)
 - Metadata: mal, oppretter, svarer, sjekkliste-nummer
 
 **Print CSS** (`apps/web/src/app/globals.css`):
+- `@page { margin: 15mm; size: A4; }` — korrekt A4-format
+- `print-color-adjust: exact` — fargeriktig utskrift (logo, trafikklys, badges)
 - `.print-header` — `display: none` på skjerm, `display: block` ved print
 - `.print-skjul` — `display: none` ved print
+- `.print-vedlegg-fullvisning` — `display: none` på skjerm, `display: block` ved print (5:4 bilder)
 - `.print-no-break` — `page-break-inside: avoid`
 - `header`, `aside`, `[data-panel="sekundaert"]`, `[data-toolbar]` skjules ved print
 - `main` → fullbredde uten margin
+- `box-shadow: none` — fjern skygger i print
 
 **Data-attributter for print:**
 - `SekundaertPanel` → `data-panel="sekundaert"`
@@ -572,6 +578,7 @@ Sjekkliste-detaljsiden (`/dashbord/[prosjektId]/sjekklister/[sjekklisteId]`) har
 - `FeltRad`-wrapper med label + verdi/tom-state
 - Normaliserer opsjoner via `normaliserOpsjon()` fra `typer.ts`
 - Bruker `formaterDato()` og `formaterDatoTid()` med `nb-NO`-locale
+- Vedlegg (`attachments`): viser bilder i 2-kolonne rutenett med 5:4 aspect ratio, filer som tekstliste
 
 ### Bildehåndtering
 
@@ -585,6 +592,7 @@ Sjekkliste-detaljsiden (`/dashbord/[prosjektId]/sjekklister/[sjekklisteId]`) har
 - Verktøylinje: [Slett] [Annoter] — Annoter kun for bilder, ikke filer
 - `FeltDokumentasjon` er delt komponent brukt av `FeltWrapper` for ALLE utfyllbare rapportobjekter
 - `FeltDokumentasjon` har `objektId`-prop (for bakgrunnskø) og `skjulKommentar`-prop (satt til `true` for `text_field`)
+- **Web:** `FeltDokumentasjon` har to visninger — filmrull-thumbnails (72×72px, `print-skjul`) og print-versjon (`print-vedlegg-fullvisning`) med 5:4 bilder i 2-kolonne rutenett
 
 **Modal tekstredigering (mobil):**
 - Alle tekstfelt i sjekkliste-utfylling bruker tappbar visning → fullskjerm modal med "Ferdig"-knapp
@@ -634,11 +642,18 @@ Sjekkliste-detaljsiden (`/dashbord/[prosjektId]/sjekklister/[sjekklisteId]`) har
 - URL-logikk: `file://` / `/var/` → lokal | `/uploads/...` → `AUTH_CONFIG.apiUrl + url` | `http(s)://` → direkte
 - Gjelder: `TegningsVisning`, `TegningsSkjermbilde`, `BildeAnnotering`, `FeltDokumentasjon` filmrull
 
-**Komprimering:**
-1. Maks 1920px bredde
-2. Iterativ kvalitetsjustering til 300–400 KB
-3. GPS-tag legges til hvis aktivert
-4. Lagres lokalt via `lokalBilde.ts` (persistent `documentDirectory`), synkroniseres til S3 via bakgrunnskø
+**Komprimering (`komprimer()` i `apps/mobile/src/services/bilde.ts`):**
+1. 5:4 senter-crop (bredde:høyde = 1.25) — `beregnCropAction()` beregner crop basert på dimensjoner
+2. Maks 1920px bredde (resize)
+3. Iterativ kvalitetsjustering til 300–400 KB
+4. GPS-tag legges til hvis aktivert
+5. Lagres lokalt via `lokalBilde.ts` (persistent `documentDirectory`), synkroniseres til S3 via bakgrunnskø
+
+**Kamerazoom (`KameraModal`):**
+- `zoom`-prop på `CameraView` (0–1, logaritmisk)
+- Tre zoomknapper over utløserknappen: `0.5x` (zoom=0), `1x` (zoom=0.02), `3x` (zoom=0.06)
+- Aktiv knapp: hvit bakgrunn med mørk tekst, inaktive: gjennomsiktig med hvit tekst
+- Resettes til 0 ved lukking
 
 **Viktig:** `InteractionManager.runAfterInteractions` MÅ brukes etter at kamera/picker lukkes, før state-oppdateringer, for å unngå React Navigation "Cannot read property 'stale' of undefined"-krasj.
 
@@ -943,6 +958,7 @@ Hele monorepoet bruker ESLint v8 med `.eslintrc.json` (legacy-format). Web bruke
 - **Automatisk værhenting:** Sjekklister med vær-felt og dato-felt auto-henter værdata fra Open-Meteo basert på prosjektkoordinater. Kilde-sporing: `"automatisk"` (fra API) eller `"manuell"` (bruker-overstyrt).
 - **WMO-værkode:** Internasjonal standard (WMO Code Table 4677) for å beskrive værforhold som tall. Konverteres til norsk tekst via `vaerkodeTilTekst()`.
 - **Eksternt prosjektnummer:** Valgfritt felt (`externalProjectNumber`) på Project-modellen for kundens eller byggeherrens prosjektreferanse. Redigerbar i prosjektinnstillinger, vises i print-header.
+- **Firmalogo:** Valgfritt felt (`logoUrl`) på Project-modellen for prosjektets firmalogo. Lastes opp via prosjektoppsett, vises i print-header øverst til venstre. URL lagres som `/uploads/{uuid}.ext`.
 - **Print-til-PDF:** Utskriftsstøtte på sjekkliste-detaljsiden via `@media print` CSS. Print-header med prosjektinfo, oppretter/svarer og værdata vises kun ved utskrift. Nettleserens "Lagre som PDF" brukes.
 
 ## Språk

@@ -10,12 +10,19 @@ interface KameraModalProps {
   onLukk: () => void;
 }
 
+const ZOOM_NIVÅER = [
+  { label: "0.5x", verdi: 0 },
+  { label: "1x", verdi: 0.02 },
+  { label: "3x", verdi: 0.06 },
+] as const;
+
 export function KameraModal({ synlig, onBilde, onLukk }: KameraModalProps) {
   const cameraRef = useRef<CameraView>(null);
   const insets = useSafeAreaInsets();
   const [tillatelse, spørOmTillatelse] = useCameraPermissions();
   const tarBilde = useRef(false);
   const [antallTatt, settAntallTatt] = useState(0);
+  const [zoom, setZoom] = useState(0);
   const flashOpacity = useRef(new Animated.Value(0)).current;
 
   const håndterTaBilde = useCallback(async () => {
@@ -45,6 +52,7 @@ export function KameraModal({ synlig, onBilde, onLukk }: KameraModalProps) {
 
   const håndterLukk = useCallback(() => {
     settAntallTatt(0);
+    setZoom(0);
     onLukk();
   }, [onLukk]);
 
@@ -76,6 +84,7 @@ export function KameraModal({ synlig, onBilde, onLukk }: KameraModalProps) {
           ref={cameraRef}
           style={{ flex: 1 }}
           facing="back"
+          zoom={zoom}
         >
           {/* Flash-overlay */}
           <Animated.View
@@ -104,11 +113,37 @@ export function KameraModal({ synlig, onBilde, onLukk }: KameraModalProps) {
           )}
         </CameraView>
 
-        {/* Utløserknapp */}
+        {/* Zoomknapper + Utløserknapp */}
         <View
-          className="items-center bg-black py-6"
+          className="items-center bg-black"
           style={{ paddingBottom: insets.bottom + 12 }}
         >
+          {/* Zoomknapper */}
+          <View className="mb-4 mt-3 flex-row items-center gap-2">
+            {ZOOM_NIVÅER.map((nivå) => {
+              const erAktiv = zoom === nivå.verdi;
+              return (
+                <Pressable
+                  key={nivå.label}
+                  onPress={() => setZoom(nivå.verdi)}
+                  className={`items-center justify-center rounded-full px-3 py-1 ${
+                    erAktiv ? "bg-white" : "bg-white/20"
+                  }`}
+                  style={{ minWidth: 44, height: 30 }}
+                >
+                  <Text
+                    className={`text-xs font-semibold ${
+                      erAktiv ? "text-black" : "text-white"
+                    }`}
+                  >
+                    {nivå.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          {/* Utløserknapp */}
           <Pressable
             onPress={håndterTaBilde}
             className="h-[72px] w-[72px] items-center justify-center rounded-full border-4 border-white"

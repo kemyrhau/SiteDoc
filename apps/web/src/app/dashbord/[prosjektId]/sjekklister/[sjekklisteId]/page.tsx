@@ -159,6 +159,9 @@ export default function SjekklisteDetaljSide() {
         oppretterBruker={oppretterBruker ?? null}
         svarer={sjekkliste.responderEnterprise?.name}
         vaerTekst={vaerTekst}
+        logoUrl={prosjekt?.logoUrl}
+        prosjektAdresse={prosjekt?.address}
+        status={sjekkliste.status}
       />
 
       {/* Skjerm-header: synlig på skjerm, skjult ved print */}

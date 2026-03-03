@@ -148,6 +148,8 @@ function SjekklistePrint({
     name: string;
     projectNumber: string;
     externalProjectNumber?: string | null;
+    logoUrl?: string | null;
+    address?: string | null;
   } | null;
   erSiste: boolean;
 }) {
@@ -198,6 +200,9 @@ function SjekklistePrint({
           oppretterBruker={sjekkliste.creator?.name ?? null}
           svarer={sjekkliste.responderEnterprise?.name}
           vaerTekst={vaerTekst}
+          logoUrl={prosjekt?.logoUrl}
+          prosjektAdresse={prosjekt?.address}
+          status={sjekkliste.status}
         />
 
         {/* Skjerm-header for denne sjekklisten (skjules ved print) */}

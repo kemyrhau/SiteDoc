@@ -125,9 +125,9 @@ export function FeltDokumentasjon({
         </div>
       )}
 
-      {/* Filmrull (vedlegg-thumbnails) */}
+      {/* Filmrull (vedlegg-thumbnails) — skjult ved print */}
       {harVedlegg && (
-        <div className="mb-2 flex flex-wrap gap-2">
+        <div className="print-skjul mb-2 flex flex-wrap gap-2">
           {vedlegg.map((v) => {
             const erValgt = valgtVedlegg === v.id;
             return (
@@ -170,6 +170,38 @@ export function FeltDokumentasjon({
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Print-versjon av vedlegg: 5:4 bilder i 2-kolonne rutenett */}
+      {harVedlegg && (
+        <div className="print-vedlegg-fullvisning">
+          {(() => {
+            const bildeVedlegg = vedlegg.filter((v) => v.type === "bilde");
+            const filVedlegg = vedlegg.filter((v) => v.type !== "bilde");
+            return (
+              <>
+                {bildeVedlegg.length > 0 && (
+                  <div className="grid grid-cols-2 gap-3">
+                    {bildeVedlegg.map((v) => (
+                      <img
+                        key={v.id}
+                        src={vedleggUrl(v.url)}
+                        alt={v.filnavn}
+                        className="w-full rounded border border-gray-200 object-cover"
+                        style={{ aspectRatio: "5/4" }}
+                      />
+                    ))}
+                  </div>
+                )}
+                {filVedlegg.length > 0 && (
+                  <p className="mt-1 text-xs text-gray-600">
+                    {filVedlegg.map((f) => f.filnavn).join(", ")}
+                  </p>
+                )}
+              </>
+            );
+          })()}
         </div>
       )}
 

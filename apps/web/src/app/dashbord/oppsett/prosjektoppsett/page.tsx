@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import dynamic from "next/dynamic";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { trpc } from "@/lib/trpc";
@@ -15,6 +15,8 @@ import {
   Archive,
   CircleDot,
   X,
+  Upload,
+  ImageIcon,
 } from "lucide-react";
 
 // Leaflet krever window — laster dynamisk uten SSR
@@ -100,6 +102,9 @@ export default function ProsjektoppsettSide() {
   const [latitude, setLatitude] = useState<number | null>(null);
   const [longitude, setLongitude] = useState<number | null>(null);
   const [eksterntNummer, setEksterntNummer] = useState("");
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [lasterOppLogo, setLasterOppLogo] = useState(false);
+  const logoInputRef = useRef<HTMLInputElement>(null);
   const [harEndringer, setHarEndringer] = useState(false);
 
   // Synkroniser skjemafelter med prosjektdata
@@ -112,6 +117,7 @@ export default function ProsjektoppsettSide() {
       setLatitude(prosjekt.latitude ?? null);
       setLongitude(prosjekt.longitude ?? null);
       setEksterntNummer(prosjekt.externalProjectNumber ?? "");
+      setLogoUrl(prosjekt.logoUrl ?? null);
       setHarEndringer(false);
     }
   }, [prosjekt]);
@@ -122,6 +128,29 @@ export default function ProsjektoppsettSide() {
       setHarEndringer(true);
     };
   }
+
+  const håndterLogoOpplasting = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const fil = e.target.files?.[0];
+    if (!fil) return;
+    setLasterOppLogo(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", fil);
+      const respons = await fetch("/api/trpc/../../../upload", {
+        method: "POST",
+        body: formData,
+      });
+      if (!respons.ok) return;
+      const data = await respons.json() as { fileUrl: string };
+      setLogoUrl(data.fileUrl);
+      setHarEndringer(true);
+    } catch (feil) {
+      console.error("Logo-opplasting feilet:", feil);
+    } finally {
+      setLasterOppLogo(false);
+      e.target.value = "";
+    }
+  }, []);
 
   const oppdaterMutation = trpc.prosjekt.oppdater.useMutation({
     onSuccess: () => {
@@ -141,6 +170,7 @@ export default function ProsjektoppsettSide() {
       latitude,
       longitude,
       externalProjectNumber: eksterntNummer.trim() || null,
+      logoUrl: logoUrl || null,
       status: status as "active" | "archived" | "completed",
     });
   }
@@ -170,6 +200,59 @@ export default function ProsjektoppsettSide() {
       </div>
 
       <div className="flex flex-col gap-5">
+        {/* Firmalogo */}
+        <Seksjon tittel="Firmalogo" beskrivelse="Logoen vises i utskriftshodet på sjekklister og rapporter">
+          <div className="flex items-center gap-4">
+            {logoUrl ? (
+              <div className="relative">
+                <img
+                  src={logoUrl.startsWith("/uploads/") ? `/api/uploads${logoUrl.replace("/uploads", "")}` : logoUrl}
+                  alt="Firmalogo"
+                  className="max-h-[60px] max-w-[200px] object-contain"
+                />
+                <button
+                  onClick={() => {
+                    setLogoUrl(null);
+                    setHarEndringer(true);
+                  }}
+                  className="absolute -right-2 -top-2 rounded-full bg-red-500 p-0.5 text-white hover:bg-red-600"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ) : (
+              <div className="flex h-[60px] w-[200px] items-center justify-center rounded-lg border-2 border-dashed border-gray-300">
+                <div className="flex items-center gap-2 text-xs text-gray-400">
+                  <ImageIcon className="h-4 w-4" />
+                  Ingen logo lastet opp
+                </div>
+              </div>
+            )}
+            <div>
+              <button
+                onClick={() => logoInputRef.current?.click()}
+                disabled={lasterOppLogo}
+                className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+              >
+                {lasterOppLogo ? (
+                  <Spinner size="sm" />
+                ) : (
+                  <Upload className="h-4 w-4" />
+                )}
+                {lasterOppLogo ? "Laster opp..." : "Last opp logo"}
+              </button>
+              <p className="mt-1 text-xs text-gray-400">PNG eller JPG, maks 200×60px anbefalt</p>
+            </div>
+            <input
+              ref={logoInputRef}
+              type="file"
+              accept=".png,.jpg,.jpeg"
+              onChange={håndterLogoOpplasting}
+              className="hidden"
+            />
+          </div>
+        </Seksjon>
+
         {/* Generell informasjon */}
         <Seksjon tittel="Generell informasjon">
           <div className="flex flex-col gap-4">

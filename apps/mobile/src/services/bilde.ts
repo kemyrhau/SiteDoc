@@ -13,12 +13,53 @@ export interface BildeResultat {
 const MAKS_BREDDE = 1920;
 const MAL_MAKS_KB = 400;
 const MAL_MIN_KB = 300;
+const MAL_FORHOLD = 5 / 4; // 1.25 — bredde:høyde
+
+/** Beregn 5:4 senter-crop action basert på bildedimensjoner */
+function beregnCropAction(
+  bredde: number,
+  hoyde: number,
+): ImageManipulator.Action | null {
+  const bildForhold = bredde / hoyde;
+  if (Math.abs(bildForhold - MAL_FORHOLD) < 0.01) return null; // Allerede 5:4
+
+  if (bildForhold > MAL_FORHOLD) {
+    // Bredere enn 5:4 — crop sidene
+    const nyBredde = Math.round(hoyde * MAL_FORHOLD);
+    return {
+      crop: {
+        originX: Math.round((bredde - nyBredde) / 2),
+        originY: 0,
+        width: nyBredde,
+        height: hoyde,
+      },
+    };
+  } else {
+    // Høyere enn 5:4 — crop topp/bunn
+    const nyHoyde = Math.round(bredde / MAL_FORHOLD);
+    return {
+      crop: {
+        originX: 0,
+        originY: Math.round((hoyde - nyHoyde) / 2),
+        width: bredde,
+        height: nyHoyde,
+      },
+    };
+  }
+}
 
 export async function komprimer(uri: string): Promise<{ uri: string; filstorrelse: number }> {
-  // Steg 1: Skaler til maks 1920px bredde
+  // Steg 0: Hent bildedimensjoner for 5:4 crop
+  const dimensjoner = await ImageManipulator.manipulateAsync(uri, [], {});
+  const cropAction = beregnCropAction(dimensjoner.width, dimensjoner.height);
+  const actions: ImageManipulator.Action[] = [];
+  if (cropAction) actions.push(cropAction);
+  actions.push({ resize: { width: MAKS_BREDDE } });
+
+  // Steg 1: Crop til 5:4 + skaler til maks 1920px bredde
   let resultat = await ImageManipulator.manipulateAsync(
     uri,
-    [{ resize: { width: MAKS_BREDDE } }],
+    actions,
     { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG },
   );
 
@@ -31,7 +72,7 @@ export async function komprimer(uri: string): Promise<{ uri: string; filstorrels
   while (storrelseKB > MAL_MAKS_KB && kvalitet >= 0.1) {
     resultat = await ImageManipulator.manipulateAsync(
       uri,
-      [{ resize: { width: MAKS_BREDDE } }],
+      actions,
       { compress: kvalitet, format: ImageManipulator.SaveFormat.JPEG },
     );
     info = await FileSystem.getInfoAsync(resultat.uri);
@@ -44,7 +85,7 @@ export async function komprimer(uri: string): Promise<{ uri: string; filstorrels
     const mellomKvalitet = kvalitet + 0.15;
     const mellomResultat = await ImageManipulator.manipulateAsync(
       uri,
-      [{ resize: { width: MAKS_BREDDE } }],
+      actions,
       { compress: mellomKvalitet, format: ImageManipulator.SaveFormat.JPEG },
     );
     const mellomInfo = await FileSystem.getInfoAsync(mellomResultat.uri);

@@ -281,12 +281,35 @@ function ObjektInnhold({
     }
 
     case "attachments": {
-      const vedlegg = Array.isArray(verdi) ? verdi : [];
+      const vedlegg = Array.isArray(verdi) ? (verdi as Array<{ id?: string; url?: string; filnavn?: string; type?: string }>) : [];
+      const bilder = vedlegg.filter((v) => v.type === "bilde" || /\.(png|jpg|jpeg|gif|webp)$/i.test(v.filnavn ?? ""));
+      const filer = vedlegg.filter((v) => !bilder.includes(v));
       return (
         <FeltRad label={label} tom={vedlegg.length === 0}>
-          <p className="text-sm text-gray-900">
-            {vedlegg.length} vedlegg
-          </p>
+          <div>
+            {bilder.length > 0 && (
+              <div className="grid grid-cols-2 gap-3">
+                {bilder.map((bilde, idx) => {
+                  const url = bilde.url ?? "";
+                  const src = url.startsWith("/uploads/") ? `/api/uploads${url.replace("/uploads", "")}` : url;
+                  return (
+                    <img
+                      key={bilde.id ?? idx}
+                      src={src}
+                      alt={bilde.filnavn ?? "Vedlegg"}
+                      className="w-full rounded border border-gray-200 object-cover"
+                      style={{ aspectRatio: "5/4" }}
+                    />
+                  );
+                })}
+              </div>
+            )}
+            {filer.length > 0 && (
+              <p className="mt-1 text-sm text-gray-600">
+                {filer.map((f) => f.filnavn).join(", ")}
+              </p>
+            )}
+          </div>
         </FeltRad>
       );
     }
