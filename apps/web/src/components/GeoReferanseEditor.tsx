@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { Button, Input } from "@siteflow/ui";
 import {
@@ -173,6 +173,7 @@ export function GeoReferanseEditor({
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [erDraging, setErDraging] = useState(false);
   const dragStart = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
+  const harDratt = useRef(false); // Forhindrer klikk-plassering etter drag
   const [modus, setModus] = useState<"peker" | "hånd">("peker");
 
   // Eksisterende georeferanse
@@ -226,7 +227,7 @@ export function GeoReferanseEditor({
     (e: React.MouseEvent<HTMLDivElement>) => {
       if (modus === "hånd") return;
       if (!aktivtPunkt) return;
-      if (erDraging) return;
+      if (harDratt.current) { harDratt.current = false; return; }
       const container = containerRef.current;
       const bilde = bildeRef.current;
       if (!container || !bilde) return;
@@ -257,40 +258,50 @@ export function GeoReferanseEditor({
         setAktivtPunkt(null);
       }
     },
-    [aktivtPunkt, modus, erDraging, zoom, pan],
+    [aktivtPunkt, modus, zoom, pan],
   );
 
-  const handleWheel = useCallback((e: React.WheelEvent) => {
-    e.preventDefault();
+  // Native wheel-listener med { passive: false } — React onWheel kan være passiv
+  // og tillater ikke preventDefault(), som gjør at siden scroller i stedet for å zoome.
+  useEffect(() => {
     const container = containerRef.current;
-    const bilde = bildeRef.current;
-    if (!container || !bilde) return;
+    if (!container) return;
 
-    const containerRect = container.getBoundingClientRect();
-    const cx = e.clientX - containerRect.left;
-    const cy = e.clientY - containerRect.top;
-    const ox = bilde.offsetWidth / 2;
-    const oy = bilde.offsetHeight / 2;
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const bilde = bildeRef.current;
+      if (!bilde) return;
 
-    setZoom((prev) => {
-      const faktor = e.deltaY > 0 ? 0.85 : 1.18;
-      const neste = Math.min(10, Math.max(1, prev * faktor));
+      const containerRect = container.getBoundingClientRect();
+      const cx = e.clientX - containerRect.left;
+      const cy = e.clientY - containerRect.top;
+      const ox = bilde.offsetWidth / 2;
+      const oy = bilde.offsetHeight / 2;
 
-      if (neste !== prev) {
-        setPan((p) => {
-          // Zoom mot musepekeren: hold punktet under cursoren fast
-          const relX = (cx - p.x - ox) / prev;
-          const relY = (cy - p.y - oy) / prev;
-          const dz = neste - prev;
-          return {
-            x: p.x - relX * dz,
-            y: p.y - relY * dz,
-          };
-        });
-      }
+      setZoom((prev) => {
+        const faktor = e.deltaY > 0 ? 0.85 : 1.18;
+        const neste = Math.min(10, Math.max(1, prev * faktor));
 
-      return neste;
-    });
+        if (neste !== prev) {
+          setPan((p) => {
+            // Zoom mot musepekeren: hold punktet under cursoren fast
+            const relX = (cx - p.x - ox) / prev;
+            const relY = (cy - p.y - oy) / prev;
+            const dz = neste - prev;
+            return {
+              x: p.x - relX * dz,
+              y: p.y - relY * dz,
+            };
+          });
+        }
+
+        return neste;
+      });
+    };
+
+    container.addEventListener("wheel", handleWheel, { passive: false });
+    return () => container.removeEventListener("wheel", handleWheel);
   }, []);
 
   const handleMouseDown = useCallback(
@@ -299,6 +310,7 @@ export function GeoReferanseEditor({
       if (modus === "hånd") {
         e.preventDefault();
         setErDraging(true);
+        harDratt.current = false;
         dragStart.current = { x: e.clientX, y: e.clientY, panX: pan.x, panY: pan.y };
       }
     },
@@ -308,9 +320,13 @@ export function GeoReferanseEditor({
   const handleMouseMove = useCallback(
     (e: React.MouseEvent) => {
       if (!erDraging) return;
+      const dx = e.clientX - dragStart.current.x;
+      const dy = e.clientY - dragStart.current.y;
+      // Merk som dratt hvis musen har beveget seg mer enn 3px
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) harDratt.current = true;
       setPan({
-        x: dragStart.current.panX + (e.clientX - dragStart.current.x),
-        y: dragStart.current.panY + (e.clientY - dragStart.current.y),
+        x: dragStart.current.panX + dx,
+        y: dragStart.current.panY + dy,
       });
     },
     [erDraging],
@@ -469,7 +485,6 @@ export function GeoReferanseEditor({
 
         <div
           ref={containerRef}
-          onWheel={handleWheel}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
