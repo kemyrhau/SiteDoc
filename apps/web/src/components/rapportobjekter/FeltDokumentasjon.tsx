@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
-import { Paperclip, Upload, Clipboard, Trash2 } from "lucide-react";
+import { Paperclip, Upload, Clipboard, Trash2, Map } from "lucide-react";
 import type { Vedlegg } from "./typer";
+import { TegningsModal } from "./TegningsModal";
 
 interface FeltDokumentasjonProps {
   kommentar: string;
@@ -12,6 +13,7 @@ interface FeltDokumentasjonProps {
   onFjernVedlegg: (vedleggId: string) => void;
   leseModus?: boolean;
   skjulKommentar?: boolean;
+  prosjektId?: string;
 }
 
 function genererVedleggId(): string {
@@ -36,9 +38,11 @@ export function FeltDokumentasjon({
   onFjernVedlegg,
   leseModus,
   skjulKommentar,
+  prosjektId,
 }: FeltDokumentasjonProps) {
   const [visVedleggMeny, settVisVedleggMeny] = useState(false);
   const [valgtVedlegg, settValgtVedlegg] = useState<string | null>(null);
+  const [visTegningsModal, settVisTegningsModal] = useState(false);
   const filInputRef = useRef<HTMLInputElement>(null);
 
   const lastOppFil = useCallback(async (fil: File) => {
@@ -207,7 +211,7 @@ export function FeltDokumentasjon({
 
       {/* Vedlegg-handlinger (kun redigeringsmodus) */}
       {!leseModus && (
-        <div className="relative">
+        <div className="relative flex items-center gap-3">
           <button
             type="button"
             onClick={() => settVisVedleggMeny(!visVedleggMeny)}
@@ -216,6 +220,17 @@ export function FeltDokumentasjon({
             <Paperclip size={14} />
             Vedlegg
           </button>
+
+          {prosjektId && (
+            <button
+              type="button"
+              onClick={() => settVisTegningsModal(true)}
+              className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700"
+            >
+              <Map size={14} />
+              Tegning
+            </button>
+          )}
 
           {visVedleggMeny && (
             <div className="absolute bottom-full left-0 z-10 mb-1 rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
@@ -250,6 +265,16 @@ export function FeltDokumentasjon({
             className="hidden"
           />
         </div>
+      )}
+
+      {/* Tegningsmodal */}
+      {prosjektId && (
+        <TegningsModal
+          open={visTegningsModal}
+          onClose={() => settVisTegningsModal(false)}
+          prosjektId={prosjektId}
+          onVelgSkjermbilde={onLeggTilVedlegg}
+        />
       )}
     </div>
   );

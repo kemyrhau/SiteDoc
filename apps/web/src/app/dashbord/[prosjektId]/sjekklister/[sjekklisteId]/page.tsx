@@ -241,6 +241,7 @@ export default function SjekklisteDetaljSide() {
                 leseModus={leseModus}
                 nestingNivå={nestingNivå}
                 valideringsfeil={valideringsfeil[objekt.id]}
+                prosjektId={params.prosjektId}
               >
                 <RapportObjektRenderer
                   objekt={objekt}

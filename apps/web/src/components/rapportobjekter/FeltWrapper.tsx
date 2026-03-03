@@ -18,6 +18,7 @@ interface FeltWrapperProps {
   leseModus?: boolean;
   nestingNivå?: number;
   valideringsfeil?: string;
+  prosjektId?: string;
   children: ReactNode;
 }
 
@@ -31,6 +32,7 @@ export function FeltWrapper({
   leseModus,
   nestingNivå = 0,
   valideringsfeil,
+  prosjektId,
   children,
 }: FeltWrapperProps) {
   // Gradert innrykk: ml-4 per nivå, maks ml-12
@@ -68,6 +70,7 @@ export function FeltWrapper({
         onFjernVedlegg={onFjernVedlegg}
         leseModus={leseModus}
         skjulKommentar={objekt.type === "text_field"}
+        prosjektId={prosjektId}
       />
     </div>
   );
