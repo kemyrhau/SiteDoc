@@ -252,7 +252,7 @@ export function KameraModal({ synlig, onBilde, onLukk }: KameraModalProps) {
           style={{ paddingBottom: insets.bottom + 4, paddingTop: 4 }}
         >
           {/* Zoomknapper — roterer med enhetens orientering */}
-          <Animated.View style={[{ marginBottom: 48, flexDirection: "row", alignItems: "center", gap: 8 }, uiRotasjon]}>
+          <Animated.View style={[{ marginBottom: 64, flexDirection: "row", alignItems: "center", gap: 8 }, uiRotasjon]}>
             {ZOOM_NIVÅER.map((nivå) => {
               const erAktiv = zoom === nivå.verdi;
               return (
