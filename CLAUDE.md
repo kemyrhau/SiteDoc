@@ -143,7 +143,7 @@ siteflow/
 | `buildings` | Bygg/anlegg med `type` (`"bygg"` \| `"anlegg"`), status (unpublished/published) |
 | `drawings` | Tegninger med metadata: tegningsnummer, fagdisiplin, revisjon, status, etasje, målestokk, opphav, valgfri `geoReference` (JSON) |
 | `drawing_revisions` | Revisjonshistorikk for tegninger med fil, status og hvem som lastet opp |
-| `report_templates` | Maler med category (oppgave/sjekkliste), prefix, versjon, `domain` (bygg/hms/kvalitet, default "bygg") |
+| `report_templates` | Maler med category (oppgave/sjekkliste), prefix, versjon, `domain` (bygg/hms/kvalitet, default "bygg"), `subjects` (JSON-array med forhåndsdefinerte emnetekster) |
 | `report_objects` | Rapportobjekter i maler (23 typer, JSON-konfig), rekursiv nesting via `parent_id` |
 | `checklists` | Sjekklister med oppretter/svarer-entreprise, status, data (JSON) |
 | `tasks` | Oppgaver med påkrevd mal (`template_id`), prefiks+løpenummer (`number`), prioritet, frist, oppretter/svarer, utfylt data (`data` JSON), valgfri tegningsposisjon og sjekkliste-kobling (`checklist_id`, `checklist_field_id`) |
@@ -165,7 +165,7 @@ Viktige relasjoner:
 - Oppgaver kan kobles til en tegning med posisjon (`drawing_id`, `position_x`, `position_y`) — brukes for markør-plassering på tegninger
 - `workflows` tilhører en oppretter-entreprise (`enterpriseId`) med valgfri svarer-entreprise (`responderEnterpriseId`), kobler til maler via `workflow_templates`. Relasjoner er navngitte: `WorkflowCreator` / `WorkflowResponder`
 - `report_objects` bruker selvrefererande relasjon (`parent_id`) for rekursiv nesting — kontainerfelt (`list_single`/`list_multi`) kan ha barnefelt som selv kan være kontainere (Dalux-stil), CASCADE-sletting av barn
-- `report_templates` har `category` (`oppgave` | `sjekkliste`) og valgfritt `prefix`
+- `report_templates` har `category` (`oppgave` | `sjekkliste`), valgfritt `prefix` og valgfri `subjects` (Json?, default `[]`) — forhåndsdefinerte emnetekster som vises som nedtrekksmeny ved opprettelse
 - `buildings` tilhører et prosjekt, med tegninger koblet via `building_id`. `type`-felt skiller mellom `"bygg"` (innendørs) og `"anlegg"` (utendørs med georeferering)
 - `drawings` har full metadata (tegningsnummer, fagdisiplin, revisjon, etasje, målestokk, status) med `drawing_revisions` for historikk. Valgfri `geoReference` (JSON) med 2 referansepunkter for similaritetstransformasjon (pixel ↔ GPS)
 - `folders` bruker selvrefererande relasjon (`parent_id`) for mappetreet i Mapper-modulen. `accessMode` styrer tilgang: `"inherit"` (arv fra forelder) eller `"custom"` (egendefinert tilgangsliste)
@@ -320,6 +320,7 @@ Arbeidsforløp kobler maler til entrepriser og definerer oppretter/svarer-flyten
 - Sjekklister og oppgaver knyttes til arbeidsforløp via `workflowId` på Checklist/Task-modellene
 - Svarer-entreprise bestemmes automatisk fra valgt arbeidsforløp ved opprettelse
 - Sjekklister har valgfrie felter: `buildingId` (lokasjon), `drawingId` (tegning), `subject` (emne)
+- Emne (`subject`) ved opprettelse: hvis malen har `subjects`-array → vises som nedtrekksmeny (web: `<Select>`, mobil: Pressable-liste). Uten subjects → fritekst (mobil) eller skjult (web)
 - Tittel settes automatisk til prosjektnavn ved opprettelse fra mobil
 
 ### Prosjektgrupper
@@ -626,6 +627,7 @@ Oppgavemaler og Sjekklistemaler deler `MalListe`-komponenten med:
 - **Tabell:** Navn (med ikon), Prefiks, Versjon — sortert alfabetisk
 - **Radvalg:** Enkeltklikk velger (aktiverer Rediger/Slett), dobbeltklikk åpner malbygger
 - **Opprett-modal:** Navn, Prefiks, Beskrivelse
+- **Rediger-modal:** Navn, Prefiks, Beskrivelse, Forhåndsdefinerte emner (dynamisk liste med tekst-inputs + legg til/slett)
 - **Bunnlinje:** Låsefunksjon for maler
 
 ### Print-til-PDF (web)
