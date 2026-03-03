@@ -12,6 +12,8 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
+import { trpc } from "@/lib/trpc";
+import type { Permission } from "@siteflow/shared";
 
 interface NavElement {
   label: string;
@@ -19,6 +21,7 @@ interface NavElement {
   ikon: React.ReactNode;
   barn?: { label: string; href: string }[];
   kreverProsjekt?: boolean;
+  tillatelse?: Permission;
 }
 
 const navigasjon: NavElement[] = [
@@ -43,6 +46,7 @@ const navigasjon: NavElement[] = [
     href: "/dashbord/oppsett/field",
     ikon: <Wrench className="h-4 w-4" />,
     kreverProsjekt: true,
+    tillatelse: "manage_field",
     barn: [
       { label: "Entrepriser", href: "/dashbord/oppsett/field/entrepriser" },
       { label: "Oppgavens arbeidsflyt", href: "/dashbord/oppsett/field/oppgavemaler" },
@@ -68,6 +72,18 @@ export default function OppsettLayout({
 }) {
   const { prosjektId } = useProsjekt();
   const pathname = usePathname();
+
+  const { data: tillatelser } = trpc.gruppe.hentMineTillatelser.useQuery(
+    { projectId: prosjektId! },
+    { enabled: !!prosjektId },
+  );
+
+  const filtrertNavigasjon = navigasjon.filter((element) => {
+    if (!element.tillatelse) return true;
+    if (!tillatelser) return false;
+    return tillatelser.includes(element.tillatelse);
+  });
+
   const [ekspandert, setEkspandert] = useState<Record<string, boolean>>({
     Lokasjoner: true,
     Feltarbeid: true,
@@ -91,7 +107,7 @@ export default function OppsettLayout({
         </div>
 
         <nav className="flex-1 overflow-y-auto px-3 py-3">
-          {navigasjon.map((element) => {
+          {filtrertNavigasjon.map((element) => {
             const harBarn = element.barn && element.barn.length > 0;
             const erEkspandert = ekspandert[element.label] ?? false;
             const aktiv = erAktiv(element.href);

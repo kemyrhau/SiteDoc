@@ -223,6 +223,13 @@ Hjelpemodul i `apps/api/src/trpc/tilgangskontroll.ts` med følgende funksjoner:
   - Gruppe med entrepriser → entreprise-begrenset: ser kun dokumenter med matchende domain OG entreprise
 - Samlet: bruker ser union av alle sine gruppers tilganger + direkte MemberEnterprise-tilgang
 
+**UI-tilgangskontroll (web):**
+- `gruppe.hentMineTillatelser` eksponerer brukerens tillatelser til klienten (returnerer `Permission[]`)
+- `HovedSidebar` — Maler-ikonet skjules for brukere uten `manage_field`
+- `OppsettLayout` — Feltarbeid-seksjonen (Entrepriser, Oppgavens arbeidsflyt, Kontrollplan, Mappeoppsett) skjules for brukere uten `manage_field`
+- Maler-siden (`/dashbord/[prosjektId]/maler`) — Viser "Ingen tilgang" EmptyState ved direkte URL uten `manage_field`
+- Mønster: `tillatelse?: Permission` på nav-element-interfaces, filtrering av elementer basert på `tillatelser.includes()`
+
 ### Fagområder (domain)
 
 Maler har et `domain`-felt (`"bygg"` | `"hms"` | `"kvalitet"`, default `"bygg"`). Brukergrupper har `domains` (JSON-array) og valgfri tilknytning til entrepriser via `group_enterprises`.
