@@ -1,6 +1,6 @@
 "use client";
 
-import { useParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { trpc } from "@/lib/trpc";
 import { SearchInput, Spinner } from "@siteflow/ui";
 import { useState } from "react";
@@ -16,22 +16,35 @@ interface MappeTreData {
 function MappeRad({
   mappe,
   dybde,
+  valgtId,
+  onVelg,
 }: {
   mappe: MappeTreData;
   dybde: number;
+  valgtId: string | null;
+  onVelg: (id: string) => void;
 }) {
   const [ekspandert, setEkspandert] = useState(dybde < 2);
   const harBarn = mappe.children.length > 0;
   const antallDokumenter = mappe._count?.documents ?? 0;
+  const erValgt = mappe.id === valgtId;
 
   return (
     <div>
       <div
-        className="flex items-center gap-1 rounded-md py-1.5 pr-2 text-sm hover:bg-gray-50"
+        onClick={() => onVelg(mappe.id)}
+        className={`flex cursor-pointer items-center gap-1 rounded-md py-1.5 pr-2 text-sm ${
+          erValgt
+            ? "bg-siteflow-primary/10 text-siteflow-primary"
+            : "hover:bg-gray-50"
+        }`}
         style={{ paddingLeft: `${dybde * 16 + 4}px` }}
       >
         <button
-          onClick={() => setEkspandert(!ekspandert)}
+          onClick={(e) => {
+            e.stopPropagation();
+            setEkspandert(!ekspandert);
+          }}
           className="flex-shrink-0 rounded p-0.5 text-gray-400"
         >
           {harBarn ? (
@@ -44,8 +57,10 @@ function MappeRad({
             <span className="inline-block h-3 w-3" />
           )}
         </button>
-        <FolderOpen className="h-3.5 w-3.5 flex-shrink-0 text-amber-500" />
-        <span className="flex-1 truncate text-gray-700">{mappe.name}</span>
+        <FolderOpen className={`h-3.5 w-3.5 flex-shrink-0 ${erValgt ? "text-siteflow-primary" : "text-amber-500"}`} />
+        <span className={`flex-1 truncate ${erValgt ? "font-medium" : "text-gray-700"}`}>
+          {mappe.name}
+        </span>
         {antallDokumenter > 0 && (
           <span className="text-xs text-gray-400">
             {antallDokumenter} <File className="mb-px inline h-2.5 w-2.5" />
@@ -55,7 +70,7 @@ function MappeRad({
 
       {ekspandert &&
         mappe.children.map((barn) => (
-          <MappeRad key={barn.id} mappe={barn} dybde={dybde + 1} />
+          <MappeRad key={barn.id} mappe={barn} dybde={dybde + 1} valgtId={valgtId} onVelg={onVelg} />
         ))}
     </div>
   );
@@ -92,12 +107,20 @@ function byggTre(
 
 export function MapperPanel() {
   const params = useParams<{ prosjektId: string }>();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [sok, setSok] = useState("");
+
+  const valgtMappeId = searchParams.get("mappe");
 
   const { data: mapper, isLoading } = trpc.mappe.hentForProsjekt.useQuery(
     { projectId: params.prosjektId },
     { enabled: !!params.prosjektId },
   );
+
+  function velgMappe(mappeId: string) {
+    router.push(`/dashbord/${params.prosjektId}/mapper?mappe=${mappeId}`);
+  }
 
   if (isLoading) {
     return (
@@ -148,7 +171,7 @@ export function MapperPanel() {
           </p>
         ) : (
           filtrerte.map((mappe) => (
-            <MappeRad key={mappe.id} mappe={mappe} dybde={0} />
+            <MappeRad key={mappe.id} mappe={mappe} dybde={0} valgtId={valgtMappeId} onVelg={velgMappe} />
           ))
         )}
       </div>

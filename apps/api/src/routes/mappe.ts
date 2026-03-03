@@ -55,4 +55,14 @@ export const mappeRouter = router({
     .mutation(async ({ ctx, input }) => {
       return ctx.prisma.folder.delete({ where: { id: input.id } });
     }),
+
+  // Hent dokumenter for en mappe
+  hentDokumenter: publicProcedure
+    .input(z.object({ folderId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      return ctx.prisma.document.findMany({
+        where: { folderId: input.folderId },
+        orderBy: { name: "asc" },
+      });
+    }),
 });
