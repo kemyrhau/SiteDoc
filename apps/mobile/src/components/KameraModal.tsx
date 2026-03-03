@@ -2,7 +2,7 @@ import { useRef, useState, useCallback, useEffect } from "react";
 import { View, Text, Pressable, Modal, Animated } from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { Accelerometer } from "expo-sensors";
-import { X } from "lucide-react-native";
+import { X, Timer, TimerOff } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 interface KameraModalProps {
@@ -52,6 +52,9 @@ export function KameraModal({ synlig, onBilde, onLukk }: KameraModalProps) {
   const flashOpacity = useRef(new Animated.Value(0)).current;
   const [orientering, setOrientering] = useState<Orientering>("portrett");
   const rotasjon = useRef(new Animated.Value(0)).current;
+  const [tidtakerAktiv, setTidtakerAktiv] = useState(false);
+  const [nedtelling, setNedtelling] = useState(0);
+  const tidtakerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Lytt på akselerometer kun når kameraet er åpent
   useEffect(() => {
@@ -84,7 +87,7 @@ export function KameraModal({ synlig, onBilde, onLukk }: KameraModalProps) {
     }) }],
   };
 
-  const håndterTaBilde = useCallback(async () => {
+  const taBildeNå = useCallback(async () => {
     if (tarBilde.current || !cameraRef.current) return;
     tarBilde.current = true;
     try {
@@ -108,9 +111,44 @@ export function KameraModal({ synlig, onBilde, onLukk }: KameraModalProps) {
     }
   }, [onBilde, flashOpacity]);
 
+  const håndterTaBilde = useCallback(() => {
+    if (nedtelling > 0) return; // Allerede i nedtelling
+    if (!tidtakerAktiv) {
+      taBildeNå();
+      return;
+    }
+    // Start 2-sekunders nedtelling
+    setNedtelling(2);
+    tidtakerRef.current = setInterval(() => {
+      setNedtelling((n) => {
+        if (n <= 1) {
+          if (tidtakerRef.current) clearInterval(tidtakerRef.current);
+          tidtakerRef.current = null;
+          taBildeNå();
+          return 0;
+        }
+        return n - 1;
+      });
+    }, 1000);
+  }, [tidtakerAktiv, nedtelling, taBildeNå]);
+
+  // Rydd opp tidtaker ved lukking
+  useEffect(() => {
+    if (!synlig && tidtakerRef.current) {
+      clearInterval(tidtakerRef.current);
+      tidtakerRef.current = null;
+      setNedtelling(0);
+    }
+  }, [synlig]);
+
   const håndterLukk = useCallback(() => {
+    if (tidtakerRef.current) {
+      clearInterval(tidtakerRef.current);
+      tidtakerRef.current = null;
+    }
     settAntallTatt(0);
     setZoom(0);
+    setNedtelling(0);
     setOrientering("portrett");
     rotasjon.setValue(0);
     onLukk();
@@ -230,6 +268,34 @@ export function KameraModal({ synlig, onBilde, onLukk }: KameraModalProps) {
               <X size={22} color="#ffffff" />
             </Pressable>
           </Animated.View>
+
+          {/* Tidtaker-knapp — roterer med enhetens orientering */}
+          <Animated.View
+            style={[
+              { position: "absolute", left: 16, zIndex: 10, top: insets.top + 56 },
+              uiRotasjon,
+            ]}
+          >
+            <Pressable
+              onPress={() => setTidtakerAktiv((t) => !t)}
+              hitSlop={16}
+              className={`h-10 w-10 items-center justify-center rounded-full ${tidtakerAktiv ? "bg-yellow-500" : "bg-black/50"}`}
+            >
+              {tidtakerAktiv ? <Timer size={20} color="#000000" /> : <TimerOff size={20} color="#ffffff" />}
+            </Pressable>
+          </Animated.View>
+
+          {/* Nedtelling — stor tekst midt på kameraet */}
+          {nedtelling > 0 && (
+            <View
+              pointerEvents="none"
+              style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "center" }}
+            >
+              <Text style={{ fontSize: 96, fontWeight: "bold", color: "#ffffff", textShadowColor: "rgba(0,0,0,0.7)", textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 8 }}>
+                {nedtelling}
+              </Text>
+            </View>
+          )}
 
           {/* Bildeteller — roterer med enhetens orientering */}
           {antallTatt > 0 && (
