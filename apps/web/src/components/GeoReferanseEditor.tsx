@@ -182,11 +182,20 @@ export function GeoReferanseEditor({
               draggable={false}
             />
           ) : (
-            <iframe
-              src={`/api${tegning.fileUrl}`}
-              title={tegning.name}
-              className="h-[500px] w-full border-0"
-            />
+            <div className="relative">
+              <iframe
+                src={`/api${tegning.fileUrl}`}
+                title={tegning.name}
+                className="h-[500px] w-full border-0"
+              />
+              {/* Gjennomsiktig overlay for å fange klikk over PDF-iframe */}
+              {aktivtPunkt && (
+                <div
+                  className="absolute inset-0"
+                  style={{ cursor: "crosshair" }}
+                />
+              )}
+            </div>
           )}
 
           {/* Punkt 1 markør */}
