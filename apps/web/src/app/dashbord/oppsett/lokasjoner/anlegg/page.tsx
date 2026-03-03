@@ -629,8 +629,13 @@ export default function AnleggSide() {
   );
 
   const opprettMutation = trpc.bygning.opprett.useMutation({
-    onSuccess: () => {
-      utils.bygning.hentForProsjekt.invalidate({ projectId: prosjektId! });
+    onSuccess: (_data: unknown, variabler: { name: string }) => {
+      utils.bygning.hentForProsjekt.invalidate({ projectId: prosjektId! }).then(() => {
+        // Finn det nyopprettede anlegget og åpne redigeringsvisningen
+        const oppdatert = utils.bygning.hentForProsjekt.getData({ projectId: prosjektId!, type: "anlegg" });
+        const nytt = oppdatert?.find((a) => a.name === variabler.name);
+        if (nytt) setRedigerAnleggId(nytt.id);
+      });
       setVisModal(false);
       setNyNavn("");
     },
@@ -730,7 +735,7 @@ export default function AnleggSide() {
           Slett
         </button>
         <button
-          disabled={!harValgt || !erPublisert}
+          disabled={!harValgt}
           onClick={() => {
             if (valgtId) setRedigerAnleggId(valgtId);
           }}
@@ -815,9 +820,7 @@ export default function AnleggSide() {
                       <tr
                         key={anlegg.id}
                         onClick={() => setValgtId(valgtId === anlegg.id ? null : anlegg.id)}
-                        onDoubleClick={() => {
-                          // Kun publiserte anlegg kan redigeres (tegninger)
-                        }}
+                        onDoubleClick={() => setRedigerAnleggId(anlegg.id)}
                         className={`cursor-pointer border-b border-gray-100 last:border-0 ${
                           valgtId === anlegg.id
                             ? "bg-siteflow-primary/5"
