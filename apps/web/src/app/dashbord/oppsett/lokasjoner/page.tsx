@@ -286,24 +286,15 @@ function RedigerLokasjon({
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-white">
-      {/* Header */}
-      <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
-        <div className="flex items-center gap-3">
-          <Building2 className="h-5 w-5 text-gray-500" />
-          <h2 className="text-lg font-semibold text-gray-900">
+      {/* Header + Verktøylinje (samlet rad) */}
+      <div className="flex items-center gap-1 border-b border-gray-200 px-4 py-1.5">
+        <div className="flex items-center gap-2 mr-3">
+          <Building2 className="h-4 w-4 text-gray-400" />
+          <span className="text-sm font-semibold text-gray-900">
             {lokasjon?.name ?? "Laster..."}
-          </h2>
+          </span>
         </div>
-        <button
-          onClick={onLukk}
-          className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
-        >
-          <X className="h-5 w-5" />
-        </button>
-      </div>
 
-      {/* Verktøylinje */}
-      <div className="flex items-center gap-1 border-b border-gray-200 px-6 py-2">
         <div className="relative">
           <Button size="sm" onClick={() => setVisTilføyMeny(!visTilføyMeny)}>
             <Plus className="mr-1.5 h-4 w-4" />
@@ -396,6 +387,15 @@ function RedigerLokasjon({
             </>
           )}
         </div>
+
+        <div className="flex-1" />
+
+        <button
+          onClick={onLukk}
+          className="rounded p-1.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
+        >
+          <X className="h-4 w-4" />
+        </button>
       </div>
 
       {/* Skjult filinput */}
@@ -418,8 +418,8 @@ function RedigerLokasjon({
       {/* To-kolonne innhold */}
       <div className="flex flex-1 overflow-hidden">
         {/* Venstre — tegningsliste gruppert */}
-        <div className="flex w-[480px] flex-col border-r border-gray-200">
-          <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex w-[260px] flex-shrink-0 flex-col border-r border-gray-200">
+          <div className="flex-1 overflow-y-auto px-3 py-3">
             {tegninger.length > 0 ? (
               <div className="flex flex-col gap-4">
                 {tegningGrupper.map((gruppe) => (
@@ -466,9 +466,9 @@ function RedigerLokasjon({
                 ))}
               </div>
             ) : (
-              <div className="flex flex-col items-center pt-20">
-                <p className="mb-6 text-xl text-gray-300">
-                  Ingen tegninger eller modeller
+              <div className="flex flex-col items-center pt-12">
+                <p className="mb-4 text-sm text-gray-300">
+                  Ingen tegninger
                 </p>
                 <Button variant="secondary" onClick={() => filInputRef.current?.click()}>
                   <Upload className="mr-2 h-4 w-4" />
@@ -524,7 +524,7 @@ function RedigerLokasjon({
                   <iframe
                     src={`/api${valgtTegning.fileUrl}`}
                     title={valgtTegning.name}
-                    className="h-[calc(100vh-120px)] w-[calc(100vw-480px)] border-0"
+                    className="h-[calc(100vh-50px)] w-[calc(100vw-260px)] border-0"
                   />
                 )}
               </div>
