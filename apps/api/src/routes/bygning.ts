@@ -68,10 +68,36 @@ export const bygningRouter = router({
       });
     }),
 
-  // Slett bygning
+  // Slett bygning (kun hvis tom — ingen tegninger eller sjekklister)
   slett: publicProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
+      const bygning = await ctx.prisma.building.findUniqueOrThrow({
+        where: { id: input.id },
+        include: {
+          _count: {
+            select: {
+              drawings: true,
+              checklists: true,
+            },
+          },
+        },
+      });
+
+      const blokkerende: string[] = [];
+      if (bygning._count.drawings > 0) {
+        blokkerende.push(`${bygning._count.drawings} tegning${bygning._count.drawings !== 1 ? "er" : ""}`);
+      }
+      if (bygning._count.checklists > 0) {
+        blokkerende.push(`${bygning._count.checklists} sjekkliste${bygning._count.checklists !== 1 ? "r" : ""}`);
+      }
+
+      if (blokkerende.length > 0) {
+        throw new Error(
+          `Kan ikke slette «${bygning.name}» fordi den inneholder ${blokkerende.join(" og ")}. Fjern eller flytt disse først.`,
+        );
+      }
+
       return ctx.prisma.building.delete({ where: { id: input.id } });
     }),
 });

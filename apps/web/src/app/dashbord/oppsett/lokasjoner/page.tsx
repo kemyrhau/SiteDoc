@@ -725,6 +725,9 @@ export default function LokasjonerSide() {
       utils.bygning.hentForProsjekt.invalidate({ projectId: prosjektId! });
       setValgtId(null);
     },
+    onError: (error) => {
+      alert(error.message);
+    },
   });
 
   const publiserMutation = trpc.bygning.publiser.useMutation({
@@ -761,7 +764,8 @@ export default function LokasjonerSide() {
   }
 
   function handleSlettValgt() {
-    if (!valgtId) return;
+    if (!valgtId || !valgtLokasjon) return;
+    if (!confirm(`Er du sikker på at du vil slette «${valgtLokasjon.name}»?`)) return;
     slettMutation.mutate({ id: valgtId });
   }
 
