@@ -168,8 +168,8 @@ export default function UtskriftSjekklisteSide() {
         </div>
       </div>
 
-      {/* A4-ark */}
-      <div className="mx-auto mt-8 max-w-[210mm] rounded bg-white px-[15mm] py-[15mm] shadow-lg print:mt-0 print:max-w-none print:rounded-none print:px-0 print:py-0 print:shadow-none">
+      {/* A4-ark — 210×297mm proporsjoner */}
+      <div className="mx-auto mt-8 min-h-[297mm] w-[210mm] rounded bg-white px-[15mm] py-[15mm] shadow-lg print:mt-0 print:min-h-0 print:w-auto print:max-w-none print:rounded-none print:px-0 print:py-0 print:shadow-none">
         {/* Header (alltid synlig — ikke .print-header) */}
         <div className="mb-6 border border-gray-300">
           {/* Rad 1: Prosjekt med logo */}
