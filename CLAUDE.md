@@ -194,7 +194,7 @@ Alle routere i `apps/api/src/routes/`:
 | `arbeidsforlop` | hentForProsjekt, hentForEnterprise, opprett, oppdater, slett |
 | `mappe` | hentForProsjekt (m/tilgangsoppføringer), hentDokumenter, opprett, oppdater, slett, hentTilgang, settTilgang |
 | `medlem` | hentForProsjekt, hentMineEntrepriser, leggTil (m/invitasjon), fjern, oppdater (navn/e-post/telefon/rolle), oppdaterRolle, sokBrukere |
-| `gruppe` | hentMineTillatelser, hentForProsjekt, opprettStandardgrupper, opprett, oppdater, slett, leggTilMedlem (m/invitasjon), fjernMedlem, oppdaterEntrepriser, oppdaterDomener |
+| `gruppe` | hentMineTillatelser, hentMinTilgang, hentForProsjekt, opprettStandardgrupper, opprett, oppdater, slett, leggTilMedlem (m/invitasjon), fjernMedlem, oppdaterEntrepriser, oppdaterDomener |
 | `invitasjon` | hentForProsjekt, validerToken, aksepter, sendPaNytt, trekkTilbake |
 | `vaer` | hentVaerdata (Open-Meteo proxy: latitude, longitude, dato → temperatur, værkode, vind) |
 
@@ -225,6 +225,7 @@ Hjelpemodul i `apps/api/src/trpc/tilgangskontroll.ts` med følgende funksjoner:
 
 **UI-tilgangskontroll (web):**
 - `gruppe.hentMineTillatelser` eksponerer brukerens tillatelser til klienten (returnerer `Permission[]`)
+- `gruppe.hentMinTilgang` returnerer `{ tillatelser: string[], domener: string[], erAdmin: boolean }` — brukes for tilgangsbasert malfiltrering i tegningsopprett-modal
 - `HovedSidebar` — Maler-ikonet skjules for brukere uten `manage_field`
 - `OppsettLayout` — Feltarbeid-seksjonen (Entrepriser, Oppgavens arbeidsflyt, Kontrollplan, Mappeoppsett) skjules for brukere uten `manage_field`
 - Maler-siden (`/dashbord/[prosjektId]/maler`) — Viser "Ingen tilgang" EmptyState ved direkte URL uten `manage_field`
@@ -906,7 +907,7 @@ Dalux-inspirert tre-kolonne layout:
 /dashbord/[prosjektId]/maler/[id]             -> Mal-detalj / malbygger
 /dashbord/[prosjektId]/entrepriser            -> Entreprise-liste
 /dashbord/[prosjektId]/mapper                 -> Mapper (read-only dokumentvisning, ?mappe=id)
-/dashbord/[prosjektId]/tegninger              -> Interaktiv tegningsvisning: klikk for å opprette oppgave/sjekkliste, røde markører for eksisterende oppgaver
+/dashbord/[prosjektId]/tegninger              -> Interaktiv tegningsvisning: klikk for å opprette oppgave/sjekkliste, røde markører for eksisterende oppgaver. Opprett-modal med tilgangsbasert malfiltrering: admin→alle, entreprise→workflow+HMS, domene-grupper→matchende domain
 /dashbord/oppsett                             -> Innstillinger (redirect til brukere)
 /dashbord/oppsett/brukere                     -> Brukergrupper, roller, medlemmer
 /dashbord/oppsett/lokasjoner                  -> Lokasjonsoversikt
