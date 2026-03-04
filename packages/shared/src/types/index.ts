@@ -346,9 +346,19 @@ export function byggObjektTre<T extends { id: string; parentId?: string | null; 
     }
   }
 
-  // Sorter barn etter sortOrder
+  // Sorter etter sone (topptekst først) deretter sortOrder innenfor sone
+  function hentZonePrioritet(node: Node): number {
+    const config = (node as unknown as { config?: Record<string, unknown> }).config;
+    return config?.zone === "topptekst" ? 0 : 1;
+  }
+
   function sorterRekursivt(noder: Node[]) {
-    noder.sort((a, b) => a.sortOrder - b.sortOrder);
+    noder.sort((a, b) => {
+      const zoneA = hentZonePrioritet(a);
+      const zoneB = hentZonePrioritet(b);
+      if (zoneA !== zoneB) return zoneA - zoneB;
+      return a.sortOrder - b.sortOrder;
+    });
     for (const node of noder) {
       sorterRekursivt(node.children);
     }

@@ -178,7 +178,13 @@ export default function SjekklisteUtfylling() {
 
   // Beregn objekter og repeater-logikk FØR tidlige returns (hooks må alltid kjøres)
   const objekter = useMemo(() =>
-    (sjekkliste?.template?.objects ?? []).slice().sort((a, b) => a.sortOrder - b.sortOrder),
+    (sjekkliste?.template?.objects ?? []).slice().sort((a, b) => {
+      // Sorter topptekst-objekter først, deretter datafelter, så sortOrder innenfor sone
+      const zoneA = (a.config as Record<string, unknown>)?.zone === "topptekst" ? 0 : 1;
+      const zoneB = (b.config as Record<string, unknown>)?.zone === "topptekst" ? 0 : 1;
+      if (zoneA !== zoneB) return zoneA - zoneB;
+      return a.sortOrder - b.sortOrder;
+    }),
   [sjekkliste]);
   const repeaterIder = useMemo(() => new Set(
     objekter.filter((o) => o.type === "repeater").map((o) => o.id),

@@ -505,13 +505,25 @@ export function MalBygger({ mal }: MalByggerProps) {
           renummerer(målSone);
         }
 
-        // Lagre til server
-        const oppdateringer = neste.map((o) => ({
-          id: o.id,
-          sortOrder: o.sortOrder,
-          zone: hentZone(o.config),
-          parentId: o.parentId,
-        }));
+        // Lagre til server — global sortOrder: topptekst først, deretter datafelter
+        // Slik at mobil/web-utfylling sorterer riktig med kun sortOrder
+        const topptekstRot = neste
+          .filter((o) => !o.parentId && hentZone(o.config) === "topptekst")
+          .sort((a, b) => a.sortOrder - b.sortOrder);
+        const datafeltRot = neste
+          .filter((o) => !o.parentId && hentZone(o.config) === "datafelter")
+          .sort((a, b) => a.sortOrder - b.sortOrder);
+        const globalRot = [...topptekstRot, ...datafeltRot];
+
+        const oppdateringer = neste.map((o) => {
+          const globalIdx = globalRot.findIndex((r) => r.id === o.id);
+          return {
+            id: o.id,
+            sortOrder: globalIdx >= 0 ? globalIdx : o.sortOrder,
+            zone: hentZone(o.config),
+            parentId: o.parentId,
+          };
+        });
         oppdaterRekkefølgeMutation.mutate({ objekter: oppdateringer });
 
         return neste;

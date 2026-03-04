@@ -201,7 +201,12 @@ export default function OppgaveDetalj() {
 
   // Beregn objekter og repeater-logikk FØR tidlige returns (hooks må alltid kjøres)
   const objekter = useMemo(() =>
-    (oppgave?.template?.objects ?? []).slice().sort((a, b) => a.sortOrder - b.sortOrder),
+    (oppgave?.template?.objects ?? []).slice().sort((a, b) => {
+      const zoneA = (a.config as Record<string, unknown>)?.zone === "topptekst" ? 0 : 1;
+      const zoneB = (b.config as Record<string, unknown>)?.zone === "topptekst" ? 0 : 1;
+      if (zoneA !== zoneB) return zoneA - zoneB;
+      return a.sortOrder - b.sortOrder;
+    }),
   [oppgave]);
   const repeaterIder = useMemo(() => new Set(
     objekter.filter((o) => o.type === "repeater").map((o) => o.id),

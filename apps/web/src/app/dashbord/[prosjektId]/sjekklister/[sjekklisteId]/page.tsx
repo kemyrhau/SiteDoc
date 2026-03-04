@@ -118,7 +118,13 @@ export default function SjekklisteDetaljSide() {
   // Bygg trestruktur og flat ut i DFS-rekkefølge (forelder → barn → neste forelder)
   const objekter = useMemo(() => {
     const rå = (sjekkliste?.template?.objects ?? []) as RapportObjekt[];
-    const sortert = [...rå].sort((a, b) => a.sortOrder - b.sortOrder);
+    const sortert = [...rå].sort((a, b) => {
+      // Topptekst-objekter først, deretter datafelter, så sortOrder innenfor sone
+      const zoneA = (a.config as Record<string, unknown>)?.zone === "topptekst" ? 0 : 1;
+      const zoneB = (b.config as Record<string, unknown>)?.zone === "topptekst" ? 0 : 1;
+      if (zoneA !== zoneB) return zoneA - zoneB;
+      return a.sortOrder - b.sortOrder;
+    });
 
     // Grupper barn etter parentId
     const barnMap = new Map<string, RapportObjekt[]>();
