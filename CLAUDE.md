@@ -642,11 +642,12 @@ To nye rapportobjekttyper (23 totalt):
 - Uten koordinater: "Prosjektet har ikke satt lokasjon"
 
 **`drawing_position` — Posisjon i tegning:**
-- **Web:** Tegningsvelger (dropdown) + klikkbar tegning med rød markør (0-100% koordinater)
+- **Web:** Navigasjonsbasert posisjonsvelger — klikk «Velg posisjon i tegning» → navigerer til tegningssiden → klikk i tegning → returneres med posisjon. Bruker `BygningKontekst.startPosisjonsvelger(feltId)` / `fullførPosisjonsvelger(resultat)` / `hentOgTømPosisjonsResultat(feltId)` — state-basert (ikke callback) pga. komponent-unmount ved navigering
 - **Mobil:** Viser posisjonsinformasjon (full tegningsvelger kommer i neste iterasjon)
 - Verdi: `TegningPosisjonVerdi { drawingId, positionX, positionY, drawingName }`
 - Config-filtre i malbygger: `buildingFilter` (bygning-ID), `disciplineFilter` (fagdisiplin)
-- Lesemodus: viser tegning med markør (ikke klikkbar)
+- Lesemodus: viser tegningsnavn + posisjon kompakt
+- Tegningssiden (`tegninger/page.tsx`) viser blå posisjonsvelger-banner når `posisjonsvelgerAktiv`, skjuler normal opprett-tekst, og kaller `router.back()` etter valg
 
 ### Malliste-UI (Dalux-inspirert)
 
@@ -935,7 +936,7 @@ Dalux-inspirert tre-kolonne layout:
 ### Kontekster og hooks
 
 - `ProsjektKontekst` — Valgt prosjekt synkronisert med URL-parameter `[prosjektId]`, alle prosjekter, loading-state
-- `BygningKontekst` — Aktiv bygning (`id`, `name`, `number`) + standard-tegning (`id`, `name`), localStorage-persistering per prosjekt/bygning. `useBygning()` hook. Standard-tegning brukes som forhåndsvalg ved opprettelse av sjekklister/oppgaver (IKKE filtrering)
+- `BygningKontekst` — Aktiv bygning (`id`, `name`, `number`) + standard-tegning (`id`, `name`), localStorage-persistering per prosjekt/bygning. `useBygning()` hook. Standard-tegning brukes som forhåndsvalg ved opprettelse av sjekklister/oppgaver (IKKE filtrering). Posisjonsvelger: `startPosisjonsvelger(feltId)` → `fullførPosisjonsvelger(resultat)` → `hentOgTømPosisjonsResultat(feltId)` — state-basert cross-page kommunikasjon for `drawing_position`-felt
 - `NavigasjonKontekst` — Aktiv seksjon + kontekstuelle verktøylinje-handlinger
 - `useAktivSeksjon()` — Utleder aktiv seksjon fra pathname, oppdaterer NavigasjonKontekst
 - `useVerktoylinje(handlinger)` — Registrerer kontekstuelle handlinger per side med auto-cleanup
