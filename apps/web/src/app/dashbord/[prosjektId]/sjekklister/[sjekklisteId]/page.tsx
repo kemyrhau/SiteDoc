@@ -7,7 +7,7 @@ import { Check, AlertCircle, Loader2, Printer, FileText } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useSjekklisteSkjema } from "@/hooks/useSjekklisteSkjema";
 import { useAutoVaer } from "@/hooks/useAutoVaer";
-import { RapportObjektRenderer, DISPLAY_TYPER } from "@/components/rapportobjekter/RapportObjektRenderer";
+import { RapportObjektRenderer, DISPLAY_TYPER, SKJULT_I_UTFYLLING } from "@/components/rapportobjekter/RapportObjektRenderer";
 import { FeltWrapper } from "@/components/rapportobjekter/FeltWrapper";
 import { PrintHeader } from "@/components/PrintHeader";
 import type { RapportObjekt } from "@/components/rapportobjekter/typer";
@@ -217,6 +217,7 @@ export default function SjekklisteDetaljSide() {
       <div className="flex flex-col gap-3">
         {objekter.map((objekt) => {
           if (!erSynlig(objekt)) return null;
+          if (!leseModus && SKJULT_I_UTFYLLING.has(objekt.type)) return null;
 
           const erDisplay = DISPLAY_TYPER.has(objekt.type);
           const nestingNivå = hentNestingNivå(objekt, objekter);

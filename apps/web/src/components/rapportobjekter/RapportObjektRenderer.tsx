@@ -27,6 +27,9 @@ import { UkjentObjekt } from "./UkjentObjekt";
 // Display-only typer som ikke wrappes med FeltWrapper/FeltDokumentasjon
 export const DISPLAY_TYPER = new Set(["heading", "subtitle", "location"]);
 
+// Typer som skjules i utfyllingsmodus (vises kun i print/lesemodus)
+export const SKJULT_I_UTFYLLING = new Set(["location", "drawing_position"]);
+
 // Read-only typer (viser verdi men kan ikke endres av bruker)
 export const READONLY_TYPER = new Set(["calculation"]);
 
