@@ -540,7 +540,7 @@ Drag-and-drop-editor for å bygge maler med rekursiv kontainer-nesting (Dalux-st
 - Forelder-barn-relasjon via `report_objects.parent_id` DB-kolonne (ikke config JSON)
 - Betingelse aktiveres på kontainerfelt: `conditionActive: true`, `conditionValues: string[]` i config
 - Barn knyttes via `parentId` på ReportObject — ubegrenset nesting-dybde
-- Visuelt: blå ramme (`border-l-2 border-blue-400 bg-blue-50/30`) rundt barnegrupper
+- Visuelt: blå ramme (`border-l-2 border-blue-400 bg-blue-50/30`) rundt barnegrupper KUN i malbyggeren — fjernet fra utfylling, print og mobil
 - "Dra og slipp felter her"-placeholder i tomme barnegrupper per nesting-nivå
 - Rekursiv `RekursivtFelt`-komponent i DropSone rendrer barn inline med BetingelseBjelke
 - Dra-og-slipp: felt arver `parentId` ved drop i kontainer, nullstilles ved drag ut
@@ -742,7 +742,7 @@ Sjekkliste-detaljsiden (`/dashbord/[prosjektId]/sjekklister/[sjekklisteId]`) har
 - `FeltWrapper` har `nestingNivå: number` prop for gradert innrykk: 0=ingen, 1=`ml-4`, 2=`ml-8`, 3+=`ml-12`
 - `erBetinget` prop er deprecated — bruk `nestingNivå` for nye kall
 - Nesting-nivå beregnes rekursivt i sjekkliste-skjermen via `hentNestingNivå()`
-- Alle nivåer viser blå venstre-kant (`border-l-2 border-l-blue-300`)
+- Blå venstre-kant fjernet fra utfylling og print — kun i malbyggeren
 
 **Bildeannotering (Fabric.js):**
 - `BildeAnnotering`-komponenten bruker WebView med Fabric.js canvas for å tegne på bilder
@@ -913,7 +913,7 @@ Dalux-inspirert tre-kolonne layout:
 ### Kontekster og hooks
 
 - `ProsjektKontekst` — Valgt prosjekt synkronisert med URL-parameter `[prosjektId]`, alle prosjekter, loading-state
-- `BygningKontekst` — Aktiv bygning (`id`, `name`, `number`) + standard-tegning, localStorage-persistering per prosjekt/bygning. `useBygning()` hook. Filtrerer sjekklister automatisk
+- `BygningKontekst` — Aktiv bygning (`id`, `name`, `number`) + standard-tegning (`id`, `name`), localStorage-persistering per prosjekt/bygning. `useBygning()` hook. Standard-tegning brukes som forhåndsvalg ved opprettelse av sjekklister/oppgaver (IKKE filtrering)
 - `NavigasjonKontekst` — Aktiv seksjon + kontekstuelle verktøylinje-handlinger
 - `useAktivSeksjon()` — Utleder aktiv seksjon fra pathname, oppdaterer NavigasjonKontekst
 - `useVerktoylinje(handlinger)` — Registrerer kontekstuelle handlinger per side med auto-cleanup
@@ -930,11 +930,11 @@ Dalux-inspirert tre-kolonne layout:
 ### Paneler (SekundaertPanel-innhold)
 
 - `DashbordPanel` — Prosjektliste med hurtignavigasjon og søk
-- `SjekklisterPanel` — Sjekklister med statusgruppe-filtrering, bygningsfilter-badge fra BygningKontekst
+- `SjekklisterPanel` — Sjekklister med statusgruppe-filtrering, viser aktiv standard-tegning som synlig badge (forhåndsvalg, ikke filter)
 - `OppgaverPanel` — Oppgaver med status- og prioritetsgrupper
 - `MalerPanel` — Malliste med søk
 - `EntrepriserPanel` — Entrepriseliste med søk
-- `TegningerPanel` — Bygning+tegningstrevisning med søk, utvid/kollaps, aktiv bygning (blå), standard-tegning (stjerne). Setter `aktivBygning` via BygningKontekst
+- `TegningerPanel` — Bygning+tegningstrevisning med etasje-gruppering (Utomhus/etasjer), søk, utvid/kollaps, aktiv bygning (blå), standard-tegning (stjerne). Tegninger vises med nummer og fagdisiplin-badge. Setter `aktivBygning` og `standardTegning` via BygningKontekst
 - `MapperPanel` — Klikkbar mappestruktur med søk, valgt mappe markeres blå, navigerer via URL-param `?mappe=id`
 
 ### Mer-meny
@@ -1117,7 +1117,7 @@ Hele monorepoet bruker ESLint v8 med `.eslintrc.json` (legacy-format). Web bruke
 - **GroupEnterprise:** Mange-til-mange kobling mellom `ProjectGroup` og `Enterprise`. Begrenser gruppens tilgang til kun dokumenter der tilknyttede entrepriser er oppretter/svarer
 - **Tillatelse (Permission):** Rettighet tildelt via prosjektgrupper: `manage_field`, `create_tasks`, `create_checklists`, `view_field`. Admin har alle tillatelser implisitt
 - **Tegningsmarkør:** Posisjon (0–100% X/Y) på en tegning der en oppgave er opprettet fra mobilappen
-- **Enkeltvalg (`list_single`):** Rapportobjekt der brukeren velger én verdi fra en liste med alternativer (radioknapper). Kan brukes som kontainer med betingelse.
+- **Enkeltvalg (`list_single`):** Rapportobjekt der brukeren velger én verdi. Web: `<select>` nedtrekksmeny (kompakt). Mobil: radioknapper. Kan brukes som kontainer med betingelse.
 - **Flervalg (`list_multi`):** Rapportobjekt der brukeren kan velge flere verdier (avkrysningsbokser). Kan brukes som kontainer med betingelse.
 - **Kontainer:** Et Enkeltvalg- eller Flervalg-felt som har betingelse aktivert (`conditionActive: true`) og dermed kan inneholde barnefelt. Kontainere kan nestes rekursivt (eske-i-eske-prinsippet).
 - **Betingelse:** Logikk på en kontainer som styrer synligheten av barnefelt. Defineres av `conditionValues` (trigger-verdier) i config. Når brukerens valg matcher en trigger-verdi, vises barnefeltene.

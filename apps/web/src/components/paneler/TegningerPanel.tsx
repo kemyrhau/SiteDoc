@@ -23,11 +23,23 @@ interface Tegning {
   geoReference: unknown;
 }
 
+interface BygningMedTegninger {
+  id: string;
+  name: string;
+  number: number | null;
+  _count: { drawings: number };
+  drawings: Tegning[];
+}
+
 interface EtasjeGruppe {
   nokkel: string;
   label: string;
   ikon: "utomhus" | "etasje";
   tegninger: Tegning[];
+}
+
+interface FiltrertBygning extends BygningMedTegninger {
+  filtrerteGrupper: EtasjeGruppe[];
 }
 
 const UTOMHUS_NOKKEL = "__utomhus__";
@@ -158,29 +170,25 @@ export function TegningerPanel() {
   const sokLower = sok.toLowerCase();
 
   // Filtrer bygninger og grupper basert på søk
-  const filtrerte = useMemo(() => {
+  const filtrerte: FiltrertBygning[] = useMemo(() => {
     if (!bygninger) return [];
-    return bygninger
-      .map((bygning) => {
-        const bygningMatch =
-          !sok ||
-          bygning.name.toLowerCase().includes(sokLower) ||
-          (bygning.number && String(bygning.number).includes(sok));
+    const resultat: FiltrertBygning[] = [];
+    for (const bygning of bygninger as unknown as BygningMedTegninger[]) {
+      const bygningMatch =
+        !sok ||
+        bygning.name.toLowerCase().includes(sokLower) ||
+        (bygning.number && String(bygning.number).includes(sok));
 
-        const filtrerTegninger = sok
-          ? (bygning.drawings as Tegning[]).filter((t) =>
-              tegningMatcherSok(t, sokLower),
-            )
-          : (bygning.drawings as Tegning[]);
+      const filtrerTegninger = sok
+        ? bygning.drawings.filter((t) => tegningMatcherSok(t, sokLower))
+        : bygning.drawings;
 
-        if (!bygningMatch && filtrerTegninger.length === 0) return null;
+      if (!bygningMatch && filtrerTegninger.length === 0) continue;
 
-        const grupper = grupperTegningerIBygning(filtrerTegninger);
-        return { ...bygning, filtrerteGrupper: grupper };
-      })
-      .filter(Boolean) as (typeof bygninger[number] & {
-      filtrerteGrupper: EtasjeGruppe[];
-    })[];
+      const grupper = grupperTegningerIBygning(filtrerTegninger);
+      resultat.push({ ...bygning, filtrerteGrupper: grupper });
+    }
+    return resultat;
   }, [bygninger, sok, sokLower]);
 
   // Auto-utvid aktiv bygning og etasje med standardtegning
@@ -213,7 +221,9 @@ export function TegningerPanel() {
       utvidede.has(bygning.id) &&
       bygning.filtrerteGrupper.length === 1
     ) {
-      const etasjeNokkel = `${bygning.id}::${bygning.filtrerteGrupper[0].nokkel}`;
+      const forsteGruppe = bygning.filtrerteGrupper[0];
+      if (!forsteGruppe) continue;
+      const etasjeNokkel = `${bygning.id}::${forsteGruppe.nokkel}`;
       if (!utvidede.has(etasjeNokkel)) {
         setUtvidede((prev) => new Set(prev).add(etasjeNokkel));
       }
