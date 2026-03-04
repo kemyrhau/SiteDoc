@@ -422,51 +422,53 @@ function TegningPosisjonPrint({ pos }: { pos: TegningPosisjonVerdi }) {
     <div className="print-no-break">
       <p className="mb-2 text-sm font-medium text-gray-700">{visNavn}</p>
 
-      {/* Oversiktsbilde med markør — full bredde */}
-      <div className="relative mb-3 overflow-hidden rounded border border-gray-200">
-        <img
-          src={fileUrl}
-          alt={drawingName}
-          className="block w-full"
-          crossOrigin="anonymous"
-        />
-        {/* Rød markør */}
-        <div
-          className="absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-red-500 shadow-md"
-          style={{ left: `${x}%`, top: `${y}%` }}
-        />
-        {/* Detalj-ramme: viser hvilket område som er zoomet */}
-        <div
-          className="absolute border-2 border-red-400"
-          style={{
-            width: `${100 / DETALJ_ZOOM}%`,
-            height: `${100 / DETALJ_ZOOM}%`,
-            left: `${Math.max(0, Math.min(100 - 100 / DETALJ_ZOOM, x - 100 / DETALJ_ZOOM / 2))}%`,
-            top: `${Math.max(0, Math.min(100 - 100 / DETALJ_ZOOM, y - 100 / DETALJ_ZOOM / 2))}%`,
-          }}
-        />
-        <span className="absolute bottom-1.5 left-1.5 rounded bg-black/60 px-2 py-0.5 text-[10px] font-medium text-white">
-          Oversikt
-        </span>
-      </div>
+      <div className="flex gap-3">
+        {/* Oversiktsbilde med markør — kvadrat */}
+        <div className="relative w-1/2 overflow-hidden rounded border border-gray-200" style={{ aspectRatio: "1/1" }}>
+          <img
+            src={fileUrl}
+            alt={drawingName}
+            className="absolute inset-0 h-full w-full object-contain"
+            crossOrigin="anonymous"
+          />
+          {/* Rød markør */}
+          <div
+            className="absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-red-500 shadow-md"
+            style={{ left: `${x}%`, top: `${y}%` }}
+          />
+          {/* Detalj-ramme */}
+          <div
+            className="absolute border-2 border-red-400"
+            style={{
+              width: `${100 / DETALJ_ZOOM}%`,
+              height: `${100 / DETALJ_ZOOM}%`,
+              left: `${Math.max(0, Math.min(100 - 100 / DETALJ_ZOOM, x - 100 / DETALJ_ZOOM / 2))}%`,
+              top: `${Math.max(0, Math.min(100 - 100 / DETALJ_ZOOM, y - 100 / DETALJ_ZOOM / 2))}%`,
+            }}
+          />
+          <span className="absolute bottom-1.5 left-1.5 rounded bg-black/60 px-2 py-0.5 text-[10px] font-medium text-white">
+            Oversikt
+          </span>
+        </div>
 
-      {/* Detaljutsnitt — zoomet inn rundt posisjonen, halv bredde */}
-      <div className="relative w-1/2 overflow-hidden rounded border border-gray-200">
-        <img
-          src={fileUrl}
-          alt={`Detalj: ${drawingName}`}
-          className="block w-full"
-          crossOrigin="anonymous"
-          style={{
-            transformOrigin: `${x}% ${y}%`,
-            transform: `scale(${DETALJ_ZOOM})`,
-          }}
-        />
-        {/* Rød markør i senter */}
-        <div className="absolute left-1/2 top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-red-500 shadow-md" />
-        <span className="absolute bottom-1.5 left-1.5 rounded bg-black/60 px-2 py-0.5 text-[10px] font-medium text-white">
-          Detalj
-        </span>
+        {/* Detaljutsnitt — kvadrat */}
+        <div className="relative w-1/2 overflow-hidden rounded border border-gray-200" style={{ aspectRatio: "1/1" }}>
+          <img
+            src={fileUrl}
+            alt={`Detalj: ${drawingName}`}
+            className="absolute inset-0 h-full w-full object-cover"
+            crossOrigin="anonymous"
+            style={{
+              transformOrigin: `${x}% ${y}%`,
+              transform: `scale(${DETALJ_ZOOM})`,
+            }}
+          />
+          {/* Rød markør i senter */}
+          <div className="absolute left-1/2 top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-red-500 shadow-md" />
+          <span className="absolute bottom-1.5 left-1.5 rounded bg-black/60 px-2 py-0.5 text-[10px] font-medium text-white">
+            Detalj
+          </span>
+        </div>
       </div>
     </div>
   );
