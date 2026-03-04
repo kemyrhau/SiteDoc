@@ -59,7 +59,12 @@ export function FeltDokumentasjon({
       // 2. Hent filstørrelse
       const filstorrelse = await hentFilstorrelse(lokalSti);
 
-      // 3. Legg til vedlegg med LOKAL URI (vises umiddelbart i filmrullen)
+      // 3. Vent til pågående interaksjoner er ferdige (unngår krasj ved re-render under kamera)
+      await new Promise<void>((resolve) => {
+        InteractionManager.runAfterInteractions(() => resolve());
+      });
+
+      // 4. Legg til vedlegg med LOKAL URI (vises umiddelbart i filmrullen)
       const vedleggId = randomUUID();
       onLeggTilVedlegg({
         id: vedleggId,
@@ -68,7 +73,7 @@ export function FeltDokumentasjon({
         filnavn,
       });
 
-      // 4. Legg i bakgrunnskø (asynkront, ikke-blokkerende)
+      // 5. Legg i bakgrunnskø (asynkront, ikke-blokkerende)
       await leggIKo({
         sjekklisteId,
         oppgaveId: oppgaveIdForKo,
@@ -91,9 +96,13 @@ export function FeltDokumentasjon({
   const håndterKameraBilde = useCallback((uri: string) => {
     // Kameraet forblir åpent — prosesser bildet i bakgrunnen
     (async () => {
-      const komprimert = await komprimer(uri);
-      const gps = await hentGps();
-      await håndterBilde(komprimert.uri, gps?.lat, gps?.lng);
+      try {
+        const komprimert = await komprimer(uri);
+        const gps = await hentGps();
+        await håndterBilde(komprimert.uri, gps?.lat, gps?.lng);
+      } catch (e) {
+        console.error("Kamerabilde feilet:", e);
+      }
     })();
   }, [håndterBilde]);
 
