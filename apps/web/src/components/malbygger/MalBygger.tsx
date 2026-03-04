@@ -712,6 +712,14 @@ function SlettBekreftelse({
           <Button variant="secondary" onClick={onAvbryt}>
             {harBruk ? "Lukk" : "Avbryt"}
           </Button>
+          {harBruk && (
+            <Button
+              variant="danger"
+              onClick={onBekreft}
+            >
+              Tving slett (test)
+            </Button>
+          )}
           {!harBruk && (
             <Button
               variant="danger"

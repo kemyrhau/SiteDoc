@@ -18,7 +18,8 @@ export default function SjekklisteSide() {
     { projectId: params.id },
   );
 
-  const { data: maler } = trpc.mal.hentForProsjekt.useQuery({ projectId: params.id });
+  const { data: malerRå } = trpc.mal.hentForProsjekt.useQuery({ projectId: params.id });
+  const maler = malerRå as Array<{ id: string; name: string; subjects?: string[] }> | undefined;
   const { data: entrepriser } = trpc.entreprise.hentForProsjekt.useQuery({ projectId: params.id });
 
   const opprettMutation = trpc.sjekkliste.opprett.useMutation({
@@ -110,8 +111,8 @@ export default function SjekklisteSide() {
           />
           {(() => {
             const malData = maler?.find((m) => m.id === valgtMal);
-            const subjects = Array.isArray((malData as Record<string, unknown> | undefined)?.subjects)
-              ? ((malData as Record<string, unknown>).subjects as string[]).filter((s) => s.trim() !== "")
+            const subjects = Array.isArray(malData?.subjects)
+              ? malData.subjects.filter((s) => s.trim() !== "")
               : [];
             return subjects.length > 0 ? (
               <Select
