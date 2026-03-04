@@ -1,5 +1,5 @@
 import { useRef, useState, useCallback, useEffect } from "react";
-import { View, Text, Pressable, Modal, Animated } from "react-native";
+import { View, Text, Pressable, Modal, Animated, InteractionManager } from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { Accelerometer } from "expo-sensors";
 import { X, Timer } from "lucide-react-native";
@@ -151,7 +151,11 @@ export function KameraModal({ synlig, onBilde, onLukk }: KameraModalProps) {
     setNedtelling(0);
     setOrientering("portrett");
     rotasjon.setValue(0);
-    onLukk();
+    // Vent til Modal-animasjonen er ferdig før vi oppdaterer foreldrens state
+    // (unngår React Navigation "stale"-krasj ved re-render under animasjon)
+    InteractionManager.runAfterInteractions(() => {
+      onLukk();
+    });
   }, [onLukk, rotasjon]);
 
   // Beregn 5:4 crop-guide basert på kameravisningens faktiske layout
