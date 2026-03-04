@@ -5,6 +5,17 @@ import { useParams, useRouter } from "next/navigation";
 import { trpc } from "@/lib/trpc";
 import { useBygning } from "@/kontekst/bygning-kontekst";
 import { Button, Select, Modal, Spinner } from "@siteflow/ui";
+
+interface ArbeidsflopMal {
+  template: { id: string; name: string; category: string };
+}
+
+interface ArbeidsflopRad {
+  id: string;
+  enterpriseId: string;
+  responderEnterprise: { id: string; name: string } | null;
+  templates: ArbeidsflopMal[];
+}
 import { Map, FileText, MapPin, Plus, ZoomIn, ZoomOut, ArrowLeft, Crosshair } from "lucide-react";
 
 interface Markør {
@@ -41,11 +52,8 @@ export default function TegningerSide() {
   const [visOpprettModal, setVisOpprettModal] = useState(false);
   const [opprettType, setOpprettType] = useState<"oppgave" | "sjekkliste">("oppgave");
 
-  // Skjema-state
   const [valgtMal, setValgtMal] = useState("");
   const [valgtOppretter, setValgtOppretter] = useState("");
-  const [valgtSvarer, setValgtSvarer] = useState("");
-  const [tittel, setTittel] = useState("");
 
   const { data: tegning, isLoading } = trpc.tegning.hentMedId.useQuery(
     { id: standardTegning?.id ?? "" },
@@ -58,18 +66,23 @@ export default function TegningerSide() {
     { enabled: !!standardTegning?.id },
   );
 
-  const { data: maler } = trpc.mal.hentForProsjekt.useQuery(
-    { projectId: params.prosjektId },
-    { enabled: visOpprettModal },
-  );
   const { data: mineEntrepriser } = trpc.medlem.hentMineEntrepriser.useQuery(
     { projectId: params.prosjektId },
     { enabled: visOpprettModal },
   );
-  const { data: entrepriser } = trpc.entreprise.hentForProsjekt.useQuery(
+  const { data: arbeidsforlop } = trpc.arbeidsforlop.hentForProsjekt.useQuery(
     { projectId: params.prosjektId },
     { enabled: visOpprettModal },
   );
+
+  // Auto-velg oppretter-entreprise når data lastes
+  useEffect(() => {
+    if (!visOpprettModal || valgtOppretter) return;
+    if (mineEntrepriser && mineEntrepriser.length > 0) {
+      const forste = mineEntrepriser[0];
+      if (forste) setValgtOppretter(forste.id);
+    }
+  }, [mineEntrepriser, visOpprettModal, valgtOppretter]);
 
   const opprettOppgaveMutation = trpc.oppgave.opprett.useMutation({
     onSuccess: (_data: unknown, _vars: { title: string }) => {
@@ -113,8 +126,6 @@ export default function TegningerSide() {
     setNyMarkør(null);
     setValgtMal("");
     setValgtOppretter("");
-    setValgtSvarer("");
-    setTittel("");
   }
 
   const handleBildeKlikk = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
@@ -139,27 +150,37 @@ export default function TegningerSide() {
     setVisOpprettModal(true);
   }, [posisjonsvelgerAktiv, standardTegning, fullførPosisjonsvelger, router]);
 
+  // Finn matchende arbeidsforløp for valgt oppretter + mal
+  const alleArbeidsforlop = (arbeidsforlop ?? []) as unknown as ArbeidsflopRad[];
+  const matchendeArbeidsforlop = alleArbeidsforlop.find((af) =>
+    af.enterpriseId === valgtOppretter &&
+    af.templates.some((wt) => wt.template.id === valgtMal),
+  );
+  const utledetSvarer = matchendeArbeidsforlop?.responderEnterprise?.id ?? valgtOppretter;
+
   function handleOpprett(e: React.FormEvent) {
     e.preventDefault();
-    if (!valgtMal || !valgtOppretter || !valgtSvarer) return;
+    if (!valgtMal || !valgtOppretter) return;
 
     if (opprettType === "oppgave") {
       opprettOppgaveMutation.mutate({
         templateId: valgtMal,
         creatorEnterpriseId: valgtOppretter,
-        responderEnterpriseId: valgtSvarer,
-        title: tittel || "Ny oppgave",
+        responderEnterpriseId: utledetSvarer,
+        title: "Ny oppgave",
         drawingId: standardTegning?.id,
         positionX: nyMarkør?.x,
         positionY: nyMarkør?.y,
+        workflowId: matchendeArbeidsforlop?.id,
       });
     } else {
       opprettSjekklisteMutation.mutate({
         templateId: valgtMal,
         creatorEnterpriseId: valgtOppretter,
-        responderEnterpriseId: valgtSvarer,
+        responderEnterpriseId: utledetSvarer,
         buildingId: aktivBygning?.id,
         drawingId: standardTegning?.id,
+        workflowId: matchendeArbeidsforlop?.id,
       });
     }
   }
@@ -191,12 +212,22 @@ export default function TegningerSide() {
       status: o.status,
     }));
 
-  // Filtrerte maler basert på type
-  const filtrerMaler = (maler as Array<{ id: string; name: string; category: string }> | undefined)
-    ?.filter((m) => m.category === opprettType) ?? [];
+  // Filtrerte maler: kun de som er tilgjengelige via arbeidsforløp for valgt oppretter
+  const filtrerMaler = (() => {
+    if (!valgtOppretter) return [];
+    const malObj: Record<string, string> = {};
+    for (const af of alleArbeidsforlop) {
+      if (af.enterpriseId !== valgtOppretter) continue;
+      for (const wt of af.templates) {
+        if (wt.template.category === opprettType) {
+          malObj[wt.template.id] = wt.template.name;
+        }
+      }
+    }
+    return Object.entries(malObj).map(([id, name]) => ({ id, name }));
+  })();
 
   const oppretterAlternativer = (mineEntrepriser ?? []).map((e) => ({ value: e.id, label: e.name }));
-  const svarerAlternativer = (entrepriser ?? []).map((e) => ({ value: e.id, label: e.name }));
 
   // Ingen tegning valgt
   if (!standardTegning) {
@@ -441,6 +472,16 @@ export default function TegningerSide() {
             </button>
           </div>
 
+          {oppretterAlternativer.length > 1 && (
+            <Select
+              label="Entreprise"
+              options={oppretterAlternativer}
+              value={valgtOppretter}
+              onChange={(e) => { setValgtOppretter(e.target.value); setValgtMal(""); }}
+              placeholder="Velg entreprise..."
+            />
+          )}
+
           <Select
             label="Mal"
             options={filtrerMaler.map((m) => ({ value: m.id, label: m.name }))}
@@ -449,43 +490,15 @@ export default function TegningerSide() {
             placeholder="Velg mal..."
           />
 
-          {opprettType === "oppgave" && (
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Tittel</label>
-              <input
-                type="text"
-                value={tittel}
-                onChange={(e) => setTittel(e.target.value)}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                placeholder="Beskriv oppgaven..."
-              />
-            </div>
-          )}
-
-          <Select
-            label="Oppretter-entreprise"
-            options={oppretterAlternativer}
-            value={valgtOppretter}
-            onChange={(e) => setValgtOppretter(e.target.value)}
-            placeholder="Velg entreprise..."
-          />
-
-          <Select
-            label="Ansvarlig entreprise (svarer)"
-            options={svarerAlternativer}
-            value={valgtSvarer}
-            onChange={(e) => setValgtSvarer(e.target.value)}
-            placeholder="Velg entreprise..."
-          />
-
-          {nyMarkør && (
-            <p className="text-xs text-gray-400">
-              Posisjon: {nyMarkør.x.toFixed(1)}%, {nyMarkør.y.toFixed(1)}%
+          {/* Vis svarer-info hvis utledet fra arbeidsforløp */}
+          {valgtMal && matchendeArbeidsforlop?.responderEnterprise && (
+            <p className="text-xs text-gray-500">
+              Svarer: {matchendeArbeidsforlop.responderEnterprise.name}
             </p>
           )}
 
           <div className="flex gap-3 pt-2">
-            <Button type="submit" loading={erLaster}>
+            <Button type="submit" loading={erLaster} disabled={!valgtMal || !valgtOppretter}>
               <Plus className="mr-1.5 h-4 w-4" />
               Opprett {opprettType === "oppgave" ? "oppgave" : "sjekkliste"}
             </Button>
