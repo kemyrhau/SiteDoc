@@ -220,4 +220,39 @@ export const sjekklisteRouter = router({
         return oppdatert;
       });
     }),
+
+  // Slett sjekkliste (blokkeres hvis tilknyttede oppgaver finnes)
+  slett: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const sjekkliste = await ctx.prisma.checklist.findUniqueOrThrow({
+        where: { id: input.id },
+        include: {
+          template: { select: { projectId: true, domain: true } },
+          _count: { select: { tasks: true } },
+        },
+      });
+
+      await verifiserDokumentTilgang(
+        ctx.userId,
+        sjekkliste.template.projectId,
+        sjekkliste.creatorEnterpriseId,
+        sjekkliste.responderEnterpriseId,
+        sjekkliste.template.domain,
+      );
+
+      if (sjekkliste._count.tasks > 0) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: `Kan ikke slette sjekklisten fordi den har ${sjekkliste._count.tasks} tilknyttede oppgaver`,
+        });
+      }
+
+      return ctx.prisma.$transaction(async (tx) => {
+        await tx.documentTransfer.deleteMany({ where: { checklistId: input.id } });
+        await tx.image.deleteMany({ where: { checklistId: input.id } });
+        await tx.checklist.delete({ where: { id: input.id } });
+        return { success: true };
+      });
+    }),
 });

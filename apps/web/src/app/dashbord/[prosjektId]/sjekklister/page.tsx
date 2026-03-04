@@ -7,7 +7,7 @@ import { Button, Select, Modal, Spinner, EmptyState, StatusBadge, Table } from "
 import { useVerktoylinje } from "@/hooks/useVerktoylinje";
 import { useBygning } from "@/kontekst/bygning-kontekst";
 import type { VerktoylinjeHandling } from "@/kontekst/navigasjon-kontekst";
-import { Plus, Printer } from "lucide-react";
+import { Plus, Printer, Trash2 } from "lucide-react";
 
 export default function SjekklisteSide() {
   const params = useParams<{ prosjektId: string }>();
@@ -24,6 +24,8 @@ export default function SjekklisteSide() {
   const [valgtBygning, setValgtBygning] = useState("");
   const [valgtTegning, setValgtTegning] = useState("");
   const [valgte, setValgte] = useState<Set<string>>(new Set());
+  const [visSlettModal, setVisSlettModal] = useState(false);
+  const [slettFeil, setSlettFeil] = useState<string | null>(null);
 
   const { data: sjekklister, isLoading } = trpc.sjekkliste.hentForProsjekt.useQuery(
     { projectId: params.prosjektId },
@@ -41,6 +43,28 @@ export default function SjekklisteSide() {
     { projectId: params.prosjektId },
     { enabled: visModal },
   );
+
+  const slettMutation = trpc.sjekkliste.slett.useMutation({
+    onSuccess: () => {
+      utils.sjekkliste.hentForProsjekt.invalidate({ projectId: params.prosjektId });
+    },
+  });
+
+  async function slettValgte() {
+    setSlettFeil(null);
+    const ider = Array.from(valgte);
+    for (const id of ider) {
+      try {
+        await slettMutation.mutateAsync({ id });
+      } catch (err) {
+        const melding = err instanceof Error ? err.message : "Ukjent feil";
+        setSlettFeil(melding);
+        return;
+      }
+    }
+    setValgte(new Set());
+    setVisSlettModal(false);
+  }
 
   const opprettMutation = trpc.sjekkliste.opprett.useMutation({
     onSuccess: () => {
@@ -83,6 +107,16 @@ export default function SjekklisteSide() {
           router.push(`/dashbord/${params.prosjektId}/sjekklister/skriv-ut?ider=${ider}`);
         },
         variant: "secondary",
+      });
+      handlinger.push({
+        id: "slett-valgte",
+        label: `Slett (${valgte.size})`,
+        ikon: <Trash2 className="h-4 w-4" />,
+        onClick: () => {
+          setSlettFeil(null);
+          setVisSlettModal(true);
+        },
+        variant: "danger",
       });
     }
 
@@ -238,6 +272,25 @@ export default function SjekklisteSide() {
           onValgEndring={setValgte}
         />
       )}
+
+      <Modal open={visSlettModal} onClose={() => setVisSlettModal(false)} title="Slett sjekkliste(r)?">
+        <div className="flex flex-col gap-4">
+          <p className="text-gray-600">
+            Er du sikker på at du vil slette {valgte.size} sjekkliste(r)? Denne handlingen kan ikke angres.
+          </p>
+          {slettFeil && (
+            <p className="text-sm text-red-600 bg-red-50 rounded p-3">{slettFeil}</p>
+          )}
+          <div className="flex gap-3 pt-2">
+            <Button variant="danger" onClick={slettValgte} loading={slettMutation.isPending}>
+              Slett
+            </Button>
+            <Button variant="secondary" onClick={() => setVisSlettModal(false)}>
+              Avbryt
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       <Modal open={visModal} onClose={() => setVisModal(false)} title="Ny sjekkliste">
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
