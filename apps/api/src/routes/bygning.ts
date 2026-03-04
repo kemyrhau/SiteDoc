@@ -16,7 +16,21 @@ export const bygningRouter = router({
           ...(input.type ? { type: input.type } : {}),
         },
         include: {
-          drawings: { select: { id: true, name: true } },
+          drawings: {
+            select: {
+              id: true,
+              name: true,
+              drawingNumber: true,
+              discipline: true,
+              floor: true,
+              geoReference: true,
+            },
+            orderBy: [
+              { discipline: "asc" },
+              { drawingNumber: "asc" },
+              { name: "asc" },
+            ],
+          },
           _count: { select: { drawings: true } },
         },
         orderBy: { number: "asc" },
