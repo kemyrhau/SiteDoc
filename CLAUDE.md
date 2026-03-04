@@ -381,7 +381,7 @@ Interaktiv tegningsvisning på `/dashbord/[prosjektId]/tegninger/` med zoom og m
 - Oppgave-fra-tegning: Android-tilpasning for tegningstrykk (iOS/web implementert)
 - Kvalitetssikring av alle 23 rapportobjekttyper (mobil-renderere)
 - TegningPosisjonObjekt (mobil): full implementasjon med tegningsvelger og TegningsVisning-markering
-- Oppgave-fra-felt i sjekkliste-utfylling (knapp per rapportobjekt + visning av oppgavenummer)
+- Oppgave-fra-felt i sjekkliste-utfylling: web er implementert, mobil har det allerede
 - Adgangskontroll: Håndheve tillatelsesbasert opprettelse (verifiserTillatelse i opprett-prosedyrer), arbeidsforløp-begrensning per brukergruppe
 - Videresending av sjekklister/oppgaver til annen entreprise (svarer og oppretter)
 - TrafikklysObjekt (mobil): legge til 4. farge grå/"Ikke relevant" i mobilrenderer
@@ -406,10 +406,14 @@ Oppgaver bruker NØYAKTIG samme rapportobjekt-system som sjekklister (23 typer),
 - Løpenummer auto-genereres per prosjekt (inkrementelt)
 - Oppgavenummeret vises i oppgavelisten og i sjekklistefeltet der oppgaven ble opprettet
 
-**Oppgave fra sjekklistefelt:**
+**Oppgave fra sjekklistefelt (mobil + web):**
 - Hvert rapportobjekt (utfyllbart felt) i sjekkliste-utfyllingen kan opprette en oppgave
-- Oppgavenummeret (med prefiks) vises nederst i feltet etter opprettelse
+- Oppgavenummeret (med prefiks) vises nederst i feltet etter opprettelse som blå pill-badge (klikkbar → navigerer til oppgave)
+- `+Oppgave`-knapp vises på felter uten eksisterende oppgave (skjult i lesemodus)
 - Koblingen lagres via `checklistId` og `checklistFieldId` på Task-modellen
+- **Web:** `OpprettOppgaveModal` (`apps/web/src/components/OpprettOppgaveModal.tsx`) — modal med malvelger (filtrert på kategori `"oppgave"` og tilgangskontroll), oppretter-entreprise, auto-utledet svarer fra arbeidsforløp, auto-generert tittel (`"Oppgave fra {sjekklisteNr}: {feltLabel}"`)
+- **Web:** `FeltWrapper` har props `oppgaveNummer`, `oppgaveId`, `onOpprettOppgave`, `onNavigerTilOppgave`
+- **Web:** Sjekkliste-detaljsiden bruker `trpc.oppgave.hentForSjekkliste` og bygger `feltOppgaveMap` (Map<feltId, oppgave>)
 
 **Opprettelsespunkter:**
 - Fra sjekklistefelt (med sporbarhet til sjekkliste og felt)
