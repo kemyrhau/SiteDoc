@@ -1,5 +1,5 @@
 import { useRef, useState, useCallback, useEffect } from "react";
-import { View, Text, Pressable, Modal, Animated, InteractionManager } from "react-native";
+import { View, Text, Pressable, Modal, Animated } from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { Accelerometer } from "expo-sensors";
 import { X, Timer } from "lucide-react-native";
@@ -56,6 +56,10 @@ export function KameraModal({ synlig, onBilde, onLukk }: KameraModalProps) {
   const [nedtelling, setNedtelling] = useState(0);
   const tidtakerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Ref for onBilde — stabiliserer taBildeNå slik at den ikke gjenskapes ved prop-endringer
+  const onBildeRef = useRef(onBilde);
+  onBildeRef.current = onBilde;
+
   // Lytt på akselerometer kun når kameraet er åpent
   useEffect(() => {
     if (!synlig) return;
@@ -104,12 +108,12 @@ export function KameraModal({ synlig, onBilde, onLukk }: KameraModalProps) {
       });
       if (foto?.uri) {
         settAntallTatt((n) => n + 1);
-        onBilde(foto.uri);
+        onBildeRef.current(foto.uri);
       }
     } finally {
       tarBilde.current = false;
     }
-  }, [onBilde, flashOpacity]);
+  }, [flashOpacity]);
 
   const håndterTaBilde = useCallback(() => {
     if (nedtelling > 0) return; // Allerede i nedtelling
@@ -146,17 +150,9 @@ export function KameraModal({ synlig, onBilde, onLukk }: KameraModalProps) {
       clearInterval(tidtakerRef.current);
       tidtakerRef.current = null;
     }
-    settAntallTatt(0);
-    setZoom(0);
-    setNedtelling(0);
-    setOrientering("portrett");
-    rotasjon.setValue(0);
-    // Vent til Modal-animasjonen er ferdig før vi oppdaterer foreldrens state
-    // (unngår React Navigation "stale"-krasj ved re-render under animasjon)
-    InteractionManager.runAfterInteractions(() => {
-      onLukk();
-    });
-  }, [onLukk, rotasjon]);
+    // Kall onLukk direkte — InteractionManager håndteres av FeltDokumentasjon
+    onLukk();
+  }, [onLukk]);
 
   // Beregn 5:4 crop-guide basert på kameravisningens faktiske layout
   const { bredde, hoyde } = kameraLayout;
@@ -183,9 +179,12 @@ export function KameraModal({ synlig, onBilde, onLukk }: KameraModalProps) {
     }
   }
 
+  // Komponenten er kun mountet når synlig=true (styrt av FeltDokumentasjon)
+  if (!synlig) return null;
+
   return (
-    <Modal visible={synlig} animationType="slide" presentationStyle="fullScreen" onRequestClose={håndterLukk}>
-      {synlig && !tillatelse?.granted ? (
+    <Modal visible animationType="slide" presentationStyle="fullScreen" onRequestClose={håndterLukk}>
+      {!tillatelse?.granted ? (
         <View className="flex-1 items-center justify-center bg-black" style={{ paddingTop: insets.top }}>
           <Text className="mb-4 text-base text-white">Kameratilgang kreves</Text>
           <Pressable
@@ -198,7 +197,7 @@ export function KameraModal({ synlig, onBilde, onLukk }: KameraModalProps) {
             <Text className="text-gray-400">Avbryt</Text>
           </Pressable>
         </View>
-      ) : synlig ? (
+      ) : (
       <View className="flex-1 bg-black">
         <CameraView
           ref={cameraRef}
@@ -342,7 +341,7 @@ export function KameraModal({ synlig, onBilde, onLukk }: KameraModalProps) {
           </View>
         </View>
       </View>
-      ) : null}
+      )}
     </Modal>
   );
 }

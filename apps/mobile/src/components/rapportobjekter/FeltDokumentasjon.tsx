@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { View, Text, TextInput, Pressable, Image, Alert, Modal, ScrollView, InteractionManager, SafeAreaView, KeyboardAvoidingView, Platform } from "react-native";
 import { Camera, Paperclip, Map, FileText, Trash2, Pencil } from "lucide-react-native";
 import * as DocumentPicker from "expo-document-picker";
@@ -49,6 +49,13 @@ export function FeltDokumentasjon({
   const { valgtProsjektId } = useProsjekt();
   const { leggIKo } = useOpplastingsKo();
 
+  // Refs for callbacks — stabiliserer håndterBilde/håndterKameraBilde slik at
+  // KameraModal IKKE re-rendres når repeater-state oppdateres
+  const onLeggTilVedleggRef = useRef(onLeggTilVedlegg);
+  onLeggTilVedleggRef.current = onLeggTilVedlegg;
+  const leggIKoRef = useRef(leggIKo);
+  leggIKoRef.current = leggIKo;
+
   const håndterBilde = useCallback(async (bildeUri: string, gpsLat?: number, gpsLng?: number) => {
     try {
       const filnavn = `IMG_${Date.now()}.jpg`;
@@ -66,7 +73,7 @@ export function FeltDokumentasjon({
 
       // 4. Legg til vedlegg med LOKAL URI (vises umiddelbart i filmrullen)
       const vedleggId = randomUUID();
-      onLeggTilVedlegg({
+      onLeggTilVedleggRef.current({
         id: vedleggId,
         type: "bilde",
         url: lokalSti,
@@ -74,7 +81,7 @@ export function FeltDokumentasjon({
       });
 
       // 5. Legg i bakgrunnskø (asynkront, ikke-blokkerende)
-      await leggIKo({
+      await leggIKoRef.current({
         sjekklisteId,
         oppgaveId: oppgaveIdForKo,
         objektId,
@@ -91,7 +98,7 @@ export function FeltDokumentasjon({
       const melding = e instanceof Error ? e.message : "Ukjent feil";
       console.error("Bildehåndtering feilet:", melding);
     }
-  }, [sjekklisteId, oppgaveIdForKo, objektId, leggIKo, onLeggTilVedlegg]);
+  }, [sjekklisteId, oppgaveIdForKo, objektId]);
 
   const håndterKameraBilde = useCallback((uri: string) => {
     // Kameraet forblir åpent — prosesser bildet i bakgrunnen
@@ -342,12 +349,18 @@ export function FeltDokumentasjon({
         )}
       </Modal>
 
-      {/* Kamera modal */}
-      <KameraModal
-        synlig={visKamera}
-        onBilde={håndterKameraBilde}
-        onLukk={() => settVisKamera(false)}
-      />
+      {/* Kamera modal — kun mountet når aktiv (unngår mange skjulte Modaler i repeater) */}
+      {visKamera && (
+        <KameraModal
+          synlig={visKamera}
+          onBilde={håndterKameraBilde}
+          onLukk={() => {
+            InteractionManager.runAfterInteractions(() => {
+              settVisKamera(false);
+            });
+          }}
+        />
+      )}
 
       {/* Tegnings-skjermbilde modal */}
       <Modal
