@@ -5,7 +5,6 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { trpc } from "@/lib/trpc";
 import { Button, Select, Modal, Spinner, EmptyState, StatusBadge, Table } from "@siteflow/ui";
 import { useVerktoylinje } from "@/hooks/useVerktoylinje";
-import { useBygning } from "@/kontekst/bygning-kontekst";
 import type { VerktoylinjeHandling } from "@/kontekst/navigasjon-kontekst";
 import { Plus, Printer } from "lucide-react";
 
@@ -15,7 +14,6 @@ export default function SjekklisteSide() {
   const searchParams = useSearchParams();
   const statusFilter = searchParams.get("status");
   const utils = trpc.useUtils();
-  const { aktivBygning } = useBygning();
   const [visModal, setVisModal] = useState(false);
   const [valgtMal, setValgtMal] = useState("");
   const [valgtOppretter, setValgtOppretter] = useState("");
@@ -25,10 +23,7 @@ export default function SjekklisteSide() {
   const [valgte, setValgte] = useState<Set<string>>(new Set());
 
   const { data: sjekklister, isLoading } = trpc.sjekkliste.hentForProsjekt.useQuery(
-    {
-      projectId: params.prosjektId,
-      buildingId: aktivBygning?.id,
-    },
+    { projectId: params.prosjektId },
   );
 
   const { data: maler } = trpc.mal.hentForProsjekt.useQuery({ projectId: params.prosjektId });
@@ -52,9 +47,8 @@ export default function SjekklisteSide() {
     },
   });
 
-  // Forvalt bygning fra kontekst når modal åpnes
   function apneModal() {
-    setValgtBygning(aktivBygning?.id ?? "");
+    setValgtBygning("");
     setVisModal(true);
   }
 
@@ -84,9 +78,9 @@ export default function SjekklisteSide() {
 
     return handlinger;
     // eslint-disable-next-line
-  }, [valgte, params.prosjektId, router, aktivBygning?.id]);
+  }, [valgte, params.prosjektId, router]);
 
-  useVerktoylinje(verktoylinjeHandlinger, [valgte.size, aktivBygning?.id]);
+  useVerktoylinje(verktoylinjeHandlinger, [valgte.size]);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

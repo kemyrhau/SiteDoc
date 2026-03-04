@@ -4,8 +4,6 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { trpc } from "@/lib/trpc";
 import { SearchInput, Spinner } from "@siteflow/ui";
 import { useState } from "react";
-import { useBygning } from "@/kontekst/bygning-kontekst";
-import { X } from "lucide-react";
 
 interface StatusGruppe {
   id: string;
@@ -31,14 +29,10 @@ export function SjekklisterPanel() {
   const searchParams = useSearchParams();
   const aktivStatus = searchParams.get("status") ?? "alle";
   const [sok, setSok] = useState("");
-  const { aktivBygning, velgBygning } = useBygning();
 
   const { data: sjekklister, isLoading } =
     trpc.sjekkliste.hentForProsjekt.useQuery(
-      {
-        projectId: params.prosjektId,
-        buildingId: aktivBygning?.id,
-      },
+      { projectId: params.prosjektId },
       { enabled: !!params.prosjektId },
     );
 
@@ -68,22 +62,6 @@ export function SjekklisterPanel() {
         onChange={setSok}
         placeholder="Søk sjekklister..."
       />
-
-      {/* Aktiv bygning badge */}
-      {aktivBygning && (
-        <div className="flex items-center gap-1">
-          <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-700">
-            {aktivBygning.number ? `${aktivBygning.number}. ` : ""}
-            {aktivBygning.name}
-            <button
-              onClick={() => velgBygning(null)}
-              className="ml-0.5 rounded-full p-0.5 hover:bg-blue-200"
-            >
-              <X className="h-3 w-3" />
-            </button>
-          </span>
-        </div>
-      )}
 
       <div className="flex flex-col gap-0.5">
         {statusGrupper.map((gruppe) => {
