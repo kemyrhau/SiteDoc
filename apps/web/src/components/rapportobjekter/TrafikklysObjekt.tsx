@@ -11,7 +11,7 @@ export function TrafikklysObjekt({ verdi, onEndreVerdi, leseModus }: RapportObje
   const valgtVerdi = typeof verdi === "string" ? verdi : null;
 
   return (
-    <div className="flex items-center gap-3 py-2">
+    <div className="flex items-center gap-2">
       {FARGER.map(({ farge, aktiv, inaktiv, label }) => {
         const erValgt = valgtVerdi === farge;
         const fargeKlasse = erValgt ? aktiv : inaktiv;
@@ -25,8 +25,8 @@ export function TrafikklysObjekt({ verdi, onEndreVerdi, leseModus }: RapportObje
             }}
             disabled={leseModus}
             title={label}
-            className={`h-10 w-10 rounded-full ${fargeKlasse} transition-all disabled:cursor-not-allowed ${
-              erValgt ? "ring-2 ring-gray-800 ring-offset-2" : "hover:ring-2 hover:ring-gray-300 hover:ring-offset-1"
+            className={`h-7 w-7 rounded-full ${fargeKlasse} transition-all disabled:cursor-not-allowed ${
+              erValgt ? "ring-2 ring-gray-800 ring-offset-1" : "hover:ring-2 hover:ring-gray-300 hover:ring-offset-1"
             }`}
           />
         );
