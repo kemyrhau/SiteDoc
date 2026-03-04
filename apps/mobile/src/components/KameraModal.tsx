@@ -179,11 +179,9 @@ export function KameraModal({ synlig, onBilde, onLukk }: KameraModalProps) {
     }
   }
 
-  if (!synlig) return null;
-
-  if (!tillatelse?.granted) {
-    return (
-      <Modal visible animationType="slide" presentationStyle="fullScreen">
+  return (
+    <Modal visible={synlig} animationType="slide" presentationStyle="fullScreen" onRequestClose={håndterLukk}>
+      {synlig && !tillatelse?.granted ? (
         <View className="flex-1 items-center justify-center bg-black" style={{ paddingTop: insets.top }}>
           <Text className="mb-4 text-base text-white">Kameratilgang kreves</Text>
           <Pressable
@@ -196,12 +194,7 @@ export function KameraModal({ synlig, onBilde, onLukk }: KameraModalProps) {
             <Text className="text-gray-400">Avbryt</Text>
           </Pressable>
         </View>
-      </Modal>
-    );
-  }
-
-  return (
-    <Modal visible animationType="slide" presentationStyle="fullScreen">
+      ) : synlig ? (
       <View className="flex-1 bg-black">
         <CameraView
           ref={cameraRef}
@@ -345,6 +338,7 @@ export function KameraModal({ synlig, onBilde, onLukk }: KameraModalProps) {
           </View>
         </View>
       </View>
+      ) : null}
     </Modal>
   );
 }
