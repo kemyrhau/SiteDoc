@@ -2,10 +2,10 @@
 
 import { useCallback } from "react";
 import { Plus, Trash2 } from "lucide-react";
-import type { RapportObjektProps, FeltVerdi, RapportObjekt } from "./typer";
+import type { RapportObjektProps, FeltVerdi } from "./typer";
 import { TOM_FELTVERDI } from "./typer";
 import { RapportObjektRenderer, DISPLAY_TYPER } from "./RapportObjektRenderer";
-import { FeltWrapper } from "./FeltWrapper";
+import { FeltDokumentasjon } from "./FeltDokumentasjon";
 
 type RadData = Record<string, FeltVerdi>;
 type RepeaterVerdi = RadData[];
@@ -105,28 +105,28 @@ export function RepeaterObjekt({
   }
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-1.5">
       {rader.map((rad, radIndeks) => (
         <div
           key={radIndeks}
-          className="rounded-lg border border-gray-200 bg-gray-50/50 p-3"
+          className="rounded border border-gray-200 bg-gray-50/50 px-3 py-2"
         >
-          <div className="mb-2 flex items-center justify-between">
-            <span className="text-xs font-semibold text-gray-500">
+          <div className="mb-1 flex items-center justify-between">
+            <span className="text-[11px] font-semibold text-gray-400">
               {radIndeks + 1} {objekt.label}
             </span>
             {!leseModus && (
               <button
                 type="button"
                 onClick={() => fjernRad(radIndeks)}
-                className="rounded p-1 text-red-400 hover:bg-red-50 hover:text-red-600"
+                className="rounded p-0.5 text-red-300 hover:text-red-500"
               >
-                <Trash2 size={14} />
+                <Trash2 size={12} />
               </button>
             )}
           </div>
 
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-1">
             {barn.map((barnObjekt) => {
               const feltVerdi = rad[barnObjekt.id] ?? TOM_FELTVERDI;
               const erDisplay = DISPLAY_TYPER.has(barnObjekt.type);
@@ -148,23 +148,7 @@ export function RepeaterObjekt({
               }
 
               return (
-                <FeltWrapper
-                  key={barnObjekt.id}
-                  objekt={barnObjekt}
-                  kommentar={feltVerdi.kommentar}
-                  vedlegg={feltVerdi.vedlegg}
-                  onEndreKommentar={(k) =>
-                    oppdaterKommentar(radIndeks, barnObjekt.id, k)
-                  }
-                  onLeggTilVedlegg={(v) =>
-                    leggTilVedlegg(radIndeks, barnObjekt.id, v)
-                  }
-                  onFjernVedlegg={(vId) =>
-                    fjernVedlegg(radIndeks, barnObjekt.id, vId)
-                  }
-                  leseModus={leseModus}
-                  prosjektId={prosjektId}
-                >
+                <div key={barnObjekt.id}>
                   <RapportObjektRenderer
                     objekt={barnObjekt}
                     verdi={feltVerdi.verdi}
@@ -174,7 +158,23 @@ export function RepeaterObjekt({
                     leseModus={leseModus}
                     prosjektId={prosjektId}
                   />
-                </FeltWrapper>
+                  <FeltDokumentasjon
+                    kommentar={feltVerdi.kommentar}
+                    vedlegg={feltVerdi.vedlegg}
+                    onEndreKommentar={(k) =>
+                      oppdaterKommentar(radIndeks, barnObjekt.id, k)
+                    }
+                    onLeggTilVedlegg={(v) =>
+                      leggTilVedlegg(radIndeks, barnObjekt.id, v)
+                    }
+                    onFjernVedlegg={(vId) =>
+                      fjernVedlegg(radIndeks, barnObjekt.id, vId)
+                    }
+                    leseModus={leseModus}
+                    skjulKommentar={barnObjekt.type === "text_field"}
+                    prosjektId={prosjektId}
+                  />
+                </div>
               );
             })}
           </div>
@@ -185,9 +185,9 @@ export function RepeaterObjekt({
         <button
           type="button"
           onClick={leggTilRad}
-          className="flex items-center justify-center gap-2 rounded-lg border border-dashed border-gray-300 py-3 text-sm text-gray-600 hover:border-gray-400 hover:text-gray-700"
+          className="flex items-center justify-center gap-1.5 rounded border border-dashed border-gray-300 py-2 text-xs text-gray-500 hover:border-gray-400 hover:text-gray-600"
         >
-          <Plus size={16} />
+          <Plus size={14} />
           Legg til rad
         </button>
       )}
