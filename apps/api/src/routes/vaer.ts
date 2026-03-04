@@ -21,7 +21,7 @@ export const vaerRouter = router({
       }),
     )
     .query(async ({ input }) => {
-      const url = `https://api.open-meteo.com/v1/forecast?latitude=${input.latitude}&longitude=${input.longitude}&hourly=temperature_2m,weather_code,wind_speed_10m,precipitation&start_date=${input.dato}&end_date=${input.dato}`;
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${input.latitude}&longitude=${input.longitude}&hourly=temperature_2m,weather_code,wind_speed_10m,precipitation&wind_speed_unit=ms&start_date=${input.dato}&end_date=${input.dato}`;
 
       const respons = await fetch(url);
       if (!respons.ok) {
