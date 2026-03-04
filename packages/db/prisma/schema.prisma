@@ -80,6 +80,7 @@ model Project {
   address       String?
   latitude              Float?   @map("latitude")
   longitude             Float?   @map("longitude")
+  internalProjectNumber String?  @map("internal_project_number")
   externalProjectNumber String?  @map("external_project_number")
   logoUrl               String?  @map("logo_url")
   showInternalProjectNumber Boolean @default(true) @map("show_internal_project_number")

@@ -101,6 +101,7 @@ export default function ProsjektoppsettSide() {
   const [status, setStatus] = useState("active");
   const [latitude, setLatitude] = useState<number | null>(null);
   const [longitude, setLongitude] = useState<number | null>(null);
+  const [interntNummer, setInterntNummer] = useState("");
   const [eksterntNummer, setEksterntNummer] = useState("");
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [visInterntNummer, setVisInterntNummer] = useState(true);
@@ -117,6 +118,7 @@ export default function ProsjektoppsettSide() {
       setStatus(prosjekt.status);
       setLatitude(prosjekt.latitude ?? null);
       setLongitude(prosjekt.longitude ?? null);
+      setInterntNummer((prosjekt as { internalProjectNumber?: string | null }).internalProjectNumber ?? "");
       setEksterntNummer(prosjekt.externalProjectNumber ?? "");
       setLogoUrl(prosjekt.logoUrl ?? null);
       setVisInterntNummer((prosjekt as { showInternalProjectNumber?: boolean }).showInternalProjectNumber !== false);
@@ -171,6 +173,7 @@ export default function ProsjektoppsettSide() {
       address: adresse.trim() || undefined,
       latitude,
       longitude,
+      internalProjectNumber: interntNummer.trim() || null,
       externalProjectNumber: eksterntNummer.trim() || null,
       logoUrl: logoUrl || null,
       showInternalProjectNumber: visInterntNummer,
@@ -268,6 +271,15 @@ export default function ProsjektoppsettSide() {
                 </p>
               </div>
             </div>
+
+            <Input
+              label="Internt prosjektnummer"
+              placeholder="F.eks. referanse til SharePoint, ERP e.l."
+              value={interntNummer}
+              onChange={(e) =>
+                handleFeltEndring(setInterntNummer)(e.target.value)
+              }
+            />
 
             <Input
               label="Eksternt prosjektnummer"
