@@ -74,11 +74,11 @@ export default function TegningerSide() {
       {/* Tegningsvisning */}
       {fileUrl ? (
         erBilde ? (
-          <div className="flex flex-1 items-center justify-center overflow-auto bg-gray-50 p-4">
+          <div className="flex-1 overflow-auto bg-gray-50">
             <img
               src={fileUrl}
               alt={tegning.name}
-              className="max-h-full max-w-full object-contain"
+              className="w-full"
               crossOrigin="anonymous"
             />
           </div>
