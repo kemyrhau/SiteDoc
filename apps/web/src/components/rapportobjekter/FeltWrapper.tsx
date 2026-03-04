@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Plus } from "lucide-react";
 import type { Vedlegg } from "./typer";
 import { FeltDokumentasjon } from "./FeltDokumentasjon";
 
@@ -21,6 +22,10 @@ interface FeltWrapperProps {
   prosjektId?: string;
   bygningId?: string | null;
   standardTegningId?: string | null;
+  oppgaveNummer?: string;
+  oppgaveId?: string;
+  onOpprettOppgave?: () => void;
+  onNavigerTilOppgave?: (id: string) => void;
   children: ReactNode;
 }
 
@@ -37,6 +42,10 @@ export function FeltWrapper({
   prosjektId,
   bygningId,
   standardTegningId,
+  oppgaveNummer,
+  oppgaveId,
+  onOpprettOppgave,
+  onNavigerTilOppgave,
   children,
 }: FeltWrapperProps) {
   // Gradert innrykk: ml-4 per nivå, maks ml-12
@@ -78,6 +87,26 @@ export function FeltWrapper({
         bygningId={bygningId}
         standardTegningId={standardTegningId}
       />
+
+      {/* Oppgave-badge eller +Oppgave-knapp */}
+      {oppgaveNummer && oppgaveId ? (
+        <button
+          type="button"
+          onClick={() => onNavigerTilOppgave?.(oppgaveId)}
+          className="mt-2 inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-700 hover:bg-blue-200 print-skjul"
+        >
+          {oppgaveNummer}
+        </button>
+      ) : !leseModus && onOpprettOppgave && !oppgaveNummer ? (
+        <button
+          type="button"
+          onClick={onOpprettOppgave}
+          className="mt-2 inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-500 hover:bg-gray-200 print-skjul"
+        >
+          <Plus size={12} />
+          Oppgave
+        </button>
+      ) : null}
     </div>
   );
 }

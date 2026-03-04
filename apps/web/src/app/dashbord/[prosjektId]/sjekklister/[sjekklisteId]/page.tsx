@@ -1,7 +1,7 @@
 "use client";
 
-import { useParams } from "next/navigation";
-import { useMemo, useCallback } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { useState, useMemo, useCallback } from "react";
 import { Spinner, StatusBadge, Card } from "@siteflow/ui";
 import { Check, AlertCircle, Loader2, Printer, FileText } from "lucide-react";
 import { trpc } from "@/lib/trpc";
@@ -10,6 +10,7 @@ import { useAutoVaer } from "@/hooks/useAutoVaer";
 import { RapportObjektRenderer, DISPLAY_TYPER, SKJULT_I_UTFYLLING } from "@/components/rapportobjekter/RapportObjektRenderer";
 import { FeltWrapper } from "@/components/rapportobjekter/FeltWrapper";
 import { PrintHeader } from "@/components/PrintHeader";
+import { OpprettOppgaveModal } from "@/components/OpprettOppgaveModal";
 import type { RapportObjekt } from "@/components/rapportobjekter/typer";
 import { useBygning } from "@/kontekst/bygning-kontekst";
 
@@ -47,8 +48,20 @@ function LagreIndikator({ status }: { status: "idle" | "lagrer" | "lagret" | "fe
 /*  Hovedside                                                          */
 /* ------------------------------------------------------------------ */
 
+interface SjekklisteOppgave {
+  id: string;
+  number: number | null;
+  checklistFieldId: string | null;
+  template: { prefix: string | null } | null;
+}
+
 export default function SjekklisteDetaljSide() {
   const params = useParams<{ prosjektId: string; sjekklisteId: string }>();
+  const router = useRouter();
+
+  // Oppgave-opprettelsesmodal state
+  const [opprettOppgaveFeltId, setOpprettOppgaveFeltId] = useState<string | null>(null);
+  const [opprettOppgaveFeltLabel, setOpprettOppgaveFeltLabel] = useState("");
 
   const {
     sjekkliste,
@@ -83,6 +96,24 @@ export default function SjekklisteDetaljSide() {
     building?: { id: string; name: string } | null;
     drawing?: { id: string; name: string; drawingNumber: string | null } | null;
   } | undefined;
+
+  // Hent oppgaver tilknyttet denne sjekklisten
+  const { data: sjekklisteOppgaverRå } = trpc.oppgave.hentForSjekkliste.useQuery(
+    { checklistId: params.sjekklisteId },
+    { enabled: !!params.sjekklisteId },
+  );
+  const sjekklisteOppgaver = (sjekklisteOppgaverRå ?? []) as SjekklisteOppgave[];
+
+  // Bygg map: feltId → oppgave
+  const feltOppgaveMap = useMemo(() => {
+    const map = new Map<string, SjekklisteOppgave>();
+    for (const oppgave of sjekklisteOppgaver) {
+      if (oppgave.checklistFieldId) {
+        map.set(oppgave.checklistFieldId, oppgave);
+      }
+    }
+    return map;
+  }, [sjekklisteOppgaver]);
 
   // Bygg trestruktur og flat ut i DFS-rekkefølge (forelder → barn → neste forelder)
   const objekter = useMemo(() => {
@@ -290,6 +321,13 @@ export default function SjekklisteDetaljSide() {
             );
           }
 
+          const feltOppgave = feltOppgaveMap.get(objekt.id);
+          const oppgaveNummer = feltOppgave && feltOppgave.number != null
+            ? feltOppgave.template?.prefix
+              ? `${feltOppgave.template.prefix}-${String(feltOppgave.number).padStart(3, "0")}`
+              : String(feltOppgave.number).padStart(3, "0")
+            : undefined;
+
           return (
             <div key={objekt.id} className="print-no-break">
               <FeltWrapper
@@ -305,6 +343,15 @@ export default function SjekklisteDetaljSide() {
                 prosjektId={params.prosjektId}
                 bygningId={fullSjekkliste?.building?.id}
                 standardTegningId={standardTegning?.id}
+                oppgaveNummer={oppgaveNummer}
+                oppgaveId={feltOppgave?.id}
+                onOpprettOppgave={() => {
+                  setOpprettOppgaveFeltId(objekt.id);
+                  setOpprettOppgaveFeltLabel(objekt.label);
+                }}
+                onNavigerTilOppgave={(id) =>
+                  router.push(`/dashbord/${params.prosjektId}/oppgaver?oppgave=${id}`)
+                }
               >
                 <RapportObjektRenderer
                   objekt={objekt}
@@ -324,6 +371,17 @@ export default function SjekklisteDetaljSide() {
       {sjekkliste && (
         <HistorikkSeksjon sjekklisteId={params.sjekklisteId} />
       )}
+
+      {/* Opprett oppgave fra felt */}
+      <OpprettOppgaveModal
+        open={!!opprettOppgaveFeltId}
+        onClose={() => setOpprettOppgaveFeltId(null)}
+        prosjektId={params.prosjektId}
+        sjekklisteId={params.sjekklisteId}
+        sjekklisteFeltId={opprettOppgaveFeltId ?? ""}
+        sjekklisteNummer={sjekklisteNummer}
+        feltLabel={opprettOppgaveFeltLabel}
+      />
     </div>
   );
 }
