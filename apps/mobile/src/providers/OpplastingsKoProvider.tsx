@@ -212,6 +212,19 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
 
       const oppforing = nesteRader[0]!;
 
+      // Sjekk om lokal fil finnes — ellers slett oppføringen (gammel container/avinstallert)
+      const { getInfoAsync } = await import("expo-file-system/legacy");
+      const filInfo = await getInfoAsync(oppforing.lokalSti);
+      if (!filInfo.exists) {
+        db.delete(opplastingsKo)
+          .where(eq(opplastingsKo.id, oppforing.id))
+          .run();
+        oppdaterTellere();
+        prosessererRef.current = false;
+        prosesserNeste();
+        return;
+      }
+
       // Marker som pågående
       db.update(opplastingsKo)
         .set({ status: "laster_opp" })

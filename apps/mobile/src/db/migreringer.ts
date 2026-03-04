@@ -71,4 +71,9 @@ export function kjorMigreringer() {
   db.runSync(
     `UPDATE opplastings_ko SET status = 'venter' WHERE status = 'laster_opp'`,
   );
+
+  // Slett køoppføringer som har nådd maks forsøk (permanent feilet)
+  db.runSync(
+    `DELETE FROM opplastings_ko WHERE status = 'feilet' AND forsok >= 5`,
+  );
 }
