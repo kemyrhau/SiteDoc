@@ -19,6 +19,8 @@ interface FeltWrapperProps {
   nestingNivå?: number;
   valideringsfeil?: string;
   prosjektId?: string;
+  bygningId?: string | null;
+  standardTegningId?: string | null;
   children: ReactNode;
 }
 
@@ -33,6 +35,8 @@ export function FeltWrapper({
   nestingNivå = 0,
   valideringsfeil,
   prosjektId,
+  bygningId,
+  standardTegningId,
   children,
 }: FeltWrapperProps) {
   // Gradert innrykk: ml-4 per nivå, maks ml-12
@@ -71,6 +75,8 @@ export function FeltWrapper({
         leseModus={leseModus}
         skjulKommentar={objekt.type === "text_field"}
         prosjektId={prosjektId}
+        bygningId={bygningId}
+        standardTegningId={standardTegningId}
       />
     </div>
   );

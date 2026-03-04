@@ -89,7 +89,7 @@ export default function OppgaverSide() {
         />
       ) : (
         <div className="flex flex-col gap-3">
-          {oppgaver.map((oppgave) => (
+          {(oppgaver as Array<{ id: string; title: string; description: string | null; priority: string; status: string; dueDate: string | null; responderEnterprise: { name: string } }>).map((oppgave) => (
             <Card key={oppgave.id} className="flex items-center justify-between">
               <div>
                 <div className="flex items-center gap-2">

@@ -11,6 +11,7 @@ import { RapportObjektRenderer, DISPLAY_TYPER } from "@/components/rapportobjekt
 import { FeltWrapper } from "@/components/rapportobjekter/FeltWrapper";
 import { PrintHeader } from "@/components/PrintHeader";
 import type { RapportObjekt } from "@/components/rapportobjekter/typer";
+import { useBygning } from "@/kontekst/bygning-kontekst";
 
 /* ------------------------------------------------------------------ */
 /*  LagreIndikator                                                     */
@@ -62,6 +63,8 @@ export default function SjekklisteDetaljSide() {
     erRedigerbar,
     lagreStatus,
   } = useSjekklisteSkjema(params.sjekklisteId);
+
+  const { standardTegning } = useBygning();
 
   // Hent prosjektdata for print-header
   const { data: prosjekt } = trpc.prosjekt.hentMedId.useQuery(
@@ -251,6 +254,8 @@ export default function SjekklisteDetaljSide() {
                 nestingNivå={nestingNivå}
                 valideringsfeil={valideringsfeil[objekt.id]}
                 prosjektId={params.prosjektId}
+                bygningId={fullSjekkliste?.building?.id}
+                standardTegningId={standardTegning?.id}
               >
                 <RapportObjektRenderer
                   objekt={objekt}

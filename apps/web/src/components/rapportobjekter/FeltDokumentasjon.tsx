@@ -14,6 +14,8 @@ interface FeltDokumentasjonProps {
   leseModus?: boolean;
   skjulKommentar?: boolean;
   prosjektId?: string;
+  bygningId?: string | null;
+  standardTegningId?: string | null;
 }
 
 function genererVedleggId(): string {
@@ -39,6 +41,8 @@ export function FeltDokumentasjon({
   leseModus,
   skjulKommentar,
   prosjektId,
+  bygningId,
+  standardTegningId,
 }: FeltDokumentasjonProps) {
   const [visVedleggMeny, settVisVedleggMeny] = useState(false);
   const [valgtVedlegg, settValgtVedlegg] = useState<string | null>(null);
@@ -273,6 +277,8 @@ export function FeltDokumentasjon({
           open={visTegningsModal}
           onClose={() => settVisTegningsModal(false)}
           prosjektId={prosjektId}
+          bygningId={bygningId}
+          standardTegningId={standardTegningId}
           onVelgSkjermbilde={onLeggTilVedlegg}
         />
       )}
