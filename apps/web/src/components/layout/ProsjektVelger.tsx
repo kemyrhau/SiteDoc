@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { ChevronDown, Search, FolderOpen } from "lucide-react";
+import { ChevronDown, Search, Building2 } from "lucide-react";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 
 export function ProsjektVelger() {
@@ -31,7 +31,7 @@ export function ProsjektVelger() {
         onClick={() => setApen(!apen)}
         className="flex items-center gap-2 rounded-lg bg-white/10 px-3 py-1.5 text-sm text-white transition-colors hover:bg-white/20"
       >
-        <FolderOpen className="h-4 w-4" />
+        <Building2 className="h-4 w-4" />
         <span className="max-w-[200px] truncate">
           {valgtProsjekt?.name ?? "Velg prosjekt"}
         </span>
