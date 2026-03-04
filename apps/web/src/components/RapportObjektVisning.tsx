@@ -407,9 +407,9 @@ function usePdfSomBilde(url: string | null): string | null {
     (async () => {
       try {
         const pdfjsLib = await import("pdfjs-dist");
-        pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+        pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
 
-        const pdf = await pdfjsLib.getDocument(url).promise;
+        const pdf = await pdfjsLib.getDocument({ url, verbosity: 0 }).promise;
         const side = await pdf.getPage(1);
         const viewport = side.getViewport({ scale: 2 });
         const canvas = document.createElement("canvas");
