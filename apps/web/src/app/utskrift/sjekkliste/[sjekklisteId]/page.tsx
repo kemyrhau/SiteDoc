@@ -294,13 +294,19 @@ function FeltVedlegg({
       {bilder.length > 0 && (
         <div className="mt-1 grid grid-cols-2 gap-3">
           {bilder.map((bilde) => (
-            <img
-              key={bilde.id}
-              src={vedleggSrc(bilde.url)}
-              alt={bilde.filnavn}
-              className="w-full rounded border border-gray-200 object-cover"
-              style={{ aspectRatio: "5/4" }}
-            />
+            <div key={bilde.id}>
+              <img
+                src={vedleggSrc(bilde.url)}
+                alt={bilde.filnavn}
+                className="w-full rounded border border-gray-200 object-cover"
+                style={{ aspectRatio: "5/4" }}
+              />
+              {bilde.opprettet && (
+                <p className="mt-0.5 text-[10px] text-gray-400">
+                  {new Date(bilde.opprettet).toLocaleString("nb-NO")}
+                </p>
+              )}
+            </div>
           ))}
         </div>
       )}

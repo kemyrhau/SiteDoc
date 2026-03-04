@@ -15,6 +15,7 @@ export interface Vedlegg {
   type: "bilde" | "fil";
   url: string;
   filnavn: string;
+  opprettet?: string;
 }
 
 export interface FeltVerdi {

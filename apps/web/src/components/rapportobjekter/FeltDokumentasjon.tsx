@@ -71,6 +71,7 @@ export function FeltDokumentasjon({
         type: erBildeType(data.fileName) ? "bilde" : "fil",
         url: data.fileUrl,
         filnavn: data.fileName,
+        opprettet: new Date().toISOString(),
       });
     } catch (feil) {
       console.error("Filopplasting feilet:", feil);
@@ -192,13 +193,19 @@ export function FeltDokumentasjon({
                 {bildeVedlegg.length > 0 && (
                   <div className="grid grid-cols-2 gap-3">
                     {bildeVedlegg.map((v) => (
-                      <img
-                        key={v.id}
-                        src={vedleggUrl(v.url)}
-                        alt={v.filnavn}
-                        className="w-full rounded border border-gray-200 object-cover"
-                        style={{ aspectRatio: "5/4" }}
-                      />
+                      <div key={v.id}>
+                        <img
+                          src={vedleggUrl(v.url)}
+                          alt={v.filnavn}
+                          className="w-full rounded border border-gray-200 object-cover"
+                          style={{ aspectRatio: "5/4" }}
+                        />
+                        {v.opprettet && (
+                          <p className="mt-0.5 text-[10px] text-gray-400">
+                            {new Date(v.opprettet).toLocaleString("nb-NO")}
+                          </p>
+                        )}
+                      </div>
                     ))}
                   </div>
                 )}

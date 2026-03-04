@@ -197,6 +197,7 @@ export function TegningsModal({
         type: "bilde",
         url: data.fileUrl,
         filnavn: data.fileName,
+        opprettet: new Date().toISOString(),
       });
       onClose();
     } catch (feil) {

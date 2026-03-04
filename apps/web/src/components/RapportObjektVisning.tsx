@@ -290,7 +290,7 @@ function ObjektInnhold({
     }
 
     case "attachments": {
-      const vedlegg = Array.isArray(verdi) ? (verdi as Array<{ id?: string; url?: string; filnavn?: string; type?: string }>) : [];
+      const vedlegg = Array.isArray(verdi) ? (verdi as Array<{ id?: string; url?: string; filnavn?: string; type?: string; opprettet?: string }>) : [];
       const bilder = vedlegg.filter((v) => v.type === "bilde" || /\.(png|jpg|jpeg|gif|webp)$/i.test(v.filnavn ?? ""));
       const filer = vedlegg.filter((v) => !bilder.includes(v));
       return (
@@ -302,13 +302,19 @@ function ObjektInnhold({
                   const url = bilde.url ?? "";
                   const src = url.startsWith("/uploads/") ? `/api/uploads${url.replace("/uploads", "")}` : url;
                   return (
-                    <img
-                      key={bilde.id ?? idx}
-                      src={src}
-                      alt={bilde.filnavn ?? "Vedlegg"}
-                      className="w-full rounded border border-gray-200 object-cover"
-                      style={{ aspectRatio: "5/4" }}
-                    />
+                    <div key={bilde.id ?? idx}>
+                      <img
+                        src={src}
+                        alt={bilde.filnavn ?? "Vedlegg"}
+                        className="w-full rounded border border-gray-200 object-cover"
+                        style={{ aspectRatio: "5/4" }}
+                      />
+                      {bilde.opprettet && (
+                        <p className="mt-0.5 text-[10px] text-gray-400">
+                          {new Date(bilde.opprettet).toLocaleString("nb-NO")}
+                        </p>
+                      )}
+                    </div>
                   );
                 })}
               </div>

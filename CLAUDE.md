@@ -750,6 +750,12 @@ Sjekkliste-detaljsiden (`/dashbord/[prosjektId]/sjekklister/[sjekklisteId]`) har
 - Modal bruker `SafeAreaView` + `KeyboardAvoidingView` (iOS padding) slik at tastaturet aldri dekker innholdet
 - Lokal state under redigering — verdien lagres først når "Ferdig" trykkes
 
+**Vedlegg-tidsstempel (print):**
+- `Vedlegg`-interfacet har `opprettet?: string` (ISO 8601) — settes ved oppretting i FeltDokumentasjon (mobil + web) og TegningsModal
+- Tidsstempelet vises under hvert bilde i ALLE print-varianter: FeltDokumentasjon print-versjon, RapportObjektVisning (attachments), og FeltVedlegg i utskrift-siden
+- Format: `nb-NO` locale via `toLocaleString()`, 10px grå tekst under bildet
+- Eksisterende vedlegg uten `opprettet` viser ingenting (bakoverkompatibelt)
+
 **Filmrull (vedlegg-visning):**
 - Horisontal `ScrollView` med 72×72px thumbnails (IKKE `FlatList` — unngår VirtualizedList-nesting i ScrollView)
 - Vedlegg-URL-er kan være lokale (`file://`, `/var/`) eller server-relative (`/uploads/...`)

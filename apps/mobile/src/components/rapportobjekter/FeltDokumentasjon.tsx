@@ -78,6 +78,7 @@ export function FeltDokumentasjon({
         type: "bilde",
         url: lokalSti,
         filnavn,
+        opprettet: new Date().toISOString(),
       });
 
       // 5. Legg i bakgrunnskø (asynkront, ikke-blokkerende)
@@ -135,6 +136,7 @@ export function FeltDokumentasjon({
         type: "fil",
         url: opplastet.fileUrl,
         filnavn: opplastet.fileName,
+        opprettet: new Date().toISOString(),
       });
     } catch {
       Alert.alert("Feil", "Kunne ikke laste opp filen");
