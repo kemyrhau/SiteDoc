@@ -84,10 +84,38 @@ export default function SjekklisteDetaljSide() {
     drawing?: { id: string; name: string; drawingNumber: string | null } | null;
   } | undefined;
 
-  const objekter = useMemo(
-    () => (sjekkliste?.template?.objects ?? []) as RapportObjekt[],
-    [sjekkliste],
-  );
+  // Bygg trestruktur og flat ut i DFS-rekkefølge (forelder → barn → neste forelder)
+  const objekter = useMemo(() => {
+    const rå = (sjekkliste?.template?.objects ?? []) as RapportObjekt[];
+    const sortert = [...rå].sort((a, b) => a.sortOrder - b.sortOrder);
+
+    // Grupper barn etter parentId
+    const barnMap = new Map<string, RapportObjekt[]>();
+    const rotObjekter: RapportObjekt[] = [];
+
+    for (const obj of sortert) {
+      if (obj.parentId) {
+        const liste = barnMap.get(obj.parentId) ?? [];
+        liste.push(obj);
+        barnMap.set(obj.parentId, liste);
+      } else {
+        rotObjekter.push(obj);
+      }
+    }
+
+    // DFS-flatting: forelder → barn rekursivt
+    const resultat: RapportObjekt[] = [];
+    function leggTilRekursivt(objekter: RapportObjekt[]) {
+      for (const obj of objekter) {
+        resultat.push(obj);
+        const barn = barnMap.get(obj.id);
+        if (barn) leggTilRekursivt(barn);
+      }
+    }
+    leggTilRekursivt(rotObjekter);
+
+    return resultat;
+  }, [sjekkliste]);
 
   // Automatisk værhenting basert på prosjektkoordinater og dato
   useAutoVaer({
