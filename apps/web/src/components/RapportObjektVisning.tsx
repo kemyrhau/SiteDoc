@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { normaliserOpsjon } from "./rapportobjekter/typer";
 import type { RapportObjekt } from "./rapportobjekter/typer";
@@ -393,6 +394,42 @@ function ObjektInnhold({
 /* ------------------------------------------------------------------ */
 
 const DETALJ_ZOOM = 4;
+const BILDE_TYPER = ["png", "jpg", "jpeg", "gif", "webp"];
+
+/** Rendrer første side av en PDF til en data-URL via pdfjs-dist */
+function usePdfSomBilde(url: string | null): string | null {
+  const [bildeUrl, setBildeUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!url) return;
+    let avbrutt = false;
+
+    (async () => {
+      try {
+        const pdfjsLib = await import("pdfjs-dist");
+        pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+
+        const pdf = await pdfjsLib.getDocument(url).promise;
+        const side = await pdf.getPage(1);
+        const viewport = side.getViewport({ scale: 2 });
+        const canvas = document.createElement("canvas");
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        const ctx = canvas.getContext("2d")!;
+        await side.render({ canvasContext: ctx, viewport, canvas } as Parameters<typeof side.render>[0]).promise;
+        if (!avbrutt) {
+          setBildeUrl(canvas.toDataURL("image/png"));
+        }
+      } catch (e) {
+        console.error("Kunne ikke rendre PDF til bilde:", e);
+      }
+    })();
+
+    return () => { avbrutt = true; };
+  }, [url]);
+
+  return bildeUrl;
+}
 
 function TegningPosisjonPrint({ pos }: { pos: TegningPosisjonVerdi }) {
   const { data: tegning } = trpc.tegning.hentMedId.useQuery(
@@ -410,12 +447,28 @@ function TegningPosisjonPrint({ pos }: { pos: TegningPosisjonVerdi }) {
       : tegning.fileUrl
     : null;
 
+  const fileType = (tegning as { fileType?: string } | undefined)?.fileType?.toLowerCase() ?? "";
+  const erBilde = BILDE_TYPER.includes(fileType);
+
+  // For PDF-filer: rendre første side til data-URL via pdfjs-dist
+  const pdfBildeUrl = usePdfSomBilde(!erBilde && fileUrl ? fileUrl : null);
+  const bildeSrc = erBilde ? fileUrl : pdfBildeUrl;
+
   const tegningNummer = (tegning as { drawingNumber?: string | null } | undefined)?.drawingNumber;
-  // Unngå duplisering: bruk tegningsnummer fra API hvis tilgjengelig, ellers drawingName
   const visNavn = tegningNummer ?? drawingName;
 
   if (!fileUrl) {
     return <p className="text-sm text-gray-900">{visNavn}</p>;
+  }
+
+  if (!bildeSrc) {
+    // Laster PDF eller mangler bilde
+    return (
+      <div>
+        <p className="text-sm font-medium text-gray-700">{visNavn}</p>
+        <p className="mt-1 text-xs text-gray-400">Laster tegning…</p>
+      </div>
+    );
   }
 
   return (
@@ -426,10 +479,9 @@ function TegningPosisjonPrint({ pos }: { pos: TegningPosisjonVerdi }) {
         {/* Oversiktsbilde med markør — kvadrat */}
         <div className="relative w-1/2 overflow-hidden rounded border border-gray-200" style={{ aspectRatio: "1/1" }}>
           <img
-            src={fileUrl}
+            src={bildeSrc}
             alt={drawingName}
             className="absolute inset-0 h-full w-full object-contain"
-            crossOrigin="anonymous"
           />
           {/* Rød markør */}
           <div
@@ -446,18 +498,14 @@ function TegningPosisjonPrint({ pos }: { pos: TegningPosisjonVerdi }) {
               top: `${Math.max(0, Math.min(100 - 100 / DETALJ_ZOOM, y - 100 / DETALJ_ZOOM / 2))}%`,
             }}
           />
-          <span className="absolute bottom-1.5 left-1.5 rounded bg-black/60 px-2 py-0.5 text-[10px] font-medium text-white">
-            Oversikt
-          </span>
         </div>
 
         {/* Detaljutsnitt — kvadrat */}
         <div className="relative w-1/2 overflow-hidden rounded border border-gray-200" style={{ aspectRatio: "1/1" }}>
           <img
-            src={fileUrl}
+            src={bildeSrc}
             alt={`Detalj: ${drawingName}`}
             className="absolute inset-0 h-full w-full object-cover"
-            crossOrigin="anonymous"
             style={{
               transformOrigin: `${x}% ${y}%`,
               transform: `scale(${DETALJ_ZOOM})`,
@@ -465,9 +513,6 @@ function TegningPosisjonPrint({ pos }: { pos: TegningPosisjonVerdi }) {
           />
           {/* Rød markør i senter */}
           <div className="absolute left-1/2 top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-red-500 shadow-md" />
-          <span className="absolute bottom-1.5 left-1.5 rounded bg-black/60 px-2 py-0.5 text-[10px] font-medium text-white">
-            Detalj
-          </span>
         </div>
       </div>
     </div>
