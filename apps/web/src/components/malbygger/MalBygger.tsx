@@ -547,7 +547,7 @@ export function MalBygger({ mal }: MalByggerProps) {
   }
 
   return (
-    <div className="flex h-[calc(100vh-220px)] overflow-hidden rounded-lg border border-gray-200 bg-white">
+    <div className="flex h-[calc(100vh-120px)] overflow-hidden rounded-lg border border-gray-200 bg-white">
       <DndContext
         sensors={sensors}
         collisionDetection={pointerWithin}
@@ -558,9 +558,9 @@ export function MalBygger({ mal }: MalByggerProps) {
         <FeltPalett />
 
         {/* Midt — Malsoner */}
-        <div className="flex flex-1 flex-col gap-6 overflow-y-auto p-6">
-          <div className="mb-2">
-            <h3 className="text-lg font-semibold">{mal.name}</h3>
+        <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-4">
+          <div className="mb-1">
+            <h3 className="text-base font-semibold">{mal.name}</h3>
             {mal.description && (
               <p className="text-sm text-gray-500">{mal.description}</p>
             )}

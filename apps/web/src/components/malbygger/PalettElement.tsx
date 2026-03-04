@@ -45,11 +45,11 @@ export function PalettElement({ type, meta }: PalettElementProps) {
       ref={setNodeRef}
       {...listeners}
       {...attributes}
-      className={`flex cursor-grab items-center gap-2.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm transition-all hover:border-blue-300 hover:shadow-sm active:cursor-grabbing ${
+      className={`flex cursor-grab items-center gap-2 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs transition-all hover:border-blue-300 hover:shadow-sm active:cursor-grabbing ${
         isDragging ? "opacity-40" : ""
       }`}
     >
-      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-gray-100 text-xs">
+      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-gray-100 text-[11px]">
         {ikonMap[meta.icon] ?? "?"}
       </span>
       <span className="truncate font-medium text-gray-700">{meta.label}</span>

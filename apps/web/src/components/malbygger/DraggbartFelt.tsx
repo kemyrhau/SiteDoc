@@ -92,7 +92,7 @@ export function DraggbartFelt({
   return (
     <div ref={setNodeRef} style={stil}>
       <div
-        className={`flex items-center gap-3 rounded-lg border bg-white px-3 py-2.5 transition-all ${
+        className={`flex items-center gap-2 rounded-lg border bg-white px-2.5 py-1.5 transition-all ${
           isDragging ? "z-50 opacity-50 shadow-lg" : ""
         } ${
           erValgt ? "border-blue-500 ring-1 ring-blue-500" : "border-gray-200 hover:border-gray-300"
@@ -116,7 +116,7 @@ export function DraggbartFelt({
         </button>
 
         {/* Ikon */}
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-gray-100 text-xs">
+        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-gray-100 text-[11px]">
           {meta ? ikonMap[meta.icon] ?? "?" : "?"}
         </span>
 
@@ -126,8 +126,8 @@ export function DraggbartFelt({
           className="flex flex-1 flex-col items-start text-left"
           onClick={onClick}
         >
-          <span className="text-sm font-medium text-gray-800">{objekt.label}</span>
-          <span className="text-xs text-gray-400">
+          <span className="text-xs font-medium text-gray-800">{objekt.label}</span>
+          <span className="text-[11px] text-gray-400">
             {meta?.label ?? objekt.type}
           </span>
         </button>

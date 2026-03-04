@@ -37,11 +37,11 @@ export function FeltPalett() {
   }));
 
   return (
-    <aside className="flex h-full w-64 shrink-0 flex-col overflow-y-auto border-r border-gray-200 bg-gray-50 p-4">
-      <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-500">
+    <aside className="flex h-full w-56 shrink-0 flex-col overflow-y-auto border-r border-gray-200 bg-gray-50 p-3">
+      <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-500">
         Felttyper
       </h3>
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-3">
         {gruppert.map(({ kategori, label, typer }) => (
           <div key={kategori}>
             <p className="mb-1.5 text-xs font-medium text-gray-400">{label}</p>
