@@ -35,7 +35,7 @@ export default function TegningerSide() {
   const params = useParams<{ prosjektId: string }>();
   const router = useRouter();
   const {
-    standardTegning,
+    aktivTegning,
     aktivBygning,
     posisjonsvelgerAktiv,
     fullførPosisjonsvelger,
@@ -56,14 +56,14 @@ export default function TegningerSide() {
   const [valgtOppretter, setValgtOppretter] = useState("");
 
   const { data: tegning, isLoading } = trpc.tegning.hentMedId.useQuery(
-    { id: standardTegning?.id ?? "" },
-    { enabled: !!standardTegning?.id },
+    { id: aktivTegning?.id ?? "" },
+    { enabled: !!aktivTegning?.id },
   );
 
   // Hent eksisterende oppgavemarkører for denne tegningen
   const { data: oppgaveMarkører } = trpc.oppgave.hentForTegning.useQuery(
-    { drawingId: standardTegning?.id ?? "" },
-    { enabled: !!standardTegning?.id },
+    { drawingId: aktivTegning?.id ?? "" },
+    { enabled: !!aktivTegning?.id },
   );
 
   const { data: mineEntrepriser } = trpc.medlem.hentMineEntrepriser.useQuery(
@@ -94,7 +94,7 @@ export default function TegningerSide() {
 
   const opprettOppgaveMutation = trpc.oppgave.opprett.useMutation({
     onSuccess: (_data: unknown, _vars: { title: string }) => {
-      utils.oppgave.hentForTegning.invalidate({ drawingId: standardTegning?.id ?? "" });
+      utils.oppgave.hentForTegning.invalidate({ drawingId: aktivTegning?.id ?? "" });
       lukkModal();
     },
   });
@@ -109,7 +109,7 @@ export default function TegningerSide() {
   useEffect(() => {
     setZoom(STANDARD_ZOOM);
     setNyMarkør(null);
-  }, [standardTegning?.id]);
+  }, [aktivTegning?.id]);
 
   // Musehjul-zoom
   useEffect(() => {
@@ -143,10 +143,10 @@ export default function TegningerSide() {
     const y = ((e.clientY - rect.top) / rect.height) * 100;
 
     // Posisjonsvelger-modus: returner posisjon og naviger tilbake
-    if (posisjonsvelgerAktiv && standardTegning) {
+    if (posisjonsvelgerAktiv && aktivTegning) {
       fullførPosisjonsvelger({
-        drawingId: standardTegning.id,
-        drawingName: standardTegning.name,
+        drawingId: aktivTegning.id,
+        drawingName: aktivTegning.name,
         positionX: Math.round(x * 100) / 100,
         positionY: Math.round(y * 100) / 100,
       });
@@ -156,7 +156,7 @@ export default function TegningerSide() {
 
     setNyMarkør({ x, y });
     setVisOpprettModal(true);
-  }, [posisjonsvelgerAktiv, standardTegning, fullførPosisjonsvelger, router]);
+  }, [posisjonsvelgerAktiv, aktivTegning, fullførPosisjonsvelger, router]);
 
   // Finn matchende arbeidsforløp for valgt oppretter + mal
   const alleArbeidsforlop = (arbeidsforlop ?? []) as unknown as ArbeidsflopRad[];
@@ -176,7 +176,7 @@ export default function TegningerSide() {
         creatorEnterpriseId: valgtOppretter,
         responderEnterpriseId: utledetSvarer,
         title: "Ny oppgave",
-        drawingId: standardTegning?.id,
+        drawingId: aktivTegning?.id,
         positionX: nyMarkør?.x,
         positionY: nyMarkør?.y,
         workflowId: matchendeArbeidsforlop?.id,
@@ -187,7 +187,7 @@ export default function TegningerSide() {
         creatorEnterpriseId: valgtOppretter,
         responderEnterpriseId: utledetSvarer,
         buildingId: aktivBygning?.id,
-        drawingId: standardTegning?.id,
+        drawingId: aktivTegning?.id,
         workflowId: matchendeArbeidsforlop?.id,
       });
     }
@@ -270,7 +270,7 @@ export default function TegningerSide() {
   const oppretterAlternativer = (mineEntrepriser ?? []).map((e) => ({ value: e.id, label: e.name }));
 
   // Ingen tegning valgt
-  if (!standardTegning) {
+  if (!aktivTegning) {
     return (
       <div className="flex flex-1 items-center justify-center">
         <div className="text-center">

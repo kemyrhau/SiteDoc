@@ -25,6 +25,11 @@ interface StandardTegning {
   name: string;
 }
 
+interface AktivTegning {
+  id: string;
+  name: string;
+}
+
 export interface PosisjonsResultat {
   drawingId: string;
   drawingName: string;
@@ -37,6 +42,8 @@ interface BygningKontekstType {
   velgBygning: (bygning: AktivBygning | null) => void;
   standardTegning: StandardTegning | null;
   settStandardTegning: (tegning: StandardTegning | null) => void;
+  aktivTegning: AktivTegning | null;
+  settAktivTegning: (tegning: AktivTegning | null) => void;
   // Posisjonsvelger: felt ber om posisjon → tegningssiden svarer → felt henter resultatet
   startPosisjonsvelger: (feltId: string) => void;
   avbrytPosisjonsvelger: () => void;
@@ -52,6 +59,7 @@ export function BygningProvider({ children }: { children: ReactNode }) {
   const { prosjektId } = useProsjekt();
   const [aktivBygning, setAktivBygning] = useState<AktivBygning | null>(null);
   const [standardTegning, setStandardTegning] = useState<StandardTegning | null>(null);
+  const [aktivTegning, setAktivTegning] = useState<AktivTegning | null>(null);
   const [posisjonsvelgerAktiv, setPosisjonsvelgerAktiv] = useState(false);
   const [posisjonsvelgerFeltId, setPosisjonsvelgerFeltId] = useState<string | null>(null);
   const posisjonsResultatRef = useRef<PosisjonsResultat | null>(null);
@@ -78,6 +86,7 @@ export function BygningProvider({ children }: { children: ReactNode }) {
             const t = parsedTegning[parsed[prosjektId].id];
             if (t) {
               setStandardTegning(t);
+              setAktivTegning(t);
             }
           }
         } else {
@@ -94,6 +103,7 @@ export function BygningProvider({ children }: { children: ReactNode }) {
     (bygning: AktivBygning | null) => {
       setAktivBygning(bygning);
       setStandardTegning(null);
+      setAktivTegning(null);
 
       if (!prosjektId) return;
 
@@ -119,6 +129,7 @@ export function BygningProvider({ children }: { children: ReactNode }) {
             const t = parsedTegning[bygning.id];
             if (t) {
               setStandardTegning(t);
+              setAktivTegning(t);
             }
           }
         } catch {
@@ -149,6 +160,13 @@ export function BygningProvider({ children }: { children: ReactNode }) {
       }
     },
     [aktivBygning],
+  );
+
+  const settAktivTegningCallback = useCallback(
+    (tegning: AktivTegning | null) => {
+      setAktivTegning(tegning);
+    },
+    [],
   );
 
   const startPosisjonsvelger = useCallback((feltId: string) => {
@@ -185,6 +203,8 @@ export function BygningProvider({ children }: { children: ReactNode }) {
         velgBygning,
         standardTegning,
         settStandardTegning,
+        aktivTegning,
+        settAktivTegning: settAktivTegningCallback,
         startPosisjonsvelger,
         avbrytPosisjonsvelger,
         fullførPosisjonsvelger,

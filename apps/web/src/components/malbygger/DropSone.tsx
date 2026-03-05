@@ -60,11 +60,11 @@ export function DropSone({
           }`}
         >
           {treObjekter.length === 0 ? (
-            <p className="py-6 text-center text-sm font-medium text-gray-300">
-              Dropp her
+            <p className="py-8 text-center text-lg font-semibold text-gray-200 select-none">
+              Dra og slipp felter her
             </p>
           ) : (
-            <div className="flex flex-col gap-1.5">
+            <div className="flex flex-col gap-1.5 pb-8">
               {treObjekter.map((treObj) => (
                 <RekursivtFelt
                   key={treObj.id}

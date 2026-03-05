@@ -550,7 +550,7 @@ Drag-and-drop-editor for å bygge maler med rekursiv kontainer-nesting (Dalux-st
 
 | Komponent | Beskrivelse |
 |-----------|-------------|
-| `MalBygger` | Hovedkomponent: tre-kolonne layout (FeltPalett, DropSoner, FeltKonfigurasjon), bygger tre fra flat array |
+| `MalBygger` | Hovedkomponent: tre-kolonne layout (FeltPalett, DropSoner, FeltKonfigurasjon), bygger tre fra flat array. Fast «Lokasjon»-felt vises øverst i topptekst (grå, ikke slettbart) |
 | `FeltPalett` | Venstre panel med draggbare felttyper (23 typer) |
 | `DropSone` | Droppbar sone (topptekst/datafelter) med rekursiv `RekursivtFelt`-rendering |
 | `DraggbartFelt` | Individuelt sorterbart felt med `nestingNivå`, `parentId` og `children`-prop for inline barn |
@@ -953,7 +953,7 @@ Dalux-inspirert tre-kolonne layout:
 ### Kontekster og hooks
 
 - `ProsjektKontekst` — Valgt prosjekt synkronisert med URL-parameter `[prosjektId]`, alle prosjekter, loading-state
-- `BygningKontekst` — Aktiv bygning (`id`, `name`, `number`) + standard-tegning (`id`, `name`), localStorage-persistering per prosjekt/bygning. `useBygning()` hook. Standard-tegning brukes som forhåndsvalg ved opprettelse av sjekklister/oppgaver (IKKE filtrering). Posisjonsvelger: `startPosisjonsvelger(feltId)` → `fullførPosisjonsvelger(resultat)` → `hentOgTømPosisjonsResultat(feltId)` — state-basert cross-page kommunikasjon for `drawing_position`-felt
+- `BygningKontekst` — Aktiv bygning (`id`, `name`, `number`) + to tegning-states: `standardTegning` (persistent default, localStorage, stjerne-ikon) og `aktivTegning` (visning, endres ved klikk). `useBygning()` hook. Standard-tegning brukes som forhåndsvalg ved opprettelse av sjekklister/oppgaver (IKKE filtrering). Aktiv tegning brukes på tegningssiden for visning. Posisjonsvelger: `startPosisjonsvelger(feltId)` → `fullførPosisjonsvelger(resultat)` → `hentOgTømPosisjonsResultat(feltId)` — state-basert cross-page kommunikasjon for `drawing_position`-felt
 - `NavigasjonKontekst` — Aktiv seksjon + kontekstuelle verktøylinje-handlinger
 - `useAktivSeksjon()` — Utleder aktiv seksjon fra pathname, oppdaterer NavigasjonKontekst
 - `useVerktoylinje(handlinger)` — Registrerer kontekstuelle handlinger per side med auto-cleanup
@@ -974,7 +974,7 @@ Dalux-inspirert tre-kolonne layout:
 - `OppgaverPanel` — Oppgaver med status- og prioritetsgrupper
 - `MalerPanel` — Malliste med søk
 - `EntrepriserPanel` — Entrepriseliste med søk
-- `TegningerPanel` — Bygning+tegningstrevisning med etasje-gruppering (Utomhus/etasjer), søk, utvid/kollaps, aktiv bygning (blå), standard-tegning (stjerne). Tegninger vises med nummer og fagdisiplin-badge. Setter `aktivBygning` og `standardTegning` via BygningKontekst
+- `TegningerPanel` — Bygning+tegningstrevisning med etasje-gruppering (Utomhus/etasjer), søk, utvid/kollaps, aktiv bygning (blå), aktiv tegning (blå markering), standard-tegning (gul stjerne). Klikk på tegning = vis den (aktivTegning), klikk på stjerne = sett/fjern standard (standardTegning). Tegninger vises med nummer og fagdisiplin-badge. Setter `aktivBygning`, `aktivTegning` og `standardTegning` via BygningKontekst
 - `MapperPanel` — Klikkbar mappestruktur med søk, valgt mappe markeres blå, navigerer via URL-param `?mappe=id`
 
 ### Mer-meny

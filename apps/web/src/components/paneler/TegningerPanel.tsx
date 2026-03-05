@@ -115,7 +115,7 @@ export function TegningerPanel() {
   const params = useParams<{ prosjektId: string }>();
   const [sok, setSok] = useState("");
   const [utvidede, setUtvidede] = useState<Set<string>>(new Set());
-  const { aktivBygning, velgBygning, standardTegning, settStandardTegning } =
+  const { aktivBygning, velgBygning, standardTegning, settStandardTegning, aktivTegning, settAktivTegning } =
     useBygning();
 
   const { data: bygninger, isLoading } =
@@ -153,11 +153,29 @@ export function TegningerPanel() {
     tegning: { id: string; name: string },
     bygningId: string,
   ) {
+    // Enkelt-klikk = vis tegningen (uten å endre standard)
+    settAktivTegning(aktivTegning?.id === tegning.id ? null : tegning);
+    if (aktivBygning?.id !== bygningId) {
+      const byg = bygninger?.find((b) => b.id === bygningId);
+      if (byg) {
+        velgBygning({ id: byg.id, name: byg.name, number: byg.number });
+        setUtvidede((prev) => new Set(prev).add(bygningId));
+      }
+    }
+  }
+
+  function handleToggleStandard(
+    e: React.MouseEvent,
+    tegning: { id: string; name: string },
+    bygningId: string,
+  ) {
+    e.stopPropagation();
     if (standardTegning?.id === tegning.id) {
       settStandardTegning(null);
     } else {
       settStandardTegning(tegning);
     }
+    // Sørg for at bygningen er aktiv
     if (aktivBygning?.id !== bygningId) {
       const byg = bygninger?.find((b) => b.id === bygningId);
       if (byg) {
@@ -352,6 +370,8 @@ export function TegningerPanel() {
                             {gruppe.tegninger.map((tegning) => {
                               const erStandard =
                                 standardTegning?.id === tegning.id;
+                              const erAktivTegning =
+                                aktivTegning?.id === tegning.id;
                               return (
                                 <button
                                   key={tegning.id}
@@ -359,16 +379,38 @@ export function TegningerPanel() {
                                     handleVelgTegning(tegning, bygning.id)
                                   }
                                   className={`flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-xs transition-colors ${
-                                    erStandard
+                                    erAktivTegning
                                       ? "text-blue-700 bg-blue-50/50"
                                       : "text-gray-600 hover:bg-gray-50"
                                   }`}
                                 >
-                                  {erStandard ? (
-                                    <Star className="h-3 w-3 shrink-0 fill-amber-400 text-amber-400" />
-                                  ) : (
-                                    <span className="w-3 shrink-0" />
-                                  )}
+                                  <span
+                                    role="button"
+                                    tabIndex={-1}
+                                    onClick={(e) =>
+                                      handleToggleStandard(e, tegning, bygning.id)
+                                    }
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") {
+                                        e.stopPropagation();
+                                        handleToggleStandard(
+                                          e as unknown as React.MouseEvent,
+                                          tegning,
+                                          bygning.id,
+                                        );
+                                      }
+                                    }}
+                                    className="shrink-0 p-0.5 rounded hover:bg-gray-200"
+                                    title={erStandard ? "Fjern som standard" : "Sett som standard"}
+                                  >
+                                    <Star
+                                      className={`h-3 w-3 ${
+                                        erStandard
+                                          ? "fill-amber-400 text-amber-400"
+                                          : "text-gray-300 hover:text-amber-300"
+                                      }`}
+                                    />
+                                  </span>
                                   <span className="truncate text-left flex-1">
                                     {tegningVisningstekst(tegning)}
                                   </span>

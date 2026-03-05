@@ -26,6 +26,7 @@ import { FeltKonfigurasjon } from "./FeltKonfigurasjon";
 import { DragOverlayKomponent } from "./DragOverlay_";
 import type { MalObjekt } from "./DraggbartFelt";
 import type { TreObjekt } from "./typer";
+import { MapPin } from "lucide-react";
 
 // Hent streng-verdi fra opsjon (støtter både string og {label, value}-format)
 function opsjonTilStreng(opsjon: unknown): string {
@@ -582,6 +583,18 @@ export function MalBygger({ mal }: MalByggerProps) {
             {mal.description && (
               <p className="text-sm text-gray-500">{mal.description}</p>
             )}
+          </div>
+
+          {/* Fast lokasjonsfelt — alltid øverst i topptekst */}
+          <div className="mb-2">
+            <div className="mb-1 flex items-center gap-1.5 text-xs font-medium text-gray-500 uppercase tracking-wide">
+              Fast felt
+            </div>
+            <div className="flex items-center gap-2 rounded-md border border-dashed border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-500">
+              <MapPin className="h-4 w-4 shrink-0 text-gray-400" />
+              <span>Lokasjon</span>
+              <span className="ml-auto text-xs text-gray-400">Settes automatisk fra valgt bygning/tegning</span>
+            </div>
           </div>
 
           <DropSone
