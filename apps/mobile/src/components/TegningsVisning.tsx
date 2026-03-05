@@ -9,7 +9,6 @@ import {
   Platform,
   useWindowDimensions,
   StyleSheet,
-  Animated,
 } from "react-native";
 import type {
   GestureResponderEvent,
@@ -26,6 +25,8 @@ export interface Markør {
   x: number;
   y: number;
   id: string;
+  label?: string;
+  farge?: string;
 }
 
 export interface GpsMarkør {
@@ -38,6 +39,7 @@ interface TegningsVisningProps {
   tegningNavn: string;
   onLukk: () => void;
   onTrykk?: (posX: number, posY: number) => void;
+  onMarkørTrykk?: (id: string) => void;
   markører?: Markør[];
   gpsMarkør?: GpsMarkør | null;
 }
@@ -51,6 +53,7 @@ export function TegningsVisning({
   tegningNavn,
   onLukk,
   onTrykk,
+  onMarkørTrykk,
   markører = [],
   gpsMarkør,
 }: TegningsVisningProps) {
@@ -108,10 +111,39 @@ export function TegningsVisning({
     });
   }, []);
 
-  // Håndter trykk på bildeområdet — kun enkelt-fingertrykk
+  // Drag-deteksjon: lagre startposisjon og sjekk om fingeren flyttet seg
+  const trykkStartRef = useRef<{ x: number; y: number; tid: number } | null>(null);
+  const harDrattRef = useRef(false);
+  const TRYKK_TERSKEL = 10; // piksler — mer enn dette = drag, ikke tap
+
+  const håndterTrykkStart = useCallback((e: GestureResponderEvent): boolean => {
+    const nativeEvent = e.nativeEvent as NativeTouchEvent;
+    if (nativeEvent.touches && nativeEvent.touches.length > 1) return false;
+    trykkStartRef.current = {
+      x: nativeEvent.pageX,
+      y: nativeEvent.pageY,
+      tid: Date.now(),
+    };
+    harDrattRef.current = false;
+    return true;
+  }, []);
+
+  const håndterBevegelse = useCallback((e: GestureResponderEvent) => {
+    if (harDrattRef.current || !trykkStartRef.current) return;
+    const { pageX, pageY } = e.nativeEvent;
+    const dx = Math.abs(pageX - trykkStartRef.current.x);
+    const dy = Math.abs(pageY - trykkStartRef.current.y);
+    if (dx > TRYKK_TERSKEL || dy > TRYKK_TERSKEL) {
+      harDrattRef.current = true;
+    }
+  }, []);
+
+  // Håndter trykk på bildeområdet — kun ekte tap (ikke drag/zoom)
   const håndterBildeTrykk = useCallback(
     (e: GestureResponderEvent) => {
-      if (!onTrykk) return;
+      if (!onTrykk || harDrattRef.current) return;
+      // Avvis lange trykk (> 500ms)
+      if (trykkStartRef.current && Date.now() - trykkStartRef.current.tid > 500) return;
 
       const { locationX, locationY } = e.nativeEvent;
       const containerW = bildeDimensjoner.width || width;
@@ -127,16 +159,6 @@ export function TegningsVisning({
     },
     [onTrykk, bildeDimensjoner, width, height],
   );
-
-  // Sjekk om touch-event er en enkelt-finger tap (ikke pinch/drag)
-  const erEnkeltTap = useCallback((e: GestureResponderEvent): boolean => {
-    const nativeEvent = e.nativeEvent as NativeTouchEvent;
-    // Avvis multi-touch (pinch-zoom)
-    if (nativeEvent.touches && nativeEvent.touches.length > 1) {
-      return false;
-    }
-    return true;
-  }, []);
 
   // Håndter trykk fra PDF WebView via postMessage
   const håndterWebViewMelding = useCallback(
@@ -166,54 +188,48 @@ export function TegningsVisning({
     true;
   `;
 
-  // Render markører som absolutt posisjonerte pinner
+  // Render markører som absolutt posisjonerte pinner (klikkbare)
   const renderMarkører = (containerW: number, containerH: number) => {
-    return markører.map((m) => (
-      <View
-        key={m.id}
-        style={{
-          position: "absolute",
-          left: (m.x / 100) * containerW - 12,
-          top: (m.y / 100) * containerH - 24,
-        }}
-      >
-        <MapPin size={24} color="#ef4444" fill="#ef4444" />
-      </View>
-    ));
+    return markører.map((m) => {
+      const farge = m.farge || "#ef4444";
+      return (
+        <Pressable
+          key={m.id}
+          onPress={() => onMarkørTrykk?.(m.id)}
+          hitSlop={8}
+          style={{
+            position: "absolute",
+            left: (m.x / 100) * containerW - 12,
+            top: (m.y / 100) * containerH - 24,
+            alignItems: "center",
+          }}
+        >
+          <MapPin size={24} color={farge} fill={farge} />
+          {m.label && (
+            <View style={{ backgroundColor: "rgba(0,0,0,0.7)", borderRadius: 4, paddingHorizontal: 4, paddingVertical: 1, marginTop: -2 }}>
+              <Text style={{ color: "#fff", fontSize: 9, fontWeight: "600" }}>{m.label}</Text>
+            </View>
+          )}
+        </Pressable>
+      );
+    });
   };
 
-  // GPS-posisjon med Animated for å unngå re-render under zoom
-  const gpsAnimX = useRef(new Animated.Value(-100)).current;
-  const gpsAnimY = useRef(new Animated.Value(-100)).current;
-  const gpsErSynlig = useRef(false);
-
-  useEffect(() => {
-    if (gpsMarkør && bildeDimensjoner.width > 0) {
-      const cW = bildeDimensjoner.width || width;
-      const cH = bildeDimensjoner.height || height * 0.8;
-      gpsAnimX.setValue((gpsMarkør.x / 100) * cW - 10);
-      gpsAnimY.setValue((gpsMarkør.y / 100) * cH - 10);
-      gpsErSynlig.current = true;
-    } else {
-      gpsAnimX.setValue(-100);
-      gpsAnimY.setValue(-100);
-      gpsErSynlig.current = false;
-    }
-  }, [gpsMarkør, bildeDimensjoner, width, height, gpsAnimX, gpsAnimY]);
-
-  const renderGpsMarkør = () => {
+  // GPS-posisjon som blå prikk — rendres kun når gpsMarkør har verdi
+  const renderGpsMarkør = (containerW: number, containerH: number) => {
+    if (!gpsMarkør) return null;
     return (
-      <Animated.View
+      <View
         style={{
           position: "absolute",
-          left: gpsAnimX,
-          top: gpsAnimY,
+          left: (gpsMarkør.x / 100) * containerW - 10,
+          top: (gpsMarkør.y / 100) * containerH - 10,
         }}
       >
         <View style={stiler.gpsPrikk}>
           <View style={stiler.gpsPrikkInner} />
         </View>
-      </Animated.View>
+      </View>
     );
   };
 
@@ -282,7 +298,7 @@ export function TegningsVisning({
               />
               <View pointerEvents="none" style={StyleSheet.absoluteFill}>
                 {renderMarkører(width, height * 0.8)}
-                {renderGpsMarkør()}
+                {renderGpsMarkør(width, height * 0.8)}
               </View>
               {onTrykk && (
                 <Pressable
@@ -314,7 +330,7 @@ export function TegningsVisning({
               />
               <View pointerEvents="none" style={StyleSheet.absoluteFill}>
                 {renderMarkører(width, height * 0.8)}
-                {renderGpsMarkør()}
+                {renderGpsMarkør(width, height * 0.8)}
               </View>
             </View>
           )}
@@ -350,20 +366,24 @@ export function TegningsVisning({
             />
           </ScrollView>
 
-          {/* Markører og GPS-posisjon som eget overlegg — blokkerer ikke gestures */}
-          <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+          {/* Markører og GPS-posisjon — box-none lar trykk treffe markører men zoom slipper gjennom */}
+          <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
             {renderMarkører(
               bildeDimensjoner.width || width,
               bildeDimensjoner.height || height * 0.8,
             )}
-            {renderGpsMarkør()}
+            {renderGpsMarkør(
+              bildeDimensjoner.width || width,
+              bildeDimensjoner.height || height * 0.8,
+            )}
           </View>
 
-          {/* Trykk-overlegg — kun enkelt-fingertrykk plasserer markør */}
+          {/* Trykk-overlegg — kun ekte tap (ikke drag/zoom) plasserer markør */}
           {onTrykk && (
             <View
               style={StyleSheet.absoluteFill}
-              onStartShouldSetResponder={erEnkeltTap}
+              onStartShouldSetResponder={håndterTrykkStart}
+              onResponderMove={håndterBevegelse}
               onResponderRelease={håndterBildeTrykk}
             />
           )}
