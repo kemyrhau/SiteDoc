@@ -363,7 +363,7 @@ export function TegningsVisning({
 
           {/* ScrollView med zoom */}
           <ScrollView
-            contentContainerStyle={{ flexGrow: 1, justifyContent: "flex-end" }}
+            contentContainerStyle={{ flexGrow: 1, justifyContent: "center" }}
             maximumZoomScale={5}
             minimumZoomScale={1}
             bouncesZoom
