@@ -6,7 +6,7 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 
 - **Monorepo:** Turborepo med pnpm workspaces
 - **Frontend web:** Next.js 14+ (App Router), React, TypeScript
-- **Frontend mobil:** React Native, Expo (SDK 52+)
+- **Frontend mobil:** React Native, Expo (SDK 54)
 - **Backend API:** Node.js, Fastify, tRPC
 - **Database (server):** PostgreSQL med Prisma ORM (v6.19)
 - **Database (lokal):** SQLite via expo-sqlite, Drizzle ORM
@@ -114,7 +114,8 @@ siteflow/
 
 - `pnpm dev` — Start alle apps i dev-modus
 - `pnpm dev --filter web` — Kun web (port 3100)
-- `pnpm dev --filter mobile` — Kun mobil (Expo)
+- `pnpm dev --filter mobile` — Kun mobil (Expo, LAN-modus)
+- `cd apps/mobile && npx expo start --tunnel --clear` — Mobil med tunnel (fungerer over 5G/annet nettverk). **Bruk alltid `--tunnel` for mobilutvikling** — LAN-modus krever at telefonen er på samme WiFi. Tunnel-modus gir en offentlig URL via ngrok som fungerer fra alle nettverk. QR-koden vises i terminalen — skann med Expo Go. Etter kodeendringer: rist telefonen → trykk "Reload"
 - `pnpm dev --filter api` — Kun API
 - `pnpm build` — Bygg alle apps
 - `pnpm test` — Kjør alle tester

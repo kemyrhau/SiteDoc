@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import {
   View,
   Text,
@@ -62,8 +62,29 @@ export function TegningsVisning({
   const { width, height } = useWindowDimensions();
   const erPdfFil = erPdf(tegningUrl);
   const [bildeDimensjoner, setBildeDimensjoner] = useState({ width: 0, height: 0 });
+  const [naturligBilde, setNaturligBilde] = useState<{ w: number; h: number } | null>(null);
   const bildeRef = useRef<View>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Bildedimensjoner basert på naturlig aspektforhold — fyller bredden, ingen letterboxing
+  const bildeSt = useMemo(() => {
+    if (naturligBilde && naturligBilde.w > 0 && naturligBilde.h > 0) {
+      const ratio = naturligBilde.h / naturligBilde.w;
+      return { width, height: width * ratio };
+    }
+    return { width, height: height * 0.8 };
+  }, [naturligBilde, width, height]);
+
+  // Hent naturlig bildedimensjon for korrekt markør-posisjonering
+  useEffect(() => {
+    if (!erPdfFil && tegningUrl) {
+      Image.getSize(
+        tegningUrl,
+        (w, h) => setNaturligBilde({ w, h }),
+        () => setNaturligBilde(null),
+      );
+    }
+  }, [tegningUrl, erPdfFil]);
 
   // Reset tilstand ved endring av URL
   useEffect(() => {
@@ -146,18 +167,16 @@ export function TegningsVisning({
       if (trykkStartRef.current && Date.now() - trykkStartRef.current.tid > 500) return;
 
       const { locationX, locationY } = e.nativeEvent;
-      const containerW = bildeDimensjoner.width || width;
-      const containerH = bildeDimensjoner.height || height * 0.8;
 
-      const posX = (locationX / containerW) * 100;
-      const posY = (locationY / containerH) * 100;
+      const posX = (locationX / bildeSt.width) * 100;
+      const posY = (locationY / bildeSt.height) * 100;
 
       const klampX = Math.max(0, Math.min(100, posX));
       const klampY = Math.max(0, Math.min(100, posY));
 
       onTrykk(klampX, klampY);
     },
-    [onTrykk, bildeDimensjoner, width, height],
+    [onTrykk, bildeSt],
   );
 
   // Håndter trykk fra PDF WebView via postMessage
@@ -189,7 +208,7 @@ export function TegningsVisning({
   `;
 
   // Render markører som absolutt posisjonerte pinner (klikkbare)
-  const renderMarkører = (containerW: number, containerH: number) => {
+  const renderMarkører = (bildeW: number, bildeH: number) => {
     return markører.map((m) => {
       const farge = m.farge || "#ef4444";
       return (
@@ -199,8 +218,8 @@ export function TegningsVisning({
           hitSlop={8}
           style={{
             position: "absolute",
-            left: (m.x / 100) * containerW - 12,
-            top: (m.y / 100) * containerH - 24,
+            left: (m.x / 100) * bildeW - 12,
+            top: (m.y / 100) * bildeH - 24,
             alignItems: "center",
           }}
         >
@@ -216,14 +235,14 @@ export function TegningsVisning({
   };
 
   // GPS-posisjon som blå prikk — rendres kun når gpsMarkør har verdi
-  const renderGpsMarkør = (containerW: number, containerH: number) => {
+  const renderGpsMarkør = (bildeW: number, bildeH: number) => {
     if (!gpsMarkør) return null;
     return (
       <View
         style={{
           position: "absolute",
-          left: (gpsMarkør.x / 100) * containerW - 10,
-          top: (gpsMarkør.y / 100) * containerH - 10,
+          left: (gpsMarkør.x / 100) * bildeW - 10,
+          top: (gpsMarkør.y / 100) * bildeH - 10,
         }}
       >
         <View style={stiler.gpsPrikk}>
@@ -344,39 +363,28 @@ export function TegningsVisning({
         >
           {laster && renderLasting()}
 
-          {/* ScrollView med zoom — uten Pressable inni */}
+          {/* ScrollView med zoom */}
           <ScrollView
-            contentContainerStyle={{
-              flexGrow: 1,
-              justifyContent: "center",
-              alignItems: "center",
-            }}
             maximumZoomScale={5}
             minimumZoomScale={1}
             bouncesZoom
             showsHorizontalScrollIndicator={false}
             showsVerticalScrollIndicator={false}
           >
-            <Image
-              source={{ uri: tegningUrl }}
-              style={{ width, height: height * 0.8 }}
-              resizeMode="contain"
-              onLoadEnd={håndterLastetFerdig}
-              onError={håndterFeil}
-            />
+            {/* Bilde + markører i SAMME container — ingen kompensering nødvendig */}
+            <View style={{ width: bildeSt.width, height: bildeSt.height, position: "relative" }}>
+              <Image
+                source={{ uri: tegningUrl }}
+                style={{ width: bildeSt.width, height: bildeSt.height }}
+                onLoadEnd={håndterLastetFerdig}
+                onError={håndterFeil}
+              />
+              <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
+                {renderMarkører(bildeSt.width, bildeSt.height)}
+                {renderGpsMarkør(bildeSt.width, bildeSt.height)}
+              </View>
+            </View>
           </ScrollView>
-
-          {/* Markører og GPS-posisjon — box-none lar trykk treffe markører men zoom slipper gjennom */}
-          <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
-            {renderMarkører(
-              bildeDimensjoner.width || width,
-              bildeDimensjoner.height || height * 0.8,
-            )}
-            {renderGpsMarkør(
-              bildeDimensjoner.width || width,
-              bildeDimensjoner.height || height * 0.8,
-            )}
-          </View>
 
           {/* Trykk-overlegg — kun ekte tap (ikke drag/zoom) plasserer markør */}
           {onTrykk && (
