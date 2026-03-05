@@ -195,12 +195,14 @@ export function TegningsVelger({
                         {tegning.drawingNumber}
                       </Text>
                     )}
-                    <Text
-                      className={`text-sm ${erValgt ? "font-semibold text-blue-700" : "text-gray-800"}`}
-                      numberOfLines={1}
-                    >
-                      {tegning.name}
-                    </Text>
+                    {tegning.name !== tegning.drawingNumber && (
+                      <Text
+                        className={`text-sm ${erValgt ? "font-semibold text-blue-700" : "text-gray-800"}`}
+                        numberOfLines={1}
+                      >
+                        {tegning.name}
+                      </Text>
+                    )}
                   </View>
                 </View>
                 <View className="flex-row items-center gap-2">
