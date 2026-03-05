@@ -7,6 +7,7 @@ import { opplastingsKo, sjekklisteFeltdata, oppgaveFeltdata } from "../db/schema
 import { lastOppFil } from "../services/opplasting";
 import { slettLokaltBilde } from "../services/lokalBilde";
 import { useNettverk } from "./NettverkProvider";
+import { AUTH_CONFIG } from "../config/auth";
 
 export interface NyKoOppforing {
   sjekklisteId?: string;
@@ -176,12 +177,14 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
   );
 
   const prosesserNeste = useCallback(async () => {
+    console.log("[KØ] prosesserNeste kalt, erPaaNettet:", erPaaNettet, "prosesserer:", prosessererRef.current);
     if (prosessererRef.current || !erPaaNettet) return;
     prosessererRef.current = true;
     settErAktiv(true);
 
     const db = hentDatabase();
     if (!db) {
+      console.log("[KØ] Database ikke tilgjengelig");
       prosessererRef.current = false;
       settErAktiv(false);
       return;
@@ -205,23 +208,27 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
         .all();
 
       if (nesteRader.length === 0) {
+        console.log("[KØ] Ingen oppføringer i kø");
         prosessererRef.current = false;
         settErAktiv(false);
         return;
       }
 
       const oppforing = nesteRader[0]!;
+      console.log("[KØ] Prosesserer:", oppforing.filnavn, "status:", oppforing.status, "forsøk:", oppforing.forsok, "sti:", oppforing.lokalSti.slice(-50));
 
       // Sjekk om lokal fil finnes — ellers slett oppføringen (gammel container/avinstallert)
       const { getInfoAsync } = await import("expo-file-system/legacy");
       const filInfo = await getInfoAsync(oppforing.lokalSti);
+      console.log("[KØ] Fil finnes:", filInfo.exists, oppforing.lokalSti.slice(-50));
       if (!filInfo.exists) {
+        console.log("[KØ] Sletter oppføring — fil mangler");
         db.delete(opplastingsKo)
           .where(eq(opplastingsKo.id, oppforing.id))
           .run();
         oppdaterTellere();
         prosessererRef.current = false;
-        prosesserNeste();
+        prosesserNeste().catch((f) => console.error("[KØ] Rekursiv prosesserNeste feilet:", f));
         return;
       }
 
@@ -230,6 +237,7 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
         .set({ status: "laster_opp" })
         .where(eq(opplastingsKo.id, oppforing.id))
         .run();
+      console.log("[KØ] Starter opplasting til:", `${AUTH_CONFIG.apiUrl}/upload`);
 
       try {
         const resultat = await lastOppFil(
@@ -238,6 +246,7 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
           oppforing.mimeType,
         );
 
+        console.log("[KØ] Opplasting vellykket:", resultat.fileUrl);
         // Suksess — oppdater SQLite
         db.update(opplastingsKo)
           .set({
@@ -270,10 +279,11 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
 
         // Prosesser neste umiddelbart
         prosessererRef.current = false;
-        prosesserNeste();
+        prosesserNeste().catch((f) => console.error("[KØ] Neste etter suksess feilet:", f));
       } catch (feil) {
         const forsok = (oppforing.forsok ?? 0) + 1;
         const melding = feil instanceof Error ? feil.message : "Ukjent feil";
+        console.error("[KØ] Opplasting feilet:", melding, "forsøk:", forsok);
 
         db.update(opplastingsKo)
           .set({
@@ -291,11 +301,11 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
         prosessererRef.current = false;
 
         timerRef.current = setTimeout(() => {
-          prosesserNeste();
+          prosesserNeste().catch((f) => console.error("[KØ] Retry prosesserNeste feilet:", f));
         }, ventetid);
       }
     } catch (feil) {
-      console.error("Køprosessering feilet:", feil);
+      console.error("[KØ] Køprosessering feilet helt:", feil);
       prosessererRef.current = false;
       settErAktiv(false);
     }
@@ -304,7 +314,7 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
   // Start/stopp prosessering basert på nettverkstilstand
   useEffect(() => {
     if (erPaaNettet && ventende > 0) {
-      prosesserNeste();
+      prosesserNeste().catch((f) => console.error("[KØ] prosesserNeste feilet i useEffect:", f));
     }
     return () => {
       if (timerRef.current) {
@@ -314,36 +324,61 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
     };
   }, [erPaaNettet, ventende, prosesserNeste]);
 
+  // Sikkerhetsnett: periodisk re-trigger hvis køen henger
+  useEffect(() => {
+    if (!erPaaNettet) return;
+    const intervall = setInterval(() => {
+      if (ventende > 0 && !prosessererRef.current) {
+        console.log("[KØ] Sikkerhetsnett: re-trigger prosessering, ventende:", ventende);
+        prosesserNeste().catch((f) => console.error("[KØ] Sikkerhetsnett feilet:", f));
+      }
+    }, 15000);
+    return () => clearInterval(intervall);
+  }, [erPaaNettet, ventende, prosesserNeste]);
+
   const leggIKo = useCallback(
     async (oppforing: NyKoOppforing) => {
       const db = hentDatabase();
-      if (!db) return;
+      if (!db) {
+        console.error("[KØ] Database ikke tilgjengelig i leggIKo");
+        return;
+      }
 
-      db.insert(opplastingsKo)
-        .values({
-          id: randomUUID(),
-          sjekklisteId: oppforing.sjekklisteId ?? null,
-          oppgaveId: oppforing.oppgaveId ?? null,
-          objektId: oppforing.objektId,
-          vedleggId: oppforing.vedleggId,
-          lokalSti: oppforing.lokalSti,
-          filnavn: oppforing.filnavn,
-          mimeType: oppforing.mimeType,
-          filstorrelse: oppforing.filstorrelse ?? null,
-          gpsLat: oppforing.gpsLat ?? null,
-          gpsLng: oppforing.gpsLng ?? null,
-          gpsAktivert: oppforing.gpsAktivert ?? false,
-          status: "venter",
-          forsok: 0,
-          opprettet: Date.now(),
-        })
-        .run();
+      console.log("[KØ] Legger i kø:", oppforing.filnavn, "sjekkliste:", oppforing.sjekklisteId, "oppgave:", oppforing.oppgaveId, "sti:", oppforing.lokalSti.slice(-50));
+      try {
+        db.insert(opplastingsKo)
+          .values({
+            id: randomUUID(),
+            sjekklisteId: oppforing.sjekklisteId ?? null,
+            oppgaveId: oppforing.oppgaveId ?? null,
+            objektId: oppforing.objektId,
+            vedleggId: oppforing.vedleggId,
+            lokalSti: oppforing.lokalSti,
+            filnavn: oppforing.filnavn,
+            mimeType: oppforing.mimeType,
+            filstorrelse: oppforing.filstorrelse ?? null,
+            gpsLat: oppforing.gpsLat ?? null,
+            gpsLng: oppforing.gpsLng ?? null,
+            gpsAktivert: oppforing.gpsAktivert ?? false,
+            status: "venter",
+            forsok: 0,
+            opprettet: Date.now(),
+          })
+          .run();
+        console.log("[KØ] Insert OK for", oppforing.filnavn);
+      } catch (feil) {
+        console.error("[KØ] SQLite INSERT feilet:", feil, "sjekklisteId:", oppforing.sjekklisteId, "oppgaveId:", oppforing.oppgaveId);
+        return;
+      }
 
       oppdaterTellere();
 
       // Start prosessering hvis online
       if (erPaaNettet && !prosessererRef.current) {
-        prosesserNeste();
+        console.log("[KØ] Starter prosessering direkte fra leggIKo");
+        prosesserNeste().catch((f) => console.error("[KØ] prosesserNeste feilet fra leggIKo:", f));
+      } else {
+        console.log("[KØ] Prosessering ikke startet — erPaaNettet:", erPaaNettet, "prosesserer:", prosessererRef.current);
       }
     },
     [erPaaNettet, oppdaterTellere, prosesserNeste],

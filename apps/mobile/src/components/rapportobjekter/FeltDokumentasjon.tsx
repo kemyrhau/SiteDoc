@@ -58,10 +58,12 @@ export function FeltDokumentasjon({
 
   const håndterBilde = useCallback(async (bildeUri: string, gpsLat?: number, gpsLng?: number) => {
     try {
+      console.log("[BILDE] håndterBilde kalt, sjekklisteId:", sjekklisteId, "oppgaveId:", oppgaveIdForKo, "objektId:", objektId);
       const filnavn = `IMG_${Date.now()}.jpg`;
 
       // 1. Lagre lokalt (instant, ~5ms)
       const lokalSti = await lagreLokaltBilde(bildeUri, filnavn);
+      console.log("[BILDE] Lagret lokalt:", lokalSti.slice(-50));
 
       // 2. Hent filstørrelse
       const filstorrelse = await hentFilstorrelse(lokalSti);
@@ -82,6 +84,7 @@ export function FeltDokumentasjon({
       });
 
       // 5. Legg i bakgrunnskø (asynkront, ikke-blokkerende)
+      console.log("[BILDE] Legger i kø, vedleggId:", vedleggId);
       await leggIKoRef.current({
         sjekklisteId,
         oppgaveId: oppgaveIdForKo,

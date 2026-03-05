@@ -14,6 +14,9 @@ export async function lastOppFil(
   mimeType: string,
 ): Promise<OpplastingsResultat> {
   const token = await hentSessionToken();
+  const url = `${AUTH_CONFIG.apiUrl}/upload`;
+
+  console.log("[OPPL] Laster opp:", filnavn, "til:", url, "uri:", uri.slice(-50), "token:", token ? "ja" : "nei");
 
   const formData = new FormData();
   formData.append("file", {
@@ -22,7 +25,7 @@ export async function lastOppFil(
     type: mimeType,
   } as unknown as Blob);
 
-  const respons = await fetch(`${AUTH_CONFIG.apiUrl}/upload`, {
+  const respons = await fetch(url, {
     method: "POST",
     headers: {
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -30,10 +33,15 @@ export async function lastOppFil(
     body: formData,
   });
 
+  console.log("[OPPL] Respons status:", respons.status);
+
   if (!respons.ok) {
     const feil = await respons.json().catch(() => ({ error: "Opplasting feilet" }));
+    console.error("[OPPL] Opplasting feilet:", respons.status, feil);
     throw new Error(feil.error ?? "Opplasting feilet");
   }
 
-  return respons.json();
+  const resultat = await respons.json();
+  console.log("[OPPL] Suksess:", resultat.fileUrl);
+  return resultat;
 }

@@ -24,7 +24,9 @@ export function NettverkProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const avmeld = NetInfo.addEventListener((state) => {
-      setErPaaNettet(state.isConnected ?? true);
+      const tilkoblet = state.isConnected ?? true;
+      console.log("[NETT] Nettverkstilstand:", tilkoblet ? "ONLINE" : "OFFLINE", "type:", state.type);
+      setErPaaNettet(tilkoblet);
       setTilkoblingstype(state.type);
     });
 
