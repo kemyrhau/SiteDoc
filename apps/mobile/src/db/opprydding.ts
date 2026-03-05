@@ -167,8 +167,16 @@ export async function ryddForeldreloseBilder() {
       .all()
       .map((r) => r.lokalSti);
 
-    const koStiSett = new Set(alleKoStier);
+    // Hvis køen er helt tom men det finnes lokale bilder, hopp over opprydding.
+    // Dette skjer ved første oppstart etter at databasen ble aktivert —
+    // bildene har aldri hatt køoppføringer og er ikke reelle foreldreløse.
     const lokalebilder = await listLokalebilder();
+    if (alleKoStier.length === 0 && lokalebilder.length > 0) {
+      console.log("[RYDD] Hopper over opprydding — kø tom men", lokalebilder.length, "lokale bilder finnes (migreringsfase)");
+      return;
+    }
+
+    const koStiSett = new Set(alleKoStier);
 
     for (const bildeSti of lokalebilder) {
       if (!koStiSett.has(bildeSti)) {
