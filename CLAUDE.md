@@ -227,7 +227,7 @@ Hjelpemodul i `apps/api/src/trpc/tilgangskontroll.ts` med følgende funksjoner:
 - `gruppe.hentMineTillatelser` eksponerer brukerens tillatelser til klienten (returnerer `Permission[]`)
 - `gruppe.hentMinTilgang` returnerer `{ tillatelser: string[], domener: string[], erAdmin: boolean }` — brukes for tilgangsbasert malfiltrering i tegningsopprett-modal
 - `HovedSidebar` — Maler-ikonet skjules for brukere uten `manage_field`
-- `OppsettLayout` — Feltarbeid-seksjonen (Entrepriser, Oppgavens arbeidsflyt, Kontrollplan, Mappeoppsett) skjules for brukere uten `manage_field`
+- `OppsettLayout` — Feltarbeid-seksjonen (Entrepriser, Oppgavemaler, Sjekklistemaler, Kontrollplan, Mappeoppsett) skjules for brukere uten `manage_field`
 - Maler-siden (`/dashbord/[prosjektId]/maler`) — Viser "Ingen tilgang" EmptyState ved direkte URL uten `manage_field`
 - Mønster: `tillatelse?: Permission` på nav-element-interfaces, filtrering av elementer basert på `tillatelser.includes()`
 
