@@ -137,6 +137,63 @@ export function RapportObjektVisning({
 }
 
 /* ------------------------------------------------------------------ */
+/*  Vedlegg + kommentar for repeater-barn                               */
+/* ------------------------------------------------------------------ */
+
+function vedleggSrc(url: string): string {
+  if (url.startsWith("http") || url.startsWith("data:") || url.startsWith("blob:")) return url;
+  if (url.startsWith("/uploads/")) return `/api/uploads${url.replace("/uploads", "")}`;
+  return url;
+}
+
+function RepeaterBarnVedlegg({
+  vedlegg,
+  kommentar,
+}: {
+  vedlegg: Array<{ id: string; type: string; url: string; filnavn: string; opprettet?: string }>;
+  kommentar: string;
+}) {
+  const harVedlegg = vedlegg.length > 0;
+  const harKommentar = kommentar.length > 0;
+  if (!harVedlegg && !harKommentar) return null;
+
+  const bilder = vedlegg.filter((v) => v.type === "bilde" || /\.(png|jpg|jpeg|gif|webp)$/i.test(v.filnavn));
+  const filer = vedlegg.filter((v) => !bilder.includes(v));
+
+  return (
+    <div className="mt-1 border-t border-gray-100 pt-1">
+      {harKommentar && (
+        <p className="text-xs italic text-gray-500">{kommentar}</p>
+      )}
+      {bilder.length > 0 && (
+        <div className="mt-1 grid grid-cols-2 gap-3">
+          {bilder.map((bilde) => (
+            <div key={bilde.id}>
+              <img
+                src={vedleggSrc(bilde.url)}
+                alt={bilde.filnavn}
+                className="w-full rounded border border-gray-200 object-cover"
+                style={{ aspectRatio: "5/4" }}
+              />
+              {bilde.opprettet && (
+                <p className="mt-0.5 text-[10px] text-gray-400">
+                  {new Date(bilde.opprettet).toLocaleString("nb-NO")}
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+      {filer.length > 0 && (
+        <p className="mt-1 text-xs text-gray-600">
+          Filer: {filer.map((f) => f.filnavn).join(", ")}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Type-spesifikk rendering                                           */
 /* ------------------------------------------------------------------ */
 
@@ -381,7 +438,7 @@ function ObjektInnhold({
     }
 
     case "repeater": {
-      const repeaterRader = Array.isArray(verdi) ? (verdi as Array<Record<string, { verdi?: unknown; kommentar?: string; vedlegg?: unknown[] }>>) : [];
+      const repeaterRader = Array.isArray(verdi) ? (verdi as Array<Record<string, { verdi?: unknown; kommentar?: string; vedlegg?: Array<{ id: string; type: string; url: string; filnavn: string; opprettet?: string }> }>>) : [];
       const repeaterBarn = objekt.children ?? [];
 
       if (repeaterRader.length === 0) {
@@ -398,14 +455,18 @@ function ObjektInnhold({
                 {repeaterBarn.map((barn) => {
                   const feltData = rad[barn.id];
                   const barnVerdi = feltData?.verdi ?? null;
+                  const barnVedlegg = feltData?.vedlegg ?? [];
+                  const barnKommentar = feltData?.kommentar ?? "";
                   return (
-                    <RapportObjektVisning
-                      key={barn.id}
-                      objekt={barn}
-                      verdi={barnVerdi}
-                      nestingNivå={0}
-                      data={data}
-                    />
+                    <div key={barn.id}>
+                      <RapportObjektVisning
+                        objekt={barn}
+                        verdi={barnVerdi}
+                        nestingNivå={0}
+                        data={data}
+                      />
+                      <RepeaterBarnVedlegg vedlegg={barnVedlegg} kommentar={barnKommentar} />
+                    </div>
                   );
                 })}
               </div>
