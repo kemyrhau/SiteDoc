@@ -1,16 +1,15 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import {
   View,
   Text,
-  TextInput,
   Pressable,
   Modal,
   ScrollView,
   ActivityIndicator,
   Alert,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { MapPin, ChevronDown } from "lucide-react-native";
+import { SafeAreaView } from "react-native";
+import { MapPin, ChevronDown, ArrowRight } from "lucide-react-native";
 import { trpc } from "../lib/trpc";
 import { useProsjekt } from "../kontekst/ProsjektKontekst";
 
@@ -19,6 +18,18 @@ type Prioritet = "low" | "medium" | "high" | "critical";
 interface EntrepriseData {
   id: string;
   name: string;
+}
+
+interface ArbeidsforlopData {
+  id: string;
+  name: string;
+  enterpriseId: string;
+  responderEnterpriseId: string | null;
+  responderEnterprise: { id: string; name: string } | null;
+  templates: Array<{
+    templateId: string;
+    template: { id: string; name: string; category: string };
+  }>;
 }
 
 interface OppgaveModalProps {
@@ -60,21 +71,68 @@ export function OppgaveModal({
 }: OppgaveModalProps) {
   const { valgtProsjektId } = useProsjekt();
 
-  const [tittel, setTittel] = useState("");
-  const [beskrivelse, setBeskrivelse] = useState("");
   const [prioritet, setPrioritet] = useState<Prioritet>("medium");
   const [oppretterEntrepriseId, setOppretterEntrepriseId] = useState<string | null>(null);
   const [svarerEntrepriseId, setSvarerEntrepriseId] = useState<string | null>(null);
-  const [visOppretterListe, setVisOppretterListe] = useState(false);
   const [visSvarerListe, setVisSvarerListe] = useState(false);
 
-  // Hent entrepriser for prosjektet
+  // Hent brukerens entrepriser
+  const mineEntrepriserQuery = trpc.medlem.hentMineEntrepriser.useQuery(
+    { projectId: valgtProsjektId! },
+    { enabled: !!valgtProsjektId && synlig },
+  );
+  const mineEntrepriser = (mineEntrepriserQuery.data ?? []) as EntrepriseData[];
+
+  // Hent alle entrepriser for svarer-valg
   const entrepriseQuery = trpc.entreprise.hentForProsjekt.useQuery(
     { projectId: valgtProsjektId! },
     { enabled: !!valgtProsjektId && synlig },
   );
-
   const entrepriser = (entrepriseQuery.data ?? []) as EntrepriseData[];
+
+  // Hent arbeidsforløp for auto-utledning av svarer
+  const arbeidsforlopQuery = trpc.arbeidsforlop.hentForProsjekt.useQuery(
+    { projectId: valgtProsjektId! },
+    { enabled: !!valgtProsjektId && synlig },
+  );
+  const alleArbeidsforlop = (arbeidsforlopQuery.data ?? []) as ArbeidsforlopData[];
+
+  // Auto-velg oppretter: brukerens første entreprise
+  useEffect(() => {
+    if (mineEntrepriser.length > 0 && !oppretterEntrepriseId) {
+      setOppretterEntrepriseId(mineEntrepriser[0].id);
+    }
+  }, [mineEntrepriser, oppretterEntrepriseId]);
+
+  // Auto-utled svarer fra arbeidsforløp
+  const matchendeArbeidsforlop = useMemo(() => {
+    if (!oppretterEntrepriseId) return null;
+    const treff = alleArbeidsforlop.filter(
+      (af) =>
+        af.enterpriseId === oppretterEntrepriseId &&
+        af.templates.some((t) => t.templateId === templateId),
+    );
+    return treff[0] ?? null;
+  }, [alleArbeidsforlop, oppretterEntrepriseId, templateId]);
+
+  // Svarer: fra arbeidsforløp, eller samme som oppretter (standard)
+  const autoSvarerEntrepriseId = matchendeArbeidsforlop
+    ? matchendeArbeidsforlop.responderEnterpriseId ?? matchendeArbeidsforlop.enterpriseId
+    : oppretterEntrepriseId;
+
+  // Sett svarer automatisk når oppretter endres
+  useEffect(() => {
+    if (autoSvarerEntrepriseId && !svarerEntrepriseId) {
+      setSvarerEntrepriseId(autoSvarerEntrepriseId);
+    }
+  }, [autoSvarerEntrepriseId, svarerEntrepriseId]);
+
+  // Oppdater svarer når oppretter endres
+  useEffect(() => {
+    if (oppretterEntrepriseId) {
+      setSvarerEntrepriseId(autoSvarerEntrepriseId);
+    }
+  }, [oppretterEntrepriseId, autoSvarerEntrepriseId]);
 
   const opprettMutasjon = trpc.oppgave.opprett.useMutation({
     onSuccess: (_data: unknown, _variabler: { title: string }) => {
@@ -87,12 +145,9 @@ export function OppgaveModal({
   });
 
   const nullstillSkjema = useCallback(() => {
-    setTittel("");
-    setBeskrivelse("");
     setPrioritet("medium");
     setOppretterEntrepriseId(null);
     setSvarerEntrepriseId(null);
-    setVisOppretterListe(false);
     setVisSvarerListe(false);
   }, []);
 
@@ -102,51 +157,41 @@ export function OppgaveModal({
   }, [nullstillSkjema, onLukk]);
 
   const håndterOpprett = useCallback(async () => {
-    if (!tittel.trim()) {
-      Alert.alert("Mangler tittel", "Skriv inn en tittel for oppgaven");
-      return;
-    }
     if (!oppretterEntrepriseId) {
       Alert.alert("Mangler oppretter", "Velg en oppretter-entreprise");
       return;
     }
-    if (!svarerEntrepriseId) {
-      Alert.alert("Mangler svarer", "Velg en svarer-entreprise");
-      return;
-    }
+
+    const effektivSvarer = svarerEntrepriseId ?? oppretterEntrepriseId;
 
     opprettMutasjon.mutate({
       creatorEnterpriseId: oppretterEntrepriseId,
-      responderEnterpriseId: svarerEntrepriseId,
-      title: tittel.trim(),
-      description: beskrivelse.trim() || undefined,
+      responderEnterpriseId: effektivSvarer,
+      title: `Oppgave — ${tegningNavn}`,
       priority: prioritet,
       templateId,
       drawingId: tegningId,
       positionX: posisjonX,
       positionY: posisjonY,
+      workflowId: matchendeArbeidsforlop?.id,
     });
   }, [
-    tittel,
-    beskrivelse,
-    prioritet,
     oppretterEntrepriseId,
     svarerEntrepriseId,
+    prioritet,
     templateId,
     tegningId,
+    tegningNavn,
     posisjonX,
     posisjonY,
+    matchendeArbeidsforlop,
     opprettMutasjon,
   ]);
 
   const valgtOppretter = entrepriser.find((e) => e.id === oppretterEntrepriseId);
   const valgtSvarer = entrepriser.find((e) => e.id === svarerEntrepriseId);
 
-  const kanOpprett =
-    tittel.trim().length > 0 &&
-    !!oppretterEntrepriseId &&
-    !!svarerEntrepriseId &&
-    !opprettMutasjon.isPending;
+  const kanOpprett = !!oppretterEntrepriseId && !opprettMutasjon.isPending;
 
   return (
     <Modal visible={synlig} animationType="slide" presentationStyle="pageSheet">
@@ -175,41 +220,120 @@ export function OppgaveModal({
         </View>
 
         <ScrollView className="flex-1" keyboardShouldPersistTaps="handled">
-          {/* Tittel */}
+          {/* Tegningsposisjon */}
           <View className="border-b border-gray-100 px-4 py-3">
             <Text className="mb-1 text-xs font-medium text-gray-500">
-              Tittel *
+              Tegning
             </Text>
-            <TextInput
-              className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-800"
-              placeholder="Skriv tittel…"
-              placeholderTextColor="#9ca3af"
-              value={tittel}
-              onChangeText={setTittel}
-              autoFocus
-            />
+            <View className={`flex-row items-center gap-2 rounded-lg px-3 py-2.5 ${gpsPositionert ? "bg-green-50" : "bg-blue-50"}`}>
+              <MapPin size={16} color={gpsPositionert ? "#059669" : "#1e40af"} />
+              <View className="flex-1">
+                <Text className={`text-sm ${gpsPositionert ? "text-green-800" : "text-blue-800"}`}>
+                  {tegningNavn}
+                </Text>
+                {gpsPositionert && (
+                  <Text className="text-xs text-green-600">
+                    GPS-posisjon
+                  </Text>
+                )}
+              </View>
+            </View>
           </View>
 
-          {/* Beskrivelse */}
+          {/* Entreprise-flyt: Oppretter → Svarer */}
           <View className="border-b border-gray-100 px-4 py-3">
-            <Text className="mb-1 text-xs font-medium text-gray-500">
-              Beskrivelse
+            <Text className="mb-2 text-xs font-medium text-gray-500">
+              Entreprise
             </Text>
-            <TextInput
-              className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-800"
-              placeholder="Valgfri beskrivelse…"
-              placeholderTextColor="#9ca3af"
-              value={beskrivelse}
-              onChangeText={setBeskrivelse}
-              multiline
-              numberOfLines={3}
-              textAlignVertical="top"
-              style={{ minHeight: 72 }}
-            />
+
+            {/* Oppretter — auto-valgt, vises som tekst (valgbar hvis flere) */}
+            {mineEntrepriser.length > 1 ? (
+              <View className="mb-2">
+                <Text className="mb-1 text-xs text-gray-400">Fra</Text>
+                {mineEntrepriser.map((e) => (
+                  <Pressable
+                    key={e.id}
+                    onPress={() => {
+                      setOppretterEntrepriseId(e.id);
+                      setSvarerEntrepriseId(null);
+                    }}
+                    className={`mb-1 rounded-lg border px-3 py-2 ${
+                      oppretterEntrepriseId === e.id
+                        ? "border-blue-300 bg-blue-50"
+                        : "border-gray-200 bg-gray-50"
+                    }`}
+                  >
+                    <Text
+                      className={`text-sm ${
+                        oppretterEntrepriseId === e.id
+                          ? "font-medium text-blue-700"
+                          : "text-gray-700"
+                      }`}
+                    >
+                      {e.name}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            ) : valgtOppretter ? (
+              <View className="mb-2">
+                <Text className="mb-1 text-xs text-gray-400">Fra</Text>
+                <View className="rounded-lg border border-blue-300 bg-blue-50 px-3 py-2">
+                  <Text className="text-sm font-medium text-blue-700">
+                    {valgtOppretter.name}
+                  </Text>
+                </View>
+              </View>
+            ) : null}
+
+            {/* Pil */}
+            <View className="my-1 items-center">
+              <ArrowRight size={16} color="#9ca3af" style={{ transform: [{ rotate: "90deg" }] }} />
+            </View>
+
+            {/* Svarer */}
+            <View>
+              <Text className="mb-1 text-xs text-gray-400">Til</Text>
+              <Pressable
+                onPress={() => setVisSvarerListe(!visSvarerListe)}
+                className={`flex-row items-center justify-between rounded-lg border px-3 py-2 ${
+                  valgtSvarer ? "border-gray-300 bg-gray-50" : "border-gray-200 bg-gray-50"
+                }`}
+              >
+                <Text className={`text-sm ${valgtSvarer ? "text-gray-800" : "text-gray-400"}`}>
+                  {valgtSvarer?.name ?? "Velg svarer…"}
+                </Text>
+                <ChevronDown size={16} color="#9ca3af" />
+              </Pressable>
+              {visSvarerListe && (
+                <View className="mt-1 rounded-lg border border-gray-200 bg-white">
+                  {entrepriser.map((e) => (
+                    <Pressable
+                      key={e.id}
+                      onPress={() => {
+                        setSvarerEntrepriseId(e.id);
+                        setVisSvarerListe(false);
+                      }}
+                      className={`border-b border-gray-50 px-3 py-2.5 ${
+                        svarerEntrepriseId === e.id ? "bg-blue-50" : ""
+                      }`}
+                    >
+                      <Text
+                        className={`text-sm ${
+                          svarerEntrepriseId === e.id ? "font-medium text-blue-700" : "text-gray-700"
+                        }`}
+                      >
+                        {e.name}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              )}
+            </View>
           </View>
 
           {/* Prioritet */}
-          <View className="border-b border-gray-100 px-4 py-3">
+          <View className="px-4 py-3">
             <Text className="mb-2 text-xs font-medium text-gray-500">
               Prioritet
             </Text>
@@ -230,109 +354,6 @@ export function OppgaveModal({
                   </Pressable>
                 );
               })}
-            </View>
-          </View>
-
-          {/* Oppretter-entreprise */}
-          <View className="border-b border-gray-100 px-4 py-3">
-            <Text className="mb-1 text-xs font-medium text-gray-500">
-              Oppretter-entreprise *
-            </Text>
-            <Pressable
-              onPress={() => {
-                setVisOppretterListe(!visOppretterListe);
-                setVisSvarerListe(false);
-              }}
-              className="flex-row items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5"
-            >
-              <Text
-                className={`text-sm ${valgtOppretter ? "text-gray-800" : "text-gray-400"}`}
-              >
-                {valgtOppretter?.name ?? "Velg entreprise…"}
-              </Text>
-              <ChevronDown size={16} color="#9ca3af" />
-            </Pressable>
-            {visOppretterListe && (
-              <View className="mt-1 rounded-lg border border-gray-200 bg-white">
-                {entrepriser.map((e) => (
-                  <Pressable
-                    key={e.id}
-                    onPress={() => {
-                      setOppretterEntrepriseId(e.id);
-                      setVisOppretterListe(false);
-                    }}
-                    className={`border-b border-gray-50 px-3 py-2.5 ${oppretterEntrepriseId === e.id ? "bg-blue-50" : ""}`}
-                  >
-                    <Text
-                      className={`text-sm ${oppretterEntrepriseId === e.id ? "font-medium text-blue-700" : "text-gray-700"}`}
-                    >
-                      {e.name}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-            )}
-          </View>
-
-          {/* Svarer-entreprise */}
-          <View className="border-b border-gray-100 px-4 py-3">
-            <Text className="mb-1 text-xs font-medium text-gray-500">
-              Svarer-entreprise *
-            </Text>
-            <Pressable
-              onPress={() => {
-                setVisSvarerListe(!visSvarerListe);
-                setVisOppretterListe(false);
-              }}
-              className="flex-row items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5"
-            >
-              <Text
-                className={`text-sm ${valgtSvarer ? "text-gray-800" : "text-gray-400"}`}
-              >
-                {valgtSvarer?.name ?? "Velg entreprise…"}
-              </Text>
-              <ChevronDown size={16} color="#9ca3af" />
-            </Pressable>
-            {visSvarerListe && (
-              <View className="mt-1 rounded-lg border border-gray-200 bg-white">
-                {entrepriser.map((e) => (
-                  <Pressable
-                    key={e.id}
-                    onPress={() => {
-                      setSvarerEntrepriseId(e.id);
-                      setVisSvarerListe(false);
-                    }}
-                    className={`border-b border-gray-50 px-3 py-2.5 ${svarerEntrepriseId === e.id ? "bg-blue-50" : ""}`}
-                  >
-                    <Text
-                      className={`text-sm ${svarerEntrepriseId === e.id ? "font-medium text-blue-700" : "text-gray-700"}`}
-                    >
-                      {e.name}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-            )}
-          </View>
-
-          {/* Tegningsposisjon (kun lesbart) */}
-          <View className="px-4 py-3">
-            <Text className="mb-1 text-xs font-medium text-gray-500">
-              Posisjon på tegning
-            </Text>
-            <View className={`flex-row items-center gap-2 rounded-lg px-3 py-2.5 ${gpsPositionert ? "bg-green-50" : "bg-blue-50"}`}>
-              <MapPin size={16} color={gpsPositionert ? "#059669" : "#1e40af"} />
-              <View>
-                <Text className={`text-sm ${gpsPositionert ? "text-green-800" : "text-blue-800"}`}>
-                  {tegningNavn} ({Math.round(posisjonX)}%, {Math.round(posisjonY)}
-                  %)
-                </Text>
-                {gpsPositionert && (
-                  <Text className="text-xs text-green-600">
-                    Posisjon beregnet fra GPS
-                  </Text>
-                )}
-              </View>
             </View>
           </View>
         </ScrollView>
