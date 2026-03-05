@@ -143,8 +143,8 @@ export default function LokasjonerSkjerm() {
       gpsAbonnementRef.current = await Location.watchPositionAsync(
         {
           accuracy: Location.Accuracy.High,
-          distanceInterval: 2,
-          timeInterval: 3000,
+          distanceInterval: 5,
+          timeInterval: 5000,
         },
         (lokasjon) => {
           if (!aktiv) return;
@@ -153,7 +153,11 @@ export default function LokasjonerSkjerm() {
             lng: lokasjon.coords.longitude,
           };
           const posisjon = gpsTilTegning(gps, transformasjon);
-          setGpsMarkør({ x: posisjon.x, y: posisjon.y });
+          // Bruk InteractionManager for å unngå state-oppdatering under gestures
+          const { InteractionManager } = require("react-native");
+          InteractionManager.runAfterInteractions(() => {
+            if (aktiv) setGpsMarkør({ x: posisjon.x, y: posisjon.y });
+          });
         },
       );
     }

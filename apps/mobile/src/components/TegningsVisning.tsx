@@ -9,6 +9,7 @@ import {
   Platform,
   useWindowDimensions,
   StyleSheet,
+  Animated,
 } from "react-native";
 import type {
   GestureResponderEvent,
@@ -181,21 +182,38 @@ export function TegningsVisning({
     ));
   };
 
-  // Render GPS-posisjon som blå prikk med ring
-  const renderGpsMarkør = (containerW: number, containerH: number) => {
-    if (!gpsMarkør) return null;
+  // GPS-posisjon med Animated for å unngå re-render under zoom
+  const gpsAnimX = useRef(new Animated.Value(-100)).current;
+  const gpsAnimY = useRef(new Animated.Value(-100)).current;
+  const gpsErSynlig = useRef(false);
+
+  useEffect(() => {
+    if (gpsMarkør && bildeDimensjoner.width > 0) {
+      const cW = bildeDimensjoner.width || width;
+      const cH = bildeDimensjoner.height || height * 0.8;
+      gpsAnimX.setValue((gpsMarkør.x / 100) * cW - 10);
+      gpsAnimY.setValue((gpsMarkør.y / 100) * cH - 10);
+      gpsErSynlig.current = true;
+    } else {
+      gpsAnimX.setValue(-100);
+      gpsAnimY.setValue(-100);
+      gpsErSynlig.current = false;
+    }
+  }, [gpsMarkør, bildeDimensjoner, width, height, gpsAnimX, gpsAnimY]);
+
+  const renderGpsMarkør = () => {
     return (
-      <View
+      <Animated.View
         style={{
           position: "absolute",
-          left: (gpsMarkør.x / 100) * containerW - 10,
-          top: (gpsMarkør.y / 100) * containerH - 10,
+          left: gpsAnimX,
+          top: gpsAnimY,
         }}
       >
         <View style={stiler.gpsPrikk}>
           <View style={stiler.gpsPrikkInner} />
         </View>
-      </View>
+      </Animated.View>
     );
   };
 
@@ -264,7 +282,7 @@ export function TegningsVisning({
               />
               <View pointerEvents="none" style={StyleSheet.absoluteFill}>
                 {renderMarkører(width, height * 0.8)}
-                {renderGpsMarkør(width, height * 0.8)}
+                {renderGpsMarkør()}
               </View>
               {onTrykk && (
                 <Pressable
@@ -296,7 +314,7 @@ export function TegningsVisning({
               />
               <View pointerEvents="none" style={StyleSheet.absoluteFill}>
                 {renderMarkører(width, height * 0.8)}
-                {renderGpsMarkør(width, height * 0.8)}
+                {renderGpsMarkør()}
               </View>
             </View>
           )}
@@ -338,10 +356,7 @@ export function TegningsVisning({
               bildeDimensjoner.width || width,
               bildeDimensjoner.height || height * 0.8,
             )}
-            {renderGpsMarkør(
-              bildeDimensjoner.width || width,
-              bildeDimensjoner.height || height * 0.8,
-            )}
+            {renderGpsMarkør()}
           </View>
 
           {/* Trykk-overlegg — kun enkelt-fingertrykk plasserer markør */}
