@@ -87,6 +87,22 @@ export default function SjekklisteDetaljSide() {
     },
   });
 
+  const oppdaterMutasjon = trpc.sjekkliste.oppdater.useMutation({
+    onSuccess: () => {
+      utils.sjekkliste.hentMedId.invalidate({ id: params.sjekklisteId });
+    },
+  });
+
+  // Hent entrepriser for redigering
+  const { data: mineEntrepriser } = trpc.medlem.hentMineEntrepriser.useQuery(
+    { projectId: params.prosjektId },
+    { enabled: !!params.prosjektId },
+  );
+  const { data: alleEntrepriser } = trpc.entreprise.hentForProsjekt.useQuery(
+    { projectId: params.prosjektId },
+    { enabled: !!params.prosjektId },
+  );
+
   // Hent prosjektdata for print-header
   const { data: prosjekt } = trpc.prosjekt.hentMedId.useQuery(
     { id: params.prosjektId },
@@ -304,15 +320,42 @@ export default function SjekklisteDetaljSide() {
             )}
           </div>
         </div>
-        <p className="text-sm text-gray-500">
-          Mal: {sjekkliste.template.name}
-          {sjekkliste.creatorEnterprise && (
-            <> &middot; Oppretter: {sjekkliste.creatorEnterprise.name}</>
+        <div className="flex items-center gap-1 text-sm text-gray-500">
+          <span>Mal: {sjekkliste.template.name}</span>
+          {sjekkliste.status === "draft" ? (
+            <>
+              <span>&middot; Oppretter:</span>
+              <select
+                value={sjekkliste.creatorEnterpriseId}
+                onChange={(e) => oppdaterMutasjon.mutate({ id: params.sjekklisteId, creatorEnterpriseId: e.target.value })}
+                className="rounded border border-gray-200 bg-white px-1.5 py-0.5 text-sm text-gray-700"
+              >
+                {(mineEntrepriser ?? []).map((ent: { id: string; name: string }) => (
+                  <option key={ent.id} value={ent.id}>{ent.name}</option>
+                ))}
+              </select>
+              <span>&middot; Svarer:</span>
+              <select
+                value={sjekkliste.responderEnterpriseId}
+                onChange={(e) => oppdaterMutasjon.mutate({ id: params.sjekklisteId, responderEnterpriseId: e.target.value })}
+                className="rounded border border-gray-200 bg-white px-1.5 py-0.5 text-sm text-gray-700"
+              >
+                {(alleEntrepriser ?? []).map((ent: { id: string; name: string }) => (
+                  <option key={ent.id} value={ent.id}>{ent.name}</option>
+                ))}
+              </select>
+            </>
+          ) : (
+            <>
+              {sjekkliste.creatorEnterprise && (
+                <span>&middot; Oppretter: {sjekkliste.creatorEnterprise.name}</span>
+              )}
+              {sjekkliste.responderEnterprise && (
+                <span>&middot; Svarer: {sjekkliste.responderEnterprise.name}</span>
+              )}
+            </>
           )}
-          {sjekkliste.responderEnterprise && (
-            <> &middot; Svarer: {sjekkliste.responderEnterprise.name}</>
-          )}
-        </p>
+        </div>
         {sjekklisteNummer && (
           <p className="mt-1 text-xs text-gray-400">Nr: {sjekklisteNummer}</p>
         )}

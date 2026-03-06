@@ -9,7 +9,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { ArrowLeft, Save, Check, AlertTriangle, Clock, CloudOff, Cloud, Trash2 } from "lucide-react-native";
+import { ArrowLeft, Save, Check, AlertTriangle, Clock, CloudOff, Cloud, Trash2, ChevronDown } from "lucide-react-native";
 import { harBetingelse, harForelderObjekt } from "@siteflow/shared";
 import { hentStatusHandlinger } from "@siteflow/shared";
 import type { StatusHandling } from "@siteflow/shared";
@@ -22,6 +22,7 @@ import { FeltWrapper } from "../../src/components/rapportobjekter/FeltWrapper";
 import { MalVelger } from "../../src/components/MalVelger";
 import { OpprettDokumentModal } from "../../src/components/OpprettDokumentModal";
 import { trpc } from "../../src/lib/trpc";
+import { useProsjekt } from "../../src/kontekst/ProsjektKontekst";
 import { hentDatabase } from "../../src/db/database";
 import { sjekklisteFeltdata, opplastingsKo } from "../../src/db/schema";
 import { eq } from "drizzle-orm";
@@ -66,7 +67,10 @@ export default function SjekklisteUtfylling() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { bruker } = useAuth();
+  const { valgtProsjektId } = useProsjekt();
   const utils = trpc.useUtils();
+
+  const [visEntrepriseListe, settVisEntrepriseListe] = useState<"oppretter" | "svarer" | null>(null);
 
   // State for oppgave-fra-felt
   const [opprettOppgaveKategori, setOpprettOppgaveKategori] = useState<"oppgave" | null>(null);
@@ -102,6 +106,22 @@ export default function SjekklisteUtfylling() {
   }, [sjekklisteOppgaver]);
 
   const { ventende, erAktiv } = useOpplastingsKo();
+
+  // Hent entrepriser for redigering
+  const { data: mineEntrepriser } = trpc.medlem.hentMineEntrepriser.useQuery(
+    { projectId: valgtProsjektId! },
+    { enabled: !!valgtProsjektId },
+  );
+  const { data: alleEntrepriser } = trpc.entreprise.hentForProsjekt.useQuery(
+    { projectId: valgtProsjektId! },
+    { enabled: !!valgtProsjektId },
+  );
+
+  const oppdaterMutasjon = trpc.sjekkliste.oppdater.useMutation({
+    onSuccess: () => {
+      utils.sjekkliste.hentMedId.invalidate({ id: id! });
+    },
+  });
 
   const endreStatusMutasjon = trpc.sjekkliste.endreStatus.useMutation({
     onSuccess: () => {
@@ -327,18 +347,86 @@ export default function SjekklisteUtfylling() {
       </View>
 
       {/* Entrepriser */}
-      <View className="flex-row border-b border-gray-200 bg-white px-4 py-1.5">
-        {sjekkliste.creatorEnterprise && (
-          <Text className="flex-1 text-xs text-gray-500">
-            Oppretter: {sjekkliste.creatorEnterprise.name}
-          </Text>
-        )}
-        {sjekkliste.responderEnterprise && (
-          <Text className="flex-1 text-right text-xs text-gray-500">
-            Svarer: {sjekkliste.responderEnterprise.name}
-          </Text>
-        )}
-      </View>
+      {sjekkliste.status === "draft" ? (
+        <View className="border-b border-gray-200 bg-white px-4 py-2">
+          <View className="flex-row items-center gap-2">
+            <Pressable
+              className="flex-1"
+              onPress={() => settVisEntrepriseListe(visEntrepriseListe === "oppretter" ? null : "oppretter")}
+            >
+              <Text className="text-[10px] text-gray-400">Fra</Text>
+              <View className="flex-row items-center justify-between">
+                <Text className="text-xs font-medium text-gray-700">
+                  {sjekkliste.creatorEnterprise?.name ?? "Velg…"}
+                </Text>
+                <ChevronDown size={12} color="#9ca3af" />
+              </View>
+            </Pressable>
+            <Text className="text-xs text-gray-300">→</Text>
+            <Pressable
+              className="flex-1"
+              onPress={() => settVisEntrepriseListe(visEntrepriseListe === "svarer" ? null : "svarer")}
+            >
+              <Text className="text-right text-[10px] text-gray-400">Til</Text>
+              <View className="flex-row items-center justify-between">
+                <Text className="text-xs font-medium text-gray-700">
+                  {sjekkliste.responderEnterprise?.name ?? "Velg…"}
+                </Text>
+                <ChevronDown size={12} color="#9ca3af" />
+              </View>
+            </Pressable>
+          </View>
+          {visEntrepriseListe === "oppretter" && (
+            <View className="mt-1 rounded-lg border border-gray-200 bg-white">
+              {(mineEntrepriser ?? []).map((e: { id: string; name: string }) => (
+                <Pressable
+                  key={e.id}
+                  onPress={() => {
+                    oppdaterMutasjon.mutate({ id: id!, creatorEnterpriseId: e.id });
+                    settVisEntrepriseListe(null);
+                  }}
+                  className={`border-b border-gray-50 px-3 py-2 ${e.id === sjekkliste.creatorEnterpriseId ? "bg-blue-50" : ""}`}
+                >
+                  <Text className={`text-xs ${e.id === sjekkliste.creatorEnterpriseId ? "font-medium text-blue-700" : "text-gray-700"}`}>
+                    {e.name}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
+          {visEntrepriseListe === "svarer" && (
+            <View className="mt-1 rounded-lg border border-gray-200 bg-white">
+              {(alleEntrepriser ?? []).map((e: { id: string; name: string }) => (
+                <Pressable
+                  key={e.id}
+                  onPress={() => {
+                    oppdaterMutasjon.mutate({ id: id!, responderEnterpriseId: e.id });
+                    settVisEntrepriseListe(null);
+                  }}
+                  className={`border-b border-gray-50 px-3 py-2 ${e.id === sjekkliste.responderEnterpriseId ? "bg-blue-50" : ""}`}
+                >
+                  <Text className={`text-xs ${e.id === sjekkliste.responderEnterpriseId ? "font-medium text-blue-700" : "text-gray-700"}`}>
+                    {e.name}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
+        </View>
+      ) : (
+        <View className="flex-row border-b border-gray-200 bg-white px-4 py-1.5">
+          {sjekkliste.creatorEnterprise && (
+            <Text className="flex-1 text-xs text-gray-500">
+              Oppretter: {sjekkliste.creatorEnterprise.name}
+            </Text>
+          )}
+          {sjekkliste.responderEnterprise && (
+            <Text className="flex-1 text-right text-xs text-gray-500">
+              Svarer: {sjekkliste.responderEnterprise.name}
+            </Text>
+          )}
+        </View>
+      )}
 
       {/* Felter */}
       <ScrollView

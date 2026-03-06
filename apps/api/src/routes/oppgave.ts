@@ -220,6 +220,8 @@ export const oppgaveRouter = router({
         description: z.string().optional(),
         priority: z.enum(["low", "medium", "high", "critical"]).optional(),
         dueDate: z.string().datetime().optional(),
+        creatorEnterpriseId: z.string().uuid().optional(),
+        responderEnterpriseId: z.string().uuid().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -238,6 +240,14 @@ export const oppgaveRouter = router({
         oppgave.responderEnterpriseId,
         oppgave.template?.domain,
       );
+
+      // Entreprise-endring kun tillatt i utkast-status
+      if ((input.creatorEnterpriseId || input.responderEnterpriseId) && oppgave.status !== "draft") {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Entrepriser kan kun endres i utkast-status",
+        });
+      }
 
       const { id, ...data } = input;
       return ctx.prisma.task.update({

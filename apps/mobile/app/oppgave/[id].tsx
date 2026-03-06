@@ -25,6 +25,7 @@ import {
   ClipboardCheck,
   MapPin,
   Trash2,
+  ChevronDown,
 } from "lucide-react-native";
 import { harBetingelse, harForelderObjekt } from "@siteflow/shared";
 import { hentStatusHandlinger } from "@siteflow/shared";
@@ -36,6 +37,7 @@ import { StatusMerkelapp } from "../../src/components/StatusMerkelapp";
 import { RapportObjektRenderer, DISPLAY_TYPER } from "../../src/components/rapportobjekter";
 import { FeltWrapper } from "../../src/components/rapportobjekter/FeltWrapper";
 import { trpc } from "../../src/lib/trpc";
+import { useProsjekt } from "../../src/kontekst/ProsjektKontekst";
 import { hentDatabase } from "../../src/db/database";
 import { oppgaveFeltdata, opplastingsKo } from "../../src/db/schema";
 import { eq } from "drizzle-orm";
@@ -79,6 +81,7 @@ export default function OppgaveDetalj() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { bruker } = useAuth();
+  const { valgtProsjektId } = useProsjekt();
   const utils = trpc.useUtils();
 
   // State for inline redigering av tittel og beskrivelse
@@ -86,6 +89,7 @@ export default function OppgaveDetalj() {
   const [visBeskrivelseModal, settVisBeskrivelseModal] = useState(false);
   const [tittelUtkast, settTittelUtkast] = useState("");
   const [beskrivelseUtkast, settBeskrivelseUtkast] = useState("");
+  const [visEntrepriseListe, settVisEntrepriseListe] = useState<"oppretter" | "svarer" | null>(null);
 
   const { ventende } = useOpplastingsKo();
 
@@ -100,6 +104,16 @@ export default function OppgaveDetalj() {
     drawing?: { id: string; name: string; drawingNumber?: string | null } | null;
   } | undefined;
   const overforinger = oppgaveDetalj?.transfers;
+
+  // Hent entrepriser for redigering
+  const { data: mineEntrepriser } = trpc.medlem.hentMineEntrepriser.useQuery(
+    { projectId: valgtProsjektId! },
+    { enabled: !!valgtProsjektId },
+  );
+  const { data: alleEntrepriser } = trpc.entreprise.hentForProsjekt.useQuery(
+    { projectId: valgtProsjektId! },
+    { enabled: !!valgtProsjektId },
+  );
 
   const endreStatusMutasjon = trpc.oppgave.endreStatus.useMutation({
     onSuccess: () => {
@@ -358,18 +372,90 @@ export default function OppgaveDetalj() {
       </View>
 
       {/* Entrepriser */}
-      <View className="flex-row border-b border-gray-200 bg-white px-4 py-1.5">
-        {oppgave.creatorEnterprise && (
-          <Text className="flex-1 text-xs text-gray-500">
-            Oppretter: {oppgave.creatorEnterprise.name}
-          </Text>
-        )}
-        {oppgave.responderEnterprise && (
-          <Text className="flex-1 text-right text-xs text-gray-500">
-            Svarer: {oppgave.responderEnterprise.name}
-          </Text>
-        )}
-      </View>
+      {oppgave.status === "draft" ? (
+        <View className="border-b border-gray-200 bg-white px-4 py-2">
+          <View className="flex-row items-center gap-2">
+            {/* Oppretter */}
+            <Pressable
+              className="flex-1"
+              onPress={() => settVisEntrepriseListe(visEntrepriseListe === "oppretter" ? null : "oppretter")}
+            >
+              <Text className="text-[10px] text-gray-400">Fra</Text>
+              <View className="flex-row items-center justify-between">
+                <Text className="text-xs font-medium text-gray-700">
+                  {oppgave.creatorEnterprise?.name ?? "Velg…"}
+                </Text>
+                <ChevronDown size={12} color="#9ca3af" />
+              </View>
+            </Pressable>
+            <Text className="text-xs text-gray-300">→</Text>
+            {/* Svarer */}
+            <Pressable
+              className="flex-1"
+              onPress={() => settVisEntrepriseListe(visEntrepriseListe === "svarer" ? null : "svarer")}
+            >
+              <Text className="text-right text-[10px] text-gray-400">Til</Text>
+              <View className="flex-row items-center justify-between">
+                <Text className="text-xs font-medium text-gray-700">
+                  {oppgave.responderEnterprise?.name ?? "Velg…"}
+                </Text>
+                <ChevronDown size={12} color="#9ca3af" />
+              </View>
+            </Pressable>
+          </View>
+          {/* Dropdown for oppretter */}
+          {visEntrepriseListe === "oppretter" && (
+            <View className="mt-1 rounded-lg border border-gray-200 bg-white">
+              {(mineEntrepriser ?? []).map((e: { id: string; name: string }) => (
+                <Pressable
+                  key={e.id}
+                  onPress={() => {
+                    oppdaterMutasjon.mutate({ id: id!, creatorEnterpriseId: e.id });
+                    settVisEntrepriseListe(null);
+                  }}
+                  className={`border-b border-gray-50 px-3 py-2 ${e.id === oppgave.creatorEnterpriseId ? "bg-blue-50" : ""}`}
+                >
+                  <Text className={`text-xs ${e.id === oppgave.creatorEnterpriseId ? "font-medium text-blue-700" : "text-gray-700"}`}>
+                    {e.name}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
+          {/* Dropdown for svarer */}
+          {visEntrepriseListe === "svarer" && (
+            <View className="mt-1 rounded-lg border border-gray-200 bg-white">
+              {(alleEntrepriser ?? []).map((e: { id: string; name: string }) => (
+                <Pressable
+                  key={e.id}
+                  onPress={() => {
+                    oppdaterMutasjon.mutate({ id: id!, responderEnterpriseId: e.id });
+                    settVisEntrepriseListe(null);
+                  }}
+                  className={`border-b border-gray-50 px-3 py-2 ${e.id === oppgave.responderEnterpriseId ? "bg-blue-50" : ""}`}
+                >
+                  <Text className={`text-xs ${e.id === oppgave.responderEnterpriseId ? "font-medium text-blue-700" : "text-gray-700"}`}>
+                    {e.name}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
+        </View>
+      ) : (
+        <View className="flex-row border-b border-gray-200 bg-white px-4 py-1.5">
+          {oppgave.creatorEnterprise && (
+            <Text className="flex-1 text-xs text-gray-500">
+              Oppretter: {oppgave.creatorEnterprise.name}
+            </Text>
+          )}
+          {oppgave.responderEnterprise && (
+            <Text className="flex-1 text-right text-xs text-gray-500">
+              Svarer: {oppgave.responderEnterprise.name}
+            </Text>
+          )}
+        </View>
+      )}
 
       {/* Innhold */}
       <ScrollView

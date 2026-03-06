@@ -140,6 +140,44 @@ export const sjekklisteRouter = router({
       });
     }),
 
+  // Oppdater sjekkliste-metadata (entrepriser, tittel etc.)
+  oppdater: protectedProcedure
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        title: z.string().max(255).optional(),
+        creatorEnterpriseId: z.string().uuid().optional(),
+        responderEnterpriseId: z.string().uuid().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const sjekkliste = await ctx.prisma.checklist.findUniqueOrThrow({
+        where: { id: input.id },
+        include: { template: { select: { projectId: true, domain: true } } },
+      });
+      await verifiserDokumentTilgang(
+        ctx.userId,
+        sjekkliste.template.projectId,
+        sjekkliste.creatorEnterpriseId,
+        sjekkliste.responderEnterpriseId,
+        sjekkliste.template.domain,
+      );
+
+      // Entreprise-endring kun tillatt i utkast-status
+      if ((input.creatorEnterpriseId || input.responderEnterpriseId) && sjekkliste.status !== "draft") {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Entrepriser kan kun endres i utkast-status",
+        });
+      }
+
+      const { id, ...data } = input;
+      return ctx.prisma.checklist.update({
+        where: { id },
+        data,
+      });
+    }),
+
   // Oppdater sjekklistedata (fylling av felter)
   oppdaterData: protectedProcedure
     .input(
