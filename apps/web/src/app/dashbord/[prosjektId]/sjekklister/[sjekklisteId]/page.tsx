@@ -3,7 +3,7 @@
 import { useParams, useRouter } from "next/navigation";
 import { useState, useMemo, useCallback } from "react";
 import { Spinner, StatusBadge, Card } from "@siteflow/ui";
-import { Check, AlertCircle, Loader2, Printer, FileText } from "lucide-react";
+import { Check, AlertCircle, Loader2, Printer, FileText, Trash2 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useSjekklisteSkjema } from "@/hooks/useSjekklisteSkjema";
 import { useAutoVaer } from "@/hooks/useAutoVaer";
@@ -58,6 +58,7 @@ interface SjekklisteOppgave {
 export default function SjekklisteDetaljSide() {
   const params = useParams<{ prosjektId: string; sjekklisteId: string }>();
   const router = useRouter();
+  const utils = trpc.useUtils();
 
   // Oppgave-opprettelsesmodal state
   const [opprettOppgaveFeltId, setOpprettOppgaveFeltId] = useState<string | null>(null);
@@ -78,6 +79,13 @@ export default function SjekklisteDetaljSide() {
   } = useSjekklisteSkjema(params.sjekklisteId);
 
   const { standardTegning } = useBygning();
+
+  const slettMutasjon = trpc.sjekkliste.slett.useMutation({
+    onSuccess: () => {
+      utils.sjekkliste.hentForProsjekt.invalidate();
+      router.push(`/dashbord/${params.prosjektId}/sjekklister`);
+    },
+  });
 
   // Hent prosjektdata for print-header
   const { data: prosjekt } = trpc.prosjekt.hentMedId.useQuery(
@@ -280,6 +288,20 @@ export default function SjekklisteDetaljSide() {
               <Printer className="h-4 w-4" />
               Skriv ut
             </button>
+            {sjekkliste.status === "draft" && (
+              <button
+                onClick={() => {
+                  if (confirm("Er du sikker på at du vil slette denne sjekklisten? Dette kan ikke angres.")) {
+                    slettMutasjon.mutate({ id: params.sjekklisteId });
+                  }
+                }}
+                disabled={slettMutasjon.isPending}
+                className="flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 disabled:opacity-50"
+              >
+                <Trash2 className="h-4 w-4" />
+                {slettMutasjon.isPending ? "Sletter..." : "Slett"}
+              </button>
+            )}
           </div>
         </div>
         <p className="text-sm text-gray-500">

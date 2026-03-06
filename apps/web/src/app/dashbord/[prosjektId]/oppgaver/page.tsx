@@ -5,7 +5,7 @@ import { useParams, useSearchParams } from "next/navigation";
 import { trpc } from "@/lib/trpc";
 import { Button, Input, Textarea, Select, Modal, Spinner, EmptyState, StatusBadge, Badge, Table } from "@siteflow/ui";
 import { useVerktoylinje } from "@/hooks/useVerktoylinje";
-import { Plus } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 
 const prioriteter = [
   { value: "low", label: "Lav" },
@@ -50,6 +50,12 @@ export default function OppgaverSide() {
   const { data: mineEntrepriser } = trpc.medlem.hentMineEntrepriser.useQuery(
     { projectId: params.prosjektId },
   );
+
+  const slettMutasjon = trpc.oppgave.slett.useMutation({
+    onSuccess: () => {
+      utils.oppgave.hentForProsjekt.invalidate({ projectId: params.prosjektId });
+    },
+  });
 
   const opprettMutation = trpc.oppgave.opprett.useMutation({
     onSuccess: () => {
@@ -172,6 +178,26 @@ export default function OppgaverSide() {
               header: "Status",
               celle: (rad) => <StatusBadge status={rad.status} />,
               bredde: "120px",
+            },
+            {
+              id: "handlinger",
+              header: "",
+              celle: (rad) =>
+                rad.status === "draft" ? (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (confirm("Er du sikker på at du vil slette denne oppgaven?")) {
+                        slettMutasjon.mutate({ id: rad.id });
+                      }
+                    }}
+                    className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-600"
+                    title="Slett oppgave"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                ) : null,
+              bredde: "48px",
             },
           ]}
           data={filtrerte as OppgaveRad[]}

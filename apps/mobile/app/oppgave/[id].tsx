@@ -130,6 +130,9 @@ export default function OppgaveDetalj() {
       utils.oppgave.hentForTegning.invalidate();
       router.back();
     },
+    onError: (feil: { message?: string }) => {
+      Alert.alert("Kunne ikke slette", feil.message || "Ukjent feil ved sletting");
+    },
   });
 
   const håndterSlett = useCallback(() => {
