@@ -1,6 +1,8 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { trpc } from "@/lib/trpc";
 import { Card, Spinner, StatusBadge, Button, EmptyState } from "@sitedoc/ui";
@@ -10,7 +12,15 @@ import { Plus } from "lucide-react";
 
 export default function DashbordSide() {
   const { data: session } = useSession();
+  const router = useRouter();
   const { data: prosjekter, isLoading } = trpc.prosjekt.hentAlle.useQuery();
+
+  // Redirect til "Kom i gang" hvis brukeren ikke har noen prosjekter
+  useEffect(() => {
+    if (!isLoading && prosjekter && prosjekter.length === 0) {
+      router.replace("/dashbord/kom-i-gang");
+    }
+  }, [isLoading, prosjekter, router]);
 
   return (
     <>
