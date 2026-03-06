@@ -55,7 +55,7 @@ export function ProsjektVelger({ synlig, onLukk }: ProsjektVelgerProps) {
         ) : !prosjekter || prosjekter.length === 0 ? (
           <View className="flex-1 items-center justify-center px-4">
             <Text className="text-center text-sm text-gray-500">
-              Du er ikke medlem av noen prosjekter ennå.
+              Du kan logge inn på sitedoc.no og registrere nytt prosjekt
             </Text>
           </View>
         ) : (

@@ -249,15 +249,23 @@ export default function HjemSkjerm() {
         {!valgtProsjektId ? (
           /* Ingen prosjekt valgt */
           <View className="flex-1 items-center justify-center px-4 pt-20">
-            <Text className="text-center text-base text-gray-500">
-              Velg et prosjekt for aa komme i gang
-            </Text>
-            <Pressable
-              onPress={() => setVelgerSynlig(true)}
-              className="mt-4 rounded-lg bg-blue-600 px-6 py-3"
-            >
-              <Text className="font-medium text-white">Velg prosjekt</Text>
-            </Pressable>
+            {prosjektQuery.data && prosjektQuery.data.length === 0 ? (
+              <Text className="text-center text-base text-gray-500">
+                Du kan logge inn på sitedoc.no og registrere nytt prosjekt
+              </Text>
+            ) : (
+              <>
+                <Text className="text-center text-base text-gray-500">
+                  Velg et prosjekt for å komme i gang
+                </Text>
+                <Pressable
+                  onPress={() => setVelgerSynlig(true)}
+                  className="mt-4 rounded-lg bg-blue-600 px-6 py-3"
+                >
+                  <Text className="font-medium text-white">Velg prosjekt</Text>
+                </Pressable>
+              </>
+            )}
           </View>
         ) : lasterData ? (
           /* Laster data */
