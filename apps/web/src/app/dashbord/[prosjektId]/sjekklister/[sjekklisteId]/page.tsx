@@ -326,7 +326,7 @@ export default function SjekklisteDetaljSide() {
             <>
               <span>&middot; Oppretter:</span>
               <select
-                value={sjekkliste.creatorEnterpriseId}
+                value={sjekkliste.creatorEnterprise?.id ?? ""}
                 onChange={(e) => oppdaterMutasjon.mutate({ id: params.sjekklisteId, creatorEnterpriseId: e.target.value })}
                 className="rounded border border-gray-200 bg-white px-1.5 py-0.5 text-sm text-gray-700"
               >
@@ -336,7 +336,7 @@ export default function SjekklisteDetaljSide() {
               </select>
               <span>&middot; Svarer:</span>
               <select
-                value={sjekkliste.responderEnterpriseId}
+                value={sjekkliste.responderEnterprise?.id ?? ""}
                 onChange={(e) => oppdaterMutasjon.mutate({ id: params.sjekklisteId, responderEnterpriseId: e.target.value })}
                 className="rounded border border-gray-200 bg-white px-1.5 py-0.5 text-sm text-gray-700"
               >
