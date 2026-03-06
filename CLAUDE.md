@@ -187,8 +187,8 @@ Alle routere i `apps/api/src/routes/`:
 |--------|-----------|
 | `prosjekt` | hentAlle, hentMedId, opprett, oppdater |
 | `entreprise` | hentForProsjekt, hentMedId, opprett, oppdater, slett |
-| `sjekkliste` | hentForProsjekt (m/statusfilter + buildingId-filter), hentMedId, opprett, oppdaterData, endreStatus |
-| `oppgave` | hentForProsjekt (m/statusfilter), hentForTegning (markører per tegning), hentMedId (m/template.objects), opprett (m/tegningsposisjon, templateId påkrevd), oppdater, oppdaterData, endreStatus |
+| `sjekkliste` | hentForProsjekt (m/statusfilter + buildingId-filter), hentMedId, opprett, oppdater (metadata + entrepriser, kun draft), oppdaterData, endreStatus, slett (kun draft, blokkeres ved tilknyttede oppgaver) |
+| `oppgave` | hentForProsjekt (m/statusfilter), hentForTegning (markører per tegning), hentMedId (m/template.objects), hentForSjekkliste, opprett (m/tegningsposisjon, templateId påkrevd), oppdater (m/entrepriser, kun draft), oppdaterData, endreStatus, slett (kun draft) |
 | `mal` | hentForProsjekt, hentMedId, opprett, oppdaterMal, slettMal, leggTilObjekt, oppdaterObjekt, oppdaterRekkefølge, sjekkObjektBruk, slettObjekt |
 | `bygning` | hentForProsjekt (m/valgfri type-filter), hentMedId, opprett (m/type), oppdater, publiser, slett |
 | `tegning` | hentForProsjekt (m/filtre), hentForBygning, hentMedId, opprett, oppdater, lastOppRevisjon, hentRevisjoner, tilknyttBygning, settGeoReferanse, fjernGeoReferanse, slett |
@@ -254,6 +254,15 @@ Sentral forretningslogikk. Dokumenter (sjekklister/oppgaver) flyter mellom entre
 - Oppretter-entreprise initierer og godkjenner/avviser
 - Svar-entreprise mottar, fyller ut og besvarer
 - Alle overganger logges i `document_transfers`
+- **Entreprise-redigering i utkast:** I draft-status kan oppretter- og svarer-entreprise endres via dropdown (mobil: klikkbar bar med ChevronDown, web: inline `<select>`). Oppretter viser brukerens entrepriser, svarer viser alle. Etter draft-status er entreprisene låst (statisk visning)
+
+**Sletting av dokumenter:**
+- Sjekklister og oppgaver i `draft`-status kan slettes (API: `sjekkliste.slett`, `oppgave.slett`)
+- Sjekkliste-sletting blokkeres hvis tilknyttede oppgaver finnes
+- Sletting kaskaderer: `documentTransfer` + `image` slettes først, deretter dokumentet
+- **Mobil:** Rød "Slett"-knapp i bunnpanelet (kun draft), SQLite-opprydding (`feltdata` + `opplastings_ko`) i onSuccess
+- **Web sjekkliste:** Rød "Slett"-knapp i header ved siden av "Skriv ut" (kun draft)
+- **Web oppgave:** Søppelbøtte-ikon per rad i oppgave-tabellen (kun draft)
 
 ### Flerforetagsbrukere
 
@@ -384,7 +393,7 @@ Interaktiv tegningsvisning på `/dashbord/[prosjektId]/tegninger/` med zoom og m
 - TegningPosisjonObjekt (mobil): full implementasjon med tegningsvelger og TegningsVisning-markering
 - Oppgave-fra-felt i sjekkliste-utfylling: web er implementert, mobil har det allerede
 - Adgangskontroll: Håndheve tillatelsesbasert opprettelse (verifiserTillatelse i opprett-prosedyrer), arbeidsforløp-begrensning per brukergruppe
-- Videresending av sjekklister/oppgaver til annen entreprise (svarer og oppretter)
+- Videresending av sjekklister/oppgaver til annen entreprise etter draft-status (svarer og oppretter)
 - TrafikklysObjekt (mobil): legge til 4. farge grå/"Ikke relevant" i mobilrenderer
 
 ### Oppgave fra tegning (mobil)
