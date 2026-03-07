@@ -202,6 +202,7 @@ sitedoc/
 | `documents` | Dokumenter i mapper med fil-URL og versjon |
 | `workflows` | Arbeidsforløp med oppretter-entreprise og opptil 3 svarer-entrepriser (`responder_enterprise_id`, `responder_enterprise_2_id`, `responder_enterprise_3_id`) for flerstegs eskaleringskjede |
 | `workflow_templates` | Kobling mellom arbeidsforløp og maler (mange-til-mange) |
+| `workflow_step_members` | Personbaserte steg-medlemmer i arbeidsforløp (Svarer 2/3) — kobler `workflow` + `project_member` + `step` (2 eller 3), cascade fra begge sider |
 | `task_comments` | Kommentarer/dialog på oppgaver med bruker og tidsstempel |
 | `checklist_change_log` | Automatisk endringslogg for sjekklister: feltendringer med gammel/ny verdi, bruker og tidsstempel |
 | `project_invitations` | E-postinvitasjoner med token, status (pending/accepted/expired), utløpsdato |
@@ -216,7 +217,7 @@ Viktige relasjoner:
 - `document_transfers` logger all sending mellom entrepriser med full sporbarhet
 - Bilder har valgfri GPS-data (`gps_lat`, `gps_lng`, `gps_enabled`)
 - Oppgaver kan kobles til en tegning med posisjon (`drawing_id`, `position_x`, `position_y`) — brukes for markør-plassering på tegninger
-- `workflows` tilhører en oppretter-entreprise (`enterpriseId`) med opptil 3 valgfrie svarer-entrepriser (`responderEnterpriseId`, `responderEnterprise2Id`, `responderEnterprise3Id`) for flerstegs eskaleringskjede. Kobler til maler via `workflow_templates`. Relasjoner er navngitte: `WorkflowCreator` / `WorkflowResponder` / `WorkflowResponder2` / `WorkflowResponder3`
+- `workflows` tilhører en oppretter-entreprise (`enterpriseId`) med valgfri svarer-entreprise (`responderEnterpriseId`) for steg 1. Svarer 2/3 er personbasert via `workflow_step_members` (WorkflowStepMember). Kobler til maler via `workflow_templates`. Legacy-kolonnene `responder_enterprise_2_id`/`3_id` beholdes men brukes ikke i UI
 - `report_objects` bruker selvrefererande relasjon (`parent_id`) for rekursiv nesting — kontainerfelt (`list_single`/`list_multi`) kan ha barnefelt som selv kan være kontainere (Dalux-stil), CASCADE-sletting av barn
 - `report_templates` har `category` (`oppgave` | `sjekkliste`), valgfritt `prefix` og valgfri `subjects` (Json?, default `[]`) — forhåndsdefinerte emnetekster som vises som nedtrekksmeny ved opprettelse
 - `buildings` tilhører et prosjekt, med tegninger koblet via `building_id`. `type`-feltet er deprecated — forskjellen mellom utomhus og innendørs styres nå av `geoReference` på tegningen
@@ -243,7 +244,7 @@ Alle routere i `apps/api/src/routes/`:
 | `mal` | hentForProsjekt, hentMedId, opprett, oppdaterMal, slettMal, leggTilObjekt, oppdaterObjekt, oppdaterRekkefølge, sjekkObjektBruk, slettObjekt |
 | `bygning` | hentForProsjekt (m/valgfri type-filter), hentMedId, opprett (m/type), oppdater, publiser, slett |
 | `tegning` | hentForProsjekt (m/filtre), hentForBygning, hentMedId, opprett, oppdater, lastOppRevisjon, hentRevisjoner, tilknyttBygning, settGeoReferanse, fjernGeoReferanse, slett |
-| `arbeidsforlop` | hentForProsjekt, hentForEnterprise, opprett, oppdater, slett |
+| `arbeidsforlop` | hentForProsjekt, hentForEnterprise, opprett, oppdater, slett, leggTilStegMedlem, fjernStegMedlem |
 | `mappe` | hentForProsjekt (m/tilgangsoppføringer), hentDokumenter, opprett, oppdater, slett, hentTilgang, settTilgang |
 | `medlem` | hentForProsjekt, hentMineEntrepriser, leggTil (m/invitasjon), fjern, oppdater (navn/e-post/telefon/rolle), oppdaterRolle, sokBrukere |
 | `gruppe` | hentMineTillatelser, hentMinTilgang, hentForProsjekt, opprettStandardgrupper, opprett, oppdater, slett, leggTilMedlem (m/invitasjon), fjernMedlem, oppdaterEntrepriser, oppdaterDomener |
@@ -430,7 +431,7 @@ Arbeidsforløp kobler maler til entrepriser og definerer oppretter/svarer-flyten
 - Sjekklister har valgfrie felter: `buildingId` (lokasjon), `drawingId` (tegning), `subject` (emne)
 - Emne (`subject`) ved opprettelse: hvis malen har `subjects`-array → vises som nedtrekksmeny (web: `<Select>`, mobil: Pressable-liste). Uten subjects → fritekst (mobil) eller skjult (web)
 - Tittel settes automatisk til prosjektnavn ved opprettelse fra mobil
-- **Flerstegs arbeidsforløp (implementert):** Opptil 3 svarer-steg per arbeidsforløp. Eskaleringsflyt: Oppretter → Svarer 1 → Svarer 2 → Svarer 3. Retur kan hoppe over ledd. Konfigureres via rediger-modal (3 svarer-dropdowns) eller direkte fra tomme kolonner. DB: `responder_enterprise_2_id`, `responder_enterprise_3_id` på `workflows`. Faktisk dokumentflyt mellom stegene er ikke implementert ennå
+- **Flerstegs arbeidsforløp (implementert):** Opptil 3 svarer-steg per arbeidsforløp. Eskaleringsflyt: Oppretter → Svarer 1 → Svarer 2 → Svarer 3. Svarer 1 er entreprisebasert (`responderEnterpriseId`). Svarer 2/3 er **personbasert** via `WorkflowStepMember`-tabell (kobler workflow + projectMember + step). Konfigureres direkte i kolonnene — `StegMedlemKolonne` viser og administrerer personer for steg 2/3. `responder_enterprise_2_id`/`3_id`-kolonnene beholdes i DB for bakoverkompatibilitet, men brukes ikke i UI. Eskalering er manuell (kommentar-basert). Faktisk dokumentflyt mellom stegene er ikke implementert ennå
 - **Planlagt:** HMS-avvik som eget arbeidsforløp der alle brukere kan opprette uavhengig av entreprisetilhørighet
 
 ### Modulsystem
