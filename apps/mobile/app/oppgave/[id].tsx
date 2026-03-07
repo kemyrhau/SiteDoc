@@ -26,6 +26,8 @@ import {
   MapPin,
   Trash2,
   ChevronDown,
+  MessageCircle,
+  Send,
 } from "lucide-react-native";
 import { harBetingelse, harForelderObjekt } from "@sitedoc/shared";
 import { hentStatusHandlinger } from "@sitedoc/shared";
@@ -87,8 +89,10 @@ export default function OppgaveDetalj() {
   // State for inline redigering av tittel og beskrivelse
   const [visTittelModal, settVisTittelModal] = useState(false);
   const [visBeskrivelseModal, settVisBeskrivelseModal] = useState(false);
+  const [visDialogModal, settVisDialogModal] = useState(false);
   const [tittelUtkast, settTittelUtkast] = useState("");
   const [beskrivelseUtkast, settBeskrivelseUtkast] = useState("");
+  const [dialogTekst, settDialogTekst] = useState("");
   const [visEntrepriseListe, settVisEntrepriseListe] = useState<"oppretter" | "svarer" | null>(null);
 
   const { ventende } = useOpplastingsKo();
@@ -148,6 +152,31 @@ export default function OppgaveDetalj() {
       Alert.alert("Kunne ikke slette", feil.message || "Ukjent feil ved sletting");
     },
   });
+
+  // Kommentarer/dialog
+  const kommentarQuery = trpc.oppgave.hentKommentarer.useQuery(
+    { taskId: id! },
+    { enabled: !!id },
+  );
+  const kommentarer = (kommentarQuery.data ?? []) as Array<{
+    id: string;
+    content: string;
+    createdAt: string;
+    user: { id: string; name: string | null; email: string };
+  }>;
+
+  const leggTilKommentarMutasjon = trpc.oppgave.leggTilKommentar.useMutation({
+    onSuccess: () => {
+      utils.oppgave.hentKommentarer.invalidate({ taskId: id! });
+      settDialogTekst("");
+      settVisDialogModal(false);
+    },
+  });
+
+  const håndterSendKommentar = useCallback(() => {
+    if (!dialogTekst.trim() || !id) return;
+    leggTilKommentarMutasjon.mutate({ taskId: id, content: dialogTekst.trim() });
+  }, [dialogTekst, id, leggTilKommentarMutasjon]);
 
   const håndterSlett = useCallback(() => {
     Alert.alert(
@@ -609,6 +638,58 @@ export default function OppgaveDetalj() {
           );
         })}
 
+        {/* Dialog */}
+        <View className="mt-4">
+          <View className="flex-row items-center justify-between px-1 pb-2">
+            <View className="flex-row items-center gap-2">
+              <MessageCircle size={16} color="#6b7280" />
+              <Text className="text-sm font-semibold text-gray-700">
+                Dialog {kommentarer.length > 0 ? `(${kommentarer.length})` : ""}
+              </Text>
+            </View>
+            <Pressable
+              onPress={() => {
+                settDialogTekst("");
+                settVisDialogModal(true);
+              }}
+              className="flex-row items-center gap-1 rounded-full bg-blue-50 px-3 py-1"
+            >
+              <Send size={12} color="#2563eb" />
+              <Text className="text-xs font-medium text-blue-600">Ny</Text>
+            </Pressable>
+          </View>
+          {kommentarer.length > 0 ? (
+            <View className="rounded-lg bg-white">
+              {kommentarer.map((k, i) => (
+                <View
+                  key={k.id}
+                  className={`px-3 py-2.5 ${i > 0 ? "border-t border-gray-100" : ""}`}
+                >
+                  <View className="flex-row items-center justify-between">
+                    <Text className="text-xs font-medium text-gray-700">
+                      {k.user.name ?? k.user.email}
+                    </Text>
+                    <Text className="text-xs text-gray-400">
+                      {new Date(k.createdAt).toLocaleString("nb-NO", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </Text>
+                  </View>
+                  <Text className="mt-1 text-sm text-gray-800">{k.content}</Text>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <View className="rounded-lg bg-white px-3 py-4">
+              <Text className="text-center text-xs text-gray-400">Ingen kommentarer ennå</Text>
+            </View>
+          )}
+        </View>
+
         {/* Historikk */}
         {overforinger && overforinger.length > 0 && (
           <View className="mt-4">
@@ -746,6 +827,38 @@ export default function OppgaveDetalj() {
               value={beskrivelseUtkast}
               onChangeText={settBeskrivelseUtkast}
               placeholder="Skriv beskrivelse..."
+              multiline
+              autoFocus
+              textAlignVertical="top"
+              className="flex-1 px-4 py-3 text-base text-gray-900"
+            />
+          </KeyboardAvoidingView>
+        </RNSafeAreaView>
+      </Modal>
+
+      {/* Dialog-modal */}
+      <Modal visible={visDialogModal} animationType="slide" onRequestClose={() => settVisDialogModal(false)}>
+        <RNSafeAreaView className="flex-1 bg-white">
+          <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : undefined}
+            className="flex-1"
+          >
+            <View className="flex-row items-center justify-between border-b border-gray-200 bg-[#1e40af] px-4 py-3">
+              <Text className="flex-1 text-base font-semibold text-white">Ny kommentar</Text>
+              <Pressable
+                onPress={håndterSendKommentar}
+                disabled={!dialogTekst.trim() || leggTilKommentarMutasjon.isPending}
+                className="ml-3 rounded-lg bg-white/20 px-4 py-1.5"
+              >
+                <Text className="text-sm font-semibold text-white">
+                  {leggTilKommentarMutasjon.isPending ? "Sender..." : "Send"}
+                </Text>
+              </Pressable>
+            </View>
+            <TextInput
+              value={dialogTekst}
+              onChangeText={settDialogTekst}
+              placeholder="Skriv kommentar..."
               multiline
               autoFocus
               textAlignVertical="top"

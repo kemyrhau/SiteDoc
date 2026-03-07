@@ -27,6 +27,8 @@ model User {
   drawingRevisions     DrawingRevision[]  @relation("DrawingRevisionUploader")
   sentInvitations      ProjectInvitation[] @relation("InvitationSender")
   folderAccess         FolderAccess[]
+  taskComments         TaskComment[]
+  checklistChangeLogs  ChecklistChangeLog[]
 
   @@map("users")
 }
@@ -307,9 +309,10 @@ model ReportTemplate {
   category    String   @default("sjekkliste") // "oppgave" | "sjekkliste"
   domain      String   @default("bygg")      // "bygg" | "hms" | "kvalitet"
   subjects    Json?    @default("[]")         // Forhåndsdefinerte emnetekster ["3. etasje", "Kjeller", ...]
-  version     Int      @default(1)
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  version        Int      @default(1)
+  enableChangeLog Boolean @default(false) @map("enable_change_log")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
 
   project            Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
   objects            ReportObject[]
@@ -368,6 +371,7 @@ model Checklist {
   transfers          DocumentTransfer[]
   images             Image[]
   tasks              Task[]
+  changeLog          ChecklistChangeLog[]
 
   @@map("checklists")
 }
@@ -403,6 +407,7 @@ model Task {
   checklist          Checklist?         @relation(fields: [checklistId], references: [id], onDelete: SetNull)
   transfers          DocumentTransfer[]
   images             Image[]
+  comments           TaskComment[]
 
   @@map("tasks")
 }
@@ -535,4 +540,35 @@ model ProjectModule {
 
   @@unique([projectId, moduleSlug])
   @@map("project_modules")
+}
+
+model TaskComment {
+  id        String   @id @default(uuid())
+  taskId    String   @map("task_id")
+  userId    String   @map("user_id")
+  content   String   @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([taskId])
+  @@map("task_comments")
+}
+
+model ChecklistChangeLog {
+  id          String   @id @default(uuid())
+  checklistId String   @map("checklist_id")
+  userId      String   @map("user_id")
+  fieldId     String   @map("field_id")
+  fieldLabel  String   @map("field_label")
+  oldValue    String?  @map("old_value")
+  newValue    String?  @map("new_value")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  checklist Checklist @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id])
+
+  @@index([checklistId])
+  @@map("checklist_change_log")
 }

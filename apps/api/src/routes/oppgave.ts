@@ -88,6 +88,10 @@ export const oppgaveRouter = router({
             include: { sender: true },
             orderBy: { createdAt: "desc" },
           },
+          comments: {
+            include: { user: { select: { id: true, name: true, email: true } } },
+            orderBy: { createdAt: "asc" },
+          },
         },
       });
 
@@ -101,6 +105,66 @@ export const oppgaveRouter = router({
       );
 
       return oppgave;
+    }),
+
+  // Hent kommentarer for en oppgave
+  hentKommentarer: protectedProcedure
+    .input(z.object({ taskId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const oppgave = await ctx.prisma.task.findUniqueOrThrow({
+        where: { id: input.taskId },
+        include: {
+          creatorEnterprise: { select: { projectId: true } },
+          template: { select: { domain: true } },
+        },
+      });
+      await verifiserDokumentTilgang(
+        ctx.userId,
+        oppgave.creatorEnterprise.projectId,
+        oppgave.creatorEnterpriseId,
+        oppgave.responderEnterpriseId,
+        oppgave.template?.domain,
+      );
+
+      return ctx.prisma.taskComment.findMany({
+        where: { taskId: input.taskId },
+        include: { user: { select: { id: true, name: true, email: true } } },
+        orderBy: { createdAt: "asc" },
+      });
+    }),
+
+  // Legg til kommentar på en oppgave
+  leggTilKommentar: protectedProcedure
+    .input(
+      z.object({
+        taskId: z.string().uuid(),
+        content: z.string().min(1).max(2000),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const oppgave = await ctx.prisma.task.findUniqueOrThrow({
+        where: { id: input.taskId },
+        include: {
+          creatorEnterprise: { select: { projectId: true } },
+          template: { select: { domain: true } },
+        },
+      });
+      await verifiserDokumentTilgang(
+        ctx.userId,
+        oppgave.creatorEnterprise.projectId,
+        oppgave.creatorEnterpriseId,
+        oppgave.responderEnterpriseId,
+        oppgave.template?.domain,
+      );
+
+      return ctx.prisma.taskComment.create({
+        data: {
+          taskId: input.taskId,
+          userId: ctx.userId,
+          content: input.content,
+        },
+        include: { user: { select: { id: true, name: true, email: true } } },
+      });
     }),
 
   // Hent oppgaver knyttet til en sjekkliste

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { trpc } from "@/lib/trpc";
 import { Button, Input, Textarea, Select, Modal, Spinner, EmptyState, StatusBadge, Badge, Table } from "@sitedoc/ui";
 import { useVerktoylinje } from "@/hooks/useVerktoylinje";
@@ -23,6 +23,7 @@ const prioritetFarge: Record<string, "default" | "primary" | "warning" | "danger
 
 export default function OppgaverSide() {
   const params = useParams<{ prosjektId: string }>();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const statusFilter = searchParams.get("status");
   const utils = trpc.useUtils();
@@ -202,6 +203,7 @@ export default function OppgaverSide() {
           ]}
           data={filtrerte as OppgaveRad[]}
           radNokkel={(rad) => rad.id}
+          onRadKlikk={(rad) => router.push(`/dashbord/${params.prosjektId}/oppgaver/${rad.id}`)}
           tomMelding="Ingen oppgaver med denne statusen"
         />
       )}
