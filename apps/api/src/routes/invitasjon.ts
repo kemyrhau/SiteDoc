@@ -113,16 +113,12 @@ export const invitasjonRouter = router({
         },
       });
 
-      try {
-        await sendInvitasjonsEpost({
-          til: invitasjon.email,
-          invitasjonstoken: nyToken,
-          prosjektNavn: invitasjon.project.name,
-          invitertAvNavn: invitasjon.invitedBy.name ?? "En kollega",
-        });
-      } catch (error) {
-        console.error("Kunne ikke sende invitasjons-e-post på nytt:", error);
-      }
+      await sendInvitasjonsEpost({
+        til: invitasjon.email,
+        invitasjonstoken: nyToken,
+        prosjektNavn: invitasjon.project.name,
+        invitertAvNavn: invitasjon.invitedBy.name ?? "En kollega",
+      });
 
       return oppdatert;
     }),
