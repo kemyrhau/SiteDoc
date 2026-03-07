@@ -317,11 +317,11 @@ function MedlemKolonne({
   return (
     <div className="flex-1 min-w-0">
       <div className="mb-1.5 flex items-center gap-1">
-        <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+        <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
           {tittel}
         </span>
         {entreprise && entreprise.name && (
-          <span className="truncate text-[10px] text-gray-400">
+          <span className="truncate text-[11px] text-gray-400">
             — {entreprise.name}
           </span>
         )}
@@ -336,7 +336,7 @@ function MedlemKolonne({
             <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gray-200 text-[10px] font-medium text-gray-600">
               {m.navn.charAt(0).toUpperCase()}
             </div>
-            <span className="truncate text-xs text-gray-700" title={m.epost}>
+            <span className="truncate text-[13px] text-gray-700" title={m.epost}>
               {m.navn}
             </span>
             {!leseModus && onFjern && (
@@ -345,14 +345,14 @@ function MedlemKolonne({
                 className="ml-auto hidden shrink-0 rounded p-0.5 text-gray-400 hover:bg-gray-200 hover:text-red-500 group-hover:block"
                 title="Fjern fra entreprise"
               >
-                <X className="h-2.5 w-2.5" />
+                <X className="h-3 w-3" />
               </button>
             )}
           </div>
         ))}
 
         {medlemmer.length === 0 && (
-          <div className="flex items-center gap-1 px-1.5 py-0.5 text-[11px] text-gray-400">
+          <div className="flex items-center gap-1 px-1.5 py-0.5 text-xs text-gray-400">
             {!leseModus && <AlertTriangle className="h-3 w-3 text-amber-400" />}
             Ingen medlemmer
           </div>
@@ -365,7 +365,7 @@ function MedlemKolonne({
               <div className="px-1.5">
                 <select
                   autoFocus
-                  className="w-full rounded border border-gray-300 px-1.5 py-0.5 text-[11px] focus:border-blue-500 focus:outline-none"
+                  className="w-full rounded border border-gray-300 px-2 py-0.5 text-xs focus:border-blue-500 focus:outline-none"
                   defaultValue=""
                   onChange={(e) => {
                     if (e.target.value) onLeggTil(e.target.value);
@@ -387,9 +387,9 @@ function MedlemKolonne({
             ) : (
               <button
                 onClick={() => setVisVelger(true)}
-                className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-gray-400 hover:bg-gray-50 hover:text-blue-500"
+                className="flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-gray-400 hover:bg-gray-50 hover:text-blue-500"
               >
-                <Plus className="h-2.5 w-2.5" />
+                <Plus className="h-3 w-3" />
                 Legg til
               </button>
             )}
@@ -537,29 +537,30 @@ function EntrepriseGruppeKomponent({
                   tittel="Svarer"
                   entreprise={entreprise}
                   alleMedlemmer={alleMedlemmer}
-                  leseModus
+                  onLeggTil={(pmId) => onLeggTilMedlem(entreprise.id, pmId)}
+                  onFjern={(pmId) => onFjernMedlem(entreprise.id, pmId)}
                 />
               )}
             </div>
 
             {/* Svarer 2 — placeholder */}
             <div className="flex-1 p-3">
-              <div className="mb-2">
-                <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-300">
+              <div className="mb-1.5">
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-300">
                   Svarer 2
                 </span>
               </div>
-              <p className="px-1.5 text-[11px] text-gray-300">Kommer</p>
+              <p className="px-1.5 text-xs text-gray-300">Kommer</p>
             </div>
 
             {/* Svarer 3 — placeholder */}
             <div className="flex-1 p-3">
-              <div className="mb-2">
-                <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-300">
+              <div className="mb-1.5">
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-300">
                   Svarer 3
                 </span>
               </div>
-              <p className="px-1.5 text-[11px] text-gray-300">Kommer</p>
+              <p className="px-1.5 text-xs text-gray-300">Kommer</p>
             </div>
           </div>
 
