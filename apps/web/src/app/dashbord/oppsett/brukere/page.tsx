@@ -643,62 +643,91 @@ function RedigerGruppeModal({
             );
           })()}
 
-          {/* Inline legg til — eksisterende medlemmer + ny bruker */}
+          {/* Inline legg til — samlet visning av gruppemedlemmer og tilgjengelige */}
           {visLeggTil && (
             <div className="mt-2 rounded border border-gray-200 bg-gray-50 p-3">
-              {/* Eksisterende prosjektmedlemmer */}
-              {tilgjengeligeMedlemmer.length > 0 && (
-                <div className="mb-3">
-                  <p className="mb-1.5 text-xs font-medium text-gray-500">Prosjektmedlemmer</p>
-                  <div className="max-h-40 space-y-1 overflow-y-auto rounded border border-gray-200 bg-white p-2">
-                    {tilgjengeligeMedlemmer.map((m) => (
-                      <button
-                        key={m.id}
-                        type="button"
-                        onClick={() => {
-                          setFeilmelding("");
-                          setLeggerTil(true);
-                          if (erDbGruppe) {
-                            leggTilGruppeMedlem.mutate({
-                              groupId: gruppe.id,
-                              projectId: prosjektId,
-                              email: m.user.email,
-                              firstName: m.user.name?.split(" ")[0] ?? "",
-                              lastName: m.user.name?.split(" ").slice(1).join(" ") ?? "",
-                            });
-                          } else if (gruppe.id.startsWith("ent-")) {
-                            leggTilMedlem.mutate({
-                              projectId: prosjektId,
-                              email: m.user.email,
-                              firstName: m.user.name?.split(" ")[0] ?? "",
-                              lastName: m.user.name?.split(" ").slice(1).join(" ") ?? "",
-                              role: "member",
-                              enterpriseIds: [gruppe.id.replace("ent-", "")],
-                            });
-                          } else if (gruppe.id === "prosjektadmin") {
-                            leggTilMedlem.mutate({
-                              projectId: prosjektId,
-                              email: m.user.email,
-                              firstName: m.user.name?.split(" ")[0] ?? "",
-                              lastName: m.user.name?.split(" ").slice(1).join(" ") ?? "",
-                              role: "admin",
-                            });
-                          }
-                        }}
-                        className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-blue-50"
-                      >
-                        <UserPlus className="h-3.5 w-3.5 text-gray-400" />
-                        <span className="font-medium text-gray-900">{m.user.name ?? m.user.email}</span>
-                        <span className="text-xs text-gray-400">{m.user.email}</span>
-                      </button>
-                    ))}
-                  </div>
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-xs font-medium text-gray-500">Prosjektmedlemmer</p>
+                <button
+                  type="button"
+                  onClick={() => resetLeggTilSkjema()}
+                  className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              {/* Samlet medlemsliste: allerede i gruppen + tilgjengelige */}
+              {(gruppe.medlemmer.length > 0 || tilgjengeligeMedlemmer.length > 0) && (
+                <div className="mb-3 max-h-52 space-y-0.5 overflow-y-auto rounded border border-gray-200 bg-white p-1.5">
+                  {/* Eksisterende gruppemedlemmer (med hake) */}
+                  {gruppe.medlemmer.map((m) => (
+                    <div
+                      key={m.id}
+                      className="flex items-center gap-2 rounded px-2 py-1.5 text-sm text-gray-400"
+                    >
+                      <div className="flex h-5 w-5 items-center justify-center rounded bg-green-100">
+                        <svg className="h-3 w-3 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                      </div>
+                      <span className="font-medium text-gray-500">{m.navn}</span>
+                      {m.epost && <span className="text-xs text-gray-300">{m.epost}</span>}
+                      <span className="ml-auto text-xs text-green-600">I gruppen</span>
+                    </div>
+                  ))}
+
+                  {/* Tilgjengelige prosjektmedlemmer (klikkbare for å legge til) */}
+                  {tilgjengeligeMedlemmer.map((m) => (
+                    <button
+                      key={m.id}
+                      type="button"
+                      disabled={leggerTil}
+                      onClick={() => {
+                        setFeilmelding("");
+                        setLeggerTil(true);
+                        if (erDbGruppe) {
+                          leggTilGruppeMedlem.mutate({
+                            groupId: gruppe.id,
+                            projectId: prosjektId,
+                            email: m.user.email,
+                            firstName: m.user.name?.split(" ")[0] ?? "",
+                            lastName: m.user.name?.split(" ").slice(1).join(" ") ?? "",
+                          });
+                        } else if (gruppe.id.startsWith("ent-")) {
+                          leggTilMedlem.mutate({
+                            projectId: prosjektId,
+                            email: m.user.email,
+                            firstName: m.user.name?.split(" ")[0] ?? "",
+                            lastName: m.user.name?.split(" ").slice(1).join(" ") ?? "",
+                            role: "member",
+                            enterpriseIds: [gruppe.id.replace("ent-", "")],
+                          });
+                        } else if (gruppe.id === "prosjektadmin") {
+                          leggTilMedlem.mutate({
+                            projectId: prosjektId,
+                            email: m.user.email,
+                            firstName: m.user.name?.split(" ")[0] ?? "",
+                            lastName: m.user.name?.split(" ").slice(1).join(" ") ?? "",
+                            role: "admin",
+                          });
+                        }
+                      }}
+                      className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-blue-50 disabled:opacity-50"
+                    >
+                      <div className="flex h-5 w-5 items-center justify-center rounded border border-gray-300 bg-white">
+                        <Plus className="h-3 w-3 text-gray-400" />
+                      </div>
+                      <span className="font-medium text-gray-900">{m.user.name ?? m.user.email}</span>
+                      <span className="text-xs text-gray-400">{m.user.email}</span>
+                    </button>
+                  ))}
                 </div>
               )}
 
               {/* Ny bruker via e-post */}
               <p className="mb-1.5 text-xs font-medium text-gray-500">
-                {tilgjengeligeMedlemmer.length > 0 ? "Eller inviter ny bruker" : "Inviter ny bruker"}
+                Inviter ny bruker
               </p>
               <form
                 onSubmit={leggTilSteg === 1 ? handleEpostNeste : handleLeggTil}
@@ -714,7 +743,7 @@ function RedigerGruppeModal({
                       setFeilmelding("");
                     }}
                     disabled={leggTilSteg === 2}
-                    autoFocus={tilgjengeligeMedlemmer.length === 0 && leggTilSteg === 1}
+                    autoFocus={leggTilSteg === 1}
                     className="flex-1 rounded border border-gray-300 px-3 py-2 text-sm focus:border-sitedoc-primary focus:outline-none focus:ring-1 focus:ring-sitedoc-primary disabled:bg-gray-100 disabled:text-gray-500"
                   />
                   {leggTilSteg === 2 && (
@@ -732,15 +761,6 @@ function RedigerGruppeModal({
                       <Pencil className="h-3.5 w-3.5" />
                     </button>
                   )}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      resetLeggTilSkjema();
-                    }}
-                    className="rounded p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
                 </div>
 
                 {leggTilSteg === 2 && (
