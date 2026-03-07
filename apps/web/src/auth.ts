@@ -18,6 +18,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             clientSecret: process.env.AUTH_MICROSOFT_ENTRA_ID_SECRET,
             issuer: process.env.AUTH_MICROSOFT_ENTRA_ID_ISSUER,
             allowDangerousEmailAccountLinking: true,
+            authorization: { params: { scope: "openid profile email" } },
+            checks: ["state"],
           }),
         ]
       : []),
