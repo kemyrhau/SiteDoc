@@ -8,16 +8,18 @@ datasource db {
 }
 
 model User {
-  id            String    @id @default(uuid())
-  name          String?
-  email         String    @unique
-  emailVerified DateTime? @map("email_verified")
-  image         String?
-  phone         String?
-  role          String    @default("user")
-  createdAt     DateTime  @default(now()) @map("created_at")
-  updatedAt     DateTime  @updatedAt @map("updated_at")
+  id              String    @id @default(uuid())
+  name            String?
+  email           String    @unique
+  emailVerified   DateTime? @map("email_verified")
+  image           String?
+  phone           String?
+  role            String    @default("user") // "user" | "company_admin" | "sitedoc_admin"
+  organizationId  String?   @map("organization_id")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
 
+  organization         Organization?      @relation(fields: [organizationId], references: [id], onDelete: SetNull)
   accounts             Account[]
   sessions             Session[]
   projects             ProjectMember[]
@@ -31,6 +33,36 @@ model User {
   checklistChangeLogs  ChecklistChangeLog[]
 
   @@map("users")
+}
+
+model Organization {
+  id                 String   @id @default(uuid())
+  name               String
+  organizationNumber String?  @map("organization_number") // Org.nr (norsk)
+  invoiceAddress     String?  @map("invoice_address")
+  invoiceEmail       String?  @map("invoice_email")
+  ehfEnabled         Boolean  @default(false) @map("ehf_enabled")
+  logoUrl            String?  @map("logo_url")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  users    User[]
+  projects OrganizationProject[]
+
+  @@map("organizations")
+}
+
+model OrganizationProject {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  projectId      String   @map("project_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  project      Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, projectId])
+  @@map("organization_projects")
 }
 
 // Auth.js-tabeller for OAuth-tilkoblinger
@@ -90,15 +122,16 @@ model Project {
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
-  members     ProjectMember[]
-  enterprises Enterprise[]
-  drawings    Drawing[]
-  buildings   Building[]
-  templates   ReportTemplate[]
-  folders     Folder[]
-  groups      ProjectGroup[]
-  invitations ProjectInvitation[]
-  modules     ProjectModule[]
+  members              ProjectMember[]
+  enterprises          Enterprise[]
+  drawings             Drawing[]
+  buildings            Building[]
+  templates            ReportTemplate[]
+  folders              Folder[]
+  groups               ProjectGroup[]
+  invitations          ProjectInvitation[]
+  modules              ProjectModule[]
+  organizationProjects OrganizationProject[]
 
   @@map("projects")
 }

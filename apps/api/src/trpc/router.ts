@@ -15,6 +15,7 @@ import { invitasjonRouter } from "../routes/invitasjon";
 import { bildeRouter } from "../routes/bilde";
 import { vaerRouter } from "../routes/vaer";
 import { modulRouter } from "../routes/modul";
+import { organisasjonRouter } from "../routes/organisasjon";
 
 export const appRouter = router({
   prosjekt: prosjektRouter,
@@ -33,6 +34,7 @@ export const appRouter = router({
   bilde: bildeRouter,
   vaer: vaerRouter,
   modul: modulRouter,
+  organisasjon: organisasjonRouter,
 });
 
 export type AppRouter = typeof appRouter;

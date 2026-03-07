@@ -1,14 +1,21 @@
 "use client";
 
 import { useSession, signOut } from "next-auth/react";
-import { LogOut, User, HardHat } from "lucide-react";
+import { LogOut, User, HardHat, Building2 } from "lucide-react";
 import { ProsjektVelger } from "./ProsjektVelger";
 import { useState, useRef, useEffect } from "react";
+import { trpc } from "@/lib/trpc";
+import Link from "next/link";
 
 export function Toppbar() {
   const { data: session } = useSession();
   const [brukerMeny, setBrukerMeny] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+
+  // Sjekk om bruker har organisasjon (firmaadmin)
+  const { data: organisasjon } = trpc.organisasjon.hentMin.useQuery(undefined, {
+    enabled: !!session?.user,
+  });
 
   useEffect(() => {
     function handleKlikk(e: MouseEvent) {
@@ -22,7 +29,7 @@ export function Toppbar() {
 
   return (
     <header className="flex h-12 items-center justify-between bg-sitedoc-primary px-4">
-      {/* Venstre: Logo + Prosjektvelger */}
+      {/* Venstre: Logo + Prosjektvelger + Firma */}
       <div className="flex items-center gap-4">
         <div className="flex w-[60px] items-center justify-center">
           <HardHat className="h-6 w-6 text-white" />
@@ -32,6 +39,18 @@ export function Toppbar() {
         </span>
         <div className="mx-2 h-5 w-px bg-white/20" />
         <ProsjektVelger />
+        {organisasjon && (
+          <>
+            <div className="mx-1 h-5 w-px bg-white/20" />
+            <Link
+              href="/dashbord/firma"
+              className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm text-blue-100 transition-colors hover:bg-white/10 hover:text-white"
+            >
+              <Building2 className="h-4 w-4" />
+              <span className="hidden sm:inline">{organisasjon.name}</span>
+            </Link>
+          </>
+        )}
       </div>
 
       {/* Høyre: Brukerinfo */}
