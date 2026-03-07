@@ -272,6 +272,46 @@ function ArbeidsforlopRad({
       {/* Ekspandert detaljer */}
       {ekspandert && (
         <div className="mb-1 ml-10 mr-4 rounded-lg border border-gray-100 bg-gray-50 px-4 py-3">
+          {/* Deltakere i arbeidsforløpet */}
+          <div className="mb-3 flex items-start gap-4">
+            <div className="flex-1">
+              <p className="mb-1 text-xs font-semibold text-gray-600">Oppretter</p>
+              <div className="flex flex-wrap gap-1">
+                {entreprise.medlemmer.length > 0 ? (
+                  entreprise.medlemmer.map((m) => (
+                    <span key={m.id} className="inline-flex items-center gap-1 rounded bg-blue-50 px-1.5 py-0.5 text-xs text-blue-700">
+                      {m.navn}
+                    </span>
+                  ))
+                ) : (
+                  <span className="text-xs text-gray-400">Ingen medlemmer</span>
+                )}
+              </div>
+            </div>
+            <ArrowRight className="mt-3 h-4 w-4 shrink-0 text-gray-300" />
+            <div className="flex-1">
+              <p className="mb-1 text-xs font-semibold text-gray-600">Svarer</p>
+              <div className="flex flex-wrap gap-1">
+                {(() => {
+                  const svarerEnt = arbeidsforlop.responderEnterpriseId
+                    ? alleEntrepriser.find((e) => e.id === arbeidsforlop.responderEnterpriseId)
+                    : entreprise;
+                  const svarerMedlemmer = svarerEnt?.medlemmer ?? [];
+                  return svarerMedlemmer.length > 0 ? (
+                    svarerMedlemmer.map((m) => (
+                      <span key={m.id} className="inline-flex items-center gap-1 rounded bg-green-50 px-1.5 py-0.5 text-xs text-green-700">
+                        {m.navn}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="text-xs text-gray-400">Ingen medlemmer</span>
+                  );
+                })()}
+              </div>
+            </div>
+          </div>
+
+          {/* Tilknyttede maler */}
           {oppgaveMaler.length > 0 && (
             <div className="mb-2">
               <p className="text-xs font-semibold text-gray-600">Oppgavetyper</p>
@@ -311,6 +351,12 @@ function ArbeidsforlopRad({
 /*  Entreprise-gruppe (to-kolonne)                                     */
 /* ------------------------------------------------------------------ */
 
+interface EntrepriseMedlem {
+  id: string;
+  navn: string;
+  epost: string;
+}
+
 interface EntrepriseData {
   id: string;
   name: string;
@@ -320,6 +366,7 @@ interface EntrepriseData {
   industry: string | null;
   companyName: string | null;
   fargeIndeks: number;
+  medlemmer: EntrepriseMedlem[];
 }
 
 function EntrepriseGruppeKomponent({
@@ -399,27 +446,50 @@ function EntrepriseGruppeKomponent({
 
       {ekspandert && (
         <div
-          className={`rounded-b-lg border border-t-0 ${farge.border} bg-white py-1`}
+          className={`rounded-b-lg border border-t-0 ${farge.border} bg-white`}
           style={{ width: "fit-content", minWidth: 280 }}
         >
-          {arbeidsforloper.length > 0 ? (
-            arbeidsforloper.map((af) => (
-              <ArbeidsforlopRad
-                key={af.id}
-                arbeidsforlop={af}
-                entreprise={entreprise}
-                alleEntrepriser={alleEntrepriser}
-                onRediger={(data) =>
-                  onRedigerArbeidsforlop(data, entreprise.name)
-                }
-                onSlett={onSlettArbeidsforlop}
-              />
-            ))
-          ) : (
-            <p className="px-8 py-4 text-sm text-gray-400">
-              Ingen arbeidsforløp konfigurert
-            </p>
-          )}
+          {/* Medlemmer under header */}
+          <div className="flex items-center gap-1.5 border-b border-gray-100 px-4 py-2">
+            <Users className="h-3.5 w-3.5 text-gray-400" />
+            {entreprise.medlemmer.length > 0 ? (
+              <div className="flex flex-wrap items-center gap-1">
+                {entreprise.medlemmer.map((m) => (
+                  <span
+                    key={m.id}
+                    className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600"
+                    title={m.epost}
+                  >
+                    {m.navn}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <span className="text-xs text-gray-400">Ingen medlemmer tilknyttet</span>
+            )}
+          </div>
+
+          {/* Arbeidsforløp */}
+          <div className="py-1">
+            {arbeidsforloper.length > 0 ? (
+              arbeidsforloper.map((af) => (
+                <ArbeidsforlopRad
+                  key={af.id}
+                  arbeidsforlop={af}
+                  entreprise={entreprise}
+                  alleEntrepriser={alleEntrepriser}
+                  onRediger={(data) =>
+                    onRedigerArbeidsforlop(data, entreprise.name)
+                  }
+                  onSlett={onSlettArbeidsforlop}
+                />
+              ))
+            ) : (
+              <p className="px-8 py-4 text-sm text-gray-400">
+                Ingen arbeidsforløp konfigurert
+              </p>
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -1327,6 +1397,11 @@ export default function EntrepriserSide() {
       industry: e.industry ?? null,
       companyName: e.companyName ?? null,
       fargeIndeks: i,
+      medlemmer: ((e as unknown as { memberEnterprises?: Array<{ projectMember: { id: string; user: { name: string | null; email: string } } }> }).memberEnterprises ?? []).map((me) => ({
+        id: me.projectMember.id,
+        navn: me.projectMember.user.name ?? me.projectMember.user.email,
+        epost: me.projectMember.user.email,
+      })),
     })) ?? [];
 
   // Søkefiltrering
