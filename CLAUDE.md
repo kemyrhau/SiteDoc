@@ -130,7 +130,7 @@ sitedoc/
 
 ### Database (PostgreSQL)
 
-21 tabeller totalt. Kjernetabeller:
+23 tabeller totalt. Kjernetabeller:
 
 | Tabell | Beskrivelse |
 |--------|-------------|
@@ -145,7 +145,7 @@ sitedoc/
 | `buildings` | Lokasjoner med `number` (auto-generert per prosjekt), `type` (deprecated, default `"bygg"`), status (unpublished/published) |
 | `drawings` | Tegninger med metadata: tegningsnummer, fagdisiplin, revisjon, status, etasje, målestokk, opphav, valgfri `geoReference` (JSON) |
 | `drawing_revisions` | Revisjonshistorikk for tegninger med fil, status og hvem som lastet opp |
-| `report_templates` | Maler med category (oppgave/sjekkliste), prefix, versjon, `domain` (bygg/hms/kvalitet, default "bygg"), `subjects` (JSON-array med forhåndsdefinerte emnetekster) |
+| `report_templates` | Maler med category (oppgave/sjekkliste), prefix, versjon, `domain` (bygg/hms/kvalitet, default "bygg"), `subjects` (JSON-array med forhåndsdefinerte emnetekster), `enable_change_log` (Boolean, default false — aktiverer automatisk endringslogg for sjekklister) |
 | `report_objects` | Rapportobjekter i maler (23 typer, JSON-konfig), rekursiv nesting via `parent_id` |
 | `checklists` | Sjekklister med oppretter/svarer-entreprise, status, data (JSON) |
 | `tasks` | Oppgaver med påkrevd mal (`template_id`), prefiks+løpenummer (`number`), prioritet, frist, oppretter/svarer, utfylt data (`data` JSON), valgfri tegningsposisjon og sjekkliste-kobling (`checklist_id`, `checklist_field_id`) |
@@ -156,6 +156,8 @@ sitedoc/
 | `documents` | Dokumenter i mapper med fil-URL og versjon |
 | `workflows` | Arbeidsforløp med oppretter-entreprise og valgfri svarer-entreprise (`responder_enterprise_id`) |
 | `workflow_templates` | Kobling mellom arbeidsforløp og maler (mange-til-mange) |
+| `task_comments` | Kommentarer/dialog på oppgaver med bruker og tidsstempel |
+| `checklist_change_log` | Automatisk endringslogg for sjekklister: feltendringer med gammel/ny verdi, bruker og tidsstempel |
 | `project_invitations` | E-postinvitasjoner med token, status (pending/accepted/expired), utløpsdato |
 | `group_enterprises` | Mange-til-mange kobling mellom `project_groups` og `enterprises` — styrer entreprise-begrenset fagområde-tilgang |
 | `project_modules` | Aktiverte moduler per prosjekt med `moduleSlug` (unique per prosjekt), `active`-flagg for soft-deactivate |
@@ -188,8 +190,8 @@ Alle routere i `apps/api/src/routes/`:
 |--------|-----------|
 | `prosjekt` | hentMine, hentAlle (filtrert på medlemskap), hentMedId, opprett (auto-admin), oppdater |
 | `entreprise` | hentForProsjekt, hentMedId, opprett, oppdater, slett |
-| `sjekkliste` | hentForProsjekt (m/statusfilter + buildingId-filter), hentMedId, opprett, oppdater (metadata + entrepriser, kun draft), oppdaterData, endreStatus, slett (kun draft, blokkeres ved tilknyttede oppgaver) |
-| `oppgave` | hentForProsjekt (m/statusfilter), hentForTegning (markører per tegning), hentMedId (m/template.objects), hentForSjekkliste, opprett (m/tegningsposisjon, templateId påkrevd), oppdater (m/entrepriser, kun draft), oppdaterData, endreStatus, slett (kun draft) |
+| `sjekkliste` | hentForProsjekt (m/statusfilter + buildingId-filter), hentMedId (m/changeLog), opprett, oppdater (metadata + entrepriser, kun draft), oppdaterData (m/automatisk endringslogg), endreStatus, slett (kun draft, blokkeres ved tilknyttede oppgaver) |
+| `oppgave` | hentForProsjekt (m/statusfilter), hentForTegning (markører per tegning), hentMedId (m/template.objects+kommentarer), hentForSjekkliste, hentKommentarer, leggTilKommentar, opprett (m/tegningsposisjon, templateId påkrevd), oppdater (m/entrepriser, kun draft), oppdaterData, endreStatus, slett (kun draft) |
 | `mal` | hentForProsjekt, hentMedId, opprett, oppdaterMal, slettMal, leggTilObjekt, oppdaterObjekt, oppdaterRekkefølge, sjekkObjektBruk, slettObjekt |
 | `bygning` | hentForProsjekt (m/valgfri type-filter), hentMedId, opprett (m/type), oppdater, publiser, slett |
 | `tegning` | hentForProsjekt (m/filtre), hentForBygning, hentMedId, opprett, oppdater, lastOppRevisjon, hentRevisjoner, tilknyttBygning, settGeoReferanse, fjernGeoReferanse, slett |
@@ -248,6 +250,18 @@ draft → sent → received → in_progress → responded → approved | rejecte
                                                       rejected → in_progress (tilbake til arbeid)
 draft / sent / received / in_progress → cancelled (avbryt — irreversibel)
 ```
+
+### Sjekkliste-endringslogg
+
+Automatisk logging av feltendringer i sjekklister, aktiverbar per mal.
+
+- `enableChangeLog` på `ReportTemplate` — avhukingsboks i mal-redigeringsmodal (kun sjekklister)
+- `ChecklistChangeLog`-modell: `checklistId`, `userId`, `fieldId`, `fieldLabel`, `oldValue`, `newValue`, `createdAt`
+- Server-side diff i `sjekkliste.oppdaterData`: sammenligner gammel og ny `data` JSON felt-for-felt, oppretter logg-rader for endrede verdier
+- **Web:** `EndringsloggSeksjon` i sjekkliste-detaljsiden — viser endringer kronologisk med bruker, felt, gammel→ny verdi og tidsstempel
+- **Mobil:** Tilsvarende seksjon i sjekkliste-utfyllingsskjermen
+- Kun aktiv når `template.enableChangeLog === true`, ingen logg-rader vises hvis deaktivert eller tom
+- Verdier lagres som JSON-strenger (for å håndtere ulike typer: streng, tall, array osv.)
 
 ### Entrepriseflyt
 
@@ -463,6 +477,14 @@ Brukeren kan opprette oppgaver direkte fra tegningsvisningen i Lokasjoner-taben:
 ### Oppgavesystem
 
 Oppgaver bruker NØYAKTIG samme rapportobjekt-system som sjekklister (23 typer), med lokal-first lagring og auto-synkronisering. En mal er ALLTID påkrevd for oppgaver (`templateId` er required i API).
+
+**Oppgavedialog (kommentarer):**
+- Oppgaver har en dialogseksjon der både oppretter og svarer kan legge til kommentarer med automatisk tidsstempel
+- `TaskComment`-modell: `taskId`, `userId`, `content`, `createdAt` (auto-timestamp)
+- API: `oppgave.hentKommentarer` og `oppgave.leggTilKommentar`
+- **Web:** `DialogSeksjon` i oppgave-detaljsiden — kronologisk kommentarliste + innlinjet tekstfelt med Send-knapp, Enter sender
+- **Mobil:** Dialog-seksjon i ScrollView + fullskjerm modal for skriving (blå header, multiline TextInput)
+- Kommentarer vises med brukernavn + formatert tidsstempel (dd.mm.yyyy HH:mm)
 
 **Oppgavenummerering:**
 - Format: `mal.prefix + "-" + løpenummer` (f.eks. `BHO-001`, `S-BET-042`)
