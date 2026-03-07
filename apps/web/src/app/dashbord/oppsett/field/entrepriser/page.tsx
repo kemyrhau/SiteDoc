@@ -296,23 +296,18 @@ function MedlemKolonne({
   tittel,
   entreprise,
   alleMedlemmer,
-  alleEntrepriser,
   onLeggTil,
   onFjern,
-  onVelgEntreprise,
   leseModus = false,
 }: {
   tittel: string;
   entreprise: EntrepriseData | null;
   alleMedlemmer: ProsjektMedlemItem[];
-  alleEntrepriser?: EntrepriseData[];
   onLeggTil?: (projectMemberId: string) => void;
   onFjern?: (projectMemberId: string) => void;
-  onVelgEntreprise?: (enterpriseId: string) => void;
   leseModus?: boolean;
 }) {
   const [visVelger, setVisVelger] = useState(false);
-  const [visEntrepriseVelger, setVisEntrepriseVelger] = useState(false);
   const medlemmer = entreprise?.medlemmer ?? [];
 
   // Filtrer ut medlemmer som allerede er i entreprisen
@@ -365,37 +360,7 @@ function MedlemKolonne({
           </div>
         ))}
 
-        {medlemmer.length === 0 && !entreprise && onVelgEntreprise && (
-          <div className="space-y-1 px-1.5">
-            {visEntrepriseVelger ? (
-              <select
-                autoFocus
-                className="w-full rounded border border-gray-300 px-2 py-1 text-xs focus:border-blue-500 focus:outline-none"
-                defaultValue=""
-                onChange={(e) => {
-                  if (e.target.value) onVelgEntreprise(e.target.value);
-                  setVisEntrepriseVelger(false);
-                }}
-                onBlur={() => setVisEntrepriseVelger(false)}
-              >
-                <option value="" disabled>Velg entreprise...</option>
-                {(alleEntrepriser ?? []).map((e) => (
-                  <option key={e.id} value={e.id}>{e.name}</option>
-                ))}
-              </select>
-            ) : (
-              <button
-                onClick={() => setVisEntrepriseVelger(true)}
-                className="flex items-center gap-1 rounded py-0.5 text-xs text-blue-500 hover:text-blue-600"
-              >
-                <Plus className="h-3 w-3" />
-                Velg entreprise
-              </button>
-            )}
-          </div>
-        )}
-
-        {medlemmer.length === 0 && !entreprise && !onVelgEntreprise && (
+        {medlemmer.length === 0 && !entreprise && (
           <div className="flex items-center gap-1 px-1.5 py-0.5 text-xs text-gray-300">
             Ikke konfigurert
           </div>
@@ -466,7 +431,6 @@ function EntrepriseGruppeKomponent({
   onSlettArbeidsforlop,
   onLeggTilMedlem,
   onFjernMedlem,
-  onSettSvarer,
 }: {
   entreprise: EntrepriseData;
   arbeidsforloper: ArbeidsforlopData[];
@@ -479,7 +443,6 @@ function EntrepriseGruppeKomponent({
   onSlettArbeidsforlop: (id: string) => void;
   onLeggTilMedlem: (enterpriseId: string, projectMemberId: string) => void;
   onFjernMedlem: (enterpriseId: string, projectMemberId: string) => void;
-  onSettSvarer: (steg: 2 | 3, enterpriseId: string) => void;
 }) {
   const [ekspandert, setEkspandert] = useState(true);
   const farge = hentFargeForEntreprise(entreprise.color, entreprise.fargeIndeks);
@@ -595,44 +558,24 @@ function EntrepriseGruppeKomponent({
 
             {/* Svarer 2 */}
             <div className="flex-1 p-3">
-              {svarer2 ? (
-                <MedlemKolonne
-                  tittel="Svarer 2"
-                  entreprise={svarer2}
-                  alleMedlemmer={alleMedlemmer}
-                  onLeggTil={(pmId) => onLeggTilMedlem(svarer2.id, pmId)}
-                  onFjern={(pmId) => onFjernMedlem(svarer2.id, pmId)}
-                />
-              ) : (
-                <MedlemKolonne
-                  tittel="Svarer 2"
-                  entreprise={null}
-                  alleMedlemmer={alleMedlemmer}
-                  alleEntrepriser={alleEntrepriser}
-                  onVelgEntreprise={(eid) => onSettSvarer(2, eid)}
-                />
-              )}
+              <MedlemKolonne
+                tittel="Svarer 2"
+                entreprise={svarer2}
+                alleMedlemmer={alleMedlemmer}
+                onLeggTil={svarer2 ? (pmId) => onLeggTilMedlem(svarer2.id, pmId) : undefined}
+                onFjern={svarer2 ? (pmId) => onFjernMedlem(svarer2.id, pmId) : undefined}
+              />
             </div>
 
             {/* Svarer 3 */}
             <div className="flex-1 p-3">
-              {svarer3 ? (
-                <MedlemKolonne
-                  tittel="Svarer 3"
-                  entreprise={svarer3}
-                  alleMedlemmer={alleMedlemmer}
-                  onLeggTil={(pmId) => onLeggTilMedlem(svarer3.id, pmId)}
-                  onFjern={(pmId) => onFjernMedlem(svarer3.id, pmId)}
-                />
-              ) : (
-                <MedlemKolonne
-                  tittel="Svarer 3"
-                  entreprise={null}
-                  alleMedlemmer={alleMedlemmer}
-                  alleEntrepriser={alleEntrepriser}
-                  onVelgEntreprise={(eid) => onSettSvarer(3, eid)}
-                />
-              )}
+              <MedlemKolonne
+                tittel="Svarer 3"
+                entreprise={svarer3}
+                alleMedlemmer={alleMedlemmer}
+                onLeggTil={svarer3 ? (pmId) => onLeggTilMedlem(svarer3.id, pmId) : undefined}
+                onFjern={svarer3 ? (pmId) => onFjernMedlem(svarer3.id, pmId) : undefined}
+              />
             </div>
           </div>
 
@@ -1610,19 +1553,6 @@ export default function EntrepriserSide() {
     }
   }
 
-  // Sett svarer 2/3 direkte fra kolonne — oppdaterer første arbeidsforløp
-  function handleSettSvarer(entrepriseId: string, steg: 2 | 3, svarerEntrepriseId: string) {
-    const afs = arbeidsforlopMap.get(entrepriseId);
-    const af = afs?.[0];
-    if (!af) return;
-    oppdaterAfMutation.mutate({
-      id: af.id,
-      ...(steg === 2
-        ? { responderEnterprise2Id: svarerEntrepriseId }
-        : { responderEnterprise3Id: svarerEntrepriseId }),
-    });
-  }
-
   if (isLoading) {
     return (
       <div className="flex justify-center py-12">
@@ -1806,9 +1736,6 @@ export default function EntrepriserSide() {
                   enterpriseId,
                   projectId: prosjektId!,
                 })
-              }
-              onSettSvarer={(steg, svarerEntrepriseId) =>
-                handleSettSvarer(ent.id, steg, svarerEntrepriseId)
               }
             />
           ))}

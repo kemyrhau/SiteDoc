@@ -26,6 +26,7 @@ export default function SjekklisteSide() {
   const [valgte, setValgte] = useState<Set<string>>(new Set());
   const [visSlettModal, setVisSlettModal] = useState(false);
   const [slettFeil, setSlettFeil] = useState<string | null>(null);
+  const [kolonneFiltre, setKolonneFiltre] = useState<Record<string, string>>({});
 
   const { data: sjekklister, isLoading } = trpc.sjekkliste.hentForProsjekt.useQuery(
     { projectId: params.prosjektId },
@@ -148,21 +149,40 @@ export default function SjekklisteSide() {
     );
   }
 
-  const filtrerte = sjekklister
-    ? statusFilter
-      ? sjekklister.filter((s: { status: string }) => s.status === statusFilter)
-      : sjekklister
-    : [];
-
   type SjekklisteRad = {
     id: string;
     title: string;
     status: string;
     dueDate: string | null;
+    creatorEnterprise: { name: string };
     template: { name: string };
     responderEnterprise: { name: string };
     building: { id: string; name: string; number: number | null } | null;
   };
+
+  // Statusfilter fra sidepanel
+  const statusFiltrerte = sjekklister
+    ? statusFilter
+      ? sjekklister.filter((s: { status: string }) => s.status === statusFilter)
+      : sjekklister
+    : [];
+
+  // Kolonnefiltre (Mal, Lokasjon, Svarer, Oppretter)
+  const filtrerte = (statusFiltrerte as SjekklisteRad[]).filter((rad) => {
+    if (kolonneFiltre.template && rad.template.name !== kolonneFiltre.template) return false;
+    if (kolonneFiltre.building) {
+      if (!rad.building || rad.building.name !== kolonneFiltre.building) return false;
+    }
+    if (kolonneFiltre.responder && rad.responderEnterprise.name !== kolonneFiltre.responder) return false;
+    if (kolonneFiltre.creator && rad.creatorEnterprise.name !== kolonneFiltre.creator) return false;
+    return true;
+  });
+
+  // Bygg filteralternativer fra faktisk data
+  const malAlternativer = [...new Set((statusFiltrerte as SjekklisteRad[]).map((s) => s.template.name))].sort().map((n) => ({ value: n, label: n }));
+  const lokasjonAlternativer = [...new Set((statusFiltrerte as SjekklisteRad[]).filter((s) => s.building).map((s) => s.building!.name))].sort().map((n) => ({ value: n, label: n }));
+  const svarerAlternativerFilter = [...new Set((statusFiltrerte as SjekklisteRad[]).map((s) => s.responderEnterprise.name))].sort().map((n) => ({ value: n, label: n }));
+  const oppretterAlternativerFilter = [...new Set((statusFiltrerte as SjekklisteRad[]).map((s) => s.creatorEnterprise.name))].sort().map((n) => ({ value: n, label: n }));
 
   // Forhåndsdefinerte emner fra valgt mal
   const malSubjects = (() => {
@@ -198,6 +218,18 @@ export default function SjekklisteSide() {
       label: t.drawingNumber ? `${t.drawingNumber} ${t.name}` : t.name,
     }));
 
+  function handleFilterEndring(kolonneId: string, verdi: string) {
+    setKolonneFiltre((prev) => {
+      const neste = { ...prev };
+      if (verdi) {
+        neste[kolonneId] = verdi;
+      } else {
+        delete neste[kolonneId];
+      }
+      return neste;
+    });
+  }
+
   return (
     <div>
       {!sjekklister?.length ? (
@@ -215,6 +247,8 @@ export default function SjekklisteSide() {
               celle: (rad) => (
                 <span className="font-medium text-gray-900">{rad.title}</span>
               ),
+              sorterbar: true,
+              sorterVerdi: (rad) => rad.title,
             },
             {
               id: "template",
@@ -222,6 +256,21 @@ export default function SjekklisteSide() {
               celle: (rad) => (
                 <span className="text-gray-600">{rad.template.name}</span>
               ),
+              sorterbar: true,
+              sorterVerdi: (rad) => rad.template.name,
+              filtrerbar: true,
+              filterAlternativer: malAlternativer,
+            },
+            {
+              id: "creator",
+              header: "Oppretter",
+              celle: (rad) => (
+                <span className="text-gray-600">{rad.creatorEnterprise.name}</span>
+              ),
+              sorterbar: true,
+              sorterVerdi: (rad) => rad.creatorEnterprise.name,
+              filtrerbar: true,
+              filterAlternativer: oppretterAlternativerFilter,
             },
             {
               id: "building",
@@ -233,6 +282,10 @@ export default function SjekklisteSide() {
                   <span className="text-gray-300">—</span>
                 ),
               bredde: "150px",
+              sorterbar: true,
+              sorterVerdi: (rad) => rad.building?.name ?? null,
+              filtrerbar: true,
+              filterAlternativer: lokasjonAlternativer,
             },
             {
               id: "responder",
@@ -240,6 +293,10 @@ export default function SjekklisteSide() {
               celle: (rad) => (
                 <span className="text-gray-600">{rad.responderEnterprise.name}</span>
               ),
+              sorterbar: true,
+              sorterVerdi: (rad) => rad.responderEnterprise.name,
+              filtrerbar: true,
+              filterAlternativer: svarerAlternativerFilter,
             },
             {
               id: "dueDate",
@@ -253,15 +310,19 @@ export default function SjekklisteSide() {
                   <span className="text-gray-300">—</span>
                 ),
               bredde: "120px",
+              sorterbar: true,
+              sorterVerdi: (rad) => rad.dueDate,
             },
             {
               id: "status",
               header: "Status",
               celle: (rad) => <StatusBadge status={rad.status} />,
               bredde: "120px",
+              sorterbar: true,
+              sorterVerdi: (rad) => rad.status,
             },
           ]}
-          data={filtrerte as SjekklisteRad[]}
+          data={filtrerte}
           radNokkel={(rad) => rad.id}
           onRadKlikk={(rad) =>
             router.push(`/dashbord/${params.prosjektId}/sjekklister/${rad.id}`)
@@ -270,6 +331,8 @@ export default function SjekklisteSide() {
           velgbar
           valgteRader={valgte}
           onValgEndring={setValgte}
+          filterVerdier={kolonneFiltre}
+          onFilterEndring={handleFilterEndring}
         />
       )}
 
