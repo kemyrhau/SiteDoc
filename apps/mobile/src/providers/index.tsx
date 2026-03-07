@@ -22,7 +22,11 @@ export function Providers({ children }: { children: ReactNode }) {
             staleTime: 5 * 60 * 1000, // 5 minutter
             retry: (failureCount, error) => {
               // Ikke retry ved UNAUTHORIZED — sesjonen er ugyldig
-              if ((error as { message?: string })?.message?.includes("UNAUTHORIZED")) {
+              const erUautorisert =
+                (error as { data?: { code?: string } })?.data?.code === "UNAUTHORIZED" ||
+                (error as { message?: string })?.message?.includes("UNAUTHORIZED") ||
+                (error as { shape?: { data?: { code?: string } } })?.shape?.data?.code === "UNAUTHORIZED";
+              if (erUautorisert) {
                 if (!harLoggetUtRef.current) {
                   harLoggetUtRef.current = true;
                   loggUt().then(() => {

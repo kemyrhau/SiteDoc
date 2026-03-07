@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { router, publicProcedure } from "../trpc/trpc";
+import { router, publicProcedure, protectedProcedure } from "../trpc/trpc";
 import { randomUUID } from "crypto";
 
 const GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v3/userinfo";
@@ -144,4 +144,30 @@ export const mobilAuthRouter = router({
         },
       };
     }),
+
+  /**
+   * Verifiser at sesjonen er gyldig + forny utløpstid.
+   * Lett endepunkt for mobilapp-oppstart (ingen tung data).
+   */
+  verifiser: protectedProcedure.query(async ({ ctx }) => {
+    // Forny sesjonen med 30 nye dager ved aktiv bruk
+    const sessionToken =
+      ctx.req.headers.authorization?.replace("Bearer ", "") ?? null;
+
+    if (sessionToken) {
+      const nyUtloper = new Date();
+      nyUtloper.setDate(nyUtloper.getDate() + 30);
+      await ctx.prisma.session.updateMany({
+        where: { sessionToken, userId: ctx.userId },
+        data: { expires: nyUtloper },
+      });
+    }
+
+    const bruker = await ctx.prisma.user.findUniqueOrThrow({
+      where: { id: ctx.userId },
+      select: { id: true, name: true, email: true, image: true },
+    });
+
+    return { valid: true, user: bruker };
+  }),
 });

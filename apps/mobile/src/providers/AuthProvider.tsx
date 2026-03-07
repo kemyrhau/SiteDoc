@@ -50,21 +50,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const byttToken = trpc.mobilAuth.byttToken.useMutation();
 
-  // Sjekk eksisterende token ved oppstart — verifiser mot server
+  // Sjekk eksisterende token ved oppstart — verifiser mot server + forny sesjon
   useEffect(() => {
     async function sjekkToken() {
       try {
         const token = await hentSessionToken();
         if (token) {
-          // Verifiser at sesjonen er gyldig ved å kalle API
-          const res = await fetch(`${AUTH_CONFIG.apiUrl}/trpc/prosjekt.hentMine`, {
+          // Lett verifisering — fornyer også sesjonen med 30 nye dager
+          const res = await fetch(`${AUTH_CONFIG.apiUrl}/trpc/mobilAuth.verifiser`, {
             headers: { Authorization: `Bearer ${token}` },
           });
 
           if (res.ok) {
-            const lagretBruker = await hentBrukerData();
-            if (lagretBruker) {
-              setBruker(lagretBruker);
+            // Oppdater cached brukerdata fra server (kan ha endret navn/bilde)
+            try {
+              const json = await res.json();
+              const serverBruker = json?.result?.data?.user;
+              if (serverBruker) {
+                await lagreBrukerData(serverBruker);
+                setBruker(serverBruker);
+              } else {
+                const lagretBruker = await hentBrukerData();
+                if (lagretBruker) setBruker(lagretBruker);
+              }
+            } catch {
+              const lagretBruker = await hentBrukerData();
+              if (lagretBruker) setBruker(lagretBruker);
             }
           } else {
             // Sesjonen er ugyldig/utløpt — rydd opp

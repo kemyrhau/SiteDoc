@@ -18,6 +18,8 @@ import {
   Plus,
   ClipboardCheck,
   ListTodo,
+  AlertTriangle,
+  RefreshCw,
 } from "lucide-react-native";
 import { trpc } from "../../src/lib/trpc";
 import { useProsjekt } from "../../src/kontekst/ProsjektKontekst";
@@ -246,7 +248,33 @@ export default function HjemSkjerm() {
           <RefreshControl refreshing={erRefreshing} onRefresh={onRefresh} />
         }
       >
-        {!valgtProsjektId ? (
+        {prosjektQuery.isLoading ? (
+          /* Laster prosjekter */
+          <View className="items-center pt-20">
+            <ActivityIndicator size="large" color="#1e40af" />
+            <Text className="mt-3 text-sm text-gray-500">
+              Henter prosjekter...
+            </Text>
+          </View>
+        ) : prosjektQuery.isError ? (
+          /* Feil ved lasting av prosjekter */
+          <View className="flex-1 items-center justify-center px-6 pt-20">
+            <AlertTriangle size={40} color="#f59e0b" />
+            <Text className="mt-4 text-center text-base font-medium text-gray-900">
+              Kunne ikke hente prosjekter
+            </Text>
+            <Text className="mt-2 text-center text-sm text-gray-500">
+              {prosjektQuery.error?.message ?? "Sjekk nettverkstilkoblingen og prøv igjen"}
+            </Text>
+            <Pressable
+              onPress={() => prosjektQuery.refetch()}
+              className="mt-4 flex-row items-center gap-2 rounded-lg bg-blue-600 px-6 py-3"
+            >
+              <RefreshCw size={16} color="#ffffff" />
+              <Text className="font-medium text-white">Prøv igjen</Text>
+            </Pressable>
+          </View>
+        ) : !valgtProsjektId ? (
           /* Ingen prosjekt valgt */
           <View className="flex-1 items-center justify-center px-4 pt-20">
             {prosjektQuery.data && prosjektQuery.data.length === 0 ? (
@@ -274,6 +302,24 @@ export default function HjemSkjerm() {
             <Text className="mt-3 text-sm text-gray-500">
               Henter data...
             </Text>
+          </View>
+        ) : (sjekklisteQuery.isError || oppgaveQuery.isError) ? (
+          /* Feil ved lasting av sjekklister/oppgaver */
+          <View className="flex-1 items-center justify-center px-6 pt-20">
+            <AlertTriangle size={40} color="#f59e0b" />
+            <Text className="mt-4 text-center text-base font-medium text-gray-900">
+              Kunne ikke hente data
+            </Text>
+            <Text className="mt-2 text-center text-sm text-gray-500">
+              {sjekklisteQuery.error?.message ?? oppgaveQuery.error?.message ?? "Sjekk nettverkstilkoblingen"}
+            </Text>
+            <Pressable
+              onPress={onRefresh}
+              className="mt-4 flex-row items-center gap-2 rounded-lg bg-blue-600 px-6 py-3"
+            >
+              <RefreshCw size={16} color="#ffffff" />
+              <Text className="font-medium text-white">Prøv igjen</Text>
+            </Pressable>
           </View>
         ) : (
           <>

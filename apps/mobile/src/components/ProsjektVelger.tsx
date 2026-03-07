@@ -7,7 +7,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { X, Check } from "lucide-react-native";
+import { X, Check, RefreshCw } from "lucide-react-native";
 import { trpc } from "../lib/trpc";
 import { useProsjekt } from "../kontekst/ProsjektKontekst";
 
@@ -18,7 +18,8 @@ interface ProsjektVelgerProps {
 
 export function ProsjektVelger({ synlig, onLukk }: ProsjektVelgerProps) {
   const { valgtProsjektId, byttProsjekt } = useProsjekt();
-  const { data: prosjekter, isLoading, error } = trpc.prosjekt.hentMine.useQuery();
+  const prosjektQuery = trpc.prosjekt.hentMine.useQuery();
+  const { data: prosjekter, isLoading, error } = prosjektQuery;
 
   function velgProsjekt(id: string) {
     byttProsjekt(id);
@@ -47,10 +48,20 @@ export function ProsjektVelger({ synlig, onLukk }: ProsjektVelgerProps) {
             </Text>
           </View>
         ) : error ? (
-          <View className="flex-1 items-center justify-center px-4">
-            <Text className="text-center text-sm text-red-500">
-              Kunne ikke hente prosjekter. Sjekk nettverkstilkoblingen.
+          <View className="flex-1 items-center justify-center px-6">
+            <Text className="text-center text-base font-medium text-gray-900">
+              Kunne ikke hente prosjekter
             </Text>
+            <Text className="mt-2 text-center text-sm text-gray-500">
+              {error.message ?? "Sjekk nettverkstilkoblingen"}
+            </Text>
+            <Pressable
+              onPress={() => prosjektQuery.refetch()}
+              className="mt-4 flex-row items-center gap-2 rounded-lg bg-blue-600 px-6 py-3"
+            >
+              <RefreshCw size={16} color="#ffffff" />
+              <Text className="font-medium text-white">Prøv igjen</Text>
+            </Pressable>
           </View>
         ) : !prosjekter || prosjekter.length === 0 ? (
           <View className="flex-1 items-center justify-center px-4">
