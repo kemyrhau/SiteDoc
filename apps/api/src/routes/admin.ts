@@ -122,11 +122,12 @@ export const adminRouter = router({
       });
     }),
 
-  // Opprett prosjekt (kun sitedoc_admin)
+  // Opprett prosjekt med valgfri firmatilknytning (kun sitedoc_admin)
   opprettProsjekt: protectedProcedure
     .input(z.object({
       name: z.string().min(1),
       description: z.string().optional(),
+      organizationId: z.string().uuid().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
       await verifiserSiteDocAdmin(ctx.prisma, ctx.userId);
@@ -139,7 +140,7 @@ export const adminRouter = router({
       const sekv = String(antall + 1).padStart(4, "0");
       const prosjektnummer = `SD-${aar}${mnd}${dag}-${sekv}`;
 
-      return ctx.prisma.project.create({
+      const prosjekt = await ctx.prisma.project.create({
         data: {
           name: input.name,
           description: input.description,
@@ -152,6 +153,17 @@ export const adminRouter = router({
           },
         },
       });
+
+      if (input.organizationId) {
+        await ctx.prisma.organizationProject.create({
+          data: {
+            organizationId: input.organizationId,
+            projectId: prosjekt.id,
+          },
+        });
+      }
+
+      return prosjekt;
     }),
 
   // Hent prosjektdata-statistikk for slettevarsel (kun sitedoc_admin)
@@ -182,6 +194,25 @@ export const adminRouter = router({
 
       await ctx.prisma.project.delete({
         where: { id: input.projectId },
+      });
+
+      return { ok: true };
+    }),
+
+  // Fjern prosjekt fra organisasjon (kun sitedoc_admin)
+  fjernProsjektTilknytning: protectedProcedure
+    .input(z.object({
+      organizationId: z.string().uuid(),
+      projectId: z.string().uuid(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      await verifiserSiteDocAdmin(ctx.prisma, ctx.userId);
+
+      await ctx.prisma.organizationProject.deleteMany({
+        where: {
+          organizationId: input.organizationId,
+          projectId: input.projectId,
+        },
       });
 
       return { ok: true };

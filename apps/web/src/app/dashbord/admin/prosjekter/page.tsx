@@ -3,17 +3,20 @@
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { Spinner, EmptyState, Button, Input, Modal } from "@sitedoc/ui";
-import { FolderKanban, Plus, Trash2 } from "lucide-react";
+import { FolderKanban, Plus, Trash2, X } from "lucide-react";
 import Link from "next/link";
 
 export default function AdminProsjekter() {
   const utils = trpc.useUtils();
   const { data: prosjekter, isLoading } =
     trpc.admin.hentAlleProsjekter.useQuery();
+  const { data: organisasjoner } =
+    trpc.admin.hentAlleOrganisasjoner.useQuery();
 
   const [visOpprett, setVisOpprett] = useState(false);
   const [nyttNavn, setNyttNavn] = useState("");
   const [nyBeskrivelse, setNyBeskrivelse] = useState("");
+  const [nyttFirmaId, setNyttFirmaId] = useState("");
 
   // Sletting
   const [slettProsjektId, setSlettProsjektId] = useState<string | null>(null);
@@ -26,29 +29,69 @@ export default function AdminProsjekter() {
       { enabled: !!slettProsjektId },
     );
 
+  const invalidateAll = () => {
+    utils.admin.hentAlleProsjekter.invalidate();
+    utils.admin.hentAlleOrganisasjoner.invalidate();
+  };
+
   const opprettMutasjon = trpc.admin.opprettProsjekt.useMutation({
-    onSuccess: () => {
-      utils.admin.hentAlleProsjekter.invalidate();
+    onSuccess: (_data: unknown, variabler: { name: string; description?: string; organizationId?: string }) => {
+      invalidateAll();
       setVisOpprett(false);
       setNyttNavn("");
       setNyBeskrivelse("");
+      setNyttFirmaId("");
     },
   });
 
   const slettMutasjon = trpc.admin.slettProsjekt.useMutation({
     onSuccess: () => {
-      utils.admin.hentAlleProsjekter.invalidate();
-      utils.admin.hentAlleOrganisasjoner.invalidate();
+      invalidateAll();
       setSlettProsjektId(null);
       setSlettProsjektNavn("");
       setBekreftNavn("");
     },
   });
 
+  const tilknyttMutasjon = trpc.admin.tilknyttProsjekt.useMutation({
+    onSuccess: () => invalidateAll(),
+  });
+
+  const fjernTilknytningMutasjon = trpc.admin.fjernProsjektTilknytning.useMutation({
+    onSuccess: () => invalidateAll(),
+  });
+
   function aapneSlett(id: string, navn: string) {
     setSlettProsjektId(id);
     setSlettProsjektNavn(navn);
     setBekreftNavn("");
+  }
+
+  function endreFirma(prosjektId: string, orgId: string, nåværendeOrgId: string | null) {
+    if (orgId === "") {
+      // Fjern tilknytning
+      if (nåværendeOrgId) {
+        fjernTilknytningMutasjon.mutate({ organizationId: nåværendeOrgId, projectId: prosjektId });
+      }
+    } else {
+      // Fjern gammel + tilknytt ny
+      if (nåværendeOrgId && nåværendeOrgId !== orgId) {
+        fjernTilknytningMutasjon.mutate(
+          { organizationId: nåværendeOrgId, projectId: prosjektId },
+          { onSuccess: () => tilknyttMutasjon.mutate({ organizationId: orgId, projectId: prosjektId }) },
+        );
+      } else {
+        tilknyttMutasjon.mutate({ organizationId: orgId, projectId: prosjektId });
+      }
+    }
+  }
+
+  function opprett() {
+    opprettMutasjon.mutate({
+      name: nyttNavn,
+      description: nyBeskrivelse || undefined,
+      organizationId: nyttFirmaId || undefined,
+    });
   }
 
   if (isLoading) {
@@ -77,7 +120,10 @@ export default function AdminProsjekter() {
           setNavn={setNyttNavn}
           beskrivelse={nyBeskrivelse}
           setBeskrivelse={setNyBeskrivelse}
-          onOpprett={() => opprettMutasjon.mutate({ name: nyttNavn, description: nyBeskrivelse || undefined })}
+          firmaId={nyttFirmaId}
+          setFirmaId={setNyttFirmaId}
+          organisasjoner={organisasjoner ?? []}
+          onOpprett={opprett}
           laster={opprettMutasjon.isPending}
         />
       </div>
@@ -102,7 +148,7 @@ export default function AdminProsjekter() {
             <tr className="border-b border-gray-200 bg-gray-50">
               <th className="px-4 py-3 text-left font-medium text-gray-600">Prosjekt</th>
               <th className="px-4 py-3 text-left font-medium text-gray-600">Nr</th>
-              <th className="px-4 py-3 text-left font-medium text-gray-600">Firma</th>
+              <th className="px-4 py-3 text-left font-medium text-gray-600" style={{ minWidth: 180 }}>Firma</th>
               <th className="px-4 py-3 text-center font-medium text-gray-600">Medl.</th>
               <th className="px-4 py-3 text-center font-medium text-gray-600">Entr.</th>
               <th className="px-4 py-3 text-left font-medium text-gray-600">Status</th>
@@ -110,47 +156,66 @@ export default function AdminProsjekter() {
             </tr>
           </thead>
           <tbody>
-            {prosjekter.map((p) => (
-              <tr key={p.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50">
-                <td className="px-4 py-3">
-                  <Link
-                    href={`/dashbord/${p.id}`}
-                    className="flex items-center gap-2 font-medium text-gray-900 hover:text-blue-600"
-                  >
-                    <FolderKanban className="h-4 w-4 text-gray-400" />
-                    {p.name}
-                  </Link>
-                </td>
-                <td className="px-4 py-3 text-gray-500">{p.projectNumber}</td>
-                <td className="px-4 py-3">
-                  {p.organizationProjects[0] ? (
-                    <span className="rounded bg-purple-50 px-1.5 py-0.5 text-xs text-purple-600">
-                      {p.organizationProjects[0].organization.name}
+            {prosjekter.map((p) => {
+              const orgProj = p.organizationProjects[0] ?? null;
+              const nåværendeOrgId = orgProj?.organization.id ?? null;
+
+              return (
+                <tr key={p.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50">
+                  <td className="px-4 py-3">
+                    <Link
+                      href={`/dashbord/${p.id}`}
+                      className="flex items-center gap-2 font-medium text-gray-900 hover:text-blue-600"
+                    >
+                      <FolderKanban className="h-4 w-4 text-gray-400" />
+                      {p.name}
+                    </Link>
+                  </td>
+                  <td className="px-4 py-3 text-gray-500">{p.projectNumber}</td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-1">
+                      <select
+                        value={nåværendeOrgId ?? ""}
+                        onChange={(e) => endreFirma(p.id, e.target.value, nåværendeOrgId)}
+                        className="w-full rounded border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400"
+                      >
+                        <option value="">Ingen firma</option>
+                        {organisasjoner?.map((org) => (
+                          <option key={org.id} value={org.id}>{org.name}</option>
+                        ))}
+                      </select>
+                      {nåværendeOrgId && (
+                        <button
+                          onClick={() => endreFirma(p.id, "", nåværendeOrgId)}
+                          className="flex-shrink-0 rounded p-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                          title="Fjern firmatilknytning"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-center text-gray-500">{p.members.length}</td>
+                  <td className="px-4 py-3 text-center text-gray-500">{p.enterprises.length}</td>
+                  <td className="px-4 py-3">
+                    <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+                      p.status === "active" ? "bg-emerald-100 text-emerald-700" : "bg-gray-100 text-gray-600"
+                    }`}>
+                      {p.status === "active" ? "Aktiv" : p.status}
                     </span>
-                  ) : (
-                    <span className="text-xs text-gray-400">&mdash;</span>
-                  )}
-                </td>
-                <td className="px-4 py-3 text-center text-gray-500">{p.members.length}</td>
-                <td className="px-4 py-3 text-center text-gray-500">{p.enterprises.length}</td>
-                <td className="px-4 py-3">
-                  <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
-                    p.status === "active" ? "bg-emerald-100 text-emerald-700" : "bg-gray-100 text-gray-600"
-                  }`}>
-                    {p.status === "active" ? "Aktiv" : p.status}
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-center">
-                  <button
-                    onClick={() => aapneSlett(p.id, p.name)}
-                    className="rounded p-1 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-500"
-                    title="Slett prosjekt"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </td>
-              </tr>
-            ))}
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <button
+                      onClick={() => aapneSlett(p.id, p.name)}
+                      className="rounded p-1 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-500"
+                      title="Slett prosjekt"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -163,7 +228,10 @@ export default function AdminProsjekter() {
         setNavn={setNyttNavn}
         beskrivelse={nyBeskrivelse}
         setBeskrivelse={setNyBeskrivelse}
-        onOpprett={() => opprettMutasjon.mutate({ name: nyttNavn, description: nyBeskrivelse || undefined })}
+        firmaId={nyttFirmaId}
+        setFirmaId={setNyttFirmaId}
+        organisasjoner={organisasjoner ?? []}
+        onOpprett={opprett}
         laster={opprettMutasjon.isPending}
       />
 
@@ -231,7 +299,7 @@ export default function AdminProsjekter() {
 }
 
 function OpprettModal({
-  open, onClose, navn, setNavn, beskrivelse, setBeskrivelse, onOpprett, laster,
+  open, onClose, navn, setNavn, beskrivelse, setBeskrivelse, firmaId, setFirmaId, organisasjoner, onOpprett, laster,
 }: {
   open: boolean;
   onClose: () => void;
@@ -239,6 +307,9 @@ function OpprettModal({
   setNavn: (v: string) => void;
   beskrivelse: string;
   setBeskrivelse: (v: string) => void;
+  firmaId: string;
+  setFirmaId: (v: string) => void;
+  organisasjoner: { id: string; name: string }[];
   onOpprett: () => void;
   laster: boolean;
 }) {
@@ -259,6 +330,19 @@ function OpprettModal({
           value={beskrivelse}
           onChange={(e) => setBeskrivelse(e.target.value)}
         />
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">Firma (valgfritt)</label>
+          <select
+            value={firmaId}
+            onChange={(e) => setFirmaId(e.target.value)}
+            className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          >
+            <option value="">Ingen firma</option>
+            {organisasjoner.map((org) => (
+              <option key={org.id} value={org.id}>{org.name}</option>
+            ))}
+          </select>
+        </div>
         <div className="flex justify-end gap-2">
           <Button type="button" variant="secondary" onClick={onClose}>
             Avbryt
