@@ -484,9 +484,14 @@ function RedigerGruppeModal({
                           .toUpperCase()
                           .slice(0, 2)}
                       </div>
-                      <span className="text-sm text-gray-900">
-                        {medlem.navn}
-                      </span>
+                      <div className="flex flex-col">
+                        <span className="text-sm text-gray-900">
+                          {medlem.navn}
+                        </span>
+                        {medlem.epost && (
+                          <span className="text-xs text-gray-400">{medlem.epost}</span>
+                        )}
+                      </div>
                       {medlem.rolle && (
                         <span className="rounded bg-gray-200 px-1.5 py-0.5 text-xs text-gray-600">
                           {medlem.rolle}
@@ -981,6 +986,9 @@ function GruppeKort({
                 >
                   {medlem.navn}
                 </span>
+                {medlem.epost && (
+                  <span className="text-xs text-gray-400">{medlem.epost}</span>
+                )}
                 {medlem.rolle && (
                   <span className="text-xs text-gray-400">{medlem.rolle}</span>
                 )}
