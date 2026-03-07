@@ -350,6 +350,14 @@ export const STANDARD_PROJECT_GROUPS: StandardProjectGroup[] = [
     permissions: ["create_tasks", "create_checklists", "checklist_edit", "checklist_view", "task_edit", "task_view"],
     domains: ["hms"],
   },
+  // Brukergrupper
+  {
+    slug: "brukergruppe",
+    name: "Brukergruppe",
+    category: "brukergrupper",
+    permissions: ["create_tasks", "create_checklists", "checklist_edit", "checklist_view", "task_edit", "task_view", "drawing_view", "folder_view"],
+    domains: ["bygg"],
+  },
 ];
 
 // Prosjektmoduler — forhåndsdefinerte mal-pakker som kan aktiveres per prosjekt
