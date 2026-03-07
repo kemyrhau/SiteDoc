@@ -336,8 +336,11 @@ function MedlemKolonne({
             <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gray-200 text-[10px] font-medium text-gray-600">
               {m.navn.charAt(0).toUpperCase()}
             </div>
-            <span className="truncate text-[13px] text-gray-700" title={m.epost}>
+            <span className="truncate text-[13px] text-gray-700">
               {m.navn}
+            </span>
+            <span className="truncate text-[11px] text-gray-400">
+              {m.epost}
             </span>
             {!leseModus && onFjern && (
               <button
