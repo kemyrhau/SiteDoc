@@ -11,7 +11,7 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 - **Database (server):** PostgreSQL med Prisma ORM (v6.19)
 - **Database (lokal):** SQLite via expo-sqlite, Drizzle ORM
 - **Fillagring:** S3-kompatibel (AWS S3 / Cloudflare R2 / MinIO)
-- **Auth:** Auth.js v5 (next-auth) med Google og Microsoft Entra ID (Office 365), PrismaAdapter, database-sesjoner, `allowDangerousEmailAccountLinking` for inviterte brukere
+- **Auth:** Auth.js v5 (next-auth) med Google og Microsoft Entra ID (Office 365), PrismaAdapter, database-sesjoner, `allowDangerousEmailAccountLinking` for inviterte brukere, `trustHost: true` (påkrevd bak Cloudflare-proxy). **VIKTIG:** Innloggingssider bruker klient-side `signIn()` fra `next-auth/react` (IKKE server actions) — server actions bak Cloudflare-tunnel gir MissingCSRF-feil
 - **E-post:** Resend (invitasjons-e-poster ved brukeropprettelse)
 - **Bildekomprimering:** expo-image-manipulator (5:4 senter-crop + mål: 300–400 KB)
 - **GPS:** expo-location (deaktiverbar per objekt)
