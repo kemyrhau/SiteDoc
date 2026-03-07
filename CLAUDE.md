@@ -1164,6 +1164,15 @@ Tre eksportpunkter: `types`, `validation`, `utils`
 - `utm33TilLatLng(nord, ost)` — Konverterer UTM sone 33N (EUREF89/Norgeskart) til WGS84 lat/lng (i `GeoReferanseEditor.tsx`)
 - `parserKoordinater(tekst)` — Parser koordinater fra UTM33 (`Nord 7731109 Øst 652332`), DMS (`69°38'39.9"N 18°55'24.2"E`) og desimal (`69.644, 18.923`) (i `GeoReferanseEditor.tsx`)
 
+## UI-designprinsipper
+
+- **Renest mulig UI** — unngå visuelt «søppel». Hvert UI-element må rettferdiggjøre sin eksistens
+- Ikke legg til toasts, bannere, badges, animasjoner eller feedback-elementer uten tydelig behov
+- Foretrekk subtile signaler (knapp forsvinner, modal lukkes, ikon endres) fremfor påtrengende meldinger
+- Feilmeldinger bør vises — men suksess-meldinger bare der brukeren ellers ville vært usikker
+- Unngå «gratulerer»-meldinger, konfetti, tomme states med overdrevent mye tekst, eller doble bekreftelser
+- Dalux-stil: profesjonelt, kompakt, funksjonelt — ikke «app-aktig» med avrundede kort og mye whitespace
+
 ## Kodestil
 
 - TypeScript strict mode, ingen `any`
