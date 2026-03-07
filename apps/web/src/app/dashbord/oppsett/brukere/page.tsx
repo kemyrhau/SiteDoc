@@ -126,6 +126,23 @@ function RedigerGruppeModal({
   const erDbGruppe =
     !gruppe.id.startsWith("ent-") && gruppe.id !== "prosjektadmin";
 
+  // Hent alle prosjektmedlemmer for hurtigvalg
+  const { data: alleMedlemmer } = trpc.medlem.hentForProsjekt.useQuery(
+    { projectId: prosjektId },
+    { enabled: !!prosjektId },
+  );
+
+  // Filtrer ut medlemmer som allerede er i gruppen
+  const eksisterendeMedlemEposter = new Set(
+    gruppe.medlemmer.map((m) => m.epost?.toLowerCase()).filter(Boolean),
+  );
+  const tilgjengeligeMedlemmer = (alleMedlemmer as Array<{
+    id: string;
+    user: { name: string | null; email: string };
+  }> | undefined)?.filter(
+    (m) => !eksisterendeMedlemEposter.has(m.user.email.toLowerCase()),
+  ) ?? [];
+
   const utils = trpc.useUtils();
 
   const leggTilMedlem = trpc.medlem.leggTil.useMutation({
@@ -626,9 +643,63 @@ function RedigerGruppeModal({
             );
           })()}
 
-          {/* Inline legg til — flersteg */}
+          {/* Inline legg til — eksisterende medlemmer + ny bruker */}
           {visLeggTil && (
             <div className="mt-2 rounded border border-gray-200 bg-gray-50 p-3">
+              {/* Eksisterende prosjektmedlemmer */}
+              {tilgjengeligeMedlemmer.length > 0 && (
+                <div className="mb-3">
+                  <p className="mb-1.5 text-xs font-medium text-gray-500">Prosjektmedlemmer</p>
+                  <div className="max-h-40 space-y-1 overflow-y-auto rounded border border-gray-200 bg-white p-2">
+                    {tilgjengeligeMedlemmer.map((m) => (
+                      <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => {
+                          setFeilmelding("");
+                          setLeggerTil(true);
+                          if (erDbGruppe) {
+                            leggTilGruppeMedlem.mutate({
+                              groupId: gruppe.id,
+                              projectId: prosjektId,
+                              email: m.user.email,
+                              firstName: m.user.name?.split(" ")[0] ?? "",
+                              lastName: m.user.name?.split(" ").slice(1).join(" ") ?? "",
+                            });
+                          } else if (gruppe.id.startsWith("ent-")) {
+                            leggTilMedlem.mutate({
+                              projectId: prosjektId,
+                              email: m.user.email,
+                              firstName: m.user.name?.split(" ")[0] ?? "",
+                              lastName: m.user.name?.split(" ").slice(1).join(" ") ?? "",
+                              role: "member",
+                              enterpriseIds: [gruppe.id.replace("ent-", "")],
+                            });
+                          } else if (gruppe.id === "prosjektadmin") {
+                            leggTilMedlem.mutate({
+                              projectId: prosjektId,
+                              email: m.user.email,
+                              firstName: m.user.name?.split(" ")[0] ?? "",
+                              lastName: m.user.name?.split(" ").slice(1).join(" ") ?? "",
+                              role: "admin",
+                            });
+                          }
+                        }}
+                        className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-blue-50"
+                      >
+                        <UserPlus className="h-3.5 w-3.5 text-gray-400" />
+                        <span className="font-medium text-gray-900">{m.user.name ?? m.user.email}</span>
+                        <span className="text-xs text-gray-400">{m.user.email}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Ny bruker via e-post */}
+              <p className="mb-1.5 text-xs font-medium text-gray-500">
+                {tilgjengeligeMedlemmer.length > 0 ? "Eller inviter ny bruker" : "Inviter ny bruker"}
+              </p>
               <form
                 onSubmit={leggTilSteg === 1 ? handleEpostNeste : handleLeggTil}
                 className="flex flex-col gap-3"
@@ -643,7 +714,7 @@ function RedigerGruppeModal({
                       setFeilmelding("");
                     }}
                     disabled={leggTilSteg === 2}
-                    autoFocus={leggTilSteg === 1}
+                    autoFocus={tilgjengeligeMedlemmer.length === 0 && leggTilSteg === 1}
                     className="flex-1 rounded border border-gray-300 px-3 py-2 text-sm focus:border-sitedoc-primary focus:outline-none focus:ring-1 focus:ring-sitedoc-primary disabled:bg-gray-100 disabled:text-gray-500"
                   />
                   {leggTilSteg === 2 && (
