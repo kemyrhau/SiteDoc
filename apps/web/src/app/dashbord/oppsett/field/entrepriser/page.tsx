@@ -452,11 +452,13 @@ function InviterNyMedlemModal({
   onClose,
   prosjektId,
   entrepriseId,
+  onOpprettet,
 }: {
   open: boolean;
   onClose: () => void;
   prosjektId: string;
-  entrepriseId: string;
+  entrepriseId?: string;
+  onOpprettet?: (projectMemberId: string) => void;
 }) {
   const [steg, setSteg] = useState<1 | 2>(1);
   const [epost, setEpost] = useState("");
@@ -468,9 +470,18 @@ function InviterNyMedlemModal({
 
   const utils = trpc.useUtils();
   const leggTilMedlem = trpc.medlem.leggTil.useMutation({
-    onSuccess: () => {
+    onSuccess: (_data: unknown, _variabler: { email: string }) => {
       utils.entreprise.hentForProsjekt.invalidate({ projectId: prosjektId });
       utils.medlem.hentForProsjekt.invalidate({ projectId: prosjektId });
+      // Finn det nyopprettede prosjektmedlemmet basert på e-post
+      if (onOpprettet) {
+        utils.medlem.hentForProsjekt.fetch({ projectId: prosjektId }).then((medlemmer) => {
+          const nytt = (medlemmer as Array<{ id: string; user: { email: string } }>)?.find(
+            (m) => m.user.email.toLowerCase() === _variabler.email.toLowerCase(),
+          );
+          if (nytt) onOpprettet(nytt.id);
+        });
+      }
       nullstill();
       onClose();
     },
@@ -520,7 +531,7 @@ function InviterNyMedlemModal({
       lastName: etternavn.trim(),
       phone: telefon.trim() || undefined,
       role: "member",
-      enterpriseIds: [entrepriseId],
+      enterpriseIds: entrepriseId ? [entrepriseId] : [],
       melding: melding.trim() || undefined,
     });
   }
@@ -625,12 +636,14 @@ function StegMedlemKolonne({
   alleMedlemmer,
   onLeggTil,
   onFjern,
+  onInviterNy,
 }: {
   tittel: string;
   stegMedlemmer: StegMedlemData[];
   alleMedlemmer: ProsjektMedlemItem[];
   onLeggTil: (projectMemberId: string) => void;
   onFjern: (projectMemberId: string) => void;
+  onInviterNy?: () => void;
 }) {
   const [visVelger, setVisVelger] = useState(false);
 
@@ -703,13 +716,24 @@ function StegMedlemKolonne({
             </select>
           </div>
         ) : (
-          <button
-            onClick={() => setVisVelger(true)}
-            className="flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-gray-400 hover:bg-gray-50 hover:text-blue-500"
-          >
-            <Plus className="h-3 w-3" />
-            Legg til
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setVisVelger(true)}
+              className="flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-gray-400 hover:bg-gray-50 hover:text-blue-500"
+            >
+              <Plus className="h-3 w-3" />
+              Legg til
+            </button>
+            {onInviterNy && (
+              <button
+                onClick={onInviterNy}
+                className="flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-gray-400 hover:bg-gray-50 hover:text-blue-500"
+              >
+                <UserPlus className="h-3 w-3" />
+                Inviter ny
+              </button>
+            )}
+          </div>
         )}
       </div>
     </div>
@@ -735,6 +759,7 @@ function EntrepriseGruppeKomponent({
   onLeggTilStegMedlem,
   onFjernStegMedlem,
   onInviterNy,
+  onInviterNySteg,
 }: {
   entreprise: EntrepriseData;
   arbeidsforloper: ArbeidsforlopData[];
@@ -750,6 +775,7 @@ function EntrepriseGruppeKomponent({
   onLeggTilStegMedlem: (workflowId: string, step: 2 | 3, projectMemberId: string) => void;
   onFjernStegMedlem: (workflowId: string, step: 2 | 3, projectMemberId: string) => void;
   onInviterNy: (entrepriseId: string) => void;
+  onInviterNySteg: (workflowId: string, step: 2 | 3) => void;
 }) {
   const [ekspandert, setEkspandert] = useState(true);
   const farge = hentFargeForEntreprise(entreprise.color, entreprise.fargeIndeks);
@@ -884,6 +910,7 @@ function EntrepriseGruppeKomponent({
                 alleMedlemmer={alleMedlemmer}
                 onLeggTil={(pmId) => foersteAf && onLeggTilStegMedlem(foersteAf.id, 2, pmId)}
                 onFjern={(pmId) => foersteAf && onFjernStegMedlem(foersteAf.id, 2, pmId)}
+                onInviterNy={foersteAf ? () => onInviterNySteg(foersteAf.id, 2) : undefined}
               />
             </div>
 
@@ -895,6 +922,7 @@ function EntrepriseGruppeKomponent({
                 alleMedlemmer={alleMedlemmer}
                 onLeggTil={(pmId) => foersteAf && onLeggTilStegMedlem(foersteAf.id, 3, pmId)}
                 onFjern={(pmId) => foersteAf && onFjernStegMedlem(foersteAf.id, 3, pmId)}
+                onInviterNy={foersteAf ? () => onInviterNySteg(foersteAf.id, 3) : undefined}
               />
             </div>
           </div>
@@ -1679,6 +1707,8 @@ export default function EntrepriserSide() {
 
   // Inviter ny medlem modal
   const [inviterEntrepriseId, setInviterEntrepriseId] = useState<string | null>(null);
+  // Inviter ny steg-medlem modal (Svarer 2/3)
+  const [inviterSteg, setInviterSteg] = useState<{ workflowId: string; step: 2 | 3 } | null>(null);
 
   // Data
   const { data: entrepriser, isLoading } =
@@ -2039,6 +2069,7 @@ export default function EntrepriserSide() {
                 fjernStegMedlemMutation.mutate({ workflowId, projectMemberId, step })
               }
               onInviterNy={(entrepriseId) => setInviterEntrepriseId(entrepriseId)}
+              onInviterNySteg={(workflowId, step) => setInviterSteg({ workflowId, step })}
             />
           ))}
         </div>
@@ -2233,6 +2264,22 @@ export default function EntrepriserSide() {
           onClose={() => setInviterEntrepriseId(null)}
           prosjektId={prosjektId}
           entrepriseId={inviterEntrepriseId}
+        />
+      )}
+
+      {/* Inviter ny person som steg-medlem (Svarer 2/3) */}
+      {prosjektId && inviterSteg && (
+        <InviterNyMedlemModal
+          open={!!inviterSteg}
+          onClose={() => setInviterSteg(null)}
+          prosjektId={prosjektId}
+          onOpprettet={(projectMemberId) => {
+            leggTilStegMedlemMutation.mutate({
+              workflowId: inviterSteg.workflowId,
+              projectMemberId,
+              step: inviterSteg.step,
+            });
+          }}
         />
       )}
     </div>
