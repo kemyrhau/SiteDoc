@@ -935,6 +935,12 @@ DatabaseProvider → trpc.Provider → QueryClientProvider → NettverkProvider 
 ```
 `DatabaseProvider` kjører migreringer og opprydding ved oppstart, blokkerer rendering til databasen er klar.
 
+**Sesjonshåndtering (mobil):**
+- `AuthProvider` verifiserer sesjonstoken mot serveren ved oppstart (GET `/trpc/prosjekt.hentMine`). Ugyldig/utløpt → automatisk utlogging
+- Ved nettverksfeil brukes cached brukerdata fra SecureStore (offline-støtte)
+- Global query retry-handler i `Providers`: UNAUTHORIZED-feil → automatisk utlogging + redirect til `/logg-inn`
+- `mobilAuth.byttToken` (publicProcedure) bytter OAuth access_token mot sesjonstoken (30 dagers utløp)
+
 **Opprydding:**
 - Fullførte køoppføringer slettes ved app-oppstart
 - Foreldreløse lokale bilder (uten køoppføring) slettes i bakgrunnen
@@ -1301,6 +1307,7 @@ Gjør: `git push` → `ssh sitedoc` → `git pull && pnpm install --frozen-lockf
 - **Send til TestFlight:** `eas submit --platform ios --latest`
 - EAS bygger i skyen (Expo sin infrastruktur), krever ikke Xcode lokalt
 - TestFlight: testere inviteres via App Store Connect, installerer via TestFlight-appen (opptil 10 000 testere)
+- **VIKTIG: Env-variabler i EAS Build:** `.env`-filer leses IKKE av EAS Build. Alle `EXPO_PUBLIC_*`-variabler MÅ defineres i `eas.json` under `build.<profil>.env`. Uten dette faller variabler tilbake til default (f.eks. `apiUrl` → `http://localhost:3001`). Ved nye env-variabler: oppdater BÅDE `.env` (lokal dev) OG `eas.json` (EAS Build)
 
 ### Google OAuth
 
