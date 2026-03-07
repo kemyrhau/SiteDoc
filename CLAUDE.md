@@ -185,7 +185,7 @@ Alle routere i `apps/api/src/routes/`:
 
 | Router | Prosedyrer |
 |--------|-----------|
-| `prosjekt` | hentAlle, hentMedId, opprett, oppdater |
+| `prosjekt` | hentMine, hentAlle (filtrert på medlemskap), hentMedId, opprett (auto-admin), oppdater |
 | `entreprise` | hentForProsjekt, hentMedId, opprett, oppdater, slett |
 | `sjekkliste` | hentForProsjekt (m/statusfilter + buildingId-filter), hentMedId, opprett, oppdater (metadata + entrepriser, kun draft), oppdaterData, endreStatus, slett (kun draft, blokkeres ved tilknyttede oppgaver) |
 | `oppgave` | hentForProsjekt (m/statusfilter), hentForTegning (markører per tegning), hentMedId (m/template.objects), hentForSjekkliste, opprett (m/tegningsposisjon, templateId påkrevd), oppdater (m/entrepriser, kun draft), oppdaterData, endreStatus, slett (kun draft) |
@@ -321,6 +321,21 @@ Når admin legger til en bruker (via `medlem.leggTil` eller `gruppe.leggTilMedle
 **Aksept-side:** `apps/web/src/app/aksepter-invitasjon/page.tsx` — Server Component med token-validering
 **Brukere-side:** Viser gul "Ventende"-badge og "Send på nytt"-knapp for aktive invitasjoner
 
+### Prosjektopprettelse og onboarding
+
+Ved prosjektopprettelse (`prosjekt.opprett`) legges innlogget bruker automatisk til som admin-medlem. `hentAlle` og `hentMine` filtrerer begge på medlemskap — brukere ser kun prosjekter de er medlem av.
+
+**Onboarding-flyt (web):**
+1. Ny bruker logger inn → ingen prosjekter → redirect til `/dashbord/kom-i-gang`
+2. "Start gratis prøveperiode" → opprett prosjekt → bruker blir admin
+3. Entreprise-siden viser veiledningsbanner med oppsettrekkefølge:
+   - Inviter brukere til prosjektet
+   - Opprett maler (minst én oppgavemal og én sjekklistemal)
+   - Opprett entreprise med arbeidsforløp og maler
+4. Banneret forsvinner når alle steg er fullført
+
+**Bransje-felt:** Fritekst med `<datalist>`-forslag (ikke låst dropdown) — brukeren kan velge fra forhåndsdefinerte bransjer eller skrive inn egendefinert.
+
 ### Arbeidsforløp
 
 Arbeidsforløp kobler maler til entrepriser og definerer oppretter/svarer-flyten. Konfigureres under Innstillinger > Field > Entrepriser:
@@ -341,6 +356,8 @@ Arbeidsforløp kobler maler til entrepriser og definerer oppretter/svarer-flyten
 - Sjekklister har valgfrie felter: `buildingId` (lokasjon), `drawingId` (tegning), `subject` (emne)
 - Emne (`subject`) ved opprettelse: hvis malen har `subjects`-array → vises som nedtrekksmeny (web: `<Select>`, mobil: Pressable-liste). Uten subjects → fritekst (mobil) eller skjult (web)
 - Tittel settes automatisk til prosjektnavn ved opprettelse fra mobil
+- **Planlagt:** Flerstegs arbeidsforløp med svarer 2, svarer 3 osv. for eskaleringskjeder (f.eks. PL godkjenner opp til 10.000, høyere beløp eskaleres)
+- **Planlagt:** HMS-avvik som eget arbeidsforløp der alle brukere kan opprette uavhengig av entreprisetilhørighet
 
 ### Prosjektgrupper
 
@@ -395,6 +412,9 @@ Interaktiv tegningsvisning på `/dashbord/[prosjektId]/tegninger/` med zoom og m
 - Adgangskontroll: Håndheve tillatelsesbasert opprettelse (verifiserTillatelse i opprett-prosedyrer), arbeidsforløp-begrensning per brukergruppe
 - Videresending av sjekklister/oppgaver til annen entreprise etter draft-status (svarer og oppretter)
 - TrafikklysObjekt (mobil): legge til 4. farge grå/"Ikke relevant" i mobilrenderer
+- Flerstegs arbeidsforløp: svarer 2, svarer 3 osv. for eskaleringskjeder (f.eks. godkjenningsgrenser per beløp)
+- HMS-avvik: Eget arbeidsforløp der alle brukere kan opprette uansett entreprisetilhørighet
+- Lisenssystem: Betalingsside før prosjektopprettelse (erstatter "Kom i gang"-placeholder)
 
 ### Oppgave fra tegning (mobil)
 
@@ -924,7 +944,8 @@ Dalux-inspirert tre-kolonne layout:
 /logg-inn                                     -> Google + Microsoft Entra ID innlogging
 /aksepter-invitasjon?token=...                -> Aksepter prosjektinvitasjon (Server Component)
 /utskrift/sjekkliste/[sjekklisteId]           -> PDF-forhåndsvisning (ren A4, utenfor dashbord-layout)
-/dashbord                                     -> Dashbord (prosjektliste)
+/dashbord                                     -> Dashbord (prosjektliste, redirect til kom-i-gang hvis ingen prosjekter)
+/dashbord/kom-i-gang                          -> Velkomstside med prøveperiode-placeholder (vises for nye brukere uten prosjekter)
 /dashbord/[prosjektId]                        -> Prosjektoversikt
 /dashbord/[prosjektId]/sjekklister            -> Sjekkliste-tabell
 /dashbord/[prosjektId]/sjekklister/[id]       -> Sjekkliste-detalj (utfylling + print)
