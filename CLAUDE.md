@@ -936,10 +936,12 @@ DatabaseProvider → trpc.Provider → QueryClientProvider → NettverkProvider 
 `DatabaseProvider` kjører migreringer og opprydding ved oppstart, blokkerer rendering til databasen er klar.
 
 **Sesjonshåndtering (mobil):**
-- `AuthProvider` verifiserer sesjonstoken mot serveren ved oppstart (GET `/trpc/prosjekt.hentMine`). Ugyldig/utløpt → automatisk utlogging
+- `AuthProvider` verifiserer sesjonstoken ved oppstart via `mobilAuth.verifiser` (lett endepunkt). Ugyldig/utløpt → automatisk utlogging
+- `mobilAuth.verifiser` (protectedProcedure) fornyer sesjonen med 30 nye dager ved hvert kall + returnerer oppdatert brukerdata
 - Ved nettverksfeil brukes cached brukerdata fra SecureStore (offline-støtte)
-- Global query retry-handler i `Providers`: UNAUTHORIZED-feil → automatisk utlogging + redirect til `/logg-inn`
+- Global query retry-handler i `Providers`: UNAUTHORIZED-feil (sjekker `error.data.code` + `error.shape.data.code` + message fallback) → automatisk utlogging + redirect til `/logg-inn`
 - `mobilAuth.byttToken` (publicProcedure) bytter OAuth access_token mot sesjonstoken (30 dagers utløp)
+- Hjemskjermen viser feil-UI med varselikon og «Prøv igjen»-knapp ved API-feil (i stedet for tom side)
 
 **Opprydding:**
 - Fullførte køoppføringer slettes ved app-oppstart
