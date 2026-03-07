@@ -198,7 +198,7 @@ Alle routere i `apps/api/src/routes/`:
 | `arbeidsforlop` | hentForProsjekt, hentForEnterprise, opprett, oppdater, slett |
 | `mappe` | hentForProsjekt (m/tilgangsoppføringer), hentDokumenter, opprett, oppdater, slett, hentTilgang, settTilgang |
 | `medlem` | hentForProsjekt, hentMineEntrepriser, leggTil (m/invitasjon), fjern, oppdater (navn/e-post/telefon/rolle), oppdaterRolle, sokBrukere |
-| `gruppe` | hentMineTillatelser, hentMinTilgang, hentForProsjekt, opprettStandardgrupper, opprett, oppdater, slett, leggTilMedlem (m/invitasjon), fjernMedlem, oppdaterEntrepriser, oppdaterDomener |
+| `gruppe` | hentMineTillatelser, hentMinTilgang, hentForProsjekt, opprettStandardgrupper, opprett, oppdater, slett, leggTilMedlem (m/invitasjon), fjernMedlem, oppdaterEntrepriser, oppdaterTillatelser, oppdaterDomener |
 | `invitasjon` | hentForProsjekt, validerToken, aksepter, sendPaNytt, trekkTilbake |
 | `vaer` | hentVaerdata (Open-Meteo proxy: latitude, longitude, dato → temperatur, værkode, vind) |
 | `modul` | hentForProsjekt, aktiver (oppretter maler+objekter automatisk), deaktiver (soft-deactivate, beholder data) |
@@ -242,7 +242,7 @@ Maler har et `domain`-felt (`"bygg"` | `"hms"` | `"kvalitet"`, default `"bygg"`)
 
 **Konsept:** HMS-gruppen (domains=["hms"], ingen entrepriser) ser **alle** HMS-dokumenter i prosjektet tverrgående. Bygg-grupper (domains=["bygg"], med entrepriser) ser kun egne entreprisers bygg-dokumenter.
 
-**Tillatelsestyper:** `Permission` = `"manage_field"` | `"create_tasks"` | `"create_checklists"` | `"view_field"`. Definert i `@sitedoc/shared`.
+**Tillatelsestyper:** Definert i `@sitedoc/shared`. Gamle (bakoverkompatible): `manage_field`, `create_tasks`, `create_checklists`, `view_field`. Nye granulære: `checklist_edit`, `checklist_view`, `task_edit`, `task_view`, `template_manage`, `drawing_manage`, `drawing_view`, `folder_manage`, `folder_view`, `enterprise_manage`, `member_manage`. `utvidTillatelser()` mapper automatisk gamle → nye. `PERMISSION_LABELS` (norske navn), `PERMISSION_GROUPS` (UI-gruppering), `LEGACY_PERMISSION_MAP` (mapping).
 
 **Statusoverganger** valideres via `isValidStatusTransition()` fra `@sitedoc/shared`:
 ```
@@ -369,6 +369,7 @@ Arbeidsforløp kobler maler til entrepriser og definerer oppretter/svarer-flyten
 - Hvert arbeidsforløp velger hvilke maler (oppgavetyper og sjekklistetyper) som er tilgjengelige
 - Maler kategoriseres som `oppgave` eller `sjekkliste` via `report_templates.category`
 - Visningen bruker to-kolonne layout: Oppretter (venstre) → pil → Svarer (høyre) med fargekodet badge
+- `MedlemmerLinje` med `leseModus`-prop: oppretter-header har redigerbar medlemsliste, svarer i arbeidsforløp har redigerbar liste (når svarer ≠ oppretter) eller read-only (når svarer = oppretter)
 - Entreprise-headere har fast bredde (280px) og kun oppretter-kolonnen, arbeidsforløp-rader har oppretter + pil + svarer-badge
 - Treprikk-menyer (⋮) på to nivåer: entreprise-header og arbeidsforløp-rad
 - Alle arbeidsforløp for et prosjekt hentes i én query (`hentForProsjekt`) og grupperes klient-side per entreprise
@@ -1129,7 +1130,11 @@ Tre eksportpunkter: `types`, `validation`, `utils`
 - `GroupCategory` — 3 gruppekategorier (`generelt`, `field`, `brukergrupper`)
 - `StandardProjectGroup` — Interface for standardgrupper med slug, navn, kategori, tillatelser, fagområder (`domains`)
 - `STANDARD_PROJECT_GROUPS` — Konstantarray med 4 standardgrupper (inkl. `domains`-felt)
-- `PERMISSIONS` — Konstantarray: `["manage_field", "create_tasks", "create_checklists", "view_field"]`, `Permission` type
+- `PERMISSIONS` — Konstantarray med 15 tillatelser (4 gamle + 11 granulære), `Permission` type
+- `PERMISSION_LABELS` — `Record<Permission, string>` med norske labels
+- `PERMISSION_GROUPS` — Array med gruppering for matrise-UI (Sjekklister, Oppgaver, Maler, etc.)
+- `LEGACY_PERMISSION_MAP` — Mapping fra gamle til nye granulære tillatelser
+- `utvidTillatelser(tillatelser)` — Utvider gamle tillatelser til nye granulære (bakoverkompatibilitet)
 - `DOMAINS` — Konstantarray: `["bygg", "hms", "kvalitet"]`, `Domain` type
 - `DOMAIN_LABELS` — Record som mapper domain til norsk label: `{ bygg: "Bygg", hms: "HMS", kvalitet: "Kvalitet" }`
 - `CONTAINER_TYPES` — Kontainertyper som kan ha barn: `["list_single", "list_multi", "repeater"]`
@@ -1259,7 +1264,7 @@ Hele monorepoet bruker ESLint v8 med `.eslintrc.json` (legacy-format). Web bruke
 - **Fagområde (domain):** Klassifisering av maler som `"bygg"`, `"hms"` eller `"kvalitet"`. Styrer hvem som ser dokumenter basert på gruppemedlemskap. Definert i `@sitedoc/shared` som `DOMAINS`
 - **Tverrgående tilgang:** Gruppe uten entrepriser ser ALLE dokumenter med matchende fagområde, uavhengig av oppretter/svarer-entreprise. F.eks. HMS-gruppen ser alle HMS-sjekklister
 - **GroupEnterprise:** Mange-til-mange kobling mellom `ProjectGroup` og `Enterprise`. Begrenser gruppens tilgang til kun dokumenter der tilknyttede entrepriser er oppretter/svarer
-- **Tillatelse (Permission):** Rettighet tildelt via prosjektgrupper: `manage_field`, `create_tasks`, `create_checklists`, `view_field`. Admin har alle tillatelser implisitt
+- **Tillatelse (Permission):** Rettighet tildelt via prosjektgrupper. Gamle: `manage_field`, `create_tasks`, `create_checklists`, `view_field`. Nye granulære: `checklist_edit/view`, `task_edit/view`, `template_manage`, `drawing_manage/view`, `folder_manage/view`, `enterprise_manage`, `member_manage`. Admin har alle tillatelser implisitt. `utvidTillatelser()` mapper gamle til nye automatisk
 - **Tegningsmarkør:** Posisjon (0–100% X/Y) på en tegning der en oppgave er opprettet fra mobilappen
 - **Enkeltvalg (`list_single`):** Rapportobjekt der brukeren velger én verdi. Web: `<select>` nedtrekksmeny (kompakt). Mobil: radioknapper. Kan brukes som kontainer med betingelse.
 - **Flervalg (`list_multi`):** Rapportobjekt der brukeren kan velge flere verdier. Web: dropdown med avkrysning, valgte vises som horisontale chips med ×-knapp. Mobil: avkrysningsbokser. Kan brukes som kontainer med betingelse.
