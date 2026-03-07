@@ -236,7 +236,7 @@ Alle routere i `apps/api/src/routes/`:
 
 | Router | Prosedyrer |
 |--------|-----------|
-| `prosjekt` | hentMine, hentAlle (filtrert på medlemskap), hentMedId, opprett (auto-admin), oppdater |
+| `prosjekt` | hentMine, hentAlle (filtrert på medlemskap), hentMedId, opprett (auto-admin, auto-tilknytt firma), oppdater |
 | `entreprise` | hentForProsjekt, hentMedId, opprett, oppdater, slett |
 | `sjekkliste` | hentForProsjekt (m/statusfilter + buildingId-filter), hentMedId (m/changeLog), opprett, oppdater (metadata + entrepriser, kun draft), oppdaterData (m/automatisk endringslogg), endreStatus, slett (kun draft, blokkeres ved tilknyttede oppgaver) |
 | `oppgave` | hentForProsjekt (m/statusfilter), hentForTegning (markører per tegning), hentMedId (m/template.objects+kommentarer), hentForSjekkliste, hentKommentarer, leggTilKommentar, opprett (m/tegningsposisjon, templateId påkrevd), oppdater (m/entrepriser, kun draft), oppdaterData, endreStatus, slett (kun draft) |
@@ -251,7 +251,7 @@ Alle routere i `apps/api/src/routes/`:
 | `vaer` | hentVaerdata (Open-Meteo proxy: latitude, longitude, dato → temperatur, værkode, vind) |
 | `modul` | hentForProsjekt, aktiver (oppretter maler+objekter automatisk), deaktiver (soft-deactivate, beholder data) |
 | `organisasjon` | hentMin, hentMedId, hentProsjekter, hentBrukere, oppdater, leggTilProsjekt, fjernProsjekt |
-| `admin` | erAdmin, hentAlleProsjekter, hentAlleOrganisasjoner, opprettOrganisasjon, settBrukerOrganisasjon, tilknyttProsjekt, hentAlleBrukere (kun sitedoc_admin) |
+| `admin` | erAdmin, hentAlleProsjekter, hentAlleOrganisasjoner, opprettOrganisasjon, settBrukerOrganisasjon, tilknyttProsjekt, fjernProsjektTilknytning, opprettProsjekt, hentProsjektStatistikk, slettProsjekt, hentAlleBrukere (kun sitedoc_admin) |
 
 **Auth-nivåer:** `publicProcedure` (åpen) og `protectedProcedure` (krever autentisert userId i context). Context bygges i `context.ts` som verifiserer Auth.js-sesjonstokens. De fleste routere bruker `protectedProcedure` med tilleggs-sjekker fra `tilgangskontroll.ts`.
 
@@ -396,7 +396,7 @@ Når admin legger til en bruker (via `medlem.leggTil` eller `gruppe.leggTilMedle
 
 ### Prosjektopprettelse og onboarding
 
-Ved prosjektopprettelse (`prosjekt.opprett`) legges innlogget bruker automatisk til som admin-medlem. `hentAlle` og `hentMine` filtrerer begge på medlemskap — brukere ser kun prosjekter de er medlem av.
+Ved prosjektopprettelse (`prosjekt.opprett`) legges innlogget bruker automatisk til som admin-medlem. Hvis brukeren har `organizationId`, kobles prosjektet automatisk til firmaet via `organization_projects`. `hentAlle` og `hentMine` filtrerer begge på medlemskap — brukere ser kun prosjekter de er medlem av.
 
 **Onboarding-flyt (web):**
 1. Ny bruker logger inn → ingen prosjekter → redirect til `/dashbord/kom-i-gang`
@@ -478,8 +478,8 @@ Superadmin-modul for SiteDoc-plattformen. Tilgjengelig kun for brukere med `role
 
 **Ruter:** `/dashbord/admin/` med egen sidebar (amber aksent):
 - **Oversikt** — Statistikk-kort: antall firmaer, prosjekter, brukere + liste over siste prosjekter
-- **Firmaer** — Opprett og administrer organisasjoner (navn, org.nr). Viser brukere og prosjekter per firma
-- **Prosjekter** — Tabell med alle prosjekter i systemet (navn, nr, firma, medlemmer, entrepriser, status)
+- **Firmaer** — Opprett firmaer, tilknytt/fjern prosjekter, viser brukere og prosjekter per firma
+- **Prosjekter** — Tabell med alle prosjekter (opprett, slett med bekreftelse, inline firma-dropdown for eierskapsflytting)
 - **Tillatelser** — Global tillatelsesmatrise som viser rediger/les/ingen tilgang per standardgruppe per tillatelseskategori
 
 **Toppbar:** ShieldCheck-ikon (amber) vises for `sitedoc_admin`, lenker til `/dashbord/admin`
