@@ -159,22 +159,12 @@ interface ArbeidsforlopData {
 
 function ArbeidsforlopRad({
   arbeidsforlop,
-  entreprise,
-  alleEntrepriser,
-  alleMedlemmer,
   onRediger,
   onSlett,
-  onLeggTilMedlem,
-  onFjernMedlem,
 }: {
   arbeidsforlop: ArbeidsforlopData;
-  entreprise: EntrepriseData;
-  alleEntrepriser: EntrepriseData[];
-  alleMedlemmer: ProsjektMedlemItem[];
   onRediger: (af: ArbeidsforlopData) => void;
   onSlett: (id: string) => void;
-  onLeggTilMedlem: (enterpriseId: string, projectMemberId: string) => void;
-  onFjernMedlem: (enterpriseId: string, projectMemberId: string) => void;
 }) {
   const [ekspandert, setEkspandert] = useState(false);
 
@@ -192,133 +182,48 @@ function ArbeidsforlopRad({
     .filter(Boolean)
     .join(" + ");
 
-  // Svarer-info
-  const svarerNavn = arbeidsforlop.responderEnterprise?.name ?? entreprise.name;
-  const svarerErSamme = !arbeidsforlop.responderEnterpriseId ||
-    arbeidsforlop.responderEnterpriseId === entreprise.id;
-  const svarerFargeIdx = arbeidsforlop.responderEnterpriseId
-    ? hentEntrepriseFargeIndeks(arbeidsforlop.responderEnterpriseId, alleEntrepriser)
-    : entreprise.fargeIndeks;
-  const svarerFarge = hentFargeForEntreprise(
-    alleEntrepriser.find((e) => e.id === arbeidsforlop.responderEnterpriseId)?.color ?? null,
-    svarerFargeIdx,
-  );
-
   return (
     <div>
-      <div className="flex items-center gap-0 py-1.5">
-        {/* Venstre: Arbeidsforløp-navn (i oppretter-kolonnen) */}
-        <div className="w-[248px] pl-4 pr-2">
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => setEkspandert(!ekspandert)}
-              className="flex flex-1 items-center gap-1.5 text-left"
-            >
-              {ekspandert ? (
-                <ChevronDown className="h-3.5 w-3.5 shrink-0 text-gray-400" />
-              ) : (
-                <ChevronRight className="h-3.5 w-3.5 shrink-0 text-gray-400" />
-              )}
-              <WorkflowIcon className="h-3.5 w-3.5 shrink-0 text-gray-400" />
-              <span className="truncate text-sm font-medium text-gray-700">
-                {arbeidsforlop.name}
-              </span>
-              {oppsummering && (
-                <span className="ml-1 shrink-0 text-xs text-gray-400">
-                  ({oppsummering})
-                </span>
-              )}
-            </button>
-            <TreprikkMeny
-              handlinger={[
-                {
-                  label: "Rediger arbeidsforløp",
-                  ikon: <Pencil className="h-4 w-4 text-gray-400" />,
-                  onClick: () => onRediger(arbeidsforlop),
-                },
-                {
-                  label: "Slett arbeidsforløp",
-                  ikon: <Trash2 className="h-4 w-4 text-red-400" />,
-                  onClick: () => onSlett(arbeidsforlop.id),
-                  fare: true,
-                },
-              ]}
-            />
-          </div>
-        </div>
-
-        {/* Midt: Pil */}
-        <div className="flex w-[64px] items-center justify-center">
-          <div className="flex items-center">
-            <div className="h-px w-4 bg-gray-300" />
-            <ArrowRight className="h-4 w-4 text-gray-400" />
-            <div className="h-px w-4 bg-gray-300" />
-          </div>
-        </div>
-
-        {/* Høyre: Svarer-entreprise badge */}
-        <div className="w-[248px]">
-          <div
-            className={`inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 ${svarerFarge.lyseBg} ${svarerFarge.lyseBorder}`}
-          >
-            <span className={`text-sm font-medium ${svarerFarge.lyseTekst}`}>
-              {svarerNavn}
+      <div className="flex items-center gap-1 px-4 py-1.5">
+        <button
+          onClick={() => setEkspandert(!ekspandert)}
+          className="flex flex-1 items-center gap-1.5 text-left"
+        >
+          {ekspandert ? (
+            <ChevronDown className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+          ) : (
+            <ChevronRight className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+          )}
+          <WorkflowIcon className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+          <span className="truncate text-sm font-medium text-gray-700">
+            {arbeidsforlop.name}
+          </span>
+          {oppsummering && (
+            <span className="ml-1 shrink-0 text-xs text-gray-400">
+              ({oppsummering})
             </span>
-            {svarerErSamme && (
-              <span className="text-xs text-gray-400">(samme)</span>
-            )}
-          </div>
-        </div>
+          )}
+        </button>
+        <TreprikkMeny
+          handlinger={[
+            {
+              label: "Rediger arbeidsforløp",
+              ikon: <Pencil className="h-4 w-4 text-gray-400" />,
+              onClick: () => onRediger(arbeidsforlop),
+            },
+            {
+              label: "Slett arbeidsforløp",
+              ikon: <Trash2 className="h-4 w-4 text-red-400" />,
+              onClick: () => onSlett(arbeidsforlop.id),
+              fare: true,
+            },
+          ]}
+        />
       </div>
 
-      {/* Ekspandert detaljer */}
+      {/* Ekspandert: maler */}
       {ekspandert && (
         <div className="mb-1 ml-10 mr-4 rounded-lg border border-gray-100 bg-gray-50 px-4 py-3">
-          {/* Deltakere i arbeidsforløpet */}
-          <div className="mb-3 flex items-start gap-4">
-            <div className="flex-1">
-              <p className="mb-1 text-xs font-semibold text-gray-600">Oppretter</p>
-              <MedlemmerLinje
-                entreprise={entreprise}
-                alleMedlemmer={alleMedlemmer}
-                onLeggTil={(pmId) => onLeggTilMedlem(entreprise.id, pmId)}
-                onFjern={(pmId) => onFjernMedlem(entreprise.id, pmId)}
-                leseModus
-              />
-            </div>
-            <ArrowRight className="mt-3 h-4 w-4 shrink-0 text-gray-300" />
-            <div className="flex-1">
-              <p className="mb-1 text-xs font-semibold text-gray-600">Svarer</p>
-              {(() => {
-                const svarerEnt = arbeidsforlop.responderEnterpriseId
-                  ? alleEntrepriser.find((e) => e.id === arbeidsforlop.responderEnterpriseId)
-                  : null;
-                // Svarer = oppretter → read-only
-                if (!svarerEnt) {
-                  return (
-                    <MedlemmerLinje
-                      entreprise={entreprise}
-                      alleMedlemmer={alleMedlemmer}
-                      onLeggTil={(pmId) => onLeggTilMedlem(entreprise.id, pmId)}
-                      onFjern={(pmId) => onFjernMedlem(entreprise.id, pmId)}
-                      leseModus
-                    />
-                  );
-                }
-                // Svarer er en annen entreprise → redigerbar
-                return (
-                  <MedlemmerLinje
-                    entreprise={svarerEnt}
-                    alleMedlemmer={alleMedlemmer}
-                    onLeggTil={(pmId) => onLeggTilMedlem(svarerEnt.id, pmId)}
-                    onFjern={(pmId) => onFjernMedlem(svarerEnt.id, pmId)}
-                  />
-                );
-              })()}
-            </div>
-          </div>
-
-          {/* Tilknyttede maler */}
           {oppgaveMaler.length > 0 && (
             <div className="mb-2">
               <p className="text-xs font-semibold text-gray-600">Oppgavetyper</p>
@@ -333,9 +238,7 @@ function ArbeidsforlopRad({
           )}
           {sjekklisteMaler.length > 0 && (
             <div>
-              <p className="text-xs font-semibold text-gray-600">
-                Sjekklistetyper
-              </p>
+              <p className="text-xs font-semibold text-gray-600">Sjekklistetyper</p>
               <ul className="mt-1 space-y-0.5">
                 {sjekklisteMaler.map((t) => (
                   <li key={t.template.id} className="text-xs text-gray-500">
@@ -355,117 +258,13 @@ function ArbeidsforlopRad({
 }
 
 /* ------------------------------------------------------------------ */
-/*  Entreprise-gruppe (to-kolonne)                                     */
+/*  Entreprise-gruppe (to-kolonne: Oppretter / Svarer)                 */
 /* ------------------------------------------------------------------ */
 
 interface EntrepriseMedlem {
   id: string;
   navn: string;
   epost: string;
-}
-
-/* ------------------------------------------------------------------ */
-/*  MedlemmerLinje — redigerbar medlemsliste i entreprise-header        */
-/* ------------------------------------------------------------------ */
-
-function MedlemmerLinje({
-  entreprise,
-  alleMedlemmer,
-  onLeggTil,
-  onFjern,
-  leseModus = false,
-}: {
-  entreprise: EntrepriseData;
-  alleMedlemmer: ProsjektMedlemItem[];
-  onLeggTil: (projectMemberId: string) => void;
-  onFjern: (projectMemberId: string) => void;
-  leseModus?: boolean;
-}) {
-  const [visVelger, setVisVelger] = useState(false);
-
-  // Filtrer ut medlemmer som allerede er i entreprisen
-  const eksisterendeEposter = new Set(
-    entreprise.medlemmer.map((m) => m.epost.toLowerCase()),
-  );
-  const tilgjengelige = alleMedlemmer.filter(
-    (m) => !eksisterendeEposter.has(m.user.email.toLowerCase()),
-  );
-
-  return (
-    <div className="flex items-center gap-1.5 border-b border-gray-100 px-4 py-2">
-      <Users className="h-3.5 w-3.5 shrink-0 text-gray-400" />
-      <div className="flex flex-wrap items-center gap-1">
-        {entreprise.medlemmer.map((m) => (
-          <span
-            key={m.id}
-            className="group inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600"
-            title={m.epost}
-          >
-            {m.navn}
-            {!leseModus && (
-              <button
-                onClick={() => onFjern(m.id)}
-                className="ml-0.5 hidden rounded-full p-0.5 text-gray-400 hover:bg-gray-200 hover:text-red-500 group-hover:inline-flex"
-                title="Fjern fra entreprise"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            )}
-          </span>
-        ))}
-        {entreprise.medlemmer.length === 0 && !visVelger && (
-          <span className="inline-flex items-center gap-1 text-xs text-gray-400">
-            {!leseModus && <AlertTriangle className="h-3 w-3 text-amber-400" />}
-            Ingen medlemmer
-          </span>
-        )}
-
-        {/* Legg til-knapp / dropdown — kun i redigeringsmodus */}
-        {!leseModus && (
-          <>
-            {visVelger ? (
-              <div className="relative">
-                <select
-                  autoFocus
-                  className="rounded border border-gray-300 px-2 py-0.5 text-xs focus:border-blue-500 focus:outline-none"
-                  defaultValue=""
-                  onChange={(e) => {
-                    if (e.target.value) {
-                      onLeggTil(e.target.value);
-                    }
-                    setVisVelger(false);
-                  }}
-                  onBlur={() => setVisVelger(false)}
-                >
-                  <option value="" disabled>
-                    Velg medlem...
-                  </option>
-                  {tilgjengelige.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.user.name ?? m.user.email}
-                    </option>
-                  ))}
-                  {tilgjengelige.length === 0 && (
-                    <option value="" disabled>
-                      Ingen tilgjengelige
-                    </option>
-                  )}
-                </select>
-              </div>
-            ) : (
-              <button
-                onClick={() => setVisVelger(true)}
-                className="inline-flex items-center gap-0.5 rounded-full border border-dashed border-gray-300 px-2 py-0.5 text-xs text-gray-400 hover:border-blue-400 hover:text-blue-500"
-                title="Legg til medlem"
-              >
-                <Plus className="h-3 w-3" />
-              </button>
-            )}
-          </>
-        )}
-      </div>
-    </div>
-  );
 }
 
 interface EntrepriseData {
@@ -484,6 +283,126 @@ interface ProsjektMedlemItem {
   id: string;
   user: { name: string | null; email: string };
 }
+
+/* ------------------------------------------------------------------ */
+/*  MedlemKolonne — vertikal medlemsliste for én kolonne               */
+/* ------------------------------------------------------------------ */
+
+function MedlemKolonne({
+  tittel,
+  entreprise,
+  alleMedlemmer,
+  onLeggTil,
+  onFjern,
+  leseModus = false,
+}: {
+  tittel: string;
+  entreprise: EntrepriseData | null;
+  alleMedlemmer: ProsjektMedlemItem[];
+  onLeggTil?: (projectMemberId: string) => void;
+  onFjern?: (projectMemberId: string) => void;
+  leseModus?: boolean;
+}) {
+  const [visVelger, setVisVelger] = useState(false);
+  const medlemmer = entreprise?.medlemmer ?? [];
+
+  // Filtrer ut medlemmer som allerede er i entreprisen
+  const eksisterendeEposter = new Set(
+    medlemmer.map((m) => m.epost.toLowerCase()),
+  );
+  const tilgjengelige = alleMedlemmer.filter(
+    (m) => !eksisterendeEposter.has(m.user.email.toLowerCase()),
+  );
+
+  return (
+    <div className="flex-1 min-w-0">
+      <div className="mb-2 flex items-center gap-1.5">
+        <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+          {tittel}
+        </span>
+        {entreprise && entreprise.name && (
+          <span className="truncate text-xs text-gray-400">
+            — {entreprise.name}
+          </span>
+        )}
+      </div>
+
+      <div className="space-y-1">
+        {medlemmer.map((m) => (
+          <div
+            key={m.id}
+            className="group flex items-center gap-2 rounded px-2 py-1 hover:bg-gray-50"
+          >
+            <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-200 text-xs font-medium text-gray-600">
+              {m.navn.charAt(0).toUpperCase()}
+            </div>
+            <span className="truncate text-sm text-gray-700" title={m.epost}>
+              {m.navn}
+            </span>
+            {!leseModus && onFjern && (
+              <button
+                onClick={() => onFjern(m.id)}
+                className="ml-auto hidden shrink-0 rounded p-0.5 text-gray-400 hover:bg-gray-200 hover:text-red-500 group-hover:block"
+                title="Fjern fra entreprise"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            )}
+          </div>
+        ))}
+
+        {medlemmer.length === 0 && (
+          <div className="flex items-center gap-1.5 px-2 py-1 text-xs text-gray-400">
+            {!leseModus && <AlertTriangle className="h-3 w-3 text-amber-400" />}
+            Ingen medlemmer
+          </div>
+        )}
+
+        {/* Legg til-knapp */}
+        {!leseModus && onLeggTil && (
+          <>
+            {visVelger ? (
+              <div className="px-2">
+                <select
+                  autoFocus
+                  className="w-full rounded border border-gray-300 px-2 py-1 text-xs focus:border-blue-500 focus:outline-none"
+                  defaultValue=""
+                  onChange={(e) => {
+                    if (e.target.value) onLeggTil(e.target.value);
+                    setVisVelger(false);
+                  }}
+                  onBlur={() => setVisVelger(false)}
+                >
+                  <option value="" disabled>Velg medlem...</option>
+                  {tilgjengelige.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.user.name ?? m.user.email}
+                    </option>
+                  ))}
+                  {tilgjengelige.length === 0 && (
+                    <option value="" disabled>Ingen tilgjengelige</option>
+                  )}
+                </select>
+              </div>
+            ) : (
+              <button
+                onClick={() => setVisVelger(true)}
+                className="flex items-center gap-1 rounded px-2 py-1 text-xs text-gray-400 hover:bg-gray-50 hover:text-blue-500"
+              >
+                <Plus className="h-3 w-3" />
+                Legg til
+              </button>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  EntrepriseGruppeKomponent — to-kolonne kort                        */
+/* ------------------------------------------------------------------ */
 
 function EntrepriseGruppeKomponent({
   entreprise,
@@ -513,20 +432,32 @@ function EntrepriseGruppeKomponent({
   const [ekspandert, setEkspandert] = useState(true);
   const farge = hentFargeForEntreprise(entreprise.color, entreprise.fargeIndeks);
 
-  // Dalux-format: "NUMMER Navn, Firma" (f.eks. "04 Tømrer, Econor")
+  // Dalux-format: "NUMMER Navn, Firma"
   const headerTekst = [
     entreprise.enterpriseNumber,
     entreprise.name,
   ].filter(Boolean).join(" ")
     + (entreprise.companyName ? `, ${entreprise.companyName}` : "");
 
+  // Finn unike svarer-entrepriser fra arbeidsforløp
+  const svarerEntrepriseIder = new Set<string>();
+  for (const af of arbeidsforloper) {
+    if (af.responderEnterpriseId && af.responderEnterpriseId !== entreprise.id) {
+      svarerEntrepriseIder.add(af.responderEnterpriseId);
+    }
+  }
+  // Hovedsvarer: den første unike svarer-entreprisen (eller oppretter selv)
+  const svarerEntrepriser = Array.from(svarerEntrepriseIder)
+    .map((id) => alleEntrepriser.find((e) => e.id === id))
+    .filter(Boolean) as EntrepriseData[];
+
+  // Hvis ingen arbeidsforløp eller alle peker på seg selv → svarer = oppretter
+  const harEksternSvarer = svarerEntrepriser.length > 0;
+
   return (
-    <div className="mb-4">
-      {/* Entreprise-header — kun oppretter-kolonnen */}
-      <div
-        className={`flex items-center rounded-t-lg ${farge.bg} ${farge.border} border`}
-        style={{ width: 280 }}
-      >
+    <div className="mb-4 rounded-lg border border-gray-200 bg-white overflow-hidden">
+      {/* Entreprise-header — fargekodet, full bredde */}
+      <div className={`flex items-center ${farge.bg} ${farge.border} border-b`}>
         <button
           onClick={() => setEkspandert(!ekspandert)}
           className="flex flex-1 items-center gap-2 px-4 py-2.5 text-left"
@@ -536,9 +467,14 @@ function EntrepriseGruppeKomponent({
           ) : (
             <ChevronRight className={`h-4 w-4 ${farge.tekst}`} />
           )}
-          <span className={`text-sm font-semibold ${farge.tekst} truncate`}>
+          <span className={`text-sm font-semibold ${farge.tekst}`}>
             {headerTekst}
           </span>
+          {entreprise.industry && (
+            <span className={`text-xs ${farge.tekst} opacity-70`}>
+              · {entreprise.industry}
+            </span>
+          )}
         </button>
 
         <div className="mr-2">
@@ -567,38 +503,75 @@ function EntrepriseGruppeKomponent({
       </div>
 
       {ekspandert && (
-        <div
-          className={`rounded-b-lg border border-t-0 ${farge.border} bg-white`}
-          style={{ width: "fit-content", minWidth: 280 }}
-        >
-          {/* Medlemmer under header — redigerbar */}
-          <MedlemmerLinje
-            entreprise={entreprise}
-            alleMedlemmer={alleMedlemmer}
-            onLeggTil={(pmId) => onLeggTilMedlem(entreprise.id, pmId)}
-            onFjern={(pmId) => onFjernMedlem(entreprise.id, pmId)}
-          />
+        <div>
+          {/* To-kolonne: Oppretter / Svarer */}
+          <div className="flex divide-x divide-gray-100">
+            {/* Oppretter-kolonne */}
+            <div className="flex-1 p-4">
+              <MedlemKolonne
+                tittel="Oppretter"
+                entreprise={entreprise}
+                alleMedlemmer={alleMedlemmer}
+                onLeggTil={(pmId) => onLeggTilMedlem(entreprise.id, pmId)}
+                onFjern={(pmId) => onFjernMedlem(entreprise.id, pmId)}
+              />
+            </div>
 
-          {/* Arbeidsforløp */}
-          <div className="py-1">
-            {arbeidsforloper.length > 0 ? (
-              arbeidsforloper.map((af) => (
-                <ArbeidsforlopRad
-                  key={af.id}
-                  arbeidsforlop={af}
+            {/* Svarer-kolonne(r) */}
+            <div className="flex-1 p-4">
+              {harEksternSvarer ? (
+                <div className="space-y-4">
+                  {svarerEntrepriser.map((svarerEnt) => (
+                    <MedlemKolonne
+                      key={svarerEnt.id}
+                      tittel="Svarer"
+                      entreprise={svarerEnt}
+                      alleMedlemmer={alleMedlemmer}
+                      onLeggTil={(pmId) => onLeggTilMedlem(svarerEnt.id, pmId)}
+                      onFjern={(pmId) => onFjernMedlem(svarerEnt.id, pmId)}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <MedlemKolonne
+                  tittel="Svarer"
                   entreprise={entreprise}
-                  alleEntrepriser={alleEntrepriser}
                   alleMedlemmer={alleMedlemmer}
-                  onRediger={(data) =>
-                    onRedigerArbeidsforlop(data, entreprise.name)
-                  }
-                  onSlett={onSlettArbeidsforlop}
-                  onLeggTilMedlem={onLeggTilMedlem}
-                  onFjernMedlem={onFjernMedlem}
+                  leseModus
                 />
-              ))
+              )}
+            </div>
+          </div>
+
+          {/* Arbeidsforløp-seksjon */}
+          <div className="border-t border-gray-100 px-4 py-3">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                Arbeidsforløp
+              </span>
+              <button
+                onClick={() => onLeggTilArbeidsforlop(entreprise.id)}
+                className="flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-blue-600 hover:bg-blue-50"
+              >
+                <Plus className="h-3 w-3" />
+                Legg til
+              </button>
+            </div>
+            {arbeidsforloper.length > 0 ? (
+              <div className="space-y-0.5">
+                {arbeidsforloper.map((af) => (
+                  <ArbeidsforlopRad
+                    key={af.id}
+                    arbeidsforlop={af}
+                    onRediger={(data) =>
+                      onRedigerArbeidsforlop(data, entreprise.name)
+                    }
+                    onSlett={onSlettArbeidsforlop}
+                  />
+                ))}
+              </div>
             ) : (
-              <p className="px-8 py-4 text-sm text-gray-400">
+              <p className="text-xs text-gray-400">
                 Ingen arbeidsforløp konfigurert
               </p>
             )}
@@ -1643,17 +1616,6 @@ export default function EntrepriserSide() {
           <Plus className="h-3.5 w-3.5" />
           Tilføy filter
         </button>
-      </div>
-
-      {/* Kolonne-header */}
-      <div className="mb-3 flex items-center gap-0">
-        <div className="w-[280px]">
-          <span className="text-sm font-semibold text-gray-700">Oppretter</span>
-        </div>
-        <div className="w-[64px]" />
-        <div className="w-[280px]">
-          <span className="text-sm font-semibold text-gray-700">Svarer</span>
-        </div>
       </div>
 
       {/* Entreprise-grupper */}
