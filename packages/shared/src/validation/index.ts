@@ -204,6 +204,19 @@ export const settMappeTilgangSchema = z.object({
   })).default([]),
 });
 
+// Arbeidsforløp steg-medlemmer
+export const addWorkflowStepMemberSchema = z.object({
+  workflowId: z.string().uuid(),
+  projectMemberId: z.string().uuid(),
+  step: z.number().int().min(2).max(3),
+});
+
+export const removeWorkflowStepMemberSchema = z.object({
+  workflowId: z.string().uuid(),
+  projectMemberId: z.string().uuid(),
+  step: z.number().int().min(2).max(3),
+});
+
 // Legg til gruppemedlem via e-post
 export const addGroupMemberByEmailSchema = z.object({
   groupId: z.string().uuid(),

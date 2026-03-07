@@ -1,6 +1,24 @@
 import { z } from "zod";
 import { router, protectedProcedure } from "../trpc/trpc";
-import { createWorkflowSchema, updateWorkflowSchema } from "@sitedoc/shared";
+import { createWorkflowSchema, updateWorkflowSchema, addWorkflowStepMemberSchema, removeWorkflowStepMemberSchema } from "@sitedoc/shared";
+
+const workflowInclude = {
+  responderEnterprise: { select: { id: true, name: true } },
+  responderEnterprise2: { select: { id: true, name: true } },
+  responderEnterprise3: { select: { id: true, name: true } },
+  templates: {
+    include: { template: { select: { id: true, name: true, category: true } } },
+  },
+  stepMembers: {
+    include: {
+      projectMember: {
+        include: {
+          user: { select: { id: true, name: true, email: true } },
+        },
+      },
+    },
+  },
+} as const;
 
 export const arbeidsforlopRouter = router({
   // Hent alle arbeidsforløp for alle entrepriser i et prosjekt
@@ -9,14 +27,7 @@ export const arbeidsforlopRouter = router({
     .query(async ({ ctx, input }) => {
       return ctx.prisma.workflow.findMany({
         where: { enterprise: { projectId: input.projectId } },
-        include: {
-          responderEnterprise: { select: { id: true, name: true } },
-          responderEnterprise2: { select: { id: true, name: true } },
-          responderEnterprise3: { select: { id: true, name: true } },
-          templates: {
-            include: { template: { select: { id: true, name: true, category: true } } },
-          },
-        },
+        include: workflowInclude,
         orderBy: { name: "asc" },
       });
     }),
@@ -27,14 +38,7 @@ export const arbeidsforlopRouter = router({
     .query(async ({ ctx, input }) => {
       return ctx.prisma.workflow.findMany({
         where: { enterpriseId: input.enterpriseId },
-        include: {
-          responderEnterprise: { select: { id: true, name: true } },
-          responderEnterprise2: { select: { id: true, name: true } },
-          responderEnterprise3: { select: { id: true, name: true } },
-          templates: {
-            include: { template: { select: { id: true, name: true, category: true } } },
-          },
-        },
+        include: workflowInclude,
         orderBy: { name: "asc" },
       });
     }),
@@ -51,14 +55,7 @@ export const arbeidsforlopRouter = router({
             create: templateIds.map((templateId) => ({ templateId })),
           },
         },
-        include: {
-          responderEnterprise: { select: { id: true, name: true } },
-          responderEnterprise2: { select: { id: true, name: true } },
-          responderEnterprise3: { select: { id: true, name: true } },
-          templates: {
-            include: { template: { select: { id: true, name: true, category: true } } },
-          },
-        },
+        include: workflowInclude,
       });
     }),
 
@@ -85,14 +82,7 @@ export const arbeidsforlopRouter = router({
 
       return ctx.prisma.workflow.findUniqueOrThrow({
         where: { id },
-        include: {
-          responderEnterprise: { select: { id: true, name: true } },
-          responderEnterprise2: { select: { id: true, name: true } },
-          responderEnterprise3: { select: { id: true, name: true } },
-          templates: {
-            include: { template: { select: { id: true, name: true, category: true } } },
-          },
-        },
+        include: workflowInclude,
       });
     }),
 
@@ -101,5 +91,38 @@ export const arbeidsforlopRouter = router({
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.prisma.workflow.delete({ where: { id: input.id } });
+    }),
+
+  // Legg til person i steg 2 eller 3
+  leggTilStegMedlem: protectedProcedure
+    .input(addWorkflowStepMemberSchema)
+    .mutation(async ({ ctx, input }) => {
+      return ctx.prisma.workflowStepMember.create({
+        data: {
+          workflowId: input.workflowId,
+          projectMemberId: input.projectMemberId,
+          step: input.step,
+        },
+        include: {
+          projectMember: {
+            include: {
+              user: { select: { id: true, name: true, email: true } },
+            },
+          },
+        },
+      });
+    }),
+
+  // Fjern person fra steg 2 eller 3
+  fjernStegMedlem: protectedProcedure
+    .input(removeWorkflowStepMemberSchema)
+    .mutation(async ({ ctx, input }) => {
+      return ctx.prisma.workflowStepMember.deleteMany({
+        where: {
+          workflowId: input.workflowId,
+          projectMemberId: input.projectMemberId,
+          step: input.step,
+        },
+      });
     }),
 });

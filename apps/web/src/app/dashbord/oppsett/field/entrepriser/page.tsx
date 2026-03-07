@@ -147,6 +147,17 @@ function TreprikkMeny({
 /*  Arbeidsforløp-rad (to-kolonne med pil)                             */
 /* ------------------------------------------------------------------ */
 
+interface StegMedlemData {
+  id: string;
+  workflowId: string;
+  projectMemberId: string;
+  step: number;
+  projectMember: {
+    id: string;
+    user: { id: string; name: string | null; email: string };
+  };
+}
+
 interface ArbeidsforlopData {
   id: string;
   name: string;
@@ -159,6 +170,7 @@ interface ArbeidsforlopData {
   templates: Array<{
     template: { id: string; name: string; category: string };
   }>;
+  stepMembers?: StegMedlemData[];
 }
 
 function ArbeidsforlopRad({
@@ -298,7 +310,6 @@ function MedlemKolonne({
   alleMedlemmer,
   onLeggTil,
   onFjern,
-  onLeggTilPerson,
   leseModus = false,
 }: {
   tittel: string;
@@ -306,7 +317,6 @@ function MedlemKolonne({
   alleMedlemmer: ProsjektMedlemItem[];
   onLeggTil?: (projectMemberId: string) => void;
   onFjern?: (projectMemberId: string) => void;
-  onLeggTilPerson?: (projectMemberId: string) => void;
   leseModus?: boolean;
 }) {
   const [visVelger, setVisVelger] = useState(false);
@@ -320,8 +330,7 @@ function MedlemKolonne({
     (m) => !eksisterendeEposter.has(m.user.email.toLowerCase()),
   );
 
-  // Aktiv legg til-handler: bruk onLeggTil (med entreprise) eller onLeggTilPerson (uten)
-  const aktivLeggTil = onLeggTil ?? onLeggTilPerson;
+  const aktivLeggTil = onLeggTil;
 
   return (
     <div className="flex-1 min-w-0">
@@ -365,7 +374,7 @@ function MedlemKolonne({
           </div>
         ))}
 
-        {medlemmer.length === 0 && !entreprise && !onLeggTilPerson && (
+        {medlemmer.length === 0 && !entreprise && (
           <div className="flex items-center gap-1 px-1.5 py-0.5 text-xs text-gray-300">
             Ikke konfigurert
           </div>
@@ -421,6 +430,107 @@ function MedlemKolonne({
 }
 
 /* ------------------------------------------------------------------ */
+/*  StegMedlemKolonne — personbasert kolonne for Svarer 2/3            */
+/* ------------------------------------------------------------------ */
+
+function StegMedlemKolonne({
+  tittel,
+  stegMedlemmer,
+  alleMedlemmer,
+  onLeggTil,
+  onFjern,
+}: {
+  tittel: string;
+  stegMedlemmer: StegMedlemData[];
+  alleMedlemmer: ProsjektMedlemItem[];
+  onLeggTil: (projectMemberId: string) => void;
+  onFjern: (projectMemberId: string) => void;
+}) {
+  const [visVelger, setVisVelger] = useState(false);
+
+  // Filtrer ut allerede tillagte
+  const eksisterendeIder = new Set(stegMedlemmer.map((sm) => sm.projectMemberId));
+  const tilgjengelige = alleMedlemmer.filter((m) => !eksisterendeIder.has(m.id));
+
+  return (
+    <div className="flex-1 min-w-0">
+      <div className="mb-1.5 flex items-center gap-1">
+        <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+          {tittel}
+        </span>
+      </div>
+
+      <div className="space-y-0.5">
+        {stegMedlemmer.map((sm) => (
+          <div
+            key={sm.id}
+            className="group flex items-center gap-1.5 rounded px-1.5 py-1 hover:bg-gray-50"
+          >
+            <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gray-200 text-[10px] font-medium text-gray-600">
+              {(sm.projectMember.user.name ?? sm.projectMember.user.email).charAt(0).toUpperCase()}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-[13px] leading-tight text-gray-700">
+                {sm.projectMember.user.name ?? sm.projectMember.user.email}
+              </div>
+              <div className="truncate text-[11px] leading-tight text-gray-400">
+                {sm.projectMember.user.email}
+              </div>
+            </div>
+            <button
+              onClick={() => onFjern(sm.projectMemberId)}
+              className="hidden shrink-0 rounded p-0.5 text-gray-400 hover:bg-gray-200 hover:text-red-500 group-hover:block"
+              title="Fjern"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </div>
+        ))}
+
+        {stegMedlemmer.length === 0 && (
+          <div className="flex items-center gap-1 px-1.5 py-0.5 text-xs text-gray-300">
+            Ikke konfigurert
+          </div>
+        )}
+
+        {visVelger ? (
+          <div className="px-1.5">
+            <select
+              autoFocus
+              className="w-full rounded border border-gray-300 px-2 py-0.5 text-xs focus:border-blue-500 focus:outline-none"
+              defaultValue=""
+              onChange={(e) => {
+                if (e.target.value) onLeggTil(e.target.value);
+                setVisVelger(false);
+              }}
+              onBlur={() => setVisVelger(false)}
+            >
+              <option value="" disabled>Velg person...</option>
+              {tilgjengelige.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.user.name ?? m.user.email}
+                </option>
+              ))}
+              {tilgjengelige.length === 0 && (
+                <option value="" disabled>Ingen tilgjengelige</option>
+              )}
+            </select>
+          </div>
+        ) : (
+          <button
+            onClick={() => setVisVelger(true)}
+            className="flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-gray-400 hover:bg-gray-50 hover:text-blue-500"
+          >
+            <Plus className="h-3 w-3" />
+            Legg til
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  EntrepriseGruppeKomponent — to-kolonne kort                        */
 /* ------------------------------------------------------------------ */
 
@@ -436,7 +546,8 @@ function EntrepriseGruppeKomponent({
   onSlettArbeidsforlop,
   onLeggTilMedlem,
   onFjernMedlem,
-  onLeggTilPersonSvarer,
+  onLeggTilStegMedlem,
+  onFjernStegMedlem,
 }: {
   entreprise: EntrepriseData;
   arbeidsforloper: ArbeidsforlopData[];
@@ -449,7 +560,8 @@ function EntrepriseGruppeKomponent({
   onSlettArbeidsforlop: (id: string) => void;
   onLeggTilMedlem: (enterpriseId: string, projectMemberId: string) => void;
   onFjernMedlem: (enterpriseId: string, projectMemberId: string) => void;
-  onLeggTilPersonSvarer: (steg: 2 | 3, projectMemberId: string) => void;
+  onLeggTilStegMedlem: (workflowId: string, step: 2 | 3, projectMemberId: string) => void;
+  onFjernStegMedlem: (workflowId: string, step: 2 | 3, projectMemberId: string) => void;
 }) {
   const [ekspandert, setEkspandert] = useState(true);
   const farge = hentFargeForEntreprise(entreprise.color, entreprise.fargeIndeks);
@@ -461,7 +573,7 @@ function EntrepriseGruppeKomponent({
   ].filter(Boolean).join(" ")
     + (entreprise.companyName ? `, ${entreprise.companyName}` : "");
 
-  // Samle unike svarer-entrepriser per steg fra alle arbeidsforløp
+  // Samle unike svarer-entrepriser for steg 1 fra alle arbeidsforløp
   function finnSvarerForSteg(
     hentId: (af: ArbeidsforlopData) => string | null,
   ): EntrepriseData | null {
@@ -476,8 +588,18 @@ function EntrepriseGruppeKomponent({
   }
 
   const svarer1 = finnSvarerForSteg((af) => af.responderEnterpriseId);
-  const svarer2 = finnSvarerForSteg((af) => af.responderEnterprise2Id);
-  const svarer3 = finnSvarerForSteg((af) => af.responderEnterprise3Id);
+
+  // Samle steg-medlemmer fra alle arbeidsforløp for denne entreprisen
+  const steg2Medlemmer: StegMedlemData[] = [];
+  const steg3Medlemmer: StegMedlemData[] = [];
+  // Bruk første arbeidsforløp for steg-medlemmer (ett arbeidsforløp per entreprise er vanligst)
+  const foersteAf = arbeidsforloper[0];
+  if (foersteAf?.stepMembers) {
+    for (const sm of foersteAf.stepMembers) {
+      if (sm.step === 2) steg2Medlemmer.push(sm);
+      else if (sm.step === 3) steg3Medlemmer.push(sm);
+    }
+  }
 
   return (
     <div className="mb-4 rounded-lg border border-gray-200 bg-white">
@@ -563,27 +685,25 @@ function EntrepriseGruppeKomponent({
               )}
             </div>
 
-            {/* Svarer 2 */}
+            {/* Svarer 2 — personbasert */}
             <div className="flex-1 p-3">
-              <MedlemKolonne
+              <StegMedlemKolonne
                 tittel="Svarer 2"
-                entreprise={svarer2}
+                stegMedlemmer={steg2Medlemmer}
                 alleMedlemmer={alleMedlemmer}
-                onLeggTil={svarer2 ? (pmId) => onLeggTilMedlem(svarer2.id, pmId) : undefined}
-                onFjern={svarer2 ? (pmId) => onFjernMedlem(svarer2.id, pmId) : undefined}
-                onLeggTilPerson={!svarer2 ? (pmId) => onLeggTilPersonSvarer(2, pmId) : undefined}
+                onLeggTil={(pmId) => foersteAf && onLeggTilStegMedlem(foersteAf.id, 2, pmId)}
+                onFjern={(pmId) => foersteAf && onFjernStegMedlem(foersteAf.id, 2, pmId)}
               />
             </div>
 
-            {/* Svarer 3 */}
+            {/* Svarer 3 — personbasert */}
             <div className="flex-1 p-3">
-              <MedlemKolonne
+              <StegMedlemKolonne
                 tittel="Svarer 3"
-                entreprise={svarer3}
+                stegMedlemmer={steg3Medlemmer}
                 alleMedlemmer={alleMedlemmer}
-                onLeggTil={svarer3 ? (pmId) => onLeggTilMedlem(svarer3.id, pmId) : undefined}
-                onFjern={svarer3 ? (pmId) => onFjernMedlem(svarer3.id, pmId) : undefined}
-                onLeggTilPerson={!svarer3 ? (pmId) => onLeggTilPersonSvarer(3, pmId) : undefined}
+                onLeggTil={(pmId) => foersteAf && onLeggTilStegMedlem(foersteAf.id, 3, pmId)}
+                onFjern={(pmId) => foersteAf && onFjernStegMedlem(foersteAf.id, 3, pmId)}
               />
             </div>
           </div>
@@ -639,8 +759,6 @@ function RedigerArbeidsforlopModal({
   initialNavn,
   initialTemplateIds,
   initialResponderEnterpriseId,
-  initialResponderEnterprise2Id,
-  initialResponderEnterprise3Id,
   maler,
   entrepriser,
   erLagrer,
@@ -653,8 +771,6 @@ function RedigerArbeidsforlopModal({
   initialNavn: string;
   initialTemplateIds: string[];
   initialResponderEnterpriseId: string | null;
-  initialResponderEnterprise2Id: string | null;
-  initialResponderEnterprise3Id: string | null;
   maler: Array<{ id: string; name: string; category: string }>;
   entrepriser: Array<{ id: string; name: string }>;
   erLagrer: boolean;
@@ -662,8 +778,6 @@ function RedigerArbeidsforlopModal({
     navn: string;
     templateIds: string[];
     responderEnterpriseId: string | null;
-    responderEnterprise2Id: string | null;
-    responderEnterprise3Id: string | null;
   }) => void;
 }) {
   const [navn, setNavn] = useState(initialNavn);
@@ -673,12 +787,6 @@ function RedigerArbeidsforlopModal({
   const [svarerEntrepriseId, setSvarerEntrepriseId] = useState<string>(
     initialResponderEnterpriseId ?? "",
   );
-  const [svarer2EntrepriseId, setSvarer2EntrepriseId] = useState<string>(
-    initialResponderEnterprise2Id ?? "",
-  );
-  const [svarer3EntrepriseId, setSvarer3EntrepriseId] = useState<string>(
-    initialResponderEnterprise3Id ?? "",
-  );
 
   // Synkroniser ved åpning
   const [forrigeOpen, setForrigeOpen] = useState(false);
@@ -686,8 +794,6 @@ function RedigerArbeidsforlopModal({
     setNavn(initialNavn);
     setValgte(new Set(initialTemplateIds));
     setSvarerEntrepriseId(initialResponderEnterpriseId ?? "");
-    setSvarer2EntrepriseId(initialResponderEnterprise2Id ?? "");
-    setSvarer3EntrepriseId(initialResponderEnterprise3Id ?? "");
   }
   if (open !== forrigeOpen) setForrigeOpen(open);
 
@@ -725,8 +831,6 @@ function RedigerArbeidsforlopModal({
             navn: navn.trim(),
             templateIds: Array.from(valgte),
             responderEnterpriseId: svarerEntrepriseId || null,
-            responderEnterprise2Id: svarer2EntrepriseId || null,
-            responderEnterprise3Id: svarer3EntrepriseId || null,
           });
         }}
         className="flex flex-col gap-4"
@@ -749,20 +853,6 @@ function RedigerArbeidsforlopModal({
           options={svarerOptions}
           value={svarerEntrepriseId}
           onChange={(e) => setSvarerEntrepriseId(e.target.value)}
-        />
-
-        <Select
-          label="Svarer 2 (valgfritt)"
-          options={svarerOptions}
-          value={svarer2EntrepriseId}
-          onChange={(e) => setSvarer2EntrepriseId(e.target.value)}
-        />
-
-        <Select
-          label="Svarer 3 (valgfritt)"
-          options={svarerOptions}
-          value={svarer3EntrepriseId}
-          onChange={(e) => setSvarer3EntrepriseId(e.target.value)}
         />
 
         {/* To-kolonne avhukingsliste */}
@@ -1394,10 +1484,6 @@ export default function EntrepriserSide() {
   const [afInitialTemplateIds, setAfInitialTemplateIds] = useState<string[]>([]);
   const [afInitialResponderEnterpriseId, setAfInitialResponderEnterpriseId] =
     useState<string | null>(null);
-  const [afInitialResponderEnterprise2Id, setAfInitialResponderEnterprise2Id] =
-    useState<string | null>(null);
-  const [afInitialResponderEnterprise3Id, setAfInitialResponderEnterprise3Id] =
-    useState<string | null>(null);
   const [slettAfId, setSlettAfId] = useState<string | null>(null);
 
   // Data
@@ -1487,6 +1573,19 @@ export default function EntrepriserSide() {
     },
   });
 
+  // Mutasjoner — steg-medlemmer (Svarer 2/3)
+  const leggTilStegMedlemMutation = trpc.arbeidsforlop.leggTilStegMedlem.useMutation({
+    onSuccess: () => {
+      utils.arbeidsforlop.hentForProsjekt.invalidate({ projectId: prosjektId! });
+    },
+  });
+
+  const fjernStegMedlemMutation = trpc.arbeidsforlop.fjernStegMedlem.useMutation({
+    onSuccess: () => {
+      utils.arbeidsforlop.hentForProsjekt.invalidate({ projectId: prosjektId! });
+    },
+  });
+
   // Handlinger
   function handleRedigerEntreprise(id: string) {
     const ent = entrepriser?.find((e) => e.id === id);
@@ -1508,8 +1607,6 @@ export default function EntrepriserSide() {
     setAfInitialNavn("");
     setAfInitialTemplateIds([]);
     setAfInitialResponderEnterpriseId(null);
-    setAfInitialResponderEnterprise2Id(null);
-    setAfInitialResponderEnterprise3Id(null);
     setAfModalOpen(true);
   }
 
@@ -1529,8 +1626,6 @@ export default function EntrepriserSide() {
     setAfInitialNavn(af.name);
     setAfInitialTemplateIds(af.templates.map((t) => t.template.id));
     setAfInitialResponderEnterpriseId(af.responderEnterpriseId);
-    setAfInitialResponderEnterprise2Id(af.responderEnterprise2Id);
-    setAfInitialResponderEnterprise3Id(af.responderEnterprise3Id);
     setAfModalOpen(true);
   }
 
@@ -1538,8 +1633,6 @@ export default function EntrepriserSide() {
     navn: string;
     templateIds: string[];
     responderEnterpriseId: string | null;
-    responderEnterprise2Id: string | null;
-    responderEnterprise3Id: string | null;
   }) {
     if (afId) {
       oppdaterAfMutation.mutate({
@@ -1547,8 +1640,6 @@ export default function EntrepriserSide() {
         name: data.navn,
         templateIds: data.templateIds,
         responderEnterpriseId: data.responderEnterpriseId,
-        responderEnterprise2Id: data.responderEnterprise2Id,
-        responderEnterprise3Id: data.responderEnterprise3Id,
       });
     } else if (afEntrepriseId) {
       opprettAfMutation.mutate({
@@ -1556,8 +1647,6 @@ export default function EntrepriserSide() {
         name: data.navn,
         templateIds: data.templateIds,
         responderEnterpriseId: data.responderEnterpriseId,
-        responderEnterprise2Id: data.responderEnterprise2Id,
-        responderEnterprise3Id: data.responderEnterprise3Id,
       });
     }
   }
@@ -1616,36 +1705,6 @@ export default function EntrepriserSide() {
 
   const alleMedlemmerListe = (medlemmer as ProsjektMedlemItem[] | undefined) ?? [];
 
-  // Legg til person i Svarer 2/3 — finn personens entreprise, sett på arbeidsforløp
-  function handleLeggTilPersonSvarer(
-    oppretterEntrepriseId: string,
-    steg: 2 | 3,
-    projectMemberId: string,
-  ) {
-    // Finn hvilken entreprise denne personen tilhører
-    const medlem = alleMedlemmerListe.find((m) => m.id === projectMemberId);
-    if (!medlem) return;
-
-    const personEntreprise = entrepriseData.find((ent) =>
-      ent.medlemmer.some(
-        (m) => m.epost.toLowerCase() === medlem.user.email.toLowerCase(),
-      ),
-    );
-
-    if (!personEntreprise) return;
-
-    // Sett entreprisen på arbeidsforløpet
-    const afs = arbeidsforlopMap.get(oppretterEntrepriseId);
-    const af = afs?.[0];
-    if (!af) return;
-
-    oppdaterAfMutation.mutate({
-      id: af.id,
-      ...(steg === 2
-        ? { responderEnterprise2Id: personEntreprise.id }
-        : { responderEnterprise3Id: personEntreprise.id }),
-    });
-  }
 
   return (
     <div>
@@ -1779,8 +1838,11 @@ export default function EntrepriserSide() {
                   projectId: prosjektId!,
                 })
               }
-              onLeggTilPersonSvarer={(steg, projectMemberId) =>
-                handleLeggTilPersonSvarer(ent.id, steg, projectMemberId)
+              onLeggTilStegMedlem={(workflowId, step, projectMemberId) =>
+                leggTilStegMedlemMutation.mutate({ workflowId, projectMemberId, step })
+              }
+              onFjernStegMedlem={(workflowId, step, projectMemberId) =>
+                fjernStegMedlemMutation.mutate({ workflowId, projectMemberId, step })
               }
             />
           ))}
@@ -1932,8 +1994,6 @@ export default function EntrepriserSide() {
         initialNavn={afInitialNavn}
         initialTemplateIds={afInitialTemplateIds}
         initialResponderEnterpriseId={afInitialResponderEnterpriseId}
-        initialResponderEnterprise2Id={afInitialResponderEnterprise2Id}
-        initialResponderEnterprise3Id={afInitialResponderEnterprise3Id}
         maler={malListe}
         entrepriser={entrepriseListe}
         erLagrer={opprettAfMutation.isPending || oppdaterAfMutation.isPending}

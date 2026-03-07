@@ -147,6 +147,7 @@ model ProjectMember {
   project    Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
   enterprises MemberEnterprise[]
   groupMemberships ProjectGroupMember[]
+  workflowSteps    WorkflowStepMember[]
 
   @@unique([userId, projectId])
   @@map("project_members")
@@ -551,6 +552,7 @@ model Workflow {
   templates            WorkflowTemplate[]
   checklists           Checklist[]
   tasks                Task[]
+  stepMembers          WorkflowStepMember[]
 
   @@map("workflows")
 }
@@ -566,6 +568,20 @@ model WorkflowTemplate {
 
   @@unique([workflowId, templateId])
   @@map("workflow_templates")
+}
+
+model WorkflowStepMember {
+  id              String        @id @default(uuid())
+  workflowId      String        @map("workflow_id")
+  projectMemberId String        @map("project_member_id")
+  step            Int           // 2 eller 3
+  createdAt       DateTime      @default(now()) @map("created_at")
+
+  workflow        Workflow      @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  projectMember   ProjectMember @relation(fields: [projectMemberId], references: [id], onDelete: Cascade)
+
+  @@unique([workflowId, projectMemberId, step])
+  @@map("workflow_step_members")
 }
 
 model ProjectModule {
