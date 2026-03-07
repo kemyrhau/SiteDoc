@@ -1,6 +1,8 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import type { ReactNode } from "react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { AppState } from "react-native";
+import type { AppStateStatus } from "react-native";
+import { QueryClient, QueryClientProvider, focusManager } from "@tanstack/react-query";
 import { trpc, opprettTrpcKlient } from "../lib/trpc";
 import { DatabaseProvider } from "./DatabaseProvider";
 import { NettverkProvider } from "./NettverkProvider";
@@ -10,8 +12,19 @@ import { ProsjektProvider } from "../kontekst/ProsjektKontekst";
 import { loggUt } from "../services/auth";
 import { router } from "expo-router";
 
+// Refetch alle synlige queries når appen kommer til forgrunnen
+function useAppStateRefetch() {
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (status: AppStateStatus) => {
+      focusManager.setFocused(status === "active");
+    });
+    return () => sub.remove();
+  }, []);
+}
+
 export function Providers({ children }: { children: ReactNode }) {
   const harLoggetUtRef = useRef(false);
+  useAppStateRefetch();
 
   const [queryClient] = useState(
     () =>
@@ -19,7 +32,7 @@ export function Providers({ children }: { children: ReactNode }) {
         defaultOptions: {
           queries: {
             networkMode: "offlineFirst",
-            staleTime: 5 * 60 * 1000, // 5 minutter
+            staleTime: 30 * 1000, // 30 sekunder — sveip ned / app-fokus refetcher
             retry: (failureCount, error) => {
               // Ikke retry ved UNAUTHORIZED — sesjonen er ugyldig
               const erUautorisert =

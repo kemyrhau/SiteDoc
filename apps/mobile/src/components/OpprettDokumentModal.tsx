@@ -121,14 +121,14 @@ export function OpprettDokumentModal({
   // Hent brukerens entrepriser (filtrert til mine)
   const mineEntrepriserQuery = trpc.medlem.hentMineEntrepriser.useQuery(
     { projectId: valgtProsjektId! },
-    { enabled: !!valgtProsjektId && synlig, staleTime: 0 },
+    { enabled: !!valgtProsjektId && synlig },
   );
   const mineEntrepriser = (mineEntrepriserQuery.data ?? []) as EntrepriseData[];
 
   // Fallback: hent alle entrepriser for svarer-visning
   const entrepriseQuery = trpc.entreprise.hentForProsjekt.useQuery(
     { projectId: valgtProsjektId! },
-    { enabled: !!valgtProsjektId && synlig, staleTime: 0 },
+    { enabled: !!valgtProsjektId && synlig },
   );
   const entrepriser = (entrepriseQuery.data ?? []) as EntrepriseData[];
 
@@ -139,10 +139,10 @@ export function OpprettDokumentModal({
     }
   }, [mineEntrepriser, oppretterEntrepriseId]);
 
-  // Hent arbeidsforløp for prosjektet (staleTime: 0 for alltid å hente fersk data)
+  // Hent arbeidsforløp for prosjektet
   const arbeidsforlopQuery = trpc.arbeidsforlop.hentForProsjekt.useQuery(
     { projectId: valgtProsjektId! },
-    { enabled: !!valgtProsjektId && synlig, staleTime: 0 },
+    { enabled: !!valgtProsjektId && synlig },
   );
   const alleArbeidsforlop = (arbeidsforlopQuery.data ?? []) as ArbeidsforlopData[];
 

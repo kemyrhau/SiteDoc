@@ -32,7 +32,7 @@ export function MalVelger({ synlig, kategori, onVelg, onLukk }: MalVelgerProps) 
 
   const malQuery = trpc.mal.hentForProsjekt.useQuery(
     { projectId: valgtProsjektId! },
-    { enabled: !!valgtProsjektId && synlig, staleTime: 0 },
+    { enabled: !!valgtProsjektId && synlig },
   );
 
   const maler = malQuery.data as MalData[] | undefined;

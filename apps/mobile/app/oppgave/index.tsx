@@ -10,6 +10,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { ArrowLeft } from "lucide-react-native";
+import { useQueryClient } from "@tanstack/react-query";
 import { trpc } from "../../src/lib/trpc";
 import { useProsjekt } from "../../src/kontekst/ProsjektKontekst";
 import { StatusMerkelapp } from "../../src/components/StatusMerkelapp";
@@ -53,6 +54,7 @@ function formaterNummer(prefix: string | null | undefined, nummer: number | null
 export default function OppgaveListe() {
   const { valgtProsjektId } = useProsjekt();
   const router = useRouter();
+  const queryClient = useQueryClient();
 
   const oppgaveQuery = trpc.oppgave.hentForProsjekt.useQuery(
     { projectId: valgtProsjektId! },
@@ -62,8 +64,8 @@ export default function OppgaveListe() {
   const oppgaver = oppgaveQuery.data as OppgaveRad[] | undefined;
 
   const onRefresh = useCallback(() => {
-    oppgaveQuery.refetch();
-  }, [oppgaveQuery]);
+    queryClient.invalidateQueries();
+  }, [queryClient]);
 
   const renderElement = useCallback(
     ({ item }: { item: OppgaveRad }) => {

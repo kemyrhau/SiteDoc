@@ -21,6 +21,7 @@ import {
   AlertTriangle,
   RefreshCw,
 } from "lucide-react-native";
+import { useQueryClient } from "@tanstack/react-query";
 import { trpc } from "../../src/lib/trpc";
 import { useProsjekt } from "../../src/kontekst/ProsjektKontekst";
 import { ProsjektVelger } from "../../src/components/ProsjektVelger";
@@ -94,6 +95,7 @@ export default function HjemSkjerm() {
   const [visAndroidMeny, setVisAndroidMeny] = useState(false);
   const router = useRouter();
   const utils = trpc.useUtils();
+  const queryClient = useQueryClient();
 
   // Hent prosjektdata for valgt prosjekt
   const prosjektQuery = trpc.prosjekt.hentMine.useQuery();
@@ -176,12 +178,9 @@ export default function HjemSkjerm() {
     sjekklisteQuery.isRefetching || oppgaveQuery.isRefetching;
 
   const onRefresh = useCallback(() => {
-    prosjektQuery.refetch();
-    if (valgtProsjektId) {
-      sjekklisteQuery.refetch();
-      oppgaveQuery.refetch();
-    }
-  }, [valgtProsjektId, prosjektQuery, sjekklisteQuery, oppgaveQuery]);
+    // Invalidér alle queries — sikrer at arbeidsforløp, maler, entrepriser osv. også oppdateres
+    queryClient.invalidateQueries();
+  }, [queryClient]);
 
   const håndterPluss = useCallback(() => {
     if (!valgtProsjektId) return;
