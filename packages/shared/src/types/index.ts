@@ -313,6 +313,15 @@ export interface StandardProjectGroup {
 }
 
 export const STANDARD_PROJECT_GROUPS: StandardProjectGroup[] = [
+  // Generelt
+  {
+    slug: "prosjekt-admin",
+    name: "Prosjektadministratorer",
+    category: "generelt",
+    permissions: ["manage_field", "create_tasks", "create_checklists", "checklist_edit", "checklist_view", "task_edit", "task_view", "template_manage", "drawing_manage", "drawing_view", "folder_manage", "folder_view", "enterprise_manage", "member_manage"],
+    domains: ["bygg", "hms", "kvalitet"],
+  },
+  // Feltarbeid
   {
     slug: "field-admin",
     name: "Feltarbeid-administratorer",

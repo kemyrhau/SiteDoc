@@ -1,7 +1,7 @@
 "use client";
 
 import { useSession, signOut } from "next-auth/react";
-import { LogOut, User, HardHat, Building2 } from "lucide-react";
+import { LogOut, User, HardHat, Building2, ShieldCheck } from "lucide-react";
 import { ProsjektVelger } from "./ProsjektVelger";
 import { useState, useRef, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
@@ -14,6 +14,11 @@ export function Toppbar() {
 
   // Sjekk om bruker har organisasjon (firmaadmin)
   const { data: organisasjon } = trpc.organisasjon.hentMin.useQuery(undefined, {
+    enabled: !!session?.user,
+  });
+
+  // Sjekk om bruker er SiteDoc-admin
+  const { data: erSiteDocAdmin } = trpc.admin.erAdmin.useQuery(undefined, {
     enabled: !!session?.user,
   });
 
@@ -48,6 +53,18 @@ export function Toppbar() {
             >
               <Building2 className="h-4 w-4" />
               <span className="hidden sm:inline">{organisasjon.name}</span>
+            </Link>
+          </>
+        )}
+        {erSiteDocAdmin && (
+          <>
+            <div className="mx-1 h-5 w-px bg-white/20" />
+            <Link
+              href="/dashbord/admin"
+              className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm text-amber-200 transition-colors hover:bg-white/10 hover:text-white"
+            >
+              <ShieldCheck className="h-4 w-4" />
+              <span className="hidden sm:inline">Admin</span>
             </Link>
           </>
         )}

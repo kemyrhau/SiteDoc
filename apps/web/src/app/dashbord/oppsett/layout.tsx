@@ -30,10 +30,6 @@ const navigasjon: NavElement[] = [
     href: "/dashbord/oppsett/brukere",
     ikon: <Users className="h-4 w-4" />,
     kreverProsjekt: true,
-    barn: [
-      { label: "Brukergrupper", href: "/dashbord/oppsett/brukere" },
-      { label: "Tillatelser", href: "/dashbord/oppsett/brukere/tillatelser" },
-    ],
   },
   {
     label: "Lokasjoner",
@@ -87,7 +83,6 @@ export default function OppsettLayout({
   });
 
   const [ekspandert, setEkspandert] = useState<Record<string, boolean>>({
-    Brukere: true,
     Lokasjoner: true,
     Feltarbeid: true,
     "Prosjekteiers innstillinger": false,
