@@ -8,6 +8,7 @@ import {
   byggTilgangsFilter,
   verifiserEntrepriseTilhorighet,
   verifiserDokumentTilgang,
+  verifiserProsjektmedlem,
 } from "../trpc/tilgangskontroll";
 
 export const oppgaveRouter = router({
@@ -43,6 +44,15 @@ export const oppgaveRouter = router({
   hentForTegning: protectedProcedure
     .input(z.object({ drawingId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
+      const drawing = await ctx.prisma.drawing.findUniqueOrThrow({
+        where: { id: input.drawingId },
+        select: { building: { select: { projectId: true } } },
+      });
+      if (!drawing.building) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Tegningen er ikke tilknyttet en lokasjon" });
+      }
+      await verifiserProsjektmedlem(ctx.userId, drawing.building.projectId);
+
       return ctx.prisma.task.findMany({
         where: {
           drawingId: input.drawingId,
@@ -419,7 +429,7 @@ export const oppgaveRouter = router({
         await tx.documentTransfer.create({
           data: {
             taskId: input.id,
-            senderId: input.senderId,
+            senderId: ctx.userId,
             fromStatus: oppgave.status,
             toStatus: input.nyStatus,
             comment: input.kommentar,

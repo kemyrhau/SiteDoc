@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { createWorkflowSchema, updateWorkflowSchema, addWorkflowStepMemberSchema, removeWorkflowStepMemberSchema } from "@sitedoc/shared";
+import { verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
 
 const workflowInclude = {
   responderEnterprise: { select: { id: true, name: true } },
@@ -25,6 +26,7 @@ export const arbeidsforlopRouter = router({
   hentForProsjekt: protectedProcedure
     .input(z.object({ projectId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
+      await verifiserProsjektmedlem(ctx.userId, input.projectId);
       return ctx.prisma.workflow.findMany({
         where: { enterprise: { projectId: input.projectId } },
         include: workflowInclude,
@@ -36,6 +38,11 @@ export const arbeidsforlopRouter = router({
   hentForEntreprise: protectedProcedure
     .input(z.object({ enterpriseId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
+      const entreprise = await ctx.prisma.enterprise.findUniqueOrThrow({
+        where: { id: input.enterpriseId },
+        select: { projectId: true },
+      });
+      await verifiserProsjektmedlem(ctx.userId, entreprise.projectId);
       return ctx.prisma.workflow.findMany({
         where: { enterpriseId: input.enterpriseId },
         include: workflowInclude,
@@ -47,6 +54,11 @@ export const arbeidsforlopRouter = router({
   opprett: protectedProcedure
     .input(createWorkflowSchema)
     .mutation(async ({ ctx, input }) => {
+      const entreprise = await ctx.prisma.enterprise.findUniqueOrThrow({
+        where: { id: input.enterpriseId },
+        select: { projectId: true },
+      });
+      await verifiserProsjektmedlem(ctx.userId, entreprise.projectId);
       const { templateIds, ...data } = input;
       return ctx.prisma.workflow.create({
         data: {
@@ -63,6 +75,11 @@ export const arbeidsforlopRouter = router({
   oppdater: protectedProcedure
     .input(updateWorkflowSchema)
     .mutation(async ({ ctx, input }) => {
+      const arbeidsforlop = await ctx.prisma.workflow.findUniqueOrThrow({
+        where: { id: input.id },
+        select: { enterprise: { select: { projectId: true } } },
+      });
+      await verifiserProsjektmedlem(ctx.userId, arbeidsforlop.enterprise.projectId);
       const { id, templateIds, ...data } = input;
 
       // Oppdater navn og/eller responderEnterpriseId hvis gitt
@@ -90,6 +107,11 @@ export const arbeidsforlopRouter = router({
   slett: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
+      const arbeidsforlop = await ctx.prisma.workflow.findUniqueOrThrow({
+        where: { id: input.id },
+        select: { enterprise: { select: { projectId: true } } },
+      });
+      await verifiserProsjektmedlem(ctx.userId, arbeidsforlop.enterprise.projectId);
       return ctx.prisma.workflow.delete({ where: { id: input.id } });
     }),
 
@@ -97,6 +119,11 @@ export const arbeidsforlopRouter = router({
   leggTilStegMedlem: protectedProcedure
     .input(addWorkflowStepMemberSchema)
     .mutation(async ({ ctx, input }) => {
+      const arbeidsforlop = await ctx.prisma.workflow.findUniqueOrThrow({
+        where: { id: input.workflowId },
+        select: { enterprise: { select: { projectId: true } } },
+      });
+      await verifiserProsjektmedlem(ctx.userId, arbeidsforlop.enterprise.projectId);
       return ctx.prisma.workflowStepMember.create({
         data: {
           workflowId: input.workflowId,
@@ -117,6 +144,11 @@ export const arbeidsforlopRouter = router({
   fjernStegMedlem: protectedProcedure
     .input(removeWorkflowStepMemberSchema)
     .mutation(async ({ ctx, input }) => {
+      const arbeidsforlop = await ctx.prisma.workflow.findUniqueOrThrow({
+        where: { id: input.workflowId },
+        select: { enterprise: { select: { projectId: true } } },
+      });
+      await verifiserProsjektmedlem(ctx.userId, arbeidsforlop.enterprise.projectId);
       return ctx.prisma.workflowStepMember.deleteMany({
         where: {
           workflowId: input.workflowId,

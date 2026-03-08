@@ -1,12 +1,14 @@
 import { z } from "zod";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { createEnterpriseSchema, copyEnterpriseSchema } from "@sitedoc/shared";
+import { verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
 
 export const entrepriseRouter = router({
   // Hent alle entrepriser for et prosjekt
   hentForProsjekt: protectedProcedure
     .input(z.object({ projectId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
+      await verifiserProsjektmedlem(ctx.userId, input.projectId);
       return ctx.prisma.enterprise.findMany({
         where: { projectId: input.projectId },
         include: {
@@ -34,6 +36,11 @@ export const entrepriseRouter = router({
   hentMedId: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
+      const entreprise = await ctx.prisma.enterprise.findUniqueOrThrow({
+        where: { id: input.id },
+        select: { projectId: true },
+      });
+      await verifiserProsjektmedlem(ctx.userId, entreprise.projectId);
       return ctx.prisma.enterprise.findUniqueOrThrow({
         where: { id: input.id },
         include: {
@@ -53,6 +60,7 @@ export const entrepriseRouter = router({
   opprett: protectedProcedure
     .input(createEnterpriseSchema)
     .mutation(async ({ ctx, input }) => {
+      await verifiserProsjektmedlem(ctx.userId, input.projectId);
       const { memberIds, ...data } = input;
       return ctx.prisma.$transaction(async (tx) => {
         const entreprise = await tx.enterprise.create({ data });
@@ -89,6 +97,11 @@ export const entrepriseRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      const entreprise = await ctx.prisma.enterprise.findUniqueOrThrow({
+        where: { id: input.id },
+        select: { projectId: true },
+      });
+      await verifiserProsjektmedlem(ctx.userId, entreprise.projectId);
       const { id, ...data } = input;
       return ctx.prisma.enterprise.update({ where: { id }, data });
     }),
@@ -97,6 +110,7 @@ export const entrepriseRouter = router({
   kopier: protectedProcedure
     .input(copyEnterpriseSchema)
     .mutation(async ({ ctx, input }) => {
+      await verifiserProsjektmedlem(ctx.userId, input.targetProjectId);
       const kilde = await ctx.prisma.enterprise.findUniqueOrThrow({
         where: { id: input.sourceEnterpriseId },
         include: {
@@ -153,6 +167,11 @@ export const entrepriseRouter = router({
   slett: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
+      const entreprise = await ctx.prisma.enterprise.findUniqueOrThrow({
+        where: { id: input.id },
+        select: { projectId: true },
+      });
+      await verifiserProsjektmedlem(ctx.userId, entreprise.projectId);
       return ctx.prisma.enterprise.delete({ where: { id: input.id } });
     }),
 });

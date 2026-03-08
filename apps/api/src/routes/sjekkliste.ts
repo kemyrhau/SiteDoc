@@ -335,7 +335,7 @@ export const sjekklisteRouter = router({
         await tx.documentTransfer.create({
           data: {
             checklistId: input.id,
-            senderId: input.senderId,
+            senderId: ctx.userId,
             fromStatus: sjekkliste.status,
             toStatus: input.nyStatus,
             comment: input.kommentar,

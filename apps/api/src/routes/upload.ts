@@ -4,6 +4,7 @@ import { createWriteStream } from "fs";
 import { mkdir } from "fs/promises";
 import { join, extname } from "path";
 import { pipeline } from "stream/promises";
+import { prisma } from "@sitedoc/db";
 
 const UPLOADS_DIR = join(process.cwd(), "uploads");
 
@@ -22,6 +23,29 @@ export async function uploadRoute(server: FastifyInstance) {
   await mkdir(UPLOADS_DIR, { recursive: true });
 
   server.post("/upload", async (req, reply) => {
+    // Autentisering: verifiser sesjonstoken fra cookie eller Authorization-header
+    const cookieHeader = req.headers.cookie ?? "";
+    const sessionTokenMatch = cookieHeader.match(
+      /(?:__Secure-)?authjs\.session-token=([^;]+)/,
+    );
+    const sessionToken =
+      sessionTokenMatch?.[1] ??
+      req.headers.authorization?.replace("Bearer ", "") ??
+      null;
+
+    if (!sessionToken) {
+      return reply.status(401).send({ error: "Autentisering kreves" });
+    }
+
+    const session = await prisma.session.findUnique({
+      where: { sessionToken },
+      select: { userId: true, expires: true },
+    });
+
+    if (!session || session.expires <= new Date()) {
+      return reply.status(401).send({ error: "Autentisering kreves" });
+    }
+
     const data = await req.file();
 
     if (!data) {

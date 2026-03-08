@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { createBuildingSchema } from "@sitedoc/shared";
+import { verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
 
 export const bygningRouter = router({
   // Hent alle bygninger for et prosjekt
@@ -10,6 +11,7 @@ export const bygningRouter = router({
       type: z.string().optional(),
     }))
     .query(async ({ ctx, input }) => {
+      await verifiserProsjektmedlem(ctx.userId, input.projectId);
       return ctx.prisma.building.findMany({
         where: {
           projectId: input.projectId,
@@ -41,19 +43,22 @@ export const bygningRouter = router({
   hentMedId: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
-      return ctx.prisma.building.findUniqueOrThrow({
+      const bygning = await ctx.prisma.building.findUniqueOrThrow({
         where: { id: input.id },
         include: {
           project: true,
           drawings: true,
         },
       });
+      await verifiserProsjektmedlem(ctx.userId, bygning.projectId);
+      return bygning;
     }),
 
   // Opprett ny bygning
   opprett: protectedProcedure
     .input(createBuildingSchema)
     .mutation(async ({ ctx, input }) => {
+      await verifiserProsjektmedlem(ctx.userId, input.projectId);
       // Auto-generer nummer per prosjekt
       const maks = await ctx.prisma.building.aggregate({
         where: { projectId: input.projectId },
@@ -78,6 +83,8 @@ export const bygningRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       const { id, ...data } = input;
+      const bygning = await ctx.prisma.building.findUniqueOrThrow({ where: { id }, select: { projectId: true } });
+      await verifiserProsjektmedlem(ctx.userId, bygning.projectId);
       return ctx.prisma.building.update({ where: { id }, data });
     }),
 
@@ -85,6 +92,8 @@ export const bygningRouter = router({
   publiser: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
+      const bygning = await ctx.prisma.building.findUniqueOrThrow({ where: { id: input.id }, select: { projectId: true } });
+      await verifiserProsjektmedlem(ctx.userId, bygning.projectId);
       return ctx.prisma.building.update({
         where: { id: input.id },
         data: { status: "published" },
@@ -106,6 +115,7 @@ export const bygningRouter = router({
           },
         },
       });
+      await verifiserProsjektmedlem(ctx.userId, bygning.projectId);
 
       const blokkerende: string[] = [];
       if (bygning._count.drawings > 0) {

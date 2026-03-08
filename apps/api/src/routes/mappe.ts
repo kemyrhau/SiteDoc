@@ -1,12 +1,14 @@
 import { z } from "zod";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { settMappeTilgangSchema } from "@sitedoc/shared/validation";
+import { verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
 
 export const mappeRouter = router({
   // Hent alle mapper for et prosjekt (flat liste med parentId + tilgangsoppføringer)
   hentForProsjekt: protectedProcedure
     .input(z.object({ projectId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
+      await verifiserProsjektmedlem(ctx.userId, input.projectId);
       return ctx.prisma.folder.findMany({
         where: { projectId: input.projectId },
         include: {
@@ -33,6 +35,7 @@ export const mappeRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      await verifiserProsjektmedlem(ctx.userId, input.projectId);
       return ctx.prisma.folder.create({
         data: {
           projectId: input.projectId,
@@ -51,6 +54,11 @@ export const mappeRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      const mappe = await ctx.prisma.folder.findUniqueOrThrow({
+        where: { id: input.id },
+        select: { projectId: true },
+      });
+      await verifiserProsjektmedlem(ctx.userId, mappe.projectId);
       return ctx.prisma.folder.update({
         where: { id: input.id },
         data: { name: input.name },
@@ -61,6 +69,11 @@ export const mappeRouter = router({
   slett: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
+      const mappe = await ctx.prisma.folder.findUniqueOrThrow({
+        where: { id: input.id },
+        select: { projectId: true },
+      });
+      await verifiserProsjektmedlem(ctx.userId, mappe.projectId);
       return ctx.prisma.folder.delete({ where: { id: input.id } });
     }),
 
@@ -68,6 +81,11 @@ export const mappeRouter = router({
   hentDokumenter: protectedProcedure
     .input(z.object({ folderId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
+      const mappe = await ctx.prisma.folder.findUniqueOrThrow({
+        where: { id: input.folderId },
+        select: { projectId: true },
+      });
+      await verifiserProsjektmedlem(ctx.userId, mappe.projectId);
       return ctx.prisma.document.findMany({
         where: { folderId: input.folderId },
         orderBy: { name: "asc" },
@@ -78,6 +96,11 @@ export const mappeRouter = router({
   hentTilgang: protectedProcedure
     .input(z.object({ folderId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
+      const mappeForTilgang = await ctx.prisma.folder.findUniqueOrThrow({
+        where: { id: input.folderId },
+        select: { projectId: true },
+      });
+      await verifiserProsjektmedlem(ctx.userId, mappeForTilgang.projectId);
       const mappe = await ctx.prisma.folder.findUniqueOrThrow({
         where: { id: input.folderId },
         select: {
@@ -99,6 +122,11 @@ export const mappeRouter = router({
   settTilgang: protectedProcedure
     .input(settMappeTilgangSchema)
     .mutation(async ({ ctx, input }) => {
+      const mappe = await ctx.prisma.folder.findUniqueOrThrow({
+        where: { id: input.folderId },
+        select: { projectId: true },
+      });
+      await verifiserProsjektmedlem(ctx.userId, mappe.projectId);
       return ctx.prisma.$transaction(async (tx) => {
         // Oppdater accessMode
         await tx.folder.update({

@@ -15,7 +15,12 @@ const server = Fastify({
 
 async function start() {
   await server.register(cors, {
-    origin: true,
+    origin: [
+      "https://sitedoc.no",
+      "http://localhost:3100",
+      "http://localhost:3000",
+    ],
+    credentials: true,
   });
 
   // Multipart filopplasting (maks 100 MB)
@@ -27,6 +32,10 @@ async function start() {
   await server.register(fastifyStatic, {
     root: join(process.cwd(), "uploads"),
     prefix: "/uploads/",
+    setHeaders: (res) => {
+      res.setHeader("Content-Disposition", "inline");
+      res.setHeader("X-Content-Type-Options", "nosniff");
+    },
   });
 
   // Helsesjekk

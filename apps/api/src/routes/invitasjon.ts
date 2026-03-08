@@ -2,12 +2,18 @@ import { z } from "zod";
 import crypto from "crypto";
 import { router, publicProcedure, protectedProcedure } from "../trpc/trpc";
 import { sendInvitasjonsEpost } from "../services/epost";
+import {
+  verifiserProsjektmedlem,
+  verifiserAdmin,
+} from "../trpc/tilgangskontroll";
 
 export const invitasjonRouter = router({
   // Hent alle invitasjoner for et prosjekt
   hentForProsjekt: protectedProcedure
     .input(z.object({ projectId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
+      await verifiserProsjektmedlem(ctx.userId, input.projectId);
+
       return ctx.prisma.projectInvitation.findMany({
         where: { projectId: input.projectId },
         include: {
@@ -100,6 +106,8 @@ export const invitasjonRouter = router({
         },
       });
 
+      await verifiserAdmin(ctx.userId, invitasjon.projectId);
+
       const nyToken = crypto.randomBytes(32).toString("base64url");
       const nyUtloper = new Date();
       nyUtloper.setDate(nyUtloper.getDate() + 7);
@@ -128,6 +136,12 @@ export const invitasjonRouter = router({
   trekkTilbake: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
+      const invitasjon = await ctx.prisma.projectInvitation.findUniqueOrThrow({
+        where: { id: input.id },
+        select: { projectId: true },
+      });
+      await verifiserAdmin(ctx.userId, invitasjon.projectId);
+
       return ctx.prisma.projectInvitation.delete({
         where: { id: input.id },
       });

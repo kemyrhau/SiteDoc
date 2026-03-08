@@ -2,6 +2,10 @@ import { z } from "zod";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { createProjectSchema } from "@sitedoc/shared";
 import { generateProjectNumber } from "@sitedoc/shared";
+import {
+  verifiserProsjektmedlem,
+  verifiserAdmin,
+} from "../trpc/tilgangskontroll";
 
 export const prosjektRouter = router({
   // Hent prosjekter der innlogget bruker er medlem (sitedoc_admin ser alle)
@@ -36,6 +40,8 @@ export const prosjektRouter = router({
   hentMedId: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
+      await verifiserProsjektmedlem(ctx.userId, input.id);
+
       return ctx.prisma.project.findUniqueOrThrow({
         where: { id: input.id },
         include: {
@@ -111,6 +117,8 @@ export const prosjektRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      await verifiserAdmin(ctx.userId, input.id);
+
       const { id, ...data } = input;
       return ctx.prisma.project.update({
         where: { id },

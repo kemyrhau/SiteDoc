@@ -32,6 +32,8 @@ export const medlemRouter = router({
   hentMineEntrepriser: protectedProcedure
     .input(z.object({ projectId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
+      await verifiserProsjektmedlem(ctx.userId, input.projectId);
+
       const medlem = await ctx.prisma.projectMember.findUnique({
         where: {
           userId_projectId: {
@@ -337,8 +339,10 @@ export const medlemRouter = router({
 
   // Søk brukere på e-post (autocomplete)
   sokBrukere: protectedProcedure
-    .input(z.object({ email: z.string().min(1) }))
+    .input(z.object({ email: z.string().min(1), projectId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
+      await verifiserProsjektmedlem(ctx.userId, input.projectId);
+
       return ctx.prisma.user.findMany({
         where: {
           email: { contains: input.email, mode: "insensitive" },

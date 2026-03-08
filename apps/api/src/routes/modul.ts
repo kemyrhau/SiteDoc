@@ -2,12 +2,14 @@ import { z } from "zod";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { PROSJEKT_MODULER } from "@sitedoc/shared";
 import type { Prisma } from "@sitedoc/db";
+import { verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
 
 export const modulRouter = router({
   // Hent aktive moduler for et prosjekt
   hentForProsjekt: protectedProcedure
     .input(z.object({ projectId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
+      await verifiserProsjektmedlem(ctx.userId, input.projectId);
       return ctx.prisma.projectModule.findMany({
         where: { projectId: input.projectId },
         orderBy: { createdAt: "asc" },
@@ -21,6 +23,7 @@ export const modulRouter = router({
       moduleSlug: z.string(),
     }))
     .mutation(async ({ ctx, input }) => {
+      await verifiserProsjektmedlem(ctx.userId, input.projectId);
       const modulDef = PROSJEKT_MODULER.find((m) => m.slug === input.moduleSlug);
       if (!modulDef) {
         throw new Error(`Ukjent modul: ${input.moduleSlug}`);
@@ -104,6 +107,7 @@ export const modulRouter = router({
       moduleSlug: z.string(),
     }))
     .mutation(async ({ ctx, input }) => {
+      await verifiserProsjektmedlem(ctx.userId, input.projectId);
       return ctx.prisma.projectModule.update({
         where: {
           projectId_moduleSlug: {

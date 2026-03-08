@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { Prisma } from "@sitedoc/db";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { reportObjectTypeSchema, templateZoneSchema, createTemplateSchema } from "@sitedoc/shared";
+import { verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
 
 // Config-schema: aksepterer vilkårlig JSON for rapportobjekt-konfigurasjon
 const configSchema = z.preprocess(
@@ -14,6 +15,7 @@ export const malRouter = router({
   hentForProsjekt: protectedProcedure
     .input(z.object({ projectId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
+      await verifiserProsjektmedlem(ctx.userId, input.projectId);
       return ctx.prisma.reportTemplate.findMany({
         where: { projectId: input.projectId },
         include: {
@@ -27,19 +29,22 @@ export const malRouter = router({
   hentMedId: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
-      return ctx.prisma.reportTemplate.findUniqueOrThrow({
+      const mal = await ctx.prisma.reportTemplate.findUniqueOrThrow({
         where: { id: input.id },
         include: {
           objects: { orderBy: { sortOrder: "asc" } },
           project: true,
         },
       });
+      await verifiserProsjektmedlem(ctx.userId, mal.projectId);
+      return mal;
     }),
 
   // Opprett ny mal (med valgfri entreprisetilknytning via arbeidsforløp)
   opprett: protectedProcedure
     .input(createTemplateSchema)
     .mutation(async ({ ctx, input }) => {
+      await verifiserProsjektmedlem(ctx.userId, input.projectId);
       const { workflowIds, ...malData } = input;
 
       return ctx.prisma.$transaction(async (tx) => {
@@ -73,6 +78,8 @@ export const malRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       const { id, ...data } = input;
+      const mal = await ctx.prisma.reportTemplate.findUniqueOrThrow({ where: { id }, select: { projectId: true } });
+      await verifiserProsjektmedlem(ctx.userId, mal.projectId);
       return ctx.prisma.reportTemplate.update({ where: { id }, data });
     }),
 
@@ -80,6 +87,8 @@ export const malRouter = router({
   slettMal: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
+      const mal = await ctx.prisma.reportTemplate.findUniqueOrThrow({ where: { id: input.id }, select: { projectId: true } });
+      await verifiserProsjektmedlem(ctx.userId, mal.projectId);
       return ctx.prisma.reportTemplate.delete({ where: { id: input.id } });
     }),
 
@@ -97,6 +106,8 @@ export const malRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      const mal = await ctx.prisma.reportTemplate.findUniqueOrThrow({ where: { id: input.templateId }, select: { projectId: true } });
+      await verifiserProsjektmedlem(ctx.userId, mal.projectId);
       const { parentId, ...rest } = input;
       return ctx.prisma.reportObject.create({
         data: {
@@ -119,6 +130,8 @@ export const malRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      const objekt = await ctx.prisma.reportObject.findUniqueOrThrow({ where: { id: input.id }, include: { template: { select: { projectId: true } } } });
+      await verifiserProsjektmedlem(ctx.userId, objekt.template.projectId);
       const { id, config, parentId, ...rest } = input;
       return ctx.prisma.reportObject.update({
         where: { id },
@@ -147,6 +160,11 @@ export const malRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      const forsteObjekt = input.objekter[0];
+      if (forsteObjekt) {
+        const objekt = await ctx.prisma.reportObject.findUniqueOrThrow({ where: { id: forsteObjekt.id }, include: { template: { select: { projectId: true } } } });
+        await verifiserProsjektmedlem(ctx.userId, objekt.template.projectId);
+      }
       return ctx.prisma.$transaction(
         async (tx) => {
           const resultater = [];
@@ -189,9 +207,10 @@ export const malRouter = router({
     .query(async ({ ctx, input }) => {
       const objekt = await ctx.prisma.reportObject.findUnique({
         where: { id: input.id },
-        select: { id: true, templateId: true },
+        include: { template: { select: { projectId: true } } },
       });
       if (!objekt) return { sjekklister: [], oppgaver: [] };
+      await verifiserProsjektmedlem(ctx.userId, objekt.template.projectId);
 
       // Hent alle objekter i malen for å finne etterkommere
       const alleObjekter = await ctx.prisma.reportObject.findMany({
@@ -262,6 +281,8 @@ export const malRouter = router({
   slettObjekt: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
+      const objekt = await ctx.prisma.reportObject.findUniqueOrThrow({ where: { id: input.id }, include: { template: { select: { projectId: true } } } });
+      await verifiserProsjektmedlem(ctx.userId, objekt.template.projectId);
       return ctx.prisma.reportObject.delete({ where: { id: input.id } });
     }),
 });

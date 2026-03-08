@@ -7,6 +7,7 @@ import {
   drawingStatusSchema,
   geoReferanseSchema,
 } from "@sitedoc/shared";
+import { verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
 
 const fagdisipliner = drawingDisciplineSchema;
 const tegningstyper = drawingTypeSchema;
@@ -25,6 +26,7 @@ export const tegningRouter = router({
       }),
     )
     .query(async ({ ctx, input }) => {
+      await verifiserProsjektmedlem(ctx.userId, input.projectId);
       const { projectId, discipline, status, buildingId, floor } = input;
       return ctx.prisma.drawing.findMany({
         where: {
@@ -46,6 +48,8 @@ export const tegningRouter = router({
   hentForBygning: protectedProcedure
     .input(z.object({ buildingId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
+      const bygning = await ctx.prisma.building.findUniqueOrThrow({ where: { id: input.buildingId }, select: { projectId: true } });
+      await verifiserProsjektmedlem(ctx.userId, bygning.projectId);
       return ctx.prisma.drawing.findMany({
         where: { buildingId: input.buildingId },
         include: { _count: { select: { revisions: true } } },
@@ -57,7 +61,7 @@ export const tegningRouter = router({
   hentMedId: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
-      return ctx.prisma.drawing.findUniqueOrThrow({
+      const tegning = await ctx.prisma.drawing.findUniqueOrThrow({
         where: { id: input.id },
         include: {
           building: true,
@@ -68,6 +72,8 @@ export const tegningRouter = router({
           },
         },
       });
+      await verifiserProsjektmedlem(ctx.userId, tegning.projectId);
+      return tegning;
     }),
 
   // Opprett ny tegning
@@ -92,6 +98,7 @@ export const tegningRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      await verifiserProsjektmedlem(ctx.userId, input.projectId);
       return ctx.prisma.drawing.create({ data: input });
     }),
 
@@ -115,6 +122,8 @@ export const tegningRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       const { id, ...data } = input;
+      const tegning = await ctx.prisma.drawing.findUniqueOrThrow({ where: { id }, select: { projectId: true } });
+      await verifiserProsjektmedlem(ctx.userId, tegning.projectId);
       return ctx.prisma.drawing.update({ where: { id }, data });
     }),
 
@@ -139,6 +148,7 @@ export const tegningRouter = router({
       const tegning = await ctx.prisma.drawing.findUniqueOrThrow({
         where: { id: drawingId },
       });
+      await verifiserProsjektmedlem(ctx.userId, tegning.projectId);
 
       // Lagre gjeldende versjon som revisjonshistorikk
       await ctx.prisma.drawingRevision.create({
@@ -173,6 +183,8 @@ export const tegningRouter = router({
   hentRevisjoner: protectedProcedure
     .input(z.object({ drawingId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
+      const tegning = await ctx.prisma.drawing.findUniqueOrThrow({ where: { id: input.drawingId }, select: { projectId: true } });
+      await verifiserProsjektmedlem(ctx.userId, tegning.projectId);
       return ctx.prisma.drawingRevision.findMany({
         where: { drawingId: input.drawingId },
         include: { uploadedBy: { select: { id: true, name: true, email: true } } },
@@ -189,6 +201,8 @@ export const tegningRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      const tegning = await ctx.prisma.drawing.findUniqueOrThrow({ where: { id: input.drawingId }, select: { projectId: true } });
+      await verifiserProsjektmedlem(ctx.userId, tegning.projectId);
       return ctx.prisma.drawing.update({
         where: { id: input.drawingId },
         data: { buildingId: input.buildingId },
@@ -202,6 +216,8 @@ export const tegningRouter = router({
       geoReference: geoReferanseSchema,
     }))
     .mutation(async ({ ctx, input }) => {
+      const tegning = await ctx.prisma.drawing.findUniqueOrThrow({ where: { id: input.drawingId }, select: { projectId: true } });
+      await verifiserProsjektmedlem(ctx.userId, tegning.projectId);
       return ctx.prisma.drawing.update({
         where: { id: input.drawingId },
         data: { geoReference: input.geoReference },
@@ -212,6 +228,8 @@ export const tegningRouter = router({
   fjernGeoReferanse: protectedProcedure
     .input(z.object({ drawingId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
+      const tegning = await ctx.prisma.drawing.findUniqueOrThrow({ where: { id: input.drawingId }, select: { projectId: true } });
+      await verifiserProsjektmedlem(ctx.userId, tegning.projectId);
       return ctx.prisma.drawing.update({
         where: { id: input.drawingId },
         data: { geoReference: Prisma.DbNull },
@@ -222,6 +240,8 @@ export const tegningRouter = router({
   slett: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
+      const tegning = await ctx.prisma.drawing.findUniqueOrThrow({ where: { id: input.id }, select: { projectId: true } });
+      await verifiserProsjektmedlem(ctx.userId, tegning.projectId);
       return ctx.prisma.drawing.delete({ where: { id: input.id } });
     }),
 });

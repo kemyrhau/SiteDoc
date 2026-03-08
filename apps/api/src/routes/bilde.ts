@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { router, protectedProcedure } from "../trpc/trpc";
+import { verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
 
 export const bildeRouter = router({
   opprettForSjekkliste: protectedProcedure
@@ -15,6 +16,12 @@ export const bildeRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      const sjekkliste = await ctx.prisma.checklist.findUniqueOrThrow({
+        where: { id: input.checklistId },
+        include: { template: { select: { projectId: true } } },
+      });
+      await verifiserProsjektmedlem(ctx.userId, sjekkliste.template.projectId);
+
       return ctx.prisma.image.create({
         data: {
           checklistId: input.checklistId,
