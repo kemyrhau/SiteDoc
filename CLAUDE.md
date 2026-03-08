@@ -560,17 +560,53 @@ Interaktiv tegningsvisning på `/dashbord/[prosjektId]/tegninger/` med zoom og m
 - HMS-avvik: Eget arbeidsforløp der alle brukere kan opprette uansett entreprisetilhørighet
 - Lisenssystem: Betalingsside før prosjektopprettelse (erstatter "Kom i gang"-placeholder)
 
-### Universelt søk (planlagt)
+### Modularkitektur (planlagt)
 
-Søkefunksjon som indekserer alt tekstinnhold i SiteDoc med tre scope-nivåer:
+SiteDoc utvides med to nye moduler som deler felles infrastruktur:
 
-**Søkbare innholdstyper:**
-- Maler — feltnavn, alternativer, beskrivelser, prefiks
-- Utfylte sjekklister og oppgaver — all tekst i `data`-JSON (fritekstfelt, kommentarer, valg)
-- Dokumenter i Mapper — filinnhold ekstrahert via OCR/tekstparsing (PDF, Word, bilder)
-- Mappestruktur — mappenavn, dokumentnavn, metadata
+**Modul: Dokumenter** — Søk i maler, sjekklister, oppgaver og mappedokumenter
+**Modul: Økonomi** — Budsjettoppfølging, A-nota/T-nota, avviksanalyse, NS-koder
 
-**Tre søke-scopes:**
+#### Felles tjenestelater
+
+Tre felles lag som begge moduler bruker:
+
+**1. OCR-tjeneste (fallback for ikke-maskinlesbare filer):**
+```
+Fil lastes opp → Tekstekstraksjon (pdf-parse/mammoth)
+                  ↓
+              Har tekst? ──Ja──→ Indekser direkte
+                  ↓
+                 Nei
+                  ↓
+              OCR-tjeneste (Azure Document Intelligence) → Indekser ekstrahert tekst
+```
+OCR brukes kun som fallback når dokumentet ikke har maskinlesbar tekst (skannede PDF-er, bilder). Digitale PDF-er og Word-filer trenger det ikke.
+
+**2. Søkemotor (felles søkeindeks):**
+
+Felles `SearchIndex`-tabell med `tsvector` (og valgfri `pgvector` for semantisk søk):
+
+| Felt | Beskrivelse |
+|------|-------------|
+| `kilde` | Innholdstype: `"dokument"`, `"sjekkliste"`, `"mal"`, `"spec_post"`, `"nota"` |
+| `kildeId` | ID til originalobjektet |
+| `modul` | `"dokumenter"` eller `"okonomi"` — for filtrering |
+| `projectId` | Prosjekt-scope (null for SiteDoc-scope) |
+| `organizationId` | Firma-scope |
+| `enterpriseId` | For tilgangskontroll |
+| `tittel` | Visningstekst i søkeresultat |
+| `innhold` | Fulltekst |
+| `searchVector` | PostgreSQL `tsvector` (GIN-indeks) |
+| `metadata` | Modulspesifikk data (postnr, beløp, status...) |
+
+Modulene eier sitt innhold og indekserer via et felles grensesnitt: `indekser(kilde, kildeId, tekst, metadata)`. Søkemotoren er agnostisk — den vet ikke hva en A-nota er, den søker bare i tekst. Søkeresultater lenker tilbake til riktig visning via `kilde`+`kildeId`.
+
+Brukeren kan søke i alt, eller filtrere på én modul.
+
+**3. Tilgangskontroll** — scope og filtrering (gjenbruker eksisterende entreprise/fagområde-tilgang)
+
+#### Tre søke-scopes
 
 | Scope | Hva søkes i | Hvem |
 |-------|------------|------|
@@ -578,7 +614,16 @@ Søkefunksjon som indekserer alt tekstinnhold i SiteDoc med tre scope-nivåer:
 | Firma | Alt innhold på tvers av organisasjonens prosjekter | Firmamedlemmer (kun prosjekter de har tilgang til) |
 | SiteDoc | Felles innhold på plattformnivå — f.eks. NS-standarder, TEK17, forskrifter | Alle brukere |
 
-**OCR** er sentralt — skannede dokumenter (PDF-bilder, fotografier av dokumenter) skal også være søkbare, ikke bare digitale tekstfiler.
+#### Søkbare innholdstyper per modul
+
+| Modul | Innholdstyper |
+|-------|--------------|
+| Dokumenter | Maler (feltnavn, alternativer, beskrivelser), utfylte sjekklister/oppgaver (data-JSON), dokumenter i Mapper (PDF/Word + OCR-fallback), mappestruktur (navn, metadata) |
+| Økonomi | SpecPost (budsjett), A-nota/T-nota (Excel + skannet PDF via OCR-fallback), avviksanalyse, NS-koder, mengdebeskrivelser |
+
+#### Indeksering
+
+Indeksering skjer asynkront — hver modul har en indekserings-hook som oppdaterer søkeindeksen ved opprett/oppdater/slett.
 
 **Migrasjonsplan:** Se `docs/MIGRERING-FIL-TIL-DATABASE.md` for detaljert plan med faser, database-skjema og porteringstabell fra eksisterende Python-prosjekt.
 
