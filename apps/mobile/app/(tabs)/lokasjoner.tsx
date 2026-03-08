@@ -7,6 +7,7 @@ import {
   ActionSheetIOS,
   ActivityIndicator,
   Alert,
+  Linking,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
@@ -163,6 +164,9 @@ export default function LokasjonerSkjerm() {
     return liste;
   }, [eksisterendeOppgaver, markørPosisjon, visEksisterende]);
 
+  // GPS-status: "venter" | "ingen_tillatelse" | "aktiv" | "feil" | null
+  const [gpsStatus, setGpsStatus] = useState<"venter" | "ingen_tillatelse" | "aktiv" | "feil" | null>(null);
+
   // GPS-posisjon på tegning (kontinuerlig sporing for georefererte tegninger)
   const [gpsMarkør, setGpsMarkør] = useState<GpsMarkør | null>(null);
   const gpsAbonnementRef = useRef<Location.LocationSubscription | null>(null);
@@ -170,15 +174,21 @@ export default function LokasjonerSkjerm() {
   useEffect(() => {
     if (!harGeoRef || !geoRefStringifisert || !valgtTegningId) {
       setGpsMarkør(null);
+      setGpsStatus(null);
       return;
     }
 
     let aktiv = true;
+    setGpsStatus("venter");
 
     async function startSporing() {
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== "granted" || !aktiv) return;
+        if (!aktiv) return;
+        if (status !== "granted") {
+          setGpsStatus("ingen_tillatelse");
+          return;
+        }
 
         const geoRef = JSON.parse(geoRefStringifisert!) as GeoReferanse;
         const transformasjon = beregnTransformasjon(geoRef);
@@ -194,6 +204,7 @@ export default function LokasjonerSkjerm() {
         };
         const initialPunkt = gpsTilTegning(initialGps, transformasjon);
         setGpsMarkør({ x: initialPunkt.x, y: initialPunkt.y });
+        setGpsStatus("aktiv");
 
         // Kontinuerlig sporing for oppdateringer
         gpsAbonnementRef.current = await Location.watchPositionAsync(
@@ -214,6 +225,7 @@ export default function LokasjonerSkjerm() {
         );
       } catch (feil) {
         console.warn("GPS-sporing feilet:", feil);
+        if (aktiv) setGpsStatus("feil");
       }
     }
 
@@ -226,6 +238,7 @@ export default function LokasjonerSkjerm() {
         gpsAbonnementRef.current = null;
       }
       setGpsMarkør(null);
+      setGpsStatus(null);
     };
   }, [harGeoRef, geoRefStringifisert, valgtTegningId]);
 
@@ -382,6 +395,37 @@ export default function LokasjonerSkjerm() {
           </Pressable>
         </View>
       </View>
+
+      {/* GPS-status-banner (kun for georefererte tegninger med problemer) */}
+      {visserTegning && harGeoRef && gpsStatus === "ingen_tillatelse" && (
+        <Pressable
+          onPress={() => Linking.openSettings()}
+          className="flex-row items-center justify-between bg-red-50 px-4 py-2"
+        >
+          <View className="flex-1">
+            <Text className="text-xs font-medium text-red-700">
+              GPS-tillatelse mangler
+            </Text>
+            <Text className="text-xs text-red-600">
+              Trykk her for å åpne Innstillinger og aktivere stedstjenester
+            </Text>
+          </View>
+          <MapPin size={16} color="#dc2626" />
+        </Pressable>
+      )}
+      {visserTegning && harGeoRef && gpsStatus === "feil" && (
+        <View className="flex-row items-center gap-2 bg-amber-50 px-4 py-2">
+          <Text className="flex-1 text-xs text-amber-700">
+            Kunne ikke hente GPS-posisjon. Sjekk at stedstjenester er aktivert.
+          </Text>
+        </View>
+      )}
+      {visserTegning && harGeoRef && gpsStatus === "venter" && (
+        <View className="flex-row items-center gap-2 bg-blue-50 px-4 py-2">
+          <ActivityIndicator size="small" color="#1e40af" />
+          <Text className="text-xs text-blue-700">Henter GPS-posisjon…</Text>
+        </View>
+      )}
 
       {/* Plasseringsmodus-banner */}
       {visserTegning && plasseringsmodus && (
