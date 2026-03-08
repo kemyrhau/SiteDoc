@@ -1,0 +1,42 @@
+# Terminologi
+
+- **Entreprise:** Kontrakt/arbeidspakke i et prosjekt. Dalux-format: `NUMMER Navn, Firma`. Felter: `enterpriseNumber`, `name`, `industry`, `companyName`, `color`
+- **Oppretter (creator):** Entreprisen som initierer en sjekkliste/oppgave
+- **Svarer (responder):** Entreprisen som mottar og besvarer
+- **UE:** Underentreprenør
+- **Sjekkliste:** Strukturert dokument med rapportobjekter som fylles ut
+- **Oppgave:** Arbeidsoppgave med ansvarlig og frist, påkrevd mal
+- **Tegning:** Prosjekttegning (PDF/DWG) med versjonering
+- **Rapportobjekt:** Byggeblokk i en mal (23 typer)
+- **Mal (template):** Gjenbrukbar oppskrift med drag-and-drop, prefiks og versjon
+- **Arbeidsforløp (workflow):** Oppretter-entreprise + opptil 3 svarer + maler
+- **Mapper:** Filstruktur med rekursiv mappestruktur og tilgangskontroll
+- **Mappeadgangskontroll:** `inherit` (arv) eller `custom` (tilgangsliste). Admin ser alt
+- **Lokasjon:** Bygning/anlegg i prosjektet (Building-modellen)
+- **Utomhus-tegning:** Med `geoReference` — GPS auto-plassering i mobilappen
+- **Etasje-tegning:** Uten `geoReference` — grupperes etter `floor`-felt
+- **Georeferanse:** 2 referansepunkter (pixel ↔ GPS) for similaritetstransformasjon
+- **Similaritetstransformasjon:** 2D-mapping mellom tegningskoordinater og GPS
+- **Prosjektnummer:** `SD-YYYYMMDD-XXXX` (autogenerert)
+- **Prefiks:** Kort kode for mal (BHO, S-BET, KBO)
+- **Organisasjon:** Firma med navn, org.nr, fakturaadresse, logo. Kobling via `OrganizationProject`
+- **Firmaadmin:** `company_admin` — administrerer firmaets prosjekter/brukere
+- **Invitasjon:** E-post med token (7 dagers utløp), status pending/accepted/expired
+- **Prosjektgruppe:** Kategori + tillatelser + fagområder + valgfri entreprise-tilknytning
+- **Fagområde (domain):** `"bygg"` / `"hms"` / `"kvalitet"` — styrer dokumentsynlighet
+- **Tverrgående tilgang:** Gruppe uten entrepriser ser alle dokumenter med matchende fagområde
+- **GroupEnterprise:** Begrenser gruppes tilgang til spesifikke entreprisers dokumenter
+- **Tillatelse (Permission):** Gamle: manage_field, create_tasks/checklists, view_field. Nye: granulære per funksjon
+- **Tegningsmarkør:** Posisjon (0–100% X/Y) på tegning for oppgave
+- **Enkeltvalg (`list_single`):** Én verdi. Web: `<select>`. Mobil: radioknapper. Kan være kontainer
+- **Flervalg (`list_multi`):** Flere verdier. Web: dropdown+chips. Mobil: avkrysning. Kan være kontainer
+- **Kontainer:** Felt som kan inneholde barnefelt (list_single/list_multi/repeater)
+- **Betingelse:** Logikk som styrer synlighet av barnefelt basert på forelderens verdi
+- **Repeater:** Kontainer med dupliserbare rader
+- **Flerforetagsbruker:** Tilhører flere entrepriser via `MemberEnterprise`
+- **Prosjektlokasjon:** Valgfri GPS for kartvisning og værhenting
+- **Automatisk værhenting:** Open-Meteo basert på koordinater + dato
+- **WMO-værkode:** Standard for værforhold som tall → norsk tekst
+- **Eksternt prosjektnummer:** Kundens/byggeherrens referanse
+- **Firmalogo:** Prosjektets logo i print-header
+- **Print-til-PDF:** `@media print` CSS + nettleserens "Lagre som PDF"
