@@ -36,19 +36,26 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 - **Auth.js bak proxy:** `trustHost: true` i `auth.ts` påkrevd pga. Cloudflare-proxy. Innloggingssider MÅ bruke klient-side `signIn()` fra `next-auth/react` — server actions gir MissingCSRF-feil bak Cloudflare Tunnel
 - **Auth-providere:** Google OAuth + Microsoft Entra ID (multitenant, Azure App Registration `d7735b7a-c7fb-407c-9bf6-80048f6f3ac5`). Redirect URIs: `https://sitedoc.no/api/auth/callback/microsoft-entra-id` + `http://localhost:3100/api/auth/callback/microsoft-entra-id`
 
-### Deployment (fra Mac via Claude på Ubuntu)
+### Deployment
 
-Claude Code på Mac har IKKE direkte SSH-tilgang til serveren. Deployment skjer via Claude Code på Ubuntu-PCen, eller manuelt.
+Claude Code på Mac har IKKE direkte SSH-tilgang til serveren. Deployment skjer via:
+1. **Deploy-script på Ubuntu-PCen:** `bash deploy.sh` (i prosjektroten) — puller, bygger og restarter automatisk
+2. **Claude Code på Ubuntu-PCen** kan kjøre deploy-scriptet direkte
+3. **Manuelt:** SSH inn og kjør kommandoene under
 
-**Steg for å deploye endringer:**
+**Manuell deployment:**
 1. **Mac:** Commit og push til GitHub (`git add ... && git commit && git push`)
-2. **Ubuntu (via Claude eller manuelt):** Pull, bygg og restart:
+2. **Ubuntu:** Pull, bygg og restart:
    ```
    cd /home/kemyr/programmering/sitedoc && git pull && pnpm build --filter @sitedoc/web && pm2 restart sitedoc-web
    ```
 3. **Merk:** Filteret er `@sitedoc/web` (pakkenavn), IKKE `web`
 4. **Ved Prisma-endringer:** Kjør `pnpm db:migrate` FØR bygg
-5. **Ved env-endringer:** Rediger `/home/kemyr/programmering/sitedoc/apps/web/.env` direkte på serveren
+5. **Ved env-endringer:** Rediger filer direkte på serveren (se under)
+
+**Env-filer på serveren:**
+- `.env.local` har prioritet over `.env` i Next.js — sjekk BEGGE ved feilsøking
+- Microsoft Entra ID-variabler MÅ stå i `.env.local` (ikke bare `.env`), ellers overstyres de av tomme verdier
 
 **Viktige prod-env-variabler (apps/web/.env):**
 - `AUTH_SECRET` — Sterk nøkkel (generert med `openssl rand -base64 32`)
@@ -1094,8 +1101,8 @@ Dalux-inspirert tre-kolonne layout:
 ### Ruter
 
 ```
-/                                             -> Landingsside med OAuth-innlogging
-/logg-inn                                     -> Google + Microsoft Entra ID innlogging
+/                                             -> Landingsside (hero, funksjoner, plattform, arbeidsflyt, CTA). Innloggede brukere redirectes til /dashbord
+/logg-inn                                     -> OAuth-innlogging (Google + Microsoft Entra ID) — klient-komponent med signIn() fra next-auth/react
 /aksepter-invitasjon?token=...                -> Aksepter prosjektinvitasjon (Server Component)
 /utskrift/sjekkliste/[sjekklisteId]           -> PDF-forhåndsvisning (ren A4, utenfor dashbord-layout)
 /dashbord                                     -> Dashbord (prosjektliste, redirect til kom-i-gang hvis ingen prosjekter)
