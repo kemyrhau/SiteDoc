@@ -127,6 +127,7 @@ function RedigerGruppeModal({
   // Er dette en DB-gruppe (UUID)?
   const erDbGruppe =
     !gruppe.id.startsWith("ent-") && gruppe.id !== "prosjektadmin";
+  const erEntrepriseGruppe = gruppe.id.startsWith("ent-");
 
   // Hent alle prosjektmedlemmer for hurtigvalg
   const { data: alleMedlemmer } = trpc.medlem.hentForProsjekt.useQuery(
@@ -181,6 +182,14 @@ function RedigerGruppeModal({
     onSuccess: () => {
       setValgtMedlemId(null);
       utils.prosjekt.hentMedId.invalidate({ id: prosjektId });
+      utils.entreprise.hentForProsjekt.invalidate({ projectId: prosjektId });
+      utils.medlem.hentForProsjekt.invalidate({ projectId: prosjektId });
+    },
+  });
+
+  const fjernFraEntreprise = trpc.medlem.fjernFraEntreprise.useMutation({
+    onSuccess: () => {
+      setValgtMedlemId(null);
       utils.entreprise.hentForProsjekt.invalidate({ projectId: prosjektId });
       utils.medlem.hentForProsjekt.invalidate({ projectId: prosjektId });
     },
@@ -335,8 +344,17 @@ function RedigerGruppeModal({
     const id = medlemId ?? valgtMedlemId;
     if (!id) return;
     if (erDbGruppe) {
+      // DB-gruppe: fjern kun gruppemedlemskap (ProjectGroupMember)
       fjernGruppeMedlem.mutate({ id, projectId: prosjektId });
+    } else if (erEntrepriseGruppe) {
+      // Entreprise-gruppe: fjern kun entreprisetilknytning, IKKE prosjektmedlemskap
+      fjernFraEntreprise.mutate({
+        projectMemberId: id,
+        enterpriseId: gruppe.id.replace("ent-", ""),
+        projectId: prosjektId,
+      });
     } else {
+      // Prosjektadmin: fjern fra prosjektet
       fjernMedlem.mutate({ id, projectId: prosjektId });
     }
   }
@@ -435,7 +453,8 @@ function RedigerGruppeModal({
               disabled={
                 !valgtMedlemId ||
                 fjernMedlem.isPending ||
-                fjernGruppeMedlem.isPending
+                fjernGruppeMedlem.isPending ||
+                fjernFraEntreprise.isPending
               }
               className={`flex items-center gap-1.5 rounded px-2.5 py-1.5 text-sm ${
                 valgtMedlemId
@@ -562,7 +581,7 @@ function RedigerGruppeModal({
                             e.stopPropagation();
                             handleFjern(medlem.id);
                           }}
-                          disabled={fjernMedlem.isPending || fjernGruppeMedlem.isPending}
+                          disabled={fjernMedlem.isPending || fjernGruppeMedlem.isPending || fjernFraEntreprise.isPending}
                           className="flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-red-600 opacity-0 group-hover/row:opacity-100 hover:bg-red-50"
                           title="Fjern medlem"
                         >
