@@ -5,6 +5,7 @@ import { mkdir } from "fs/promises";
 import { join, extname } from "path";
 import { pipeline } from "stream/promises";
 import { prisma } from "@sitedoc/db";
+import { sjekkRateLimit } from "../utils/rateLimiter";
 
 const UPLOADS_DIR = join(process.cwd(), "uploads");
 
@@ -44,6 +45,11 @@ export async function uploadRoute(server: FastifyInstance) {
 
     if (!session || session.expires <= new Date()) {
       return reply.status(401).send({ error: "Autentisering kreves" });
+    }
+
+    const ip = req.ip ?? req.headers["x-forwarded-for"]?.toString() ?? "unknown";
+    if (!sjekkRateLimit("upload", ip, 30, 60 * 1000)) {
+      return reply.status(429).send({ error: "For mange opplastinger. Prøv igjen senere." });
     }
 
     const data = await req.file();

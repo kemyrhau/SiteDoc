@@ -1,6 +1,8 @@
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 import { router, publicProcedure, protectedProcedure } from "../trpc/trpc";
-import { randomUUID } from "crypto";
+import { randomBytes } from "crypto";
+import { sjekkRateLimit } from "../utils/rateLimiter";
 
 const GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v3/userinfo";
 const MICROSOFT_USERINFO_URL = "https://graph.microsoft.com/v1.0/me";
@@ -78,6 +80,11 @@ export const mobilAuthRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      const ip = ctx.req.ip ?? ctx.req.headers["x-forwarded-for"]?.toString() ?? "unknown";
+      if (!sjekkRateLimit("byttToken", ip, 10, 60 * 1000)) {
+        throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: "For mange innloggingsforsøk. Prøv igjen om litt." });
+      }
+
       // 1. Verifiser mot provider
       const brukerinfo =
         input.provider === "google"
@@ -122,7 +129,7 @@ export const mobilAuthRouter = router({
       }
 
       // 4. Opprett sesjon (30 dager)
-      const sessionToken = randomUUID();
+      const sessionToken = randomBytes(32).toString("hex");
       const expires = new Date();
       expires.setDate(expires.getDate() + 30);
 
@@ -151,15 +158,17 @@ export const mobilAuthRouter = router({
    */
   verifiser: protectedProcedure.query(async ({ ctx }) => {
     // Forny sesjonen med 30 nye dager ved aktiv bruk
-    const sessionToken =
+    const gammelToken =
       ctx.req.headers.authorization?.replace("Bearer ", "") ?? null;
 
-    if (sessionToken) {
+    let nyttToken: string | null = null;
+    if (gammelToken) {
+      nyttToken = randomBytes(32).toString("hex");
       const nyUtloper = new Date();
       nyUtloper.setDate(nyUtloper.getDate() + 30);
       await ctx.prisma.session.updateMany({
-        where: { sessionToken, userId: ctx.userId },
-        data: { expires: nyUtloper },
+        where: { sessionToken: gammelToken, userId: ctx.userId },
+        data: { sessionToken: nyttToken, expires: nyUtloper },
       });
     }
 
@@ -168,6 +177,22 @@ export const mobilAuthRouter = router({
       select: { id: true, name: true, email: true, image: true },
     });
 
-    return { valid: true, user: bruker };
+    return { valid: true, user: bruker, nyttToken };
+  }),
+
+  /**
+   * Slett sesjonen fra databasen ved utlogging.
+   */
+  loggUt: protectedProcedure.mutation(async ({ ctx }) => {
+    const sessionToken =
+      ctx.req.headers.authorization?.replace("Bearer ", "") ?? null;
+
+    if (sessionToken) {
+      await ctx.prisma.session.deleteMany({
+        where: { sessionToken, userId: ctx.userId },
+      });
+    }
+
+    return { success: true };
   }),
 });

@@ -66,6 +66,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             try {
               const json = await res.json();
               const serverBruker = json?.result?.data?.user;
+              const nyttToken = json?.result?.data?.nyttToken;
+              if (nyttToken) {
+                await lagreSessionToken(nyttToken);
+              }
               if (serverBruker) {
                 await lagreBrukerData(serverBruker);
                 setBruker(serverBruker);

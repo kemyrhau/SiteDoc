@@ -118,6 +118,22 @@ export async function loggInnMedMicrosoft(): Promise<string | null> {
 }
 
 export async function loggUt(): Promise<void> {
+  // Slett sesjon server-side
+  try {
+    const token = await hentSessionToken();
+    if (token) {
+      await fetch(`${AUTH_CONFIG.apiUrl}/trpc/mobilAuth.loggUt`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({}),
+      });
+    }
+  } catch {
+    // Nettverksfeil — fortsett med lokal opprydding uansett
+  }
   await slettSessionToken();
   await slettBrukerData();
 }

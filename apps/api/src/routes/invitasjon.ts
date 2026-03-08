@@ -1,11 +1,13 @@
 import { z } from "zod";
 import crypto from "crypto";
+import { TRPCError } from "@trpc/server";
 import { router, publicProcedure, protectedProcedure } from "../trpc/trpc";
 import { sendInvitasjonsEpost } from "../services/epost";
 import {
   verifiserProsjektmedlem,
   verifiserAdmin,
 } from "../trpc/tilgangskontroll";
+import { sjekkRateLimit } from "../utils/rateLimiter";
 
 export const invitasjonRouter = router({
   // Hent alle invitasjoner for et prosjekt
@@ -29,6 +31,11 @@ export const invitasjonRouter = router({
   validerToken: publicProcedure
     .input(z.object({ token: z.string() }))
     .query(async ({ ctx, input }) => {
+      const ip = ctx.req.ip ?? ctx.req.headers["x-forwarded-for"]?.toString() ?? "unknown";
+      if (!sjekkRateLimit("invitasjon", ip, 20, 60 * 1000)) {
+        throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: "For mange forespørsler. Prøv igjen senere." });
+      }
+
       const invitasjon = await ctx.prisma.projectInvitation.findUnique({
         where: { token: input.token },
         include: {
@@ -67,6 +74,11 @@ export const invitasjonRouter = router({
   aksepter: publicProcedure
     .input(z.object({ token: z.string() }))
     .mutation(async ({ ctx, input }) => {
+      const ip = ctx.req.ip ?? ctx.req.headers["x-forwarded-for"]?.toString() ?? "unknown";
+      if (!sjekkRateLimit("invitasjon", ip, 10, 60 * 1000)) {
+        throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: "For mange forespørsler. Prøv igjen senere." });
+      }
+
       const invitasjon = await ctx.prisma.projectInvitation.findUnique({
         where: { token: input.token },
       });
