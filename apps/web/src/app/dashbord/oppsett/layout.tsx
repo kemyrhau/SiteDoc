@@ -128,7 +128,7 @@ export default function OppsettLayout({
   return (
     <div className="flex flex-1 overflow-hidden">
       {/* Innstillings-sidebar */}
-      <aside className="flex w-[280px] flex-col border-r border-gray-200 bg-white">
+      <aside className="hidden w-[280px] flex-col border-r border-gray-200 bg-white md:flex">
         <div className="border-b border-gray-200 px-5 py-4">
           <h2 className="text-lg font-semibold text-gray-900">Innstillinger</h2>
         </div>

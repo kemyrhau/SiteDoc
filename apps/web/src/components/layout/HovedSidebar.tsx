@@ -108,7 +108,7 @@ export function HovedSidebar() {
   }
 
   return (
-    <aside className="flex w-[60px] flex-col items-center bg-sitedoc-primary py-3">
+    <aside className="hidden w-[60px] flex-col items-center bg-sitedoc-primary py-3 md:flex">
       {/* Hovedelementer */}
       <nav className="flex flex-1 flex-col items-center gap-1">
         {filtrertHovedelementer.map((element) => {

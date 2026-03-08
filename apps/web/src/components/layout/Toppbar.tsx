@@ -1,16 +1,32 @@
 "use client";
 
 import { useSession, signOut } from "next-auth/react";
-import { LogOut, User, HardHat, Building2, ShieldCheck } from "lucide-react";
+import { LogOut, User, HardHat, Building2, ShieldCheck, Menu, X } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useAktivSeksjon } from "@/hooks/useAktivSeksjon";
 import { ProsjektVelger } from "./ProsjektVelger";
 import { useState, useRef, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import Link from "next/link";
+import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
+import {
+  LayoutDashboard,
+  ClipboardCheck,
+  ListTodo,
+  FileText,
+  Map,
+  FolderOpen,
+  Settings,
+} from "lucide-react";
 
 export function Toppbar() {
   const { data: session } = useSession();
   const [brukerMeny, setBrukerMeny] = useState(false);
+  const [mobilMeny, setMobilMeny] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const router = useRouter();
+  const aktivSeksjon = useAktivSeksjon();
+  const { prosjektId } = useProsjekt();
 
   // Sjekk om bruker har organisasjon (firmaadmin)
   const { data: organisasjon } = trpc.organisasjon.hentMin.useQuery(undefined, {
@@ -33,10 +49,16 @@ export function Toppbar() {
   }, []);
 
   return (
-    <header className="flex h-12 items-center justify-between bg-sitedoc-primary px-4">
-      {/* Venstre: Logo + Prosjektvelger + Firma */}
+    <header className="relative flex h-12 items-center justify-between bg-sitedoc-primary px-4">
+      {/* Venstre: Hamburger (mobil) + Logo + Prosjektvelger + Firma */}
       <div className="flex items-center gap-4">
-        <div className="flex w-[60px] items-center justify-center">
+        <button
+          onClick={() => setMobilMeny(!mobilMeny)}
+          className="flex items-center justify-center text-white md:hidden"
+        >
+          {mobilMeny ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+        </button>
+        <div className="hidden w-[60px] items-center justify-center md:flex">
           <HardHat className="h-6 w-6 text-white" />
         </div>
         <Link href="/" className="text-sm font-bold tracking-wide text-white hover:text-blue-200 transition">
@@ -104,6 +126,51 @@ export function Toppbar() {
           </div>
         )}
       </div>
+      {/* Mobil-navigasjonsmeny */}
+      {mobilMeny && (
+        <div className="absolute left-0 top-12 z-50 w-full border-b border-gray-200 bg-white shadow-lg md:hidden">
+          <nav className="flex flex-col p-3 gap-1">
+            {[
+              { id: "dashbord", label: "Dashbord", ikon: <LayoutDashboard className="h-5 w-5" /> },
+              { id: "sjekklister", label: "Sjekklister", ikon: <ClipboardCheck className="h-5 w-5" />, kreverProsjekt: true },
+              { id: "oppgaver", label: "Oppgaver", ikon: <ListTodo className="h-5 w-5" />, kreverProsjekt: true },
+              { id: "maler", label: "Maler", ikon: <FileText className="h-5 w-5" />, kreverProsjekt: true },
+              { id: "tegninger", label: "Tegninger", ikon: <Map className="h-5 w-5" />, kreverProsjekt: true },
+              { id: "mapper", label: "Mapper", ikon: <FolderOpen className="h-5 w-5" />, kreverProsjekt: true },
+              { id: "oppsett", label: "Innstillinger", ikon: <Settings className="h-5 w-5" /> },
+            ].map((element) => {
+              const deaktivert = element.kreverProsjekt && !prosjektId;
+              const aktiv = aktivSeksjon === element.id;
+              return (
+                <button
+                  key={element.id}
+                  disabled={deaktivert}
+                  onClick={() => {
+                    if (element.id === "dashbord") {
+                      router.push(prosjektId ? `/dashbord/${prosjektId}` : "/dashbord");
+                    } else if (element.id === "oppsett") {
+                      router.push("/dashbord/oppsett");
+                    } else if (prosjektId) {
+                      router.push(`/dashbord/${prosjektId}/${element.id}`);
+                    }
+                    setMobilMeny(false);
+                  }}
+                  className={`flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors ${
+                    aktiv
+                      ? "bg-sitedoc-primary/10 text-sitedoc-primary"
+                      : deaktivert
+                        ? "text-gray-300 cursor-not-allowed"
+                        : "text-gray-700 hover:bg-gray-100"
+                  }`}
+                >
+                  {element.ikon}
+                  {element.label}
+                </button>
+              );
+            })}
+          </nav>
+        </div>
+      )}
     </header>
   );
 }
