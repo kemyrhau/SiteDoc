@@ -96,7 +96,7 @@ sitedoc/
 │   │       │       │   │   ├── box/          # Mappeoppsett (filstruktur/dokumenthåndtering)
 │   │       │       │   │   └── kontrollplaner/ # Kontrollplaner (kommer)
 │   │       │       │   ├── prosjektoppsett/  # Prosjektoppsett (navn, status, adresse)
-│   │       │       │   └── eierportal-brukere/ # Owners Portal brukere
+│   │       │       │   └── firma/            # Firmainnstillinger (kun company_admin/sitedoc_admin med firma)
 │   │       │       ├── admin/                # SiteDoc-admin (kun sitedoc_admin)
 │   │       │       │   ├── layout.tsx        # Admin-sidebar med amber aksent
 │   │       │       │   ├── page.tsx          # Oversikt (statistikk)
@@ -252,7 +252,7 @@ Alle routere i `apps/api/src/routes/`:
 | `vaer` | hentVaerdata (Open-Meteo proxy: latitude, longitude, dato → temperatur, værkode, vind) |
 | `modul` | hentForProsjekt, aktiver (oppretter maler+objekter automatisk), deaktiver (soft-deactivate, beholder data) |
 | `organisasjon` | hentMin, hentMedId, hentProsjekter, hentBrukere, oppdater, leggTilProsjekt, fjernProsjekt |
-| `admin` | erAdmin, hentAlleProsjekter, hentAlleOrganisasjoner, opprettOrganisasjon, settBrukerOrganisasjon, tilknyttProsjekt, fjernProsjektTilknytning, opprettProsjekt, hentProsjektStatistikk, slettProsjekt, hentAlleBrukere (kun sitedoc_admin) |
+| `admin` | erAdmin, hentAlleProsjekter, hentAlleOrganisasjoner, opprettOrganisasjon, oppdaterOrganisasjon, settBrukerOrganisasjon, tilknyttProsjekt, fjernProsjektTilknytning, opprettProsjekt, hentProsjektStatistikk, slettProsjekt, hentAlleBrukere (kun sitedoc_admin) |
 
 **Auth-nivåer:** `publicProcedure` (åpen) og `protectedProcedure` (krever autentisert userId i context). Context bygges i `context.ts` som verifiserer Auth.js-sesjonstokens. De fleste routere bruker `protectedProcedure` med tilleggs-sjekker fra `tilgangskontroll.ts`.
 
@@ -766,7 +766,8 @@ Sidebaren under `/dashbord/oppsett/` er organisert i seksjoner:
 - **Brukere** — Brukergrupper, rollestyring, legg til medlemmer (med bruker-søk)
 - **Lokasjoner** — Samlet lokasjonsliste (alle bygninger/anlegg i én side, med redigering, georeferanse og publisering)
 - **Field** — Entrepriser (med arbeidsforløp), Oppgavemaler, Sjekklistemaler, Kontrollplan, Mappeoppsett
-- **Owners Portal** — Eierportalens brukere, Prosjektoppsett
+- **Prosjekteiers innstillinger** — Prosjektoppsett
+- **Firmainnstillinger** — Redigerbar firmainformasjon (kun company_admin/sitedoc_admin med tilknyttet firma)
 
 ### Prosjektlokasjon og kartvelger
 
@@ -1121,6 +1122,7 @@ Dalux-inspirert tre-kolonne layout:
 /dashbord/oppsett/field/box                   -> Mappeoppsett (filstruktur/mappestruktur)
 /dashbord/oppsett/field/kontrollplaner        -> Kontrollplaner (kommer)
 /dashbord/oppsett/prosjektoppsett             -> Prosjektoppsett (navn, status, adresse, eksternt prosjektnummer)
+/dashbord/oppsett/firma                       -> Firmainnstillinger (redigerbar firmainformasjon, kun company_admin/sitedoc_admin)
 /dashbord/admin                               -> SiteDoc-admin oversikt (antall firmaer, prosjekter, brukere, kun sitedoc_admin)
 /dashbord/admin/firmaer                       -> Opprett og administrer firmaer/organisasjoner
 /dashbord/admin/prosjekter                    -> Alle prosjekter i systemet (tabell med lenker)
