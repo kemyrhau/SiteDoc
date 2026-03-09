@@ -535,35 +535,64 @@ export interface StandardDokumentflyt {
 }
 
 export const STANDARD_DOKUMENTFLYTER: StandardDokumentflyt[] = [
+  // --- Bygg (K01): begge retninger ---
   {
-    navn: "Godkjenning — Bygg",
+    navn: "Byggherre → Bygg",
     oppretter: [0], // Byggherre
     svarer: [1],     // Bygg
-    malPrefixer: ["GM"],
+    malPrefixer: ["GM", "BEF"],
   },
   {
-    navn: "Godkjenning — Elektro",
+    navn: "Bygg → Byggherre",
+    oppretter: [1], // Bygg
+    svarer: [0],     // Byggherre
+    malPrefixer: ["GM"],
+  },
+  // --- Elektro (K02): begge retninger ---
+  {
+    navn: "Byggherre → Elektro",
     oppretter: [0], // Byggherre
     svarer: [2],     // Elektro
-    malPrefixer: ["GM"],
+    malPrefixer: ["GM", "BEF"],
   },
   {
-    navn: "Godkjenning — VVS",
-    oppretter: [0], // Byggherre
-    svarer: [3],     // VVS
+    navn: "Elektro → Byggherre",
+    oppretter: [2], // Elektro
+    svarer: [0],     // Byggherre
     malPrefixer: ["GM"],
   },
+  // --- VVS (K03): begge retninger ---
+  {
+    navn: "Byggherre → VVS",
+    oppretter: [0], // Byggherre
+    svarer: [3],     // VVS
+    malPrefixer: ["GM", "BEF"],
+  },
+  {
+    navn: "VVS → Byggherre",
+    oppretter: [3], // VVS
+    svarer: [0],     // Byggherre
+    malPrefixer: ["GM"],
+  },
+  // --- Ventilasjon (K04): begge retninger ---
+  {
+    navn: "Byggherre → Ventilasjon",
+    oppretter: [0], // Byggherre
+    svarer: [4],     // Ventilasjon
+    malPrefixer: ["GM", "BEF"],
+  },
+  {
+    navn: "Ventilasjon → Byggherre",
+    oppretter: [4], // Ventilasjon
+    svarer: [0],     // Byggherre
+    malPrefixer: ["GM"],
+  },
+  // --- HMS-avvik: alle kan opprette, byggherre mottar ---
   {
     navn: "HMS-avvik",
     oppretter: [0, 1, 2, 3, 4], // Alle entrepriser
     svarer: [0],                  // Byggherre
     malPrefixer: ["HMS"],
-  },
-  {
-    navn: "Befaringsrapport",
-    oppretter: [0], // Byggherre
-    svarer: [],
-    malPrefixer: ["BEF"],
   },
 ];
 
