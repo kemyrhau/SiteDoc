@@ -48,7 +48,8 @@ Dalux-inspirert tre-kolonne layout (skjules på mobil < 768px, hamburger-meny i 
 /dashbord/oppsett/brukere/tillatelser         -> Tillatelsesmatrise (read-only)
 /dashbord/oppsett/lokasjoner                  -> Lokasjonsliste med georeferanse
 /dashbord/oppsett/field                       -> Field-oversikt
-/dashbord/oppsett/field/entrepriser           -> Entrepriser med arbeidsforløp
+/dashbord/oppsett/field/dokumentflyt          -> Dokumentflyt (roller, maler, medlemmer)
+/dashbord/oppsett/field/entrepriser           -> Entrepriser med arbeidsforløp (gammel)
 /dashbord/oppsett/field/oppgavemaler          -> Oppgavemaler
 /dashbord/oppsett/field/sjekklistemaler       -> Sjekklistemaler
 /dashbord/oppsett/field/moduler               -> Forhåndsdefinerte mal-pakker

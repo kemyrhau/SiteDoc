@@ -19,15 +19,21 @@ Dokumenter (sjekklister/oppgaver) flyter mellom entrepriser:
 
 En bruker kan tilhøre flere entrepriser via `MemberEnterprise`. Admin uten tilknytning ser alle.
 
-## Arbeidsforløp
+## Dokumentflyt (erstatter Arbeidsforløp)
 
-Kobler maler til entrepriser under Innstillinger > Field > Entrepriser:
-- Oppretter-entreprise → opptil 3 svarer-steg (eskaleringsflyt)
-- Svarer 1: entreprisebasert. Svarer 2/3: personbasert via `WorkflowStepMember`
-- Fire-kolonne layout: Oppretter → Svarer 1 → 2 → 3
-- Sjekklister/oppgaver knyttes via `workflowId`
+Prosjektomfattende dokumentflyt under Innstillinger > Feltarbeid > Dokumentflyt:
+- **Prosjektstyrt:** Dokumentflyt tilhører prosjekt (ikke entreprise)
+- **Fleksible roller:** Medlemmer (entrepriser eller personer) med rolle `oppretter` eller `svarer` per steg
+- **Modell:** `Dokumentflyt` → `DokumentflytMedlem` (rolle + steg) + `DokumentflytMal` (maltilknytning)
+- Sjekklister/oppgaver knyttes via `dokumentflytId` (og bakoverkompatibelt `workflowId`)
 - Emne: malen har `subjects`-array → nedtrekksmeny. Uten → fritekst/skjult
-- **Planlagt:** HMS-avvik som eget arbeidsforløp (alle kan opprette)
+- **Planlagt:** HMS-avvik som egen dokumentflyt (alle kan opprette)
+
+### Bakoverkompatibilitet
+- Gammel `arbeidsforlop`-router beholdt som alias i tRPC
+- Gamle `Workflow`/`WorkflowStepMember`-tabeller beholdt i DB
+- Data migrert fra workflows → dokumentflyter via SQL INSERT...SELECT
+- Mobilappen bruker fortsatt gammel router inntil oppdatert
 
 ## Invitasjonsflyt
 
@@ -93,7 +99,7 @@ Revisjonshistorikk via `drawing_revisions`. Georeferanse med 2 punkter for simil
 
 - **Brukere** — Grupper, roller, medlemmer
 - **Lokasjoner** — Samlet lokasjonsliste med redigering/georeferanse
-- **Field** — Entrepriser, Oppgavemaler, Sjekklistemaler, Kontrollplan, Mappeoppsett, Moduler
+- **Field** — Dokumentflyt, Entrepriser, Oppgavemaler, Sjekklistemaler, Kontrollplan, Mappeoppsett, Moduler
 - **Prosjekteiers innstillinger** — Prosjektoppsett
 - **Firmainnstillinger** — Firmainformasjon (synlig med tilknyttet firma)
 
@@ -106,7 +112,7 @@ Revisjonshistorikk via `drawing_revisions`. Georeferanse med 2 punkter for simil
 - Adgangskontroll: tillatelsesbasert opprettelse, arbeidsforløp-begrensning
 - Videresending etter draft-status
 - TrafikklysObjekt (mobil): grå/"Ikke relevant"
-- Flerstegs arbeidsforløp: faktisk dokumentflyt mellom steg
+- Dokumentflyt redigeringsmodal (navn, maler, medlemmer)
 - HMS-avvik: alle kan opprette
 - Lisenssystem: betalingsside
 
