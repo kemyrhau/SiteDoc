@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { trpc } from "@/lib/trpc";
 import { Button, Input, Modal, Spinner, EmptyState } from "@sitedoc/ui";
@@ -10,15 +10,13 @@ import {
   Trash2,
   ChevronDown,
   ChevronRight,
-  ArrowRight,
-  Users,
   Building2,
   X,
   FileText,
+  User,
 } from "lucide-react";
 import {
   hentFargeForEntreprise,
-  FARGE_MAP,
 } from "../_components/entreprise-farger";
 
 /* ------------------------------------------------------------------ */
@@ -59,21 +57,171 @@ interface ProsjektMedlemItem {
 }
 
 /* ------------------------------------------------------------------ */
+/*  LeggTilMedlemDropdown — dropdown for å legge til entreprise/person */
+/* ------------------------------------------------------------------ */
+
+function LeggTilMedlemDropdown({
+  dokumentflytId,
+  prosjektId,
+  rolle,
+  steg,
+  entrepriser,
+  medlemmer,
+  eksisterende,
+  onLagtTil,
+}: {
+  dokumentflytId: string;
+  prosjektId: string;
+  rolle: "oppretter" | "svarer";
+  steg: number;
+  entrepriser: EntrepriseItem[];
+  medlemmer: ProsjektMedlemItem[];
+  eksisterende: DokumentflytMedlemData[];
+  onLagtTil: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  const leggTilMutation = trpc.dokumentflyt.leggTilMedlem.useMutation({
+    onSuccess: () => {
+      onLagtTil();
+      setOpen(false);
+    },
+  });
+
+  // Lukk ved klikk utenfor
+  useEffect(() => {
+    if (!open) return;
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [open]);
+
+  // Filtrer bort allerede tillagte
+  const eksisterendeEntrepriseIder = new Set(
+    eksisterende.filter((m) => m.enterprise).map((m) => m.enterprise!.id),
+  );
+  const eksisterendeMedlemIder = new Set(
+    eksisterende.filter((m) => m.projectMember).map((m) => m.projectMember!.id),
+  );
+
+  const tilgjengeligeEntrepriser = entrepriser.filter((e) => !eksisterendeEntrepriseIder.has(e.id));
+  const tilgjengeligeMedlemmer = medlemmer.filter((m) => !eksisterendeMedlemIder.has(m.id));
+
+  function leggTilEntreprise(enterpriseId: string) {
+    leggTilMutation.mutate({
+      dokumentflytId,
+      projectId: prosjektId,
+      enterpriseId,
+      rolle,
+      steg,
+    });
+  }
+
+  function leggTilPerson(projectMemberId: string) {
+    leggTilMutation.mutate({
+      dokumentflytId,
+      projectId: prosjektId,
+      projectMemberId,
+      rolle,
+      steg,
+    });
+  }
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+        title="Legg til"
+      >
+        <Plus className="h-3 w-3" />
+        <span>Legg til</span>
+      </button>
+
+      {open && (
+        <div className="absolute left-0 top-full z-20 mt-1 w-56 rounded-lg border border-gray-200 bg-white shadow-lg">
+          {tilgjengeligeEntrepriser.length > 0 && (
+            <div className="border-b border-gray-100 px-3 py-1.5">
+              <div className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+                Entrepriser
+              </div>
+            </div>
+          )}
+          <div className="max-h-48 overflow-y-auto">
+            {tilgjengeligeEntrepriser.map((ent) => (
+              <button
+                key={ent.id}
+                onClick={() => leggTilEntreprise(ent.id)}
+                disabled={leggTilMutation.isPending}
+                className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm hover:bg-gray-50 disabled:opacity-50"
+              >
+                <Building2 className="h-3.5 w-3.5 text-gray-400" />
+                {ent.name}
+              </button>
+            ))}
+          </div>
+
+          {tilgjengeligeMedlemmer.length > 0 && (
+            <div className="border-b border-t border-gray-100 px-3 py-1.5">
+              <div className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+                Personer
+              </div>
+            </div>
+          )}
+          <div className="max-h-48 overflow-y-auto">
+            {tilgjengeligeMedlemmer.map((m) => (
+              <button
+                key={m.id}
+                onClick={() => leggTilPerson(m.id)}
+                disabled={leggTilMutation.isPending}
+                className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm hover:bg-gray-50 disabled:opacity-50"
+              >
+                <User className="h-3.5 w-3.5 text-gray-400" />
+                {m.user.name ?? m.user.email}
+              </button>
+            ))}
+          </div>
+
+          {tilgjengeligeEntrepriser.length === 0 && tilgjengeligeMedlemmer.length === 0 && (
+            <div className="px-3 py-2 text-xs text-gray-400">
+              Alle er allerede lagt til
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  DokumentflytKort                                                   */
 /* ------------------------------------------------------------------ */
 
 function DokumentflytKort({
   dokumentflyt,
+  prosjektId,
   entrepriser,
+  medlemmer,
   onRediger,
   onSlett,
+  onOppdatert,
 }: {
   dokumentflyt: DokumentflytData;
+  prosjektId: string;
   entrepriser: EntrepriseItem[];
+  medlemmer: ProsjektMedlemItem[];
   onRediger: () => void;
   onSlett: () => void;
+  onOppdatert: () => void;
 }) {
   const [ekspandert, setEkspandert] = useState(true);
+
+  const fjernMedlemMutation = trpc.dokumentflyt.fjernMedlem.useMutation({
+    onSuccess: () => onOppdatert(),
+  });
 
   const opprettere = dokumentflyt.medlemmer.filter((m) => m.rolle === "oppretter");
   const svarere = dokumentflyt.medlemmer.filter((m) => m.rolle === "svarer");
@@ -93,6 +241,10 @@ function DokumentflytKort({
     oppgaveMaler.length > 0 ? `${oppgaveMaler.length} oppg.` : null,
     sjekklisteMaler.length > 0 ? `${sjekklisteMaler.length} sjekk.` : null,
   ].filter(Boolean).join(" + ");
+
+  function fjernMedlem(id: string) {
+    fjernMedlemMutation.mutate({ id, projectId: prosjektId });
+  }
 
   return (
     <div className="rounded-lg border border-gray-200 bg-white">
@@ -141,26 +293,69 @@ function DokumentflytKort({
               <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-gray-500">
                 Oppretter
               </div>
-              <MedlemListe medlemmer={opprettere} entrepriser={entrepriser} />
+              <MedlemListe
+                medlemmer={opprettere}
+                entrepriser={entrepriser}
+                onFjern={fjernMedlem}
+              />
+              <div className="mt-1.5">
+                <LeggTilMedlemDropdown
+                  dokumentflytId={dokumentflyt.id}
+                  prosjektId={prosjektId}
+                  rolle="oppretter"
+                  steg={1}
+                  entrepriser={entrepriser}
+                  medlemmer={medlemmer}
+                  eksisterende={opprettere}
+                  onLagtTil={onOppdatert}
+                />
+              </div>
             </div>
 
             {/* Svarer-kolonner per steg */}
-            {sorterteSteg.map(([steg, medlemmer]) => (
-              <div key={steg} className="flex-1 p-3">
-                <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-gray-500">
-                  Svarer{steg > 1 ? ` ${steg}` : ""}
+            {sorterteSteg.length > 0 ? (
+              sorterteSteg.map(([steg, stegMedlemmer]) => (
+                <div key={steg} className="flex-1 p-3">
+                  <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+                    Svarer{steg > 1 ? ` ${steg}` : ""}
+                  </div>
+                  <MedlemListe
+                    medlemmer={stegMedlemmer}
+                    entrepriser={entrepriser}
+                    onFjern={fjernMedlem}
+                  />
+                  <div className="mt-1.5">
+                    <LeggTilMedlemDropdown
+                      dokumentflytId={dokumentflyt.id}
+                      prosjektId={prosjektId}
+                      rolle="svarer"
+                      steg={steg}
+                      entrepriser={entrepriser}
+                      medlemmer={medlemmer}
+                      eksisterende={stegMedlemmer}
+                      onLagtTil={onOppdatert}
+                    />
+                  </div>
                 </div>
-                <MedlemListe medlemmer={medlemmer} entrepriser={entrepriser} />
-              </div>
-            ))}
-
-            {/* Vis minst én svarer-kolonne hvis ingen */}
-            {sorterteSteg.length === 0 && (
+              ))
+            ) : (
               <div className="flex-1 p-3">
                 <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-gray-500">
                   Svarer
                 </div>
                 <span className="text-xs text-gray-300">Ikke konfigurert</span>
+                <div className="mt-1.5">
+                  <LeggTilMedlemDropdown
+                    dokumentflytId={dokumentflyt.id}
+                    prosjektId={prosjektId}
+                    rolle="svarer"
+                    steg={1}
+                    entrepriser={entrepriser}
+                    medlemmer={medlemmer}
+                    eksisterende={[]}
+                    onLagtTil={onOppdatert}
+                  />
+                </div>
               </div>
             )}
           </div>
@@ -194,12 +389,14 @@ function DokumentflytKort({
 function MedlemListe({
   medlemmer,
   entrepriser,
+  onFjern,
 }: {
   medlemmer: DokumentflytMedlemData[];
   entrepriser: EntrepriseItem[];
+  onFjern: (id: string) => void;
 }) {
   if (medlemmer.length === 0) {
-    return <span className="text-xs text-gray-300">Ikke konfigurert</span>;
+    return null;
   }
 
   return (
@@ -212,12 +409,19 @@ function MedlemListe({
           return (
             <div
               key={m.id}
-              className={`flex items-center gap-1.5 rounded px-1.5 py-1 ${farge.bg}`}
+              className={`group flex items-center gap-1.5 rounded px-1.5 py-1 ${farge.bg}`}
             >
               <Building2 className={`h-3.5 w-3.5 ${farge.tekst}`} />
-              <span className={`text-[13px] font-medium ${farge.tekst}`}>
+              <span className={`flex-1 text-[13px] font-medium ${farge.tekst}`}>
                 {m.enterprise.name}
               </span>
+              <button
+                onClick={() => onFjern(m.id)}
+                className="rounded p-0.5 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-white/50"
+                title="Fjern"
+              >
+                <X className="h-3 w-3 text-gray-500" />
+              </button>
             </div>
           );
         }
@@ -225,7 +429,7 @@ function MedlemListe({
           return (
             <div
               key={m.id}
-              className="flex items-center gap-1.5 rounded px-1.5 py-1 hover:bg-gray-50"
+              className="group flex items-center gap-1.5 rounded px-1.5 py-1 hover:bg-gray-50"
             >
               <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gray-200 text-[10px] font-medium text-gray-600">
                 {(m.projectMember.user.name ?? m.projectMember.user.email).charAt(0).toUpperCase()}
@@ -235,12 +439,173 @@ function MedlemListe({
                   {m.projectMember.user.name ?? m.projectMember.user.email}
                 </div>
               </div>
+              <button
+                onClick={() => onFjern(m.id)}
+                className="rounded p-0.5 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-gray-100"
+                title="Fjern"
+              >
+                <X className="h-3 w-3 text-gray-500" />
+              </button>
             </div>
           );
         }
         return null;
       })}
     </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  RedigerDokumentflytModal                                           */
+/* ------------------------------------------------------------------ */
+
+function RedigerDokumentflytModal({
+  open,
+  onClose,
+  prosjektId,
+  dokumentflyt,
+  maler,
+}: {
+  open: boolean;
+  onClose: () => void;
+  prosjektId: string;
+  dokumentflyt: DokumentflytData | null;
+  maler: Array<{ id: string; name: string; category: string }>;
+}) {
+  const [navn, setNavn] = useState("");
+  const [valgteMaler, setValgteMaler] = useState<Set<string>>(new Set());
+
+  const utils = trpc.useUtils();
+  const oppdaterMutation = trpc.dokumentflyt.oppdater.useMutation({
+    onSuccess: () => {
+      utils.dokumentflyt.hentForProsjekt.invalidate({ projectId: prosjektId });
+      onClose();
+    },
+  });
+
+  // Synkroniser state ved åpning
+  const [forrigeId, setForrigeId] = useState<string | null>(null);
+  if (dokumentflyt && dokumentflyt.id !== forrigeId) {
+    setForrigeId(dokumentflyt.id);
+    setNavn(dokumentflyt.name);
+    setValgteMaler(new Set(dokumentflyt.maler.map((m) => m.template.id)));
+  }
+
+  const oppgaveMaler = maler.filter((m) => m.category === "oppgave");
+  const sjekklisteMaler = maler.filter((m) => m.category === "sjekkliste");
+
+  function toggleMal(id: string) {
+    setValgteMaler((prev) => {
+      const neste = new Set(prev);
+      if (neste.has(id)) neste.delete(id);
+      else neste.add(id);
+      return neste;
+    });
+  }
+
+  function handleLagre(e: React.FormEvent) {
+    e.preventDefault();
+    if (!dokumentflyt || !navn.trim()) return;
+    oppdaterMutation.mutate({
+      id: dokumentflyt.id,
+      projectId: prosjektId,
+      name: navn.trim(),
+      templateIds: Array.from(valgteMaler),
+    });
+  }
+
+  return (
+    <Modal open={open} onClose={onClose} title="Rediger dokumentflyt">
+      <form onSubmit={handleLagre} className="flex flex-col gap-4">
+        <Input
+          label="Navn"
+          value={navn}
+          onChange={(e) => setNavn(e.target.value)}
+          required
+        />
+
+        {/* Maler */}
+        <div className="grid grid-cols-2 gap-6">
+          <div>
+            <label className="mb-2 flex items-center gap-2">
+              <input
+                type="checkbox"
+                className="h-4 w-4 rounded border-gray-300 text-sitedoc-primary accent-sitedoc-primary"
+                checked={oppgaveMaler.length > 0 && oppgaveMaler.every((m) => valgteMaler.has(m.id))}
+                onChange={() => {
+                  const alleValgt = oppgaveMaler.every((m) => valgteMaler.has(m.id));
+                  setValgteMaler((prev) => {
+                    const neste = new Set(prev);
+                    for (const m of oppgaveMaler) {
+                      if (alleValgt) neste.delete(m.id); else neste.add(m.id);
+                    }
+                    return neste;
+                  });
+                }}
+              />
+              <span className="text-sm font-semibold text-gray-900">Oppgavetype</span>
+            </label>
+            <div className="space-y-1.5">
+              {oppgaveMaler.map((mal) => (
+                <label key={mal.id} className="flex items-center gap-2 rounded px-1 py-0.5 hover:bg-gray-50">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded border-gray-300 text-sitedoc-primary accent-sitedoc-primary"
+                    checked={valgteMaler.has(mal.id)}
+                    onChange={() => toggleMal(mal.id)}
+                  />
+                  <span className="text-sm text-gray-700">{mal.name}</span>
+                </label>
+              ))}
+              {oppgaveMaler.length === 0 && <p className="text-xs text-gray-400">Ingen oppgavemaler</p>}
+            </div>
+          </div>
+          <div>
+            <label className="mb-2 flex items-center gap-2">
+              <input
+                type="checkbox"
+                className="h-4 w-4 rounded border-gray-300 text-sitedoc-primary accent-sitedoc-primary"
+                checked={sjekklisteMaler.length > 0 && sjekklisteMaler.every((m) => valgteMaler.has(m.id))}
+                onChange={() => {
+                  const alleValgt = sjekklisteMaler.every((m) => valgteMaler.has(m.id));
+                  setValgteMaler((prev) => {
+                    const neste = new Set(prev);
+                    for (const m of sjekklisteMaler) {
+                      if (alleValgt) neste.delete(m.id); else neste.add(m.id);
+                    }
+                    return neste;
+                  });
+                }}
+              />
+              <span className="text-sm font-semibold text-gray-900">Sjekklistetype</span>
+            </label>
+            <div className="space-y-1.5">
+              {sjekklisteMaler.map((mal) => (
+                <label key={mal.id} className="flex items-center gap-2 rounded px-1 py-0.5 hover:bg-gray-50">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded border-gray-300 text-sitedoc-primary accent-sitedoc-primary"
+                    checked={valgteMaler.has(mal.id)}
+                    onChange={() => toggleMal(mal.id)}
+                  />
+                  <span className="text-sm text-gray-700">{mal.name}</span>
+                </label>
+              ))}
+              {sjekklisteMaler.length === 0 && <p className="text-xs text-gray-400">Ingen sjekklistemaler</p>}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex gap-3 pt-2">
+          <Button variant="secondary" type="button" onClick={onClose}>
+            Avbryt
+          </Button>
+          <Button type="submit" loading={oppdaterMutation.isPending} disabled={!navn.trim()}>
+            Lagre
+          </Button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 
@@ -254,19 +619,15 @@ function OpprettDokumentflytModal({
   prosjektId,
   entrepriser,
   maler,
-  alleMedlemmer,
 }: {
   open: boolean;
   onClose: () => void;
   prosjektId: string;
   entrepriser: EntrepriseItem[];
   maler: Array<{ id: string; name: string; category: string }>;
-  alleMedlemmer: ProsjektMedlemItem[];
 }) {
   const [navn, setNavn] = useState("");
-  const [oppretterType, setOppretterType] = useState<"entreprise" | "person">("entreprise");
   const [oppretterEntrepriseId, setOppretterEntrepriseId] = useState("");
-  const [svarerType, setSvarerType] = useState<"entreprise" | "person">("entreprise");
   const [svarerEntrepriseId, setSvarerEntrepriseId] = useState("");
   const [valgteMaler, setValgteMaler] = useState<Set<string>>(new Set());
 
@@ -468,6 +829,7 @@ export default function DokumentflytSide() {
   const utils = trpc.useUtils();
   const [visOpprett, setVisOpprett] = useState(false);
   const [slettId, setSlettId] = useState<string | null>(null);
+  const [redigerDf, setRedigerDf] = useState<DokumentflytData | null>(null);
 
   // Data
   const { data: dokumentflyter, isLoading } = trpc.dokumentflyt.hentForProsjekt.useQuery(
@@ -511,6 +873,10 @@ export default function DokumentflytSide() {
 
   const medlemListe: ProsjektMedlemItem[] = (medlemmer as ProsjektMedlemItem[] | undefined) ?? [];
 
+  function handleOppdatert() {
+    utils.dokumentflyt.hentForProsjekt.invalidate({ projectId: prosjektId! });
+  }
+
   if (!prosjektId) return null;
 
   return (
@@ -540,11 +906,12 @@ export default function DokumentflytSide() {
             <DokumentflytKort
               key={df.id}
               dokumentflyt={df}
+              prosjektId={prosjektId}
               entrepriser={entrepriseListe}
-              onRediger={() => {
-                // TODO: redigeringsmodal
-              }}
+              medlemmer={medlemListe}
+              onRediger={() => setRedigerDf(df)}
               onSlett={() => setSlettId(df.id)}
+              onOppdatert={handleOppdatert}
             />
           ))}
         </div>
@@ -557,7 +924,15 @@ export default function DokumentflytSide() {
         prosjektId={prosjektId}
         entrepriser={entrepriseListe}
         maler={malListe}
-        alleMedlemmer={medlemListe}
+      />
+
+      {/* Rediger modal */}
+      <RedigerDokumentflytModal
+        open={redigerDf !== null}
+        onClose={() => { setRedigerDf(null); }}
+        prosjektId={prosjektId}
+        dokumentflyt={redigerDf}
+        maler={malListe}
       />
 
       {/* Bekreft sletting */}
@@ -576,7 +951,7 @@ export default function DokumentflytSide() {
               Avbryt
             </Button>
             <Button
-              className="bg-red-600 text-white hover:bg-red-700"
+              variant="danger"
               loading={slettMutation.isPending}
               onClick={() => {
                 if (slettId) {
