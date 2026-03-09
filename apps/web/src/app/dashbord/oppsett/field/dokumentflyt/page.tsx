@@ -286,12 +286,12 @@ function DokumentflytKort({
 
       {ekspandert && (
         <div>
-          {/* Kolonner: Oppretter → Svarer 1 → Svarer 2 → ... */}
+          {/* Kolonner: Opprett/send → Mottaker 1 → Mottaker 2 → ... */}
           <div className="flex divide-x divide-gray-100">
-            {/* Oppretter-kolonne */}
+            {/* Opprett/send-kolonne */}
             <div className="flex-1 p-3">
               <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-gray-500">
-                Oppretter
+                Opprett/send
               </div>
               <MedlemListe
                 medlemmer={opprettere}
@@ -312,12 +312,12 @@ function DokumentflytKort({
               </div>
             </div>
 
-            {/* Svarer-kolonner per steg */}
+            {/* Mottaker-kolonner per steg */}
             {sorterteSteg.length > 0 ? (
               sorterteSteg.map(([steg, stegMedlemmer]) => (
                 <div key={steg} className="flex-1 p-3">
                   <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-gray-500">
-                    Svarer{steg > 1 ? ` ${steg}` : ""}
+                    Mottaker{steg > 1 ? ` ${steg}` : ""}
                   </div>
                   <MedlemListe
                     medlemmer={stegMedlemmer}
@@ -341,7 +341,7 @@ function DokumentflytKort({
             ) : (
               <div className="flex-1 p-3">
                 <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-gray-500">
-                  Svarer
+                  Mottaker
                 </div>
                 <span className="text-xs text-gray-300">Ikke konfigurert</span>
                 <div className="mt-1.5">
@@ -701,10 +701,10 @@ function OpprettDokumentflytModal({
           required
         />
 
-        {/* Oppretter */}
+        {/* Opprett/send */}
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-700">
-            Oppretter-entreprise
+            Opprett/send
           </label>
           <select
             className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-sitedoc-primary focus:outline-none focus:ring-1 focus:ring-sitedoc-primary"
@@ -718,10 +718,10 @@ function OpprettDokumentflytModal({
           </select>
         </div>
 
-        {/* Svarer */}
+        {/* Mottaker */}
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-700">
-            Svarer-entreprise
+            Mottaker
           </label>
           <select
             className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-sitedoc-primary focus:outline-none focus:ring-1 focus:ring-sitedoc-primary"
@@ -898,7 +898,7 @@ export default function DokumentflytSide() {
       ) : (dokumentflyter ?? []).length === 0 ? (
         <EmptyState
           title="Ingen dokumentflyter"
-          description="Opprett en dokumentflyt for å styre hvem som oppretter og svarer på dokumenter."
+          description="Opprett en dokumentflyt for å styre hvem som sender og mottar dokumenter."
         />
       ) : (
         <div className="space-y-4">
