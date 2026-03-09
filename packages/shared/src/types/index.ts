@@ -506,6 +506,67 @@ export const ENTERPRISE_COLORS = [
 ] as const;
 export type EnterpriseColor = (typeof ENTERPRISE_COLORS)[number];
 
+// Standard entrepriser for malprosjekt
+export interface StandardEntreprise {
+  navn: string;
+  bransje: string;
+  farge: string;
+  entreprisenummer?: string;
+}
+
+export const STANDARD_ENTREPRISER: StandardEntreprise[] = [
+  { navn: "Byggherre", bransje: "Byggherre", farge: "blue", entreprisenummer: "K00" },
+  { navn: "Bygg", bransje: "Bygg", farge: "emerald", entreprisenummer: "K01" },
+  { navn: "Elektro", bransje: "Elektro", farge: "amber", entreprisenummer: "K02" },
+  { navn: "VVS", bransje: "VVS", farge: "purple", entreprisenummer: "K03" },
+  { navn: "Ventilasjon", bransje: "Ventilasjon", farge: "teal", entreprisenummer: "K04" },
+];
+
+// Standard dokumentflyter for malprosjekt
+// Refererer til entrepriser og maler via indeks (løst opp under opprettelse)
+export interface StandardDokumentflyt {
+  navn: string;
+  /** Indekser inn i STANDARD_ENTREPRISER for oppretter-rolle */
+  oppretter: number[];
+  /** Indekser inn i STANDARD_ENTREPRISER for svarer-rolle */
+  svarer: number[];
+  /** Mal-slugger fra PROSJEKT_MODULER som skal tilknyttes */
+  malPrefixer: string[];
+}
+
+export const STANDARD_DOKUMENTFLYTER: StandardDokumentflyt[] = [
+  {
+    navn: "Godkjenning — Bygg",
+    oppretter: [0], // Byggherre
+    svarer: [1],     // Bygg
+    malPrefixer: ["GM"],
+  },
+  {
+    navn: "Godkjenning — Elektro",
+    oppretter: [0], // Byggherre
+    svarer: [2],     // Elektro
+    malPrefixer: ["GM"],
+  },
+  {
+    navn: "Godkjenning — VVS",
+    oppretter: [0], // Byggherre
+    svarer: [3],     // VVS
+    malPrefixer: ["GM"],
+  },
+  {
+    navn: "HMS-avvik",
+    oppretter: [0, 1, 2, 3, 4], // Alle entrepriser
+    svarer: [0],                  // Byggherre
+    malPrefixer: ["HMS"],
+  },
+  {
+    navn: "Befaringsrapport",
+    oppretter: [0], // Byggherre
+    svarer: [],
+    malPrefixer: ["BEF"],
+  },
+];
+
 // Betingelser i malbygger
 export const CONDITION_ELIGIBLE_TYPES = ["list_single", "list_multi"] as const;
 

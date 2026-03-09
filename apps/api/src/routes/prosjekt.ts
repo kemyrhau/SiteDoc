@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { router, protectedProcedure } from "../trpc/trpc";
-import { createProjectSchema, STANDARD_PROJECT_GROUPS, PROSJEKT_MODULER } from "@sitedoc/shared";
+import { createProjectSchema, STANDARD_PROJECT_GROUPS, PROSJEKT_MODULER, STANDARD_ENTREPRISER, STANDARD_DOKUMENTFLYTER } from "@sitedoc/shared";
 import { generateProjectNumber } from "@sitedoc/shared";
 import type { Prisma } from "@sitedoc/db";
 import {
@@ -184,6 +184,85 @@ export const prosjektRouter = router({
                   required: obj.required ?? false,
                   config: obj.config as Prisma.InputJsonValue,
                 })),
+              });
+            }
+          }
+        }
+
+        // Opprett standard entrepriser
+        const entrepriseIder: string[] = [];
+        for (const entDef of STANDARD_ENTREPRISER) {
+          const ent = await tx.enterprise.create({
+            data: {
+              projectId: prosjekt.id,
+              name: entDef.navn,
+              industry: entDef.bransje,
+              color: entDef.farge,
+              enterpriseNumber: entDef.entreprisenummer,
+            },
+          });
+          entrepriseIder.push(ent.id);
+        }
+
+        // Koble bruker til Byggherre-entreprisen (første)
+        const medlem = await tx.projectMember.findFirst({
+          where: { projectId: prosjekt.id, userId: ctx.userId },
+        });
+        if (medlem && entrepriseIder.length > 0) {
+          await tx.memberEnterprise.create({
+            data: {
+              projectMemberId: medlem.id,
+              enterpriseId: entrepriseIder[0]!,
+            },
+          });
+        }
+
+        // Hent opprettede maler (for å koble til dokumentflyter via prefix)
+        const opprettedeMaler = await tx.reportTemplate.findMany({
+          where: { projectId: prosjekt.id },
+          select: { id: true, prefix: true },
+        });
+
+        // Opprett standard dokumentflyter
+        for (const flytDef of STANDARD_DOKUMENTFLYTER) {
+          const flyt = await tx.dokumentflyt.create({
+            data: { projectId: prosjekt.id, name: flytDef.navn },
+          });
+
+          // Legg til oppretter-medlemmer
+          for (const idx of flytDef.oppretter) {
+            if (idx < entrepriseIder.length) {
+              await tx.dokumentflytMedlem.create({
+                data: {
+                  dokumentflytId: flyt.id,
+                  enterpriseId: entrepriseIder[idx],
+                  rolle: "oppretter",
+                  steg: 1,
+                },
+              });
+            }
+          }
+
+          // Legg til svarer-medlemmer
+          for (const idx of flytDef.svarer) {
+            if (idx < entrepriseIder.length) {
+              await tx.dokumentflytMedlem.create({
+                data: {
+                  dokumentflytId: flyt.id,
+                  enterpriseId: entrepriseIder[idx],
+                  rolle: "svarer",
+                  steg: 1,
+                },
+              });
+            }
+          }
+
+          // Koble maler via prefix
+          for (const prefix of flytDef.malPrefixer) {
+            const mal = opprettedeMaler.find((m) => m.prefix === prefix);
+            if (mal) {
+              await tx.dokumentflytMal.create({
+                data: { dokumentflytId: flyt.id, templateId: mal.id },
               });
             }
           }
