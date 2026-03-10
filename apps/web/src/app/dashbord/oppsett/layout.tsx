@@ -50,8 +50,7 @@ const navigasjon: NavElement[] = [
     kreverProsjekt: true,
     tillatelse: "manage_field",
     barn: [
-      { label: "Dokumentflyt", href: "/dashbord/oppsett/field/dokumentflyt" },
-      { label: "Entrepriser", href: "/dashbord/oppsett/field/entrepriser" },
+      { label: "Entrepriser og dokumentflyt", href: "/dashbord/oppsett/field/entrepriser" },
       { label: "Oppgavemaler", href: "/dashbord/oppsett/field/oppgavemaler" },
       { label: "Sjekklistemaler", href: "/dashbord/oppsett/field/sjekklistemaler" },
       { label: "Moduler", href: "/dashbord/oppsett/field/moduler" },

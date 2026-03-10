@@ -20,6 +20,7 @@ import {
   Pencil,
   Trash2,
   Building2,
+  FileText,
 } from "lucide-react";
 import { ENTERPRISE_INDUSTRIES, ENTERPRISE_COLORS } from "@sitedoc/shared";
 import {
@@ -27,6 +28,13 @@ import {
   nesteAutoFarge,
   FARGE_MAP,
 } from "../_components/entreprise-farger";
+import {
+  DokumentflytInlineKort,
+  InviterNyMedlemModal,
+  type DokumentflytData,
+  type EntrepriseItem,
+  type ProsjektMedlemItem,
+} from "../_components/dokumentflyt-komponenter";
 
 /* ------------------------------------------------------------------ */
 /*  Fargevelger                                                        */
@@ -133,18 +141,37 @@ interface EntrepriseData {
 }
 
 /* ------------------------------------------------------------------ */
-/*  EntrepriseKort — kompakt visning                                   */
+/*  EntrepriseKort — expanderbart med dokumentflyter                    */
 /* ------------------------------------------------------------------ */
 
 function EntrepriseKort({
   entreprise,
+  dokumentflyter,
+  prosjektId,
+  entrepriseListe,
+  medlemmer,
   onRediger,
   onSlett,
+  onDfRediger,
+  onDfSlett,
+  onDfOppdatert,
+  onNyDokumentflyt,
+  onInviterNy,
 }: {
   entreprise: EntrepriseData;
+  dokumentflyter: DokumentflytData[];
+  prosjektId: string;
+  entrepriseListe: EntrepriseItem[];
+  medlemmer: ProsjektMedlemItem[];
   onRediger: () => void;
   onSlett: () => void;
+  onDfRediger: (df: DokumentflytData) => void;
+  onDfSlett: (id: string) => void;
+  onDfOppdatert: () => void;
+  onNyDokumentflyt: (entrepriseId: string) => void;
+  onInviterNy: (dokumentflytId: string, rolle: "oppretter" | "svarer", steg: number) => void;
 }) {
+  const [ekspandert, setEkspandert] = useState(true);
   const farge = hentFargeForEntreprise(entreprise.color, entreprise.fargeIndeks);
 
   const headerTekst = [
@@ -154,9 +181,18 @@ function EntrepriseKort({
     + (entreprise.companyName ? `, ${entreprise.companyName}` : "");
 
   return (
-    <div className="mb-2 rounded-lg border border-gray-200 bg-white">
-      <div className={`flex items-center rounded-lg ${farge.bg} ${farge.border} border`}>
-        <div className="flex flex-1 items-center gap-2 px-4 py-2.5">
+    <div className="mb-3 rounded-lg border border-gray-200 bg-white">
+      {/* Enterprise header */}
+      <div className={`flex items-center rounded-t-lg ${farge.bg} ${farge.border} border`}>
+        <button
+          onClick={() => setEkspandert(!ekspandert)}
+          className="flex flex-1 items-center gap-2 px-4 py-2.5"
+        >
+          {ekspandert ? (
+            <ChevronDown className={`h-4 w-4 ${farge.tekst}`} />
+          ) : (
+            <ChevronRight className={`h-4 w-4 ${farge.tekst}`} />
+          )}
           <Building2 className={`h-4 w-4 ${farge.tekst}`} />
           <span className={`text-sm font-semibold ${farge.tekst}`}>
             {headerTekst}
@@ -171,7 +207,10 @@ function EntrepriseKort({
               · Org. {entreprise.organizationNumber}
             </span>
           )}
-        </div>
+          <span className={`ml-1 text-xs ${farge.tekst} opacity-60`}>
+            ({dokumentflyter.length} dokumentflyt{dokumentflyter.length !== 1 ? "er" : ""})
+          </span>
+        </button>
 
         <div className="mr-2">
           <TreprikkMeny
@@ -183,6 +222,11 @@ function EntrepriseKort({
                 onClick: onRediger,
               },
               {
+                label: "Ny dokumentflyt",
+                ikon: <FileText className="h-4 w-4 text-gray-400" />,
+                onClick: () => onNyDokumentflyt(entreprise.id),
+              },
+              {
                 label: "Slett entreprise",
                 ikon: <Trash2 className="h-4 w-4 text-red-400" />,
                 onClick: onSlett,
@@ -192,6 +236,47 @@ function EntrepriseKort({
           />
         </div>
       </div>
+
+      {/* Dokumentflyter */}
+      {ekspandert && (
+        <div className="p-3">
+          {dokumentflyter.length === 0 ? (
+            <div className="flex items-center justify-between rounded-md border border-dashed border-gray-200 px-4 py-3">
+              <span className="text-sm text-gray-400">Ingen dokumentflyter</span>
+              <button
+                onClick={() => onNyDokumentflyt(entreprise.id)}
+                className="flex items-center gap-1 rounded px-2 py-1 text-xs text-sitedoc-primary hover:bg-blue-50"
+              >
+                <Plus className="h-3 w-3" />
+                Legg til
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {dokumentflyter.map((df) => (
+                <DokumentflytInlineKort
+                  key={df.id}
+                  dokumentflyt={df}
+                  prosjektId={prosjektId}
+                  entrepriser={entrepriseListe}
+                  medlemmer={medlemmer}
+                  onRediger={() => onDfRediger(df)}
+                  onSlett={() => onDfSlett(df.id)}
+                  onOppdatert={onDfOppdatert}
+                  onInviterNy={onInviterNy}
+                />
+              ))}
+              <button
+                onClick={() => onNyDokumentflyt(entreprise.id)}
+                className="flex items-center gap-1 rounded px-2 py-1 text-xs text-gray-400 hover:bg-gray-50 hover:text-gray-600"
+              >
+                <Plus className="h-3 w-3" />
+                Ny dokumentflyt
+              </button>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -270,7 +355,6 @@ function EntrepriseVeiviser({
   const harAndreProsjekter = andreProsjekter.length > 0;
   const harEntrepriser = entrepriser.length > 0;
 
-  // Synkroniser ved åpning
   const [forrigeOpen, setForrigeOpen] = useState(false);
   if (open && !forrigeOpen) {
     setSteg(1);
@@ -526,6 +610,370 @@ function EntrepriseVeiviser({
 }
 
 /* ------------------------------------------------------------------ */
+/*  OpprettDokumentflytModal                                           */
+/* ------------------------------------------------------------------ */
+
+function OpprettDokumentflytModal({
+  open,
+  onClose,
+  prosjektId,
+  entrepriser,
+  maler,
+  forvalgtEntrepriseId,
+}: {
+  open: boolean;
+  onClose: () => void;
+  prosjektId: string;
+  entrepriser: EntrepriseItem[];
+  maler: Array<{ id: string; name: string; category: string }>;
+  forvalgtEntrepriseId?: string;
+}) {
+  const [navn, setNavn] = useState("");
+  const [oppretterEntrepriseId, setOppretterEntrepriseId] = useState("");
+  const [svarerEntrepriseId, setSvarerEntrepriseId] = useState("");
+  const [valgteMaler, setValgteMaler] = useState<Set<string>>(new Set());
+
+  const utils = trpc.useUtils();
+  const opprettMutation = trpc.dokumentflyt.opprett.useMutation({
+    onSuccess: () => {
+      utils.dokumentflyt.hentForProsjekt.invalidate({ projectId: prosjektId });
+      nullstill();
+      onClose();
+    },
+  });
+
+  function nullstill() {
+    setNavn("");
+    setOppretterEntrepriseId("");
+    setSvarerEntrepriseId("");
+    setValgteMaler(new Set());
+  }
+
+  const [forrigeOpen, setForrigeOpen] = useState(false);
+  if (open && !forrigeOpen) {
+    nullstill();
+    if (forvalgtEntrepriseId) setOppretterEntrepriseId(forvalgtEntrepriseId);
+  }
+  if (open !== forrigeOpen) setForrigeOpen(open);
+
+  const oppgaveMaler = maler.filter((m) => m.category === "oppgave");
+  const sjekklisteMaler = maler.filter((m) => m.category === "sjekkliste");
+
+  function toggleMal(id: string) {
+    setValgteMaler((prev) => {
+      const neste = new Set(prev);
+      if (neste.has(id)) neste.delete(id);
+      else neste.add(id);
+      return neste;
+    });
+  }
+
+  function handleOpprett(e: React.FormEvent) {
+    e.preventDefault();
+    if (!navn.trim()) return;
+
+    const medlemmer: Array<{
+      enterpriseId?: string;
+      rolle: "oppretter" | "svarer";
+      steg: number;
+    }> = [];
+
+    if (oppretterEntrepriseId) {
+      medlemmer.push({ enterpriseId: oppretterEntrepriseId, rolle: "oppretter", steg: 1 });
+    }
+    if (svarerEntrepriseId) {
+      medlemmer.push({ enterpriseId: svarerEntrepriseId, rolle: "svarer", steg: 1 });
+    }
+
+    opprettMutation.mutate({
+      projectId: prosjektId,
+      name: navn.trim(),
+      templateIds: Array.from(valgteMaler),
+      medlemmer,
+    });
+  }
+
+  return (
+    <Modal open={open} onClose={onClose} title="Ny dokumentflyt">
+      <form onSubmit={handleOpprett} className="flex flex-col gap-4">
+        <Input
+          label="Navn"
+          placeholder="F.eks. Byggherre → Bygg"
+          value={navn}
+          onChange={(e) => setNavn(e.target.value)}
+          required
+        />
+
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">
+            Opprett/send
+          </label>
+          <select
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-sitedoc-primary focus:outline-none focus:ring-1 focus:ring-sitedoc-primary"
+            value={oppretterEntrepriseId}
+            onChange={(e) => setOppretterEntrepriseId(e.target.value)}
+          >
+            <option value="">Velg entreprise...</option>
+            {entrepriser.map((ent) => (
+              <option key={ent.id} value={ent.id}>{ent.name}</option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">
+            Mottaker
+          </label>
+          <select
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-sitedoc-primary focus:outline-none focus:ring-1 focus:ring-sitedoc-primary"
+            value={svarerEntrepriseId}
+            onChange={(e) => setSvarerEntrepriseId(e.target.value)}
+          >
+            <option value="">Velg entreprise...</option>
+            {entrepriser.map((ent) => (
+              <option key={ent.id} value={ent.id}>{ent.name}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Maler */}
+        <div className="grid grid-cols-2 gap-6">
+          <div>
+            <label className="mb-2 flex items-center gap-2">
+              <input
+                type="checkbox"
+                className="h-4 w-4 rounded border-gray-300 text-sitedoc-primary accent-sitedoc-primary"
+                checked={oppgaveMaler.length > 0 && oppgaveMaler.every((m) => valgteMaler.has(m.id))}
+                onChange={() => {
+                  const alleValgt = oppgaveMaler.every((m) => valgteMaler.has(m.id));
+                  setValgteMaler((prev) => {
+                    const neste = new Set(prev);
+                    for (const m of oppgaveMaler) {
+                      if (alleValgt) neste.delete(m.id); else neste.add(m.id);
+                    }
+                    return neste;
+                  });
+                }}
+              />
+              <span className="text-sm font-semibold text-gray-900">Oppgavetype</span>
+            </label>
+            <div className="space-y-1.5">
+              {oppgaveMaler.map((mal) => (
+                <label key={mal.id} className="flex items-center gap-2 rounded px-1 py-0.5 hover:bg-gray-50">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded border-gray-300 text-sitedoc-primary accent-sitedoc-primary"
+                    checked={valgteMaler.has(mal.id)}
+                    onChange={() => toggleMal(mal.id)}
+                  />
+                  <span className="text-sm text-gray-700">{mal.name}</span>
+                </label>
+              ))}
+              {oppgaveMaler.length === 0 && <p className="text-xs text-gray-400">Ingen oppgavemaler</p>}
+            </div>
+          </div>
+          <div>
+            <label className="mb-2 flex items-center gap-2">
+              <input
+                type="checkbox"
+                className="h-4 w-4 rounded border-gray-300 text-sitedoc-primary accent-sitedoc-primary"
+                checked={sjekklisteMaler.length > 0 && sjekklisteMaler.every((m) => valgteMaler.has(m.id))}
+                onChange={() => {
+                  const alleValgt = sjekklisteMaler.every((m) => valgteMaler.has(m.id));
+                  setValgteMaler((prev) => {
+                    const neste = new Set(prev);
+                    for (const m of sjekklisteMaler) {
+                      if (alleValgt) neste.delete(m.id); else neste.add(m.id);
+                    }
+                    return neste;
+                  });
+                }}
+              />
+              <span className="text-sm font-semibold text-gray-900">Sjekklistetype</span>
+            </label>
+            <div className="space-y-1.5">
+              {sjekklisteMaler.map((mal) => (
+                <label key={mal.id} className="flex items-center gap-2 rounded px-1 py-0.5 hover:bg-gray-50">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded border-gray-300 text-sitedoc-primary accent-sitedoc-primary"
+                    checked={valgteMaler.has(mal.id)}
+                    onChange={() => toggleMal(mal.id)}
+                  />
+                  <span className="text-sm text-gray-700">{mal.name}</span>
+                </label>
+              ))}
+              {sjekklisteMaler.length === 0 && <p className="text-xs text-gray-400">Ingen sjekklistemaler</p>}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex gap-3 pt-2">
+          <Button variant="secondary" type="button" onClick={onClose}>
+            Avbryt
+          </Button>
+          <Button type="submit" loading={opprettMutation.isPending} disabled={!navn.trim()}>
+            Opprett
+          </Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  RedigerDokumentflytModal                                           */
+/* ------------------------------------------------------------------ */
+
+function RedigerDokumentflytModal({
+  open,
+  onClose,
+  prosjektId,
+  dokumentflyt,
+  maler,
+}: {
+  open: boolean;
+  onClose: () => void;
+  prosjektId: string;
+  dokumentflyt: DokumentflytData | null;
+  maler: Array<{ id: string; name: string; category: string }>;
+}) {
+  const [navn, setNavn] = useState("");
+  const [valgteMaler, setValgteMaler] = useState<Set<string>>(new Set());
+
+  const utils = trpc.useUtils();
+  const oppdaterMutation = trpc.dokumentflyt.oppdater.useMutation({
+    onSuccess: () => {
+      utils.dokumentflyt.hentForProsjekt.invalidate({ projectId: prosjektId });
+      onClose();
+    },
+  });
+
+  const [forrigeId, setForrigeId] = useState<string | null>(null);
+  if (dokumentflyt && dokumentflyt.id !== forrigeId) {
+    setForrigeId(dokumentflyt.id);
+    setNavn(dokumentflyt.name);
+    setValgteMaler(new Set(dokumentflyt.maler.map((m) => m.template.id)));
+  }
+
+  const oppgaveMaler = maler.filter((m) => m.category === "oppgave");
+  const sjekklisteMaler = maler.filter((m) => m.category === "sjekkliste");
+
+  function toggleMal(id: string) {
+    setValgteMaler((prev) => {
+      const neste = new Set(prev);
+      if (neste.has(id)) neste.delete(id);
+      else neste.add(id);
+      return neste;
+    });
+  }
+
+  function handleLagre(e: React.FormEvent) {
+    e.preventDefault();
+    if (!dokumentflyt || !navn.trim()) return;
+    oppdaterMutation.mutate({
+      id: dokumentflyt.id,
+      projectId: prosjektId,
+      name: navn.trim(),
+      templateIds: Array.from(valgteMaler),
+    });
+  }
+
+  return (
+    <Modal open={open} onClose={onClose} title="Rediger dokumentflyt">
+      <form onSubmit={handleLagre} className="flex flex-col gap-4">
+        <Input
+          label="Navn"
+          value={navn}
+          onChange={(e) => setNavn(e.target.value)}
+          required
+        />
+
+        <div className="grid grid-cols-2 gap-6">
+          <div>
+            <label className="mb-2 flex items-center gap-2">
+              <input
+                type="checkbox"
+                className="h-4 w-4 rounded border-gray-300 text-sitedoc-primary accent-sitedoc-primary"
+                checked={oppgaveMaler.length > 0 && oppgaveMaler.every((m) => valgteMaler.has(m.id))}
+                onChange={() => {
+                  const alleValgt = oppgaveMaler.every((m) => valgteMaler.has(m.id));
+                  setValgteMaler((prev) => {
+                    const neste = new Set(prev);
+                    for (const m of oppgaveMaler) {
+                      if (alleValgt) neste.delete(m.id); else neste.add(m.id);
+                    }
+                    return neste;
+                  });
+                }}
+              />
+              <span className="text-sm font-semibold text-gray-900">Oppgavetype</span>
+            </label>
+            <div className="space-y-1.5">
+              {oppgaveMaler.map((mal) => (
+                <label key={mal.id} className="flex items-center gap-2 rounded px-1 py-0.5 hover:bg-gray-50">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded border-gray-300 text-sitedoc-primary accent-sitedoc-primary"
+                    checked={valgteMaler.has(mal.id)}
+                    onChange={() => toggleMal(mal.id)}
+                  />
+                  <span className="text-sm text-gray-700">{mal.name}</span>
+                </label>
+              ))}
+              {oppgaveMaler.length === 0 && <p className="text-xs text-gray-400">Ingen oppgavemaler</p>}
+            </div>
+          </div>
+          <div>
+            <label className="mb-2 flex items-center gap-2">
+              <input
+                type="checkbox"
+                className="h-4 w-4 rounded border-gray-300 text-sitedoc-primary accent-sitedoc-primary"
+                checked={sjekklisteMaler.length > 0 && sjekklisteMaler.every((m) => valgteMaler.has(m.id))}
+                onChange={() => {
+                  const alleValgt = sjekklisteMaler.every((m) => valgteMaler.has(m.id));
+                  setValgteMaler((prev) => {
+                    const neste = new Set(prev);
+                    for (const m of sjekklisteMaler) {
+                      if (alleValgt) neste.delete(m.id); else neste.add(m.id);
+                    }
+                    return neste;
+                  });
+                }}
+              />
+              <span className="text-sm font-semibold text-gray-900">Sjekklistetype</span>
+            </label>
+            <div className="space-y-1.5">
+              {sjekklisteMaler.map((mal) => (
+                <label key={mal.id} className="flex items-center gap-2 rounded px-1 py-0.5 hover:bg-gray-50">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded border-gray-300 text-sitedoc-primary accent-sitedoc-primary"
+                    checked={valgteMaler.has(mal.id)}
+                    onChange={() => toggleMal(mal.id)}
+                  />
+                  <span className="text-sm text-gray-700">{mal.name}</span>
+                </label>
+              ))}
+              {sjekklisteMaler.length === 0 && <p className="text-xs text-gray-400">Ingen sjekklistemaler</p>}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex gap-3 pt-2">
+          <Button variant="secondary" type="button" onClick={onClose}>
+            Avbryt
+          </Button>
+          <Button type="submit" loading={oppdaterMutation.isPending} disabled={!navn.trim()}>
+            Lagre
+          </Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Hovedside                                                          */
 /* ------------------------------------------------------------------ */
 
@@ -536,7 +984,7 @@ export default function EntrepriserSide() {
   const [sok, setSok] = useState("");
   const [visVeiviser, setVisVeiviser] = useState(false);
 
-  // Rediger entreprise
+  // Entreprise rediger/slett
   const [redigerEntrepriseId, setRedigerEntrepriseId] = useState<string | null>(null);
   const [redigerNavn, setRedigerNavn] = useState("");
   const [redigerNummer, setRedigerNummer] = useState("");
@@ -546,27 +994,62 @@ export default function EntrepriserSide() {
   const [redigerFirma, setRedigerFirma] = useState("");
   const [slettEntrepriseId, setSlettEntrepriseId] = useState<string | null>(null);
 
+  // Dokumentflyt rediger/slett/opprett
+  const [redigerDf, setRedigerDf] = useState<DokumentflytData | null>(null);
+  const [slettDfId, setSlettDfId] = useState<string | null>(null);
+  const [visOpprettDf, setVisOpprettDf] = useState(false);
+  const [forvalgtEntrepriseId, setForvalgtEntrepriseId] = useState<string | undefined>();
+
+  // Inviter
+  const [inviterInfo, setInviterInfo] = useState<{
+    dokumentflytId: string;
+    rolle: "oppretter" | "svarer";
+    steg: number;
+  } | null>(null);
+
   // Data
-  const { data: entrepriser, isLoading } = trpc.entreprise.hentForProsjekt.useQuery(
+  const { data: entrepriser, isLoading: lasterEntrepriser } = trpc.entreprise.hentForProsjekt.useQuery(
     { projectId: prosjektId! },
     { enabled: !!prosjektId },
   );
 
-  const oppdaterMutation = trpc.entreprise.oppdater.useMutation({
+  const { data: dokumentflyter, isLoading: lasterDf } = trpc.dokumentflyt.hentForProsjekt.useQuery(
+    { projectId: prosjektId! },
+    { enabled: !!prosjektId },
+  );
+
+  const { data: maler } = trpc.mal.hentForProsjekt.useQuery(
+    { projectId: prosjektId! },
+    { enabled: !!prosjektId },
+  );
+
+  const { data: medlemmer } = trpc.medlem.hentForProsjekt.useQuery(
+    { projectId: prosjektId! },
+    { enabled: !!prosjektId },
+  );
+
+  const oppdaterEntrepriseMutation = trpc.entreprise.oppdater.useMutation({
     onSuccess: () => {
       utils.entreprise.hentForProsjekt.invalidate({ projectId: prosjektId! });
       setRedigerEntrepriseId(null);
     },
   });
 
-  const slettMutation = trpc.entreprise.slett.useMutation({
+  const slettEntrepriseMutation = trpc.entreprise.slett.useMutation({
     onSuccess: () => {
       utils.entreprise.hentForProsjekt.invalidate({ projectId: prosjektId! });
       setSlettEntrepriseId(null);
     },
   });
 
-  function handleRediger(id: string) {
+  const slettDfMutation = trpc.dokumentflyt.slett.useMutation({
+    onSuccess: () => {
+      utils.dokumentflyt.hentForProsjekt.invalidate({ projectId: prosjektId! });
+      setSlettDfId(null);
+    },
+  });
+
+  function handleRedigerEntreprise(id: string) {
     const ent = entrepriser?.find((e) => e.id === id);
     if (!ent) return;
     setRedigerEntrepriseId(id);
@@ -578,6 +1061,17 @@ export default function EntrepriserSide() {
     setRedigerFirma(ent.companyName ?? "");
   }
 
+  function handleDfOppdatert() {
+    utils.dokumentflyt.hentForProsjekt.invalidate({ projectId: prosjektId! });
+  }
+
+  function handleNyDokumentflyt(entrepriseId: string) {
+    setForvalgtEntrepriseId(entrepriseId);
+    setVisOpprettDf(true);
+  }
+
+  const isLoading = lasterEntrepriser || lasterDf;
+
   if (isLoading) {
     return (
       <div className="flex justify-center py-12">
@@ -585,6 +1079,8 @@ export default function EntrepriserSide() {
       </div>
     );
   }
+
+  if (!prosjektId) return null;
 
   const entrepriseData: EntrepriseData[] = entrepriser?.map((e, i) => ({
     id: e.id,
@@ -596,6 +1092,46 @@ export default function EntrepriserSide() {
     companyName: e.companyName ?? null,
     fargeIndeks: i,
   })) ?? [];
+
+  const entrepriseListe: EntrepriseItem[] = entrepriseData.map((e) => ({
+    id: e.id,
+    name: e.name,
+    color: e.color,
+  }));
+
+  const malListe = (maler ?? []).map((m: { id: string; name: string; category: string }) => ({
+    id: m.id,
+    name: m.name,
+    category: m.category,
+  }));
+
+  const medlemListe: ProsjektMedlemItem[] = (medlemmer as ProsjektMedlemItem[] | undefined) ?? [];
+
+  const alleDf = (dokumentflyter ?? []) as DokumentflytData[];
+
+  // Grupper dokumentflyter per entreprise
+  // En dokumentflyt tilhører en entreprise hvis den har et medlem (oppretter eller svarer) fra den entreprisen
+  const entrepriseIder = new Set(entrepriseData.map((e) => e.id));
+
+  function hentDfForEntreprise(entrepriseId: string): DokumentflytData[] {
+    return alleDf.filter((df) =>
+      df.medlemmer.some((m) => m.enterprise?.id === entrepriseId),
+    );
+  }
+
+  // "Felles" — dokumentflyter som involverer ALLE entrepriser, eller ingen spesifikk
+  const fellesDf = alleDf.filter((df) => {
+    const involverteEntrepriser = new Set(
+      df.medlemmer.filter((m) => m.enterprise).map((m) => m.enterprise!.id),
+    );
+    // Ingen entreprisemedlemmer (kun personmedlemmer) eller alle entrepriser involvert
+    if (involverteEntrepriser.size === 0) return true;
+    if (involverteEntrepriser.size >= entrepriseIder.size && entrepriseIder.size > 0) {
+      // Sjekk at alle entrepriser er involvert
+      return Array.from(entrepriseIder).every((id) => involverteEntrepriser.has(id));
+    }
+    return false;
+  });
 
   const filtrert = sok
     ? entrepriseData.filter((e) => {
@@ -613,30 +1149,36 @@ export default function EntrepriserSide() {
     <div>
       {/* Verktøylinje */}
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-lg font-bold text-gray-900">Entrepriser</h2>
-        <Button size="sm" onClick={() => setVisVeiviser(true)}>
-          <Plus className="mr-1.5 h-4 w-4" />
-          Legg til entreprise
-        </Button>
+        <h2 className="text-lg font-bold text-gray-900">Entrepriser og dokumentflyt</h2>
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="secondary" onClick={() => { setForvalgtEntrepriseId(undefined); setVisOpprettDf(true); }}>
+            <Plus className="mr-1.5 h-4 w-4" />
+            Ny dokumentflyt
+          </Button>
+          <Button size="sm" onClick={() => setVisVeiviser(true)}>
+            <Plus className="mr-1.5 h-4 w-4" />
+            Ny entreprise
+          </Button>
+        </div>
       </div>
 
       {/* Søk */}
-      {entrepriseData.length > 0 && (
+      {entrepriseData.length > 4 && (
         <div className="mb-4">
           <SearchInput
             verdi={sok}
             onChange={setSok}
-            placeholder="Søk i entrepriser"
+            placeholder="Søk i entrepriser..."
             className="w-72"
           />
         </div>
       )}
 
-      {/* Entrepriser */}
-      {filtrert.length === 0 ? (
+      {/* Entrepriser med dokumentflyter */}
+      {filtrert.length === 0 && fellesDf.length === 0 ? (
         <EmptyState
           title="Ingen entrepriser"
-          description="Legg til entrepriser for prosjektet. Dokumentflyt konfigureres under Dokumentflyt-fanen."
+          description="Legg til entrepriser med dokumentflyt for å styre godkjenning og kommunikasjon."
           action={
             <Button onClick={() => setVisVeiviser(true)}>
               Legg til entreprise
@@ -644,26 +1186,99 @@ export default function EntrepriserSide() {
           }
         />
       ) : (
-        <div>
+        <>
           {filtrert.map((ent) => (
             <EntrepriseKort
               key={ent.id}
               entreprise={ent}
-              onRediger={() => handleRediger(ent.id)}
+              dokumentflyter={hentDfForEntreprise(ent.id)}
+              prosjektId={prosjektId}
+              entrepriseListe={entrepriseListe}
+              medlemmer={medlemListe}
+              onRediger={() => handleRedigerEntreprise(ent.id)}
               onSlett={() => setSlettEntrepriseId(ent.id)}
+              onDfRediger={setRedigerDf}
+              onDfSlett={setSlettDfId}
+              onDfOppdatert={handleDfOppdatert}
+              onNyDokumentflyt={handleNyDokumentflyt}
+              onInviterNy={(dfId, rolle, steg) =>
+                setInviterInfo({ dokumentflytId: dfId, rolle, steg })
+              }
             />
           ))}
-        </div>
+
+          {/* Felles dokumentflyter */}
+          {fellesDf.length > 0 && (
+            <div className="mb-3 rounded-lg border border-gray-200 bg-white">
+              <div className="flex items-center rounded-t-lg border border-gray-300 bg-gray-100 px-4 py-2.5">
+                <Building2 className="mr-2 h-4 w-4 text-gray-500" />
+                <span className="text-sm font-semibold text-gray-700">
+                  Felles
+                </span>
+                <span className="ml-1 text-xs text-gray-400">
+                  ({fellesDf.length} dokumentflyt{fellesDf.length !== 1 ? "er" : ""})
+                </span>
+              </div>
+              <div className="space-y-2 p-3">
+                {fellesDf.map((df) => (
+                  <DokumentflytInlineKort
+                    key={df.id}
+                    dokumentflyt={df}
+                    prosjektId={prosjektId}
+                    entrepriser={entrepriseListe}
+                    medlemmer={medlemListe}
+                    onRediger={() => setRedigerDf(df)}
+                    onSlett={() => setSlettDfId(df.id)}
+                    onOppdatert={handleDfOppdatert}
+                    onInviterNy={(dfId, rolle, steg) =>
+                      setInviterInfo({ dokumentflytId: dfId, rolle, steg })
+                    }
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+        </>
       )}
 
-      {/* Veiviser */}
+      {/* Modaler */}
       <EntrepriseVeiviser
         open={visVeiviser}
         onClose={() => setVisVeiviser(false)}
-        prosjektId={prosjektId!}
+        prosjektId={prosjektId}
         entrepriser={entrepriseData}
         prosjekter={prosjekter}
         onOpprettet={() => {}}
+      />
+
+      <OpprettDokumentflytModal
+        open={visOpprettDf}
+        onClose={() => setVisOpprettDf(false)}
+        prosjektId={prosjektId}
+        entrepriser={entrepriseListe}
+        maler={malListe}
+        forvalgtEntrepriseId={forvalgtEntrepriseId}
+      />
+
+      <RedigerDokumentflytModal
+        open={redigerDf !== null}
+        onClose={() => setRedigerDf(null)}
+        prosjektId={prosjektId}
+        dokumentflyt={redigerDf}
+        maler={malListe}
+      />
+
+      <InviterNyMedlemModal
+        open={inviterInfo !== null}
+        onClose={() => setInviterInfo(null)}
+        prosjektId={prosjektId}
+        dokumentflytId={inviterInfo?.dokumentflytId ?? ""}
+        rolle={inviterInfo?.rolle ?? "oppretter"}
+        steg={inviterInfo?.steg ?? 1}
+        onFerdig={() => {
+          handleDfOppdatert();
+          utils.medlem.hentForProsjekt.invalidate({ projectId: prosjektId });
+        }}
       />
 
       {/* Rediger entreprise */}
@@ -676,7 +1291,7 @@ export default function EntrepriserSide() {
           onSubmit={(e) => {
             e.preventDefault();
             if (!redigerEntrepriseId || !redigerNavn.trim()) return;
-            oppdaterMutation.mutate({
+            oppdaterEntrepriseMutation.mutate({
               id: redigerEntrepriseId,
               name: redigerNavn.trim(),
               enterpriseNumber: redigerNummer.trim() || undefined,
@@ -743,7 +1358,7 @@ export default function EntrepriserSide() {
           />
 
           <div className="flex gap-3 pt-2">
-            <Button type="submit" loading={oppdaterMutation.isPending}>
+            <Button type="submit" loading={oppdaterEntrepriseMutation.isPending}>
               Lagre
             </Button>
             <Button type="button" variant="secondary" onClick={() => setRedigerEntrepriseId(null)}>
@@ -761,21 +1376,51 @@ export default function EntrepriserSide() {
       >
         <div className="flex flex-col gap-4">
           <p className="text-sm text-gray-600">
-            Er du sikker på at du vil slette denne entreprisen?
+            Er du sikker på at du vil slette denne entreprisen og alle tilhørende dokumentflyter?
           </p>
           <div className="flex gap-3 pt-2">
             <Button
               variant="danger"
-              loading={slettMutation.isPending}
+              loading={slettEntrepriseMutation.isPending}
               onClick={() => {
                 if (!slettEntrepriseId) return;
-                slettMutation.mutate({ id: slettEntrepriseId });
+                slettEntrepriseMutation.mutate({ id: slettEntrepriseId });
               }}
             >
               Slett
             </Button>
             <Button variant="secondary" onClick={() => setSlettEntrepriseId(null)}>
               Avbryt
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Slett dokumentflyt */}
+      <Modal
+        open={slettDfId !== null}
+        onClose={() => setSlettDfId(null)}
+        title="Slett dokumentflyt"
+      >
+        <div className="flex flex-col gap-4">
+          <p className="text-sm text-gray-600">
+            Er du sikker på at du vil slette denne dokumentflyten?
+            Eksisterende dokumenter påvirkes ikke.
+          </p>
+          <div className="flex gap-3">
+            <Button variant="secondary" onClick={() => setSlettDfId(null)}>
+              Avbryt
+            </Button>
+            <Button
+              variant="danger"
+              loading={slettDfMutation.isPending}
+              onClick={() => {
+                if (slettDfId) {
+                  slettDfMutation.mutate({ id: slettDfId, projectId: prosjektId });
+                }
+              }}
+            >
+              Slett
             </Button>
           </div>
         </div>
