@@ -11,6 +11,9 @@ import {
   User,
   Mail,
   UserPlus,
+  ChevronDown,
+  ChevronRight,
+  Pencil,
 } from "lucide-react";
 import { hentFargeForEntreprise } from "./entreprise-farger";
 
@@ -401,7 +404,33 @@ export function InviterNyMedlemModal({
 }
 
 /* ------------------------------------------------------------------ */
-/*  DokumentflytInlineKort — kompakt dokumentflyt inne i entreprise    */
+/*  Helpers for compact member display                                 */
+/* ------------------------------------------------------------------ */
+
+function MedlemmerKompakt({ medlemmer }: { medlemmer: DokumentflytMedlemData[] }) {
+  if (medlemmer.length === 0) return <span className="text-gray-300">—</span>;
+
+  return (
+    <span className="text-[12px] text-gray-600">
+      {medlemmer.map((m, i) => {
+        const navn = m.enterprise?.name ?? m.projectMember?.user.name ?? m.projectMember?.user.email ?? "?";
+        return (
+          <span key={m.id}>
+            {i > 0 && ", "}
+            {m.enterprise ? (
+              <span className="font-medium">{navn}</span>
+            ) : (
+              <span>{navn}</span>
+            )}
+          </span>
+        );
+      })}
+    </span>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  DokumentflytInlineKort — kompakt rad, ekspanderer ved klikk        */
 /* ------------------------------------------------------------------ */
 
 export function DokumentflytInlineKort({
@@ -423,6 +452,8 @@ export function DokumentflytInlineKort({
   onOppdatert: () => void;
   onInviterNy: (dokumentflytId: string, rolle: "oppretter" | "svarer", steg: number) => void;
 }) {
+  const [ekspandert, setEkspandert] = useState(false);
+
   const fjernMedlemMutation = trpc.dokumentflyt.fjernMedlem.useMutation({
     onSuccess: () => onOppdatert(),
   });
@@ -438,37 +469,50 @@ export function DokumentflytInlineKort({
   }
   const sorterteSteg = Array.from(stegMap.entries()).sort(([a], [b]) => a - b);
 
-  const oppgaveMaler = dokumentflyt.maler.filter((m) => m.template.category === "oppgave");
-  const sjekklisteMaler = dokumentflyt.maler.filter((m) => m.template.category === "sjekkliste");
-  const malOppsummering = [
-    oppgaveMaler.length > 0 ? `${oppgaveMaler.length} oppg.` : null,
-    sjekklisteMaler.length > 0 ? `${sjekklisteMaler.length} sjekk.` : null,
-  ].filter(Boolean).join(" + ");
+  const malAntall = dokumentflyt.maler.length;
 
   function fjernMedlem(id: string) {
     fjernMedlemMutation.mutate({ id, projectId: prosjektId });
   }
 
   return (
-    <div className="rounded-md border border-gray-150 bg-gray-50/50">
-      {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2">
-        <div className="flex items-center gap-2">
-          <FileText className="h-3.5 w-3.5 text-gray-400" />
-          <span className="text-[13px] font-medium text-gray-700">
-            {dokumentflyt.name}
-          </span>
-          {malOppsummering && (
-            <span className="text-[11px] text-gray-400">({malOppsummering})</span>
-          )}
+    <div className="rounded border border-gray-200 bg-white">
+      {/* Kompakt rad */}
+      <div
+        className="flex cursor-pointer items-center gap-3 px-3 py-1.5 hover:bg-gray-50"
+        onClick={() => setEkspandert(!ekspandert)}
+      >
+        {ekspandert ? (
+          <ChevronDown className="h-3 w-3 shrink-0 text-gray-400" />
+        ) : (
+          <ChevronRight className="h-3 w-3 shrink-0 text-gray-400" />
+        )}
+
+        <span className="min-w-0 shrink-0 text-[13px] font-medium text-gray-700">
+          {dokumentflyt.name}
+        </span>
+
+        <div className="flex min-w-0 flex-1 items-center gap-1 text-[11px] text-gray-400">
+          <span className="shrink-0">Opprett/send:</span>
+          <MedlemmerKompakt medlemmer={opprettere} />
+          <span className="mx-1 shrink-0">→</span>
+          <span className="shrink-0">Mottaker:</span>
+          <MedlemmerKompakt medlemmer={svarere} />
         </div>
-        <div className="flex items-center gap-0.5">
+
+        {malAntall > 0 && (
+          <span className="shrink-0 text-[11px] text-gray-400">
+            {malAntall} mal{malAntall !== 1 ? "er" : ""}
+          </span>
+        )}
+
+        <div className="flex shrink-0 items-center gap-0.5" onClick={(e) => e.stopPropagation()}>
           <button
             onClick={onRediger}
             className="rounded p-1 text-gray-400 hover:bg-gray-200 hover:text-gray-600"
             title="Rediger"
           >
-            <FileText className="h-3 w-3" />
+            <Pencil className="h-3 w-3" />
           </button>
           <button
             onClick={onSlett}
@@ -480,42 +524,17 @@ export function DokumentflytInlineKort({
         </div>
       </div>
 
-      {/* Kolonner */}
-      <div className="flex divide-x divide-gray-200 border-t border-gray-200">
-        {/* Opprett/send */}
-        <div className="flex-1 p-2.5">
-          <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
-            Opprett/send
-          </div>
-          <MedlemListe
-            medlemmer={opprettere}
-            entrepriser={entrepriser}
-            onFjern={fjernMedlem}
-          />
-          <div className="mt-1">
-            <LeggTilMedlemDropdown
-              dokumentflytId={dokumentflyt.id}
-              prosjektId={prosjektId}
-              rolle="oppretter"
-              steg={1}
-              entrepriser={entrepriser}
-              medlemmer={medlemmer}
-              eksisterende={opprettere}
-              onLagtTil={onOppdatert}
-              onInviterNy={() => onInviterNy(dokumentflyt.id, "oppretter", 1)}
-            />
-          </div>
-        </div>
-
-        {/* Mottaker */}
-        {sorterteSteg.length > 0 ? (
-          sorterteSteg.map(([steg, stegMedlemmer]) => (
-            <div key={steg} className="flex-1 p-2.5">
+      {/* Ekspandert: full redigering */}
+      {ekspandert && (
+        <div className="border-t border-gray-100">
+          <div className="flex divide-x divide-gray-100">
+            {/* Opprett/send */}
+            <div className="flex-1 p-2.5">
               <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
-                Mottaker{steg > 1 ? ` ${steg}` : ""}
+                Opprett/send
               </div>
               <MedlemListe
-                medlemmer={stegMedlemmer}
+                medlemmer={opprettere}
                 entrepriser={entrepriser}
                 onFjern={fjernMedlem}
               />
@@ -523,54 +542,83 @@ export function DokumentflytInlineKort({
                 <LeggTilMedlemDropdown
                   dokumentflytId={dokumentflyt.id}
                   prosjektId={prosjektId}
-                  rolle="svarer"
-                  steg={steg}
+                  rolle="oppretter"
+                  steg={1}
                   entrepriser={entrepriser}
                   medlemmer={medlemmer}
-                  eksisterende={stegMedlemmer}
+                  eksisterende={opprettere}
                   onLagtTil={onOppdatert}
-                  onInviterNy={() => onInviterNy(dokumentflyt.id, "svarer", steg)}
+                  onInviterNy={() => onInviterNy(dokumentflyt.id, "oppretter", 1)}
                 />
               </div>
             </div>
-          ))
-        ) : (
-          <div className="flex-1 p-2.5">
-            <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
-              Mottaker
-            </div>
-            <span className="text-xs text-gray-300">Ikke konfigurert</span>
-            <div className="mt-1">
-              <LeggTilMedlemDropdown
-                dokumentflytId={dokumentflyt.id}
-                prosjektId={prosjektId}
-                rolle="svarer"
-                steg={1}
-                entrepriser={entrepriser}
-                medlemmer={medlemmer}
-                eksisterende={[]}
-                onLagtTil={onOppdatert}
-                onInviterNy={() => onInviterNy(dokumentflyt.id, "svarer", 1)}
-              />
-            </div>
-          </div>
-        )}
-      </div>
 
-      {/* Maler */}
-      {dokumentflyt.maler.length > 0 && (
-        <div className="border-t border-gray-200 px-3 py-1.5">
-          <div className="flex flex-wrap gap-1">
-            {dokumentflyt.maler.map((m) => (
-              <span
-                key={m.template.id}
-                className="inline-flex items-center gap-1 rounded bg-white px-1.5 py-0.5 text-[11px] text-gray-500"
-              >
-                <FileText className="h-2.5 w-2.5" />
-                {m.template.name}
-              </span>
-            ))}
+            {/* Mottaker */}
+            {sorterteSteg.length > 0 ? (
+              sorterteSteg.map(([steg, stegMedlemmer]) => (
+                <div key={steg} className="flex-1 p-2.5">
+                  <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+                    Mottaker{steg > 1 ? ` ${steg}` : ""}
+                  </div>
+                  <MedlemListe
+                    medlemmer={stegMedlemmer}
+                    entrepriser={entrepriser}
+                    onFjern={fjernMedlem}
+                  />
+                  <div className="mt-1">
+                    <LeggTilMedlemDropdown
+                      dokumentflytId={dokumentflyt.id}
+                      prosjektId={prosjektId}
+                      rolle="svarer"
+                      steg={steg}
+                      entrepriser={entrepriser}
+                      medlemmer={medlemmer}
+                      eksisterende={stegMedlemmer}
+                      onLagtTil={onOppdatert}
+                      onInviterNy={() => onInviterNy(dokumentflyt.id, "svarer", steg)}
+                    />
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="flex-1 p-2.5">
+                <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+                  Mottaker
+                </div>
+                <span className="text-xs text-gray-300">Ikke konfigurert</span>
+                <div className="mt-1">
+                  <LeggTilMedlemDropdown
+                    dokumentflytId={dokumentflyt.id}
+                    prosjektId={prosjektId}
+                    rolle="svarer"
+                    steg={1}
+                    entrepriser={entrepriser}
+                    medlemmer={medlemmer}
+                    eksisterende={[]}
+                    onLagtTil={onOppdatert}
+                    onInviterNy={() => onInviterNy(dokumentflyt.id, "svarer", 1)}
+                  />
+                </div>
+              </div>
+            )}
           </div>
+
+          {/* Maler */}
+          {dokumentflyt.maler.length > 0 && (
+            <div className="border-t border-gray-100 px-3 py-1.5">
+              <div className="flex flex-wrap gap-1">
+                {dokumentflyt.maler.map((m) => (
+                  <span
+                    key={m.template.id}
+                    className="inline-flex items-center gap-1 rounded bg-gray-50 px-1.5 py-0.5 text-[11px] text-gray-500"
+                  >
+                    <FileText className="h-2.5 w-2.5" />
+                    {m.template.name}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
