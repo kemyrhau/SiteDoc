@@ -7,25 +7,40 @@ Mac (utvikling) → git push → GitHub → ssh sitedoc → git pull + build + p
                                     → eas build → TestFlight
 
 PC/WSL (server):
-  Next.js    :3100 → sitedoc.no      (Cloudflare Tunnel)
-  Fastify    :3001 → api.sitedoc.no  (Cloudflare Tunnel)
-  SSH        :22   → ssh.sitedoc.no  (Cloudflare Tunnel)
-  PostgreSQL :5432 (lokal, db: sitedoc, bruker: kemyr)
+  Produksjon:
+    Next.js    :3100 → sitedoc.no          (Cloudflare Tunnel)
+    Fastify    :3001 → api.sitedoc.no      (Cloudflare Tunnel)
+    PostgreSQL :5432 (db: sitedoc, bruker: kemyr)
+
+  Test:
+    Next.js    :3300 → test.sitedoc.no     (Cloudflare Tunnel)
+    Fastify    :3301 → api-test.sitedoc.no (Cloudflare Tunnel)
+    PostgreSQL :5432 (db: sitedoc_test, bruker: kemyr)
+
+  Felles:
+    SSH        :22   → ssh.sitedoc.no      (Cloudflare Tunnel)
 ```
 
 ## Deployment
 
-**Full deploy (anbefalt):**
-```bash
-ssh sitedoc "cd ~/programmering/sitedoc && git pull && pnpm install --frozen-lockfile && pnpm db:migrate && pnpm build && pm2 restart all"
-```
+### Produksjon (main-branch)
 
-**Alternativt — deploy-script fra Mac:**
 ```bash
 bash deploy.sh
+# Eller manuelt:
+ssh sitedoc "cd ~/programmering/sitedoc && git pull && pnpm install --frozen-lockfile && pnpm db:migrate && pnpm build && pm2 restart sitedoc-web sitedoc-api"
 ```
 
-**Kun web-deploy:**
+### Test (develop-branch)
+
+```bash
+bash deploy-test.sh
+# Eller manuelt:
+ssh sitedoc "cd ~/programmering/sitedoc-test && git pull && pnpm install --frozen-lockfile && pnpm db:migrate && pnpm build && pm2 restart sitedoc-test-web sitedoc-test-api"
+```
+
+### Kun web-deploy (prod)
+
 ```bash
 ssh sitedoc "cd ~/programmering/sitedoc && git pull && pnpm build --filter @sitedoc/web && pm2 restart sitedoc-web"
 ```
@@ -34,12 +49,15 @@ ssh sitedoc "cd ~/programmering/sitedoc && git pull && pnpm build --filter @site
 - Filteret er `@sitedoc/web` (pakkenavn), IKKE `web`
 - Prisma-endringer: `pnpm db:migrate` FØR bygg
 - Koden MÅ være pushet til GitHub før deploy
+- Produksjon bruker `pm2 restart sitedoc-web sitedoc-api` (IKKE `pm2 restart all` — unngå restart av test-prosesser)
 
 ## Serverdetaljer
 
 - **SSH:** `ssh sitedoc` fra Mac (nøkkel `~/.ssh/sitedoc_server`)
-- **Prosjektmappe:** `~/programmering/sitedoc`
-- **PM2:** `sitedoc-web`, `sitedoc-api`
+- **Prosjektmappe (prod):** `~/programmering/sitedoc` (main-branch)
+- **Prosjektmappe (test):** `~/programmering/sitedoc-test` (develop-branch)
+- **PM2 (prod):** `sitedoc-web`, `sitedoc-api`
+- **PM2 (test):** `sitedoc-test-web`, `sitedoc-test-api`
 - **Cloudflare Tunnel:** Systemd, config `/etc/cloudflared/config.yml`, tunnel ID `189a5af2-59f9-48df-a834-8e934313aa51`
 - **Domene:** sitedoc.no (Domeneshop, DNS via Cloudflare)
 
@@ -51,7 +69,7 @@ ssh sitedoc "cd ~/programmering/sitedoc && git pull && pnpm build --filter @site
 
 ## Sikkerhet
 
-**CORS:** Callback-basert whitelist (`https://sitedoc.no`, `http://localhost:3100`, `http://localhost:3000`) med `credentials: true`. Ukjente origins avvises aktivt. Konfigurert i `apps/api/src/server.ts`.
+**CORS:** Callback-basert whitelist (`https://sitedoc.no`, `https://test.sitedoc.no`, `http://localhost:3100`, `http://localhost:3300`, `http://localhost:3000`) med `credentials: true`. Ukjente origins avvises aktivt. Konfigurert i `apps/api/src/server.ts`.
 
 **Filopplasting:** `/upload`-endepunkt krever autentisert sesjon. Tillatte typer: PDF, DWG, DXF, IFC, PNG, JPG. UUID-filnavn. `X-Content-Type-Options: nosniff`.
 
@@ -76,14 +94,33 @@ ssh sitedoc "cd ~/programmering/sitedoc && git pull && pnpm build --filter @site
 
 ## Env-filer på server
 
+### Produksjon (`~/programmering/sitedoc/`)
+
 | Fil | Nøkkelvariabler |
 |-----|----------------|
-| `apps/api/.env` | DATABASE_URL, PORT, HOST, AUTH_SECRET, RESEND_API_KEY |
+| `apps/api/.env` | DATABASE_URL, PORT=3001, HOST, AUTH_SECRET, RESEND_API_KEY |
 | `apps/web/.env.local` | AUTH_SECRET, AUTH_GOOGLE_ID/SECRET, AUTH_MICROSOFT_ENTRA_ID_*, DATABASE_URL, RESEND_API_KEY |
 | `packages/db/.env` | DATABASE_URL |
 
+### Test (`~/programmering/sitedoc-test/`)
+
+| Fil | Nøkkelvariabler |
+|-----|----------------|
+| `apps/api/.env` | DATABASE_URL (sitedoc_test), PORT=3301, HOST, AUTH_SECRET (egen), APP_URL=https://test.sitedoc.no |
+| `apps/web/.env.local` | API_PORT=3301, AUTH_SECRET (matcher API), AUTH_GOOGLE_ID/SECRET, AUTH_MICROSOFT_ENTRA_ID_*, DATABASE_URL (sitedoc_test) |
+| `packages/db/.env` | DATABASE_URL (sitedoc_test) |
+
 - `.env.local` har prioritet over `.env` i Next.js — sjekk BEGGE
 - Microsoft-variabler MÅ stå i `.env.local`
+- Test og produksjon har **separate AUTH_SECRET** og **separate databaser**
+
+## Test-miljø arbeidsflyt
+
+1. Utvikle på `develop`-branch
+2. `bash deploy-test.sh` → deployer til test.sitedoc.no
+3. Test grundig
+4. Merge `develop` → `main`
+5. `bash deploy.sh` → deployer til sitedoc.no
 
 ## EAS Build og TestFlight
 
