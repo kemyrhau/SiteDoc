@@ -9,7 +9,7 @@ export function hentTrpcUrl() {
   if (typeof window !== "undefined") {
     return "/api/trpc";
   }
-  return `http://localhost:${process.env.PORT ?? 3001}/trpc`;
+  return `http://localhost:${process.env.API_PORT ?? 3001}/trpc`;
 }
 
 export function opprettTrpcKlient() {

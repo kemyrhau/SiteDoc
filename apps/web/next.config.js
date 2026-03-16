@@ -50,14 +50,15 @@ const nextConfig = {
     ];
   },
   async rewrites() {
+    const apiPort = process.env.API_PORT || "3001";
     return [
       {
         source: "/api/upload",
-        destination: "http://localhost:3001/upload",
+        destination: `http://localhost:${apiPort}/upload`,
       },
       {
         source: "/api/uploads/:path*",
-        destination: "http://localhost:3001/uploads/:path*",
+        destination: `http://localhost:${apiPort}/uploads/:path*`,
       },
     ];
   },

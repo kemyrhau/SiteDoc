@@ -16,7 +16,9 @@ const server = Fastify({
 async function start() {
   const TILLATTE_ORIGINS = new Set([
     "https://sitedoc.no",
+    "https://test.sitedoc.no",
     "http://localhost:3100",
+    "http://localhost:3300",
     "http://localhost:3000",
   ]);
 
