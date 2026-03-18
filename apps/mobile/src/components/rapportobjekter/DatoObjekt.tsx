@@ -56,6 +56,11 @@ export function DatoObjekt({ verdi, onEndreVerdi, leseModus }: RapportObjektProp
         )}
       </Pressable>
 
+      {!leseModus && !datoVerdi && (
+        <Pressable onPress={settIDag} className="mt-1 ml-1">
+          <Text className="text-sm text-blue-600">I dag</Text>
+        </Pressable>
+      )}
       {datoVerdi && !leseModus && !erIDag(datoVerdi) && (
         <Pressable onPress={settIDag} className="mt-1 ml-1">
           <Text className="text-sm text-blue-600">I dag</Text>

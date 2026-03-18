@@ -66,13 +66,20 @@ export function DatoTidObjekt({ verdi, onEndreVerdi, leseModus }: RapportObjektP
   return (
     <View>
       {!datoVerdi ? (
-        <Pressable
-          onPress={haandterTrykk}
-          className="flex-row items-center rounded-lg border border-gray-300 bg-white px-3 py-2.5"
-        >
-          <Calendar size={18} color="#6b7280" />
-          <Text className="ml-2 text-sm text-gray-400">Velg dato og tid...</Text>
-        </Pressable>
+        <View>
+          <Pressable
+            onPress={haandterTrykk}
+            className="flex-row items-center rounded-lg border border-gray-300 bg-white px-3 py-2.5"
+          >
+            <Calendar size={18} color="#6b7280" />
+            <Text className="ml-2 text-sm text-gray-400">Velg dato og tid...</Text>
+          </Pressable>
+          {!leseModus && (
+            <Pressable onPress={settNaa} className="mt-1 ml-1">
+              <Text className="text-sm text-blue-600">Nå</Text>
+            </Pressable>
+          )}
+        </View>
       ) : (
         <View className="flex-row gap-2">
           <Pressable
