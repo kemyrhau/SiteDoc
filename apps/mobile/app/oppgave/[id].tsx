@@ -33,6 +33,7 @@ import { harBetingelse, harForelderObjekt } from "@sitedoc/shared";
 import { hentStatusHandlinger } from "@sitedoc/shared";
 import type { StatusHandling } from "@sitedoc/shared";
 import { useOppgaveSkjema } from "../../src/hooks/useOppgaveSkjema";
+import { useAutoVaer } from "../../src/hooks/useAutoVaer";
 import { useOpplastingsKo } from "../../src/providers/OpplastingsKoProvider";
 import { useAuth } from "../../src/providers/AuthProvider";
 import { StatusMerkelapp } from "../../src/components/StatusMerkelapp";
@@ -244,6 +245,14 @@ export default function OppgaveDetalj() {
     lagreStatus,
     synkStatus,
   } = useOppgaveSkjema(id!);
+
+  // Auto-hent værdata basert på dato og prosjektlokasjon
+  useAutoVaer({
+    prosjektId: valgtProsjektId,
+    alleObjekter: oppgave?.template?.objects ?? [],
+    hentFeltVerdi,
+    settVerdi,
+  });
 
   const håndterTilbake = useCallback(async () => {
     if (harEndringer) {

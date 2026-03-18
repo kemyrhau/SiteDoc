@@ -16,6 +16,7 @@ import { harBetingelse, harForelderObjekt } from "@sitedoc/shared";
 import { hentStatusHandlinger } from "@sitedoc/shared";
 import type { StatusHandling } from "@sitedoc/shared";
 import { useSjekklisteSkjema } from "../../src/hooks/useSjekklisteSkjema";
+import { useAutoVaer } from "../../src/hooks/useAutoVaer";
 import { useOpplastingsKo } from "../../src/providers/OpplastingsKoProvider";
 import { useAuth } from "../../src/providers/AuthProvider";
 import { StatusMerkelapp } from "../../src/components/StatusMerkelapp";
@@ -246,6 +247,14 @@ export default function SjekklisteUtfylling() {
     lagreStatus,
     synkStatus,
   } = useSjekklisteSkjema(id!);
+
+  // Auto-hent værdata basert på dato og prosjektlokasjon
+  useAutoVaer({
+    prosjektId: valgtProsjektId,
+    alleObjekter: sjekkliste?.template?.objects ?? [],
+    hentFeltVerdi,
+    settVerdi,
+  });
 
   const håndterTilbake = useCallback(async () => {
     if (harEndringer) {

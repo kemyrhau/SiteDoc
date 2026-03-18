@@ -39,6 +39,9 @@ const TOM_FELTVERDI: FeltVerdi = { verdi: null, kommentar: "", vedlegg: [] };
 // Typer som ikke har utfyllbar verdi
 const DISPLAY_TYPER = new Set(["heading", "subtitle"]);
 
+// Typer som auto-fylles ved opprettelse av nytt dokument
+const AUTO_FILL_TYPER = new Set(["date", "date_time"]);
+
 export interface UseSjekklisteSkjemaResultat {
   sjekkliste: {
     id: string;
@@ -204,6 +207,7 @@ export function useSjekklisteSkjema(sjekklisteId: string): UseSjekklisteSkjemaRe
 
     // Bruk server-data (eller SQLite hvis synkronisert)
     const initialisert: Record<string, FeltVerdi> = {};
+    const harServerData = Object.keys(eksisterendeData).length > 0;
 
     for (const objekt of alleObjekter) {
       if (DISPLAY_TYPER.has(objekt.type)) continue;
@@ -216,16 +220,33 @@ export function useSjekklisteSkjema(sjekklisteId: string): UseSjekklisteSkjemaRe
           vedlegg: (lagret.vedlegg as Vedlegg[]) ?? [],
         };
       } else {
-        initialisert[objekt.id] = { ...TOM_FELTVERDI };
+        // Auto-fill for nye sjekklister uten eksisterende data
+        let autoVerdi: unknown = null;
+
+        if (!harServerData && AUTO_FILL_TYPER.has(objekt.type)) {
+          switch (objekt.type) {
+            case "date":
+              autoVerdi = new Date().toISOString().split("T")[0];
+              break;
+            case "date_time":
+              autoVerdi = new Date().toISOString();
+              break;
+          }
+        }
+
+        initialisert[objekt.id] = { verdi: autoVerdi, kommentar: "", vedlegg: [] };
       }
     }
 
     settFeltVerdier(initialisert);
     settErInitialisert(true);
 
-    // Lagre server-data til SQLite (synkronisert)
-    skrivTilSQLite(sjekklisteId, initialisert, true);
-    settSynkStatus("synkronisert");
+    // Lagre til SQLite (synkronisert med server-data, eller lokalt_lagret med auto-fill)
+    const harAutoFylt = !harServerData && alleObjekter.some(
+      (o) => !DISPLAY_TYPER.has(o.type) && AUTO_FILL_TYPER.has(o.type) && initialisert[o.id]?.verdi != null,
+    );
+    skrivTilSQLite(sjekklisteId, initialisert, !harAutoFylt);
+    settSynkStatus(harAutoFylt ? "lokalt_lagret" : "synkronisert");
   }, [sjekkliste, alleObjekter, erInitialisert, sjekklisteId]);
 
   // Lytt på opplastingsfullføringer — oppdater vedlegg-URL i minnet

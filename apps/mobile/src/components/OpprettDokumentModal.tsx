@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Alert,
   Platform,
+  KeyboardAvoidingView,
 } from "react-native";
 import { SafeAreaView } from "react-native";
 import { ChevronDown } from "lucide-react-native";
@@ -353,6 +354,10 @@ export function OpprettDokumentModal({
   return (
     <Modal visible={synlig} animationType="slide" presentationStyle="pageSheet">
       <SafeAreaView style={{ flex: 1, backgroundColor: "#ffffff" }}>
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+        >
         {/* Header */}
         <View className="flex-row items-center justify-between bg-sitedoc-blue px-4 py-3">
           <Pressable onPress={håndterAvbryt} hitSlop={8}>
@@ -659,6 +664,7 @@ export function OpprettDokumentModal({
             </>
           )}
         </ScrollView>
+        </KeyboardAvoidingView>
       </SafeAreaView>
     </Modal>
   );
