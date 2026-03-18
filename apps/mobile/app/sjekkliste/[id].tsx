@@ -271,7 +271,12 @@ export default function SjekklisteUtfylling() {
       const html = byggSjekklisteHtml(
         sjekkliste as Parameters<typeof byggSjekklisteHtml>[0],
         feltVerdierForPdf(),
-        prosjektData ? { name: prosjektData.name, projectNumber: prosjektData.projectNumber, address: prosjektData.address } : null,
+        prosjektData ? {
+          name: prosjektData.name,
+          projectNumber: prosjektData.projectNumber,
+          externalProjectNumber: (prosjektData as Record<string, unknown>).externalProjectNumber as string | null | undefined,
+          address: prosjektData.address,
+        } : null,
       );
       const { uri } = await Print.printToFileAsync({ html });
       await Sharing.shareAsync(uri, {
