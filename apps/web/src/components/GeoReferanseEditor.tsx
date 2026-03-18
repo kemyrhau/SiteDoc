@@ -203,6 +203,8 @@ export function GeoReferanseEditor({
   );
   const [aktivtPunkt, setAktivtPunkt] = useState<1 | 2 | null>(null);
   const [lagreStatus, setLagreStatus] = useState<"idle" | "lagret" | "feil">("idle");
+  const [limTekst1, setLimTekst1] = useState("");
+  const [limTekst2, setLimTekst2] = useState("");
 
   const settGeoMutasjon = trpc.tegning.settGeoReferanse.useMutation({
     onSuccess: () => {
@@ -631,15 +633,17 @@ export function GeoReferanseEditor({
           {punkt1 ? (
             <div className="flex flex-col gap-1.5">
               <Input
-                label="Koordinater"
-                value=""
+                label="Lim inn koordinater"
+                value={limTekst1}
                 onChange={(e) => {
-                  const resultat = parserKoordinater(e.target.value);
+                  const v = e.target.value;
+                  setLimTekst1(v);
+                  const resultat = parserKoordinater(v);
                   if (resultat) {
                     setPunkt1((p) => p ? { ...p, gps: resultat } : p);
                   }
                 }}
-                placeholder="Nord ... Øst ... / 59.9, 10.7"
+                placeholder="Lim inn fra Norgeskart"
               />
               <div className="grid grid-cols-2 gap-1.5">
                 <Input
@@ -650,7 +654,7 @@ export function GeoReferanseEditor({
                       p ? { ...p, gps: { ...p.gps, lat: e.target.value } } : p,
                     )
                   }
-                  placeholder="59.911"
+                  placeholder="f.eks. 59.911"
                 />
                 <Input
                   label="Lengdegrad"
@@ -660,7 +664,7 @@ export function GeoReferanseEditor({
                       p ? { ...p, gps: { ...p.gps, lng: e.target.value } } : p,
                     )
                   }
-                  placeholder="10.750"
+                  placeholder="f.eks. 10.750"
                 />
               </div>
             </div>
@@ -698,15 +702,17 @@ export function GeoReferanseEditor({
           {punkt2 ? (
             <div className="flex flex-col gap-1.5">
               <Input
-                label="Koordinater"
-                value=""
+                label="Lim inn koordinater"
+                value={limTekst2}
                 onChange={(e) => {
-                  const resultat = parserKoordinater(e.target.value);
+                  const v = e.target.value;
+                  setLimTekst2(v);
+                  const resultat = parserKoordinater(v);
                   if (resultat) {
                     setPunkt2((p) => p ? { ...p, gps: resultat } : p);
                   }
                 }}
-                placeholder="Nord ... Øst ... / 59.9, 10.7"
+                placeholder="Lim inn fra Norgeskart"
               />
               <div className="grid grid-cols-2 gap-1.5">
                 <Input
@@ -717,7 +723,7 @@ export function GeoReferanseEditor({
                       p ? { ...p, gps: { ...p.gps, lat: e.target.value } } : p,
                     )
                   }
-                  placeholder="59.912"
+                  placeholder="f.eks. 59.912"
                 />
                 <Input
                   label="Lengdegrad"
@@ -727,7 +733,7 @@ export function GeoReferanseEditor({
                       p ? { ...p, gps: { ...p.gps, lng: e.target.value } } : p,
                     )
                   }
-                  placeholder="10.760"
+                  placeholder="f.eks. 10.760"
                 />
               </div>
             </div>
