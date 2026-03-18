@@ -273,13 +273,27 @@ export const oppgaveRouter = router({
 
         // Utled svarer-entreprise fra arbeidsforløp hvis oppgitt
         let svarerEntrepriseId = input.responderEnterpriseId;
+
+        // Sjekk om workflowId er en Workflow eller DokumentFlyt
+        let workflowId: string | undefined;
+        let dokumentflytId: string | undefined;
         if (input.workflowId) {
           const arbeidsforlop = await tx.workflow.findUnique({
             where: { id: input.workflowId },
             select: { responderEnterpriseId: true, enterpriseId: true },
           });
           if (arbeidsforlop) {
+            workflowId = input.workflowId;
             svarerEntrepriseId = arbeidsforlop.responderEnterpriseId ?? arbeidsforlop.enterpriseId;
+          } else {
+            // Sjekk om det er en DokumentFlyt-ID (ny modell)
+            const df = await tx.dokumentflyt.findUnique({
+              where: { id: input.workflowId },
+              select: { id: true },
+            });
+            if (df) {
+              dokumentflytId = input.workflowId;
+            }
           }
         }
 
@@ -297,7 +311,8 @@ export const oppgaveRouter = router({
             drawingId: input.drawingId,
             positionX: input.positionX,
             positionY: input.positionY,
-            workflowId: input.workflowId,
+            workflowId,
+            dokumentflytId,
             checklistId: input.checklistId,
             checklistFieldId: input.checklistFieldId,
             status: "draft",

@@ -146,6 +146,28 @@ export const sjekklisteRouter = router({
           return `${nummerStr}${prefiks} ${mal.name}`.trim();
         })();
 
+        // Sjekk om workflowId er en Workflow eller DokumentFlyt
+        let workflowId: string | undefined;
+        let dokumentflytId: string | undefined;
+        if (input.workflowId) {
+          const workflow = await tx.workflow.findUnique({
+            where: { id: input.workflowId },
+            select: { id: true },
+          });
+          if (workflow) {
+            workflowId = input.workflowId;
+          } else {
+            // Sjekk om det er en DokumentFlyt-ID (ny modell)
+            const df = await tx.dokumentflyt.findUnique({
+              where: { id: input.workflowId },
+              select: { id: true },
+            });
+            if (df) {
+              dokumentflytId = input.workflowId;
+            }
+          }
+        }
+
         return tx.checklist.create({
           data: {
             templateId: input.templateId,
@@ -154,7 +176,8 @@ export const sjekklisteRouter = router({
             title: tittel,
             creatorUserId: ctx.userId,
             number: nummer,
-            workflowId: input.workflowId,
+            workflowId,
+            dokumentflytId,
             subject: input.subject,
             buildingId: input.buildingId,
             drawingId: input.drawingId,
