@@ -1,16 +1,20 @@
 import { View, Text, Pressable, Linking } from "react-native";
 import { MapPin, ExternalLink } from "lucide-react-native";
+import { trpc } from "../../lib/trpc";
 import type { RapportObjektProps } from "./typer";
 
-// Merk: I mobilappen henter vi prosjektdata fra kontekst utenfor denne komponenten.
-// Komponentens props inkluderer prosjektdata som del av config.
-// I første omgang viser vi en statisk visning basert på config-verdier.
+export function LokasjonObjekt({ prosjektId }: RapportObjektProps) {
+  const { data: prosjekt } = trpc.prosjekt.hentMedId.useQuery(
+    { id: prosjektId! },
+    { enabled: !!prosjektId },
+  );
 
-export function LokasjonObjekt({ objekt }: RapportObjektProps) {
-  const config = objekt.config;
-  const latitude = config.prosjektLatitude as number | undefined;
-  const longitude = config.prosjektLongitude as number | undefined;
-  const adresse = config.prosjektAdresse as string | undefined;
+  if (!prosjektId || !prosjekt) {
+    return null;
+  }
+
+  const latitude = prosjekt.latitude;
+  const longitude = prosjekt.longitude;
 
   if (latitude == null || longitude == null) {
     return (
@@ -31,8 +35,8 @@ export function LokasjonObjekt({ objekt }: RapportObjektProps) {
 
   return (
     <View className="gap-2">
-      {adresse && (
-        <Text className="text-sm text-gray-700">{adresse}</Text>
+      {prosjekt.address && (
+        <Text className="text-sm text-gray-700">{prosjekt.address}</Text>
       )}
       <Text className="text-xs text-gray-500">
         {latitude.toFixed(6)}, {longitude.toFixed(6)}
