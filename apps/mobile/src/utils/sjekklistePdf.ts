@@ -118,6 +118,12 @@ function formaterDato(v: unknown): string {
   } catch { return String(v); }
 }
 
+function fullUrl(url: string, apiUrl: string): string {
+  if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("data:")) return url;
+  if (url.startsWith("/")) return `${apiUrl}${url}`;
+  return url;
+}
+
 function formaterDatoTid(v: unknown): string {
   if (typeof v !== "string") return "";
   try {
@@ -260,14 +266,22 @@ function renderFelt(
   if (felt?.kommentar) {
     ekstra += `<div class="kommentar">${esc(felt.kommentar)}</div>`;
   }
-  // Vedlegg-indikatorer
+  // Vedlegg — vis bilder inline, tell filer
   if (felt?.vedlegg && felt.vedlegg.length > 0) {
-    const bildeAntall = felt.vedlegg.filter((v) => v.type === "bilde" || /\.(png|jpg|jpeg|gif|webp)$/i.test(v.filnavn)).length;
-    const filAntall = felt.vedlegg.length - bildeAntall;
-    const deler: string[] = [];
-    if (bildeAntall > 0) deler.push(`${bildeAntall} bilde${bildeAntall > 1 ? "r" : ""}`);
-    if (filAntall > 0) deler.push(`${filAntall} fil${filAntall > 1 ? "er" : ""}`);
-    ekstra += `<div class="vedlegg-teller">📎 ${deler.join(", ")}</div>`;
+    const bilder = felt.vedlegg.filter((v) => v.type === "bilde" || /\.(png|jpg|jpeg|gif|webp)$/i.test(v.filnavn));
+    const filer = felt.vedlegg.filter((v) => !bilder.includes(v));
+
+    if (bilder.length > 0) {
+      ekstra += `<div class="vedlegg-bilder">`;
+      for (const b of bilder) {
+        const src = fullUrl(b.url, apiUrl);
+        ekstra += `<img src="${esc(src)}" class="vedlegg-bilde" />`;
+      }
+      ekstra += `</div>`;
+    }
+    if (filer.length > 0) {
+      ekstra += `<div class="vedlegg-teller">📎 ${filer.length} fil${filer.length > 1 ? "er" : ""}</div>`;
+    }
   }
 
   return `<tr><td class="label">${esc(label)}</td><td class="verdi">${verdiHtml}${ekstra}</td></tr>`;
@@ -447,6 +461,10 @@ export function byggSjekklisteHtml(
   }
   .repeater-rad table { margin-top: 2px; }
   .repeater-nr { font-size: 9px; font-weight: 600; color: #9ca3af; margin-bottom: 2px; }
+
+  /* Vedlegg-bilder */
+  .vedlegg-bilder { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+  .vedlegg-bilde { max-width: 180px; max-height: 140px; border-radius: 3px; border: 1px solid #e5e7eb; object-fit: cover; }
 
   /* Signatur */
   img { max-width: 100%; }

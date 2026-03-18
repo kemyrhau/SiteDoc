@@ -29,6 +29,7 @@ import { useProsjekt } from "../../src/kontekst/ProsjektKontekst";
 import { hentDatabase } from "../../src/db/database";
 import { sjekklisteFeltdata, opplastingsKo } from "../../src/db/schema";
 import { byggSjekklisteHtml } from "../../src/utils/sjekklistePdf";
+import { AUTH_CONFIG } from "../../src/config/auth";
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
 import { eq } from "drizzle-orm";
@@ -285,6 +286,7 @@ export default function SjekklisteUtfylling() {
           address: prosjektData.address,
           logoUrl: (prosjektData as Record<string, unknown>).logoUrl as string | null | undefined,
         } : null,
+        AUTH_CONFIG.apiUrl,
       );
       const { uri } = await Print.printToFileAsync({ html });
       await Sharing.shareAsync(uri, {
