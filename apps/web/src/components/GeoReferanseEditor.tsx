@@ -202,12 +202,19 @@ export function GeoReferanseEditor({
       : null,
   );
   const [aktivtPunkt, setAktivtPunkt] = useState<1 | 2 | null>(null);
+  const [lagreStatus, setLagreStatus] = useState<"idle" | "lagret" | "feil">("idle");
 
   const settGeoMutasjon = trpc.tegning.settGeoReferanse.useMutation({
     onSuccess: () => {
       utils.bygning.hentMedId.invalidate();
       utils.tegning.hentMedId.invalidate({ id: tegningId });
+      setLagreStatus("lagret");
+      setTimeout(() => setLagreStatus("idle"), 3000);
       onLagret();
+    },
+    onError: () => {
+      setLagreStatus("feil");
+      setTimeout(() => setLagreStatus("idle"), 4000);
     },
   });
 
@@ -733,6 +740,18 @@ export function GeoReferanseEditor({
 
         {/* Handlinger — alltid synlige nederst */}
         <div className="mt-auto flex flex-col gap-2">
+          {lagreStatus === "lagret" && (
+            <div className="flex items-center gap-1.5 rounded-md bg-green-50 px-3 py-2 text-sm font-medium text-green-700">
+              <Check className="h-4 w-4" />
+              Kalibrering lagret
+            </div>
+          )}
+          {lagreStatus === "feil" && (
+            <div className="rounded-md bg-red-50 px-3 py-2 text-sm font-medium text-red-700">
+              Kunne ikke lagre — prøv igjen
+            </div>
+          )}
+
           <Button
             onClick={handleLagre}
             disabled={!kanLagre || settGeoMutasjon.isPending}
