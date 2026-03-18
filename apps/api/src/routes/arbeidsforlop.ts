@@ -52,9 +52,35 @@ export const arbeidsforlopRouter = router({
       });
 
       if (dokumentflyter.length > 0) {
+        // Hent entreprise-tilknytninger for alle prosjektmedlemmer (for å finne oppretter-entreprise)
+        const prosjektmedlemmerMedEntreprise = await ctx.prisma.memberEnterprise.findMany({
+          where: { projectMember: { projectId: input.projectId } },
+          select: { projectMemberId: true, enterpriseId: true },
+        });
+        const medlemTilEntreprise = new Map<string, string>();
+        for (const me of prosjektmedlemmerMedEntreprise) {
+          // Bruk første entreprise-tilknytning per medlem
+          if (!medlemTilEntreprise.has(me.projectMemberId)) {
+            medlemTilEntreprise.set(me.projectMemberId, me.enterpriseId);
+          }
+        }
+
         // Mapp DokumentFlyt → Workflow-format for mobil
         return dokumentflyter.map((df) => {
-          const oppretter = df.medlemmer.find((m) => m.rolle === "oppretter" && m.enterpriseId);
+          // Finn oppretter-entreprise: enten direkte på medlemmet, eller via personens entreprise-tilknytning
+          const oppretterMedlem = df.medlemmer.find((m) => m.rolle === "oppretter");
+          let oppretterEntrepriseId = oppretterMedlem?.enterpriseId ?? null;
+          if (!oppretterEntrepriseId && oppretterMedlem?.projectMemberId) {
+            oppretterEntrepriseId = medlemTilEntreprise.get(oppretterMedlem.projectMemberId) ?? null;
+          }
+          // Siste fallback: bruk alle entrepriser som har et medlem i denne dokumentflyten
+          if (!oppretterEntrepriseId) {
+            const alleEntrepriseIder = df.medlemmer
+              .map((m) => m.enterpriseId)
+              .filter((id): id is string => !!id);
+            oppretterEntrepriseId = alleEntrepriseIder[0] ?? null;
+          }
+
           const svarer1 = df.medlemmer.find((m) => m.rolle === "svarer" && m.steg === 1 && m.enterpriseId);
           const svarer2 = df.medlemmer.find((m) => m.rolle === "svarer" && m.steg === 2 && m.enterpriseId);
           const svarer3 = df.medlemmer.find((m) => m.rolle === "svarer" && m.steg === 3 && m.enterpriseId);
@@ -62,7 +88,7 @@ export const arbeidsforlopRouter = router({
           return {
             id: df.id,
             name: df.name,
-            enterpriseId: oppretter?.enterpriseId ?? "",
+            enterpriseId: oppretterEntrepriseId ?? "",
             responderEnterpriseId: svarer1?.enterpriseId ?? null,
             responderEnterprise: svarer1?.enterprise ?? null,
             responderEnterprise2Id: svarer2?.enterpriseId ?? null,
