@@ -96,14 +96,13 @@ function utm33TilLatLng(nord: number, ost: number): { lat: number; lng: number }
 function parserKoordinater(tekst: string): { lat: string; lng: string } | null {
   const trimmet = tekst.trim();
 
-  // UTM33-format fra Norgeskart: "Nord 7731109.65 Øst 652332.37" eller bare tallene
-  // Prøv med labels først
-  const utmLabelMatch = trimmet.match(
-    /[Nn]ord\s+(\d{6,8}[.,]?\d*)\s*[ØøOo]st\s+(\d{5,7}[.,]?\d*)/
-  );
-  if (utmLabelMatch?.[1] && utmLabelMatch[2]) {
-    const nord = Number(utmLabelMatch[1].replace(",", "."));
-    const ost = Number(utmLabelMatch[2].replace(",", "."));
+  // UTM33-format: Finn Nord- og Øst-verdier uavhengig av rekkefølge og format
+  // Støtter: "Nord 7731109 Øst 652332", "Øst: 653657.15 Nord: 7732863.73", etc.
+  const nordMatch = trimmet.match(/[Nn]ord:?\s*(\d{6,8}[.,]?\d*)/);
+  const ostMatch = trimmet.match(/[ØøOo]st:?\s*(\d{5,7}[.,]?\d*)/);
+  if (nordMatch?.[1] && ostMatch?.[1]) {
+    const nord = Number(nordMatch[1].replace(",", "."));
+    const ost = Number(ostMatch[1].replace(",", "."));
     if (nord > 6000000 && nord < 8500000 && ost > 100000 && ost < 900000) {
       const resultat = utm33TilLatLng(nord, ost);
       return { lat: resultat.lat.toFixed(6), lng: resultat.lng.toFixed(6) };
