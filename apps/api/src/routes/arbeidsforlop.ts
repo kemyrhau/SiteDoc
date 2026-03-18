@@ -23,10 +23,73 @@ const workflowInclude = {
 
 export const arbeidsforlopRouter = router({
   // Hent alle arbeidsforløp for alle entrepriser i et prosjekt
+  // Henter fra DokumentFlyt (ny modell) og mapper til Workflow-format for bakoverkompatibilitet med mobil
   hentForProsjekt: protectedProcedure
     .input(z.object({ projectId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       await verifiserProsjektmedlem(ctx.userId, input.projectId);
+
+      // Prøv DokumentFlyt først (ny modell brukt av nye prosjekter)
+      const dokumentflyter = await ctx.prisma.dokumentflyt.findMany({
+        where: { projectId: input.projectId },
+        include: {
+          medlemmer: {
+            include: {
+              enterprise: { select: { id: true, name: true } },
+              projectMember: {
+                include: {
+                  user: { select: { id: true, name: true, email: true } },
+                },
+              },
+            },
+            orderBy: { steg: "asc" },
+          },
+          maler: {
+            include: { template: { select: { id: true, name: true, category: true } } },
+          },
+        },
+        orderBy: { name: "asc" },
+      });
+
+      if (dokumentflyter.length > 0) {
+        // Mapp DokumentFlyt → Workflow-format for mobil
+        return dokumentflyter.map((df) => {
+          const oppretter = df.medlemmer.find((m) => m.rolle === "oppretter" && m.enterpriseId);
+          const svarer1 = df.medlemmer.find((m) => m.rolle === "svarer" && m.steg === 1 && m.enterpriseId);
+          const svarer2 = df.medlemmer.find((m) => m.rolle === "svarer" && m.steg === 2 && m.enterpriseId);
+          const svarer3 = df.medlemmer.find((m) => m.rolle === "svarer" && m.steg === 3 && m.enterpriseId);
+
+          return {
+            id: df.id,
+            name: df.name,
+            enterpriseId: oppretter?.enterpriseId ?? "",
+            responderEnterpriseId: svarer1?.enterpriseId ?? null,
+            responderEnterprise: svarer1?.enterprise ?? null,
+            responderEnterprise2Id: svarer2?.enterpriseId ?? null,
+            responderEnterprise2: svarer2?.enterprise ?? null,
+            responderEnterprise3Id: svarer3?.enterpriseId ?? null,
+            responderEnterprise3: svarer3?.enterprise ?? null,
+            templates: df.maler.map((m) => ({
+              workflowId: df.id,
+              templateId: m.templateId,
+              template: m.template,
+            })),
+            stepMembers: df.medlemmer
+              .filter((m) => m.projectMemberId)
+              .map((m) => ({
+                id: m.id,
+                workflowId: df.id,
+                projectMemberId: m.projectMemberId!,
+                step: m.steg,
+                projectMember: m.projectMember,
+              })),
+            createdAt: df.createdAt,
+            updatedAt: df.updatedAt,
+          };
+        });
+      }
+
+      // Fallback: gammel Workflow-modell for eldre prosjekter
       return ctx.prisma.workflow.findMany({
         where: { enterprise: { projectId: input.projectId } },
         include: workflowInclude,
