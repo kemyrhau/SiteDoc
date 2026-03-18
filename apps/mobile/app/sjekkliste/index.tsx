@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import {
   View,
   Text,
@@ -9,11 +9,20 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { ArrowLeft } from "lucide-react-native";
+import { ArrowLeft, Plus } from "lucide-react-native";
 import { useQueryClient } from "@tanstack/react-query";
 import { trpc } from "../../src/lib/trpc";
 import { useProsjekt } from "../../src/kontekst/ProsjektKontekst";
 import { StatusMerkelapp } from "../../src/components/StatusMerkelapp";
+import { MalVelger } from "../../src/components/MalVelger";
+import { OpprettDokumentModal } from "../../src/components/OpprettDokumentModal";
+
+interface MalData {
+  id: string;
+  name: string;
+  prefix: string | null;
+  category: string;
+}
 
 // Cast-type for å unngå TS2589 (excessively deep type instantiation)
 interface SjekklisteRad {
@@ -38,6 +47,9 @@ export default function SjekklisteListe() {
   const { valgtProsjektId } = useProsjekt();
   const router = useRouter();
   const queryClient = useQueryClient();
+
+  const [visVelger, settVisVelger] = useState(false);
+  const [valgtMal, settValgtMal] = useState<MalData | null>(null);
 
   const sjekklisteQuery = trpc.sjekkliste.hentForProsjekt.useQuery(
     { projectId: valgtProsjektId! },
@@ -85,13 +97,18 @@ export default function SjekklisteListe() {
   return (
     <SafeAreaView className="flex-1 bg-gray-50" edges={["top"]}>
       {/* Header */}
-      <View className="flex-row items-center bg-sitedoc-blue px-4 py-3">
-        <Pressable onPress={() => router.back()} hitSlop={12}>
-          <ArrowLeft size={22} color="#ffffff" />
+      <View className="flex-row items-center justify-between bg-sitedoc-blue px-4 py-3">
+        <View className="flex-row items-center">
+          <Pressable onPress={() => router.back()} hitSlop={12}>
+            <ArrowLeft size={22} color="#ffffff" />
+          </Pressable>
+          <Text className="ml-3 text-lg font-semibold text-white">
+            Sjekklister
+          </Text>
+        </View>
+        <Pressable onPress={() => settVisVelger(true)} hitSlop={12}>
+          <Plus size={24} color="#ffffff" />
         </Pressable>
-        <Text className="ml-3 text-lg font-semibold text-white">
-          Sjekklister
-        </Text>
       </View>
 
       {sjekklisteQuery.isLoading ? (
@@ -117,6 +134,30 @@ export default function SjekklisteListe() {
           }
         />
       )}
+
+      {/* Malvelger */}
+      <MalVelger
+        synlig={visVelger && !valgtMal}
+        kategori="sjekkliste"
+        onVelg={(mal) => {
+          settVisVelger(false);
+          settValgtMal(mal);
+        }}
+        onLukk={() => settVisVelger(false)}
+      />
+
+      {/* Opprett sjekkliste */}
+      <OpprettDokumentModal
+        synlig={!!valgtMal}
+        kategori="sjekkliste"
+        mal={valgtMal ?? { id: "", name: "", prefix: null, category: "" }}
+        onOpprettet={(id) => {
+          settValgtMal(null);
+          queryClient.invalidateQueries();
+          router.push(`/sjekkliste/${id}`);
+        }}
+        onLukk={() => settValgtMal(null)}
+      />
     </SafeAreaView>
   );
 }

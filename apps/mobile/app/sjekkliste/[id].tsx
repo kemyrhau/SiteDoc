@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { ArrowLeft, Save, Check, AlertTriangle, Clock, CloudOff, Cloud, Trash2, ChevronDown } from "lucide-react-native";
+import { ArrowLeft, Save, Check, AlertTriangle, Clock, CloudOff, Cloud, Trash2, ChevronDown, Share2 } from "lucide-react-native";
 import { harBetingelse, harForelderObjekt } from "@sitedoc/shared";
 import { hentStatusHandlinger } from "@sitedoc/shared";
 import type { StatusHandling } from "@sitedoc/shared";
@@ -28,6 +28,9 @@ import { trpc } from "../../src/lib/trpc";
 import { useProsjekt } from "../../src/kontekst/ProsjektKontekst";
 import { hentDatabase } from "../../src/db/database";
 import { sjekklisteFeltdata, opplastingsKo } from "../../src/db/schema";
+import { byggSjekklisteHtml } from "../../src/utils/sjekklistePdf";
+import * as Print from "expo-print";
+import * as Sharing from "expo-sharing";
 import { eq } from "drizzle-orm";
 
 interface Transfer {
@@ -256,6 +259,45 @@ export default function SjekklisteUtfylling() {
     settVerdi,
   });
 
+  // Hent prosjektdata for PDF
+  const { data: prosjektData } = trpc.prosjekt.hentMedId.useQuery(
+    { id: valgtProsjektId! },
+    { enabled: !!valgtProsjektId },
+  );
+
+  const håndterDelPdf = useCallback(async () => {
+    if (!sjekkliste) return;
+    try {
+      const html = byggSjekklisteHtml(
+        sjekkliste as Parameters<typeof byggSjekklisteHtml>[0],
+        feltVerdierForPdf(),
+        prosjektData ? { name: prosjektData.name, projectNumber: prosjektData.projectNumber, address: prosjektData.address } : null,
+      );
+      const { uri } = await Print.printToFileAsync({ html });
+      await Sharing.shareAsync(uri, {
+        mimeType: "application/pdf",
+        dialogTitle: `Del ${sjekkliste.title}`,
+        UTI: "com.adobe.pdf",
+      });
+    } catch (feil) {
+      console.warn("PDF-deling feilet:", feil);
+    }
+  }, [sjekkliste, prosjektData]);
+
+  // Hjelpefunksjon for å hente feltVerdier som PDF-format
+  function feltVerdierForPdf() {
+    const resultat: Record<string, { verdi: unknown; kommentar: string; vedlegg: Array<{ id: string; type: string; url: string; filnavn: string }> }> = {};
+    for (const objekt of sjekkliste?.template?.objects ?? []) {
+      const fv = hentFeltVerdi(objekt.id);
+      resultat[objekt.id] = {
+        verdi: fv.verdi,
+        kommentar: fv.kommentar,
+        vedlegg: fv.vedlegg as Array<{ id: string; type: string; url: string; filnavn: string }>,
+      };
+    }
+    return resultat;
+  }
+
   const håndterTilbake = useCallback(async () => {
     if (harEndringer) {
       await lagre();
@@ -365,9 +407,16 @@ export default function SjekklisteUtfylling() {
             <Pressable onPress={håndterLagre} hitSlop={12} disabled={erLagrer}>
               <Save size={22} color={erLagrer ? "#93c5fd" : "#ffffff"} />
             </Pressable>
+            <Pressable onPress={håndterDelPdf} hitSlop={12}>
+              <Share2 size={20} color="#ffffff" />
+            </Pressable>
           </View>
         )}
-        {!erRedigerbar && <View style={{ width: 22 }} />}
+        {!erRedigerbar && (
+          <Pressable onPress={håndterDelPdf} hitSlop={12}>
+            <Share2 size={20} color="#ffffff" />
+          </Pressable>
+        )}
       </View>
 
       <KeyboardAvoidingView
