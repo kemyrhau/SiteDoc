@@ -36,6 +36,7 @@ interface SjekklisteForPdf {
   status: string;
   number?: number | null;
   createdAt?: Date | string;
+  updatedAt?: Date | string;
   template: {
     name: string;
     prefix?: string | null;
@@ -46,6 +47,7 @@ interface SjekklisteForPdf {
   responderEnterprise?: { name: string } | null;
   building?: { name: string } | null;
   drawing?: { name: string; drawingNumber?: string | null } | null;
+  changeLog?: Array<{ createdAt: Date | string; user: { name: string | null } }>;
 }
 
 interface ProsjektForPdf {
@@ -282,36 +284,41 @@ export function byggSjekklisteHtml(
   apiUrl?: string,
 ): string {
   const baseUrl = apiUrl ?? "";
-  const dato = new Date().toLocaleDateString("nb-NO", {
-    day: "2-digit", month: "2-digit", year: "numeric",
-  });
 
-  // Sjekkliste-nummer
-  const nummer = sjekkliste.number != null && sjekkliste.template.prefix
-    ? `${sjekkliste.template.prefix}-${String(sjekkliste.number).padStart(3, "0")}`
-    : sjekkliste.number != null
-      ? String(sjekkliste.number).padStart(3, "0")
-      : null;
+  // Opprettet dato+tid
+  const opprettetDatoTid = sjekkliste.createdAt
+    ? new Date(sjekkliste.createdAt).toLocaleString("nb-NO", {
+        day: "2-digit", month: "2-digit", year: "numeric",
+        hour: "2-digit", minute: "2-digit",
+      })
+    : "";
 
-  // Opprettet-dato
-  const opprettetDato = sjekkliste.createdAt
-    ? new Date(sjekkliste.createdAt).toLocaleDateString("nb-NO", { day: "2-digit", month: "2-digit", year: "numeric" })
+  // Endret dato+tid
+  const endretDatoTid = sjekkliste.updatedAt
+    ? new Date(sjekkliste.updatedAt).toLocaleString("nb-NO", {
+        day: "2-digit", month: "2-digit", year: "numeric",
+        hour: "2-digit", minute: "2-digit",
+      })
+    : "";
+
+  // Endret av — siste endringslogg-oppføring
+  const sisteEndring = sjekkliste.changeLog && sjekkliste.changeLog.length > 0
+    ? sjekkliste.changeLog[0]
     : null;
+  const endretAv = sisteEndring?.user?.name ?? "";
 
-  // Vær-tekst fra feltverdier
-  const vaerObjekt = sjekkliste.template.objects.find((o) => o.type === "weather");
-  let vaerTekst: string | null = null;
-  if (vaerObjekt) {
-    const v = feltVerdier[vaerObjekt.id]?.verdi as VaerVerdi | null;
-    if (v) {
-      const deler: string[] = [];
-      if (v.temp) deler.push(v.temp);
-      if (v.conditions) deler.push(v.conditions);
-      if (v.wind) deler.push(`Vind ${v.wind}`);
-      if (v.precipitation && v.precipitation !== "0 mm") deler.push(`Nedbør ${v.precipitation}`);
-      vaerTekst = deler.length > 0 ? deler.join(", ") : null;
-    }
-  }
+  // Prosjektnummer
+  const prosjektNr = prosjekt?.projectNumber ?? "";
+
+  // Bygning
+  const bygningNavn = sjekkliste.building?.name ?? "";
+
+  // Opprettet av
+  const opprettetAv = sjekkliste.creator?.name ?? "";
+
+  // Status
+  const statusTekst = STATUS_TEKST[sjekkliste.status] ?? sjekkliste.status;
+  const statusFarge = STATUS_FARGE[sjekkliste.status] ?? "background:#e5e7eb;color:#374151;";
 
   // Sorter og filtrer toppnivå-objekter
   const toppObjekter = sjekkliste.template.objects
@@ -343,33 +350,6 @@ export function byggSjekklisteHtml(
     feltHtml += renderFelt(objekt, feltVerdier[objekt.id], baseUrl);
   }
 
-  // Prosjektnumre
-  const prosjektNumre: string[] = [];
-  if (prosjekt?.projectNumber) prosjektNumre.push(`Prosjektnr: ${esc(prosjekt.projectNumber)}`);
-  if (prosjekt?.externalProjectNumber) prosjektNumre.push(`Ekst: ${esc(prosjekt.externalProjectNumber)}`);
-
-  // Entreprise-linje
-  const entrepriseDeler: string[] = [];
-  if (sjekkliste.creatorEnterprise) {
-    let tekst = `Oppretter: ${esc(sjekkliste.creatorEnterprise.name)}`;
-    if (sjekkliste.creator?.name) tekst += ` (${esc(sjekkliste.creator.name)})`;
-    entrepriseDeler.push(tekst);
-  }
-  if (sjekkliste.responderEnterprise) {
-    entrepriseDeler.push(`Svarer: ${esc(sjekkliste.responderEnterprise.name)}`);
-  }
-
-  // Lokasjon
-  const lokasjonDeler: string[] = [];
-  if (sjekkliste.building) lokasjonDeler.push(`Lokasjon: ${esc(sjekkliste.building.name)}`);
-  if (sjekkliste.drawing) {
-    const tNr = sjekkliste.drawing.drawingNumber ? `${sjekkliste.drawing.drawingNumber} ` : "";
-    lokasjonDeler.push(`Tegning: ${esc(tNr + sjekkliste.drawing.name)}`);
-  }
-
-  const statusTekst = STATUS_TEKST[sjekkliste.status] ?? sjekkliste.status;
-  const statusFarge = STATUS_FARGE[sjekkliste.status] ?? "background:#e5e7eb;color:#374151;";
-
   return `<!DOCTYPE html>
 <html lang="nb">
 <head>
@@ -385,18 +365,36 @@ export function byggSjekklisteHtml(
     line-height: 1.4;
   }
 
-  /* Header-tabell */
-  .header { border: 1px solid #d1d5db; border-radius: 4px; margin-bottom: 12px; overflow: hidden; }
-  .header-row { display: flex; justify-content: space-between; align-items: flex-start; padding: 8px 12px; border-bottom: 1px solid #d1d5db; }
-  .header-row:last-child { border-bottom: none; }
-  .prosjekt-navn { font-size: 13px; font-weight: 700; color: #111827; }
-  .meta { font-size: 9px; color: #6b7280; margin-top: 1px; }
-  .tittel { font-size: 12px; font-weight: 600; color: #111827; }
-  .nummer { font-size: 10px; font-weight: 600; color: #374151; }
-  .status {
-    display: inline-block;
-    padding: 2px 10px;
+  /* Tittel */
+  .doc-tittel {
+    font-size: 16px;
+    font-weight: 700;
+    color: #111827;
+    margin-bottom: 10px;
+  }
+
+  /* Metadata-rutenett — 4 kolonner */
+  .meta-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    border: 1px solid #d1d5db;
     border-radius: 4px;
+    margin-bottom: 14px;
+    overflow: hidden;
+  }
+  .meta-celle {
+    padding: 5px 8px;
+    border-right: 1px solid #e5e7eb;
+    border-bottom: 1px solid #e5e7eb;
+  }
+  .meta-celle:nth-child(4n) { border-right: none; }
+  .meta-celle:nth-last-child(-n+4) { border-bottom: none; }
+  .meta-etikett { font-size: 8px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.3px; }
+  .meta-verdi { font-size: 10px; color: #111827; margin-top: 1px; }
+  .status-badge {
+    display: inline-block;
+    padding: 1px 8px;
+    border-radius: 3px;
     font-size: 9px;
     font-weight: 600;
     ${statusFarge}
@@ -456,36 +454,47 @@ export function byggSjekklisteHtml(
 </head>
 <body>
 
-<!-- Header -->
-<div class="header">
-  <!-- Rad 1: Prosjekt -->
-  <div class="header-row">
-    <div>
-      <div class="prosjekt-navn">${esc(prosjekt?.name ?? "")}</div>
-      ${prosjektNumre.length > 0 ? `<div class="meta">${prosjektNumre.join(" · ")}</div>` : ""}
-      ${prosjekt?.address ? `<div class="meta">Adresse: ${esc(prosjekt.address)}</div>` : ""}
-      ${lokasjonDeler.length > 0 ? `<div class="meta">${lokasjonDeler.join(" · ")}</div>` : ""}
-    </div>
-    <div style="text-align:right;">
-      <div class="meta">Utskrift: ${dato}</div>
-      ${opprettetDato ? `<div class="meta">Opprettet: ${opprettetDato}</div>` : ""}
-    </div>
+<!-- Tittel med logo -->
+<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
+  ${prosjekt?.logoUrl ? `<img src="${esc(prosjekt.logoUrl)}" style="max-height:48px;max-width:120px;object-fit:contain;" />` : ""}
+  <div class="doc-tittel">${esc(sjekkliste.title)}</div>
+</div>
+
+<!-- Metadata-rutenett 4×2 -->
+<div class="meta-grid">
+  <div class="meta-celle">
+    <div class="meta-etikett">Prosjekt</div>
+    <div class="meta-verdi">${esc(prosjekt?.name ?? "")}</div>
+  </div>
+  <div class="meta-celle">
+    <div class="meta-etikett">Prosjekt nr</div>
+    <div class="meta-verdi">${esc(prosjektNr)}</div>
+  </div>
+  <div class="meta-celle">
+    <div class="meta-etikett">Bygning</div>
+    <div class="meta-verdi">${esc(bygningNavn)}</div>
+  </div>
+  <div class="meta-celle">
+    <div class="meta-etikett">Opprettet av</div>
+    <div class="meta-verdi">${esc(opprettetAv)}</div>
   </div>
 
-  <!-- Rad 2: Sjekkliste -->
-  <div class="header-row">
-    <div>
-      <div class="tittel">${esc(sjekkliste.title)}</div>
-      ${entrepriseDeler.length > 0 ? `<div class="meta">${entrepriseDeler.join(" · ")}</div>` : ""}
-    </div>
-    <div style="text-align:right;">
-      ${nummer ? `<div class="nummer">${esc(nummer)}</div>` : ""}
-      <span class="status">${esc(statusTekst)}</span>
-    </div>
+  <div class="meta-celle">
+    <div class="meta-etikett">Opprettet</div>
+    <div class="meta-verdi">${esc(opprettetDatoTid)}</div>
   </div>
-
-  <!-- Rad 3: Vær (valgfritt) -->
-  ${vaerTekst ? `<div class="header-row"><div class="meta">Vær: ${esc(vaerTekst)}</div></div>` : ""}
+  <div class="meta-celle">
+    <div class="meta-etikett">Endret av</div>
+    <div class="meta-verdi">${esc(endretAv)}</div>
+  </div>
+  <div class="meta-celle">
+    <div class="meta-etikett">Endret</div>
+    <div class="meta-verdi">${esc(endretDatoTid)}</div>
+  </div>
+  <div class="meta-celle">
+    <div class="meta-etikett">Status</div>
+    <div class="meta-verdi"><span class="status-badge">${esc(statusTekst)}</span></div>
+  </div>
 </div>
 
 <!-- Felter -->

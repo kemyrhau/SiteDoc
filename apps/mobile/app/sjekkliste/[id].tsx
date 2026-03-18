@@ -268,14 +268,22 @@ export default function SjekklisteUtfylling() {
   const håndterDelPdf = useCallback(async () => {
     if (!sjekkliste) return;
     try {
+      // Berik sjekkliste-data med detaljer fra server (updatedAt, changeLog)
+      const detalj = detaljQuery.data as Record<string, unknown> | undefined;
+      const sjekklisteMedDetaljer = {
+        ...(sjekkliste as Parameters<typeof byggSjekklisteHtml>[0]),
+        updatedAt: detalj?.updatedAt as Date | string | undefined,
+        changeLog: (detalj?.changeLog ?? []) as Array<{ createdAt: Date | string; user: { name: string | null } }>,
+      };
       const html = byggSjekklisteHtml(
-        sjekkliste as Parameters<typeof byggSjekklisteHtml>[0],
+        sjekklisteMedDetaljer,
         feltVerdierForPdf(),
         prosjektData ? {
           name: prosjektData.name,
           projectNumber: prosjektData.projectNumber,
           externalProjectNumber: (prosjektData as Record<string, unknown>).externalProjectNumber as string | null | undefined,
           address: prosjektData.address,
+          logoUrl: (prosjektData as Record<string, unknown>).logoUrl as string | null | undefined,
         } : null,
       );
       const { uri } = await Print.printToFileAsync({ html });
@@ -287,7 +295,7 @@ export default function SjekklisteUtfylling() {
     } catch (feil) {
       console.warn("PDF-deling feilet:", feil);
     }
-  }, [sjekkliste, prosjektData]);
+  }, [sjekkliste, prosjektData, detaljQuery.data]);
 
   // Hjelpefunksjon for å hente feltVerdier som PDF-format
   function feltVerdierForPdf() {
