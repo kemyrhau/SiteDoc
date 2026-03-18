@@ -400,41 +400,22 @@ export function GeoReferanseEditor({
   const erBilde = ["png", "jpg", "jpeg"].includes(tegning.fileType ?? "");
 
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <h3 className="mb-1 text-lg font-semibold text-gray-900">
-          Georeferanse-kalibrering
-        </h3>
-        <p className="text-sm text-gray-500">
-          Klikk to punkter på tegningen og oppgi GPS-koordinater for hvert punkt.
-          Dette lar mobilappen beregne posisjon automatisk fra GPS.
-        </p>
-        <a
-          href="https://norgeskart.no"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-1 inline-flex items-center gap-1 text-sm text-blue-600 hover:underline"
-        >
-          <ExternalLink className="h-3.5 w-3.5" />
-          Åpne Norgeskart for koordinater
-        </a>
-      </div>
-
-      {/* Tegning med klikkbare punkter */}
-      <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
-        <div className="border-b border-gray-200 bg-gray-50 px-4 py-2">
+    <div className="flex h-[calc(100vh-200px)] min-h-[500px] gap-4">
+      {/* Venstre: Tegning med klikkbare punkter */}
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-gray-200 bg-white">
+        <div className="flex-shrink-0 border-b border-gray-200 bg-gray-50 px-3 py-1.5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <p className="text-sm font-medium text-gray-700">{tegning.name}</p>
+              <p className="truncate text-sm font-medium text-gray-700">{tegning.name}</p>
               {aktivtPunkt && (
-                <span className="rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
-                  Klikk på tegningen for å plassere punkt {aktivtPunkt}
+                <span className="flex-shrink-0 rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+                  Klikk for punkt {aktivtPunkt}
                 </span>
               )}
             </div>
 
-            {/* Verktøylinje for zoom/pan */}
-            <div className="flex items-center gap-1">
+            {/* Verktøylinje */}
+            <div className="flex flex-shrink-0 items-center gap-1">
               <button
                 type="button"
                 onClick={() => setModus(modus === "peker" ? "hånd" : "peker")}
@@ -500,7 +481,7 @@ export function GeoReferanseEditor({
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseUp}
           onDoubleClick={modus === "hånd" ? nullstillVisning : undefined}
-          className="relative overflow-hidden bg-gray-100"
+          className="relative flex-1 overflow-hidden bg-gray-100"
           style={{
             cursor:
               modus === "hånd"
@@ -510,8 +491,6 @@ export function GeoReferanseEditor({
                 : aktivtPunkt
                   ? "crosshair"
                   : "default",
-            maxHeight: "calc(100vh - 350px)",
-            minHeight: "400px",
           }}
         >
           <div
@@ -558,8 +537,7 @@ export function GeoReferanseEditor({
 
           </div>
 
-          {/* Markører — utenfor transformert div for fast størrelse */}
-          {/* Med transformOrigin: 0 0 → visuell pos: vx = lx * zoom + panX */}
+          {/* Markører */}
           {punkt1 && bildeRef.current && (() => {
             const b = bildeRef.current;
             const lx = (punkt1.pixel.x / 100) * b.offsetWidth;
@@ -604,18 +582,34 @@ export function GeoReferanseEditor({
         </div>
       </div>
 
-      {/* Referansepunkt-skjema */}
-      <div className="grid grid-cols-2 gap-6">
+      {/* Høyre: Referansepunkter og handlinger */}
+      <div className="flex w-80 flex-shrink-0 flex-col gap-3">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-gray-900">Georeferanse</h3>
+          <a
+            href="https://norgeskart.no"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline"
+          >
+            <ExternalLink className="h-3 w-3" />
+            Norgeskart
+          </a>
+        </div>
+
         {/* Punkt 1 */}
-        <div className="rounded-lg border border-gray-200 bg-white p-4">
-          <div className="mb-3 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white">
+        <div className="rounded-lg border border-gray-200 bg-white p-3">
+          <div className="mb-2 flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <div className="flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
                 1
               </div>
-              <h4 className="text-sm font-semibold text-gray-900">
-                Referansepunkt 1
-              </h4>
+              <h4 className="text-xs font-semibold text-gray-900">Punkt 1</h4>
+              {punkt1 && (
+                <span className="text-[10px] text-gray-400">
+                  ({punkt1.pixel.x}%, {punkt1.pixel.y}%)
+                </span>
+              )}
             </div>
             <Button
               size="sm"
@@ -628,12 +622,9 @@ export function GeoReferanseEditor({
           </div>
 
           {punkt1 ? (
-            <div className="flex flex-col gap-2">
-              <p className="text-xs text-gray-400">
-                Piksel: {punkt1.pixel.x}%, {punkt1.pixel.y}%
-              </p>
+            <div className="flex flex-col gap-1.5">
               <Input
-                label="Lim inn koordinater"
+                label="Koordinater"
                 value=""
                 onChange={(e) => {
                   const resultat = parserKoordinater(e.target.value);
@@ -641,9 +632,9 @@ export function GeoReferanseEditor({
                     setPunkt1((p) => p ? { ...p, gps: resultat } : p);
                   }
                 }}
-                placeholder="Nord 7731109 Øst 652332 / 69.644, 18.923"
+                placeholder="Nord ... Øst ... / 59.9, 10.7"
               />
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-1.5">
                 <Input
                   label="Breddegrad"
                   value={punkt1.gps.lat}
@@ -667,22 +658,25 @@ export function GeoReferanseEditor({
               </div>
             </div>
           ) : (
-            <p className="text-sm text-gray-400">
+            <p className="text-xs text-gray-400">
               Klikk &quot;Plasser&quot; og trykk på tegningen
             </p>
           )}
         </div>
 
         {/* Punkt 2 */}
-        <div className="rounded-lg border border-gray-200 bg-white p-4">
-          <div className="mb-3 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-500 text-xs font-bold text-white">
+        <div className="rounded-lg border border-gray-200 bg-white p-3">
+          <div className="mb-2 flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <div className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-500 text-[10px] font-bold text-white">
                 2
               </div>
-              <h4 className="text-sm font-semibold text-gray-900">
-                Referansepunkt 2
-              </h4>
+              <h4 className="text-xs font-semibold text-gray-900">Punkt 2</h4>
+              {punkt2 && (
+                <span className="text-[10px] text-gray-400">
+                  ({punkt2.pixel.x}%, {punkt2.pixel.y}%)
+                </span>
+              )}
             </div>
             <Button
               size="sm"
@@ -695,12 +689,9 @@ export function GeoReferanseEditor({
           </div>
 
           {punkt2 ? (
-            <div className="flex flex-col gap-2">
-              <p className="text-xs text-gray-400">
-                Piksel: {punkt2.pixel.x}%, {punkt2.pixel.y}%
-              </p>
+            <div className="flex flex-col gap-1.5">
               <Input
-                label="Lim inn koordinater"
+                label="Koordinater"
                 value=""
                 onChange={(e) => {
                   const resultat = parserKoordinater(e.target.value);
@@ -708,9 +699,9 @@ export function GeoReferanseEditor({
                     setPunkt2((p) => p ? { ...p, gps: resultat } : p);
                   }
                 }}
-                placeholder="Nord 7731109 Øst 652332 / 69.644, 18.923"
+                placeholder="Nord ... Øst ... / 59.9, 10.7"
               />
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-1.5">
                 <Input
                   label="Breddegrad"
                   value={punkt2.gps.lat}
@@ -734,33 +725,39 @@ export function GeoReferanseEditor({
               </div>
             </div>
           ) : (
-            <p className="text-sm text-gray-400">
+            <p className="text-xs text-gray-400">
               Klikk &quot;Plasser&quot; og trykk på tegningen
             </p>
           )}
         </div>
-      </div>
 
-      {/* Handlinger */}
-      <div className="flex items-center gap-3">
-        <Button
-          onClick={handleLagre}
-          disabled={!kanLagre || settGeoMutasjon.isPending}
-        >
-          <Check className="mr-1.5 h-4 w-4" />
-          {settGeoMutasjon.isPending ? "Lagrer..." : "Lagre kalibrering"}
-        </Button>
-
-        {eksisterende && (
+        {/* Handlinger — alltid synlige nederst */}
+        <div className="mt-auto flex flex-col gap-2">
           <Button
-            variant="danger"
-            onClick={() => fjernGeoMutasjon.mutate({ drawingId: tegningId })}
-            disabled={fjernGeoMutasjon.isPending}
+            onClick={handleLagre}
+            disabled={!kanLagre || settGeoMutasjon.isPending}
+            className="w-full"
           >
-            <Trash2 className="mr-1.5 h-4 w-4" />
-            {fjernGeoMutasjon.isPending ? "Fjerner..." : "Fjern kalibrering"}
+            <Check className="mr-1.5 h-4 w-4" />
+            {settGeoMutasjon.isPending ? "Lagrer..." : "Lagre kalibrering"}
           </Button>
-        )}
+
+          {eksisterende && (
+            <Button
+              variant="danger"
+              onClick={() => fjernGeoMutasjon.mutate({ drawingId: tegningId })}
+              disabled={fjernGeoMutasjon.isPending}
+              className="w-full"
+            >
+              <Trash2 className="mr-1.5 h-4 w-4" />
+              {fjernGeoMutasjon.isPending ? "Fjerner..." : "Fjern kalibrering"}
+            </Button>
+          )}
+        </div>
+
+        <p className="text-[10px] text-gray-400">
+          Plasser to punkter og oppgi GPS-koordinater. Scroll for å zoome, bruk hånd-modus for å panorere.
+        </p>
       </div>
     </div>
   );
