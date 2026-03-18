@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -8,11 +8,42 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native";
 import { ChevronDown } from "lucide-react-native";
 import { trpc } from "../lib/trpc";
 import { useProsjekt } from "../kontekst/ProsjektKontekst";
+
+// Persistering av sist brukt bygning/tegning per prosjekt
+const BYGNING_KEY_PREFIX = "sitedoc_sist_bygning_";
+const TEGNING_KEY_PREFIX = "sitedoc_sist_tegning_";
+
+async function lagreVerdi(key: string, value: string): Promise<void> {
+  if (Platform.OS === "web") {
+    localStorage.setItem(key, value);
+  } else {
+    const SecureStore = await import("expo-secure-store");
+    await SecureStore.setItemAsync(key, value);
+  }
+}
+
+async function hentVerdi(key: string): Promise<string | null> {
+  if (Platform.OS === "web") {
+    return localStorage.getItem(key);
+  }
+  const SecureStore = await import("expo-secure-store");
+  return SecureStore.getItemAsync(key);
+}
+
+async function slettVerdi(key: string): Promise<void> {
+  if (Platform.OS === "web") {
+    localStorage.removeItem(key);
+  } else {
+    const SecureStore = await import("expo-secure-store");
+    await SecureStore.deleteItemAsync(key);
+  }
+}
 
 type Prioritet = "low" | "medium" | "high" | "critical";
 
@@ -103,6 +134,27 @@ export function OpprettDokumentModal({
   const [visBygningListe, setVisBygningListe] = useState(false);
   const [visTegningListe, setVisTegningListe] = useState(false);
   const [visEmneListe, setVisEmneListe] = useState(false);
+
+  // Last sist brukte bygning/tegning fra lagring ved åpning
+  const harLastetLagret = useRef(false);
+  useEffect(() => {
+    if (!synlig || !valgtProsjektId || harLastetLagret.current) return;
+    harLastetLagret.current = true;
+
+    (async () => {
+      const lagretBygning = await hentVerdi(`${BYGNING_KEY_PREFIX}${valgtProsjektId}`);
+      if (lagretBygning) {
+        setValgtBygningId(lagretBygning);
+        const lagretTegning = await hentVerdi(`${TEGNING_KEY_PREFIX}${valgtProsjektId}`);
+        if (lagretTegning) setValgtTegningId(lagretTegning);
+      }
+    })();
+  }, [synlig, valgtProsjektId]);
+
+  // Nullstill ref når modal lukkes
+  useEffect(() => {
+    if (!synlig) harLastetLagret.current = false;
+  }, [synlig]);
 
   // Forhåndsdefinerte emner fra malen
   const malSubjects = Array.isArray(mal.subjects)
@@ -212,8 +264,7 @@ export function OpprettDokumentModal({
     setEmne("");
     setPrioritet("medium");
     setOppretterEntrepriseId(null);
-    setValgtBygningId(null);
-    setValgtTegningId(null);
+    // Beholder valgtBygningId og valgtTegningId — de lastes fra lagring neste gang
     setVisOppretterListe(false);
     setVisBygningListe(false);
     setVisTegningListe(false);
@@ -519,6 +570,10 @@ export function OpprettDokumentModal({
                         setValgtBygningId(null);
                         setValgtTegningId(null);
                         setVisBygningListe(false);
+                        if (valgtProsjektId) {
+                          slettVerdi(`${BYGNING_KEY_PREFIX}${valgtProsjektId}`);
+                          slettVerdi(`${TEGNING_KEY_PREFIX}${valgtProsjektId}`);
+                        }
                       }}
                       className="border-b border-gray-50 px-3 py-2.5"
                     >
@@ -531,6 +586,10 @@ export function OpprettDokumentModal({
                           setValgtBygningId(b.id);
                           setValgtTegningId(null);
                           setVisBygningListe(false);
+                          if (valgtProsjektId) {
+                            lagreVerdi(`${BYGNING_KEY_PREFIX}${valgtProsjektId}`, b.id);
+                            slettVerdi(`${TEGNING_KEY_PREFIX}${valgtProsjektId}`);
+                          }
                         }}
                         className={`border-b border-gray-50 px-3 py-2.5 ${valgtBygningId === b.id ? "bg-blue-50" : ""}`}
                       >
@@ -570,6 +629,7 @@ export function OpprettDokumentModal({
                         onPress={() => {
                           setValgtTegningId(null);
                           setVisTegningListe(false);
+                          if (valgtProsjektId) slettVerdi(`${TEGNING_KEY_PREFIX}${valgtProsjektId}`);
                         }}
                         className="border-b border-gray-50 px-3 py-2.5"
                       >
@@ -581,6 +641,7 @@ export function OpprettDokumentModal({
                           onPress={() => {
                             setValgtTegningId(t.id);
                             setVisTegningListe(false);
+                            if (valgtProsjektId) lagreVerdi(`${TEGNING_KEY_PREFIX}${valgtProsjektId}`, t.id);
                           }}
                           className={`border-b border-gray-50 px-3 py-2.5 ${valgtTegningId === t.id ? "bg-blue-50" : ""}`}
                         >
