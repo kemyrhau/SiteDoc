@@ -385,6 +385,12 @@ export default function OppgaveDetalj() {
         )}
       </View>
 
+      <KeyboardAvoidingView
+        className="flex-1"
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={0}
+      >
+
       {/* Metadata-bar */}
       <View className="flex-row items-center justify-between border-b border-gray-200 bg-white px-4 py-2">
         <View className="flex-row items-center gap-2">
@@ -780,6 +786,8 @@ export default function OppgaveDetalj() {
           </Pressable>
         )}
       </View>
+
+      </KeyboardAvoidingView>
 
       {/* Tittel-redigeringsmodal */}
       <Modal visible={visTittelModal} animationType="slide" onRequestClose={() => settVisTittelModal(false)}>

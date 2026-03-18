@@ -6,6 +6,8 @@ import {
   Pressable,
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -359,6 +361,12 @@ export default function SjekklisteUtfylling() {
         {!erRedigerbar && <View style={{ width: 22 }} />}
       </View>
 
+      <KeyboardAvoidingView
+        className="flex-1"
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={0}
+      >
+
       {/* Metadata-bar */}
       <View className="flex-row items-center justify-between border-b border-gray-200 bg-white px-4 py-2">
         <View className="flex-row items-center gap-2">
@@ -661,6 +669,8 @@ export default function SjekklisteUtfylling() {
           </Pressable>
         )}
       </View>
+
+      </KeyboardAvoidingView>
 
       {/* Malvelger for oppgave fra felt */}
       <MalVelger
