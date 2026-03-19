@@ -149,10 +149,10 @@ function renderFelt(
 
   // Overskrift
   if (type === "heading") {
-    return `<tr class="heading"><td colspan="2">${esc(label)}</td></tr>`;
+    return `<div class="heading">${esc(label)}</div>`;
   }
   if (type === "subtitle") {
-    return `<tr class="subtitle"><td colspan="2">${esc(label)}</td></tr>`;
+    return `<div class="subtitle">${esc(label)}</div>`;
   }
   // Skjul display-only/spesialtyper
   if (type === "location" || type === "attachments") return "";
@@ -247,7 +247,7 @@ function renderFelt(
           }
           repeaterHtml += `</div>`;
         });
-        return `<tr><td colspan="2" class="repeater-celle">${repeaterHtml}</td></tr>`;
+        return `<div class="repeater-celle">${repeaterHtml}</div>`;
       }
       break;
     }
@@ -261,30 +261,46 @@ function renderFelt(
       verdiHtml = tom ? `<span class="tom">Ikke utfylt</span>` : esc(typeof verdi === "object" ? JSON.stringify(verdi) : String(verdi));
   }
 
+  // Bilder og filer
+  const bilder = (felt?.vedlegg ?? []).filter((v) => v.type === "bilde" || /\.(png|jpg|jpeg|gif|webp)$/i.test(v.filnavn));
+  const filer = (felt?.vedlegg ?? []).filter((v) => !bilder.includes(v));
+  const harBilder = bilder.length > 0;
+
+  // Ny layout: label øverst → bilder (2 i bredden, nummerert) → tekst/verdi → kommentar
+  let html = `<div class="felt-blokk">`;
+  html += `<div class="felt-label">${esc(label)}</div>`;
+
+  // Bilder i 2-kolonners rutenett med nummerering
+  if (harBilder) {
+    html += `<div class="bilde-rutenett">`;
+    bilder.forEach((b, idx) => {
+      const src = fullUrl(b.url, apiUrl);
+      const nr = idx + 1;
+      html += `<div class="bilde-kort">`;
+      html += `<img src="${esc(src)}" class="bilde-img" />`;
+      html += `<div class="bilde-nr">${nr}</div>`;
+      html += `</div>`;
+    });
+    html += `</div>`;
+  }
+
+  // Verdi/tekst
+  if (verdiHtml) {
+    html += `<div class="felt-verdi">${verdiHtml}</div>`;
+  }
+
   // Kommentar
-  let ekstra = "";
   if (felt?.kommentar) {
-    ekstra += `<div class="kommentar">${esc(felt.kommentar)}</div>`;
-  }
-  // Vedlegg — vis bilder inline, tell filer
-  if (felt?.vedlegg && felt.vedlegg.length > 0) {
-    const bilder = felt.vedlegg.filter((v) => v.type === "bilde" || /\.(png|jpg|jpeg|gif|webp)$/i.test(v.filnavn));
-    const filer = felt.vedlegg.filter((v) => !bilder.includes(v));
-
-    if (bilder.length > 0) {
-      ekstra += `<div class="vedlegg-bilder">`;
-      for (const b of bilder) {
-        const src = fullUrl(b.url, apiUrl);
-        ekstra += `<img src="${esc(src)}" class="vedlegg-bilde" />`;
-      }
-      ekstra += `</div>`;
-    }
-    if (filer.length > 0) {
-      ekstra += `<div class="vedlegg-teller">📎 ${filer.length} fil${filer.length > 1 ? "er" : ""}</div>`;
-    }
+    html += `<div class="kommentar">${esc(felt.kommentar)}</div>`;
   }
 
-  return `<tr><td class="label">${esc(label)}</td><td class="verdi">${verdiHtml}${ekstra}</td></tr>`;
+  // Fil-vedlegg
+  if (filer.length > 0) {
+    html += `<div class="vedlegg-teller">📎 ${filer.length} fil${filer.length > 1 ? "er" : ""}</div>`;
+  }
+
+  html += `</div>`;
+  return html;
 }
 
 // ---------------------------------------------------------------------------
@@ -414,32 +430,46 @@ export function byggSjekklisteHtml(
     ${statusFarge}
   }
 
-  /* Felttabell */
-  table { width: 100%; border-collapse: collapse; }
-  tr { border-bottom: 1px solid #e5e7eb; }
-  td { padding: 5px 8px; vertical-align: top; }
-  td.label { width: 38%; font-weight: 500; color: #374151; font-size: 10px; }
-  td.verdi { width: 62%; color: #111827; font-size: 10px; }
-  tr.heading td {
+  /* Felt-blokker */
+  .felter { }
+  .felt-blokk {
+    border-bottom: 1px solid #e5e7eb;
+    padding: 8px 0;
+  }
+  .felt-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 4px;
+  }
+  .felt-verdi {
+    font-size: 10px;
+    color: #111827;
+    margin-top: 4px;
+  }
+
+  .heading {
     background: #f3f4f6;
     font-size: 12px;
     font-weight: 700;
     padding: 7px 8px;
     color: #111827;
     border-bottom: 2px solid #d1d5db;
+    margin-top: 6px;
   }
-  tr.subtitle td {
+  .subtitle {
     font-size: 10px;
     font-weight: 600;
     color: #6b7280;
     padding: 5px 8px;
     background: #f9fafb;
+    border-bottom: 1px solid #e5e7eb;
   }
 
   .tom { color: #d1d5db; font-style: italic; }
   .tekst-verdi { white-space: pre-wrap; }
-  .kommentar { margin-top: 2px; font-size: 9px; font-style: italic; color: #6b7280; }
-  .vedlegg-teller { margin-top: 2px; font-size: 9px; color: #9ca3af; }
+  .kommentar { margin-top: 4px; font-size: 9px; font-style: italic; color: #6b7280; }
+  .vedlegg-teller { margin-top: 4px; font-size: 9px; color: #9ca3af; }
 
   /* Trafikklys */
   .trafikklys {
@@ -451,6 +481,38 @@ export function byggSjekklisteHtml(
     margin-right: 4px;
   }
 
+  /* Bilde-rutenett — 2 kolonner med nummerering */
+  .bilde-rutenett {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    margin: 6px 0;
+  }
+  .bilde-kort {
+    position: relative;
+    border: 1px solid #e5e7eb;
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .bilde-img {
+    width: 100%;
+    height: auto;
+    display: block;
+    object-fit: cover;
+    max-height: 200px;
+  }
+  .bilde-nr {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    background: rgba(0,0,0,0.6);
+    color: #fff;
+    font-size: 9px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 3px;
+  }
+
   /* Repeater */
   .repeater-celle { padding: 4px 0; }
   .repeater-rad {
@@ -459,12 +521,7 @@ export function byggSjekklisteHtml(
     padding: 6px 8px;
     margin-bottom: 4px;
   }
-  .repeater-rad table { margin-top: 2px; }
   .repeater-nr { font-size: 9px; font-weight: 600; color: #9ca3af; margin-bottom: 2px; }
-
-  /* Vedlegg-bilder */
-  .vedlegg-bilder { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
-  .vedlegg-bilde { max-width: 180px; max-height: 140px; border-radius: 3px; border: 1px solid #e5e7eb; object-fit: cover; }
 
   /* Signatur */
   img { max-width: 100%; }
@@ -516,9 +573,9 @@ export function byggSjekklisteHtml(
 </div>
 
 <!-- Felter -->
-<table>
+<div class="felter">
 ${feltHtml}
-</table>
+</div>
 
 </body>
 </html>`;
