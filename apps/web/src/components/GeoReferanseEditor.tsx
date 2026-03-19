@@ -17,8 +17,7 @@ import {
   ChevronUp,
 } from "lucide-react";
 import type { GeoReferanse } from "@sitedoc/shared";
-import L from "leaflet";
-import "leaflet/dist/leaflet.css";
+import type L_Type from "leaflet";
 
 interface TegningInfo {
   id: string;
@@ -163,8 +162,9 @@ function KoordinatKart({
   farge: string;
 }) {
   const kartRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<L.Map | null>(null);
-  const markerRef = useRef<L.Marker | null>(null);
+  const mapRef = useRef<L_Type.Map | null>(null);
+  const markerRef = useRef<L_Type.Marker | null>(null);
+  const LRef = useRef<typeof L_Type | null>(null);
 
   const senterLat = lat && !isNaN(Number(lat)) ? Number(lat) : 65;
   const senterLng = lng && !isNaN(Number(lng)) ? Number(lng) : 13;
@@ -173,73 +173,87 @@ function KoordinatKart({
   useEffect(() => {
     if (!kartRef.current || mapRef.current) return;
 
-    const map = L.map(kartRef.current, {
-      center: [senterLat, senterLng],
-      zoom: harKoordinat ? 17 : 5,
-      zoomControl: false,
-    });
+    let avbrutt = false;
 
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: "&copy; OSM",
-      maxZoom: 19,
-    }).addTo(map);
+    async function initKart() {
+      const L = await import("leaflet");
+      await import("leaflet/dist/leaflet.css");
+      if (avbrutt || !kartRef.current) return;
+      LRef.current = L.default ?? L;
+      const Lib = LRef.current;
 
-    L.control.zoom({ position: "topright" }).addTo(map);
+      const map = Lib.map(kartRef.current, {
+        center: [senterLat, senterLng],
+        zoom: harKoordinat ? 17 : 5,
+        zoomControl: false,
+      });
 
-    const markerIkon = L.divIcon({
-      className: "",
-      html: `<div style="width:14px;height:14px;border-radius:50%;background:${farge};border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.4);"></div>`,
-      iconSize: [14, 14],
-      iconAnchor: [7, 7],
-    });
+      Lib.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: "&copy; OSM",
+        maxZoom: 19,
+      }).addTo(map);
 
-    if (harKoordinat) {
-      markerRef.current = L.marker([senterLat, senterLng], { icon: markerIkon }).addTo(map);
-    }
+      Lib.control.zoom({ position: "topright" }).addTo(map);
 
-    map.on("click", (e: L.LeafletMouseEvent) => {
-      const { lat: nyLat, lng: nyLng } = e.latlng;
-      onVelg(nyLat.toFixed(6), nyLng.toFixed(6));
-
-      if (markerRef.current) {
-        markerRef.current.setLatLng([nyLat, nyLng]);
-      } else {
-        markerRef.current = L.marker([nyLat, nyLng], { icon: markerIkon }).addTo(map);
-      }
-    });
-
-    mapRef.current = map;
-
-    // Sikre at kartet rendres riktig
-    setTimeout(() => map.invalidateSize(), 100);
-
-    return () => {
-      map.remove();
-      mapRef.current = null;
-      markerRef.current = null;
-    };
-    // Kun kjør ved mount
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Oppdater markør når koordinater endres eksternt (f.eks. lim inn)
-  useEffect(() => {
-    if (!mapRef.current) return;
-    if (!harKoordinat) return;
-
-    const map = mapRef.current;
-    const pos: L.LatLngExpression = [Number(lat), Number(lng)];
-
-    if (markerRef.current) {
-      markerRef.current.setLatLng(pos);
-    } else {
-      const markerIkon = L.divIcon({
+      const markerIkon = Lib.divIcon({
         className: "",
         html: `<div style="width:14px;height:14px;border-radius:50%;background:${farge};border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.4);"></div>`,
         iconSize: [14, 14],
         iconAnchor: [7, 7],
       });
-      markerRef.current = L.marker(pos, { icon: markerIkon }).addTo(map);
+
+      if (harKoordinat) {
+        markerRef.current = Lib.marker([senterLat, senterLng], { icon: markerIkon }).addTo(map);
+      }
+
+      map.on("click", (e: L_Type.LeafletMouseEvent) => {
+        const { lat: nyLat, lng: nyLng } = e.latlng;
+        onVelg(nyLat.toFixed(6), nyLng.toFixed(6));
+
+        if (markerRef.current) {
+          markerRef.current.setLatLng([nyLat, nyLng]);
+        } else {
+          markerRef.current = Lib.marker([nyLat, nyLng], { icon: markerIkon }).addTo(map);
+        }
+      });
+
+      mapRef.current = map;
+      setTimeout(() => map.invalidateSize(), 100);
+    }
+
+    initKart();
+
+    return () => {
+      avbrutt = true;
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+        markerRef.current = null;
+      }
+    };
+    // Kun kjør ved mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Oppdater markør når koordinater endres eksternt
+  useEffect(() => {
+    if (!mapRef.current || !LRef.current) return;
+    if (!harKoordinat) return;
+
+    const Lib = LRef.current;
+    const map = mapRef.current;
+    const pos: L_Type.LatLngExpression = [Number(lat), Number(lng)];
+
+    if (markerRef.current) {
+      markerRef.current.setLatLng(pos);
+    } else {
+      const markerIkon = Lib.divIcon({
+        className: "",
+        html: `<div style="width:14px;height:14px;border-radius:50%;background:${farge};border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.4);"></div>`,
+        iconSize: [14, 14],
+        iconAnchor: [7, 7],
+      });
+      markerRef.current = Lib.marker(pos, { icon: markerIkon }).addTo(map);
     }
 
     map.setView(pos, Math.max(map.getZoom(), 15));
