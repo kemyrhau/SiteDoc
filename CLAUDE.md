@@ -113,6 +113,7 @@ Se [docs/claude/infrastruktur.md](docs/claude/infrastruktur.md) for detaljer.
 - **ALDRI slett eksisterende data** — migreringer må bevare brukere, medlemskap og prosjektdata (bruk ALTER/RENAME/INSERT, ikke DROP+CREATE)
 - **API-bakoverkompatibilitet:** Ved rename av tRPC-routere, behold gammel router som alias i minst 1 uke — mobilbrukere kan ikke oppdatere umiddelbart
 - Mobil-appen MÅ fungere offline
+- **Prosjektisolering:** Alle spørringer, filtre og søk SKAL være prosjektbasert. Ingen data skal lekke mellom prosjekter — hvert prosjekt er en isolert enhet. Alle API-queries MÅ filtrere på `projectId`
 - Statusoverganger via `isValidStatusTransition()` på server og klient
 - E-postsending (Resend) er valgfri — API starter uten nøkkel
 - **Auto-commit:** Commit og push automatisk etter ferdig implementasjon
