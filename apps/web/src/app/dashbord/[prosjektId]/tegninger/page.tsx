@@ -115,6 +115,12 @@ export default function TegningerSide() {
     },
   });
 
+  const provKonverteringIgjenMutation = trpc.tegning.provKonverteringIgjen.useMutation({
+    onSuccess: () => {
+      utils.tegning.hentMedId.invalidate({ id: aktivTegning?.id ?? "" });
+    },
+  });
+
   // Reset zoom ved tegningsbytte
   useEffect(() => {
     setZoom(STANDARD_ZOOM);
@@ -413,6 +419,13 @@ export default function TegningerSide() {
           <span className="text-sm text-red-800">
             DWG-konvertering feilet: {tegning.conversionError ?? "Ukjent feil"}
           </span>
+          <button
+            onClick={() => provKonverteringIgjenMutation.mutate({ id: tegning.id })}
+            disabled={provKonverteringIgjenMutation.isPending}
+            className="ml-auto rounded border border-red-300 bg-white px-3 py-1 text-xs font-medium text-red-700 hover:bg-red-50"
+          >
+            Prøv igjen
+          </button>
         </div>
       )}
 

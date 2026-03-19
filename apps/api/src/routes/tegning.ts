@@ -315,6 +315,53 @@ export const tegningRouter = router({
       return tegning;
     }),
 
+  // Prøv DWG-konvertering på nytt
+  provKonverteringIgjen: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const tegning = await ctx.prisma.drawing.findUniqueOrThrow({
+        where: { id: input.id },
+      });
+      await verifiserProsjektmedlem(ctx.userId, tegning.projectId);
+
+      if (!tegning.originalFileUrl) {
+        throw new Error("Denne tegningen har ingen original DWG-fil");
+      }
+
+      // Nullstill status
+      await ctx.prisma.drawing.update({
+        where: { id: input.id },
+        data: { conversionStatus: "pending", conversionError: null },
+      });
+
+      // Start konvertering på nytt
+      const dwgFilSti = join(UPLOADS_DIR, tegning.originalFileUrl.replace("/uploads/", ""));
+      konverterDwg(dwgFilSti, tegning.name, UPLOADS_DIR)
+        .then(async (resultat) => {
+          const oppdatering: Record<string, unknown> = {
+            conversionStatus: resultat.feil ? "failed" : "done",
+            conversionError: resultat.feil,
+          };
+          if (resultat.koordinatSystem) oppdatering.coordinateSystem = resultat.koordinatSystem;
+          if (resultat.geoReferanse) oppdatering.geoReference = resultat.geoReferanse;
+          if (resultat.visningUrl) {
+            oppdatering.fileUrl = resultat.visningUrl;
+            oppdatering.fileType = resultat.visningFilType;
+          }
+          await ctx.prisma.drawing.update({ where: { id: input.id }, data: oppdatering });
+          console.log(`[DWG] Re-konvertering fullført for tegning ${input.id}`);
+        })
+        .catch(async (err) => {
+          console.error(`[DWG] Re-konvertering feilet for ${input.id}:`, err);
+          await ctx.prisma.drawing.update({
+            where: { id: input.id },
+            data: { conversionStatus: "failed", conversionError: err instanceof Error ? err.message : "Ukjent feil" },
+          });
+        });
+
+      return { status: "pending" };
+    }),
+
   // Slett tegning
   slett: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))

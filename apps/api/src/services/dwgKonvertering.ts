@@ -23,6 +23,10 @@ import type { GeoReferanse } from "@sitedoc/shared";
 
 const execFileAsync = promisify(execFile);
 
+/** Finn full sti til libredwg-verktøy (PM2 har ofte begrenset PATH) */
+const DWG2DXF = process.env.DWG2DXF_PATH ?? "/usr/local/bin/dwg2dxf";
+const DWG2SVG = process.env.DWG2SVG_PATH ?? "/usr/local/bin/dwg2SVG";
+
 interface DwgKonverteringsResultat {
   /** URL til konvertert visningsfil (SVG/PDF) */
   visningUrl: string;
@@ -39,7 +43,7 @@ interface DwgKonverteringsResultat {
 /** Sjekk om libredwg er installert */
 async function sjekkLibreDwg(): Promise<boolean> {
   try {
-    await execFileAsync("dwg2dxf", ["--version"], { timeout: 5000 });
+    await execFileAsync(DWG2DXF, ["--version"], { timeout: 5000 });
     return true;
   } catch {
     return false;
@@ -137,7 +141,7 @@ export async function konverterDwg(
   try {
     // 1. DWG → DXF (for koordinatekstraksjon)
     console.log("[DWG] Konverterer til DXF:", dwgFilSti);
-    await execFileAsync("dwg2dxf", [dwgFilSti], {
+    await execFileAsync(DWG2DXF, [dwgFilSti], {
       timeout: 120000,
       cwd: dwgDir,
     });
@@ -146,7 +150,7 @@ export async function konverterDwg(
     console.log("[DWG] Konverterer til SVG:", dwgFilSti);
     let harSvg = false;
     try {
-      const { stdout: svgOutput } = await execFileAsync("dwg2SVG", [dwgFilSti], {
+      const { stdout: svgOutput } = await execFileAsync(DWG2SVG, [dwgFilSti], {
         timeout: 120000,
         cwd: dwgDir,
         maxBuffer: 50 * 1024 * 1024, // 50 MB for store tegninger
