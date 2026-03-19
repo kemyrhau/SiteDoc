@@ -50,14 +50,18 @@ export function PdfForhandsvisning({
             <Text className="mt-3 text-sm text-gray-500">Genererer forhåndsvisning...</Text>
           </View>
         )}
-        <WebView
-          source={{ html }}
-          originWhitelist={["*"]}
-          onLoadEnd={() => settLaster(false)}
-          style={{ flex: 1 }}
-          scalesPageToFit
-          showsVerticalScrollIndicator
-        />
+        <View className="flex-1 bg-gray-100 p-3">
+          <View className="flex-1 overflow-hidden rounded-lg bg-white" style={{ shadowColor: "#000", shadowOpacity: 0.1, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 4 }}>
+            <WebView
+              source={{ html }}
+              originWhitelist={["*"]}
+              onLoadEnd={() => settLaster(false)}
+              style={{ flex: 1 }}
+              scalesPageToFit
+              showsVerticalScrollIndicator
+            />
+          </View>
+        </View>
       </SafeAreaView>
     </Modal>
   );
