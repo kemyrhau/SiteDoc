@@ -322,6 +322,7 @@ export default function TegningerSide() {
   const erBilde = ["png", "jpg", "jpeg", "svg"].includes(fileType);
   const erDwgKonvertering = tegning.conversionStatus === "pending" || tegning.conversionStatus === "converting";
   const dwgFeilet = tegning.conversionStatus === "failed";
+  const erUkonvertertDwg = fileType === "dwg"; // DWG kan ikke vises direkte i nettleser
   const erLaster = opprettOppgaveMutation.isPending || opprettSjekklisteMutation.isPending;
   const zoomProsent = Math.round(zoom * 100);
 
@@ -430,7 +431,7 @@ export default function TegningerSide() {
       )}
 
       {/* Tegningsvisning med markører */}
-      {fileUrl && !erDwgKonvertering ? (
+      {fileUrl && !erDwgKonvertering && !erUkonvertertDwg ? (
         erBilde ? (
           <div
             ref={containerRef}
@@ -522,8 +523,21 @@ export default function TegningerSide() {
           </div>
         )
       ) : (
-        <div className="flex flex-1 items-center justify-center bg-gray-50">
-          <p className="text-gray-400">Ingen fil tilgjengelig</p>
+        <div className="flex flex-1 flex-col items-center justify-center gap-3 bg-gray-50">
+          {erUkonvertertDwg ? (
+            <>
+              <p className="text-sm text-gray-500">DWG-filen må konverteres før den kan vises</p>
+              <button
+                onClick={() => provKonverteringIgjenMutation.mutate({ id: tegning.id })}
+                disabled={provKonverteringIgjenMutation.isPending}
+                className="rounded bg-sitedoc-primary px-4 py-2 text-sm font-medium text-white hover:bg-sitedoc-secondary disabled:opacity-50"
+              >
+                {provKonverteringIgjenMutation.isPending ? "Starter..." : "Konverter DWG"}
+              </button>
+            </>
+          ) : (
+            <p className="text-gray-400">Ingen fil tilgjengelig</p>
+          )}
         </div>
       )}
 
