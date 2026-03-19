@@ -774,11 +774,8 @@ export function GeoReferanseEditor({
                 className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2"
                 style={{ left: vx, top: vy }}
               >
-                <div className="flex flex-col items-center">
-                  <span className="mb-0.5 rounded bg-red-600 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white">
-                    1
-                  </span>
-                  <div className="h-3 w-3 rounded-full border-2 border-white bg-red-500 shadow" />
+                <div className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-red-500 shadow-md">
+                  <span className="text-[10px] font-bold leading-none text-white">1</span>
                 </div>
               </div>
             );
@@ -795,11 +792,8 @@ export function GeoReferanseEditor({
                 className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2"
                 style={{ left: vx, top: vy }}
               >
-                <div className="flex flex-col items-center">
-                  <span className="mb-0.5 rounded bg-blue-600 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white">
-                    2
-                  </span>
-                  <div className="h-3 w-3 rounded-full border-2 border-white bg-blue-500 shadow" />
+                <div className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-blue-500 shadow-md">
+                  <span className="text-[10px] font-bold leading-none text-white">2</span>
                 </div>
               </div>
             );
