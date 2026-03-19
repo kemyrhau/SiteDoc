@@ -5,7 +5,7 @@
   "main": "expo-router/entry",
   "scripts": {
     "dev": "expo start",
-    "dev:tunnel": "expo start --tunnel",
+    "dev:tunnel": "bash scripts/dev-tunnel.sh",
     "build": "echo 'Mobilbygg kjøres via EAS'",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src/",
@@ -61,7 +61,6 @@
     "react-native-worklets": "0.5.1"
   },
   "devDependencies": {
-    "@expo/ngrok": "^4.1.3",
     "@sitedoc/api": "workspace:*",
     "@types/react": "^19.1.17",
     "tailwindcss": "^3.4.0",

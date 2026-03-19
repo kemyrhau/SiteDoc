@@ -56,7 +56,8 @@ sitedoc/
 - `pnpm dev` — Start alle apps i dev-modus
 - `pnpm dev --filter web` — Kun web (port 3100)
 - `pnpm dev --filter mobile` — Kun mobil (Expo)
-- `cd apps/mobile && npx expo start --tunnel --clear` — Mobil med tunnel (**bruk alltid `--tunnel`**)
+- `cd apps/mobile && pnpm dev:tunnel` — Mobil med ngrok v3-tunnel (fungerer på tvers av nettverk)
+- `cd apps/mobile && npx expo start --clear` — Mobil LAN-modus (Mac og telefon på samme nettverk)
 - `pnpm build` — Bygg alle apps
 - `pnpm test` / `pnpm lint` / `pnpm typecheck`
 - `pnpm db:migrate` — Prisma-migreringer (bruk prosjektets Prisma, IKKE global `npx prisma`)
@@ -116,5 +117,6 @@ Se [docs/claude/infrastruktur.md](docs/claude/infrastruktur.md) for detaljer.
 - **Prosjektisolering:** Alle spørringer, filtre og søk SKAL være prosjektbasert. Ingen data skal lekke mellom prosjekter — hvert prosjekt er en isolert enhet. Alle API-queries MÅ filtrere på `projectId`
 - Statusoverganger via `isValidStatusTransition()` på server og klient
 - E-postsending (Resend) er valgfri — API starter uten nøkkel
+- **Delt infrastruktur:** Brukeren har flere prosjekter som deler domene (sitedoc.no), OAuth-klienter, ngrok-konto og server. ALDRI endre `.env`-filer, DNS/tunnel-config eller OAuth-oppsett uten å spørre — endringer kan påvirke andre prosjekter
 - **Auto-commit:** Commit og push automatisk etter ferdig implementasjon
 - **Auto-oppdater dokumentasjon:** Oppdater relevant fil i `docs/claude/` etter vesentlige endringer

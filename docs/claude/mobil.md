@@ -69,6 +69,22 @@ Sjekkliste-/oppgave-detaljskjermen har kontekstuelle statusknapper i bunnpanelet
 
 **Modal tekstredigering:** Alle tekstfelt bruker Pressable → fullskjerm Modal med "Ferdig"-knapp.
 
+## Utviklingsmiljø — Tunnel og nettverk
+
+**API-tilkobling:** Mobilen bruker alltid `https://api.sitedoc.no` (Cloudflare Tunnel på PC). Fungerer fra ethvert nettverk.
+
+**Expo dev-server:**
+- `pnpm dev:tunnel` — Starter ngrok v3-tunnel + Expo. Telefon og Mac kan være på forskjellige nettverk.
+- `npx expo start --clear` — LAN-modus. Krever Mac og telefon på samme WiFi.
+
+**Skriptet `scripts/dev-tunnel.sh`:**
+1. Starter `ngrok http 8081` i bakgrunnen
+2. Henter tunnel-URL fra ngrok API (localhost:4040)
+3. Setter `EXPO_PACKAGER_PROXY_URL` → Expo bruker ngrok-URL i QR-kode
+4. Rydder opp ngrok-prosess ved Ctrl+C
+
+**Viktig:** `@expo/ngrok` (v2) er fjernet. Vi bruker systeminstallert ngrok v3 (`brew install ngrok`).
+
 ## Offline-first (SQLite)
 
 **SQLite-tabeller:**

@@ -71,7 +71,7 @@ export async function registrerBildeIDatabase(params: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify(rensetInput),
+      body: JSON.stringify({ json: rensetInput }),
     });
 
     if (!respons.ok) {
