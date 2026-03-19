@@ -39,14 +39,34 @@ interface Punkt {
   gps: { lat: string; lng: string };
 }
 
-/** Konverterer UTM sone 33N (EUREF89) til WGS84 lat/lng */
-function utm33TilLatLng(nord: number, ost: number): { lat: number; lng: number } {
+/** Støttede koordinatsystemer */
+type KoordinatSystem = "wgs84" | "utm32" | "utm33" | "utm35" | "utm36";
+
+const KOORDINAT_SYSTEMER: { verdi: KoordinatSystem; label: string }[] = [
+  { verdi: "wgs84", label: "WGS84 (Lat/Lon)" },
+  { verdi: "utm32", label: "ETRS89 UTM-32" },
+  { verdi: "utm33", label: "ETRS89 UTM-33" },
+  { verdi: "utm35", label: "ETRS89 UTM-35" },
+  { verdi: "utm36", label: "ETRS89 UTM-36" },
+];
+
+/** Sentralmeridianer for UTM-soner (grader) */
+const UTM_SENTRALMERIDIAN: Record<string, number> = {
+  utm32: 9,
+  utm33: 15,
+  utm35: 27,
+  utm36: 33,
+};
+
+/** Konverterer UTM (EUREF89/ETRS89) til WGS84 lat/lng */
+function utmTilLatLng(nord: number, ost: number, sone: string): { lat: number; lng: number } {
   const a = 6378137.0;
   const f = 1 / 298.257223563;
   const e2 = 2 * f - f * f;
   const e1 = (1 - Math.sqrt(1 - e2)) / (1 + Math.sqrt(1 - e2));
   const k0 = 0.9996;
-  const lng0 = 15 * Math.PI / 180;
+  const sentralmeridian = UTM_SENTRALMERIDIAN[sone] ?? 15;
+  const lng0 = sentralmeridian * Math.PI / 180;
 
   const M = nord / k0;
   const mu = M / (a * (1 - e2 / 4 - 3 * e2 * e2 / 64 - 5 * e2 * e2 * e2 / 256));
@@ -90,32 +110,50 @@ function utm33TilLatLng(nord: number, ost: number): { lat: number; lng: number }
   };
 }
 
-function parserKoordinater(tekst: string): { lat: string; lng: string } | null {
+/** Parser og konverter koordinater basert på valgt koordinatsystem */
+function parserKoordinater(tekst: string, system: KoordinatSystem): { lat: string; lng: string } | null {
   const trimmet = tekst.trim();
 
-  const nordMatch = trimmet.match(/[Nn]ord:?\s*(\d{6,8}[.,]?\d*)/);
-  const ostMatch = trimmet.match(/[ØøOo]st:?\s*(\d{5,7}[.,]?\d*)/);
-  if (nordMatch?.[1] && ostMatch?.[1]) {
-    const nord = Number(nordMatch[1].replace(",", "."));
-    const ost = Number(ostMatch[1].replace(",", "."));
-    if (nord > 6000000 && nord < 8500000 && ost > 100000 && ost < 900000) {
-      const resultat = utm33TilLatLng(nord, ost);
-      return { lat: resultat.lat.toFixed(6), lng: resultat.lng.toFixed(6) };
+  if (system !== "wgs84") {
+    // UTM-format: "Nord: xxx Øst: yyy" eller "xxx yyy"
+    const nordMatch = trimmet.match(/[Nn]ord:?\s*(\d{6,8}[.,]?\d*)/);
+    const ostMatch = trimmet.match(/[ØøOo]st:?\s*(\d{5,7}[.,]?\d*)/);
+    if (nordMatch?.[1] && ostMatch?.[1]) {
+      const nord = Number(nordMatch[1].replace(",", "."));
+      const ost = Number(ostMatch[1].replace(",", "."));
+      if (nord > 6000000 && nord < 8500000 && ost > 100000 && ost < 900000) {
+        const resultat = utmTilLatLng(nord, ost, system);
+        return { lat: resultat.lat.toFixed(6), lng: resultat.lng.toFixed(6) };
+      }
     }
+
+    // Bare to tall: northing easting
+    const tallMatch = trimmet.match(/^(\d{6,8}[.,]?\d*)[,\s]+(\d{5,7}[.,]?\d*)$/);
+    if (tallMatch?.[1] && tallMatch[2]) {
+      const a = Number(tallMatch[1].replace(",", "."));
+      const b = Number(tallMatch[2].replace(",", "."));
+      if (a > 6000000 && a < 8500000 && b > 100000 && b < 900000) {
+        const resultat = utmTilLatLng(a, b, system);
+        return { lat: resultat.lat.toFixed(6), lng: resultat.lng.toFixed(6) };
+      }
+    }
+
+    // Øst først: "Øst: xxx Nord: yyy"
+    const ostForstMatch = trimmet.match(/[ØøOo]st:?\s*(\d{5,7}[.,]?\d*)/);
+    const nordForstMatch = trimmet.match(/[Nn]ord:?\s*(\d{6,8}[.,]?\d*)/);
+    if (ostForstMatch?.[1] && nordForstMatch?.[1]) {
+      const ost = Number(ostForstMatch[1].replace(",", "."));
+      const nord = Number(nordForstMatch[1].replace(",", "."));
+      if (nord > 6000000 && nord < 8500000 && ost > 100000 && ost < 900000) {
+        const resultat = utmTilLatLng(nord, ost, system);
+        return { lat: resultat.lat.toFixed(6), lng: resultat.lng.toFixed(6) };
+      }
+    }
+
+    return null;
   }
 
-  const utmTallMatch = trimmet.match(
-    /^(\d{6,8}[.,]?\d*)[,\s]+(\d{5,7}[.,]?\d*)$/
-  );
-  if (utmTallMatch?.[1] && utmTallMatch[2]) {
-    const a = Number(utmTallMatch[1].replace(",", "."));
-    const b = Number(utmTallMatch[2].replace(",", "."));
-    if (a > 6000000 && a < 8500000 && b > 100000 && b < 900000) {
-      const resultat = utm33TilLatLng(a, b);
-      return { lat: resultat.lat.toFixed(6), lng: resultat.lng.toFixed(6) };
-    }
-  }
-
+  // WGS84: Desimalformat
   const desimalMatch = trimmet.match(/^(-?\d+[.,]\d+)[,\s]+(-?\d+[.,]\d+)$/);
   if (desimalMatch?.[1] && desimalMatch[2]) {
     return {
@@ -124,6 +162,7 @@ function parserKoordinater(tekst: string): { lat: string; lng: string } | null {
     };
   }
 
+  // WGS84: DMS-format
   const dmsRegex = /(\d+)[°](\d+)[′'](\d+[.,]?\d*)[″"]\s*([NSns])\s*[,\s]*(\d+)[°](\d+)[′'](\d+[.,]?\d*)[″"]\s*([EWew])/;
   const dmsMatch = trimmet.match(dmsRegex);
   if (dmsMatch?.[1] && dmsMatch[2] && dmsMatch[3] && dmsMatch[4] && dmsMatch[5] && dmsMatch[6] && dmsMatch[7] && dmsMatch[8]) {
@@ -342,6 +381,7 @@ export function GeoReferanseEditor({
   const [visKart2, setVisKart2] = useState(false);
   const [visLimInn1, setVisLimInn1] = useState(false);
   const [visLimInn2, setVisLimInn2] = useState(false);
+  const [koordinatSystem, setKoordinatSystem] = useState<KoordinatSystem>("utm33");
 
   const settGeoMutasjon = trpc.tegning.settGeoReferanse.useMutation({
     onSuccess: () => {
@@ -747,6 +787,24 @@ export function GeoReferanseEditor({
       <div className="flex w-96 flex-shrink-0 flex-col gap-3 overflow-y-auto">
         <h3 className="text-sm font-semibold text-gray-900">Georeferanse</h3>
 
+        {/* Koordinatsystem-velger */}
+        <div className="rounded-lg border border-gray-200 bg-gray-50 p-2">
+          <label className="mb-1 block text-[10px] font-medium text-gray-500">
+            Koordinatsystem (for innliming)
+          </label>
+          <select
+            value={koordinatSystem}
+            onChange={(e) => setKoordinatSystem(e.target.value as KoordinatSystem)}
+            className="w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700"
+          >
+            {KOORDINAT_SYSTEMER.map((sys) => (
+              <option key={sys.verdi} value={sys.verdi}>
+                {sys.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
         {/* Punkt 1 */}
         <div className="rounded-lg border border-gray-200 bg-white p-3">
           <div className="mb-2 flex items-center justify-between">
@@ -821,12 +879,12 @@ export function GeoReferanseEditor({
                   onChange={(e) => {
                     const v = e.target.value;
                     setLimTekst1(v);
-                    const resultat = parserKoordinater(v);
+                    const resultat = parserKoordinater(v, koordinatSystem);
                     if (resultat) {
                       setPunkt1((p) => p ? { ...p, gps: resultat } : p);
                     }
                   }}
-                  placeholder="F.eks. 69.659, 18.963 eller UTM"
+                  placeholder={koordinatSystem === "wgs84" ? "F.eks. 69.659, 18.963" : "F.eks. Nord: 7731109 Øst: 652332"}
                 />
               )}
 
@@ -940,12 +998,12 @@ export function GeoReferanseEditor({
                   onChange={(e) => {
                     const v = e.target.value;
                     setLimTekst2(v);
-                    const resultat = parserKoordinater(v);
+                    const resultat = parserKoordinater(v, koordinatSystem);
                     if (resultat) {
                       setPunkt2((p) => p ? { ...p, gps: resultat } : p);
                     }
                   }}
-                  placeholder="F.eks. 69.660, 18.965 eller UTM"
+                  placeholder={koordinatSystem === "wgs84" ? "F.eks. 69.660, 18.965" : "F.eks. Nord: 7732000 Øst: 653000"}
                 />
               )}
 
