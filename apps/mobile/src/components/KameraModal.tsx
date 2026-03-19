@@ -2,7 +2,7 @@ import { useRef, useState, useCallback, useEffect } from "react";
 import { View, Text, Pressable, Modal, Animated, InteractionManager } from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { Accelerometer } from "expo-sensors";
-import { X, Timer } from "lucide-react-native";
+import { X, Timer, Flashlight, FlashlightOff } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 interface KameraModalProps {
@@ -50,6 +50,7 @@ export function KameraModal({ synlig, onBilde, onLukk }: KameraModalProps) {
   const [orientering, setOrientering] = useState<Orientering>("portrett");
   const rotasjon = useRef(new Animated.Value(0)).current;
   const [tidtakerAktiv, setTidtakerAktiv] = useState(false);
+  const [lykt, setLykt] = useState(false);
   const [nedtelling, setNedtelling] = useState(0);
   const tidtakerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -150,6 +151,7 @@ export function KameraModal({ synlig, onBilde, onLukk }: KameraModalProps) {
     if (!synlig) {
       settAntallTatt(0);
       setZoom(0);
+      setLykt(false);
       setNedtelling(0);
       setOrientering("portrett");
       rotasjon.setValue(0);
@@ -223,6 +225,7 @@ export function KameraModal({ synlig, onBilde, onLukk }: KameraModalProps) {
             style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
             facing="back"
             zoom={zoom}
+            enableTorch={lykt}
           />
 
           {/* 5:4 crop-guide — mørke overlay (over kamera) */}
@@ -274,6 +277,25 @@ export function KameraModal({ synlig, onBilde, onLukk }: KameraModalProps) {
               className="h-10 w-10 items-center justify-center rounded-full bg-black/50"
             >
               <X size={22} color="#ffffff" />
+            </Pressable>
+          </Animated.View>
+
+          {/* Lommelykt-knapp */}
+          <Animated.View
+            style={[
+              { position: "absolute", left: 72, zIndex: 10, top: insets.top + 8 },
+              uiRotasjon,
+            ]}
+          >
+            <Pressable
+              onPress={() => setLykt((l) => !l)}
+              hitSlop={16}
+              className={`h-10 w-10 items-center justify-center rounded-full ${lykt ? "bg-yellow-400" : "bg-black/50"}`}
+            >
+              {lykt
+                ? <Flashlight size={20} color="#000000" />
+                : <FlashlightOff size={20} color="#ffffff" />
+              }
             </Pressable>
           </Animated.View>
 
