@@ -15,6 +15,7 @@ import {
   Map,
   ChevronDown,
   ChevronUp,
+  LocateFixed,
 } from "lucide-react";
 import type { GeoReferanse } from "@sitedoc/shared";
 import type L_Type from "leaflet";
@@ -195,10 +196,29 @@ function KoordinatKart({
         zoomControl: false,
       });
 
-      Lib.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: "&copy; OSM",
-        maxZoom: 19,
-      }).addTo(map);
+      // Norge i Bilder (satellitt) som hovedlag
+      const satellitt = Lib.tileLayer(
+        "https://waapi.webatlas.no/maptiles/tiles/webatlas-orto-newup/wa_grid/{z}/{x}/{y}.jpeg?api_key=b8e36d51-119a-423b-b156-d744d54123d5",
+        { attribution: "Norkart/Geovekst", maxZoom: 20 },
+      );
+      // OpenStreetMap som fallback
+      const osm = Lib.tileLayer(
+        "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+        { attribution: "&copy; OSM", maxZoom: 19 },
+      );
+      // Kartverket topografisk
+      const topo = Lib.tileLayer(
+        "https://cache.kartverket.no/v1/wmts/1.0.0/topo/default/webmercator/{z}/{y}/{x}.png",
+        { attribution: "&copy; Kartverket", maxZoom: 18 },
+      );
+
+      satellitt.addTo(map);
+
+      Lib.control.layers(
+        { "Satellitt": satellitt, "Kart": osm, "Topo": topo },
+        {},
+        { position: "topleft", collapsed: true },
+      ).addTo(map);
 
       Lib.control.zoom({ position: "topright" }).addTo(map);
 
@@ -496,6 +516,24 @@ export function GeoReferanseEditor({
 
   const kanLagre = punkt1Gyldig && punkt2Gyldig && !erIdentiske;
 
+  function hentMinPosisjon(punktNr: 1 | 2) {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const gps = { lat: pos.coords.latitude.toFixed(6), lng: pos.coords.longitude.toFixed(6) };
+        if (punktNr === 1) {
+          setPunkt1((p) => p ? { ...p, gps } : p);
+        } else {
+          setPunkt2((p) => p ? { ...p, gps } : p);
+        }
+      },
+      (err) => {
+        console.warn("Geolocation feil:", err.message);
+      },
+      { enableHighAccuracy: true, timeout: 10000 },
+    );
+  }
+
   function handleLagre() {
     if (!punkt1 || !punkt2) return;
 
@@ -735,16 +773,27 @@ export function GeoReferanseEditor({
 
           {punkt1 ? (
             <div className="flex flex-col gap-1.5">
-              {/* Kart for punkt 1 */}
-              <button
-                type="button"
-                onClick={() => setVisKart1((v) => !v)}
-                className="flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-800"
-              >
-                <Map className="h-3 w-3" />
-                Velg på kart
-                {visKart1 ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-              </button>
+              {/* Kart + min posisjon for punkt 1 */}
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setVisKart1((v) => !v)}
+                  className="flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-800"
+                >
+                  <Map className="h-3 w-3" />
+                  Velg på kart
+                  {visKart1 ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => hentMinPosisjon(1)}
+                  className="flex items-center gap-1 text-xs font-medium text-green-600 hover:text-green-800"
+                  title="Bruk nettleserens GPS-posisjon"
+                >
+                  <LocateFixed className="h-3 w-3" />
+                  Min posisjon
+                </button>
+              </div>
               {visKart1 && (
                 <KoordinatKart
                   lat={punkt1.gps.lat}
@@ -843,16 +892,27 @@ export function GeoReferanseEditor({
 
           {punkt2 ? (
             <div className="flex flex-col gap-1.5">
-              {/* Kart for punkt 2 */}
-              <button
-                type="button"
-                onClick={() => setVisKart2((v) => !v)}
-                className="flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-800"
-              >
-                <Map className="h-3 w-3" />
-                Velg på kart
-                {visKart2 ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-              </button>
+              {/* Kart + min posisjon for punkt 2 */}
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setVisKart2((v) => !v)}
+                  className="flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-800"
+                >
+                  <Map className="h-3 w-3" />
+                  Velg på kart
+                  {visKart2 ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => hentMinPosisjon(2)}
+                  className="flex items-center gap-1 text-xs font-medium text-green-600 hover:text-green-800"
+                  title="Bruk nettleserens GPS-posisjon"
+                >
+                  <LocateFixed className="h-3 w-3" />
+                  Min posisjon
+                </button>
+              </div>
               {visKart2 && (
                 <KoordinatKart
                   lat={punkt2.gps.lat}
