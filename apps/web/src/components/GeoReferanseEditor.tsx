@@ -556,6 +556,14 @@ export function GeoReferanseEditor({
 
   const kanLagre = punkt1Gyldig && punkt2Gyldig && !erIdentiske;
 
+  // Låst-state per punkt — forhindrer at data overskrives ved uhell
+  const [punkt1Låst, setPunkt1Låst] = useState(!!eksisterende?.point1);
+  const [punkt2Låst, setPunkt2Låst] = useState(!!eksisterende?.point2);
+
+  // Nullstill lås når punkt endres
+  useEffect(() => { setPunkt1Låst(false); }, [punkt1?.gps.lat, punkt1?.gps.lng, punkt1?.pixel.x, punkt1?.pixel.y]);
+  useEffect(() => { setPunkt2Låst(false); }, [punkt2?.gps.lat, punkt2?.gps.lng, punkt2?.pixel.x, punkt2?.pixel.y]);
+
   function hentMinPosisjon(punktNr: 1 | 2) {
     if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(
@@ -911,10 +919,19 @@ export function GeoReferanseEditor({
                 />
               </div>
               {punkt1Gyldig && (
-                <p className="flex items-center gap-1 text-[10px] text-green-600">
+                <button
+                  type="button"
+                  onClick={() => setPunkt1Låst(true)}
+                  disabled={punkt1Låst}
+                  className={`flex w-full items-center justify-center gap-1 rounded px-2 py-1.5 text-xs font-medium transition-colors ${
+                    punkt1Låst
+                      ? "bg-green-50 text-green-700"
+                      : "bg-blue-600 text-white hover:bg-blue-700"
+                  }`}
+                >
                   <Check className="h-3 w-3" />
-                  Koordinat satt
-                </p>
+                  {punkt1Låst ? "Punkt 1 lagret" : "Lagre punkt 1"}
+                </button>
               )}
             </div>
           ) : (
@@ -1030,10 +1047,19 @@ export function GeoReferanseEditor({
                 />
               </div>
               {punkt2Gyldig && (
-                <p className="flex items-center gap-1 text-[10px] text-green-600">
+                <button
+                  type="button"
+                  onClick={() => setPunkt2Låst(true)}
+                  disabled={punkt2Låst}
+                  className={`flex w-full items-center justify-center gap-1 rounded px-2 py-1.5 text-xs font-medium transition-colors ${
+                    punkt2Låst
+                      ? "bg-green-50 text-green-700"
+                      : "bg-blue-600 text-white hover:bg-blue-700"
+                  }`}
+                >
                   <Check className="h-3 w-3" />
-                  Koordinat satt
-                </p>
+                  {punkt2Låst ? "Punkt 2 lagret" : "Lagre punkt 2"}
+                </button>
               )}
             </div>
           ) : (
@@ -1065,11 +1091,15 @@ export function GeoReferanseEditor({
 
           <Button
             onClick={handleLagre}
-            disabled={!kanLagre || settGeoMutasjon.isPending}
+            disabled={!kanLagre || !punkt1Låst || !punkt2Låst || settGeoMutasjon.isPending}
             className="w-full"
           >
             <Check className="mr-1.5 h-4 w-4" />
-            {settGeoMutasjon.isPending ? "Lagrer..." : "Lagre kalibrering"}
+            {settGeoMutasjon.isPending
+              ? "Lagrer..."
+              : !punkt1Låst || !punkt2Låst
+                ? "Lagre begge punkter først"
+                : "Lagre kalibrering"}
           </Button>
 
           {eksisterende && (
