@@ -367,17 +367,40 @@ export function GeoReferanseEditor({
   const zoomInn = useCallback(() => zoomMotMidten(1.3), [zoomMotMidten]);
   const zoomUt = useCallback(() => zoomMotMidten(1 / 1.3), [zoomMotMidten]);
 
-  const kanLagre =
+  const punkt1Gyldig =
     punkt1 &&
-    punkt2 &&
     punkt1.gps.lat &&
     punkt1.gps.lng &&
+    !isNaN(Number(punkt1.gps.lat)) &&
+    !isNaN(Number(punkt1.gps.lng));
+
+  const punkt2Gyldig =
+    punkt2 &&
     punkt2.gps.lat &&
     punkt2.gps.lng &&
-    !isNaN(Number(punkt1.gps.lat)) &&
-    !isNaN(Number(punkt1.gps.lng)) &&
     !isNaN(Number(punkt2.gps.lat)) &&
     !isNaN(Number(punkt2.gps.lng));
+
+  const erIdentiske =
+    punkt1Gyldig &&
+    punkt2Gyldig &&
+    Number(punkt1!.gps.lat) === Number(punkt2!.gps.lat) &&
+    Number(punkt1!.gps.lng) === Number(punkt2!.gps.lng);
+
+  const kanLagre = punkt1Gyldig && punkt2Gyldig && !erIdentiske;
+
+  // Lagre enkeltpunkt midlertidig i komponent-state (markert med ✓)
+  const [punkt1Lagret, setPunkt1Lagret] = useState(!!eksisterende?.point1);
+  const [punkt2Lagret, setPunkt2Lagret] = useState(!!eksisterende?.point2);
+
+  function handleLagrePunkt(punktNr: 1 | 2) {
+    if (punktNr === 1) setPunkt1Lagret(true);
+    else setPunkt2Lagret(true);
+  }
+
+  // Nullstill "lagret"-markør når punkt endres
+  useEffect(() => { setPunkt1Lagret(false); }, [punkt1?.gps.lat, punkt1?.gps.lng, punkt1?.pixel.x, punkt1?.pixel.y]);
+  useEffect(() => { setPunkt2Lagret(false); }, [punkt2?.gps.lat, punkt2?.gps.lng, punkt2?.pixel.x, punkt2?.pixel.y]);
 
   function handleLagre() {
     if (!punkt1 || !punkt2) return;
@@ -666,6 +689,21 @@ export function GeoReferanseEditor({
                   placeholder="f.eks. 10.750"
                 />
               </div>
+              <button
+                type="button"
+                onClick={() => handleLagrePunkt(1)}
+                disabled={!punkt1Gyldig}
+                className={`flex items-center justify-center gap-1 rounded px-2 py-1 text-xs font-medium transition-colors ${
+                  punkt1Lagret
+                    ? "bg-green-50 text-green-700"
+                    : punkt1Gyldig
+                      ? "bg-blue-50 text-blue-700 hover:bg-blue-100"
+                      : "bg-gray-50 text-gray-400"
+                }`}
+              >
+                <Check className="h-3 w-3" />
+                {punkt1Lagret ? "Punkt 1 bekreftet" : "Bekreft punkt 1"}
+              </button>
             </div>
           ) : (
             <p className="text-xs text-gray-400">
@@ -735,6 +773,21 @@ export function GeoReferanseEditor({
                   placeholder="f.eks. 10.760"
                 />
               </div>
+              <button
+                type="button"
+                onClick={() => handleLagrePunkt(2)}
+                disabled={!punkt2Gyldig}
+                className={`flex items-center justify-center gap-1 rounded px-2 py-1 text-xs font-medium transition-colors ${
+                  punkt2Lagret
+                    ? "bg-green-50 text-green-700"
+                    : punkt2Gyldig
+                      ? "bg-blue-50 text-blue-700 hover:bg-blue-100"
+                      : "bg-gray-50 text-gray-400"
+                }`}
+              >
+                <Check className="h-3 w-3" />
+                {punkt2Lagret ? "Punkt 2 bekreftet" : "Bekreft punkt 2"}
+              </button>
             </div>
           ) : (
             <p className="text-xs text-gray-400">
@@ -757,13 +810,23 @@ export function GeoReferanseEditor({
             </div>
           )}
 
+          {erIdentiske && (
+            <div className="rounded-md bg-amber-50 px-3 py-2 text-xs font-medium text-amber-700">
+              Punkt 1 og 2 har identiske GPS-koordinater. Velg to ulike punkter.
+            </div>
+          )}
+
           <Button
             onClick={handleLagre}
-            disabled={!kanLagre || settGeoMutasjon.isPending}
+            disabled={!kanLagre || !punkt1Lagret || !punkt2Lagret || settGeoMutasjon.isPending}
             className="w-full"
           >
             <Check className="mr-1.5 h-4 w-4" />
-            {settGeoMutasjon.isPending ? "Lagrer..." : "Lagre kalibrering"}
+            {settGeoMutasjon.isPending
+              ? "Lagrer..."
+              : !punkt1Lagret || !punkt2Lagret
+                ? "Bekreft begge punkter først"
+                : "Lagre kalibrering"}
           </Button>
 
           {eksisterende && (
