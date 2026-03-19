@@ -573,7 +573,9 @@ export function GeoReferanseEditor({
     );
   }
 
-  const erBilde = ["png", "jpg", "jpeg"].includes(tegning.fileType ?? "");
+  const filType = tegning.fileType ?? "";
+  const erBilde = ["png", "jpg", "jpeg", "svg"].includes(filType);
+  const erDwg = filType === "dwg";
 
   return (
     <div className="flex h-[calc(100vh-200px)] min-h-[500px] gap-4">
@@ -677,7 +679,11 @@ export function GeoReferanseEditor({
               transformOrigin: "0 0",
             }}
           >
-            {erBilde ? (
+            {erDwg ? (
+              <div className="flex h-[400px] w-full items-center justify-center bg-gray-100 text-sm text-gray-500">
+                DWG-filen må konverteres før georeferering er mulig
+              </div>
+            ) : erBilde ? (
               <img
                 src={`/api${tegning.fileUrl}`}
                 alt={tegning.name}
