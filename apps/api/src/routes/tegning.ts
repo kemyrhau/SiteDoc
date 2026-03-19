@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { Prisma } from "@sitedoc/db";
+import { join } from "node:path";
 import { router, protectedProcedure } from "../trpc/trpc";
 import {
   drawingDisciplineSchema,
@@ -8,6 +9,9 @@ import {
   geoReferanseSchema,
 } from "@sitedoc/shared";
 import { verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
+import { konverterDwg } from "../services/dwgKonvertering";
+
+const UPLOADS_DIR = join(process.cwd(), "uploads");
 
 const fagdisipliner = drawingDisciplineSchema;
 const tegningstyper = drawingTypeSchema;
@@ -99,7 +103,61 @@ export const tegningRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       await verifiserProsjektmedlem(ctx.userId, input.projectId);
-      return ctx.prisma.drawing.create({ data: input });
+
+      const erDwg = input.fileType.toLowerCase() === "dwg";
+
+      const tegning = await ctx.prisma.drawing.create({
+        data: {
+          ...input,
+          ...(erDwg ? {
+            originalFileUrl: input.fileUrl,
+            conversionStatus: "pending",
+          } : {}),
+        },
+      });
+
+      // Start asynkron DWG-konvertering i bakgrunnen
+      if (erDwg) {
+        const dwgFilSti = join(UPLOADS_DIR, input.fileUrl.replace("/uploads/", ""));
+        konverterDwg(dwgFilSti, input.name, UPLOADS_DIR)
+          .then(async (resultat) => {
+            const oppdatering: Record<string, unknown> = {
+              conversionStatus: resultat.feil ? "failed" : "done",
+              conversionError: resultat.feil,
+            };
+
+            if (resultat.koordinatSystem) {
+              oppdatering.coordinateSystem = resultat.koordinatSystem;
+            }
+
+            if (resultat.geoReferanse) {
+              oppdatering.geoReference = resultat.geoReferanse;
+            }
+
+            if (resultat.visningUrl) {
+              oppdatering.fileUrl = resultat.visningUrl;
+              oppdatering.fileType = resultat.visningFilType;
+            }
+
+            await ctx.prisma.drawing.update({
+              where: { id: tegning.id },
+              data: oppdatering,
+            });
+            console.log(`[DWG] Konvertering fullført for tegning ${tegning.id}`);
+          })
+          .catch(async (err) => {
+            console.error(`[DWG] Konvertering feilet for tegning ${tegning.id}:`, err);
+            await ctx.prisma.drawing.update({
+              where: { id: tegning.id },
+              data: {
+                conversionStatus: "failed",
+                conversionError: err instanceof Error ? err.message : "Ukjent feil",
+              },
+            });
+          });
+      }
+
+      return tegning;
     }),
 
   // Oppdater tegningsmetadata
@@ -234,6 +292,27 @@ export const tegningRouter = router({
         where: { id: input.drawingId },
         data: { geoReference: Prisma.DbNull },
       });
+    }),
+
+  // Hent konverteringsstatus for DWG-tegning
+  hentKonverteringsStatus: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const tegning = await ctx.prisma.drawing.findUniqueOrThrow({
+        where: { id: input.id },
+        select: {
+          id: true,
+          projectId: true,
+          conversionStatus: true,
+          conversionError: true,
+          coordinateSystem: true,
+          fileUrl: true,
+          fileType: true,
+          geoReference: true,
+        },
+      });
+      await verifiserProsjektmedlem(ctx.userId, tegning.projectId);
+      return tegning;
     }),
 
   // Slett tegning

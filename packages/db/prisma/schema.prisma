@@ -290,6 +290,10 @@ model Drawing {
   fileUrl       String    @map("file_url")
   fileType      String    @map("file_type")           // PDF, DWG, DXF, IFC
   fileSize      Int?      @map("file_size")           // Filstørrelse i bytes
+  originalFileUrl String? @map("original_file_url")   // Original DWG-fil (før konvertering)
+  coordinateSystem String? @map("coordinate_system")  // Detektert koordinatsystem (utm33, ntm6, etc.)
+  conversionStatus String? @map("conversion_status")  // pending, converting, done, failed
+  conversionError  String? @map("conversion_error")   // Feilmelding ved konvertering
   issuedAt      DateTime? @map("issued_at")           // Utstedelsesdato
   geoReference  Json?     @map("geo_reference")       // Georeferanse med 2 referansepunkter
   createdAt     DateTime  @default(now()) @map("created_at")

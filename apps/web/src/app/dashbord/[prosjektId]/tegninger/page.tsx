@@ -16,7 +16,7 @@ interface ArbeidsflopRad {
   responderEnterprise: { id: string; name: string } | null;
   templates: ArbeidsflopMal[];
 }
-import { Map, FileText, MapPin, Plus, ZoomIn, ZoomOut, ArrowLeft, Crosshair } from "lucide-react";
+import { Map, FileText, MapPin, Plus, ZoomIn, ZoomOut, ArrowLeft, Crosshair, Loader2, AlertTriangle } from "lucide-react";
 
 interface Markør {
   id: string;
@@ -55,10 +55,20 @@ export default function TegningerSide() {
   const [valgtMal, setValgtMal] = useState("");
   const [valgtOppretter, setValgtOppretter] = useState("");
 
+  const [dwgPoller, setDwgPoller] = useState(false);
   const { data: tegning, isLoading } = trpc.tegning.hentMedId.useQuery(
     { id: aktivTegning?.id ?? "" },
-    { enabled: !!aktivTegning?.id },
+    {
+      enabled: !!aktivTegning?.id,
+      refetchInterval: dwgPoller ? 3000 : false,
+    },
   );
+
+  // Start/stopp polling basert på konverteringsstatus
+  useEffect(() => {
+    const status = tegning?.conversionStatus;
+    setDwgPoller(status === "pending" || status === "converting");
+  }, [tegning?.conversionStatus]);
 
   // Hent eksisterende oppgavemarkører for denne tegningen
   const { data: oppgaveMarkører } = trpc.oppgave.hentForTegning.useQuery(
@@ -303,7 +313,9 @@ export default function TegningerSide() {
 
   const fileUrl = tegning.fileUrl ? `/api${tegning.fileUrl}` : null;
   const fileType = tegning.fileType ?? "";
-  const erBilde = ["png", "jpg", "jpeg"].includes(fileType);
+  const erBilde = ["png", "jpg", "jpeg", "svg"].includes(fileType);
+  const erDwgKonvertering = tegning.conversionStatus === "pending" || tegning.conversionStatus === "converting";
+  const dwgFeilet = tegning.conversionStatus === "failed";
   const erLaster = opprettOppgaveMutation.isPending || opprettSjekklisteMutation.isPending;
   const zoomProsent = Math.round(zoom * 100);
 
@@ -340,6 +352,11 @@ export default function TegningerSide() {
         {tegning.revision && (
           <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-600">
             Rev. {tegning.revision}
+          </span>
+        )}
+        {tegning.coordinateSystem && (
+          <span className="rounded bg-green-100 px-1.5 py-0.5 text-xs text-green-700">
+            {tegning.coordinateSystem.toUpperCase()}
           </span>
         )}
         <div className="flex-1" />
@@ -381,8 +398,26 @@ export default function TegningerSide() {
         )}
       </div>
 
+      {/* DWG konverteringsstatus */}
+      {erDwgKonvertering && (
+        <div className="flex items-center gap-3 border-b border-amber-200 bg-amber-50 px-6 py-3">
+          <Loader2 className="h-5 w-5 animate-spin text-amber-600" />
+          <span className="text-sm font-medium text-amber-800">
+            DWG-filen konverteres til visningsformat. Dette kan ta opptil 2 minutter...
+          </span>
+        </div>
+      )}
+      {dwgFeilet && (
+        <div className="flex items-center gap-3 border-b border-red-200 bg-red-50 px-6 py-3">
+          <AlertTriangle className="h-5 w-5 text-red-600" />
+          <span className="text-sm text-red-800">
+            DWG-konvertering feilet: {tegning.conversionError ?? "Ukjent feil"}
+          </span>
+        </div>
+      )}
+
       {/* Tegningsvisning med markører */}
-      {fileUrl ? (
+      {fileUrl && !erDwgKonvertering ? (
         erBilde ? (
           <div
             ref={containerRef}

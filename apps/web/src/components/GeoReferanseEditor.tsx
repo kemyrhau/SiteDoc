@@ -18,6 +18,7 @@ import {
   LocateFixed,
 } from "lucide-react";
 import type { GeoReferanse } from "@sitedoc/shared";
+import { utmTilWgs84, EPSG_TIL_SYSTEM as SHARED_EPSG } from "@sitedoc/shared/utils";
 import type L_Type from "leaflet";
 
 interface TegningInfo {
@@ -50,72 +51,20 @@ const KOORDINAT_SYSTEMER: { verdi: KoordinatSystem; label: string }[] = [
   { verdi: "utm36", label: "ETRS89 UTM-36" },
 ];
 
-/** Sentralmeridianer for UTM-soner (grader) */
-const UTM_SENTRALMERIDIAN: Record<string, number> = {
-  utm32: 9,
-  utm33: 15,
-  utm35: 27,
-  utm36: 33,
-};
-
-/** Konverterer UTM (EUREF89/ETRS89) til WGS84 lat/lng */
+/** UTM-konvertering via delt pakke */
 function utmTilLatLng(nord: number, ost: number, sone: string): { lat: number; lng: number } {
-  const a = 6378137.0;
-  const f = 1 / 298.257223563;
-  const e2 = 2 * f - f * f;
-  const e1 = (1 - Math.sqrt(1 - e2)) / (1 + Math.sqrt(1 - e2));
-  const k0 = 0.9996;
-  const sentralmeridian = UTM_SENTRALMERIDIAN[sone] ?? 15;
-  const lng0 = sentralmeridian * Math.PI / 180;
-
-  const M = nord / k0;
-  const mu = M / (a * (1 - e2 / 4 - 3 * e2 * e2 / 64 - 5 * e2 * e2 * e2 / 256));
-
-  const phi1 =
-    mu +
-    (3 * e1 / 2 - 27 * e1 * e1 * e1 / 32) * Math.sin(2 * mu) +
-    (21 * e1 * e1 / 16 - 55 * e1 * e1 * e1 * e1 / 32) * Math.sin(4 * mu) +
-    (151 * e1 * e1 * e1 / 96) * Math.sin(6 * mu) +
-    (1097 * e1 * e1 * e1 * e1 / 512) * Math.sin(8 * mu);
-
-  const ep2 = e2 / (1 - e2);
-  const sinPhi1 = Math.sin(phi1);
-  const cosPhi1 = Math.cos(phi1);
-  const tanPhi1 = Math.tan(phi1);
-  const N1 = a / Math.sqrt(1 - e2 * sinPhi1 * sinPhi1);
-  const T1 = tanPhi1 * tanPhi1;
-  const C1 = ep2 * cosPhi1 * cosPhi1;
-  const R1 = a * (1 - e2) / Math.pow(1 - e2 * sinPhi1 * sinPhi1, 1.5);
-  const D = (ost - 500000) / (N1 * k0);
-
-  const lat =
-    phi1 -
-    (N1 * tanPhi1 / R1) *
-      (D * D / 2 -
-        (5 + 3 * T1 + 10 * C1 - 4 * C1 * C1 - 9 * ep2) * D * D * D * D / 24 +
-        (61 + 90 * T1 + 298 * C1 + 45 * T1 * T1 - 252 * ep2 - 3 * C1 * C1) *
-          D * D * D * D * D * D / 720);
-
-  const lng =
-    lng0 +
-    (D -
-      (1 + 2 * T1 + C1) * D * D * D / 6 +
-      (5 - 2 * C1 + 28 * T1 - 3 * C1 * C1 + 8 * ep2 + 24 * T1 * T1) *
-        D * D * D * D * D / 120) /
-      cosPhi1;
-
-  return {
-    lat: (lat * 180) / Math.PI,
-    lng: (lng * 180) / Math.PI,
-  };
+  return utmTilWgs84(nord, ost, sone);
 }
 
-/** EPSG-kode → intern KoordinatSystem-mapping */
+/** EPSG-kode → intern KoordinatSystem-mapping (fra delt pakke, filtrert for UTM) */
 const EPSG_TIL_SYSTEM: Record<string, KoordinatSystem> = {
   "25832": "utm32",
   "25833": "utm33",
   "25835": "utm35",
   "25836": "utm36",
+  ...Object.fromEntries(
+    Object.entries(SHARED_EPSG).filter(([, v]) => v.startsWith("utm"))
+  ),
 };
 
 /** Parser og konverter koordinater basert på valgt koordinatsystem */

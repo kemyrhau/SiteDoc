@@ -19,5 +19,8 @@
   },
   "devDependencies": {
     "turbo": "^2.8.12"
+  },
+  "dependencies": {
+    "dxf-parser": "^1.1.2"
   }
 }
