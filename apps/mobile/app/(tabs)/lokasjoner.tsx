@@ -164,8 +164,8 @@ export default function LokasjonerSkjerm() {
     return liste;
   }, [eksisterendeOppgaver, markørPosisjon, visEksisterende]);
 
-  // GPS-status: "venter" | "ingen_tillatelse" | "aktiv" | "feil" | null
-  const [gpsStatus, setGpsStatus] = useState<"venter" | "ingen_tillatelse" | "aktiv" | "feil" | null>(null);
+  // GPS-status
+  const [gpsStatus, setGpsStatus] = useState<"venter" | "ingen_tillatelse" | "aktiv" | "feil" | "ugyldig_georef" | null>(null);
 
   // GPS-posisjon på tegning (kontinuerlig sporing for georefererte tegninger)
   const [gpsMarkør, setGpsMarkør] = useState<GpsMarkør | null>(null);
@@ -191,22 +191,48 @@ export default function LokasjonerSkjerm() {
         }
 
         const geoRef = JSON.parse(geoRefStringifisert!) as GeoReferanse;
+
+        // Valider at referansepunktene har ulike GPS-koordinater
+        if (
+          geoRef.point1.gps.lat === geoRef.point2.gps.lat &&
+          geoRef.point1.gps.lng === geoRef.point2.gps.lng
+        ) {
+          console.warn("[GPS-LOK] Ugyldig georeferanse: identiske GPS-punkter");
+          setGpsStatus("ugyldig_georef");
+          return;
+        }
+
         const transformasjon = beregnTransformasjon(geoRef);
 
         // Hent initial posisjon: prøv sist kjente først (instant), deretter aktiv GPS
+        console.log("[GPS-LOK] Prøver getLastKnownPositionAsync...");
         let initialPosisjon = await Location.getLastKnownPositionAsync();
+        console.log("[GPS-LOK] Sist kjente:", initialPosisjon ? "OK" : "null");
         if (!aktiv) return;
         if (!initialPosisjon) {
+          console.log("[GPS-LOK] Prøver getCurrentPositionAsync (Balanced, 8s timeout)...");
           initialPosisjon = await Promise.race([
             Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
             new Promise<null>((resolve) => setTimeout(() => resolve(null), 8000)),
           ]);
+          console.log("[GPS-LOK] Balanced resultat:", initialPosisjon ? "OK" : "timeout");
           if (!aktiv) return;
         }
         if (!initialPosisjon) {
+          console.log("[GPS-LOK] Prøver Low accuracy som siste utvei...");
+          initialPosisjon = await Promise.race([
+            Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Low }),
+            new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000)),
+          ]);
+          console.log("[GPS-LOK] Low resultat:", initialPosisjon ? "OK" : "timeout");
+          if (!aktiv) return;
+        }
+        if (!initialPosisjon) {
+          console.warn("[GPS-LOK] Alle GPS-forsøk feilet");
           setGpsStatus("feil");
           return;
         }
+        console.log("[GPS-LOK] Posisjon:", initialPosisjon.coords.latitude.toFixed(4), initialPosisjon.coords.longitude.toFixed(4));
         const initialGps = {
           lat: initialPosisjon.coords.latitude,
           lng: initialPosisjon.coords.longitude,
@@ -422,10 +448,17 @@ export default function LokasjonerSkjerm() {
           <MapPin size={16} color="#dc2626" />
         </Pressable>
       )}
+      {visserTegning && harGeoRef && gpsStatus === "ugyldig_georef" && (
+        <View className="flex-row items-center gap-2 bg-amber-50 px-4 py-2">
+          <Text className="flex-1 text-xs text-amber-700">
+            Georeferansen har identiske referansepunkter. Sett to ulike punkter på tegningen.
+          </Text>
+        </View>
+      )}
       {visserTegning && harGeoRef && gpsStatus === "feil" && (
         <View className="flex-row items-center gap-2 bg-amber-50 px-4 py-2">
           <Text className="flex-1 text-xs text-amber-700">
-            Kunne ikke hente GPS-posisjon. Sjekk at stedstjenester er aktivert.
+            GPS-posisjon utilgjengelig. Prøv å gå utendørs eller vent litt.
           </Text>
         </View>
       )}
