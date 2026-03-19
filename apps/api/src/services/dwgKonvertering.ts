@@ -142,17 +142,19 @@ export async function konverterDwg(
       cwd: dwgDir,
     });
 
-    // 2. DWG → SVG (for visning)
+    // 2. DWG → SVG (for visning) — dwg2SVG skriver til stdout
     console.log("[DWG] Konverterer til SVG:", dwgFilSti);
     let harSvg = false;
     try {
-      await execFileAsync("dwg2SVG", [dwgFilSti], {
+      const { stdout: svgOutput } = await execFileAsync("dwg2SVG", [dwgFilSti], {
         timeout: 120000,
         cwd: dwgDir,
+        maxBuffer: 50 * 1024 * 1024, // 50 MB for store tegninger
       });
-      // Sjekk at SVG ble opprettet
-      await access(svgSti);
-      harSvg = true;
+      if (svgOutput && svgOutput.includes("<svg")) {
+        await writeFile(svgSti, svgOutput, "utf-8");
+        harSvg = true;
+      }
     } catch (svgErr) {
       console.warn("[DWG] SVG-konvertering feilet, bruker DXF som fallback:", svgErr);
     }
