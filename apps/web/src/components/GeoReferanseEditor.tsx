@@ -177,8 +177,15 @@ function KoordinatKart({
 
     async function initKart() {
       const L = await import("leaflet");
-      await import("leaflet/dist/leaflet.css");
       if (avbrutt || !kartRef.current) return;
+
+      // Injiser Leaflet CSS hvis den ikke allerede finnes
+      if (!document.querySelector("link[href*='leaflet']")) {
+        const link = document.createElement("link");
+        link.rel = "stylesheet";
+        link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+        document.head.appendChild(link);
+      }
       LRef.current = L.default ?? L;
       const Lib = LRef.current;
 
