@@ -65,6 +65,8 @@ Sjekkliste-/oppgave-detaljskjermen har kontekstuelle statusknapper i bunnpanelet
 
 **Filmrull:** Horisontal ScrollView med 72×72px thumbnails (IKKE FlatList).
 
+**Bilderekkefølge:** Velg bilde → `◀`/`▶`-piler i verktøylinjen for å flytte. `flyttVedlegg(objektId, vedleggId, "opp"|"ned")` i begge hooks. Rekkefølgen lagres i vedlegg-arrayet og reflekteres i PDF.
+
 **Modal tekstredigering:** Alle tekstfelt bruker Pressable → fullskjerm Modal med "Ferdig"-knapp.
 
 ## Offline-first (SQLite)
@@ -112,3 +114,20 @@ DatabaseProvider → trpc → QueryClient → Nettverk → OpplastingsKo → Aut
 ## Oppgave fra sjekklistefelt
 
 `+Oppgave`-knapp på felter → oppgavenummer som blå pill-badge → navigerer til oppgave.
+
+## PDF-utskrift og deling
+
+**PDF-bygger:** `apps/mobile/src/utils/sjekklistePdf.ts` — genererer HTML for expo-print.
+
+**Layout:**
+1. Tittel (stor, fet) med logo til venstre
+2. 4×2 metadata-rutenett: Prosjekt, Prosjekt nr, Bygning, Opprettet av, Opprettet, Endret av, Endret, Status
+3. Feltblokker: label øverst → bilder i 2-kolonners rutenett med nummerering → tekstverdi → kommentar
+
+**Bildevisning i PDF:** Vedlegg-bilder embedderes som `<img>` med full URL (`apiUrl + /uploads/...`). Nummerering per felt (1, 2, 3...).
+
+**Forhåndsvisning:** `PdfForhandsvisning`-komponent — WebView med HTML-preview i et hvitt kort med luft til skjermkantene. Del-knapp genererer PDF via `expo-print` → `expo-sharing`.
+
+**Flyt:** Share-ikon → forhåndsvisning → Del-knapp → PDF → iOS delearket (e-post, AirDrop, etc.)
+
+**Støttede felttyper:** text_field, list_single/multi (normalisert), traffic_light, integer/decimal/calculation (med enhet), date, date_time, person, persons, company, weather, signature (base64), repeater (med barnefelt), bim/zone/room_property.
