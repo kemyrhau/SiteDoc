@@ -193,11 +193,24 @@ export default function LokasjonerSkjerm() {
         const geoRef = JSON.parse(geoRefStringifisert!) as GeoReferanse;
         const transformasjon = beregnTransformasjon(geoRef);
 
-        // Hent initial posisjon umiddelbart
-        const initialPosisjon = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.High,
-        });
+        // Hent initial posisjon med timeout og fallback
+        let initialPosisjon = await Promise.race([
+          Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High }),
+          new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000)),
+        ]);
         if (!aktiv) return;
+        if (!initialPosisjon) {
+          // Fallback til lavere nøyaktighet
+          initialPosisjon = await Promise.race([
+            Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
+            new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000)),
+          ]);
+          if (!aktiv) return;
+        }
+        if (!initialPosisjon) {
+          setGpsStatus("feil");
+          return;
+        }
         const initialGps = {
           lat: initialPosisjon.coords.latitude,
           lng: initialPosisjon.coords.longitude,
