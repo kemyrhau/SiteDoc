@@ -7,14 +7,18 @@ import {
   MapPin,
   Trash2,
   Check,
-  ExternalLink,
   Hand,
   ZoomIn,
   ZoomOut,
   RotateCcw,
   Crosshair,
+  Map,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import type { GeoReferanse } from "@sitedoc/shared";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 
 interface TegningInfo {
   id: string;
@@ -37,13 +41,12 @@ interface Punkt {
 
 /** Konverterer UTM sone 33N (EUREF89) til WGS84 lat/lng */
 function utm33TilLatLng(nord: number, ost: number): { lat: number; lng: number } {
-  // WGS84-ellipsoiden
-  const a = 6378137.0; // stor halvakse
-  const f = 1 / 298.257223563; // flattrykking
-  const e2 = 2 * f - f * f; // eksentrisitet²
+  const a = 6378137.0;
+  const f = 1 / 298.257223563;
+  const e2 = 2 * f - f * f;
   const e1 = (1 - Math.sqrt(1 - e2)) / (1 + Math.sqrt(1 - e2));
-  const k0 = 0.9996; // skalafaktor
-  const lng0 = 15 * Math.PI / 180; // sentralmeridian sone 33
+  const k0 = 0.9996;
+  const lng0 = 15 * Math.PI / 180;
 
   const M = nord / k0;
   const mu = M / (a * (1 - e2 / 4 - 3 * e2 * e2 / 64 - 5 * e2 * e2 * e2 / 256));
@@ -87,17 +90,9 @@ function utm33TilLatLng(nord: number, ost: number): { lat: number; lng: number }
   };
 }
 
-/**
- * Parser koordinater fra ulike formater:
- * - DMS: 69°38'39.9"N 18°55'24.2"E
- * - Desimal: 69.644, 18.923
- * - UTM33 (Norgeskart): Nord 7731109.65 Øst 652332.37
- */
 function parserKoordinater(tekst: string): { lat: string; lng: string } | null {
   const trimmet = tekst.trim();
 
-  // UTM33-format: Finn Nord- og Øst-verdier uavhengig av rekkefølge og format
-  // Støtter: "Nord 7731109 Øst 652332", "Øst: 653657.15 Nord: 7732863.73", etc.
   const nordMatch = trimmet.match(/[Nn]ord:?\s*(\d{6,8}[.,]?\d*)/);
   const ostMatch = trimmet.match(/[ØøOo]st:?\s*(\d{5,7}[.,]?\d*)/);
   if (nordMatch?.[1] && ostMatch?.[1]) {
@@ -109,7 +104,6 @@ function parserKoordinater(tekst: string): { lat: string; lng: string } | null {
     }
   }
 
-  // UTM33 uten labels: to tall der første er 7-sifret (northing) og andre er 6-sifret (easting)
   const utmTallMatch = trimmet.match(
     /^(\d{6,8}[.,]?\d*)[,\s]+(\d{5,7}[.,]?\d*)$/
   );
@@ -122,7 +116,6 @@ function parserKoordinater(tekst: string): { lat: string; lng: string } | null {
     }
   }
 
-  // Desimalformat: "69.644, 18.923" eller "69.644 18.923"
   const desimalMatch = trimmet.match(/^(-?\d+[.,]\d+)[,\s]+(-?\d+[.,]\d+)$/);
   if (desimalMatch?.[1] && desimalMatch[2]) {
     return {
@@ -131,7 +124,6 @@ function parserKoordinater(tekst: string): { lat: string; lng: string } | null {
     };
   }
 
-  // DMS-format: 69°38'39.9"N 18°55'24.2"E
   const dmsRegex = /(\d+)[°](\d+)[′'](\d+[.,]?\d*)[″"]\s*([NSns])\s*[,\s]*(\d+)[°](\d+)[′'](\d+[.,]?\d*)[″"]\s*([EWew])/;
   const dmsMatch = trimmet.match(dmsRegex);
   if (dmsMatch?.[1] && dmsMatch[2] && dmsMatch[3] && dmsMatch[4] && dmsMatch[5] && dmsMatch[6] && dmsMatch[7] && dmsMatch[8]) {
@@ -158,6 +150,110 @@ function parserKoordinater(tekst: string): { lat: string; lng: string } | null {
   return null;
 }
 
+/** Mini-kart for å velge GPS-koordinat ved å klikke */
+function KoordinatKart({
+  lat,
+  lng,
+  onVelg,
+  farge,
+}: {
+  lat: string;
+  lng: string;
+  onVelg: (lat: string, lng: string) => void;
+  farge: string;
+}) {
+  const kartRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<L.Map | null>(null);
+  const markerRef = useRef<L.Marker | null>(null);
+
+  const senterLat = lat && !isNaN(Number(lat)) ? Number(lat) : 65;
+  const senterLng = lng && !isNaN(Number(lng)) ? Number(lng) : 13;
+  const harKoordinat = lat && lng && !isNaN(Number(lat)) && !isNaN(Number(lng));
+
+  useEffect(() => {
+    if (!kartRef.current || mapRef.current) return;
+
+    const map = L.map(kartRef.current, {
+      center: [senterLat, senterLng],
+      zoom: harKoordinat ? 17 : 5,
+      zoomControl: false,
+    });
+
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: "&copy; OSM",
+      maxZoom: 19,
+    }).addTo(map);
+
+    L.control.zoom({ position: "topright" }).addTo(map);
+
+    const markerIkon = L.divIcon({
+      className: "",
+      html: `<div style="width:14px;height:14px;border-radius:50%;background:${farge};border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.4);"></div>`,
+      iconSize: [14, 14],
+      iconAnchor: [7, 7],
+    });
+
+    if (harKoordinat) {
+      markerRef.current = L.marker([senterLat, senterLng], { icon: markerIkon }).addTo(map);
+    }
+
+    map.on("click", (e: L.LeafletMouseEvent) => {
+      const { lat: nyLat, lng: nyLng } = e.latlng;
+      onVelg(nyLat.toFixed(6), nyLng.toFixed(6));
+
+      if (markerRef.current) {
+        markerRef.current.setLatLng([nyLat, nyLng]);
+      } else {
+        markerRef.current = L.marker([nyLat, nyLng], { icon: markerIkon }).addTo(map);
+      }
+    });
+
+    mapRef.current = map;
+
+    // Sikre at kartet rendres riktig
+    setTimeout(() => map.invalidateSize(), 100);
+
+    return () => {
+      map.remove();
+      mapRef.current = null;
+      markerRef.current = null;
+    };
+    // Kun kjør ved mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Oppdater markør når koordinater endres eksternt (f.eks. lim inn)
+  useEffect(() => {
+    if (!mapRef.current) return;
+    if (!harKoordinat) return;
+
+    const map = mapRef.current;
+    const pos: L.LatLngExpression = [Number(lat), Number(lng)];
+
+    if (markerRef.current) {
+      markerRef.current.setLatLng(pos);
+    } else {
+      const markerIkon = L.divIcon({
+        className: "",
+        html: `<div style="width:14px;height:14px;border-radius:50%;background:${farge};border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.4);"></div>`,
+        iconSize: [14, 14],
+        iconAnchor: [7, 7],
+      });
+      markerRef.current = L.marker(pos, { icon: markerIkon }).addTo(map);
+    }
+
+    map.setView(pos, Math.max(map.getZoom(), 15));
+  }, [lat, lng, harKoordinat, farge]);
+
+  return (
+    <div
+      ref={kartRef}
+      className="rounded border border-gray-200"
+      style={{ height: 180, width: "100%" }}
+    />
+  );
+}
+
 export function GeoReferanseEditor({
   tegningId,
   tegning,
@@ -167,17 +263,14 @@ export function GeoReferanseEditor({
   const bildeRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Zoom og panorering — samlet state for atomiske oppdateringer
   const [view, setView] = useState({ zoom: 1, panX: 0, panY: 0 });
   const [erDraging, setErDraging] = useState(false);
   const dragStart = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
-  const harDratt = useRef(false); // Forhindrer klikk-plassering etter drag
+  const harDratt = useRef(false);
   const [modus, setModus] = useState<"peker" | "hånd">("peker");
 
-  // Eksisterende georeferanse
   const eksisterende = tegning?.geoReference as GeoReferanse | null | undefined;
 
-  // Kalibrering-state
   const [punkt1, setPunkt1] = useState<Punkt | null>(
     eksisterende?.point1
       ? {
@@ -204,6 +297,10 @@ export function GeoReferanseEditor({
   const [lagreStatus, setLagreStatus] = useState<"idle" | "lagret" | "feil">("idle");
   const [limTekst1, setLimTekst1] = useState("");
   const [limTekst2, setLimTekst2] = useState("");
+  const [visKart1, setVisKart1] = useState(false);
+  const [visKart2, setVisKart2] = useState(false);
+  const [visLimInn1, setVisLimInn1] = useState(false);
+  const [visLimInn2, setVisLimInn2] = useState(false);
 
   const settGeoMutasjon = trpc.tegning.settGeoReferanse.useMutation({
     onSuccess: () => {
@@ -239,8 +336,6 @@ export function GeoReferanseEditor({
       const bilde = bildeRef.current;
       if (!container || !bilde) return;
 
-      // Inverter CSS-transform: translate(pan) scale(zoom) med origin 0 0
-      // Visuell posisjon: vx = lx * zoom + pan.x → lokal: lx = (vx - pan.x) / zoom
       const containerRect = container.getBoundingClientRect();
       const klikkX = e.clientX - containerRect.left;
       const klikkY = e.clientY - containerRect.top;
@@ -265,8 +360,6 @@ export function GeoReferanseEditor({
     [aktivtPunkt, modus, view],
   );
 
-  // Native wheel-listener med { passive: false } — React onWheel kan være passiv
-  // og tillater ikke preventDefault(), som gjør at siden scroller i stedet for å zoome.
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -279,16 +372,11 @@ export function GeoReferanseEditor({
       const cx = e.clientX - containerRect.left;
       const cy = e.clientY - containerRect.top;
 
-      // Atomisk oppdatering av zoom + pan i én setView-kall
       setView((prev) => {
         const faktor = e.deltaY > 0 ? 0.85 : 1.18;
         const nesteZoom = Math.min(10, Math.max(1, prev.zoom * faktor));
         if (nesteZoom === prev.zoom) return prev;
 
-        // Zoom mot musepekeren med transformOrigin: 0 0
-        // Behold punktet under cursoren fast:
-        // cx = lx * zoom + panX → lx = (cx - panX) / zoom
-        // panX_ny = panX - lx * (zoom_ny - zoom_gammel)
         const lx = (cx - prev.panX) / prev.zoom;
         const ly = (cy - prev.panY) / prev.zoom;
         const dz = nesteZoom - prev.zoom;
@@ -323,7 +411,6 @@ export function GeoReferanseEditor({
       if (!erDraging) return;
       const dx = e.clientX - dragStart.current.x;
       const dy = e.clientY - dragStart.current.y;
-      // Merk som dratt hvis musen har beveget seg mer enn 3px
       if (Math.abs(dx) > 3 || Math.abs(dy) > 3) harDratt.current = true;
       setView((prev) => ({
         ...prev,
@@ -342,7 +429,6 @@ export function GeoReferanseEditor({
     setView({ zoom: 1, panX: 0, panY: 0 });
   }, []);
 
-  // Zoom mot midten av synlig område (for knappene)
   const zoomMotMidten = useCallback((faktor: number) => {
     const container = containerRef.current;
     if (!container) return;
@@ -389,19 +475,6 @@ export function GeoReferanseEditor({
 
   const kanLagre = punkt1Gyldig && punkt2Gyldig && !erIdentiske;
 
-  // Lagre enkeltpunkt midlertidig i komponent-state (markert med ✓)
-  const [punkt1Lagret, setPunkt1Lagret] = useState(!!eksisterende?.point1);
-  const [punkt2Lagret, setPunkt2Lagret] = useState(!!eksisterende?.point2);
-
-  function handleLagrePunkt(punktNr: 1 | 2) {
-    if (punktNr === 1) setPunkt1Lagret(true);
-    else setPunkt2Lagret(true);
-  }
-
-  // Nullstill "lagret"-markør når punkt endres
-  useEffect(() => { setPunkt1Lagret(false); }, [punkt1?.gps.lat, punkt1?.gps.lng, punkt1?.pixel.x, punkt1?.pixel.y]);
-  useEffect(() => { setPunkt2Lagret(false); }, [punkt2?.gps.lat, punkt2?.gps.lng, punkt2?.pixel.x, punkt2?.pixel.y]);
-
   function handleLagre() {
     if (!punkt1 || !punkt2) return;
 
@@ -445,7 +518,6 @@ export function GeoReferanseEditor({
               )}
             </div>
 
-            {/* Verktøylinje */}
             <div className="flex flex-shrink-0 items-center gap-1">
               <button
                 type="button"
@@ -549,7 +621,6 @@ export function GeoReferanseEditor({
                   style={{ height: "800px" }}
                   scrolling="no"
                 />
-                {/* Permanent overlay — fanger alle mus/scroll-hendelser over PDF-iframe */}
                 <div
                   className="absolute inset-0"
                   style={{
@@ -614,19 +685,8 @@ export function GeoReferanseEditor({
       </div>
 
       {/* Høyre: Referansepunkter og handlinger */}
-      <div className="flex w-80 flex-shrink-0 flex-col gap-3">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-gray-900">Georeferanse</h3>
-          <a
-            href="https://norgeskart.no"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline"
-          >
-            <ExternalLink className="h-3 w-3" />
-            Norgeskart
-          </a>
-        </div>
+      <div className="flex w-96 flex-shrink-0 flex-col gap-3 overflow-y-auto">
+        <h3 className="text-sm font-semibold text-gray-900">Georeferanse</h3>
 
         {/* Punkt 1 */}
         <div className="rounded-lg border border-gray-200 bg-white p-3">
@@ -654,19 +714,52 @@ export function GeoReferanseEditor({
 
           {punkt1 ? (
             <div className="flex flex-col gap-1.5">
-              <Input
-                label="Lim inn koordinater"
-                value={limTekst1}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  setLimTekst1(v);
-                  const resultat = parserKoordinater(v);
-                  if (resultat) {
-                    setPunkt1((p) => p ? { ...p, gps: resultat } : p);
+              {/* Kart for punkt 1 */}
+              <button
+                type="button"
+                onClick={() => setVisKart1((v) => !v)}
+                className="flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-800"
+              >
+                <Map className="h-3 w-3" />
+                Velg på kart
+                {visKart1 ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+              </button>
+              {visKart1 && (
+                <KoordinatKart
+                  lat={punkt1.gps.lat}
+                  lng={punkt1.gps.lng}
+                  farge="#ef4444"
+                  onVelg={(lat, lng) =>
+                    setPunkt1((p) => p ? { ...p, gps: { lat, lng } } : p)
                   }
-                }}
-                placeholder="Lim inn fra Norgeskart"
-              />
+                />
+              )}
+
+              {/* Lim inn (sammenfoldet) */}
+              <button
+                type="button"
+                onClick={() => setVisLimInn1((v) => !v)}
+                className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700"
+              >
+                Lim inn koordinater
+                {visLimInn1 ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+              </button>
+              {visLimInn1 && (
+                <Input
+                  label=""
+                  value={limTekst1}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setLimTekst1(v);
+                    const resultat = parserKoordinater(v);
+                    if (resultat) {
+                      setPunkt1((p) => p ? { ...p, gps: resultat } : p);
+                    }
+                  }}
+                  placeholder="F.eks. 69.659, 18.963 eller UTM"
+                />
+              )}
+
               <div className="grid grid-cols-2 gap-1.5">
                 <Input
                   label="Breddegrad"
@@ -689,21 +782,12 @@ export function GeoReferanseEditor({
                   placeholder="f.eks. 10.750"
                 />
               </div>
-              <button
-                type="button"
-                onClick={() => handleLagrePunkt(1)}
-                disabled={!punkt1Gyldig}
-                className={`flex items-center justify-center gap-1 rounded px-2 py-1 text-xs font-medium transition-colors ${
-                  punkt1Lagret
-                    ? "bg-green-50 text-green-700"
-                    : punkt1Gyldig
-                      ? "bg-blue-50 text-blue-700 hover:bg-blue-100"
-                      : "bg-gray-50 text-gray-400"
-                }`}
-              >
-                <Check className="h-3 w-3" />
-                {punkt1Lagret ? "Punkt 1 bekreftet" : "Bekreft punkt 1"}
-              </button>
+              {punkt1Gyldig && (
+                <p className="flex items-center gap-1 text-[10px] text-green-600">
+                  <Check className="h-3 w-3" />
+                  Koordinat satt
+                </p>
+              )}
             </div>
           ) : (
             <p className="text-xs text-gray-400">
@@ -738,19 +822,52 @@ export function GeoReferanseEditor({
 
           {punkt2 ? (
             <div className="flex flex-col gap-1.5">
-              <Input
-                label="Lim inn koordinater"
-                value={limTekst2}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  setLimTekst2(v);
-                  const resultat = parserKoordinater(v);
-                  if (resultat) {
-                    setPunkt2((p) => p ? { ...p, gps: resultat } : p);
+              {/* Kart for punkt 2 */}
+              <button
+                type="button"
+                onClick={() => setVisKart2((v) => !v)}
+                className="flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-800"
+              >
+                <Map className="h-3 w-3" />
+                Velg på kart
+                {visKart2 ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+              </button>
+              {visKart2 && (
+                <KoordinatKart
+                  lat={punkt2.gps.lat}
+                  lng={punkt2.gps.lng}
+                  farge="#3b82f6"
+                  onVelg={(lat, lng) =>
+                    setPunkt2((p) => p ? { ...p, gps: { lat, lng } } : p)
                   }
-                }}
-                placeholder="Lim inn fra Norgeskart"
-              />
+                />
+              )}
+
+              {/* Lim inn (sammenfoldet) */}
+              <button
+                type="button"
+                onClick={() => setVisLimInn2((v) => !v)}
+                className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700"
+              >
+                Lim inn koordinater
+                {visLimInn2 ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+              </button>
+              {visLimInn2 && (
+                <Input
+                  label=""
+                  value={limTekst2}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setLimTekst2(v);
+                    const resultat = parserKoordinater(v);
+                    if (resultat) {
+                      setPunkt2((p) => p ? { ...p, gps: resultat } : p);
+                    }
+                  }}
+                  placeholder="F.eks. 69.660, 18.965 eller UTM"
+                />
+              )}
+
               <div className="grid grid-cols-2 gap-1.5">
                 <Input
                   label="Breddegrad"
@@ -773,21 +890,12 @@ export function GeoReferanseEditor({
                   placeholder="f.eks. 10.760"
                 />
               </div>
-              <button
-                type="button"
-                onClick={() => handleLagrePunkt(2)}
-                disabled={!punkt2Gyldig}
-                className={`flex items-center justify-center gap-1 rounded px-2 py-1 text-xs font-medium transition-colors ${
-                  punkt2Lagret
-                    ? "bg-green-50 text-green-700"
-                    : punkt2Gyldig
-                      ? "bg-blue-50 text-blue-700 hover:bg-blue-100"
-                      : "bg-gray-50 text-gray-400"
-                }`}
-              >
-                <Check className="h-3 w-3" />
-                {punkt2Lagret ? "Punkt 2 bekreftet" : "Bekreft punkt 2"}
-              </button>
+              {punkt2Gyldig && (
+                <p className="flex items-center gap-1 text-[10px] text-green-600">
+                  <Check className="h-3 w-3" />
+                  Koordinat satt
+                </p>
+              )}
             </div>
           ) : (
             <p className="text-xs text-gray-400">
@@ -796,7 +904,7 @@ export function GeoReferanseEditor({
           )}
         </div>
 
-        {/* Handlinger — alltid synlige nederst */}
+        {/* Handlinger */}
         <div className="mt-auto flex flex-col gap-2">
           {lagreStatus === "lagret" && (
             <div className="flex items-center gap-1.5 rounded-md bg-green-50 px-3 py-2 text-sm font-medium text-green-700">
@@ -818,15 +926,11 @@ export function GeoReferanseEditor({
 
           <Button
             onClick={handleLagre}
-            disabled={!kanLagre || !punkt1Lagret || !punkt2Lagret || settGeoMutasjon.isPending}
+            disabled={!kanLagre || settGeoMutasjon.isPending}
             className="w-full"
           >
             <Check className="mr-1.5 h-4 w-4" />
-            {settGeoMutasjon.isPending
-              ? "Lagrer..."
-              : !punkt1Lagret || !punkt2Lagret
-                ? "Bekreft begge punkter først"
-                : "Lagre kalibrering"}
+            {settGeoMutasjon.isPending ? "Lagrer..." : "Lagre kalibrering"}
           </Button>
 
           {eksisterende && (
@@ -843,7 +947,7 @@ export function GeoReferanseEditor({
         </div>
 
         <p className="text-[10px] text-gray-400">
-          Plasser to punkter og oppgi GPS-koordinater. Scroll for å zoome, bruk hånd-modus for å panorere.
+          1. Plasser punkt på tegningen. 2. Klikk &quot;Velg på kart&quot; og klikk tilsvarende posisjon på kartet. Gjenta for punkt 2.
         </p>
       </div>
     </div>
