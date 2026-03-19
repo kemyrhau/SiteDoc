@@ -8,6 +8,7 @@ export type Seksjon =
   | "oppgaver"
   | "maler"
   | "tegninger"
+  | "bilder"
   | "entrepriser"
   | "mapper"
   | "oppsett";

@@ -1,8 +1,103 @@
 import { z } from "zod";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
+import { byggTilgangsFilter } from "../trpc/tilgangskontroll";
 
 export const bildeRouter = router({
+  hentForProsjekt: protectedProcedure
+    .input(
+      z.object({
+        projectId: z.string().uuid(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      const tilgangsFilter = await byggTilgangsFilter(ctx.userId, input.projectId);
+
+      // Hent bilder via sjekklister
+      const sjekklisteBilder = await ctx.prisma.image.findMany({
+        where: {
+          checklistId: { not: null },
+          checklist: {
+            template: { projectId: input.projectId },
+            ...(tilgangsFilter ?? {}),
+          },
+        },
+        include: {
+          checklist: {
+            select: {
+              id: true,
+              status: true,
+              number: true,
+              drawingId: true,
+              drawing: {
+                select: {
+                  id: true,
+                  name: true,
+                  floor: true,
+                  geoReference: true,
+                  fileUrl: true,
+                  fileType: true,
+                  buildingId: true,
+                },
+              },
+              template: {
+                select: {
+                  prefix: true,
+                  name: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      });
+
+      // Hent bilder via oppgaver
+      const oppgaveBilder = await ctx.prisma.image.findMany({
+        where: {
+          taskId: { not: null },
+          task: {
+            template: { projectId: input.projectId },
+            ...(tilgangsFilter ?? {}),
+          },
+        },
+        include: {
+          task: {
+            select: {
+              id: true,
+              title: true,
+              status: true,
+              number: true,
+              drawingId: true,
+              positionX: true,
+              positionY: true,
+              drawing: {
+                select: {
+                  id: true,
+                  name: true,
+                  floor: true,
+                  geoReference: true,
+                  fileUrl: true,
+                  fileType: true,
+                  buildingId: true,
+                },
+              },
+              template: {
+                select: {
+                  prefix: true,
+                  name: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      });
+
+      return { sjekklisteBilder, oppgaveBilder };
+    }),
+
   opprettForSjekkliste: protectedProcedure
     .input(
       z.object({

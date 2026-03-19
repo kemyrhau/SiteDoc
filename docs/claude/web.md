@@ -43,6 +43,7 @@ Dalux-inspirert tre-kolonne layout (skjules på mobil < 768px, hamburger-meny i 
 /dashbord/[prosjektId]/entrepriser            -> Entreprise-liste
 /dashbord/[prosjektId]/mapper                 -> Mapper (read-only, ?mappe=id)
 /dashbord/[prosjektId]/tegninger              -> Interaktiv tegningsvisning
+/dashbord/[prosjektId]/bilder                 -> Bildegalleri (liste + tegningsvisning)
 /dashbord/oppsett                             -> Innstillinger
 /dashbord/oppsett/brukere                     -> Brukergrupper, roller
 /dashbord/oppsett/brukere/tillatelser         -> Tillatelsesmatrise (read-only)
@@ -71,6 +72,7 @@ Dalux-inspirert tre-kolonne layout (skjules på mobil < 768px, hamburger-meny i 
 
 - `ProsjektKontekst` — Valgt prosjekt fra URL `[prosjektId]`, alle prosjekter, loading
 - `BygningKontekst` — Aktiv bygning + `standardTegning` (persistent, localStorage) + `aktivTegning` (visning). Posisjonsvelger: `startPosisjonsvelger(feltId)` → `fullførPosisjonsvelger(resultat)` → `hentOgTømPosisjonsResultat(feltId)`
+- `BilderKontekst` — Visningsmodus (liste/tegning), plasseringsmodus (rapportlokasjon/GPS), datofilter, områdevalg
 - `NavigasjonKontekst` — Aktiv seksjon + verktøylinje-handlinger
 - `useAktivSeksjon()` — Utleder seksjon fra pathname
 - `useVerktoylinje(handlinger)` — Registrerer handlinger per side med auto-cleanup
@@ -91,6 +93,7 @@ Dalux-inspirert tre-kolonne layout (skjules på mobil < 768px, hamburger-meny i 
 - `MalerPanel` — Malliste med søk
 - `EntrepriserPanel` — Entrepriseliste med søk
 - `TegningerPanel` — Bygning+tegningstrevisning med etasje-gruppering, stjerne-standard
+- `BilderPanel` — Visningsmodus-toggle (liste/tegning) + tegningsvelger med bygning/etasje-tre
 - `MapperPanel` — Klikkbar mappestruktur med søk
 
 ## Malbygger
@@ -145,6 +148,20 @@ Kommentarseksjon med `TaskComment`. `DialogSeksjon` med innlinjet tekstfelt, Ent
 Begge i `SKJULT_I_UTFYLLING` — kun lesemodus/print.
 - `location`: Leaflet-kart + adresse
 - `drawing_position`: Navigasjonsbasert velger via `BygningKontekst`
+
+## Bildegalleri
+
+Samlet oversikt over alle bilder i prosjektet. To visningsmodus:
+
+**Listevisning (standard):** Alle bilder sortert etter dato (nyeste først), gruppert dato → rapport. GPS-varsel (AlertTriangle) på bilder utenfor alle georefererte tegninger. Datofilter med hurtigvalg.
+
+**Tegningsvisning:** Velg tegning fra sidepanelet, bilder vises som prikker på tegningen. Verktøylinje med:
+- Plasseringsmodus: "Rapportlokasjon" (solid blå prikker fra drawingId+positionX/Y) eller "GPS" (stiplet prikker via gpsTilTegning())
+- Datoperiode-filter med hurtigvalg
+- Områdevalg: dra rektangel for å filtrere bilder i et område
+- Zoom (0.25x–3x)
+
+`BildeLightbox`: Fullskjerm overlay med pil-navigering, metadata, rapport-lenke. Escape lukker.
 
 ## Mer-meny
 

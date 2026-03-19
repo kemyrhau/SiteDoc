@@ -7,6 +7,7 @@ import {
   ListTodo,
   FileText,
   Map,
+  Image,
   Building2,
   FolderOpen,
   Settings,
@@ -56,6 +57,12 @@ const hovedelementer: SidebarElement[] = [
     id: "tegninger",
     label: "Tegninger",
     ikon: <Map className="h-5 w-5" />,
+    kreverProsjekt: true,
+  },
+  {
+    id: "bilder",
+    label: "Bilder",
+    ikon: <Image className="h-5 w-5" />,
     kreverProsjekt: true,
   },
   {
