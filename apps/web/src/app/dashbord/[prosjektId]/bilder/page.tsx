@@ -135,6 +135,12 @@ export default function BilderSide() {
     { enabled: !!params.prosjektId },
   );
 
+  // Hent tegningsdata (med fileUrl) for valgt tegning
+  const { data: tegningDetalj } = trpc.tegning.hentMedId.useQuery(
+    { id: aktivTegning?.id ?? "" },
+    { enabled: !!aktivTegning?.id && visningsmodus === "tegning" },
+  );
+
   // Reset zoom ved tegningsbytte
   useEffect(() => {
     setZoom(STANDARD_ZOOM);
@@ -483,15 +489,20 @@ export default function BilderSide() {
     );
   }
 
-  // Finn tegningsdata for aktiv tegning
-  const tegningData = alleTegninger.find((t) => t.id === aktivTegning.id);
-  const fileUrl = tegningData?.fileUrl ? `/api${tegningData.fileUrl}` : null;
-  const fileType = tegningData?.fileType ?? "";
+  // Tegningsdata fra hentMedId-query (har fileUrl/fileType)
+  // Cast for å unngå TS2589 (excessively deep tRPC type)
+  const td = tegningDetalj as unknown as {
+    fileUrl?: string | null;
+    fileType?: string | null;
+    geoReference?: unknown;
+  } | undefined;
+  const fileUrl = td?.fileUrl ? `/api${td.fileUrl}` : null;
+  const fileType = td?.fileType ?? "";
   const erBilde = ["png", "jpg", "jpeg"].includes(fileType);
   const zoomProsent = Math.round(zoom * 100);
 
   // Beregn transformasjon for GPS-modus
-  const geoRef = tegningData?.geoReference as GeoReferanse | null;
+  const geoRef = td?.geoReference as GeoReferanse | null;
   let transformasjon: ReturnType<typeof beregnTransformasjon> | null = null;
   if (geoRef) {
     try {
