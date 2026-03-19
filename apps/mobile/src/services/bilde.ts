@@ -101,12 +101,39 @@ export async function komprimer(uri: string): Promise<{ uri: string; filstorrels
 export async function hentGps(): Promise<{ lat: number; lng: number } | null> {
   try {
     const { status } = await Location.requestForegroundPermissionsAsync();
-    if (status !== "granted") return null;
-    const posisjon = await Location.getCurrentPositionAsync({
-      accuracy: Location.Accuracy.High,
-    });
+    if (status !== "granted") {
+      console.warn("[GPS] Tillatelse ikke gitt:", status);
+      return null;
+    }
+
+    // Timeout: prøv High først (5s), fall tilbake til Balanced
+    const posisjon = await Promise.race([
+      Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High,
+      }),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000)),
+    ]);
+
+    if (!posisjon) {
+      console.warn("[GPS] High accuracy timet ut, prøver Balanced...");
+      const fallback = await Promise.race([
+        Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        }),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000)),
+      ]);
+      if (!fallback) {
+        console.warn("[GPS] Balanced også timet ut");
+        return null;
+      }
+      console.log("[GPS] Balanced OK:", fallback.coords.latitude.toFixed(4), fallback.coords.longitude.toFixed(4));
+      return { lat: fallback.coords.latitude, lng: fallback.coords.longitude };
+    }
+
+    console.log("[GPS] High OK:", posisjon.coords.latitude.toFixed(4), posisjon.coords.longitude.toFixed(4));
     return { lat: posisjon.coords.latitude, lng: posisjon.coords.longitude };
-  } catch {
+  } catch (feil) {
+    console.warn("[GPS] Feil:", feil instanceof Error ? feil.message : feil);
     return null;
   }
 }
