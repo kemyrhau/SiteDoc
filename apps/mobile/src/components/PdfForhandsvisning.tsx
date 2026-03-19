@@ -28,9 +28,9 @@ export function PdfForhandsvisning({
       presentationStyle="fullScreen"
       onRequestClose={onLukk}
     >
-      <SafeAreaView className="flex-1 bg-white">
+      <SafeAreaView className="flex-1 bg-[#1e40af]" edges={["top"]}>
         {/* Header */}
-        <View className="flex-row items-center justify-between border-b border-gray-200 bg-[#1e40af] px-4 py-3">
+        <View className="flex-row items-center justify-between bg-[#1e40af] px-4 py-3">
           <Pressable onPress={onLukk} hitSlop={12}>
             <X size={22} color="#ffffff" />
           </Pressable>
