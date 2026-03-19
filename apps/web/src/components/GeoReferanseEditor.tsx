@@ -110,12 +110,33 @@ function utmTilLatLng(nord: number, ost: number, sone: string): { lat: number; l
   };
 }
 
+/** EPSG-kode → intern KoordinatSystem-mapping */
+const EPSG_TIL_SYSTEM: Record<string, KoordinatSystem> = {
+  "25832": "utm32",
+  "25833": "utm33",
+  "25835": "utm35",
+  "25836": "utm36",
+};
+
 /** Parser og konverter koordinater basert på valgt koordinatsystem */
 function parserKoordinater(tekst: string, system: KoordinatSystem): { lat: string; lng: string } | null {
   const trimmet = tekst.trim();
 
+  // Norgeskart kompaktformat: "653849.51,7732794.51@EPSG:25833"
+  const norgeskartMatch = trimmet.match(/^(\d{5,7}[.,]?\d*)\s*,\s*(\d{6,8}[.,]?\d*)@EPSG:(\d{5})$/i);
+  if (norgeskartMatch?.[1] && norgeskartMatch[2] && norgeskartMatch[3]) {
+    const ost = Number(norgeskartMatch[1].replace(",", "."));
+    const nord = Number(norgeskartMatch[2].replace(",", "."));
+    const epsgSone = EPSG_TIL_SYSTEM[norgeskartMatch[3]];
+    const brukSone = epsgSone ?? system;
+    if (nord > 6000000 && nord < 8500000 && ost > 100000 && ost < 900000 && brukSone !== "wgs84") {
+      const resultat = utmTilLatLng(nord, ost, brukSone);
+      return { lat: resultat.lat.toFixed(6), lng: resultat.lng.toFixed(6) };
+    }
+  }
+
   if (system !== "wgs84") {
-    // UTM-format: "Nord: xxx Øst: yyy" eller "xxx yyy"
+    // UTM-format: "Nord: xxx Øst: yyy" eller "Øst: xxx\nNord: yyy" (flerlinjet fra Norgeskart)
     const nordMatch = trimmet.match(/[Nn]ord:?\s*(\d{6,8}[.,]?\d*)/);
     const ostMatch = trimmet.match(/[ØøOo]st:?\s*(\d{5,7}[.,]?\d*)/);
     if (nordMatch?.[1] && ostMatch?.[1]) {
@@ -127,25 +148,20 @@ function parserKoordinater(tekst: string, system: KoordinatSystem): { lat: strin
       }
     }
 
-    // Bare to tall: northing easting
-    const tallMatch = trimmet.match(/^(\d{6,8}[.,]?\d*)[,\s]+(\d{5,7}[.,]?\d*)$/);
+    // Bare to tall: easting,northing (Norgeskart-rekkefølge) eller northing easting
+    const tallMatch = trimmet.match(/^(\d{5,8}[.,]?\d*)[,\s]+(\d{5,8}[.,]?\d*)$/);
     if (tallMatch?.[1] && tallMatch[2]) {
       const a = Number(tallMatch[1].replace(",", "."));
       const b = Number(tallMatch[2].replace(",", "."));
-      if (a > 6000000 && a < 8500000 && b > 100000 && b < 900000) {
-        const resultat = utmTilLatLng(a, b, system);
+      // Autodetekter rekkefølge: det store tallet (>6M) er northing
+      if (b > 6000000 && a < 900000) {
+        // a=øst, b=nord (Norgeskart: Øst,Nord)
+        const resultat = utmTilLatLng(b, a, system);
         return { lat: resultat.lat.toFixed(6), lng: resultat.lng.toFixed(6) };
       }
-    }
-
-    // Øst først: "Øst: xxx Nord: yyy"
-    const ostForstMatch = trimmet.match(/[ØøOo]st:?\s*(\d{5,7}[.,]?\d*)/);
-    const nordForstMatch = trimmet.match(/[Nn]ord:?\s*(\d{6,8}[.,]?\d*)/);
-    if (ostForstMatch?.[1] && nordForstMatch?.[1]) {
-      const ost = Number(ostForstMatch[1].replace(",", "."));
-      const nord = Number(nordForstMatch[1].replace(",", "."));
-      if (nord > 6000000 && nord < 8500000 && ost > 100000 && ost < 900000) {
-        const resultat = utmTilLatLng(nord, ost, system);
+      if (a > 6000000 && b < 900000) {
+        // a=nord, b=øst (standard)
+        const resultat = utmTilLatLng(a, b, system);
         return { lat: resultat.lat.toFixed(6), lng: resultat.lng.toFixed(6) };
       }
     }
