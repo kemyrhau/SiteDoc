@@ -513,7 +513,11 @@ function RedigerLokasjon({
                   transformOrigin: "center center",
                 }}
               >
-                {["png", "jpg", "jpeg"].includes(valgtTegning.fileType ?? "") ? (
+                {(valgtTegning.fileType ?? "") === "dwg" ? (
+                  <div className="flex flex-col items-center gap-2 text-gray-400">
+                    <p className="text-sm">DWG-filen må konverteres før den kan vises</p>
+                  </div>
+                ) : ["png", "jpg", "jpeg", "svg"].includes(valgtTegning.fileType ?? "") ? (
                   <img
                     src={`/api${valgtTegning.fileUrl}`}
                     alt={valgtTegning.name}
