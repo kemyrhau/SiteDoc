@@ -6,6 +6,7 @@ import { hentDatabase } from "../db/database";
 import { opplastingsKo, sjekklisteFeltdata, oppgaveFeltdata } from "../db/schema";
 import { lastOppFil } from "../services/opplasting";
 import { slettLokaltBilde } from "../services/lokalBilde";
+import { registrerBildeIDatabase } from "../services/bildeRegistrering";
 import { useNettverk } from "./NettverkProvider";
 import { AUTH_CONFIG } from "../config/auth";
 
@@ -255,6 +256,18 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
           })
           .where(eq(opplastingsKo.id, oppforing.id))
           .run();
+
+        // Registrer bildet i server-databasen (images-tabellen)
+        registrerBildeIDatabase({
+          sjekklisteId: oppforing.sjekklisteId,
+          oppgaveId: oppforing.oppgaveId,
+          fileUrl: resultat.fileUrl,
+          fileName: resultat.fileName,
+          fileSize: resultat.fileSize,
+          gpsLat: oppforing.gpsLat,
+          gpsLng: oppforing.gpsLng,
+          gpsAktivert: oppforing.gpsAktivert ?? true,
+        }).catch((f) => console.warn("[KØ] Bilderegistrering feilet (ikke-kritisk):", f));
 
         // Utled dokumenttype og -ID
         const dokumentType = oppforing.oppgaveId ? "oppgave" as const : "sjekkliste" as const;

@@ -129,4 +129,39 @@ export const bildeRouter = router({
         },
       });
     }),
+
+  opprettForOppgave: protectedProcedure
+    .input(
+      z.object({
+        taskId: z.string().uuid(),
+        fileUrl: z.string(),
+        fileName: z.string(),
+        fileSize: z.number().int(),
+        gpsLat: z.number().optional(),
+        gpsLng: z.number().optional(),
+        gpsEnabled: z.boolean().default(true),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const oppgave = await ctx.prisma.task.findUniqueOrThrow({
+        where: { id: input.taskId },
+        include: { template: { select: { projectId: true } } },
+      });
+      if (!oppgave.template) {
+        throw new Error("Oppgaven mangler mal-tilknytning");
+      }
+      await verifiserProsjektmedlem(ctx.userId, oppgave.template.projectId);
+
+      return ctx.prisma.image.create({
+        data: {
+          taskId: input.taskId,
+          fileUrl: input.fileUrl,
+          fileName: input.fileName,
+          fileSize: input.fileSize,
+          gpsLat: input.gpsLat ?? null,
+          gpsLng: input.gpsLng ?? null,
+          gpsEnabled: input.gpsEnabled,
+        },
+      });
+    }),
 });
