@@ -169,6 +169,7 @@ export default function LokasjonerSkjerm() {
 
   // GPS-posisjon på tegning (kontinuerlig sporing for georefererte tegninger)
   const [gpsMarkør, setGpsMarkør] = useState<GpsMarkør | null>(null);
+  const [gpsDebug, setGpsDebug] = useState<string | null>(null);
   const gpsAbonnementRef = useRef<Location.LocationSubscription | null>(null);
 
   useEffect(() => {
@@ -204,27 +205,21 @@ export default function LokasjonerSkjerm() {
 
         const transformasjon = beregnTransformasjon(geoRef);
 
-        // Hent initial posisjon: prøv sist kjente først (instant), deretter aktiv GPS
-        console.log("[GPS-LOK] Prøver getLastKnownPositionAsync...");
-        let initialPosisjon = await Location.getLastKnownPositionAsync();
-        console.log("[GPS-LOK] Sist kjente:", initialPosisjon ? "OK" : "null");
+        // Hent fersk GPS-posisjon (skip getLastKnown — kan være fra annen lokasjon)
+        console.log("[GPS-LOK] Henter fersk GPS (High, 10s timeout)...");
+        let initialPosisjon = await Promise.race([
+          Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High }),
+          new Promise<null>((resolve) => setTimeout(() => resolve(null), 10000)),
+        ]);
+        console.log("[GPS-LOK] High resultat:", initialPosisjon ? `OK (±${initialPosisjon.coords.accuracy?.toFixed(0)}m)` : "timeout");
         if (!aktiv) return;
         if (!initialPosisjon) {
-          console.log("[GPS-LOK] Prøver getCurrentPositionAsync (Balanced, 8s timeout)...");
+          console.log("[GPS-LOK] Prøver Balanced (8s timeout)...");
           initialPosisjon = await Promise.race([
             Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
             new Promise<null>((resolve) => setTimeout(() => resolve(null), 8000)),
           ]);
-          console.log("[GPS-LOK] Balanced resultat:", initialPosisjon ? "OK" : "timeout");
-          if (!aktiv) return;
-        }
-        if (!initialPosisjon) {
-          console.log("[GPS-LOK] Prøver Low accuracy som siste utvei...");
-          initialPosisjon = await Promise.race([
-            Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Low }),
-            new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000)),
-          ]);
-          console.log("[GPS-LOK] Low resultat:", initialPosisjon ? "OK" : "timeout");
+          console.log("[GPS-LOK] Balanced resultat:", initialPosisjon ? `OK (±${initialPosisjon.coords.accuracy?.toFixed(0)}m)` : "timeout");
           if (!aktiv) return;
         }
         if (!initialPosisjon) {
@@ -232,21 +227,23 @@ export default function LokasjonerSkjerm() {
           setGpsStatus("feil");
           return;
         }
-        console.log("[GPS-LOK] Posisjon:", initialPosisjon.coords.latitude.toFixed(4), initialPosisjon.coords.longitude.toFixed(4));
+        console.log("[GPS-LOK] GPS:", initialPosisjon.coords.latitude.toFixed(6), initialPosisjon.coords.longitude.toFixed(6), "±" + (initialPosisjon.coords.accuracy?.toFixed(0) ?? "?") + "m");
         const initialGps = {
           lat: initialPosisjon.coords.latitude,
           lng: initialPosisjon.coords.longitude,
         };
         const initialPunkt = gpsTilTegning(initialGps, transformasjon);
+        console.log("[GPS-LOK] → pixel:", initialPunkt.x.toFixed(1), initialPunkt.y.toFixed(1));
         setGpsMarkør({ x: initialPunkt.x, y: initialPunkt.y });
+        setGpsDebug(`${initialGps.lat.toFixed(6)}, ${initialGps.lng.toFixed(6)} ±${initialPosisjon.coords.accuracy?.toFixed(0) ?? "?"}m → (${initialPunkt.x.toFixed(1)}, ${initialPunkt.y.toFixed(1)})`);
         setGpsStatus("aktiv");
 
-        // Kontinuerlig sporing for oppdateringer
+        // Kontinuerlig sporing med høy nøyaktighet
         gpsAbonnementRef.current = await Location.watchPositionAsync(
           {
-            accuracy: Location.Accuracy.Balanced,
-            distanceInterval: 2,
-            timeInterval: 3000,
+            accuracy: Location.Accuracy.High,
+            distanceInterval: 1,
+            timeInterval: 2000,
           },
           (lokasjon) => {
             if (!aktiv) return;
@@ -254,8 +251,11 @@ export default function LokasjonerSkjerm() {
               lat: lokasjon.coords.latitude,
               lng: lokasjon.coords.longitude,
             };
+            const acc = lokasjon.coords.accuracy?.toFixed(0) ?? "?";
+            console.log("[GPS-LOK] Oppdatering:", gps.lat.toFixed(6), gps.lng.toFixed(6), "±" + acc + "m");
             const posisjon = gpsTilTegning(gps, transformasjon);
             setGpsMarkør({ x: posisjon.x, y: posisjon.y });
+            setGpsDebug(`${gps.lat.toFixed(6)}, ${gps.lng.toFixed(6)} ±${acc}m → (${posisjon.x.toFixed(1)}, ${posisjon.y.toFixed(1)})`);
           },
         );
       } catch (feil) {
@@ -466,6 +466,11 @@ export default function LokasjonerSkjerm() {
         <View className="flex-row items-center gap-2 bg-blue-50 px-4 py-2">
           <ActivityIndicator size="small" color="#1e40af" />
           <Text className="text-xs text-blue-700">Henter GPS-posisjon…</Text>
+        </View>
+      )}
+      {visserTegning && harGeoRef && gpsDebug && gpsStatus === "aktiv" && (
+        <View className="bg-gray-100 px-4 py-1">
+          <Text className="text-[10px] text-gray-500">{gpsDebug}</Text>
         </View>
       )}
 

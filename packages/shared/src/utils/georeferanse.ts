@@ -1,32 +1,45 @@
 import type { GeoReferanse } from "../types";
 
 /**
- * Transformasjonsparametre for similaritetstransformasjon (2D).
- * Mapping: pixel (prosent) ↔ GPS (lat/lng)
+ * Transformasjonsparametre for lineær mapping mellom GPS og pixel-prosent.
+ *
+ * Uavhengig skalering i x (longitude) og y (latitude) — håndterer
+ * bilder med vilkårlig aspektforhold uten å anta lik skalering.
  *
  * GPS → Pixel:
- *   x = a * lng + b * lat + c
- *   y = -b * lng + a * lat + d
+ *   px = sx * (lng * cosLat) + cx
+ *   py = sy * lat + cy
  *
  * Pixel → GPS:
- *   Invertert transformasjon
+ *   lat = (py - cy) / sy
+ *   lng = (px - cx) / (sx * cosLat)
  */
 export interface Transformasjon {
+  /** X-skalering (longitude → pixel-prosent) */
+  sx: number;
+  /** Y-skalering (latitude → pixel-prosent) */
+  sy: number;
+  /** X-offset */
+  cx: number;
+  /** Y-offset */
+  cy: number;
+  /** cos(middelbreddegrad) — kompenserer for at 1° lng ≠ 1° lat */
+  cosLat: number;
+
+  // Bakoverkompatibilitet — eldre kode kan referere til a,b,c,d
   a: number;
   b: number;
   c: number;
   d: number;
-  /** cos(middelbreddegrad) — kompenserer for at 1° lng ≠ 1° lat */
-  cosLat: number;
 }
 
 /**
- * Beregn similaritetstransformasjon fra 2 referansepunkter.
- * Bruker skalering + rotasjon + translasjon (4 ukjente, 4 ligninger).
+ * Beregn lineær transformasjon fra 2 referansepunkter.
+ * Uavhengig skalering i x og y — fungerer korrekt for bilder
+ * med vilkårlig aspektforhold (f.eks. panorama-screenshots, brede kart).
  *
- * GPS-koordinater normaliseres til lokalt kartesisk system før beregning:
- * longitude skaleres med cos(middelbreddegrad) for å kompensere for at
- * 1° lng er mye kortere enn 1° lat ved høye breddegrader (f.eks. Tromsø).
+ * GPS-koordinater normaliseres med cos(middelbreddegrad) slik at
+ * 1° lng ≈ 1° lat i meter (viktig for høye breddegrader som Norge).
  */
 export function beregnTransformasjon(ref: GeoReferanse): Transformasjon {
   const { point1, point2 } = ref;
@@ -35,41 +48,56 @@ export function beregnTransformasjon(ref: GeoReferanse): Transformasjon {
   const midLat = (point1.gps.lat + point2.gps.lat) / 2;
   const cosLat = Math.cos((midLat * Math.PI) / 180);
 
-  // Kilde: GPS-koordinater normalisert til lokalt kartesisk system
-  const x1 = point1.gps.lng * cosLat;
-  const y1 = point1.gps.lat;
-  const x2 = point2.gps.lng * cosLat;
-  const y2 = point2.gps.lat;
+  // GPS normalisert
+  const gx1 = point1.gps.lng * cosLat;
+  const gy1 = point1.gps.lat;
+  const gx2 = point2.gps.lng * cosLat;
+  const gy2 = point2.gps.lat;
 
-  // Mål: pixel-koordinater (prosent)
+  // Pixel-koordinater (prosent)
   const px1 = point1.pixel.x;
   const py1 = point1.pixel.y;
   const px2 = point2.pixel.x;
   const py2 = point2.pixel.y;
 
-  // Differanser i normalisert GPS-rom
-  const dX = x2 - x1;
-  const dY = y2 - y1;
-  const dPx = px2 - px1;
-  const dPy = py2 - py1;
+  // Differanser
+  const dGx = gx2 - gx1;
+  const dGy = gy2 - gy1;
 
-  // Løs for a og b:
-  // dPx = a * dX + b * dY
-  // dPy = -b * dX + a * dY
-  const denom = dX * dX + dY * dY;
-  if (denom === 0) {
+  if (dGx === 0 && dGy === 0) {
     throw new Error("Referansepunktene har identiske GPS-koordinater");
   }
 
-  const a = (dPx * dX + dPy * dY) / denom;
-  const b = (dPx * dY - dPy * dX) / denom;
+  // Uavhengig lineær skalering
+  // px = sx * gx + cx → sx = dPx / dGx
+  // py = sy * gy + cy → sy = dPy / dGy
+  let sx: number;
+  let cx: number;
+  let sy: number;
+  let cy: number;
 
-  // Løs for c og d fra punkt 1:
-  const c = px1 - a * x1 - b * y1;
-  const d = py1 + b * x1 - a * y1;
+  if (Math.abs(dGx) < 1e-10) {
+    // Punktene har samme longitude — kun y-skalering er definerbar
+    // Bruk y-skalering for begge (fallback)
+    sy = (py2 - py1) / dGy;
+    cy = py1 - sy * gy1;
+    sx = sy; // Anta lik skalering når x ikke kan beregnes
+    cx = px1 - sx * gx1;
+  } else if (Math.abs(dGy) < 1e-10) {
+    // Punktene har samme latitude — kun x-skalering er definerbar
+    sx = (px2 - px1) / dGx;
+    cx = px1 - sx * gx1;
+    sy = -sx; // Negativ fordi økende lat = mer nord = lavere y
+    cy = py1 - sy * gy1;
+  } else {
+    // Normal case: uavhengig skalering i begge retninger
+    sx = (px2 - px1) / dGx;
+    cx = px1 - sx * gx1;
+    sy = (py2 - py1) / dGy;
+    cy = py1 - sy * gy1;
+  }
 
-  // Lagre cosLat i transformasjonen for bruk i gpsTilTegning/tegningTilGps
-  return { a, b, c, d, cosLat } as Transformasjon;
+  return { sx, sy, cx, cy, cosLat, a: sx, b: 0, c: cx, d: cy };
 }
 
 /**
@@ -80,14 +108,13 @@ export function gpsTilTegning(
   gps: { lat: number; lng: number },
   transformasjon: Transformasjon,
 ): { x: number; y: number } {
-  const { a, b, c, d, cosLat } = transformasjon;
+  const { sx, sy, cx, cy, cosLat } = transformasjon;
 
-  // Normaliser longitude med cos(lat)-korreksjon
   const gx = gps.lng * cosLat;
   const gy = gps.lat;
 
-  const x = a * gx + b * gy + c;
-  const y = -b * gx + a * gy + d;
+  const x = sx * gx + cx;
+  const y = sy * gy + cy;
 
   return {
     x: Math.max(0, Math.min(100, x)),
@@ -97,27 +124,21 @@ export function gpsTilTegning(
 
 /**
  * Transformer tegningsposisjon (prosent) til GPS-koordinater.
- * Invertert similaritetstransformasjon.
+ * Invertert lineær transformasjon.
  */
 export function tegningTilGps(
   pixel: { x: number; y: number },
   transformasjon: Transformasjon,
 ): { lat: number; lng: number } {
-  const { a, b, c, d, cosLat } = transformasjon;
+  const { sx, sy, cx, cy, cosLat } = transformasjon;
 
-  // Invertert transformasjon → normalisert GPS-rom
-  const xShift = pixel.x - c;
-  const yShift = pixel.y - d;
-
-  const denom = a * a + b * b;
-  if (denom === 0) {
-    throw new Error("Ugyldig transformasjon (a og b er begge 0)");
+  if (sx === 0 || sy === 0) {
+    throw new Error("Ugyldig transformasjon (skalering er 0)");
   }
 
-  const gx = (a * xShift - b * yShift) / denom;
-  const gy = (b * xShift + a * yShift) / denom;
+  const gx = (pixel.x - cx) / sx;
+  const gy = (pixel.y - cy) / sy;
 
-  // Denormaliser longitude
   return { lat: gy, lng: gx / cosLat };
 }
 
