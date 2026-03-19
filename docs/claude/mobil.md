@@ -48,7 +48,13 @@ Sjekkliste-/oppgave-detaljskjermen har kontekstuelle statusknapper i bunnpanelet
 
 ## Bildehåndtering
 
-**Kameraflyt:** expo-camera → komprimering → lokal lagring → filmrull → bakgrunnskø → server.
+**Kameraflyt:** kamera åpnes + GPS startes parallelt → bilde tas → komprimering + GPS-resultat hentes → lokal lagring → filmrull → bakgrunnskø → server.
+
+**GPS-strategi:**
+- GPS-henting starter **samtidig** med kameraåpning (`gpsPromiseRef`) — posisjon er klar når bildet tas
+- `hentGps()`: High accuracy med 5s timeout → fallback til Balanced med 5s timeout → null
+- KartVisning: GPS med 8s timeout, statusmelding til bruker
+- Tillatelse: `requestForegroundPermissionsAsync()` — krever "Når appen er i bruk"
 
 **Komprimering (`komprimer()`):**
 1. 5:4 senter-crop → 2. Maks 1920px → 3. Iterativ kvalitet 300–400 KB → 4. GPS-tag → 5. Lokal lagring

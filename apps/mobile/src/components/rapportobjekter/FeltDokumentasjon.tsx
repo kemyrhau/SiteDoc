@@ -45,6 +45,7 @@ export function FeltDokumentasjon({
   const [annoteringBilde, settAnnoteringBilde] = useState<string | null>(null);
   const [visTegningsModal, settVisTegningsModal] = useState(false);
   const [visKamera, settVisKamera] = useState(false);
+  const gpsPromiseRef = useRef<Promise<{ lat: number; lng: number } | null> | null>(null);
   const [valgtVedleggId, settValgtVedleggId] = useState<string | null>(null);
   const [visKommentarModal, settVisKommentarModal] = useState(false);
   const [lokalKommentar, settLokalKommentar] = useState("");
@@ -110,8 +111,12 @@ export function FeltDokumentasjon({
     // Kameraet forblir åpent — prosesser bildet i bakgrunnen
     (async () => {
       try {
-        const komprimert = await komprimer(uri);
-        const gps = await hentGps();
+        // GPS ble startet da kameraet åpnet — hent resultatet (allerede klart eller nesten klart)
+        const gpsPromise = gpsPromiseRef.current ?? hentGps();
+        const [komprimert, gps] = await Promise.all([
+          komprimer(uri),
+          gpsPromise,
+        ]);
         await håndterBilde(komprimert.uri, gps?.lat, gps?.lng);
       } catch (e) {
         console.error("Kamerabilde feilet:", e);
@@ -321,7 +326,11 @@ export function FeltDokumentasjon({
       {!leseModus && (
         <View className="flex-row gap-2">
           <Pressable
-            onPress={() => settVisKamera(true)}
+            onPress={() => {
+              // Start GPS-henting parallelt med kamera — posisjon er klar når bildet tas
+              gpsPromiseRef.current = hentGps();
+              settVisKamera(true);
+            }}
             disabled={lasterOpp}
             className="flex-1 flex-row items-center justify-center gap-1.5 rounded-lg border border-gray-300 bg-white py-2"
           >
