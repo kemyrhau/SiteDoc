@@ -12,6 +12,7 @@ export const entrepriseRouter = router({
       return ctx.prisma.enterprise.findMany({
         where: { projectId: input.projectId },
         include: {
+          ansvarlig: { select: { id: true, name: true, email: true } },
           memberEnterprises: {
             include: {
               projectMember: {
@@ -94,6 +95,7 @@ export const entrepriseRouter = router({
         color: z.string().max(50).optional(),
         industry: z.string().max(100).optional(),
         companyName: z.string().max(255).optional(),
+        ansvarligId: z.string().uuid().nullable().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -160,6 +162,26 @@ export const entrepriseRouter = router({
         }
 
         return nyEntreprise;
+      });
+    }),
+
+  // Sett ansvarlig for entreprise
+  settAnsvarlig: protectedProcedure
+    .input(
+      z.object({
+        enterpriseId: z.string().uuid(),
+        userId: z.string().uuid().nullable(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const entreprise = await ctx.prisma.enterprise.findUniqueOrThrow({
+        where: { id: input.enterpriseId },
+        select: { projectId: true },
+      });
+      await verifiserProsjektmedlem(ctx.userId, entreprise.projectId);
+      return ctx.prisma.enterprise.update({
+        where: { id: input.enterpriseId },
+        data: { ansvarligId: input.userId },
       });
     }),
 

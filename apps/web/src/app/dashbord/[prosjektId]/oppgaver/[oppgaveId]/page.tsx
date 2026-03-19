@@ -6,6 +6,7 @@ import { Spinner, StatusBadge, Card, Badge } from "@sitedoc/ui";
 import { Check, AlertCircle, Loader2, Send } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useOppgaveSkjema } from "@/hooks/useOppgaveSkjema";
+import { StatusHandlinger } from "@/components/StatusHandlinger";
 import { RapportObjektRenderer, DISPLAY_TYPER, SKJULT_I_UTFYLLING } from "@/components/rapportobjekter/RapportObjektRenderer";
 import { FeltWrapper } from "@/components/rapportobjekter/FeltWrapper";
 import type { RapportObjekt } from "@/components/rapportobjekter/typer";
@@ -211,6 +212,15 @@ export default function OppgaveDetaljSide() {
     lagreStatus,
   } = useOppgaveSkjema(params.oppgaveId);
 
+  const utils = trpc.useUtils();
+
+  const endreStatusMutasjon = trpc.oppgave.endreStatus.useMutation({
+    onSuccess: () => {
+      utils.oppgave.hentMedId.invalidate({ id: params.oppgaveId });
+      utils.oppgave.hentForProsjekt.invalidate();
+    },
+  });
+
   // Bygg trestruktur og flat ut i DFS-rekkefølge
   const objekter = useMemo(() => {
     const rå = (oppgave?.template?.objects ?? []) as RapportObjekt[];
@@ -324,6 +334,22 @@ export default function OppgaveDetaljSide() {
         {oppgave.description && (
           <p className="mt-2 text-sm text-gray-600">{oppgave.description}</p>
         )}
+
+        {/* Statushandlinger */}
+        <div className="mt-3">
+          <StatusHandlinger
+            status={oppgave.status}
+            erLaster={endreStatusMutasjon.isPending}
+            onEndreStatus={(nyStatus, kommentar) => {
+              endreStatusMutasjon.mutate({
+                id: params.oppgaveId,
+                nyStatus: nyStatus as "draft" | "sent" | "received" | "in_progress" | "responded" | "approved" | "rejected" | "closed" | "cancelled",
+                senderId: oppgave.id,
+                kommentar,
+              });
+            }}
+          />
+        </div>
       </div>
 
       {/* Rapportobjekter */}

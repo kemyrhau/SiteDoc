@@ -31,6 +31,7 @@ model User {
   folderAccess         FolderAccess[]
   taskComments         TaskComment[]
   checklistChangeLogs  ChecklistChangeLog[]
+  ansvarligEntrepriser Enterprise[]         @relation("EnterpriseAnsvarlig")
 
   @@map("users")
 }
@@ -248,10 +249,12 @@ model Enterprise {
   color              String?
   industry           String?
   companyName        String?  @map("company_name")
+  ansvarligId        String?  @map("ansvarlig_id")
   createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @updatedAt @map("updated_at")
 
   project            Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  ansvarlig          User?            @relation("EnterpriseAnsvarlig", fields: [ansvarligId], references: [id], onDelete: SetNull)
   memberEnterprises  MemberEnterprise[]
   createdChecklists  Checklist[]      @relation("ChecklistCreatorEnterprise")
   respondChecklists  Checklist[]      @relation("ChecklistResponderEnterprise")

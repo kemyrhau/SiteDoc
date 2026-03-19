@@ -4,7 +4,7 @@ import { useParams } from "next/navigation";
 import { trpc } from "@/lib/trpc";
 import { SearchInput, Spinner } from "@sitedoc/ui";
 import { useState } from "react";
-import { Building2 } from "lucide-react";
+import { Building2, Star } from "lucide-react";
 
 export function EntrepriserPanel() {
   const params = useParams<{ prosjektId: string }>();
@@ -41,20 +41,29 @@ export function EntrepriserPanel() {
             Ingen entrepriser funnet
           </p>
         ) : (
-          filtrerte.map((ent) => (
-            <div
-              key={ent.id}
-              className="flex items-center gap-2 rounded-md px-2 py-2 text-sm text-gray-700"
-            >
-              <Building2 className="h-4 w-4 flex-shrink-0 text-gray-400" />
-              <div className="min-w-0 flex-1">
-                <p className="truncate font-medium">{ent.name}</p>
-                <p className="text-xs text-gray-400">
-                  {ent.memberEnterprises.length} medlemmer
-                </p>
+          filtrerte.map((ent) => {
+            const ansvarlig = (ent as { ansvarlig?: { id: string; name: string | null; email: string } | null }).ansvarlig;
+            return (
+              <div
+                key={ent.id}
+                className="flex items-center gap-2 rounded-md px-2 py-2 text-sm text-gray-700"
+              >
+                <Building2 className="h-4 w-4 flex-shrink-0 text-gray-400" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-medium">{ent.name}</p>
+                  <p className="text-xs text-gray-400">
+                    {ent.memberEnterprises.length} medlemmer
+                    {ansvarlig && (
+                      <span className="ml-1.5 inline-flex items-center gap-0.5">
+                        <Star className="inline h-3 w-3 fill-amber-400 text-amber-400" />
+                        {ansvarlig.name ?? ansvarlig.email}
+                      </span>
+                    )}
+                  </p>
+                </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
     </div>

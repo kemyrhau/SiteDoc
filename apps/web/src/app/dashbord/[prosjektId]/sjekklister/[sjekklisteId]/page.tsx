@@ -11,6 +11,7 @@ import { RapportObjektRenderer, DISPLAY_TYPER, SKJULT_I_UTFYLLING } from "@/comp
 import { FeltWrapper } from "@/components/rapportobjekter/FeltWrapper";
 import { PrintHeader } from "@/components/PrintHeader";
 import { OpprettOppgaveModal } from "@/components/OpprettOppgaveModal";
+import { StatusHandlinger } from "@/components/StatusHandlinger";
 import type { RapportObjekt } from "@/components/rapportobjekter/typer";
 import { useBygning } from "@/kontekst/bygning-kontekst";
 
@@ -90,6 +91,13 @@ export default function SjekklisteDetaljSide() {
   const oppdaterMutasjon = trpc.sjekkliste.oppdater.useMutation({
     onSuccess: () => {
       utils.sjekkliste.hentMedId.invalidate({ id: params.sjekklisteId });
+    },
+  });
+
+  const endreStatusMutasjon = trpc.sjekkliste.endreStatus.useMutation({
+    onSuccess: () => {
+      utils.sjekkliste.hentMedId.invalidate({ id: params.sjekklisteId });
+      utils.sjekkliste.hentForProsjekt.invalidate();
     },
   });
 
@@ -359,6 +367,22 @@ export default function SjekklisteDetaljSide() {
         {sjekklisteNummer && (
           <p className="mt-1 text-xs text-gray-400">Nr: {sjekklisteNummer}</p>
         )}
+
+        {/* Statushandlinger */}
+        <div className="mt-3 print-skjul">
+          <StatusHandlinger
+            status={sjekkliste.status}
+            erLaster={endreStatusMutasjon.isPending}
+            onEndreStatus={(nyStatus, kommentar) => {
+              endreStatusMutasjon.mutate({
+                id: params.sjekklisteId,
+                nyStatus: nyStatus as "draft" | "sent" | "received" | "in_progress" | "responded" | "approved" | "rejected" | "closed" | "cancelled",
+                senderId: sjekkliste.id,
+                kommentar,
+              });
+            }}
+          />
+        </div>
       </div>
 
       {/* Rapportobjekter */}
