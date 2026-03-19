@@ -65,18 +65,22 @@ export async function registrerBildeIDatabase(params: {
   try {
     // tRPC mutation via HTTP: POST /trpc/{prosedyre} med JSON body
     const url = `${baseUrl}/trpc/${prosedyre}`;
+    console.log("[BILDE-REG] URL:", url);
+    console.log("[BILDE-REG] Input:", JSON.stringify(rensetInput));
     const respons = await fetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({ json: rensetInput }),
+      body: JSON.stringify(rensetInput),
     });
 
     if (!respons.ok) {
-      const feil = await respons.text().catch(() => "Ukjent feil");
-      console.error("[BILDE-REG] Feilet:", respons.status, feil);
+      const feilTekst = await respons.text().catch(() => "Ukjent feil");
+      console.error("[BILDE-REG] Feilet:", respons.status, feilTekst);
+      console.error("[BILDE-REG] URL var:", url);
+      console.error("[BILDE-REG] Body var:", JSON.stringify(rensetInput));
       return;
     }
 
