@@ -29,6 +29,7 @@ import { useProsjekt } from "../../src/kontekst/ProsjektKontekst";
 import { hentDatabase } from "../../src/db/database";
 import { sjekklisteFeltdata, opplastingsKo } from "../../src/db/schema";
 import { byggSjekklisteHtml } from "../../src/utils/sjekklistePdf";
+import { PdfForhandsvisning } from "../../src/components/PdfForhandsvisning";
 import { AUTH_CONFIG } from "../../src/config/auth";
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
@@ -101,6 +102,7 @@ export default function SjekklisteUtfylling() {
   const utils = trpc.useUtils();
 
   const [visEntrepriseListe, settVisEntrepriseListe] = useState<"oppretter" | "svarer" | null>(null);
+  const [pdfHtml, settPdfHtml] = useState<string | null>(null);
 
   // State for oppgave-fra-felt
   const [opprettOppgaveKategori, setOpprettOppgaveKategori] = useState<"oppgave" | null>(null);
@@ -241,6 +243,7 @@ export default function SjekklisteUtfylling() {
     settKommentar,
     leggTilVedlegg,
     fjernVedlegg,
+    flyttVedlegg,
     erSynlig,
     valideringsfeil,
     valider,
@@ -266,29 +269,39 @@ export default function SjekklisteUtfylling() {
     { enabled: !!valgtProsjektId },
   );
 
+  const genererPdfHtml = useCallback(() => {
+    if (!sjekkliste) return "";
+    const detalj = detaljQuery.data as Record<string, unknown> | undefined;
+    const sjekklisteMedDetaljer = {
+      ...(sjekkliste as Parameters<typeof byggSjekklisteHtml>[0]),
+      updatedAt: detalj?.updatedAt as Date | string | undefined,
+      changeLog: (detalj?.changeLog ?? []) as Array<{ createdAt: Date | string; user: { name: string | null } }>,
+    };
+    return byggSjekklisteHtml(
+      sjekklisteMedDetaljer,
+      feltVerdierForPdf(),
+      prosjektData ? {
+        name: prosjektData.name,
+        projectNumber: prosjektData.projectNumber,
+        externalProjectNumber: (prosjektData as Record<string, unknown>).externalProjectNumber as string | null | undefined,
+        address: prosjektData.address,
+        logoUrl: (prosjektData as Record<string, unknown>).logoUrl as string | null | undefined,
+      } : null,
+      AUTH_CONFIG.apiUrl,
+    );
+  }, [sjekkliste, prosjektData, detaljQuery.data]);
+
+  // Vis forhåndsvisning
+  const håndterVisPdf = useCallback(() => {
+    const html = genererPdfHtml();
+    if (html) settPdfHtml(html);
+  }, [genererPdfHtml]);
+
+  // Del PDF fra forhåndsvisning
   const håndterDelPdf = useCallback(async () => {
-    if (!sjekkliste) return;
+    if (!sjekkliste || !pdfHtml) return;
     try {
-      // Berik sjekkliste-data med detaljer fra server (updatedAt, changeLog)
-      const detalj = detaljQuery.data as Record<string, unknown> | undefined;
-      const sjekklisteMedDetaljer = {
-        ...(sjekkliste as Parameters<typeof byggSjekklisteHtml>[0]),
-        updatedAt: detalj?.updatedAt as Date | string | undefined,
-        changeLog: (detalj?.changeLog ?? []) as Array<{ createdAt: Date | string; user: { name: string | null } }>,
-      };
-      const html = byggSjekklisteHtml(
-        sjekklisteMedDetaljer,
-        feltVerdierForPdf(),
-        prosjektData ? {
-          name: prosjektData.name,
-          projectNumber: prosjektData.projectNumber,
-          externalProjectNumber: (prosjektData as Record<string, unknown>).externalProjectNumber as string | null | undefined,
-          address: prosjektData.address,
-          logoUrl: (prosjektData as Record<string, unknown>).logoUrl as string | null | undefined,
-        } : null,
-        AUTH_CONFIG.apiUrl,
-      );
-      const { uri } = await Print.printToFileAsync({ html });
+      const { uri } = await Print.printToFileAsync({ html: pdfHtml });
       await Sharing.shareAsync(uri, {
         mimeType: "application/pdf",
         dialogTitle: `Del ${sjekkliste.title}`,
@@ -297,7 +310,7 @@ export default function SjekklisteUtfylling() {
     } catch (feil) {
       console.warn("PDF-deling feilet:", feil);
     }
-  }, [sjekkliste, prosjektData, detaljQuery.data]);
+  }, [sjekkliste, pdfHtml]);
 
   // Hjelpefunksjon for å hente feltVerdier som PDF-format
   function feltVerdierForPdf() {
@@ -422,7 +435,7 @@ export default function SjekklisteUtfylling() {
             <Pressable onPress={håndterLagre} hitSlop={12} disabled={erLagrer}>
               <Save size={22} color={erLagrer ? "#93c5fd" : "#ffffff"} />
             </Pressable>
-            <Pressable onPress={håndterDelPdf} hitSlop={12}>
+            <Pressable onPress={håndterVisPdf} hitSlop={12}>
               <Share2 size={20} color="#ffffff" />
             </Pressable>
           </View>
@@ -596,6 +609,7 @@ export default function SjekklisteUtfylling() {
               onEndreKommentar={(k) => settKommentar(objekt.id, k)}
               onLeggTilVedlegg={(v) => leggTilVedlegg(objekt.id, v)}
               onFjernVedlegg={(vId) => fjernVedlegg(objekt.id, vId)}
+              onFlyttVedlegg={(vId, retning) => flyttVedlegg(objekt.id, vId, retning)}
               leseModus={leseModus}
               sjekklisteId={sjekkliste.id}
               nestingNivå={nestingNivå}
@@ -744,6 +758,15 @@ export default function SjekklisteUtfylling() {
       </View>
 
       </KeyboardAvoidingView>
+
+      {/* PDF-forhåndsvisning */}
+      <PdfForhandsvisning
+        synlig={!!pdfHtml}
+        html={pdfHtml ?? ""}
+        tittel={sjekkliste?.title ?? ""}
+        onDel={håndterDelPdf}
+        onLukk={() => settPdfHtml(null)}
+      />
 
       {/* Malvelger for oppgave fra felt */}
       <MalVelger

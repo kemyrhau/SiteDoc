@@ -440,6 +440,27 @@ export function useSjekklisteSkjema(sjekklisteId: string): UseSjekklisteSkjemaRe
     [planleggLagring],
   );
 
+  const flyttVedlegg = useCallback(
+    (objektId: string, vedleggId: string, retning: "opp" | "ned") => {
+      settFeltVerdier((prev) => {
+        const nåværende = prev[objektId] ?? TOM_FELTVERDI;
+        const liste = [...nåværende.vedlegg];
+        const idx = liste.findIndex((v) => v.id === vedleggId);
+        if (idx < 0) return prev;
+        const nyIdx = retning === "opp" ? idx - 1 : idx + 1;
+        if (nyIdx < 0 || nyIdx >= liste.length) return prev;
+        [liste[idx], liste[nyIdx]] = [liste[nyIdx], liste[idx]];
+        return {
+          ...prev,
+          [objektId]: { ...nåværende, vedlegg: liste },
+        };
+      });
+      settHarEndringer(true);
+      planleggLagring();
+    },
+    [planleggLagring],
+  );
+
   // Betinget synlighet (rekursiv — sjekker hele foreldrekjeden)
   const erSynlig = useCallback(
     (objekt: RapportObjekt): boolean => {
@@ -511,6 +532,7 @@ export function useSjekklisteSkjema(sjekklisteId: string): UseSjekklisteSkjemaRe
     settKommentar,
     leggTilVedlegg,
     fjernVedlegg,
+    flyttVedlegg,
     erSynlig,
     valideringsfeil,
     valider,

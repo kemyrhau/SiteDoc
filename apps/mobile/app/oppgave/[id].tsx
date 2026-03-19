@@ -235,6 +235,7 @@ export default function OppgaveDetalj() {
     settKommentar,
     leggTilVedlegg,
     fjernVedlegg,
+    flyttVedlegg,
     erSynlig,
     valideringsfeil,
     valider,
@@ -637,6 +638,7 @@ export default function OppgaveDetalj() {
               onEndreKommentar={(k) => settKommentar(objekt.id, k)}
               onLeggTilVedlegg={(v) => leggTilVedlegg(objekt.id, v)}
               onFjernVedlegg={(vId) => fjernVedlegg(objekt.id, vId)}
+              onFlyttVedlegg={(vId, retning) => flyttVedlegg(objekt.id, vId, retning)}
               leseModus={leseModus}
               oppgaveIdForKo={oppgave.id}
               nestingNivå={nestingNivå}

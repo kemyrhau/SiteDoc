@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef } from "react";
 import { View, Text, TextInput, Pressable, Image, Alert, Modal, ScrollView, InteractionManager, SafeAreaView, KeyboardAvoidingView, Platform } from "react-native";
-import { Camera, Paperclip, Map, FileText, Trash2, Pencil } from "lucide-react-native";
+import { Camera, Paperclip, Map, FileText, Trash2, Pencil, ChevronLeft, ChevronRight } from "lucide-react-native";
 import * as DocumentPicker from "expo-document-picker";
 import { randomUUID } from "expo-crypto";
 import type { Vedlegg } from "../../hooks/useSjekklisteSkjema";
@@ -20,6 +20,7 @@ interface FeltDokumentasjonProps {
   onEndreKommentar: (kommentar: string) => void;
   onLeggTilVedlegg: (vedlegg: Vedlegg) => void;
   onFjernVedlegg: (vedleggId: string) => void;
+  onFlyttVedlegg?: (vedleggId: string, retning: "opp" | "ned") => void;
   leseModus?: boolean;
   sjekklisteId?: string;
   oppgaveIdForKo?: string;
@@ -33,6 +34,7 @@ export function FeltDokumentasjon({
   onEndreKommentar,
   onLeggTilVedlegg,
   onFjernVedlegg,
+  onFlyttVedlegg,
   leseModus,
   sjekklisteId,
   oppgaveIdForKo,
@@ -228,7 +230,25 @@ export function FeltDokumentasjon({
 
       {/* Verktøylinje (kun synlig når vedlegg er valgt) */}
       {!leseModus && valgtVedlegg && (
-        <View className="flex-row gap-2">
+        <View className="flex-row items-center gap-2">
+          {onFlyttVedlegg && (
+            <>
+              <Pressable
+                onPress={() => onFlyttVedlegg(valgtVedlegg.id, "opp")}
+                disabled={vedlegg.indexOf(valgtVedlegg) === 0}
+                className="flex-row items-center gap-0.5 rounded-lg bg-gray-100 px-2.5 py-1.5"
+              >
+                <ChevronLeft size={14} color={vedlegg.indexOf(valgtVedlegg) === 0 ? "#d1d5db" : "#374151"} />
+              </Pressable>
+              <Pressable
+                onPress={() => onFlyttVedlegg(valgtVedlegg.id, "ned")}
+                disabled={vedlegg.indexOf(valgtVedlegg) === vedlegg.length - 1}
+                className="flex-row items-center gap-0.5 rounded-lg bg-gray-100 px-2.5 py-1.5"
+              >
+                <ChevronRight size={14} color={vedlegg.indexOf(valgtVedlegg) === vedlegg.length - 1 ? "#d1d5db" : "#374151"} />
+              </Pressable>
+            </>
+          )}
           <Pressable
             onPress={håndterSlett}
             className="flex-row items-center gap-1.5 rounded-lg bg-red-50 px-3 py-1.5"
