@@ -1,5 +1,4 @@
-import { Modal, View, Text, Pressable, ActivityIndicator } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { Modal, View, Text, Pressable, ActivityIndicator, SafeAreaView } from "react-native";
 import { WebView } from "react-native-webview";
 import { X, Share2 } from "lucide-react-native";
 import { useState } from "react";
@@ -28,30 +27,30 @@ export function PdfForhandsvisning({
       presentationStyle="fullScreen"
       onRequestClose={onLukk}
     >
-      <SafeAreaView className="flex-1 bg-[#1e40af]" edges={["top"]}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: "#1e40af" }}>
         {/* Header */}
-        <View className="flex-row items-center justify-between bg-[#1e40af] px-4 py-3">
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: "#1e40af", paddingHorizontal: 16, paddingVertical: 12 }}>
           <Pressable onPress={onLukk} hitSlop={12}>
             <X size={22} color="#ffffff" />
           </Pressable>
-          <Text className="flex-1 px-3 text-center text-sm font-semibold text-white" numberOfLines={1}>
+          <Text style={{ flex: 1, paddingHorizontal: 12, textAlign: "center", fontSize: 14, fontWeight: "600", color: "#ffffff" }} numberOfLines={1}>
             {tittel}
           </Text>
-          <Pressable onPress={onDel} hitSlop={12} className="flex-row items-center gap-1.5">
+          <Pressable onPress={onDel} hitSlop={12} style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
             <Share2 size={18} color="#ffffff" />
-            <Text className="text-sm font-medium text-white">Del</Text>
+            <Text style={{ fontSize: 14, fontWeight: "500", color: "#ffffff" }}>Del</Text>
           </Pressable>
         </View>
 
         {/* WebView med HTML-forhåndsvisning */}
-        {laster && (
-          <View className="absolute inset-0 z-10 items-center justify-center bg-white" style={{ top: 52 }}>
-            <ActivityIndicator size="large" color="#1e40af" />
-            <Text className="mt-3 text-sm text-gray-500">Genererer forhåndsvisning...</Text>
-          </View>
-        )}
-        <View className="flex-1 bg-gray-100 p-3">
-          <View className="flex-1 overflow-hidden rounded-lg bg-white" style={{ shadowColor: "#000", shadowOpacity: 0.1, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 4 }}>
+        <View style={{ flex: 1, backgroundColor: "#f3f4f6", padding: 12 }}>
+          {laster && (
+            <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 10, alignItems: "center", justifyContent: "center", backgroundColor: "#f3f4f6" }}>
+              <ActivityIndicator size="large" color="#1e40af" />
+              <Text style={{ marginTop: 12, fontSize: 13, color: "#6b7280" }}>Genererer forhåndsvisning...</Text>
+            </View>
+          )}
+          <View style={{ flex: 1, borderRadius: 8, overflow: "hidden", backgroundColor: "#ffffff", shadowColor: "#000", shadowOpacity: 0.1, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 4 }}>
             <WebView
               source={{ html }}
               originWhitelist={["*"]}
