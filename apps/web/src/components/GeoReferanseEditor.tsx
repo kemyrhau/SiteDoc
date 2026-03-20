@@ -705,8 +705,10 @@ export function GeoReferanseEditor({
               <img
                 src={`/api${tegning.fileUrl}`}
                 alt={tegning.name}
-                className="w-full"
+                className="block w-full"
                 draggable={false}
+                onLoad={() => console.log("[GeoRef] Bilde lastet:", tegning.fileUrl, tegning.fileType)}
+                onError={(e) => console.error("[GeoRef] Bilde feilet:", tegning.fileUrl, e)}
               />
             ) : (
               <div className="relative">
