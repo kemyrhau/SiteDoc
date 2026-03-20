@@ -80,10 +80,10 @@ async function konverterMedOda(dwgFilSti: string): Promise<string | null> {
     const dwgNavn = basename(dwgFilSti);
     await copyFile(dwgFilSti, join(tmpInDir, dwgNavn));
 
-    // Kjør ODA med xvfb (headless)
+    // Kjør ODA med xvfb (headless) — --auto-servernum unngår display-konflikter
     console.log("[DWG] Konverterer med ODA File Converter...");
     await execFileAsync(XVFB_RUN, [
-      ODA_CONVERTER, tmpInDir, tmpOutDir, "ACAD2018", "DXF", "0", "1",
+      "--auto-servernum", ODA_CONVERTER, tmpInDir, tmpOutDir, "ACAD2018", "DXF", "0", "1",
     ], {
       timeout: 300000, // 5 min for store filer
       maxBuffer: 10 * 1024 * 1024,
@@ -632,6 +632,7 @@ export async function konverterDwg(
         await execFileAsync(DWG2DXF, ["-y", "--as", "r2000", dwgFilSti], {
           timeout: 300000,
           cwd: dwgDir,
+          maxBuffer: 50 * 1024 * 1024, // Store DWG-filer gir mye stderr-warnings
         });
         dxfInnhold = await readFile(libreDxfSti, "utf-8");
         dxfKilde = "libredwg";
