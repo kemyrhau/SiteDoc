@@ -127,6 +127,33 @@ export default function TegningerSide() {
     setNyMarkør(null);
   }, [aktivTegning?.id]);
 
+  // Hent SVG-innhold for inline rendering (vector-effect fungerer kun med live SVG)
+  const svgUrl = tegning?.fileUrl ? `/api${tegning.fileUrl}` : null;
+  const erSvgFil = (tegning?.fileType ?? "") === "svg";
+  const [svgInnhold, setSvgInnhold] = useState<string | null>(null);
+  useEffect(() => {
+    if (!svgUrl || !erSvgFil) {
+      setSvgInnhold(null);
+      return;
+    }
+    fetch(svgUrl)
+      .then((res) => res.text())
+      .then((tekst) => {
+        // Fjern faste width/height — la viewBox styre skalering
+        const tilpasset = tekst.replace(
+          /<svg([^>]*)>/,
+          (_match, attrs: string) => {
+            const uten = attrs
+              .replace(/\s*width="[^"]*"/g, "")
+              .replace(/\s*height="[^"]*"/g, "");
+            return `<svg${uten} width="100%" height="auto" style="display:block">`;
+          },
+        );
+        setSvgInnhold(tilpasset);
+      })
+      .catch(() => setSvgInnhold(null));
+  }, [svgUrl, erSvgFil]);
+
   // Musehjul-zoom
   useEffect(() => {
     const el = containerRef.current;
@@ -442,13 +469,21 @@ export default function TegningerSide() {
               style={{ width: `${zoom * 100}%`, minWidth: "100%" }}
               onClick={handleBildeKlikk}
             >
-              <img
-                src={fileUrl}
-                alt={tegning.name}
-                className="block w-full"
-                crossOrigin="anonymous"
-                draggable={false}
-              />
+              {/* SVG: inline rendering for vector-effect:non-scaling-stroke */}
+              {erSvgFil && svgInnhold ? (
+                <div
+                  className="block w-full"
+                  dangerouslySetInnerHTML={{ __html: svgInnhold }}
+                />
+              ) : (
+                <img
+                  src={fileUrl}
+                  alt={tegning.name}
+                  className="block w-full"
+                  crossOrigin="anonymous"
+                  draggable={false}
+                />
+              )}
 
               {/* Eksisterende markører */}
               {markører.map((m) => (
