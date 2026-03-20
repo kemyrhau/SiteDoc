@@ -13,6 +13,7 @@ import {
   ChevronRight,
   ChevronDown,
   Trash2,
+  Scissors,
 } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
@@ -72,11 +73,15 @@ export default function ModellerSide() {
   const [valgtObjekt, setValgtObjekt] = useState<ValgtObjekt | null>(null);
   const [spatialTre, setSpatialTre] = useState<TreNode | null>(null);
   const [lasterOpp, setLasterOpp] = useState(false);
+  const [klippModus, setKlippModus] = useState(false);
 
-  // Referanse til viewer-funksjoner for objekttre-interaksjon
+  // Referanse til viewer-funksjoner for objekttre-interaksjon og klipping
   const viewerRef = useRef<{
     velgObjekt: (localId: number) => void;
     zoomTilObjekt: (localId: number) => void;
+    opprettKlippeplan: () => void;
+    fjernAlleKlippeplan: () => void;
+    settKlipperSynlig: (synlig: boolean) => void;
   } | null>(null);
 
   const opprettMutation = trpc.tegning.opprett.useMutation({
@@ -235,6 +240,8 @@ export default function ModellerSide() {
             onObjektValgt={handleObjektValgt}
             onSpatialTre={handleSpatialTre}
             viewerRef={viewerRef}
+            klippModus={klippModus}
+            onKlippModusEndret={setKlippModus}
             onSlett={() => slettMutation.mutate({ id: valgt.id })}
           />
         )}
@@ -423,7 +430,12 @@ interface IfcViewerProps {
   viewerRef: React.MutableRefObject<{
     velgObjekt: (localId: number) => void;
     zoomTilObjekt: (localId: number) => void;
+    opprettKlippeplan: () => void;
+    fjernAlleKlippeplan: () => void;
+    settKlipperSynlig: (synlig: boolean) => void;
   } | null>;
+  klippModus: boolean;
+  onKlippModusEndret: (aktiv: boolean) => void;
   onSlett: () => void;
 }
 
@@ -455,7 +467,7 @@ function trekkUtEgenskaper(
   return grupper;
 }
 
-function IfcViewer({ tegning, onObjektValgt, onSpatialTre, viewerRef, onSlett }: IfcViewerProps) {
+function IfcViewer({ tegning, onObjektValgt, onSpatialTre, viewerRef, klippModus, onKlippModusEndret, onSlett }: IfcViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [laster, setLaster] = useState(true);
   const [feil, setFeil] = useState<string | null>(null);
@@ -504,6 +516,11 @@ function IfcViewer({ tegning, onObjektValgt, onSpatialTre, viewerRef, onSlett }:
         // Grid
         const grids = components.get(OBC.Grids);
         grids.create(world);
+
+        // Clipper (klippeplan / snitt)
+        const clipper = components.get(OBC.Clipper);
+        clipper.setup();
+        clipper.enabled = false; // Aktiveres av bruker
 
         // Sett opp IFC-laster
         const ifcLoader = components.get(OBC.IfcLoader);
@@ -698,6 +715,18 @@ function IfcViewer({ tegning, onObjektValgt, onSpatialTre, viewerRef, onSlett }:
               // Feil ved zoom — ignorer
             }
           },
+          opprettKlippeplan: async () => {
+            clipper.enabled = true;
+            await clipper.create(world);
+          },
+          fjernAlleKlippeplan: () => {
+            clipper.deleteAll();
+            clipper.enabled = false;
+          },
+          settKlipperSynlig: (synlig: boolean) => {
+            clipper.enabled = synlig;
+            clipper.visible = synlig;
+          },
         };
 
         setLaster(false);
@@ -728,6 +757,11 @@ function IfcViewer({ tegning, onObjektValgt, onSpatialTre, viewerRef, onSlett }:
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tegning.id, tegning.fileUrl, tegning.name]);
 
+  // Synkroniser klipp-modus med viewer
+  useEffect(() => {
+    viewerRef.current?.settKlipperSynlig(klippModus);
+  }, [klippModus, viewerRef]);
+
   return (
     <div className="flex h-full flex-col">
       {/* Verktøylinje */}
@@ -737,6 +771,40 @@ function IfcViewer({ tegning, onObjektValgt, onSpatialTre, viewerRef, onSlett }:
         <span className="text-xs text-gray-500">IFC</span>
 
         <div className="flex-1" />
+
+        {/* Klippeplan-knapper */}
+        <div className="flex items-center gap-1 border-r border-gray-200 pr-3">
+          <button
+            onClick={() => {
+              const nyModus = !klippModus;
+              onKlippModusEndret(nyModus);
+              if (nyModus) {
+                viewerRef.current?.settKlipperSynlig(true);
+              }
+            }}
+            className={`flex items-center gap-1 rounded px-2 py-1 text-xs ${
+              klippModus
+                ? "bg-sitedoc-primary text-white"
+                : "text-gray-600 hover:bg-gray-100"
+            }`}
+            title="Snitt-modus — dobbeltklikk på en flate for å plassere klippeplan, dra for å flytte"
+          >
+            <Scissors className="h-3.5 w-3.5" />
+            Snitt
+          </button>
+          {klippModus && (
+            <button
+              onClick={() => {
+                viewerRef.current?.fjernAlleKlippeplan();
+                onKlippModusEndret(false);
+              }}
+              className="rounded px-2 py-1 text-xs text-gray-500 hover:bg-gray-100"
+              title="Fjern alle klippeplan"
+            >
+              Fjern alle
+            </button>
+          )}
+        </div>
 
         <button
           onClick={onSlett}
