@@ -40,6 +40,28 @@ interface DwgKonverteringsResultat {
   geoReferanse: GeoReferanse | null;
   /** Feilmelding hvis noe gikk galt */
   feil: string | null;
+  /** Layout-tegninger (tom array = ingen ekstra layouts) */
+  layouts: DwgLayoutResultat[];
+}
+
+interface DwgLayoutResultat {
+  /** Layout-navn fra DWG-filen */
+  navn: string;
+  /** Tab-rekkefølge (0 = Model) */
+  tabOrder: number;
+  /** URL til konvertert SVG for denne layouten */
+  visningUrl: string;
+  /** Filtype for visningsfilen */
+  visningFilType: string;
+}
+
+/** Intern type for layout-info parsed fra DXF */
+interface DxfLayoutInfo {
+  navn: string;
+  tabOrder: number;
+  blokkNavn: string;
+  /** Hovedviewportens model space bounds */
+  modelBounds: { minX: number; maxX: number; minY: number; maxY: number } | null;
 }
 
 /** Sjekk om ODA File Converter er installert */
@@ -180,6 +202,143 @@ function beregnExtents(dxfInnhold: string): {
   }
 }
 
+/**
+ * Parse layout-informasjon fra rå DXF-tekst.
+ * Ekstraherer layout-navn, tab-rekkefølge, og viewport-bounds for model space.
+ * dxf-parser støtter ikke LAYOUT- eller VIEWPORT-entiteter, så vi parser rå tekst.
+ */
+function parseLayouts(dxfInnhold: string): DxfLayoutInfo[] {
+  const linjer = dxfInnhold.split("\n");
+
+  // 1. Parse BLOCK_RECORD tabell: handle → blokknavn
+  const blockRecords: Record<string, string> = {};
+  let i = 0;
+  while (i < linjer.length - 1) {
+    const code = linjer[i]!.trim();
+    const value = linjer[i + 1]!.trim();
+    i += 2;
+    if (code !== "0" || value !== "BLOCK_RECORD") continue;
+
+    let brHandle = "";
+    let brName = "";
+    while (i < linjer.length - 1) {
+      const gc = parseInt(linjer[i]!.trim(), 10);
+      const gv = linjer[i + 1]!.trim();
+      i += 2;
+      if (gc === 0) { i -= 2; break; }
+      if (gc === 5 && !brHandle) brHandle = gv;
+      if (gc === 2 && !brName) brName = gv;
+    }
+    if (brHandle && brName) blockRecords[brHandle] = brName;
+  }
+
+  // 2. Parse LAYOUT-objekter: layout-navn → block record handle
+  const layouts: DxfLayoutInfo[] = [];
+  i = 0;
+  while (i < linjer.length - 1) {
+    const code = linjer[i]!.trim();
+    const value = linjer[i + 1]!.trim();
+    i += 2;
+    if (code !== "0" || value !== "LAYOUT") continue;
+
+    let inLayout = false;
+    let layoutName = "";
+    let tabOrder = -1;
+    let blockRecordHandle = "";
+
+    while (i < linjer.length - 1) {
+      const gc = parseInt(linjer[i]!.trim(), 10);
+      const gv = linjer[i + 1]!.trim();
+      i += 2;
+      if (gc === 0) { i -= 2; break; }
+
+      if (gc === 100 && gv === "AcDbLayout") inLayout = true;
+      if (gc === 100 && gv !== "AcDbLayout") inLayout = false;
+
+      if (inLayout) {
+        if (gc === 1 && !layoutName) layoutName = gv;
+        if (gc === 71) tabOrder = parseInt(gv, 10);
+        if (gc === 330) blockRecordHandle = gv;
+      }
+    }
+
+    const blokkNavn = blockRecords[blockRecordHandle] ?? "";
+    if (layoutName && layoutName !== "Model") {
+      layouts.push({ navn: layoutName, tabOrder, blokkNavn, modelBounds: null });
+    }
+  }
+
+  if (layouts.length === 0) return [];
+
+  // 3. Parse VIEWPORT-entiteter: finn model space bounds per paper space blokk
+  const viewportsPerBlokk: Record<string, Array<{
+    viewCenterX: number; viewCenterY: number;
+    viewWidth: number; viewHeight: number;
+    area: number;
+  }>> = {};
+
+  i = 0;
+  while (i < linjer.length - 1) {
+    const code = linjer[i]!.trim();
+    const value = linjer[i + 1]!.trim();
+    i += 2;
+    if (code !== "0" || value !== "VIEWPORT") continue;
+
+    let ownerHandle = "";
+    let inViewport = false;
+    let paperWidth = 0, paperHeight = 0;
+    let viewCenterX = 0, viewCenterY = 0;
+    let viewHeight = 0;
+
+    while (i < linjer.length - 1) {
+      const gc = parseInt(linjer[i]!.trim(), 10);
+      const gv = linjer[i + 1]!.trim();
+      i += 2;
+      if (gc === 0) { i -= 2; break; }
+
+      if (gc === 330) ownerHandle = gv;
+      if (gc === 100 && gv === "AcDbViewport") inViewport = true;
+
+      if (inViewport) {
+        if (gc === 40) paperWidth = parseFloat(gv);
+        if (gc === 41) paperHeight = parseFloat(gv);
+        if (gc === 12) viewCenterX = parseFloat(gv);
+        if (gc === 22) viewCenterY = parseFloat(gv);
+        if (gc === 45) viewHeight = parseFloat(gv);
+      }
+    }
+
+    if (viewHeight > 0 && paperWidth > 0 && paperHeight > 0) {
+      const ownerBlock = blockRecords[ownerHandle] ?? "";
+      if (!ownerBlock) continue;
+      const aspect = paperWidth / paperHeight;
+      const viewWidth = viewHeight * aspect;
+      if (!viewportsPerBlokk[ownerBlock]) viewportsPerBlokk[ownerBlock] = [];
+      viewportsPerBlokk[ownerBlock].push({
+        viewCenterX, viewCenterY, viewWidth, viewHeight,
+        area: viewWidth * viewHeight,
+      });
+    }
+  }
+
+  // 4. Koble layouts til viewports — bruk den største viewporten (hovedvisningen)
+  for (const layout of layouts) {
+    const vps = viewportsPerBlokk[layout.blokkNavn];
+    if (!vps || vps.length === 0) continue;
+    const hovedVp = vps.reduce((a, b) => a.area > b.area ? a : b);
+    layout.modelBounds = {
+      minX: hovedVp.viewCenterX - hovedVp.viewWidth / 2,
+      maxX: hovedVp.viewCenterX + hovedVp.viewWidth / 2,
+      minY: hovedVp.viewCenterY - hovedVp.viewHeight / 2,
+      maxY: hovedVp.viewCenterY + hovedVp.viewHeight / 2,
+    };
+  }
+
+  layouts.sort((a, b) => a.tabOrder - b.tabOrder);
+  console.log(`[DWG] Fant ${layouts.length} layouts: ${layouts.map(l => `"${l.navn}" (${l.modelBounds ? "med viewport" : "uten viewport"})`).join(", ")}`);
+  return layouts;
+}
+
 /** Beregn farge fra DXF entity */
 function dxfFarge(e: { color?: number; colorIndex?: number }): string {
   const rawColor = e.color ?? e.colorIndex ?? 7;
@@ -276,7 +435,7 @@ function deBoor(
 }
 
 /** Generer SVG fra parsed DXF-entiteter (normaliserte koordinater) */
-function dxfTilSvg(dxfInnhold: string): string | null {
+function dxfTilSvg(dxfInnhold: string, klippBounds?: { minX: number; maxX: number; minY: number; maxY: number }): string | null {
   try {
     const parser = new DxfParser();
     const dxf = parser.parseSync(dxfInnhold);
@@ -395,8 +554,15 @@ function dxfTilSvg(dxfInnhold: string): string | null {
     }
     console.log(`[DWG] Entitetstyper: ${JSON.stringify(typeTelling)}`);
 
-    // Pass 1: Finn extents — bruk DXF header ($EXTMIN/$EXTMAX) hvis tilgjengelig
+    // Pass 1: Finn extents — bruk klippBounds hvis oppgitt, ellers DXF header
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    if (klippBounds) {
+      minX = klippBounds.minX;
+      maxX = klippBounds.maxX;
+      minY = klippBounds.minY;
+      maxY = klippBounds.maxY;
+      console.log(`[DWG] Bruker klippbounds: (${minX.toFixed(0)}, ${minY.toFixed(0)}) → (${maxX.toFixed(0)}, ${maxY.toFixed(0)})`);
+    } else {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const header = (dxf as any).header;
     const extMin = header?.$EXTMIN;
@@ -445,6 +611,7 @@ function dxfTilSvg(dxfInnhold: string): string | null {
       maxY = alleY[p99]!;
       console.log(`[DWG] Beregnet extents fra entiteter (persentil): (${minX}, ${minY}) → (${maxX}, ${maxY})`);
     }
+    } // lukk if (!klippBounds)
 
     if (!isFinite(minX) || !isFinite(maxX)) return null;
 
@@ -672,6 +839,7 @@ export async function konverterDwg(
       koordinatSystem: null,
       geoReferanse: null,
       feil: "Ingen DWG-konverterer installert. Installer ODA File Converter eller libredwg.",
+      layouts: [],
     };
   }
 
@@ -762,11 +930,39 @@ export async function konverterDwg(
       }
     }
 
-    // 4. Detekter koordinatsystem
+    // 4. Parse layouts og generer SVG per layout
+    const layoutResultater: DwgLayoutResultat[] = [];
+    if (dxfInnhold && harSvg) {
+      const detekterteLayouts = parseLayouts(dxfInnhold);
+      if (detekterteLayouts.length > 0) {
+        for (const layout of detekterteLayouts) {
+          if (!layout.modelBounds) {
+            console.log(`[DWG] Layout "${layout.navn}" har ingen viewport — hopper over`);
+            continue;
+          }
+          console.log(`[DWG] Genererer SVG for layout "${layout.navn}"...`);
+          const layoutSvg = dxfTilSvg(dxfInnhold, layout.modelBounds);
+          if (layoutSvg) {
+            const layoutId = randomUUID();
+            const layoutFilnavn = `${layoutId}.svg`;
+            await writeFile(join(uploadDir, layoutFilnavn), layoutSvg, "utf-8");
+            layoutResultater.push({
+              navn: layout.navn,
+              tabOrder: layout.tabOrder,
+              visningUrl: `/uploads/${layoutFilnavn}`,
+              visningFilType: "svg",
+            });
+            console.log(`[DWG] Layout "${layout.navn}" SVG generert`);
+          }
+        }
+      }
+    }
+
+    // 5. Detekter koordinatsystem
     const system = detekterKoordinatSystem(filnavn, extents ?? undefined);
     console.log("[DWG] Detektert koordinatsystem:", system);
 
-    // 5. Generer georeferanse
+    // 6. Generer georeferanse
     let geoReferanse: GeoReferanse | null = null;
     if (system && system !== "wgs84" && extents) {
       const topVenstre = konverterTilWgs84(extents.maxY, extents.minX, system);
@@ -787,7 +983,7 @@ export async function konverterDwg(
       }
     }
 
-    // 6. Kopier visningsfil til uploads
+    // 7. Kopier visningsfil til uploads
     let visningUrl = "";
     let visningFilType = "";
 
@@ -799,7 +995,7 @@ export async function konverterDwg(
       visningFilType = "svg";
     }
 
-    // 7. Rydd opp midlertidige filer
+    // 8. Rydd opp midlertidige filer
     try { await unlink(libreDxfSti); } catch { /* OK */ }
     if (odaDxfSti) {
       try { await rm(dirname(odaDxfSti), { recursive: true, force: true }); } catch { /* OK */ }
@@ -812,6 +1008,7 @@ export async function konverterDwg(
       koordinatSystem: system,
       geoReferanse,
       feil: harSvg ? null : "Kunne ikke generere SVG fra DWG-filen",
+      layouts: layoutResultater,
     };
   } catch (err) {
     console.error("[DWG] Konvertering feilet:", err);
@@ -827,6 +1024,7 @@ export async function konverterDwg(
       koordinatSystem: null,
       geoReferanse: null,
       feil: err instanceof Error ? err.message : "Ukjent konverteringsfeil",
+      layouts: [],
     };
   }
 }

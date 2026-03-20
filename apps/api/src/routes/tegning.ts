@@ -144,6 +144,31 @@ export const tegningRouter = router({
               data: oppdatering,
             });
             console.log(`[DWG] Konvertering fullført for tegning ${tegning.id}`);
+
+            // Opprett ekstra tegninger for hvert layout i DWG-filen
+            if (resultat.layouts.length > 0) {
+              console.log(`[DWG] Oppretter ${resultat.layouts.length} layout-tegninger...`);
+              for (const layout of resultat.layouts) {
+                try {
+                  await ctx.prisma.drawing.create({
+                    data: {
+                      projectId: input.projectId,
+                      buildingId: input.buildingId,
+                      name: layout.navn,
+                      fileUrl: layout.visningUrl,
+                      fileType: layout.visningFilType,
+                      originalFileUrl: input.fileUrl,
+                      conversionStatus: "done",
+                      coordinateSystem: resultat.koordinatSystem,
+                      description: `Layout fra ${input.name} (fane ${layout.tabOrder})`,
+                    },
+                  });
+                  console.log(`[DWG] Layout-tegning opprettet: "${layout.navn}"`);
+                } catch (layoutErr) {
+                  console.error(`[DWG] Feil ved opprettelse av layout "${layout.navn}":`, layoutErr);
+                }
+              }
+            }
           })
           .catch(async (err) => {
             console.error(`[DWG] Konvertering feilet for tegning ${tegning.id}:`, err);
@@ -350,6 +375,31 @@ export const tegningRouter = router({
           }
           await ctx.prisma.drawing.update({ where: { id: input.id }, data: oppdatering });
           console.log(`[DWG] Re-konvertering fullført for tegning ${input.id}`);
+
+          // Opprett layout-tegninger ved re-konvertering
+          if (resultat.layouts.length > 0) {
+            console.log(`[DWG] Oppretter ${resultat.layouts.length} layout-tegninger...`);
+            for (const layout of resultat.layouts) {
+              try {
+                await ctx.prisma.drawing.create({
+                  data: {
+                    projectId: tegning.projectId,
+                    buildingId: tegning.buildingId,
+                    name: layout.navn,
+                    fileUrl: layout.visningUrl,
+                    fileType: layout.visningFilType,
+                    originalFileUrl: tegning.originalFileUrl,
+                    conversionStatus: "done",
+                    coordinateSystem: resultat.koordinatSystem,
+                    description: `Layout fra ${tegning.name} (fane ${layout.tabOrder})`,
+                  },
+                });
+                console.log(`[DWG] Layout-tegning opprettet: "${layout.navn}"`);
+              } catch (layoutErr) {
+                console.error(`[DWG] Feil ved opprettelse av layout "${layout.navn}":`, layoutErr);
+              }
+            }
+          }
         })
         .catch(async (err) => {
           console.error(`[DWG] Re-konvertering feilet for ${input.id}:`, err);
