@@ -118,9 +118,36 @@ const KLASSE_NAVN: Record<number, string> = {
 /*  Hovedside                                                          */
 /* ------------------------------------------------------------------ */
 
+/** Hjelpefunksjon for å parse LandXML og opprette OverflateData */
+async function parseLandXMLFil(fil: File): Promise<OverflateData> {
+  const tekst = await fil.text();
+  const { parseLandXML } = await import("@/lib/landxml-parser");
+  const tin = await parseLandXML(tekst);
+
+  return {
+    id: crypto.randomUUID(),
+    navn: tin.navn ?? fil.name.replace(/\.[^.]+$/, ""),
+    kilde: "landxml",
+    vertices: tin.vertices,
+    triangles: tin.triangles,
+    bbox: tin.bbox,
+  };
+}
+
 export default function TreDVisning() {
   const { prosjektId } = useParams<{ prosjektId: string }>();
   const [aktivFane, setAktivFane] = useState<Fane>("3d-modell");
+
+  // Delt overflate-state mellom fane 2 og 3
+  const [overflater, setOverflater] = useState<OverflateData[]>([]);
+
+  const leggTilOverflate = useCallback((o: OverflateData) => {
+    setOverflater((prev) => [...prev, o]);
+  }, []);
+
+  const fjernOverflate = useCallback((id: string) => {
+    setOverflater((prev) => prev.filter((o) => o.id !== id));
+  }, []);
 
   const faner: { id: Fane; label: string; ikon: JSX.Element }[] = [
     { id: "3d-modell", label: "3D-modell", ikon: <Box className="h-4 w-4" /> },
@@ -151,8 +178,21 @@ export default function TreDVisning() {
       {/* Fane-innhold */}
       <div className="flex flex-1 overflow-hidden">
         {aktivFane === "3d-modell" && <Fane3DModell prosjektId={prosjektId!} />}
-        {aktivFane === "overflater" && <FaneOverflater prosjektId={prosjektId!} />}
-        {aktivFane === "kutt-fyll" && <FaneKuttFyll prosjektId={prosjektId!} />}
+        {aktivFane === "overflater" && (
+          <FaneOverflater
+            prosjektId={prosjektId!}
+            overflater={overflater}
+            onLeggTil={leggTilOverflate}
+            onFjern={fjernOverflate}
+          />
+        )}
+        {aktivFane === "kutt-fyll" && (
+          <FaneKuttFyll
+            prosjektId={prosjektId!}
+            overflater={overflater}
+            onLeggTil={leggTilOverflate}
+          />
+        )}
       </div>
     </div>
   );
@@ -383,8 +423,17 @@ function Fane3DModell({ prosjektId }: { prosjektId: string }) {
 /*  FANE 2: Overflatemodeller                                          */
 /* ================================================================== */
 
-function FaneOverflater({ prosjektId }: { prosjektId: string }) {
-  const [overflater, setOverflater] = useState<OverflateData[]>([]);
+function FaneOverflater({
+  prosjektId,
+  overflater,
+  onLeggTil,
+  onFjern,
+}: {
+  prosjektId: string;
+  overflater: OverflateData[];
+  onLeggTil: (o: OverflateData) => void;
+  onFjern: (id: string) => void;
+}) {
   const [valgtOverflateId, setValgtOverflateId] = useState<string | null>(null);
   const [lasterInn, setLasterInn] = useState(false);
   const [feil, setFeil] = useState<string | null>(null);
@@ -396,20 +445,8 @@ function FaneOverflater({ prosjektId }: { prosjektId: string }) {
     setLasterInn(true);
     setFeil(null);
     try {
-      const tekst = await fil.text();
-      const { parseLandXML } = await import("@/lib/landxml-parser");
-      const tin = await parseLandXML(tekst);
-
-      const nyOverflate: OverflateData = {
-        id: crypto.randomUUID(),
-        navn: tin.navn ?? fil.name.replace(/\.[^.]+$/, ""),
-        kilde: "landxml",
-        vertices: tin.vertices,
-        triangles: tin.triangles,
-        bbox: tin.bbox,
-      };
-
-      setOverflater((prev) => [...prev, nyOverflate]);
+      const nyOverflate = await parseLandXMLFil(fil);
+      onLeggTil(nyOverflate);
       setValgtOverflateId(nyOverflate.id);
     } catch (err) {
       setFeil(err instanceof Error ? err.message : "Kunne ikke parse LandXML");
@@ -420,7 +457,7 @@ function FaneOverflater({ prosjektId }: { prosjektId: string }) {
   }
 
   function fjernOverflate(id: string) {
-    setOverflater((prev) => prev.filter((o) => o.id !== id));
+    onFjern(id);
     if (valgtOverflateId === id) setValgtOverflateId(null);
   }
 
@@ -523,8 +560,15 @@ interface KuttFyllResultatType {
   maxDiff: number;
 }
 
-function FaneKuttFyll({ prosjektId }: { prosjektId: string }) {
-  const [overflater, setOverflater] = useState<OverflateData[]>([]);
+function FaneKuttFyll({
+  prosjektId,
+  overflater,
+  onLeggTil,
+}: {
+  prosjektId: string;
+  overflater: OverflateData[];
+  onLeggTil: (o: OverflateData) => void;
+}) {
   const [toppId, setToppId] = useState<string | null>(null);
   const [bunnId, setBunnId] = useState<string | null>(null);
   const [celleStr, setCelleStr] = useState(1.0);
@@ -533,6 +577,16 @@ function FaneKuttFyll({ prosjektId }: { prosjektId: string }) {
   const [lasterInn, setLasterInn] = useState(false);
   const [feil, setFeil] = useState<string | null>(null);
 
+  // Auto-sett topp/bunn når overflater legges til
+  useEffect(() => {
+    if (overflater.length >= 1 && !bunnId) {
+      setBunnId(overflater[0]!.id);
+    }
+    if (overflater.length >= 2 && !toppId) {
+      setToppId(overflater[1]!.id);
+    }
+  }, [overflater, bunnId, toppId]);
+
   async function handleLandXMLValgt(e: React.ChangeEvent<HTMLInputElement>) {
     const fil = e.target.files?.[0];
     if (!fil) return;
@@ -540,29 +594,8 @@ function FaneKuttFyll({ prosjektId }: { prosjektId: string }) {
     setLasterInn(true);
     setFeil(null);
     try {
-      const tekst = await fil.text();
-      const { parseLandXML } = await import("@/lib/landxml-parser");
-      const tin = await parseLandXML(tekst);
-
-      const nyOverflate: OverflateData = {
-        id: crypto.randomUUID(),
-        navn: tin.navn ?? fil.name.replace(/\.[^.]+$/, ""),
-        kilde: "landxml",
-        vertices: tin.vertices,
-        triangles: tin.triangles,
-        bbox: tin.bbox,
-      };
-
-      setOverflater((prev) => {
-        const ny = [...prev, nyOverflate];
-        // Sett automatisk: eldste = bunn, nyeste = topp
-        if (ny.length === 1) {
-          setBunnId(nyOverflate.id);
-        } else if (ny.length === 2 && !toppId) {
-          setToppId(nyOverflate.id);
-        }
-        return ny;
-      });
+      const nyOverflate = await parseLandXMLFil(fil);
+      onLeggTil(nyOverflate);
     } catch (err) {
       setFeil(err instanceof Error ? err.message : "Kunne ikke parse LandXML");
     } finally {
