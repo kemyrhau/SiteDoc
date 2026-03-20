@@ -139,9 +139,13 @@ export async function konverterDwg(
   const visningId = randomUUID();
 
   try {
+    // Rydd opp eventuelle gamle konverteringsfiler
+    try { await unlink(dxfSti); } catch { /* OK */ }
+    try { await unlink(svgSti); } catch { /* OK */ }
+
     // 1. DWG → DXF (for koordinatekstraksjon)
     console.log("[DWG] Konverterer til DXF:", dwgFilSti);
-    await execFileAsync(DWG2DXF, [dwgFilSti], {
+    await execFileAsync(DWG2DXF, ["-y", dwgFilSti], {
       timeout: 120000,
       cwd: dwgDir,
     });
