@@ -161,18 +161,33 @@ export default function TegningerSide() {
       .catch(() => setSvgInnhold(null));
   }, [svgUrl, erSvgFil]);
 
-  // Musehjul-zoom
+  // Musehjul-zoom sentrert på musepekeren
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
 
     function handleWheel(e: WheelEvent) {
-      if (!e.ctrlKey && !e.metaKey) return;
       e.preventDefault();
+
+      const rect = el!.getBoundingClientRect();
+      // Museposisjon relativt til containeren (0-1)
+      const mx = (e.clientX - rect.left + el!.scrollLeft) / el!.scrollWidth;
+      const my = (e.clientY - rect.top + el!.scrollTop) / el!.scrollHeight;
+
       setZoom((prev) => {
-        // Multiplikativ zoom for jevn opplevelse ved høye nivåer
         const faktor = e.deltaY > 0 ? 0.8 : 1.25;
-        return Math.min(MAKS_ZOOM, Math.max(MIN_ZOOM, prev * faktor));
+        const neste = Math.min(MAKS_ZOOM, Math.max(MIN_ZOOM, prev * faktor));
+
+        // Juster scroll for å sentrere zoom på musepekeren
+        requestAnimationFrame(() => {
+          if (!el) return;
+          const nyBredde = el.scrollWidth * (neste / prev);
+          const nyHoyde = el.scrollHeight * (neste / prev);
+          el.scrollLeft = mx * nyBredde - (e.clientX - rect.left);
+          el.scrollTop = my * nyHoyde - (e.clientY - rect.top);
+        });
+
+        return neste;
       });
     }
 
