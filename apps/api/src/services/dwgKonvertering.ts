@@ -554,7 +554,7 @@ function dxfTilSvg(dxfInnhold: string, klippBounds?: { minX: number; maxX: numbe
     }
     console.log(`[DWG] Entitetstyper: ${JSON.stringify(typeTelling)}`);
 
-    // Pass 1: Finn extents — bruk klippBounds hvis oppgitt, ellers DXF header
+    // Pass 1: Finn extents — alltid persentil-basert for tight viewBox (outlier-fjerning)
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
     if (klippBounds) {
       minX = klippBounds.minX;
@@ -563,18 +563,8 @@ function dxfTilSvg(dxfInnhold: string, klippBounds?: { minX: number; maxX: numbe
       maxY = klippBounds.maxY;
       console.log(`[DWG] Bruker klippbounds: (${minX.toFixed(0)}, ${minY.toFixed(0)}) → (${maxX.toFixed(0)}, ${maxY.toFixed(0)})`);
     } else {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const header = (dxf as any).header;
-    const extMin = header?.$EXTMIN;
-    const extMax = header?.$EXTMAX;
-    if (extMin && extMax && isFinite(extMin.x) && isFinite(extMax.x)) {
-      minX = extMin.x;
-      maxX = extMax.x;
-      minY = extMin.y;
-      maxY = extMax.y;
-      console.log(`[DWG] Bruker DXF header extents: (${minX}, ${minY}) → (${maxX}, ${maxY})`);
-    } else {
-      // Fallback: beregn fra entiteter med IQR-basert outlier-filtrering
+      // Beregn fra entiteter med persentil-basert outlier-filtrering
+      // (DXF header $EXTMIN/$EXTMAX inkluderer ofte fjerne elementer)
       const alleX: number[] = [];
       const alleY: number[] = [];
 
@@ -600,18 +590,17 @@ function dxfTilSvg(dxfInnhold: string, klippBounds?: { minX: number; maxX: numbe
 
       if (alleX.length === 0) return null;
 
-      // Bruk 1. og 99. persentil for å fjerne outliers
+      // Bruk 2. og 98. persentil for å fjerne outliers (fjerntliggende elementer)
       alleX.sort((a, b) => a - b);
       alleY.sort((a, b) => a - b);
-      const p1 = Math.floor(alleX.length * 0.01);
-      const p99 = Math.ceil(alleX.length * 0.99) - 1;
-      minX = alleX[p1]!;
-      maxX = alleX[p99]!;
-      minY = alleY[p1]!;
-      maxY = alleY[p99]!;
-      console.log(`[DWG] Beregnet extents fra entiteter (persentil): (${minX}, ${minY}) → (${maxX}, ${maxY})`);
+      const p2 = Math.floor(alleX.length * 0.02);
+      const p98 = Math.ceil(alleX.length * 0.98) - 1;
+      minX = alleX[p2]!;
+      maxX = alleX[p98]!;
+      minY = alleY[Math.floor(alleY.length * 0.02)]!;
+      maxY = alleY[Math.ceil(alleY.length * 0.98) - 1]!;
+      console.log(`[DWG] Beregnet extents fra entiteter (2/98-persentil): (${minX}, ${minY}) → (${maxX}, ${maxY})`);
     }
-    } // lukk if (!klippBounds)
 
     if (!isFinite(minX) || !isFinite(maxX)) return null;
 
