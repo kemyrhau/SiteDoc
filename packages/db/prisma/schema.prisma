@@ -296,6 +296,7 @@ model Drawing {
   conversionError  String? @map("conversion_error")   // Feilmelding ved konvertering
   issuedAt      DateTime? @map("issued_at")           // Utstedelsesdato
   geoReference  Json?     @map("geo_reference")       // Georeferanse med 2 referansepunkter
+  ifcMetadata   Json?     @map("ifc_metadata")        // Uttrukket IFC-metadata (prosjekt, organisasjon, etasjer, GPS)
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
 

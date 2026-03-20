@@ -10,6 +10,7 @@ import {
 } from "@sitedoc/shared";
 import { verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
 import { konverterDwg } from "../services/dwgKonvertering";
+import { trekUtIfcMetadata } from "../services/ifcMetadata";
 
 const UPLOADS_DIR = join(process.cwd(), "uploads");
 
@@ -105,6 +106,7 @@ export const tegningRouter = router({
       await verifiserProsjektmedlem(ctx.userId, input.projectId);
 
       const erDwg = input.fileType.toLowerCase() === "dwg";
+      const erIfc = input.fileType.toLowerCase() === "ifc";
 
       const tegning = await ctx.prisma.drawing.create({
         data: {
@@ -179,6 +181,33 @@ export const tegningRouter = router({
                 conversionError: err instanceof Error ? err.message : "Ukjent feil",
               },
             });
+          });
+      }
+
+      // Parse IFC-metadata asynkront
+      if (erIfc) {
+        const ifcFilSti = join(UPLOADS_DIR, input.fileUrl.replace("/uploads/", ""));
+        trekUtIfcMetadata(ifcFilSti, input.name)
+          .then(async (meta) => {
+            const oppdatering: Record<string, unknown> = {
+              ifcMetadata: meta,
+            };
+            // Sett fagdisiplin hvis ikke allerede angitt
+            if (meta.fagdisiplin && !input.discipline) {
+              oppdatering.discipline = meta.fagdisiplin;
+            }
+            // Sett originator fra organisasjon
+            if (meta.organisasjon && !input.originator) {
+              oppdatering.originator = meta.organisasjon;
+            }
+            console.log(`[IFC] Metadata uttrukket for tegning ${tegning.id}: ${meta.prosjektnavn ?? "ukjent prosjekt"}`);
+            await ctx.prisma.drawing.update({
+              where: { id: tegning.id },
+              data: oppdatering,
+            });
+          })
+          .catch((err) => {
+            console.error(`[IFC] Metadata-utvinning feilet for tegning ${tegning.id}:`, err);
           });
       }
 

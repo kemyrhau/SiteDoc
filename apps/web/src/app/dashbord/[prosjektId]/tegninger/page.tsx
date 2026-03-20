@@ -16,7 +16,7 @@ interface ArbeidsflopRad {
   responderEnterprise: { id: string; name: string } | null;
   templates: ArbeidsflopMal[];
 }
-import { Map, FileText, MapPin, Plus, ZoomIn, ZoomOut, ArrowLeft, Crosshair, Loader2, AlertTriangle } from "lucide-react";
+import { Map, FileText, MapPin, Plus, ZoomIn, ZoomOut, ArrowLeft, Crosshair, Loader2, AlertTriangle, Info } from "lucide-react";
 
 interface Markør {
   id: string;
@@ -24,6 +24,64 @@ interface Markør {
   y: number;
   label: string;
   status: string;
+}
+
+interface IfcMetadataJson {
+  prosjektnavn?: string | null;
+  organisasjon?: string | null;
+  forfatter?: string | null;
+  programvare?: string | null;
+  tidsstempel?: string | null;
+  gpsBreddegrad?: number | null;
+  gpsLengdegrad?: number | null;
+  bygningNavn?: string | null;
+  etasjer?: { navn: string; høyde: number | null }[];
+  fagdisiplin?: string | null;
+  fase?: string | null;
+}
+
+function IfcMetadataBadge({ metadata }: { metadata: IfcMetadataJson }) {
+  const [vis, setVis] = useState(false);
+  const detaljer: { label: string; verdi: string }[] = [];
+  if (metadata.prosjektnavn) detaljer.push({ label: "Prosjekt", verdi: metadata.prosjektnavn });
+  if (metadata.organisasjon) detaljer.push({ label: "Organisasjon", verdi: metadata.organisasjon });
+  if (metadata.forfatter) detaljer.push({ label: "Forfatter", verdi: metadata.forfatter });
+  if (metadata.programvare) detaljer.push({ label: "Programvare", verdi: metadata.programvare });
+  if (metadata.fase) detaljer.push({ label: "Fase", verdi: metadata.fase });
+  if (metadata.tidsstempel) detaljer.push({ label: "Tidsstempel", verdi: metadata.tidsstempel });
+  if (metadata.gpsBreddegrad && metadata.gpsLengdegrad) {
+    detaljer.push({ label: "GPS", verdi: `${metadata.gpsBreddegrad.toFixed(5)}, ${metadata.gpsLengdegrad.toFixed(5)}` });
+  }
+  if (metadata.etasjer && metadata.etasjer.length > 0) {
+    detaljer.push({ label: "Etasjer", verdi: metadata.etasjer.map((e) => e.navn).join(", ") });
+  }
+  if (detaljer.length === 0) return null;
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setVis(!vis)}
+        className="flex items-center gap-1 rounded bg-blue-50 px-1.5 py-0.5 text-xs text-blue-700 hover:bg-blue-100"
+        title="Vis IFC-metadata"
+      >
+        <Info className="h-3 w-3" />
+        IFC
+      </button>
+      {vis && (
+        <div className="absolute left-0 top-full z-50 mt-1 min-w-[280px] rounded-lg border border-gray-200 bg-white p-3 shadow-lg">
+          <h4 className="mb-2 text-xs font-semibold text-gray-500 uppercase">IFC-metadata</h4>
+          <div className="flex flex-col gap-1.5">
+            {detaljer.map((d) => (
+              <div key={d.label} className="flex gap-2 text-xs">
+                <span className="shrink-0 font-medium text-gray-500 w-24">{d.label}</span>
+                <span className="text-gray-900 break-words">{d.verdi}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 const ZOOM_NIVÅER: readonly number[] = [0.25, 0.5, 0.75, 1, 1.5, 2, 3, 5, 10, 20, 50];
@@ -415,6 +473,9 @@ export default function TegningerSide() {
           <span className="rounded bg-green-100 px-1.5 py-0.5 text-xs text-green-700">
             {tegning.coordinateSystem.toUpperCase()}
           </span>
+        )}
+        {(tegning as unknown as { ifcMetadata: IfcMetadataJson | null }).ifcMetadata && (
+          <IfcMetadataBadge metadata={(tegning as unknown as { ifcMetadata: IfcMetadataJson }).ifcMetadata} />
         )}
         <div className="flex-1" />
 
