@@ -109,6 +109,90 @@ function beregnExtents(dxfInnhold: string): {
   }
 }
 
+/** Generer SVG fra parsed DXF-entiteter */
+function dxfTilSvg(dxfInnhold: string): string | null {
+  try {
+    const parser = new DxfParser();
+    const dxf = parser.parseSync(dxfInnhold);
+    if (!dxf || !dxf.entities || dxf.entities.length === 0) return null;
+
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const paths: string[] = [];
+
+    function upd(x: number, y: number) {
+      if (!isFinite(x) || !isFinite(y)) return;
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+    }
+
+    for (const entity of dxf.entities) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const e = entity as any;
+      const color = e.color ?? 7;
+      const stroke = color === 7 || color === 0 ? "#000" : `hsl(${(color * 37) % 360}, 70%, 40%)`;
+
+      if (e.type === "LINE" && e.startPoint && e.endPoint) {
+        upd(e.startPoint.x, e.startPoint.y);
+        upd(e.endPoint.x, e.endPoint.y);
+        paths.push(`<line x1="${e.startPoint.x}" y1="${-e.startPoint.y}" x2="${e.endPoint.x}" y2="${-e.endPoint.y}" stroke="${stroke}" stroke-width="0.5" />`);
+      } else if ((e.type === "LWPOLYLINE" || e.type === "POLYLINE") && e.vertices?.length > 1) {
+        const pts = e.vertices.map((v: { x: number; y: number }) => { upd(v.x, v.y); return `${v.x},${-v.y}`; }).join(" ");
+        const closed = e.shape || e.closed ? " Z" : "";
+        paths.push(`<polyline points="${pts}" fill="none" stroke="${stroke}" stroke-width="0.5"${closed ? ` fill="none"` : ""} />`);
+      } else if (e.type === "CIRCLE" && e.center) {
+        upd(e.center.x - (e.radius ?? 0), e.center.y - (e.radius ?? 0));
+        upd(e.center.x + (e.radius ?? 0), e.center.y + (e.radius ?? 0));
+        paths.push(`<circle cx="${e.center.x}" cy="${-e.center.y}" r="${e.radius ?? 1}" fill="none" stroke="${stroke}" stroke-width="0.5" />`);
+      } else if (e.type === "ARC" && e.center) {
+        const r = e.radius ?? 1;
+        upd(e.center.x - r, e.center.y - r);
+        upd(e.center.x + r, e.center.y + r);
+        const sa = ((e.startAngle ?? 0) * Math.PI) / 180;
+        const ea = ((e.endAngle ?? 360) * Math.PI) / 180;
+        const x1 = e.center.x + r * Math.cos(sa);
+        const y1 = -(e.center.y + r * Math.sin(sa));
+        const x2 = e.center.x + r * Math.cos(ea);
+        const y2 = -(e.center.y + r * Math.sin(ea));
+        const large = ((e.endAngle ?? 360) - (e.startAngle ?? 0) + 360) % 360 > 180 ? 1 : 0;
+        paths.push(`<path d="M ${x1} ${y1} A ${r} ${r} 0 ${large} 0 ${x2} ${y2}" fill="none" stroke="${stroke}" stroke-width="0.5" />`);
+      } else if (e.type === "POINT" && e.position) {
+        upd(e.position.x, e.position.y);
+        paths.push(`<circle cx="${e.position.x}" cy="${-e.position.y}" r="1" fill="${stroke}" />`);
+      } else if (e.type === "INSERT" && e.insertionPoint) {
+        upd(e.insertionPoint.x, e.insertionPoint.y);
+      } else {
+        // Fallback: samle alle kjente punkter
+        if (e.position) upd(e.position.x, e.position.y);
+        if (e.startPoint) upd(e.startPoint.x, e.startPoint.y);
+        if (e.endPoint) upd(e.endPoint.x, e.endPoint.y);
+        if (e.center) upd(e.center.x, e.center.y);
+        if (e.vertices) for (const v of e.vertices) { if (v.x !== undefined) upd(v.x, v.y); }
+        if (e.insertionPoint) upd(e.insertionPoint.x, e.insertionPoint.y);
+      }
+    }
+
+    if (!isFinite(minX) || !isFinite(maxX) || paths.length === 0) return null;
+
+    const margin = Math.max(maxX - minX, maxY - minY) * 0.02;
+    const vbX = minX - margin;
+    const vbY = -(maxY + margin);
+    const vbW = (maxX - minX) + 2 * margin;
+    const vbH = (maxY - minY) + 2 * margin;
+
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vbX} ${vbY} ${vbW} ${vbH}" width="100%" height="100%">
+<rect x="${vbX}" y="${vbY}" width="${vbW}" height="${vbH}" fill="white"/>
+${paths.join("\n")}
+</svg>`;
+  } catch (err) {
+    console.error("[DWG] DXF→SVG feilet:", err);
+    return null;
+  }
+}
+
 /**
  * Konverter en DWG-fil til visningsformat + ekstraher georeferanse.
  *
@@ -150,33 +234,49 @@ export async function konverterDwg(
       cwd: dwgDir,
     });
 
-    // 2. DWG → SVG (for visning) — dwg2SVG skriver til stdout
-    console.log("[DWG] Konverterer til SVG:", dwgFilSti);
-    let harSvg = false;
-    try {
-      const { stdout: svgOutput } = await execFileAsync(DWG2SVG, [dwgFilSti], {
-        timeout: 120000,
-        cwd: dwgDir,
-        maxBuffer: 50 * 1024 * 1024, // 50 MB for store tegninger
-      });
-      if (svgOutput && svgOutput.includes("<svg")) {
-        await writeFile(svgSti, svgOutput, "utf-8");
-        harSvg = true;
-      }
-    } catch (svgErr) {
-      console.warn("[DWG] SVG-konvertering feilet, bruker DXF som fallback:", svgErr);
-    }
-
-    // 3. Parse DXF for koordinater
+    // 2. Les DXF for koordinater og SVG-generering
+    let dxfInnhold: string | null = null;
     let extents: ReturnType<typeof beregnExtents> = null;
     try {
-      const dxfInnhold = await readFile(dxfSti, "utf-8");
+      dxfInnhold = await readFile(dxfSti, "utf-8");
       extents = beregnExtents(dxfInnhold);
       if (extents) {
         console.log("[DWG] Extents:", JSON.stringify(extents));
       }
     } catch (dxfErr) {
       console.warn("[DWG] Kunne ikke lese DXF:", dxfErr);
+    }
+
+    // 3. Generer SVG — prøv egen DXF→SVG først, dwg2SVG som fallback
+    console.log("[DWG] Genererer SVG fra DXF...");
+    let harSvg = false;
+
+    // Primær: egen DXF→SVG (mer pålitelig enn dwg2SVG)
+    if (dxfInnhold) {
+      const egentSvg = dxfTilSvg(dxfInnhold);
+      if (egentSvg) {
+        await writeFile(svgSti, egentSvg, "utf-8");
+        harSvg = true;
+        console.log("[DWG] SVG generert fra DXF-parser");
+      }
+    }
+
+    // Fallback: dwg2SVG fra libredwg
+    if (!harSvg) {
+      try {
+        const { stdout: svgOutput } = await execFileAsync(DWG2SVG, [dwgFilSti], {
+          timeout: 120000,
+          cwd: dwgDir,
+          maxBuffer: 50 * 1024 * 1024,
+        });
+        if (svgOutput && svgOutput.includes("<svg")) {
+          await writeFile(svgSti, svgOutput, "utf-8");
+          harSvg = true;
+          console.log("[DWG] SVG generert via dwg2SVG");
+        }
+      } catch (svgErr) {
+        console.warn("[DWG] dwg2SVG feilet:", svgErr);
+      }
     }
 
     // 4. Detekter koordinatsystem
