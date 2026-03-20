@@ -117,11 +117,30 @@ Drag-and-drop i `apps/web/src/components/malbygger/`: `MalBygger`, `FeltPalett`,
 
 ## Tegningsvisning
 
-Interaktiv visning med zoom (0.25x–3x) og plasseringsmodus:
+Interaktiv visning med musesentrert zoom (0.25x–50x / 25%–5000%):
+
+**SVG-rendering (DWG-konverterte tegninger):**
+- Inline SVG via `dangerouslySetInnerHTML` (ikke `<img>` — kreves for zoom-uavhengig strektykkelse)
+- Injisert CSS: `stroke-width: calc(1.5 / var(--svg-zoom, 1)) !important` — tynne linjer uansett zoom
+- `--svg-zoom` CSS-variabel settes på container via `style={{ "--svg-zoom": zoom }}`
+- SVG hentes, width/height fjernes, erstattes med `width="100%" height="auto"`
+- Originale `<style>`-blokker fjernes, egen zoom-aware style injiseres
+
+**Zoom:**
+- Multiplikativ scroll-zoom: `faktor = deltaY > 0 ? 0.8 : 1.25`, `zoom * faktor`
+- Musesentrert: beregner musposisjon som brøkdel av scroll-container, justerer scrollLeft/scrollTop etter zoom
+- Zoom-nivåer for knapper: [0.25, 0.5, 0.75, 1, 1.5, 2, 3, 5, 10, 20, 50]
+- Klikk på prosenttall tilbakestiller til 100%
+
+**Markører og plasseringsmodus:**
 - Navigering vs. Plasseringsmodus (crosshair-cursor)
 - Klikk → blå markør → opprett-modal (oppgave/sjekkliste)
 - Eksisterende markører: røde MapPin fra `oppgave.hentForTegning`
 - PDF: iframe med transparent overlay
+
+**IFC-metadata:**
+- Klikkbar "IFC"-badge i header viser uttrukket metadata (prosjekt, org, GPS, etasjer, programvare)
+- Data fra `Drawing.ifcMetadata` (Json-felt, uttrukket ved opplasting)
 
 ## Malliste-UI
 
