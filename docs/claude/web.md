@@ -148,41 +148,42 @@ Interaktiv visning med musesentrert zoom (0.25x–50x / 25%–5000%):
 
 Delt `MalListe`-komponent: +Tilføy (dropdown), Rediger, Slett, Søk. Enkeltklikk velger, dobbeltklikk åpner.
 
-## Punktsky-viewer
+## 3D-visning (samlet side)
 
-3D-viewer med Three.js + potree-core for punktskyer (LAS, LAZ, E57, PLY):
+Samlet 3D-visningsside `/dashbord/[prosjektId]/3d-visning` med tre faner:
 
-**Layout:** Sidepanel (280px, liste med opplasting) + hovedområde (3D-viewer)
+### Fane 1: 3D-modell (IFC + punktsky)
+IFC-viewer med @thatopen/components + punktskyliste i sidepanelet.
 
-**Fargemodus (fallback-rekkefølge):**
-1. **Klassifisering** (hvis `hasClassification`): ASPRS-farger per klasse, toggle-panel på høyre side
-2. **RGB** (hvis `hasRgb`): Opprinnelige farger fra skanningen
-3. **Intensitet**: Gråtoneskala basert på refleksjonsstyrke
-4. **Høyde (Z)**: Fargegradient basert på z-verdi (alltid tilgjengelig)
+**Layout:** Sidepanel (280px, IFC-liste + punktskyer + objekttre) + 3D-viewer + flytende egenskapspanel.
 
-**Klassifiserings-panel:** Viser alle klasser med fargeprøve, navn og estimert antall. Klikk for å toggle synlighet. "Alle"/"Ingen"-knapper.
+**IFC-funksjonalitet:** Klient-side WASM-parsing, objektvelging med highlight, spatial structure-tre, klippeplan (snitt).
 
-**Konverteringsstatus:** Polling hvert 3. sekund under konvertering. Viser spinnende ikon i listen og fullskjerm ved valg.
+**Avhengigheter:** `@thatopen/components`, `@thatopen/fragments`, `web-ifc`, `three`, `potree-core`
 
-**Avhengigheter:** `three`, `potree-core`, `@types/three`
+### Fane 2: Overflatemodeller
+Vis triangulerte overflater (TIN) fra LandXML-filer i 3D.
 
-## IFC 3D-viewer (Modeller)
+**LandXML-parser** (`src/lib/landxml-parser.ts`): Parser `<Surface>` → `<Pnts>` + `<Faces>` med `fast-xml-parser`. Returnerer `TINData` (vertices + triangles + bbox).
 
-3D-viewer for IFC-filer med @thatopen/components (MIT, Three.js-basert, WASM klient-side parsing):
+**Punktsky-triangulering** (`src/lib/punktsky-triangulering.ts`): Subsample + Delaunay-triangulering med `delaunator`.
 
-**Layout:** Sidepanel (280px, IFC-liste + objekttre) + fullbredde 3D-viewer + flytende egenskapspanel ved klikk.
+**Avhengigheter:** `fast-xml-parser`, `delaunator`
 
-**Klient-side parsing:** IFC-filer parses med web-ifc WASM direkte i nettleseren. WASM-filer serveres fra `public/web-ifc.wasm`.
+### Fane 3: Kutt/fyll-analyse
+Sammenlign to overflatemodeller med rød/blå visualisering og volumberegning.
 
-**Objektvelging:** Klikk på objekt i 3D-viewer → highlight (blått) + flytende egenskapspanel (høyre side). Klikk på tomt → fjern valg.
+**Kutt/fyll-algoritme** (`src/lib/kutt-fyll.ts`):
+1. Finn overlappende bounding box
+2. Regulært rutenett (konfigurerbar oppløsning: 0.5m–5m)
+3. Barycentric interpolasjon for Z-verdier
+4. ΔZ > 0 → fyll (rød), ΔZ < 0 → kutt (blå)
+5. Volum = Σ(|ΔZ| × celleAreal)
 
-**Egenskapspanel (popup):** Viser objekttype (IfcWall, IfcDoor etc.), navn, GlobalId, etasje, property sets (Pset_WallCommon, brannklasse, U-verdi), materialer. Lukkes med X eller klikk på tomt.
+**Layout:** Sidepanel (280px, overflatevalg + oppløsning + resultat) + 3D-viewer med rød/blå differansemesh.
 
-**Objekttre:** Spatial structure (Project → Site → Building → Storey → elementer) i sidepanelet. Klikk → zoom til objekt + vis egenskaper.
-
-**webpack-config:** `asyncWebAssembly: true`, `.mjs` rule for `@thatopen`, server-externals for `web-ifc`/`@thatopen`.
-
-**Avhengigheter:** `@thatopen/components`, `@thatopen/fragments`, `web-ifc`, `three`
+### Navigasjon
+Erstatter separate `/punktskyer` og `/modeller`-ruter. Gamle URLer redirectes via `next.config.js`. Sidebar viser én "3D"-knapp i stedet for to.
 
 ## Sjekkliste-endringslogg
 

@@ -67,6 +67,16 @@ const nextConfig = {
         destination: "/dashbord/:id/entrepriser",
         permanent: false,
       },
+      {
+        source: "/dashbord/:id/punktskyer",
+        destination: "/dashbord/:id/3d-visning",
+        permanent: false,
+      },
+      {
+        source: "/dashbord/:id/modeller",
+        destination: "/dashbord/:id/3d-visning",
+        permanent: false,
+      },
     ];
   },
   async rewrites() {
