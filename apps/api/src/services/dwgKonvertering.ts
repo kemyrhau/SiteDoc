@@ -157,27 +157,44 @@ function dxfTilSvg(dxfInnhold: string): string | null {
     /** Normaliser og flip y-koordinat (SVG Y er invertert vs DXF Y) */
     function ny(y: number) { return -(y - oY); }
 
+    // Beregn stroke-width proporsjonalt med tegningens størrelse
+    const w = maxX - minX;
+    const h = maxY - minY;
+    const sw = Math.max(w, h) * 0.001; // 0.1% av størrelsen
+
     // Pass 2: Generer SVG-paths med normaliserte koordinater
     const paths: string[] = [];
 
     for (const entity of dxf.entities) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const e = entity as any;
-      const color = e.color ?? 7;
-      const stroke = color === 7 || color === 0 ? "#000" : `hsl(${(color * 37) % 360}, 70%, 40%)`;
+      const rawColor = e.color ?? e.colorIndex ?? 7;
+      // DXF-farger kan være ACI (0-255) eller TrueColor (RGB som stort tall)
+      let stroke: string;
+      if (rawColor > 255) {
+        // TrueColor: konverter fra desimal RGB
+        const r = (rawColor >> 16) & 0xFF;
+        const g = (rawColor >> 8) & 0xFF;
+        const b = rawColor & 0xFF;
+        stroke = `rgb(${r},${g},${b})`;
+      } else if (rawColor === 7 || rawColor === 0) {
+        stroke = "#000";
+      } else {
+        stroke = `hsl(${(rawColor * 37) % 360}, 70%, 40%)`;
+      }
 
       if (e.type === "LINE" && e.startPoint && e.endPoint) {
-        paths.push(`<line x1="${nx(e.startPoint.x)}" y1="${ny(e.startPoint.y)}" x2="${nx(e.endPoint.x)}" y2="${ny(e.endPoint.y)}" stroke="${stroke}" stroke-width="0.5" />`);
+        paths.push(`<line x1="${nx(e.startPoint.x)}" y1="${ny(e.startPoint.y)}" x2="${nx(e.endPoint.x)}" y2="${ny(e.endPoint.y)}" stroke="${stroke}" stroke-width="${sw}" />`);
       } else if (e.type === "LINE" && e.vertices?.length >= 2) {
         // dxf-parser kan parse LINE som vertices i stedet for startPoint/endPoint
         const v0 = e.vertices[0];
         const v1 = e.vertices[1];
-        paths.push(`<line x1="${nx(v0.x)}" y1="${ny(v0.y)}" x2="${nx(v1.x)}" y2="${ny(v1.y)}" stroke="${stroke}" stroke-width="0.5" />`);
+        paths.push(`<line x1="${nx(v0.x)}" y1="${ny(v0.y)}" x2="${nx(v1.x)}" y2="${ny(v1.y)}" stroke="${stroke}" stroke-width="${sw}" />`);
       } else if ((e.type === "LWPOLYLINE" || e.type === "POLYLINE") && e.vertices?.length > 1) {
         const pts = e.vertices.map((v: { x: number; y: number }) => `${nx(v.x)},${ny(v.y)}`).join(" ");
-        paths.push(`<polyline points="${pts}" fill="none" stroke="${stroke}" stroke-width="0.5" />`);
+        paths.push(`<polyline points="${pts}" fill="none" stroke="${stroke}" stroke-width="${sw}" />`);
       } else if (e.type === "CIRCLE" && e.center) {
-        paths.push(`<circle cx="${nx(e.center.x)}" cy="${ny(e.center.y)}" r="${e.radius ?? 1}" fill="none" stroke="${stroke}" stroke-width="0.5" />`);
+        paths.push(`<circle cx="${nx(e.center.x)}" cy="${ny(e.center.y)}" r="${e.radius ?? 1}" fill="none" stroke="${stroke}" stroke-width="${sw}" />`);
       } else if (e.type === "ARC" && e.center) {
         const r = e.radius ?? 1;
         const sa = ((e.startAngle ?? 0) * Math.PI) / 180;
@@ -187,7 +204,7 @@ function dxfTilSvg(dxfInnhold: string): string | null {
         const x2 = nx(e.center.x + r * Math.cos(ea));
         const y2 = ny(e.center.y + r * Math.sin(ea));
         const large = ((e.endAngle ?? 360) - (e.startAngle ?? 0) + 360) % 360 > 180 ? 1 : 0;
-        paths.push(`<path d="M ${x1} ${y1} A ${r} ${r} 0 ${large} 0 ${x2} ${y2}" fill="none" stroke="${stroke}" stroke-width="0.5" />`);
+        paths.push(`<path d="M ${x1} ${y1} A ${r} ${r} 0 ${large} 0 ${x2} ${y2}" fill="none" stroke="${stroke}" stroke-width="${sw}" />`);
       } else if (e.type === "POINT" && e.position) {
         paths.push(`<circle cx="${nx(e.position.x)}" cy="${ny(e.position.y)}" r="1" fill="${stroke}" />`);
       }
@@ -195,8 +212,6 @@ function dxfTilSvg(dxfInnhold: string): string | null {
 
     if (paths.length === 0) return null;
 
-    const w = maxX - minX;
-    const h = maxY - minY;
     const margin = Math.max(w, h) * 0.02;
     const vbX = -margin;
     const vbY = -(h + margin);
