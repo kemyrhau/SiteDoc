@@ -182,8 +182,12 @@ function dxfTilSvg(dxfInnhold: string): string | null {
     const vbW = (maxX - minX) + 2 * margin;
     const vbH = (maxY - minY) + 2 * margin;
 
+    // Faste pikseldimensjoner for å sikre at <img> har intrinsic størrelse
+    const svgBredde = 2000;
+    const svgHoyde = Math.round(svgBredde * (vbH / vbW));
+
     return `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vbX} ${vbY} ${vbW} ${vbH}" width="100%" height="100%">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vbX} ${vbY} ${vbW} ${vbH}" width="${svgBredde}" height="${svgHoyde}">
 <rect x="${vbX}" y="${vbY}" width="${vbW}" height="${vbH}" fill="white"/>
 ${paths.join("\n")}
 </svg>`;
