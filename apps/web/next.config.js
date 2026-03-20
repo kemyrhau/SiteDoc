@@ -1,9 +1,29 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   transpilePackages: ["@sitedoc/shared", "@sitedoc/ui", "pdfjs-dist"],
-  webpack: (config) => {
+  webpack: (config, { isServer }) => {
     // pdfjs-dist bruker canvas som optional dependency — ignorer i webpack
     config.resolve.alias.canvas = false;
+
+    // web-ifc WASM — tillat async WebAssembly
+    config.experiments = {
+      ...config.experiments,
+      asyncWebAssembly: true,
+    };
+
+    // Ikke bundle @thatopen/web-ifc på server (bruker WebGL/WASM)
+    if (isServer) {
+      config.externals = config.externals || [];
+      config.externals.push("web-ifc", "@thatopen/components", "@thatopen/fragments");
+    }
+
+    // @thatopen bruker ESM med inlinet Three.js — SWC må gjenkjenne .mjs som ESM
+    config.module.rules.push({
+      test: /\.mjs$/,
+      include: /node_modules\/@thatopen/,
+      type: "javascript/auto",
+    });
+
     return config;
   },
   eslint: {

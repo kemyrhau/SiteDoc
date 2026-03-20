@@ -44,6 +44,7 @@ Dalux-inspirert tre-kolonne layout (skjules på mobil < 768px, hamburger-meny i 
 /dashbord/[prosjektId]/mapper                 -> Mapper (read-only, ?mappe=id)
 /dashbord/[prosjektId]/tegninger              -> Interaktiv tegningsvisning
 /dashbord/[prosjektId]/punktskyer            -> Punktsky-viewer (Potree/Three.js)
+/dashbord/[prosjektId]/modeller              -> IFC 3D-viewer (@thatopen/components)
 /dashbord/[prosjektId]/bilder                 -> Bildegalleri (liste + tegningsvisning)
 /dashbord/oppsett                             -> Innstillinger
 /dashbord/oppsett/brukere                     -> Brukergrupper, roller
@@ -164,6 +165,24 @@ Delt `MalListe`-komponent: +Tilføy (dropdown), Rediger, Slett, Søk. Enkeltklik
 **Konverteringsstatus:** Polling hvert 3. sekund under konvertering. Viser spinnende ikon i listen og fullskjerm ved valg.
 
 **Avhengigheter:** `three`, `potree-core`, `@types/three`
+
+## IFC 3D-viewer (Modeller)
+
+3D-viewer for IFC-filer med @thatopen/components (MIT, Three.js-basert, WASM klient-side parsing):
+
+**Layout:** Sidepanel (280px, IFC-liste + objekttre) + fullbredde 3D-viewer + flytende egenskapspanel ved klikk.
+
+**Klient-side parsing:** IFC-filer parses med web-ifc WASM direkte i nettleseren. WASM-filer serveres fra `public/web-ifc.wasm`.
+
+**Objektvelging:** Klikk på objekt i 3D-viewer → highlight (blått) + flytende egenskapspanel (høyre side). Klikk på tomt → fjern valg.
+
+**Egenskapspanel (popup):** Viser objekttype (IfcWall, IfcDoor etc.), navn, GlobalId, etasje, property sets (Pset_WallCommon, brannklasse, U-verdi), materialer. Lukkes med X eller klikk på tomt.
+
+**Objekttre:** Spatial structure (Project → Site → Building → Storey → elementer) i sidepanelet. Klikk → zoom til objekt + vis egenskaper.
+
+**webpack-config:** `asyncWebAssembly: true`, `.mjs` rule for `@thatopen`, server-externals for `web-ifc`/`@thatopen`.
+
+**Avhengigheter:** `@thatopen/components`, `@thatopen/fragments`, `web-ifc`, `three`
 
 ## Sjekkliste-endringslogg
 

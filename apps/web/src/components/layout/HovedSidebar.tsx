@@ -8,6 +8,7 @@ import {
   FileText,
   Map,
   Waypoints,
+  Box,
   Image,
   Building2,
   FolderOpen,
@@ -64,6 +65,12 @@ const hovedelementer: SidebarElement[] = [
     id: "punktskyer",
     label: "Punktskyer",
     ikon: <Waypoints className="h-5 w-5" />,
+    kreverProsjekt: true,
+  },
+  {
+    id: "modeller",
+    label: "Modeller",
+    ikon: <Box className="h-5 w-5" />,
     kreverProsjekt: true,
   },
   {

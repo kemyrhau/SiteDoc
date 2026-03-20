@@ -9,6 +9,7 @@ export type Seksjon =
   | "maler"
   | "tegninger"
   | "punktskyer"
+  | "modeller"
   | "bilder"
   | "entrepriser"
   | "mapper"

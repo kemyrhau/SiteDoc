@@ -32,6 +32,8 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 - **Drag-and-drop:** dnd-kit (malbygger)
 - **Kart:** Leaflet + react-leaflet, OpenStreetMap
 - **Værdata:** Open-Meteo API (gratis)
+- **3D/Punktsky:** Three.js, potree-core (punktsky-viewer), @thatopen/components (IFC 3D-viewer)
+- **Tegningskonvertering:** ODA File Converter / libredwg (DWG→SVG), CloudCompare (E57/PLY→LAS), PotreeConverter (LAS→Potree octree)
 - **Ikoner:** lucide-react
 
 ## Prosjektstruktur
