@@ -26,9 +26,9 @@ interface Markør {
   status: string;
 }
 
-const ZOOM_NIVÅER: readonly number[] = [0.25, 0.5, 0.75, 1, 1.5, 2, 3];
+const ZOOM_NIVÅER: readonly number[] = [0.25, 0.5, 0.75, 1, 1.5, 2, 3, 5, 10, 20, 50];
 const MIN_ZOOM = 0.25;
-const MAKS_ZOOM = 3;
+const MAKS_ZOOM = 50;
 const STANDARD_ZOOM = 1;
 
 export default function TegningerSide() {
@@ -170,8 +170,9 @@ export default function TegningerSide() {
       if (!e.ctrlKey && !e.metaKey) return;
       e.preventDefault();
       setZoom((prev) => {
-        const delta = e.deltaY > 0 ? -0.25 : 0.25;
-        return Math.min(3, Math.max(0.25, prev + delta));
+        // Multiplikativ zoom for jevn opplevelse ved høye nivåer
+        const faktor = e.deltaY > 0 ? 0.8 : 1.25;
+        return Math.min(MAKS_ZOOM, Math.max(MIN_ZOOM, prev * faktor));
       });
     }
 

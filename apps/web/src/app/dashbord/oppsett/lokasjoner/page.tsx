@@ -132,7 +132,7 @@ function RedigerLokasjon({
 
       setZoom((prev) => {
         const faktor = e.deltaY > 0 ? 0.9 : 1.1;
-        const neste = Math.min(10, Math.max(0.1, prev * faktor));
+        const neste = Math.min(50, Math.max(0.1, prev * faktor));
         const skalaDiff = neste - prev;
 
         setPan((p) => ({
