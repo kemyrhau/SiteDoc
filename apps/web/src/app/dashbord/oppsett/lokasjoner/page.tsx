@@ -114,29 +114,35 @@ function RedigerLokasjon({
   // Georeferanse-visning
   const [visGeoEditor, setVisGeoEditor] = useState(false);
 
-  const handleWheel = useCallback((e: React.WheelEvent) => {
-    if (!e.shiftKey) return;
-    e.preventDefault();
-
+  // Zoom via native event listener (React onWheel er passiv og kan ikke preventDefault)
+  useEffect(() => {
     const container = forhåndsvisningRef.current;
     if (!container) return;
 
-    const rect = container.getBoundingClientRect();
-    const mx = (e.clientX - rect.left) / rect.width;
-    const my = (e.clientY - rect.top) / rect.height;
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
 
-    setZoom((prev) => {
-      const faktor = e.deltaY > 0 ? 0.9 : 1.1;
-      const neste = Math.min(10, Math.max(0.1, prev * faktor));
-      const skalaDiff = neste - prev;
+      const rect = container.getBoundingClientRect();
+      const mx = (e.clientX - rect.left) / rect.width;
+      const my = (e.clientY - rect.top) / rect.height;
 
-      setPan((p) => ({
-        x: p.x - skalaDiff * (mx - 0.5) * rect.width,
-        y: p.y - skalaDiff * (my - 0.5) * rect.height,
-      }));
+      setZoom((prev) => {
+        const faktor = e.deltaY > 0 ? 0.9 : 1.1;
+        const neste = Math.min(10, Math.max(0.1, prev * faktor));
+        const skalaDiff = neste - prev;
 
-      return neste;
-    });
+        setPan((p) => ({
+          x: p.x - skalaDiff * (mx - 0.5) * rect.width,
+          y: p.y - skalaDiff * (my - 0.5) * rect.height,
+        }));
+
+        return neste;
+      });
+    };
+
+    container.addEventListener("wheel", handleWheel, { passive: false });
+    return () => container.removeEventListener("wheel", handleWheel);
   }, []);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -496,7 +502,6 @@ function RedigerLokasjon({
         ) : (
           <div
             ref={forhåndsvisningRef}
-            onWheel={handleWheel}
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
