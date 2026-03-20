@@ -71,7 +71,7 @@ ssh sitedoc "cd ~/programmering/sitedoc && git pull && pnpm build --filter @site
 
 **CORS:** Callback-basert whitelist (`https://sitedoc.no`, `https://test.sitedoc.no`, `http://localhost:3100`, `http://localhost:3300`, `http://localhost:3000`) med `credentials: true`. Ukjente origins avvises aktivt. Konfigurert i `apps/api/src/server.ts`.
 
-**Filopplasting:** `/upload`-endepunkt krever autentisert sesjon. Tillatte typer: PDF, DWG, DXF, IFC, PNG, JPG. UUID-filnavn. `X-Content-Type-Options: nosniff`.
+**Filopplasting:** `/upload`-endepunkt krever autentisert sesjon. Tillatte typer: PDF, DWG, DXF, IFC, PNG, JPG, LAS, LAZ, E57, PLY. UUID-filnavn. `X-Content-Type-Options: nosniff`. Fastify-grense: 500 MB. **Cloudflare Free-plan begrenser uploads til 100 MB** — filer over dette krever chunked upload (se TODO).
 
 **Rate limiting:** Minnebasert (`apps/api/src/utils/rateLimiter.ts`). Automatisk opprydding hvert 5. minutt. Grenser: `byttToken` (10/min), `/upload` (30/min), invitasjons-endepunkter (10-20/min).
 
@@ -91,6 +91,18 @@ ssh sitedoc "cd ~/programmering/sitedoc && git pull && pnpm build --filter @site
 3. **Web-tRPC: verifiser sesjon i database** — I dag stoler web på Auth.js cookie-deserialisering uten DB-oppslag. En slettet sesjon forblir gyldig til cookien utløper. Fiks: legg til DB-sjekk i `apps/web/src/app/api/trpc/[...trpc]/route.ts`
 4. **Maks alder på mobilappens offline-cache** — I dag brukes cached brukerdata uten tidsbegrensning. Legg til 24-timers maks alder i `AuthProvider`
 5. **Flytt rate limiting til Redis** — Minnebasert rate limiter nullstilles ved restart. Ikke kritisk nå, men bør gjøres når brukerbase vokser
+
+## TODO: Chunked upload for store filer
+
+Cloudflare Free-plan har 100 MB upload-grense. Store IFC-filer (>100 MB) feiler. Løsning: chunked upload.
+
+**Plan:**
+1. **Klient:** Del filen i chunks (f.eks. 50 MB), send hver chunk med `uploadId` + `chunkIndex` + `totalChunks`
+2. **API:** Nytt `/upload/chunk`-endepunkt som lagrer chunks midlertidig, og `/upload/complete` som setter dem sammen
+3. **Opprydding:** Slett uferdige chunks etter 1 time (cron eller lazy cleanup)
+4. **Fremdriftsindikator:** Vis upload-progress på klientsiden (prosent per chunk)
+
+Berører: `apps/api/src/routes/upload.ts`, opplastingskomponenter i web og mobil.
 
 ## Env-filer på server
 
