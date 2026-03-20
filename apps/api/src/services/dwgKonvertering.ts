@@ -168,6 +168,11 @@ function dxfTilSvg(dxfInnhold: string): string | null {
 
       if (e.type === "LINE" && e.startPoint && e.endPoint) {
         paths.push(`<line x1="${nx(e.startPoint.x)}" y1="${ny(e.startPoint.y)}" x2="${nx(e.endPoint.x)}" y2="${ny(e.endPoint.y)}" stroke="${stroke}" stroke-width="0.5" />`);
+      } else if (e.type === "LINE" && e.vertices?.length >= 2) {
+        // dxf-parser kan parse LINE som vertices i stedet for startPoint/endPoint
+        const v0 = e.vertices[0];
+        const v1 = e.vertices[1];
+        paths.push(`<line x1="${nx(v0.x)}" y1="${ny(v0.y)}" x2="${nx(v1.x)}" y2="${ny(v1.y)}" stroke="${stroke}" stroke-width="0.5" />`);
       } else if ((e.type === "LWPOLYLINE" || e.type === "POLYLINE") && e.vertices?.length > 1) {
         const pts = e.vertices.map((v: { x: number; y: number }) => `${nx(v.x)},${ny(v.y)}`).join(" ");
         paths.push(`<polyline points="${pts}" fill="none" stroke="${stroke}" stroke-width="0.5" />`);
