@@ -114,6 +114,9 @@ function RedigerLokasjon({
   // Georeferanse-visning
   const [visGeoEditor, setVisGeoEditor] = useState(false);
 
+  // Inline SVG for vector-effect:non-scaling-stroke
+  const [svgInnhold, setSvgInnhold] = useState<string | null>(null);
+
   // Zoom via native event listener (React onWheel er passiv og kan ikke preventDefault)
   useEffect(() => {
     const container = forhåndsvisningRef.current;
@@ -173,7 +176,9 @@ function RedigerLokasjon({
     setZoom(1);
     setPan({ x: 0, y: 0 });
     setVisGeoEditor(false);
+    setSvgInnhold(null);
   }, []);
+
 
   // Opplastingstilstand
   const [lasterOpp, setLasterOpp] = useState(false);
@@ -197,6 +202,31 @@ function RedigerLokasjon({
   const [metaBeskrivelse, setMetaBeskrivelse] = useState("");
 
   const { data: lokasjon } = trpc.bygning.hentMedId.useQuery({ id: lokasjonId });
+
+  // Hent SVG-innhold for inline rendering (vector-effect fungerer kun med live SVG)
+  useEffect(() => {
+    if (!valgtTegningId) { setSvgInnhold(null); return; }
+    const tegning = (lokasjon?.drawings as TegningRad[] | undefined)?.find((t) => t.id === valgtTegningId);
+    if (!tegning || (tegning.fileType ?? "") !== "svg" || !tegning.fileUrl) {
+      setSvgInnhold(null);
+      return;
+    }
+    fetch(`/api${tegning.fileUrl}`)
+      .then((res) => res.text())
+      .then((tekst) => {
+        const tilpasset = tekst.replace(
+          /<svg([^>]*)>/,
+          (_match, attrs: string) => {
+            const uten = attrs
+              .replace(/\s*width="[^"]*"/g, "")
+              .replace(/\s*height="[^"]*"/g, "");
+            return `<svg${uten} width="100%" height="auto" style="display:block">`;
+          },
+        );
+        setSvgInnhold(tilpasset);
+      })
+      .catch(() => setSvgInnhold(null));
+  }, [valgtTegningId, lokasjon?.drawings]);
 
   const { data: alleTegninger } = trpc.tegning.hentForProsjekt.useQuery(
     { projectId: prosjektId! },
@@ -523,12 +553,19 @@ function RedigerLokasjon({
                     <p className="text-sm">DWG-filen må konverteres før den kan vises</p>
                   </div>
                 ) : ["png", "jpg", "jpeg", "svg"].includes(valgtTegning.fileType ?? "") ? (
-                  <img
-                    src={`/api${valgtTegning.fileUrl}`}
-                    alt={valgtTegning.name}
-                    className="max-w-full object-contain"
-                    draggable={false}
-                  />
+                  (valgtTegning.fileType ?? "") === "svg" && svgInnhold ? (
+                    <div
+                      className="max-w-full"
+                      dangerouslySetInnerHTML={{ __html: svgInnhold }}
+                    />
+                  ) : (
+                    <img
+                      src={`/api${valgtTegning.fileUrl}`}
+                      alt={valgtTegning.name}
+                      className="max-w-full object-contain"
+                      draggable={false}
+                    />
+                  )
                 ) : (
                   <iframe
                     src={`/api${valgtTegning.fileUrl}`}
