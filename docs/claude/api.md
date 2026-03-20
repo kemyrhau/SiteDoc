@@ -11,6 +11,7 @@ Alle routere i `apps/api/src/routes/`:
 | `mal` | hentForProsjekt, hentMedId, opprett, oppdaterMal, slettMal, leggTilObjekt, oppdaterObjekt, oppdaterRekkefølge, sjekkObjektBruk, slettObjekt |
 | `bygning` | hentForProsjekt (m/valgfri type-filter), hentMedId, opprett (m/type), oppdater, publiser, slett |
 | `tegning` | hentForProsjekt (m/filtre), hentForBygning, hentMedId, opprett (m/asynkron DWG-konvertering + layout-splitting, IFC-metadatautvinning), oppdater, lastOppRevisjon, hentRevisjoner, tilknyttBygning, settGeoReferanse, fjernGeoReferanse, hentKonverteringsStatus, provKonverteringIgjen (m/layout-splitting), slett |
+| `punktsky` | hentForProsjekt (m/buildingId-filter), hentMedId, opprett (m/asynkron konvertering via CloudCompare+PotreeConverter), hentKonverteringsStatus, slett |
 | `dokumentflyt` | hentForProsjekt, opprett, oppdater, slett, leggTilMedlem, fjernMedlem |
 | `arbeidsforlop` | _(bakoverkompatibilitet for mobil)_ hentForProsjekt, hentForEnterprise, opprett, oppdater, slett, leggTilStegMedlem, fjernStegMedlem |
 | `mappe` | hentForProsjekt (m/tilgangsoppføringer), hentDokumenter, opprett, oppdater, slett, hentTilgang, settTilgang |
@@ -130,3 +131,28 @@ Kjører asynkront (som DWG-konvertering) og lagrer i `Drawing.ifcMetadata` (Json
 **IFC-strengdekoding:** `\X\HH` (ISO 8859-1), `\X2\HHHH\X0\` (Unicode), `\S\c` (Latin supplement)
 
 **Auto-utfylling:** `discipline` og `originator` settes automatisk fra metadata hvis ikke angitt manuelt.
+
+## Punktsky-konvertering
+
+**Filer:**
+- `apps/api/src/services/punktskyKonvertering.ts` — Konverteringspipeline
+- `apps/api/src/services/lasHeader.ts` — LAS header-parser
+
+**Pipeline:** Opplastet fil → [CloudCompare CLI] → LAS → [PotreeConverter] → Potree octree (metadata.json + hierarchy.bin + octree.bin)
+
+**CloudCompare** (GPL v2, headless via `xvfb-run`):
+- Konverterer E57, PLY → LAS for PotreeConverter
+- CLI: `xvfb-run CloudCompare -SILENT -O input.e57 -C_EXPORT_FMT LAS -SAVE_CLOUDS`
+
+**PotreeConverter** (v2.0 eller v1.7):
+- Genererer octree LOD-struktur for Potree web-viewer
+- Output-attributter: RGB, INTENSITY, CLASSIFICATION, RETURN_NUMBER, NUMBER_OF_RETURNS
+- Output lagres i `uploads/potree/{uuid}/`
+
+**LAS header-parser:**
+- Leser binært LAS-filhode: versjon, punktformat, antall, bounding box
+- Sampler 100K punkter for klassifiseringsstatistikk
+- Detekterer: `hasClassification` (koder utover 0/1), `hasRgb` (punkt-format med RGB)
+- ASPRS-klassifiseringskoder: Bakke (2), Vegetasjon (3-5), Bygning (6), Vann (9), Vei (11), Bro (17) etc.
+
+**Fallback for uklassifiserte filer:** Viewer tilbyr fargemodus: RGB (hvis tilgjengelig), intensitet, eller høyde (Z).

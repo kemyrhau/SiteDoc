@@ -43,6 +43,7 @@ Dalux-inspirert tre-kolonne layout (skjules på mobil < 768px, hamburger-meny i 
 /dashbord/[prosjektId]/entrepriser            -> Entreprise-liste
 /dashbord/[prosjektId]/mapper                 -> Mapper (read-only, ?mappe=id)
 /dashbord/[prosjektId]/tegninger              -> Interaktiv tegningsvisning
+/dashbord/[prosjektId]/punktskyer            -> Punktsky-viewer (Potree/Three.js)
 /dashbord/[prosjektId]/bilder                 -> Bildegalleri (liste + tegningsvisning)
 /dashbord/oppsett                             -> Innstillinger
 /dashbord/oppsett/brukere                     -> Brukergrupper, roller
@@ -145,6 +146,24 @@ Interaktiv visning med musesentrert zoom (0.25x–50x / 25%–5000%):
 ## Malliste-UI
 
 Delt `MalListe`-komponent: +Tilføy (dropdown), Rediger, Slett, Søk. Enkeltklikk velger, dobbeltklikk åpner.
+
+## Punktsky-viewer
+
+3D-viewer med Three.js + potree-core for punktskyer (LAS, LAZ, E57, PLY):
+
+**Layout:** Sidepanel (280px, liste med opplasting) + hovedområde (3D-viewer)
+
+**Fargemodus (fallback-rekkefølge):**
+1. **Klassifisering** (hvis `hasClassification`): ASPRS-farger per klasse, toggle-panel på høyre side
+2. **RGB** (hvis `hasRgb`): Opprinnelige farger fra skanningen
+3. **Intensitet**: Gråtoneskala basert på refleksjonsstyrke
+4. **Høyde (Z)**: Fargegradient basert på z-verdi (alltid tilgjengelig)
+
+**Klassifiserings-panel:** Viser alle klasser med fargeprøve, navn og estimert antall. Klikk for å toggle synlighet. "Alle"/"Ingen"-knapper.
+
+**Konverteringsstatus:** Polling hvert 3. sekund under konvertering. Viser spinnende ikon i listen og fullskjerm ved valg.
+
+**Avhengigheter:** `three`, `potree-core`, `@types/three`
 
 ## Sjekkliste-endringslogg
 
