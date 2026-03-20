@@ -276,6 +276,8 @@ function dxfTilSvg(dxfInnhold: string): string | null {
     const blokker: Record<string, any[]> = {};
     if (dxf.blocks) {
       for (const [blokkNavn, blokk] of Object.entries(dxf.blocks)) {
+        // Hopp over paper space-blokker og dimensjons-blokker
+        if (blokkNavn.startsWith("*Paper_Space") || blokkNavn.startsWith("*D")) continue;
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const b = blokk as any;
         if (b.entities && Array.isArray(b.entities) && b.entities.length > 0) {
