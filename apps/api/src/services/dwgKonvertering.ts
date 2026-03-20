@@ -385,57 +385,55 @@ function dxfTilSvg(dxfInnhold: string): string | null {
     }
     console.log(`[DWG] Entitetstyper: ${JSON.stringify(typeTelling)}`);
 
-    // Pass 1: Finn extents fra alle entiteter
+    // Pass 1: Finn extents — bruk DXF header ($EXTMIN/$EXTMAX) hvis tilgjengelig
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const header = (dxf as any).header;
+    const extMin = header?.$EXTMIN;
+    const extMax = header?.$EXTMAX;
+    if (extMin && extMax && isFinite(extMin.x) && isFinite(extMax.x)) {
+      minX = extMin.x;
+      maxX = extMax.x;
+      minY = extMin.y;
+      maxY = extMax.y;
+      console.log(`[DWG] Bruker DXF header extents: (${minX}, ${minY}) → (${maxX}, ${maxY})`);
+    } else {
+      // Fallback: beregn fra entiteter med IQR-basert outlier-filtrering
+      const alleX: number[] = [];
+      const alleY: number[] = [];
 
-    function upd(x: number, y: number) {
-      if (!isFinite(x) || !isFinite(y)) return;
-      if (x < minX) minX = x;
-      if (x > maxX) maxX = x;
-      if (y < minY) minY = y;
-      if (y > maxY) maxY = y;
-    }
+      function saml(x: number, y: number) {
+        if (isFinite(x) && isFinite(y)) { alleX.push(x); alleY.push(y); }
+      }
 
-    for (const entity of alleEntiteter) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const e = entity as any;
-      if (e.position) upd(e.position.x, e.position.y);
-      if (e.startPoint) upd(e.startPoint.x, e.startPoint.y);
-      if (e.endPoint) upd(e.endPoint.x, e.endPoint.y);
-      if (e.center) {
-        const r = e.radius ?? 0;
-        upd(e.center.x - r, e.center.y - r);
-        upd(e.center.x + r, e.center.y + r);
-      }
-      if (e.vertices && Array.isArray(e.vertices)) {
-        for (const v of e.vertices) {
-          if (v.x !== undefined && v.y !== undefined) upd(v.x, v.y);
+      for (const entity of alleEntiteter) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const e = entity as any;
+        if (e.type === "INSERT") continue;
+        if (e.position) saml(e.position.x, e.position.y);
+        if (e.startPoint) saml(e.startPoint.x, e.startPoint.y);
+        if (e.endPoint) saml(e.endPoint.x, e.endPoint.y);
+        if (e.center) saml(e.center.x, e.center.y);
+        if (e.vertices && Array.isArray(e.vertices)) {
+          for (const v of e.vertices) {
+            if (v.x !== undefined && v.y !== undefined) saml(v.x, v.y);
+          }
         }
+        if (e.insertionPoint) saml(e.insertionPoint.x, e.insertionPoint.y);
       }
-      if (e.controlPoints && Array.isArray(e.controlPoints)) {
-        for (const v of e.controlPoints) {
-          if (v.x !== undefined && v.y !== undefined) upd(v.x, v.y);
-        }
-      }
-      if (e.fitPoints && Array.isArray(e.fitPoints)) {
-        for (const v of e.fitPoints) {
-          if (v.x !== undefined && v.y !== undefined) upd(v.x, v.y);
-        }
-      }
-      if (e.points && Array.isArray(e.points)) {
-        for (const v of e.points) {
-          if (v.x !== undefined && v.y !== undefined) upd(v.x, v.y);
-        }
-      }
-      if (e.insertionPoint) upd(e.insertionPoint.x, e.insertionPoint.y);
-      if (e.majorAxisEndPoint && e.center) {
-        // Ellipse: estimat bounding basert på major + minor akse
-        const mx = Math.abs(e.majorAxisEndPoint.x);
-        const my = Math.abs(e.majorAxisEndPoint.y);
-        const majorLen = Math.sqrt(mx * mx + my * my);
-        upd(e.center.x - majorLen, e.center.y - majorLen);
-        upd(e.center.x + majorLen, e.center.y + majorLen);
-      }
+
+      if (alleX.length === 0) return null;
+
+      // Bruk 1. og 99. persentil for å fjerne outliers
+      alleX.sort((a, b) => a - b);
+      alleY.sort((a, b) => a - b);
+      const p1 = Math.floor(alleX.length * 0.01);
+      const p99 = Math.ceil(alleX.length * 0.99) - 1;
+      minX = alleX[p1]!;
+      maxX = alleX[p99]!;
+      minY = alleY[p1]!;
+      maxY = alleY[p99]!;
+      console.log(`[DWG] Beregnet extents fra entiteter (persentil): (${minX}, ${minY}) → (${maxX}, ${maxY})`);
     }
 
     if (!isFinite(minX) || !isFinite(maxX)) return null;
@@ -451,14 +449,37 @@ function dxfTilSvg(dxfInnhold: string): string | null {
     const h = maxY - minY;
     const sw = Math.max(w, h) * 0.001;
 
+    // Grenser for å filtrere bort entiteter langt utenfor tegningen (50% margin)
+    const margin = Math.max(w, h) * 0.5;
+    const boundMinX = minX - margin;
+    const boundMaxX = maxX + margin;
+    const boundMinY = minY - margin;
+    const boundMaxY = maxY + margin;
+
+    function erInnenforBounds(x: number, y: number): boolean {
+      return x >= boundMinX && x <= boundMaxX && y >= boundMinY && y <= boundMaxY;
+    }
+
     // Pass 2: Generer SVG-elementer fra alle entiteter (unntatt INSERT som allerede er utfoldet)
     const paths: string[] = [];
     let ubehandlede = 0;
+    let utenforBounds = 0;
 
     for (const entity of alleEntiteter) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const e = entity as any;
       if (e.type === "INSERT") continue; // Allerede utfoldet
+
+      // Sjekk om entiteten er innenfor tegningens extents
+      let innenfor = false;
+      if (e.position && erInnenforBounds(e.position.x, e.position.y)) innenfor = true;
+      else if (e.startPoint && erInnenforBounds(e.startPoint.x, e.startPoint.y)) innenfor = true;
+      else if (e.endPoint && erInnenforBounds(e.endPoint.x, e.endPoint.y)) innenfor = true;
+      else if (e.center && erInnenforBounds(e.center.x, e.center.y)) innenfor = true;
+      else if (e.insertionPoint && erInnenforBounds(e.insertionPoint.x, e.insertionPoint.y)) innenfor = true;
+      else if (e.vertices && Array.isArray(e.vertices) && e.vertices.some((v: { x: number; y: number }) => erInnenforBounds(v.x, v.y))) innenfor = true;
+      else if (e.controlPoints && Array.isArray(e.controlPoints) && e.controlPoints.some((v: { x: number; y: number }) => erInnenforBounds(v.x, v.y))) innenfor = true;
+      if (!innenfor) { utenforBounds++; continue; }
 
       const stroke = dxfFarge(e);
 
@@ -581,15 +602,18 @@ function dxfTilSvg(dxfInnhold: string): string | null {
     if (ubehandlede > 0) {
       console.log(`[DWG] ${ubehandlede} entiteter ble ikke gjenkjent`);
     }
+    if (utenforBounds > 0) {
+      console.log(`[DWG] Filtrerte bort ${utenforBounds} entiteter utenfor tegningens extents`);
+    }
     console.log(`[DWG] Genererte ${paths.length} SVG-elementer`);
 
     if (paths.length === 0) return null;
 
-    const margin = Math.max(w, h) * 0.02;
-    const vbX = -margin;
-    const vbY = -(h + margin);
-    const vbW = w + 2 * margin;
-    const vbH = h + 2 * margin;
+    const svgMargin = Math.max(w, h) * 0.02;
+    const vbX = -svgMargin;
+    const vbY = -(h + svgMargin);
+    const vbW = w + 2 * svgMargin;
+    const vbH = h + 2 * svgMargin;
 
     // Faste pikseldimensjoner for å sikre at <img> har intrinsic størrelse
     const svgBredde = 2000;
