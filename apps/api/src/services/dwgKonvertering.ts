@@ -121,7 +121,19 @@ function beregnExtents(dxfInnhold: string): {
   try {
     const parser = new DxfParser();
     const dxf = parser.parseSync(dxfInnhold);
-    if (!dxf || !dxf.entities || dxf.entities.length === 0) return null;
+    if (!dxf) return null;
+
+    // Bruk DXF header $EXTMIN/$EXTMAX hvis tilgjengelig (model space extents)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const header = (dxf as any).header;
+    const extMin = header?.$EXTMIN;
+    const extMax = header?.$EXTMAX;
+    if (extMin && extMax && isFinite(extMin.x) && isFinite(extMax.x)) {
+      return { minX: extMin.x, maxX: extMax.x, minY: extMin.y, maxY: extMax.y };
+    }
+
+    // Fallback: beregn fra model space-entiteter
+    if (!dxf.entities || dxf.entities.length === 0) return null;
 
     let minX = Infinity;
     let maxX = -Infinity;
@@ -139,14 +151,13 @@ function beregnExtents(dxfInnhold: string): {
     for (const entity of dxf.entities) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const e = entity as any;
+      if (e.inPaperSpace) continue; // Kun model space
 
-      // Punkt-baserte entiteter
       if (e.position) oppdaterExtents(e.position.x, e.position.y);
       if (e.startPoint) oppdaterExtents(e.startPoint.x, e.startPoint.y);
       if (e.endPoint) oppdaterExtents(e.endPoint.x, e.endPoint.y);
       if (e.center) oppdaterExtents(e.center.x, e.center.y);
 
-      // Vertices (POLYLINE, LWPOLYLINE, etc.)
       if (e.vertices && Array.isArray(e.vertices)) {
         for (const v of e.vertices) {
           if (v.x !== undefined && v.y !== undefined) {
@@ -155,7 +166,6 @@ function beregnExtents(dxfInnhold: string): {
         }
       }
 
-      // Insert-punkt (blokkinnlegg)
       if (e.insertionPoint) {
         oppdaterExtents(e.insertionPoint.x, e.insertionPoint.y);
       }
