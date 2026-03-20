@@ -203,7 +203,7 @@ function RedigerLokasjon({
 
   const { data: lokasjon } = trpc.bygning.hentMedId.useQuery({ id: lokasjonId });
 
-  // Hent SVG-innhold for inline rendering (vector-effect fungerer kun med live SVG)
+  // Hent SVG-innhold for inline rendering med zoom-justert linjetykkelse
   useEffect(() => {
     if (!valgtTegningId) { setSvgInnhold(null); return; }
     const tegning = (lokasjon?.drawings as TegningRad[] | undefined)?.find((t) => t.id === valgtTegningId);
@@ -214,7 +214,7 @@ function RedigerLokasjon({
     fetch(`/api${tegning.fileUrl}`)
       .then((res) => res.text())
       .then((tekst) => {
-        const tilpasset = tekst.replace(
+        let tilpasset = tekst.replace(
           /<svg([^>]*)>/,
           (_match, attrs: string) => {
             const uten = attrs
@@ -222,6 +222,12 @@ function RedigerLokasjon({
               .replace(/\s*height="[^"]*"/g, "");
             return `<svg${uten} width="100%" height="auto" style="display:block">`;
           },
+        );
+        // Fjern eksisterende <style> og erstatt med zoom-bevisst versjon
+        tilpasset = tilpasset.replace(/<style>[^<]*<\/style>/g, "");
+        tilpasset = tilpasset.replace(
+          /(<svg[^>]*>)/,
+          `$1\n<style>line,polyline,circle,path,ellipse,polygon{stroke-width:calc(1.5 / var(--svg-zoom, 1)) !important}</style>`,
         );
         setSvgInnhold(tilpasset);
       })
@@ -556,6 +562,7 @@ function RedigerLokasjon({
                   (valgtTegning.fileType ?? "") === "svg" && svgInnhold ? (
                     <div
                       className="max-w-full"
+                      style={{ "--svg-zoom": zoom } as React.CSSProperties}
                       dangerouslySetInnerHTML={{ __html: svgInnhold }}
                     />
                   ) : (

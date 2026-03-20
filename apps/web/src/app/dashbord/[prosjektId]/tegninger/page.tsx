@@ -127,7 +127,7 @@ export default function TegningerSide() {
     setNyMarkør(null);
   }, [aktivTegning?.id]);
 
-  // Hent SVG-innhold for inline rendering (vector-effect fungerer kun med live SVG)
+  // Hent SVG-innhold for inline rendering med zoom-justert linjetykkelse
   const svgUrl = tegning?.fileUrl ? `/api${tegning.fileUrl}` : null;
   const erSvgFil = (tegning?.fileType ?? "") === "svg";
   const [svgInnhold, setSvgInnhold] = useState<string | null>(null);
@@ -139,8 +139,8 @@ export default function TegningerSide() {
     fetch(svgUrl)
       .then((res) => res.text())
       .then((tekst) => {
-        // Fjern faste width/height — la viewBox styre skalering
-        const tilpasset = tekst.replace(
+        // Fjern faste width/height og inject zoom-justert stroke-width CSS
+        let tilpasset = tekst.replace(
           /<svg([^>]*)>/,
           (_match, attrs: string) => {
             const uten = attrs
@@ -148,6 +148,13 @@ export default function TegningerSide() {
               .replace(/\s*height="[^"]*"/g, "");
             return `<svg${uten} width="100%" height="auto" style="display:block">`;
           },
+        );
+        // Fjern eksisterende <style> og erstatt med zoom-bevisst versjon
+        tilpasset = tilpasset.replace(/<style>[^<]*<\/style>/g, "");
+        // Inject ny style rett etter <svg ...>
+        tilpasset = tilpasset.replace(
+          /(<svg[^>]*>)/,
+          `$1\n<style>line,polyline,circle,path,ellipse,polygon{stroke-width:calc(1.5 / var(--svg-zoom, 1)) !important}</style>`,
         );
         setSvgInnhold(tilpasset);
       })
@@ -469,10 +476,11 @@ export default function TegningerSide() {
               style={{ width: `${zoom * 100}%`, minWidth: "100%" }}
               onClick={handleBildeKlikk}
             >
-              {/* SVG: inline rendering for vector-effect:non-scaling-stroke */}
+              {/* SVG: inline rendering med zoom-justert linjetykkelse */}
               {erSvgFil && svgInnhold ? (
                 <div
                   className="block w-full"
+                  style={{ "--svg-zoom": zoom } as React.CSSProperties}
                   dangerouslySetInnerHTML={{ __html: svgInnhold }}
                 />
               ) : (
