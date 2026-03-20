@@ -10,7 +10,7 @@ Alle routere i `apps/api/src/routes/`:
 | `oppgave` | hentForProsjekt (m/statusfilter), hentForTegning (markører per tegning), hentMedId (m/template.objects+kommentarer), hentForSjekkliste, hentKommentarer, leggTilKommentar, opprett (m/tegningsposisjon, templateId påkrevd), oppdater (m/entrepriser, kun draft), oppdaterData, endreStatus, slett (kun draft) |
 | `mal` | hentForProsjekt, hentMedId, opprett, oppdaterMal, slettMal, leggTilObjekt, oppdaterObjekt, oppdaterRekkefølge, sjekkObjektBruk, slettObjekt |
 | `bygning` | hentForProsjekt (m/valgfri type-filter), hentMedId, opprett (m/type), oppdater, publiser, slett |
-| `tegning` | hentForProsjekt (m/filtre), hentForBygning, hentMedId, opprett (m/asynkron DWG-konvertering + layout-splitting), oppdater, lastOppRevisjon, hentRevisjoner, tilknyttBygning, settGeoReferanse, fjernGeoReferanse, hentKonverteringsStatus, provKonverteringIgjen (m/layout-splitting), slett |
+| `tegning` | hentForProsjekt (m/filtre), hentForBygning, hentMedId, opprett (m/asynkron DWG-konvertering + layout-splitting, IFC-metadatautvinning), oppdater, lastOppRevisjon, hentRevisjoner, tilknyttBygning, settGeoReferanse, fjernGeoReferanse, hentKonverteringsStatus, provKonverteringIgjen (m/layout-splitting), slett |
 | `dokumentflyt` | hentForProsjekt, opprett, oppdater, slett, leggTilMedlem, fjernMedlem |
 | `arbeidsforlop` | _(bakoverkompatibilitet for mobil)_ hentForProsjekt, hentForEnterprise, opprett, oppdater, slett, leggTilStegMedlem, fjernStegMedlem |
 | `mappe` | hentForProsjekt (m/tilgangsoppføringer), hentDokumenter, opprett, oppdater, slett, hentTilgang, settTilgang |
@@ -110,3 +110,23 @@ Pipeline: DWG → DXF → SVG med automatisk koordinatdeteksjon og georeferanse.
 **Koordinatdeteksjon:**
 - UTM-33 detekteres automatisk fra filnavn eller extents-heuristikk
 - Auto-georeferanse genereres for UTM-koordinater
+
+## IFC-metadatautvinning
+
+**Fil:** `apps/api/src/services/ifcMetadata.ts`
+
+Parser IFC-filer (STEP-format) med regex og trekker ut metadata ved opplasting.
+Kjører asynkront (som DWG-konvertering) og lagrer i `Drawing.ifcMetadata` (Json).
+
+**Uttrukne felter:**
+- `prosjektnavn`, `prosjektbeskrivelse`, `fase` — fra IFCPROJECT
+- `organisasjon`, `forfatter` — fra IFCORGANIZATION og FILE_NAME
+- `programvare`, `tidsstempel` — fra FILE_NAME
+- `gpsBreddegrad`, `gpsLengdegrad`, `gpsHøyde` — fra IFCSITE (DMS→desimalgrader)
+- `bygningNavn` — fra IFCBUILDING
+- `etasjer` (navn + høyde) — fra IFCBUILDINGSTOREY, sortert etter høyde
+- `fagdisiplin` — gjettes fra filnavn (ARK, RIB, RIV, RIE, etc.)
+
+**IFC-strengdekoding:** `\X\HH` (ISO 8859-1), `\X2\HHHH\X0\` (Unicode), `\S\c` (Latin supplement)
+
+**Auto-utfylling:** `discipline` og `originator` settes automatisk fra metadata hvis ikke angitt manuelt.
