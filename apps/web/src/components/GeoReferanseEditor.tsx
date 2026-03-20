@@ -428,7 +428,7 @@ export function GeoReferanseEditor({
 
       setView((prev) => {
         const faktor = e.deltaY > 0 ? 0.85 : 1.18;
-        const nesteZoom = Math.min(10, Math.max(1, prev.zoom * faktor));
+        const nesteZoom = Math.min(10, Math.max(0.1, prev.zoom * faktor));
         if (nesteZoom === prev.zoom) return prev;
 
         const lx = (cx - prev.panX) / prev.zoom;
@@ -490,7 +490,7 @@ export function GeoReferanseEditor({
     const cy = container.offsetHeight / 2;
 
     setView((prev) => {
-      const nesteZoom = Math.min(10, Math.max(1, prev.zoom * faktor));
+      const nesteZoom = Math.min(10, Math.max(0.1, prev.zoom * faktor));
       if (nesteZoom === prev.zoom) return prev;
 
       const lx = (cx - prev.panX) / prev.zoom;
