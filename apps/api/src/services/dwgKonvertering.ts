@@ -285,6 +285,14 @@ function dxfTilSvg(dxfInnhold: string): string | null {
     }
     console.log(`[DWG] Blokker funnet: ${Object.keys(blokker).length} (${Object.entries(blokker).map(([n, e]) => `${n}:${e.length}`).join(", ")})`);
 
+    // Filtrer bort paper space entiteter — kun model space vises
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const modelEntiteter = dxf.entities.filter((e: any) => !e.inPaperSpace);
+    const paperCount = dxf.entities.length - modelEntiteter.length;
+    if (paperCount > 0) {
+      console.log(`[DWG] Filtrerte bort ${paperCount} paper space entiteter, ${modelEntiteter.length} model space gjenstår`);
+    }
+
     // Utfold INSERT-entiteter iterativt (unngår stack overflow ved store blokker)
     // Begrenser til maks 500 000 entiteter totalt for å unngå minne-problemer
     const MAKS_ENTITETER = 500_000;
@@ -292,7 +300,7 @@ function dxfTilSvg(dxfInnhold: string): string | null {
     const alleEntiteter: any[] = [];
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     type ArbeidsItem = { entity: any; transforms: Array<{ pos: { x: number; y: number }; sx: number; sy: number; cosR: number; sinR: number }> };
-    const kø: ArbeidsItem[] = dxf.entities.map(e => ({ entity: e, transforms: [] }));
+    const kø: ArbeidsItem[] = modelEntiteter.map(e => ({ entity: e, transforms: [] }));
 
     while (kø.length > 0 && alleEntiteter.length < MAKS_ENTITETER) {
       const item = kø.shift()!;
