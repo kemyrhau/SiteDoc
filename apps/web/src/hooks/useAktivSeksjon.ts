@@ -9,6 +9,7 @@ const seksjonMap: Record<string, Seksjon> = {
   oppgaver: "oppgaver",
   maler: "maler",
   tegninger: "tegninger",
+  punktskyer: "punktskyer",
   bilder: "bilder",
   entrepriser: "entrepriser",
   mapper: "mapper",

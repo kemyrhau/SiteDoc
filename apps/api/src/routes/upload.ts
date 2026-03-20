@@ -17,6 +17,10 @@ const TILLATTE_TYPER = new Set([
   ".png",
   ".jpg",
   ".jpeg",
+  ".las",
+  ".laz",
+  ".e57",
+  ".ply",
 ]);
 
 export async function uploadRoute(server: FastifyInstance) {

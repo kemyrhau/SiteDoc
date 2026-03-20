@@ -18,6 +18,7 @@ import { vaerRouter } from "../routes/vaer";
 import { modulRouter } from "../routes/modul";
 import { organisasjonRouter } from "../routes/organisasjon";
 import { adminRouter } from "../routes/admin";
+import { punktskyRouter } from "../routes/punktsky";
 
 export const appRouter = router({
   prosjekt: prosjektRouter,
@@ -39,6 +40,7 @@ export const appRouter = router({
   modul: modulRouter,
   organisasjon: organisasjonRouter,
   admin: adminRouter,
+  punktsky: punktskyRouter,
 });
 
 export type AppRouter = typeof appRouter;

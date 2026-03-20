@@ -126,6 +126,7 @@ model Project {
   members              ProjectMember[]
   enterprises          Enterprise[]
   drawings             Drawing[]
+  pointClouds          PointCloud[]
   buildings            Building[]
   templates            ReportTemplate[]
   folders              Folder[]
@@ -309,6 +310,33 @@ model Drawing {
   @@map("drawings")
 }
 
+model PointCloud {
+  id                 String    @id @default(uuid())
+  projectId          String    @map("project_id")
+  buildingId         String?   @map("building_id")
+  name               String
+  description        String?
+  fileUrl            String    @map("file_url")           // Opplastet fil (LAS, LAZ, E57, PLY)
+  fileType           String    @map("file_type")          // las, laz, e57, ply
+  fileSize           Int?      @map("file_size")
+  potreeUrl          String?   @map("potree_url")         // Sti til Potree-output (metadata.json)
+  conversionStatus   String    @default("pending") @map("conversion_status") // pending, converting, done, failed
+  conversionError    String?   @map("conversion_error")
+  coordinateSystem   String?   @map("coordinate_system")  // utm33, ntm6, etc.
+  pointCount         Int?      @map("point_count")        // Antall punkter
+  hasClassification  Boolean   @default(false) @map("has_classification")
+  hasRgb             Boolean   @default(false) @map("has_rgb")
+  classifications    Json?                                 // [{kode: 2, navn: "Bakke", antall: 50000}, ...]
+  boundingBox        Json?     @map("bounding_box")       // {min: {x,y,z}, max: {x,y,z}}
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  building  Building? @relation(fields: [buildingId], references: [id], onDelete: SetNull)
+
+  @@map("point_clouds")
+}
+
 model DrawingRevision {
   id           String   @id @default(uuid())
   drawingId    String   @map("drawing_id")
@@ -340,9 +368,10 @@ model Building {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  project    Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  drawings   Drawing[]
-  checklists Checklist[]
+  project     Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  drawings    Drawing[]
+  pointClouds PointCloud[]
+  checklists  Checklist[]
 
   @@map("buildings")
 }
