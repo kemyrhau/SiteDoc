@@ -316,6 +316,12 @@ export function GeoReferanseEditor({
 
   const eksisterende = tegning?.geoReference as GeoReferanse | null | undefined;
 
+  const konverterMutation = trpc.tegning.provKonverteringIgjen.useMutation({
+    onSuccess: () => {
+      utils.tegning.hentMedId.invalidate({ id: tegningId });
+    },
+  });
+
   const [punkt1, setPunkt1] = useState<Punkt | null>(
     eksisterende?.point1
       ? {
@@ -680,8 +686,18 @@ export function GeoReferanseEditor({
             }}
           >
             {erDwg ? (
-              <div className="flex h-[400px] w-full items-center justify-center bg-gray-100 text-sm text-gray-500">
-                DWG-filen må konverteres før georeferering er mulig
+              <div className="flex h-[400px] w-full flex-col items-center justify-center gap-3 bg-gray-100">
+                <p className="text-sm text-gray-500">DWG-filen må konverteres før georeferering er mulig</p>
+                <button
+                  onClick={() => konverterMutation.mutate({ id: tegningId })}
+                  disabled={konverterMutation.isPending}
+                  className="rounded bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-600 disabled:opacity-50"
+                >
+                  {konverterMutation.isPending ? "Starter konvertering..." : "Konverter DWG"}
+                </button>
+                {konverterMutation.isSuccess && (
+                  <p className="text-xs text-green-600">Konvertering startet — last inn siden på nytt om et øyeblikk</p>
+                )}
               </div>
             ) : erBilde ? (
               <img
