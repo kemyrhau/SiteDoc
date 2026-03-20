@@ -285,50 +285,86 @@ function dxfTilSvg(dxfInnhold: string): string | null {
     }
     console.log(`[DWG] Blokker funnet: ${Object.keys(blokker).length} (${Object.entries(blokker).map(([n, e]) => `${n}:${e.length}`).join(", ")})`);
 
-    // Samle alle entiteter inkludert blokk-innhold (for extents-beregning)
+    // Utfold INSERT-entiteter iterativt (unngår stack overflow ved store blokker)
+    // Begrenser til maks 500 000 entiteter totalt for å unngå minne-problemer
+    const MAKS_ENTITETER = 500_000;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    function samleAlleEntiteter(entiteter: any[], dybde = 0): any[] {
-      if (dybde > 10) return entiteter; // Hindre uendelig rekursjon
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const alle: any[] = [...entiteter];
-      for (const e of entiteter) {
-        if (e.type === "INSERT" && e.name && blokker[e.name]) {
-          const blokkEntiteter = blokker[e.name]!;
-          // Transformer blokkentiteter til verdenskoordinater
-          const transformert = blokkEntiteter.map((be: { position?: { x: number; y: number }; startPoint?: { x: number; y: number }; endPoint?: { x: number; y: number }; center?: { x: number; y: number }; vertices?: { x: number; y: number }[]; insertionPoint?: { x: number; y: number }; controlPoints?: { x: number; y: number }[]; fitPoints?: { x: number; y: number }[]; points?: { x: number; y: number }[]; type: string }) => {
-            const pos = e.position ?? { x: 0, y: 0 };
-            const sx = e.xScale ?? 1;
-            const sy = e.yScale ?? 1;
-            const rot = ((e.rotation ?? 0) * Math.PI) / 180;
-            const cosR = Math.cos(rot);
-            const sinR = Math.sin(rot);
+    const alleEntiteter: any[] = [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    type ArbeidsItem = { entity: any; transforms: Array<{ pos: { x: number; y: number }; sx: number; sy: number; cosR: number; sinR: number }> };
+    const kø: ArbeidsItem[] = dxf.entities.map(e => ({ entity: e, transforms: [] }));
 
-            function transformPunkt(p: { x: number; y: number }): { x: number; y: number } {
-              const rx = p.x * sx * cosR - p.y * sy * sinR + pos.x;
-              const ry = p.x * sx * sinR + p.y * sy * cosR + pos.y;
-              return { x: rx, y: ry };
+    while (kø.length > 0 && alleEntiteter.length < MAKS_ENTITETER) {
+      const item = kø.shift()!;
+      const e = item.entity;
+
+      if (e.type === "INSERT" && e.name && blokker[e.name]) {
+        const blokkEntiteter = blokker[e.name]!;
+        // Begrens utfoldelse av veldig store blokker (f.eks. "benk" med 300k+ entiteter)
+        if (blokkEntiteter.length > 10_000) {
+          console.log(`[DWG] Hopper over stor blokk "${e.name}" (${blokkEntiteter.length} entiteter)`);
+          // Legg til INSERT-punktet som en markør
+          alleEntiteter.push(e);
+          continue;
+        }
+        // Maksimalt 5 nivåer med nesting
+        if (item.transforms.length >= 5) {
+          alleEntiteter.push(e);
+          continue;
+        }
+
+        const pos = e.position ?? { x: 0, y: 0 };
+        const sx = e.xScale ?? 1;
+        const sy = e.yScale ?? 1;
+        const rot = ((e.rotation ?? 0) * Math.PI) / 180;
+        const nyTransform = { pos, sx, sy, cosR: Math.cos(rot), sinR: Math.sin(rot) };
+        const transforms = [...item.transforms, nyTransform];
+
+        for (const be of blokkEntiteter) {
+          kø.push({ entity: be, transforms });
+        }
+      } else {
+        // Anvend alle transforms (fra ytterst til innerst)
+        if (item.transforms.length > 0) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          let kopi: any = { ...e };
+
+          function applyTransform(
+            punkt: { x: number; y: number },
+            tf: { pos: { x: number; y: number }; sx: number; sy: number; cosR: number; sinR: number }
+          ): { x: number; y: number } {
+            const rx = punkt.x * tf.sx * tf.cosR - punkt.y * tf.sy * tf.sinR + tf.pos.x;
+            const ry = punkt.x * tf.sx * tf.sinR + punkt.y * tf.sy * tf.cosR + tf.pos.y;
+            return { x: rx, y: ry };
+          }
+
+          function applyAll(punkt: { x: number; y: number }): { x: number; y: number } {
+            let p = punkt;
+            for (const tf of item.transforms) {
+              p = applyTransform(p, tf);
             }
+            return p;
+          }
 
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const kopi: any = { ...be };
-            if (be.position) kopi.position = transformPunkt(be.position);
-            if (be.startPoint) kopi.startPoint = transformPunkt(be.startPoint);
-            if (be.endPoint) kopi.endPoint = transformPunkt(be.endPoint);
-            if (be.center) kopi.center = transformPunkt(be.center);
-            if (be.vertices) kopi.vertices = be.vertices.map(transformPunkt);
-            if (be.insertionPoint) kopi.insertionPoint = transformPunkt(be.insertionPoint);
-            if (be.controlPoints) kopi.controlPoints = be.controlPoints.map(transformPunkt);
-            if (be.fitPoints) kopi.fitPoints = be.fitPoints.map(transformPunkt);
-            if (be.points) kopi.points = be.points.map(transformPunkt);
-            return kopi;
-          });
-          alle.push(...samleAlleEntiteter(transformert, dybde + 1));
+          if (e.position) kopi.position = applyAll(e.position);
+          if (e.startPoint) kopi.startPoint = applyAll(e.startPoint);
+          if (e.endPoint) kopi.endPoint = applyAll(e.endPoint);
+          if (e.center) kopi.center = applyAll(e.center);
+          if (e.vertices) kopi.vertices = e.vertices.map((v: { x: number; y: number }) => applyAll(v));
+          if (e.insertionPoint) kopi.insertionPoint = applyAll(e.insertionPoint);
+          if (e.controlPoints) kopi.controlPoints = e.controlPoints.map((v: { x: number; y: number }) => applyAll(v));
+          if (e.fitPoints) kopi.fitPoints = e.fitPoints.map((v: { x: number; y: number }) => applyAll(v));
+          if (e.points) kopi.points = e.points.map((v: { x: number; y: number }) => applyAll(v));
+          alleEntiteter.push(kopi);
+        } else {
+          alleEntiteter.push(e);
         }
       }
-      return alle;
     }
 
-    const alleEntiteter = samleAlleEntiteter(dxf.entities);
+    if (kø.length > 0) {
+      console.log(`[DWG] Stoppet utfoldelse ved ${MAKS_ENTITETER} entiteter (${kø.length} gjenstår i kø)`);
+    }
     console.log(`[DWG] Totalt entiteter (inkl. blokker): ${alleEntiteter.length} (opprinnelig: ${dxf.entities.length})`);
 
     // Logg entitetstyper
