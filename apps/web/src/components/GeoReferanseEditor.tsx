@@ -319,6 +319,8 @@ export function GeoReferanseEditor({
   const konverterMutation = trpc.tegning.provKonverteringIgjen.useMutation({
     onSuccess: () => {
       utils.tegning.hentMedId.invalidate({ id: tegningId });
+      utils.bygning.hentMedId.invalidate();
+      onLagret();
     },
   });
 
