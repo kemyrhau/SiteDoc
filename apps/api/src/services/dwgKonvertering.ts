@@ -930,30 +930,26 @@ export async function konverterDwg(
       }
     }
 
-    // 4. Parse layouts og generer SVG per layout
+    // 4. Parse layouts — opprett separate tegninger med layoutnavn
+    // Alle layouts bruker samme model space SVG (viewport-klipping krever UCS-data
+    // som ikke er tilgjengelig i DXF)
     const layoutResultater: DwgLayoutResultat[] = [];
     if (dxfInnhold && harSvg) {
       const detekterteLayouts = parseLayouts(dxfInnhold);
       if (detekterteLayouts.length > 0) {
+        // Alle layouts deler samme SVG (model space rendering)
+        const svgData = await readFile(svgSti, "utf-8");
         for (const layout of detekterteLayouts) {
-          if (!layout.modelBounds) {
-            console.log(`[DWG] Layout "${layout.navn}" har ingen viewport — hopper over`);
-            continue;
-          }
-          console.log(`[DWG] Genererer SVG for layout "${layout.navn}"...`);
-          const layoutSvg = dxfTilSvg(dxfInnhold, layout.modelBounds);
-          if (layoutSvg) {
-            const layoutId = randomUUID();
-            const layoutFilnavn = `${layoutId}.svg`;
-            await writeFile(join(uploadDir, layoutFilnavn), layoutSvg, "utf-8");
-            layoutResultater.push({
-              navn: layout.navn,
-              tabOrder: layout.tabOrder,
-              visningUrl: `/uploads/${layoutFilnavn}`,
-              visningFilType: "svg",
-            });
-            console.log(`[DWG] Layout "${layout.navn}" SVG generert`);
-          }
+          const layoutId = randomUUID();
+          const layoutFilnavn = `${layoutId}.svg`;
+          await writeFile(join(uploadDir, layoutFilnavn), svgData, "utf-8");
+          layoutResultater.push({
+            navn: layout.navn,
+            tabOrder: layout.tabOrder,
+            visningUrl: `/uploads/${layoutFilnavn}`,
+            visningFilType: "svg",
+          });
+          console.log(`[DWG] Layout "${layout.navn}" opprettet (delt SVG)`);
         }
       }
     }
