@@ -32,9 +32,9 @@ async function start() {
     credentials: true,
   });
 
-  // Multipart filopplasting (maks 100 MB)
+  // Multipart filopplasting (maks 500 MB)
   await server.register(multipart, {
-    limits: { fileSize: 100 * 1024 * 1024 },
+    limits: { fileSize: 500 * 1024 * 1024 },
   });
 
   // Server opplastede filer

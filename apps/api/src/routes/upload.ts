@@ -79,7 +79,7 @@ export async function uploadRoute(server: FastifyInstance) {
     if (data.file.truncated) {
       const { unlink } = await import("fs/promises");
       await unlink(filsti);
-      return reply.status(413).send({ error: "Filen er for stor (maks 100 MB)" });
+      return reply.status(413).send({ error: "Filen er for stor (maks 500 MB)" });
     }
 
     return reply.send({
