@@ -10,7 +10,7 @@ Alle routere i `apps/api/src/routes/`:
 | `oppgave` | hentForProsjekt (m/statusfilter), hentForTegning (markører per tegning), hentMedId (m/template.objects+kommentarer), hentForSjekkliste, hentKommentarer, leggTilKommentar, opprett (m/tegningsposisjon, templateId påkrevd), oppdater (m/entrepriser, kun draft), oppdaterData, endreStatus, slett (kun draft) |
 | `mal` | hentForProsjekt, hentMedId, opprett, oppdaterMal, slettMal, leggTilObjekt, oppdaterObjekt, oppdaterRekkefølge, sjekkObjektBruk, slettObjekt |
 | `bygning` | hentForProsjekt (m/valgfri type-filter), hentMedId, opprett (m/type), oppdater, publiser, slett |
-| `tegning` | hentForProsjekt (m/filtre), hentForBygning, hentMedId, opprett (m/asynkron DWG-konvertering), oppdater, lastOppRevisjon, hentRevisjoner, tilknyttBygning, settGeoReferanse, fjernGeoReferanse, hentKonverteringsStatus, slett |
+| `tegning` | hentForProsjekt (m/filtre), hentForBygning, hentMedId, opprett (m/asynkron DWG-konvertering + layout-splitting), oppdater, lastOppRevisjon, hentRevisjoner, tilknyttBygning, settGeoReferanse, fjernGeoReferanse, hentKonverteringsStatus, provKonverteringIgjen (m/layout-splitting), slett |
 | `dokumentflyt` | hentForProsjekt, opprett, oppdater, slett, leggTilMedlem, fjernMedlem |
 | `arbeidsforlop` | _(bakoverkompatibilitet for mobil)_ hentForProsjekt, hentForEnterprise, opprett, oppdater, slett, leggTilStegMedlem, fjernStegMedlem |
 | `mappe` | hentForProsjekt (m/tilgangsoppføringer), hentDokumenter, opprett, oppdater, slett, hentTilgang, settTilgang |
@@ -79,3 +79,34 @@ Minnebasert rate limiter i `apps/api/src/utils/rateLimiter.ts`. Automatisk oppry
 - Auto-tilknyttes brukerens firma hvis det finnes
 
 **Admin-oversikt:** `/dashbord/admin/testsider` — viser kun prøveprosjekter (uten firma), splittet i aktive/deaktiverte
+
+## DWG-konvertering
+
+**Fil:** `apps/api/src/services/dwgKonvertering.ts`
+
+Pipeline: DWG → DXF → SVG med automatisk koordinatdeteksjon og georeferanse.
+
+**Konvertere:**
+- **ODA File Converter** (primær): Industri-standard, krever xvfb for headless Linux, `--auto-servernum`
+- **libredwg dwg2dxf** (fallback): Åpen kildekode, `--as r2000` for komplekse filer
+
+**DXF → SVG:**
+- Bruker `dxf-parser` for parsing + custom SVG-generering
+- Paper space-entiteter filtreres bort (`inPaperSpace`)
+- Paper space-blokker (`*Paper_Space*`) og dimensjonsblokker (`*D*`) hoppes over
+- Iterativ block-utfoldelse (INSERT) med grenser: maks 500k entiteter, 10k per blokk, 5 nesting-nivåer
+- Extents fra DXF header ($EXTMIN/$EXTMAX), fallback til persentil-basert beregning
+- Entiteter utenfor extents (50% margin) filtreres bort
+- Støttede entitetstyper: LINE, LWPOLYLINE, POLYLINE, CIRCLE, ARC, ELLIPSE, SPLINE, SOLID, 3DFACE, TEXT, MTEXT, DIMENSION, POINT, INSERT
+- B-spline evaluering via De Boors algoritme
+- TrueColor (DXF color > 255) støttes
+
+**Layout-splitting:**
+- DWG-filer med multiple layout-tabs (faner) splittes til separate Drawing-records
+- Layout-info parses fra rå DXF-tekst (LAYOUT-objekter, BLOCK_RECORD, VIEWPORT)
+- Alle layouts deler samme model space SVG (viewport-klipping krever UCS-data)
+- Brukeren tilordner etasje til hvert layout manuelt
+
+**Koordinatdeteksjon:**
+- UTM-33 detekteres automatisk fra filnavn eller extents-heuristikk
+- Auto-georeferanse genereres for UTM-koordinater
