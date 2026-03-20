@@ -621,10 +621,14 @@ function dxfTilSvg(dxfInnhold: string, klippBounds?: { minX: number; maxX: numbe
     function nx(x: number) { return x - oX; }
     function ny(y: number) { return -(y - oY); }
 
-    // Beregn stroke-width proporsjonalt med tegningens størrelse
+    // Beregn dimensjoner og stroke-width
     const w = maxX - minX;
     const h = maxY - minY;
-    const sw = Math.max(w, h) * 0.001;
+    // Stroke-width i viewBox-enheter som tilsvarer ~1px ved standard visning
+    // viewBox-bredde / SVG-piksler gir skaleringsfaktor
+    const svgBredde = 2000;
+    const vbPerPx = w / svgBredde;
+    const sw = vbPerPx * 1.5; // ~1.5px ved standard visning
 
     // Grenser for å filtrere bort entiteter langt utenfor tegningen (50% margin)
     const margin = Math.max(w, h) * 0.5;
@@ -793,11 +797,11 @@ function dxfTilSvg(dxfInnhold: string, klippBounds?: { minX: number; maxX: numbe
     const vbH = h + 2 * svgMargin;
 
     // Faste pikseldimensjoner for å sikre at <img> har intrinsic størrelse
-    const svgBredde = 2000;
     const svgHoyde = Math.round(svgBredde * (vbH / vbW));
 
     return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="${vbX} ${vbY} ${vbW} ${vbH}" width="${svgBredde}" height="${svgHoyde}">
+<style>line,polyline,circle,path,ellipse,polygon{vector-effect:non-scaling-stroke}</style>
 <rect x="${vbX}" y="${vbY}" width="${vbW}" height="${vbH}" fill="white"/>
 ${paths.join("\n")}
 </svg>`;
