@@ -1325,6 +1325,53 @@ function formaterVerdi(v: unknown): string {
 }
 
 /* ------------------------------------------------------------------ */
+/*  IndexedDB-cache for fragments (unngår IFC-parsing ved gjentatte besøk) */
+/* ------------------------------------------------------------------ */
+
+const FRAGMENTS_DB = "sitedoc-fragments-cache";
+const FRAGMENTS_STORE = "fragments";
+const FRAGMENTS_DB_VERSION = 1;
+
+function åpneFragmentsDb(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(FRAGMENTS_DB, FRAGMENTS_DB_VERSION);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(FRAGMENTS_STORE)) {
+        db.createObjectStore(FRAGMENTS_STORE);
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function hentCachetFragments(nøkkel: string): Promise<Uint8Array | null> {
+  try {
+    const db = await åpneFragmentsDb();
+    return new Promise((resolve) => {
+      const tx = db.transaction(FRAGMENTS_STORE, "readonly");
+      const store = tx.objectStore(FRAGMENTS_STORE);
+      const req = store.get(nøkkel);
+      req.onsuccess = () => resolve(req.result instanceof Uint8Array ? req.result : null);
+      req.onerror = () => resolve(null);
+    });
+  } catch {
+    return null;
+  }
+}
+
+async function lagreCachetFragments(nøkkel: string, data: Uint8Array): Promise<void> {
+  try {
+    const db = await åpneFragmentsDb();
+    const tx = db.transaction(FRAGMENTS_STORE, "readwrite");
+    tx.objectStore(FRAGMENTS_STORE).put(data, nøkkel);
+  } catch {
+    // Cache-lagring er best-effort
+  }
+}
+
+/* ------------------------------------------------------------------ */
 /*  IFC Viewer — @thatopen/components                                   */
 /* ------------------------------------------------------------------ */
 
@@ -1478,7 +1525,7 @@ function SammenslattIfcViewer({
 
         if (renset) return;
 
-        // Sekvensiell WASM-parsing (web-ifc er enkelttrådet)
+        // Last modeller — bruk cached fragments hvis tilgjengelig, ellers parse IFC
         for (const { tegning, data, feil } of nedlastinger) {
           if (renset) return;
 
@@ -1491,19 +1538,48 @@ function SammenslattIfcViewer({
           setLasterNavn(tegning.name);
 
           try {
-            const model = await ifcLoader.load(data, true, tegning.name, {
-              instanceCallback: (importer) => {
-                importer.addAllAttributes();
-                importer.addAllRelations();
-              },
-            });
+            // Cache-nøkkel basert på fil-URL (stabil per tegning)
+            const cacheNøkkel = `fragments:${tegning.fileUrl}`;
+            let model: unknown = null;
+
+            // Prøv å laste fra IndexedDB-cache (mye raskere enn IFC-parsing)
+            const cachetBuffer = await hentCachetFragments(cacheNøkkel);
+            if (cachetBuffer) {
+              try {
+                model = await fragmentsManager.core.load(new Uint8Array(cachetBuffer), {
+                  modelId: tegning.id,
+                  camera: threeCamera,
+                });
+              } catch {
+                // Cache korrupt — fall tilbake til IFC-parsing
+                model = null;
+              }
+            }
+
+            // Hvis ingen cache: parse IFC og lagre fragments til cache
+            if (!model) {
+              const parsedModel = await ifcLoader.load(data, true, tegning.name, {
+                instanceCallback: (importer) => {
+                  importer.addAllAttributes();
+                  importer.addAllRelations();
+                },
+              });
+              model = parsedModel;
+
+              // Lagre til IndexedDB for neste gang (best-effort, i bakgrunnen)
+              (parsedModel as unknown as { _save: () => Promise<Uint8Array> })._save()
+                .then((buffer) => lagreCachetFragments(cacheNøkkel, buffer))
+                .catch(() => { /* Ikke kritisk */ });
+            }
+
+            const fm = model as { object: InstanceType<typeof THREE.Object3D>; useCamera: (c: unknown) => void; box: InstanceType<typeof THREE.Box3> };
 
             // Legg modellens 3D-objekt til scenen og koble kamera for tile-lasting
-            scene.add(model.object);
-            model.useCamera(threeCamera);
+            scene.add(fm.object);
+            fm.useCamera(threeCamera);
 
             modellMap.set(tegning.id, model);
-            totalBbox.union(model.box);
+            totalBbox.union(fm.box);
 
             lastet++;
             setAntallLastet(lastet);
