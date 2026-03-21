@@ -1329,7 +1329,13 @@ function formaterVerdi(v: unknown): string {
 /* ------------------------------------------------------------------ */
 
 // Interne IFC-felt som ikke er nyttige for brukeren
-const INTERNE_FELT = new Set(["_category", "_localId", "_guid", "type", "Name", "GlobalId"]);
+const INTERNE_FELT = new Set([
+  "_category", "_localId", "_guid", "type", "Name", "GlobalId",
+  "OwnerHistory", "ObjectPlacement", "Representation",
+  "RepresentationMaps", "HasAssignments", "HasContext",
+  "IsDecomposedBy", "Decomposes", "HasAssociations",
+  "expressID",
+]);
 
 function hentNavn(item: Record<string, unknown>): string {
   const n = item["Name"];
@@ -1344,7 +1350,9 @@ function hentVerdi(obj: Record<string, unknown>): unknown {
   for (const felt of ["NominalValue", "LengthValue", "AreaValue", "VolumeValue", "WeightValue", "CountValue"]) {
     const v = obj[felt];
     if (v && typeof v === "object" && "value" in (v as Record<string, unknown>)) {
-      return (v as { value: unknown }).value;
+      const val = (v as { value: unknown }).value;
+      if (val === null || val === undefined || val === "") return null;
+      return val;
     }
   }
   return null;
@@ -1702,13 +1710,21 @@ function SammenslattIfcViewer({
                   propsApiRef.properties.getTypeProperties(modelId, localId, true).catch(() => []),
                 ]);
 
-                  // Konverter attributter
+                  // Konverter attributter (filtrer interne felt og express-ID-referanser)
                   const attributter: Record<string, EgenskapVerdi> = {};
                   if (itemProps) {
+                    // Behold Name for headeren (ikke filtrert bort av INTERNE_FELT)
+                    const nameVal = itemProps["Name"];
+                    if (nameVal && typeof nameVal === "object" && "value" in (nameVal as Record<string, unknown>)) {
+                      const n = (nameVal as { value: unknown }).value;
+                      if (n != null && n !== "") attributter["Name"] = { value: n };
+                    }
                     for (const [k, v] of Object.entries(itemProps)) {
                       if (INTERNE_FELT.has(k)) continue;
                       if (v && typeof v === "object" && "value" in (v as Record<string, unknown>)) {
-                        attributter[k] = { value: (v as { value: unknown }).value };
+                        const val = (v as { value: unknown }).value;
+                        if (val === null || val === undefined || val === "") continue;
+                        attributter[k] = { value: val };
                       }
                     }
                   }
@@ -1762,7 +1778,10 @@ function SammenslattIfcViewer({
                     }
                   }
 
-                  onObjektValgtRef.current({ localId, kategori, attributter, relasjoner });
+                  // Bruk IFC-typen fra web-ifc hvis tilgjengelig
+                  const ifcType = itemProps?.type != null ? String(itemProps.type) : null;
+                  const endeligKategori = kategori ?? ifcType;
+                  onObjektValgtRef.current({ localId, kategori: endeligKategori, attributter, relasjoner });
               } catch (err) {
                 console.warn("Kunne ikke hente IFC-egenskaper:", err);
               }
