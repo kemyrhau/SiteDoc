@@ -573,6 +573,12 @@ function RedigerLokasjon({
                       draggable={false}
                     />
                   )
+                ) : (valgtTegning.fileType ?? "") === "ifc" ? (
+                  <div className="flex flex-col items-center gap-2 text-gray-400">
+                    <FileText className="h-12 w-12 text-gray-300" />
+                    <p className="text-sm font-medium text-gray-500">{valgtTegning.name}</p>
+                    <p className="text-xs">IFC-modell — kan ikke forhåndsvises her</p>
+                  </div>
                 ) : (
                   <iframe
                     src={`/api${valgtTegning.fileUrl}`}
