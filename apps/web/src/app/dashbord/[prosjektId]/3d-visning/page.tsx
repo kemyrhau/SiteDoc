@@ -1346,8 +1346,9 @@ function hentNavn(item: Record<string, unknown>): string {
 }
 
 function hentVerdi(obj: Record<string, unknown>): unknown {
-  // Prøv NominalValue først (IFCPROPERTYSINGLEVALUE), deretter diverse kvantitetsverdier
-  for (const felt of ["NominalValue", "LengthValue", "AreaValue", "VolumeValue", "WeightValue", "CountValue"]) {
+  // IFCPROPERTYSINGLEVALUE → NominalValue
+  // IFCELEMENTQUANTITY → LengthValue, AreaValue, VolumeValue, WeightValue, CountValue, TimeValue
+  for (const felt of ["NominalValue", "LengthValue", "AreaValue", "VolumeValue", "WeightValue", "CountValue", "TimeValue"]) {
     const v = obj[felt];
     if (v && typeof v === "object" && "value" in (v as Record<string, unknown>)) {
       const val = (v as { value: unknown }).value;
@@ -1355,6 +1356,41 @@ function hentVerdi(obj: Record<string, unknown>): unknown {
       return val;
     }
   }
+
+  // IFCPROPERTYENUMERATEDVALUE → EnumerationValues (array av {value: ...})
+  const enumVals = obj["EnumerationValues"] as unknown[] | undefined;
+  if (Array.isArray(enumVals) && enumVals.length > 0) {
+    const vals = enumVals
+      .map((ev) => (ev && typeof ev === "object" && "value" in (ev as Record<string, unknown>)) ? (ev as { value: unknown }).value : null)
+      .filter((v) => v != null && v !== "");
+    if (vals.length > 0) return vals.join(", ");
+  }
+
+  // IFCPROPERTYLISTVALUE → ListValues (array av {value: ...})
+  const listVals = obj["ListValues"] as unknown[] | undefined;
+  if (Array.isArray(listVals) && listVals.length > 0) {
+    const vals = listVals
+      .map((lv) => (lv && typeof lv === "object" && "value" in (lv as Record<string, unknown>)) ? (lv as { value: unknown }).value : null)
+      .filter((v) => v != null && v !== "");
+    if (vals.length > 0) return vals.join(", ");
+  }
+
+  // IFCPROPERTYBOUNDEDVALUE → UpperBoundValue / LowerBoundValue
+  const upper = obj["UpperBoundValue"] as Record<string, unknown> | undefined;
+  const lower = obj["LowerBoundValue"] as Record<string, unknown> | undefined;
+  if (upper && typeof upper === "object" && "value" in upper) {
+    const uv = upper.value;
+    const lv = lower && typeof lower === "object" && "value" in lower ? lower.value : null;
+    if (lv != null) return `${lv} – ${uv}`;
+    return uv;
+  }
+
+  // Direkte verdi (noen IFC-eksportører lagrer verdier direkte)
+  if ("value" in obj) {
+    const val = (obj as { value: unknown }).value;
+    if (val !== null && val !== undefined && val !== "") return val;
+  }
+
   return null;
 }
 
@@ -1739,14 +1775,26 @@ function SammenslattIfcViewer({
                       : "Egenskaper";
                     const egenskaper: Record<string, EgenskapVerdi> = {};
 
-                    // HasProperties (IFCPROPERTYSET)
+                    // HasProperties (IFCPROPERTYSET) — inkludert nestede IFCCOMPLEXPROPERTY
                     const hasProps = pset.HasProperties as Record<string, unknown>[] | undefined;
                     if (Array.isArray(hasProps)) {
                       for (const prop of hasProps) {
                         const propNavn = hentNavn(prop);
-                        const verdi = hentVerdi(prop);
-                        if (verdi !== null) {
-                          egenskaper[propNavn] = { value: verdi };
+                        // IFCCOMPLEXPROPERTY — nestede egenskaper
+                        const nestedProps = prop.HasProperties as Record<string, unknown>[] | undefined;
+                        if (Array.isArray(nestedProps)) {
+                          for (const nested of nestedProps) {
+                            const nestedNavn = hentNavn(nested);
+                            const nestedVerdi = hentVerdi(nested);
+                            if (nestedVerdi !== null) {
+                              egenskaper[`${propNavn}.${nestedNavn}`] = { value: nestedVerdi };
+                            }
+                          }
+                        } else {
+                          const verdi = hentVerdi(prop);
+                          if (verdi !== null) {
+                            egenskaper[propNavn] = { value: verdi };
+                          }
                         }
                       }
                     }
