@@ -1703,17 +1703,14 @@ function SammenslattIfcViewer({
                   openModelIds.set(hitModel.modelId, modelId);
                 }
 
-                // Hent element-attributter og PropertySets parallelt
-                const [itemProps, propertySets, typeProps] = await Promise.all([
-                  propsApiRef.properties.getItemProperties(modelId, localId, false).catch(() => null),
+                // Hent element-attributter, PropertySets, TypeProperties og Materials parallelt
+                const [itemProps, propertySets, typeProps, materials] = await Promise.all([
+                  propsApiRef.properties.getItemProperties(modelId, localId, true).catch(() => null),
                   propsApiRef.properties.getPropertySets(modelId, localId, true).catch(() => []),
                   propsApiRef.properties.getTypeProperties(modelId, localId, true).catch(() => []),
+                  (propsApiRef.properties as unknown as { getMaterialsProperties: (m: number, id: number, r?: boolean, t?: boolean) => Promise<Record<string, unknown>[]> })
+                    .getMaterialsProperties(modelId, localId, true, true).catch(() => []),
                 ]);
-
-                  // DEBUG: logg rå web-ifc-data
-                  console.log("DEBUG itemProps:", JSON.stringify(itemProps, null, 2));
-                  console.log("DEBUG propertySets:", JSON.stringify(propertySets, null, 2));
-                  console.log("DEBUG typeProps:", JSON.stringify(typeProps, null, 2));
 
                   // Konverter attributter (filtrer interne felt og express-ID-referanser)
                   const attributter: Record<string, EgenskapVerdi> = {};
@@ -1780,6 +1777,65 @@ function SammenslattIfcViewer({
 
                     if (Object.keys(egenskaper).length > 0) {
                       relasjoner.push({ navn: psetNavn, egenskaper });
+                    }
+                  }
+
+                  // Konverter materialer til en gruppe
+                  if (materials.length > 0) {
+                    const matEgenskaper: Record<string, EgenskapVerdi> = {};
+                    for (const mat of materials) {
+                      // IFCMATERIAL — enkel material
+                      if (mat.Name && typeof mat.Name === "object" && "value" in (mat.Name as Record<string, unknown>)) {
+                        const matNavn = String((mat.Name as { value: unknown }).value);
+                        if (matNavn) matEgenskaper["Materiale"] = { value: matNavn };
+                      }
+                      // IFCMATERIALLAYERSETUSAGE / IFCMATERIALLAYERSET — lagdelt material
+                      const forLayerSet = mat.ForLayerSet as Record<string, unknown> | undefined;
+                      const layers = (mat.MaterialLayers ?? forLayerSet?.MaterialLayers) as Record<string, unknown>[] | undefined;
+                      if (Array.isArray(layers)) {
+                        for (const layer of layers) {
+                          const layerMat = layer.Material as Record<string, unknown> | undefined;
+                          const layerName = layerMat?.Name && typeof layerMat.Name === "object" && "value" in (layerMat.Name as Record<string, unknown>)
+                            ? String((layerMat.Name as { value: unknown }).value) : null;
+                          const thickness = layer.LayerThickness && typeof layer.LayerThickness === "object" && "value" in (layer.LayerThickness as Record<string, unknown>)
+                            ? (layer.LayerThickness as { value: unknown }).value : null;
+                          if (layerName) {
+                            const label = thickness != null ? `${layerName} (${thickness} mm)` : layerName;
+                            matEgenskaper[`Lag ${Object.keys(matEgenskaper).length + 1}`] = { value: label };
+                          }
+                        }
+                      }
+                      // IFCMATERIALPROFILESETUSAGE — profilmaterial (rør, stål)
+                      const forProfileSet = mat.ForProfileSet as Record<string, unknown> | undefined;
+                      const profiles = (mat.MaterialProfiles ?? forProfileSet?.MaterialProfiles) as Record<string, unknown>[] | undefined;
+                      if (Array.isArray(profiles)) {
+                        for (const prof of profiles) {
+                          const profMat = prof.Material as Record<string, unknown> | undefined;
+                          const profName = profMat?.Name && typeof profMat.Name === "object" && "value" in (profMat.Name as Record<string, unknown>)
+                            ? String((profMat.Name as { value: unknown }).value) : null;
+                          if (profName) matEgenskaper["Materiale"] = { value: profName };
+                          // Profildata (diameter, tykkelse etc.)
+                          const profile = prof.Profile as Record<string, unknown> | undefined;
+                          if (profile) {
+                            for (const [pk, pv] of Object.entries(profile)) {
+                              if (INTERNE_FELT.has(pk) || pk === "ProfileName" || pk === "ProfileType") continue;
+                              if (pv && typeof pv === "object" && "value" in (pv as Record<string, unknown>)) {
+                                const val = (pv as { value: unknown }).value;
+                                if (val != null && val !== "") matEgenskaper[pk] = { value: val };
+                              }
+                            }
+                            // ProfileName
+                            const profNameVal = profile.ProfileName;
+                            if (profNameVal && typeof profNameVal === "object" && "value" in (profNameVal as Record<string, unknown>)) {
+                              const pn = (profNameVal as { value: unknown }).value;
+                              if (pn) matEgenskaper["Profil"] = { value: pn };
+                            }
+                          }
+                        }
+                      }
+                    }
+                    if (Object.keys(matEgenskaper).length > 0) {
+                      relasjoner.push({ navn: "Materialer", egenskaper: matEgenskaper });
                     }
                   }
 
