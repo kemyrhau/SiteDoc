@@ -1806,12 +1806,13 @@ function SammenslattIfcViewer({
 
                 // Hent element-attributter, PropertySets, TypeProperties og Materials parallelt
                 const [itemProps, propertySets, typeProps, materials] = await Promise.all([
-                  propsApiRef.properties.getItemProperties(modelId, expressId, true).catch(() => null),
-                  propsApiRef.properties.getPropertySets(modelId, expressId, true).catch(() => []),
-                  propsApiRef.properties.getTypeProperties(modelId, expressId, true).catch(() => []),
+                  propsApiRef.properties.getItemProperties(modelId, expressId, true).catch((e: unknown) => { console.warn("getItemProperties feilet:", e); return null; }),
+                  propsApiRef.properties.getPropertySets(modelId, expressId, true).catch((e: unknown) => { console.warn("getPropertySets feilet:", e); return []; }),
+                  propsApiRef.properties.getTypeProperties(modelId, expressId, true).catch((e: unknown) => { console.warn("getTypeProperties feilet:", e); return []; }),
                   (propsApiRef.properties as unknown as { getMaterialsProperties: (m: number, id: number, r?: boolean, t?: boolean) => Promise<Record<string, unknown>[]> })
-                    .getMaterialsProperties(modelId, expressId, true, true).catch(() => []),
+                    .getMaterialsProperties(modelId, expressId, true, true).catch((e: unknown) => { console.warn("getMaterialsProperties feilet:", e); return []; }),
                 ]);
+                console.log("IFC egenskaper hentet:", { expressId, itemProps: !!itemProps, propertySets: propertySets.length, typeProps: typeProps.length, materials: materials.length });
 
                   // Konverter attributter (filtrer interne felt og express-ID-referanser)
                   const attributter: Record<string, EgenskapVerdi> = {};
@@ -1973,6 +1974,8 @@ function SammenslattIfcViewer({
               } catch (err) {
                 console.warn("Kunne ikke hente IFC-egenskaper:", err);
               }
+            } else {
+              console.warn("Ingen rådata funnet for modell:", hitModel.modelId, "ifcDataMap har:", [...ifcDataMap.keys()]);
             }
           } catch (err) {
             console.warn("Kunne ikke hente objektegenskaper:", err);
