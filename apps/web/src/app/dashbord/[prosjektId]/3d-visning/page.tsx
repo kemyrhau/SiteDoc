@@ -1421,6 +1421,10 @@ function SammenslattIfcViewer({
 
         components.init();
 
+        // Initialiser FragmentsManager med worker (påkrevd før lasting)
+        const fragmentsManager = components.get(OBC.FragmentsManager);
+        fragmentsManager.init("/fragments-worker.mjs");
+
         const grids = components.get(OBC.Grids);
         grids.create(world);
 
@@ -1499,7 +1503,6 @@ function SammenslattIfcViewer({
         }
 
         // Raycasting for objektvelging
-        const fragmentsManager = components.get(OBC.FragmentsManager);
         const rendererDom = (world.renderer as unknown as { three: { domElement: HTMLCanvasElement } }).three.domElement;
         const threeCamera = (world.camera as unknown as { three: InstanceType<typeof THREE.PerspectiveCamera> }).three;
 

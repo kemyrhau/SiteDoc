@@ -513,6 +513,12 @@ function IfcViewer({ tegning, onObjektValgt, onSpatialTre, viewerRef, klippModus
         world.camera = new OBC.SimpleCamera(components);
         world.camera.controls?.setLookAt(20, 20, 20, 0, 0, 0);
 
+        components.init();
+
+        // Initialiser FragmentsManager med worker (påkrevd for IFC-lasting)
+        const fragmentsManager = components.get(OBC.FragmentsManager);
+        fragmentsManager.init("/fragments-worker.mjs");
+
         // Grid
         const grids = components.get(OBC.Grids);
         grids.create(world);
@@ -578,8 +584,6 @@ function IfcViewer({ tegning, onObjektValgt, onSpatialTre, viewerRef, klippModus
         }
 
         // Raycaster for klikk-deteksjon
-        const fragmentsManager = components.get(OBC.FragmentsManager);
-
         // Hent renderer DOM-element og kamera for raycast
         const rendererDom = (world.renderer as unknown as { three: { domElement: HTMLCanvasElement } }).three.domElement;
         const threeCamera = (world.camera as unknown as { three: InstanceType<typeof THREE.PerspectiveCamera> }).three;
