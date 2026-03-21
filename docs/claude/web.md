@@ -187,6 +187,21 @@ Sammenslått IFC-viewer som laster ALLE prosjektets IFC-modeller i én @thatopen
 - IFC-typekode konverteres til lesbart navn via WEBIFC-konstanter (IFCWALL → "Wall")
 - Interne felt (OwnerHistory, ObjectPlacement, Representation) filtreres bort
 
+**Raycasting og objektvelging:**
+- Bruker `fragmentsManager.raycast()` — designet for fragment-systemets tile-geometri
+- **VIKTIG:** `fragmentsManager.raycast()` forventer rå `clientX`/`clientY` pikselkoordinater (IKKE NDC -1 til 1). Internt konverterer den via `dom`-elementet. Å sende NDC gir treff på helt feil objekter
+- Three.js `Raycaster` krasjer på fragment-geometri (BufferAttribute.getX på zero-length) — IKKE bruk
+- Skjulte modeller MÅ fjernes fra scene (`scene.remove`), ikke bare `.visible = false` — fragments raycast ignorerer visible-flagg
+- Raycast-treff på skjulte modeller filtreres via `synligeModeller` Set
+
+**Solo-modus:** Layers-ikon per modell i sidepanelet. Klikk → skjuler alle andre modeller. Klikk igjen → viser alle.
+
+**3D-markør:** Rød sfære (radius 0.15, `depthTest: false`, `renderOrder: 999`) plasseres på `hitResult.point` (det faktiske treffpunktet fra raycast). Fjernes ved klikk utenfor objekt.
+
+**Objekt-highlight:** Blå semi-transparent overlay (`#3b82f6`, opacity 0.6) via `hitModel.highlight([localId], material)`. Resettes ved nytt klikk.
+
+**Render-løkke:** `requestAnimationFrame` → `fragmentsManager.core.update()` (oppdaterer LOD-tiles basert på kamera).
+
 **Filer i `public/`:** `web-ifc.wasm`, `web-ifc-mt.wasm`, `fragments-worker.mjs`
 
 **Avhengigheter:** `@thatopen/components`, `@thatopen/fragments`, `web-ifc`, `three`, `potree-core`
