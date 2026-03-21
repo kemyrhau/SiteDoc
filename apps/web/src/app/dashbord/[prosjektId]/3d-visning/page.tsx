@@ -1633,6 +1633,12 @@ function SammenslattIfcViewer({
 
         let currentHighlight: { modelId: string; localIds: number[] } | null = null;
 
+        // Spor musebevegelse for å skille klikk fra drag (orbit controls)
+        let mouseDownPos: { x: number; y: number } | null = null;
+        rendererDom.addEventListener("pointerdown", (e: PointerEvent) => {
+          mouseDownPos = { x: e.clientX, y: e.clientY };
+        });
+
         async function resetHighlight() {
           if (!currentHighlight) return;
           try {
@@ -1648,6 +1654,13 @@ function SammenslattIfcViewer({
 
         async function handleKlikk(event: MouseEvent) {
           if (renset) return;
+
+          // Ignorer drag (orbit-kontroll) — kun reagere på ekte klikk
+          if (mouseDownPos) {
+            const dx = event.clientX - mouseDownPos.x;
+            const dy = event.clientY - mouseDownPos.y;
+            if (Math.sqrt(dx * dx + dy * dy) > 5) return;
+          }
 
           const rect = rendererDom.getBoundingClientRect();
           const x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
@@ -1730,14 +1743,14 @@ function SammenslattIfcViewer({
           }
         }
 
-        container.addEventListener("click", handleKlikk);
+        rendererDom.addEventListener("click", handleKlikk);
 
         // Dobbeltklikk for klippeplan
         async function handleDblKlikk() {
           if (!clipper.enabled || renset) return;
           await clipper.create(world);
         }
-        container.addEventListener("dblclick", handleDblKlikk);
+        rendererDom.addEventListener("dblclick", handleDblKlikk);
 
         // Viewer-referanser
         viewerRef.current = {
@@ -1760,8 +1773,8 @@ function SammenslattIfcViewer({
         setLaster(false);
 
         return () => {
-          container.removeEventListener("click", handleKlikk);
-          container.removeEventListener("dblclick", handleDblKlikk);
+          rendererDom.removeEventListener("click", handleKlikk);
+          rendererDom.removeEventListener("dblclick", handleDblKlikk);
           if (animFrameId !== null) cancelAnimationFrame(animFrameId);
         };
       })
