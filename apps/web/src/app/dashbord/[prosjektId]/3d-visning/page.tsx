@@ -1612,6 +1612,13 @@ function SammenslattIfcViewer({
 
         container.addEventListener("click", handleKlikk);
 
+        // Dobbeltklikk for klippeplan
+        async function handleDblKlikk() {
+          if (!clipper.enabled || renset) return;
+          await clipper.create(world);
+        }
+        container.addEventListener("dblclick", handleDblKlikk);
+
         // Viewer-referanser
         viewerRef.current = {
           toggleModell: (tegningId: string, synlig: boolean) => {
@@ -1634,6 +1641,7 @@ function SammenslattIfcViewer({
 
         return () => {
           container.removeEventListener("click", handleKlikk);
+          container.removeEventListener("dblclick", handleDblKlikk);
           if (animFrameId !== null) cancelAnimationFrame(animFrameId);
         };
       })
