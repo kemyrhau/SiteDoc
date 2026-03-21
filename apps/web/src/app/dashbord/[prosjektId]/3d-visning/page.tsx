@@ -1748,11 +1748,24 @@ function SammenslattIfcViewer({
           await resetHighlight();
 
           try {
-            const hitResult = await fragmentsManager.raycast({
+            // Raycast kun mot synlige modeller — fragmentsManager.raycast()
+            // treffer også modeller fjernet fra scenen, som blokkerer treff
+            // på objekter bak dem.
+            const raycastData = {
               camera: threeCamera,
               mouse: new THREE.Vector2(x, y),
               dom: rendererDom,
-            });
+            };
+
+            let hitResult: Awaited<ReturnType<typeof fragmentsManager.raycast>> = undefined;
+
+            for (const [modelId, model] of fragmentsManager.list) {
+              if (!synligeModeller.has(modelId)) continue;
+              const result = await model.raycast(raycastData);
+              if (result && (!hitResult || result.distance < hitResult.distance)) {
+                hitResult = result;
+              }
+            }
 
             if (!hitResult) {
               removeMarker();
@@ -1761,11 +1774,6 @@ function SammenslattIfcViewer({
             }
 
             const { localId, fragments: hitModel } = hitResult;
-
-            // Hopp over treff på skjulte modeller
-            if (!synligeModeller.has(hitModel.modelId)) {
-              return;
-            }
 
             // Plasser 3D-markør ved objektets bounding box-senter
             try {
