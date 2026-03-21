@@ -1411,9 +1411,14 @@ function SammenslattIfcViewer({
         const worlds = components.get(OBC.Worlds);
         const world = worlds.create();
 
-        world.scene = new OBC.SimpleScene(components);
+        const simpleScene = new OBC.SimpleScene(components);
+        world.scene = simpleScene;
+        (simpleScene as unknown as { setup: (c: unknown) => void }).setup({
+          backgroundColor: new THREE.Color(0xf0f0f0),
+          ambientLight: { color: new THREE.Color("white"), intensity: 1 },
+          directionalLight: { color: new THREE.Color("white"), intensity: 1.5, position: new THREE.Vector3(5, 10, 3) },
+        });
         const scene = world.scene.three;
-        (scene as InstanceType<typeof THREE.Scene>).background = new THREE.Color(0xf0f0f0);
 
         world.renderer = new OBC.SimpleRenderer(components, container);
         world.camera = new OBC.SimpleCamera(components);
