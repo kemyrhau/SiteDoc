@@ -1570,26 +1570,35 @@ function SammenslattIfcViewer({
 
             const { localId, fragments: hitModel } = hitResult;
 
-            await hitModel.highlight([localId], highlightMaterial);
-            currentHighlight = { modelId: hitModel.modelId, localIds: [localId] };
-
-            // Hent egenskaper
-            const [itemsData] = await Promise.all([hitModel.getItemsData([localId])]);
-            const attributter: Record<string, EgenskapVerdi> = {};
-            const relasjoner: EgenskapGruppe[] = [];
-
-            if (itemsData.length > 0) {
-              const item = itemsData[0] as Record<string, unknown>;
-              for (const [k, v] of Object.entries(item)) {
-                if (Array.isArray(v)) {
-                  relasjoner.push(...trekkUtEgenskaper(v as Record<string, unknown>[]));
-                } else if (v && typeof v === "object" && "value" in (v as Record<string, unknown>)) {
-                  attributter[k] = v as EgenskapVerdi;
-                }
-              }
+            // Highlight valgt objekt
+            try {
+              await hitModel.highlight([localId], highlightMaterial);
+              currentHighlight = { modelId: hitModel.modelId, localIds: [localId] };
+            } catch {
+              // Highlight kan feile men er ikke kritisk
             }
 
+            // Hent egenskaper
+            const attributter: Record<string, EgenskapVerdi> = {};
+            const relasjoner: EgenskapGruppe[] = [];
             let kategori: string | null = null;
+
+            try {
+              const itemsData = await hitModel.getItemsData([localId]);
+              if (itemsData.length > 0) {
+                const item = itemsData[0] as Record<string, unknown>;
+                for (const [k, v] of Object.entries(item)) {
+                  if (Array.isArray(v)) {
+                    relasjoner.push(...trekkUtEgenskaper(v as Record<string, unknown>[]));
+                  } else if (v && typeof v === "object" && "value" in (v as Record<string, unknown>)) {
+                    attributter[k] = v as EgenskapVerdi;
+                  }
+                }
+              }
+            } catch {
+              // Egenskaper kan mangle for noen objekter
+            }
+
             try {
               const categories = await hitModel.getCategories();
               for (const cat of categories) {
