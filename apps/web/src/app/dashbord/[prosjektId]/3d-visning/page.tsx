@@ -1942,9 +1942,10 @@ function SammenslattIfcViewer({
         // Viewer-referanser
         viewerRef.current = {
           toggleModell: (tegningId: string, synlig: boolean) => {
-            const model = modellMap.get(tegningId) as { object?: { visible: boolean } } | undefined;
+            const model = modellMap.get(tegningId) as { object?: { visible: boolean; traverse: (cb: (c: { visible: boolean }) => void) => void } } | undefined;
             if (model?.object) {
-              model.object.visible = synlig;
+              // Sett visible rekursivt på alle barn — påvirker også raycast
+              model.object.traverse((child) => { child.visible = synlig; });
             }
             const fragId = tegningTilModelId.get(tegningId);
             if (fragId) {
