@@ -291,6 +291,28 @@ function Fane3DModell({ prosjektId }: { prosjektId: string }) {
     });
   }
 
+  function soloModell(id: string) {
+    setModellStatuser((prev) => {
+      const alleSynlige = prev.every((m) => m.synlig);
+      const kunDenne = prev.filter((m) => m.synlig).length === 1 && prev.find((m) => m.id === id)?.synlig;
+
+      // Hvis kun denne er synlig, vis alle igjen
+      if (kunDenne || (!alleSynlige && prev.find((m) => m.id === id)?.synlig && prev.filter((m) => m.synlig).length === 1)) {
+        return prev.map((m) => {
+          viewerRef.current?.toggleModell(m.id, true);
+          return { ...m, synlig: true };
+        });
+      }
+
+      // Ellers: solo — vis bare denne, skjul resten
+      return prev.map((m) => {
+        const synlig = m.id === id;
+        viewerRef.current?.toggleModell(m.id, synlig);
+        return { ...m, synlig };
+      });
+    });
+  }
+
   function oppdaterModellStatus(id: string, status: Partial<ModellStatus>) {
     setModellStatuser((prev) => {
       const finnes = prev.find((m) => m.id === id);
@@ -370,6 +392,13 @@ function Fane3DModell({ prosjektId }: { prosjektId: string }) {
                     )}
                   </p>
                 </div>
+                <button
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); soloModell(t.id); }}
+                  className="shrink-0 rounded p-1 text-gray-400 hover:bg-gray-200 hover:text-gray-700"
+                  title="Solo — vis kun denne modellen"
+                >
+                  <Layers className="h-3.5 w-3.5" />
+                </button>
               </label>
             );
           })}
