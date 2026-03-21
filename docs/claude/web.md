@@ -43,8 +43,9 @@ Dalux-inspirert tre-kolonne layout (skjules på mobil < 768px, hamburger-meny i 
 /dashbord/[prosjektId]/entrepriser            -> Entreprise-liste
 /dashbord/[prosjektId]/mapper                 -> Mapper (read-only, ?mappe=id)
 /dashbord/[prosjektId]/tegninger              -> Interaktiv tegningsvisning
-/dashbord/[prosjektId]/punktskyer            -> Punktsky-viewer (Potree/Three.js)
-/dashbord/[prosjektId]/modeller              -> IFC 3D-viewer (@thatopen/components)
+/dashbord/[prosjektId]/3d-visning            -> Samlet 3D-visning (IFC + punktsky + overflater + kutt/fyll)
+/dashbord/[prosjektId]/punktskyer            -> Redirect → /3d-visning
+/dashbord/[prosjektId]/modeller              -> Redirect → /3d-visning
 /dashbord/[prosjektId]/bilder                 -> Bildegalleri (liste + tegningsvisning)
 /dashbord/oppsett                             -> Innstillinger
 /dashbord/oppsett/brukere                     -> Brukergrupper, roller
@@ -153,11 +154,22 @@ Delt `MalListe`-komponent: +Tilføy (dropdown), Rediger, Slett, Søk. Enkeltklik
 Samlet 3D-visningsside `/dashbord/[prosjektId]/3d-visning` med tre faner:
 
 ### Fane 1: 3D-modell (IFC + punktsky)
-IFC-viewer med @thatopen/components + punktskyliste i sidepanelet.
+Sammenslått IFC-viewer som laster ALLE prosjektets IFC-modeller i én @thatopen-scene. Avmerkingsbokser styrer synlighet per modell.
 
-**Layout:** Sidepanel (280px, IFC-liste + punktskyer + objekttre) + 3D-viewer + flytende egenskapspanel.
+**Layout:** Sidepanel (280px, IFC-modeller med checkboxes + punktskyer) + 3D-viewer + flytende egenskapspanel.
 
-**IFC-funksjonalitet:** Klient-side WASM-parsing, objektvelging med highlight, spatial structure-tre, klippeplan (snitt).
+**IFC-funksjonalitet:** Klient-side WASM-parsing, objektvelging med highlight, klippeplan (snitt).
+
+**@thatopen initialisering (kritisk rekkefølge):**
+1. `components.init()` — initialiserer Components-systemet
+2. `fragmentsManager.init("/fragments-worker.mjs")` — starter worker for tile-basert rendering
+3. `ifcLoader.settings.autoSetWasm = false` — forhindrer at unpkg overskriver lokal WASM-bane
+4. `ifcLoader.settings.wasm = { path: "/", absolute: true }` — peker til lokale WASM-filer i `public/`
+5. Etter lasting: `model.useCamera(threeCamera)` — påkrevd for LOD/tile-lasting
+6. Render-løkke: `fragmentsManager.core.update()` via `requestAnimationFrame` — oppdaterer tiles
+7. `scene.add(model.object)` — legger modellens Object3D til scenen manuelt
+
+**Filer i `public/`:** `web-ifc.wasm`, `web-ifc-mt.wasm`, `fragments-worker.mjs`
 
 **Avhengigheter:** `@thatopen/components`, `@thatopen/fragments`, `web-ifc`, `three`, `potree-core`
 
