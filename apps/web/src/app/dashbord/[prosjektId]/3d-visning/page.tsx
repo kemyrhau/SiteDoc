@@ -1473,6 +1473,7 @@ function SammenslattIfcViewer({
             const model = await ifcLoader.load(data, true, tegning.name, {
               instanceCallback: (importer) => {
                 importer.addAllAttributes();
+                importer.addAllRelations();
               },
             });
 
