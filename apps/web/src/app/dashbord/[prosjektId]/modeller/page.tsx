@@ -530,6 +530,7 @@ function IfcViewer({ tegning, onObjektValgt, onSpatialTre, viewerRef, klippModus
 
         // Sett opp IFC-laster
         const ifcLoader = components.get(OBC.IfcLoader);
+        ifcLoader.settings.autoSetWasm = false;
         ifcLoader.settings.wasm = {
           path: "/",
           absolute: true,

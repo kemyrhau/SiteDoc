@@ -1433,6 +1433,7 @@ function SammenslattIfcViewer({
         clipper.enabled = false;
 
         const ifcLoader = components.get(OBC.IfcLoader);
+        ifcLoader.settings.autoSetWasm = false;
         ifcLoader.settings.wasm = {
           path: "/",
           absolute: true,
