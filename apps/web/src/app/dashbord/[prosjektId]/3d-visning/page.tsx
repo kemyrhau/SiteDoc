@@ -1541,7 +1541,22 @@ function SammenslattIfcViewer({
           setLasterNavn(tegning.name);
 
           try {
-            const model = await ifcLoader.load(data, true, tegning.name);
+            // Demp konsollstøy under parsing (web-ifc logger tusenvis av ufarlige advarsler)
+            const origWarn = console.warn;
+            const origError = console.error;
+            console.warn = () => {};
+            console.error = () => {};
+            let model: unknown;
+            try {
+              model = await ifcLoader.load(data, true, tegning.name, {
+                instanceCallback: (importer) => {
+                  importer.addAllRelations();
+                },
+              });
+            } finally {
+              console.warn = origWarn;
+              console.error = origError;
+            }
 
             const fm = model as { object: InstanceType<typeof THREE.Object3D>; useCamera: (c: unknown) => void; box: InstanceType<typeof THREE.Box3> };
 

@@ -550,8 +550,19 @@ function IfcViewer({ tegning, onObjektValgt, onSpatialTre, viewerRef, klippModus
 
         if (renset) return;
 
-        // Last IFC-modell
-        const model = await ifcLoader.load(data, true, tegning.name);
+        // Last IFC-modell (demp konsollstøy fra web-ifc)
+        const origWarn = console.warn;
+        const origError = console.error;
+        console.warn = () => {};
+        console.error = () => {};
+        const model = await ifcLoader.load(data, true, tegning.name, {
+          instanceCallback: (importer) => {
+            importer.addAllRelations();
+          },
+        }).finally(() => {
+          console.warn = origWarn;
+          console.error = origError;
+        });
 
         if (renset) return;
 
