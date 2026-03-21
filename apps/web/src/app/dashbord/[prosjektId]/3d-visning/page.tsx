@@ -1469,6 +1469,9 @@ function SammenslattIfcViewer({
               },
             });
 
+            // Legg modellens 3D-objekt til scenen
+            scene.add(model.object);
+
             modellMap.set(tegning.id, model);
             totalBbox.union(model.box);
 
@@ -1596,9 +1599,9 @@ function SammenslattIfcViewer({
         // Viewer-referanser
         viewerRef.current = {
           toggleModell: (tegningId: string, synlig: boolean) => {
-            const model = modellMap.get(tegningId) as { visible?: boolean } | undefined;
-            if (model && "visible" in model) {
-              (model as { visible: boolean }).visible = synlig;
+            const model = modellMap.get(tegningId) as { object?: { visible: boolean } } | undefined;
+            if (model?.object) {
+              model.object.visible = synlig;
             }
           },
           fjernAlleKlippeplan: () => {
