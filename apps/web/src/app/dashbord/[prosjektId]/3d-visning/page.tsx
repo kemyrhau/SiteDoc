@@ -1261,7 +1261,7 @@ function EgenskapsPopup({
         <table className="w-full text-xs">
           <tbody>
             {Object.entries(objekt.attributter)
-              .filter(([k]) => k !== "Name" && k !== "type")
+              .filter(([k]) => !INTERNE_FELT.has(k))
               .map(([k, v]) => (
                 <tr key={k}>
                   <td className="py-0.5 pr-2 text-gray-500">{k}</td>
@@ -1325,33 +1325,78 @@ function formaterVerdi(v: unknown): string {
 }
 
 /* ------------------------------------------------------------------ */
-/*  IndexedDB-cache for fragments (unngår IFC-parsing ved gjentatte besøk) */
-/* ------------------------------------------------------------------ */
-
-
-/* ------------------------------------------------------------------ */
-/*  IFC Viewer — @thatopen/components                                   */
-/* ------------------------------------------------------------------ */
-
-/* ------------------------------------------------------------------ */
 /*  Sammenslått IFC-viewer — alle modeller i samme scene                */
 /* ------------------------------------------------------------------ */
+
+// Interne IFC-felt som ikke er nyttige for brukeren
+const INTERNE_FELT = new Set(["_category", "_localId", "_guid", "type", "Name", "GlobalId"]);
+
+function hentNavn(item: Record<string, unknown>): string {
+  const n = item["Name"];
+  if (n && typeof n === "object" && "value" in (n as Record<string, unknown>)) {
+    return String((n as { value: unknown }).value);
+  }
+  return "Egenskaper";
+}
+
+function hentVerdi(obj: Record<string, unknown>): unknown {
+  // Prøv NominalValue først (IFCPROPERTYSINGLEVALUE), deretter diverse kvantitetsverdier
+  for (const felt of ["NominalValue", "LengthValue", "AreaValue", "VolumeValue", "WeightValue", "CountValue"]) {
+    const v = obj[felt];
+    if (v && typeof v === "object" && "value" in (v as Record<string, unknown>)) {
+      return (v as { value: unknown }).value;
+    }
+  }
+  return null;
+}
 
 function trekkUtEgenskaper(
   dataArray: Record<string, unknown>[],
 ): EgenskapGruppe[] {
   const grupper: EgenskapGruppe[] = [];
   for (const item of dataArray) {
-    const navn =
-      item["Name"] && typeof item["Name"] === "object" && "value" in (item["Name"] as Record<string, unknown>)
-        ? String((item["Name"] as { value: unknown }).value)
-        : "Egenskaper";
+    const navn = hentNavn(item);
+
+    // PropertySet → trekk ut HasProperties som nøkkel-verdi-par
+    const hasProps = item["HasProperties"];
+    if (Array.isArray(hasProps) && hasProps.length > 0) {
+      const egenskaper: Record<string, EgenskapVerdi> = {};
+      for (const prop of hasProps as Record<string, unknown>[]) {
+        const propNavn = hentNavn(prop);
+        const verdi = hentVerdi(prop);
+        if (verdi !== null) {
+          egenskaper[propNavn] = { value: verdi };
+        }
+      }
+      if (Object.keys(egenskaper).length > 0) {
+        grupper.push({ navn, egenskaper });
+      }
+      continue;
+    }
+
+    // ElementQuantity → trekk ut HasQuantities
+    const hasQuant = item["HasQuantities"];
+    if (Array.isArray(hasQuant) && hasQuant.length > 0) {
+      const egenskaper: Record<string, EgenskapVerdi> = {};
+      for (const q of hasQuant as Record<string, unknown>[]) {
+        const qNavn = hentNavn(q);
+        const verdi = hentVerdi(q);
+        if (verdi !== null) {
+          egenskaper[qNavn] = { value: verdi };
+        }
+      }
+      if (Object.keys(egenskaper).length > 0) {
+        grupper.push({ navn, egenskaper });
+      }
+      continue;
+    }
+
+    // Andre relasjoner (f.eks. spatial structure) — vis relevante felt
     const egenskaper: Record<string, EgenskapVerdi> = {};
     for (const [k, v] of Object.entries(item)) {
-      if (k === "Name" || k === "type") continue;
+      if (INTERNE_FELT.has(k)) continue;
       if (Array.isArray(v)) {
-        const barnGrupper = trekkUtEgenskaper(v as Record<string, unknown>[]);
-        grupper.push(...barnGrupper);
+        grupper.push(...trekkUtEgenskaper(v as Record<string, unknown>[]));
       } else if (v && typeof v === "object" && "value" in (v as Record<string, unknown>)) {
         egenskaper[k] = v as EgenskapVerdi;
       }
@@ -1640,7 +1685,7 @@ function SammenslattIfcViewer({
             try {
               const fullData = await hitModel.getItemsData([localId], {
                 attributesDefault: true,
-                relationsDefault: { attributes: true, relations: false },
+                relationsDefault: { attributes: true, relations: true },
               });
               if (fullData.length > 0) {
                 const fullItem = fullData[0] as Record<string, unknown>;
