@@ -1713,27 +1713,12 @@ function SammenslattIfcViewer({
               // Highlight kan feile men er ikke kritisk
             }
 
-            // Hent kategori og attributter via fragments API
+            // Hent kategori via fragments API
             const item = hitModel.getItem(localId);
-            const [kategori, fragAttrs] = await Promise.all([
-              item.getCategory().catch(() => null),
-              item.getAttributes().catch(() => null),
-            ]);
+            const kategori = await item.getCategory().catch(() => null);
+            const expressId = localId; // fragments localId = IFC expressID
 
-            // DEBUG: sjekk om localId matcher expressID
-            let expressId = localId;
-            if (fragAttrs) {
-              console.log("DEBUG fragments attrs:", Object.fromEntries(fragAttrs));
-              const eid = fragAttrs.get("expressID") ?? fragAttrs.get("_localId");
-              if (eid && typeof eid === "object" && "value" in eid) {
-                const eidVal = Number((eid as { value: unknown }).value);
-                if (!isNaN(eidVal) && eidVal !== localId) {
-                  console.log(`DEBUG localId=${localId} → expressID=${eidVal}`);
-                  expressId = eidVal;
-                }
-              }
-            }
-            console.log(`DEBUG hit: localId=${localId}, expressId=${expressId}, modelId=${hitModel.modelId}, kategori=${kategori}`);
+            console.log(`DEBUG hit: localId=${localId}, modelId=${hitModel.modelId}, kategori=${kategori}, hasData=${ifcDataMap.has(hitModel.modelId)}`);
 
             // Vis kategori umiddelbart
             onObjektValgtRef.current({ localId, kategori, attributter: {}, relasjoner: [] });
