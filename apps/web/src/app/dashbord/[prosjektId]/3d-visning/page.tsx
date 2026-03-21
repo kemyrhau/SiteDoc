@@ -1719,12 +1719,6 @@ function SammenslattIfcViewer({
           await resetHighlight();
 
           try {
-            // Finn treffpunkt med Three.js raycaster (for markør-plassering)
-            const raycaster = new THREE.Raycaster();
-            raycaster.setFromCamera(new THREE.Vector2(x, y), threeCamera);
-            const intersects = raycaster.intersectObjects(scene.children, true);
-            const treffPunkt = intersects[0]?.point ?? null;
-
             const hitResult = await fragmentsManager.raycast({
               camera: threeCamera,
               mouse: new THREE.Vector2(x, y),
@@ -1744,7 +1738,8 @@ function SammenslattIfcViewer({
               return;
             }
 
-            // Plasser 3D-markør på treffpunktet
+            // Plasser 3D-markør på treffpunktet (fragments returnerer point via Three.js intersection)
+            const treffPunkt = (hitResult as unknown as { point?: InstanceType<typeof THREE.Vector3> }).point;
             if (treffPunkt) {
               placeMarker(treffPunkt);
             }
