@@ -1448,12 +1448,17 @@ function SammenslattIfcViewer({
 
     let renset = false;
     let componentsRef: unknown = null;
+    // Web-ifc for on-demand property-oppslag (delt mellom klikk)
+    let propsApiRef: { OpenModel: (data: Uint8Array) => number; CloseModel: (id: number) => void; SetWasmPath: (p: string) => void; Init: () => Promise<void>; properties: { getItemProperties: (m: number, id: number, r?: boolean) => Promise<Record<string, unknown>>; getPropertySets: (m: number, id: number, r?: boolean) => Promise<Record<string, unknown>[]>; getTypeProperties: (m: number, id: number, r?: boolean) => Promise<Record<string, unknown>[]> } } | null = null;
+    const openModelIds = new Map<string, number>();
+    let ifcDataMapRef = new Map<string, Uint8Array>();
 
     Promise.all([
       import("@thatopen/components"),
       import("three"),
+      import("web-ifc"),
     ])
-      .then(async ([OBC, THREE]) => {
+      .then(async ([OBC, THREE, WEBIFC]) => {
         if (renset) return;
 
         const components = new OBC.Components();
@@ -1502,8 +1507,8 @@ function SammenslattIfcViewer({
 
         // Last alle IFC-modeller inn i samme scene
         const modellMap = new Map<string, unknown>();
-        // Map fragments modelId → rå IFC-data for on-demand property-oppslag
-        const ifcDataMap = new Map<string, Uint8Array>();
+        // Bruk ytre refs for ifcData og propsApi (tilgjengelig i cleanup)
+        const ifcDataMap = ifcDataMapRef;
         const totalBbox = new THREE.Box3();
         let lastet = 0;
 
@@ -1672,29 +1677,30 @@ function SammenslattIfcViewer({
             onObjektValgtRef.current({ localId, kategori, attributter: {}, relasjoner: [] });
 
             // Hent egenskaper on-demand via web-ifc properties API
-            // Åpne IFC-filen i web-ifc for å lese egenskaper direkte
             const rawData = ifcDataMap.get(hitModel.modelId);
             if (rawData) {
               try {
-                const webIfc = ifcLoader.webIfc as unknown as {
-                  OpenModel: (data: Uint8Array) => number;
-                  CloseModel: (id: number) => void;
-                  properties: {
-                    getItemProperties: (modelId: number, id: number, recursive?: boolean) => Promise<Record<string, unknown>>;
-                    getPropertySets: (modelId: number, elementId: number, recursive?: boolean) => Promise<Record<string, unknown>[]>;
-                    getTypeProperties: (modelId: number, elementId: number, recursive?: boolean) => Promise<Record<string, unknown>[]>;
-                  };
-                };
+                // Gjenbruk eller opprett web-ifc instans for egenskapsoppslag
+                if (!propsApiRef) {
+                  const api = new WEBIFC.IfcAPI();
+                  api.SetWasmPath("/");
+                  await api.Init();
+                  propsApiRef = api;
+                }
 
-                const modelId = webIfc.OpenModel(rawData);
+                // Gjenbruk åpen modell eller åpne ny
+                let modelId = openModelIds.get(hitModel.modelId);
+                if (modelId === undefined) {
+                  modelId = propsApiRef.OpenModel(rawData);
+                  openModelIds.set(hitModel.modelId, modelId);
+                }
 
-                try {
-                  // Hent element-attributter og PropertySets parallelt
-                  const [itemProps, propertySets, typeProps] = await Promise.all([
-                    webIfc.properties.getItemProperties(modelId, localId, false).catch(() => null),
-                    webIfc.properties.getPropertySets(modelId, localId, true).catch(() => []),
-                    webIfc.properties.getTypeProperties(modelId, localId, true).catch(() => []),
-                  ]);
+                // Hent element-attributter og PropertySets parallelt
+                const [itemProps, propertySets, typeProps] = await Promise.all([
+                  propsApiRef.properties.getItemProperties(modelId, localId, false).catch(() => null),
+                  propsApiRef.properties.getPropertySets(modelId, localId, true).catch(() => []),
+                  propsApiRef.properties.getTypeProperties(modelId, localId, true).catch(() => []),
+                ]);
 
                   // Konverter attributter
                   const attributter: Record<string, EgenskapVerdi> = {};
@@ -1757,9 +1763,6 @@ function SammenslattIfcViewer({
                   }
 
                   onObjektValgtRef.current({ localId, kategori, attributter, relasjoner });
-                } finally {
-                  webIfc.CloseModel(modelId);
-                }
               } catch (err) {
                 console.warn("Kunne ikke hente IFC-egenskaper:", err);
               }
@@ -1815,6 +1818,14 @@ function SammenslattIfcViewer({
     return () => {
       renset = true;
       viewerRef.current = null;
+      // Rydd opp web-ifc property-instans
+      if (propsApiRef) {
+        for (const mid of openModelIds.values()) {
+          try { propsApiRef.CloseModel(mid); } catch { /* */ }
+        }
+        openModelIds.clear();
+        propsApiRef = null;
+      }
       if (componentsRef && typeof (componentsRef as { dispose?: () => void }).dispose === "function") {
         try {
           (componentsRef as { dispose: () => void }).dispose();
