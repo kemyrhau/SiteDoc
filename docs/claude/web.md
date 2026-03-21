@@ -158,7 +158,7 @@ Sammenslått IFC-viewer som laster ALLE prosjektets IFC-modeller i én @thatopen
 
 **Layout:** Sidepanel (280px, IFC-modeller med checkboxes + punktskyer) + 3D-viewer + flytende egenskapspanel.
 
-**IFC-funksjonalitet:** Klient-side WASM-parsing, objektvelging med highlight, klippeplan (snitt), IndexedDB-cache for fragments.
+**IFC-funksjonalitet:** Klient-side WASM-parsing, objektvelging med highlight, klippeplan (snitt).
 
 **@thatopen initialisering (kritisk rekkefølge):**
 1. `components.init()` — initialiserer Components-systemet
@@ -175,12 +175,6 @@ Sammenslått IFC-viewer som laster ALLE prosjektets IFC-modeller i én @thatopen
 - WASM-parsing skjer sekvensielt (web-ifc er enkelttrådet)
 - Laste-indikator viser modellnavn under parsing
 - `clipper.create(world)` kalles eksplisitt på `dblclick` — Clipper har ingen auto-lytter
-
-**IndexedDB-cache for fragments:**
-- Første besøk: IFC parses med WASM → fragments lagres i IndexedDB (`sitedoc-fragments-cache`)
-- Påfølgende besøk: fragments lastes direkte fra cache via `fragmentsManager.core.load(buffer)` (mye raskere)
-- Cache-nøkkel: `fragments:{fileUrl}`. Korrupt cache faller tilbake til IFC-parsing
-- `model._save()` returnerer `Uint8Array` med fragments-data
 
 **Objektklikk og egenskaper:**
 - `hitModel.getItem(localId)` → `item.getCategory()` + `item.getAttributes()` (rask grunnleggende info)
