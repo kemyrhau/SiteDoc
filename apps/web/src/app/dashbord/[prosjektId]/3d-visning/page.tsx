@@ -1713,9 +1713,27 @@ function SammenslattIfcViewer({
               // Highlight kan feile men er ikke kritisk
             }
 
-            // Hent kategori via fragments API (raskt)
+            // Hent kategori og attributter via fragments API
             const item = hitModel.getItem(localId);
-            const kategori = await item.getCategory().catch(() => null);
+            const [kategori, fragAttrs] = await Promise.all([
+              item.getCategory().catch(() => null),
+              item.getAttributes().catch(() => null),
+            ]);
+
+            // DEBUG: sjekk om localId matcher expressID
+            let expressId = localId;
+            if (fragAttrs) {
+              console.log("DEBUG fragments attrs:", Object.fromEntries(fragAttrs));
+              const eid = fragAttrs.get("expressID") ?? fragAttrs.get("_localId");
+              if (eid && typeof eid === "object" && "value" in eid) {
+                const eidVal = Number((eid as { value: unknown }).value);
+                if (!isNaN(eidVal) && eidVal !== localId) {
+                  console.log(`DEBUG localId=${localId} → expressID=${eidVal}`);
+                  expressId = eidVal;
+                }
+              }
+            }
+            console.log(`DEBUG hit: localId=${localId}, expressId=${expressId}, modelId=${hitModel.modelId}, kategori=${kategori}`);
 
             // Vis kategori umiddelbart
             onObjektValgtRef.current({ localId, kategori, attributter: {}, relasjoner: [] });
@@ -1741,11 +1759,11 @@ function SammenslattIfcViewer({
 
                 // Hent element-attributter, PropertySets, TypeProperties og Materials parallelt
                 const [itemProps, propertySets, typeProps, materials] = await Promise.all([
-                  propsApiRef.properties.getItemProperties(modelId, localId, true).catch(() => null),
-                  propsApiRef.properties.getPropertySets(modelId, localId, true).catch(() => []),
-                  propsApiRef.properties.getTypeProperties(modelId, localId, true).catch(() => []),
+                  propsApiRef.properties.getItemProperties(modelId, expressId, true).catch(() => null),
+                  propsApiRef.properties.getPropertySets(modelId, expressId, true).catch(() => []),
+                  propsApiRef.properties.getTypeProperties(modelId, expressId, true).catch(() => []),
                   (propsApiRef.properties as unknown as { getMaterialsProperties: (m: number, id: number, r?: boolean, t?: boolean) => Promise<Record<string, unknown>[]> })
-                    .getMaterialsProperties(modelId, localId, true, true).catch(() => []),
+                    .getMaterialsProperties(modelId, expressId, true, true).catch(() => []),
                 ]);
 
                   // Konverter attributter (filtrer interne felt og express-ID-referanser)
