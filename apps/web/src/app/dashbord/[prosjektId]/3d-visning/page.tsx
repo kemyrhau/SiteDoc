@@ -1710,6 +1710,11 @@ function SammenslattIfcViewer({
                   propsApiRef.properties.getTypeProperties(modelId, localId, true).catch(() => []),
                 ]);
 
+                  // DEBUG: logg rå web-ifc-data
+                  console.log("DEBUG itemProps:", JSON.stringify(itemProps, null, 2));
+                  console.log("DEBUG propertySets:", JSON.stringify(propertySets, null, 2));
+                  console.log("DEBUG typeProps:", JSON.stringify(typeProps, null, 2));
+
                   // Konverter attributter (filtrer interne felt og express-ID-referanser)
                   const attributter: Record<string, EgenskapVerdi> = {};
                   if (itemProps) {
