@@ -1738,10 +1738,26 @@ function SammenslattIfcViewer({
               return;
             }
 
-            // Plasser 3D-markør på treffpunktet (fragments returnerer point via Three.js intersection)
-            const treffPunkt = (hitResult as unknown as { point?: InstanceType<typeof THREE.Vector3> }).point;
-            if (treffPunkt) {
-              placeMarker(treffPunkt);
+            // Plasser 3D-markør ved objektets bounding box-senter
+            try {
+              const boxes = await hitModel.getBoxes([localId]);
+              if (boxes && boxes.length > 0) {
+                const boxData = boxes[0];
+                if (boxData) {
+                  // getBoxes returnerer Float32Array med [minX, minY, minZ, maxX, maxY, maxZ]
+                  const arr = boxData as unknown as Float32Array;
+                  if (arr.length >= 6) {
+                    const center = new THREE.Vector3(
+                      (arr[0]! + arr[3]!) / 2,
+                      (arr[1]! + arr[4]!) / 2,
+                      (arr[2]! + arr[5]!) / 2,
+                    );
+                    placeMarker(center);
+                  }
+                }
+              }
+            } catch {
+              // Markør er ikke kritisk
             }
 
             // Highlight valgt objekt
