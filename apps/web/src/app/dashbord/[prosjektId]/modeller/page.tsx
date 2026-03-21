@@ -551,12 +551,7 @@ function IfcViewer({ tegning, onObjektValgt, onSpatialTre, viewerRef, klippModus
         if (renset) return;
 
         // Last IFC-modell
-        const model = await ifcLoader.load(data, true, tegning.name, {
-          instanceCallback: (importer) => {
-            importer.addAllAttributes();
-            importer.addAllRelations();
-          },
-        });
+        const model = await ifcLoader.load(data, true, tegning.name);
 
         if (renset) return;
 
