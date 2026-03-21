@@ -1662,6 +1662,26 @@ function SammenslattIfcViewer({
 
         let currentHighlight: { modelId: string; localIds: number[] } | null = null;
 
+        // 3D-markør for valgt punkt
+        let markerMesh: InstanceType<typeof THREE.Mesh> | null = null;
+        function placeMarker(point: InstanceType<typeof THREE.Vector3>) {
+          removeMarker();
+          const geo = new THREE.SphereGeometry(0.15, 16, 16);
+          const mat = new THREE.MeshBasicMaterial({ color: 0xef4444, depthTest: false });
+          markerMesh = new THREE.Mesh(geo, mat);
+          markerMesh.position.copy(point);
+          markerMesh.renderOrder = 999;
+          scene.add(markerMesh);
+        }
+        function removeMarker() {
+          if (markerMesh) {
+            scene.remove(markerMesh);
+            markerMesh.geometry.dispose();
+            (markerMesh.material as InstanceType<typeof THREE.MeshBasicMaterial>).dispose();
+            markerMesh = null;
+          }
+        }
+
         // Spor musebevegelse for å skille klikk fra drag (orbit controls)
         let mouseDownPos: { x: number; y: number } | null = null;
         rendererDom.addEventListener("pointerdown", (e: PointerEvent) => {
@@ -1669,6 +1689,7 @@ function SammenslattIfcViewer({
         });
 
         async function resetHighlight() {
+          removeMarker();
           if (!currentHighlight) return;
           try {
             const prevModel = fragmentsManager.list.get(currentHighlight.modelId);
@@ -1698,6 +1719,12 @@ function SammenslattIfcViewer({
           await resetHighlight();
 
           try {
+            // Finn treffpunkt med Three.js raycaster (for markør-plassering)
+            const raycaster = new THREE.Raycaster();
+            raycaster.setFromCamera(new THREE.Vector2(x, y), threeCamera);
+            const intersects = raycaster.intersectObjects(scene.children, true);
+            const treffPunkt = intersects[0]?.point ?? null;
+
             const hitResult = await fragmentsManager.raycast({
               camera: threeCamera,
               mouse: new THREE.Vector2(x, y),
@@ -1705,6 +1732,7 @@ function SammenslattIfcViewer({
             });
 
             if (!hitResult) {
+              removeMarker();
               onObjektValgtRef.current(null);
               return;
             }
@@ -1713,11 +1741,15 @@ function SammenslattIfcViewer({
 
             // Hopp over treff på skjulte modeller
             if (!synligeModeller.has(hitModel.modelId)) {
-              // Ikke vis egenskaper for skjulte modeller
               return;
             }
 
-            // Highlight valgt objekt umiddelbart
+            // Plasser 3D-markør på treffpunktet
+            if (treffPunkt) {
+              placeMarker(treffPunkt);
+            }
+
+            // Highlight valgt objekt
             try {
               await hitModel.highlight([localId], highlightMaterial);
               currentHighlight = { modelId: hitModel.modelId, localIds: [localId] };
@@ -1728,9 +1760,7 @@ function SammenslattIfcViewer({
             // Hent kategori via fragments API
             const item = hitModel.getItem(localId);
             const kategori = await item.getCategory().catch(() => null);
-            const expressId = localId; // fragments localId = IFC expressID
-
-            console.log(`DEBUG hit: localId=${localId}, modelId=${hitModel.modelId}, kategori=${kategori}, hasData=${ifcDataMap.has(hitModel.modelId)}`);
+            const expressId = localId;
 
             // Vis kategori umiddelbart
             onObjektValgtRef.current({ localId, kategori, attributter: {}, relasjoner: [] });
