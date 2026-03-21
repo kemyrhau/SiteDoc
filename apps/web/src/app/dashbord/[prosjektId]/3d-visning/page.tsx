@@ -1502,6 +1502,8 @@ function SammenslattIfcViewer({
 
         // Last alle IFC-modeller inn i samme scene
         const modellMap = new Map<string, unknown>();
+        // Map fragments modelId → rå IFC-data for on-demand property-oppslag
+        const ifcDataMap = new Map<string, Uint8Array>();
         const totalBbox = new THREE.Box3();
         let lastet = 0;
 
@@ -1541,12 +1543,7 @@ function SammenslattIfcViewer({
           setLasterNavn(tegning.name);
 
           try {
-            const model = await ifcLoader.load(data, true, tegning.name, {
-              instanceCallback: (importer) => {
-                importer.addAllAttributes();
-                importer.addAllRelations();
-              },
-            });
+            const model = await ifcLoader.load(data, true, tegning.name);
 
             const fm = model as { object: InstanceType<typeof THREE.Object3D>; useCamera: (c: unknown) => void; box: InstanceType<typeof THREE.Box3> };
 
@@ -1555,6 +1552,7 @@ function SammenslattIfcViewer({
             fm.useCamera(threeCamera);
 
             modellMap.set(tegning.id, model);
+            ifcDataMap.set((model as { modelId: string }).modelId, data);
             totalBbox.union(fm.box);
 
             lastet++;
@@ -1666,58 +1664,105 @@ function SammenslattIfcViewer({
               // Highlight kan feile men er ikke kritisk
             }
 
-            // Bruk Item-API for raskere og renere egenskapshenting
+            // Hent kategori via fragments API (raskt)
             const item = hitModel.getItem(localId);
+            const kategori = await item.getCategory().catch(() => null);
 
-            // Hent kategori og attributter parallelt (begge er raske)
-            const [kategori, itemAttrs] = await Promise.all([
-              item.getCategory().catch(() => null),
-              item.getAttributes().catch(() => null),
-            ]);
+            // Vis kategori umiddelbart
+            onObjektValgtRef.current({ localId, kategori, attributter: {}, relasjoner: [] });
 
-            // Konverter attributter til vårt format
-            const attributter: Record<string, EgenskapVerdi> = {};
-            if (itemAttrs) {
-              for (const [k, v] of itemAttrs) {
-                attributter[k] = { value: v.value, type: v.type != null ? String(v.type) : undefined };
-              }
-            }
+            // Hent egenskaper on-demand via web-ifc properties API
+            // Åpne IFC-filen i web-ifc for å lese egenskaper direkte
+            const rawData = ifcDataMap.get(hitModel.modelId);
+            if (rawData) {
+              try {
+                const webIfc = ifcLoader.webIfc as unknown as {
+                  OpenModel: (data: Uint8Array) => number;
+                  CloseModel: (id: number) => void;
+                  properties: {
+                    getItemProperties: (modelId: number, id: number, recursive?: boolean) => Promise<Record<string, unknown>>;
+                    getPropertySets: (modelId: number, elementId: number, recursive?: boolean) => Promise<Record<string, unknown>[]>;
+                    getTypeProperties: (modelId: number, elementId: number, recursive?: boolean) => Promise<Record<string, unknown>[]>;
+                  };
+                };
 
-            // Vis grunnleggende egenskaper umiddelbart
-            onObjektValgtRef.current({ localId, kategori, attributter, relasjoner: [] });
+                const modelId = webIfc.OpenModel(rawData);
 
-            // Hent full data med relasjoner asynkront og oppdater panelet
-            try {
-              const fullData = await hitModel.getItemsData([localId], {
-                attributesDefault: true,
-                relationsDefault: { attributes: true, relations: true },
-              });
-              // DEBUG: Logg rå data for å se strukturen
-              console.log("DEBUG fullData:", JSON.stringify(fullData, null, 2));
-              if (fullData.length > 0) {
-                const fullItem = fullData[0] as Record<string, unknown>;
-                console.log("DEBUG fullItem keys:", Object.keys(fullItem));
-                for (const [k, v] of Object.entries(fullItem)) {
-                  console.log(`DEBUG [${k}]:`, typeof v, Array.isArray(v) ? `array(${(v as unknown[]).length})` : "", v && typeof v === "object" && "value" in (v as Record<string, unknown>) ? `value=${(v as Record<string, unknown>).value}` : "");
-                }
-                const relasjoner: EgenskapGruppe[] = [];
-                const fullAttributter: Record<string, EgenskapVerdi> = {};
-                for (const [k, v] of Object.entries(fullItem)) {
-                  if (Array.isArray(v)) {
-                    relasjoner.push(...trekkUtEgenskaper(v as Record<string, unknown>[]));
-                  } else if (v && typeof v === "object" && "value" in (v as Record<string, unknown>)) {
-                    fullAttributter[k] = v as EgenskapVerdi;
+                try {
+                  // Hent element-attributter og PropertySets parallelt
+                  const [itemProps, propertySets, typeProps] = await Promise.all([
+                    webIfc.properties.getItemProperties(modelId, localId, false).catch(() => null),
+                    webIfc.properties.getPropertySets(modelId, localId, true).catch(() => []),
+                    webIfc.properties.getTypeProperties(modelId, localId, true).catch(() => []),
+                  ]);
+
+                  // Konverter attributter
+                  const attributter: Record<string, EgenskapVerdi> = {};
+                  if (itemProps) {
+                    for (const [k, v] of Object.entries(itemProps)) {
+                      if (INTERNE_FELT.has(k)) continue;
+                      if (v && typeof v === "object" && "value" in (v as Record<string, unknown>)) {
+                        attributter[k] = { value: (v as { value: unknown }).value };
+                      }
+                    }
                   }
+
+                  // Konverter PropertySets til grupper
+                  const relasjoner: EgenskapGruppe[] = [];
+                  for (const pset of [...propertySets, ...typeProps]) {
+                    const psetNavn = pset.Name && typeof pset.Name === "object" && "value" in (pset.Name as Record<string, unknown>)
+                      ? String((pset.Name as { value: unknown }).value)
+                      : "Egenskaper";
+                    const egenskaper: Record<string, EgenskapVerdi> = {};
+
+                    // HasProperties (IFCPROPERTYSET)
+                    const hasProps = pset.HasProperties as Record<string, unknown>[] | undefined;
+                    if (Array.isArray(hasProps)) {
+                      for (const prop of hasProps) {
+                        const propNavn = hentNavn(prop);
+                        const verdi = hentVerdi(prop);
+                        if (verdi !== null) {
+                          egenskaper[propNavn] = { value: verdi };
+                        }
+                      }
+                    }
+
+                    // HasQuantities (IFCELEMENTQUANTITY)
+                    const hasQuant = pset.HasQuantities as Record<string, unknown>[] | undefined;
+                    if (Array.isArray(hasQuant)) {
+                      for (const q of hasQuant) {
+                        const qNavn = hentNavn(q);
+                        const verdi = hentVerdi(q);
+                        if (verdi !== null) {
+                          egenskaper[qNavn] = { value: verdi };
+                        }
+                      }
+                    }
+
+                    // HasPropertyTemplates (IFCPROPERTYSETTEMPLATE)
+                    const hasTemplates = pset.HasPropertyTemplates as Record<string, unknown>[] | undefined;
+                    if (Array.isArray(hasTemplates)) {
+                      for (const tmpl of hasTemplates) {
+                        const tmplNavn = hentNavn(tmpl);
+                        const verdi = hentVerdi(tmpl);
+                        if (verdi !== null) {
+                          egenskaper[tmplNavn] = { value: verdi };
+                        }
+                      }
+                    }
+
+                    if (Object.keys(egenskaper).length > 0) {
+                      relasjoner.push({ navn: psetNavn, egenskaper });
+                    }
+                  }
+
+                  onObjektValgtRef.current({ localId, kategori, attributter, relasjoner });
+                } finally {
+                  webIfc.CloseModel(modelId);
                 }
-                onObjektValgtRef.current({
-                  localId,
-                  kategori,
-                  attributter: Object.keys(fullAttributter).length > 0 ? fullAttributter : attributter,
-                  relasjoner,
-                });
+              } catch (err) {
+                console.warn("Kunne ikke hente IFC-egenskaper:", err);
               }
-            } catch {
-              // Relasjoner er bonus — ikke kritisk
             }
           } catch (err) {
             console.warn("Kunne ikke hente objektegenskaper:", err);
