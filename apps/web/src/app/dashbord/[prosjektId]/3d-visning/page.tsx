@@ -1442,6 +1442,8 @@ function SammenslattIfcViewer({
 
         if (renset) return;
 
+        const threeCamera = (world.camera as unknown as { three: InstanceType<typeof THREE.PerspectiveCamera> }).three;
+
         // Last alle IFC-modeller inn i samme scene
         const modellMap = new Map<string, unknown>();
         const totalBbox = new THREE.Box3();
@@ -1469,8 +1471,9 @@ function SammenslattIfcViewer({
               },
             });
 
-            // Legg modellens 3D-objekt til scenen
+            // Legg modellens 3D-objekt til scenen og koble kamera for tile-lasting
             scene.add(model.object);
+            model.useCamera(threeCamera);
 
             modellMap.set(tegning.id, model);
             totalBbox.union(model.box);
@@ -1505,9 +1508,17 @@ function SammenslattIfcViewer({
           );
         }
 
+        // Start update-løkke for tile-lasting
+        let animFrameId: number | null = null;
+        function updateLoop() {
+          if (renset) return;
+          fragmentsManager.core.update();
+          animFrameId = requestAnimationFrame(updateLoop);
+        }
+        updateLoop();
+
         // Raycasting for objektvelging
         const rendererDom = (world.renderer as unknown as { three: { domElement: HTMLCanvasElement } }).three.domElement;
-        const threeCamera = (world.camera as unknown as { three: InstanceType<typeof THREE.PerspectiveCamera> }).three;
 
         const highlightMaterial = {
           color: new THREE.Color(0x3b82f6),
@@ -1618,6 +1629,7 @@ function SammenslattIfcViewer({
 
         return () => {
           container.removeEventListener("click", handleKlikk);
+          if (animFrameId !== null) cancelAnimationFrame(animFrameId);
         };
       })
       .catch((err) => {
