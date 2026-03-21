@@ -1683,8 +1683,8 @@ function SammenslattIfcViewer({
                 // Gjenbruk eller opprett web-ifc instans for egenskapsoppslag
                 if (!propsApiRef) {
                   const api = new WEBIFC.IfcAPI();
-                  api.SetWasmPath("/");
-                  await api.Init();
+                  api.SetWasmPath("/", true);
+                  await api.Init((_fileName) => "/web-ifc.wasm");
                   propsApiRef = api;
                 }
 
