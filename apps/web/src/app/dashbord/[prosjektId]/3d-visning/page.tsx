@@ -1593,7 +1593,7 @@ function SammenslattIfcViewer({
 
             const { localId, fragments: hitModel } = hitResult;
 
-            // Highlight valgt objekt
+            // Highlight valgt objekt umiddelbart
             try {
               await hitModel.highlight([localId], highlightMaterial);
               currentHighlight = { modelId: hitModel.modelId, localIds: [localId] };
@@ -1601,44 +1601,53 @@ function SammenslattIfcViewer({
               // Highlight kan feile men er ikke kritisk
             }
 
-            // Hent egenskaper med relasjoner (lazy — kun for klikket objekt)
-            const attributter: Record<string, EgenskapVerdi> = {};
-            const relasjoner: EgenskapGruppe[] = [];
-            let kategori: string | null = null;
+            // Bruk Item-API for raskere og renere egenskapshenting
+            const item = hitModel.getItem(localId);
 
+            // Hent kategori og attributter parallelt (begge er raske)
+            const [kategori, itemAttrs] = await Promise.all([
+              item.getCategory().catch(() => null),
+              item.getAttributes().catch(() => null),
+            ]);
+
+            // Konverter attributter til vårt format
+            const attributter: Record<string, EgenskapVerdi> = {};
+            if (itemAttrs) {
+              for (const [k, v] of itemAttrs) {
+                attributter[k] = { value: v.value, type: v.type != null ? String(v.type) : undefined };
+              }
+            }
+
+            // Vis grunnleggende egenskaper umiddelbart
+            onObjektValgtRef.current({ localId, kategori, attributter, relasjoner: [] });
+
+            // Hent full data med relasjoner asynkront og oppdater panelet
             try {
-              const itemsData = await hitModel.getItemsData([localId], {
+              const fullData = await hitModel.getItemsData([localId], {
                 attributesDefault: true,
-                relationsDefault: { attributes: true, relations: true },
+                relationsDefault: { attributes: true, relations: false },
               });
-              if (itemsData.length > 0) {
-                const item = itemsData[0] as Record<string, unknown>;
-                for (const [k, v] of Object.entries(item)) {
+              if (fullData.length > 0) {
+                const fullItem = fullData[0] as Record<string, unknown>;
+                const relasjoner: EgenskapGruppe[] = [];
+                const fullAttributter: Record<string, EgenskapVerdi> = {};
+                for (const [k, v] of Object.entries(fullItem)) {
                   if (Array.isArray(v)) {
                     relasjoner.push(...trekkUtEgenskaper(v as Record<string, unknown>[]));
                   } else if (v && typeof v === "object" && "value" in (v as Record<string, unknown>)) {
-                    attributter[k] = v as EgenskapVerdi;
+                    fullAttributter[k] = v as EgenskapVerdi;
                   }
                 }
+                onObjektValgtRef.current({
+                  localId,
+                  kategori,
+                  attributter: Object.keys(fullAttributter).length > 0 ? fullAttributter : attributter,
+                  relasjoner,
+                });
               }
             } catch {
-              // Egenskaper kan mangle for noen objekter
+              // Relasjoner er bonus — ikke kritisk
             }
-
-            try {
-              const categories = await hitModel.getCategories();
-              for (const cat of categories) {
-                const items = await hitModel.getItemsOfCategories([new RegExp(`^${cat}$`)]);
-                if (items[cat]?.includes(localId)) {
-                  kategori = cat;
-                  break;
-                }
-              }
-            } catch {
-              // Ikke kritisk
-            }
-
-            onObjektValgtRef.current({ localId, kategori, attributter, relasjoner });
           } catch (err) {
             console.warn("Kunne ikke hente objektegenskaper:", err);
             onObjektValgtRef.current(null);
