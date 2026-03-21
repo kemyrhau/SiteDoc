@@ -1778,8 +1778,20 @@ function SammenslattIfcViewer({
                     }
                   }
 
-                  // Bruk IFC-typen fra web-ifc hvis tilgjengelig
-                  const ifcType = itemProps?.type != null ? String(itemProps.type) : null;
+                  // Konverter numerisk IFC-typekode til lesbart navn
+                  let ifcType: string | null = null;
+                  if (itemProps?.type != null) {
+                    const typeCode = Number(itemProps.type);
+                    // Slå opp typekode i WEBIFC-konstantene (f.eks. IFCWINDOW = 3304561284 → "Window")
+                    for (const [name, code] of Object.entries(WEBIFC)) {
+                      if (code === typeCode && typeof name === "string" && name.startsWith("IFC") && name === name.toUpperCase()) {
+                        // Konverter "IFCWINDOW" → "Window", "IFCWALLSTANDARDCASE" → "Wall Standard Case"
+                        ifcType = name.substring(3).replace(/([A-Z])/g, " $1").trim();
+                        ifcType = ifcType.charAt(0).toUpperCase() + ifcType.slice(1).toLowerCase();
+                        break;
+                      }
+                    }
+                  }
                   const endeligKategori = kategori ?? ifcType;
                   onObjektValgtRef.current({ localId, kategori: endeligKategori, attributter, relasjoner });
               } catch (err) {
