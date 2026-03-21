@@ -1711,9 +1711,6 @@ function SammenslattIfcViewer({
           }
         }
 
-        // Three.js Raycaster for nøyaktig treffpunkt på synlig geometri
-        const threeRaycaster = new THREE.Raycaster();
-
         // Spor musebevegelse for å skille klikk fra drag (orbit controls)
         let mouseDownPos: { x: number; y: number } | null = null;
         rendererDom.addEventListener("pointerdown", (e: PointerEvent) => {
@@ -1751,78 +1748,29 @@ function SammenslattIfcViewer({
           await resetHighlight();
 
           try {
-            // Three.js Raycaster for nøyaktig treffpunkt på synlig geometri
-            const mouse2 = new THREE.Vector2(x, y);
-            threeRaycaster.setFromCamera(mouse2, threeCamera);
-            const intersections = threeRaycaster.intersectObjects(scene.children, true);
+            const hitResult = await fragmentsManager.raycast({
+              camera: threeCamera,
+              mouse: new THREE.Vector2(x, y),
+              dom: rendererDom,
+            });
 
-            if (intersections.length === 0) {
+            if (!hitResult) {
               removeMarker();
               onObjektValgtRef.current(null);
               return;
             }
 
-            // Plasser markør på Three.js-treffpunktet (alltid nøyaktig under musepekeren)
-            placeMarker(intersections[0]!.point);
+            const { localId, fragments: hitModel } = hitResult;
 
-            // Finn hvilken fragment-modell og localId som ble truffet
-            const hitMesh = intersections[0]!.object;
-            const hitInstanceId = intersections[0]!.instanceId;
-            let localId: number | null = null;
-            let hitModel: import("@thatopen/fragments").FragmentsModel | null = null;
-
-            // Traverser opp for å finne fragment-modellens rotobjekt
-            for (const [modelId, model] of fragmentsManager.list) {
-              if (!synligeModeller.has(modelId)) continue;
-              const modelObj = (model as unknown as { object: InstanceType<typeof THREE.Object3D> }).object;
-              let current: InstanceType<typeof THREE.Object3D> | null = hitMesh;
-              while (current) {
-                if (current === modelObj) {
-                  hitModel = model;
-                  break;
-                }
-                current = current.parent;
-              }
-              if (hitModel) break;
-            }
-
-            if (!hitModel) {
-              // Treff på ikke-fragment-objekt (grid etc.)
+            // Hopp over treff på skjulte modeller
+            if (!synligeModeller.has(hitModel.modelId)) {
               removeMarker();
               onObjektValgtRef.current(null);
               return;
             }
 
-            // Hent localId fra instanced mesh via fragment-modellens API
-            if (hitInstanceId !== undefined) {
-              // Prøv å hente localId fra fragments raycast (nærmere treffpunktet)
-              const fragResult = await hitModel.raycast({
-                camera: threeCamera,
-                mouse: mouse2,
-                dom: rendererDom,
-              });
-              if (fragResult) {
-                localId = fragResult.localId;
-              }
-            }
-
-            if (localId === null) {
-              // Fallback til fragmentsManager-raycast
-              const fragResult = await fragmentsManager.raycast({
-                camera: threeCamera,
-                mouse: mouse2,
-                dom: rendererDom,
-              });
-              if (fragResult && synligeModeller.has(fragResult.fragments.modelId)) {
-                localId = fragResult.localId;
-                hitModel = fragResult.fragments;
-              }
-            }
-
-            if (localId === null || !hitModel) {
-              onObjektValgtRef.current(null);
-              return;
-            }
+            // Plasser 3D-markør på treffpunktet
+            placeMarker(hitResult.point);
 
             // Highlight valgt objekt
             try {
