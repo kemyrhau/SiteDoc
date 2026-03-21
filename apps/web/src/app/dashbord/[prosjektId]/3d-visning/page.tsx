@@ -364,7 +364,7 @@ function Fane3DModell({ prosjektId }: { prosjektId: string }) {
                         <Loader2 className="h-3 w-3 animate-spin" /> Laster...
                       </span>
                     ) : status?.feil ? (
-                      <span className="text-red-500">Feilet</span>
+                      <span className="text-red-500" title={status.feil}>Feilet</span>
                     ) : (
                       "IFC"
                     )}
@@ -1419,6 +1419,8 @@ function SammenslattIfcViewer({
         world.camera = new OBC.SimpleCamera(components);
         world.camera.controls?.setLookAt(20, 20, 20, 0, 0, 0);
 
+        components.init();
+
         const grids = components.get(OBC.Grids);
         grids.create(world);
 
@@ -1427,7 +1429,10 @@ function SammenslattIfcViewer({
         clipper.enabled = false;
 
         const ifcLoader = components.get(OBC.IfcLoader);
-        ifcLoader.settings.wasm = { path: "/", absolute: true };
+        ifcLoader.settings.wasm = {
+          path: "/",
+          absolute: true,
+        };
         await ifcLoader.setup();
 
         if (renset) return;
@@ -1467,10 +1472,11 @@ function SammenslattIfcViewer({
             setAntallLastet(lastet);
             onModellStatusRef.current(tegning.id, { laster: false, synlig: true });
           } catch (err) {
-            console.warn(`Kunne ikke laste ${tegning.name}:`, err);
+            console.error(`Kunne ikke laste ${tegning.name}:`, err);
+            const feilmelding = err instanceof Error ? err.message : String(err);
             onModellStatusRef.current(tegning.id, {
               laster: false,
-              feil: err instanceof Error ? err.message : "Feil ved lasting",
+              feil: feilmelding,
             });
           }
         }
