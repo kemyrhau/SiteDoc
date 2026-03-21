@@ -162,12 +162,19 @@ Sammenslått IFC-viewer som laster ALLE prosjektets IFC-modeller i én @thatopen
 
 **@thatopen initialisering (kritisk rekkefølge):**
 1. `components.init()` — initialiserer Components-systemet
-2. `fragmentsManager.init("/fragments-worker.mjs")` — starter worker for tile-basert rendering
-3. `ifcLoader.settings.autoSetWasm = false` — forhindrer at unpkg overskriver lokal WASM-bane
-4. `ifcLoader.settings.wasm = { path: "/", absolute: true }` — peker til lokale WASM-filer i `public/`
-5. Etter lasting: `model.useCamera(threeCamera)` — påkrevd for LOD/tile-lasting
-6. Render-løkke: `fragmentsManager.core.update()` via `requestAnimationFrame` — oppdaterer tiles
-7. `scene.add(model.object)` — legger modellens Object3D til scenen manuelt
+2. `SimpleScene.setup({ backgroundColor, ambientLight, directionalLight })` — MÅ kalles for lys (constructor alene legger ikke til lys)
+3. `fragmentsManager.init("/fragments-worker.mjs")` — starter worker for tile-basert rendering
+4. `ifcLoader.settings.autoSetWasm = false` — forhindrer at unpkg overskriver lokal WASM-bane
+5. `ifcLoader.settings.wasm = { path: "/", absolute: true }` — peker til lokale WASM-filer i `public/`
+6. Etter lasting: `model.useCamera(threeCamera)` — påkrevd for LOD/tile-lasting
+7. Render-løkke: `fragmentsManager.core.update()` via `requestAnimationFrame` — oppdaterer tiles
+8. `scene.add(model.object)` — legger modellens Object3D til scenen manuelt
+
+**Modell-lasting (ytelsesoptimalisert):**
+- Alle IFC-filer lastes ned parallelt (`Promise.all`) — nettverks-I/O
+- WASM-parsing skjer sekvensielt (web-ifc er enkelttrådet)
+- Laste-indikator viser modellnavn under parsing
+- `clipper.create(world)` kalles eksplisitt på `dblclick` — Clipper har ingen auto-lytter
 
 **IndexedDB-cache for fragments:**
 - Første besøk: IFC parses med WASM → fragments lagres i IndexedDB (`sitedoc-fragments-cache`)
