@@ -158,7 +158,7 @@ Sammenslått IFC-viewer som laster ALLE prosjektets IFC-modeller i én @thatopen
 
 **Layout:** Sidepanel (280px, IFC-modeller med checkboxes + punktskyer) + 3D-viewer + flytende egenskapspanel.
 
-**IFC-funksjonalitet:** Klient-side WASM-parsing, objektvelging med highlight, klippeplan (snitt).
+**IFC-funksjonalitet:** Klient-side WASM-parsing, objektvelging med highlight, klippeplan (snitt), IndexedDB-cache for fragments.
 
 **@thatopen initialisering (kritisk rekkefølge):**
 1. `components.init()` — initialiserer Components-systemet
@@ -168,6 +168,17 @@ Sammenslått IFC-viewer som laster ALLE prosjektets IFC-modeller i én @thatopen
 5. Etter lasting: `model.useCamera(threeCamera)` — påkrevd for LOD/tile-lasting
 6. Render-løkke: `fragmentsManager.core.update()` via `requestAnimationFrame` — oppdaterer tiles
 7. `scene.add(model.object)` — legger modellens Object3D til scenen manuelt
+
+**IndexedDB-cache for fragments:**
+- Første besøk: IFC parses med WASM → fragments lagres i IndexedDB (`sitedoc-fragments-cache`)
+- Påfølgende besøk: fragments lastes direkte fra cache via `fragmentsManager.core.load(buffer)` (mye raskere)
+- Cache-nøkkel: `fragments:{fileUrl}`. Korrupt cache faller tilbake til IFC-parsing
+- `model._save()` returnerer `Uint8Array` med fragments-data
+
+**Objektklikk og egenskaper:**
+- `hitModel.getItem(localId)` → `item.getCategory()` + `item.getAttributes()` (rask grunnleggende info)
+- `hitModel.getItemsData([localId], { relationsDefault: { attributes: true } })` → full metadata med relasjoner (asynkront)
+- To-stegs visning: grunnleggende attributter vises umiddelbart, relasjoner lastes i bakgrunnen
 
 **Filer i `public/`:** `web-ifc.wasm`, `web-ifc-mt.wasm`, `fragments-worker.mjs`
 
