@@ -173,13 +173,19 @@ Sammenslått IFC-viewer som laster ALLE prosjektets IFC-modeller i én @thatopen
 **Modell-lasting (ytelsesoptimalisert):**
 - Alle IFC-filer lastes ned parallelt (`Promise.all`) — nettverks-I/O
 - WASM-parsing skjer sekvensielt (web-ifc er enkelttrådet)
-- Laste-indikator viser modellnavn under parsing
+- Lasting uten `addAllAttributes()`/`addAllRelations()` — gir rask parsing uten feil
+- Rå IFC-data (Uint8Array) lagres per modell for on-demand egenskapsoppslag
 - `clipper.create(world)` kalles eksplisitt på `dblclick` — Clipper har ingen auto-lytter
 
-**Objektklikk og egenskaper:**
-- `hitModel.getItem(localId)` → `item.getCategory()` + `item.getAttributes()` (rask grunnleggende info)
-- `hitModel.getItemsData([localId], { relationsDefault: { attributes: true } })` → full metadata med relasjoner (asynkront)
-- To-stegs visning: grunnleggende attributter vises umiddelbart, relasjoner lastes i bakgrunnen
+**Objektklikk og egenskaper (on-demand via web-ifc):**
+- `hitModel.getItem(localId)` → `item.getCategory()` for rask IFC-type
+- Dedikert `WEBIFC.IfcAPI()`-instans åpner IFC-data on-demand ved klikk
+- `propsApi.properties.getItemProperties()` → element-attributter
+- `propsApi.properties.getPropertySets()` → PropertySets med verdier (HasProperties/HasQuantities)
+- `propsApi.properties.getTypeProperties()` → type-egenskaper
+- Web-ifc instans og åpne modeller caches mellom klikk for rask respons
+- IFC-typekode konverteres til lesbart navn via WEBIFC-konstanter (IFCWALL → "Wall")
+- Interne felt (OwnerHistory, ObjectPlacement, Representation) filtreres bort
 
 **Filer i `public/`:** `web-ifc.wasm`, `web-ifc-mt.wasm`, `fragments-worker.mjs`
 
