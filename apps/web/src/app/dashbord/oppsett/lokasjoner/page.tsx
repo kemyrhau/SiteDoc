@@ -18,10 +18,12 @@ import {
   X,
   Upload,
   Building2,
+  Box,
   FileText,
   ChevronDown,
   Loader2,
   MapPin,
+  ExternalLink,
 } from "lucide-react";
 import { GeoReferanseEditor } from "@/components/GeoReferanseEditor";
 
@@ -574,10 +576,17 @@ function RedigerLokasjon({
                     />
                   )
                 ) : (valgtTegning.fileType ?? "") === "ifc" ? (
-                  <div className="flex flex-col items-center gap-2 text-gray-400">
-                    <FileText className="h-12 w-12 text-gray-300" />
+                  <div className="flex flex-col items-center gap-3 text-gray-400">
+                    <Box className="h-12 w-12 text-gray-300" />
                     <p className="text-sm font-medium text-gray-500">{valgtTegning.name}</p>
-                    <p className="text-xs">IFC-modell — kan ikke forhåndsvises her</p>
+                    <p className="text-xs">IFC-modell</p>
+                    <a
+                      href={`/dashbord/${prosjektId}/3d-visning`}
+                      className="flex items-center gap-1.5 rounded bg-sitedoc-primary px-3 py-1.5 text-xs font-medium text-white hover:bg-sitedoc-primary/90"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" />
+                      Åpne i 3D-visning
+                    </a>
                   </div>
                 ) : (
                   <iframe
