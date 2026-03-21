@@ -1741,16 +1741,13 @@ function SammenslattIfcViewer({
             if (Math.sqrt(dx * dx + dy * dy) > 5) return;
           }
 
-          const rect = rendererDom.getBoundingClientRect();
-          const x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-          const y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-
           await resetHighlight();
 
           try {
+            // fragmentsManager.raycast() forventer rå clientX/clientY (ikke NDC)
             const hitResult = await fragmentsManager.raycast({
               camera: threeCamera,
-              mouse: new THREE.Vector2(x, y),
+              mouse: new THREE.Vector2(event.clientX, event.clientY),
               dom: rendererDom,
             });
 
