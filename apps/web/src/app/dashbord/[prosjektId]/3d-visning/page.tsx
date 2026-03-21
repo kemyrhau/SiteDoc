@@ -1967,10 +1967,14 @@ function SammenslattIfcViewer({
         // Viewer-referanser
         viewerRef.current = {
           toggleModell: (tegningId: string, synlig: boolean) => {
-            const model = modellMap.get(tegningId) as { object?: { visible: boolean; traverse: (cb: (c: { visible: boolean }) => void) => void } } | undefined;
+            const model = modellMap.get(tegningId) as { object?: InstanceType<typeof THREE.Object3D> } | undefined;
             if (model?.object) {
-              // Sett visible rekursivt på alle barn — påvirker også raycast
-              model.object.traverse((child) => { child.visible = synlig; });
+              // Fjern/legg til i scenen — fragments raycast ignorerer visible-flagg
+              if (synlig) {
+                if (!model.object.parent) scene.add(model.object);
+              } else {
+                scene.remove(model.object);
+              }
             }
             const fragId = tegningTilModelId.get(tegningId);
             if (fragId) {
