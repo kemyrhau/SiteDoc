@@ -1382,6 +1382,7 @@ function SammenslattIfcViewer({
   const containerRef = useRef<HTMLDivElement>(null);
   const [laster, setLaster] = useState(true);
   const [antallLastet, setAntallLastet] = useState(0);
+  const [lasterNavn, setLasterNavn] = useState<string | null>(null);
 
   const onObjektValgtRef = useRef(onObjektValgt);
   onObjektValgtRef.current = onObjektValgt;
@@ -1454,22 +1455,42 @@ function SammenslattIfcViewer({
         const totalBbox = new THREE.Box3();
         let lastet = 0;
 
+        // Parallell nedlasting av alle filer (nettverks-I/O)
         for (const tegning of tegninger) {
+          onModellStatusRef.current(tegning.id, { laster: true, feil: null });
+        }
+
+        const nedlastinger = await Promise.all(
+          tegninger.map(async (tegning) => {
+            try {
+              const fileUrl = tegning.fileUrl.startsWith("/api")
+                ? tegning.fileUrl
+                : `/api${tegning.fileUrl}`;
+              const response = await fetch(fileUrl);
+              if (!response.ok) throw new Error("Kunne ikke hente fil");
+              const buffer = await response.arrayBuffer();
+              return { tegning, data: new Uint8Array(buffer), feil: null };
+            } catch (err) {
+              return { tegning, data: null, feil: err instanceof Error ? err.message : String(err) };
+            }
+          }),
+        );
+
+        if (renset) return;
+
+        // Sekvensiell WASM-parsing (web-ifc er enkelttrådet)
+        for (const { tegning, data, feil } of nedlastinger) {
           if (renset) return;
 
-          onModellStatusRef.current(tegning.id, { laster: true, feil: null });
+          if (!data || feil) {
+            console.error(`Kunne ikke laste ${tegning.name}:`, feil);
+            onModellStatusRef.current(tegning.id, { laster: false, feil: feil ?? "Ukjent feil" });
+            continue;
+          }
+
+          setLasterNavn(tegning.name);
 
           try {
-            const fileUrl = tegning.fileUrl.startsWith("/api")
-              ? tegning.fileUrl
-              : `/api${tegning.fileUrl}`;
-            const response = await fetch(fileUrl);
-            if (!response.ok) throw new Error("Kunne ikke hente fil");
-            const buffer = await response.arrayBuffer();
-            const data = new Uint8Array(buffer);
-
-            if (renset) return;
-
             const model = await ifcLoader.load(data, true, tegning.name, {
               instanceCallback: (importer) => {
                 importer.addAllAttributes();
@@ -1496,6 +1517,7 @@ function SammenslattIfcViewer({
             });
           }
         }
+        setLasterNavn(null);
 
         if (renset) return;
 
@@ -1579,13 +1601,16 @@ function SammenslattIfcViewer({
               // Highlight kan feile men er ikke kritisk
             }
 
-            // Hent egenskaper
+            // Hent egenskaper med relasjoner (lazy — kun for klikket objekt)
             const attributter: Record<string, EgenskapVerdi> = {};
             const relasjoner: EgenskapGruppe[] = [];
             let kategori: string | null = null;
 
             try {
-              const itemsData = await hitModel.getItemsData([localId]);
+              const itemsData = await hitModel.getItemsData([localId], {
+                attributesDefault: true,
+                relationsDefault: { attributes: true, relations: true },
+              });
               if (itemsData.length > 0) {
                 const item = itemsData[0] as Record<string, unknown>;
                 for (const [k, v] of Object.entries(item)) {
@@ -1729,7 +1754,12 @@ function SammenslattIfcViewer({
             <p className="mt-3 text-sm font-medium text-gray-700">
               Laster modeller ({antallLastet}/{tegninger.length})...
             </p>
-            <p className="text-xs text-gray-500">
+            {lasterNavn && (
+              <p className="mt-1 text-xs font-medium text-sitedoc-secondary">
+                {lasterNavn}
+              </p>
+            )}
+            <p className="mt-1 text-xs text-gray-500">
               Parsing skjer lokalt i nettleseren. Større filer tar lengre tid.
             </p>
           </div>
