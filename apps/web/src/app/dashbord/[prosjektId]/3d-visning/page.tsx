@@ -1551,6 +1551,9 @@ function SammenslattIfcViewer({
 
         // Last alle IFC-modeller inn i samme scene
         const modellMap = new Map<string, unknown>();
+        // Map tegningId → fragments modelId, og spor synlighet
+        const tegningTilModelId = new Map<string, string>();
+        const synligeModeller = new Set<string>();
         // Bruk ytre refs for ifcData og propsApi (tilgjengelig i cleanup)
         const ifcDataMap = ifcDataMapRef;
         const totalBbox = new THREE.Box3();
@@ -1601,7 +1604,10 @@ function SammenslattIfcViewer({
             fm.useCamera(threeCamera);
 
             modellMap.set(tegning.id, model);
-            ifcDataMap.set((model as { modelId: string }).modelId, data);
+            const fragModelId = (model as { modelId: string }).modelId;
+            ifcDataMap.set(fragModelId, data);
+            tegningTilModelId.set(tegning.id, fragModelId);
+            synligeModeller.add(fragModelId);
             totalBbox.union(fm.box);
 
             lastet++;
@@ -1704,6 +1710,12 @@ function SammenslattIfcViewer({
             }
 
             const { localId, fragments: hitModel } = hitResult;
+
+            // Hopp over treff på skjulte modeller
+            if (!synligeModeller.has(hitModel.modelId)) {
+              // Ikke vis egenskaper for skjulte modeller
+              return;
+            }
 
             // Highlight valgt objekt umiddelbart
             try {
@@ -1933,6 +1945,11 @@ function SammenslattIfcViewer({
             const model = modellMap.get(tegningId) as { object?: { visible: boolean } } | undefined;
             if (model?.object) {
               model.object.visible = synlig;
+            }
+            const fragId = tegningTilModelId.get(tegningId);
+            if (fragId) {
+              if (synlig) synligeModeller.add(fragId);
+              else synligeModeller.delete(fragId);
             }
           },
           fjernAlleKlippeplan: () => {
