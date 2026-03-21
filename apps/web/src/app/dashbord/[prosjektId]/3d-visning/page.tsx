@@ -1782,12 +1782,14 @@ function SammenslattIfcViewer({
                   let ifcType: string | null = null;
                   if (itemProps?.type != null) {
                     const typeCode = Number(itemProps.type);
-                    // Slå opp typekode i WEBIFC-konstantene (f.eks. IFCWINDOW = 3304561284 → "Window")
                     for (const [name, code] of Object.entries(WEBIFC)) {
                       if (code === typeCode && typeof name === "string" && name.startsWith("IFC") && name === name.toUpperCase()) {
-                        // Konverter "IFCWINDOW" → "Window", "IFCWALLSTANDARDCASE" → "Wall Standard Case"
-                        ifcType = name.substring(3).replace(/([A-Z])/g, " $1").trim();
-                        ifcType = ifcType.charAt(0).toUpperCase() + ifcType.slice(1).toLowerCase();
+                        // "IFCWALLSTANDARDCASE" → "Wall", "IFCWINDOW" → "Window"
+                        let clean = name.substring(3); // Fjern "IFC"
+                        // Fjern IFC-implementasjonsuffikser
+                        clean = clean.replace(/STANDARDCASE$|ELEMENTEDCASE$|TYPE$/, "");
+                        // Gjør om ALLCAPS til Title Case
+                        ifcType = clean.charAt(0) + clean.slice(1).toLowerCase();
                         break;
                       }
                     }
