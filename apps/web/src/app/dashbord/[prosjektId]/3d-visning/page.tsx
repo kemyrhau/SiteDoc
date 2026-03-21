@@ -1692,8 +1692,14 @@ function SammenslattIfcViewer({
                 attributesDefault: true,
                 relationsDefault: { attributes: true, relations: true },
               });
+              // DEBUG: Logg rå data for å se strukturen
+              console.log("DEBUG fullData:", JSON.stringify(fullData, null, 2));
               if (fullData.length > 0) {
                 const fullItem = fullData[0] as Record<string, unknown>;
+                console.log("DEBUG fullItem keys:", Object.keys(fullItem));
+                for (const [k, v] of Object.entries(fullItem)) {
+                  console.log(`DEBUG [${k}]:`, typeof v, Array.isArray(v) ? `array(${(v as unknown[]).length})` : "", v && typeof v === "object" && "value" in (v as Record<string, unknown>) ? `value=${(v as Record<string, unknown>).value}` : "");
+                }
                 const relasjoner: EgenskapGruppe[] = [];
                 const fullAttributter: Record<string, EgenskapVerdi> = {};
                 for (const [k, v] of Object.entries(fullItem)) {
