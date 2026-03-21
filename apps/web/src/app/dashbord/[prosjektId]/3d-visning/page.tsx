@@ -199,8 +199,15 @@ export default function TreDVisning() {
 }
 
 /* ================================================================== */
-/*  FANE 1: 3D-modell (IFC + punktsky)                                 */
+/*  FANE 1: 3D-modell (IFC sammenslått + punktsky)                     */
 /* ================================================================== */
+
+interface ModellStatus {
+  id: string;
+  synlig: boolean;
+  laster: boolean;
+  feil: string | null;
+}
 
 function Fane3DModell({ prosjektId }: { prosjektId: string }) {
   const utils = trpc.useUtils();
@@ -223,16 +230,14 @@ function Fane3DModell({ prosjektId }: { prosjektId: string }) {
     (ps) => ps.conversionStatus === "done" && ps.potreeUrl,
   );
 
-  const [valgtIfcId, setValgtIfcId] = useState<string | null>(null);
   const [valgtObjekt, setValgtObjekt] = useState<ValgtObjekt | null>(null);
-  const [spatialTre, setSpatialTre] = useState<TreNode | null>(null);
   const [lasterOpp, setLasterOpp] = useState(false);
   const [klippModus, setKlippModus] = useState(false);
+  const [modellStatuser, setModellStatuser] = useState<ModellStatus[]>([]);
 
+  // Referanse til sammenslått viewer
   const viewerRef = useRef<{
-    velgObjekt: (localId: number) => void;
-    zoomTilObjekt: (localId: number) => void;
-    opprettKlippeplan: () => void;
+    toggleModell: (tegningId: string, synlig: boolean) => void;
     fjernAlleKlippeplan: () => void;
     settKlipperSynlig: (synlig: boolean) => void;
   } | null>(null);
@@ -240,15 +245,6 @@ function Fane3DModell({ prosjektId }: { prosjektId: string }) {
   const opprettMutation = trpc.tegning.opprett.useMutation({
     onSuccess: (_data: unknown) => {
       utils.tegning.hentForProsjekt.invalidate({ projectId: prosjektId });
-    },
-  });
-
-  const slettMutation = trpc.tegning.slett.useMutation({
-    onSuccess: () => {
-      utils.tegning.hentForProsjekt.invalidate({ projectId: prosjektId });
-      setValgtIfcId(null);
-      setValgtObjekt(null);
-      setSpatialTre(null);
     },
   });
 
@@ -282,11 +278,27 @@ function Fane3DModell({ prosjektId }: { prosjektId: string }) {
     }
   }
 
-  const valgt = tegninger?.find((t) => t.id === valgtIfcId) ?? null;
+  function toggleSynlighet(id: string) {
+    setModellStatuser((prev) => {
+      const oppdatert = prev.map((m) =>
+        m.id === id ? { ...m, synlig: !m.synlig } : m,
+      );
+      const modell = oppdatert.find((m) => m.id === id);
+      if (modell) {
+        viewerRef.current?.toggleModell(id, modell.synlig);
+      }
+      return oppdatert;
+    });
+  }
 
-  function handleTreKlikk(localId: number) {
-    viewerRef.current?.velgObjekt(localId);
-    viewerRef.current?.zoomTilObjekt(localId);
+  function oppdaterModellStatus(id: string, status: Partial<ModellStatus>) {
+    setModellStatuser((prev) => {
+      const finnes = prev.find((m) => m.id === id);
+      if (finnes) {
+        return prev.map((m) => (m.id === id ? { ...m, ...status } : m));
+      }
+      return [...prev, { id, synlig: true, laster: false, feil: null, ...status }];
+    });
   }
 
   if (lasterTegninger || lasterPunktskyer) {
@@ -297,13 +309,14 @@ function Fane3DModell({ prosjektId }: { prosjektId: string }) {
     );
   }
 
+  const harModeller = tegninger && tegninger.length > 0;
+
   return (
     <div className="flex h-full flex-1">
       {/* Sidepanel */}
       <div className="flex w-[280px] flex-col border-r border-gray-200 bg-white">
-        {/* IFC-modeller */}
         <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
-          <h2 className="text-sm font-semibold text-gray-900">IFC-modeller</h2>
+          <h2 className="text-sm font-semibold text-gray-900">Modeller</h2>
           <label className="cursor-pointer">
             <input
               type="file"
@@ -320,7 +333,7 @@ function Fane3DModell({ prosjektId }: { prosjektId: string }) {
         </div>
 
         <div className="flex-1 overflow-y-auto">
-          {(!tegninger || tegninger.length === 0) && (!punktskyer || punktskyer.length === 0) && (
+          {!harModeller && (!punktskyer || punktskyer.length === 0) && (
             <div className="flex flex-col items-center gap-2 py-10 text-center">
               <Layers className="h-8 w-8 text-gray-300" />
               <p className="text-sm text-gray-400">Ingen 3D-data</p>
@@ -328,27 +341,40 @@ function Fane3DModell({ prosjektId }: { prosjektId: string }) {
             </div>
           )}
 
-          {tegninger?.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => {
-                setValgtIfcId(t.id);
-                setValgtObjekt(null);
-                setSpatialTre(null);
-              }}
-              className={`flex w-full items-center gap-3 border-b border-gray-100 px-4 py-3 text-left transition-colors hover:bg-gray-50 ${
-                valgtIfcId === t.id ? "bg-blue-50" : ""
-              }`}
-            >
-              <Box className="h-4 w-4 shrink-0 text-gray-400" />
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-gray-900">{t.name}</p>
-                <p className="text-xs text-gray-500">IFC</p>
-              </div>
-            </button>
-          ))}
+          {/* IFC-modeller med avkrysning */}
+          {tegninger?.map((t) => {
+            const status = modellStatuser.find((m) => m.id === t.id);
+            return (
+              <label
+                key={t.id}
+                className="flex w-full cursor-pointer items-center gap-3 border-b border-gray-100 px-4 py-2.5 transition-colors hover:bg-gray-50"
+              >
+                <input
+                  type="checkbox"
+                  checked={status?.synlig ?? true}
+                  onChange={() => toggleSynlighet(t.id)}
+                  className="h-3.5 w-3.5 shrink-0 rounded border-gray-300 text-sitedoc-primary accent-sitedoc-primary"
+                />
+                <Box className="h-4 w-4 shrink-0 text-gray-400" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-gray-900">{t.name}</p>
+                  <p className="text-xs text-gray-500">
+                    {status?.laster ? (
+                      <span className="flex items-center gap-1 text-amber-600">
+                        <Loader2 className="h-3 w-3 animate-spin" /> Laster...
+                      </span>
+                    ) : status?.feil ? (
+                      <span className="text-red-500">Feilet</span>
+                    ) : (
+                      "IFC"
+                    )}
+                  </p>
+                </div>
+              </label>
+            );
+          })}
 
-          {/* Punktskyer i samme liste */}
+          {/* Punktskyer */}
           {punktskyer && punktskyer.length > 0 && (
             <>
               <div className="border-t border-gray-200 px-4 py-2">
@@ -370,43 +396,26 @@ function Fane3DModell({ prosjektId }: { prosjektId: string }) {
               ))}
             </>
           )}
-
-          {/* Objekttre */}
-          {spatialTre && valgt && (
-            <div className="border-t border-gray-200">
-              <div className="px-4 py-2">
-                <span className="text-xs font-semibold uppercase text-gray-500">Objekttre</span>
-              </div>
-              <ObjektTre
-                node={spatialTre}
-                nivaa={0}
-                onKlikk={handleTreKlikk}
-                valgtLocalId={valgtObjekt?.localId ?? null}
-              />
-            </div>
-          )}
         </div>
       </div>
 
-      {/* Hovedinnhold: viewer */}
+      {/* Hovedinnhold: sammenslått viewer */}
       <div className="relative flex flex-1 flex-col bg-gray-100">
-        {!valgt ? (
+        {!harModeller ? (
           <div className="flex flex-1 items-center justify-center">
             <div className="text-center text-gray-400">
               <Box className="mx-auto mb-2 h-12 w-12 text-gray-300" />
-              <p className="text-sm">Velg en IFC-modell fra listen</p>
+              <p className="text-sm">Last opp IFC-modeller for 3D-visning</p>
             </div>
           </div>
         ) : (
-          <IfcViewer
-            key={valgt.id}
-            tegning={valgt}
-            onObjektValgt={setValgtObjekt}
-            onSpatialTre={setSpatialTre}
+          <SammenslattIfcViewer
+            tegninger={tegninger!}
             viewerRef={viewerRef}
             klippModus={klippModus}
             onKlippModusEndret={setKlippModus}
-            onSlett={() => slettMutation.mutate({ id: valgt.id })}
+            onObjektValgt={setValgtObjekt}
+            onModellStatus={oppdaterModellStatus}
           />
         )}
 
@@ -1319,21 +1328,9 @@ function formaterVerdi(v: unknown): string {
 /*  IFC Viewer — @thatopen/components                                   */
 /* ------------------------------------------------------------------ */
 
-interface IfcViewerProps {
-  tegning: TegningRad;
-  onObjektValgt: (obj: ValgtObjekt | null) => void;
-  onSpatialTre: (tre: TreNode) => void;
-  viewerRef: React.MutableRefObject<{
-    velgObjekt: (localId: number) => void;
-    zoomTilObjekt: (localId: number) => void;
-    opprettKlippeplan: () => void;
-    fjernAlleKlippeplan: () => void;
-    settKlipperSynlig: (synlig: boolean) => void;
-  } | null>;
-  klippModus: boolean;
-  onKlippModusEndret: (aktiv: boolean) => void;
-  onSlett: () => void;
-}
+/* ------------------------------------------------------------------ */
+/*  Sammenslått IFC-viewer — alle modeller i samme scene                */
+/* ------------------------------------------------------------------ */
 
 function trekkUtEgenskaper(
   dataArray: Record<string, unknown>[],
@@ -1361,19 +1358,42 @@ function trekkUtEgenskaper(
   return grupper;
 }
 
-function IfcViewer({ tegning, onObjektValgt, onSpatialTre, viewerRef, klippModus, onKlippModusEndret, onSlett }: IfcViewerProps) {
+interface SammenslattIfcViewerProps {
+  tegninger: TegningRad[];
+  viewerRef: React.MutableRefObject<{
+    toggleModell: (tegningId: string, synlig: boolean) => void;
+    fjernAlleKlippeplan: () => void;
+    settKlipperSynlig: (synlig: boolean) => void;
+  } | null>;
+  klippModus: boolean;
+  onKlippModusEndret: (aktiv: boolean) => void;
+  onObjektValgt: (obj: ValgtObjekt | null) => void;
+  onModellStatus: (id: string, status: Partial<ModellStatus>) => void;
+}
+
+function SammenslattIfcViewer({
+  tegninger,
+  viewerRef,
+  klippModus,
+  onKlippModusEndret,
+  onObjektValgt,
+  onModellStatus,
+}: SammenslattIfcViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [laster, setLaster] = useState(true);
-  const [feil, setFeil] = useState<string | null>(null);
+  const [antallLastet, setAntallLastet] = useState(0);
 
   const onObjektValgtRef = useRef(onObjektValgt);
-  const onSpatialTreRef = useRef(onSpatialTre);
   onObjektValgtRef.current = onObjektValgt;
-  onSpatialTreRef.current = onSpatialTre;
+  const onModellStatusRef = useRef(onModellStatus);
+  onModellStatusRef.current = onModellStatus;
+
+  // Stabil referanse til tegninger-IDs for å unngå unødvendig re-mount
+  const tegningerIds = tegninger.map((t) => t.id).join(",");
 
   useEffect(() => {
     const container = containerRef.current;
-    if (!container) return;
+    if (!container || tegninger.length === 0) return;
 
     let renset = false;
     let componentsRef: unknown = null;
@@ -1412,47 +1432,67 @@ function IfcViewer({ tegning, onObjektValgt, onSpatialTre, viewerRef, klippModus
 
         if (renset) return;
 
-        const fileUrl = tegning.fileUrl.startsWith("/api")
-          ? tegning.fileUrl
-          : `/api${tegning.fileUrl}`;
-        const response = await fetch(fileUrl);
-        if (!response.ok) throw new Error("Kunne ikke hente IFC-fil");
-        const buffer = await response.arrayBuffer();
-        const data = new Uint8Array(buffer);
+        // Last alle IFC-modeller inn i samme scene
+        const modellMap = new Map<string, unknown>();
+        const totalBbox = new THREE.Box3();
+        let lastet = 0;
 
-        if (renset) return;
+        for (const tegning of tegninger) {
+          if (renset) return;
 
-        const model = await ifcLoader.load(data, true, tegning.name, {
-          instanceCallback: (importer) => {
-            importer.addAllAttributes();
-            importer.addAllRelations();
-          },
-        });
+          onModellStatusRef.current(tegning.id, { laster: true, feil: null });
 
-        if (renset) return;
+          try {
+            const fileUrl = tegning.fileUrl.startsWith("/api")
+              ? tegning.fileUrl
+              : `/api${tegning.fileUrl}`;
+            const response = await fetch(fileUrl);
+            if (!response.ok) throw new Error("Kunne ikke hente fil");
+            const buffer = await response.arrayBuffer();
+            const data = new Uint8Array(buffer);
 
-        const bbox = model.box;
-        const center = bbox.getCenter(new THREE.Vector3());
-        const size = bbox.getSize(new THREE.Vector3());
-        const maxDim = Math.max(size.x, size.y, size.z);
-        world.camera.controls?.setLookAt(
-          center.x + maxDim,
-          center.y + maxDim * 0.7,
-          center.z + maxDim,
-          center.x,
-          center.y,
-          center.z,
-        );
+            if (renset) return;
 
-        try {
-          const spatial = await model.getSpatialStructure();
-          if (spatial && !renset) {
-            onSpatialTreRef.current(spatial as TreNode);
+            const model = await ifcLoader.load(data, true, tegning.name, {
+              instanceCallback: (importer) => {
+                importer.addAllAttributes();
+                importer.addAllRelations();
+              },
+            });
+
+            modellMap.set(tegning.id, model);
+            totalBbox.union(model.box);
+
+            lastet++;
+            setAntallLastet(lastet);
+            onModellStatusRef.current(tegning.id, { laster: false, synlig: true });
+          } catch (err) {
+            console.warn(`Kunne ikke laste ${tegning.name}:`, err);
+            onModellStatusRef.current(tegning.id, {
+              laster: false,
+              feil: err instanceof Error ? err.message : "Feil ved lasting",
+            });
           }
-        } catch {
-          // Ikke kritisk
         }
 
+        if (renset) return;
+
+        // Tilpass kamera til samlet bounding box
+        if (!totalBbox.isEmpty()) {
+          const center = totalBbox.getCenter(new THREE.Vector3());
+          const size = totalBbox.getSize(new THREE.Vector3());
+          const maxDim = Math.max(size.x, size.y, size.z);
+          world.camera.controls?.setLookAt(
+            center.x + maxDim,
+            center.y + maxDim * 0.7,
+            center.z + maxDim,
+            center.x,
+            center.y,
+            center.z,
+          );
+        }
+
+        // Raycasting for objektvelging
         const fragmentsManager = components.get(OBC.FragmentsManager);
         const rendererDom = (world.renderer as unknown as { three: { domElement: HTMLCanvasElement } }).three.domElement;
         const threeCamera = (world.camera as unknown as { three: InstanceType<typeof THREE.PerspectiveCamera> }).three;
@@ -1477,41 +1517,6 @@ function IfcViewer({ tegning, onObjektValgt, onSpatialTre, viewerRef, klippModus
             // Ignorer
           }
           currentHighlight = null;
-        }
-
-        async function hentObjektData(hitModel: typeof model, localId: number): Promise<ValgtObjekt> {
-          const [itemsData] = await Promise.all([hitModel.getItemsData([localId])]);
-
-          const attributter: Record<string, EgenskapVerdi> = {};
-          const relasjoner: EgenskapGruppe[] = [];
-
-          if (itemsData.length > 0) {
-            const item = itemsData[0] as Record<string, unknown>;
-            for (const [k, v] of Object.entries(item)) {
-              if (Array.isArray(v)) {
-                const barnGrupper = trekkUtEgenskaper(v as Record<string, unknown>[]);
-                relasjoner.push(...barnGrupper);
-              } else if (v && typeof v === "object" && "value" in (v as Record<string, unknown>)) {
-                attributter[k] = v as EgenskapVerdi;
-              }
-            }
-          }
-
-          let kategori: string | null = null;
-          try {
-            const categories = await hitModel.getCategories();
-            for (const cat of categories) {
-              const items = await hitModel.getItemsOfCategories([new RegExp(`^${cat}$`)]);
-              if (items[cat]?.includes(localId)) {
-                kategori = cat;
-                break;
-              }
-            }
-          } catch {
-            // Ikke kritisk
-          }
-
-          return { localId, kategori, attributter, relasjoner };
         }
 
         async function handleKlikk(event: MouseEvent) {
@@ -1540,8 +1545,37 @@ function IfcViewer({ tegning, onObjektValgt, onSpatialTre, viewerRef, klippModus
             await hitModel.highlight([localId], highlightMaterial);
             currentHighlight = { modelId: hitModel.modelId, localIds: [localId] };
 
-            const objekt = await hentObjektData(hitModel, localId);
-            onObjektValgtRef.current(objekt);
+            // Hent egenskaper
+            const [itemsData] = await Promise.all([hitModel.getItemsData([localId])]);
+            const attributter: Record<string, EgenskapVerdi> = {};
+            const relasjoner: EgenskapGruppe[] = [];
+
+            if (itemsData.length > 0) {
+              const item = itemsData[0] as Record<string, unknown>;
+              for (const [k, v] of Object.entries(item)) {
+                if (Array.isArray(v)) {
+                  relasjoner.push(...trekkUtEgenskaper(v as Record<string, unknown>[]));
+                } else if (v && typeof v === "object" && "value" in (v as Record<string, unknown>)) {
+                  attributter[k] = v as EgenskapVerdi;
+                }
+              }
+            }
+
+            let kategori: string | null = null;
+            try {
+              const categories = await hitModel.getCategories();
+              for (const cat of categories) {
+                const items = await hitModel.getItemsOfCategories([new RegExp(`^${cat}$`)]);
+                if (items[cat]?.includes(localId)) {
+                  kategori = cat;
+                  break;
+                }
+              }
+            } catch {
+              // Ikke kritisk
+            }
+
+            onObjektValgtRef.current({ localId, kategori, attributter, relasjoner });
           } catch (err) {
             console.warn("Kunne ikke hente objektegenskaper:", err);
             onObjektValgtRef.current(null);
@@ -1550,36 +1584,13 @@ function IfcViewer({ tegning, onObjektValgt, onSpatialTre, viewerRef, klippModus
 
         container.addEventListener("click", handleKlikk);
 
+        // Viewer-referanser
         viewerRef.current = {
-          velgObjekt: async (localId: number) => {
-            await resetHighlight();
-            await model.highlight([localId], highlightMaterial);
-            currentHighlight = { modelId: model.modelId, localIds: [localId] };
-            const objekt = await hentObjektData(model, localId);
-            onObjektValgtRef.current(objekt);
-          },
-          zoomTilObjekt: async (localId: number) => {
-            try {
-              const positions = await model.getPositions([localId]);
-              if (positions.length > 0) {
-                const pos = positions[0]!;
-                world.camera.controls?.setLookAt(
-                  pos.x + maxDim * 0.3,
-                  pos.y + maxDim * 0.2,
-                  pos.z + maxDim * 0.3,
-                  pos.x,
-                  pos.y,
-                  pos.z,
-                  true,
-                );
-              }
-            } catch {
-              // Ignorer
+          toggleModell: (tegningId: string, synlig: boolean) => {
+            const model = modellMap.get(tegningId) as { visible?: boolean } | undefined;
+            if (model && "visible" in model) {
+              (model as { visible: boolean }).visible = synlig;
             }
-          },
-          opprettKlippeplan: async () => {
-            clipper.enabled = true;
-            await clipper.create(world);
           },
           fjernAlleKlippeplan: () => {
             clipper.deleteAll();
@@ -1600,7 +1611,6 @@ function IfcViewer({ tegning, onObjektValgt, onSpatialTre, viewerRef, klippModus
       .catch((err) => {
         if (!renset) {
           console.error("IFC viewer feil:", err);
-          setFeil(err?.message ?? "Kunne ikke laste IFC-viewer");
           setLaster(false);
         }
       });
@@ -1617,7 +1627,7 @@ function IfcViewer({ tegning, onObjektValgt, onSpatialTre, viewerRef, klippModus
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tegning.id, tegning.fileUrl, tegning.name]);
+  }, [tegningerIds]);
 
   useEffect(() => {
     viewerRef.current?.settKlipperSynlig(klippModus);
@@ -1625,10 +1635,12 @@ function IfcViewer({ tegning, onObjektValgt, onSpatialTre, viewerRef, klippModus
 
   return (
     <div className="flex h-full flex-col">
+      {/* Verktøylinje */}
       <div className="flex items-center gap-3 border-b border-gray-200 bg-white px-4 py-2">
-        <Box className="h-4 w-4 text-gray-400" />
-        <span className="text-sm font-medium text-gray-900">{tegning.name}</span>
-        <span className="text-xs text-gray-500">IFC</span>
+        <Layers className="h-4 w-4 text-gray-400" />
+        <span className="text-sm font-medium text-gray-900">
+          {tegninger.length} modell{tegninger.length !== 1 ? "er" : ""}
+        </span>
 
         <div className="flex-1" />
 
@@ -1661,31 +1673,18 @@ function IfcViewer({ tegning, onObjektValgt, onSpatialTre, viewerRef, klippModus
             </button>
           )}
         </div>
-
-        <button
-          onClick={onSlett}
-          className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-500"
-          title="Slett modell"
-        >
-          <Trash2 className="h-4 w-4" />
-        </button>
       </div>
 
       <div ref={containerRef} className="relative flex-1">
         {laster && (
           <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-gray-100">
             <Loader2 className="h-10 w-10 animate-spin text-sitedoc-primary" />
-            <p className="mt-3 text-sm font-medium text-gray-700">Laster IFC-modell...</p>
+            <p className="mt-3 text-sm font-medium text-gray-700">
+              Laster modeller ({antallLastet}/{tegninger.length})...
+            </p>
             <p className="text-xs text-gray-500">
               Parsing skjer lokalt i nettleseren. Større filer tar lengre tid.
             </p>
-          </div>
-        )}
-        {feil && (
-          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-gray-100">
-            <AlertTriangle className="h-10 w-10 text-red-400" />
-            <p className="mt-3 text-sm font-medium text-red-600">Kunne ikke laste modellen</p>
-            <p className="text-xs text-gray-500">{feil}</p>
           </div>
         )}
       </div>
