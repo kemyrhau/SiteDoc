@@ -1775,27 +1775,8 @@ function SammenslattIfcViewer({
 
             const { localId, fragments: hitModel } = hitResult;
 
-            // Plasser 3D-markør ved objektets bounding box-senter
-            try {
-              const boxes = await hitModel.getBoxes([localId]);
-              if (boxes && boxes.length > 0) {
-                const boxData = boxes[0];
-                if (boxData) {
-                  // getBoxes returnerer Float32Array med [minX, minY, minZ, maxX, maxY, maxZ]
-                  const arr = boxData as unknown as Float32Array;
-                  if (arr.length >= 6) {
-                    const center = new THREE.Vector3(
-                      (arr[0]! + arr[3]!) / 2,
-                      (arr[1]! + arr[4]!) / 2,
-                      (arr[2]! + arr[5]!) / 2,
-                    );
-                    placeMarker(center);
-                  }
-                }
-              }
-            } catch {
-              // Markør er ikke kritisk
-            }
+            // Plasser 3D-markør på det faktiske treffpunktet fra raycast
+            placeMarker(hitResult.point);
 
             // Highlight valgt objekt
             try {
