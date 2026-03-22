@@ -114,7 +114,7 @@ export default function TegningerSide() {
   const [klikkModus, setKlikkModus] = useState<"inspeksjon" | "plassering">("plassering");
 
   // DWG-elementinfo ved klikk
-  const [valgtElement, setValgtElement] = useState<{ lag: string; type: string; x: number; y: number } | null>(null);
+  const [valgtElement, setValgtElement] = useState<{ lag: string; type: string; tekst: string; x: number; y: number } | null>(null);
 
   // Ny markør-plassering
   const [nyMarkør, setNyMarkør] = useState<{ x: number; y: number } | null>(null);
@@ -393,9 +393,14 @@ export default function TegningerSide() {
       const lag = target?.getAttribute?.("data-layer");
       const elementType = target?.getAttribute?.("data-type");
       if (lag || elementType) {
+        // For tekst-elementer: hent tekstinnholdet
+        const tekst = (elementType === "TEXT" || elementType === "MTEXT")
+          ? (target.textContent ?? "")
+          : "";
         setValgtElement({
           lag: lag ?? "",
           type: elementType ?? "",
+          tekst,
           x: e.clientX,
           y: e.clientY,
         });
@@ -812,6 +817,12 @@ export default function TegningerSide() {
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-medium text-gray-500">Type</span>
                         <span className="text-sm text-gray-700">{valgtElement.type}</span>
+                      </div>
+                    )}
+                    {valgtElement.tekst && (
+                      <div className="mt-1 flex items-start gap-2">
+                        <span className="text-xs font-medium text-gray-500">Tekst</span>
+                        <span className="text-sm text-gray-900">{valgtElement.tekst}</span>
                       </div>
                     )}
                   </div>
