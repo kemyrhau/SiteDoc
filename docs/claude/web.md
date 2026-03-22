@@ -194,7 +194,7 @@ Sammenslått IFC-viewer som laster ALLE prosjektets IFC-modeller i én @thatopen
 - Skjulte modeller MÅ fjernes fra scene (`scene.remove`), ikke bare `.visible = false` — fragments raycast ignorerer visible-flagg
 - `synligeModeller` Set sporer hvilke modeller som er synlige
 
-**Skjulte IFC-typer:** `IfcSpace` (rom-volumer) og `IfcOpeningElement` (hull i vegger) skjules automatisk via `model.setVisible(ids, false)` etter lasting. web-ifc `GetLineIDsWithType()` finner element-IDer.
+**Skjulte IFC-typer:** `IfcSpace` (rom-volumer) og `IfcOpeningElement` (hull i vegger) skjules automatisk via `model.setVisible(ids, false)` etter lasting. web-ifc `GetLineIDsWithType()` finner element-IDer. `IfcBuildingElementPart` (isolasjon, platekledning etc.) beholdes synlig — noen kan "lekke ut" visuelt (f.eks. isolasjonslag over tak). Dalux skjuler disse, men vi beholder dem foreløpig. Hvis dette blir plagsomt, vurder å legge til **filterfunksjon** der brukeren kan skjule enkeltobjekter, IFC-typer, layers eller egenskaper — mer fleksibelt enn å skjule hele kategorier globalt.
 
 **Egenskapsoppslag (on-demand via web-ifc):**
 - Klikkkoordinater (Øst/Nord/Høyde) fra `hitResult.point`
