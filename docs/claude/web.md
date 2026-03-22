@@ -188,11 +188,21 @@ Sammenslått IFC-viewer som laster ALLE prosjektets IFC-modeller i én @thatopen
 - Interne felt (OwnerHistory, ObjectPlacement, Representation) filtreres bort
 
 **Raycasting og objektvelging:**
-- Bruker `fragmentsManager.raycast()` — designet for fragment-systemets tile-geometri
-- **VIKTIG:** `fragmentsManager.raycast()` forventer rå `clientX`/`clientY` pikselkoordinater (IKKE NDC -1 til 1). Internt konverterer den via `dom`-elementet. Å sende NDC gir treff på helt feil objekter
+- Raycast itererer kun synlige modeller via `model.raycast()` — skjulte modeller blokkerer ikke klikk
+- **VIKTIG:** `model.raycast()` og `fragmentsManager.raycast()` forventer rå `clientX`/`clientY` pikselkoordinater (IKKE NDC -1 til 1). Internt konverterer de via `dom`-elementet. Å sende NDC gir treff på helt feil objekter
 - Three.js `Raycaster` krasjer på fragment-geometri (BufferAttribute.getX på zero-length) — IKKE bruk
 - Skjulte modeller MÅ fjernes fra scene (`scene.remove`), ikke bare `.visible = false` — fragments raycast ignorerer visible-flagg
-- Raycast-treff på skjulte modeller filtreres via `synligeModeller` Set
+- `synligeModeller` Set sporer hvilke modeller som er synlige
+
+**Skjulte IFC-typer:** `IfcSpace` (rom-volumer) og `IfcOpeningElement` (hull i vegger) skjules automatisk via `model.setVisible(ids, false)` etter lasting. web-ifc `GetLineIDsWithType()` finner element-IDer.
+
+**Egenskapsoppslag (on-demand via web-ifc):**
+- Klikkkoordinater (Øst/Nord/Høyde) fra `hitResult.point`
+- Type via `IfcRelDefinesByType` → `RelatingType.Name`
+- Layer via `IfcPresentationLayerAssignment` → traverserer `IfcProductDefinitionShape.Representations`
+- System via `IfcRelAssignsToGroup` → `RelatingGroup.Name` (IfcSystem/IfcDistributionSystem)
+- Foreldre-element via `IfcRelAggregates` for underdeler (BuildingElementPart etc.) — henter foreldrens PropertySets, TypeProperties og BaseQuantities
+- Quantity-enheter: LengthValue→mm, AreaValue→m², VolumeValue→m³, WeightValue→kg
 
 **Solo-modus:** Layers-ikon per modell i sidepanelet. Klikk → skjuler alle andre modeller. Klikk igjen → viser alle.
 
