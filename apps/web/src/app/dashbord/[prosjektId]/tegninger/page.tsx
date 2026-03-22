@@ -110,6 +110,9 @@ export default function TegningerSide() {
   // Zoom
   const [zoom, setZoom] = useState(STANDARD_ZOOM);
 
+  // Klikkemodus: inspeksjon (vis DWG-egenskaper) eller plassering (opprett oppgave)
+  const [klikkModus, setKlikkModus] = useState<"inspeksjon" | "plassering">("plassering");
+
   // DWG-elementinfo ved klikk
   const [valgtElement, setValgtElement] = useState<{ lag: string; type: string; x: number; y: number } | null>(null);
 
@@ -362,18 +365,22 @@ export default function TegningerSide() {
       if (Math.sqrt(dx * dx + dy * dy) > 5) return;
     }
 
-    // Sjekk om bruker klikket på et SVG-element med DWG-metadata
-    const target = e.target as SVGElement;
-    const lag = target?.getAttribute?.("data-layer");
-    const elementType = target?.getAttribute?.("data-type");
-    if (lag || elementType) {
-      setValgtElement({
-        lag: lag ?? "",
-        type: elementType ?? "",
-        x: e.clientX,
-        y: e.clientY,
-      });
-      return; // Ikke åpne opprett-modal ved elementklikk
+    // Inspeksjonsmodus: vis DWG-egenskaper
+    if (klikkModus === "inspeksjon") {
+      const target = e.target as SVGElement;
+      const lag = target?.getAttribute?.("data-layer");
+      const elementType = target?.getAttribute?.("data-type");
+      if (lag || elementType) {
+        setValgtElement({
+          lag: lag ?? "",
+          type: elementType ?? "",
+          x: e.clientX,
+          y: e.clientY,
+        });
+      } else {
+        setValgtElement(null);
+      }
+      return;
     }
     setValgtElement(null);
 
@@ -396,7 +403,7 @@ export default function TegningerSide() {
 
     setNyMarkør({ x, y });
     setVisOpprettModal(true);
-  }, [posisjonsvelgerAktiv, aktivTegning, fullførPosisjonsvelger, router]);
+  }, [posisjonsvelgerAktiv, aktivTegning, fullførPosisjonsvelger, router, klikkModus]);
 
   // Finn matchende arbeidsforløp for valgt oppretter + mal
   const alleArbeidsforlop = (arbeidsforlop ?? []) as unknown as ArbeidsflopRad[];
@@ -622,6 +629,35 @@ export default function TegningerSide() {
           </button>
         </div>
 
+        {/* Klikkemodus — kun for DWG-konverterte SVG-tegninger */}
+        {erSvgFil && (
+          <>
+            <div className="mx-2 h-4 w-px bg-gray-200" />
+            <div className="flex items-center rounded border border-gray-200">
+              <button
+                onClick={() => { setKlikkModus("plassering"); setValgtElement(null); }}
+                className={`flex items-center gap-1 rounded-l px-2 py-1 text-xs ${
+                  klikkModus === "plassering" ? "bg-sitedoc-primary text-white" : "text-gray-600 hover:bg-gray-100"
+                }`}
+                title="Klikk for å opprette oppgave"
+              >
+                <MapPin className="h-3 w-3" />
+                Oppgave
+              </button>
+              <button
+                onClick={() => { setKlikkModus("inspeksjon"); setNyMarkør(null); }}
+                className={`flex items-center gap-1 rounded-r px-2 py-1 text-xs ${
+                  klikkModus === "inspeksjon" ? "bg-sitedoc-primary text-white" : "text-gray-600 hover:bg-gray-100"
+                }`}
+                title="Klikk for å se DWG-egenskaper"
+              >
+                <Info className="h-3 w-3" />
+                Inspeksjon
+              </button>
+            </div>
+          </>
+        )}
+
         {/* GPS-koordinater for georefererte tegninger */}
         {transformasjon && (
           <>
@@ -682,7 +718,7 @@ export default function TegningerSide() {
             className="flex-1 overflow-auto bg-gray-100"
           >
             <div
-              className="relative inline-block cursor-crosshair"
+              className={`relative inline-block ${klikkModus === "inspeksjon" ? "cursor-pointer" : "cursor-crosshair"}`}
               style={{ width: `${zoom * 100}%`, minWidth: "100%" }}
               onMouseDown={handleMuseNed}
               onClick={handleBildeKlikk}
