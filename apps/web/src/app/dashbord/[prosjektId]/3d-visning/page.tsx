@@ -16,6 +16,7 @@ import {
   Trash2,
   Scissors,
   EyeOff,
+  Filter,
   Palette,
   Layers,
   BarChart3,
@@ -85,6 +86,18 @@ interface KlassifiseringRad {
 }
 
 type Fargemodus = "klassifisering" | "rgb" | "intensitet" | "hoyde";
+
+interface SkjultObjekt {
+  modelId: string;
+  localId: number;
+  kategori: string;
+  navn: string;
+}
+
+interface AktivtFilter {
+  type: "kategori" | "type" | "lag" | "system";
+  verdi: string;
+}
 
 interface OverflateData {
   id: string;
@@ -204,6 +217,21 @@ export default function TreDVisning() {
 /*  FANE 1: 3D-modell (IFC sammenslått + punktsky)                     */
 /* ================================================================== */
 
+/** Konverterer lesbart IFC-kategorinavn tilbake til WEBIFC-typekode.
+ *  F.eks. "Wall" → IFCWALL, "Flowsegment" → IFCFLOWSEGMENT.
+ *  Returnerer null hvis ingen match finnes. */
+let _webifcKonstanter: Record<string, number> | null = null;
+function finnIfcTypeKode(kategori: string): number | null {
+  if (!_webifcKonstanter) return null;
+  const upper = `IFC${kategori.toUpperCase()}`;
+  // Prøv direkte match, deretter med STANDARDCASE-suffiks
+  for (const suffix of ["", "STANDARDCASE", "ELEMENTEDCASE"]) {
+    const kode = _webifcKonstanter[upper + suffix];
+    if (typeof kode === "number") return kode;
+  }
+  return null;
+}
+
 interface ModellStatus {
   id: string;
   synlig: boolean;
@@ -236,6 +264,8 @@ function Fane3DModell({ prosjektId }: { prosjektId: string }) {
   const [lasterOpp, setLasterOpp] = useState(false);
   const [klippModus, setKlippModus] = useState(false);
   const [modellStatuser, setModellStatuser] = useState<ModellStatus[]>([]);
+  const [skjulteObjekter, setSkjulteObjekter] = useState<SkjultObjekt[]>([]);
+  const [aktiveFiltre, setAktiveFiltre] = useState<AktivtFilter[]>([]);
 
   // Referanse til sammenslått viewer
   const viewerRef = useRef<{
@@ -243,6 +273,13 @@ function Fane3DModell({ prosjektId }: { prosjektId: string }) {
     fjernAlleKlippeplan: () => void;
     settKlipperSynlig: (synlig: boolean) => void;
     skjulObjekt: (modelId: string, localId: number) => Promise<void>;
+    visObjekt: (modelId: string, localId: number) => Promise<void>;
+    skjulAlleAvKategori: (kategoriKode: number) => Promise<void>;
+    visAlleAvKategori: (kategoriKode: number) => Promise<void>;
+    skjulAlleAvLag: (lagNavn: string) => Promise<void>;
+    visAlleAvLag: (lagNavn: string) => Promise<void>;
+    skjulAlleAvSystem: (systemNavn: string) => Promise<void>;
+    visAlleAvSystem: (systemNavn: string) => Promise<void>;
   } | null>(null);
 
   const opprettMutation = trpc.tegning.opprett.useMutation({
@@ -448,6 +485,42 @@ function Fane3DModell({ prosjektId }: { prosjektId: string }) {
             onKlippModusEndret={setKlippModus}
             onObjektValgt={setValgtObjekt}
             onModellStatus={oppdaterModellStatus}
+            skjulteObjekter={skjulteObjekter}
+            aktiveFiltre={aktiveFiltre}
+            onFjernFilter={async (filter) => {
+              setAktiveFiltre((prev) => prev.filter((f) => !(f.type === filter.type && f.verdi === filter.verdi)));
+              if (filter.type === "kategori") {
+                const kode = finnIfcTypeKode(filter.verdi);
+                if (kode !== null) await viewerRef.current?.visAlleAvKategori(kode);
+              } else if (filter.type === "lag") {
+                await viewerRef.current?.visAlleAvLag(filter.verdi);
+              } else if (filter.type === "system") {
+                await viewerRef.current?.visAlleAvSystem(filter.verdi);
+              }
+            }}
+            onFjernSkjultObjekt={async (obj) => {
+              setSkjulteObjekter((prev) => prev.filter((o) => !(o.modelId === obj.modelId && o.localId === obj.localId)));
+              await viewerRef.current?.visObjekt(obj.modelId, obj.localId);
+            }}
+            onNullstillAlt={async () => {
+              // Gjenopprett alle filtrerte kategorier
+              for (const f of aktiveFiltre) {
+                if (f.type === "kategori") {
+                  const kode = finnIfcTypeKode(f.verdi);
+                  if (kode !== null) await viewerRef.current?.visAlleAvKategori(kode);
+                } else if (f.type === "lag") {
+                  await viewerRef.current?.visAlleAvLag(f.verdi);
+                } else if (f.type === "system") {
+                  await viewerRef.current?.visAlleAvSystem(f.verdi);
+                }
+              }
+              // Gjenopprett alle skjulte enkeltobjekter
+              for (const obj of skjulteObjekter) {
+                await viewerRef.current?.visObjekt(obj.modelId, obj.localId);
+              }
+              setAktiveFiltre([]);
+              setSkjulteObjekter([]);
+            }}
           />
         )}
 
@@ -458,7 +531,37 @@ function Fane3DModell({ prosjektId }: { prosjektId: string }) {
             onLukk={() => setValgtObjekt(null)}
             onSkjul={async () => {
               await viewerRef.current?.skjulObjekt(valgtObjekt.modelId, valgtObjekt.localId);
+              setSkjulteObjekter((prev) => [
+                ...prev,
+                {
+                  modelId: valgtObjekt.modelId,
+                  localId: valgtObjekt.localId,
+                  kategori: valgtObjekt.kategori ?? "Ukjent",
+                  navn: valgtObjekt.attributter["Name"]
+                    ? String(valgtObjekt.attributter["Name"].value)
+                    : `#${valgtObjekt.localId}`,
+                },
+              ]);
               setValgtObjekt(null);
+            }}
+            onFilterKategori={async (kategori: string) => {
+              const finnes = aktiveFiltre.some((f) => f.type === "kategori" && f.verdi === kategori);
+              if (finnes) return;
+              setAktiveFiltre((prev) => [...prev, { type: "kategori", verdi: kategori }]);
+              const kode = finnIfcTypeKode(kategori);
+              if (kode !== null) await viewerRef.current?.skjulAlleAvKategori(kode);
+            }}
+            onFilterLag={async (lag: string) => {
+              const finnes = aktiveFiltre.some((f) => f.type === "lag" && f.verdi === lag);
+              if (finnes) return;
+              setAktiveFiltre((prev) => [...prev, { type: "lag", verdi: lag }]);
+              await viewerRef.current?.skjulAlleAvLag(lag);
+            }}
+            onFilterSystem={async (system: string) => {
+              const finnes = aktiveFiltre.some((f) => f.type === "system" && f.verdi === system);
+              if (finnes) return;
+              setAktiveFiltre((prev) => [...prev, { type: "system", verdi: system }]);
+              await viewerRef.current?.skjulAlleAvSystem(system);
             }}
           />
         )}
@@ -1272,25 +1375,46 @@ function EgenskapsPopup({
   objekt,
   onLukk,
   onSkjul,
+  onFilterKategori,
+  onFilterLag,
+  onFilterSystem,
 }: {
   objekt: ValgtObjekt;
   onLukk: () => void;
   onSkjul: () => void;
+  onFilterKategori?: (kategori: string) => void;
+  onFilterLag?: (lag: string) => void;
+  onFilterSystem?: (system: string) => void;
 }) {
   const kategoriNavn = objekt.kategori?.replace(/^Ifc/, "") ?? "Ukjent";
+
+  // Finn filtrerbare attributter
+  const layerVerdi = objekt.attributter["Layer"]?.value ? String(objekt.attributter["Layer"].value) : null;
+  const systemVerdi = objekt.attributter["System"]?.value ? String(objekt.attributter["System"].value) : null;
 
   return (
     <div className="absolute right-4 top-14 z-10 w-[320px] max-h-[calc(100%-72px)] overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg">
       <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
-        <div>
-          <h3 className="text-sm font-semibold text-gray-900">{kategoriNavn}</h3>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <h3 className="text-sm font-semibold text-gray-900">{kategoriNavn}</h3>
+            {onFilterKategori && kategoriNavn !== "Ukjent" && (
+              <button
+                onClick={() => onFilterKategori(kategoriNavn)}
+                className="rounded p-0.5 text-gray-300 hover:bg-gray-100 hover:text-gray-600"
+                title={`Skjul alle ${kategoriNavn}`}
+              >
+                <EyeOff className="h-3 w-3" />
+              </button>
+            )}
+          </div>
           {objekt.attributter["Name"] && (
             <p className="text-xs text-gray-500">
               {String(objekt.attributter["Name"].value)}
             </p>
           )}
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex shrink-0 items-center gap-1">
           <button
             onClick={onSkjul}
             className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
@@ -1313,14 +1437,33 @@ function EgenskapsPopup({
           <tbody>
             {Object.entries(objekt.attributter)
               .filter(([k]) => !INTERNE_FELT.has(k))
-              .map(([k, v]) => (
-                <tr key={k}>
-                  <td className="py-0.5 pr-2 text-gray-500">{k}</td>
-                  <td className="py-0.5 font-medium text-gray-900">
-                    {formaterVerdi(v.value)}
-                  </td>
-                </tr>
-              ))}
+              .map(([k, v]) => {
+                const erFiltrerbar =
+                  (k === "Layer" && layerVerdi && onFilterLag) ||
+                  (k === "System" && systemVerdi && onFilterSystem);
+                return (
+                  <tr key={k}>
+                    <td className="py-0.5 pr-2 text-gray-500">{k}</td>
+                    <td className="py-0.5 font-medium text-gray-900">
+                      <span className="flex items-center gap-1">
+                        {formaterVerdi(v.value)}
+                        {erFiltrerbar && (
+                          <button
+                            onClick={() => {
+                              if (k === "Layer" && onFilterLag) onFilterLag(String(v.value));
+                              if (k === "System" && onFilterSystem) onFilterSystem(String(v.value));
+                            }}
+                            className="rounded p-0.5 text-gray-300 hover:bg-gray-100 hover:text-gray-600"
+                            title={`Skjul alle med ${k}: ${formaterVerdi(v.value)}`}
+                          >
+                            <EyeOff className="h-3 w-3" />
+                          </button>
+                        )}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
           </tbody>
         </table>
       </div>
@@ -1536,11 +1679,23 @@ interface SammenslattIfcViewerProps {
     fjernAlleKlippeplan: () => void;
     settKlipperSynlig: (synlig: boolean) => void;
     skjulObjekt: (modelId: string, localId: number) => Promise<void>;
+    visObjekt: (modelId: string, localId: number) => Promise<void>;
+    skjulAlleAvKategori: (kategoriKode: number) => Promise<void>;
+    visAlleAvKategori: (kategoriKode: number) => Promise<void>;
+    skjulAlleAvLag: (lagNavn: string) => Promise<void>;
+    visAlleAvLag: (lagNavn: string) => Promise<void>;
+    skjulAlleAvSystem: (systemNavn: string) => Promise<void>;
+    visAlleAvSystem: (systemNavn: string) => Promise<void>;
   } | null>;
   klippModus: boolean;
   onKlippModusEndret: (aktiv: boolean) => void;
   onObjektValgt: (obj: ValgtObjekt | null) => void;
   onModellStatus: (id: string, status: Partial<ModellStatus>) => void;
+  skjulteObjekter: SkjultObjekt[];
+  aktiveFiltre: AktivtFilter[];
+  onFjernFilter: (filter: AktivtFilter) => void;
+  onFjernSkjultObjekt: (obj: SkjultObjekt) => void;
+  onNullstillAlt: () => void;
 }
 
 function SammenslattIfcViewer({
@@ -1550,6 +1705,11 @@ function SammenslattIfcViewer({
   onKlippModusEndret,
   onObjektValgt,
   onModellStatus,
+  skjulteObjekter,
+  aktiveFiltre,
+  onFjernFilter,
+  onFjernSkjultObjekt,
+  onNullstillAlt,
 }: SammenslattIfcViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [laster, setLaster] = useState(true);
@@ -2231,6 +2391,113 @@ function SammenslattIfcViewer({
         }
         rendererDom.addEventListener("dblclick", handleDblKlikk);
 
+        // Cache WEBIFC-konstanter for kategori-oppslag utenfor useEffect
+        _webifcKonstanter = WEBIFC as unknown as Record<string, number>;
+
+        // Hjelpefunksjon: hent alle element-IDer av en IFC-type på tvers av alle synlige modeller
+        async function hentIderForType(ifcTypeKode: number): Promise<Map<string, number[]>> {
+          const resultat = new Map<string, number[]>();
+          if (!propsApiRef) return resultat;
+          const api = propsApiRef as unknown as { GetLineIDsWithType: (m: number, t: number) => { size: () => number; get: (i: number) => number } };
+          for (const [fragId, webifcId] of openModelIds.entries()) {
+            try {
+              const lineIds = api.GetLineIDsWithType(webifcId, ifcTypeKode);
+              const ids: number[] = [];
+              for (let i = 0; i < lineIds.size(); i++) ids.push(lineIds.get(i));
+              if (ids.length > 0) resultat.set(fragId, ids);
+            } catch { /* ignorér */ }
+          }
+          return resultat;
+        }
+
+        // Hjelpefunksjon: hent element-IDer tilknyttet et lag (layer)
+        async function hentIderForLag(lagNavn: string): Promise<Map<string, number[]>> {
+          const resultat = new Map<string, number[]>();
+          if (!propsApiRef) return resultat;
+          const api = propsApiRef as unknown as {
+            GetLineIDsWithType: (m: number, t: number) => { size: () => number; get: (i: number) => number };
+            GetLine: (m: number, id: number) => Record<string, unknown>;
+          };
+          for (const [fragId, webifcId] of openModelIds.entries()) {
+            try {
+              const layerIds = api.GetLineIDsWithType(webifcId, WEBIFC.IFCPRESENTATIONLAYERASSIGNMENT);
+              const elementIds = new Set<number>();
+              for (let i = 0; i < layerIds.size(); i++) {
+                const layer = api.GetLine(webifcId, layerIds.get(i));
+                const ln = layer.Name as { value: unknown } | undefined;
+                if (!ln || String(ln.value) !== lagNavn) continue;
+                const assigned = layer.AssignedItems as Array<{ value: number }> | undefined;
+                if (!Array.isArray(assigned)) continue;
+                // AssignedItems peker på IfcShapeRepresentation — finn produktene som bruker disse
+                const reprIds = new Set(assigned.map((a) => a.value));
+                // Søk gjennom alle produkter for å finne de som har disse representasjonene
+                // Enklere: iterer alle IFCPRODUCT-typer (kostbart men korrekt)
+                for (const [_name, code] of Object.entries(WEBIFC)) {
+                  if (typeof code !== "number" || code < 100) continue;
+                  try {
+                    const prodIds = api.GetLineIDsWithType(webifcId, code);
+                    for (let pi = 0; pi < prodIds.size(); pi++) {
+                      const pid = prodIds.get(pi);
+                      try {
+                        const prod = api.GetLine(webifcId, pid);
+                        const repr = prod.Representation as { value: number } | undefined;
+                        if (repr && reprIds.has(repr.value)) {
+                          elementIds.add(pid);
+                          continue;
+                        }
+                        // Sjekk sub-representations
+                        if (repr?.value) {
+                          try {
+                            const reprObj = api.GetLine(webifcId, repr.value);
+                            const reps = reprObj.Representations as Array<{ value: number }> | undefined;
+                            if (Array.isArray(reps) && reps.some((r) => reprIds.has(r.value))) {
+                              elementIds.add(pid);
+                            }
+                          } catch { /* ignorér */ }
+                        }
+                      } catch { /* ignorér */ }
+                    }
+                  } catch { /* ignorér */ }
+                }
+              }
+              if (elementIds.size > 0) resultat.set(fragId, [...elementIds]);
+            } catch { /* ignorér */ }
+          }
+          return resultat;
+        }
+
+        // Hjelpefunksjon: hent element-IDer tilknyttet et system (gruppe)
+        async function hentIderForSystem(systemNavn: string): Promise<Map<string, number[]>> {
+          const resultat = new Map<string, number[]>();
+          if (!propsApiRef) return resultat;
+          const api = propsApiRef as unknown as {
+            GetLineIDsWithType: (m: number, t: number) => { size: () => number; get: (i: number) => number };
+            GetLine: (m: number, id: number) => Record<string, unknown>;
+          };
+          for (const [fragId, webifcId] of openModelIds.entries()) {
+            try {
+              const relGroupIds = api.GetLineIDsWithType(webifcId, WEBIFC.IFCRELASSIGNSTOGROUP);
+              const elementIds: number[] = [];
+              for (let i = 0; i < relGroupIds.size(); i++) {
+                const rel = api.GetLine(webifcId, relGroupIds.get(i));
+                const group = rel.RelatingGroup as { value: number } | undefined;
+                if (!group?.value) continue;
+                try {
+                  const groupObj = api.GetLine(webifcId, group.value);
+                  const gn = groupObj.Name as { value: unknown } | undefined;
+                  if (!gn || String(gn.value) !== systemNavn) continue;
+                } catch { continue; }
+                const relObj = rel.RelatedObjects as Array<{ value: number }> | undefined;
+                if (Array.isArray(relObj)) {
+                  for (const o of relObj) elementIds.push(o.value);
+                }
+              }
+              if (elementIds.length > 0) resultat.set(fragId, elementIds);
+            } catch { /* ignorér */ }
+          }
+          return resultat;
+        }
+
         // Viewer-referanser
         viewerRef.current = {
           toggleModell: (tegningId: string, synlig: boolean) => {
@@ -2261,6 +2528,54 @@ function SammenslattIfcViewer({
             const model = fragmentsManager.list.get(mid);
             if (model) {
               await model.setVisible([lid], false);
+            }
+          },
+          visObjekt: async (mid: string, lid: number) => {
+            const model = fragmentsManager.list.get(mid);
+            if (model) {
+              await model.setVisible([lid], true);
+            }
+          },
+          skjulAlleAvKategori: async (kategoriKode: number) => {
+            const iderPerModell = await hentIderForType(kategoriKode);
+            for (const [fragId, ids] of iderPerModell) {
+              const model = fragmentsManager.list.get(fragId);
+              if (model && ids.length > 0) await model.setVisible(ids, false);
+            }
+          },
+          visAlleAvKategori: async (kategoriKode: number) => {
+            const iderPerModell = await hentIderForType(kategoriKode);
+            for (const [fragId, ids] of iderPerModell) {
+              const model = fragmentsManager.list.get(fragId);
+              if (model && ids.length > 0) await model.setVisible(ids, true);
+            }
+          },
+          skjulAlleAvLag: async (lagNavn: string) => {
+            const iderPerModell = await hentIderForLag(lagNavn);
+            for (const [fragId, ids] of iderPerModell) {
+              const model = fragmentsManager.list.get(fragId);
+              if (model && ids.length > 0) await model.setVisible(ids, false);
+            }
+          },
+          visAlleAvLag: async (lagNavn: string) => {
+            const iderPerModell = await hentIderForLag(lagNavn);
+            for (const [fragId, ids] of iderPerModell) {
+              const model = fragmentsManager.list.get(fragId);
+              if (model && ids.length > 0) await model.setVisible(ids, true);
+            }
+          },
+          skjulAlleAvSystem: async (systemNavn: string) => {
+            const iderPerModell = await hentIderForSystem(systemNavn);
+            for (const [fragId, ids] of iderPerModell) {
+              const model = fragmentsManager.list.get(fragId);
+              if (model && ids.length > 0) await model.setVisible(ids, false);
+            }
+          },
+          visAlleAvSystem: async (systemNavn: string) => {
+            const iderPerModell = await hentIderForSystem(systemNavn);
+            for (const [fragId, ids] of iderPerModell) {
+              const model = fragmentsManager.list.get(fragId);
+              if (model && ids.length > 0) await model.setVisible(ids, true);
             }
           },
         };
@@ -2348,6 +2663,17 @@ function SammenslattIfcViewer({
         </div>
       </div>
 
+      {/* Filter-chip-bar — vises kun ved aktive filtre eller skjulte objekter */}
+      {(aktiveFiltre.length > 0 || skjulteObjekter.length > 0) && (
+        <FilterChipBar
+          aktiveFiltre={aktiveFiltre}
+          skjulteObjekter={skjulteObjekter}
+          onFjernFilter={onFjernFilter}
+          onFjernSkjultObjekt={onFjernSkjultObjekt}
+          onNullstillAlt={onNullstillAlt}
+        />
+      )}
+
       <div ref={containerRef} className="relative flex-1">
         {laster && (
           <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-gray-100">
@@ -2366,6 +2692,72 @@ function SammenslattIfcViewer({
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Filter-chip-bar                                                     */
+/* ------------------------------------------------------------------ */
+
+function FilterChipBar({
+  aktiveFiltre,
+  skjulteObjekter,
+  onFjernFilter,
+  onFjernSkjultObjekt,
+  onNullstillAlt,
+}: {
+  aktiveFiltre: AktivtFilter[];
+  skjulteObjekter: SkjultObjekt[];
+  onFjernFilter: (filter: AktivtFilter) => void;
+  onFjernSkjultObjekt: (obj: SkjultObjekt) => void;
+  onNullstillAlt: () => void;
+}) {
+  const filterLabels: Record<AktivtFilter["type"], string> = {
+    kategori: "Kategori",
+    type: "Type",
+    lag: "Lag",
+    system: "System",
+  };
+
+  return (
+    <div className="flex items-center gap-2 overflow-x-auto border-b border-gray-200 bg-gray-50 px-4 py-1.5">
+      <Filter className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+
+      {aktiveFiltre.map((f) => (
+        <button
+          key={`${f.type}-${f.verdi}`}
+          onClick={() => onFjernFilter(f)}
+          className="flex shrink-0 items-center gap-1 rounded bg-gray-200 px-2 py-0.5 text-xs text-gray-700 hover:bg-gray-300"
+          title={`Fjern filter: ${filterLabels[f.type]}: ${f.verdi}`}
+        >
+          <X className="h-3 w-3" />
+          <EyeOff className="h-3 w-3 text-gray-400" />
+          {filterLabels[f.type]}: {f.verdi}
+        </button>
+      ))}
+
+      {skjulteObjekter.map((obj) => (
+        <button
+          key={`${obj.modelId}-${obj.localId}`}
+          onClick={() => onFjernSkjultObjekt(obj)}
+          className="flex shrink-0 items-center gap-1 rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-600 hover:bg-gray-200"
+          title={`Vis igjen: ${obj.navn} (${obj.kategori})`}
+        >
+          <X className="h-3 w-3" />
+          <EyeOff className="h-3 w-3 text-gray-400" />
+          {obj.navn}
+        </button>
+      ))}
+
+      <div className="flex-1" />
+
+      <button
+        onClick={onNullstillAlt}
+        className="shrink-0 rounded px-2 py-0.5 text-xs font-medium text-sitedoc-secondary hover:bg-gray-200"
+      >
+        Nullstill
+      </button>
     </div>
   );
 }

@@ -200,7 +200,22 @@ Sammenslått IFC-viewer som laster ALLE prosjektets IFC-modeller i én @thatopen
 - Skjulte modeller MÅ fjernes fra scene (`scene.remove`), ikke bare `.visible = false` — fragments raycast ignorerer visible-flagg
 - `synligeModeller` Set sporer hvilke modeller som er synlige
 
-**Skjulte IFC-typer:** `IfcSpace` (rom-volumer) og `IfcOpeningElement` (hull i vegger) skjules automatisk via `model.setVisible(ids, false)` etter lasting. web-ifc `GetLineIDsWithType()` finner element-IDer. `IfcBuildingElementPart` (isolasjon, platekledning etc.) beholdes synlig — noen kan "lekke ut" visuelt (f.eks. isolasjonslag over tak). Dalux skjuler disse, men vi beholder dem foreløpig. Hvis dette blir plagsomt, vurder å legge til **filterfunksjon** der brukeren kan skjule enkeltobjekter, IFC-typer, layers eller egenskaper — mer fleksibelt enn å skjule hele kategorier globalt.
+**Skjulte IFC-typer:** `IfcSpace` (rom-volumer) og `IfcOpeningElement` (hull i vegger) skjules automatisk via `model.setVisible(ids, false)` etter lasting. web-ifc `GetLineIDsWithType()` finner element-IDer. `IfcBuildingElementPart` (isolasjon, platekledning etc.) beholdes synlig — noen kan "lekke ut" visuelt (f.eks. isolasjonslag over tak).
+
+**Kontekstdrevet filtersystem:**
+Brukeren kan skjule enkeltobjekter eller filtrere på tvers av alle modeller basert på IFC-kategori, lag (layer) eller system. Tre typer state:
+
+1. `skjulteObjekter` — array av `{modelId, localId, kategori, navn}`, sporer individuelt skjulte objekter. EyeOff-knappen i EgenskapsPopup legger til her.
+2. `aktiveFiltre` — array av `{type: 'kategori'|'lag'|'system', verdi: string}`, representerer batch-filtre. FilterChipBar viser alle aktive filtre/skjulte objekter som chips med X-knapp.
+3. `FilterChipBar` — kompakt bar mellom verktøylinjen og 3D-canvas, vises KUN ved aktive filtre/skjulte objekter. Nullstill-knapp gjenoppretter alt.
+
+ViewerRef-metoder for filtrering:
+- `visObjekt(modelId, localId)` — gjenopprett enkeltobjekt
+- `skjulAlleAvKategori(ifcTypeKode)` / `visAlleAvKategori(ifcTypeKode)` — batch-vis/skjul alle av en IFC-type via `GetLineIDsWithType`
+- `skjulAlleAvLag(lagNavn)` / `visAlleAvLag(lagNavn)` — batch-vis/skjul via `IFCPRESENTATIONLAYERASSIGNMENT`
+- `skjulAlleAvSystem(systemNavn)` / `visAlleAvSystem(systemNavn)` — batch-vis/skjul via `IFCRELASSIGNSTOGROUP`
+
+Filterknapper (EyeOff-ikoner) i EgenskapsPopup ved kategori-header, Layer og System attributter. `finnIfcTypeKode()` konverterer lesbart kategorinavn tilbake til WEBIFC-konstant (caches ved init).
 
 **Egenskapsoppslag (on-demand via web-ifc):**
 - Klikkkoordinater (Øst/Nord/Høyde) fra `hitResult.point`
