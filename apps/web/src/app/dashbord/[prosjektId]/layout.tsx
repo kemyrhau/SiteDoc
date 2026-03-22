@@ -4,6 +4,7 @@ import { useParams, useRouter } from "next/navigation";
 import { trpc } from "@/lib/trpc";
 import { Spinner } from "@sitedoc/ui";
 import { Verktoylinje } from "@/components/layout/Verktoylinje";
+import { TreDViewerProvider } from "@/kontekst/tred-viewer-kontekst";
 
 export default function ProsjektLayout({
   children,
@@ -40,11 +41,13 @@ export default function ProsjektLayout({
   }
 
   return (
-    <div className="flex flex-1 flex-col overflow-hidden">
-      <Verktoylinje />
-      <div className="flex flex-1 overflow-hidden">
-        {children}
+    <TreDViewerProvider>
+      <div className="flex flex-1 flex-col overflow-hidden">
+        <Verktoylinje />
+        <div className="flex flex-1 overflow-hidden">
+          {children}
+        </div>
       </div>
-    </div>
+    </TreDViewerProvider>
   );
 }
