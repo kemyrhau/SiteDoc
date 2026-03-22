@@ -254,18 +254,14 @@ export default function TegningerSide() {
       `<style>
         line,polyline,circle,path,ellipse,polygon{
           stroke-width:calc(1.5 / var(--svg-zoom, 1)) !important;
+        }
+        [data-layer]{
+          stroke-width:calc(5 / var(--svg-zoom, 1)) !important;
           pointer-events:stroke;
           cursor:pointer;
         }
-        [data-layer]{
-          stroke-width:calc(8 / var(--svg-zoom, 1)) !important;
-          stroke-opacity:0.01;
-          paint-order:stroke;
-        }
         [data-layer]:hover{
-          stroke-opacity:1 !important;
           stroke:#3b82f6 !important;
-          stroke-width:calc(3 / var(--svg-zoom, 1)) !important;
         }
       </style>`,
     );
