@@ -1665,7 +1665,9 @@ function SammenslattIfcViewer({
             synligeModeller.add(fragModelId);
             totalBbox.union(fm.box);
 
-            // Skjul IfcSpace-elementer (abstrakte rom-volumer, ikke fysiske bygningsdeler)
+            // Skjul abstrakte/analytiske IFC-elementer som ikke er fysiske bygningsdeler
+            // IfcSpace: rom-volumer for arealberegning
+            // IfcOpeningElement: hull/åpninger i vegger og dekker
             try {
               if (!propsApiRef) {
                 const api = new WEBIFC.IfcAPI();
@@ -1678,15 +1680,18 @@ function SammenslattIfcViewer({
                 mid = propsApiRef.OpenModel(data);
                 openModelIds.set(fragModelId, mid);
               }
-              const spaceApi = propsApiRef as unknown as { GetLineIDsWithType: (m: number, t: number) => { size: () => number; get: (i: number) => number } };
-              const spaceIds = spaceApi.GetLineIDsWithType(mid, WEBIFC.IFCSPACE);
-              if (spaceIds.size() > 0) {
-                const ids: number[] = [];
-                for (let si = 0; si < spaceIds.size(); si++) ids.push(spaceIds.get(si));
-                await model.setVisible(ids, false);
+              const hideApi = propsApiRef as unknown as { GetLineIDsWithType: (m: number, t: number) => { size: () => number; get: (i: number) => number } };
+              const skjulTyper = [WEBIFC.IFCSPACE, WEBIFC.IFCOPENINGELEMENT];
+              const skjulIds: number[] = [];
+              for (const ifcType of skjulTyper) {
+                const lineIds = hideApi.GetLineIDsWithType(mid, ifcType);
+                for (let si = 0; si < lineIds.size(); si++) skjulIds.push(lineIds.get(si));
+              }
+              if (skjulIds.length > 0) {
+                await model.setVisible(skjulIds, false);
               }
             } catch {
-              // Ikke kritisk — IfcSpace-skjuling er kosmetisk
+              // Ikke kritisk — skjuling er kosmetisk
             }
 
             lastet++;
