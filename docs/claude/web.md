@@ -156,6 +156,28 @@ Interaktiv visning med musesentrert zoom (0.25x–50x / 25%–5000%):
 - Klikkbar "IFC"-badge i header viser uttrukket metadata (prosjekt, org, GPS, etasjer, programvare)
 - Data fra `Drawing.ifcMetadata` (Json-felt, uttrukket ved opplasting)
 
+### Planlagt: Bildeeksport fra kartvisning
+
+Velg bilder på kartet og eksporter som PDF/ZIP med metadata.
+
+**Områdevalg:**
+- Rektangelvalg (dra) eller polygon på Leaflet-kartet
+- Bilder innenfor området markeres og listes i sidepanel, sortert etter dato
+- Mulighet for å legge til/fjerne enkeltbilder fra utvalget
+
+**Eksportinnhold:**
+- Bilder sortert kronologisk
+- Metadata per bilde: dato, GPS-koordinater, sjekkliste/oppgave-referanse, felt-label, kommentar
+- Kartutsnitt med markerte posisjoner
+- Forsideinformasjon: prosjekt, dato-range, antall bilder
+
+**Teknologi:**
+- PDF-generering via `jspdf` eller server-side HTML→PDF
+- Alternativt ZIP med bilder + metadata CSV/JSON
+- Kartutsnitt via Leaflet `map.getCanvas()` eller statisk kartbilde
+
+**Berører:** `apps/web/src/app/dashbord/[prosjektId]/bilder/BildeKart.tsx`, `page.tsx`, evt. ny API-rute for server-side PDF
+
 ## Malliste-UI
 
 Delt `MalListe`-komponent: +Tilføy (dropdown), Rediger, Slett, Søk. Enkeltklikk velger, dobbeltklikk åpner.
