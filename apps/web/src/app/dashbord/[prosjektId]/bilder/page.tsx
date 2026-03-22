@@ -964,38 +964,46 @@ function KartVisningMedValg({
     if (valgteBilder.length === 0) return;
     setEksporterer(true);
     try {
-      // Bygg HTML for utskrift
+      // Bygg HTML for utskrift — 2 bilder per rad, maksimert for A4
       const html = `
         <html>
         <head>
           <title>Bildeeksport — SiteDoc</title>
           <style>
-            @page { margin: 15mm; size: A4; }
+            @page { margin: 10mm; size: A4; }
+            * { box-sizing: border-box; margin: 0; padding: 0; }
             body { font-family: sans-serif; color: #333; }
-            h1 { font-size: 18px; margin-bottom: 4px; }
-            .info { font-size: 12px; color: #666; margin-bottom: 20px; }
-            .bilde { page-break-inside: avoid; margin-bottom: 24px; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; }
-            .bilde img { width: 100%; display: block; }
-            .meta { padding: 10px 14px; background: #f9fafb; font-size: 11px; }
-            .meta div { margin-bottom: 3px; }
-            .label { color: #888; display: inline-block; width: 80px; }
+            .header { padding: 4mm 0 6mm; border-bottom: 1px solid #ddd; margin-bottom: 4mm; }
+            .header h1 { font-size: 16px; }
+            .header .info { font-size: 10px; color: #666; margin-top: 2px; }
+            .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4mm; }
+            .bilde { page-break-inside: avoid; border: 1px solid #e5e7eb; border-radius: 4px; overflow: hidden; }
+            .bilde img { width: 100%; aspect-ratio: 5/4; object-fit: cover; display: block; }
+            .meta { padding: 2mm 3mm; font-size: 8px; line-height: 1.4; background: #f9fafb; }
+            .meta .nr { font-weight: 600; font-size: 9px; color: #111; }
+            .meta .dato { color: #555; }
+            .meta .gps { font-family: monospace; color: #888; font-size: 7px; }
+            .meta .rapport { color: #444; }
           </style>
         </head>
         <body>
-          <h1>Bildeeksport</h1>
-          <div class="info">${valgteBilder.length} bilder · ${new Date(valgteBilder[0]!.createdAt).toLocaleDateString("nb-NO")} – ${new Date(valgteBilder[valgteBilder.length - 1]!.createdAt).toLocaleDateString("nb-NO")}</div>
+          <div class="header">
+            <h1>Bildeeksport</h1>
+            <div class="info">${valgteBilder.length} bilder · ${new Date(valgteBilder[0]!.createdAt).toLocaleDateString("nb-NO")} – ${new Date(valgteBilder[valgteBilder.length - 1]!.createdAt).toLocaleDateString("nb-NO")}</div>
+          </div>
+          <div class="grid">
           ${valgteBilder.map((b, i) => `
             <div class="bilde">
               <img src="/api${b.fileUrl}" crossorigin="anonymous" />
               <div class="meta">
-                <div><span class="label">Nr.</span> ${i + 1} av ${valgteBilder.length}</div>
-                <div><span class="label">Dato</span> ${new Date(b.createdAt).toLocaleString("nb-NO")}</div>
-                <div><span class="label">Fil</span> ${b.fileName}</div>
-                ${b.gpsLat != null ? `<div><span class="label">GPS</span> ${b.gpsLat.toFixed(6)}, ${b.gpsLng?.toFixed(6)}</div>` : ""}
-                <div><span class="label">Rapport</span> ${b.parentLabel}</div>
+                <span class="nr">${i + 1}.</span>
+                <span class="dato">${new Date(b.createdAt).toLocaleString("nb-NO")}</span>
+                ${b.gpsLat != null ? `<span class="gps"> · ${b.gpsLat.toFixed(5)}, ${b.gpsLng?.toFixed(5)}</span>` : ""}
+                <div class="rapport">${b.parentLabel}</div>
               </div>
             </div>
           `).join("")}
+          </div>
         </body>
         </html>
       `;
