@@ -2751,11 +2751,9 @@ function FilterChipBar({
         <span className="text-xs text-gray-400">+{aktiveFiltre.length - 3} filtre</span>
       )}
 
-      <div className="flex-1" />
-
       <button
         onClick={onNullstillAlt}
-        className="shrink-0 rounded px-2 py-0.5 text-xs font-medium text-sitedoc-secondary hover:bg-gray-200"
+        className="shrink-0 rounded px-2 py-0.5 text-xs font-medium text-sitedoc-error hover:bg-red-50"
       >
         Nullstill
       </button>
