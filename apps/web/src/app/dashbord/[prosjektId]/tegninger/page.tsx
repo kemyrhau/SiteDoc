@@ -105,7 +105,7 @@ export default function TegningerSide() {
     avbrytPosisjonsvelger,
   } = useBygning();
   const utils = trpc.useUtils();
-  const containerRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
 
   // Zoom
   const [zoom, setZoom] = useState(STANDARD_ZOOM);
@@ -240,8 +240,15 @@ export default function TegningerSide() {
   }, [svgUrl, erSvgFil]);
 
   // Musehjul-zoom sentrert på musepekeren
-  useEffect(() => {
-    const el = containerRef.current;
+  // Callback-ref for å registrere wheel-handler når containeren mountes
+  const wheelHandlerRef = useRef<((e: WheelEvent) => void) | null>(null);
+  const containerCallbackRef = useCallback((el: HTMLDivElement | null) => {
+    // Fjern gammel handler
+    const prevEl = containerRef.current;
+    if (prevEl && wheelHandlerRef.current) {
+      prevEl.removeEventListener("wheel", wheelHandlerRef.current);
+    }
+    containerRef.current = el;
     if (!el) return;
 
     function handleWheel(e: WheelEvent) {
@@ -269,8 +276,8 @@ export default function TegningerSide() {
       });
     }
 
+    wheelHandlerRef.current = handleWheel;
     el.addEventListener("wheel", handleWheel, { passive: false });
-    return () => el.removeEventListener("wheel", handleWheel);
   }, []);
 
   function lukkModal() {
@@ -600,7 +607,7 @@ export default function TegningerSide() {
       {fileUrl && !erDwgKonvertering && !erUkonvertertDwg ? (
         erBilde ? (
           <div
-            ref={containerRef}
+            ref={containerCallbackRef}
             className="flex-1 overflow-auto bg-gray-100"
           >
             <div
@@ -659,7 +666,7 @@ export default function TegningerSide() {
           </div>
         ) : (
           /* PDF — iframe med klikkbar overlay for markørplassering */
-          <div ref={containerRef} className="relative flex-1 overflow-hidden">
+          <div ref={containerCallbackRef} className="relative flex-1 overflow-hidden">
             <iframe
               src={fileUrl}
               title={tegning.name}
