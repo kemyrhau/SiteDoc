@@ -110,6 +110,13 @@ interface OverflateData {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Modul-level cache for nedlastede IFC-filer                          */
+/*  Overlever SPA-navigasjon (men ikke full sidelasting)                */
+/* ------------------------------------------------------------------ */
+
+const ifcFilCache = new Map<string, Uint8Array>();
+
+/* ------------------------------------------------------------------ */
 /*  Klassifiseringskoder og farger (ASPRS)                              */
 /* ------------------------------------------------------------------ */
 
@@ -191,9 +198,11 @@ export default function TreDVisning() {
         ))}
       </div>
 
-      {/* Fane-innhold */}
+      {/* Fane-innhold — 3D-modell holdes montert med display:none for å bevare state */}
       <div className="flex flex-1 overflow-hidden">
-        {aktivFane === "3d-modell" && <Fane3DModell prosjektId={prosjektId!} />}
+        <div className={`flex flex-1 overflow-hidden ${aktivFane !== "3d-modell" ? "hidden" : ""}`}>
+          <Fane3DModell prosjektId={prosjektId!} />
+        </div>
         {aktivFane === "overflater" && (
           <FaneOverflater
             prosjektId={prosjektId!}
@@ -1798,7 +1807,7 @@ function SammenslattIfcViewer({
         const totalBbox = new THREE.Box3();
         let lastet = 0;
 
-        // Parallell nedlasting av alle filer (nettverks-I/O)
+        // Parallell nedlasting av alle filer (nettverks-I/O) — med modul-level cache
         for (const tegning of tegninger) {
           onModellStatusRef.current(tegning.id, { laster: true, feil: null });
         }
@@ -1809,10 +1818,17 @@ function SammenslattIfcViewer({
               const fileUrl = tegning.fileUrl.startsWith("/api")
                 ? tegning.fileUrl
                 : `/api${tegning.fileUrl}`;
+              // Sjekk modul-level cache først
+              const cached = ifcFilCache.get(fileUrl);
+              if (cached) {
+                return { tegning, data: cached, feil: null };
+              }
               const response = await fetch(fileUrl);
               if (!response.ok) throw new Error("Kunne ikke hente fil");
               const buffer = await response.arrayBuffer();
-              return { tegning, data: new Uint8Array(buffer), feil: null };
+              const data = new Uint8Array(buffer);
+              ifcFilCache.set(fileUrl, data);
+              return { tegning, data, feil: null };
             } catch (err) {
               return { tegning, data: null, feil: err instanceof Error ? err.message : String(err) };
             }
