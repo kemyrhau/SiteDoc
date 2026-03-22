@@ -1964,8 +1964,8 @@ function SammenslattIfcViewer({
                       }
                     }
 
-                    // HasQuantities (IFCELEMENTQUANTITY)
-                    const hasQuant = pset.HasQuantities as Record<string, unknown>[] | undefined;
+                    // Quantities / HasQuantities (IFCELEMENTQUANTITY)
+                    const hasQuant = (pset.Quantities ?? pset.HasQuantities) as Record<string, unknown>[] | undefined;
                     if (Array.isArray(hasQuant)) {
                       for (const q of hasQuant) {
                         const qNavn = hentNavn(q);
