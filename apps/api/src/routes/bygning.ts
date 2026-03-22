@@ -24,6 +24,7 @@ export const bygningRouter = router({
               name: true,
               drawingNumber: true,
               discipline: true,
+              fileType: true,
               floor: true,
               geoReference: true,
             },
