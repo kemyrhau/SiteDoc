@@ -110,6 +110,9 @@ export default function TegningerSide() {
   // Zoom
   const [zoom, setZoom] = useState(STANDARD_ZOOM);
 
+  // DWG-elementinfo ved klikk
+  const [valgtElement, setValgtElement] = useState<{ lag: string; type: string; x: number; y: number } | null>(null);
+
   // Ny markør-plassering
   const [nyMarkør, setNyMarkør] = useState<{ x: number; y: number } | null>(null);
   const [visOpprettModal, setVisOpprettModal] = useState(false);
@@ -354,6 +357,21 @@ export default function TegningerSide() {
       const dy = e.clientY - museNedPosRef.current.y;
       if (Math.sqrt(dx * dx + dy * dy) > 5) return;
     }
+
+    // Sjekk om bruker klikket på et SVG-element med DWG-metadata
+    const target = e.target as SVGElement;
+    const lag = target?.getAttribute?.("data-layer");
+    const elementType = target?.getAttribute?.("data-type");
+    if (lag || elementType) {
+      setValgtElement({
+        lag: lag ?? "",
+        type: elementType ?? "",
+        x: e.clientX,
+        y: e.clientY,
+      });
+      return; // Ikke åpne opprett-modal ved elementklikk
+    }
+    setValgtElement(null);
 
     const container = e.currentTarget;
     const rect = container.getBoundingClientRect();
@@ -713,6 +731,37 @@ export default function TegningerSide() {
                 </div>
               )}
             </div>
+
+            {/* DWG element-info popup */}
+            {valgtElement && erSvgFil && (
+              <div
+                className="fixed z-50 rounded-lg border border-gray-200 bg-white px-4 py-3 shadow-lg"
+                style={{ left: valgtElement.x + 12, top: valgtElement.y - 10 }}
+              >
+                <div className="flex items-start gap-3">
+                  <div className="min-w-0">
+                    {valgtElement.lag && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-medium text-gray-500">Lag</span>
+                        <span className="text-sm font-semibold text-gray-900">{valgtElement.lag}</span>
+                      </div>
+                    )}
+                    {valgtElement.type && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-medium text-gray-500">Type</span>
+                        <span className="text-sm text-gray-700">{valgtElement.type}</span>
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => setValgtElement(null)}
+                    className="shrink-0 text-gray-400 hover:text-gray-600"
+                  >
+                    ×
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           /* PDF — iframe med klikkbar overlay for markørplassering */
