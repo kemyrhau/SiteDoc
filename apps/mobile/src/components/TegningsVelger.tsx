@@ -94,11 +94,13 @@ export function TegningsVelger({
     const utenEtasje: Tegning[] = [];
 
     for (const tegning of filtreretTegninger) {
-      if (tegning.geoReference) {
-        utomhus.push(tegning);
-      } else if (tegning.floor) {
+      if (tegning.floor) {
+        // Etasje-tegninger grupperes etter etasje — uavhengig av geoReference
         if (!etasjeMap[tegning.floor]) etasjeMap[tegning.floor] = [];
         etasjeMap[tegning.floor].push(tegning);
+      } else if (tegning.geoReference) {
+        // Kun tegninger UTEN etasje med geoReference → "Utomhus"
+        utomhus.push(tegning);
       } else {
         utenEtasje.push(tegning);
       }

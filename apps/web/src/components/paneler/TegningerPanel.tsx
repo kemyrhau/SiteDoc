@@ -51,12 +51,14 @@ function grupperTegningerIBygning(tegninger: Tegning[]): EtasjeGruppe[] {
   const utenEtasje: Tegning[] = [];
 
   for (const t of tegninger) {
-    if (t.geoReference != null) {
-      utomhus.push(t);
-    } else if (t.floor != null && t.floor.trim() !== "") {
+    if (t.floor != null && t.floor.trim() !== "") {
+      // Etasje-tegninger grupperes etter etasje — uavhengig av geoReference
       const eksisterende = etasjeMap.get(t.floor) ?? [];
       eksisterende.push(t);
       etasjeMap.set(t.floor, eksisterende);
+    } else if (t.geoReference != null) {
+      // Kun tegninger UTEN etasje med geoReference → "Utomhus"
+      utomhus.push(t);
     } else {
       utenEtasje.push(t);
     }
@@ -414,6 +416,11 @@ export function TegningerPanel() {
                                   <span className="truncate text-left flex-1">
                                     {tegningVisningstekst(tegning)}
                                   </span>
+                                  {tegning.geoReference != null && (
+                                    <span className="text-[10px] text-green-700 bg-green-100 rounded px-1 shrink-0">
+                                      GPS
+                                    </span>
+                                  )}
                                   {tegning.discipline && (
                                     <span className="text-[10px] text-gray-400 bg-gray-100 rounded px-1 shrink-0">
                                       {tegning.discipline}

@@ -57,12 +57,14 @@ function grupperTegninger(tegninger: TegningRad[]): TegningGruppe[] {
   const utenEtasje: TegningRad[] = [];
 
   for (const t of tegninger) {
-    if (t.geoReference) {
-      utomhus.push(t);
-    } else if (t.floor) {
+    if (t.floor) {
+      // Etasje-tegninger grupperes etter etasje — uavhengig av geoReference
       const etasje = t.floor;
       if (!etasjeMap[etasje]) etasjeMap[etasje] = [];
       etasjeMap[etasje]!.push(t);
+    } else if (t.geoReference) {
+      // Kun tegninger UTEN etasje med geoReference → "Utomhus"
+      utomhus.push(t);
     } else {
       utenEtasje.push(t);
     }
