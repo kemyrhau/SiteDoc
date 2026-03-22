@@ -117,6 +117,33 @@ interface OverflateData {
 const ifcFilCache = new Map<string, Uint8Array>();
 
 /* ------------------------------------------------------------------ */
+/*  Modul-level singleton for 3D-viewer                                 */
+/*  Bevarer Three.js-scene, WebGL-kontekst og lastede modeller          */
+/*  på tvers av SPA-navigasjon (f.eks. 3D → Tegninger → 3D)            */
+/* ------------------------------------------------------------------ */
+
+interface ViewerInstans {
+  tegningerIds: string;
+  canvas: HTMLCanvasElement;
+  viewerApi: {
+    toggleModell: (tegningId: string, synlig: boolean) => void;
+    fjernAlleKlippeplan: () => void;
+    settKlipperSynlig: (synlig: boolean) => void;
+    skjulObjekt: (modelId: string, localId: number) => Promise<void>;
+    visObjekt: (modelId: string, localId: number) => Promise<void>;
+    skjulAlleAvKategori: (ifcTypeKode: number) => Promise<void>;
+    visAlleAvKategori: (ifcTypeKode: number) => Promise<void>;
+    skjulAlleAvLag: (lagNavn: string) => Promise<void>;
+    visAlleAvLag: (lagNavn: string) => Promise<void>;
+    skjulAlleAvSystem: (systemNavn: string) => Promise<void>;
+    visAlleAvSystem: (systemNavn: string) => Promise<void>;
+  };
+  dispose: () => void;
+}
+
+let cachedViewer: ViewerInstans | null = null;
+
+/* ------------------------------------------------------------------ */
 /*  Klassifiseringskoder og farger (ASPRS)                              */
 /* ------------------------------------------------------------------ */
 
@@ -1738,6 +1765,28 @@ function SammenslattIfcViewer({
     const container = containerRef.current;
     if (!container || tegninger.length === 0) return;
 
+    // Sjekk om vi har en cachet viewer for samme modellsett
+    if (cachedViewer && cachedViewer.tegningerIds === tegningerIds) {
+      // Gjenbruk eksisterende scene — bare flytt canvas til ny container
+      container.innerHTML = "";
+      container.appendChild(cachedViewer.canvas);
+      viewerRef.current = cachedViewer.viewerApi;
+      setLaster(false);
+      return () => {
+        // Fjern canvas fra container men behold instansen
+        if (cachedViewer?.canvas.parentElement === container) {
+          container.removeChild(cachedViewer.canvas);
+        }
+        viewerRef.current = null;
+      };
+    }
+
+    // Rydd opp gammel cachet viewer hvis modellsettet endret seg
+    if (cachedViewer) {
+      cachedViewer.dispose();
+      cachedViewer = null;
+    }
+
     let renset = false;
     let componentsRef: unknown = null;
     // Web-ifc for on-demand property-oppslag (delt mellom klikk)
@@ -2597,6 +2646,28 @@ function SammenslattIfcViewer({
           },
         };
 
+        // Cache viewer-instansen for gjenbruk ved SPA-navigasjon
+        cachedViewer = {
+          tegningerIds,
+          canvas: rendererDom,
+          viewerApi: viewerRef.current,
+          dispose: () => {
+            rendererDom.removeEventListener("click", handleKlikk);
+            rendererDom.removeEventListener("dblclick", handleDblKlikk);
+            if (animFrameId !== null) cancelAnimationFrame(animFrameId);
+            if (propsApiRef) {
+              for (const mid of openModelIds.values()) {
+                try { propsApiRef.CloseModel(mid); } catch { /* */ }
+              }
+              openModelIds.clear();
+              propsApiRef = null;
+            }
+            if (componentsRef && typeof (componentsRef as { dispose?: () => void }).dispose === "function") {
+              try { (componentsRef as { dispose: () => void }).dispose(); } catch { /* */ }
+            }
+          },
+        };
+
         setLaster(false);
 
         return () => {
@@ -2615,21 +2686,7 @@ function SammenslattIfcViewer({
     return () => {
       renset = true;
       viewerRef.current = null;
-      // Rydd opp web-ifc property-instans
-      if (propsApiRef) {
-        for (const mid of openModelIds.values()) {
-          try { propsApiRef.CloseModel(mid); } catch { /* */ }
-        }
-        openModelIds.clear();
-        propsApiRef = null;
-      }
-      if (componentsRef && typeof (componentsRef as { dispose?: () => void }).dispose === "function") {
-        try {
-          (componentsRef as { dispose: () => void }).dispose();
-        } catch {
-          // Ignorer
-        }
-      }
+      // IKKE rydd opp — behold cachet viewer for gjenbruk
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tegningerIds]);
