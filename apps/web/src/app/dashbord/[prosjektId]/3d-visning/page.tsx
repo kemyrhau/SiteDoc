@@ -1869,6 +1869,51 @@ function SammenslattIfcViewer({
                   // Foreldre-oppslag er ikke kritisk
                 }
 
+                // Hent Type-navn via IfcRelDefinesByType og Layer via IfcPresentationLayerAssignment
+                let typeName: string | null = null;
+                let layerName: string | null = null;
+                try {
+                  const api2 = propsApiRef as unknown as { GetLineIDsWithType: (m: number, t: number) => { size: () => number; get: (i: number) => number }; GetLine: (m: number, id: number) => Record<string, unknown> };
+                  // Søk i elementet og eventuelt foreldre for Type
+                  const targetIds = parentProps ? [expressId, (parentProps.expressID as number)] : [expressId];
+                  const relTypeIds = api2.GetLineIDsWithType(modelId, WEBIFC.IFCRELDEFINESBYTYPE);
+                  for (let i = 0; i < relTypeIds.size() && !typeName; i++) {
+                    const rel = api2.GetLine(modelId, relTypeIds.get(i));
+                    const relObj = rel.RelatedObjects as Array<{ value: number }> | undefined;
+                    if (Array.isArray(relObj) && relObj.some((o) => targetIds.includes(o.value))) {
+                      const relType = rel.RelatingType as { value: number } | undefined;
+                      if (relType?.value) {
+                        const typeObj = api2.GetLine(modelId, relType.value);
+                        const tn = typeObj.Name as { value: unknown } | undefined;
+                        if (tn && typeof tn === "object" && "value" in tn && tn.value) {
+                          typeName = String(tn.value);
+                        }
+                      }
+                    }
+                  }
+                  // Layer via IfcPresentationLayerAssignment
+                  const layerIds = api2.GetLineIDsWithType(modelId, WEBIFC.IFCPRESENTATIONLAYERASSIGNMENT);
+                  for (let i = 0; i < layerIds.size() && !layerName; i++) {
+                    const layer = api2.GetLine(modelId, layerIds.get(i));
+                    const assigned = layer.AssignedItems as Array<{ value: number }> | undefined;
+                    if (Array.isArray(assigned)) {
+                      // AssignedItems refererer til representasjoner, ikke direkte til elementer
+                      // Sjekk om elementets representation expressID er blant dem
+                      const repr = itemProps?.Representation as { value: number } | undefined;
+                      const parentRepr = parentProps?.Representation as { value: number } | undefined;
+                      const reprIds = [repr?.value, parentRepr?.value].filter(Boolean) as number[];
+                      if (assigned.some((a) => reprIds.includes(a.value))) {
+                        const ln = layer.Name as { value: unknown } | undefined;
+                        if (ln && typeof ln === "object" && "value" in ln && ln.value) {
+                          layerName = String(ln.value);
+                        }
+                      }
+                    }
+                  }
+                } catch {
+                  // Type/Layer-oppslag er ikke kritisk
+                }
+
                 // Kombiner egenskaper — foreldre-data brukes som supplement
                 const allPropertySets = [...propertySets, ...parentPropertySets];
                 const allTypeProps = [...typeProps, ...parentTypeProps];
@@ -1892,6 +1937,9 @@ function SammenslattIfcViewer({
                       }
                     }
                   }
+                  // Legg til Type og Layer som attributter
+                  if (typeName) attributter["Type"] = { value: typeName };
+                  if (layerName) attributter["Layer"] = { value: layerName };
 
                   // Legg til klikkkoordinater
                   const relasjoner: EgenskapGruppe[] = [];
