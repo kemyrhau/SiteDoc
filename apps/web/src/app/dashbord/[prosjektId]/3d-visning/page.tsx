@@ -1892,21 +1892,35 @@ function SammenslattIfcViewer({
                     }
                   }
                   // Layer via IfcPresentationLayerAssignment
+                  // AssignedItems refererer til IfcShapeRepresentation (sub-repr),
+                  // ikke IfcProductDefinitionShape. Samle alle sub-repr IDs.
+                  const subReprIds = new Set<number>();
+                  for (const props of [itemProps, parentProps]) {
+                    if (!props) continue;
+                    const reprRef = props.Representation as { value: number } | Record<string, unknown> | undefined;
+                    if (!reprRef) continue;
+                    // Hent IfcProductDefinitionShape → Representations (array av sub-repr)
+                    const reprId = typeof reprRef === "object" && "value" in reprRef ? (reprRef as { value: number }).value : null;
+                    const reprExprId = reprRef && typeof reprRef === "object" && "expressID" in reprRef ? (reprRef as { expressID: number }).expressID : reprId;
+                    if (reprExprId) {
+                      subReprIds.add(reprExprId);
+                      try {
+                        const reprObj = api2.GetLine(modelId, reprExprId);
+                        const reps = reprObj.Representations as Array<{ value: number }> | undefined;
+                        if (Array.isArray(reps)) {
+                          for (const r of reps) subReprIds.add(r.value);
+                        }
+                      } catch { /* ignorér */ }
+                    }
+                  }
                   const layerIds = api2.GetLineIDsWithType(modelId, WEBIFC.IFCPRESENTATIONLAYERASSIGNMENT);
                   for (let i = 0; i < layerIds.size() && !layerName; i++) {
                     const layer = api2.GetLine(modelId, layerIds.get(i));
                     const assigned = layer.AssignedItems as Array<{ value: number }> | undefined;
-                    if (Array.isArray(assigned)) {
-                      // AssignedItems refererer til representasjoner, ikke direkte til elementer
-                      // Sjekk om elementets representation expressID er blant dem
-                      const repr = itemProps?.Representation as { value: number } | undefined;
-                      const parentRepr = parentProps?.Representation as { value: number } | undefined;
-                      const reprIds = [repr?.value, parentRepr?.value].filter(Boolean) as number[];
-                      if (assigned.some((a) => reprIds.includes(a.value))) {
-                        const ln = layer.Name as { value: unknown } | undefined;
-                        if (ln && typeof ln === "object" && "value" in ln && ln.value) {
-                          layerName = String(ln.value);
-                        }
+                    if (Array.isArray(assigned) && assigned.some((a) => subReprIds.has(a.value))) {
+                      const ln = layer.Name as { value: unknown } | undefined;
+                      if (ln && typeof ln === "object" && "value" in ln && ln.value) {
+                        layerName = String(ln.value);
                       }
                     }
                   }
