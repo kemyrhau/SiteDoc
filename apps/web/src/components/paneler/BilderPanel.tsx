@@ -108,6 +108,17 @@ export function BilderPanel() {
           <Map className="h-3.5 w-3.5" />
           Tegning
         </button>
+        <button
+          onClick={() => settVisningsmodus("kart")}
+          className={`flex flex-1 items-center justify-center gap-1.5 rounded px-2 py-1.5 text-xs font-medium transition-colors ${
+            visningsmodus === "kart"
+              ? "bg-white text-gray-900 shadow-sm"
+              : "text-gray-500 hover:text-gray-700"
+          }`}
+        >
+          <MapPin className="h-3.5 w-3.5" />
+          Kart
+        </button>
       </div>
 
       {/* Tegningsvelger (kun synlig i tegningsvisning) */}

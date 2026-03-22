@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
 
-export type BilderVisningsmodus = "liste" | "tegning";
+export type BilderVisningsmodus = "liste" | "tegning" | "kart";
 export type Plasseringsmodus = "rapportlokasjon" | "gps";
 
 interface BilderKontekstType {

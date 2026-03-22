@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { trpc } from "@/lib/trpc";
 import { useBygning } from "@/kontekst/bygning-kontekst";
 import { useBilder } from "@/kontekst/bilder-kontekst";
@@ -57,6 +58,15 @@ interface NormalisertBilde {
   positionX: number | null;
   positionY: number | null;
 }
+
+// ──────────────────────────────────────────────────────────────
+// Kartkomponent (dynamisk import — Leaflet krever window)
+// ──────────────────────────────────────────────────────────────
+
+const BildeKart = dynamic(
+  () => import("./BildeKart").then((m) => m.BildeKart),
+  { ssr: false, loading: () => <Spinner size="lg" /> },
+);
 
 // ──────────────────────────────────────────────────────────────
 // Zoom-konstanter
@@ -454,6 +464,68 @@ export default function BilderSide() {
         </div>
 
         {/* Lightbox */}
+        {lightboxIndex !== null && (
+          <BildeLightbox
+            bilder={lightboxBilder}
+            aktivIndex={lightboxIndex}
+            onLukk={() => setLightboxIndex(null)}
+            onEndreIndex={setLightboxIndex}
+          />
+        )}
+      </div>
+    );
+  }
+
+  // ──────────────────────────────────────────────────────────
+  // KARTVISNING
+  // ──────────────────────────────────────────────────────────
+
+  if (visningsmodus === "kart") {
+    const bilderMedGps = datoFiltrerteBilder.filter(
+      (b) => b.gpsLat != null && b.gpsLng != null,
+    );
+
+    if (isLoading) {
+      return (
+        <div className="flex flex-1 items-center justify-center">
+          <Spinner size="lg" />
+        </div>
+      );
+    }
+
+    if (bilderMedGps.length === 0) {
+      return (
+        <div className="flex flex-1 items-center justify-center">
+          <div className="text-center text-gray-400">
+            <MapPin className="mx-auto mb-2 h-10 w-10 text-gray-300" />
+            <p className="text-sm">Ingen bilder med GPS-posisjon</p>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="relative flex-1">
+        <BildeKart
+          bilder={bilderMedGps}
+          onKlikkBilde={(index) => {
+            setLightboxBilder(
+              bilderMedGps.map((b) => ({
+                id: b.id,
+                fileUrl: b.fileUrl,
+                fileName: b.fileName,
+                createdAt: b.createdAt,
+                gpsLat: b.gpsLat,
+                gpsLng: b.gpsLng,
+                parentType: b.parentType,
+                parentId: b.parentId,
+                parentLabel: b.parentLabel,
+                prosjektId: params.prosjektId,
+              })),
+            );
+            setLightboxIndex(index);
+          }}
+        />
         {lightboxIndex !== null && (
           <BildeLightbox
             bilder={lightboxBilder}
