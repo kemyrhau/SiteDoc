@@ -127,6 +127,42 @@ DatabaseProvider → trpc → QueryClient → Nettverk → OpplastingsKo → Aut
 
 **expo-file-system:** Bruk `expo-file-system/legacy` (IKKE `expo-file-system`)
 
+## Planlagt: IFC 3D-visning i mobil (Fase 2)
+
+Støtte mest mulig av web-funksjonalitet for 3D-modeller i mobilappen.
+
+**Tilnærming:**
+- @thatopen/fragments + Three.js fungerer ikke direkte i React Native
+- **WebView-tilnærming (anbefalt):** Gjenbruk web-vieweren i en WebView med kommunikasjon via `postMessage`. Enklest å implementere og vedlikeholde.
+- Alternativer: expo-gl + three.js (begrenset), native IFC-viewer (Swift/Kotlin)
+- **Offline-støtte:** Forhåndslast IFC-filer til lokal lagring, vis fra cached data
+
+**Funksjoner å støtte:**
+- Modellvisning med orbit-kontroll
+- Objektklikk med egenskaper
+- Modell-toggle per fag
+- Filtrering (skjul/vis objekter)
+- Klippeplan (snitt)
+
+## Planlagt: Live site-view — AR/3D på byggeplass (Fase 3)
+
+Vis IFC-modell overlagt på kamera for å følge/sjekke byggeprosessen i sanntid.
+
+**Konsept:**
+- AR-visning med kamera som bakgrunn, 3D-modell overlagt
+- GPS + kompass for grov posisjonering
+- Manuell justering for presisjon (dra/roter modell)
+- Sammenlign planlagt (modell) vs. bygget (virkelighet)
+- Marker avvik direkte i visningen
+
+**Teknologi:**
+- iOS: ARKit via expo-ar eller native modul
+- Android: ARCore
+- Alternativ: enklere "split-view" med modell ved siden av kamerabilde
+- IFC-modellens georeferanse (UTM-koordinater) kan brukes for automatisk plassering
+
+**Verdi:** Stor verdi for kvalitetskontroll på byggeplass — sjekke at ting er bygget riktig uten å gå tilbake til kontoret.
+
 ## Tegningsmarkører
 
 1. Trykk på tegning → markør → 2. MalVelger → 3. OppgaveModal → 4. Naviger til oppgave.

@@ -271,6 +271,15 @@ Sammenlign to overflatemodeller med rød/blå visualisering og volumberegning.
 ### Navigasjon
 Erstatter separate `/punktskyer` og `/modeller`-ruter. Gamle URLer redirectes via `next.config.js`. Sidebar viser én "3D"-knapp i stedet for to.
 
+### Planlagt: Web UI-forbedringer for 3D-visning
+
+**Layout-level viewer-persistering (Fase 1):**
+Gjør 3D-vieweren instant ved navigasjon (3D ↔ Tegninger ↔ andre sider). Flytt `SammenslattIfcViewer` / `ViewerCanvas` til prosjekt-layouten (`/dashbord/[prosjektId]/layout.tsx`). Vis/skjul basert på aktiv rute. Three.js-scene, WebGL-kontekst og lastede modeller bevares mellom sidenavigasjoner.
+
+- **Bakgrunn:** Brukere bytter ofte mellom tegninger og 3D for å skaffe oversikt. Dalux har løst dette med instant bytte. Dagens løsning re-laster alt ved navigasjon (fil-cache sparer nedlasting, men WASM-parsing + scene-oppsett tar fortsatt tid).
+- **Krever:** Refaktorering av 3D-sidekoden — viewer-komponenten må skilles ut fra page.tsx og løftes til layout-nivå med rute-basert synlighet.
+- **Status:** `TreDViewerKontekst` er allerede i prosjekt-layouten og holder state. `ViewerCanvas` rendres i page.tsx men scenen overlever navigasjon. Gjenstår: flytte selve canvas-elementet til layout.
+
 ## Sjekkliste-endringslogg
 
 `enableChangeLog` på mal → server-side diff i `oppdaterData` → `ChecklistChangeLog`-poster. `EndringsloggSeksjon` i detaljsiden.
