@@ -1881,6 +1881,7 @@ function SammenslattIfcViewer({
                 // Hent Type-navn via IfcRelDefinesByType og Layer via IfcPresentationLayerAssignment
                 let typeName: string | null = null;
                 let layerName: string | null = null;
+                let systemName: string | null = null;
                 try {
                   const api2 = propsApiRef as unknown as { GetLineIDsWithType: (m: number, t: number) => { size: () => number; get: (i: number) => number }; GetLine: (m: number, id: number) => Record<string, unknown> };
                   // Søk i elementet og eventuelt foreldre for Type
@@ -1933,8 +1934,25 @@ function SammenslattIfcViewer({
                       }
                     }
                   }
+                  // System via IfcRelAssignsToGroup → RelatingGroup (IfcSystem/IfcDistributionSystem)
+                  const relGroupIds = api2.GetLineIDsWithType(modelId, WEBIFC.IFCRELASSIGNSTOGROUP);
+                  for (let i = 0; i < relGroupIds.size(); i++) {
+                    const rel = api2.GetLine(modelId, relGroupIds.get(i));
+                    const relObj = rel.RelatedObjects as Array<{ value: number }> | undefined;
+                    if (Array.isArray(relObj) && relObj.some((o) => targetIds.includes(o.value))) {
+                      const group = rel.RelatingGroup as { value: number } | undefined;
+                      if (group?.value) {
+                        const groupObj = api2.GetLine(modelId, group.value);
+                        const gn = groupObj.Name as { value: unknown } | undefined;
+                        if (gn && typeof gn === "object" && "value" in gn && gn.value) {
+                          systemName = String(gn.value);
+                          break;
+                        }
+                      }
+                    }
+                  }
                 } catch {
-                  // Type/Layer-oppslag er ikke kritisk
+                  // Type/Layer/System-oppslag er ikke kritisk
                 }
 
                 // Kombiner egenskaper — foreldre-data brukes som supplement
@@ -1960,9 +1978,10 @@ function SammenslattIfcViewer({
                       }
                     }
                   }
-                  // Legg til Type og Layer som attributter
+                  // Legg til Type, Layer og System som attributter
                   if (typeName) attributter["Type"] = { value: typeName };
                   if (layerName) attributter["Layer"] = { value: layerName };
+                  if (systemName) attributter["System"] = { value: systemName };
 
                   // Legg til klikkkoordinater
                   const relasjoner: EgenskapGruppe[] = [];
