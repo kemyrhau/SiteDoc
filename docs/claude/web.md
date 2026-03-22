@@ -76,6 +76,7 @@ Dalux-inspirert tre-kolonne layout (skjules på mobil < 768px, hamburger-meny i 
 - `ProsjektKontekst` — Valgt prosjekt fra URL `[prosjektId]`, alle prosjekter, loading
 - `BygningKontekst` — Aktiv bygning + `standardTegning` (persistent, localStorage) + `aktivTegning` (visning). Posisjonsvelger: `startPosisjonsvelger(feltId)` → `fullførPosisjonsvelger(resultat)` → `hentOgTømPosisjonsResultat(feltId)`
 - `BilderKontekst` — Visningsmodus (liste/tegning), plasseringsmodus (rapportlokasjon/GPS), datofilter, områdevalg
+- `TreDViewerKontekst` — Persistent IFC 3D-viewer som lever i prosjekt-layouten. Holder modellStatuser, valgtObjekt, skjulteObjekter, aktiveFiltre, viewerRef (ViewerAPI). `ViewerCanvas`-komponenten rendres i 3d-visning/page.tsx men Three.js-scenen overlever navigasjon mellom ruter fordi all state og OBC-initialisering styres av konteksten. Typer, konstanter og hjelpefunksjoner er ekstrahert til separate filer under `3d-visning/`.
 - `NavigasjonKontekst` — Aktiv seksjon + verktøylinje-handlinger
 - `useAktivSeksjon()` — Utleder seksjon fra pathname
 - `useVerktoylinje(handlinger)` — Registrerer handlinger per side med auto-cleanup
@@ -157,10 +158,19 @@ Delt `MalListe`-komponent: +Tilføy (dropdown), Rediger, Slett, Søk. Enkeltklik
 
 ## 3D-visning (samlet side)
 
-Samlet 3D-visningsside `/dashbord/[prosjektId]/3d-visning` med tre faner:
+Samlet 3D-visningsside `/dashbord/[prosjektId]/3d-visning` med tre faner.
+
+**Filstruktur (etter fase 1-refaktorering):**
+- `typer.ts` — Alle interfaces (ValgtObjekt, ModellStatus, ViewerAPI, etc.)
+- `konstanter.ts` — INTERNE_FELT, ifcFilCache, KLASSE_FARGER, QUANTITY_ENHETER
+- `hjelpefunksjoner.ts` — hentNavn, hentVerdi, formaterVerdi, finnIfcTypeKode, parseLandXMLFil
+- `komponenter/EgenskapsPopup.tsx` — Flytende egenskapspanel for valgt objekt
+- `komponenter/FilterChipBar.tsx` — Chip-bar for aktive filtre/skjulte objekter
+- `page.tsx` — Tynt skall med fane-bar, sidebar og delegering til kontekst
+- `kontekst/tred-viewer-kontekst.tsx` — Provider (state) + ViewerCanvas (Three.js/OBC)
 
 ### Fane 1: 3D-modell (IFC + punktsky)
-Sammenslått IFC-viewer som laster ALLE prosjektets IFC-modeller i én @thatopen-scene. Avmerkingsbokser styrer synlighet per modell.
+Sammenslått IFC-viewer som laster ALLE prosjektets IFC-modeller i én @thatopen-scene. Avmerkingsbokser styrer synlighet per modell. `TreDViewerKontekst` holder all viewer-state i prosjekt-layouten slik at Three.js-scenen overlever navigasjon.
 
 **Layout:** Sidepanel (280px, IFC-modeller med checkboxes + punktskyer) + 3D-viewer + flytende egenskapspanel.
 
