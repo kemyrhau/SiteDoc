@@ -115,14 +115,16 @@ Revisjonshistorikk via `drawing_revisions`. Georeferanse med 2 punkter for simil
 - Dokumentflyt redigeringsmodal (navn, maler, medlemmer)
 - HMS-avvik: alle kan opprette
 - Lisenssystem: betalingsside
-- **DWG-import og konvertering:** Flere forbedringer trengs:
-  - DXF-parser feiler på noen filer (ugyldig extents 1e20) → faller tilbake til dwg2SVG uten metadata
-  - Blokk-referanser (INSERT) mister lag-tilhørighet ved utfolding
+- **DWG-import og datautvinning:** Dagens konvertering mister vesentlig innhold og metadata. Må forbedres for å hente ut alt som ligger i DWG-filen:
+  - **Manglende innhold:** Hele seksjoner kan forsvinne (f.eks. Ålesund-tegningen mangler geometri pga. ugyldig DXF extents 1e20 → 0 SVG-elementer → fallback til dwg2SVG som gir enklere SVG uten metadata)
+  - **Manglende metadata:** DWG-filer inneholder rik metadata (blokk-attributter, egendefinerte egenskaper, xdata, lagbeskrivelser, blokk-hierarki) som ikke trekkes ut i dag
+  - Blokk-referanser (INSERT) mister lag-tilhørighet og attributt-data ved utfolding
   - Hatch-mønstre (skravur) støttes ikke — bare SOLID-fyll
   - Stor blokk-filtrering (>10k entiteter) kan fjerne viktig innhold
   - Layout-SVGer er identiske kopier av model space — viewport-klipping mangler
-  - Re-konvertering av eksisterende tegninger krever manuelt script — bør automatiseres
-  - Vurder å lagre DXF-lag/blokk-struktur i databasen for rikere egenskapsvisning
+  - **Mål:** DWG-import bør hente ut like mye informasjon som profesjonelle DWG-viewere (AutoCAD, DWG TrueView) — lag, blokk-attributter, egenskaper, dimensjoner, referanser
+  - Vurder alternativ DXF-parser eller direkte DWG-lesing (Open Design Alliance SDK) for bedre datautvinning
+  - Re-konvertering av eksisterende tegninger bør automatiseres
 
 ## Modularkitektur (planlagt)
 
