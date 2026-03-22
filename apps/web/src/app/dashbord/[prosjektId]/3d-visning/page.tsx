@@ -1374,14 +1374,40 @@ function hentNavn(item: Record<string, unknown>): string {
   return "Egenskaper";
 }
 
+// Enheter for IFC-quantities
+const QUANTITY_ENHETER: Record<string, string> = {
+  LengthValue: "mm",
+  AreaValue: "m²",
+  VolumeValue: "m³",
+  WeightValue: "kg",
+  CountValue: "",
+  TimeValue: "s",
+};
+
 function hentVerdi(obj: Record<string, unknown>): unknown {
   // IFCPROPERTYSINGLEVALUE → NominalValue
+  const nomVal = obj["NominalValue"];
+  if (nomVal && typeof nomVal === "object" && "value" in (nomVal as Record<string, unknown>)) {
+    const val = (nomVal as { value: unknown }).value;
+    if (val === null || val === undefined || val === "") return null;
+    // Legg til enhet fra Unit hvis tilgjengelig
+    const unit = obj["Unit"] as Record<string, unknown> | undefined;
+    if (unit && typeof unit === "object" && "value" in (unit as Record<string, unknown>)) {
+      return `${val} ${(unit as { value: unknown }).value}`;
+    }
+    return val;
+  }
+
   // IFCELEMENTQUANTITY → LengthValue, AreaValue, VolumeValue, WeightValue, CountValue, TimeValue
-  for (const felt of ["NominalValue", "LengthValue", "AreaValue", "VolumeValue", "WeightValue", "CountValue", "TimeValue"]) {
+  for (const felt of ["LengthValue", "AreaValue", "VolumeValue", "WeightValue", "CountValue", "TimeValue"]) {
     const v = obj[felt];
     if (v && typeof v === "object" && "value" in (v as Record<string, unknown>)) {
       const val = (v as { value: unknown }).value;
       if (val === null || val === undefined || val === "") return null;
+      const enhet = QUANTITY_ENHETER[felt] ?? "";
+      if (enhet && typeof val === "number") {
+        return `${Number(val.toFixed(3))} ${enhet}`;
+      }
       return val;
     }
   }
