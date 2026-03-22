@@ -1813,27 +1813,34 @@ function SammenslattIfcViewer({
                     .getMaterialsProperties(modelId, expressId, true, true).catch(() => []),
                 ]);
 
-                // Hvis elementet er en underdel (BuildingElementPart etc.), hent også foreldrens egenskaper
+                // Hvis elementet er en underdel (BuildingElementPart etc.), finn foreldre via IfcRelAggregates
                 let parentProps: Record<string, unknown> | null = null;
                 let parentPropertySets: Record<string, unknown>[] = [];
                 let parentTypeProps: Record<string, unknown>[] = [];
                 let parentMaterials: Record<string, unknown>[] = [];
-                if (itemProps) {
-                  const decomposes = itemProps["Decomposes"] as Record<string, unknown>[] | undefined;
-                  if (Array.isArray(decomposes) && decomposes.length > 0) {
-                    const rel = decomposes[0];
-                    const relatingObject = rel?.RelatingObject as Record<string, unknown> | undefined;
-                    const parentId = relatingObject?.expressID as number | undefined;
-                    if (parentId) {
-                      [parentProps, parentPropertySets, parentTypeProps, parentMaterials] = await Promise.all([
-                        propsApiRef.properties.getItemProperties(modelId, parentId, true).catch(() => null),
-                        propsApiRef.properties.getPropertySets(modelId, parentId, true).catch(() => []),
-                        propsApiRef.properties.getTypeProperties(modelId, parentId, true).catch(() => []),
-                        (propsApiRef.properties as unknown as { getMaterialsProperties: (m: number, id: number, r?: boolean, t?: boolean) => Promise<Record<string, unknown>[]> })
-                          .getMaterialsProperties(modelId, parentId, true, true).catch(() => []),
-                      ]);
+                try {
+                  const api = propsApiRef as unknown as { GetLineIDsWithType: (m: number, t: number) => { size: () => number; get: (i: number) => number }; GetLine: (m: number, id: number) => Record<string, unknown>; properties: typeof propsApiRef.properties };
+                  const relAggIds = api.GetLineIDsWithType(modelId, WEBIFC.IFCRELAGGREGATES);
+                  for (let i = 0; i < relAggIds.size(); i++) {
+                    const relId = relAggIds.get(i);
+                    const rel = api.GetLine(modelId, relId);
+                    const relatedObjects = rel.RelatedObjects as Array<{ value: number }> | undefined;
+                    if (Array.isArray(relatedObjects) && relatedObjects.some((o) => o.value === expressId)) {
+                      const parentId = (rel.RelatingObject as { value: number })?.value;
+                      if (parentId) {
+                        [parentProps, parentPropertySets, parentTypeProps, parentMaterials] = await Promise.all([
+                          api.properties.getItemProperties(modelId, parentId, true).catch(() => null),
+                          api.properties.getPropertySets(modelId, parentId, true).catch(() => []),
+                          api.properties.getTypeProperties(modelId, parentId, true).catch(() => []),
+                          (api.properties as unknown as { getMaterialsProperties: (m: number, id: number, r?: boolean, t?: boolean) => Promise<Record<string, unknown>[]> })
+                            .getMaterialsProperties(modelId, parentId, true, true).catch(() => []),
+                        ]);
+                        break;
+                      }
                     }
                   }
+                } catch {
+                  // Foreldre-oppslag er ikke kritisk
                 }
 
                 // Kombiner egenskaper — foreldre-data brukes som supplement
