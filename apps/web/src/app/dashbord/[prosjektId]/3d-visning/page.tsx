@@ -12,10 +12,12 @@ import {
   FileUp,
   BarChart3,
   Layers,
+  Scissors,
   Trash2,
 } from "lucide-react";
-import { useTreDViewer, ViewerCanvas } from "@/kontekst/tred-viewer-kontekst";
+import { useTreDViewer } from "@/kontekst/tred-viewer-kontekst";
 import { EgenskapsPopup } from "./komponenter/EgenskapsPopup";
+import { FilterChipBar } from "./komponenter/FilterChipBar";
 import { parseLandXMLFil } from "./hjelpefunksjoner";
 import type {
   Fane,
@@ -103,13 +105,21 @@ function Fane3DModell() {
     punktskyer,
     modellStatuser,
     valgtObjekt,
+    skjulteObjekter,
+    aktiveFiltre,
+    klippModus,
     lasterTegninger,
     lasterPunktskyer,
+    viewerRef,
     setValgtObjekt,
+    setKlippModus,
     toggleSynlighet,
     soloModell,
     skjulObjektOgLeggTil,
     leggTilFilter,
+    fjernFilter,
+    fjernSkjultObjekt,
+    nullstillAlt,
     lastOppIfc,
     lasterOpp,
   } = useTreDViewer();
@@ -126,8 +136,8 @@ function Fane3DModell() {
 
   return (
     <div className="flex h-full flex-1">
-      {/* Sidepanel */}
-      <div className="flex w-[280px] flex-col border-r border-gray-200 bg-white">
+      {/* Sidepanel — pointer-events-auto fordi layout setter pointer-events-none på children-wrapperen */}
+      <div className="pointer-events-auto flex w-[280px] flex-col border-r border-gray-200 bg-white">
         <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
           <h2 className="text-sm font-semibold text-gray-900">Modeller</h2>
           <label className="cursor-pointer">
@@ -219,36 +229,88 @@ function Fane3DModell() {
         </div>
       </div>
 
-      {/* Hovedinnhold: persistent viewer fra kontekst */}
-      <div className="relative flex flex-1 flex-col bg-gray-100">
-        {!harModeller ? (
-          <div className="flex flex-1 items-center justify-center">
+      {/* Hovedinnhold: vieweren rendres i layout bak dette laget */}
+      <div className="relative flex flex-1 flex-col">
+        {/* Verktøylinje for 3D (snitt etc.) */}
+        <div className="pointer-events-auto flex items-center gap-3 border-b border-gray-200 bg-white px-4 py-2">
+          <Layers className="h-4 w-4 text-gray-400" />
+          <span className="text-sm font-medium text-gray-900">
+            {tegninger.length} modell{tegninger.length !== 1 ? "er" : ""}
+          </span>
+          <div className="flex-1" />
+          <div className="flex items-center gap-1 border-r border-gray-200 pr-3">
+            <button
+              onClick={() => {
+                const nyModus = !klippModus;
+                setKlippModus(nyModus);
+                if (nyModus) viewerRef.current?.settKlipperSynlig(true);
+              }}
+              className={`flex items-center gap-1 rounded px-2 py-1 text-xs ${
+                klippModus ? "bg-sitedoc-primary text-white" : "text-gray-600 hover:bg-gray-100"
+              }`}
+              title="Snitt-modus"
+            >
+              <Scissors className="h-3.5 w-3.5" />
+              Snitt
+            </button>
+            {klippModus && (
+              <button
+                onClick={() => {
+                  viewerRef.current?.fjernAlleKlippeplan();
+                  setKlippModus(false);
+                }}
+                className="rounded px-2 py-1 text-xs text-gray-500 hover:bg-gray-100"
+              >
+                Fjern alle
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Filter-chip-bar */}
+        {(aktiveFiltre.length > 0 || skjulteObjekter.length > 0) && (
+          <div className="pointer-events-auto">
+            <FilterChipBar
+              aktiveFiltre={aktiveFiltre}
+              skjulteObjekter={skjulteObjekter}
+              onFjernFilter={fjernFilter}
+              onFjernSkjultObjekt={fjernSkjultObjekt}
+              onNullstillAlt={nullstillAlt}
+            />
+          </div>
+        )}
+
+        {!harModeller && (
+          <div className="pointer-events-auto flex flex-1 items-center justify-center bg-gray-100">
             <div className="text-center text-gray-400">
               <Box className="mx-auto mb-2 h-12 w-12 text-gray-300" />
               <p className="text-sm">Last opp IFC-modeller for 3D-visning</p>
             </div>
           </div>
-        ) : (
-          <ViewerCanvas erSynlig={true} />
         )}
 
         {/* Flytende egenskapspanel */}
         {valgtObjekt && (
-          <EgenskapsPopup
-            objekt={valgtObjekt}
-            onLukk={() => setValgtObjekt(null)}
-            onSkjul={() => skjulObjektOgLeggTil(valgtObjekt)}
-            onFilterKategori={async (kategori: string) => {
-              await leggTilFilter({ type: "kategori", verdi: kategori });
-            }}
-            onFilterLag={async (lag: string) => {
-              await leggTilFilter({ type: "lag", verdi: lag });
-            }}
-            onFilterSystem={async (system: string) => {
-              await leggTilFilter({ type: "system", verdi: system });
-            }}
-          />
+          <div className="pointer-events-auto">
+            <EgenskapsPopup
+              objekt={valgtObjekt}
+              onLukk={() => setValgtObjekt(null)}
+              onSkjul={() => skjulObjektOgLeggTil(valgtObjekt)}
+              onFilterKategori={async (kategori: string) => {
+                await leggTilFilter({ type: "kategori", verdi: kategori });
+              }}
+              onFilterLag={async (lag: string) => {
+                await leggTilFilter({ type: "lag", verdi: lag });
+              }}
+              onFilterSystem={async (system: string) => {
+                await leggTilFilter({ type: "system", verdi: system });
+              }}
+            />
+          </div>
         )}
+
+        {/* Transparent flex-spacer — lar klikk treffe vieweren under */}
+        <div className="flex-1" />
       </div>
     </div>
   );

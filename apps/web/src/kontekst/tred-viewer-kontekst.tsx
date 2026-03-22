@@ -11,11 +11,7 @@ import {
 } from "react";
 import { useParams } from "next/navigation";
 import { trpc } from "@/lib/trpc";
-import {
-  Loader2,
-  Layers,
-  Scissors,
-} from "lucide-react";
+import { Loader2 } from "lucide-react";
 import type {
   TegningRad,
   PunktSkyRad,
@@ -34,7 +30,6 @@ import {
   settWebifcKonstanter,
   finnIfcTypeKode,
 } from "@/app/dashbord/[prosjektId]/3d-visning/hjelpefunksjoner";
-import { FilterChipBar } from "@/app/dashbord/[prosjektId]/3d-visning/komponenter/FilterChipBar";
 
 /* ------------------------------------------------------------------ */
 /*  Kontekst-type                                                       */
@@ -306,14 +301,8 @@ export function ViewerCanvas({
     tegninger,
     viewerRef,
     klippModus,
-    setKlippModus,
     setValgtObjekt,
     oppdaterModellStatus,
-    skjulteObjekter,
-    aktiveFiltre,
-    fjernFilter,
-    fjernSkjultObjekt,
-    nullstillAlt,
   } = useTreDViewer();
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -1086,70 +1075,21 @@ export function ViewerCanvas({
   }, [klippModus, viewerRef]);
 
   return (
-    <div className="flex h-full flex-col">
-      {/* Verktøylinje */}
-      <div className="flex items-center gap-3 border-b border-gray-200 bg-white px-4 py-2">
-        <Layers className="h-4 w-4 text-gray-400" />
-        <span className="text-sm font-medium text-gray-900">
-          {tegninger.length} modell{tegninger.length !== 1 ? "er" : ""}
-        </span>
-        <div className="flex-1" />
-        <div className="flex items-center gap-1 border-r border-gray-200 pr-3">
-          <button
-            onClick={() => {
-              const nyModus = !klippModus;
-              setKlippModus(nyModus);
-              if (nyModus) viewerRef.current?.settKlipperSynlig(true);
-            }}
-            className={`flex items-center gap-1 rounded px-2 py-1 text-xs ${
-              klippModus ? "bg-sitedoc-primary text-white" : "text-gray-600 hover:bg-gray-100"
-            }`}
-            title="Snitt-modus"
-          >
-            <Scissors className="h-3.5 w-3.5" />
-            Snitt
-          </button>
-          {klippModus && (
-            <button
-              onClick={() => {
-                viewerRef.current?.fjernAlleKlippeplan();
-                setKlippModus(false);
-              }}
-              className="rounded px-2 py-1 text-xs text-gray-500 hover:bg-gray-100"
-            >
-              Fjern alle
-            </button>
+    <div ref={containerRef} className="relative h-full w-full">
+      {laster && (
+        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-gray-100">
+          <Loader2 className="h-10 w-10 animate-spin text-sitedoc-primary" />
+          <p className="mt-3 text-sm font-medium text-gray-700">
+            Laster modeller ({antallLastet}/{tegninger.length})...
+          </p>
+          {lasterNavn && (
+            <p className="mt-1 text-xs font-medium text-sitedoc-secondary">{lasterNavn}</p>
           )}
+          <p className="mt-1 text-xs text-gray-500">
+            Parsing skjer lokalt i nettleseren. Større filer tar lengre tid.
+          </p>
         </div>
-      </div>
-
-      {/* Filter-chip-bar */}
-      {(aktiveFiltre.length > 0 || skjulteObjekter.length > 0) && (
-        <FilterChipBar
-          aktiveFiltre={aktiveFiltre}
-          skjulteObjekter={skjulteObjekter}
-          onFjernFilter={fjernFilter}
-          onFjernSkjultObjekt={fjernSkjultObjekt}
-          onNullstillAlt={nullstillAlt}
-        />
       )}
-
-      <div ref={containerRef} className="relative flex-1">
-        {laster && (
-          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-gray-100">
-            <Loader2 className="h-10 w-10 animate-spin text-sitedoc-primary" />
-            <p className="mt-3 text-sm font-medium text-gray-700">
-              Laster modeller ({antallLastet}/{tegninger.length})...
-            </p>
-            {lasterNavn && (
-              <p className="mt-1 text-xs font-medium text-sitedoc-secondary">{lasterNavn}</p>
-            )}
-            <p className="mt-1 text-xs text-gray-500">
-              Parsing skjer lokalt i nettleseren. Større filer tar lengre tid.
-            </p>
-          </div>
-        )}
-      </div>
     </div>
   );
 }
