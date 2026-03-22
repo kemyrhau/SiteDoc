@@ -1,10 +1,15 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { trpc } from "@/lib/trpc";
 import { useBygning } from "@/kontekst/bygning-kontekst";
 import { Button, Select, Modal, Spinner } from "@sitedoc/ui";
+import {
+  beregnTransformasjon,
+  tegningTilGps,
+} from "@sitedoc/shared";
+import type { GeoReferanse } from "@sitedoc/shared";
 
 interface ArbeidsflopMal {
   template: { id: string; name: string; category: string };
@@ -113,6 +118,9 @@ export default function TegningerSide() {
   const [valgtMal, setValgtMal] = useState("");
   const [valgtOppretter, setValgtOppretter] = useState("");
 
+  // GPS-koordinater ved musebevegelse over georeferert tegning
+  const [gpsKoordinat, setGpsKoordinat] = useState<{ lat: number; lng: number } | null>(null);
+
   const [dwgPoller, setDwgPoller] = useState(false);
   const { data: tegning, isLoading } = trpc.tegning.hentMedId.useQuery(
     { id: aktivTegning?.id ?? "" },
@@ -127,6 +135,17 @@ export default function TegningerSide() {
     const status = tegning?.conversionStatus;
     setDwgPoller(status === "pending" || status === "converting");
   }, [tegning?.conversionStatus]);
+
+  // Beregn GPS-transformasjon for georefererte tegninger
+  const geoRef = (tegning as unknown as { geoReference?: unknown } | undefined)?.geoReference as GeoReferanse | null;
+  const transformasjon = useMemo(() => {
+    if (!geoRef) return null;
+    try {
+      return beregnTransformasjon(geoRef);
+    } catch {
+      return null;
+    }
+  }, [geoRef]);
 
   // Hent eksisterende oppgavemarkører for denne tegningen
   const { data: oppgaveMarkører } = trpc.oppgave.hentForTegning.useQuery(
@@ -183,6 +202,7 @@ export default function TegningerSide() {
   useEffect(() => {
     setZoom(STANDARD_ZOOM);
     setNyMarkør(null);
+    setGpsKoordinat(null);
   }, [aktivTegning?.id]);
 
   // Hent SVG-innhold for inline rendering med zoom-justert linjetykkelse
@@ -259,6 +279,24 @@ export default function TegningerSide() {
     setValgtMal("");
     setValgtOppretter("");
   }
+
+  const handleMuseBevegelse = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (!transformasjon) return;
+    const container = e.currentTarget;
+    const rect = container.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * 100;
+    const y = ((e.clientY - rect.top) / rect.height) * 100;
+    try {
+      const gps = tegningTilGps({ x, y }, transformasjon);
+      setGpsKoordinat(gps);
+    } catch {
+      setGpsKoordinat(null);
+    }
+  }, [transformasjon]);
+
+  const handleMuseForlat = useCallback(() => {
+    setGpsKoordinat(null);
+  }, []);
 
   const handleBildeKlikk = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const container = e.currentTarget;
@@ -506,6 +544,23 @@ export default function TegningerSide() {
           </button>
         </div>
 
+        {/* GPS-koordinater for georefererte tegninger */}
+        {transformasjon && (
+          <>
+            <div className="mx-2 h-4 w-px bg-gray-200" />
+            <MapPin className="h-3.5 w-3.5 text-green-600" />
+            {gpsKoordinat ? (
+              <span className="font-mono text-xs text-gray-600">
+                {gpsKoordinat.lat.toFixed(6)}, {gpsKoordinat.lng.toFixed(6)}
+              </span>
+            ) : (
+              <span className="text-xs text-gray-400">
+                Beveg musen over tegningen
+              </span>
+            )}
+          </>
+        )}
+
         {!posisjonsvelgerAktiv && (
           <>
             <div className="mx-2 h-4 w-px bg-gray-200" />
@@ -552,6 +607,8 @@ export default function TegningerSide() {
               className="relative inline-block cursor-crosshair"
               style={{ width: `${zoom * 100}%`, minWidth: "100%" }}
               onClick={handleBildeKlikk}
+              onMouseMove={handleMuseBevegelse}
+              onMouseLeave={handleMuseForlat}
             >
               {/* SVG: inline rendering med zoom-justert linjetykkelse */}
               {erSvgFil && svgInnhold ? (
@@ -612,6 +669,8 @@ export default function TegningerSide() {
             <div
               className="absolute inset-0 cursor-crosshair"
               onClick={handleBildeKlikk}
+              onMouseMove={handleMuseBevegelse}
+              onMouseLeave={handleMuseForlat}
               style={{ background: "transparent" }}
             />
             {/* Markører over PDF */}

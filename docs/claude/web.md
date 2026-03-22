@@ -141,6 +141,12 @@ Interaktiv visning med musesentrert zoom (0.25x–50x / 25%–5000%):
 - Eksisterende markører: røde MapPin fra `oppgave.hentForTegning`
 - PDF: iframe med transparent overlay
 
+**GPS-koordinater (georefererte tegninger):**
+- Tegninger med `geoReference` viser live GPS-koordinater i headeren ved musebevegelse
+- Bruker `tegningTilGps()` fra `@sitedoc/shared` med tegningens transformasjon
+- Fungerer for ALLE georefererte tegninger (ikke bare "Utomhus"-gruppert)
+- Grønn MapPin-ikon + monospace koordinater (lat, lng med 6 desimaler)
+
 **IFC-metadata:**
 - Klikkbar "IFC"-badge i header viser uttrukket metadata (prosjekt, org, GPS, etasjer, programvare)
 - Data fra `Drawing.ifcMetadata` (Json-felt, uttrukket ved opplasting)
