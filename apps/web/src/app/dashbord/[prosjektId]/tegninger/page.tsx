@@ -305,7 +305,20 @@ export default function TegningerSide() {
     setGpsKoordinat(null);
   }, []);
 
+  // Skille mellom pan (dra) og klikk (plassering)
+  const museNedPosRef = useRef<{ x: number; y: number } | null>(null);
+  const handleMuseNed = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    museNedPosRef.current = { x: e.clientX, y: e.clientY };
+  }, []);
+
   const handleBildeKlikk = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    // Ignorer klikk hvis musen ble dratt (pan)
+    if (museNedPosRef.current) {
+      const dx = e.clientX - museNedPosRef.current.x;
+      const dy = e.clientY - museNedPosRef.current.y;
+      if (Math.sqrt(dx * dx + dy * dy) > 5) return;
+    }
+
     const container = e.currentTarget;
     const rect = container.getBoundingClientRect();
     const x = ((e.clientX - rect.left) / rect.width) * 100;
@@ -613,6 +626,7 @@ export default function TegningerSide() {
             <div
               className="relative inline-block cursor-crosshair"
               style={{ width: `${zoom * 100}%`, minWidth: "100%" }}
+              onMouseDown={handleMuseNed}
               onClick={handleBildeKlikk}
               onMouseMove={handleMuseBevegelse}
               onMouseLeave={handleMuseForlat}
@@ -675,6 +689,7 @@ export default function TegningerSide() {
             {/* Overlay som fanger klikk for markørplassering */}
             <div
               className="absolute inset-0 cursor-crosshair"
+              onMouseDown={handleMuseNed}
               onClick={handleBildeKlikk}
               onMouseMove={handleMuseBevegelse}
               onMouseLeave={handleMuseForlat}
