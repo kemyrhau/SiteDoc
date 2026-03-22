@@ -269,8 +269,51 @@ export default function TegningerSide() {
       });
     }
 
+    // Dra-for-å-panorere (midterste museknapp eller venstre + dra)
+    let dragging = false;
+    let startX = 0;
+    let startY = 0;
+    let startScrollLeft = 0;
+    let startScrollTop = 0;
+
+    function handlePointerDown(e: PointerEvent) {
+      if (e.button !== 0) return;
+      dragging = false; // Settes til true ved bevegelse
+      startX = e.clientX;
+      startY = e.clientY;
+      startScrollLeft = el!.scrollLeft;
+      startScrollTop = el!.scrollTop;
+    }
+
+    function handlePointerMove(e: PointerEvent) {
+      if (e.buttons !== 1) return; // Venstre knapp holdt nede
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      if (!dragging && Math.sqrt(dx * dx + dy * dy) > 5) {
+        dragging = true;
+        el!.style.cursor = "grabbing";
+      }
+      if (dragging) {
+        el!.scrollLeft = startScrollLeft - dx;
+        el!.scrollTop = startScrollTop - dy;
+      }
+    }
+
+    function handlePointerUp() {
+      dragging = false;
+      el!.style.cursor = "";
+    }
+
     el.addEventListener("wheel", handleWheel, { passive: false });
-    return () => el.removeEventListener("wheel", handleWheel);
+    el.addEventListener("pointerdown", handlePointerDown);
+    el.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp);
+    return () => {
+      el.removeEventListener("wheel", handleWheel);
+      el.removeEventListener("pointerdown", handlePointerDown);
+      el.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+    };
   }, [tegningId, isLoading]);
 
   function lukkModal() {
