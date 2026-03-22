@@ -1665,6 +1665,30 @@ function SammenslattIfcViewer({
             synligeModeller.add(fragModelId);
             totalBbox.union(fm.box);
 
+            // Skjul IfcSpace-elementer (abstrakte rom-volumer, ikke fysiske bygningsdeler)
+            try {
+              if (!propsApiRef) {
+                const api = new WEBIFC.IfcAPI();
+                api.SetWasmPath("/", true);
+                await api.Init((_f) => "/web-ifc.wasm");
+                propsApiRef = api;
+              }
+              let mid = openModelIds.get(fragModelId);
+              if (mid === undefined) {
+                mid = propsApiRef.OpenModel(data);
+                openModelIds.set(fragModelId, mid);
+              }
+              const spaceApi = propsApiRef as unknown as { GetLineIDsWithType: (m: number, t: number) => { size: () => number; get: (i: number) => number } };
+              const spaceIds = spaceApi.GetLineIDsWithType(mid, WEBIFC.IFCSPACE);
+              if (spaceIds.size() > 0) {
+                const ids: number[] = [];
+                for (let si = 0; si < spaceIds.size(); si++) ids.push(spaceIds.get(si));
+                await model.setVisible(ids, false);
+              }
+            } catch {
+              // Ikke kritisk — IfcSpace-skjuling er kosmetisk
+            }
+
             lastet++;
             setAntallLastet(lastet);
             onModellStatusRef.current(tegning.id, { laster: false, synlig: true });
