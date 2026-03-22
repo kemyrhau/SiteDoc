@@ -198,9 +198,9 @@ export default function TreDVisning() {
         ))}
       </div>
 
-      {/* Fane-innhold — 3D-modell holdes montert med display:none for å bevare state */}
-      <div className="flex flex-1 overflow-hidden">
-        <div className={`flex flex-1 overflow-hidden ${aktivFane !== "3d-modell" ? "hidden" : ""}`}>
+      {/* Fane-innhold — 3D-modell holdes montert for å bevare Three.js-scene */}
+      <div className="relative flex flex-1 overflow-hidden">
+        <div className={`flex flex-1 overflow-hidden ${aktivFane !== "3d-modell" ? "pointer-events-none invisible absolute inset-0" : ""}`}>
           <Fane3DModell prosjektId={prosjektId!} />
         </div>
         {aktivFane === "overflater" && (
