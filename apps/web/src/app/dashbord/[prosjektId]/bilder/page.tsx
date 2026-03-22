@@ -25,6 +25,9 @@ import {
   X,
   Crosshair,
   Info,
+  MousePointer,
+  Download,
+  Trash2,
 } from "lucide-react";
 
 // ──────────────────────────────────────────────────────────────
@@ -505,36 +508,14 @@ export default function BilderSide() {
     }
 
     return (
-      <div className="relative flex-1">
-        <BildeKart
-          bilder={bilderMedGps}
-          onKlikkBilde={(index) => {
-            setLightboxBilder(
-              bilderMedGps.map((b) => ({
-                id: b.id,
-                fileUrl: b.fileUrl,
-                fileName: b.fileName,
-                createdAt: b.createdAt,
-                gpsLat: b.gpsLat,
-                gpsLng: b.gpsLng,
-                parentType: b.parentType,
-                parentId: b.parentId,
-                parentLabel: b.parentLabel,
-                prosjektId: params.prosjektId,
-              })),
-            );
-            setLightboxIndex(index);
-          }}
-        />
-        {lightboxIndex !== null && (
-          <BildeLightbox
-            bilder={lightboxBilder}
-            aktivIndex={lightboxIndex}
-            onLukk={() => setLightboxIndex(null)}
-            onEndreIndex={setLightboxIndex}
-          />
-        )}
-      </div>
+      <KartVisningMedValg
+        bilderMedGps={bilderMedGps}
+        prosjektId={params.prosjektId}
+        lightboxIndex={lightboxIndex}
+        lightboxBilder={lightboxBilder}
+        setLightboxIndex={setLightboxIndex}
+        setLightboxBilder={setLightboxBilder}
+      />
     );
   }
 
@@ -894,6 +875,239 @@ export default function BilderSide() {
       ) : (
         <div className="flex flex-1 items-center justify-center bg-gray-50">
           <p className="text-gray-400">Ingen fil tilgjengelig for denne tegningen</p>
+        </div>
+      )}
+
+      {/* Lightbox */}
+      {lightboxIndex !== null && (
+        <BildeLightbox
+          bilder={lightboxBilder}
+          aktivIndex={lightboxIndex}
+          onLukk={() => setLightboxIndex(null)}
+          onEndreIndex={setLightboxIndex}
+        />
+      )}
+    </div>
+  );
+}
+
+/* ================================================================== */
+/*  Kartvisning med velgemodus og eksport                              */
+/* ================================================================== */
+
+function KartVisningMedValg({
+  bilderMedGps,
+  prosjektId,
+  lightboxIndex,
+  lightboxBilder,
+  setLightboxIndex,
+  setLightboxBilder,
+}: {
+  bilderMedGps: NormalisertBilde[];
+  prosjektId: string;
+  lightboxIndex: number | null;
+  lightboxBilder: LightboxBilde[];
+  setLightboxIndex: (i: number | null) => void;
+  setLightboxBilder: (b: LightboxBilde[]) => void;
+}) {
+  const [velgModus, setVelgModus] = useState(false);
+  const [valgteBildeIder, setValgteBildeIder] = useState<Set<string>>(new Set());
+  const [eksporterer, setEksporterer] = useState(false);
+
+  const valgteBilder = useMemo(
+    () =>
+      bilderMedGps
+        .filter((b) => valgteBildeIder.has(b.id))
+        .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()),
+    [bilderMedGps, valgteBildeIder],
+  );
+
+  const handleVelgBilder = useCallback(
+    (indekser: number[]) => {
+      setValgteBildeIder((prev) => {
+        const neste = new Set(prev);
+        for (const i of indekser) {
+          const bilde = bilderMedGps[i];
+          if (bilde) {
+            if (neste.has(bilde.id)) neste.delete(bilde.id);
+            else neste.add(bilde.id);
+          }
+        }
+        return neste;
+      });
+    },
+    [bilderMedGps],
+  );
+
+  const handleKlikkBilde = useCallback(
+    (index: number) => {
+      setLightboxBilder(
+        bilderMedGps.map((b) => ({
+          id: b.id,
+          fileUrl: b.fileUrl,
+          fileName: b.fileName,
+          createdAt: b.createdAt,
+          gpsLat: b.gpsLat,
+          gpsLng: b.gpsLng,
+          parentType: b.parentType,
+          parentId: b.parentId,
+          parentLabel: b.parentLabel,
+          prosjektId,
+        })),
+      );
+      setLightboxIndex(index);
+    },
+    [bilderMedGps, prosjektId, setLightboxBilder, setLightboxIndex],
+  );
+
+  async function eksporterValgte() {
+    if (valgteBilder.length === 0) return;
+    setEksporterer(true);
+    try {
+      // Bygg HTML for utskrift
+      const html = `
+        <html>
+        <head>
+          <title>Bildeeksport — SiteDoc</title>
+          <style>
+            @page { margin: 15mm; size: A4; }
+            body { font-family: sans-serif; color: #333; }
+            h1 { font-size: 18px; margin-bottom: 4px; }
+            .info { font-size: 12px; color: #666; margin-bottom: 20px; }
+            .bilde { page-break-inside: avoid; margin-bottom: 24px; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; }
+            .bilde img { width: 100%; display: block; }
+            .meta { padding: 10px 14px; background: #f9fafb; font-size: 11px; }
+            .meta div { margin-bottom: 3px; }
+            .label { color: #888; display: inline-block; width: 80px; }
+          </style>
+        </head>
+        <body>
+          <h1>Bildeeksport</h1>
+          <div class="info">${valgteBilder.length} bilder · ${new Date(valgteBilder[0]!.createdAt).toLocaleDateString("nb-NO")} – ${new Date(valgteBilder[valgteBilder.length - 1]!.createdAt).toLocaleDateString("nb-NO")}</div>
+          ${valgteBilder.map((b, i) => `
+            <div class="bilde">
+              <img src="/api${b.fileUrl}" crossorigin="anonymous" />
+              <div class="meta">
+                <div><span class="label">Nr.</span> ${i + 1} av ${valgteBilder.length}</div>
+                <div><span class="label">Dato</span> ${new Date(b.createdAt).toLocaleString("nb-NO")}</div>
+                <div><span class="label">Fil</span> ${b.fileName}</div>
+                ${b.gpsLat != null ? `<div><span class="label">GPS</span> ${b.gpsLat.toFixed(6)}, ${b.gpsLng?.toFixed(6)}</div>` : ""}
+                <div><span class="label">Rapport</span> ${b.parentLabel}</div>
+              </div>
+            </div>
+          `).join("")}
+        </body>
+        </html>
+      `;
+      const vindu = window.open("", "_blank");
+      if (vindu) {
+        vindu.document.write(html);
+        vindu.document.close();
+        vindu.focus();
+        // Vent på at bilder lastes
+        setTimeout(() => vindu.print(), 1500);
+      }
+    } finally {
+      setEksporterer(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-1 overflow-hidden">
+      {/* Kart */}
+      <div className="relative flex-1">
+        {/* Velgemodus-knapp */}
+        <div className="absolute right-3 top-3 z-[1000] flex gap-1.5">
+          <button
+            onClick={() => {
+              setVelgModus(!velgModus);
+              if (velgModus) setValgteBildeIder(new Set());
+            }}
+            className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium shadow-md ${
+              velgModus
+                ? "bg-sitedoc-primary text-white"
+                : "bg-white text-gray-700 hover:bg-gray-50"
+            }`}
+          >
+            <MousePointer className="h-3.5 w-3.5" />
+            {velgModus ? "Avslutt valg" : "Velg bilder"}
+          </button>
+        </div>
+
+        <BildeKart
+          bilder={bilderMedGps}
+          onKlikkBilde={handleKlikkBilde}
+          onVelgBilder={handleVelgBilder}
+          velgModus={velgModus}
+          valgteBilder={valgteBildeIder}
+        />
+      </div>
+
+      {/* Sidepanel med valgte bilder */}
+      {velgModus && valgteBilder.length > 0 && (
+        <div className="flex w-[280px] flex-col border-l border-gray-200 bg-white">
+          <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
+            <h3 className="text-sm font-semibold text-gray-900">
+              {valgteBilder.length} valgt
+            </h3>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setValgteBildeIder(new Set())}
+                className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                title="Fjern alle"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+              <button
+                onClick={eksporterValgte}
+                disabled={eksporterer}
+                className="flex items-center gap-1 rounded bg-sitedoc-primary px-2.5 py-1.5 text-xs font-medium text-white hover:bg-sitedoc-primary/90 disabled:opacity-50"
+              >
+                <Download className="h-3.5 w-3.5" />
+                Eksporter
+              </button>
+            </div>
+          </div>
+          <div className="flex-1 overflow-y-auto">
+            {valgteBilder.map((b, i) => (
+              <div
+                key={b.id}
+                className="flex items-center gap-3 border-b border-gray-100 px-3 py-2"
+              >
+                <img
+                  src={`/api${b.fileUrl}`}
+                  alt={b.fileName}
+                  className="h-12 w-12 shrink-0 rounded object-cover"
+                  crossOrigin="anonymous"
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-xs font-medium text-gray-900">
+                    {i + 1}. {b.parentLabel}
+                  </p>
+                  <p className="text-[10px] text-gray-500">
+                    {new Date(b.createdAt).toLocaleString("nb-NO")}
+                  </p>
+                  {b.gpsLat != null && (
+                    <p className="font-mono text-[10px] text-gray-400">
+                      {b.gpsLat.toFixed(5)}, {b.gpsLng?.toFixed(5)}
+                    </p>
+                  )}
+                </div>
+                <button
+                  onClick={() => {
+                    setValgteBildeIder((prev) => {
+                      const neste = new Set(prev);
+                      neste.delete(b.id);
+                      return neste;
+                    });
+                  }}
+                  className="shrink-0 rounded p-1 text-gray-300 hover:bg-gray-100 hover:text-gray-500"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
