@@ -129,16 +129,20 @@ Interaktiv visning med musesentrert zoom (0.25x–50x / 25%–5000%):
 - `--svg-zoom` CSS-variabel settes på container via `style={{ "--svg-zoom": zoom }}`
 - SVG hentes, width/height fjernes, erstattes med `width="100%" height="auto"`
 - Originale `<style>`-blokker fjernes, egen zoom-aware style injiseres
+- SVG-elementer har `data-layer` (lagnavn) og `data-type` (entitetstype) attributter fra DWG-konverteringen
 
-**Zoom:**
+**Zoom og panorering:**
 - Multiplikativ scroll-zoom: `faktor = deltaY > 0 ? 0.8 : 1.25`, `zoom * faktor`
-- Musesentrert: beregner musposisjon som brøkdel av scroll-container, justerer scrollLeft/scrollTop etter zoom
+- Musesentrert: beregner innholdspunkt under musen, justerer scrollLeft/scrollTop etter zoom
 - Zoom-nivåer for knapper: [0.25, 0.5, 0.75, 1, 1.5, 2, 3, 5, 10, 20, 50]
 - Klikk på prosenttall tilbakestiller til 100%
+- Dra-for-å-panorere: venstre museknapp + dra (>5px) panorerer tegningen
+- Pan/klikk-skilling: musedown-posisjon lagres, onClick ignoreres hvis bevegelse >5px
+- useEffect med `[tegningId, isLoading]` dependencies — registrerer wheel/pointer-handlers når container mountes etter data-lasting
 
-**Markører og plasseringsmodus:**
-- Navigering vs. Plasseringsmodus (crosshair-cursor)
-- Klikk → blå markør → opprett-modal (oppgave/sjekkliste)
+**Klikkemodus (toggle i verktøylinjen, kun SVG-tegninger):**
+- **Oppgave** (standard): klikk plasserer blå markør → opprett-modal (oppgave/sjekkliste)
+- **Inspeksjon**: klikk på SVG-element viser DWG-egenskaper (lag, type, tekstinnhold) i popup. Elementer med `data-layer` får bredere stroke (5px) og blå hover-highlight. For TEXT/MTEXT-elementer hentes tekstinnholdet fra DOM via `target.textContent`
 - Eksisterende markører: røde MapPin fra `oppgave.hentForTegning`
 - PDF: iframe med transparent overlay
 
@@ -271,14 +275,14 @@ Sammenlign to overflatemodeller med rød/blå visualisering og volumberegning.
 ### Navigasjon
 Erstatter separate `/punktskyer` og `/modeller`-ruter. Gamle URLer redirectes via `next.config.js`. Sidebar viser én "3D"-knapp i stedet for to.
 
-### Planlagt: Web UI-forbedringer for 3D-visning
+### Persistent 3D-viewer (Fase 1 — implementert)
 
-**Layout-level viewer-persistering (Fase 1):**
-Gjør 3D-vieweren instant ved navigasjon (3D ↔ Tegninger ↔ andre sider). Flytt `SammenslattIfcViewer` / `ViewerCanvas` til prosjekt-layouten (`/dashbord/[prosjektId]/layout.tsx`). Vis/skjul basert på aktiv rute. Three.js-scene, WebGL-kontekst og lastede modeller bevares mellom sidenavigasjoner.
+`ViewerCanvas` lever i prosjekt-layouten (`/dashbord/[prosjektId]/layout.tsx`), ikke i page.tsx. Three.js-scene, WebGL-kontekst og lastede IFC-modeller overlever navigasjon mellom ruter.
 
-- **Bakgrunn:** Brukere bytter ofte mellom tegninger og 3D for å skaffe oversikt. Dalux har løst dette med instant bytte. Dagens løsning re-laster alt ved navigasjon (fil-cache sparer nedlasting, men WASM-parsing + scene-oppsett tar fortsatt tid).
-- **Krever:** Refaktorering av 3D-sidekoden — viewer-komponenten må skilles ut fra page.tsx og løftes til layout-nivå med rute-basert synlighet.
-- **Status:** `TreDViewerKontekst` er allerede i prosjekt-layouten og holder state. `ViewerCanvas` rendres i page.tsx men scenen overlever navigasjon. Gjenstår: flytte selve canvas-elementet til layout.
+- **Layout:** ViewerCanvas rendres permanent i layout med `absolute inset-0`. Vis/skjul med CSS basert på `usePathname().endsWith("/3d-visning")`
+- **Children:** Page-innhold (sidepanel, verktøylinje, filter-bar) rendres over vieweren med `pointer-events-none` på wrapper, `pointer-events-auto` på interaktive elementer
+- **Bakgrunnslasting:** IFC-modeller begynner lasting så snart prosjektet åpnes, uavhengig av aktiv rute. Når bruker navigerer til 3D-visning er modellene ofte allerede lastet
+- **Verktøylinje og filter-bar:** Flyttet fra ViewerCanvas til page.tsx (`Fane3DModell`-komponenten)
 
 ## Sjekkliste-endringslogg
 

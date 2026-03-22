@@ -115,6 +115,14 @@ Revisjonshistorikk via `drawing_revisions`. Georeferanse med 2 punkter for simil
 - Dokumentflyt redigeringsmodal (navn, maler, medlemmer)
 - HMS-avvik: alle kan opprette
 - Lisenssystem: betalingsside
+- **DWG-import og konvertering:** Flere forbedringer trengs:
+  - DXF-parser feiler på noen filer (ugyldig extents 1e20) → faller tilbake til dwg2SVG uten metadata
+  - Blokk-referanser (INSERT) mister lag-tilhørighet ved utfolding
+  - Hatch-mønstre (skravur) støttes ikke — bare SOLID-fyll
+  - Stor blokk-filtrering (>10k entiteter) kan fjerne viktig innhold
+  - Layout-SVGer er identiske kopier av model space — viewport-klipping mangler
+  - Re-konvertering av eksisterende tegninger krever manuelt script — bør automatiseres
+  - Vurder å lagre DXF-lag/blokk-struktur i databasen for rikere egenskapsvisning
 
 ## Modularkitektur (planlagt)
 
