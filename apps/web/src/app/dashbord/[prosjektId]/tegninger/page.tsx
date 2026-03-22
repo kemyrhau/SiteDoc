@@ -245,6 +245,32 @@ export default function TegningerSide() {
       .catch(() => setSvgInnhold(null));
   }, [svgUrl, erSvgFil]);
 
+  // SVG-variant for inspeksjonsmodus med bredere treffområde og hover-highlight
+  const svgInnholdInspeksjon = useMemo(() => {
+    if (!svgInnhold) return null;
+    // Erstatt stroke-width CSS med bredere versjon + pointer-events stroke + hover-effekt
+    return svgInnhold.replace(
+      /<style>[^<]*<\/style>/,
+      `<style>
+        line,polyline,circle,path,ellipse,polygon{
+          stroke-width:calc(1.5 / var(--svg-zoom, 1)) !important;
+          pointer-events:stroke;
+          cursor:pointer;
+        }
+        [data-layer]{
+          stroke-width:calc(8 / var(--svg-zoom, 1)) !important;
+          stroke-opacity:0.01;
+          paint-order:stroke;
+        }
+        [data-layer]:hover{
+          stroke-opacity:1 !important;
+          stroke:#3b82f6 !important;
+          stroke-width:calc(3 / var(--svg-zoom, 1)) !important;
+        }
+      </style>`,
+    );
+  }, [svgInnhold]);
+
   // Musehjul-zoom sentrert på musepekeren
   // Re-registrer når tegning endres (containerRef mountes etter data-lasting)
   const tegningId = aktivTegning?.id;
@@ -730,7 +756,7 @@ export default function TegningerSide() {
                 <div
                   className="block w-full"
                   style={{ "--svg-zoom": zoom } as React.CSSProperties}
-                  dangerouslySetInnerHTML={{ __html: svgInnhold }}
+                  dangerouslySetInnerHTML={{ __html: klikkModus === "inspeksjon" && svgInnholdInspeksjon ? svgInnholdInspeksjon : svgInnhold }}
                 />
               ) : (
                 <img
