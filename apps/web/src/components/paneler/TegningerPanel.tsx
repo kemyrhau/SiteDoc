@@ -19,6 +19,7 @@ interface Tegning {
   name: string;
   drawingNumber: string | null;
   discipline: string | null;
+  fileType: string | null;
   floor: string | null;
   geoReference: unknown;
 }
@@ -199,9 +200,11 @@ export function TegningerPanel() {
         bygning.name.toLowerCase().includes(sokLower) ||
         (bygning.number && String(bygning.number).includes(sok));
 
+      // Filtrer bort IFC-filer (vises i 3D-visning, ikke tegningsvisning)
+      const utenIfc = bygning.drawings.filter((t) => t.fileType?.toLowerCase() !== "ifc");
       const filtrerTegninger = sok
-        ? bygning.drawings.filter((t) => tegningMatcherSok(t, sokLower))
-        : bygning.drawings;
+        ? utenIfc.filter((t) => tegningMatcherSok(t, sokLower))
+        : utenIfc;
 
       if (!bygningMatch && filtrerTegninger.length === 0) continue;
 
