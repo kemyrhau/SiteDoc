@@ -15,6 +15,7 @@ import {
   ChevronDown,
   Trash2,
   Scissors,
+  EyeOff,
   Palette,
   Layers,
   BarChart3,
@@ -49,6 +50,7 @@ interface EgenskapGruppe {
 
 interface ValgtObjekt {
   localId: number;
+  modelId: string;
   kategori: string | null;
   attributter: Record<string, EgenskapVerdi>;
   relasjoner: EgenskapGruppe[];
@@ -240,6 +242,7 @@ function Fane3DModell({ prosjektId }: { prosjektId: string }) {
     toggleModell: (tegningId: string, synlig: boolean) => void;
     fjernAlleKlippeplan: () => void;
     settKlipperSynlig: (synlig: boolean) => void;
+    skjulObjekt: (modelId: string, localId: number) => Promise<void>;
   } | null>(null);
 
   const opprettMutation = trpc.tegning.opprett.useMutation({
@@ -450,7 +453,14 @@ function Fane3DModell({ prosjektId }: { prosjektId: string }) {
 
         {/* Flytende egenskapspanel */}
         {valgtObjekt && (
-          <EgenskapsPopup objekt={valgtObjekt} onLukk={() => setValgtObjekt(null)} />
+          <EgenskapsPopup
+            objekt={valgtObjekt}
+            onLukk={() => setValgtObjekt(null)}
+            onSkjul={async () => {
+              await viewerRef.current?.skjulObjekt(valgtObjekt.modelId, valgtObjekt.localId);
+              setValgtObjekt(null);
+            }}
+          />
         )}
       </div>
     </div>
@@ -1261,9 +1271,11 @@ function ObjektTre({
 function EgenskapsPopup({
   objekt,
   onLukk,
+  onSkjul,
 }: {
   objekt: ValgtObjekt;
   onLukk: () => void;
+  onSkjul: () => void;
 }) {
   const kategoriNavn = objekt.kategori?.replace(/^Ifc/, "") ?? "Ukjent";
 
@@ -1278,12 +1290,22 @@ function EgenskapsPopup({
             </p>
           )}
         </div>
-        <button
-          onClick={onLukk}
-          className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-        >
-          <X className="h-4 w-4" />
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={onSkjul}
+            className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+            title="Skjul objekt"
+          >
+            <EyeOff className="h-4 w-4" />
+          </button>
+          <button
+            onClick={onLukk}
+            className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+            title="Lukk"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
       </div>
 
       <div className="border-b border-gray-100 px-4 py-2">
@@ -1513,6 +1535,7 @@ interface SammenslattIfcViewerProps {
     toggleModell: (tegningId: string, synlig: boolean) => void;
     fjernAlleKlippeplan: () => void;
     settKlipperSynlig: (synlig: boolean) => void;
+    skjulObjekt: (modelId: string, localId: number) => Promise<void>;
   } | null>;
   klippModus: boolean;
   onKlippModusEndret: (aktiv: boolean) => void;
@@ -1847,7 +1870,7 @@ function SammenslattIfcViewer({
             const expressId = localId;
 
             // Vis kategori umiddelbart
-            onObjektValgtRef.current({ localId, kategori, attributter: {}, relasjoner: [] });
+            onObjektValgtRef.current({ localId, modelId: hitModel.modelId, kategori, attributter: {}, relasjoner: [] });
 
             // Hent egenskaper on-demand via web-ifc properties API
             const rawData = ifcDataMap.get(hitModel.modelId);
@@ -2188,7 +2211,7 @@ function SammenslattIfcViewer({
                     }
                   }
                   const endeligKategori = kategori ?? ifcType;
-                  onObjektValgtRef.current({ localId, kategori: endeligKategori, attributter, relasjoner });
+                  onObjektValgtRef.current({ localId, modelId: hitModel.modelId, kategori: endeligKategori, attributter, relasjoner });
               } catch (err) {
                 console.warn("Kunne ikke hente IFC-egenskaper:", err);
               }
@@ -2233,6 +2256,12 @@ function SammenslattIfcViewer({
           settKlipperSynlig: (synlig: boolean) => {
             clipper.enabled = synlig;
             clipper.visible = synlig;
+          },
+          skjulObjekt: async (mid: string, lid: number) => {
+            const model = fragmentsManager.list.get(mid);
+            if (model) {
+              await model.setVisible([lid], false);
+            }
           },
         };
 
