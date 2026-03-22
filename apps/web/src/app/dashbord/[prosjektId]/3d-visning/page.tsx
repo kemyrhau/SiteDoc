@@ -1806,13 +1806,40 @@ function SammenslattIfcViewer({
 
                 // Hent element-attributter, PropertySets, TypeProperties og Materials parallelt
                 const [itemProps, propertySets, typeProps, materials] = await Promise.all([
-                  propsApiRef.properties.getItemProperties(modelId, expressId, true).catch((e: unknown) => { console.warn("getItemProperties feilet:", e); return null; }),
-                  propsApiRef.properties.getPropertySets(modelId, expressId, true).catch((e: unknown) => { console.warn("getPropertySets feilet:", e); return []; }),
-                  propsApiRef.properties.getTypeProperties(modelId, expressId, true).catch((e: unknown) => { console.warn("getTypeProperties feilet:", e); return []; }),
+                  propsApiRef.properties.getItemProperties(modelId, expressId, true).catch(() => null),
+                  propsApiRef.properties.getPropertySets(modelId, expressId, true).catch(() => []),
+                  propsApiRef.properties.getTypeProperties(modelId, expressId, true).catch(() => []),
                   (propsApiRef.properties as unknown as { getMaterialsProperties: (m: number, id: number, r?: boolean, t?: boolean) => Promise<Record<string, unknown>[]> })
-                    .getMaterialsProperties(modelId, expressId, true, true).catch((e: unknown) => { console.warn("getMaterialsProperties feilet:", e); return []; }),
+                    .getMaterialsProperties(modelId, expressId, true, true).catch(() => []),
                 ]);
-                console.log("IFC egenskaper hentet:", { expressId, itemProps: !!itemProps, propertySets: propertySets.length, typeProps: typeProps.length, materials: materials.length });
+
+                // Hvis elementet er en underdel (BuildingElementPart etc.), hent også foreldrens egenskaper
+                let parentProps: Record<string, unknown> | null = null;
+                let parentPropertySets: Record<string, unknown>[] = [];
+                let parentTypeProps: Record<string, unknown>[] = [];
+                let parentMaterials: Record<string, unknown>[] = [];
+                if (itemProps) {
+                  const decomposes = itemProps["Decomposes"] as Record<string, unknown>[] | undefined;
+                  if (Array.isArray(decomposes) && decomposes.length > 0) {
+                    const rel = decomposes[0];
+                    const relatingObject = rel?.RelatingObject as Record<string, unknown> | undefined;
+                    const parentId = relatingObject?.expressID as number | undefined;
+                    if (parentId) {
+                      [parentProps, parentPropertySets, parentTypeProps, parentMaterials] = await Promise.all([
+                        propsApiRef.properties.getItemProperties(modelId, parentId, true).catch(() => null),
+                        propsApiRef.properties.getPropertySets(modelId, parentId, true).catch(() => []),
+                        propsApiRef.properties.getTypeProperties(modelId, parentId, true).catch(() => []),
+                        (propsApiRef.properties as unknown as { getMaterialsProperties: (m: number, id: number, r?: boolean, t?: boolean) => Promise<Record<string, unknown>[]> })
+                          .getMaterialsProperties(modelId, parentId, true, true).catch(() => []),
+                      ]);
+                    }
+                  }
+                }
+
+                // Kombiner egenskaper — foreldre-data brukes som supplement
+                const allPropertySets = [...propertySets, ...parentPropertySets];
+                const allTypeProps = [...typeProps, ...parentTypeProps];
+                const allMaterials = [...materials, ...parentMaterials];
 
                   // Konverter attributter (filtrer interne felt og express-ID-referanser)
                   const attributter: Record<string, EgenskapVerdi> = {};
@@ -1833,9 +1860,48 @@ function SammenslattIfcViewer({
                     }
                   }
 
-                  // Konverter PropertySets til grupper
+                  // Legg til klikkkoordinater
                   const relasjoner: EgenskapGruppe[] = [];
-                  for (const pset of [...propertySets, ...typeProps]) {
+                  relasjoner.push({
+                    navn: "Klikk på koordinater",
+                    egenskaper: {
+                      "Øst (X)": { value: hitResult.point.x },
+                      "Nord (Y)": { value: hitResult.point.y },
+                      "Høyde (Z)": { value: hitResult.point.z },
+                    },
+                  });
+
+                  // Legg til attributter fra foreldre-element (f.eks. Wall → BuildingElementPart)
+                  if (parentProps) {
+                    const foreldreAttr: Record<string, EgenskapVerdi> = {};
+                    for (const [k, v] of Object.entries(parentProps)) {
+                      if (INTERNE_FELT.has(k)) continue;
+                      if (v && typeof v === "object" && "value" in (v as Record<string, unknown>)) {
+                        const val = (v as { value: unknown }).value;
+                        if (val === null || val === undefined || val === "") continue;
+                        foreldreAttr[k] = { value: val };
+                      }
+                    }
+                    if (Object.keys(foreldreAttr).length > 0) {
+                      // Finn foreldretypens IFC-navn
+                      let parentTypeName = "Overordnet element";
+                      if (parentProps.type != null) {
+                        const tc = Number(parentProps.type);
+                        for (const [name, code] of Object.entries(WEBIFC)) {
+                          if (code === tc && typeof name === "string" && name.startsWith("IFC") && name === name.toUpperCase()) {
+                            let clean = name.substring(3);
+                            clean = clean.replace(/STANDARDCASE$|ELEMENTEDCASE$|TYPE$/, "");
+                            parentTypeName = clean.charAt(0) + clean.slice(1).toLowerCase();
+                            break;
+                          }
+                        }
+                      }
+                      relasjoner.push({ navn: parentTypeName, egenskaper: foreldreAttr });
+                    }
+                  }
+
+                  // Konverter PropertySets til grupper
+                  for (const pset of [...allPropertySets, ...allTypeProps]) {
                     const psetNavn = pset.Name && typeof pset.Name === "object" && "value" in (pset.Name as Record<string, unknown>)
                       ? String((pset.Name as { value: unknown }).value)
                       : "Egenskaper";
@@ -1895,9 +1961,9 @@ function SammenslattIfcViewer({
                   }
 
                   // Konverter materialer til en gruppe
-                  if (materials.length > 0) {
+                  if (allMaterials.length > 0) {
                     const matEgenskaper: Record<string, EgenskapVerdi> = {};
-                    for (const mat of materials) {
+                    for (const mat of allMaterials) {
                       // IFCMATERIAL — enkel material
                       if (mat.Name && typeof mat.Name === "object" && "value" in (mat.Name as Record<string, unknown>)) {
                         const matNavn = String((mat.Name as { value: unknown }).value);
@@ -1974,8 +2040,6 @@ function SammenslattIfcViewer({
               } catch (err) {
                 console.warn("Kunne ikke hente IFC-egenskaper:", err);
               }
-            } else {
-              console.warn("Ingen rådata funnet for modell:", hitModel.modelId, "ifcDataMap har:", [...ifcDataMap.keys()]);
             }
           } catch (err) {
             console.warn("Kunne ikke hente objektegenskaper:", err);
