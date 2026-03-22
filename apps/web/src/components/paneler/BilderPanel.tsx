@@ -19,6 +19,7 @@ import {
 interface TegningInfo {
   id: string;
   name: string;
+  fileType: string | null;
   floor: string | null;
   geoReference: unknown;
   buildingId: string | null;
@@ -120,7 +121,8 @@ export function BilderPanel() {
             <>
               {(bygninger as unknown as BygningMedTegninger[] | undefined)?.map((bygning) => {
                 const erUtvidet = utvidede.has(bygning.id);
-                const { etasjeMap, sorterteEtasjer, utenEtasje } = grupperTegninger(bygning.drawings);
+                const tegningerUtenIfc = bygning.drawings.filter((t) => t.fileType?.toLowerCase() !== "ifc");
+                const { etasjeMap, sorterteEtasjer, utenEtasje } = grupperTegninger(tegningerUtenIfc);
 
                 return (
                   <div key={bygning.id}>
