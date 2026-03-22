@@ -240,22 +240,16 @@ export default function TegningerSide() {
   }, [svgUrl, erSvgFil]);
 
   // Musehjul-zoom sentrert på musepekeren
-  // Callback-ref for å registrere wheel-handler når containeren mountes
-  const wheelHandlerRef = useRef<((e: WheelEvent) => void) | null>(null);
-  const containerCallbackRef = useCallback((el: HTMLDivElement | null) => {
-    // Fjern gammel handler
-    const prevEl = containerRef.current;
-    if (prevEl && wheelHandlerRef.current) {
-      prevEl.removeEventListener("wheel", wheelHandlerRef.current);
-    }
-    containerRef.current = el;
+  // Re-registrer når tegning endres (containerRef mountes etter data-lasting)
+  const tegningId = aktivTegning?.id;
+  useEffect(() => {
+    const el = containerRef.current;
     if (!el) return;
 
     function handleWheel(e: WheelEvent) {
       e.preventDefault();
 
       const rect = el!.getBoundingClientRect();
-      // Museposisjon relativt til containeren (0-1)
       const mx = (e.clientX - rect.left + el!.scrollLeft) / el!.scrollWidth;
       const my = (e.clientY - rect.top + el!.scrollTop) / el!.scrollHeight;
 
@@ -263,7 +257,6 @@ export default function TegningerSide() {
         const faktor = e.deltaY > 0 ? 0.8 : 1.25;
         const neste = Math.min(MAKS_ZOOM, Math.max(MIN_ZOOM, prev * faktor));
 
-        // Juster scroll for å sentrere zoom på musepekeren
         requestAnimationFrame(() => {
           if (!el) return;
           const nyBredde = el.scrollWidth * (neste / prev);
@@ -276,9 +269,9 @@ export default function TegningerSide() {
       });
     }
 
-    wheelHandlerRef.current = handleWheel;
     el.addEventListener("wheel", handleWheel, { passive: false });
-  }, []);
+    return () => el.removeEventListener("wheel", handleWheel);
+  }, [tegningId, isLoading]);
 
   function lukkModal() {
     setVisOpprettModal(false);
@@ -620,7 +613,7 @@ export default function TegningerSide() {
       {fileUrl && !erDwgKonvertering && !erUkonvertertDwg ? (
         erBilde ? (
           <div
-            ref={containerCallbackRef}
+            ref={containerRef}
             className="flex-1 overflow-auto bg-gray-100"
           >
             <div
@@ -680,7 +673,7 @@ export default function TegningerSide() {
           </div>
         ) : (
           /* PDF — iframe med klikkbar overlay for markørplassering */
-          <div ref={containerCallbackRef} className="relative flex-1 overflow-hidden">
+          <div ref={containerRef} className="relative flex-1 overflow-hidden">
             <iframe
               src={fileUrl}
               title={tegning.name}
