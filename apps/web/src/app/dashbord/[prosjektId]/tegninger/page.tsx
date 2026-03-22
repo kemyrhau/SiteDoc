@@ -253,19 +253,23 @@ export default function TegningerSide() {
       e.preventDefault();
 
       const rect = el!.getBoundingClientRect();
-      const mx = (e.clientX - rect.left + el!.scrollLeft) / el!.scrollWidth;
-      const my = (e.clientY - rect.top + el!.scrollTop) / el!.scrollHeight;
+      // Museposisjon i innholdet (piksler fra topp-venstre av scrollbart innhold)
+      const contentX = e.clientX - rect.left + el!.scrollLeft;
+      const contentY = e.clientY - rect.top + el!.scrollTop;
+      // Museposisjon i viewporten (piksler fra topp-venstre av synlig område)
+      const viewX = e.clientX - rect.left;
+      const viewY = e.clientY - rect.top;
 
       setZoom((prev) => {
         const faktor = e.deltaY > 0 ? 0.8 : 1.25;
         const neste = Math.min(MAKS_ZOOM, Math.max(MIN_ZOOM, prev * faktor));
+        const skala = neste / prev;
 
         requestAnimationFrame(() => {
           if (!el) return;
-          const nyBredde = el.scrollWidth * (neste / prev);
-          const nyHoyde = el.scrollHeight * (neste / prev);
-          el.scrollLeft = mx * nyBredde - (e.clientX - rect.left);
-          el.scrollTop = my * nyHoyde - (e.clientY - rect.top);
+          // Innholdspunktet under musen skaleres med faktoren
+          el.scrollLeft = contentX * skala - viewX;
+          el.scrollTop = contentY * skala - viewY;
         });
 
         return neste;
