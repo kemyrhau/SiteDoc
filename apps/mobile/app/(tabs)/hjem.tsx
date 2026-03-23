@@ -110,7 +110,8 @@ export default function HjemSkjerm() {
     { projectId: valgtProsjektId! },
     { enabled: !!valgtProsjektId },
   );
-  const bygninger = bygningQuery.data as Array<{ id: string; name: string; drawings?: Array<{ fileType?: string | null }> }> | undefined;
+  type BygningMedTegninger = { id: string; name: string; drawings: Array<{ fileType: string | null }> };
+  const bygninger = bygningQuery.data as BygningMedTegninger[] | undefined;
 
   const valgtBygningNavn = useMemo(() => {
     if (!valgtBygningId || !bygninger) return null;
@@ -121,7 +122,10 @@ export default function HjemSkjerm() {
   const harIfcModeller = useMemo(() => {
     if (!valgtBygningId || !bygninger) return false;
     const bygning = bygninger.find((b) => b.id === valgtBygningId);
-    return bygning?.drawings?.some((d) => d.fileType?.toLowerCase() === "ifc") ?? false;
+    if (!bygning) return false;
+    const har = bygning.drawings.some((d) => d.fileType?.toLowerCase() === "ifc");
+    console.log("[HJEM] bygning:", bygning.name, "tegninger:", bygning.drawings.length, "harIfc:", har, "fileTypes:", bygning.drawings.map(d => d.fileType));
+    return har;
   }, [valgtBygningId, bygninger]);
 
   // Hent sjekklister og oppgaver for valgt prosjekt (filtrert på bygning)
