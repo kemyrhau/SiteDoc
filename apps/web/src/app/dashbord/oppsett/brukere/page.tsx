@@ -1327,7 +1327,8 @@ export default function BrukereSide() {
   });
 
   // Bygg Field-grupper fra DB-data
-  const fieldGrupper: BrukerGruppe[] = ((dbGrupper ?? []) as DbGruppe[]).map((g) => ({
+  // Ekskluder prosjektadmin-grupper (vises allerede som virtuell gruppe under Generelt)
+  const fieldGrupper: BrukerGruppe[] = ((dbGrupper ?? []) as DbGruppe[]).filter((g) => g.slug !== "prosjekt-admin").map((g) => ({
     id: g.id,
     navn: g.name,
     kategori: g.category as "generelt" | "field" | "brukergrupper",
