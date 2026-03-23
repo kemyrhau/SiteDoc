@@ -443,24 +443,6 @@ export const gruppeRouter = router({
       });
     }),
 
-  // Slett en brukergruppe (kun feltarbeid-admin)
-  slettGruppe: protectedProcedure
-    .input(
-      z.object({
-        groupId: z.string().uuid(),
-        projectId: z.string().uuid(),
-      }),
-    )
-    .mutation(async ({ ctx, input }) => {
-      await verifiserAdmin(ctx.userId, input.projectId);
-      // Ikke slett default-grupper
-      const gruppe = await ctx.prisma.projectGroup.findUnique({ where: { id: input.groupId } });
-      if (gruppe?.isDefault) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "Kan ikke slette standardgrupper" });
-      }
-      return ctx.prisma.projectGroup.delete({ where: { id: input.groupId } });
-    }),
-
   // Sett gruppeadmin
   settGruppeAdmin: protectedProcedure
     .input(

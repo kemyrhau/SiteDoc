@@ -25,6 +25,10 @@ import {
   Info,
   Mail,
   RefreshCw,
+  ClipboardCheck,
+  ListTodo,
+  Map,
+  Box,
 } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
@@ -47,6 +51,7 @@ interface BrukerGruppe {
   navn: string;
   kategori: "generelt" | "field" | "brukergrupper";
   medlemmer: BrukerGruppeMedlem[];
+  moduler?: string[];
   ikon?: React.ReactNode;
 }
 
@@ -219,6 +224,25 @@ function RedigerGruppeModal({
       utils.gruppe.hentForProsjekt.invalidate({ projectId: prosjektId });
     },
   });
+
+  const oppdaterModuler = trpc.gruppe.oppdaterModuler.useMutation({
+    onSuccess: () => {
+      utils.gruppe.hentForProsjekt.invalidate({ projectId: prosjektId });
+    },
+  });
+
+  const oppdaterBygninger = trpc.gruppe.oppdaterBygninger.useMutation({
+    onSuccess: () => {
+      utils.gruppe.hentForProsjekt.invalidate({ projectId: prosjektId });
+    },
+  });
+
+  // Hent bygninger for bygningsvelger
+  const { data: _alleBygninger } = trpc.bygning.hentForProsjekt.useQuery(
+    { projectId: prosjektId },
+    { enabled: !!prosjektId },
+  );
+  const alleBygninger = (_alleBygninger ?? []) as Array<{ id: string; name: string }>;
 
   const oppdaterMedlem = trpc.medlem.oppdater.useMutation({
     onSuccess: () => {
@@ -878,24 +902,91 @@ function RedigerGruppeModal({
           )}
         </div>
 
-        {/* Rettigheter-seksjon */}
-        <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-          <h4 className="mb-3 text-sm font-semibold text-gray-900">
-            Rettigheter
-          </h4>
-          <p className="mb-2 text-xs font-medium uppercase tracking-wider text-gray-500">
-            Posisjon
-          </p>
-          <div className="flex items-center justify-between rounded bg-white px-3 py-2.5 border border-gray-200">
-            <div className="flex items-center gap-2">
-              <Building2 className="h-4 w-4 text-gray-500" />
-              <span className="text-sm text-gray-700">
-                Vis og rediger bygninger og plasseringer
-              </span>
+        {/* Moduler — feltarbeid-admin kan slå av/på */}
+        {erDbGruppe && dbGruppe && (
+          <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+            <h4 className="mb-3 text-sm font-semibold text-gray-900">Moduler</h4>
+            <p className="mb-2 text-xs text-gray-500">Hvilke moduler gruppen har tilgang til</p>
+            <div className="flex flex-col gap-2">
+              {([
+                { id: "sjekklister", label: "Sjekklister", ikon: <ClipboardCheck className="h-4 w-4" /> },
+                { id: "oppgaver", label: "Oppgaver", ikon: <ListTodo className="h-4 w-4" /> },
+                { id: "tegninger", label: "Tegninger", ikon: <Map className="h-4 w-4" /> },
+                { id: "3d", label: "3D-modeller", ikon: <Box className="h-4 w-4" /> },
+              ] as const).map((modul) => {
+                const aktiveModuler = ((dbGruppe as unknown as { modules?: string[] }).modules ?? ["sjekklister", "oppgaver", "tegninger", "3d"]);
+                const erAktiv = aktiveModuler.includes(modul.id);
+                return (
+                  <label key={modul.id} className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={erAktiv}
+                      onChange={() => {
+                        const nyeModuler = erAktiv
+                          ? aktiveModuler.filter((m: string) => m !== modul.id)
+                          : [...aktiveModuler, modul.id];
+                        oppdaterModuler.mutate({
+                          groupId: dbGruppe.id,
+                          projectId: prosjektId,
+                          modules: nyeModuler as ("sjekklister" | "oppgaver" | "tegninger" | "3d")[],
+                        });
+                      }}
+                      className="h-4 w-4 rounded border-gray-300 text-sitedoc-primary focus:ring-sitedoc-primary"
+                    />
+                    <span className="flex items-center gap-1.5 text-sm text-gray-700">
+                      {modul.ikon} {modul.label}
+                    </span>
+                  </label>
+                );
+              })}
             </div>
-            <Lock className="h-4 w-4 text-gray-400" />
           </div>
-        </div>
+        )}
+
+        {/* Bygninger — velg hvilke bygninger gruppen ser */}
+        {erDbGruppe && dbGruppe && alleBygninger && alleBygninger.length > 0 && (
+          <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+            <h4 className="mb-3 text-sm font-semibold text-gray-900">Bygninger</h4>
+            <p className="mb-2 text-xs text-gray-500">Velg hvilke bygninger gruppen har tilgang til (alle = standard)</p>
+            <div className="flex flex-col gap-2">
+              {alleBygninger.map((b) => {
+                const bygningIder = ((dbGruppe as unknown as { buildingIds?: string[] | null }).buildingIds) ?? null;
+                const alleValgt = bygningIder === null;
+                const erValgt = alleValgt || (bygningIder?.includes(b.id) ?? false);
+                return (
+                  <label key={b.id} className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={erValgt}
+                      onChange={() => {
+                        let nye: string[] | null;
+                        if (alleValgt) {
+                          // Gå fra alle → kun denne fjernes
+                          nye = alleBygninger.filter((x) => x.id !== b.id).map((x) => x.id);
+                        } else {
+                          if (erValgt) {
+                            nye = bygningIder!.filter((id: string) => id !== b.id);
+                            if (nye.length === 0) nye = null; // Ingen = alle
+                          } else {
+                            nye = [...(bygningIder ?? []), b.id];
+                            if (nye.length === alleBygninger.length) nye = null; // Alle = null
+                          }
+                        }
+                        oppdaterBygninger.mutate({
+                          groupId: dbGruppe.id,
+                          projectId: prosjektId,
+                          buildingIds: nye,
+                        });
+                      }}
+                      className="h-4 w-4 rounded border-gray-300 text-sitedoc-primary focus:ring-sitedoc-primary"
+                    />
+                    <span className="text-sm text-gray-700">{b.name}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Slett gruppe */}
         {erDbGruppe && !dbGruppe?.isDefault && (
@@ -1007,17 +1098,28 @@ function GruppeKort({
       onDoubleClick={onDoubleClick}
       className="group flex min-h-[160px] cursor-pointer flex-col rounded-lg border border-gray-200 bg-white transition-shadow hover:shadow-md"
     >
-      {/* Header */}
+      {/* Header med modulikoner */}
       <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
         <h4 className="truncate text-sm font-semibold text-gray-900">
           {gruppe.navn}
         </h4>
-        {gruppe.kategori === "brukergrupper" && (
-          <div className="flex gap-1 text-gray-400">
-            <Key className="h-3.5 w-3.5" />
-            <Users className="h-3.5 w-3.5" />
-          </div>
-        )}
+        <div className="flex gap-1.5">
+          {(gruppe.moduler ?? ["sjekklister", "oppgaver", "tegninger", "3d"]).map((modul) => {
+            const info: Record<string, { ikon: JSX.Element; tekst: string }> = {
+              sjekklister: { ikon: <ClipboardCheck className="h-3.5 w-3.5" />, tekst: "Sjekklister" },
+              oppgaver: { ikon: <ListTodo className="h-3.5 w-3.5" />, tekst: "Oppgaver" },
+              tegninger: { ikon: <Map className="h-3.5 w-3.5" />, tekst: "Tegninger" },
+              "3d": { ikon: <Box className="h-3.5 w-3.5" />, tekst: "3D-modeller" },
+            };
+            const m = info[modul];
+            if (!m) return null;
+            return (
+              <span key={modul} title={m.tekst} className="text-sitedoc-primary">
+                {m.ikon}
+              </span>
+            );
+          })}
+        </div>
       </div>
 
       {/* Innhold */}
@@ -1230,6 +1332,7 @@ export default function BrukereSide() {
     id: g.id,
     navn: g.name,
     kategori: g.category as "generelt" | "field" | "brukergrupper",
+    moduler: (g as unknown as { modules?: string[] }).modules ?? ["sjekklister", "oppgaver", "tegninger", "3d"],
     ikon: SLUG_IKON[g.slug] ?? <Users className="h-4 w-4" />,
     medlemmer: g.members.map((m) => ({
       id: m.id,
