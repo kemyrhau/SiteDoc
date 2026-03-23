@@ -12,6 +12,7 @@ import {
 import { useParams } from "next/navigation";
 import { trpc } from "@/lib/trpc";
 import { Loader2 } from "lucide-react";
+import { useBygning as useBygningKontekst } from "@/kontekst/bygning-kontekst";
 import type {
   TegningRad,
   PunktSkyRad,
@@ -75,12 +76,16 @@ export function useTreDViewer() {
 
 export function TreDViewerProvider({ children }: { children: ReactNode }) {
   const { prosjektId } = useParams<{ prosjektId: string }>();
+  const { aktivBygning } = useBygningKontekst();
 
   const utils = trpc.useUtils();
 
-  // IFC-modeller
+  // IFC-modeller — filtrert på aktiv bygning
   const { data: _tegninger, isLoading: lasterTegninger } = trpc.tegning.hentForProsjekt.useQuery(
-    { projectId: prosjektId! },
+    {
+      projectId: prosjektId!,
+      ...(aktivBygning?.id ? { buildingId: aktivBygning.id } : {}),
+    },
     { enabled: !!prosjektId },
   );
   const tegninger = (_tegninger as TegningRad[] | undefined)?.filter(
