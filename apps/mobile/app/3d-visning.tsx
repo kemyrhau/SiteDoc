@@ -1,15 +1,20 @@
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
 import { View, Text, ActivityIndicator } from "react-native";
 import { IfcViewer } from "../src/components/IfcViewer";
 import { useProsjekt } from "../src/kontekst/ProsjektKontekst";
+import { useBygning } from "../src/kontekst/BygningKontekst";
 import { trpc } from "../src/lib/trpc";
 
 export default function TreDVisningSkjerm() {
   const router = useRouter();
   const { valgtProsjektId } = useProsjekt();
+  const { valgtBygningId } = useBygning();
 
   const { data: tegninger, isLoading } = trpc.tegning.hentForProsjekt.useQuery(
-    { projectId: valgtProsjektId! },
+    {
+      projectId: valgtProsjektId!,
+      ...(valgtBygningId ? { buildingId: valgtBygningId } : {}),
+    },
     { enabled: !!valgtProsjektId },
   );
 

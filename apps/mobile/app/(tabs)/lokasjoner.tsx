@@ -3,6 +3,7 @@ import {
   View,
   Text,
   Pressable,
+  ScrollView,
   Platform,
   ActionSheetIOS,
   ActivityIndicator,
@@ -24,6 +25,7 @@ import {
 import * as Location from "expo-location";
 import { trpc } from "../../src/lib/trpc";
 import { useProsjekt } from "../../src/kontekst/ProsjektKontekst";
+import { useBygning } from "../../src/kontekst/BygningKontekst";
 import { AUTH_CONFIG } from "../../src/config/auth";
 import { KartVisning } from "../../src/components/KartVisning";
 import { TegningsVisning } from "../../src/components/TegningsVisning";
@@ -76,7 +78,7 @@ interface OppgaveMarkør {
 
 export default function LokasjonerSkjerm() {
   const { valgtProsjektId } = useProsjekt();
-  const [valgtBygningId, setValgtBygningId] = useState<string | null>(null);
+  const { valgtBygningId, settBygning } = useBygning();
   const [valgtTegningId, setValgtTegningId] = useState<string | null>(null);
 
   const router = useRouter();
@@ -320,7 +322,7 @@ export default function LokasjonerSkjerm() {
   // Håndter avbryt i bottom sheet
   const håndterAvbryt = useCallback(() => {
     setValgtTegningId(null);
-    setValgtBygningId(null);
+    settBygning(null);
     setMarkørPosisjon(null);
     setPlasseringsmodus(false);
   }, []);
@@ -401,7 +403,14 @@ export default function LokasjonerSkjerm() {
     <SafeAreaView className="flex-1 bg-gray-50" edges={["top"]}>
       {/* Blå header */}
       <View className="flex-row items-center justify-between bg-sitedoc-blue px-4 py-3">
-        <Text className="text-sm font-semibold text-white">Lokasjoner</Text>
+        <View>
+          <Text className="text-sm font-semibold text-white">Lokasjoner</Text>
+          {valgtBygningId && bygninger.length > 0 && (
+            <Text className="text-[10px] text-blue-200" numberOfLines={1}>
+              {bygninger.find((b) => b.id === valgtBygningId)?.name ?? ""}
+            </Text>
+          )}
+        </View>
         <View className="flex-row items-center gap-3">
           {/* Plasseringsmodus-toggle (kun når tegning vises) */}
           {visserTegning && (
@@ -534,6 +543,39 @@ export default function LokasjonerSkjerm() {
         </View>
       )}
 
+      {/* Bygningsvelger — horisontalt chip-bånd (Dalux-mønster) */}
+      {!visserTegning && bygninger.length > 1 && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: 12, paddingVertical: 8, gap: 6 }}
+          className="border-b border-gray-200 bg-white"
+        >
+          <Pressable
+            onPress={() => settBygning(null)}
+            className={`rounded-full px-3 py-1.5 ${!valgtBygningId ? "bg-sitedoc-blue" : "bg-gray-100"}`}
+          >
+            <Text className={`text-xs font-medium ${!valgtBygningId ? "text-white" : "text-gray-600"}`}>
+              Alle
+            </Text>
+          </Pressable>
+          {bygninger.map((b) => (
+            <Pressable
+              key={b.id}
+              onPress={() => settBygning(b.id)}
+              className={`rounded-full px-3 py-1.5 ${valgtBygningId === b.id ? "bg-sitedoc-blue" : "bg-gray-100"}`}
+            >
+              <Text
+                className={`text-xs font-medium ${valgtBygningId === b.id ? "text-white" : "text-gray-600"}`}
+                numberOfLines={1}
+              >
+                {b.name}
+              </Text>
+            </Pressable>
+          ))}
+        </ScrollView>
+      )}
+
       {/* Hovedinnhold */}
       <View className="flex-1">
         {lasterData ? (
@@ -568,7 +610,7 @@ export default function LokasjonerSkjerm() {
         tegninger={tegninger}
         valgtBygningId={valgtBygningId}
         valgtTegningId={valgtTegningId}
-        onVelgBygning={setValgtBygningId}
+        onVelgBygning={settBygning}
         onVelgTegning={håndterVelgTegning}
         onAvbryt={håndterAvbryt}
         laster={lasterData}

@@ -9,6 +9,7 @@ import { NettverkProvider } from "./NettverkProvider";
 import { OpplastingsKoProvider } from "./OpplastingsKoProvider";
 import { AuthProvider } from "./AuthProvider";
 import { ProsjektProvider } from "../kontekst/ProsjektKontekst";
+import { BygningProvider } from "../kontekst/BygningKontekst";
 import { loggUt } from "../services/auth";
 import { router } from "expo-router";
 
@@ -67,7 +68,9 @@ export function Providers({ children }: { children: ReactNode }) {
           <NettverkProvider>
             <OpplastingsKoProvider>
               <AuthProvider>
-                <ProsjektProvider>{children}</ProsjektProvider>
+                <ProsjektProvider>
+                  <BygningProvider>{children}</BygningProvider>
+                </ProsjektProvider>
               </AuthProvider>
             </OpplastingsKoProvider>
           </NettverkProvider>
