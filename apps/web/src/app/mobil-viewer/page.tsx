@@ -220,9 +220,9 @@ export default function MobilViewer() {
           let attributter: Record<string, unknown> = {};
           if (rawData && propsApi) {
             try {
-              let modelId = openModelIds.get(hitModel.modelId);
-              if (modelId === undefined) {
-                modelId = propsApi.OpenModel(rawData)!;
+              let modelId: number = openModelIds.get(hitModel.modelId) ?? -1;
+              if (modelId === -1) {
+                modelId = propsApi.OpenModel(rawData) as number;
                 openModelIds.set(hitModel.modelId, modelId);
               }
               const itemProps = await propsApi.properties.getItemProperties(modelId, localId, true).catch(() => null);
@@ -300,9 +300,9 @@ export default function MobilViewer() {
 
             // Skjul IfcSpace og IfcOpeningElement
             try {
-              let mid = openModelIds.get(fragModelId);
-              if (mid === undefined) {
-                mid = propsApi.OpenModel(res.data)!;
+              let mid: number = openModelIds.get(fragModelId) ?? -1;
+              if (mid === -1) {
+                mid = propsApi.OpenModel(res.data) as number;
                 openModelIds.set(fragModelId, mid);
               }
               const hideApi = propsApi as unknown as { GetLineIDsWithType: (m: number, t: number) => { size: () => number; get: (i: number) => number } };
