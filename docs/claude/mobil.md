@@ -129,39 +129,103 @@ DatabaseProvider → trpc → QueryClient → Nettverk → OpplastingsKo → Aut
 
 ## Planlagt: IFC 3D-visning i mobil (Fase 2)
 
-Støtte mest mulig av web-funksjonalitet for 3D-modeller i mobilappen.
+### Arkitekturbeslutning: WebView-tilnærming
 
-**Tilnærming:**
-- @thatopen/fragments + Three.js fungerer ikke direkte i React Native
-- **WebView-tilnærming (anbefalt):** Gjenbruk web-vieweren i en WebView med kommunikasjon via `postMessage`. Enklest å implementere og vedlikeholde.
-- Alternativer: expo-gl + three.js (begrenset), native IFC-viewer (Swift/Kotlin)
-- **Offline-støtte:** Forhåndslast IFC-filer til lokal lagring, vis fra cached data
+@thatopen/fragments + Three.js fungerer ikke i React Native. WebView-tilnærming gjenbruker web-vieweren — enklest å implementere og vedlikeholde. Appen bruker allerede `react-native-webview` (v13.15.0) for signatur-canvas.
 
-**Funksjoner å støtte:**
-- Modellvisning med orbit-kontroll
-- Objektklikk med egenskaper
-- Modell-toggle per fag
-- Filtrering (skjul/vis objekter)
-- Klippeplan (snitt)
+### Implementasjonsplan
+
+**Steg 1: Lag en standalone IFC-viewer HTML-side på web**
+- Ny rute: `/mobil-viewer` (eller statisk HTML i `public/`)
+- Bare canvas + OBC-initialisering — ingen sidebar, verktøylinje eller Next.js-layout
+- Aksepterer parametere via URL eller `postMessage`:
+  - `modelUrls` — liste med IFC-fil-URLer
+  - `token` — auth-token for filnedlasting
+- Sender hendelser tilbake via `postMessage`:
+  - `{ type: "objektValgt", data: { localId, modelId, kategori, egenskaper } }`
+  - `{ type: "modellLastet", data: { antall } }`
+  - `{ type: "feil", data: { melding } }`
+- **Fil:** `apps/web/src/app/mobil-viewer/page.tsx`
+
+**Steg 2: WebView-komponent i mobilappen**
+- Ny komponent: `apps/mobile/src/components/IfcViewer.tsx`
+- `<WebView source={{ uri: "https://sitedoc.no/mobil-viewer?..." }}>`
+- `onMessage` håndterer `postMessage` fra web-vieweren
+- Overlay-kontroller i React Native over WebView:
+  - Modell-toggle (avkrysning per fag)
+  - Snitt-knapp
+  - Tilbake-knapp
+- **Touch-kontroller:** WebView videresender touch til Three.js orbit controls (fungerer ut av boksen)
+
+**Steg 3: Navigasjon og integrasjon**
+- Ny tab eller knapp i `(tabs)/` — "3D" ikon i bottom-tab, eller knapp i Lokasjoner
+- Alternativt: dedikert rute `app/3d-visning.tsx` tilgjengelig fra hjem-skjermen
+- Hent IFC-tegninger via `trpc.tegning.hentForProsjekt` (filtrerer `fileType === "ifc"`)
+
+**Steg 4: Offline-støtte**
+- Forhåndslast IFC-filer til `expo-file-system` lokal lagring
+- WebView laster fra `file://` i stedet for `https://`
+- Krever: ny synk-logikk i `OpplastingsKoProvider` eller egen `IfcCacheProvider`
+- Vis nedlastings-progress og lagringsstatus
+
+**Avhengigheter som allerede finnes:**
+- `react-native-webview` (v13.15.0) ✓
+- `expo-file-system` ✓
+- tRPC-klient med auth ✓
+
+**Nye avhengigheter:** Ingen (WebView dekker alt)
+
+### Funksjoner å støtte (prioritert)
+1. Modellvisning med orbit-kontroll (touch)
+2. Modell-toggle per fag (checkbox-liste)
+3. Objektklikk med egenskapspanel
+4. Klippeplan (snitt)
+5. Filtrering (skjul/vis IFC-typer)
+
+---
 
 ## Planlagt: Live site-view — AR/3D på byggeplass (Fase 3)
 
+### Konsept
 Vis IFC-modell overlagt på kamera for å følge/sjekke byggeprosessen i sanntid.
 
-**Konsept:**
-- AR-visning med kamera som bakgrunn, 3D-modell overlagt
-- GPS + kompass for grov posisjonering
-- Manuell justering for presisjon (dra/roter modell)
-- Sammenlign planlagt (modell) vs. bygget (virkelighet)
-- Marker avvik direkte i visningen
+### Implementasjonsplan — to tilnærminger
 
-**Teknologi:**
-- iOS: ARKit via expo-ar eller native modul
-- Android: ARCore
-- Alternativ: enklere "split-view" med modell ved siden av kamerabilde
-- IFC-modellens georeferanse (UTM-koordinater) kan brukes for automatisk plassering
+**Tilnærming A: Enkel "split-view" (MVP)**
+- Delt skjerm: kamerabilde øverst, 3D-modell i WebView nederst
+- GPS-posisjon vises i begge visninger
+- Bruker roterer modellen manuelt til den matcher kameravinkelen
+- Minimal kompleksitet — kan implementeres med eksisterende teknologi
+- **Komponenter:** `expo-camera` + `IfcViewer` WebView + GPS overlay
 
-**Verdi:** Stor verdi for kvalitetskontroll på byggeplass — sjekke at ting er bygget riktig uten å gå tilbake til kontoret.
+**Tilnærming B: Full AR-overlay (avansert)**
+- IFC-modell overlagt direkte på kamerastrømmen
+- GPS + kompass + akselerometer for automatisk posisjonering
+- Manuell finjustering (dra/roter/skaler modell)
+
+**Teknologivalg for AR:**
+- **expo-three + expo-gl:** Three.js i React Native med GL-kontekst. Kan rendere IFC-geometri over kamerabakgrunn. Krever egen IFC-parser (ikke @thatopen som trenger DOM)
+- **ViroReact:** Open-source AR-rammeverk for React Native. Støtter ARKit/ARCore, 3D-modeller, GPS-forankring. Krever native modul (Expo prebuild)
+- **react-native-arkit / react-native-arcore:** Direkte bindings. Mest kontroll, mest arbeid
+- **WebXR i WebView:** Eksperimentelt — nettleser-AR i WebView. Begrenset støtte
+
+**Anbefalt rekkefølge:**
+1. Start med Tilnærming A (split-view) — raskt, fungerer, gir verdi
+2. Evaluer AR-behov basert på brukertesting
+3. Tilnærming B med expo-three/expo-gl for full AR (Expo prebuild påkrevd)
+
+**Posisjonering av modell:**
+- IFC-filer kan ha georeferanse (UTM-koordinater) i metadata — uttrukket ved opplasting og lagret i `Drawing.ifcMetadata`
+- `expo-location` gir GPS (WGS84) — konverter til UTM via `koordinatKonvertering.ts` (allerede i @sitedoc/shared)
+- Kompass (`expo-sensors` Magnetometer) gir retning
+- Akselerometer gir tilt for kameravinkel
+
+**GPS-presisjon:**
+- Standard GPS: ±5-10m — for grov plassering
+- RTK-GPS (eksternt via Bluetooth): ±2cm — for presis overlay
+- Manuell justering nødvendig uansett for starten
+
+**Verdi:** Kvalitetskontroll på byggeplass — sjekke at ting er bygget riktig uten å gå tilbake til kontoret. Marker avvik direkte i visningen.
 
 ## Tegningsmarkører
 
