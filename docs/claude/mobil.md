@@ -246,10 +246,12 @@ Mobilappen mangler en persistent bygningsvelger. Brukere jobber typisk i én byg
 - `settBygning(id)` — oppdaterer valg
 - Alle barn-komponenter bruker `useBygning()` for å filtrere data
 
-**Bygningsvelger UI:**
-- Dropdown/velger i app-headeren eller på hjem-skjermen — alltid synlig
-- Viser bygningsnavn + nummer
+**Bygningsvelger UI — Dalux-mønster:**
+- **Lokasjoner-fanen** i tab-baren fungerer som bygningsvelger (kjent mønster fra Dalux)
+- Velg bygning → alle andre faner/seksjoner filtreres til denne bygningen
+- Valgt bygning vises som undertekst i tab-bar eller liten indikator
 - Lagrer siste valg per prosjekt (Map<prosjektId, bygningId> i AsyncStorage)
+- Prosjektvelgeren i headeren forblir uendret
 
 **Hva som filtreres på bygning:**
 - Sjekklister (`checklist.buildingId`)
