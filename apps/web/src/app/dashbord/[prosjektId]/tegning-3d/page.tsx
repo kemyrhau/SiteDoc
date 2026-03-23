@@ -256,9 +256,9 @@ export default function Tegning3DSide() {
   const splitWidth = splitPx ?? (splitContainerRef.current?.getBoundingClientRect().width ?? 800) * 0.4;
 
   return (
-    <div className="pointer-events-auto flex flex-1 flex-col overflow-hidden">
+    <div className="flex flex-1 flex-col overflow-hidden">
       {/* Toolbar */}
-      <div className="flex items-center gap-3 border-b border-gray-200 bg-white px-4 py-2">
+      <div className="pointer-events-auto flex items-center gap-3 border-b border-gray-200 bg-white px-4 py-2">
         <select
           value={valgtTegningId ?? ""}
           onChange={(e) => setValgtTegningId(e.target.value || null)}
@@ -340,7 +340,7 @@ export default function Tegning3DSide() {
 
       {/* Georeferanse-veileder */}
       {georefSteg !== "idle" && (
-        <div className={`flex items-center gap-3 px-4 py-2 text-sm ${
+        <div className={`pointer-events-auto flex items-center gap-3 px-4 py-2 text-sm ${
           georefSteg === "ferdig" ? "bg-green-50 text-green-800" : "bg-amber-50 text-amber-800"
         }`}>
           <Crosshair size={16} />
@@ -361,7 +361,7 @@ export default function Tegning3DSide() {
       >
         {/* Venstre: Tegning */}
         <div
-          className="relative overflow-hidden bg-gray-100"
+          className="pointer-events-auto relative overflow-hidden bg-gray-100"
           style={{ width: splitWidth, flexShrink: 0 }}
         >
           {tegningUrl ? (
@@ -459,7 +459,7 @@ export default function Tegning3DSide() {
 
         {/* Skillelinje */}
         <div
-          className="group relative z-20 flex w-1.5 cursor-col-resize items-center justify-center bg-gray-300 hover:bg-blue-400 active:bg-blue-500"
+          className="pointer-events-auto group relative z-20 flex w-1.5 cursor-col-resize items-center justify-center bg-gray-300 hover:bg-blue-400 active:bg-blue-500"
           onPointerDown={handleDragStart}
         >
           <div className="h-8 w-1 rounded-full bg-gray-500 group-hover:bg-white" />
