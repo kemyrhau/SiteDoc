@@ -3,7 +3,6 @@ import {
   View,
   Text,
   Pressable,
-  ScrollView,
   Platform,
   ActionSheetIOS,
   ActivityIndicator,
@@ -21,6 +20,7 @@ import {
   EyeOff,
   Check,
   X,
+  ChevronDown,
 } from "lucide-react-native";
 import * as Location from "expo-location";
 import { trpc } from "../../src/lib/trpc";
@@ -279,6 +279,42 @@ export default function LokasjonerSkjerm() {
     };
   }, [harGeoRef, geoRefStringifisert, valgtTegningId]);
 
+  // Bygningsvelger — nedtrekksmeny
+  const visBygningsvelger = useCallback(() => {
+    if (bygninger.length <= 1) return;
+    const alternativ = ["Alle bygninger", ...bygninger.map((b) => b.name), "Avbryt"];
+    if (Platform.OS === "ios") {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: alternativ,
+          cancelButtonIndex: alternativ.length - 1,
+          title: "Velg bygning",
+        },
+        (indeks) => {
+          if (indeks === 0) settBygning(null);
+          else if (indeks < alternativ.length - 1) {
+            const valgt = bygninger[indeks - 1];
+            if (valgt) settBygning(valgt.id);
+          }
+        },
+      );
+    } else {
+      // Android — bruk Alert med knapper (enkel fallback)
+      Alert.alert(
+        "Velg bygning",
+        undefined,
+        [
+          { text: "Alle bygninger", onPress: () => settBygning(null) },
+          ...bygninger.map((b) => ({
+            text: b.name,
+            onPress: () => settBygning(b.id),
+          })),
+          { text: "Avbryt", style: "cancel" as const },
+        ],
+      );
+    }
+  }, [bygninger, settBygning]);
+
   // Treprikk-meny
   const visTreprikkmeny = useCallback(() => {
     if (Platform.OS === "ios") {
@@ -403,14 +439,17 @@ export default function LokasjonerSkjerm() {
     <SafeAreaView className="flex-1 bg-gray-50" edges={["top"]}>
       {/* Blå header */}
       <View className="flex-row items-center justify-between bg-sitedoc-blue px-4 py-3">
-        <View>
-          <Text className="text-sm font-semibold text-white">Lokasjoner</Text>
-          {valgtBygningId && bygninger.length > 0 && (
+        <Pressable onPress={visBygningsvelger} className="flex-row items-center gap-1.5" disabled={bygninger.length <= 1}>
+          <View>
+            <Text className="text-sm font-semibold text-white">Lokasjoner</Text>
             <Text className="text-[10px] text-blue-200" numberOfLines={1}>
-              {bygninger.find((b) => b.id === valgtBygningId)?.name ?? ""}
+              {valgtBygningId
+                ? bygninger.find((b) => b.id === valgtBygningId)?.name ?? "Alle bygninger"
+                : "Alle bygninger"}
             </Text>
-          )}
-        </View>
+          </View>
+          {bygninger.length > 1 && <ChevronDown size={14} color="#93c5fd" />}
+        </Pressable>
         <View className="flex-row items-center gap-3">
           {/* Plasseringsmodus-toggle (kun når tegning vises) */}
           {visserTegning && (
@@ -541,39 +580,6 @@ export default function LokasjonerSkjerm() {
             </Text>
           </Pressable>
         </View>
-      )}
-
-      {/* Bygningsvelger — horisontalt chip-bånd (Dalux-mønster) */}
-      {!visserTegning && bygninger.length > 1 && (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 12, paddingVertical: 8, gap: 6 }}
-          className="border-b border-gray-200 bg-white"
-        >
-          <Pressable
-            onPress={() => settBygning(null)}
-            className={`rounded-full px-3 py-1.5 ${!valgtBygningId ? "bg-sitedoc-blue" : "bg-gray-100"}`}
-          >
-            <Text className={`text-xs font-medium ${!valgtBygningId ? "text-white" : "text-gray-600"}`}>
-              Alle
-            </Text>
-          </Pressable>
-          {bygninger.map((b) => (
-            <Pressable
-              key={b.id}
-              onPress={() => settBygning(b.id)}
-              className={`rounded-full px-3 py-1.5 ${valgtBygningId === b.id ? "bg-sitedoc-blue" : "bg-gray-100"}`}
-            >
-              <Text
-                className={`text-xs font-medium ${valgtBygningId === b.id ? "text-white" : "text-gray-600"}`}
-                numberOfLines={1}
-              >
-                {b.name}
-              </Text>
-            </Pressable>
-          ))}
-        </ScrollView>
       )}
 
       {/* Hovedinnhold */}
