@@ -466,7 +466,7 @@ export default function Tegning3DSide() {
         </div>
 
         {/* Høyre: 3D */}
-        <div className="pointer-events-auto relative flex-1">
+        <div className="relative flex-1">
           {/* Georef 3D-veileder overlay */}
           {(georefSteg === "modell1" || georefSteg === "modell2") && (
             <div className="pointer-events-none absolute inset-x-0 top-0 z-10 bg-amber-500/90 px-4 py-2 text-center text-sm font-medium text-white">
