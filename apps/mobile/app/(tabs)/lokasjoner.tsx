@@ -441,12 +441,12 @@ export default function LokasjonerSkjerm() {
       <View className="flex-row items-center justify-between bg-sitedoc-blue px-4 py-3">
         <Pressable onPress={visBygningsvelger} className="flex-row items-center gap-1.5" disabled={bygninger.length <= 1}>
           <View>
-            <Text className="text-sm font-semibold text-white">Lokasjoner</Text>
-            <Text className="text-[10px] text-blue-200" numberOfLines={1}>
+            <Text className="text-sm font-semibold text-white" numberOfLines={1}>
               {valgtBygningId
                 ? bygninger.find((b) => b.id === valgtBygningId)?.name ?? "Alle bygninger"
                 : "Alle bygninger"}
             </Text>
+            <Text className="text-[10px] text-blue-200">Lokasjoner</Text>
           </View>
           {bygninger.length > 1 && <ChevronDown size={14} color="#93c5fd" />}
         </Pressable>
