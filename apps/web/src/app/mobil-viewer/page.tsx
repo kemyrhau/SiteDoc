@@ -222,8 +222,8 @@ export default function MobilViewer() {
             try {
               let modelId = openModelIds.get(hitModel.modelId);
               if (modelId === undefined) {
-                modelId = propsApi.OpenModel(rawData);
-                openModelIds.set(hitModel.modelId, modelId!);
+                modelId = propsApi.OpenModel(rawData)!;
+                openModelIds.set(hitModel.modelId, modelId);
               }
               const itemProps = await propsApi.properties.getItemProperties(modelId, localId, true).catch(() => null);
               if (itemProps) {
