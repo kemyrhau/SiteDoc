@@ -233,49 +233,32 @@ Vis IFC-modell overlagt på kamera for å følge/sjekke byggeprosessen i sanntid
 
 **Verdi:** Kvalitetskontroll på byggeplass — sjekke at ting er bygget riktig uten å gå tilbake til kontoret. Marker avvik direkte i visningen.
 
-## Planlagt: Bygningskontekst — sentral bygningsvelger
+## Implementert: Bygningskontekst — sentral bygningsvelger (Dalux-mønster)
 
-### Problem
-Mobilappen mangler en persistent bygningsvelger. Brukere jobber typisk i én bygning om gangen — sjekklister, oppgaver, tegninger, 3D-modeller og live view bør alle filtreres til valgt bygning. Det gir ikke mening å vise IFC-modeller fra en annen bygning, eller sjekklister som tilhører et annet bygg.
+**Kontekst:** `apps/mobile/src/kontekst/BygningKontekst.tsx`
+- `valgtBygningId: string | null` — persistent i SecureStore, lagret per prosjekt (Map<prosjektId, bygningId>)
+- `settBygning(id | null)` — oppdaterer valg, null = "Alle"
+- `useBygning()` hook for alle barn-komponenter
 
-### Løsning: BygningKontekst i mobilappen
-
-**Ny kontekst:** `apps/mobile/src/kontekst/BygningKontekst.tsx`
-- `valgtBygningId: string | null` — persistent i AsyncStorage/SecureStore
-- `valgtBygning: { id, name, number } | null` — hentet fra API
-- `settBygning(id)` — oppdaterer valg
-- Alle barn-komponenter bruker `useBygning()` for å filtrere data
-
-**Bygningsvelger UI — Dalux-mønster:**
-- **Lokasjoner-fanen** i tab-baren fungerer som bygningsvelger (kjent mønster fra Dalux)
-- Velg bygning → alle andre faner/seksjoner filtreres til denne bygningen
-- Valgt bygning vises som undertekst i tab-bar eller liten indikator
-- Lagrer siste valg per prosjekt (Map<prosjektId, bygningId> i AsyncStorage)
+**Bygningsvelger UI:**
+- **Lokasjoner-fanen** har horisontalt chip-bånd ("Alle" + bygninger) øverst når tegning ikke vises
+- Valgt bygning vises som undertekst i lokasjoner-headeren og hjem-headeren
 - Prosjektvelgeren i headeren forblir uendret
 
-**Hva som filtreres på bygning:**
-- Sjekklister (`checklist.buildingId`)
-- Oppgaver (`task.drawingId → drawing.buildingId`)
-- Tegninger (`drawing.buildingId`)
+**Hva som filtreres på bygning (implementert):**
+- Sjekklister i hjem (`checklist.buildingId` via API)
+- Tegninger i lokasjoner (`drawing.buildingId` via API)
 - 3D-modeller/IFC (`drawing.buildingId + fileType=ifc`)
 - Live View (kun modeller for valgt bygning)
-- Bilder (via sjekkliste/oppgave → bygning)
 
-**Provider-plassering i hierarkiet:**
+**Gjenstår:**
+- Oppgaver: API-ruten `oppgave.hentForProsjekt` mangler `buildingId`-filter (oppgaver kobles via `drawing.buildingId`)
+- Sjekkliste-liste og oppgave-liste (egne listevisninger) filtrerer ikke ennå
+
+**Provider-plassering:**
 ```
 DatabaseProvider → trpc → QueryClient → Nettverk → OpplastingsKo → Auth → Prosjekt → Bygning
 ```
-
-**API-endringer:** Ingen — alle queries filtrerer allerede på `buildingId` (valgfritt). Mobilappen sender bare `buildingId` som parameter.
-
-**Berører:**
-- `apps/mobile/src/kontekst/` — ny BygningKontekst
-- `apps/mobile/app/(tabs)/hjem.tsx` — bygningsvelger
-- `apps/mobile/app/3d-visning.tsx` — filtrer IFC på bygning
-- `apps/mobile/app/live-view.tsx` — filtrer IFC på bygning
-- `apps/mobile/app/sjekkliste/` — filtrer på bygning
-- `apps/mobile/app/oppgave/` — filtrer på bygning
-- `apps/mobile/src/providers/index.tsx` — legg til BygningProvider
 
 ## Tegningsmarkører
 
