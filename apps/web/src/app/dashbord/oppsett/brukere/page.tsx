@@ -1114,9 +1114,12 @@ function GruppeKort({
             const m = info[modul];
             if (!m) return null;
             return (
-              <span key={modul} title={m.tekst} className="text-sitedoc-primary">
+              <div key={modul} title={m.tekst} className="relative cursor-help text-sitedoc-primary group/tip">
                 {m.ikon}
-              </span>
+                <div className="pointer-events-none absolute -bottom-7 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-0.5 text-[10px] text-white opacity-0 transition-opacity group-hover/tip:opacity-100">
+                  {m.tekst}
+                </div>
+              </div>
             );
           })}
         </div>
