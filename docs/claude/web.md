@@ -156,27 +156,37 @@ Interaktiv visning med musesentrert zoom (0.25x–50x / 25%–5000%):
 - Klikkbar "IFC"-badge i header viser uttrukket metadata (prosjekt, org, GPS, etasjer, programvare)
 - Data fra `Drawing.ifcMetadata` (Json-felt, uttrukket ved opplasting)
 
-### Planlagt: Bildeeksport fra kartvisning
+### Kartvisning og bildeeksport (implementert)
 
-Velg bilder på kartet og eksporter som PDF/ZIP med metadata.
+Tredje visningsmodus i Bilder-seksjonen: kart med markører for bilder med GPS.
 
-**Områdevalg:**
-- Rektangelvalg (dra) eller polygon på Leaflet-kartet
-- Bilder innenfor området markeres og listes i sidepanel, sortert etter dato
-- Mulighet for å legge til/fjerne enkeltbilder fra utvalget
+**Kartvisning:** `BildeKart.tsx` — Leaflet-kart med 📷-markører. Klikk åpner popup med thumbnail. Dynamic import (SSR-safe).
 
-**Eksportinnhold:**
-- Bilder sortert kronologisk
-- Metadata per bilde: dato, GPS-koordinater, sjekkliste/oppgave-referanse, felt-label, kommentar
-- Kartutsnitt med markerte posisjoner
-- Forsideinformasjon: prosjekt, dato-range, antall bilder
+**Velgemodus:**
+- Klikk markør = toggle valgt (grønn ✓)
+- Shift+dra = rektangelvalg for flere bilder
+- Sidepanel (280px) viser valgte bilder sortert etter dato med metadata
+- Eksporter-knapp åpner utskriftsvennlig HTML (2 bilder per rad, kompakt metadata, A4)
 
-**Teknologi:**
-- PDF-generering via `jspdf` eller server-side HTML→PDF
-- Alternativt ZIP med bilder + metadata CSV/JSON
-- Kartutsnitt via Leaflet `map.getCanvas()` eller statisk kartbilde
+### Planlagt: Kartfilter og utvidet eksport
 
-**Berører:** `apps/web/src/app/dashbord/[prosjektId]/bilder/BildeKart.tsx`, `page.tsx`, evt. ny API-rute for server-side PDF
+**Dynamisk filtersystem for kartvisning:**
+- **Bygning** — dropdown, filtrer bilder etter hvilken bygning de tilhører (via sjekkliste/oppgave → building_id)
+- **Rapportmal** — dropdown, filtrer etter mal (template_id på sjekklisten/oppgaven)
+- **Datoperiode** — fra/til datovalg (datoFra/datoTil finnes allerede i BilderKontekst)
+- Filtrene bør ligge i en kompakt verktøylinje over kartet, eller i BilderPanel
+- Filtrene er dynamiske — bygningslisten hentes fra prosjektet, mallisten fra tilgjengelige maler
+
+**Utvidet eksport — forsideinformasjon:**
+- Prosjektnavn, prosjektnummer, adresse
+- Bygning bildene tilhører
+- Dato-range for utvalget
+- Antall bilder
+- Valgfri: kartutsnitt med markerte posisjoner (Leaflet canvas export)
+
+**Datakrav:** `NormalisertBilde` trenger utvidelse med `buildingId`, `buildingName`, `templateId`, `templateName` for filtrering. Disse kan utledes fra `parentId` (sjekkliste/oppgave) → building_id/template_id. Kan kreve utvidelse av `bilde.hentForProsjekt`-queryen.
+
+**Berører:** `BildeKart.tsx`, `page.tsx` (KartVisningMedValg), `BilderPanel.tsx`, `apps/api/src/routes/bilde.ts`
 
 ## Malliste-UI
 
