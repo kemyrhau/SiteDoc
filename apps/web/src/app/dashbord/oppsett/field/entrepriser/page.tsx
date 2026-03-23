@@ -629,7 +629,8 @@ function OpprettDokumentflytModal({
   forvalgtEntrepriseId?: string;
 }) {
   const [navn, setNavn] = useState("");
-  const [oppretterEntrepriseId, setOppretterEntrepriseId] = useState("");
+  const [oppretterType, setOppretterType] = useState<"bruker" | "gruppe">("bruker");
+  const [oppretterId, setOppretterId] = useState("");
   const [mottakerType, setMottakerType] = useState<"bruker" | "gruppe">("bruker");
   const [mottakerId, setMottakerId] = useState("");
   const [valgteMaler, setValgteMaler] = useState<Set<string>>(new Set());
@@ -658,7 +659,8 @@ function OpprettDokumentflytModal({
 
   function nullstill() {
     setNavn("");
-    setOppretterEntrepriseId("");
+    setOppretterType("bruker");
+    setOppretterId("");
     setMottakerType("bruker");
     setMottakerId("");
     setValgteMaler(new Set());
@@ -667,7 +669,6 @@ function OpprettDokumentflytModal({
   const [forrigeOpen, setForrigeOpen] = useState(false);
   if (open && !forrigeOpen) {
     nullstill();
-    if (forvalgtEntrepriseId) setOppretterEntrepriseId(forvalgtEntrepriseId);
   }
   if (open !== forrigeOpen) setForrigeOpen(open);
 
@@ -694,8 +695,8 @@ function OpprettDokumentflytModal({
       steg: number;
     }> = [];
 
-    if (oppretterEntrepriseId) {
-      dfMedlemmer.push({ enterpriseId: oppretterEntrepriseId, rolle: "oppretter", steg: 1 });
+    if (oppretterId) {
+      dfMedlemmer.push({ projectMemberId: oppretterId, rolle: "oppretter", steg: 1 });
     }
     if (mottakerId) {
       if (mottakerType === "bruker") {
@@ -733,15 +734,44 @@ function OpprettDokumentflytModal({
           <label className="mb-1 block text-sm font-medium text-gray-700">
             Opprett/send
           </label>
+          <div className="mb-2 flex gap-2">
+            <button
+              type="button"
+              onClick={() => { setOppretterType("bruker"); setOppretterId(""); }}
+              className={`rounded-full px-3 py-1 text-xs font-medium ${oppretterType === "bruker" ? "bg-sitedoc-primary text-white" : "bg-gray-100 text-gray-600"}`}
+            >
+              Bruker
+            </button>
+            <button
+              type="button"
+              onClick={() => { setOppretterType("gruppe"); setOppretterId(""); }}
+              className={`rounded-full px-3 py-1 text-xs font-medium ${oppretterType === "gruppe" ? "bg-sitedoc-primary text-white" : "bg-gray-100 text-gray-600"}`}
+            >
+              Gruppe
+            </button>
+          </div>
           <select
             className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-sitedoc-primary focus:outline-none focus:ring-1 focus:ring-sitedoc-primary"
-            value={oppretterEntrepriseId}
-            onChange={(e) => setOppretterEntrepriseId(e.target.value)}
+            value={oppretterId}
+            onChange={(e) => setOppretterId(e.target.value)}
           >
-            <option value="">Velg entreprise...</option>
-            {entrepriser.map((ent) => (
-              <option key={ent.id} value={ent.id}>{ent.name}</option>
-            ))}
+            {oppretterType === "bruker" ? (
+              <>
+                <option value="">Velg bruker...</option>
+                {medlemmer.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.user.name ?? m.user.email}
+                  </option>
+                ))}
+              </>
+            ) : (
+              <>
+                <option value="">Velg gruppe...</option>
+                {grupper.map((g) => (
+                  <option key={g.id} value={g.id}>{g.name}</option>
+                ))}
+              </>
+            )}
           </select>
         </div>
 
