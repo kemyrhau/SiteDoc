@@ -1363,23 +1363,8 @@ export default function BrukereSide() {
           ventendeInvitasjon: finnInvitasjon("prosjektadmin", m.user.email),
         })) ?? [],
     },
-    // Field-grupper fra DB
+    // Field-grupper og brukergrupper fra DB
     ...fieldGrupper,
-    // Brukergrupper fra entrepriser
-    ...(entrepriser?.map((ent) => ({
-      id: `ent-${ent.id}`,
-      navn: ent.name,
-      kategori: "brukergrupper" as const,
-      medlemmer: ent.memberEnterprises.map((me: { projectMember: { id: string; user: { name?: string | null; email?: string | null; phone?: string | null } } }) => ({
-        id: me.projectMember.id,
-        navn: me.projectMember.user?.name ?? me.projectMember.user?.email ?? "Ukjent",
-        epost: me.projectMember.user?.email ?? undefined,
-        telefon: me.projectMember.user?.phone ?? undefined,
-        firma: ent.name,
-        ventendeInvitasjon: finnInvitasjon(`ent-${ent.id}`, me.projectMember.user?.email ?? undefined),
-      })),
-      ikon: <Building2 className="h-4 w-4" />,
-    })) ?? []),
   ];
 
   // Filtrering
