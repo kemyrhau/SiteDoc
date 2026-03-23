@@ -1174,26 +1174,42 @@ function GruppeSeksjon({
   grupper,
   onLeggTilMedlem,
   onDoubleClickGruppe,
+  onOpprett,
 }: {
   tittel: string;
   grupper: BrukerGruppe[];
   onLeggTilMedlem?: (gruppeId: string) => void;
   onDoubleClickGruppe?: (gruppe: BrukerGruppe) => void;
+  onOpprett?: () => void;
 }) {
-  if (grupper.length === 0) return null;
+  if (grupper.length === 0 && !onOpprett) return null;
   return (
     <div className="mb-8">
-      <h3 className="mb-3 text-lg font-bold text-gray-900">{tittel}</h3>
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        {grupper.map((gruppe) => (
-          <GruppeKort
-            key={gruppe.id}
-            gruppe={gruppe}
-            onLeggTilMedlem={onLeggTilMedlem}
-            onDoubleClick={() => onDoubleClickGruppe?.(gruppe)}
-          />
-        ))}
+      <div className="mb-3 flex items-center justify-between">
+        <h3 className="text-lg font-bold text-gray-900">{tittel}</h3>
+        {onOpprett && (
+          <button
+            onClick={onOpprett}
+            className="flex items-center gap-1 rounded-lg bg-sitedoc-primary px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-800"
+          >
+            + Ny gruppe
+          </button>
+        )}
       </div>
+      {grupper.length > 0 ? (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          {grupper.map((gruppe) => (
+            <GruppeKort
+              key={gruppe.id}
+              gruppe={gruppe}
+              onLeggTilMedlem={onLeggTilMedlem}
+              onDoubleClick={() => onDoubleClickGruppe?.(gruppe)}
+            />
+          ))}
+        </div>
+      ) : (
+        <p className="text-sm text-gray-400">Ingen grupper — opprett en ny</p>
+      )}
     </div>
   );
 }
@@ -1453,6 +1469,10 @@ export default function BrukereSide() {
         grupper={brukergrupper}
         onLeggTilMedlem={handleLeggTilMedlem}
         onDoubleClickGruppe={(g) => setRedigerGruppeId(g.id)}
+        onOpprett={() => {
+          setNyGruppeKategori("brukergrupper");
+          setVisNyGruppeModal(true);
+        }}
       />
 
       {filtrert.length === 0 && (
