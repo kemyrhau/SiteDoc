@@ -10,7 +10,7 @@ import { trpc } from "../src/lib/trpc";
 export default function TreDVisningSkjerm() {
   const router = useRouter();
   const { valgtProsjektId } = useProsjekt();
-  const { valgtBygningId, settBygning } = useBygning();
+  const { valgtBygningId } = useBygning();
 
   const { data: tegninger, isLoading } = trpc.tegning.hentForProsjekt.useQuery(
     {
@@ -19,17 +19,6 @@ export default function TreDVisningSkjerm() {
     },
     { enabled: !!valgtProsjektId },
   );
-
-  // Hent bygningsnavn
-  const bygningQuery = trpc.bygning.hentForProsjekt.useQuery(
-    { projectId: valgtProsjektId! },
-    { enabled: !!valgtProsjektId },
-  );
-  const valgtBygningNavn = valgtBygningId
-    ? (bygningQuery.data as Array<{ id: string; name: string }> | undefined)?.find(
-        (b) => b.id === valgtBygningId,
-      )?.name
-    : null;
 
   // Filtrer kun IFC-filer
   const ifcModeller = (tegninger ?? [])
@@ -72,18 +61,8 @@ export default function TreDVisningSkjerm() {
             Ingen IFC-modeller
           </Text>
           <Text style={{ color: "#9ca3af", fontSize: 13, textAlign: "center", marginTop: 6 }}>
-            {valgtBygningNavn
-              ? `Ingen 3D-modeller funnet for «${valgtBygningNavn}»`
-              : "Ingen 3D-modeller i prosjektet"}
+            Velg en bygning med 3D-modeller i Lokasjoner
           </Text>
-          {valgtBygningId && (
-            <TouchableOpacity
-              onPress={() => settBygning(null)}
-              style={{ marginTop: 16, backgroundColor: "#1e40af", borderRadius: 8, paddingHorizontal: 20, paddingVertical: 10 }}
-            >
-              <Text style={{ color: "#fff", fontSize: 13, fontWeight: "600" }}>Vis alle bygninger</Text>
-            </TouchableOpacity>
-          )}
         </View>
       </SafeAreaView>
     );

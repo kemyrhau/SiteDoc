@@ -110,12 +110,19 @@ export default function HjemSkjerm() {
     { projectId: valgtProsjektId! },
     { enabled: !!valgtProsjektId },
   );
+  const bygninger = bygningQuery.data as Array<{ id: string; name: string; drawings?: Array<{ fileType?: string | null }> }> | undefined;
+
   const valgtBygningNavn = useMemo(() => {
-    if (!valgtBygningId || !bygningQuery.data) return null;
-    return (bygningQuery.data as Array<{ id: string; name: string }>).find(
-      (b) => b.id === valgtBygningId,
-    )?.name ?? null;
-  }, [valgtBygningId, bygningQuery.data]);
+    if (!valgtBygningId || !bygninger) return null;
+    return bygninger.find((b) => b.id === valgtBygningId)?.name ?? null;
+  }, [valgtBygningId, bygninger]);
+
+  // Sjekk om valgt bygning har IFC-modeller
+  const harIfcModeller = useMemo(() => {
+    if (!valgtBygningId || !bygninger) return false;
+    const bygning = bygninger.find((b) => b.id === valgtBygningId);
+    return bygning?.drawings?.some((d) => d.fileType?.toLowerCase() === "ifc") ?? false;
+  }, [valgtBygningId, bygninger]);
 
   // Hent sjekklister og oppgaver for valgt prosjekt (filtrert på bygning)
   const sjekklisteQuery = trpc.sjekkliste.hentForProsjekt.useQuery(
@@ -453,6 +460,7 @@ export default function HjemSkjerm() {
                 <ChevronRight size={20} color="#9ca3af" />
               </Pressable>
 
+              {harIfcModeller && (
               <Pressable
                 onPress={() => router.push("/3d-visning")}
                 className="flex-row items-center justify-between border-b border-gray-200 bg-white px-4 py-3"
@@ -462,7 +470,9 @@ export default function HjemSkjerm() {
                 </Text>
                 <ChevronRight size={20} color="#9ca3af" />
               </Pressable>
+              )}
 
+              {harIfcModeller && (
               <Pressable
                 onPress={() => router.push("/live-view")}
                 className="flex-row items-center justify-between border-b border-gray-200 bg-white px-4 py-3"
@@ -472,6 +482,7 @@ export default function HjemSkjerm() {
                 </Text>
                 <ChevronRight size={20} color="#9ca3af" />
               </Pressable>
+              )}
             </View>
 
             {/* Sist oppdatert */}
