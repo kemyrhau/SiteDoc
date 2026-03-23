@@ -1280,21 +1280,20 @@ export default function BrukereSide() {
 
   // Bygg map: "gruppeNøkkel:e-post" → invitasjon
   // Nøkkel-format: groupId, "ent-enterpriseId", eller "prosjektadmin"
-  const ventendeInvitasjonerMap = new Map<string, { id: string }>();
+  const ventendeInvitasjonerMap: Record<string, { id: string }> = {};
   if (invitasjoner) {
     for (const inv of invitasjoner) {
       if (inv.status !== "pending") continue;
       const epost = inv.email.toLowerCase();
       if (inv.group?.id) {
-        ventendeInvitasjonerMap.set(`${inv.group.id}:${epost}`, { id: inv.id });
+        ventendeInvitasjonerMap[`${inv.group.id}:${epost}`] = { id: inv.id };
       } else if (inv.enterprise?.id) {
-        ventendeInvitasjonerMap.set(`ent-${inv.enterprise.id}:${epost}`, { id: inv.id });
+        ventendeInvitasjonerMap[`ent-${inv.enterprise.id}:${epost}`] = { id: inv.id };
       } else if (inv.role === "admin") {
-        ventendeInvitasjonerMap.set(`prosjektadmin:${epost}`, { id: inv.id });
+        ventendeInvitasjonerMap[`prosjektadmin:${epost}`] = { id: inv.id };
       }
-      // Også global fallback for tilfeller der gruppen ikke er spesifisert
-      if (!ventendeInvitasjonerMap.has(`global:${epost}`)) {
-        ventendeInvitasjonerMap.set(`global:${epost}`, { id: inv.id });
+      if (!ventendeInvitasjonerMap[`global:${epost}`]) {
+        ventendeInvitasjonerMap[`global:${epost}`] = { id: inv.id };
       }
     }
   }
@@ -1302,7 +1301,7 @@ export default function BrukereSide() {
   function finnInvitasjon(gruppeId: string, epost?: string): { id: string } | undefined {
     if (!epost) return undefined;
     const e = epost.toLowerCase();
-    return ventendeInvitasjonerMap.get(`${gruppeId}:${e}`) ?? ventendeInvitasjonerMap.get(`global:${e}`);
+    return ventendeInvitasjonerMap[`${gruppeId}:${e}`] ?? ventendeInvitasjonerMap[`global:${e}`];
   }
 
   // Lazy opprettelse av standardgrupper
