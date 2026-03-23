@@ -7,6 +7,8 @@ export { beregnTransformasjon, gpsTilTegning, tegningTilGps, erInnenforTegning }
 export type { Transformasjon } from "./georeferanse";
 export { utmTilWgs84, ntmTilWgs84, konverterTilWgs84, detekterKoordinatSystem, EPSG_TIL_SYSTEM } from "./koordinatKonvertering";
 export type { KoordinatSystem } from "./koordinatKonvertering";
+export { wgs84TilUtm, wgs84TilNtm, wgs84TilProjeksjon, gpsTil3D, tredjeTilGps } from "./koordinatBro";
+export type { IfcOpprinnelse } from "./koordinatBro";
 
 /**
  * Generer et unikt prosjektnummer med prefiks og sekvensielt nummer.
