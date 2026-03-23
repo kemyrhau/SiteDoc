@@ -233,6 +233,48 @@ Vis IFC-modell overlagt på kamera for å følge/sjekke byggeprosessen i sanntid
 
 **Verdi:** Kvalitetskontroll på byggeplass — sjekke at ting er bygget riktig uten å gå tilbake til kontoret. Marker avvik direkte i visningen.
 
+## Planlagt: Bygningskontekst — sentral bygningsvelger
+
+### Problem
+Mobilappen mangler en persistent bygningsvelger. Brukere jobber typisk i én bygning om gangen — sjekklister, oppgaver, tegninger, 3D-modeller og live view bør alle filtreres til valgt bygning. Det gir ikke mening å vise IFC-modeller fra en annen bygning, eller sjekklister som tilhører et annet bygg.
+
+### Løsning: BygningKontekst i mobilappen
+
+**Ny kontekst:** `apps/mobile/src/kontekst/BygningKontekst.tsx`
+- `valgtBygningId: string | null` — persistent i AsyncStorage/SecureStore
+- `valgtBygning: { id, name, number } | null` — hentet fra API
+- `settBygning(id)` — oppdaterer valg
+- Alle barn-komponenter bruker `useBygning()` for å filtrere data
+
+**Bygningsvelger UI:**
+- Dropdown/velger i app-headeren eller på hjem-skjermen — alltid synlig
+- Viser bygningsnavn + nummer
+- Lagrer siste valg per prosjekt (Map<prosjektId, bygningId> i AsyncStorage)
+
+**Hva som filtreres på bygning:**
+- Sjekklister (`checklist.buildingId`)
+- Oppgaver (`task.drawingId → drawing.buildingId`)
+- Tegninger (`drawing.buildingId`)
+- 3D-modeller/IFC (`drawing.buildingId + fileType=ifc`)
+- Live View (kun modeller for valgt bygning)
+- Bilder (via sjekkliste/oppgave → bygning)
+
+**Provider-plassering i hierarkiet:**
+```
+DatabaseProvider → trpc → QueryClient → Nettverk → OpplastingsKo → Auth → Prosjekt → Bygning
+```
+
+**API-endringer:** Ingen — alle queries filtrerer allerede på `buildingId` (valgfritt). Mobilappen sender bare `buildingId` som parameter.
+
+**Berører:**
+- `apps/mobile/src/kontekst/` — ny BygningKontekst
+- `apps/mobile/app/(tabs)/hjem.tsx` — bygningsvelger
+- `apps/mobile/app/3d-visning.tsx` — filtrer IFC på bygning
+- `apps/mobile/app/live-view.tsx` — filtrer IFC på bygning
+- `apps/mobile/app/sjekkliste/` — filtrer på bygning
+- `apps/mobile/app/oppgave/` — filtrer på bygning
+- `apps/mobile/src/providers/index.tsx` — legg til BygningProvider
+
 ## Tegningsmarkører
 
 1. Trykk på tegning → markør → 2. MalVelger → 3. OppgaveModal → 4. Naviger til oppgave.
