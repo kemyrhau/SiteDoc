@@ -9,7 +9,6 @@ import {
   Map,
   Box,
   Image,
-  Building2,
   FolderOpen,
   Settings,
   Columns2,
@@ -81,12 +80,6 @@ const hovedelementer: SidebarElement[] = [
     id: "bilder",
     label: "Bilder",
     ikon: <Image className="h-5 w-5" />,
-    kreverProsjekt: true,
-  },
-  {
-    id: "entrepriser",
-    label: "Entrepriser",
-    ikon: <Building2 className="h-5 w-5" />,
     kreverProsjekt: true,
   },
   {
