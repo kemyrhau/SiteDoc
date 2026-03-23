@@ -209,10 +209,16 @@ Vis IFC-modell overlagt på kamera for å følge/sjekke byggeprosessen i sanntid
 - **react-native-arkit / react-native-arcore:** Direkte bindings. Mest kontroll, mest arbeid
 - **WebXR i WebView:** Eksperimentelt — nettleser-AR i WebView. Begrenset støtte
 
-**Anbefalt rekkefølge:**
-1. Start med Tilnærming A (split-view) — raskt, fungerer, gir verdi
-2. Evaluer AR-behov basert på brukertesting
-3. Tilnærming B med expo-three/expo-gl for full AR (Expo prebuild påkrevd)
+**Implementert: Tilnærming A (split-view MVP)**
+- `apps/mobile/app/live-view.tsx` — split-view med kamera + WebView
+- Kamera øverst, 3D-modell nederst (justerbar ratio: 50/50, 70/30, 30/70)
+- Live GPS med kompass på begge visninger
+- Bruker `/mobil-viewer` WebView og offline IFC-cache
+- Navigasjon fra hjem-skjermen
+
+**Neste steg:**
+1. Evaluer AR-behov basert på brukertesting av split-view
+2. Tilnærming B med expo-three/expo-gl for full AR (Expo prebuild påkrevd)
 
 **Posisjonering av modell:**
 - IFC-filer kan ha georeferanse (UTM-koordinater) i metadata — uttrukket ved opplasting og lagret i `Drawing.ifcMetadata`
