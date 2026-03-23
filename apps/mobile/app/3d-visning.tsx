@@ -1,5 +1,7 @@
 import { useRouter } from "expo-router";
-import { View, Text, ActivityIndicator } from "react-native";
+import { View, Text, ActivityIndicator, TouchableOpacity } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { ChevronLeft, Box } from "lucide-react-native";
 import { IfcViewer } from "../src/components/IfcViewer";
 import { useProsjekt } from "../src/kontekst/ProsjektKontekst";
 import { useBygning } from "../src/kontekst/BygningKontekst";
@@ -8,7 +10,7 @@ import { trpc } from "../src/lib/trpc";
 export default function TreDVisningSkjerm() {
   const router = useRouter();
   const { valgtProsjektId } = useProsjekt();
-  const { valgtBygningId } = useBygning();
+  const { valgtBygningId, settBygning } = useBygning();
 
   const { data: tegninger, isLoading } = trpc.tegning.hentForProsjekt.useQuery(
     {
@@ -17,6 +19,17 @@ export default function TreDVisningSkjerm() {
     },
     { enabled: !!valgtProsjektId },
   );
+
+  // Hent bygningsnavn
+  const bygningQuery = trpc.bygning.hentForProsjekt.useQuery(
+    { projectId: valgtProsjektId! },
+    { enabled: !!valgtProsjektId },
+  );
+  const valgtBygningNavn = valgtBygningId
+    ? (bygningQuery.data as Array<{ id: string; name: string }> | undefined)?.find(
+        (b) => b.id === valgtBygningId,
+      )?.name
+    : null;
 
   // Filtrer kun IFC-filer
   const ifcModeller = (tegninger ?? [])
@@ -29,18 +42,50 @@ export default function TreDVisningSkjerm() {
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#f3f4f6" }}>
-        <ActivityIndicator size="large" color="#1e40af" />
-        <Text style={{ marginTop: 12, color: "#6b7280", fontSize: 14 }}>Henter modeller...</Text>
-      </View>
+      <SafeAreaView style={{ flex: 1, backgroundColor: "#f3f4f6" }} edges={["top"]}>
+        <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#1e40af", paddingHorizontal: 12, paddingVertical: 10 }}>
+          <TouchableOpacity onPress={() => router.back()} style={{ padding: 8 }}>
+            <ChevronLeft size={20} color="#fff" />
+          </TouchableOpacity>
+          <Text style={{ color: "#fff", fontSize: 16, fontWeight: "600", marginLeft: 4 }}>3D-visning</Text>
+        </View>
+        <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+          <ActivityIndicator size="large" color="#1e40af" />
+          <Text style={{ marginTop: 12, color: "#6b7280", fontSize: 14 }}>Henter modeller...</Text>
+        </View>
+      </SafeAreaView>
     );
   }
 
   if (ifcModeller.length === 0) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#f3f4f6" }}>
-        <Text style={{ color: "#9ca3af", fontSize: 16 }}>Ingen IFC-modeller i prosjektet</Text>
-      </View>
+      <SafeAreaView style={{ flex: 1, backgroundColor: "#f3f4f6" }} edges={["top"]}>
+        <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#1e40af", paddingHorizontal: 12, paddingVertical: 10 }}>
+          <TouchableOpacity onPress={() => router.back()} style={{ padding: 8 }}>
+            <ChevronLeft size={20} color="#fff" />
+          </TouchableOpacity>
+          <Text style={{ color: "#fff", fontSize: 16, fontWeight: "600", marginLeft: 4 }}>3D-visning</Text>
+        </View>
+        <View style={{ flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 32 }}>
+          <Box size={48} color="#9ca3af" />
+          <Text style={{ color: "#6b7280", fontSize: 16, fontWeight: "500", marginTop: 16 }}>
+            Ingen IFC-modeller
+          </Text>
+          <Text style={{ color: "#9ca3af", fontSize: 13, textAlign: "center", marginTop: 6 }}>
+            {valgtBygningNavn
+              ? `Ingen 3D-modeller funnet for «${valgtBygningNavn}»`
+              : "Ingen 3D-modeller i prosjektet"}
+          </Text>
+          {valgtBygningId && (
+            <TouchableOpacity
+              onPress={() => settBygning(null)}
+              style={{ marginTop: 16, backgroundColor: "#1e40af", borderRadius: 8, paddingHorizontal: 20, paddingVertical: 10 }}
+            >
+              <Text style={{ color: "#fff", fontSize: 13, fontWeight: "600" }}>Vis alle bygninger</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      </SafeAreaView>
     );
   }
 
