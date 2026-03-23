@@ -3,7 +3,8 @@ import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet } from "rea
 import { WebView, type WebViewMessageEvent } from "react-native-webview";
 import { AUTH_CONFIG } from "../config/auth";
 import { hentSessionToken } from "../services/auth";
-import { Box, Eye, EyeOff, Scissors, X, ChevronLeft } from "lucide-react-native";
+import { hentLokalSti, lastNedIfc } from "../services/ifcCache";
+import { Box, Eye, EyeOff, Scissors, X, ChevronLeft, Download } from "lucide-react-native";
 
 interface IfcModell {
   id: string;
@@ -36,28 +37,47 @@ export function IfcViewer({ modeller, onTilbake }: IfcViewerProps) {
   const [klippAktiv, setKlippAktiv] = useState(false);
   const [visSidepanel, setVisSidepanel] = useState(false);
   const [feil, setFeil] = useState<string | null>(null);
-
-  // Bygg URL for modellene
-  const urls = modeller
-    .map((m) => {
-      const url = m.fileUrl.startsWith("/api") ? m.fileUrl : `/api${m.fileUrl}`;
-      return `${AUTH_CONFIG.apiUrl.replace("/trpc", "")}${url}`;
-    })
-    .join(",");
+  const [cacheStatus, setCacheStatus] = useState<string | null>(null);
 
   const viewerUrl = `${AUTH_CONFIG.apiUrl.replace("/trpc", "").replace("api.", "")}/mobil-viewer`;
 
-  // Send modeller til WebView etter den er klar
+  // Send modeller til WebView — prøv lokale cachede filer først, ellers server-URL
   const sendModeller = useCallback(async () => {
     const token = await hentSessionToken();
-    const modelUrls = modeller.map((m) => {
-      const url = m.fileUrl.startsWith("/api") ? m.fileUrl : `/api${m.fileUrl}`;
-      // Bruk web-URL (ikke API-URL) for å unngå CORS
-      return `${AUTH_CONFIG.apiUrl.replace("/trpc", "").replace("api.", "")}${url}`;
-    });
+    const modelUrls: string[] = [];
+
+    for (const m of modeller) {
+      // Sjekk lokal cache
+      const lokal = await hentLokalSti(m.fileUrl);
+      if (lokal) {
+        modelUrls.push(lokal);
+      } else {
+        const url = m.fileUrl.startsWith("/api") ? m.fileUrl : `/api${m.fileUrl}`;
+        modelUrls.push(`${AUTH_CONFIG.apiUrl.replace("/trpc", "").replace("api.", "")}${url}`);
+      }
+    }
+
     webViewRef.current?.postMessage(
       JSON.stringify({ type: "lastModeller", urls: modelUrls, token }),
     );
+  }, [modeller]);
+
+  // Forhåndslast IFC-filer til lokal cache
+  const lastNedTilCache = useCallback(async () => {
+    setCacheStatus("Laster ned...");
+    try {
+      for (let i = 0; i < modeller.length; i++) {
+        const m = modeller[i]!;
+        setCacheStatus(`${m.name} (${i + 1}/${modeller.length})`);
+        await lastNedIfc(m.fileUrl, (prosent) => {
+          setCacheStatus(`${m.name} — ${prosent}%`);
+        });
+      }
+      setCacheStatus("Lagret for offline-bruk");
+      setTimeout(() => setCacheStatus(null), 2000);
+    } catch (err) {
+      setCacheStatus(`Feil: ${err instanceof Error ? err.message : String(err)}`);
+    }
   }, [modeller]);
 
   // Håndter meldinger fra WebView
@@ -120,6 +140,9 @@ export function IfcViewer({ modeller, onTilbake }: IfcViewerProps) {
         </TouchableOpacity>
         <Text style={styles.headerTitle}>3D-visning</Text>
         <View style={styles.headerActions}>
+          <TouchableOpacity onPress={lastNedTilCache} style={styles.headerBtn}>
+            <Download size={18} color="#fff" />
+          </TouchableOpacity>
           <TouchableOpacity
             onPress={toggleKlipp}
             style={[styles.headerBtn, klippAktiv && styles.headerBtnAktiv]}
@@ -134,6 +157,14 @@ export function IfcViewer({ modeller, onTilbake }: IfcViewerProps) {
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* Cache-status */}
+      {cacheStatus && (
+        <View style={styles.cacheBanner}>
+          <Download size={14} color="#1e40af" />
+          <Text style={styles.cacheTekst}>{cacheStatus}</Text>
+        </View>
+      )}
 
       <View style={styles.content}>
         {/* WebView med 3D-viewer */}
@@ -241,6 +272,17 @@ const styles = StyleSheet.create({
   headerActions: { flexDirection: "row", gap: 4 },
   headerBtn: { padding: 8, borderRadius: 8 },
   headerBtnAktiv: { backgroundColor: "rgba(255,255,255,0.2)" },
+  cacheBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#eff6ff",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: "#dbeafe",
+  },
+  cacheTekst: { fontSize: 12, color: "#1e40af", fontWeight: "500" },
   content: { flex: 1, position: "relative" },
   webview: { flex: 1 },
   overlay: {
