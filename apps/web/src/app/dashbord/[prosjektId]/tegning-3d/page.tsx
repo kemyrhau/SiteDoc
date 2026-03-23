@@ -13,7 +13,7 @@ import {
 } from "@sitedoc/shared/utils";
 import type { GeoReferanse } from "@sitedoc/shared";
 import type { KoordinatSystem } from "@sitedoc/shared/utils";
-import { MapPin, Crosshair, Layers, Link2, Link2Off } from "lucide-react";
+import { Layers, Link2, Link2Off } from "lucide-react";
 
 interface TegningData {
   id: string;
@@ -35,14 +35,12 @@ export default function Tegning3DSide() {
   const { prosjektId } = useParams<{ prosjektId: string }>();
   const { viewerRef, valgtObjekt } = useTreDViewer();
 
-  // Hent alle tegninger for prosjektet
   const { data: _tegninger } = trpc.tegning.hentForProsjekt.useQuery(
     { projectId: prosjektId! },
     { enabled: !!prosjektId },
   );
   const tegninger = (_tegninger ?? []) as TegningData[];
 
-  // Filtrer: plantegninger (PDF/DWG/SVG) og IFC-modeller
   const plantegninger = tegninger.filter(
     (t) => t.fileUrl && t.fileType?.toLowerCase() !== "ifc",
   );
@@ -50,20 +48,15 @@ export default function Tegning3DSide() {
     (t) => t.fileType?.toLowerCase() === "ifc",
   );
 
-  // Finn IFC-opprinnelse (GPS fra første IFC med metadata)
   const ifcOpprinnelse = useMemo(() => {
     for (const m of ifcModeller) {
       if (m.ifcMetadata?.gpsBreddegrad && m.ifcMetadata?.gpsLengdegrad) {
-        return {
-          lat: m.ifcMetadata.gpsBreddegrad,
-          lng: m.ifcMetadata.gpsLengdegrad,
-        };
+        return { lat: m.ifcMetadata.gpsBreddegrad, lng: m.ifcMetadata.gpsLengdegrad };
       }
     }
     return null;
   }, [ifcModeller]);
 
-  // Koordinatsystem
   const coordSystem: KoordinatSystem = useMemo(() => {
     for (const m of ifcModeller) {
       if (m.coordinateSystem) return m.coordinateSystem as KoordinatSystem;
@@ -71,7 +64,6 @@ export default function Tegning3DSide() {
     return "utm33";
   }, [ifcModeller]);
 
-  // Etasjeliste fra IFC-metadata
   const etasjer = useMemo(() => {
     for (const m of ifcModeller) {
       if (m.ifcMetadata?.etasjer && m.ifcMetadata.etasjer.length > 0) {
@@ -85,8 +77,63 @@ export default function Tegning3DSide() {
   const [valgtTegningId, setValgtTegningId] = useState<string | null>(null);
   const [synkAktiv, setSynkAktiv] = useState(true);
   const [tegningMarkør, setTegningMarkør] = useState<{ x: number; y: number } | null>(null);
-  const [splitRatio, _setSplitRatio] = useState(50);
-  const tegningRef = useRef<HTMLDivElement>(null);
+
+  // Split — draggbar
+  const [splitPx, setSplitPx] = useState<number | null>(null); // null = 40% default
+  const splitContainerRef = useRef<HTMLDivElement>(null);
+  const draggingRef = useRef(false);
+
+  const handleDragStart = useCallback((e: React.PointerEvent) => {
+    e.preventDefault();
+    draggingRef.current = true;
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+  }, []);
+
+  const handleDragMove = useCallback((e: React.PointerEvent) => {
+    if (!draggingRef.current || !splitContainerRef.current) return;
+    const rect = splitContainerRef.current.getBoundingClientRect();
+    const x = Math.max(100, Math.min(rect.width - 100, e.clientX - rect.left));
+    setSplitPx(x);
+  }, []);
+
+  const handleDragEnd = useCallback(() => {
+    draggingRef.current = false;
+  }, []);
+
+  // Tegning zoom/pan
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const panStartRef = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null);
+  const tegningContainerRef = useRef<HTMLDivElement>(null);
+
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? 0.9 : 1.1;
+    setZoom((prev) => Math.max(0.2, Math.min(10, prev * delta)));
+  }, []);
+
+  const handlePanStart = useCallback((e: React.PointerEvent) => {
+    if (e.button !== 0) return;
+    panStartRef.current = { x: e.clientX, y: e.clientY, panX: pan.x, panY: pan.y };
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+  }, [pan]);
+
+  const handlePanMove = useCallback((e: React.PointerEvent) => {
+    if (!panStartRef.current) return;
+    const dx = e.clientX - panStartRef.current.x;
+    const dy = e.clientY - panStartRef.current.y;
+    setPan({ x: panStartRef.current.panX + dx, y: panStartRef.current.panY + dy });
+  }, []);
+
+  const handlePanEnd = useCallback(() => {
+    panStartRef.current = null;
+  }, []);
+
+  // Reset zoom ved tegningbytte
+  useEffect(() => {
+    setZoom(1);
+    setPan({ x: 0, y: 0 });
+  }, [valgtTegningId]);
 
   // Velg første tegning automatisk
   useEffect(() => {
@@ -97,7 +144,6 @@ export default function Tegning3DSide() {
 
   const valgtTegning = plantegninger.find((t) => t.id === valgtTegningId);
 
-  // Georeferanse-transformasjon for valgt tegning
   const transformasjon = useMemo(() => {
     if (!valgtTegning?.geoReference) return null;
     try {
@@ -109,10 +155,22 @@ export default function Tegning3DSide() {
 
   const harSynkMulighet = !!transformasjon && !!ifcOpprinnelse;
 
-  // Klikk på tegning → fly 3D
-  const håndterTegningKlikk = useCallback(
+  // Klikk på tegning → fly 3D (skiller klikk fra pan med avstandsterskel)
+  const clickStartRef = useRef<{ x: number; y: number } | null>(null);
+
+  const handleImgPointerDown = useCallback((e: React.PointerEvent<HTMLImageElement>) => {
+    clickStartRef.current = { x: e.clientX, y: e.clientY };
+  }, []);
+
+  const handleImgClick = useCallback(
     (e: React.MouseEvent<HTMLImageElement>) => {
       if (!synkAktiv || !transformasjon || !ifcOpprinnelse) return;
+      // Ignorer klikk etter pan
+      if (clickStartRef.current) {
+        const dx = e.clientX - clickStartRef.current.x;
+        const dy = e.clientY - clickStartRef.current.y;
+        if (Math.sqrt(dx * dx + dy * dy) > 5) return;
+      }
       const rect = e.currentTarget.getBoundingClientRect();
       const pxProsent = {
         x: ((e.clientX - rect.left) / rect.width) * 100,
@@ -147,11 +205,12 @@ export default function Tegning3DSide() {
       : `/api${valgtTegning.fileUrl}`
     : null;
 
+  const splitWidth = splitPx ?? (splitContainerRef.current?.getBoundingClientRect().width ?? 800) * 0.4;
+
   return (
     <div className="pointer-events-auto flex flex-1 flex-col overflow-hidden">
       {/* Toolbar */}
       <div className="flex items-center gap-3 border-b border-gray-200 bg-white px-4 py-2">
-        {/* Tegningsvelger */}
         <select
           value={valgtTegningId ?? ""}
           onChange={(e) => setValgtTegningId(e.target.value || null)}
@@ -165,24 +224,18 @@ export default function Tegning3DSide() {
           ))}
         </select>
 
-        {/* Etasjevelger */}
         {etasjer.length > 0 && (
           <select
             onChange={(e) => {
               const etasje = etasjer.find((et) => et.navn === e.target.value);
               if (!etasje) return;
-              // Bytt tegning til matching etasje
-              const matchendeTegning = plantegninger.find(
-                (t) => t.floor === etasje.navn,
-              );
-              if (matchendeTegning) setValgtTegningId(matchendeTegning.id);
+              const match = plantegninger.find((t) => t.floor === etasje.navn);
+              if (match) setValgtTegningId(match.id);
             }}
             className="rounded border border-gray-300 px-2 py-1 text-sm"
             defaultValue=""
           >
-            <option value="" disabled>
-              Etasje...
-            </option>
+            <option value="" disabled>Etasje...</option>
             {etasjer.map((e) => (
               <option key={e.navn} value={e.navn}>
                 {e.navn} {e.høyde != null ? `(${e.høyde.toFixed(1)}m)` : ""}
@@ -191,24 +244,26 @@ export default function Tegning3DSide() {
           </select>
         )}
 
-        {/* Synk-toggle */}
         <button
           onClick={() => setSynkAktiv(!synkAktiv)}
           className={`flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium ${
-            synkAktiv && harSynkMulighet
-              ? "bg-blue-100 text-blue-700"
-              : "bg-gray-100 text-gray-500"
+            synkAktiv && harSynkMulighet ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-500"
           }`}
           disabled={!harSynkMulighet}
-          title={
-            harSynkMulighet
-              ? "Synkroniser klikk mellom tegning og 3D"
-              : "Krever georeferert tegning og IFC med GPS"
-          }
+          title={harSynkMulighet ? "Synkroniser klikk mellom tegning og 3D" : "Krever georeferert tegning og IFC med GPS"}
         >
           {synkAktiv ? <Link2 size={14} /> : <Link2Off size={14} />}
           Synk
         </button>
+
+        {zoom !== 1 && (
+          <button
+            onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }}
+            className="rounded bg-gray-100 px-2 py-1 text-xs text-gray-600"
+          >
+            {Math.round(zoom * 100)}% — Tilbakestill
+          </button>
+        )}
 
         {!harSynkMulighet && (
           <span className="text-xs text-gray-400">
@@ -217,33 +272,51 @@ export default function Tegning3DSide() {
         )}
       </div>
 
-      {/* Split-view */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* Venstre: Tegning */}
+      {/* Split-view med draggbar skillelinje */}
+      <div
+        ref={splitContainerRef}
+        className="flex flex-1 overflow-hidden"
+        onPointerMove={handleDragMove}
+        onPointerUp={handleDragEnd}
+      >
+        {/* Venstre: Tegning med zoom/pan */}
         <div
-          ref={tegningRef}
-          className="relative overflow-auto border-r border-gray-300 bg-gray-50"
-          style={{ width: `${splitRatio}%` }}
+          className="relative overflow-hidden bg-gray-100"
+          style={{ width: splitWidth, flexShrink: 0 }}
+          onWheel={handleWheel}
+          onPointerDown={handlePanStart}
+          onPointerMove={handlePanMove}
+          onPointerUp={handlePanEnd}
         >
           {tegningUrl ? (
-            <div className="relative inline-block min-h-full min-w-full">
+            <div
+              className="relative origin-top-left"
+              style={{
+                transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+                cursor: panStartRef.current ? "grabbing" : "crosshair",
+              }}
+            >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={tegningUrl}
                 alt={valgtTegning?.name ?? "Tegning"}
-                className="max-w-none cursor-crosshair"
-                onClick={håndterTegningKlikk}
+                className="max-w-none select-none"
+                onPointerDown={handleImgPointerDown}
+                onClick={handleImgClick}
                 draggable={false}
               />
               {/* Synk-markør fra 3D */}
               {tegningMarkør && (
-                <div
-                  className="pointer-events-none absolute h-6 w-6 -translate-x-1/2 -translate-y-1/2 animate-ping rounded-full border-2 border-blue-500 bg-blue-500/30"
-                  style={{
-                    left: `${tegningMarkør.x}%`,
-                    top: `${tegningMarkør.y}%`,
-                  }}
-                />
+                <>
+                  <div
+                    className="pointer-events-none absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-500"
+                    style={{ left: `${tegningMarkør.x}%`, top: `${tegningMarkør.y}%` }}
+                  />
+                  <div
+                    className="pointer-events-none absolute h-8 w-8 -translate-x-1/2 -translate-y-1/2 animate-ping rounded-full border-2 border-blue-500"
+                    style={{ left: `${tegningMarkør.x}%`, top: `${tegningMarkør.y}%` }}
+                  />
+                </>
               )}
             </div>
           ) : (
@@ -256,14 +329,16 @@ export default function Tegning3DSide() {
           )}
         </div>
 
-        {/* Høyre: 3D — ViewerCanvas rendres av layout, vises gjennom her */}
+        {/* Draggbar skillelinje */}
         <div
-          className="pointer-events-auto relative flex-1"
-          style={{ width: `${100 - splitRatio}%` }}
+          className="group relative z-20 flex w-1.5 cursor-col-resize items-center justify-center bg-gray-300 hover:bg-blue-400 active:bg-blue-500"
+          onPointerDown={handleDragStart}
         >
-          {/* 3D-vieweren vises via layout sin ViewerCanvas */}
-          {/* Denne diven er transparent — klikk går gjennom til canvas under */}
+          <div className="h-8 w-1 rounded-full bg-gray-500 group-hover:bg-white" />
         </div>
+
+        {/* Høyre: 3D — ViewerCanvas rendres av layout */}
+        <div className="pointer-events-auto relative flex-1" />
       </div>
     </div>
   );
