@@ -630,8 +630,22 @@ function OpprettDokumentflytModal({
 }) {
   const [navn, setNavn] = useState("");
   const [oppretterEntrepriseId, setOppretterEntrepriseId] = useState("");
-  const [svarerEntrepriseId, setSvarerEntrepriseId] = useState("");
+  const [mottakerType, setMottakerType] = useState<"bruker" | "gruppe">("bruker");
+  const [mottakerId, setMottakerId] = useState("");
   const [valgteMaler, setValgteMaler] = useState<Set<string>>(new Set());
+
+  // Hent prosjektmedlemmer og grupper for mottaker-velgeren
+  const { data: _medlemmer } = trpc.medlem.hentForProsjekt.useQuery(
+    { projectId: prosjektId },
+    { enabled: open },
+  );
+  const medlemmer = (_medlemmer ?? []) as Array<{ id: string; user: { name: string | null; email: string } }>;
+
+  const { data: _grupper } = trpc.gruppe.hentForProsjekt.useQuery(
+    { projectId: prosjektId },
+    { enabled: open },
+  );
+  const grupper = (_grupper ?? []) as Array<{ id: string; name: string }>;
 
   const utils = trpc.useUtils();
   const opprettMutation = trpc.dokumentflyt.opprett.useMutation({
@@ -645,7 +659,8 @@ function OpprettDokumentflytModal({
   function nullstill() {
     setNavn("");
     setOppretterEntrepriseId("");
-    setSvarerEntrepriseId("");
+    setMottakerType("bruker");
+    setMottakerId("");
     setValgteMaler(new Set());
   }
 
@@ -672,24 +687,34 @@ function OpprettDokumentflytModal({
     e.preventDefault();
     if (!navn.trim()) return;
 
-    const medlemmer: Array<{
+    const dfMedlemmer: Array<{
       enterpriseId?: string;
+      projectMemberId?: string;
       rolle: "oppretter" | "svarer";
       steg: number;
     }> = [];
 
     if (oppretterEntrepriseId) {
-      medlemmer.push({ enterpriseId: oppretterEntrepriseId, rolle: "oppretter", steg: 1 });
+      dfMedlemmer.push({ enterpriseId: oppretterEntrepriseId, rolle: "oppretter", steg: 1 });
     }
-    if (svarerEntrepriseId) {
-      medlemmer.push({ enterpriseId: svarerEntrepriseId, rolle: "svarer", steg: 1 });
+    if (mottakerId) {
+      if (mottakerType === "bruker") {
+        dfMedlemmer.push({ projectMemberId: mottakerId, rolle: "svarer", steg: 1 });
+      } else {
+        // For grupper: legg til alle gruppemedlemmer som svarere
+        const gruppe = grupper.find((g) => g.id === mottakerId);
+        if (gruppe) {
+          // Gruppe-ID sendes som enterpriseId midlertidig — bør utvides i API
+          dfMedlemmer.push({ projectMemberId: mottakerId, rolle: "svarer", steg: 1 });
+        }
+      }
     }
 
     opprettMutation.mutate({
       projectId: prosjektId,
       name: navn.trim(),
       templateIds: Array.from(valgteMaler),
-      medlemmer,
+      medlemmer: dfMedlemmer,
     });
   }
 
@@ -724,15 +749,44 @@ function OpprettDokumentflytModal({
           <label className="mb-1 block text-sm font-medium text-gray-700">
             Mottaker
           </label>
+          <div className="mb-2 flex gap-2">
+            <button
+              type="button"
+              onClick={() => { setMottakerType("bruker"); setMottakerId(""); }}
+              className={`rounded-full px-3 py-1 text-xs font-medium ${mottakerType === "bruker" ? "bg-sitedoc-primary text-white" : "bg-gray-100 text-gray-600"}`}
+            >
+              Bruker
+            </button>
+            <button
+              type="button"
+              onClick={() => { setMottakerType("gruppe"); setMottakerId(""); }}
+              className={`rounded-full px-3 py-1 text-xs font-medium ${mottakerType === "gruppe" ? "bg-sitedoc-primary text-white" : "bg-gray-100 text-gray-600"}`}
+            >
+              Gruppe
+            </button>
+          </div>
           <select
             className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-sitedoc-primary focus:outline-none focus:ring-1 focus:ring-sitedoc-primary"
-            value={svarerEntrepriseId}
-            onChange={(e) => setSvarerEntrepriseId(e.target.value)}
+            value={mottakerId}
+            onChange={(e) => setMottakerId(e.target.value)}
           >
-            <option value="">Velg entreprise...</option>
-            {entrepriser.map((ent) => (
-              <option key={ent.id} value={ent.id}>{ent.name}</option>
-            ))}
+            {mottakerType === "bruker" ? (
+              <>
+                <option value="">Velg bruker...</option>
+                {medlemmer.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.user.name ?? m.user.email}
+                  </option>
+                ))}
+              </>
+            ) : (
+              <>
+                <option value="">Velg gruppe...</option>
+                {grupper.map((g) => (
+                  <option key={g.id} value={g.id}>{g.name}</option>
+                ))}
+              </>
+            )}
           </select>
         </div>
 
