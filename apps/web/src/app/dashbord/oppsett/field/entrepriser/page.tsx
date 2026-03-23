@@ -726,19 +726,19 @@ function OpprettDokumentflytModal({
     }> = [];
 
     if (oppretterId) {
-      dfMedlemmer.push({ projectMemberId: oppretterId, rolle: "oppretter", steg: 1 });
+      dfMedlemmer.push({
+        projectMemberId: oppretterId,
+        enterpriseId: forvalgtEntrepriseId,
+        rolle: "oppretter",
+        steg: 1,
+      });
     }
     if (mottakerId) {
-      if (mottakerType === "bruker") {
-        dfMedlemmer.push({ projectMemberId: mottakerId, rolle: "svarer", steg: 1 });
-      } else {
-        // For grupper: legg til alle gruppemedlemmer som svarere
-        const gruppe = grupper.find((g) => g.id === mottakerId);
-        if (gruppe) {
-          // Gruppe-ID sendes som enterpriseId midlertidig — bør utvides i API
-          dfMedlemmer.push({ projectMemberId: mottakerId, rolle: "svarer", steg: 1 });
-        }
-      }
+      dfMedlemmer.push({
+        projectMemberId: mottakerId,
+        rolle: "svarer",
+        steg: 1,
+      });
     }
 
     opprettMutation.mutate({
