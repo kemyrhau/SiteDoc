@@ -105,10 +105,16 @@ export default function TegningerSide() {
     avbrytPosisjonsvelger,
   } = useBygning();
   const utils = trpc.useUtils();
-  const containerRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
 
   // Zoom
   const [zoom, setZoom] = useState(STANDARD_ZOOM);
+
+  // Klikkemodus: inspeksjon (vis DWG-egenskaper) eller plassering (opprett oppgave)
+  const [klikkModus, setKlikkModus] = useState<"inspeksjon" | "plassering">("plassering");
+
+  // DWG-elementinfo ved klikk
+  const [valgtElement, setValgtElement] = useState<{ lag: string; type: string; tekst: string; x: number; y: number } | null>(null);
 
   // Ny markør-plassering
   const [nyMarkør, setNyMarkør] = useState<{ x: number; y: number } | null>(null);
@@ -239,7 +245,31 @@ export default function TegningerSide() {
       .catch(() => setSvgInnhold(null));
   }, [svgUrl, erSvgFil]);
 
+  // SVG-variant for inspeksjonsmodus med bredere treffområde og hover-highlight
+  const svgInnholdInspeksjon = useMemo(() => {
+    if (!svgInnhold) return null;
+    // Erstatt stroke-width CSS med bredere versjon + pointer-events stroke + hover-effekt
+    return svgInnhold.replace(
+      /<style>[^<]*<\/style>/,
+      `<style>
+        line,polyline,circle,path,ellipse,polygon{
+          stroke-width:calc(1.5 / var(--svg-zoom, 1)) !important;
+        }
+        [data-layer]{
+          stroke-width:calc(5 / var(--svg-zoom, 1)) !important;
+          pointer-events:stroke;
+          cursor:pointer;
+        }
+        [data-layer]:hover{
+          stroke:#3b82f6 !important;
+        }
+      </style>`,
+    );
+  }, [svgInnhold]);
+
   // Musehjul-zoom sentrert på musepekeren
+  // Re-registrer når tegning endres (containerRef mountes etter data-lasting)
+  const tegningId = aktivTegning?.id;
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -248,30 +278,75 @@ export default function TegningerSide() {
       e.preventDefault();
 
       const rect = el!.getBoundingClientRect();
-      // Museposisjon relativt til containeren (0-1)
-      const mx = (e.clientX - rect.left + el!.scrollLeft) / el!.scrollWidth;
-      const my = (e.clientY - rect.top + el!.scrollTop) / el!.scrollHeight;
+      // Museposisjon i innholdet (piksler fra topp-venstre av scrollbart innhold)
+      const contentX = e.clientX - rect.left + el!.scrollLeft;
+      const contentY = e.clientY - rect.top + el!.scrollTop;
+      // Museposisjon i viewporten (piksler fra topp-venstre av synlig område)
+      const viewX = e.clientX - rect.left;
+      const viewY = e.clientY - rect.top;
 
       setZoom((prev) => {
         const faktor = e.deltaY > 0 ? 0.8 : 1.25;
         const neste = Math.min(MAKS_ZOOM, Math.max(MIN_ZOOM, prev * faktor));
+        const skala = neste / prev;
 
-        // Juster scroll for å sentrere zoom på musepekeren
         requestAnimationFrame(() => {
           if (!el) return;
-          const nyBredde = el.scrollWidth * (neste / prev);
-          const nyHoyde = el.scrollHeight * (neste / prev);
-          el.scrollLeft = mx * nyBredde - (e.clientX - rect.left);
-          el.scrollTop = my * nyHoyde - (e.clientY - rect.top);
+          // Innholdspunktet under musen skaleres med faktoren
+          el.scrollLeft = contentX * skala - viewX;
+          el.scrollTop = contentY * skala - viewY;
         });
 
         return neste;
       });
     }
 
+    // Dra-for-å-panorere (midterste museknapp eller venstre + dra)
+    let dragging = false;
+    let startX = 0;
+    let startY = 0;
+    let startScrollLeft = 0;
+    let startScrollTop = 0;
+
+    function handlePointerDown(e: PointerEvent) {
+      if (e.button !== 0) return;
+      dragging = false; // Settes til true ved bevegelse
+      startX = e.clientX;
+      startY = e.clientY;
+      startScrollLeft = el!.scrollLeft;
+      startScrollTop = el!.scrollTop;
+    }
+
+    function handlePointerMove(e: PointerEvent) {
+      if (e.buttons !== 1) return; // Venstre knapp holdt nede
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      if (!dragging && Math.sqrt(dx * dx + dy * dy) > 5) {
+        dragging = true;
+        el!.style.cursor = "grabbing";
+      }
+      if (dragging) {
+        el!.scrollLeft = startScrollLeft - dx;
+        el!.scrollTop = startScrollTop - dy;
+      }
+    }
+
+    function handlePointerUp() {
+      dragging = false;
+      el!.style.cursor = "";
+    }
+
     el.addEventListener("wheel", handleWheel, { passive: false });
-    return () => el.removeEventListener("wheel", handleWheel);
-  }, []);
+    el.addEventListener("pointerdown", handlePointerDown);
+    el.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp);
+    return () => {
+      el.removeEventListener("wheel", handleWheel);
+      el.removeEventListener("pointerdown", handlePointerDown);
+      el.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+    };
+  }, [tegningId, isLoading]);
 
   function lukkModal() {
     setVisOpprettModal(false);
@@ -298,7 +373,44 @@ export default function TegningerSide() {
     setGpsKoordinat(null);
   }, []);
 
+  // Skille mellom pan (dra) og klikk (plassering)
+  const museNedPosRef = useRef<{ x: number; y: number } | null>(null);
+  const handleMuseNed = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    museNedPosRef.current = { x: e.clientX, y: e.clientY };
+  }, []);
+
   const handleBildeKlikk = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    // Ignorer klikk hvis musen ble dratt (pan)
+    if (museNedPosRef.current) {
+      const dx = e.clientX - museNedPosRef.current.x;
+      const dy = e.clientY - museNedPosRef.current.y;
+      if (Math.sqrt(dx * dx + dy * dy) > 5) return;
+    }
+
+    // Inspeksjonsmodus: vis DWG-egenskaper
+    if (klikkModus === "inspeksjon") {
+      const target = e.target as SVGElement;
+      const lag = target?.getAttribute?.("data-layer");
+      const elementType = target?.getAttribute?.("data-type");
+      if (lag || elementType) {
+        // For tekst-elementer: hent tekstinnholdet
+        const tekst = (elementType === "TEXT" || elementType === "MTEXT")
+          ? (target.textContent ?? "")
+          : "";
+        setValgtElement({
+          lag: lag ?? "",
+          type: elementType ?? "",
+          tekst,
+          x: e.clientX,
+          y: e.clientY,
+        });
+      } else {
+        setValgtElement(null);
+      }
+      return;
+    }
+    setValgtElement(null);
+
     const container = e.currentTarget;
     const rect = container.getBoundingClientRect();
     const x = ((e.clientX - rect.left) / rect.width) * 100;
@@ -318,7 +430,7 @@ export default function TegningerSide() {
 
     setNyMarkør({ x, y });
     setVisOpprettModal(true);
-  }, [posisjonsvelgerAktiv, aktivTegning, fullførPosisjonsvelger, router]);
+  }, [posisjonsvelgerAktiv, aktivTegning, fullførPosisjonsvelger, router, klikkModus]);
 
   // Finn matchende arbeidsforløp for valgt oppretter + mal
   const alleArbeidsforlop = (arbeidsforlop ?? []) as unknown as ArbeidsflopRad[];
@@ -544,6 +656,35 @@ export default function TegningerSide() {
           </button>
         </div>
 
+        {/* Klikkemodus — kun for DWG-konverterte SVG-tegninger */}
+        {erSvgFil && (
+          <>
+            <div className="mx-2 h-4 w-px bg-gray-200" />
+            <div className="flex items-center rounded border border-gray-200">
+              <button
+                onClick={() => { setKlikkModus("plassering"); setValgtElement(null); }}
+                className={`flex items-center gap-1 rounded-l px-2 py-1 text-xs ${
+                  klikkModus === "plassering" ? "bg-sitedoc-primary text-white" : "text-gray-600 hover:bg-gray-100"
+                }`}
+                title="Klikk for å opprette oppgave"
+              >
+                <MapPin className="h-3 w-3" />
+                Oppgave
+              </button>
+              <button
+                onClick={() => { setKlikkModus("inspeksjon"); setNyMarkør(null); }}
+                className={`flex items-center gap-1 rounded-r px-2 py-1 text-xs ${
+                  klikkModus === "inspeksjon" ? "bg-sitedoc-primary text-white" : "text-gray-600 hover:bg-gray-100"
+                }`}
+                title="Klikk for å se DWG-egenskaper"
+              >
+                <Info className="h-3 w-3" />
+                Inspeksjon
+              </button>
+            </div>
+          </>
+        )}
+
         {/* GPS-koordinater for georefererte tegninger */}
         {transformasjon && (
           <>
@@ -604,8 +745,9 @@ export default function TegningerSide() {
             className="flex-1 overflow-auto bg-gray-100"
           >
             <div
-              className="relative inline-block cursor-crosshair"
+              className={`relative inline-block ${klikkModus === "inspeksjon" ? "cursor-pointer" : "cursor-crosshair"}`}
               style={{ width: `${zoom * 100}%`, minWidth: "100%" }}
+              onMouseDown={handleMuseNed}
               onClick={handleBildeKlikk}
               onMouseMove={handleMuseBevegelse}
               onMouseLeave={handleMuseForlat}
@@ -615,7 +757,7 @@ export default function TegningerSide() {
                 <div
                   className="block w-full"
                   style={{ "--svg-zoom": zoom } as React.CSSProperties}
-                  dangerouslySetInnerHTML={{ __html: svgInnhold }}
+                  dangerouslySetInnerHTML={{ __html: klikkModus === "inspeksjon" && svgInnholdInspeksjon ? svgInnholdInspeksjon : svgInnhold }}
                 />
               ) : (
                 <img
@@ -656,6 +798,43 @@ export default function TegningerSide() {
                 </div>
               )}
             </div>
+
+            {/* DWG element-info popup */}
+            {valgtElement && erSvgFil && (
+              <div
+                className="fixed z-50 rounded-lg border border-gray-200 bg-white px-4 py-3 shadow-lg"
+                style={{ left: valgtElement.x + 12, top: valgtElement.y - 10 }}
+              >
+                <div className="flex items-start gap-3">
+                  <div className="min-w-0">
+                    {valgtElement.lag && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-medium text-gray-500">Lag</span>
+                        <span className="text-sm font-semibold text-gray-900">{valgtElement.lag}</span>
+                      </div>
+                    )}
+                    {valgtElement.type && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-medium text-gray-500">Type</span>
+                        <span className="text-sm text-gray-700">{valgtElement.type}</span>
+                      </div>
+                    )}
+                    {valgtElement.tekst && (
+                      <div className="mt-1 flex items-start gap-2">
+                        <span className="text-xs font-medium text-gray-500">Tekst</span>
+                        <span className="text-sm text-gray-900">{valgtElement.tekst}</span>
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => setValgtElement(null)}
+                    className="shrink-0 text-gray-400 hover:text-gray-600"
+                  >
+                    ×
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           /* PDF — iframe med klikkbar overlay for markørplassering */
@@ -668,6 +847,7 @@ export default function TegningerSide() {
             {/* Overlay som fanger klikk for markørplassering */}
             <div
               className="absolute inset-0 cursor-crosshair"
+              onMouseDown={handleMuseNed}
               onClick={handleBildeKlikk}
               onMouseMove={handleMuseBevegelse}
               onMouseLeave={handleMuseForlat}

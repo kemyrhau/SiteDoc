@@ -127,6 +127,139 @@ DatabaseProvider → trpc → QueryClient → Nettverk → OpplastingsKo → Aut
 
 **expo-file-system:** Bruk `expo-file-system/legacy` (IKKE `expo-file-system`)
 
+## Planlagt: IFC 3D-visning i mobil (Fase 2)
+
+### Arkitekturbeslutning: WebView-tilnærming
+
+@thatopen/fragments + Three.js fungerer ikke i React Native. WebView-tilnærming gjenbruker web-vieweren — enklest å implementere og vedlikeholde. Appen bruker allerede `react-native-webview` (v13.15.0) for signatur-canvas.
+
+### Implementasjonsplan
+
+**Steg 1: Lag en standalone IFC-viewer HTML-side på web**
+- Ny rute: `/mobil-viewer` (eller statisk HTML i `public/`)
+- Bare canvas + OBC-initialisering — ingen sidebar, verktøylinje eller Next.js-layout
+- Aksepterer parametere via URL eller `postMessage`:
+  - `modelUrls` — liste med IFC-fil-URLer
+  - `token` — auth-token for filnedlasting
+- Sender hendelser tilbake via `postMessage`:
+  - `{ type: "objektValgt", data: { localId, modelId, kategori, egenskaper } }`
+  - `{ type: "modellLastet", data: { antall } }`
+  - `{ type: "feil", data: { melding } }`
+- **Fil:** `apps/web/src/app/mobil-viewer/page.tsx`
+
+**Steg 2: WebView-komponent i mobilappen**
+- Ny komponent: `apps/mobile/src/components/IfcViewer.tsx`
+- `<WebView source={{ uri: "https://sitedoc.no/mobil-viewer?..." }}>`
+- `onMessage` håndterer `postMessage` fra web-vieweren
+- Overlay-kontroller i React Native over WebView:
+  - Modell-toggle (avkrysning per fag)
+  - Snitt-knapp
+  - Tilbake-knapp
+- **Touch-kontroller:** WebView videresender touch til Three.js orbit controls (fungerer ut av boksen)
+
+**Steg 3: Navigasjon og integrasjon**
+- Ny tab eller knapp i `(tabs)/` — "3D" ikon i bottom-tab, eller knapp i Lokasjoner
+- Alternativt: dedikert rute `app/3d-visning.tsx` tilgjengelig fra hjem-skjermen
+- Hent IFC-tegninger via `trpc.tegning.hentForProsjekt` (filtrerer `fileType === "ifc"`)
+
+**Steg 4: Offline-støtte**
+- Forhåndslast IFC-filer til `expo-file-system` lokal lagring
+- WebView laster fra `file://` i stedet for `https://`
+- Krever: ny synk-logikk i `OpplastingsKoProvider` eller egen `IfcCacheProvider`
+- Vis nedlastings-progress og lagringsstatus
+
+**Avhengigheter som allerede finnes:**
+- `react-native-webview` (v13.15.0) ✓
+- `expo-file-system` ✓
+- tRPC-klient med auth ✓
+
+**Nye avhengigheter:** Ingen (WebView dekker alt)
+
+### Funksjoner å støtte (prioritert)
+1. Modellvisning med orbit-kontroll (touch)
+2. Modell-toggle per fag (checkbox-liste)
+3. Objektklikk med egenskapspanel
+4. Klippeplan (snitt)
+5. Filtrering (skjul/vis IFC-typer)
+
+---
+
+## Planlagt: Live site-view — AR/3D på byggeplass (Fase 3)
+
+### Konsept
+Vis IFC-modell overlagt på kamera for å følge/sjekke byggeprosessen i sanntid.
+
+### Implementasjonsplan — to tilnærminger
+
+**Tilnærming A: Enkel "split-view" (MVP)**
+- Delt skjerm: kamerabilde øverst, 3D-modell i WebView nederst
+- GPS-posisjon vises i begge visninger
+- Bruker roterer modellen manuelt til den matcher kameravinkelen
+- Minimal kompleksitet — kan implementeres med eksisterende teknologi
+- **Komponenter:** `expo-camera` + `IfcViewer` WebView + GPS overlay
+
+**Tilnærming B: Full AR-overlay (avansert)**
+- IFC-modell overlagt direkte på kamerastrømmen
+- GPS + kompass + akselerometer for automatisk posisjonering
+- Manuell finjustering (dra/roter/skaler modell)
+
+**Teknologivalg for AR:**
+- **expo-three + expo-gl:** Three.js i React Native med GL-kontekst. Kan rendere IFC-geometri over kamerabakgrunn. Krever egen IFC-parser (ikke @thatopen som trenger DOM)
+- **ViroReact:** Open-source AR-rammeverk for React Native. Støtter ARKit/ARCore, 3D-modeller, GPS-forankring. Krever native modul (Expo prebuild)
+- **react-native-arkit / react-native-arcore:** Direkte bindings. Mest kontroll, mest arbeid
+- **WebXR i WebView:** Eksperimentelt — nettleser-AR i WebView. Begrenset støtte
+
+**Implementert: Tilnærming A (split-view MVP)**
+- `apps/mobile/app/live-view.tsx` — split-view med kamera + WebView
+- Kamera øverst, 3D-modell nederst (justerbar ratio: 50/50, 70/30, 30/70)
+- Live GPS med kompass på begge visninger
+- Bruker `/mobil-viewer` WebView og offline IFC-cache
+- Navigasjon fra hjem-skjermen
+
+**Neste steg:**
+1. Evaluer AR-behov basert på brukertesting av split-view
+2. Tilnærming B med expo-three/expo-gl for full AR (Expo prebuild påkrevd)
+
+**Posisjonering av modell:**
+- IFC-filer kan ha georeferanse (UTM-koordinater) i metadata — uttrukket ved opplasting og lagret i `Drawing.ifcMetadata`
+- `expo-location` gir GPS (WGS84) — konverter til UTM via `koordinatKonvertering.ts` (allerede i @sitedoc/shared)
+- Kompass (`expo-sensors` Magnetometer) gir retning
+- Akselerometer gir tilt for kameravinkel
+
+**GPS-presisjon:**
+- Standard GPS: ±5-10m — for grov plassering
+- RTK-GPS (eksternt via Bluetooth): ±2cm — for presis overlay
+- Manuell justering nødvendig uansett for starten
+
+**Verdi:** Kvalitetskontroll på byggeplass — sjekke at ting er bygget riktig uten å gå tilbake til kontoret. Marker avvik direkte i visningen.
+
+## Implementert: Bygningskontekst — sentral bygningsvelger (Dalux-mønster)
+
+**Kontekst:** `apps/mobile/src/kontekst/BygningKontekst.tsx`
+- `valgtBygningId: string | null` — persistent i SecureStore, lagret per prosjekt (Map<prosjektId, bygningId>)
+- `settBygning(id | null)` — oppdaterer valg, null = "Alle"
+- `useBygning()` hook for alle barn-komponenter
+
+**Bygningsvelger UI:**
+- **Lokasjoner-fanen** har horisontalt chip-bånd ("Alle" + bygninger) øverst når tegning ikke vises
+- Valgt bygning vises som undertekst i lokasjoner-headeren og hjem-headeren
+- Prosjektvelgeren i headeren forblir uendret
+
+**Hva som filtreres på bygning (implementert):**
+- Sjekklister i hjem (`checklist.buildingId` via API)
+- Tegninger i lokasjoner (`drawing.buildingId` via API)
+- 3D-modeller/IFC (`drawing.buildingId + fileType=ifc`)
+- Live View (kun modeller for valgt bygning)
+
+**Gjenstår:**
+- Oppgaver: API-ruten `oppgave.hentForProsjekt` mangler `buildingId`-filter (oppgaver kobles via `drawing.buildingId`)
+- Sjekkliste-liste og oppgave-liste (egne listevisninger) filtrerer ikke ennå
+
+**Provider-plassering:**
+```
+DatabaseProvider → trpc → QueryClient → Nettverk → OpplastingsKo → Auth → Prosjekt → Bygning
+```
+
 ## Tegningsmarkører
 
 1. Trykk på tegning → markør → 2. MalVelger → 3. OppgaveModal → 4. Naviger til oppgave.

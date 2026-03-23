@@ -126,7 +126,29 @@ Berører: `apps/api/src/routes/upload.ts`, opplastingskomponenter i web og mobil
 - Microsoft-variabler MÅ stå i `.env.local`
 - Test og produksjon har **separate AUTH_SECRET** og **separate databaser**
 
-## Test-miljø arbeidsflyt
+## Test-miljø detaljer
+
+### Uploads
+Test-API-en bruker en **symlink** til prod sin uploads-mappe:
+```
+~/programmering/sitedoc-test/apps/api/uploads → ~/programmering/sitedoc/apps/api/uploads
+```
+Begge miljøer deler altså samme lokale fillagring. Ikke slett filer i uploads-mappen uten å sjekke begge databaser.
+
+### Test-API oppstart
+Test-API-en kjøres med `tsx` (ikke kompilert JS), fordi root `tsconfig.json` har `noEmit: true`:
+```bash
+cd ~/programmering/sitedoc-test/apps/api && PORT=3301 pm2 start 'npx tsx src/server.ts' --name sitedoc-test-api
+```
+
+### Test-database
+Test-databasen (`sitedoc_test`) ble populert med data kopiert fra prod (prosjekt, bygninger, tegninger, sjekklister, rapportmaler, etc.). Bruker-IDer er forskjellige mellom prod og test — ved kopiering av data må `created_by`/`user_id`-felt mappes til riktig test-bruker.
+
+### Kjente problemer i test-miljøet
+- **IFC 3D-viewer:** Modeller laster ikke (uvisst årsak — bør debugges)
+- **Tegningsvisning:** Zoom/pan fungerer ikke (bug finnes også i prod — ikke testet der heller)
+
+### Arbeidsflyt
 
 1. Utvikle på `develop`-branch
 2. `bash deploy-test.sh` → deployer til test.sitedoc.no

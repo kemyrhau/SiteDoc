@@ -12,6 +12,8 @@ export default function RotLayout() {
         <Stack.Screen name="logg-inn" />
         <Stack.Screen name="sjekkliste" />
         <Stack.Screen name="oppgave" />
+        <Stack.Screen name="3d-visning" options={{ animation: "slide_from_right" }} />
+        <Stack.Screen name="live-view" options={{ animation: "slide_from_right" }} />
       </Stack>
     </Providers>
   );

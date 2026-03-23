@@ -12,6 +12,7 @@ import {
   Building2,
   FolderOpen,
   Settings,
+  Columns2,
 } from "lucide-react";
 import { SidebarIkon } from "@sitedoc/ui";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
@@ -64,6 +65,12 @@ const hovedelementer: SidebarElement[] = [
     id: "3d-visning",
     label: "3D",
     ikon: <Box className="h-5 w-5" />,
+    kreverProsjekt: true,
+  },
+  {
+    id: "tegning-3d",
+    label: "Tegning+3D",
+    ikon: <Columns2 className="h-5 w-5" />,
     kreverProsjekt: true,
   },
   {

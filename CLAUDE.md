@@ -122,3 +122,8 @@ Se [docs/claude/infrastruktur.md](docs/claude/infrastruktur.md) for detaljer.
 - **Delt infrastruktur:** Brukeren har flere prosjekter som deler domene (sitedoc.no), OAuth-klienter, ngrok-konto og server. ALDRI endre `.env`-filer, DNS/tunnel-config eller OAuth-oppsett uten å spørre — endringer kan påvirke andre prosjekter
 - **Auto-commit:** Commit og push automatisk etter ferdig implementasjon
 - **Auto-oppdater dokumentasjon:** Oppdater relevant fil i `docs/claude/` etter vesentlige endringer
+- **Kontekstsparing:** Kontekstvinduet er begrenset — spar plass:
+  - **Batch SSH-kommandoer:** Kombiner flere SSH-kall til ett script/én kommando i stedet for mange enkeltkommandoer. F.eks. ett `ssh sitedoc "cmd1 && cmd2 && cmd3"` i stedet for tre separate kall
+  - **Filtrer output:** Bruk `| tail -n`, `| head -n`, `| grep` for å begrense output fra verbose kommandoer (build-logger, PM2-lister, psql-resultater)
+  - **Unngå gjentatte lesinger:** Les en fil én gang, ikke les samme fil flere ganger i samme sesjon
+  - **Bruk subagenter** for utforskning som krever mange søk/fillesinger

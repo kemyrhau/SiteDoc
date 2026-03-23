@@ -24,6 +24,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { trpc } from "../../src/lib/trpc";
 import { useProsjekt } from "../../src/kontekst/ProsjektKontekst";
+import { useBygning } from "../../src/kontekst/BygningKontekst";
 import { ProsjektVelger } from "../../src/components/ProsjektVelger";
 import { MalVelger } from "../../src/components/MalVelger";
 import { OpprettDokumentModal } from "../../src/components/OpprettDokumentModal";
@@ -89,6 +90,7 @@ function formaterNummer(prefix: string | null | undefined, nummer: number | null
 
 export default function HjemSkjerm() {
   const { valgtProsjektId } = useProsjekt();
+  const { valgtBygningId } = useBygning();
   const [velgerSynlig, setVelgerSynlig] = useState(false);
   const [opprettKategori, setOpprettKategori] = useState<"sjekkliste" | "oppgave" | null>(null);
   const [valgtMal, setValgtMal] = useState<MalData | null>(null);
@@ -103,9 +105,33 @@ export default function HjemSkjerm() {
     (p) => p.id === valgtProsjektId,
   );
 
-  // Hent sjekklister og oppgaver for valgt prosjekt
-  const sjekklisteQuery = trpc.sjekkliste.hentForProsjekt.useQuery(
+  // Hent bygninger for å vise valgt bygningsnavn
+  const bygningQuery = trpc.bygning.hentForProsjekt.useQuery(
     { projectId: valgtProsjektId! },
+    { enabled: !!valgtProsjektId },
+  );
+  type BygningMedTegninger = { id: string; name: string; drawings: Array<{ fileType: string | null }> };
+  const bygninger = bygningQuery.data as BygningMedTegninger[] | undefined;
+
+  const valgtBygningNavn = useMemo(() => {
+    if (!valgtBygningId || !bygninger) return null;
+    return bygninger.find((b) => b.id === valgtBygningId)?.name ?? null;
+  }, [valgtBygningId, bygninger]);
+
+  // Sjekk om valgt bygning har IFC-modeller
+  const harIfcModeller = useMemo(() => {
+    if (!valgtBygningId || !bygninger) return false;
+    const bygning = bygninger.find((b) => b.id === valgtBygningId);
+    if (!bygning) return false;
+    return bygning.drawings.some((d) => d.fileType?.toLowerCase() === "ifc");
+  }, [valgtBygningId, bygninger]);
+
+  // Hent sjekklister og oppgaver for valgt prosjekt (filtrert på bygning)
+  const sjekklisteQuery = trpc.sjekkliste.hentForProsjekt.useQuery(
+    {
+      projectId: valgtProsjektId!,
+      ...(valgtBygningId ? { buildingId: valgtBygningId } : {}),
+    },
     { enabled: !!valgtProsjektId },
   );
 
@@ -231,9 +257,16 @@ export default function HjemSkjerm() {
           className="flex-row items-center gap-2"
         >
           <View className="h-2.5 w-2.5 rounded-full bg-blue-300" />
-          <Text className="text-lg font-semibold text-white" numberOfLines={1}>
-            {valgtProsjekt?.name ?? "Velg prosjekt"}
-          </Text>
+          <View>
+            <Text className="text-lg font-semibold text-white" numberOfLines={1}>
+              {valgtProsjekt?.name ?? "Velg prosjekt"}
+            </Text>
+            {valgtBygningNavn && (
+              <Text className="text-[10px] text-blue-200" numberOfLines={1}>
+                {valgtBygningNavn}
+              </Text>
+            )}
+          </View>
           <ChevronDown size={20} color="#ffffff" />
         </Pressable>
         <Pressable onPress={håndterPluss} className="rounded-full bg-white/20 p-2">
@@ -428,6 +461,30 @@ export default function HjemSkjerm() {
                 </Text>
                 <ChevronRight size={20} color="#9ca3af" />
               </Pressable>
+
+              {harIfcModeller && (
+              <Pressable
+                onPress={() => router.push("/3d-visning")}
+                className="flex-row items-center justify-between border-b border-gray-200 bg-white px-4 py-3"
+              >
+                <Text className="text-base font-semibold text-gray-900">
+                  3D-visning
+                </Text>
+                <ChevronRight size={20} color="#9ca3af" />
+              </Pressable>
+              )}
+
+              {harIfcModeller && (
+              <Pressable
+                onPress={() => router.push("/live-view")}
+                className="flex-row items-center justify-between border-b border-gray-200 bg-white px-4 py-3"
+              >
+                <Text className="text-base font-semibold text-gray-900">
+                  Live View
+                </Text>
+                <ChevronRight size={20} color="#9ca3af" />
+              </Pressable>
+              )}
             </View>
 
             {/* Sist oppdatert */}

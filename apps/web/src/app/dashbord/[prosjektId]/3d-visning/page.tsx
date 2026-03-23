@@ -2,161 +2,32 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useParams } from "next/navigation";
-import { trpc } from "@/lib/trpc";
 import { Spinner } from "@sitedoc/ui";
 import {
   Upload,
   Box,
   Waypoints,
   Loader2,
-  AlertTriangle,
-  X,
-  ChevronRight,
-  ChevronDown,
-  Trash2,
-  Scissors,
-  Eye,
-  EyeOff,
-  Filter,
-  Palette,
-  Layers,
-  BarChart3,
   Mountain,
   FileUp,
+  BarChart3,
+  Layers,
+  Scissors,
+  Trash2,
 } from "lucide-react";
-
-/* ------------------------------------------------------------------ */
-/*  Typer                                                               */
-/* ------------------------------------------------------------------ */
-
-type Fane = "3d-modell" | "overflater" | "kutt-fyll";
-
-interface TegningRad {
-  id: string;
-  name: string;
-  fileUrl: string;
-  fileType: string;
-  ifcMetadata: unknown;
-  building: { id: string; name: string } | null;
-}
-
-interface EgenskapVerdi {
-  value: unknown;
-  type?: string;
-}
-
-interface EgenskapGruppe {
-  navn: string;
-  egenskaper: Record<string, EgenskapVerdi>;
-}
-
-interface ValgtObjekt {
-  localId: number;
-  modelId: string;
-  kategori: string | null;
-  attributter: Record<string, EgenskapVerdi>;
-  relasjoner: EgenskapGruppe[];
-}
-
-interface TreNode {
-  category: string | null;
-  localId: number | null;
-  children?: TreNode[];
-  utvidet?: boolean;
-}
-
-interface PunktSkyRad {
-  id: string;
-  name: string;
-  fileType: string;
-  pointCount: number | null;
-  conversionStatus: string;
-  conversionError: string | null;
-  potreeUrl: string | null;
-  hasClassification: boolean;
-  hasRgb: boolean;
-  classifications: unknown;
-  boundingBox: unknown;
-  building: { id: string; name: string } | null;
-}
-
-interface KlassifiseringRad {
-  kode: number;
-  navn: string;
-  antall: number;
-}
-
-type Fargemodus = "klassifisering" | "rgb" | "intensitet" | "hoyde";
-
-interface SkjultObjekt {
-  modelId: string;
-  localId: number;
-  kategori: string;
-  navn: string;
-}
-
-interface AktivtFilter {
-  type: "kategori" | "type" | "lag" | "system";
-  verdi: string;
-}
-
-interface OverflateData {
-  id: string;
-  navn: string;
-  kilde: "landxml" | "punktsky";
-  vertices: Float64Array;
-  triangles: Uint32Array;
-  bbox: { minX: number; minY: number; minZ: number; maxX: number; maxY: number; maxZ: number };
-}
-
-/* ------------------------------------------------------------------ */
-/*  Modul-level cache for nedlastede IFC-filer                          */
-/*  Overlever SPA-navigasjon (men ikke full sidelasting)                */
-/* ------------------------------------------------------------------ */
-
-const ifcFilCache = new Map<string, Uint8Array>();
-
-
-/* ------------------------------------------------------------------ */
-/*  Klassifiseringskoder og farger (ASPRS)                              */
-/* ------------------------------------------------------------------ */
-
-const KLASSE_FARGER: Record<number, string> = {
-  0: "#999999", 1: "#cccccc", 2: "#8B4513", 3: "#90EE90",
-  4: "#32CD32", 5: "#006400", 6: "#FF0000", 7: "#FF69B4",
-  8: "#FFD700", 9: "#0000FF", 10: "#808080", 11: "#A9A9A9",
-  12: "#DDA0DD", 13: "#FFA500", 14: "#FF8C00", 15: "#8B0000",
-  16: "#FF4500", 17: "#696969", 18: "#FF1493",
-};
-
-const KLASSE_NAVN: Record<number, string> = {
-  0: "Aldri klassifisert", 1: "Uklassifisert", 2: "Bakke",
-  3: "Lav vegetasjon", 4: "Middels vegetasjon", 5: "Høy vegetasjon",
-  6: "Bygning", 7: "Støy (lav)", 8: "Nøkkelpunkt",
-  9: "Vann", 10: "Jernbane", 11: "Veioverflate",
-  12: "Overlapp", 13: "Ledning (vern)", 14: "Ledning (leder)",
-  15: "Sendemast", 16: "Ledningskobling", 17: "Bro", 18: "Støy (høy)",
-};
+import { useTreDViewer } from "@/kontekst/tred-viewer-kontekst";
+import { EgenskapsPopup } from "./komponenter/EgenskapsPopup";
+import { FilterChipBar } from "./komponenter/FilterChipBar";
+import { parseLandXMLFil } from "./hjelpefunksjoner";
+import type {
+  Fane,
+  OverflateData,
+  KuttFyllResultatType,
+} from "./typer";
 
 /* ------------------------------------------------------------------ */
 /*  Hovedside                                                          */
 /* ------------------------------------------------------------------ */
-
-/** Hjelpefunksjon for å parse LandXML og opprette OverflateData */
-async function parseLandXMLFil(fil: File): Promise<OverflateData> {
-  const tekst = await fil.text();
-  const { parseLandXML } = await import("@/lib/landxml-parser");
-  const tin = await parseLandXML(tekst);
-
-  return {
-    id: crypto.randomUUID(),
-    navn: tin.navn ?? fil.name.replace(/\.[^.]+$/, ""),
-    kilde: "landxml",
-    vertices: tin.vertices,
-    triangles: tin.triangles,
-    bbox: tin.bbox,
-  };
-}
 
 export default function TreDVisning() {
   const { prosjektId } = useParams<{ prosjektId: string }>();
@@ -202,7 +73,7 @@ export default function TreDVisning() {
       {/* Fane-innhold — 3D-modell holdes montert for å bevare Three.js-scene */}
       <div className="relative flex flex-1 overflow-hidden">
         <div className={`flex flex-1 overflow-hidden ${aktivFane !== "3d-modell" ? "pointer-events-none invisible absolute inset-0" : ""}`}>
-          <Fane3DModell prosjektId={prosjektId!} />
+          <Fane3DModell />
         </div>
         {aktivFane === "overflater" && (
           <FaneOverflater
@@ -225,154 +96,33 @@ export default function TreDVisning() {
 }
 
 /* ================================================================== */
-/*  FANE 1: 3D-modell (IFC sammenslått + punktsky)                     */
+/*  FANE 1: 3D-modell — bruker kontekst for persistent viewer          */
 /* ================================================================== */
 
-/** Konverterer lesbart IFC-kategorinavn tilbake til WEBIFC-typekode.
- *  F.eks. "Wall" → IFCWALL, "Flowsegment" → IFCFLOWSEGMENT.
- *  Returnerer null hvis ingen match finnes. */
-let _webifcKonstanter: Record<string, number> | null = null;
-function finnIfcTypeKode(kategori: string): number | null {
-  if (!_webifcKonstanter) return null;
-  const upper = `IFC${kategori.toUpperCase()}`;
-  // Prøv direkte match, deretter med STANDARDCASE-suffiks
-  for (const suffix of ["", "STANDARDCASE", "ELEMENTEDCASE"]) {
-    const kode = _webifcKonstanter[upper + suffix];
-    if (typeof kode === "number") return kode;
-  }
-  return null;
-}
-
-interface ModellStatus {
-  id: string;
-  synlig: boolean;
-  laster: boolean;
-  feil: string | null;
-}
-
-function Fane3DModell({ prosjektId }: { prosjektId: string }) {
-  const utils = trpc.useUtils();
-
-  // IFC-modeller
-  const { data: _tegninger, isLoading: lasterTegninger } = trpc.tegning.hentForProsjekt.useQuery(
-    { projectId: prosjektId },
-    { enabled: !!prosjektId },
-  );
-  const tegninger = (_tegninger as TegningRad[] | undefined)?.filter(
-    (t) => t.fileType?.toLowerCase() === "ifc",
-  );
-
-  // Punktskyer
-  const { data: _punktskyer, isLoading: lasterPunktskyer } = trpc.punktsky.hentForProsjekt.useQuery(
-    { projectId: prosjektId },
-    { enabled: !!prosjektId },
-  );
-  const punktskyer = (_punktskyer as PunktSkyRad[] | undefined)?.filter(
-    (ps) => ps.conversionStatus === "done" && ps.potreeUrl,
-  );
-
-  const [valgtObjekt, setValgtObjekt] = useState<ValgtObjekt | null>(null);
-  const [lasterOpp, setLasterOpp] = useState(false);
-  const [klippModus, setKlippModus] = useState(false);
-  const [modellStatuser, setModellStatuser] = useState<ModellStatus[]>([]);
-  const [skjulteObjekter, setSkjulteObjekter] = useState<SkjultObjekt[]>([]);
-  const [aktiveFiltre, setAktiveFiltre] = useState<AktivtFilter[]>([]);
-
-  // Referanse til sammenslått viewer
-  const viewerRef = useRef<{
-    toggleModell: (tegningId: string, synlig: boolean) => void;
-    fjernAlleKlippeplan: () => void;
-    settKlipperSynlig: (synlig: boolean) => void;
-    skjulObjekt: (modelId: string, localId: number) => Promise<void>;
-    visObjekt: (modelId: string, localId: number) => Promise<void>;
-    skjulAlleAvKategori: (kategoriKode: number) => Promise<void>;
-    visAlleAvKategori: (kategoriKode: number) => Promise<void>;
-    skjulAlleAvLag: (lagNavn: string) => Promise<void>;
-    visAlleAvLag: (lagNavn: string) => Promise<void>;
-    skjulAlleAvSystem: (systemNavn: string) => Promise<void>;
-    visAlleAvSystem: (systemNavn: string) => Promise<void>;
-  } | null>(null);
-
-  const opprettMutation = trpc.tegning.opprett.useMutation({
-    onSuccess: (_data: unknown) => {
-      utils.tegning.hentForProsjekt.invalidate({ projectId: prosjektId });
-    },
-  });
-
-  async function handleFilValgt(e: React.ChangeEvent<HTMLInputElement>) {
-    const fil = e.target.files?.[0];
-    if (!fil || !prosjektId) return;
-
-    setLasterOpp(true);
-    try {
-      const formData = new FormData();
-      formData.append("file", fil);
-      const res = await fetch("/api/upload", { method: "POST", body: formData });
-      if (!res.ok) {
-        const err = await res.json();
-        alert(err.error ?? "Opplasting feilet");
-        return;
-      }
-      const data = await res.json();
-      opprettMutation.mutate({
-        projectId: prosjektId,
-        name: fil.name.replace(/\.[^.]+$/, ""),
-        fileUrl: data.fileUrl,
-        fileType: data.fileType,
-        fileSize: data.fileSize,
-      });
-    } catch {
-      alert("Kunne ikke laste opp filen");
-    } finally {
-      setLasterOpp(false);
-      e.target.value = "";
-    }
-  }
-
-  function toggleSynlighet(id: string) {
-    setModellStatuser((prev) => {
-      const oppdatert = prev.map((m) =>
-        m.id === id ? { ...m, synlig: !m.synlig } : m,
-      );
-      const modell = oppdatert.find((m) => m.id === id);
-      if (modell) {
-        viewerRef.current?.toggleModell(id, modell.synlig);
-      }
-      return oppdatert;
-    });
-  }
-
-  function soloModell(id: string) {
-    setModellStatuser((prev) => {
-      const alleSynlige = prev.every((m) => m.synlig);
-      const kunDenne = prev.filter((m) => m.synlig).length === 1 && prev.find((m) => m.id === id)?.synlig;
-
-      // Hvis kun denne er synlig, vis alle igjen
-      if (kunDenne || (!alleSynlige && prev.find((m) => m.id === id)?.synlig && prev.filter((m) => m.synlig).length === 1)) {
-        return prev.map((m) => {
-          viewerRef.current?.toggleModell(m.id, true);
-          return { ...m, synlig: true };
-        });
-      }
-
-      // Ellers: solo — vis bare denne, skjul resten
-      return prev.map((m) => {
-        const synlig = m.id === id;
-        viewerRef.current?.toggleModell(m.id, synlig);
-        return { ...m, synlig };
-      });
-    });
-  }
-
-  function oppdaterModellStatus(id: string, status: Partial<ModellStatus>) {
-    setModellStatuser((prev) => {
-      const finnes = prev.find((m) => m.id === id);
-      if (finnes) {
-        return prev.map((m) => (m.id === id ? { ...m, ...status } : m));
-      }
-      return [...prev, { id, synlig: true, laster: false, feil: null, ...status }];
-    });
-  }
+function Fane3DModell() {
+  const {
+    tegninger,
+    punktskyer,
+    modellStatuser,
+    valgtObjekt,
+    skjulteObjekter,
+    aktiveFiltre,
+    klippModus,
+    lasterTegninger,
+    lasterPunktskyer,
+    viewerRef,
+    setValgtObjekt,
+    setKlippModus,
+    toggleSynlighet,
+    soloModell,
+    skjulObjektOgLeggTil,
+    leggTilFilter,
+    fjernFilter,
+    fjernSkjultObjekt,
+    nullstillAlt,
+    lastOppIfc,
+    lasterOpp,
+  } = useTreDViewer();
 
   if (lasterTegninger || lasterPunktskyer) {
     return (
@@ -382,19 +132,19 @@ function Fane3DModell({ prosjektId }: { prosjektId: string }) {
     );
   }
 
-  const harModeller = tegninger && tegninger.length > 0;
+  const harModeller = tegninger.length > 0;
 
   return (
     <div className="flex h-full flex-1">
-      {/* Sidepanel */}
-      <div className="flex w-[280px] flex-col border-r border-gray-200 bg-white">
+      {/* Sidepanel — pointer-events-auto fordi layout setter pointer-events-none på children-wrapperen */}
+      <div className="pointer-events-auto flex w-[280px] flex-col border-r border-gray-200 bg-white">
         <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
           <h2 className="text-sm font-semibold text-gray-900">Modeller</h2>
           <label className="cursor-pointer">
             <input
               type="file"
               accept=".ifc"
-              onChange={handleFilValgt}
+              onChange={lastOppIfc}
               className="hidden"
               disabled={lasterOpp}
             />
@@ -415,7 +165,7 @@ function Fane3DModell({ prosjektId }: { prosjektId: string }) {
           )}
 
           {/* IFC-modeller med avkrysning */}
-          {tegninger?.map((t) => {
+          {tegninger.map((t) => {
             const status = modellStatuser.find((m) => m.id === t.id);
             return (
               <label
@@ -479,103 +229,88 @@ function Fane3DModell({ prosjektId }: { prosjektId: string }) {
         </div>
       </div>
 
-      {/* Hovedinnhold: sammenslått viewer */}
-      <div className="relative flex flex-1 flex-col bg-gray-100">
-        {!harModeller ? (
-          <div className="flex flex-1 items-center justify-center">
+      {/* Hovedinnhold: vieweren rendres i layout bak dette laget */}
+      <div className="relative flex flex-1 flex-col">
+        {/* Verktøylinje for 3D (snitt etc.) */}
+        <div className="pointer-events-auto flex items-center gap-3 border-b border-gray-200 bg-white px-4 py-2">
+          <Layers className="h-4 w-4 text-gray-400" />
+          <span className="text-sm font-medium text-gray-900">
+            {tegninger.length} modell{tegninger.length !== 1 ? "er" : ""}
+          </span>
+          <div className="flex-1" />
+          <div className="flex items-center gap-1 border-r border-gray-200 pr-3">
+            <button
+              onClick={() => {
+                const nyModus = !klippModus;
+                setKlippModus(nyModus);
+                if (nyModus) viewerRef.current?.settKlipperSynlig(true);
+              }}
+              className={`flex items-center gap-1 rounded px-2 py-1 text-xs ${
+                klippModus ? "bg-sitedoc-primary text-white" : "text-gray-600 hover:bg-gray-100"
+              }`}
+              title="Snitt-modus"
+            >
+              <Scissors className="h-3.5 w-3.5" />
+              Snitt
+            </button>
+            {klippModus && (
+              <button
+                onClick={() => {
+                  viewerRef.current?.fjernAlleKlippeplan();
+                  setKlippModus(false);
+                }}
+                className="rounded px-2 py-1 text-xs text-gray-500 hover:bg-gray-100"
+              >
+                Fjern alle
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Filter-chip-bar */}
+        {(aktiveFiltre.length > 0 || skjulteObjekter.length > 0) && (
+          <div className="pointer-events-auto">
+            <FilterChipBar
+              aktiveFiltre={aktiveFiltre}
+              skjulteObjekter={skjulteObjekter}
+              onFjernFilter={fjernFilter}
+              onFjernSkjultObjekt={fjernSkjultObjekt}
+              onNullstillAlt={nullstillAlt}
+            />
+          </div>
+        )}
+
+        {!harModeller && (
+          <div className="pointer-events-auto flex flex-1 items-center justify-center bg-gray-100">
             <div className="text-center text-gray-400">
               <Box className="mx-auto mb-2 h-12 w-12 text-gray-300" />
               <p className="text-sm">Last opp IFC-modeller for 3D-visning</p>
             </div>
           </div>
-        ) : (
-          <SammenslattIfcViewer
-            tegninger={tegninger!}
-            viewerRef={viewerRef}
-            klippModus={klippModus}
-            onKlippModusEndret={setKlippModus}
-            onObjektValgt={setValgtObjekt}
-            onModellStatus={oppdaterModellStatus}
-            skjulteObjekter={skjulteObjekter}
-            aktiveFiltre={aktiveFiltre}
-            onFjernFilter={async (filter) => {
-              setAktiveFiltre((prev) => prev.filter((f) => !(f.type === filter.type && f.verdi === filter.verdi)));
-              if (filter.type === "kategori") {
-                const kode = finnIfcTypeKode(filter.verdi);
-                if (kode !== null) await viewerRef.current?.visAlleAvKategori(kode);
-              } else if (filter.type === "lag") {
-                await viewerRef.current?.visAlleAvLag(filter.verdi);
-              } else if (filter.type === "system") {
-                await viewerRef.current?.visAlleAvSystem(filter.verdi);
-              }
-            }}
-            onFjernSkjultObjekt={async (obj) => {
-              setSkjulteObjekter((prev) => prev.filter((o) => !(o.modelId === obj.modelId && o.localId === obj.localId)));
-              await viewerRef.current?.visObjekt(obj.modelId, obj.localId);
-            }}
-            onNullstillAlt={async () => {
-              // Gjenopprett alle filtrerte kategorier
-              for (const f of aktiveFiltre) {
-                if (f.type === "kategori") {
-                  const kode = finnIfcTypeKode(f.verdi);
-                  if (kode !== null) await viewerRef.current?.visAlleAvKategori(kode);
-                } else if (f.type === "lag") {
-                  await viewerRef.current?.visAlleAvLag(f.verdi);
-                } else if (f.type === "system") {
-                  await viewerRef.current?.visAlleAvSystem(f.verdi);
-                }
-              }
-              // Gjenopprett alle skjulte enkeltobjekter
-              for (const obj of skjulteObjekter) {
-                await viewerRef.current?.visObjekt(obj.modelId, obj.localId);
-              }
-              setAktiveFiltre([]);
-              setSkjulteObjekter([]);
-            }}
-          />
         )}
 
         {/* Flytende egenskapspanel */}
         {valgtObjekt && (
-          <EgenskapsPopup
-            objekt={valgtObjekt}
-            onLukk={() => setValgtObjekt(null)}
-            onSkjul={async () => {
-              await viewerRef.current?.skjulObjekt(valgtObjekt.modelId, valgtObjekt.localId);
-              setSkjulteObjekter((prev) => [
-                ...prev,
-                {
-                  modelId: valgtObjekt.modelId,
-                  localId: valgtObjekt.localId,
-                  kategori: valgtObjekt.kategori ?? "Ukjent",
-                  navn: valgtObjekt.attributter["Name"]
-                    ? String(valgtObjekt.attributter["Name"].value)
-                    : `#${valgtObjekt.localId}`,
-                },
-              ]);
-              setValgtObjekt(null);
-            }}
-            onFilterKategori={async (kategori: string) => {
-              const finnes = aktiveFiltre.some((f) => f.type === "kategori" && f.verdi === kategori);
-              if (finnes) return;
-              setAktiveFiltre((prev) => [...prev, { type: "kategori", verdi: kategori }]);
-              const kode = finnIfcTypeKode(kategori);
-              if (kode !== null) await viewerRef.current?.skjulAlleAvKategori(kode);
-            }}
-            onFilterLag={async (lag: string) => {
-              const finnes = aktiveFiltre.some((f) => f.type === "lag" && f.verdi === lag);
-              if (finnes) return;
-              setAktiveFiltre((prev) => [...prev, { type: "lag", verdi: lag }]);
-              await viewerRef.current?.skjulAlleAvLag(lag);
-            }}
-            onFilterSystem={async (system: string) => {
-              const finnes = aktiveFiltre.some((f) => f.type === "system" && f.verdi === system);
-              if (finnes) return;
-              setAktiveFiltre((prev) => [...prev, { type: "system", verdi: system }]);
-              await viewerRef.current?.skjulAlleAvSystem(system);
-            }}
-          />
+          <div className="pointer-events-auto">
+            <EgenskapsPopup
+              objekt={valgtObjekt}
+              onLukk={() => setValgtObjekt(null)}
+              onSkjul={() => skjulObjektOgLeggTil(valgtObjekt)}
+              onFilterKategori={async (kategori: string) => {
+                await leggTilFilter({ type: "kategori", verdi: kategori });
+              }}
+              onFilterLag={async (lag: string) => {
+                await leggTilFilter({ type: "lag", verdi: lag });
+              }}
+              onFilterSystem={async (system: string) => {
+                await leggTilFilter({ type: "system", verdi: system });
+              }}
+            />
+          </div>
         )}
+
+        {/* Transparent flex-spacer — lar klikk treffe vieweren under */}
+        <div className="flex-1" />
       </div>
     </div>
   );
@@ -586,7 +321,6 @@ function Fane3DModell({ prosjektId }: { prosjektId: string }) {
 /* ================================================================== */
 
 function FaneOverflater({
-  prosjektId,
   overflater,
   onLeggTil,
   onFjern,
@@ -708,22 +442,7 @@ function FaneOverflater({
 /*  FANE 3: Kutt/fyll-analyse                                          */
 /* ================================================================== */
 
-interface KuttFyllResultatType {
-  kuttVolum: number;
-  fyllVolum: number;
-  netto: number;
-  diffGrid: Float32Array;
-  gridBredde: number;
-  gridHoyde: number;
-  origoX: number;
-  origoY: number;
-  celleStr: number;
-  minDiff: number;
-  maxDiff: number;
-}
-
 function FaneKuttFyll({
-  prosjektId,
   overflater,
   onLeggTil,
 }: {
@@ -739,7 +458,6 @@ function FaneKuttFyll({
   const [lasterInn, setLasterInn] = useState(false);
   const [feil, setFeil] = useState<string | null>(null);
 
-  // Auto-sett topp/bunn når overflater legges til
   useEffect(() => {
     if (overflater.length >= 1 && !bunnId) {
       setBunnId(overflater[0]!.id);
@@ -806,7 +524,6 @@ function FaneKuttFyll({
         </div>
 
         <div className="flex-1 overflow-y-auto px-4 py-3">
-          {/* Overflatevalg */}
           <div className="space-y-3">
             <div>
               <label className="text-xs font-medium text-gray-500">Toppflate (nyeste)</label>
@@ -864,7 +581,6 @@ function FaneKuttFyll({
             </button>
           </div>
 
-          {/* Resultat */}
           {resultat && (
             <div className="mt-4 space-y-2 border-t border-gray-200 pt-4">
               <h3 className="text-xs font-semibold uppercase text-gray-500">Resultat</h3>
@@ -909,7 +625,6 @@ function FaneKuttFyll({
             </div>
           )}
 
-          {/* Fargeskala-forklaring */}
           {resultat && (
             <div className="mt-4 border-t border-gray-200 pt-4">
               <h3 className="text-xs font-semibold uppercase text-gray-500">Fargeskala</h3>
@@ -978,11 +693,9 @@ function OverflateViewer({ overflate }: { overflate: OverflateData }) {
       renderer.setPixelRatio(window.devicePixelRatio);
       container.appendChild(renderer.domElement);
 
-      // Bygg mesh fra TIN
       const geometry = new THREE.BufferGeometry();
       const { vertices, triangles, bbox } = overflate;
 
-      // Sentrer geometrien
       const cx = (bbox.minX + bbox.maxX) / 2;
       const cy = (bbox.minY + bbox.maxY) / 2;
       const cz = (bbox.minZ + bbox.maxZ) / 2;
@@ -990,7 +703,7 @@ function OverflateViewer({ overflate }: { overflate: OverflateData }) {
       const positions = new Float32Array(vertices.length);
       for (let i = 0; i < vertices.length / 3; i++) {
         positions[i * 3] = (vertices[i * 3] ?? 0) - cx;
-        positions[i * 3 + 1] = (vertices[i * 3 + 2] ?? 0) - cz; // Z → Y (opp)
+        positions[i * 3 + 1] = (vertices[i * 3 + 2] ?? 0) - cz;
         positions[i * 3 + 2] = (vertices[i * 3 + 1] ?? 0) - cy;
       }
 
@@ -998,13 +711,11 @@ function OverflateViewer({ overflate }: { overflate: OverflateData }) {
       geometry.setIndex(new THREE.BufferAttribute(new Uint32Array(triangles), 1));
       geometry.computeVertexNormals();
 
-      // Fargelegg etter høyde
       const colors = new Float32Array(positions.length);
       const zMin = bbox.minZ;
       const zRange = Math.max(bbox.maxZ - bbox.minZ, 0.01);
       for (let i = 0; i < positions.length / 3; i++) {
         const t = ((vertices[i * 3 + 2] ?? 0) - zMin) / zRange;
-        // Grønn → brun gradient
         colors[i * 3] = 0.2 + 0.5 * t;
         colors[i * 3 + 1] = 0.6 - 0.3 * t;
         colors[i * 3 + 2] = 0.1;
@@ -1018,18 +729,15 @@ function OverflateViewer({ overflate }: { overflate: OverflateData }) {
       const mesh = new THREE.Mesh(geometry, material);
       scene.add(mesh);
 
-      // Wireframe overlay
       const wireframe = new THREE.WireframeGeometry(geometry);
       const lineMat = new THREE.LineBasicMaterial({ color: 0x000000, opacity: 0.05, transparent: true });
       scene.add(new THREE.LineSegments(wireframe, lineMat));
 
-      // Lys
       scene.add(new THREE.AmbientLight(0xffffff, 0.6));
       const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
       dirLight.position.set(1, 2, 1);
       scene.add(dirLight);
 
-      // Kamera posisjon
       const størrelse = new THREE.Vector3(
         bbox.maxX - bbox.minX,
         bbox.maxZ - bbox.minZ,
@@ -1041,7 +749,6 @@ function OverflateViewer({ overflate }: { overflate: OverflateData }) {
 
       setLaster(false);
 
-      // Orbit-kontroller
       let isDragging = false;
       let prevX = 0;
       let prevY = 0;
@@ -1082,7 +789,6 @@ function OverflateViewer({ overflate }: { overflate: OverflateData }) {
         oppdaterKamera();
       });
 
-      // Render-løkke
       let animId: number;
       function animate() {
         animId = requestAnimationFrame(animate);
@@ -1090,7 +796,6 @@ function OverflateViewer({ overflate }: { overflate: OverflateData }) {
       }
       animate();
 
-      // Resize
       const resizeObserver = new ResizeObserver(() => {
         const b = container.clientWidth;
         const h = container.clientHeight;
@@ -1100,7 +805,6 @@ function OverflateViewer({ overflate }: { overflate: OverflateData }) {
       });
       resizeObserver.observe(container);
 
-      // Cleanup
       const cleanup = () => {
         renset = true;
         cancelAnimationFrame(animId);
@@ -1113,7 +817,6 @@ function OverflateViewer({ overflate }: { overflate: OverflateData }) {
         }
       };
 
-      // Lagre cleanup for return
       (container as unknown as { _cleanup: () => void })._cleanup = cleanup;
     });
 
@@ -1177,17 +880,15 @@ function KuttFyllViewer({ resultat }: { resultat: KuttFyllResultatType }) {
       renderer.setPixelRatio(window.devicePixelRatio);
       container.appendChild(renderer.domElement);
 
-      // Generer mesh-data
       const { positions, colors, indices } = genererDiffMesh(resultat);
 
-      // Sentrer
       const cx = resultat.origoX + (resultat.gridBredde * resultat.celleStr) / 2;
       const cy = resultat.origoY + (resultat.gridHoyde * resultat.celleStr) / 2;
 
       const centeredPositions = new Float32Array(positions.length);
       for (let i = 0; i < positions.length / 3; i++) {
         centeredPositions[i * 3] = (positions[i * 3] ?? 0) - cx;
-        centeredPositions[i * 3 + 1] = positions[i * 3 + 2] ?? 0; // Z → Y
+        centeredPositions[i * 3 + 1] = positions[i * 3 + 2] ?? 0;
         centeredPositions[i * 3 + 2] = (positions[i * 3 + 1] ?? 0) - cy;
       }
 
@@ -1204,13 +905,11 @@ function KuttFyllViewer({ resultat }: { resultat: KuttFyllResultatType }) {
       const mesh = new THREE.Mesh(geometry, material);
       scene.add(mesh);
 
-      // Lys
       scene.add(new THREE.AmbientLight(0xffffff, 0.6));
       const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
       dirLight.position.set(1, 2, 1);
       scene.add(dirLight);
 
-      // Grid-hjelpelinje
       const gridSize = Math.max(
         resultat.gridBredde * resultat.celleStr,
         resultat.gridHoyde * resultat.celleStr,
@@ -1219,7 +918,6 @@ function KuttFyllViewer({ resultat }: { resultat: KuttFyllResultatType }) {
       gridHelper.position.y = -0.1;
       scene.add(gridHelper);
 
-      // Kamera
       const avstandInit = gridSize * 0.8;
       let avstand = avstandInit;
       let rotX = Math.PI / 5;
@@ -1236,7 +934,6 @@ function KuttFyllViewer({ resultat }: { resultat: KuttFyllResultatType }) {
 
       setLaster(false);
 
-      // Orbit-kontroller
       let isDragging = false;
       let prevX = 0;
       let prevY = 0;
@@ -1265,7 +962,6 @@ function KuttFyllViewer({ resultat }: { resultat: KuttFyllResultatType }) {
         oppdaterKamera();
       });
 
-      // Render-løkke
       let animId: number;
       function animate() {
         animId = requestAnimationFrame(animate);
@@ -1273,7 +969,6 @@ function KuttFyllViewer({ resultat }: { resultat: KuttFyllResultatType }) {
       }
       animate();
 
-      // Resize
       const resizeObserver = new ResizeObserver(() => {
         const b = container.clientWidth;
         const h = container.clientHeight;
@@ -1308,1522 +1003,6 @@ function KuttFyllViewer({ resultat }: { resultat: KuttFyllResultatType }) {
       {laster && (
         <div className="absolute inset-0 z-10 flex items-center justify-center bg-gray-100">
           <Loader2 className="h-8 w-8 animate-spin text-sitedoc-primary" />
-        </div>
-      )}
-    </div>
-  );
-}
-
-/* ================================================================== */
-/*  Gjenbrukte komponenter fra modeller/page.tsx                       */
-/* ================================================================== */
-
-/* ------------------------------------------------------------------ */
-/*  Objekttre-komponent                                                 */
-/* ------------------------------------------------------------------ */
-
-function ObjektTre({
-  node,
-  nivaa,
-  onKlikk,
-  valgtLocalId,
-}: {
-  node: TreNode;
-  nivaa: number;
-  onKlikk: (localId: number) => void;
-  valgtLocalId: number | null;
-}) {
-  const [utvidet, setUtvidet] = useState(nivaa < 2);
-  const harBarn = node.children && node.children.length > 0;
-  const erValgt = node.localId !== null && node.localId === valgtLocalId;
-
-  if (!node.category) return null;
-
-  const visNavn = node.category.replace(/^Ifc/, "");
-
-  return (
-    <div>
-      <button
-        onClick={() => {
-          if (harBarn) setUtvidet(!utvidet);
-          if (node.localId !== null) onKlikk(node.localId);
-        }}
-        className={`flex w-full items-center gap-1 px-2 py-1 text-left text-xs hover:bg-gray-50 ${
-          erValgt ? "bg-blue-50 text-blue-700" : "text-gray-700"
-        }`}
-        style={{ paddingLeft: `${nivaa * 12 + 8}px` }}
-      >
-        {harBarn ? (
-          utvidet ? (
-            <ChevronDown className="h-3 w-3 shrink-0 text-gray-400" />
-          ) : (
-            <ChevronRight className="h-3 w-3 shrink-0 text-gray-400" />
-          )
-        ) : (
-          <span className="w-3 shrink-0" />
-        )}
-        <span className="truncate">{visNavn}</span>
-      </button>
-      {utvidet &&
-        node.children?.map((barn, i) => (
-          <ObjektTre
-            key={`${barn.localId ?? i}`}
-            node={barn}
-            nivaa={nivaa + 1}
-            onKlikk={onKlikk}
-            valgtLocalId={valgtLocalId}
-          />
-        ))}
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/*  Flytende egenskapspanel                                             */
-/* ------------------------------------------------------------------ */
-
-function EgenskapsPopup({
-  objekt,
-  onLukk,
-  onSkjul,
-  onFilterKategori,
-  onFilterLag,
-  onFilterSystem,
-}: {
-  objekt: ValgtObjekt;
-  onLukk: () => void;
-  onSkjul: () => void;
-  onFilterKategori?: (kategori: string) => void;
-  onFilterLag?: (lag: string) => void;
-  onFilterSystem?: (system: string) => void;
-}) {
-  const kategoriNavn = objekt.kategori?.replace(/^Ifc/, "") ?? "Ukjent";
-
-  // Finn filtrerbare attributter
-  const layerVerdi = objekt.attributter["Layer"]?.value ? String(objekt.attributter["Layer"].value) : null;
-  const systemVerdi = objekt.attributter["System"]?.value ? String(objekt.attributter["System"].value) : null;
-
-  return (
-    <div className="absolute right-4 top-14 z-10 w-[320px] max-h-[calc(100%-72px)] overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg">
-      <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <h3 className="text-sm font-semibold text-gray-900">{kategoriNavn}</h3>
-            {onFilterKategori && kategoriNavn !== "Ukjent" && (
-              <button
-                onClick={() => onFilterKategori(kategoriNavn)}
-                className="rounded p-0.5 text-gray-300 hover:bg-gray-100 hover:text-gray-600"
-                title={`Skjul alle ${kategoriNavn}`}
-              >
-                <EyeOff className="h-3 w-3" />
-              </button>
-            )}
-          </div>
-          {objekt.attributter["Name"] && (
-            <p className="text-xs text-gray-500">
-              {String(objekt.attributter["Name"].value)}
-            </p>
-          )}
-        </div>
-        <div className="flex shrink-0 items-center gap-1">
-          <button
-            onClick={onSkjul}
-            className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-            title="Skjul objekt"
-          >
-            <EyeOff className="h-4 w-4" />
-          </button>
-          <button
-            onClick={onLukk}
-            className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-            title="Lukk"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-      </div>
-
-      <div className="border-b border-gray-100 px-4 py-2">
-        <table className="w-full text-xs">
-          <tbody>
-            {Object.entries(objekt.attributter)
-              .filter(([k]) => !INTERNE_FELT.has(k))
-              .map(([k, v]) => {
-                const erFiltrerbar =
-                  (k === "Layer" && layerVerdi && onFilterLag) ||
-                  (k === "System" && systemVerdi && onFilterSystem);
-                return (
-                  <tr key={k}>
-                    <td className="py-0.5 pr-2 text-gray-500">{k}</td>
-                    <td className="py-0.5 font-medium text-gray-900">
-                      <span className="flex items-center gap-1">
-                        {formaterVerdi(v.value)}
-                        {erFiltrerbar && (
-                          <button
-                            onClick={() => {
-                              if (k === "Layer" && onFilterLag) onFilterLag(String(v.value));
-                              if (k === "System" && onFilterSystem) onFilterSystem(String(v.value));
-                            }}
-                            className="rounded p-0.5 text-gray-300 hover:bg-gray-100 hover:text-gray-600"
-                            title={`Skjul alle med ${k}: ${formaterVerdi(v.value)}`}
-                          >
-                            <EyeOff className="h-3 w-3" />
-                          </button>
-                        )}
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
-          </tbody>
-        </table>
-      </div>
-
-      {objekt.relasjoner.map((gruppe) => (
-        <EgenskapsGruppeVis key={gruppe.navn} gruppe={gruppe} />
-      ))}
-    </div>
-  );
-}
-
-function EgenskapsGruppeVis({ gruppe }: { gruppe: EgenskapGruppe }) {
-  const [utvidet, setUtvidet] = useState(true);
-
-  return (
-    <div className="border-b border-gray-100 last:border-b-0">
-      <button
-        onClick={() => setUtvidet(!utvidet)}
-        className="flex w-full items-center gap-1 px-4 py-2 text-left hover:bg-gray-50"
-      >
-        {utvidet ? (
-          <ChevronDown className="h-3 w-3 text-gray-400" />
-        ) : (
-          <ChevronRight className="h-3 w-3 text-gray-400" />
-        )}
-        <span className="text-xs font-semibold text-gray-700">{gruppe.navn}</span>
-      </button>
-      {utvidet && (
-        <div className="px-4 pb-2">
-          <table className="w-full text-xs">
-            <tbody>
-              {Object.entries(gruppe.egenskaper).map(([k, v]) => (
-                <tr key={k}>
-                  <td className="py-0.5 pr-2 text-gray-500">{k}</td>
-                  <td className="py-0.5 font-medium text-gray-900">
-                    {formaterVerdi(v.value)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function formaterVerdi(v: unknown): string {
-  if (v === null || v === undefined) return "-";
-  if (typeof v === "boolean") return v ? "Ja" : "Nei";
-  if (typeof v === "number") return Number.isInteger(v) ? String(v) : v.toFixed(3);
-  return String(v);
-}
-
-/* ------------------------------------------------------------------ */
-/*  Sammenslått IFC-viewer — alle modeller i samme scene                */
-/* ------------------------------------------------------------------ */
-
-// Interne IFC-felt som ikke er nyttige for brukeren
-const INTERNE_FELT = new Set([
-  "_category", "_localId", "_guid", "type", "Name", "GlobalId",
-  "OwnerHistory", "ObjectPlacement", "Representation",
-  "RepresentationMaps", "HasAssignments", "HasContext",
-  "IsDecomposedBy", "Decomposes", "HasAssociations",
-  "expressID",
-]);
-
-function hentNavn(item: Record<string, unknown>): string {
-  const n = item["Name"];
-  if (n && typeof n === "object" && "value" in (n as Record<string, unknown>)) {
-    return String((n as { value: unknown }).value);
-  }
-  return "Egenskaper";
-}
-
-// Enheter for IFC-quantities
-const QUANTITY_ENHETER: Record<string, string> = {
-  LengthValue: "mm",
-  AreaValue: "m²",
-  VolumeValue: "m³",
-  WeightValue: "kg",
-  CountValue: "",
-  TimeValue: "s",
-};
-
-function hentVerdi(obj: Record<string, unknown>): unknown {
-  // IFCPROPERTYSINGLEVALUE → NominalValue
-  const nomVal = obj["NominalValue"];
-  if (nomVal && typeof nomVal === "object" && "value" in (nomVal as Record<string, unknown>)) {
-    const val = (nomVal as { value: unknown }).value;
-    if (val === null || val === undefined || val === "") return null;
-    // Legg til enhet fra Unit hvis tilgjengelig
-    const unit = obj["Unit"] as Record<string, unknown> | undefined;
-    if (unit && typeof unit === "object" && "value" in (unit as Record<string, unknown>)) {
-      return `${val} ${(unit as { value: unknown }).value}`;
-    }
-    return val;
-  }
-
-  // IFCELEMENTQUANTITY → LengthValue, AreaValue, VolumeValue, WeightValue, CountValue, TimeValue
-  for (const felt of ["LengthValue", "AreaValue", "VolumeValue", "WeightValue", "CountValue", "TimeValue"]) {
-    const v = obj[felt];
-    if (v && typeof v === "object" && "value" in (v as Record<string, unknown>)) {
-      const val = (v as { value: unknown }).value;
-      if (val === null || val === undefined || val === "") return null;
-      const enhet = QUANTITY_ENHETER[felt] ?? "";
-      if (enhet && typeof val === "number") {
-        return `${Number(val.toFixed(3))} ${enhet}`;
-      }
-      return val;
-    }
-  }
-
-  // IFCPROPERTYENUMERATEDVALUE → EnumerationValues (array av {value: ...})
-  const enumVals = obj["EnumerationValues"] as unknown[] | undefined;
-  if (Array.isArray(enumVals) && enumVals.length > 0) {
-    const vals = enumVals
-      .map((ev) => (ev && typeof ev === "object" && "value" in (ev as Record<string, unknown>)) ? (ev as { value: unknown }).value : null)
-      .filter((v) => v != null && v !== "");
-    if (vals.length > 0) return vals.join(", ");
-  }
-
-  // IFCPROPERTYLISTVALUE → ListValues (array av {value: ...})
-  const listVals = obj["ListValues"] as unknown[] | undefined;
-  if (Array.isArray(listVals) && listVals.length > 0) {
-    const vals = listVals
-      .map((lv) => (lv && typeof lv === "object" && "value" in (lv as Record<string, unknown>)) ? (lv as { value: unknown }).value : null)
-      .filter((v) => v != null && v !== "");
-    if (vals.length > 0) return vals.join(", ");
-  }
-
-  // IFCPROPERTYBOUNDEDVALUE → UpperBoundValue / LowerBoundValue
-  const upper = obj["UpperBoundValue"] as Record<string, unknown> | undefined;
-  const lower = obj["LowerBoundValue"] as Record<string, unknown> | undefined;
-  if (upper && typeof upper === "object" && "value" in upper) {
-    const uv = upper.value;
-    const lv = lower && typeof lower === "object" && "value" in lower ? lower.value : null;
-    if (lv != null) return `${lv} – ${uv}`;
-    return uv;
-  }
-
-  // Direkte verdi (noen IFC-eksportører lagrer verdier direkte)
-  if ("value" in obj) {
-    const val = (obj as { value: unknown }).value;
-    if (val !== null && val !== undefined && val !== "") return val;
-  }
-
-  return null;
-}
-
-function trekkUtEgenskaper(
-  dataArray: Record<string, unknown>[],
-): EgenskapGruppe[] {
-  const grupper: EgenskapGruppe[] = [];
-  for (const item of dataArray) {
-    const navn = hentNavn(item);
-
-    // PropertySet → trekk ut HasProperties som nøkkel-verdi-par
-    const hasProps = item["HasProperties"];
-    if (Array.isArray(hasProps) && hasProps.length > 0) {
-      const egenskaper: Record<string, EgenskapVerdi> = {};
-      for (const prop of hasProps as Record<string, unknown>[]) {
-        const propNavn = hentNavn(prop);
-        const verdi = hentVerdi(prop);
-        if (verdi !== null) {
-          egenskaper[propNavn] = { value: verdi };
-        }
-      }
-      if (Object.keys(egenskaper).length > 0) {
-        grupper.push({ navn, egenskaper });
-      }
-      continue;
-    }
-
-    // ElementQuantity → trekk ut HasQuantities
-    const hasQuant = item["HasQuantities"];
-    if (Array.isArray(hasQuant) && hasQuant.length > 0) {
-      const egenskaper: Record<string, EgenskapVerdi> = {};
-      for (const q of hasQuant as Record<string, unknown>[]) {
-        const qNavn = hentNavn(q);
-        const verdi = hentVerdi(q);
-        if (verdi !== null) {
-          egenskaper[qNavn] = { value: verdi };
-        }
-      }
-      if (Object.keys(egenskaper).length > 0) {
-        grupper.push({ navn, egenskaper });
-      }
-      continue;
-    }
-
-    // Andre relasjoner (f.eks. spatial structure) — vis relevante felt
-    const egenskaper: Record<string, EgenskapVerdi> = {};
-    for (const [k, v] of Object.entries(item)) {
-      if (INTERNE_FELT.has(k)) continue;
-      if (Array.isArray(v)) {
-        grupper.push(...trekkUtEgenskaper(v as Record<string, unknown>[]));
-      } else if (v && typeof v === "object" && "value" in (v as Record<string, unknown>)) {
-        egenskaper[k] = v as EgenskapVerdi;
-      }
-    }
-    if (Object.keys(egenskaper).length > 0) {
-      grupper.push({ navn, egenskaper });
-    }
-  }
-  return grupper;
-}
-
-interface SammenslattIfcViewerProps {
-  tegninger: TegningRad[];
-  viewerRef: React.MutableRefObject<{
-    toggleModell: (tegningId: string, synlig: boolean) => void;
-    fjernAlleKlippeplan: () => void;
-    settKlipperSynlig: (synlig: boolean) => void;
-    skjulObjekt: (modelId: string, localId: number) => Promise<void>;
-    visObjekt: (modelId: string, localId: number) => Promise<void>;
-    skjulAlleAvKategori: (kategoriKode: number) => Promise<void>;
-    visAlleAvKategori: (kategoriKode: number) => Promise<void>;
-    skjulAlleAvLag: (lagNavn: string) => Promise<void>;
-    visAlleAvLag: (lagNavn: string) => Promise<void>;
-    skjulAlleAvSystem: (systemNavn: string) => Promise<void>;
-    visAlleAvSystem: (systemNavn: string) => Promise<void>;
-  } | null>;
-  klippModus: boolean;
-  onKlippModusEndret: (aktiv: boolean) => void;
-  onObjektValgt: (obj: ValgtObjekt | null) => void;
-  onModellStatus: (id: string, status: Partial<ModellStatus>) => void;
-  skjulteObjekter: SkjultObjekt[];
-  aktiveFiltre: AktivtFilter[];
-  onFjernFilter: (filter: AktivtFilter) => void;
-  onFjernSkjultObjekt: (obj: SkjultObjekt) => void;
-  onNullstillAlt: () => void;
-}
-
-function SammenslattIfcViewer({
-  tegninger,
-  viewerRef,
-  klippModus,
-  onKlippModusEndret,
-  onObjektValgt,
-  onModellStatus,
-  skjulteObjekter,
-  aktiveFiltre,
-  onFjernFilter,
-  onFjernSkjultObjekt,
-  onNullstillAlt,
-}: SammenslattIfcViewerProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [laster, setLaster] = useState(true);
-  const [antallLastet, setAntallLastet] = useState(0);
-  const [lasterNavn, setLasterNavn] = useState<string | null>(null);
-
-  const onObjektValgtRef = useRef(onObjektValgt);
-  onObjektValgtRef.current = onObjektValgt;
-  const onModellStatusRef = useRef(onModellStatus);
-  onModellStatusRef.current = onModellStatus;
-
-  // Stabil referanse til tegninger-IDs for å unngå unødvendig re-mount
-  const tegningerIds = tegninger.map((t) => t.id).join(",");
-
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container || tegninger.length === 0) return;
-
-    let renset = false;
-    let componentsRef: unknown = null;
-    // Web-ifc for on-demand property-oppslag (delt mellom klikk)
-    let propsApiRef: { OpenModel: (data: Uint8Array) => number; CloseModel: (id: number) => void; SetWasmPath: (p: string) => void; Init: () => Promise<void>; properties: { getItemProperties: (m: number, id: number, r?: boolean) => Promise<Record<string, unknown>>; getPropertySets: (m: number, id: number, r?: boolean) => Promise<Record<string, unknown>[]>; getTypeProperties: (m: number, id: number, r?: boolean) => Promise<Record<string, unknown>[]> } } | null = null;
-    const openModelIds = new Map<string, number>();
-    let ifcDataMapRef = new Map<string, Uint8Array>();
-
-    Promise.all([
-      import("@thatopen/components"),
-      import("three"),
-      import("web-ifc"),
-    ])
-      .then(async ([OBC, THREE, WEBIFC]) => {
-        if (renset) return;
-
-        const components = new OBC.Components();
-        componentsRef = components;
-
-        const worlds = components.get(OBC.Worlds);
-        const world = worlds.create();
-
-        const simpleScene = new OBC.SimpleScene(components);
-        world.scene = simpleScene;
-        (simpleScene as unknown as { setup: (c: unknown) => void }).setup({
-          backgroundColor: new THREE.Color(0xf0f0f0),
-          ambientLight: { color: new THREE.Color("white"), intensity: 1 },
-          directionalLight: { color: new THREE.Color("white"), intensity: 1.5, position: new THREE.Vector3(5, 10, 3) },
-        });
-        const scene = world.scene.three;
-
-        world.renderer = new OBC.SimpleRenderer(components, container);
-        world.camera = new OBC.SimpleCamera(components);
-        world.camera.controls?.setLookAt(20, 20, 20, 0, 0, 0);
-
-        components.init();
-
-        // Initialiser FragmentsManager med worker (påkrevd før lasting)
-        const fragmentsManager = components.get(OBC.FragmentsManager);
-        fragmentsManager.init("/fragments-worker.mjs");
-
-        const grids = components.get(OBC.Grids);
-        grids.create(world);
-
-        const clipper = components.get(OBC.Clipper);
-        clipper.setup();
-        clipper.enabled = false;
-
-        const ifcLoader = components.get(OBC.IfcLoader);
-        ifcLoader.settings.autoSetWasm = false;
-        ifcLoader.settings.wasm = {
-          path: "/",
-          absolute: true,
-        };
-        await ifcLoader.setup();
-
-        if (renset) return;
-
-        const threeCamera = (world.camera as unknown as { three: InstanceType<typeof THREE.PerspectiveCamera> }).three;
-
-        // Last alle IFC-modeller inn i samme scene
-        const modellMap = new Map<string, unknown>();
-        // Map tegningId → fragments modelId, og spor synlighet
-        const tegningTilModelId = new Map<string, string>();
-        const synligeModeller = new Set<string>();
-        // Bruk ytre refs for ifcData og propsApi (tilgjengelig i cleanup)
-        const ifcDataMap = ifcDataMapRef;
-        const totalBbox = new THREE.Box3();
-        let lastet = 0;
-
-        // Parallell nedlasting av alle filer (nettverks-I/O) — med modul-level cache
-        for (const tegning of tegninger) {
-          onModellStatusRef.current(tegning.id, { laster: true, feil: null });
-        }
-
-        const nedlastinger = await Promise.all(
-          tegninger.map(async (tegning) => {
-            try {
-              const fileUrl = tegning.fileUrl.startsWith("/api")
-                ? tegning.fileUrl
-                : `/api${tegning.fileUrl}`;
-              // Sjekk modul-level cache først
-              const cached = ifcFilCache.get(fileUrl);
-              if (cached) {
-                return { tegning, data: cached, feil: null };
-              }
-              const response = await fetch(fileUrl);
-              if (!response.ok) throw new Error("Kunne ikke hente fil");
-              const buffer = await response.arrayBuffer();
-              const data = new Uint8Array(buffer);
-              ifcFilCache.set(fileUrl, data);
-              return { tegning, data, feil: null };
-            } catch (err) {
-              return { tegning, data: null, feil: err instanceof Error ? err.message : String(err) };
-            }
-          }),
-        );
-
-        if (renset) return;
-
-        // Last modeller — bruk cached fragments hvis tilgjengelig, ellers parse IFC
-        for (const { tegning, data, feil } of nedlastinger) {
-          if (renset) return;
-
-          if (!data || feil) {
-            console.error(`Kunne ikke laste ${tegning.name}:`, feil);
-            onModellStatusRef.current(tegning.id, { laster: false, feil: feil ?? "Ukjent feil" });
-            continue;
-          }
-
-          setLasterNavn(tegning.name);
-
-          try {
-            const model = await ifcLoader.load(data, true, tegning.name);
-
-            const fm = model as { object: InstanceType<typeof THREE.Object3D>; useCamera: (c: unknown) => void; box: InstanceType<typeof THREE.Box3> };
-
-            // Legg modellens 3D-objekt til scenen og koble kamera for tile-lasting
-            scene.add(fm.object);
-            fm.useCamera(threeCamera);
-
-            modellMap.set(tegning.id, model);
-            const fragModelId = (model as { modelId: string }).modelId;
-            ifcDataMap.set(fragModelId, data);
-            tegningTilModelId.set(tegning.id, fragModelId);
-            synligeModeller.add(fragModelId);
-            totalBbox.union(fm.box);
-
-            // Skjul abstrakte/analytiske IFC-elementer som ikke er fysiske bygningsdeler
-            // IfcSpace: rom-volumer for arealberegning
-            // IfcOpeningElement: hull/åpninger i vegger og dekker
-            try {
-              if (!propsApiRef) {
-                const api = new WEBIFC.IfcAPI();
-                api.SetWasmPath("/", true);
-                await api.Init((_f) => "/web-ifc.wasm");
-                propsApiRef = api;
-              }
-              let mid = openModelIds.get(fragModelId);
-              if (mid === undefined) {
-                mid = propsApiRef.OpenModel(data);
-                openModelIds.set(fragModelId, mid);
-              }
-              const hideApi = propsApiRef as unknown as { GetLineIDsWithType: (m: number, t: number) => { size: () => number; get: (i: number) => number } };
-              const skjulTyper = [WEBIFC.IFCSPACE, WEBIFC.IFCOPENINGELEMENT];
-              const skjulIds: number[] = [];
-              for (const ifcType of skjulTyper) {
-                const lineIds = hideApi.GetLineIDsWithType(mid, ifcType);
-                for (let si = 0; si < lineIds.size(); si++) skjulIds.push(lineIds.get(si));
-              }
-              if (skjulIds.length > 0) {
-                await model.setVisible(skjulIds, false);
-              }
-            } catch {
-              // Ikke kritisk — skjuling er kosmetisk
-            }
-
-            lastet++;
-            setAntallLastet(lastet);
-            onModellStatusRef.current(tegning.id, { laster: false, synlig: true });
-          } catch (err) {
-            console.error(`Kunne ikke laste ${tegning.name}:`, err);
-            const feilmelding = err instanceof Error ? err.message : String(err);
-            onModellStatusRef.current(tegning.id, {
-              laster: false,
-              feil: feilmelding,
-            });
-          }
-        }
-        setLasterNavn(null);
-
-        if (renset) return;
-
-        // Tilpass kamera til samlet bounding box
-        if (!totalBbox.isEmpty()) {
-          const center = totalBbox.getCenter(new THREE.Vector3());
-          const size = totalBbox.getSize(new THREE.Vector3());
-          const maxDim = Math.max(size.x, size.y, size.z);
-          world.camera.controls?.setLookAt(
-            center.x + maxDim,
-            center.y + maxDim * 0.7,
-            center.z + maxDim,
-            center.x,
-            center.y,
-            center.z,
-          );
-        }
-
-        // Start update-løkke for tile-lasting
-        let animFrameId: number | null = null;
-        function updateLoop() {
-          if (renset) return;
-          fragmentsManager.core.update();
-          animFrameId = requestAnimationFrame(updateLoop);
-        }
-        updateLoop();
-
-        // Raycasting for objektvelging
-        const rendererDom = (world.renderer as unknown as { three: { domElement: HTMLCanvasElement } }).three.domElement;
-
-        const highlightMaterial = {
-          color: new THREE.Color(0x3b82f6),
-          renderedFaces: 1 as unknown as import("@thatopen/fragments").RenderedFaces,
-          opacity: 0.6,
-          transparent: true,
-        };
-
-        let currentHighlight: { modelId: string; localIds: number[] } | null = null;
-
-        // 3D-markør for valgt punkt
-        let markerMesh: InstanceType<typeof THREE.Mesh> | null = null;
-        function placeMarker(point: InstanceType<typeof THREE.Vector3>) {
-          removeMarker();
-          const geo = new THREE.SphereGeometry(0.15, 16, 16);
-          const mat = new THREE.MeshBasicMaterial({ color: 0xef4444, depthTest: false });
-          markerMesh = new THREE.Mesh(geo, mat);
-          markerMesh.position.copy(point);
-          markerMesh.renderOrder = 999;
-          scene.add(markerMesh);
-        }
-        function removeMarker() {
-          if (markerMesh) {
-            scene.remove(markerMesh);
-            markerMesh.geometry.dispose();
-            (markerMesh.material as InstanceType<typeof THREE.MeshBasicMaterial>).dispose();
-            markerMesh = null;
-          }
-        }
-
-        // Spor musebevegelse for å skille klikk fra drag (orbit controls)
-        let mouseDownPos: { x: number; y: number } | null = null;
-        rendererDom.addEventListener("pointerdown", (e: PointerEvent) => {
-          mouseDownPos = { x: e.clientX, y: e.clientY };
-        });
-
-        async function resetHighlight() {
-          removeMarker();
-          if (!currentHighlight) return;
-          try {
-            const prevModel = fragmentsManager.list.get(currentHighlight.modelId);
-            if (prevModel) {
-              await prevModel.resetHighlight(currentHighlight.localIds);
-            }
-          } catch {
-            // Ignorer
-          }
-          currentHighlight = null;
-        }
-
-        async function handleKlikk(event: MouseEvent) {
-          if (renset) return;
-
-          // Ignorer drag (orbit-kontroll) — kun reagere på ekte klikk
-          if (mouseDownPos) {
-            const dx = event.clientX - mouseDownPos.x;
-            const dy = event.clientY - mouseDownPos.y;
-            if (Math.sqrt(dx * dx + dy * dy) > 5) return;
-          }
-
-          await resetHighlight();
-
-          try {
-            // Raycast kun mot synlige modeller — fragmentsManager.raycast()
-            // treffer også modeller fjernet fra scenen.
-            // mouse: rå clientX/clientY (fragmentsManager konverterer internt via dom)
-            const raycastData = {
-              camera: threeCamera,
-              mouse: new THREE.Vector2(event.clientX, event.clientY),
-              dom: rendererDom,
-            };
-
-            let hitResult: Awaited<ReturnType<typeof fragmentsManager.raycast>> = undefined;
-
-            for (const [mid, model] of fragmentsManager.list) {
-              if (!synligeModeller.has(mid)) continue;
-              try {
-                const result = await model.raycast(raycastData);
-                if (result && (!hitResult || result.distance < hitResult.distance)) {
-                  hitResult = result;
-                }
-              } catch {
-                // Noen modeller kan feile — fortsett med neste
-              }
-            }
-
-            if (!hitResult) {
-              removeMarker();
-              onObjektValgtRef.current(null);
-              return;
-            }
-
-            const { localId, fragments: hitModel } = hitResult;
-
-            // Plasser 3D-markør på treffpunktet
-            placeMarker(hitResult.point);
-
-            // Highlight valgt objekt
-            try {
-              await hitModel.highlight([localId], highlightMaterial);
-              currentHighlight = { modelId: hitModel.modelId, localIds: [localId] };
-            } catch {
-              // Highlight kan feile men er ikke kritisk
-            }
-
-            // Hent kategori via fragments API
-            const item = hitModel.getItem(localId);
-            const kategori = await item.getCategory().catch(() => null);
-            const expressId = localId;
-
-            // Vis kategori umiddelbart
-            onObjektValgtRef.current({ localId, modelId: hitModel.modelId, kategori, attributter: {}, relasjoner: [] });
-
-            // Hent egenskaper on-demand via web-ifc properties API
-            const rawData = ifcDataMap.get(hitModel.modelId);
-            if (rawData) {
-              try {
-                // Gjenbruk eller opprett web-ifc instans for egenskapsoppslag
-                if (!propsApiRef) {
-                  const api = new WEBIFC.IfcAPI();
-                  api.SetWasmPath("/", true);
-                  await api.Init((_fileName) => "/web-ifc.wasm");
-                  propsApiRef = api;
-                }
-
-                // Gjenbruk åpen modell eller åpne ny
-                let modelId = openModelIds.get(hitModel.modelId);
-                if (modelId === undefined) {
-                  modelId = propsApiRef.OpenModel(rawData);
-                  openModelIds.set(hitModel.modelId, modelId);
-                }
-
-                // Hent element-attributter, PropertySets, TypeProperties og Materials parallelt
-                const [itemProps, propertySets, typeProps, materials] = await Promise.all([
-                  propsApiRef.properties.getItemProperties(modelId, expressId, true).catch(() => null),
-                  propsApiRef.properties.getPropertySets(modelId, expressId, true).catch(() => []),
-                  propsApiRef.properties.getTypeProperties(modelId, expressId, true).catch(() => []),
-                  (propsApiRef.properties as unknown as { getMaterialsProperties: (m: number, id: number, r?: boolean, t?: boolean) => Promise<Record<string, unknown>[]> })
-                    .getMaterialsProperties(modelId, expressId, true, true).catch(() => []),
-                ]);
-
-                // Hvis elementet er en underdel (BuildingElementPart etc.), finn foreldre via IfcRelAggregates
-                let parentProps: Record<string, unknown> | null = null;
-                let parentPropertySets: Record<string, unknown>[] = [];
-                let parentTypeProps: Record<string, unknown>[] = [];
-                let parentMaterials: Record<string, unknown>[] = [];
-                try {
-                  const api = propsApiRef as unknown as { GetLineIDsWithType: (m: number, t: number) => { size: () => number; get: (i: number) => number }; GetLine: (m: number, id: number) => Record<string, unknown>; properties: typeof propsApiRef.properties };
-                  const relAggIds = api.GetLineIDsWithType(modelId, WEBIFC.IFCRELAGGREGATES);
-                  for (let i = 0; i < relAggIds.size(); i++) {
-                    const relId = relAggIds.get(i);
-                    const rel = api.GetLine(modelId, relId);
-                    const relatedObjects = rel.RelatedObjects as Array<{ value: number }> | undefined;
-                    if (Array.isArray(relatedObjects) && relatedObjects.some((o) => o.value === expressId)) {
-                      const parentId = (rel.RelatingObject as { value: number })?.value;
-                      if (parentId) {
-                        [parentProps, parentPropertySets, parentTypeProps, parentMaterials] = await Promise.all([
-                          api.properties.getItemProperties(modelId, parentId, true).catch(() => null),
-                          api.properties.getPropertySets(modelId, parentId, true).catch(() => []),
-                          api.properties.getTypeProperties(modelId, parentId, true).catch(() => []),
-                          (api.properties as unknown as { getMaterialsProperties: (m: number, id: number, r?: boolean, t?: boolean) => Promise<Record<string, unknown>[]> })
-                            .getMaterialsProperties(modelId, parentId, true, true).catch(() => []),
-                        ]);
-                        break;
-                      }
-                    }
-                  }
-                } catch {
-                  // Foreldre-oppslag er ikke kritisk
-                }
-
-                // Hent Type-navn via IfcRelDefinesByType og Layer via IfcPresentationLayerAssignment
-                let typeName: string | null = null;
-                let layerName: string | null = null;
-                let systemName: string | null = null;
-                try {
-                  const api2 = propsApiRef as unknown as { GetLineIDsWithType: (m: number, t: number) => { size: () => number; get: (i: number) => number }; GetLine: (m: number, id: number) => Record<string, unknown> };
-                  // Søk i elementet og eventuelt foreldre for Type
-                  const targetIds = parentProps ? [expressId, (parentProps.expressID as number)] : [expressId];
-                  const relTypeIds = api2.GetLineIDsWithType(modelId, WEBIFC.IFCRELDEFINESBYTYPE);
-                  for (let i = 0; i < relTypeIds.size() && !typeName; i++) {
-                    const rel = api2.GetLine(modelId, relTypeIds.get(i));
-                    const relObj = rel.RelatedObjects as Array<{ value: number }> | undefined;
-                    if (Array.isArray(relObj) && relObj.some((o) => targetIds.includes(o.value))) {
-                      const relType = rel.RelatingType as { value: number } | undefined;
-                      if (relType?.value) {
-                        const typeObj = api2.GetLine(modelId, relType.value);
-                        const tn = typeObj.Name as { value: unknown } | undefined;
-                        if (tn && typeof tn === "object" && "value" in tn && tn.value) {
-                          typeName = String(tn.value);
-                        }
-                      }
-                    }
-                  }
-                  // Layer via IfcPresentationLayerAssignment
-                  // AssignedItems refererer til IfcShapeRepresentation (sub-repr),
-                  // ikke IfcProductDefinitionShape. Samle alle sub-repr IDs.
-                  const subReprIds = new Set<number>();
-                  for (const props of [itemProps, parentProps]) {
-                    if (!props) continue;
-                    const reprRef = props.Representation as { value: number } | Record<string, unknown> | undefined;
-                    if (!reprRef) continue;
-                    // Hent IfcProductDefinitionShape → Representations (array av sub-repr)
-                    const reprId = typeof reprRef === "object" && "value" in reprRef ? (reprRef as { value: number }).value : null;
-                    const reprExprId = reprRef && typeof reprRef === "object" && "expressID" in reprRef ? (reprRef as { expressID: number }).expressID : reprId;
-                    if (reprExprId) {
-                      subReprIds.add(reprExprId);
-                      try {
-                        const reprObj = api2.GetLine(modelId, reprExprId);
-                        const reps = reprObj.Representations as Array<{ value: number }> | undefined;
-                        if (Array.isArray(reps)) {
-                          for (const r of reps) subReprIds.add(r.value);
-                        }
-                      } catch { /* ignorér */ }
-                    }
-                  }
-                  const layerIds = api2.GetLineIDsWithType(modelId, WEBIFC.IFCPRESENTATIONLAYERASSIGNMENT);
-                  for (let i = 0; i < layerIds.size() && !layerName; i++) {
-                    const layer = api2.GetLine(modelId, layerIds.get(i));
-                    const assigned = layer.AssignedItems as Array<{ value: number }> | undefined;
-                    if (Array.isArray(assigned) && assigned.some((a) => subReprIds.has(a.value))) {
-                      const ln = layer.Name as { value: unknown } | undefined;
-                      if (ln && typeof ln === "object" && "value" in ln && ln.value) {
-                        layerName = String(ln.value);
-                      }
-                    }
-                  }
-                  // System via IfcRelAssignsToGroup → RelatingGroup (IfcSystem/IfcDistributionSystem)
-                  const relGroupIds = api2.GetLineIDsWithType(modelId, WEBIFC.IFCRELASSIGNSTOGROUP);
-                  for (let i = 0; i < relGroupIds.size(); i++) {
-                    const rel = api2.GetLine(modelId, relGroupIds.get(i));
-                    const relObj = rel.RelatedObjects as Array<{ value: number }> | undefined;
-                    if (Array.isArray(relObj) && relObj.some((o) => targetIds.includes(o.value))) {
-                      const group = rel.RelatingGroup as { value: number } | undefined;
-                      if (group?.value) {
-                        const groupObj = api2.GetLine(modelId, group.value);
-                        const gn = groupObj.Name as { value: unknown } | undefined;
-                        if (gn && typeof gn === "object" && "value" in gn && gn.value) {
-                          systemName = String(gn.value);
-                          break;
-                        }
-                      }
-                    }
-                  }
-                } catch {
-                  // Type/Layer/System-oppslag er ikke kritisk
-                }
-
-                // Kombiner egenskaper — foreldre-data brukes som supplement
-                const allPropertySets = [...propertySets, ...parentPropertySets];
-                const allTypeProps = [...typeProps, ...parentTypeProps];
-                const allMaterials = [...materials, ...parentMaterials];
-
-                  // Konverter attributter (filtrer interne felt og express-ID-referanser)
-                  const attributter: Record<string, EgenskapVerdi> = {};
-                  if (itemProps) {
-                    // Behold Name for headeren (ikke filtrert bort av INTERNE_FELT)
-                    const nameVal = itemProps["Name"];
-                    if (nameVal && typeof nameVal === "object" && "value" in (nameVal as Record<string, unknown>)) {
-                      const n = (nameVal as { value: unknown }).value;
-                      if (n != null && n !== "") attributter["Name"] = { value: n };
-                    }
-                    for (const [k, v] of Object.entries(itemProps)) {
-                      if (INTERNE_FELT.has(k)) continue;
-                      if (v && typeof v === "object" && "value" in (v as Record<string, unknown>)) {
-                        const val = (v as { value: unknown }).value;
-                        if (val === null || val === undefined || val === "") continue;
-                        attributter[k] = { value: val };
-                      }
-                    }
-                  }
-                  // Legg til Type, Layer og System som attributter
-                  if (typeName) attributter["Type"] = { value: typeName };
-                  if (layerName) attributter["Layer"] = { value: layerName };
-                  if (systemName) attributter["System"] = { value: systemName };
-
-                  // Legg til klikkkoordinater
-                  const relasjoner: EgenskapGruppe[] = [];
-                  relasjoner.push({
-                    navn: "Klikk på koordinater",
-                    egenskaper: {
-                      "Øst (X)": { value: hitResult.point.x },
-                      "Nord (Y)": { value: hitResult.point.y },
-                      "Høyde (Z)": { value: hitResult.point.z },
-                    },
-                  });
-
-                  // Legg til attributter fra foreldre-element (f.eks. Wall → BuildingElementPart)
-                  if (parentProps) {
-                    const foreldreAttr: Record<string, EgenskapVerdi> = {};
-                    for (const [k, v] of Object.entries(parentProps)) {
-                      if (INTERNE_FELT.has(k)) continue;
-                      if (v && typeof v === "object" && "value" in (v as Record<string, unknown>)) {
-                        const val = (v as { value: unknown }).value;
-                        if (val === null || val === undefined || val === "") continue;
-                        foreldreAttr[k] = { value: val };
-                      }
-                    }
-                    if (Object.keys(foreldreAttr).length > 0) {
-                      // Finn foreldretypens IFC-navn
-                      let parentTypeName = "Overordnet element";
-                      if (parentProps.type != null) {
-                        const tc = Number(parentProps.type);
-                        for (const [name, code] of Object.entries(WEBIFC)) {
-                          if (code === tc && typeof name === "string" && name.startsWith("IFC") && name === name.toUpperCase()) {
-                            let clean = name.substring(3);
-                            clean = clean.replace(/STANDARDCASE$|ELEMENTEDCASE$|TYPE$/, "");
-                            parentTypeName = clean.charAt(0) + clean.slice(1).toLowerCase();
-                            break;
-                          }
-                        }
-                      }
-                      relasjoner.push({ navn: parentTypeName, egenskaper: foreldreAttr });
-                    }
-                  }
-
-                  // Konverter PropertySets til grupper
-                  for (const pset of [...allPropertySets, ...allTypeProps]) {
-                    const psetNavn = pset.Name && typeof pset.Name === "object" && "value" in (pset.Name as Record<string, unknown>)
-                      ? String((pset.Name as { value: unknown }).value)
-                      : "Egenskaper";
-                    const egenskaper: Record<string, EgenskapVerdi> = {};
-
-                    // HasProperties (IFCPROPERTYSET) — inkludert nestede IFCCOMPLEXPROPERTY
-                    const hasProps = pset.HasProperties as Record<string, unknown>[] | undefined;
-                    if (Array.isArray(hasProps)) {
-                      for (const prop of hasProps) {
-                        const propNavn = hentNavn(prop);
-                        // IFCCOMPLEXPROPERTY — nestede egenskaper
-                        const nestedProps = prop.HasProperties as Record<string, unknown>[] | undefined;
-                        if (Array.isArray(nestedProps)) {
-                          for (const nested of nestedProps) {
-                            const nestedNavn = hentNavn(nested);
-                            const nestedVerdi = hentVerdi(nested);
-                            if (nestedVerdi !== null) {
-                              egenskaper[`${propNavn}.${nestedNavn}`] = { value: nestedVerdi };
-                            }
-                          }
-                        } else {
-                          const verdi = hentVerdi(prop);
-                          if (verdi !== null) {
-                            egenskaper[propNavn] = { value: verdi };
-                          }
-                        }
-                      }
-                    }
-
-                    // Quantities / HasQuantities (IFCELEMENTQUANTITY)
-                    const hasQuant = (pset.Quantities ?? pset.HasQuantities) as Record<string, unknown>[] | undefined;
-                    if (Array.isArray(hasQuant)) {
-                      for (const q of hasQuant) {
-                        const qNavn = hentNavn(q);
-                        const verdi = hentVerdi(q);
-                        if (verdi !== null) {
-                          egenskaper[qNavn] = { value: verdi };
-                        }
-                      }
-                    }
-
-                    // HasPropertyTemplates (IFCPROPERTYSETTEMPLATE)
-                    const hasTemplates = pset.HasPropertyTemplates as Record<string, unknown>[] | undefined;
-                    if (Array.isArray(hasTemplates)) {
-                      for (const tmpl of hasTemplates) {
-                        const tmplNavn = hentNavn(tmpl);
-                        const verdi = hentVerdi(tmpl);
-                        if (verdi !== null) {
-                          egenskaper[tmplNavn] = { value: verdi };
-                        }
-                      }
-                    }
-
-                    if (Object.keys(egenskaper).length > 0) {
-                      relasjoner.push({ navn: psetNavn, egenskaper });
-                    }
-                  }
-
-                  // Konverter materialer til en gruppe
-                  if (allMaterials.length > 0) {
-                    const matEgenskaper: Record<string, EgenskapVerdi> = {};
-                    for (const mat of allMaterials) {
-                      // IFCMATERIAL — enkel material
-                      if (mat.Name && typeof mat.Name === "object" && "value" in (mat.Name as Record<string, unknown>)) {
-                        const matNavn = String((mat.Name as { value: unknown }).value);
-                        if (matNavn) matEgenskaper["Materiale"] = { value: matNavn };
-                      }
-                      // IFCMATERIALLAYERSETUSAGE / IFCMATERIALLAYERSET — lagdelt material
-                      const forLayerSet = mat.ForLayerSet as Record<string, unknown> | undefined;
-                      const layers = (mat.MaterialLayers ?? forLayerSet?.MaterialLayers) as Record<string, unknown>[] | undefined;
-                      if (Array.isArray(layers)) {
-                        for (const layer of layers) {
-                          const layerMat = layer.Material as Record<string, unknown> | undefined;
-                          const layerName = layerMat?.Name && typeof layerMat.Name === "object" && "value" in (layerMat.Name as Record<string, unknown>)
-                            ? String((layerMat.Name as { value: unknown }).value) : null;
-                          const thickness = layer.LayerThickness && typeof layer.LayerThickness === "object" && "value" in (layer.LayerThickness as Record<string, unknown>)
-                            ? (layer.LayerThickness as { value: unknown }).value : null;
-                          if (layerName) {
-                            const label = thickness != null ? `${layerName} (${thickness} mm)` : layerName;
-                            matEgenskaper[`Lag ${Object.keys(matEgenskaper).length + 1}`] = { value: label };
-                          }
-                        }
-                      }
-                      // IFCMATERIALPROFILESETUSAGE — profilmaterial (rør, stål)
-                      const forProfileSet = mat.ForProfileSet as Record<string, unknown> | undefined;
-                      const profiles = (mat.MaterialProfiles ?? forProfileSet?.MaterialProfiles) as Record<string, unknown>[] | undefined;
-                      if (Array.isArray(profiles)) {
-                        for (const prof of profiles) {
-                          const profMat = prof.Material as Record<string, unknown> | undefined;
-                          const profName = profMat?.Name && typeof profMat.Name === "object" && "value" in (profMat.Name as Record<string, unknown>)
-                            ? String((profMat.Name as { value: unknown }).value) : null;
-                          if (profName) matEgenskaper["Materiale"] = { value: profName };
-                          // Profildata (diameter, tykkelse etc.)
-                          const profile = prof.Profile as Record<string, unknown> | undefined;
-                          if (profile) {
-                            for (const [pk, pv] of Object.entries(profile)) {
-                              if (INTERNE_FELT.has(pk) || pk === "ProfileName" || pk === "ProfileType") continue;
-                              if (pv && typeof pv === "object" && "value" in (pv as Record<string, unknown>)) {
-                                const val = (pv as { value: unknown }).value;
-                                if (val != null && val !== "") matEgenskaper[pk] = { value: val };
-                              }
-                            }
-                            // ProfileName
-                            const profNameVal = profile.ProfileName;
-                            if (profNameVal && typeof profNameVal === "object" && "value" in (profNameVal as Record<string, unknown>)) {
-                              const pn = (profNameVal as { value: unknown }).value;
-                              if (pn) matEgenskaper["Profil"] = { value: pn };
-                            }
-                          }
-                        }
-                      }
-                    }
-                    if (Object.keys(matEgenskaper).length > 0) {
-                      relasjoner.push({ navn: "Materialer", egenskaper: matEgenskaper });
-                    }
-                  }
-
-                  // Konverter numerisk IFC-typekode til lesbart navn
-                  let ifcType: string | null = null;
-                  if (itemProps?.type != null) {
-                    const typeCode = Number(itemProps.type);
-                    for (const [name, code] of Object.entries(WEBIFC)) {
-                      if (code === typeCode && typeof name === "string" && name.startsWith("IFC") && name === name.toUpperCase()) {
-                        // "IFCWALLSTANDARDCASE" → "Wall", "IFCWINDOW" → "Window"
-                        let clean = name.substring(3); // Fjern "IFC"
-                        // Fjern IFC-implementasjonsuffikser
-                        clean = clean.replace(/STANDARDCASE$|ELEMENTEDCASE$|TYPE$/, "");
-                        // Gjør om ALLCAPS til Title Case
-                        ifcType = clean.charAt(0) + clean.slice(1).toLowerCase();
-                        break;
-                      }
-                    }
-                  }
-                  const endeligKategori = kategori ?? ifcType;
-                  onObjektValgtRef.current({ localId, modelId: hitModel.modelId, kategori: endeligKategori, attributter, relasjoner });
-              } catch (err) {
-                console.warn("Kunne ikke hente IFC-egenskaper:", err);
-              }
-            }
-          } catch (err) {
-            console.warn("Kunne ikke hente objektegenskaper:", err);
-            onObjektValgtRef.current(null);
-          }
-        }
-
-        rendererDom.addEventListener("click", handleKlikk);
-
-        // Dobbeltklikk for klippeplan
-        async function handleDblKlikk() {
-          if (!clipper.enabled || renset) return;
-          await clipper.create(world);
-        }
-        rendererDom.addEventListener("dblclick", handleDblKlikk);
-
-        // Cache WEBIFC-konstanter for kategori-oppslag utenfor useEffect
-        _webifcKonstanter = WEBIFC as unknown as Record<string, number>;
-
-        // Hjelpefunksjon: hent alle element-IDer av en IFC-type på tvers av alle synlige modeller
-        async function hentIderForType(ifcTypeKode: number): Promise<Map<string, number[]>> {
-          const resultat = new Map<string, number[]>();
-          if (!propsApiRef) return resultat;
-          const api = propsApiRef as unknown as { GetLineIDsWithType: (m: number, t: number) => { size: () => number; get: (i: number) => number } };
-          for (const [fragId, webifcId] of openModelIds.entries()) {
-            try {
-              const lineIds = api.GetLineIDsWithType(webifcId, ifcTypeKode);
-              const ids: number[] = [];
-              for (let i = 0; i < lineIds.size(); i++) ids.push(lineIds.get(i));
-              if (ids.length > 0) resultat.set(fragId, ids);
-            } catch { /* ignorér */ }
-          }
-          return resultat;
-        }
-
-        // Hjelpefunksjon: hent element-IDer tilknyttet et lag (layer)
-        async function hentIderForLag(lagNavn: string): Promise<Map<string, number[]>> {
-          const resultat = new Map<string, number[]>();
-          if (!propsApiRef) return resultat;
-          const api = propsApiRef as unknown as {
-            GetLineIDsWithType: (m: number, t: number) => { size: () => number; get: (i: number) => number };
-            GetLine: (m: number, id: number) => Record<string, unknown>;
-          };
-          for (const [fragId, webifcId] of openModelIds.entries()) {
-            try {
-              const layerIds = api.GetLineIDsWithType(webifcId, WEBIFC.IFCPRESENTATIONLAYERASSIGNMENT);
-              const elementIds = new Set<number>();
-              for (let i = 0; i < layerIds.size(); i++) {
-                const layer = api.GetLine(webifcId, layerIds.get(i));
-                const ln = layer.Name as { value: unknown } | undefined;
-                if (!ln || String(ln.value) !== lagNavn) continue;
-                const assigned = layer.AssignedItems as Array<{ value: number }> | undefined;
-                if (!Array.isArray(assigned)) continue;
-                // AssignedItems peker på IfcShapeRepresentation — finn produktene som bruker disse
-                const reprIds = new Set(assigned.map((a) => a.value));
-                // Søk gjennom alle produkter for å finne de som har disse representasjonene
-                // Enklere: iterer alle IFCPRODUCT-typer (kostbart men korrekt)
-                for (const [_name, code] of Object.entries(WEBIFC)) {
-                  if (typeof code !== "number" || code < 100) continue;
-                  try {
-                    const prodIds = api.GetLineIDsWithType(webifcId, code);
-                    for (let pi = 0; pi < prodIds.size(); pi++) {
-                      const pid = prodIds.get(pi);
-                      try {
-                        const prod = api.GetLine(webifcId, pid);
-                        const repr = prod.Representation as { value: number } | undefined;
-                        if (repr && reprIds.has(repr.value)) {
-                          elementIds.add(pid);
-                          continue;
-                        }
-                        // Sjekk sub-representations
-                        if (repr?.value) {
-                          try {
-                            const reprObj = api.GetLine(webifcId, repr.value);
-                            const reps = reprObj.Representations as Array<{ value: number }> | undefined;
-                            if (Array.isArray(reps) && reps.some((r) => reprIds.has(r.value))) {
-                              elementIds.add(pid);
-                            }
-                          } catch { /* ignorér */ }
-                        }
-                      } catch { /* ignorér */ }
-                    }
-                  } catch { /* ignorér */ }
-                }
-              }
-              if (elementIds.size > 0) resultat.set(fragId, [...elementIds]);
-            } catch { /* ignorér */ }
-          }
-          return resultat;
-        }
-
-        // Hjelpefunksjon: hent element-IDer tilknyttet et system (gruppe)
-        async function hentIderForSystem(systemNavn: string): Promise<Map<string, number[]>> {
-          const resultat = new Map<string, number[]>();
-          if (!propsApiRef) return resultat;
-          const api = propsApiRef as unknown as {
-            GetLineIDsWithType: (m: number, t: number) => { size: () => number; get: (i: number) => number };
-            GetLine: (m: number, id: number) => Record<string, unknown>;
-          };
-          for (const [fragId, webifcId] of openModelIds.entries()) {
-            try {
-              const relGroupIds = api.GetLineIDsWithType(webifcId, WEBIFC.IFCRELASSIGNSTOGROUP);
-              const elementIds: number[] = [];
-              for (let i = 0; i < relGroupIds.size(); i++) {
-                const rel = api.GetLine(webifcId, relGroupIds.get(i));
-                const group = rel.RelatingGroup as { value: number } | undefined;
-                if (!group?.value) continue;
-                try {
-                  const groupObj = api.GetLine(webifcId, group.value);
-                  const gn = groupObj.Name as { value: unknown } | undefined;
-                  if (!gn || String(gn.value) !== systemNavn) continue;
-                } catch { continue; }
-                const relObj = rel.RelatedObjects as Array<{ value: number }> | undefined;
-                if (Array.isArray(relObj)) {
-                  for (const o of relObj) elementIds.push(o.value);
-                }
-              }
-              if (elementIds.length > 0) resultat.set(fragId, elementIds);
-            } catch { /* ignorér */ }
-          }
-          return resultat;
-        }
-
-        // Viewer-referanser
-        viewerRef.current = {
-          toggleModell: (tegningId: string, synlig: boolean) => {
-            const model = modellMap.get(tegningId) as { object?: InstanceType<typeof THREE.Object3D> } | undefined;
-            if (model?.object) {
-              // Fjern/legg til i scenen — fragments raycast ignorerer visible-flagg
-              if (synlig) {
-                if (!model.object.parent) scene.add(model.object);
-              } else {
-                scene.remove(model.object);
-              }
-            }
-            const fragId = tegningTilModelId.get(tegningId);
-            if (fragId) {
-              if (synlig) synligeModeller.add(fragId);
-              else synligeModeller.delete(fragId);
-            }
-          },
-          fjernAlleKlippeplan: () => {
-            clipper.deleteAll();
-            clipper.enabled = false;
-          },
-          settKlipperSynlig: (synlig: boolean) => {
-            clipper.enabled = synlig;
-            clipper.visible = synlig;
-          },
-          skjulObjekt: async (mid: string, lid: number) => {
-            const model = fragmentsManager.list.get(mid);
-            if (model) {
-              await model.setVisible([lid], false);
-            }
-          },
-          visObjekt: async (mid: string, lid: number) => {
-            const model = fragmentsManager.list.get(mid);
-            if (model) {
-              await model.setVisible([lid], true);
-            }
-          },
-          skjulAlleAvKategori: async (kategoriKode: number) => {
-            const iderPerModell = await hentIderForType(kategoriKode);
-            for (const [fragId, ids] of iderPerModell) {
-              const model = fragmentsManager.list.get(fragId);
-              if (model && ids.length > 0) await model.setVisible(ids, false);
-            }
-          },
-          visAlleAvKategori: async (kategoriKode: number) => {
-            const iderPerModell = await hentIderForType(kategoriKode);
-            for (const [fragId, ids] of iderPerModell) {
-              const model = fragmentsManager.list.get(fragId);
-              if (model && ids.length > 0) await model.setVisible(ids, true);
-            }
-          },
-          skjulAlleAvLag: async (lagNavn: string) => {
-            const iderPerModell = await hentIderForLag(lagNavn);
-            for (const [fragId, ids] of iderPerModell) {
-              const model = fragmentsManager.list.get(fragId);
-              if (model && ids.length > 0) await model.setVisible(ids, false);
-            }
-          },
-          visAlleAvLag: async (lagNavn: string) => {
-            const iderPerModell = await hentIderForLag(lagNavn);
-            for (const [fragId, ids] of iderPerModell) {
-              const model = fragmentsManager.list.get(fragId);
-              if (model && ids.length > 0) await model.setVisible(ids, true);
-            }
-          },
-          skjulAlleAvSystem: async (systemNavn: string) => {
-            const iderPerModell = await hentIderForSystem(systemNavn);
-            for (const [fragId, ids] of iderPerModell) {
-              const model = fragmentsManager.list.get(fragId);
-              if (model && ids.length > 0) await model.setVisible(ids, false);
-            }
-          },
-          visAlleAvSystem: async (systemNavn: string) => {
-            const iderPerModell = await hentIderForSystem(systemNavn);
-            for (const [fragId, ids] of iderPerModell) {
-              const model = fragmentsManager.list.get(fragId);
-              if (model && ids.length > 0) await model.setVisible(ids, true);
-            }
-          },
-        };
-
-        setLaster(false);
-
-        return () => {
-          rendererDom.removeEventListener("click", handleKlikk);
-          rendererDom.removeEventListener("dblclick", handleDblKlikk);
-          if (animFrameId !== null) cancelAnimationFrame(animFrameId);
-        };
-      })
-      .catch((err) => {
-        if (!renset) {
-          console.error("IFC viewer feil:", err);
-          setLaster(false);
-        }
-      });
-
-    return () => {
-      renset = true;
-      viewerRef.current = null;
-      if (propsApiRef) {
-        for (const mid of openModelIds.values()) {
-          try { propsApiRef.CloseModel(mid); } catch { /* */ }
-        }
-        openModelIds.clear();
-        propsApiRef = null;
-      }
-      if (componentsRef && typeof (componentsRef as { dispose?: () => void }).dispose === "function") {
-        try { (componentsRef as { dispose: () => void }).dispose(); } catch { /* */ }
-      }
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tegningerIds]);
-
-  useEffect(() => {
-    viewerRef.current?.settKlipperSynlig(klippModus);
-  }, [klippModus, viewerRef]);
-
-  return (
-    <div className="flex h-full flex-col">
-      {/* Verktøylinje */}
-      <div className="flex items-center gap-3 border-b border-gray-200 bg-white px-4 py-2">
-        <Layers className="h-4 w-4 text-gray-400" />
-        <span className="text-sm font-medium text-gray-900">
-          {tegninger.length} modell{tegninger.length !== 1 ? "er" : ""}
-        </span>
-
-        <div className="flex-1" />
-
-        <div className="flex items-center gap-1 border-r border-gray-200 pr-3">
-          <button
-            onClick={() => {
-              const nyModus = !klippModus;
-              onKlippModusEndret(nyModus);
-              if (nyModus) viewerRef.current?.settKlipperSynlig(true);
-            }}
-            className={`flex items-center gap-1 rounded px-2 py-1 text-xs ${
-              klippModus
-                ? "bg-sitedoc-primary text-white"
-                : "text-gray-600 hover:bg-gray-100"
-            }`}
-            title="Snitt-modus"
-          >
-            <Scissors className="h-3.5 w-3.5" />
-            Snitt
-          </button>
-          {klippModus && (
-            <button
-              onClick={() => {
-                viewerRef.current?.fjernAlleKlippeplan();
-                onKlippModusEndret(false);
-              }}
-              className="rounded px-2 py-1 text-xs text-gray-500 hover:bg-gray-100"
-            >
-              Fjern alle
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Filter-chip-bar — vises kun ved aktive filtre eller skjulte objekter */}
-      {(aktiveFiltre.length > 0 || skjulteObjekter.length > 0) && (
-        <FilterChipBar
-          aktiveFiltre={aktiveFiltre}
-          skjulteObjekter={skjulteObjekter}
-          onFjernFilter={onFjernFilter}
-          onFjernSkjultObjekt={onFjernSkjultObjekt}
-          onNullstillAlt={onNullstillAlt}
-        />
-      )}
-
-      <div ref={containerRef} className="relative flex-1">
-        {laster && (
-          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-gray-100">
-            <Loader2 className="h-10 w-10 animate-spin text-sitedoc-primary" />
-            <p className="mt-3 text-sm font-medium text-gray-700">
-              Laster modeller ({antallLastet}/{tegninger.length})...
-            </p>
-            {lasterNavn && (
-              <p className="mt-1 text-xs font-medium text-sitedoc-secondary">
-                {lasterNavn}
-              </p>
-            )}
-            <p className="mt-1 text-xs text-gray-500">
-              Parsing skjer lokalt i nettleseren. Større filer tar lengre tid.
-            </p>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/*  Filter-chip-bar                                                     */
-/* ------------------------------------------------------------------ */
-
-function FilterChipBar({
-  aktiveFiltre,
-  skjulteObjekter,
-  onFjernFilter,
-  onFjernSkjultObjekt,
-  onNullstillAlt,
-}: {
-  aktiveFiltre: AktivtFilter[];
-  skjulteObjekter: SkjultObjekt[];
-  onFjernFilter: (filter: AktivtFilter) => void;
-  onFjernSkjultObjekt: (obj: SkjultObjekt) => void;
-  onNullstillAlt: () => void;
-}) {
-  const [åpen, setÅpen] = useState(false);
-  const filterLabels: Record<AktivtFilter["type"], string> = {
-    kategori: "Kategori",
-    type: "Type",
-    lag: "Lag",
-    system: "System",
-  };
-
-  const totalt = aktiveFiltre.length + skjulteObjekter.length;
-
-  return (
-    <div className="relative flex items-center gap-2 border-b border-gray-200 bg-gray-50 px-4 py-1.5">
-      <button
-        onClick={() => setÅpen(!åpen)}
-        className="flex items-center gap-1.5 rounded px-2 py-0.5 text-xs font-medium text-gray-700 hover:bg-gray-200"
-      >
-        <Filter className="h-3.5 w-3.5 text-gray-400" />
-        {totalt} skjult
-        <ChevronDown className={`h-3 w-3 text-gray-400 transition-transform ${åpen ? "rotate-180" : ""}`} />
-      </button>
-
-      {/* Vis aktive filtre som chips inline (maks 3) */}
-      {aktiveFiltre.slice(0, 3).map((f) => (
-        <button
-          key={`${f.type}-${f.verdi}`}
-          onClick={() => onFjernFilter(f)}
-          className="flex shrink-0 items-center gap-1 rounded bg-gray-200 px-2 py-0.5 text-xs text-gray-700 hover:bg-gray-300"
-          title={`Vis igjen: ${filterLabels[f.type]}: ${f.verdi}`}
-        >
-          <X className="h-3 w-3" />
-          {filterLabels[f.type]}: {f.verdi}
-        </button>
-      ))}
-      {aktiveFiltre.length > 3 && (
-        <span className="text-xs text-gray-400">+{aktiveFiltre.length - 3} filtre</span>
-      )}
-
-      <button
-        onClick={onNullstillAlt}
-        className="shrink-0 rounded px-2 py-0.5 text-xs font-medium text-sitedoc-error hover:bg-red-50"
-      >
-        Nullstill
-      </button>
-
-      {/* Nedtrekksmeny */}
-      {åpen && (
-        <div className="absolute left-0 top-full z-20 w-80 max-h-64 overflow-y-auto rounded-b-lg border border-t-0 border-gray-200 bg-white shadow-lg">
-          {aktiveFiltre.length > 0 && (
-            <div className="border-b border-gray-100 px-3 py-2">
-              <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">Filtre</p>
-              {aktiveFiltre.map((f) => (
-                <div
-                  key={`${f.type}-${f.verdi}`}
-                  className="flex items-center justify-between py-0.5"
-                >
-                  <span className="text-xs text-gray-700">
-                    <span className="text-gray-400">{filterLabels[f.type]}:</span> {f.verdi}
-                  </span>
-                  <button
-                    onClick={() => onFjernFilter(f)}
-                    className="flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-sitedoc-secondary hover:bg-gray-100"
-                  >
-                    <Eye className="h-3 w-3" />
-                    Vis
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {skjulteObjekter.length > 0 && (
-            <div className="px-3 py-2">
-              <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
-                Objekter ({skjulteObjekter.length})
-              </p>
-              {skjulteObjekter.map((obj) => (
-                <div
-                  key={`${obj.modelId}-${obj.localId}`}
-                  className="flex items-center justify-between py-0.5"
-                >
-                  <span className="truncate text-xs text-gray-700" title={`${obj.kategori}: ${obj.navn}`}>
-                    <span className="text-gray-400">{obj.kategori}:</span> {obj.navn || `#${obj.localId}`}
-                  </span>
-                  <button
-                    onClick={() => onFjernSkjultObjekt(obj)}
-                    className="flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-xs text-sitedoc-secondary hover:bg-gray-100"
-                  >
-                    <Eye className="h-3 w-3" />
-                    Vis
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {totalt === 0 && (
-            <div className="px-3 py-3 text-center text-xs text-gray-400">Ingen skjulte elementer</div>
-          )}
         </div>
       )}
     </div>

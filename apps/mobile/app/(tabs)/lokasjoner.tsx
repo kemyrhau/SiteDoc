@@ -20,10 +20,12 @@ import {
   EyeOff,
   Check,
   X,
+  ChevronDown,
 } from "lucide-react-native";
 import * as Location from "expo-location";
 import { trpc } from "../../src/lib/trpc";
 import { useProsjekt } from "../../src/kontekst/ProsjektKontekst";
+import { useBygning } from "../../src/kontekst/BygningKontekst";
 import { AUTH_CONFIG } from "../../src/config/auth";
 import { KartVisning } from "../../src/components/KartVisning";
 import { TegningsVisning } from "../../src/components/TegningsVisning";
@@ -76,7 +78,7 @@ interface OppgaveMarkør {
 
 export default function LokasjonerSkjerm() {
   const { valgtProsjektId } = useProsjekt();
-  const [valgtBygningId, setValgtBygningId] = useState<string | null>(null);
+  const { valgtBygningId, settBygning } = useBygning();
   const [valgtTegningId, setValgtTegningId] = useState<string | null>(null);
 
   const router = useRouter();
@@ -277,6 +279,42 @@ export default function LokasjonerSkjerm() {
     };
   }, [harGeoRef, geoRefStringifisert, valgtTegningId]);
 
+  // Bygningsvelger — nedtrekksmeny
+  const visBygningsvelger = useCallback(() => {
+    if (bygninger.length <= 1) return;
+    const alternativ = ["Alle bygninger", ...bygninger.map((b) => b.name), "Avbryt"];
+    if (Platform.OS === "ios") {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: alternativ,
+          cancelButtonIndex: alternativ.length - 1,
+          title: "Velg bygning",
+        },
+        (indeks) => {
+          if (indeks === 0) settBygning(null);
+          else if (indeks < alternativ.length - 1) {
+            const valgt = bygninger[indeks - 1];
+            if (valgt) settBygning(valgt.id);
+          }
+        },
+      );
+    } else {
+      // Android — bruk Alert med knapper (enkel fallback)
+      Alert.alert(
+        "Velg bygning",
+        undefined,
+        [
+          { text: "Alle bygninger", onPress: () => settBygning(null) },
+          ...bygninger.map((b) => ({
+            text: b.name,
+            onPress: () => settBygning(b.id),
+          })),
+          { text: "Avbryt", style: "cancel" as const },
+        ],
+      );
+    }
+  }, [bygninger, settBygning]);
+
   // Treprikk-meny
   const visTreprikkmeny = useCallback(() => {
     if (Platform.OS === "ios") {
@@ -320,7 +358,7 @@ export default function LokasjonerSkjerm() {
   // Håndter avbryt i bottom sheet
   const håndterAvbryt = useCallback(() => {
     setValgtTegningId(null);
-    setValgtBygningId(null);
+    settBygning(null);
     setMarkørPosisjon(null);
     setPlasseringsmodus(false);
   }, []);
@@ -401,7 +439,17 @@ export default function LokasjonerSkjerm() {
     <SafeAreaView className="flex-1 bg-gray-50" edges={["top"]}>
       {/* Blå header */}
       <View className="flex-row items-center justify-between bg-sitedoc-blue px-4 py-3">
-        <Text className="text-sm font-semibold text-white">Lokasjoner</Text>
+        <Pressable onPress={visBygningsvelger} className="flex-row items-center gap-1.5" disabled={bygninger.length <= 1}>
+          <View>
+            <Text className="text-sm font-semibold text-white" numberOfLines={1}>
+              {valgtBygningId
+                ? bygninger.find((b) => b.id === valgtBygningId)?.name ?? "Alle bygninger"
+                : "Alle bygninger"}
+            </Text>
+            <Text className="text-[10px] text-blue-200">Lokasjoner</Text>
+          </View>
+          {bygninger.length > 1 && <ChevronDown size={14} color="#93c5fd" />}
+        </Pressable>
         <View className="flex-row items-center gap-3">
           {/* Plasseringsmodus-toggle (kun når tegning vises) */}
           {visserTegning && (
@@ -568,7 +616,7 @@ export default function LokasjonerSkjerm() {
         tegninger={tegninger}
         valgtBygningId={valgtBygningId}
         valgtTegningId={valgtTegningId}
-        onVelgBygning={setValgtBygningId}
+        onVelgBygning={settBygning}
         onVelgTegning={håndterVelgTegning}
         onAvbryt={håndterAvbryt}
         laster={lasterData}

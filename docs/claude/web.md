@@ -76,6 +76,7 @@ Dalux-inspirert tre-kolonne layout (skjules på mobil < 768px, hamburger-meny i 
 - `ProsjektKontekst` — Valgt prosjekt fra URL `[prosjektId]`, alle prosjekter, loading
 - `BygningKontekst` — Aktiv bygning + `standardTegning` (persistent, localStorage) + `aktivTegning` (visning). Posisjonsvelger: `startPosisjonsvelger(feltId)` → `fullførPosisjonsvelger(resultat)` → `hentOgTømPosisjonsResultat(feltId)`
 - `BilderKontekst` — Visningsmodus (liste/tegning), plasseringsmodus (rapportlokasjon/GPS), datofilter, områdevalg
+- `TreDViewerKontekst` — Persistent IFC 3D-viewer som lever i prosjekt-layouten. Holder modellStatuser, valgtObjekt, skjulteObjekter, aktiveFiltre, viewerRef (ViewerAPI). `ViewerCanvas`-komponenten rendres i 3d-visning/page.tsx men Three.js-scenen overlever navigasjon mellom ruter fordi all state og OBC-initialisering styres av konteksten. Typer, konstanter og hjelpefunksjoner er ekstrahert til separate filer under `3d-visning/`.
 - `NavigasjonKontekst` — Aktiv seksjon + verktøylinje-handlinger
 - `useAktivSeksjon()` — Utleder seksjon fra pathname
 - `useVerktoylinje(handlinger)` — Registrerer handlinger per side med auto-cleanup
@@ -128,16 +129,20 @@ Interaktiv visning med musesentrert zoom (0.25x–50x / 25%–5000%):
 - `--svg-zoom` CSS-variabel settes på container via `style={{ "--svg-zoom": zoom }}`
 - SVG hentes, width/height fjernes, erstattes med `width="100%" height="auto"`
 - Originale `<style>`-blokker fjernes, egen zoom-aware style injiseres
+- SVG-elementer har `data-layer` (lagnavn) og `data-type` (entitetstype) attributter fra DWG-konverteringen
 
-**Zoom:**
+**Zoom og panorering:**
 - Multiplikativ scroll-zoom: `faktor = deltaY > 0 ? 0.8 : 1.25`, `zoom * faktor`
-- Musesentrert: beregner musposisjon som brøkdel av scroll-container, justerer scrollLeft/scrollTop etter zoom
+- Musesentrert: beregner innholdspunkt under musen, justerer scrollLeft/scrollTop etter zoom
 - Zoom-nivåer for knapper: [0.25, 0.5, 0.75, 1, 1.5, 2, 3, 5, 10, 20, 50]
 - Klikk på prosenttall tilbakestiller til 100%
+- Dra-for-å-panorere: venstre museknapp + dra (>5px) panorerer tegningen
+- Pan/klikk-skilling: musedown-posisjon lagres, onClick ignoreres hvis bevegelse >5px
+- useEffect med `[tegningId, isLoading]` dependencies — registrerer wheel/pointer-handlers når container mountes etter data-lasting
 
-**Markører og plasseringsmodus:**
-- Navigering vs. Plasseringsmodus (crosshair-cursor)
-- Klikk → blå markør → opprett-modal (oppgave/sjekkliste)
+**Klikkemodus (toggle i verktøylinjen, kun SVG-tegninger):**
+- **Oppgave** (standard): klikk plasserer blå markør → opprett-modal (oppgave/sjekkliste)
+- **Inspeksjon**: klikk på SVG-element viser DWG-egenskaper (lag, type, tekstinnhold) i popup. Elementer med `data-layer` får bredere stroke (5px) og blå hover-highlight. For TEXT/MTEXT-elementer hentes tekstinnholdet fra DOM via `target.textContent`
 - Eksisterende markører: røde MapPin fra `oppgave.hentForTegning`
 - PDF: iframe med transparent overlay
 
@@ -151,16 +156,57 @@ Interaktiv visning med musesentrert zoom (0.25x–50x / 25%–5000%):
 - Klikkbar "IFC"-badge i header viser uttrukket metadata (prosjekt, org, GPS, etasjer, programvare)
 - Data fra `Drawing.ifcMetadata` (Json-felt, uttrukket ved opplasting)
 
+### Kartvisning og bildeeksport (implementert)
+
+Tredje visningsmodus i Bilder-seksjonen: kart med markører for bilder med GPS.
+
+**Kartvisning:** `BildeKart.tsx` — Leaflet-kart med 📷-markører. Klikk åpner popup med thumbnail. Dynamic import (SSR-safe).
+
+**Velgemodus:**
+- Klikk markør = toggle valgt (grønn ✓)
+- Shift+dra = rektangelvalg for flere bilder
+- Sidepanel (280px) viser valgte bilder sortert etter dato med metadata
+- Eksporter-knapp åpner utskriftsvennlig HTML (2 bilder per rad, kompakt metadata, A4)
+
+### Planlagt: Kartfilter og utvidet eksport
+
+**Dynamisk filtersystem for kartvisning:**
+- **Bygning** — dropdown, filtrer bilder etter hvilken bygning de tilhører (via sjekkliste/oppgave → building_id)
+- **Rapportmal** — dropdown, filtrer etter mal (template_id på sjekklisten/oppgaven)
+- **Datoperiode** — fra/til datovalg (datoFra/datoTil finnes allerede i BilderKontekst)
+- Filtrene bør ligge i en kompakt verktøylinje over kartet, eller i BilderPanel
+- Filtrene er dynamiske — bygningslisten hentes fra prosjektet, mallisten fra tilgjengelige maler
+
+**Utvidet eksport — forsideinformasjon:**
+- Prosjektnavn, prosjektnummer, adresse
+- Bygning bildene tilhører
+- Dato-range for utvalget
+- Antall bilder
+- Valgfri: kartutsnitt med markerte posisjoner (Leaflet canvas export)
+
+**Datakrav:** `NormalisertBilde` trenger utvidelse med `buildingId`, `buildingName`, `templateId`, `templateName` for filtrering. Disse kan utledes fra `parentId` (sjekkliste/oppgave) → building_id/template_id. Kan kreve utvidelse av `bilde.hentForProsjekt`-queryen.
+
+**Berører:** `BildeKart.tsx`, `page.tsx` (KartVisningMedValg), `BilderPanel.tsx`, `apps/api/src/routes/bilde.ts`
+
 ## Malliste-UI
 
 Delt `MalListe`-komponent: +Tilføy (dropdown), Rediger, Slett, Søk. Enkeltklikk velger, dobbeltklikk åpner.
 
 ## 3D-visning (samlet side)
 
-Samlet 3D-visningsside `/dashbord/[prosjektId]/3d-visning` med tre faner:
+Samlet 3D-visningsside `/dashbord/[prosjektId]/3d-visning` med tre faner.
+
+**Filstruktur (etter fase 1-refaktorering):**
+- `typer.ts` — Alle interfaces (ValgtObjekt, ModellStatus, ViewerAPI, etc.)
+- `konstanter.ts` — INTERNE_FELT, ifcFilCache, KLASSE_FARGER, QUANTITY_ENHETER
+- `hjelpefunksjoner.ts` — hentNavn, hentVerdi, formaterVerdi, finnIfcTypeKode, parseLandXMLFil
+- `komponenter/EgenskapsPopup.tsx` — Flytende egenskapspanel for valgt objekt
+- `komponenter/FilterChipBar.tsx` — Chip-bar for aktive filtre/skjulte objekter
+- `page.tsx` — Tynt skall med fane-bar, sidebar og delegering til kontekst
+- `kontekst/tred-viewer-kontekst.tsx` — Provider (state) + ViewerCanvas (Three.js/OBC)
 
 ### Fane 1: 3D-modell (IFC + punktsky)
-Sammenslått IFC-viewer som laster ALLE prosjektets IFC-modeller i én @thatopen-scene. Avmerkingsbokser styrer synlighet per modell.
+Sammenslått IFC-viewer som laster ALLE prosjektets IFC-modeller i én @thatopen-scene. Avmerkingsbokser styrer synlighet per modell. `TreDViewerKontekst` holder all viewer-state i prosjekt-layouten slik at Three.js-scenen overlever navigasjon.
 
 **Layout:** Sidepanel (280px, IFC-modeller med checkboxes + punktskyer) + 3D-viewer + flytende egenskapspanel.
 
@@ -260,6 +306,15 @@ Sammenlign to overflatemodeller med rød/blå visualisering og volumberegning.
 
 ### Navigasjon
 Erstatter separate `/punktskyer` og `/modeller`-ruter. Gamle URLer redirectes via `next.config.js`. Sidebar viser én "3D"-knapp i stedet for to.
+
+### Persistent 3D-viewer (Fase 1 — implementert)
+
+`ViewerCanvas` lever i prosjekt-layouten (`/dashbord/[prosjektId]/layout.tsx`), ikke i page.tsx. Three.js-scene, WebGL-kontekst og lastede IFC-modeller overlever navigasjon mellom ruter.
+
+- **Layout:** ViewerCanvas rendres permanent i layout med `absolute inset-0`. Vis/skjul med CSS basert på `usePathname().endsWith("/3d-visning")`
+- **Children:** Page-innhold (sidepanel, verktøylinje, filter-bar) rendres over vieweren med `pointer-events-none` på wrapper, `pointer-events-auto` på interaktive elementer
+- **Bakgrunnslasting:** IFC-modeller begynner lasting så snart prosjektet åpnes, uavhengig av aktiv rute. Når bruker navigerer til 3D-visning er modellene ofte allerede lastet
+- **Verktøylinje og filter-bar:** Flyttet fra ViewerCanvas til page.tsx (`Fane3DModell`-komponenten)
 
 ## Sjekkliste-endringslogg
 

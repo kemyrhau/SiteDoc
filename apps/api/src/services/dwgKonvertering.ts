@@ -646,6 +646,13 @@ function dxfTilSvg(dxfInnhold: string, klippBounds?: { minX: number; maxX: numbe
     let ubehandlede = 0;
     let utenforBounds = 0;
 
+    // Hjelpefunksjon for å legge til lag- og type-attributter på SVG-elementer
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    function dataAttr(e: any): string {
+      const lag = e.layer ? ` data-layer="${escapeXml(String(e.layer))}"` : "";
+      return `${lag} data-type="${escapeXml(String(e.type))}"`;
+    }
+
     for (const entity of alleEntiteter) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const e = entity as any;
@@ -664,18 +671,19 @@ function dxfTilSvg(dxfInnhold: string, klippBounds?: { minX: number; maxX: numbe
 
       const stroke = dxfFarge(e);
 
+      const da = dataAttr(e);
       if (e.type === "LINE" && e.startPoint && e.endPoint) {
-        paths.push(`<line x1="${nx(e.startPoint.x)}" y1="${ny(e.startPoint.y)}" x2="${nx(e.endPoint.x)}" y2="${ny(e.endPoint.y)}" stroke="${stroke}" stroke-width="${sw}" />`);
+        paths.push(`<line x1="${nx(e.startPoint.x)}" y1="${ny(e.startPoint.y)}" x2="${nx(e.endPoint.x)}" y2="${ny(e.endPoint.y)}" stroke="${stroke}" stroke-width="${sw}"${da} />`);
       } else if (e.type === "LINE" && e.vertices?.length >= 2) {
         const v0 = e.vertices[0];
         const v1 = e.vertices[1];
-        paths.push(`<line x1="${nx(v0.x)}" y1="${ny(v0.y)}" x2="${nx(v1.x)}" y2="${ny(v1.y)}" stroke="${stroke}" stroke-width="${sw}" />`);
+        paths.push(`<line x1="${nx(v0.x)}" y1="${ny(v0.y)}" x2="${nx(v1.x)}" y2="${ny(v1.y)}" stroke="${stroke}" stroke-width="${sw}"${da} />`);
       } else if ((e.type === "LWPOLYLINE" || e.type === "POLYLINE") && e.vertices?.length > 1) {
         const pts = e.vertices.map((v: { x: number; y: number }) => `${nx(v.x)},${ny(v.y)}`).join(" ");
         const lukket = e.shape ? " " + `${nx(e.vertices[0].x)},${ny(e.vertices[0].y)}` : "";
-        paths.push(`<polyline points="${pts}${lukket}" fill="none" stroke="${stroke}" stroke-width="${sw}" />`);
+        paths.push(`<polyline points="${pts}${lukket}" fill="none" stroke="${stroke}" stroke-width="${sw}"${da} />`);
       } else if (e.type === "CIRCLE" && e.center) {
-        paths.push(`<circle cx="${nx(e.center.x)}" cy="${ny(e.center.y)}" r="${e.radius ?? 1}" fill="none" stroke="${stroke}" stroke-width="${sw}" />`);
+        paths.push(`<circle cx="${nx(e.center.x)}" cy="${ny(e.center.y)}" r="${e.radius ?? 1}" fill="none" stroke="${stroke}" stroke-width="${sw}"${da} />`);
       } else if (e.type === "ARC" && e.center) {
         const r = e.radius ?? 1;
         // dxf-parser konverterer ARC-vinkler til radianer
@@ -689,7 +697,7 @@ function dxfTilSvg(dxfInnhold: string, klippBounds?: { minX: number; maxX: numbe
         if (vinkelSpenn < 0) vinkelSpenn += Math.PI * 2;
         const large = vinkelSpenn > Math.PI ? 1 : 0;
         // SVG arc sweep: 0 for DXF (counter-clockwise), men Y er flippa → bruk 0
-        paths.push(`<path d="M ${x1} ${y1} A ${r} ${r} 0 ${large} 0 ${x2} ${y2}" fill="none" stroke="${stroke}" stroke-width="${sw}" />`);
+        paths.push(`<path d="M ${x1} ${y1} A ${r} ${r} 0 ${large} 0 ${x2} ${y2}" fill="none" stroke="${stroke}" stroke-width="${sw}"${da} />`);
       } else if (e.type === "SPLINE") {
         // B-spline kurve
         const cp = e.controlPoints ?? [];
@@ -709,7 +717,7 @@ function dxfTilSvg(dxfInnhold: string, klippBounds?: { minX: number; maxX: numbe
 
         if (punkter.length >= 2) {
           const pts = punkter.map((v: { x: number; y: number }) => `${nx(v.x)},${ny(v.y)}`).join(" ");
-          paths.push(`<polyline points="${pts}" fill="none" stroke="${stroke}" stroke-width="${sw}" />`);
+          paths.push(`<polyline points="${pts}" fill="none" stroke="${stroke}" stroke-width="${sw}"${da} />`);
         }
       } else if (e.type === "ELLIPSE" && e.center && e.majorAxisEndPoint) {
         // Ellipse med major-akse endepunkt (relativt til sentrum) og aksforhold
@@ -726,7 +734,7 @@ function dxfTilSvg(dxfInnhold: string, klippBounds?: { minX: number; maxX: numbe
         const erHel = Math.abs(ea - sa - Math.PI * 2) < 0.001 || (sa === 0 && ea === 0);
 
         if (erHel) {
-          paths.push(`<ellipse cx="${nx(e.center.x)}" cy="${ny(e.center.y)}" rx="${majorLen}" ry="${minorLen}" transform="rotate(${-rotDeg} ${nx(e.center.x)} ${ny(e.center.y)})" fill="none" stroke="${stroke}" stroke-width="${sw}" />`);
+          paths.push(`<ellipse cx="${nx(e.center.x)}" cy="${ny(e.center.y)}" rx="${majorLen}" ry="${minorLen}" transform="rotate(${-rotDeg} ${nx(e.center.x)} ${ny(e.center.y)})" fill="none" stroke="${stroke}" stroke-width="${sw}"${da} />`);
         } else {
           // Delvis ellipse — approksimer med polyline
           const antPkt = 50;
@@ -737,7 +745,7 @@ function dxfTilSvg(dxfInnhold: string, klippBounds?: { minX: number; maxX: numbe
             const py = e.center.y + majorLen * Math.cos(t) * Math.sin(rotDeg * Math.PI / 180) + minorLen * Math.sin(t) * Math.cos(rotDeg * Math.PI / 180);
             pts.push(`${nx(px)},${ny(py)}`);
           }
-          paths.push(`<polyline points="${pts.join(" ")}" fill="none" stroke="${stroke}" stroke-width="${sw}" />`);
+          paths.push(`<polyline points="${pts.join(" ")}" fill="none" stroke="${stroke}" stroke-width="${sw}"${da} />`);
         }
       } else if (e.type === "SOLID" && e.points?.length >= 3) {
         // SOLID: fylt polygon med 3 eller 4 punkter
@@ -746,18 +754,18 @@ function dxfTilSvg(dxfInnhold: string, klippBounds?: { minX: number; maxX: numbe
         const pts = p.length === 4
           ? `${nx(p[0].x)},${ny(p[0].y)} ${nx(p[1].x)},${ny(p[1].y)} ${nx(p[3].x)},${ny(p[3].y)} ${nx(p[2].x)},${ny(p[2].y)}`
           : p.map((v: { x: number; y: number }) => `${nx(v.x)},${ny(v.y)}`).join(" ");
-        paths.push(`<polygon points="${pts}" fill="${stroke}" stroke="${stroke}" stroke-width="${sw * 0.5}" />`);
+        paths.push(`<polygon points="${pts}" fill="${stroke}" stroke="${stroke}" stroke-width="${sw * 0.5}"${da} />`);
       } else if (e.type === "3DFACE" && e.vertices?.length >= 3) {
         const pts = e.vertices.map((v: { x: number; y: number }) => `${nx(v.x)},${ny(v.y)}`).join(" ");
-        paths.push(`<polygon points="${pts}" fill="none" stroke="${stroke}" stroke-width="${sw}" />`);
+        paths.push(`<polygon points="${pts}" fill="none" stroke="${stroke}" stroke-width="${sw}"${da} />`);
       } else if (e.type === "POINT" && e.position) {
-        paths.push(`<circle cx="${nx(e.position.x)}" cy="${ny(e.position.y)}" r="${sw * 2}" fill="${stroke}" />`);
+        paths.push(`<circle cx="${nx(e.position.x)}" cy="${ny(e.position.y)}" r="${sw * 2}" fill="${stroke}"${da} />`);
       } else if (e.type === "TEXT" && e.startPoint && e.text) {
         const fontSize = (e.textHeight ?? sw * 10) * 1;
         const x = nx(e.startPoint.x);
         const y = ny(e.startPoint.y);
         const rot = e.rotation ? ` transform="rotate(${-e.rotation} ${x} ${y})"` : "";
-        paths.push(`<text x="${x}" y="${y}" font-size="${fontSize}" fill="${stroke}"${rot} font-family="sans-serif">${escapeXml(e.text)}</text>`);
+        paths.push(`<text x="${x}" y="${y}" font-size="${fontSize}" fill="${stroke}"${rot} font-family="sans-serif"${da}>${escapeXml(e.text)}</text>`);
       } else if (e.type === "MTEXT" && e.position && e.text) {
         const fontSize = (e.height ?? sw * 10) * 1;
         const x = nx(e.position.x);
@@ -765,15 +773,15 @@ function dxfTilSvg(dxfInnhold: string, klippBounds?: { minX: number; maxX: numbe
         const rot = e.rotation ? ` transform="rotate(${-e.rotation} ${x} ${y})"` : "";
         // MTEXT kan ha formatering — strip basic DXF formatting codes
         const renTekst = e.text.replace(/\\[A-Za-z][^;]*;/g, "").replace(/\{|\}/g, "");
-        paths.push(`<text x="${x}" y="${y}" font-size="${fontSize}" fill="${stroke}"${rot} font-family="sans-serif">${escapeXml(renTekst)}</text>`);
+        paths.push(`<text x="${x}" y="${y}" font-size="${fontSize}" fill="${stroke}"${rot} font-family="sans-serif"${da}>${escapeXml(renTekst)}</text>`);
       } else if (e.type === "DIMENSION") {
         // Dimensjoner — tegn som linjer mellom punktene
         if (e.anchorPoint && e.middleOfText) {
-          paths.push(`<line x1="${nx(e.anchorPoint.x)}" y1="${ny(e.anchorPoint.y)}" x2="${nx(e.middleOfText.x)}" y2="${ny(e.middleOfText.y)}" stroke="${stroke}" stroke-width="${sw * 0.5}" />`);
+          paths.push(`<line x1="${nx(e.anchorPoint.x)}" y1="${ny(e.anchorPoint.y)}" x2="${nx(e.middleOfText.x)}" y2="${ny(e.middleOfText.y)}" stroke="${stroke}" stroke-width="${sw * 0.5}"${da} />`);
         }
         if (e.text && e.middleOfText) {
           const fontSize = sw * 8;
-          paths.push(`<text x="${nx(e.middleOfText.x)}" y="${ny(e.middleOfText.y)}" font-size="${fontSize}" fill="${stroke}" text-anchor="middle" font-family="sans-serif">${escapeXml(e.text)}</text>`);
+          paths.push(`<text x="${nx(e.middleOfText.x)}" y="${ny(e.middleOfText.y)}" font-size="${fontSize}" fill="${stroke}" text-anchor="middle" font-family="sans-serif"${da}>${escapeXml(e.text)}</text>`);
         }
       } else if (e.type !== "ATTDEF") {
         ubehandlede++;

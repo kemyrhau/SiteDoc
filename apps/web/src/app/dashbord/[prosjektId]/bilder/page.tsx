@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { trpc } from "@/lib/trpc";
 import { useBygning } from "@/kontekst/bygning-kontekst";
 import { useBilder } from "@/kontekst/bilder-kontekst";
@@ -24,6 +25,9 @@ import {
   X,
   Crosshair,
   Info,
+  MousePointer,
+  Download,
+  Trash2,
 } from "lucide-react";
 
 // ──────────────────────────────────────────────────────────────
@@ -56,7 +60,20 @@ interface NormalisertBilde {
   parentDrawing: TegningData | null;
   positionX: number | null;
   positionY: number | null;
+  buildingId: string | null;
+  buildingName: string | null;
+  templateId: string | null;
+  templateName: string | null;
 }
+
+// ──────────────────────────────────────────────────────────────
+// Kartkomponent (dynamisk import — Leaflet krever window)
+// ──────────────────────────────────────────────────────────────
+
+const BildeKart = dynamic(
+  () => import("./BildeKart").then((m) => m.BildeKart),
+  { ssr: false, loading: () => <Spinner size="lg" /> },
+);
 
 // ──────────────────────────────────────────────────────────────
 // Zoom-konstanter
@@ -171,6 +188,8 @@ export default function BilderSide() {
       if (!c) continue;
       const prefix = c.template?.prefix ?? "SJK";
       const nummer = String(c.number ?? 0).padStart(3, "0");
+      const bygning = (c as unknown as { building?: { id: string; name: string } | null }).building;
+      const mal = c.template as unknown as { id?: string; prefix?: string; name?: string } | null;
       resultat.push({
         id: b.id,
         fileUrl: b.fileUrl,
@@ -187,6 +206,10 @@ export default function BilderSide() {
         parentDrawing: c.drawing as TegningData | null,
         positionX: null,
         positionY: null,
+        buildingId: bygning?.id ?? (c.drawing as unknown as { buildingId?: string } | null)?.buildingId ?? null,
+        buildingName: bygning?.name ?? null,
+        templateId: mal?.id ?? null,
+        templateName: mal?.name ?? null,
       });
     }
 
@@ -195,6 +218,7 @@ export default function BilderSide() {
       if (!t) continue;
       const prefix = t.template?.prefix ?? "OPP";
       const nummer = String(t.number ?? 0).padStart(3, "0");
+      const tMal = t.template as unknown as { id?: string; prefix?: string; name?: string } | null;
       resultat.push({
         id: b.id,
         fileUrl: b.fileUrl,
@@ -211,6 +235,10 @@ export default function BilderSide() {
         parentDrawing: t.drawing as TegningData | null,
         positionX: t.positionX,
         positionY: t.positionY,
+        buildingId: (t.drawing as unknown as { buildingId?: string } | null)?.buildingId ?? null,
+        buildingName: null,
+        templateId: tMal?.id ?? null,
+        templateName: tMal?.name ?? null,
       });
     }
 
@@ -463,6 +491,46 @@ export default function BilderSide() {
           />
         )}
       </div>
+    );
+  }
+
+  // ──────────────────────────────────────────────────────────
+  // KARTVISNING
+  // ──────────────────────────────────────────────────────────
+
+  if (visningsmodus === "kart") {
+    const bilderMedGps = datoFiltrerteBilder.filter(
+      (b) => b.gpsLat != null && b.gpsLng != null,
+    );
+
+    if (isLoading) {
+      return (
+        <div className="flex flex-1 items-center justify-center">
+          <Spinner size="lg" />
+        </div>
+      );
+    }
+
+    if (bilderMedGps.length === 0) {
+      return (
+        <div className="flex flex-1 items-center justify-center">
+          <div className="text-center text-gray-400">
+            <MapPin className="mx-auto mb-2 h-10 w-10 text-gray-300" />
+            <p className="text-sm">Ingen bilder med GPS-posisjon</p>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <KartVisningMedValg
+        bilderMedGps={bilderMedGps}
+        prosjektId={params.prosjektId}
+        lightboxIndex={lightboxIndex}
+        lightboxBilder={lightboxBilder}
+        setLightboxIndex={setLightboxIndex}
+        setLightboxBilder={setLightboxBilder}
+      />
     );
   }
 
@@ -834,6 +902,320 @@ export default function BilderSide() {
           onEndreIndex={setLightboxIndex}
         />
       )}
+    </div>
+  );
+}
+
+/* ================================================================== */
+/*  Kartvisning med velgemodus og eksport                              */
+/* ================================================================== */
+
+function KartVisningMedValg({
+  bilderMedGps,
+  prosjektId,
+  lightboxIndex,
+  lightboxBilder,
+  setLightboxIndex,
+  setLightboxBilder,
+}: {
+  bilderMedGps: NormalisertBilde[];
+  prosjektId: string;
+  lightboxIndex: number | null;
+  lightboxBilder: LightboxBilde[];
+  setLightboxIndex: (i: number | null) => void;
+  setLightboxBilder: (b: LightboxBilde[]) => void;
+}) {
+  const [velgModus, setVelgModus] = useState(false);
+  const [valgteBildeIder, setValgteBildeIder] = useState<Set<string>>(new Set());
+  const [eksporterer, setEksporterer] = useState(false);
+  const [filterBygning, setFilterBygning] = useState<string>("");
+  const [filterMal, setFilterMal] = useState<string>("");
+
+  // Hent prosjektinfo for eksport
+  const { data: prosjektInfo } = trpc.prosjekt.hentMedId.useQuery(
+    { id: prosjektId },
+    { enabled: !!prosjektId },
+  );
+  const prosjekt = prosjektInfo as unknown as { name?: string; projectNumber?: string; address?: string } | undefined;
+
+  // Unike bygninger og maler for filter-dropdowns
+  const bygninger = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const b of bilderMedGps) {
+      if (b.buildingId) map.set(b.buildingId, b.buildingName ?? b.buildingId);
+    }
+    return [...map.entries()].sort((a, b) => a[1].localeCompare(b[1]));
+  }, [bilderMedGps]);
+
+  const maler = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const b of bilderMedGps) {
+      if (b.templateId) map.set(b.templateId, b.templateName ?? b.templateId);
+    }
+    return [...map.entries()].sort((a, b) => a[1].localeCompare(b[1]));
+  }, [bilderMedGps]);
+
+  // Filtrerte bilder
+  const filtrerteBilder = useMemo(() => {
+    return bilderMedGps.filter((b) => {
+      if (filterBygning && b.buildingId !== filterBygning) return false;
+      if (filterMal && b.templateId !== filterMal) return false;
+      return true;
+    });
+  }, [bilderMedGps, filterBygning, filterMal]);
+
+  const valgteBilder = useMemo(
+    () =>
+      filtrerteBilder
+        .filter((b) => valgteBildeIder.has(b.id))
+        .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()),
+    [filtrerteBilder, valgteBildeIder],
+  );
+
+  const handleVelgBilder = useCallback(
+    (indekser: number[]) => {
+      setValgteBildeIder((prev) => {
+        const neste = new Set(prev);
+        for (const i of indekser) {
+          const bilde = filtrerteBilder[i];
+          if (bilde) {
+            if (neste.has(bilde.id)) neste.delete(bilde.id);
+            else neste.add(bilde.id);
+          }
+        }
+        return neste;
+      });
+    },
+    [filtrerteBilder],
+  );
+
+  const handleKlikkBilde = useCallback(
+    (index: number) => {
+      setLightboxBilder(
+        filtrerteBilder.map((b) => ({
+          id: b.id,
+          fileUrl: b.fileUrl,
+          fileName: b.fileName,
+          createdAt: b.createdAt,
+          gpsLat: b.gpsLat,
+          gpsLng: b.gpsLng,
+          parentType: b.parentType,
+          parentId: b.parentId,
+          parentLabel: b.parentLabel,
+          prosjektId,
+        })),
+      );
+      setLightboxIndex(index);
+    },
+    [filtrerteBilder, prosjektId, setLightboxBilder, setLightboxIndex],
+  );
+
+  async function eksporterValgte() {
+    if (valgteBilder.length === 0) return;
+    setEksporterer(true);
+    try {
+      // Bygg HTML for utskrift — 2 bilder per rad, maksimert for A4
+      const html = `
+        <html>
+        <head>
+          <title>Bildeeksport — SiteDoc</title>
+          <style>
+            @page { margin: 10mm; size: A4; }
+            * { box-sizing: border-box; margin: 0; padding: 0; }
+            body { font-family: sans-serif; color: #333; }
+            .header { padding: 4mm 0 6mm; border-bottom: 1px solid #ddd; margin-bottom: 4mm; }
+            .header h1 { font-size: 16px; }
+            .header .info { font-size: 10px; color: #666; margin-top: 2px; }
+            .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4mm; }
+            .bilde { page-break-inside: avoid; border: 1px solid #e5e7eb; border-radius: 4px; overflow: hidden; }
+            .bilde img { width: 100%; aspect-ratio: 5/4; object-fit: cover; display: block; }
+            .meta { padding: 2mm 3mm; font-size: 8px; line-height: 1.4; background: #f9fafb; }
+            .meta .nr { font-weight: 600; font-size: 9px; color: #111; }
+            .meta .dato { color: #555; }
+            .meta .gps { font-family: monospace; color: #888; font-size: 7px; }
+            .meta .rapport { color: #444; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>${prosjekt?.name ?? "Bildeeksport"}</h1>
+            <div class="info">
+              ${prosjekt?.projectNumber ? `Prosjekt ${prosjekt.projectNumber}` : ""}
+              ${prosjekt?.address ? ` · ${prosjekt.address}` : ""}
+            </div>
+            <div class="info">
+              ${valgteBilder.length} bilder · ${new Date(valgteBilder[0]!.createdAt).toLocaleDateString("nb-NO")} – ${new Date(valgteBilder[valgteBilder.length - 1]!.createdAt).toLocaleDateString("nb-NO")}
+              ${valgteBilder[0]?.buildingName ? ` · ${valgteBilder[0].buildingName}` : ""}
+              ${filterMal ? ` · ${maler.find(([id]) => id === filterMal)?.[1] ?? ""}` : ""}
+            </div>
+          </div>
+          <div class="grid">
+          ${valgteBilder.map((b, i) => `
+            <div class="bilde">
+              <img src="/api${b.fileUrl}" crossorigin="anonymous" />
+              <div class="meta">
+                <span class="nr">${i + 1}.</span>
+                <span class="dato">${new Date(b.createdAt).toLocaleString("nb-NO")}</span>
+                ${b.gpsLat != null ? `<span class="gps"> · ${b.gpsLat.toFixed(5)}, ${b.gpsLng?.toFixed(5)}</span>` : ""}
+                <div class="rapport">${b.parentLabel}</div>
+              </div>
+            </div>
+          `).join("")}
+          </div>
+        </body>
+        </html>
+      `;
+      const vindu = window.open("", "_blank");
+      if (vindu) {
+        vindu.document.write(html);
+        vindu.document.close();
+        vindu.focus();
+        // Vent på at bilder lastes
+        setTimeout(() => vindu.print(), 1500);
+      }
+    } finally {
+      setEksporterer(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-1 flex-col overflow-hidden">
+      {/* Filter-verktøylinje */}
+      <div className="flex items-center gap-3 border-b border-gray-200 bg-white px-4 py-2">
+        {bygninger.length > 0 && (
+          <select
+            value={filterBygning}
+            onChange={(e) => setFilterBygning(e.target.value)}
+            className="rounded border border-gray-200 px-2 py-1 text-xs text-gray-700"
+          >
+            <option value="">Alle bygninger</option>
+            {bygninger.map(([id, navn]) => (
+              <option key={id} value={id}>{navn}</option>
+            ))}
+          </select>
+        )}
+        {maler.length > 0 && (
+          <select
+            value={filterMal}
+            onChange={(e) => setFilterMal(e.target.value)}
+            className="rounded border border-gray-200 px-2 py-1 text-xs text-gray-700"
+          >
+            <option value="">Alle maler</option>
+            {maler.map(([id, navn]) => (
+              <option key={id} value={id}>{navn}</option>
+            ))}
+          </select>
+        )}
+        <span className="text-xs text-gray-400">
+          {filtrerteBilder.length} bilder
+        </span>
+        <div className="flex-1" />
+        <button
+          onClick={() => {
+            setVelgModus(!velgModus);
+            if (velgModus) setValgteBildeIder(new Set());
+          }}
+          className={`flex items-center gap-1.5 rounded px-2.5 py-1.5 text-xs font-medium ${
+            velgModus
+              ? "bg-sitedoc-primary text-white"
+              : "text-gray-600 hover:bg-gray-100"
+          }`}
+        >
+          <MousePointer className="h-3.5 w-3.5" />
+          {velgModus ? "Avslutt valg" : "Velg bilder"}
+        </button>
+      </div>
+
+      {/* Kart + sidepanel */}
+      <div className="flex flex-1 overflow-hidden">
+      <div className="relative flex-1">
+        <BildeKart
+          bilder={filtrerteBilder}
+          onKlikkBilde={handleKlikkBilde}
+          onVelgBilder={handleVelgBilder}
+          velgModus={velgModus}
+          valgteBilder={valgteBildeIder}
+        />
+      </div>
+
+      {/* Sidepanel med valgte bilder */}
+      {velgModus && valgteBilder.length > 0 && (
+        <div className="flex w-[280px] flex-col border-l border-gray-200 bg-white">
+          <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
+            <h3 className="text-sm font-semibold text-gray-900">
+              {valgteBilder.length} valgt
+            </h3>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setValgteBildeIder(new Set())}
+                className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                title="Fjern alle"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+              <button
+                onClick={eksporterValgte}
+                disabled={eksporterer}
+                className="flex items-center gap-1 rounded bg-sitedoc-primary px-2.5 py-1.5 text-xs font-medium text-white hover:bg-sitedoc-primary/90 disabled:opacity-50"
+              >
+                <Download className="h-3.5 w-3.5" />
+                Eksporter
+              </button>
+            </div>
+          </div>
+          <div className="flex-1 overflow-y-auto">
+            {valgteBilder.map((b, i) => (
+              <div
+                key={b.id}
+                className="flex items-center gap-3 border-b border-gray-100 px-3 py-2"
+              >
+                <img
+                  src={`/api${b.fileUrl}`}
+                  alt={b.fileName}
+                  className="h-12 w-12 shrink-0 rounded object-cover"
+                  crossOrigin="anonymous"
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-xs font-medium text-gray-900">
+                    {i + 1}. {b.parentLabel}
+                  </p>
+                  <p className="text-[10px] text-gray-500">
+                    {new Date(b.createdAt).toLocaleString("nb-NO")}
+                  </p>
+                  {b.gpsLat != null && (
+                    <p className="font-mono text-[10px] text-gray-400">
+                      {b.gpsLat.toFixed(5)}, {b.gpsLng?.toFixed(5)}
+                    </p>
+                  )}
+                </div>
+                <button
+                  onClick={() => {
+                    setValgteBildeIder((prev) => {
+                      const neste = new Set(prev);
+                      neste.delete(b.id);
+                      return neste;
+                    });
+                  }}
+                  className="shrink-0 rounded p-1 text-gray-300 hover:bg-gray-100 hover:text-gray-500"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Lightbox */}
+      {lightboxIndex !== null && (
+        <BildeLightbox
+          bilder={lightboxBilder}
+          aktivIndex={lightboxIndex}
+          onLukk={() => setLightboxIndex(null)}
+          onEndreIndex={setLightboxIndex}
+        />
+      )}
+      </div>
     </div>
   );
 }

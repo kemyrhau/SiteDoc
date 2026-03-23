@@ -1,9 +1,10 @@
 "use client";
 
-import { useParams, useRouter } from "next/navigation";
+import { useParams, usePathname, useRouter } from "next/navigation";
 import { trpc } from "@/lib/trpc";
 import { Spinner } from "@sitedoc/ui";
 import { Verktoylinje } from "@/components/layout/Verktoylinje";
+import { TreDViewerProvider, ViewerCanvas } from "@/kontekst/tred-viewer-kontekst";
 
 export default function ProsjektLayout({
   children,
@@ -12,10 +13,13 @@ export default function ProsjektLayout({
 }) {
   const params = useParams<{ prosjektId: string }>();
   const router = useRouter();
+  const pathname = usePathname();
   const { isLoading, isError } = trpc.prosjekt.hentMedId.useQuery(
     { id: params.prosjektId },
     { enabled: !!params.prosjektId, retry: false },
   );
+
+  const er3DVisning = (pathname?.endsWith("/3d-visning") || pathname?.endsWith("/tegning-3d")) ?? false;
 
   if (isLoading) {
     return (
@@ -40,11 +44,20 @@ export default function ProsjektLayout({
   }
 
   return (
-    <div className="flex flex-1 flex-col overflow-hidden">
-      <Verktoylinje />
-      <div className="flex flex-1 overflow-hidden">
-        {children}
+    <TreDViewerProvider>
+      <div className="flex flex-1 flex-col overflow-hidden">
+        <Verktoylinje />
+        <div className="relative flex flex-1 overflow-hidden">
+          {/* Persistent 3D-viewer — lever i layout, skjules med CSS ved andre ruter */}
+          <div className={er3DVisning ? "absolute inset-0 z-0" : "pointer-events-none invisible absolute inset-0"}>
+            <ViewerCanvas erSynlig={er3DVisning} />
+          </div>
+          {/* Sidenes innhold — over vieweren ved 3D, alene ellers */}
+          <div className={er3DVisning ? "relative z-10 flex flex-1 overflow-hidden pointer-events-none" : "flex flex-1 overflow-hidden"}>
+            {children}
+          </div>
+        </div>
       </div>
-    </div>
+    </TreDViewerProvider>
   );
 }
