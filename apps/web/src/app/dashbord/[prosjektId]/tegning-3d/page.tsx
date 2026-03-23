@@ -4,6 +4,7 @@ import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { useParams } from "next/navigation";
 import { trpc } from "@/lib/trpc";
 import { useTreDViewer } from "@/kontekst/tred-viewer-kontekst";
+import { useBygning } from "@/kontekst/bygning-kontekst";
 import {
   beregnTransformasjon,
   tegningTilGps,
@@ -34,11 +35,15 @@ interface TegningData {
 export default function Tegning3DSide() {
   const { prosjektId } = useParams<{ prosjektId: string }>();
   const { viewerRef, valgtObjekt } = useTreDViewer();
+  const { aktivBygning } = useBygning();
 
   // Cast for å unngå TS2589 (excessively deep type instantiation)
   const tegningQuery = (trpc.tegning.hentForProsjekt as unknown as {
-    useQuery: (input: { projectId: string }, opts: { enabled: boolean }) => { data: unknown };
-  }).useQuery({ projectId: prosjektId! }, { enabled: !!prosjektId });
+    useQuery: (input: { projectId: string; buildingId?: string }, opts: { enabled: boolean }) => { data: unknown };
+  }).useQuery(
+    { projectId: prosjektId!, ...(aktivBygning?.id ? { buildingId: aktivBygning.id } : {}) },
+    { enabled: !!prosjektId },
+  );
   const tegninger = (tegningQuery.data ?? []) as TegningData[];
 
   const plantegninger = tegninger.filter(
