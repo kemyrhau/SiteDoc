@@ -116,4 +116,8 @@ export interface ViewerAPI {
   visAlleAvLag: (lagNavn: string) => Promise<void>;
   skjulAlleAvSystem: (systemNavn: string) => Promise<void>;
   visAlleAvSystem: (systemNavn: string) => Promise<void>;
+  /** Fly kamera til et 3D-punkt */
+  flyTil: (x: number, y: number, z: number) => void;
+  /** Hent siste klikk-punkt i 3D (for tegning-synk) */
+  sisteKlikkPunkt: () => { x: number; y: number; z: number } | null;
 }

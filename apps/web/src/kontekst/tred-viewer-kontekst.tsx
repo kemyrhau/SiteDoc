@@ -523,6 +523,7 @@ export function ViewerCanvas({
         }
 
         let mouseDownPos: { x: number; y: number } | null = null;
+        let sisteKlikkPunkt3D: { x: number; y: number; z: number } | null = null;
         rendererDom.addEventListener("pointerdown", (e: PointerEvent) => {
           mouseDownPos = { x: e.clientX, y: e.clientY };
         });
@@ -566,6 +567,7 @@ export function ViewerCanvas({
             }
             const { localId, fragments: hitModel } = hitResult;
             placeMarker(hitResult.point);
+            sisteKlikkPunkt3D = { x: hitResult.point.x, y: hitResult.point.y, z: hitResult.point.z };
             try {
               await hitModel.highlight([localId], highlightMaterial);
               currentHighlight = { modelId: hitModel.modelId, localIds: [localId] };
@@ -1037,6 +1039,14 @@ export function ViewerCanvas({
               if (model && ids.length > 0) await model.setVisible(ids, true);
             }
           },
+          flyTil: (x: number, y: number, z: number) => {
+            world.camera.controls?.setLookAt(
+              x + 5, y + 5, z + 5,
+              x, y, z,
+              true, // enableTransition — smooth fly
+            );
+          },
+          sisteKlikkPunkt: () => sisteKlikkPunkt3D,
         };
 
         setLaster(false);

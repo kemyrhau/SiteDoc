@@ -19,7 +19,7 @@ export default function ProsjektLayout({
     { enabled: !!params.prosjektId, retry: false },
   );
 
-  const er3DVisning = pathname?.endsWith("/3d-visning") ?? false;
+  const er3DVisning = (pathname?.endsWith("/3d-visning") || pathname?.endsWith("/tegning-3d")) ?? false;
 
   if (isLoading) {
     return (
