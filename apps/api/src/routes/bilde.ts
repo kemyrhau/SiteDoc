@@ -30,6 +30,8 @@ export const bildeRouter = router({
               status: true,
               number: true,
               drawingId: true,
+              buildingId: true,
+              building: { select: { id: true, name: true } },
               drawing: {
                 select: {
                   id: true,
@@ -43,6 +45,7 @@ export const bildeRouter = router({
               },
               template: {
                 select: {
+                  id: true,
                   prefix: true,
                   name: true,
                 },
@@ -85,6 +88,7 @@ export const bildeRouter = router({
               },
               template: {
                 select: {
+                  id: true,
                   prefix: true,
                   name: true,
                 },

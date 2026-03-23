@@ -60,6 +60,10 @@ interface NormalisertBilde {
   parentDrawing: TegningData | null;
   positionX: number | null;
   positionY: number | null;
+  buildingId: string | null;
+  buildingName: string | null;
+  templateId: string | null;
+  templateName: string | null;
 }
 
 // ──────────────────────────────────────────────────────────────
@@ -184,6 +188,8 @@ export default function BilderSide() {
       if (!c) continue;
       const prefix = c.template?.prefix ?? "SJK";
       const nummer = String(c.number ?? 0).padStart(3, "0");
+      const bygning = (c as unknown as { building?: { id: string; name: string } | null }).building;
+      const mal = c.template as unknown as { id?: string; prefix?: string; name?: string } | null;
       resultat.push({
         id: b.id,
         fileUrl: b.fileUrl,
@@ -200,6 +206,10 @@ export default function BilderSide() {
         parentDrawing: c.drawing as TegningData | null,
         positionX: null,
         positionY: null,
+        buildingId: bygning?.id ?? (c.drawing as unknown as { buildingId?: string } | null)?.buildingId ?? null,
+        buildingName: bygning?.name ?? null,
+        templateId: mal?.id ?? null,
+        templateName: mal?.name ?? null,
       });
     }
 
@@ -208,6 +218,7 @@ export default function BilderSide() {
       if (!t) continue;
       const prefix = t.template?.prefix ?? "OPP";
       const nummer = String(t.number ?? 0).padStart(3, "0");
+      const tMal = t.template as unknown as { id?: string; prefix?: string; name?: string } | null;
       resultat.push({
         id: b.id,
         fileUrl: b.fileUrl,
@@ -224,6 +235,10 @@ export default function BilderSide() {
         parentDrawing: t.drawing as TegningData | null,
         positionX: t.positionX,
         positionY: t.positionY,
+        buildingId: (t.drawing as unknown as { buildingId?: string } | null)?.buildingId ?? null,
+        buildingName: null,
+        templateId: tMal?.id ?? null,
+        templateName: tMal?.name ?? null,
       });
     }
 
@@ -913,13 +928,48 @@ function KartVisningMedValg({
   const [velgModus, setVelgModus] = useState(false);
   const [valgteBildeIder, setValgteBildeIder] = useState<Set<string>>(new Set());
   const [eksporterer, setEksporterer] = useState(false);
+  const [filterBygning, setFilterBygning] = useState<string>("");
+  const [filterMal, setFilterMal] = useState<string>("");
+
+  // Hent prosjektinfo for eksport
+  const { data: prosjektInfo } = trpc.prosjekt.hentMedId.useQuery(
+    { id: prosjektId },
+    { enabled: !!prosjektId },
+  );
+  const prosjekt = prosjektInfo as unknown as { name?: string; projectNumber?: string; address?: string } | undefined;
+
+  // Unike bygninger og maler for filter-dropdowns
+  const bygninger = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const b of bilderMedGps) {
+      if (b.buildingId) map.set(b.buildingId, b.buildingName ?? b.buildingId);
+    }
+    return [...map.entries()].sort((a, b) => a[1].localeCompare(b[1]));
+  }, [bilderMedGps]);
+
+  const maler = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const b of bilderMedGps) {
+      if (b.templateId) map.set(b.templateId, b.templateName ?? b.templateId);
+    }
+    return [...map.entries()].sort((a, b) => a[1].localeCompare(b[1]));
+  }, [bilderMedGps]);
+
+  // Filtrerte bilder
+  const filtrerteBilder = useMemo(() => {
+    return bilderMedGps.filter((b) => {
+      if (filterBygning && b.buildingId !== filterBygning) return false;
+      if (filterMal && b.templateId !== filterMal) return false;
+      return true;
+    });
+  }, [bilderMedGps, filterBygning, filterMal]);
 
   const valgteBilder = useMemo(
     () =>
-      bilderMedGps
+      filtrerteBilder
         .filter((b) => valgteBildeIder.has(b.id))
         .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()),
-    [bilderMedGps, valgteBildeIder],
+    [filtrerteBilder, valgteBildeIder],
   );
 
   const handleVelgBilder = useCallback(
@@ -927,7 +977,7 @@ function KartVisningMedValg({
       setValgteBildeIder((prev) => {
         const neste = new Set(prev);
         for (const i of indekser) {
-          const bilde = bilderMedGps[i];
+          const bilde = filtrerteBilder[i];
           if (bilde) {
             if (neste.has(bilde.id)) neste.delete(bilde.id);
             else neste.add(bilde.id);
@@ -936,13 +986,13 @@ function KartVisningMedValg({
         return neste;
       });
     },
-    [bilderMedGps],
+    [filtrerteBilder],
   );
 
   const handleKlikkBilde = useCallback(
     (index: number) => {
       setLightboxBilder(
-        bilderMedGps.map((b) => ({
+        filtrerteBilder.map((b) => ({
           id: b.id,
           fileUrl: b.fileUrl,
           fileName: b.fileName,
@@ -957,7 +1007,7 @@ function KartVisningMedValg({
       );
       setLightboxIndex(index);
     },
-    [bilderMedGps, prosjektId, setLightboxBilder, setLightboxIndex],
+    [filtrerteBilder, prosjektId, setLightboxBilder, setLightboxIndex],
   );
 
   async function eksporterValgte() {
@@ -988,8 +1038,16 @@ function KartVisningMedValg({
         </head>
         <body>
           <div class="header">
-            <h1>Bildeeksport</h1>
-            <div class="info">${valgteBilder.length} bilder · ${new Date(valgteBilder[0]!.createdAt).toLocaleDateString("nb-NO")} – ${new Date(valgteBilder[valgteBilder.length - 1]!.createdAt).toLocaleDateString("nb-NO")}</div>
+            <h1>${prosjekt?.name ?? "Bildeeksport"}</h1>
+            <div class="info">
+              ${prosjekt?.projectNumber ? `Prosjekt ${prosjekt.projectNumber}` : ""}
+              ${prosjekt?.address ? ` · ${prosjekt.address}` : ""}
+            </div>
+            <div class="info">
+              ${valgteBilder.length} bilder · ${new Date(valgteBilder[0]!.createdAt).toLocaleDateString("nb-NO")} – ${new Date(valgteBilder[valgteBilder.length - 1]!.createdAt).toLocaleDateString("nb-NO")}
+              ${valgteBilder[0]?.buildingName ? ` · ${valgteBilder[0].buildingName}` : ""}
+              ${filterMal ? ` · ${maler.find(([id]) => id === filterMal)?.[1] ?? ""}` : ""}
+            </div>
           </div>
           <div class="grid">
           ${valgteBilder.map((b, i) => `
@@ -1021,29 +1079,58 @@ function KartVisningMedValg({
   }
 
   return (
-    <div className="flex flex-1 overflow-hidden">
-      {/* Kart */}
-      <div className="relative flex-1">
-        {/* Velgemodus-knapp */}
-        <div className="absolute right-3 top-3 z-[1000] flex gap-1.5">
-          <button
-            onClick={() => {
-              setVelgModus(!velgModus);
-              if (velgModus) setValgteBildeIder(new Set());
-            }}
-            className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium shadow-md ${
-              velgModus
-                ? "bg-sitedoc-primary text-white"
-                : "bg-white text-gray-700 hover:bg-gray-50"
-            }`}
+    <div className="flex flex-1 flex-col overflow-hidden">
+      {/* Filter-verktøylinje */}
+      <div className="flex items-center gap-3 border-b border-gray-200 bg-white px-4 py-2">
+        {bygninger.length > 0 && (
+          <select
+            value={filterBygning}
+            onChange={(e) => setFilterBygning(e.target.value)}
+            className="rounded border border-gray-200 px-2 py-1 text-xs text-gray-700"
           >
-            <MousePointer className="h-3.5 w-3.5" />
-            {velgModus ? "Avslutt valg" : "Velg bilder"}
-          </button>
-        </div>
+            <option value="">Alle bygninger</option>
+            {bygninger.map(([id, navn]) => (
+              <option key={id} value={id}>{navn}</option>
+            ))}
+          </select>
+        )}
+        {maler.length > 0 && (
+          <select
+            value={filterMal}
+            onChange={(e) => setFilterMal(e.target.value)}
+            className="rounded border border-gray-200 px-2 py-1 text-xs text-gray-700"
+          >
+            <option value="">Alle maler</option>
+            {maler.map(([id, navn]) => (
+              <option key={id} value={id}>{navn}</option>
+            ))}
+          </select>
+        )}
+        <span className="text-xs text-gray-400">
+          {filtrerteBilder.length} bilder
+        </span>
+        <div className="flex-1" />
+        <button
+          onClick={() => {
+            setVelgModus(!velgModus);
+            if (velgModus) setValgteBildeIder(new Set());
+          }}
+          className={`flex items-center gap-1.5 rounded px-2.5 py-1.5 text-xs font-medium ${
+            velgModus
+              ? "bg-sitedoc-primary text-white"
+              : "text-gray-600 hover:bg-gray-100"
+          }`}
+        >
+          <MousePointer className="h-3.5 w-3.5" />
+          {velgModus ? "Avslutt valg" : "Velg bilder"}
+        </button>
+      </div>
 
+      {/* Kart + sidepanel */}
+      <div className="flex flex-1 overflow-hidden">
+      <div className="relative flex-1">
         <BildeKart
-          bilder={bilderMedGps}
+          bilder={filtrerteBilder}
           onKlikkBilde={handleKlikkBilde}
           onVelgBilder={handleVelgBilder}
           velgModus={velgModus}
@@ -1128,6 +1215,7 @@ function KartVisningMedValg({
           onEndreIndex={setLightboxIndex}
         />
       )}
+      </div>
     </div>
   );
 }
