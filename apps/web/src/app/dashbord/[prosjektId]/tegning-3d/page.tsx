@@ -252,6 +252,7 @@ export default function Tegning3DSide() {
   const tegningUrl = valgtTegning?.fileUrl
     ? valgtTegning.fileUrl.startsWith("/api") ? valgtTegning.fileUrl : `/api${valgtTegning.fileUrl}`
     : null;
+  const erPdf = valgtTegning?.fileType?.toLowerCase() === "pdf" || tegningUrl?.toLowerCase().endsWith(".pdf");
   const splitWidth = splitPx ?? (splitContainerRef.current?.getBoundingClientRect().width ?? 800) * 0.4;
 
   return (
@@ -362,44 +363,90 @@ export default function Tegning3DSide() {
         <div
           className="relative overflow-hidden bg-gray-100"
           style={{ width: splitWidth, flexShrink: 0 }}
-          onWheel={handleWheel}
-          onPointerDown={handlePanStart}
-          onPointerMove={handlePanMove}
-          onPointerUp={handlePanEnd}
         >
           {tegningUrl ? (
-            <div
-              className="relative origin-top-left"
-              style={{
-                transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-                cursor: erIGeorefModus && (georefSteg === "tegning1" || georefSteg === "tegning2") ? "crosshair" : panStartRef.current ? "grabbing" : "default",
-              }}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={tegningUrl}
-                alt={valgtTegning?.name ?? "Tegning"}
-                className="max-w-none select-none"
-                onPointerDown={handleImgPointerDown}
-                onClick={handleImgClick}
-                draggable={false}
-              />
-              {/* Synk-markør */}
-              {tegningMarkør && !erIGeorefModus && (
-                <>
-                  <div className="pointer-events-none absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-500" style={{ left: `${tegningMarkør.x}%`, top: `${tegningMarkør.y}%` }} />
-                  <div className="pointer-events-none absolute h-8 w-8 -translate-x-1/2 -translate-y-1/2 animate-ping rounded-full border-2 border-blue-500" style={{ left: `${tegningMarkør.x}%`, top: `${tegningMarkør.y}%` }} />
-                </>
-              )}
-              {/* Georef punkt 1 */}
-              {georefPunkt1Tegning && (
-                <div className="pointer-events-none absolute flex h-6 w-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow" style={{ left: `${georefPunkt1Tegning.x}%`, top: `${georefPunkt1Tegning.y}%` }}>1</div>
-              )}
-              {/* Georef punkt 2 */}
-              {georefPunkt2Tegning && (
-                <div className="pointer-events-none absolute flex h-6 w-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-green-500 text-[10px] font-bold text-white shadow" style={{ left: `${georefPunkt2Tegning.x}%`, top: `${georefPunkt2Tegning.y}%` }}>2</div>
-              )}
-            </div>
+            erPdf ? (
+              /* PDF — iframe med klikkbar overlay */
+              <div className="relative h-full w-full">
+                <iframe
+                  src={tegningUrl}
+                  title={valgtTegning?.name ?? "Tegning"}
+                  className="h-full w-full border-0"
+                />
+                {/* Transparent overlay for klikk (georef og synk) */}
+                <div
+                  className="absolute inset-0"
+                  style={{ cursor: erIGeorefModus && (georefSteg === "tegning1" || georefSteg === "tegning2") ? "crosshair" : "default" }}
+                  onClick={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const pxProsent = {
+                      x: ((e.clientX - rect.left) / rect.width) * 100,
+                      y: ((e.clientY - rect.top) / rect.height) * 100,
+                    };
+                    // Georeferanse-modus
+                    if (georefSteg === "tegning1") { setGeorefPunkt1Tegning(pxProsent); setGeorefSteg("modell1"); return; }
+                    if (georefSteg === "tegning2") { setGeorefPunkt2Tegning(pxProsent); setGeorefSteg("modell2"); return; }
+                    // Synk
+                    if (!synkAktiv || !transformasjon || !ifcOpprinnelse) return;
+                    const gps = tegningTilGps(pxProsent, transformasjon);
+                    const punkt3d = gpsTil3D(gps, ifcOpprinnelse, coordSystem, 1.6);
+                    if (punkt3d) viewerRef.current?.flyTil(punkt3d.x, punkt3d.y, punkt3d.z);
+                  }}
+                />
+                {/* Markører over PDF */}
+                {tegningMarkør && !erIGeorefModus && (
+                  <>
+                    <div className="pointer-events-none absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-500" style={{ left: `${tegningMarkør.x}%`, top: `${tegningMarkør.y}%` }} />
+                    <div className="pointer-events-none absolute h-8 w-8 -translate-x-1/2 -translate-y-1/2 animate-ping rounded-full border-2 border-blue-500" style={{ left: `${tegningMarkør.x}%`, top: `${tegningMarkør.y}%` }} />
+                  </>
+                )}
+                {georefPunkt1Tegning && (
+                  <div className="pointer-events-none absolute flex h-6 w-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow" style={{ left: `${georefPunkt1Tegning.x}%`, top: `${georefPunkt1Tegning.y}%` }}>1</div>
+                )}
+                {georefPunkt2Tegning && (
+                  <div className="pointer-events-none absolute flex h-6 w-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-green-500 text-[10px] font-bold text-white shadow" style={{ left: `${georefPunkt2Tegning.x}%`, top: `${georefPunkt2Tegning.y}%` }}>2</div>
+                )}
+              </div>
+            ) : (
+              /* Bilde (SVG/PNG) — med zoom/pan */
+              <div
+                className="relative h-full w-full"
+                onWheel={handleWheel}
+                onPointerDown={handlePanStart}
+                onPointerMove={handlePanMove}
+                onPointerUp={handlePanEnd}
+              >
+                <div
+                  className="relative origin-top-left"
+                  style={{
+                    transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+                    cursor: erIGeorefModus && (georefSteg === "tegning1" || georefSteg === "tegning2") ? "crosshair" : panStartRef.current ? "grabbing" : "default",
+                  }}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={tegningUrl}
+                    alt={valgtTegning?.name ?? "Tegning"}
+                    className="max-w-none select-none"
+                    onPointerDown={handleImgPointerDown}
+                    onClick={handleImgClick}
+                    draggable={false}
+                  />
+                  {tegningMarkør && !erIGeorefModus && (
+                    <>
+                      <div className="pointer-events-none absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-500" style={{ left: `${tegningMarkør.x}%`, top: `${tegningMarkør.y}%` }} />
+                      <div className="pointer-events-none absolute h-8 w-8 -translate-x-1/2 -translate-y-1/2 animate-ping rounded-full border-2 border-blue-500" style={{ left: `${tegningMarkør.x}%`, top: `${tegningMarkør.y}%` }} />
+                    </>
+                  )}
+                  {georefPunkt1Tegning && (
+                    <div className="pointer-events-none absolute flex h-6 w-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow" style={{ left: `${georefPunkt1Tegning.x}%`, top: `${georefPunkt1Tegning.y}%` }}>1</div>
+                  )}
+                  {georefPunkt2Tegning && (
+                    <div className="pointer-events-none absolute flex h-6 w-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-green-500 text-[10px] font-bold text-white shadow" style={{ left: `${georefPunkt2Tegning.x}%`, top: `${georefPunkt2Tegning.y}%` }}>2</div>
+                  )}
+                </div>
+              </div>
+            )
           ) : (
             <div className="flex h-full items-center justify-center">
               <div className="text-center text-gray-400">
