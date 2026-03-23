@@ -371,23 +371,28 @@ function EntrepriseVeiviser({
 
   function handleNeste() {
     if (steg === 1) {
-      if (metode === "kopier" && kopierEntrepriseId) {
-        kopierMutation.mutate({
-          sourceEnterpriseId: kopierEntrepriseId,
-          targetProjectId: prosjektId,
-          memberIds: [],
-        });
-        return;
-      }
+      // Alle metoder går til steg 2 for å sette navn
       setSteg(2);
       return;
     }
 
     if (steg === 2) {
-      if (metode === "importer" && importEntrepriseId) {
+      if (metode === "kopier" && kopierEntrepriseId && nyNavn.trim()) {
+        kopierMutation.mutate({
+          sourceEnterpriseId: kopierEntrepriseId,
+          targetProjectId: prosjektId,
+          name: nyNavn.trim(),
+          color: nesteAutoFarge(entrepriser.map((e) => e.color)),
+          memberIds: [],
+        });
+        return;
+      }
+      if (metode === "importer" && importEntrepriseId && nyNavn.trim()) {
         kopierMutation.mutate({
           sourceEnterpriseId: importEntrepriseId,
           targetProjectId: prosjektId,
+          name: nyNavn.trim(),
+          color: nesteAutoFarge(entrepriser.map((e) => e.color)),
           memberIds: [],
         });
         return;
@@ -414,16 +419,17 @@ function EntrepriseVeiviser({
       return true;
     }
     if (steg === 2) {
-      if (metode === "importer") return !!importEntrepriseId;
+      if (metode === "kopier") return !!nyNavn.trim();
+      if (metode === "importer") return !!importEntrepriseId && !!nyNavn.trim();
       if (metode === "tom") return !!nyNavn.trim();
     }
     return false;
   })();
 
   const knappTekst = (() => {
-    if (metode === "kopier" && steg === 1) return "Kopier";
-    if (metode === "importer" && steg === 2) return "Importer";
-    if (metode === "tom" && steg === 2) return "Opprett";
+    if (steg === 2 && metode === "kopier") return "Kopier";
+    if (steg === 2 && metode === "importer") return "Importer";
+    if (steg === 2 && metode === "tom") return "Opprett";
     return "Neste";
   })();
 
@@ -509,6 +515,21 @@ function EntrepriseVeiviser({
           </>
         )}
 
+        {steg === 2 && metode === "kopier" && (
+          <>
+            <p className="text-sm text-gray-500">
+              Strukturen fra <strong>{entrepriser.find((e) => e.id === kopierEntrepriseId)?.name}</strong> kopieres. Gi den nye entreprisen et navn:
+            </p>
+            <Input
+              label="Navn på ny entreprise"
+              placeholder="F.eks. Tømrer"
+              value={nyNavn}
+              onChange={(e) => setNyNavn(e.target.value)}
+              required
+            />
+          </>
+        )}
+
         {steg === 2 && metode === "importer" && (
           <>
             <Select
@@ -528,7 +549,7 @@ function EntrepriseVeiviser({
             />
             {importProsjektId && (
               <Select
-                label="Velg entreprise"
+                label="Velg entreprise å kopiere"
                 options={[
                   { value: "", label: "Velg entreprise..." },
                   ...(importEntrepriser?.map((e) => ({
@@ -538,6 +559,15 @@ function EntrepriseVeiviser({
                 ]}
                 value={importEntrepriseId}
                 onChange={(e) => setImportEntrepriseId(e.target.value)}
+              />
+            )}
+            {importEntrepriseId && (
+              <Input
+                label="Navn på ny entreprise"
+                placeholder="F.eks. Tømrer"
+                value={nyNavn}
+                onChange={(e) => setNyNavn(e.target.value)}
+                required
               />
             )}
           </>
