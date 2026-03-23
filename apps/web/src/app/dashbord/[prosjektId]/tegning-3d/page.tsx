@@ -35,11 +35,11 @@ export default function Tegning3DSide() {
   const { prosjektId } = useParams<{ prosjektId: string }>();
   const { viewerRef, valgtObjekt } = useTreDViewer();
 
-  const { data: _tegninger } = trpc.tegning.hentForProsjekt.useQuery(
-    { projectId: prosjektId! },
-    { enabled: !!prosjektId },
-  );
-  const tegninger = (_tegninger ?? []) as TegningData[];
+  // Cast for å unngå TS2589 (excessively deep type instantiation)
+  const tegningQuery = (trpc.tegning.hentForProsjekt as unknown as {
+    useQuery: (input: { projectId: string }, opts: { enabled: boolean }) => { data: unknown };
+  }).useQuery({ projectId: prosjektId! }, { enabled: !!prosjektId });
+  const tegninger = (tegningQuery.data ?? []) as TegningData[];
 
   const plantegninger = tegninger.filter(
     (t) => t.fileUrl && t.fileType?.toLowerCase() !== "ifc",
