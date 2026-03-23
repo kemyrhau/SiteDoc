@@ -123,9 +123,7 @@ export default function HjemSkjerm() {
     if (!valgtBygningId || !bygninger) return false;
     const bygning = bygninger.find((b) => b.id === valgtBygningId);
     if (!bygning) return false;
-    const har = bygning.drawings.some((d) => d.fileType?.toLowerCase() === "ifc");
-    console.log("[HJEM] bygning:", bygning.name, "tegninger:", bygning.drawings.length, "harIfc:", har, "fileTypes:", bygning.drawings.map(d => d.fileType));
-    return har;
+    return bygning.drawings.some((d) => d.fileType?.toLowerCase() === "ifc");
   }, [valgtBygningId, bygninger]);
 
   // Hent sjekklister og oppgaver for valgt prosjekt (filtrert på bygning)
@@ -487,18 +485,6 @@ export default function HjemSkjerm() {
                 <ChevronRight size={20} color="#9ca3af" />
               </Pressable>
               )}
-            </View>
-
-            {/* DEBUG — fjernes */}
-            <View className="mt-4 mx-4 rounded bg-yellow-50 p-3">
-              <Text className="text-[10px] text-gray-500">
-                bygningId: {valgtBygningId ?? "null"}{"\n"}
-                bygninger: {bygninger?.length ?? "undefined"}{"\n"}
-                valgt: {bygninger?.find(b => b.id === valgtBygningId)?.name ?? "ingen"}{"\n"}
-                tegninger: {bygninger?.find(b => b.id === valgtBygningId)?.drawings?.length ?? "?"}{"\n"}
-                fileTypes: {JSON.stringify(bygninger?.find(b => b.id === valgtBygningId)?.drawings?.map(d => d.fileType) ?? [])}{"\n"}
-                harIfc: {String(harIfcModeller)}
-              </Text>
             </View>
 
             {/* Sist oppdatert */}

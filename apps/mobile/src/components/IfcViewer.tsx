@@ -241,12 +241,21 @@ export function IfcViewer({ modeller, onTilbake }: IfcViewerProps) {
               </TouchableOpacity>
             </View>
             {Object.entries(valgtObjekt.attributter)
-              .filter(([k]) => !["expressID", "type", "GlobalId"].includes(k))
+              .filter(([k, v]) => {
+                // Skjul interne IFC-felter og tomme verdier
+                const skjult = ["expressID", "type", "GlobalId", "Tag", "OwnerHistory", "ObjectPlacement", "Representation", "CompositionType", "ShapeType"];
+                if (skjult.includes(k)) return false;
+                const s = String(v);
+                if (!s || s === "NOTDEFINED" || s === "null" || s === "undefined" || s === "ELEMENT") return false;
+                // Skjul GUID-lignende verdier
+                if (/^[0-9a-f]{8}-[0-9a-f]{4}/i.test(s)) return false;
+                return true;
+              })
               .slice(0, 8)
               .map(([k, v]) => (
                 <View key={k} style={styles.objektRad}>
                   <Text style={styles.objektLabel}>{k}</Text>
-                  <Text style={styles.objektVerdi} numberOfLines={1}>
+                  <Text style={styles.objektVerdi} numberOfLines={2}>
                     {String(v)}
                   </Text>
                 </View>
