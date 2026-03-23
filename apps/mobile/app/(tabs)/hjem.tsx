@@ -489,6 +489,18 @@ export default function HjemSkjerm() {
               )}
             </View>
 
+            {/* DEBUG — fjernes */}
+            <View className="mt-4 mx-4 rounded bg-yellow-50 p-3">
+              <Text className="text-[10px] text-gray-500">
+                bygningId: {valgtBygningId ?? "null"}{"\n"}
+                bygninger: {bygninger?.length ?? "undefined"}{"\n"}
+                valgt: {bygninger?.find(b => b.id === valgtBygningId)?.name ?? "ingen"}{"\n"}
+                tegninger: {bygninger?.find(b => b.id === valgtBygningId)?.drawings?.length ?? "?"}{"\n"}
+                fileTypes: {JSON.stringify(bygninger?.find(b => b.id === valgtBygningId)?.drawings?.map(d => d.fileType) ?? [])}{"\n"}
+                harIfc: {String(harIfcModeller)}
+              </Text>
+            </View>
+
             {/* Sist oppdatert */}
             {sistOppdatert > 0 && (
               <View className="mt-6 px-4">
