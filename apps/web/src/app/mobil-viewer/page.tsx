@@ -15,27 +15,17 @@ import { useEffect, useRef, useState } from "react";
  *     { type: "klar" }
  *     { type: "modellLastet", index: number, navn: string, totalt: number }
  *     { type: "alleLastet", antall: number }
- *     { type: "objektValgt", data: { localId, modelId, kategori, attributter, relasjoner } }
+ *     { type: "objektValgt", data: { localId, modelId, kategori, attributter } }
  *     { type: "objektFjernet" }
  *     { type: "feil", melding: string }
- *
- *   URL-parametere (alternativ til postMessage):
- *     ?urls=url1,url2&token=xxx
  */
 
-// Hjelpefunksjon for å sende meldinger til React Native WebView
 function sendTilApp(data: Record<string, unknown>) {
   try {
-    // React Native WebView injiserer window.ReactNativeWebView
     const rn = (window as unknown as { ReactNativeWebView?: { postMessage: (s: string) => void } }).ReactNativeWebView;
-    if (rn) {
-      rn.postMessage(JSON.stringify(data));
-    }
-    // For testing i vanlig nettleser
+    if (rn) rn.postMessage(JSON.stringify(data));
     window.parent?.postMessage(data, "*");
-  } catch {
-    // Ignorer
-  }
+  } catch { /* */ }
 }
 
 export default function MobilViewer() {
@@ -55,6 +45,9 @@ export default function MobilViewer() {
     let renset = false;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let componentsRef: any = null;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let propsApi: any = null;
+    const openModelIds = new Map<string, number>();
 
     async function init() {
       const [OBC, THREE, WEBIFC] = await Promise.all([
@@ -84,6 +77,10 @@ export default function MobilViewer() {
       world.camera = new OBC.SimpleCamera(components);
       world.camera.controls?.setLookAt(20, 20, 20, 0, 0, 0);
 
+      // Optimaliser: Cap pixelratio til 1.5 for mobil (sparer GPU vesentlig)
+      const threeRenderer = (world.renderer as unknown as { three: InstanceType<typeof THREE.WebGLRenderer> }).three;
+      threeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+
       components.init();
 
       const fragmentsManager = components.get(OBC.FragmentsManager);
@@ -103,27 +100,61 @@ export default function MobilViewer() {
 
       if (renset) return;
 
+      // Optimaliser: Init web-ifc API én gang
+      propsApi = new WEBIFC.IfcAPI();
+      propsApi.SetWasmPath("/", true);
+      await propsApi.Init((_f: string) => "/web-ifc.wasm");
+
       const threeCamera = (world.camera as unknown as { three: InstanceType<typeof THREE.PerspectiveCamera> }).three;
 
-      // Tile-lasting update-løkke
+      // Optimaliser: Pause render-loop når kamera er stille
       let animFrameId: number | null = null;
+      let idleFrames = 0;
+      const lastCamPos = new THREE.Vector3();
+      const lastCamTarget = new THREE.Vector3();
+      const tmpPos = new THREE.Vector3();
+      const MAX_IDLE_FRAMES = 30; // Etter 30 stille frames → kun oppdater hvert 10. frame
+
       function updateLoop() {
         if (renset) return;
-        fragmentsManager.core.update();
+
+        // Sjekk om kamera har beveget seg
+        threeCamera.getWorldPosition(tmpPos);
+        if (tmpPos.distanceToSquared(lastCamPos) > 0.0001) {
+          idleFrames = 0;
+          lastCamPos.copy(tmpPos);
+        } else {
+          idleFrames++;
+        }
+
+        // Kjør fragmentoppdatering (alltid når kamera beveger seg, ellers sjeldnere)
+        if (idleFrames < MAX_IDLE_FRAMES || idleFrames % 10 === 0) {
+          fragmentsManager.core.update();
+        }
+
         animFrameId = requestAnimationFrame(updateLoop);
       }
       updateLoop();
+
+      // Optimaliser: Pause ved bakgrunn
+      function handleVisibility() {
+        if (document.hidden && animFrameId !== null) {
+          cancelAnimationFrame(animFrameId);
+          animFrameId = null;
+        } else if (!document.hidden && animFrameId === null && !renset) {
+          updateLoop();
+        }
+      }
+      document.addEventListener("visibilitychange", handleVisibility);
 
       // State
       const modeller = new Map<number, unknown>();
       const synligeModeller = new Set<string>();
       const ifcDataMap = new Map<string, Uint8Array>();
-      let propsApi: InstanceType<typeof WEBIFC.IfcAPI> | null = null;
-      const openModelIds = new Map<string, number>();
       const totalBbox = new THREE.Box3();
 
       // Raycasting
-      const rendererDom = (world.renderer as unknown as { three: { domElement: HTMLCanvasElement } }).three.domElement;
+      const rendererDom = threeRenderer.domElement;
       const highlightMaterial = {
         color: new THREE.Color(0x3b82f6),
         renderedFaces: 1 as unknown as import("@thatopen/fragments").RenderedFaces,
@@ -145,7 +176,6 @@ export default function MobilViewer() {
           if (Math.sqrt(dx * dx + dy * dy) > 5) return;
         }
 
-        // Reset highlight
         if (currentHighlight) {
           try {
             const prevModel = fragmentsManager.list.get(currentHighlight.modelId);
@@ -177,30 +207,23 @@ export default function MobilViewer() {
 
           const { localId, fragments: hitModel } = hitResult;
 
-          // Highlight
           try {
             await hitModel.highlight([localId], highlightMaterial);
             currentHighlight = { modelId: hitModel.modelId, localIds: [localId] };
           } catch { /* */ }
 
-          // Kategori
           const item = hitModel.getItem(localId);
           const kategori = await item.getCategory().catch(() => null);
 
-          // Egenskaper via web-ifc
+          // Egenskaper via web-ifc (gjenbruker propsApi)
           const rawData = ifcDataMap.get(hitModel.modelId);
           let attributter: Record<string, unknown> = {};
-          if (rawData) {
+          if (rawData && propsApi) {
             try {
-              if (!propsApi) {
-                propsApi = new WEBIFC.IfcAPI();
-                propsApi.SetWasmPath("/", true);
-                await propsApi.Init((_f: string) => "/web-ifc.wasm");
-              }
               let modelId = openModelIds.get(hitModel.modelId);
               if (modelId === undefined) {
                 modelId = propsApi.OpenModel(rawData);
-                openModelIds.set(hitModel.modelId, modelId);
+                openModelIds.set(hitModel.modelId, modelId!);
               }
               const itemProps = await propsApi.properties.getItemProperties(modelId, localId, true).catch(() => null);
               if (itemProps) {
@@ -216,70 +239,70 @@ export default function MobilViewer() {
 
           sendTilApp({
             type: "objektValgt",
-            data: {
-              localId,
-              modelId: hitModel.modelId,
-              kategori,
-              attributter,
-              punkt: { x: hitResult.point.x, y: hitResult.point.y, z: hitResult.point.z },
-            },
+            data: { localId, modelId: hitModel.modelId, kategori, attributter,
+              punkt: { x: hitResult.point.x, y: hitResult.point.y, z: hitResult.point.z } },
           });
-        } catch (err) {
+        } catch {
           sendTilApp({ type: "objektFjernet" });
         }
       }
 
       rendererDom.addEventListener("click", handleKlikk);
 
-      // Dobbeltklikk for klippeplan
       rendererDom.addEventListener("dblclick", async () => {
         if (!clipper.enabled || renset) return;
         await clipper.create(world);
       });
 
-      // Funksjon for å laste modeller
+      // Modell-lasting — parallell nedlasting, sekvensiell parsing
       async function lastModeller(urls: string[], token?: string) {
         setTotalt(urls.length);
         setAntallLastet(0);
-        setStatus("Laster modeller...");
+        setStatus("Laster ned modeller...");
         totalBbox.makeEmpty();
 
-        let lastet = 0;
-        for (let i = 0; i < urls.length; i++) {
-          if (renset) return;
-          const url = urls[i];
-          try {
-            setStatus(`Laster ${i + 1}/${urls.length}...`);
-            const headers: Record<string, string> = {};
-            if (token) headers["Authorization"] = `Bearer ${token}`;
+        // Steg 1: Last ned alle filer parallelt
+        const headers: Record<string, string> = {};
+        if (token) headers["Authorization"] = `Bearer ${token}`;
 
+        const nedlastinger = urls.map(async (url, i) => {
+          try {
             const response = await fetch(url!, { headers });
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            return { index: i, data: new Uint8Array(await response.arrayBuffer()) };
+          } catch (err) {
+            sendTilApp({ type: "feil", melding: `Modell ${i + 1}: ${err instanceof Error ? err.message : String(err)}` });
+            return { index: i, data: null };
+          }
+        });
 
-            const buffer = await response.arrayBuffer();
-            const data = new Uint8Array(buffer);
+        const resultater = await Promise.all(nedlastinger);
+        if (renset) return;
 
-            const model = await ifcLoader.load(data, true, `modell-${i}`);
+        // Steg 2: Parse og vis modeller sekvensielt (web-ifc er ikke thread-safe)
+        let lastet = 0;
+        for (const res of resultater) {
+          if (renset) return;
+          if (!res.data) continue;
+
+          try {
+            setStatus(`Parser ${lastet + 1}/${urls.length}...`);
+            const model = await ifcLoader.load(res.data, true, `modell-${res.index}`);
             const fm = model as { object: InstanceType<typeof THREE.Object3D>; useCamera: (c: unknown) => void; box: InstanceType<typeof THREE.Box3> };
             scene.add(fm.object);
             fm.useCamera(threeCamera);
-            modeller.set(i, model);
+            modeller.set(res.index, model);
 
             const fragModelId = (model as { modelId: string }).modelId;
-            ifcDataMap.set(fragModelId, data);
+            ifcDataMap.set(fragModelId, res.data);
             synligeModeller.add(fragModelId);
             totalBbox.union(fm.box);
 
             // Skjul IfcSpace og IfcOpeningElement
             try {
-              if (!propsApi) {
-                propsApi = new WEBIFC.IfcAPI();
-                propsApi.SetWasmPath("/", true);
-                await propsApi.Init((_f: string) => "/web-ifc.wasm");
-              }
               let mid = openModelIds.get(fragModelId);
               if (mid === undefined) {
-                mid = propsApi.OpenModel(data);
+                mid = propsApi.OpenModel(res.data)!;
                 openModelIds.set(fragModelId, mid);
               }
               const hideApi = propsApi as unknown as { GetLineIDsWithType: (m: number, t: number) => { size: () => number; get: (i: number) => number } };
@@ -293,9 +316,9 @@ export default function MobilViewer() {
 
             lastet++;
             setAntallLastet(lastet);
-            sendTilApp({ type: "modellLastet", index: i, navn: `modell-${i}`, totalt: urls.length });
+            sendTilApp({ type: "modellLastet", index: res.index, navn: `modell-${res.index}`, totalt: urls.length });
           } catch (err) {
-            sendTilApp({ type: "feil", melding: `Modell ${i + 1}: ${err instanceof Error ? err.message : String(err)}` });
+            sendTilApp({ type: "feil", melding: `Modell ${res.index + 1}: ${err instanceof Error ? err.message : String(err)}` });
           }
         }
 
@@ -314,7 +337,7 @@ export default function MobilViewer() {
         sendTilApp({ type: "alleLastet", antall: lastet });
       }
 
-      // Meldingshåndtering fra React Native
+      // Meldingshåndtering
       function handleMessage(event: MessageEvent) {
         const msg = typeof event.data === "string" ? JSON.parse(event.data) : event.data;
         if (msg.type === "lastModeller") {
@@ -337,11 +360,9 @@ export default function MobilViewer() {
       }
 
       window.addEventListener("message", handleMessage);
-
       sendTilApp({ type: "klar" });
       setStatus("Klar");
 
-      // Sjekk URL-parametere for direkte lasting
       const params = new URLSearchParams(window.location.search);
       const urlParam = params.get("urls");
       const tokenParam = params.get("token");
@@ -353,6 +374,7 @@ export default function MobilViewer() {
       return () => {
         window.removeEventListener("message", handleMessage);
         rendererDom.removeEventListener("click", handleKlikk);
+        document.removeEventListener("visibilitychange", handleVisibility);
         if (animFrameId !== null) cancelAnimationFrame(animFrameId);
       };
     }
@@ -373,11 +395,6 @@ export default function MobilViewer() {
         try { componentsRef.dispose(); } catch { /* */ }
       }
     };
-
-    // Variabler brukt i cleanup
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let propsApi: any = null;
-    const openModelIds = new Map<string, number>();
   }, []);
 
   return (
