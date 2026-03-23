@@ -126,6 +126,13 @@ export default function LokasjonerSkjerm() {
   const valgtTegningDetalj = valgtTegningQuery.data as TegningDetalj | undefined;
   const eksisterendeOppgaver = (oppgaverQuery.data ?? []) as OppgaveMarkør[];
 
+  // Auto-velg første bygning hvis ingen er valgt
+  useEffect(() => {
+    if (!valgtBygningId && bygninger.length > 0 && bygninger[0]) {
+      settBygning(bygninger[0].id);
+    }
+  }, [valgtBygningId, bygninger, settBygning]);
+
   const lasterData = bygningQuery.isLoading || tegningQuery.isLoading;
 
   // Finn valgt tegning fra listen
@@ -279,10 +286,10 @@ export default function LokasjonerSkjerm() {
     };
   }, [harGeoRef, geoRefStringifisert, valgtTegningId]);
 
-  // Bygningsvelger — nedtrekksmeny
+  // Bygningsvelger — nedtrekksmeny (alltid én aktiv bygning)
   const visBygningsvelger = useCallback(() => {
     if (bygninger.length <= 1) return;
-    const alternativ = ["Alle bygninger", ...bygninger.map((b) => b.name), "Avbryt"];
+    const alternativ = [...bygninger.map((b) => b.name), "Avbryt"];
     if (Platform.OS === "ios") {
       ActionSheetIOS.showActionSheetWithOptions(
         {
@@ -291,20 +298,17 @@ export default function LokasjonerSkjerm() {
           title: "Velg bygning",
         },
         (indeks) => {
-          if (indeks === 0) settBygning(null);
-          else if (indeks < alternativ.length - 1) {
-            const valgt = bygninger[indeks - 1];
+          if (indeks < alternativ.length - 1) {
+            const valgt = bygninger[indeks];
             if (valgt) settBygning(valgt.id);
           }
         },
       );
     } else {
-      // Android — bruk Alert med knapper (enkel fallback)
       Alert.alert(
         "Velg bygning",
         undefined,
         [
-          { text: "Alle bygninger", onPress: () => settBygning(null) },
           ...bygninger.map((b) => ({
             text: b.name,
             onPress: () => settBygning(b.id),
@@ -358,7 +362,6 @@ export default function LokasjonerSkjerm() {
   // Håndter avbryt i bottom sheet
   const håndterAvbryt = useCallback(() => {
     setValgtTegningId(null);
-    settBygning(null);
     setMarkørPosisjon(null);
     setPlasseringsmodus(false);
   }, []);
@@ -443,8 +446,8 @@ export default function LokasjonerSkjerm() {
           <View>
             <Text className="text-sm font-semibold text-white" numberOfLines={1}>
               {valgtBygningId
-                ? bygninger.find((b) => b.id === valgtBygningId)?.name ?? "Alle bygninger"
-                : "Alle bygninger"}
+                ? bygninger.find((b) => b.id === valgtBygningId)?.name ?? "Velg bygning"
+                : "Velg bygning"}
             </Text>
             <Text className="text-[10px] text-blue-200">Lokasjoner</Text>
           </View>
