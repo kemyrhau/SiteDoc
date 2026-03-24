@@ -14,7 +14,7 @@ import {
 } from "@sitedoc/shared/utils";
 import type { GeoReferanse } from "@sitedoc/shared";
 import type { KoordinatSystem } from "@sitedoc/shared/utils";
-import { Layers, Link2, Link2Off, MapPin, Check, X, Crosshair, ChevronLeft, ChevronRight } from "lucide-react";
+import { Layers, Link2, Link2Off, MapPin, Check, X, Crosshair, ChevronLeft, ChevronRight, Ruler } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
 /*  PDF canvas-rendering med pdf.js                                    */
@@ -155,6 +155,15 @@ export default function Tegning3DSide() {
   const [tegningMarkør, setTegningMarkør] = useState<{ x: number; y: number } | null>(null);
   const [innholdStr, setInnholdStr] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
 
+  // Kalibrert gulvhøyde — lagres i localStorage per bygning
+  const gulvNøkkel = aktivBygning?.id ? `gulvY_${aktivBygning.id}` : null;
+  const [gulvY, setGulvY] = useState<number | null>(() => {
+    if (typeof window === "undefined" || !gulvNøkkel) return null;
+    const lagret = localStorage.getItem(gulvNøkkel);
+    return lagret ? parseFloat(lagret) : null;
+  });
+  const [kalibrerModus, setKalibrerModus] = useState(false);
+
   // Etasjeklipp i 3D
   useEffect(() => {
     if (!valgtEtasje || etasjer.length === 0) {
@@ -272,11 +281,21 @@ export default function Tegning3DSide() {
     clickStartRef.current = { x: e.clientX, y: e.clientY };
   }, []);
 
-  // 3D-klikk → georef eller synk
+  // 3D-klikk → kalibrering, georef eller synk
   useEffect(() => {
     if (!valgtObjekt) return;
     const punkt = viewerRef.current?.sisteKlikkPunkt();
-    if (!punkt || !ifcOpprinnelse) return;
+    if (!punkt) return;
+
+    // Kalibrering av gulvhøyde
+    if (kalibrerModus) {
+      setGulvY(punkt.y);
+      if (gulvNøkkel) localStorage.setItem(gulvNøkkel, String(punkt.y));
+      setKalibrerModus(false);
+      return;
+    }
+
+    if (!ifcOpprinnelse) return;
 
     // Georeferanse-modus: hent GPS fra 3D-punkt
     if (georefSteg === "modell1") {
@@ -355,15 +374,7 @@ export default function Tegning3DSide() {
       const gps = tegningTilGps(pxProsent, transformasjon);
       const punkt3d = gpsTil3D(gps, ifcOpprinnelse, coordSystem, 0);
       if (!punkt3d) return;
-      // Beregn etasjeinfo for riktig kamerahøyde
-      const takplan = etasjer.length > 0 ? etasjer[etasjer.length - 1]! : null;
-      const aktEtasje = valgtEtasje
-        ? etasjer.find((e) => e.navn === valgtEtasje)
-        : etasjer.find((e) => e.navn?.includes("1.")) ?? etasjer[0];
-      const etasjeInfo = takplan && aktEtasje?.høyde != null && takplan.høyde != null
-        ? { gulvMm: aktEtasje.høyde, takMm: takplan.høyde }
-        : undefined;
-      viewerRef.current?.flyTil(punkt3d.x, punkt3d.y, punkt3d.z, etasjeInfo);
+      viewerRef.current?.flyTil(punkt3d.x, punkt3d.y, punkt3d.z, gulvY ?? undefined);
     },
     [georefSteg, georefPunkt1Tegning, georefPunkt2Tegning, synkAktiv, transformasjon, ifcOpprinnelse, coordSystem, viewerRef],
   );
@@ -468,6 +479,18 @@ export default function Tegning3DSide() {
                 <X size={14} />
               </button>
             )}
+
+            {/* Kalibrer gulvhøyde */}
+            <button
+              onClick={() => setKalibrerModus(!kalibrerModus)}
+              className={`flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium ${
+                kalibrerModus ? "bg-purple-100 text-purple-700" : gulvY != null ? "bg-gray-50 text-gray-500" : "bg-orange-50 text-orange-700"
+              }`}
+              title={gulvY != null ? `Gulvhøyde: ${gulvY.toFixed(1)}m — klikk for å endre` : "Klikk på gulvet i 3D for å kalibrere kamerahøyde"}
+            >
+              <Ruler size={14} />
+              {kalibrerModus ? "Klikk på gulvet..." : gulvY != null ? `Gulv: ${gulvY.toFixed(1)}` : "Kalibrer"}
+            </button>
           </>
         ) : (
           <button
