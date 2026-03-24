@@ -477,14 +477,15 @@ export function ViewerCanvas({
         setLasterNavn(null);
         if (renset) return;
 
-        // Tilpass kamera
+        // Tilpass kamera og dybdebuffer
         if (!totalBbox.isEmpty()) {
           const center = totalBbox.getCenter(new THREE.Vector3());
           const size = totalBbox.getSize(new THREE.Vector3());
           const maxDim = Math.max(size.x, size.y, size.z);
-          console.log("[3D] BBox min:", totalBbox.min.x.toFixed(0), totalBbox.min.y.toFixed(0), totalBbox.min.z.toFixed(0),
-            "max:", totalBbox.max.x.toFixed(0), totalBbox.max.y.toFixed(0), totalBbox.max.z.toFixed(0),
-            "size:", size.x.toFixed(0), size.y.toFixed(0), size.z.toFixed(0));
+          // Sett near/far basert på modellstørrelse for å unngå z-fighting/flimring
+          threeCamera.near = maxDim * 0.001;
+          threeCamera.far = maxDim * 20;
+          threeCamera.updateProjectionMatrix();
           world.camera.controls?.setLookAt(
             center.x + maxDim, center.y + maxDim * 0.7, center.z + maxDim,
             center.x, center.y, center.z,

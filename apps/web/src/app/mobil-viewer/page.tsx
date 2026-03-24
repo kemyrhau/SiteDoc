@@ -322,11 +322,15 @@ export default function MobilViewer() {
           }
         }
 
-        // Tilpass kamera
+        // Tilpass kamera og dybdebuffer
         if (!totalBbox.isEmpty()) {
           const center = totalBbox.getCenter(new THREE.Vector3());
           const size = totalBbox.getSize(new THREE.Vector3());
           const maxDim = Math.max(size.x, size.y, size.z);
+          // Sett near/far basert på modellstørrelse for å unngå z-fighting
+          threeCamera.near = maxDim * 0.001;
+          threeCamera.far = maxDim * 20;
+          threeCamera.updateProjectionMatrix();
           world.camera.controls?.setLookAt(
             center.x + maxDim, center.y + maxDim * 0.7, center.z + maxDim,
             center.x, center.y, center.z,
