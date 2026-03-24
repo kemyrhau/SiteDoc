@@ -305,16 +305,22 @@ export default function Tegning3DSide() {
             </button>
 
             {/* Georeferanse-knapp */}
-            {valgtTegningId && ifcOpprinnelse && (
+            {valgtTegningId && (
               <button
-                onClick={startGeoref}
+                onClick={ifcOpprinnelse ? startGeoref : undefined}
+                disabled={!ifcOpprinnelse}
                 className={`flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium ${
-                  transformasjon ? "bg-green-50 text-green-700" : "bg-amber-100 text-amber-700"
+                  !ifcOpprinnelse ? "bg-gray-100 text-gray-400"
+                    : transformasjon ? "bg-green-50 text-green-700" : "bg-amber-100 text-amber-700"
                 }`}
-                title={transformasjon ? "Tegningen er georeferert — klikk for å sette på nytt" : "Georeferér tegningen mot 3D-modellen"}
+                title={
+                  !ifcOpprinnelse ? `IFC mangler GPS (${ifcModeller.length} IFC-filer funnet)`
+                    : transformasjon ? "Tegningen er georeferert — klikk for å sette på nytt"
+                    : "Georeferér tegningen mot 3D-modellen"
+                }
               >
                 <MapPin size={14} />
-                {transformasjon ? "Georeferert" : "Georeferér"}
+                {!ifcOpprinnelse ? "Mangler GPS" : transformasjon ? "Georeferert" : "Georeferér"}
               </button>
             )}
           </>
