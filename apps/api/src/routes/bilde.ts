@@ -8,6 +8,7 @@ export const bildeRouter = router({
     .input(
       z.object({
         projectId: z.string().uuid(),
+        buildingId: z.string().uuid().optional(),
       }),
     )
     .query(async ({ ctx, input }) => {
@@ -20,6 +21,7 @@ export const bildeRouter = router({
           checklistId: { not: null },
           checklist: {
             template: { projectId: input.projectId },
+            ...(input.buildingId ? { buildingId: input.buildingId } : {}),
             ...(tilgangsFilter ?? {}),
           },
         },
@@ -62,6 +64,7 @@ export const bildeRouter = router({
           taskId: { not: null },
           task: {
             template: { projectId: input.projectId },
+            ...(input.buildingId ? { drawing: { buildingId: input.buildingId } } : {}),
             ...(tilgangsFilter ?? {}),
           },
         },
