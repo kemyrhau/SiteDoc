@@ -312,6 +312,7 @@ function EntrepriseVeiviser({
   const [nyNummer, setNyNummer] = useState("");
   const [nyBransje, setNyBransje] = useState("");
   const [nyFirma, setNyFirma] = useState("");
+  const [nyFarge, setNyFarge] = useState("");
 
   const { data: importEntrepriser } =
     trpc.entreprise.hentForProsjekt.useQuery(
@@ -382,7 +383,7 @@ function EntrepriseVeiviser({
           sourceEnterpriseId: kopierEntrepriseId,
           targetProjectId: prosjektId,
           name: nyNavn.trim(),
-          color: nesteAutoFarge(entrepriser.map((e) => e.color)),
+          color: nyFarge || nesteAutoFarge(entrepriser.map((e) => e.color)),
           memberIds: [],
         });
         return;
@@ -392,7 +393,7 @@ function EntrepriseVeiviser({
           sourceEnterpriseId: importEntrepriseId,
           targetProjectId: prosjektId,
           name: nyNavn.trim(),
-          color: nesteAutoFarge(entrepriser.map((e) => e.color)),
+          color: nyFarge || nesteAutoFarge(entrepriser.map((e) => e.color)),
           memberIds: [],
         });
         return;
@@ -402,7 +403,7 @@ function EntrepriseVeiviser({
           name: nyNavn.trim(),
           projectId: prosjektId,
           enterpriseNumber: nyNummer.trim() || undefined,
-          color: nesteAutoFarge(entrepriser.map((e) => e.color)),
+          color: nyFarge || nesteAutoFarge(entrepriser.map((e) => e.color)),
           industry: nyBransje.trim() || undefined,
           companyName: nyFirma.trim() || undefined,
           memberIds: [],
@@ -619,6 +620,28 @@ function EntrepriseVeiviser({
               onChange={(e) => setNyFirma(e.target.value)}
             />
           </>
+        )}
+
+        {/* Fargevelger (valgfri) */}
+        {steg === 2 && (
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">Farge (valgfri)</label>
+            <div className="flex flex-wrap gap-1.5">
+              {Object.keys(FARGE_MAP).slice(0, 20).map((farge) => {
+                const f = FARGE_MAP[farge]!;
+                return (
+                  <button
+                    key={farge}
+                    type="button"
+                    onClick={() => setNyFarge(nyFarge === farge ? "" : farge)}
+                    className={`h-6 w-6 rounded-full border-2 ${f.bg} ${nyFarge === farge ? "ring-2 ring-blue-500 ring-offset-1" : "border-transparent"}`}
+                    title={farge}
+                  />
+                );
+              })}
+            </div>
+            {!nyFarge && <p className="mt-1 text-xs text-gray-400">Tildeles automatisk hvis ikke valgt</p>}
+          </div>
         )}
 
         <div className="flex gap-3 pt-2">

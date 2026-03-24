@@ -114,6 +114,12 @@ export default function Tegning3DSide() {
   const { viewerRef, valgtObjekt } = useTreDViewer();
   const { aktivBygning } = useBygning();
 
+  // Tilgangskontroll — kun felt-admin kan endre georeferanse/kalibrering
+  const { data: minTilgang } = (trpc.gruppe.hentMinTilgang as unknown as {
+    useQuery: (input: { projectId: string }, opts: { enabled: boolean }) => { data: { erAdmin: boolean; tillatelser: string[] } | undefined };
+  }).useQuery({ projectId: prosjektId! }, { enabled: !!prosjektId });
+  const harRedigerTilgang = minTilgang?.erAdmin || minTilgang?.tillatelser?.includes("manage_field") || minTilgang?.tillatelser?.includes("drawing_manage");
+
   const tegningQuery = (trpc.tegning.hentForProsjekt as unknown as {
     useQuery: (input: { projectId: string; buildingId?: string }, opts: { enabled: boolean }) => { data: unknown };
   }).useQuery(
@@ -474,8 +480,8 @@ export default function Tegning3DSide() {
               Synk
             </button>
 
-            {/* Georeferanse-knapp */}
-            {valgtTegningId && (
+            {/* Georeferanse-knapp (kun felt-admin) */}
+            {valgtTegningId && harRedigerTilgang && (
               <button
                 onClick={ifcOpprinnelse ? startGeoref : undefined}
                 disabled={!ifcOpprinnelse}
@@ -493,7 +499,7 @@ export default function Tegning3DSide() {
                 {!ifcOpprinnelse ? "Mangler GPS" : transformasjon ? "Georeferert" : "Georeferér"}
               </button>
             )}
-            {valgtTegningId && transformasjon && (
+            {valgtTegningId && transformasjon && harRedigerTilgang && (
               <button
                 onClick={() => {
                   if (confirm("Fjerne georeferanse for denne tegningen?")) {
@@ -508,8 +514,8 @@ export default function Tegning3DSide() {
               </button>
             )}
 
-            {/* Kalibrer gulvhøyde */}
-            <button
+            {/* Kalibrer gulvhøyde (kun felt-admin) */}
+            {harRedigerTilgang && <button
               onClick={() => setKalibrerModus(!kalibrerModus)}
               className={`flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium ${
                 kalibrerModus ? "bg-purple-100 text-purple-700" : gulvY != null ? "bg-gray-50 text-gray-500" : "bg-orange-50 text-orange-700"
@@ -518,7 +524,7 @@ export default function Tegning3DSide() {
             >
               <Ruler size={14} />
               {kalibrerModus ? "Klikk på gulvet..." : gulvY != null ? `Gulv: ${gulvY.toFixed(1)}` : "Kalibrer"}
-            </button>
+            </button>}
           </>
         ) : (
           <button
