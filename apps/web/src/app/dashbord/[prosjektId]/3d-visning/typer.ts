@@ -120,4 +120,8 @@ export interface ViewerAPI {
   flyTil: (x: number, y: number, z: number) => void;
   /** Hent siste klikk-punkt i 3D (for tegning-synk) */
   sisteKlikkPunkt: () => { x: number; y: number; z: number } | null;
+  /** Sett horisontale klippeplan for etasjefiltrering (Y-akse i Three.js) */
+  settEtasjeKlipp: (nedre: number, øvre: number) => void;
+  /** Fjern etasje-klippeplan */
+  fjernEtasjeKlipp: () => void;
 }

@@ -1052,6 +1052,17 @@ export function ViewerCanvas({
             );
           },
           sisteKlikkPunkt: () => sisteKlikkPunkt3D,
+          settEtasjeKlipp: (nedre: number, øvre: number) => {
+            const threeRenderer = (world.renderer as unknown as { three: { localClippingEnabled: boolean; clippingPlanes: unknown[] } }).three;
+            threeRenderer.localClippingEnabled = true;
+            const nedrePlan = new THREE.Plane(new THREE.Vector3(0, 1, 0), -nedre);
+            const øvrePlan = new THREE.Plane(new THREE.Vector3(0, -1, 0), øvre);
+            threeRenderer.clippingPlanes = [nedrePlan, øvrePlan];
+          },
+          fjernEtasjeKlipp: () => {
+            const threeRenderer = (world.renderer as unknown as { three: { clippingPlanes: unknown[] } }).three;
+            threeRenderer.clippingPlanes = [];
+          },
         };
 
         setLaster(false);

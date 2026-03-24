@@ -149,8 +149,28 @@ export default function Tegning3DSide() {
 
   // State
   const [valgtTegningId, setValgtTegningId] = useState<string | null>(null);
+  const [valgtEtasje, setValgtEtasje] = useState<string | null>(null);
   const [synkAktiv, setSynkAktiv] = useState(true);
   const [tegningMarkør, setTegningMarkør] = useState<{ x: number; y: number } | null>(null);
+
+  // Etasjeklipp i 3D
+  useEffect(() => {
+    if (!valgtEtasje || etasjer.length === 0) {
+      viewerRef.current?.fjernEtasjeKlipp();
+      return;
+    }
+    const idx = etasjer.findIndex((e) => e.navn === valgtEtasje);
+    if (idx < 0) return;
+    const nedre = etasjer[idx]!.høyde ?? 0;
+    const øvre = idx + 1 < etasjer.length ? (etasjer[idx + 1]!.høyde ?? nedre + 4) : nedre + 4;
+    viewerRef.current?.settEtasjeKlipp(nedre, øvre);
+
+    // Bytt tegning til matchende etasje
+    const match = plantegninger.find((t) => t.floor === valgtEtasje);
+    if (match) setValgtTegningId(match.id);
+
+    return () => { viewerRef.current?.fjernEtasjeKlipp(); };
+  }, [valgtEtasje, etasjer, plantegninger, viewerRef]);
 
   // Georeferanse-modus
   const [georefSteg, setGeorefSteg] = useState<GeoRefSteg>("idle");
@@ -373,15 +393,12 @@ export default function Tegning3DSide() {
 
         {etasjer.length > 0 && (
           <select
-            onChange={(e) => {
-              const etasje = etasjer.find((et) => et.navn === e.target.value);
-              if (etasje) { const match = plantegninger.find((t) => t.floor === etasje.navn); if (match) setValgtTegningId(match.id); }
-            }}
+            value={valgtEtasje ?? ""}
+            onChange={(e) => setValgtEtasje(e.target.value || null)}
             className="rounded border border-gray-300 px-2 py-1 text-sm"
-            defaultValue=""
             disabled={erIGeorefModus}
           >
-            <option value="" disabled>Etasje...</option>
+            <option value="">Alle etasjer</option>
             {etasjer.map((e) => (
               <option key={e.navn} value={e.navn}>{e.navn} {e.høyde != null ? `(${e.høyde.toFixed(1)}m)` : ""}</option>
             ))}
