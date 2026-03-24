@@ -122,8 +122,8 @@ export default function Tegning3DSide() {
   );
   const tegninger = (tegningQuery.data ?? []) as TegningData[];
 
-  const plantegninger = tegninger.filter((t) => t.fileUrl && t.fileType?.toLowerCase() !== "ifc");
-  const ifcModeller = tegninger.filter((t) => t.fileType?.toLowerCase() === "ifc");
+  const plantegninger = useMemo(() => tegninger.filter((t) => t.fileUrl && t.fileType?.toLowerCase() !== "ifc"), [tegninger]);
+  const ifcModeller = useMemo(() => tegninger.filter((t) => t.fileType?.toLowerCase() === "ifc"), [tegninger]);
 
   const ifcOpprinnelse = useMemo(() => {
     for (const m of ifcModeller) {
