@@ -14,7 +14,72 @@ import {
 } from "@sitedoc/shared/utils";
 import type { GeoReferanse } from "@sitedoc/shared";
 import type { KoordinatSystem } from "@sitedoc/shared/utils";
-import { Layers, Link2, Link2Off, MapPin, Check, X, Crosshair } from "lucide-react";
+import { Layers, Link2, Link2Off, MapPin, Check, X, Crosshair, ChevronLeft, ChevronRight } from "lucide-react";
+
+/* ------------------------------------------------------------------ */
+/*  PDF canvas-rendering med pdf.js                                    */
+/* ------------------------------------------------------------------ */
+function usePdfCanvas(
+  url: string | null,
+  erPdf: boolean,
+) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [sideNr, setSideNr] = useState(1);
+  const [antallSider, setAntallSider] = useState(1);
+  const [laster, setLaster] = useState(false);
+  const pdfRef = useRef<{ getPage: (n: number) => Promise<unknown> } | null>(null);
+
+  // Last PDF-dokument
+  useEffect(() => {
+    if (!erPdf || !url) { pdfRef.current = null; return; }
+    let avbrutt = false;
+    setLaster(true);
+    (async () => {
+      try {
+        const pdfjsLib = await import("pdfjs-dist");
+        pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
+        const pdf = await pdfjsLib.getDocument(url).promise;
+        if (avbrutt) return;
+        pdfRef.current = pdf as unknown as { getPage: (n: number) => Promise<unknown> };
+        setAntallSider(pdf.numPages);
+        setSideNr(1);
+      } catch (e) {
+        console.error("PDF-lasting feilet:", e);
+      }
+    })();
+    return () => { avbrutt = true; };
+  }, [url, erPdf]);
+
+  // Rendre side til canvas
+  useEffect(() => {
+    if (!pdfRef.current || !canvasRef.current) return;
+    let avbrutt = false;
+    setLaster(true);
+    (async () => {
+      try {
+        const side = await pdfRef.current!.getPage(sideNr) as {
+          getViewport: (opts: { scale: number }) => { width: number; height: number };
+          render: (opts: { canvasContext: CanvasRenderingContext2D; viewport: unknown }) => { promise: Promise<void> };
+        };
+        if (avbrutt) return;
+        // Rendre med scale=3 for skarp tekst
+        const viewport = side.getViewport({ scale: 3 });
+        const canvas = canvasRef.current!;
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        const ctx = canvas.getContext("2d")!;
+        await side.render({ canvasContext: ctx, viewport: viewport }).promise;
+      } catch (e) {
+        console.error("PDF-rendering feilet:", e);
+      } finally {
+        if (!avbrutt) setLaster(false);
+      }
+    })();
+    return () => { avbrutt = true; };
+  }, [sideNr]);
+
+  return { canvasRef, sideNr, setSideNr, antallSider, laster };
+}
 
 interface TegningData {
   id: string;
@@ -86,7 +151,6 @@ export default function Tegning3DSide() {
   const [valgtTegningId, setValgtTegningId] = useState<string | null>(null);
   const [synkAktiv, setSynkAktiv] = useState(true);
   const [tegningMarkør, setTegningMarkør] = useState<{ x: number; y: number } | null>(null);
-  const [pdfZoom, setPdfZoom] = useState(100);
 
   // Georeferanse-modus
   const [georefSteg, setGeorefSteg] = useState<GeoRefSteg>("idle");
@@ -121,23 +185,6 @@ export default function Tegning3DSide() {
     setGeorefPunkt2Tegning(null);
     setGeorefPunkt2Gps(null);
   }
-
-  // Dobbeltklikk i tegning for georef-plassering
-  const handleTegningDblClick = useCallback((e: React.MouseEvent) => {
-    if (georefSteg !== "tegning1" && georefSteg !== "tegning2") return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const pxProsent = {
-      x: ((e.clientX - rect.left) / rect.width) * 100,
-      y: ((e.clientY - rect.top) / rect.height) * 100,
-    };
-    if (georefSteg === "tegning1") {
-      setGeorefPunkt1Tegning(pxProsent);
-      setGeorefSteg("modell1");
-    } else {
-      setGeorefPunkt2Tegning(pxProsent);
-      setGeorefSteg("modell2");
-    }
-  }, [georefSteg]);
 
   // Split — draggbar
   const [splitPx, setSplitPx] = useState<number | null>(null);
@@ -176,7 +223,7 @@ export default function Tegning3DSide() {
   }, []);
   const handlePanEnd = useCallback(() => { panStartRef.current = null; }, []);
 
-  useEffect(() => { setZoom(1); setPan({ x: 0, y: 0 }); setPdfZoom(100); }, [valgtTegningId]);
+  useEffect(() => { setZoom(1); setPan({ x: 0, y: 0 }); }, [valgtTegningId]);
   useEffect(() => {
     if (!valgtTegningId && plantegninger.length > 0) setValgtTegningId(plantegninger[0]!.id);
   }, [plantegninger, valgtTegningId]);
@@ -189,43 +236,11 @@ export default function Tegning3DSide() {
   const harSynkMulighet = !!transformasjon && !!ifcOpprinnelse;
   const erIGeorefModus = georefSteg !== "idle" && georefSteg !== "ferdig";
 
-  // Klikk i tegning
+  // Klikk i tegning — spor start for å skille drag fra klikk
   const clickStartRef = useRef<{ x: number; y: number } | null>(null);
-  const handleImgPointerDown = useCallback((e: React.PointerEvent<HTMLImageElement>) => {
+  const handleImgPointerDown = useCallback((e: React.PointerEvent<HTMLCanvasElement | HTMLImageElement>) => {
     clickStartRef.current = { x: e.clientX, y: e.clientY };
   }, []);
-
-  const handleImgClick = useCallback(
-    (e: React.MouseEvent<HTMLImageElement>) => {
-      if (clickStartRef.current) {
-        const dx = e.clientX - clickStartRef.current.x;
-        const dy = e.clientY - clickStartRef.current.y;
-        if (Math.sqrt(dx * dx + dy * dy) > 5) return;
-      }
-      const rect = e.currentTarget.getBoundingClientRect();
-      const pxProsent = {
-        x: ((e.clientX - rect.left) / rect.width) * 100,
-        y: ((e.clientY - rect.top) / rect.height) * 100,
-      };
-
-      // Georef: enkeltklikk korrigerer siste punkt (etter dobbeltklikk)
-      if (georefSteg === "modell1" && georefPunkt1Tegning) {
-        setGeorefPunkt1Tegning(pxProsent);
-        return;
-      }
-      if (georefSteg === "modell2" && georefPunkt2Tegning) {
-        setGeorefPunkt2Tegning(pxProsent);
-        return;
-      }
-
-      // Normal synk-modus
-      if (!synkAktiv || !transformasjon || !ifcOpprinnelse) return;
-      const gps = tegningTilGps(pxProsent, transformasjon);
-      const punkt3d = gpsTil3D(gps, ifcOpprinnelse, coordSystem, 1.6);
-      if (punkt3d) viewerRef.current?.flyTil(punkt3d.x, punkt3d.y, punkt3d.z);
-    },
-    [georefSteg, synkAktiv, transformasjon, ifcOpprinnelse, coordSystem, viewerRef],
-  );
 
   // 3D-klikk → georef eller synk
   useEffect(() => {
@@ -269,7 +284,74 @@ export default function Tegning3DSide() {
     ? valgtTegning.fileUrl.startsWith("/api") ? valgtTegning.fileUrl : `/api${valgtTegning.fileUrl}`
     : null;
   const erPdf = valgtTegning?.fileType?.toLowerCase() === "pdf" || tegningUrl?.toLowerCase().endsWith(".pdf");
+  const { canvasRef: pdfCanvasRef, sideNr, setSideNr, antallSider, laster: pdfLaster } = usePdfCanvas(tegningUrl, !!erPdf);
   const splitWidth = splitPx ?? (splitContainerRef.current?.getBoundingClientRect().width ?? 800) * 0.4;
+
+  // Felles klikk-handler for tegning (canvas/img)
+  const handleTegningElementClick = useCallback(
+    (e: React.MouseEvent<HTMLCanvasElement | HTMLImageElement>) => {
+      if (clickStartRef.current) {
+        const dx = e.clientX - clickStartRef.current.x;
+        const dy = e.clientY - clickStartRef.current.y;
+        if (Math.sqrt(dx * dx + dy * dy) > 5) return;
+      }
+      const rect = e.currentTarget.getBoundingClientRect();
+      const pxProsent = {
+        x: ((e.clientX - rect.left) / rect.width) * 100,
+        y: ((e.clientY - rect.top) / rect.height) * 100,
+      };
+
+      // Georef: enkeltklikk korrigerer siste punkt
+      if (georefSteg === "modell1" && georefPunkt1Tegning) {
+        setGeorefPunkt1Tegning(pxProsent);
+        return;
+      }
+      if (georefSteg === "modell2" && georefPunkt2Tegning) {
+        setGeorefPunkt2Tegning(pxProsent);
+        return;
+      }
+
+      // Normal synk-modus
+      if (!synkAktiv || !transformasjon || !ifcOpprinnelse) return;
+      const gps = tegningTilGps(pxProsent, transformasjon);
+      const punkt3d = gpsTil3D(gps, ifcOpprinnelse, coordSystem, 1.6);
+      if (punkt3d) viewerRef.current?.flyTil(punkt3d.x, punkt3d.y, punkt3d.z);
+    },
+    [georefSteg, georefPunkt1Tegning, georefPunkt2Tegning, synkAktiv, transformasjon, ifcOpprinnelse, coordSystem, viewerRef],
+  );
+
+  // Felles dobbeltklikk-handler for georef
+  const handleTegningElementDblClick = useCallback(
+    (e: React.MouseEvent<HTMLCanvasElement | HTMLImageElement>) => {
+      if (georefSteg !== "tegning1" && georefSteg !== "tegning2") return;
+      const rect = e.currentTarget.getBoundingClientRect();
+      const pxProsent = {
+        x: ((e.clientX - rect.left) / rect.width) * 100,
+        y: ((e.clientY - rect.top) / rect.height) * 100,
+      };
+      if (georefSteg === "tegning1") { setGeorefPunkt1Tegning(pxProsent); setGeorefSteg("modell1"); }
+      else { setGeorefPunkt2Tegning(pxProsent); setGeorefSteg("modell2"); }
+    },
+    [georefSteg],
+  );
+
+  // Markør-overlays (brukes i begge modi)
+  const markørOverlays = (
+    <>
+      {tegningMarkør && !erIGeorefModus && (
+        <>
+          <div className="pointer-events-none absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-500" style={{ left: `${tegningMarkør.x}%`, top: `${tegningMarkør.y}%` }} />
+          <div className="pointer-events-none absolute h-8 w-8 -translate-x-1/2 -translate-y-1/2 animate-ping rounded-full border-2 border-blue-500" style={{ left: `${tegningMarkør.x}%`, top: `${tegningMarkør.y}%` }} />
+        </>
+      )}
+      {georefPunkt1Tegning && (
+        <div className="pointer-events-none absolute flex h-6 w-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow" style={{ left: `${georefPunkt1Tegning.x}%`, top: `${georefPunkt1Tegning.y}%` }}>1</div>
+      )}
+      {georefPunkt2Tegning && (
+        <div className="pointer-events-none absolute flex h-6 w-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-green-500 text-[10px] font-bold text-white shadow" style={{ left: `${georefPunkt2Tegning.x}%`, top: `${georefPunkt2Tegning.y}%` }}>2</div>
+      )}
+    </>
+  );
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
@@ -320,11 +402,6 @@ export default function Tegning3DSide() {
               Synk
             </button>
 
-            {/* DEBUG */}
-            <span className="text-[10px] text-gray-400">
-              IFC:{ifcModeller.length} GPS:{ifcOpprinnelse ? `${ifcOpprinnelse.lat.toFixed(2)}` : "null"}
-            </span>
-
             {/* Georeferanse-knapp */}
             {valgtTegningId && (
               <button
@@ -355,23 +432,25 @@ export default function Tegning3DSide() {
           </button>
         )}
 
-        {/* Zoom-kontroller for PDF */}
-        {erPdf && (
+        {/* PDF sidekontroller */}
+        {erPdf && antallSider > 1 && (
           <div className="flex items-center gap-1">
             <button
-              onClick={() => setPdfZoom((p) => Math.max(25, p - 25))}
-              className="rounded bg-gray-100 px-2 py-1 text-xs text-gray-600 hover:bg-gray-200"
-            >−</button>
-            <span className="text-xs text-gray-500 w-10 text-center">{pdfZoom}%</span>
+              onClick={() => setSideNr((s) => Math.max(1, s - 1))}
+              disabled={sideNr <= 1}
+              className="rounded bg-gray-100 px-1.5 py-1 text-xs text-gray-600 hover:bg-gray-200 disabled:opacity-40"
+            ><ChevronLeft size={14} /></button>
+            <span className="text-xs text-gray-500 w-14 text-center">{sideNr}/{antallSider}</span>
             <button
-              onClick={() => setPdfZoom((p) => Math.min(400, p + 25))}
-              className="rounded bg-gray-100 px-2 py-1 text-xs text-gray-600 hover:bg-gray-200"
-            >+</button>
+              onClick={() => setSideNr((s) => Math.min(antallSider, s + 1))}
+              disabled={sideNr >= antallSider}
+              className="rounded bg-gray-100 px-1.5 py-1 text-xs text-gray-600 hover:bg-gray-200 disabled:opacity-40"
+            ><ChevronRight size={14} /></button>
           </div>
         )}
 
-        {/* Zoom-kontroller for bilde */}
-        {!erPdf && zoom !== 1 && (
+        {/* Zoom-tilbakestill */}
+        {zoom !== 1 && (
           <button
             onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }}
             className="rounded bg-gray-100 px-2 py-1 text-xs text-gray-600"
@@ -414,86 +493,59 @@ export default function Tegning3DSide() {
         onPointerMove={handleDragMove}
         onPointerUp={handleDragEnd}
       >
-        {/* Venstre: Tegning */}
+        {/* Venstre: Tegning (felles zoom/pan for PDF og bilde) */}
         <div
           className="pointer-events-auto relative overflow-hidden bg-gray-100"
           style={{ width: splitWidth, flexShrink: 0 }}
         >
           {tegningUrl ? (
-            erPdf ? (
-              /* PDF — iframe, dobbeltklikk for georef */
-              <div className="relative h-full w-full">
-                <iframe
-                  key={`${tegningUrl}-${pdfZoom}`}
-                  src={`${tegningUrl}#zoom=${pdfZoom}`}
-                  title={valgtTegning?.name ?? "Tegning"}
-                  className="h-full w-full border-0"
-                />
-                {/* Georef overlay — fanger dobbeltklikk, lar scroll passere */}
-                {erIGeorefModus && (georefSteg === "tegning1" || georefSteg === "tegning2") && (
-                  <div
-                    className="absolute inset-0"
-                    style={{ cursor: "crosshair" }}
-                    onDoubleClick={handleTegningDblClick}
-                    onWheel={(e) => {
-                      // La scroll passere til PDF via zoom-knapper
-                      e.preventDefault();
-                      setPdfZoom((p) => Math.max(25, Math.min(400, p + (e.deltaY > 0 ? -25 : 25))));
-                    }}
-                  />
-                )}
-                {/* Merk: Markører over PDF vises i veilederen (koordinater), ikke visuelt — de drifter ved scroll */}
-              </div>
-            ) : (
-              /* Bilde (SVG/PNG) — med zoom/pan */
+            <div
+              className="relative h-full w-full"
+              onWheel={handleWheel}
+              onPointerDown={handlePanStart}
+              onPointerMove={handlePanMove}
+              onPointerUp={handlePanEnd}
+            >
               <div
-                className="relative h-full w-full"
-                onWheel={handleWheel}
-                onPointerDown={handlePanStart}
-                onPointerMove={handlePanMove}
-                onPointerUp={handlePanEnd}
+                className="relative origin-top-left"
+                style={{
+                  transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+                  cursor: erIGeorefModus ? "crosshair" : panStartRef.current ? "grabbing" : "default",
+                }}
               >
-                <div
-                  className="relative origin-top-left"
-                  style={{
-                    transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-                    cursor: erIGeorefModus ? "crosshair" : panStartRef.current ? "grabbing" : "default",
-                  }}
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                {erPdf ? (
+                  /* PDF — rendret til canvas via pdf.js */
+                  <>
+                    {pdfLaster && (
+                      <div className="flex h-[600px] items-center justify-center text-sm text-gray-400">
+                        Laster PDF...
+                      </div>
+                    )}
+                    <canvas
+                      ref={pdfCanvasRef}
+                      className="max-w-none select-none"
+                      style={{ display: pdfLaster ? "none" : "block" }}
+                      onPointerDown={handleImgPointerDown}
+                      onClick={handleTegningElementClick}
+                      onDoubleClick={handleTegningElementDblClick}
+                    />
+                  </>
+                ) : (
+                  /* Bilde (SVG/PNG) */
+                  // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={tegningUrl}
                     alt={valgtTegning?.name ?? "Tegning"}
                     className="max-w-none select-none"
                     onPointerDown={handleImgPointerDown}
-                    onClick={handleImgClick}
-                    onDoubleClick={(e) => {
-                      if (georefSteg !== "tegning1" && georefSteg !== "tegning2") return;
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      const pxProsent = {
-                        x: ((e.clientX - rect.left) / rect.width) * 100,
-                        y: ((e.clientY - rect.top) / rect.height) * 100,
-                      };
-                      if (georefSteg === "tegning1") { setGeorefPunkt1Tegning(pxProsent); setGeorefSteg("modell1"); }
-                      else { setGeorefPunkt2Tegning(pxProsent); setGeorefSteg("modell2"); }
-                    }}
+                    onClick={handleTegningElementClick}
+                    onDoubleClick={handleTegningElementDblClick}
                     draggable={false}
                   />
-                  {tegningMarkør && !erIGeorefModus && (
-                    <>
-                      <div className="pointer-events-none absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-500" style={{ left: `${tegningMarkør.x}%`, top: `${tegningMarkør.y}%` }} />
-                      <div className="pointer-events-none absolute h-8 w-8 -translate-x-1/2 -translate-y-1/2 animate-ping rounded-full border-2 border-blue-500" style={{ left: `${tegningMarkør.x}%`, top: `${tegningMarkør.y}%` }} />
-                    </>
-                  )}
-                  {georefPunkt1Tegning && (
-                    <div className="pointer-events-none absolute flex h-6 w-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow" style={{ left: `${georefPunkt1Tegning.x}%`, top: `${georefPunkt1Tegning.y}%` }}>1</div>
-                  )}
-                  {georefPunkt2Tegning && (
-                    <div className="pointer-events-none absolute flex h-6 w-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-green-500 text-[10px] font-bold text-white shadow" style={{ left: `${georefPunkt2Tegning.x}%`, top: `${georefPunkt2Tegning.y}%` }}>2</div>
-                  )}
-                </div>
+                )}
+                {markørOverlays}
               </div>
-            )
+            </div>
           ) : (
             <div className="flex h-full items-center justify-center">
               <div className="text-center text-gray-400">
