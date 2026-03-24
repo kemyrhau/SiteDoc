@@ -10,6 +10,7 @@ interface IfcModell {
   id: string;
   name: string;
   fileUrl: string;
+  updatedAt?: string;
 }
 
 interface ValgtObjekt {
@@ -71,7 +72,7 @@ export function IfcViewer({ modeller, onTilbake }: IfcViewerProps) {
         setCacheStatus(`${m.name} (${i + 1}/${modeller.length})`);
         await lastNedIfc(m.fileUrl, (prosent) => {
           setCacheStatus(`${m.name} — ${prosent}%`);
-        });
+        }, m.updatedAt);
       }
       setCacheStatus("Lagret for offline-bruk");
       setTimeout(() => setCacheStatus(null), 2000);

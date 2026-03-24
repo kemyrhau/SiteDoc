@@ -18,6 +18,11 @@ interface CachetModell {
   størrelse: number;
 }
 
+interface CacheMeta {
+  updatedAt: string;
+  cachedAt: string;
+}
+
 interface NedlastingsStatus {
   id: string;
   status: "venter" | "laster" | "ferdig" | "feilet";
@@ -40,6 +45,22 @@ function lagFilnavn(fileUrl: string): string {
   return deler[deler.length - 1] ?? "modell.ifc";
 }
 
+/** Hent cache-metadata for en fil */
+async function hentMeta(lokalSti: string): Promise<CacheMeta | null> {
+  try {
+    const metaSti = `${lokalSti}.meta`;
+    const info = await FileSystem.getInfoAsync(metaSti);
+    if (!info.exists) return null;
+    const json = await FileSystem.readAsStringAsync(metaSti);
+    return JSON.parse(json) as CacheMeta;
+  } catch { return null; }
+}
+
+/** Lagre cache-metadata */
+async function lagreMeta(lokalSti: string, meta: CacheMeta): Promise<void> {
+  await FileSystem.writeAsStringAsync(`${lokalSti}.meta`, JSON.stringify(meta));
+}
+
 /** Sjekk om en IFC-fil er cachet lokalt */
 export async function erCachet(fileUrl: string): Promise<boolean> {
   const filnavn = lagFilnavn(fileUrl);
@@ -56,19 +77,28 @@ export async function hentLokalSti(fileUrl: string): Promise<string | null> {
   return info.exists ? sti : null;
 }
 
-/** Last ned en IFC-fil til lokal cache */
+/** Last ned en IFC-fil til lokal cache (med versjonskontroll) */
 export async function lastNedIfc(
   fileUrl: string,
   onProgress?: (prosent: number) => void,
+  serverUpdatedAt?: string,
 ): Promise<string> {
   await initialiserMappe();
 
   const filnavn = lagFilnavn(fileUrl);
   const lokalSti = `${IFC_MAPPE}${filnavn}`;
 
-  // Sjekk om allerede cachet
+  // Sjekk om allerede cachet OG oppdatert
   const info = await FileSystem.getInfoAsync(lokalSti);
-  if (info.exists) return lokalSti;
+  if (info.exists) {
+    if (!serverUpdatedAt) return lokalSti; // Ingen versjonsinfo — bruk cache
+    const meta = await hentMeta(lokalSti);
+    if (meta && new Date(meta.updatedAt) >= new Date(serverUpdatedAt)) {
+      return lokalSti; // Cache er fersk
+    }
+    // Cache er utdatert — slett og last ned på nytt
+    try { await FileSystem.deleteAsync(lokalSti, { idempotent: true }); } catch { /* */ }
+  }
 
   // Bygg full URL
   const fullUrl = fileUrl.startsWith("http")
@@ -100,12 +130,17 @@ export async function lastNedIfc(
     throw new Error(`Nedlasting feilet (HTTP ${result?.status ?? "ukjent"})`);
   }
 
+  // Lagre metadata for versjonskontroll
+  if (serverUpdatedAt) {
+    await lagreMeta(lokalSti, { updatedAt: serverUpdatedAt, cachedAt: new Date().toISOString() });
+  }
+
   return lokalSti;
 }
 
 /** Last ned flere IFC-filer med fremdriftsrapportering */
 export async function lastNedAlleIfc(
-  modeller: Array<{ id: string; name: string; fileUrl: string }>,
+  modeller: Array<{ id: string; name: string; fileUrl: string; updatedAt?: string }>,
   onStatus?: (statuser: NedlastingsStatus[]) => void,
 ): Promise<CachetModell[]> {
   await initialiserMappe();
@@ -124,10 +159,14 @@ export async function lastNedAlleIfc(
     onStatus?.([...statuser]);
 
     try {
-      const lokalSti = await lastNedIfc(modell.fileUrl, (prosent) => {
-        statuser[i] = { ...statuser[i]!, prosent };
-        onStatus?.([...statuser]);
-      });
+      const lokalSti = await lastNedIfc(
+        modell.fileUrl,
+        (prosent) => {
+          statuser[i] = { ...statuser[i]!, prosent };
+          onStatus?.([...statuser]);
+        },
+        modell.updatedAt,
+      );
 
       const info = await FileSystem.getInfoAsync(lokalSti);
       resultater.push({
