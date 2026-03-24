@@ -43,6 +43,7 @@ interface BrukerGruppeMedlem {
   telefon?: string;
   firma?: string;
   rolle?: string;
+  erAdmin?: boolean;
   ventendeInvitasjon?: { id: string };
 }
 
@@ -72,6 +73,7 @@ interface DbGruppe {
   }[];
   members: {
     id: string;
+    isAdmin: boolean;
     projectMember: {
       id: string;
       user: { name: string | null; email: string; phone?: string | null };
@@ -232,6 +234,11 @@ function RedigerGruppeModal({
   });
 
   const oppdaterBygninger = trpc.gruppe.oppdaterBygninger.useMutation({
+    onSuccess: () => {
+      utils.gruppe.hentForProsjekt.invalidate({ projectId: prosjektId });
+    },
+  });
+  const settGruppeAdmin = trpc.gruppe.settGruppeAdmin.useMutation({
     onSuccess: () => {
       utils.gruppe.hentForProsjekt.invalidate({ projectId: prosjektId });
     },
@@ -560,6 +567,11 @@ function RedigerGruppeModal({
                           {medlem.rolle}
                         </span>
                       )}
+                      {erDbGruppe && medlem.erAdmin && (
+                        <span className="rounded bg-blue-100 px-1.5 py-0.5 text-xs text-blue-700">
+                          Gruppeadmin
+                        </span>
+                      )}
                       {medlem.ventendeInvitasjon && (
                         <span className="flex items-center gap-1 rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-700">
                           <Mail className="h-3 w-3" />
@@ -598,6 +610,27 @@ function RedigerGruppeModal({
                             Deaktiver
                           </button>
                         </>
+                      )}
+                      {!medlem.ventendeInvitasjon && erDbGruppe && medlem.projectMemberId && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            settGruppeAdmin.mutate({
+                              groupId: gruppe.id,
+                              projectId: prosjektId,
+                              projectMemberId: medlem.projectMemberId!,
+                              isAdmin: !medlem.erAdmin,
+                            });
+                          }}
+                          disabled={settGruppeAdmin.isPending}
+                          className={`flex items-center gap-1 rounded px-1.5 py-0.5 text-xs opacity-0 group-hover/row:opacity-100 ${
+                            medlem.erAdmin ? "text-blue-600 hover:bg-blue-50" : "text-gray-500 hover:bg-gray-100"
+                          }`}
+                          title={medlem.erAdmin ? "Fjern gruppeadmin" : "Gjør til gruppeadmin"}
+                        >
+                          <Shield className="h-3 w-3" />
+                          {medlem.erAdmin ? "Fjern admin" : "Admin"}
+                        </button>
                       )}
                       {!medlem.ventendeInvitasjon && (
                         <button
@@ -1345,6 +1378,7 @@ export default function BrukereSide() {
       telefon: m.projectMember.user.phone ?? undefined,
       firma: m.projectMember.enterprises?.[0]?.enterprise?.name ?? undefined,
       ventendeInvitasjon: finnInvitasjon(g.id, m.projectMember.user.email),
+      erAdmin: m.isAdmin,
     })),
   }));
 
