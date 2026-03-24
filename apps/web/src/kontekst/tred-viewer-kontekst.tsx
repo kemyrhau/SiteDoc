@@ -1047,14 +1047,24 @@ export function ViewerCanvas({
               if (model && ids.length > 0) await model.setVisible(ids, true);
             }
           },
-          flyTil: (x: number, _y: number, z: number) => {
+          flyTil: (x: number, _y: number, z: number, etasjeInfo?: { gulvMm: number; takMm: number }) => {
             const size = totalBbox.getSize(new THREE.Vector3());
             const erMm = Math.max(size.x, size.y, size.z) > 1000;
             const øye = erMm ? 1600 : 1.6;
             const tilbake = erMm ? 3000 : 3;
-            // Gulvnivå ≈ 20% opp fra bunn (over kjeller/fundament) + øyehøyde
-            const gulvY = totalBbox.min.y + size.y * 0.2;
-            const kameraY = gulvY + øye;
+
+            let kameraY: number;
+            if (etasjeInfo) {
+              // takplanHøyde (mm) ≈ bbox.max.y i modellen
+              // offset = takMm/1000 - bbox.max.y
+              // gulvModelY = gulvMm/1000 - offset = gulvMm/1000 - takMm/1000 + bbox.max.y
+              const gulvModelY = totalBbox.max.y - (etasjeInfo.takMm - etasjeInfo.gulvMm) / 1000;
+              kameraY = gulvModelY + (erMm ? 1600 : 1.6);
+            } else {
+              // Fallback: midten av modellen
+              kameraY = totalBbox.getCenter(new THREE.Vector3()).y;
+            }
+
             const senter = totalBbox.getCenter(new THREE.Vector3());
             const dx = senter.x - x;
             const dz = senter.z - z;

@@ -353,8 +353,17 @@ export default function Tegning3DSide() {
       if (!synkAktiv || !transformasjon || !ifcOpprinnelse) return;
       setTegningMarkør(pxProsent);
       const gps = tegningTilGps(pxProsent, transformasjon);
-      const punkt3d = gpsTil3D(gps, ifcOpprinnelse, coordSystem, 1.6);
-      if (punkt3d) viewerRef.current?.flyTil(punkt3d.x, punkt3d.y, punkt3d.z);
+      const punkt3d = gpsTil3D(gps, ifcOpprinnelse, coordSystem, 0);
+      if (!punkt3d) return;
+      // Beregn etasjeinfo for riktig kamerahøyde
+      const takplan = etasjer.length > 0 ? etasjer[etasjer.length - 1]! : null;
+      const aktEtasje = valgtEtasje
+        ? etasjer.find((e) => e.navn === valgtEtasje)
+        : etasjer.find((e) => e.navn?.includes("1.")) ?? etasjer[0];
+      const etasjeInfo = takplan && aktEtasje?.høyde != null && takplan.høyde != null
+        ? { gulvMm: aktEtasje.høyde, takMm: takplan.høyde }
+        : undefined;
+      viewerRef.current?.flyTil(punkt3d.x, punkt3d.y, punkt3d.z, etasjeInfo);
     },
     [georefSteg, georefPunkt1Tegning, georefPunkt2Tegning, synkAktiv, transformasjon, ifcOpprinnelse, coordSystem, viewerRef],
   );
