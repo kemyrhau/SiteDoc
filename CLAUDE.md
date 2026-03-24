@@ -101,6 +101,22 @@ ssh sitedoc "cd ~/programmering/sitedoc && git pull && pnpm install --frozen-loc
 
 Se [docs/claude/infrastruktur.md](docs/claude/infrastruktur.md) for detaljer.
 
+### Mobil-app og URL-konstruksjon
+
+- **Mobil `.env`** peker mot **produksjon**: `EXPO_PUBLIC_API_URL=https://api.sitedoc.no`
+- **URL-mønster for filopplasting/nedlasting:** Alle `/uploads/`-URLer MÅ gå via Next.js proxy:
+  ```
+  baseUrl = AUTH_CONFIG.apiUrl.replace("/trpc", "").replace("api.", "")
+  // → https://sitedoc.no (web-server, ikke API direkte)
+  url = `/api${fileUrl}`
+  // → /api/uploads/uuid.ifc (Next.js proxyer /api/ til API-serveren)
+  fullUrl = `${baseUrl}${url}`
+  // → https://sitedoc.no/api/uploads/uuid.ifc ✅
+  ```
+- **ALDRI** fjern `api.`-erstatningen eller `/api`-prefixet — det bryter URL-rutingen
+- **ALDRI** send `file://`-stier til WebView — WebView kan ikke lese lokale filer fra en http-side (CORS)
+- Reverse proxy-oppsett: `sitedoc.no` → web (Next.js), `sitedoc.no/api/` → API (Fastify), `api.sitedoc.no` → kun tRPC (ikke statiske filer)
+
 ## Kodestil
 
 - TypeScript strict mode, ingen `any`
