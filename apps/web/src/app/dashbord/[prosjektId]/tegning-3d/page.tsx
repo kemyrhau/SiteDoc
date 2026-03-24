@@ -249,7 +249,20 @@ export default function Tegning3DSide() {
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();
-    setZoom((prev) => Math.max(0.2, Math.min(10, prev * (e.deltaY > 0 ? 0.9 : 1.1))));
+    const faktor = e.deltaY > 0 ? 0.9 : 1.1;
+    // Zoom mot musepeker: behold punktet under musen fast
+    const rect = e.currentTarget.getBoundingClientRect();
+    const musX = e.clientX - rect.left;
+    const musY = e.clientY - rect.top;
+    setZoom((prev) => {
+      const nyZoom = Math.max(0.05, Math.min(10, prev * faktor));
+      const skala = nyZoom / prev;
+      setPan((p) => ({
+        x: musX - (musX - p.x) * skala,
+        y: musY - (musY - p.y) * skala,
+      }));
+      return nyZoom;
+    });
   }, []);
   const handlePanStart = useCallback((e: React.PointerEvent) => {
     if (e.button !== 0) return;
