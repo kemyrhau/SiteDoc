@@ -262,7 +262,22 @@ export default function Tegning3DSide() {
   }, []);
   const handlePanEnd = useCallback(() => { panStartRef.current = null; }, []);
 
-  useEffect(() => { setZoom(1); setPan({ x: 0, y: 0 }); }, [valgtTegningId]);
+  const tegningContainerRef = useRef<HTMLDivElement>(null);
+
+  // Auto-fit tegning til container ved oppstart og tegningsbytte
+  useEffect(() => {
+    if (innholdStr.w === 0 || !tegningContainerRef.current) {
+      setZoom(1); setPan({ x: 0, y: 0 });
+      return;
+    }
+    const rect = tegningContainerRef.current.getBoundingClientRect();
+    const fitZoom = Math.min(rect.width / innholdStr.w, rect.height / innholdStr.h, 1) * 0.95;
+    setZoom(fitZoom);
+    // Sentrér
+    const skalertW = innholdStr.w * fitZoom;
+    const skalertH = innholdStr.h * fitZoom;
+    setPan({ x: (rect.width - skalertW) / 2, y: (rect.height - skalertH) / 2 });
+  }, [valgtTegningId, innholdStr]);
   useEffect(() => {
     if (!valgtTegningId && plantegninger.length > 0) setValgtTegningId(plantegninger[0]!.id);
   }, [plantegninger, valgtTegningId]);
@@ -571,6 +586,7 @@ export default function Tegning3DSide() {
           {tegningUrl ? (
             <>
             <div
+              ref={tegningContainerRef}
               className="relative h-full w-full"
               onWheel={handleWheel}
               onPointerDown={handlePanStart}
