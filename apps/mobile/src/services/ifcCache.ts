@@ -100,11 +100,10 @@ export async function lastNedIfc(
     try { await FileSystem.deleteAsync(lokalSti, { idempotent: true }); } catch { /* */ }
   }
 
-  // Bygg full URL — /uploads/ serveres direkte, /api/ for tegning-nedlasting
-  const baseUrl = AUTH_CONFIG.apiUrl.replace("/trpc", "");
-  const fullUrl = fileUrl.startsWith("http")
-    ? fileUrl
-    : `${baseUrl}${fileUrl}`;
+  // Bygg full URL via Next.js proxy (/api/ prefix)
+  const baseUrl = AUTH_CONFIG.apiUrl.replace("/trpc", "").replace("api.", "");
+  const url = fileUrl.startsWith("/api") ? fileUrl : `/api${fileUrl}`;
+  const fullUrl = fileUrl.startsWith("http") ? fileUrl : `${baseUrl}${url}`;
 
   const token = await hentSessionToken();
 

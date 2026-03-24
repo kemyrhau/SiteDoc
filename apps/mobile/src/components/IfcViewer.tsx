@@ -42,11 +42,14 @@ export function IfcViewer({ modeller, onTilbake }: IfcViewerProps) {
 
   const viewerUrl = `${AUTH_CONFIG.apiUrl.replace("/trpc", "").replace("api.", "")}/mobil-viewer`;
 
-  // Send modeller til WebView — alltid server-URL (WebView kan ikke lese file://)
+  // Send modeller til WebView — server-URL via Next.js proxy
   const sendModeller = useCallback(async () => {
     const token = await hentSessionToken();
-    const baseUrl = AUTH_CONFIG.apiUrl.replace("/trpc", "");
-    const modelUrls = modeller.map((m) => `${baseUrl}${m.fileUrl}`);
+    const baseUrl = AUTH_CONFIG.apiUrl.replace("/trpc", "").replace("api.", "");
+    const modelUrls = modeller.map((m) => {
+      const url = m.fileUrl.startsWith("/api") ? m.fileUrl : `/api${m.fileUrl}`;
+      return `${baseUrl}${url}`;
+    });
 
     webViewRef.current?.postMessage(
       JSON.stringify({ type: "lastModeller", urls: modelUrls, token }),

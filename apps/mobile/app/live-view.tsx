@@ -89,8 +89,11 @@ export default function LiveViewSkjerm() {
     if (!viewerKlar || ifcModeller.length === 0) return;
     (async () => {
       const token = await hentSessionToken();
-      const baseUrl = AUTH_CONFIG.apiUrl.replace("/trpc", "");
-      const urls = ifcModeller.map((m) => `${baseUrl}${m.fileUrl}`);
+      const baseUrl = AUTH_CONFIG.apiUrl.replace("/trpc", "").replace("api.", "");
+      const urls = ifcModeller.map((m) => {
+        const url = m.fileUrl.startsWith("/api") ? m.fileUrl : `/api${m.fileUrl}`;
+        return `${baseUrl}${url}`;
+      });
       webViewRef.current?.postMessage(
         JSON.stringify({ type: "lastModeller", urls, token }),
       );
