@@ -1045,41 +1045,35 @@ export function ViewerCanvas({
             }
           },
           flyTil: (x: number, y: number, z: number) => {
+            // Plasser kamera på punktet (øyehøyde 1.6m) og se mot byggets sentrum
+            const bbox = totalBbox;
+            const senter = new THREE.Vector3();
+            bbox.getCenter(senter);
+            // Se fra klikk-punkt mot sentrum, men behold y på øyehøyde
             world.camera.controls?.setLookAt(
-              x + 5, y + 5, z + 5,
-              x, y, z,
-              true, // enableTransition — smooth fly
+              x, y + 1.6, z,         // Kamera: på punktet i øyehøyde
+              senter.x, y, senter.z,  // Mål: sentrum av bygget på samme etasje
+              true,
             );
           },
           sisteKlikkPunkt: () => sisteKlikkPunkt3D,
           settEtasjeKlipp: (nedre: number, øvre: number) => {
-            const threeRenderer = (world.renderer as unknown as { three: { localClippingEnabled: boolean; clippingPlanes: unknown[] } }).three;
-            threeRenderer.localClippingEnabled = true;
-            const planes = [
-              new THREE.Plane(new THREE.Vector3(0, 1, 0), -nedre),
-              new THREE.Plane(new THREE.Vector3(0, -1, 0), øvre),
-            ];
-            // Sett globalt på renderer
-            threeRenderer.clippingPlanes = planes;
-            // Sett også på alle materialer (fragment-materialer trenger dette)
-            const scene = (world.scene as unknown as { three: { traverse: (fn: (obj: unknown) => void) => void } }).three;
-            scene.traverse((obj: unknown) => {
-              const mesh = obj as { isMesh?: boolean; material?: { clippingPlanes: unknown[] } | Array<{ clippingPlanes: unknown[] }> };
-              if (!mesh.isMesh || !mesh.material) return;
-              if (Array.isArray(mesh.material)) mesh.material.forEach((m) => { m.clippingPlanes = planes; });
-              else mesh.material.clippingPlanes = planes;
-            });
+            // Fjern eksisterende etasjeklipp-plan
+            clipper.deleteAll();
+            clipper.enabled = true;
+            clipper.visible = false; // Skjul dragbare håndtak
+            // Nedre plan: skjul alt under (normal peker opp)
+            const nedrePunkt = new THREE.Vector3(0, nedre, 0);
+            const nedreNormal = new THREE.Vector3(0, 1, 0);
+            clipper.createFromNormalAndCoplanarPoint(world, nedreNormal, nedrePunkt);
+            // Øvre plan: skjul alt over (normal peker ned)
+            const øvrePunkt = new THREE.Vector3(0, øvre, 0);
+            const øvreNormal = new THREE.Vector3(0, -1, 0);
+            clipper.createFromNormalAndCoplanarPoint(world, øvreNormal, øvrePunkt);
           },
           fjernEtasjeKlipp: () => {
-            const threeRenderer = (world.renderer as unknown as { three: { clippingPlanes: unknown[] } }).three;
-            threeRenderer.clippingPlanes = [];
-            const scene = (world.scene as unknown as { three: { traverse: (fn: (obj: unknown) => void) => void } }).three;
-            scene.traverse((obj: unknown) => {
-              const mesh = obj as { isMesh?: boolean; material?: { clippingPlanes: null } | Array<{ clippingPlanes: null }> };
-              if (!mesh.isMesh || !mesh.material) return;
-              if (Array.isArray(mesh.material)) mesh.material.forEach((m) => { m.clippingPlanes = null; });
-              else mesh.material.clippingPlanes = null;
-            });
+            clipper.deleteAll();
+            clipper.enabled = false;
           },
         };
 
