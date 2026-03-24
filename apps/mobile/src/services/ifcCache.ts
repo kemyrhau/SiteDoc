@@ -100,10 +100,11 @@ export async function lastNedIfc(
     try { await FileSystem.deleteAsync(lokalSti, { idempotent: true }); } catch { /* */ }
   }
 
-  // Bygg full URL
+  // Bygg full URL — /uploads/ serveres direkte, /api/ for tegning-nedlasting
+  const baseUrl = AUTH_CONFIG.apiUrl.replace("/trpc", "");
   const fullUrl = fileUrl.startsWith("http")
     ? fileUrl
-    : `${AUTH_CONFIG.apiUrl.replace("/trpc", "")}${fileUrl.startsWith("/api") ? fileUrl : `/api${fileUrl}`}`;
+    : `${baseUrl}${fileUrl}`;
 
   const token = await hentSessionToken();
 

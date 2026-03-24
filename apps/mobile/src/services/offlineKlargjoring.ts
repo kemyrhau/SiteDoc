@@ -67,9 +67,10 @@ async function lastNedTegning(fileUrl: string): Promise<void> {
   const info = await FileSystem.getInfoAsync(lokalSti);
   if (info.exists) return; // Allerede cachet
 
+  const baseUrl = AUTH_CONFIG.apiUrl.replace("/trpc", "");
   const fullUrl = fileUrl.startsWith("http")
     ? fileUrl
-    : `${AUTH_CONFIG.apiUrl.replace("/trpc", "")}${fileUrl.startsWith("/api") ? fileUrl : `/api${fileUrl}`}`;
+    : `${baseUrl}${fileUrl}`;
 
   const token = await hentSessionToken();
   const nedlasting = FileSystem.createDownloadResumable(
