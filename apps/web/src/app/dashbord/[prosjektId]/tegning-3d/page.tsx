@@ -36,9 +36,9 @@ type GeoRefSteg = "idle" | "tegning1" | "modell1" | "tegning2" | "modell2" | "fe
 
 const GEOREF_VEILEDER: Record<GeoRefSteg, string> = {
   idle: "",
-  tegning1: "Steg 1/4: Klikk på et tydelig hjørne eller krysspunkt i tegningen",
+  tegning1: "Steg 1/4: Zoom til riktig sted i tegningen, klikk deretter «Plasser punkt»",
   modell1: "Steg 2/4: Klikk på samme punkt i 3D-modellen",
-  tegning2: "Steg 3/4: Klikk på et annet punkt i tegningen (langt fra det første)",
+  tegning2: "Steg 3/4: Zoom til et annet sted (langt fra punkt 1), klikk «Plasser punkt»",
   modell2: "Steg 4/4: Klikk på samme punkt i 3D-modellen",
   ferdig: "Georeferanse satt — tegning og 3D er nå koblet!",
 };
@@ -89,6 +89,7 @@ export default function Tegning3DSide() {
 
   // Georeferanse-modus
   const [georefSteg, setGeorefSteg] = useState<GeoRefSteg>("idle");
+  const [klikkKlar, setKlikkKlar] = useState(false); // Bruker har klikket "Plasser punkt"
   const [georefPunkt1Tegning, setGeorefPunkt1Tegning] = useState<{ x: number; y: number } | null>(null);
   const [georefPunkt1Gps, setGeorefPunkt1Gps] = useState<{ lat: number; lng: number } | null>(null);
   const [georefPunkt2Tegning, setGeorefPunkt2Tegning] = useState<{ x: number; y: number } | null>(null);
@@ -107,6 +108,7 @@ export default function Tegning3DSide() {
 
   function startGeoref() {
     setGeorefSteg("tegning1");
+    setKlikkKlar(false);
     setGeorefPunkt1Tegning(null);
     setGeorefPunkt1Gps(null);
     setGeorefPunkt2Tegning(null);
@@ -115,6 +117,7 @@ export default function Tegning3DSide() {
 
   function avbrytGeoref() {
     setGeorefSteg("idle");
+    setKlikkKlar(false);
     setGeorefPunkt1Tegning(null);
     setGeorefPunkt1Gps(null);
     setGeorefPunkt2Tegning(null);
@@ -190,15 +193,17 @@ export default function Tegning3DSide() {
         y: ((e.clientY - rect.top) / rect.height) * 100,
       };
 
-      // Georeferanse-modus
-      if (georefSteg === "tegning1") {
+      // Georeferanse-modus (kun når klikkKlar)
+      if (klikkKlar && georefSteg === "tegning1") {
         setGeorefPunkt1Tegning(pxProsent);
         setGeorefSteg("modell1");
+        setKlikkKlar(false);
         return;
       }
-      if (georefSteg === "tegning2") {
+      if (klikkKlar && georefSteg === "tegning2") {
         setGeorefPunkt2Tegning(pxProsent);
         setGeorefSteg("modell2");
+        setKlikkKlar(false);
         return;
       }
 
@@ -355,9 +360,17 @@ export default function Tegning3DSide() {
           georefSteg === "ferdig" ? "bg-green-50 text-green-800" : "bg-amber-50 text-amber-800"
         }`}>
           <Crosshair size={16} />
-          <span className="font-medium">{GEOREF_VEILEDER[georefSteg]}</span>
+          <span className="font-medium">{klikkKlar ? (georefSteg === "tegning1" ? "Klikk i tegningen for å plassere punkt 1" : "Klikk i tegningen for å plassere punkt 2") : GEOREF_VEILEDER[georefSteg]}</span>
+          {(georefSteg === "tegning1" || georefSteg === "tegning2") && !klikkKlar && (
+            <button
+              onClick={() => setKlikkKlar(true)}
+              className="ml-2 rounded bg-amber-600 px-3 py-1 text-xs font-semibold text-white hover:bg-amber-700"
+            >
+              Plasser punkt
+            </button>
+          )}
           {(georefSteg === "tegning1" || georefSteg === "tegning2") && (
-            <span className="text-xs text-amber-600">Tips: Velg hjørner av bygget, søyler eller andre punkter som er lett å identifisere i begge visninger. Bruk punkter som er langt fra hverandre for best nøyaktighet.</span>
+            <span className="text-xs text-amber-600">Tips: Velg hjørner, søyler eller krysspunkter.</span>
           )}
           {georefSteg === "ferdig" && <Check size={16} className="text-green-600" />}
         </div>
@@ -383,10 +396,10 @@ export default function Tegning3DSide() {
                   src={tegningUrl}
                   title={valgtTegning?.name ?? "Tegning"}
                   className="h-full w-full border-0"
-                  style={{ pointerEvents: erIGeorefModus ? "none" : "auto" }}
+                  style={{ pointerEvents: klikkKlar ? "none" : "auto" }}
                 />
-                {/* Overlay KUN i georef-modus — blokkerer PDF for presis klikk-plassering */}
-                {erIGeorefModus && (georefSteg === "tegning1" || georefSteg === "tegning2") && (
+                {/* Overlay KUN når bruker har klikket "Plasser punkt" */}
+                {klikkKlar && (georefSteg === "tegning1" || georefSteg === "tegning2") && (
                   <div
                     className="absolute inset-0 cursor-crosshair"
                     style={{ background: "rgba(0,0,0,0.03)" }}
@@ -396,8 +409,8 @@ export default function Tegning3DSide() {
                         x: ((e.clientX - rect.left) / rect.width) * 100,
                         y: ((e.clientY - rect.top) / rect.height) * 100,
                       };
-                      if (georefSteg === "tegning1") { setGeorefPunkt1Tegning(pxProsent); setGeorefSteg("modell1"); return; }
-                      if (georefSteg === "tegning2") { setGeorefPunkt2Tegning(pxProsent); setGeorefSteg("modell2"); return; }
+                      if (georefSteg === "tegning1") { setGeorefPunkt1Tegning(pxProsent); setGeorefSteg("modell1"); setKlikkKlar(false); return; }
+                      if (georefSteg === "tegning2") { setGeorefPunkt2Tegning(pxProsent); setGeorefSteg("modell2"); setKlikkKlar(false); return; }
                     }}
                   />
                 )}
@@ -428,7 +441,7 @@ export default function Tegning3DSide() {
                   className="relative origin-top-left"
                   style={{
                     transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-                    cursor: erIGeorefModus && (georefSteg === "tegning1" || georefSteg === "tegning2") ? "crosshair" : panStartRef.current ? "grabbing" : "default",
+                    cursor: klikkKlar ? "crosshair" : panStartRef.current ? "grabbing" : "default",
                   }}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
