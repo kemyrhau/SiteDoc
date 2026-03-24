@@ -95,8 +95,9 @@ export async function klargjørForOffline(
   let tegningerLastet = 0;
   let ifcLastet = 0;
 
-  const plantegninger = tegninger.filter((t) => t.fileUrl && t.fileType?.toLowerCase() !== "ifc");
+  const plantegninger = tegninger.filter((t) => t.fileUrl && (t.fileType?.toLowerCase() ?? "") !== "ifc");
   const ifcModeller = tegninger.filter((t) => t.fileUrl && t.fileType?.toLowerCase() === "ifc");
+  console.log(`[Offline] ${plantegninger.length} tegninger, ${ifcModeller.length} IFC-modeller`);
   const totalt = plantegninger.length + ifcModeller.length;
   let ferdig = 0;
 
