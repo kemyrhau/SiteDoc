@@ -27,11 +27,13 @@ function usePdfCanvas(
   const [sideNr, setSideNr] = useState(1);
   const [antallSider, setAntallSider] = useState(1);
   const [laster, setLaster] = useState(false);
-  const pdfRef = useRef<{ getPage: (n: number) => Promise<unknown> } | null>(null);
+
+  type PdfDok = { getPage: (n: number) => Promise<unknown>; numPages: number };
+  const [pdfDok, setPdfDok] = useState<PdfDok | null>(null);
 
   // Last PDF-dokument
   useEffect(() => {
-    if (!erPdf || !url) { pdfRef.current = null; return; }
+    if (!erPdf || !url) { setPdfDok(null); return; }
     let avbrutt = false;
     setLaster(true);
     (async () => {
@@ -40,7 +42,7 @@ function usePdfCanvas(
         pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
         const pdf = await pdfjsLib.getDocument(url).promise;
         if (avbrutt) return;
-        pdfRef.current = pdf as unknown as { getPage: (n: number) => Promise<unknown> };
+        setPdfDok(pdf as unknown as PdfDok);
         setAntallSider(pdf.numPages);
         setSideNr(1);
       } catch (e) {
@@ -50,25 +52,24 @@ function usePdfCanvas(
     return () => { avbrutt = true; };
   }, [url, erPdf]);
 
-  // Rendre side til canvas
+  // Rendre side til canvas — kjører når pdfDok eller sideNr endres
   useEffect(() => {
-    if (!pdfRef.current || !canvasRef.current) return;
+    if (!pdfDok || !canvasRef.current) return;
     let avbrutt = false;
     setLaster(true);
     (async () => {
       try {
-        const side = await pdfRef.current!.getPage(sideNr) as {
+        const side = await pdfDok.getPage(sideNr) as {
           getViewport: (opts: { scale: number }) => { width: number; height: number };
           render: (opts: { canvasContext: CanvasRenderingContext2D; viewport: unknown }) => { promise: Promise<void> };
         };
         if (avbrutt) return;
-        // Rendre med scale=3 for skarp tekst
         const viewport = side.getViewport({ scale: 3 });
         const canvas = canvasRef.current!;
         canvas.width = viewport.width;
         canvas.height = viewport.height;
         const ctx = canvas.getContext("2d")!;
-        await side.render({ canvasContext: ctx, viewport: viewport }).promise;
+        await side.render({ canvasContext: ctx, viewport }).promise;
       } catch (e) {
         console.error("PDF-rendering feilet:", e);
       } finally {
@@ -76,7 +77,7 @@ function usePdfCanvas(
       }
     })();
     return () => { avbrutt = true; };
-  }, [sideNr]);
+  }, [pdfDok, sideNr]);
 
   return { canvasRef, sideNr, setSideNr, antallSider, laster };
 }
