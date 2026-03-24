@@ -191,6 +191,14 @@ export default function Tegning3DSide() {
     },
   });
 
+  const fjernGeoRefMutation = (trpc.tegning.fjernGeoReferanse as unknown as {
+    useMutation: (opts: { onSuccess: () => void }) => { mutate: (input: { drawingId: string }) => void; isPending: boolean };
+  }).useMutation({
+    onSuccess: () => {
+      utils.tegning.hentForProsjekt.invalidate();
+    },
+  });
+
   function startGeoref() {
     setGeorefSteg("tegning1");
     setGeorefPunkt1Tegning(null);
@@ -437,6 +445,20 @@ export default function Tegning3DSide() {
               >
                 <MapPin size={14} />
                 {!ifcOpprinnelse ? "Mangler GPS" : transformasjon ? "Georeferert" : "Georeferér"}
+              </button>
+            )}
+            {valgtTegningId && transformasjon && (
+              <button
+                onClick={() => {
+                  if (confirm("Fjerne georeferanse for denne tegningen?")) {
+                    fjernGeoRefMutation.mutate({ drawingId: valgtTegningId });
+                  }
+                }}
+                disabled={fjernGeoRefMutation.isPending}
+                className="rounded px-2 py-1 text-xs text-red-500 hover:bg-red-50"
+                title="Fjern georeferanse"
+              >
+                <X size={14} />
               </button>
             )}
           </>
