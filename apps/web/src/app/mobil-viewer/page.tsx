@@ -356,6 +356,19 @@ export default function MobilViewer() {
           clipper.enabled = msg.aktiv;
           clipper.visible = msg.aktiv;
           if (!msg.aktiv) clipper.deleteAll();
+        } else if (msg.type === "flyTil") {
+          const { x, y, z } = msg;
+          // Plasser kamera på punktet, se mot byggets sentrum
+          const senter = totalBbox.getCenter(new THREE.Vector3());
+          const dx = senter.x - x;
+          const dz = senter.z - z;
+          const len = Math.sqrt(dx * dx + dz * dz) || 1;
+          const kameraY = y + 1.6;
+          world.camera.controls?.setLookAt(
+            x, kameraY, z,
+            x + (dx / len) * 5, kameraY, z + (dz / len) * 5,
+            true,
+          );
         }
       }
 

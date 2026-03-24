@@ -485,6 +485,18 @@ export default function HjemSkjerm() {
                 <ChevronRight size={20} color="#9ca3af" />
               </Pressable>
               )}
+
+              {harIfcModeller && (
+              <Pressable
+                onPress={() => router.push("/tegning-3d")}
+                className="flex-row items-center justify-between border-b border-gray-200 bg-white px-4 py-3"
+              >
+                <Text className="text-base font-semibold text-gray-900">
+                  Tegning + 3D
+                </Text>
+                <ChevronRight size={20} color="#9ca3af" />
+              </Pressable>
+              )}
             </View>
 
             {/* Sist oppdatert */}
