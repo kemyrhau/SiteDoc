@@ -1050,15 +1050,16 @@ export function ViewerCanvas({
           flyTil: (x: number, _y: number, z: number, gulvY?: number) => {
             const erMm = Math.max(...totalBbox.getSize(new THREE.Vector3()).toArray()) > 1000;
             const øye = erMm ? 1600 : 1.6;
-            const tilbake = erMm ? 3000 : 3;
+            const fremover = erMm ? 5000 : 5;
             const kameraY = (gulvY != null ? gulvY : totalBbox.getCenter(new THREE.Vector3()).y) + øye;
+            // Kamera PÅ klikk-punktet, ser mot byggets sentrum
             const senter = totalBbox.getCenter(new THREE.Vector3());
             const dx = senter.x - x;
             const dz = senter.z - z;
             const len = Math.sqrt(dx * dx + dz * dz) || 1;
             world.camera.controls?.setLookAt(
-              x - (dx / len) * tilbake, kameraY, z - (dz / len) * tilbake,
               x, kameraY, z,
+              x + (dx / len) * fremover, kameraY, z + (dz / len) * fremover,
               true,
             );
           },
