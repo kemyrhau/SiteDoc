@@ -1048,23 +1048,20 @@ export function ViewerCanvas({
             }
           },
           flyTil: (x: number, _y: number, z: number) => {
-            // Sjekk om modellen er i mm (bbox > 1000 i noen akse)
             const size = totalBbox.getSize(new THREE.Vector3());
             const erMm = Math.max(size.x, size.y, size.z) > 1000;
-            const øyeHøyde = erMm ? 1600 : 1.6; // 1.6m i riktig enhet
-            const tilbake = erMm ? 3000 : 3;     // 3m tilbake
-            // Gulvnivå = bunn av modell, øyehøyde over gulv
-            const gulvY = totalBbox.min.y;
-            const kameraY = gulvY + øyeHøyde;
-            // Retning fra punkt mot byggets sentrum
+            const øye = erMm ? 1600 : 1.6;
+            const tilbake = erMm ? 3000 : 3;
+            // Gulvnivå ≈ 20% opp fra bunn (over kjeller/fundament) + øyehøyde
+            const gulvY = totalBbox.min.y + size.y * 0.2;
+            const kameraY = gulvY + øye;
             const senter = totalBbox.getCenter(new THREE.Vector3());
             const dx = senter.x - x;
             const dz = senter.z - z;
             const len = Math.sqrt(dx * dx + dz * dz) || 1;
-            // Kamera: litt bak punktet (vekk fra sentrum), orbit-senter = punktet
             world.camera.controls?.setLookAt(
               x - (dx / len) * tilbake, kameraY, z - (dz / len) * tilbake,
-              x, kameraY - (erMm ? 200 : 0.2), z, // Se litt nedover
+              x, kameraY, z,
               true,
             );
           },
