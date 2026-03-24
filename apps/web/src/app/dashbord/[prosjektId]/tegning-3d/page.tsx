@@ -86,6 +86,7 @@ export default function Tegning3DSide() {
   const [valgtTegningId, setValgtTegningId] = useState<string | null>(null);
   const [synkAktiv, setSynkAktiv] = useState(true);
   const [tegningMarkør, setTegningMarkør] = useState<{ x: number; y: number } | null>(null);
+  const [pdfZoom, setPdfZoom] = useState(100);
 
   // Georeferanse-modus
   const [georefSteg, setGeorefSteg] = useState<GeoRefSteg>("idle");
@@ -161,7 +162,7 @@ export default function Tegning3DSide() {
   }, []);
   const handlePanEnd = useCallback(() => { panStartRef.current = null; }, []);
 
-  useEffect(() => { setZoom(1); setPan({ x: 0, y: 0 }); }, [valgtTegningId]);
+  useEffect(() => { setZoom(1); setPan({ x: 0, y: 0 }); setPdfZoom(100); }, [valgtTegningId]);
   useEffect(() => {
     if (!valgtTegningId && plantegninger.length > 0) setValgtTegningId(plantegninger[0]!.id);
   }, [plantegninger, valgtTegningId]);
@@ -344,7 +345,23 @@ export default function Tegning3DSide() {
           </button>
         )}
 
-        {zoom !== 1 && (
+        {/* Zoom-kontroller for PDF */}
+        {erPdf && (
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setPdfZoom((p) => Math.max(25, p - 25))}
+              className="rounded bg-gray-100 px-2 py-1 text-xs text-gray-600 hover:bg-gray-200"
+            >−</button>
+            <span className="text-xs text-gray-500 w-10 text-center">{pdfZoom}%</span>
+            <button
+              onClick={() => setPdfZoom((p) => Math.min(400, p + 25))}
+              className="rounded bg-gray-100 px-2 py-1 text-xs text-gray-600 hover:bg-gray-200"
+            >+</button>
+          </div>
+        )}
+
+        {/* Zoom-kontroller for bilde */}
+        {!erPdf && zoom !== 1 && (
           <button
             onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }}
             className="rounded bg-gray-100 px-2 py-1 text-xs text-gray-600"
@@ -390,10 +407,11 @@ export default function Tegning3DSide() {
         >
           {tegningUrl ? (
             erPdf ? (
-              /* PDF — iframe med overlay kun i georef-modus */
+              /* PDF — iframe med zoom-kontroller */
               <div className="relative h-full w-full">
                 <iframe
-                  src={tegningUrl}
+                  key={`${tegningUrl}-${pdfZoom}`}
+                  src={`${tegningUrl}#zoom=${pdfZoom}`}
                   title={valgtTegning?.name ?? "Tegning"}
                   className="h-full w-full border-0"
                   style={{ pointerEvents: klikkKlar ? "none" : "auto" }}
