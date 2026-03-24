@@ -52,15 +52,14 @@ export default function Tegning3DSkjerm() {
   const [tegningMarkør, setTegningMarkør] = useState<Markør[]>([]);
 
   // Hent tegninger
-  const { data: tegninger, isLoading } = trpc.tegning.hentForProsjekt.useQuery(
-    {
-      projectId: valgtProsjektId!,
-      ...(valgtBygningId ? { buildingId: valgtBygningId } : {}),
-    },
+  const tegningQuery = (trpc.tegning.hentForProsjekt as unknown as {
+    useQuery: (input: { projectId: string; buildingId?: string }, opts: { enabled: boolean }) => { data: unknown; isLoading: boolean };
+  }).useQuery(
+    { projectId: valgtProsjektId!, ...(valgtBygningId ? { buildingId: valgtBygningId } : {}) },
     { enabled: !!valgtProsjektId },
   );
-
-  const alleTegninger = (tegninger ?? []) as TegningData[];
+  const isLoading = tegningQuery.isLoading;
+  const alleTegninger = (tegningQuery.data ?? []) as TegningData[];
   const plantegninger = useMemo(
     () => alleTegninger.filter((t) => t.fileUrl && t.fileType?.toLowerCase() !== "ifc"),
     [alleTegninger],
