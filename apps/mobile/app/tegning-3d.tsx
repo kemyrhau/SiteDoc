@@ -100,7 +100,7 @@ export default function Tegning3DSkjerm() {
     if (!viewerKlar || ifcModeller.length === 0) return;
     (async () => {
       const token = await hentSessionToken();
-      const baseUrl = AUTH_CONFIG.apiUrl.replace("/trpc", "").replace("api.", "");
+      const baseUrl = AUTH_CONFIG.apiUrl.replace("/trpc", "");
       const urls = ifcModeller.map((m) => `${baseUrl}${m.fileUrl}`);
       webViewRef.current?.postMessage(JSON.stringify({ type: "lastModeller", urls, token }));
     })();

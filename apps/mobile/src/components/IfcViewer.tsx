@@ -45,7 +45,7 @@ export function IfcViewer({ modeller, onTilbake }: IfcViewerProps) {
   // Send modeller til WebView — alltid server-URL (WebView kan ikke lese file://)
   const sendModeller = useCallback(async () => {
     const token = await hentSessionToken();
-    const baseUrl = AUTH_CONFIG.apiUrl.replace("/trpc", "").replace("api.", "");
+    const baseUrl = AUTH_CONFIG.apiUrl.replace("/trpc", "");
     const modelUrls = modeller.map((m) => `${baseUrl}${m.fileUrl}`);
 
     webViewRef.current?.postMessage(
