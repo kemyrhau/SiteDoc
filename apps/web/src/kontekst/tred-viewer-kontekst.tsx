@@ -482,6 +482,9 @@ export function ViewerCanvas({
           const center = totalBbox.getCenter(new THREE.Vector3());
           const size = totalBbox.getSize(new THREE.Vector3());
           const maxDim = Math.max(size.x, size.y, size.z);
+          console.log("[3D] BBox min:", totalBbox.min.x.toFixed(0), totalBbox.min.y.toFixed(0), totalBbox.min.z.toFixed(0),
+            "max:", totalBbox.max.x.toFixed(0), totalBbox.max.y.toFixed(0), totalBbox.max.z.toFixed(0),
+            "size:", size.x.toFixed(0), size.y.toFixed(0), size.z.toFixed(0));
           world.camera.controls?.setLookAt(
             center.x + maxDim, center.y + maxDim * 0.7, center.z + maxDim,
             center.x, center.y, center.z,
@@ -1045,14 +1048,20 @@ export function ViewerCanvas({
             }
           },
           flyTil: (x: number, y: number, z: number) => {
-            // Plasser kamera på punktet (øyehøyde 1.6m) og se mot byggets sentrum
-            const bbox = totalBbox;
-            const senter = new THREE.Vector3();
-            bbox.getCenter(senter);
-            // Se fra klikk-punkt mot sentrum, men behold y på øyehøyde
+            // Sjekk om modellen er i mm (bbox > 1000 i noen akse)
+            const size = totalBbox.getSize(new THREE.Vector3());
+            const erMm = Math.max(size.x, size.y, size.z) > 1000;
+            const øyeHøyde = erMm ? 1600 : 1.6; // 1.6m i riktig enhet
+            const tilbake = erMm ? 3000 : 3;     // 3m tilbake
+            // Retning fra punkt mot byggets sentrum
+            const senter = totalBbox.getCenter(new THREE.Vector3());
+            const dx = senter.x - x;
+            const dz = senter.z - z;
+            const len = Math.sqrt(dx * dx + dz * dz) || 1;
+            // Kamera: litt bak punktet (vekk fra sentrum), orbit-senter = punktet
             world.camera.controls?.setLookAt(
-              x, y + 1.6, z,         // Kamera: på punktet i øyehøyde
-              senter.x, y, senter.z,  // Mål: sentrum av bygget på samme etasje
+              x - (dx / len) * tilbake, y + øyeHøyde, z - (dz / len) * tilbake,
+              x, y, z, // Orbit-senter = klikk-punktet
               true,
             );
           },

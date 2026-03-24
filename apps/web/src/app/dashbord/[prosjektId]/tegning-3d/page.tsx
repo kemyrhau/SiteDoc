@@ -153,6 +153,7 @@ export default function Tegning3DSide() {
   const [valgtEtasje, setValgtEtasje] = useState<string | null>(null);
   const [synkAktiv, setSynkAktiv] = useState(true);
   const [tegningMarkør, setTegningMarkør] = useState<{ x: number; y: number } | null>(null);
+  const [innholdStr, setInnholdStr] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
 
   // Etasjeklipp i 3D
   useEffect(() => {
@@ -314,6 +315,12 @@ export default function Tegning3DSide() {
     : null;
   const erPdf = valgtTegning?.fileType?.toLowerCase() === "pdf" || tegningUrl?.toLowerCase().endsWith(".pdf");
   const { canvasRef: pdfCanvasRef, sideNr, setSideNr, antallSider, laster: pdfLaster } = usePdfCanvas(tegningUrl, !!erPdf);
+  // Oppdater innholdsdimensjoner når PDF er ferdig rendret
+  useEffect(() => {
+    if (!pdfLaster && pdfCanvasRef.current && pdfCanvasRef.current.width > 0) {
+      setInnholdStr({ w: pdfCanvasRef.current.width, h: pdfCanvasRef.current.height });
+    }
+  }, [pdfLaster, pdfCanvasRef]);
   const splitWidth = splitPx ?? (splitContainerRef.current?.getBoundingClientRect().width ?? 800) * 0.4;
 
   // Felles klikk-handler for tegning (canvas/img)
@@ -365,25 +372,11 @@ export default function Tegning3DSide() {
     [georefSteg],
   );
 
-  // Markør-overlays (brukes i begge modi)
-  // Markører med konstant visuell størrelse (kompenserer for zoom)
-  const invZoom = 1 / zoom;
-  const markørOverlays = (
-    <>
-      {tegningMarkør && !erIGeorefModus && (
-        <>
-          <div className="pointer-events-none absolute z-10 rounded-full bg-blue-500 opacity-80 ring-2 ring-white" style={{ left: `${tegningMarkør.x}%`, top: `${tegningMarkør.y}%`, width: 16 * invZoom, height: 16 * invZoom, transform: `translate(-50%, -50%)` }} />
-          <div className="pointer-events-none absolute z-10 animate-ping rounded-full border-2 border-blue-500" style={{ left: `${tegningMarkør.x}%`, top: `${tegningMarkør.y}%`, width: 32 * invZoom, height: 32 * invZoom, transform: `translate(-50%, -50%)` }} />
-        </>
-      )}
-      {georefPunkt1Tegning && (
-        <div className="pointer-events-none absolute z-10 flex items-center justify-center rounded-full bg-red-500 font-bold text-white shadow-lg ring-2 ring-white" style={{ left: `${georefPunkt1Tegning.x}%`, top: `${georefPunkt1Tegning.y}%`, width: 24 * invZoom, height: 24 * invZoom, fontSize: 10 * invZoom, transform: `translate(-50%, -50%)` }}>1</div>
-      )}
-      {georefPunkt2Tegning && (
-        <div className="pointer-events-none absolute z-10 flex items-center justify-center rounded-full bg-green-500 font-bold text-white shadow-lg ring-2 ring-white" style={{ left: `${georefPunkt2Tegning.x}%`, top: `${georefPunkt2Tegning.y}%`, width: 24 * invZoom, height: 24 * invZoom, fontSize: 10 * invZoom, transform: `translate(-50%, -50%)` }}>2</div>
-      )}
-    </>
-  );
+  // Beregn pikselposisjon for markør (utenfor transform-div)
+  const pktTilPx = useCallback((pkt: { x: number; y: number }) => ({
+    x: pan.x + (pkt.x / 100) * innholdStr.w * zoom,
+    y: pan.y + (pkt.y / 100) * innholdStr.h * zoom,
+  }), [pan, zoom, innholdStr]);
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
@@ -542,6 +535,7 @@ export default function Tegning3DSide() {
           style={{ width: splitWidth, flexShrink: 0 }}
         >
           {tegningUrl ? (
+            <>
             <div
               className="relative h-full w-full"
               onWheel={handleWheel}
@@ -565,7 +559,10 @@ export default function Tegning3DSide() {
                       </div>
                     )}
                     <canvas
-                      ref={pdfCanvasRef}
+                      ref={(el) => {
+                        (pdfCanvasRef as React.MutableRefObject<HTMLCanvasElement | null>).current = el;
+                        if (el && el.width > 0) setInnholdStr({ w: el.width, h: el.height });
+                      }}
                       className="max-w-none select-none"
                       style={{ display: pdfLaster ? "none" : "block" }}
                       onPointerDown={handleImgPointerDown}
@@ -583,12 +580,26 @@ export default function Tegning3DSide() {
                     onPointerDown={handleImgPointerDown}
                     onClick={handleTegningElementClick}
                     onDoubleClick={handleTegningElementDblClick}
+                    onLoad={(e) => setInnholdStr({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight })}
                     draggable={false}
                   />
                 )}
-                {markørOverlays}
               </div>
             </div>
+            {/* Markør-overlay utenfor transform (faste pikselposisjoner) */}
+            {innholdStr.w > 0 && tegningMarkør && !erIGeorefModus && (
+              <>
+                <div className="pointer-events-none absolute z-20 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-500 ring-2 ring-white" style={{ left: pktTilPx(tegningMarkør).x, top: pktTilPx(tegningMarkør).y }} />
+                <div className="pointer-events-none absolute z-20 h-8 w-8 -translate-x-1/2 -translate-y-1/2 animate-ping rounded-full border-2 border-blue-500" style={{ left: pktTilPx(tegningMarkør).x, top: pktTilPx(tegningMarkør).y }} />
+              </>
+            )}
+            {innholdStr.w > 0 && georefPunkt1Tegning && (
+              <div className="pointer-events-none absolute z-20 flex h-6 w-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-lg ring-2 ring-white" style={{ left: pktTilPx(georefPunkt1Tegning).x, top: pktTilPx(georefPunkt1Tegning).y }}>1</div>
+            )}
+            {innholdStr.w > 0 && georefPunkt2Tegning && (
+              <div className="pointer-events-none absolute z-20 flex h-6 w-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-green-500 text-[10px] font-bold text-white shadow-lg ring-2 ring-white" style={{ left: pktTilPx(georefPunkt2Tegning).x, top: pktTilPx(georefPunkt2Tegning).y }}>2</div>
+            )}
+            </>
           ) : (
             <div className="flex h-full items-center justify-center">
               <div className="text-center text-gray-400">
