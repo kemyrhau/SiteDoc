@@ -528,8 +528,7 @@ export default function HjemSkjerm() {
 
               {/* Offline-klargjøring */}
               <Pressable
-                onPress={startOffline}
-                disabled={!!offlineStatus}
+                onPress={() => { if (!offlineStatus) startOffline(); }}
                 className="flex-row items-center justify-between bg-white px-4 py-3"
               >
                 <View className="flex-1">
