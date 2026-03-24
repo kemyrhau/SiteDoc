@@ -20,8 +20,6 @@ import {
   ListTodo,
   AlertTriangle,
   RefreshCw,
-  Download,
-  Check,
 } from "lucide-react-native";
 import { useQueryClient } from "@tanstack/react-query";
 import { trpc } from "../../src/lib/trpc";
@@ -29,7 +27,6 @@ import { useProsjekt } from "../../src/kontekst/ProsjektKontekst";
 import { useBygning } from "../../src/kontekst/BygningKontekst";
 import { ProsjektVelger } from "../../src/components/ProsjektVelger";
 import { MalVelger } from "../../src/components/MalVelger";
-import { klargjørForOffline, type OfflineStatus } from "../../src/services/offlineKlargjoring";
 import { OpprettDokumentModal } from "../../src/components/OpprettDokumentModal";
 
 const AKTIVE_STATUSER = ["sent", "received", "in_progress"];
@@ -128,31 +125,6 @@ export default function HjemSkjerm() {
     if (!bygning) return false;
     return bygning.drawings.some((d) => d.fileType?.toLowerCase() === "ifc");
   }, [valgtBygningId, bygninger]);
-
-  // Offline-klargjøring
-  const [offlineStatus, setOfflineStatus] = useState<OfflineStatus | null>(null);
-
-  const tegningerQuery = trpc.tegning.hentForProsjekt.useQuery(
-    { projectId: valgtProsjektId!, ...(valgtBygningId ? { buildingId: valgtBygningId } : {}) },
-    { enabled: !!valgtProsjektId },
-  );
-
-  const startOffline = useCallback(async () => {
-    if (!tegningerQuery.data) return;
-    setOfflineStatus({ steg: "Starter...", ferdigeProsent: 0 });
-    try {
-      const resultat = await klargjørForOffline(
-        tegningerQuery.data as Array<{ id: string; name: string; fileUrl: string | null; fileType: string | null; updatedAt?: string }>,
-        setOfflineStatus,
-      );
-      const oppsummering = `${resultat.tegningerLastet} tegninger, ${resultat.ifcLastet} 3D-modeller`;
-      setOfflineStatus({ steg: oppsummering, ferdigeProsent: 100 });
-      setTimeout(() => setOfflineStatus(null), 4000);
-    } catch (err) {
-      setOfflineStatus({ steg: `Feil: ${err instanceof Error ? err.message : String(err)}`, ferdigeProsent: 0 });
-      setTimeout(() => setOfflineStatus(null), 5000);
-    }
-  }, [tegningerQuery.data]);
 
   // Hent sjekklister og oppgaver for valgt prosjekt (filtrert på bygning)
   const sjekklisteQuery = trpc.sjekkliste.hentForProsjekt.useQuery(
@@ -526,29 +498,6 @@ export default function HjemSkjerm() {
               </Pressable>
               )}
 
-              {/* Offline-klargjøring */}
-              <Pressable
-                onPress={() => { if (!offlineStatus) startOffline(); }}
-                className="flex-row items-center justify-between bg-white px-4 py-3"
-              >
-                <View className="flex-1">
-                  <Text className="text-base font-semibold text-gray-900">
-                    Tilpass for offline
-                  </Text>
-                  {offlineStatus && (
-                    <Text className="text-xs text-gray-500">
-                      {offlineStatus.steg} {offlineStatus.ferdigeProsent > 0 && offlineStatus.ferdigeProsent < 100 ? `(${offlineStatus.ferdigeProsent}%)` : ""}
-                    </Text>
-                  )}
-                </View>
-                {offlineStatus?.ferdigeProsent === 100 ? (
-                  <Check size={20} color="#10b981" />
-                ) : offlineStatus ? (
-                  <ActivityIndicator size="small" color="#1e40af" />
-                ) : (
-                  <Download size={20} color="#9ca3af" />
-                )}
-              </Pressable>
             </View>
 
             {/* Sist oppdatert */}
