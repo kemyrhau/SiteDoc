@@ -36,9 +36,9 @@ type GeoRefSteg = "idle" | "tegning1" | "modell1" | "tegning2" | "modell2" | "fe
 
 const GEOREF_VEILEDER: Record<GeoRefSteg, string> = {
   idle: "",
-  tegning1: "Steg 1/4: Zoom til riktig sted i tegningen, klikk deretter «Plasser punkt»",
+  tegning1: "Steg 1/4: Dobbeltklikk på et tydelig punkt i tegningen (hjørne, søyle, kryss)",
   modell1: "Steg 2/4: Klikk på samme punkt i 3D-modellen",
-  tegning2: "Steg 3/4: Zoom til et annet sted (langt fra punkt 1), klikk «Plasser punkt»",
+  tegning2: "Steg 3/4: Dobbeltklikk på et annet punkt i tegningen (langt fra punkt 1)",
   modell2: "Steg 4/4: Klikk på samme punkt i 3D-modellen",
   ferdig: "Georeferanse satt — tegning og 3D er nå koblet!",
 };
@@ -90,7 +90,6 @@ export default function Tegning3DSide() {
 
   // Georeferanse-modus
   const [georefSteg, setGeorefSteg] = useState<GeoRefSteg>("idle");
-  const [klikkKlar, setKlikkKlar] = useState(false); // Bruker har klikket "Plasser punkt"
   const [georefPunkt1Tegning, setGeorefPunkt1Tegning] = useState<{ x: number; y: number } | null>(null);
   const [georefPunkt1Gps, setGeorefPunkt1Gps] = useState<{ lat: number; lng: number } | null>(null);
   const [georefPunkt2Tegning, setGeorefPunkt2Tegning] = useState<{ x: number; y: number } | null>(null);
@@ -109,7 +108,6 @@ export default function Tegning3DSide() {
 
   function startGeoref() {
     setGeorefSteg("tegning1");
-    setKlikkKlar(false);
     setGeorefPunkt1Tegning(null);
     setGeorefPunkt1Gps(null);
     setGeorefPunkt2Tegning(null);
@@ -118,12 +116,28 @@ export default function Tegning3DSide() {
 
   function avbrytGeoref() {
     setGeorefSteg("idle");
-    setKlikkKlar(false);
     setGeorefPunkt1Tegning(null);
     setGeorefPunkt1Gps(null);
     setGeorefPunkt2Tegning(null);
     setGeorefPunkt2Gps(null);
   }
+
+  // Dobbeltklikk i tegning for georef-plassering
+  const handleTegningDblClick = useCallback((e: React.MouseEvent) => {
+    if (georefSteg !== "tegning1" && georefSteg !== "tegning2") return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const pxProsent = {
+      x: ((e.clientX - rect.left) / rect.width) * 100,
+      y: ((e.clientY - rect.top) / rect.height) * 100,
+    };
+    if (georefSteg === "tegning1") {
+      setGeorefPunkt1Tegning(pxProsent);
+      setGeorefSteg("modell1");
+    } else {
+      setGeorefPunkt2Tegning(pxProsent);
+      setGeorefSteg("modell2");
+    }
+  }, [georefSteg]);
 
   // Split — draggbar
   const [splitPx, setSplitPx] = useState<number | null>(null);
@@ -194,17 +208,13 @@ export default function Tegning3DSide() {
         y: ((e.clientY - rect.top) / rect.height) * 100,
       };
 
-      // Georeferanse-modus (kun når klikkKlar)
-      if (klikkKlar && georefSteg === "tegning1") {
+      // Georef: enkeltklikk korrigerer siste punkt (etter dobbeltklikk)
+      if (georefSteg === "modell1" && georefPunkt1Tegning) {
         setGeorefPunkt1Tegning(pxProsent);
-        setGeorefSteg("modell1");
-        setKlikkKlar(false);
         return;
       }
-      if (klikkKlar && georefSteg === "tegning2") {
+      if (georefSteg === "modell2" && georefPunkt2Tegning) {
         setGeorefPunkt2Tegning(pxProsent);
-        setGeorefSteg("modell2");
-        setKlikkKlar(false);
         return;
       }
 
@@ -377,17 +387,9 @@ export default function Tegning3DSide() {
           georefSteg === "ferdig" ? "bg-green-50 text-green-800" : "bg-amber-50 text-amber-800"
         }`}>
           <Crosshair size={16} />
-          <span className="font-medium">{klikkKlar ? (georefSteg === "tegning1" ? "Klikk i tegningen for å plassere punkt 1" : "Klikk i tegningen for å plassere punkt 2") : GEOREF_VEILEDER[georefSteg]}</span>
-          {(georefSteg === "tegning1" || georefSteg === "tegning2") && !klikkKlar && (
-            <button
-              onClick={() => setKlikkKlar(true)}
-              className="ml-2 rounded bg-amber-600 px-3 py-1 text-xs font-semibold text-white hover:bg-amber-700"
-            >
-              Plasser punkt
-            </button>
-          )}
-          {(georefSteg === "tegning1" || georefSteg === "tegning2") && (
-            <span className="text-xs text-amber-600">Tips: Velg hjørner, søyler eller krysspunkter.</span>
+          <span className="font-medium">{GEOREF_VEILEDER[georefSteg]}</span>
+          {(georefSteg === "modell1" || georefSteg === "modell2") && (
+            <span className="text-xs text-amber-600">Enkeltklikk i tegningen for å korrigere punktet</span>
           )}
           {georefSteg === "ferdig" && <Check size={16} className="text-green-600" />}
         </div>
@@ -407,28 +409,24 @@ export default function Tegning3DSide() {
         >
           {tegningUrl ? (
             erPdf ? (
-              /* PDF — iframe med zoom-kontroller */
+              /* PDF — iframe, dobbeltklikk for georef */
               <div className="relative h-full w-full">
                 <iframe
                   key={`${tegningUrl}-${pdfZoom}`}
                   src={`${tegningUrl}#zoom=${pdfZoom}`}
                   title={valgtTegning?.name ?? "Tegning"}
                   className="h-full w-full border-0"
-                  style={{ pointerEvents: klikkKlar ? "none" : "auto" }}
                 />
-                {/* Overlay KUN når bruker har klikket "Plasser punkt" */}
-                {klikkKlar && (georefSteg === "tegning1" || georefSteg === "tegning2") && (
+                {/* Georef overlay — fanger dobbeltklikk, lar scroll passere */}
+                {erIGeorefModus && (georefSteg === "tegning1" || georefSteg === "tegning2") && (
                   <div
-                    className="absolute inset-0 cursor-crosshair"
-                    style={{ background: "rgba(0,0,0,0.03)" }}
-                    onClick={(e) => {
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      const pxProsent = {
-                        x: ((e.clientX - rect.left) / rect.width) * 100,
-                        y: ((e.clientY - rect.top) / rect.height) * 100,
-                      };
-                      if (georefSteg === "tegning1") { setGeorefPunkt1Tegning(pxProsent); setGeorefSteg("modell1"); setKlikkKlar(false); return; }
-                      if (georefSteg === "tegning2") { setGeorefPunkt2Tegning(pxProsent); setGeorefSteg("modell2"); setKlikkKlar(false); return; }
+                    className="absolute inset-0"
+                    style={{ cursor: "crosshair" }}
+                    onDoubleClick={handleTegningDblClick}
+                    onWheel={(e) => {
+                      // La scroll passere til PDF via zoom-knapper
+                      e.preventDefault();
+                      setPdfZoom((p) => Math.max(25, Math.min(400, p + (e.deltaY > 0 ? -25 : 25))));
                     }}
                   />
                 )}
@@ -459,7 +457,7 @@ export default function Tegning3DSide() {
                   className="relative origin-top-left"
                   style={{
                     transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-                    cursor: klikkKlar ? "crosshair" : panStartRef.current ? "grabbing" : "default",
+                    cursor: erIGeorefModus ? "crosshair" : panStartRef.current ? "grabbing" : "default",
                   }}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -469,6 +467,16 @@ export default function Tegning3DSide() {
                     className="max-w-none select-none"
                     onPointerDown={handleImgPointerDown}
                     onClick={handleImgClick}
+                    onDoubleClick={(e) => {
+                      if (georefSteg !== "tegning1" && georefSteg !== "tegning2") return;
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const pxProsent = {
+                        x: ((e.clientX - rect.left) / rect.width) * 100,
+                        y: ((e.clientY - rect.top) / rect.height) * 100,
+                      };
+                      if (georefSteg === "tegning1") { setGeorefPunkt1Tegning(pxProsent); setGeorefSteg("modell1"); }
+                      else { setGeorefPunkt2Tegning(pxProsent); setGeorefSteg("modell2"); }
+                    }}
                     draggable={false}
                   />
                   {tegningMarkør && !erIGeorefModus && (
