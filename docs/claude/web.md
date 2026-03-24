@@ -44,6 +44,7 @@ Dalux-inspirert tre-kolonne layout (skjules på mobil < 768px, hamburger-meny i 
 /dashbord/[prosjektId]/mapper                 -> Mapper (read-only, ?mappe=id)
 /dashbord/[prosjektId]/tegninger              -> Interaktiv tegningsvisning
 /dashbord/[prosjektId]/3d-visning            -> Samlet 3D-visning (IFC + punktsky + overflater + kutt/fyll)
+/dashbord/[prosjektId]/tegning-3d            -> Split-view tegning + 3D-modell med koordinatsynk og georeferanse
 /dashbord/[prosjektId]/punktskyer            -> Redirect → /3d-visning
 /dashbord/[prosjektId]/modeller              -> Redirect → /3d-visning
 /dashbord/[prosjektId]/bilder                 -> Bildegalleri (liste + tegningsvisning)
@@ -351,6 +352,55 @@ Samlet oversikt over alle bilder i prosjektet. To visningsmodus:
 - Zoom (0.25x–3x)
 
 `BildeLightbox`: Fullskjerm overlay med pil-navigering, metadata, rapport-lenke. Escape lukker.
+
+## Bygningsvelger (toppbar)
+
+`BygningsVelger` i `apps/web/src/components/layout/BygningsVelger.tsx`.
+Dropdown i toppbar etter prosjektvelger. Auto-velger første bygning.
+Lagrer valg per prosjekt i localStorage via `BygningKontekst`.
+
+Bygningsvalg påvirker:
+- 3D-viewer (filtrerer IFC-modeller)
+- Tegning+3D split-view (filtrerer tegninger)
+- Sidebar: 3D og Tegning+3D skjules hvis bygning ikke har IFC
+
+## Tegning+3D split-view
+
+Rute: `/dashbord/[prosjektId]/tegning-3d`
+
+Split-screen med plantegning (venstre) og 3D-modell (høyre).
+Draggbar skillelinje. PDF rendres i iframe (planlagt: pdf.js canvas).
+
+**Koordinatbro** (`@sitedoc/shared/utils/koordinatBro.ts`):
+- `gpsTil3D(gps, ifcOrigin, system, hoyde)` — GPS → Three.js
+- `tredjeTilGps(punkt3d, ifcOrigin, system)` — Three.js → GPS
+- `wgs84TilUtm/wgs84TilNtm` — WGS84 → UTM/NTM projeksjon
+
+**Georeferanse via 3D-modell:**
+- Klikk «Georeferér» → dobbeltklikk i tegning → klikk i 3D → gjenta for punkt 2
+- Lagrer geoReference via `tegning.settGeoReferanse`
+- Krever at IFC har GPS-metadata (fra `trekUtIfcMetadata`)
+
+**Kjente begrensninger (PDF iframe):**
+- Markører drifter ved scroll — vises kun som koordinater i veileder
+- Zoom via +/- knapper (ikke scrollhjul)
+- Plan: migrer til pdf.js canvas-renderer
+
+## Brukergrupper (oppsett)
+
+Brukergrupper under Oppsett → Brukere. Opprettet via «+ Ny gruppe».
+Modulikoner med tooltip (sjekklister, oppgaver, tegninger, 3D).
+
+**Rettigheter per gruppe:**
+- Moduler: sjekklister, oppgaver, tegninger, 3D (default alle på)
+- Bygningsfilter: velg spesifikke bygninger (null = alle)
+- Gruppeadmin: `isAdmin` på `ProjectGroupMember` (DB-felt finnes, UI planlagt)
+- Slett: kun feltarbeid-admin
+
+**Dokumentflyt:**
+- Opprett/send og Mottaker: bruker eller gruppe (ikke entreprise)
+- Dokumentflyt kobles til entreprise via `forvalgtEntrepriseId` på oppretter-medlemmet
+- Entrepriser fjernet fra sidebar — kun i Oppsett
 
 ## Mer-meny
 
