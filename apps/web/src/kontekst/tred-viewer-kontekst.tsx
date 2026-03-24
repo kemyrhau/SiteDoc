@@ -492,14 +492,40 @@ export function ViewerCanvas({
           );
         }
 
-        // Tile-lasting update-løkke
+        // Tile-lasting update-løkke med idle-deteksjon (sparer batteri)
         let animFrameId: number | null = null;
+        let idleFrames = 0;
+        const lastCamPos = new THREE.Vector3();
+        const tmpCamPos = new THREE.Vector3();
+        const MAX_IDLE = 30;
+        let pauset = false;
+
         function updateLoop() {
-          if (renset) return;
-          fragmentsManager.core.update();
+          if (renset || pauset) return;
+          threeCamera.getWorldPosition(tmpCamPos);
+          if (tmpCamPos.distanceToSquared(lastCamPos) > 0.0001) {
+            idleFrames = 0;
+            lastCamPos.copy(tmpCamPos);
+          } else {
+            idleFrames++;
+          }
+          // Oppdater alltid ved bevegelse, ellers sjeldnere
+          if (idleFrames < MAX_IDLE || idleFrames % 10 === 0) {
+            fragmentsManager.core.update();
+          }
           animFrameId = requestAnimationFrame(updateLoop);
         }
         updateLoop();
+
+        // Pause ved bakgrunnsmodus
+        function handleVisibility() {
+          pauset = document.hidden;
+          if (!pauset && !renset) {
+            idleFrames = 0;
+            updateLoop();
+          }
+        }
+        document.addEventListener("visibilitychange", handleVisibility);
 
         // Raycasting
         const rendererDom = (world.renderer as unknown as { three: { domElement: HTMLCanvasElement } }).three.domElement;
@@ -1090,6 +1116,7 @@ export function ViewerCanvas({
         return () => {
           rendererDom.removeEventListener("click", handleKlikk);
           rendererDom.removeEventListener("dblclick", handleDblKlikk);
+          document.removeEventListener("visibilitychange", handleVisibility);
           if (animFrameId !== null) cancelAnimationFrame(animFrameId);
         };
       })

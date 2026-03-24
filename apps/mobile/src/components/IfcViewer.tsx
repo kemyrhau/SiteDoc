@@ -176,8 +176,6 @@ export function IfcViewer({ modeller, onTilbake }: IfcViewerProps) {
           onMessage={handleMessage}
           javaScriptEnabled
           domStorageEnabled
-          allowsInlineMediaPlayback
-          mediaPlaybackRequiresUserAction={false}
           originWhitelist={["*"]}
         />
 

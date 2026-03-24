@@ -53,9 +53,9 @@ export default function LiveViewSkjerm() {
 
       abonnement = await Location.watchPositionAsync(
         {
-          accuracy: Location.Accuracy.High,
-          timeInterval: 2000,
-          distanceInterval: 1,
+          accuracy: Location.Accuracy.Balanced,
+          timeInterval: 5000,
+          distanceInterval: 2,
         },
         (lokasjon) => {
           setPosisjon({
