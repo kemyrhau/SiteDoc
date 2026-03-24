@@ -318,7 +318,9 @@ export default function Tegning3DSide() {
   // Oppdater innholdsdimensjoner når PDF er ferdig rendret
   useEffect(() => {
     if (!pdfLaster && pdfCanvasRef.current && pdfCanvasRef.current.width > 0) {
-      setInnholdStr({ w: pdfCanvasRef.current.width, h: pdfCanvasRef.current.height });
+      const w = pdfCanvasRef.current.width;
+      const h = pdfCanvasRef.current.height;
+      setInnholdStr((prev) => (prev.w === w && prev.h === h ? prev : { w, h }));
     }
   }, [pdfLaster, pdfCanvasRef]);
   const splitWidth = splitPx ?? (splitContainerRef.current?.getBoundingClientRect().width ?? 800) * 0.4;
@@ -559,10 +561,7 @@ export default function Tegning3DSide() {
                       </div>
                     )}
                     <canvas
-                      ref={(el) => {
-                        (pdfCanvasRef as React.MutableRefObject<HTMLCanvasElement | null>).current = el;
-                        if (el && el.width > 0) setInnholdStr({ w: el.width, h: el.height });
-                      }}
+                      ref={pdfCanvasRef}
                       className="max-w-none select-none"
                       style={{ display: pdfLaster ? "none" : "block" }}
                       onPointerDown={handleImgPointerDown}
