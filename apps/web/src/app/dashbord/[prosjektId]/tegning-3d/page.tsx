@@ -373,27 +373,27 @@ export default function Tegning3DSide() {
                   title={valgtTegning?.name ?? "Tegning"}
                   className="h-full w-full border-0"
                 />
-                {/* Transparent overlay for klikk (georef og synk) */}
-                <div
-                  className="absolute inset-0"
-                  style={{ cursor: erIGeorefModus && (georefSteg === "tegning1" || georefSteg === "tegning2") ? "crosshair" : "default" }}
-                  onClick={(e) => {
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    const pxProsent = {
-                      x: ((e.clientX - rect.left) / rect.width) * 100,
-                      y: ((e.clientY - rect.top) / rect.height) * 100,
-                    };
-                    // Georeferanse-modus
-                    if (georefSteg === "tegning1") { setGeorefPunkt1Tegning(pxProsent); setGeorefSteg("modell1"); return; }
-                    if (georefSteg === "tegning2") { setGeorefPunkt2Tegning(pxProsent); setGeorefSteg("modell2"); return; }
-                    // Synk
-                    if (!synkAktiv || !transformasjon || !ifcOpprinnelse) return;
-                    const gps = tegningTilGps(pxProsent, transformasjon);
-                    const punkt3d = gpsTil3D(gps, ifcOpprinnelse, coordSystem, 1.6);
-                    if (punkt3d) viewerRef.current?.flyTil(punkt3d.x, punkt3d.y, punkt3d.z);
-                  }}
-                />
-                {/* Markører over PDF */}
+                {/* Overlay KUN i georef/synk-modus — ellers fri PDF-navigasjon */}
+                {(erIGeorefModus || (synkAktiv && harSynkMulighet)) && (
+                  <div
+                    className="absolute inset-0"
+                    style={{ cursor: erIGeorefModus ? "crosshair" : "default", background: erIGeorefModus ? "rgba(0,0,0,0.05)" : "transparent" }}
+                    onClick={(e) => {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const pxProsent = {
+                        x: ((e.clientX - rect.left) / rect.width) * 100,
+                        y: ((e.clientY - rect.top) / rect.height) * 100,
+                      };
+                      if (georefSteg === "tegning1") { setGeorefPunkt1Tegning(pxProsent); setGeorefSteg("modell1"); return; }
+                      if (georefSteg === "tegning2") { setGeorefPunkt2Tegning(pxProsent); setGeorefSteg("modell2"); return; }
+                      if (!synkAktiv || !transformasjon || !ifcOpprinnelse) return;
+                      const gps = tegningTilGps(pxProsent, transformasjon);
+                      const punkt3d = gpsTil3D(gps, ifcOpprinnelse, coordSystem, 1.6);
+                      if (punkt3d) viewerRef.current?.flyTil(punkt3d.x, punkt3d.y, punkt3d.z);
+                    }}
+                  />
+                )}
+                {/* Markører */}
                 {tegningMarkør && !erIGeorefModus && (
                   <>
                     <div className="pointer-events-none absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-500" style={{ left: `${tegningMarkør.x}%`, top: `${tegningMarkør.y}%` }} />
