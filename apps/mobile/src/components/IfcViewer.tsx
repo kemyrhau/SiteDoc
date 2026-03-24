@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet } from "rea
 import { WebView, type WebViewMessageEvent } from "react-native-webview";
 import { AUTH_CONFIG } from "../config/auth";
 import { hentSessionToken } from "../services/auth";
-import { hentLokalSti, lastNedIfc } from "../services/ifcCache";
+import { lastNedIfc } from "../services/ifcCache";
 import { Box, Eye, EyeOff, Scissors, X, ChevronLeft, Download } from "lucide-react-native";
 
 interface IfcModell {
@@ -42,21 +42,11 @@ export function IfcViewer({ modeller, onTilbake }: IfcViewerProps) {
 
   const viewerUrl = `${AUTH_CONFIG.apiUrl.replace("/trpc", "").replace("api.", "")}/mobil-viewer`;
 
-  // Send modeller til WebView — prøv lokale cachede filer først, ellers server-URL
+  // Send modeller til WebView — alltid server-URL (WebView kan ikke lese file://)
   const sendModeller = useCallback(async () => {
     const token = await hentSessionToken();
-    const modelUrls: string[] = [];
-
-    for (const m of modeller) {
-      // Sjekk lokal cache
-      const lokal = await hentLokalSti(m.fileUrl);
-      if (lokal) {
-        modelUrls.push(lokal);
-      } else {
-        const url = m.fileUrl.startsWith("/api") ? m.fileUrl : `/api${m.fileUrl}`;
-        modelUrls.push(`${AUTH_CONFIG.apiUrl.replace("/trpc", "").replace("api.", "")}${url}`);
-      }
-    }
+    const baseUrl = AUTH_CONFIG.apiUrl.replace("/trpc", "").replace("api.", "");
+    const modelUrls = modeller.map((m) => `${baseUrl}${m.fileUrl}`);
 
     webViewRef.current?.postMessage(
       JSON.stringify({ type: "lastModeller", urls: modelUrls, token }),

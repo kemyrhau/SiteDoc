@@ -8,7 +8,6 @@ import { useBygning } from "../src/kontekst/BygningKontekst";
 import { trpc } from "../src/lib/trpc";
 import { AUTH_CONFIG } from "../src/config/auth";
 import { hentSessionToken } from "../src/services/auth";
-import { hentLokalSti } from "../src/services/ifcCache";
 import { TegningsVisning } from "../src/components/TegningsVisning";
 import type { Markør } from "../src/components/TegningsVisning";
 import {
@@ -101,16 +100,8 @@ export default function Tegning3DSkjerm() {
     if (!viewerKlar || ifcModeller.length === 0) return;
     (async () => {
       const token = await hentSessionToken();
-      const urls: string[] = [];
-      for (const m of ifcModeller) {
-        const lokal = await hentLokalSti(m.fileUrl!);
-        if (lokal) {
-          urls.push(lokal);
-        } else {
-          const url = m.fileUrl!.startsWith("/api") ? m.fileUrl! : `/api${m.fileUrl}`;
-          urls.push(`${AUTH_CONFIG.apiUrl.replace("/trpc", "").replace("api.", "")}${url}`);
-        }
-      }
+      const baseUrl = AUTH_CONFIG.apiUrl.replace("/trpc", "").replace("api.", "");
+      const urls = ifcModeller.map((m) => `${baseUrl}${m.fileUrl}`);
       webViewRef.current?.postMessage(JSON.stringify({ type: "lastModeller", urls, token }));
     })();
   }, [viewerKlar, ifcModeller.length]); // eslint-disable-line
