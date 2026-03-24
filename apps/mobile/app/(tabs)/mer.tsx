@@ -1,3 +1,4 @@
+import { useState, useCallback } from "react";
 import { View, Text, Pressable, ScrollView, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { LucideIcon } from "lucide-react-native";
@@ -12,18 +13,47 @@ import {
   ChevronRight,
   LogOut,
 } from "lucide-react-native";
+import { ActivityIndicator } from "react-native";
 import { useAuth } from "../../src/providers/AuthProvider";
 import { useProsjekt } from "../../src/kontekst/ProsjektKontekst";
+import { useBygning } from "../../src/kontekst/BygningKontekst";
 import { trpc } from "../../src/lib/trpc";
+import { klargjørForOffline } from "../../src/services/offlineKlargjoring";
 
 export default function MerSkjerm() {
   const { bruker, loggUt } = useAuth();
   const { valgtProsjektId } = useProsjekt();
+  const { valgtBygningId } = useBygning();
+  const [offlineTekst, setOfflineTekst] = useState<string | null>(null);
 
   const { data: medlemmer } = trpc.medlem.hentForProsjekt.useQuery(
     { projectId: valgtProsjektId! },
     { enabled: !!valgtProsjektId },
   );
+
+  const tegningerQuery = trpc.tegning.hentForProsjekt.useQuery(
+    { projectId: valgtProsjektId!, ...(valgtBygningId ? { buildingId: valgtBygningId } : {}) },
+    { enabled: !!valgtProsjektId },
+  );
+
+  const startOffline = useCallback(async () => {
+    if (!tegningerQuery.data) {
+      Alert.alert("Feil", "Tegninger er ikke lastet ennå. Prøv igjen.");
+      return;
+    }
+    setOfflineTekst("Starter...");
+    try {
+      const resultat = await klargjørForOffline(
+        tegningerQuery.data as Array<{ id: string; name: string; fileUrl: string | null; fileType: string | null; updatedAt?: string }>,
+        (s) => setOfflineTekst(`${s.steg} ${s.ferdigeProsent}%`),
+      );
+      setOfflineTekst(`Ferdig: ${resultat.tegningerLastet} tegninger, ${resultat.ifcLastet} 3D-modeller`);
+      setTimeout(() => setOfflineTekst(null), 4000);
+    } catch (err) {
+      setOfflineTekst(`Feil: ${err instanceof Error ? err.message : String(err)}`);
+      setTimeout(() => setOfflineTekst(null), 5000);
+    }
+  }, [tegningerQuery.data]);
 
   const erAdmin = medlemmer?.some(
     (m) => m.user.email === bruker?.email && m.role === "admin",
@@ -90,7 +120,7 @@ export default function MerSkjerm() {
           </View>
           <MenyRad ikon={Users} tekst="Kontakter" />
           <MenyRad ikon={Building2} tekst="Grupper" />
-          <MenyRad ikon={WifiOff} tekst="Forbered til offline" />
+          <MenyRad ikon={WifiOff} tekst={offlineTekst ?? "Forbered til offline"} onPress={startOffline} />
           <MenyRad ikon={QrCode} tekst="Skann QR-kode" />
         </View>
 
