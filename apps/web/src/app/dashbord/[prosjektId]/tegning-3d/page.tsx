@@ -158,7 +158,7 @@ export default function Tegning3DSide() {
   const [valgtTegningId, setValgtTegningId] = useState<string | null>(null);
   const [valgtEtasje, setValgtEtasje] = useState<string | null>(null);
   const [synkAktiv, setSynkAktiv] = useState(true);
-  const [tegningMarkør, setTegningMarkør] = useState<{ x: number; y: number } | null>(null);
+  const [tegningMarkør, setTegningMarkør] = useState<{ x: number; y: number; vinkel?: number } | null>(null);
   const [innholdStr, setInnholdStr] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
 
   // Kalibrert gulvhøyde — lagres i localStorage per bygning
@@ -404,10 +404,16 @@ export default function Tegning3DSide() {
 
       // Normal synk-modus
       if (!synkAktiv || !transformasjon || !ifcOpprinnelse) return;
-      setTegningMarkør(pxProsent);
       const gps = tegningTilGps(pxProsent, transformasjon);
       const punkt3d = gpsTil3D(gps, ifcOpprinnelse, coordSystem, 0);
       if (!punkt3d) return;
+      // Beregn retningsvinkel: kamera ser mot byggets sentrum projisert på tegningen
+      const senterGps = ifcOpprinnelse; // GPS-sentrum ≈ IFC-opprinnelse
+      const senterPx = gpsTilTegning(senterGps, transformasjon);
+      const dx = senterPx.x - pxProsent.x;
+      const dy = senterPx.y - pxProsent.y;
+      const vinkel = Math.atan2(dy, dx) * (180 / Math.PI); // grader, 0 = høyre
+      setTegningMarkør({ ...pxProsent, vinkel });
       viewerRef.current?.flyTil(punkt3d.x, punkt3d.y, punkt3d.z, gulvY ?? undefined);
     },
     [georefSteg, georefPunkt1Tegning, georefPunkt2Tegning, synkAktiv, transformasjon, ifcOpprinnelse, coordSystem, viewerRef],
@@ -564,6 +570,14 @@ export default function Tegning3DSide() {
         )}
       </div>
 
+      {/* Auto-veiledning: tegning mangler georeferanse */}
+      {valgtTegningId && !transformasjon && ifcOpprinnelse && georefSteg === "idle" && harRedigerTilgang && (
+        <div className="pointer-events-auto flex items-center gap-2 bg-blue-50 px-4 py-1.5 text-xs text-blue-700">
+          <MapPin size={14} />
+          Tegningen er ikke georeferert — klikk «Georeferér» for å koble den til 3D-modellen
+        </div>
+      )}
+
       {/* Georeferanse-veileder */}
       {georefSteg !== "idle" && (
         <div className={`pointer-events-auto flex items-center gap-3 px-4 py-2 text-sm ${
@@ -653,12 +667,22 @@ export default function Tegning3DSide() {
               </div>
             </div>
             {/* Markør-overlay utenfor transform (faste pikselposisjoner) */}
-            {innholdStr.w > 0 && tegningMarkør && !erIGeorefModus && (
-              <>
-                <div className="pointer-events-none absolute z-20 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-500 ring-2 ring-white" style={{ left: pktTilPx(tegningMarkør).x, top: pktTilPx(tegningMarkør).y }} />
-                <div className="pointer-events-none absolute z-20 h-8 w-8 -translate-x-1/2 -translate-y-1/2 animate-ping rounded-full border-2 border-blue-500" style={{ left: pktTilPx(tegningMarkør).x, top: pktTilPx(tegningMarkør).y }} />
-              </>
-            )}
+            {innholdStr.w > 0 && tegningMarkør && !erIGeorefModus && (() => {
+              const p = pktTilPx(tegningMarkør);
+              const v = tegningMarkør.vinkel ?? 0;
+              return (
+                <>
+                  {/* Retningskjegle */}
+                  <div className="pointer-events-none absolute z-20" style={{ left: p.x, top: p.y }}>
+                    <svg width="48" height="48" viewBox="-24 -24 48 48" style={{ transform: `rotate(${v}deg)`, overflow: "visible" }}>
+                      <path d="M0,0 L20,-10 L20,10 Z" fill="rgba(59,130,246,0.25)" stroke="rgba(59,130,246,0.6)" strokeWidth="1" />
+                    </svg>
+                  </div>
+                  {/* Senterprikk */}
+                  <div className="pointer-events-none absolute z-20 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-500 ring-2 ring-white" style={{ left: p.x, top: p.y }} />
+                </>
+              );
+            })()}
             {innholdStr.w > 0 && georefPunkt1Tegning && (
               <div className="pointer-events-none absolute z-20 flex h-6 w-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-lg ring-2 ring-white" style={{ left: pktTilPx(georefPunkt1Tegning).x, top: pktTilPx(georefPunkt1Tegning).y }}>1</div>
             )}
