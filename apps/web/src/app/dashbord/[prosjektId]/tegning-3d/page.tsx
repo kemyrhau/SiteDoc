@@ -342,6 +342,7 @@ export default function Tegning3DSide() {
 
       // Normal synk-modus
       if (!synkAktiv || !transformasjon || !ifcOpprinnelse) return;
+      setTegningMarkør(pxProsent);
       const gps = tegningTilGps(pxProsent, transformasjon);
       const punkt3d = gpsTil3D(gps, ifcOpprinnelse, coordSystem, 1.6);
       if (punkt3d) viewerRef.current?.flyTil(punkt3d.x, punkt3d.y, punkt3d.z);
@@ -369,15 +370,15 @@ export default function Tegning3DSide() {
     <>
       {tegningMarkør && !erIGeorefModus && (
         <>
-          <div className="pointer-events-none absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-500" style={{ left: `${tegningMarkør.x}%`, top: `${tegningMarkør.y}%` }} />
-          <div className="pointer-events-none absolute h-8 w-8 -translate-x-1/2 -translate-y-1/2 animate-ping rounded-full border-2 border-blue-500" style={{ left: `${tegningMarkør.x}%`, top: `${tegningMarkør.y}%` }} />
+          <div className="pointer-events-none absolute z-10 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-500 opacity-80" style={{ left: `${tegningMarkør.x}%`, top: `${tegningMarkør.y}%` }} />
+          <div className="pointer-events-none absolute z-10 h-8 w-8 -translate-x-1/2 -translate-y-1/2 animate-ping rounded-full border-2 border-blue-500" style={{ left: `${tegningMarkør.x}%`, top: `${tegningMarkør.y}%` }} />
         </>
       )}
       {georefPunkt1Tegning && (
-        <div className="pointer-events-none absolute flex h-6 w-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow" style={{ left: `${georefPunkt1Tegning.x}%`, top: `${georefPunkt1Tegning.y}%` }}>1</div>
+        <div className="pointer-events-none absolute z-10 flex h-6 w-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-lg ring-2 ring-white" style={{ left: `${georefPunkt1Tegning.x}%`, top: `${georefPunkt1Tegning.y}%` }}>1</div>
       )}
       {georefPunkt2Tegning && (
-        <div className="pointer-events-none absolute flex h-6 w-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-green-500 text-[10px] font-bold text-white shadow" style={{ left: `${georefPunkt2Tegning.x}%`, top: `${georefPunkt2Tegning.y}%` }}>2</div>
+        <div className="pointer-events-none absolute z-10 flex h-6 w-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-green-500 text-[10px] font-bold text-white shadow-lg ring-2 ring-white" style={{ left: `${georefPunkt2Tegning.x}%`, top: `${georefPunkt2Tegning.y}%` }}>2</div>
       )}
     </>
   );
