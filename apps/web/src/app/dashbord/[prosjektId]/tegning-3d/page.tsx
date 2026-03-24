@@ -304,6 +304,11 @@ export default function Tegning3DSide() {
               Synk
             </button>
 
+            {/* DEBUG */}
+            <span className="text-[10px] text-gray-400">
+              IFC:{ifcModeller.length} GPS:{ifcOpprinnelse ? `${ifcOpprinnelse.lat.toFixed(2)}` : "null"}
+            </span>
+
             {/* Georeferanse-knapp */}
             {valgtTegningId && (
               <button
