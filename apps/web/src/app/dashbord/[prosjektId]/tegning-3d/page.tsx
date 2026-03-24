@@ -377,18 +377,19 @@ export default function Tegning3DSide() {
         >
           {tegningUrl ? (
             erPdf ? (
-              /* PDF — iframe med klikkbar overlay */
+              /* PDF — iframe med overlay kun i georef-modus */
               <div className="relative h-full w-full">
                 <iframe
                   src={tegningUrl}
                   title={valgtTegning?.name ?? "Tegning"}
                   className="h-full w-full border-0"
+                  style={{ pointerEvents: erIGeorefModus ? "none" : "auto" }}
                 />
-                {/* Overlay KUN i georef/synk-modus — ellers fri PDF-navigasjon */}
-                {(erIGeorefModus || (synkAktiv && harSynkMulighet)) && (
+                {/* Overlay KUN i georef-modus — blokkerer PDF for presis klikk-plassering */}
+                {erIGeorefModus && (georefSteg === "tegning1" || georefSteg === "tegning2") && (
                   <div
-                    className="absolute inset-0"
-                    style={{ cursor: erIGeorefModus ? "crosshair" : "default", background: erIGeorefModus ? "rgba(0,0,0,0.05)" : "transparent" }}
+                    className="absolute inset-0 cursor-crosshair"
+                    style={{ background: "rgba(0,0,0,0.03)" }}
                     onClick={(e) => {
                       const rect = e.currentTarget.getBoundingClientRect();
                       const pxProsent = {
@@ -397,10 +398,6 @@ export default function Tegning3DSide() {
                       };
                       if (georefSteg === "tegning1") { setGeorefPunkt1Tegning(pxProsent); setGeorefSteg("modell1"); return; }
                       if (georefSteg === "tegning2") { setGeorefPunkt2Tegning(pxProsent); setGeorefSteg("modell2"); return; }
-                      if (!synkAktiv || !transformasjon || !ifcOpprinnelse) return;
-                      const gps = tegningTilGps(pxProsent, transformasjon);
-                      const punkt3d = gpsTil3D(gps, ifcOpprinnelse, coordSystem, 1.6);
-                      if (punkt3d) viewerRef.current?.flyTil(punkt3d.x, punkt3d.y, punkt3d.z);
                     }}
                   />
                 )}
