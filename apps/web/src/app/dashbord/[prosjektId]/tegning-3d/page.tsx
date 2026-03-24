@@ -388,8 +388,20 @@ export default function Tegning3DSide() {
         }`}>
           <Crosshair size={16} />
           <span className="font-medium">{GEOREF_VEILEDER[georefSteg]}</span>
+          {georefPunkt1Tegning && (
+            <span className="flex items-center gap-1 rounded bg-red-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
+              1: {georefPunkt1Tegning.x.toFixed(0)}%, {georefPunkt1Tegning.y.toFixed(0)}%
+              {georefPunkt1Gps && <Check size={10} />}
+            </span>
+          )}
+          {georefPunkt2Tegning && (
+            <span className="flex items-center gap-1 rounded bg-green-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
+              2: {georefPunkt2Tegning.x.toFixed(0)}%, {georefPunkt2Tegning.y.toFixed(0)}%
+              {georefPunkt2Gps && <Check size={10} />}
+            </span>
+          )}
           {(georefSteg === "modell1" || georefSteg === "modell2") && (
-            <span className="text-xs text-amber-600">Enkeltklikk i tegningen for å korrigere punktet</span>
+            <span className="text-xs text-amber-600">Dobbeltklikk i tegningen for å korrigere punktet</span>
           )}
           {georefSteg === "ferdig" && <Check size={16} className="text-green-600" />}
         </div>
@@ -430,19 +442,7 @@ export default function Tegning3DSide() {
                     }}
                   />
                 )}
-                {/* Markører */}
-                {tegningMarkør && !erIGeorefModus && (
-                  <>
-                    <div className="pointer-events-none absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-500" style={{ left: `${tegningMarkør.x}%`, top: `${tegningMarkør.y}%` }} />
-                    <div className="pointer-events-none absolute h-8 w-8 -translate-x-1/2 -translate-y-1/2 animate-ping rounded-full border-2 border-blue-500" style={{ left: `${tegningMarkør.x}%`, top: `${tegningMarkør.y}%` }} />
-                  </>
-                )}
-                {georefPunkt1Tegning && (
-                  <div className="pointer-events-none absolute flex h-6 w-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow" style={{ left: `${georefPunkt1Tegning.x}%`, top: `${georefPunkt1Tegning.y}%` }}>1</div>
-                )}
-                {georefPunkt2Tegning && (
-                  <div className="pointer-events-none absolute flex h-6 w-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-green-500 text-[10px] font-bold text-white shadow" style={{ left: `${georefPunkt2Tegning.x}%`, top: `${georefPunkt2Tegning.y}%` }}>2</div>
-                )}
+                {/* Merk: Markører over PDF vises i veilederen (koordinater), ikke visuelt — de drifter ved scroll */}
               </div>
             ) : (
               /* Bilde (SVG/PNG) — med zoom/pan */
