@@ -105,24 +105,32 @@ function beregnAffine(
 ): NonNullable<Transformasjon["affine"]> {
   const n = punkter.length;
 
-  // Bygg normalligninger (A^T * A) * x = A^T * b for begge dimensjoner
-  // Kolonnene i A: [gx, gy, 1]
+  // Sentrer koordinatene for numerisk stabilitet.
+  // GPS-verdier (69.xxx, 6.xxx) har enorm absolutt verdi men minimal variasjon —
+  // uten sentrering blir normalligningene nesten singulære.
+  let meanGx = 0, meanGy = 0, meanPx = 0, meanPy = 0;
+  for (const p of punkter) {
+    meanGx += p.gps.lng * cosLat;
+    meanGy += p.gps.lat;
+    meanPx += p.pixel.x;
+    meanPy += p.pixel.y;
+  }
+  meanGx /= n; meanGy /= n; meanPx /= n; meanPy /= n;
+
+  // Bygg normalligninger med sentrerte koordinater
   let sumGx2 = 0, sumGy2 = 0, sumGxGy = 0;
-  let sumGx = 0, sumGy = 0;
   let sumGxPx = 0, sumGyPx = 0, sumPx = 0;
   let sumGxPy = 0, sumGyPy = 0, sumPy = 0;
 
   for (const p of punkter) {
-    const gx = p.gps.lng * cosLat;
-    const gy = p.gps.lat;
-    const px = p.pixel.x;
-    const py = p.pixel.y;
+    const gx = p.gps.lng * cosLat - meanGx;
+    const gy = p.gps.lat - meanGy;
+    const px = p.pixel.x - meanPx;
+    const py = p.pixel.y - meanPy;
 
     sumGx2 += gx * gx;
     sumGy2 += gy * gy;
     sumGxGy += gx * gy;
-    sumGx += gx;
-    sumGy += gy;
     sumGxPx += gx * px;
     sumGyPx += gy * px;
     sumPx += px;
@@ -131,33 +139,37 @@ function beregnAffine(
     sumPy += py;
   }
 
-  // A^T * A matrise (symmetrisk)
+  // A^T * A matrise (symmetrisk) — nå med sentrerte verdier
   const ATA: [[number, number, number], [number, number, number], [number, number, number]] = [
-    [sumGx2, sumGxGy, sumGx],
-    [sumGxGy, sumGy2, sumGy],
-    [sumGx, sumGy, n],
+    [sumGx2, sumGxGy, 0],
+    [sumGxGy, sumGy2, 0],
+    [0, 0, n],
   ];
 
-  // Løs for px-retning: [a, b, c]
+  // Løs for px-retning: [a', b', c'] (sentrert)
   const bPx: [number, number, number] = [sumGxPx, sumGyPx, sumPx];
   const abcResult = løsSystem3x3(ATA, bPx);
   if (!abcResult) throw new Error("Kan ikke beregne affine transformasjon (singulær matrise)");
-  const [a, b, c] = abcResult;
+  const [aC, bC, _cC] = abcResult;
 
-  // Løs for py-retning: [d, e, f]
+  // Løs for py-retning: [d', e', f'] (sentrert)
   const bPy: [number, number, number] = [sumGxPy, sumGyPy, sumPy];
   const defResult = løsSystem3x3(ATA, bPy);
   if (!defResult) throw new Error("Kan ikke beregne affine transformasjon (singulær matrise)");
-  const [d, e, f] = defResult;
+  const [dC, eC, _fC] = defResult;
+
+  // Konverter tilbake fra sentrerte til usentrerte koeffisienter:
+  // px_sentrert = a' * gx_sentrert + b' * gy_sentrert + c'
+  // px - meanPx = a' * (gx - meanGx) + b' * (gy - meanGy) + c'
+  // px = a' * gx + b' * gy + (meanPx - a'*meanGx - b'*meanGy + c')
+  const a = aC;
+  const b = bC;
+  const c = meanPx - aC * meanGx - bC * meanGy;
+  const d = dC;
+  const e = eC;
+  const f = meanPy - dC * meanGx - eC * meanGy;
 
   // Beregn invers: Pixel → GPS
-  // gx = ia*px + ib*py + ic
-  // gy = id*px + ie*py + if_
-  //
-  // Fra:  px = a*gx + b*gy + c   →   px - c = a*gx + b*gy
-  //       py = d*gx + e*gy + f   →   py - f = d*gx + e*gy
-  //
-  // Cramers: det = a*e - b*d
   const det = a * e - b * d;
   if (Math.abs(det) < 1e-15) throw new Error("Affine transformasjon er singulær (kan ikke inverteres)");
 
