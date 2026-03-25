@@ -26,6 +26,80 @@ interface IfcViewerProps {
   onTilbake: () => void;
 }
 
+/** Oversett IFC-kategorier til norsk */
+function oversettKategori(kategori: string | null): string {
+  if (!kategori) return "Objekt";
+  const oversettelser: Record<string, string> = {
+    IfcWall: "Vegg", IfcWallStandardCase: "Vegg",
+    IfcSlab: "Dekke", IfcRoof: "Tak",
+    IfcBeam: "Bjelke", IfcColumn: "Søyle",
+    IfcDoor: "Dør", IfcWindow: "Vindu",
+    IfcStair: "Trapp", IfcStairFlight: "Trappløp",
+    IfcRailing: "Rekkverk", IfcRamp: "Rampe",
+    IfcPlate: "Plate", IfcMember: "Element",
+    IfcCurtainWall: "Fasadevegg", IfcCovering: "Kledning",
+    IfcFurnishingElement: "Møbel", IfcBuildingElementProxy: "Bygningselement",
+    IfcFlowTerminal: "Armatur", IfcFlowSegment: "Rør/Kanal",
+    IfcDistributionElement: "Teknisk installasjon",
+    IfcSpace: "Rom", IfcOpeningElement: "Åpning",
+  };
+  return oversettelser[kategori] ?? kategori.replace("Ifc", "");
+}
+
+/** Oversett og filtrer IFC-attributter til lesbare norske etiketter */
+function filtrerAttributter(attr: Record<string, unknown>): [string, string][] {
+  const oversettelser: Record<string, string> = {
+    Name: "Navn", Description: "Beskrivelse", ObjectType: "Type",
+    LongName: "Langt navn", PredefinedType: "Forhåndsdefinert type",
+    OverallHeight: "Høyde", OverallWidth: "Bredde", OverallDepth: "Dybde",
+    NominalHeight: "Nominell høyde", NominalWidth: "Nominell bredde",
+    TotalThickness: "Total tykkelse", Thickness: "Tykkelse",
+    Area: "Areal", NetArea: "Netto areal", GrossArea: "Brutto areal",
+    Volume: "Volum", NetVolume: "Netto volum",
+    LoadBearing: "Bærende", IsExternal: "Utvendig",
+    FireRating: "Brannklasse", AcousticRating: "Lydklasse",
+    Reference: "Referanse", Material: "Materiale",
+    Pset_WallCommon: "Veggegenskaper", Pset_SlabCommon: "Dekkeegenskaper",
+  };
+
+  const skjult = new Set([
+    "expressID", "type", "GlobalId", "Tag", "OwnerHistory",
+    "ObjectPlacement", "Representation", "CompositionType", "ShapeType",
+    "Name", // Vises allerede i header
+  ]);
+
+  const resultat: [string, string][] = [];
+
+  // Prioriterte felter først
+  const prioritert = ["ObjectType", "Description", "Material", "Reference", "IsExternal", "LoadBearing", "FireRating"];
+  for (const nøkkel of prioritert) {
+    const verdi = attr[nøkkel];
+    if (verdi != null) {
+      const s = String(verdi);
+      if (s && s !== "NOTDEFINED" && s !== "null" && s !== "undefined" && s !== "ELEMENT") {
+        const label = oversettelser[nøkkel] ?? nøkkel;
+        // Formater boolske verdier
+        const visnVerdi = s === "true" || s === ".T." ? "Ja" : s === "false" || s === ".F." ? "Nei" : s;
+        resultat.push([label, visnVerdi]);
+      }
+    }
+  }
+
+  // Øvrige felter
+  for (const [k, v] of Object.entries(attr)) {
+    if (skjult.has(k) || prioritert.includes(k)) continue;
+    const s = String(v);
+    if (!s || s === "NOTDEFINED" || s === "null" || s === "undefined" || s === "ELEMENT") continue;
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}/i.test(s)) continue;
+    if (resultat.length >= 8) break;
+    const label = oversettelser[k] ?? k;
+    const visnVerdi = s === "true" || s === ".T." ? "Ja" : s === "false" || s === ".F." ? "Nei" : s;
+    resultat.push([label, visnVerdi]);
+  }
+
+  return resultat;
+}
+
 export function IfcViewer({ modeller, onTilbake }: IfcViewerProps) {
   const webViewRef = useRef<WebView>(null);
   const [klar, setKlar] = useState(false);
@@ -226,33 +300,31 @@ export function IfcViewer({ modeller, onTilbake }: IfcViewerProps) {
         {valgtObjekt && (
           <View style={styles.objektPanel}>
             <View style={styles.objektHeader}>
-              <Text style={styles.objektKategori}>
-                {valgtObjekt.kategori ?? "Objekt"}
-              </Text>
-              <TouchableOpacity onPress={() => setValgtObjekt(null)}>
+              <View style={styles.objektHeaderVenstre}>
+                <View style={styles.objektIkon}>
+                  <Box size={14} color="#1e40af" />
+                </View>
+                <View>
+                  <Text style={styles.objektKategori}>
+                    {oversettKategori(valgtObjekt.kategori)}
+                  </Text>
+                  {valgtObjekt.attributter.Name != null && (
+                    <Text style={styles.objektNavn} numberOfLines={1}>
+                      {String(valgtObjekt.attributter.Name)}
+                    </Text>
+                  )}
+                </View>
+              </View>
+              <TouchableOpacity onPress={() => setValgtObjekt(null)} style={styles.lukkBtn}>
                 <X size={16} color="#9ca3af" />
               </TouchableOpacity>
             </View>
-            {Object.entries(valgtObjekt.attributter)
-              .filter(([k, v]) => {
-                // Skjul interne IFC-felter og tomme verdier
-                const skjult = ["expressID", "type", "GlobalId", "Tag", "OwnerHistory", "ObjectPlacement", "Representation", "CompositionType", "ShapeType"];
-                if (skjult.includes(k)) return false;
-                const s = String(v);
-                if (!s || s === "NOTDEFINED" || s === "null" || s === "undefined" || s === "ELEMENT") return false;
-                // Skjul GUID-lignende verdier
-                if (/^[0-9a-f]{8}-[0-9a-f]{4}/i.test(s)) return false;
-                return true;
-              })
-              .slice(0, 8)
-              .map(([k, v]) => (
-                <View key={k} style={styles.objektRad}>
-                  <Text style={styles.objektLabel}>{k}</Text>
-                  <Text style={styles.objektVerdi} numberOfLines={2}>
-                    {String(v)}
-                  </Text>
-                </View>
-              ))}
+            {filtrerAttributter(valgtObjekt.attributter).map(([label, verdi]) => (
+              <View key={label} style={styles.objektRad}>
+                <Text style={styles.objektLabel}>{label}</Text>
+                <Text style={styles.objektVerdi} numberOfLines={2}>{verdi}</Text>
+              </View>
+            ))}
           </View>
         )}
       </View>
@@ -341,16 +413,37 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     padding: 16,
-    maxHeight: 280,
+    maxHeight: 300,
   },
   objektHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 8,
+    alignItems: "flex-start",
+    marginBottom: 10,
   },
-  objektKategori: { fontSize: 15, fontWeight: "600", color: "#111" },
-  objektRad: { flexDirection: "row", paddingVertical: 3 },
-  objektLabel: { width: 100, fontSize: 12, color: "#9ca3af" },
-  objektVerdi: { flex: 1, fontSize: 12, color: "#374151" },
+  objektHeaderVenstre: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    flex: 1,
+  },
+  objektIkon: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: "#eff6ff",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  objektKategori: { fontSize: 14, fontWeight: "700", color: "#1e40af" },
+  objektNavn: { fontSize: 13, color: "#374151", marginTop: 1 },
+  lukkBtn: { padding: 4, marginLeft: 8 },
+  objektRad: {
+    flexDirection: "row",
+    paddingVertical: 5,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "#f3f4f6",
+  },
+  objektLabel: { width: 110, fontSize: 12, fontWeight: "500", color: "#6b7280" },
+  objektVerdi: { flex: 1, fontSize: 12, color: "#111" },
 });
