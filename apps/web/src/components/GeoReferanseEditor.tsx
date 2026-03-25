@@ -16,9 +16,12 @@ import {
   ChevronDown,
   ChevronUp,
   LocateFixed,
+  Plus,
+  AlertTriangle,
+  CheckCircle,
 } from "lucide-react";
 import type { GeoReferanse } from "@sitedoc/shared";
-import { utmTilWgs84, EPSG_TIL_SYSTEM as SHARED_EPSG } from "@sitedoc/shared/utils";
+import { utmTilWgs84, EPSG_TIL_SYSTEM as SHARED_EPSG, beregnKalibreringsFeil } from "@sitedoc/shared/utils";
 import type L_Type from "leaflet";
 
 interface TegningInfo {
@@ -346,7 +349,15 @@ export function GeoReferanseEditor({
         }
       : null,
   );
-  const [aktivtPunkt, setAktivtPunkt] = useState<1 | 2 | null>(null);
+  const [ekstraPunkter, setEkstraPunkter] = useState<Punkt[]>(
+    eksisterende?.ekstraPunkter
+      ? eksisterende.ekstraPunkter.map((ep) => ({
+          pixel: ep.pixel,
+          gps: { lat: String(ep.gps.lat), lng: String(ep.gps.lng) },
+        }))
+      : [],
+  );
+  const [aktivtPunkt, setAktivtPunkt] = useState<number | null>(null); // 1, 2, 3, 4, ...
   const [lagreStatus, setLagreStatus] = useState<"idle" | "lagret" | "feil">("idle");
   const [limTekst1, setLimTekst1] = useState("");
   const [limTekst2, setLimTekst2] = useState("");
@@ -355,6 +366,7 @@ export function GeoReferanseEditor({
   const [visLimInn1, setVisLimInn1] = useState(false);
   const [visLimInn2, setVisLimInn2] = useState(false);
   const [koordinatSystem, setKoordinatSystem] = useState<KoordinatSystem>("utm33");
+  const [ekstraKartSynlig, setEkstraKartSynlig] = useState<Set<number>>(new Set());
 
   const settGeoMutasjon = trpc.tegning.settGeoReferanse.useMutation({
     onSuccess: () => {
@@ -374,6 +386,7 @@ export function GeoReferanseEditor({
     onSuccess: () => {
       setPunkt1(null);
       setPunkt2(null);
+      setEkstraPunkter([]);
       setAktivtPunkt(null);
       utils.bygning.hentMedId.invalidate();
       utils.tegning.hentMedId.invalidate({ id: tegningId });
@@ -405,11 +418,17 @@ export function GeoReferanseEditor({
 
       if (aktivtPunkt === 1) {
         setPunkt1((prev) => ({ pixel, gps: prev?.gps ?? { lat: "", lng: "" } }));
-        setAktivtPunkt(null);
-      } else {
+      } else if (aktivtPunkt === 2) {
         setPunkt2((prev) => ({ pixel, gps: prev?.gps ?? { lat: "", lng: "" } }));
-        setAktivtPunkt(null);
+      } else if (aktivtPunkt !== null && aktivtPunkt >= 3) {
+        const idx = aktivtPunkt - 3;
+        setEkstraPunkter((prev) => {
+          const neste = [...prev];
+          neste[idx] = { ...neste[idx]!, pixel, gps: neste[idx]?.gps ?? { lat: "", lng: "" } };
+          return neste;
+        });
       }
+      setAktivtPunkt(null);
     },
     [aktivtPunkt, modus, view],
   );
@@ -537,15 +556,22 @@ export function GeoReferanseEditor({
   useEffect(() => { setPunkt1Låst(false); }, [punkt1?.gps.lat, punkt1?.gps.lng, punkt1?.pixel.x, punkt1?.pixel.y]);
   useEffect(() => { setPunkt2Låst(false); }, [punkt2?.gps.lat, punkt2?.gps.lng, punkt2?.pixel.x, punkt2?.pixel.y]);
 
-  function hentMinPosisjon(punktNr: 1 | 2) {
+  function hentMinPosisjon(punktNr: number) {
     if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const gps = { lat: pos.coords.latitude.toFixed(6), lng: pos.coords.longitude.toFixed(6) };
         if (punktNr === 1) {
           setPunkt1((p) => p ? { ...p, gps } : p);
-        } else {
+        } else if (punktNr === 2) {
           setPunkt2((p) => p ? { ...p, gps } : p);
+        } else {
+          const idx = punktNr - 3;
+          setEkstraPunkter((prev) => {
+            const neste = [...prev];
+            if (neste[idx]) neste[idx] = { ...neste[idx]!, gps };
+            return neste;
+          });
         }
       },
       (err) => {
@@ -555,22 +581,52 @@ export function GeoReferanseEditor({
     );
   }
 
+  // Valider ekstra punkter
+  const gyldigeEkstraPunkter = ekstraPunkter.filter(
+    (ep) => ep.gps.lat && ep.gps.lng && !isNaN(Number(ep.gps.lat)) && !isNaN(Number(ep.gps.lng)),
+  );
+
+  const totaltPunkter = (punkt1Gyldig ? 1 : 0) + (punkt2Gyldig ? 1 : 0) + gyldigeEkstraPunkter.length;
+
+  // Beregn kalibreringskvalitet når 3+ punkter
+  const kalibreringsFeil = totaltPunkter >= 3 && punkt1Gyldig && punkt2Gyldig
+    ? (() => {
+        try {
+          const ref: GeoReferanse = {
+            point1: { pixel: punkt1!.pixel, gps: { lat: Number(punkt1!.gps.lat), lng: Number(punkt1!.gps.lng) } },
+            point2: { pixel: punkt2!.pixel, gps: { lat: Number(punkt2!.gps.lat), lng: Number(punkt2!.gps.lng) } },
+            ekstraPunkter: gyldigeEkstraPunkter.map((ep) => ({
+              pixel: ep.pixel,
+              gps: { lat: Number(ep.gps.lat), lng: Number(ep.gps.lng) },
+            })),
+          };
+          return beregnKalibreringsFeil(ref);
+        } catch { return null; }
+      })()
+    : null;
+
   function handleLagre() {
     if (!punkt1 || !punkt2) return;
 
-    settGeoMutasjon.mutate({
-      drawingId: tegningId,
-      geoReference: {
-        point1: {
-          pixel: punkt1.pixel,
-          gps: { lat: Number(punkt1.gps.lat), lng: Number(punkt1.gps.lng) },
-        },
-        point2: {
-          pixel: punkt2.pixel,
-          gps: { lat: Number(punkt2.gps.lat), lng: Number(punkt2.gps.lng) },
-        },
+    const geoReference: GeoReferanse = {
+      point1: {
+        pixel: punkt1.pixel,
+        gps: { lat: Number(punkt1.gps.lat), lng: Number(punkt1.gps.lng) },
       },
-    });
+      point2: {
+        pixel: punkt2.pixel,
+        gps: { lat: Number(punkt2.gps.lat), lng: Number(punkt2.gps.lng) },
+      },
+    };
+
+    if (gyldigeEkstraPunkter.length > 0) {
+      geoReference.ekstraPunkter = gyldigeEkstraPunkter.map((ep) => ({
+        pixel: ep.pixel,
+        gps: { lat: Number(ep.gps.lat), lng: Number(ep.gps.lng) },
+      }));
+    }
+
+    settGeoMutasjon.mutate({ drawingId: tegningId, geoReference });
   }
 
   if (!tegning) {
@@ -773,6 +829,27 @@ export function GeoReferanseEditor({
               </div>
             );
           })()}
+
+          {/* Ekstra punkt-markører */}
+          {ekstraPunkter.map((ep, idx) => {
+            if (!ep.pixel || !bildeRef.current) return null;
+            const b = bildeRef.current;
+            const lx = (ep.pixel.x / 100) * b.offsetWidth;
+            const ly = (ep.pixel.y / 100) * b.offsetHeight;
+            const vx = lx * view.zoom + view.panX;
+            const vy = ly * view.zoom + view.panY;
+            return (
+              <div
+                key={`ekstra-${idx}`}
+                className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2"
+                style={{ left: vx, top: vy }}
+              >
+                <div className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-emerald-500 shadow-md">
+                  <span className="text-[10px] font-bold leading-none text-white">{idx + 3}</span>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -1054,6 +1131,171 @@ export function GeoReferanseEditor({
           )}
         </div>
 
+        {/* Ekstra punkter */}
+        {ekstraPunkter.map((ep, idx) => {
+          const punktNr = idx + 3;
+          const epGyldig = ep.gps.lat && ep.gps.lng && !isNaN(Number(ep.gps.lat)) && !isNaN(Number(ep.gps.lng));
+          return (
+            <div key={`ep-${idx}`} className="rounded-lg border border-gray-200 bg-white p-3">
+              <div className="mb-2 flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <div className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-[10px] font-bold text-white">
+                    {punktNr}
+                  </div>
+                  <h4 className="text-xs font-semibold text-gray-900">Punkt {punktNr}</h4>
+                  {ep.pixel && (
+                    <span className="text-[10px] text-gray-400">
+                      ({ep.pixel.x}%, {ep.pixel.y}%)
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-1">
+                  <Button
+                    size="sm"
+                    variant={aktivtPunkt === punktNr ? "primary" : "secondary"}
+                    onClick={() => setAktivtPunkt(aktivtPunkt === punktNr ? null : punktNr)}
+                  >
+                    <MapPin className="mr-1 h-3 w-3" />
+                    {ep.pixel ? "Flytt" : "Plasser"}
+                  </Button>
+                  <button
+                    type="button"
+                    onClick={() => setEkstraPunkter((prev) => prev.filter((_, i) => i !== idx))}
+                    className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-500"
+                    title="Fjern punkt"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </button>
+                </div>
+              </div>
+
+              {ep.pixel ? (
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setEkstraKartSynlig((prev) => {
+                        const neste = new Set(prev);
+                        if (neste.has(idx)) neste.delete(idx); else neste.add(idx);
+                        return neste;
+                      })}
+                      className="flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-800"
+                    >
+                      <Map className="h-3 w-3" />
+                      Velg på kart
+                      {ekstraKartSynlig.has(idx) ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => hentMinPosisjon(punktNr)}
+                      className="flex items-center gap-1 text-xs font-medium text-green-600 hover:text-green-800"
+                    >
+                      <LocateFixed className="h-3 w-3" />
+                      Min posisjon
+                    </button>
+                  </div>
+                  {ekstraKartSynlig.has(idx) && (
+                    <KoordinatKart
+                      lat={ep.gps.lat}
+                      lng={ep.gps.lng}
+                      farge="#10b981"
+                      onVelg={(lat, lng) =>
+                        setEkstraPunkter((prev) => {
+                          const neste = [...prev];
+                          neste[idx] = { ...neste[idx]!, gps: { lat, lng } };
+                          return neste;
+                        })
+                      }
+                    />
+                  )}
+                  <div className="grid grid-cols-2 gap-1.5">
+                    <Input
+                      label="Breddegrad"
+                      value={ep.gps.lat}
+                      onChange={(e) =>
+                        setEkstraPunkter((prev) => {
+                          const neste = [...prev];
+                          neste[idx] = { ...neste[idx]!, gps: { ...neste[idx]!.gps, lat: e.target.value } };
+                          return neste;
+                        })
+                      }
+                      placeholder="f.eks. 59.912"
+                    />
+                    <Input
+                      label="Lengdegrad"
+                      value={ep.gps.lng}
+                      onChange={(e) =>
+                        setEkstraPunkter((prev) => {
+                          const neste = [...prev];
+                          neste[idx] = { ...neste[idx]!, gps: { ...neste[idx]!.gps, lng: e.target.value } };
+                          return neste;
+                        })
+                      }
+                      placeholder="f.eks. 10.760"
+                    />
+                  </div>
+                  {epGyldig && (
+                    <div className="flex items-center gap-1 rounded bg-green-50 px-2 py-1 text-xs text-green-700">
+                      <Check className="h-3 w-3" />
+                      Punkt {punktNr} klar
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <p className="text-xs text-gray-400">
+                  Klikk &quot;Plasser&quot; og trykk på tegningen
+                </p>
+              )}
+            </div>
+          );
+        })}
+
+        {/* Legg til punkt-knapp */}
+        {punkt1Gyldig && punkt2Gyldig && (
+          <button
+            type="button"
+            onClick={() =>
+              setEkstraPunkter((prev) => [
+                ...prev,
+                { pixel: { x: 50, y: 50 }, gps: { lat: "", lng: "" } },
+              ])
+            }
+            className="flex items-center justify-center gap-1.5 rounded-lg border border-dashed border-gray-300 bg-gray-50 px-3 py-2 text-xs font-medium text-gray-600 transition-colors hover:border-blue-400 hover:bg-blue-50 hover:text-blue-700"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Legg til referansepunkt (for bedre nøyaktighet)
+          </button>
+        )}
+
+        {/* Kalibreringskvalitet */}
+        {kalibreringsFeil && (
+          <div className={`rounded-lg border p-3 ${
+            kalibreringsFeil.gjennomsnittFeil < 2
+              ? "border-green-200 bg-green-50"
+              : kalibreringsFeil.gjennomsnittFeil < 5
+                ? "border-amber-200 bg-amber-50"
+                : "border-red-200 bg-red-50"
+          }`}>
+            <div className="flex items-center gap-1.5 text-xs font-medium">
+              {kalibreringsFeil.gjennomsnittFeil < 2 ? (
+                <CheckCircle className="h-3.5 w-3.5 text-green-600" />
+              ) : (
+                <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />
+              )}
+              <span className={
+                kalibreringsFeil.gjennomsnittFeil < 2 ? "text-green-700" :
+                kalibreringsFeil.gjennomsnittFeil < 5 ? "text-amber-700" : "text-red-700"
+              }>
+                Kalibreringskvalitet: {kalibreringsFeil.gjennomsnittFeil < 0.1 ? "< 0.1" : kalibreringsFeil.gjennomsnittFeil.toFixed(1)} m snittfeil
+              </span>
+            </div>
+            <p className="mt-1 text-[10px] text-gray-500">
+              Maks avvik: {kalibreringsFeil.maksFeil.toFixed(1)} m
+              {totaltPunkter >= 3 && " (affine transformasjon)"}
+            </p>
+          </div>
+        )}
+
         {/* Handlinger */}
         <div className="mt-auto flex flex-col gap-2">
           {lagreStatus === "lagret" && (
@@ -1084,7 +1326,9 @@ export function GeoReferanseEditor({
               ? "Lagrer..."
               : !punkt1Låst || !punkt2Låst
                 ? "Lagre begge punkter først"
-                : "Lagre kalibrering"}
+                : totaltPunkter >= 3
+                  ? `Lagre kalibrering (${totaltPunkter} punkter)`
+                  : "Lagre kalibrering"}
           </Button>
 
           {eksisterende && (

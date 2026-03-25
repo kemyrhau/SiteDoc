@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { Prisma } from "@sitedoc/db";
 import crypto from "crypto";
 import { router, protectedProcedure } from "../trpc/trpc";
 import {
@@ -403,6 +404,77 @@ export const gruppeRouter = router({
       return ctx.prisma.projectGroup.update({
         where: { id: input.groupId },
         data: { domains: input.domains },
+      });
+    }),
+
+  // Oppdater moduler for en gruppe
+  oppdaterModuler: protectedProcedure
+    .input(
+      z.object({
+        groupId: z.string().uuid(),
+        projectId: z.string().uuid(),
+        modules: z.array(z.enum(["sjekklister", "oppgaver", "tegninger", "3d"])),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await verifiserAdmin(ctx.userId, input.projectId);
+      return ctx.prisma.projectGroup.update({
+        where: { id: input.groupId },
+        data: { modules: input.modules },
+      });
+    }),
+
+  // Oppdater bygningsfilter for en gruppe
+  oppdaterBygninger: protectedProcedure
+    .input(
+      z.object({
+        groupId: z.string().uuid(),
+        projectId: z.string().uuid(),
+        buildingIds: z.array(z.string().uuid()).nullable(), // null = alle
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await verifiserAdmin(ctx.userId, input.projectId);
+      return ctx.prisma.projectGroup.update({
+        where: { id: input.groupId },
+        data: {
+          buildingIds: input.buildingIds ?? Prisma.DbNull,
+        },
+      });
+    }),
+
+  // Sett gruppeadmin
+  settGruppeAdmin: protectedProcedure
+    .input(
+      z.object({
+        groupId: z.string().uuid(),
+        projectId: z.string().uuid(),
+        projectMemberId: z.string().uuid(),
+        isAdmin: z.boolean(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await verifiserAdmin(ctx.userId, input.projectId);
+      const medlem = await ctx.prisma.projectGroupMember.findFirst({
+        where: { groupId: input.groupId, projectMemberId: input.projectMemberId },
+      });
+      if (!medlem) throw new TRPCError({ code: "NOT_FOUND" });
+      return ctx.prisma.projectGroupMember.update({
+        where: { id: medlem.id },
+        data: { isAdmin: input.isAdmin },
+      });
+    }),
+
+  // Fjern seg selv fra en gruppe
+  fjernSegSelv: protectedProcedure
+    .input(z.object({ groupId: z.string().uuid(), projectId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const medlem = await ctx.prisma.projectMember.findFirst({
+        where: { userId: ctx.userId, projectId: input.projectId },
+      });
+      if (!medlem) throw new TRPCError({ code: "NOT_FOUND" });
+      return ctx.prisma.projectGroupMember.deleteMany({
+        where: { groupId: input.groupId, projectMemberId: medlem.id },
       });
     }),
 });

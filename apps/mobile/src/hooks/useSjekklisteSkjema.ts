@@ -62,6 +62,7 @@ export interface UseSjekklisteSkjemaResultat {
   settKommentar: (objektId: string, kommentar: string) => void;
   leggTilVedlegg: (objektId: string, vedlegg: Vedlegg) => void;
   fjernVedlegg: (objektId: string, vedleggId: string) => void;
+  flyttVedlegg: (objektId: string, vedleggId: string, retning: "opp" | "ned") => void;
   erSynlig: (objekt: RapportObjekt) => boolean;
   valideringsfeil: Record<string, string>;
   valider: () => boolean;
@@ -461,31 +462,36 @@ export function useSjekklisteSkjema(sjekklisteId: string): UseSjekklisteSkjemaRe
     [planleggLagring],
   );
 
-  // Betinget synlighet (rekursiv — sjekker hele foreldrekjeden)
+  // Betinget synlighet (rekursiv — sjekker hele foreldrekjeden, maks 10 nivåer)
   const erSynlig = useCallback(
     (objekt: RapportObjekt): boolean => {
-      // Bruk parentId fra DB-kolonne (ny) med fallback til config (gammel)
-      const parentId = objekt.parentId ?? (objekt.config.conditionParentId as string | undefined);
-      if (!parentId) return true;
+      function sjekkSynlighet(obj: RapportObjekt, dybde: number): boolean {
+        if (dybde > 10) return true; // Sikkerhetsvakt mot uendelig rekursjon
 
-      const forelder = alleObjekter.find((o) => o.id === parentId);
-      if (!forelder) return true; // Sikkerhets-fallback
+        // Bruk parentId fra DB-kolonne (ny) med fallback til config (gammel)
+        const parentId = obj.parentId ?? (obj.config.conditionParentId as string | undefined);
+        if (!parentId) return true;
 
-      // Sjekk at forelderen selv er synlig (rekursivt)
-      if (!erSynlig(forelder)) return false;
+        const forelder = alleObjekter.find((o) => o.id === parentId);
+        if (!forelder) return true; // Sikkerhets-fallback
 
-      // Repeater-barn er alltid synlige (ingen betingelseslogikk)
-      if (forelder.type === "repeater") return true;
+        // Sjekk at forelderen selv er synlig (rekursivt)
+        if (!sjekkSynlighet(forelder, dybde + 1)) return false;
 
-      // Sjekk at forelderens betingelse er oppfylt
-      if (!forelder.config.conditionActive) return true;
+        // Repeater-barn er alltid synlige (ingen betingelseslogikk)
+        if (forelder.type === "repeater") return true;
 
-      const triggerVerdier = (forelder.config.conditionValues as string[]) ?? [];
-      const forelderVerdi = hentFeltVerdi(parentId).verdi;
+        // Sjekk at forelderens betingelse er oppfylt
+        if (!forelder.config.conditionActive) return true;
 
-      if (typeof forelderVerdi === "string") return triggerVerdier.includes(forelderVerdi);
-      if (Array.isArray(forelderVerdi)) return forelderVerdi.some((v) => triggerVerdier.includes(v));
-      return false;
+        const triggerVerdier = (forelder.config.conditionValues as string[]) ?? [];
+        const forelderVerdi = hentFeltVerdi(parentId).verdi;
+
+        if (typeof forelderVerdi === "string") return triggerVerdier.includes(forelderVerdi);
+        if (Array.isArray(forelderVerdi)) return forelderVerdi.some((v) => triggerVerdier.includes(v));
+        return false;
+      }
+      return sjekkSynlighet(objekt, 0);
     },
     [alleObjekter, hentFeltVerdi],
   );

@@ -124,10 +124,10 @@ export const entrepriseRouter = router({
         const nyEntreprise = await tx.enterprise.create({
           data: {
             projectId: input.targetProjectId,
-            name: kilde.name,
+            name: input.name ?? kilde.name,
             enterpriseNumber: kilde.enterpriseNumber,
             organizationNumber: kilde.organizationNumber,
-            color: kilde.color,
+            color: input.color ?? kilde.color,
             industry: kilde.industry,
             companyName: kilde.companyName,
           },

@@ -118,13 +118,24 @@ export default function HjemSkjerm() {
     return bygninger.find((b) => b.id === valgtBygningId)?.name ?? null;
   }, [valgtBygningId, bygninger]);
 
-  // Sjekk om valgt bygning har IFC-modeller
+  // Sjekk om 3D-visning modulen er aktiv
+  const modulQuery = trpc.modul.hentForProsjekt.useQuery(
+    { projectId: valgtProsjektId! },
+    { enabled: !!valgtProsjektId },
+  );
+  const er3dAktiv = useMemo(() => {
+    if (!modulQuery.data) return false;
+    return modulQuery.data.some((m: { moduleSlug: string; active: boolean }) => m.moduleSlug === "3d-visning" && m.active);
+  }, [modulQuery.data]);
+
+  // Sjekk om valgt bygning har IFC-modeller OG 3D-modulen er aktiv
   const harIfcModeller = useMemo(() => {
+    if (!er3dAktiv) return false;
     if (!valgtBygningId || !bygninger) return false;
     const bygning = bygninger.find((b) => b.id === valgtBygningId);
     if (!bygning) return false;
     return bygning.drawings.some((d) => d.fileType?.toLowerCase() === "ifc");
-  }, [valgtBygningId, bygninger]);
+  }, [er3dAktiv, valgtBygningId, bygninger]);
 
   // Hent sjekklister og oppgaver for valgt prosjekt (filtrert på bygning)
   const sjekklisteQuery = trpc.sjekkliste.hentForProsjekt.useQuery(
@@ -485,6 +496,19 @@ export default function HjemSkjerm() {
                 <ChevronRight size={20} color="#9ca3af" />
               </Pressable>
               )}
+
+              {harIfcModeller && (
+              <Pressable
+                onPress={() => router.push("/tegning-3d")}
+                className="flex-row items-center justify-between border-b border-gray-200 bg-white px-4 py-3"
+              >
+                <Text className="text-base font-semibold text-gray-900">
+                  Tegning + 3D
+                </Text>
+                <ChevronRight size={20} color="#9ca3af" />
+              </Pressable>
+              )}
+
             </View>
 
             {/* Sist oppdatert */}

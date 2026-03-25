@@ -44,6 +44,7 @@ Dalux-inspirert tre-kolonne layout (skjules på mobil < 768px, hamburger-meny i 
 /dashbord/[prosjektId]/mapper                 -> Mapper (read-only, ?mappe=id)
 /dashbord/[prosjektId]/tegninger              -> Interaktiv tegningsvisning
 /dashbord/[prosjektId]/3d-visning            -> Samlet 3D-visning (IFC + punktsky + overflater + kutt/fyll)
+/dashbord/[prosjektId]/tegning-3d            -> Split-view tegning + 3D-modell med koordinatsynk og georeferanse
 /dashbord/[prosjektId]/punktskyer            -> Redirect → /3d-visning
 /dashbord/[prosjektId]/modeller              -> Redirect → /3d-visning
 /dashbord/[prosjektId]/bilder                 -> Bildegalleri (liste + tegningsvisning)
@@ -277,7 +278,9 @@ Filterknapper (EyeOff-ikoner) i EgenskapsPopup ved kategori-header, Layer og Sys
 
 **Objekt-highlight:** Blå semi-transparent overlay (`#3b82f6`, opacity 0.6) via `hitModel.highlight([localId], material)`. Resettes ved nytt klikk.
 
-**Render-løkke:** `requestAnimationFrame` → `fragmentsManager.core.update()` (oppdaterer LOD-tiles basert på kamera).
+**Render-løkke:** `requestAnimationFrame` → `fragmentsManager.core.update()` (oppdaterer LOD-tiles basert på kamera). Idle-deteksjon pauser render-loop når kamera ikke beveger seg. Visibilitetspause stopper rendering når fanen ikke er synlig — reduserer strømforbruk.
+
+**Z-fighting fiks:** Camera `near`/`far` settes dynamisk basert på modellstørrelse for å unngå z-fighting artefakter.
 
 **Filer i `public/`:** `web-ifc.wasm`, `web-ifc-mt.wasm`, `fragments-worker.mjs`
 
@@ -351,6 +354,78 @@ Samlet oversikt over alle bilder i prosjektet. To visningsmodus:
 - Zoom (0.25x–3x)
 
 `BildeLightbox`: Fullskjerm overlay med pil-navigering, metadata, rapport-lenke. Escape lukker.
+
+## Bygningsvelger (toppbar)
+
+`BygningsVelger` i `apps/web/src/components/layout/BygningsVelger.tsx`.
+Dropdown i toppbar etter prosjektvelger. Auto-velger første bygning.
+Lagrer valg per prosjekt i localStorage via `BygningKontekst`.
+
+Bygningsvalg påvirker:
+- 3D-viewer (filtrerer IFC-modeller)
+- Tegning+3D split-view (filtrerer tegninger)
+- Sidebar: 3D og Tegning+3D skjules hvis bygning ikke har IFC
+- API-filtrering: oppgaver, sjekklister og bilder filtrerer på `aktivBygning.id`
+
+## Tegning+3D split-view
+
+Rute: `/dashbord/[prosjektId]/tegning-3d`
+
+Split-screen med plantegning (venstre) og 3D-modell (høyre).
+Draggbar skillelinje.
+
+**PDF-rendering (pdf.js canvas):**
+- Canvas-basert rendering via pdf.js (erstattet iframe)
+- Zoom mot musepeker — punktet under pekeren forblir fast
+- Auto-fit PDF til container ved oppstart
+- Full scroll-zoom og panorering
+
+**Markør med retningsindikator:**
+- SVG-kjegle viser kameraretning fra 3D-vieweren på tegningen
+- Oppdateres live ved kamerabevegelse i 3D
+
+**Kamerahøyde-kalibrering:**
+- Klikk på gulv i 3D for å kalibrere kamerahøyde
+- Lagres i localStorage per bygning
+- Brukes for nøyaktig posisjonering av markør på tegning
+
+**Etasjeklipp:**
+- OBC `Clipper.createFromNormalAndCoplanarPoint()` klipper modellen horisontalt
+- Viser kun valgt etasje i 3D-vieweren
+
+**Koordinatbro** (`@sitedoc/shared/utils/koordinatBro.ts`):
+- `gpsTil3D(gps, ifcOrigin, system, hoyde)` — GPS → Three.js
+- `tredjeTilGps(punkt3d, ifcOrigin, system)` — Three.js → GPS
+- `wgs84TilUtm/wgs84TilNtm` — WGS84 → UTM/NTM projeksjon
+
+**Georeferanse via 3D-modell:**
+- Klikk «Georeferér» → dobbeltklikk i tegning → klikk i 3D → gjenta for punkt 2
+- Lagrer geoReference via `tegning.settGeoReferanse`
+- Krever at IFC har GPS-metadata (fra `trekUtIfcMetadata`)
+- Fjern georeferanse-knapp for å nullstille
+- Auto georeferanse-veiledning: blå infobar vises når tegning mangler georeferanse
+
+**Tilgangskontroll:**
+- Georeferanse og kalibrering kun tilgjengelig for felt-admin (`manage_field`/`drawing_manage`)
+
+## Brukergrupper (oppsett)
+
+Brukergrupper under Oppsett → Brukere. Opprettet via «+ Ny gruppe».
+Modulikoner med tooltip (sjekklister, oppgaver, tegninger, 3D).
+
+**Rettigheter per gruppe:**
+- Moduler: sjekklister, oppgaver, tegninger, 3D (default alle på)
+- Bygningsfilter: velg spesifikke bygninger (null = alle)
+- Gruppeadmin: `isAdmin` på `ProjectGroupMember` — badge + toggle i brukergrupper-UI (`settGruppeAdmin` mutation)
+- Slett: kun feltarbeid-admin
+
+**Dokumentflyt:**
+- Opprett/send og Mottaker: bruker eller gruppe (ikke entreprise)
+- Dokumentflyt kobles til entreprise via `forvalgtEntrepriseId` på oppretter-medlemmet
+- Entrepriser fjernet fra sidebar — kun i Oppsett
+
+**Entreprise fargevelger:**
+- 20 forhåndsdefinerte farger i opprettelsesveiviseren
 
 ## Mer-meny
 

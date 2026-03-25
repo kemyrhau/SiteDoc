@@ -18,6 +18,7 @@ export const oppgaveRouter = router({
       z.object({
         projectId: z.string().uuid(),
         status: documentStatusSchema.optional(),
+        buildingId: z.string().uuid().optional(),
       }),
     )
     .query(async ({ ctx, input }) => {
@@ -27,6 +28,7 @@ export const oppgaveRouter = router({
         where: {
           creatorEnterprise: { projectId: input.projectId },
           ...(input.status ? { status: input.status } : {}),
+          ...(input.buildingId ? { drawing: { buildingId: input.buildingId } } : {}),
           ...(tilgangsFilter ?? {}),
         },
         include: {

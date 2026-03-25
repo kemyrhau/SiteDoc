@@ -4,6 +4,7 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { REPORT_OBJECT_TYPE_META, type ReportObjectType, erKontainerType } from "@sitedoc/shared";
 import { Badge } from "@sitedoc/ui";
+import { Info } from "lucide-react";
 import { TreprikkMeny } from "./TreprikkMeny";
 import type { ReactNode } from "react";
 
@@ -131,6 +132,11 @@ export function DraggbartFelt({
             {meta?.label ?? objekt.type}
           </span>
         </button>
+
+        {/* Hjelpetekst-indikator */}
+        {typeof objekt.config.helpText === "string" && objekt.config.helpText && (
+          <Info size={14} className="shrink-0 text-blue-400" />
+        )}
 
         {/* Badges og meny */}
         <div className="flex items-center gap-2">

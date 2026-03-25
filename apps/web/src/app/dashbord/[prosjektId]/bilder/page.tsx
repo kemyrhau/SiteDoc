@@ -125,7 +125,7 @@ function harGpsUtenforTegninger(
 
 export default function BilderSide() {
   const params = useParams<{ prosjektId: string }>();
-  const { aktivTegning } = useBygning();
+  const { aktivBygning, aktivTegning } = useBygning();
   const {
     visningsmodus,
     plasseringsmodus,
@@ -148,7 +148,7 @@ export default function BilderSide() {
   const containerRef = useRef<HTMLDivElement>(null);
 
   const { data, isLoading } = trpc.bilde.hentForProsjekt.useQuery(
-    { projectId: params.prosjektId },
+    { projectId: params.prosjektId, ...(aktivBygning?.id ? { buildingId: aktivBygning.id } : {}) },
     { enabled: !!params.prosjektId },
   );
 

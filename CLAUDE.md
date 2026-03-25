@@ -65,12 +65,86 @@ sitedoc/
 - `pnpm db:migrate` — Prisma-migreringer (bruk prosjektets Prisma, IKKE global `npx prisma`)
 - `pnpm db:seed` / `pnpm db:studio`
 
-## Deployment
+## Utviklingsmiljø og deploy
+
+### Branching
+- **`develop`** — aktiv utvikling. All ny kode commites hit.
+- **`main`** — produksjon. Kun oppdatert via merge fra `develop` etter testing.
+
+### Miljøer
+
+| | Test | Produksjon |
+|---|---|---|
+| **Web** | test.sitedoc.no | sitedoc.no |
+| **Branch** | `develop` | `main` |
+| **Repo på server** | `~/programmering/sitedoc-test` | `~/programmering/sitedoc` |
+| **API-port** | 3301 | 3001 |
+| **Database** | Delt PostgreSQL | Delt PostgreSQL |
+| **Uploads** | Delt (symlinket) | Delt |
+
+### Arbeidsflyt
+
+1. **Utvikle** — jobb på `develop`, commit og push
+2. **Deploy til test** — `ssh sitedoc "cd ~/programmering/sitedoc-test && git fetch origin && git reset --hard origin/develop && pnpm install --frozen-lockfile && pnpm build --filter @sitedoc/web && pm2 restart sitedoc-test-web sitedoc-test-api"`
+3. **Test** — verifiser på test.sitedoc.no
+4. **Deploy til prod** (kun på eksplisitt forespørsel) — `git checkout main && git merge develop --no-edit && git push origin main` etterfulgt av server-deploy
+
+### Deploy-kommandoer
 
 ```bash
+# Test (automatisk etter push til develop)
+ssh sitedoc "cd ~/programmering/sitedoc-test && git fetch origin && git reset --hard origin/develop && pnpm install --frozen-lockfile && pnpm build --filter @sitedoc/web && pm2 restart sitedoc-test-web sitedoc-test-api"
+
+# Produksjon (KUN på eksplisitt forespørsel)
 ssh sitedoc "cd ~/programmering/sitedoc && git pull && pnpm install --frozen-lockfile && pnpm db:migrate && pnpm build && pm2 restart all"
 ```
+
 Se [docs/claude/infrastruktur.md](docs/claude/infrastruktur.md) for detaljer.
+
+### Mobil reload-typer (viktig: opplys ALLTID brukeren)
+
+Etter endringer, oppgi alltid hvilken reload-metode som trengs:
+
+| Endring | Reload-metode | Instruks til bruker |
+|---------|--------------|---------------------|
+| **React-komponent / styling** | Hot reload | «Shake → Reload» eller dra ned |
+| **Provider / kontekst / hooks** | Full restart | «`npx expo start --clear`» |
+| **WebView-innhold (mobil-viewer)** | Deploy + restart | «Deployet til test — restart Expo med `--clear`» |
+| **API-endringer** | Deploy | «Deployet til test — shake → Reload» |
+| **Native modul / config** | Ny build | «Trenger ny EAS-build» |
+
+**Regel:** Etter HVER commit som påvirker mobil, skriv eksplisitt: «**Reload:** [metode]»
+
+### Miljøer og URL-oppsett
+
+| | Test | Produksjon |
+|---|---|---|
+| **Web** | test.sitedoc.no | sitedoc.no |
+| **API (tRPC)** | api-test.sitedoc.no (port 3301) | api.sitedoc.no (port 3001) |
+| **Database** | sitedoc_test | sitedoc |
+| **Mobil `.env`** | `api-test.sitedoc.no` | `api.sitedoc.no` |
+| **Branch** | `develop` | `main` |
+
+**Viktig:** Mobil `.env` peker mot **test** under utvikling. `.env.production` brukes for EAS Build / TestFlight.
+
+### Mobil-app og URL-konstruksjon
+
+- **URL-hjelpefunksjon:** Bruk `hentWebUrl()` fra `config/auth.ts` for web-URL (filnedlasting, mobil-viewer)
+  ```
+  hentWebUrl()
+  // api.sitedoc.no → sitedoc.no
+  // api-test.sitedoc.no → test.sitedoc.no
+  ```
+- **URL-mønster:** Alle `/uploads/`-URLer MÅ gå via Next.js proxy:
+  ```
+  baseUrl = hentWebUrl()
+  url = `/api${fileUrl}`
+  fullUrl = `${baseUrl}${url}`
+  // → https://test.sitedoc.no/api/uploads/uuid.ifc ✅
+  ```
+- **ALDRI** bruk `AUTH_CONFIG.apiUrl.replace("api.", "")` direkte — bruk `hentWebUrl()`
+- **ALDRI** send `file://`-stier til WebView — WebView kan ikke lese lokale filer fra en http-side (CORS)
+- Reverse proxy: `test.sitedoc.no` → web, `test.sitedoc.no/api/` → API, `api-test.sitedoc.no` → tRPC
 
 ## Kodestil
 
@@ -120,7 +194,9 @@ Se [docs/claude/infrastruktur.md](docs/claude/infrastruktur.md) for detaljer.
 - Statusoverganger via `isValidStatusTransition()` på server og klient
 - E-postsending (Resend) er valgfri — API starter uten nøkkel
 - **Delt infrastruktur:** Brukeren har flere prosjekter som deler domene (sitedoc.no), OAuth-klienter, ngrok-konto og server. ALDRI endre `.env`-filer, DNS/tunnel-config eller OAuth-oppsett uten å spørre — endringer kan påvirke andre prosjekter
-- **Auto-commit:** Commit og push automatisk etter ferdig implementasjon
+- **Auto-commit:** Commit og push til `develop` automatisk etter ferdig implementasjon
+- **Auto-deploy til test:** Etter push til `develop`, deploy til test.sitedoc.no automatisk
+- **ALDRI deploy til produksjon** uten eksplisitt forespørsel fra brukeren ("deploy til prod")
 - **Auto-oppdater dokumentasjon:** Oppdater relevant fil i `docs/claude/` etter vesentlige endringer
 - **Kontekstsparing:** Kontekstvinduet er begrenset — spar plass:
   - **Batch SSH-kommandoer:** Kombiner flere SSH-kall til ett script/én kommando i stedet for mange enkeltkommandoer. F.eks. ett `ssh sitedoc "cmd1 && cmd2 && cmd3"` i stedet for tre separate kall

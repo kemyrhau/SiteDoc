@@ -56,6 +56,10 @@ Sjekkliste-/oppgave-detaljskjermen har kontekstuelle statusknapper i bunnpanelet
 - KartVisning: GPS med 8s timeout, statusmelding til bruker
 - Tillatelse: `requestForegroundPermissionsAsync()` — krever "Når appen er i bruk"
 
+**Strømforbruk-optimalisering:**
+- GPS: Balanced accuracy, 5s intervall (ikke continuous high accuracy)
+- WebView: Fjernet unødvendig `mediaPlayback`-innstilling, beholdt `allowsInlineMediaPlayback` for WebGL
+
 **Komprimering (`komprimer()`):**
 1. 5:4 senter-crop → 2. Maks 1920px → 3. Iterativ kvalitet 300–400 KB → 4. GPS-tag → 5. Lokal lagring
 
@@ -68,6 +72,8 @@ Sjekkliste-/oppgave-detaljskjermen har kontekstuelle statusknapper i bunnpanelet
 **Bildeannotering (Fabric.js):** WebView-basert canvas. Verktøy: pil, sirkel, firkant, frihånd, tekst. Canvas-resize til bildets 5:4.
 
 **Server-URL-håndtering:** `file://` → lokal, `/uploads/...` → `AUTH_CONFIG.apiUrl + url`, `http(s)://` → direkte.
+
+**URL-konstruksjon:** Alle `/uploads/`-URLer MÅ gå via Next.js proxy: `sitedoc.no/api/uploads/...` (IKKE direkte til API-serveren). Dette gjelder både mobilappen og WebView.
 
 **Filmrull:** Horisontal ScrollView med 72×72px thumbnails (IKKE FlatList).
 
@@ -127,60 +133,55 @@ DatabaseProvider → trpc → QueryClient → Nettverk → OpplastingsKo → Aut
 
 **expo-file-system:** Bruk `expo-file-system/legacy` (IKKE `expo-file-system`)
 
-## Planlagt: IFC 3D-visning i mobil (Fase 2)
+## Implementert: IFC 3D-visning i mobil (WebView)
 
 ### Arkitekturbeslutning: WebView-tilnærming
 
 @thatopen/fragments + Three.js fungerer ikke i React Native. WebView-tilnærming gjenbruker web-vieweren — enklest å implementere og vedlikeholde. Appen bruker allerede `react-native-webview` (v13.15.0) for signatur-canvas.
 
-### Implementasjonsplan
+### Implementasjon
 
-**Steg 1: Lag en standalone IFC-viewer HTML-side på web**
-- Ny rute: `/mobil-viewer` (eller statisk HTML i `public/`)
-- Bare canvas + OBC-initialisering — ingen sidebar, verktøylinje eller Next.js-layout
-- Aksepterer parametere via URL eller `postMessage`:
-  - `modelUrls` — liste med IFC-fil-URLer
-  - `token` — auth-token for filnedlasting
-- Sender hendelser tilbake via `postMessage`:
-  - `{ type: "objektValgt", data: { localId, modelId, kategori, egenskaper } }`
-  - `{ type: "modellLastet", data: { antall } }`
-  - `{ type: "feil", data: { melding } }`
-- **Fil:** `apps/web/src/app/mobil-viewer/page.tsx`
-
-**Steg 2: WebView-komponent i mobilappen**
-- Ny komponent: `apps/mobile/src/components/IfcViewer.tsx`
-- `<WebView source={{ uri: "https://sitedoc.no/mobil-viewer?..." }}>`
-- `onMessage` håndterer `postMessage` fra web-vieweren
-- Overlay-kontroller i React Native over WebView:
-  - Modell-toggle (avkrysning per fag)
-  - Snitt-knapp
-  - Tilbake-knapp
+- **Web-side:** `apps/web/src/app/mobil-viewer/page.tsx` — standalone IFC-viewer uten Next.js-layout
+- **WebView-komponent:** `apps/mobile/src/components/IfcViewer.tsx`
+- **Navigasjon:** Dedikert rute `app/3d-visning.tsx` tilgjengelig fra hjem-skjermen
+- **postMessage-kommunikasjon:**
+  - Web → mobil: `objektValgt`, `modellLastet`, `feil`
+  - Mobil → web: `flyTil` (koordinatsynk fra tegningsmarkør til 3D-posisjon)
 - **Touch-kontroller:** WebView videresender touch til Three.js orbit controls (fungerer ut av boksen)
 
-**Steg 3: Navigasjon og integrasjon**
-- Ny tab eller knapp i `(tabs)/` — "3D" ikon i bottom-tab, eller knapp i Lokasjoner
-- Alternativt: dedikert rute `app/3d-visning.tsx` tilgjengelig fra hjem-skjermen
-- Hent IFC-tegninger via `trpc.tegning.hentForProsjekt` (filtrerer `fileType === "ifc"`)
+### Modellcache med versjonering
 
-**Steg 4: Offline-støtte**
-- Forhåndslast IFC-filer til `expo-file-system` lokal lagring
-- WebView laster fra `file://` i stedet for `https://`
-- Krever: ny synk-logikk i `OpplastingsKoProvider` eller egen `IfcCacheProvider`
-- Vis nedlastings-progress og lagringsstatus
+**Fil:** `apps/mobile/src/services/ifcCache.ts`
 
-**Avhengigheter som allerede finnes:**
+- `.meta`-filer med `updatedAt`-tidsstempel per cachet modell
+- Ved oppstart sjekkes serverens `updatedAt` mot lokal cache
+- Utdatert cache slettes og lastes ned på nytt
+- WebView laster fra `file://` når modellen er cachet lokalt
+
+### Tegning+3D split-view
+
+**Fil:** `apps/mobile/app/tegning-3d.tsx`
+
+- TegningsVisning (topp) + WebView 3D-viewer (bunn)
+- Justerbar split-ratio: 50/50, 70/30, 30/70
+- Klikk-synk begge veier via `postMessage` + koordinatbro:
+  - Klikk på tegningsmarkør → sender `flyTil`-melding til 3D-viewer
+  - Klikk på 3D-objekt → markerer posisjon på tegning
+- Lenke fra hjem-skjermen
+
+### Offline-klargjøring
+
+**Fil:** `apps/mobile/src/services/offlineKlargjoring.ts`
+
+- «Forbered til offline»-handling i Mer-menyen
+- Laster ned tegninger (PDF/SVG) og IFC-modeller til lokal lagring
+- Fremdriftsrapportering under nedlasting
+
+### Avhengigheter
 - `react-native-webview` (v13.15.0) ✓
 - `expo-file-system` ✓
 - tRPC-klient med auth ✓
-
-**Nye avhengigheter:** Ingen (WebView dekker alt)
-
-### Funksjoner å støtte (prioritert)
-1. Modellvisning med orbit-kontroll (touch)
-2. Modell-toggle per fag (checkbox-liste)
-3. Objektklikk med egenskapspanel
-4. Klippeplan (snitt)
-5. Filtrering (skjul/vis IFC-typer)
+- Ingen nye avhengigheter (WebView dekker alt)
 
 ---
 

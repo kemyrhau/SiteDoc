@@ -29,7 +29,7 @@ export default function SjekklisteSide() {
   const [kolonneFiltre, setKolonneFiltre] = useState<Record<string, string>>({});
 
   const { data: sjekklister, isLoading } = trpc.sjekkliste.hentForProsjekt.useQuery(
-    { projectId: params.prosjektId },
+    { projectId: params.prosjektId, ...(aktivBygning?.id ? { buildingId: aktivBygning.id } : {}) },
   );
 
   const { data: maler } = trpc.mal.hentForProsjekt.useQuery({ projectId: params.prosjektId });

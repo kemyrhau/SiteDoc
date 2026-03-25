@@ -46,6 +46,8 @@ export const createEnterpriseSchema = z.object({
 export const copyEnterpriseSchema = z.object({
   sourceEnterpriseId: z.string().uuid(),
   targetProjectId: z.string().uuid(),
+  name: z.string().min(1).max(255).optional(),
+  color: z.string().max(50).optional(),
   memberIds: z.array(z.string().uuid()).default([]),
 });
 
@@ -67,6 +69,7 @@ const geoReferansePunktSchema = z.object({
 export const geoReferanseSchema = z.object({
   point1: geoReferansePunktSchema,
   point2: geoReferansePunktSchema,
+  ekstraPunkter: z.array(geoReferansePunktSchema).optional(),
 });
 
 // Bygningsvalidering

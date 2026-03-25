@@ -178,6 +178,8 @@ model ProjectGroup {
   category    String   @default("field") // generelt, field, brukergrupper
   permissions Json     @default("[]")
   domains     Json     @default("[]")  // ["bygg"], ["hms"], ["bygg","hms"], etc.
+  modules     Json     @default("[\"sjekklister\",\"oppgaver\",\"tegninger\",\"3d\"]") // aktive moduler
+  buildingIds Json?    @map("building_ids")  // null = alle bygninger, ellers array med bygning-IDer
   isDefault   Boolean  @default(false) @map("is_default")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
@@ -196,6 +198,7 @@ model ProjectGroupMember {
   id              String   @id @default(uuid())
   groupId         String   @map("group_id")
   projectMemberId String   @map("project_member_id")
+  isAdmin         Boolean  @default(false) @map("is_admin")
   createdAt       DateTime @default(now()) @map("created_at")
 
   group         ProjectGroup  @relation(fields: [groupId], references: [id], onDelete: Cascade)

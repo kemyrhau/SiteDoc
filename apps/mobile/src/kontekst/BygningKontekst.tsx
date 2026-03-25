@@ -31,7 +31,7 @@ async function hentVerdi(key: string): Promise<string | null> {
 
 interface BygningKontekstType {
   valgtBygningId: string | null;
-  settBygning: (id: string | null) => void;
+  settBygning: (id: string) => void;
   lasterBygningId: boolean;
 }
 
@@ -73,15 +73,10 @@ export function BygningProvider({ children }: { children: ReactNode }) {
   );
 
   const settBygning = useCallback(
-    (id: string | null) => {
+    (id: string) => {
       if (!valgtProsjektId) return;
       setBygningMap((prev) => {
-        const neste = { ...prev };
-        if (id) {
-          neste[valgtProsjektId] = id;
-        } else {
-          delete neste[valgtProsjektId];
-        }
+        const neste = { ...prev, [valgtProsjektId]: id };
         lagreVerdi(BYGNING_MAP_KEY, JSON.stringify(neste)).catch(() => {});
         return neste;
       });

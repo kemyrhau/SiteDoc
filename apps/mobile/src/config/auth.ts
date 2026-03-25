@@ -8,6 +8,13 @@ export const AUTH_CONFIG = {
   apiUrl: process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3001",
 } as const;
 
+/** Web-base URL for filnedlasting og mobil-viewer (uten /trpc, uten api-prefiks) */
+export function hentWebUrl(): string {
+  const url = AUTH_CONFIG.apiUrl.replace("/trpc", "");
+  // api.sitedoc.no → sitedoc.no, api-test.sitedoc.no → test.sitedoc.no
+  return url.replace("://api.", "://").replace("://api-", "://");
+}
+
 // OAuth-endepunkter
 export const GOOGLE_AUTH = {
   authorizationEndpoint: "https://accounts.google.com/o/oauth2/v2/auth",

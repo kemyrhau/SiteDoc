@@ -360,12 +360,12 @@ export const STANDARD_PROJECT_GROUPS: StandardProjectGroup[] = [
   },
 ];
 
-// Prosjektmoduler — forhåndsdefinerte mal-pakker som kan aktiveres per prosjekt
+// Prosjektmoduler — forhåndsdefinerte mal-pakker og funksjoner som kan aktiveres per prosjekt
 export interface ModulDefinisjon {
   slug: string;
   navn: string;
   beskrivelse: string;
-  kategori: "oppgave" | "sjekkliste";
+  kategori: "oppgave" | "sjekkliste" | "funksjon";
   ikon: string; // lucide-react ikonnavn
   maler: ModulMal[];
 }
@@ -485,6 +485,14 @@ export const PROSJEKT_MODULER: ModulDefinisjon[] = [
         ],
       },
     ],
+  },
+  {
+    slug: "3d-visning",
+    navn: "3D-visning",
+    beskrivelse: "Vis IFC-modeller i 3D, split-view med tegninger og live-view med kamera",
+    kategori: "funksjon",
+    ikon: "Box",
+    maler: [], // Ingen maler — ren funksjon
   },
 ];
 
@@ -699,7 +707,7 @@ export interface VaerVerdi {
 export const BUILDING_TYPES = ["bygg", "anlegg"] as const;
 export type BuildingType = (typeof BUILDING_TYPES)[number];
 
-// Georeferanse for tegninger (2 referansepunkter for similaritetstransformasjon)
+// Georeferanse for tegninger (2+ referansepunkter)
 export interface GeoReferansePunkt {
   pixel: { x: number; y: number };  // prosent 0-100
   gps: { lat: number; lng: number };
@@ -708,6 +716,7 @@ export interface GeoReferansePunkt {
 export interface GeoReferanse {
   point1: GeoReferansePunkt;
   point2: GeoReferansePunkt;
+  ekstraPunkter?: GeoReferansePunkt[];  // 3+ punkter for affine transformasjon
 }
 
 // Mappeadgangskontroll

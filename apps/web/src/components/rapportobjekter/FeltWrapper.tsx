@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Info } from "lucide-react";
 import type { Vedlegg } from "./typer";
 import { FeltDokumentasjon } from "./FeltDokumentasjon";
 
@@ -56,12 +56,20 @@ export function FeltWrapper({
 
   return (
     <div className={`rounded-lg bg-white p-4 shadow-sm ${marginKlasse} ${rammeKlasse}`}>
-      {/* Label + påkrevd-badge */}
+      {/* Label + påkrevd-badge + hjelpetekst */}
       <div className="mb-2 flex items-center gap-2">
         <span className="text-sm font-medium text-gray-900">{objekt.label}</span>
         {objekt.required && (
           <span className="rounded bg-red-50 px-1.5 py-0.5 text-[10px] font-medium text-red-600">
             Påkrevd
+          </span>
+        )}
+        {typeof objekt.config.helpText === "string" && objekt.config.helpText && (
+          <span className="group relative">
+            <Info size={14} className="text-blue-400" />
+            <span className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-1 hidden w-56 -translate-x-1/2 rounded bg-gray-800 px-2.5 py-1.5 text-xs text-white shadow-lg group-hover:block">
+              {objekt.config.helpText as string}
+            </span>
           </span>
         )}
       </div>

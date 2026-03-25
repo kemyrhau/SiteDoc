@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useRef } from "react";
 import {
   DndContext,
   pointerWithin,
@@ -26,7 +26,7 @@ import { FeltKonfigurasjon } from "./FeltKonfigurasjon";
 import { DragOverlayKomponent } from "./DragOverlay_";
 import type { MalObjekt } from "./DraggbartFelt";
 import type { TreObjekt } from "./typer";
-import { MapPin } from "lucide-react";
+import { MapPin, Pencil } from "lucide-react";
 
 // Hent streng-verdi fra opsjon (støtter både string og {label, value}-format)
 function opsjonTilStreng(opsjon: unknown): string {
@@ -130,11 +130,45 @@ function akseptererBarn(objekt: MalObjekt): boolean {
   return objekt.config.conditionActive === true;
 }
 
+// Sjekk om `muligForelderId` er en etterkommer av `objektId` (sirkulær referanse-vakt)
+function erEtterkommer(objekter: MalObjekt[], objektId: string, muligForelderId: string): boolean {
+  let currentId: string | null = muligForelderId;
+  let dybde = 0;
+  while (currentId && dybde < 10) {
+    if (currentId === objektId) return true;
+    const current = objekter.find((o) => o.id === currentId);
+    currentId = current?.parentId ?? null;
+    dybde++;
+  }
+  return false;
+}
+
 export function MalBygger({ mal }: MalByggerProps) {
   const utils = trpc.useUtils();
   const [valgtId, setValgtId] = useState<string | null>(null);
   const [aktivtDrag, setAktivtDrag] = useState<Active | null>(null);
   const [slettBekreftelse, setSlettBekreftelse] = useState<{ id: string; label: string } | null>(null);
+
+  // Inline-redigering av malnavn
+  const [redigererNavn, setRedigererNavn] = useState(false);
+  const [malNavn, setMalNavn] = useState(mal.name);
+  const navnInputRef = useRef<HTMLInputElement>(null);
+  const oppdaterMalMutation = trpc.mal.oppdaterMal.useMutation({
+    onSuccess: () => {
+      utils.mal.hentMedId.invalidate({ id: mal.id });
+      utils.mal.hentForProsjekt.invalidate();
+    },
+  });
+
+  const lagreNavn = useCallback(() => {
+    const trimmet = malNavn.trim();
+    if (trimmet && trimmet !== mal.name) {
+      oppdaterMalMutation.mutate({ id: mal.id, name: trimmet });
+    } else {
+      setMalNavn(mal.name);
+    }
+    setRedigererNavn(false);
+  }, [malNavn, mal.name, mal.id, oppdaterMalMutation]);
 
   // Lokale objekter for optimistisk oppdatering
   const [objekter, setObjekter] = useState<MalObjekt[]>(
@@ -433,8 +467,8 @@ export function MalBygger({ mal }: MalByggerProps) {
 
           // Sjekk om vi drar inn i en kontainer, ut av en, eller innenfor samme nivå
           if (overObjekt) {
-            if (akseptererBarn(overObjekt) && overObjekt.id !== aktivParentId) {
-              // Droppet på kontainer → bli barn av den kontaineren
+            if (akseptererBarn(overObjekt) && overObjekt.id !== aktivParentId && !erEtterkommer(neste, aktivId, overObjekt.id)) {
+              // Droppet på kontainer → bli barn av den kontaineren (med sirkulær referanse-vakt)
               const aktivIdx = neste.findIndex((o) => o.id === aktivId);
               if (aktivIdx !== -1) {
                 neste[aktivIdx] = { ...aktivObjekt, parentId: overObjekt.id };
@@ -579,7 +613,30 @@ export function MalBygger({ mal }: MalByggerProps) {
         {/* Midt — Malsoner */}
         <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-4">
           <div className="mb-1">
-            <h3 className="text-base font-semibold">{mal.name}</h3>
+            {redigererNavn ? (
+              <input
+                ref={navnInputRef}
+                type="text"
+                value={malNavn}
+                onChange={(e) => setMalNavn(e.target.value)}
+                onBlur={lagreNavn}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") lagreNavn();
+                  if (e.key === "Escape") { setMalNavn(mal.name); setRedigererNavn(false); }
+                }}
+                autoFocus
+                className="w-full rounded border border-blue-300 bg-white px-2 py-0.5 text-base font-semibold outline-none focus:ring-2 focus:ring-blue-200"
+              />
+            ) : (
+              <button
+                onClick={() => { setRedigererNavn(true); setMalNavn(mal.name); }}
+                className="group flex items-center gap-1.5 text-base font-semibold hover:text-blue-700"
+                title="Rediger malnavn"
+              >
+                {mal.name}
+                <Pencil className="h-3.5 w-3.5 text-gray-300 group-hover:text-blue-500" />
+              </button>
+            )}
             {mal.description && (
               <p className="text-sm text-gray-500">{mal.description}</p>
             )}

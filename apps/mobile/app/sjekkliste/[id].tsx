@@ -289,7 +289,7 @@ export default function SjekklisteUtfylling() {
       } : null,
       AUTH_CONFIG.apiUrl,
     );
-  }, [sjekkliste, prosjektData, detaljQuery.data]);
+  }, [sjekkliste, prosjektData, detaljQuery.data as unknown]);
 
   // Vis forhåndsvisning
   const håndterVisPdf = useCallback(() => {

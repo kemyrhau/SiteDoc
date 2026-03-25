@@ -23,10 +23,11 @@ export default function TreDVisningSkjerm() {
   // Filtrer kun IFC-filer
   const ifcModeller = (tegninger ?? [])
     .filter((t: { fileType?: string }) => t.fileType?.toLowerCase() === "ifc")
-    .map((t: { id: string; name: string; fileUrl: string }) => ({
+    .map((t: { id: string; name: string; fileUrl: string; updatedAt?: string }) => ({
       id: t.id,
       name: t.name,
       fileUrl: t.fileUrl,
+      updatedAt: t.updatedAt,
     }));
 
   if (isLoading) {

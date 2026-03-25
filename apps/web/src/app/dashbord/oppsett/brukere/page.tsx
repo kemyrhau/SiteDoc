@@ -25,6 +25,10 @@ import {
   Info,
   Mail,
   RefreshCw,
+  ClipboardCheck,
+  ListTodo,
+  Map,
+  Box,
 } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
@@ -39,6 +43,7 @@ interface BrukerGruppeMedlem {
   telefon?: string;
   firma?: string;
   rolle?: string;
+  erAdmin?: boolean;
   ventendeInvitasjon?: { id: string };
 }
 
@@ -47,6 +52,7 @@ interface BrukerGruppe {
   navn: string;
   kategori: "generelt" | "field" | "brukergrupper";
   medlemmer: BrukerGruppeMedlem[];
+  moduler?: string[];
   ikon?: React.ReactNode;
 }
 
@@ -67,6 +73,7 @@ interface DbGruppe {
   }[];
   members: {
     id: string;
+    isAdmin: boolean;
     projectMember: {
       id: string;
       user: { name: string | null; email: string; phone?: string | null };
@@ -219,6 +226,30 @@ function RedigerGruppeModal({
       utils.gruppe.hentForProsjekt.invalidate({ projectId: prosjektId });
     },
   });
+
+  const oppdaterModuler = trpc.gruppe.oppdaterModuler.useMutation({
+    onSuccess: () => {
+      utils.gruppe.hentForProsjekt.invalidate({ projectId: prosjektId });
+    },
+  });
+
+  const oppdaterBygninger = trpc.gruppe.oppdaterBygninger.useMutation({
+    onSuccess: () => {
+      utils.gruppe.hentForProsjekt.invalidate({ projectId: prosjektId });
+    },
+  });
+  const settGruppeAdmin = trpc.gruppe.settGruppeAdmin.useMutation({
+    onSuccess: () => {
+      utils.gruppe.hentForProsjekt.invalidate({ projectId: prosjektId });
+    },
+  });
+
+  // Hent bygninger for bygningsvelger
+  const { data: _alleBygninger } = trpc.bygning.hentForProsjekt.useQuery(
+    { projectId: prosjektId },
+    { enabled: !!prosjektId },
+  );
+  const alleBygninger = (_alleBygninger ?? []) as Array<{ id: string; name: string }>;
 
   const oppdaterMedlem = trpc.medlem.oppdater.useMutation({
     onSuccess: () => {
@@ -536,6 +567,11 @@ function RedigerGruppeModal({
                           {medlem.rolle}
                         </span>
                       )}
+                      {erDbGruppe && medlem.erAdmin && (
+                        <span className="rounded bg-blue-100 px-1.5 py-0.5 text-xs text-blue-700">
+                          Gruppeadmin
+                        </span>
+                      )}
                       {medlem.ventendeInvitasjon && (
                         <span className="flex items-center gap-1 rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-700">
                           <Mail className="h-3 w-3" />
@@ -574,6 +610,27 @@ function RedigerGruppeModal({
                             Deaktiver
                           </button>
                         </>
+                      )}
+                      {!medlem.ventendeInvitasjon && erDbGruppe && medlem.projectMemberId && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            settGruppeAdmin.mutate({
+                              groupId: gruppe.id,
+                              projectId: prosjektId,
+                              projectMemberId: medlem.projectMemberId!,
+                              isAdmin: !medlem.erAdmin,
+                            });
+                          }}
+                          disabled={settGruppeAdmin.isPending}
+                          className={`flex items-center gap-1 rounded px-1.5 py-0.5 text-xs opacity-0 group-hover/row:opacity-100 ${
+                            medlem.erAdmin ? "text-blue-600 hover:bg-blue-50" : "text-gray-500 hover:bg-gray-100"
+                          }`}
+                          title={medlem.erAdmin ? "Fjern gruppeadmin" : "Gjør til gruppeadmin"}
+                        >
+                          <Shield className="h-3 w-3" />
+                          {medlem.erAdmin ? "Fjern admin" : "Admin"}
+                        </button>
                       )}
                       {!medlem.ventendeInvitasjon && (
                         <button
@@ -878,38 +935,39 @@ function RedigerGruppeModal({
           )}
         </div>
 
-        {/* Fagområder-seksjon (kun for DB-grupper) */}
+        {/* Moduler — feltarbeid-admin kan slå av/på */}
         {erDbGruppe && dbGruppe && (
           <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-            <h4 className="mb-3 text-sm font-semibold text-gray-900">
-              Fagområder
-            </h4>
-            <p className="mb-2 text-xs text-gray-500">
-              Velg hvilke fagområder denne gruppen har tilgang til
-            </p>
+            <h4 className="mb-3 text-sm font-semibold text-gray-900">Moduler</h4>
+            <p className="mb-2 text-xs text-gray-500">Hvilke moduler gruppen har tilgang til</p>
             <div className="flex flex-col gap-2">
-              {(["bygg", "hms", "kvalitet"] as const).map((d) => {
-                const domener = (dbGruppe.domains ?? []) as string[];
-                const erValgt = domener.includes(d);
+              {([
+                { id: "sjekklister", label: "Sjekklister", ikon: <ClipboardCheck className="h-4 w-4" /> },
+                { id: "oppgaver", label: "Oppgaver", ikon: <ListTodo className="h-4 w-4" /> },
+                { id: "tegninger", label: "Tegninger", ikon: <Map className="h-4 w-4" /> },
+                { id: "3d", label: "3D-modeller", ikon: <Box className="h-4 w-4" /> },
+              ] as const).map((modul) => {
+                const aktiveModuler = ((dbGruppe as unknown as { modules?: string[] }).modules ?? ["sjekklister", "oppgaver", "tegninger", "3d"]);
+                const erAktiv = aktiveModuler.includes(modul.id);
                 return (
-                  <label key={d} className="flex items-center gap-2 cursor-pointer">
+                  <label key={modul.id} className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="checkbox"
-                      checked={erValgt}
+                      checked={erAktiv}
                       onChange={() => {
-                        const nyeDomener = erValgt
-                          ? domener.filter((x) => x !== d)
-                          : [...domener, d];
-                        oppdaterDomener.mutate({
+                        const nyeModuler = erAktiv
+                          ? aktiveModuler.filter((m: string) => m !== modul.id)
+                          : [...aktiveModuler, modul.id];
+                        oppdaterModuler.mutate({
                           groupId: dbGruppe.id,
                           projectId: prosjektId,
-                          domains: nyeDomener as ("bygg" | "hms" | "kvalitet")[],
+                          modules: nyeModuler as ("sjekklister" | "oppgaver" | "tegninger" | "3d")[],
                         });
                       }}
                       className="h-4 w-4 rounded border-gray-300 text-sitedoc-primary focus:ring-sitedoc-primary"
                     />
-                    <span className="text-sm text-gray-700">
-                      {d === "bygg" ? "Bygg" : d === "hms" ? "HMS" : "Kvalitet"}
+                    <span className="flex items-center gap-1.5 text-sm text-gray-700">
+                      {modul.ikon} {modul.label}
                     </span>
                   </label>
                 );
@@ -918,62 +976,50 @@ function RedigerGruppeModal({
           </div>
         )}
 
-        {/* Tilknyttede entrepriser (kun for DB-grupper) */}
-        {erDbGruppe && dbGruppe && alleEntrepriser && alleEntrepriser.length > 0 && (
+        {/* Bygninger — velg hvilke bygninger gruppen ser */}
+        {erDbGruppe && dbGruppe && alleBygninger && alleBygninger.length > 0 && (
           <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-            <h4 className="mb-3 text-sm font-semibold text-gray-900">
-              Tilknyttede entrepriser
-            </h4>
-            <p className="mb-2 text-xs text-gray-500">
-              Gruppe uten entrepriser gir tverrgående tilgang til valgte fagområder
-            </p>
+            <h4 className="mb-3 text-sm font-semibold text-gray-900">Bygninger</h4>
+            <p className="mb-2 text-xs text-gray-500">Velg hvilke bygninger gruppen har tilgang til (alle = standard)</p>
             <div className="flex flex-col gap-2">
-              {alleEntrepriser.map((ent) => {
-                const gruppeEntreIder = (dbGruppe.groupEnterprises ?? []).map((ge) => ge.enterprise.id);
-                const erValgt = gruppeEntreIder.includes(ent.id);
+              {alleBygninger.map((b) => {
+                const bygningIder = ((dbGruppe as unknown as { buildingIds?: string[] | null }).buildingIds) ?? null;
+                const alleValgt = bygningIder === null;
+                const erValgt = alleValgt || (bygningIder?.includes(b.id) ?? false);
                 return (
-                  <label key={ent.id} className="flex items-center gap-2 cursor-pointer">
+                  <label key={b.id} className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={erValgt}
                       onChange={() => {
-                        const nyeIder = erValgt
-                          ? gruppeEntreIder.filter((id) => id !== ent.id)
-                          : [...gruppeEntreIder, ent.id];
-                        oppdaterEntrepriser.mutate({
+                        let nye: string[] | null;
+                        if (alleValgt) {
+                          // Gå fra alle → kun denne fjernes
+                          nye = alleBygninger.filter((x) => x.id !== b.id).map((x) => x.id);
+                        } else {
+                          if (erValgt) {
+                            nye = bygningIder!.filter((id: string) => id !== b.id);
+                            if (nye.length === 0) nye = null; // Ingen = alle
+                          } else {
+                            nye = [...(bygningIder ?? []), b.id];
+                            if (nye.length === alleBygninger.length) nye = null; // Alle = null
+                          }
+                        }
+                        oppdaterBygninger.mutate({
                           groupId: dbGruppe.id,
                           projectId: prosjektId,
-                          enterpriseIds: nyeIder,
+                          buildingIds: nye,
                         });
                       }}
                       className="h-4 w-4 rounded border-gray-300 text-sitedoc-primary focus:ring-sitedoc-primary"
                     />
-                    <span className="text-sm text-gray-700">{ent.name}</span>
+                    <span className="text-sm text-gray-700">{b.name}</span>
                   </label>
                 );
               })}
             </div>
           </div>
         )}
-
-        {/* Rettigheter-seksjon */}
-        <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-          <h4 className="mb-3 text-sm font-semibold text-gray-900">
-            Rettigheter
-          </h4>
-          <p className="mb-2 text-xs font-medium uppercase tracking-wider text-gray-500">
-            Posisjon
-          </p>
-          <div className="flex items-center justify-between rounded bg-white px-3 py-2.5 border border-gray-200">
-            <div className="flex items-center gap-2">
-              <Building2 className="h-4 w-4 text-gray-500" />
-              <span className="text-sm text-gray-700">
-                Vis og rediger bygninger og plasseringer
-              </span>
-            </div>
-            <Lock className="h-4 w-4 text-gray-400" />
-          </div>
-        </div>
 
         {/* Slett gruppe */}
         {erDbGruppe && !dbGruppe?.isDefault && (
@@ -1085,17 +1131,31 @@ function GruppeKort({
       onDoubleClick={onDoubleClick}
       className="group flex min-h-[160px] cursor-pointer flex-col rounded-lg border border-gray-200 bg-white transition-shadow hover:shadow-md"
     >
-      {/* Header */}
+      {/* Header med modulikoner */}
       <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
         <h4 className="truncate text-sm font-semibold text-gray-900">
           {gruppe.navn}
         </h4>
-        {gruppe.kategori === "brukergrupper" && (
-          <div className="flex gap-1 text-gray-400">
-            <Key className="h-3.5 w-3.5" />
-            <Users className="h-3.5 w-3.5" />
-          </div>
-        )}
+        <div className="flex gap-1.5">
+          {(gruppe.moduler ?? ["sjekklister", "oppgaver", "tegninger", "3d"]).map((modul) => {
+            const info: Record<string, { ikon: JSX.Element; tekst: string }> = {
+              sjekklister: { ikon: <ClipboardCheck className="h-3.5 w-3.5" />, tekst: "Sjekklister" },
+              oppgaver: { ikon: <ListTodo className="h-3.5 w-3.5" />, tekst: "Oppgaver" },
+              tegninger: { ikon: <Map className="h-3.5 w-3.5" />, tekst: "Tegninger" },
+              "3d": { ikon: <Box className="h-3.5 w-3.5" />, tekst: "3D-modeller" },
+            };
+            const m = info[modul];
+            if (!m) return null;
+            return (
+              <div key={modul} title={m.tekst} className="relative cursor-help text-sitedoc-primary group/tip">
+                {m.ikon}
+                <div className="pointer-events-none absolute -bottom-7 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-0.5 text-[10px] text-white opacity-0 transition-opacity group-hover/tip:opacity-100">
+                  {m.tekst}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* Innhold */}
@@ -1174,26 +1234,42 @@ function GruppeSeksjon({
   grupper,
   onLeggTilMedlem,
   onDoubleClickGruppe,
+  onOpprett,
 }: {
   tittel: string;
   grupper: BrukerGruppe[];
   onLeggTilMedlem?: (gruppeId: string) => void;
   onDoubleClickGruppe?: (gruppe: BrukerGruppe) => void;
+  onOpprett?: () => void;
 }) {
-  if (grupper.length === 0) return null;
+  if (grupper.length === 0 && !onOpprett) return null;
   return (
     <div className="mb-8">
-      <h3 className="mb-3 text-lg font-bold text-gray-900">{tittel}</h3>
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        {grupper.map((gruppe) => (
-          <GruppeKort
-            key={gruppe.id}
-            gruppe={gruppe}
-            onLeggTilMedlem={onLeggTilMedlem}
-            onDoubleClick={() => onDoubleClickGruppe?.(gruppe)}
-          />
-        ))}
+      <div className="mb-3 flex items-center justify-between">
+        <h3 className="text-lg font-bold text-gray-900">{tittel}</h3>
+        {onOpprett && (
+          <button
+            onClick={onOpprett}
+            className="flex items-center gap-1 rounded-lg bg-sitedoc-primary px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-800"
+          >
+            + Ny gruppe
+          </button>
+        )}
       </div>
+      {grupper.length > 0 ? (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          {grupper.map((gruppe) => (
+            <GruppeKort
+              key={gruppe.id}
+              gruppe={gruppe}
+              onLeggTilMedlem={onLeggTilMedlem}
+              onDoubleClick={() => onDoubleClickGruppe?.(gruppe)}
+            />
+          ))}
+        </div>
+      ) : (
+        <p className="text-sm text-gray-400">Ingen grupper — opprett en ny</p>
+      )}
     </div>
   );
 }
@@ -1240,21 +1316,20 @@ export default function BrukereSide() {
 
   // Bygg map: "gruppeNøkkel:e-post" → invitasjon
   // Nøkkel-format: groupId, "ent-enterpriseId", eller "prosjektadmin"
-  const ventendeInvitasjonerMap = new Map<string, { id: string }>();
+  const ventendeInvitasjonerMap: Record<string, { id: string }> = {};
   if (invitasjoner) {
     for (const inv of invitasjoner) {
       if (inv.status !== "pending") continue;
       const epost = inv.email.toLowerCase();
       if (inv.group?.id) {
-        ventendeInvitasjonerMap.set(`${inv.group.id}:${epost}`, { id: inv.id });
+        ventendeInvitasjonerMap[`${inv.group.id}:${epost}`] = { id: inv.id };
       } else if (inv.enterprise?.id) {
-        ventendeInvitasjonerMap.set(`ent-${inv.enterprise.id}:${epost}`, { id: inv.id });
+        ventendeInvitasjonerMap[`ent-${inv.enterprise.id}:${epost}`] = { id: inv.id };
       } else if (inv.role === "admin") {
-        ventendeInvitasjonerMap.set(`prosjektadmin:${epost}`, { id: inv.id });
+        ventendeInvitasjonerMap[`prosjektadmin:${epost}`] = { id: inv.id };
       }
-      // Også global fallback for tilfeller der gruppen ikke er spesifisert
-      if (!ventendeInvitasjonerMap.has(`global:${epost}`)) {
-        ventendeInvitasjonerMap.set(`global:${epost}`, { id: inv.id });
+      if (!ventendeInvitasjonerMap[`global:${epost}`]) {
+        ventendeInvitasjonerMap[`global:${epost}`] = { id: inv.id };
       }
     }
   }
@@ -1262,7 +1337,7 @@ export default function BrukereSide() {
   function finnInvitasjon(gruppeId: string, epost?: string): { id: string } | undefined {
     if (!epost) return undefined;
     const e = epost.toLowerCase();
-    return ventendeInvitasjonerMap.get(`${gruppeId}:${e}`) ?? ventendeInvitasjonerMap.get(`global:${e}`);
+    return ventendeInvitasjonerMap[`${gruppeId}:${e}`] ?? ventendeInvitasjonerMap[`global:${e}`];
   }
 
   // Lazy opprettelse av standardgrupper
@@ -1288,10 +1363,12 @@ export default function BrukereSide() {
   });
 
   // Bygg Field-grupper fra DB-data
-  const fieldGrupper: BrukerGruppe[] = ((dbGrupper ?? []) as DbGruppe[]).map((g) => ({
+  // Ekskluder prosjektadmin-grupper (vises allerede som virtuell gruppe under Generelt)
+  const fieldGrupper: BrukerGruppe[] = ((dbGrupper ?? []) as DbGruppe[]).filter((g) => g.slug !== "prosjekt-admin").map((g) => ({
     id: g.id,
     navn: g.name,
     kategori: g.category as "generelt" | "field" | "brukergrupper",
+    moduler: (g as unknown as { modules?: string[] }).modules ?? ["sjekklister", "oppgaver", "tegninger", "3d"],
     ikon: SLUG_IKON[g.slug] ?? <Users className="h-4 w-4" />,
     medlemmer: g.members.map((m) => ({
       id: m.id,
@@ -1301,6 +1378,7 @@ export default function BrukereSide() {
       telefon: m.projectMember.user.phone ?? undefined,
       firma: m.projectMember.enterprises?.[0]?.enterprise?.name ?? undefined,
       ventendeInvitasjon: finnInvitasjon(g.id, m.projectMember.user.email),
+      erAdmin: m.isAdmin,
     })),
   }));
 
@@ -1323,23 +1401,8 @@ export default function BrukereSide() {
           ventendeInvitasjon: finnInvitasjon("prosjektadmin", m.user.email),
         })) ?? [],
     },
-    // Field-grupper fra DB
+    // Field-grupper og brukergrupper fra DB
     ...fieldGrupper,
-    // Brukergrupper fra entrepriser
-    ...(entrepriser?.map((ent) => ({
-      id: `ent-${ent.id}`,
-      navn: ent.name,
-      kategori: "brukergrupper" as const,
-      medlemmer: ent.memberEnterprises.map((me: { projectMember: { id: string; user: { name?: string | null; email?: string | null; phone?: string | null } } }) => ({
-        id: me.projectMember.id,
-        navn: me.projectMember.user?.name ?? me.projectMember.user?.email ?? "Ukjent",
-        epost: me.projectMember.user?.email ?? undefined,
-        telefon: me.projectMember.user?.phone ?? undefined,
-        firma: ent.name,
-        ventendeInvitasjon: finnInvitasjon(`ent-${ent.id}`, me.projectMember.user?.email ?? undefined),
-      })),
-      ikon: <Building2 className="h-4 w-4" />,
-    })) ?? []),
   ];
 
   // Filtrering
@@ -1453,6 +1516,10 @@ export default function BrukereSide() {
         grupper={brukergrupper}
         onLeggTilMedlem={handleLeggTilMedlem}
         onDoubleClickGruppe={(g) => setRedigerGruppeId(g.id)}
+        onOpprett={() => {
+          setNyGruppeKategori("brukergrupper");
+          setVisNyGruppeModal(true);
+        }}
       />
 
       {filtrert.length === 0 && (

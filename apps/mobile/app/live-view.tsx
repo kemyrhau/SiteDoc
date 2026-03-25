@@ -7,9 +7,8 @@ import { useRouter } from "expo-router";
 import { useProsjekt } from "../src/kontekst/ProsjektKontekst";
 import { useBygning } from "../src/kontekst/BygningKontekst";
 import { trpc } from "../src/lib/trpc";
-import { AUTH_CONFIG } from "../src/config/auth";
+import { hentWebUrl } from "../src/config/auth";
 import { hentSessionToken } from "../src/services/auth";
-import { hentLokalSti } from "../src/services/ifcCache";
 import { ChevronLeft, Maximize2, Minimize2, Navigation, MapPin } from "lucide-react-native";
 
 const { height: SKJERMHOYDE } = Dimensions.get("window");
@@ -53,9 +52,9 @@ export default function LiveViewSkjerm() {
 
       abonnement = await Location.watchPositionAsync(
         {
-          accuracy: Location.Accuracy.High,
-          timeInterval: 2000,
-          distanceInterval: 1,
+          accuracy: Location.Accuracy.Balanced,
+          timeInterval: 5000,
+          distanceInterval: 2,
         },
         (lokasjon) => {
           setPosisjon({
@@ -85,24 +84,16 @@ export default function LiveViewSkjerm() {
     return () => { abonnement?.remove(); };
   }, []);
 
-  // Send modeller til WebView
+  // Send modeller til WebView — alltid server-URL (WebView kan ikke lese file://)
   useEffect(() => {
     if (!viewerKlar || ifcModeller.length === 0) return;
-
     (async () => {
       const token = await hentSessionToken();
-      const urls: string[] = [];
-
-      for (const m of ifcModeller) {
-        const lokal = await hentLokalSti(m.fileUrl);
-        if (lokal) {
-          urls.push(lokal);
-        } else {
-          const url = m.fileUrl.startsWith("/api") ? m.fileUrl : `/api${m.fileUrl}`;
-          urls.push(`${AUTH_CONFIG.apiUrl.replace("/trpc", "").replace("api.", "")}${url}`);
-        }
-      }
-
+      const baseUrl = hentWebUrl();
+      const urls = ifcModeller.map((m) => {
+        const url = m.fileUrl.startsWith("/api") ? m.fileUrl : `/api${m.fileUrl}`;
+        return `${baseUrl}${url}`;
+      });
       webViewRef.current?.postMessage(
         JSON.stringify({ type: "lastModeller", urls, token }),
       );
@@ -116,7 +107,7 @@ export default function LiveViewSkjerm() {
     }
   }, [kameraTillatelse, beKameraTillatelse]);
 
-  const viewerUrl = `${AUTH_CONFIG.apiUrl.replace("/trpc", "").replace("api.", "")}/mobil-viewer`;
+  const viewerUrl = `${hentWebUrl()}/mobil-viewer`;
 
   const kameraHoyde = SKJERMHOYDE * splitRatio;
   const toggleSplit = () => {

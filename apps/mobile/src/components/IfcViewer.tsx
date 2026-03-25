@@ -1,15 +1,17 @@
 import { useState, useRef, useCallback } from "react";
-import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet } from "react-native";
+import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet, ScrollView } from "react-native";
 import { WebView, type WebViewMessageEvent } from "react-native-webview";
-import { AUTH_CONFIG } from "../config/auth";
+import * as FileSystem from "expo-file-system/legacy";
+import { AUTH_CONFIG, hentWebUrl } from "../config/auth";
 import { hentSessionToken } from "../services/auth";
-import { hentLokalSti, lastNedIfc } from "../services/ifcCache";
+import { lastNedIfc } from "../services/ifcCache";
 import { Box, Eye, EyeOff, Scissors, X, ChevronLeft, Download } from "lucide-react-native";
 
 interface IfcModell {
   id: string;
   name: string;
   fileUrl: string;
+  updatedAt?: string;
 }
 
 interface ValgtObjekt {
@@ -23,6 +25,80 @@ interface ValgtObjekt {
 interface IfcViewerProps {
   modeller: IfcModell[];
   onTilbake: () => void;
+}
+
+/** Oversett IFC-kategorier til norsk */
+function oversettKategori(kategori: string | null): string {
+  if (!kategori) return "Objekt";
+  const oversettelser: Record<string, string> = {
+    IfcWall: "Vegg", IfcWallStandardCase: "Vegg",
+    IfcSlab: "Dekke", IfcRoof: "Tak",
+    IfcBeam: "Bjelke", IfcColumn: "Søyle",
+    IfcDoor: "Dør", IfcWindow: "Vindu",
+    IfcStair: "Trapp", IfcStairFlight: "Trappløp",
+    IfcRailing: "Rekkverk", IfcRamp: "Rampe",
+    IfcPlate: "Plate", IfcMember: "Element",
+    IfcCurtainWall: "Fasadevegg", IfcCovering: "Kledning",
+    IfcFurnishingElement: "Møbel", IfcBuildingElementProxy: "Bygningselement",
+    IfcFlowTerminal: "Armatur", IfcFlowSegment: "Rør/Kanal",
+    IfcDistributionElement: "Teknisk installasjon",
+    IfcSpace: "Rom", IfcOpeningElement: "Åpning",
+  };
+  return oversettelser[kategori] ?? kategori.replace("Ifc", "");
+}
+
+/** Oversett og filtrer IFC-attributter til lesbare norske etiketter */
+function filtrerAttributter(attr: Record<string, unknown>): [string, string][] {
+  const oversettelser: Record<string, string> = {
+    Name: "Navn", Description: "Beskrivelse", ObjectType: "Type",
+    LongName: "Langt navn", PredefinedType: "Forhåndsdefinert type",
+    OverallHeight: "Høyde", OverallWidth: "Bredde", OverallDepth: "Dybde",
+    NominalHeight: "Nominell høyde", NominalWidth: "Nominell bredde",
+    TotalThickness: "Total tykkelse", Thickness: "Tykkelse",
+    Area: "Areal", NetArea: "Netto areal", GrossArea: "Brutto areal",
+    Volume: "Volum", NetVolume: "Netto volum",
+    LoadBearing: "Bærende", IsExternal: "Utvendig",
+    FireRating: "Brannklasse", AcousticRating: "Lydklasse",
+    Reference: "Referanse", Material: "Materiale",
+    Pset_WallCommon: "Veggegenskaper", Pset_SlabCommon: "Dekkeegenskaper",
+  };
+
+  const skjult = new Set([
+    "expressID", "type", "GlobalId", "Tag", "OwnerHistory",
+    "ObjectPlacement", "Representation", "CompositionType", "ShapeType",
+    "Name", // Vises allerede i header
+  ]);
+
+  const resultat: [string, string][] = [];
+
+  // Prioriterte felter først
+  const prioritert = ["ObjectType", "Description", "Material", "Reference", "IsExternal", "LoadBearing", "FireRating"];
+  for (const nøkkel of prioritert) {
+    const verdi = attr[nøkkel];
+    if (verdi != null) {
+      const s = String(verdi);
+      if (s && s !== "NOTDEFINED" && s !== "null" && s !== "undefined" && s !== "ELEMENT") {
+        const label = oversettelser[nøkkel] ?? nøkkel;
+        // Formater boolske verdier
+        const visnVerdi = s === "true" || s === ".T." ? "Ja" : s === "false" || s === ".F." ? "Nei" : s;
+        resultat.push([label, visnVerdi]);
+      }
+    }
+  }
+
+  // Øvrige felter
+  for (const [k, v] of Object.entries(attr)) {
+    if (skjult.has(k) || prioritert.includes(k)) continue;
+    const s = String(v);
+    if (!s || s === "NOTDEFINED" || s === "null" || s === "undefined" || s === "ELEMENT") continue;
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}/i.test(s)) continue;
+    if (resultat.length >= 8) break;
+    const label = oversettelser[k] ?? k;
+    const visnVerdi = s === "true" || s === ".T." ? "Ja" : s === "false" || s === ".F." ? "Nei" : s;
+    resultat.push([label, visnVerdi]);
+  }
+
+  return resultat;
 }
 
 export function IfcViewer({ modeller, onTilbake }: IfcViewerProps) {
@@ -39,28 +115,63 @@ export function IfcViewer({ modeller, onTilbake }: IfcViewerProps) {
   const [feil, setFeil] = useState<string | null>(null);
   const [cacheStatus, setCacheStatus] = useState<string | null>(null);
 
-  const viewerUrl = `${AUTH_CONFIG.apiUrl.replace("/trpc", "").replace("api.", "")}/mobil-viewer`;
+  const viewerUrl = `${hentWebUrl()}/mobil-viewer`;
+  const FRAG_MAPPE = `${FileSystem.documentDirectory}sitedoc-fragments/`;
 
-  // Send modeller til WebView — prøv lokale cachede filer først, ellers server-URL
+  // Fragment-cache hjelpere
+  const fragSti = useCallback((url: string) => {
+    const deler = url.split("/");
+    const filnavn = (deler[deler.length - 1] ?? "modell").replace(".ifc", ".frag");
+    return `${FRAG_MAPPE}${filnavn}`;
+  }, [FRAG_MAPPE]);
+
+  // Send modeller til WebView — inkluder cached fragments
   const sendModeller = useCallback(async () => {
     const token = await hentSessionToken();
-    const modelUrls: string[] = [];
+    const baseUrl = hentWebUrl();
+    const modelUrls = modeller.map((m) => {
+      const url = m.fileUrl.startsWith("/api") ? m.fileUrl : `/api${m.fileUrl}`;
+      return `${baseUrl}${url}`;
+    });
 
-    for (const m of modeller) {
-      // Sjekk lokal cache
-      const lokal = await hentLokalSti(m.fileUrl);
-      if (lokal) {
-        modelUrls.push(lokal);
-      } else {
-        const url = m.fileUrl.startsWith("/api") ? m.fileUrl : `/api${m.fileUrl}`;
-        modelUrls.push(`${AUTH_CONFIG.apiUrl.replace("/trpc", "").replace("api.", "")}${url}`);
+    // Les cachede fragmenter fra filsystemet
+    const cachedFragments: Record<string, string> = {};
+    try {
+      const mappeInfo = await FileSystem.getInfoAsync(FRAG_MAPPE);
+      if (mappeInfo.exists) {
+        for (const fullUrl of modelUrls) {
+          const sti = fragSti(fullUrl);
+          const info = await FileSystem.getInfoAsync(sti);
+          if (info.exists) {
+            const b64 = await FileSystem.readAsStringAsync(sti, { encoding: FileSystem.EncodingType.Base64 });
+            cachedFragments[fullUrl] = b64;
+          }
+        }
       }
-    }
+    } catch { /* Fragment-cache er valgfritt */ }
+
+    const harCache = Object.keys(cachedFragments).length > 0;
+    console.log(`[IfcViewer] Sender ${modelUrls.length} modeller, ${Object.keys(cachedFragments).length} fra cache`);
 
     webViewRef.current?.postMessage(
-      JSON.stringify({ type: "lastModeller", urls: modelUrls, token }),
+      JSON.stringify({ type: "lastModeller", urls: modelUrls, token, ...(harCache ? { cachedFragments } : {}) }),
     );
-  }, [modeller]);
+  }, [modeller, FRAG_MAPPE, fragSti]);
+
+  // Lagre fragment-cache fra WebView
+  const lagreFragment = useCallback(async (url: string, b64Data: string) => {
+    try {
+      const mappeInfo = await FileSystem.getInfoAsync(FRAG_MAPPE);
+      if (!mappeInfo.exists) {
+        await FileSystem.makeDirectoryAsync(FRAG_MAPPE, { intermediates: true });
+      }
+      const sti = fragSti(url);
+      await FileSystem.writeAsStringAsync(sti, b64Data, { encoding: FileSystem.EncodingType.Base64 });
+      console.log(`[IfcViewer] Fragment cachet: ${sti}`);
+    } catch (err) {
+      console.warn("[IfcViewer] Kunne ikke cache fragment:", err);
+    }
+  }, [FRAG_MAPPE, fragSti]);
 
   // Forhåndslast IFC-filer til lokal cache
   const lastNedTilCache = useCallback(async () => {
@@ -71,7 +182,7 @@ export function IfcViewer({ modeller, onTilbake }: IfcViewerProps) {
         setCacheStatus(`${m.name} (${i + 1}/${modeller.length})`);
         await lastNedIfc(m.fileUrl, (prosent) => {
           setCacheStatus(`${m.name} — ${prosent}%`);
-        });
+        }, m.updatedAt);
       }
       setCacheStatus("Lagret for offline-bruk");
       setTimeout(() => setCacheStatus(null), 2000);
@@ -105,11 +216,17 @@ export function IfcViewer({ modeller, onTilbake }: IfcViewerProps) {
         case "feil":
           setFeil(msg.melding);
           break;
+        case "cacheFragment":
+          // WebView sender parsede fragmenter for caching
+          if (msg.url && msg.data) {
+            lagreFragment(msg.url, msg.data);
+          }
+          break;
       }
     } catch {
       // Ignorer ugyldig JSON
     }
-  }, [sendModeller]);
+  }, [sendModeller, lagreFragment]);
 
   const toggleModell = useCallback((index: number) => {
     setSynlighet((prev) => {
@@ -176,7 +293,6 @@ export function IfcViewer({ modeller, onTilbake }: IfcViewerProps) {
           javaScriptEnabled
           domStorageEnabled
           allowsInlineMediaPlayback
-          mediaPlaybackRequiresUserAction={false}
           originWhitelist={["*"]}
         />
 
@@ -232,34 +348,38 @@ export function IfcViewer({ modeller, onTilbake }: IfcViewerProps) {
         {/* Objektinfo-bunnpanel */}
         {valgtObjekt && (
           <View style={styles.objektPanel}>
+            {/* Dra-håndtak */}
+            <View style={styles.objektHåndtak}>
+              <View style={styles.objektHåndtakStrek} />
+            </View>
             <View style={styles.objektHeader}>
-              <Text style={styles.objektKategori}>
-                {valgtObjekt.kategori ?? "Objekt"}
-              </Text>
-              <TouchableOpacity onPress={() => setValgtObjekt(null)}>
-                <X size={16} color="#9ca3af" />
+              <View style={styles.objektHeaderVenstre}>
+                <View style={styles.objektIkon}>
+                  <Box size={14} color="#1e40af" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.objektKategori}>
+                    {oversettKategori(valgtObjekt.kategori)}
+                  </Text>
+                  {valgtObjekt.attributter.Name != null && (
+                    <Text style={styles.objektNavn} numberOfLines={2}>
+                      {String(valgtObjekt.attributter.Name)}
+                    </Text>
+                  )}
+                </View>
+              </View>
+              <TouchableOpacity onPress={() => setValgtObjekt(null)} style={styles.lukkBtn}>
+                <X size={18} color="#6b7280" />
               </TouchableOpacity>
             </View>
-            {Object.entries(valgtObjekt.attributter)
-              .filter(([k, v]) => {
-                // Skjul interne IFC-felter og tomme verdier
-                const skjult = ["expressID", "type", "GlobalId", "Tag", "OwnerHistory", "ObjectPlacement", "Representation", "CompositionType", "ShapeType"];
-                if (skjult.includes(k)) return false;
-                const s = String(v);
-                if (!s || s === "NOTDEFINED" || s === "null" || s === "undefined" || s === "ELEMENT") return false;
-                // Skjul GUID-lignende verdier
-                if (/^[0-9a-f]{8}-[0-9a-f]{4}/i.test(s)) return false;
-                return true;
-              })
-              .slice(0, 8)
-              .map(([k, v]) => (
-                <View key={k} style={styles.objektRad}>
-                  <Text style={styles.objektLabel}>{k}</Text>
-                  <Text style={styles.objektVerdi} numberOfLines={2}>
-                    {String(v)}
-                  </Text>
+            <ScrollView style={styles.objektScroll} showsVerticalScrollIndicator={false}>
+              {filtrerAttributter(valgtObjekt.attributter).map(([label, verdi]) => (
+                <View key={label} style={styles.objektRad}>
+                  <Text style={styles.objektLabel}>{label}</Text>
+                  <Text style={styles.objektVerdi}>{verdi}</Text>
                 </View>
               ))}
+            </ScrollView>
           </View>
         )}
       </View>
@@ -343,21 +463,57 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     backgroundColor: "#fff",
-    borderTopWidth: 1,
-    borderTopColor: "#e5e7eb",
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
-    padding: 16,
-    maxHeight: 280,
+    paddingHorizontal: 16,
+    paddingBottom: 24,
+    maxHeight: "50%",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  objektHåndtak: {
+    alignItems: "center",
+    paddingVertical: 8,
+  },
+  objektHåndtakStrek: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "#d1d5db",
   },
   objektHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 8,
+    alignItems: "flex-start",
+    marginBottom: 12,
   },
-  objektKategori: { fontSize: 15, fontWeight: "600", color: "#111" },
-  objektRad: { flexDirection: "row", paddingVertical: 3 },
-  objektLabel: { width: 100, fontSize: 12, color: "#9ca3af" },
-  objektVerdi: { flex: 1, fontSize: 12, color: "#374151" },
+  objektHeaderVenstre: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    flex: 1,
+  },
+  objektIkon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: "#eff6ff",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  objektKategori: { fontSize: 15, fontWeight: "700", color: "#1e40af" },
+  objektNavn: { fontSize: 13, color: "#374151", marginTop: 2 },
+  lukkBtn: { padding: 6, marginLeft: 8 },
+  objektScroll: { maxHeight: 200 },
+  objektRad: {
+    flexDirection: "row",
+    paddingVertical: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "#f0f0f0",
+  },
+  objektLabel: { width: 110, fontSize: 13, fontWeight: "500", color: "#6b7280" },
+  objektVerdi: { flex: 1, fontSize: 13, color: "#111" },
 });

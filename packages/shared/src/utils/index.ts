@@ -3,7 +3,7 @@ export { beregnSynligeMapper } from "./mappeTilgang";
 export type { MappeTilgangInput, BrukerTilgangInfo, SynligeMapperResultat } from "./mappeTilgang";
 export { hentStatusHandlinger } from "./statusHandlinger";
 export type { StatusHandling } from "./statusHandlinger";
-export { beregnTransformasjon, gpsTilTegning, tegningTilGps, erInnenforTegning } from "./georeferanse";
+export { beregnTransformasjon, gpsTilTegning, tegningTilGps, erInnenforTegning, beregnKalibreringsFeil } from "./georeferanse";
 export type { Transformasjon } from "./georeferanse";
 export { utmTilWgs84, ntmTilWgs84, konverterTilWgs84, detekterKoordinatSystem, EPSG_TIL_SYSTEM } from "./koordinatKonvertering";
 export type { KoordinatSystem } from "./koordinatKonvertering";

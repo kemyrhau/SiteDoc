@@ -5,6 +5,7 @@ import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { trpc } from "@/lib/trpc";
 import { Button, Input, Textarea, Select, Modal, Spinner, EmptyState, StatusBadge, Badge, Table } from "@sitedoc/ui";
 import { useVerktoylinje } from "@/hooks/useVerktoylinje";
+import { useBygning } from "@/kontekst/bygning-kontekst";
 import { Plus, Trash2 } from "lucide-react";
 
 const prioriteter = [
@@ -34,9 +35,10 @@ export default function OppgaverSide() {
   const [valgtOppretter, setValgtOppretter] = useState("");
   const [valgtSvarer, setValgtSvarer] = useState("");
   const [valgtMalId, setValgtMalId] = useState("");
+  const { aktivBygning } = useBygning();
 
   const oppgaveQuery = trpc.oppgave.hentForProsjekt.useQuery(
-    { projectId: params.prosjektId },
+    { projectId: params.prosjektId, ...(aktivBygning?.id ? { buildingId: aktivBygning.id } : {}) },
   );
   const oppgaver = oppgaveQuery.data as Array<{
     id: string; title: string; status: string; priority: string;

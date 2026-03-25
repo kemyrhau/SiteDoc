@@ -312,6 +312,7 @@ function EntrepriseVeiviser({
   const [nyNummer, setNyNummer] = useState("");
   const [nyBransje, setNyBransje] = useState("");
   const [nyFirma, setNyFirma] = useState("");
+  const [nyFarge, setNyFarge] = useState("");
 
   const { data: importEntrepriser } =
     trpc.entreprise.hentForProsjekt.useQuery(
@@ -371,23 +372,28 @@ function EntrepriseVeiviser({
 
   function handleNeste() {
     if (steg === 1) {
-      if (metode === "kopier" && kopierEntrepriseId) {
-        kopierMutation.mutate({
-          sourceEnterpriseId: kopierEntrepriseId,
-          targetProjectId: prosjektId,
-          memberIds: [],
-        });
-        return;
-      }
+      // Alle metoder går til steg 2 for å sette navn
       setSteg(2);
       return;
     }
 
     if (steg === 2) {
-      if (metode === "importer" && importEntrepriseId) {
+      if (metode === "kopier" && kopierEntrepriseId && nyNavn.trim()) {
+        kopierMutation.mutate({
+          sourceEnterpriseId: kopierEntrepriseId,
+          targetProjectId: prosjektId,
+          name: nyNavn.trim(),
+          color: nyFarge || nesteAutoFarge(entrepriser.map((e) => e.color)),
+          memberIds: [],
+        });
+        return;
+      }
+      if (metode === "importer" && importEntrepriseId && nyNavn.trim()) {
         kopierMutation.mutate({
           sourceEnterpriseId: importEntrepriseId,
           targetProjectId: prosjektId,
+          name: nyNavn.trim(),
+          color: nyFarge || nesteAutoFarge(entrepriser.map((e) => e.color)),
           memberIds: [],
         });
         return;
@@ -397,7 +403,7 @@ function EntrepriseVeiviser({
           name: nyNavn.trim(),
           projectId: prosjektId,
           enterpriseNumber: nyNummer.trim() || undefined,
-          color: nesteAutoFarge(entrepriser.map((e) => e.color)),
+          color: nyFarge || nesteAutoFarge(entrepriser.map((e) => e.color)),
           industry: nyBransje.trim() || undefined,
           companyName: nyFirma.trim() || undefined,
           memberIds: [],
@@ -414,16 +420,17 @@ function EntrepriseVeiviser({
       return true;
     }
     if (steg === 2) {
-      if (metode === "importer") return !!importEntrepriseId;
+      if (metode === "kopier") return !!nyNavn.trim();
+      if (metode === "importer") return !!importEntrepriseId && !!nyNavn.trim();
       if (metode === "tom") return !!nyNavn.trim();
     }
     return false;
   })();
 
   const knappTekst = (() => {
-    if (metode === "kopier" && steg === 1) return "Kopier";
-    if (metode === "importer" && steg === 2) return "Importer";
-    if (metode === "tom" && steg === 2) return "Opprett";
+    if (steg === 2 && metode === "kopier") return "Kopier";
+    if (steg === 2 && metode === "importer") return "Importer";
+    if (steg === 2 && metode === "tom") return "Opprett";
     return "Neste";
   })();
 
@@ -509,6 +516,21 @@ function EntrepriseVeiviser({
           </>
         )}
 
+        {steg === 2 && metode === "kopier" && (
+          <>
+            <p className="text-sm text-gray-500">
+              Strukturen fra <strong>{entrepriser.find((e) => e.id === kopierEntrepriseId)?.name}</strong> kopieres. Gi den nye entreprisen et navn:
+            </p>
+            <Input
+              label="Navn på ny entreprise"
+              placeholder="F.eks. Tømrer"
+              value={nyNavn}
+              onChange={(e) => setNyNavn(e.target.value)}
+              required
+            />
+          </>
+        )}
+
         {steg === 2 && metode === "importer" && (
           <>
             <Select
@@ -528,7 +550,7 @@ function EntrepriseVeiviser({
             />
             {importProsjektId && (
               <Select
-                label="Velg entreprise"
+                label="Velg entreprise å kopiere"
                 options={[
                   { value: "", label: "Velg entreprise..." },
                   ...(importEntrepriser?.map((e) => ({
@@ -538,6 +560,15 @@ function EntrepriseVeiviser({
                 ]}
                 value={importEntrepriseId}
                 onChange={(e) => setImportEntrepriseId(e.target.value)}
+              />
+            )}
+            {importEntrepriseId && (
+              <Input
+                label="Navn på ny entreprise"
+                placeholder="F.eks. Tømrer"
+                value={nyNavn}
+                onChange={(e) => setNyNavn(e.target.value)}
+                required
               />
             )}
           </>
@@ -591,6 +622,28 @@ function EntrepriseVeiviser({
           </>
         )}
 
+        {/* Fargevelger (valgfri) */}
+        {steg === 2 && (
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">Farge (valgfri)</label>
+            <div className="flex flex-wrap gap-1.5">
+              {Object.keys(FARGE_MAP).slice(0, 20).map((farge) => {
+                const f = FARGE_MAP[farge]!;
+                return (
+                  <button
+                    key={farge}
+                    type="button"
+                    onClick={() => setNyFarge(nyFarge === farge ? "" : farge)}
+                    className={`h-6 w-6 rounded-full border-2 ${f.bg} ${nyFarge === farge ? "ring-2 ring-blue-500 ring-offset-1" : "border-transparent"}`}
+                    title={farge}
+                  />
+                );
+              })}
+            </div>
+            {!nyFarge && <p className="mt-1 text-xs text-gray-400">Tildeles automatisk hvis ikke valgt</p>}
+          </div>
+        )}
+
         <div className="flex gap-3 pt-2">
           <Button variant="secondary" type="button" onClick={lukkOgNullstill}>
             Avbryt
@@ -629,9 +682,24 @@ function OpprettDokumentflytModal({
   forvalgtEntrepriseId?: string;
 }) {
   const [navn, setNavn] = useState("");
-  const [oppretterEntrepriseId, setOppretterEntrepriseId] = useState("");
-  const [svarerEntrepriseId, setSvarerEntrepriseId] = useState("");
+  const [oppretterType, setOppretterType] = useState<"bruker" | "gruppe">("bruker");
+  const [oppretterId, setOppretterId] = useState("");
+  const [mottakerType, setMottakerType] = useState<"bruker" | "gruppe">("bruker");
+  const [mottakerId, setMottakerId] = useState("");
   const [valgteMaler, setValgteMaler] = useState<Set<string>>(new Set());
+
+  // Hent prosjektmedlemmer og grupper for mottaker-velgeren
+  const { data: _medlemmer } = trpc.medlem.hentForProsjekt.useQuery(
+    { projectId: prosjektId },
+    { enabled: open },
+  );
+  const medlemmer = (_medlemmer ?? []) as Array<{ id: string; user: { name: string | null; email: string } }>;
+
+  const { data: _grupper } = trpc.gruppe.hentForProsjekt.useQuery(
+    { projectId: prosjektId },
+    { enabled: open },
+  );
+  const grupper = (_grupper ?? []) as Array<{ id: string; name: string }>;
 
   const utils = trpc.useUtils();
   const opprettMutation = trpc.dokumentflyt.opprett.useMutation({
@@ -644,15 +712,16 @@ function OpprettDokumentflytModal({
 
   function nullstill() {
     setNavn("");
-    setOppretterEntrepriseId("");
-    setSvarerEntrepriseId("");
+    setOppretterType("bruker");
+    setOppretterId("");
+    setMottakerType("bruker");
+    setMottakerId("");
     setValgteMaler(new Set());
   }
 
   const [forrigeOpen, setForrigeOpen] = useState(false);
   if (open && !forrigeOpen) {
     nullstill();
-    if (forvalgtEntrepriseId) setOppretterEntrepriseId(forvalgtEntrepriseId);
   }
   if (open !== forrigeOpen) setForrigeOpen(open);
 
@@ -672,24 +741,34 @@ function OpprettDokumentflytModal({
     e.preventDefault();
     if (!navn.trim()) return;
 
-    const medlemmer: Array<{
+    const dfMedlemmer: Array<{
       enterpriseId?: string;
+      projectMemberId?: string;
       rolle: "oppretter" | "svarer";
       steg: number;
     }> = [];
 
-    if (oppretterEntrepriseId) {
-      medlemmer.push({ enterpriseId: oppretterEntrepriseId, rolle: "oppretter", steg: 1 });
+    if (oppretterId) {
+      dfMedlemmer.push({
+        projectMemberId: oppretterId,
+        enterpriseId: forvalgtEntrepriseId,
+        rolle: "oppretter",
+        steg: 1,
+      });
     }
-    if (svarerEntrepriseId) {
-      medlemmer.push({ enterpriseId: svarerEntrepriseId, rolle: "svarer", steg: 1 });
+    if (mottakerId) {
+      dfMedlemmer.push({
+        projectMemberId: mottakerId,
+        rolle: "svarer",
+        steg: 1,
+      });
     }
 
     opprettMutation.mutate({
       projectId: prosjektId,
       name: navn.trim(),
       templateIds: Array.from(valgteMaler),
-      medlemmer,
+      medlemmer: dfMedlemmer,
     });
   }
 
@@ -708,15 +787,44 @@ function OpprettDokumentflytModal({
           <label className="mb-1 block text-sm font-medium text-gray-700">
             Opprett/send
           </label>
+          <div className="mb-2 flex gap-2">
+            <button
+              type="button"
+              onClick={() => { setOppretterType("bruker"); setOppretterId(""); }}
+              className={`rounded-full px-3 py-1 text-xs font-medium ${oppretterType === "bruker" ? "bg-sitedoc-primary text-white" : "bg-gray-100 text-gray-600"}`}
+            >
+              Bruker
+            </button>
+            <button
+              type="button"
+              onClick={() => { setOppretterType("gruppe"); setOppretterId(""); }}
+              className={`rounded-full px-3 py-1 text-xs font-medium ${oppretterType === "gruppe" ? "bg-sitedoc-primary text-white" : "bg-gray-100 text-gray-600"}`}
+            >
+              Gruppe
+            </button>
+          </div>
           <select
             className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-sitedoc-primary focus:outline-none focus:ring-1 focus:ring-sitedoc-primary"
-            value={oppretterEntrepriseId}
-            onChange={(e) => setOppretterEntrepriseId(e.target.value)}
+            value={oppretterId}
+            onChange={(e) => setOppretterId(e.target.value)}
           >
-            <option value="">Velg entreprise...</option>
-            {entrepriser.map((ent) => (
-              <option key={ent.id} value={ent.id}>{ent.name}</option>
-            ))}
+            {oppretterType === "bruker" ? (
+              <>
+                <option value="">Velg bruker...</option>
+                {medlemmer.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.user.name ?? m.user.email}
+                  </option>
+                ))}
+              </>
+            ) : (
+              <>
+                <option value="">Velg gruppe...</option>
+                {grupper.map((g) => (
+                  <option key={g.id} value={g.id}>{g.name}</option>
+                ))}
+              </>
+            )}
           </select>
         </div>
 
@@ -724,15 +832,44 @@ function OpprettDokumentflytModal({
           <label className="mb-1 block text-sm font-medium text-gray-700">
             Mottaker
           </label>
+          <div className="mb-2 flex gap-2">
+            <button
+              type="button"
+              onClick={() => { setMottakerType("bruker"); setMottakerId(""); }}
+              className={`rounded-full px-3 py-1 text-xs font-medium ${mottakerType === "bruker" ? "bg-sitedoc-primary text-white" : "bg-gray-100 text-gray-600"}`}
+            >
+              Bruker
+            </button>
+            <button
+              type="button"
+              onClick={() => { setMottakerType("gruppe"); setMottakerId(""); }}
+              className={`rounded-full px-3 py-1 text-xs font-medium ${mottakerType === "gruppe" ? "bg-sitedoc-primary text-white" : "bg-gray-100 text-gray-600"}`}
+            >
+              Gruppe
+            </button>
+          </div>
           <select
             className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-sitedoc-primary focus:outline-none focus:ring-1 focus:ring-sitedoc-primary"
-            value={svarerEntrepriseId}
-            onChange={(e) => setSvarerEntrepriseId(e.target.value)}
+            value={mottakerId}
+            onChange={(e) => setMottakerId(e.target.value)}
           >
-            <option value="">Velg entreprise...</option>
-            {entrepriser.map((ent) => (
-              <option key={ent.id} value={ent.id}>{ent.name}</option>
-            ))}
+            {mottakerType === "bruker" ? (
+              <>
+                <option value="">Velg bruker...</option>
+                {medlemmer.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.user.name ?? m.user.email}
+                  </option>
+                ))}
+              </>
+            ) : (
+              <>
+                <option value="">Velg gruppe...</option>
+                {grupper.map((g) => (
+                  <option key={g.id} value={g.id}>{g.name}</option>
+                ))}
+              </>
+            )}
           </select>
         </div>
 

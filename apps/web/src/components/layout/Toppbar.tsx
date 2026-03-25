@@ -5,6 +5,7 @@ import { LogOut, User, HardHat, Building2, ShieldCheck, Menu, X } from "lucide-r
 import { useRouter } from "next/navigation";
 import { useAktivSeksjon } from "@/hooks/useAktivSeksjon";
 import { ProsjektVelger } from "./ProsjektVelger";
+import { BygningsVelger } from "./BygningsVelger";
 import { useState, useRef, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import Link from "next/link";
@@ -66,6 +67,12 @@ export function Toppbar() {
         </Link>
         <div className="mx-2 h-5 w-px bg-white/20" />
         <ProsjektVelger />
+        {prosjektId && (
+          <>
+            <div className="mx-1 h-5 w-px bg-white/20" />
+            <BygningsVelger />
+          </>
+        )}
         {organisasjon && (
           <>
             <div className="mx-1 h-5 w-px bg-white/20" />

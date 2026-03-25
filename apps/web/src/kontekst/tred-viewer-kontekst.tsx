@@ -12,6 +12,7 @@ import {
 import { useParams } from "next/navigation";
 import { trpc } from "@/lib/trpc";
 import { Loader2 } from "lucide-react";
+import { useBygning as useBygningKontekst } from "@/kontekst/bygning-kontekst";
 import type {
   TegningRad,
   PunktSkyRad,
@@ -75,12 +76,16 @@ export function useTreDViewer() {
 
 export function TreDViewerProvider({ children }: { children: ReactNode }) {
   const { prosjektId } = useParams<{ prosjektId: string }>();
+  const { aktivBygning } = useBygningKontekst();
 
   const utils = trpc.useUtils();
 
-  // IFC-modeller
+  // IFC-modeller — filtrert på aktiv bygning
   const { data: _tegninger, isLoading: lasterTegninger } = trpc.tegning.hentForProsjekt.useQuery(
-    { projectId: prosjektId! },
+    {
+      projectId: prosjektId!,
+      ...(aktivBygning?.id ? { buildingId: aktivBygning.id } : {}),
+    },
     { enabled: !!prosjektId },
   );
   const tegninger = (_tegninger as TegningRad[] | undefined)?.filter(
@@ -472,25 +477,55 @@ export function ViewerCanvas({
         setLasterNavn(null);
         if (renset) return;
 
-        // Tilpass kamera
+        // Tilpass kamera og dybdebuffer
         if (!totalBbox.isEmpty()) {
           const center = totalBbox.getCenter(new THREE.Vector3());
           const size = totalBbox.getSize(new THREE.Vector3());
           const maxDim = Math.max(size.x, size.y, size.z);
+          // Sett near/far basert på modellstørrelse for å unngå z-fighting/flimring
+          threeCamera.near = maxDim * 0.001;
+          threeCamera.far = maxDim * 20;
+          threeCamera.updateProjectionMatrix();
           world.camera.controls?.setLookAt(
             center.x + maxDim, center.y + maxDim * 0.7, center.z + maxDim,
             center.x, center.y, center.z,
           );
         }
 
-        // Tile-lasting update-løkke
+        // Tile-lasting update-løkke med idle-deteksjon (sparer batteri)
         let animFrameId: number | null = null;
+        let idleFrames = 0;
+        const lastCamPos = new THREE.Vector3();
+        const tmpCamPos = new THREE.Vector3();
+        const MAX_IDLE = 30;
+        let pauset = false;
+
         function updateLoop() {
-          if (renset) return;
-          fragmentsManager.core.update();
+          if (renset || pauset) return;
+          threeCamera.getWorldPosition(tmpCamPos);
+          if (tmpCamPos.distanceToSquared(lastCamPos) > 0.0001) {
+            idleFrames = 0;
+            lastCamPos.copy(tmpCamPos);
+          } else {
+            idleFrames++;
+          }
+          // Oppdater alltid ved bevegelse, ellers sjeldnere
+          if (idleFrames < MAX_IDLE || idleFrames % 10 === 0) {
+            fragmentsManager.core.update();
+          }
           animFrameId = requestAnimationFrame(updateLoop);
         }
         updateLoop();
+
+        // Pause ved bakgrunnsmodus
+        function handleVisibility() {
+          pauset = document.hidden;
+          if (!pauset && !renset) {
+            idleFrames = 0;
+            updateLoop();
+          }
+        }
+        document.addEventListener("visibilitychange", handleVisibility);
 
         // Raycasting
         const rendererDom = (world.renderer as unknown as { three: { domElement: HTMLCanvasElement } }).three.domElement;
@@ -1039,14 +1074,41 @@ export function ViewerCanvas({
               if (model && ids.length > 0) await model.setVisible(ids, true);
             }
           },
-          flyTil: (x: number, y: number, z: number) => {
+          flyTil: (x: number, _y: number, z: number, gulvY?: number) => {
+            const erMm = Math.max(...totalBbox.getSize(new THREE.Vector3()).toArray()) > 1000;
+            const øye = erMm ? 1600 : 1.6;
+            const fremover = erMm ? 5000 : 5;
+            const kameraY = (gulvY != null ? gulvY : totalBbox.getCenter(new THREE.Vector3()).y) + øye;
+            // Kamera PÅ klikk-punktet, ser mot byggets sentrum
+            const senter = totalBbox.getCenter(new THREE.Vector3());
+            const dx = senter.x - x;
+            const dz = senter.z - z;
+            const len = Math.sqrt(dx * dx + dz * dz) || 1;
             world.camera.controls?.setLookAt(
-              x + 5, y + 5, z + 5,
-              x, y, z,
-              true, // enableTransition — smooth fly
+              x, kameraY, z,
+              x + (dx / len) * fremover, kameraY, z + (dz / len) * fremover,
+              true,
             );
           },
           sisteKlikkPunkt: () => sisteKlikkPunkt3D,
+          settEtasjeKlipp: (nedre: number, øvre: number) => {
+            // Fjern eksisterende etasjeklipp-plan
+            clipper.deleteAll();
+            clipper.enabled = true;
+            clipper.visible = false; // Skjul dragbare håndtak
+            // Nedre plan: skjul alt under (normal peker opp)
+            const nedrePunkt = new THREE.Vector3(0, nedre, 0);
+            const nedreNormal = new THREE.Vector3(0, 1, 0);
+            clipper.createFromNormalAndCoplanarPoint(world, nedreNormal, nedrePunkt);
+            // Øvre plan: skjul alt over (normal peker ned)
+            const øvrePunkt = new THREE.Vector3(0, øvre, 0);
+            const øvreNormal = new THREE.Vector3(0, -1, 0);
+            clipper.createFromNormalAndCoplanarPoint(world, øvreNormal, øvrePunkt);
+          },
+          fjernEtasjeKlipp: () => {
+            clipper.deleteAll();
+            clipper.enabled = false;
+          },
         };
 
         setLaster(false);
@@ -1054,6 +1116,7 @@ export function ViewerCanvas({
         return () => {
           rendererDom.removeEventListener("click", handleKlikk);
           rendererDom.removeEventListener("dblclick", handleDblKlikk);
+          document.removeEventListener("visibilitychange", handleVisibility);
           if (animFrameId !== null) cancelAnimationFrame(animFrameId);
         };
       })
