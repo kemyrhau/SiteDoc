@@ -1,19 +1,12 @@
-import { useState, useCallback, useRef, useEffect, useMemo } from "react";
+"use client";
+
+import { useState, useCallback, useRef, useEffect } from "react";
 import {
   View,
   Text,
-  Image,
-  ScrollView,
   Pressable,
   ActivityIndicator,
-  Platform,
-  useWindowDimensions,
   StyleSheet,
-} from "react-native";
-import type {
-  GestureResponderEvent,
-  LayoutChangeEvent,
-  NativeTouchEvent,
 } from "react-native";
 import { WebView } from "react-native-webview";
 import type { WebViewMessageEvent } from "react-native-webview";
@@ -42,18 +35,97 @@ interface TegningsVisningProps {
   onMarkørTrykk?: (id: string) => void;
   markører?: Markør[];
   gpsMarkør?: GpsMarkør | null;
-  /** PDF-sidedimensjoner fra server (for korrekt aspektforhold) */
+  /** Ubrukt — beholdt for bakoverkompatibilitet */
   pdfPageSize?: { width: number; height: number };
 }
 
-function erPdf(url: string): boolean {
-  return url.toLowerCase().endsWith(".pdf");
+/**
+ * Bygg HTML som rendrer tegningen + alle markører i SAMME koordinatsystem.
+ * CSS-prosentposisjonering sikrer at markørene alltid er korrekt plassert
+ * uavhengig av OS, skjermstørrelse eller skalering.
+ */
+function byggHtml(
+  tegningUrl: string,
+  markører: Markør[],
+  gpsMarkør: GpsMarkør | null,
+  kanTrykke: boolean,
+): string {
+  const markørHtml = markører.map((m) => {
+    const farge = m.farge || "#ef4444";
+    return `<div class="markør" data-id="${m.id}" style="left:${m.x}%;top:${m.y}%">
+      <div style="width:16px;height:16px;border-radius:50%;background:${farge};border:2px solid #fff;transform:translate(-50%,-50%)"></div>
+      ${m.label ? `<div class="label">${m.label}</div>` : ""}
+    </div>`;
+  }).join("\n");
+
+  const gpsHtml = gpsMarkør ? `
+    <div class="gps" style="left:${gpsMarkør.x}%;top:${gpsMarkør.y}%">
+      <div class="gps-outer"><div class="gps-inner"></div></div>
+    </div>` : "";
+
+  return `<!DOCTYPE html>
+<html><head><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=10,user-scalable=yes">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#1a1a1a; overflow:auto; -webkit-overflow-scrolling:touch; }
+  .container { position:relative; display:inline-block; }
+  .container img { display:block; width:100%; height:auto; }
+  .markør { position:absolute; z-index:10; cursor:pointer; }
+  .markør .label {
+    position:absolute; top:10px; left:50%; transform:translateX(-50%);
+    font-size:8px; font-weight:700; color:#1f2937;
+    background:rgba(255,255,255,0.85); border-radius:3px;
+    padding:1px 3px; white-space:nowrap;
+  }
+  .gps { position:absolute; z-index:20; transform:translate(-50%,-50%); }
+  .gps-outer {
+    width:24px; height:24px; border-radius:50%;
+    background:rgba(59,130,246,0.25);
+    display:flex; align-items:center; justify-content:center;
+    animation: pulse 2s ease-in-out infinite;
+  }
+  .gps-inner {
+    width:14px; height:14px; border-radius:50%;
+    background:#3b82f6; border:2.5px solid #fff;
+    box-shadow: 0 0 6px rgba(59,130,246,0.5);
+  }
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.3); }
+  }
+</style></head><body>
+<div class="container" id="container">
+  <img src="${tegningUrl}" id="tegning" />
+  ${markørHtml}
+  ${gpsHtml}
+</div>
+<script>
+  ${kanTrykke ? `
+  document.getElementById('container').addEventListener('click', function(e) {
+    var img = document.getElementById('tegning');
+    var rect = img.getBoundingClientRect();
+    var x = ((e.clientX - rect.left) / rect.width) * 100;
+    var y = ((e.clientY - rect.top) / rect.height) * 100;
+    window.ReactNativeWebView.postMessage(JSON.stringify({
+      type: 'trykk', x: Math.max(0,Math.min(100,x)), y: Math.max(0,Math.min(100,y))
+    }));
+  });` : ""}
+
+  document.querySelectorAll('.markør').forEach(function(el) {
+    el.addEventListener('click', function(e) {
+      e.stopPropagation();
+      window.ReactNativeWebView.postMessage(JSON.stringify({
+        type: 'markør', id: el.dataset.id
+      }));
+    });
+  });
+</script>
+</body></html>`;
 }
 
 export function TegningsVisning({
   tegningUrl,
   tegningNavn,
-  pdfPageSize,
   onLukk,
   onTrykk,
   onMarkørTrykk,
@@ -61,253 +133,77 @@ export function TegningsVisning({
   gpsMarkør,
 }: TegningsVisningProps) {
   const [laster, setLaster] = useState(true);
-  const [pdfSize, setPdfSize] = useState({ w: 300, h: 400, contentH: 0 });
   const [feil, setFeil] = useState(false);
-  const { width, height } = useWindowDimensions();
-  const erPdfFil = erPdf(tegningUrl);
-  const [bildeDimensjoner, setBildeDimensjoner] = useState({ width: 0, height: 0 });
-  const [naturligBilde, setNaturligBilde] = useState<{ w: number; h: number } | null>(null);
-  const bildeRef = useRef<View>(null);
+  const webViewRef = useRef<WebView>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Bildedimensjoner — bruker rendret layout når tilgjengelig
-  const [bildeLayout, setBildeLayout] = useState<{ w: number; h: number } | null>(null);
-
-  const bildeSt = useMemo(() => {
-    if (naturligBilde && naturligBilde.w > 0 && naturligBilde.h > 0) {
-      const ratio = naturligBilde.h / naturligBilde.w;
-      return { width, height: Math.round(width * ratio) };
-    }
-    // Fallback for landskapstegninger (de fleste situasjonsplaner er ~16:10)
-    return { width, height: Math.round(width * 0.625) };
-  }, [naturligBilde, width]);
-
-  // Hent bildedimensjoner via Image.getSize
-  useEffect(() => {
-    if (!erPdfFil && tegningUrl) {
-      Image.getSize(
-        tegningUrl,
-        (w, h) => {
-          console.log("[GPS-TEG] getSize OK:", w, h);
-          setNaturligBilde({ w, h });
-        },
-        (err) => {
-          console.warn("[GPS-TEG] getSize feilet:", err);
-        },
-      );
-    }
-  }, [tegningUrl, erPdfFil]);
-
-  // Reset tilstand ved endring av URL
+  // Reset ved URL-endring
   useEffect(() => {
     setLaster(true);
     setFeil(false);
   }, [tegningUrl]);
 
-  // Timeout: vis feil dersom lasting tar over 15 sekunder
+  // Timeout
   useEffect(() => {
     if (laster && !feil) {
       timeoutRef.current = setTimeout(() => {
-        if (laster) {
-          setLaster(false);
-          setFeil(true);
-        }
+        setLaster(false);
+        setFeil(true);
       }, LASTING_TIMEOUT_MS);
     }
     return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-        timeoutRef.current = null;
-      }
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
   }, [laster, feil]);
 
-  const håndterLastetFerdig = useCallback(() => {
-    setLaster(false);
-    setFeil(false);
-  }, []);
-
-  const håndterFeil = useCallback(() => {
-    setLaster(false);
-    setFeil(true);
-  }, []);
-
-  const prøvIgjen = useCallback(() => {
-    setLaster(true);
-    setFeil(false);
-  }, []);
-
-  const håndterBildeLayout = useCallback((e: LayoutChangeEvent) => {
-    setBildeDimensjoner({
-      width: e.nativeEvent.layout.width,
-      height: e.nativeEvent.layout.height,
-    });
-  }, []);
-
-  // Drag-deteksjon: lagre startposisjon og sjekk om fingeren flyttet seg
-  const trykkStartRef = useRef<{ x: number; y: number; tid: number } | null>(null);
-  const harDrattRef = useRef(false);
-  const TRYKK_TERSKEL = 10; // piksler — mer enn dette = drag, ikke tap
-
-  const håndterTrykkStart = useCallback((e: GestureResponderEvent): boolean => {
-    const nativeEvent = e.nativeEvent as NativeTouchEvent;
-    if (nativeEvent.touches && nativeEvent.touches.length > 1) return false;
-    trykkStartRef.current = {
-      x: nativeEvent.pageX,
-      y: nativeEvent.pageY,
-      tid: Date.now(),
-    };
-    harDrattRef.current = false;
-    return true;
-  }, []);
-
-  const håndterBevegelse = useCallback((e: GestureResponderEvent) => {
-    if (harDrattRef.current || !trykkStartRef.current) return;
-    const { pageX, pageY } = e.nativeEvent;
-    const dx = Math.abs(pageX - trykkStartRef.current.x);
-    const dy = Math.abs(pageY - trykkStartRef.current.y);
-    if (dx > TRYKK_TERSKEL || dy > TRYKK_TERSKEL) {
-      harDrattRef.current = true;
+  // Oppdater GPS-markør uten å laste hele siden på nytt
+  useEffect(() => {
+    if (!webViewRef.current || laster) return;
+    if (gpsMarkør) {
+      webViewRef.current.injectJavaScript(`
+        (function() {
+          var old = document.querySelector('.gps');
+          if (old) old.remove();
+          var c = document.getElementById('container');
+          if (!c) return;
+          var div = document.createElement('div');
+          div.className = 'gps';
+          div.style.left = '${gpsMarkør.x}%';
+          div.style.top = '${gpsMarkør.y}%';
+          div.innerHTML = '<div class="gps-outer"><div class="gps-inner"></div></div>';
+          c.appendChild(div);
+        })();
+        true;
+      `);
     }
-  }, []);
+  }, [gpsMarkør, laster]);
 
-  // Håndter trykk på bildeområdet — kun ekte tap (ikke drag/zoom)
-  const håndterBildeTrykk = useCallback(
-    (e: GestureResponderEvent) => {
-      if (!onTrykk || harDrattRef.current) return;
-      // Avvis lange trykk (> 500ms)
-      if (trykkStartRef.current && Date.now() - trykkStartRef.current.tid > 500) return;
-
-      const { locationX, locationY } = e.nativeEvent;
-
-      const posX = (locationX / bildeSt.width) * 100;
-      const posY = (locationY / bildeSt.height) * 100;
-
-      const klampX = Math.max(0, Math.min(100, posX));
-      const klampY = Math.max(0, Math.min(100, posY));
-
-      onTrykk(klampX, klampY);
-    },
-    [onTrykk, bildeSt],
-  );
-
-  // Håndter trykk fra PDF WebView via postMessage
-  const håndterWebViewMelding = useCallback(
+  const håndterMelding = useCallback(
     (e: WebViewMessageEvent) => {
-      if (!onTrykk) return;
       try {
         const data = JSON.parse(e.nativeEvent.data);
-        if (data.type === "trykk" && typeof data.x === "number" && typeof data.y === "number") {
+        if (data.type === "trykk" && onTrykk) {
           onTrykk(data.x, data.y);
+        } else if (data.type === "markør" && onMarkørTrykk) {
+          onMarkørTrykk(data.id);
         }
       } catch {
         // Ignorer ugyldig melding
       }
     },
-    [onTrykk],
+    [onTrykk, onMarkørTrykk],
   );
 
-  // JavaScript som injiseres i WebView for å fange klikk
-  const injisertJs = `
-    (function() {
-      document.addEventListener('click', function(e) {
-        var x = (e.clientX / window.innerWidth) * 100;
-        var y = (e.clientY / window.innerHeight) * 100;
-        window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'trykk', x: x, y: y }));
-      });
-    })();
-    true;
-  `;
-
-  // Render markører som absolutt posisjonerte prikker (klikkbare)
-  const renderMarkører = (bildeW: number, bildeH: number) => {
-    return markører.map((m) => {
-      const farge = m.farge || "#ef4444";
-      return (
-        <Pressable
-          key={m.id}
-          onPress={() => onMarkørTrykk?.(m.id)}
-          hitSlop={12}
-          style={{
-            position: "absolute",
-            left: (m.x / 100) * bildeW - 8,
-            top: (m.y / 100) * bildeH - 8,
-            alignItems: "center",
-          }}
-        >
-          <View style={[stiler.markørPrikk, { backgroundColor: farge, borderColor: farge === "#10b981" ? "#ffffff" : "#ffffff" }]} />
-          {m.label && (
-            <Text style={stiler.markørLabel}>{m.label}</Text>
-          )}
-        </Pressable>
-      );
-    });
-  };
-
-  // GPS-posisjon som blå prikk
-  const renderGpsMarkør = (bildeW: number, bildeH: number) => {
-    if (!gpsMarkør || bildeW <= 0 || bildeH <= 0) return null;
-    // Sjekk at markøren er innenfor bildet
-    const left = (gpsMarkør.x / 100) * bildeW;
-    const top = (gpsMarkør.y / 100) * bildeH;
-    if (top > bildeH || top < 0 || left > bildeW || left < 0) return null;
-    return (
-      <View
-        style={{
-          position: "absolute",
-          left: left - 10,
-          top: top - 10,
-        }}
-      >
-        <View style={stiler.gpsPrikk}>
-          <View style={stiler.gpsPrikkInner} />
-        </View>
-      </View>
-    );
-  };
-
-  // Feilvisning med "Prøv igjen"-knapp
-  const renderFeilVisning = () => (
-    <View style={stiler.feilContainer}>
-      <AlertTriangle size={48} color="#f59e0b" />
-      <Text style={stiler.feilTekst}>
-        Kunne ikke laste tegningen
-      </Text>
-      <Text style={stiler.feilBeskrivelse}>
-        Sjekk nettverkstilkoblingen og prøv igjen
-      </Text>
-      <Pressable onPress={prøvIgjen} style={stiler.prøvIgjenKnapp}>
-        <RefreshCw size={16} color="#ffffff" />
-        <Text style={stiler.prøvIgjenTekst}>Prøv igjen</Text>
-      </Pressable>
-    </View>
-  );
-
-  // Lasting-indikator
-  const renderLasting = () => (
-    <View style={stiler.lastingContainer}>
-      <ActivityIndicator size="large" color="#ffffff" />
-      <Text style={stiler.lastingTekst}>
-        Laster tegning…
-      </Text>
-    </View>
-  );
+  const html = byggHtml(tegningUrl, markører, gpsMarkør ?? null, !!onTrykk);
 
   return (
     <View className="flex-1 bg-black">
-      {/* Header med tegningsnavn og lukk-knapp — del av layout, ikke absolutt */}
+      {/* Header */}
       <View className="flex-row items-center justify-between bg-black/80 px-4 py-3">
-        <Pressable
-          onPress={onLukk}
-          hitSlop={12}
-          className="rounded-full bg-white/20 p-2"
-        >
+        <Pressable onPress={onLukk} hitSlop={12} className="rounded-full bg-white/20 p-2">
           <X size={20} color="#ffffff" />
         </Pressable>
-        <Text
-          className="flex-1 px-3 text-center text-sm font-medium text-white"
-          numberOfLines={1}
-        >
+        <Text className="flex-1 px-3 text-center text-sm font-medium text-white" numberOfLines={1}>
           {tegningNavn}
         </Text>
         <View style={{ width: 36 }} />
@@ -315,197 +211,38 @@ export function TegningsVisning({
 
       {/* Feilvisning */}
       {feil ? (
-        <View style={{ flex: 1 }}>
-          {renderFeilVisning()}
-        </View>
-      ) : erPdfFil ? (
-        /* PDF-visning */
-        <View style={{ flex: 1 }}>
-          {laster && renderLasting()}
-          {Platform.OS === "web" ? (
-            <View style={{ flex: 1, position: "relative" }}>
-              <iframe
-                src={tegningUrl}
-                style={{ flex: 1, width: "100%", height: "100%", border: "none" }}
-                onLoad={håndterLastetFerdig}
-              />
-              <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-                {renderMarkører(width, pdfSize.h)}
-                {renderGpsMarkør(width, pdfSize.h)}
-              </View>
-              {onTrykk && (
-                <Pressable
-                  style={StyleSheet.absoluteFill}
-                  onPress={(e) => {
-                    const { locationX, locationY } = e.nativeEvent;
-                    const posX = (locationX / pdfSize.w) * 100;
-                    const posY = (locationY / pdfSize.h) * 100;
-                    onTrykk(
-                      Math.max(0, Math.min(100, posX)),
-                      Math.max(0, Math.min(100, posY)),
-                    );
-                  }}
-                />
-              )}
-            </View>
-          ) : (
-            <View
-              style={{ flex: 1, position: "relative" }}
-              onLayout={(e) => {
-                const { width: w, height: h } = e.nativeEvent.layout;
-                // Bruk PDF-sidedimensjoner fra server for korrekt aspektforhold
-                if (pdfPageSize && pdfPageSize.width > 0 && pdfPageSize.height > 0) {
-                  const ratio = pdfPageSize.height / pdfPageSize.width;
-                  const skalertH = Math.round(w * ratio);
-                  console.log("[GPS-TEG] PDF side:", pdfPageSize.width, "×", pdfPageSize.height, "→ skalert:", w, "×", skalertH);
-                  setPdfSize({ w, h, contentH: skalertH });
-                } else {
-                  setPdfSize((prev) => {
-                    if (prev.contentH > 0) return { ...prev, w };
-                    return { ...prev, w, h };
-                  });
-                }
-              }}
-            >
-              {/* ScrollView med zoom — markører zoomer med PDF */}
-              <ScrollView
-                contentContainerStyle={{ flexGrow: 1 }}
-                maximumZoomScale={5}
-                minimumZoomScale={1}
-                bouncesZoom
-                showsHorizontalScrollIndicator={false}
-                showsVerticalScrollIndicator={false}
-              >
-                <View
-                  style={{ width: pdfSize.w, height: pdfSize.contentH || pdfSize.h, position: "relative" }}
-                  {...(onTrykk ? {
-                    onStartShouldSetResponder: () => true,
-                    onResponderRelease: (e: { nativeEvent: { locationX: number; locationY: number } }) => {
-                      const ch = pdfSize.contentH || pdfSize.h;
-                      const { locationX, locationY } = e.nativeEvent;
-                      const posX = (locationX / pdfSize.w) * 100;
-                      const posY = (locationY / ch) * 100;
-                      onTrykk(
-                        Math.max(0, Math.min(100, posX)),
-                        Math.max(0, Math.min(100, posY)),
-                      );
-                    },
-                  } : {})}
-                >
-                  <WebView
-                    source={{ uri: tegningUrl }}
-                    style={{ width: pdfSize.w, height: pdfSize.contentH || pdfSize.h }}
-                    startInLoadingState
-                    renderLoading={() => <View />}
-                    onLoadEnd={håndterLastetFerdig}
-                    onError={håndterFeil}
-                    allowsInlineMediaPlayback
-                    scrollEnabled={false}
-                    scalesPageToFit
-                    injectedJavaScript={`
-                      (function() {
-                        function rapporter() {
-                          var b = document.body;
-                          var d = document.documentElement;
-                          var h = Math.max(b.scrollHeight, b.offsetHeight, d.clientHeight, d.scrollHeight, d.offsetHeight);
-                          var w = Math.max(b.scrollWidth, b.offsetWidth, d.clientWidth, d.scrollWidth, d.offsetWidth);
-                          window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'pdfSize', w: w, h: h }));
-                        }
-                        if (document.readyState === 'complete') rapporter();
-                        else window.addEventListener('load', rapporter);
-                        setTimeout(rapporter, 1000);
-                      })();
-                      true;
-                    `}
-                    onMessage={(e) => {
-                      try {
-                        const data = JSON.parse(e.nativeEvent.data);
-                        if (data.type === "pdfSize" && data.w > 0 && data.h > 0) {
-                          // Beregn skalert høyde: PDF-innhold skalert til skjermbredde
-                          const ratio = data.h / data.w;
-                          const skalertH = Math.round(pdfSize.w * ratio);
-                          console.log("[GPS-TEG] PDF innhold:", data.w, "×", data.h, "→ skalert:", pdfSize.w, "×", skalertH);
-                          setPdfSize((prev) => ({ ...prev, contentH: skalertH }));
-                        } else if (data.type === "trykk" && onTrykk) {
-                          onTrykk(data.x, data.y);
-                        }
-                      } catch {
-                        // Ignorer ugyldig melding
-                      }
-                    }}
-                  />
-                  {/* Markører INNE i zoom-container — følger PDF ved zoom/scroll */}
-                  <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-                    {renderMarkører(pdfSize.w, pdfSize.contentH || pdfSize.h)}
-                    {renderGpsMarkør(pdfSize.w, pdfSize.contentH || pdfSize.h)}
-                  </View>
-                </View>
-              </ScrollView>
-            </View>
-          )}
+        <View style={stiler.feilContainer}>
+          <AlertTriangle size={48} color="#f59e0b" />
+          <Text style={stiler.feilTekst}>Kunne ikke laste tegningen</Text>
+          <Text style={stiler.feilBeskrivelse}>Sjekk nettverkstilkoblingen og prøv igjen</Text>
+          <Pressable
+            onPress={() => { setLaster(true); setFeil(false); }}
+            style={stiler.prøvIgjenKnapp}
+          >
+            <RefreshCw size={16} color="#ffffff" />
+            <Text style={stiler.prøvIgjenTekst}>Prøv igjen</Text>
+          </Pressable>
         </View>
       ) : (
-        /* Bildevisning — zoom og trykk fungerer sammen */
-        <View
-          ref={bildeRef}
-          onLayout={håndterBildeLayout}
-          style={{ flex: 1, position: "relative" }}
-        >
-          {laster && renderLasting()}
-
-          {/* ScrollView med zoom — trykk-håndtering er på bildecontaineren */}
-          <ScrollView
-            contentContainerStyle={{ flexGrow: 1 }}
-            maximumZoomScale={5}
-            minimumZoomScale={1}
-            bouncesZoom
-            showsHorizontalScrollIndicator={false}
-            showsVerticalScrollIndicator={false}
-          >
-            {/* Bilde + markører + trykk i SAMME container */}
-            <View
-              style={{ width: bildeSt.width, height: bildeSt.height, position: "relative" }}
-              {...(onTrykk ? {
-                onStartShouldSetResponder: håndterTrykkStart,
-                onResponderMove: håndterBevegelse,
-                onResponderRelease: håndterBildeTrykk,
-              } : {})}
-            >
-              <Image
-                source={{ uri: tegningUrl }}
-                style={{ width: bildeSt.width, height: bildeSt.height }}
-                resizeMode="stretch"
-                onLoad={(e) => {
-                  const src = e.nativeEvent?.source;
-                  console.log("[GPS-TEG] onLoad:", JSON.stringify(src));
-                  if (src?.width > 0 && src?.height > 0) {
-                    setNaturligBilde({ w: src.width, h: src.height });
-                  }
-                }}
-                onLoadEnd={() => {
-                  håndterLastetFerdig();
-                  // Retry getSize etter bildet er cachet
-                  setNaturligBilde((prev) => {
-                    if (prev) return prev; // Allerede satt
-                    Image.getSize(
-                      tegningUrl,
-                      (w, h) => {
-                        console.log("[GPS-TEG] getSize retry:", w, h);
-                        if (w > 0 && h > 0) setNaturligBilde({ w, h });
-                      },
-                      () => {},
-                    );
-                    return prev;
-                  });
-                }}
-                onError={håndterFeil}
-              />
-              <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
-                {renderMarkører(bildeSt.width, bildeSt.height)}
-                {renderGpsMarkør(bildeSt.width, bildeSt.height)}
-              </View>
+        <View style={{ flex: 1 }}>
+          {laster && (
+            <View style={stiler.lastingContainer}>
+              <ActivityIndicator size="large" color="#ffffff" />
+              <Text style={stiler.lastingTekst}>Laster tegning…</Text>
             </View>
-          </ScrollView>
+          )}
+          <WebView
+            ref={webViewRef}
+            originWhitelist={["*"]}
+            source={{ html, baseUrl: tegningUrl.substring(0, tegningUrl.lastIndexOf("/") + 1) }}
+            style={{ flex: 1, backgroundColor: "#1a1a1a" }}
+            onLoadEnd={() => { setLaster(false); setFeil(false); }}
+            onError={() => { setLaster(false); setFeil(true); }}
+            onMessage={håndterMelding}
+            allowsInlineMediaPlayback
+            javaScriptEnabled
+            scalesPageToFit={false}
+          />
         </View>
       )}
     </View>
@@ -549,10 +286,7 @@ const stiler = StyleSheet.create({
   },
   lastingContainer: {
     position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+    top: 0, left: 0, right: 0, bottom: 0,
     justifyContent: "center",
     alignItems: "center",
     zIndex: 5,
@@ -561,39 +295,5 @@ const stiler = StyleSheet.create({
     color: "#d1d5db",
     fontSize: 14,
     marginTop: 12,
-  },
-  markørPrikk: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    borderWidth: 2,
-    borderColor: "#ffffff",
-  },
-  markørLabel: {
-    color: "#1f2937",
-    fontSize: 8,
-    fontWeight: "700",
-    marginTop: 1,
-    backgroundColor: "rgba(255,255,255,0.85)",
-    borderRadius: 3,
-    paddingHorizontal: 3,
-    paddingVertical: 0.5,
-    overflow: "hidden",
-  },
-  gpsPrikk: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: "rgba(59, 130, 246, 0.25)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  gpsPrikkInner: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: "#3b82f6",
-    borderWidth: 2,
-    borderColor: "#ffffff",
   },
 });
