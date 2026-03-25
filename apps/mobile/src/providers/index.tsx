@@ -10,7 +10,6 @@ import { OpplastingsKoProvider } from "./OpplastingsKoProvider";
 import { AuthProvider } from "./AuthProvider";
 import { ProsjektProvider } from "../kontekst/ProsjektKontekst";
 import { BygningProvider } from "../kontekst/BygningKontekst";
-import { WebView3DProvider } from "../kontekst/WebView3DKontekst";
 import { loggUt } from "../services/auth";
 import { router } from "expo-router";
 
@@ -70,9 +69,7 @@ export function Providers({ children }: { children: ReactNode }) {
             <OpplastingsKoProvider>
               <AuthProvider>
                 <ProsjektProvider>
-                  <BygningProvider>
-                    <WebView3DProvider>{children}</WebView3DProvider>
-                  </BygningProvider>
+                  <BygningProvider>{children}</BygningProvider>
                 </ProsjektProvider>
               </AuthProvider>
             </OpplastingsKoProvider>
