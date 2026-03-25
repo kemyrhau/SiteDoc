@@ -58,7 +58,7 @@ export function TegningsVisning({
   gpsMarkør,
 }: TegningsVisningProps) {
   const [laster, setLaster] = useState(true);
-  const [pdfSize, setPdfSize] = useState({ w: 300, h: 400 });
+  const [pdfSize, setPdfSize] = useState({ w: 300, h: 400, contentH: 0 });
   const [feil, setFeil] = useState(false);
   const { width, height } = useWindowDimensions();
   const erPdfFil = erPdf(tegningUrl);
@@ -349,7 +349,12 @@ export function TegningsVisning({
             <View
               style={{ flex: 1, position: "relative" }}
               onLayout={(e) => {
-                setPdfSize({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height });
+                const { width: w, height: h } = e.nativeEvent.layout;
+                setPdfSize((prev) => {
+                  // Behold bredden fra layout, men bruk PDF-innholdshøyde hvis kjent
+                  if (prev.contentH > 0) return { ...prev, w };
+                  return { ...prev, w, h };
+                });
               }}
             >
               {/* ScrollView med zoom — markører zoomer med PDF */}
@@ -362,13 +367,14 @@ export function TegningsVisning({
                 showsVerticalScrollIndicator={false}
               >
                 <View
-                  style={{ width: pdfSize.w, height: pdfSize.h, position: "relative" }}
+                  style={{ width: pdfSize.w, height: pdfSize.contentH || pdfSize.h, position: "relative" }}
                   {...(onTrykk ? {
                     onStartShouldSetResponder: () => true,
                     onResponderRelease: (e: { nativeEvent: { locationX: number; locationY: number } }) => {
+                      const ch = pdfSize.contentH || pdfSize.h;
                       const { locationX, locationY } = e.nativeEvent;
                       const posX = (locationX / pdfSize.w) * 100;
-                      const posY = (locationY / pdfSize.h) * 100;
+                      const posY = (locationY / ch) * 100;
                       onTrykk(
                         Math.max(0, Math.min(100, posX)),
                         Math.max(0, Math.min(100, posY)),
@@ -378,19 +384,50 @@ export function TegningsVisning({
                 >
                   <WebView
                     source={{ uri: tegningUrl }}
-                    style={{ width: pdfSize.w, height: pdfSize.h }}
+                    style={{ width: pdfSize.w, height: pdfSize.contentH || pdfSize.h }}
                     startInLoadingState
                     renderLoading={() => <View />}
                     onLoadEnd={håndterLastetFerdig}
                     onError={håndterFeil}
                     allowsInlineMediaPlayback
                     scrollEnabled={false}
-                    scalesPageToFit={false}
+                    scalesPageToFit
+                    injectedJavaScript={`
+                      (function() {
+                        function rapporter() {
+                          var b = document.body;
+                          var d = document.documentElement;
+                          var h = Math.max(b.scrollHeight, b.offsetHeight, d.clientHeight, d.scrollHeight, d.offsetHeight);
+                          var w = Math.max(b.scrollWidth, b.offsetWidth, d.clientWidth, d.scrollWidth, d.offsetWidth);
+                          window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'pdfSize', w: w, h: h }));
+                        }
+                        if (document.readyState === 'complete') rapporter();
+                        else window.addEventListener('load', rapporter);
+                        setTimeout(rapporter, 1000);
+                      })();
+                      true;
+                    `}
+                    onMessage={(e) => {
+                      try {
+                        const data = JSON.parse(e.nativeEvent.data);
+                        if (data.type === "pdfSize" && data.w > 0 && data.h > 0) {
+                          // Beregn skalert høyde: PDF-innhold skalert til skjermbredde
+                          const ratio = data.h / data.w;
+                          const skalertH = Math.round(pdfSize.w * ratio);
+                          console.log("[GPS-TEG] PDF innhold:", data.w, "×", data.h, "→ skalert:", pdfSize.w, "×", skalertH);
+                          setPdfSize((prev) => ({ ...prev, contentH: skalertH }));
+                        } else if (data.type === "trykk" && onTrykk) {
+                          onTrykk(data.x, data.y);
+                        }
+                      } catch {
+                        // Ignorer ugyldig melding
+                      }
+                    }}
                   />
                   {/* Markører INNE i zoom-container — følger PDF ved zoom/scroll */}
                   <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-                    {renderMarkører(pdfSize.w, pdfSize.h)}
-                    {renderGpsMarkør(pdfSize.w, pdfSize.h)}
+                    {renderMarkører(pdfSize.w, pdfSize.contentH || pdfSize.h)}
+                    {renderGpsMarkør(pdfSize.w, pdfSize.contentH || pdfSize.h)}
                   </View>
                 </View>
               </ScrollView>
