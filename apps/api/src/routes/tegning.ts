@@ -236,20 +236,22 @@ export const tegningRouter = router({
           });
       }
 
-      // Konverter PDF til PNG for presis visning (markører, GPS)
+      // Konverter PDF til PNG for presis visning (markører, GPS, georeferering)
       if (erPdf) {
         const pdfFilSti = join(UPLOADS_DIR, input.fileUrl.replace("/uploads/", ""));
         const pngFilnavn = `${randomUUID()}.png`;
-        const pngFilSti = join(UPLOADS_DIR, pngFilnavn);
+        const pngUtSti = join(UPLOADS_DIR, pngFilnavn.replace(".png", ""));
 
         (async () => {
           try {
-            console.log(`[PDF] Konverterer ${input.name} til PNG...`);
+            console.log(`[PDF] Starter konvertering: ${input.name} → PNG (200 DPI)...`);
+            const start = Date.now();
             await execFileAsync("pdftoppm", [
               "-png", "-r", "200", "-singlefile",
-              pdfFilSti, pngFilSti.replace(".png", ""),
-            ]);
-            console.log(`[PDF] Konvertering fullført: ${pngFilnavn}`);
+              pdfFilSti, pngUtSti,
+            ], { timeout: 30000 });
+            const ms = Date.now() - start;
+            console.log(`[PDF] Konvertering fullført på ${ms}ms: ${pngFilnavn}`);
 
             await ctx.prisma.drawing.update({
               where: { id: tegning.id },
@@ -259,12 +261,16 @@ export const tegningRouter = router({
                 conversionStatus: "done",
               },
             });
+            console.log(`[PDF] Database oppdatert: tegning ${tegning.id} → PNG`);
           } catch (err) {
-            console.error(`[PDF] Konvertering feilet for tegning ${tegning.id}:`, err);
-            // Fjern conversionStatus så PDF-en vises som vanlig
+            const melding = err instanceof Error ? err.message : "Ukjent feil";
+            console.error(`[PDF] Konvertering FEILET for tegning ${tegning.id}: ${melding}`);
             await ctx.prisma.drawing.update({
               where: { id: tegning.id },
-              data: { conversionStatus: null, fileUrl: input.fileUrl, fileType: "pdf" },
+              data: {
+                conversionStatus: "failed",
+                conversionError: `PDF→PNG feilet: ${melding}`,
+              },
             });
           }
         })();
