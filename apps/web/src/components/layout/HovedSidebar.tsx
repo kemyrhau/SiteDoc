@@ -49,13 +49,7 @@ const hovedelementer: SidebarElement[] = [
     ikon: <ListTodo className="h-5 w-5" />,
     kreverProsjekt: true,
   },
-  {
-    id: "maler",
-    label: "Maler",
-    ikon: <FileText className="h-5 w-5" />,
-    kreverProsjekt: true,
-    tillatelse: "manage_field",
-  },
+  // Maler er tilgjengelig via Innstillinger → Oppgavemaler / Sjekklistemaler
   {
     id: "tegninger",
     label: "Tegninger",
