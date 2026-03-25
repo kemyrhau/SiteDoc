@@ -236,15 +236,19 @@ export function TegningsVisning({
     });
   };
 
-  // GPS-posisjon som blå prikk — rendres KUN når bildedimensjoner er kjent
+  // GPS-posisjon som blå prikk
   const renderGpsMarkør = (bildeW: number, bildeH: number) => {
-    if (!gpsMarkør || !naturligBilde) return null;
+    if (!gpsMarkør || bildeW <= 0 || bildeH <= 0) return null;
+    // Sjekk at markøren er innenfor bildet
+    const left = (gpsMarkør.x / 100) * bildeW;
+    const top = (gpsMarkør.y / 100) * bildeH;
+    if (top > bildeH || top < 0 || left > bildeW || left < 0) return null;
     return (
       <View
         style={{
           position: "absolute",
-          left: (gpsMarkør.x / 100) * bildeW - 10,
-          top: (gpsMarkør.y / 100) * bildeH - 10,
+          left: left - 10,
+          top: top - 10,
         }}
       >
         <View style={stiler.gpsPrikk}>
@@ -420,11 +424,27 @@ export function TegningsVisning({
                 style={{ width: bildeSt.width, height: bildeSt.height }}
                 resizeMode="stretch"
                 onLoad={(e) => {
-                  // Hent dimensjoner fra onLoad — fungerer alltid, også for autentiserte URL-er
-                  const { width: w, height: h } = e.nativeEvent.source;
-                  if (w > 0 && h > 0) setNaturligBilde({ w, h });
+                  // Hent dimensjoner fra onLoad
+                  const src = e.nativeEvent?.source;
+                  console.log("[GPS-TEG] onLoad source:", JSON.stringify(src));
+                  if (src && src.width > 0 && src.height > 0) {
+                    setNaturligBilde({ w: src.width, h: src.height });
+                  }
                 }}
-                onLoadEnd={håndterLastetFerdig}
+                onLoadEnd={() => {
+                  håndterLastetFerdig();
+                  // Siste sjanse: hvis naturligBilde fortsatt er null, prøv getSize igjen
+                  if (!naturligBilde && tegningUrl) {
+                    Image.getSize(
+                      tegningUrl,
+                      (w, h) => {
+                        console.log("[GPS-TEG] getSize (retry):", w, h);
+                        if (w > 0 && h > 0) setNaturligBilde({ w, h });
+                      },
+                      (err) => console.warn("[GPS-TEG] getSize retry feilet:", err),
+                    );
+                  }
+                }}
                 onError={håndterFeil}
               />
               <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
