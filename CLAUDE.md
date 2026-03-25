@@ -101,6 +101,20 @@ ssh sitedoc "cd ~/programmering/sitedoc && git pull && pnpm install --frozen-loc
 
 Se [docs/claude/infrastruktur.md](docs/claude/infrastruktur.md) for detaljer.
 
+### Mobil reload-typer (viktig: opplys ALLTID brukeren)
+
+Etter endringer, oppgi alltid hvilken reload-metode som trengs:
+
+| Endring | Reload-metode | Instruks til bruker |
+|---------|--------------|---------------------|
+| **React-komponent / styling** | Hot reload | «Shake → Reload» eller dra ned |
+| **Provider / kontekst / hooks** | Full restart | «`npx expo start --clear`» |
+| **WebView-innhold (mobil-viewer)** | Deploy + restart | «Deployet til test — restart Expo med `--clear`» |
+| **API-endringer** | Deploy | «Deployet til test — shake → Reload» |
+| **Native modul / config** | Ny build | «Trenger ny EAS-build» |
+
+**Regel:** Etter HVER commit som påvirker mobil, skriv eksplisitt: «**Reload:** [metode]»
+
 ### Mobil-app og URL-konstruksjon
 
 - **Mobil `.env`** peker mot **produksjon**: `EXPO_PUBLIC_API_URL=https://api.sitedoc.no`
