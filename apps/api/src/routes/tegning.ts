@@ -1,11 +1,9 @@
 import { z } from "zod";
 import { Prisma } from "@sitedoc/db";
 import { join } from "node:path";
-import { readFile } from "node:fs/promises";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { randomUUID } from "node:crypto";
-// pdf-lib lastes dynamisk for å unngå at import-feil krasjer hele routeren
 import { router, protectedProcedure } from "../trpc/trpc";
 
 const execFileAsync = promisify(execFile);
@@ -86,23 +84,7 @@ export const tegningRouter = router({
       });
       await verifiserProsjektmedlem(ctx.userId, tegning.projectId);
 
-      // For PDF-filer: hent sidedimensjoner for korrekt markørposisjonering på mobil
-      let pdfPageSize: { width: number; height: number } | null = null;
-      if (tegning.fileType === "pdf" && tegning.fileUrl) {
-        try {
-          const filSti = join(UPLOADS_DIR, tegning.fileUrl.replace("/uploads/", ""));
-          const pdfBytes = await readFile(filSti);
-          const { PDFDocument } = await import("pdf-lib");
-          const pdfDoc = await PDFDocument.load(pdfBytes, { ignoreEncryption: true });
-          const side = pdfDoc.getPage(0);
-          const { width: pw, height: ph } = side.getSize();
-          pdfPageSize = { width: pw, height: ph };
-        } catch {
-          // Ignorer — pdfPageSize forblir null
-        }
-      }
-
-      return { ...tegning, pdfPageSize };
+      return tegning;
     }),
 
   // Opprett ny tegning
