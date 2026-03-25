@@ -64,7 +64,9 @@ interface TegningDetalj {
   id: string;
   name: string;
   fileUrl: string | null;
+  fileType?: string | null;
   geoReference?: unknown;
+  pdfPageSize?: { width: number; height: number } | null;
 }
 
 interface OppgaveMarkør {
@@ -607,6 +609,7 @@ export default function LokasjonerSkjerm() {
             onMarkørTrykk={håndterMarkørTrykk}
             markører={markører}
             gpsMarkør={gpsMarkør}
+            pdfPageSize={valgtTegningDetalj?.pdfPageSize ?? undefined}
           />
         ) : (
           <KartVisning />

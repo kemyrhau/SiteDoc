@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { Prisma } from "@sitedoc/db";
 import { join } from "node:path";
+import { readFile } from "node:fs/promises";
+import { PDFDocument } from "pdf-lib";
 import { router, protectedProcedure } from "../trpc/trpc";
 import {
   drawingDisciplineSchema,
@@ -78,7 +80,23 @@ export const tegningRouter = router({
         },
       });
       await verifiserProsjektmedlem(ctx.userId, tegning.projectId);
-      return tegning;
+
+      // For PDF-filer: hent sidedimensjoner for korrekt markørposisjonering på mobil
+      let pdfPageSize: { width: number; height: number } | null = null;
+      if (tegning.fileType === "pdf" && tegning.fileUrl) {
+        try {
+          const filSti = join(UPLOADS_DIR, tegning.fileUrl.replace("/uploads/", ""));
+          const pdfBytes = await readFile(filSti);
+          const pdfDoc = await PDFDocument.load(pdfBytes, { ignoreEncryption: true });
+          const side = pdfDoc.getPage(0);
+          const { width: pw, height: ph } = side.getSize();
+          pdfPageSize = { width: pw, height: ph };
+        } catch {
+          // Ignorer — pdfPageSize forblir null
+        }
+      }
+
+      return { ...tegning, pdfPageSize };
     }),
 
   // Opprett ny tegning

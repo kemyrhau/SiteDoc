@@ -42,6 +42,8 @@ interface TegningsVisningProps {
   onMarkørTrykk?: (id: string) => void;
   markører?: Markør[];
   gpsMarkør?: GpsMarkør | null;
+  /** PDF-sidedimensjoner fra server (for korrekt aspektforhold) */
+  pdfPageSize?: { width: number; height: number };
 }
 
 function erPdf(url: string): boolean {
@@ -51,6 +53,7 @@ function erPdf(url: string): boolean {
 export function TegningsVisning({
   tegningUrl,
   tegningNavn,
+  pdfPageSize,
   onLukk,
   onTrykk,
   onMarkørTrykk,
@@ -350,11 +353,18 @@ export function TegningsVisning({
               style={{ flex: 1, position: "relative" }}
               onLayout={(e) => {
                 const { width: w, height: h } = e.nativeEvent.layout;
-                setPdfSize((prev) => {
-                  // Behold bredden fra layout, men bruk PDF-innholdshøyde hvis kjent
-                  if (prev.contentH > 0) return { ...prev, w };
-                  return { ...prev, w, h };
-                });
+                // Bruk PDF-sidedimensjoner fra server for korrekt aspektforhold
+                if (pdfPageSize && pdfPageSize.width > 0 && pdfPageSize.height > 0) {
+                  const ratio = pdfPageSize.height / pdfPageSize.width;
+                  const skalertH = Math.round(w * ratio);
+                  console.log("[GPS-TEG] PDF side:", pdfPageSize.width, "×", pdfPageSize.height, "→ skalert:", w, "×", skalertH);
+                  setPdfSize({ w, h, contentH: skalertH });
+                } else {
+                  setPdfSize((prev) => {
+                    if (prev.contentH > 0) return { ...prev, w };
+                    return { ...prev, w, h };
+                  });
+                }
               }}
             >
               {/* ScrollView med zoom — markører zoomer med PDF */}
