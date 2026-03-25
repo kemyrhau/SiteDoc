@@ -58,8 +58,8 @@ export default function Tegning3DSkjerm() {
   const tegningQuery = (trpc.tegning.hentForProsjekt as unknown as {
     useQuery: (input: { projectId: string; buildingId?: string }, opts: { enabled: boolean }) => { data: unknown; isLoading: boolean };
   }).useQuery(
-    { projectId: valgtProsjektId!, buildingId: valgtBygningId! },
-    { enabled: !!valgtProsjektId && !!valgtBygningId },
+    { projectId: valgtProsjektId!, ...(valgtBygningId ? { buildingId: valgtBygningId } : {}) },
+    { enabled: !!valgtProsjektId },
   );
   const isLoading = tegningQuery.isLoading;
   const alleTegninger = (tegningQuery.data ?? []) as TegningData[];
