@@ -2,8 +2,13 @@ import { z } from "zod";
 import { Prisma } from "@sitedoc/db";
 import { join } from "node:path";
 import { readFile } from "node:fs/promises";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+import { randomUUID } from "node:crypto";
 import { PDFDocument } from "pdf-lib";
 import { router, protectedProcedure } from "../trpc/trpc";
+
+const execFileAsync = promisify(execFile);
 import {
   drawingDisciplineSchema,
   drawingTypeSchema,
@@ -125,13 +130,14 @@ export const tegningRouter = router({
 
       const erDwg = input.fileType.toLowerCase() === "dwg";
       const erIfc = input.fileType.toLowerCase() === "ifc";
+      const erPdf = input.fileType.toLowerCase() === "pdf";
 
       const tegning = await ctx.prisma.drawing.create({
         data: {
           ...input,
-          ...(erDwg ? {
+          ...((erDwg || erPdf) ? {
             originalFileUrl: input.fileUrl,
-            conversionStatus: "pending",
+            conversionStatus: erDwg ? "pending" : "converting",
           } : {}),
         },
       });
@@ -227,6 +233,40 @@ export const tegningRouter = router({
           .catch((err) => {
             console.error(`[IFC] Metadata-utvinning feilet for tegning ${tegning.id}:`, err);
           });
+      }
+
+      // Konverter PDF til PNG for presis visning (markører, GPS)
+      if (erPdf) {
+        const pdfFilSti = join(UPLOADS_DIR, input.fileUrl.replace("/uploads/", ""));
+        const pngFilnavn = `${randomUUID()}.png`;
+        const pngFilSti = join(UPLOADS_DIR, pngFilnavn);
+
+        (async () => {
+          try {
+            console.log(`[PDF] Konverterer ${input.name} til PNG...`);
+            await execFileAsync("pdftoppm", [
+              "-png", "-r", "200", "-singlefile",
+              pdfFilSti, pngFilSti.replace(".png", ""),
+            ]);
+            console.log(`[PDF] Konvertering fullført: ${pngFilnavn}`);
+
+            await ctx.prisma.drawing.update({
+              where: { id: tegning.id },
+              data: {
+                fileUrl: `/uploads/${pngFilnavn}`,
+                fileType: "png",
+                conversionStatus: "done",
+              },
+            });
+          } catch (err) {
+            console.error(`[PDF] Konvertering feilet for tegning ${tegning.id}:`, err);
+            // Fjern conversionStatus så PDF-en vises som vanlig
+            await ctx.prisma.drawing.update({
+              where: { id: tegning.id },
+              data: { conversionStatus: null, fileUrl: input.fileUrl, fileType: "pdf" },
+            });
+          }
+        })();
       }
 
       return tegning;
