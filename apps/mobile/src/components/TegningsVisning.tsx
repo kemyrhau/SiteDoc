@@ -67,22 +67,25 @@ export function TegningsVisning({
   const bildeRef = useRef<View>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Bildedimensjoner basert på naturlig aspektforhold — fyller bredden, ingen letterboxing
+  // Bildedimensjoner basert på naturlig aspektforhold — fyller bredden
   const bildeSt = useMemo(() => {
     if (naturligBilde && naturligBilde.w > 0 && naturligBilde.h > 0) {
       const ratio = naturligBilde.h / naturligBilde.w;
       return { width, height: width * ratio };
     }
-    return { width, height: pdfSize.h };
+    // Fallback: bruk skjermhøyde minus header (før bildedimensjoner er kjent)
+    return { width, height: height - 100 };
   }, [naturligBilde, width, height]);
 
-  // Hent naturlig bildedimensjon for korrekt markør-posisjonering
+  // Hent naturlig bildedimensjon — prøv Image.getSize, fallback til onLoad
   useEffect(() => {
     if (!erPdfFil && tegningUrl) {
       Image.getSize(
         tegningUrl,
         (w, h) => setNaturligBilde({ w, h }),
-        () => setNaturligBilde(null),
+        () => {
+          // Image.getSize feiler for autentiserte URL-er — onLoad fanger opp
+        },
       );
     }
   }, [tegningUrl, erPdfFil]);
@@ -280,8 +283,8 @@ export function TegningsVisning({
 
   return (
     <View className="flex-1 bg-black">
-      {/* Header med tegningsnavn og lukk-knapp */}
-      <View className="absolute left-0 right-0 top-0 z-10 flex-row items-center justify-between bg-black/60 px-4 py-3">
+      {/* Header med tegningsnavn og lukk-knapp — del av layout, ikke absolutt */}
+      <View className="flex-row items-center justify-between bg-black/80 px-4 py-3">
         <Pressable
           onPress={onLukk}
           hitSlop={12}
@@ -300,7 +303,7 @@ export function TegningsVisning({
 
       {/* Feilvisning */}
       {feil ? (
-        <View style={{ flex: 1, paddingTop: 48 }}>
+        <View style={{ flex: 1 }}>
           {renderFeilVisning()}
         </View>
       ) : erPdfFil ? (
@@ -396,7 +399,7 @@ export function TegningsVisning({
 
           {/* ScrollView med zoom — trykk-håndtering er på bildecontaineren */}
           <ScrollView
-            contentContainerStyle={{ paddingTop: 48 }}
+            contentContainerStyle={{ flexGrow: 1 }}
             maximumZoomScale={5}
             minimumZoomScale={1}
             bouncesZoom
@@ -415,6 +418,13 @@ export function TegningsVisning({
               <Image
                 source={{ uri: tegningUrl }}
                 style={{ width: bildeSt.width, height: bildeSt.height }}
+                onLoad={(e) => {
+                  // Backup: hent dimensjoner fra onLoad hvis Image.getSize feilet
+                  if (!naturligBilde) {
+                    const { width: w, height: h } = e.nativeEvent.source;
+                    if (w > 0 && h > 0) setNaturligBilde({ w, h });
+                  }
+                }}
                 onLoadEnd={håndterLastetFerdig}
                 onError={håndterFeil}
               />
