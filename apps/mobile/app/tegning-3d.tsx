@@ -148,7 +148,10 @@ export default function Tegning3DSkjerm() {
   };
 
   const tegningUrl = valgtTegning?.fileUrl
-    ? valgtTegning.fileUrl.startsWith("/api") ? valgtTegning.fileUrl : `/api${valgtTegning.fileUrl}`
+    ? (() => {
+        const url = valgtTegning.fileUrl!.startsWith("/api") ? valgtTegning.fileUrl! : `/api${valgtTegning.fileUrl}`;
+        return `${hentWebUrl()}${url}`;
+      })()
     : null;
 
   const byttTegning = () => {
