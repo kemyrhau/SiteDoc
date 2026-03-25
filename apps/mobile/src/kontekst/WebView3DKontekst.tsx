@@ -122,7 +122,9 @@ export function WebView3DProvider({ children }: { children: ReactNode }) {
     const nøkkel = ifcModeller.map((m) => m.fileUrl).sort().join("|");
     if (nøkkel === lastedeModellerRef.current) return; // Allerede lastet
 
-    (async () => {
+    let avbrutt = false;
+
+    async function sendModeller() {
       const token = await hentSessionToken();
       const baseUrl = AUTH_CONFIG.apiUrl.replace("/trpc", "").replace("api.", "");
       const urls = ifcModeller.map((m) => {
@@ -134,12 +136,27 @@ export function WebView3DProvider({ children }: { children: ReactNode }) {
       setTotalt(ifcModeller.length);
       setFeil(null);
 
-      webViewRef.current?.postMessage(
+      // Vent til webViewRef er tilgjengelig (kan ta et par frames etter montering)
+      for (let forsøk = 0; forsøk < 10; forsøk++) {
+        if (avbrutt) return;
+        if (webViewRef.current) break;
+        await new Promise((r) => setTimeout(r, 200));
+      }
+
+      if (!webViewRef.current) {
+        console.warn("[WebView3D] webViewRef ikke tilgjengelig etter 2s");
+        setFeil("Kunne ikke koble til 3D-viewer");
+        return;
+      }
+
+      webViewRef.current.postMessage(
         JSON.stringify({ type: "lastModeller", urls, token }),
       );
-
       lastedeModellerRef.current = nøkkel;
-    })();
+    }
+
+    sendModeller();
+    return () => { avbrutt = true; };
   }, [erKlar, aktiv, ifcModeller]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Reset ved prosjekt/bygningsbytte
