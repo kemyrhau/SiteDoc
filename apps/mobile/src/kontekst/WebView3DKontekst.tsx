@@ -78,6 +78,7 @@ export function WebView3DProvider({ children }: { children: ReactNode }) {
   const webViewRef = useRef<WebView>(null);
   const handlersRef = useRef<Set<MeldingsHandler>>(new Set());
 
+  const [webViewNøkkel, setWebViewNøkkel] = useState(0);
   const [erKlar, setErKlar] = useState(false);
   const [lastet, setLastet] = useState(0);
   const [totalt, setTotalt] = useState(0);
@@ -180,6 +181,17 @@ export function WebView3DProvider({ children }: { children: ReactNode }) {
     setAktiv(false);
   }, []);
 
+  // Håndter WebView-krasj (iOS: minne-press, Android: render-prosess drept)
+  const handleKrasj = useCallback(() => {
+    console.warn("[WebView3D] WebView krasjet — laster på nytt");
+    setErKlar(false);
+    setLastet(0);
+    setTotalt(0);
+    lastedeModellerRef.current = ""; // Tving re-lasting av modeller
+    // WebView reloader seg selv via key-endring
+    setWebViewNøkkel((prev) => prev + 1);
+  }, []);
+
   const postMelding = useCallback((msg: Record<string, unknown>) => {
     webViewRef.current?.postMessage(JSON.stringify(msg));
   }, []);
@@ -219,10 +231,13 @@ export function WebView3DProvider({ children }: { children: ReactNode }) {
         pointerEvents={aktiv ? "auto" : "none"}
       >
         <WebView
+          key={webViewNøkkel}
           ref={webViewRef}
           source={{ uri: viewerUrl }}
           style={styles.webview}
           onMessage={handleMessage}
+          onContentProcessDidTerminate={handleKrasj}
+          onRenderProcessGone={handleKrasj}
           javaScriptEnabled
           domStorageEnabled
           allowsInlineMediaPlayback
