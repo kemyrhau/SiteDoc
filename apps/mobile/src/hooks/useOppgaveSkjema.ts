@@ -55,6 +55,7 @@ export interface UseOppgaveSkjemaResultat {
   settKommentar: (objektId: string, kommentar: string) => void;
   leggTilVedlegg: (objektId: string, vedlegg: Vedlegg) => void;
   fjernVedlegg: (objektId: string, vedleggId: string) => void;
+  flyttVedlegg: (objektId: string, vedleggId: string, retning: "opp" | "ned") => void;
   erSynlig: (objekt: RapportObjekt) => boolean;
   valideringsfeil: Record<string, string>;
   valider: () => boolean;

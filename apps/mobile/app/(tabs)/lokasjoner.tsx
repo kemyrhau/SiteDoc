@@ -619,7 +619,7 @@ export default function LokasjonerSkjerm() {
         tegninger={tegninger}
         valgtBygningId={valgtBygningId}
         valgtTegningId={valgtTegningId}
-        onVelgBygning={settBygning}
+        onVelgBygning={(id) => { if (id) settBygning(id); }}
         onVelgTegning={håndterVelgTegning}
         onAvbryt={håndterAvbryt}
         laster={lasterData}
