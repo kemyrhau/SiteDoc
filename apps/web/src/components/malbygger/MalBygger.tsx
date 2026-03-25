@@ -130,6 +130,19 @@ function akseptererBarn(objekt: MalObjekt): boolean {
   return objekt.config.conditionActive === true;
 }
 
+// Sjekk om `muligForelderId` er en etterkommer av `objektId` (sirkulær referanse-vakt)
+function erEtterkommer(objekter: MalObjekt[], objektId: string, muligForelderId: string): boolean {
+  let currentId: string | null = muligForelderId;
+  let dybde = 0;
+  while (currentId && dybde < 10) {
+    if (currentId === objektId) return true;
+    const current = objekter.find((o) => o.id === currentId);
+    currentId = current?.parentId ?? null;
+    dybde++;
+  }
+  return false;
+}
+
 export function MalBygger({ mal }: MalByggerProps) {
   const utils = trpc.useUtils();
   const [valgtId, setValgtId] = useState<string | null>(null);
@@ -454,8 +467,8 @@ export function MalBygger({ mal }: MalByggerProps) {
 
           // Sjekk om vi drar inn i en kontainer, ut av en, eller innenfor samme nivå
           if (overObjekt) {
-            if (akseptererBarn(overObjekt) && overObjekt.id !== aktivParentId) {
-              // Droppet på kontainer → bli barn av den kontaineren
+            if (akseptererBarn(overObjekt) && overObjekt.id !== aktivParentId && !erEtterkommer(neste, aktivId, overObjekt.id)) {
+              // Droppet på kontainer → bli barn av den kontaineren (med sirkulær referanse-vakt)
               const aktivIdx = neste.findIndex((o) => o.id === aktivId);
               if (aktivIdx !== -1) {
                 neste[aktivIdx] = { ...aktivObjekt, parentId: overObjekt.id };

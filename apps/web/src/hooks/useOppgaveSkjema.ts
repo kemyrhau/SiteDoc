@@ -194,24 +194,30 @@ export function useOppgaveSkjema(oppgaveId: string): UseOppgaveSkjemaResultat {
     [planleggLagring],
   );
 
+  // Betinget synlighet (rekursiv — sjekker hele foreldrekjeden, maks 10 nivåer)
   const erSynlig = useCallback(
     (objekt: RapportObjekt): boolean => {
-      const parentId = objekt.parentId ?? (objekt.config.conditionParentId as string | undefined);
-      if (!parentId) return true;
+      function sjekkSynlighet(obj: RapportObjekt, dybde: number): boolean {
+        if (dybde > 10) return true; // Sikkerhetsvakt mot uendelig rekursjon
 
-      const forelder = alleObjekter.find((o) => o.id === parentId);
-      if (!forelder) return true;
+        const parentId = obj.parentId ?? (obj.config.conditionParentId as string | undefined);
+        if (!parentId) return true;
 
-      if (!erSynlig(forelder)) return false;
-      if (forelder.type === "repeater") return true;
-      if (!forelder.config.conditionActive) return true;
+        const forelder = alleObjekter.find((o) => o.id === parentId);
+        if (!forelder) return true;
 
-      const triggerVerdier = (forelder.config.conditionValues as string[]) ?? [];
-      const forelderVerdi = hentFeltVerdi(parentId).verdi;
+        if (!sjekkSynlighet(forelder, dybde + 1)) return false;
+        if (forelder.type === "repeater") return true;
+        if (!forelder.config.conditionActive) return true;
 
-      if (typeof forelderVerdi === "string") return triggerVerdier.includes(forelderVerdi);
-      if (Array.isArray(forelderVerdi)) return forelderVerdi.some((v) => triggerVerdier.includes(v));
-      return false;
+        const triggerVerdier = (forelder.config.conditionValues as string[]) ?? [];
+        const forelderVerdi = hentFeltVerdi(parentId).verdi;
+
+        if (typeof forelderVerdi === "string") return triggerVerdier.includes(forelderVerdi);
+        if (Array.isArray(forelderVerdi)) return forelderVerdi.some((v) => triggerVerdier.includes(v));
+        return false;
+      }
+      return sjekkSynlighet(objekt, 0);
     },
     [alleObjekter, hentFeltVerdi],
   );
