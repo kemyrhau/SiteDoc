@@ -5,7 +5,7 @@ import { readFile } from "node:fs/promises";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { randomUUID } from "node:crypto";
-import { PDFDocument } from "pdf-lib";
+// pdf-lib lastes dynamisk for å unngå at import-feil krasjer hele routeren
 import { router, protectedProcedure } from "../trpc/trpc";
 
 const execFileAsync = promisify(execFile);
@@ -92,6 +92,7 @@ export const tegningRouter = router({
         try {
           const filSti = join(UPLOADS_DIR, tegning.fileUrl.replace("/uploads/", ""));
           const pdfBytes = await readFile(filSti);
+          const { PDFDocument } = await import("pdf-lib");
           const pdfDoc = await PDFDocument.load(pdfBytes, { ignoreEncryption: true });
           const side = pdfDoc.getPage(0);
           const { width: pw, height: ph } = side.getSize();
