@@ -84,6 +84,7 @@ export function WebView3DProvider({ children }: { children: ReactNode }) {
   const [totalt, setTotalt] = useState(0);
   const [feil, setFeil] = useState<string | null>(null);
   const [aktiv, setAktiv] = useState(false);
+  const [harVærtAktiv, setHarVærtAktiv] = useState(false); // Monter WebView først ved behov
   const [bounds, setBounds] = useState<Bounds>({ top: 0, left: 0, width: SKJERMBREDDE, height: SKJERMHOYDE });
 
   // Spor hvilke modeller som er lastet for å unngå re-lasting
@@ -178,6 +179,7 @@ export function WebView3DProvider({ children }: { children: ReactNode }) {
   const aktiver = useCallback((nyeBounds: Bounds) => {
     setBounds(nyeBounds);
     setAktiv(true);
+    setHarVærtAktiv(true);
   }, []);
 
   const deaktiver = useCallback(() => {
@@ -232,30 +234,30 @@ export function WebView3DProvider({ children }: { children: ReactNode }) {
   return (
     <WebView3DContext.Provider value={api}>
       {children}
-      {/* Persistent WebView — alltid rendret, posisjonert av konsumerende skjerm */}
-      <View
-        style={[
-          styles.webViewContainer,
-          aktiv
-            ? { top: bounds.top, left: bounds.left, width: bounds.width, height: bounds.height }
-            : styles.skjult,
-        ]}
-        pointerEvents={aktiv ? "auto" : "none"}
-      >
-        <WebView
-          key={webViewNøkkel}
-          ref={webViewRef}
-          source={{ uri: viewerUrl }}
-          style={styles.webview}
-          onMessage={handleMessage}
-          onContentProcessDidTerminate={handleKrasj}
-          onRenderProcessGone={handleKrasj}
-          javaScriptEnabled
-          domStorageEnabled
-          allowsInlineMediaPlayback
-          originWhitelist={["*"]}
-        />
-      </View>
+      {/* Persistent WebView — monteres først når en skjerm trenger 3D */}
+      {harVærtAktiv && (
+        <View
+          style={[
+            styles.webViewContainer,
+            { top: bounds.top, left: bounds.left, width: bounds.width, height: bounds.height },
+          ]}
+          pointerEvents={aktiv ? "auto" : "none"}
+        >
+          <WebView
+            key={webViewNøkkel}
+            ref={webViewRef}
+            source={{ uri: viewerUrl }}
+            style={[styles.webview, !aktiv && styles.webviewSkjult]}
+            onMessage={handleMessage}
+            onContentProcessDidTerminate={handleKrasj}
+            onRenderProcessGone={handleKrasj}
+            javaScriptEnabled
+            domStorageEnabled
+            allowsInlineMediaPlayback
+            originWhitelist={["*"]}
+          />
+        </View>
+      )}
     </WebView3DContext.Provider>
   );
 }
@@ -266,15 +268,11 @@ const styles = StyleSheet.create({
     zIndex: 1000,
     overflow: "hidden",
   },
-  skjult: {
-    // Plasser utenfor skjermen for å holde WebGL-kontekst levende
-    top: -SKJERMHOYDE,
-    left: 0,
-    width: SKJERMBREDDE,
-    height: SKJERMHOYDE,
-    opacity: 0,
-  },
   webview: {
     flex: 1,
+  },
+  webviewSkjult: {
+    // Behold rendret men usynlig — holder WebGL-kontekst levende
+    opacity: 0,
   },
 });
