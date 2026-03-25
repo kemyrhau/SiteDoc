@@ -305,7 +305,7 @@ export function TegningsVisning({
         </View>
       ) : erPdfFil ? (
         /* PDF-visning */
-        <View style={{ flex: 1, paddingTop: 48 }}>
+        <View style={{ flex: 1 }}>
           {laster && renderLasting()}
           {Platform.OS === "web" ? (
             <View style={{ flex: 1, position: "relative" }}>
