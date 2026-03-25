@@ -688,25 +688,24 @@ function OpprettDokumentflytModal({
   const [mottakerId, setMottakerId] = useState("");
   const [valgteMaler, setValgteMaler] = useState<Set<string>>(new Set());
 
-  // Hent prosjektmedlemmer og grupper for mottaker-velgeren
+  // Hent prosjektmedlemmer for bruker-velgeren
   const { data: _medlemmer } = trpc.medlem.hentForProsjekt.useQuery(
     { projectId: prosjektId },
     { enabled: open },
   );
   const medlemmer = (_medlemmer ?? []) as Array<{ id: string; user: { name: string | null; email: string } }>;
 
-  const { data: _grupper } = trpc.gruppe.hentForProsjekt.useQuery(
-    { projectId: prosjektId },
-    { enabled: open },
-  );
-  const grupper = (_grupper ?? []) as Array<{ id: string; name: string }>;
-
   const utils = trpc.useUtils();
+  const [feilmelding, setFeilmelding] = useState("");
   const opprettMutation = trpc.dokumentflyt.opprett.useMutation({
     onSuccess: () => {
       utils.dokumentflyt.hentForProsjekt.invalidate({ projectId: prosjektId });
+      setFeilmelding("");
       nullstill();
       onClose();
+    },
+    onError: (err) => {
+      setFeilmelding(err.message || "Kunne ikke opprette dokumentflyt");
     },
   });
 
@@ -717,6 +716,7 @@ function OpprettDokumentflytModal({
     setMottakerType("bruker");
     setMottakerId("");
     setValgteMaler(new Set());
+    setFeilmelding("");
   }
 
   const [forrigeOpen, setForrigeOpen] = useState(false);
@@ -749,19 +749,36 @@ function OpprettDokumentflytModal({
     }> = [];
 
     if (oppretterId) {
-      dfMedlemmer.push({
-        projectMemberId: oppretterId,
-        enterpriseId: forvalgtEntrepriseId,
-        rolle: "oppretter",
-        steg: 1,
-      });
+      if (oppretterType === "gruppe") {
+        // "Gruppe" = entreprise — send enterpriseId
+        dfMedlemmer.push({
+          enterpriseId: oppretterId,
+          rolle: "oppretter",
+          steg: 1,
+        });
+      } else {
+        // "Bruker" = enkeltmedlem
+        dfMedlemmer.push({
+          projectMemberId: oppretterId,
+          rolle: "oppretter",
+          steg: 1,
+        });
+      }
     }
     if (mottakerId) {
-      dfMedlemmer.push({
-        projectMemberId: mottakerId,
-        rolle: "svarer",
-        steg: 1,
-      });
+      if (mottakerType === "gruppe") {
+        dfMedlemmer.push({
+          enterpriseId: mottakerId,
+          rolle: "svarer",
+          steg: 1,
+        });
+      } else {
+        dfMedlemmer.push({
+          projectMemberId: mottakerId,
+          rolle: "svarer",
+          steg: 1,
+        });
+      }
     }
 
     opprettMutation.mutate({
@@ -800,7 +817,7 @@ function OpprettDokumentflytModal({
               onClick={() => { setOppretterType("gruppe"); setOppretterId(""); }}
               className={`rounded-full px-3 py-1 text-xs font-medium ${oppretterType === "gruppe" ? "bg-sitedoc-primary text-white" : "bg-gray-100 text-gray-600"}`}
             >
-              Gruppe
+              Entreprise
             </button>
           </div>
           <select
@@ -819,9 +836,9 @@ function OpprettDokumentflytModal({
               </>
             ) : (
               <>
-                <option value="">Velg gruppe...</option>
-                {grupper.map((g) => (
-                  <option key={g.id} value={g.id}>{g.name}</option>
+                <option value="">Velg entreprise...</option>
+                {entrepriser.map((e) => (
+                  <option key={e.id} value={e.id}>{e.name}</option>
                 ))}
               </>
             )}
@@ -845,7 +862,7 @@ function OpprettDokumentflytModal({
               onClick={() => { setMottakerType("gruppe"); setMottakerId(""); }}
               className={`rounded-full px-3 py-1 text-xs font-medium ${mottakerType === "gruppe" ? "bg-sitedoc-primary text-white" : "bg-gray-100 text-gray-600"}`}
             >
-              Gruppe
+              Entreprise
             </button>
           </div>
           <select
@@ -864,9 +881,9 @@ function OpprettDokumentflytModal({
               </>
             ) : (
               <>
-                <option value="">Velg gruppe...</option>
-                {grupper.map((g) => (
-                  <option key={g.id} value={g.id}>{g.name}</option>
+                <option value="">Velg entreprise...</option>
+                {entrepriser.map((e) => (
+                  <option key={e.id} value={e.id}>{e.name}</option>
                 ))}
               </>
             )}
@@ -944,6 +961,10 @@ function OpprettDokumentflytModal({
             </div>
           </div>
         </div>
+
+        {feilmelding && (
+          <p className="text-sm text-red-600">{feilmelding}</p>
+        )}
 
         <div className="flex gap-3 pt-2">
           <Button variant="secondary" type="button" onClick={onClose}>
