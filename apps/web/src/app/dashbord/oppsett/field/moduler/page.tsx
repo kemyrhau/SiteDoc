@@ -8,6 +8,7 @@ import {
   FileCheck,
   ShieldAlert,
   ClipboardList,
+  Box,
   Plus,
   Check,
   Package,
@@ -19,6 +20,13 @@ const IKON_MAP: Record<string, React.ReactNode> = {
   FileCheck: <FileCheck className="h-6 w-6" />,
   ShieldAlert: <ShieldAlert className="h-6 w-6" />,
   ClipboardList: <ClipboardList className="h-6 w-6" />,
+  Box: <Box className="h-6 w-6" />,
+};
+
+const KATEGORI_LABEL: Record<string, string> = {
+  oppgave: "Oppgavemal",
+  sjekkliste: "Sjekklistemal",
+  funksjon: "Funksjon",
 };
 
 export default function ModulerSide() {
@@ -112,9 +120,10 @@ export default function ModulerSide() {
                 <div className="flex-1">
                   <h3 className="font-semibold text-gray-900">{modul.navn}</h3>
                   <span className="text-xs text-gray-400">
-                    {modul.kategori === "oppgave" ? "Oppgavemal" : "Sjekklistemal"}
-                    {" · "}
-                    {modul.maler.length} {modul.maler.length === 1 ? "mal" : "maler"}
+                    {KATEGORI_LABEL[modul.kategori] ?? modul.kategori}
+                    {modul.maler.length > 0 && (
+                      <>{" · "}{modul.maler.length} {modul.maler.length === 1 ? "mal" : "maler"}</>
+                    )}
                   </span>
                 </div>
               </div>
@@ -125,6 +134,7 @@ export default function ModulerSide() {
               </p>
 
               {/* Mal-detaljer */}
+              {modul.maler.length > 0 && (
               <div className="mb-4 rounded-lg border border-gray-100 bg-gray-50 px-3 py-2">
                 {modul.maler.map((mal) => (
                   <div key={mal.prefix} className="flex items-center justify-between">
@@ -140,6 +150,7 @@ export default function ModulerSide() {
                   </div>
                 ))}
               </div>
+              )}
 
               {/* Emner (hvis tilgjengelig) */}
               {modul.maler.some((m) => m.emner && m.emner.length > 0) && (

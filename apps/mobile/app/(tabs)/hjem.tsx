@@ -118,13 +118,24 @@ export default function HjemSkjerm() {
     return bygninger.find((b) => b.id === valgtBygningId)?.name ?? null;
   }, [valgtBygningId, bygninger]);
 
-  // Sjekk om valgt bygning har IFC-modeller
+  // Sjekk om 3D-visning modulen er aktiv
+  const modulQuery = trpc.modul.hentForProsjekt.useQuery(
+    { projectId: valgtProsjektId! },
+    { enabled: !!valgtProsjektId },
+  );
+  const er3dAktiv = useMemo(() => {
+    if (!modulQuery.data) return false;
+    return modulQuery.data.some((m: { moduleSlug: string; active: boolean }) => m.moduleSlug === "3d-visning" && m.active);
+  }, [modulQuery.data]);
+
+  // Sjekk om valgt bygning har IFC-modeller OG 3D-modulen er aktiv
   const harIfcModeller = useMemo(() => {
+    if (!er3dAktiv) return false;
     if (!valgtBygningId || !bygninger) return false;
     const bygning = bygninger.find((b) => b.id === valgtBygningId);
     if (!bygning) return false;
     return bygning.drawings.some((d) => d.fileType?.toLowerCase() === "ifc");
-  }, [valgtBygningId, bygninger]);
+  }, [er3dAktiv, valgtBygningId, bygninger]);
 
   // Hent sjekklister og oppgaver for valgt prosjekt (filtrert på bygning)
   const sjekklisteQuery = trpc.sjekkliste.hentForProsjekt.useQuery(
