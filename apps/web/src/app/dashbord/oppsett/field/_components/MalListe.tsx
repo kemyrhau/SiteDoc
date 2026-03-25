@@ -164,11 +164,7 @@ export function MalListe({
 
   function handlePrefiksEndring(verdi: string) {
     setPrefiks(verdi);
-    if (verdi && /\d$/.test(verdi)) {
-      setPrefiksFeil("Prefiks kan ikke avsluttes med et nummer");
-    } else {
-      setPrefiksFeil(null);
-    }
+    setPrefiksFeil(null);
   }
 
   function handleOpprett(e: React.FormEvent) {

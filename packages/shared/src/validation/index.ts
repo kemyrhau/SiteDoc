@@ -87,11 +87,10 @@ export const templateCategorySchema = z.enum(["oppgave", "sjekkliste"]);
 // Fagområde-validering
 export const templateDomainSchema = z.enum(["bygg", "hms", "kvalitet"]);
 
-// Prefiks-validering (kan ikke avsluttes med tall)
+// Prefiks-validering
 export const templatePrefixSchema = z
   .string()
   .max(20)
-  .refine((val) => !val || !/\d$/.test(val), "Prefiks kan ikke avsluttes med et nummer")
   .optional();
 
 // Opprett mal-validering
