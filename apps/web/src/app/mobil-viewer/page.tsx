@@ -254,71 +254,120 @@ export default function MobilViewer() {
         await clipper.create(world);
       });
 
-      // Modell-lasting — parallell nedlasting, sekvensiell parsing
-      async function lastModeller(urls: string[], token?: string) {
+      /** Base64 → Uint8Array */
+      function b64ToUint8(b64: string): Uint8Array {
+        const bin = atob(b64);
+        const arr = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+        return arr;
+      }
+
+      /** Uint8Array → Base64 (chunked for store data) */
+      function uint8ToB64(data: Uint8Array): string {
+        let bin = "";
+        const chunk = 8192;
+        for (let i = 0; i < data.length; i += chunk) {
+          bin += String.fromCharCode(...data.subarray(i, i + chunk));
+        }
+        return btoa(bin);
+      }
+
+      /** Last og vis én modell (fra fragment-cache eller IFC) */
+      async function lastEnModell(
+        index: number,
+        url: string,
+        token: string | undefined,
+        cachedFrag: string | undefined,
+      ): Promise<boolean> {
+        const fm = fragmentsManager as unknown as { list: Map<string, unknown> };
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let model: any;
+        let fraCache = false;
+
+        // Prøv fragment-cache først (mye raskere enn IFC-parsing)
+        if (cachedFrag) {
+          try {
+            setStatus(`Laster cachet ${index + 1}...`);
+            const fragData = b64ToUint8(cachedFrag);
+            model = await (fragmentsManager as unknown as { load: (b: ArrayBuffer, o: Record<string, unknown>) => Promise<unknown> })
+              .load(fragData.buffer as ArrayBuffer, { modelId: `modell-${index}`, camera: threeCamera });
+            fraCache = true;
+          } catch {
+            model = null; // Fallback til IFC
+          }
+        }
+
+        // Fallback: Last og parse IFC
+        if (!model) {
+          setStatus(`Laster ned ${index + 1}...`);
+          const headers: Record<string, string> = {};
+          if (token) headers["Authorization"] = `Bearer ${token}`;
+
+          const response = await fetch(url, { headers });
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          const ifcData = new Uint8Array(await response.arrayBuffer());
+          if (renset) return false;
+
+          setStatus(`Parser ${index + 1}...`);
+          model = await ifcLoader.load(ifcData, true, `modell-${index}`);
+
+          // Lagre IFC-data for egenskapssøk
+          const fragModelId = (model as { modelId: string }).modelId;
+          ifcDataMap.set(fragModelId, ifcData);
+
+          // Skjul IfcSpace og IfcOpeningElement
+          try {
+            let mid: number = openModelIds.get(fragModelId) ?? -1;
+            if (mid === -1) {
+              mid = propsApi.OpenModel(ifcData) as number;
+              openModelIds.set(fragModelId, mid);
+            }
+            const hideApi = propsApi as unknown as { GetLineIDsWithType: (m: number, t: number) => { size: () => number; get: (i: number) => number } };
+            const skjulIds: number[] = [];
+            for (const ifcType of [WEBIFC.IFCSPACE, WEBIFC.IFCOPENINGELEMENT]) {
+              const lineIds = hideApi.GetLineIDsWithType(mid, ifcType);
+              for (let si = 0; si < lineIds.size(); si++) skjulIds.push(lineIds.get(si));
+            }
+            if (skjulIds.length > 0) await model.setVisible(skjulIds, false);
+          } catch { /* */ }
+
+          // Eksporter fragment-buffer og send til app for caching
+          try {
+            const fragBuffer = await (model as { getBuffer: (raw?: boolean) => Promise<ArrayBuffer> }).getBuffer(false);
+            const b64 = uint8ToB64(new Uint8Array(fragBuffer));
+            sendTilApp({ type: "cacheFragment", url, data: b64 });
+          } catch { /* Fragment-caching er valgfritt */ }
+        }
+
+        // Legg til i scene
+        const mf = model as { object: InstanceType<typeof THREE.Object3D>; useCamera: (c: unknown) => void; box: InstanceType<typeof THREE.Box3>; modelId: string };
+        scene.add(mf.object);
+        mf.useCamera(threeCamera);
+        modeller.set(index, model);
+        synligeModeller.add(mf.modelId);
+        totalBbox.union(mf.box);
+
+        return fraCache;
+      }
+
+      // Modell-lasting — med fragment-cache støtte
+      async function lastModeller(urls: string[], token?: string, cachedFragments?: Record<string, string>) {
         setTotalt(urls.length);
         setAntallLastet(0);
-        setStatus("Laster ned modeller...");
+        setStatus("Laster modeller...");
         totalBbox.makeEmpty();
 
-        // Steg 1: Last ned alle filer parallelt
-        const headers: Record<string, string> = {};
-        if (token) headers["Authorization"] = `Bearer ${token}`;
-
-        const nedlastinger = urls.map(async (url, i) => {
-          try {
-            const response = await fetch(url!, { headers });
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            return { index: i, data: new Uint8Array(await response.arrayBuffer()) };
-          } catch (err) {
-            sendTilApp({ type: "feil", melding: `Modell ${i + 1}: ${err instanceof Error ? err.message : String(err)}` });
-            return { index: i, data: null };
-          }
-        });
-
-        const resultater = await Promise.all(nedlastinger);
-        if (renset) return;
-
-        // Steg 2: Parse og vis modeller sekvensielt (web-ifc er ikke thread-safe)
         let lastet = 0;
-        for (const res of resultater) {
+        for (let i = 0; i < urls.length; i++) {
           if (renset) return;
-          if (!res.data) continue;
-
           try {
-            setStatus(`Parser ${lastet + 1}/${urls.length}...`);
-            const model = await ifcLoader.load(res.data, true, `modell-${res.index}`);
-            const fm = model as { object: InstanceType<typeof THREE.Object3D>; useCamera: (c: unknown) => void; box: InstanceType<typeof THREE.Box3> };
-            scene.add(fm.object);
-            fm.useCamera(threeCamera);
-            modeller.set(res.index, model);
-
-            const fragModelId = (model as { modelId: string }).modelId;
-            ifcDataMap.set(fragModelId, res.data);
-            synligeModeller.add(fragModelId);
-            totalBbox.union(fm.box);
-
-            // Skjul IfcSpace og IfcOpeningElement
-            try {
-              let mid: number = openModelIds.get(fragModelId) ?? -1;
-              if (mid === -1) {
-                mid = propsApi.OpenModel(res.data) as number;
-                openModelIds.set(fragModelId, mid);
-              }
-              const hideApi = propsApi as unknown as { GetLineIDsWithType: (m: number, t: number) => { size: () => number; get: (i: number) => number } };
-              const skjulIds: number[] = [];
-              for (const ifcType of [WEBIFC.IFCSPACE, WEBIFC.IFCOPENINGELEMENT]) {
-                const lineIds = hideApi.GetLineIDsWithType(mid, ifcType);
-                for (let si = 0; si < lineIds.size(); si++) skjulIds.push(lineIds.get(si));
-              }
-              if (skjulIds.length > 0) await model.setVisible(skjulIds, false);
-            } catch { /* */ }
-
+            const cachedFrag = cachedFragments?.[urls[i]!];
+            await lastEnModell(i, urls[i]!, token, cachedFrag);
             lastet++;
             setAntallLastet(lastet);
-            sendTilApp({ type: "modellLastet", index: res.index, navn: `modell-${res.index}`, totalt: urls.length });
+            sendTilApp({ type: "modellLastet", index: i, navn: `modell-${i}`, totalt: urls.length });
           } catch (err) {
-            sendTilApp({ type: "feil", melding: `Modell ${res.index + 1}: ${err instanceof Error ? err.message : String(err)}` });
+            sendTilApp({ type: "feil", melding: `Modell ${i + 1}: ${err instanceof Error ? err.message : String(err)}` });
           }
         }
 
@@ -327,7 +376,6 @@ export default function MobilViewer() {
           const center = totalBbox.getCenter(new THREE.Vector3());
           const size = totalBbox.getSize(new THREE.Vector3());
           const maxDim = Math.max(size.x, size.y, size.z);
-          // Sett near/far basert på modellstørrelse for å unngå z-fighting
           threeCamera.near = maxDim * 0.001;
           threeCamera.far = maxDim * 20;
           threeCamera.updateProjectionMatrix();
@@ -345,7 +393,7 @@ export default function MobilViewer() {
       function handleMessage(event: MessageEvent) {
         const msg = typeof event.data === "string" ? JSON.parse(event.data) : event.data;
         if (msg.type === "lastModeller") {
-          lastModeller(msg.urls, msg.token);
+          lastModeller(msg.urls, msg.token, msg.cachedFragments);
         } else if (msg.type === "toggleModell") {
           const model = modeller.get(msg.index) as { object?: InstanceType<typeof THREE.Object3D>; modelId?: string } | undefined;
           if (model?.object) {

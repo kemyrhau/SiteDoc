@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from "react";
 import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet } from "react-native";
 import { WebView, type WebViewMessageEvent } from "react-native-webview";
+import * as FileSystem from "expo-file-system/legacy";
 import { AUTH_CONFIG } from "../config/auth";
 import { hentSessionToken } from "../services/auth";
 import { lastNedIfc } from "../services/ifcCache";
@@ -115,8 +116,16 @@ export function IfcViewer({ modeller, onTilbake }: IfcViewerProps) {
   const [cacheStatus, setCacheStatus] = useState<string | null>(null);
 
   const viewerUrl = `${AUTH_CONFIG.apiUrl.replace("/trpc", "").replace("api.", "")}/mobil-viewer`;
+  const FRAG_MAPPE = `${FileSystem.documentDirectory}sitedoc-fragments/`;
 
-  // Send modeller til WebView — server-URL via Next.js proxy
+  // Fragment-cache hjelpere
+  const fragSti = useCallback((url: string) => {
+    const deler = url.split("/");
+    const filnavn = (deler[deler.length - 1] ?? "modell").replace(".ifc", ".frag");
+    return `${FRAG_MAPPE}${filnavn}`;
+  }, [FRAG_MAPPE]);
+
+  // Send modeller til WebView — inkluder cached fragments
   const sendModeller = useCallback(async () => {
     const token = await hentSessionToken();
     const baseUrl = AUTH_CONFIG.apiUrl.replace("/trpc", "").replace("api.", "");
@@ -125,10 +134,44 @@ export function IfcViewer({ modeller, onTilbake }: IfcViewerProps) {
       return `${baseUrl}${url}`;
     });
 
+    // Les cachede fragmenter fra filsystemet
+    const cachedFragments: Record<string, string> = {};
+    try {
+      const mappeInfo = await FileSystem.getInfoAsync(FRAG_MAPPE);
+      if (mappeInfo.exists) {
+        for (const fullUrl of modelUrls) {
+          const sti = fragSti(fullUrl);
+          const info = await FileSystem.getInfoAsync(sti);
+          if (info.exists) {
+            const b64 = await FileSystem.readAsStringAsync(sti, { encoding: FileSystem.EncodingType.Base64 });
+            cachedFragments[fullUrl] = b64;
+          }
+        }
+      }
+    } catch { /* Fragment-cache er valgfritt */ }
+
+    const harCache = Object.keys(cachedFragments).length > 0;
+    console.log(`[IfcViewer] Sender ${modelUrls.length} modeller, ${Object.keys(cachedFragments).length} fra cache`);
+
     webViewRef.current?.postMessage(
-      JSON.stringify({ type: "lastModeller", urls: modelUrls, token }),
+      JSON.stringify({ type: "lastModeller", urls: modelUrls, token, ...(harCache ? { cachedFragments } : {}) }),
     );
-  }, [modeller]);
+  }, [modeller, FRAG_MAPPE, fragSti]);
+
+  // Lagre fragment-cache fra WebView
+  const lagreFragment = useCallback(async (url: string, b64Data: string) => {
+    try {
+      const mappeInfo = await FileSystem.getInfoAsync(FRAG_MAPPE);
+      if (!mappeInfo.exists) {
+        await FileSystem.makeDirectoryAsync(FRAG_MAPPE, { intermediates: true });
+      }
+      const sti = fragSti(url);
+      await FileSystem.writeAsStringAsync(sti, b64Data, { encoding: FileSystem.EncodingType.Base64 });
+      console.log(`[IfcViewer] Fragment cachet: ${sti}`);
+    } catch (err) {
+      console.warn("[IfcViewer] Kunne ikke cache fragment:", err);
+    }
+  }, [FRAG_MAPPE, fragSti]);
 
   // Forhåndslast IFC-filer til lokal cache
   const lastNedTilCache = useCallback(async () => {
@@ -173,11 +216,17 @@ export function IfcViewer({ modeller, onTilbake }: IfcViewerProps) {
         case "feil":
           setFeil(msg.melding);
           break;
+        case "cacheFragment":
+          // WebView sender parsede fragmenter for caching
+          if (msg.url && msg.data) {
+            lagreFragment(msg.url, msg.data);
+          }
+          break;
       }
     } catch {
       // Ignorer ugyldig JSON
     }
-  }, [sendModeller]);
+  }, [sendModeller, lagreFragment]);
 
   const toggleModell = useCallback((index: number) => {
     setSynlighet((prev) => {
