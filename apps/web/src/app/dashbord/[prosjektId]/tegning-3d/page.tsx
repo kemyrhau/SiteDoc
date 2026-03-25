@@ -14,7 +14,7 @@ import {
 } from "@sitedoc/shared/utils";
 import type { GeoReferanse } from "@sitedoc/shared";
 import type { KoordinatSystem } from "@sitedoc/shared/utils";
-import { Layers, Link2, Link2Off, MapPin, Check, X, Crosshair, ChevronLeft, ChevronRight, Ruler } from "lucide-react";
+import { Layers, Link2, Link2Off, MapPin, ChevronLeft, ChevronRight, Ruler } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
 /*  PDF canvas-rendering med pdf.js                                    */
@@ -98,17 +98,6 @@ interface TegningData {
   coordinateSystem?: string | null;
 }
 
-type GeoRefSteg = "idle" | "tegning1" | "modell1" | "tegning2" | "modell2" | "ferdig";
-
-const GEOREF_VEILEDER: Record<GeoRefSteg, string> = {
-  idle: "",
-  tegning1: "Steg 1/4: Dobbeltklikk på et tydelig punkt i tegningen (hjørne, søyle, kryss)",
-  modell1: "Steg 2/4: Klikk på samme punkt i 3D-modellen",
-  tegning2: "Steg 3/4: Dobbeltklikk på et annet punkt i tegningen (langt fra punkt 1)",
-  modell2: "Steg 4/4: Klikk på samme punkt i 3D-modellen",
-  ferdig: "Georeferanse satt — tegning og 3D er nå koblet!",
-};
-
 export default function Tegning3DSide() {
   const { prosjektId } = useParams<{ prosjektId: string }>();
   const { viewerRef, valgtObjekt } = useTreDViewer();
@@ -189,48 +178,6 @@ export default function Tegning3DSide() {
     return () => { viewerRef.current?.fjernEtasjeKlipp(); };
   }, [valgtEtasje, etasjer, plantegninger, viewerRef]);
 
-  // Georeferanse-modus
-  const [georefSteg, setGeorefSteg] = useState<GeoRefSteg>("idle");
-  const [georefPunkt1Tegning, setGeorefPunkt1Tegning] = useState<{ x: number; y: number } | null>(null);
-  const [georefPunkt1Gps, setGeorefPunkt1Gps] = useState<{ lat: number; lng: number } | null>(null);
-  const [georefPunkt2Tegning, setGeorefPunkt2Tegning] = useState<{ x: number; y: number } | null>(null);
-  const [georefPunkt2Gps, setGeorefPunkt2Gps] = useState<{ lat: number; lng: number } | null>(null);
-
-  const utils = trpc.useUtils();
-  const settGeoRefMutation = (trpc.tegning.settGeoReferanse as unknown as {
-    useMutation: (opts: { onSuccess: () => void }) => { mutate: (input: { drawingId: string; geoReference: GeoReferanse }) => void; isPending: boolean };
-  }).useMutation({
-    onSuccess: () => {
-      utils.tegning.hentForProsjekt.invalidate();
-      setGeorefSteg("ferdig");
-      setTimeout(() => setGeorefSteg("idle"), 2000);
-    },
-  });
-
-  const fjernGeoRefMutation = (trpc.tegning.fjernGeoReferanse as unknown as {
-    useMutation: (opts: { onSuccess: () => void }) => { mutate: (input: { drawingId: string }) => void; isPending: boolean };
-  }).useMutation({
-    onSuccess: () => {
-      utils.tegning.hentForProsjekt.invalidate();
-    },
-  });
-
-  function startGeoref() {
-    setGeorefSteg("tegning1");
-    setGeorefPunkt1Tegning(null);
-    setGeorefPunkt1Gps(null);
-    setGeorefPunkt2Tegning(null);
-    setGeorefPunkt2Gps(null);
-  }
-
-  function avbrytGeoref() {
-    setGeorefSteg("idle");
-    setGeorefPunkt1Tegning(null);
-    setGeorefPunkt1Gps(null);
-    setGeorefPunkt2Tegning(null);
-    setGeorefPunkt2Gps(null);
-  }
-
   // Split — draggbar
   const [splitPx, setSplitPx] = useState<number | null>(null);
   const splitContainerRef = useRef<HTMLDivElement>(null);
@@ -307,7 +254,6 @@ export default function Tegning3DSide() {
     try { return beregnTransformasjon(valgtTegning.geoReference as GeoReferanse); } catch { return null; }
   }, [valgtTegning?.geoReference]);
   const harSynkMulighet = !!transformasjon && !!ifcOpprinnelse;
-  const erIGeorefModus = georefSteg !== "idle" && georefSteg !== "ferdig";
 
   // Klikk i tegning — spor start for å skille drag fra klikk
   const clickStartRef = useRef<{ x: number; y: number } | null>(null);
@@ -330,31 +276,6 @@ export default function Tegning3DSide() {
     }
 
     if (!ifcOpprinnelse) return;
-
-    // Georeferanse-modus: hent GPS fra 3D-punkt
-    if (georefSteg === "modell1") {
-      const gps = tredjeTilGps(punkt, ifcOpprinnelse, coordSystem);
-      if (gps) {
-        setGeorefPunkt1Gps(gps);
-        setGeorefSteg("tegning2");
-      }
-      return;
-    }
-    if (georefSteg === "modell2") {
-      const gps = tredjeTilGps(punkt, ifcOpprinnelse, coordSystem);
-      if (gps && georefPunkt1Tegning && georefPunkt1Gps && georefPunkt2Tegning && valgtTegningId) {
-        setGeorefPunkt2Gps(gps);
-        // Lagre georeferanse
-        settGeoRefMutation.mutate({
-          drawingId: valgtTegningId,
-          geoReference: {
-            point1: { pixel: georefPunkt1Tegning, gps: georefPunkt1Gps },
-            point2: { pixel: georefPunkt2Tegning, gps },
-          },
-        });
-      }
-      return;
-    }
 
     // Normal synk
     if (!synkAktiv || !transformasjon) { setTegningMarkør(null); return; }
@@ -392,17 +313,7 @@ export default function Tegning3DSide() {
         y: ((e.clientY - rect.top) / rect.height) * 100,
       };
 
-      // Georef: enkeltklikk korrigerer siste punkt
-      if (georefSteg === "modell1" && georefPunkt1Tegning) {
-        setGeorefPunkt1Tegning(pxProsent);
-        return;
-      }
-      if (georefSteg === "modell2" && georefPunkt2Tegning) {
-        setGeorefPunkt2Tegning(pxProsent);
-        return;
-      }
-
-      // Normal synk-modus
+      // Synk-modus
       if (!synkAktiv || !transformasjon || !ifcOpprinnelse) return;
       const gps = tegningTilGps(pxProsent, transformasjon);
       const punkt3d = gpsTil3D(gps, ifcOpprinnelse, coordSystem, 0);
@@ -416,22 +327,7 @@ export default function Tegning3DSide() {
       setTegningMarkør({ ...pxProsent, vinkel });
       viewerRef.current?.flyTil(punkt3d.x, punkt3d.y, punkt3d.z, gulvY ?? undefined);
     },
-    [georefSteg, georefPunkt1Tegning, georefPunkt2Tegning, synkAktiv, transformasjon, ifcOpprinnelse, coordSystem, viewerRef],
-  );
-
-  // Felles dobbeltklikk-handler for georef
-  const handleTegningElementDblClick = useCallback(
-    (e: React.MouseEvent<HTMLCanvasElement | HTMLImageElement>) => {
-      if (georefSteg !== "tegning1" && georefSteg !== "tegning2") return;
-      const rect = e.currentTarget.getBoundingClientRect();
-      const pxProsent = {
-        x: ((e.clientX - rect.left) / rect.width) * 100,
-        y: ((e.clientY - rect.top) / rect.height) * 100,
-      };
-      if (georefSteg === "tegning1") { setGeorefPunkt1Tegning(pxProsent); setGeorefSteg("modell1"); }
-      else { setGeorefPunkt2Tegning(pxProsent); setGeorefSteg("modell2"); }
-    },
-    [georefSteg],
+    [synkAktiv, transformasjon, ifcOpprinnelse, coordSystem, viewerRef],
   );
 
   // Beregn pikselposisjon for markør (utenfor transform-div)
@@ -448,7 +344,6 @@ export default function Tegning3DSide() {
           value={valgtTegningId ?? ""}
           onChange={(e) => setValgtTegningId(e.target.value || null)}
           className="rounded border border-gray-300 px-2 py-1 text-sm"
-          disabled={erIGeorefModus}
         >
           <option value="">Velg tegning...</option>
           {plantegninger.map((t) => (
@@ -463,7 +358,6 @@ export default function Tegning3DSide() {
             value={valgtEtasje ?? ""}
             onChange={(e) => setValgtEtasje(e.target.value || null)}
             className="rounded border border-gray-300 px-2 py-1 text-sm"
-            disabled={erIGeorefModus}
           >
             <option value="">Alle etasjer</option>
             {etasjer.map((e) => (
@@ -472,75 +366,41 @@ export default function Tegning3DSide() {
           </select>
         )}
 
-        {!erIGeorefModus ? (
-          <>
-            <button
-              onClick={() => setSynkAktiv(!synkAktiv)}
-              className={`flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium ${
-                synkAktiv && harSynkMulighet ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-500"
-              }`}
-              disabled={!harSynkMulighet}
-              title={harSynkMulighet ? "Synkroniser klikk mellom tegning og 3D" : "Krever georeferert tegning og IFC med GPS"}
-            >
-              {synkAktiv ? <Link2 size={14} /> : <Link2Off size={14} />}
-              Synk
-            </button>
+        <button
+          onClick={() => setSynkAktiv(!synkAktiv)}
+          className={`flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium ${
+            synkAktiv && harSynkMulighet ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-500"
+          }`}
+          disabled={!harSynkMulighet}
+          title={harSynkMulighet ? "Synkroniser klikk mellom tegning og 3D" : "Krever georeferert tegning og IFC med GPS"}
+        >
+          {synkAktiv ? <Link2 size={14} /> : <Link2Off size={14} />}
+          Synk
+        </button>
 
-            {/* Georeferanse-knapp (kun felt-admin) */}
-            {valgtTegningId && harRedigerTilgang && (
-              <button
-                onClick={ifcOpprinnelse ? startGeoref : undefined}
-                disabled={!ifcOpprinnelse}
-                className={`flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium ${
-                  !ifcOpprinnelse ? "bg-gray-100 text-gray-400"
-                    : transformasjon ? "bg-green-50 text-green-700" : "bg-amber-100 text-amber-700"
-                }`}
-                title={
-                  !ifcOpprinnelse ? `IFC mangler GPS (${ifcModeller.length} IFC-filer funnet)`
-                    : transformasjon ? "Tegningen er georeferert — klikk for å sette på nytt"
-                    : "Georeferér tegningen mot 3D-modellen"
-                }
-              >
-                <MapPin size={14} />
-                {!ifcOpprinnelse ? "Mangler GPS" : transformasjon ? "Georeferert" : "Georeferér"}
-              </button>
-            )}
-            {valgtTegningId && transformasjon && harRedigerTilgang && (
-              <button
-                onClick={() => {
-                  if (confirm("Fjerne georeferanse for denne tegningen?")) {
-                    fjernGeoRefMutation.mutate({ drawingId: valgtTegningId });
-                  }
-                }}
-                disabled={fjernGeoRefMutation.isPending}
-                className="rounded px-2 py-1 text-xs text-red-500 hover:bg-red-50"
-                title="Fjern georeferanse"
-              >
-                <X size={14} />
-              </button>
-            )}
-
-            {/* Kalibrer gulvhøyde (kun felt-admin) */}
-            {harRedigerTilgang && <button
-              onClick={() => setKalibrerModus(!kalibrerModus)}
-              className={`flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium ${
-                kalibrerModus ? "bg-purple-100 text-purple-700" : gulvY != null ? "bg-gray-50 text-gray-500" : "bg-orange-50 text-orange-700"
-              }`}
-              title={gulvY != null ? `Gulvhøyde: ${gulvY.toFixed(1)}m — klikk for å endre` : "Klikk på gulvet i 3D for å kalibrere kamerahøyde"}
-            >
-              <Ruler size={14} />
-              {kalibrerModus ? "Klikk på gulvet..." : gulvY != null ? `Gulv: ${gulvY.toFixed(1)}` : "Kalibrer"}
-            </button>}
-          </>
-        ) : (
-          <button
-            onClick={avbrytGeoref}
-            className="flex items-center gap-1.5 rounded bg-red-50 px-2.5 py-1 text-xs font-medium text-red-700"
-          >
-            <X size={14} />
-            Avbryt georeferanse
-          </button>
+        {/* Georeferanse-status */}
+        {valgtTegningId && (
+          transformasjon ? (
+            <span className="flex items-center gap-1.5 text-xs text-green-700">
+              <MapPin size={14} />
+              Georeferert
+            </span>
+          ) : harRedigerTilgang ? (
+            <span className="text-xs text-gray-400">Georeferér i Lokasjoner</span>
+          ) : null
         )}
+
+        {/* Kalibrer gulvhøyde (kun felt-admin) */}
+        {harRedigerTilgang && <button
+          onClick={() => setKalibrerModus(!kalibrerModus)}
+          className={`flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium ${
+            kalibrerModus ? "bg-purple-100 text-purple-700" : gulvY != null ? "bg-gray-50 text-gray-500" : "bg-orange-50 text-orange-700"
+          }`}
+          title={gulvY != null ? `Gulvhøyde: ${gulvY.toFixed(1)}m — klikk for å endre` : "Klikk på gulvet i 3D for å kalibrere kamerahøyde"}
+        >
+          <Ruler size={14} />
+          {kalibrerModus ? "Klikk på gulvet..." : gulvY != null ? `Gulv: ${gulvY.toFixed(1)}` : "Kalibrer"}
+        </button>}
 
         {/* PDF sidekontroller */}
         {erPdf && antallSider > 1 && (
@@ -570,40 +430,6 @@ export default function Tegning3DSide() {
         )}
       </div>
 
-      {/* Auto-veiledning: tegning mangler georeferanse */}
-      {valgtTegningId && !transformasjon && ifcOpprinnelse && georefSteg === "idle" && harRedigerTilgang && (
-        <div className="pointer-events-auto flex items-center gap-2 bg-blue-50 px-4 py-1.5 text-xs text-blue-700">
-          <MapPin size={14} />
-          Tegningen er ikke georeferert — klikk «Georeferér» for å koble den til 3D-modellen
-        </div>
-      )}
-
-      {/* Georeferanse-veileder */}
-      {georefSteg !== "idle" && (
-        <div className={`pointer-events-auto flex items-center gap-3 px-4 py-2 text-sm ${
-          georefSteg === "ferdig" ? "bg-green-50 text-green-800" : "bg-amber-50 text-amber-800"
-        }`}>
-          <Crosshair size={16} />
-          <span className="font-medium">{GEOREF_VEILEDER[georefSteg]}</span>
-          {georefPunkt1Tegning && (
-            <span className="flex items-center gap-1 rounded bg-red-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
-              1: {georefPunkt1Tegning.x.toFixed(0)}%, {georefPunkt1Tegning.y.toFixed(0)}%
-              {georefPunkt1Gps && <Check size={10} />}
-            </span>
-          )}
-          {georefPunkt2Tegning && (
-            <span className="flex items-center gap-1 rounded bg-green-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
-              2: {georefPunkt2Tegning.x.toFixed(0)}%, {georefPunkt2Tegning.y.toFixed(0)}%
-              {georefPunkt2Gps && <Check size={10} />}
-            </span>
-          )}
-          {(georefSteg === "modell1" || georefSteg === "modell2") && (
-            <span className="text-xs text-amber-600">Dobbeltklikk i tegningen for å korrigere punktet</span>
-          )}
-          {georefSteg === "ferdig" && <Check size={16} className="text-green-600" />}
-        </div>
-      )}
-
       {/* Split-view */}
       <div
         ref={splitContainerRef}
@@ -630,7 +456,7 @@ export default function Tegning3DSide() {
                 className="relative origin-top-left"
                 style={{
                   transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-                  cursor: erIGeorefModus ? "crosshair" : panStartRef.current ? "grabbing" : "default",
+                  cursor: panStartRef.current ? "grabbing" : "default",
                 }}
               >
                 {erPdf ? (
@@ -647,7 +473,7 @@ export default function Tegning3DSide() {
                       style={{ display: pdfLaster ? "none" : "block" }}
                       onPointerDown={handleImgPointerDown}
                       onClick={handleTegningElementClick}
-                      onDoubleClick={handleTegningElementDblClick}
+
                     />
                   </>
                 ) : (
@@ -659,7 +485,6 @@ export default function Tegning3DSide() {
                     className="max-w-none select-none"
                     onPointerDown={handleImgPointerDown}
                     onClick={handleTegningElementClick}
-                    onDoubleClick={handleTegningElementDblClick}
                     onLoad={(e) => setInnholdStr({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight })}
                     draggable={false}
                   />
@@ -667,7 +492,7 @@ export default function Tegning3DSide() {
               </div>
             </div>
             {/* Markør-overlay utenfor transform (faste pikselposisjoner) */}
-            {innholdStr.w > 0 && tegningMarkør && !erIGeorefModus && (() => {
+            {innholdStr.w > 0 && tegningMarkør && (() => {
               const p = pktTilPx(tegningMarkør);
               const v = tegningMarkør.vinkel ?? 0;
               return (
@@ -683,12 +508,6 @@ export default function Tegning3DSide() {
                 </>
               );
             })()}
-            {innholdStr.w > 0 && georefPunkt1Tegning && (
-              <div className="pointer-events-none absolute z-20 flex h-6 w-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-lg ring-2 ring-white" style={{ left: pktTilPx(georefPunkt1Tegning).x, top: pktTilPx(georefPunkt1Tegning).y }}>1</div>
-            )}
-            {innholdStr.w > 0 && georefPunkt2Tegning && (
-              <div className="pointer-events-none absolute z-20 flex h-6 w-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-green-500 text-[10px] font-bold text-white shadow-lg ring-2 ring-white" style={{ left: pktTilPx(georefPunkt2Tegning).x, top: pktTilPx(georefPunkt2Tegning).y }}>2</div>
-            )}
             </>
           ) : (
             <div className="flex h-full items-center justify-center">
@@ -709,14 +528,7 @@ export default function Tegning3DSide() {
         </div>
 
         {/* Høyre: 3D */}
-        <div className="relative flex-1">
-          {/* Georef 3D-veileder overlay */}
-          {(georefSteg === "modell1" || georefSteg === "modell2") && (
-            <div className="pointer-events-none absolute inset-x-0 top-0 z-10 bg-amber-500/90 px-4 py-2 text-center text-sm font-medium text-white">
-              Klikk på punkt {georefSteg === "modell1" ? "1" : "2"} i 3D-modellen
-            </div>
-          )}
-        </div>
+        <div className="relative flex-1" />
       </div>
     </div>
   );
