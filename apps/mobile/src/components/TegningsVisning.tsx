@@ -236,9 +236,9 @@ export function TegningsVisning({
     });
   };
 
-  // GPS-posisjon som blå prikk — rendres kun når gpsMarkør har verdi
+  // GPS-posisjon som blå prikk — rendres KUN når bildedimensjoner er kjent
   const renderGpsMarkør = (bildeW: number, bildeH: number) => {
-    if (!gpsMarkør) return null;
+    if (!gpsMarkør || !naturligBilde) return null;
     return (
       <View
         style={{
@@ -418,12 +418,11 @@ export function TegningsVisning({
               <Image
                 source={{ uri: tegningUrl }}
                 style={{ width: bildeSt.width, height: bildeSt.height }}
+                resizeMode="stretch"
                 onLoad={(e) => {
-                  // Backup: hent dimensjoner fra onLoad hvis Image.getSize feilet
-                  if (!naturligBilde) {
-                    const { width: w, height: h } = e.nativeEvent.source;
-                    if (w > 0 && h > 0) setNaturligBilde({ w, h });
-                  }
+                  // Hent dimensjoner fra onLoad — fungerer alltid, også for autentiserte URL-er
+                  const { width: w, height: h } = e.nativeEvent.source;
+                  if (w > 0 && h > 0) setNaturligBilde({ w, h });
                 }}
                 onLoadEnd={håndterLastetFerdig}
                 onError={håndterFeil}
