@@ -17,8 +17,8 @@ import { verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
 import { konverterDwg } from "../services/dwgKonvertering";
 import { trekUtIfcMetadata } from "../services/ifcMetadata";
 
-// __dirname peker alltid til apps/api/src/routes/ — naviger opp til apps/api/uploads
-const UPLOADS_DIR = join(__dirname, "..", "..", "uploads");
+// Absolutt sti til uploads — env-variabel for pålitelighet på tvers av web/api-prosesser
+const UPLOADS_DIR = process.env.UPLOADS_DIR || join(process.cwd(), "uploads");
 
 const fagdisipliner = drawingDisciplineSchema;
 const tegningstyper = drawingTypeSchema;
