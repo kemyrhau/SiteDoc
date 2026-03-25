@@ -6,7 +6,7 @@ import { useRouter } from "expo-router";
 import { useProsjekt } from "../src/kontekst/ProsjektKontekst";
 import { useBygning } from "../src/kontekst/BygningKontekst";
 import { trpc } from "../src/lib/trpc";
-import { AUTH_CONFIG } from "../src/config/auth";
+import { hentWebUrl } from "../src/config/auth";
 import { hentSessionToken } from "../src/services/auth";
 import { TegningsVisning } from "../src/components/TegningsVisning";
 import type { Markør } from "../src/components/TegningsVisning";
@@ -100,7 +100,7 @@ export default function Tegning3DSkjerm() {
     if (!viewerKlar || ifcModeller.length === 0) return;
     (async () => {
       const token = await hentSessionToken();
-      const baseUrl = AUTH_CONFIG.apiUrl.replace("/trpc", "").replace("api.", "");
+      const baseUrl = hentWebUrl();
       const urls = ifcModeller.map((m) => {
         const url = m.fileUrl!.startsWith("/api") ? m.fileUrl! : `/api${m.fileUrl}`;
         return `${baseUrl}${url}`;
@@ -140,7 +140,7 @@ export default function Tegning3DSkjerm() {
     } catch { /* */ }
   }, [synkAktiv, transformasjon, ifcOpprinnelse, coordSystem]);
 
-  const viewerUrl = `${AUTH_CONFIG.apiUrl.replace("/trpc", "").replace("api.", "")}/mobil-viewer`;
+  const viewerUrl = `${hentWebUrl()}/mobil-viewer`;
   const tegningHoyde = SKJERMHOYDE * splitRatio;
 
   const toggleSplit = () => {

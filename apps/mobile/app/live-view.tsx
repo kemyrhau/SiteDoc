@@ -7,7 +7,7 @@ import { useRouter } from "expo-router";
 import { useProsjekt } from "../src/kontekst/ProsjektKontekst";
 import { useBygning } from "../src/kontekst/BygningKontekst";
 import { trpc } from "../src/lib/trpc";
-import { AUTH_CONFIG } from "../src/config/auth";
+import { hentWebUrl } from "../src/config/auth";
 import { hentSessionToken } from "../src/services/auth";
 import { ChevronLeft, Maximize2, Minimize2, Navigation, MapPin } from "lucide-react-native";
 
@@ -89,7 +89,7 @@ export default function LiveViewSkjerm() {
     if (!viewerKlar || ifcModeller.length === 0) return;
     (async () => {
       const token = await hentSessionToken();
-      const baseUrl = AUTH_CONFIG.apiUrl.replace("/trpc", "").replace("api.", "");
+      const baseUrl = hentWebUrl();
       const urls = ifcModeller.map((m) => {
         const url = m.fileUrl.startsWith("/api") ? m.fileUrl : `/api${m.fileUrl}`;
         return `${baseUrl}${url}`;
@@ -107,7 +107,7 @@ export default function LiveViewSkjerm() {
     }
   }, [kameraTillatelse, beKameraTillatelse]);
 
-  const viewerUrl = `${AUTH_CONFIG.apiUrl.replace("/trpc", "").replace("api.", "")}/mobil-viewer`;
+  const viewerUrl = `${hentWebUrl()}/mobil-viewer`;
 
   const kameraHoyde = SKJERMHOYDE * splitRatio;
   const toggleSplit = () => {

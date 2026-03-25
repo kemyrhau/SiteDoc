@@ -115,21 +115,36 @@ Etter endringer, oppgi alltid hvilken reload-metode som trengs:
 
 **Regel:** Etter HVER commit som påvirker mobil, skriv eksplisitt: «**Reload:** [metode]»
 
+### Miljøer og URL-oppsett
+
+| | Test | Produksjon |
+|---|---|---|
+| **Web** | test.sitedoc.no | sitedoc.no |
+| **API (tRPC)** | api-test.sitedoc.no (port 3301) | api.sitedoc.no (port 3001) |
+| **Database** | sitedoc_test | sitedoc |
+| **Mobil `.env`** | `api-test.sitedoc.no` | `api.sitedoc.no` |
+| **Branch** | `develop` | `main` |
+
+**Viktig:** Mobil `.env` peker mot **test** under utvikling. `.env.production` brukes for EAS Build / TestFlight.
+
 ### Mobil-app og URL-konstruksjon
 
-- **Mobil `.env`** peker mot **produksjon**: `EXPO_PUBLIC_API_URL=https://api.sitedoc.no`
-- **URL-mønster for filopplasting/nedlasting:** Alle `/uploads/`-URLer MÅ gå via Next.js proxy:
+- **URL-hjelpefunksjon:** Bruk `hentWebUrl()` fra `config/auth.ts` for web-URL (filnedlasting, mobil-viewer)
   ```
-  baseUrl = AUTH_CONFIG.apiUrl.replace("/trpc", "").replace("api.", "")
-  // → https://sitedoc.no (web-server, ikke API direkte)
+  hentWebUrl()
+  // api.sitedoc.no → sitedoc.no
+  // api-test.sitedoc.no → test.sitedoc.no
+  ```
+- **URL-mønster:** Alle `/uploads/`-URLer MÅ gå via Next.js proxy:
+  ```
+  baseUrl = hentWebUrl()
   url = `/api${fileUrl}`
-  // → /api/uploads/uuid.ifc (Next.js proxyer /api/ til API-serveren)
   fullUrl = `${baseUrl}${url}`
-  // → https://sitedoc.no/api/uploads/uuid.ifc ✅
+  // → https://test.sitedoc.no/api/uploads/uuid.ifc ✅
   ```
-- **ALDRI** fjern `api.`-erstatningen eller `/api`-prefixet — det bryter URL-rutingen
+- **ALDRI** bruk `AUTH_CONFIG.apiUrl.replace("api.", "")` direkte — bruk `hentWebUrl()`
 - **ALDRI** send `file://`-stier til WebView — WebView kan ikke lese lokale filer fra en http-side (CORS)
-- Reverse proxy-oppsett: `sitedoc.no` → web (Next.js), `sitedoc.no/api/` → API (Fastify), `api.sitedoc.no` → kun tRPC (ikke statiske filer)
+- Reverse proxy: `test.sitedoc.no` → web, `test.sitedoc.no/api/` → API, `api-test.sitedoc.no` → tRPC
 
 ## Kodestil
 

@@ -5,7 +5,7 @@
  */
 
 import * as FileSystem from "expo-file-system/legacy";
-import { AUTH_CONFIG } from "../config/auth";
+import { hentWebUrl } from "../config/auth";
 import { hentSessionToken } from "./auth";
 
 const IFC_MAPPE = `${FileSystem.documentDirectory}sitedoc-ifc/`;
@@ -101,7 +101,7 @@ export async function lastNedIfc(
   }
 
   // Bygg full URL via Next.js proxy (/api/ prefix)
-  const baseUrl = AUTH_CONFIG.apiUrl.replace("/trpc", "").replace("api.", "");
+  const baseUrl = hentWebUrl();
   const url = fileUrl.startsWith("/api") ? fileUrl : `/api${fileUrl}`;
   const fullUrl = fileUrl.startsWith("http") ? fileUrl : `${baseUrl}${url}`;
 

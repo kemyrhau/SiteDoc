@@ -2,7 +2,7 @@ import { useState, useRef, useCallback } from "react";
 import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet, ScrollView } from "react-native";
 import { WebView, type WebViewMessageEvent } from "react-native-webview";
 import * as FileSystem from "expo-file-system/legacy";
-import { AUTH_CONFIG } from "../config/auth";
+import { AUTH_CONFIG, hentWebUrl } from "../config/auth";
 import { hentSessionToken } from "../services/auth";
 import { lastNedIfc } from "../services/ifcCache";
 import { Box, Eye, EyeOff, Scissors, X, ChevronLeft, Download } from "lucide-react-native";
@@ -115,7 +115,7 @@ export function IfcViewer({ modeller, onTilbake }: IfcViewerProps) {
   const [feil, setFeil] = useState<string | null>(null);
   const [cacheStatus, setCacheStatus] = useState<string | null>(null);
 
-  const viewerUrl = `${AUTH_CONFIG.apiUrl.replace("/trpc", "").replace("api.", "")}/mobil-viewer`;
+  const viewerUrl = `${hentWebUrl()}/mobil-viewer`;
   const FRAG_MAPPE = `${FileSystem.documentDirectory}sitedoc-fragments/`;
 
   // Fragment-cache hjelpere
@@ -128,7 +128,7 @@ export function IfcViewer({ modeller, onTilbake }: IfcViewerProps) {
   // Send modeller til WebView — inkluder cached fragments
   const sendModeller = useCallback(async () => {
     const token = await hentSessionToken();
-    const baseUrl = AUTH_CONFIG.apiUrl.replace("/trpc", "").replace("api.", "");
+    const baseUrl = hentWebUrl();
     const modelUrls = modeller.map((m) => {
       const url = m.fileUrl.startsWith("/api") ? m.fileUrl : `/api${m.fileUrl}`;
       return `${baseUrl}${url}`;
