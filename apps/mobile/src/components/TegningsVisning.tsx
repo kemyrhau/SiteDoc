@@ -50,75 +50,107 @@ function byggHtml(
   gpsMarkør: GpsMarkør | null,
   kanTrykke: boolean,
 ): string {
-  const markørHtml = markører.map((m) => {
-    const farge = m.farge || "#ef4444";
-    return `<div class="markør" data-id="${m.id}" style="left:${m.x}%;top:${m.y}%">
-      <div style="width:16px;height:16px;border-radius:50%;background:${farge};border:2px solid #fff;transform:translate(-50%,-50%)"></div>
-      ${m.label ? `<div class="label">${m.label}</div>` : ""}
-    </div>`;
-  }).join("\n");
-
-  const gpsHtml = gpsMarkør ? `
-    <div class="gps" style="left:${gpsMarkør.x}%;top:${gpsMarkør.y}%">
-      <div class="gps-outer"><div class="gps-inner"></div></div>
-    </div>` : "";
+  // Markør- og GPS-data som JSON for JavaScript-posisjonering
+  const markørData = JSON.stringify(markører.map((m) => ({
+    id: m.id, x: m.x, y: m.y, farge: m.farge || "#ef4444", label: m.label || "",
+  })));
+  const gpsData = gpsMarkør ? JSON.stringify({ x: gpsMarkør.x, y: gpsMarkør.y }) : "null";
 
   return `<!DOCTYPE html>
 <html><head><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=10,user-scalable=yes">
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
-  body { background:#1a1a1a; overflow:auto; -webkit-overflow-scrolling:touch; }
-  .container { position:relative; display:inline-block; }
-  .container img { display:block; width:100%; height:auto; }
-  .markør { position:absolute; z-index:10; cursor:pointer; }
-  .markør .label {
+  body { background:#1a1a1a; }
+  #container { position:relative; }
+  #tegning { display:block; width:100%; height:auto; }
+  .pin { position:absolute; z-index:10; pointer-events:auto; }
+  .pin-dot { width:16px;height:16px;border-radius:50%;border:2px solid #fff;transform:translate(-50%,-50%); }
+  .pin-label {
     position:absolute; top:10px; left:50%; transform:translateX(-50%);
-    font-size:8px; font-weight:700; color:#1f2937;
+    font:700 8px sans-serif; color:#1f2937;
     background:rgba(255,255,255,0.85); border-radius:3px;
     padding:1px 3px; white-space:nowrap;
   }
-  .gps { position:absolute; z-index:20; transform:translate(-50%,-50%); }
+  .gps { position:absolute; z-index:20; }
   .gps-outer {
-    width:24px; height:24px; border-radius:50%;
+    width:24px;height:24px;border-radius:50%;
     background:rgba(59,130,246,0.25);
-    display:flex; align-items:center; justify-content:center;
-    animation: pulse 2s ease-in-out infinite;
+    display:flex;align-items:center;justify-content:center;
+    transform:translate(-50%,-50%);
+    animation:pulse 2s ease-in-out infinite;
   }
-  .gps-inner {
-    width:14px; height:14px; border-radius:50%;
-    background:#3b82f6; border:2.5px solid #fff;
-    box-shadow: 0 0 6px rgba(59,130,246,0.5);
-  }
-  @keyframes pulse {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.3); }
-  }
+  .gps-inner { width:14px;height:14px;border-radius:50%;background:#3b82f6;border:2.5px solid #fff;box-shadow:0 0 6px rgba(59,130,246,0.5); }
+  @keyframes pulse { 0%,100%{transform:translate(-50%,-50%) scale(1)} 50%{transform:translate(-50%,-50%) scale(1.3)} }
+  #debug { position:fixed;bottom:0;left:0;right:0;background:rgba(0,0,0,0.8);color:#0f0;font:10px monospace;padding:4px;z-index:999; }
 </style></head><body>
-<div class="container" id="container">
-  <img src="${tegningUrl}" id="tegning" />
-  ${markørHtml}
-  ${gpsHtml}
+<div id="container">
+  <img id="tegning" src="${tegningUrl}" />
 </div>
+<div id="debug">Laster...</div>
 <script>
-  ${kanTrykke ? `
-  document.getElementById('container').addEventListener('click', function(e) {
-    var img = document.getElementById('tegning');
-    var rect = img.getBoundingClientRect();
-    var x = ((e.clientX - rect.left) / rect.width) * 100;
-    var y = ((e.clientY - rect.top) / rect.height) * 100;
-    window.ReactNativeWebView.postMessage(JSON.stringify({
-      type: 'trykk', x: Math.max(0,Math.min(100,x)), y: Math.max(0,Math.min(100,y))
-    }));
-  });` : ""}
+var markører = ${markørData};
+var gpsPos = ${gpsData};
 
-  document.querySelectorAll('.markør').forEach(function(el) {
-    el.addEventListener('click', function(e) {
+function plasser() {
+  var img = document.getElementById('tegning');
+  var w = img.naturalWidth;
+  var h = img.naturalHeight;
+  var dispW = img.clientWidth;
+  var dispH = img.clientHeight;
+
+  if (dispW <= 0 || dispH <= 0) return;
+
+  document.getElementById('debug').textContent =
+    'Bilde: ' + w + 'x' + h + ' → ' + dispW + 'x' + dispH +
+    (gpsPos ? ' | GPS: ' + gpsPos.x.toFixed(1) + '%, ' + gpsPos.y.toFixed(1) + '%' +
+     ' → ' + Math.round(gpsPos.x/100*dispW) + 'px, ' + Math.round(gpsPos.y/100*dispH) + 'px' : '');
+
+  // Fjern gamle markører
+  document.querySelectorAll('.pin,.gps').forEach(function(e){e.remove()});
+  var container = document.getElementById('container');
+
+  // Plasser oppgavemarkører med pikselverdier
+  markører.forEach(function(m) {
+    var div = document.createElement('div');
+    div.className = 'pin';
+    div.style.left = (m.x / 100 * dispW) + 'px';
+    div.style.top = (m.y / 100 * dispH) + 'px';
+    div.innerHTML = '<div class="pin-dot" style="background:' + m.farge + '"></div>' +
+      (m.label ? '<div class="pin-label">' + m.label + '</div>' : '');
+    div.onclick = function(e) {
       e.stopPropagation();
-      window.ReactNativeWebView.postMessage(JSON.stringify({
-        type: 'markør', id: el.dataset.id
-      }));
-    });
+      window.ReactNativeWebView.postMessage(JSON.stringify({type:'markør',id:m.id}));
+    };
+    container.appendChild(div);
   });
+
+  // Plasser GPS-markør med pikselverdier
+  if (gpsPos) {
+    var gps = document.createElement('div');
+    gps.className = 'gps';
+    gps.style.left = (gpsPos.x / 100 * dispW) + 'px';
+    gps.style.top = (gpsPos.y / 100 * dispH) + 'px';
+    gps.innerHTML = '<div class="gps-outer"><div class="gps-inner"></div></div>';
+    container.appendChild(gps);
+  }
+}
+
+// Vent på at bildet lastes, deretter plasser
+var img = document.getElementById('tegning');
+img.onload = function() { plasser(); };
+if (img.complete) plasser();
+
+${kanTrykke ? `
+document.getElementById('container').addEventListener('click', function(e) {
+  var img = document.getElementById('tegning');
+  var rect = img.getBoundingClientRect();
+  if (rect.width <= 0 || rect.height <= 0) return;
+  var x = ((e.clientX - rect.left) / rect.width) * 100;
+  var y = ((e.clientY - rect.top) / rect.height) * 100;
+  window.ReactNativeWebView.postMessage(JSON.stringify({
+    type:'trykk', x:Math.max(0,Math.min(100,x)), y:Math.max(0,Math.min(100,y))
+  }));
+});` : ""}
 </script>
 </body></html>`;
 }
@@ -156,7 +188,7 @@ export function TegningsVisning({
     };
   }, [laster, feil]);
 
-  // Oppdater GPS-markør uten å laste hele siden på nytt
+  // Oppdater GPS-markør via pikselverdier
   useEffect(() => {
     if (!webViewRef.current || laster) return;
     if (gpsMarkør) {
@@ -164,14 +196,19 @@ export function TegningsVisning({
         (function() {
           var old = document.querySelector('.gps');
           if (old) old.remove();
+          var img = document.getElementById('tegning');
           var c = document.getElementById('container');
-          if (!c) return;
+          if (!c || !img || img.clientWidth <= 0) return;
+          var px = ${gpsMarkør.x} / 100 * img.clientWidth;
+          var py = ${gpsMarkør.y} / 100 * img.clientHeight;
           var div = document.createElement('div');
           div.className = 'gps';
-          div.style.left = '${gpsMarkør.x}%';
-          div.style.top = '${gpsMarkør.y}%';
+          div.style.left = px + 'px';
+          div.style.top = py + 'px';
           div.innerHTML = '<div class="gps-outer"><div class="gps-inner"></div></div>';
           c.appendChild(div);
+          document.getElementById('debug').textContent =
+            'GPS oppdatert: ${gpsMarkør.x.toFixed(1)}%, ${gpsMarkør.y.toFixed(1)}% → ' + Math.round(px) + 'px, ' + Math.round(py) + 'px';
         })();
         true;
       `);
