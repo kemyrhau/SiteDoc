@@ -578,7 +578,7 @@ function EntrepriseVeiviser({
           <>
             <div>
               <label className="mb-1.5 block text-sm font-medium text-gray-700">
-                Entreprise <span className="text-red-500">*</span>
+                Gruppe <span className="text-red-500">*</span>
               </label>
               <div className="flex items-center gap-3">
                 <input
@@ -817,7 +817,7 @@ function OpprettDokumentflytModal({
               onClick={() => { setOppretterType("gruppe"); setOppretterId(""); }}
               className={`rounded-full px-3 py-1 text-xs font-medium ${oppretterType === "gruppe" ? "bg-sitedoc-primary text-white" : "bg-gray-100 text-gray-600"}`}
             >
-              Entreprise
+              Gruppe
             </button>
           </div>
           <select
@@ -836,7 +836,7 @@ function OpprettDokumentflytModal({
               </>
             ) : (
               <>
-                <option value="">Velg entreprise...</option>
+                <option value="">Velg gruppe...</option>
                 {entrepriser.map((e) => (
                   <option key={e.id} value={e.id}>{e.name}</option>
                 ))}
@@ -862,7 +862,7 @@ function OpprettDokumentflytModal({
               onClick={() => { setMottakerType("gruppe"); setMottakerId(""); }}
               className={`rounded-full px-3 py-1 text-xs font-medium ${mottakerType === "gruppe" ? "bg-sitedoc-primary text-white" : "bg-gray-100 text-gray-600"}`}
             >
-              Entreprise
+              Gruppe
             </button>
           </div>
           <select
@@ -881,7 +881,7 @@ function OpprettDokumentflytModal({
               </>
             ) : (
               <>
-                <option value="">Velg entreprise...</option>
+                <option value="">Velg gruppe...</option>
                 {entrepriser.map((e) => (
                   <option key={e.id} value={e.id}>{e.name}</option>
                 ))}
@@ -1463,7 +1463,7 @@ export default function EntrepriserSide() {
         >
           <div>
             <label className="mb-1.5 block text-sm font-medium text-gray-700">
-              Entreprise <span className="text-red-500">*</span>
+              Gruppe <span className="text-red-500">*</span>
             </label>
             <div className="flex items-center gap-3">
               <FargeVelger valgt={redigerFarge} onChange={setRedigerFarge} />
