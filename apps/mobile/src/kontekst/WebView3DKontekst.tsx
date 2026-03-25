@@ -110,9 +110,9 @@ export function WebView3DProvider({ children }: { children: ReactNode }) {
 
   const erLastet = lastet >= ifcModeller.length && ifcModeller.length > 0;
 
-  // Last modeller når WebView er klar og modeller endres
+  // Last modeller når WebView er klar, aktiv (synlig) og modeller finnes
   useEffect(() => {
-    if (!erKlar || ifcModeller.length === 0) return;
+    if (!erKlar || !aktiv || ifcModeller.length === 0) return;
 
     // Lag nøkkel for å sjekke om modellene har endret seg
     const nøkkel = ifcModeller.map((m) => m.fileUrl).sort().join("|");
@@ -136,7 +136,7 @@ export function WebView3DProvider({ children }: { children: ReactNode }) {
 
       lastedeModellerRef.current = nøkkel;
     })();
-  }, [erKlar, ifcModeller]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [erKlar, aktiv, ifcModeller]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Reset ved prosjekt/bygningsbytte
   useEffect(() => {
