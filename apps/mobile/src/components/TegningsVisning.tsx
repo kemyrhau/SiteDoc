@@ -396,7 +396,7 @@ export function TegningsVisning({
 
           {/* ScrollView med zoom — trykk-håndtering er på bildecontaineren */}
           <ScrollView
-            contentContainerStyle={{ flexGrow: 1, justifyContent: "center" }}
+            contentContainerStyle={{ paddingTop: 48 }}
             maximumZoomScale={5}
             minimumZoomScale={1}
             bouncesZoom
