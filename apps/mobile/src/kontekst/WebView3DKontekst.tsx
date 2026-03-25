@@ -239,36 +239,46 @@ export function WebView3DProvider({ children }: { children: ReactNode }) {
 
   return (
     <WebView3DContext.Provider value={api}>
-      {children}
-      {/* Persistent WebView — full-screen, synlighet via opacity */}
-      <View
-        style={[styles.webViewContainer, !synlig && styles.skjult]}
-        pointerEvents={synlig ? "auto" : "none"}
-      >
-        <WebView
-          ref={webViewRef}
-          source={{ uri: viewerUrl }}
-          style={styles.webview}
-          onMessage={handleMessage}
-          onContentProcessDidTerminate={() => {
-            setErKlar(false);
-            lastedeModellerRef.current = "";
-            setFeil("3D-visningen krasjet. Prøv igjen.");
-          }}
-          javaScriptEnabled
-          domStorageEnabled
-          allowsInlineMediaPlayback
-          originWhitelist={["*"]}
-        />
+      <View style={styles.rotContainer}>
+        {/* Persistent WebView — BAK alt innhold */}
+        <View
+          style={[styles.webViewContainer, !synlig && styles.skjult]}
+          pointerEvents={synlig ? "auto" : "none"}
+        >
+          <WebView
+            ref={webViewRef}
+            source={{ uri: viewerUrl }}
+            style={styles.webview}
+            onMessage={handleMessage}
+            onContentProcessDidTerminate={() => {
+              setErKlar(false);
+              lastedeModellerRef.current = "";
+              setFeil("3D-visningen krasjet. Prøv igjen.");
+            }}
+            javaScriptEnabled
+            domStorageEnabled
+            allowsInlineMediaPlayback
+            originWhitelist={["*"]}
+          />
+        </View>
+        {/* App-innhold — OPPÅ WebView */}
+        <View style={styles.innholdContainer} pointerEvents="box-none">
+          {children}
+        </View>
       </View>
     </WebView3DContext.Provider>
   );
 }
 
 const styles = StyleSheet.create({
+  rotContainer: {
+    flex: 1,
+  },
   webViewContainer: {
     ...StyleSheet.absoluteFillObject,
-    zIndex: 0,
+  },
+  innholdContainer: {
+    ...StyleSheet.absoluteFillObject,
   },
   skjult: {
     opacity: 0,
