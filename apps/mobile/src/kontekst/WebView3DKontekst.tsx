@@ -94,12 +94,12 @@ export function WebView3DProvider({ children }: { children: ReactNode }) {
   const { valgtProsjektId } = useProsjekt();
   const { valgtBygningId } = useBygning();
 
-  // Hent tegninger for prosjekt/bygning
+  // Hent tegninger kun for valgt bygning — krever alltid bygningsvalg
   const tegningQuery = (trpc.tegning.hentForProsjekt as unknown as {
     useQuery: (input: { projectId: string; buildingId?: string }, opts: { enabled: boolean }) => { data: unknown; isLoading: boolean };
   }).useQuery(
-    { projectId: valgtProsjektId!, ...(valgtBygningId ? { buildingId: valgtBygningId } : {}) },
-    { enabled: !!valgtProsjektId },
+    { projectId: valgtProsjektId!, buildingId: valgtBygningId! },
+    { enabled: !!valgtProsjektId && !!valgtBygningId },
   );
 
   const ifcModeller: IfcModell[] = useMemo(() =>
