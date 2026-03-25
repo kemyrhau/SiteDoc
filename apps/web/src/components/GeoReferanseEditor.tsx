@@ -366,6 +366,7 @@ export function GeoReferanseEditor({
   const [visLimInn1, setVisLimInn1] = useState(false);
   const [visLimInn2, setVisLimInn2] = useState(false);
   const [koordinatSystem, setKoordinatSystem] = useState<KoordinatSystem>("utm33");
+  const [ekstraKartSynlig, setEkstraKartSynlig] = useState<Set<number>>(new Set());
 
   const settGeoMutasjon = trpc.tegning.settGeoReferanse.useMutation({
     onSuccess: () => {
@@ -1173,6 +1174,19 @@ export function GeoReferanseEditor({
                   <div className="flex items-center gap-3">
                     <button
                       type="button"
+                      onClick={() => setEkstraKartSynlig((prev) => {
+                        const neste = new Set(prev);
+                        if (neste.has(idx)) neste.delete(idx); else neste.add(idx);
+                        return neste;
+                      })}
+                      className="flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-800"
+                    >
+                      <Map className="h-3 w-3" />
+                      Velg på kart
+                      {ekstraKartSynlig.has(idx) ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => hentMinPosisjon(punktNr)}
                       className="flex items-center gap-1 text-xs font-medium text-green-600 hover:text-green-800"
                     >
@@ -1180,6 +1194,20 @@ export function GeoReferanseEditor({
                       Min posisjon
                     </button>
                   </div>
+                  {ekstraKartSynlig.has(idx) && (
+                    <KoordinatKart
+                      lat={ep.gps.lat}
+                      lng={ep.gps.lng}
+                      farge="#10b981"
+                      onVelg={(lat, lng) =>
+                        setEkstraPunkter((prev) => {
+                          const neste = [...prev];
+                          neste[idx] = { ...neste[idx]!, gps: { lat, lng } };
+                          return neste;
+                        })
+                      }
+                    />
+                  )}
                   <div className="grid grid-cols-2 gap-1.5">
                     <Input
                       label="Breddegrad"
