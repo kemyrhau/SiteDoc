@@ -64,7 +64,7 @@ export const bildeRouter = router({
           taskId: { not: null },
           task: {
             template: { projectId: input.projectId },
-            ...(input.buildingId ? { drawing: { buildingId: input.buildingId } } : {}),
+            ...(input.buildingId ? { OR: [{ drawing: { buildingId: input.buildingId } }, { drawingId: null }] } : {}),
             ...(tilgangsFilter ?? {}),
           },
         },

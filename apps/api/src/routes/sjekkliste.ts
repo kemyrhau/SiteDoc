@@ -27,7 +27,7 @@ export const sjekklisteRouter = router({
         where: {
           template: { projectId: input.projectId },
           ...(input.status ? { status: input.status } : {}),
-          ...(input.buildingId ? { buildingId: input.buildingId } : {}),
+          ...(input.buildingId ? { OR: [{ buildingId: input.buildingId }, { buildingId: null }] } : {}),
           ...(tilgangsFilter ?? {}),
         },
         include: {
