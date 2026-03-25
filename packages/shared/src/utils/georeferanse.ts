@@ -202,7 +202,22 @@ export function beregnTransformasjon(ref: GeoReferanse): Transformasjon {
     };
   }
 
-  // 2 punkter → original lineær skalering
+  // 2 punkter → similaritetstransformasjon (skalering + rotasjon)
+  //
+  // Modell: px = a * gx + b * gy + tx
+  //         py = -b * gx + a * gy + ty
+  //
+  // 2 punkter gir 4 ligninger, 4 ukjente (a, b, tx, ty).
+  //
+  // Fra punkt 1: px1 = a*gx1 + b*gy1 + tx,  py1 = -b*gx1 + a*gy1 + ty
+  // Fra punkt 2: px2 = a*gx2 + b*gy2 + tx,  py2 = -b*gx2 + a*gy2 + ty
+  //
+  // Differanse: dpx = a*dGx + b*dGy,  dpy = -b*dGx + a*dGy
+  //
+  // Løs for a og b:
+  //   a = (dpx*dGx + dpy*dGy) / (dGx² + dGy²)
+  //   b = (dpx*dGy - dpy*dGx) / (dGx² + dGy²)
+
   const { point1, point2 } = ref;
 
   const gx1 = point1.gps.lng * cosLat;
@@ -217,34 +232,45 @@ export function beregnTransformasjon(ref: GeoReferanse): Transformasjon {
 
   const dGx = gx2 - gx1;
   const dGy = gy2 - gy1;
+  const denom = dGx * dGx + dGy * dGy;
 
-  if (dGx === 0 && dGy === 0) {
+  if (denom < 1e-20) {
     throw new Error("Referansepunktene har identiske GPS-koordinater");
   }
 
-  let sx: number;
-  let cx: number;
-  let sy: number;
-  let cy: number;
+  const dpx = px2 - px1;
+  const dpy = py2 - py1;
 
-  if (Math.abs(dGx) < 1e-10) {
-    sy = (py2 - py1) / dGy;
-    cy = py1 - sy * gy1;
-    sx = sy;
-    cx = px1 - sx * gx1;
-  } else if (Math.abs(dGy) < 1e-10) {
-    sx = (px2 - px1) / dGx;
-    cx = px1 - sx * gx1;
-    sy = -sx;
-    cy = py1 - sy * gy1;
-  } else {
-    sx = (px2 - px1) / dGx;
-    cx = px1 - sx * gx1;
-    sy = (py2 - py1) / dGy;
-    cy = py1 - sy * gy1;
+  const a = (dpx * dGx + dpy * dGy) / denom;
+  const b = (dpx * dGy - dpy * dGx) / denom;
+  const tx = px1 - a * gx1 - b * gy1;
+  const ty = py1 + b * gx1 - a * gy1;
+
+  // Invers: gx = ia*px + ib*py + ic, gy = id*px + ie*py + if_
+  // Determinant for inversjon: a² + b²
+  const det = a * a + b * b;
+  if (Math.abs(det) < 1e-15) {
+    throw new Error("Ugyldig transformasjon (degenerert)");
   }
+  const ia = a / det;
+  const ib = -b / det;  // NB: fortegn pga -b i py-linjen
+  const ic = -(a * tx - b * ty) / det;
+  const id_ = b / det;
+  const ie = a / det;
+  const if_ = -(b * tx + a * ty) / det;
 
-  return { sx, sy, cx, cy, cosLat, a: sx, b: 0, c: cx, d: cy };
+  const affine = {
+    a, b, c: tx,
+    d: -b, e: a, f: ty,
+    ia, ib, ic,
+    id: id_, ie, if_,
+  };
+
+  return {
+    sx: a, sy: a, cx: tx, cy: ty, cosLat,
+    a, b, c: tx, d: ty,
+    affine,
+  };
 }
 
 /**
