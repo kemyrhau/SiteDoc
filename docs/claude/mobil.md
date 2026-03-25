@@ -83,7 +83,11 @@ Sjekkliste-/oppgave-detaljskjermen har kontekstuelle statusknapper i bunnpanelet
 
 ## Utviklingsmiljø — Tunnel og nettverk
 
-**API-tilkobling:** Mobilen bruker alltid `https://api.sitedoc.no` (Cloudflare Tunnel på PC). Fungerer fra ethvert nettverk.
+**API-tilkobling og miljøseparasjon:**
+- `.env` → `https://api-test.sitedoc.no` (testdatabase, brukes under utvikling)
+- `.env.production` → `https://api.sitedoc.no` (produksjon, brukes av EAS builds)
+- `hentWebUrl()` i `apps/mobile/src/lib/url.ts` erstatter alle `replace("api.", "")` / `replace("api-test.", "")` kall — gir korrekt web-URL uavhengig av miljø
+- Cloudflare Tunnel på PC. Fungerer fra ethvert nettverk.
 
 **Expo dev-server:**
 - `pnpm dev:tunnel` — Starter ngrok v3-tunnel + Expo. Telefon og Mac kan være på forskjellige nettverk.
@@ -145,9 +149,11 @@ DatabaseProvider → trpc → QueryClient → Nettverk → OpplastingsKo → Aut
 - **WebView-komponent:** `apps/mobile/src/components/IfcViewer.tsx`
 - **Navigasjon:** Dedikert rute `app/3d-visning.tsx` tilgjengelig fra hjem-skjermen
 - **postMessage-kommunikasjon:**
-  - Web → mobil: `objektValgt`, `modellLastet`, `feil`
-  - Mobil → web: `flyTil` (koordinatsynk fra tegningsmarkør til 3D-posisjon)
+  - Web → mobil: `objektValgt`, `modellLastet`, `feil`, `fragmentCachet` (base64 fragment-data)
+  - Mobil → web: `lastModeller` (med valgfri cached fragments), `flyTil` (koordinatsynk)
+- **Egenskapspanel:** Norske IFC-kategorinavn, prioriterte attributter øverst, stort scrollbart panel
 - **Touch-kontroller:** WebView videresender touch til Three.js orbit controls (fungerer ut av boksen)
+- **Persistent WebView:** Forsøkt og revertert — for ustabilt med React Native WebView. Bruker per-skjerm IfcViewer
 
 ### Modellcache med versjonering
 
@@ -157,6 +163,16 @@ DatabaseProvider → trpc → QueryClient → Nettverk → OpplastingsKo → Aut
 - Ved oppstart sjekkes serverens `updatedAt` mot lokal cache
 - Utdatert cache slettes og lastes ned på nytt
 - WebView laster fra `file://` når modellen er cachet lokalt
+
+### Fragment-cache (parsed IFC)
+
+Mobil-vieweren cacher parsed IFC som fragments for raskere gjenåpning:
+
+- Web-side (`mobil-viewer`) eksporterer parsed IFC via `model.getBuffer()` etter lasting
+- Sender base64-kodet fragment-data til React Native via `postMessage` (`fragmentCachet`-melding)
+- `IfcViewer.tsx` lagrer fragments i `sitedoc-fragments/`-mappe (dokumentkatalogen)
+- Ved gjenåpning sendes cached fragments tilbake med `lastModeller`-meldingen
+- Fallback til full IFC-parsing hvis fragments mangler eller er utdatert
 
 ### Tegning+3D split-view
 
@@ -265,7 +281,11 @@ DatabaseProvider → trpc → QueryClient → Nettverk → OpplastingsKo → Aut
 
 1. Trykk på tegning → markør → 2. MalVelger → 3. OppgaveModal → 4. Naviger til oppgave.
 
-`TegningsVisning`: `onTrykk`-callback + `markører`-prop. Bilde- og PDF-visning.
+`TegningsVisning`: Rendrer tegning + markører + GPS-prikk i **én samlet WebView** (HTML med CSS-posisjonering). Alle markører posisjoneres med pikselverdier beregnet fra `img.clientWidth/clientHeight` etter bildelasting. GPS-markør oppdateres via `injectJavaScript` uten re-render.
+
+**VIKTIG:** PDF-er konverteres til PNG på serveren (pdftoppm). Mobilappen viser KUN PNG/bilder — aldri PDF i WebView (iOS WebView har ukontrollerbar PDF-skalering som ødelegger markørposisjonering). Georeferering MÅ gjøres på PNG-versjonen.
+
+Georeferansepunkter (P1, P2, P3) vises som oransje markører for visuell verifisering.
 
 ## Oppgave fra sjekklistefelt
 
