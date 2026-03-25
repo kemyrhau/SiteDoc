@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from "react";
-import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet } from "react-native";
+import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet, ScrollView } from "react-native";
 import { WebView, type WebViewMessageEvent } from "react-native-webview";
 import * as FileSystem from "expo-file-system/legacy";
 import { AUTH_CONFIG } from "../config/auth";
@@ -348,32 +348,38 @@ export function IfcViewer({ modeller, onTilbake }: IfcViewerProps) {
         {/* Objektinfo-bunnpanel */}
         {valgtObjekt && (
           <View style={styles.objektPanel}>
+            {/* Dra-håndtak */}
+            <View style={styles.objektHåndtak}>
+              <View style={styles.objektHåndtakStrek} />
+            </View>
             <View style={styles.objektHeader}>
               <View style={styles.objektHeaderVenstre}>
                 <View style={styles.objektIkon}>
                   <Box size={14} color="#1e40af" />
                 </View>
-                <View>
+                <View style={{ flex: 1 }}>
                   <Text style={styles.objektKategori}>
                     {oversettKategori(valgtObjekt.kategori)}
                   </Text>
                   {valgtObjekt.attributter.Name != null && (
-                    <Text style={styles.objektNavn} numberOfLines={1}>
+                    <Text style={styles.objektNavn} numberOfLines={2}>
                       {String(valgtObjekt.attributter.Name)}
                     </Text>
                   )}
                 </View>
               </View>
               <TouchableOpacity onPress={() => setValgtObjekt(null)} style={styles.lukkBtn}>
-                <X size={16} color="#9ca3af" />
+                <X size={18} color="#6b7280" />
               </TouchableOpacity>
             </View>
-            {filtrerAttributter(valgtObjekt.attributter).map(([label, verdi]) => (
-              <View key={label} style={styles.objektRad}>
-                <Text style={styles.objektLabel}>{label}</Text>
-                <Text style={styles.objektVerdi} numberOfLines={2}>{verdi}</Text>
-              </View>
-            ))}
+            <ScrollView style={styles.objektScroll} showsVerticalScrollIndicator={false}>
+              {filtrerAttributter(valgtObjekt.attributter).map(([label, verdi]) => (
+                <View key={label} style={styles.objektRad}>
+                  <Text style={styles.objektLabel}>{label}</Text>
+                  <Text style={styles.objektVerdi}>{verdi}</Text>
+                </View>
+              ))}
+            </ScrollView>
           </View>
         )}
       </View>
@@ -457,18 +463,32 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     backgroundColor: "#fff",
-    borderTopWidth: 1,
-    borderTopColor: "#e5e7eb",
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
-    padding: 16,
-    maxHeight: 300,
+    paddingHorizontal: 16,
+    paddingBottom: 24,
+    maxHeight: "50%",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  objektHåndtak: {
+    alignItems: "center",
+    paddingVertical: 8,
+  },
+  objektHåndtakStrek: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "#d1d5db",
   },
   objektHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
-    marginBottom: 10,
+    marginBottom: 12,
   },
   objektHeaderVenstre: {
     flexDirection: "row",
@@ -477,22 +497,23 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   objektIkon: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
+    width: 36,
+    height: 36,
+    borderRadius: 10,
     backgroundColor: "#eff6ff",
     justifyContent: "center",
     alignItems: "center",
   },
-  objektKategori: { fontSize: 14, fontWeight: "700", color: "#1e40af" },
-  objektNavn: { fontSize: 13, color: "#374151", marginTop: 1 },
-  lukkBtn: { padding: 4, marginLeft: 8 },
+  objektKategori: { fontSize: 15, fontWeight: "700", color: "#1e40af" },
+  objektNavn: { fontSize: 13, color: "#374151", marginTop: 2 },
+  lukkBtn: { padding: 6, marginLeft: 8 },
+  objektScroll: { maxHeight: 200 },
   objektRad: {
     flexDirection: "row",
-    paddingVertical: 5,
+    paddingVertical: 8,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "#f3f4f6",
+    borderBottomColor: "#f0f0f0",
   },
-  objektLabel: { width: 110, fontSize: 12, fontWeight: "500", color: "#6b7280" },
-  objektVerdi: { flex: 1, fontSize: 12, color: "#111" },
+  objektLabel: { width: 110, fontSize: 13, fontWeight: "500", color: "#6b7280" },
+  objektVerdi: { flex: 1, fontSize: 13, color: "#111" },
 });
