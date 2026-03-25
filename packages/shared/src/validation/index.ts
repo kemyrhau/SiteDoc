@@ -69,6 +69,7 @@ const geoReferansePunktSchema = z.object({
 export const geoReferanseSchema = z.object({
   point1: geoReferansePunktSchema,
   point2: geoReferansePunktSchema,
+  ekstraPunkter: z.array(geoReferansePunktSchema).optional(),
 });
 
 // Bygningsvalidering

@@ -699,7 +699,7 @@ export interface VaerVerdi {
 export const BUILDING_TYPES = ["bygg", "anlegg"] as const;
 export type BuildingType = (typeof BUILDING_TYPES)[number];
 
-// Georeferanse for tegninger (2 referansepunkter for similaritetstransformasjon)
+// Georeferanse for tegninger (2+ referansepunkter)
 export interface GeoReferansePunkt {
   pixel: { x: number; y: number };  // prosent 0-100
   gps: { lat: number; lng: number };
@@ -708,6 +708,7 @@ export interface GeoReferansePunkt {
 export interface GeoReferanse {
   point1: GeoReferansePunkt;
   point2: GeoReferansePunkt;
+  ekstraPunkter?: GeoReferansePunkt[];  // 3+ punkter for affine transformasjon
 }
 
 // Mappeadgangskontroll
