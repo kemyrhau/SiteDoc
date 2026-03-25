@@ -1,15 +1,12 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Dimensions, ActivityIndicator } from "react-native";
-import { WebView } from "react-native-webview";
-import type { WebViewMessageEvent } from "react-native-webview";
 import { useRouter } from "expo-router";
 import { useProsjekt } from "../src/kontekst/ProsjektKontekst";
 import { useBygning } from "../src/kontekst/BygningKontekst";
 import { trpc } from "../src/lib/trpc";
-import { AUTH_CONFIG } from "../src/config/auth";
-import { hentSessionToken } from "../src/services/auth";
 import { TegningsVisning } from "../src/components/TegningsVisning";
 import type { Markør } from "../src/components/TegningsVisning";
+import { usePersistent3D } from "../src/hooks/usePersistent3D";
 import {
   beregnTransformasjon,
   tegningTilGps,
@@ -42,10 +39,17 @@ export default function Tegning3DSkjerm() {
   const router = useRouter();
   const { valgtProsjektId } = useProsjekt();
   const { valgtBygningId } = useBygning();
-  const webViewRef = useRef<WebView>(null);
+
+  const {
+    plassholder,
+    målOgAktiver,
+    postMelding,
+    registrerHandler,
+    erKlar,
+    ifcModeller,
+  } = usePersistent3D();
 
   const [splitRatio, setSplitRatio] = useState(0.5);
-  const [viewerKlar, setViewerKlar] = useState(false);
   const [synkAktiv, setSynkAktiv] = useState(true);
   const [valgtTegningIdx, setValgtTegningIdx] = useState(0);
   const [tegningMarkør, setTegningMarkør] = useState<Markør[]>([]);
@@ -63,29 +67,26 @@ export default function Tegning3DSkjerm() {
     () => alleTegninger.filter((t) => t.fileUrl && t.fileType?.toLowerCase() !== "ifc"),
     [alleTegninger],
   );
-  const ifcModeller = useMemo(
-    () => alleTegninger.filter((t) => t.fileType?.toLowerCase() === "ifc"),
-    [alleTegninger],
-  );
 
   const valgtTegning = plantegninger[valgtTegningIdx] ?? null;
 
   // IFC GPS-opprinnelse
   const ifcOpprinnelse = useMemo(() => {
-    for (const m of ifcModeller) {
-      if (m.ifcMetadata?.gpsBreddegrad && m.ifcMetadata?.gpsLengdegrad) {
-        return { lat: m.ifcMetadata.gpsBreddegrad, lng: m.ifcMetadata.gpsLengdegrad };
+    for (const t of alleTegninger) {
+      const meta = t.ifcMetadata;
+      if (meta?.gpsBreddegrad && meta?.gpsLengdegrad) {
+        return { lat: meta.gpsBreddegrad, lng: meta.gpsLengdegrad };
       }
     }
     return null;
-  }, [ifcModeller]);
+  }, [alleTegninger]);
 
   const coordSystem: KoordinatSystem = useMemo(() => {
-    for (const m of ifcModeller) {
-      if (m.coordinateSystem) return m.coordinateSystem as KoordinatSystem;
+    for (const t of alleTegninger) {
+      if (t.coordinateSystem) return t.coordinateSystem as KoordinatSystem;
     }
     return "utm33";
-  }, [ifcModeller]);
+  }, [alleTegninger]);
 
   // Georeferanse-transformasjon
   const transformasjon = useMemo(() => {
@@ -95,52 +96,32 @@ export default function Tegning3DSkjerm() {
 
   const harSynk = !!transformasjon && !!ifcOpprinnelse;
 
-  // Send modeller til WebView
+  // Lytt på 3D-klikk → markør i tegning
   useEffect(() => {
-    if (!viewerKlar || ifcModeller.length === 0) return;
-    (async () => {
-      const token = await hentSessionToken();
-      const baseUrl = AUTH_CONFIG.apiUrl.replace("/trpc", "").replace("api.", "");
-      const urls = ifcModeller.map((m) => {
-        const url = m.fileUrl!.startsWith("/api") ? m.fileUrl! : `/api${m.fileUrl}`;
-        return `${baseUrl}${url}`;
-      });
-      webViewRef.current?.postMessage(JSON.stringify({ type: "lastModeller", urls, token }));
-    })();
-  }, [viewerKlar, ifcModeller.length]); // eslint-disable-line
-
-  // Tegning-klikk → fly 3D
-  const handleTegningTrykk = useCallback((posX: number, posY: number) => {
-    if (!synkAktiv || !transformasjon || !ifcOpprinnelse) return;
-    // Vis markør i tegning
-    setTegningMarkør([{ x: posX, y: posY, id: "synk", farge: "#3b82f6" }]);
-    // Konverter til 3D
-    const gps = tegningTilGps({ x: posX, y: posY }, transformasjon);
-    const punkt3d = gpsTil3D(gps, ifcOpprinnelse, coordSystem, 0);
-    if (punkt3d) {
-      webViewRef.current?.postMessage(
-        JSON.stringify({ type: "flyTil", x: punkt3d.x, y: punkt3d.y, z: punkt3d.z }),
-      );
-    }
-  }, [synkAktiv, transformasjon, ifcOpprinnelse, coordSystem]);
-
-  // 3D-klikk → markør i tegning
-  const handleWebViewMessage = useCallback((event: WebViewMessageEvent) => {
-    try {
-      const msg = JSON.parse(event.nativeEvent.data);
-      if (msg.type === "klar") {
-        setViewerKlar(true);
-      } else if (msg.type === "objektValgt" && msg.data?.punkt && synkAktiv && transformasjon && ifcOpprinnelse) {
-        const gps = tredjeTilGps(msg.data.punkt, ifcOpprinnelse, coordSystem);
+    const unsub = registrerHandler((msg) => {
+      if (msg.type === "objektValgt" && (msg.data as { punkt?: unknown })?.punkt && synkAktiv && transformasjon && ifcOpprinnelse) {
+        const punkt = (msg.data as { punkt: { x: number; y: number; z: number } }).punkt;
+        const gps = tredjeTilGps(punkt, ifcOpprinnelse, coordSystem);
         if (gps) {
           const tegningPkt = gpsTilTegning(gps, transformasjon);
           setTegningMarkør([{ x: tegningPkt.x, y: tegningPkt.y, id: "synk3d", farge: "#ef4444" }]);
         }
       }
-    } catch { /* */ }
-  }, [synkAktiv, transformasjon, ifcOpprinnelse, coordSystem]);
+    });
+    return unsub;
+  }, [registrerHandler, synkAktiv, transformasjon, ifcOpprinnelse, coordSystem]);
 
-  const viewerUrl = `${AUTH_CONFIG.apiUrl.replace("/trpc", "").replace("api.", "")}/mobil-viewer`;
+  // Tegning-klikk → fly 3D
+  const handleTegningTrykk = useCallback((posX: number, posY: number) => {
+    if (!synkAktiv || !transformasjon || !ifcOpprinnelse) return;
+    setTegningMarkør([{ x: posX, y: posY, id: "synk", farge: "#3b82f6" }]);
+    const gps = tegningTilGps({ x: posX, y: posY }, transformasjon);
+    const punkt3d = gpsTil3D(gps, ifcOpprinnelse, coordSystem, 0);
+    if (punkt3d) {
+      postMelding({ type: "flyTil", x: punkt3d.x, y: punkt3d.y, z: punkt3d.z });
+    }
+  }, [synkAktiv, transformasjon, ifcOpprinnelse, coordSystem, postMelding]);
+
   const tegningHoyde = SKJERMHOYDE * splitRatio;
 
   const toggleSplit = () => {
@@ -199,7 +180,7 @@ export default function Tegning3DSkjerm() {
           <TegningsVisning
             tegningUrl={tegningUrl}
             tegningNavn={valgtTegning?.name ?? "Tegning"}
-            onLukk={() => {}} // Ingen lukk-knapp i split-view
+            onLukk={() => {}}
             onTrykk={handleTegningTrykk}
             markører={tegningMarkør}
           />
@@ -216,17 +197,9 @@ export default function Tegning3DSkjerm() {
         <View style={styles.skillehåndtak} />
       </View>
 
-      {/* 3D-modell (bunn) */}
-      <View style={styles.modellContainer}>
-        <WebView
-          ref={webViewRef}
-          source={{ uri: viewerUrl }}
-          style={styles.webview}
-          javaScriptEnabled
-          domStorageEnabled
-          onMessage={handleWebViewMessage}
-        />
-        {!viewerKlar && (
+      {/* 3D-modell (bunn) — persistent WebView posisjoneres her */}
+      <View ref={plassholder} style={styles.modellContainer} onLayout={målOgAktiver}>
+        {!erKlar && (
           <View style={styles.modellOverlay}>
             <ActivityIndicator size="small" color="#fff" />
             <Text style={styles.modellOverlayTekst}>Laster 3D-modell...</Text>
@@ -266,13 +239,13 @@ const styles = StyleSheet.create({
     backgroundColor: "#9ca3af",
   },
   modellContainer: { flex: 1, position: "relative" },
-  webview: { flex: 1 },
   modellOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(0,0,0,0.7)",
     justifyContent: "center",
     alignItems: "center",
     gap: 8,
+    zIndex: 10,
   },
   modellOverlayTekst: { color: "#fff", fontSize: 14 },
 });

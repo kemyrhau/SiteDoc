@@ -1,46 +1,26 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Dimensions } from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import * as Location from "expo-location";
-import { WebView } from "react-native-webview";
 import { useRouter } from "expo-router";
-import { useProsjekt } from "../src/kontekst/ProsjektKontekst";
-import { useBygning } from "../src/kontekst/BygningKontekst";
-import { trpc } from "../src/lib/trpc";
-import { AUTH_CONFIG } from "../src/config/auth";
-import { hentSessionToken } from "../src/services/auth";
+import { usePersistent3D } from "../src/hooks/usePersistent3D";
 import { ChevronLeft, Maximize2, Minimize2, Navigation, MapPin } from "lucide-react-native";
 
 const { height: SKJERMHOYDE } = Dimensions.get("window");
 
 export default function LiveViewSkjerm() {
   const router = useRouter();
-  const { valgtProsjektId } = useProsjekt();
-  const { valgtBygningId } = useBygning();
-  const webViewRef = useRef<WebView>(null);
+
+  const {
+    plassholder,
+    målOgAktiver,
+    erKlar,
+  } = usePersistent3D();
 
   const [kameraTillatelse, beKameraTillatelse] = useCameraPermissions();
   const [posisjon, setPosisjon] = useState<{ lat: number; lng: number } | null>(null);
   const [kompass, setKompass] = useState<number | null>(null);
-  const [splitRatio, setSplitRatio] = useState(0.5); // 0.5 = 50/50
-  const [viewerKlar, setViewerKlar] = useState(false);
-
-  // Hent IFC-modeller
-  const { data: tegninger } = trpc.tegning.hentForProsjekt.useQuery(
-    {
-      projectId: valgtProsjektId!,
-      ...(valgtBygningId ? { buildingId: valgtBygningId } : {}),
-    },
-    { enabled: !!valgtProsjektId },
-  );
-
-  const ifcModeller = (tegninger ?? [])
-    .filter((t: { fileType?: string }) => t.fileType?.toLowerCase() === "ifc")
-    .map((t: { id: string; name: string; fileUrl: string }) => ({
-      id: t.id,
-      name: t.name,
-      fileUrl: t.fileUrl,
-    }));
+  const [splitRatio, setSplitRatio] = useState(0.5);
 
   // GPS-posisjon — kontinuerlig
   useEffect(() => {
@@ -84,22 +64,6 @@ export default function LiveViewSkjerm() {
     return () => { abonnement?.remove(); };
   }, []);
 
-  // Send modeller til WebView — alltid server-URL (WebView kan ikke lese file://)
-  useEffect(() => {
-    if (!viewerKlar || ifcModeller.length === 0) return;
-    (async () => {
-      const token = await hentSessionToken();
-      const baseUrl = AUTH_CONFIG.apiUrl.replace("/trpc", "").replace("api.", "");
-      const urls = ifcModeller.map((m) => {
-        const url = m.fileUrl.startsWith("/api") ? m.fileUrl : `/api${m.fileUrl}`;
-        return `${baseUrl}${url}`;
-      });
-      webViewRef.current?.postMessage(
-        JSON.stringify({ type: "lastModeller", urls, token }),
-      );
-    })();
-  }, [viewerKlar, ifcModeller.length]); // eslint-disable-line
-
   // Be om kameratillatelse
   useEffect(() => {
     if (!kameraTillatelse?.granted) {
@@ -107,14 +71,12 @@ export default function LiveViewSkjerm() {
     }
   }, [kameraTillatelse, beKameraTillatelse]);
 
-  const viewerUrl = `${AUTH_CONFIG.apiUrl.replace("/trpc", "").replace("api.", "")}/mobil-viewer`;
-
   const kameraHoyde = SKJERMHOYDE * splitRatio;
   const toggleSplit = () => {
     setSplitRatio((prev) => {
-      if (prev === 0.5) return 0.7; // Mer kamera
-      if (prev === 0.7) return 0.3; // Mer modell
-      return 0.5; // Tilbake til 50/50
+      if (prev === 0.5) return 0.7;
+      if (prev === 0.7) return 0.3;
+      return 0.5;
     });
   };
 
@@ -163,22 +125,8 @@ export default function LiveViewSkjerm() {
         <View style={styles.skillehåndtak} />
       </View>
 
-      {/* 3D-modell (WebView) */}
-      <View style={styles.modellContainer}>
-        <WebView
-          ref={webViewRef}
-          source={{ uri: viewerUrl }}
-          style={styles.webview}
-          javaScriptEnabled
-          domStorageEnabled
-          onMessage={(event) => {
-            try {
-              const msg = JSON.parse(event.nativeEvent.data);
-              if (msg.type === "klar") setViewerKlar(true);
-            } catch { /* */ }
-          }}
-        />
-
+      {/* 3D-modell — persistent WebView posisjoneres her */}
+      <View ref={plassholder} style={styles.modellContainer} onLayout={målOgAktiver}>
         {/* GPS-overlay på modell */}
         {posisjon && (
           <View style={[styles.gpsOverlay, { bottom: 8, top: undefined }]}>
@@ -189,7 +137,7 @@ export default function LiveViewSkjerm() {
           </View>
         )}
 
-        {!viewerKlar && (
+        {!erKlar && (
           <View style={styles.modellOverlay}>
             <Text style={styles.modellOverlayTekst}>Laster 3D-modell...</Text>
           </View>
@@ -226,6 +174,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     paddingHorizontal: 8,
     paddingVertical: 4,
+    zIndex: 10,
   },
   gpsTekst: { fontFamily: "monospace", fontSize: 10, color: "#fff" },
   skillelinje: {
@@ -241,12 +190,12 @@ const styles = StyleSheet.create({
     backgroundColor: "#9ca3af",
   },
   modellContainer: { flex: 1, position: "relative" },
-  webview: { flex: 1 },
   modellOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(243,244,246,0.9)",
     justifyContent: "center",
     alignItems: "center",
+    zIndex: 10,
   },
   modellOverlayTekst: { fontSize: 14, color: "#6b7280" },
 });
