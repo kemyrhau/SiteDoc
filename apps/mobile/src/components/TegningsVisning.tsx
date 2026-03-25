@@ -340,35 +340,48 @@ export function TegningsVisning({
                 setPdfSize({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height });
               }}
             >
-              <WebView
-                source={{ uri: tegningUrl }}
-                style={{ flex: 1 }}
-                startInLoadingState
-                renderLoading={() => <View />}
-                onLoadEnd={håndterLastetFerdig}
-                onError={håndterFeil}
-                allowsInlineMediaPlayback
-              />
-              {/* Markør-overlay */}
-              <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-                {renderMarkører(pdfSize.w, pdfSize.h)}
-                {renderGpsMarkør(pdfSize.w, pdfSize.h)}
-              </View>
-              {/* Transparent klikk-lag over WebView */}
-              {onTrykk && (
-                <Pressable
-                  style={[StyleSheet.absoluteFill, { backgroundColor: "transparent" }]}
-                  onPress={(e) => {
-                    const { locationX, locationY } = e.nativeEvent;
-                    const posX = (locationX / pdfSize.w) * 100;
-                    const posY = (locationY / pdfSize.h) * 100;
-                    onTrykk(
-                      Math.max(0, Math.min(100, posX)),
-                      Math.max(0, Math.min(100, posY)),
-                    );
-                  }}
-                />
-              )}
+              {/* ScrollView med zoom — markører zoomer med PDF */}
+              <ScrollView
+                contentContainerStyle={{ flexGrow: 1 }}
+                maximumZoomScale={5}
+                minimumZoomScale={1}
+                bouncesZoom
+                showsHorizontalScrollIndicator={false}
+                showsVerticalScrollIndicator={false}
+              >
+                <View
+                  style={{ width: pdfSize.w, height: pdfSize.h, position: "relative" }}
+                  {...(onTrykk ? {
+                    onStartShouldSetResponder: () => true,
+                    onResponderRelease: (e: { nativeEvent: { locationX: number; locationY: number } }) => {
+                      const { locationX, locationY } = e.nativeEvent;
+                      const posX = (locationX / pdfSize.w) * 100;
+                      const posY = (locationY / pdfSize.h) * 100;
+                      onTrykk(
+                        Math.max(0, Math.min(100, posX)),
+                        Math.max(0, Math.min(100, posY)),
+                      );
+                    },
+                  } : {})}
+                >
+                  <WebView
+                    source={{ uri: tegningUrl }}
+                    style={{ width: pdfSize.w, height: pdfSize.h }}
+                    startInLoadingState
+                    renderLoading={() => <View />}
+                    onLoadEnd={håndterLastetFerdig}
+                    onError={håndterFeil}
+                    allowsInlineMediaPlayback
+                    scrollEnabled={false}
+                    scalesPageToFit={false}
+                  />
+                  {/* Markører INNE i zoom-container — følger PDF ved zoom/scroll */}
+                  <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+                    {renderMarkører(pdfSize.w, pdfSize.h)}
+                    {renderGpsMarkør(pdfSize.w, pdfSize.h)}
+                  </View>
+                </View>
+              </ScrollView>
             </View>
           )}
         </View>
