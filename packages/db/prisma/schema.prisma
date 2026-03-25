@@ -184,11 +184,12 @@ model ProjectGroup {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  project          Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  members          ProjectGroupMember[]
-  invitations      ProjectInvitation[]
-  folderAccess     FolderAccess[]
-  groupEnterprises GroupEnterprise[]
+  project               Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  members               ProjectGroupMember[]
+  invitations           ProjectInvitation[]
+  folderAccess          FolderAccess[]
+  groupEnterprises      GroupEnterprise[]
+  dokumentflytMedlemmer DokumentflytMedlem[]
 
   @@unique([projectId, slug])
   @@map("project_groups")
@@ -655,6 +656,7 @@ model DokumentflytMedlem {
   dokumentflytId  String   @map("dokumentflyt_id")
   enterpriseId    String?  @map("enterprise_id")
   projectMemberId String?  @map("project_member_id")
+  groupId         String?  @map("group_id")
   rolle           String   // "oppretter" | "svarer"
   steg            Int      @default(1)
   createdAt       DateTime @default(now()) @map("created_at")
@@ -662,9 +664,11 @@ model DokumentflytMedlem {
   dokumentflyt  Dokumentflyt   @relation(fields: [dokumentflytId], references: [id], onDelete: Cascade)
   enterprise    Enterprise?    @relation(fields: [enterpriseId], references: [id], onDelete: Cascade)
   projectMember ProjectMember? @relation(fields: [projectMemberId], references: [id], onDelete: Cascade)
+  group         ProjectGroup?  @relation(fields: [groupId], references: [id], onDelete: Cascade)
 
   @@unique([dokumentflytId, enterpriseId, rolle, steg])
   @@unique([dokumentflytId, projectMemberId, rolle, steg])
+  @@unique([dokumentflytId, groupId, rolle, steg])
   @@map("dokumentflyt_medlemmer")
 }
 

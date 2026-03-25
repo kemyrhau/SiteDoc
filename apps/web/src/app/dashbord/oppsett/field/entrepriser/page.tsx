@@ -150,6 +150,7 @@ function EntrepriseKort({
   prosjektId,
   entrepriseListe,
   medlemmer,
+  grupper,
   onRediger,
   onSlett,
   onDfRediger,
@@ -163,6 +164,7 @@ function EntrepriseKort({
   prosjektId: string;
   entrepriseListe: EntrepriseItem[];
   medlemmer: ProsjektMedlemItem[];
+  grupper?: Array<{ id: string; name: string }>;
   onRediger: () => void;
   onSlett: () => void;
   onDfRediger: (df: DokumentflytData) => void;
@@ -260,6 +262,7 @@ function EntrepriseKort({
                   prosjektId={prosjektId}
                   entrepriser={entrepriseListe}
                   medlemmer={medlemmer}
+                  grupper={grupper}
                   onRediger={() => onDfRediger(df)}
                   onSlett={() => onDfSlett(df.id)}
                   onOppdatert={onDfOppdatert}
@@ -688,12 +691,18 @@ function OpprettDokumentflytModal({
   const [mottakerId, setMottakerId] = useState("");
   const [valgteMaler, setValgteMaler] = useState<Set<string>>(new Set());
 
-  // Hent prosjektmedlemmer for bruker-velgeren
+  // Hent prosjektmedlemmer og grupper for velgerne
   const { data: _medlemmer } = trpc.medlem.hentForProsjekt.useQuery(
     { projectId: prosjektId },
     { enabled: open },
   );
   const medlemmer = (_medlemmer ?? []) as Array<{ id: string; user: { name: string | null; email: string } }>;
+
+  const { data: _grupper } = trpc.gruppe.hentForProsjekt.useQuery(
+    { projectId: prosjektId },
+    { enabled: open },
+  );
+  const grupper = (_grupper ?? []) as Array<{ id: string; name: string }>;
 
   const utils = trpc.useUtils();
   const [feilmelding, setFeilmelding] = useState("");
@@ -744,20 +753,19 @@ function OpprettDokumentflytModal({
     const dfMedlemmer: Array<{
       enterpriseId?: string;
       projectMemberId?: string;
+      groupId?: string;
       rolle: "oppretter" | "svarer";
       steg: number;
     }> = [];
 
     if (oppretterId) {
       if (oppretterType === "gruppe") {
-        // "Gruppe" = entreprise — send enterpriseId
         dfMedlemmer.push({
-          enterpriseId: oppretterId,
+          groupId: oppretterId,
           rolle: "oppretter",
           steg: 1,
         });
       } else {
-        // "Bruker" = enkeltmedlem
         dfMedlemmer.push({
           projectMemberId: oppretterId,
           rolle: "oppretter",
@@ -768,7 +776,7 @@ function OpprettDokumentflytModal({
     if (mottakerId) {
       if (mottakerType === "gruppe") {
         dfMedlemmer.push({
-          enterpriseId: mottakerId,
+          groupId: mottakerId,
           rolle: "svarer",
           steg: 1,
         });
@@ -837,8 +845,8 @@ function OpprettDokumentflytModal({
             ) : (
               <>
                 <option value="">Velg gruppe...</option>
-                {entrepriser.map((e) => (
-                  <option key={e.id} value={e.id}>{e.name}</option>
+                {grupper.map((g) => (
+                  <option key={g.id} value={g.id}>{g.name}</option>
                 ))}
               </>
             )}
@@ -882,8 +890,8 @@ function OpprettDokumentflytModal({
             ) : (
               <>
                 <option value="">Velg gruppe...</option>
-                {entrepriser.map((e) => (
-                  <option key={e.id} value={e.id}>{e.name}</option>
+                {grupper.map((g) => (
+                  <option key={g.id} value={g.id}>{g.name}</option>
                 ))}
               </>
             )}
@@ -1186,6 +1194,12 @@ export default function EntrepriserSide() {
     { enabled: !!prosjektId },
   );
 
+  const { data: grupperData } = trpc.gruppe.hentForProsjekt.useQuery(
+    { projectId: prosjektId! },
+    { enabled: !!prosjektId },
+  );
+  const gruppeListe = (grupperData ?? []) as Array<{ id: string; name: string }>;
+
   const oppdaterEntrepriseMutation = trpc.entreprise.oppdater.useMutation({
     onSuccess: () => {
       utils.entreprise.hentForProsjekt.invalidate({ projectId: prosjektId! });
@@ -1353,6 +1367,7 @@ export default function EntrepriserSide() {
               prosjektId={prosjektId}
               entrepriseListe={entrepriseListe}
               medlemmer={medlemListe}
+              grupper={gruppeListe}
               onRediger={() => handleRedigerEntreprise(ent.id)}
               onSlett={() => setSlettEntrepriseId(ent.id)}
               onDfRediger={setRedigerDf}
@@ -1385,6 +1400,7 @@ export default function EntrepriserSide() {
                     prosjektId={prosjektId}
                     entrepriser={entrepriseListe}
                     medlemmer={medlemListe}
+                    grupper={gruppeListe}
                     onRediger={() => setRedigerDf(df)}
                     onSlett={() => setSlettDfId(df.id)}
                     onOppdatert={handleDfOppdatert}

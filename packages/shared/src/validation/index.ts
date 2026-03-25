@@ -227,6 +227,7 @@ export const createDokumentflytSchema = z.object({
   medlemmer: z.array(z.object({
     enterpriseId: z.string().uuid().optional(),
     projectMemberId: z.string().uuid().optional(),
+    groupId: z.string().uuid().optional(),
     rolle: z.enum(["oppretter", "svarer"]),
     steg: z.number().int().min(1).default(1),
   })).default([]),
@@ -244,6 +245,7 @@ export const addDokumentflytMedlemSchema = z.object({
   projectId: z.string().uuid(),
   enterpriseId: z.string().uuid().optional(),
   projectMemberId: z.string().uuid().optional(),
+  groupId: z.string().uuid().optional(),
   rolle: z.enum(["oppretter", "svarer"]),
   steg: z.number().int().min(1).default(1),
 });
