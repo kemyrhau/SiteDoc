@@ -58,6 +58,7 @@ export function TegningsVisning({
   gpsMarkør,
 }: TegningsVisningProps) {
   const [laster, setLaster] = useState(true);
+  const [pdfSize, setPdfSize] = useState({ w: 300, h: 400 });
   const [feil, setFeil] = useState(false);
   const { width, height } = useWindowDimensions();
   const erPdfFil = erPdf(tegningUrl);
@@ -72,7 +73,7 @@ export function TegningsVisning({
       const ratio = naturligBilde.h / naturligBilde.w;
       return { width, height: width * ratio };
     }
-    return { width, height: height * 0.8 };
+    return { width, height: pdfSize.h };
   }, [naturligBilde, width, height]);
 
   // Hent naturlig bildedimensjon for korrekt markør-posisjonering
@@ -314,16 +315,16 @@ export function TegningsVisning({
                 onLoad={håndterLastetFerdig}
               />
               <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-                {renderMarkører(width, height * 0.8)}
-                {renderGpsMarkør(width, height * 0.8)}
+                {renderMarkører(width, pdfSize.h)}
+                {renderGpsMarkør(width, pdfSize.h)}
               </View>
               {onTrykk && (
                 <Pressable
                   style={StyleSheet.absoluteFill}
                   onPress={(e) => {
                     const { locationX, locationY } = e.nativeEvent;
-                    const posX = (locationX / width) * 100;
-                    const posY = (locationY / (height * 0.8)) * 100;
+                    const posX = (locationX / pdfSize.w) * 100;
+                    const posY = (locationY / pdfSize.h) * 100;
                     onTrykk(
                       Math.max(0, Math.min(100, posX)),
                       Math.max(0, Math.min(100, posY)),
@@ -333,7 +334,12 @@ export function TegningsVisning({
               )}
             </View>
           ) : (
-            <View style={{ flex: 1, position: "relative" }}>
+            <View
+              style={{ flex: 1, position: "relative" }}
+              onLayout={(e) => {
+                setPdfSize({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height });
+              }}
+            >
               <WebView
                 source={{ uri: tegningUrl }}
                 style={{ flex: 1 }}
@@ -341,14 +347,28 @@ export function TegningsVisning({
                 renderLoading={() => <View />}
                 onLoadEnd={håndterLastetFerdig}
                 onError={håndterFeil}
-                injectedJavaScript={onTrykk ? injisertJs : undefined}
-                onMessage={håndterWebViewMelding}
                 allowsInlineMediaPlayback
               />
+              {/* Markør-overlay */}
               <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-                {renderMarkører(width, height * 0.8)}
-                {renderGpsMarkør(width, height * 0.8)}
+                {renderMarkører(pdfSize.w, pdfSize.h)}
+                {renderGpsMarkør(pdfSize.w, pdfSize.h)}
               </View>
+              {/* Transparent klikk-lag over WebView */}
+              {onTrykk && (
+                <Pressable
+                  style={[StyleSheet.absoluteFill, { backgroundColor: "transparent" }]}
+                  onPress={(e) => {
+                    const { locationX, locationY } = e.nativeEvent;
+                    const posX = (locationX / pdfSize.w) * 100;
+                    const posY = (locationY / pdfSize.h) * 100;
+                    onTrykk(
+                      Math.max(0, Math.min(100, posX)),
+                      Math.max(0, Math.min(100, posY)),
+                    );
+                  }}
+                />
+              )}
             </View>
           )}
         </View>
