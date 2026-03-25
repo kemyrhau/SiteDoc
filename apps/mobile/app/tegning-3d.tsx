@@ -1,15 +1,12 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Dimensions, ActivityIndicator } from "react-native";
-import { WebView } from "react-native-webview";
-import type { WebViewMessageEvent } from "react-native-webview";
 import { useRouter } from "expo-router";
 import { useProsjekt } from "../src/kontekst/ProsjektKontekst";
 import { useBygning } from "../src/kontekst/BygningKontekst";
 import { trpc } from "../src/lib/trpc";
-import { AUTH_CONFIG } from "../src/config/auth";
-import { hentSessionToken } from "../src/services/auth";
 import { TegningsVisning } from "../src/components/TegningsVisning";
 import type { Markør } from "../src/components/TegningsVisning";
+import { useWebView3D } from "../src/kontekst/WebView3DKontekst";
 import {
   beregnTransformasjon,
   tegningTilGps,
@@ -42,13 +39,18 @@ export default function Tegning3DSkjerm() {
   const router = useRouter();
   const { valgtProsjektId } = useProsjekt();
   const { valgtBygningId } = useBygning();
-  const webViewRef = useRef<WebView>(null);
+  const { vis, skjul, postMelding, registrerHandler, erKlar } = useWebView3D();
 
   const [splitRatio, setSplitRatio] = useState(0.5);
-  const [viewerKlar, setViewerKlar] = useState(false);
   const [synkAktiv, setSynkAktiv] = useState(true);
   const [valgtTegningIdx, setValgtTegningIdx] = useState(0);
   const [tegningMarkør, setTegningMarkør] = useState<Markør[]>([]);
+
+  // Vis WebView ved mount, skjul ved unmount
+  useEffect(() => {
+    vis();
+    return () => skjul();
+  }, [vis, skjul]);
 
   // Hent tegninger
   const tegningQuery = (trpc.tegning.hentForProsjekt as unknown as {
@@ -87,7 +89,6 @@ export default function Tegning3DSkjerm() {
     return "utm33";
   }, [ifcModeller]);
 
-  // Georeferanse-transformasjon
   const transformasjon = useMemo(() => {
     if (!valgtTegning?.geoReference) return null;
     try { return beregnTransformasjon(valgtTegning.geoReference as GeoReferanse); } catch { return null; }
@@ -95,52 +96,31 @@ export default function Tegning3DSkjerm() {
 
   const harSynk = !!transformasjon && !!ifcOpprinnelse;
 
-  // Send modeller til WebView
-  useEffect(() => {
-    if (!viewerKlar || ifcModeller.length === 0) return;
-    (async () => {
-      const token = await hentSessionToken();
-      const baseUrl = AUTH_CONFIG.apiUrl.replace("/trpc", "").replace("api.", "");
-      const urls = ifcModeller.map((m) => {
-        const url = m.fileUrl!.startsWith("/api") ? m.fileUrl! : `/api${m.fileUrl}`;
-        return `${baseUrl}${url}`;
-      });
-      webViewRef.current?.postMessage(JSON.stringify({ type: "lastModeller", urls, token }));
-    })();
-  }, [viewerKlar, ifcModeller.length]); // eslint-disable-line
-
-  // Tegning-klikk → fly 3D
-  const handleTegningTrykk = useCallback((posX: number, posY: number) => {
-    if (!synkAktiv || !transformasjon || !ifcOpprinnelse) return;
-    // Vis markør i tegning
-    setTegningMarkør([{ x: posX, y: posY, id: "synk", farge: "#3b82f6" }]);
-    // Konverter til 3D
-    const gps = tegningTilGps({ x: posX, y: posY }, transformasjon);
-    const punkt3d = gpsTil3D(gps, ifcOpprinnelse, coordSystem, 0);
-    if (punkt3d) {
-      webViewRef.current?.postMessage(
-        JSON.stringify({ type: "flyTil", x: punkt3d.x, y: punkt3d.y, z: punkt3d.z }),
-      );
-    }
-  }, [synkAktiv, transformasjon, ifcOpprinnelse, coordSystem]);
-
   // 3D-klikk → markør i tegning
-  const handleWebViewMessage = useCallback((event: WebViewMessageEvent) => {
-    try {
-      const msg = JSON.parse(event.nativeEvent.data);
-      if (msg.type === "klar") {
-        setViewerKlar(true);
-      } else if (msg.type === "objektValgt" && msg.data?.punkt && synkAktiv && transformasjon && ifcOpprinnelse) {
-        const gps = tredjeTilGps(msg.data.punkt, ifcOpprinnelse, coordSystem);
+  useEffect(() => {
+    return registrerHandler((msg) => {
+      if (msg.type === "objektValgt" && (msg.data as { punkt?: unknown })?.punkt && synkAktiv && transformasjon && ifcOpprinnelse) {
+        const punkt = (msg.data as { punkt: { x: number; y: number; z: number } }).punkt;
+        const gps = tredjeTilGps(punkt, ifcOpprinnelse, coordSystem);
         if (gps) {
           const tegningPkt = gpsTilTegning(gps, transformasjon);
           setTegningMarkør([{ x: tegningPkt.x, y: tegningPkt.y, id: "synk3d", farge: "#ef4444" }]);
         }
       }
-    } catch { /* */ }
-  }, [synkAktiv, transformasjon, ifcOpprinnelse, coordSystem]);
+    });
+  }, [registrerHandler, synkAktiv, transformasjon, ifcOpprinnelse, coordSystem]);
 
-  const viewerUrl = `${AUTH_CONFIG.apiUrl.replace("/trpc", "").replace("api.", "")}/mobil-viewer`;
+  // Tegning-klikk → fly 3D
+  const handleTegningTrykk = useCallback((posX: number, posY: number) => {
+    if (!synkAktiv || !transformasjon || !ifcOpprinnelse) return;
+    setTegningMarkør([{ x: posX, y: posY, id: "synk", farge: "#3b82f6" }]);
+    const gps = tegningTilGps({ x: posX, y: posY }, transformasjon);
+    const punkt3d = gpsTil3D(gps, ifcOpprinnelse, coordSystem, 0);
+    if (punkt3d) {
+      postMelding({ type: "flyTil", x: punkt3d.x, y: punkt3d.y, z: punkt3d.z });
+    }
+  }, [synkAktiv, transformasjon, ifcOpprinnelse, coordSystem, postMelding]);
+
   const tegningHoyde = SKJERMHOYDE * splitRatio;
 
   const toggleSplit = () => {
@@ -193,13 +173,13 @@ export default function Tegning3DSkjerm() {
         </TouchableOpacity>
       </View>
 
-      {/* Tegning (topp) */}
+      {/* Tegning (topp) — rendres oppå WebView */}
       <View style={[styles.tegningContainer, { height: tegningHoyde }]}>
         {tegningUrl ? (
           <TegningsVisning
             tegningUrl={tegningUrl}
             tegningNavn={valgtTegning?.name ?? "Tegning"}
-            onLukk={() => {}} // Ingen lukk-knapp i split-view
+            onLukk={() => {}}
             onTrykk={handleTegningTrykk}
             markører={tegningMarkør}
           />
@@ -216,17 +196,9 @@ export default function Tegning3DSkjerm() {
         <View style={styles.skillehåndtak} />
       </View>
 
-      {/* 3D-modell (bunn) */}
+      {/* 3D-delen — WebView er synlig gjennom denne tomme View */}
       <View style={styles.modellContainer}>
-        <WebView
-          ref={webViewRef}
-          source={{ uri: viewerUrl }}
-          style={styles.webview}
-          javaScriptEnabled
-          domStorageEnabled
-          onMessage={handleWebViewMessage}
-        />
-        {!viewerKlar && (
+        {!erKlar && (
           <View style={styles.modellOverlay}>
             <ActivityIndicator size="small" color="#fff" />
             <Text style={styles.modellOverlayTekst}>Laster 3D-modell...</Text>
@@ -240,39 +212,24 @@ export default function Tegning3DSkjerm() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#000" },
   header: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#1e40af",
-    paddingTop: 50,
-    paddingBottom: 10,
-    paddingHorizontal: 12,
+    flexDirection: "row", alignItems: "center", backgroundColor: "#1e40af",
+    paddingTop: 50, paddingBottom: 10, paddingHorizontal: 12, zIndex: 10,
   },
   headerTitle: { flex: 1, color: "#fff", fontSize: 16, fontWeight: "600", marginLeft: 8 },
   headerBtn: { padding: 8, borderRadius: 8 },
   laster: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#f3f4f6" },
-  tegningContainer: { position: "relative", backgroundColor: "#f3f4f6" },
+  tegningContainer: { position: "relative", backgroundColor: "#f3f4f6", zIndex: 5 },
   ingenTegning: { flex: 1, justifyContent: "center", alignItems: "center" },
   ingenTegningTekst: { color: "#9ca3af", fontSize: 14, marginTop: 8 },
   skillelinje: {
-    height: 6,
-    backgroundColor: "#374151",
-    justifyContent: "center",
-    alignItems: "center",
+    height: 6, backgroundColor: "#374151",
+    justifyContent: "center", alignItems: "center", zIndex: 5,
   },
-  skillehåndtak: {
-    width: 40,
-    height: 3,
-    borderRadius: 2,
-    backgroundColor: "#9ca3af",
-  },
+  skillehåndtak: { width: 40, height: 3, borderRadius: 2, backgroundColor: "#9ca3af" },
   modellContainer: { flex: 1, position: "relative" },
-  webview: { flex: 1 },
   modellOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.7)",
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 8,
+    backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "center", alignItems: "center", gap: 8, zIndex: 10,
   },
   modellOverlayTekst: { color: "#fff", fontSize: 14 },
 });
