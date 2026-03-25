@@ -60,9 +60,9 @@ export default function LiveViewSkjerm() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} pointerEvents="box-none">
       {/* Header */}
-      <View style={styles.header}>
+      <View style={styles.header} pointerEvents="auto">
         <TouchableOpacity onPress={() => router.back()} style={styles.headerBtn}>
           <ChevronLeft size={20} color="#fff" />
         </TouchableOpacity>
@@ -73,7 +73,7 @@ export default function LiveViewSkjerm() {
       </View>
 
       {/* Kamera — oppå WebView */}
-      <View style={[styles.kameraContainer, { height: kameraHoyde }]}>
+      <View style={[styles.kameraContainer, { height: kameraHoyde }]} pointerEvents="auto">
         {kameraTillatelse?.granted ? (
           <CameraView style={styles.kamera} facing="back" />
         ) : (
@@ -96,10 +96,10 @@ export default function LiveViewSkjerm() {
       </View>
 
       {/* Skillelinje */}
-      <View style={styles.skillelinje}><View style={styles.skillehåndtak} /></View>
+      <View style={styles.skillelinje} pointerEvents="auto"><View style={styles.skillehåndtak} /></View>
 
       {/* 3D — WebView synlig gjennom tom View */}
-      <View style={styles.modellContainer}>
+      <View style={styles.modellContainer} pointerEvents="box-none">
         {posisjon && (
           <View style={[styles.gpsOverlay, { bottom: 8, top: undefined }]}>
             <MapPin size={12} color="#10b981" />

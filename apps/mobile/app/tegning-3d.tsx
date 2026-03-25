@@ -153,9 +153,9 @@ export default function Tegning3DSkjerm() {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} pointerEvents="box-none">
       {/* Header */}
-      <View style={styles.header}>
+      <View style={styles.header} pointerEvents="auto">
         <TouchableOpacity onPress={() => router.back()} style={styles.headerBtn}>
           <ChevronLeft size={20} color="#fff" />
         </TouchableOpacity>
@@ -174,7 +174,7 @@ export default function Tegning3DSkjerm() {
       </View>
 
       {/* Tegning (topp) — rendres oppå WebView */}
-      <View style={[styles.tegningContainer, { height: tegningHoyde }]}>
+      <View style={[styles.tegningContainer, { height: tegningHoyde }]} pointerEvents="auto">
         {tegningUrl ? (
           <TegningsVisning
             tegningUrl={tegningUrl}
@@ -192,12 +192,12 @@ export default function Tegning3DSkjerm() {
       </View>
 
       {/* Skillelinje */}
-      <View style={styles.skillelinje}>
+      <View style={styles.skillelinje} pointerEvents="auto">
         <View style={styles.skillehåndtak} />
       </View>
 
       {/* 3D-delen — WebView er synlig gjennom denne tomme View */}
-      <View style={styles.modellContainer}>
+      <View style={styles.modellContainer} pointerEvents="box-none">
         {!erKlar && (
           <View style={styles.modellOverlay}>
             <ActivityIndicator size="small" color="#fff" />

@@ -118,9 +118,9 @@ export default function TreDVisningSkjerm() {
   const viseFeil = feil;
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} pointerEvents="box-none">
       {/* Header — rendres oppå WebView */}
-      <View style={styles.header}>
+      <View style={styles.header} pointerEvents="auto">
         <TouchableOpacity onPress={() => router.back()} style={styles.headerBtn}>
           <ChevronLeft size={20} color="#fff" />
         </TouchableOpacity>
@@ -143,7 +143,7 @@ export default function TreDVisningSkjerm() {
 
       {/* Cache-status */}
       {cacheStatus && (
-        <View style={styles.cacheBanner}>
+        <View style={styles.cacheBanner} pointerEvents="auto">
           <Download size={14} color="#1e40af" />
           <Text style={styles.cacheTekst}>{cacheStatus}</Text>
         </View>
@@ -168,7 +168,7 @@ export default function TreDVisningSkjerm() {
 
       {/* Sidepanel */}
       {visSidepanel && (
-        <View style={styles.sidepanel}>
+        <View style={styles.sidepanel} pointerEvents="auto">
           <Text style={styles.sidepanelTittel}>Modeller</Text>
           {ifcModeller.map((m, i) => (
             <TouchableOpacity key={m.id} style={styles.modellRad} onPress={() => toggleModell(i)}>
@@ -183,7 +183,7 @@ export default function TreDVisningSkjerm() {
 
       {/* Objektinfo */}
       {valgtObjekt && (
-        <View style={styles.objektPanel}>
+        <View style={styles.objektPanel} pointerEvents="auto">
           <View style={styles.objektHåndtak}><View style={styles.objektHåndtakStrek} /></View>
           <View style={styles.objektHeader}>
             <View style={styles.objektHeaderVenstre}>
