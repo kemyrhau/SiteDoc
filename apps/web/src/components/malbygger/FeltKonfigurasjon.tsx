@@ -92,6 +92,25 @@ export function FeltKonfigurasjon({
           Påkrevd felt
         </label>
 
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-medium text-gray-600">Hjelpetekst</label>
+          <textarea
+            placeholder="Veiledningstekst for utfyller (valgfritt)"
+            value={(config.helpText as string) ?? ""}
+            onChange={(e) => {
+              const verdi = e.target.value;
+              if (verdi) {
+                setConfig({ ...config, helpText: verdi });
+              } else {
+                const { helpText: _, ...resten } = config;
+                setConfig(resten);
+              }
+            }}
+            rows={2}
+            className="rounded border border-gray-200 bg-white px-2 py-1.5 text-sm text-gray-700 placeholder:text-gray-400 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
+          />
+        </div>
+
         {/* Typespesifikk konfigurasjon */}
         {(objekt.type === "list_single" || objekt.type === "list_multi") && (
           <ValglisteKonfig

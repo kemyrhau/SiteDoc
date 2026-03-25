@@ -1,6 +1,6 @@
 import { View, Text, Pressable } from "react-native";
-import type { ReactNode } from "react";
-import { Plus } from "lucide-react-native";
+import { useState, type ReactNode } from "react";
+import { Plus, Info } from "lucide-react-native";
 import type { Vedlegg } from "../../hooks/useSjekklisteSkjema";
 import { FeltDokumentasjon } from "./FeltDokumentasjon";
 
@@ -52,6 +52,8 @@ export function FeltWrapper({
   onNavigerTilOppgave,
   children,
 }: FeltWrapperProps) {
+  const [visHjelpetekst, setVisHjelpetekst] = useState(false);
+
   // Bakoverkompatibilitet: erBetinget → nestingNivå=1
   const effektivNivå = nestingNivå > 0 ? nestingNivå : (erBetinget ? 1 : 0);
 
@@ -65,7 +67,7 @@ export function FeltWrapper({
     <View
       className={`rounded-lg bg-white p-4 ${marginKlasse} ${rammeKlasse}`}
     >
-      {/* Label + påkrevd-badge */}
+      {/* Label + påkrevd-badge + hjelpetekst */}
       <View className="mb-2 flex-row items-center gap-2">
         <Text className="text-sm font-medium text-gray-900">{objekt.label}</Text>
         {objekt.required && (
@@ -73,7 +75,15 @@ export function FeltWrapper({
             <Text className="text-[10px] font-medium text-red-600">Påkrevd</Text>
           </View>
         )}
+        {typeof objekt.config.helpText === "string" && objekt.config.helpText && (
+          <Pressable onPress={() => setVisHjelpetekst((v) => !v)}>
+            <Info size={14} color="#60a5fa" />
+          </Pressable>
+        )}
       </View>
+      {visHjelpetekst && typeof objekt.config.helpText === "string" && (
+        <Text className="mb-2 text-xs text-gray-500">{objekt.config.helpText}</Text>
+      )}
 
       {/* Typespesifikk input */}
       {children}
