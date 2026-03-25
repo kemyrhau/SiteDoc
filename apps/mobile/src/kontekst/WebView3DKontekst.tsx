@@ -88,6 +88,8 @@ export function WebView3DProvider({ children }: { children: ReactNode }) {
 
   // Spor hvilke modeller som er lastet for å unngå re-lasting
   const lastedeModellerRef = useRef<string>("");
+  // Krasjbegrensning — maks 1 automatisk retry
+  const krasjTellerRef = useRef(0);
 
   const { valgtProsjektId } = useProsjekt();
   const { valgtBygningId } = useBygning();
@@ -142,6 +144,7 @@ export function WebView3DProvider({ children }: { children: ReactNode }) {
   // Reset ved prosjekt/bygningsbytte
   useEffect(() => {
     lastedeModellerRef.current = "";
+    krasjTellerRef.current = 0;
     setLastet(0);
     setTotalt(0);
     setFeil(null);
@@ -183,12 +186,21 @@ export function WebView3DProvider({ children }: { children: ReactNode }) {
 
   // Håndter WebView-krasj (iOS: minne-press, Android: render-prosess drept)
   const handleKrasj = useCallback(() => {
-    console.warn("[WebView3D] WebView krasjet — laster på nytt");
+    krasjTellerRef.current += 1;
+    console.warn(`[WebView3D] WebView krasjet (forsøk ${krasjTellerRef.current})`);
+
+    if (krasjTellerRef.current > 1) {
+      // Ikke prøv igjen — vis feilmelding
+      setFeil("3D-visningen krasjet gjentatte ganger. Prøv å velge en enkelt bygning med færre modeller.");
+      setErKlar(false);
+      return;
+    }
+
+    // Første krasj — prøv én gang til
     setErKlar(false);
     setLastet(0);
     setTotalt(0);
-    lastedeModellerRef.current = ""; // Tving re-lasting av modeller
-    // WebView reloader seg selv via key-endring
+    lastedeModellerRef.current = "";
     setWebViewNøkkel((prev) => prev + 1);
   }, []);
 
