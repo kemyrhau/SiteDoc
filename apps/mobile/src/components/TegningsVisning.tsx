@@ -67,24 +67,29 @@ export function TegningsVisning({
   const bildeRef = useRef<View>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Bildedimensjoner basert på naturlig aspektforhold — fyller bredden
+  // Bildedimensjoner — bruker rendret layout når tilgjengelig
+  const [bildeLayout, setBildeLayout] = useState<{ w: number; h: number } | null>(null);
+
   const bildeSt = useMemo(() => {
     if (naturligBilde && naturligBilde.w > 0 && naturligBilde.h > 0) {
       const ratio = naturligBilde.h / naturligBilde.w;
-      return { width, height: width * ratio };
+      return { width, height: Math.round(width * ratio) };
     }
-    // Fallback: bruk skjermhøyde minus header (før bildedimensjoner er kjent)
-    return { width, height: height - 100 };
-  }, [naturligBilde, width, height]);
+    // Fallback for landskapstegninger (de fleste situasjonsplaner er ~16:10)
+    return { width, height: Math.round(width * 0.625) };
+  }, [naturligBilde, width]);
 
-  // Hent naturlig bildedimensjon — prøv Image.getSize, fallback til onLoad
+  // Hent bildedimensjoner via Image.getSize
   useEffect(() => {
     if (!erPdfFil && tegningUrl) {
       Image.getSize(
         tegningUrl,
-        (w, h) => setNaturligBilde({ w, h }),
-        () => {
-          // Image.getSize feiler for autentiserte URL-er — onLoad fanger opp
+        (w, h) => {
+          console.log("[GPS-TEG] getSize OK:", w, h);
+          setNaturligBilde({ w, h });
+        },
+        (err) => {
+          console.warn("[GPS-TEG] getSize feilet:", err);
         },
       );
     }
@@ -424,26 +429,27 @@ export function TegningsVisning({
                 style={{ width: bildeSt.width, height: bildeSt.height }}
                 resizeMode="stretch"
                 onLoad={(e) => {
-                  // Hent dimensjoner fra onLoad
                   const src = e.nativeEvent?.source;
-                  console.log("[GPS-TEG] onLoad source:", JSON.stringify(src));
-                  if (src && src.width > 0 && src.height > 0) {
+                  console.log("[GPS-TEG] onLoad:", JSON.stringify(src));
+                  if (src?.width > 0 && src?.height > 0) {
                     setNaturligBilde({ w: src.width, h: src.height });
                   }
                 }}
                 onLoadEnd={() => {
                   håndterLastetFerdig();
-                  // Siste sjanse: hvis naturligBilde fortsatt er null, prøv getSize igjen
-                  if (!naturligBilde && tegningUrl) {
+                  // Retry getSize etter bildet er cachet
+                  setNaturligBilde((prev) => {
+                    if (prev) return prev; // Allerede satt
                     Image.getSize(
                       tegningUrl,
                       (w, h) => {
-                        console.log("[GPS-TEG] getSize (retry):", w, h);
+                        console.log("[GPS-TEG] getSize retry:", w, h);
                         if (w > 0 && h > 0) setNaturligBilde({ w, h });
                       },
-                      (err) => console.warn("[GPS-TEG] getSize retry feilet:", err),
+                      () => {},
                     );
-                  }
+                    return prev;
+                  });
                 }}
                 onError={håndterFeil}
               />
