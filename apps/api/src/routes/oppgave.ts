@@ -28,7 +28,7 @@ export const oppgaveRouter = router({
         where: {
           creatorEnterprise: { projectId: input.projectId },
           ...(input.status ? { status: input.status } : {}),
-          ...(input.buildingId ? { drawing: { buildingId: input.buildingId } } : {}),
+          ...(input.buildingId ? { OR: [{ drawing: { buildingId: input.buildingId } }, { drawingId: null }] } : {}),
           ...(tilgangsFilter ?? {}),
         },
         include: {
