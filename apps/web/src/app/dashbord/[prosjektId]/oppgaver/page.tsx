@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { trpc } from "@/lib/trpc";
-import { Button, Input, Textarea, Select, Modal, Spinner, EmptyState, StatusBadge, Badge, Table } from "@sitedoc/ui";
+import { Button, Modal, Spinner, EmptyState, StatusBadge, Badge, Table } from "@sitedoc/ui";
 import { useVerktoylinje } from "@/hooks/useVerktoylinje";
 import { useBygning } from "@/kontekst/bygning-kontekst";
 import { Plus, Trash2 } from "lucide-react";
@@ -29,12 +29,6 @@ export default function OppgaverSide() {
   const statusFilter = searchParams.get("status");
   const utils = trpc.useUtils();
   const [visModal, setVisModal] = useState(false);
-  const [tittel, setTittel] = useState("");
-  const [beskrivelse, setBeskrivelse] = useState("");
-  const [prioritet, setPrioritet] = useState<"low" | "medium" | "high" | "critical">("medium");
-  const [valgtOppretter, setValgtOppretter] = useState("");
-  const [valgtSvarer, setValgtSvarer] = useState("");
-  const [valgtMalId, setValgtMalId] = useState("");
   const { aktivBygning } = useBygning();
 
   const oppgaveQuery = trpc.oppgave.hentForProsjekt.useQuery(
@@ -47,10 +41,12 @@ export default function OppgaverSide() {
   }> | undefined;
   const isLoading = oppgaveQuery.isLoading;
 
-  const { data: entrepriser } = trpc.entreprise.hentForProsjekt.useQuery({ projectId: params.prosjektId });
   const { data: maler } = trpc.mal.hentForProsjekt.useQuery({ projectId: params.prosjektId });
-  const oppgaveMaler = (maler ?? []).filter((m: { category: string }) => m.category === "oppgave");
+  const oppgaveMaler = ((maler ?? []) as Array<{ id: string; name: string; prefix?: string | null; category: string }>).filter((m) => m.category === "oppgave");
   const { data: mineEntrepriser } = trpc.medlem.hentMineEntrepriser.useQuery(
+    { projectId: params.prosjektId },
+  );
+  const { data: dokumentflyter } = trpc.dokumentflyt.hentForProsjekt.useQuery(
     { projectId: params.prosjektId },
   );
 
@@ -61,15 +57,11 @@ export default function OppgaverSide() {
   });
 
   const opprettMutation = trpc.oppgave.opprett.useMutation({
-    onSuccess: () => {
+    onSuccess: (_data: unknown) => {
+      const resultat = _data as { id: string };
       utils.oppgave.hentForProsjekt.invalidate({ projectId: params.prosjektId });
       setVisModal(false);
-      setTittel("");
-      setBeskrivelse("");
-      setPrioritet("medium");
-      setValgtOppretter("");
-      setValgtSvarer("");
-      setValgtMalId("");
+      router.push(`/dashbord/${params.prosjektId}/oppgaver/${resultat.id}`);
     },
   });
 
@@ -83,17 +75,32 @@ export default function OppgaverSide() {
     },
   ]);
 
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!tittel.trim() || !valgtOppretter || !valgtSvarer || !valgtMalId) return;
+  function handleOpprettFraMal(malId: string) {
+    const oppretter = mineEntrepriser?.[0];
+    if (!oppretter) return;
+
+    // Finn dokumentflyt som matcher denne malen og oppretter-entreprisen
+    const alleDf = (dokumentflyter ?? []) as Array<{
+      id: string;
+      medlemmer: Array<{ enterprise?: { id: string } | null; group?: { id: string } | null; projectMember?: { id: string } | null; rolle: string }>;
+      maler: Array<{ template: { id: string } }>;
+    }>;
+    const matchDf = alleDf.find((df) =>
+      df.maler.some((m) => m.template.id === malId) &&
+      df.medlemmer.some((m) =>
+        m.rolle === "oppretter" && (m.enterprise?.id === oppretter.id || m.group || m.projectMember),
+      ),
+    );
+    const svarer = matchDf?.medlemmer.find((m) => m.rolle === "svarer");
+    const svarerEntrepriseId = svarer?.enterprise?.id ?? oppretter.id;
 
     opprettMutation.mutate({
-      templateId: valgtMalId,
-      creatorEnterpriseId: valgtOppretter,
-      responderEnterpriseId: valgtSvarer,
-      title: tittel.trim(),
-      description: beskrivelse.trim() || undefined,
-      priority: prioritet,
+      templateId: malId,
+      creatorEnterpriseId: oppretter.id,
+      responderEnterpriseId: svarerEntrepriseId,
+      title: "Ny oppgave",
+      priority: "medium",
+      workflowId: matchDf?.id,
     });
   }
 
@@ -121,17 +128,6 @@ export default function OppgaverSide() {
     responderEnterprise: { name: string };
   };
 
-  // Oppretter-dropdown: brukerens entrepriser (eller alle for admin)
-  const oppretterAlternativer = (mineEntrepriser ?? []).map((e) => ({
-    value: e.id,
-    label: e.name,
-  }));
-
-  // Svarer-dropdown: alle entrepriser i prosjektet
-  const svarerAlternativer = (entrepriser ?? []).map((e) => ({
-    value: e.id,
-    label: e.name,
-  }));
 
   return (
     <div>
@@ -210,57 +206,26 @@ export default function OppgaverSide() {
         />
       )}
 
-      <Modal open={visModal} onClose={() => setVisModal(false)} title="Ny oppgave">
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <Select
-            label="Oppgavemal"
-            options={oppgaveMaler.map((m: { id: string; name: string }) => ({ value: m.id, label: m.name }))}
-            value={valgtMalId}
-            onChange={(e) => setValgtMalId(e.target.value)}
-            placeholder="Velg mal..."
-          />
-          <Input
-            label="Tittel"
-            placeholder="F.eks. Monter brannventiler i 5. etasje"
-            value={tittel}
-            onChange={(e) => setTittel(e.target.value)}
-            required
-          />
-          <Textarea
-            label="Beskrivelse"
-            placeholder="Beskriv oppgaven..."
-            value={beskrivelse}
-            onChange={(e) => setBeskrivelse(e.target.value)}
-          />
-          <Select
-            label="Prioritet"
-            options={prioriteter}
-            value={prioritet}
-            onChange={(e) => setPrioritet(e.target.value as "low" | "medium" | "high" | "critical")}
-          />
-          <Select
-            label="Oppretter-entreprise"
-            options={oppretterAlternativer}
-            value={valgtOppretter}
-            onChange={(e) => setValgtOppretter(e.target.value)}
-            placeholder="Velg entreprise..."
-          />
-          <Select
-            label="Ansvarlig entreprise (svarer)"
-            options={svarerAlternativer}
-            value={valgtSvarer}
-            onChange={(e) => setValgtSvarer(e.target.value)}
-            placeholder="Velg entreprise..."
-          />
-          <div className="flex gap-3 pt-2">
-            <Button type="submit" loading={opprettMutation.isPending}>
-              Opprett
-            </Button>
-            <Button type="button" variant="secondary" onClick={() => setVisModal(false)}>
-              Avbryt
-            </Button>
-          </div>
-        </form>
+      <Modal open={visModal} onClose={() => setVisModal(false)} title="Velg oppgavemal">
+        <div className="space-y-1">
+          {oppgaveMaler.length === 0 ? (
+            <p className="py-4 text-center text-sm text-gray-400">Ingen oppgavemaler tilgjengelig</p>
+          ) : (
+            oppgaveMaler.map((m) => (
+              <button
+                key={m.id}
+                onClick={() => handleOpprettFraMal(m.id)}
+                disabled={opprettMutation.isPending}
+                className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left hover:bg-gray-50 disabled:opacity-50"
+              >
+                <span className="text-sm font-medium text-gray-800">{m.name}</span>
+                {m.prefix && (
+                  <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs font-medium text-gray-500">{m.prefix}</span>
+                )}
+              </button>
+            ))
+          )}
+        </div>
       </Modal>
     </div>
   );
