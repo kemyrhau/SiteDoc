@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback } from "react";
 import { Modal, Button } from "@sitedoc/ui";
 import { trpc } from "@/lib/trpc";
-import { MapPin, X } from "lucide-react";
+import { MapPin, X, ZoomIn, ZoomOut, RotateCcw } from "lucide-react";
 
 interface LokasjonVelgerProps {
   prosjektId: string;
@@ -37,7 +37,12 @@ export function LokasjonVelger({
   const [valgtBygningId, setValgtBygningId] = useState<string>("");
   const [valgtTegningId, setValgtTegningId] = useState<string>("");
   const [punkt, setPunkt] = useState<{ x: number; y: number } | null>(null);
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [isPanning, setIsPanning] = useState(false);
+  const panStart = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
   const imgRef = useRef<HTMLImageElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const { data: bygninger } = trpc.bygning.hentForProsjekt.useQuery(
     { projectId: prosjektId },
@@ -68,19 +73,46 @@ export function LokasjonVelger({
     setValgtBygningId("");
     setValgtTegningId(tegningId ?? "");
     setPunkt(positionX != null && positionY != null ? { x: positionX, y: positionY } : null);
+    setZoom(1);
+    setPan({ x: 0, y: 0 });
     setOpen(true);
   }
 
   const handleImgKlikk = useCallback(
-    (e: React.MouseEvent<HTMLImageElement>) => {
-      if (!visPosisjon || !imgRef.current) return;
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      if (!visPosisjon || !imgRef.current || isPanning) return;
       const rect = imgRef.current.getBoundingClientRect();
       const x = ((e.clientX - rect.left) / rect.width) * 100;
       const y = ((e.clientY - rect.top) / rect.height) * 100;
       setPunkt({ x: Math.max(0, Math.min(100, x)), y: Math.max(0, Math.min(100, y)) });
     },
-    [visPosisjon],
+    [visPosisjon, isPanning],
   );
+
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    e.preventDefault();
+    setZoom((prev) => Math.max(1, Math.min(10, prev * (e.deltaY < 0 ? 1.15 : 0.87))));
+  }, []);
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    if (e.button !== 0) return;
+    // Kun pan når zoomet inn
+    if (zoom <= 1) return;
+    setIsPanning(true);
+    panStart.current = { x: e.clientX, y: e.clientY, panX: pan.x, panY: pan.y };
+  }, [zoom, pan]);
+
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!isPanning) return;
+    setPan({
+      x: panStart.current.panX + (e.clientX - panStart.current.x),
+      y: panStart.current.panY + (e.clientY - panStart.current.y),
+    });
+  }, [isPanning]);
+
+  const handleMouseUp = useCallback(() => {
+    setIsPanning(false);
+  }, []);
 
   function handleLagre() {
     const tegning = tegninger.find((t) => t.id === valgtTegningId);
@@ -165,22 +197,43 @@ export function LokasjonVelger({
             </select>
           </div>
 
-          {/* Tegningsvisning med klikk-plassering */}
+          {/* Tegningsvisning med zoom/pan og klikk-plassering */}
           {tegningUrl && (
-            <div className="relative overflow-hidden rounded-lg border border-gray-200 bg-gray-100">
-              <img
-                ref={imgRef}
-                src={tegningUrl}
-                alt="Tegning"
-                className={`w-full ${visPosisjon ? "cursor-crosshair" : ""}`}
+            <div>
+              <div
+                ref={containerRef}
+                className="relative overflow-hidden rounded-lg border border-gray-200 bg-gray-100"
+                style={{ maxHeight: 400, cursor: zoom > 1 ? (isPanning ? "grabbing" : "grab") : (visPosisjon ? "crosshair" : "default") }}
+                onWheel={handleWheel}
+                onMouseDown={handleMouseDown}
+                onMouseMove={handleMouseMove}
+                onMouseUp={handleMouseUp}
+                onMouseLeave={handleMouseUp}
                 onClick={handleImgKlikk}
-              />
-              {punkt && visPosisjon && (
-                <div
-                  className="pointer-events-none absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-red-500 shadow"
-                  style={{ left: `${punkt.x}%`, top: `${punkt.y}%` }}
-                />
-              )}
+              >
+                <div style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`, transformOrigin: "center center", transition: isPanning ? "none" : "transform 0.1s" }}>
+                  <img
+                    ref={imgRef}
+                    src={tegningUrl}
+                    alt="Tegning"
+                    className="w-full"
+                    draggable={false}
+                  />
+                  {punkt && visPosisjon && (
+                    <div
+                      className="pointer-events-none absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-red-500 shadow"
+                      style={{ left: `${punkt.x}%`, top: `${punkt.y}%` }}
+                    />
+                  )}
+                </div>
+              </div>
+              <div className="mt-1.5 flex items-center gap-1">
+                <button type="button" onClick={() => setZoom((z) => Math.min(10, z * 1.3))} className="rounded p-1 text-gray-400 hover:bg-gray-100"><ZoomIn className="h-4 w-4" /></button>
+                <button type="button" onClick={() => setZoom((z) => Math.max(1, z / 1.3))} className="rounded p-1 text-gray-400 hover:bg-gray-100"><ZoomOut className="h-4 w-4" /></button>
+                <button type="button" onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }} className="rounded p-1 text-gray-400 hover:bg-gray-100"><RotateCcw className="h-4 w-4" /></button>
+                <span className="ml-1 text-[10px] text-gray-400">{Math.round(zoom * 100)}%</span>
+                {visPosisjon && <span className="ml-auto text-[10px] text-gray-400">Scroll for å zoome · Klikk for å plassere punkt</span>}
+              </div>
             </div>
           )}
 
