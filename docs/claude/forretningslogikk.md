@@ -28,7 +28,11 @@ Prosjektomfattende dokumentflyt under Innstillinger > Feltarbeid > Dokumentflyt:
 - **Modell:** `Dokumentflyt` → `DokumentflytMedlem` (rolle + steg + enterpriseId/projectMemberId/groupId) + `DokumentflytMal` (maltilknytning)
 - Sjekklister/oppgaver knyttes via `dokumentflytId` (og bakoverkompatibelt `workflowId`)
 - Emne: malen har `subjects`-array → nedtrekksmeny. Uten → fritekst/skjult
-- **Planlagt:** HMS-avvik som egen dokumentflyt (alle kan opprette)
+- **Mottaker ved «Send»:** Bruker velger mottaker (person/gruppe) ved sending. Lagres i `recipientUserId`/`recipientGroupId` på dokument + `DocumentTransfer`
+- **Auto-mottatt:** `sent` → `received` skjer automatisk (ingen manuell "Motta"-klikk). Mottaker ser dokumentet som arbeidsordre umiddelbart
+- **Videresending:** Mottatte og under arbeid-dokumenter kan videresendes til annen person/gruppe med kommentar. Dokumentet forblir i `received`-status men mottaker oppdateres
+- **Gruppevisning i dropdown:** Bruker-dropdown i dokumentflyt-oppsett viser gruppemedlemskap: «Kenneth Myrhaug · Byggherre, Tømrer»
+- **Planlagt:** HMS-avvik som egen dokumentflyt, intern godkjenning (ansatt → fagleder → TE), varsling
 
 ### Bakoverkompatibilitet
 - Gammel `arbeidsforlop`-router beholdt som alias i tRPC
