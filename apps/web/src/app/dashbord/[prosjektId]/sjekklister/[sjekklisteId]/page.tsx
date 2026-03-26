@@ -372,7 +372,7 @@ export default function SjekklisteDetaljSide() {
         <div className="mt-3 print-skjul">
           <StatusHandlinger
             status={sjekkliste.status}
-            erLaster={endreStatusMutasjon.isPending}
+            erLaster={endreStatusMutasjon.isPending || slettMutasjon.isPending}
             onEndreStatus={(nyStatus, kommentar) => {
               endreStatusMutasjon.mutate({
                 id: params.sjekklisteId,
@@ -381,6 +381,7 @@ export default function SjekklisteDetaljSide() {
                 kommentar,
               });
             }}
+            onSlett={() => slettMutasjon.mutate({ id: params.sjekklisteId })}
           />
         </div>
       </div>

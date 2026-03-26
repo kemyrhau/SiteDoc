@@ -2,7 +2,7 @@ import type { DocumentStatus } from "../types";
 
 export interface StatusHandling {
   tekst: string;
-  nyStatus: DocumentStatus;
+  nyStatus: DocumentStatus | "deleted";
   farge: string;
   aktivFarge: string;
 }
@@ -15,7 +15,7 @@ export function hentStatusHandlinger(status: string): StatusHandling[] {
   const handlinger: Record<string, StatusHandling[]> = {
     draft: [
       { tekst: "Send", nyStatus: "sent", farge: "bg-blue-600", aktivFarge: "bg-blue-400" },
-      { tekst: "Avbryt", nyStatus: "cancelled", farge: "bg-red-600", aktivFarge: "bg-red-400" },
+      { tekst: "Slett", nyStatus: "deleted", farge: "bg-red-600", aktivFarge: "bg-red-400" },
     ],
     sent: [
       { tekst: "Motta", nyStatus: "received", farge: "bg-blue-600", aktivFarge: "bg-blue-400" },
