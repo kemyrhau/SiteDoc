@@ -323,7 +323,7 @@ export const sjekklisteRouter = router({
     .input(
       z.object({
         id: z.string().uuid(),
-        nyStatus: documentStatusSchema,
+        nyStatus: z.union([documentStatusSchema, z.literal("forwarded")]),
         senderId: z.string().uuid(),
         kommentar: z.string().optional(),
         recipientUserId: z.string().uuid().optional(),
@@ -344,6 +344,34 @@ export const sjekklisteRouter = router({
         sjekkliste.responderEnterpriseId,
         sjekkliste.template.domain,
       );
+
+      // Videresending
+      if (input.nyStatus === "forwarded") {
+        if (!input.recipientUserId && !input.recipientGroupId) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Videresending krever en mottaker" });
+        }
+        return ctx.prisma.$transaction(async (tx) => {
+          const oppdatert = await tx.checklist.update({
+            where: { id: input.id },
+            data: {
+              recipientUserId: input.recipientUserId ?? null,
+              recipientGroupId: input.recipientGroupId ?? null,
+            },
+          });
+          await tx.documentTransfer.create({
+            data: {
+              checklistId: input.id,
+              senderId: ctx.userId,
+              fromStatus: sjekkliste.status,
+              toStatus: "received",
+              comment: input.kommentar ? `Videresendt: ${input.kommentar}` : "Videresendt",
+              recipientUserId: input.recipientUserId,
+              recipientGroupId: input.recipientGroupId,
+            },
+          });
+          return oppdatert;
+        });
+      }
 
       if (!isValidStatusTransition(sjekkliste.status, input.nyStatus)) {
         throw new TRPCError({

@@ -2,7 +2,7 @@ import type { DocumentStatus } from "../types";
 
 export interface StatusHandling {
   tekst: string;
-  nyStatus: DocumentStatus | "deleted";
+  nyStatus: DocumentStatus | "deleted" | "forwarded";
   farge: string;
   aktivFarge: string;
 }
@@ -23,10 +23,12 @@ export function hentStatusHandlinger(status: string): StatusHandling[] {
     ],
     received: [
       { tekst: "Start arbeid", nyStatus: "in_progress", farge: "bg-amber-500", aktivFarge: "bg-amber-400" },
+      { tekst: "Videresend", nyStatus: "forwarded", farge: "bg-gray-500", aktivFarge: "bg-gray-400" },
       { tekst: "Avbryt", nyStatus: "cancelled", farge: "bg-red-600", aktivFarge: "bg-red-400" },
     ],
     in_progress: [
       { tekst: "Besvar", nyStatus: "responded", farge: "bg-purple-600", aktivFarge: "bg-purple-400" },
+      { tekst: "Videresend", nyStatus: "forwarded", farge: "bg-gray-500", aktivFarge: "bg-gray-400" },
       { tekst: "Avbryt", nyStatus: "cancelled", farge: "bg-red-600", aktivFarge: "bg-red-400" },
     ],
     responded: [

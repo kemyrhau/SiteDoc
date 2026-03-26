@@ -55,6 +55,8 @@ export function StatusHandlinger({ status, erLaster, onEndreStatus, onSlett, mot
           mottaker = { groupId: valgtMottaker.slice(2) };
         }
       }
+      // Videresend krever mottaker
+      if (nyStatus === "forwarded" && !mottaker) return;
       onEndreStatus(nyStatus, kommentar.trim() || undefined, mottaker);
       setBekreftHandling(null);
       setKommentar("");
@@ -72,7 +74,7 @@ export function StatusHandlinger({ status, erLaster, onEndreStatus, onSlett, mot
     setValgtMottaker("");
   };
 
-  const visMottakerVelger = bekreftHandling === "sent" && mottakerValg &&
+  const visMottakerVelger = (bekreftHandling === "sent" || bekreftHandling === "forwarded") && mottakerValg &&
     (mottakerValg.personer.length > 0 || mottakerValg.grupper.length > 0);
 
   return (
@@ -112,7 +114,7 @@ export function StatusHandlinger({ status, erLaster, onEndreStatus, onSlett, mot
               onChange={(e) => setValgtMottaker(e.target.value)}
               className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
             >
-              <option value="">Velg mottaker (valgfritt)...</option>
+              <option value="">{bekreftHandling === "forwarded" ? "Velg mottaker..." : "Velg mottaker (valgfritt)..."}</option>
               {mottakerValg!.grupper.length > 0 && (
                 <optgroup label="Grupper">
                   {mottakerValg!.grupper.map((g) => (
