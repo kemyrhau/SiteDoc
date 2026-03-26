@@ -477,10 +477,10 @@ export const oppgaveRouter = router({
         oppgave.template?.domain,
       );
 
-      if (oppgave.status !== "draft") {
+      if (oppgave.status !== "draft" && oppgave.status !== "cancelled") {
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: "Kun oppgaver i utkast-status kan slettes",
+          message: "Kun oppgaver i utkast- eller avbrutt-status kan slettes",
         });
       }
 
