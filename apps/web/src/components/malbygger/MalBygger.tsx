@@ -46,6 +46,7 @@ interface MalData {
   category?: string;
   subjects?: unknown;
   showSubject?: boolean;
+  showEnterprise?: boolean;
   showLocation?: boolean;
   objects: Array<{
     id: string;
@@ -674,8 +675,21 @@ export function MalBygger({ mal }: MalByggerProps) {
               {/* Oppretter-entreprise */}
               <div className="flex items-center gap-2 rounded-md border border-dashed border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-500">
                 <Building2 className="h-4 w-4 shrink-0 text-gray-400" />
-                <span>Oppretter-entreprise</span>
-                <span className="ml-auto text-xs text-gray-400">Påkrevd ved opprettelse</span>
+                <span className={mal.showEnterprise === false ? "line-through text-gray-300" : ""}>Oppretter-entreprise</span>
+                <span className="text-xs text-gray-400">
+                  {mal.showEnterprise === false ? "Skjult — settes automatisk" : "Velges ved opprettelse"}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => oppdaterMalMutation.mutate({ id: mal.id, showEnterprise: !(mal.showEnterprise !== false) })}
+                  className="ml-auto rounded p-1 hover:bg-gray-200"
+                  title={mal.showEnterprise === false ? "Vis entreprise-felt" : "Skjul entreprise-felt"}
+                >
+                  {mal.showEnterprise === false
+                    ? <EyeOff className="h-3.5 w-3.5 text-gray-400" />
+                    : <Eye className="h-3.5 w-3.5 text-gray-400" />
+                  }
+                </button>
               </div>
               {/* Lokasjon */}
               <div className="flex items-center gap-2 rounded-md border border-dashed border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-500">
