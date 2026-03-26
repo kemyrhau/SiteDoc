@@ -483,6 +483,7 @@ model Task {
   status               String    @default("draft")
   title                String
   description          String?
+  subject              String?
   number               Int?      @map("number")
   priority             String    @default("medium")
   dueDate              DateTime? @map("due_date")
