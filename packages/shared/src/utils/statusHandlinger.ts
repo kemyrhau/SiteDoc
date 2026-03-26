@@ -35,6 +35,7 @@ export function hentStatusHandlinger(status: string): StatusHandling[] {
     ],
     rejected: [{ tekst: "Start arbeid igjen", nyStatus: "in_progress", farge: "bg-amber-500", aktivFarge: "bg-amber-400" }],
     approved: [{ tekst: "Lukk", nyStatus: "closed", farge: "bg-gray-500", aktivFarge: "bg-gray-400" }],
+    cancelled: [{ tekst: "Slett", nyStatus: "deleted", farge: "bg-red-600", aktivFarge: "bg-red-400" }],
   };
   return handlinger[status] ?? [];
 }
