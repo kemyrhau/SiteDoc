@@ -25,8 +25,11 @@ model User {
   projects             ProjectMember[]
   createdChecklists    Checklist[]        @relation("ChecklistCreator")
   createdTasks         Task[]             @relation("TaskCreator")
-  sentTransfers        DocumentTransfer[] @relation("TransferSender")
-  drawingRevisions     DrawingRevision[]  @relation("DrawingRevisionUploader")
+  sentTransfers          DocumentTransfer[] @relation("TransferSender")
+  receivedTransfers      DocumentTransfer[] @relation("TransferRecipient")
+  recipientChecklists    Checklist[]        @relation("ChecklistRecipient")
+  recipientTasks         Task[]             @relation("TaskRecipient")
+  drawingRevisions       DrawingRevision[]  @relation("DrawingRevisionUploader")
   sentInvitations      ProjectInvitation[] @relation("InvitationSender")
   folderAccess         FolderAccess[]
   taskComments         TaskComment[]
@@ -189,7 +192,10 @@ model ProjectGroup {
   invitations           ProjectInvitation[]
   folderAccess          FolderAccess[]
   groupEnterprises      GroupEnterprise[]
-  dokumentflytMedlemmer DokumentflytMedlem[]
+  dokumentflytMedlemmer  DokumentflytMedlem[]
+  recipientTransfers     DocumentTransfer[]   @relation("TransferRecipientGroup")
+  recipientChecklists    Checklist[]          @relation("ChecklistRecipientGroup")
+  recipientTasks         Task[]               @relation("TaskRecipientGroup")
 
   @@unique([projectId, slug])
   @@map("project_groups")
@@ -445,6 +451,8 @@ model Checklist {
   subject              String?
   buildingId           String?  @map("building_id")
   drawingId            String?  @map("drawing_id")
+  recipientUserId      String?  @map("recipient_user_id")
+  recipientGroupId     String?  @map("recipient_group_id")
   createdAt            DateTime @default(now()) @map("created_at")
   updatedAt            DateTime @updatedAt @map("updated_at")
 
@@ -456,6 +464,8 @@ model Checklist {
   dokumentflyt       Dokumentflyt?      @relation(fields: [dokumentflytId], references: [id], onDelete: SetNull)
   building           Building?          @relation(fields: [buildingId], references: [id], onDelete: SetNull)
   drawing            Drawing?           @relation(fields: [drawingId], references: [id], onDelete: SetNull)
+  recipientUser      User?              @relation("ChecklistRecipient", fields: [recipientUserId], references: [id], onDelete: SetNull)
+  recipientGroup     ProjectGroup?      @relation("ChecklistRecipientGroup", fields: [recipientGroupId], references: [id], onDelete: SetNull)
   transfers          DocumentTransfer[]
   images             Image[]
   tasks              Task[]
@@ -484,6 +494,8 @@ model Task {
   checklistId          String?   @map("checklist_id")
   checklistFieldId     String?   @map("checklist_field_id")
   data                 Json?
+  recipientUserId      String?  @map("recipient_user_id")
+  recipientGroupId     String?  @map("recipient_group_id")
   createdAt            DateTime  @default(now()) @map("created_at")
   updatedAt            DateTime  @updatedAt @map("updated_at")
 
@@ -495,6 +507,8 @@ model Task {
   workflow           Workflow?          @relation(fields: [workflowId], references: [id], onDelete: SetNull)
   dokumentflyt       Dokumentflyt?      @relation(fields: [dokumentflytId], references: [id], onDelete: SetNull)
   checklist          Checklist?         @relation(fields: [checklistId], references: [id], onDelete: SetNull)
+  recipientUser      User?              @relation("TaskRecipient", fields: [recipientUserId], references: [id], onDelete: SetNull)
+  recipientGroup     ProjectGroup?      @relation("TaskRecipientGroup", fields: [recipientGroupId], references: [id], onDelete: SetNull)
   transfers          DocumentTransfer[]
   images             Image[]
   comments           TaskComment[]
@@ -503,18 +517,22 @@ model Task {
 }
 
 model DocumentTransfer {
-  id           String   @id @default(uuid())
-  checklistId  String?  @map("checklist_id")
-  taskId       String?  @map("task_id")
-  senderId     String   @map("sender_id")
-  fromStatus   String   @map("from_status")
-  toStatus     String   @map("to_status")
-  comment      String?
-  createdAt    DateTime @default(now()) @map("created_at")
+  id               String   @id @default(uuid())
+  checklistId      String?  @map("checklist_id")
+  taskId           String?  @map("task_id")
+  senderId         String   @map("sender_id")
+  recipientUserId  String?  @map("recipient_user_id")
+  recipientGroupId String?  @map("recipient_group_id")
+  fromStatus       String   @map("from_status")
+  toStatus         String   @map("to_status")
+  comment          String?
+  createdAt        DateTime @default(now()) @map("created_at")
 
-  checklist Checklist? @relation(fields: [checklistId], references: [id])
-  task      Task?      @relation(fields: [taskId], references: [id])
-  sender    User       @relation("TransferSender", fields: [senderId], references: [id])
+  checklist      Checklist?    @relation(fields: [checklistId], references: [id])
+  task           Task?         @relation(fields: [taskId], references: [id])
+  sender         User          @relation("TransferSender", fields: [senderId], references: [id])
+  recipientUser  User?         @relation("TransferRecipient", fields: [recipientUserId], references: [id], onDelete: SetNull)
+  recipientGroup ProjectGroup? @relation("TransferRecipientGroup", fields: [recipientGroupId], references: [id], onDelete: SetNull)
 
   @@map("document_transfers")
 }

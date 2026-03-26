@@ -326,6 +326,8 @@ export const sjekklisteRouter = router({
         nyStatus: documentStatusSchema,
         senderId: z.string().uuid(),
         kommentar: z.string().optional(),
+        recipientUserId: z.string().uuid().optional(),
+        recipientGroupId: z.string().uuid().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -356,7 +358,13 @@ export const sjekklisteRouter = router({
       return ctx.prisma.$transaction(async (tx) => {
         const oppdatert = await tx.checklist.update({
           where: { id: input.id },
-          data: { status: effektivStatus },
+          data: {
+            status: effektivStatus,
+            ...(input.nyStatus === "sent" ? {
+              recipientUserId: input.recipientUserId ?? null,
+              recipientGroupId: input.recipientGroupId ?? null,
+            } : {}),
+          },
         });
 
         await tx.documentTransfer.create({
@@ -366,6 +374,8 @@ export const sjekklisteRouter = router({
             fromStatus: sjekkliste.status,
             toStatus: "sent",
             comment: input.kommentar,
+            recipientUserId: input.recipientUserId,
+            recipientGroupId: input.recipientGroupId,
           },
         });
 

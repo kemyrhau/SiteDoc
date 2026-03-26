@@ -102,6 +102,34 @@ export default function SjekklisteDetaljSide() {
     },
   });
 
+  // Mottaker-valg
+  const { data: _prosjektMedlemmer } = trpc.medlem.hentForProsjekt.useQuery(
+    { projectId: params.prosjektId },
+  );
+  const { data: _prosjektGrupper } = trpc.gruppe.hentForProsjekt.useQuery(
+    { projectId: params.prosjektId },
+  );
+  const mottakerValg = (() => {
+    const medlemGruppeMap = new Map<string, string[]>();
+    const grupperRå = (_prosjektGrupper ?? []) as Array<{ id: string; name: string; members: Array<{ projectMember: { id: string } }> }>;
+    for (const g of grupperRå) {
+      for (const m of g.members ?? []) {
+        const pmId = m.projectMember?.id;
+        if (!pmId) continue;
+        const eks = medlemGruppeMap.get(pmId) ?? [];
+        eks.push(g.name);
+        medlemGruppeMap.set(pmId, eks);
+      }
+    }
+    const personer = ((_prosjektMedlemmer ?? []) as Array<{ id: string; user: { id: string; name: string | null; email: string } }>).map((m) => ({
+      id: m.user.id,
+      navn: m.user.name ?? m.user.email,
+      grupper: medlemGruppeMap.get(m.id)?.join(", "),
+    }));
+    const grupper = grupperRå.map((g) => ({ id: g.id, navn: g.name }));
+    return { personer, grupper };
+  })();
+
   // Hent entrepriser for redigering
   const { data: mineEntrepriser } = trpc.medlem.hentMineEntrepriser.useQuery(
     { projectId: params.prosjektId },
@@ -392,15 +420,18 @@ export default function SjekklisteDetaljSide() {
           <StatusHandlinger
             status={sjekkliste.status}
             erLaster={endreStatusMutasjon.isPending || slettMutasjon.isPending}
-            onEndreStatus={(nyStatus, kommentar) => {
+            onEndreStatus={(nyStatus, kommentar, mottaker) => {
               endreStatusMutasjon.mutate({
                 id: params.sjekklisteId,
                 nyStatus: nyStatus as "draft" | "sent" | "received" | "in_progress" | "responded" | "approved" | "rejected" | "closed" | "cancelled",
                 senderId: sjekkliste.id,
                 kommentar,
+                recipientUserId: mottaker?.userId,
+                recipientGroupId: mottaker?.groupId,
               });
             }}
             onSlett={() => slettMutasjon.mutate({ id: params.sjekklisteId })}
+            mottakerValg={mottakerValg}
           />
         </div>
       </div>
