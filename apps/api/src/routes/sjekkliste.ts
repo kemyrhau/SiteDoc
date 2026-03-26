@@ -32,7 +32,7 @@ export const sjekklisteRouter = router({
           ...(tilgangsFilter ?? {}),
         },
         include: {
-          template: true,
+          template: { include: { objects: { select: { id: true, label: true, type: true, config: true } } } },
           creatorEnterprise: true,
           responderEnterprise: true,
           creator: true,
