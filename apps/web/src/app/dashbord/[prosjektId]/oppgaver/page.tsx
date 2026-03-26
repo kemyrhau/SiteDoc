@@ -36,7 +36,9 @@ export default function OppgaverSide() {
   );
   const oppgaver = oppgaveQuery.data as Array<{
     id: string; title: string; status: string; priority: string;
+    number: number | null;
     dueDate: string | null; description: string | null;
+    template: { prefix: string | null; name: string } | null;
     responderEnterprise: { name: string };
   }> | undefined;
   const isLoading = oppgaveQuery.isLoading;
@@ -94,11 +96,12 @@ export default function OppgaverSide() {
     const svarer = matchDf?.medlemmer.find((m) => m.rolle === "svarer");
     const svarerEntrepriseId = svarer?.enterprise?.id ?? oppretter.id;
 
+    const mal = oppgaveMaler.find((m) => m.id === malId);
     opprettMutation.mutate({
       templateId: malId,
       creatorEnterpriseId: oppretter.id,
       responderEnterpriseId: svarerEntrepriseId,
-      title: "Ny oppgave",
+      title: mal?.name ?? "Ny oppgave",
       priority: "medium",
       workflowId: matchDf?.id,
     });
@@ -121,10 +124,12 @@ export default function OppgaverSide() {
   type OppgaveRad = {
     id: string;
     title: string;
+    number: number | null;
     status: string;
     priority: string;
     dueDate: string | null;
     description: string | null;
+    template: { prefix: string | null; name: string } | null;
     responderEnterprise: { name: string };
   };
 
@@ -143,14 +148,20 @@ export default function OppgaverSide() {
             {
               id: "title",
               header: "Tittel",
-              celle: (rad) => (
-                <div className="flex items-center gap-2">
-                  <span className="font-medium text-gray-900">{rad.title}</span>
-                  <Badge variant={prioritetFarge[rad.priority] ?? "default"}>
-                    {prioriteter.find((p) => p.value === rad.priority)?.label ?? rad.priority}
-                  </Badge>
-                </div>
-              ),
+              celle: (rad) => {
+                const prefiks = rad.template?.prefix && rad.number
+                  ? `${rad.template.prefix}-${String(rad.number).padStart(3, "0")}`
+                  : null;
+                return (
+                  <div className="flex items-center gap-2">
+                    {prefiks && <span className="text-xs font-medium text-gray-400">{prefiks}</span>}
+                    <span className="font-medium text-gray-900">{rad.title}</span>
+                    <Badge variant={prioritetFarge[rad.priority] ?? "default"}>
+                      {prioriteter.find((p) => p.value === rad.priority)?.label ?? rad.priority}
+                    </Badge>
+                  </div>
+                );
+              },
             },
             {
               id: "responder",
