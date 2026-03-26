@@ -53,6 +53,7 @@ export function useSjekklisteSkjema(sjekklisteId: string): UseSjekklisteSkjemaRe
   feltVerdierRef.current = feltVerdier;
 
   const utils = trpc.useUtils();
+  const slettBildeMutation = trpc.bilde.slettMedUrl.useMutation();
 
   // Hent sjekklistedata
   const sjekklisteQuery = trpc.sjekkliste.hentMedId.useQuery(
@@ -186,6 +187,9 @@ export function useSjekklisteSkjema(sjekklisteId: string): UseSjekklisteSkjemaRe
 
   const fjernVedlegg = useCallback(
     (objektId: string, vedleggId: string) => {
+      const vedleggListe = feltVerdierRef.current[objektId]?.vedlegg ?? [];
+      const vedlegg = vedleggListe.find((v) => v.id === vedleggId);
+
       settFeltVerdier((prev) => {
         const nåværende = prev[objektId] ?? TOM_FELTVERDI;
         return {
@@ -197,8 +201,15 @@ export function useSjekklisteSkjema(sjekklisteId: string): UseSjekklisteSkjemaRe
         };
       });
       planleggLagring();
+
+      if (vedlegg?.url) {
+        const projectId = (sjekkliste as unknown as { template?: { projectId?: string } })?.template?.projectId;
+        if (projectId) {
+          slettBildeMutation.mutate({ fileUrl: vedlegg.url, projectId });
+        }
+      }
     },
-    [planleggLagring],
+    [planleggLagring, sjekkliste, slettBildeMutation],
   );
 
   // Rekursiv betinget synlighet (sjekker hele foreldrekjeden, maks 10 nivåer)
