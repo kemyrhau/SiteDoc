@@ -133,7 +133,7 @@ function formaterAnsvarlig(rad: OppgaveRad): string {
 
 function formaterDato(dato: string | null): string {
   if (!dato) return "—";
-  return new Date(dato).toLocaleDateString("nb-NO", { day: "numeric", month: "short" });
+  return new Date(dato).toLocaleDateString("nb-NO", { day: "numeric", month: "short", year: "numeric" });
 }
 
 // --- Komponent ---
