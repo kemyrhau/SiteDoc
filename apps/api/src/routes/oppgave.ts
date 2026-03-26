@@ -89,7 +89,11 @@ export const oppgaveRouter = router({
           creator: true,
           creatorEnterprise: true,
           responderEnterprise: true,
-          drawing: true,
+          drawing: {
+            include: {
+              building: { select: { id: true, name: true } },
+            },
+          },
           checklist: {
             include: {
               template: { select: { prefix: true, name: true } },

@@ -87,8 +87,7 @@ export default function UtskriftOppgaveSide() {
     creatorEnterprise?: { name: string } | null;
     responderEnterprise?: { name: string } | null;
     creator?: { name?: string | null } | null;
-    building?: { id: string; name: string } | null;
-    drawing?: { id: string; name: string; drawingNumber: string | null } | null;
+    drawing?: { id: string; name: string; drawingNumber: string | null; building?: { id: string; name: string } | null } | null;
   } | undefined;
 
   const { data: prosjekt } = trpc.prosjekt.hentMedId.useQuery(
@@ -189,13 +188,10 @@ export default function UtskriftOppgaveSide() {
                 {prosjekt?.address && (
                   <p className="text-xs text-gray-500">Adresse: {prosjekt.address}</p>
                 )}
-                {(oppgave.building || oppgave.drawing) && (
+                {oppgave.drawing && (
                   <p className="text-xs text-gray-500">
-                    {oppgave.building && <>Lokasjon: {oppgave.building.name}</>}
-                    {oppgave.building && oppgave.drawing && <> &middot; </>}
-                    {oppgave.drawing && (
-                      <>Tegning: {oppgave.drawing.drawingNumber ? `${oppgave.drawing.drawingNumber} ` : ""}{oppgave.drawing.name}</>
-                    )}
+                    {oppgave.drawing.building && <>Lokasjon: {oppgave.drawing.building.name} &middot; </>}
+                    Tegning: {oppgave.drawing.drawingNumber ? `${oppgave.drawing.drawingNumber} ` : ""}{oppgave.drawing.name}
                   </p>
                 )}
               </div>
