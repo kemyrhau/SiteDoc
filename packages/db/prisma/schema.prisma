@@ -390,8 +390,9 @@ model ReportTemplate {
   category    String   @default("sjekkliste") // "oppgave" | "sjekkliste"
   domain      String   @default("bygg")      // "bygg" | "hms" | "kvalitet"
   subjects    Json?    @default("[]")         // Forhåndsdefinerte emnetekster ["3. etasje", "Kjeller", ...]
-  showSubject   Boolean  @default(true)  @map("show_subject")
-  showLocation  Boolean  @default(true)  @map("show_location")
+  showSubject    Boolean  @default(true)  @map("show_subject")
+  showEnterprise Boolean  @default(true)  @map("show_enterprise")
+  showLocation   Boolean  @default(true)  @map("show_location")
   version        Int      @default(1)
   enableChangeLog Boolean @default(false) @map("enable_change_log")
   createdAt      DateTime @default(now()) @map("created_at")
