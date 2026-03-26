@@ -7,6 +7,15 @@
 - **React Query invalidering:** Invalider query-cache etter mutasjoner
 - **`InteractionManager.runAfterInteractions`:** MÅ brukes etter kamera/picker lukkes
 
+## Opprettelsesflyt
+
+`OpprettDokumentModal` — brukes for både sjekklister og oppgaver. Automatisk utledning:
+- **Entreprise**: Auto-velges hvis bruker kun er i 1 entreprise
+- **Svarer**: Auto fra arbeidsforløp/dokumentflyt (read-only)
+- **Tittel**: Auto-generert i API (malnavn + løpenummer)
+- **Lokasjon**: IKKE i opprettelsesmodal — settes fra tegning ved klikk, eller kobles etterpå
+- Etter opprettelse navigeres til detaljskjermen for umiddelbar registrering
+
 ## Statusendring
 
 Sjekkliste-/oppgave-detaljskjermen har kontekstuelle statusknapper i bunnpanelet:
