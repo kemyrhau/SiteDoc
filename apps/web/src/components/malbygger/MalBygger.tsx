@@ -46,6 +46,7 @@ interface MalData {
   category?: string;
   subjects?: unknown;
   showSubject?: boolean;
+  showLocation?: boolean;
   objects: Array<{
     id: string;
     type: string;
@@ -679,8 +680,21 @@ export function MalBygger({ mal }: MalByggerProps) {
               {/* Lokasjon */}
               <div className="flex items-center gap-2 rounded-md border border-dashed border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-500">
                 <MapPin className="h-4 w-4 shrink-0 text-gray-400" />
-                <span>Lokasjon</span>
-                <span className="ml-auto text-xs text-gray-400">Settes automatisk fra valgt bygning/tegning</span>
+                <span className={mal.showLocation === false ? "line-through text-gray-300" : ""}>Lokasjon</span>
+                <span className="text-xs text-gray-400">
+                  {mal.showLocation === false ? "Skjult" : "Settes automatisk fra valgt bygning/tegning"}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => oppdaterMalMutation.mutate({ id: mal.id, showLocation: !(mal.showLocation !== false) })}
+                  className="ml-auto rounded p-1 hover:bg-gray-200"
+                  title={mal.showLocation === false ? "Vis lokasjon-felt" : "Skjul lokasjon-felt"}
+                >
+                  {mal.showLocation === false
+                    ? <EyeOff className="h-3.5 w-3.5 text-gray-400" />
+                    : <Eye className="h-3.5 w-3.5 text-gray-400" />
+                  }
+                </button>
               </div>
             </div>
           </div>
