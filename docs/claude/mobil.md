@@ -9,12 +9,18 @@
 
 ## Opprettelsesflyt
 
-`OpprettDokumentModal` — brukes for både sjekklister og oppgaver. Automatisk utledning:
+`OpprettDokumentModal` — brukes for både sjekklister og oppgaver. **Ett-klikk**: når bruker har 1 entreprise og arbeidsforløp matcher, opprettes umiddelbart uten modal. Modal vises kun ved flervalg (flere entrepriser eller forhåndsdefinerte emner).
 - **Entreprise**: Auto-velges hvis bruker kun er i 1 entreprise
 - **Svarer**: Auto fra arbeidsforløp/dokumentflyt (read-only)
 - **Tittel**: Auto-generert i API (malnavn + løpenummer)
 - **Lokasjon**: IKKE i opprettelsesmodal — settes fra tegning ved klikk, eller kobles etterpå
 - Etter opprettelse navigeres til detaljskjermen for umiddelbar registrering
+
+## Bildeannotering
+
+- Annotert bilde erstatter original in-place via `erstattVedlegg()` — ingen duplikater
+- `BildeAnnotering`-komponent returnerer annotert fil → `FeltDokumentasjon` oppdaterer vedleggets URL
+- Opplastingskø håndterer ny fil med samme vedlegg-ID
 
 ## Statusendring
 
