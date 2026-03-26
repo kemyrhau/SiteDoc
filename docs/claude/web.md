@@ -113,6 +113,18 @@ Drag-and-drop i `apps/web/src/components/malbygger/`: `MalBygger`, `FeltPalett`,
 - Rekkefølge: topptekst-sone først, deretter datafelter
 - Entreprise-dropdown i opprettelse viser kun brukerens entrepriser (`hentMineEntrepriser`)
 
+## Opprettelsesflyt — ett-klikk
+
+Oppgaver og sjekklister opprettes med ett klikk — velg mal, alt annet utledes automatisk:
+- **Oppretter-entreprise**: Første fra `hentMineEntrepriser`
+- **Svarer-entreprise**: Utledes fra dokumentflyt som matcher malen og oppretter-entreprisen
+- **Tittel**: Auto-generert i API fra malnavn + løpenummer
+- **Prioritet**: Default "medium"
+- **Lokasjon**: Settes fra tegning (ved klikk) eller kobles etterpå — ALDRI i opprettelsesmodal
+- **Emne/beskrivelse**: Redigeres etterpå i detaljvisningen
+
+Etter opprettelse navigeres brukeren direkte til detaljsiden for å begynne registrering. Ingen skjemamodal med felter — kun mal-picker.
+
 ## Print-til-PDF
 
 **Print-header** (`PrintHeader`): logo, prosjektnavn, nr, adresse, dato, sjekkliste-tittel, oppretter/svarer, vær.

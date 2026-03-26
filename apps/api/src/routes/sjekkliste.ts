@@ -389,10 +389,10 @@ export const sjekklisteRouter = router({
         sjekkliste.template.domain,
       );
 
-      if (sjekkliste.status !== "draft") {
+      if (sjekkliste.status !== "draft" && sjekkliste.status !== "cancelled") {
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: "Kun sjekklister i utkast-status kan slettes",
+          message: "Kun sjekklister i utkast- eller avbrutt-status kan slettes",
         });
       }
 

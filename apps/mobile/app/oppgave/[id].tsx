@@ -522,7 +522,8 @@ export default function OppgaveDetalj() {
           </Pressable>
         </View>
 
-        {/* Prioritet */}
+        {/* Prioritet (skjulbar via mal) */}
+        {(oppgave.template as Record<string, unknown>)?.showPriority !== false && (
         <View className="rounded-lg bg-white p-4">
           <Text className="mb-2 text-xs font-medium text-gray-500">Prioritet</Text>
           <View className="flex-row gap-2">
@@ -544,6 +545,7 @@ export default function OppgaveDetalj() {
             })}
           </View>
         </View>
+        )}
 
         {/* Beskrivelse */}
         <View className="rounded-lg bg-white p-4">
