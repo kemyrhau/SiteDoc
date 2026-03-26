@@ -26,7 +26,7 @@ import { FeltKonfigurasjon } from "./FeltKonfigurasjon";
 import { DragOverlayKomponent } from "./DragOverlay_";
 import type { MalObjekt } from "./DraggbartFelt";
 import type { TreObjekt } from "./typer";
-import { MapPin, Pencil } from "lucide-react";
+import { MapPin, Pencil, FileText, Building2, Eye, EyeOff } from "lucide-react";
 
 // Hent streng-verdi fra opsjon (støtter både string og {label, value}-format)
 function opsjonTilStreng(opsjon: unknown): string {
@@ -43,6 +43,9 @@ interface MalData {
   id: string;
   name: string;
   description: string | null;
+  category?: string;
+  subjects?: unknown;
+  showSubject?: boolean;
   objects: Array<{
     id: string;
     type: string;
@@ -642,15 +645,43 @@ export function MalBygger({ mal }: MalByggerProps) {
             )}
           </div>
 
-          {/* Fast lokasjonsfelt — alltid øverst i topptekst */}
+          {/* Faste metadata-felter — vises ved opprettelse/utfylling */}
           <div className="mb-2">
             <div className="mb-1 flex items-center gap-1.5 text-xs font-medium text-gray-500 uppercase tracking-wide">
-              Fast felt
+              Faste felt
             </div>
-            <div className="flex items-center gap-2 rounded-md border border-dashed border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-500">
-              <MapPin className="h-4 w-4 shrink-0 text-gray-400" />
-              <span>Lokasjon</span>
-              <span className="ml-auto text-xs text-gray-400">Settes automatisk fra valgt bygning/tegning</span>
+            <div className="space-y-1.5">
+              {/* Emne */}
+              <div className="flex items-center gap-2 rounded-md border border-dashed border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-500">
+                <FileText className="h-4 w-4 shrink-0 text-gray-400" />
+                <span className={mal.showSubject === false ? "line-through text-gray-300" : ""}>Emne</span>
+                <span className="text-xs text-gray-400">
+                  {mal.showSubject === false ? "Skjult" : "Fritekst eller forhåndsdefinerte emner"}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => oppdaterMalMutation.mutate({ id: mal.id, showSubject: !(mal.showSubject !== false) })}
+                  className="ml-auto rounded p-1 hover:bg-gray-200"
+                  title={mal.showSubject === false ? "Vis emne-felt" : "Skjul emne-felt"}
+                >
+                  {mal.showSubject === false
+                    ? <EyeOff className="h-3.5 w-3.5 text-gray-400" />
+                    : <Eye className="h-3.5 w-3.5 text-gray-400" />
+                  }
+                </button>
+              </div>
+              {/* Oppretter-entreprise */}
+              <div className="flex items-center gap-2 rounded-md border border-dashed border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-500">
+                <Building2 className="h-4 w-4 shrink-0 text-gray-400" />
+                <span>Oppretter-entreprise</span>
+                <span className="ml-auto text-xs text-gray-400">Påkrevd ved opprettelse</span>
+              </div>
+              {/* Lokasjon */}
+              <div className="flex items-center gap-2 rounded-md border border-dashed border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-500">
+                <MapPin className="h-4 w-4 shrink-0 text-gray-400" />
+                <span>Lokasjon</span>
+                <span className="ml-auto text-xs text-gray-400">Settes automatisk fra valgt bygning/tegning</span>
+              </div>
             </div>
           </div>
 

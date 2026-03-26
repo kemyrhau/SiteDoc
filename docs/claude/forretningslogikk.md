@@ -22,9 +22,10 @@ En bruker kan tilhøre flere entrepriser via `MemberEnterprise`. Admin uten tilk
 ## Dokumentflyt (erstatter Arbeidsforløp)
 
 Prosjektomfattende dokumentflyt under Innstillinger > Feltarbeid > Dokumentflyt:
-- **Prosjektstyrt:** Dokumentflyt tilhører prosjekt (ikke entreprise)
-- **Fleksible roller:** Medlemmer (entrepriser eller personer) med rolle `oppretter` eller `svarer` per steg
-- **Modell:** `Dokumentflyt` → `DokumentflytMedlem` (rolle + steg) + `DokumentflytMal` (maltilknytning)
+- **Entreprise-tilhørighet:** Dokumentflyt har `enterpriseId` som bestemmer hvilken entreprise den vises under i UI. Settes ved opprettelse via `forvalgtEntrepriseId`
+- **Fleksible roller:** Medlemmer kan være entrepriser, brukergrupper (`groupId` → `ProjectGroup`) eller enkeltpersoner (`projectMemberId`). Hver har rolle `oppretter` eller `svarer` per steg
+- **Grupper vs brukere:** I opprett-modalen velger man «Bruker» (enkeltperson) eller «Gruppe» (brukergruppe/ProjectGroup). Grupper gir lik tilgang til alle gruppemedlemmer
+- **Modell:** `Dokumentflyt` → `DokumentflytMedlem` (rolle + steg + enterpriseId/projectMemberId/groupId) + `DokumentflytMal` (maltilknytning)
 - Sjekklister/oppgaver knyttes via `dokumentflytId` (og bakoverkompatibelt `workflowId`)
 - Emne: malen har `subjects`-array → nedtrekksmeny. Uten → fritekst/skjult
 - **Planlagt:** HMS-avvik som egen dokumentflyt (alle kan opprette)
@@ -70,8 +71,9 @@ Forhåndsdefinerte mal-pakker via Innstillinger > Feltarbeid > Moduler:
 | Godkjenning | `godkjenning` | GM | oppgave |
 | HMS-avvik | `hms-avvik` | HMS | oppgave |
 | Befaringsrapport | `befaringsrapport` | BEF | sjekkliste |
+| 3D-visning | `3d-visning` | — | funksjon |
 
-Aktivering oppretter maler+objekter. Deaktivering: soft-delete (`active: false`).
+Aktivering oppretter maler+objekter. Deaktivering: soft-delete (`active: false`). Moduler med kategori `funksjon` aktiverer/deaktiverer funksjoner (f.eks. 3D-visning i sidebar) uten å opprette maler.
 
 ## SiteDoc-administrasjon
 
@@ -89,7 +91,7 @@ Kun `sitedoc_admin`. Ruter: `/dashbord/admin/` med amber aksent.
 
 Metadata: tegningsnummer, fagdisiplin (ARK/LARK/RIB/RIV/RIE/RIG/RIBr/RIAku), type (plan/snitt/fasade/detalj/oversikt/skjema/montering), revisjon, versjon, status, etasje, målestokk.
 
-Revisjonshistorikk via `drawing_revisions`. Georeferanse med 2 punkter for similaritetstransformasjon.
+Revisjonshistorikk via `drawing_revisions`. Georeferanse med 2+ punkter: 2 punkter → similaritetstransformasjon, 3+ punkter → affin transformasjon med `ekstraPunkter`-array. `beregnKalibreringsFeil()` viser nøyaktighet i meter.
 
 ## Automatisk værhenting
 
