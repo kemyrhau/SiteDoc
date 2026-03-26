@@ -714,6 +714,7 @@ function OpprettDokumentflytModal({
       onClose();
     },
     onError: (err) => {
+      console.error("[dokumentflyt] opprett feil:", err);
       setFeilmelding(err.message || "Kunne ikke opprette dokumentflyt");
     },
   });
@@ -789,12 +790,14 @@ function OpprettDokumentflytModal({
       }
     }
 
-    opprettMutation.mutate({
+    const payload = {
       projectId: prosjektId,
       name: navn.trim(),
       templateIds: Array.from(valgteMaler),
       medlemmer: dfMedlemmer,
-    });
+    };
+    console.log("[dokumentflyt] opprett payload:", JSON.stringify(payload, null, 2));
+    opprettMutation.mutate(payload);
   }
 
   return (
