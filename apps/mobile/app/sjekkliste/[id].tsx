@@ -707,9 +707,10 @@ export default function SjekklisteUtfylling() {
 
       {/* Statusknapper + lagre-knapp i bunn */}
       <View className="border-t border-gray-200 bg-white px-4 py-3">
-        {/* Statushandlinger */}
+        {/* Statushandlinger (filtrer ut deleted/forwarded — krever spesialbehandling) */}
         {sjekkliste && (() => {
-          const handlinger = hentStatusHandlinger(sjekkliste.status);
+          const handlinger = hentStatusHandlinger(sjekkliste.status)
+            .filter((h) => h.nyStatus !== "deleted" && h.nyStatus !== "forwarded");
           if (handlinger.length === 0) return null;
           return (
             <View className={`mb-2 ${handlinger.length > 1 ? "flex-row gap-2" : ""}`}>
@@ -744,8 +745,8 @@ export default function SjekklisteUtfylling() {
           </Pressable>
         )}
 
-        {/* Slett-knapp (kun utkast) */}
-        {sjekkliste?.status === "draft" && (
+        {/* Slett-knapp (utkast og avbrutte) */}
+        {(sjekkliste?.status === "draft" || sjekkliste?.status === "cancelled") && (
           <Pressable
             onPress={håndterSlett}
             disabled={slettMutasjon.isPending}
