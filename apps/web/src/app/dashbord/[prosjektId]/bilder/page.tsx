@@ -588,12 +588,21 @@ export default function BilderSide() {
 
   for (const b of datoFiltrerteBilder) {
     if (plasseringsmodus === "rapportlokasjon") {
-      // Modus A: Rapportlokasjon
+      // Modus A: Rapportlokasjon — primært via tegningskobling, fallback til GPS
       if (b.parentDrawingId === aktivTegning.id) {
         if (b.positionX != null && b.positionY != null) {
           tegningBilder.push({ ...b, tegningX: b.positionX, tegningY: b.positionY, erPrikk: true });
         } else {
           tegningBilder.push({ ...b, tegningX: 0, tegningY: 0, erPrikk: false });
+        }
+      } else if (!b.parentDrawingId && b.gpsLat != null && b.gpsLng != null && transformasjon) {
+        // Fallback: bilde har GPS men ingen tegningskobling — plasser via georeferanse
+        const gps = { lat: b.gpsLat, lng: b.gpsLng };
+        if (erInnenforTegning(gps, transformasjon)) {
+          const pos = gpsTilTegning(gps, transformasjon);
+          tegningBilder.push({ ...b, tegningX: pos.x, tegningY: pos.y, erPrikk: true });
+        } else {
+          uklassifiserteBilder.push(b);
         }
       } else if (!b.parentDrawingId) {
         uklassifiserteBilder.push(b);
@@ -605,8 +614,10 @@ export default function BilderSide() {
         if (erInnenforTegning(gps, transformasjon)) {
           const pos = gpsTilTegning(gps, transformasjon);
           tegningBilder.push({ ...b, tegningX: pos.x, tegningY: pos.y, erPrikk: true });
+        } else {
+          uklassifiserteBilder.push(b);
         }
-      } else if (b.gpsLat == null || b.gpsLng == null) {
+      } else {
         uklassifiserteBilder.push(b);
       }
     }
