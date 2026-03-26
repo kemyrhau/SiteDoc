@@ -34,9 +34,16 @@ export function hentStatusHandlinger(status: string): StatusHandling[] {
     responded: [
       { tekst: "Godkjenn", nyStatus: "approved", farge: "bg-green-600", aktivFarge: "bg-green-400" },
       { tekst: "Avvis", nyStatus: "rejected", farge: "bg-red-600", aktivFarge: "bg-red-400" },
+      { tekst: "Videresend", nyStatus: "forwarded", farge: "bg-gray-500", aktivFarge: "bg-gray-400" },
     ],
-    rejected: [{ tekst: "Start arbeid igjen", nyStatus: "in_progress", farge: "bg-amber-500", aktivFarge: "bg-amber-400" }],
-    approved: [{ tekst: "Lukk", nyStatus: "closed", farge: "bg-gray-500", aktivFarge: "bg-gray-400" }],
+    rejected: [
+      { tekst: "Start arbeid igjen", nyStatus: "in_progress", farge: "bg-amber-500", aktivFarge: "bg-amber-400" },
+      { tekst: "Videresend", nyStatus: "forwarded", farge: "bg-gray-500", aktivFarge: "bg-gray-400" },
+    ],
+    approved: [
+      { tekst: "Lukk", nyStatus: "closed", farge: "bg-gray-500", aktivFarge: "bg-gray-400" },
+      { tekst: "Videresend", nyStatus: "forwarded", farge: "bg-gray-500", aktivFarge: "bg-gray-400" },
+    ],
     cancelled: [
       { tekst: "Gjenåpne", nyStatus: "draft", farge: "bg-blue-600", aktivFarge: "bg-blue-400" },
       { tekst: "Slett", nyStatus: "deleted", farge: "bg-red-600", aktivFarge: "bg-red-400" },

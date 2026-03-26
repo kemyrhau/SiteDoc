@@ -33,7 +33,7 @@ Tre eksportpunkter: `types`, `validation`, `utils`
 - `REPORT_OBJECT_TYPE_META` — Komplett metadata for alle typer
 - `TegningPosisjonVerdi` — `{ drawingId, positionX, positionY, drawingName }`
 - `VaerVerdi` — `{ temp?, conditions?, wind?, kilde? }`
-- `BuildingType`, `GeoReferansePunkt`, `GeoReferanse`, `TemplateZone`, `EnterpriseRole`
+- `BuildingType`, `GeoReferansePunkt`, `GeoReferanse` (utvidet med `ekstraPunkter?: GeoReferansePunkt[]`), `TemplateZone`, `EnterpriseRole`
 - `GroupCategory`, `StandardProjectGroup`, `STANDARD_PROJECT_GROUPS`
 - `PERMISSIONS` — 15 tillatelser (4 gamle + 11 nye)
 - `PERMISSION_LABELS`, `PERMISSION_GROUPS`, `LEGACY_PERMISSION_MAP`, `utvidTillatelser()`
@@ -62,7 +62,8 @@ Tre eksportpunkter: `types`, `validation`, `utils`
 - `isValidStatusTransition(current, next)` — Lovlige statusoverganger
 - `vaerkodeTilTekst(code)` — WMO → norsk
 - `beregnSynligeMapper(mapper, bruker)` — Mappesynlighet med arv
-- `beregnTransformasjon(ref)` — Similaritetstransformasjon fra 2 punkter
+- `beregnTransformasjon(ref)` — Similaritetstransformasjon (2 punkter) eller affin transformasjon (3+ punkter via `ekstraPunkter`)
+- `beregnKalibreringsFeil(ref)` — Kalibreringsfeil i meter for georeferanse med 3+ punkter
 - `gpsTilTegning()`, `tegningTilGps()`, `erInnenforTegning()`
 - `utm33TilLatLng()` — UTM sone 33N → WGS84
 - `parserKoordinater(tekst)` — UTM33, DMS, desimal
