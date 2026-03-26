@@ -87,7 +87,9 @@ export default function UtskriftOppgaveSide() {
     creatorEnterprise?: { name: string } | null;
     responderEnterprise?: { name: string } | null;
     creator?: { name?: string | null } | null;
-    drawing?: { id: string; name: string; drawingNumber: string | null; building?: { id: string; name: string } | null } | null;
+    drawing?: { id: string; name: string; drawingNumber: string | null; fileUrl?: string | null; building?: { id: string; name: string } | null } | null;
+    positionX?: number | null;
+    positionY?: number | null;
   } | undefined;
 
   const { data: prosjekt } = trpc.prosjekt.hentMedId.useQuery(
@@ -235,6 +237,58 @@ export default function UtskriftOppgaveSide() {
             </div>
           )}
         </div>
+
+        {/* Tegningsutsnitt */}
+        {oppgave.drawing?.fileUrl && (
+          <div className="mb-3 flex gap-3 rounded border border-gray-200 p-2">
+            {/* Oversiktsbilde */}
+            <div className="relative w-1/2 overflow-hidden rounded border border-gray-100 bg-gray-50">
+              <img
+                src={`/api${oppgave.drawing.fileUrl}`}
+                alt="Tegning oversikt"
+                className="h-auto w-full object-contain"
+                style={{ maxHeight: 250 }}
+              />
+              {oppgave.positionX != null && oppgave.positionY != null && (
+                <div
+                  className="absolute h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-red-500"
+                  style={{ left: `${oppgave.positionX}%`, top: `${oppgave.positionY}%` }}
+                />
+              )}
+              <div className="absolute bottom-1 left-1 rounded bg-white/80 px-1.5 py-0.5 text-[9px] font-medium text-gray-500">
+                Oversikt
+              </div>
+            </div>
+            {/* Utsnitt zoomet inn */}
+            {oppgave.positionX != null && oppgave.positionY != null && (
+              <div className="relative w-1/2 overflow-hidden rounded border border-gray-100 bg-gray-50">
+                <div
+                  className="relative"
+                  style={{
+                    width: "300%",
+                    height: "300%",
+                    transform: `translate(${50 - oppgave.positionX * 3}%, ${50 - oppgave.positionY * 3}%)`,
+                    maxHeight: 250,
+                    overflow: "hidden",
+                  }}
+                >
+                  <img
+                    src={`/api${oppgave.drawing.fileUrl}`}
+                    alt="Tegning utsnitt"
+                    className="h-auto w-full object-contain"
+                  />
+                  <div
+                    className="absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-red-500 shadow"
+                    style={{ left: `${oppgave.positionX}%`, top: `${oppgave.positionY}%` }}
+                  />
+                </div>
+                <div className="absolute bottom-1 left-1 rounded bg-white/80 px-1.5 py-0.5 text-[9px] font-medium text-gray-500">
+                  Utsnitt
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Rapportobjekter */}
         <div className="flex flex-col gap-1">
