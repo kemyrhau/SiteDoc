@@ -702,7 +702,19 @@ function OpprettDokumentflytModal({
     { projectId: prosjektId },
     { enabled: open },
   );
-  const grupper = (_grupper ?? []) as Array<{ id: string; name: string }>;
+  const grupper = (_grupper ?? []) as Array<{ id: string; name: string; members: Array<{ projectMember: { id: string } }> }>;
+
+  // Bygg map: projectMemberId → gruppenavn[]
+  const medlemGrupper = new Map<string, string[]>();
+  for (const g of grupper) {
+    for (const m of g.members ?? []) {
+      const pmId = m.projectMember?.id;
+      if (!pmId) continue;
+      const eksisterende = medlemGrupper.get(pmId) ?? [];
+      eksisterende.push(g.name);
+      medlemGrupper.set(pmId, eksisterende);
+    }
+  }
 
   const utils = trpc.useUtils();
   const [feilmelding, setFeilmelding] = useState("");
@@ -837,11 +849,15 @@ function OpprettDokumentflytModal({
             {oppretterType === "bruker" ? (
               <>
                 <option value="">Velg bruker...</option>
-                {medlemmer.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.user.name ?? m.user.email}
-                  </option>
-                ))}
+                {medlemmer.map((m) => {
+                  const gr = medlemGrupper.get(m.id);
+                  const grTekst = gr?.length ? ` · ${gr.join(", ")}` : "";
+                  return (
+                    <option key={m.id} value={m.id}>
+                      {(m.user.name ?? m.user.email) + grTekst}
+                    </option>
+                  );
+                })}
               </>
             ) : (
               <>
@@ -882,11 +898,15 @@ function OpprettDokumentflytModal({
             {mottakerType === "bruker" ? (
               <>
                 <option value="">Velg bruker...</option>
-                {medlemmer.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.user.name ?? m.user.email}
-                  </option>
-                ))}
+                {medlemmer.map((m) => {
+                  const gr = medlemGrupper.get(m.id);
+                  const grTekst = gr?.length ? ` · ${gr.join(", ")}` : "";
+                  return (
+                    <option key={m.id} value={m.id}>
+                      {(m.user.name ?? m.user.email) + grTekst}
+                    </option>
+                  );
+                })}
               </>
             ) : (
               <>
