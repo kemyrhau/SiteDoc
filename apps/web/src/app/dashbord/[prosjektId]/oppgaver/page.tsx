@@ -59,7 +59,7 @@ const prioritetFarge: Record<string, "default" | "primary" | "warning" | "danger
 
 // --- Kolonnedefinisjoner ---
 
-type KolonneId = "nr" | "tittel" | "emne" | "status" | "prioritet" | "lokasjon" | "oppretter" | "svarer" | "mottaker" | "mal" | "opprettet" | "endret" | "frist" | "handlinger";
+type KolonneId = "nr" | "tittel" | "emne" | "status" | "prioritet" | "lokasjon" | "opprettetAv" | "ansvarlig" | "oppretterEntreprise" | "svarerEntreprise" | "mal" | "opprettet" | "endret" | "frist" | "handlinger";
 
 interface KolonneInfo {
   id: KolonneId;
@@ -73,10 +73,11 @@ const ALLE_KOLONNER: KolonneInfo[] = [
   { id: "status", navn: "Status", fast: true },
   { id: "emne", navn: "Emne", fast: false },
   { id: "prioritet", navn: "Prioritet", fast: false },
+  { id: "ansvarlig", navn: "Ansvarlig", fast: false },
   { id: "lokasjon", navn: "Lokasjon", fast: false },
-  { id: "oppretter", navn: "Oppretter", fast: false },
-  { id: "svarer", navn: "Svarer", fast: false },
-  { id: "mottaker", navn: "Mottaker", fast: false },
+  { id: "opprettetAv", navn: "Opprettet av", fast: false },
+  { id: "oppretterEntreprise", navn: "Oppretter-entreprise", fast: false },
+  { id: "svarerEntreprise", navn: "Svarer-entreprise", fast: false },
   { id: "mal", navn: "Mal", fast: false },
   { id: "opprettet", navn: "Opprettet", fast: false },
   { id: "endret", navn: "Sist endret", fast: false },
@@ -84,20 +85,27 @@ const ALLE_KOLONNER: KolonneInfo[] = [
   { id: "handlinger", navn: "", fast: true },
 ];
 
-const STANDARD_KOLONNER: KolonneId[] = ["nr", "tittel", "emne", "status", "svarer", "lokasjon", "frist", "handlinger"];
+const STANDARD_KOLONNER: KolonneId[] = ["nr", "tittel", "emne", "status", "ansvarlig", "lokasjon", "frist", "handlinger"];
+
+const STORAGE_KEY = "sitedoc-oppgave-kolonner-v2";
 
 function hentLagredeKolonner(): KolonneId[] {
   if (typeof window === "undefined") return STANDARD_KOLONNER;
   try {
-    const lagret = localStorage.getItem("sitedoc-oppgave-kolonner");
-    if (lagret) return JSON.parse(lagret) as KolonneId[];
+    const lagret = localStorage.getItem(STORAGE_KEY);
+    if (lagret) {
+      const parsed = JSON.parse(lagret) as string[];
+      const gyldige = ALLE_KOLONNER.map((k) => k.id);
+      const filtrert = parsed.filter((k) => gyldige.includes(k as KolonneId)) as KolonneId[];
+      if (filtrert.length > 0) return filtrert;
+    }
   } catch { /* ignorer */ }
   return STANDARD_KOLONNER;
 }
 
 function lagreKolonner(kolonner: KolonneId[]) {
   try {
-    localStorage.setItem("sitedoc-oppgave-kolonner", JSON.stringify(kolonner));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(kolonner));
   } catch { /* ignorer */ }
 }
 
@@ -117,10 +125,10 @@ function formaterLokasjon(rad: OppgaveRad): string {
   return deler.join(" / ") || "—";
 }
 
-function formaterMottaker(rad: OppgaveRad): string {
+function formaterAnsvarlig(rad: OppgaveRad): string {
   if (rad.recipientUser?.name) return rad.recipientUser.name;
   if (rad.recipientGroup?.name) return rad.recipientGroup.name;
-  return "—";
+  return rad.responderEnterprise.name;
 }
 
 function formaterDato(dato: string | null): string {
@@ -215,14 +223,18 @@ export default function OppgaverSide() {
   const dynamiskFilter = useMemo(() => {
     if (!oppgaver) return {};
     const emner = [...new Set(oppgaver.map((o) => o.subject).filter(Boolean) as string[])].sort();
-    const entrepriser = [...new Set(oppgaver.map((o) => o.responderEnterprise.name))].sort();
-    const oppretter = [...new Set(oppgaver.map((o) => o.creatorEnterprise.name))].sort();
+    const ansvarlige = [...new Set(oppgaver.map((o) => formaterAnsvarlig(o)))].sort();
+    const opprettetAv = [...new Set(oppgaver.map((o) => o.creator?.name).filter(Boolean) as string[])].sort();
+    const oppretterEntrepriser = [...new Set(oppgaver.map((o) => o.creatorEnterprise.name))].sort();
+    const svarerEntrepriser = [...new Set(oppgaver.map((o) => o.responderEnterprise.name))].sort();
     const maler = [...new Set(oppgaver.map((o) => o.template?.name).filter(Boolean) as string[])].sort();
     const lokasjoner = [...new Set(oppgaver.map((o) => formaterLokasjon(o)).filter((l) => l !== "—"))].sort();
     return {
       emne: emner.map((e) => ({ value: e, label: e })),
-      svarer: entrepriser.map((e) => ({ value: e, label: e })),
-      oppretter: oppretter.map((e) => ({ value: e, label: e })),
+      ansvarlig: ansvarlige.map((a) => ({ value: a, label: a })),
+      opprettetAv: opprettetAv.map((n) => ({ value: n, label: n })),
+      oppretterEntreprise: oppretterEntrepriser.map((e) => ({ value: e, label: e })),
+      svarerEntreprise: svarerEntrepriser.map((e) => ({ value: e, label: e })),
       mal: maler.map((m) => ({ value: m, label: m })),
       lokasjon: lokasjoner.map((l) => ({ value: l, label: l })),
       prioritet: PRIORITETER,
@@ -241,8 +253,10 @@ export default function OppgaverSide() {
           case "status": return o.status === verdi;
           case "emne": return o.subject === verdi;
           case "prioritet": return o.priority === verdi;
-          case "svarer": return o.responderEnterprise.name === verdi;
-          case "oppretter": return o.creatorEnterprise.name === verdi;
+          case "ansvarlig": return formaterAnsvarlig(o) === verdi;
+          case "opprettetAv": return o.creator?.name === verdi;
+          case "oppretterEntreprise": return o.creatorEnterprise.name === verdi;
+          case "svarerEntreprise": return o.responderEnterprise.name === verdi;
           case "mal": return o.template?.name === verdi;
           case "lokasjon": return formaterLokasjon(o) === verdi;
           default: return true;
@@ -333,35 +347,43 @@ export default function OppgaverSide() {
         filtrerbar: true,
         filterAlternativer: dynamiskFilter.lokasjon ?? [],
       },
-      oppretter: {
-        id: "oppretter",
-        header: "Oppretter",
-        celle: (rad) => <span className="text-gray-600">{rad.creatorEnterprise.name}</span>,
+      ansvarlig: {
+        id: "ansvarlig",
+        header: "Ansvarlig",
+        celle: (rad) => <span className="text-gray-600">{formaterAnsvarlig(rad)}</span>,
+        sorterbar: true,
+        sorterVerdi: (rad) => formaterAnsvarlig(rad),
+        filtrerbar: true,
+        filterAlternativer: dynamiskFilter.ansvarlig ?? [],
+      },
+      opprettetAv: {
+        id: "opprettetAv",
+        header: "Opprettet av",
+        celle: (rad) => rad.creator?.name
+          ? <span className="text-gray-600">{rad.creator.name}</span>
+          : <span className="text-gray-300">—</span>,
+        sorterbar: true,
+        sorterVerdi: (rad) => rad.creator?.name ?? "",
+        filtrerbar: true,
+        filterAlternativer: dynamiskFilter.opprettetAv ?? [],
+      },
+      oppretterEntreprise: {
+        id: "oppretterEntreprise",
+        header: "Oppretter-entreprise",
+        celle: (rad) => <span className="text-xs text-gray-500">{rad.creatorEnterprise.name}</span>,
         sorterbar: true,
         sorterVerdi: (rad) => rad.creatorEnterprise.name,
         filtrerbar: true,
-        filterAlternativer: dynamiskFilter.oppretter ?? [],
+        filterAlternativer: dynamiskFilter.oppretterEntreprise ?? [],
       },
-      svarer: {
-        id: "svarer",
-        header: "Svarer",
-        celle: (rad) => <span className="text-gray-600">{rad.responderEnterprise.name}</span>,
+      svarerEntreprise: {
+        id: "svarerEntreprise",
+        header: "Svarer-entreprise",
+        celle: (rad) => <span className="text-xs text-gray-500">{rad.responderEnterprise.name}</span>,
         sorterbar: true,
         sorterVerdi: (rad) => rad.responderEnterprise.name,
         filtrerbar: true,
-        filterAlternativer: dynamiskFilter.svarer ?? [],
-      },
-      mottaker: {
-        id: "mottaker",
-        header: "Mottaker",
-        celle: (rad) => {
-          const m = formaterMottaker(rad);
-          return m !== "—"
-            ? <span className="text-gray-600">{m}</span>
-            : <span className="text-gray-300">—</span>;
-        },
-        sorterbar: true,
-        sorterVerdi: (rad) => formaterMottaker(rad),
+        filterAlternativer: dynamiskFilter.svarerEntreprise ?? [],
       },
       mal: {
         id: "mal",
