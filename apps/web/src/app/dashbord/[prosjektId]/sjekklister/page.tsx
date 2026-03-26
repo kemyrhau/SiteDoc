@@ -136,8 +136,6 @@ export default function SjekklisteSide() {
       creatorEnterpriseId: valgtOppretter,
       responderEnterpriseId: valgtSvarer,
       subject: valgtEmne || undefined,
-      buildingId: valgtBygning || undefined,
-      drawingId: valgtTegning || undefined,
     });
   }
 
@@ -376,24 +374,6 @@ export default function SjekklisteSide() {
               placeholder="Velg emne..."
             />
           )}
-          <Select
-            label="Lokasjon"
-            options={bygningAlternativer}
-            value={valgtBygning}
-            onChange={(e) => {
-              setValgtBygning(e.target.value);
-              // Nullstill tegning hvis bygning endres
-              if (e.target.value !== valgtBygning) setValgtTegning("");
-            }}
-            placeholder="Ingen lokasjon"
-          />
-          <Select
-            label="Tegning"
-            options={tegningAlternativer}
-            value={valgtTegning}
-            onChange={(e) => setValgtTegning(e.target.value)}
-            placeholder="Ingen tegning"
-          />
           <Select
             label="Oppretter-entreprise"
             options={oppretterAlternativer}

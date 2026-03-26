@@ -297,8 +297,6 @@ export function OpprettDokumentModal({
         responderEnterpriseId: autoSvarerEntrepriseId,
         workflowId: matchendeArbeidsforlop.id,
         subject: emne.trim() || undefined,
-        buildingId: valgtBygningId || undefined,
-        drawingId: valgtTegningId || undefined,
       });
     } else {
       // Oppgave-tittel: fra sjekkliste eller prosjektnavn
@@ -549,120 +547,7 @@ export function OpprettDokumentModal({
             </View>
           )}
 
-          {/* 7+8. Lokasjon + Tegning — kun sjekklister */}
-          {!erOppgave && (
-            <>
-              <View className="border-b border-gray-100 px-4 py-3">
-                <Text className="mb-1 text-xs font-medium text-gray-500">Lokasjon</Text>
-                <Pressable
-                  onPress={() => {
-                    lukkAlleDropdowns();
-                    setVisBygningListe(!visBygningListe);
-                  }}
-                  className="flex-row items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5"
-                >
-                  <Text
-                    className={`text-sm ${valgtBygning ? "text-gray-800" : "text-gray-400"}`}
-                  >
-                    {valgtBygning?.name ?? "Velg bygning (valgfritt)…"}
-                  </Text>
-                  <ChevronDown size={16} color="#9ca3af" />
-                </Pressable>
-                {visBygningListe && (
-                  <View className="mt-1 rounded-lg border border-gray-200 bg-white">
-                    <Pressable
-                      onPress={() => {
-                        setValgtBygningId(null);
-                        setValgtTegningId(null);
-                        setVisBygningListe(false);
-                        if (valgtProsjektId) {
-                          slettVerdi(`${BYGNING_KEY_PREFIX}${valgtProsjektId}`);
-                          slettVerdi(`${TEGNING_KEY_PREFIX}${valgtProsjektId}`);
-                        }
-                      }}
-                      className="border-b border-gray-50 px-3 py-2.5"
-                    >
-                      <Text className="text-sm italic text-gray-400">Ingen bygning</Text>
-                    </Pressable>
-                    {bygninger.map((b) => (
-                      <Pressable
-                        key={b.id}
-                        onPress={() => {
-                          setValgtBygningId(b.id);
-                          setValgtTegningId(null);
-                          setVisBygningListe(false);
-                          if (valgtProsjektId) {
-                            lagreVerdi(`${BYGNING_KEY_PREFIX}${valgtProsjektId}`, b.id);
-                            slettVerdi(`${TEGNING_KEY_PREFIX}${valgtProsjektId}`);
-                          }
-                        }}
-                        className={`border-b border-gray-50 px-3 py-2.5 ${valgtBygningId === b.id ? "bg-blue-50" : ""}`}
-                      >
-                        <Text
-                          className={`text-sm ${valgtBygningId === b.id ? "font-medium text-blue-700" : "text-gray-700"}`}
-                        >
-                          {b.name}
-                        </Text>
-                      </Pressable>
-                    ))}
-                  </View>
-                )}
-              </View>
-
-              {valgtBygningId && (
-                <View className="border-b border-gray-100 px-4 py-3">
-                  <Text className="mb-1 text-xs font-medium text-gray-500">Tegning</Text>
-                  <Pressable
-                    onPress={() => {
-                      lukkAlleDropdowns();
-                      setVisTegningListe(!visTegningListe);
-                    }}
-                    className="flex-row items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5"
-                  >
-                    <Text
-                      className={`text-sm ${valgtTegning ? "text-gray-800" : "text-gray-400"}`}
-                    >
-                      {valgtTegning
-                        ? `${valgtTegning.drawingNumber ?? ""} ${valgtTegning.name}`.trim()
-                        : "Velg tegning (valgfritt)…"}
-                    </Text>
-                    <ChevronDown size={16} color="#9ca3af" />
-                  </Pressable>
-                  {visTegningListe && (
-                    <View className="mt-1 rounded-lg border border-gray-200 bg-white">
-                      <Pressable
-                        onPress={() => {
-                          setValgtTegningId(null);
-                          setVisTegningListe(false);
-                          if (valgtProsjektId) slettVerdi(`${TEGNING_KEY_PREFIX}${valgtProsjektId}`);
-                        }}
-                        className="border-b border-gray-50 px-3 py-2.5"
-                      >
-                        <Text className="text-sm italic text-gray-400">Ingen tegning</Text>
-                      </Pressable>
-                      {tegninger.map((t) => (
-                        <Pressable
-                          key={t.id}
-                          onPress={() => {
-                            setValgtTegningId(t.id);
-                            setVisTegningListe(false);
-                            if (valgtProsjektId) lagreVerdi(`${TEGNING_KEY_PREFIX}${valgtProsjektId}`, t.id);
-                          }}
-                          className={`border-b border-gray-50 px-3 py-2.5 ${valgtTegningId === t.id ? "bg-blue-50" : ""}`}
-                        >
-                          <Text
-                            className={`text-sm ${valgtTegningId === t.id ? "font-medium text-blue-700" : "text-gray-700"}`}
-                          >
-                            {`${t.drawingNumber ?? ""} ${t.name}`.trim()}
-                          </Text>
-                        </Pressable>
-                      ))}
-                    </View>
-                  )}
-                </View>
-              )}
-            </>
-          )}
+          {/* Lokasjon settes fra tegning (ved klikk) eller etterpå — ikke i opprettelsesmodal */}
         </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
