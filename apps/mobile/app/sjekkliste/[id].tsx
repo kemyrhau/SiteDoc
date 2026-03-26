@@ -243,6 +243,7 @@ export default function SjekklisteUtfylling() {
     settKommentar,
     leggTilVedlegg,
     fjernVedlegg,
+    erstattVedlegg,
     flyttVedlegg,
     erSynlig,
     valideringsfeil,
@@ -609,6 +610,7 @@ export default function SjekklisteUtfylling() {
               onEndreKommentar={(k) => settKommentar(objekt.id, k)}
               onLeggTilVedlegg={(v) => leggTilVedlegg(objekt.id, v)}
               onFjernVedlegg={(vId) => fjernVedlegg(objekt.id, vId)}
+              onErstattVedlegg={(vId, nyUrl, nyttFilnavn) => erstattVedlegg(objekt.id, vId, nyUrl, nyttFilnavn)}
               onFlyttVedlegg={(vId, retning) => flyttVedlegg(objekt.id, vId, retning)}
               leseModus={leseModus}
               sjekklisteId={sjekkliste.id}

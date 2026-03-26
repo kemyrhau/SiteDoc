@@ -17,6 +17,7 @@ interface FeltWrapperProps {
   onEndreKommentar: (kommentar: string) => void;
   onLeggTilVedlegg: (vedlegg: Vedlegg) => void;
   onFjernVedlegg: (vedleggId: string) => void;
+  onErstattVedlegg?: (vedleggId: string, nyUrl: string, nyttFilnavn: string) => void;
   onFlyttVedlegg?: (vedleggId: string, retning: "opp" | "ned") => void;
   leseModus?: boolean;
   sjekklisteId?: string;
@@ -39,6 +40,7 @@ export function FeltWrapper({
   onEndreKommentar,
   onLeggTilVedlegg,
   onFjernVedlegg,
+  onErstattVedlegg,
   onFlyttVedlegg,
   leseModus,
   sjekklisteId,
@@ -101,6 +103,7 @@ export function FeltWrapper({
           onEndreKommentar={onEndreKommentar}
           onLeggTilVedlegg={onLeggTilVedlegg}
           onFjernVedlegg={onFjernVedlegg}
+          onErstattVedlegg={onErstattVedlegg}
           onFlyttVedlegg={onFlyttVedlegg}
           leseModus={leseModus}
           sjekklisteId={sjekklisteId}

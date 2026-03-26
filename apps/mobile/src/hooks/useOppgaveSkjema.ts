@@ -459,6 +459,26 @@ export function useOppgaveSkjema(oppgaveId: string): UseOppgaveSkjemaResultat {
     [planleggLagring],
   );
 
+  const erstattVedlegg = useCallback(
+    (objektId: string, vedleggId: string, nyUrl: string, nyttFilnavn: string) => {
+      settFeltVerdier((prev) => {
+        const nåværende = prev[objektId] ?? TOM_FELTVERDI;
+        return {
+          ...prev,
+          [objektId]: {
+            ...nåværende,
+            vedlegg: nåværende.vedlegg.map((v) =>
+              v.id === vedleggId ? { ...v, url: nyUrl, filnavn: nyttFilnavn } : v,
+            ),
+          },
+        };
+      });
+      settHarEndringer(true);
+      planleggLagring();
+    },
+    [planleggLagring],
+  );
+
   const flyttVedlegg = useCallback(
     (objektId: string, vedleggId: string, retning: "opp" | "ned") => {
       settFeltVerdier((prev) => {
@@ -561,6 +581,7 @@ export function useOppgaveSkjema(oppgaveId: string): UseOppgaveSkjemaResultat {
     settKommentar,
     leggTilVedlegg,
     fjernVedlegg,
+    erstattVedlegg,
     flyttVedlegg,
     erSynlig,
     valideringsfeil,
