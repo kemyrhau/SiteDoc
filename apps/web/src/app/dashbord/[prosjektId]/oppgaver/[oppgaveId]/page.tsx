@@ -1,6 +1,6 @@
 "use client";
 
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useState, useMemo, useCallback } from "react";
 import { Spinner, StatusBadge, Card, Badge } from "@sitedoc/ui";
 import { Check, AlertCircle, Loader2, Send } from "lucide-react";
@@ -197,6 +197,7 @@ function HistorikkSeksjon({ oppgaveId }: { oppgaveId: string }) {
 
 export default function OppgaveDetaljSide() {
   const params = useParams<{ prosjektId: string; oppgaveId: string }>();
+  const router = useRouter();
 
   const {
     oppgave,
@@ -218,6 +219,13 @@ export default function OppgaveDetaljSide() {
     onSuccess: () => {
       utils.oppgave.hentMedId.invalidate({ id: params.oppgaveId });
       utils.oppgave.hentForProsjekt.invalidate();
+    },
+  });
+
+  const slettMutasjon = trpc.oppgave.slett.useMutation({
+    onSuccess: () => {
+      utils.oppgave.hentForProsjekt.invalidate();
+      router.push(`/dashbord/${params.prosjektId}/oppgaver`);
     },
   });
 
@@ -339,7 +347,7 @@ export default function OppgaveDetaljSide() {
         <div className="mt-3">
           <StatusHandlinger
             status={oppgave.status}
-            erLaster={endreStatusMutasjon.isPending}
+            erLaster={endreStatusMutasjon.isPending || slettMutasjon.isPending}
             onEndreStatus={(nyStatus, kommentar) => {
               endreStatusMutasjon.mutate({
                 id: params.oppgaveId,
@@ -348,6 +356,7 @@ export default function OppgaveDetaljSide() {
                 kommentar,
               });
             }}
+            onSlett={() => slettMutasjon.mutate({ id: params.oppgaveId })}
           />
         </div>
       </div>

@@ -17,9 +17,10 @@ interface StatusHandlingerProps {
   status: string;
   erLaster: boolean;
   onEndreStatus: (nyStatus: string, kommentar?: string) => void;
+  onSlett?: () => void;
 }
 
-export function StatusHandlinger({ status, erLaster, onEndreStatus }: StatusHandlingerProps) {
+export function StatusHandlinger({ status, erLaster, onEndreStatus, onSlett }: StatusHandlingerProps) {
   const [bekreftHandling, setBekreftHandling] = useState<string | null>(null);
   const [kommentar, setKommentar] = useState("");
 
@@ -28,6 +29,16 @@ export function StatusHandlinger({ status, erLaster, onEndreStatus }: StatusHand
   if (handlinger.length === 0) return null;
 
   const håndterKlikk = (nyStatus: string) => {
+    if (nyStatus === "deleted") {
+      if (bekreftHandling === "deleted") {
+        onSlett?.();
+        setBekreftHandling(null);
+      } else {
+        setBekreftHandling("deleted");
+        setKommentar("");
+      }
+      return;
+    }
     if (bekreftHandling === nyStatus) {
       onEndreStatus(nyStatus, kommentar.trim() || undefined);
       setBekreftHandling(null);
