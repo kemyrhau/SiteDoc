@@ -337,6 +337,20 @@ export function OpprettDokumentModal({
 
   const kanOpprett = !!oppretterEntrepriseId && !!matchendeArbeidsforlop && !erPending;
 
+  // Auto-opprett hvis alt kan utledes (1 entreprise + arbeidsforløp matcher)
+  const harAutoOpprettet = useRef(false);
+  useEffect(() => {
+    if (!synlig) { harAutoOpprettet.current = false; return; }
+    if (harAutoOpprettet.current || erPending) return;
+    if (mineEntrepriser.length !== 1) return;
+    if (!oppretterEntrepriseId || !matchendeArbeidsforlop || !autoSvarerEntrepriseId) return;
+    // Sjekklister med forhåndsdefinerte emner trenger brukerens valg
+    if (!erOppgave && harSubjects) return;
+
+    harAutoOpprettet.current = true;
+    håndterOpprett();
+  }, [synlig, mineEntrepriser, oppretterEntrepriseId, matchendeArbeidsforlop, autoSvarerEntrepriseId, erPending, erOppgave, harSubjects, håndterOpprett]);
+
   // Lukk alle åpne dropdowns
   const lukkAlleDropdowns = () => {
     setVisOppretterListe(false);
@@ -348,6 +362,20 @@ export function OpprettDokumentModal({
   const valgtOppretter = mineEntrepriser.find((e) => e.id === oppretterEntrepriseId);
   const valgtBygning = bygninger.find((b) => b.id === valgtBygningId);
   const valgtTegning = tegninger.find((t) => t.id === valgtTegningId);
+
+  // Auto-opprettelse pågår — vis loading
+  if (harAutoOpprettet.current && erPending) {
+    return (
+      <Modal visible={synlig} animationType="slide" presentationStyle="pageSheet">
+        <SafeAreaView style={{ flex: 1, backgroundColor: "#ffffff" }}>
+          <View className="flex-1 items-center justify-center">
+            <ActivityIndicator size="large" color="#1e40af" />
+            <Text className="mt-3 text-sm text-gray-500">Oppretter {erOppgave ? "oppgave" : "sjekkliste"}…</Text>
+          </View>
+        </SafeAreaView>
+      </Modal>
+    );
+  }
 
   return (
     <Modal visible={synlig} animationType="slide" presentationStyle="pageSheet">
