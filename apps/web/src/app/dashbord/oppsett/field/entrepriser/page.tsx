@@ -150,6 +150,7 @@ function EntrepriseKort({
   prosjektId,
   entrepriseListe,
   medlemmer,
+  grupper,
   onRediger,
   onSlett,
   onDfRediger,
@@ -163,6 +164,7 @@ function EntrepriseKort({
   prosjektId: string;
   entrepriseListe: EntrepriseItem[];
   medlemmer: ProsjektMedlemItem[];
+  grupper?: Array<{ id: string; name: string }>;
   onRediger: () => void;
   onSlett: () => void;
   onDfRediger: (df: DokumentflytData) => void;
@@ -260,6 +262,7 @@ function EntrepriseKort({
                   prosjektId={prosjektId}
                   entrepriser={entrepriseListe}
                   medlemmer={medlemmer}
+                  grupper={grupper}
                   onRediger={() => onDfRediger(df)}
                   onSlett={() => onDfSlett(df.id)}
                   onOppdatert={onDfOppdatert}
@@ -578,7 +581,7 @@ function EntrepriseVeiviser({
           <>
             <div>
               <label className="mb-1.5 block text-sm font-medium text-gray-700">
-                Entreprise <span className="text-red-500">*</span>
+                Gruppe <span className="text-red-500">*</span>
               </label>
               <div className="flex items-center gap-3">
                 <input
@@ -688,7 +691,7 @@ function OpprettDokumentflytModal({
   const [mottakerId, setMottakerId] = useState("");
   const [valgteMaler, setValgteMaler] = useState<Set<string>>(new Set());
 
-  // Hent prosjektmedlemmer og grupper for mottaker-velgeren
+  // Hent prosjektmedlemmer og grupper for velgerne
   const { data: _medlemmer } = trpc.medlem.hentForProsjekt.useQuery(
     { projectId: prosjektId },
     { enabled: open },
@@ -702,11 +705,17 @@ function OpprettDokumentflytModal({
   const grupper = (_grupper ?? []) as Array<{ id: string; name: string }>;
 
   const utils = trpc.useUtils();
+  const [feilmelding, setFeilmelding] = useState("");
   const opprettMutation = trpc.dokumentflyt.opprett.useMutation({
     onSuccess: () => {
       utils.dokumentflyt.hentForProsjekt.invalidate({ projectId: prosjektId });
+      setFeilmelding("");
       nullstill();
       onClose();
+    },
+    onError: (err) => {
+      console.error("[dokumentflyt] opprett feil:", err);
+      setFeilmelding(err.message || "Kunne ikke opprette dokumentflyt");
     },
   });
 
@@ -717,6 +726,7 @@ function OpprettDokumentflytModal({
     setMottakerType("bruker");
     setMottakerId("");
     setValgteMaler(new Set());
+    setFeilmelding("");
   }
 
   const [forrigeOpen, setForrigeOpen] = useState(false);
@@ -744,32 +754,50 @@ function OpprettDokumentflytModal({
     const dfMedlemmer: Array<{
       enterpriseId?: string;
       projectMemberId?: string;
+      groupId?: string;
       rolle: "oppretter" | "svarer";
       steg: number;
     }> = [];
 
     if (oppretterId) {
-      dfMedlemmer.push({
-        projectMemberId: oppretterId,
-        enterpriseId: forvalgtEntrepriseId,
-        rolle: "oppretter",
-        steg: 1,
-      });
+      if (oppretterType === "gruppe") {
+        dfMedlemmer.push({
+          groupId: oppretterId,
+          rolle: "oppretter",
+          steg: 1,
+        });
+      } else {
+        dfMedlemmer.push({
+          projectMemberId: oppretterId,
+          rolle: "oppretter",
+          steg: 1,
+        });
+      }
     }
     if (mottakerId) {
-      dfMedlemmer.push({
-        projectMemberId: mottakerId,
-        rolle: "svarer",
-        steg: 1,
-      });
+      if (mottakerType === "gruppe") {
+        dfMedlemmer.push({
+          groupId: mottakerId,
+          rolle: "svarer",
+          steg: 1,
+        });
+      } else {
+        dfMedlemmer.push({
+          projectMemberId: mottakerId,
+          rolle: "svarer",
+          steg: 1,
+        });
+      }
     }
 
-    opprettMutation.mutate({
+    const payload = {
       projectId: prosjektId,
       name: navn.trim(),
       templateIds: Array.from(valgteMaler),
       medlemmer: dfMedlemmer,
-    });
+    };
+    console.log("[dokumentflyt] opprett payload:", JSON.stringify(payload, null, 2));
+    opprettMutation.mutate(payload);
   }
 
   return (
@@ -944,6 +972,10 @@ function OpprettDokumentflytModal({
             </div>
           </div>
         </div>
+
+        {feilmelding && (
+          <p className="text-sm text-red-600">{feilmelding}</p>
+        )}
 
         <div className="flex gap-3 pt-2">
           <Button variant="secondary" type="button" onClick={onClose}>
@@ -1165,6 +1197,12 @@ export default function EntrepriserSide() {
     { enabled: !!prosjektId },
   );
 
+  const { data: grupperData } = trpc.gruppe.hentForProsjekt.useQuery(
+    { projectId: prosjektId! },
+    { enabled: !!prosjektId },
+  );
+  const gruppeListe = (grupperData ?? []) as Array<{ id: string; name: string }>;
+
   const oppdaterEntrepriseMutation = trpc.entreprise.oppdater.useMutation({
     onSuccess: () => {
       utils.entreprise.hentForProsjekt.invalidate({ projectId: prosjektId! });
@@ -1332,6 +1370,7 @@ export default function EntrepriserSide() {
               prosjektId={prosjektId}
               entrepriseListe={entrepriseListe}
               medlemmer={medlemListe}
+              grupper={gruppeListe}
               onRediger={() => handleRedigerEntreprise(ent.id)}
               onSlett={() => setSlettEntrepriseId(ent.id)}
               onDfRediger={setRedigerDf}
@@ -1364,6 +1403,7 @@ export default function EntrepriserSide() {
                     prosjektId={prosjektId}
                     entrepriser={entrepriseListe}
                     medlemmer={medlemListe}
+                    grupper={gruppeListe}
                     onRediger={() => setRedigerDf(df)}
                     onSlett={() => setSlettDfId(df.id)}
                     onOppdatert={handleDfOppdatert}
@@ -1442,7 +1482,7 @@ export default function EntrepriserSide() {
         >
           <div>
             <label className="mb-1.5 block text-sm font-medium text-gray-700">
-              Entreprise <span className="text-red-500">*</span>
+              Gruppe <span className="text-red-500">*</span>
             </label>
             <div className="flex items-center gap-3">
               <FargeVelger valgt={redigerFarge} onChange={setRedigerFarge} />

@@ -17,6 +17,7 @@ const dokumentflytInclude = {
           user: { select: { id: true, name: true, email: true } },
         },
       },
+      group: { select: { id: true, name: true } },
     },
     orderBy: { steg: "asc" as const },
   },
@@ -54,6 +55,7 @@ export const dokumentflytRouter = router({
             create: medlemmer.map((m) => ({
               enterpriseId: m.enterpriseId,
               projectMemberId: m.projectMemberId,
+              groupId: m.groupId,
               rolle: m.rolle,
               steg: m.steg,
             })),
@@ -113,6 +115,7 @@ export const dokumentflytRouter = router({
               user: { select: { id: true, name: true, email: true } },
             },
           },
+          group: { select: { id: true, name: true } },
         },
       });
     }),

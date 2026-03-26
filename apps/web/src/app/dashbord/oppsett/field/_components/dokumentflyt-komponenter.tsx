@@ -9,6 +9,7 @@ import {
   X,
   FileText,
   User,
+  Users,
   Mail,
   UserPlus,
   ChevronDown,
@@ -30,6 +31,7 @@ export interface DokumentflytMedlemData {
     id: string;
     user: { id: string; name: string | null; email: string };
   } | null;
+  group: { id: string; name: string } | null;
 }
 
 export interface DokumentflytMalData {
@@ -95,6 +97,26 @@ export function MedlemListe({
             </div>
           );
         }
+        if (m.group) {
+          return (
+            <div
+              key={m.id}
+              className="group flex items-center gap-1.5 rounded bg-blue-50 px-1.5 py-1"
+            >
+              <Users className="h-3.5 w-3.5 text-blue-600" />
+              <span className="flex-1 text-[13px] font-medium text-blue-700">
+                {m.group.name}
+              </span>
+              <button
+                onClick={() => onFjern(m.id)}
+                className="rounded p-0.5 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-white/50"
+                title="Fjern"
+              >
+                <X className="h-3 w-3 text-gray-500" />
+              </button>
+            </div>
+          );
+        }
         if (m.projectMember) {
           return (
             <div
@@ -140,6 +162,7 @@ export function LeggTilMedlemDropdown({
   steg,
   entrepriser,
   medlemmer,
+  grupper,
   eksisterende,
   onLagtTil,
   onInviterNy,
@@ -150,6 +173,7 @@ export function LeggTilMedlemDropdown({
   steg: number;
   entrepriser: EntrepriseItem[];
   medlemmer: ProsjektMedlemItem[];
+  grupper?: Array<{ id: string; name: string }>;
   eksisterende: DokumentflytMedlemData[];
   onLagtTil: () => void;
   onInviterNy?: () => void;
@@ -179,9 +203,13 @@ export function LeggTilMedlemDropdown({
   const eksisterendeMedlemIder = new Set(
     eksisterende.filter((m) => m.projectMember).map((m) => m.projectMember!.id),
   );
+  const eksisterendeGruppeIder = new Set(
+    eksisterende.filter((m) => m.group).map((m) => m.group!.id),
+  );
 
   const tilgjengeligeEntrepriser = entrepriser.filter((e) => !eksisterendeEntrepriseIder.has(e.id));
   const tilgjengeligeMedlemmer = medlemmer.filter((m) => !eksisterendeMedlemIder.has(m.id));
+  const tilgjengeligeGrupper = (grupper ?? []).filter((g) => !eksisterendeGruppeIder.has(g.id));
 
   function leggTilEntreprise(enterpriseId: string) {
     leggTilMutation.mutate({ dokumentflytId, projectId: prosjektId, enterpriseId, rolle, steg });
@@ -189,6 +217,10 @@ export function LeggTilMedlemDropdown({
 
   function leggTilPerson(projectMemberId: string) {
     leggTilMutation.mutate({ dokumentflytId, projectId: prosjektId, projectMemberId, rolle, steg });
+  }
+
+  function leggTilGruppe(groupId: string) {
+    leggTilMutation.mutate({ dokumentflytId, projectId: prosjektId, groupId, rolle, steg });
   }
 
   return (
@@ -221,6 +253,27 @@ export function LeggTilMedlemDropdown({
               >
                 <Building2 className="h-3.5 w-3.5 text-gray-400" />
                 {ent.name}
+              </button>
+            ))}
+          </div>
+
+          {tilgjengeligeGrupper.length > 0 && (
+            <div className="border-b border-t border-gray-100 px-3 py-1.5">
+              <div className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+                Grupper
+              </div>
+            </div>
+          )}
+          <div className="max-h-48 overflow-y-auto">
+            {tilgjengeligeGrupper.map((g) => (
+              <button
+                key={g.id}
+                onClick={() => leggTilGruppe(g.id)}
+                disabled={leggTilMutation.isPending}
+                className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm hover:bg-gray-50 disabled:opacity-50"
+              >
+                <Users className="h-3.5 w-3.5 text-blue-500" />
+                {g.name}
               </button>
             ))}
           </div>
@@ -413,11 +466,11 @@ function MedlemmerKompakt({ medlemmer }: { medlemmer: DokumentflytMedlemData[] }
   return (
     <span className="text-[12px] text-gray-600">
       {medlemmer.map((m, i) => {
-        const navn = m.enterprise?.name ?? m.projectMember?.user.name ?? m.projectMember?.user.email ?? "?";
+        const navn = m.enterprise?.name ?? m.group?.name ?? m.projectMember?.user.name ?? m.projectMember?.user.email ?? "?";
         return (
           <span key={m.id}>
             {i > 0 && ", "}
-            {m.enterprise ? (
+            {(m.enterprise || m.group) ? (
               <span className="font-medium">{navn}</span>
             ) : (
               <span>{navn}</span>
@@ -438,6 +491,7 @@ export function DokumentflytInlineKort({
   prosjektId,
   entrepriser,
   medlemmer,
+  grupper,
   onRediger,
   onSlett,
   onOppdatert,
@@ -447,6 +501,7 @@ export function DokumentflytInlineKort({
   prosjektId: string;
   entrepriser: EntrepriseItem[];
   medlemmer: ProsjektMedlemItem[];
+  grupper?: Array<{ id: string; name: string }>;
   onRediger: () => void;
   onSlett: () => void;
   onOppdatert: () => void;
@@ -546,6 +601,7 @@ export function DokumentflytInlineKort({
                   steg={1}
                   entrepriser={entrepriser}
                   medlemmer={medlemmer}
+                  grupper={grupper}
                   eksisterende={opprettere}
                   onLagtTil={onOppdatert}
                   onInviterNy={() => onInviterNy(dokumentflyt.id, "oppretter", 1)}
@@ -573,6 +629,7 @@ export function DokumentflytInlineKort({
                       steg={steg}
                       entrepriser={entrepriser}
                       medlemmer={medlemmer}
+                      grupper={grupper}
                       eksisterende={stegMedlemmer}
                       onLagtTil={onOppdatert}
                       onInviterNy={() => onInviterNy(dokumentflyt.id, "svarer", steg)}
@@ -594,6 +651,7 @@ export function DokumentflytInlineKort({
                     steg={1}
                     entrepriser={entrepriser}
                     medlemmer={medlemmer}
+                    grupper={grupper}
                     eksisterende={[]}
                     onLagtTil={onOppdatert}
                     onInviterNy={() => onInviterNy(dokumentflyt.id, "svarer", 1)}

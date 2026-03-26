@@ -64,7 +64,9 @@ interface TegningDetalj {
   id: string;
   name: string;
   fileUrl: string | null;
+  fileType?: string | null;
   geoReference?: unknown;
+  pdfPageSize?: { width: number; height: number } | null;
 }
 
 interface OppgaveMarkør {
@@ -148,18 +150,50 @@ export default function LokasjonerSkjerm() {
     [valgtTegningDetalj?.geoReference],
   );
 
-  // Bygg markørliste: eksisterende oppgaver (røde, valgfritt) + ny markør (grønn)
+  // Bygg markørliste: georef-punkter + eksisterende oppgaver + ny markør
   const markører: Markør[] = useMemo(() => {
-    const liste: Markør[] = visEksisterende
-      ? eksisterendeOppgaver
-          .filter((o) => o.positionX != null && o.positionY != null)
-          .map((o) => ({
+    const liste: Markør[] = [];
+
+    // Vis georeferansepunkter som oransje markører (for visuell verifisering)
+    if (harGeoRef && geoRefStringifisert) {
+      try {
+        const geoRef = JSON.parse(geoRefStringifisert) as {
+          point1: { pixel: { x: number; y: number } };
+          point2: { pixel: { x: number; y: number } };
+          ekstraPunkter?: Array<{ pixel: { x: number; y: number } }>;
+        };
+        liste.push({
+          id: "georef-1", x: geoRef.point1.pixel.x, y: geoRef.point1.pixel.y,
+          farge: "#f59e0b", label: "P1",
+        });
+        liste.push({
+          id: "georef-2", x: geoRef.point2.pixel.x, y: geoRef.point2.pixel.y,
+          farge: "#f59e0b", label: "P2",
+        });
+        if (geoRef.ekstraPunkter) {
+          geoRef.ekstraPunkter.forEach((p, i) => {
+            liste.push({
+              id: `georef-${i + 3}`, x: p.pixel.x, y: p.pixel.y,
+              farge: "#f59e0b", label: `P${i + 3}`,
+            });
+          });
+        }
+      } catch { /* ignorer */ }
+    }
+
+    // Eksisterende oppgaver
+    if (visEksisterende) {
+      for (const o of eksisterendeOppgaver) {
+        if (o.positionX != null && o.positionY != null) {
+          liste.push({
             id: o.id,
             x: o.positionX,
             y: o.positionY,
             label: `${o.template?.prefix ?? ""}${o.template?.prefix ? "-" : ""}${String(o.number).padStart(3, "0")}`,
-          }))
-      : [];
+          });
+        }
+      }
+    }
 
     if (markørPosisjon) {
       liste.push({
@@ -171,7 +205,7 @@ export default function LokasjonerSkjerm() {
     }
 
     return liste;
-  }, [eksisterendeOppgaver, markørPosisjon, visEksisterende]);
+  }, [eksisterendeOppgaver, markørPosisjon, visEksisterende, harGeoRef, geoRefStringifisert]);
 
   // GPS-status
   const [gpsStatus, setGpsStatus] = useState<"venter" | "ingen_tillatelse" | "aktiv" | "feil" | "ugyldig_georef" | null>(null);
@@ -607,6 +641,7 @@ export default function LokasjonerSkjerm() {
             onMarkørTrykk={håndterMarkørTrykk}
             markører={markører}
             gpsMarkør={gpsMarkør}
+            pdfPageSize={valgtTegningDetalj?.pdfPageSize ?? undefined}
           />
         ) : (
           <KartVisning />

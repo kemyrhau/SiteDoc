@@ -145,7 +145,14 @@ Interaktiv visning med musesentrert zoom (0.25x–50x / 25%–5000%):
 - **Oppgave** (standard): klikk plasserer blå markør → opprett-modal (oppgave/sjekkliste)
 - **Inspeksjon**: klikk på SVG-element viser DWG-egenskaper (lag, type, tekstinnhold) i popup. Elementer med `data-layer` får bredere stroke (5px) og blå hover-highlight. For TEXT/MTEXT-elementer hentes tekstinnholdet fra DOM via `target.textContent`
 - Eksisterende markører: røde MapPin fra `oppgave.hentForTegning`
-- PDF: iframe med transparent overlay
+- PDF: Pressable overlay (ikke injisert JS) for koordinatregistrering
+
+**PDF→PNG auto-konvertering:**
+- PDF-tegninger konverteres automatisk til PNG ved opplasting (pdftoppm, 200 DPI)
+- Konvertering skjer asynkront med `conversionStatus: "converting" → "done"/"failed"`
+- Georeferering gjøres alltid på PNG — sikrer at web og mobil bruker identisk koordinatsystem
+- `UPLOADS_DIR` env-variabel peker til `apps/api/uploads/` (påkrevd for Next.js server-side)
+- Server-krav: `poppler-utils` (pdftoppm) installert
 
 **GPS-koordinater (georefererte tegninger):**
 - Tegninger med `geoReference` viser live GPS-koordinater i headeren ved musebevegelse
@@ -211,7 +218,9 @@ Sammenslått IFC-viewer som laster ALLE prosjektets IFC-modeller i én @thatopen
 
 **Layout:** Sidepanel (280px, IFC-modeller med checkboxes + punktskyer) + 3D-viewer + flytende egenskapspanel.
 
-**IFC-funksjonalitet:** Klient-side WASM-parsing, objektvelging med highlight, klippeplan (snitt).
+**IFC-funksjonalitet:** Klient-side WASM-parsing, objektvelging med highlight, klippeplan (snitt). Norske IFC-kategorinavn i egenskapspanelet. Prioriterte attributter vises øverst. Scrollbart panel med større visningsområde.
+
+**3D-visning som modul:** 3D-visning er en modul (`3d-visning`, kategori `funksjon`) i `PROSJEKT_MODULER`. Deaktivert som standard — aktiveres per prosjekt via Innstillinger > Feltarbeid > Moduler. Sidebar-ikonet for 3D skjules når modulen er deaktivert.
 
 **@thatopen initialisering (kritisk rekkefølge):**
 1. `components.init()` — initialiserer Components-systemet
@@ -398,12 +407,10 @@ Draggbar skillelinje.
 - `tredjeTilGps(punkt3d, ifcOrigin, system)` — Three.js → GPS
 - `wgs84TilUtm/wgs84TilNtm` — WGS84 → UTM/NTM projeksjon
 
-**Georeferanse via 3D-modell:**
-- Klikk «Georeferér» → dobbeltklikk i tegning → klikk i 3D → gjenta for punkt 2
-- Lagrer geoReference via `tegning.settGeoReferanse`
-- Krever at IFC har GPS-metadata (fra `trekUtIfcMetadata`)
-- Fjern georeferanse-knapp for å nullstille
-- Auto georeferanse-veiledning: blå infobar vises når tegning mangler georeferanse
+**Georeferanse:**
+- Georeferanse-redigering (opprett/slett) skjer KUN i Lokasjoner-siden (`/dashbord/oppsett/lokasjoner`)
+- Tegning-3d viser kun status: "Georeferert" (grønt) eller "Georeferér i Lokasjoner" (lenke)
+- Støtter 3+ punkter: affin transformasjon med `ekstraPunkter`-array, viser kalibreringsfeil i meter
 
 **Tilgangskontroll:**
 - Georeferanse og kalibrering kun tilgjengelig for felt-admin (`manage_field`/`drawing_manage`)

@@ -21,6 +21,15 @@ PC/WSL (server):
     SSH        :22   → ssh.sitedoc.no      (Cloudflare Tunnel)
 ```
 
+## Server-avhengigheter (apt)
+
+- `poppler-utils` — pdftoppm for PDF→PNG konvertering av tegninger
+- `xvfb` — virtuelt display for CloudCompare (punktsky-konvertering)
+
+## Miljøvariabler (PM2)
+
+- `UPLOADS_DIR=/home/kemyr/programmering/sitedoc/apps/api/uploads` — påkrevd for web-prosessen (tRPC server-side i Next.js bruker annen cwd)
+
 ## Deployment
 
 ### Produksjon (main-branch)
