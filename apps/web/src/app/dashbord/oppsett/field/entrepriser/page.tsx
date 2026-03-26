@@ -790,14 +790,13 @@ function OpprettDokumentflytModal({
       }
     }
 
-    const payload = {
+    opprettMutation.mutate({
       projectId: prosjektId,
+      enterpriseId: forvalgtEntrepriseId,
       name: navn.trim(),
       templateIds: Array.from(valgteMaler),
       medlemmer: dfMedlemmer,
-    };
-    console.log("[dokumentflyt] opprett payload:", JSON.stringify(payload, null, 2));
-    opprettMutation.mutate(payload);
+    });
   }
 
   return (
@@ -1289,24 +1288,20 @@ export default function EntrepriserSide() {
   const entrepriseIder = new Set(entrepriseData.map((e) => e.id));
 
   function hentDfForEntreprise(entrepriseId: string): DokumentflytData[] {
-    return alleDf.filter((df) =>
-      df.medlemmer.some((m) => m.enterprise?.id === entrepriseId),
-    );
+    return alleDf.filter((df) => {
+      if (df.enterpriseId === entrepriseId) return true;
+      return df.medlemmer.some((m) => m.enterprise?.id === entrepriseId);
+    });
   }
 
-  // "Felles" — dokumentflyter som involverer ALLE entrepriser, eller ingen spesifikk
-  const fellesDf = alleDf.filter((df) => {
-    const involverteEntrepriser = new Set(
-      df.medlemmer.filter((m) => m.enterprise).map((m) => m.enterprise!.id),
-    );
-    // Ingen entreprisemedlemmer (kun personmedlemmer) eller alle entrepriser involvert
-    if (involverteEntrepriser.size === 0) return true;
-    if (involverteEntrepriser.size >= entrepriseIder.size && entrepriseIder.size > 0) {
-      // Sjekk at alle entrepriser er involvert
-      return Array.from(entrepriseIder).every((id) => involverteEntrepriser.has(id));
+  // "Felles" — dokumentflyter som ikke tilhører noen spesifikk entreprise
+  const tilordnedeDfIder = new Set<string>();
+  for (const ent of entrepriseData) {
+    for (const df of hentDfForEntreprise(ent.id)) {
+      tilordnedeDfIder.add(df.id);
     }
-    return false;
-  });
+  }
+  const fellesDf = alleDf.filter((df) => !tilordnedeDfIder.has(df.id));
 
   const filtrert = sok
     ? entrepriseData.filter((e) => {

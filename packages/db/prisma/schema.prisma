@@ -270,6 +270,7 @@ model Enterprise {
   respondWorkflows2   Workflow[]       @relation("WorkflowResponder2")
   respondWorkflows3   Workflow[]       @relation("WorkflowResponder3")
   dokumentflytMedlemskap DokumentflytMedlem[]
+  dokumentflyter     Dokumentflyt[]   @relation("dokumentflytEnterprise")
   invitations        ProjectInvitation[]
   folderAccess       FolderAccess[]
   groupEnterprises   GroupEnterprise[]
@@ -636,13 +637,15 @@ model WorkflowStepMember {
 // ---- Dokumentflyt (ny modell, erstatter Workflow over tid) ----
 
 model Dokumentflyt {
-  id        String   @id @default(uuid())
-  projectId String   @map("project_id")
-  name      String
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id           String   @id @default(uuid())
+  projectId    String   @map("project_id")
+  enterpriseId String?  @map("enterprise_id")
+  name         String
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
 
   project    Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  enterprise Enterprise?          @relation("dokumentflytEnterprise", fields: [enterpriseId], references: [id], onDelete: SetNull)
   medlemmer  DokumentflytMedlem[]
   maler      DokumentflytMal[]
   checklists Checklist[]

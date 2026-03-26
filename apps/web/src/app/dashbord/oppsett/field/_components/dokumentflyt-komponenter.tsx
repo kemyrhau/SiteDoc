@@ -41,6 +41,7 @@ export interface DokumentflytMalData {
 export interface DokumentflytData {
   id: string;
   name: string;
+  enterpriseId: string | null;
   medlemmer: DokumentflytMedlemData[];
   maler: DokumentflytMalData[];
 }
