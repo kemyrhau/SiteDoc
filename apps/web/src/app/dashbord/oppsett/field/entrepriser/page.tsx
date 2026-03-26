@@ -714,7 +714,6 @@ function OpprettDokumentflytModal({
       onClose();
     },
     onError: (err) => {
-      console.error("[dokumentflyt] opprett feil:", err);
       setFeilmelding(err.message || "Kunne ikke opprette dokumentflyt");
     },
   });
