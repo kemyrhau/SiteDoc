@@ -33,7 +33,7 @@ export const oppgaveRouter = router({
           ...(tilgangsFilter ?? {}),
         },
         include: {
-          template: true,
+          template: { include: { objects: { select: { id: true, label: true, type: true, config: true } } } },
           creator: true,
           creatorEnterprise: true,
           responderEnterprise: true,

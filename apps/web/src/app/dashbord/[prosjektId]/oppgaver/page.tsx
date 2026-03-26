@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { trpc } from "@/lib/trpc";
 import { Button, Modal, Spinner, EmptyState, StatusBadge, Badge, Table } from "@sitedoc/ui";
 import { useVerktoylinje } from "@/hooks/useVerktoylinje";
 import { useBygning } from "@/kontekst/bygning-kontekst";
-import { Plus, Trash2, Columns3 } from "lucide-react";
+import { Plus, Trash2, Search, ChevronDown, ChevronRight } from "lucide-react";
 
 // --- Typer ---
 
@@ -20,13 +20,21 @@ interface OppgaveRad {
   dueDate: string | null;
   createdAt: string;
   updatedAt: string;
-  template: { prefix: string | null; name: string } | null;
+  data: Record<string, unknown> | null;
+  template: { id: string; prefix: string | null; name: string; objects: MalObjekt[] } | null;
   creator: { name: string | null } | null;
   creatorEnterprise: { name: string };
   responderEnterprise: { name: string };
   drawing: { name: string; floor: string | null; building: { id: string; name: string } | null } | null;
   recipientUser: { name: string | null } | null;
   recipientGroup: { name: string } | null;
+}
+
+interface MalObjekt {
+  id: string;
+  label: string;
+  type: string;
+  config: Record<string, unknown> | null;
 }
 
 // --- Konstanter ---
@@ -57,55 +65,61 @@ const prioritetFarge: Record<string, "default" | "primary" | "warning" | "danger
   critical: "danger",
 };
 
-// --- Kolonnedefinisjoner ---
+// Felttyper som kan filtreres/vises som kolonner
+const FILTRERBARE_TYPER = new Set([
+  "list_single", "list_multi", "traffic_light",
+  "text_field", "integer", "decimal",
+  "date", "date_time", "person", "company",
+]);
 
-type KolonneId = "nr" | "tittel" | "emne" | "status" | "prioritet" | "lokasjon" | "opprettetAv" | "ansvarlig" | "oppretterEntreprise" | "svarerEntreprise" | "mal" | "opprettet" | "endret" | "frist" | "handlinger";
+// --- Kolonnegrupper (Dalux-stil) ---
 
-interface KolonneInfo {
-  id: KolonneId;
+interface KolonneParam {
+  id: string;
   navn: string;
-  fast: boolean; // Kan ikke fjernes
+  gruppe: "kolonner" | "posisjon" | "verdier";
+  fast?: boolean;
 }
 
-const ALLE_KOLONNER: KolonneInfo[] = [
-  { id: "nr", navn: "Nr", fast: true },
-  { id: "tittel", navn: "Tittel", fast: true },
-  { id: "status", navn: "Status", fast: true },
-  { id: "emne", navn: "Emne", fast: false },
-  { id: "prioritet", navn: "Prioritet", fast: false },
-  { id: "ansvarlig", navn: "Ansvarlig", fast: false },
-  { id: "lokasjon", navn: "Lokasjon", fast: false },
-  { id: "opprettetAv", navn: "Opprettet av", fast: false },
-  { id: "oppretterEntreprise", navn: "Oppretter-entreprise", fast: false },
-  { id: "svarerEntreprise", navn: "Svarer-entreprise", fast: false },
-  { id: "mal", navn: "Mal", fast: false },
-  { id: "opprettet", navn: "Opprettet", fast: false },
-  { id: "endret", navn: "Sist endret", fast: false },
-  { id: "frist", navn: "Frist", fast: false },
-  { id: "handlinger", navn: "", fast: true },
+const SYSTEM_KOLONNER: KolonneParam[] = [
+  { id: "nr", navn: "Nr", gruppe: "kolonner", fast: true },
+  { id: "tittel", navn: "Tittel", gruppe: "kolonner", fast: true },
+  { id: "status", navn: "Status", gruppe: "kolonner", fast: true },
+  { id: "emne", navn: "Emne", gruppe: "kolonner" },
+  { id: "prioritet", navn: "Prioritet", gruppe: "kolonner" },
+  { id: "ansvarlig", navn: "Ansvarlig", gruppe: "kolonner" },
+  { id: "opprettetAv", navn: "Opprettet av", gruppe: "kolonner" },
+  { id: "oppretterEntreprise", navn: "Oppretter-entreprise", gruppe: "kolonner" },
+  { id: "svarerEntreprise", navn: "Svarer-entreprise", gruppe: "kolonner" },
+  { id: "dokumentflyt", navn: "Dokumentflyt", gruppe: "kolonner" },
+  { id: "mal", navn: "Mal", gruppe: "kolonner" },
+  { id: "opprettet", navn: "Opprettelsesdato", gruppe: "kolonner" },
+  { id: "endret", navn: "Endringsdato", gruppe: "kolonner" },
+  { id: "frist", navn: "Tidsfrist", gruppe: "kolonner" },
+  { id: "handlinger", navn: "", gruppe: "kolonner", fast: true },
 ];
 
-const STANDARD_KOLONNER: KolonneId[] = ["nr", "tittel", "emne", "status", "ansvarlig", "lokasjon", "frist", "handlinger"];
+const POSISJON_KOLONNER: KolonneParam[] = [
+  { id: "bygning", navn: "Bygning", gruppe: "posisjon" },
+  { id: "etasje", navn: "Etasje", gruppe: "posisjon" },
+  { id: "tegning", navn: "Tegning", gruppe: "posisjon" },
+];
 
-const STORAGE_KEY = "sitedoc-oppgave-kolonner-v2";
+const STANDARD_AKTIVE = new Set(["nr", "tittel", "emne", "status", "ansvarlig", "frist", "handlinger"]);
+const STORAGE_KEY = "sitedoc-oppgave-kolonner-v3";
 
-function hentLagredeKolonner(): KolonneId[] {
-  if (typeof window === "undefined") return STANDARD_KOLONNER;
+function hentLagredeKolonner(): Set<string> {
+  if (typeof window === "undefined") return STANDARD_AKTIVE;
   try {
     const lagret = localStorage.getItem(STORAGE_KEY);
-    if (lagret) {
-      const parsed = JSON.parse(lagret) as string[];
-      const gyldige = ALLE_KOLONNER.map((k) => k.id);
-      const filtrert = parsed.filter((k) => gyldige.includes(k as KolonneId)) as KolonneId[];
-      if (filtrert.length > 0) return filtrert;
-    }
+    if (lagret) return new Set(JSON.parse(lagret) as string[]);
   } catch { /* ignorer */ }
-  return STANDARD_KOLONNER;
+  return STANDARD_AKTIVE;
 }
 
-function lagreKolonner(kolonner: KolonneId[]) {
+function lagreKolonner(kolonner: Set<string>) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(kolonner));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify([...kolonner]));
   } catch { /* ignorer */ }
 }
 
@@ -116,13 +130,6 @@ function formaterNummer(rad: OppgaveRad): string {
     return `${rad.template.prefix}-${String(rad.number).padStart(3, "0")}`;
   }
   return rad.number ? String(rad.number) : "—";
-}
-
-function formaterLokasjon(rad: OppgaveRad): string {
-  const deler: string[] = [];
-  if (rad.drawing?.building?.name) deler.push(rad.drawing.building.name);
-  if (rad.drawing?.floor) deler.push(rad.drawing.floor);
-  return deler.join(" / ") || "—";
 }
 
 function formaterAnsvarlig(rad: OppgaveRad): string {
@@ -136,7 +143,129 @@ function formaterDato(dato: string | null): string {
   return new Date(dato).toLocaleDateString("nb-NO", { day: "numeric", month: "short", year: "numeric" });
 }
 
-// --- Komponent ---
+function hentFeltVerdi(rad: OppgaveRad, objektId: string): string {
+  if (!rad.data) return "—";
+  const verdi = rad.data[objektId];
+  if (verdi == null || verdi === "") return "—";
+  if (typeof verdi === "string") return verdi;
+  if (typeof verdi === "number") return String(verdi);
+  if (typeof verdi === "boolean") return verdi ? "Ja" : "Nei";
+  if (Array.isArray(verdi)) return verdi.map(String).join(", ");
+  return String(verdi);
+}
+
+// --- KolonneVelger (Dalux-stil modal) ---
+
+function KolonneVelger({
+  apen,
+  onLukk,
+  aktive,
+  onToggle,
+  verdiFelter,
+}: {
+  apen: boolean;
+  onLukk: () => void;
+  aktive: Set<string>;
+  onToggle: (id: string) => void;
+  verdiFelter: KolonneParam[];
+}) {
+  const [sok, setSok] = useState("");
+  const [apneGrupper, setApneGrupper] = useState<Set<string>>(new Set(["kolonner", "posisjon", "verdier"]));
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleKlikk(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) onLukk();
+    }
+    if (apen) document.addEventListener("mousedown", handleKlikk);
+    return () => document.removeEventListener("mousedown", handleKlikk);
+  }, [apen, onLukk]);
+
+  if (!apen) return null;
+
+  const sokLower = sok.toLowerCase();
+  const filtrer = (p: KolonneParam) => !sok || p.navn.toLowerCase().includes(sokLower);
+
+  const grupper = [
+    { id: "kolonner", navn: "Kolonner", felter: SYSTEM_KOLONNER.filter((k) => k.navn && !k.fast).filter(filtrer) },
+    { id: "posisjon", navn: "Posisjon", felter: POSISJON_KOLONNER.filter(filtrer) },
+    { id: "verdier", navn: "Verdier", felter: verdiFelter.filter(filtrer) },
+  ].filter((g) => g.felter.length > 0);
+
+  const toggleGruppe = (id: string) => {
+    setApneGrupper((prev) => {
+      const ny = new Set(prev);
+      ny.has(id) ? ny.delete(id) : ny.add(id);
+      return ny;
+    });
+  };
+
+  return (
+    <div ref={ref} className="absolute left-0 top-full z-50 mt-1 w-[280px] rounded-lg border border-gray-200 bg-white shadow-xl">
+      <div className="p-2">
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            value={sok}
+            onChange={(e) => setSok(e.target.value)}
+            placeholder="Søk..."
+            className="w-full rounded-md border border-gray-200 py-1.5 pl-8 pr-3 text-xs focus:border-blue-500 focus:outline-none"
+            autoFocus
+          />
+        </div>
+      </div>
+      <div className="max-h-[400px] overflow-y-auto px-1 pb-2">
+        {grupper.map((gruppe) => (
+          <div key={gruppe.id}>
+            <button
+              onClick={() => toggleGruppe(gruppe.id)}
+              className="flex w-full items-center gap-1 px-2 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+            >
+              {apneGrupper.has(gruppe.id)
+                ? <ChevronDown className="h-3 w-3" />
+                : <ChevronRight className="h-3 w-3" />
+              }
+              {gruppe.navn}
+            </button>
+            {apneGrupper.has(gruppe.id) && gruppe.felter.map((felt) => (
+              <label
+                key={felt.id}
+                className="flex cursor-pointer items-center gap-2 py-1 pl-6 pr-2 text-xs hover:bg-gray-50"
+              >
+                <input
+                  type="checkbox"
+                  checked={aktive.has(felt.id)}
+                  onChange={() => onToggle(felt.id)}
+                  className="h-3.5 w-3.5 rounded border-gray-300 text-blue-600"
+                />
+                <span className="truncate">{felt.navn}</span>
+              </label>
+            ))}
+          </div>
+        ))}
+      </div>
+      <div className="flex items-center justify-between border-t border-gray-100 px-3 py-2">
+        <button
+          onClick={() => {
+            const ny = new Set(STANDARD_AKTIVE);
+            lagreKolonner(ny);
+            // Reset via parent
+            onToggle("__reset__");
+          }}
+          className="text-xs text-gray-500 hover:text-gray-700"
+        >
+          Nullstill
+        </button>
+        <button onClick={onLukk} className="rounded bg-blue-600 px-3 py-1 text-xs font-medium text-white hover:bg-blue-700">
+          OK
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// --- Hovedkomponent ---
 
 export default function OppgaverSide() {
   const params = useParams<{ prosjektId: string }>();
@@ -146,7 +275,7 @@ export default function OppgaverSide() {
   const utils = trpc.useUtils();
   const [visModal, setVisModal] = useState(false);
   const [visKolonneVelger, setVisKolonneVelger] = useState(false);
-  const [aktiveKolonner, setAktiveKolonner] = useState<KolonneId[]>(hentLagredeKolonner);
+  const [aktiveKolonner, setAktiveKolonner] = useState<Set<string>>(hentLagredeKolonner);
   const [filterVerdier, setFilterVerdier] = useState<Record<string, string>>({});
   const { aktivBygning } = useBygning();
 
@@ -219,28 +348,55 @@ export default function OppgaverSide() {
     });
   }
 
-  // Bygg dynamiske filteralternativer fra data
+  // Trekk ut Verdier-kolonner fra alle maler brukt i data
+  const verdiFelter = useMemo<KolonneParam[]>(() => {
+    if (!oppgaver) return [];
+    const sett = new Map<string, KolonneParam>();
+    for (const rad of oppgaver) {
+      if (!rad.template?.objects) continue;
+      for (const obj of rad.template.objects) {
+        if (FILTRERBARE_TYPER.has(obj.type) && !sett.has(obj.id)) {
+          sett.set(obj.id, { id: `felt:${obj.id}`, navn: obj.label, gruppe: "verdier" });
+        }
+      }
+    }
+    return [...sett.values()].sort((a, b) => a.navn.localeCompare(b.navn, "nb-NO"));
+  }, [oppgaver]);
+
+  // Alle tilgjengelige kolonner
+  const alleKolonner = useMemo(() => [...SYSTEM_KOLONNER, ...POSISJON_KOLONNER, ...verdiFelter], [verdiFelter]);
+
+  // Dynamiske filteralternativer
   const dynamiskFilter = useMemo(() => {
-    if (!oppgaver) return {};
-    const emner = [...new Set(oppgaver.map((o) => o.subject).filter(Boolean) as string[])].sort();
-    const ansvarlige = [...new Set(oppgaver.map((o) => formaterAnsvarlig(o)))].sort();
-    const opprettetAv = [...new Set(oppgaver.map((o) => o.creator?.name).filter(Boolean) as string[])].sort();
-    const oppretterEntrepriser = [...new Set(oppgaver.map((o) => o.creatorEnterprise.name))].sort();
-    const svarerEntrepriser = [...new Set(oppgaver.map((o) => o.responderEnterprise.name))].sort();
-    const maler = [...new Set(oppgaver.map((o) => o.template?.name).filter(Boolean) as string[])].sort();
-    const lokasjoner = [...new Set(oppgaver.map((o) => formaterLokasjon(o)).filter((l) => l !== "—"))].sort();
-    return {
-      emne: emner.map((e) => ({ value: e, label: e })),
-      ansvarlig: ansvarlige.map((a) => ({ value: a, label: a })),
-      opprettetAv: opprettetAv.map((n) => ({ value: n, label: n })),
-      oppretterEntreprise: oppretterEntrepriser.map((e) => ({ value: e, label: e })),
-      svarerEntreprise: svarerEntrepriser.map((e) => ({ value: e, label: e })),
-      mal: maler.map((m) => ({ value: m, label: m })),
-      lokasjon: lokasjoner.map((l) => ({ value: l, label: l })),
+    if (!oppgaver) return {} as Record<string, { value: string; label: string }[]>;
+    const bygg = (felter: (string | null | undefined)[]) =>
+      [...new Set(felter.filter(Boolean) as string[])].sort().map((v) => ({ value: v, label: v }));
+
+    const filter: Record<string, { value: string; label: string }[]> = {
+      emne: bygg(oppgaver.map((o) => o.subject)),
+      ansvarlig: bygg(oppgaver.map((o) => formaterAnsvarlig(o))),
+      opprettetAv: bygg(oppgaver.map((o) => o.creator?.name)),
+      oppretterEntreprise: bygg(oppgaver.map((o) => o.creatorEnterprise.name)),
+      svarerEntreprise: bygg(oppgaver.map((o) => o.responderEnterprise.name)),
+      mal: bygg(oppgaver.map((o) => o.template?.name)),
+      bygning: bygg(oppgaver.map((o) => o.drawing?.building?.name)),
+      etasje: bygg(oppgaver.map((o) => o.drawing?.floor)),
+      tegning: bygg(oppgaver.map((o) => o.drawing?.name)),
       prioritet: PRIORITETER,
       status: STATUS_ALTERNATIVER,
     };
-  }, [oppgaver]);
+
+    // Verdier fra data-JSON
+    for (const felt of verdiFelter) {
+      const objektId = felt.id.replace("felt:", "");
+      filter[felt.id] = bygg(oppgaver.map((o) => {
+        const v = hentFeltVerdi(o, objektId);
+        return v === "—" ? null : v;
+      }));
+    }
+
+    return filter;
+  }, [oppgaver, verdiFelter]);
 
   // Filtrer data
   const filtrerte = useMemo(() => {
@@ -249,6 +405,9 @@ export default function OppgaverSide() {
     for (const [kolId, verdi] of Object.entries(filterVerdier)) {
       if (!verdi) continue;
       resultat = resultat.filter((o) => {
+        if (kolId.startsWith("felt:")) {
+          return hentFeltVerdi(o, kolId.replace("felt:", "")) === verdi;
+        }
         switch (kolId) {
           case "status": return o.status === verdi;
           case "emne": return o.subject === verdi;
@@ -258,7 +417,9 @@ export default function OppgaverSide() {
           case "oppretterEntreprise": return o.creatorEnterprise.name === verdi;
           case "svarerEntreprise": return o.responderEnterprise.name === verdi;
           case "mal": return o.template?.name === verdi;
-          case "lokasjon": return formaterLokasjon(o) === verdi;
+          case "bygning": return o.drawing?.building?.name === verdi;
+          case "etasje": return o.drawing?.floor === verdi;
+          case "tegning": return o.drawing?.name === verdi;
           default: return true;
         }
       });
@@ -270,161 +431,140 @@ export default function OppgaverSide() {
     setFilterVerdier((prev) => ({ ...prev, [kolonneId]: verdi }));
   }, []);
 
-  const toggleKolonne = useCallback((kolId: KolonneId) => {
+  const handleToggleKolonne = useCallback((id: string) => {
+    if (id === "__reset__") {
+      setAktiveKolonner(new Set(STANDARD_AKTIVE));
+      lagreKolonner(new Set(STANDARD_AKTIVE));
+      return;
+    }
     setAktiveKolonner((prev) => {
-      const ny = prev.includes(kolId)
-        ? prev.filter((k) => k !== kolId)
-        : [...prev.slice(0, -1), kolId, prev[prev.length - 1]!]; // Sett inn før "handlinger"
+      const ny = new Set(prev);
+      ny.has(id) ? ny.delete(id) : ny.add(id);
       lagreKolonner(ny);
       return ny;
     });
   }, []);
 
-  // Bygg kolonnedefinisjoner for aktive kolonner
+  // Bygg kolonnedefinisjoner
   const kolonneDefinisjoner = useMemo(() => {
-    const defs: Record<KolonneId, Parameters<typeof Table<OppgaveRad>>[0]["kolonner"][number]> = {
+    type KolDef = Parameters<typeof Table<OppgaveRad>>[0]["kolonner"][number];
+    const defs: Record<string, KolDef> = {
       nr: {
-        id: "nr",
-        header: "Nr",
+        id: "nr", header: "Nr",
         celle: (rad) => <span className="text-xs font-medium text-gray-500 whitespace-nowrap">{formaterNummer(rad)}</span>,
-        bredde: "90px",
-        sorterbar: true,
-        sorterVerdi: (rad) => rad.number ?? 0,
+        bredde: "90px", sorterbar: true, sorterVerdi: (rad) => rad.number ?? 0,
       },
       tittel: {
-        id: "tittel",
-        header: "Tittel",
+        id: "tittel", header: "Tittel",
         celle: (rad) => <span className="font-medium text-gray-900">{rad.title}</span>,
-        sorterbar: true,
-        sorterVerdi: (rad) => rad.title,
+        sorterbar: true, sorterVerdi: (rad) => rad.title,
       },
       emne: {
-        id: "emne",
-        header: "Emne",
+        id: "emne", header: "Emne",
         celle: (rad) => rad.subject
           ? <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-600">{rad.subject}</span>
           : <span className="text-gray-300">—</span>,
-        sorterbar: true,
-        sorterVerdi: (rad) => rad.subject ?? "",
-        filtrerbar: true,
-        filterAlternativer: dynamiskFilter.emne ?? [],
+        sorterbar: true, sorterVerdi: (rad) => rad.subject ?? "",
+        filtrerbar: true, filterAlternativer: dynamiskFilter.emne ?? [],
       },
       status: {
-        id: "status",
-        header: "Status",
+        id: "status", header: "Status",
         celle: (rad) => <StatusBadge status={rad.status} />,
-        bredde: "130px",
-        sorterbar: true,
-        sorterVerdi: (rad) => rad.status,
-        filtrerbar: true,
-        filterAlternativer: dynamiskFilter.status ?? [],
+        bredde: "130px", sorterbar: true, sorterVerdi: (rad) => rad.status,
+        filtrerbar: true, filterAlternativer: dynamiskFilter.status ?? [],
       },
       prioritet: {
-        id: "prioritet",
-        header: "Prioritet",
+        id: "prioritet", header: "Prioritet",
         celle: (rad) => (
           <Badge variant={prioritetFarge[rad.priority] ?? "default"}>
             {PRIORITETER.find((p) => p.value === rad.priority)?.label ?? rad.priority}
           </Badge>
         ),
-        bredde: "100px",
-        sorterbar: true,
+        bredde: "100px", sorterbar: true,
         sorterVerdi: (rad) => ["low", "medium", "high", "critical"].indexOf(rad.priority),
-        filtrerbar: true,
-        filterAlternativer: dynamiskFilter.prioritet ?? [],
-      },
-      lokasjon: {
-        id: "lokasjon",
-        header: "Lokasjon",
-        celle: (rad) => {
-          const lok = formaterLokasjon(rad);
-          return lok !== "—"
-            ? <span className="text-xs text-gray-600">{lok}</span>
-            : <span className="text-gray-300">—</span>;
-        },
-        sorterbar: true,
-        sorterVerdi: (rad) => formaterLokasjon(rad),
-        filtrerbar: true,
-        filterAlternativer: dynamiskFilter.lokasjon ?? [],
+        filtrerbar: true, filterAlternativer: dynamiskFilter.prioritet ?? [],
       },
       ansvarlig: {
-        id: "ansvarlig",
-        header: "Ansvarlig",
+        id: "ansvarlig", header: "Ansvarlig",
         celle: (rad) => <span className="text-gray-600">{formaterAnsvarlig(rad)}</span>,
-        sorterbar: true,
-        sorterVerdi: (rad) => formaterAnsvarlig(rad),
-        filtrerbar: true,
-        filterAlternativer: dynamiskFilter.ansvarlig ?? [],
+        sorterbar: true, sorterVerdi: (rad) => formaterAnsvarlig(rad),
+        filtrerbar: true, filterAlternativer: dynamiskFilter.ansvarlig ?? [],
       },
       opprettetAv: {
-        id: "opprettetAv",
-        header: "Opprettet av",
+        id: "opprettetAv", header: "Opprettet av",
         celle: (rad) => rad.creator?.name
           ? <span className="text-gray-600">{rad.creator.name}</span>
           : <span className="text-gray-300">—</span>,
-        sorterbar: true,
-        sorterVerdi: (rad) => rad.creator?.name ?? "",
-        filtrerbar: true,
-        filterAlternativer: dynamiskFilter.opprettetAv ?? [],
+        sorterbar: true, sorterVerdi: (rad) => rad.creator?.name ?? "",
+        filtrerbar: true, filterAlternativer: dynamiskFilter.opprettetAv ?? [],
       },
       oppretterEntreprise: {
-        id: "oppretterEntreprise",
-        header: "Oppretter-entreprise",
+        id: "oppretterEntreprise", header: "Oppretter-entreprise",
         celle: (rad) => <span className="text-xs text-gray-500">{rad.creatorEnterprise.name}</span>,
-        sorterbar: true,
-        sorterVerdi: (rad) => rad.creatorEnterprise.name,
-        filtrerbar: true,
-        filterAlternativer: dynamiskFilter.oppretterEntreprise ?? [],
+        sorterbar: true, sorterVerdi: (rad) => rad.creatorEnterprise.name,
+        filtrerbar: true, filterAlternativer: dynamiskFilter.oppretterEntreprise ?? [],
       },
       svarerEntreprise: {
-        id: "svarerEntreprise",
-        header: "Svarer-entreprise",
+        id: "svarerEntreprise", header: "Svarer-entreprise",
         celle: (rad) => <span className="text-xs text-gray-500">{rad.responderEnterprise.name}</span>,
-        sorterbar: true,
-        sorterVerdi: (rad) => rad.responderEnterprise.name,
-        filtrerbar: true,
-        filterAlternativer: dynamiskFilter.svarerEntreprise ?? [],
+        sorterbar: true, sorterVerdi: (rad) => rad.responderEnterprise.name,
+        filtrerbar: true, filterAlternativer: dynamiskFilter.svarerEntreprise ?? [],
       },
       mal: {
-        id: "mal",
-        header: "Mal",
+        id: "mal", header: "Mal",
         celle: (rad) => rad.template
           ? <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-500">{rad.template.name}</span>
           : <span className="text-gray-300">—</span>,
-        sorterbar: true,
-        sorterVerdi: (rad) => rad.template?.name ?? "",
-        filtrerbar: true,
-        filterAlternativer: dynamiskFilter.mal ?? [],
+        sorterbar: true, sorterVerdi: (rad) => rad.template?.name ?? "",
+        filtrerbar: true, filterAlternativer: dynamiskFilter.mal ?? [],
+      },
+      dokumentflyt: {
+        id: "dokumentflyt", header: "Dokumentflyt",
+        celle: () => <span className="text-gray-300">—</span>,
       },
       opprettet: {
-        id: "opprettet",
-        header: "Opprettet",
+        id: "opprettet", header: "Opprettet",
         celle: (rad) => <span className="text-xs text-gray-500">{formaterDato(rad.createdAt)}</span>,
-        bredde: "100px",
-        sorterbar: true,
-        sorterVerdi: (rad) => new Date(rad.createdAt).getTime(),
+        bredde: "120px", sorterbar: true, sorterVerdi: (rad) => new Date(rad.createdAt).getTime(),
       },
       endret: {
-        id: "endret",
-        header: "Sist endret",
+        id: "endret", header: "Sist endret",
         celle: (rad) => <span className="text-xs text-gray-500">{formaterDato(rad.updatedAt)}</span>,
-        bredde: "100px",
-        sorterbar: true,
-        sorterVerdi: (rad) => new Date(rad.updatedAt).getTime(),
+        bredde: "120px", sorterbar: true, sorterVerdi: (rad) => new Date(rad.updatedAt).getTime(),
       },
       frist: {
-        id: "frist",
-        header: "Frist",
+        id: "frist", header: "Frist",
         celle: (rad) => rad.dueDate
           ? <span className="text-xs text-gray-500">{formaterDato(rad.dueDate)}</span>
           : <span className="text-gray-300">—</span>,
-        bredde: "100px",
-        sorterbar: true,
-        sorterVerdi: (rad) => rad.dueDate ? new Date(rad.dueDate).getTime() : null,
+        bredde: "120px", sorterbar: true, sorterVerdi: (rad) => rad.dueDate ? new Date(rad.dueDate).getTime() : null,
+      },
+      bygning: {
+        id: "bygning", header: "Bygning",
+        celle: (rad) => rad.drawing?.building?.name
+          ? <span className="text-xs text-gray-600">{rad.drawing.building.name}</span>
+          : <span className="text-gray-300">—</span>,
+        sorterbar: true, sorterVerdi: (rad) => rad.drawing?.building?.name ?? "",
+        filtrerbar: true, filterAlternativer: dynamiskFilter.bygning ?? [],
+      },
+      etasje: {
+        id: "etasje", header: "Etasje",
+        celle: (rad) => rad.drawing?.floor
+          ? <span className="text-xs text-gray-600">{rad.drawing.floor}</span>
+          : <span className="text-gray-300">—</span>,
+        sorterbar: true, sorterVerdi: (rad) => rad.drawing?.floor ?? "",
+        filtrerbar: true, filterAlternativer: dynamiskFilter.etasje ?? [],
+      },
+      tegning: {
+        id: "tegning", header: "Tegning",
+        celle: (rad) => rad.drawing?.name
+          ? <span className="text-xs text-gray-600">{rad.drawing.name}</span>
+          : <span className="text-gray-300">—</span>,
+        sorterbar: true, sorterVerdi: (rad) => rad.drawing?.name ?? "",
+        filtrerbar: true, filterAlternativer: dynamiskFilter.tegning ?? [],
       },
       handlinger: {
-        id: "handlinger",
-        header: "",
+        id: "handlinger", header: "",
         celle: (rad) =>
           (rad.status === "draft" || rad.status === "cancelled") ? (
             <button
@@ -444,8 +584,32 @@ export default function OppgaverSide() {
       },
     };
 
-    return aktiveKolonner.map((id) => defs[id]).filter(Boolean);
-  }, [aktiveKolonner, dynamiskFilter, slettMutasjon]);
+    // Dynamiske verdier-kolonner
+    for (const felt of verdiFelter) {
+      const objektId = felt.id.replace("felt:", "");
+      defs[felt.id] = {
+        id: felt.id, header: felt.navn,
+        celle: (rad) => {
+          const v = hentFeltVerdi(rad, objektId);
+          return v !== "—"
+            ? <span className="text-xs text-gray-600">{v}</span>
+            : <span className="text-gray-300">—</span>;
+        },
+        sorterbar: true, sorterVerdi: (rad) => hentFeltVerdi(rad, objektId),
+        filtrerbar: (dynamiskFilter[felt.id]?.length ?? 0) > 0,
+        filterAlternativer: dynamiskFilter[felt.id] ?? [],
+      };
+    }
+
+    // Bygg sortert array fra aktive kolonner
+    const rekkefølge = [...SYSTEM_KOLONNER, ...POSISJON_KOLONNER, ...verdiFelter];
+    const resultat: KolDef[] = [];
+    for (const k of rekkefølge) {
+      const def = defs[k.id];
+      if (aktiveKolonner.has(k.id) && def) resultat.push(def);
+    }
+    return resultat;
+  }, [aktiveKolonner, dynamiskFilter, slettMutasjon, verdiFelter]);
 
   // Aktive filter for visning
   const aktiveFilter = Object.entries(filterVerdier).filter(([_, v]) => v);
@@ -469,32 +633,21 @@ export default function OppgaverSide() {
               onClick={() => setVisKolonneVelger(!visKolonneVelger)}
               className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
             >
-              <Columns3 className="h-3.5 w-3.5" />
-              Kolonner
+              <Search className="h-3.5 w-3.5" />
+              Velg parameter
             </button>
-            {visKolonneVelger && (
-              <div className="absolute left-0 top-full z-50 mt-1 min-w-[180px] rounded-md border border-gray-200 bg-white py-1 shadow-lg">
-                {ALLE_KOLONNER.filter((k) => k.navn && !k.fast).map((kol) => (
-                  <label
-                    key={kol.id}
-                    className="flex cursor-pointer items-center gap-2 px-3 py-1.5 text-xs hover:bg-gray-50"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={aktiveKolonner.includes(kol.id)}
-                      onChange={() => toggleKolonne(kol.id)}
-                      className="h-3.5 w-3.5 rounded border-gray-300 text-blue-600"
-                    />
-                    {kol.navn}
-                  </label>
-                ))}
-              </div>
-            )}
+            <KolonneVelger
+              apen={visKolonneVelger}
+              onLukk={() => setVisKolonneVelger(false)}
+              aktive={aktiveKolonner}
+              onToggle={handleToggleKolonne}
+              verdiFelter={verdiFelter}
+            />
           </div>
 
           {/* Aktive filter-tags */}
           {aktiveFilter.map(([kolId, verdi]) => {
-            const kolNavn = ALLE_KOLONNER.find((k) => k.id === kolId)?.navn ?? kolId;
+            const kolNavn = alleKolonner.find((k) => k.id === kolId)?.navn ?? kolId;
             return (
               <span
                 key={kolId}
