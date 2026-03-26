@@ -10,6 +10,7 @@ import {
   verifiserDokumentTilgang,
   verifiserProsjektmedlem,
 } from "../trpc/tilgangskontroll";
+import { sendDokumentVarsling, hentMottakerEposter } from "../services/epost";
 
 export const oppgaveRouter = router({
   // Hent alle oppgaver for et prosjekt
@@ -425,26 +426,54 @@ export const oppgaveRouter = router({
       const oppgave = await ctx.prisma.task.findUniqueOrThrow({
         where: { id: input.id },
         include: {
-          creatorEnterprise: { select: { projectId: true } },
-          template: { select: { domain: true } },
+          creatorEnterprise: { select: { projectId: true, project: { select: { name: true } } } },
+          template: { select: { domain: true, prefix: true } },
         },
       });
+
+      const projectId = oppgave.creatorEnterprise.projectId;
 
       // Tilgangssjekk
       await verifiserDokumentTilgang(
         ctx.userId,
-        oppgave.creatorEnterprise.projectId,
+        projectId,
         oppgave.creatorEnterpriseId,
         oppgave.responderEnterpriseId,
         oppgave.template?.domain,
       );
+
+      // Hjelpefunksjon for varsling
+      const varsle = async (erVideresending: boolean) => {
+        const eposter = await hentMottakerEposter(ctx.prisma, {
+          recipientUserId: input.recipientUserId,
+          recipientGroupId: input.recipientGroupId,
+          ekskluderUserId: ctx.userId,
+        });
+        if (eposter.length === 0) return;
+        const avsender = await ctx.prisma.user.findUnique({ where: { id: ctx.userId }, select: { name: true } });
+        const nummer = oppgave.template?.prefix && oppgave.number
+          ? `${oppgave.template.prefix}-${String(oppgave.number).padStart(3, "0")}`
+          : undefined;
+        void sendDokumentVarsling({
+          til: eposter,
+          dokumentType: "oppgave",
+          dokumentTittel: oppgave.title ?? "Uten tittel",
+          dokumentNummer: nummer,
+          prosjektNavn: oppgave.creatorEnterprise.project.name,
+          prosjektId: projectId,
+          dokumentId: oppgave.id,
+          avsenderNavn: avsender?.name ?? "Ukjent",
+          kommentar: input.kommentar,
+          erVideresending,
+        });
+      };
 
       // Videresending: bytt mottaker uten å endre status
       if (input.nyStatus === "forwarded") {
         if (!input.recipientUserId && !input.recipientGroupId) {
           throw new TRPCError({ code: "BAD_REQUEST", message: "Videresending krever en mottaker" });
         }
-        return ctx.prisma.$transaction(async (tx) => {
+        const resultat = await ctx.prisma.$transaction(async (tx) => {
           const oppdatert = await tx.task.update({
             where: { id: input.id },
             data: {
@@ -465,6 +494,8 @@ export const oppgaveRouter = router({
           });
           return oppdatert;
         });
+        void varsle(true);
+        return resultat;
       }
 
       if (!isValidStatusTransition(oppgave.status, input.nyStatus)) {
@@ -477,7 +508,7 @@ export const oppgaveRouter = router({
       // Auto-mottatt: sent → received umiddelbart
       const effektivStatus = input.nyStatus === "sent" ? "received" : input.nyStatus;
 
-      return ctx.prisma.$transaction(async (tx) => {
+      const resultat = await ctx.prisma.$transaction(async (tx) => {
         const oppdatert = await tx.task.update({
           where: { id: input.id },
           data: {
@@ -516,6 +547,13 @@ export const oppgaveRouter = router({
 
         return oppdatert;
       });
+
+      // Varsle mottaker ved sending
+      if (input.nyStatus === "sent") {
+        void varsle(false);
+      }
+
+      return resultat;
     }),
 
   // Slett oppgave (kun i utkast-status)
