@@ -3,7 +3,7 @@
 import { useParams, useRouter } from "next/navigation";
 import { useState, useMemo, useCallback } from "react";
 import { Spinner, StatusBadge, Card, Badge } from "@sitedoc/ui";
-import { Check, AlertCircle, Loader2, Send } from "lucide-react";
+import { Check, AlertCircle, Loader2, Send, FileText, Printer } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useOppgaveSkjema } from "@/hooks/useOppgaveSkjema";
 import { StatusHandlinger } from "@/components/StatusHandlinger";
@@ -329,6 +329,22 @@ export default function OppgaveDetaljSide() {
             {PRIORITETS_TEKST[oppgave.priority] ?? oppgave.priority}
           </Badge>
           <LagreIndikator status={lagreStatus} />
+          <div className="ml-auto flex items-center gap-2 print-skjul">
+            <button
+              onClick={() => window.open(`/utskrift/oppgave/${params.oppgaveId}`, "_blank")}
+              className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
+            >
+              <FileText className="h-4 w-4" />
+              Vis PDF
+            </button>
+            <button
+              onClick={() => window.print()}
+              className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
+            >
+              <Printer className="h-4 w-4" />
+              Skriv ut
+            </button>
+          </div>
         </div>
         <div className="flex items-center gap-1 text-sm text-gray-500">
           {oppgave.template && <span>Mal: {oppgave.template.name}</span>}
