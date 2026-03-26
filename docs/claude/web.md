@@ -106,6 +106,7 @@ Dalux-inspirert tre-kolonne layout (skjules på mobil < 768px, hamburger-meny i 
 Drag-and-drop i `apps/web/src/components/malbygger/`: `MalBygger`, `FeltPalett`, `DropSone`, `DraggbartFelt`, `FeltKonfigurasjon`, `BetingelseBjelke`, `TreprikkMeny`.
 
 - **Faste felt** (metadata): Emne, Oppretter-entreprise, Lokasjon — vises øverst i «Faste felt»-seksjonen med øye-toggle (`showSubject`, `showEnterprise`, `showLocation` på `ReportTemplate`)
+- **Lokasjon settes IKKE i opprettelsesmodal** — settes automatisk fra tegning ved klikk, eller kobles etterpå via tegningsvisning. Bygning/tegning-dropdown er fjernet fra opprettelseskjema (web + mobil)
 - Rekursiv `RekursivtFelt`-rendering med nesting
 - Repeater: grønn ramme, uten BetingelseBjelke
 - Slett-validering: blokkeres ved bruk (JSONB `?|` operator)
