@@ -37,7 +37,7 @@ export function isValidStatusTransition(
     approved: ["closed"],
     rejected: ["in_progress", "closed"],
     closed: [],
-    cancelled: [],
+    cancelled: ["draft"],
   };
 
   return validTransitions[current]?.includes(next) ?? false;
