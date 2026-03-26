@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { hentStatusHandlinger } from "@sitedoc/shared";
 
-// Map Tailwind mobile-klasser til web-varianter
 const FARGE_MAP: Record<string, { bg: string; hover: string }> = {
   "bg-blue-600": { bg: "bg-blue-600", hover: "hover:bg-blue-700" },
   "bg-red-600": { bg: "bg-red-600", hover: "hover:bg-red-700" },
@@ -13,16 +12,23 @@ const FARGE_MAP: Record<string, { bg: string; hover: string }> = {
   "bg-gray-500": { bg: "bg-gray-500", hover: "hover:bg-gray-600" },
 };
 
+interface MottakerValg {
+  personer: Array<{ id: string; navn: string; grupper?: string }>;
+  grupper: Array<{ id: string; navn: string }>;
+}
+
 interface StatusHandlingerProps {
   status: string;
   erLaster: boolean;
-  onEndreStatus: (nyStatus: string, kommentar?: string) => void;
+  onEndreStatus: (nyStatus: string, kommentar?: string, mottaker?: { userId?: string; groupId?: string }) => void;
   onSlett?: () => void;
+  mottakerValg?: MottakerValg;
 }
 
-export function StatusHandlinger({ status, erLaster, onEndreStatus, onSlett }: StatusHandlingerProps) {
+export function StatusHandlinger({ status, erLaster, onEndreStatus, onSlett, mottakerValg }: StatusHandlingerProps) {
   const [bekreftHandling, setBekreftHandling] = useState<string | null>(null);
   const [kommentar, setKommentar] = useState("");
+  const [valgtMottaker, setValgtMottaker] = useState("");
 
   const handlinger = hentStatusHandlinger(status);
 
@@ -40,19 +46,34 @@ export function StatusHandlinger({ status, erLaster, onEndreStatus, onSlett }: S
       return;
     }
     if (bekreftHandling === nyStatus) {
-      onEndreStatus(nyStatus, kommentar.trim() || undefined);
+      // Parse mottaker fra valgt verdi
+      let mottaker: { userId?: string; groupId?: string } | undefined;
+      if (valgtMottaker) {
+        if (valgtMottaker.startsWith("u:")) {
+          mottaker = { userId: valgtMottaker.slice(2) };
+        } else if (valgtMottaker.startsWith("g:")) {
+          mottaker = { groupId: valgtMottaker.slice(2) };
+        }
+      }
+      onEndreStatus(nyStatus, kommentar.trim() || undefined, mottaker);
       setBekreftHandling(null);
       setKommentar("");
+      setValgtMottaker("");
     } else {
       setBekreftHandling(nyStatus);
       setKommentar("");
+      setValgtMottaker("");
     }
   };
 
   const avbrytBekreft = () => {
     setBekreftHandling(null);
     setKommentar("");
+    setValgtMottaker("");
   };
+
+  const visMottakerVelger = bekreftHandling === "sent" && mottakerValg &&
+    (mottakerValg.personer.length > 0 || mottakerValg.grupper.length > 0);
 
   return (
     <div className="flex flex-col gap-2">
@@ -84,21 +105,44 @@ export function StatusHandlinger({ status, erLaster, onEndreStatus, onSlett }: S
         )}
       </div>
       {bekreftHandling && (
-        <input
-          type="text"
-          value={kommentar}
-          onChange={(e) => setKommentar(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              onEndreStatus(bekreftHandling, kommentar.trim() || undefined);
-              setBekreftHandling(null);
-              setKommentar("");
-            }
-          }}
-          placeholder="Valgfri kommentar..."
-          className="max-w-md rounded-lg border border-gray-200 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
-          autoFocus
-        />
+        <div className="flex max-w-lg flex-col gap-2">
+          {visMottakerVelger && (
+            <select
+              value={valgtMottaker}
+              onChange={(e) => setValgtMottaker(e.target.value)}
+              className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
+            >
+              <option value="">Velg mottaker (valgfritt)...</option>
+              {mottakerValg!.grupper.length > 0 && (
+                <optgroup label="Grupper">
+                  {mottakerValg!.grupper.map((g) => (
+                    <option key={`g:${g.id}`} value={`g:${g.id}`}>{g.navn}</option>
+                  ))}
+                </optgroup>
+              )}
+              {mottakerValg!.personer.length > 0 && (
+                <optgroup label="Personer">
+                  {mottakerValg!.personer.map((p) => (
+                    <option key={`u:${p.id}`} value={`u:${p.id}`}>
+                      {p.navn}{p.grupper ? ` · ${p.grupper}` : ""}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+            </select>
+          )}
+          <input
+            type="text"
+            value={kommentar}
+            onChange={(e) => setKommentar(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") håndterKlikk(bekreftHandling);
+            }}
+            placeholder="Valgfri kommentar..."
+            className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
+            autoFocus={!visMottakerVelger}
+          />
+        </div>
       )}
     </div>
   );

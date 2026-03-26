@@ -417,6 +417,8 @@ export const oppgaveRouter = router({
         nyStatus: documentStatusSchema,
         senderId: z.string().uuid(),
         kommentar: z.string().optional(),
+        recipientUserId: z.string().uuid().optional(),
+        recipientGroupId: z.string().uuid().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -450,7 +452,13 @@ export const oppgaveRouter = router({
       return ctx.prisma.$transaction(async (tx) => {
         const oppdatert = await tx.task.update({
           where: { id: input.id },
-          data: { status: effektivStatus },
+          data: {
+            status: effektivStatus,
+            ...(input.nyStatus === "sent" ? {
+              recipientUserId: input.recipientUserId ?? null,
+              recipientGroupId: input.recipientGroupId ?? null,
+            } : {}),
+          },
         });
 
         // Logg «sent»-overgangen
@@ -461,6 +469,8 @@ export const oppgaveRouter = router({
             fromStatus: oppgave.status,
             toStatus: "sent",
             comment: input.kommentar,
+            recipientUserId: input.recipientUserId,
+            recipientGroupId: input.recipientGroupId,
           },
         });
 
