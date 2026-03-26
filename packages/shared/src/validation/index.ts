@@ -222,6 +222,7 @@ export const removeWorkflowStepMemberSchema = z.object({
 // Dokumentflyt-validering (ny modell)
 export const createDokumentflytSchema = z.object({
   projectId: z.string().uuid(),
+  enterpriseId: z.string().uuid().optional(),
   name: z.string().min(1).max(255),
   templateIds: z.array(z.string().uuid()).default([]),
   medlemmer: z.array(z.object({
