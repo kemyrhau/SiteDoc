@@ -12,6 +12,7 @@ import { FeltWrapper } from "@/components/rapportobjekter/FeltWrapper";
 import { PrintHeader } from "@/components/PrintHeader";
 import { OpprettOppgaveModal } from "@/components/OpprettOppgaveModal";
 import { StatusHandlinger } from "@/components/StatusHandlinger";
+import { LokasjonVelger } from "@/components/LokasjonVelger";
 import type { RapportObjekt } from "@/components/rapportobjekter/typer";
 import { useBygning } from "@/kontekst/bygning-kontekst";
 
@@ -367,6 +368,24 @@ export default function SjekklisteDetaljSide() {
         {sjekklisteNummer && (
           <p className="mt-1 text-xs text-gray-400">Nr: {sjekklisteNummer}</p>
         )}
+
+        {/* Lokasjon */}
+        <div className="mt-3 max-w-md print-skjul">
+          <LokasjonVelger
+            prosjektId={params.prosjektId}
+            tegningId={(sjekkliste as unknown as { drawingId?: string | null }).drawingId}
+            tegningNavn={(sjekkliste as unknown as { drawing?: { name?: string } | null }).drawing?.name}
+            bygningNavn={(sjekkliste as unknown as { building?: { name?: string } | null }).building?.name}
+            onLagre={(data) => {
+              oppdaterMutasjon.mutate({
+                id: params.sjekklisteId,
+                drawingId: data.drawingId,
+                buildingId: data.buildingId ?? undefined,
+              });
+            }}
+            leseModus={!erRedigerbar}
+          />
+        </div>
 
         {/* Statushandlinger */}
         <div className="mt-3 print-skjul">

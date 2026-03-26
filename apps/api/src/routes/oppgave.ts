@@ -338,6 +338,9 @@ export const oppgaveRouter = router({
         dueDate: z.string().datetime().optional(),
         creatorEnterpriseId: z.string().uuid().optional(),
         responderEnterpriseId: z.string().uuid().optional(),
+        drawingId: z.string().uuid().nullable().optional(),
+        positionX: z.number().min(0).max(100).nullable().optional(),
+        positionY: z.number().min(0).max(100).nullable().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
