@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
-import { Paperclip, Upload, Clipboard, Trash2, Map } from "lucide-react";
+import { Paperclip, Upload, Clipboard, Trash2, Map, X, ChevronLeft, ChevronRight } from "lucide-react";
 import type { Vedlegg } from "./typer";
 import { TegningsModal } from "./TegningsModal";
 
@@ -46,6 +46,8 @@ export function FeltDokumentasjon({
 }: FeltDokumentasjonProps) {
   const [visVedleggMeny, settVisVedleggMeny] = useState(false);
   const [valgtVedlegg, settValgtVedlegg] = useState<string | null>(null);
+  const [lightboxIdx, setLightboxIdx] = useState<number | null>(null);
+  const bildeVedlegg = vedlegg.filter((v) => v.type === "bilde");
   const [visTegningsModal, settVisTegningsModal] = useState(false);
   const filInputRef = useRef<HTMLInputElement>(null);
 
@@ -145,7 +147,14 @@ export function FeltDokumentasjon({
                 className={`relative cursor-pointer overflow-hidden rounded border-2 ${
                   erValgt ? "border-blue-500" : "border-gray-200"
                 }`}
-                onClick={() => settValgtVedlegg(erValgt ? null : v.id)}
+                onClick={() => {
+                  if (v.type === "bilde") {
+                    const idx = bildeVedlegg.findIndex((b) => b.id === v.id);
+                    setLightboxIdx(idx >= 0 ? idx : null);
+                  } else {
+                    settValgtVedlegg(erValgt ? null : v.id);
+                  }
+                }}
                 style={{ width: 72, height: 72 }}
               >
                 {v.type === "bilde" ? (
@@ -181,6 +190,61 @@ export function FeltDokumentasjon({
           })}
         </div>
       )}
+
+      {/* Lightbox */}
+      {(() => {
+        const lbBilde = lightboxIdx !== null ? bildeVedlegg[lightboxIdx] : null;
+        if (!lbBilde || lightboxIdx === null) return null;
+        return (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80"
+            onClick={() => setLightboxIdx(null)}
+          >
+            <button
+              onClick={(e) => { e.stopPropagation(); setLightboxIdx(null); }}
+              className="absolute right-4 top-4 rounded-full bg-white/10 p-2 text-white hover:bg-white/20"
+            >
+              <X size={24} />
+            </button>
+            {bildeVedlegg.length > 1 && (
+              <>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setLightboxIdx((lightboxIdx - 1 + bildeVedlegg.length) % bildeVedlegg.length); }}
+                  className="absolute left-4 rounded-full bg-white/10 p-2 text-white hover:bg-white/20"
+                >
+                  <ChevronLeft size={24} />
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setLightboxIdx((lightboxIdx + 1) % bildeVedlegg.length); }}
+                  className="absolute right-16 rounded-full bg-white/10 p-2 text-white hover:bg-white/20"
+                >
+                  <ChevronRight size={24} />
+                </button>
+              </>
+            )}
+            <img
+              src={vedleggUrl(lbBilde.url)}
+              alt={lbBilde.filnavn}
+              className="max-h-[90vh] max-w-[90vw] rounded object-contain"
+              onClick={(e) => e.stopPropagation()}
+            />
+            {!leseModus && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onFjernVedlegg(lbBilde.id);
+                  if (bildeVedlegg.length <= 1) setLightboxIdx(null);
+                  else setLightboxIdx(Math.min(lightboxIdx, bildeVedlegg.length - 2));
+                }}
+                className="absolute bottom-6 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
+              >
+                <Trash2 size={14} className="mr-1.5 inline" />
+                Slett bilde
+              </button>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Print-versjon av vedlegg: 5:4 bilder i 2-kolonne rutenett */}
       {harVedlegg && (
