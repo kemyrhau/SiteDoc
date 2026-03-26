@@ -118,7 +118,7 @@ Drag-and-drop i `apps/web/src/components/malbygger/`: `MalBygger`, `FeltPalett`,
 Oppgaver og sjekklister opprettes med ett klikk — velg mal, alt annet utledes automatisk:
 - **Oppretter-entreprise**: Første fra `hentMineEntrepriser`
 - **Svarer-entreprise**: Utledes fra dokumentflyt som matcher malen og oppretter-entreprisen
-- **Tittel**: Auto-generert i API fra malnavn + løpenummer
+- **Tittel**: Settes til malnavn (nummer vises separat i Nr-kolonne)
 - **Prioritet**: Default "medium"
 - **Lokasjon**: Settes fra tegning (ved klikk) eller kobles etterpå — ALDRI i opprettelsesmodal
 - **Emne/beskrivelse**: Redigeres etterpå i detaljvisningen
@@ -133,12 +133,41 @@ Etter opprettelse navigeres brukeren direkte til detaljsiden for å begynne regi
 - For oppgaver: klikk på tegning for å plassere punkt (positionX/Y)
 - API: `oppgave.oppdater` og `sjekkliste.oppdater` aksepterer `drawingId`, `positionX`, `positionY`, `buildingId`
 
+## Tabellvisning — Dalux-stil kolonnevelger
+
+Oppgave- og sjekkliste-lister bruker konfigurerbar tabellvisning med:
+
+**Velg parameter** — modal med søkefelt og tre grupper:
+- **Kolonner**: Nr, Tittel, Status, Emne, Ansvarlig, Opprettet av, Entrepriser, Mal, Datoer
+- **Posisjon**: Bygning, Etasje, Tegning (separate kolonner)
+- **Verdier**: Dynamiske felt fra malenes `ReportObject`-er (`list_single`, `traffic_light`, `integer`, `decimal`, `text_field`, `person`, etc.)
+
+**Ansvarlig** = hvem som har dokumentet nå: `recipientUser` → `recipientGroup` → fallback `responderEnterprise`. Oppdateres ved videresending.
+
+**Filtrering**: Dropdown per kolonne (filter-ikon i header). Verdier bygges dynamisk fra data. Filter-tags vises over tabellen med × og nullstill.
+
+**Sortering**: Klikk header for å sortere opp/ned.
+
+**Lagring**: Aktive kolonner lagres i `localStorage` per side (v3-nøkkel). Nullstill-knapp i modalen.
+
+## Standardemner (EMNE_KATEGORIER)
+
+Forhåndsdefinerte emnekategorier i `@sitedoc/shared`: HMS (14), Kvalitet (15), Befaring (6), Godkjenning (6). I malbyggeren velges kategori via dropdown → fyller `subjects`-arrayen automatisk. Emner vises som tags med × for fjerning. Øye-toggle skjuler emne-feltet.
+
+## E-postvarsling
+
+Ved sending og videresending av oppgaver/sjekklister sendes e-post til mottaker (person eller alle i gruppe) via Resend. Inneholder dokumentinfo, avsendernavn, kommentar og direktelenke. Fire-and-forget — blokkerer ikke statusendring.
+
 ## Statushandlinger
 
 - **Utkast**: `Send` + `Slett` (sletter helt med bekreftelse)
-- **Sendt/Mottatt/Under arbeid**: Statusknapper + `Avbryt`
+- **Sendt**: `Avbryt`
+- **Mottatt/Under arbeid**: Statusknapper + `Videresend` + `Avbryt`
+- **Besvart**: `Godkjenn` + `Avvis` + `Videresend`
+- **Avvist**: `Start arbeid igjen` + `Videresend`
+- **Godkjent**: `Lukk` + `Videresend`
 - **Avbrutt**: `Gjenåpne` (→ draft) + `Slett`
-- **Besvart**: `Godkjenn` + `Avvis`
+- Videresend krever mottakervalg (person/gruppe). Mobil filtrerer ut `forwarded`/`deleted` (krever spesialbehandling)
 - `cancelled → draft` er gyldig overgang (gjenåpning)
 
 ## Bildevedlegg
