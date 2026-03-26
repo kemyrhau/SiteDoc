@@ -143,12 +143,8 @@ export const sjekklisteRouter = router({
           nummer = (maks._max.number ?? 0) + 1;
         }
 
-        // Auto-generer tittel: "001BHO Byggelerers dagbok/kontroll"
-        const tittel = input.title?.trim() || (() => {
-          const nummerStr = nummer ? String(nummer).padStart(3, "0") : "";
-          const prefiks = mal.prefix ?? "";
-          return `${nummerStr}${prefiks} ${mal.name}`.trim();
-        })();
+        // Auto-generer tittel fra malnavn (nummer vises separat i Nr-kolonne)
+        const tittel = input.title?.trim() || mal.name;
 
         // Sjekk om workflowId er en Workflow eller DokumentFlyt
         let workflowId: string | undefined;
