@@ -15,8 +15,10 @@ import {
 import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import {
   REPORT_OBJECT_TYPE_META,
+  EMNE_KATEGORIER,
   type ReportObjectType,
   type TemplateZone,
+  type EmneKategori,
 } from "@sitedoc/shared";
 import { Modal, Button, Spinner } from "@sitedoc/ui";
 import { trpc } from "@/lib/trpc";
@@ -655,23 +657,74 @@ export function MalBygger({ mal }: MalByggerProps) {
             </div>
             <div className="space-y-1.5">
               {/* Emne */}
-              <div className="flex items-center gap-2 rounded-md border border-dashed border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-500">
-                <FileText className="h-4 w-4 shrink-0 text-gray-400" />
-                <span className={mal.showSubject === false ? "line-through text-gray-300" : ""}>Emne</span>
-                <span className="text-xs text-gray-400">
-                  {mal.showSubject === false ? "Skjult" : "Fritekst eller forhåndsdefinerte emner"}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => oppdaterMalMutation.mutate({ id: mal.id, showSubject: !(mal.showSubject !== false) })}
-                  className="ml-auto rounded p-1 hover:bg-gray-200"
-                  title={mal.showSubject === false ? "Vis emne-felt" : "Skjul emne-felt"}
-                >
-                  {mal.showSubject === false
-                    ? <EyeOff className="h-3.5 w-3.5 text-gray-400" />
-                    : <Eye className="h-3.5 w-3.5 text-gray-400" />
-                  }
-                </button>
+              <div className="rounded-md border border-dashed border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-500">
+                <div className="flex items-center gap-2">
+                  <FileText className="h-4 w-4 shrink-0 text-gray-400" />
+                  <span className={mal.showSubject === false ? "line-through text-gray-300" : ""}>Emne</span>
+                  {mal.showSubject !== false && (
+                    <select
+                      value={(() => {
+                        const subjects = Array.isArray(mal.subjects) ? mal.subjects.map(String) : [];
+                        for (const [key, kat] of Object.entries(EMNE_KATEGORIER)) {
+                          if (kat.emner.length === subjects.length && kat.emner.every((e) => subjects.includes(e))) return key;
+                        }
+                        return subjects.length > 0 ? "egendefinert" : "";
+                      })()}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === "") {
+                          oppdaterMalMutation.mutate({ id: mal.id, subjects: [] });
+                        } else if (val === "egendefinert") {
+                          // Behold eksisterende
+                        } else {
+                          const kat = EMNE_KATEGORIER[val as EmneKategori];
+                          if (kat) oppdaterMalMutation.mutate({ id: mal.id, subjects: kat.emner });
+                        }
+                      }}
+                      className="ml-auto rounded border border-gray-200 bg-white px-2 py-0.5 text-xs text-gray-600 focus:border-blue-500 focus:outline-none"
+                    >
+                      <option value="">Ingen emner</option>
+                      {Object.entries(EMNE_KATEGORIER).map(([key, kat]) => (
+                        <option key={key} value={key}>{kat.navn} ({kat.emner.length})</option>
+                      ))}
+                      {Array.isArray(mal.subjects) && (mal.subjects as unknown[]).length > 0 && (() => {
+                        const subjects = (mal.subjects as unknown[]).map(String);
+                        const erStandard = Object.values(EMNE_KATEGORIER).some(
+                          (kat) => kat.emner.length === subjects.length && kat.emner.every((e) => subjects.includes(e)),
+                        );
+                        return !erStandard ? <option value="egendefinert">Egendefinert ({subjects.length})</option> : null;
+                      })()}
+                    </select>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => oppdaterMalMutation.mutate({ id: mal.id, showSubject: !(mal.showSubject !== false) })}
+                    className={`${mal.showSubject !== false ? "" : "ml-auto"} rounded p-1 hover:bg-gray-200`}
+                    title={mal.showSubject === false ? "Vis emne-felt" : "Skjul emne-felt"}
+                  >
+                    {mal.showSubject === false
+                      ? <EyeOff className="h-3.5 w-3.5 text-gray-400" />
+                      : <Eye className="h-3.5 w-3.5 text-gray-400" />
+                    }
+                  </button>
+                </div>
+                {mal.showSubject !== false && Array.isArray(mal.subjects) && (mal.subjects as unknown[]).length > 0 && (
+                  <div className="mt-1.5 flex flex-wrap gap-1">
+                    {(mal.subjects as unknown[]).map((s, i) => (
+                      <span key={i} className="inline-flex items-center gap-1 rounded bg-white px-1.5 py-0.5 text-xs text-gray-600 border border-gray-200">
+                        {String(s)}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const nyListe = (mal.subjects as unknown[]).filter((_, j) => j !== i).map(String);
+                            oppdaterMalMutation.mutate({ id: mal.id, subjects: nyListe });
+                          }}
+                          className="text-gray-400 hover:text-red-500"
+                        >×</button>
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
               {/* Oppretter-entreprise */}
               <div className="flex items-center gap-2 rounded-md border border-dashed border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-500">

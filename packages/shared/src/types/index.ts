@@ -744,3 +744,70 @@ export interface SyncableEntity extends BaseEntity {
   isSynced: boolean;
   lastSyncedAt: Date | null;
 }
+
+// Standard emnekategorier for maler
+export type EmneKategori = "hms" | "kvalitet" | "befaring" | "godkjenning";
+
+export const EMNE_KATEGORIER: Record<EmneKategori, { navn: string; emner: string[] }> = {
+  hms: {
+    navn: "SHA/HMS",
+    emner: [
+      "Fall fra høyde",
+      "Fallende gjenstander",
+      "Orden og ryddighet",
+      "Brann og varme arbeider",
+      "Elektrisk fare",
+      "Kjemikalier og støv",
+      "Støy og vibrasjon",
+      "Personlig verneutstyr",
+      "Graving og grøft",
+      "Løft og kran",
+      "Trafikk og transport",
+      "Ergonomi",
+      "Førstehjelpshendelse",
+      "RUH",
+    ],
+  },
+  kvalitet: {
+    navn: "Kvalitetskontroll",
+    emner: [
+      "Grunnarbeid",
+      "Betong",
+      "Stålkonstruksjon",
+      "Trekonstruksjon",
+      "Murverk",
+      "Membraner og tetting",
+      "Isolasjon",
+      "Fasade og kledning",
+      "Tak",
+      "Overflatebehandling",
+      "Rør og sanitær",
+      "Ventilasjon",
+      "Elektro",
+      "Sprinkler",
+      "Heis",
+    ],
+  },
+  befaring: {
+    navn: "Befaring",
+    emner: [
+      "Overtakelse",
+      "Mellombefaring",
+      "Garantibefaring",
+      "Tilstandsvurdering",
+      "Ferdigbefaring fag",
+      "Vernerunde",
+    ],
+  },
+  godkjenning: {
+    navn: "Godkjenning",
+    emner: [
+      "Tilleggsarbeid",
+      "Endringsmelding",
+      "Avvik fra prosjektert",
+      "Reklamasjon",
+      "Pristilbud",
+      "Tidsforlengelse",
+    ],
+  },
+};
