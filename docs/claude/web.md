@@ -125,13 +125,37 @@ Oppgaver og sjekklister opprettes med ett klikk — velg mal, alt annet utledes 
 
 Etter opprettelse navigeres brukeren direkte til detaljsiden for å begynne registrering. Ingen skjemamodal med felter — kun mal-picker.
 
+## Lokasjon i detalj
+
+`LokasjonVelger`-komponent (`apps/web/src/components/LokasjonVelger.tsx`): klikkbar lokasjon-rad i oppgave/sjekkliste-detalj.
+- Viser bygning + tegning (eller "Ikke satt")
+- Klikk → modal med bygning/tegning-velger + tegningsvisning
+- For oppgaver: klikk på tegning for å plassere punkt (positionX/Y)
+- API: `oppgave.oppdater` og `sjekkliste.oppdater` aksepterer `drawingId`, `positionX`, `positionY`, `buildingId`
+
+## Statushandlinger
+
+- **Utkast**: `Send` + `Slett` (sletter helt med bekreftelse)
+- **Sendt/Mottatt/Under arbeid**: Statusknapper + `Avbryt`
+- **Avbrutt**: `Gjenåpne` (→ draft) + `Slett`
+- **Besvart**: `Godkjenn` + `Avvis`
+- `cancelled → draft` er gyldig overgang (gjenåpning)
+
+## Bildevedlegg
+
+- Lightbox i web: klikk thumbnail → fullskjerm med navigering (piler) og slett-knapp
+- Sletting fra vedlegg: fjerner fra `data`-JSON OG fra `images`-tabellen via `bilde.slettMedUrl`
+- Bilder med GPS men uten tegningskobling: plasseres via georeferanse-fallback i Rapportlokasjon-modus
+
 ## Print-til-PDF
 
 **Print-header** (`PrintHeader`): logo, prosjektnavn, nr, adresse, dato, sjekkliste-tittel, oppretter/svarer, vær.
 
+**Tegningsutsnitt** i oppgave-utskrift: oversiktsbilde (venstre) med rød prikk + zoomet utsnitt (høyre). Vises kun for oppgaver med tegning + posisjon.
+
 **Print CSS** (`globals.css`): `@page { margin: 15mm; size: A4; }`, `.print-header`, `.print-skjul`, `.print-vedlegg-fullvisning`.
 
-**PDF-forhåndsvisning** (`/utskrift/sjekkliste/[sjekklisteId]`): A4-visning utenfor dashbord-layout, `RapportObjektVisning` + `FeltVedlegg`.
+**PDF-forhåndsvisning** (`/utskrift/sjekkliste/[sjekklisteId]`, `/utskrift/oppgave/[oppgaveId]`): A4-visning utenfor dashbord-layout, `RapportObjektVisning` + `FeltVedlegg`.
 
 **Data-attributter:** `data-panel="sekundaert"`, `data-toolbar`.
 
