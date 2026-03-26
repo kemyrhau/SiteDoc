@@ -750,9 +750,10 @@ export default function OppgaveDetalj() {
 
       {/* Statusknapper + lagre-knapp i bunn */}
       <View className="border-t border-gray-200 bg-white px-4 py-3">
-        {/* Statushandlinger */}
+        {/* Statushandlinger (filtrer ut deleted/forwarded — krever spesialbehandling) */}
         {oppgave && (() => {
-          const handlinger = hentStatusHandlinger(oppgave.status);
+          const handlinger = hentStatusHandlinger(oppgave.status)
+            .filter((h) => h.nyStatus !== "deleted" && h.nyStatus !== "forwarded");
           if (handlinger.length === 0) return null;
           return (
             <View className={`mb-2 ${handlinger.length > 1 ? "flex-row gap-2" : ""}`}>
@@ -787,8 +788,8 @@ export default function OppgaveDetalj() {
           </Pressable>
         )}
 
-        {/* Slett-knapp (kun utkast) */}
-        {oppgave?.status === "draft" && (
+        {/* Slett-knapp (utkast og avbrutte) */}
+        {(oppgave?.status === "draft" || oppgave?.status === "cancelled") && (
           <Pressable
             onPress={håndterSlett}
             disabled={slettMutasjon.isPending}
