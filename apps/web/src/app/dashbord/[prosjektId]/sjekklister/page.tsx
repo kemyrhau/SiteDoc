@@ -1,13 +1,117 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { trpc } from "@/lib/trpc";
-import { Button, Select, Modal, Spinner, EmptyState, StatusBadge, Table } from "@sitedoc/ui";
+import { Button, Modal, Spinner, EmptyState, StatusBadge, Table } from "@sitedoc/ui";
 import { useVerktoylinje } from "@/hooks/useVerktoylinje";
 import { useBygning } from "@/kontekst/bygning-kontekst";
 import type { VerktoylinjeHandling } from "@/kontekst/navigasjon-kontekst";
-import { Plus, Printer, Trash2 } from "lucide-react";
+import { Plus, Printer, Trash2, Columns3 } from "lucide-react";
+
+// --- Typer ---
+
+interface SjekklisteRad {
+  id: string;
+  title: string;
+  subject: string | null;
+  number: number | null;
+  status: string;
+  dueDate: string | null;
+  createdAt: string;
+  updatedAt: string;
+  template: { prefix: string | null; name: string };
+  creator: { name: string | null } | null;
+  creatorEnterprise: { name: string };
+  responderEnterprise: { name: string };
+  building: { id: string; name: string } | null;
+  drawing: { name: string; floor: string | null } | null;
+  recipientUser: { name: string | null } | null;
+  recipientGroup: { name: string } | null;
+}
+
+// --- Konstanter ---
+
+const STATUS_ALTERNATIVER = [
+  { value: "draft", label: "Utkast" },
+  { value: "sent", label: "Sendt" },
+  { value: "received", label: "Mottatt" },
+  { value: "in_progress", label: "Under arbeid" },
+  { value: "responded", label: "Besvart" },
+  { value: "approved", label: "Godkjent" },
+  { value: "rejected", label: "Avvist" },
+  { value: "closed", label: "Lukket" },
+  { value: "cancelled", label: "Avbrutt" },
+];
+
+type KolonneId = "nr" | "tittel" | "emne" | "mal" | "status" | "lokasjon" | "oppretter" | "svarer" | "mottaker" | "opprettet" | "endret" | "frist";
+
+interface KolonneInfo {
+  id: KolonneId;
+  navn: string;
+  fast: boolean;
+}
+
+const ALLE_KOLONNER: KolonneInfo[] = [
+  { id: "nr", navn: "Nr", fast: true },
+  { id: "tittel", navn: "Tittel", fast: true },
+  { id: "status", navn: "Status", fast: true },
+  { id: "emne", navn: "Emne", fast: false },
+  { id: "mal", navn: "Mal", fast: false },
+  { id: "lokasjon", navn: "Lokasjon", fast: false },
+  { id: "oppretter", navn: "Oppretter", fast: false },
+  { id: "svarer", navn: "Svarer", fast: false },
+  { id: "mottaker", navn: "Mottaker", fast: false },
+  { id: "opprettet", navn: "Opprettet", fast: false },
+  { id: "endret", navn: "Sist endret", fast: false },
+  { id: "frist", navn: "Frist", fast: false },
+];
+
+const STANDARD_KOLONNER: KolonneId[] = ["nr", "tittel", "emne", "mal", "status", "lokasjon", "svarer", "frist"];
+
+function hentLagredeKolonner(): KolonneId[] {
+  if (typeof window === "undefined") return STANDARD_KOLONNER;
+  try {
+    const lagret = localStorage.getItem("sitedoc-sjekkliste-kolonner");
+    if (lagret) return JSON.parse(lagret) as KolonneId[];
+  } catch { /* ignorer */ }
+  return STANDARD_KOLONNER;
+}
+
+function lagreKolonner(kolonner: KolonneId[]) {
+  try {
+    localStorage.setItem("sitedoc-sjekkliste-kolonner", JSON.stringify(kolonner));
+  } catch { /* ignorer */ }
+}
+
+// --- Hjelpefunksjoner ---
+
+function formaterNummer(rad: SjekklisteRad): string {
+  if (rad.template?.prefix && rad.number) {
+    return `${rad.template.prefix}-${String(rad.number).padStart(3, "0")}`;
+  }
+  return rad.number ? String(rad.number) : "—";
+}
+
+function formaterLokasjon(rad: SjekklisteRad): string {
+  const deler: string[] = [];
+  if (rad.building?.name) deler.push(rad.building.name);
+  if (rad.drawing?.floor) deler.push(rad.drawing.floor);
+  return deler.join(" / ") || "—";
+}
+
+function formaterMottaker(rad: SjekklisteRad): string {
+  if (rad.recipientUser?.name) return rad.recipientUser.name;
+  if (rad.recipientGroup?.name) return rad.recipientGroup.name;
+  return "—";
+}
+
+function formaterDato(dato: string | null): string {
+  if (!dato) return "—";
+  return new Date(dato).toLocaleDateString("nb-NO", { day: "numeric", month: "short" });
+}
+
+// --- Komponent ---
 
 export default function SjekklisteSide() {
   const params = useParams<{ prosjektId: string }>();
@@ -20,7 +124,9 @@ export default function SjekklisteSide() {
   const [valgte, setValgte] = useState<Set<string>>(new Set());
   const [visSlettModal, setVisSlettModal] = useState(false);
   const [slettFeil, setSlettFeil] = useState<string | null>(null);
-  const [kolonneFiltre, setKolonneFiltre] = useState<Record<string, string>>({});
+  const [visKolonneVelger, setVisKolonneVelger] = useState(false);
+  const [aktiveKolonner, setAktiveKolonner] = useState<KolonneId[]>(hentLagredeKolonner);
+  const [filterVerdier, setFilterVerdier] = useState<Record<string, string>>({});
 
   const { data: sjekklister, isLoading } = trpc.sjekkliste.hentForProsjekt.useQuery(
     { projectId: params.prosjektId, ...(aktivBygning?.id ? { buildingId: aktivBygning.id } : {}) },
@@ -67,10 +173,6 @@ export default function SjekklisteSide() {
     },
   });
 
-  function apneModal() {
-    setVisModal(true);
-  }
-
   function handleOpprettFraMal(malId: string) {
     const oppretter = mineEntrepriser?.[0];
     if (!oppretter) return;
@@ -103,7 +205,7 @@ export default function SjekklisteSide() {
         id: "ny-sjekkliste",
         label: "Ny sjekkliste",
         ikon: <Plus className="h-4 w-4" />,
-        onClick: apneModal,
+        onClick: () => setVisModal(true),
         variant: "primary",
       },
     ];
@@ -137,6 +239,177 @@ export default function SjekklisteSide() {
 
   useVerktoylinje(verktoylinjeHandlinger, [valgte.size, aktivBygning?.id, standardTegning?.id]);
 
+  // Dynamiske filteralternativer
+  const dynamiskFilter = useMemo(() => {
+    const data = (sjekklister ?? []) as SjekklisteRad[];
+    return {
+      emne: [...new Set(data.map((s) => s.subject).filter(Boolean) as string[])].sort().map((e) => ({ value: e, label: e })),
+      mal: [...new Set(data.map((s) => s.template.name))].sort().map((n) => ({ value: n, label: n })),
+      oppretter: [...new Set(data.map((s) => s.creatorEnterprise.name))].sort().map((n) => ({ value: n, label: n })),
+      svarer: [...new Set(data.map((s) => s.responderEnterprise.name))].sort().map((n) => ({ value: n, label: n })),
+      lokasjon: [...new Set(data.map((s) => formaterLokasjon(s)).filter((l) => l !== "—"))].sort().map((l) => ({ value: l, label: l })),
+      status: STATUS_ALTERNATIVER,
+    };
+  }, [sjekklister]);
+
+  // Filtrer data
+  const filtrerte = useMemo(() => {
+    let resultat = (sjekklister ?? []) as SjekklisteRad[];
+    if (statusFilter) resultat = resultat.filter((s) => s.status === statusFilter);
+    for (const [kolId, verdi] of Object.entries(filterVerdier)) {
+      if (!verdi) continue;
+      resultat = resultat.filter((s) => {
+        switch (kolId) {
+          case "status": return s.status === verdi;
+          case "emne": return s.subject === verdi;
+          case "mal": return s.template.name === verdi;
+          case "oppretter": return s.creatorEnterprise.name === verdi;
+          case "svarer": return s.responderEnterprise.name === verdi;
+          case "lokasjon": return formaterLokasjon(s) === verdi;
+          default: return true;
+        }
+      });
+    }
+    return resultat;
+  }, [sjekklister, statusFilter, filterVerdier]);
+
+  const handleFilterEndring = useCallback((kolonneId: string, verdi: string) => {
+    setFilterVerdier((prev) => ({ ...prev, [kolonneId]: verdi }));
+  }, []);
+
+  const toggleKolonne = useCallback((kolId: KolonneId) => {
+    setAktiveKolonner((prev) => {
+      const ny = prev.includes(kolId) ? prev.filter((k) => k !== kolId) : [...prev, kolId];
+      lagreKolonner(ny);
+      return ny;
+    });
+  }, []);
+
+  // Bygg kolonnedefinisjoner
+  const kolonneDefinisjoner = useMemo(() => {
+    const defs: Record<KolonneId, Parameters<typeof Table<SjekklisteRad>>[0]["kolonner"][number]> = {
+      nr: {
+        id: "nr",
+        header: "Nr",
+        celle: (rad) => <span className="text-xs font-medium text-gray-500 whitespace-nowrap">{formaterNummer(rad)}</span>,
+        bredde: "90px",
+        sorterbar: true,
+        sorterVerdi: (rad) => rad.number ?? 0,
+      },
+      tittel: {
+        id: "tittel",
+        header: "Tittel",
+        celle: (rad) => <span className="font-medium text-gray-900">{rad.title}</span>,
+        sorterbar: true,
+        sorterVerdi: (rad) => rad.title,
+      },
+      emne: {
+        id: "emne",
+        header: "Emne",
+        celle: (rad) => rad.subject
+          ? <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-600">{rad.subject}</span>
+          : <span className="text-gray-300">—</span>,
+        sorterbar: true,
+        sorterVerdi: (rad) => rad.subject ?? "",
+        filtrerbar: true,
+        filterAlternativer: dynamiskFilter.emne,
+      },
+      mal: {
+        id: "mal",
+        header: "Mal",
+        celle: (rad) => <span className="text-gray-600">{rad.template.name}</span>,
+        sorterbar: true,
+        sorterVerdi: (rad) => rad.template.name,
+        filtrerbar: true,
+        filterAlternativer: dynamiskFilter.mal,
+      },
+      status: {
+        id: "status",
+        header: "Status",
+        celle: (rad) => <StatusBadge status={rad.status} />,
+        bredde: "130px",
+        sorterbar: true,
+        sorterVerdi: (rad) => rad.status,
+        filtrerbar: true,
+        filterAlternativer: dynamiskFilter.status,
+      },
+      lokasjon: {
+        id: "lokasjon",
+        header: "Lokasjon",
+        celle: (rad) => {
+          const lok = formaterLokasjon(rad);
+          return lok !== "—"
+            ? <span className="text-xs text-gray-600">{lok}</span>
+            : <span className="text-gray-300">—</span>;
+        },
+        sorterbar: true,
+        sorterVerdi: (rad) => formaterLokasjon(rad),
+        filtrerbar: true,
+        filterAlternativer: dynamiskFilter.lokasjon,
+      },
+      oppretter: {
+        id: "oppretter",
+        header: "Oppretter",
+        celle: (rad) => <span className="text-gray-600">{rad.creatorEnterprise.name}</span>,
+        sorterbar: true,
+        sorterVerdi: (rad) => rad.creatorEnterprise.name,
+        filtrerbar: true,
+        filterAlternativer: dynamiskFilter.oppretter,
+      },
+      svarer: {
+        id: "svarer",
+        header: "Svarer",
+        celle: (rad) => <span className="text-gray-600">{rad.responderEnterprise.name}</span>,
+        sorterbar: true,
+        sorterVerdi: (rad) => rad.responderEnterprise.name,
+        filtrerbar: true,
+        filterAlternativer: dynamiskFilter.svarer,
+      },
+      mottaker: {
+        id: "mottaker",
+        header: "Mottaker",
+        celle: (rad) => {
+          const m = formaterMottaker(rad);
+          return m !== "—"
+            ? <span className="text-gray-600">{m}</span>
+            : <span className="text-gray-300">—</span>;
+        },
+        sorterbar: true,
+        sorterVerdi: (rad) => formaterMottaker(rad),
+      },
+      opprettet: {
+        id: "opprettet",
+        header: "Opprettet",
+        celle: (rad) => <span className="text-xs text-gray-500">{formaterDato(rad.createdAt)}</span>,
+        bredde: "100px",
+        sorterbar: true,
+        sorterVerdi: (rad) => new Date(rad.createdAt).getTime(),
+      },
+      endret: {
+        id: "endret",
+        header: "Sist endret",
+        celle: (rad) => <span className="text-xs text-gray-500">{formaterDato(rad.updatedAt)}</span>,
+        bredde: "100px",
+        sorterbar: true,
+        sorterVerdi: (rad) => new Date(rad.updatedAt).getTime(),
+      },
+      frist: {
+        id: "frist",
+        header: "Frist",
+        celle: (rad) => rad.dueDate
+          ? <span className="text-xs text-gray-500">{formaterDato(rad.dueDate)}</span>
+          : <span className="text-gray-300">—</span>,
+        bredde: "100px",
+        sorterbar: true,
+        sorterVerdi: (rad) => rad.dueDate ? new Date(rad.dueDate).getTime() : null,
+      },
+    };
+
+    return aktiveKolonner.map((id) => defs[id]).filter(Boolean);
+  }, [aktiveKolonner, dynamiskFilter]);
+
+  const aktiveFilter = Object.entries(filterVerdier).filter(([_, v]) => v);
+
   if (isLoading) {
     return (
       <div className="flex justify-center py-12">
@@ -145,156 +418,86 @@ export default function SjekklisteSide() {
     );
   }
 
-  type SjekklisteRad = {
-    id: string;
-    title: string;
-    status: string;
-    dueDate: string | null;
-    creatorEnterprise: { name: string };
-    template: { name: string };
-    responderEnterprise: { name: string };
-    building: { id: string; name: string; number: number | null } | null;
-  };
-
-  // Statusfilter fra sidepanel
-  const statusFiltrerte = sjekklister
-    ? statusFilter
-      ? sjekklister.filter((s: { status: string }) => s.status === statusFilter)
-      : sjekklister
-    : [];
-
-  // Kolonnefiltre (Mal, Lokasjon, Svarer, Oppretter)
-  const filtrerte = (statusFiltrerte as SjekklisteRad[]).filter((rad) => {
-    if (kolonneFiltre.template && rad.template.name !== kolonneFiltre.template) return false;
-    if (kolonneFiltre.building) {
-      if (!rad.building || rad.building.name !== kolonneFiltre.building) return false;
-    }
-    if (kolonneFiltre.responder && rad.responderEnterprise.name !== kolonneFiltre.responder) return false;
-    if (kolonneFiltre.creator && rad.creatorEnterprise.name !== kolonneFiltre.creator) return false;
-    return true;
-  });
-
-  // Bygg filteralternativer fra faktisk data
-  const malAlternativer = [...new Set((statusFiltrerte as SjekklisteRad[]).map((s) => s.template.name))].sort().map((n) => ({ value: n, label: n }));
-  const lokasjonAlternativer = [...new Set((statusFiltrerte as SjekklisteRad[]).filter((s) => s.building).map((s) => s.building!.name))].sort().map((n) => ({ value: n, label: n }));
-  const svarerAlternativerFilter = [...new Set((statusFiltrerte as SjekklisteRad[]).map((s) => s.responderEnterprise.name))].sort().map((n) => ({ value: n, label: n }));
-  const oppretterAlternativerFilter = [...new Set((statusFiltrerte as SjekklisteRad[]).map((s) => s.creatorEnterprise.name))].sort().map((n) => ({ value: n, label: n }));
-
-  // Forhåndsdefinerte emner fra valgt mal
-  function handleFilterEndring(kolonneId: string, verdi: string) {
-    setKolonneFiltre((prev) => {
-      const neste = { ...prev };
-      if (verdi) {
-        neste[kolonneId] = verdi;
-      } else {
-        delete neste[kolonneId];
-      }
-      return neste;
-    });
-  }
-
   return (
     <div>
+      {/* Filterbar */}
+      {(sjekklister?.length ?? 0) > 0 && (
+        <div className="mb-3 flex items-center gap-2">
+          <div className="relative">
+            <button
+              onClick={() => setVisKolonneVelger(!visKolonneVelger)}
+              className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
+            >
+              <Columns3 className="h-3.5 w-3.5" />
+              Kolonner
+            </button>
+            {visKolonneVelger && (
+              <div className="absolute left-0 top-full z-50 mt-1 min-w-[180px] rounded-md border border-gray-200 bg-white py-1 shadow-lg">
+                {ALLE_KOLONNER.filter((k) => !k.fast).map((kol) => (
+                  <label
+                    key={kol.id}
+                    className="flex cursor-pointer items-center gap-2 px-3 py-1.5 text-xs hover:bg-gray-50"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={aktiveKolonner.includes(kol.id)}
+                      onChange={() => toggleKolonne(kol.id)}
+                      className="h-3.5 w-3.5 rounded border-gray-300 text-blue-600"
+                    />
+                    {kol.navn}
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {aktiveFilter.map(([kolId, verdi]) => {
+            const kolNavn = ALLE_KOLONNER.find((k) => k.id === kolId)?.navn ?? kolId;
+            return (
+              <span
+                key={kolId}
+                className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700"
+              >
+                {kolNavn}: {verdi}
+                <button
+                  onClick={() => handleFilterEndring(kolId, "")}
+                  className="ml-0.5 text-blue-500 hover:text-blue-800"
+                >×</button>
+              </span>
+            );
+          })}
+          {aktiveFilter.length > 1 && (
+            <button
+              onClick={() => setFilterVerdier({})}
+              className="text-xs text-gray-400 hover:text-gray-600"
+            >
+              Nullstill
+            </button>
+          )}
+
+          <span className="ml-auto text-xs text-gray-400">
+            {filtrerte.length} av {sjekklister?.length ?? 0}
+          </span>
+        </div>
+      )}
+
       {!sjekklister?.length ? (
         <EmptyState
           title="Ingen sjekklister"
           description="Opprett en sjekkliste basert på en rapportmal."
-          action={<Button onClick={apneModal}>Opprett sjekkliste</Button>}
+          action={<Button onClick={() => setVisModal(true)}>Opprett sjekkliste</Button>}
         />
       ) : (
         <Table<SjekklisteRad>
-          kolonner={[
-            {
-              id: "title",
-              header: "Tittel",
-              celle: (rad) => (
-                <span className="font-medium text-gray-900">{rad.title}</span>
-              ),
-              sorterbar: true,
-              sorterVerdi: (rad) => rad.title,
-            },
-            {
-              id: "template",
-              header: "Mal",
-              celle: (rad) => (
-                <span className="text-gray-600">{rad.template.name}</span>
-              ),
-              sorterbar: true,
-              sorterVerdi: (rad) => rad.template.name,
-              filtrerbar: true,
-              filterAlternativer: malAlternativer,
-            },
-            {
-              id: "creator",
-              header: "Oppretter",
-              celle: (rad) => (
-                <span className="text-gray-600">{rad.creatorEnterprise.name}</span>
-              ),
-              sorterbar: true,
-              sorterVerdi: (rad) => rad.creatorEnterprise.name,
-              filtrerbar: true,
-              filterAlternativer: oppretterAlternativerFilter,
-            },
-            {
-              id: "building",
-              header: "Lokasjon",
-              celle: (rad) =>
-                rad.building ? (
-                  <span className="text-gray-600">{rad.building.name}</span>
-                ) : (
-                  <span className="text-gray-300">—</span>
-                ),
-              bredde: "150px",
-              sorterbar: true,
-              sorterVerdi: (rad) => rad.building?.name ?? null,
-              filtrerbar: true,
-              filterAlternativer: lokasjonAlternativer,
-            },
-            {
-              id: "responder",
-              header: "Svarer",
-              celle: (rad) => (
-                <span className="text-gray-600">{rad.responderEnterprise.name}</span>
-              ),
-              sorterbar: true,
-              sorterVerdi: (rad) => rad.responderEnterprise.name,
-              filtrerbar: true,
-              filterAlternativer: svarerAlternativerFilter,
-            },
-            {
-              id: "dueDate",
-              header: "Frist",
-              celle: (rad) =>
-                rad.dueDate ? (
-                  <span className="text-gray-500">
-                    {new Date(rad.dueDate).toLocaleDateString("nb-NO")}
-                  </span>
-                ) : (
-                  <span className="text-gray-300">—</span>
-                ),
-              bredde: "120px",
-              sorterbar: true,
-              sorterVerdi: (rad) => rad.dueDate,
-            },
-            {
-              id: "status",
-              header: "Status",
-              celle: (rad) => <StatusBadge status={rad.status} />,
-              bredde: "120px",
-              sorterbar: true,
-              sorterVerdi: (rad) => rad.status,
-            },
-          ]}
+          kolonner={kolonneDefinisjoner}
           data={filtrerte}
           radNokkel={(rad) => rad.id}
-          onRadKlikk={(rad) =>
-            router.push(`/dashbord/${params.prosjektId}/sjekklister/${rad.id}`)
-          }
-          tomMelding="Ingen sjekklister med denne statusen"
+          onRadKlikk={(rad) => router.push(`/dashbord/${params.prosjektId}/sjekklister/${rad.id}`)}
+          tomMelding="Ingen sjekklister matcher filtrene"
           velgbar
           valgteRader={valgte}
           onValgEndring={setValgte}
-          filterVerdier={kolonneFiltre}
+          filterVerdier={filterVerdier}
           onFilterEndring={handleFilterEndring}
         />
       )}
