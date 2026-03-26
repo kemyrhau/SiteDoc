@@ -26,7 +26,7 @@ import { FeltKonfigurasjon } from "./FeltKonfigurasjon";
 import { DragOverlayKomponent } from "./DragOverlay_";
 import type { MalObjekt } from "./DraggbartFelt";
 import type { TreObjekt } from "./typer";
-import { MapPin, Pencil, FileText, Building2, Eye, EyeOff } from "lucide-react";
+import { MapPin, Pencil, FileText, Building2, Eye, EyeOff, AlertTriangle } from "lucide-react";
 
 // Hent streng-verdi fra opsjon (støtter både string og {label, value}-format)
 function opsjonTilStreng(opsjon: unknown): string {
@@ -48,6 +48,7 @@ interface MalData {
   showSubject?: boolean;
   showEnterprise?: boolean;
   showLocation?: boolean;
+  showPriority?: boolean;
   objects: Array<{
     id: string;
     type: string;
@@ -710,6 +711,27 @@ export function MalBygger({ mal }: MalByggerProps) {
                   }
                 </button>
               </div>
+              {/* Prioritet (kun oppgavemaler) */}
+              {mal.category === "oppgave" && (
+                <div className="flex items-center gap-2 rounded-md border border-dashed border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-500">
+                  <AlertTriangle className="h-4 w-4 shrink-0 text-gray-400" />
+                  <span className={mal.showPriority === false ? "line-through text-gray-300" : ""}>Prioritet</span>
+                  <span className="text-xs text-gray-400">
+                    {mal.showPriority === false ? "Skjult" : "Lav / Medium / Høy / Kritisk"}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => oppdaterMalMutation.mutate({ id: mal.id, showPriority: !(mal.showPriority !== false) })}
+                    className="ml-auto rounded p-1 hover:bg-gray-200"
+                    title={mal.showPriority === false ? "Vis prioritet-felt" : "Skjul prioritet-felt"}
+                  >
+                    {mal.showPriority === false
+                      ? <EyeOff className="h-3.5 w-3.5 text-gray-400" />
+                      : <Eye className="h-3.5 w-3.5 text-gray-400" />
+                    }
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 

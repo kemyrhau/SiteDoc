@@ -76,6 +76,7 @@ export const malRouter = router({
         showSubject: z.boolean().optional(),
         showEnterprise: z.boolean().optional(),
         showLocation: z.boolean().optional(),
+        showPriority: z.boolean().optional(),
         enableChangeLog: z.boolean().optional(),
       }),
     )
