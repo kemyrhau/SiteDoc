@@ -9,6 +9,7 @@ import {
   verifiserEntrepriseTilhorighet,
   verifiserDokumentTilgang,
 } from "../trpc/tilgangskontroll";
+import { sendDokumentVarsling, hentMottakerEposter } from "../services/epost";
 
 export const sjekklisteRouter = router({
   // Hent alle sjekklister for et prosjekt (via mal)
@@ -333,24 +334,61 @@ export const sjekklisteRouter = router({
     .mutation(async ({ ctx, input }) => {
       const sjekkliste = await ctx.prisma.checklist.findUniqueOrThrow({
         where: { id: input.id },
-        include: { template: { select: { projectId: true, domain: true } } },
+        include: {
+          template: {
+            select: {
+              projectId: true,
+              domain: true,
+              prefix: true,
+              project: { select: { name: true } },
+            },
+          },
+        },
       });
+
+      const projectId = sjekkliste.template.projectId;
 
       // Tilgangssjekk
       await verifiserDokumentTilgang(
         ctx.userId,
-        sjekkliste.template.projectId,
+        projectId,
         sjekkliste.creatorEnterpriseId,
         sjekkliste.responderEnterpriseId,
         sjekkliste.template.domain,
       );
+
+      // Hjelpefunksjon for varsling
+      const varsle = async (erVideresending: boolean) => {
+        const eposter = await hentMottakerEposter(ctx.prisma, {
+          recipientUserId: input.recipientUserId,
+          recipientGroupId: input.recipientGroupId,
+          ekskluderUserId: ctx.userId,
+        });
+        if (eposter.length === 0) return;
+        const avsender = await ctx.prisma.user.findUnique({ where: { id: ctx.userId }, select: { name: true } });
+        const nummer = sjekkliste.template.prefix && sjekkliste.number
+          ? `${sjekkliste.template.prefix}-${String(sjekkliste.number).padStart(3, "0")}`
+          : undefined;
+        void sendDokumentVarsling({
+          til: eposter,
+          dokumentType: "sjekkliste",
+          dokumentTittel: sjekkliste.title ?? "Uten tittel",
+          dokumentNummer: nummer,
+          prosjektNavn: sjekkliste.template.project.name,
+          prosjektId: projectId,
+          dokumentId: sjekkliste.id,
+          avsenderNavn: avsender?.name ?? "Ukjent",
+          kommentar: input.kommentar,
+          erVideresending,
+        });
+      };
 
       // Videresending
       if (input.nyStatus === "forwarded") {
         if (!input.recipientUserId && !input.recipientGroupId) {
           throw new TRPCError({ code: "BAD_REQUEST", message: "Videresending krever en mottaker" });
         }
-        return ctx.prisma.$transaction(async (tx) => {
+        const resultat = await ctx.prisma.$transaction(async (tx) => {
           const oppdatert = await tx.checklist.update({
             where: { id: input.id },
             data: {
@@ -371,6 +409,8 @@ export const sjekklisteRouter = router({
           });
           return oppdatert;
         });
+        void varsle(true);
+        return resultat;
       }
 
       if (!isValidStatusTransition(sjekkliste.status, input.nyStatus)) {
@@ -383,7 +423,7 @@ export const sjekklisteRouter = router({
       // Auto-mottatt: sent → received umiddelbart
       const effektivStatus = input.nyStatus === "sent" ? "received" : input.nyStatus;
 
-      return ctx.prisma.$transaction(async (tx) => {
+      const resultat = await ctx.prisma.$transaction(async (tx) => {
         const oppdatert = await tx.checklist.update({
           where: { id: input.id },
           data: {
@@ -420,6 +460,13 @@ export const sjekklisteRouter = router({
 
         return oppdatert;
       });
+
+      // Varsle mottaker ved sending
+      if (input.nyStatus === "sent") {
+        void varsle(false);
+      }
+
+      return resultat;
     }),
 
   // Slett sjekkliste (blokkeres hvis tilknyttede oppgaver finnes)
