@@ -444,21 +444,37 @@ export const oppgaveRouter = router({
         });
       }
 
+      // Auto-mottatt: sent → received umiddelbart
+      const effektivStatus = input.nyStatus === "sent" ? "received" : input.nyStatus;
+
       return ctx.prisma.$transaction(async (tx) => {
         const oppdatert = await tx.task.update({
           where: { id: input.id },
-          data: { status: input.nyStatus },
+          data: { status: effektivStatus },
         });
 
+        // Logg «sent»-overgangen
         await tx.documentTransfer.create({
           data: {
             taskId: input.id,
             senderId: ctx.userId,
             fromStatus: oppgave.status,
-            toStatus: input.nyStatus,
+            toStatus: "sent",
             comment: input.kommentar,
           },
         });
+
+        // Logg auto «received» hvis sendt
+        if (input.nyStatus === "sent") {
+          await tx.documentTransfer.create({
+            data: {
+              taskId: input.id,
+              senderId: ctx.userId,
+              fromStatus: "sent",
+              toStatus: "received",
+            },
+          });
+        }
 
         return oppdatert;
       });

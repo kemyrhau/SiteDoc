@@ -18,7 +18,7 @@ export function hentStatusHandlinger(status: string): StatusHandling[] {
       { tekst: "Slett", nyStatus: "deleted", farge: "bg-red-600", aktivFarge: "bg-red-400" },
     ],
     sent: [
-      { tekst: "Motta", nyStatus: "received", farge: "bg-blue-600", aktivFarge: "bg-blue-400" },
+      // "Motta" fjernet — sendt → mottatt skjer automatisk
       { tekst: "Avbryt", nyStatus: "cancelled", farge: "bg-red-600", aktivFarge: "bg-red-400" },
     ],
     received: [

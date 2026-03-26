@@ -350,11 +350,13 @@ export const sjekklisteRouter = router({
         });
       }
 
-      // Oppdater status og logg overgangen i en transaksjon
+      // Auto-mottatt: sent → received umiddelbart
+      const effektivStatus = input.nyStatus === "sent" ? "received" : input.nyStatus;
+
       return ctx.prisma.$transaction(async (tx) => {
         const oppdatert = await tx.checklist.update({
           where: { id: input.id },
-          data: { status: input.nyStatus },
+          data: { status: effektivStatus },
         });
 
         await tx.documentTransfer.create({
@@ -362,10 +364,21 @@ export const sjekklisteRouter = router({
             checklistId: input.id,
             senderId: ctx.userId,
             fromStatus: sjekkliste.status,
-            toStatus: input.nyStatus,
+            toStatus: "sent",
             comment: input.kommentar,
           },
         });
+
+        if (input.nyStatus === "sent") {
+          await tx.documentTransfer.create({
+            data: {
+              checklistId: input.id,
+              senderId: ctx.userId,
+              fromStatus: "sent",
+              toStatus: "received",
+            },
+          });
+        }
 
         return oppdatert;
       });
