@@ -17,12 +17,6 @@ export default function SjekklisteSide() {
   const utils = trpc.useUtils();
   const { aktivBygning, standardTegning } = useBygning();
   const [visModal, setVisModal] = useState(false);
-  const [valgtMal, setValgtMal] = useState("");
-  const [valgtOppretter, setValgtOppretter] = useState("");
-  const [valgtSvarer, setValgtSvarer] = useState("");
-  const [valgtEmne, setValgtEmne] = useState("");
-  const [valgtBygning, setValgtBygning] = useState("");
-  const [valgtTegning, setValgtTegning] = useState("");
   const [valgte, setValgte] = useState<Set<string>>(new Set());
   const [visSlettModal, setVisSlettModal] = useState(false);
   const [slettFeil, setSlettFeil] = useState<string | null>(null);
@@ -33,16 +27,9 @@ export default function SjekklisteSide() {
   );
 
   const { data: maler } = trpc.mal.hentForProsjekt.useQuery({ projectId: params.prosjektId });
-  const { data: entrepriser } = trpc.entreprise.hentForProsjekt.useQuery({ projectId: params.prosjektId });
+  const sjekklisteMaler = ((maler ?? []) as Array<{ id: string; name: string; prefix?: string; category: string }>).filter((m) => m.category === "sjekkliste");
   const { data: mineEntrepriser } = trpc.medlem.hentMineEntrepriser.useQuery(
     { projectId: params.prosjektId },
-  );
-  const { data: bygninger } = trpc.bygning.hentForProsjekt.useQuery(
-    { projectId: params.prosjektId },
-  );
-  const { data: tegninger } = trpc.tegning.hentForProsjekt.useQuery(
-    { projectId: params.prosjektId },
-    { enabled: visModal },
   );
 
   const slettMutation = trpc.sjekkliste.slett.useMutation({
@@ -67,24 +54,47 @@ export default function SjekklisteSide() {
     setVisSlettModal(false);
   }
 
+  const { data: dokumentflyter } = trpc.dokumentflyt.hentForProsjekt.useQuery(
+    { projectId: params.prosjektId },
+  );
+
   const opprettMutation = trpc.sjekkliste.opprett.useMutation({
-    onSuccess: () => {
+    onSuccess: (_data: unknown) => {
+      const resultat = _data as { id: string };
       utils.sjekkliste.hentForProsjekt.invalidate({ projectId: params.prosjektId });
       setVisModal(false);
-      setValgtMal("");
-      setValgtOppretter("");
-      setValgtSvarer("");
-      setValgtEmne("");
-      setValgtBygning("");
-      setValgtTegning("");
+      router.push(`/dashbord/${params.prosjektId}/sjekklister/${resultat.id}`);
     },
   });
 
   function apneModal() {
-    // Forhåndsvelg fra standard-tegning kontekst
-    setValgtBygning(aktivBygning?.id ?? "");
-    setValgtTegning(standardTegning?.id ?? "");
     setVisModal(true);
+  }
+
+  function handleOpprettFraMal(malId: string) {
+    const oppretter = mineEntrepriser?.[0];
+    if (!oppretter) return;
+
+    const alleDf = (dokumentflyter ?? []) as Array<{
+      id: string;
+      medlemmer: Array<{ enterprise?: { id: string } | null; group?: { id: string } | null; projectMember?: { id: string } | null; rolle: string }>;
+      maler: Array<{ template: { id: string } }>;
+    }>;
+    const matchDf = alleDf.find((df) =>
+      df.maler.some((m) => m.template.id === malId) &&
+      df.medlemmer.some((m) =>
+        m.rolle === "oppretter" && (m.enterprise?.id === oppretter.id || m.group || m.projectMember),
+      ),
+    );
+    const svarer = matchDf?.medlemmer.find((m) => m.rolle === "svarer");
+    const svarerEntrepriseId = svarer?.enterprise?.id ?? oppretter.id;
+
+    opprettMutation.mutate({
+      templateId: malId,
+      creatorEnterpriseId: oppretter.id,
+      responderEnterpriseId: svarerEntrepriseId,
+      workflowId: matchDf?.id,
+    });
   }
 
   const verktoylinjeHandlinger = useMemo((): VerktoylinjeHandling[] => {
@@ -126,18 +136,6 @@ export default function SjekklisteSide() {
   }, [valgte, params.prosjektId, router, aktivBygning?.id, standardTegning?.id]);
 
   useVerktoylinje(verktoylinjeHandlinger, [valgte.size, aktivBygning?.id, standardTegning?.id]);
-
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!valgtMal || !valgtOppretter || !valgtSvarer) return;
-
-    opprettMutation.mutate({
-      templateId: valgtMal,
-      creatorEnterpriseId: valgtOppretter,
-      responderEnterpriseId: valgtSvarer,
-      subject: valgtEmne || undefined,
-    });
-  }
 
   if (isLoading) {
     return (
@@ -183,39 +181,6 @@ export default function SjekklisteSide() {
   const oppretterAlternativerFilter = [...new Set((statusFiltrerte as SjekklisteRad[]).map((s) => s.creatorEnterprise.name))].sort().map((n) => ({ value: n, label: n }));
 
   // Forhåndsdefinerte emner fra valgt mal
-  const malSubjects = (() => {
-    if (!maler || !valgtMal) return [];
-    const malData = (maler as Array<{ id: string; subjects?: unknown }>).find((m) => m.id === valgtMal);
-    if (!malData || !Array.isArray(malData.subjects)) return [];
-    return (malData.subjects as string[]).filter((s) => s.trim() !== "");
-  })();
-
-  // Oppretter-dropdown
-  const oppretterAlternativer = (mineEntrepriser ?? []).map((e) => ({
-    value: e.id,
-    label: e.name,
-  }));
-
-  // Svarer-dropdown
-  const svarerAlternativer = (entrepriser ?? []).map((e) => ({
-    value: e.id,
-    label: e.name,
-  }));
-
-  // Lokasjon-dropdown
-  const bygningAlternativer = (bygninger ?? []).map((b) => ({
-    value: b.id,
-    label: b.number ? `${b.number}. ${b.name}` : b.name,
-  }));
-
-  // Tegning-dropdown — filtrert etter valgt bygning
-  const tegningAlternativer = ((tegninger ?? []) as Array<{ id: string; name: string; drawingNumber: string | null; buildingId: string | null }>)
-    .filter((t) => !valgtBygning || t.buildingId === valgtBygning)
-    .map((t) => ({
-      value: t.id,
-      label: t.drawingNumber ? `${t.drawingNumber} ${t.name}` : t.name,
-    }));
-
   function handleFilterEndring(kolonneId: string, verdi: string) {
     setKolonneFiltre((prev) => {
       const neste = { ...prev };
@@ -353,50 +318,26 @@ export default function SjekklisteSide() {
         </div>
       </Modal>
 
-      <Modal open={visModal} onClose={() => setVisModal(false)} title="Ny sjekkliste">
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <Select
-            label="Rapportmal"
-            options={(maler as Array<{ id: string; name: string }> | undefined)?.map((m) => ({ value: m.id, label: m.name })) ?? []}
-            value={valgtMal}
-            onChange={(e) => {
-              setValgtMal(e.target.value);
-              setValgtEmne("");
-            }}
-            placeholder="Velg mal..."
-          />
-          {malSubjects.length > 0 && (
-            <Select
-              label="Emne"
-              options={malSubjects.map((s) => ({ value: s, label: s }))}
-              value={valgtEmne}
-              onChange={(e) => setValgtEmne(e.target.value)}
-              placeholder="Velg emne..."
-            />
+      <Modal open={visModal} onClose={() => setVisModal(false)} title="Velg sjekklistemal">
+        <div className="space-y-1">
+          {sjekklisteMaler.length === 0 ? (
+            <p className="py-4 text-center text-sm text-gray-400">Ingen sjekklistemaler tilgjengelig</p>
+          ) : (
+            sjekklisteMaler.map((m: { id: string; name: string; prefix?: string }) => (
+              <button
+                key={m.id}
+                onClick={() => handleOpprettFraMal(m.id)}
+                disabled={opprettMutation.isPending}
+                className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left hover:bg-gray-50 disabled:opacity-50"
+              >
+                <span className="text-sm font-medium text-gray-800">{m.name}</span>
+                {m.prefix && (
+                  <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs font-medium text-gray-500">{m.prefix}</span>
+                )}
+              </button>
+            ))
           )}
-          <Select
-            label="Oppretter-entreprise"
-            options={oppretterAlternativer}
-            value={valgtOppretter}
-            onChange={(e) => setValgtOppretter(e.target.value)}
-            placeholder="Velg entreprise..."
-          />
-          <Select
-            label="Ansvarlig entreprise (svarer)"
-            options={svarerAlternativer}
-            value={valgtSvarer}
-            onChange={(e) => setValgtSvarer(e.target.value)}
-            placeholder="Velg entreprise..."
-          />
-          <div className="flex gap-3 pt-2">
-            <Button type="submit" loading={opprettMutation.isPending}>
-              Opprett
-            </Button>
-            <Button type="button" variant="secondary" onClick={() => setVisModal(false)}>
-              Avbryt
-            </Button>
-          </div>
-        </form>
+        </div>
       </Modal>
     </div>
   );
