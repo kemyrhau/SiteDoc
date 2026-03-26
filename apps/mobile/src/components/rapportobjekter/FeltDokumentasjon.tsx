@@ -20,6 +20,7 @@ interface FeltDokumentasjonProps {
   onEndreKommentar: (kommentar: string) => void;
   onLeggTilVedlegg: (vedlegg: Vedlegg) => void;
   onFjernVedlegg: (vedleggId: string) => void;
+  onErstattVedlegg?: (vedleggId: string, nyUrl: string, nyttFilnavn: string) => void;
   onFlyttVedlegg?: (vedleggId: string, retning: "opp" | "ned") => void;
   leseModus?: boolean;
   sjekklisteId?: string;
@@ -34,6 +35,7 @@ export function FeltDokumentasjon({
   onEndreKommentar,
   onLeggTilVedlegg,
   onFjernVedlegg,
+  onErstattVedlegg,
   onFlyttVedlegg,
   leseModus,
   sjekklisteId,
@@ -369,11 +371,29 @@ export function FeltDokumentasjon({
             bildeUri={annoteringBilde}
             onFerdig={async (annotert) => {
               settAnnoteringBilde(null);
-              if (valgtVedleggId) {
-                onFjernVedlegg(valgtVedleggId);
+              if (valgtVedleggId && onErstattVedlegg) {
+                // Erstatt original med annotert bilde (unngår duplikat)
+                const filnavn = `annotert_${Date.now()}.png`;
+                const lokalSti = await lagreLokaltBilde(annotert, filnavn);
+                onErstattVedlegg(valgtVedleggId, lokalSti, filnavn);
+                // Legg i opplastingskø med samme vedlegg-ID
+                const filstorrelse = await hentFilstorrelse(lokalSti);
+                await leggIKoRef.current({
+                  sjekklisteId,
+                  oppgaveId: oppgaveIdForKo,
+                  objektId,
+                  vedleggId: valgtVedleggId,
+                  lokalSti,
+                  filnavn,
+                  mimeType: "image/png",
+                  filstorrelse,
+                  gpsAktivert: false,
+                });
                 settValgtVedleggId(null);
+              } else {
+                // Fallback: lag ny (ingen original å erstatte)
+                await håndterBilde(annotert);
               }
-              await håndterBilde(annotert);
             }}
             onAvbryt={() => {
               settAnnoteringBilde(null);
