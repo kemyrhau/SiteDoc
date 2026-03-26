@@ -171,4 +171,15 @@ export const bildeRouter = router({
         },
       });
     }),
+
+  // Slett bilde(r) basert på fil-URL
+  slettMedUrl: protectedProcedure
+    .input(z.object({ fileUrl: z.string(), projectId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      const resultat = await ctx.prisma.image.deleteMany({
+        where: { fileUrl: input.fileUrl },
+      });
+      return { slettet: resultat.count };
+    }),
 });

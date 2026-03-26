@@ -54,6 +54,7 @@ export function useOppgaveSkjema(oppgaveId: string): UseOppgaveSkjemaResultat {
   feltVerdierRef.current = feltVerdier;
 
   const utils = trpc.useUtils();
+  const slettBildeMutation = trpc.bilde.slettMedUrl.useMutation();
 
   const oppgaveQuery = trpc.oppgave.hentMedId.useQuery(
     { id: oppgaveId },
@@ -179,6 +180,10 @@ export function useOppgaveSkjema(oppgaveId: string): UseOppgaveSkjemaResultat {
 
   const fjernVedlegg = useCallback(
     (objektId: string, vedleggId: string) => {
+      // Finn vedleggets URL før fjerning for å slette fra images-tabellen
+      const vedleggListe = feltVerdierRef.current[objektId]?.vedlegg ?? [];
+      const vedlegg = vedleggListe.find((v) => v.id === vedleggId);
+
       settFeltVerdier((prev) => {
         const nåværende = prev[objektId] ?? TOM_FELTVERDI;
         return {
@@ -190,8 +195,16 @@ export function useOppgaveSkjema(oppgaveId: string): UseOppgaveSkjemaResultat {
         };
       });
       planleggLagring();
+
+      // Slett fra images-tabellen i bakgrunnen
+      if (vedlegg?.url && oppgave?.creatorEnterpriseId) {
+        const projectId = (oppgave as unknown as { template?: { projectId?: string } })?.template?.projectId;
+        if (projectId) {
+          slettBildeMutation.mutate({ fileUrl: vedlegg.url, projectId });
+        }
+      }
     },
-    [planleggLagring],
+    [planleggLagring, oppgave, slettBildeMutation],
   );
 
   // Betinget synlighet (rekursiv — sjekker hele foreldrekjeden, maks 10 nivåer)
