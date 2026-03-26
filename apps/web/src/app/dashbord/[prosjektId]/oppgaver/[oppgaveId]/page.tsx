@@ -7,6 +7,7 @@ import { Check, AlertCircle, Loader2, Send, FileText, Printer } from "lucide-rea
 import { trpc } from "@/lib/trpc";
 import { useOppgaveSkjema } from "@/hooks/useOppgaveSkjema";
 import { StatusHandlinger } from "@/components/StatusHandlinger";
+import { LokasjonVelger } from "@/components/LokasjonVelger";
 import { RapportObjektRenderer, DISPLAY_TYPER, SKJULT_I_UTFYLLING } from "@/components/rapportobjekter/RapportObjektRenderer";
 import { FeltWrapper } from "@/components/rapportobjekter/FeltWrapper";
 import type { RapportObjekt } from "@/components/rapportobjekter/typer";
@@ -222,6 +223,12 @@ export default function OppgaveDetaljSide() {
     },
   });
 
+  const oppdaterLokasjonMutasjon = trpc.oppgave.oppdater.useMutation({
+    onSuccess: () => {
+      utils.oppgave.hentMedId.invalidate({ id: params.oppgaveId });
+    },
+  });
+
   const slettMutasjon = trpc.oppgave.slett.useMutation({
     onSuccess: () => {
       utils.oppgave.hentForProsjekt.invalidate();
@@ -358,6 +365,28 @@ export default function OppgaveDetaljSide() {
         {oppgave.description && (
           <p className="mt-2 text-sm text-gray-600">{oppgave.description}</p>
         )}
+
+        {/* Lokasjon */}
+        <div className="mt-3 max-w-md print-skjul">
+          <LokasjonVelger
+            prosjektId={params.prosjektId}
+            tegningId={(oppgave as unknown as { drawingId?: string | null }).drawingId}
+            tegningNavn={(oppgave as unknown as { drawing?: { name?: string } | null }).drawing?.name}
+            bygningNavn={(oppgave as unknown as { drawing?: { building?: { name?: string } | null } | null }).drawing?.building?.name}
+            positionX={(oppgave as unknown as { positionX?: number | null }).positionX}
+            positionY={(oppgave as unknown as { positionY?: number | null }).positionY}
+            visPosisjon
+            onLagre={(data) => {
+              oppdaterLokasjonMutasjon.mutate({
+                id: params.oppgaveId,
+                drawingId: data.drawingId,
+                positionX: data.positionX ?? null,
+                positionY: data.positionY ?? null,
+              });
+            }}
+            leseModus={!erRedigerbar}
+          />
+        </div>
 
         {/* Statushandlinger */}
         <div className="mt-3">

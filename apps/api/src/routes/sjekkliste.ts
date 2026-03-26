@@ -196,6 +196,8 @@ export const sjekklisteRouter = router({
         title: z.string().max(255).optional(),
         creatorEnterpriseId: z.string().uuid().optional(),
         responderEnterpriseId: z.string().uuid().optional(),
+        drawingId: z.string().uuid().nullable().optional(),
+        buildingId: z.string().uuid().nullable().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
