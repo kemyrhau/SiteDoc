@@ -178,7 +178,14 @@ function DokumentListe({
     onSuccess: () => utils.mengde.hentDokumenter.invalidate({ projectId }),
   });
   const reprosesserMutation = trpc.mengde.reprosesser.useMutation({
-    onSuccess: () => utils.mengde.hentDokumenter.invalidate({ projectId }),
+    onSuccess: () => {
+      console.log("Reprosessering startet");
+      utils.mengde.hentDokumenter.invalidate({ projectId });
+    },
+    onError: (err) => {
+      console.error("Reprosessering feilet:", err.message);
+      alert(`Reprosessering feilet: ${err.message}`);
+    },
   });
 
   const DOC_TYPE_LABEL: Record<string, string> = {
