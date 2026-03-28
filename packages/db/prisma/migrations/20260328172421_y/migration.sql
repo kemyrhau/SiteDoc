@@ -1,0 +1,1 @@
+-- Denne migreringen ble feilaktig opprettet og er tom. Se 20260328173000_legg_til_tsvector.

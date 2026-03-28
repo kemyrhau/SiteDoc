@@ -29,6 +29,30 @@ export const modulRouter = router({
         throw new Error(`Ukjent modul: ${input.moduleSlug}`);
       }
 
+      // Auto-aktiver avhengigheter
+      if (modulDef.krever && modulDef.krever.length > 0) {
+        for (const krevSlug of modulDef.krever) {
+          const krevEksisterende = await ctx.prisma.projectModule.findUnique({
+            where: {
+              projectId_moduleSlug: {
+                projectId: input.projectId,
+                moduleSlug: krevSlug,
+              },
+            },
+          });
+          if (!krevEksisterende) {
+            await ctx.prisma.projectModule.create({
+              data: { projectId: input.projectId, moduleSlug: krevSlug },
+            });
+          } else if (!krevEksisterende.active) {
+            await ctx.prisma.projectModule.update({
+              where: { id: krevEksisterende.id },
+              data: { active: true },
+            });
+          }
+        }
+      }
+
       // Sjekk om allerede aktivert
       const eksisterende = await ctx.prisma.projectModule.findUnique({
         where: {
@@ -108,6 +132,29 @@ export const modulRouter = router({
     }))
     .mutation(async ({ ctx, input }) => {
       await verifiserProsjektmedlem(ctx.userId, input.projectId);
+
+      // Sjekk om andre aktive moduler avhenger av denne
+      const avhengige = PROSJEKT_MODULER.filter(
+        (m) => m.krever?.includes(input.moduleSlug),
+      );
+      if (avhengige.length > 0) {
+        const aktiveAvhengige = await ctx.prisma.projectModule.findMany({
+          where: {
+            projectId: input.projectId,
+            moduleSlug: { in: avhengige.map((m) => m.slug) },
+            active: true,
+          },
+        });
+        if (aktiveAvhengige.length > 0) {
+          const navn = aktiveAvhengige
+            .map((m) => PROSJEKT_MODULER.find((d) => d.slug === m.moduleSlug)?.navn ?? m.moduleSlug)
+            .join(", ");
+          throw new Error(
+            `Kan ikke deaktivere — ${navn} avhenger av denne modulen`,
+          );
+        }
+      }
+
       return ctx.prisma.projectModule.update({
         where: {
           projectId_moduleSlug: {

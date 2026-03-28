@@ -1,10 +1,22 @@
 import { z } from "zod";
+import { Prisma } from "@sitedoc/db";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
-import {
-  hentTilgjengeligeMappeIder,
-  byggMappeTilgangsFilter,
-} from "../services/folder-tilgang";
+import { hentTilgjengeligeMappeIder } from "../services/folder-tilgang";
+
+export interface SokTreff {
+  id: string;
+  documentId: string;
+  chunkText: string;
+  pageNumber: number | null;
+  sectionTitle: string | null;
+  nsCode: string | null;
+  filename: string;
+  fileUrl: string | null;
+  docType: string | null;
+  folderId: string | null;
+  rank: number;
+}
 
 export const ftdSokRouter = router({
   sokDokumenter: protectedProcedure
@@ -22,28 +34,62 @@ export const ftdSokRouter = router({
         ctx.userId,
         input.projectId,
       );
-      const mappeFilter = byggMappeTilgangsFilter(mappeIder);
 
-      return ctx.prisma.ftdDocumentChunk.findMany({
-        where: {
-          document: {
-            projectId: input.projectId,
-            ...mappeFilter,
-          },
-          chunkText: { contains: input.query, mode: "insensitive" },
-        },
-        include: {
-          document: {
-            select: {
-              filename: true,
-              fileUrl: true,
-              docType: true,
-              folderId: true,
-            },
-          },
-        },
-        take: input.limit,
-      });
+      // Fulltekstsøk med tsvector (norsk stemming + ranking)
+      const mappeKlausul =
+        mappeIder === null
+          ? Prisma.empty
+          : Prisma.sql`AND (d.folder_id IS NULL OR d.folder_id IN (${Prisma.join(mappeIder)}))`;
+
+      let treff = await ctx.prisma.$queryRaw<SokTreff[]>`
+        SELECT
+          c.id,
+          c.document_id AS "documentId",
+          c.chunk_text AS "chunkText",
+          c.page_number AS "pageNumber",
+          c.section_title AS "sectionTitle",
+          c.ns_code AS "nsCode",
+          d.filename,
+          d.file_url AS "fileUrl",
+          d.doc_type AS "docType",
+          d.folder_id AS "folderId",
+          ts_rank(c.search_vector, plainto_tsquery('norwegian', ${input.query})) AS rank
+        FROM ftd_document_chunks c
+        JOIN ftd_documents d ON d.id = c.document_id
+        WHERE d.project_id = ${input.projectId}
+          AND d.is_active = true
+          AND c.search_vector @@ plainto_tsquery('norwegian', ${input.query})
+          ${mappeKlausul}
+        ORDER BY rank DESC
+        LIMIT ${input.limit}
+      `;
+
+      // Fallback til ILIKE hvis tsvector gir 0 treff (delord, forkortelser)
+      if (treff.length === 0) {
+        treff = await ctx.prisma.$queryRaw<SokTreff[]>`
+          SELECT
+            c.id,
+            c.document_id AS "documentId",
+            c.chunk_text AS "chunkText",
+            c.page_number AS "pageNumber",
+            c.section_title AS "sectionTitle",
+            c.ns_code AS "nsCode",
+            d.filename,
+            d.file_url AS "fileUrl",
+            d.doc_type AS "docType",
+            d.folder_id AS "folderId",
+            1.0 AS rank
+          FROM ftd_document_chunks c
+          JOIN ftd_documents d ON d.id = c.document_id
+          WHERE d.project_id = ${input.projectId}
+            AND d.is_active = true
+            AND c.chunk_text ILIKE ${"%" + input.query + "%"}
+            ${mappeKlausul}
+          LIMIT ${input.limit}
+        `;
+      }
+
+      return treff;
     }),
 
   hentDokumentChunks: protectedProcedure

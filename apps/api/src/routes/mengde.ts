@@ -5,6 +5,7 @@ import {
   hentTilgjengeligeMappeIder,
   byggMappeTilgangsFilter,
 } from "../services/folder-tilgang";
+import { prosesserDokument } from "../services/ftd-prosessering";
 
 type AvviksStatus = "Match" | "Endret" | "Ny" | "Fjernet";
 export interface AvviksRad {
@@ -192,7 +193,7 @@ export const mengdeRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       await verifiserProsjektmedlem(ctx.userId, input.projectId);
-      return ctx.prisma.ftdDocument.create({
+      const doc = await ctx.prisma.ftdDocument.create({
         data: {
           projectId: input.projectId,
           folderId: input.folderId ?? null,
@@ -202,6 +203,42 @@ export const mengdeRouter = router({
           docType: input.docType,
         },
       });
+
+      // Fire-and-forget prosessering
+      prosesserDokument(ctx.prisma, doc.id).catch((err) => {
+        console.error(`FTD prosessering feilet for ${doc.id}:`, err);
+      });
+
+      return doc;
+    }),
+
+  reprosesser: protectedProcedure
+    .input(z.object({ documentId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const doc = await ctx.prisma.ftdDocument.findUniqueOrThrow({
+        where: { id: input.documentId },
+      });
+      await verifiserProsjektmedlem(ctx.userId, doc.projectId);
+
+      // Slett eksisterende chunks og spec-poster fra dette dokumentet
+      await ctx.prisma.ftdDocumentChunk.deleteMany({
+        where: { documentId: input.documentId },
+      });
+      await ctx.prisma.ftdSpecPost.deleteMany({
+        where: { documentId: input.documentId },
+      });
+
+      // Nullstill og kjør på nytt
+      await ctx.prisma.ftdDocument.update({
+        where: { id: input.documentId },
+        data: { processingState: "pending", processingError: null },
+      });
+
+      prosesserDokument(ctx.prisma, input.documentId).catch((err) => {
+        console.error(`FTD reprosessering feilet for ${input.documentId}:`, err);
+      });
+
+      return { ok: true };
     }),
 
   slettDokument: protectedProcedure

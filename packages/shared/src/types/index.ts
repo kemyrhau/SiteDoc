@@ -370,6 +370,7 @@ export interface ModulDefinisjon {
   kategori: "oppgave" | "sjekkliste" | "funksjon";
   ikon: string; // lucide-react ikonnavn
   maler: ModulMal[];
+  krever?: string[]; // slugs av moduler denne avhenger av
 }
 
 export interface ModulMal {
@@ -504,6 +505,7 @@ export const PROSJEKT_MODULER: ModulDefinisjon[] = [
     kategori: "funksjon",
     ikon: "BarChart3",
     maler: [],
+    krever: ["dokumentsok"],
   },
   {
     slug: "dokumentsok",

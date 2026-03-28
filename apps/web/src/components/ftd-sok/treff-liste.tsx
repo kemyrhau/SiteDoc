@@ -8,12 +8,10 @@ interface Treff {
   chunkText: string;
   pageNumber: number | null;
   sectionTitle: string | null;
-  document: {
-    filename: string;
-    fileUrl: string | null;
-    docType: string | null;
-    folderId: string | null;
-  };
+  filename: string;
+  fileUrl: string | null;
+  docType: string | null;
+  folderId: string | null;
 }
 
 interface TreffListeProps {
@@ -45,7 +43,7 @@ export function TreffListe({ treff, onVelgTreff, valgtId }: TreffListeProps) {
           <div className="flex items-center gap-2">
             <FileText className="h-4 w-4 shrink-0 text-gray-400" />
             <span className="text-sm font-medium">
-              {t.document.filename}
+              {t.filename}
             </span>
             {t.pageNumber && (
               <span className="text-xs text-gray-400">

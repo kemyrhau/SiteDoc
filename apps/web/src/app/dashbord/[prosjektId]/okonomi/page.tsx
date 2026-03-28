@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useParams } from "next/navigation";
-import { BarChart3, Upload, FileText, Trash2 } from "lucide-react";
+import { BarChart3, Upload, FileText, Trash2, Loader2, CheckCircle, AlertCircle, RefreshCw } from "lucide-react";
 import { EntrepriseVelger } from "@/components/mengde/entreprise-velger";
 import { PeriodeVelger } from "@/components/mengde/periode-velger";
 import { SpecPostTabell } from "@/components/mengde/spec-post-tabell";
@@ -24,10 +24,24 @@ export default function OkonomiSide() {
   const [valgtPostId, setValgtPostId] = useState<string | null>(null);
   const [importOpen, setImportOpen] = useState(false);
 
-  const { data: dokumenter } = trpc.mengde.hentDokumenter.useQuery(
+  const dokumenterQuery = trpc.mengde.hentDokumenter.useQuery(
     { projectId: prosjektId },
-    { enabled: !!prosjektId },
+    {
+      enabled: !!prosjektId,
+      refetchInterval: (query) => {
+        const data = query.state.data;
+        if (!data) return false;
+        return data.some(
+          (d) =>
+            d.processingState === "pending" ||
+            d.processingState === "processing",
+        )
+          ? 3000
+          : false;
+      },
+    },
   );
+  const dokumenter = dokumenterQuery.data;
 
   const { data: poster } = trpc.mengde.hentSpecPoster.useQuery(
     { projectId: prosjektId, periodId: periodId ?? undefined },
@@ -152,6 +166,8 @@ function DokumentListe({
     id: string;
     filename: string;
     docType: string | null;
+    processingState: string;
+    processingError: string | null;
     uploadedAt: string | Date;
     folder: { id: string; name: string } | null;
   }>;
@@ -159,6 +175,9 @@ function DokumentListe({
 }) {
   const utils = trpc.useUtils();
   const slettMutation = trpc.mengde.slettDokument.useMutation({
+    onSuccess: () => utils.mengde.hentDokumenter.invalidate({ projectId }),
+  });
+  const reprosesserMutation = trpc.mengde.reprosesser.useMutation({
     onSuccess: () => utils.mengde.hentDokumenter.invalidate({ projectId }),
   });
 
@@ -188,7 +207,8 @@ function DokumentListe({
           <th className="px-3 py-2">Type</th>
           <th className="px-3 py-2">Mappe</th>
           <th className="px-3 py-2">Lastet opp</th>
-          <th className="px-3 py-2 w-10"></th>
+          <th className="px-3 py-2">Status</th>
+          <th className="px-3 py-2 w-20"></th>
         </tr>
       </thead>
       <tbody>
@@ -208,6 +228,33 @@ function DokumentListe({
               {new Date(dok.uploadedAt).toLocaleDateString("nb-NO")}
             </td>
             <td className="px-3 py-2">
+              {dok.processingState === "pending" || dok.processingState === "processing" ? (
+                <span className="flex items-center gap-1 text-xs text-amber-600">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Prosesserer...
+                </span>
+              ) : dok.processingState === "completed" ? (
+                <span className="flex items-center gap-1 text-xs text-green-600">
+                  <CheckCircle className="h-3.5 w-3.5" />
+                  Ferdig
+                </span>
+              ) : dok.processingState === "failed" ? (
+                <span className="flex items-center gap-1 text-xs text-red-500" title={dok.processingError ?? ""}>
+                  <AlertCircle className="h-3.5 w-3.5" />
+                  Feilet
+                </span>
+              ) : null}
+            </td>
+            <td className="px-3 py-2 flex items-center gap-1">
+              {dok.processingState === "failed" && (
+                <button
+                  onClick={() => reprosesserMutation.mutate({ documentId: dok.id })}
+                  className="rounded p-1 text-gray-400 hover:bg-blue-50 hover:text-blue-500"
+                  title="Prøv igjen"
+                >
+                  <RefreshCw className="h-3.5 w-3.5" />
+                </button>
+              )}
               <button
                 onClick={() => {
                   if (confirm(`Fjern «${dok.filename}»?`)) {
