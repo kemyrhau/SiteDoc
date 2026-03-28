@@ -86,9 +86,9 @@ export function SpecPostTabell({
   }
 
   return (
-    <div className="max-h-[calc(100vh-320px)] overflow-auto rounded border">
+    <div className="rounded border">
       <table className="w-full text-left text-sm">
-        <thead className="sticky top-0 z-10 bg-white shadow-[0_1px_0_0_#e5e7eb]">
+        <thead className="sticky -top-4 z-10 bg-white shadow-[0_1px_0_0_#e5e7eb]">
           <tr className="text-xs font-medium uppercase text-gray-500">
             <SorterHeader
               felt="postnr"
