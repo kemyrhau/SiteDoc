@@ -97,24 +97,33 @@ async function prosesserPdf(
   documentId: string,
   buffer: Buffer,
 ): Promise<void> {
-  const pdfParseModule = await import("pdf-parse");
-  const pdfParse = ((pdfParseModule as Record<string, unknown>).default ?? pdfParseModule) as (
-    buf: Buffer,
-  ) => Promise<{ text: string; numpages: number }>;
+  // Bruk pdfjs-dist for tekstekstraksjon (allerede i prosjektet, fungerer med Next.js)
+  // @ts-expect-error — pdfjs-dist legacy build mangler type-deklarasjoner
+  const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs") as {
+    getDocument: (opts: { data: Uint8Array }) => { promise: Promise<{
+      numPages: number;
+      getPage: (n: number) => Promise<{
+        getTextContent: () => Promise<{ items: Array<{ str?: string }> }>;
+      }>;
+    }> };
+  };
 
-  const resultat = await pdfParse(buffer);
+  const uint8 = new Uint8Array(buffer);
+  const doc = await pdfjsLib.getDocument({ data: uint8 }).promise;
 
-  // pdf-parse gir ikke per-side tekst direkte, men vi kan bruke
-  // sideskift-markører (\f) eller estimere basert på total tekst
-  const sider = resultat.text.split("\f").filter((s: string) => s.trim());
-  const sideData = sider.map((tekst: string, i: number) => ({
-    side: i + 1,
-    tekst: tekst.trim(),
-  }));
+  const sideData: Array<{ side: number; tekst: string }> = [];
+  let totalTekst = "";
 
-  // Hvis ingen sideskift funnet, bruk hele teksten som én side
-  if (sideData.length === 0 && resultat.text.trim()) {
-    sideData.push({ side: 1, tekst: resultat.text.trim() });
+  for (let i = 1; i <= doc.numPages; i++) {
+    const page = await doc.getPage(i);
+    const content = await page.getTextContent();
+    const tekst = content.items
+      .map((item: { str?: string }) => item.str ?? "")
+      .join(" ");
+    if (tekst.trim()) {
+      sideData.push({ side: i, tekst: tekst.trim() });
+    }
+    totalTekst += tekst + " ";
   }
 
   const chunks = delTekstIChunks(sideData);
@@ -136,8 +145,8 @@ async function prosesserPdf(
   await prisma.ftdDocument.update({
     where: { id: documentId },
     data: {
-      pageCount: resultat.numpages ?? sideData.length,
-      wordCount: resultat.text.split(/\s+/).length,
+      pageCount: doc.numPages,
+      wordCount: totalTekst.split(/\s+/).length,
     },
   });
 }
