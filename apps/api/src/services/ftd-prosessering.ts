@@ -539,31 +539,109 @@ function detekterNsKode(tekst: string): string | null {
 
 // --------------------------------------------------------------------------
 // NS 3420 mengdebeskrivelse-parsing fra PDF-tekst
+// Portert fra FtD Python-pipeline (mengdebeskrivelse.py)
 // --------------------------------------------------------------------------
 
-// Mønster: "00.03.03.9FB1.31A" eller "03.02.1FD8.52235"
-// Postnr: tall.tall.tall... NS-kode: bokstaver+tall etter postnr
-const NS3420_POST_REGEX =
-  /^(\d{2}(?:\.\d{2,4})*(?:\.\d{1,2})?)([A-Z][A-Z0-9.]+\d*[A-Z]?)?$/;
-
-// Tallmønster i sammenklemt rad: "Lengdem240,00120,0028 800,00"
-// Enhet + enh.tekst + mengde + pris + sum
-const VERDI_LINJE_REGEX =
-  /^([A-Za-zæøåÆØÅ\s]+?)(\d[\d\s]*(?:,\d+)?)\s*([\d\s]*(?:,\d+)?)\s*([\d\s]*(?:,\d+)?)$/;
+// Postnr: "00.03.03.9", "03.02.1" etc.
+const RE_POST_WITH_TEXT = /^(?<num>\d{2}(?:\.\d{1,2})+)\s+(?<text>.+)$/;
+// Norske desimaltall: "115 245,00", "2 550,00"
+const RE_NORSK_TALL = /\d{1,3}(?:\s\d{3})*,\d{2}/g;
+// NS-kode: "FV3.12090A", "KB6.29", "AM1.824A"
+const RE_NS_KODE = /^([A-Z]{1,3}\d[\w.]*[A-Z]?)\b/;
+// Enheter
+const RE_ENHET = /^(lm|m2|m3|m²|m³|stk|RS|tonn|kg|timer|pst|pr|l|Rund sum|Areal|Lengde|Volum|Masse|Tid|Antall)$/i;
+// Linjeskift i postnr
+const RE_TAIL_LINE = /^(?<dot>\.)?\s*(?<tail>\d{1,2}(?:\.\d{1,2})*)\s+(?<text>.+)$/;
 
 function parseNorskTall(s: string): number | null {
   if (!s || !s.trim()) return null;
-  // "28 800,00" → 28800.00
-  const renset = s.trim().replace(/\s/g, "").replace(",", ".");
+  const renset = s.trim().replace(/\xa0/g, "").replace(/\s/g, "").replace(",", ".");
   const num = parseFloat(renset);
   return isNaN(num) ? null : num;
 }
 
-function ekstraherNs3420PosterFraTekst(
-  fullTekst: string,
-  projectId: string,
-  documentId: string,
-): Array<{
+function ekstraherEnhetFraTekst(tekst: string): [string, string | null] {
+  const deler = tekst.trimEnd().split(/\s+/);
+  if (deler.length >= 2) {
+    const siste = deler[deler.length - 1]!;
+    if (RE_ENHET.test(siste)) {
+      return [deler.slice(0, -1).join(" "), siste];
+    }
+  }
+  return [tekst, null];
+}
+
+function filtrerLinjer(linjer: string[]): string[] {
+  const filtrert: string[] = [];
+  for (const linje of linjer) {
+    const s = linje.trim();
+    if (!s) continue;
+    // Fjern header/footer-støy
+    if (/^Tromsø kommune$/i.test(s)) continue;
+    if (/^Sum denne side/i.test(s)) continue;
+    if (/^Akkumulert Kapittel/i.test(s)) continue;
+    if (/^PostnrNS-kode/i.test(s)) continue;
+    if (/^Prosjekt:.*Side\s+\d/i.test(s)) continue;
+    if (/^Kapittel:\s+\d/i.test(s)) continue;
+    // Rene tall-linjer (sidesummer)
+    if (/^\d[\d\s]*,\d{2}$/.test(s)) continue;
+    filtrert.push(s);
+  }
+  return filtrert;
+}
+
+function slaSammenPostnr(linjer: string[]): string[] {
+  const resultat: string[] = [];
+  let prevParts: number[] | null = null;
+  let i = 0;
+
+  while (i < linjer.length) {
+    const linje = linjer[i]!;
+    const m1 = linje.match(RE_POST_WITH_TEXT);
+
+    if (m1?.groups) {
+      const numStr = m1.groups["num"]!;
+      const text1 = m1.groups["text"]!.trim();
+      const digitCount = numStr.replace(/\D/g, "").length;
+
+      // Sjekk om neste linje er en tail-fortsettelse
+      if (digitCount >= 7 && i + 1 < linjer.length) {
+        const nesteLinje = linjer[i + 1]!.trim();
+        const m2 = nesteLinje.match(RE_TAIL_LINE);
+        if (m2?.groups) {
+          const tail = m2.groups["tail"]!;
+          const text2 = m2.groups["text"]!.trim();
+          const withDot = !!m2.groups["dot"];
+          let mergedNum: string;
+          if (withDot) {
+            mergedNum = `${numStr}.${tail}`;
+          } else {
+            const parts = numStr.split(".");
+            parts[parts.length - 1] = `${parts[parts.length - 1]}${tail.split(".")[0]}`;
+            const tailParts = tail.split(".");
+            if (tailParts.length > 1) parts.push(...tailParts.slice(1));
+            mergedNum = parts.join(".");
+          }
+          resultat.push(`${mergedNum} ${text1}`);
+          resultat.push(text2);
+          prevParts = mergedNum.split(".").map(Number);
+          i += 2;
+          continue;
+        }
+      }
+
+      resultat.push(linje);
+      prevParts = numStr.split(".").map(Number);
+    } else {
+      resultat.push(linje);
+    }
+    i++;
+  }
+
+  return resultat;
+}
+
+interface SpecPostRad {
   projectId: string;
   documentId: string;
   postnr: string | null;
@@ -573,74 +651,109 @@ function ekstraherNs3420PosterFraTekst(
   enhetspris: number | null;
   sumAnbud: number | null;
   nsKode: string | null;
-}> {
-  const poster: Array<{
-    projectId: string;
-    documentId: string;
-    postnr: string | null;
-    beskrivelse: string | null;
-    enhet: string | null;
-    mengdeAnbud: number | null;
-    enhetspris: number | null;
-    sumAnbud: number | null;
-    nsKode: string | null;
-  }> = [];
+  fullNsTekst: string | null;
+}
 
-  const linjer = fullTekst.split("\n");
-  let gjeldendPostnr: string | null = null;
+function ekstraherNs3420PosterFraTekst(
+  fullTekst: string,
+  projectId: string,
+  documentId: string,
+): SpecPostRad[] {
+  const poster: SpecPostRad[] = [];
+
+  // 1) Filtrer og slå sammen splittede postnumre
+  const råLinjer = fullTekst.split("\n");
+  const filtrert = filtrerLinjer(råLinjer);
+  const slåttSammen = slaSammenPostnr(filtrert);
+
+  // 2) Parse poster
   let gjeldendNsKode: string | null = null;
-  let gjeldendBeskrivelse: string | null = null;
+  let nsKodeTekstLinjer: string[] = [];
 
-  for (let i = 0; i < linjer.length; i++) {
-    const linje = linjer[i]?.trim();
-    if (!linje) continue;
+  for (const linje of slåttSammen) {
+    const stripped = linje.trim();
+    if (!stripped) continue;
 
-    // Sjekk om linjen er et postnummer (evt. med NS-kode)
-    const postMatch = linje.match(NS3420_POST_REGEX);
-    if (postMatch) {
-      gjeldendPostnr = postMatch[1] ?? null;
-      gjeldendNsKode = postMatch[2] ?? null;
-      gjeldendBeskrivelse = null;
+    // Sjekk om linjen starter med postnr
+    const postMatch = stripped.match(RE_POST_WITH_TEXT);
+    if (!postMatch?.groups) {
+      // Ikke en postlinje — akkumuler som NS-tekst
+      if (gjeldendNsKode) {
+        nsKodeTekstLinjer.push(stripped);
+      }
       continue;
     }
 
-    // Sammenklemt verdilinje: "Lengdem240,00120,0028 800,00" eller "Rund sumRS10 000,0010 000,00"
-    if (gjeldendPostnr) {
-      const verdiMatch = linje.match(VERDI_LINJE_REGEX);
-      if (verdiMatch) {
-        const enhetRå = (verdiMatch[1] ?? "").trim();
-        const mengde = parseNorskTall(verdiMatch[2] ?? "");
-        const pris = parseNorskTall(verdiMatch[3] ?? "");
-        const sum = parseNorskTall(verdiMatch[4] ?? "");
+    const postnr = postMatch.groups["num"]!;
+    const rest = postMatch.groups["text"]!.trim();
 
-        if (mengde !== null && (pris !== null || sum !== null)) {
-          poster.push({
-            projectId,
-            documentId,
-            postnr: gjeldendPostnr,
-            beskrivelse: gjeldendBeskrivelse,
-            enhet: enhetRå || null,
-            mengdeAnbud: mengde,
-            enhetspris: pris,
-            sumAnbud: sum,
-            nsKode: gjeldendNsKode,
-          });
-          gjeldendPostnr = null;
-          gjeldendNsKode = null;
-          gjeldendBeskrivelse = null;
-          continue;
+    // Finn norske desimaltall i resten av linjen
+    const tallMatch = [...rest.matchAll(RE_NORSK_TALL)];
+
+    if (tallMatch.length >= 3) {
+      // Prislinje: beskrivelse [enhet] mengde pris sum
+      const descEnd = tallMatch[0]!.index!;
+      let descText = rest.slice(0, descEnd).trim();
+
+      // Trekk ut enhet fra slutten av beskrivelsen
+      const [descUtenEnhet, enhet] = ekstraherEnhetFraTekst(descText);
+      descText = descUtenEnhet;
+
+      // Sjekk NS-kode i begynnelsen av beskrivelsen
+      const nsMatch = descText.match(RE_NS_KODE);
+      const nsKode = nsMatch ? nsMatch[1]! : gjeldendNsKode;
+
+      const mengde = parseNorskTall(tallMatch[0]![0]);
+      const pris = parseNorskTall(tallMatch[1]![0]);
+      const sum = parseNorskTall(tallMatch[2]![0]);
+
+      // Bygg full NS-tekst
+      const fullNsTekst = nsKodeTekstLinjer.length > 0
+        ? nsKodeTekstLinjer.join("\n")
+        : null;
+
+      poster.push({
+        projectId,
+        documentId,
+        postnr,
+        beskrivelse: descText.slice(0, 500) || null,
+        enhet: enhet ?? null,
+        mengdeAnbud: mengde,
+        enhetspris: pris,
+        sumAnbud: sum,
+        nsKode: nsKode ?? null,
+        fullNsTekst,
+      });
+      nsKodeTekstLinjer = [];
+
+    } else if (tallMatch.length === 0) {
+      // Kan være NS-kode-definisjon eller seksjonsheader
+      const nsMatch = rest.match(RE_NS_KODE);
+      if (nsMatch) {
+        gjeldendNsKode = nsMatch[1]!;
+        nsKodeTekstLinjer = [rest];
+      } else {
+        // Seksjonsheader (f.eks. "01.03 Drift") — lagre som header
+        poster.push({
+          projectId,
+          documentId,
+          postnr,
+          beskrivelse: rest.slice(0, 500),
+          enhet: null,
+          mengdeAnbud: null,
+          enhetspris: null,
+          sumAnbud: null,
+          nsKode: gjeldendNsKode,
+          fullNsTekst: null,
+        });
+        if (gjeldendNsKode) {
+          nsKodeTekstLinjer.push(stripped);
         }
       }
-
-      // Beskrivelse i ALL CAPS (f.eks. "RYDDING AV BUSKAS OG HOGSTAVFALL")
-      if (
-        linje.length > 3 &&
-        linje === linje.toUpperCase() &&
-        /[A-ZÆØÅ]/.test(linje) &&
-        !linje.startsWith("PostnrNS") &&
-        !linje.startsWith("Sum denne")
-      ) {
-        gjeldendBeskrivelse = linje;
+    } else {
+      // 1-2 tall — trolig ikke en prispost, akkumuler som NS-tekst
+      if (gjeldendNsKode) {
+        nsKodeTekstLinjer.push(stripped);
       }
     }
   }
