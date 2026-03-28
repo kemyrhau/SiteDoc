@@ -117,8 +117,8 @@ export default function OkonomiSide() {
       {/* Innhold */}
       {aktivFane === "oversikt" ? (
         <>
-          {/* Tabell — scroller */}
-          <div className="min-h-0 flex-1 overflow-auto px-4 pt-4">
+          {/* Tabell — fyller midten, scroller internt */}
+          <div className="min-h-0 flex-1 px-4 pt-4">
             <SpecPostTabell
               projectId={prosjektId}
               periodId={periodId}

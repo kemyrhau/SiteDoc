@@ -38,21 +38,18 @@ export function SpecPostTabell({
     if (!poster) return [];
     return [...poster].sort((a, b) => {
       const felt = sorterFelt;
-      let aVal = a[felt];
-      let bVal = b[felt];
+      const aVal = a[felt];
+      const bVal = b[felt];
 
-      // Null-verdier sist
       if (aVal === null || aVal === undefined) return 1;
       if (bVal === null || bVal === undefined) return -1;
 
-      // Numeriske felter
       if (felt === "mengdeAnbud" || felt === "enhetspris" || felt === "sumAnbud") {
         const aNum = Number(aVal);
         const bNum = Number(bVal);
         return sorterRetning === "asc" ? aNum - bNum : bNum - aNum;
       }
 
-      // String-felter
       const aStr = String(aVal);
       const bStr = String(bVal);
       const cmp = aStr.localeCompare(bStr, "nb-NO", { numeric: true });
@@ -86,71 +83,26 @@ export function SpecPostTabell({
   }
 
   return (
-    <div className="rounded border">
+    <div className="flex h-full flex-col rounded border">
+      {/* Fast header */}
       <table className="w-full text-left text-sm">
-        <thead className="sticky top-0 z-10 bg-white shadow-[0_1px_0_0_#e5e7eb]">
-          <tr className="text-xs font-medium uppercase text-gray-500">
-            <SorterHeader
-              felt="postnr"
-              label="Nr"
-              aktivFelt={sorterFelt}
-              retning={sorterRetning}
-              onClick={toggleSortering}
-            />
-            <SorterHeader
-              felt="beskrivelse"
-              label="Beskrivelse"
-              aktivFelt={sorterFelt}
-              retning={sorterRetning}
-              onClick={toggleSortering}
-            />
-            <SorterHeader
-              felt="enhet"
-              label="Enhet"
-              aktivFelt={sorterFelt}
-              retning={sorterRetning}
-              onClick={toggleSortering}
-            />
-            <SorterHeader
-              felt="mengdeAnbud"
-              label="Mengde anbud"
-              aktivFelt={sorterFelt}
-              retning={sorterRetning}
-              onClick={toggleSortering}
-              hoyrejustert
-            />
-            <SorterHeader
-              felt="enhetspris"
-              label="Enhetspris"
-              aktivFelt={sorterFelt}
-              retning={sorterRetning}
-              onClick={toggleSortering}
-              hoyrejustert
-            />
-            <SorterHeader
-              felt="sumAnbud"
-              label="Sum anbud"
-              aktivFelt={sorterFelt}
-              retning={sorterRetning}
-              onClick={toggleSortering}
-              hoyrejustert
-            />
-            {periodId && (
-              <>
-                <th className="px-3 py-2 text-right">Mengde denne</th>
-                <th className="px-3 py-2 text-right">Verdi denne</th>
-                <th className="px-3 py-2 text-right">% ferdig</th>
-              </>
-            )}
+        <thead>
+          <tr className="border-b bg-gray-50 text-xs font-medium uppercase text-gray-500">
+            <SorterHeader felt="postnr" label="Nr" aktivFelt={sorterFelt} retning={sorterRetning} onClick={toggleSortering} bredde="w-[130px]" />
+            <SorterHeader felt="beskrivelse" label="Beskrivelse" aktivFelt={sorterFelt} retning={sorterRetning} onClick={toggleSortering} />
+            <SorterHeader felt="enhet" label="Enhet" aktivFelt={sorterFelt} retning={sorterRetning} onClick={toggleSortering} bredde="w-[70px]" />
+            <SorterHeader felt="mengdeAnbud" label="Mengde anbud" aktivFelt={sorterFelt} retning={sorterRetning} onClick={toggleSortering} hoyrejustert bredde="w-[120px]" />
+            <SorterHeader felt="enhetspris" label="Enhetspris" aktivFelt={sorterFelt} retning={sorterRetning} onClick={toggleSortering} hoyrejustert bredde="w-[100px]" />
+            <SorterHeader felt="sumAnbud" label="Sum anbud" aktivFelt={sorterFelt} retning={sorterRetning} onClick={toggleSortering} hoyrejustert bredde="w-[110px]" />
           </tr>
         </thead>
-        <tbody>
-          {sortertePoster.map((post) => {
-            const notaPost =
-              post.notaPoster && post.notaPoster.length > 0
-                ? post.notaPoster[0]
-                : null;
-            return (
+      </table>
+
+      {/* Scrollbar kun her */}
+      <div className="flex-1 overflow-auto">
+        <table className="w-full text-left text-sm">
+          <tbody>
+            {sortertePoster.map((post) => (
               <tr
                 key={post.id}
                 onClick={() => onVelgPost(post.id)}
@@ -158,49 +110,27 @@ export function SpecPostTabell({
                   valgtPostId === post.id ? "bg-blue-50" : ""
                 }`}
               >
-                <td className="px-3 py-2 font-mono text-xs whitespace-nowrap">
+                <td className="w-[130px] px-3 py-2 font-mono text-xs whitespace-nowrap">
                   {post.postnr ?? "—"}
                 </td>
                 <td className="max-w-xs truncate px-3 py-2">
                   {post.beskrivelse ?? "—"}
                 </td>
-                <td className="px-3 py-2">{post.enhet ?? "—"}</td>
-                <td className="px-3 py-2 text-right font-mono">
+                <td className="w-[70px] px-3 py-2">{post.enhet ?? "—"}</td>
+                <td className="w-[120px] px-3 py-2 text-right font-mono">
                   {formaterTall(post.mengdeAnbud)}
                 </td>
-                <td className="px-3 py-2 text-right font-mono">
+                <td className="w-[100px] px-3 py-2 text-right font-mono">
                   {formaterTall(post.enhetspris)}
                 </td>
-                <td className="px-3 py-2 text-right font-mono">
+                <td className="w-[110px] px-3 py-2 text-right font-mono">
                   {formaterTall(post.sumAnbud)}
                 </td>
-                {periodId && notaPost && (
-                  <>
-                    <td className="px-3 py-2 text-right font-mono">
-                      {formaterTall(notaPost.mengdeDenne)}
-                    </td>
-                    <td className="px-3 py-2 text-right font-mono">
-                      {formaterTall(notaPost.verdiDenne)}
-                    </td>
-                    <td className="px-3 py-2 text-right font-mono">
-                      {notaPost.prosentFerdig
-                        ? `${Number(notaPost.prosentFerdig).toFixed(0)}%`
-                        : "—"}
-                    </td>
-                  </>
-                )}
-                {periodId && !notaPost && (
-                  <>
-                    <td className="px-3 py-2 text-right text-gray-300">—</td>
-                    <td className="px-3 py-2 text-right text-gray-300">—</td>
-                    <td className="px-3 py-2 text-right text-gray-300">—</td>
-                  </>
-                )}
               </tr>
-            );
-          })}
-        </tbody>
-      </table>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -212,6 +142,7 @@ function SorterHeader({
   retning,
   onClick,
   hoyrejustert,
+  bredde,
 }: {
   felt: SorterFelt;
   label: string;
@@ -219,13 +150,14 @@ function SorterHeader({
   retning: SorterRetning;
   onClick: (felt: SorterFelt) => void;
   hoyrejustert?: boolean;
+  bredde?: string;
 }) {
   const erAktiv = aktivFelt === felt;
   return (
     <th
       className={`cursor-pointer select-none px-3 py-2 hover:text-gray-700 ${
         hoyrejustert ? "text-right" : ""
-      } ${erAktiv ? "text-sitedoc-primary" : ""}`}
+      } ${erAktiv ? "text-sitedoc-primary" : ""} ${bredde ?? ""}`}
       onClick={() => onClick(felt)}
     >
       <span className="inline-flex items-center gap-1">
