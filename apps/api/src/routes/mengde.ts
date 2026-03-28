@@ -178,4 +178,38 @@ export const mengdeRouter = router({
         where: { id: input.periodId },
       });
     }),
+
+  registrerDokument: protectedProcedure
+    .input(
+      z.object({
+        projectId: z.string().uuid(),
+        folderId: z.string().uuid().optional(),
+        filename: z.string(),
+        fileUrl: z.string(),
+        filetype: z.string().optional(),
+        docType: z.enum(["budsjett", "a_nota", "t_nota", "mengdebeskrivelse", "annet"]).default("annet"),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      return ctx.prisma.ftdDocument.create({
+        data: {
+          projectId: input.projectId,
+          folderId: input.folderId ?? null,
+          filename: input.filename,
+          fileUrl: input.fileUrl,
+          filetype: input.filetype ?? null,
+          docType: input.docType,
+        },
+      });
+    }),
+
+  slettDokument: protectedProcedure
+    .input(z.object({ documentId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      return ctx.prisma.ftdDocument.update({
+        where: { id: input.documentId },
+        data: { isActive: false },
+      });
+    }),
 });

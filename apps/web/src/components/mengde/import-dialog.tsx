@@ -1,0 +1,230 @@
+"use client";
+
+import { useState, useCallback } from "react";
+import { Upload, X, FileText, Loader2 } from "lucide-react";
+import { trpc } from "@/lib/trpc";
+import { EntrepriseVelger } from "./entreprise-velger";
+
+interface ImportDialogProps {
+  projectId: string;
+  open: boolean;
+  onClose: () => void;
+}
+
+const DOC_TYPES = [
+  { value: "budsjett", label: "Budsjett / Mengdebeskrivelse" },
+  { value: "a_nota", label: "A-nota" },
+  { value: "t_nota", label: "T-nota" },
+  { value: "mengdebeskrivelse", label: "Mengdebeskrivelse (PDF/Word)" },
+  { value: "annet", label: "Annet dokument" },
+] as const;
+
+export function ImportDialog({ projectId, open, onClose }: ImportDialogProps) {
+  const [fil, setFil] = useState<File | null>(null);
+  const [docType, setDocType] = useState<string>("budsjett");
+  const [enterpriseId, setEnterpriseId] = useState<string | null>(null);
+  const [lasterOpp, setLasterOpp] = useState(false);
+  const [feil, setFeil] = useState<string | null>(null);
+  const [dragAktiv, setDragAktiv] = useState(false);
+
+  const utils = trpc.useUtils();
+
+  const registrer = trpc.mengde.registrerDokument.useMutation({
+    onSuccess: () => {
+      utils.mengde.hentDokumenter.invalidate({ projectId });
+      setFil(null);
+      setFeil(null);
+      onClose();
+    },
+    onError: (err) => {
+      setFeil(err.message);
+      setLasterOpp(false);
+    },
+  });
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setDragAktiv(false);
+    const droppedFile = e.dataTransfer.files[0];
+    if (droppedFile) setFil(droppedFile);
+  }, []);
+
+  const handleLastOpp = async () => {
+    if (!fil) return;
+    setLasterOpp(true);
+    setFeil(null);
+
+    try {
+      // 1. Last opp fil til /api/upload
+      const formData = new FormData();
+      formData.append("file", fil);
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => null);
+        throw new Error(errorData?.error ?? `Opplasting feilet (${res.status})`);
+      }
+
+      const { fileUrl, fileType } = await res.json();
+
+      // 2. Registrer i database
+      registrer.mutate({
+        projectId,
+        filename: fil.name,
+        fileUrl,
+        filetype: fileType ?? fil.type,
+        docType: docType as "budsjett" | "a_nota" | "t_nota" | "mengdebeskrivelse" | "annet",
+      });
+    } catch (err) {
+      setFeil(err instanceof Error ? err.message : "Ukjent feil ved opplasting");
+      setLasterOpp(false);
+    }
+  };
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <div className="w-full max-w-lg rounded-lg bg-white shadow-xl">
+        {/* Header */}
+        <div className="flex items-center justify-between border-b px-5 py-3">
+          <h2 className="text-base font-semibold">Importer dokument</h2>
+          <button
+            onClick={onClose}
+            className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="space-y-4 p-5">
+          {/* Dokumenttype */}
+          <div>
+            <label className="mb-1 block text-xs font-medium text-gray-500">
+              Dokumenttype
+            </label>
+            <select
+              className="w-full rounded border border-gray-300 bg-white px-3 py-1.5 text-sm"
+              value={docType}
+              onChange={(e) => setDocType(e.target.value)}
+            >
+              {DOC_TYPES.map((t) => (
+                <option key={t.value} value={t.value}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Entreprise (valgfritt) */}
+          {(docType === "a_nota" || docType === "t_nota") && (
+            <div>
+              <label className="mb-1 block text-xs font-medium text-gray-500">
+                Entreprise
+              </label>
+              <EntrepriseVelger
+                projectId={projectId}
+                value={enterpriseId}
+                onChange={setEnterpriseId}
+              />
+            </div>
+          )}
+
+          {/* Fil-dropzone */}
+          <div
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDragAktiv(true);
+            }}
+            onDragLeave={() => setDragAktiv(false)}
+            onDrop={handleDrop}
+            className={`flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-8 transition-colors ${
+              dragAktiv
+                ? "border-sitedoc-primary bg-blue-50"
+                : fil
+                  ? "border-green-300 bg-green-50"
+                  : "border-gray-300 hover:border-gray-400"
+            }`}
+          >
+            {fil ? (
+              <div className="flex items-center gap-3">
+                <FileText className="h-8 w-8 text-green-600" />
+                <div>
+                  <div className="text-sm font-medium">{fil.name}</div>
+                  <div className="text-xs text-gray-500">
+                    {(fil.size / 1024).toFixed(0)} KB
+                  </div>
+                </div>
+                <button
+                  onClick={() => setFil(null)}
+                  className="ml-2 rounded p-1 text-gray-400 hover:bg-gray-100"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            ) : (
+              <>
+                <Upload className="mb-2 h-8 w-8 text-gray-400" />
+                <div className="text-sm text-gray-600">
+                  Dra og slipp fil her, eller{" "}
+                  <label className="cursor-pointer text-sitedoc-primary hover:underline">
+                    velg fil
+                    <input
+                      type="file"
+                      className="hidden"
+                      accept=".pdf,.xlsx,.xls,.xml,.csv,.docx,.doc"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) setFil(f);
+                      }}
+                    />
+                  </label>
+                </div>
+                <div className="mt-1 text-xs text-gray-400">
+                  PDF, Excel, XML, CSV, Word
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Feilmelding */}
+          {feil && (
+            <div className="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
+              {feil}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex justify-end gap-2 border-t px-5 py-3">
+          <button
+            onClick={onClose}
+            className="rounded px-4 py-1.5 text-sm text-gray-600 hover:bg-gray-100"
+          >
+            Avbryt
+          </button>
+          <button
+            onClick={handleLastOpp}
+            disabled={!fil || lasterOpp}
+            className="flex items-center gap-2 rounded bg-sitedoc-primary px-4 py-1.5 text-sm text-white hover:bg-sitedoc-secondary disabled:opacity-50"
+          >
+            {lasterOpp ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Laster opp...
+              </>
+            ) : (
+              <>
+                <Upload className="h-4 w-4" />
+                Importer
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
