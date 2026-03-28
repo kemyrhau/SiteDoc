@@ -542,14 +542,19 @@ function detekterNsKode(tekst: string): string | null {
 // Portert fra FtD Python-pipeline (mengdebeskrivelse.py)
 // --------------------------------------------------------------------------
 
-// Postnr: "00.03.03.9", "03.02.1" etc.
-const RE_POST_WITH_TEXT = /^(?<num>\d{2}(?:\.\d{1,2})+)\s+(?<text>.+)$/;
-// Norske desimaltall: "115 245,00", "2 550,00"
+// Postnr: "00.03.03.9", "03.02.1" — med eller uten mellomrom til resten
+// Sammenklemt format: "00.03.03.9FB1.31A" (postnr + NS-kode uten mellomrom)
+const RE_POST_WITH_TEXT = /^(?<num>\d{2}(?:\.\d{1,2})+)\s*(?<text>.+)$/;
+// Postnr etterfulgt direkte av NS-kode: "00.03.03.9FB1.31A"
+const RE_POST_SAMMENKLEMT = /^(?<num>\d{2}(?:\.\d{1,2})+)(?<ns>[A-Z]{1,3}\d[\w.]*[A-Z]?)$/;
+// Norske desimaltall: "115 245,00", "2 550,00", "45,00"
 const RE_NORSK_TALL = /\d{1,3}(?:\s\d{3})*,\d{2}/g;
 // NS-kode: "FV3.12090A", "KB6.29", "AM1.824A"
 const RE_NS_KODE = /^([A-Z]{1,3}\d[\w.]*[A-Z]?)\b/;
-// Enheter
-const RE_ENHET = /^(lm|m2|m3|m²|m³|stk|RS|tonn|kg|timer|pst|pr|l|Rund sum|Areal|Lengde|Volum|Masse|Tid|Antall)$/i;
+// Enheter (inkl. sammenklemt format som "Arealm", "Lengdem", "Antallstk")
+const RE_ENHET = /^(lm|m2|m3|m²|m³|stk|RS|tonn|kg|timer|pst|pr|l)$/i;
+// Sammenklemt verdilinje: "Arealm2250,0045,0011 250,00" eller "Lengdem1,00750,00750,00"
+const RE_SAMMENKLEMT_VERDI = /^([A-Za-zæøåÆØÅ\s]+?)(m\d?|m²|m³|stk|RS|tonn|kg|time|timer)(\d[\d\s,]+)$/i;
 // Linjeskift i postnr
 const RE_TAIL_LINE = /^(?<dot>\.)?\s*(?<tail>\d{1,2}(?:\.\d{1,2})*)\s+(?<text>.+)$/;
 
@@ -666,48 +671,35 @@ function ekstraherNs3420PosterFraTekst(
   const filtrert = filtrerLinjer(råLinjer);
   const slåttSammen = slaSammenPostnr(filtrert);
 
-  // 2) Parse poster
+  // 2) Parse poster — samler tekst mellom postnumre
   let gjeldendNsKode: string | null = null;
   let nsKodeTekstLinjer: string[] = [];
+  let gjeldendPostnr: string | null = null;
+  let gjeldendBeskrivelse: string | null = null;
+  let gjeldendLinjer: string[] = []; // alle linjer under gjeldende post
 
-  for (const linje of slåttSammen) {
-    const stripped = linje.trim();
-    if (!stripped) continue;
+  function avsluttPost() {
+    if (!gjeldendPostnr) return;
 
-    // Sjekk om linjen starter med postnr
-    const postMatch = stripped.match(RE_POST_WITH_TEXT);
-    if (!postMatch?.groups) {
-      // Ikke en postlinje — akkumuler som NS-tekst
-      if (gjeldendNsKode) {
-        nsKodeTekstLinjer.push(stripped);
-      }
-      continue;
-    }
-
-    const postnr = postMatch.groups["num"]!;
-    const rest = postMatch.groups["text"]!.trim();
-
-    // Finn norske desimaltall i resten av linjen
-    const tallMatch = [...rest.matchAll(RE_NORSK_TALL)];
+    // Slå sammen alle linjer og finn tall
+    const samlet = gjeldendLinjer.join(" ");
+    const tallMatch = [...samlet.matchAll(RE_NORSK_TALL)];
 
     if (tallMatch.length >= 3) {
-      // Prislinje: beskrivelse [enhet] mengde pris sum
-      const descEnd = tallMatch[0]!.index!;
-      let descText = rest.slice(0, descEnd).trim();
-
-      // Trekk ut enhet fra slutten av beskrivelsen
-      const [descUtenEnhet, enhet] = ekstraherEnhetFraTekst(descText);
-      descText = descUtenEnhet;
-
-      // Sjekk NS-kode i begynnelsen av beskrivelsen
-      const nsMatch = descText.match(RE_NS_KODE);
-      const nsKode = nsMatch ? nsMatch[1]! : gjeldendNsKode;
+      // Finn enhet — sjekk sammenklemt verdilinje
+      let enhet: string | null = null;
+      for (const l of gjeldendLinjer) {
+        const vm = l.match(RE_SAMMENKLEMT_VERDI);
+        if (vm) {
+          enhet = vm[2] ?? null;
+          break;
+        }
+      }
 
       const mengde = parseNorskTall(tallMatch[0]![0]);
       const pris = parseNorskTall(tallMatch[1]![0]);
       const sum = parseNorskTall(tallMatch[2]![0]);
 
-      // Bygg full NS-tekst
       const fullNsTekst = nsKodeTekstLinjer.length > 0
         ? nsKodeTekstLinjer.join("\n")
         : null;
@@ -715,48 +707,91 @@ function ekstraherNs3420PosterFraTekst(
       poster.push({
         projectId,
         documentId,
-        postnr,
-        beskrivelse: descText.slice(0, 500) || null,
-        enhet: enhet ?? null,
+        postnr: gjeldendPostnr,
+        beskrivelse: gjeldendBeskrivelse,
+        enhet,
         mengdeAnbud: mengde,
         enhetspris: pris,
         sumAnbud: sum,
-        nsKode: nsKode ?? null,
+        nsKode: gjeldendNsKode,
         fullNsTekst,
       });
       nsKodeTekstLinjer = [];
+    } else if (gjeldendBeskrivelse && tallMatch.length === 0) {
+      // Seksjonsheader uten priser
+      poster.push({
+        projectId,
+        documentId,
+        postnr: gjeldendPostnr,
+        beskrivelse: gjeldendBeskrivelse,
+        enhet: null,
+        mengdeAnbud: null,
+        enhetspris: null,
+        sumAnbud: null,
+        nsKode: gjeldendNsKode,
+        fullNsTekst: null,
+      });
+    }
 
-    } else if (tallMatch.length === 0) {
-      // Kan være NS-kode-definisjon eller seksjonsheader
+    gjeldendPostnr = null;
+    gjeldendBeskrivelse = null;
+    gjeldendLinjer = [];
+  }
+
+  for (const linje of slåttSammen) {
+    const stripped = linje.trim();
+    if (!stripped) continue;
+
+    // Sjekk sammenklemt postnr+NS-kode: "00.03.03.9FB1.31A"
+    const sammenklemtMatch = stripped.match(RE_POST_SAMMENKLEMT);
+    if (sammenklemtMatch?.groups) {
+      avsluttPost();
+      gjeldendPostnr = sammenklemtMatch.groups["num"]!;
+      gjeldendNsKode = sammenklemtMatch.groups["ns"]!;
+      nsKodeTekstLinjer = [];
+      continue;
+    }
+
+    // Sjekk postnr med tekst: "01.03 Drift av bygge- eller anleggsplassen"
+    const postMatch = stripped.match(RE_POST_WITH_TEXT);
+    if (postMatch?.groups) {
+      const num = postMatch.groups["num"]!;
+      const rest = postMatch.groups["text"]!.trim();
+
+      // Sjekk om rest starter med NS-kode
       const nsMatch = rest.match(RE_NS_KODE);
+
+      avsluttPost();
+      gjeldendPostnr = num;
       if (nsMatch) {
         gjeldendNsKode = nsMatch[1]!;
         nsKodeTekstLinjer = [rest];
       } else {
-        // Seksjonsheader (f.eks. "01.03 Drift") — lagre som header
-        poster.push({
-          projectId,
-          documentId,
-          postnr,
-          beskrivelse: rest.slice(0, 500),
-          enhet: null,
-          mengdeAnbud: null,
-          enhetspris: null,
-          sumAnbud: null,
-          nsKode: gjeldendNsKode,
-          fullNsTekst: null,
-        });
-        if (gjeldendNsKode) {
-          nsKodeTekstLinjer.push(stripped);
-        }
+        gjeldendBeskrivelse = rest.slice(0, 500);
       }
-    } else {
-      // 1-2 tall — trolig ikke en prispost, akkumuler som NS-tekst
-      if (gjeldendNsKode) {
-        nsKodeTekstLinjer.push(stripped);
+      continue;
+    }
+
+    // Ikke en postlinje — akkumuler under gjeldende post
+    if (gjeldendPostnr) {
+      gjeldendLinjer.push(stripped);
+
+      // Fang opp beskrivelse i ALL CAPS
+      if (
+        !gjeldendBeskrivelse &&
+        stripped.length > 3 &&
+        stripped === stripped.toUpperCase() &&
+        /[A-ZÆØÅ]/.test(stripped)
+      ) {
+        gjeldendBeskrivelse = stripped;
       }
+    } else if (gjeldendNsKode) {
+      nsKodeTekstLinjer.push(stripped);
     }
   }
+
+  // Avslutt siste post
+  avsluttPost();
 
   return poster;
 }
