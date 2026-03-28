@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { ChevronUp, ChevronDown } from "lucide-react";
+import { ChevronUp, ChevronDown, X } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 
 interface SpecPostTabellProps {
@@ -28,6 +28,7 @@ export function SpecPostTabell({
 }: SpecPostTabellProps) {
   const [sorterFelt, setSorterFelt] = useState<SorterFelt>("postnr");
   const [sorterRetning, setSorterRetning] = useState<SorterRetning>("asc");
+  const [detaljPost, setDetaljPost] = useState<string | null>(null);
 
   const { data: poster, isLoading } = trpc.mengde.hentSpecPoster.useQuery(
     { projectId, periodId: periodId ?? undefined },
@@ -106,6 +107,7 @@ export function SpecPostTabell({
               <tr
                 key={post.id}
                 onClick={() => onVelgPost(post.id)}
+                onDoubleClick={() => setDetaljPost(post.id)}
                 className={`cursor-pointer border-b transition-colors ${
                   valgtPostId === post.id
                     ? "bg-blue-50 border-l-2 border-l-sitedoc-primary"
@@ -133,6 +135,80 @@ export function SpecPostTabell({
           </tbody>
         </table>
       </div>
+
+      {/* Detaljmodal ved dobbeltklikk */}
+      {detaljPost && (() => {
+        const post = sortertePoster.find((p) => p.id === detaljPost);
+        if (!post) return null;
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setDetaljPost(null)}>
+            <div className="w-full max-w-2xl rounded-lg bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between border-b px-5 py-3">
+                <h2 className="text-base font-semibold">
+                  Post {post.postnr}
+                </h2>
+                <button onClick={() => setDetaljPost(null)} className="rounded p-1 text-gray-400 hover:bg-gray-100">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="max-h-[70vh] overflow-auto p-5 space-y-4">
+                {/* Beskrivelse */}
+                <div>
+                  <div className="mb-1 text-xs font-medium text-gray-500">Beskrivelse</div>
+                  <div className="text-sm text-gray-800">{post.beskrivelse ?? "—"}</div>
+                </div>
+
+                {/* Verdier */}
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="rounded bg-gray-50 p-3">
+                    <div className="text-xs text-gray-500">Enhet</div>
+                    <div className="text-sm font-medium">{post.enhet ?? "—"}</div>
+                  </div>
+                  <div className="rounded bg-gray-50 p-3">
+                    <div className="text-xs text-gray-500">Mengde anbud</div>
+                    <div className="text-sm font-medium font-mono">{formaterTall(post.mengdeAnbud)}</div>
+                  </div>
+                  <div className="rounded bg-gray-50 p-3">
+                    <div className="text-xs text-gray-500">Enhetspris</div>
+                    <div className="text-sm font-medium font-mono">{formaterTall(post.enhetspris)}</div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="rounded bg-blue-50 p-3">
+                    <div className="text-xs text-gray-500">Sum anbud</div>
+                    <div className="text-base font-semibold font-mono">{formaterTall(post.sumAnbud)}</div>
+                  </div>
+                  {post.nsKode && (
+                    <div className="rounded bg-amber-50 p-3">
+                      <div className="text-xs text-gray-500">NS-kode</div>
+                      <div className="text-sm font-semibold font-mono">{post.nsKode}</div>
+                      {post.nsTittel && <div className="mt-0.5 text-xs text-gray-600">{post.nsTittel}</div>}
+                    </div>
+                  )}
+                </div>
+
+                {/* Full NS-tekst */}
+                {post.fullNsTekst && (
+                  <div>
+                    <div className="mb-1 text-xs font-medium text-gray-500">NS-spesifikasjon</div>
+                    <div className="whitespace-pre-wrap rounded border bg-gray-50 p-3 text-xs leading-relaxed text-gray-700">
+                      {post.fullNsTekst}
+                    </div>
+                  </div>
+                )}
+
+                {/* Ekstern merknad */}
+                {post.eksternNotat && (
+                  <div>
+                    <div className="mb-1 text-xs font-medium text-gray-500">Ekstern merknad</div>
+                    <div className="text-sm text-gray-700">{post.eksternNotat}</div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
