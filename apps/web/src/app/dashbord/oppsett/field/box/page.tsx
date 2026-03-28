@@ -19,6 +19,12 @@ import {
   Building2,
   Users,
   User,
+  Import,
+  Info,
+  FileArchive,
+  AlignLeft,
+  Loader2,
+  Upload,
 } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
@@ -492,6 +498,375 @@ function MappeTreRad({
 }
 
 /* ------------------------------------------------------------------ */
+/*  Import-modal                                                       */
+/* ------------------------------------------------------------------ */
+
+type ImportModus = "tekstliste" | "zip";
+
+function ImportMapperModal({
+  prosjektId,
+  onLukk,
+  onFerdig,
+}: {
+  prosjektId: string;
+  onLukk: () => void;
+  onFerdig: () => void;
+}) {
+  const [modus, setModus] = useState<ImportModus>("tekstliste");
+  const [tekstInput, setTekstInput] = useState("");
+  const [zipFil, setZipFil] = useState<File | null>(null);
+  const [lasterOpp, setLasterOpp] = useState(false);
+  const [resultat, setResultat] = useState<string | null>(null);
+  const [feil, setFeil] = useState<string | null>(null);
+  const [visVeileder, setVisVeileder] = useState(false);
+
+  const opprettMappe = trpc.mappe.opprett.useMutation();
+  const lastOppDokument = trpc.mappe.lastOppDokument.useMutation();
+
+  async function importerTekstliste() {
+    const linjer = tekstInput
+      .split("\n")
+      .map((l) => l.trim())
+      .filter((l) => l.length > 0);
+
+    if (linjer.length === 0) {
+      setFeil("Ingen mapper å importere. Skriv inn minst én mappesti.");
+      return;
+    }
+
+    setLasterOpp(true);
+    setFeil(null);
+    let opprettet = 0;
+
+    // Opprett mapper rekursivt
+    const opprettedeMapper = new Map<string, string>(); // sti → id
+
+    for (const linje of linjer) {
+      const deler = linje.split("/").map((d) => d.trim()).filter((d) => d.length > 0);
+      let parentId: string | undefined = undefined;
+      let sti = "";
+
+      for (const del of deler) {
+        sti = sti ? `${sti}/${del}` : del;
+
+        if (opprettedeMapper.has(sti)) {
+          parentId = opprettedeMapper.get(sti);
+          continue;
+        }
+
+        try {
+          const mappe = await opprettMappe.mutateAsync({
+            projectId: prosjektId,
+            name: del,
+            parentId,
+          });
+          opprettedeMapper.set(sti, mappe.id);
+          parentId = mappe.id;
+          opprettet++;
+        } catch {
+          // Kan allerede eksistere — ignorer
+          parentId = undefined;
+        }
+      }
+    }
+
+    setLasterOpp(false);
+    setResultat(`${opprettet} mapper opprettet.`);
+    onFerdig();
+  }
+
+  async function importerZip() {
+    if (!zipFil) {
+      setFeil("Velg en ZIP-fil.");
+      return;
+    }
+
+    setLasterOpp(true);
+    setFeil(null);
+
+    try {
+      const JSZip = (await import("jszip")).default;
+      const zip = await JSZip.loadAsync(zipFil);
+
+      // Finn alle mapper og filer
+      const opprettedeMapper = new Map<string, string>();
+      let opprettetMapper = 0;
+      let opprettetFiler = 0;
+
+      // Sorter entries slik at mapper kommer først
+      const entries = Object.entries(zip.files).sort(([a], [b]) => {
+        const aDeler = a.split("/").length;
+        const bDeler = b.split("/").length;
+        return aDeler - bDeler;
+      });
+
+      for (const [sti, entry] of entries) {
+        // Fjern leading __MACOSX og lignende
+        if (sti.startsWith("__MACOSX") || sti.startsWith(".")) continue;
+
+        const deler = sti.split("/").filter((d) => d.length > 0);
+        if (deler.length === 0) continue;
+
+        if (entry.dir) {
+          // Opprett mappestruktur
+          let parentId: string | undefined = undefined;
+          let mappeSti = "";
+
+          for (const del of deler) {
+            mappeSti = mappeSti ? `${mappeSti}/${del}` : del;
+
+            if (opprettedeMapper.has(mappeSti)) {
+              parentId = opprettedeMapper.get(mappeSti);
+              continue;
+            }
+
+            try {
+              const mappe = await opprettMappe.mutateAsync({
+                projectId: prosjektId,
+                name: del,
+                parentId,
+              });
+              opprettedeMapper.set(mappeSti, mappe.id);
+              parentId = mappe.id;
+              opprettetMapper++;
+            } catch {
+              parentId = undefined;
+            }
+          }
+        } else {
+          // Fil — sikre at forelder-mappene finnes
+          const filnavn = deler[deler.length - 1];
+          const mappeDeler = deler.slice(0, -1);
+          let parentId: string | undefined = undefined;
+          let mappeSti = "";
+
+          for (const del of mappeDeler) {
+            mappeSti = mappeSti ? `${mappeSti}/${del}` : del;
+
+            if (opprettedeMapper.has(mappeSti)) {
+              parentId = opprettedeMapper.get(mappeSti);
+              continue;
+            }
+
+            try {
+              const mappe = await opprettMappe.mutateAsync({
+                projectId: prosjektId,
+                name: del,
+                parentId,
+              });
+              opprettedeMapper.set(mappeSti, mappe.id);
+              parentId = mappe.id;
+              opprettetMapper++;
+            } catch {
+              parentId = undefined;
+            }
+          }
+
+          // Last opp filen
+          if (parentId && filnavn) {
+            try {
+              const blob = await entry.async("blob");
+              const file = new window.File([blob], filnavn);
+              const formData = new FormData();
+              formData.append("file", file);
+              const res = await fetch("/api/upload", { method: "POST", body: formData });
+
+              if (res.ok) {
+                const { fileUrl, fileType } = await res.json();
+                await lastOppDokument.mutateAsync({
+                  folderId: parentId!,
+                  name: filnavn!,
+                  fileUrl,
+                  fileType: fileType ?? file.type,
+                  fileSize: file.size,
+                });
+                opprettetFiler++;
+              }
+            } catch {
+              // Ignorér individuelle filfeil
+            }
+          }
+        }
+      }
+
+      setResultat(`${opprettetMapper} mapper og ${opprettetFiler} filer importert.`);
+      onFerdig();
+    } catch (err) {
+      setFeil(err instanceof Error ? err.message : "Kunne ikke lese ZIP-filen.");
+    }
+
+    setLasterOpp(false);
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      {/* Modus-velger */}
+      <div className="flex gap-2">
+        <button
+          onClick={() => setModus("tekstliste")}
+          className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm transition-colors ${
+            modus === "tekstliste"
+              ? "border-sitedoc-primary bg-blue-50 text-sitedoc-primary"
+              : "border-gray-200 text-gray-600 hover:border-gray-300"
+          }`}
+        >
+          <AlignLeft className="h-4 w-4" />
+          Tekstliste
+        </button>
+        <button
+          onClick={() => setModus("zip")}
+          className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm transition-colors ${
+            modus === "zip"
+              ? "border-sitedoc-primary bg-blue-50 text-sitedoc-primary"
+              : "border-gray-200 text-gray-600 hover:border-gray-300"
+          }`}
+        >
+          <FileArchive className="h-4 w-4" />
+          ZIP-fil
+        </button>
+
+        {/* Veileder */}
+        <div className="relative ml-auto">
+          <button
+            onClick={() => setVisVeileder(!visVeileder)}
+            className="rounded-full p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+            title="Hjelp"
+          >
+            <Info className="h-4 w-4" />
+          </button>
+          {visVeileder && (
+            <>
+              <div className="fixed inset-0 z-10" onClick={() => setVisVeileder(false)} />
+              <div className="absolute right-0 top-full z-20 mt-1 w-80 rounded-lg border border-gray-200 bg-white p-4 shadow-lg">
+                <h4 className="mb-2 text-sm font-semibold text-gray-800">Slik importerer du mapper</h4>
+
+                <div className="mb-3">
+                  <p className="mb-1 text-xs font-medium text-gray-600">Tekstliste</p>
+                  <p className="text-xs text-gray-500">
+                    Skriv én mappesti per linje. Bruk <code className="rounded bg-gray-100 px-1">/</code> for å lage undermapper.
+                  </p>
+                  <div className="mt-1 rounded bg-gray-50 p-2 font-mono text-[11px] text-gray-600">
+                    Røstbakken/Økonomi/A-Nota<br />
+                    Røstbakken/Økonomi/Budsjett<br />
+                    Røstbakken/Tegninger<br />
+                    Felles/HMS
+                  </div>
+                </div>
+
+                <div>
+                  <p className="mb-1 text-xs font-medium text-gray-600">ZIP-fil</p>
+                  <p className="text-xs text-gray-500">
+                    Pakk mappestrukturen i en ZIP. Mapper opprettes automatisk, og filer lastes opp til riktig mappe.
+                  </p>
+                  <div className="mt-1 rounded bg-gray-50 p-2 font-mono text-[11px] text-gray-600">
+                    prosjekt.zip<br />
+                    ├── Røstbakken/<br />
+                    │   ├── Økonomi/<br />
+                    │   │   └── budsjett.xlsx<br />
+                    │   └── Tegninger/<br />
+                    └── Felles/
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Innhold basert på modus */}
+      {modus === "tekstliste" ? (
+        <div>
+          <label className="mb-1 block text-xs font-medium text-gray-500">
+            Lim inn mappestier (én per linje)
+          </label>
+          <textarea
+            className="w-full rounded border border-gray-300 p-3 font-mono text-sm leading-relaxed"
+            rows={8}
+            placeholder={"Røstbakken/Økonomi/A-Nota\nRøstbakken/Økonomi/Budsjett\nRøstbakken/Tegninger\nFelles/HMS"}
+            value={tekstInput}
+            onChange={(e) => setTekstInput(e.target.value)}
+          />
+          <div className="mt-1 text-xs text-gray-400">
+            {tekstInput.split("\n").filter((l) => l.trim()).length} mapper
+          </div>
+        </div>
+      ) : (
+        <div>
+          <label className="mb-1 block text-xs font-medium text-gray-500">
+            Velg ZIP-fil med mappestruktur
+          </label>
+          <div
+            className={`flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 transition-colors ${
+              zipFil ? "border-green-300 bg-green-50" : "border-gray-300 hover:border-gray-400"
+            }`}
+          >
+            {zipFil ? (
+              <div className="flex items-center gap-3">
+                <FileArchive className="h-6 w-6 text-green-600" />
+                <div>
+                  <div className="text-sm font-medium">{zipFil.name}</div>
+                  <div className="text-xs text-gray-500">
+                    {(zipFil.size / 1024).toFixed(0)} KB
+                  </div>
+                </div>
+                <button
+                  onClick={() => setZipFil(null)}
+                  className="ml-2 rounded p-1 text-gray-400 hover:bg-gray-100"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            ) : (
+              <>
+                <Upload className="mb-1 h-6 w-6 text-gray-400" />
+                <label className="cursor-pointer text-sm text-sitedoc-primary hover:underline">
+                  Velg ZIP-fil
+                  <input
+                    type="file"
+                    className="hidden"
+                    accept=".zip"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) setZipFil(f);
+                    }}
+                  />
+                </label>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Feil / resultat */}
+      {feil && (
+        <div className="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
+          {feil}
+        </div>
+      )}
+      {resultat && (
+        <div className="rounded border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
+          {resultat}
+        </div>
+      )}
+
+      {/* Handlinger */}
+      <div className="flex gap-3 pt-2">
+        <Button
+          onClick={modus === "tekstliste" ? importerTekstliste : importerZip}
+          disabled={lasterOpp || (modus === "tekstliste" ? !tekstInput.trim() : !zipFil)}
+          loading={lasterOpp}
+        >
+          {lasterOpp ? "Importerer..." : "Importer"}
+        </Button>
+        <Button variant="secondary" onClick={onLukk}>
+          Lukk
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Hovedside                                                          */
 /* ------------------------------------------------------------------ */
 
@@ -506,6 +881,7 @@ export default function BoxSide() {
   const [giNyttNavnVerdi, setGiNyttNavnVerdi] = useState("");
   const [slettMappeId, setSlettMappeId] = useState<string | null>(null);
   const [tilgangMappe, setTilgangMappe] = useState<{ id: string; navn: string } | null>(null);
+  const [visImportModal, setVisImportModal] = useState(false);
 
   // Hent mappestruktur
   const { data: mapper, isLoading } = trpc.mappe.hentForProsjekt.useQuery(
@@ -607,6 +983,14 @@ export default function BoxSide() {
           >
             <Plus className="mr-1 h-3.5 w-3.5" />
             Ny mappe
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setVisImportModal(true)}
+          >
+            <Import className="mr-1 h-3.5 w-3.5" />
+            Importer
           </Button>
         </div>
 
@@ -772,6 +1156,23 @@ export default function BoxSide() {
             mappeNavn={tilgangMappe.navn}
             prosjektId={prosjektId}
             onLukk={() => setTilgangMappe(null)}
+          />
+        )}
+      </Modal>
+
+      {/* Import-modal */}
+      <Modal
+        open={visImportModal}
+        onClose={() => setVisImportModal(false)}
+        title="Importer mappestruktur"
+      >
+        {prosjektId && (
+          <ImportMapperModal
+            prosjektId={prosjektId}
+            onLukk={() => setVisImportModal(false)}
+            onFerdig={() => {
+              utils.mappe.hentForProsjekt.invalidate({ projectId: prosjektId! });
+            }}
           />
         )}
       </Modal>

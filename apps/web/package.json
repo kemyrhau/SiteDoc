@@ -26,6 +26,7 @@
     "@trpc/server": "^11.10.0",
     "delaunator": "^5.0.1",
     "fast-xml-parser": "^5.5.8",
+    "jszip": "^3.10.1",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.575.0",
     "next": "^14.2.0",
