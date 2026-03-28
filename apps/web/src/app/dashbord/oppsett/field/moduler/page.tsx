@@ -13,6 +13,8 @@ import {
   Check,
   Package,
   ToggleRight,
+  BarChart3,
+  FileSearch,
 } from "lucide-react";
 
 /* Ikon-mapping fra strengnavn til komponent */
@@ -21,6 +23,8 @@ const IKON_MAP: Record<string, React.ReactNode> = {
   ShieldAlert: <ShieldAlert className="h-6 w-6" />,
   ClipboardList: <ClipboardList className="h-6 w-6" />,
   Box: <Box className="h-6 w-6" />,
+  BarChart3: <BarChart3 className="h-6 w-6" />,
+  FileSearch: <FileSearch className="h-6 w-6" />,
 };
 
 const KATEGORI_LABEL: Record<string, string> = {
