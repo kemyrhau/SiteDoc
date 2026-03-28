@@ -167,4 +167,31 @@ export const mappeRouter = router({
         });
       });
     }),
+
+  lastOppDokument: protectedProcedure
+    .input(
+      z.object({
+        folderId: z.string().uuid(),
+        name: z.string().min(1),
+        fileUrl: z.string(),
+        fileType: z.string(),
+        fileSize: z.number().int().nonnegative(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const mappe = await ctx.prisma.folder.findUniqueOrThrow({
+        where: { id: input.folderId },
+        select: { projectId: true },
+      });
+      await verifiserProsjektmedlem(ctx.userId, mappe.projectId);
+      return ctx.prisma.document.create({
+        data: {
+          folderId: input.folderId,
+          name: input.name,
+          fileUrl: input.fileUrl,
+          fileType: input.fileType,
+          fileSize: input.fileSize,
+        },
+      });
+    }),
 });

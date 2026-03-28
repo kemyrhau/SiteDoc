@@ -1,12 +1,12 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { trpc } from "@/lib/trpc";
 import { Spinner, Table } from "@sitedoc/ui";
-import { FolderOpen, FileText, Download, Lock } from "lucide-react";
+import { FolderOpen, FileText, Download, Lock, Upload, Loader2 } from "lucide-react";
 import { beregnSynligeMapper } from "@sitedoc/shared/utils";
 import type { MappeTilgangInput, BrukerTilgangInfo } from "@sitedoc/shared/utils";
 
@@ -88,6 +88,45 @@ export default function MapperSide() {
     return resultat.kunSti.has(valgtMappeId);
   }, [valgtMappeId, mapper, session, medlemmer, grupper]);
 
+  const [lasterOpp, setLasterOpp] = useState(false);
+  const filInputRef = useRef<HTMLInputElement>(null);
+  const utils = trpc.useUtils();
+
+  const lastOppMutation = trpc.mappe.lastOppDokument.useMutation({
+    onSuccess: () => {
+      utils.mappe.hentDokumenter.invalidate({ folderId: valgtMappeId! });
+      setLasterOpp(false);
+    },
+    onError: () => setLasterOpp(false),
+  });
+
+  const handleFilValgt = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const fil = e.target.files?.[0];
+    if (!fil || !valgtMappeId) return;
+    setLasterOpp(true);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", fil);
+      const res = await fetch("/api/upload", { method: "POST", body: formData });
+      if (!res.ok) throw new Error("Opplasting feilet");
+      const { fileUrl, fileType } = await res.json();
+
+      lastOppMutation.mutate({
+        folderId: valgtMappeId,
+        name: fil.name,
+        fileUrl,
+        fileType: fileType ?? fil.type,
+        fileSize: fil.size,
+      });
+    } catch {
+      setLasterOpp(false);
+    }
+
+    // Reset input
+    if (filInputRef.current) filInputRef.current.value = "";
+  };
+
   // Ingen mappe valgt — vis velkomstmelding
   if (!valgtMappeId) {
     return (
@@ -134,11 +173,36 @@ export default function MapperSide() {
 
   return (
     <div>
-      <div className="mb-6 flex items-center gap-2">
-        <FolderOpen className="h-5 w-5 text-amber-500" />
-        <h2 className="text-xl font-bold text-gray-900">
-          {valgtMappe?.name ?? "Mappe"}
-        </h2>
+      <div className="mb-6 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <FolderOpen className="h-5 w-5 text-amber-500" />
+          <h2 className="text-xl font-bold text-gray-900">
+            {valgtMappe?.name ?? "Mappe"}
+          </h2>
+        </div>
+        <button
+          onClick={() => filInputRef.current?.click()}
+          disabled={lasterOpp}
+          className="flex items-center gap-1.5 rounded bg-sitedoc-primary px-3 py-1.5 text-sm text-white hover:bg-sitedoc-secondary disabled:opacity-50"
+        >
+          {lasterOpp ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Laster opp...
+            </>
+          ) : (
+            <>
+              <Upload className="h-4 w-4" />
+              Last opp
+            </>
+          )}
+        </button>
+        <input
+          ref={filInputRef}
+          type="file"
+          className="hidden"
+          onChange={handleFilValgt}
+        />
       </div>
 
       {!dokumenter?.length ? (
