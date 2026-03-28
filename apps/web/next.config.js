@@ -1,7 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  serverExternalPackages: ["pdf-parse", "exceljs", "fast-xml-parser"],
-  transpilePackages: ["@sitedoc/shared", "@sitedoc/ui", "pdfjs-dist"],
+  experimental: {
+    serverComponentsExternalPackages: ["pdf-parse", "exceljs", "fast-xml-parser", "pdfjs-dist"],
+  },
+  transpilePackages: ["@sitedoc/shared", "@sitedoc/ui"],
   webpack: (config, { isServer }) => {
     // pdfjs-dist bruker canvas som optional dependency — ignorer i webpack
     config.resolve.alias.canvas = false;
