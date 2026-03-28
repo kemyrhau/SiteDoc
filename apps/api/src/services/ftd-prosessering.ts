@@ -717,7 +717,9 @@ function ekstraherNs3420PosterFraTekst(
   // "Lengdem" + "1,00..." → enhet = m
   // "Antallstk" + "20..." → enhet = stk
   // "Rund sumRS" + "10 000,00..." → enhet = RS
-  const RE_ENHET_LINJE = /^(Areal|Lengde|Volum|Masse|Tid|Antall|Rund sum)\s*(m\d?|m²|m³|stk|RS|tonn|kg|time|timer|l|lm)?$/i;
+  // Enhetslinjer: slutter med enhetskode limt til siste ord (uten mellomrom)
+  // "Arealm", "Areal per gangm", "Lengdem", "Volumm", "Antallstk", "Rund sumRS"
+  const RE_ENHET_LINJE = /^(.+[a-zæøå])(m\d?|m²|m³|stk|RS|tonn|kg|time|timer|lm)$/;
 
   function rensEnhetslinjer(linjer: string[]): { rensede: string[]; enhet: string | null } {
     let enhet: string | null = null;
@@ -729,15 +731,13 @@ function ekstraherNs3420PosterFraTekst(
       const enhetMatch = linje.match(RE_ENHET_LINJE);
 
       if (enhetMatch) {
-        // Enhetslinje funnet (f.eks. "Arealm" eller "Lengdem")
-        const enhetsType = enhetMatch[1]!; // Areal, Lengde, Volum...
+        // Enhetslinje funnet (f.eks. "Arealm", "Areal per gangm", "Lengdem")
         let enhetSuffix = enhetMatch[2] ?? ""; // m, stk, RS...
 
         // Sjekk om neste linje er en eksponent (2, 3) for m²/m³
         if (i + 1 < linjer.length) {
           const neste = linjer[i + 1]!.trim();
           if (/^[23]$/.test(neste) && enhetSuffix.toLowerCase() === "m") {
-            // "2" → m², "3" → m³
             enhetSuffix = `m${neste}`;
             i += 2; // Hopp over enhetslinje + eksponent
             enhet = enhetSuffix;
@@ -745,8 +745,7 @@ function ekstraherNs3420PosterFraTekst(
           }
         }
 
-        // Enhet uten eksponent (f.eks. "Lengdem" → m, "Antallstk" → stk)
-        enhet = enhetSuffix || enhetsType.toLowerCase();
+        enhet = enhetSuffix;
         i++;
         continue;
       }
