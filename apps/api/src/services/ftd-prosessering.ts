@@ -45,7 +45,7 @@ export async function prosesserDokument(
 
     switch (ext) {
       case ".pdf":
-        await prosesserPdf(prisma, documentId, buffer);
+        await prosesserPdf(prisma, documentId, buffer, dok.projectId, dok.docType ?? "annet");
         break;
       case ".xlsx":
       case ".xls":
@@ -93,6 +93,8 @@ async function prosesserPdf(
   prisma: PrismaClient,
   documentId: string,
   buffer: Buffer,
+  projectId: string,
+  docType: string,
 ): Promise<void> {
   // pdf-parse v1 — default export er en funksjon
   // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -123,6 +125,14 @@ async function prosesserPdf(
         profile: "pdf",
       })),
     });
+  }
+
+  // Ekstraher spec-poster fra mengdebeskrivelse/budsjett PDF (NS 3420 format)
+  if (docType === "budsjett" || docType === "mengdebeskrivelse") {
+    const poster = ekstraherNs3420PosterFraTekst(resultat.text, projectId, documentId);
+    if (poster.length > 0) {
+      await prisma.ftdSpecPost.createMany({ data: poster });
+    }
   }
 
   await prisma.ftdDocument.update({
@@ -525,6 +535,117 @@ function delTekstIChunks(
 function detekterNsKode(tekst: string): string | null {
   const match = tekst.match(NS_KODE_REGEX);
   return match?.[1] ?? null;
+}
+
+// --------------------------------------------------------------------------
+// NS 3420 mengdebeskrivelse-parsing fra PDF-tekst
+// --------------------------------------------------------------------------
+
+// Mønster: "00.03.03.9FB1.31A" eller "03.02.1FD8.52235"
+// Postnr: tall.tall.tall... NS-kode: bokstaver+tall etter postnr
+const NS3420_POST_REGEX =
+  /^(\d{2}(?:\.\d{2,4})*(?:\.\d{1,2})?)([A-Z][A-Z0-9.]+\d*[A-Z]?)?$/;
+
+// Tallmønster i sammenklemt rad: "Lengdem240,00120,0028 800,00"
+// Enhet + enh.tekst + mengde + pris + sum
+const VERDI_LINJE_REGEX =
+  /^([A-Za-zæøåÆØÅ\s]+?)(\d[\d\s]*(?:,\d+)?)\s*([\d\s]*(?:,\d+)?)\s*([\d\s]*(?:,\d+)?)$/;
+
+function parseNorskTall(s: string): number | null {
+  if (!s || !s.trim()) return null;
+  // "28 800,00" → 28800.00
+  const renset = s.trim().replace(/\s/g, "").replace(",", ".");
+  const num = parseFloat(renset);
+  return isNaN(num) ? null : num;
+}
+
+function ekstraherNs3420PosterFraTekst(
+  fullTekst: string,
+  projectId: string,
+  documentId: string,
+): Array<{
+  projectId: string;
+  documentId: string;
+  postnr: string | null;
+  beskrivelse: string | null;
+  enhet: string | null;
+  mengdeAnbud: number | null;
+  enhetspris: number | null;
+  sumAnbud: number | null;
+  nsKode: string | null;
+}> {
+  const poster: Array<{
+    projectId: string;
+    documentId: string;
+    postnr: string | null;
+    beskrivelse: string | null;
+    enhet: string | null;
+    mengdeAnbud: number | null;
+    enhetspris: number | null;
+    sumAnbud: number | null;
+    nsKode: string | null;
+  }> = [];
+
+  const linjer = fullTekst.split("\n");
+  let gjeldendPostnr: string | null = null;
+  let gjeldendNsKode: string | null = null;
+  let gjeldendBeskrivelse: string | null = null;
+
+  for (let i = 0; i < linjer.length; i++) {
+    const linje = linjer[i]?.trim();
+    if (!linje) continue;
+
+    // Sjekk om linjen er et postnummer (evt. med NS-kode)
+    const postMatch = linje.match(NS3420_POST_REGEX);
+    if (postMatch) {
+      gjeldendPostnr = postMatch[1] ?? null;
+      gjeldendNsKode = postMatch[2] ?? null;
+      gjeldendBeskrivelse = null;
+      continue;
+    }
+
+    // Sammenklemt verdilinje: "Lengdem240,00120,0028 800,00" eller "Rund sumRS10 000,0010 000,00"
+    if (gjeldendPostnr) {
+      const verdiMatch = linje.match(VERDI_LINJE_REGEX);
+      if (verdiMatch) {
+        const enhetRå = (verdiMatch[1] ?? "").trim();
+        const mengde = parseNorskTall(verdiMatch[2] ?? "");
+        const pris = parseNorskTall(verdiMatch[3] ?? "");
+        const sum = parseNorskTall(verdiMatch[4] ?? "");
+
+        if (mengde !== null && (pris !== null || sum !== null)) {
+          poster.push({
+            projectId,
+            documentId,
+            postnr: gjeldendPostnr,
+            beskrivelse: gjeldendBeskrivelse,
+            enhet: enhetRå || null,
+            mengdeAnbud: mengde,
+            enhetspris: pris,
+            sumAnbud: sum,
+            nsKode: gjeldendNsKode,
+          });
+          gjeldendPostnr = null;
+          gjeldendNsKode = null;
+          gjeldendBeskrivelse = null;
+          continue;
+        }
+      }
+
+      // Beskrivelse i ALL CAPS (f.eks. "RYDDING AV BUSKAS OG HOGSTAVFALL")
+      if (
+        linje.length > 3 &&
+        linje === linje.toUpperCase() &&
+        /[A-ZÆØÅ]/.test(linje) &&
+        !linje.startsWith("PostnrNS") &&
+        !linje.startsWith("Sum denne")
+      ) {
+        gjeldendBeskrivelse = linje;
+      }
+    }
+  }
+
+  return poster;
 }
 
 function detekterOverskrift(tekst: string): string | null {
