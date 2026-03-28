@@ -94,12 +94,10 @@ async function prosesserPdf(
   documentId: string,
   buffer: Buffer,
 ): Promise<void> {
-  // pdf-parse v2 — eksporterer PDFParse som named export
-  const { PDFParse } = await import("pdf-parse") as unknown as {
-    PDFParse: new () => { loadPDF: (buf: Buffer) => Promise<{ text: string; numpages: number; pages: Array<{ text: string }> }> };
-  };
-  const parser = new PDFParse();
-  const resultat = await parser.loadPDF(buffer);
+  // pdf-parse v1 — default export er en funksjon
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const pdfParse = require("pdf-parse") as (buf: Buffer) => Promise<{ text: string; numpages: number }>;
+  const resultat = await pdfParse(buffer);
 
   const sider = resultat.text.split("\f").filter((s: string) => s.trim());
   const sideData = sider.map((tekst: string, i: number) => ({
