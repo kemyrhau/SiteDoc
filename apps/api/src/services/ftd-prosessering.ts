@@ -542,9 +542,8 @@ function detekterNsKode(tekst: string): string | null {
 // Portert fra FtD Python-pipeline (mengdebeskrivelse.py)
 // --------------------------------------------------------------------------
 
-// Postnr: "00.03.03.9", "03.02.1" — med eller uten mellomrom til resten
-// Sammenklemt format: "00.03.03.9FB1.31A" (postnr + NS-kode uten mellomrom)
-const RE_POST_WITH_TEXT = /^(?<num>\d{2}(?:\.\d{1,2})+)\s*(?<text>.+)$/;
+// Postnr med tekst etter: "01.03 Drift" — krever mellomrom
+const RE_POST_WITH_TEXT = /^(?<num>\d{2}(?:\.\d{1,2})+)\s+(?<text>.+)$/;
 // Postnr etterfulgt direkte av NS-kode: "00.03.03.9FB1.31A"
 const RE_POST_SAMMENKLEMT = /^(?<num>\d{2}(?:\.\d{1,2})+)(?<ns>[A-Z]{1,3}\d[\w.]*[A-Z]?)$/;
 // Norske desimaltall: "115 245,00", "2 550,00", "45,00"
@@ -804,6 +803,14 @@ function ekstraherNs3420PosterFraTekst(
       } else {
         gjeldendBeskrivelse = rest.slice(0, 500);
       }
+      continue;
+    }
+
+    // Sjekk postnr alene: "03.04.12.1" (ingen tekst etter)
+    const barePostMatch = stripped.match(RE_POST_BARE);
+    if (barePostMatch) {
+      avsluttPost();
+      gjeldendPostnr = barePostMatch[1]!;
       continue;
     }
 
