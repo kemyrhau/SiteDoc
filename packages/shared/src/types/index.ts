@@ -1,3 +1,5 @@
+export * from "./ftd";
+
 // Statusflyt for entreprisedokumenter
 export const DOCUMENT_STATUSES = [
   "draft",
@@ -493,6 +495,24 @@ export const PROSJEKT_MODULER: ModulDefinisjon[] = [
     kategori: "funksjon",
     ikon: "Box",
     maler: [], // Ingen maler — ren funksjon
+  },
+  {
+    slug: "okonomi",
+    navn: "Økonomi",
+    beskrivelse:
+      "Mengdeoversikt, A-nota/T-nota, budsjettimport og avviksanalyse",
+    kategori: "funksjon",
+    ikon: "BarChart3",
+    maler: [],
+  },
+  {
+    slug: "dokumentsok",
+    navn: "Dokumentsøk",
+    beskrivelse:
+      "Søk i prosjektdokumenter med fulltekst og AI-embeddings",
+    kategori: "funksjon",
+    ikon: "FileSearch",
+    maler: [],
   },
 ];
 

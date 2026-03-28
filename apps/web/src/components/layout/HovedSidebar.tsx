@@ -12,6 +12,8 @@ import {
   FolderOpen,
   Settings,
   Columns2,
+  BarChart3,
+  FileSearch,
 } from "lucide-react";
 import { SidebarIkon } from "@sitedoc/ui";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
@@ -28,6 +30,7 @@ interface SidebarElement {
   kreverProsjekt: boolean;
   tillatelse?: Permission;
   kreverIfc?: boolean;
+  kreverModul?: string;
 }
 
 const hovedelementer: SidebarElement[] = [
@@ -82,6 +85,20 @@ const hovedelementer: SidebarElement[] = [
     ikon: <FolderOpen className="h-5 w-5" />,
     kreverProsjekt: true,
   },
+  {
+    id: "okonomi",
+    label: "Økonomi",
+    ikon: <BarChart3 className="h-5 w-5" />,
+    kreverProsjekt: true,
+    kreverModul: "okonomi",
+  },
+  {
+    id: "sok",
+    label: "Søk",
+    ikon: <FileSearch className="h-5 w-5" />,
+    kreverProsjekt: true,
+    kreverModul: "dokumentsok",
+  },
 ];
 
 const bunnelementer: SidebarElement[] = [
@@ -104,6 +121,11 @@ export function HovedSidebar() {
     { enabled: !!prosjektId },
   );
 
+  const { data: aktiveModuler } = trpc.modul.hentForProsjekt.useQuery(
+    { projectId: prosjektId! },
+    { enabled: !!prosjektId },
+  );
+
   // Hent bygninger med tegninger for å sjekke IFC-tilgjengelighet
   const { data: _bygninger } = trpc.bygning.hentForProsjekt.useQuery(
     { projectId: prosjektId! },
@@ -119,6 +141,9 @@ export function HovedSidebar() {
   const filtrertHovedelementer = hovedelementer.filter((element) => {
     if (element.tillatelse && (!tillatelser || !tillatelser.includes(element.tillatelse))) return false;
     if (element.kreverIfc && !harIfc) return false;
+    if (element.kreverModul && (!aktiveModuler || !aktiveModuler.some(
+      (m) => m.moduleSlug === element.kreverModul && m.active,
+    ))) return false;
     return true;
   });
 

@@ -15,6 +15,8 @@ export type Seksjon =
   | "bilder"
   | "entrepriser"
   | "mapper"
+  | "okonomi"
+  | "sok"
   | "oppsett";
 
 export interface VerktoylinjeHandling {

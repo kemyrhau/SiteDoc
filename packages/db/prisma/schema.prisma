@@ -138,6 +138,9 @@ model Project {
   modules              ProjectModule[]
   organizationProjects OrganizationProject[]
   dokumentflyter       Dokumentflyt[]
+  ftdDocuments         FtdDocument[]
+  ftdSpecPosts         FtdSpecPost[]
+  ftdNotaPeriods       FtdNotaPeriod[]
 
   @@map("projects")
 }
@@ -280,6 +283,7 @@ model Enterprise {
   invitations        ProjectInvitation[]
   folderAccess       FolderAccess[]
   groupEnterprises   GroupEnterprise[]
+  ftdNotaPeriods     FtdNotaPeriod[]
 
   @@map("enterprises")
 }
@@ -570,6 +574,7 @@ model Folder {
   children      Folder[]       @relation("FolderHierarchy")
   documents     Document[]
   accessEntries FolderAccess[]
+  ftdDocuments  FtdDocument[]
 
   @@map("folders")
 }
@@ -753,4 +758,147 @@ model ChecklistChangeLog {
 
   @@index([checklistId])
   @@map("checklist_change_log")
+}
+
+// ============================================================
+// FTD-MODUL: Dokumenthåndtering og mengde/økonomi
+// Tabellene er aktive kun når modul "okonomi" eller
+// "dokumentsok" er aktivert for prosjektet.
+// Dokumenter lever i mapper — tilgang til mapper styrer
+// søkbarhet og synlighet av økonomidata.
+// ============================================================
+
+model FtdDocument {
+  id              String   @id @default(cuid())
+  projectId       String   @map("project_id")
+  folderId        String?  @map("folder_id")
+  filename        String
+  fileUrl         String?  @map("file_url")
+  filetype        String?
+  docType         String?  @map("doc_type")
+  isActive        Boolean  @default(true) @map("is_active")
+  fileHash        String?  @map("file_hash")
+  standardNumber  String?  @map("standard_number")
+  pageCount       Int?     @map("page_count")
+  wordCount       Int?     @map("word_count")
+  uploadedAt      DateTime @default(now()) @map("uploaded_at")
+
+  project         Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  folder          Folder?          @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  chunks          FtdDocumentChunk[]
+  specPosts       FtdSpecPost[]
+
+  @@unique([projectId, filename])
+  @@index([folderId])
+  @@map("ftd_documents")
+}
+
+model FtdDocumentChunk {
+  id              String   @id @default(cuid())
+  documentId      String   @map("document_id")
+  chunkIndex      Int      @map("chunk_index")
+  chunkText       String   @map("chunk_text")
+  pageNumber      Int?     @map("page_number")
+  sectionTitle    String?  @map("section_title")
+  sectionLevel    Int?     @map("section_level")
+  pageHeading     String?  @map("page_heading")
+  nsCode          String?  @map("ns_code")
+  headingNumber   String?  @map("heading_number")
+  embeddingState  String   @default("pending") @map("embedding_state")
+  profile         String?
+
+  document        FtdDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([documentId])
+  @@index([embeddingState])
+  @@index([nsCode])
+  @@map("ftd_document_chunks")
+}
+
+model FtdSpecPost {
+  id              String   @id @default(cuid())
+  projectId       String   @map("project_id")
+  documentId      String?  @map("document_id")
+  postnr          String?
+  beskrivelse     String?
+  enhet           String?
+  mengdeAnbud     Decimal? @map("mengde_anbud") @db.Decimal(18, 2)
+  enhetspris      Decimal? @db.Decimal(18, 2)
+  sumAnbud        Decimal? @map("sum_anbud") @db.Decimal(18, 2)
+  nsKode          String?  @map("ns_kode")
+  nsTittel        String?  @map("ns_tittel")
+  fullNsTekst     String?  @map("full_ns_tekst")
+  eksternNotat    String?  @map("ekstern_notat")
+
+  project         Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  document        FtdDocument?  @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  notaPoster      FtdNotaPost[]
+  kommentarer     FtdNotaComment[]
+
+  @@index([projectId])
+  @@map("ftd_spec_posts")
+}
+
+model FtdNotaPeriod {
+  id               String    @id @default(cuid())
+  projectId        String    @map("project_id")
+  enterpriseId     String?   @map("enterprise_id")
+  periodeNr        Int       @map("periode_nr")
+  periodeStart     DateTime? @map("periode_start")
+  periodeSlutt     DateTime? @map("periode_slutt")
+  type             String    @default("a_nota")   // "a_nota" | "t_nota"
+  kildeFilnavn     String?   @map("kilde_filnavn")
+  totalMengdeDenne Decimal?  @map("total_mengde_denne") @db.Decimal(18, 2)
+  totalVerdiDenne  Decimal?  @map("total_verdi_denne") @db.Decimal(18, 2)
+  totalMvaDenne    Decimal?  @map("total_mva_denne") @db.Decimal(18, 2)
+  totalSumDenne    Decimal?  @map("total_sum_denne") @db.Decimal(18, 2)
+  importertAv      String?   @map("importert_av")
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  project          Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  enterprise       Enterprise?  @relation(fields: [enterpriseId], references: [id], onDelete: SetNull)
+  poster           FtdNotaPost[]
+  kommentarer      FtdNotaComment[]
+
+  @@index([projectId])
+  @@index([enterpriseId])
+  @@map("ftd_nota_periods")
+}
+
+model FtdNotaPost {
+  id              String   @id @default(cuid())
+  periodId        String   @map("period_id")
+  specPostId      String   @map("spec_post_id")
+  mengdeDenne     Decimal? @map("mengde_denne") @db.Decimal(18, 2)
+  mengdeTotal     Decimal? @map("mengde_total") @db.Decimal(18, 2)
+  mengdeForrige   Decimal? @map("mengde_forrige") @db.Decimal(18, 2)
+  verdiDenne      Decimal? @map("verdi_denne") @db.Decimal(18, 2)
+  verdiTotal      Decimal? @map("verdi_total") @db.Decimal(18, 2)
+  verdiForrige    Decimal? @map("verdi_forrige") @db.Decimal(18, 2)
+  prosentFerdig   Decimal? @map("prosent_ferdig") @db.Decimal(18, 2)
+  mvaDenne        Decimal? @map("mva_denne") @db.Decimal(18, 2)
+  sumDenne        Decimal? @map("sum_denne") @db.Decimal(18, 2)
+  mengdeAnbud     Decimal? @map("mengde_anbud") @db.Decimal(18, 2)
+  enhetspris      Decimal? @db.Decimal(18, 2)
+  sumAnbud        Decimal? @map("sum_anbud") @db.Decimal(18, 2)
+
+  period          FtdNotaPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
+  specPost        FtdSpecPost   @relation(fields: [specPostId], references: [id], onDelete: Cascade)
+
+  @@index([periodId])
+  @@index([specPostId])
+  @@map("ftd_nota_posts")
+}
+
+model FtdNotaComment {
+  id              String   @id @default(cuid())
+  specPostId      String?  @map("spec_post_id")
+  periodId        String?  @map("period_id")
+  commentText     String   @map("comment_text")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  specPost        FtdSpecPost?   @relation(fields: [specPostId], references: [id], onDelete: Cascade)
+  period          FtdNotaPeriod? @relation(fields: [periodId], references: [id], onDelete: Cascade)
+
+  @@map("ftd_nota_comments")
 }
