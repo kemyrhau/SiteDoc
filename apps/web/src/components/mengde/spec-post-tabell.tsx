@@ -106,8 +106,10 @@ export function SpecPostTabell({
               <tr
                 key={post.id}
                 onClick={() => onVelgPost(post.id)}
-                className={`cursor-pointer border-b transition-colors hover:bg-gray-50 ${
-                  valgtPostId === post.id ? "bg-blue-50" : ""
+                className={`cursor-pointer border-b transition-colors ${
+                  valgtPostId === post.id
+                    ? "bg-blue-50 border-l-2 border-l-sitedoc-primary"
+                    : "hover:bg-gray-50"
                 }`}
               >
                 <td className="w-[130px] px-3 py-2 font-mono text-xs whitespace-nowrap">
