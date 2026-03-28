@@ -127,22 +127,20 @@ export default function OkonomiSide() {
             />
           </div>
 
-          {/* Detaljpanel — fast i bunn */}
-          {valgtPostId && (
-            <div className="shrink-0 border-t px-4 py-3">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="rounded border p-3">
-                  <NotatEditor
-                    specPostId={valgtPostId}
-                    eksternNotat={valgtPost?.eksternNotat ?? null}
-                  />
-                </div>
-                <div className="rounded border p-3">
-                  <NsKodePanel nsKode={valgtPost?.nsKode ?? null} />
-                </div>
+          {/* Detaljpanel — alltid synlig i bunn */}
+          <div className="shrink-0 border-t px-4 py-3">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="rounded border p-3">
+                <NotatEditor
+                  specPostId={valgtPostId}
+                  eksternNotat={valgtPost?.eksternNotat ?? null}
+                />
+              </div>
+              <div className="rounded border p-3">
+                <NsKodePanel nsKode={valgtPost?.nsKode ?? null} />
               </div>
             </div>
-          )}
+          </div>
         </>
       ) : (
         <div className="min-h-0 flex-1 overflow-auto p-4">
