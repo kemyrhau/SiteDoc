@@ -572,7 +572,6 @@ model Folder {
   project       Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
   parent        Folder?        @relation("FolderHierarchy", fields: [parentId], references: [id])
   children      Folder[]       @relation("FolderHierarchy")
-  documents     Document[]
   accessEntries FolderAccess[]
   ftdDocuments  FtdDocument[]
 
@@ -595,22 +594,6 @@ model FolderAccess {
 
   @@unique([folderId, accessType, enterpriseId, groupId, userId])
   @@map("folder_access")
-}
-
-model Document {
-  id        String   @id @default(uuid())
-  folderId  String   @map("folder_id")
-  name      String
-  fileUrl   String   @map("file_url")
-  fileType  String   @map("file_type")
-  fileSize  Int      @map("file_size")
-  version   Int      @default(1)
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  folder Folder @relation(fields: [folderId], references: [id], onDelete: Cascade)
-
-  @@map("documents")
 }
 
 model Workflow {
@@ -781,9 +764,12 @@ model FtdDocument {
   processingError String?  @map("processing_error")
   fileHash        String?  @map("file_hash")
   standardNumber  String?  @map("standard_number")
+  fileSize        Int?     @map("file_size")
+  version         Int      @default(1)
   pageCount       Int?     @map("page_count")
   wordCount       Int?     @map("word_count")
   uploadedAt      DateTime @default(now()) @map("uploaded_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
 
   project         Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
   folder          Folder?          @relation(fields: [folderId], references: [id], onDelete: SetNull)

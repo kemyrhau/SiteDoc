@@ -2,6 +2,7 @@ import { z } from "zod";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { settMappeTilgangSchema } from "@sitedoc/shared/validation";
 import { verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
+import { prosesserDokument } from "../services/ftd-prosessering";
 
 export const mappeRouter = router({
   // Hent alle mapper for et prosjekt (flat liste med parentId + tilgangsoppføringer)
@@ -12,7 +13,7 @@ export const mappeRouter = router({
       return ctx.prisma.folder.findMany({
         where: { projectId: input.projectId },
         include: {
-          _count: { select: { documents: true } },
+          _count: { select: { ftdDocuments: true } },
           accessEntries: {
             include: {
               enterprise: { select: { id: true, name: true, color: true } },
@@ -65,7 +66,7 @@ export const mappeRouter = router({
       });
     }),
 
-  // Slett mappe (kaskaderer til undermapper og dokumenter)
+  // Slett mappe (kaskaderer til undermapper)
   slett: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
@@ -77,7 +78,7 @@ export const mappeRouter = router({
       return ctx.prisma.folder.delete({ where: { id: input.id } });
     }),
 
-  // Hent dokumenter for en mappe
+  // Hent dokumenter for en mappe (bruker FtdDocument)
   hentDokumenter: protectedProcedure
     .input(z.object({ folderId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
@@ -86,9 +87,9 @@ export const mappeRouter = router({
         select: { projectId: true },
       });
       await verifiserProsjektmedlem(ctx.userId, mappe.projectId);
-      return ctx.prisma.document.findMany({
-        where: { folderId: input.folderId },
-        orderBy: { name: "asc" },
+      return ctx.prisma.ftdDocument.findMany({
+        where: { folderId: input.folderId, isActive: true },
+        orderBy: { uploadedAt: "desc" },
       });
     }),
 
@@ -128,18 +129,15 @@ export const mappeRouter = router({
       });
       await verifiserProsjektmedlem(ctx.userId, mappe.projectId);
       return ctx.prisma.$transaction(async (tx) => {
-        // Oppdater accessMode
         await tx.folder.update({
           where: { id: input.folderId },
           data: { accessMode: input.accessMode },
         });
 
-        // Slett alle eksisterende oppføringer
         await tx.folderAccess.deleteMany({
           where: { folderId: input.folderId },
         });
 
-        // Opprett nye oppføringer (kun for custom-modus)
         if (input.accessMode === "custom" && input.entries.length > 0) {
           await tx.folderAccess.createMany({
             data: input.entries.map((entry) => ({
@@ -152,7 +150,6 @@ export const mappeRouter = router({
           });
         }
 
-        // Returner oppdatert mappe med tilgangsoppføringer
         return tx.folder.findUniqueOrThrow({
           where: { id: input.folderId },
           include: {
@@ -168,6 +165,7 @@ export const mappeRouter = router({
       });
     }),
 
+  // Last opp dokument til mappe — oppretter FtdDocument + trigger prosessering
   lastOppDokument: protectedProcedure
     .input(
       z.object({
@@ -184,14 +182,50 @@ export const mappeRouter = router({
         select: { projectId: true },
       });
       await verifiserProsjektmedlem(ctx.userId, mappe.projectId);
-      return ctx.prisma.document.create({
-        data: {
-          folderId: input.folderId,
-          name: input.name,
-          fileUrl: input.fileUrl,
-          fileType: input.fileType,
-          fileSize: input.fileSize,
+
+      // Sjekk om dokument med samme filnavn finnes (soft-slettet)
+      const eksisterende = await ctx.prisma.ftdDocument.findUnique({
+        where: {
+          projectId_filename: {
+            projectId: mappe.projectId,
+            filename: input.name,
+          },
         },
       });
+
+      let doc;
+      if (eksisterende) {
+        doc = await ctx.prisma.ftdDocument.update({
+          where: { id: eksisterende.id },
+          data: {
+            isActive: true,
+            folderId: input.folderId,
+            fileUrl: input.fileUrl,
+            filetype: input.fileType,
+            fileSize: input.fileSize,
+            processingState: "pending",
+            processingError: null,
+          },
+        });
+        await ctx.prisma.ftdDocumentChunk.deleteMany({ where: { documentId: doc.id } });
+      } else {
+        doc = await ctx.prisma.ftdDocument.create({
+          data: {
+            projectId: mappe.projectId,
+            folderId: input.folderId,
+            filename: input.name,
+            fileUrl: input.fileUrl,
+            filetype: input.fileType,
+            fileSize: input.fileSize,
+          },
+        });
+      }
+
+      // Automatisk prosessering (scanning, chunking, søkindeksering)
+      prosesserDokument(ctx.prisma, doc.id).catch((err) => {
+        console.error(`FTD prosessering feilet for ${doc.id}:`, err);
+      });
+
+      return doc;
     }),
 });

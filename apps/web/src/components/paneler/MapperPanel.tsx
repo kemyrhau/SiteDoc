@@ -13,7 +13,7 @@ interface MappeTreData {
   id: string;
   name: string;
   children: MappeTreData[];
-  _count?: { documents: number };
+  _count?: { ftdDocuments: number };
   kunSti?: boolean;
 }
 
@@ -30,7 +30,7 @@ function MappeRad({
 }) {
   const [ekspandert, setEkspandert] = useState(dybde < 2);
   const harBarn = mappe.children.length > 0;
-  const antallDokumenter = mappe._count?.documents ?? 0;
+  const antallDokumenter = mappe._count?.ftdDocuments ?? 0;
   const erValgt = mappe.id === valgtId;
   const erKunSti = mappe.kunSti === true;
 
@@ -92,7 +92,7 @@ function byggTre(
     id: string;
     name: string;
     parentId: string | null;
-    _count?: { documents: number };
+    _count?: { ftdDocuments: number };
     kunSti?: boolean;
   }>,
 ): MappeTreData[] {

@@ -395,7 +395,7 @@ interface MappeTreData {
   name: string;
   accessMode: string;
   children: MappeTreData[];
-  _count?: { documents: number };
+  _count?: { ftdDocuments: number };
 }
 
 function MappeTreRad({
@@ -415,7 +415,7 @@ function MappeTreRad({
 }) {
   const [ekspandert, setEkspandert] = useState(dybde < 2);
   const harBarn = mappe.children.length > 0;
-  const antallDokumenter = mappe._count?.documents ?? 0;
+  const antallDokumenter = mappe._count?.ftdDocuments ?? 0;
   const harEgenTilgang = mappe.accessMode === "custom";
 
   return (
@@ -936,7 +936,7 @@ export default function BoxSide() {
       name: string;
       parentId: string | null;
       accessMode: string;
-      _count?: { documents: number };
+      _count?: { ftdDocuments: number };
     }>,
   ): MappeTreData[] {
     const map = new Map<string, MappeTreData>();
@@ -960,7 +960,7 @@ export default function BoxSide() {
     return roots;
   }
 
-  const mappeTre = mapper ? byggTre(mapper as Array<{ id: string; name: string; parentId: string | null; accessMode: string; _count?: { documents: number } }>) : [];
+  const mappeTre = mapper ? byggTre(mapper as Array<{ id: string; name: string; parentId: string | null; accessMode: string; _count?: { ftdDocuments: number } }>) : [];
 
   return (
     <div>

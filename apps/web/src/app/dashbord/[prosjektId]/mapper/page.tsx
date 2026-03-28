@@ -165,10 +165,13 @@ export default function MapperSide() {
 
   type DokumentRad = {
     id: string;
-    name: string;
+    filename: string;
     fileUrl: string;
+    filetype: string | null;
+    fileSize: number | null;
     version: number;
-    createdAt: string;
+    uploadedAt: string;
+    processingState: string | null;
   };
 
   return (
@@ -221,7 +224,7 @@ export default function MapperSide() {
               celle: (rad) => (
                 <div className="flex items-center gap-2">
                   <FileText className="h-4 w-4 flex-shrink-0 text-gray-400" />
-                  <span className="font-medium text-gray-900">{rad.name}</span>
+                  <span className="font-medium text-gray-900">{rad.filename}</span>
                 </div>
               ),
             },
@@ -234,11 +237,11 @@ export default function MapperSide() {
               bredde: "80px",
             },
             {
-              id: "createdAt",
+              id: "uploadedAt",
               header: "Opprettet",
               celle: (rad) => (
                 <span className="text-sm text-gray-500">
-                  {new Date(rad.createdAt).toLocaleDateString("nb-NO")}
+                  {new Date(rad.uploadedAt).toLocaleDateString("nb-NO")}
                 </span>
               ),
               bredde: "120px",

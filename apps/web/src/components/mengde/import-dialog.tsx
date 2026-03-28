@@ -170,9 +170,9 @@ export function ImportDialog({ projectId, open, onClose }: ImportDialogProps) {
         await registrer.mutateAsync({
           projectId,
           folderId: velgtMappeId ?? undefined,
-          filename: dok.name,
-          fileUrl: dok.fileUrl,
-          filetype: dok.fileType ?? undefined,
+          filename: dok.filename,
+          fileUrl: dok.fileUrl ?? "",
+          filetype: dok.filetype ?? undefined,
           docType: docType as
             | "budsjett"
             | "a_nota"
@@ -444,10 +444,10 @@ export function ImportDialog({ projectId, open, onClose }: ImportDialogProps) {
                           </div>
                           <FileText className="h-4 w-4 shrink-0 text-gray-400" />
                           <span className="flex-1 truncate text-sm">
-                            {dok.name}
+                            {dok.filename}
                           </span>
                           <span className="text-xs text-gray-400">
-                            {new Date(dok.createdAt).toLocaleDateString(
+                            {new Date(dok.uploadedAt).toLocaleDateString(
                               "nb-NO",
                             )}
                           </span>
