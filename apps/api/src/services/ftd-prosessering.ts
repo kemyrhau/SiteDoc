@@ -818,14 +818,15 @@ function ekstraherNs3420PosterFraTekst(
     if (gjeldendPostnr) {
       gjeldendLinjer.push(stripped);
 
-      // Fang opp beskrivelse i ALL CAPS
+      // Fang opp beskrivelse: første tekstlinje som ikke er et tall/enhet-mønster
       if (
         !gjeldendBeskrivelse &&
-        stripped.length > 3 &&
-        stripped === stripped.toUpperCase() &&
-        /[A-ZÆØÅ]/.test(stripped)
+        stripped.length > 2 &&
+        /[A-Za-zæøåÆØÅ]/.test(stripped) &&
+        !/^\d[\d\s,]+$/.test(stripped) && // ikke bare tall
+        !RE_SAMMENKLEMT_VERDI.test(stripped) // ikke verdilinje
       ) {
-        gjeldendBeskrivelse = stripped;
+        gjeldendBeskrivelse = stripped.slice(0, 500);
       }
     } else if (gjeldendNsKode) {
       nsKodeTekstLinjer.push(stripped);
