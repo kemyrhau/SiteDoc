@@ -89,7 +89,8 @@ export function SpecPostTabell({
       <table className="w-full text-left text-sm">
         <thead>
           <tr className="border-b bg-gray-50 text-xs font-medium uppercase text-gray-500">
-            <SorterHeader felt="postnr" label="Nr" aktivFelt={sorterFelt} retning={sorterRetning} onClick={toggleSortering} bredde="w-[130px]" />
+            <th className="w-[45px] px-3 py-2 text-gray-400">#</th>
+            <SorterHeader felt="postnr" label="Post" aktivFelt={sorterFelt} retning={sorterRetning} onClick={toggleSortering} bredde="w-[130px]" />
             <SorterHeader felt="beskrivelse" label="Beskrivelse" aktivFelt={sorterFelt} retning={sorterRetning} onClick={toggleSortering} />
             <SorterHeader felt="enhet" label="Enhet" aktivFelt={sorterFelt} retning={sorterRetning} onClick={toggleSortering} bredde="w-[70px]" />
             <SorterHeader felt="mengdeAnbud" label="Mengde anbud" aktivFelt={sorterFelt} retning={sorterRetning} onClick={toggleSortering} hoyrejustert bredde="w-[120px]" />
@@ -103,7 +104,7 @@ export function SpecPostTabell({
       <div className="flex-1 overflow-auto">
         <table className="w-full text-left text-sm">
           <tbody>
-            {sortertePoster.map((post) => (
+            {sortertePoster.map((post, idx) => (
               <tr
                 key={post.id}
                 onClick={() => onVelgPost(post.id)}
@@ -114,6 +115,9 @@ export function SpecPostTabell({
                     : "hover:bg-gray-50"
                 }`}
               >
+                <td className="w-[45px] px-3 py-2 text-xs text-gray-400">
+                  {idx + 1}
+                </td>
                 <td className="w-[130px] px-3 py-2 font-mono text-xs whitespace-nowrap">
                   {post.postnr ?? "—"}
                 </td>
