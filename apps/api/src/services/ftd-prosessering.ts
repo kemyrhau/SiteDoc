@@ -94,12 +94,12 @@ async function prosesserPdf(
   documentId: string,
   buffer: Buffer,
 ): Promise<void> {
-  // pdf-parse fungerer i ren Node (API-serveren)
-  const pdfModule = await import("pdf-parse");
-  const pdfParse = ((pdfModule as Record<string, unknown>).default ?? pdfModule) as (
-    buf: Buffer,
-  ) => Promise<{ text: string; numpages: number }>;
-  const resultat = await pdfParse(buffer);
+  // pdf-parse v2 — eksporterer PDFParse som named export
+  const { PDFParse } = await import("pdf-parse") as unknown as {
+    PDFParse: new () => { loadPDF: (buf: Buffer) => Promise<{ text: string; numpages: number; pages: Array<{ text: string }> }> };
+  };
+  const parser = new PDFParse();
+  const resultat = await parser.loadPDF(buffer);
 
   const sider = resultat.text.split("\f").filter((s: string) => s.trim());
   const sideData = sider.map((tekst: string, i: number) => ({
