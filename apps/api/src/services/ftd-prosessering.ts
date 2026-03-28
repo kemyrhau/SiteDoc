@@ -595,51 +595,86 @@ function filtrerLinjer(linjer: string[]): string[] {
   return filtrert;
 }
 
+// Postnr alene på linje (uten tekst etter)
+const RE_POST_BARE = /^(\d{2}(?:\.\d{1,2})+)$/;
+// Tail-linje: ".1", ".10", "0" (med eller uten ledende punkt)
+const RE_TAIL_BARE = /^\.(\d{1,2}(?:\.\d{1,2})*)$/;
+
 function slaSammenPostnr(linjer: string[]): string[] {
   const resultat: string[] = [];
   let prevParts: number[] | null = null;
   let i = 0;
 
   while (i < linjer.length) {
-    const linje = linjer[i]!;
-    const m1 = linje.match(RE_POST_WITH_TEXT);
+    const linje = linjer[i]!.trim();
 
-    if (m1?.groups) {
-      const numStr = m1.groups["num"]!;
-      const text1 = m1.groups["text"]!.trim();
-      const digitCount = numStr.replace(/\D/g, "").length;
+    // Sjekk: postnr med tekst etter ("03.04.14 GRØFT - UTTAK OG UTLEGGING")
+    const mPostTekst = linje.match(RE_POST_WITH_TEXT);
+    // Sjekk: postnr alene ("03.04.12")
+    const mPostBare = linje.match(RE_POST_BARE);
+    // Sjekk: sammenklemt postnr+NS ("00.03.03.9FB1.31A")
+    const mSammenklemt = linje.match(RE_POST_SAMMENKLEMT);
 
-      // Sjekk om neste linje er en tail-fortsettelse
-      if (digitCount >= 7 && i + 1 < linjer.length) {
-        const nesteLinje = linjer[i + 1]!.trim();
-        const m2 = nesteLinje.match(RE_TAIL_LINE);
-        if (m2?.groups) {
-          const tail = m2.groups["tail"]!;
-          const text2 = m2.groups["text"]!.trim();
-          const withDot = !!m2.groups["dot"];
-          let mergedNum: string;
-          if (withDot) {
-            mergedNum = `${numStr}.${tail}`;
-          } else {
-            const parts = numStr.split(".");
-            parts[parts.length - 1] = `${parts[parts.length - 1]}${tail.split(".")[0]}`;
-            const tailParts = tail.split(".");
-            if (tailParts.length > 1) parts.push(...tailParts.slice(1));
-            mergedNum = parts.join(".");
-          }
-          resultat.push(`${mergedNum} ${text1}`);
-          resultat.push(text2);
-          prevParts = mergedNum.split(".").map(Number);
+    if (mSammenklemt?.groups) {
+      // Sammenklemt — behold som er
+      resultat.push(linje);
+      prevParts = mSammenklemt.groups["num"]!.split(".").map(Number);
+      i++;
+      continue;
+    }
+
+    if (mPostBare && i + 1 < linjer.length) {
+      const numStr = mPostBare[1]!;
+      const nesteLinje = linjer[i + 1]!.trim();
+
+      // Sjekk om neste linje er en tail (".1", ".10")
+      const mTail = nesteLinje.match(RE_TAIL_BARE);
+      if (mTail) {
+        const tail = mTail[1]!;
+        const mergedNum = `${numStr}.${tail}`;
+        const mergedParts = mergedNum.split(".").map(Number);
+
+        // Kun merge hvis stigende
+        if (prevParts === null || mergedParts > prevParts) {
+          // Sjekk om linje i+2 har tekst (NS-kode eller beskrivelse)
+          resultat.push(`${mergedNum}`);
+          prevParts = mergedParts;
+          i += 2; // Hopp over tail-linjen
+          continue;
+        }
+      }
+
+      // Neste linje er bare et tall ("0", "1") uten punkt — append til siste segment
+      if (/^\d{1,2}$/.test(nesteLinje)) {
+        const parts = numStr.split(".");
+        parts[parts.length - 1] = `${parts[parts.length - 1]}${nesteLinje}`;
+        const mergedNum = parts.join(".");
+        const mergedParts = mergedNum.split(".").map(Number);
+
+        if (prevParts === null || mergedParts > prevParts) {
+          resultat.push(mergedNum);
+          prevParts = mergedParts;
           i += 2;
           continue;
         }
       }
 
+      // Ingen merge — bare postnr alene
       resultat.push(linje);
       prevParts = numStr.split(".").map(Number);
-    } else {
-      resultat.push(linje);
+      i++;
+      continue;
     }
+
+    if (mPostTekst?.groups) {
+      const numStr = mPostTekst.groups["num"]!;
+      resultat.push(linje);
+      prevParts = numStr.split(".").map(Number);
+      i++;
+      continue;
+    }
+
+    resultat.push(linje);
     i++;
   }
 
