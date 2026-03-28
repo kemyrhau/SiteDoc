@@ -4,11 +4,12 @@
  * Eier all prosessering: tekstekstraksjon, chunking, NS-kode-deteksjon,
  * spec-post-ekstraksjon fra Excel, A-nota-parsing.
  */
-import { extname } from "node:path";
+import { join, extname } from "node:path";
+import { readFile } from "node:fs/promises";
 import type { PrismaClient } from "@sitedoc/db";
 
-// API-URL for prosessering — tRPC kjører i Next.js, men filer ligger i API
-const API_URL = process.env.API_URL ?? `http://localhost:${process.env.API_PORT ?? "3001"}`;
+// Filsti — kjører alltid i API-serveren (apps/api/)
+const UPLOADS_DIR = join(process.cwd(), "uploads");
 const MAKS_CHUNK = 1500;
 const OVERLAPP = 100;
 
@@ -37,13 +38,9 @@ export async function prosesserDokument(
       throw new Error("Dokument mangler fileUrl");
     }
 
-    // Hent filinnhold via HTTP fra API-serveren (filer ligger i apps/api/uploads/)
-    const filUrl = `${API_URL}${dok.fileUrl}`;
-    const response = await fetch(filUrl);
-    if (!response.ok) {
-      throw new Error(`Kunne ikke hente fil: ${response.status} ${filUrl}`);
-    }
-    const buffer = Buffer.from(await response.arrayBuffer());
+    // Les fil fra disk (kjører i API-serveren, cwd = apps/api/)
+    const filsti = join(UPLOADS_DIR, dok.fileUrl.replace(/^\/uploads\//, ""));
+    const buffer = await readFile(filsti);
     const ext = extname(dok.filename ?? "").toLowerCase();
 
     switch (ext) {
@@ -97,33 +94,21 @@ async function prosesserPdf(
   documentId: string,
   buffer: Buffer,
 ): Promise<void> {
-  // Bruk pdfjs-dist for tekstekstraksjon (allerede i prosjektet, fungerer med Next.js)
-  // @ts-expect-error — pdfjs-dist legacy build mangler type-deklarasjoner
-  const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs") as {
-    getDocument: (opts: { data: Uint8Array }) => { promise: Promise<{
-      numPages: number;
-      getPage: (n: number) => Promise<{
-        getTextContent: () => Promise<{ items: Array<{ str?: string }> }>;
-      }>;
-    }> };
-  };
+  // pdf-parse fungerer i ren Node (API-serveren)
+  const pdfModule = await import("pdf-parse");
+  const pdfParse = ((pdfModule as Record<string, unknown>).default ?? pdfModule) as (
+    buf: Buffer,
+  ) => Promise<{ text: string; numpages: number }>;
+  const resultat = await pdfParse(buffer);
 
-  const uint8 = new Uint8Array(buffer);
-  const doc = await pdfjsLib.getDocument({ data: uint8 }).promise;
+  const sider = resultat.text.split("\f").filter((s: string) => s.trim());
+  const sideData = sider.map((tekst: string, i: number) => ({
+    side: i + 1,
+    tekst: tekst.trim(),
+  }));
 
-  const sideData: Array<{ side: number; tekst: string }> = [];
-  let totalTekst = "";
-
-  for (let i = 1; i <= doc.numPages; i++) {
-    const page = await doc.getPage(i);
-    const content = await page.getTextContent();
-    const tekst = content.items
-      .map((item: { str?: string }) => item.str ?? "")
-      .join(" ");
-    if (tekst.trim()) {
-      sideData.push({ side: i, tekst: tekst.trim() });
-    }
-    totalTekst += tekst + " ";
+  if (sideData.length === 0 && resultat.text.trim()) {
+    sideData.push({ side: 1, tekst: resultat.text.trim() });
   }
 
   const chunks = delTekstIChunks(sideData);
@@ -145,8 +130,8 @@ async function prosesserPdf(
   await prisma.ftdDocument.update({
     where: { id: documentId },
     data: {
-      pageCount: doc.numPages,
-      wordCount: totalTekst.split(/\s+/).length,
+      pageCount: resultat.numpages ?? sideData.length,
+      wordCount: resultat.text.split(/\s+/).length,
     },
   });
 }

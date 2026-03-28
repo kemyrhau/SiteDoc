@@ -5,7 +5,14 @@ import {
   hentTilgjengeligeMappeIder,
   byggMappeTilgangsFilter,
 } from "../services/folder-tilgang";
-import { prosesserDokument } from "../services/ftd-prosessering";
+// Prosessering kjøres på API-serveren (ren Node) — ikke i Next.js
+const API_INTERN_URL = `http://localhost:${process.env.API_PORT ?? process.env.PORT ?? "3001"}`;
+
+function triggerProsessering(documentId: string) {
+  fetch(`${API_INTERN_URL}/prosesser/${documentId}`, { method: "POST" }).catch(
+    (err) => console.error(`Kunne ikke trigge prosessering for ${documentId}:`, err),
+  );
+}
 
 type AvviksStatus = "Match" | "Endret" | "Ny" | "Fjernet";
 export interface AvviksRad {
@@ -235,10 +242,8 @@ export const mengdeRouter = router({
         });
       }
 
-      // Fire-and-forget prosessering
-      prosesserDokument(ctx.prisma, doc.id).catch((err) => {
-        console.error(`FTD prosessering feilet for ${doc.id}:`, err);
-      });
+      // Trigger prosessering på API-serveren (ren Node-kontekst)
+      triggerProsessering(doc.id);
 
       return doc;
     }),
@@ -265,9 +270,7 @@ export const mengdeRouter = router({
         data: { processingState: "pending", processingError: null },
       });
 
-      prosesserDokument(ctx.prisma, input.documentId).catch((err) => {
-        console.error(`FTD reprosessering feilet for ${input.documentId}:`, err);
-      });
+      triggerProsessering(input.documentId);
 
       return { ok: true };
     }),

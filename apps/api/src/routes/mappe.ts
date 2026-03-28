@@ -2,7 +2,14 @@ import { z } from "zod";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { settMappeTilgangSchema } from "@sitedoc/shared/validation";
 import { verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
-import { prosesserDokument } from "../services/ftd-prosessering";
+// Prosessering kjøres på API-serveren (ren Node) — ikke i Next.js
+const API_INTERN_URL = `http://localhost:${process.env.API_PORT ?? process.env.PORT ?? "3001"}`;
+
+function triggerProsessering(documentId: string) {
+  fetch(`${API_INTERN_URL}/prosesser/${documentId}`, { method: "POST" }).catch(
+    (err) => console.error(`Kunne ikke trigge prosessering for ${documentId}:`, err),
+  );
+}
 
 export const mappeRouter = router({
   // Hent alle mapper for et prosjekt (flat liste med parentId + tilgangsoppføringer)
@@ -221,10 +228,8 @@ export const mappeRouter = router({
         });
       }
 
-      // Automatisk prosessering (scanning, chunking, søkindeksering)
-      prosesserDokument(ctx.prisma, doc.id).catch((err) => {
-        console.error(`FTD prosessering feilet for ${doc.id}:`, err);
-      });
+      // Trigger prosessering på API-serveren (ren Node-kontekst)
+      triggerProsessering(doc.id);
 
       return doc;
     }),

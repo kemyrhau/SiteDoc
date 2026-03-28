@@ -6,6 +6,7 @@ import fastifyStatic from "@fastify/static";
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { healthRoute } from "./routes/health";
 import { uploadRoute } from "./routes/upload";
+import { prosesserRoute } from "./routes/prosesser";
 import { appRouter } from "./trpc/router";
 import { createContext } from "./trpc/context";
 
@@ -52,6 +53,9 @@ async function start() {
 
   // Filopplasting
   await server.register(uploadRoute);
+
+  // FTD dokumentprosessering
+  await server.register(prosesserRoute);
 
   // tRPC-endepunkt via fetch-adapter
   server.all("/trpc/*", async (req, res) => {
