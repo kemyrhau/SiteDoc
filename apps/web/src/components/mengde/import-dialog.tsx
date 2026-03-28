@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useCallback } from "react";
-import { Upload, X, FileText, Loader2 } from "lucide-react";
+import { useState, useCallback, useMemo } from "react";
+import { Upload, X, FileText, Loader2, FolderOpen } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { EntrepriseVelger } from "./entreprise-velger";
 
@@ -23,11 +23,42 @@ export function ImportDialog({ projectId, open, onClose }: ImportDialogProps) {
   const [fil, setFil] = useState<File | null>(null);
   const [docType, setDocType] = useState<string>("budsjett");
   const [enterpriseId, setEnterpriseId] = useState<string | null>(null);
+  const [folderId, setFolderId] = useState<string | null>(null);
   const [lasterOpp, setLasterOpp] = useState(false);
   const [feil, setFeil] = useState<string | null>(null);
   const [dragAktiv, setDragAktiv] = useState(false);
 
   const utils = trpc.useUtils();
+
+  // Hent mapper for prosjektet
+  const { data: mapper } = trpc.mappe.hentForProsjekt.useQuery(
+    { projectId },
+    { enabled: !!projectId && open },
+  );
+
+  // Bygg flat liste med innrykk for dropdown
+  const mappeValg = useMemo(() => {
+    if (!mapper) return [];
+    type MappeNode = { id: string; name: string; parentId: string | null };
+    const flat = mapper as MappeNode[];
+    const childrenMap = new Map<string | null, MappeNode[]>();
+    for (const m of flat) {
+      const kids = childrenMap.get(m.parentId) ?? [];
+      kids.push(m);
+      childrenMap.set(m.parentId, kids);
+    }
+    const result: Array<{ value: string; label: string }> = [];
+    function traverse(parentId: string | null, dybde: number) {
+      const barn = childrenMap.get(parentId) ?? [];
+      for (const m of barn) {
+        const prefix = "\u00A0\u00A0".repeat(dybde);
+        result.push({ value: m.id, label: `${prefix}${dybde > 0 ? "└ " : ""}${m.name}` });
+        traverse(m.id, dybde + 1);
+      }
+    }
+    traverse(null, 0);
+    return result;
+  }, [mapper]);
 
   const registrer = trpc.mengde.registrerDokument.useMutation({
     onSuccess: () => {
@@ -73,6 +104,7 @@ export function ImportDialog({ projectId, open, onClose }: ImportDialogProps) {
       // 2. Registrer i database
       registrer.mutate({
         projectId,
+        folderId: folderId ?? undefined,
         filename: fil.name,
         fileUrl,
         filetype: fileType ?? fil.type,
@@ -117,6 +149,28 @@ export function ImportDialog({ projectId, open, onClose }: ImportDialogProps) {
                 </option>
               ))}
             </select>
+          </div>
+
+          {/* Mappe */}
+          <div>
+            <label className="mb-1 block text-xs font-medium text-gray-500">
+              Lagre i mappe
+            </label>
+            <div className="flex items-center gap-2">
+              <FolderOpen className="h-4 w-4 shrink-0 text-amber-500" />
+              <select
+                className="w-full rounded border border-gray-300 bg-white px-3 py-1.5 text-sm"
+                value={folderId ?? ""}
+                onChange={(e) => setFolderId(e.target.value || null)}
+              >
+                <option value="">Ingen mappe (løst dokument)</option>
+                {mappeValg.map((m) => (
+                  <option key={m.value} value={m.value}>
+                    {m.label}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           {/* Entreprise (valgfritt) */}
