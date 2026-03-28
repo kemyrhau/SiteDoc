@@ -4,11 +4,15 @@
  * Eier all prosessering: tekstekstraksjon, chunking, NS-kode-deteksjon,
  * spec-post-ekstraksjon fra Excel, A-nota-parsing.
  */
-import { join, extname } from "node:path";
-import { readFile } from "node:fs/promises";
+import { join, extname, dirname } from "node:path";
+import { readFile, access } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
 import type { PrismaClient } from "@sitedoc/db";
 
-const UPLOADS_DIR = join(process.cwd(), "uploads");
+// Bruk __dirname-basert sti for å finne uploads-mappen (apps/api/uploads/)
+const _dirname = typeof __dirname !== "undefined" ? __dirname : dirname(fileURLToPath(import.meta.url));
+const API_ROOT = join(_dirname, "..", "..");
+const UPLOADS_DIR = join(API_ROOT, "uploads");
 const MAKS_CHUNK = 1500;
 const OVERLAPP = 100;
 
