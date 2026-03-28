@@ -13,7 +13,7 @@
 | `projects` | Prosjekter med prosjektnummer (SD-YYYYMMDD-XXXX), status, valgfri lokasjon (`latitude`, `longitude`), valgfritt eksternt prosjektnummer (`external_project_number`), valgfri firmalogo (`logo_url`), `show_internal_project_number` (Boolean, default true) |
 | `project_members` | Prosjektmedlemmer med rolle (member/admin), entrepriser via `member_enterprises` |
 | `member_enterprises` | Mange-til-mange join-tabell mellom `project_members` og `enterprises` |
-| `enterprises` | Entrepriser med `enterprise_number` (Dalux-format: "04 Tømrer, Econor"), bransje, firma, farge |
+| `enterprises` | Entrepriser med `enterprise_number` (format: "04 Tømrer, Econor"), bransje, firma, farge |
 | `buildings` | Lokasjoner med `number` (auto-generert per prosjekt), `type` (deprecated, default `"bygg"`), status (unpublished/published) |
 | `drawings` | Tegninger med metadata: tegningsnummer, fagdisiplin, revisjon, status, etasje, målestokk, opphav, valgfri `geoReference` (JSON), `ifcMetadata` (JSON — prosjekt, org, GPS, etasjer, programvare), DWG-konvertering (`conversionStatus`, `coordinateSystem`) |
 | `point_clouds` | Punktskyer med `potreeUrl` (konvertert octree), `hasClassification`, `hasRgb`, `classifications` (JSON), `boundingBox` (JSON), asynkron konvertering via CloudCompare+PotreeConverter |
@@ -37,6 +37,12 @@
 | `project_modules` | Aktiverte moduler per prosjekt |
 | `organizations` | Firmaer/organisasjoner med navn, org.nr, fakturaadresse, logo |
 | `organization_projects` | Mange-til-mange mellom organisasjoner og prosjekter |
+| `ftd_documents` | FTD-modul: dokumenter med filinfo, docType (budsjett/a_nota/t_nota/mengdebeskrivelse/annet), kobles til `folders` |
+| `ftd_document_chunks` | FTD-modul: søkbare tekstbiter fra dokumenter, med NS-koder og embedding-status |
+| `ftd_spec_posts` | FTD-modul: budsjettlinjer/spesifikasjonsposter med mengde, enhetspris, NS-kode |
+| `ftd_nota_periods` | FTD-modul: A-nota/T-nota perioder per entreprise |
+| `ftd_nota_posts` | FTD-modul: poster per periode med mengde/verdi denne, forrige, total |
+| `ftd_nota_comments` | FTD-modul: kommentarer på spesifikasjonsposter og perioder |
 
 ## Viktige relasjoner
 

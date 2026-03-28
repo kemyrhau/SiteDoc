@@ -2,7 +2,7 @@
 
 ## UI-arkitektur
 
-Dalux-inspirert tre-kolonne layout (skjules på mobil < 768px, hamburger-meny i Toppbar):
+Tre-kolonne layout (skjules på mobil < 768px, hamburger-meny i Toppbar):
 
 ```
 +----------------------------------------------------------+
@@ -48,6 +48,8 @@ Dalux-inspirert tre-kolonne layout (skjules på mobil < 768px, hamburger-meny i 
 /dashbord/[prosjektId]/punktskyer            -> Redirect → /3d-visning
 /dashbord/[prosjektId]/modeller              -> Redirect → /3d-visning
 /dashbord/[prosjektId]/bilder                 -> Bildegalleri (liste + tegningsvisning)
+/dashbord/[prosjektId]/okonomi               -> Økonomi (krever modul «okonomi»): spec-poster, avviksanalyse, dokumentimport
+/dashbord/[prosjektId]/sok                   -> Dokumentsøk (krever modul «dokumentsok»): fulltekstsøk i prosjektdokumenter
 /dashbord/oppsett                             -> Innstillinger
 /dashbord/oppsett/brukere                     -> Brukergrupper, roller
 /dashbord/oppsett/brukere/tillatelser         -> Tillatelsesmatrise (read-only)
@@ -133,7 +135,7 @@ Etter opprettelse navigeres brukeren direkte til detaljsiden for å begynne regi
 - For oppgaver: klikk på tegning for å plassere punkt (positionX/Y)
 - API: `oppgave.oppdater` og `sjekkliste.oppdater` aksepterer `drawingId`, `positionX`, `positionY`, `buildingId`
 
-## Tabellvisning — Dalux-stil kolonnevelger
+## Tabellvisning — konfigurerbar kolonnevelger
 
 Oppgave- og sjekkliste-lister bruker konfigurerbar tabellvisning med:
 

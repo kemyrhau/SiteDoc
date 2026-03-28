@@ -24,6 +24,8 @@ Alle routere i `apps/api/src/routes/`:
 | `mobilAuth` | byttToken (public, OAuth→sesjon), verifiser (m/tokenrotasjon), loggUt (sletter sesjon) |
 | `bilde` | hentForProsjekt (alle bilder via sjekklister + oppgaver, m/tilgangsfilter, inkl. parent+tegningsdata), opprettForSjekkliste |
 | `admin` | erAdmin, hentAlleProsjekter (m/sjekkliste-/oppgavetellere), hentAlleOrganisasjoner, opprettOrganisasjon, oppdaterOrganisasjon, settBrukerOrganisasjon, tilknyttProsjekt, fjernProsjektTilknytning, opprettProsjekt, hentProsjektStatistikk, slettProsjekt, slettUtlopteProsjekter, hentAlleBrukere |
+| `mengde` | hentDokumenter (m/mappetilgangsfilter), hentPerioder, hentSpecPoster (m/valgfri periode-join), hentAvviksanalyse (budsjett vs kontrakt), lagreNotat, registrerDokument, slettDokument, slettPeriode |
+| `ftdSok` | sokDokumenter (ILIKE m/mappetilgangsfilter), hentDokumentChunks, nsKoder (distinkte NS-koder), nsChunks |
 
 ## Auth-nivåer
 
