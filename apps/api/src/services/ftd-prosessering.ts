@@ -712,23 +712,81 @@ function ekstraherNs3420PosterFraTekst(
   let gjeldendBeskrivelse: string | null = null;
   let gjeldendLinjer: string[] = []; // alle linjer under gjeldende post
 
+  // Gjenkjenn enhetslinjer som er splittet over 2-3 linjer i PDF:
+  // "Arealm" + "2" + "940,00..." → enhet = m2, fjern "Arealm" og "2" fra tallparsing
+  // "Lengdem" + "1,00..." → enhet = m
+  // "Antallstk" + "20..." → enhet = stk
+  // "Rund sumRS" + "10 000,00..." → enhet = RS
+  const RE_ENHET_LINJE = /^(Areal|Lengde|Volum|Masse|Tid|Antall|Rund sum)\s*(m\d?|m²|m³|stk|RS|tonn|kg|time|timer|l|lm)?$/i;
+
+  function rensEnhetslinjer(linjer: string[]): { rensede: string[]; enhet: string | null } {
+    let enhet: string | null = null;
+    const rensede: string[] = [];
+    let i = 0;
+
+    while (i < linjer.length) {
+      const linje = linjer[i]!;
+      const enhetMatch = linje.match(RE_ENHET_LINJE);
+
+      if (enhetMatch) {
+        // Enhetslinje funnet (f.eks. "Arealm" eller "Lengdem")
+        const enhetsType = enhetMatch[1]!; // Areal, Lengde, Volum...
+        let enhetSuffix = enhetMatch[2] ?? ""; // m, stk, RS...
+
+        // Sjekk om neste linje er en eksponent (2, 3) for m²/m³
+        if (i + 1 < linjer.length) {
+          const neste = linjer[i + 1]!.trim();
+          if (/^[23]$/.test(neste) && enhetSuffix.toLowerCase() === "m") {
+            // "2" → m², "3" → m³
+            enhetSuffix = `m${neste}`;
+            i += 2; // Hopp over enhetslinje + eksponent
+            enhet = enhetSuffix;
+            continue;
+          }
+        }
+
+        // Enhet uten eksponent (f.eks. "Lengdem" → m, "Antallstk" → stk)
+        enhet = enhetSuffix || enhetsType.toLowerCase();
+        i++;
+        continue;
+      }
+
+      // Sjekk også frittstående eksponent etter enhetslinje vi allerede hoppet over
+      // (håndtert ovenfor)
+
+      // Sjekk sammenklemt verdilinje: "Antallstk20500,0010 000,00"
+      const vm = linje.match(RE_SAMMENKLEMT_VERDI);
+      if (vm) {
+        enhet = enhet ?? (vm[2] ?? null);
+        // Behold linjen for tallparsing, men fjern enhets-prefiks
+        const tallDel = linje.slice((vm[1]?.length ?? 0) + (vm[2]?.length ?? 0));
+        if (tallDel.trim()) {
+          rensede.push(tallDel);
+        } else {
+          rensede.push(linje);
+        }
+        i++;
+        continue;
+      }
+
+      rensede.push(linje);
+      i++;
+    }
+
+    return { rensede, enhet };
+  }
+
   function avsluttPost() {
     if (!gjeldendPostnr) return;
 
-    // Slå sammen alle linjer og finn tall
-    const samlet = gjeldendLinjer.join(" ");
+    // Rens enhetslinjer før tallparsing
+    const { rensede, enhet } = rensEnhetslinjer(gjeldendLinjer);
+
+    // Slå sammen rensede linjer og finn tall
+    const samlet = rensede.join(" ");
     const tallMatch = [...samlet.matchAll(RE_NORSK_TALL)];
 
     if (tallMatch.length >= 3) {
-      // Finn enhet — sjekk sammenklemt verdilinje
-      let enhet: string | null = null;
-      for (const l of gjeldendLinjer) {
-        const vm = l.match(RE_SAMMENKLEMT_VERDI);
-        if (vm) {
-          enhet = vm[2] ?? null;
-          break;
-        }
-      }
 
       const mengde = parseNorskTall(tallMatch[0]![0]);
       const pris = parseNorskTall(tallMatch[1]![0]);
