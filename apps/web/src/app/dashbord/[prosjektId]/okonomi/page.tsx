@@ -115,9 +115,9 @@ export default function OkonomiSide() {
       </div>
 
       {/* Innhold */}
-      <div className="flex-1 overflow-auto p-4">
+      <div className="flex min-h-0 flex-1 flex-col p-4">
         {aktivFane === "oversikt" ? (
-          <div className="space-y-4">
+          <div className="flex min-h-0 flex-1 flex-col gap-4">
             <SpecPostTabell
               projectId={prosjektId}
               periodId={periodId}

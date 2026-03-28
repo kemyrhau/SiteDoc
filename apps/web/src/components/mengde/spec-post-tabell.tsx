@@ -86,7 +86,7 @@ export function SpecPostTabell({
   }
 
   return (
-    <div className="overflow-auto max-h-[calc(100vh-280px)]">
+    <div className="overflow-auto flex-1">
       <table className="w-full text-left text-sm">
         <thead className="sticky top-0 z-10 bg-white shadow-[0_1px_0_0_#e5e7eb]">
           <tr className="text-xs font-medium uppercase text-gray-500">
