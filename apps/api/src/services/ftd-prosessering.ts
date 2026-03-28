@@ -4,14 +4,11 @@
  * Eier all prosessering: tekstekstraksjon, chunking, NS-kode-deteksjon,
  * spec-post-ekstraksjon fra Excel, A-nota-parsing.
  */
-import { join, extname } from "node:path";
-import { readFile } from "node:fs/promises";
+import { extname } from "node:path";
 import type { PrismaClient } from "@sitedoc/db";
 
-// Absolutt sti til uploads — tRPC kjører i Next.js-kontekst, ikke API
-// Fallback: prøv å finne uploads-mappen relativt til process.cwd()
-const UPLOADS_DIR = process.env.UPLOADS_DIR
-  ?? join(process.cwd(), "uploads");
+// API-URL for prosessering — tRPC kjører i Next.js, men filer ligger i API
+const API_URL = process.env.API_URL ?? `http://localhost:${process.env.API_PORT ?? "3001"}`;
 const MAKS_CHUNK = 1500;
 const OVERLAPP = 100;
 
@@ -40,29 +37,34 @@ export async function prosesserDokument(
       throw new Error("Dokument mangler fileUrl");
     }
 
-    // Bygg filsti fra fileUrl (/uploads/uuid.pdf → ./uploads/uuid.pdf)
-    const filsti = join(UPLOADS_DIR, dok.fileUrl.replace(/^\/uploads\//, ""));
-    const ext = extname(dok.filename ?? filsti).toLowerCase();
+    // Hent filinnhold via HTTP fra API-serveren (filer ligger i apps/api/uploads/)
+    const filUrl = `${API_URL}${dok.fileUrl}`;
+    const response = await fetch(filUrl);
+    if (!response.ok) {
+      throw new Error(`Kunne ikke hente fil: ${response.status} ${filUrl}`);
+    }
+    const buffer = Buffer.from(await response.arrayBuffer());
+    const ext = extname(dok.filename ?? "").toLowerCase();
 
     switch (ext) {
       case ".pdf":
-        await prosesserPdf(prisma, documentId, filsti);
+        await prosesserPdf(prisma, documentId, buffer);
         break;
       case ".xlsx":
       case ".xls":
         await prosesserExcel(
           prisma,
           documentId,
-          filsti,
+          buffer,
           dok.docType ?? "annet",
           dok.projectId,
         );
         break;
       case ".xml":
-        await prosesserXml(prisma, documentId, filsti, dok.projectId);
+        await prosesserXml(prisma, documentId, buffer, dok.projectId);
         break;
       case ".csv":
-        await prosesserCsv(prisma, documentId, filsti);
+        await prosesserCsv(prisma, documentId, buffer);
         break;
       default:
         // Ukjent filtype — marker som ferdig uten chunks
@@ -93,15 +95,13 @@ export async function prosesserDokument(
 async function prosesserPdf(
   prisma: PrismaClient,
   documentId: string,
-  filsti: string,
+  buffer: Buffer,
 ): Promise<void> {
   const pdfParseModule = await import("pdf-parse");
   const pdfParse = ((pdfParseModule as Record<string, unknown>).default ?? pdfParseModule) as (
-    buffer: Buffer,
+    buf: Buffer,
   ) => Promise<{ text: string; numpages: number }>;
-  const buffer = await readFile(filsti);
 
-  // Først: hent full tekst og sideantall
   const resultat = await pdfParse(buffer);
 
   // pdf-parse gir ikke per-side tekst direkte, men vi kan bruke
@@ -149,13 +149,13 @@ async function prosesserPdf(
 async function prosesserExcel(
   prisma: PrismaClient,
   documentId: string,
-  filsti: string,
+  buffer: Buffer,
   docType: string,
   projectId: string,
 ): Promise<void> {
   const ExcelJS = await import("exceljs");
   const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.readFile(filsti);
+  await workbook.xlsx.load(buffer as unknown as ArrayBuffer);
 
   const sheet = workbook.worksheets[0];
   if (!sheet) throw new Error("Ingen ark funnet i Excel-filen");
@@ -342,11 +342,11 @@ async function ekstraherSpecPoster(
 async function prosesserXml(
   prisma: PrismaClient,
   documentId: string,
-  filsti: string,
+  buffer: Buffer,
   projectId: string,
 ): Promise<void> {
   const { XMLParser } = await import("fast-xml-parser");
-  const xml = await readFile(filsti, "utf-8");
+  const xml = buffer.toString("utf-8");
   const parser = new XMLParser({ ignoreAttributes: false });
   const resultat = parser.parse(xml);
 
@@ -433,9 +433,9 @@ function ekstraherNs3459Poster(
 async function prosesserCsv(
   prisma: PrismaClient,
   documentId: string,
-  filsti: string,
+  buffer: Buffer,
 ): Promise<void> {
-  const innhold = await readFile(filsti, "utf-8");
+  const innhold = buffer.toString("utf-8");
   const linjer = innhold.split("\n").filter((l) => l.trim());
 
   if (linjer.length === 0) return;
