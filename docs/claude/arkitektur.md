@@ -37,8 +37,8 @@
 | `project_modules` | Aktiverte moduler per prosjekt |
 | `organizations` | Firmaer/organisasjoner med navn, org.nr, fakturaadresse, logo |
 | `organization_projects` | Mange-til-mange mellom organisasjoner og prosjekter |
-| `ftd_documents` | FTD-modul: dokumenter med filinfo, docType (budsjett/a_nota/t_nota/mengdebeskrivelse/annet), kobles til `folders` |
-| `ftd_document_chunks` | FTD-modul: søkbare tekstbiter fra dokumenter, med NS-koder og embedding-status |
+| `ftd_documents` | Eneste dokumentmodell (Document er fjernet). Filinfo, docType, processingState (pending/processing/completed/failed), kobles til `folders`. Opplasting → automatisk prosessering |
+| `ftd_document_chunks` | Søkbare tekstbiter med tsvector-indeks (norsk stemming, GIN), NS-koder, sideinfo. Trigger auto-oppdaterer search_vector |
 | `ftd_spec_posts` | FTD-modul: budsjettlinjer/spesifikasjonsposter med mengde, enhetspris, NS-kode |
 | `ftd_nota_periods` | FTD-modul: A-nota/T-nota perioder per entreprise |
 | `ftd_nota_posts` | FTD-modul: poster per periode med mengde/verdi denne, forrige, total |

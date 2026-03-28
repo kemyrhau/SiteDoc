@@ -48,8 +48,8 @@ Tre-kolonne layout (skjules på mobil < 768px, hamburger-meny i Toppbar):
 /dashbord/[prosjektId]/punktskyer            -> Redirect → /3d-visning
 /dashbord/[prosjektId]/modeller              -> Redirect → /3d-visning
 /dashbord/[prosjektId]/bilder                 -> Bildegalleri (liste + tegningsvisning)
-/dashbord/[prosjektId]/okonomi               -> Økonomi (krever modul «okonomi»): spec-poster, avviksanalyse, dokumentimport
-/dashbord/[prosjektId]/sok                   -> Dokumentsøk (krever modul «dokumentsok»): fulltekstsøk i prosjektdokumenter
+/dashbord/[prosjektId]/okonomi               -> Økonomi (krever modul «okonomi»): spec-poster med sortering/dobbeltklikk-detalj, avviksanalyse, dokumentimport med prosesseringsstatus, notat+NS-panel fast i bunn
+/dashbord/[prosjektId]/sok                   -> Dokumentsøk (krever modul «dokumentsok»): tsvector fulltekstsøk med norsk stemming, treffliste med sidenr, fulltekst-panel
 /dashbord/oppsett                             -> Innstillinger
 /dashbord/oppsett/brukere                     -> Brukergrupper, roller
 /dashbord/oppsett/brukere/tillatelser         -> Tillatelsesmatrise (read-only)
