@@ -193,16 +193,47 @@ export const mengdeRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       await verifiserProsjektmedlem(ctx.userId, input.projectId);
-      const doc = await ctx.prisma.ftdDocument.create({
-        data: {
-          projectId: input.projectId,
-          folderId: input.folderId ?? null,
-          filename: input.filename,
-          fileUrl: input.fileUrl,
-          filetype: input.filetype ?? null,
-          docType: input.docType,
+
+      // Sjekk om et soft-slettet dokument med samme filnavn finnes
+      const eksisterende = await ctx.prisma.ftdDocument.findUnique({
+        where: {
+          projectId_filename: {
+            projectId: input.projectId,
+            filename: input.filename,
+          },
         },
       });
+
+      let doc;
+      if (eksisterende) {
+        // Reaktiver og oppdater
+        doc = await ctx.prisma.ftdDocument.update({
+          where: { id: eksisterende.id },
+          data: {
+            isActive: true,
+            folderId: input.folderId ?? null,
+            fileUrl: input.fileUrl,
+            filetype: input.filetype ?? null,
+            docType: input.docType,
+            processingState: "pending",
+            processingError: null,
+          },
+        });
+        // Slett gamle chunks og spec-poster
+        await ctx.prisma.ftdDocumentChunk.deleteMany({ where: { documentId: doc.id } });
+        await ctx.prisma.ftdSpecPost.deleteMany({ where: { documentId: doc.id } });
+      } else {
+        doc = await ctx.prisma.ftdDocument.create({
+          data: {
+            projectId: input.projectId,
+            folderId: input.folderId ?? null,
+            filename: input.filename,
+            fileUrl: input.fileUrl,
+            filetype: input.filetype ?? null,
+            docType: input.docType,
+          },
+        });
+      }
 
       // Fire-and-forget prosessering
       prosesserDokument(ctx.prisma, doc.id).catch((err) => {
