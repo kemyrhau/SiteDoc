@@ -244,37 +244,28 @@ function DokumentListe({
             </td>
             <td className="px-3 py-2">
               {redigerDokId === dok.id ? (
-                <select
-                  autoFocus
-                  className="rounded border border-sitedoc-primary bg-white px-2 py-1 text-sm"
-                  defaultValue={dok.docType ?? "annet"}
-                  onChange={(e) => {
-                    const nyType = e.target.value;
-                    oppdaterMutation.mutate({
-                      documentId: dok.id,
-                      docType: nyType as "anbudsgrunnlag" | "a_nota" | "t_nota" | "mengdebeskrivelse" | "annet",
-                      // Sett notaType automatisk basert på docType
-                      notaType: nyType === "a_nota" ? "A-Nota" : nyType === "t_nota" ? "T-Nota" : null,
-                    });
+                <DokumentTypeEditor
+                  dok={dok}
+                  onLagre={(data) => {
+                    oppdaterMutation.mutate({ documentId: dok.id, ...data });
                     setRedigerDokId(null);
                   }}
-                  onBlur={() => setRedigerDokId(null)}
-                >
-                  <option value="anbudsgrunnlag">Anbudsgrunnlag</option>
-                  <option value="a_nota">A-nota</option>
-                  <option value="t_nota">T-nota</option>
-                  <option value="mengdebeskrivelse">Mengdebeskrivelse</option>
-                  <option value="annet">Annet</option>
-                </select>
+                  onAvbryt={() => setRedigerDokId(null)}
+                />
               ) : (
                 <button
                   onClick={() => setRedigerDokId(dok.id)}
-                  className="rounded px-2 py-0.5 text-sm text-gray-600 hover:bg-gray-100"
-                  title="Klikk for å endre type"
+                  className="rounded px-2 py-0.5 text-left text-sm text-gray-600 hover:bg-gray-100"
+                  title="Klikk for å endre"
                 >
-                  {dok.notaType
-                    ? `${dok.notaType}${dok.notaNr ? ` ${dok.notaNr}` : ""}`
-                    : DOC_TYPE_LABEL[dok.docType ?? ""] ?? dok.docType ?? "—"}
+                  <div>
+                    {dok.notaType
+                      ? `${dok.notaType}${dok.notaNr ? ` ${dok.notaNr}` : ""}`
+                      : DOC_TYPE_LABEL[dok.docType ?? ""] ?? dok.docType ?? "—"}
+                  </div>
+                  {dok.kontraktNavn && (
+                    <div className="text-xs text-gray-400 truncate max-w-[150px]">{dok.kontraktNavn}</div>
+                  )}
                 </button>
               )}
             </td>
@@ -327,6 +318,85 @@ function DokumentListe({
         ))}
       </tbody>
     </table>
+  );
+}
+
+function DokumentTypeEditor({
+  dok,
+  onLagre,
+  onAvbryt,
+}: {
+  dok: { docType: string | null; notaType: string | null; notaNr: number | null; kontraktNavn: string | null };
+  onLagre: (data: {
+    docType?: "anbudsgrunnlag" | "a_nota" | "t_nota" | "mengdebeskrivelse" | "annet";
+    notaType?: "A-Nota" | "T-Nota" | "Sluttnota" | null;
+    notaNr?: number | null;
+    kontraktNavn?: string | null;
+  }) => void;
+  onAvbryt: () => void;
+}) {
+  const [type, setType] = useState(dok.docType ?? "annet");
+  const [nr, setNr] = useState(dok.notaNr?.toString() ?? "");
+  const [kontrakt, setKontrakt] = useState(dok.kontraktNavn ?? "");
+
+  const erNota = type === "a_nota" || type === "t_nota";
+
+  return (
+    <div className="space-y-2 rounded border border-sitedoc-primary bg-blue-50/50 p-2">
+      <select
+        autoFocus
+        className="w-full rounded border border-gray-300 bg-white px-2 py-1 text-sm"
+        value={type}
+        onChange={(e) => setType(e.target.value)}
+      >
+        <option value="anbudsgrunnlag">Anbudsgrunnlag</option>
+        <option value="a_nota">A-nota</option>
+        <option value="t_nota">T-nota</option>
+        <option value="mengdebeskrivelse">Mengdebeskrivelse</option>
+        <option value="annet">Annet</option>
+      </select>
+
+      {erNota && (
+        <>
+          <input
+            type="number"
+            className="w-full rounded border border-gray-300 px-2 py-1 text-sm"
+            placeholder="Nummer (f.eks. 4)"
+            value={nr}
+            onChange={(e) => setNr(e.target.value)}
+          />
+          <input
+            type="text"
+            className="w-full rounded border border-gray-300 px-2 py-1 text-sm"
+            placeholder="Kontrakt (f.eks. P900512 Røstbakken)"
+            value={kontrakt}
+            onChange={(e) => setKontrakt(e.target.value)}
+          />
+        </>
+      )}
+
+      <div className="flex gap-1">
+        <button
+          onClick={() =>
+            onLagre({
+              docType: type as "anbudsgrunnlag" | "a_nota" | "t_nota" | "mengdebeskrivelse" | "annet",
+              notaType: type === "a_nota" ? "A-Nota" : type === "t_nota" ? "T-Nota" : null,
+              notaNr: nr ? parseInt(nr, 10) : null,
+              kontraktNavn: kontrakt || null,
+            })
+          }
+          className="rounded bg-sitedoc-primary px-2 py-0.5 text-xs text-white"
+        >
+          Lagre
+        </button>
+        <button
+          onClick={onAvbryt}
+          className="rounded px-2 py-0.5 text-xs text-gray-500 hover:bg-gray-100"
+        >
+          Avbryt
+        </button>
+      </div>
+    </div>
   );
 }
 
