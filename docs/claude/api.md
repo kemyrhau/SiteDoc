@@ -24,14 +24,18 @@ Alle routere i `apps/api/src/routes/`:
 | `mobilAuth` | byttToken (public, OAuth→sesjon), verifiser (m/tokenrotasjon), loggUt (sletter sesjon) |
 | `bilde` | hentForProsjekt (alle bilder via sjekklister + oppgaver, m/tilgangsfilter, inkl. parent+tegningsdata), opprettForSjekkliste |
 | `admin` | erAdmin, hentAlleProsjekter (m/sjekkliste-/oppgavetellere), hentAlleOrganisasjoner, opprettOrganisasjon, oppdaterOrganisasjon, settBrukerOrganisasjon, tilknyttProsjekt, fjernProsjektTilknytning, opprettProsjekt, hentProsjektStatistikk, slettProsjekt, slettUtlopteProsjekter, hentAlleBrukere |
-| `mengde` | hentDokumenter (m/mappetilgangsfilter), hentPerioder, hentSpecPoster (m/valgfri periode-join), hentAvviksanalyse (budsjett vs kontrakt), lagreNotat, registrerDokument (trigger prosessering via HTTP til API), reprosesser, slettDokument, slettPeriode |
-| `ftdSok` | sokDokumenter (tsvector m/norsk stemming + ILIKE fallback, mappetilgangsfilter), hentDokumentChunks, nsKoder (distinkte NS-koder), nsChunks |
+| `mengde` | hentDokumenter (m/mappetilgangsfilter), hentPerioder, hentSpecPoster (m/valgfri periode-join, sortering), hentAvviksanalyse, lagreNotat, registrerDokument (m/kontraktNavn, notaType, notaNr, trigger prosessering via HTTP), reprosesser, slettDokument (soft delete), slettPeriode |
+| `ftdSok` | sokDokumenter (tsvector m/norsk stemming + ILIKE fallback, mappetilgangsfilter), hentDokumentChunks, nsKoder, nsChunks |
 
-**FTD-prosessering** (Fastify-endepunkt `POST /prosesser/:documentId`):
-- tRPC kjører i Next.js, men prosessering kjører i API-serveren (ren Node)
-- PDF: pdf-parse v1 → tekst per side → chunking (1500 tegn, 100 overlapp) → NS 3420 poster
-- Excel: exceljs → chunks + spec-poster (auto-kolonnedeteksjon)
-- Trigger: `mappe.lastOppDokument` og `mengde.registrerDokument` kaller `/prosesser/:id` via HTTP
+**Dokumentflyt:**
+- **Mapper** → opplasting → FtdDocument → auto scanning/chunking → søkbart (dokumentsøk-modul)
+- **Økonomi** → manuell import (velg fra mapper eller last opp) → sett docType + kontrakt/nota-info → spec-poster
+
+**FTD-prosessering** (Fastify `POST /prosesser/:documentId`):
+- tRPC kjører i Next.js, prosessering i API-serveren (ren Node)
+- PDF: pdf-parse v1 → chunking → NS 3420 spec-poster (postnr-sammenslåing, enhetsdeteksjon)
+- Excel: exceljs (xlsx) + SheetJS fallback (xls) → chunks (richText/formel-håndtering) + spec-poster
+- XML: fast-xml-parser → NS3459 poster
 - Service: `apps/api/src/services/ftd-prosessering.ts`
 
 **Modulavhengighet:** Økonomi (`okonomi`) krever Dokumentsøk (`dokumentsok`). Auto-aktiveres. Deaktivering blokkeres.
