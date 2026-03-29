@@ -128,7 +128,7 @@ async function prosesserPdf(
   }
 
   // Ekstraher spec-poster fra mengdebeskrivelse/budsjett PDF (NS 3420 format)
-  if (docType === "budsjett" || docType === "mengdebeskrivelse") {
+  if (docType === "anbudsgrunnlag" || docType === "budsjett" || docType === "mengdebeskrivelse") {
     const poster = ekstraherNs3420PosterFraTekst(resultat.text, projectId, documentId);
     if (poster.length > 0) {
       await prisma.ftdSpecPost.createMany({ data: poster });
@@ -217,7 +217,7 @@ async function prosesserExcel(
   await lagExcelChunks(prisma, documentId, sheet);
 
   // Spesifikk parsing basert på docType
-  if (docType === "budsjett" || docType === "mengdebeskrivelse") {
+  if (docType === "anbudsgrunnlag" || docType === "budsjett" || docType === "mengdebeskrivelse") {
     await ekstraherSpecPoster(prisma, documentId, projectId, sheet);
   }
 }

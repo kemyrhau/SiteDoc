@@ -198,7 +198,14 @@ function DokumentListe({
     },
   });
 
+  const oppdaterMutation = trpc.mengde.oppdaterDokument.useMutation({
+    onSuccess: () => utils.mengde.hentDokumenter.invalidate({ projectId }),
+  });
+
+  const [redigerDokId, setRedigerDokId] = useState<string | null>(null);
+
   const DOC_TYPE_LABEL: Record<string, string> = {
+    anbudsgrunnlag: "Anbudsgrunnlag",
     budsjett: "Budsjett",
     a_nota: "A-nota",
     t_nota: "T-nota",
@@ -235,10 +242,41 @@ function DokumentListe({
               <FileText className="h-4 w-4 text-gray-400 shrink-0" />
               {dok.filename}
             </td>
-            <td className="px-3 py-2 text-gray-500">
-              {dok.notaType
-                ? `${dok.notaType}${dok.notaNr ? ` ${dok.notaNr}` : ""}`
-                : DOC_TYPE_LABEL[dok.docType ?? ""] ?? dok.docType ?? "—"}
+            <td className="px-3 py-2">
+              {redigerDokId === dok.id ? (
+                <select
+                  autoFocus
+                  className="rounded border border-sitedoc-primary bg-white px-2 py-1 text-sm"
+                  defaultValue={dok.docType ?? "annet"}
+                  onChange={(e) => {
+                    const nyType = e.target.value;
+                    oppdaterMutation.mutate({
+                      documentId: dok.id,
+                      docType: nyType as "anbudsgrunnlag" | "a_nota" | "t_nota" | "mengdebeskrivelse" | "annet",
+                      // Sett notaType automatisk basert på docType
+                      notaType: nyType === "a_nota" ? "A-Nota" : nyType === "t_nota" ? "T-Nota" : null,
+                    });
+                    setRedigerDokId(null);
+                  }}
+                  onBlur={() => setRedigerDokId(null)}
+                >
+                  <option value="anbudsgrunnlag">Anbudsgrunnlag</option>
+                  <option value="a_nota">A-nota</option>
+                  <option value="t_nota">T-nota</option>
+                  <option value="mengdebeskrivelse">Mengdebeskrivelse</option>
+                  <option value="annet">Annet</option>
+                </select>
+              ) : (
+                <button
+                  onClick={() => setRedigerDokId(dok.id)}
+                  className="rounded px-2 py-0.5 text-sm text-gray-600 hover:bg-gray-100"
+                  title="Klikk for å endre type"
+                >
+                  {dok.notaType
+                    ? `${dok.notaType}${dok.notaNr ? ` ${dok.notaNr}` : ""}`
+                    : DOC_TYPE_LABEL[dok.docType ?? ""] ?? dok.docType ?? "—"}
+                </button>
+              )}
             </td>
             <td className="px-3 py-2 text-gray-500">
               {dok.folder?.name ?? "—"}

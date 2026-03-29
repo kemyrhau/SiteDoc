@@ -19,7 +19,7 @@ interface ImportDialogProps {
 }
 
 const DOC_TYPES = [
-  { value: "budsjett", label: "Budsjett / Mengdebeskrivelse" },
+  { value: "anbudsgrunnlag", label: "Anbudsgrunnlag" },
   { value: "a_nota", label: "A-nota" },
   { value: "t_nota", label: "T-nota" },
   { value: "mengdebeskrivelse", label: "Mengdebeskrivelse (PDF/Word)" },
@@ -31,7 +31,7 @@ type Kilde = "last-opp" | "fra-mappe";
 export function ImportDialog({ projectId, open, onClose }: ImportDialogProps) {
   const [kilde, setKilde] = useState<Kilde>("last-opp");
   const [fil, setFil] = useState<File | null>(null);
-  const [docType, setDocType] = useState<string>("budsjett");
+  const [docType, setDocType] = useState<string>("anbudsgrunnlag");
   const [enterpriseId, setEnterpriseId] = useState<string | null>(null);
   const [folderId, setFolderId] = useState<string | null>(null);
   const [kontraktNavn, setKontraktNavn] = useState<string>("");

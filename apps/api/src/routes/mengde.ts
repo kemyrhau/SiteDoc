@@ -196,7 +196,7 @@ export const mengdeRouter = router({
         filename: z.string(),
         fileUrl: z.string(),
         filetype: z.string().optional(),
-        docType: z.enum(["budsjett", "a_nota", "t_nota", "mengdebeskrivelse", "annet"]).default("annet"),
+        docType: z.enum(["anbudsgrunnlag", "budsjett", "a_nota", "t_nota", "mengdebeskrivelse", "annet"]).default("annet"),
         kontraktNavn: z.string().optional(),
         notaType: z.enum(["A-Nota", "T-Nota", "Sluttnota"]).optional(),
         notaNr: z.number().int().optional(),
@@ -283,6 +283,24 @@ export const mengdeRouter = router({
       triggerProsessering(input.documentId);
 
       return { ok: true };
+    }),
+
+  oppdaterDokument: protectedProcedure
+    .input(
+      z.object({
+        documentId: z.string(),
+        docType: z.enum(["anbudsgrunnlag", "a_nota", "t_nota", "mengdebeskrivelse", "annet"]).optional(),
+        notaType: z.enum(["A-Nota", "T-Nota", "Sluttnota"]).nullable().optional(),
+        notaNr: z.number().int().nullable().optional(),
+        kontraktNavn: z.string().nullable().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { documentId, ...data } = input;
+      return ctx.prisma.ftdDocument.update({
+        where: { id: documentId },
+        data,
+      });
     }),
 
   fjernFraOkonomi: protectedProcedure
