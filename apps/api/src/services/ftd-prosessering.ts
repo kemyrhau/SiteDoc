@@ -1110,6 +1110,7 @@ function ekstraherNotaPosterFraPdf(
   }> = [];
 
   let tabellStartet = false;
+  let droppetPoster = 0;
 
   for (const rawLinje of linjer) {
     const linje = rawLinje.trim();
@@ -1126,7 +1127,13 @@ function ekstraherNotaPosterFraPdf(
 
     // Parse post-linje
     const pm = POSTNR_PAT.exec(linje);
-    if (!pm) continue;
+    if (!pm) {
+      // Logg linjer som har tall men ikke matcher postnr-format
+      if (/\d{1,3}(?:\s\d{3})*,\d+/.test(linje) && !/^Sum/i.test(linje)) {
+        console.warn(`[FTD-DEBUG] Ingen postnr-match, men har tall: "${linje.slice(0, 200)}"`);
+      }
+      continue;
+    }
 
     const postnr = pm[1]!;
     const restStart = pm[0].length;
@@ -1139,7 +1146,11 @@ function ekstraherNotaPosterFraPdf(
       nums.push({ value: tilDesimal(m[0]), start: m.index, end: m.index + m[0].length });
     }
 
-    if (nums.length < 11) continue; // Trenger eksakt 11 tall
+    if (nums.length < 11) {
+      droppetPoster++;
+      console.warn(`[FTD-DEBUG] Droppet post ${postnr}: fant ${nums.length}/11 tall | linje: "${linje.slice(0, 200)}"`);
+      continue;
+    }
 
     // Enhet: alfabetisk token mellom tall 0 og tall 1
     const mellom = linje.slice(nums[0]!.end, nums[1]!.start).trim();
@@ -1163,6 +1174,13 @@ function ekstraherNotaPosterFraPdf(
       verdiTotal: nums[9]!.value,
       prosentFerdig: nums[10]!.value,
     });
+  }
+
+  console.warn(`[FTD-DEBUG] Nota-oppsummering: ${poster.length} poster funnet, ${droppetPoster} droppet (< 11 tall)`);
+  if (poster.length > 0) {
+    const sumVerdiDenne = poster.reduce((s, p) => s + (p.verdiDenne ?? 0), 0);
+    const sumVerdiTotal = poster.reduce((s, p) => s + (p.verdiTotal ?? 0), 0);
+    console.warn(`[FTD-DEBUG] Sum verdiDenne: ${sumVerdiDenne.toFixed(2)}, Sum verdiTotal: ${sumVerdiTotal.toFixed(2)}`);
   }
 
   return poster;
