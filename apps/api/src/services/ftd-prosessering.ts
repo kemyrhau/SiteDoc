@@ -135,6 +135,14 @@ async function prosesserPdf(
     }
   }
 
+  // Ekstraher spec-poster fra A-nota/T-nota PDF (Proadm-format)
+  if (docType === "a_nota" || docType === "t_nota") {
+    const poster = ekstraherNotaPosterFraPdf(resultat.text, projectId, documentId);
+    if (poster.length > 0) {
+      await prisma.ftdSpecPost.createMany({ data: poster });
+    }
+  }
+
   await prisma.ftdDocument.update({
     where: { id: documentId },
     data: {
@@ -985,6 +993,135 @@ interface SpecPostRad {
   sumAnbud: number | null;
   nsKode: string | null;
   fullNsTekst: string | null;
+}
+
+/**
+ * Parser A-nota/T-nota PDF (Proadm-format).
+ *
+ * Portert fra Python: pipeline/profiles/a_nota.py
+ *
+ * Hver post er på én linje med eksakt 11 norske desimaltall:
+ *   nums[0]=mengdeAnbud, [1]=mengdeForrige, [2]=mengdeDenne, [3]=mengdeTotalt,
+ *   [4]=enhetspris, [5]=sumAnbud, [6]=verdiForrige, [7]=verdiDenne,
+ *   [8]=mvaDenne, [9]=verdiTotalt, [10]=prosentFerdig
+ *
+ * Enhet er det alfabetiske tokenet mellom nums[0] og nums[1].
+ */
+function ekstraherNotaPosterFraPdf(
+  fullTekst: string,
+  projectId: string,
+  documentId: string,
+): Array<{
+  projectId: string;
+  documentId: string;
+  postnr: string | null;
+  beskrivelse: string | null;
+  enhet: string | null;
+  mengdeAnbud: number | null;
+  enhetspris: number | null;
+  sumAnbud: number | null;
+  mengdeDenne: number | null;
+  mengdeTotal: number | null;
+  verdiDenne: number | null;
+  verdiTotal: number | null;
+  prosentFerdig: number | null;
+}> {
+  // Norsk desimaltall: "38 000,00", "1,00", "0,00"
+  const N_PAT = /\d{1,3}(?:\s\d{3})*,\d+/g;
+  // Postnr i starten av linje
+  const POSTNR_PAT = /^(\d+(?:\.\d+)*)\s+/;
+  // Enhet: kun bokstaver (RS, m2, m3, stk, lm etc.)
+  const UNIT_PAT = /^[A-Za-zÆØÅæøå²³/\-]+$/;
+  // Linjer som skal hoppes over
+  const SKIP_PATS = [
+    /^\[\[PAGE:\d+\]\]$/,
+    /^Sum\s+denne\s+side\b/i,
+    /^Sum\s+total\b/i,
+    /^Postnr\b/i,
+  ];
+
+  function tilDesimal(s: string): number {
+    return parseFloat(s.replace(/\s/g, "").replace(",", "."));
+  }
+
+  function erSkipLinje(linje: string): boolean {
+    return SKIP_PATS.some((p) => p.test(linje));
+  }
+
+  const linjer = fullTekst.split("\n");
+  const poster: Array<{
+    projectId: string;
+    documentId: string;
+    postnr: string | null;
+    beskrivelse: string | null;
+    enhet: string | null;
+    mengdeAnbud: number | null;
+    enhetspris: number | null;
+    sumAnbud: number | null;
+    mengdeDenne: number | null;
+    mengdeTotal: number | null;
+    verdiDenne: number | null;
+    verdiTotal: number | null;
+    prosentFerdig: number | null;
+  }> = [];
+
+  let tabellStartet = false;
+
+  for (const rawLinje of linjer) {
+    const linje = rawLinje.trim();
+
+    // Vent på første "Postnr Beskrivelse"-header
+    if (!tabellStartet) {
+      if (/Postnr\b/i.test(linje) && linje.includes("Beskrivelse")) {
+        tabellStartet = true;
+      }
+      continue;
+    }
+
+    if (!linje || erSkipLinje(linje)) continue;
+
+    // Parse post-linje
+    const pm = POSTNR_PAT.exec(linje);
+    if (!pm) continue;
+
+    const postnr = pm[1]!;
+    const restStart = pm[0].length;
+
+    // Finn alle norske desimaltall på linjen
+    const nums: Array<{ value: number; start: number; end: number }> = [];
+    N_PAT.lastIndex = 0;
+    let m: RegExpExecArray | null;
+    while ((m = N_PAT.exec(linje)) !== null) {
+      nums.push({ value: tilDesimal(m[0]), start: m.index, end: m.index + m[0].length });
+    }
+
+    if (nums.length < 11) continue; // Trenger eksakt 11 tall
+
+    // Enhet: alfabetisk token mellom tall 0 og tall 1
+    const mellom = linje.slice(nums[0]!.end, nums[1]!.start).trim();
+    const enhet = mellom && UNIT_PAT.test(mellom) && mellom.length <= 10 ? mellom : null;
+
+    // Beskrivelse: tekst mellom postnr og første tall
+    const beskrivelse = linje.slice(restStart, nums[0]!.start).trim();
+
+    poster.push({
+      projectId,
+      documentId,
+      postnr,
+      beskrivelse: beskrivelse.slice(0, 500) || null,
+      enhet,
+      mengdeAnbud: nums[0]!.value,
+      enhetspris: nums[4]!.value,
+      sumAnbud: nums[5]!.value,
+      mengdeDenne: nums[2]!.value,
+      mengdeTotal: nums[3]!.value,
+      verdiDenne: nums[7]!.value,
+      verdiTotal: nums[9]!.value,
+      prosentFerdig: nums[10]!.value,
+    });
+  }
+
+  return poster;
 }
 
 function ekstraherNs3420PosterFraTekst(
