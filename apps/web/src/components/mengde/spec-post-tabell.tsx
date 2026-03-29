@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { ChevronUp, ChevronDown, X } from "lucide-react";
 
 interface SpecPost {
@@ -61,6 +61,8 @@ export function SpecPostTabell({
   const [sorterRetning, setSorterRetning] = useState<SorterRetning>("asc");
   const [detaljPost, setDetaljPost] = useState<string | null>(null);
 
+  const valgtRadRef = useRef<HTMLTableRowElement>(null);
+
   const harSammenligning = !!sammenligningPoster && sammenligningPoster.length > 0;
 
   const notaMap = useMemo(() => {
@@ -98,6 +100,32 @@ export function SpecPostTabell({
       return sorterRetning === "asc" ? cmp : -cmp;
     });
   }, [rader, sorterFelt, sorterRetning]);
+
+  // Piltast-navigering
+  const navigerRad = useCallback(
+    (retning: "opp" | "ned") => {
+      if (!valgtPostId || !sorterteRader.length) return;
+      const idx = sorterteRader.findIndex((r) => r.budsjett.id === valgtPostId);
+      if (idx === -1) return;
+      const nyIdx = retning === "opp" ? Math.max(0, idx - 1) : Math.min(sorterteRader.length - 1, idx + 1);
+      if (nyIdx !== idx) onVelgPost(sorterteRader[nyIdx]!.budsjett.id);
+    },
+    [valgtPostId, sorterteRader, onVelgPost],
+  );
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "ArrowUp") { e.preventDefault(); navigerRad("opp"); }
+      else if (e.key === "ArrowDown") { e.preventDefault(); navigerRad("ned"); }
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [navigerRad]);
+
+  // Scroll valgt rad inn i synsfeltet
+  useEffect(() => {
+    valgtRadRef.current?.scrollIntoView({ block: "nearest" });
+  }, [valgtPostId]);
 
   function toggleSortering(felt: SorterFelt) {
     if (sorterFelt === felt) setSorterRetning((r) => (r === "asc" ? "desc" : "asc"));
@@ -172,6 +200,7 @@ export function SpecPostTabell({
               return (
                 <tr
                   key={p.id}
+                  ref={valgtPostId === p.id ? valgtRadRef : undefined}
                   onClick={() => onVelgPost(p.id)}
                   onDoubleClick={() => setDetaljPost(p.id)}
                   className={`cursor-pointer border-b transition-colors ${
