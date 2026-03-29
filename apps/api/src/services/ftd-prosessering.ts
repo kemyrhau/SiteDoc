@@ -1172,20 +1172,33 @@ function ekstraherBudsjettPosterFraPdf(
       alleTall.push({ val: tilTall(raw), start: tallMatch.index, end: tallMatch.index + raw.length });
     }
 
-    // Trenger minst 3 tall, og de to siste MÅ ha komma (pris + sum)
-    if (alleTall.length >= 3 && gjeldende) {
-      const n = alleTall.slice(-3);
-      // Verifiser at pris og sum er desimaltall (har komma)
-      const prisRaw = linje.slice(n[1]!.start, n[1]!.end);
-      const sumRaw = linje.slice(n[2]!.start, n[2]!.end);
+    // Trenger minst 2 tall (RS-poster har kun pris+sum, mengde=1)
+    if (alleTall.length >= 2 && gjeldende) {
+      // Sjekk om de to siste tallene har komma (pris + sum)
+      const sisteTo = alleTall.slice(-2);
+      const prisRaw = linje.slice(sisteTo[0]!.start, sisteTo[0]!.end);
+      const sumRaw = linje.slice(sisteTo[1]!.start, sisteTo[1]!.end);
       if (!prisRaw.includes(",") || !sumRaw.includes(",")) continue;
 
-      const mengde = n[0]!.val;
-      const pris = n[1]!.val;
-      const sum = n[2]!.val;
+      let mengde: number;
+      let pris: number;
+      let sum: number;
+
+      if (alleTall.length >= 3) {
+        const n = alleTall.slice(-3);
+        mengde = n[0]!.val;
+        pris = n[1]!.val;
+        sum = n[2]!.val;
+      } else {
+        // RS-poster: kun pris + sum, mengde = 1
+        mengde = 1;
+        pris = sisteTo[0]!.val;
+        sum = sisteTo[1]!.val;
+      }
 
       // Finn enhet: token rett før mengde-tallet
-      const forMengde = linje.slice(0, n[0]!.start).trim();
+      const mengdeStart = alleTall.length >= 3 ? alleTall.slice(-3)[0]!.start : sisteTo[0]!.start;
+      const forMengde = linje.slice(0, mengdeStart).trim();
       const forTokens = forMengde.split(/\s+/);
       const enhetKandidat = forTokens[forTokens.length - 1] ?? "";
 
