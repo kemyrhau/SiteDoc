@@ -219,6 +219,8 @@ async function prosesserExcel(
   // Spesifikk parsing basert på docType
   if (docType === "anbudsgrunnlag" || docType === "budsjett" || docType === "mengdebeskrivelse") {
     await ekstraherSpecPoster(prisma, documentId, projectId, sheet);
+  } else if (docType === "a_nota" || docType === "t_nota") {
+    await ekstraherNotaPoster(prisma, documentId, projectId, sheet);
   }
 }
 
@@ -458,6 +460,144 @@ async function ekstraherSpecPoster(
   if (poster.length > 0) {
     await prisma.ftdSpecPost.createMany({ data: poster });
   }
+}
+
+/**
+ * Ekstraher spec-poster fra Proadm A-nota/T-nota Excel.
+ *
+ * Proadm-formatet har header i rad 13 (typisk):
+ *   A: Postnr, B-F: Beskrivelse (gjentatt), G: Mengde Anbudet, H: Enhet,
+ *   I: Mengde forrige, J: Mengde denne, K: Mengde totalt, L: (duplikat),
+ *   M: Enhetspris, N: Sum Anbudet, O: Verdi forrige, P: Verdi denne,
+ *   Q: Mva denne, R: Verdi totalt, S: Utført %
+ *
+ * Detekterer header automatisk ved å søke etter "Postnr" i kolonne A.
+ */
+async function ekstraherNotaPoster(
+  prisma: PrismaClient,
+  documentId: string,
+  projectId: string,
+  sheet: import("exceljs").Worksheet,
+): Promise<void> {
+  // Finn header-raden (søk etter "Postnr" i kolonne A)
+  let headerRad = 0;
+  for (let r = 1; r <= Math.min(20, sheet.rowCount); r++) {
+    const v = excelCelleTilTekst(sheet.getRow(r).getCell(1).value).trim();
+    if (/postnr/i.test(v)) {
+      headerRad = r;
+      break;
+    }
+  }
+  // Fallback: rad 13 er standard i Proadm
+  if (!headerRad) headerRad = 13;
+
+  // Detekter kolonner fra header
+  const headerRow = sheet.getRow(headerRad);
+  const kolonner: Record<string, number> = {};
+  headerRow.eachCell((cell, col) => {
+    const v = excelCelleTilTekst(cell.value).toLowerCase().trim();
+    if (v === "postnr" && !kolonner.postnr) kolonner.postnr = col;
+    else if (v.includes("beskrivelse") && !kolonner.beskrivelse) kolonner.beskrivelse = col;
+    else if (v === "enh" || v === "enhet") kolonner.enhet = col;
+    else if (v === "enhetspris") kolonner.enhetspris = col;
+    else if (v.includes("anbudet") && !kolonner.mengdeAnbud) {
+      // Sjekk om parent-header (rad over) sier "Mengder" eller "Verdi"
+      const overVerdi = excelCelleTilTekst(sheet.getRow(headerRad - 1).getCell(col).value).toLowerCase();
+      if (overVerdi.includes("mengd")) kolonner.mengdeAnbud = col;
+      else if (overVerdi.includes("verdi")) kolonner.sumAnbud = col;
+      else if (!kolonner.mengdeAnbud) kolonner.mengdeAnbud = col;
+    }
+    else if (v.includes("denne per") && !kolonner.mengdeDenne) {
+      const overVerdi = excelCelleTilTekst(sheet.getRow(headerRad - 1).getCell(col).value).toLowerCase();
+      if (overVerdi.includes("mengd")) kolonner.mengdeDenne = col;
+      else if (overVerdi.includes("verdi")) kolonner.verdiDenne = col;
+      else if (!kolonner.mengdeDenne) kolonner.mengdeDenne = col;
+    }
+    else if (v.includes("totalt") && !kolonner.mengdeTotal) {
+      const overVerdi = excelCelleTilTekst(sheet.getRow(headerRad - 1).getCell(col).value).toLowerCase();
+      if (overVerdi.includes("mengd")) kolonner.mengdeTotal = col;
+      else if (overVerdi.includes("verdi")) kolonner.verdiTotal = col;
+      else if (!kolonner.mengdeTotal) kolonner.mengdeTotal = col;
+    }
+    else if (v.includes("utført") && v.includes("%")) kolonner.prosentFerdig = col;
+  });
+
+  // Fallback til Proadm standard kolonner hvis deteksjon feilet
+  if (!kolonner.postnr) kolonner.postnr = 1;
+  if (!kolonner.beskrivelse) kolonner.beskrivelse = 2;
+  if (!kolonner.mengdeAnbud) kolonner.mengdeAnbud = 7;
+  if (!kolonner.enhet) kolonner.enhet = 8;
+  if (!kolonner.mengdeDenne) kolonner.mengdeDenne = 10;
+  if (!kolonner.mengdeTotal) kolonner.mengdeTotal = 11;
+  if (!kolonner.enhetspris) kolonner.enhetspris = 13;
+  if (!kolonner.sumAnbud) kolonner.sumAnbud = 14;
+  if (!kolonner.verdiDenne) kolonner.verdiDenne = 16;
+  if (!kolonner.verdiTotal) kolonner.verdiTotal = 18;
+  if (!kolonner.prosentFerdig) kolonner.prosentFerdig = 19;
+
+  const poster: Array<{
+    projectId: string;
+    documentId: string;
+    postnr: string | null;
+    beskrivelse: string | null;
+    enhet: string | null;
+    mengdeAnbud: number | null;
+    enhetspris: number | null;
+    sumAnbud: number | null;
+    mengdeDenne: number | null;
+    mengdeTotal: number | null;
+    verdiDenne: number | null;
+    verdiTotal: number | null;
+    prosentFerdig: number | null;
+  }> = [];
+
+  sheet.eachRow((row, radNr) => {
+    if (radNr <= headerRad) return;
+
+    const postnr = excelCelleTilTekst(row.getCell(kolonner.postnr!).value).trim();
+    if (!postnr || !/^\d/.test(postnr)) return; // Hopp over ikke-poster
+
+    const beskrivelse = excelCelleTilTekst(row.getCell(kolonner.beskrivelse!).value).trim();
+
+    poster.push({
+      projectId,
+      documentId,
+      postnr: postnr || null,
+      beskrivelse: beskrivelse || null,
+      enhet: excelCelleTilTekst(row.getCell(kolonner.enhet!).value).trim() || null,
+      mengdeAnbud: cellDesimalRaw(row.getCell(kolonner.mengdeAnbud!).value),
+      enhetspris: cellDesimalRaw(row.getCell(kolonner.enhetspris!).value),
+      sumAnbud: cellDesimalRaw(row.getCell(kolonner.sumAnbud!).value),
+      mengdeDenne: cellDesimalRaw(row.getCell(kolonner.mengdeDenne!).value),
+      mengdeTotal: cellDesimalRaw(row.getCell(kolonner.mengdeTotal!).value),
+      verdiDenne: cellDesimalRaw(row.getCell(kolonner.verdiDenne!).value),
+      verdiTotal: cellDesimalRaw(row.getCell(kolonner.verdiTotal!).value),
+      prosentFerdig: cellDesimalRaw(row.getCell(kolonner.prosentFerdig!).value),
+    });
+  });
+
+  if (poster.length > 0) {
+    await prisma.ftdSpecPost.createMany({ data: poster });
+  }
+}
+
+/** Hent desimalverdi direkte fra celleverdi (støtter number, formel-resultat, streng) */
+function cellDesimalRaw(v: unknown): number | null {
+  if (v === null || v === undefined) return null;
+  if (typeof v === "number") return v;
+  if (typeof v === "object" && v !== null) {
+    const obj = v as Record<string, unknown>;
+    if ("result" in obj && typeof obj.result === "number") return obj.result;
+    if ("result" in obj && typeof obj.result === "string") {
+      const n = parseFloat(obj.result.replace(/\s/g, "").replace(",", "."));
+      return isNaN(n) ? null : n;
+    }
+  }
+  if (typeof v === "string") {
+    const n = parseFloat(v.replace(/\s/g, "").replace(",", "."));
+    return isNaN(n) ? null : n;
+  }
+  return null;
 }
 
 // --------------------------------------------------------------------------

@@ -11,6 +11,11 @@ interface SpecPost {
   mengdeAnbud: unknown;
   enhetspris: unknown;
   sumAnbud: unknown;
+  mengdeDenne?: unknown;
+  mengdeTotal?: unknown;
+  verdiDenne?: unknown;
+  verdiTotal?: unknown;
+  prosentFerdig?: unknown;
   nsKode: string | null;
   nsTittel: string | null;
   fullNsTekst: string | null;
@@ -37,9 +42,11 @@ type SorterRetning = "asc" | "desc";
 interface SammenlignetRad {
   budsjett: SpecPost;
   nota: SpecPost | null;
-  mengdeNota: number;
-  sumNota: number;
-  mengdeAvvik: number;
+  mengdeDenne: number;
+  mengdeTotal: number;
+  verdiDenne: number;
+  verdiTotal: number;
+  prosentFerdig: number;
   sumAvvik: number;
 }
 
@@ -70,17 +77,21 @@ export function SpecPostTabell({
   const rader: SammenlignetRad[] = useMemo(() => {
     return poster.map((budsjett) => {
       const nota = budsjett.postnr ? (notaMap.get(budsjett.postnr) ?? null) : null;
-      const mengdeBudsjett = Number(budsjett.mengdeAnbud ?? 0);
       const sumBudsjett = Number(budsjett.sumAnbud ?? 0);
-      const mengdeNota = nota ? Number(nota.mengdeAnbud ?? 0) : 0;
-      const sumNota = nota ? Number(nota.sumAnbud ?? 0) : 0;
+      const mengdeDenne = nota ? Number(nota.mengdeDenne ?? 0) : 0;
+      const mengdeTotal = nota ? Number(nota.mengdeTotal ?? 0) : 0;
+      const verdiDenne = nota ? Number(nota.verdiDenne ?? 0) : 0;
+      const verdiTotal = nota ? Number(nota.verdiTotal ?? 0) : 0;
+      const prosentFerdig = nota ? Number(nota.prosentFerdig ?? 0) : 0;
       return {
         budsjett,
         nota,
-        mengdeNota,
-        sumNota,
-        mengdeAvvik: mengdeNota - mengdeBudsjett,
-        sumAvvik: sumNota - sumBudsjett,
+        mengdeDenne,
+        mengdeTotal,
+        verdiDenne,
+        verdiTotal,
+        prosentFerdig,
+        sumAvvik: verdiTotal - sumBudsjett,
       };
     });
   }, [poster, notaMap]);
@@ -127,8 +138,9 @@ export function SpecPostTabell({
 
   // Totaler
   const totalBudsjett = rader.reduce((s, r) => s + Number(r.budsjett.sumAnbud ?? 0), 0);
-  const totalNota = harSammenligning ? rader.reduce((s, r) => s + r.sumNota, 0) : 0;
-  const totalAvvik = harSammenligning ? totalNota - totalBudsjett : 0;
+  const totalVerdiDenne = harSammenligning ? rader.reduce((s, r) => s + r.verdiDenne, 0) : 0;
+  const totalVerdiTotal = harSammenligning ? rader.reduce((s, r) => s + r.verdiTotal, 0) : 0;
+  const totalAvvik = harSammenligning ? totalVerdiTotal - totalBudsjett : 0;
 
   return (
     <div className="flex h-full flex-col rounded border">
@@ -146,9 +158,12 @@ export function SpecPostTabell({
             {harSammenligning && (
               <>
                 <th className="w-px bg-gray-300" />
-                <th className="w-[100px] px-2 py-2 text-right text-blue-600">Mengde {sammenligningLabel}</th>
-                <th className="w-[110px] px-2 py-2 text-right text-blue-600">Sum {sammenligningLabel}</th>
-                <th className="w-[100px] px-2 py-2 text-right">Avvik</th>
+                <th className="w-[90px] px-2 py-2 text-right text-blue-600">Mengde denne</th>
+                <th className="w-[90px] px-2 py-2 text-right text-blue-600">Sum denne</th>
+                <th className="w-[90px] px-2 py-2 text-right text-blue-600">Mengde totalt</th>
+                <th className="w-[100px] px-2 py-2 text-right text-blue-600">Sum totalt</th>
+                <th className="w-[55px] px-2 py-2 text-right text-blue-600">%</th>
+                <th className="w-[90px] px-2 py-2 text-right">Avvik</th>
               </>
             )}
           </tr>
@@ -194,13 +209,22 @@ export function SpecPostTabell({
                   {harSammenligning && (
                     <>
                       <td className="w-px bg-gray-200" />
+                      <td className="w-[90px] px-2 py-2 text-right font-mono text-blue-700">
+                        {rad.nota ? formaterTall(rad.mengdeDenne, 2) : "—"}
+                      </td>
+                      <td className="w-[90px] px-2 py-2 text-right font-mono text-blue-700">
+                        {rad.nota ? formaterTall(rad.verdiDenne, 2) : "—"}
+                      </td>
+                      <td className="w-[90px] px-2 py-2 text-right font-mono text-blue-700">
+                        {rad.nota ? formaterTall(rad.mengdeTotal, 2) : "—"}
+                      </td>
                       <td className="w-[100px] px-2 py-2 text-right font-mono text-blue-700">
-                        {rad.nota ? formaterTall(rad.mengdeNota, 2) : "—"}
+                        {rad.nota ? formaterTall(rad.verdiTotal, 2) : "—"}
                       </td>
-                      <td className="w-[110px] px-2 py-2 text-right font-mono text-blue-700">
-                        {rad.nota ? formaterTall(rad.sumNota, 2) : "—"}
+                      <td className="w-[55px] px-2 py-2 text-right font-mono text-blue-700">
+                        {rad.nota ? formaterTall(rad.prosentFerdig, 0) : "—"}
                       </td>
-                      <td className={`w-[100px] px-2 py-2 text-right font-mono ${
+                      <td className={`w-[90px] px-2 py-2 text-right font-mono ${
                         rad.sumAvvik > 0 ? "text-red-600" : rad.sumAvvik < 0 ? "text-green-600" : ""
                       }`}>
                         {rad.nota ? formaterTall(rad.sumAvvik, 2) : "—"}
@@ -230,11 +254,16 @@ export function SpecPostTabell({
             {harSammenligning && (
               <>
                 <td className="w-px" />
-                <td className="w-[100px] px-2 py-2" />
-                <td className="w-[110px] px-2 py-2 text-right font-mono text-blue-700">
-                  {formaterTall(totalNota, 2)}
+                <td className="w-[90px] px-2 py-2" />
+                <td className="w-[90px] px-2 py-2 text-right font-mono text-blue-700">
+                  {formaterTall(totalVerdiDenne, 2)}
                 </td>
-                <td className={`w-[100px] px-2 py-2 text-right font-mono ${
+                <td className="w-[90px] px-2 py-2" />
+                <td className="w-[100px] px-2 py-2 text-right font-mono text-blue-700">
+                  {formaterTall(totalVerdiTotal, 2)}
+                </td>
+                <td className="w-[55px] px-2 py-2" />
+                <td className={`w-[90px] px-2 py-2 text-right font-mono ${
                   totalAvvik > 0 ? "text-red-600" : totalAvvik < 0 ? "text-green-600" : ""
                 }`}>
                   {formaterTall(totalAvvik, 2)}
@@ -289,10 +318,15 @@ export function SpecPostTabell({
                   </div>
                   {harSammenligning && rad.nota && (
                     <div className="rounded bg-blue-50 p-3">
-                      <div className="text-xs text-blue-600">Sum {sammenligningLabel}</div>
-                      <div className="text-base font-semibold font-mono text-blue-700">{formaterTall(rad.sumNota, 2)}</div>
-                      <div className={`mt-1 text-xs font-mono ${rad.sumAvvik > 0 ? "text-red-600" : rad.sumAvvik < 0 ? "text-green-600" : "text-gray-500"}`}>
-                        Avvik: {formaterTall(rad.sumAvvik, 2)}
+                      <div className="text-xs text-blue-600">{sammenligningLabel}</div>
+                      <div className="mt-1 grid grid-cols-2 gap-2 text-xs">
+                        <div><span className="text-gray-500">Mengde denne:</span> <span className="font-mono">{formaterTall(rad.mengdeDenne, 2)}</span></div>
+                        <div><span className="text-gray-500">Verdi denne:</span> <span className="font-mono">{formaterTall(rad.verdiDenne, 2)}</span></div>
+                        <div><span className="text-gray-500">Mengde totalt:</span> <span className="font-mono">{formaterTall(rad.mengdeTotal, 2)}</span></div>
+                        <div><span className="text-gray-500">Verdi totalt:</span> <span className="font-mono font-semibold">{formaterTall(rad.verdiTotal, 2)}</span></div>
+                      </div>
+                      <div className={`mt-2 text-xs font-mono ${rad.sumAvvik > 0 ? "text-red-600" : rad.sumAvvik < 0 ? "text-green-600" : "text-gray-500"}`}>
+                        Avvik: {formaterTall(rad.sumAvvik, 2)} ({formaterTall(rad.prosentFerdig, 0)}% ferdig)
                       </div>
                     </div>
                   )}

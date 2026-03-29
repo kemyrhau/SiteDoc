@@ -836,19 +836,24 @@ model FtdDocumentChunk {
 }
 
 model FtdSpecPost {
-  id           String   @id @default(cuid())
-  projectId    String   @map("project_id")
-  documentId   String?  @map("document_id")
-  postnr       String?
-  beskrivelse  String?
-  enhet        String?
-  mengdeAnbud  Decimal? @map("mengde_anbud") @db.Decimal(18, 2)
-  enhetspris   Decimal? @db.Decimal(18, 2)
-  sumAnbud     Decimal? @map("sum_anbud") @db.Decimal(18, 2)
-  nsKode       String?  @map("ns_kode")
-  nsTittel     String?  @map("ns_tittel")
-  fullNsTekst  String?  @map("full_ns_tekst")
-  eksternNotat String?  @map("ekstern_notat")
+  id            String   @id @default(cuid())
+  projectId     String   @map("project_id")
+  documentId    String?  @map("document_id")
+  postnr        String?
+  beskrivelse   String?
+  enhet         String?
+  mengdeAnbud   Decimal? @map("mengde_anbud") @db.Decimal(18, 2)
+  enhetspris    Decimal? @db.Decimal(18, 2)
+  sumAnbud      Decimal? @map("sum_anbud") @db.Decimal(18, 2)
+  mengdeDenne   Decimal? @map("mengde_denne") @db.Decimal(18, 2)
+  mengdeTotal   Decimal? @map("mengde_total") @db.Decimal(18, 2)
+  verdiDenne    Decimal? @map("verdi_denne") @db.Decimal(18, 2)
+  verdiTotal    Decimal? @map("verdi_total") @db.Decimal(18, 2)
+  prosentFerdig Decimal? @map("prosent_ferdig") @db.Decimal(18, 2)
+  nsKode        String?  @map("ns_kode")
+  nsTittel      String?  @map("ns_tittel")
+  fullNsTekst   String?  @map("full_ns_tekst")
+  eksternNotat  String?  @map("ekstern_notat")
 
   project     Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
   document    FtdDocument?     @relation(fields: [documentId], references: [id], onDelete: SetNull)
