@@ -155,8 +155,9 @@ async function prosesserExcel(
   docType: string,
   projectId: string,
 ): Promise<void> {
-  const ExcelJS = await import("exceljs");
-  const workbook = new ExcelJS.Workbook();
+  const ExcelJSModule = await import("exceljs");
+  const ExcelJS = (ExcelJSModule as Record<string, unknown>).default ?? ExcelJSModule;
+  const workbook = new (ExcelJS as { Workbook: new () => import("exceljs").Workbook }).Workbook();
   await workbook.xlsx.load(buffer as unknown as ArrayBuffer);
 
   const sheet = workbook.worksheets[0];
