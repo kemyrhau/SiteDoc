@@ -126,13 +126,13 @@ export function SpecPostTabell({
                 </td>
                 <td className="w-[70px] px-3 py-2">{post.enhet ?? "—"}</td>
                 <td className="w-[120px] px-3 py-2 text-right font-mono">
-                  {formaterTall(post.mengdeAnbud)}
+                  {formaterTall(post.mengdeAnbud, 2)}
                 </td>
                 <td className="w-[100px] px-3 py-2 text-right font-mono">
-                  {formaterTall(post.enhetspris)}
+                  {formaterTall(post.enhetspris, 2)}
                 </td>
                 <td className="w-[110px] px-3 py-2 text-right font-mono">
-                  {formaterTall(post.sumAnbud)}
+                  {formaterTall(post.sumAnbud, 2)}
                 </td>
               </tr>
             ))}
@@ -170,17 +170,17 @@ export function SpecPostTabell({
                   </div>
                   <div className="rounded bg-gray-50 p-3">
                     <div className="text-xs text-gray-500">Mengde anbud</div>
-                    <div className="text-sm font-medium font-mono">{formaterTall(post.mengdeAnbud)}</div>
+                    <div className="text-sm font-medium font-mono">{formaterTall(post.mengdeAnbud, 2)}</div>
                   </div>
                   <div className="rounded bg-gray-50 p-3">
                     <div className="text-xs text-gray-500">Enhetspris</div>
-                    <div className="text-sm font-medium font-mono">{formaterTall(post.enhetspris)}</div>
+                    <div className="text-sm font-medium font-mono">{formaterTall(post.enhetspris, 2)}</div>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="rounded bg-blue-50 p-3">
                     <div className="text-xs text-gray-500">Sum anbud</div>
-                    <div className="text-base font-semibold font-mono">{formaterTall(post.sumAnbud)}</div>
+                    <div className="text-base font-semibold font-mono">{formaterTall(post.sumAnbud, 2)}</div>
                   </div>
                   {post.nsKode && (
                     <div className="rounded bg-amber-50 p-3">
@@ -258,9 +258,12 @@ function SorterHeader({
   );
 }
 
-function formaterTall(verdi: unknown): string {
+function formaterTall(verdi: unknown, desimaler = 0): string {
   if (verdi === null || verdi === undefined) return "—";
   const num = Number(verdi);
   if (isNaN(num)) return "—";
-  return num.toLocaleString("nb-NO", { maximumFractionDigits: 0 });
+  return num.toLocaleString("nb-NO", {
+    minimumFractionDigits: desimaler,
+    maximumFractionDigits: desimaler,
+  });
 }
