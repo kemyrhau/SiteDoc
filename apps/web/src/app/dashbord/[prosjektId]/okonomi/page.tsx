@@ -480,18 +480,10 @@ function DokumentTypeEditor({
         <option value="annet">Annet</option>
       </select>
 
-      {erNota && (
-        <>
-          <input
-            type="number"
-            className="w-full rounded border border-gray-300 px-2 py-1 text-sm"
-            placeholder="Nummer (f.eks. 4)"
-            value={nr}
-            onChange={(e) => setNr(e.target.value)}
-          />
-          <select
-            className="w-full rounded border border-gray-300 bg-white px-2 py-1 text-sm"
-            value={kontraktNavn}
+      {/* Kontrakt — for alle typer */}
+      <select
+        className="w-full rounded border border-gray-300 bg-white px-2 py-1 text-sm"
+        value={kontraktNavn}
             onChange={(e) => setKontraktNavn(e.target.value)}
           >
             <option value="">Velg kontrakt...</option>
@@ -499,7 +491,16 @@ function DokumentTypeEditor({
               <option key={k.id} value={k.navn}>{k.navn}</option>
             ))}
           </select>
-        </>
+
+      {/* Nota-nummer — kun for A-nota/T-nota */}
+      {erNota && (
+        <input
+          type="number"
+          className="w-full rounded border border-gray-300 px-2 py-1 text-sm"
+          placeholder="Nummer (f.eks. 4)"
+          value={nr}
+          onChange={(e) => setNr(e.target.value)}
+        />
       )}
 
       <div className="flex gap-1">
