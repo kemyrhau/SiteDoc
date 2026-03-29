@@ -581,23 +581,33 @@ async function ekstraherNotaPoster(
   }
 }
 
-/** Hent desimalverdi direkte fra celleverdi (støtter number, formel-resultat, streng) */
+/** Hent desimalverdi direkte fra celleverdi (støtter number, formel-resultat, richText, streng) */
 function cellDesimalRaw(v: unknown): number | null {
   if (v === null || v === undefined) return null;
   if (typeof v === "number") return v;
   if (typeof v === "object" && v !== null) {
     const obj = v as Record<string, unknown>;
+    // Formel-resultat
     if ("result" in obj && typeof obj.result === "number") return obj.result;
     if ("result" in obj && typeof obj.result === "string") {
-      const n = parseFloat(obj.result.replace(/\s/g, "").replace(",", "."));
-      return isNaN(n) ? null : n;
+      return parsNorskTall(obj.result);
+    }
+    // richText: { richText: [{ text: "7 500,00" }] }
+    if ("richText" in obj && Array.isArray(obj.richText)) {
+      const tekst = (obj.richText as Array<{ text?: string }>).map((r) => r.text ?? "").join("");
+      return parsNorskTall(tekst);
     }
   }
-  if (typeof v === "string") {
-    const n = parseFloat(v.replace(/\s/g, "").replace(",", "."));
-    return isNaN(n) ? null : n;
-  }
+  if (typeof v === "string") return parsNorskTall(v);
   return null;
+}
+
+/** Parser norsk tallformat: "7 500,00" → 7500, "1 200" → 1200 */
+function parsNorskTall(s: string): number | null {
+  const renset = s.replace(/\s/g, "").replace(",", ".");
+  if (!renset) return null;
+  const n = parseFloat(renset);
+  return isNaN(n) ? null : n;
 }
 
 // --------------------------------------------------------------------------
