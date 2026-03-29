@@ -196,6 +196,9 @@ export const mengdeRouter = router({
         fileUrl: z.string(),
         filetype: z.string().optional(),
         docType: z.enum(["budsjett", "a_nota", "t_nota", "mengdebeskrivelse", "annet"]).default("annet"),
+        kontraktNavn: z.string().optional(),
+        notaType: z.enum(["A-Nota", "T-Nota", "Sluttnota"]).optional(),
+        notaNr: z.number().int().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -222,6 +225,9 @@ export const mengdeRouter = router({
             fileUrl: input.fileUrl,
             filetype: input.filetype ?? null,
             docType: input.docType,
+            kontraktNavn: input.kontraktNavn ?? null,
+            notaType: input.notaType ?? null,
+            notaNr: input.notaNr ?? null,
             processingState: "pending",
             processingError: null,
           },
@@ -238,6 +244,9 @@ export const mengdeRouter = router({
             fileUrl: input.fileUrl,
             filetype: input.filetype ?? null,
             docType: input.docType,
+            kontraktNavn: input.kontraktNavn ?? null,
+            notaType: input.notaType ?? null,
+            notaNr: input.notaNr ?? null,
           },
         });
       }

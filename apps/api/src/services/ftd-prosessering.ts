@@ -216,9 +216,6 @@ async function prosesserExcel(
   // Lag chunks av celleinnhold for søk (alle typer)
   await lagExcelChunks(prisma, documentId, sheet);
 
-  // Auto-detekter kontrakt/nota-info fra header
-  await detekterNotaInfo(prisma, documentId, sheet);
-
   // Spesifikk parsing basert på docType
   if (docType === "budsjett" || docType === "mengdebeskrivelse") {
     await ekstraherSpecPoster(prisma, documentId, projectId, sheet);

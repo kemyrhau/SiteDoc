@@ -34,6 +34,9 @@ export function ImportDialog({ projectId, open, onClose }: ImportDialogProps) {
   const [docType, setDocType] = useState<string>("budsjett");
   const [enterpriseId, setEnterpriseId] = useState<string | null>(null);
   const [folderId, setFolderId] = useState<string | null>(null);
+  const [kontraktNavn, setKontraktNavn] = useState<string>("");
+  const [notaType, setNotaType] = useState<string>("");
+  const [notaNr, setNotaNr] = useState<string>("");
   const [lasterOpp, setLasterOpp] = useState(false);
   const [feil, setFeil] = useState<string | null>(null);
   const [dragAktiv, setDragAktiv] = useState(false);
@@ -137,6 +140,9 @@ export function ImportDialog({ projectId, open, onClose }: ImportDialogProps) {
             | "t_nota"
             | "mengdebeskrivelse"
             | "annet",
+          ...(notaType ? { notaType: notaType as "A-Nota" | "T-Nota" | "Sluttnota" } : {}),
+          ...(notaNr ? { notaNr: parseInt(notaNr, 10) } : {}),
+          ...(kontraktNavn ? { kontraktNavn } : {}),
         },
         {
           onSuccess: () => {
@@ -179,6 +185,9 @@ export function ImportDialog({ projectId, open, onClose }: ImportDialogProps) {
             | "t_nota"
             | "mengdebeskrivelse"
             | "annet",
+          ...(notaType ? { notaType: notaType as "A-Nota" | "T-Nota" | "Sluttnota" } : {}),
+          ...(notaNr ? { notaNr: parseInt(notaNr, 10) } : {}),
+          ...(kontraktNavn ? { kontraktNavn } : {}),
         });
         importert++;
       } catch {
@@ -265,17 +274,45 @@ export function ImportDialog({ projectId, open, onClose }: ImportDialogProps) {
             </select>
           </div>
 
-          {/* Entreprise (valgfritt, for nota-typer) */}
+          {/* Kontrakt og nota-info (for nota-typer) */}
           {(docType === "a_nota" || docType === "t_nota") && (
-            <div>
-              <label className="mb-1 block text-xs font-medium text-gray-500">
-                Entreprise
-              </label>
-              <EntrepriseVelger
-                projectId={projectId}
-                value={enterpriseId}
-                onChange={setEnterpriseId}
-              />
+            <div className="space-y-3 rounded border border-blue-100 bg-blue-50/30 p-3">
+              <div className="text-xs font-medium text-gray-600">Nota-registrering</div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="mb-1 block text-xs text-gray-500">Type</label>
+                  <select
+                    className="w-full rounded border border-gray-300 bg-white px-3 py-1.5 text-sm"
+                    value={notaType}
+                    onChange={(e) => setNotaType(e.target.value)}
+                  >
+                    <option value="">Velg type...</option>
+                    <option value="A-Nota">A-Nota</option>
+                    <option value="T-Nota">T-Nota</option>
+                    <option value="Sluttnota">Sluttnota</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs text-gray-500">Nummer</label>
+                  <input
+                    type="number"
+                    className="w-full rounded border border-gray-300 px-3 py-1.5 text-sm"
+                    placeholder="f.eks. 4"
+                    value={notaNr}
+                    onChange={(e) => setNotaNr(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs text-gray-500">Kontrakt / Prosjekt</label>
+                <input
+                  type="text"
+                  className="w-full rounded border border-gray-300 px-3 py-1.5 text-sm"
+                  placeholder="f.eks. P900512 Røstbakken VVA"
+                  value={kontraktNavn}
+                  onChange={(e) => setKontraktNavn(e.target.value)}
+                />
+              </div>
             </div>
           )}
 
