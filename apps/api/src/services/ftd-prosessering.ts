@@ -522,18 +522,39 @@ async function ekstraherNotaPoster(
     else if (v.includes("utført") && v.includes("%")) kolonner.prosentFerdig = col;
   });
 
-  // Fallback til Proadm standard kolonner hvis deteksjon feilet
-  if (!kolonner.postnr) kolonner.postnr = 1;
-  if (!kolonner.beskrivelse) kolonner.beskrivelse = 2;
-  if (!kolonner.mengdeAnbud) kolonner.mengdeAnbud = 7;
-  if (!kolonner.enhet) kolonner.enhet = 8;
-  if (!kolonner.mengdeDenne) kolonner.mengdeDenne = 10;
-  if (!kolonner.mengdeTotal) kolonner.mengdeTotal = 11;
-  if (!kolonner.enhetspris) kolonner.enhetspris = 13;
-  if (!kolonner.sumAnbud) kolonner.sumAnbud = 14;
-  if (!kolonner.verdiDenne) kolonner.verdiDenne = 16;
-  if (!kolonner.verdiTotal) kolonner.verdiTotal = 18;
-  if (!kolonner.prosentFerdig) kolonner.prosentFerdig = 19;
+  // Fallback: detekter format basert på kolonneantall
+  // .xls (via SheetJS) ekspanderer til ~37 kolonner, .xlsx har ~20
+  const erXlsFormat = sheet.columnCount > 25;
+
+  if (erXlsFormat) {
+    // .xls Proadm-format (ekspandert via SheetJS)
+    // 1:Postnr | 3:Beskrivelse | 13:MengdeAnb | 15:Enh | 16:MengdForr | 18:MengdDenne | 20:MengdTot
+    // 25:Enhetspris | 27:VerdiAnb | 29:VerdiForr | 30:VerdiDenne | 34:VerdiTot | 37:%
+    if (!kolonner.postnr) kolonner.postnr = 1;
+    if (!kolonner.beskrivelse) kolonner.beskrivelse = 3;
+    if (!kolonner.mengdeAnbud) kolonner.mengdeAnbud = 13;
+    if (!kolonner.enhet) kolonner.enhet = 15;
+    if (!kolonner.mengdeDenne) kolonner.mengdeDenne = 18;
+    if (!kolonner.mengdeTotal) kolonner.mengdeTotal = 20;
+    if (!kolonner.enhetspris) kolonner.enhetspris = 25;
+    if (!kolonner.sumAnbud) kolonner.sumAnbud = 27;
+    if (!kolonner.verdiDenne) kolonner.verdiDenne = 30;
+    if (!kolonner.verdiTotal) kolonner.verdiTotal = 34;
+    if (!kolonner.prosentFerdig) kolonner.prosentFerdig = 37;
+  } else {
+    // .xlsx Proadm standard-format
+    if (!kolonner.postnr) kolonner.postnr = 1;
+    if (!kolonner.beskrivelse) kolonner.beskrivelse = 2;
+    if (!kolonner.mengdeAnbud) kolonner.mengdeAnbud = 7;
+    if (!kolonner.enhet) kolonner.enhet = 8;
+    if (!kolonner.mengdeDenne) kolonner.mengdeDenne = 10;
+    if (!kolonner.mengdeTotal) kolonner.mengdeTotal = 11;
+    if (!kolonner.enhetspris) kolonner.enhetspris = 13;
+    if (!kolonner.sumAnbud) kolonner.sumAnbud = 14;
+    if (!kolonner.verdiDenne) kolonner.verdiDenne = 16;
+    if (!kolonner.verdiTotal) kolonner.verdiTotal = 18;
+    if (!kolonner.prosentFerdig) kolonner.prosentFerdig = 19;
+  }
 
   const poster: Array<{
     projectId: string;
