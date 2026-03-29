@@ -314,6 +314,7 @@ export const mengdeRouter = router({
         docType: z.enum(["anbudsgrunnlag", "a_nota", "t_nota", "mengdebeskrivelse", "annet"]).optional(),
         notaType: z.enum(["A-Nota", "T-Nota", "Sluttnota"]).nullable().optional(),
         notaNr: z.number().int().nullable().optional(),
+        kontraktId: z.string().nullable().optional(),
         kontraktNavn: z.string().nullable().optional(),
       }),
     )

@@ -511,21 +511,23 @@ function DokumentTypeEditor({
   onLagre,
   onAvbryt,
 }: {
-  dok: { docType: string | null; notaType: string | null; notaNr: number | null; kontraktNavn: string | null };
+  dok: { docType: string | null; notaType: string | null; notaNr: number | null; kontraktId: string | null; kontraktNavn: string | null };
   kontrakter: Array<{ id: string; navn: string }>;
   onLagre: (data: {
     docType?: "anbudsgrunnlag" | "a_nota" | "t_nota" | "mengdebeskrivelse" | "annet";
     notaType?: "A-Nota" | "T-Nota" | "Sluttnota" | null;
     notaNr?: number | null;
+    kontraktId?: string | null;
     kontraktNavn?: string | null;
   }) => void;
   onAvbryt: () => void;
 }) {
   const [type, setType] = useState(dok.docType ?? "annet");
   const [nr, setNr] = useState(dok.notaNr?.toString() ?? "");
-  const [kontraktNavn, setKontraktNavn] = useState(dok.kontraktNavn ?? "");
+  const [valgtKontraktId, setValgtKontraktId] = useState(dok.kontraktId ?? "");
 
   const erNota = type === "a_nota" || type === "t_nota";
+  const valgtKontrakt = kontrakter.find((k) => k.id === valgtKontraktId);
 
   return (
     <div className="space-y-2 rounded border border-sitedoc-primary bg-blue-50/50 p-2">
@@ -545,14 +547,14 @@ function DokumentTypeEditor({
       {/* Kontrakt — for alle typer */}
       <select
         className="w-full rounded border border-gray-300 bg-white px-2 py-1 text-sm"
-        value={kontraktNavn}
-            onChange={(e) => setKontraktNavn(e.target.value)}
-          >
-            <option value="">Velg kontrakt...</option>
-            {kontrakter.map((k) => (
-              <option key={k.id} value={k.navn}>{k.navn}</option>
-            ))}
-          </select>
+        value={valgtKontraktId}
+        onChange={(e) => setValgtKontraktId(e.target.value)}
+      >
+        <option value="">Velg kontrakt...</option>
+        {kontrakter.map((k) => (
+          <option key={k.id} value={k.id}>{k.navn}</option>
+        ))}
+      </select>
 
       {/* Nota-nummer — kun for A-nota/T-nota */}
       {erNota && (
@@ -572,7 +574,8 @@ function DokumentTypeEditor({
               docType: type as "anbudsgrunnlag" | "a_nota" | "t_nota" | "mengdebeskrivelse" | "annet",
               notaType: type === "a_nota" ? "A-Nota" : type === "t_nota" ? "T-Nota" : null,
               notaNr: nr ? parseInt(nr, 10) : null,
-              kontraktNavn: kontraktNavn || null,
+              kontraktId: valgtKontraktId || null,
+              kontraktNavn: valgtKontrakt?.navn ?? null,
             })
           }
           className="rounded bg-sitedoc-primary px-2 py-0.5 text-xs text-white"
