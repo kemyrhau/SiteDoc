@@ -101,29 +101,32 @@ export default function MapperSide() {
   });
 
   const handleFilValgt = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const fil = e.target.files?.[0];
-    if (!fil || !valgtMappeId) return;
+    const filer = e.target.files;
+    if (!filer || filer.length === 0 || !valgtMappeId) return;
     setLasterOpp(true);
 
     try {
-      const formData = new FormData();
-      formData.append("file", fil);
-      const res = await fetch("/api/upload", { method: "POST", body: formData });
-      if (!res.ok) throw new Error("Opplasting feilet");
-      const { fileUrl, fileType } = await res.json();
+      for (const fil of Array.from(filer)) {
+        const formData = new FormData();
+        formData.append("file", fil);
+        const res = await fetch("/api/upload", { method: "POST", body: formData });
+        if (!res.ok) continue;
+        const { fileUrl, fileType } = await res.json();
 
-      lastOppMutation.mutate({
-        folderId: valgtMappeId,
-        name: fil.name,
-        fileUrl,
-        fileType: fileType ?? fil.type,
-        fileSize: fil.size,
-      });
+        await lastOppMutation.mutateAsync({
+          folderId: valgtMappeId,
+          name: fil.name,
+          fileUrl,
+          fileType: fileType ?? fil.type,
+          fileSize: fil.size,
+        });
+      }
     } catch {
-      setLasterOpp(false);
+      // Ignorer individuelle feil
     }
 
-    // Reset input
+    setLasterOpp(false);
+    utils.mappe.hentDokumenter.invalidate({ folderId: valgtMappeId! });
     if (filInputRef.current) filInputRef.current.value = "";
   };
 
@@ -203,6 +206,7 @@ export default function MapperSide() {
         <input
           ref={filInputRef}
           type="file"
+          multiple
           className="hidden"
           onChange={handleFilValgt}
         />
