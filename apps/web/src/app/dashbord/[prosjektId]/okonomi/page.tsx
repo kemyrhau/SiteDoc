@@ -2,8 +2,7 @@
 
 import { useState } from "react";
 import { useParams } from "next/navigation";
-import { BarChart3, Upload, FileText, Trash2, Loader2, CheckCircle, AlertCircle, RefreshCw } from "lucide-react";
-import { EntrepriseVelger } from "@/components/mengde/entreprise-velger";
+import { BarChart3, Upload, FileText, Trash2, Loader2, CheckCircle, AlertCircle, RefreshCw, Plus } from "lucide-react";
 import { PeriodeVelger } from "@/components/mengde/periode-velger";
 import { SpecPostTabell } from "@/components/mengde/spec-post-tabell";
 import { Avviksanalyse } from "@/components/mengde/avviksanalyse";
@@ -18,11 +17,32 @@ export default function OkonomiSide() {
   const params = useParams<{ prosjektId: string }>();
   const prosjektId = params.prosjektId;
 
-  const [enterpriseId, setEnterpriseId] = useState<string | null>(null);
+  const [kontraktId, setKontraktId] = useState<string | null>(null);
   const [periodId, setPeriodId] = useState<string | null>(null);
   const [aktivFane, setAktivFane] = useState<Fane>("oversikt");
   const [valgtPostId, setValgtPostId] = useState<string | null>(null);
   const [importOpen, setImportOpen] = useState(false);
+  const [visNyKontrakt, setVisNyKontrakt] = useState(false);
+  const [nyKontraktNavn, setNyKontraktNavn] = useState("");
+  const [nyKontraktType, setNyKontraktType] = useState("");
+  const [nyKontraktEntreprenor, setNyKontraktEntreprenor] = useState("");
+
+  const { data: kontrakter } = trpc.kontrakt.hentForProsjekt.useQuery(
+    { projectId: prosjektId },
+    { enabled: !!prosjektId },
+  );
+
+  const utils2 = trpc.useUtils();
+  const opprettKontrakt = trpc.kontrakt.opprett.useMutation({
+    onSuccess: (ny) => {
+      utils2.kontrakt.hentForProsjekt.invalidate({ projectId: prosjektId });
+      setKontraktId(ny.id);
+      setVisNyKontrakt(false);
+      setNyKontraktNavn("");
+      setNyKontraktType("");
+      setNyKontraktEntreprenor("");
+    },
+  });
 
   const dokumenterQuery = trpc.mengde.hentDokumenter.useQuery(
     { projectId: prosjektId },
@@ -69,19 +89,86 @@ export default function OkonomiSide() {
 
       {/* Velgere */}
       <div className="flex items-center gap-3 border-b px-4 py-2">
-        <label className="text-xs text-gray-500">Entreprise:</label>
-        <EntrepriseVelger
-          projectId={prosjektId}
-          value={enterpriseId}
-          onChange={(id) => {
-            setEnterpriseId(id);
-            setPeriodId(null);
-          }}
-        />
+        <label className="text-xs text-gray-500">Kontrakt:</label>
+        {visNyKontrakt ? (
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              className="rounded border border-gray-300 px-2 py-1 text-sm"
+              placeholder="Kontraktnavn"
+              value={nyKontraktNavn}
+              onChange={(e) => setNyKontraktNavn(e.target.value)}
+              autoFocus
+            />
+            <select
+              className="rounded border border-gray-300 bg-white px-2 py-1 text-sm"
+              value={nyKontraktType}
+              onChange={(e) => setNyKontraktType(e.target.value)}
+            >
+              <option value="">Type...</option>
+              <option value="8405">NS 8405</option>
+              <option value="8406">NS 8406</option>
+              <option value="8407">NS 8407</option>
+            </select>
+            <input
+              type="text"
+              className="rounded border border-gray-300 px-2 py-1 text-sm"
+              placeholder="Entreprenør"
+              value={nyKontraktEntreprenor}
+              onChange={(e) => setNyKontraktEntreprenor(e.target.value)}
+            />
+            <button
+              onClick={() => {
+                if (nyKontraktNavn.trim()) {
+                  opprettKontrakt.mutate({
+                    projectId: prosjektId,
+                    navn: nyKontraktNavn.trim(),
+                    kontraktType: nyKontraktType as "8405" | "8406" | "8407" | undefined || undefined,
+                    entreprenor: nyKontraktEntreprenor.trim() || undefined,
+                  });
+                }
+              }}
+              className="rounded bg-sitedoc-primary px-2 py-1 text-xs text-white"
+            >
+              Opprett
+            </button>
+            <button
+              onClick={() => setVisNyKontrakt(false)}
+              className="text-xs text-gray-500"
+            >
+              Avbryt
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-1">
+            <select
+              className="rounded border border-gray-300 bg-white px-3 py-1.5 text-sm"
+              value={kontraktId ?? ""}
+              onChange={(e) => {
+                setKontraktId(e.target.value || null);
+                setPeriodId(null);
+              }}
+            >
+              <option value="">Alle kontrakter</option>
+              {kontrakter?.map((k) => (
+                <option key={k.id} value={k.id}>
+                  {k.navn}{k.entreprenor ? ` — ${k.entreprenor}` : ""}{k.kontraktType ? ` (${k.kontraktType})` : ""}
+                </option>
+              ))}
+            </select>
+            <button
+              onClick={() => setVisNyKontrakt(true)}
+              className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+              title="Ny kontrakt"
+            >
+              <Plus className="h-4 w-4" />
+            </button>
+          </div>
+        )}
         <label className="text-xs text-gray-500">Periode:</label>
         <PeriodeVelger
           projectId={prosjektId}
-          enterpriseId={enterpriseId}
+          enterpriseId={null}
           value={periodId}
           onChange={setPeriodId}
         />
