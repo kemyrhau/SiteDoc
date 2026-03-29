@@ -103,7 +103,7 @@ export default function OkonomiSide() {
             <option value="">Alle kontrakter</option>
             {kontrakter?.map((k) => (
               <option key={k.id} value={k.id}>
-                {k.navn}{k.entreprenor ? ` — ${k.entreprenor}` : ""}{k.kontraktType ? ` (NS ${k.kontraktType})` : ""}
+                {k.navn}
               </option>
             ))}
           </select>
