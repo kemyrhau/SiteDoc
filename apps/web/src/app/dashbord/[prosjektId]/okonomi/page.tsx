@@ -187,6 +187,7 @@ export default function OkonomiSide() {
             <DokumentListe
               dokumenter={dokumenter ?? []}
               projectId={prosjektId}
+              kontrakter={kontrakter ?? []}
             />
           )}
         </div>
@@ -285,7 +286,9 @@ export default function OkonomiSide() {
 function DokumentListe({
   dokumenter,
   projectId,
+  kontrakter,
 }: {
+  kontrakter: Array<{ id: string; navn: string }>;
   dokumenter: Array<{
     id: string;
     filename: string;
@@ -364,11 +367,7 @@ function DokumentListe({
               {redigerDokId === dok.id ? (
                 <DokumentTypeEditor
                   dok={dok}
-                  eksisterendeKontrakter={[...new Set(
-                    dokumenter
-                      .map((d) => d.kontraktNavn)
-                      .filter((k): k is string => !!k)
-                  )]}
+                  kontrakter={kontrakter}
                   onLagre={(data) => {
                     oppdaterMutation.mutate({ documentId: dok.id, ...data });
                     setRedigerDokId(null);
@@ -446,12 +445,12 @@ function DokumentListe({
 
 function DokumentTypeEditor({
   dok,
-  eksisterendeKontrakter,
+  kontrakter,
   onLagre,
   onAvbryt,
 }: {
   dok: { docType: string | null; notaType: string | null; notaNr: number | null; kontraktNavn: string | null };
-  eksisterendeKontrakter: string[];
+  kontrakter: Array<{ id: string; navn: string }>;
   onLagre: (data: {
     docType?: "anbudsgrunnlag" | "a_nota" | "t_nota" | "mengdebeskrivelse" | "annet";
     notaType?: "A-Nota" | "T-Nota" | "Sluttnota" | null;
@@ -462,8 +461,7 @@ function DokumentTypeEditor({
 }) {
   const [type, setType] = useState(dok.docType ?? "annet");
   const [nr, setNr] = useState(dok.notaNr?.toString() ?? "");
-  const [kontrakt, setKontrakt] = useState(dok.kontraktNavn ?? "");
-  const [nyKontrakt, setNyKontrakt] = useState(false);
+  const [kontraktNavn, setKontraktNavn] = useState(dok.kontraktNavn ?? "");
 
   const erNota = type === "a_nota" || type === "t_nota";
 
@@ -491,34 +489,16 @@ function DokumentTypeEditor({
             value={nr}
             onChange={(e) => setNr(e.target.value)}
           />
-          {!nyKontrakt && eksisterendeKontrakter.length > 0 ? (
-            <select
-              className="w-full rounded border border-gray-300 bg-white px-2 py-1 text-sm"
-              value={kontrakt}
-              onChange={(e) => {
-                if (e.target.value === "__ny__") {
-                  setNyKontrakt(true);
-                  setKontrakt("");
-                } else {
-                  setKontrakt(e.target.value);
-                }
-              }}
-            >
-              <option value="">Velg kontrakt...</option>
-              {eksisterendeKontrakter.map((k) => (
-                <option key={k} value={k}>{k}</option>
-              ))}
-              <option value="__ny__">+ Ny kontrakt...</option>
-            </select>
-          ) : (
-            <input
-              type="text"
-              className="w-full rounded border border-gray-300 px-2 py-1 text-sm"
-              placeholder="Kontraktnavn (f.eks. P900512 Røstbakken)"
-              value={kontrakt}
-              onChange={(e) => setKontrakt(e.target.value)}
-            />
-          )}
+          <select
+            className="w-full rounded border border-gray-300 bg-white px-2 py-1 text-sm"
+            value={kontraktNavn}
+            onChange={(e) => setKontraktNavn(e.target.value)}
+          >
+            <option value="">Velg kontrakt...</option>
+            {kontrakter.map((k) => (
+              <option key={k.id} value={k.navn}>{k.navn}</option>
+            ))}
+          </select>
         </>
       )}
 
@@ -529,7 +509,7 @@ function DokumentTypeEditor({
               docType: type as "anbudsgrunnlag" | "a_nota" | "t_nota" | "mengdebeskrivelse" | "annet",
               notaType: type === "a_nota" ? "A-Nota" : type === "t_nota" ? "T-Nota" : null,
               notaNr: nr ? parseInt(nr, 10) : null,
-              kontraktNavn: kontrakt || null,
+              kontraktNavn: kontraktNavn || null,
             })
           }
           className="rounded bg-sitedoc-primary px-2 py-0.5 text-xs text-white"
