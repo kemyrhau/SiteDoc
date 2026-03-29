@@ -118,31 +118,50 @@ export function SpecPostTabell({
   const totalAvvik = harSammenligning ? totalVerdiTotal - totalBudsjett : 0;
 
   // Kolonnerekkefølge matcher Proadm Excel:
-  // Post | Beskrivelse | Mengde anbud | Enhet | Enhetspris | Sum budsjett
-  // (sammenligning): Mengde denne | Verdi denne | Mengde totalt | Verdi totalt | % | Avvik
+  // Postnr | Beskrivelse | [Mengder: Anbudet | Enh | Tot.forrige | Denne per. | Totalt] | Enhetspris | [Verdi: Anbudet | Tot.forrige | Denne per. | Totalt] | Utført %
 
   return (
     <div className="flex h-full flex-col rounded border overflow-hidden">
       <div className="flex-1 overflow-auto">
         <table className="w-full text-left text-sm">
           <thead className="sticky top-0 z-10 bg-gray-50">
+            {harSammenligning && (
+              <tr className="border-b text-[10px] font-medium uppercase text-gray-400">
+                <th className="min-w-[36px] px-2 py-1" />
+                <th className="min-w-[110px] px-2 py-1" />
+                <th className="px-2 py-1" />
+                <th className="min-w-[80px] px-2 py-1 text-right" colSpan={2}>Mengder</th>
+                <th className="w-[2px] bg-gray-200 px-0" />
+                <th className="min-w-[80px] px-2 py-1 text-right text-blue-500" colSpan={3}>Mengder</th>
+                <th className="min-w-[80px] px-2 py-1 text-right" />
+                <th className="min-w-[90px] px-2 py-1 text-right" colSpan={1}>Verdi</th>
+                <th className="w-[2px] bg-gray-200 px-0" />
+                <th className="min-w-[80px] px-2 py-1 text-right text-blue-500" colSpan={2}>Verdi</th>
+                <th className="min-w-[50px] px-2 py-1" />
+              </tr>
+            )}
             <tr className="border-b text-xs font-medium uppercase text-gray-500">
               <th className="min-w-[36px] px-2 py-2 text-gray-400">#</th>
-              <SH felt="postnr" label="Post" aktiv={sorterFelt} retning={sorterRetning} onClick={toggleSortering} cls="min-w-[110px]" />
+              <SH felt="postnr" label="Postnr" aktiv={sorterFelt} retning={sorterRetning} onClick={toggleSortering} cls="min-w-[110px]" />
               <SH felt="beskrivelse" label="Beskrivelse" aktiv={sorterFelt} retning={sorterRetning} onClick={toggleSortering} />
-              <SH felt="mengdeAnbud" label="Mengde" aktiv={sorterFelt} retning={sorterRetning} onClick={toggleSortering} right cls="min-w-[85px]" />
-              <SH felt="enhet" label="Enh" aktiv={sorterFelt} retning={sorterRetning} onClick={toggleSortering} cls="min-w-[45px]" />
-              <SH felt="enhetspris" label="Enhetspris" aktiv={sorterFelt} retning={sorterRetning} onClick={toggleSortering} right cls="min-w-[90px]" />
-              <SH felt="sumAnbud" label="Sum budsjett" aktiv={sorterFelt} retning={sorterRetning} onClick={toggleSortering} right cls="min-w-[100px]" />
+              <SH felt="mengdeAnbud" label="Anbudet" aktiv={sorterFelt} retning={sorterRetning} onClick={toggleSortering} right cls="min-w-[80px]" />
+              <SH felt="enhet" label="Enh" aktiv={sorterFelt} retning={sorterRetning} onClick={toggleSortering} cls="min-w-[40px]" />
               {harSammenligning && (
                 <>
                   <th className="w-[2px] bg-gray-300 px-0" />
-                  <th className="min-w-[85px] px-2 py-2 text-right text-blue-600">Mengde denne</th>
-                  <th className="min-w-[90px] px-2 py-2 text-right text-blue-600">Verdi denne</th>
-                  <th className="min-w-[85px] px-2 py-2 text-right text-blue-600">Mengde tot.</th>
-                  <th className="min-w-[95px] px-2 py-2 text-right text-blue-600">Verdi tot.</th>
-                  <th className="min-w-[45px] px-2 py-2 text-right text-blue-600">%</th>
-                  <th className="min-w-[85px] px-2 py-2 text-right">Avvik</th>
+                  <th className="min-w-[80px] px-2 py-2 text-right text-blue-600">Denne per.</th>
+                  <th className="min-w-[80px] px-2 py-2 text-right text-blue-600">Totalt</th>
+                  <th className="min-w-[80px] px-2 py-2 text-right text-blue-600">Tot. forrige</th>
+                </>
+              )}
+              <SH felt="enhetspris" label="Enhetspris" aktiv={sorterFelt} retning={sorterRetning} onClick={toggleSortering} right cls="min-w-[90px]" />
+              <SH felt="sumAnbud" label="Anbudet" aktiv={sorterFelt} retning={sorterRetning} onClick={toggleSortering} right cls="min-w-[90px]" />
+              {harSammenligning && (
+                <>
+                  <th className="w-[2px] bg-gray-300 px-0" />
+                  <th className="min-w-[90px] px-2 py-2 text-right text-blue-600">Denne per.</th>
+                  <th className="min-w-[90px] px-2 py-2 text-right text-blue-600">Totalt</th>
+                  <th className="min-w-[50px] px-2 py-2 text-right text-blue-600">%</th>
                 </>
               )}
             </tr>
@@ -164,19 +183,22 @@ export function SpecPostTabell({
                   <td className="max-w-xs truncate px-2 py-1.5">{p.beskrivelse ?? "—"}</td>
                   <td className="px-2 py-1.5 text-right font-mono">{fmt(p.mengdeAnbud)}</td>
                   <td className="px-2 py-1.5">{p.enhet ?? "—"}</td>
+                  {harSammenligning && (
+                    <>
+                      <td className="w-[2px] bg-gray-200 px-0" />
+                      <td className="px-2 py-1.5 text-right font-mono text-blue-700">{rad.nota ? fmt(rad.mengdeDenne) : "—"}</td>
+                      <td className="px-2 py-1.5 text-right font-mono text-blue-700">{rad.nota ? fmt(rad.mengdeTotal) : "—"}</td>
+                      <td className="px-2 py-1.5 text-right font-mono text-gray-400">{rad.nota ? fmt(Number(rad.mengdeTotal) - Number(rad.mengdeDenne)) : "—"}</td>
+                    </>
+                  )}
                   <td className="px-2 py-1.5 text-right font-mono">{fmt(p.enhetspris)}</td>
                   <td className="px-2 py-1.5 text-right font-mono">{fmt(p.sumAnbud)}</td>
                   {harSammenligning && (
                     <>
                       <td className="w-[2px] bg-gray-200 px-0" />
-                      <td className="px-2 py-1.5 text-right font-mono text-blue-700">{rad.nota ? fmt(rad.mengdeDenne) : "—"}</td>
                       <td className="px-2 py-1.5 text-right font-mono text-blue-700">{rad.nota ? fmt(rad.verdiDenne) : "—"}</td>
-                      <td className="px-2 py-1.5 text-right font-mono text-blue-700">{rad.nota ? fmt(rad.mengdeTotal) : "—"}</td>
                       <td className="px-2 py-1.5 text-right font-mono text-blue-700">{rad.nota ? fmt(rad.verdiTotal) : "—"}</td>
                       <td className="px-2 py-1.5 text-right font-mono text-blue-700">{rad.nota ? fmt(rad.prosentFerdig, 0) : "—"}</td>
-                      <td className={`px-2 py-1.5 text-right font-mono ${rad.sumAvvik > 0 ? "text-red-600" : rad.sumAvvik < 0 ? "text-green-600" : ""}`}>
-                        {rad.nota ? fmt(rad.sumAvvik) : "—"}
-                      </td>
                     </>
                   )}
                 </tr>
@@ -190,17 +212,22 @@ export function SpecPostTabell({
               <td className="px-2 py-2">Totalt ({poster.length} poster)</td>
               <td className="px-2 py-2" />
               <td className="px-2 py-2" />
+              {harSammenligning && (
+                <>
+                  <td className="px-0" />
+                  <td className="px-2 py-2" />
+                  <td className="px-2 py-2" />
+                  <td className="px-2 py-2" />
+                </>
+              )}
               <td className="px-2 py-2" />
               <td className="px-2 py-2 text-right font-mono">{fmt(totalBudsjett)}</td>
               {harSammenligning && (
                 <>
                   <td className="px-0" />
-                  <td className="px-2 py-2" />
                   <td className="px-2 py-2 text-right font-mono text-blue-700">{fmt(totalVerdiDenne)}</td>
-                  <td className="px-2 py-2" />
                   <td className="px-2 py-2 text-right font-mono text-blue-700">{fmt(totalVerdiTotal)}</td>
                   <td className="px-2 py-2" />
-                  <td className={`px-2 py-2 text-right font-mono ${totalAvvik > 0 ? "text-red-600" : totalAvvik < 0 ? "text-green-600" : ""}`}>{fmt(totalAvvik)}</td>
                 </>
               )}
             </tr>
