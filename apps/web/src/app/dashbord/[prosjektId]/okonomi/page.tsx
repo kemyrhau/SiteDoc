@@ -1,9 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useParams } from "next/navigation";
 import { BarChart3, Upload, FileText, Trash2, Loader2, CheckCircle, AlertCircle, RefreshCw, Plus } from "lucide-react";
-import { PeriodeVelger } from "@/components/mengde/periode-velger";
 import { SpecPostTabell } from "@/components/mengde/spec-post-tabell";
 import { Avviksanalyse } from "@/components/mengde/avviksanalyse";
 import { NotatEditor } from "@/components/mengde/notat-editor";
@@ -12,13 +11,15 @@ import { ImportDialog } from "@/components/mengde/import-dialog";
 import { trpc } from "@/lib/trpc";
 
 type Fane = "oversikt" | "avviksanalyse" | "dokumenter";
+type DokType = "a_nota" | "t_nota";
 
 export default function OkonomiSide() {
   const params = useParams<{ prosjektId: string }>();
   const prosjektId = params.prosjektId;
 
   const [kontraktId, setKontraktId] = useState<string | null>(null);
-  const [periodId, setPeriodId] = useState<string | null>(null);
+  const [dokType, setDokType] = useState<DokType>("a_nota");
+  const [valgtNotaNr, setValgtNotaNr] = useState<number | null>(null);
   const [aktivFane, setAktivFane] = useState<Fane>("oversikt");
   const [valgtPostId, setValgtPostId] = useState<string | null>(null);
   const [importOpen, setImportOpen] = useState(false);
@@ -64,11 +65,48 @@ export default function OkonomiSide() {
   );
   const dokumenter = dokumenterQuery.data;
 
-  const { data: poster } = trpc.mengde.hentSpecPoster.useQuery(
-    { projectId: prosjektId, periodId: periodId ?? undefined },
-    { enabled: !!prosjektId },
+  // Finn dokumenter for valgt kontrakt, gruppert
+  const kontraktDokumenter = useMemo(() => {
+    if (!dokumenter) return { budsjett: null, notas: [] };
+    const filtrert = kontraktId
+      ? dokumenter.filter((d) => d.kontraktId === kontraktId)
+      : dokumenter;
+    const budsjett = filtrert.find((d) => d.docType === "anbudsgrunnlag") ?? null;
+    const notas = filtrert
+      .filter((d) => d.docType === dokType && d.notaNr !== null)
+      .sort((a, b) => (a.notaNr ?? 0) - (b.notaNr ?? 0));
+    return { budsjett, notas };
+  }, [dokumenter, kontraktId, dokType]);
+
+  // Finn det valgte nota-dokumentet
+  const valgtNotaDok = useMemo(
+    () => kontraktDokumenter.notas.find((d) => d.notaNr === valgtNotaNr) ?? null,
+    [kontraktDokumenter.notas, valgtNotaNr],
   );
 
+  // Budsjett-poster (anbudsgrunnlag for valgt kontrakt)
+  const budsjettDokId = kontraktDokumenter.budsjett?.id;
+  const { data: budsjettPoster } = trpc.mengde.hentSpecPoster.useQuery(
+    { projectId: prosjektId, dokumentId: budsjettDokId },
+    { enabled: !!prosjektId && !!budsjettDokId },
+  );
+
+  // Nota-poster (for sammenligning)
+  const { data: notaPoster } = trpc.mengde.hentSpecPoster.useQuery(
+    { projectId: prosjektId, dokumentId: valgtNotaDok?.id },
+    { enabled: !!prosjektId && !!valgtNotaDok },
+  );
+
+  // Fallback: vis alle poster for kontrakten hvis ingen budsjett-dok finnes
+  const { data: allePoster } = trpc.mengde.hentSpecPoster.useQuery(
+    {
+      projectId: prosjektId,
+      kontraktId: kontraktId ?? undefined,
+    },
+    { enabled: !!prosjektId && !budsjettDokId },
+  );
+
+  const poster = budsjettPoster ?? allePoster;
   const valgtPost = poster?.find((p) => p.id === valgtPostId) ?? null;
 
   return (
@@ -97,7 +135,7 @@ export default function OkonomiSide() {
             value={kontraktId ?? ""}
             onChange={(e) => {
               setKontraktId(e.target.value || null);
-              setPeriodId(null);
+              setValgtNotaNr(null);
             }}
           >
             <option value="">Alle kontrakter</option>
@@ -115,13 +153,35 @@ export default function OkonomiSide() {
             <Plus className="h-4 w-4" />
           </button>
         </div>
-        <label className="text-xs text-gray-500">Periode:</label>
-        <PeriodeVelger
-          projectId={prosjektId}
-          enterpriseId={null}
-          value={periodId}
-          onChange={setPeriodId}
-        />
+
+        <div className="mx-1 h-4 w-px bg-gray-300" />
+
+        <label className="text-xs text-gray-500">Type:</label>
+        <select
+          className="rounded border border-gray-300 bg-white px-3 py-1.5 text-sm"
+          value={dokType}
+          onChange={(e) => {
+            setDokType(e.target.value as DokType);
+            setValgtNotaNr(null);
+          }}
+        >
+          <option value="a_nota">A-Nota</option>
+          <option value="t_nota">T-Nota</option>
+        </select>
+
+        <label className="text-xs text-gray-500">Nr:</label>
+        <select
+          className="rounded border border-gray-300 bg-white px-3 py-1.5 text-sm"
+          value={valgtNotaNr ?? ""}
+          onChange={(e) => setValgtNotaNr(e.target.value ? parseInt(e.target.value, 10) : null)}
+        >
+          <option value="">Kun budsjett</option>
+          {kontraktDokumenter.notas.map((d) => (
+            <option key={d.id} value={d.notaNr!}>
+              {d.notaNr}
+            </option>
+          ))}
+        </select>
       </div>
 
       {/* Faner */}
@@ -157,8 +217,9 @@ export default function OkonomiSide() {
           {/* Tabell — fyller midten, scroller internt */}
           <div className="min-h-0 flex-1 px-4 pt-4">
             <SpecPostTabell
-              projectId={prosjektId}
-              periodId={periodId}
+              poster={poster ?? []}
+              sammenligningPoster={valgtNotaNr !== null ? (notaPoster ?? []) : undefined}
+              sammenligningLabel={valgtNotaNr !== null ? `${dokType === "a_nota" ? "A-Nota" : "T-Nota"} ${valgtNotaNr}` : undefined}
               onVelgPost={setValgtPostId}
               valgtPostId={valgtPostId}
             />
@@ -185,7 +246,7 @@ export default function OkonomiSide() {
             <Avviksanalyse projectId={prosjektId} />
           ) : (
             <DokumentListe
-              dokumenter={dokumenter ?? []}
+              dokumenter={kontraktId ? (dokumenter ?? []).filter((d) => d.kontraktId === kontraktId) : (dokumenter ?? [])}
               projectId={prosjektId}
               kontrakter={kontrakter ?? []}
             />
@@ -295,6 +356,7 @@ function DokumentListe({
     docType: string | null;
     notaType: string | null;
     notaNr: number | null;
+    kontraktId: string | null;
     kontraktNavn: string | null;
     entreprenor: string | null;
     processingState: string;

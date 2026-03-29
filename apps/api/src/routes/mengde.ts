@@ -30,7 +30,13 @@ export interface AvviksRad {
 
 export const mengdeRouter = router({
   hentDokumenter: protectedProcedure
-    .input(z.object({ projectId: z.string().uuid() }))
+    .input(
+      z.object({
+        projectId: z.string().uuid(),
+        kontraktId: z.string().optional(),
+        docType: z.string().optional(),
+      }),
+    )
     .query(async ({ ctx, input }) => {
       await verifiserProsjektmedlem(ctx.userId, input.projectId);
       const mappeIder = await hentTilgjengeligeMappeIder(
@@ -42,10 +48,12 @@ export const mengdeRouter = router({
           projectId: input.projectId,
           isActive: true,
           docType: { not: null }, // Kun dokumenter importert til økonomi
+          ...(input.kontraktId ? { kontraktId: input.kontraktId } : {}),
+          ...(input.docType ? { docType: input.docType } : {}),
           ...byggMappeTilgangsFilter(mappeIder),
         },
         include: { folder: { select: { id: true, name: true } } },
-        orderBy: { uploadedAt: "desc" },
+        orderBy: [{ notaNr: "asc" }, { uploadedAt: "desc" }],
       });
     }),
 
@@ -76,14 +84,28 @@ export const mengdeRouter = router({
     .input(
       z.object({
         projectId: z.string().uuid(),
+        kontraktId: z.string().optional(),
+        dokumentId: z.string().optional(),
         periodId: z.string().optional(),
       }),
     )
     .query(async ({ ctx, input }) => {
       await verifiserProsjektmedlem(ctx.userId, input.projectId);
+
+      const where: { projectId: string; documentId?: string; document?: { kontraktId: string } } = {
+        projectId: input.projectId,
+      };
+
+      if (input.dokumentId) {
+        where.documentId = input.dokumentId;
+      } else if (input.kontraktId) {
+        where.document = { kontraktId: input.kontraktId };
+      }
+
       return ctx.prisma.ftdSpecPost.findMany({
-        where: { projectId: input.projectId },
+        where,
         include: {
+          document: { select: { id: true, docType: true, notaNr: true, kontraktId: true, kontraktNavn: true } },
           notaPoster: input.periodId
             ? { where: { periodId: input.periodId } }
             : false,
