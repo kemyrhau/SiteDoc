@@ -1013,14 +1013,15 @@ async function ekstraherPdfMedPosisjoner(buffer: Buffer): Promise<string> {
     const content = await page.getTextContent();
 
     // Grupper tekstelementer etter y-posisjon (avrundet til 3px toleranse)
-    const rader = new Map<number, Array<{ x: number; tekst: string }>>();
+    const rader = new Map<number, Array<{ x: number; bredde: number; tekst: string }>>();
     for (const item of content.items) {
-      const el = item as { str?: string; transform?: number[] };
+      const el = item as { str?: string; width?: number; transform?: number[] };
       if (!el.str?.trim() || !el.transform) continue;
       const y = Math.round(el.transform[5]! / 3) * 3;
       const x = Math.round(el.transform[4]!);
+      const bredde = el.width ?? el.str.length * 4;
       if (!rader.has(y)) rader.set(y, []);
-      rader.get(y)!.push({ x, tekst: el.str.trim() });
+      rader.get(y)!.push({ x, bredde, tekst: el.str.trim() });
     }
 
     // Sorter rader etter y (fallende = topp til bunn i PDF)
@@ -1028,15 +1029,8 @@ async function ekstraherPdfMedPosisjoner(buffer: Buffer): Promise<string> {
 
     for (const [_y, items] of sortertRader) {
       items.sort((a, b) => a.x - b.x);
-      // Sett inn mellomrom basert på x-avstand
-      let linje = "";
-      let forrigeXEnd = 0;
-      for (const item of items) {
-        const gap = item.x - forrigeXEnd;
-        if (linje && gap > 5) linje += " ";
-        linje += item.tekst;
-        forrigeXEnd = item.x + item.tekst.length * 4; // Grov estimat av tekstbredde
-      }
+      // Sett inn mellomrom mellom hvert element — alltid separere
+      const linje = items.map((i) => i.tekst).join(" ");
       alleLinjer.push(linje);
     }
   }
