@@ -184,7 +184,7 @@ function DokumentListe({
   projectId: string;
 }) {
   const utils = trpc.useUtils();
-  const slettMutation = trpc.mengde.slettDokument.useMutation({
+  const slettMutation = trpc.mengde.fjernFraOkonomi.useMutation({
     onSuccess: () => utils.mengde.hentDokumenter.invalidate({ projectId }),
   });
   const reprosesserMutation = trpc.mengde.reprosesser.useMutation({
@@ -276,7 +276,7 @@ function DokumentListe({
               )}
               <button
                 onClick={() => {
-                  if (confirm(`Fjern «${dok.filename}»?`)) {
+                  if (confirm(`Fjern «${dok.filename}» fra økonomi? Dokumentet beholdes i mapper.`)) {
                     slettMutation.mutate({ documentId: dok.id });
                   }
                 }}

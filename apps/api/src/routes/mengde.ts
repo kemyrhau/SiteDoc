@@ -41,6 +41,7 @@ export const mengdeRouter = router({
         where: {
           projectId: input.projectId,
           isActive: true,
+          docType: { not: null }, // Kun dokumenter importert til økonomi
           ...byggMappeTilgangsFilter(mappeIder),
         },
         include: { folder: { select: { id: true, name: true } } },
@@ -284,12 +285,19 @@ export const mengdeRouter = router({
       return { ok: true };
     }),
 
-  slettDokument: protectedProcedure
+  fjernFraOkonomi: protectedProcedure
     .input(z.object({ documentId: z.string() }))
     .mutation(async ({ ctx, input }) => {
+      // Fjern økonomi-kobling — dokumentet beholdes i mapper
+      await ctx.prisma.ftdSpecPost.deleteMany({ where: { documentId: input.documentId } });
       return ctx.prisma.ftdDocument.update({
         where: { id: input.documentId },
-        data: { isActive: false },
+        data: {
+          docType: null,
+          notaType: null,
+          notaNr: null,
+          kontraktNavn: null,
+        },
       });
     }),
 });
