@@ -145,6 +145,42 @@ async function prosesserPdf(
 }
 
 // --------------------------------------------------------------------------
+// Excel hjelpefunksjoner
+// --------------------------------------------------------------------------
+
+/** Konverterer ExcelJS celleverdi til ren tekst (håndterer richText, formler, datoer) */
+function excelCelleTilTekst(v: unknown): string {
+  if (v === null || v === undefined) return "";
+  if (typeof v === "string") return v;
+  if (typeof v === "number" || typeof v === "boolean") return String(v);
+  if (v instanceof Date) return v.toLocaleDateString("nb-NO");
+
+  const obj = v as Record<string, unknown>;
+
+  // Formel: { formula: "...", result: 123 }
+  if ("result" in obj) {
+    return excelCelleTilTekst(obj.result);
+  }
+
+  // Rich text: { richText: [{ text: "..." }, ...] }
+  if ("richText" in obj && Array.isArray(obj.richText)) {
+    return (obj.richText as Array<{ text?: string }>)
+      .map((t) => t.text ?? "")
+      .join("");
+  }
+
+  // Hyperlink: { text: "...", hyperlink: "..." }
+  if ("text" in obj && typeof obj.text === "string") {
+    return obj.text;
+  }
+
+  // Error: { error: "#REF!" }
+  if ("error" in obj) return "";
+
+  return String(v);
+}
+
+// --------------------------------------------------------------------------
 // Excel-prosessering
 // --------------------------------------------------------------------------
 
@@ -180,11 +216,86 @@ async function prosesserExcel(
   // Lag chunks av celleinnhold for søk (alle typer)
   await lagExcelChunks(prisma, documentId, sheet);
 
+  // Auto-detekter kontrakt/nota-info fra header
+  await detekterNotaInfo(prisma, documentId, sheet);
+
   // Spesifikk parsing basert på docType
   if (docType === "budsjett" || docType === "mengdebeskrivelse") {
     await ekstraherSpecPoster(prisma, documentId, projectId, sheet);
   }
-  // A-nota/T-nota håndteres i økonomi-modulen (fremtidig)
+}
+
+/** Detekter kontrakt, nota-type/nummer og entreprenør fra Excel-header */
+async function detekterNotaInfo(
+  prisma: PrismaClient,
+  documentId: string,
+  sheet: import("exceljs").Worksheet,
+): Promise<void> {
+  // Les de første 10 radene for å finne metadata
+  const headerTekst: string[] = [];
+  for (let r = 1; r <= Math.min(10, sheet.rowCount); r++) {
+    const row = sheet.getRow(r);
+    row.eachCell((cell) => {
+      const tekst = excelCelleTilTekst(cell.value);
+      if (tekst.trim()) headerTekst.push(tekst.trim());
+    });
+  }
+
+  const samlet = headerTekst.join(" ");
+
+  // Detekter nota-type og nummer
+  // "Avdragsnota nr. 4", "A-nota 6", "T-nota 3", "Sluttnota"
+  let notaType: string | null = null;
+  let notaNr: number | null = null;
+
+  const avdragsMatch = samlet.match(/Avdragsnota\s+nr\.?\s*(\d+)/i);
+  const aNotaMatch = samlet.match(/A-?nota\s+(\d+)/i);
+  const tNotaMatch = samlet.match(/T-?nota\s+(\d+)/i);
+  const sluttMatch = samlet.match(/Sluttnota/i);
+
+  if (avdragsMatch) {
+    notaType = "A-Nota";
+    notaNr = parseInt(avdragsMatch[1]!, 10);
+  } else if (aNotaMatch) {
+    notaType = "A-Nota";
+    notaNr = parseInt(aNotaMatch[1]!, 10);
+  } else if (tNotaMatch) {
+    notaType = "T-Nota";
+    notaNr = parseInt(tNotaMatch[1]!, 10);
+  } else if (sluttMatch) {
+    notaType = "Sluttnota";
+  }
+
+  // Detekter prosjekt/kontrakt
+  let kontraktNavn: string | null = null;
+  const prosjektMatch = samlet.match(/Prosjekt:\s*(.+?)(?:\s*(?:Avdragsnota|A-?nota|T-?nota|Sluttnota|Faktura))/i);
+  if (prosjektMatch) {
+    kontraktNavn = prosjektMatch[1]!.trim();
+  }
+
+  // Detekter entreprenør (typisk firma etter faktura-info)
+  let entreprenor: string | null = null;
+  for (const tekst of headerTekst) {
+    // Firmanavn etterfulgt av "AS", "ANS", "DA" etc.
+    const firmaMatch = tekst.match(/^([A-ZÆØÅ][\w\s]+(?:AS|ANS|DA|SA|ASA))\b/);
+    if (firmaMatch && !tekst.includes("Kommune") && !tekst.includes("Postboks")) {
+      entreprenor = firmaMatch[1]!.trim();
+      break;
+    }
+  }
+
+  // Oppdater dokumentet hvis vi fant noe
+  if (notaType || kontraktNavn || entreprenor) {
+    await prisma.ftdDocument.update({
+      where: { id: documentId },
+      data: {
+        ...(notaType ? { notaType } : {}),
+        ...(notaNr !== null ? { notaNr } : {}),
+        ...(kontraktNavn ? { kontraktNavn } : {}),
+        ...(entreprenor ? { entreprenor } : {}),
+      },
+    });
+  }
 }
 
 async function lagExcelChunks(
@@ -197,7 +308,7 @@ async function lagExcelChunks(
   sheet.eachRow((row, _radNr) => {
     const celler = (row.values as unknown[])
       .slice(1) // ExcelJS: index 0 er tom
-      .map((v) => (v !== null && v !== undefined ? String(v) : ""))
+      .map((v) => excelCelleTilTekst(v))
       .filter((v) => v.trim());
     if (celler.length > 0) {
       rader.push(celler.join(" | "));

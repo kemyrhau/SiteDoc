@@ -172,6 +172,10 @@ function DokumentListe({
     id: string;
     filename: string;
     docType: string | null;
+    notaType: string | null;
+    notaNr: number | null;
+    kontraktNavn: string | null;
+    entreprenor: string | null;
     processingState: string;
     processingError: string | null;
     uploadedAt: string | Date;
@@ -232,7 +236,9 @@ function DokumentListe({
               {dok.filename}
             </td>
             <td className="px-3 py-2 text-gray-500">
-              {DOC_TYPE_LABEL[dok.docType ?? ""] ?? dok.docType ?? "—"}
+              {dok.notaType
+                ? `${dok.notaType}${dok.notaNr ? ` ${dok.notaNr}` : ""}`
+                : DOC_TYPE_LABEL[dok.docType ?? ""] ?? dok.docType ?? "—"}
             </td>
             <td className="px-3 py-2 text-gray-500">
               {dok.folder?.name ?? "—"}

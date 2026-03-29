@@ -766,6 +766,10 @@ model FtdDocument {
   standardNumber  String?  @map("standard_number")
   fileSize        Int?     @map("file_size")
   version         Int      @default(1)
+  kontraktNavn    String?  @map("kontrakt_navn")
+  notaType        String?  @map("nota_type")     // "A-Nota" | "T-Nota" | "Sluttnota"
+  notaNr          Int?     @map("nota_nr")
+  entreprenor     String?  @map("entreprenor")
   pageCount       Int?     @map("page_count")
   wordCount       Int?     @map("word_count")
   uploadedAt      DateTime @default(now()) @map("uploaded_at")
