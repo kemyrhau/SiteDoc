@@ -246,6 +246,11 @@ function DokumentListe({
               {redigerDokId === dok.id ? (
                 <DokumentTypeEditor
                   dok={dok}
+                  eksisterendeKontrakter={[...new Set(
+                    dokumenter
+                      .map((d) => d.kontraktNavn)
+                      .filter((k): k is string => !!k)
+                  )]}
                   onLagre={(data) => {
                     oppdaterMutation.mutate({ documentId: dok.id, ...data });
                     setRedigerDokId(null);
@@ -323,10 +328,12 @@ function DokumentListe({
 
 function DokumentTypeEditor({
   dok,
+  eksisterendeKontrakter,
   onLagre,
   onAvbryt,
 }: {
   dok: { docType: string | null; notaType: string | null; notaNr: number | null; kontraktNavn: string | null };
+  eksisterendeKontrakter: string[];
   onLagre: (data: {
     docType?: "anbudsgrunnlag" | "a_nota" | "t_nota" | "mengdebeskrivelse" | "annet";
     notaType?: "A-Nota" | "T-Nota" | "Sluttnota" | null;
@@ -338,6 +345,7 @@ function DokumentTypeEditor({
   const [type, setType] = useState(dok.docType ?? "annet");
   const [nr, setNr] = useState(dok.notaNr?.toString() ?? "");
   const [kontrakt, setKontrakt] = useState(dok.kontraktNavn ?? "");
+  const [nyKontrakt, setNyKontrakt] = useState(false);
 
   const erNota = type === "a_nota" || type === "t_nota";
 
@@ -365,13 +373,34 @@ function DokumentTypeEditor({
             value={nr}
             onChange={(e) => setNr(e.target.value)}
           />
-          <input
-            type="text"
-            className="w-full rounded border border-gray-300 px-2 py-1 text-sm"
-            placeholder="Kontrakt (f.eks. P900512 Røstbakken)"
-            value={kontrakt}
-            onChange={(e) => setKontrakt(e.target.value)}
-          />
+          {!nyKontrakt && eksisterendeKontrakter.length > 0 ? (
+            <select
+              className="w-full rounded border border-gray-300 bg-white px-2 py-1 text-sm"
+              value={kontrakt}
+              onChange={(e) => {
+                if (e.target.value === "__ny__") {
+                  setNyKontrakt(true);
+                  setKontrakt("");
+                } else {
+                  setKontrakt(e.target.value);
+                }
+              }}
+            >
+              <option value="">Velg kontrakt...</option>
+              {eksisterendeKontrakter.map((k) => (
+                <option key={k} value={k}>{k}</option>
+              ))}
+              <option value="__ny__">+ Ny kontrakt...</option>
+            </select>
+          ) : (
+            <input
+              type="text"
+              className="w-full rounded border border-gray-300 px-2 py-1 text-sm"
+              placeholder="Kontraktnavn (f.eks. P900512 Røstbakken)"
+              value={kontrakt}
+              onChange={(e) => setKontrakt(e.target.value)}
+            />
+          )}
         </>
       )}
 
