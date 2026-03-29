@@ -25,6 +25,7 @@ export default function OkonomiSide() {
   const [visNyKontrakt, setVisNyKontrakt] = useState(false);
   const [nyKontraktNavn, setNyKontraktNavn] = useState("");
   const [nyKontraktType, setNyKontraktType] = useState("");
+  const [nyKontraktByggherre, setNyKontraktByggherre] = useState("");
   const [nyKontraktEntreprenor, setNyKontraktEntreprenor] = useState("");
 
   const { data: kontrakter } = trpc.kontrakt.hentForProsjekt.useQuery(
@@ -90,81 +91,30 @@ export default function OkonomiSide() {
       {/* Velgere */}
       <div className="flex items-center gap-3 border-b px-4 py-2">
         <label className="text-xs text-gray-500">Kontrakt:</label>
-        {visNyKontrakt ? (
-          <div className="flex items-center gap-2">
-            <input
-              type="text"
-              className="rounded border border-gray-300 px-2 py-1 text-sm"
-              placeholder="Kontraktnavn"
-              value={nyKontraktNavn}
-              onChange={(e) => setNyKontraktNavn(e.target.value)}
-              autoFocus
-            />
-            <select
-              className="rounded border border-gray-300 bg-white px-2 py-1 text-sm"
-              value={nyKontraktType}
-              onChange={(e) => setNyKontraktType(e.target.value)}
-            >
-              <option value="">Type...</option>
-              <option value="8405">NS 8405</option>
-              <option value="8406">NS 8406</option>
-              <option value="8407">NS 8407</option>
-            </select>
-            <input
-              type="text"
-              className="rounded border border-gray-300 px-2 py-1 text-sm"
-              placeholder="Entreprenør"
-              value={nyKontraktEntreprenor}
-              onChange={(e) => setNyKontraktEntreprenor(e.target.value)}
-            />
-            <button
-              onClick={() => {
-                if (nyKontraktNavn.trim()) {
-                  opprettKontrakt.mutate({
-                    projectId: prosjektId,
-                    navn: nyKontraktNavn.trim(),
-                    kontraktType: nyKontraktType as "8405" | "8406" | "8407" | undefined || undefined,
-                    entreprenor: nyKontraktEntreprenor.trim() || undefined,
-                  });
-                }
-              }}
-              className="rounded bg-sitedoc-primary px-2 py-1 text-xs text-white"
-            >
-              Opprett
-            </button>
-            <button
-              onClick={() => setVisNyKontrakt(false)}
-              className="text-xs text-gray-500"
-            >
-              Avbryt
-            </button>
-          </div>
-        ) : (
-          <div className="flex items-center gap-1">
-            <select
-              className="rounded border border-gray-300 bg-white px-3 py-1.5 text-sm"
-              value={kontraktId ?? ""}
-              onChange={(e) => {
-                setKontraktId(e.target.value || null);
-                setPeriodId(null);
-              }}
-            >
-              <option value="">Alle kontrakter</option>
-              {kontrakter?.map((k) => (
-                <option key={k.id} value={k.id}>
-                  {k.navn}{k.entreprenor ? ` — ${k.entreprenor}` : ""}{k.kontraktType ? ` (${k.kontraktType})` : ""}
-                </option>
-              ))}
-            </select>
-            <button
-              onClick={() => setVisNyKontrakt(true)}
-              className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-              title="Ny kontrakt"
-            >
-              <Plus className="h-4 w-4" />
-            </button>
-          </div>
-        )}
+        <div className="flex items-center gap-1">
+          <select
+            className="rounded border border-gray-300 bg-white px-3 py-1.5 text-sm"
+            value={kontraktId ?? ""}
+            onChange={(e) => {
+              setKontraktId(e.target.value || null);
+              setPeriodId(null);
+            }}
+          >
+            <option value="">Alle kontrakter</option>
+            {kontrakter?.map((k) => (
+              <option key={k.id} value={k.id}>
+                {k.navn}{k.entreprenor ? ` — ${k.entreprenor}` : ""}{k.kontraktType ? ` (NS ${k.kontraktType})` : ""}
+              </option>
+            ))}
+          </select>
+          <button
+            onClick={() => setVisNyKontrakt(true)}
+            className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+            title="Ny kontrakt"
+          >
+            <Plus className="h-4 w-4" />
+          </button>
+        </div>
         <label className="text-xs text-gray-500">Periode:</label>
         <PeriodeVelger
           projectId={prosjektId}
@@ -247,6 +197,87 @@ export default function OkonomiSide() {
         open={importOpen}
         onClose={() => setImportOpen(false)}
       />
+
+      {/* Ny kontrakt modal */}
+      {visNyKontrakt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setVisNyKontrakt(false)}>
+          <div className="w-full max-w-md rounded-lg bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="border-b px-5 py-3">
+              <h2 className="text-base font-semibold">Ny kontrakt</h2>
+            </div>
+            <div className="space-y-3 p-5">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-500">Kontraktnavn</label>
+                <input
+                  type="text"
+                  className="w-full rounded border border-gray-300 px-3 py-1.5 text-sm"
+                  placeholder="f.eks. Bygg Røstbakken"
+                  value={nyKontraktNavn}
+                  onChange={(e) => setNyKontraktNavn(e.target.value)}
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-500">Kontrakttype</label>
+                <select
+                  className="w-full rounded border border-gray-300 bg-white px-3 py-1.5 text-sm"
+                  value={nyKontraktType}
+                  onChange={(e) => setNyKontraktType(e.target.value)}
+                >
+                  <option value="">Velg type...</option>
+                  <option value="8405">NS 8405 — Utførelsesentreprise</option>
+                  <option value="8406">NS 8406 — Forenklet utførelsesentreprise</option>
+                  <option value="8407">NS 8407 — Totalentreprise</option>
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-500">Byggherre</label>
+                <input
+                  type="text"
+                  className="w-full rounded border border-gray-300 px-3 py-1.5 text-sm"
+                  placeholder="f.eks. Tromsø kommune"
+                  value={nyKontraktByggherre}
+                  onChange={(e) => setNyKontraktByggherre(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-500">Entreprenør</label>
+                <input
+                  type="text"
+                  className="w-full rounded border border-gray-300 px-3 py-1.5 text-sm"
+                  placeholder="f.eks. Roald Madsen AS"
+                  value={nyKontraktEntreprenor}
+                  onChange={(e) => setNyKontraktEntreprenor(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 border-t px-5 py-3">
+              <button
+                onClick={() => setVisNyKontrakt(false)}
+                className="rounded px-4 py-1.5 text-sm text-gray-600 hover:bg-gray-100"
+              >
+                Avbryt
+              </button>
+              <button
+                onClick={() => {
+                  if (nyKontraktNavn.trim()) {
+                    opprettKontrakt.mutate({
+                      projectId: prosjektId,
+                      navn: nyKontraktNavn.trim(),
+                      kontraktType: (nyKontraktType as "8405" | "8406" | "8407") || undefined,
+                      entreprenor: nyKontraktEntreprenor.trim() || undefined,
+                    });
+                  }
+                }}
+                disabled={!nyKontraktNavn.trim()}
+                className="rounded bg-sitedoc-primary px-4 py-1.5 text-sm text-white hover:bg-sitedoc-secondary disabled:opacity-50"
+              >
+                Opprett
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

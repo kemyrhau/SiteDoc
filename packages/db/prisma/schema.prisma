@@ -797,6 +797,7 @@ model FtdKontrakt {
   projectId            String   @map("project_id")
   navn                 String
   kontraktType         String?  @map("kontrakt_type") // "8405" | "8406" | "8407"
+  byggherre            String?
   entreprenor          String?
   buildingId           String?  @map("building_id")
   hmsSamordningsgruppe String?  @map("hms_samordningsgruppe")
