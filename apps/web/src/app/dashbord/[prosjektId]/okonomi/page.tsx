@@ -235,7 +235,7 @@ export default function OkonomiSide() {
                 <input
                   type="text"
                   className="w-full rounded border border-gray-300 px-3 py-1.5 text-sm"
-                  placeholder="f.eks. Tromsø kommune"
+                  placeholder="f.eks. Din Kommune"
                   value={nyKontraktByggherre}
                   onChange={(e) => setNyKontraktByggherre(e.target.value)}
                 />
@@ -245,7 +245,7 @@ export default function OkonomiSide() {
                 <input
                   type="text"
                   className="w-full rounded border border-gray-300 px-3 py-1.5 text-sm"
-                  placeholder="f.eks. Roald Madsen AS"
+                  placeholder="f.eks. Firma AS"
                   value={nyKontraktEntreprenor}
                   onChange={(e) => setNyKontraktEntreprenor(e.target.value)}
                 />
