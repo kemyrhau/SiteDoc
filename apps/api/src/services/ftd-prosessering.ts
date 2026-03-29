@@ -1158,28 +1158,28 @@ function ekstraherBudsjettPosterFraPdf(
       continue;
     }
 
-    // Sjekk prislinje: finn alle norske desimaltall, bruk de 3 siste
-    const alleTall: Array<{ val: number; raw: string; start: number; end: number }> = [];
-    const TALL_G = /\d{1,3}(?:\s\d{3})*,\d+/g;
+    // Sjekk prislinje: finn alle tall (heltall OG desimaltall med komma)
+    // Regex matcher: "28 500,00" (desimal med tusenskilletegn), "105" (heltall), "40,00" (enkel desimal)
+    const alleTall: Array<{ val: number; start: number; end: number }> = [];
+    const ALLE_TALL_G = /\d{1,3}(?:\s\d{3})*,\d+|\b\d+\b/g;
     let tallMatch: RegExpExecArray | null;
-    TALL_G.lastIndex = 0;
-    while ((tallMatch = TALL_G.exec(linje)) !== null) {
-      alleTall.push({ val: tilTall(tallMatch[0]), raw: tallMatch[0], start: tallMatch.index, end: tallMatch.index + tallMatch[0].length });
-    }
-    // Også sjekk heltall uten komma (f.eks. "40" som mengde) — finn token rett før første desimaltall
-    if (alleTall.length >= 2 && gjeldende) {
-      // Tekst før første desimaltall
-      const forFoersteTall = linje.slice(0, alleTall[0]!.start).trim();
-      const tokens = forFoersteTall.split(/\s+/);
-      const sistToken = tokens[tokens.length - 1];
-      // Sjekk om det er et heltall (mengde uten komma)
-      if (sistToken && /^\d+$/.test(sistToken)) {
-        alleTall.unshift({ val: parseInt(sistToken, 10), raw: sistToken, start: forFoersteTall.lastIndexOf(sistToken), end: forFoersteTall.lastIndexOf(sistToken) + sistToken.length });
-      }
+    ALLE_TALL_G.lastIndex = 0;
+    while ((tallMatch = ALLE_TALL_G.exec(linje)) !== null) {
+      const raw = tallMatch[0];
+      // Ignorer tall som er del av postnr (f.eks. "00" i "00.03") eller sidetall
+      if (tallMatch.index > 0 && linje[tallMatch.index - 1] === ".") continue;
+      if (tallMatch.index + raw.length < linje.length && linje[tallMatch.index + raw.length] === ".") continue;
+      alleTall.push({ val: tilTall(raw), start: tallMatch.index, end: tallMatch.index + raw.length });
     }
 
+    // Trenger minst 3 tall, og de to siste MÅ ha komma (pris + sum)
     if (alleTall.length >= 3 && gjeldende) {
       const n = alleTall.slice(-3);
+      // Verifiser at pris og sum er desimaltall (har komma)
+      const prisRaw = linje.slice(n[1]!.start, n[1]!.end);
+      const sumRaw = linje.slice(n[2]!.start, n[2]!.end);
+      if (!prisRaw.includes(",") || !sumRaw.includes(",")) continue;
+
       const mengde = n[0]!.val;
       const pris = n[1]!.val;
       const sum = n[2]!.val;
