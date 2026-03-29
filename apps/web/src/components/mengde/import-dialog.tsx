@@ -34,7 +34,7 @@ export function ImportDialog({ projectId, open, onClose }: ImportDialogProps) {
   const [docType, setDocType] = useState<string>("anbudsgrunnlag");
   const [enterpriseId, setEnterpriseId] = useState<string | null>(null);
   const [folderId, setFolderId] = useState<string | null>(null);
-  const [kontraktNavn, setKontraktNavn] = useState<string>("");
+  const [kontraktId, setKontraktId] = useState<string>("");
   const [notaType, setNotaType] = useState<string>("");
   const [notaNr, setNotaNr] = useState<string>("");
   const [lasterOpp, setLasterOpp] = useState(false);
@@ -48,6 +48,14 @@ export function ImportDialog({ projectId, open, onClose }: ImportDialogProps) {
   );
 
   const utils = trpc.useUtils();
+
+  // Hent kontrakter
+  const { data: kontrakter } = trpc.kontrakt.hentForProsjekt.useQuery(
+    { projectId },
+    { enabled: !!projectId && open },
+  );
+
+  const valgtKontrakt = kontrakter?.find((k) => k.id === kontraktId);
 
   // Hent mapper for prosjektet
   const { data: mapper } = trpc.mappe.hentForProsjekt.useQuery(
@@ -142,7 +150,7 @@ export function ImportDialog({ projectId, open, onClose }: ImportDialogProps) {
             | "annet",
           ...(notaType ? { notaType: notaType as "A-Nota" | "T-Nota" | "Sluttnota" } : {}),
           ...(notaNr ? { notaNr: parseInt(notaNr, 10) } : {}),
-          ...(kontraktNavn ? { kontraktNavn } : {}),
+          ...(kontraktId ? { kontraktId, kontraktNavn: valgtKontrakt?.navn ?? undefined } : {}),
         },
         {
           onSuccess: () => {
@@ -187,7 +195,7 @@ export function ImportDialog({ projectId, open, onClose }: ImportDialogProps) {
             | "annet",
           ...(notaType ? { notaType: notaType as "A-Nota" | "T-Nota" | "Sluttnota" } : {}),
           ...(notaNr ? { notaNr: parseInt(notaNr, 10) } : {}),
-          ...(kontraktNavn ? { kontraktNavn } : {}),
+          ...(kontraktId ? { kontraktId, kontraktNavn: valgtKontrakt?.navn ?? undefined } : {}),
         });
         importert++;
       } catch {
@@ -274,19 +282,41 @@ export function ImportDialog({ projectId, open, onClose }: ImportDialogProps) {
             </select>
           </div>
 
-          {/* Kontrakt og nota-info (for nota-typer) */}
+          {/* Kontrakt-velger (for alle typer) */}
+          <div>
+            <label className="mb-1 block text-xs font-medium text-gray-500">
+              Kontrakt
+            </label>
+            {kontrakter && kontrakter.length > 0 ? (
+              <select
+                className="w-full rounded border border-gray-300 bg-white px-3 py-1.5 text-sm"
+                value={kontraktId}
+                onChange={(e) => setKontraktId(e.target.value)}
+              >
+                <option value="">Velg kontrakt...</option>
+                {kontrakter.map((k) => (
+                  <option key={k.id} value={k.id}>{k.navn}</option>
+                ))}
+              </select>
+            ) : (
+              <div className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                Ingen kontrakter opprettet. Opprett en kontrakt i økonomi-toppen før import.
+              </div>
+            )}
+          </div>
+
+          {/* Nota-nummer (for A-nota/T-nota) */}
           {(docType === "a_nota" || docType === "t_nota") && (
-            <div className="space-y-3 rounded border border-blue-100 bg-blue-50/30 p-3">
-              <div className="text-xs font-medium text-gray-600">Nota-registrering</div>
+            <div className="rounded border border-blue-100 bg-blue-50/30 p-3">
+              <div className="mb-2 text-xs font-medium text-gray-600">Nota-registrering</div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="mb-1 block text-xs text-gray-500">Type</label>
                   <select
                     className="w-full rounded border border-gray-300 bg-white px-3 py-1.5 text-sm"
-                    value={notaType}
+                    value={notaType || (docType === "a_nota" ? "A-Nota" : "T-Nota")}
                     onChange={(e) => setNotaType(e.target.value)}
                   >
-                    <option value="">Velg type...</option>
                     <option value="A-Nota">A-Nota</option>
                     <option value="T-Nota">T-Nota</option>
                     <option value="Sluttnota">Sluttnota</option>
@@ -297,21 +327,11 @@ export function ImportDialog({ projectId, open, onClose }: ImportDialogProps) {
                   <input
                     type="number"
                     className="w-full rounded border border-gray-300 px-3 py-1.5 text-sm"
-                    placeholder="f.eks. 4"
+                    placeholder="f.eks. 3"
                     value={notaNr}
                     onChange={(e) => setNotaNr(e.target.value)}
                   />
                 </div>
-              </div>
-              <div>
-                <label className="mb-1 block text-xs text-gray-500">Kontrakt / Prosjekt</label>
-                <input
-                  type="text"
-                  className="w-full rounded border border-gray-300 px-3 py-1.5 text-sm"
-                  placeholder="f.eks. P900512 Røstbakken VVA"
-                  value={kontraktNavn}
-                  onChange={(e) => setKontraktNavn(e.target.value)}
-                />
               </div>
             </div>
           )}
