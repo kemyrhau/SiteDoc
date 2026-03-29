@@ -135,9 +135,10 @@ async function prosesserPdf(
     }
   }
 
-  // Ekstraher spec-poster fra A-nota/T-nota PDF (Proadm-format)
+  // Ekstraher spec-poster fra A-nota/T-nota PDF (Proadm-format) via pdfjs-dist
   if (docType === "a_nota" || docType === "t_nota") {
-    const poster = ekstraherNotaPosterFraPdf(resultat.text, projectId, documentId);
+    const tabellTekst = await ekstraherPdfMedPosisjoner(buffer);
+    const poster = ekstraherNotaPosterFraPdf(tabellTekst, projectId, documentId);
     if (poster.length > 0) {
       await prisma.ftdSpecPost.createMany({ data: poster });
     }
@@ -996,6 +997,55 @@ interface SpecPostRad {
 }
 
 /**
+ * Ekstraher tekst fra PDF med bevarte kolonneposisjoner via pdfjs-dist.
+ * Grupperer tekstelementer etter y-posisjon (rad) og sorterer etter x (kolonne),
+ * slik at tabellstrukturen bevares med mellomrom mellom kolonnene.
+ */
+async function ekstraherPdfMedPosisjoner(buffer: Buffer): Promise<string> {
+  const { getDocument } = await import("pdfjs-dist");
+  const data = new Uint8Array(buffer);
+  const doc = await getDocument({ data, useSystemFonts: true }).promise;
+
+  const alleLinjer: string[] = [];
+
+  for (let p = 1; p <= doc.numPages; p++) {
+    const page = await doc.getPage(p);
+    const content = await page.getTextContent();
+
+    // Grupper tekstelementer etter y-posisjon (avrundet til 3px toleranse)
+    const rader = new Map<number, Array<{ x: number; tekst: string }>>();
+    for (const item of content.items) {
+      const el = item as { str?: string; transform?: number[] };
+      if (!el.str?.trim() || !el.transform) continue;
+      const y = Math.round(el.transform[5]! / 3) * 3;
+      const x = Math.round(el.transform[4]!);
+      if (!rader.has(y)) rader.set(y, []);
+      rader.get(y)!.push({ x, tekst: el.str.trim() });
+    }
+
+    // Sorter rader etter y (fallende = topp til bunn i PDF)
+    const sortertRader = [...rader.entries()].sort((a, b) => b[0] - a[0]);
+
+    for (const [_y, items] of sortertRader) {
+      items.sort((a, b) => a.x - b.x);
+      // Sett inn mellomrom basert på x-avstand
+      let linje = "";
+      let forrigeXEnd = 0;
+      for (const item of items) {
+        const gap = item.x - forrigeXEnd;
+        if (linje && gap > 5) linje += " ";
+        linje += item.tekst;
+        forrigeXEnd = item.x + item.tekst.length * 4; // Grov estimat av tekstbredde
+      }
+      alleLinjer.push(linje);
+    }
+  }
+
+  await doc.destroy();
+  return alleLinjer.join("\n");
+}
+
+/**
  * Parser A-nota/T-nota PDF (Proadm-format).
  *
  * Portert fra Python: pipeline/profiles/a_nota.py
@@ -1070,9 +1120,9 @@ function ekstraherNotaPosterFraPdf(
   for (const rawLinje of linjer) {
     const linje = rawLinje.trim();
 
-    // Vent på første "Postnr Beskrivelse"-header
+    // Vent på første "Postnr...Beskrivelse"-header (kan være sammenhengende i PDF)
     if (!tabellStartet) {
-      if (/Postnr\b/i.test(linje) && linje.includes("Beskrivelse")) {
+      if (/Postnr/i.test(linje) && /Beskrivelse/i.test(linje)) {
         tabellStartet = true;
       }
       continue;

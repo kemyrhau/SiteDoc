@@ -21,6 +21,7 @@
     "fast-xml-parser": "^5.5.8",
     "fastify": "^5.2.0",
     "pdf-parse": "1.1.1",
+    "pdfjs-dist": "^4.10.38",
     "resend": "^6.9.3",
     "xlsx": "^0.18.5",
     "zod": "^3.24.0"
