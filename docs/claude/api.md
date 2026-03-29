@@ -49,6 +49,8 @@ Alle routere i `apps/api/src/routes/`:
 
 **Modulavhengighet:** Økonomi (`okonomi`) krever Dokumentsøk (`dokumentsok`). Auto-aktiveres. Deaktivering blokkeres.
 
+**Neste steg (økonomi):** A-nota nummer = periodenummer. Kontrakt + periode-velger → vis og sammenlign perioder i Oversikt. Anbudsgrunnlag = budsjett, A-nota 4/5/6/7 = perioder under samme kontrakt.
+
 ## Auth-nivåer
 
 `publicProcedure` (åpen) og `protectedProcedure` (krever autentisert userId i context). Context bygges i `context.ts` som verifiserer Auth.js-sesjonstokens. De fleste routere bruker `protectedProcedure` med tilleggs-sjekker fra `tilgangskontroll.ts`.
