@@ -172,6 +172,22 @@ export const mappeRouter = router({
       });
     }),
 
+  // Slett dokument fra mappe (soft-delete + fjern chunks/spec-poster)
+  slettDokument: protectedProcedure
+    .input(z.object({ documentId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const doc = await ctx.prisma.ftdDocument.findUniqueOrThrow({
+        where: { id: input.documentId },
+      });
+      await verifiserProsjektmedlem(ctx.userId, doc.projectId);
+      await ctx.prisma.ftdDocumentChunk.deleteMany({ where: { documentId: input.documentId } });
+      await ctx.prisma.ftdSpecPost.deleteMany({ where: { documentId: input.documentId } });
+      return ctx.prisma.ftdDocument.update({
+        where: { id: input.documentId },
+        data: { isActive: false },
+      });
+    }),
+
   // Last opp dokument til mappe — oppretter FtdDocument + trigger prosessering
   lastOppDokument: protectedProcedure
     .input(

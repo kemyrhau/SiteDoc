@@ -6,7 +6,7 @@ import { useSession } from "next-auth/react";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { trpc } from "@/lib/trpc";
 import { Spinner, Table } from "@sitedoc/ui";
-import { FolderOpen, FileText, Download, Lock, Upload, Loader2 } from "lucide-react";
+import { FolderOpen, FileText, Download, Lock, Upload, Loader2, Trash2 } from "lucide-react";
 import { beregnSynligeMapper } from "@sitedoc/shared/utils";
 import type { MappeTilgangInput, BrukerTilgangInfo } from "@sitedoc/shared/utils";
 
@@ -95,9 +95,17 @@ export default function MapperSide() {
   const lastOppMutation = trpc.mappe.lastOppDokument.useMutation({
     onSuccess: () => {
       utils.mappe.hentDokumenter.invalidate({ folderId: valgtMappeId! });
+      utils.mappe.hentForProsjekt.invalidate({ projectId: prosjektId! });
       setLasterOpp(false);
     },
     onError: () => setLasterOpp(false),
+  });
+
+  const slettDokMutation = trpc.mappe.slettDokument.useMutation({
+    onSuccess: () => {
+      utils.mappe.hentDokumenter.invalidate({ folderId: valgtMappeId! });
+      utils.mappe.hentForProsjekt.invalidate({ projectId: prosjektId! });
+    },
   });
 
   const handleFilValgt = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -251,20 +259,33 @@ export default function MapperSide() {
               bredde: "120px",
             },
             {
-              id: "download",
+              id: "actions",
               header: "",
               celle: (rad) => (
-                <a
-                  href={rad.fileUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-                  title="Last ned"
-                >
-                  <Download className="h-4 w-4" />
-                </a>
+                <div className="flex items-center gap-1">
+                  <a
+                    href={rad.fileUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                    title="Last ned"
+                  >
+                    <Download className="h-4 w-4" />
+                  </a>
+                  <button
+                    onClick={() => {
+                      if (confirm(`Slett «${rad.filename}»?`)) {
+                        slettDokMutation.mutate({ documentId: rad.id });
+                      }
+                    }}
+                    className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-500"
+                    title="Slett"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
               ),
-              bredde: "50px",
+              bredde: "80px",
             },
           ]}
           data={(dokumenter ?? []) as DokumentRad[]}
