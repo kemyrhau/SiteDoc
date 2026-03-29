@@ -1158,14 +1158,36 @@ function ekstraherBudsjettPosterFraPdf(
       continue;
     }
 
-    // Sjekk prislinje
-    const prisMatch = PRIS_RE.exec(linje);
-    if (prisMatch && gjeldende) {
-      const type = prisMatch[1]!; // f.eks. "Tid" eller "Lengde" — ignoreres
-      const enhet = prisMatch[2]!;
-      const mengde = tilTall(prisMatch[3]!);
-      const pris = tilTall(prisMatch[4]!);
-      const sum = tilTall(prisMatch[5]!);
+    // Sjekk prislinje: finn alle norske desimaltall, bruk de 3 siste
+    const alleTall: Array<{ val: number; raw: string; start: number; end: number }> = [];
+    const TALL_G = /\d{1,3}(?:\s\d{3})*,\d+/g;
+    let tallMatch: RegExpExecArray | null;
+    TALL_G.lastIndex = 0;
+    while ((tallMatch = TALL_G.exec(linje)) !== null) {
+      alleTall.push({ val: tilTall(tallMatch[0]), raw: tallMatch[0], start: tallMatch.index, end: tallMatch.index + tallMatch[0].length });
+    }
+    // Også sjekk heltall uten komma (f.eks. "40" som mengde) — finn token rett før første desimaltall
+    if (alleTall.length >= 2 && gjeldende) {
+      // Tekst før første desimaltall
+      const forFoersteTall = linje.slice(0, alleTall[0]!.start).trim();
+      const tokens = forFoersteTall.split(/\s+/);
+      const sistToken = tokens[tokens.length - 1];
+      // Sjekk om det er et heltall (mengde uten komma)
+      if (sistToken && /^\d+$/.test(sistToken)) {
+        alleTall.unshift({ val: parseInt(sistToken, 10), raw: sistToken, start: forFoersteTall.lastIndexOf(sistToken), end: forFoersteTall.lastIndexOf(sistToken) + sistToken.length });
+      }
+    }
+
+    if (alleTall.length >= 3 && gjeldende) {
+      const n = alleTall.slice(-3);
+      const mengde = n[0]!.val;
+      const pris = n[1]!.val;
+      const sum = n[2]!.val;
+
+      // Finn enhet: token rett før mengde-tallet
+      const forMengde = linje.slice(0, n[0]!.start).trim();
+      const forTokens = forMengde.split(/\s+/);
+      const enhetKandidat = forTokens[forTokens.length - 1] ?? "";
 
       let fullPostnr = gjeldende.postnr;
       if (gjeldende.subNr) {
@@ -1182,7 +1204,7 @@ function ekstraherBudsjettPosterFraPdf(
         documentId,
         postnr: fullPostnr,
         beskrivelse: beskr.slice(0, 500) || null,
-        enhet: ENHET_PAT.test(enhet) ? enhet : null,
+        enhet: ENHET_PAT.test(enhetKandidat) && enhetKandidat.length <= 10 ? enhetKandidat : null,
         mengdeAnbud: mengde,
         enhetspris: pris,
         sumAnbud: sum,
