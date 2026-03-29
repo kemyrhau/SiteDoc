@@ -24,12 +24,21 @@ Alle routere i `apps/api/src/routes/`:
 | `mobilAuth` | byttToken (public, OAuth→sesjon), verifiser (m/tokenrotasjon), loggUt (sletter sesjon) |
 | `bilde` | hentForProsjekt (alle bilder via sjekklister + oppgaver, m/tilgangsfilter, inkl. parent+tegningsdata), opprettForSjekkliste |
 | `admin` | erAdmin, hentAlleProsjekter (m/sjekkliste-/oppgavetellere), hentAlleOrganisasjoner, opprettOrganisasjon, oppdaterOrganisasjon, settBrukerOrganisasjon, tilknyttProsjekt, fjernProsjektTilknytning, opprettProsjekt, hentProsjektStatistikk, slettProsjekt, slettUtlopteProsjekter, hentAlleBrukere |
-| `mengde` | hentDokumenter (m/mappetilgangsfilter), hentPerioder, hentSpecPoster (m/valgfri periode-join, sortering), hentAvviksanalyse, lagreNotat, registrerDokument (m/kontraktNavn, notaType, notaNr, trigger prosessering via HTTP), reprosesser, slettDokument (soft delete), slettPeriode |
+| `mengde` | hentDokumenter (m/mappetilgangsfilter, docType != null), hentPerioder, hentSpecPoster (m/sortering), hentAvviksanalyse, lagreNotat, registrerDokument (m/kontraktNavn, notaType, notaNr), oppdaterDokument (inline type/nota/kontrakt), reprosesser, fjernFraOkonomi (nullstiller type, beholder i mapper), slettPeriode |
 | `ftdSok` | sokDokumenter (tsvector m/norsk stemming + ILIKE fallback, mappetilgangsfilter), hentDokumentChunks, nsKoder, nsChunks |
+| `kontrakt` | hentForProsjekt (m/building, _count), opprett (navn, type 8405/8406/8407, byggherre, entreprenor, buildingId), oppdater, slett (fjerner kobling fra entrepriser og dokumenter) |
 
 **Dokumentflyt:**
 - **Mapper** → opplasting → FtdDocument → auto scanning/chunking → søkbart (dokumentsøk-modul)
-- **Økonomi** → manuell import (velg fra mapper eller last opp) → sett docType + kontrakt/nota-info → spec-poster
+- **Økonomi** → manuell import (velg fra mapper) → sett docType + nota-type/nr + velg kontrakt → spec-poster
+- **Fjern fra økonomi** → nullstiller docType/nota-info, dokumentet beholdes i mapper
+
+**Kontrakt-modell (FtdKontrakt):**
+- Overliggende gruppering for økonomi: Byggherre → Entreprenør per kontrakt
+- Felter: navn, kontraktType (NS 8405/8406/8407), byggherre, entreprenor, buildingId (valgfri), hmsSamordningsgruppe
+- Entrepriser kan kobles til kontrakt (valgfri kontraktId på Enterprise)
+- Dokumenter kobles til kontrakt via kontraktId på FtdDocument
+- Kontrakt-dropdown i økonomi-toppen som primærfilter
 
 **FTD-prosessering** (Fastify `POST /prosesser/:documentId`):
 - tRPC kjører i Next.js, prosessering i API-serveren (ren Node)

@@ -37,9 +37,10 @@
 | `project_modules` | Aktiverte moduler per prosjekt |
 | `organizations` | Firmaer/organisasjoner med navn, org.nr, fakturaadresse, logo |
 | `organization_projects` | Mange-til-mange mellom organisasjoner og prosjekter |
-| `ftd_documents` | Eneste dokumentmodell (Document fjernet). Filinfo, docType, processingState, kontraktNavn, notaType (A-Nota/T-Nota/Sluttnota), notaNr, entreprenor. Mapper-opplasting → auto scanning/chunking. Økonomi-import → manuell type/kontrakt/nummer |
-| `ftd_document_chunks` | Søkbare tekstbiter med tsvector-indeks (norsk stemming, GIN), NS-koder, sideinfo. Trigger auto-oppdaterer search_vector. Excel-celler håndterer richText/formler |
-| `ftd_spec_posts` | Budsjettlinjer fra NS 3420 mengdebeskrivelse (PDF/Excel/XML). Postnr, beskrivelse, enhet, mengde, pris, sum, NS-kode, fullNsTekst |
+| `ftd_kontrakter` | Overliggende kontrakt: Byggherre → Entreprenør. Felter: navn, kontraktType (8405/8406/8407), byggherre, entreprenor, buildingId (valgfri), hmsSamordningsgruppe. Entrepriser og dokumenter kobles via kontraktId |
+| `ftd_documents` | Eneste dokumentmodell. Filinfo, docType (anbudsgrunnlag/a_nota/t_nota/mengdebeskrivelse/annet), processingState, kontraktId, kontraktNavn, notaType, notaNr, entreprenor. Mapper → auto scanning. Økonomi → manuell import med type/kontrakt |
+| `ftd_document_chunks` | Søkbare tekstbiter med tsvector (norsk stemming, GIN), NS-koder, sideinfo. Excel: richText/formel-håndtering |
+| `ftd_spec_posts` | NS 3420 budsjettlinjer fra PDF/Excel/XML. Postnr, beskrivelse, enhet, mengde, pris, sum, NS-kode, fullNsTekst |
 | `ftd_nota_periods` | A-nota/T-nota perioder per entreprise |
 | `ftd_nota_posts` | Poster per periode med mengde/verdi denne, forrige, total |
 | `ftd_nota_comments` | Kommentarer på spesifikasjonsposter og perioder |
