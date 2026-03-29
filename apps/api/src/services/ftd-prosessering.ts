@@ -1141,12 +1141,65 @@ function ekstraherBudsjettPosterFraPdf(
     if (/^Prosjekt:/i.test(linje)) continue;
     if (/^Tromsø/i.test(linje)) continue;
 
-    // Sub-postnr (.1, .2) — tilordne til FORRIGE post
+    // Sub-postnr (.1, .2) ALENE på rad — tilordne til FORRIGE post
     const subMatch = SUB_POSTNR_PAT.exec(linje);
     if (subMatch && sistePostIdx >= 0) {
       const sistePost = poster[sistePostIdx]!;
       sistePost.postnr = (sistePost.postnr ?? "") + "." + subMatch[1]!;
       continue;
+    }
+
+    // Prislinje med sub-nr: ".2 Tid time 40,00 1 200,00 48 000,00"
+    const subPrisMatch = /^\.(\d+)\s+/.exec(linje);
+    if (subPrisMatch && gjeldende) {
+      // Resten av linjen er prislinjen — fjern sub-nummeret og parse som vanlig
+      const subNr = subPrisMatch[1]!;
+      const prisLinje = linje.slice(subPrisMatch[0].length);
+
+      const alleTallSub: Array<{ val: number; start: number; end: number }> = [];
+      const ALLE_TALL_SUB = /\d{1,3}(?:\s\d{3})*,\d+|\b\d+\b/g;
+      let tm: RegExpExecArray | null;
+      while ((tm = ALLE_TALL_SUB.exec(prisLinje)) !== null) {
+        const raw = tm[0];
+        if (tm.index > 0 && prisLinje[tm.index - 1] === ".") continue;
+        if (tm.index + raw.length < prisLinje.length && prisLinje[tm.index + raw.length] === ".") continue;
+        alleTallSub.push({ val: tilTall(raw), start: tm.index, end: tm.index + raw.length });
+      }
+
+      if (alleTallSub.length >= 2) {
+        const sisteTo = alleTallSub.slice(-2);
+        const prisRaw = prisLinje.slice(sisteTo[0]!.start, sisteTo[0]!.end);
+        const sumRaw = prisLinje.slice(sisteTo[1]!.start, sisteTo[1]!.end);
+        if (prisRaw.includes(",") && sumRaw.includes(",")) {
+          let mengde: number, pris: number, sum: number;
+          if (alleTallSub.length >= 3) {
+            const n = alleTallSub.slice(-3);
+            mengde = n[0]!.val; pris = n[1]!.val; sum = n[2]!.val;
+          } else {
+            mengde = 1; pris = sisteTo[0]!.val; sum = sisteTo[1]!.val;
+          }
+
+          const mengdeStart = alleTallSub.length >= 3 ? alleTallSub.slice(-3)[0]!.start : sisteTo[0]!.start;
+          const forMengde = prisLinje.slice(0, mengdeStart).trim();
+          const forTokens = forMengde.split(/\s+/);
+          const enhetKandidat = forTokens[forTokens.length - 1] ?? "";
+
+          const postBeskr = ventendeSub?.beskrivelse || gjeldende.beskrivelse;
+          const postNsKode = ventendeSub?.nsKode || gjeldende.nsKode;
+
+          sistePostIdx = poster.length;
+          poster.push({
+            projectId, documentId,
+            postnr: gjeldende.postnr + "." + subNr,
+            beskrivelse: postBeskr.slice(0, 500) || null,
+            enhet: ENHET_PAT.test(enhetKandidat) && enhetKandidat.length <= 10 ? enhetKandidat : null,
+            mengdeAnbud: mengde, enhetspris: pris, sumAnbud: sum,
+            nsKode: postNsKode,
+          });
+          ventendeSub = null;
+          continue;
+        }
+      }
     }
 
     // Postnr ALENE på rad (ingen ekstra tekst) → ny hovedpost
