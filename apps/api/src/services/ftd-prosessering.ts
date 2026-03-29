@@ -1078,6 +1078,7 @@ function ekstraherBudsjettPosterFraPdf(
   mengdeAnbud: number | null;
   enhetspris: number | null;
   sumAnbud: number | null;
+  nsKode: string | null;
 }> {
   // Norsk desimaltall: "1 200,00", "40,00"
   const DESIMAL_PAT = /\d{1,3}(?:\s\d{3})*,\d{2}/;
@@ -1107,18 +1108,22 @@ function ekstraherBudsjettPosterFraPdf(
     mengdeAnbud: number | null;
     enhetspris: number | null;
     sumAnbud: number | null;
+    nsKode: string | null;
   }> = [];
 
   // Postnr med ekstra tekst: "00.03.01.3 | Bygg" → postnr + sub-beskrivelse
   const POSTNR_MED_TEKST = /^(\d{2}(?:\.\d+)+)\s+(.+)$/;
+  // NS 3420 kode: "KB6.33", "FB1.251A", "FS2.333014022", "AM3.868A"
+  const NS_KODE_PAT = /^[A-Z]{1,3}\d[\w.]*$/;
 
   let gjeldende: {
     postnr: string;
     beskrivelse: string;
+    nsKode: string | null;
   } | null = null;
 
   // Ventende sub-info: settes når postnr-rad med tekst dukker opp FØR prislinje
-  let ventendeSub: { postnr: string; beskrivelse: string } | null = null;
+  let ventendeSub: { postnr: string; beskrivelse: string; nsKode: string | null } | null = null;
 
   // Siste post som ble lagt til — for å tilordne .1/.2 sub-nummer etterpå
   let sistePostIdx = -1;
@@ -1148,37 +1153,57 @@ function ekstraherBudsjettPosterFraPdf(
     const postnrAlene = POSTNR_PAT.exec(linje);
     if (postnrAlene) {
       const nyttPostnr = postnrAlene[1]!;
-      // Samle beskrivelse fra neste linjer (stopp ved postnr, prislinje, etc.)
+      // Samle beskrivelse fra neste linjer, fang NS-kode
       let beskr = "";
+      let nsKode: string | null = null;
       for (let j = i + 1; j < linjer.length && j <= i + 10; j++) {
         const nl = linjer[j]!.trim();
         if (!nl) continue;
         if (POSTNR_PAT.test(nl) || POSTNR_MED_TEKST.test(nl) || SUB_POSTNR_PAT.test(nl)) break;
         if (/^Sum\s/i.test(nl) || /^Akkumulert/i.test(nl)) break;
-        // Stopp ved prislinje (rad med >=2 desimaltall på slutten)
         const desimaler = nl.match(/\d{1,3}(?:\s\d{3})*,\d{2}/g);
         if (desimaler && desimaler.length >= 2 && nl.split(/\s+/).length <= 8) break;
         beskr += (beskr ? " " : "") + nl;
       }
-      gjeldende = { postnr: nyttPostnr, beskrivelse: beskr };
+      gjeldende = { postnr: nyttPostnr, beskrivelse: beskr, nsKode };
       ventendeSub = null;
       continue;
     }
 
-    // Postnr MED tekst: "00.03.01.3 | Bygg" → sub-post under gjeldende
+    // Postnr MED tekst: "00.03.01.3 | Bygg" eller "00.03.03.8 | FB1.251A"
     const postnrMedTekst = POSTNR_MED_TEKST.exec(linje);
     if (postnrMedTekst) {
       const postnr = postnrMedTekst[1]!;
       const tekst = postnrMedTekst[2]!.trim();
 
-      // Sjekk om dette er en seksjon-header (f.eks. "00.03.01 Arbeidslønn") uten prislinje
-      // Seksjon-headere har bare tekst, sub-poster har prislinje etter
+      // Sjekk om teksten er en NS-kode
+      const erNsKode = NS_KODE_PAT.test(tekst);
+
       if (gjeldende && postnr === gjeldende.postnr) {
-        // Samme postnr som gjeldende → dette er en sub-post
-        ventendeSub = { postnr, beskrivelse: tekst };
+        // Samme postnr som gjeldende → sub-post
+        ventendeSub = {
+          postnr,
+          beskrivelse: erNsKode ? "" : tekst,
+          nsKode: erNsKode ? tekst : null,
+        };
       } else {
-        // Nytt postnr med beskrivelse på samme rad (f.eks. "00.03.01.2 | TIMEARBEID, BAS/FORMANN")
-        gjeldende = { postnr, beskrivelse: tekst };
+        // Nytt postnr — NS-kode eller beskrivelse?
+        if (erNsKode) {
+          // NS-kode følger postnr, beskrivelse samles fra neste linjer
+          let beskr = "";
+          for (let j = i + 1; j < linjer.length && j <= i + 10; j++) {
+            const nl = linjer[j]!.trim();
+            if (!nl) continue;
+            if (POSTNR_PAT.test(nl) || POSTNR_MED_TEKST.test(nl) || SUB_POSTNR_PAT.test(nl)) break;
+            if (/^Sum\s/i.test(nl) || /^Akkumulert/i.test(nl)) break;
+            const desimaler = nl.match(/\d{1,3}(?:\s\d{3})*,\d{2}/g);
+            if (desimaler && desimaler.length >= 2 && nl.split(/\s+/).length <= 8) break;
+            beskr += (beskr ? " " : "") + nl;
+          }
+          gjeldende = { postnr, beskrivelse: beskr, nsKode: tekst };
+        } else {
+          gjeldende = { postnr, beskrivelse: tekst, nsKode: null };
+        }
         ventendeSub = null;
       }
       continue;
@@ -1227,9 +1252,10 @@ function ekstraherBudsjettPosterFraPdf(
       // Bruk ventende sub-info hvis tilgjengelig
       let postPostnr = gjeldende.postnr;
       let postBeskr = gjeldende.beskrivelse;
+      let postNsKode = gjeldende.nsKode;
       if (ventendeSub) {
-        postBeskr = ventendeSub.beskrivelse;
-        // Sub-postnr bygges når .1/.2 dukker opp etter denne raden
+        if (ventendeSub.beskrivelse) postBeskr = ventendeSub.beskrivelse;
+        if (ventendeSub.nsKode) postNsKode = ventendeSub.nsKode;
       }
 
       sistePostIdx = poster.length;
@@ -1242,6 +1268,7 @@ function ekstraherBudsjettPosterFraPdf(
         mengdeAnbud: mengde,
         enhetspris: pris,
         sumAnbud: sum,
+        nsKode: postNsKode,
       });
 
       ventendeSub = null;
