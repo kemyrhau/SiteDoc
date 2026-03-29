@@ -113,9 +113,9 @@ export function SpecPostTabell({
   }
 
   const totalBudsjett = rader.reduce((s, r) => s + Number(r.budsjett.sumAnbud ?? 0), 0);
-  const totalVerdiDenne = harSammenligning ? rader.reduce((s, r) => s + r.verdiDenne, 0) : 0;
-  const totalVerdiTotal = harSammenligning ? rader.reduce((s, r) => s + r.verdiTotal, 0) : 0;
-  const totalAvvik = harSammenligning ? totalVerdiTotal - totalBudsjett : 0;
+  // Bruk sammenligningPoster direkte for totaler — inkluderer poster som ikke matcher budsjett
+  const totalVerdiDenne = harSammenligning ? sammenligningPoster!.reduce((s, p) => s + Number(p.verdiDenne ?? 0), 0) : 0;
+  const totalVerdiTotal = harSammenligning ? sammenligningPoster!.reduce((s, p) => s + Number(p.verdiTotal ?? 0), 0) : 0;
 
   // Kolonnerekkefølge matcher Proadm Excel:
   // Postnr | Beskrivelse | [Mengder: Anbudet | Enh | Tot.forrige | Denne per. | Totalt] | Enhetspris | [Verdi: Anbudet | Tot.forrige | Denne per. | Totalt] | Utført %
