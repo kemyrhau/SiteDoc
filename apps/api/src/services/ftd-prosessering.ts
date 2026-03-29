@@ -160,8 +160,22 @@ async function prosesserExcel(
   const workbook = new (ExcelJS as { Workbook: new () => import("exceljs").Workbook }).Workbook();
   await workbook.xlsx.load(buffer as unknown as ArrayBuffer);
 
-  const sheet = workbook.worksheets[0];
-  if (!sheet) throw new Error("Ingen ark funnet i Excel-filen");
+  let sheet = workbook.worksheets[0];
+
+  // Fallback for .xls (gammel binærformat): bruk SheetJS
+  if (!sheet) {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const XLSX = require("xlsx") as typeof import("xlsx");
+    const xlsWorkbook = XLSX.read(buffer, { type: "buffer" });
+    const sheetName = xlsWorkbook.SheetNames[0];
+    if (!sheetName) throw new Error("Ingen ark funnet i Excel-filen");
+
+    // Konverter til xlsx-buffer som ExcelJS kan lese
+    const xlsxBuf = XLSX.write(xlsWorkbook, { type: "buffer", bookType: "xlsx" });
+    await workbook.xlsx.load(xlsxBuf as ArrayBuffer);
+    sheet = workbook.worksheets[0];
+    if (!sheet) throw new Error("Kunne ikke konvertere .xls til lesbart format");
+  }
 
   // Lag chunks av celleinnhold for søk (alle typer)
   await lagExcelChunks(prisma, documentId, sheet);
