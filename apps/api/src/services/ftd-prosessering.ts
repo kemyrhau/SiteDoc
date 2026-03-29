@@ -129,7 +129,8 @@ async function prosesserPdf(
 
   // Ekstraher spec-poster fra mengdebeskrivelse/budsjett PDF (NS 3420 format)
   if (docType === "anbudsgrunnlag" || docType === "budsjett" || docType === "mengdebeskrivelse") {
-    const poster = ekstraherNs3420PosterFraTekst(resultat.text, projectId, documentId);
+    const tabellTekst = await ekstraherPdfMedPosisjoner(buffer);
+    const poster = ekstraherBudsjettPosterFraPdf(tabellTekst, projectId, documentId);
     if (poster.length > 0) {
       await prisma.ftdSpecPost.createMany({ data: poster });
     }
@@ -1051,6 +1052,152 @@ async function ekstraherPdfMedPosisjoner(buffer: Buffer): Promise<string> {
  *
  * Enhet er det alfabetiske tokenet mellom nums[0] og nums[1].
  */
+/**
+ * Ekstraher budsjett-poster fra NS 3420 mengdebeskrivelse PDF (pdfjs-dist tekst).
+ *
+ * Format (etter pdfjs-dist):
+ *   00.03.01.1                          ← postnr (egen rad)
+ *   TIMEARBEID, SAKSBEHANDLER/INGENIØR  ← beskrivelse
+ *   Tid | time | 40,00 | 1 200,00 | 48 000,00  ← prislinje
+ *
+ * Prislinje: [type] [enhet] [mengde] [enhetspris] [sum]
+ * - Pris og sum har alltid komma-desimaler (X XXX,XX)
+ * - Mengde kan være heltall (40) eller desimal (40,00)
+ * - Sub-poster (.1, .2) refererer til siste fulle postnr
+ */
+function ekstraherBudsjettPosterFraPdf(
+  fullTekst: string,
+  projectId: string,
+  documentId: string,
+): Array<{
+  projectId: string;
+  documentId: string;
+  postnr: string | null;
+  beskrivelse: string | null;
+  enhet: string | null;
+  mengdeAnbud: number | null;
+  enhetspris: number | null;
+  sumAnbud: number | null;
+}> {
+  // Norsk desimaltall: "1 200,00", "40,00"
+  const DESIMAL_PAT = /\d{1,3}(?:\s\d{3})*,\d{2}/;
+  // Heltall eller desimaltall som mengde: "40" eller "40,00" eller "9 000"
+  const MENGDE_PAT = /\d{1,3}(?:\s\d{3})*(?:,\d+)?/;
+  // Postnr: "00.03.01.1", "03.01.01.3.7" etc.
+  const POSTNR_PAT = /^(\d{2}(?:\.\d+)+)\s*$/;
+  // Sub-postnr: ".1", ".2"
+  const SUB_POSTNR_PAT = /^\.(\d+)\s*$/;
+  // Prislinje: slutter med minst 2 desimaltall (enhetspris + sum)
+  // Format: [type] [enhet] [mengde] [enhetspris,XX] [sum,XX]
+  const PRIS_RE = /^(.+?)\s+(\S+)\s+(\d{1,3}(?:\s\d{3})*(?:,\d+)?)\s+(\d{1,3}(?:\s\d{3})*,\d{2})\s+(\d{1,3}(?:\s\d{3})*,\d{2})$/;
+  // Enhet-mønster
+  const ENHET_PAT = /^[A-Za-zÆØÅæøå²³/\-\.]+$/;
+
+  function tilTall(s: string): number {
+    return parseFloat(s.replace(/\s/g, "").replace(",", "."));
+  }
+
+  const linjer = fullTekst.split("\n");
+  const poster: Array<{
+    projectId: string;
+    documentId: string;
+    postnr: string | null;
+    beskrivelse: string | null;
+    enhet: string | null;
+    mengdeAnbud: number | null;
+    enhetspris: number | null;
+    sumAnbud: number | null;
+  }> = [];
+
+  let gjeldende: {
+    postnr: string;
+    beskrivelse: string;
+    subNr: string | null;
+    subBeskrivelse: string | null;
+  } | null = null;
+
+  for (let i = 0; i < linjer.length; i++) {
+    const linje = linjer[i]!.trim();
+    if (!linje) continue;
+
+    // Hopp over headere og sumlinjer
+    if (/^Sum\s+(denne|Kapittel)/i.test(linje)) continue;
+    if (/^Akkumulert/i.test(linje)) continue;
+    if (/^Postnr\b/i.test(linje)) continue;
+    if (/^Side\b/i.test(linje)) continue;
+    if (/^Kapittel:/i.test(linje)) continue;
+    if (/^Prosjekt:/i.test(linje)) continue;
+
+    // Sjekk postnr (hel linje)
+    const postnrMatch = POSTNR_PAT.exec(linje);
+    if (postnrMatch) {
+      const nyttPostnr = postnrMatch[1]!;
+      // Samle beskrivelse fra neste linjer
+      let beskr = "";
+      for (let j = i + 1; j < linjer.length && j <= i + 10; j++) {
+        const nl = linjer[j]!.trim();
+        if (!nl) continue;
+        if (POSTNR_PAT.test(nl) || SUB_POSTNR_PAT.test(nl) || PRIS_RE.test(nl)) break;
+        if (/^Sum\s/i.test(nl) || /^Akkumulert/i.test(nl)) break;
+        if (DESIMAL_PAT.test(nl) && nl.split(/\s+/).length <= 5) break; // Prislinje
+        beskr += (beskr ? " " : "") + nl;
+      }
+      gjeldende = { postnr: nyttPostnr, beskrivelse: beskr, subNr: null, subBeskrivelse: null };
+      continue;
+    }
+
+    // Sjekk sub-postnr (.1, .2)
+    const subMatch = SUB_POSTNR_PAT.exec(linje);
+    if (subMatch && gjeldende) {
+      gjeldende.subNr = subMatch[1]!;
+      // Neste linje kan være sub-beskrivelse
+      const nl = linjer[i + 1]?.trim() ?? "";
+      if (nl && !POSTNR_PAT.test(nl) && !SUB_POSTNR_PAT.test(nl) && !PRIS_RE.test(nl) && !DESIMAL_PAT.test(nl)) {
+        gjeldende.subBeskrivelse = nl;
+      }
+      continue;
+    }
+
+    // Sjekk prislinje
+    const prisMatch = PRIS_RE.exec(linje);
+    if (prisMatch && gjeldende) {
+      const type = prisMatch[1]!; // f.eks. "Tid" eller "Lengde" — ignoreres
+      const enhet = prisMatch[2]!;
+      const mengde = tilTall(prisMatch[3]!);
+      const pris = tilTall(prisMatch[4]!);
+      const sum = tilTall(prisMatch[5]!);
+
+      let fullPostnr = gjeldende.postnr;
+      if (gjeldende.subNr) {
+        fullPostnr += "." + gjeldende.subNr;
+      }
+
+      let beskr = gjeldende.beskrivelse;
+      if (gjeldende.subBeskrivelse) {
+        beskr = gjeldende.subBeskrivelse;
+      }
+
+      poster.push({
+        projectId,
+        documentId,
+        postnr: fullPostnr,
+        beskrivelse: beskr.slice(0, 500) || null,
+        enhet: ENHET_PAT.test(enhet) ? enhet : null,
+        mengdeAnbud: mengde,
+        enhetspris: pris,
+        sumAnbud: sum,
+      });
+
+      // Reset sub etter bruk
+      gjeldende.subNr = null;
+      gjeldende.subBeskrivelse = null;
+      continue;
+    }
+  }
+
+  return poster;
+}
+
 function ekstraherNotaPosterFraPdf(
   fullTekst: string,
   projectId: string,
