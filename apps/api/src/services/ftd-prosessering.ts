@@ -1148,16 +1148,18 @@ function ekstraherNotaPosterFraPdf(
 
     if (nums.length < 11) {
       droppetPoster++;
-      console.warn(`[FTD-DEBUG] Droppet post ${postnr}: fant ${nums.length}/11 tall | linje: "${linje.slice(0, 200)}"`);
       continue;
     }
 
-    // Enhet: alfabetisk token mellom tall 0 og tall 1
-    const mellom = linje.slice(nums[0]!.end, nums[1]!.start).trim();
+    // Bruk de 11 SISTE tallene — beskrivelsen kan inneholde tall (Ø225, 3,0m)
+    const n = nums.slice(-11);
+
+    // Enhet: alfabetisk token mellom tall n[0] og n[1]
+    const mellom = linje.slice(n[0]!.end, n[1]!.start).trim();
     const enhet = mellom && UNIT_PAT.test(mellom) && mellom.length <= 10 ? mellom : null;
 
-    // Beskrivelse: tekst mellom postnr og første tall
-    const beskrivelse = linje.slice(restStart, nums[0]!.start).trim();
+    // Beskrivelse: tekst mellom postnr og første av de 11 siste tallene
+    const beskrivelse = linje.slice(restStart, n[0]!.start).trim();
 
     poster.push({
       projectId,
@@ -1165,14 +1167,14 @@ function ekstraherNotaPosterFraPdf(
       postnr,
       beskrivelse: beskrivelse.slice(0, 500) || null,
       enhet,
-      mengdeAnbud: nums[0]!.value,
-      enhetspris: nums[4]!.value,
-      sumAnbud: nums[5]!.value,
-      mengdeDenne: nums[2]!.value,
-      mengdeTotal: nums[3]!.value,
-      verdiDenne: nums[7]!.value,
-      verdiTotal: nums[9]!.value,
-      prosentFerdig: nums[10]!.value,
+      mengdeAnbud: n[0]!.value,
+      enhetspris: n[4]!.value,
+      sumAnbud: n[5]!.value,
+      mengdeDenne: n[2]!.value,
+      mengdeTotal: n[3]!.value,
+      verdiDenne: n[7]!.value,
+      verdiTotal: n[9]!.value,
+      prosentFerdig: n[10]!.value,
     });
   }
 
