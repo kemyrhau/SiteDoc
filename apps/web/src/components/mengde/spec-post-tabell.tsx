@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
-import { ChevronUp, ChevronDown, X } from "lucide-react";
+import { ChevronUp, ChevronDown, X, Settings } from "lucide-react";
 
 interface SpecPost {
   id: string;
@@ -107,6 +107,8 @@ export function SpecPostTabell({
   const [sorterFelt, setSorterFelt] = useState<SorterFelt>("postnr");
   const [sorterRetning, setSorterRetning] = useState<SorterRetning>("asc");
   const [detaljPost, setDetaljPost] = useState<string | null>(null);
+  const [overskridelseTerskel, setOverskridelseTerskel] = useState(120);
+  const [visInnstillinger, setVisInnstillinger] = useState(false);
 
   const valgtRadRef = useRef<HTMLTableRowElement>(null);
 
@@ -197,6 +199,35 @@ export function SpecPostTabell({
 
   return (
     <div className="flex h-full flex-col rounded border overflow-hidden">
+      {/* Innstillinger */}
+      {harSammenligning && (
+        <div className="flex items-center gap-2 border-b bg-gray-50 px-3 py-1.5 text-xs">
+          <button
+            onClick={() => setVisInnstillinger(!visInnstillinger)}
+            className="flex items-center gap-1 rounded px-1.5 py-0.5 text-gray-500 hover:bg-gray-200"
+          >
+            <Settings className="h-3.5 w-3.5" />
+          </button>
+          {visInnstillinger && (
+            <div className="flex items-center gap-2 text-gray-600">
+              <span>Markér overskridelse over</span>
+              <input
+                type="number"
+                value={overskridelseTerskel}
+                onChange={(e) => setOverskridelseTerskel(Number(e.target.value) || 100)}
+                className="w-14 rounded border px-1.5 py-0.5 text-center text-xs"
+                min={100}
+                max={500}
+                step={10}
+              />
+              <span>%</span>
+            </div>
+          )}
+          {!visInnstillinger && overskridelseTerskel !== 100 && (
+            <span className="text-gray-400">Overskridelse: {overskridelseTerskel}%</span>
+          )}
+        </div>
+      )}
       <div className="flex-1 overflow-auto">
         <table className="w-full text-left text-sm">
           <thead className="sticky top-0 z-10 bg-gray-50">
@@ -251,7 +282,9 @@ export function SpecPostTabell({
                   onClick={() => onVelgPost(p.id)}
                   onDoubleClick={() => setDetaljPost(p.id)}
                   className={`cursor-pointer border-b transition-colors ${
-                    valgtPostId === p.id ? "bg-blue-50 border-l-2 border-l-sitedoc-primary" : "hover:bg-gray-50"
+                    harSammenligning && rad.nota && rad.prosentFerdig > overskridelseTerskel
+                      ? "bg-red-50"
+                      : valgtPostId === p.id ? "bg-blue-50 border-l-2 border-l-sitedoc-primary" : "hover:bg-gray-50"
                   }`}
                 >
                   <td className="px-2 py-1.5 text-xs text-gray-400">{idx + 1}</td>
@@ -274,7 +307,7 @@ export function SpecPostTabell({
                       <td className="w-[2px] bg-gray-200 px-0" />
                       <td className="px-2 py-1.5 text-right font-mono text-blue-700">{rad.nota ? fmt(rad.verdiDenne) : "—"}</td>
                       <td className="px-2 py-1.5 text-right font-mono text-blue-700">{rad.nota ? fmt(rad.verdiTotal) : "—"}</td>
-                      <td className="px-2 py-1.5 text-right font-mono text-blue-700">{rad.nota ? fmt(rad.prosentFerdig, 0) : "—"}</td>
+                      <td className={`px-2 py-1.5 text-right font-mono ${rad.nota && rad.prosentFerdig > overskridelseTerskel ? "text-red-600 font-semibold" : "text-blue-700"}`}>{rad.nota ? fmt(rad.prosentFerdig, 0) : "—"}</td>
                     </>
                   )}
                 </tr>
