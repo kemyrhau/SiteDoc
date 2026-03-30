@@ -1122,6 +1122,7 @@ function ekstraherBudsjettPosterFraPdf(
     postnr: string;
     beskrivelse: string;
     nsKode: string | null;
+    harPrislinje: boolean;
   } | null = null;
 
   // Ventende sub-info: settes når postnr-rad med tekst dukker opp FØR prislinje
@@ -1129,6 +1130,19 @@ function ekstraherBudsjettPosterFraPdf(
 
   // Siste post som ble lagt til — for å tilordne .1/.2 sub-nummer etterpå
   let sistePostIdx = -1;
+
+  /** Lagre gjeldende som seksjonspost uten priser (hvis den aldri fikk prislinje) */
+  function lagreSeksjonspost() {
+    if (gjeldende && !gjeldende.harPrislinje && gjeldende.beskrivelse) {
+      poster.push({
+        projectId, documentId,
+        postnr: gjeldende.postnr,
+        beskrivelse: gjeldende.beskrivelse.slice(0, 2000),
+        enhet: null, mengdeAnbud: null, enhetspris: null, sumAnbud: null,
+        nsKode: gjeldende.nsKode, fullNsTekst: null,
+      });
+    }
+  }
 
   for (let i = 0; i < linjer.length; i++) {
     const linje = linjer[i]!.trim();
@@ -1209,8 +1223,8 @@ function ekstraherBudsjettPosterFraPdf(
     // Postnr ALENE på rad (ingen ekstra tekst) → ny hovedpost
     const postnrAlene = POSTNR_PAT.exec(linje);
     if (postnrAlene) {
+      lagreSeksjonspost(); // Lagre forrige som seksjonspost hvis den aldri fikk pris
       const nyttPostnr = postnrAlene[1]!;
-      // Samle beskrivelse fra neste linjer, fang NS-kode
       let beskr = "";
       let nsKode: string | null = null;
       for (let j = i + 1; j < linjer.length && j <= i + 10; j++) {
@@ -1222,7 +1236,7 @@ function ekstraherBudsjettPosterFraPdf(
         if (desimaler && desimaler.length >= 2 && nl.split(/\s+/).length <= 8) break;
         beskr += (beskr ? " " : "") + nl;
       }
-      gjeldende = { postnr: nyttPostnr, beskrivelse: beskr, nsKode };
+      gjeldende = { postnr: nyttPostnr, beskrivelse: beskr, nsKode, harPrislinje: false };
       ventendeSub = null;
       continue;
     }
@@ -1280,14 +1294,16 @@ function ekstraherBudsjettPosterFraPdf(
           // Samme base-postnr → sub-post under gjeldende
           ventendeSub = { postnr: fullPostnr, beskrivelse: beskr, nsKode: tekst };
         } else {
-          gjeldende = { postnr: fullPostnr, beskrivelse: beskr, nsKode: tekst };
+          lagreSeksjonspost();
+          gjeldende = { postnr: fullPostnr, beskrivelse: beskr, nsKode: tekst, harPrislinje: false };
           ventendeSub = null;
         }
       } else {
         if (gjeldende && postnr === gjeldende.postnr) {
           ventendeSub = { postnr, beskrivelse: tekst, nsKode: null };
         } else {
-          gjeldende = { postnr, beskrivelse: tekst, nsKode: null };
+          lagreSeksjonspost();
+          gjeldende = { postnr, beskrivelse: tekst, nsKode: null, harPrislinje: false };
           ventendeSub = null;
         }
       }
@@ -1358,10 +1374,14 @@ function ekstraherBudsjettPosterFraPdf(
       });
       (poster[poster.length - 1] as Record<string, unknown>)._prisLinjeIdx = i;
 
+      if (gjeldende) gjeldende.harPrislinje = true;
       ventendeSub = null;
       continue;
     }
   }
+
+  // Lagre siste seksjonspost
+  lagreSeksjonspost();
 
   // Andre pass: samle spesifikasjonstekst etter hver prislinje
   for (let p = 0; p < poster.length; p++) {
@@ -1387,6 +1407,8 @@ function ekstraherBudsjettPosterFraPdf(
       // Stopp ved neste postnr eller sub-prislinje
       if (POSTNR_PAT.test(nl) || POSTNR_MED_TEKST.test(nl)) break;
       if (/^\.(\d+)\s+/.test(nl)) break;
+      // Hopp over sub-postnr linjer (.1, .2 alene)
+      if (SUB_POSTNR_PAT.test(nl)) continue;
       spekLinjer.push(nl);
     }
 
