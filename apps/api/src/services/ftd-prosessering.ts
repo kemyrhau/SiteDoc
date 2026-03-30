@@ -1079,6 +1079,7 @@ function ekstraherBudsjettPosterFraPdf(
   enhetspris: number | null;
   sumAnbud: number | null;
   nsKode: string | null;
+  fullNsTekst: string | null;
 }> {
   // Norsk desimaltall: "1 200,00", "40,00"
   const DESIMAL_PAT = /\d{1,3}(?:\s\d{3})*,\d{2}/;
@@ -1109,6 +1110,7 @@ function ekstraherBudsjettPosterFraPdf(
     enhetspris: number | null;
     sumAnbud: number | null;
     nsKode: string | null;
+    fullNsTekst: string | null;
   }> = [];
 
   // Postnr med ekstra tekst: "00.03.01.3 | Bygg" → postnr + sub-beskrivelse
@@ -1194,8 +1196,10 @@ function ekstraherBudsjettPosterFraPdf(
             beskrivelse: postBeskr.slice(0, 500) || null,
             enhet: ENHET_PAT.test(enhetKandidat) && enhetKandidat.length <= 10 ? enhetKandidat : null,
             mengdeAnbud: mengde, enhetspris: pris, sumAnbud: sum,
-            nsKode: postNsKode,
+            nsKode: postNsKode, fullNsTekst: null,
           });
+          // Lagre linje-indeks for spesifikasjonstekst-samling
+          (poster[poster.length - 1] as Record<string, unknown>)._prisLinjeIdx = i;
           ventendeSub = null;
           continue;
         }
@@ -1343,11 +1347,48 @@ function ekstraherBudsjettPosterFraPdf(
         enhetspris: pris,
         sumAnbud: sum,
         nsKode: postNsKode,
+        fullNsTekst: null,
       });
+      (poster[poster.length - 1] as Record<string, unknown>)._prisLinjeIdx = i;
 
       ventendeSub = null;
       continue;
     }
+  }
+
+  // Andre pass: samle spesifikasjonstekst etter hver prislinje
+  for (let p = 0; p < poster.length; p++) {
+    const post = poster[p]!;
+    const startIdx = (post as { _prisLinjeIdx?: number })._prisLinjeIdx;
+    if (startIdx === undefined) continue;
+
+    // Finn neste posts prislinje-indeks (eller slutt)
+    let sluttIdx = linjer.length;
+    if (p + 1 < poster.length) {
+      const nesteStart = (poster[p + 1] as { _prisLinjeIdx?: number })._prisLinjeIdx;
+      if (nesteStart !== undefined) sluttIdx = nesteStart;
+    }
+
+    // Samle tekst fra linjene etter prislinjen til neste post
+    const spekLinjer: string[] = [];
+    for (let j = startIdx + 1; j < sluttIdx; j++) {
+      const nl = linjer[j]?.trim() ?? "";
+      if (!nl) continue;
+      // Hopp over navigasjonslinjer
+      if (/^Sum\s/i.test(nl) || /^Akkumulert/i.test(nl) || /^Postnr\b/i.test(nl)) continue;
+      if (/^Side\b/i.test(nl) || /^Kapittel:/i.test(nl) || /^Prosjekt:/i.test(nl) || /^Tromsø/i.test(nl)) continue;
+      // Stopp ved neste postnr eller sub-prislinje
+      if (POSTNR_PAT.test(nl) || POSTNR_MED_TEKST.test(nl)) break;
+      if (/^\.(\d+)\s+/.test(nl)) break;
+      spekLinjer.push(nl);
+    }
+
+    if (spekLinjer.length > 0) {
+      post.fullNsTekst = spekLinjer.join("\n").slice(0, 2000);
+    }
+
+    // Fjern midlertidig felt
+    delete (post as Record<string, unknown>)._prisLinjeIdx;
   }
 
   return poster;
