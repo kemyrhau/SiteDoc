@@ -732,15 +732,17 @@ async function prosesserGab(
       if (!/[a-zA-ZæøåÆØÅ]{2,}/.test(renset)) continue;
       // Hopp over korte kontrollsekvenser
       if (/^[\x00-\x1f]/.test(renset)) continue;
-      // Rens RTF-rester
+      // Rens RTF-rester og binære tegn
       const ren = renset
         .replace(/\\par\b/g, "\n")
         .replace(/\\tab\b/g, "\t")
         .replace(/\\'([0-9a-f]{2})/gi, (_m, hex) => String.fromCharCode(parseInt(hex, 16)))
         .replace(/\\[a-z]+\d*\s?/g, "")
         .replace(/[{}]/g, "")
+        .replace(/[\x00-\x1f\x7f-\x9f]/g, "") // Fjern kontrollkoder
+        .replace(/[^\x20-\x7eæøåÆØÅéèêëàáâãäöüïîìíñçÉÈÊËÀÁÂÃÄÖÜÏÎÌÍÑÇ\n\t]/g, "") // Kun printbare tegn
         .trim();
-      if (ren.length >= 4 && /[a-zA-ZæøåÆØÅ]/.test(ren)) {
+      if (ren.length >= 4 && /[a-zA-ZæøåÆØÅ]{2,}/.test(ren)) {
         ekstraTekst.push(ren);
       }
     }
