@@ -167,7 +167,18 @@ function excelCelleTilTekst(v: unknown): string {
   if (v === null || v === undefined) return "";
   if (typeof v === "string") return v;
   if (typeof v === "number" || typeof v === "boolean") return String(v);
-  if (v instanceof Date) return v.toLocaleDateString("nb-NO");
+  if (v instanceof Date) {
+    // Excel konverterer postnr som "01.01.1" til Date.
+    // Konverter tilbake: year=200X → "0X", month → "MM", day → "D"
+    const y = v.getFullYear();
+    if (y >= 2000 && y <= 2020) {
+      const prefix = String(y - 2000).padStart(2, "0");
+      const m = String(v.getMonth() + 1).padStart(2, "0");
+      const d = v.getDate();
+      return `${prefix}.${m}.${d}`;
+    }
+    return v.toLocaleDateString("nb-NO");
+  }
 
   const obj = v as Record<string, unknown>;
 
@@ -508,33 +519,60 @@ async function ekstraherNotaPoster(
   // Detekter kolonner fra header
   const headerRow = sheet.getRow(headerRad);
   const kolonner: Record<string, number> = {};
+  // Samle alle header-celler for posisjonelt oppslag
+  const headerCeller: Array<{ col: number; tekst: string }> = [];
   headerRow.eachCell((cell, col) => {
     const v = excelCelleTilTekst(cell.value).toLowerCase().trim();
-    if (v === "postnr" && !kolonner.postnr) kolonner.postnr = col;
-    else if (v.includes("beskrivelse") && !kolonner.beskrivelse) kolonner.beskrivelse = col;
-    else if (v === "enh" || v === "enhet") kolonner.enhet = col;
-    else if (v === "enhetspris") kolonner.enhetspris = col;
-    else if (v.includes("anbudet") && !kolonner.mengdeAnbud) {
-      // Sjekk om parent-header (rad over) sier "Mengder" eller "Verdi"
-      const overVerdi = excelCelleTilTekst(sheet.getRow(headerRad - 1).getCell(col).value).toLowerCase();
-      if (overVerdi.includes("mengd")) kolonner.mengdeAnbud = col;
-      else if (overVerdi.includes("verdi")) kolonner.sumAnbud = col;
-      else if (!kolonner.mengdeAnbud) kolonner.mengdeAnbud = col;
-    }
-    else if (v.includes("denne per") && !kolonner.mengdeDenne) {
-      const overVerdi = excelCelleTilTekst(sheet.getRow(headerRad - 1).getCell(col).value).toLowerCase();
-      if (overVerdi.includes("mengd")) kolonner.mengdeDenne = col;
-      else if (overVerdi.includes("verdi")) kolonner.verdiDenne = col;
-      else if (!kolonner.mengdeDenne) kolonner.mengdeDenne = col;
-    }
-    else if (v.includes("totalt") && !kolonner.mengdeTotal) {
-      const overVerdi = excelCelleTilTekst(sheet.getRow(headerRad - 1).getCell(col).value).toLowerCase();
-      if (overVerdi.includes("mengd")) kolonner.mengdeTotal = col;
-      else if (overVerdi.includes("verdi")) kolonner.verdiTotal = col;
-      else if (!kolonner.mengdeTotal) kolonner.mengdeTotal = col;
-    }
-    else if (v.includes("utført") && v.includes("%")) kolonner.prosentFerdig = col;
+    if (v) headerCeller.push({ col, tekst: v });
   });
+
+  // Finn enhetspris-kolonnen først (ankerpunkt mellom mengde- og verdi-seksjoner)
+  for (const h of headerCeller) {
+    if (h.tekst === "postnr" && !kolonner.postnr) kolonner.postnr = h.col;
+    else if (h.tekst.includes("beskrivelse") && !kolonner.beskrivelse) kolonner.beskrivelse = h.col;
+    else if (h.tekst === "enh" || h.tekst === "enhet") kolonner.enhet = h.col;
+    else if (h.tekst === "enhetspris") kolonner.enhetspris = h.col;
+    else if (h.tekst.includes("utført") && h.tekst.includes("%")) kolonner.prosentFerdig = h.col;
+  }
+
+  // Bruk enhetspris som skillelinje: kolonner FØR = mengder, ETTER = verdier
+  const enhetsprisKol = kolonner.enhetspris ?? 999;
+  for (const h of headerCeller) {
+    if (h.tekst.includes("anbudet")) {
+      if (h.col < enhetsprisKol && !kolonner.mengdeAnbud) kolonner.mengdeAnbud = h.col;
+      else if (h.col > enhetsprisKol && !kolonner.sumAnbud) kolonner.sumAnbud = h.col;
+    }
+    else if (h.tekst.includes("denne")) {
+      if (h.col < enhetsprisKol && !kolonner.mengdeDenne) kolonner.mengdeDenne = h.col;
+      else if (h.col > enhetsprisKol && !kolonner.verdiDenne) kolonner.verdiDenne = h.col;
+    }
+    else if (h.tekst.includes("totalt")) {
+      if (h.col < enhetsprisKol && !kolonner.mengdeTotal) kolonner.mengdeTotal = h.col;
+      else if (h.col > enhetsprisKol && !kolonner.verdiTotal) kolonner.verdiTotal = h.col;
+    }
+  }
+
+  // Fallback: sjekk parent-header (rad over) for Proadm-format med sammensatte overskrifter
+  if (!kolonner.mengdeAnbud || !kolonner.sumAnbud) {
+    for (const h of headerCeller) {
+      if (!h.tekst.includes("anbudet") && !h.tekst.includes("denne") && !h.tekst.includes("totalt")) continue;
+      const overVerdi = headerRad > 1
+        ? excelCelleTilTekst(sheet.getRow(headerRad - 1).getCell(h.col).value).toLowerCase()
+        : "";
+      if (h.tekst.includes("anbudet")) {
+        if (overVerdi.includes("mengd") && !kolonner.mengdeAnbud) kolonner.mengdeAnbud = h.col;
+        else if (overVerdi.includes("verdi") && !kolonner.sumAnbud) kolonner.sumAnbud = h.col;
+      }
+      if (h.tekst.includes("denne")) {
+        if (overVerdi.includes("mengd") && !kolonner.mengdeDenne) kolonner.mengdeDenne = h.col;
+        else if (overVerdi.includes("verdi") && !kolonner.verdiDenne) kolonner.verdiDenne = h.col;
+      }
+      if (h.tekst.includes("totalt")) {
+        if (overVerdi.includes("mengd") && !kolonner.mengdeTotal) kolonner.mengdeTotal = h.col;
+        else if (overVerdi.includes("verdi") && !kolonner.verdiTotal) kolonner.verdiTotal = h.col;
+      }
+    }
+  }
 
   // Fallback: detekter format basert på kolonneantall
   // .xls (via SheetJS) ekspanderer til ~37 kolonner, .xlsx har ~20
@@ -661,8 +699,9 @@ function parsNorskTall(s: string): number | null {
  *   postnr - NSkode  BESKRIVELSE\0
  *   postnr - beskrivelse\0
  *
- * Enhet finnes som \x02RS\x05 eller \x02m\x05 etter posten.
- * Mengde/pris/sum er i binært format som ikke er fullt kartlagt.
+ * Enhet finnes som \x02RS\x03 eller \x02m\x03 (length-prefixed) etter GUID.
+ * Enhetspris: IEEE 754 double (LE) ved fast offset +31 fra NS-kode-slutt.
+ * 78% av poster har enhetspris. RS-poster: mengde=1, sum=enhetspris.
  */
 async function prosesserGab(
   prisma: PrismaClient,
