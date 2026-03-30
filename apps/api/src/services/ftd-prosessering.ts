@@ -1228,18 +1228,21 @@ function ekstraherBudsjettPosterFraPdf(
     // Postnr ALENE på rad (ingen ekstra tekst) → ny hovedpost
     const postnrAlene = POSTNR_PAT.exec(linje);
     if (postnrAlene) {
-      lagreSeksjonspost(); // Lagre forrige som seksjonspost hvis den aldri fikk pris
+      lagreSeksjonspost();
       const nyttPostnr = postnrAlene[1]!;
       let beskr = "";
       let nsKode: string | null = null;
-      for (let j = i + 1; j < linjer.length && j <= i + 10; j++) {
+      // Samle ALLE linjer frem til neste postnr, prislinje eller sub-postnr
+      for (let j = i + 1; j < linjer.length; j++) {
         const nl = linjer[j]!.trim();
         if (!nl) continue;
         if (POSTNR_PAT.test(nl) || POSTNR_MED_TEKST.test(nl) || SUB_POSTNR_PAT.test(nl)) break;
         if (/^Sum\s/i.test(nl) || /^Akkumulert/i.test(nl)) break;
+        if (/^Postnr\b/i.test(nl) || /^Side\b/i.test(nl) || /^Kapittel:/i.test(nl) || /^Prosjekt:/i.test(nl) || /^Tromsø/i.test(nl)) continue;
         const desimaler = nl.match(/\d{1,3}(?:\s\d{3})*,\d{2}/g);
         if (desimaler && desimaler.length >= 2 && nl.split(/\s+/).length <= 8) break;
-        beskr += (beskr ? " " : "") + nl;
+        if (/^\.(\d+)\s+/.test(nl)) break;
+        beskr += (beskr ? "\n" : "") + nl;
       }
       gjeldende = { postnr: nyttPostnr, beskrivelse: beskr, nsKode, harPrislinje: false };
       ventendeSub = null;
