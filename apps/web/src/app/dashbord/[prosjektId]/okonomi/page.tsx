@@ -9,6 +9,7 @@ import { Avviksanalyse } from "@/components/mengde/avviksanalyse";
 import { NotatEditor, type NotatEditorRef } from "@/components/mengde/notat-editor";
 import { NsKodePanel } from "@/components/mengde/ns-kode-panel";
 import { MerknadEksport } from "@/components/mengde/merknad-eksport";
+import { ImportSammenligning } from "@/components/mengde/import-sammenligning";
 import { ImportDialog } from "@/components/mengde/import-dialog";
 import { trpc } from "@/lib/trpc";
 
@@ -312,7 +313,13 @@ export default function OkonomiSide() {
       ) : (
         <div className="min-h-0 flex-1 overflow-auto p-4">
           {aktivFane === "avviksanalyse" ? (
-            <Avviksanalyse projectId={prosjektId} />
+            <div className="space-y-6">
+              <ImportSammenligning
+                prosjektId={prosjektId}
+                dokumenter={dokumenter ?? []}
+                kontraktId={kontraktId}
+              />
+            </div>
           ) : (
             <DokumentListe
               dokumenter={kontraktId ? (dokumenter ?? []).filter((d) => d.kontraktId === kontraktId) : (dokumenter ?? [])}
