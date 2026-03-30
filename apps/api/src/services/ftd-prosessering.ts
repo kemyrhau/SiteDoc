@@ -104,54 +104,64 @@ function harTilstrekkeligTekst(sideData: Array<{ side: number; tekst: string }>)
   return totaltOrd > 50;
 }
 
-/** OCR-fallback: pdftoppm rendrer sider til PNG, tesseract leser tekst */
+/** OCR-fallback: pdftoppm rendrer sider til PNG, tesseract leser tekst.
+ *  Prosesserer i batches à 20 sider for å unngå minne-/timeout-problemer. */
 async function ocrPdf(
   filsti: string,
   antallSider: number,
 ): Promise<Array<{ side: number; tekst: string }>> {
-  const tmpDir = await mkdtemp(join(tmpdir(), "sitedoc-ocr-"));
-  try {
-    // Render alle sider til PNG (300 DPI)
-    const prefix = join(tmpDir, "side");
-    await execFileAsync("pdftoppm", ["-png", "-r", "300", filsti, prefix], {
-      timeout: 120_000, // 2 min maks
-    });
+  const BATCH = 20;
+  const sideData: Array<{ side: number; tekst: string }> = [];
+  const { readdir } = await import("node:fs/promises");
 
-    // Finn genererte PNG-filer (side-01.png, side-001.png, etc.)
-    const { readdir } = await import("node:fs/promises");
-    const filer = (await readdir(tmpDir))
-      .filter((f) => f.endsWith(".png"))
-      .sort();
+  for (let start = 1; start <= antallSider; start += BATCH) {
+    const slutt = Math.min(start + BATCH - 1, antallSider);
+    const tmpDir = await mkdtemp(join(tmpdir(), "sitedoc-ocr-"));
+    try {
+      const prefix = join(tmpDir, "side");
+      await execFileAsync(
+        "pdftoppm",
+        ["-png", "-r", "300", "-f", String(start), "-l", String(slutt), filsti, prefix],
+        { timeout: 120_000 },
+      );
 
-    const sideData: Array<{ side: number; tekst: string }> = [];
+      const filer = (await readdir(tmpDir))
+        .filter((f) => f.endsWith(".png"))
+        .sort();
 
-    for (let i = 0; i < filer.length; i++) {
-      const pngSti = join(tmpDir, filer[i]!);
-      try {
-        const { stdout } = await execFileAsync(
-          "tesseract",
-          [pngSti, "stdout", "-l", "nor", "--psm", "6"],
-          { timeout: 30_000, maxBuffer: 5 * 1024 * 1024 },
-        );
-        sideData.push({ side: i + 1, tekst: stdout.trim() });
-      } catch {
-        // OCR feilet for denne siden — legg til tom
-        sideData.push({ side: i + 1, tekst: "" });
+      for (let i = 0; i < filer.length; i++) {
+        const pngSti = join(tmpDir, filer[i]!);
+        try {
+          const { stdout } = await execFileAsync(
+            "tesseract",
+            [pngSti, "stdout", "-l", "nor", "--psm", "6"],
+            { timeout: 30_000, maxBuffer: 5 * 1024 * 1024 },
+          );
+          sideData.push({ side: start + i, tekst: stdout.trim() });
+        } catch {
+          sideData.push({ side: start + i, tekst: "" });
+        }
       }
+    } catch (err) {
+      console.error(`OCR batch ${start}-${slutt} feilet:`, err);
+      // Legg til tomme sider for feilet batch
+      for (let s = start; s <= slutt; s++) {
+        sideData.push({ side: s, tekst: "" });
+      }
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true }).catch(() => {});
     }
-
-    // Fyll ut manglende sider (pdftoppm kan hoppe over blanke sider)
-    while (sideData.length < antallSider) {
-      sideData.push({ side: sideData.length + 1, tekst: "" });
-    }
-
-    console.log(
-      `OCR ferdig: ${filer.length} sider, ${sideData.reduce((s, p) => s + p.tekst.length, 0)} tegn totalt`,
-    );
-    return sideData;
-  } finally {
-    await rm(tmpDir, { recursive: true, force: true }).catch(() => {});
   }
+
+  // Fyll ut manglende sider
+  while (sideData.length < antallSider) {
+    sideData.push({ side: sideData.length + 1, tekst: "" });
+  }
+
+  console.log(
+    `OCR ferdig: ${sideData.filter((s) => s.tekst.length > 0).length}/${antallSider} sider, ${sideData.reduce((s, p) => s + p.tekst.length, 0)} tegn totalt`,
+  );
+  return sideData;
 }
 
 // --------------------------------------------------------------------------
