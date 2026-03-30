@@ -618,6 +618,7 @@ function DokumentListe({
         <tr className="border-b text-xs font-medium uppercase text-gray-500">
           <th className="px-3 py-2">Filnavn</th>
           <th className="px-3 py-2">Type</th>
+          <th className="px-3 py-2">Nr</th>
           <th className="px-3 py-2">Mappe</th>
           <th className="px-3 py-2">Lastet opp</th>
           <th className="px-3 py-2">Status</th>
@@ -658,6 +659,9 @@ function DokumentListe({
                   )}
                 </button>
               )}
+            </td>
+            <td className="px-3 py-2 text-gray-500">
+              {dok.notaType === "Sluttnota" ? "S" : dok.notaNr ?? "—"}
             </td>
             <td className="px-3 py-2 text-gray-500">
               {dok.folder?.name ?? "—"}

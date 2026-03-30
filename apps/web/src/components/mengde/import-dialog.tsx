@@ -128,7 +128,16 @@ export function ImportDialog({ projectId, open, onClose }: ImportDialogProps) {
     e.preventDefault();
     setDragAktiv(false);
     const droppedFile = e.dataTransfer.files[0];
-    if (droppedFile) { setFil(droppedFile); setDocType(gjettDokType(droppedFile.name)); setNotaNr(gjettNotaNr(droppedFile.name)); if (/sluttnota/i.test(droppedFile.name)) setNotaType("Sluttnota"); }
+    if (droppedFile) {
+      setFil(droppedFile);
+      const dt = gjettDokType(droppedFile.name);
+      setDocType(dt);
+      setNotaNr(gjettNotaNr(droppedFile.name));
+      if (/sluttnota/i.test(droppedFile.name)) setNotaType("Sluttnota");
+      else if (dt === "a_nota") setNotaType("A-Nota");
+      else if (dt === "t_nota") setNotaType("T-Nota");
+      else setNotaType("");
+    }
   }, []);
 
   const handleLastOpp = async () => {
@@ -423,7 +432,16 @@ export function ImportDialog({ projectId, open, onClose }: ImportDialogProps) {
                           accept=".pdf,.xlsx,.xls,.xml,.csv,.docx,.doc,.gab,.ga1"
                           onChange={(e) => {
                             const f = e.target.files?.[0];
-                            if (f) { setFil(f); setDocType(gjettDokType(f.name)); setNotaNr(gjettNotaNr(f.name)); if (/sluttnota/i.test(f.name)) setNotaType("Sluttnota"); }
+                            if (f) {
+                              setFil(f);
+                              const dt = gjettDokType(f.name);
+                              setDocType(dt);
+                              setNotaNr(gjettNotaNr(f.name));
+                              if (/sluttnota/i.test(f.name)) setNotaType("Sluttnota");
+                              else if (dt === "a_nota") setNotaType("A-Nota");
+                              else if (dt === "t_nota") setNotaType("T-Nota");
+                              else setNotaType("");
+                            }
                           }}
                         />
                       </label>
