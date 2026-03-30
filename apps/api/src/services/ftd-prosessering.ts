@@ -1600,9 +1600,9 @@ function ekstraherBudsjettPosterFraPdf(
             fullPostnrNonNs = postnr + tailPris[1]!;
             break;
           }
-          // Siffer(e)/punktum etterfulgt av UPPERCASE tekst → postnr-tail + beskrivelse
-          // f.eks. "8.4 Ny grøft for OV 160..." eller "1.10 Forretninger..."
-          const tailBeskr = /^(\d[\d.]*\d|\d)\s+([A-ZÆØÅ].+)/.exec(nl);
+          // Siffer(e)/punktum etterfulgt av tekst → postnr-tail + beskrivelse
+          // f.eks. "5.28 taknedløp.", "1.10 Forretninger..."
+          const tailBeskr = /^(\d[\d.]*\d|\d)\s+([a-zA-ZæøåÆØÅ].+)/.exec(nl);
           if (tailBeskr && tailBeskr[1]!.length <= 5) {
             fullPostnrNonNs = postnr + tailBeskr[1]!;
             break;
