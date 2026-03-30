@@ -614,7 +614,7 @@ export default function Tegning3DSide() {
 
       {/* GPS-kalibrering modal */}
       {gpsKalibrerÅpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+        <div className="pointer-events-auto fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="w-full max-w-md rounded-lg bg-white shadow-xl">
             <div className="flex items-center justify-between border-b px-5 py-3">
               <h3 className="text-sm font-semibold">IFC GPS-kalibrering</h3>
