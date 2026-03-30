@@ -28,6 +28,12 @@ export default function OkonomiSide() {
   const [nyKontraktType, setNyKontraktType] = useState("");
   const [nyKontraktByggherre, setNyKontraktByggherre] = useState("");
   const [nyKontraktEntreprenor, setNyKontraktEntreprenor] = useState("");
+  const [nyKontraktBygningId, setNyKontraktBygningId] = useState("");
+
+  const { data: bygninger } = trpc.bygning.hentForProsjekt.useQuery(
+    { projectId: prosjektId },
+    { enabled: !!prosjektId },
+  );
 
   const { data: kontrakter } = trpc.kontrakt.hentForProsjekt.useQuery(
     { projectId: prosjektId },
@@ -42,7 +48,9 @@ export default function OkonomiSide() {
       setVisNyKontrakt(false);
       setNyKontraktNavn("");
       setNyKontraktType("");
+      setNyKontraktByggherre("");
       setNyKontraktEntreprenor("");
+      setNyKontraktBygningId("");
     },
   });
 
@@ -175,7 +183,7 @@ export default function OkonomiSide() {
           value={valgtNotaNr ?? ""}
           onChange={(e) => setValgtNotaNr(e.target.value ? parseInt(e.target.value, 10) : null)}
         >
-          <option value="">Kun budsjett</option>
+          <option value="">Kun anbud</option>
           {kontraktDokumenter.notas.map((d) => (
             <option key={d.id} value={d.notaNr!}>
               {d.notaNr}
@@ -312,6 +320,21 @@ export default function OkonomiSide() {
                   onChange={(e) => setNyKontraktEntreprenor(e.target.value)}
                 />
               </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-500">Bygning</label>
+                <select
+                  className="w-full rounded border border-gray-300 bg-white px-3 py-1.5 text-sm"
+                  value={nyKontraktBygningId}
+                  onChange={(e) => setNyKontraktBygningId(e.target.value)}
+                >
+                  <option value="">Ingen bygning (valgfritt)</option>
+                  {bygninger?.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.number ? `${b.number} — ` : ""}{b.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
             <div className="flex justify-end gap-2 border-t px-5 py-3">
               <button
@@ -327,7 +350,9 @@ export default function OkonomiSide() {
                       projectId: prosjektId,
                       navn: nyKontraktNavn.trim(),
                       kontraktType: (nyKontraktType as "8405" | "8406" | "8407") || undefined,
+                      byggherre: nyKontraktByggherre.trim() || undefined,
                       entreprenor: nyKontraktEntreprenor.trim() || undefined,
+                      buildingId: nyKontraktBygningId || undefined,
                     });
                   }
                 }}
@@ -389,7 +414,7 @@ function DokumentListe({
 
   const DOC_TYPE_LABEL: Record<string, string> = {
     anbudsgrunnlag: "Anbudsgrunnlag",
-    budsjett: "Budsjett",
+    budsjett: "Anbud",
     a_nota: "A-nota",
     t_nota: "T-nota",
     mengdebeskrivelse: "Mengdebeskrivelse",

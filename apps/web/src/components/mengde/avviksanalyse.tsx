@@ -30,7 +30,7 @@ export function Avviksanalyse({ projectId }: AvviksanalyseProps) {
   if (!data || data.rows.length === 0) {
     return (
       <div className="flex items-center justify-center py-8 text-sm text-gray-400">
-        Ingen data for avviksanalyse. Importer budsjett og A-nota først.
+        Ingen data for avviksanalyse. Importer anbudsgrunnlag og A-nota først.
       </div>
     );
   }

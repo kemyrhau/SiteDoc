@@ -282,12 +282,12 @@ export function SpecPostTabell({
                   <div className="text-sm text-gray-800">{p.beskrivelse ?? "—"}</div>
                 </div>
                 <div className="grid grid-cols-3 gap-3">
-                  <Kort label="Mengde anbud" verdi={fmt(p.mengdeAnbud)} />
+                  <Kort label="Mengde" verdi={fmt(p.mengdeAnbud)} />
                   <Kort label="Enhet" verdi={p.enhet ?? "—"} mono={false} />
                   <Kort label="Enhetspris" verdi={fmt(p.enhetspris)} />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <Kort label="Sum budsjett" verdi={fmt(p.sumAnbud)} bg="bg-blue-50" />
+                  <Kort label="Sum anbud" verdi={fmt(p.sumAnbud)} bg="bg-blue-50" />
                   {p.nsKode && <Kort label="NS-kode" verdi={p.nsKode} sub={p.nsTittel} bg="bg-amber-50" mono={false} />}
                 </div>
                 {harSammenligning && rad.nota && (
