@@ -1873,10 +1873,13 @@ function ekstraherNotaPosterFraPdf(
     let m: RegExpExecArray | null;
     while ((m = N_PAT.exec(linje)) !== null) {
       // Filtrer falske tusenskille: "tilstandsklasse 2 400,00" → "2 400,00" er IKKE 2400
-      // Ekte tusenskille har siffer/linjestartforan, ikke bokstav+mellomrom
+      // Ekte tusenskille har siffer/linjestart foran, ikke bokstav+mellomrom
       if (m[0].includes(" ") && m.index > 0) {
-        const charForan = linje[m.index - 1];
-        if (charForan && /[a-zA-ZæøåÆØÅ]/.test(charForan)) {
+        // Finn siste non-whitespace tegn foran tallet
+        let ci = m.index - 1;
+        while (ci >= 0 && linje[ci] === " ") ci--;
+        const charForan = ci >= 0 ? linje[ci] : null;
+        if (charForan && /[a-zA-ZæøåÆØÅ)]/.test(charForan)) {
           // Bokstav rett foran → "klasse 2 400,00" — splitt: hopp over "2", ta "400,00"
           const utenPrefix = m[0].replace(/^\d{1,2}\s/, "");
           if (utenPrefix !== m[0] && /^\d{1,3}(?:\s\d{3})*,\d+$/.test(utenPrefix)) {
