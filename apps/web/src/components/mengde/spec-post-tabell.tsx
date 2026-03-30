@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
-import { ChevronUp, ChevronDown, X, Settings } from "lucide-react";
+import { ChevronUp, ChevronDown, X, Settings, FileSearch, Loader2 } from "lucide-react";
+import { trpc } from "@/lib/trpc";
 
 interface SpecPost {
   id: string;
@@ -29,6 +30,8 @@ interface SpecPostTabellProps {
   sammenligningLabel?: string;
   onVelgPost: (postId: string) => void;
   valgtPostId: string | null;
+  prosjektId?: string;
+  kontraktId?: string | null;
 }
 
 // NS 3420-koder: bokstaver + tall/punktum (FH2.21, AM3.861A) eller korte koder (AZA)
@@ -104,6 +107,8 @@ export function SpecPostTabell({
   sammenligningLabel,
   onVelgPost,
   valgtPostId,
+  prosjektId,
+  kontraktId,
 }: SpecPostTabellProps) {
   const [sorterFelt, setSorterFelt] = useState<SorterFelt>("postnr");
   const [sorterRetning, setSorterRetning] = useState<SorterRetning>("asc");
@@ -418,6 +423,13 @@ export function SpecPostTabell({
                     <div className="text-sm text-gray-700">{p.eksternNotat}</div>
                   </div>
                 )}
+                {p.postnr && prosjektId && (
+                  <DokumentasjonSeksjon
+                    prosjektId={prosjektId}
+                    kontraktId={kontraktId ?? null}
+                    postnr={p.postnr}
+                  />
+                )}
               </div>
             </div>
           </div>
@@ -450,6 +462,86 @@ function Kort({ label, verdi, sub, bg, mono = true, compact }: {
       <div className="text-xs text-gray-500">{label}</div>
       <div className={`${compact ? "text-xs" : "text-sm"} font-medium ${mono ? "font-mono" : ""}`}>{verdi}</div>
       {sub && <div className="mt-0.5 text-xs text-gray-600">{sub}</div>}
+    </div>
+  );
+}
+
+function DokumentasjonSeksjon({
+  prosjektId,
+  kontraktId,
+  postnr,
+}: {
+  prosjektId: string;
+  kontraktId: string | null;
+  postnr: string;
+}) {
+  const { data: sider, isLoading } = trpc.mengde.hentDokumentasjonForPost.useQuery(
+    { projectId: prosjektId, kontraktId: kontraktId ?? undefined, postnr },
+    { enabled: !!postnr },
+  );
+
+  // Grupper per dokument
+  const gruppert = useMemo(() => {
+    if (!sider || sider.length === 0) return [];
+    const map = new Map<string, { dok: (typeof sider)[0]["document"]; pages: number[] }>();
+    for (const s of sider) {
+      const entry = map.get(s.document.id);
+      if (entry) {
+        entry.pages.push(s.pageNumber);
+      } else {
+        map.set(s.document.id, { dok: s.document, pages: [s.pageNumber] });
+      }
+    }
+    return Array.from(map.values()).map((g) => ({
+      ...g,
+      pages: g.pages.sort((a, b) => a - b),
+    }));
+  }, [sider]);
+
+  const apnePdf = (fileUrl: string | null, side: number) => {
+    if (!fileUrl) return;
+    window.open(`/api${fileUrl}#page=${side}`, "_blank");
+  };
+
+  return (
+    <div className="rounded border p-3">
+      <div className="mb-2 flex items-center gap-1.5 text-xs font-medium text-gray-500">
+        <FileSearch className="h-3.5 w-3.5" />
+        Dokumentasjon for post {postnr}
+      </div>
+      {isLoading ? (
+        <div className="flex items-center gap-1.5 text-xs text-gray-400">
+          <Loader2 className="h-3 w-3 animate-spin" />
+          Søker...
+        </div>
+      ) : gruppert.length === 0 ? (
+        <div className="rounded bg-amber-50 px-3 py-2 text-xs text-amber-600">
+          Ingen dokumentasjon funnet. Koble en mappe med målebrev til kontrakten for å se dokumentasjon her.
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {gruppert.map((g) => (
+            <div key={g.dok.id}>
+              <div className="text-xs font-medium text-gray-600 truncate" title={g.dok.filename}>
+                {g.dok.filename}
+              </div>
+              <div className="flex flex-wrap gap-1 mt-0.5">
+                {g.pages.map((side) => (
+                  <button
+                    key={side}
+                    onClick={() => apnePdf(g.dok.fileUrl, side)}
+                    className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-mono text-gray-600 hover:bg-sitedoc-secondary hover:text-white transition-colors"
+                    title={`Åpne side ${side}`}
+                  >
+                    s.{side}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+          <div className="text-[10px] text-gray-400">{sider?.length} sider fra {gruppert.length} dokument{gruppert.length > 1 ? "er" : ""}</div>
+        </div>
+      )}
     </div>
   );
 }

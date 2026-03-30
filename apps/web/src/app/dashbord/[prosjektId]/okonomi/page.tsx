@@ -285,6 +285,8 @@ export default function OkonomiSide() {
                 : undefined}
               onVelgPost={handleVelgPost}
               valgtPostId={valgtPostId}
+              prosjektId={prosjektId}
+              kontraktId={kontraktId}
             />
           </div>
 
