@@ -2,11 +2,13 @@
 
 import { useState, useMemo, useRef, useCallback } from "react";
 import { useParams } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { BarChart3, Upload, FileText, Trash2, Loader2, CheckCircle, AlertCircle, RefreshCw, Plus, Pencil } from "lucide-react";
 import { SpecPostTabell } from "@/components/mengde/spec-post-tabell";
 import { Avviksanalyse } from "@/components/mengde/avviksanalyse";
 import { NotatEditor, type NotatEditorRef } from "@/components/mengde/notat-editor";
 import { NsKodePanel } from "@/components/mengde/ns-kode-panel";
+import { MerknadEksport } from "@/components/mengde/merknad-eksport";
 import { ImportDialog } from "@/components/mengde/import-dialog";
 import { trpc } from "@/lib/trpc";
 
@@ -16,6 +18,7 @@ type DokType = "a_nota" | "t_nota";
 export default function OkonomiSide() {
   const params = useParams<{ prosjektId: string }>();
   const prosjektId = params.prosjektId;
+  const { data: session } = useSession();
 
   const [kontraktId, setKontraktId] = useState<string | null>(null);
   const [dokType, setDokType] = useState<DokType>("a_nota");
@@ -287,6 +290,16 @@ export default function OkonomiSide() {
                   specPostId={valgtPostId}
                   eksternNotat={valgtPost?.eksternNotat ?? null}
                 />
+                {poster && (
+                  <MerknadEksport
+                    poster={poster}
+                    kontraktNavn={kontrakter?.find((k) => k.id === kontraktId)?.navn ?? null}
+                    notaType={valgtNotaDok?.notaType ?? null}
+                    notaNr={valgtNotaNr}
+                    brukerNavn={session?.user?.name ?? null}
+                    entreprenorEpost={kontrakter?.find((k) => k.id === kontraktId)?.entreprenor ?? null}
+                  />
+                )}
               </div>
               <div className="rounded border p-3">
                 <NsKodePanel nsKode={valgtPost?.nsKode ?? null} />
