@@ -400,7 +400,56 @@ export const mengdeRouter = router({
         }
       }
       const resultat = Array.from(perNr.values());
-      console.warn(`[RAPPORT] ${alle.length} docs → ${resultat.length} etter dedup. Nrs: ${resultat.map(r => r.notaNr).join(",")}`);
       return resultat;
+    }),
+
+  hentDokumentasjonForPost: protectedProcedure
+    .input(
+      z.object({
+        projectId: z.string().uuid(),
+        kontraktId: z.string().optional(),
+        postnr: z.string(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      await verifiserProsjektmedlem(ctx.userId, input.projectId);
+
+      // Finn alle sider som matcher postnr, scopet til kontraktens mapper
+      const where: Record<string, unknown> = {
+        postnr: input.postnr,
+        document: {
+          projectId: input.projectId,
+          isActive: true,
+        },
+      };
+
+      if (input.kontraktId) {
+        (where.document as Record<string, unknown>).folder = {
+          kontraktId: input.kontraktId,
+        };
+      }
+
+      return ctx.prisma.ftdDocumentPage.findMany({
+        where,
+        select: {
+          id: true,
+          pageNumber: true,
+          postnr: true,
+          document: {
+            select: {
+              id: true,
+              filename: true,
+              fileUrl: true,
+              notaType: true,
+              notaNr: true,
+              uploadedAt: true,
+            },
+          },
+        },
+        orderBy: [
+          { document: { uploadedAt: "asc" } },
+          { pageNumber: "asc" },
+        ],
+      });
     }),
 });

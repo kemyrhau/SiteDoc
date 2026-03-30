@@ -568,6 +568,7 @@ model Folder {
   id         String   @id @default(uuid())
   projectId  String   @map("project_id")
   parentId   String?  @map("parent_id")
+  kontraktId String?  @map("kontrakt_id")
   name       String
   accessMode String   @default("inherit") @map("access_mode") // "inherit" | "custom"
   createdAt  DateTime @default(now()) @map("created_at")
@@ -576,9 +577,11 @@ model Folder {
   project       Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
   parent        Folder?        @relation("FolderHierarchy", fields: [parentId], references: [id])
   children      Folder[]       @relation("FolderHierarchy")
+  kontrakt      FtdKontrakt?   @relation(fields: [kontraktId], references: [id], onDelete: SetNull)
   accessEntries FolderAccess[]
   ftdDocuments  FtdDocument[]
 
+  @@index([kontraktId])
   @@map("folders")
 }
 
@@ -798,6 +801,7 @@ model FtdDocument {
   kontrakt  FtdKontrakt?       @relation(fields: [kontraktId], references: [id], onDelete: SetNull)
   chunks    FtdDocumentChunk[]
   specPosts FtdSpecPost[]
+  pages     FtdDocumentPage[]
 
   @@unique([projectId, filename])
   @@index([folderId])
@@ -821,6 +825,7 @@ model FtdKontrakt {
   building    Building?     @relation(fields: [buildingId], references: [id], onDelete: SetNull)
   entrepriser Enterprise[]
   dokumenter  FtdDocument[]
+  mapper      Folder[]
 
   @@index([projectId])
   @@map("ftd_kontrakter")
@@ -846,6 +851,19 @@ model FtdDocumentChunk {
   @@index([embeddingState])
   @@index([nsCode])
   @@map("ftd_document_chunks")
+}
+
+model FtdDocumentPage {
+  id         String @id @default(cuid())
+  documentId String @map("document_id")
+  pageNumber Int    @map("page_number")
+  postnr     String
+
+  document FtdDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@unique([documentId, pageNumber])
+  @@index([postnr])
+  @@map("ftd_document_pages")
 }
 
 model FtdSpecPost {

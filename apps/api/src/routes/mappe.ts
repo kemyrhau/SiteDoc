@@ -249,4 +249,22 @@ export const mappeRouter = router({
 
       return doc;
     }),
+
+  settKontrakt: protectedProcedure
+    .input(
+      z.object({
+        folderId: z.string().uuid(),
+        kontraktId: z.string().nullable(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const mappe = await ctx.prisma.folder.findUniqueOrThrow({
+        where: { id: input.folderId },
+      });
+      await verifiserProsjektmedlem(ctx.userId, mappe.projectId);
+      return ctx.prisma.folder.update({
+        where: { id: input.folderId },
+        data: { kontraktId: input.kontraktId },
+      });
+    }),
 });

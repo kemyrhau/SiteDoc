@@ -3,7 +3,7 @@
 import { useState, useMemo, useRef, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { BarChart3, Upload, FileText, Trash2, Loader2, CheckCircle, AlertCircle, RefreshCw, Plus, Pencil } from "lucide-react";
+import { BarChart3, Upload, FileText, Trash2, Loader2, CheckCircle, AlertCircle, RefreshCw, Plus, Pencil, FileSearch } from "lucide-react";
 import { SpecPostTabell } from "@/components/mengde/spec-post-tabell";
 import { Avviksanalyse } from "@/components/mengde/avviksanalyse";
 import { NotatEditor, type NotatEditorRef } from "@/components/mengde/notat-editor";
@@ -310,8 +310,19 @@ export default function OkonomiSide() {
                   />
                 )}
               </div>
-              <div className="rounded border p-3">
-                <NsKodePanel nsKode={valgtPost?.nsKode ?? null} />
+              <div className="space-y-3">
+                <div className="rounded border p-3">
+                  <NsKodePanel nsKode={valgtPost?.nsKode ?? null} />
+                </div>
+                {valgtPost?.postnr && (
+                  <div className="rounded border p-3">
+                    <DokumentasjonPanel
+                      prosjektId={prosjektId}
+                      kontraktId={kontraktId}
+                      postnr={valgtPost.postnr}
+                    />
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -799,6 +810,82 @@ function DokumentTypeEditor({
           Avbryt
         </button>
       </div>
+    </div>
+  );
+}
+
+function DokumentasjonPanel({
+  prosjektId,
+  kontraktId,
+  postnr,
+}: {
+  prosjektId: string;
+  kontraktId: string | null;
+  postnr: string;
+}) {
+  const { data: sider, isLoading } = trpc.mengde.hentDokumentasjonForPost.useQuery(
+    { projectId: prosjektId, kontraktId: kontraktId ?? undefined, postnr },
+    { enabled: !!postnr },
+  );
+
+  // Grupper per dokument
+  const gruppert = useMemo(() => {
+    if (!sider || sider.length === 0) return [];
+    const map = new Map<string, { dok: (typeof sider)[0]["document"]; sider: number[] }>();
+    for (const s of sider) {
+      const entry = map.get(s.document.id);
+      if (entry) {
+        entry.sider.push(s.pageNumber);
+      } else {
+        map.set(s.document.id, { dok: s.document, sider: [s.pageNumber] });
+      }
+    }
+    return Array.from(map.values()).map((g) => ({
+      ...g,
+      sider: g.sider.sort((a, b) => a - b),
+    }));
+  }, [sider]);
+
+  const apnePdf = (fileUrl: string | null, side: number) => {
+    if (!fileUrl) return;
+    window.open(`/api${fileUrl}#page=${side}`, "_blank");
+  };
+
+  return (
+    <div>
+      <div className="mb-2 flex items-center gap-1.5 text-xs font-medium text-gray-500">
+        <FileSearch className="h-3.5 w-3.5" />
+        Dokumentasjon
+      </div>
+      {isLoading ? (
+        <div className="text-xs text-gray-400">Søker...</div>
+      ) : gruppert.length === 0 ? (
+        <div className="text-xs text-gray-400">Ingen dokumentasjon funnet for post {postnr}</div>
+      ) : (
+        <div className="space-y-1.5">
+          {gruppert.map((g) => (
+            <div key={g.dok.id} className="text-xs">
+              <div className="font-medium text-gray-600 truncate" title={g.dok.filename}>
+                {g.dok.notaType
+                  ? `${g.dok.notaType}${g.dok.notaNr ? ` ${g.dok.notaNr}` : ""}`
+                  : g.dok.filename}
+              </div>
+              <div className="flex flex-wrap gap-1 mt-0.5">
+                {g.sider.map((side) => (
+                  <button
+                    key={side}
+                    onClick={() => apnePdf(g.dok.fileUrl, side)}
+                    className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-600 hover:bg-sitedoc-secondary hover:text-white"
+                    title={`Åpne side ${side}`}
+                  >
+                    s.{side}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

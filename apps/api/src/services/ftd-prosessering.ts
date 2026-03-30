@@ -131,6 +131,9 @@ async function prosesserPdf(
     });
   }
 
+  // Side→postnr indeksering for dokumentasjon per post
+  await indekserSiderTilPostnr(prisma, documentId, sideData);
+
   // Ekstraher spec-poster fra mengdebeskrivelse/budsjett PDF (NS 3420 format)
   if (docType === "anbudsgrunnlag" || docType === "budsjett" || docType === "mengdebeskrivelse") {
     const tabellTekst = await ekstraherPdfMedPosisjoner(buffer);
@@ -172,6 +175,56 @@ async function prosesserPdf(
       wordCount: resultat.text.split(/\s+/).length,
     },
   });
+}
+
+/** Indekser PDF-sider til postnr for dokumentasjon per post.
+ *  Regex: "POST XX.YY.ZZ" (case-insensitive). Sider uten match arver forrige postnr. */
+async function indekserSiderTilPostnr(
+  prisma: PrismaClient,
+  documentId: string,
+  sideData: Array<{ side: number; tekst: string }>,
+): Promise<void> {
+  // POST 01.03.21, POST 01.03.21.2, etc. — også "Post:" og "POST nr."
+  const POST_PAT = /POST\s*(?:nr\.?\s*)?(\d{1,2}(?:[.\-]\d{1,2}){1,6})/gi;
+
+  const sidePostnr: Array<{ pageNumber: number; postnr: string }> = [];
+  let forrigePostnr: string | null = null;
+
+  for (const { side, tekst } of sideData) {
+    POST_PAT.lastIndex = 0;
+    const matches: string[] = [];
+    let m: RegExpExecArray | null;
+    while ((m = POST_PAT.exec(tekst)) !== null) {
+      // Normaliser: bytt bindestrek med punktum
+      matches.push(m[1]!.replace(/-/g, "."));
+    }
+
+    if (matches.length > 0) {
+      // Bruk siste match på siden (mest sannsynlig aktiv post)
+      const postnr = matches[matches.length - 1]!;
+      sidePostnr.push({ pageNumber: side, postnr });
+      forrigePostnr = postnr;
+    } else if (forrigePostnr) {
+      // Arv fra forrige side
+      sidePostnr.push({ pageNumber: side, postnr: forrigePostnr });
+    }
+    // Sider uten noen postnr-kontekst hoppes over
+  }
+
+  if (sidePostnr.length === 0) return;
+
+  // Slett gamle side-indeks for dette dokumentet
+  await prisma.ftdDocumentPage.deleteMany({ where: { documentId } });
+
+  await prisma.ftdDocumentPage.createMany({
+    data: sidePostnr.map((sp) => ({
+      documentId,
+      pageNumber: sp.pageNumber,
+      postnr: sp.postnr,
+    })),
+  });
+
+  console.warn(`[FTD-DEBUG] Side-indeks: ${sidePostnr.length}/${sideData.length} sider indeksert for ${documentId}`);
 }
 
 // --------------------------------------------------------------------------
