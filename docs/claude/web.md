@@ -48,7 +48,7 @@ Tre-kolonne layout (skjules på mobil < 768px, hamburger-meny i Toppbar):
 /dashbord/[prosjektId]/punktskyer            -> Redirect → /3d-visning
 /dashbord/[prosjektId]/modeller              -> Redirect → /3d-visning
 /dashbord/[prosjektId]/bilder                 -> Bildegalleri (liste + tegningsvisning)
-/dashbord/[prosjektId]/okonomi               -> Økonomi (krever modul «okonomi»): Kontrakt-velger (8405/8406/8407 m/byggherre+entreprenør) + periode. Spec-poster med #/Post/sortering/dobbeltklikk-detalj. Dokumentliste med inline type-editor (anbudsgrunnlag/A-nota/T-nota + nummer + kontrakt-dropdown). Import fra mapper eller fil. Notat+NS-panel fast i bunn. Fjern fra økonomi beholder dokument i mapper
+/dashbord/[prosjektId]/okonomi               -> Økonomi (krever modul «okonomi»): Kontrakt-velger (8405/8406/8407 m/byggherre+entreprenør, redigerbar+slettbar via modal med bygningsvelger) + periode. Anbud-fane (tidl. Budsjett) med spec-poster: piltast-navigering, sammenligningskolonner (Proadm-rekkefølge), totaler fra sammenligningPoster. Dokumentliste med inline type-editor (anbudsgrunnlag/A-nota/T-nota/Sluttnota + nummer + kontrakt-dropdown). Import: auto-detect docType fra filnavn (.gab→anbudsgrunnlag, A-nota→a_nota), auto-detect notaNr, støtter GAB/GA1-filer. Notat+NS-panel fast i bunn. Fjern fra økonomi beholder dokument i mapper
 /dashbord/[prosjektId]/sok                   -> Dokumentsøk (krever modul «dokumentsok»): tsvector fulltekstsøk med norsk stemming, treffliste med sidenr, fulltekst-panel
 /dashbord/oppsett                             -> Innstillinger
 /dashbord/oppsett/brukere                     -> Brukergrupper, roller

@@ -24,9 +24,9 @@ Alle routere i `apps/api/src/routes/`:
 | `mobilAuth` | byttToken (public, OAuth→sesjon), verifiser (m/tokenrotasjon), loggUt (sletter sesjon) |
 | `bilde` | hentForProsjekt (alle bilder via sjekklister + oppgaver, m/tilgangsfilter, inkl. parent+tegningsdata), opprettForSjekkliste |
 | `admin` | erAdmin, hentAlleProsjekter (m/sjekkliste-/oppgavetellere), hentAlleOrganisasjoner, opprettOrganisasjon, oppdaterOrganisasjon, settBrukerOrganisasjon, tilknyttProsjekt, fjernProsjektTilknytning, opprettProsjekt, hentProsjektStatistikk, slettProsjekt, slettUtlopteProsjekter, hentAlleBrukere |
-| `mengde` | hentDokumenter (m/mappetilgangsfilter, docType != null), hentPerioder, hentSpecPoster (m/sortering), hentAvviksanalyse, lagreNotat, registrerDokument (m/kontraktNavn, notaType, notaNr), oppdaterDokument (inline type/nota/kontrakt), reprosesser, fjernFraOkonomi (nullstiller type, beholder i mapper), slettPeriode |
+| `mengde` | hentDokumenter (m/mappetilgangsfilter, docType != null), hentPerioder, hentSpecPoster (m/sortering, sammenligningPoster), hentAvviksanalyse, lagreNotat, registrerDokument (m/kontraktId, notaType, notaNr, auto-detect docType fra filnavn), oppdaterDokument (inline type/nota/kontrakt), reprosesser, fjernFraOkonomi (nullstiller type, beholder i mapper), slettPeriode |
 | `ftdSok` | sokDokumenter (tsvector m/norsk stemming + ILIKE fallback, mappetilgangsfilter), hentDokumentChunks, nsKoder, nsChunks |
-| `kontrakt` | hentForProsjekt (m/building, _count), opprett (navn, type 8405/8406/8407, byggherre, entreprenor, buildingId), oppdater, slett (fjerner kobling fra entrepriser og dokumenter) |
+| `kontrakt` | hentForProsjekt (m/building, _count), opprett (navn, type 8405/8406/8407, byggherre, entreprenor, buildingId), oppdater (alle felter inkl. bygning), slett (fjerner kobling fra entrepriser og dokumenter, m/bekreftelsesmodal) |
 
 **Dokumentflyt:**
 - **Mapper** → opplasting → FtdDocument → auto scanning/chunking → søkbart (dokumentsøk-modul)
@@ -35,21 +35,25 @@ Alle routere i `apps/api/src/routes/`:
 
 **Kontrakt-modell (FtdKontrakt):**
 - Overliggende gruppering for økonomi: Byggherre → Entreprenør per kontrakt
-- Felter: navn, kontraktType (NS 8405/8406/8407), byggherre, entreprenor, buildingId (valgfri), hmsSamordningsgruppe
+- Felter: navn, kontraktType (NS 8405/8406/8407), byggherre, entreprenor, buildingId (valgfri bygningsvelger), hmsSamordningsgruppe
 - Entrepriser kan kobles til kontrakt (valgfri kontraktId på Enterprise)
 - Dokumenter kobles til kontrakt via kontraktId på FtdDocument
 - Kontrakt-dropdown i økonomi-toppen som primærfilter
+- Redigeringsmodal med alle felter (navn, type, byggherre, entreprenør, bygning) + sletteknapp med bekreftelse
 
 **FTD-prosessering** (Fastify `POST /prosesser/:documentId`):
 - tRPC kjører i Next.js, prosessering i API-serveren (ren Node)
-- PDF: pdf-parse v1 → chunking → NS 3420 spec-poster (postnr-sammenslåing, enhetsdeteksjon)
-- Excel: exceljs (xlsx) + SheetJS fallback (xls) → chunks (richText/formel-håndtering) + spec-poster
+- PDF (anbudsgrunnlag): `ekstraherBudsjettPosterFraPdf()` — pdfjs-dist `getTextContent()` med x/y-posisjoner, grupperer linjer etter y, sammensetter med mellomrom. Hierarkisk postnr-parsing, sub-postnr fra prislinjer (.1 Tid time...), postnr-tail merging (0 BUSKER → 00.03.03.10), seksjonsoverskrifter lagres som poster, full beskrivelsetekst samles mellom poster
+- PDF (A-nota/Sluttnota): `ekstraherNotaPosterFraPdf()` — pdfjs-dist posisjonsbasert, parser 11 siste desimaltall per linje, portet fra Python a_nota.py
+- PDF-hjelpefunksjon: `ekstraherPdfMedPosisjoner()` — bruker pdfjs-dist `getTextContent()` med x/y-posisjoner for presis linjerekonstruksjon
+- Excel: exceljs (xlsx) + SheetJS fallback (xls) → chunks (richText/formel-håndtering) + spec-poster. `cellDesimalRaw()` håndterer richText-celler fra Proadm Excel
+- GAB/GA1: `prosesserGab()` — ISY Beskrivelse binærfil-parser (.gab/.ga1), ekstraherer postnr/NS-kode/beskrivelse/enhet fra binærformat, tekst-segmenter mellom poster, RTF-opprenskning
 - XML: fast-xml-parser → NS3459 poster
 - Service: `apps/api/src/services/ftd-prosessering.ts`
 
 **Modulavhengighet:** Økonomi (`okonomi`) krever Dokumentsøk (`dokumentsok`). Auto-aktiveres. Deaktivering blokkeres.
 
-**Neste steg (økonomi):** A-nota nummer = periodenummer. Kontrakt + periode-velger → vis og sammenlign perioder i Oversikt. Anbudsgrunnlag = budsjett, A-nota 4/5/6/7 = perioder under samme kontrakt.
+**Neste steg (økonomi):** A-nota nummer = periodenummer. Kontrakt + periode-velger → vis og sammenlign perioder i Oversikt. Anbudsgrunnlag = anbud (fane), A-nota 4/5/6/7 = perioder under samme kontrakt. Sluttnota støttes som nota-type.
 
 ## Auth-nivåer
 
