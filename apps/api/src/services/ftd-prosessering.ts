@@ -1872,6 +1872,20 @@ function ekstraherNotaPosterFraPdf(
     N_PAT.lastIndex = 0;
     let m: RegExpExecArray | null;
     while ((m = N_PAT.exec(linje)) !== null) {
+      // Filtrer falske tusenskille: "tilstandsklasse 2 400,00" → "2 400,00" er IKKE 2400
+      // Ekte tusenskille har siffer/linjestartforan, ikke bokstav+mellomrom
+      if (m[0].includes(" ") && m.index > 0) {
+        const charForan = linje[m.index - 1];
+        if (charForan && /[a-zA-ZæøåÆØÅ]/.test(charForan)) {
+          // Bokstav rett foran → "klasse 2 400,00" — splitt: hopp over "2", ta "400,00"
+          const utenPrefix = m[0].replace(/^\d{1,2}\s/, "");
+          if (utenPrefix !== m[0] && /^\d{1,3}(?:\s\d{3})*,\d+$/.test(utenPrefix)) {
+            const offset = m[0].length - utenPrefix.length;
+            nums.push({ value: tilDesimal(utenPrefix), start: m.index + offset, end: m.index + m[0].length });
+            continue;
+          }
+        }
+      }
       nums.push({ value: tilDesimal(m[0]), start: m.index, end: m.index + m[0].length });
     }
 
