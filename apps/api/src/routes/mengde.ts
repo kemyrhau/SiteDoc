@@ -354,7 +354,7 @@ export const mengdeRouter = router({
     )
     .query(async ({ ctx, input }) => {
       await verifiserProsjektmedlem(ctx.userId, input.projectId);
-      return ctx.prisma.ftdDocument.findMany({
+      const alle = await ctx.prisma.ftdDocument.findMany({
         where: {
           projectId: input.projectId,
           kontraktId: input.kontraktId,
@@ -381,5 +381,24 @@ export const mengdeRouter = router({
         },
         orderBy: { notaNr: "asc" },
       });
+
+      // Dedupliser per notaNr — prioriter den med mest header-data
+      const perNr = new Map<number, (typeof alle)[0]>();
+      for (const dok of alle) {
+        const nr = dok.notaNr!;
+        const eksisterende = perNr.get(nr);
+        if (!eksisterende) {
+          perNr.set(nr, dok);
+        } else {
+          // Tell antall header-felter med verdi
+          const tell = (d: typeof dok) =>
+            [d.utfortTotalt, d.utfortDenne, d.nettoDenne, d.mva, d.sumInkMva]
+              .filter((v) => v !== null).length;
+          if (tell(dok) > tell(eksisterende)) {
+            perNr.set(nr, dok);
+          }
+        }
+      }
+      return Array.from(perNr.values());
     }),
 });
