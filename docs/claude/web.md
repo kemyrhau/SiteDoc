@@ -48,7 +48,7 @@ Tre-kolonne layout (skjules på mobil < 768px, hamburger-meny i Toppbar):
 /dashbord/[prosjektId]/punktskyer            -> Redirect → /3d-visning
 /dashbord/[prosjektId]/modeller              -> Redirect → /3d-visning
 /dashbord/[prosjektId]/bilder                 -> Bildegalleri (liste + tegningsvisning)
-/dashbord/[prosjektId]/okonomi               -> Økonomi (krever modul «okonomi»): Kontrakt-velger (8405/8406/8407 m/byggherre+entreprenør, redigerbar+slettbar via modal med bygningsvelger) + periode. Anbud-fane (tidl. Budsjett) med spec-poster: piltast-navigering, sammenligningskolonner (Proadm-rekkefølge), totaler fra sammenligningPoster. Dokumentliste med inline type-editor (anbudsgrunnlag/A-nota/T-nota/Sluttnota + nummer + kontrakt-dropdown). Import: auto-detect docType fra filnavn (.gab→anbudsgrunnlag, A-nota→a_nota), auto-detect notaNr, støtter GAB/GA1-filer. Notat+NS-panel fast i bunn. Fjern fra økonomi beholder dokument i mapper. Overskridelsesmarkering: rader med verdiTotal > terskel × anbudsSum vises med rød bakgrunn (innstillbar terskel 100–500%). Referansemodus i merknad: klikk på rad i tabellen legger til postnr-referanse i notat-feltet. Merknad-eksport: skriv ut PDF / send e-post / vis alle merknader for valgt kontrakt. Avviksanalyse: import-sammenligning med to dokumenter side om side. NS-kode arv fra overordnet post + ekstraksjon fra beskrivelse
+/dashbord/[prosjektId]/okonomi               -> Økonomi: 4 faner (Oversikt, Avviksanalyse, Rapport, Dokumenter). Kontrakt-velger + Type + Nr. Oversikt: spec-poster med piltast-nav, sammenligning, overskridelsesmarkering (rød bg), referansemodus i merknad, merknad-eksport (PDF/e-post), NS-kode arv. Dobbeltklikk rad → detaljmodal med beskrivelse, tall, NS-kode, merknad, dokumentasjon-seksjon (side-lenker fra FtdDocumentPage). Rapport-fane: dropdown for rapporttype, Innestående-tabell over alle A-notas (deduplisert per notaNr). Dokumenter-fane: Nr-kolonne, inline type-editor. Import: auto-detect docType/notaType/notaNr
 /dashbord/[prosjektId]/sok                   -> Dokumentsøk (krever modul «dokumentsok»): tsvector fulltekstsøk med norsk stemming, treffliste med sidenr, fulltekst-panel
 /dashbord/oppsett                             -> Innstillinger
 /dashbord/oppsett/brukere                     -> Brukergrupper, roller
@@ -60,7 +60,7 @@ Tre-kolonne layout (skjules på mobil < 768px, hamburger-meny i Toppbar):
 /dashbord/oppsett/field/oppgavemaler          -> Oppgavemaler
 /dashbord/oppsett/field/sjekklistemaler       -> Sjekklistemaler
 /dashbord/oppsett/field/moduler               -> Forhåndsdefinerte mal-pakker
-/dashbord/oppsett/field/box                   -> Mappeoppsett
+/dashbord/oppsett/field/box                   -> Mappeoppsett: tre-visning, kontekstmeny (ny undermappe, rediger tilgang, gi nytt navn, koble til kontrakt, slett). Mapper koblet til kontrakt viser blått ikon + kontraktnavn
 /dashbord/oppsett/prosjektoppsett             -> Prosjektoppsett
 /dashbord/oppsett/firma                       -> Firmainnstillinger
 /dashbord/admin                               -> SiteDoc-admin (kun sitedoc_admin)

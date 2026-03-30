@@ -24,7 +24,7 @@
 | `tasks` | Oppgaver med påkrevd mal (`template_id`), prefiks+løpenummer (`number`), prioritet, frist, oppretter/svarer, utfylt data (`data` JSON), valgfri tegningsposisjon og sjekkliste-kobling |
 | `document_transfers` | Sporbarhet: all sending mellom entrepriser |
 | `images` | Bilder med valgfri GPS-data |
-| `folders` | Rekursiv mappestruktur med parent_id, `access_mode` (inherit/custom) |
+| `folders` | Rekursiv mappestruktur med parent_id, `access_mode` (inherit/custom), valgfri `kontrakt_id` (kobler mappe til økonomi-kontrakt → blått ikon) |
 | `folder_access` | Tilgangsoppføringer per mappe: entreprise, gruppe eller bruker |
 | `documents` | Dokumenter i mapper med fil-URL og versjon |
 | `workflows` | Arbeidsforløp med oppretter-entreprise og opptil 3 svarer-entrepriser |
@@ -38,7 +38,8 @@
 | `organizations` | Firmaer/organisasjoner med navn, org.nr, fakturaadresse, logo |
 | `organization_projects` | Mange-til-mange mellom organisasjoner og prosjekter |
 | `ftd_kontrakter` | Overliggende kontrakt: Byggherre → Entreprenør. Felter: navn, kontraktType (8405/8406/8407), byggherre, entreprenor, buildingId (valgfri), hmsSamordningsgruppe. Entrepriser og dokumenter kobles via kontraktId |
-| `ftd_documents` | Eneste dokumentmodell. Filinfo, docType (anbudsgrunnlag/a_nota/t_nota/mengdebeskrivelse/annet), processingState, kontraktId, kontraktNavn, notaType, notaNr, entreprenor. Mapper → auto scanning. Økonomi → manuell import med type/kontrakt |
+| `ftd_documents` | Eneste dokumentmodell. Filinfo, docType, processingState, kontraktId, notaType, notaNr. Header-verdier fra A-nota: utfortPr, utfortTotalt, utfortForrige, utfortDenne, innestaaende, innestaaendeForrige, innestaaendeDenne, nettoDenne, mva, sumInkMva. Mapper → auto scanning. Økonomi → manuell import |
+| `ftd_document_pages` | Side→postnr mapping for dokumentasjon per post. Regex: POST XX.YY.ZZ. Arv fra forrige side. Unique constraint (documentId, pageNumber) |
 | `ftd_document_chunks` | Søkbare tekstbiter med tsvector (norsk stemming, GIN), NS-koder, sideinfo. Excel: richText/formel-håndtering |
 | `ftd_spec_posts` | NS 3420 budsjettlinjer fra PDF/Excel/XML/GAB. Postnr, beskrivelse, enhet, mengde, pris, sum, NS-kode, fullNsTekst, mengdeDenne, mengdeTotal, verdiDenne, verdiTotal, prosentFerdig (Decimal — sammenligningsfelter for A-nota/perioder), importNotat (String? — notat fra import, f.eks. mengde-avvik). Seksjonsoverskrifter lagres som poster (erOverskrift). Sub-postnr fra prislinjer, postnr-tail merging, auto-dedup. Migrering: `20260330180000_legg_til_import_notat` |
 | `ftd_nota_periods` | A-nota/T-nota perioder per entreprise |

@@ -14,7 +14,7 @@ Alle routere i `apps/api/src/routes/`:
 | `punktsky` | hentForProsjekt (m/buildingId-filter), hentMedId, opprett (m/asynkron konvertering via CloudCompare+PotreeConverter), hentKonverteringsStatus, slett |
 | `dokumentflyt` | hentForProsjekt, opprett, oppdater, slett, leggTilMedlem, fjernMedlem |
 | `arbeidsforlop` | _(bakoverkompatibilitet for mobil)_ hentForProsjekt, hentForEnterprise, opprett, oppdater, slett, leggTilStegMedlem, fjernStegMedlem |
-| `mappe` | hentForProsjekt (m/tilgangsoppføringer), hentDokumenter, opprett, oppdater, slett, hentTilgang, settTilgang |
+| `mappe` | hentForProsjekt (m/tilgangsoppføringer + kontrakt-info), hentDokumenter, opprett, oppdater, slett, hentTilgang, settTilgang, settKontrakt (koble/fjern kontrakt fra mappe), lastOppDokument (m/auto prosessering) |
 | `medlem` | hentForProsjekt, hentMineEntrepriser, leggTil (m/invitasjon), fjern, oppdater (navn/e-post/telefon/rolle), oppdaterRolle, sokBrukere |
 | `gruppe` | hentMineTillatelser, hentMinTilgang, hentForProsjekt, opprettStandardgrupper, opprett, oppdater, slett, leggTilMedlem (m/invitasjon), fjernMedlem, oppdaterEntrepriser, oppdaterDomener |
 | `invitasjon` | hentForProsjekt, validerToken, aksepter, sendPaNytt, trekkTilbake |
@@ -24,7 +24,7 @@ Alle routere i `apps/api/src/routes/`:
 | `mobilAuth` | byttToken (public, OAuth→sesjon), verifiser (m/tokenrotasjon), loggUt (sletter sesjon) |
 | `bilde` | hentForProsjekt (alle bilder via sjekklister + oppgaver, m/tilgangsfilter, inkl. parent+tegningsdata), opprettForSjekkliste |
 | `admin` | erAdmin, hentAlleProsjekter (m/sjekkliste-/oppgavetellere), hentAlleOrganisasjoner, opprettOrganisasjon, oppdaterOrganisasjon, settBrukerOrganisasjon, tilknyttProsjekt, fjernProsjektTilknytning, opprettProsjekt, hentProsjektStatistikk, slettProsjekt, slettUtlopteProsjekter, hentAlleBrukere |
-| `mengde` | hentDokumenter (m/mappetilgangsfilter, docType != null), hentPerioder, hentSpecPoster (m/sortering, sammenligningPoster), hentAvviksanalyse, lagreNotat, registrerDokument (m/kontraktId, notaType, notaNr, auto-detect docType fra filnavn), oppdaterDokument (inline type/nota/kontrakt), reprosesser, fjernFraOkonomi (nullstiller type, beholder i mapper), slettPeriode |
+| `mengde` | hentDokumenter (m/mappetilgangsfilter, docType != null), hentPerioder, hentSpecPoster (m/sortering, sammenligningPoster), hentAvviksanalyse, lagreNotat, registrerDokument (m/kontraktId, notaType, notaNr, auto-detect docType fra filnavn), oppdaterDokument (inline type/nota/kontrakt), reprosesser, fjernFraOkonomi (nullstiller type, beholder i mapper), slettPeriode, hentNotaRapport (deduplisert per notaNr, header-verdier), hentDokumentasjonForPost (side→postnr fra FtdDocumentPage, scopet til kontraktens mapper) |
 | `ftdSok` | sokDokumenter (tsvector m/norsk stemming + ILIKE fallback, mappetilgangsfilter), hentDokumentChunks, nsKoder, nsChunks |
 | `kontrakt` | hentForProsjekt (m/building, _count), opprett (navn, type 8405/8406/8407, byggherre, entreprenor, buildingId), oppdater (alle felter inkl. bygning), slett (fjerner kobling fra entrepriser og dokumenter, m/bekreftelsesmodal) |
 
