@@ -19,12 +19,30 @@ interface ImportDialogProps {
 }
 
 const DOC_TYPES = [
-  { value: "anbudsgrunnlag", label: "Anbudsgrunnlag" },
-  { value: "a_nota", label: "A-nota" },
-  { value: "t_nota", label: "T-nota" },
+  { value: "anbudsgrunnlag", label: "Anbudsgrunnlag (PDF/Excel/GAB/XML)" },
+  { value: "a_nota", label: "A-nota (PDF/Excel)" },
+  { value: "t_nota", label: "T-nota (PDF/Excel)" },
   { value: "mengdebeskrivelse", label: "Mengdebeskrivelse (PDF/Word)" },
   { value: "annet", label: "Annet dokument" },
 ] as const;
+
+/** Gjett dokumenttype basert på filnavn */
+function gjettDokType(filnavn: string): string {
+  const lavt = filnavn.toLowerCase();
+  if (lavt.endsWith(".gab") || lavt.endsWith(".ga1")) return "anbudsgrunnlag";
+  if (lavt.endsWith(".xml")) return "anbudsgrunnlag"; // NS 3459
+  if (/a.?nota|avdragsnota/i.test(lavt)) return "a_nota";
+  if (/t.?nota/i.test(lavt)) return "t_nota";
+  if (/mengde/i.test(lavt)) return "mengdebeskrivelse";
+  if (/anbud|priset|tilbud/i.test(lavt)) return "anbudsgrunnlag";
+  return "anbudsgrunnlag";
+}
+
+/** Gjett nota-nummer fra filnavn: "A-nota 3.pdf" → 3, "Avdragsnota_7_..." → 7 */
+function gjettNotaNr(filnavn: string): string {
+  const m = filnavn.match(/(?:nota|avdragsnota)[_\s-]*(\d+)/i);
+  return m ? m[1]! : "";
+}
 
 type Kilde = "last-opp" | "fra-mappe";
 
@@ -110,7 +128,7 @@ export function ImportDialog({ projectId, open, onClose }: ImportDialogProps) {
     e.preventDefault();
     setDragAktiv(false);
     const droppedFile = e.dataTransfer.files[0];
-    if (droppedFile) setFil(droppedFile);
+    if (droppedFile) { setFil(droppedFile); setDocType(gjettDokType(droppedFile.name)); setNotaNr(gjettNotaNr(droppedFile.name)); }
   }, []);
 
   const handleLastOpp = async () => {
@@ -405,7 +423,7 @@ export function ImportDialog({ projectId, open, onClose }: ImportDialogProps) {
                           accept=".pdf,.xlsx,.xls,.xml,.csv,.docx,.doc,.gab,.ga1"
                           onChange={(e) => {
                             const f = e.target.files?.[0];
-                            if (f) setFil(f);
+                            if (f) { setFil(f); setDocType(gjettDokType(f.name)); setNotaNr(gjettNotaNr(f.name)); }
                           }}
                         />
                       </label>
