@@ -169,14 +169,7 @@ function excelCelleTilTekst(v: unknown): string {
   if (typeof v === "number" || typeof v === "boolean") return String(v);
   if (v instanceof Date) {
     // Excel konverterer postnr som "01.01.1" til Date.
-    // Konverter tilbake: year=200X → "0X", month → "MM", day → "D"
-    const y = v.getFullYear();
-    if (y >= 2000 && y <= 2020) {
-      const prefix = String(y - 2000).padStart(2, "0");
-      const m = String(v.getMonth() + 1).padStart(2, "0");
-      const d = v.getDate();
-      return `${prefix}.${m}.${d}`;
-    }
+    // Returnerer ISO-dato som fallback — formatering håndteres av kaller med numFmt
     return v.toLocaleDateString("nb-NO");
   }
 
@@ -627,7 +620,14 @@ async function ekstraherNotaPoster(
   sheet.eachRow((row, radNr) => {
     if (radNr <= headerRad) return;
 
-    const postnr = excelCelleTilTekst(row.getCell(kolonner.postnr!).value).trim();
+    // Postnr-celler: Excel konverterer "01.03.10" til Date. Bruk numFmt for å rekonstruere.
+    const postnrCell = row.getCell(kolonner.postnr!);
+    let postnr = "";
+    if (postnrCell.value instanceof Date) {
+      postnr = formaterDatoPostnr(postnrCell.value, postnrCell.numFmt ?? "");
+    } else {
+      postnr = excelCelleTilTekst(postnrCell.value).trim();
+    }
     if (!postnr || !/^\d/.test(postnr)) return; // Hopp over ikke-poster
 
     const beskrivelse = excelCelleTilTekst(row.getCell(kolonner.beskrivelse!).value).trim();
@@ -652,6 +652,41 @@ async function ekstraherNotaPoster(
   if (poster.length > 0) {
     await prisma.ftdSpecPost.createMany({ data: poster });
   }
+}
+
+/**
+ * Konverterer Excel-dato tilbake til postnr-streng basert på cellens numFmt.
+ * Excel konverterer postnr som "01.03.10" til Date. numFmt angir rekkefølgen
+ * på komponentene: "yy.mm.d", "mm.dd.yy", "yy.m.d" osv.
+ */
+function formaterDatoPostnr(dato: Date, numFmt: string): string {
+  const y = dato.getFullYear();
+  const m = dato.getMonth() + 1;
+  const d = dato.getDate();
+
+  // Parse numFmt for å finne rekkefølge (f.eks. "yy.mm.d;@", "mm.dd.yy;@")
+  const fmt = numFmt.split(";")[0] ?? ""; // Fjern ;@ text-del
+  const deler = fmt.split(".");
+
+  if (deler.length >= 3) {
+    const resultat: string[] = [];
+    for (const del of deler) {
+      const norm = del.toLowerCase().trim();
+      if (norm.startsWith("y")) {
+        resultat.push(String(y % 100).padStart(2, "0"));
+      } else if (norm.startsWith("m")) {
+        const pad = norm.length >= 2; // "mm" → pad, "m" → ikke
+        resultat.push(pad ? String(m).padStart(2, "0") : String(m));
+      } else if (norm.startsWith("d")) {
+        // "d" = uten ledende null, "dd" = med
+        resultat.push(norm.length >= 2 ? String(d).padStart(2, "0") : String(d));
+      }
+    }
+    if (resultat.length >= 3) return resultat.join(".");
+  }
+
+  // Fallback: yy.mm.d (vanligste format)
+  return `${String(y % 100).padStart(2, "0")}.${String(m).padStart(2, "0")}.${d}`;
 }
 
 /** Hent desimalverdi direkte fra celleverdi (støtter number, formel-resultat, richText, streng) */
