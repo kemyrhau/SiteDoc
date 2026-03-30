@@ -331,6 +331,98 @@ async function detekterNotaInfo(
   }
 }
 
+/** Ekstraher header-verdier fra Excel A-nota (utført, innestående, netto, mva) */
+async function ekstraherExcelNotaHeader(
+  prisma: PrismaClient,
+  documentId: string,
+  sheet: import("exceljs").Worksheet,
+  headerRad: number,
+): Promise<void> {
+  // Les alle celler fra radene før tabellen
+  const labelVerdiPar: Array<{ label: string; verdi: number }> = [];
+
+  for (let r = 1; r < headerRad; r++) {
+    const row = sheet.getRow(r);
+    const celler: Array<{ col: number; tekst: string; num: number | null }> = [];
+
+    row.eachCell((cell, col) => {
+      const tekst = excelCelleTilTekst(cell.value).trim();
+      const rawVal = cell.value;
+      const num = typeof rawVal === "number" ? rawVal : null;
+      if (tekst || num !== null) celler.push({ col, tekst, num });
+    });
+
+    // Match: label-celle etterfulgt av numerisk celle
+    for (let i = 0; i < celler.length - 1; i++) {
+      const c = celler[i]!;
+      if (c.tekst && !/^\d/.test(c.tekst)) {
+        // Finn neste celle med tall
+        for (let j = i + 1; j < celler.length; j++) {
+          const n = celler[j]!;
+          if (n.num !== null) {
+            labelVerdiPar.push({ label: c.tekst, verdi: n.num });
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  if (labelVerdiPar.length === 0) return;
+
+  function finn(pat: RegExp): number | null {
+    for (const { label, verdi } of labelVerdiPar) {
+      if (pat.test(label)) return verdi;
+    }
+    return null;
+  }
+
+  // Dato: "Utført pr: 20.10.2025" — i Excel kan dette være en dato-celle
+  let utfortPr: Date | null = null;
+  for (let r = 1; r < headerRad; r++) {
+    const row = sheet.getRow(r);
+    row.eachCell((cell) => {
+      if (utfortPr) return;
+      const tekst = excelCelleTilTekst(cell.value);
+      const dm = tekst.match(/Utf.rt\s+pr[.:]*\s*(\d{1,2})\.(\d{1,2})\.(\d{4})/i);
+      if (dm) {
+        utfortPr = new Date(parseInt(dm[3]!), parseInt(dm[2]!) - 1, parseInt(dm[1]!));
+      } else if (cell.value instanceof Date && /utf.rt\s+pr/i.test(
+        excelCelleTilTekst(row.getCell(Number(cell.col) > 1 ? Number(cell.col) - 1 : 1).value)
+      )) {
+        utfortPr = cell.value;
+      }
+    });
+  }
+
+  const data: Record<string, unknown> = {};
+  const utfortTotalt = finn(/Utf.rt\s+totalt/i);
+  const utfortForrige = finn(/Utf.rt\s+forrige/i);
+  const utfortDenne = finn(/Utf.rt\s+denne/i);
+  const innestaaende = finn(/^(?!.*(?:forrige|denne)).*Innest.ende/i);
+  const innestaaendeForrige = finn(/Innest.ende\s+forrige/i);
+  const innestaaendeDenne = finn(/Innest.ende\s+denne/i);
+  const nettoDenne = finn(/Netto\s+denne/i);
+  const mva = finn(/^\s*\+?\s*Mva\.?\s*$/i);
+  const sumInkMva = finn(/Sum\s+inkludert/i);
+
+  if (utfortPr) data.utfortPr = utfortPr;
+  if (utfortTotalt !== null) data.utfortTotalt = utfortTotalt;
+  if (utfortForrige !== null) data.utfortForrige = utfortForrige;
+  if (utfortDenne !== null) data.utfortDenne = utfortDenne;
+  if (innestaaende !== null) data.innestaaende = innestaaende;
+  if (innestaaendeForrige !== null) data.innestaaendeForrige = innestaaendeForrige;
+  if (innestaaendeDenne !== null) data.innestaaendeDenne = innestaaendeDenne;
+  if (nettoDenne !== null) data.nettoDenne = nettoDenne;
+  if (mva !== null) data.mva = mva;
+  if (sumInkMva !== null) data.sumInkMva = sumInkMva;
+
+  if (Object.keys(data).length > 0) {
+    console.warn(`[FTD-DEBUG] Excel header: ${JSON.stringify(data)}`);
+    await prisma.ftdDocument.update({ where: { id: documentId }, data });
+  }
+}
+
 async function lagExcelChunks(
   prisma: PrismaClient,
   documentId: string,
@@ -524,6 +616,9 @@ async function ekstraherNotaPoster(
   }
   // Fallback: rad 13 er standard i Proadm
   if (!headerRad) headerRad = 13;
+
+  // Ekstraher header-verdier (utført, innestående, netto, mva) fra rader før tabellen
+  await ekstraherExcelNotaHeader(prisma, documentId, sheet, headerRad);
 
   // Detekter kolonner fra header
   const headerRow = sheet.getRow(headerRad);
