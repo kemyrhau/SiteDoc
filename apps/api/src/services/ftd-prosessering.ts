@@ -1254,12 +1254,19 @@ function ekstraherBudsjettPosterFraPdf(
           // Sub-prislinje (.1 Tid time...)
           if (/^\.(\d+)\s+/.test(nl)) break;
 
-          // Postnr-tail: "0 BUSKER" → postnr += "0", beskr = "BUSKER"
+          // Postnr-tail: "0 BUSKER" eller bare "0" (siffer alene, beskrivelse på neste linje)
           if (!postnrMerget) {
+            // Case 1: "0 BUSKER" — siffer + UPPERCASE på samme linje
             const tailMatch = POSTNR_TAIL.exec(nl);
             if (tailMatch) {
               fullPostnr = postnr + tailMatch[1]!;
               beskr = tailMatch[2]!;
+              postnrMerget = true;
+              continue;
+            }
+            // Case 2: bare siffer(e) alene — "0", "26", "1.2"
+            if (/^\d[\d.]*$/.test(nl) && nl.length <= 4) {
+              fullPostnr = postnr + nl;
               postnrMerget = true;
               continue;
             }
