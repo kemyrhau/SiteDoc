@@ -1232,32 +1232,53 @@ function ekstraherBudsjettPosterFraPdf(
       // Sjekk om teksten er en NS-kode
       const erNsKode = NS_KODE_PAT.test(tekst);
 
-      if (gjeldende && postnr === gjeldende.postnr) {
-        // Samme postnr som gjeldende → sub-post
-        ventendeSub = {
-          postnr,
-          beskrivelse: erNsKode ? "" : tekst,
-          nsKode: erNsKode ? tekst : null,
-        };
-      } else {
-        // Nytt postnr — NS-kode eller beskrivelse?
-        if (erNsKode) {
-          // NS-kode følger postnr, beskrivelse samles fra neste linjer
-          let beskr = "";
-          for (let j = i + 1; j < linjer.length && j <= i + 10; j++) {
-            const nl = linjer[j]!.trim();
-            if (!nl) continue;
-            if (POSTNR_PAT.test(nl) || POSTNR_MED_TEKST.test(nl) || SUB_POSTNR_PAT.test(nl)) break;
-            if (/^Sum\s/i.test(nl) || /^Akkumulert/i.test(nl)) break;
-            const desimaler = nl.match(/\d{1,3}(?:\s\d{3})*,\d{2}/g);
-            if (desimaler && desimaler.length >= 2 && nl.split(/\s+/).length <= 8) break;
-            beskr += (beskr ? " " : "") + nl;
+      if (erNsKode) {
+        // NS-kode følger postnr — samle beskrivelse fra neste linjer
+        // Første linje etter kan ha postnr-tail: "0 BUSKER" → postnr += "0", beskr = "BUSKER"
+        let beskr = "";
+        let fullPostnr = postnr;
+        let postnrMerget = false;
+        const POSTNR_TAIL = /^(\d[\d.]*\d|\d)\s+([A-ZÆØÅ].+)$/;
+
+        for (let j = i + 1; j < linjer.length && j <= i + 15; j++) {
+          const nl = linjer[j]!.trim();
+          if (!nl) continue;
+          if (POSTNR_PAT.test(nl) || POSTNR_MED_TEKST.test(nl) || SUB_POSTNR_PAT.test(nl)) break;
+          if (/^Sum\s/i.test(nl) || /^Akkumulert/i.test(nl)) break;
+          const desimaler = nl.match(/\d{1,3}(?:\s\d{3})*,\d{2}/g);
+          if (desimaler && desimaler.length >= 2 && nl.split(/\s+/).length <= 8) break;
+          // Sub-prislinje (.1 Tid time...)
+          if (/^\.(\d+)\s+/.test(nl)) break;
+
+          // Postnr-tail: "0 BUSKER" → postnr += "0", beskr = "BUSKER"
+          if (!postnrMerget) {
+            const tailMatch = POSTNR_TAIL.exec(nl);
+            if (tailMatch) {
+              fullPostnr = postnr + tailMatch[1]!;
+              beskr = tailMatch[2]!;
+              postnrMerget = true;
+              continue;
+            }
+            postnrMerget = true;
           }
-          gjeldende = { postnr, beskrivelse: beskr, nsKode: tekst };
+
+          beskr += (beskr ? " " : "") + nl;
+        }
+
+        if (gjeldende && postnr === gjeldende.postnr) {
+          // Samme base-postnr → sub-post under gjeldende
+          ventendeSub = { postnr: fullPostnr, beskrivelse: beskr, nsKode: tekst };
+        } else {
+          gjeldende = { postnr: fullPostnr, beskrivelse: beskr, nsKode: tekst };
+          ventendeSub = null;
+        }
+      } else {
+        if (gjeldende && postnr === gjeldende.postnr) {
+          ventendeSub = { postnr, beskrivelse: tekst, nsKode: null };
         } else {
           gjeldende = { postnr, beskrivelse: tekst, nsKode: null };
+          ventendeSub = null;
         }
-        ventendeSub = null;
       }
       continue;
     }
