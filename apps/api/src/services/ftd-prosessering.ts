@@ -1584,8 +1584,27 @@ function ekstraherBudsjettPosterFraPdf(
           ventendeSub = null;
         }
       } else {
+        // Sjekk postnr-tail på neste linje (PDF-kolonne bryter "02.71.03.11.10" over linjer)
+        let fullPostnrNonNs = postnr;
+        for (let j = i + 1; j < linjer.length && j <= i + 2; j++) {
+          const nl = linjer[j]!.trim();
+          if (!nl) continue;
+          // Bare siffer(e)/punktum alene → postnr-tail
+          if (/^\d[\d.]*$/.test(nl) && nl.length <= 5) {
+            fullPostnrNonNs = postnr + nl;
+            break;
+          }
+          // Siffer(e)/punktum etterfulgt av pris-/enhetdata → postnr-tail + prislinje
+          const tailPris = /^(\d[\d.]*)\s+(?:RS|stk|m[23]?|lm|tonn|kg|time)\s/.exec(nl);
+          if (tailPris && tailPris[1]!.length <= 5) {
+            fullPostnrNonNs = postnr + tailPris[1]!;
+            break;
+          }
+          break;
+        }
+
         if (gjeldende && postnr === gjeldende.postnr) {
-          ventendeSub = { postnr, beskrivelse: tekst, nsKode: null };
+          ventendeSub = { postnr: fullPostnrNonNs, beskrivelse: tekst, nsKode: null };
         } else {
           lagreSeksjonspost();
           // Samle full tekst for seksjon (postnr med beskrivelse, ikke NS-kode)
@@ -1599,9 +1618,11 @@ function ekstraherBudsjettPosterFraPdf(
             const desimaler = nl.match(/\d{1,3}(?:\s\d{3})*,\d{2}/g);
             if (desimaler && desimaler.length >= 2 && nl.split(/\s+/).length <= 8) break;
             if (/^\.(\d+)\s+/.test(nl)) break;
+            // Hopp over postnr-tail-linjer
+            if (/^\d[\d.]*$/.test(nl) && nl.length <= 5) continue;
             fullBeskr += "\n" + nl;
           }
-          gjeldende = { postnr, beskrivelse: fullBeskr, nsKode: null, harPrislinje: false };
+          gjeldende = { postnr: fullPostnrNonNs, beskrivelse: fullBeskr, nsKode: null, harPrislinje: false };
           ventendeSub = null;
         }
       }
