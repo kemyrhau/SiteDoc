@@ -30,7 +30,10 @@ interface SpecPostTabellProps {
   valgtPostId: string | null;
 }
 
-const NS_KODE_PAT = /^([A-ZÆØÅ]{2,4}[\d]?[\w.]*[A-Z]?)\s/;
+// NS 3420-koder: bokstaver + tall/punktum (FH2.21, AM3.861A) eller korte koder (AZA)
+// Ekskluder enheter (RS) og vanlige ord
+const NS_KODE_PAT = /^([A-Z]{1,3}\d[\w.]*[A-Z]?|[A-Z]{2,3})\s/;
+const NS_KODE_EKSKLUDER = new Set(["RS", "RG", "RD", "RE", "RF", "IF", "OR", "OK", "NY", "SE", "ER", "EN", "ET", "EL", "DE"]);
 
 /** Finn NS-kode for en post: egen, fra beskrivelse, eller arvet fra forelder */
 function finnNsKode(
@@ -43,7 +46,7 @@ function finnNsKode(
   }
   // 2. NS-kode i starten av beskrivelsen (f.eks. "AZA Etablering...")
   const egenMatch = post.beskrivelse ? NS_KODE_PAT.exec(post.beskrivelse) : null;
-  if (egenMatch && egenMatch[1]!.length <= 15) {
+  if (egenMatch && egenMatch[1]!.length <= 15 && !NS_KODE_EKSKLUDER.has(egenMatch[1]!)) {
     return { nsKode: egenMatch[1]!, kilde: "beskrivelse", sub: null };
   }
   // 3. Arv fra forelder
@@ -67,7 +70,7 @@ function finnArvetNsKode(
       return { nsKode: forelder.nsKode, postnr: forelder.postnr! };
     }
     const m = forelder.beskrivelse ? NS_KODE_PAT.exec(forelder.beskrivelse) : null;
-    if (m && m[1]!.length <= 15) {
+    if (m && m[1]!.length <= 15 && !NS_KODE_EKSKLUDER.has(m[1]!)) {
       return { nsKode: m[1]!, postnr: forelder.postnr! };
     }
   }
