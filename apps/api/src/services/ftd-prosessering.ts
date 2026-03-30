@@ -1674,6 +1674,16 @@ function ekstraherBudsjettPosterFraPdf(
       const sumRaw = linje.slice(sisteTo[1]!.start, sisteTo[1]!.end);
       if (!prisRaw.includes(",") || !sumRaw.includes(",")) continue;
 
+      // Filtrer falske prislinjer: beskrivelsestekst med mål-verdier
+      // "Bredde bunn: 0,9 m Totaldybde: 3,5 m" → ikke en prislinje
+      const sumVal = sisteTo[1]!.val;
+      const prisVal = sisteTo[0]!.val;
+      // 1) Kolon-tegn foran siste tall → sannsynligvis "Label: verdi"
+      const forSiste = linje.slice(0, sisteTo[0]!.start);
+      if (forSiste.includes(":") && sumVal < 100 && prisVal < 100) continue;
+      // 2) Svært små verdier (pris < 10 OG sum < 10) er trolig mål-verdier, ikke priser
+      if (prisVal < 10 && sumVal < 10 && alleTall.length === 2) continue;
+
       let mengde: number;
       let pris: number;
       let sum: number;
