@@ -1131,7 +1131,7 @@ function ekstraherBudsjettPosterFraPdf(
   // Siste post som ble lagt til — for å tilordne .1/.2 sub-nummer etterpå
   let sistePostIdx = -1;
 
-  /** Lagre gjeldende som seksjonspost uten priser (hvis den aldri fikk prislinje) */
+  /** Lagre gjeldende som seksjonspost uten priser (hvis den aldri fikk direkte prislinje) */
   function lagreSeksjonspost() {
     if (gjeldende && !gjeldende.harPrislinje && gjeldende.beskrivelse) {
       poster.push({
@@ -1142,6 +1142,11 @@ function ekstraherBudsjettPosterFraPdf(
         nsKode: gjeldende.nsKode, fullNsTekst: null,
       });
     }
+  }
+
+  /** Marker at gjeldende fikk en DIREKTE prislinje (ikke sub) */
+  function markerPrislinje() {
+    if (gjeldende) gjeldende.harPrislinje = true;
   }
 
   for (let i = 0; i < linjer.length; i++) {
@@ -1374,7 +1379,8 @@ function ekstraherBudsjettPosterFraPdf(
       });
       (poster[poster.length - 1] as Record<string, unknown>)._prisLinjeIdx = i;
 
-      if (gjeldende) gjeldende.harPrislinje = true;
+      // Marker direkte prislinje (ikke via ventendeSub som er sub-post)
+      if (gjeldende && !ventendeSub) gjeldende.harPrislinje = true;
       ventendeSub = null;
       continue;
     }
