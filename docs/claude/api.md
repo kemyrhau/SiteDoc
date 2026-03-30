@@ -44,10 +44,10 @@ Alle routere i `apps/api/src/routes/`:
 **FTD-prosessering** (Fastify `POST /prosesser/:documentId`):
 - tRPC kjører i Next.js, prosessering i API-serveren (ren Node)
 - PDF (anbudsgrunnlag): `ekstraherBudsjettPosterFraPdf()` — pdfjs-dist `getTextContent()` med x/y-posisjoner, grupperer linjer etter y, sammensetter med mellomrom. Hierarkisk postnr-parsing, sub-postnr fra prislinjer (.1 Tid time...), postnr-tail merging (0 BUSKER → 00.03.03.10), seksjonsoverskrifter lagres som poster, full beskrivelsetekst samles mellom poster
-- PDF (A-nota/Sluttnota): `ekstraherNotaPosterFraPdf()` — pdfjs-dist posisjonsbasert, parser 11 siste desimaltall per linje, portet fra Python a_nota.py
-- PDF-hjelpefunksjon: `ekstraherPdfMedPosisjoner()` — bruker pdfjs-dist `getTextContent()` med x/y-posisjoner for presis linjerekonstruksjon
-- Excel: exceljs (xlsx) + SheetJS fallback (xls) → chunks (richText/formel-håndtering) + spec-poster. `cellDesimalRaw()` håndterer richText-celler fra Proadm Excel
-- GAB/GA1: `prosesserGab()` — ISY Beskrivelse binærfil-parser (.gab/.ga1), ekstraherer postnr/NS-kode/beskrivelse/enhet fra binærformat, tekst-segmenter mellom poster, RTF-opprenskning
+- PDF (A-nota/Sluttnota): `ekstraherNotaPosterFraPdf()` — pdfjs-dist posisjonsbasert, parser 11 siste desimaltall per linje, portet fra Python a_nota.py. Mengde-validering via sum/pris-sjekk, importNotat-felt for avvik
+- PDF-hjelpefunksjon: `ekstraherPdfMedPosisjoner()` — bruker pdfjs-dist `getTextContent()` med x/y-posisjoner for presis linjerekonstruksjon. Målrettet postnr-tail merge (x<90 kolonnebevisst). Postnr-regex: maks 2 siffer per segment (`\d{1,2}`)
+- Excel: exceljs (xlsx) + SheetJS fallback (xls) → chunks (richText/formel-håndtering) + spec-poster. `cellDesimalRaw()` håndterer richText-celler fra Proadm Excel. Excel A-nota: dato→postnr via numFmt-deteksjon, kolonne-deteksjon med enhetspris som skillelinje mellom mengde/verdi-seksjoner
+- GAB/GA1: `prosesserGab()` — ISY Beskrivelse binærfil-parser (.gab/.ga1), ekstraherer postnr/NS-kode/beskrivelse/enhet/enhetspris fra binærformat (enhetspris: IEEE 754 double LE ved offset +31 fra NS-kode-slutt), tekst-segmenter mellom poster, RTF-opprenskning
 - XML: fast-xml-parser → NS3459 poster
 - Service: `apps/api/src/services/ftd-prosessering.ts`
 

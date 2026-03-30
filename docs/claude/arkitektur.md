@@ -40,7 +40,7 @@
 | `ftd_kontrakter` | Overliggende kontrakt: Byggherre → Entreprenør. Felter: navn, kontraktType (8405/8406/8407), byggherre, entreprenor, buildingId (valgfri), hmsSamordningsgruppe. Entrepriser og dokumenter kobles via kontraktId |
 | `ftd_documents` | Eneste dokumentmodell. Filinfo, docType (anbudsgrunnlag/a_nota/t_nota/mengdebeskrivelse/annet), processingState, kontraktId, kontraktNavn, notaType, notaNr, entreprenor. Mapper → auto scanning. Økonomi → manuell import med type/kontrakt |
 | `ftd_document_chunks` | Søkbare tekstbiter med tsvector (norsk stemming, GIN), NS-koder, sideinfo. Excel: richText/formel-håndtering |
-| `ftd_spec_posts` | NS 3420 budsjettlinjer fra PDF/Excel/XML/GAB. Postnr, beskrivelse, enhet, mengde, pris, sum, NS-kode, fullNsTekst, mengdeDenne, mengdeTotal, verdiDenne, verdiTotal, prosentFerdig (Decimal — sammenligningsfelter for A-nota/perioder). Seksjonsoverskrifter lagres som poster (erOverskrift). Sub-postnr fra prislinjer, postnr-tail merging, auto-dedup |
+| `ftd_spec_posts` | NS 3420 budsjettlinjer fra PDF/Excel/XML/GAB. Postnr, beskrivelse, enhet, mengde, pris, sum, NS-kode, fullNsTekst, mengdeDenne, mengdeTotal, verdiDenne, verdiTotal, prosentFerdig (Decimal — sammenligningsfelter for A-nota/perioder), importNotat (String? — notat fra import, f.eks. mengde-avvik). Seksjonsoverskrifter lagres som poster (erOverskrift). Sub-postnr fra prislinjer, postnr-tail merging, auto-dedup. Migrering: `20260330180000_legg_til_import_notat` |
 | `ftd_nota_periods` | A-nota/T-nota perioder per entreprise |
 | `ftd_nota_posts` | Poster per periode med mengde/verdi denne, forrige, total |
 | `ftd_nota_comments` | Kommentarer på spesifikasjonsposter og perioder |
