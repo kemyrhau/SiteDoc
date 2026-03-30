@@ -30,23 +30,27 @@ interface SpecPostTabellProps {
   valgtPostId: string | null;
 }
 
-/** Finn NS-kode fra nærmeste overordnet/søsken-post (kortere postnr-prefix med NS-kode) */
+/** Finn NS-kode fra nærmeste overordnet post i hierarkiet */
 function finnArvetNsKode(
   postnr: string | null,
   poster: SpecPost[],
 ): { nsKode: string; postnr: string } | null {
   if (!postnr) return null;
-  // Gå oppover i postnr-hierarkiet: 01.03.3.2 → 01.03.3 → 01.03
+  const NS_KODE_PAT = /^([A-ZÆØÅ]{1,4}[\d]?[\w.]*[A-Z]?)\s/;
+  // Gå oppover: 01.03.21.2 → 01.03.21 → 01.03
   const deler = postnr.split(".");
   for (let i = deler.length - 1; i >= 2; i--) {
-    const prefix = deler.slice(0, i).join(".");
-    // Finn poster som starter med dette prefixet og har NS-kode
-    // Velg den nærmeste (lengste postnr) med NS-kode
-    const kandidater = poster
-      .filter((p) => p.postnr?.startsWith(prefix) && p.nsKode && p.postnr !== postnr)
-      .sort((a, b) => (b.postnr?.length ?? 0) - (a.postnr?.length ?? 0));
-    if (kandidater.length > 0) {
-      return { nsKode: kandidater[0]!.nsKode!, postnr: kandidater[0]!.postnr! };
+    const parentPostnr = deler.slice(0, i).join(".");
+    const forelder = poster.find((p) => p.postnr === parentPostnr);
+    if (!forelder) continue;
+    // Sjekk nsKode-feltet
+    if (forelder.nsKode) {
+      return { nsKode: forelder.nsKode, postnr: forelder.postnr! };
+    }
+    // Sjekk om beskrivelsen starter med NS-kode (f.eks. "AZA Etablering...")
+    const m = forelder.beskrivelse ? NS_KODE_PAT.exec(forelder.beskrivelse) : null;
+    if (m && m[1]!.length >= 2 && m[1]!.length <= 15) {
+      return { nsKode: m[1]!, postnr: forelder.postnr! };
     }
   }
   return null;
