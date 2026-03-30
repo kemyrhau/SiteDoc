@@ -1311,7 +1311,20 @@ function ekstraherBudsjettPosterFraPdf(
           ventendeSub = { postnr, beskrivelse: tekst, nsKode: null };
         } else {
           lagreSeksjonspost();
-          gjeldende = { postnr, beskrivelse: tekst, nsKode: null, harPrislinje: false };
+          // Samle full tekst for seksjon (postnr med beskrivelse, ikke NS-kode)
+          let fullBeskr = tekst;
+          for (let j = i + 1; j < linjer.length; j++) {
+            const nl = linjer[j]!.trim();
+            if (!nl) continue;
+            if (POSTNR_PAT.test(nl) || POSTNR_MED_TEKST.test(nl) || SUB_POSTNR_PAT.test(nl)) break;
+            if (/^Sum\s/i.test(nl) || /^Akkumulert/i.test(nl)) break;
+            if (/^Postnr\b/i.test(nl) || /^Side\b/i.test(nl) || /^Kapittel:/i.test(nl) || /^Prosjekt:/i.test(nl) || /^Tromsø/i.test(nl)) continue;
+            const desimaler = nl.match(/\d{1,3}(?:\s\d{3})*,\d{2}/g);
+            if (desimaler && desimaler.length >= 2 && nl.split(/\s+/).length <= 8) break;
+            if (/^\.(\d+)\s+/.test(nl)) break;
+            fullBeskr += "\n" + nl;
+          }
+          gjeldende = { postnr, beskrivelse: fullBeskr, nsKode: null, harPrislinje: false };
           ventendeSub = null;
         }
       }
