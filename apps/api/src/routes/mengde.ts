@@ -399,6 +399,8 @@ export const mengdeRouter = router({
           }
         }
       }
-      return Array.from(perNr.values());
+      const resultat = Array.from(perNr.values());
+      console.warn(`[RAPPORT] ${alle.length} docs → ${resultat.length} etter dedup. Nrs: ${resultat.map(r => r.notaNr).join(",")}`);
+      return resultat;
     }),
 });
