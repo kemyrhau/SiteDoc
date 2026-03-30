@@ -275,6 +275,7 @@ export default function OkonomiSide() {
                 <NotatEditor
                   specPostId={valgtPostId}
                   eksternNotat={valgtPost?.eksternNotat ?? null}
+                  poster={poster?.map((p) => ({ id: p.id, postnr: p.postnr, beskrivelse: p.beskrivelse }))}
                 />
               </div>
               <div className="rounded border p-3">
