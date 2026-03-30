@@ -291,7 +291,10 @@ export function SpecPostTabell({
                   }`}
                 >
                   <td className="px-2 py-1.5 text-xs text-gray-400">{idx + 1}</td>
-                  <td className="px-2 py-1.5 font-mono text-xs whitespace-nowrap">{p.postnr ?? "—"}</td>
+                  <td className="px-2 py-1.5 font-mono text-xs whitespace-nowrap">
+                    {p.importNotat && <span className="mr-1 text-amber-500" title={p.importNotat}>*</span>}
+                    {p.postnr ?? "—"}
+                  </td>
                   <td className="max-w-xs truncate px-2 py-1.5">{p.beskrivelse ?? "—"}</td>
                   <td className="px-2 py-1.5 text-right font-mono">{fmt(p.mengdeAnbud)}</td>
                   <td className="px-2 py-1.5">{p.enhet ?? "—"}</td>
