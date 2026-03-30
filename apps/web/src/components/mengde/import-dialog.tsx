@@ -20,7 +20,7 @@ interface ImportDialogProps {
 
 const DOC_TYPES = [
   { value: "anbudsgrunnlag", label: "Anbudsgrunnlag (PDF/Excel/GAB/XML)" },
-  { value: "a_nota", label: "A-nota (PDF/Excel)" },
+  { value: "a_nota", label: "A-nota / Sluttnota (PDF/Excel)" },
   { value: "t_nota", label: "T-nota (PDF/Excel)" },
   { value: "mengdebeskrivelse", label: "Mengdebeskrivelse (PDF/Word)" },
   { value: "annet", label: "Annet dokument" },
@@ -31,7 +31,7 @@ function gjettDokType(filnavn: string): string {
   const lavt = filnavn.toLowerCase();
   if (lavt.endsWith(".gab") || lavt.endsWith(".ga1")) return "anbudsgrunnlag";
   if (lavt.endsWith(".xml")) return "anbudsgrunnlag"; // NS 3459
-  if (/a.?nota|avdragsnota/i.test(lavt)) return "a_nota";
+  if (/sluttnota|a.?nota|avdragsnota/i.test(lavt)) return "a_nota";
   if (/t.?nota/i.test(lavt)) return "t_nota";
   if (/mengde/i.test(lavt)) return "mengdebeskrivelse";
   if (/anbud|priset|tilbud/i.test(lavt)) return "anbudsgrunnlag";
@@ -128,7 +128,7 @@ export function ImportDialog({ projectId, open, onClose }: ImportDialogProps) {
     e.preventDefault();
     setDragAktiv(false);
     const droppedFile = e.dataTransfer.files[0];
-    if (droppedFile) { setFil(droppedFile); setDocType(gjettDokType(droppedFile.name)); setNotaNr(gjettNotaNr(droppedFile.name)); }
+    if (droppedFile) { setFil(droppedFile); setDocType(gjettDokType(droppedFile.name)); setNotaNr(gjettNotaNr(droppedFile.name)); if (/sluttnota/i.test(droppedFile.name)) setNotaType("Sluttnota"); }
   }, []);
 
   const handleLastOpp = async () => {
@@ -423,7 +423,7 @@ export function ImportDialog({ projectId, open, onClose }: ImportDialogProps) {
                           accept=".pdf,.xlsx,.xls,.xml,.csv,.docx,.doc,.gab,.ga1"
                           onChange={(e) => {
                             const f = e.target.files?.[0];
-                            if (f) { setFil(f); setDocType(gjettDokType(f.name)); setNotaNr(gjettNotaNr(f.name)); }
+                            if (f) { setFil(f); setDocType(gjettDokType(f.name)); setNotaNr(gjettNotaNr(f.name)); if (/sluttnota/i.test(f.name)) setNotaType("Sluttnota"); }
                           }}
                         />
                       </label>
