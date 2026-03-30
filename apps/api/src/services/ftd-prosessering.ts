@@ -1594,10 +1594,17 @@ function ekstraherBudsjettPosterFraPdf(
             fullPostnrNonNs = postnr + nl;
             break;
           }
-          // Siffer(e)/punktum etterfulgt av pris-/enhetdata → postnr-tail + prislinje
+          // Siffer(e)/punktum etterfulgt av enhet-data → postnr-tail + prislinje
           const tailPris = /^(\d[\d.]*)\s+(?:RS|stk|m[23]?|lm|tonn|kg|time)\s/.exec(nl);
           if (tailPris && tailPris[1]!.length <= 5) {
             fullPostnrNonNs = postnr + tailPris[1]!;
+            break;
+          }
+          // Siffer(e)/punktum etterfulgt av UPPERCASE tekst → postnr-tail + beskrivelse
+          // f.eks. "8.4 Ny grøft for OV 160..." eller "1.10 Forretninger..."
+          const tailBeskr = /^(\d[\d.]*\d|\d)\s+([A-ZÆØÅ].+)/.exec(nl);
+          if (tailBeskr && tailBeskr[1]!.length <= 5) {
+            fullPostnrNonNs = postnr + tailBeskr[1]!;
             break;
           }
           break;
