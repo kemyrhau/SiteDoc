@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useParams } from "next/navigation";
-import { BarChart3, Upload, FileText, Trash2, Loader2, CheckCircle, AlertCircle, RefreshCw, Plus } from "lucide-react";
+import { BarChart3, Upload, FileText, Trash2, Loader2, CheckCircle, AlertCircle, RefreshCw, Plus, Pencil } from "lucide-react";
 import { SpecPostTabell } from "@/components/mengde/spec-post-tabell";
 import { Avviksanalyse } from "@/components/mengde/avviksanalyse";
 import { NotatEditor } from "@/components/mengde/notat-editor";
@@ -24,6 +24,7 @@ export default function OkonomiSide() {
   const [valgtPostId, setValgtPostId] = useState<string | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [visNyKontrakt, setVisNyKontrakt] = useState(false);
+  const [visRedigerKontrakt, setVisRedigerKontrakt] = useState(false);
   const [nyKontraktNavn, setNyKontraktNavn] = useState("");
   const [nyKontraktType, setNyKontraktType] = useState("");
   const [nyKontraktByggherre, setNyKontraktByggherre] = useState("");
@@ -41,6 +42,22 @@ export default function OkonomiSide() {
   );
 
   const utils2 = trpc.useUtils();
+
+  const oppdaterKontrakt = trpc.kontrakt.oppdater.useMutation({
+    onSuccess: () => {
+      utils2.kontrakt.hentForProsjekt.invalidate({ projectId: prosjektId });
+      setVisRedigerKontrakt(false);
+    },
+  });
+
+  const slettKontrakt = trpc.kontrakt.slett.useMutation({
+    onSuccess: () => {
+      utils2.kontrakt.hentForProsjekt.invalidate({ projectId: prosjektId });
+      setKontraktId(null);
+      setVisRedigerKontrakt(false);
+    },
+  });
+
   const opprettKontrakt = trpc.kontrakt.opprett.useMutation({
     onSuccess: (ny) => {
       utils2.kontrakt.hentForProsjekt.invalidate({ projectId: prosjektId });
@@ -160,6 +177,15 @@ export default function OkonomiSide() {
           >
             <Plus className="h-4 w-4" />
           </button>
+          {kontraktId && (
+            <button
+              onClick={() => setVisRedigerKontrakt(true)}
+              className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+              title="Rediger kontrakt"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </button>
+          )}
         </div>
 
         <div className="mx-1 h-4 w-px bg-gray-300" />
@@ -365,6 +391,106 @@ export default function OkonomiSide() {
           </div>
         </div>
       )}
+
+      {/* Rediger kontrakt modal */}
+      {visRedigerKontrakt && kontraktId && (() => {
+        const k = kontrakter?.find((c) => c.id === kontraktId);
+        if (!k) return null;
+        return (
+          <RedigerKontraktModal
+            kontrakt={k}
+            bygninger={bygninger ?? []}
+            onLagre={(data) => oppdaterKontrakt.mutate({ id: kontraktId, ...data })}
+            onSlett={() => {
+              if (confirm(`Slett kontrakt «${k.navn}»? Dokumenter og entrepriser mister kontraktkoblingen.`)) {
+                slettKontrakt.mutate({ id: kontraktId });
+              }
+            }}
+            onLukk={() => setVisRedigerKontrakt(false)}
+          />
+        );
+      })()}
+    </div>
+  );
+}
+
+function RedigerKontraktModal({
+  kontrakt,
+  bygninger,
+  onLagre,
+  onSlett,
+  onLukk,
+}: {
+  kontrakt: { id: string; navn: string; kontraktType: string | null; byggherre: string | null; entreprenor: string | null; buildingId: string | null };
+  bygninger: Array<{ id: string; name: string; number: number | null }>;
+  onLagre: (data: { navn?: string; kontraktType?: "8405" | "8406" | "8407" | null; byggherre?: string | null; entreprenor?: string | null; buildingId?: string | null }) => void;
+  onSlett: () => void;
+  onLukk: () => void;
+}) {
+  const [navn, setNavn] = useState(kontrakt.navn);
+  const [type, setType] = useState(kontrakt.kontraktType ?? "");
+  const [byggherre, setByggherre] = useState(kontrakt.byggherre ?? "");
+  const [entreprenor, setEntreprenor] = useState(kontrakt.entreprenor ?? "");
+  const [bygningId, setBygningId] = useState(kontrakt.buildingId ?? "");
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onLukk}>
+      <div className="w-full max-w-md rounded-lg bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="border-b px-5 py-3">
+          <h2 className="text-base font-semibold">Rediger kontrakt</h2>
+        </div>
+        <div className="space-y-3 p-5">
+          <div>
+            <label className="mb-1 block text-xs font-medium text-gray-500">Kontraktnavn</label>
+            <input type="text" className="w-full rounded border border-gray-300 px-3 py-1.5 text-sm" value={navn} onChange={(e) => setNavn(e.target.value)} autoFocus />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-gray-500">Kontrakttype</label>
+            <select className="w-full rounded border border-gray-300 bg-white px-3 py-1.5 text-sm" value={type} onChange={(e) => setType(e.target.value)}>
+              <option value="">Velg type...</option>
+              <option value="8405">NS 8405 — Utførelsesentreprise</option>
+              <option value="8406">NS 8406 — Forenklet utførelsesentreprise</option>
+              <option value="8407">NS 8407 — Totalentreprise</option>
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-gray-500">Byggherre</label>
+            <input type="text" className="w-full rounded border border-gray-300 px-3 py-1.5 text-sm" placeholder="f.eks. Din Kommune" value={byggherre} onChange={(e) => setByggherre(e.target.value)} />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-gray-500">Entreprenør</label>
+            <input type="text" className="w-full rounded border border-gray-300 px-3 py-1.5 text-sm" placeholder="f.eks. Firma AS" value={entreprenor} onChange={(e) => setEntreprenor(e.target.value)} />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-gray-500">Bygning</label>
+            <select className="w-full rounded border border-gray-300 bg-white px-3 py-1.5 text-sm" value={bygningId} onChange={(e) => setBygningId(e.target.value)}>
+              <option value="">Ingen bygning</option>
+              {bygninger.map((b) => (
+                <option key={b.id} value={b.id}>{b.number ? `${b.number} — ` : ""}{b.name}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <div className="flex items-center justify-between border-t px-5 py-3">
+          <button onClick={onSlett} className="rounded px-3 py-1.5 text-sm text-red-500 hover:bg-red-50">Slett</button>
+          <div className="flex gap-2">
+            <button onClick={onLukk} className="rounded px-4 py-1.5 text-sm text-gray-600 hover:bg-gray-100">Avbryt</button>
+            <button
+              onClick={() => onLagre({
+                navn: navn.trim() || undefined,
+                kontraktType: (type as "8405" | "8406" | "8407") || null,
+                byggherre: byggherre.trim() || null,
+                entreprenor: entreprenor.trim() || null,
+                buildingId: bygningId || null,
+              })}
+              disabled={!navn.trim()}
+              className="rounded bg-sitedoc-primary px-4 py-1.5 text-sm text-white hover:bg-sitedoc-secondary disabled:opacity-50"
+            >
+              Lagre
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
