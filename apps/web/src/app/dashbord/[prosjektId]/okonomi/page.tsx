@@ -97,9 +97,16 @@ export default function OkonomiSide() {
       ? dokumenter.filter((d) => d.kontraktId === kontraktId)
       : dokumenter;
     const budsjett = filtrert.find((d) => d.docType === "anbudsgrunnlag") ?? null;
-    const notas = filtrert
+    const alleNotas = filtrert
       .filter((d) => d.docType === dokType && d.notaNr !== null)
       .sort((a, b) => (a.notaNr ?? 0) - (b.notaNr ?? 0));
+    // Dedupliser per notaNr (behold første = nyeste opplastede)
+    const sett = new Set<number>();
+    const notas = alleNotas.filter((d) => {
+      if (sett.has(d.notaNr!)) return false;
+      sett.add(d.notaNr!);
+      return true;
+    });
     return { budsjett, notas };
   }, [dokumenter, kontraktId, dokType]);
 
@@ -212,7 +219,7 @@ export default function OkonomiSide() {
           <option value="">Kun anbud</option>
           {kontraktDokumenter.notas.map((d) => (
             <option key={d.id} value={d.notaNr!}>
-              {d.notaNr}
+              {d.notaType === "Sluttnota" ? "Sluttnota" : d.notaNr}
             </option>
           ))}
         </select>
