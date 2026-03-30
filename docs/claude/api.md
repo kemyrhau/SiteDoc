@@ -43,6 +43,7 @@ Alle routere i `apps/api/src/routes/`:
 
 **FTD-prosessering** (Fastify `POST /prosesser/:documentId`):
 - tRPC kjører i Next.js, prosessering i API-serveren (ren Node)
+- **OCR-fallback:** Skannede PDFer (pdf-parse gir <50 ord) → pdftoppm (300 DPI, batches à 20 sider) + tesseract CLI (norsk) → OCR-tekst erstatter sideData → chunking/tsvector/POST-regex fungerer automatisk
 - PDF (anbudsgrunnlag): `ekstraherBudsjettPosterFraPdf()` — pdfjs-dist `getTextContent()` med x/y-posisjoner, grupperer linjer etter y, sammensetter med mellomrom. Hierarkisk postnr-parsing, sub-postnr fra prislinjer (.1 Tid time...), postnr-tail merging (0 BUSKER → 00.03.03.10), seksjonsoverskrifter lagres som poster, full beskrivelsetekst samles mellom poster
 - PDF (A-nota/Sluttnota): `ekstraherNotaPosterFraPdf()` — pdfjs-dist posisjonsbasert, parser 11 siste desimaltall per linje, portet fra Python a_nota.py. Mengde-validering via sum/pris-sjekk, importNotat-felt for avvik
 - PDF-hjelpefunksjon: `ekstraherPdfMedPosisjoner()` — bruker pdfjs-dist `getTextContent()` med x/y-posisjoner for presis linjerekonstruksjon. Målrettet postnr-tail merge (x<90 kolonnebevisst). Postnr-regex: maks 2 siffer per segment (`\d{1,2}`)
@@ -52,6 +53,8 @@ Alle routere i `apps/api/src/routes/`:
 - Service: `apps/api/src/services/ftd-prosessering.ts`
 
 **Modulavhengighet:** Økonomi (`okonomi`) krever Dokumentsøk (`dokumentsok`). Auto-aktiveres. Deaktivering blokkeres.
+
+**Dokumentsøk tilgjengelighet:** Søk er tilgjengelig for alle prosjekter (ingen modulkrav i sidebar). Tilgangskontroll via `hentTilgjengeligeMappeIder()` — brukere ser kun treff fra mapper de har tilgang til.
 
 **Neste steg (økonomi):** A-nota nummer = periodenummer. Kontrakt + periode-velger → vis og sammenlign perioder i Oversikt. Anbudsgrunnlag = anbud (fane), A-nota 4/5/6/7 = perioder under samme kontrakt. Sluttnota støttes som nota-type.
 

@@ -23,7 +23,8 @@ PC/WSL (server):
 
 ## Server-avhengigheter (apt)
 
-- `poppler-utils` — pdftoppm for PDF→PNG konvertering av tegninger
+- `poppler-utils` — pdftoppm for PDF→PNG (tegninger + OCR-rendering)
+- `tesseract-ocr` + `tesseract-ocr-nor` — OCR for skannede PDFer (v5.3.4, norsk språkpakke)
 - `xvfb` — virtuelt display for CloudCompare (punktsky-konvertering)
 
 ## Miljøvariabler (PM2)

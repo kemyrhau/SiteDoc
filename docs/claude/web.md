@@ -49,7 +49,7 @@ Tre-kolonne layout (skjules på mobil < 768px, hamburger-meny i Toppbar):
 /dashbord/[prosjektId]/modeller              -> Redirect → /3d-visning
 /dashbord/[prosjektId]/bilder                 -> Bildegalleri (liste + tegningsvisning)
 /dashbord/[prosjektId]/okonomi               -> Økonomi: 4 faner (Oversikt, Avviksanalyse, Rapport, Dokumenter). Kontrakt-velger + Type + Nr. Oversikt: spec-poster med piltast-nav, sammenligning, overskridelsesmarkering (rød bg), referansemodus i merknad, merknad-eksport (PDF/e-post), NS-kode arv. Dobbeltklikk rad → detaljmodal med beskrivelse, tall, NS-kode, merknad, dokumentasjon-seksjon (side-lenker fra FtdDocumentPage). Rapport-fane: dropdown for rapporttype, Innestående-tabell over alle A-notas (deduplisert per notaNr). Dokumenter-fane: Nr-kolonne, inline type-editor. Import: auto-detect docType/notaType/notaNr
-/dashbord/[prosjektId]/sok                   -> Dokumentsøk (krever modul «dokumentsok»): tsvector fulltekstsøk med norsk stemming, treffliste med sidenr, fulltekst-panel
+/dashbord/[prosjektId]/sok                   -> Dokumentsøk (alle prosjekter, ingen modulkrav): tsvector fulltekstsøk med norsk stemming, treffliste med sidenr, fulltekst-panel. Tilgangskontrollert via hentTilgjengeligeMappeIder
 /dashbord/oppsett                             -> Innstillinger
 /dashbord/oppsett/brukere                     -> Brukergrupper, roller
 /dashbord/oppsett/brukere/tillatelser         -> Tillatelsesmatrise (read-only)
