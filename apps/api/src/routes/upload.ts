@@ -28,6 +28,9 @@ const TILLATTE_TYPER = new Set([
   ".csv",
   ".docx",
   ".doc",
+  // ISY Beskrivelse/Linker
+  ".gab",
+  ".ga1",
 ]);
 
 export async function uploadRoute(server: FastifyInstance) {

@@ -402,7 +402,7 @@ export function ImportDialog({ projectId, open, onClose }: ImportDialogProps) {
                         <input
                           type="file"
                           className="hidden"
-                          accept=".pdf,.xlsx,.xls,.xml,.csv,.docx,.doc"
+                          accept=".pdf,.xlsx,.xls,.xml,.csv,.docx,.doc,.gab,.ga1"
                           onChange={(e) => {
                             const f = e.target.files?.[0];
                             if (f) setFil(f);

@@ -63,6 +63,10 @@ export async function prosesserDokument(
       case ".csv":
         await prosesserCsv(prisma, documentId, buffer);
         break;
+      case ".gab":
+      case ".ga1":
+        await prosesserGab(prisma, documentId, buffer, dok.projectId);
+        break;
       default:
         // Ukjent filtype — marker som ferdig uten chunks
         break;
@@ -644,6 +648,134 @@ function parsNorskTall(s: string): number | null {
 // --------------------------------------------------------------------------
 // XML-prosessering (NS3459)
 // --------------------------------------------------------------------------
+
+// --------------------------------------------------------------------------
+// GAB/GA1-prosessering (ISY Beskrivelse/Linker anbudsfiler)
+// --------------------------------------------------------------------------
+
+/**
+ * Parser ISY Beskrivelse .gab/.ga1 binærfil.
+ *
+ * GAB-formatet er et proprietært binærformat fra Norconsult/ISY.
+ * Poster kan ekstraheres via regex på lesbare strenger i filen:
+ *   postnr - NSkode  BESKRIVELSE\0
+ *   postnr - beskrivelse\0
+ *
+ * Enhet finnes som \x02RS\x05 eller \x02m\x05 etter posten.
+ * Mengde/pris/sum er i binært format som ikke er fullt kartlagt.
+ */
+async function prosesserGab(
+  prisma: PrismaClient,
+  documentId: string,
+  buffer: Buffer,
+  projectId: string,
+): Promise<void> {
+  const data = buffer;
+
+  // Regex for å finne poster: postnr - tekst\0
+  const POST_RE = /(\d{2}\.\d{2}(?:\.\d{1,3})*) - ([^\x00]{3,300}?)\x00/g;
+  const NS_KODE_RE = /^([A-Z]{1,3}\d[\w.]*[A-Z]?)\s+(.*)/;
+  const ENHET_RE = /\x02(RS|stk|m[23]?|lm|tonn|kg|time|uke)\x05/;
+
+  // Konverter buffer til string for regex (latin-1 for å bevare alle bytes)
+  const tekst = data.toString("latin1");
+
+  const sett = new Set<string>();
+  const poster: Array<{
+    projectId: string;
+    documentId: string;
+    postnr: string;
+    beskrivelse: string | null;
+    enhet: string | null;
+    nsKode: string | null;
+    mengdeAnbud: number | null;
+    enhetspris: number | null;
+    sumAnbud: number | null;
+  }> = [];
+
+  let match: RegExpExecArray | null;
+  while ((match = POST_RE.exec(tekst)) !== null) {
+    const postnr = match[1]!;
+    if (sett.has(postnr)) continue;
+    sett.add(postnr);
+
+    let fullTekst = match[2]!.trim();
+    let nsKode: string | null = null;
+    let beskrivelse: string;
+
+    // Skill NS-kode fra beskrivelse
+    const nsMatch = NS_KODE_RE.exec(fullTekst);
+    if (nsMatch) {
+      nsKode = nsMatch[1]!;
+      beskrivelse = nsMatch[2]!.trim();
+    } else {
+      beskrivelse = fullTekst;
+    }
+
+    // Rens beskrivelse — fjern RTF og kontrollsekvenser
+    beskrivelse = beskrivelse
+      .replace(/\{\\rtf1[^}]*\}/g, "")
+      .replace(/\\[a-z]+\d*\s?/g, "")
+      .replace(/[{}]/g, "")
+      .trim()
+      .slice(0, 500);
+
+    // Finn enhet i nærheten (neste 300 bytes)
+    let enhet: string | null = null;
+    const afterIdx = match.index + match[0].length;
+    const afterSlice = tekst.slice(afterIdx, afterIdx + 300);
+    const enhetMatch = ENHET_RE.exec(afterSlice);
+    if (enhetMatch) {
+      enhet = enhetMatch[1]!;
+    }
+
+    poster.push({
+      projectId,
+      documentId,
+      postnr,
+      beskrivelse: beskrivelse || null,
+      enhet,
+      nsKode,
+      mengdeAnbud: null, // Binærformat — krever videre reverse engineering
+      enhetspris: null,
+      sumAnbud: null,
+    });
+  }
+
+  // Lag chunks for søk (samle lesbare strenger)
+  const chunks: string[] = [];
+  let currentChunk = "";
+  const lines = tekst.split(/\x00+/).filter((s) => s.length > 3);
+  for (const line of lines) {
+    const clean = line.replace(/[\x00-\x1f]/g, " ").trim();
+    if (!clean || clean.length < 3) continue;
+    // Bare ASCII/Latin-1 tekst
+    if (!/[a-zA-ZæøåÆØÅ]/.test(clean)) continue;
+    currentChunk += clean + "\n";
+    if (currentChunk.length > MAKS_CHUNK) {
+      chunks.push(currentChunk);
+      currentChunk = "";
+    }
+  }
+  if (currentChunk) chunks.push(currentChunk);
+
+  // Lagre chunks
+  if (chunks.length > 0) {
+    await prisma.ftdDocumentChunk.createMany({
+      data: chunks.map((c, i) => ({
+        documentId,
+        chunkIndex: i,
+        chunkText: c.slice(0, 5000),
+        profile: "gab",
+      })),
+    });
+  }
+
+  // Lagre spec-poster
+  if (poster.length > 0) {
+    await prisma.ftdSpecPost.createMany({ data: poster });
+  }
+}
 
 async function prosesserXml(
   prisma: PrismaClient,
