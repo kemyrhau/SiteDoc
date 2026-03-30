@@ -1800,7 +1800,7 @@ function ekstraherNotaPosterFraPdf(
   prosentFerdig: number | null;
 }> {
   // Norsk desimaltall: "38 000,00", "1,00", "0,00"
-  const N_PAT = /\d{1,3}(?:\s\d{3})*,\d+/g;
+  const N_PAT = /-?\d{1,3}(?:\s\d{3})*,\d+/g;
   // Postnr i starten av linje
   const POSTNR_PAT = /^(\d+(?:\.\d+)*)\s+/;
   // Enhet: kun bokstaver (RS, m2, m3, stk, lm etc.)
