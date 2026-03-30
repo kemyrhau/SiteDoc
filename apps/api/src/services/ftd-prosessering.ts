@@ -1305,11 +1305,30 @@ async function ekstraherPdfMedPosisjoner(buffer: Buffer): Promise<string> {
     // Sorter rader etter y (fallende = topp til bunn i PDF)
     const sortertRader = [...rader.entries()].sort((a, b) => b[0] - a[0]);
 
-    for (const [_y, items] of sortertRader) {
+    // Merge postnr-kolonnebrudd: "02.71.03.1" (x<90) + neste y "5.10" (x<90) → "02.71.03.15.10"
+    for (let ri = 0; ri < sortertRader.length; ri++) {
+      const [_y, items] = sortertRader[ri]!;
       items.sort((a, b) => a.x - b.x);
-      // Sett inn mellomrom mellom hvert element — alltid separere
+
+      // Sjekk om denne raden har postnr i venstre kolonne (x < 90)
+      const postnrItem = items.find((it) => it.x < 90 && /^\d{2}\.\d{2}(?:\.\d+)+$/.test(it.tekst));
+      if (postnrItem && ri + 1 < sortertRader.length) {
+        const nesteItems = sortertRader[ri + 1]![1];
+        const nestePnr = nesteItems.find((it) => it.x < 90 && /^\d[\d.]*$/.test(it.tekst) && it.tekst.length <= 5);
+        if (nestePnr) {
+          // Merge: legg tail til postnr-elementet og fjern fra neste rad
+          postnrItem.tekst = postnrItem.tekst + nestePnr.tekst;
+          const nesteIdx = nesteItems.indexOf(nestePnr);
+          if (nesteIdx >= 0) nesteItems.splice(nesteIdx, 1);
+          // Hvis neste rad nå er tom (bare hadde tail), fjern den
+          if (nesteItems.every((it) => !it.tekst.trim())) {
+            sortertRader.splice(ri + 1, 1);
+          }
+        }
+      }
+
       const linje = items.map((i) => i.tekst).join(" ");
-      alleLinjer.push(linje);
+      if (linje.trim()) alleLinjer.push(linje);
     }
   }
 
