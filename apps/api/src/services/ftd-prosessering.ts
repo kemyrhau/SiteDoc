@@ -1843,7 +1843,7 @@ function ekstraherNotaHeader(linjer: string[]): NotaHeaderVerdier {
     innestaaendeForrige: finnVerdi(/Innest.ende\s+forrige/i),
     innestaaendeDenne: finnVerdi(/Innest.ende\s+denne/i),
     nettoDenne: finnVerdi(/Netto\s+denne/i),
-    mva: finnVerdi(/Mva/i),
+    mva: finnVerdi(/^\s*\+?\s*Mva\.?\s/i),
     sumInkMva: finnVerdi(/Sum\s+inkludert/i),
   };
 }
