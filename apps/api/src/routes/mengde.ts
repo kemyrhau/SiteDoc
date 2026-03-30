@@ -344,4 +344,42 @@ export const mengdeRouter = router({
         },
       });
     }),
+
+  hentNotaRapport: protectedProcedure
+    .input(
+      z.object({
+        projectId: z.string().uuid(),
+        kontraktId: z.string(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      return ctx.prisma.ftdDocument.findMany({
+        where: {
+          projectId: input.projectId,
+          kontraktId: input.kontraktId,
+          isActive: true,
+          docType: { in: ["a_nota", "t_nota"] },
+          notaNr: { not: null },
+        },
+        select: {
+          id: true,
+          notaType: true,
+          notaNr: true,
+          filename: true,
+          utfortPr: true,
+          utfortTotalt: true,
+          utfortForrige: true,
+          utfortDenne: true,
+          innestaaende: true,
+          innestaaendeForrige: true,
+          innestaaendeDenne: true,
+          nettoDenne: true,
+          mva: true,
+          sumInkMva: true,
+          uploadedAt: true,
+        },
+        orderBy: { notaNr: "asc" },
+      });
+    }),
 });

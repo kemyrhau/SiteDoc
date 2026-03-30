@@ -777,6 +777,19 @@ model FtdDocument {
   entreprenor     String?  @map("entreprenor")
   pageCount       Int?     @map("page_count")
   wordCount       Int?     @map("word_count")
+
+  // Header-verdier fra A-nota/Sluttnota PDF
+  utfortPr              DateTime? @map("utfort_pr")
+  utfortTotalt          Decimal?  @map("utfort_totalt") @db.Decimal(18, 2)
+  utfortForrige         Decimal?  @map("utfort_forrige") @db.Decimal(18, 2)
+  utfortDenne           Decimal?  @map("utfort_denne") @db.Decimal(18, 2)
+  innestaaende          Decimal?  @map("innestaaende") @db.Decimal(18, 2)
+  innestaaendeForrige   Decimal?  @map("innestaaende_forrige") @db.Decimal(18, 2)
+  innestaaendeDenne     Decimal?  @map("innestaaende_denne") @db.Decimal(18, 2)
+  nettoDenne            Decimal?  @map("netto_denne") @db.Decimal(18, 2)
+  mva                   Decimal?  @map("mva") @db.Decimal(18, 2)
+  sumInkMva             Decimal?  @map("sum_ink_mva") @db.Decimal(18, 2)
+
   uploadedAt      DateTime @default(now()) @map("uploaded_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 

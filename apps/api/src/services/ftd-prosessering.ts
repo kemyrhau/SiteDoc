@@ -143,10 +143,26 @@ async function prosesserPdf(
   // Ekstraher spec-poster fra A-nota/T-nota PDF (Proadm-format) via pdfjs-dist
   if (docType === "a_nota" || docType === "t_nota") {
     const tabellTekst = await ekstraherPdfMedPosisjoner(buffer);
-    const poster = ekstraherNotaPosterFraPdf(tabellTekst, projectId, documentId);
+    const { poster, header } = ekstraherNotaPosterFraPdf(tabellTekst, projectId, documentId);
     if (poster.length > 0) {
       await prisma.ftdSpecPost.createMany({ data: poster });
     }
+    // Lagre header-verdier (innestående, utført, netto etc.) på dokumentet
+    await prisma.ftdDocument.update({
+      where: { id: documentId },
+      data: {
+        utfortPr: header.utfortPr,
+        utfortTotalt: header.utfortTotalt,
+        utfortForrige: header.utfortForrige,
+        utfortDenne: header.utfortDenne,
+        innestaaende: header.innestaaende,
+        innestaaendeForrige: header.innestaaendeForrige,
+        innestaaendeDenne: header.innestaaendeDenne,
+        nettoDenne: header.nettoDenne,
+        mva: header.mva,
+        sumInkMva: header.sumInkMva,
+      },
+    });
   }
 
   await prisma.ftdDocument.update({
@@ -1780,25 +1796,80 @@ function ekstraherBudsjettPosterFraPdf(
   return poster;
 }
 
+interface NotaHeaderVerdier {
+  utfortPr: Date | null;
+  utfortTotalt: number | null;
+  utfortForrige: number | null;
+  utfortDenne: number | null;
+  innestaaende: number | null;
+  innestaaendeForrige: number | null;
+  innestaaendeDenne: number | null;
+  nettoDenne: number | null;
+  mva: number | null;
+  sumInkMva: number | null;
+}
+
+function ekstraherNotaHeader(linjer: string[]): NotaHeaderVerdier {
+  const N = /-?\d{1,3}(?:\s\d{3})*,\d+/;
+  function tilDes(s: string): number {
+    return parseFloat(s.replace(/\s/g, "").replace(",", "."));
+  }
+  function finnVerdi(label: RegExp): number | null {
+    for (const l of linjer) {
+      if (label.test(l)) {
+        const m = l.match(N);
+        if (m) return tilDes(m[0]);
+      }
+    }
+    return null;
+  }
+
+  // Dato: "Utført pr: 20.10.2025" eller "Utført pr 20.10.2025"
+  let utfortPr: Date | null = null;
+  for (const l of linjer) {
+    const dm = l.match(/Utf.rt\s+pr[.:]*\s*(\d{1,2})\.(\d{1,2})\.(\d{4})/i);
+    if (dm) {
+      utfortPr = new Date(parseInt(dm[3]!), parseInt(dm[2]!) - 1, parseInt(dm[1]!));
+      break;
+    }
+  }
+
+  return {
+    utfortPr,
+    utfortTotalt: finnVerdi(/Utf.rt\s+totalt/i),
+    utfortForrige: finnVerdi(/Utf.rt\s+forrige/i),
+    utfortDenne: finnVerdi(/Utf.rt\s+denne/i),
+    innestaaende: finnVerdi(/Innest.ende\s+(?!forrige|denne)-?\d/i) ?? finnVerdi(/^\s*Innest.ende\s*-?\d/i),
+    innestaaendeForrige: finnVerdi(/Innest.ende\s+forrige/i),
+    innestaaendeDenne: finnVerdi(/Innest.ende\s+denne/i),
+    nettoDenne: finnVerdi(/Netto\s+denne/i),
+    mva: finnVerdi(/Mva/i),
+    sumInkMva: finnVerdi(/Sum\s+inkludert/i),
+  };
+}
+
 function ekstraherNotaPosterFraPdf(
   fullTekst: string,
   projectId: string,
   documentId: string,
-): Array<{
-  projectId: string;
-  documentId: string;
-  postnr: string | null;
-  beskrivelse: string | null;
-  enhet: string | null;
-  mengdeAnbud: number | null;
-  enhetspris: number | null;
-  sumAnbud: number | null;
-  mengdeDenne: number | null;
-  mengdeTotal: number | null;
-  verdiDenne: number | null;
-  verdiTotal: number | null;
-  prosentFerdig: number | null;
-}> {
+): {
+  poster: Array<{
+    projectId: string;
+    documentId: string;
+    postnr: string | null;
+    beskrivelse: string | null;
+    enhet: string | null;
+    mengdeAnbud: number | null;
+    enhetspris: number | null;
+    sumAnbud: number | null;
+    mengdeDenne: number | null;
+    mengdeTotal: number | null;
+    verdiDenne: number | null;
+    verdiTotal: number | null;
+    prosentFerdig: number | null;
+  }>;
+  header: NotaHeaderVerdier;
+} {
   // Norsk desimaltall: "38 000,00", "1,00", "0,00"
   const N_PAT = /-?\d{1,3}(?:\s\d{3})*,\d+/g;
   // Postnr i starten av linje
@@ -1841,12 +1912,14 @@ function ekstraherNotaPosterFraPdf(
 
   let tabellStartet = false;
   let droppetPoster = 0;
+  const headerLinjer: string[] = [];
 
   for (const rawLinje of linjer) {
     const linje = rawLinje.trim();
 
     // Vent på første "Postnr...Beskrivelse"-header (kan være sammenhengende i PDF)
     if (!tabellStartet) {
+      headerLinjer.push(linje);
       if (/Postnr/i.test(linje) && /Beskrivelse/i.test(linje)) {
         tabellStartet = true;
       }
@@ -1939,7 +2012,10 @@ function ekstraherNotaPosterFraPdf(
     console.warn(`[FTD-DEBUG] Sum verdiDenne: ${sumVerdiDenne.toFixed(2)}, Sum verdiTotal: ${sumVerdiTotal.toFixed(2)}`);
   }
 
-  return poster;
+  const header = ekstraherNotaHeader(headerLinjer);
+  console.warn(`[FTD-DEBUG] Header: utførtPr=${header.utfortPr?.toISOString()}, utførtDenne=${header.utfortDenne}, innestående=${header.innestaaende}, sumInkMva=${header.sumInkMva}`);
+
+  return { poster, header };
 }
 
 function ekstraherNs3420PosterFraTekst(

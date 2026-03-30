@@ -13,7 +13,7 @@ import { ImportSammenligning } from "@/components/mengde/import-sammenligning";
 import { ImportDialog } from "@/components/mengde/import-dialog";
 import { trpc } from "@/lib/trpc";
 
-type Fane = "oversikt" | "avviksanalyse" | "dokumenter";
+type Fane = "oversikt" | "avviksanalyse" | "rapport" | "dokumenter";
 type DokType = "a_nota" | "t_nota";
 
 export default function OkonomiSide() {
@@ -254,6 +254,12 @@ export default function OkonomiSide() {
           Avviksanalyse
         </FaneKnapp>
         <FaneKnapp
+          aktiv={aktivFane === "rapport"}
+          onClick={() => setAktivFane("rapport")}
+        >
+          Rapport
+        </FaneKnapp>
+        <FaneKnapp
           aktiv={aktivFane === "dokumenter"}
           onClick={() => setAktivFane("dokumenter")}
         >
@@ -320,6 +326,8 @@ export default function OkonomiSide() {
                 kontraktId={kontraktId}
               />
             </div>
+          ) : aktivFane === "rapport" ? (
+            <RapportPanel prosjektId={prosjektId} kontraktId={kontraktId} />
           ) : (
             <DokumentListe
               dokumenter={kontraktId ? (dokumenter ?? []).filter((d) => d.kontraktId === kontraktId) : (dokumenter ?? [])}
@@ -787,6 +795,144 @@ function DokumentTypeEditor({
           Avbryt
         </button>
       </div>
+    </div>
+  );
+}
+
+type RapportType = "innestaaende";
+
+function RapportPanel({
+  prosjektId,
+  kontraktId,
+}: {
+  prosjektId: string;
+  kontraktId: string | null;
+}) {
+  const [rapportType, setRapportType] = useState<RapportType>("innestaaende");
+
+  const { data: notas, isLoading } = trpc.mengde.hentNotaRapport.useQuery(
+    { projectId: prosjektId, kontraktId: kontraktId! },
+    { enabled: !!kontraktId },
+  );
+
+  if (!kontraktId) {
+    return (
+      <div className="flex items-center justify-center py-12 text-sm text-gray-400">
+        Velg en kontrakt for å se rapport
+      </div>
+    );
+  }
+
+  const fmt = (v: unknown) => {
+    if (v === null || v === undefined) return "—";
+    const n = typeof v === "number" ? v : Number(v);
+    if (isNaN(n)) return "—";
+    return n.toLocaleString("nb-NO", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+
+  const fmtDato = (d: string | Date | null | undefined) => {
+    if (!d) return "—";
+    const dato = new Date(d);
+    return dato.toLocaleDateString("nb-NO", { day: "2-digit", month: "2-digit", year: "numeric" });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-3">
+        <label className="text-xs text-gray-500">Rapport:</label>
+        <select
+          className="rounded border border-gray-300 bg-white px-3 py-1.5 text-sm"
+          value={rapportType}
+          onChange={(e) => setRapportType(e.target.value as RapportType)}
+        >
+          <option value="innestaaende">Innestående</option>
+        </select>
+      </div>
+
+      {isLoading ? (
+        <div className="flex items-center gap-2 py-8 text-sm text-gray-400">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Laster rapport...
+        </div>
+      ) : !notas || notas.length === 0 ? (
+        <div className="py-8 text-center text-sm text-gray-400">
+          Ingen A-notas med header-data funnet for denne kontrakten.
+          <br />
+          <span className="text-xs">Importer A-notas på nytt for å ekstrahere header-verdier.</span>
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b bg-gray-50 text-left text-xs text-gray-500">
+                <th className="whitespace-nowrap px-3 py-2">Nota</th>
+                <th className="whitespace-nowrap px-3 py-2">Utført pr</th>
+                <th className="whitespace-nowrap px-3 py-2 text-right">Utført totalt</th>
+                <th className="whitespace-nowrap px-3 py-2 text-right">Utført forrige</th>
+                <th className="whitespace-nowrap px-3 py-2 text-right">Utført denne</th>
+                <th className="whitespace-nowrap px-3 py-2 text-right">Innestående</th>
+                <th className="whitespace-nowrap px-3 py-2 text-right">Innest. forrige</th>
+                <th className="whitespace-nowrap px-3 py-2 text-right">Innest. denne</th>
+                <th className="whitespace-nowrap px-3 py-2 text-right">Netto denne</th>
+                <th className="whitespace-nowrap px-3 py-2 text-right">Mva</th>
+                <th className="whitespace-nowrap px-3 py-2 text-right">Sum inkl. mva</th>
+              </tr>
+            </thead>
+            <tbody>
+              {notas.map((n) => (
+                <tr key={n.id} className="border-b hover:bg-gray-50">
+                  <td className="whitespace-nowrap px-3 py-2 font-medium">
+                    {n.notaType === "Sluttnota" ? "Sluttnota" : `${n.notaType ?? "A-Nota"} ${n.notaNr}`}
+                  </td>
+                  <td className="whitespace-nowrap px-3 py-2">{fmtDato(n.utfortPr)}</td>
+                  <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">{fmt(n.utfortTotalt)}</td>
+                  <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">{fmt(n.utfortForrige)}</td>
+                  <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums font-medium">{fmt(n.utfortDenne)}</td>
+                  <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">{fmt(n.innestaaende)}</td>
+                  <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">{fmt(n.innestaaendeForrige)}</td>
+                  <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums font-medium">
+                    <span className={Number(n.innestaaendeDenne) < 0 ? "text-red-600" : ""}>
+                      {fmt(n.innestaaendeDenne)}
+                    </span>
+                  </td>
+                  <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums font-medium">{fmt(n.nettoDenne)}</td>
+                  <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">{fmt(n.mva)}</td>
+                  <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums font-semibold">{fmt(n.sumInkMva)}</td>
+                </tr>
+              ))}
+            </tbody>
+            {notas.length > 1 && (
+              <tfoot>
+                <tr className="border-t-2 bg-gray-50 font-semibold">
+                  <td className="px-3 py-2">Totalt</td>
+                  <td className="px-3 py-2" />
+                  <td className="px-3 py-2 text-right tabular-nums">
+                    {fmt(Math.max(...notas.map((n) => Number(n.utfortTotalt ?? 0))))}
+                  </td>
+                  <td className="px-3 py-2" />
+                  <td className="px-3 py-2 text-right tabular-nums">
+                    {fmt(notas.reduce((s, n) => s + Number(n.utfortDenne ?? 0), 0))}
+                  </td>
+                  <td className="px-3 py-2" />
+                  <td className="px-3 py-2" />
+                  <td className="px-3 py-2 text-right tabular-nums">
+                    {fmt(notas.reduce((s, n) => s + Number(n.innestaaendeDenne ?? 0), 0))}
+                  </td>
+                  <td className="px-3 py-2 text-right tabular-nums">
+                    {fmt(notas.reduce((s, n) => s + Number(n.nettoDenne ?? 0), 0))}
+                  </td>
+                  <td className="px-3 py-2 text-right tabular-nums">
+                    {fmt(notas.reduce((s, n) => s + Number(n.mva ?? 0), 0))}
+                  </td>
+                  <td className="px-3 py-2 text-right tabular-nums">
+                    {fmt(notas.reduce((s, n) => s + Number(n.sumInkMva ?? 0), 0))}
+                  </td>
+                </tr>
+              </tfoot>
+            )}
+          </table>
+        </div>
+      )}
     </div>
   );
 }
