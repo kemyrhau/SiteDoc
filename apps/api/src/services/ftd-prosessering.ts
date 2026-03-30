@@ -675,7 +675,7 @@ async function prosesserGab(
   // Regex for å finne poster: postnr - tekst\0
   const POST_RE = /(\d{2}\.\d{2}(?:\.\d{1,3})*) - ([^\x00]{3,300}?)\x00/g;
   const NS_KODE_RE = /^([A-Z]{1,3}\d[\w.]*[A-Z]?)\s+(.*)/s;
-  const ENHET_RE = /\x02(RS|stk|m[23]?|lm|tonn|kg|time|uke)\x05/;
+  const ENHET_RE = /\x02(RS|stk|m[23²³]?|lm|tonn|kg|time[rs]?|uke|liter|%)\x03/;
 
   // Konverter buffer til string for regex (latin-1 for å bevare alle bytes)
   const tekst = data.toString("latin1");
@@ -752,11 +752,52 @@ async function prosesserGab(
       beskrivelse = (beskrivelse + "\n" + ekstraTekst.join("\n")).trim();
     }
 
-    // Finn enhet
+    // Finn enhet og enhetspris fra binærstruktur
+    // Struktur etter post: [header][GUID][\x02 enhet][\xNN NS-kode][fast header 31 bytes][double LE = enhetspris]
     let enhet: string | null = null;
+    let enhetspris: number | null = null;
+    let mengdeAnbud: number | null = null;
+    let sumAnbud: number | null = null;
+
+    // Finn enhet via regex (forbedret — matcher flere enheter)
     const enhetMatch = ENHET_RE.exec(mellomrom);
     if (enhetMatch) {
       enhet = enhetMatch[1]!;
+    }
+
+    // Ekstraher enhetspris fra binærformat
+    // Finn GUID i mellomrom-bufferen, deretter length-prefixed enhet + NS-kode
+    const mellomBuf = data.slice(m.end, Math.min(m.end + 200, data.length));
+    const mellomStr = mellomBuf.toString("latin1");
+    const guidMatch = /\$[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/.exec(mellomStr);
+    if (guidMatch && mellomBuf.length >= guidMatch.index + guidMatch[0].length + 40) {
+      let cursor = guidMatch.index + guidMatch[0].length;
+      // Length-prefixed enhet
+      const enhetLen = mellomBuf[cursor]!;
+      if (enhetLen > 0 && enhetLen < 20) {
+        const binEnhet = mellomStr.slice(cursor + 1, cursor + 1 + enhetLen);
+        if (!enhet && /^[A-Za-z%²³]+$/.test(binEnhet)) {
+          enhet = binEnhet;
+        }
+        cursor += 1 + enhetLen;
+      }
+      // Length-prefixed NS-kode
+      const nsLen = mellomBuf[cursor]!;
+      if (nsLen !== undefined && nsLen < 30) {
+        cursor += 1 + nsLen;
+      }
+      // Fast offset +31 fra NS-kode-slutt → double LE = enhetspris
+      if (cursor + 39 <= mellomBuf.length) {
+        const val = mellomBuf.readDoubleLE(cursor + 31);
+        if (val !== 0 && isFinite(val) && Math.abs(val) > 0.001 && Math.abs(val) < 1e12) {
+          enhetspris = Math.round(val * 100) / 100; // Avrund til 2 desimaler
+          // For RS (Rund Sum): mengde=1, sum=enhetspris
+          if (enhet === "RS") {
+            mengdeAnbud = 1;
+            sumAnbud = enhetspris;
+          }
+        }
+      }
     }
 
     poster.push({
@@ -766,9 +807,9 @@ async function prosesserGab(
       beskrivelse: beskrivelse.slice(0, 2000) || null,
       enhet,
       nsKode,
-      mengdeAnbud: null,
-      enhetspris: null,
-      sumAnbud: null,
+      mengdeAnbud,
+      enhetspris,
+      sumAnbud,
     });
   }
 
