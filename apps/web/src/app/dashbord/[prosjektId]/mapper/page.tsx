@@ -89,6 +89,7 @@ export default function MapperSide() {
   }, [valgtMappeId, mapper, session, medlemmer, grupper]);
 
   const [lasterOpp, setLasterOpp] = useState(false);
+  const [opplastingStatus, setOpplastingStatus] = useState<{ filnavn: string; nr: number; totalt: number; prosent: number } | null>(null);
   const filInputRef = useRef<HTMLInputElement>(null);
   const utils = trpc.useUtils();
 
@@ -111,29 +112,50 @@ export default function MapperSide() {
   const handleFilValgt = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const filer = e.target.files;
     if (!filer || filer.length === 0 || !valgtMappeId) return;
+    const filListe = Array.from(filer);
     setLasterOpp(true);
 
-    try {
-      for (const fil of Array.from(filer)) {
-        const formData = new FormData();
-        formData.append("file", fil);
-        const res = await fetch("/api/upload", { method: "POST", body: formData });
-        if (!res.ok) continue;
-        const { fileUrl, fileType } = await res.json();
+    for (let i = 0; i < filListe.length; i++) {
+      const fil = filListe[i]!;
+      setOpplastingStatus({ filnavn: fil.name, nr: i + 1, totalt: filListe.length, prosent: 0 });
+
+      try {
+        // Last opp med XMLHttpRequest for fremdrift
+        const fileUrl = await new Promise<{ fileUrl: string; fileType: string }>((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.upload.onprogress = (ev) => {
+            if (ev.lengthComputable) {
+              setOpplastingStatus((s) => s ? { ...s, prosent: Math.round((ev.loaded / ev.total) * 100) } : s);
+            }
+          };
+          xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              resolve(JSON.parse(xhr.responseText));
+            } else {
+              reject(new Error(`Upload feilet: ${xhr.status}`));
+            }
+          };
+          xhr.onerror = () => reject(new Error("Nettverksfeil"));
+          xhr.open("POST", "/api/upload");
+          const formData = new FormData();
+          formData.append("file", fil);
+          xhr.send(formData);
+        });
 
         await lastOppMutation.mutateAsync({
           folderId: valgtMappeId,
           name: fil.name,
-          fileUrl,
-          fileType: fileType ?? fil.type,
+          fileUrl: fileUrl.fileUrl,
+          fileType: fileUrl.fileType ?? fil.type,
           fileSize: fil.size,
         });
+      } catch {
+        // Fortsett med neste fil
       }
-    } catch {
-      // Ignorer individuelle feil
     }
 
     setLasterOpp(false);
+    setOpplastingStatus(null);
     utils.mappe.hentDokumenter.invalidate({ folderId: valgtMappeId! });
     if (filInputRef.current) filInputRef.current.value = "";
   };
@@ -199,7 +221,12 @@ export default function MapperSide() {
           disabled={lasterOpp}
           className="flex items-center gap-1.5 rounded bg-sitedoc-primary px-3 py-1.5 text-sm text-white hover:bg-sitedoc-secondary disabled:opacity-50"
         >
-          {lasterOpp ? (
+          {lasterOpp && opplastingStatus ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              {opplastingStatus.nr}/{opplastingStatus.totalt} — {opplastingStatus.prosent}%
+            </>
+          ) : lasterOpp ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" />
               Laster opp...
@@ -219,6 +246,21 @@ export default function MapperSide() {
           onChange={handleFilValgt}
         />
       </div>
+
+      {opplastingStatus && (
+        <div className="mb-2 rounded border bg-gray-50 px-3 py-2">
+          <div className="mb-1 flex items-center justify-between text-xs text-gray-600">
+            <span className="truncate max-w-[300px]">{opplastingStatus.filnavn}</span>
+            <span>{opplastingStatus.nr} av {opplastingStatus.totalt}</span>
+          </div>
+          <div className="h-2 overflow-hidden rounded-full bg-gray-200">
+            <div
+              className="h-full rounded-full bg-sitedoc-primary transition-all duration-300"
+              style={{ width: `${opplastingStatus.prosent}%` }}
+            />
+          </div>
+        </div>
+      )}
 
       {!dokumenter?.length ? (
         <div className="rounded-lg border border-dashed border-gray-300 bg-white px-6 py-12 text-center">
