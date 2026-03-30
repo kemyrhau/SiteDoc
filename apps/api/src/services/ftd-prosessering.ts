@@ -605,9 +605,9 @@ async function ekstraherNotaPoster(
   projectId: string,
   sheet: import("exceljs").Worksheet,
 ): Promise<void> {
-  // Finn header-raden (søk etter "Postnr" i kolonne A)
+  // Finn header-raden (søk etter "Postnr" i kolonne A — kan være rad 13 eller 41+)
   let headerRad = 0;
-  for (let r = 1; r <= Math.min(20, sheet.rowCount); r++) {
+  for (let r = 1; r <= Math.min(60, sheet.rowCount); r++) {
     const v = excelCelleTilTekst(sheet.getRow(r).getCell(1).value).trim();
     if (/postnr/i.test(v)) {
       headerRad = r;
