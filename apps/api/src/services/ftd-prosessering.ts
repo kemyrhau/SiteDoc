@@ -1401,6 +1401,27 @@ function ekstraherBudsjettPosterFraPdf(
     delete (post as Record<string, unknown>)._prisLinjeIdx;
   }
 
+  // Tredje pass: dedupliser postnr — legg til auto-sub-nummer for duplikater
+  const postnrTeller = new Map<string, number>();
+  for (const post of poster) {
+    if (!post.postnr) continue;
+    const ant = (postnrTeller.get(post.postnr) ?? 0) + 1;
+    postnrTeller.set(post.postnr, ant);
+  }
+  // For hvert duplisert postnr, nummerer dem sekvensielt
+  const postnrSett = new Map<string, number>();
+  for (const post of poster) {
+    if (!post.postnr) continue;
+    const totalt = postnrTeller.get(post.postnr) ?? 1;
+    if (totalt <= 1) continue; // Unik — ingen endring
+    const nr = (postnrSett.get(post.postnr) ?? 0) + 1;
+    postnrSett.set(post.postnr, nr);
+    // Første forekomst beholder original postnr, resten får sub-nummer
+    if (nr > 1) {
+      post.postnr = post.postnr + "." + nr;
+    }
+  }
+
   return poster;
 }
 
