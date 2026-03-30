@@ -30,26 +30,44 @@ interface SpecPostTabellProps {
   valgtPostId: string | null;
 }
 
+const NS_KODE_PAT = /^([A-ZÆØÅ]{2,4}[\d]?[\w.]*[A-Z]?)\s/;
+
+/** Finn NS-kode for en post: egen, fra beskrivelse, eller arvet fra forelder */
+function finnNsKode(
+  post: SpecPost,
+  poster: SpecPost[],
+): { nsKode: string; kilde: "egen" | "beskrivelse" | "arvet"; postnr?: string; sub?: string | null } | null {
+  // 1. Egen nsKode-felt
+  if (post.nsKode) {
+    return { nsKode: post.nsKode, kilde: "egen", sub: post.nsTittel };
+  }
+  // 2. NS-kode i starten av beskrivelsen (f.eks. "AZA Etablering...")
+  const egenMatch = post.beskrivelse ? NS_KODE_PAT.exec(post.beskrivelse) : null;
+  if (egenMatch && egenMatch[1]!.length <= 15) {
+    return { nsKode: egenMatch[1]!, kilde: "beskrivelse", sub: null };
+  }
+  // 3. Arv fra forelder
+  const arvet = finnArvetNsKode(post.postnr, poster);
+  return arvet ? { nsKode: arvet.nsKode, kilde: "arvet", postnr: arvet.postnr } : null;
+}
+
 /** Finn NS-kode fra nærmeste overordnet post i hierarkiet */
 function finnArvetNsKode(
   postnr: string | null,
   poster: SpecPost[],
 ): { nsKode: string; postnr: string } | null {
   if (!postnr) return null;
-  const NS_KODE_PAT = /^([A-ZÆØÅ]{1,4}[\d]?[\w.]*[A-Z]?)\s/;
   // Gå oppover: 01.03.21.2 → 01.03.21 → 01.03
   const deler = postnr.split(".");
   for (let i = deler.length - 1; i >= 2; i--) {
     const parentPostnr = deler.slice(0, i).join(".");
     const forelder = poster.find((p) => p.postnr === parentPostnr);
     if (!forelder) continue;
-    // Sjekk nsKode-feltet
     if (forelder.nsKode) {
       return { nsKode: forelder.nsKode, postnr: forelder.postnr! };
     }
-    // Sjekk om beskrivelsen starter med NS-kode (f.eks. "AZA Etablering...")
     const m = forelder.beskrivelse ? NS_KODE_PAT.exec(forelder.beskrivelse) : null;
-    if (m && m[1]!.length >= 2 && m[1]!.length <= 15) {
+    if (m && m[1]!.length <= 15) {
       return { nsKode: m[1]!, postnr: forelder.postnr! };
     }
   }
@@ -314,16 +332,17 @@ export function SpecPostTabell({
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <Kort label="Sum anbud" verdi={fmt(p.sumAnbud)} bg="bg-blue-50" />
-                  {p.nsKode
-                    ? <Kort label="NS-kode" verdi={p.nsKode} sub={p.nsTittel} bg="bg-amber-50" mono={false} />
-                    : (() => {
-                        // Finn arvet NS-kode fra nærmeste overordnet/søsken-post
-                        const arvet = finnArvetNsKode(p.postnr, poster);
-                        return arvet
-                          ? <Kort label="NS-kode" verdi={arvet.nsKode} sub={`Videreført fra post ${arvet.postnr}`} bg="bg-amber-50/50" mono={false} />
-                          : null;
-                      })()
-                  }
+                  {(() => {
+                    const nsInfo = finnNsKode(p, poster);
+                    if (!nsInfo) return null;
+                    return <Kort
+                      label="NS-kode"
+                      verdi={nsInfo.nsKode}
+                      sub={nsInfo.kilde === "arvet" ? `Videreført fra post ${nsInfo.postnr}` : nsInfo.sub}
+                      bg={nsInfo.kilde === "arvet" ? "bg-amber-50/50" : "bg-amber-50"}
+                      mono={false}
+                    />;
+                  })()}
                 </div>
                 {harSammenligning && rad.nota && (
                   <div className="rounded border border-blue-200 bg-blue-50/50 p-3">
