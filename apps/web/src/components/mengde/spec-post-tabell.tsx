@@ -282,9 +282,11 @@ export function SpecPostTabell({
                   onClick={() => onVelgPost(p.id)}
                   onDoubleClick={() => setDetaljPost(p.id)}
                   className={`cursor-pointer border-b transition-colors ${
-                    harSammenligning && rad.nota && rad.prosentFerdig > overskridelseTerskel
-                      ? "bg-red-50"
-                      : valgtPostId === p.id ? "bg-blue-50 border-l-2 border-l-sitedoc-primary" : "hover:bg-gray-50"
+                    valgtPostId === p.id
+                      ? "bg-blue-100 border-l-2 border-l-sitedoc-primary"
+                      : harSammenligning && rad.nota && rad.prosentFerdig > overskridelseTerskel
+                        ? "bg-red-50 hover:bg-red-100"
+                        : "hover:bg-gray-50"
                   }`}
                 >
                   <td className="px-2 py-1.5 text-xs text-gray-400">{idx + 1}</td>
