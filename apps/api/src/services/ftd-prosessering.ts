@@ -674,11 +674,18 @@ async function prosesserGab(
 
   // Regex for å finne poster: postnr - tekst\0
   const POST_RE = /(\d{2}\.\d{2}(?:\.\d{1,3})*) - ([^\x00]{3,300}?)\x00/g;
-  const NS_KODE_RE = /^([A-Z]{1,3}\d[\w.]*[A-Z]?)\s+(.*)/;
+  const NS_KODE_RE = /^([A-Z]{1,3}\d[\w.]*[A-Z]?)\s+(.*)/s;
   const ENHET_RE = /\x02(RS|stk|m[23]?|lm|tonn|kg|time|uke)\x05/;
 
   // Konverter buffer til string for regex (latin-1 for å bevare alle bytes)
   const tekst = data.toString("latin1");
+
+  // Finn alle post-matcher med posisjoner
+  const matcher: Array<{ postnr: string; headerTekst: string; start: number; end: number }> = [];
+  let match: RegExpExecArray | null;
+  while ((match = POST_RE.exec(tekst)) !== null) {
+    matcher.push({ postnr: match[1]!, headerTekst: match[2]!.trim(), start: match.index, end: match.index + match[0].length });
+  }
 
   const sett = new Set<string>();
   const poster: Array<{
@@ -693,38 +700,59 @@ async function prosesserGab(
     sumAnbud: number | null;
   }> = [];
 
-  let match: RegExpExecArray | null;
-  while ((match = POST_RE.exec(tekst)) !== null) {
-    const postnr = match[1]!;
-    if (sett.has(postnr)) continue;
-    sett.add(postnr);
+  for (let mi = 0; mi < matcher.length; mi++) {
+    const m = matcher[mi]!;
+    if (sett.has(m.postnr)) continue;
+    sett.add(m.postnr);
 
-    let fullTekst = match[2]!.trim();
+    // Skill NS-kode fra header-tekst
     let nsKode: string | null = null;
     let beskrivelse: string;
-
-    // Skill NS-kode fra beskrivelse
-    const nsMatch = NS_KODE_RE.exec(fullTekst);
+    const nsMatch = NS_KODE_RE.exec(m.headerTekst);
     if (nsMatch) {
       nsKode = nsMatch[1]!;
       beskrivelse = nsMatch[2]!.trim();
     } else {
-      beskrivelse = fullTekst;
+      beskrivelse = m.headerTekst;
     }
 
-    // Rens beskrivelse — fjern RTF og kontrollsekvenser
-    beskrivelse = beskrivelse
-      .replace(/\{\\rtf1[^}]*\}/g, "")
-      .replace(/\\[a-z]+\d*\s?/g, "")
-      .replace(/[{}]/g, "")
-      .trim()
-      .slice(0, 500);
+    // Samle tilleggstekst mellom denne posten og neste
+    const nesteStart = mi + 1 < matcher.length ? matcher[mi + 1]!.start : m.end + 5000;
+    const mellomrom = tekst.slice(m.end, Math.min(nesteStart, m.end + 5000));
 
-    // Finn enhet i nærheten (neste 300 bytes)
+    // Ekstraher lesbare tekstsegmenter (splitt på null-bytes)
+    const segmenter = mellomrom.split(/\x00+/);
+    const ekstraTekst: string[] = [];
+    for (const seg of segmenter) {
+      const renset = seg.trim();
+      if (renset.length < 4) continue;
+      // Hopp over GUIDs, binære blokker, RTF-markup
+      if (/^\$[0-9a-f-]{36}/.test(renset)) continue;
+      if (/^\{\\rtf/.test(renset)) continue;
+      if (!/[a-zA-ZæøåÆØÅ]{2,}/.test(renset)) continue;
+      // Hopp over korte kontrollsekvenser
+      if (/^[\x00-\x1f]/.test(renset)) continue;
+      // Rens RTF-rester
+      const ren = renset
+        .replace(/\\par\b/g, "\n")
+        .replace(/\\tab\b/g, "\t")
+        .replace(/\\'([0-9a-f]{2})/gi, (_m, hex) => String.fromCharCode(parseInt(hex, 16)))
+        .replace(/\\[a-z]+\d*\s?/g, "")
+        .replace(/[{}]/g, "")
+        .trim();
+      if (ren.length >= 4 && /[a-zA-ZæøåÆØÅ]/.test(ren)) {
+        ekstraTekst.push(ren);
+      }
+    }
+
+    // Kombiner header-beskrivelse med ekstra tekst
+    if (ekstraTekst.length > 0) {
+      beskrivelse = (beskrivelse + "\n" + ekstraTekst.join("\n")).trim();
+    }
+
+    // Finn enhet
     let enhet: string | null = null;
-    const afterIdx = match.index + match[0].length;
-    const afterSlice = tekst.slice(afterIdx, afterIdx + 300);
-    const enhetMatch = ENHET_RE.exec(afterSlice);
+    const enhetMatch = ENHET_RE.exec(mellomrom);
     if (enhetMatch) {
       enhet = enhetMatch[1]!;
     }
@@ -732,11 +760,11 @@ async function prosesserGab(
     poster.push({
       projectId,
       documentId,
-      postnr,
-      beskrivelse: beskrivelse || null,
+      postnr: m.postnr,
+      beskrivelse: beskrivelse.slice(0, 2000) || null,
       enhet,
       nsKode,
-      mengdeAnbud: null, // Binærformat — krever videre reverse engineering
+      mengdeAnbud: null,
       enhetspris: null,
       sumAnbud: null,
     });

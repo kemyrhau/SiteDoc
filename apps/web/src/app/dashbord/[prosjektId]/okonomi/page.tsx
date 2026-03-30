@@ -291,7 +291,12 @@ export default function OkonomiSide() {
       <ImportDialog
         projectId={prosjektId}
         open={importOpen}
-        onClose={() => setImportOpen(false)}
+        onClose={() => {
+          setImportOpen(false);
+          // Invalidere alle økonomi-data etter import
+          utils2.mengde.hentDokumenter.invalidate({ projectId: prosjektId });
+          utils2.mengde.hentSpecPoster.invalidate();
+        }}
       />
 
       {/* Ny kontrakt modal */}
