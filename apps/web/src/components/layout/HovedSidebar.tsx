@@ -97,7 +97,6 @@ const hovedelementer: SidebarElement[] = [
     label: "Søk",
     ikon: <FileSearch className="h-5 w-5" />,
     kreverProsjekt: true,
-    kreverModul: "dokumentsok",
   },
 ];
 
