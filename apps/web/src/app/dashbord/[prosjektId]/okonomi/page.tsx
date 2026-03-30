@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { BarChart3, Upload, FileText, Trash2, Loader2, CheckCircle, AlertCircle, RefreshCw, Plus, Pencil } from "lucide-react";
 import { SpecPostTabell } from "@/components/mengde/spec-post-tabell";
 import { Avviksanalyse } from "@/components/mengde/avviksanalyse";
-import { NotatEditor } from "@/components/mengde/notat-editor";
+import { NotatEditor, type NotatEditorRef } from "@/components/mengde/notat-editor";
 import { NsKodePanel } from "@/components/mengde/ns-kode-panel";
 import { ImportDialog } from "@/components/mengde/import-dialog";
 import { trpc } from "@/lib/trpc";
@@ -22,6 +22,7 @@ export default function OkonomiSide() {
   const [valgtNotaNr, setValgtNotaNr] = useState<number | null>(null);
   const [aktivFane, setAktivFane] = useState<Fane>("oversikt");
   const [valgtPostId, setValgtPostId] = useState<string | null>(null);
+  const notatRef = useRef<NotatEditorRef>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [visNyKontrakt, setVisNyKontrakt] = useState(false);
   const [visRedigerKontrakt, setVisRedigerKontrakt] = useState(false);
@@ -140,6 +141,15 @@ export default function OkonomiSide() {
 
   const poster = budsjettPoster ?? allePoster;
   const valgtPost = poster?.find((p) => p.id === valgtPostId) ?? null;
+
+  const handleVelgPost = useCallback((postId: string) => {
+    if (notatRef.current?.erIReferanseModus && poster) {
+      const post = poster.find((p) => p.id === postId);
+      if (post) notatRef.current.leggTilReferanse(post);
+    } else {
+      setValgtPostId(postId);
+    }
+  }, [poster]);
 
   return (
     <div className="flex h-full flex-col">
@@ -263,7 +273,7 @@ export default function OkonomiSide() {
               sammenligningLabel={valgtNotaNr !== null
                 ? (valgtNotaDok?.notaType === "Sluttnota" ? "Sluttnota" : `${dokType === "a_nota" ? "A-Nota" : "T-Nota"} ${valgtNotaNr}`)
                 : undefined}
-              onVelgPost={setValgtPostId}
+              onVelgPost={handleVelgPost}
               valgtPostId={valgtPostId}
             />
           </div>
@@ -273,9 +283,9 @@ export default function OkonomiSide() {
             <div className="grid grid-cols-2 gap-4">
               <div className="rounded border p-3">
                 <NotatEditor
+                  ref={notatRef}
                   specPostId={valgtPostId}
                   eksternNotat={valgtPost?.eksternNotat ?? null}
-                  poster={poster?.map((p) => ({ id: p.id, postnr: p.postnr, beskrivelse: p.beskrivelse }))}
                 />
               </div>
               <div className="rounded border p-3">
