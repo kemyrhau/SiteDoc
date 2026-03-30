@@ -5,8 +5,13 @@
  * spec-post-ekstraksjon fra Excel, A-nota-parsing.
  */
 import { join, extname } from "node:path";
-import { readFile } from "node:fs/promises";
+import { readFile, mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import type { PrismaClient } from "@sitedoc/db";
+
+const execFileAsync = promisify(execFile);
 
 // Filsti — kjører alltid i API-serveren (apps/api/)
 const UPLOADS_DIR = join(process.cwd(), "uploads");
@@ -45,7 +50,7 @@ export async function prosesserDokument(
 
     switch (ext) {
       case ".pdf":
-        await prosesserPdf(prisma, documentId, buffer, dok.projectId, dok.docType ?? "annet");
+        await prosesserPdf(prisma, documentId, buffer, dok.projectId, dok.docType ?? "annet", filsti);
         break;
       case ".xlsx":
       case ".xls":
@@ -90,6 +95,66 @@ export async function prosesserDokument(
 }
 
 // --------------------------------------------------------------------------
+// OCR via pdftoppm + tesseract CLI
+// --------------------------------------------------------------------------
+
+/** Sjekk om sideData har tilstrekkelig tekst (>50 ord totalt) */
+function harTilstrekkeligTekst(sideData: Array<{ side: number; tekst: string }>): boolean {
+  const totaltOrd = sideData.reduce((sum, s) => sum + s.tekst.split(/\s+/).filter(Boolean).length, 0);
+  return totaltOrd > 50;
+}
+
+/** OCR-fallback: pdftoppm rendrer sider til PNG, tesseract leser tekst */
+async function ocrPdf(
+  filsti: string,
+  antallSider: number,
+): Promise<Array<{ side: number; tekst: string }>> {
+  const tmpDir = await mkdtemp(join(tmpdir(), "sitedoc-ocr-"));
+  try {
+    // Render alle sider til PNG (300 DPI)
+    const prefix = join(tmpDir, "side");
+    await execFileAsync("pdftoppm", ["-png", "-r", "300", filsti, prefix], {
+      timeout: 120_000, // 2 min maks
+    });
+
+    // Finn genererte PNG-filer (side-01.png, side-001.png, etc.)
+    const { readdir } = await import("node:fs/promises");
+    const filer = (await readdir(tmpDir))
+      .filter((f) => f.endsWith(".png"))
+      .sort();
+
+    const sideData: Array<{ side: number; tekst: string }> = [];
+
+    for (let i = 0; i < filer.length; i++) {
+      const pngSti = join(tmpDir, filer[i]!);
+      try {
+        const { stdout } = await execFileAsync(
+          "tesseract",
+          [pngSti, "stdout", "-l", "nor", "--psm", "6"],
+          { timeout: 30_000, maxBuffer: 5 * 1024 * 1024 },
+        );
+        sideData.push({ side: i + 1, tekst: stdout.trim() });
+      } catch {
+        // OCR feilet for denne siden — legg til tom
+        sideData.push({ side: i + 1, tekst: "" });
+      }
+    }
+
+    // Fyll ut manglende sider (pdftoppm kan hoppe over blanke sider)
+    while (sideData.length < antallSider) {
+      sideData.push({ side: sideData.length + 1, tekst: "" });
+    }
+
+    console.log(
+      `OCR ferdig: ${filer.length} sider, ${sideData.reduce((s, p) => s + p.tekst.length, 0)} tegn totalt`,
+    );
+    return sideData;
+  } finally {
+    await rm(tmpDir, { recursive: true, force: true }).catch(() => {});
+  }
+}
+
+// --------------------------------------------------------------------------
 // PDF-prosessering
 // --------------------------------------------------------------------------
 
@@ -99,6 +164,7 @@ async function prosesserPdf(
   buffer: Buffer,
   projectId: string,
   docType: string,
+  filsti: string,
 ): Promise<void> {
   // pdf-parse v1 — default export er en funksjon
   // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -106,13 +172,24 @@ async function prosesserPdf(
   const resultat = await pdfParse(buffer);
 
   const sider = resultat.text.split("\f").filter((s: string) => s.trim());
-  const sideData = sider.map((tekst: string, i: number) => ({
+  let sideData = sider.map((tekst: string, i: number) => ({
     side: i + 1,
     tekst: tekst.trim(),
   }));
 
   if (sideData.length === 0 && resultat.text.trim()) {
     sideData.push({ side: 1, tekst: resultat.text.trim() });
+  }
+
+  // OCR-fallback for skannede PDFer
+  if (!harTilstrekkeligTekst(sideData)) {
+    console.log(`Skannet PDF oppdaget (${documentId}), kjører OCR...`);
+    try {
+      sideData = await ocrPdf(filsti, resultat.numpages);
+    } catch (err) {
+      console.error(`OCR feilet for ${documentId}:`, err);
+      // Fortsett med tom sideData — bedre enn å krasje
+    }
   }
 
   const chunks = delTekstIChunks(sideData);
