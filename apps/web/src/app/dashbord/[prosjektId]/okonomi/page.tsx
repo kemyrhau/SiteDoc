@@ -260,7 +260,9 @@ export default function OkonomiSide() {
             <SpecPostTabell
               poster={poster ?? []}
               sammenligningPoster={valgtNotaNr !== null ? (notaPoster ?? []) : undefined}
-              sammenligningLabel={valgtNotaNr !== null ? `${dokType === "a_nota" ? "A-Nota" : "T-Nota"} ${valgtNotaNr}` : undefined}
+              sammenligningLabel={valgtNotaNr !== null
+                ? (valgtNotaDok?.notaType === "Sluttnota" ? "Sluttnota" : `${dokType === "a_nota" ? "A-Nota" : "T-Nota"} ${valgtNotaNr}`)
+                : undefined}
               onVelgPost={setValgtPostId}
               valgtPostId={valgtPostId}
             />
