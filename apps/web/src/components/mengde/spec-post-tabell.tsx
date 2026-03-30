@@ -30,6 +30,28 @@ interface SpecPostTabellProps {
   valgtPostId: string | null;
 }
 
+/** Finn NS-kode fra nærmeste overordnet/søsken-post (kortere postnr-prefix med NS-kode) */
+function finnArvetNsKode(
+  postnr: string | null,
+  poster: SpecPost[],
+): { nsKode: string; postnr: string } | null {
+  if (!postnr) return null;
+  // Gå oppover i postnr-hierarkiet: 01.03.3.2 → 01.03.3 → 01.03
+  const deler = postnr.split(".");
+  for (let i = deler.length - 1; i >= 2; i--) {
+    const prefix = deler.slice(0, i).join(".");
+    // Finn poster som starter med dette prefixet og har NS-kode
+    // Velg den nærmeste (lengste postnr) med NS-kode
+    const kandidater = poster
+      .filter((p) => p.postnr?.startsWith(prefix) && p.nsKode && p.postnr !== postnr)
+      .sort((a, b) => (b.postnr?.length ?? 0) - (a.postnr?.length ?? 0));
+    if (kandidater.length > 0) {
+      return { nsKode: kandidater[0]!.nsKode!, postnr: kandidater[0]!.postnr! };
+    }
+  }
+  return null;
+}
+
 type SorterFelt =
   | "postnr"
   | "beskrivelse"
@@ -288,7 +310,16 @@ export function SpecPostTabell({
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <Kort label="Sum anbud" verdi={fmt(p.sumAnbud)} bg="bg-blue-50" />
-                  {p.nsKode && <Kort label="NS-kode" verdi={p.nsKode} sub={p.nsTittel} bg="bg-amber-50" mono={false} />}
+                  {p.nsKode
+                    ? <Kort label="NS-kode" verdi={p.nsKode} sub={p.nsTittel} bg="bg-amber-50" mono={false} />
+                    : (() => {
+                        // Finn arvet NS-kode fra nærmeste overordnet/søsken-post
+                        const arvet = finnArvetNsKode(p.postnr, poster);
+                        return arvet
+                          ? <Kort label="NS-kode" verdi={arvet.nsKode} sub={`Videreført fra post ${arvet.postnr}`} bg="bg-amber-50/50" mono={false} />
+                          : null;
+                      })()
+                  }
                 </div>
                 {harSammenligning && rad.nota && (
                   <div className="rounded border border-blue-200 bg-blue-50/50 p-3">
