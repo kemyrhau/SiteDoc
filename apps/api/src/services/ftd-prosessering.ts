@@ -1309,7 +1309,7 @@ async function ekstraherPdfMedPosisjoner(buffer: Buffer): Promise<string> {
     // Når en rad har et postnr (x<90, format XX.YY.ZZ) og NESTE rad har
     // et kort siffer/punktum-fragment ved x<90, slå dem sammen.
     // Unngår sidedatoer (XX.XX.XXXX) ved å kreve postnr-format.
-    const POSTNR_FMT = /^\d{2}\.\d{2}(?:\.\d+)+$/;
+    const POSTNR_FMT = /^\d{2}\.\d{2}(?:\.\d{1,2})+$/;
     const TAIL_FMT = /^\d[\d.]*$/;
     for (let ri = 0; ri < sortertRader.length; ri++) {
       const items = sortertRader[ri]![1];
@@ -1327,8 +1327,10 @@ async function ekstraherPdfMedPosisjoner(buffer: Buffer): Promise<string> {
       const tailItem = nesteItems.find((it) => it.x < 90 && TAIL_FMT.test(it.tekst) && it.tekst.length <= 5);
       if (!tailItem) continue;
 
-      // Merge: legg tail til postnr og fjern fra neste rad
-      pnrItem.tekst = pnrItem.tekst + tailItem.tekst;
+      // Merge: legg tail til postnr — valider at resultatet har maks 2 siffer per segment
+      const merged = pnrItem.tekst + tailItem.tekst;
+      if (!/^\d{2}(?:\.\d{1,2})+$/.test(merged)) continue;
+      pnrItem.tekst = merged;
       const idx = nesteItems.indexOf(tailItem);
       if (idx >= 0) nesteItems.splice(idx, 1);
     }
@@ -1389,7 +1391,7 @@ function ekstraherBudsjettPosterFraPdf(
   // Heltall eller desimaltall som mengde: "40" eller "40,00" eller "9 000"
   const MENGDE_PAT = /\d{1,3}(?:\s\d{3})*(?:,\d+)?/;
   // Postnr: "00.03.01.1", "03.01.01.3.7" etc.
-  const POSTNR_PAT = /^(\d{2}(?:\.\d+)+)\s*$/;
+  const POSTNR_PAT = /^(\d{2}(?:\.\d{1,2})+)\s*$/;
   // Sub-postnr: ".1", ".2"
   const SUB_POSTNR_PAT = /^\.(\d+)\s*$/;
   // Prislinje: slutter med minst 2 desimaltall (enhetspris + sum)
@@ -1417,7 +1419,7 @@ function ekstraherBudsjettPosterFraPdf(
   }> = [];
 
   // Postnr med ekstra tekst: "00.03.01.3 | Bygg" → postnr + sub-beskrivelse
-  const POSTNR_MED_TEKST = /^(\d{2}(?:\.\d+)+)\s+(.+)$/;
+  const POSTNR_MED_TEKST = /^(\d{2}(?:\.\d{1,2})+)\s+(.+)$/;
   // NS 3420 kode: "KB6.33", "FB1.251A", "FS2.333014022", "AM3.868A"
   const NS_KODE_PAT = /^[A-Z]{1,3}\d[\w.]*$/;
 
