@@ -396,6 +396,8 @@ interface MappeTreData {
   accessMode: string;
   children: MappeTreData[];
   _count?: { ftdDocuments: number };
+  kontraktId?: string | null;
+  kontraktNavn?: string | null;
 }
 
 function MappeTreRad({
@@ -405,6 +407,7 @@ function MappeTreRad({
   onGiNyttNavn,
   onSlett,
   onRedigerTilgang,
+  onKobleTilKontrakt,
 }: {
   mappe: MappeTreData;
   dybde: number;
@@ -412,6 +415,7 @@ function MappeTreRad({
   onGiNyttNavn: (id: string, navn: string) => void;
   onSlett: (id: string) => void;
   onRedigerTilgang: (id: string, navn: string) => void;
+  onKobleTilKontrakt: (id: string, navn: string, kontraktId: string | null) => void;
 }) {
   const [ekspandert, setEkspandert] = useState(dybde < 2);
   const harBarn = mappe.children.length > 0;
@@ -439,9 +443,12 @@ function MappeTreRad({
           )}
         </button>
 
-        <FolderOpen className="h-4 w-4 flex-shrink-0 text-amber-500" />
+        <FolderOpen className={`h-4 w-4 flex-shrink-0 ${mappe.kontraktId ? "text-blue-500" : "text-amber-500"}`} />
         <span className="flex-1 truncate text-sm text-gray-800">
           {mappe.name}
+          {mappe.kontraktNavn && (
+            <span className="ml-1.5 text-[10px] text-blue-400">{mappe.kontraktNavn}</span>
+          )}
         </span>
         {harEgenTilgang && (
           <Shield className="h-3.5 w-3.5 flex-shrink-0 text-blue-500" />
@@ -464,6 +471,13 @@ function MappeTreRad({
                 label: "Rediger tilgang",
                 ikon: <Shield className="h-4 w-4 text-blue-400" />,
                 onClick: () => onRedigerTilgang(mappe.id, mappe.name),
+              },
+              {
+                label: mappe.kontraktId ? "Fjern kontrakt-kobling" : "Koble til kontrakt",
+                ikon: <FileArchive className={`h-4 w-4 ${mappe.kontraktId ? "text-amber-400" : "text-blue-400"}`} />,
+                onClick: () => mappe.kontraktId
+                  ? onKobleTilKontrakt(mappe.id, mappe.name, null)
+                  : onKobleTilKontrakt(mappe.id, mappe.name, mappe.kontraktId ?? null),
               },
               {
                 label: "Gi nytt navn",
@@ -491,6 +505,7 @@ function MappeTreRad({
             onGiNyttNavn={onGiNyttNavn}
             onSlett={onSlett}
             onRedigerTilgang={onRedigerTilgang}
+            onKobleTilKontrakt={onKobleTilKontrakt}
           />
         ))}
     </div>
@@ -929,6 +944,31 @@ export default function BoxSide() {
     setTilgangMappe({ id, navn });
   }
 
+  const [kontraktModal, setKontraktModal] = useState<{ id: string; navn: string } | null>(null);
+  const [valgtKontraktId, setValgtKontraktId] = useState("");
+
+  const { data: kontrakter } = trpc.kontrakt.hentForProsjekt.useQuery(
+    { projectId: prosjektId! },
+    { enabled: !!prosjektId },
+  );
+
+  const settKontraktMut = trpc.mappe.settKontrakt.useMutation({
+    onSuccess: () => {
+      utils.mappe.hentForProsjekt.invalidate({ projectId: prosjektId! });
+      setKontraktModal(null);
+    },
+  });
+
+  function handleKobleTilKontrakt(id: string, navn: string, eksisterende: string | null) {
+    if (eksisterende) {
+      // Fjern kobling direkte
+      settKontraktMut.mutate({ folderId: id, kontraktId: null });
+    } else {
+      setKontraktModal({ id, navn });
+      setValgtKontraktId("");
+    }
+  }
+
   // Bygg tre fra flat liste
   function byggTre(
     flat: Array<{
@@ -937,13 +977,15 @@ export default function BoxSide() {
       parentId: string | null;
       accessMode: string;
       _count?: { ftdDocuments: number };
+      kontraktId?: string | null;
+      kontraktNavn?: string | null;
     }>,
   ): MappeTreData[] {
     const map = new Map<string, MappeTreData>();
     const roots: MappeTreData[] = [];
 
     for (const m of flat) {
-      map.set(m.id, { id: m.id, name: m.name, accessMode: m.accessMode, children: [], _count: m._count });
+      map.set(m.id, { id: m.id, name: m.name, accessMode: m.accessMode, children: [], _count: m._count, kontraktId: m.kontraktId, kontraktNavn: m.kontraktNavn });
     }
 
     for (const m of flat) {
@@ -960,7 +1002,10 @@ export default function BoxSide() {
     return roots;
   }
 
-  const mappeTre = mapper ? byggTre(mapper as Array<{ id: string; name: string; parentId: string | null; accessMode: string; _count?: { ftdDocuments: number } }>) : [];
+  const mappeTre = mapper ? byggTre((mapper as Array<{ id: string; name: string; parentId: string | null; accessMode: string; _count?: { ftdDocuments: number }; kontraktId?: string | null; kontrakt?: { id: string; navn: string } | null }>).map(m => ({
+    ...m,
+    kontraktNavn: m.kontrakt?.navn ?? null,
+  }))) : [];
 
   return (
     <div>
@@ -1028,6 +1073,7 @@ export default function BoxSide() {
                 onGiNyttNavn={handleGiNyttNavn}
                 onSlett={setSlettMappeId}
                 onRedigerTilgang={handleRedigerTilgang}
+                onKobleTilKontrakt={handleKobleTilKontrakt}
               />
             ))}
           </div>
@@ -1175,6 +1221,44 @@ export default function BoxSide() {
             }}
           />
         )}
+      </Modal>
+
+      {/* Koble til kontrakt modal */}
+      <Modal
+        open={!!kontraktModal}
+        onClose={() => setKontraktModal(null)}
+        title={`Koble til kontrakt – ${kontraktModal?.navn ?? ""}`}
+      >
+        <div className="space-y-4 p-4">
+          <p className="text-sm text-gray-600">
+            Velg kontrakt for mappen. Dokumenter i mappen blir tilgjengelig som dokumentasjon i økonomi-modulen.
+          </p>
+          <select
+            className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm"
+            value={valgtKontraktId}
+            onChange={(e) => setValgtKontraktId(e.target.value)}
+          >
+            <option value="">Velg kontrakt...</option>
+            {kontrakter?.map((k) => (
+              <option key={k.id} value={k.id}>{k.navn}</option>
+            ))}
+          </select>
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" onClick={() => setKontraktModal(null)}>
+              Avbryt
+            </Button>
+            <Button
+              disabled={!valgtKontraktId}
+              onClick={() => {
+                if (kontraktModal && valgtKontraktId) {
+                  settKontraktMut.mutate({ folderId: kontraktModal.id, kontraktId: valgtKontraktId });
+                }
+              }}
+            >
+              Koble
+            </Button>
+          </div>
+        </div>
       </Modal>
     </div>
   );
