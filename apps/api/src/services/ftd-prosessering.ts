@@ -1891,19 +1891,17 @@ function ekstraherNotaPosterFraPdf(
     const beskrivelse = linje.slice(restStart, n[0]!.start).trim();
 
     // Valider mengde × enhetspris ≈ sum — fikser falske tusenskille
-    // "tilstandsklasse 2 400,00" → mengde=2400, men ekte mengde=400
+    // "tilstandsklasse 2 400,00" → mengde=2400, men sum/pris=400
     let mengde = n[0]!.value;
     const pris = n[4]!.value;
     const sum = n[5]!.value;
     if (mengde > 0 && pris > 0 && sum > 0) {
       const beregnet = mengde * pris;
       if (Math.abs(beregnet - sum) > sum * 0.01) {
-        // Mengde × pris != sum — sjekk om sum/pris gir et tall som finnes i linjen
-        const forventetMengde = sum / pris;
-        // Sjekk om forventet mengde matcher et av tallene i nums
-        const altMengde = nums.find((t) => Math.abs(t.value - forventetMengde) < 0.01 && t.value !== mengde);
-        if (altMengde) {
-          mengde = altMengde.value;
+        // Mengde × pris != sum — bruk sum/pris som korrekt mengde
+        const korrigert = Math.round((sum / pris) * 100) / 100;
+        if (korrigert > 0 && Math.abs(korrigert * pris - sum) < sum * 0.01) {
+          mengde = korrigert;
         }
       }
     }
