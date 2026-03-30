@@ -1872,23 +1872,6 @@ function ekstraherNotaPosterFraPdf(
     N_PAT.lastIndex = 0;
     let m: RegExpExecArray | null;
     while ((m = N_PAT.exec(linje)) !== null) {
-      // Filtrer falske tusenskille: "tilstandsklasse 2 400,00" → "2 400,00" er IKKE 2400
-      // Ekte tusenskille har siffer/linjestart foran, ikke bokstav+mellomrom
-      if (m[0].includes(" ") && m.index > 0) {
-        // Finn siste non-whitespace tegn foran tallet
-        let ci = m.index - 1;
-        while (ci >= 0 && linje[ci] === " ") ci--;
-        const charForan = ci >= 0 ? linje[ci] : null;
-        if (charForan && /[a-zA-ZæøåÆØÅ)]/.test(charForan)) {
-          // Bokstav rett foran → "klasse 2 400,00" — splitt: hopp over "2", ta "400,00"
-          const utenPrefix = m[0].replace(/^\d{1,2}\s/, "");
-          if (utenPrefix !== m[0] && /^\d{1,3}(?:\s\d{3})*,\d+$/.test(utenPrefix)) {
-            const offset = m[0].length - utenPrefix.length;
-            nums.push({ value: tilDesimal(utenPrefix), start: m.index + offset, end: m.index + m[0].length });
-            continue;
-          }
-        }
-      }
       nums.push({ value: tilDesimal(m[0]), start: m.index, end: m.index + m[0].length });
     }
 
@@ -1907,15 +1890,33 @@ function ekstraherNotaPosterFraPdf(
     // Beskrivelse: tekst mellom postnr og første av de 11 siste tallene
     const beskrivelse = linje.slice(restStart, n[0]!.start).trim();
 
+    // Valider mengde × enhetspris ≈ sum — fikser falske tusenskille
+    // "tilstandsklasse 2 400,00" → mengde=2400, men ekte mengde=400
+    let mengde = n[0]!.value;
+    const pris = n[4]!.value;
+    const sum = n[5]!.value;
+    if (mengde > 0 && pris > 0 && sum > 0) {
+      const beregnet = mengde * pris;
+      if (Math.abs(beregnet - sum) > sum * 0.01) {
+        // Mengde × pris != sum — sjekk om sum/pris gir et tall som finnes i linjen
+        const forventetMengde = sum / pris;
+        // Sjekk om forventet mengde matcher et av tallene i nums
+        const altMengde = nums.find((t) => Math.abs(t.value - forventetMengde) < 0.01 && t.value !== mengde);
+        if (altMengde) {
+          mengde = altMengde.value;
+        }
+      }
+    }
+
     poster.push({
       projectId,
       documentId,
       postnr,
       beskrivelse: beskrivelse.slice(0, 500) || null,
       enhet,
-      mengdeAnbud: n[0]!.value,
-      enhetspris: n[4]!.value,
-      sumAnbud: n[5]!.value,
+      mengdeAnbud: mengde,
+      enhetspris: pris,
+      sumAnbud: sum,
       mengdeDenne: n[2]!.value,
       mengdeTotal: n[3]!.value,
       verdiDenne: n[7]!.value,
