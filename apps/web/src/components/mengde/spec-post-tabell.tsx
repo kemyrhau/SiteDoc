@@ -20,6 +20,7 @@ interface SpecPost {
   nsTittel: string | null;
   fullNsTekst: string | null;
   eksternNotat: string | null;
+  importNotat: string | null;
 }
 
 interface SpecPostTabellProps {
@@ -400,6 +401,12 @@ export function SpecPostTabell({
                   <div>
                     <div className="mb-1 text-xs font-medium text-gray-500">NS-spesifikasjon</div>
                     <div className="whitespace-pre-wrap rounded border bg-gray-50 p-3 text-xs leading-relaxed text-gray-700">{p.fullNsTekst}</div>
+                  </div>
+                )}
+                {p.importNotat && (
+                  <div className="rounded border border-amber-200 bg-amber-50 px-3 py-2">
+                    <div className="text-xs font-medium text-amber-700">Korrigert ved import</div>
+                    <div className="text-xs text-amber-600">{p.importNotat}</div>
                   </div>
                 )}
                 {p.eksternNotat && (

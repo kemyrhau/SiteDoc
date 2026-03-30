@@ -854,6 +854,7 @@ model FtdSpecPost {
   nsTittel      String?  @map("ns_tittel")
   fullNsTekst   String?  @map("full_ns_tekst")
   eksternNotat  String?  @map("ekstern_notat")
+  importNotat   String?  @map("import_notat")
 
   project     Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
   document    FtdDocument?     @relation(fields: [documentId], references: [id], onDelete: SetNull)

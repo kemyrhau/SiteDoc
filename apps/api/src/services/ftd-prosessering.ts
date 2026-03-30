@@ -1836,6 +1836,7 @@ function ekstraherNotaPosterFraPdf(
     verdiDenne: number | null;
     verdiTotal: number | null;
     prosentFerdig: number | null;
+    importNotat: string | null;
   }> = [];
 
   let tabellStartet = false;
@@ -1891,20 +1892,27 @@ function ekstraherNotaPosterFraPdf(
     const beskrivelse = linje.slice(restStart, n[0]!.start).trim();
 
     // Valider mengde × enhetspris ≈ sum — fikser falske tusenskille
-    // "tilstandsklasse 2 400,00" → mengde=2400, men sum/pris=400
-    let mengde = n[0]!.value;
-    const pris = n[4]!.value;
-    const sum = n[5]!.value;
-    if (mengde > 0 && pris > 0 && sum > 0) {
-      const beregnet = mengde * pris;
-      if (Math.abs(beregnet - sum) > sum * 0.01) {
-        // Mengde × pris != sum — bruk sum/pris som korrekt mengde
-        const korrigert = Math.round((sum / pris) * 100) / 100;
-        if (korrigert > 0 && Math.abs(korrigert * pris - sum) < sum * 0.01) {
-          mengde = korrigert;
+    // "tilstandsklasse 2 400,00" → regex gir mengde=2400, men sum/pris=400
+    const korrigeringer: string[] = [];
+
+    function validerMengde(mengde: number, pris: number, sum: number, felt: string): number {
+      if (mengde > 0 && pris > 0 && sum > 0) {
+        const beregnet = mengde * pris;
+        if (Math.abs(beregnet - sum) > sum * 0.01) {
+          const korrigert = Math.round((sum / pris) * 100) / 100;
+          if (korrigert > 0 && Math.abs(korrigert * pris - sum) < sum * 0.01) {
+            korrigeringer.push(`${felt}: ${mengde} → ${korrigert} (sum/pris)`);
+            return korrigert;
+          }
         }
       }
+      return mengde;
     }
+
+    const pris = n[4]!.value;
+    const mengdeAnbud = validerMengde(n[0]!.value, pris, n[5]!.value, "mengdeAnbud");
+    const mengdeDenne = validerMengde(n[2]!.value, pris, n[7]!.value, "mengdeDenne");
+    const mengdeTotal = validerMengde(n[3]!.value, pris, n[9]!.value, "mengdeTotal");
 
     poster.push({
       projectId,
@@ -1912,14 +1920,15 @@ function ekstraherNotaPosterFraPdf(
       postnr,
       beskrivelse: beskrivelse.slice(0, 500) || null,
       enhet,
-      mengdeAnbud: mengde,
+      mengdeAnbud,
       enhetspris: pris,
-      sumAnbud: sum,
-      mengdeDenne: n[2]!.value,
-      mengdeTotal: n[3]!.value,
+      sumAnbud: n[5]!.value,
+      mengdeDenne,
+      mengdeTotal,
       verdiDenne: n[7]!.value,
       verdiTotal: n[9]!.value,
       prosentFerdig: n[10]!.value,
+      importNotat: korrigeringer.length > 0 ? korrigeringer.join("; ") : null,
     });
   }
 
