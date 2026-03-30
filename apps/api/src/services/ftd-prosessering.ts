@@ -245,11 +245,13 @@ async function prosesserPdf(
     });
   }
 
+  // Bruk sideData (eventuelt OCR-tekst) for ordtelling
+  const totalTekst = sideData.map((s) => s.tekst).join(" ");
   await prisma.ftdDocument.update({
     where: { id: documentId },
     data: {
       pageCount: resultat.numpages ?? sideData.length,
-      wordCount: resultat.text.split(/\s+/).length,
+      wordCount: totalTekst.split(/\s+/).filter(Boolean).length,
     },
   });
 }
