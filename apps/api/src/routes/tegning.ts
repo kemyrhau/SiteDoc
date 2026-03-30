@@ -384,6 +384,34 @@ export const tegningRouter = router({
       });
     }),
 
+  // Sett GPS-override for IFC-modell (kalibrering)
+  settGpsOverride: protectedProcedure
+    .input(z.object({
+      drawingId: z.string().uuid(),
+      lat: z.number().min(-90).max(90),
+      lng: z.number().min(-180).max(180),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const tegning = await ctx.prisma.drawing.findUniqueOrThrow({ where: { id: input.drawingId }, select: { projectId: true } });
+      await verifiserProsjektmedlem(ctx.userId, tegning.projectId);
+      return ctx.prisma.drawing.update({
+        where: { id: input.drawingId },
+        data: { gpsOverride: { lat: input.lat, lng: input.lng } },
+      });
+    }),
+
+  // Fjern GPS-override (tilbake til IFC-metadata GPS)
+  fjernGpsOverride: protectedProcedure
+    .input(z.object({ drawingId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const tegning = await ctx.prisma.drawing.findUniqueOrThrow({ where: { id: input.drawingId }, select: { projectId: true } });
+      await verifiserProsjektmedlem(ctx.userId, tegning.projectId);
+      return ctx.prisma.drawing.update({
+        where: { id: input.drawingId },
+        data: { gpsOverride: Prisma.DbNull },
+      });
+    }),
+
   // Fjern georeferanse fra en tegning
   fjernGeoReferanse: protectedProcedure
     .input(z.object({ drawingId: z.string().uuid() }))

@@ -11,10 +11,11 @@ import {
   gpsTilTegning,
   gpsTil3D,
   tredjeTilGps,
+  konverterTilWgs84,
 } from "@sitedoc/shared/utils";
 import type { GeoReferanse } from "@sitedoc/shared";
 import type { KoordinatSystem } from "@sitedoc/shared/utils";
-import { Layers, Link2, Link2Off, MapPin, ChevronLeft, ChevronRight, Ruler } from "lucide-react";
+import { Layers, Link2, Link2Off, MapPin, ChevronLeft, ChevronRight, Ruler, Navigation, X } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
 /*  PDF canvas-rendering med pdf.js                                    */
@@ -95,6 +96,7 @@ interface TegningData {
     gpsLengdegrad?: number | null;
     etasjer?: Array<{ navn: string; høyde: number | null }>;
   } | null;
+  gpsOverride?: { lat: number; lng: number } | null;
   coordinateSystem?: string | null;
 }
 
@@ -120,14 +122,22 @@ export default function Tegning3DSide() {
   const plantegninger = useMemo(() => tegninger.filter((t) => t.fileUrl && t.fileType?.toLowerCase() !== "ifc"), [tegninger]);
   const ifcModeller = useMemo(() => tegninger.filter((t) => t.fileType?.toLowerCase() === "ifc"), [tegninger]);
 
+  // GPS-opprinnelse: gpsOverride → ifcMetadata → null
   const ifcOpprinnelse = useMemo(() => {
     for (const m of ifcModeller) {
+      // Kalibrert GPS har prioritet
+      if (m.gpsOverride?.lat && m.gpsOverride?.lng) {
+        return { lat: m.gpsOverride.lat, lng: m.gpsOverride.lng };
+      }
       if (m.ifcMetadata?.gpsBreddegrad && m.ifcMetadata?.gpsLengdegrad) {
         return { lat: m.ifcMetadata.gpsBreddegrad, lng: m.ifcMetadata.gpsLengdegrad };
       }
     }
     return null;
   }, [ifcModeller]);
+
+  const harGpsOverride = useMemo(() => ifcModeller.some((m) => m.gpsOverride?.lat && m.gpsOverride?.lng), [ifcModeller]);
+  const harIfcGps = useMemo(() => ifcModeller.some((m) => m.ifcMetadata?.gpsBreddegrad && m.ifcMetadata?.gpsLengdegrad), [ifcModeller]);
 
   const coordSystem: KoordinatSystem = useMemo(() => {
     for (const m of ifcModeller) {
@@ -158,6 +168,57 @@ export default function Tegning3DSide() {
     return lagret ? parseFloat(lagret) : null;
   });
   const [kalibrerModus, setKalibrerModus] = useState(false);
+
+  // GPS-kalibrering state
+  const [gpsKalibrerÅpen, setGpsKalibrerÅpen] = useState(false);
+  const [gpsInput, setGpsInput] = useState("");
+  const [gpsFeil, setGpsFeil] = useState<string | null>(null);
+
+  const utils = trpc.useUtils();
+  const settGpsOverrideMutation = trpc.tegning.settGpsOverride.useMutation({
+    onSuccess: (_data: unknown) => {
+      utils.tegning.hentForProsjekt.invalidate({ projectId: prosjektId! });
+      setGpsKalibrerÅpen(false);
+      setGpsInput("");
+      setGpsFeil(null);
+    },
+    onError: (err: { message: string }) => setGpsFeil(err.message),
+  });
+  const fjernGpsOverrideMutation = trpc.tegning.fjernGpsOverride.useMutation({
+    onSuccess: (_data: unknown) => {
+      utils.tegning.hentForProsjekt.invalidate({ projectId: prosjektId! });
+      setGpsKalibrerÅpen(false);
+    },
+  });
+
+  /** Parser GPS-input: støtter WGS84, UTM, Norgeskart-format */
+  const parserGpsInput = useCallback((tekst: string): { lat: number; lng: number } | null => {
+    const t = tekst.trim();
+    if (!t) return null;
+
+    // Norgeskart: 653849.51,7732794.51@EPSG:25833
+    const norgeskartMatch = t.match(/^([\d.]+)\s*,\s*([\d.]+)\s*@\s*EPSG:\s*258(\d\d)/i);
+    if (norgeskartMatch) {
+      const ost = parseFloat(norgeskartMatch[1]!);
+      const nord = parseFloat(norgeskartMatch[2]!);
+      const sone = parseInt(norgeskartMatch[3]!, 10);
+      return konverterTilWgs84(nord, ost, `utm${sone}` as KoordinatSystem);
+    }
+
+    // WGS84 desimal: 69.65, 18.95
+    const desimalMatch = t.match(/^(-?\d+[.,]\d+)\s*[,;\s]\s*(-?\d+[.,]\d+)$/);
+    if (desimalMatch) {
+      const a = parseFloat(desimalMatch[1]!.replace(",", "."));
+      const b = parseFloat(desimalMatch[2]!.replace(",", "."));
+      // Auto-detect: store tall er UTM, små er WGS84
+      if (a > 90 || b > 180) {
+        return konverterTilWgs84(a > b ? a : b, a > b ? b : a, coordSystem);
+      }
+      return { lat: a, lng: b };
+    }
+
+    return null;
+  }, [coordSystem]);
 
   // Etasjeklipp i 3D
   useEffect(() => {
@@ -254,6 +315,12 @@ export default function Tegning3DSide() {
     try { return beregnTransformasjon(valgtTegning.geoReference as GeoReferanse); } catch { return null; }
   }, [valgtTegning?.geoReference]);
   const harSynkMulighet = !!transformasjon && !!ifcOpprinnelse;
+
+  /** Hent korrekt GPS fra georeferert tegning (sentrum av tegningen) */
+  const gpsFromTegning = useMemo(() => {
+    if (!transformasjon) return null;
+    try { return tegningTilGps({ x: 50, y: 50 }, transformasjon); } catch { return null; }
+  }, [transformasjon]);
 
   // Klikk i tegning — spor start for å skille drag fra klikk
   const clickStartRef = useRef<{ x: number; y: number } | null>(null);
@@ -402,6 +469,20 @@ export default function Tegning3DSide() {
           {kalibrerModus ? "Klikk på gulvet..." : gulvY != null ? `Gulv: ${gulvY.toFixed(1)}` : "Kalibrer"}
         </button>}
 
+        {/* GPS-kalibrering (kun felt-admin, kun når IFC finnes) */}
+        {harRedigerTilgang && ifcModeller.length > 0 && (
+          <button
+            onClick={() => setGpsKalibrerÅpen(true)}
+            className={`flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium ${
+              harGpsOverride ? "bg-green-50 text-green-700" : harIfcGps ? "bg-gray-50 text-gray-500" : "bg-red-50 text-red-700"
+            }`}
+            title={harGpsOverride ? "GPS kalibrert manuelt" : harIfcGps ? "GPS fra IFC-metadata" : "Ingen GPS — klikk for å kalibrere"}
+          >
+            <Navigation size={14} />
+            {harGpsOverride ? "GPS kalibrert" : harIfcGps ? "GPS (IFC)" : "Kalibrer GPS"}
+          </button>
+        )}
+
         {/* PDF sidekontroller */}
         {erPdf && antallSider > 1 && (
           <div className="flex items-center gap-1">
@@ -530,6 +611,94 @@ export default function Tegning3DSide() {
         {/* Høyre: 3D */}
         <div className="relative flex-1" />
       </div>
+
+      {/* GPS-kalibrering modal */}
+      {gpsKalibrerÅpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="w-full max-w-md rounded-lg bg-white shadow-xl">
+            <div className="flex items-center justify-between border-b px-5 py-3">
+              <h3 className="text-sm font-semibold">IFC GPS-kalibrering</h3>
+              <button onClick={() => { setGpsKalibrerÅpen(false); setGpsFeil(null); }} className="rounded p-1 text-gray-400 hover:bg-gray-100">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="space-y-4 p-5">
+              {/* Nåværende GPS */}
+              <div className="rounded border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600">
+                <div className="font-medium text-gray-700 mb-1">Nåværende GPS-opprinnelse:</div>
+                {ifcOpprinnelse
+                  ? <span>{ifcOpprinnelse.lat.toFixed(6)}, {ifcOpprinnelse.lng.toFixed(6)} {harGpsOverride ? <span className="text-green-600">(kalibrert)</span> : <span className="text-gray-400">(fra IFC)</span>}</span>
+                  : <span className="text-red-500">Ingen GPS funnet</span>
+                }
+              </div>
+
+              {/* Auto fra tegning */}
+              {gpsFromTegning && (
+                <button
+                  onClick={() => {
+                    const ifcId = ifcModeller.find((m) => m.ifcMetadata?.gpsBreddegrad || m.gpsOverride)?.id ?? ifcModeller[0]?.id;
+                    if (!ifcId) return;
+                    settGpsOverrideMutation.mutate({ drawingId: ifcId, lat: gpsFromTegning.lat, lng: gpsFromTegning.lng });
+                  }}
+                  disabled={settGpsOverrideMutation.isPending}
+                  className="w-full rounded border border-blue-200 bg-blue-50 px-3 py-2.5 text-left text-sm hover:bg-blue-100"
+                >
+                  <div className="font-medium text-blue-800">Hent fra georeferert tegning</div>
+                  <div className="text-xs text-blue-600">
+                    {gpsFromTegning.lat.toFixed(6)}, {gpsFromTegning.lng.toFixed(6)} — basert på tegningens sentrum
+                  </div>
+                </button>
+              )}
+
+              {/* Manuell input */}
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-500">Skriv inn koordinater</label>
+                <input
+                  type="text"
+                  value={gpsInput}
+                  onChange={(e) => { setGpsInput(e.target.value); setGpsFeil(null); }}
+                  placeholder="69.65, 18.95  eller  653849,7732794@EPSG:25833"
+                  className="w-full rounded border border-gray-300 px-3 py-1.5 text-sm"
+                />
+                <p className="mt-1 text-[10px] text-gray-400">WGS84 (lat, lng), UTM (nord, øst) eller Norgeskart-format</p>
+              </div>
+
+              {gpsFeil && (
+                <div className="rounded border border-red-200 bg-red-50 px-3 py-1.5 text-xs text-red-600">{gpsFeil}</div>
+              )}
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    const parsed = parserGpsInput(gpsInput);
+                    if (!parsed) { setGpsFeil("Kunne ikke tolke koordinatene"); return; }
+                    const ifcId = ifcModeller[0]?.id;
+                    if (!ifcId) return;
+                    settGpsOverrideMutation.mutate({ drawingId: ifcId, lat: parsed.lat, lng: parsed.lng });
+                  }}
+                  disabled={!gpsInput.trim() || settGpsOverrideMutation.isPending}
+                  className="rounded bg-sitedoc-primary px-4 py-1.5 text-sm text-white hover:bg-sitedoc-secondary disabled:opacity-50"
+                >
+                  Lagre
+                </button>
+
+                {harGpsOverride && (
+                  <button
+                    onClick={() => {
+                      const ifcId = ifcModeller.find((m) => m.gpsOverride)?.id;
+                      if (ifcId) fjernGpsOverrideMutation.mutate({ drawingId: ifcId });
+                    }}
+                    disabled={fjernGpsOverrideMutation.isPending}
+                    className="rounded border border-gray-300 px-4 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
+                  >
+                    Tilbakestill til IFC
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

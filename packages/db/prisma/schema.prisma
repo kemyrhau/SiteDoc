@@ -316,6 +316,7 @@ model Drawing {
   issuedAt         DateTime? @map("issued_at") // Utstedelsesdato
   geoReference     Json?     @map("geo_reference") // Georeferanse med 2 referansepunkter
   ifcMetadata      Json?     @map("ifc_metadata") // Uttrukket IFC-metadata (prosjekt, organisasjon, etasjer, GPS)
+  gpsOverride      Json?     @map("gps_override") // Manuell GPS-kalibrering for IFC: {lat, lng} — overstyrer ifcMetadata GPS
   createdAt        DateTime  @default(now()) @map("created_at")
   updatedAt        DateTime  @updatedAt @map("updated_at")
 
