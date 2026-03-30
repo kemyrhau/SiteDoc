@@ -21,6 +21,7 @@ export const mappeRouter = router({
         where: { projectId: input.projectId },
         include: {
           _count: { select: { ftdDocuments: true } },
+          kontrakt: { select: { id: true, navn: true } },
           accessEntries: {
             include: {
               enterprise: { select: { id: true, name: true, color: true } },

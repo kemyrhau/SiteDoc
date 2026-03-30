@@ -14,6 +14,7 @@ interface MappeTreData {
   name: string;
   children: MappeTreData[];
   _count?: { ftdDocuments: number };
+  kontraktId?: string | null;
   kunSti?: boolean;
 }
 
@@ -67,7 +68,7 @@ function MappeRad({
         {erKunSti ? (
           <Lock className="h-3.5 w-3.5 flex-shrink-0 text-gray-300" />
         ) : (
-          <FolderOpen className={`h-3.5 w-3.5 flex-shrink-0 ${erValgt ? "text-sitedoc-primary" : "text-amber-500"}`} />
+          <FolderOpen className={`h-3.5 w-3.5 flex-shrink-0 ${erValgt ? "text-sitedoc-primary" : mappe.kontraktId ? "text-blue-500" : "text-amber-500"}`} />
         )}
         <span className={`flex-1 truncate ${erValgt ? "font-medium" : erKunSti ? "text-gray-400" : "text-gray-700"}`}>
           {mappe.name}
@@ -93,6 +94,7 @@ function byggTre(
     name: string;
     parentId: string | null;
     _count?: { ftdDocuments: number };
+    kontraktId?: string | null;
     kunSti?: boolean;
   }>,
 ): MappeTreData[] {
@@ -100,7 +102,7 @@ function byggTre(
   const roots: MappeTreData[] = [];
 
   for (const m of flat) {
-    map.set(m.id, { id: m.id, name: m.name, children: [], _count: m._count, kunSti: m.kunSti });
+    map.set(m.id, { id: m.id, name: m.name, children: [], _count: m._count, kontraktId: m.kontraktId, kunSti: m.kunSti });
   }
 
   for (const m of flat) {
@@ -217,6 +219,7 @@ export function MapperPanel() {
       name: m.name,
       parentId: m.parentId,
       _count: m._count,
+      kontraktId: m.kontraktId,
       kunSti: kunStiIder.has(m.id),
     })),
   );
