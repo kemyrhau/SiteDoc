@@ -1305,11 +1305,37 @@ async function ekstraherPdfMedPosisjoner(buffer: Buffer): Promise<string> {
     // Sorter rader etter y (fallende = topp til bunn i PDF)
     const sortertRader = [...rader.entries()].sort((a, b) => b[0] - a[0]);
 
-    for (const [_y, items] of sortertRader) {
+    // Målrettet postnr-tail merge:
+    // Når en rad har et postnr (x<90, format XX.YY.ZZ) og NESTE rad har
+    // et kort siffer/punktum-fragment ved x<90, slå dem sammen.
+    // Unngår sidedatoer (XX.XX.XXXX) ved å kreve postnr-format.
+    const POSTNR_FMT = /^\d{2}\.\d{2}(?:\.\d+)+$/;
+    const TAIL_FMT = /^\d[\d.]*$/;
+    for (let ri = 0; ri < sortertRader.length; ri++) {
+      const items = sortertRader[ri]![1];
       items.sort((a, b) => a.x - b.x);
-      // Sett inn mellomrom mellom hvert element — alltid separere
+
+      // Finn postnr-element i venstre kolonne (x < 90)
+      const pnrItem = items.find((it) => it.x < 90 && POSTNR_FMT.test(it.tekst));
+      if (!pnrItem) continue;
+      // Ikke merge datoer (DD.MM.YYYY)
+      if (/^\d{2}\.\d{2}\.\d{4}$/.test(pnrItem.tekst)) continue;
+
+      if (ri + 1 >= sortertRader.length) continue;
+      const nesteItems = sortertRader[ri + 1]![1];
+      // Finn kort siffer-fragment i postnr-kolonnen på neste rad
+      const tailItem = nesteItems.find((it) => it.x < 90 && TAIL_FMT.test(it.tekst) && it.tekst.length <= 5);
+      if (!tailItem) continue;
+
+      // Merge: legg tail til postnr og fjern fra neste rad
+      pnrItem.tekst = pnrItem.tekst + tailItem.tekst;
+      const idx = nesteItems.indexOf(tailItem);
+      if (idx >= 0) nesteItems.splice(idx, 1);
+    }
+
+    for (const [_y, items] of sortertRader) {
       const linje = items.map((i) => i.tekst).join(" ");
-      alleLinjer.push(linje);
+      if (linje.trim()) alleLinjer.push(linje);
     }
   }
 
