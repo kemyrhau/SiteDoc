@@ -1305,30 +1305,11 @@ async function ekstraherPdfMedPosisjoner(buffer: Buffer): Promise<string> {
     // Sorter rader etter y (fallende = topp til bunn i PDF)
     const sortertRader = [...rader.entries()].sort((a, b) => b[0] - a[0]);
 
-    // Merge postnr-kolonnebrudd: "02.71.03.1" (x<90) + neste y "5.10" (x<90) → "02.71.03.15.10"
-    for (let ri = 0; ri < sortertRader.length; ri++) {
-      const [_y, items] = sortertRader[ri]!;
+    for (const [_y, items] of sortertRader) {
       items.sort((a, b) => a.x - b.x);
-
-      // Sjekk om denne raden har postnr i venstre kolonne (x < 90)
-      const postnrItem = items.find((it) => it.x < 90 && /^\d{2}\.\d{2}(?:\.\d+)+$/.test(it.tekst));
-      if (postnrItem && ri + 1 < sortertRader.length) {
-        const nesteItems = sortertRader[ri + 1]![1];
-        const nestePnr = nesteItems.find((it) => it.x < 90 && /^\d[\d.]*$/.test(it.tekst) && it.tekst.length <= 5);
-        if (nestePnr) {
-          // Merge: legg tail til postnr-elementet og fjern fra neste rad
-          postnrItem.tekst = postnrItem.tekst + nestePnr.tekst;
-          const nesteIdx = nesteItems.indexOf(nestePnr);
-          if (nesteIdx >= 0) nesteItems.splice(nesteIdx, 1);
-          // Hvis neste rad nå er tom (bare hadde tail), fjern den
-          if (nesteItems.every((it) => !it.tekst.trim())) {
-            sortertRader.splice(ri + 1, 1);
-          }
-        }
-      }
-
+      // Sett inn mellomrom mellom hvert element — alltid separere
       const linje = items.map((i) => i.tekst).join(" ");
-      if (linje.trim()) alleLinjer.push(linje);
+      alleLinjer.push(linje);
     }
   }
 
@@ -1603,34 +1584,8 @@ function ekstraherBudsjettPosterFraPdf(
           ventendeSub = null;
         }
       } else {
-        // Sjekk postnr-tail på neste linje (PDF-kolonne bryter "02.71.03.11.10" over linjer)
-        let fullPostnrNonNs = postnr;
-        for (let j = i + 1; j < linjer.length && j <= i + 2; j++) {
-          const nl = linjer[j]!.trim();
-          if (!nl) continue;
-          // Bare siffer(e)/punktum alene → postnr-tail
-          if (/^\d[\d.]*$/.test(nl) && nl.length <= 5) {
-            fullPostnrNonNs = postnr + nl;
-            break;
-          }
-          // Siffer(e)/punktum etterfulgt av enhet-data → postnr-tail + prislinje
-          const tailPris = /^(\d[\d.]*)\s+(?:RS|stk|m[23]?|lm|tonn|kg|time)\s/.exec(nl);
-          if (tailPris && tailPris[1]!.length <= 5) {
-            fullPostnrNonNs = postnr + tailPris[1]!;
-            break;
-          }
-          // Siffer(e)/punktum etterfulgt av tekst → postnr-tail + beskrivelse
-          // f.eks. "5.28 taknedløp.", "1.10 Forretninger..."
-          const tailBeskr = /^(\d[\d.]*\d|\d)\s+([a-zA-ZæøåÆØÅ].+)/.exec(nl);
-          if (tailBeskr && tailBeskr[1]!.length <= 5) {
-            fullPostnrNonNs = postnr + tailBeskr[1]!;
-            break;
-          }
-          break;
-        }
-
         if (gjeldende && postnr === gjeldende.postnr) {
-          ventendeSub = { postnr: fullPostnrNonNs, beskrivelse: tekst, nsKode: null };
+          ventendeSub = { postnr, beskrivelse: tekst, nsKode: null };
         } else {
           lagreSeksjonspost();
           // Samle full tekst for seksjon (postnr med beskrivelse, ikke NS-kode)
@@ -1644,11 +1599,9 @@ function ekstraherBudsjettPosterFraPdf(
             const desimaler = nl.match(/\d{1,3}(?:\s\d{3})*,\d{2}/g);
             if (desimaler && desimaler.length >= 2 && nl.split(/\s+/).length <= 8) break;
             if (/^\.(\d+)\s+/.test(nl)) break;
-            // Hopp over postnr-tail-linjer
-            if (/^\d[\d.]*$/.test(nl) && nl.length <= 5) continue;
             fullBeskr += "\n" + nl;
           }
-          gjeldende = { postnr: fullPostnrNonNs, beskrivelse: fullBeskr, nsKode: null, harPrislinje: false };
+          gjeldende = { postnr, beskrivelse: fullBeskr, nsKode: null, harPrislinje: false };
           ventendeSub = null;
         }
       }
@@ -1673,16 +1626,6 @@ function ekstraherBudsjettPosterFraPdf(
       const prisRaw = linje.slice(sisteTo[0]!.start, sisteTo[0]!.end);
       const sumRaw = linje.slice(sisteTo[1]!.start, sisteTo[1]!.end);
       if (!prisRaw.includes(",") || !sumRaw.includes(",")) continue;
-
-      // Filtrer falske prislinjer: beskrivelsestekst med mål-verdier
-      // "Bredde bunn: 0,9 m Totaldybde: 3,5 m" → ikke en prislinje
-      const sumVal = sisteTo[1]!.val;
-      const prisVal = sisteTo[0]!.val;
-      // 1) Kolon-tegn foran siste tall → sannsynligvis "Label: verdi"
-      const forSiste = linje.slice(0, sisteTo[0]!.start);
-      if (forSiste.includes(":") && sumVal < 100 && prisVal < 100) continue;
-      // 2) Svært små verdier (pris < 10 OG sum < 10) er trolig mål-verdier, ikke priser
-      if (prisVal < 10 && sumVal < 10 && alleTall.length === 2) continue;
 
       let mengde: number;
       let pris: number;
