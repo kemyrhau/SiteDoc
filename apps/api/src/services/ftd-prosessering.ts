@@ -1408,17 +1408,23 @@ function ekstraherBudsjettPosterFraPdf(
     const ant = (postnrTeller.get(post.postnr) ?? 0) + 1;
     postnrTeller.set(post.postnr, ant);
   }
+  // Samle alle brukte postnr
+  const bruktePostnr = new Set(poster.map((p) => p.postnr).filter(Boolean));
   // For hvert duplisert postnr, nummerer dem sekvensielt
   const postnrSett = new Map<string, number>();
   for (const post of poster) {
     if (!post.postnr) continue;
     const totalt = postnrTeller.get(post.postnr) ?? 1;
-    if (totalt <= 1) continue; // Unik — ingen endring
+    if (totalt <= 1) continue;
     const nr = (postnrSett.get(post.postnr) ?? 0) + 1;
     postnrSett.set(post.postnr, nr);
-    // Første forekomst beholder original postnr, resten får sub-nummer
     if (nr > 1) {
-      post.postnr = post.postnr + "." + nr;
+      // Finn et ledig sub-nummer som ikke kolliderer
+      let subNr = nr;
+      while (bruktePostnr.has(post.postnr + "." + subNr)) subNr++;
+      const nyttPostnr = post.postnr + "." + subNr;
+      post.postnr = nyttPostnr;
+      bruktePostnr.add(nyttPostnr);
     }
   }
 
