@@ -1384,7 +1384,10 @@ function ekstraherBudsjettPosterFraPdf(
     }
 
     if (spekLinjer.length > 0) {
-      post.fullNsTekst = spekLinjer.join("\n").slice(0, 2000);
+      // Legg spesifikasjonstekst til beskrivelsen (ikke fullNsTekst — det er for NS-standard)
+      const spekTekst = spekLinjer.join("\n");
+      const eksisterende = post.beskrivelse ?? "";
+      post.beskrivelse = (eksisterende + "\n" + spekTekst).trim().slice(0, 2000);
     }
 
     // Fjern midlertidig felt
