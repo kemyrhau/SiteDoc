@@ -294,6 +294,8 @@ export default function OkonomiSide() {
                   <MerknadEksport
                     poster={poster}
                     kontraktNavn={kontrakter?.find((k) => k.id === kontraktId)?.navn ?? null}
+                    kontraktId={kontraktId}
+                    prosjektId={prosjektId}
                     notaType={valgtNotaDok?.notaType ?? null}
                     notaNr={valgtNotaNr}
                     brukerNavn={session?.user?.name ?? null}
