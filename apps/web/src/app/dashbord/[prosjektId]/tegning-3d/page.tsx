@@ -12,6 +12,7 @@ import {
   gpsTil3D,
   tredjeTilGps,
   konverterTilWgs84,
+  wgs84TilProjeksjon,
 } from "@sitedoc/shared/utils";
 import type { GeoReferanse } from "@sitedoc/shared";
 import type { KoordinatSystem } from "@sitedoc/shared/utils";
@@ -173,6 +174,10 @@ export default function Tegning3DSide() {
   const [gpsKalibrerÅpen, setGpsKalibrerÅpen] = useState(false);
   const [gpsInput, setGpsInput] = useState("");
   const [gpsFeil, setGpsFeil] = useState<string | null>(null);
+
+  // Klikk-kalibrering: steg 1 = klikk tegning, steg 2 = klikk 3D
+  const [klikkKalibSteg, setKlikkKalibSteg] = useState<0 | 1 | 2>(0);
+  const [klikkKalibTegningGps, setKlikkKalibTegningGps] = useState<{ lat: number; lng: number } | null>(null);
 
   const utils = trpc.useUtils();
   const settGpsOverrideMutation = trpc.tegning.settGpsOverride.useMutation({
@@ -342,6 +347,29 @@ export default function Tegning3DSide() {
       return;
     }
 
+    // Klikk-kalibrering steg 2: beregn korrekt GPS-opprinnelse
+    if (klikkKalibSteg === 2 && klikkKalibTegningGps) {
+      // Tegning-GPS i UTM
+      const tegningUtm = wgs84TilProjeksjon(klikkKalibTegningGps.lat, klikkKalibTegningGps.lng, coordSystem);
+      if (tegningUtm) {
+        // Ny opprinnelse = tegning-UTM minus 3D-offset
+        // Fordi: 3D.x = punkt_utm_ost - origin_utm_ost → origin_utm_ost = tegning_utm_ost - 3D.x
+        // Og:    3D.z = -(punkt_utm_nord - origin_utm_nord) → origin_utm_nord = tegning_utm_nord + 3D.z
+        const nyOriginUtmOst = tegningUtm.ost - punkt.x;
+        const nyOriginUtmNord = tegningUtm.nord + punkt.z;
+        const nyOriginGps = konverterTilWgs84(nyOriginUtmNord, nyOriginUtmOst, coordSystem);
+        if (nyOriginGps) {
+          const ifcId = ifcModeller[0]?.id;
+          if (ifcId) {
+            settGpsOverrideMutation.mutate({ drawingId: ifcId, lat: nyOriginGps.lat, lng: nyOriginGps.lng });
+          }
+        }
+      }
+      setKlikkKalibSteg(0);
+      setKlikkKalibTegningGps(null);
+      return;
+    }
+
     if (!ifcOpprinnelse) return;
 
     // Normal synk
@@ -379,6 +407,15 @@ export default function Tegning3DSide() {
         x: ((e.clientX - rect.left) / rect.width) * 100,
         y: ((e.clientY - rect.top) / rect.height) * 100,
       };
+
+      // Klikk-kalibrering steg 1: lagre tegning-GPS, gå til steg 2
+      if (klikkKalibSteg === 1 && transformasjon) {
+        const gps = tegningTilGps(pxProsent, transformasjon);
+        setKlikkKalibTegningGps(gps);
+        setKlikkKalibSteg(2);
+        setTegningMarkør({ ...pxProsent });
+        return;
+      }
 
       // Synk-modus
       if (!synkAktiv || !transformasjon || !ifcOpprinnelse) return;
@@ -481,6 +518,21 @@ export default function Tegning3DSide() {
             <Navigation size={14} />
             {harGpsOverride ? "GPS kalibrert" : harIfcGps ? "GPS (IFC)" : "Kalibrer GPS"}
           </button>
+        )}
+
+        {/* Klikk-kalibrering statuslinje */}
+        {klikkKalibSteg > 0 && (
+          <div className="flex items-center gap-2">
+            <span className="rounded bg-purple-100 px-2.5 py-1 text-xs font-medium text-purple-700 animate-pulse">
+              {klikkKalibSteg === 1 ? "Steg 1: Klikk et punkt på tegningen" : "Steg 2: Klikk samme punkt i 3D-modellen"}
+            </span>
+            <button
+              onClick={() => { setKlikkKalibSteg(0); setKlikkKalibTegningGps(null); }}
+              className="rounded bg-gray-100 px-2 py-1 text-xs text-gray-500 hover:bg-gray-200"
+            >
+              Avbryt
+            </button>
+          </div>
         )}
 
         {/* PDF sidekontroller */}
@@ -632,7 +684,23 @@ export default function Tegning3DSide() {
                 }
               </div>
 
-              {/* Auto fra tegning */}
+              {/* Klikk-kalibrering — presis */}
+              {transformasjon && (
+                <button
+                  onClick={() => {
+                    setKlikkKalibSteg(1);
+                    setGpsKalibrerÅpen(false);
+                  }}
+                  className="w-full rounded border border-purple-200 bg-purple-50 px-3 py-2.5 text-left text-sm hover:bg-purple-100"
+                >
+                  <div className="font-medium text-purple-800">Klikk-kalibrering (presis)</div>
+                  <div className="text-xs text-purple-600">
+                    Klikk et gjenkjennelig punkt på tegningen, deretter samme punkt i 3D
+                  </div>
+                </button>
+              )}
+
+              {/* Auto fra tegning — grov */}
               {gpsFromTegning && (
                 <button
                   onClick={() => {
@@ -641,11 +709,11 @@ export default function Tegning3DSide() {
                     settGpsOverrideMutation.mutate({ drawingId: ifcId, lat: gpsFromTegning.lat, lng: gpsFromTegning.lng });
                   }}
                   disabled={settGpsOverrideMutation.isPending}
-                  className="w-full rounded border border-blue-200 bg-blue-50 px-3 py-2.5 text-left text-sm hover:bg-blue-100"
+                  className="w-full rounded border border-gray-200 bg-gray-50 px-3 py-2.5 text-left text-sm hover:bg-gray-100"
                 >
-                  <div className="font-medium text-blue-800">Hent fra georeferert tegning</div>
-                  <div className="text-xs text-blue-600">
-                    {gpsFromTegning.lat.toFixed(6)}, {gpsFromTegning.lng.toFixed(6)} — basert på tegningens sentrum
+                  <div className="font-medium text-gray-700">Hent fra tegningens sentrum (grov)</div>
+                  <div className="text-xs text-gray-500">
+                    {gpsFromTegning.lat.toFixed(6)}, {gpsFromTegning.lng.toFixed(6)}
                   </div>
                 </button>
               )}
