@@ -517,17 +517,10 @@ export default function Tegning3DSide() {
       if (kam) {
         const nåPos = { x: kam.pos.x, z: kam.pos.z };
 
-        // Initialiser markør fra kameraposisjon hvis den ikke finnes
-        setTegningMarkør((prev) => {
-          if (!prev && treDTilTegning) {
-            const init = treDTilTegning(nåPos);
-            if (init) {
-              forrigeKamPosRef.current = nåPos;
-              return { x: init.x, y: init.y };
-            }
-          }
-          return prev;
-        });
+        // Vent på klikk-posisjon — starter tracking derfra
+        if (!forrigeKamPosRef.current) {
+          forrigeKamPosRef.current = nåPos;
+        }
 
         if (forrigeKamPosRef.current) {
           const dx3d = nåPos.x - forrigeKamPosRef.current.x;
@@ -833,13 +826,19 @@ export default function Tegning3DSide() {
               </div>
             </div>
             {/* Markør-overlay utenfor transform (faste pikselposisjoner) */}
-            {/* Kamera-posisjon (blå prikk fra klikk-navigering) */}
+            {/* Kamera-posisjon (blå prikk) */}
             {innholdStr.w > 0 && tegningMarkør && klikkKalibSteg === 0 && (() => {
               const p = pktTilPx(tegningMarkør);
               return (
                 <div className="pointer-events-none absolute z-20 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-500 ring-2 ring-white" style={{ left: p.x, top: p.y }} />
               );
             })()}
+            {/* Hint: klikk for å starte tracking */}
+            {synkAktiv && kalibTransform && !tegningMarkør && (
+              <div className="pointer-events-none absolute bottom-3 left-3 z-20 rounded bg-blue-600/80 px-2.5 py-1 text-xs text-white">
+                Klikk på tegningen for å plassere kamera
+              </div>
+            )}
             {/* Kalibrerings-markører A og B */}
             {innholdStr.w > 0 && kalibMarkørA && (() => {
               const p = pktTilPx(kalibMarkørA);
