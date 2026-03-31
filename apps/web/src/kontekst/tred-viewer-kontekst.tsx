@@ -373,46 +373,42 @@ export function ViewerCanvas({
           const cam = world.camera.three;
 
           ctrl.minDistance = 0.01;
-          ctrl.dollyToCursor = true;    // Scroll zoomer mot musepekeren
-          ctrl.dollySpeed = 1.0;        // Base-hastighet — asymmetrisk via wheel-override
 
-          // Scroll: flytt kamera langs blikkretning (ikke dolly mot target)
+          // ── Hjelpefunksjon: hent blikkretning som kopi (ikke muter) ──
+          function blikkretning(): THREE.Vector3 {
+            const d = new THREE.Vector3();
+            cam.getWorldDirection(d);
+            return d;
+          }
+
+          // ── Hjelpefunksjon: sett target 2 enheter foran kamera ──
+          function oppdaterTarget() {
+            const t = cam.position.clone().add(blikkretning().multiplyScalar(2));
+            ctrl.setTarget(t.x, t.y, t.z, false);
+          }
+
+          // ── Scroll: flytt kamera langs blikkretning ──
+          // Ikke dolly (som begrenses av target) — direkte posisjonsflytt.
+          // Asymmetrisk: fremover raskere enn bakover.
           container.addEventListener("wheel", (e: WheelEvent) => {
             e.preventDefault();
             const fremover = e.deltaY < 0;
             const steg = Math.abs(e.deltaY) / 100;
             const fart = fremover ? 5.0 : 1.5;
-            // Flytt kamera direkte langs blikkretningen
-            const dir = new THREE.Vector3();
-            cam.getWorldDirection(dir);
             const avstand = fart * steg * (fremover ? 1 : -1);
-            const nyPos = cam.position.clone().add(dir.multiplyScalar(avstand));
-            const nyTarget = nyPos.clone().add(dir.normalize().multiplyScalar(2));
+            const dir = blikkretning();
+            const nyPos = cam.position.clone().addScaledVector(dir, avstand);
+            const nyTarget = nyPos.clone().addScaledVector(dir, 2);
             ctrl.setLookAt(nyPos.x, nyPos.y, nyPos.z, nyTarget.x, nyTarget.y, nyTarget.z, false);
           }, { passive: false });
 
-          // Førstepersons-rotasjon: sett target nær kamera ved venstreklikk-start
-          // Berører IKKE scroll (dolly) eller høyreklikk (truck/pan)
-          let erVenstreKlikk = false;
+          // ── Venstreklikk: sett target nær kamera → rotasjon rundt ståsted ──
           container.addEventListener("pointerdown", (e: PointerEvent) => {
-            if (e.button === 0) {
-              erVenstreKlikk = true;
-              // Sett target rett foran kamera (0.01 enheter) → rotasjon på stedet
-              const dir = new THREE.Vector3();
-              cam.getWorldDirection(dir);
-              const t = cam.position.clone().add(dir.multiplyScalar(2));
-              ctrl.setTarget(t.x, t.y, t.z, false);
-            }
+            if (e.button === 0) oppdaterTarget();
           });
-          container.addEventListener("pointerup", () => { erVenstreKlikk = false; });
 
-          // Oppdater target etter scroll slik at neste rotasjon bruker ny posisjon
-          ctrl.addEventListener("controlend", () => {
-            const dir = new THREE.Vector3();
-            cam.getWorldDirection(dir);
-            const t = cam.position.clone().add(dir.multiplyScalar(2));
-            ctrl.setTarget(t.x, t.y, t.z, false);
-          });
+          // ── Etter all interaksjon: oppdater target for neste rotasjon ──
+          ctrl.addEventListener("controlend", oppdaterTarget);
         }
 
         components.init();
