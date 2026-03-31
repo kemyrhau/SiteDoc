@@ -76,12 +76,12 @@ export default function OkonomiSide() {
     },
   });
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const dokumenterQuery = (trpc.mengde.hentDokumenter as any).useQuery(
+  // @ts-expect-error — Prisma Json-type (splitSources) trigger TS2589 i tRPC
+  const dokumenterQuery = trpc.mengde.hentDokumenter.useQuery(
     { projectId: prosjektId },
     {
       enabled: !!prosjektId,
-      refetchInterval: (query: { state: { data: Array<{ processingState: string }> | undefined } }) => {
+      refetchInterval: (query) => {
         const data = query.state.data;
         if (!data) return false;
         return data.some(
