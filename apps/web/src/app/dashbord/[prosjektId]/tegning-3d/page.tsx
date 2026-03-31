@@ -491,15 +491,9 @@ export default function Tegning3DSide() {
     if (klikkKalibSteg > 0 || finjusterSteg > 0) return;
     if (!ifcOpprinnelse) return;
 
-    // Normal synk: direkte transform har prioritet, fallback til GPS
+    // Normal synk: oppdater tegningMarkør via delta fra forrige 3D-klikkpunkt
+    // Bruker IKKE treDTilTegning (har offset) — kun delta er presis
     if (!synkAktiv) { setTegningMarkør(null); return; }
-    if (kalibTransform) {
-      const pkt = treDTilTegning(punkt);
-      if (pkt) setTegningMarkør({ x: pkt.x, y: pkt.y });
-    } else if (transformasjon) {
-      const gps = tredjeTilGpsRotert(punkt);
-      if (gps) setTegningMarkør(gpsTilTegning(gps, transformasjon));
-    }
   }, [valgtObjekt]); // eslint-disable-line
 
   // Live kamera-tracking: oppdater tegningMarkør inkrementelt fra 3D-bevegelse
@@ -521,7 +515,8 @@ export default function Tegning3DSide() {
         } else {
           const dx3d = nåPos.x - forrigeKamPosRef.current.x;
           const dz3d = nåPos.z - forrigeKamPosRef.current.z;
-          if (Math.abs(dx3d) > 0.001 || Math.abs(dz3d) > 0.001) {
+          // Terskel: 1 enhet (1mm i mm-modell, 1m i m-modell)
+          if (Math.abs(dx3d) > 1 || Math.abs(dz3d) > 1) {
             const delta = treDDeltaTilTegning(dx3d, dz3d);
             if (delta) {
               setTegningMarkør((prev) => prev ? { x: prev.x + delta.dx, y: prev.y + delta.dy } : prev);
