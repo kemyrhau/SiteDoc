@@ -376,13 +376,19 @@ export function ViewerCanvas({
           ctrl.dollyToCursor = true;    // Scroll zoomer mot musepekeren
           ctrl.dollySpeed = 1.0;        // Base-hastighet — asymmetrisk via wheel-override
 
-          // Asymmetrisk scroll: raskere fremover (inn), tregere bakover (ut)
+          // Scroll: flytt kamera langs blikkretning (ikke dolly mot target)
           container.addEventListener("wheel", (e: WheelEvent) => {
             e.preventDefault();
             const fremover = e.deltaY < 0;
-            const steg = Math.abs(e.deltaY) / 100; // normalisér scroll-steg
+            const steg = Math.abs(e.deltaY) / 100;
             const fart = fremover ? 5.0 : 1.5;
-            ctrl.dolly(fart * steg * (fremover ? 1 : -1), true);
+            // Flytt kamera direkte langs blikkretningen
+            const dir = new THREE.Vector3();
+            cam.getWorldDirection(dir);
+            const avstand = fart * steg * (fremover ? 1 : -1);
+            const nyPos = cam.position.clone().add(dir.multiplyScalar(avstand));
+            const nyTarget = nyPos.clone().add(dir.normalize().multiplyScalar(2));
+            ctrl.setLookAt(nyPos.x, nyPos.y, nyPos.z, nyTarget.x, nyTarget.y, nyTarget.z, false);
           }, { passive: false });
 
           // Førstepersons-rotasjon: sett target nær kamera ved venstreklikk-start
