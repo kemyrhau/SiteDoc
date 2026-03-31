@@ -81,7 +81,7 @@ export default function OkonomiSide() {
     { projectId: prosjektId },
     {
       enabled: !!prosjektId,
-      refetchInterval: (query) => {
+      refetchInterval: (query: { state: { data: Array<{ processingState: string }> | undefined } }) => {
         const data = query.state.data;
         if (!data) return false;
         return data.some(
