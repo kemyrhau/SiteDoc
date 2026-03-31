@@ -831,7 +831,7 @@ export default function Tegning3DSide() {
               </div>
             </div>
             {/* Markør-overlay utenfor transform (faste pikselposisjoner) */}
-            {innholdStr.w > 0 && tegningMarkør && klikkKalibSteg === 0 && !kameraMarkør && (() => {
+            {innholdStr.w > 0 && tegningMarkør && klikkKalibSteg === 0 && (() => {
               const p = pktTilPx(tegningMarkør);
               const v = tegningMarkør.vinkel ?? 0;
               return (
@@ -862,16 +862,14 @@ export default function Tegning3DSide() {
                 </div>
               );
             })()}
-            {/* Live synsfelt: prikk = øyne, trekant = blikkretning */}
-            {innholdStr.w > 0 && kameraMarkør && (() => {
-              const p = pktTilPx(kameraMarkør);
+            {/* Live synsfelt: klikk-posisjon + live retning fra kamera */}
+            {innholdStr.w > 0 && tegningMarkør && kameraMarkør && (() => {
+              // Posisjon fra klikk-markør (riktig), retning fra live kamera-tracking (riktig)
+              const p = pktTilPx(tegningMarkør);
               return (
                 <div className="pointer-events-none absolute z-30" style={{ left: p.x, top: p.y }}>
                   <svg width="100" height="100" viewBox="-50 -50 100 100" style={{ transform: `rotate(${kameraMarkør.vinkel}deg)`, overflow: "visible" }}>
-                    {/* Synsfelt: trekant som åpner seg ut fra øynene */}
                     <path d="M0,0 L45,-22 L45,22 Z" fill="rgba(59,130,246,0.13)" stroke="rgba(59,130,246,0.4)" strokeWidth="0.8" />
-                    {/* Øyne (prikk) */}
-                    <circle cx="0" cy="0" r="4" fill="#2563eb" stroke="white" strokeWidth="1.5" />
                   </svg>
                 </div>
               );
