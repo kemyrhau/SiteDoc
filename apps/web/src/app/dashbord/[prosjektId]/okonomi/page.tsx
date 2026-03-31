@@ -76,7 +76,8 @@ export default function OkonomiSide() {
     },
   });
 
-  const dokumenterQuery = trpc.mengde.hentDokumenter.useQuery(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const dokumenterQuery = (trpc.mengde.hentDokumenter as any).useQuery(
     { projectId: prosjektId },
     {
       enabled: !!prosjektId,
