@@ -459,14 +459,28 @@ Draggbar skillelinje.
 - Auto-fit PDF til container ved oppstart
 - Full scroll-zoom og panorering
 
-**Markør med retningsindikator:**
-- SVG-kjegle viser kameraretning fra 3D-vieweren på tegningen
-- Oppdateres live ved kamerabevegelse i 3D
+**Live kamera-tracking:**
+- Blå prikk + synsfelt-trapes (FOV) på tegningen som følger 3D-kameraet i sanntid
+- Oppdateres via requestAnimationFrame
+- Kjent begrensning: ~5m offset i live posisjon (klikk-navigering er presis)
+
+**IFC GPS-kalibrering** (`gpsOverride` JSON-felt på Drawing):
+- **4-stegs klikk-kalibrering:** Klikk 2 matchende punkt-par (tegning → 3D) → beregner similarity-transform (a, b, tx, tz) som mapper tegning-% til 3D xz-koordinater. Håndterer posisjon, rotasjon, skalering og speiling automatisk
+- **Finjustering:** Klikk 1 punkt-par → korrigerer bare tx/tz (offset) uten å endre rotasjon/skala
+- **Grov kalibrering:** Hent GPS fra georeferert tegnings sentrum (ett klikk)
+- **Manuell input:** WGS84, UTM eller Norgeskart-format
+- **Tilbakestill:** Fjern override, tilbake til IFC-metadata GPS
+- API: `tegning.settGpsOverride` / `tegning.fjernGpsOverride`
+
+**Kamerakontroller (førsteperson):**
+- Venstreklikk-drag: roter rundt ståsted (target 0.5m foran kamera)
+- Høyreklikk-drag: truck/pan (sidelengs bevegelse)
+- Scroll: dollyToCursor (zoom mot musepekeren, hastighet 1.8)
+- Target oppdateres kun ved venstreklikk-start og etter scroll
 
 **Kamerahøyde-kalibrering:**
 - Klikk på gulv i 3D for å kalibrere kamerahøyde
 - Lagres i localStorage per bygning
-- Brukes for nøyaktig posisjonering av markør på tegning
 
 **Etasjeklipp:**
 - OBC `Clipper.createFromNormalAndCoplanarPoint()` klipper modellen horisontalt
@@ -476,10 +490,11 @@ Draggbar skillelinje.
 - `gpsTil3D(gps, ifcOrigin, system, hoyde)` — GPS → Three.js
 - `tredjeTilGps(punkt3d, ifcOrigin, system)` — Three.js → GPS
 - `wgs84TilUtm/wgs84TilNtm` — WGS84 → UTM/NTM projeksjon
+- Når `kalibTransform` finnes, brukes `tegningTil3D` / `treDTilTegning` direkte (uten GPS/UTM)
 
 **Georeferanse:**
-- Georeferanse-redigering (opprett/slett) skjer KUN i Lokasjoner-siden (`/dashbord/oppsett/lokasjoner`)
-- Tegning-3d viser kun status: "Georeferert" (grønt) eller "Georeferér i Lokasjoner" (lenke)
+- Georeferanse-redigering skjer KUN i Lokasjoner-siden (`/dashbord/oppsett/lokasjoner`)
+- Tegning-3d viser kun status: "Georeferert" (grønt) eller "Georeferér i Lokasjoner"
 - Støtter 3+ punkter: affin transformasjon med `ekstraPunkter`-array, viser kalibreringsfeil i meter
 
 **Tilgangskontroll:**

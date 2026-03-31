@@ -15,7 +15,7 @@
 | `member_enterprises` | Mange-til-mange join-tabell mellom `project_members` og `enterprises` |
 | `enterprises` | Entrepriser med `enterprise_number` (format: "04 Tømrer, Econor"), bransje, firma, farge |
 | `buildings` | Lokasjoner med `number` (auto-generert per prosjekt), `type` (deprecated, default `"bygg"`), status (unpublished/published) |
-| `drawings` | Tegninger med metadata: tegningsnummer, fagdisiplin, revisjon, status, etasje, målestokk, opphav, valgfri `geoReference` (JSON), `ifcMetadata` (JSON — prosjekt, org, GPS, etasjer, programvare), DWG-konvertering (`conversionStatus`, `coordinateSystem`) |
+| `drawings` | Tegninger med metadata: tegningsnummer, fagdisiplin, revisjon, status, etasje, målestokk, opphav, valgfri `geoReference` (JSON), `ifcMetadata` (JSON — prosjekt, org, GPS, etasjer, programvare), `gpsOverride` (JSON — manuell GPS/kalibrering for IFC med valgfri similarity-transform), DWG-konvertering (`conversionStatus`, `coordinateSystem`) |
 | `point_clouds` | Punktskyer med `potreeUrl` (konvertert octree), `hasClassification`, `hasRgb`, `classifications` (JSON), `boundingBox` (JSON), asynkron konvertering via CloudCompare+PotreeConverter |
 | `drawing_revisions` | Revisjonshistorikk for tegninger med fil, status og hvem som lastet opp |
 | `report_templates` | Maler med category (oppgave/sjekkliste), prefix, versjon, `domain` (bygg/hms/kvalitet, default "bygg"), `subjects` (JSON-array), `enable_change_log` (Boolean, default false) |
