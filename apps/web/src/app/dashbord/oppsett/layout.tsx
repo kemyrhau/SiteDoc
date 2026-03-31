@@ -8,6 +8,7 @@ import {
   MapPin,
   Wrench,
   Home,
+  Brain,
   ChevronRight,
   ChevronDown,
 } from "lucide-react";
@@ -57,6 +58,12 @@ const navigasjon: NavElement[] = [
       { label: "Kontrollplan", href: "/dashbord/oppsett/field/kontrollplaner" },
       { label: "Mappeoppsett", href: "/dashbord/oppsett/field/box" },
     ],
+  },
+  {
+    label: "AI-søk",
+    href: "/dashbord/oppsett/ai-sok",
+    ikon: <Brain className="h-4 w-4" />,
+    kreverProsjekt: true,
   },
   {
     label: "Prosjekteiers innstillinger",
