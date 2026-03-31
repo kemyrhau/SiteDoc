@@ -120,6 +120,22 @@ export function SpecPostTabell({
 
   const harSammenligning = !!sammenligningPoster && sammenligningPoster.length > 0;
 
+  // Samle alle unike NS-koder for batch-sjekk mot NS 3420
+  const alleNsKoder = useMemo(() => {
+    const koder = new Set<string>();
+    for (const p of poster) {
+      const info = finnNsKode(p, poster);
+      if (info) koder.add(info.nsKode);
+    }
+    return Array.from(koder);
+  }, [poster]);
+
+  const { data: nsKoderMedDok } = trpc.ftdSok.nsKoderMedDok.useQuery(
+    { projectId: prosjektId!, nsKoder: alleNsKoder },
+    { enabled: !!prosjektId && alleNsKoder.length > 0 },
+  );
+  const nsDocSet = useMemo(() => new Set(nsKoderMedDok ?? []), [nsKoderMedDok]);
+
   const notaMap = useMemo(() => {
     if (!sammenligningPoster) return new Map<string, SpecPost>();
     const map = new Map<string, SpecPost>();
@@ -298,6 +314,12 @@ export function SpecPostTabell({
                   <td className="px-2 py-1.5 text-xs text-gray-400">{idx + 1}</td>
                   <td className="px-2 py-1.5 font-mono text-xs whitespace-nowrap">
                     {p.importNotat && <span className="mr-1 text-amber-500" title={p.importNotat}>*</span>}
+                    {(() => {
+                      const nsInfo = finnNsKode(p, poster);
+                      return nsInfo && nsDocSet.has(nsInfo.nsKode)
+                        ? <span className="mr-1 text-amber-400" title={`NS 3420: ${nsInfo.nsKode}`}>●</span>
+                        : null;
+                    })()}
                     {p.postnr ?? "—"}
                   </td>
                   <td className="max-w-xs truncate px-2 py-1.5">{p.beskrivelse ?? "—"}</td>

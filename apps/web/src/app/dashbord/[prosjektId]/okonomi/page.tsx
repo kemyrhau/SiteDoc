@@ -314,7 +314,7 @@ export default function OkonomiSide() {
               </div>
               <div className="space-y-3">
                 <div className="rounded border p-3">
-                  <NsKodePanel nsKode={valgtPost?.nsKode ?? null} />
+                  <NsKodePanel nsKode={valgtPost?.nsKode ?? null} prosjektId={prosjektId} />
                 </div>
                 {valgtPost?.postnr && (
                   <div className="rounded border p-3">

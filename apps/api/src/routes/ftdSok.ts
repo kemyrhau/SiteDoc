@@ -133,4 +133,60 @@ export const ftdSokRouter = router({
         orderBy: { chunkIndex: "asc" },
       });
     }),
+
+  /** Søk NS-kode i NS 3420-dokumenter (tekst-søk, ikke nsCode-felt) */
+  nsStandardSok: protectedProcedure
+    .input(
+      z.object({
+        projectId: z.string().uuid(),
+        nsKode: z.string().min(1),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      // Søk i chunks fra dokumenter med "3420" i filnavnet
+      return ctx.prisma.$queryRaw<Array<{
+        id: string;
+        chunkText: string;
+        pageNumber: number | null;
+        filename: string;
+      }>>`
+        SELECT c.id, c.chunk_text AS "chunkText", c.page_number AS "pageNumber", d.filename
+        FROM ftd_document_chunks c
+        JOIN ftd_documents d ON d.id = c.document_id
+        WHERE d.project_id = ${input.projectId}
+          AND d.is_active = true
+          AND d.filename LIKE '%3420%'
+          AND c.chunk_text ILIKE ${"%" + input.nsKode + "%"}
+        ORDER BY d.filename, c.chunk_index
+        LIMIT 20
+      `;
+    }),
+
+  /** Batch-sjekk: hvilke NS-koder har dokumentasjon i NS 3420-filer */
+  nsKoderMedDok: protectedProcedure
+    .input(
+      z.object({
+        projectId: z.string().uuid(),
+        nsKoder: z.array(z.string()),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      if (input.nsKoder.length === 0) return [];
+      // Finn alle unike NS-koder som har minst én chunk-match i NS 3420-dokumenter
+      const treff = await ctx.prisma.$queryRaw<Array<{ nsKode: string }>>`
+        SELECT DISTINCT unnest AS "nsKode"
+        FROM unnest(${input.nsKoder}::text[])
+        WHERE EXISTS (
+          SELECT 1 FROM ftd_document_chunks c
+          JOIN ftd_documents d ON d.id = c.document_id
+          WHERE d.project_id = ${input.projectId}
+            AND d.is_active = true
+            AND d.filename LIKE '%3420%'
+            AND c.chunk_text ILIKE '%' || unnest || '%'
+        )
+      `;
+      return treff.map((t) => t.nsKode);
+    }),
 });
