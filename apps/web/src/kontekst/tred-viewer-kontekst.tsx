@@ -376,9 +376,10 @@ export function ViewerCanvas({
 
           // ── Hjelpefunksjon: hent blikkretning som kopi (ikke muter) ──
           function blikkretning() {
-            const d = new THREE.Vector3();
-            cam.getWorldDirection(d);
-            return d;
+            // Bruk target→pos-retning (orbit-kontrollens faktiske retning)
+            const tgt = new THREE.Vector3();
+            ctrl.getTarget(tgt);
+            return tgt.sub(cam.position).normalize();
           }
 
           // ── Hjelpefunksjon: sett target 2 enheter foran kamera ──
@@ -394,11 +395,13 @@ export function ViewerCanvas({
             e.preventDefault();
             const fremover = e.deltaY < 0;
             const steg = Math.abs(e.deltaY) / 100;
-            const fart = 2.5;
-            const avstand = fart * steg * (fremover ? 1 : -1);
+            const avstand = 2.5 * steg * (fremover ? 1 : -1);
+            // Blikkretning projisert på XZ-planet (ingen vertikal drift)
             const dir = blikkretning();
+            dir.y = 0;
+            dir.normalize();
             const nyPos = cam.position.clone().addScaledVector(dir, avstand);
-            const nyTarget = nyPos.clone().addScaledVector(dir, 2);
+            const nyTarget = nyPos.clone().addScaledVector(blikkretning(), 2);
             ctrl.setLookAt(nyPos.x, nyPos.y, nyPos.z, nyTarget.x, nyTarget.y, nyTarget.z, false);
           }, { passive: false });
 
