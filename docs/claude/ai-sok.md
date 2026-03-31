@@ -112,14 +112,28 @@ Portering av "fil til database"-arkitekturen til SiteDoc web:
 - Chunk-browser: bla gjennom chunks, se embedding-state
 - DB-diagnostikk: rader per tabell, embedding-dekning
 
+## Prioriterte dokumenttyper for AI-søk
+
+A-nota, dokumentasjon og poster håndteres allerede godt i økonomi-modulen (spec-poster, splitting, NS-kode-kobling). AI-søk skal fokusere på dokumenter som krever forståelse:
+
+| Prioritet | Dokumenttype | Hvorfor |
+|-----------|-------------|---------|
+| **Høy** | Kontraktsgrunnlag (NS 8405/8406/8407) | Juridisk bindende, lange tekster, krever kontekstforståelse |
+| **Høy** | Endringer og varsler | Tidskritiske, må finnes raskt, ofte refererer til kontrakt |
+| **Høy** | T-nota (tillegg/fradrag) | Krever kobling til kontrakt og endringsoversikt |
+| **Høy** | NS 3420 standardtekster | Allerede importert, trenger semantisk søk for kode-oppslag |
+| **Medium** | Møtereferat | Beslutninger og avtaler som må gjenfinnes |
+| **Medium** | Mengdebeskrivelser | Allerede i økonomi, men beskrivelsestekst trenger AI |
+| **Lav** | A-nota/målebrev | Allerede godt håndtert i økonomi (splitting, poster, header) |
+
 ## Filtyper → bedre chunking
 
 | Filtype | Strategi | Spesialfelt |
 |---------|----------|-------------|
-| PDF (generell) | Sliding window 180 ord, 40 overlap | section_title, page |
-| PDF (A-nota) | Syntetiske chunks per post (postnr + beskrivelse + mengde) | mengde, enhetspris |
+| PDF (kontrakt/NS 8405-7) | Seksjonsbasert (punkt-hierarki bevares) | heading_number, section_level |
+| PDF (endring/varsel) | Dokumentbasert (hele brevet som kontekst) | dato, referanse, part |
 | PDF (NS 3420) | Seksjonsbasert (omfang, materialer, utførelse) | ns_code, ns_section_type |
-| Excel (A-nota) | Syntetiske chunks per post (som PDF) | mengde, enhetspris |
+| PDF (generell) | Sliding window 180 ord, 40 overlap | section_title, page |
 | Excel (generell) | Rad-basert med header-kontekst | — |
 | GAB | Post-basert (postnr + NS-kode + beskrivelse) | ns_code |
 
