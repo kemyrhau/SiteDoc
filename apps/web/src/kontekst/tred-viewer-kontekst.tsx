@@ -374,7 +374,15 @@ export function ViewerCanvas({
 
           ctrl.minDistance = 0.01;
           ctrl.dollyToCursor = true;    // Scroll zoomer mot musepekeren
-          ctrl.dollySpeed = 1.8;
+          ctrl.dollySpeed = 1.0;        // Base-hastighet — asymmetrisk via wheel-override
+
+          // Asymmetrisk scroll: raskere fremover (inn), tregere bakover (ut)
+          container.addEventListener("wheel", (e: WheelEvent) => {
+            e.preventDefault();
+            const fremover = e.deltaY < 0; // scroll opp = fremover
+            const fart = fremover ? 2.5 : 0.8;
+            ctrl.dolly(fart * Math.sign(-e.deltaY), true);
+          }, { passive: false });
 
           // Førstepersons-rotasjon: sett target nær kamera ved venstreklikk-start
           // Berører IKKE scroll (dolly) eller høyreklikk (truck/pan)
@@ -392,14 +400,12 @@ export function ViewerCanvas({
           container.addEventListener("pointerup", () => { erVenstreKlikk = false; });
 
           // Oppdater target etter scroll slik at neste rotasjon bruker ny posisjon
-          container.addEventListener("wheel", () => {
-            requestAnimationFrame(() => {
-              const dir = new THREE.Vector3();
-              cam.getWorldDirection(dir);
-              const t = cam.position.clone().add(dir.multiplyScalar(2));
-              ctrl.setTarget(t.x, t.y, t.z, false);
-            });
-          }, { passive: true });
+          ctrl.addEventListener("controlend", () => {
+            const dir = new THREE.Vector3();
+            cam.getWorldDirection(dir);
+            const t = cam.position.clone().add(dir.multiplyScalar(2));
+            ctrl.setTarget(t.x, t.y, t.z, false);
+          });
         }
 
         components.init();
