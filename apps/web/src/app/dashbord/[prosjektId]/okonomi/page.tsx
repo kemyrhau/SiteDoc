@@ -105,10 +105,8 @@ export default function OkonomiSide() {
 
   // Finn dokumenter for valgt kontrakt, gruppert
   const kontraktDokumenter = useMemo(() => {
-    if (!dokumenter) return { budsjett: null, notas: [] };
-    const filtrert = kontraktId
-      ? dokumenter.filter((d) => d.kontraktId === kontraktId)
-      : dokumenter;
+    if (!dokumenter || !kontraktId) return { budsjett: null, notas: [] };
+    const filtrert = dokumenter.filter((d) => d.kontraktId === kontraktId);
     const budsjett = filtrert.find((d) => d.docType === "anbudsgrunnlag") ?? null;
     const alleNotas = filtrert
       .filter((d) => d.docType === dokType && d.notaNr !== null)
