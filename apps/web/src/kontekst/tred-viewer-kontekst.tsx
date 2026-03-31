@@ -368,10 +368,11 @@ export function ViewerCanvas({
         world.renderer = new OBC.SimpleRenderer(components, container);
         world.camera = new OBC.SimpleCamera(components);
         world.camera.controls?.setLookAt(20, 20, 20, 0, 0, 0);
-        // Roter nærmere kameraets akse: kort avstand til target
         if (world.camera.controls) {
-          world.camera.controls.minDistance = 0.5;
+          world.camera.controls.minDistance = 0.1;
           world.camera.controls.dollyToCursor = true;
+          world.camera.controls.dollySpeed = 1.5;
+          world.camera.controls.infinityDolly = true; // Passerer gjennom target — konstant hastighet
         }
 
         components.init();
