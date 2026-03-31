@@ -851,17 +851,19 @@ export default function Tegning3DSide() {
                 </div>
               );
             })()}
-            {/* Live kamera-posisjon og blikkretning */}
+            {/* Live kamera-posisjon og synsfelt */}
             {innholdStr.w > 0 && kameraMarkør && (() => {
               const p = pktTilPx(kameraMarkør);
               return (
                 <>
-                  <div className="pointer-events-none absolute z-30" style={{ left: p.x, top: p.y }}>
-                    <svg width="80" height="80" viewBox="-40 -40 80 80" style={{ transform: `rotate(${kameraMarkør.vinkel}deg)`, overflow: "visible" }}>
-                      <path d="M0,0 L30,-18 L30,18 Z" fill="rgba(59,130,246,0.15)" stroke="rgba(59,130,246,0.4)" strokeWidth="1" />
+                  {/* Synsfelt-trapes: åpner seg ut fra kameraet i blikkretningen */}
+                  <div className="pointer-events-none absolute z-29" style={{ left: p.x, top: p.y }}>
+                    <svg width="120" height="120" viewBox="-60 -60 120 120" style={{ transform: `rotate(${kameraMarkør.vinkel}deg)`, overflow: "visible" }}>
+                      <path d="M0,0 L50,-30 L50,30 Z" fill="rgba(59,130,246,0.12)" stroke="rgba(59,130,246,0.3)" strokeWidth="0.5" />
                     </svg>
                   </div>
-                  <div className="pointer-events-none absolute z-30 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-600 ring-2 ring-white" style={{ left: p.x, top: p.y }} />
+                  {/* Kamera-prikk */}
+                  <div className="pointer-events-none absolute z-30 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-600 ring-2 ring-white" style={{ left: p.x, top: p.y }} />
                 </>
               );
             })()}
