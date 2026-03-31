@@ -391,13 +391,14 @@ export const tegningRouter = router({
       lat: z.number().min(-90).max(90),
       lng: z.number().min(-180).max(180),
       rotasjon: z.number().optional(), // Rotasjon i radianer (IFC XZ vs UTM)
+      skala: z.number().optional(), // Skalafaktor (1=meter, 1000=mm)
     }))
     .mutation(async ({ ctx, input }) => {
       const tegning = await ctx.prisma.drawing.findUniqueOrThrow({ where: { id: input.drawingId }, select: { projectId: true } });
       await verifiserProsjektmedlem(ctx.userId, tegning.projectId);
-      const gpsData = input.rotasjon !== undefined
-        ? { lat: input.lat, lng: input.lng, rotasjon: input.rotasjon }
-        : { lat: input.lat, lng: input.lng };
+      const gpsData: { lat: number; lng: number; rotasjon?: number; skala?: number } = { lat: input.lat, lng: input.lng };
+      if (input.rotasjon !== undefined) gpsData.rotasjon = input.rotasjon;
+      if (input.skala !== undefined) gpsData.skala = input.skala;
       return ctx.prisma.drawing.update({
         where: { id: input.drawingId },
         data: { gpsOverride: gpsData as Prisma.InputJsonValue },

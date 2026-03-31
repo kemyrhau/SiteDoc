@@ -97,7 +97,7 @@ interface TegningData {
     gpsLengdegrad?: number | null;
     etasjer?: Array<{ navn: string; høyde: number | null }>;
   } | null;
-  gpsOverride?: { lat: number; lng: number; rotasjon?: number } | null;
+  gpsOverride?: { lat: number; lng: number; rotasjon?: number; skala?: number } | null;
   coordinateSystem?: string | null;
 }
 
@@ -147,7 +147,7 @@ export default function Tegning3DSide() {
     return "utm33";
   }, [ifcModeller]);
 
-  // Rotasjon fra kalibrering (radianer)
+  // Rotasjon og skala fra kalibrering
   const ifcRotasjon = useMemo(() => {
     for (const m of ifcModeller) {
       if (m.gpsOverride?.rotasjon != null) return m.gpsOverride.rotasjon;
@@ -155,25 +155,47 @@ export default function Tegning3DSide() {
     return 0;
   }, [ifcModeller]);
 
-  /** GPS → 3D med rotasjon */
+  const ifcSkala = useMemo(() => {
+    for (const m of ifcModeller) {
+      if (m.gpsOverride?.skala != null) return m.gpsOverride.skala;
+    }
+    return 1;
+  }, [ifcModeller]);
+
+  /** GPS → 3D med rotasjon og skala */
   const gpsTil3DRotert = useCallback((gps: { lat: number; lng: number }, hoyde: number = 0) => {
     if (!ifcOpprinnelse) return null;
     const punkt = gpsTil3D(gps, ifcOpprinnelse, coordSystem, hoyde);
-    if (!punkt || ifcRotasjon === 0) return punkt;
-    const cos = Math.cos(ifcRotasjon), sin = Math.sin(ifcRotasjon);
-    return { x: punkt.x * cos - punkt.z * sin, y: punkt.y, z: punkt.x * sin + punkt.z * cos };
-  }, [ifcOpprinnelse, coordSystem, ifcRotasjon]);
+    if (!punkt) return punkt;
+    // Skaler fra meter til modellens enhet (f.eks. mm)
+    let x = punkt.x * ifcSkala;
+    let z = punkt.z * ifcSkala;
+    // Rotér
+    if (ifcRotasjon !== 0) {
+      const cos = Math.cos(ifcRotasjon), sin = Math.sin(ifcRotasjon);
+      const rx = x * cos - z * sin;
+      const rz = x * sin + z * cos;
+      x = rx; z = rz;
+    }
+    return { x, y: hoyde * ifcSkala, z };
+  }, [ifcOpprinnelse, coordSystem, ifcRotasjon, ifcSkala]);
 
-  /** 3D → GPS med invers rotasjon */
+  /** 3D → GPS med invers rotasjon og skala */
   const tredjeTilGpsRotert = useCallback((punkt: { x: number; y: number; z: number }) => {
     if (!ifcOpprinnelse) return null;
-    let p = punkt;
+    let x = punkt.x, z = punkt.z;
+    // Invers rotasjon
     if (ifcRotasjon !== 0) {
       const cos = Math.cos(-ifcRotasjon), sin = Math.sin(-ifcRotasjon);
-      p = { x: punkt.x * cos - punkt.z * sin, y: punkt.y, z: punkt.x * sin + punkt.z * cos };
+      const rx = x * cos - z * sin;
+      const rz = x * sin + z * cos;
+      x = rx; z = rz;
     }
-    return tredjeTilGps(p, ifcOpprinnelse, coordSystem);
-  }, [ifcOpprinnelse, coordSystem, ifcRotasjon]);
+    // Skaler fra modellens enhet tilbake til meter
+    x /= ifcSkala;
+    z /= ifcSkala;
+    return tredjeTilGps({ x, y: punkt.y / ifcSkala, z }, ifcOpprinnelse, coordSystem);
+  }, [ifcOpprinnelse, coordSystem, ifcRotasjon, ifcSkala]);
 
   const etasjer = useMemo(() => {
     for (const m of ifcModeller) {
@@ -408,18 +430,25 @@ export default function Tegning3DSide() {
         const tdDx = punkt.x - kalibPunktA.treD.x;
         const tdDz = punkt.z - kalibPunktA.treD.z;
 
+        // Auto-detekter skala: sammenlign avstand i UTM (meter) med avstand i 3D
+        const utmDist = Math.sqrt(utmDx * utmDx + utmDz * utmDz);
+        const tdDist = Math.sqrt(tdDx * tdDx + tdDz * tdDz);
+        const skala = utmDist > 0.1 && tdDist > 0.1 ? tdDist / utmDist : 1;
+        // Typisk: skala ≈ 1 (meter) eller ≈ 1000 (mm)
+        const detektertSkala = skala > 100 ? Math.round(skala / 100) * 100 : Math.round(skala);
+
         // Rotasjonsvinkel: differanse mellom UTM-retning og 3D-retning
         const utmVinkel = Math.atan2(utmDz, utmDx);
         const tdVinkel = Math.atan2(tdDz, tdDx);
         const rotasjon = tdVinkel - utmVinkel;
 
-        // Beregn opprinnelse fra punkt A med rotasjon
-        // 3d = R(θ) * (utm - origin) → origin_utm = utm_a - R(-θ) * 3d_a
+        // Beregn opprinnelse fra punkt A med rotasjon og skala
+        // 3d = skala * R(θ) * (utm - origin) → R(-θ) * 3d / skala = utm - origin
+        const s = detektertSkala || 1;
         const cosR = Math.cos(-rotasjon);
         const sinR = Math.sin(-rotasjon);
-        const invX = kalibPunktA.treD.x * cosR - kalibPunktA.treD.z * sinR;
-        const invZ = kalibPunktA.treD.x * sinR + kalibPunktA.treD.z * cosR;
-        // invX = utm_dx, invZ = utm_dz → origin_ost = utm_a.ost - invX, origin_nord = utm_a.nord + invZ
+        const invX = (kalibPunktA.treD.x * cosR - kalibPunktA.treD.z * sinR) / s;
+        const invZ = (kalibPunktA.treD.x * sinR + kalibPunktA.treD.z * cosR) / s;
         const nyOriginOst = utmA.ost - invX;
         const nyOriginNord = utmA.nord + invZ;
 
@@ -432,6 +461,7 @@ export default function Tegning3DSide() {
               lat: nyOriginGps.lat,
               lng: nyOriginGps.lng,
               rotasjon,
+              skala: s,
             });
           }
         }
