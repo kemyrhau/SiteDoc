@@ -508,9 +508,8 @@ export default function Tegning3DSide() {
         let pkt: { x: number; y: number } | null = null;
         let retPkt: { x: number; y: number } | null = null;
 
-        // Bruk kameraets target (fokuspunkt) — mer presist enn cam.position
-        // fordi target ligger nærmere det man faktisk ser på
-        const fokus = kam.target;
+        // Bruk cam.position (kameraet holder seg nå på plass med target=0.01)
+        const fokus = kam.pos;
 
         // Retning: vektor fra kameraposisjon mot target (der kameraet ser)
         // Mye mer pålitelig enn getWorldDirection
