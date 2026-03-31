@@ -369,19 +369,32 @@ export function ViewerCanvas({
         world.camera = new OBC.SimpleCamera(components);
         world.camera.controls?.setLookAt(20, 20, 20, 0, 0, 0);
         if (world.camera.controls) {
-          world.camera.controls.minDistance = 0.1;
-          // Etter zoom: flytt target 5 enheter foran kamera → roter rundt nær akse
           const ctrl = world.camera.controls;
           const cam = world.camera.three;
+
+          ctrl.minDistance = 0.01;
+          ctrl.dollyToCursor = true;    // Scroll mot musepekeren
+          ctrl.dollySpeed = 1.0;
+
+          // Inspeksjonsmodus: hold target alltid nær kamera (2m foran)
+          // → rotasjon skjer rundt ståsted, ikke fjern senter
+          const TARGET_DIST = 2;
+          const oppdaterTarget = () => {
+            const dir = new THREE.Vector3();
+            cam.getWorldDirection(dir);
+            const t = cam.position.clone().add(dir.multiplyScalar(TARGET_DIST));
+            ctrl.setTarget(t.x, t.y, t.z, false);
+          };
+
+          // Oppdater target etter scroll (beveger kameraet)
           container.addEventListener("wheel", () => {
-            requestAnimationFrame(() => {
-              const dir = new THREE.Vector3();
-              cam.getWorldDirection(dir);
-              const pos = cam.position.clone();
-              const nyTarget = pos.add(dir.multiplyScalar(5));
-              ctrl.setTarget(nyTarget.x, nyTarget.y, nyTarget.z, false);
-            });
+            requestAnimationFrame(oppdaterTarget);
           }, { passive: true });
+
+          // Oppdater target etter pan/truck (høyreklikk-drag)
+          ctrl.addEventListener("controlend", () => {
+            oppdaterTarget();
+          });
         }
 
         components.init();
