@@ -124,6 +124,6 @@ export interface ViewerAPI {
   settEtasjeKlipp: (nedre: number, øvre: number) => void;
   /** Fjern etasje-klippeplan */
   fjernEtasjeKlipp: () => void;
-  /** Hent kameraposisjon og blikkretning */
-  hentKameraPosisjon: () => { pos: { x: number; y: number; z: number }; retning: { x: number; y: number; z: number } } | null;
+  /** Hent kameraposisjon, target og blikkretning */
+  hentKameraPosisjon: () => { pos: { x: number; y: number; z: number }; target: { x: number; y: number; z: number }; retning: { x: number; y: number; z: number } } | null;
 }

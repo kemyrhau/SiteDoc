@@ -508,17 +508,19 @@ export default function Tegning3DSide() {
         let pkt: { x: number; y: number } | null = null;
         let retPkt: { x: number; y: number } | null = null;
 
+        // Bruk kameraets target (fokuspunkt) — mer presist enn cam.position
+        // fordi target ligger nærmere det man faktisk ser på
+        const fokus = kam.target;
+
         if (kalibTransform && treDTilTegning) {
-          // Direkte transform: 3D → tegning%
-          pkt = treDTilTegning(kam.pos);
-          const fremPunkt = { x: kam.pos.x + kam.retning.x * 10, z: kam.pos.z + kam.retning.z * 10 };
+          pkt = treDTilTegning(fokus);
+          const fremPunkt = { x: fokus.x + kam.retning.x * 10, z: fokus.z + kam.retning.z * 10 };
           retPkt = treDTilTegning(fremPunkt);
         } else if (transformasjon && ifcOpprinnelse) {
-          // GPS-basert fallback
-          const gps = tredjeTilGpsRotert(kam.pos);
+          const gps = tredjeTilGpsRotert(fokus);
           if (gps) {
             pkt = gpsTilTegning(gps, transformasjon);
-            const retGps = tredjeTilGpsRotert({ x: kam.pos.x + kam.retning.x * 10, y: kam.pos.y, z: kam.pos.z + kam.retning.z * 10 });
+            const retGps = tredjeTilGpsRotert({ x: fokus.x + kam.retning.x * 10, y: fokus.y, z: fokus.z + kam.retning.z * 10 });
             if (retGps) retPkt = gpsTilTegning(retGps, transformasjon);
           }
         }
@@ -851,20 +853,18 @@ export default function Tegning3DSide() {
                 </div>
               );
             })()}
-            {/* Live kamera-posisjon og synsfelt */}
+            {/* Live synsfelt (FOV-trapes) */}
             {innholdStr.w > 0 && kameraMarkør && (() => {
               const p = pktTilPx(kameraMarkør);
               return (
-                <>
-                  {/* Synsfelt-trapes: åpner seg ut fra kameraet i blikkretningen */}
-                  <div className="pointer-events-none absolute z-29" style={{ left: p.x, top: p.y }}>
-                    <svg width="120" height="120" viewBox="-60 -60 120 120" style={{ transform: `rotate(${kameraMarkør.vinkel}deg)`, overflow: "visible" }}>
-                      <path d="M0,0 L50,-30 L50,30 Z" fill="rgba(59,130,246,0.12)" stroke="rgba(59,130,246,0.3)" strokeWidth="0.5" />
-                    </svg>
-                  </div>
-                  {/* Kamera-prikk */}
-                  <div className="pointer-events-none absolute z-30 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-600 ring-2 ring-white" style={{ left: p.x, top: p.y }} />
-                </>
+                <div className="pointer-events-none absolute z-30" style={{ left: p.x, top: p.y }}>
+                  <svg width="160" height="160" viewBox="-80 -80 160 160" style={{ transform: `rotate(${kameraMarkør.vinkel}deg)`, overflow: "visible" }}>
+                    {/* Synsfelt-trapes */}
+                    <path d="M-3,4 L60,-35 L60,35 L-3,-4 Z" fill="rgba(59,130,246,0.10)" stroke="rgba(59,130,246,0.35)" strokeWidth="1" />
+                    {/* Liten prikk ved opprinnelsen */}
+                    <circle cx="0" cy="0" r="3" fill="rgba(59,130,246,0.7)" />
+                  </svg>
+                </div>
               );
             })()}
             </>

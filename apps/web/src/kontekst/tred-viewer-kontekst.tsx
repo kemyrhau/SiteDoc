@@ -1126,11 +1126,19 @@ export function ViewerCanvas({
           sisteKlikkPunkt: () => sisteKlikkPunkt3D,
           hentKameraPosisjon: () => {
             const cam = world.camera.three;
-            if (!cam) return null;
+            const ctrl = world.camera.controls;
+            if (!cam || !ctrl) return null;
             const pos = cam.position;
             const dir = new THREE.Vector3();
             cam.getWorldDirection(dir);
-            return { pos: { x: pos.x, y: pos.y, z: pos.z }, retning: { x: dir.x, y: dir.y, z: dir.z } };
+            // Orbit target = det kameraet fokuserer på (mer stabilt enn cam.position)
+            const tgt = new THREE.Vector3();
+            ctrl.getTarget(tgt);
+            return {
+              pos: { x: pos.x, y: pos.y, z: pos.z },
+              target: { x: tgt.x, y: tgt.y, z: tgt.z },
+              retning: { x: dir.x, y: dir.y, z: dir.z },
+            };
           },
           settEtasjeKlipp: (nedre: number, øvre: number) => {
             // Fjern eksisterende etasjeklipp-plan
