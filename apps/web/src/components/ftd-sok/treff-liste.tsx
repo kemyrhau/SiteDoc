@@ -12,6 +12,8 @@ interface Treff {
   fileUrl: string | null;
   docType: string | null;
   folderId: string | null;
+  score?: number;
+  nsCode?: string | null;
 }
 
 interface TreffListeProps {

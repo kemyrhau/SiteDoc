@@ -2,10 +2,12 @@
 
 import { useState } from "react";
 import { useParams } from "next/navigation";
-import { FileSearch, Search } from "lucide-react";
+import { FileSearch, Search, Brain, BookOpen } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { TreffListe } from "@/components/ftd-sok/treff-liste";
 import { Fulltekst } from "@/components/ftd-sok/fulltekst";
+
+type SokModus = "ai" | "leksikalsk";
 
 export default function DokumentsokSide() {
   const params = useParams<{ prosjektId: string }>();
@@ -15,11 +17,39 @@ export default function DokumentsokSide() {
   const [aktivtSok, setAktivtSok] = useState("");
   const [valgtTreffId, setValgtTreffId] = useState<string | null>(null);
   const [valgtDokumentId, setValgtDokumentId] = useState<string | null>(null);
+  const [modus, setModus] = useState<SokModus>("ai");
 
-  const { data: treff, isLoading } = trpc.ftdSok.sokDokumenter.useQuery(
-    { projectId: prosjektId, query: aktivtSok },
-    { enabled: !!prosjektId && aktivtSok.length > 0 },
+  // Sjekk embedding-status for å vise riktig modus
+  const { data: embeddingStatus } = trpc.aiSok.embeddingStatus.useQuery(
+    { projectId: prosjektId },
+    { enabled: !!prosjektId },
   );
+
+  const harEmbeddings = (embeddingStatus?.ferdig ?? 0) > 0;
+
+  // AI-søk (hybrid vektor + leksikalsk + re-ranking)
+  const {
+    data: aiTreff,
+    isLoading: aiLaster,
+    error: aiError,
+  } = trpc.aiSok.sok.useQuery(
+    { projectId: prosjektId, query: aktivtSok },
+    { enabled: !!prosjektId && aktivtSok.length > 0 && modus === "ai" && harEmbeddings },
+  );
+
+  // Leksikalsk søk (tsvector + ILIKE fallback)
+  const { data: leksTreff, isLoading: leksLaster } =
+    trpc.ftdSok.sokDokumenter.useQuery(
+      { projectId: prosjektId, query: aktivtSok },
+      { enabled: !!prosjektId && aktivtSok.length > 0 && (modus === "leksikalsk" || !harEmbeddings) },
+    );
+
+  const treff = modus === "ai" && harEmbeddings ? aiTreff : leksTreff;
+  const isLoading = modus === "ai" && harEmbeddings ? aiLaster : leksLaster;
+
+  // Fallback til leksikalsk ved AI-feil
+  const brukFallback = modus === "ai" && aiError && leksTreff;
+  const visbareTreff = brukFallback ? leksTreff : treff;
 
   const handleSok = () => {
     if (query.trim()) {
@@ -37,7 +67,7 @@ export default function DokumentsokSide() {
         <h1 className="text-lg font-semibold">Dokumentsøk</h1>
       </div>
 
-      {/* Søkefelt */}
+      {/* Søkefelt + modusveksler */}
       <div className="border-b px-4 py-3">
         <div className="flex gap-2">
           <div className="relative flex-1">
@@ -59,6 +89,40 @@ export default function DokumentsokSide() {
             Søk
           </button>
         </div>
+
+        {/* Modusveksler */}
+        <div className="mt-2 flex items-center gap-1">
+          <button
+            onClick={() => setModus("ai")}
+            className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs transition-colors ${
+              modus === "ai"
+                ? "bg-sitedoc-primary/10 text-sitedoc-primary font-medium"
+                : "text-gray-500 hover:bg-gray-100"
+            }`}
+          >
+            <Brain className="h-3.5 w-3.5" />
+            AI-søk
+            {!harEmbeddings && (
+              <span className="text-[10px] text-gray-400">(ingen embeddings)</span>
+            )}
+          </button>
+          <button
+            onClick={() => setModus("leksikalsk")}
+            className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs transition-colors ${
+              modus === "leksikalsk"
+                ? "bg-sitedoc-primary/10 text-sitedoc-primary font-medium"
+                : "text-gray-500 hover:bg-gray-100"
+            }`}
+          >
+            <BookOpen className="h-3.5 w-3.5" />
+            Tekstsøk
+          </button>
+          {brukFallback && (
+            <span className="text-[10px] text-amber-600">
+              AI-søk feilet — viser tekstsøk
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Resultater */}
@@ -71,7 +135,7 @@ export default function DokumentsokSide() {
             </div>
           ) : aktivtSok ? (
             <TreffListe
-              treff={treff ?? []}
+              treff={visbareTreff ?? []}
               onVelgTreff={(t) => {
                 setValgtTreffId(t.id);
                 setValgtDokumentId(t.documentId);
