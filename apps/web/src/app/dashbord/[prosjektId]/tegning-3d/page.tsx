@@ -831,7 +831,7 @@ export default function Tegning3DSide() {
               </div>
             </div>
             {/* Markør-overlay utenfor transform (faste pikselposisjoner) */}
-            {innholdStr.w > 0 && tegningMarkør && klikkKalibSteg === 0 && (() => {
+            {innholdStr.w > 0 && tegningMarkør && klikkKalibSteg === 0 && !kameraMarkør && (() => {
               const p = pktTilPx(tegningMarkør);
               const v = tegningMarkør.vinkel ?? 0;
               return (
