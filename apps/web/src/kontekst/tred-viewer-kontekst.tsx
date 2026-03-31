@@ -370,9 +370,18 @@ export function ViewerCanvas({
         world.camera.controls?.setLookAt(20, 20, 20, 0, 0, 0);
         if (world.camera.controls) {
           world.camera.controls.minDistance = 0.1;
-          world.camera.controls.dollyToCursor = true;
-          world.camera.controls.dollySpeed = 1.5;
-          world.camera.controls.infinityDolly = true; // Passerer gjennom target — konstant hastighet
+          // Etter zoom: flytt target 5 enheter foran kamera → roter rundt nær akse
+          const ctrl = world.camera.controls;
+          const cam = world.camera.three;
+          container.addEventListener("wheel", () => {
+            requestAnimationFrame(() => {
+              const dir = new THREE.Vector3();
+              cam.getWorldDirection(dir);
+              const pos = cam.position.clone();
+              const nyTarget = pos.add(dir.multiplyScalar(5));
+              ctrl.setTarget(nyTarget.x, nyTarget.y, nyTarget.z, false);
+            });
+          }, { passive: true });
         }
 
         components.init();
