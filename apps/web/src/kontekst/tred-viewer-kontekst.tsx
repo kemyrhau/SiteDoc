@@ -373,25 +373,32 @@ export function ViewerCanvas({
           const cam = world.camera.three;
 
           ctrl.minDistance = 0.01;
-          ctrl.dollyToCursor = true;    // Scroll mot musepekeren
+          ctrl.dollyToCursor = true;    // Scroll zoomer mot musepekeren
           ctrl.dollySpeed = 1.8;
 
-          // Førstepersons-navigering: target = 0.5m foran kamera
-          // → rotasjon skjer nær kameraets akse, ikke rundt et fjernt punkt
-          const TARGET_DIST = 0.5;
-          const oppdaterTarget = () => {
-            const dir = new THREE.Vector3();
-            cam.getWorldDirection(dir);
-            const t = cam.position.clone().add(dir.multiplyScalar(TARGET_DIST));
-            ctrl.setTarget(t.x, t.y, t.z, false);
-          };
-
-          // Oppdater target kontinuerlig under all interaksjon
-          ctrl.addEventListener("control", () => {
-            oppdaterTarget();
+          // Førstepersons-rotasjon: sett target nær kamera ved venstreklikk-start
+          // Berører IKKE scroll (dolly) eller høyreklikk (truck/pan)
+          let erVenstreKlikk = false;
+          container.addEventListener("pointerdown", (e: PointerEvent) => {
+            if (e.button === 0) {
+              erVenstreKlikk = true;
+              // Sett target 0.5m foran kamera → rotasjon rundt ståsted
+              const dir = new THREE.Vector3();
+              cam.getWorldDirection(dir);
+              const t = cam.position.clone().add(dir.multiplyScalar(0.5));
+              ctrl.setTarget(t.x, t.y, t.z, false);
+            }
           });
+          container.addEventListener("pointerup", () => { erVenstreKlikk = false; });
+
+          // Oppdater target etter scroll slik at neste rotasjon bruker ny posisjon
           container.addEventListener("wheel", () => {
-            requestAnimationFrame(oppdaterTarget);
+            requestAnimationFrame(() => {
+              const dir = new THREE.Vector3();
+              cam.getWorldDirection(dir);
+              const t = cam.position.clone().add(dir.multiplyScalar(0.5));
+              ctrl.setTarget(t.x, t.y, t.z, false);
+            });
           }, { passive: true });
         }
 
