@@ -10,6 +10,7 @@ import { tmpdir } from "node:os";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import type { PrismaClient } from "@sitedoc/db";
+import { splittMalebrevPdf } from "./pdf-splitting";
 
 const execFileAsync = promisify(execFile);
 
@@ -49,9 +50,18 @@ export async function prosesserDokument(
     const ext = extname(dok.filename ?? "").toLowerCase();
 
     switch (ext) {
-      case ".pdf":
-        await prosesserPdf(prisma, documentId, buffer, dok.projectId, dok.docType ?? "annet", filsti);
+      case ".pdf": {
+        const sideData = await prosesserPdf(prisma, documentId, buffer, dok.projectId, dok.docType ?? "annet", filsti);
+        // Splitt målebrev per NS-kode hvis mappen har kontraktId (økonomi-mappe)
+        if (dok.folderId && sideData.length > 0) {
+          const mappe = await prisma.folder.findUnique({ where: { id: dok.folderId }, select: { kontraktId: true } });
+          if (mappe?.kontraktId) {
+            await splittMalebrevPdf(prisma, dok.projectId, dok.folderId, buffer, sideData, dok.filename ?? "ukjent.pdf")
+              .catch((err) => console.error(`Splitting feilet for ${documentId}:`, err));
+          }
+        }
         break;
+      }
       case ".xlsx":
       case ".xls":
         await prosesserExcel(
@@ -175,7 +185,7 @@ async function prosesserPdf(
   projectId: string,
   docType: string,
   filsti: string,
-): Promise<void> {
+): Promise<Array<{ side: number; tekst: string }>> {
   // pdf-parse v1 — default export er en funksjon
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const pdfParse = require("pdf-parse") as (buf: Buffer) => Promise<{ text: string; numpages: number }>;
@@ -264,6 +274,8 @@ async function prosesserPdf(
       wordCount: totalTekst.split(/\s+/).filter(Boolean).length,
     },
   });
+
+  return sideData;
 }
 
 /** Indekser PDF-sider til postnr for dokumentasjon per post.

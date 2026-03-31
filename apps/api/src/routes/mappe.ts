@@ -1,7 +1,12 @@
 import { z } from "zod";
+import { join } from "node:path";
+import { readFile } from "node:fs/promises";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { settMappeTilgangSchema } from "@sitedoc/shared/validation";
 import { verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
+import { splittMalebrevPdf } from "../services/pdf-splitting";
+
+const UPLOADS_DIR = join(process.cwd(), "uploads");
 // Prosessering kjøres på API-serveren (ren Node) — ikke i Next.js
 const API_INTERN_URL = `http://localhost:${process.env.API_PORT ?? process.env.PORT ?? "3001"}`;
 
@@ -267,5 +272,47 @@ export const mappeRouter = router({
         where: { id: input.folderId },
         data: { kontraktId: input.kontraktId },
       });
+    }),
+
+  /** Splitt alle PDFer i en mappe per NS-kode/postnr. Bruker OCR-data fra chunks. */
+  splittDokumenter: protectedProcedure
+    .input(z.object({ folderId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const mappe = await ctx.prisma.folder.findUniqueOrThrow({
+        where: { id: input.folderId },
+        select: { id: true, projectId: true, kontraktId: true },
+      });
+      await verifiserProsjektmedlem(ctx.userId, mappe.projectId);
+
+      // Finn alle PDFer i mappen
+      const dokumenter = await ctx.prisma.ftdDocument.findMany({
+        where: { folderId: input.folderId, isActive: true, filetype: "application/pdf" },
+        include: { chunks: { select: { chunkText: true, pageNumber: true }, orderBy: { chunkIndex: "asc" } } },
+      });
+
+      let totaltFiler = 0;
+
+      for (const dok of dokumenter) {
+        if (!dok.fileUrl || dok.chunks.length === 0) continue;
+
+        // Bygg sideData fra eksisterende chunks (OCR allerede kjørt)
+        const sideData: Array<{ side: number; tekst: string }> = [];
+        for (const chunk of dok.chunks) {
+          sideData.push({ side: chunk.pageNumber ?? sideData.length + 1, tekst: chunk.chunkText });
+        }
+
+        try {
+          const filsti = join(UPLOADS_DIR, dok.fileUrl.replace(/^\/uploads\//, ""));
+          const buffer = await readFile(filsti);
+          const antall = await splittMalebrevPdf(
+            ctx.prisma, mappe.projectId, input.folderId, buffer, sideData, dok.filename ?? "ukjent.pdf",
+          );
+          totaltFiler += antall;
+        } catch (err) {
+          console.error(`Splitting feilet for ${dok.filename}:`, err);
+        }
+      }
+
+      return { splitted: totaltFiler, dokumenter: dokumenter.length };
     }),
 });
