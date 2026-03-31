@@ -394,7 +394,6 @@ export function ViewerCanvas({
             e.preventDefault();
             const steg = -e.deltaY / 100; // positiv = fremover
             ctrl.forward(steg * 2.5, false);
-            oppdaterTarget();
           }, { passive: false });
 
           // ── Venstreklikk: sett target nær kamera → rotasjon rundt ståsted ──
