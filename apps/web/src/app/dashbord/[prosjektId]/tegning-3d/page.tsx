@@ -212,6 +212,8 @@ export default function Tegning3DSide() {
     treD: { x: number; y: number; z: number };
   } | null>(null);
   const [kalibTegningGpsB, setKalibTegningGpsB] = useState<{ lat: number; lng: number } | null>(null);
+  const [kalibMarkørA, setKalibMarkørA] = useState<{ x: number; y: number } | null>(null);
+  const [kalibMarkørB, setKalibMarkørB] = useState<{ x: number; y: number } | null>(null);
 
   const utils = trpc.useUtils();
   const settGpsOverrideMutation = trpc.tegning.settGpsOverride.useMutation({
@@ -437,6 +439,8 @@ export default function Tegning3DSide() {
       setKlikkKalibSteg(0);
       setKalibPunktA(null);
       setKalibTegningGpsB(null);
+      setKalibMarkørA(null);
+      setKalibMarkørB(null);
       return;
     }
 
@@ -483,14 +487,15 @@ export default function Tegning3DSide() {
       // Klikk-kalibrering steg 1: lagre tegning-GPS A, gå til steg 2
       if (klikkKalibSteg === 1 && transformasjon) {
         kalibTegningGpsARef.current = tegningTilGps(pxProsent, transformasjon);
+        setKalibMarkørA({ ...pxProsent });
         setKlikkKalibSteg(2);
-        setTegningMarkør({ ...pxProsent });
         return;
       }
 
       // Klikk-kalibrering steg 3: lagre tegning-GPS B, gå til steg 4
       if (klikkKalibSteg === 3 && transformasjon) {
         setKalibTegningGpsB(tegningTilGps(pxProsent, transformasjon));
+        setKalibMarkørB({ ...pxProsent });
         setKlikkKalibSteg(4);
         return;
       }
@@ -611,7 +616,7 @@ export default function Tegning3DSide() {
               {klikkKalibSteg === 4 && "④ Klikk SAMME punkt B i 3D-modellen"}
             </span>
             <button
-              onClick={() => { setKlikkKalibSteg(0); setKalibPunktA(null); setKalibTegningGpsB(null); kalibTegningGpsARef.current = null; }}
+              onClick={() => { setKlikkKalibSteg(0); setKalibPunktA(null); setKalibTegningGpsB(null); setKalibMarkørA(null); setKalibMarkørB(null); kalibTegningGpsARef.current = null; }}
               className="rounded bg-white px-2 py-0.5 text-xs text-gray-500 hover:bg-gray-100"
             >
               Avbryt
@@ -709,20 +714,35 @@ export default function Tegning3DSide() {
               </div>
             </div>
             {/* Markør-overlay utenfor transform (faste pikselposisjoner) */}
-            {innholdStr.w > 0 && tegningMarkør && (() => {
+            {innholdStr.w > 0 && tegningMarkør && klikkKalibSteg === 0 && (() => {
               const p = pktTilPx(tegningMarkør);
               const v = tegningMarkør.vinkel ?? 0;
               return (
                 <>
-                  {/* Retningskjegle */}
                   <div className="pointer-events-none absolute z-20" style={{ left: p.x, top: p.y }}>
                     <svg width="48" height="48" viewBox="-24 -24 48 48" style={{ transform: `rotate(${v}deg)`, overflow: "visible" }}>
                       <path d="M0,0 L20,-10 L20,10 Z" fill="rgba(59,130,246,0.25)" stroke="rgba(59,130,246,0.6)" strokeWidth="1" />
                     </svg>
                   </div>
-                  {/* Senterprikk */}
                   <div className="pointer-events-none absolute z-20 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-500 ring-2 ring-white" style={{ left: p.x, top: p.y }} />
                 </>
+              );
+            })()}
+            {/* Kalibrerings-markører A og B */}
+            {innholdStr.w > 0 && kalibMarkørA && (() => {
+              const p = pktTilPx(kalibMarkørA);
+              return (
+                <div className="pointer-events-none absolute z-20" style={{ left: p.x, top: p.y }}>
+                  <div className="h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-purple-500 text-center text-[10px] font-bold leading-[18px] text-white">A</div>
+                </div>
+              );
+            })()}
+            {innholdStr.w > 0 && kalibMarkørB && (() => {
+              const p = pktTilPx(kalibMarkørB);
+              return (
+                <div className="pointer-events-none absolute z-20" style={{ left: p.x, top: p.y }}>
+                  <div className="h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-orange-500 text-center text-[10px] font-bold leading-[18px] text-white">B</div>
+                </div>
               );
             })()}
             </>
