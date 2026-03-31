@@ -452,4 +452,44 @@ export const mengdeRouter = router({
         ],
       });
     }),
+
+  /** Hent split-dokumentasjon for en NS-kode (fra splittede målebrev) */
+  hentSplitDokumentasjon: protectedProcedure
+    .input(
+      z.object({
+        projectId: z.string().uuid(),
+        kontraktId: z.string().optional(),
+        nsKode: z.string(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      await verifiserProsjektmedlem(ctx.userId, input.projectId);
+
+      const mappeNavn = `Post ${input.nsKode}`;
+
+      // Finn undermappen for denne NS-koden
+      const mappe = await ctx.prisma.folder.findFirst({
+        where: {
+          projectId: input.projectId,
+          name: mappeNavn,
+          parent: input.kontraktId ? { kontraktId: input.kontraktId } : undefined,
+        },
+      });
+
+      if (!mappe) return null;
+
+      // Finn split-dokumentet
+      const dok = await ctx.prisma.ftdDocument.findFirst({
+        where: { folderId: mappe.id, isActive: true },
+        select: {
+          id: true,
+          filename: true,
+          fileUrl: true,
+          pageCount: true,
+          splitSources: true,
+        },
+      });
+
+      return dok;
+    }),
 });

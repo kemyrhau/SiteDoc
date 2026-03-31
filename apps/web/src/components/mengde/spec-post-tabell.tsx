@@ -120,7 +120,7 @@ export function SpecPostTabell({
 
   const harSammenligning = !!sammenligningPoster && sammenligningPoster.length > 0;
 
-  // Samle alle unike NS-koder for batch-sjekk mot NS 3420
+  // Samle alle unike NS-koder for batch-sjekk (NS 3420 + split-dokumentasjon)
   const alleNsKoder = useMemo(() => {
     const koder = new Set<string>();
     for (const p of poster) {
@@ -130,6 +130,7 @@ export function SpecPostTabell({
     return Array.from(koder);
   }, [poster]);
 
+  // NS 3420 standard-dokumentasjon
   const { data: nsKoderMedDok } = trpc.ftdSok.nsKoderMedDok.useQuery(
     { projectId: prosjektId!, nsKoder: alleNsKoder },
     { enabled: !!prosjektId && alleNsKoder.length > 0 },
@@ -445,13 +446,17 @@ export function SpecPostTabell({
                     <div className="text-sm text-gray-700">{p.eksternNotat}</div>
                   </div>
                 )}
-                {p.postnr && prosjektId && (
-                  <DokumentasjonSeksjon
-                    prosjektId={prosjektId}
-                    kontraktId={kontraktId ?? null}
-                    postnr={p.postnr}
-                  />
-                )}
+                {p.postnr && prosjektId && (() => {
+                  const nsInfo = finnNsKode(p, poster);
+                  return (
+                    <DokumentasjonSeksjon
+                      prosjektId={prosjektId}
+                      kontraktId={kontraktId ?? null}
+                      postnr={p.postnr}
+                      nsKode={nsInfo?.nsKode ?? null}
+                    />
+                  );
+                })()}
               </div>
             </div>
           </div>
@@ -488,80 +493,99 @@ function Kort({ label, verdi, sub, bg, mono = true, compact }: {
   );
 }
 
+interface SplitKilde {
+  filnavn: string;
+  dokumentId: string;
+  kildeSider: number[];
+  startSide: number;
+}
+
 function DokumentasjonSeksjon({
   prosjektId,
   kontraktId,
   postnr,
+  nsKode,
 }: {
   prosjektId: string;
   kontraktId: string | null;
   postnr: string;
+  nsKode: string | null;
 }) {
-  const { data: sider, isLoading } = trpc.mengde.hentDokumentasjonForPost.useQuery(
-    { projectId: prosjektId, kontraktId: kontraktId ?? undefined, postnr },
-    { enabled: !!postnr },
+  // Hent split-dokumentasjon basert på NS-kode
+  const { data: splitDok, isLoading } = trpc.mengde.hentSplitDokumentasjon.useQuery(
+    { projectId: prosjektId, kontraktId: kontraktId ?? undefined, nsKode: nsKode! },
+    { enabled: !!nsKode },
   );
 
-  // Grupper per dokument
-  const gruppert = useMemo(() => {
-    if (!sider || sider.length === 0) return [];
-    const map = new Map<string, { dok: (typeof sider)[0]["document"]; pages: number[] }>();
-    for (const s of sider) {
-      const entry = map.get(s.document.id);
-      if (entry) {
-        entry.pages.push(s.pageNumber);
-      } else {
-        map.set(s.document.id, { dok: s.document, pages: [s.pageNumber] });
-      }
-    }
-    return Array.from(map.values()).map((g) => ({
-      ...g,
-      pages: g.pages.sort((a, b) => a - b),
-    }));
-  }, [sider]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const kilder: SplitKilde[] = Array.isArray((splitDok as any)?.splitSources) ? (splitDok as any).splitSources : [];
 
-  const apnePdf = (fileUrl: string | null, side: number) => {
+  const apnePdf = (fileUrl: string | null, side?: number) => {
     if (!fileUrl) return;
-    window.open(`/api${fileUrl}#page=${side}`, "_blank");
+    const url = side ? `/api${fileUrl}#page=${side}` : `/api${fileUrl}`;
+    window.open(url, "_blank");
   };
+
+  /** Formater siderange: [1,2,3,5,6] → "s.1-3, s.5-6" */
+  function fmtRange(start: number, antall: number): string {
+    if (antall === 1) return `s.${start}`;
+    return `s.${start}-${start + antall - 1}`;
+  }
+
+  /** Ekstraher A-nota nummer fra filnavn */
+  function fmtKilde(filnavn: string): string {
+    const m = /(\d+)\s*[Mm]ålebrev/i.exec(filnavn) || /a-nota\s*(\d+)/i.exec(filnavn);
+    return m ? `A-nota ${m[1]}` : filnavn.replace(/\.pdf$/i, "");
+  }
 
   return (
     <div className="rounded border p-3">
       <div className="mb-2 flex items-center gap-1.5 text-xs font-medium text-gray-500">
         <FileSearch className="h-3.5 w-3.5" />
-        Dokumentasjon for post {postnr}
+        Dokumentasjon{nsKode ? ` — ${nsKode}` : ` for post ${postnr}`}
       </div>
       {isLoading ? (
         <div className="flex items-center gap-1.5 text-xs text-gray-400">
           <Loader2 className="h-3 w-3 animate-spin" />
           Søker...
         </div>
-      ) : gruppert.length === 0 ? (
+      ) : !splitDok ? (
         <div className="rounded bg-amber-50 px-3 py-2 text-xs text-amber-600">
-          Ingen dokumentasjon funnet. Koble en mappe med målebrev til kontrakten for å se dokumentasjon her.
+          Ingen dokumentasjon funnet.
         </div>
       ) : (
         <div className="space-y-2">
-          {gruppert.map((g) => (
-            <div key={g.dok.id}>
-              <div className="text-xs font-medium text-gray-600 truncate" title={g.dok.filename}>
-                {g.dok.filename}
-              </div>
-              <div className="flex flex-wrap gap-1 mt-0.5">
-                {g.pages.map((side) => (
-                  <button
-                    key={side}
-                    onClick={() => apnePdf(g.dok.fileUrl, side)}
-                    className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-mono text-gray-600 hover:bg-sitedoc-secondary hover:text-white transition-colors"
-                    title={`Åpne side ${side}`}
-                  >
-                    s.{side}
-                  </button>
-                ))}
-              </div>
+          {/* Åpne hele split-PDFen */}
+          <button
+            onClick={() => apnePdf(splitDok.fileUrl)}
+            className="flex items-center gap-1.5 rounded bg-sitedoc-primary/10 px-2 py-1.5 text-xs font-medium text-sitedoc-primary hover:bg-sitedoc-primary/20 transition-colors"
+          >
+            <FileSearch className="h-3.5 w-3.5" />
+            Åpne dokumentasjon ({splitDok.pageCount} sider)
+          </button>
+
+          {/* Kilder per A-nota */}
+          {kilder.length > 0 && (
+            <div className="space-y-1">
+              {kilder.map((k, i) => (
+                <button
+                  key={i}
+                  onClick={() => apnePdf(splitDok.fileUrl, k.startSide)}
+                  className="flex w-full items-center justify-between rounded px-2 py-1 text-xs hover:bg-gray-50 transition-colors"
+                  title={`Åpne side ${k.startSide}`}
+                >
+                  <span className="font-medium text-gray-700">{fmtKilde(k.filnavn)}</span>
+                  <span className="font-mono text-gray-500">
+                    {fmtRange(k.startSide, k.kildeSider.length)}
+                  </span>
+                </button>
+              ))}
             </div>
-          ))}
-          <div className="text-[10px] text-gray-400">{sider?.length} sider fra {gruppert.length} dokument{gruppert.length > 1 ? "er" : ""}</div>
+          )}
+
+          <div className="text-[10px] text-gray-400">
+            {splitDok.pageCount} sider fra {kilder.length} målebrev
+          </div>
         </div>
       )}
     </div>
