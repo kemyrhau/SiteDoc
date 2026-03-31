@@ -512,15 +512,17 @@ export default function Tegning3DSide() {
         // fordi target ligger nærmere det man faktisk ser på
         const fokus = kam.target;
 
+        // Retningsberegning: bruk stort offset (10000 enheter) for presisjon i mm-modeller
+        const retOff = 10000;
         if (kalibTransform && treDTilTegning) {
           pkt = treDTilTegning(fokus);
-          const fremPunkt = { x: fokus.x + kam.retning.x * 10, z: fokus.z + kam.retning.z * 10 };
+          const fremPunkt = { x: fokus.x + kam.retning.x * retOff, z: fokus.z + kam.retning.z * retOff };
           retPkt = treDTilTegning(fremPunkt);
         } else if (transformasjon && ifcOpprinnelse) {
           const gps = tredjeTilGpsRotert(fokus);
           if (gps) {
             pkt = gpsTilTegning(gps, transformasjon);
-            const retGps = tredjeTilGpsRotert({ x: fokus.x + kam.retning.x * 10, y: fokus.y, z: fokus.z + kam.retning.z * 10 });
+            const retGps = tredjeTilGpsRotert({ x: fokus.x + kam.retning.x * retOff, y: fokus.y, z: fokus.z + kam.retning.z * retOff });
             if (retGps) retPkt = gpsTilTegning(retGps, transformasjon);
           }
         }
