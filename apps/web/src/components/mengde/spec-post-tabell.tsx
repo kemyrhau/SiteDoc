@@ -512,10 +512,11 @@ function DokumentasjonSeksjon({
   nsKode: string | null;
 }) {
   // Hent split-dokumentasjon basert på NS-kode
-  const { data: splitDok, isLoading } = trpc.mengde.hentSplitDokumentasjon.useQuery(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: splitDok, isLoading } = (trpc.mengde.hentSplitDokumentasjon as any).useQuery(
     { projectId: prosjektId, kontraktId: kontraktId ?? undefined, nsKode: nsKode! },
     { enabled: !!nsKode },
-  );
+  ) as { data: { id: string; filename: string; fileUrl: string | null; pageCount: number | null; splitSources: unknown } | null | undefined; isLoading: boolean };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const kilder: SplitKilde[] = Array.isArray((splitDok as any)?.splitSources) ? (splitDok as any).splitSources : [];
