@@ -388,21 +388,13 @@ export function ViewerCanvas({
             ctrl.setTarget(t.x, t.y, t.z, false);
           }
 
-          // ── Scroll: flytt kamera langs blikkretning ──
-          // Ikke dolly (som begrenses av target) — direkte posisjonsflytt.
-          // Asymmetrisk: fremover raskere enn bakover.
+          // ── Scroll: flytt kamera fremover/bakover ──
+          // Bruker ctrl.forward() som respekterer orbit-kontrollens interne tilstand.
           container.addEventListener("wheel", (e: WheelEvent) => {
             e.preventDefault();
-            const fremover = e.deltaY < 0;
-            const steg = Math.abs(e.deltaY) / 100;
-            const avstand = 2.5 * steg * (fremover ? 1 : -1);
-            // Blikkretning projisert på XZ-planet (ingen vertikal drift)
-            const dir = blikkretning();
-            dir.y = 0;
-            dir.normalize();
-            const nyPos = cam.position.clone().addScaledVector(dir, avstand);
-            const nyTarget = nyPos.clone().addScaledVector(blikkretning(), 2);
-            ctrl.setLookAt(nyPos.x, nyPos.y, nyPos.z, nyTarget.x, nyTarget.y, nyTarget.z, false);
+            const steg = -e.deltaY / 100; // positiv = fremover
+            ctrl.forward(steg * 2.5, false);
+            oppdaterTarget();
           }, { passive: false });
 
           // ── Venstreklikk: sett target nær kamera → rotasjon rundt ståsted ──
