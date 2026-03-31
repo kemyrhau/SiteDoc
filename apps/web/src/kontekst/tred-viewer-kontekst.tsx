@@ -379,9 +379,10 @@ export function ViewerCanvas({
           // Asymmetrisk scroll: raskere fremover (inn), tregere bakover (ut)
           container.addEventListener("wheel", (e: WheelEvent) => {
             e.preventDefault();
-            const fremover = e.deltaY < 0; // scroll opp = fremover
-            const fart = fremover ? 2.5 : 0.8;
-            ctrl.dolly(fart * Math.sign(-e.deltaY), true);
+            const fremover = e.deltaY < 0;
+            const steg = Math.abs(e.deltaY) / 100; // normalisér scroll-steg
+            const fart = fremover ? 5.0 : 1.5;
+            ctrl.dolly(fart * steg * (fremover ? 1 : -1), true);
           }, { passive: false });
 
           // Førstepersons-rotasjon: sett target nær kamera ved venstreklikk-start
