@@ -395,11 +395,12 @@ export const tegningRouter = router({
     .mutation(async ({ ctx, input }) => {
       const tegning = await ctx.prisma.drawing.findUniqueOrThrow({ where: { id: input.drawingId }, select: { projectId: true } });
       await verifiserProsjektmedlem(ctx.userId, tegning.projectId);
-      const data: Record<string, unknown> = { lat: input.lat, lng: input.lng };
-      if (input.rotasjon !== undefined) data.rotasjon = input.rotasjon;
+      const gpsData = input.rotasjon !== undefined
+        ? { lat: input.lat, lng: input.lng, rotasjon: input.rotasjon }
+        : { lat: input.lat, lng: input.lng };
       return ctx.prisma.drawing.update({
         where: { id: input.drawingId },
-        data: { gpsOverride: data },
+        data: { gpsOverride: gpsData as Prisma.InputJsonValue },
       });
     }),
 
