@@ -175,15 +175,6 @@ export default function Tegning3DSide() {
     return { x: (a * dx - b * dz) / det, y: (b * dx + a * dz) / det };
   }, [kalibTransform]);
 
-  /** 3D delta → tegning% delta (kun lineærdelen, ingen offset-feil) */
-  const treDDeltaTilTegning = useCallback((dx3d: number, dz3d: number): { dx: number; dy: number } | null => {
-    if (!kalibTransform) return null;
-    const { a, b } = kalibTransform;
-    const det = a * a + b * b;
-    if (det < 1e-10) return null;
-    return { dx: (a * dx3d - b * dz3d) / det, dy: (b * dx3d + a * dz3d) / det };
-  }, [kalibTransform]);
-
   // Fallback: GPS-basert konvertering (uten kalibrering)
   const gpsTil3DRotert = useCallback((gps: { lat: number; lng: number }, hoyde: number = 0) => {
     if (!ifcOpprinnelse) return null;
@@ -502,12 +493,11 @@ export default function Tegning3DSide() {
     }
   }, [valgtObjekt]); // eslint-disable-line
 
-  // Live kamera-tracking: inkrementell delta
-  // Starter fra klikk-posisjon (korrekt) eller approx fra treDTilTegning
-  const forrigeKamPosRef = useRef<{ x: number; z: number } | null>(null);
+  // Live kamera-tracking på tegningen
+  const [kameraMarkør, setKameraMarkør] = useState<{ x: number; y: number; vinkel: number } | null>(null);
   useEffect(() => {
-    if (!synkAktiv || !kalibTransform) {
-      forrigeKamPosRef.current = null;
+    if (!synkAktiv || klikkKalibSteg > 0 || (!kalibTransform && !transformasjon)) {
+      setKameraMarkør(null);
       return;
     }
     let aktiv = true;
@@ -515,30 +505,45 @@ export default function Tegning3DSide() {
       if (!aktiv) return;
       const kam = viewerRef.current?.hentKameraPosisjon();
       if (kam) {
-        const nåPos = { x: kam.pos.x, z: kam.pos.z };
+        let pkt: { x: number; y: number } | null = null;
+        let retPkt: { x: number; y: number } | null = null;
 
-        // Vent på klikk-posisjon — starter tracking derfra
-        if (!forrigeKamPosRef.current) {
-          forrigeKamPosRef.current = nåPos;
-        }
+        // Bruk cam.position (kameraet holder seg nå på plass med target=0.01)
+        const fokus = kam.pos;
 
-        if (forrigeKamPosRef.current) {
-          const dx3d = nåPos.x - forrigeKamPosRef.current.x;
-          const dz3d = nåPos.z - forrigeKamPosRef.current.z;
-          if (Math.abs(dx3d) > 0.001 || Math.abs(dz3d) > 0.001) {
-            const delta = treDDeltaTilTegning(dx3d, dz3d);
-            if (delta) {
-              setTegningMarkør((prev) => prev ? { x: prev.x + delta.dx, y: prev.y + delta.dy } : prev);
-            }
+        // Retning: vektor fra kameraposisjon mot target (der kameraet ser)
+        // Mye mer pålitelig enn getWorldDirection
+        const retX = kam.target.x - kam.pos.x;
+        const retZ = kam.target.z - kam.pos.z;
+        const retLen = Math.sqrt(retX * retX + retZ * retZ) || 1;
+        // Normalisér og skalér opp for presisjon i mm-modeller
+        const retOff = 10000;
+        const normRetX = (retX / retLen) * retOff;
+        const normRetZ = (retZ / retLen) * retOff;
+
+        if (kalibTransform && treDTilTegning) {
+          pkt = treDTilTegning(fokus);
+          retPkt = treDTilTegning({ x: fokus.x + normRetX, z: fokus.z + normRetZ });
+        } else if (transformasjon && ifcOpprinnelse) {
+          const gps = tredjeTilGpsRotert(fokus);
+          if (gps) {
+            pkt = gpsTilTegning(gps, transformasjon);
+            const retGps = tredjeTilGpsRotert({ x: fokus.x + normRetX, y: fokus.y, z: fokus.z + normRetZ });
+            if (retGps) retPkt = gpsTilTegning(retGps, transformasjon);
           }
         }
-        forrigeKamPosRef.current = nåPos;
+
+        if (pkt) {
+          let vinkel = 0;
+          if (retPkt) vinkel = Math.atan2(retPkt.y - pkt.y, retPkt.x - pkt.x) * (180 / Math.PI);
+          setKameraMarkør({ x: pkt.x, y: pkt.y, vinkel });
+        }
       }
       requestAnimationFrame(oppdater);
     }
     requestAnimationFrame(oppdater);
     return () => { aktiv = false; };
-  }, [synkAktiv, kalibTransform, viewerRef, treDDeltaTilTegning, treDTilTegning]);
+  }, [synkAktiv, kalibTransform, transformasjon, ifcOpprinnelse, klikkKalibSteg, viewerRef, treDTilTegning, tredjeTilGpsRotert]);
 
   const tegningUrl = valgtTegning?.fileUrl
     ? valgtTegning.fileUrl.startsWith("/api") ? valgtTegning.fileUrl : `/api${valgtTegning.fileUrl}`
@@ -611,7 +616,6 @@ export default function Tegning3DSide() {
       } else return;
 
       setTegningMarkør({ ...pxProsent });
-      forrigeKamPosRef.current = null; // Nullstill delta-tracking ved ny navigering
       viewerRef.current?.flyTil(flyX, 0, flyZ, gulvY ?? undefined);
     },
     [synkAktiv, transformasjon, ifcOpprinnelse, coordSystem, viewerRef, klikkKalibSteg, finjusterSteg],
@@ -826,19 +830,13 @@ export default function Tegning3DSide() {
               </div>
             </div>
             {/* Markør-overlay utenfor transform (faste pikselposisjoner) */}
-            {/* Kamera-posisjon (blå prikk) */}
+            {/* Kamera-posisjon (blå prikk fra klikk-navigering) */}
             {innholdStr.w > 0 && tegningMarkør && klikkKalibSteg === 0 && (() => {
               const p = pktTilPx(tegningMarkør);
               return (
                 <div className="pointer-events-none absolute z-20 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-500 ring-2 ring-white" style={{ left: p.x, top: p.y }} />
               );
             })()}
-            {/* Hint: klikk for å starte tracking */}
-            {synkAktiv && kalibTransform && !tegningMarkør && (
-              <div className="pointer-events-none absolute bottom-3 left-3 z-20 rounded bg-blue-600/80 px-2.5 py-1 text-xs text-white">
-                Klikk på tegningen for å plassere kamera
-              </div>
-            )}
             {/* Kalibrerings-markører A og B */}
             {innholdStr.w > 0 && kalibMarkørA && (() => {
               const p = pktTilPx(kalibMarkørA);
