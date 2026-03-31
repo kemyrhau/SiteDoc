@@ -163,7 +163,7 @@ export const ftdSokRouter = router({
       `;
     }),
 
-  /** Batch-sjekk: hvilke NS-koder har dokumentasjon i NS 3420-filer */
+  /** Batch-sjekk: hvilke NS-koder har split-dokumentasjon (undermapper) */
   nsKoderMedDok: protectedProcedure
     .input(
       z.object({
@@ -174,19 +174,12 @@ export const ftdSokRouter = router({
     .query(async ({ ctx, input }) => {
       await verifiserProsjektmedlem(ctx.userId, input.projectId);
       if (input.nsKoder.length === 0) return [];
-      // Finn alle unike NS-koder som har minst én chunk-match i NS 3420-dokumenter
-      const treff = await ctx.prisma.$queryRaw<Array<{ nsKode: string }>>`
-        SELECT DISTINCT unnest AS "nsKode"
-        FROM unnest(${input.nsKoder}::text[])
-        WHERE EXISTS (
-          SELECT 1 FROM ftd_document_chunks c
-          JOIN ftd_documents d ON d.id = c.document_id
-          WHERE d.project_id = ${input.projectId}
-            AND d.is_active = true
-            AND d.filename LIKE '%3420%'
-            AND c.chunk_text ILIKE '%' || unnest || '%'
-        )
-      `;
-      return treff.map((t) => t.nsKode);
+      // Sjekk hvilke undermapper "Post {kode}" som finnes — mye raskere enn ILIKE-søk
+      const mappeNavn = input.nsKoder.map((k) => `Post ${k}`);
+      const mapper = await ctx.prisma.folder.findMany({
+        where: { projectId: input.projectId, name: { in: mappeNavn } },
+        select: { name: true },
+      });
+      return mapper.map((m) => m.name.replace("Post ", ""));
     }),
 });
