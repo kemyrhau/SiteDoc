@@ -14,6 +14,7 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 | [docs/claude/shared-pakker.md](docs/claude/shared-pakker.md) | @sitedoc/shared typer + validering + utils, @sitedoc/ui komponenter |
 | [docs/claude/infrastruktur.md](docs/claude/infrastruktur.md) | Deploy, server, env-filer, EAS Build, TestFlight, OAuth |
 | [docs/claude/terminologi.md](docs/claude/terminologi.md) | Alle termer og definisjoner |
+| [docs/claude/ai-sok.md](docs/claude/ai-sok.md) | AI-søk plan: embedding, hybrid søk, RAG, settings UI, testing UI |
 
 **Ved "oppdater CLAUDE.md"**: oppdater den relevante detalj-filen i `docs/claude/`, ikke denne hovedfilen (med mindre det gjelder tech stack, struktur, kommandoer, kodestil eller regler).
 
