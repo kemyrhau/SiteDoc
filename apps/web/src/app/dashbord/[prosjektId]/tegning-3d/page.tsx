@@ -455,6 +455,37 @@ export default function Tegning3DSide() {
     setTegningMarkør(gpsTilTegning(gps, transformasjon));
   }, [valgtObjekt]); // eslint-disable-line
 
+  // Live kamera-tracking på tegningen
+  const [kameraMarkør, setKameraMarkør] = useState<{ x: number; y: number; vinkel: number } | null>(null);
+  useEffect(() => {
+    if (!synkAktiv || !transformasjon || !ifcOpprinnelse || klikkKalibSteg > 0) {
+      setKameraMarkør(null);
+      return;
+    }
+    let aktiv = true;
+    function oppdater() {
+      if (!aktiv) return;
+      const kam = viewerRef.current?.hentKameraPosisjon();
+      if (kam && transformasjon) {
+        const gps = tredjeTilGpsRotert(kam.pos);
+        if (gps) {
+          const pkt = gpsTilTegning(gps, transformasjon);
+          // Retning: konverter 3D-retning til tegning-vinkel
+          const retGps = tredjeTilGpsRotert({ x: kam.pos.x + kam.retning.x * 10, y: kam.pos.y, z: kam.pos.z + kam.retning.z * 10 });
+          let vinkel = 0;
+          if (retGps) {
+            const retPkt = gpsTilTegning(retGps, transformasjon);
+            vinkel = Math.atan2(retPkt.y - pkt.y, retPkt.x - pkt.x) * (180 / Math.PI);
+          }
+          setKameraMarkør({ x: pkt.x, y: pkt.y, vinkel });
+        }
+      }
+      requestAnimationFrame(oppdater);
+    }
+    requestAnimationFrame(oppdater);
+    return () => { aktiv = false; };
+  }, [synkAktiv, transformasjon, ifcOpprinnelse, klikkKalibSteg, viewerRef, tredjeTilGpsRotert]);
+
   const tegningUrl = valgtTegning?.fileUrl
     ? valgtTegning.fileUrl.startsWith("/api") ? valgtTegning.fileUrl : `/api${valgtTegning.fileUrl}`
     : null;
@@ -743,6 +774,20 @@ export default function Tegning3DSide() {
                 <div className="pointer-events-none absolute z-20" style={{ left: p.x, top: p.y }}>
                   <div className="h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-orange-500 text-center text-[10px] font-bold leading-[18px] text-white">B</div>
                 </div>
+              );
+            })()}
+            {/* Live kamera-posisjon og blikkretning */}
+            {innholdStr.w > 0 && kameraMarkør && (() => {
+              const p = pktTilPx(kameraMarkør);
+              return (
+                <>
+                  <div className="pointer-events-none absolute z-30" style={{ left: p.x, top: p.y }}>
+                    <svg width="80" height="80" viewBox="-40 -40 80 80" style={{ transform: `rotate(${kameraMarkør.vinkel}deg)`, overflow: "visible" }}>
+                      <path d="M0,0 L30,-18 L30,18 Z" fill="rgba(59,130,246,0.15)" stroke="rgba(59,130,246,0.4)" strokeWidth="1" />
+                    </svg>
+                  </div>
+                  <div className="pointer-events-none absolute z-30 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-600 ring-2 ring-white" style={{ left: p.x, top: p.y }} />
+                </>
               );
             })()}
             </>

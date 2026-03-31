@@ -1091,6 +1091,14 @@ export function ViewerCanvas({
             );
           },
           sisteKlikkPunkt: () => sisteKlikkPunkt3D,
+          hentKameraPosisjon: () => {
+            const cam = world.camera.three;
+            if (!cam) return null;
+            const pos = cam.position;
+            const dir = new THREE.Vector3();
+            cam.getWorldDirection(dir);
+            return { pos: { x: pos.x, y: pos.y, z: pos.z }, retning: { x: dir.x, y: dir.y, z: dir.z } };
+          },
           settEtasjeKlipp: (nedre: number, øvre: number) => {
             // Fjern eksisterende etasjeklipp-plan
             clipper.deleteAll();
