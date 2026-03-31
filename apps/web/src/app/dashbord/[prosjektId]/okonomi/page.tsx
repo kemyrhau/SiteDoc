@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useRef, useCallback } from "react";
+import { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { BarChart3, Upload, FileText, Trash2, Loader2, CheckCircle, AlertCircle, RefreshCw, Plus, Pencil, FileSearch } from "lucide-react";
@@ -45,6 +45,13 @@ export default function OkonomiSide() {
     { projectId: prosjektId },
     { enabled: !!prosjektId },
   );
+
+  // Auto-velg kontrakt hvis det bare er én
+  useEffect(() => {
+    if (kontrakter && kontrakter.length === 1 && !kontraktId) {
+      setKontraktId(kontrakter[0]!.id);
+    }
+  }, [kontrakter, kontraktId]);
 
   const utils2 = trpc.useUtils();
 
@@ -141,7 +148,7 @@ export default function OkonomiSide() {
       projectId: prosjektId,
       kontraktId: kontraktId ?? undefined,
     },
-    { enabled: !!prosjektId && !budsjettDokId },
+    { enabled: !!prosjektId && !!kontraktId && !budsjettDokId },
   );
 
   const poster = budsjettPoster ?? allePoster;
@@ -185,7 +192,7 @@ export default function OkonomiSide() {
               setValgtNotaNr(null);
             }}
           >
-            <option value="">Alle kontrakter</option>
+            <option value="">Velg kontrakt</option>
             {kontrakter?.map((k) => (
               <option key={k.id} value={k.id}>
                 {k.navn}
