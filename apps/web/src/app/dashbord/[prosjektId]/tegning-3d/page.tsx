@@ -440,6 +440,8 @@ export default function Tegning3DSide() {
       return;
     }
 
+    // Blokkér normal synk under kalibrering
+    if (klikkKalibSteg > 0) return;
     if (!ifcOpprinnelse) return;
 
     // Normal synk (med rotasjon)
@@ -492,6 +494,9 @@ export default function Tegning3DSide() {
         setKlikkKalibSteg(4);
         return;
       }
+
+      // Blokkér synk under kalibrering
+      if (klikkKalibSteg > 0) return;
 
       // Synk-modus (med rotasjon)
       if (!synkAktiv || !transformasjon || !ifcOpprinnelse) return;
