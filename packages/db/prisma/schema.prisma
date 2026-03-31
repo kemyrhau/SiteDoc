@@ -781,6 +781,7 @@ model FtdDocument {
   entreprenor     String?  @map("entreprenor")
   pageCount       Int?     @map("page_count")
   wordCount       Int?     @map("word_count")
+  splitSources    Json?    @map("split_sources") // [{filnavn, dokumentId, kildeSider, startSide}]
 
   // Header-verdier fra A-nota/Sluttnota PDF
   utfortPr              DateTime? @map("utfort_pr")

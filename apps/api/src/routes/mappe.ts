@@ -305,7 +305,7 @@ export const mappeRouter = router({
           const filsti = join(UPLOADS_DIR, dok.fileUrl.replace(/^\/uploads\//, ""));
           const buffer = await readFile(filsti);
           const antall = await splittMalebrevPdf(
-            ctx.prisma, mappe.projectId, input.folderId, buffer, sideData, dok.filename ?? "ukjent.pdf",
+            ctx.prisma, mappe.projectId, input.folderId, buffer, sideData, dok.filename ?? "ukjent.pdf", dok.id,
           );
           totaltFiler += antall;
         } catch (err) {

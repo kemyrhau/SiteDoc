@@ -56,7 +56,7 @@ export async function prosesserDokument(
         if (dok.folderId && sideData.length > 0) {
           const mappe = await prisma.folder.findUnique({ where: { id: dok.folderId }, select: { kontraktId: true } });
           if (mappe?.kontraktId) {
-            await splittMalebrevPdf(prisma, dok.projectId, dok.folderId, buffer, sideData, dok.filename ?? "ukjent.pdf")
+            await splittMalebrevPdf(prisma, dok.projectId, dok.folderId, buffer, sideData, dok.filename ?? "ukjent.pdf", documentId)
               .catch((err) => console.error(`Splitting feilet for ${documentId}:`, err));
           }
         }

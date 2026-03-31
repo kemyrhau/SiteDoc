@@ -3,9 +3,10 @@
  *
  * Flyt:
  * 1. OCR (allerede kjørt) → sideData med tekst per side
- * 2. Ekstraher NS-kode fra hver side (linje 5 typisk, eller POST-regex)
+ * 2. Ekstraher NS-kode fra hver side (linje 1-10, eller POST-regex)
  * 3. Grupper sider per kode
  * 4. For hver kode: opprett/append PDF i undermapper
+ * 5. Lagre kilde-info (splitSources) for sporbarhet
  */
 import { join } from "node:path";
 import { readFile, writeFile, mkdir } from "node:fs/promises";
@@ -20,6 +21,13 @@ const NS_KODE_PAT = /^([A-Z]{1,3}\d[\w.]*[A-Z]?)\s*$/m;
 
 // POST-regex (fallback for prosjekter som bruker numerisk format)
 const POST_PAT = /POST\s*(?:nr\.?\s*)?(\d{1,2}(?:[.\-]\d{1,2}){1,6})/gi;
+
+interface SplitKilde {
+  filnavn: string;
+  dokumentId: string;
+  kildeSider: number[];   // sidenr i kildefilen
+  startSide: number;      // startside i split-PDFen
+}
 
 /** Ekstraher NS-kode eller postnr fra sidetekst */
 function finnPostIdentifikator(tekst: string): string | null {
@@ -68,14 +76,7 @@ function grupperSiderPerPost(
 
 /**
  * Splitt en målebrev-PDF per NS-kode og lagre i undermapper.
- *
- * @param prisma - Prisma-klient
- * @param projectId - Prosjekt-ID
- * @param parentFolderId - Mappen PDFen ble lastet opp i (Dokumentasjon)
- * @param originalBuffer - Original PDF-buffer
- * @param sideData - OCR-tekst per side
- * @param kildeFilnavn - Opprinnelig filnavn (for logging)
- * @returns Antall opprettede/oppdaterte filer
+ * Lagrer kilde-info (splitSources) for sporbarhet i UI.
  */
 export async function splittMalebrevPdf(
   prisma: PrismaClient,
@@ -84,6 +85,7 @@ export async function splittMalebrevPdf(
   originalBuffer: Buffer,
   sideData: Array<{ side: number; tekst: string }>,
   kildeFilnavn: string,
+  kildeDokumentId?: string,
 ): Promise<number> {
   const grupper = grupperSiderPerPost(sideData);
   if (grupper.size === 0) {
@@ -115,8 +117,12 @@ export async function splittMalebrevPdf(
       where: { projectId, folderId: mappe.id, filename: filnavn, isActive: true },
     });
 
+    // Hent eksisterende kilder
+    const eksisterendeKilder: SplitKilde[] = (eksisterende?.splitSources as SplitKilde[] | null) ?? [];
+
     // Bygg ny PDF med sidene
     const nyPdf = await PDFDocument.create();
+    let eksisterendeAntallSider = 0;
 
     // Hvis eksisterende: kopier gamle sider først (append-modus)
     if (eksisterende?.fileUrl) {
@@ -129,6 +135,7 @@ export async function splittMalebrevPdf(
         for (const side of kopierteSider) {
           nyPdf.addPage(side);
         }
+        eksisterendeAntallSider = gamleIndekser.length;
       } catch {
         console.warn(`[SPLIT] Kunne ikke lese eksisterende ${filnavn}, oppretter ny`);
       }
@@ -141,6 +148,15 @@ export async function splittMalebrevPdf(
       nyPdf.addPage(side);
     }
 
+    // Oppdater kilder-liste
+    const nyKilde: SplitKilde = {
+      filnavn: kildeFilnavn,
+      dokumentId: kildeDokumentId ?? "",
+      kildeSider: sider,
+      startSide: eksisterendeAntallSider + 1,
+    };
+    const oppdaterteKilder = [...eksisterendeKilder, nyKilde];
+
     // Lagre til disk
     const pdfBytes = await nyPdf.save();
     const uuid = randomUUID();
@@ -152,17 +168,16 @@ export async function splittMalebrevPdf(
     const fileUrl = `/uploads/${diskFilnavn}`;
 
     if (eksisterende) {
-      // Oppdater eksisterende dokument
       await prisma.ftdDocument.update({
         where: { id: eksisterende.id },
         data: {
           fileUrl,
           pageCount: nyPdf.getPageCount(),
           processingState: "completed",
+          splitSources: oppdaterteKilder as unknown as Parameters<typeof prisma.ftdDocument.create>[0]["data"]["splitSources"],
         },
       });
     } else {
-      // Opprett nytt dokument
       await prisma.ftdDocument.create({
         data: {
           projectId,
@@ -172,12 +187,13 @@ export async function splittMalebrevPdf(
           filetype: "application/pdf",
           pageCount: nyPdf.getPageCount(),
           processingState: "completed",
+          splitSources: oppdaterteKilder as unknown as Parameters<typeof prisma.ftdDocument.create>[0]["data"]["splitSources"],
         },
       });
     }
 
     antallFiler++;
-    console.log(`[SPLIT] ${kode}: ${sider.length} nye sider → ${nyPdf.getPageCount()} totalt`);
+    console.log(`[SPLIT] ${kode}: ${sider.length} nye sider (fra ${kildeFilnavn}) → ${nyPdf.getPageCount()} totalt`);
   }
 
   return antallFiler;
