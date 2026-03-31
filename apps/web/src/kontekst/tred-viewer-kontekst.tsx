@@ -375,7 +375,7 @@ export function ViewerCanvas({
           ctrl.minDistance = 0.01;
 
           // ── Hjelpefunksjon: hent blikkretning som kopi (ikke muter) ──
-          function blikkretning(): THREE.Vector3 {
+          function blikkretning() {
             const d = new THREE.Vector3();
             cam.getWorldDirection(d);
             return d;
