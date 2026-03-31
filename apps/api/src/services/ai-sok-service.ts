@@ -162,7 +162,7 @@ async function encodeQueryLokal(query: string): Promise<number[]> {
     const { pipeline } = await import("@xenova/transformers");
     const embedder = await pipeline(
       "feature-extraction",
-      "Xenova/norbert2",
+      "Xenova/multilingual-e5-small",
       { quantized: true },
     );
     _norbertPipeline = async (text: string) => {

@@ -39,7 +39,7 @@ async function lastNorBERT(): Promise<
   const { pipeline } = await import("@xenova/transformers");
   const embedder = await pipeline(
     "feature-extraction",
-    "Xenova/norbert2", // Xenova ONNX-konvertert versjon av ltgoslo/norbert2
+    "Xenova/multilingual-e5-small", // Xenova ONNX-konvertert versjon av ltgoslo/norbert2
     { quantized: true },
   );
   console.log("[EMBEDDING] NorBERT lastet");

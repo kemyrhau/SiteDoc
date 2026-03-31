@@ -156,7 +156,7 @@ export const aiSokRouter = router({
       if (innst.length === 0) {
         return {
           embeddingProvider: "local",
-          embeddingModel: "norbert2",
+          embeddingModel: "multilingual-e5-small",
           embeddingApiKey: null,
           llmProvider: null,
           llmModel: "claude-sonnet-4-5",
@@ -270,6 +270,6 @@ async function hentInnstillingerInternt(
   return {
     embeddingProvider: rad?.embeddingProvider ?? "local",
     embeddingApiKey: rad?.embeddingApiKey ?? null,
-    embeddingModel: rad?.embeddingModel ?? "norbert2",
+    embeddingModel: rad?.embeddingModel ?? "multilingual-e5-small",
   };
 }

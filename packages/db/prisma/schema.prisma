@@ -846,7 +846,7 @@ model FtdDocumentChunk {
   headingNumber   String?                         @map("heading_number")
   embeddingState  String                          @default("pending") @map("embedding_state")
   profile         String?
-  embeddingVector Unsupported("vector(768)")?     @map("embedding_vector")
+  embeddingVector Unsupported("vector(384)")?     @map("embedding_vector")
 
   document FtdDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
 
