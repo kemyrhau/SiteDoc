@@ -431,7 +431,7 @@ export default function Tegning3DSide() {
       setTegningMarkør({ ...pxProsent, vinkel });
       viewerRef.current?.flyTil(punkt3d.x, punkt3d.y, punkt3d.z, gulvY ?? undefined);
     },
-    [synkAktiv, transformasjon, ifcOpprinnelse, coordSystem, viewerRef],
+    [synkAktiv, transformasjon, ifcOpprinnelse, coordSystem, viewerRef, klikkKalibSteg],
   );
 
   // Beregn pikselposisjon for markør (utenfor transform-div)
