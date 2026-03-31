@@ -226,6 +226,10 @@ export default function Tegning3DSide() {
   const [kalibMarkørA, setKalibMarkørA] = useState<{ x: number; y: number } | null>(null);
   const [kalibMarkørB, setKalibMarkørB] = useState<{ x: number; y: number } | null>(null);
 
+  // Finjustering: 2 steg — klikk tegning, klikk 3D → korrigerer bare offset
+  const [finjusterSteg, setFinjusterSteg] = useState<0 | 1 | 2>(0);
+  const finjusterTegningPktRef = useRef<{ x: number; y: number } | null>(null);
+
   const utils = trpc.useUtils();
   const settGpsOverrideMutation = trpc.tegning.settGpsOverride.useMutation({
     onSuccess: (_data: unknown) => {
@@ -395,6 +399,32 @@ export default function Tegning3DSide() {
       return;
     }
 
+    // Finjustering steg 2: korrigér offset i eksisterende transform
+    if (finjusterSteg === 2 && finjusterTegningPktRef.current && kalibTransform) {
+      const tegPkt = finjusterTegningPktRef.current;
+      const { a, b, tx, tz } = kalibTransform;
+      // Hvor tegning-punktet BURDE mappe til (med nåværende transform)
+      const forventetX = a * tegPkt.x + b * tegPkt.y + tx;
+      const forventetZ = -b * tegPkt.x + a * tegPkt.y + tz;
+      // Differanse = feil som må korrigeres
+      const nyTx = tx + (punkt.x - forventetX);
+      const nyTz = tz + (punkt.z - forventetZ);
+
+      const ifcId = ifcModeller[0]?.id;
+      if (ifcId) {
+        const senterGps = ifcOpprinnelse ?? { lat: 0, lng: 0 };
+        settGpsOverrideMutation.mutate({
+          drawingId: ifcId,
+          lat: senterGps.lat,
+          lng: senterGps.lng,
+          transform: { a, b, tx: nyTx, tz: nyTz },
+        });
+      }
+      setFinjusterSteg(0);
+      finjusterTegningPktRef.current = null;
+      return;
+    }
+
     // Klikk-kalibrering steg 2: lagre punkt A komplett, gå til steg 3
     if (klikkKalibSteg === 2 && kalibTegningGpsARef.current) {
       setKalibPunktA({
@@ -448,8 +478,8 @@ export default function Tegning3DSide() {
       return;
     }
 
-    // Blokkér normal synk under kalibrering
-    if (klikkKalibSteg > 0) return;
+    // Blokkér normal synk under kalibrering/finjustering
+    if (klikkKalibSteg > 0 || finjusterSteg > 0) return;
     if (!ifcOpprinnelse) return;
 
     // Normal synk: direkte transform har prioritet, fallback til GPS
@@ -534,6 +564,14 @@ export default function Tegning3DSide() {
         y: ((e.clientY - rect.top) / rect.height) * 100,
       };
 
+      // Finjustering steg 1: lagre tegning-punkt, gå til steg 2
+      if (finjusterSteg === 1) {
+        finjusterTegningPktRef.current = { ...pxProsent };
+        setKalibMarkørA({ ...pxProsent });
+        setFinjusterSteg(2);
+        return;
+      }
+
       // Klikk-kalibrering steg 1: lagre tegning-GPS A, gå til steg 2
       if (klikkKalibSteg === 1 && transformasjon) {
         kalibTegningGpsARef.current = tegningTilGps(pxProsent, transformasjon);
@@ -550,8 +588,8 @@ export default function Tegning3DSide() {
         return;
       }
 
-      // Blokkér synk under kalibrering
-      if (klikkKalibSteg > 0) return;
+      // Blokkér synk under kalibrering/finjustering
+      if (klikkKalibSteg > 0 || finjusterSteg > 0) return;
 
       // Synk-modus: direkte transform har prioritet
       if (!synkAktiv) return;
@@ -570,7 +608,7 @@ export default function Tegning3DSide() {
       setTegningMarkør({ ...pxProsent });
       viewerRef.current?.flyTil(flyX, 0, flyZ, gulvY ?? undefined);
     },
-    [synkAktiv, transformasjon, ifcOpprinnelse, coordSystem, viewerRef, klikkKalibSteg],
+    [synkAktiv, transformasjon, ifcOpprinnelse, coordSystem, viewerRef, klikkKalibSteg, finjusterSteg],
   );
 
   // Beregn pikselposisjon for markør (utenfor transform-div)
@@ -670,6 +708,21 @@ export default function Tegning3DSide() {
             </span>
             <button
               onClick={() => { setKlikkKalibSteg(0); setKalibPunktA(null); setKalibTegningGpsB(null); setKalibMarkørA(null); setKalibMarkørB(null); kalibTegningGpsARef.current = null; }}
+              className="rounded bg-white px-2 py-0.5 text-xs text-gray-500 hover:bg-gray-100"
+            >
+              Avbryt
+            </button>
+          </div>
+        )}
+
+        {/* Finjustering statuslinje */}
+        {finjusterSteg > 0 && (
+          <div className="pointer-events-auto flex items-center gap-2 rounded border border-green-200 bg-green-50 px-3 py-1.5">
+            <span className="text-xs font-medium text-green-700">
+              {finjusterSteg === 1 ? "① Klikk et punkt på tegningen" : "② Klikk SAMME punkt i 3D"}
+            </span>
+            <button
+              onClick={() => { setFinjusterSteg(0); finjusterTegningPktRef.current = null; setKalibMarkørA(null); }}
               className="rounded bg-white px-2 py-0.5 text-xs text-gray-500 hover:bg-gray-100"
             >
               Avbryt
@@ -867,6 +920,22 @@ export default function Tegning3DSide() {
                   <div className="font-medium text-purple-800">Klikk-kalibrering (presis)</div>
                   <div className="text-xs text-purple-600">
                     Klikk et gjenkjennelig punkt på tegningen, deretter samme punkt i 3D
+                  </div>
+                </button>
+              )}
+
+              {/* Finjustering — korrigér offset uten å endre rotasjon/skala */}
+              {kalibTransform && (
+                <button
+                  onClick={() => {
+                    setFinjusterSteg(1);
+                    setGpsKalibrerÅpen(false);
+                  }}
+                  className="w-full rounded border border-green-200 bg-green-50 px-3 py-2.5 text-left text-sm hover:bg-green-100"
+                >
+                  <div className="font-medium text-green-800">Finjuster posisjon</div>
+                  <div className="text-xs text-green-600">
+                    Klikk ett punkt på tegningen, deretter samme punkt i 3D — korrigerer offset
                   </div>
                 </button>
               )}
