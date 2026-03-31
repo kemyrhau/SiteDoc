@@ -853,16 +853,16 @@ export default function Tegning3DSide() {
                 </div>
               );
             })()}
-            {/* Live synsfelt (FOV-trapes) */}
+            {/* Live synsfelt: prikk = øyne, trekant = blikkretning */}
             {innholdStr.w > 0 && kameraMarkør && (() => {
               const p = pktTilPx(kameraMarkør);
               return (
                 <div className="pointer-events-none absolute z-30" style={{ left: p.x, top: p.y }}>
-                  <svg width="160" height="160" viewBox="-80 -80 160 160" style={{ transform: `rotate(${kameraMarkør.vinkel}deg)`, overflow: "visible" }}>
-                    {/* Synsfelt-trapes */}
-                    <path d="M-3,4 L60,-35 L60,35 L-3,-4 Z" fill="rgba(59,130,246,0.10)" stroke="rgba(59,130,246,0.35)" strokeWidth="1" />
-                    {/* Liten prikk ved opprinnelsen */}
-                    <circle cx="0" cy="0" r="3" fill="rgba(59,130,246,0.7)" />
+                  <svg width="100" height="100" viewBox="-50 -50 100 100" style={{ transform: `rotate(${kameraMarkør.vinkel}deg)`, overflow: "visible" }}>
+                    {/* Synsfelt: trekant som åpner seg ut fra øynene */}
+                    <path d="M0,0 L45,-22 L45,22 Z" fill="rgba(59,130,246,0.13)" stroke="rgba(59,130,246,0.4)" strokeWidth="0.8" />
+                    {/* Øyne (prikk) */}
+                    <circle cx="0" cy="0" r="4" fill="#2563eb" stroke="white" strokeWidth="1.5" />
                   </svg>
                 </div>
               );
