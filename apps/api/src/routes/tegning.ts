@@ -390,15 +390,20 @@ export const tegningRouter = router({
       drawingId: z.string().uuid(),
       lat: z.number().min(-90).max(90),
       lng: z.number().min(-180).max(180),
-      rotasjon: z.number().optional(), // Rotasjon i radianer (IFC XZ vs UTM)
-      skala: z.number().optional(), // Skalafaktor (1=meter, 1000=mm)
+      rotasjon: z.number().optional(),
+      skala: z.number().optional(),
+      // Direkte similarity-transform: tegning(%) → 3D(xz). Koeffisienter a,b,tx,tz
+      transform: z.object({
+        a: z.number(), b: z.number(), tx: z.number(), tz: z.number(),
+      }).optional(),
     }))
     .mutation(async ({ ctx, input }) => {
       const tegning = await ctx.prisma.drawing.findUniqueOrThrow({ where: { id: input.drawingId }, select: { projectId: true } });
       await verifiserProsjektmedlem(ctx.userId, tegning.projectId);
-      const gpsData: { lat: number; lng: number; rotasjon?: number; skala?: number } = { lat: input.lat, lng: input.lng };
+      const gpsData: Record<string, unknown> = { lat: input.lat, lng: input.lng };
       if (input.rotasjon !== undefined) gpsData.rotasjon = input.rotasjon;
       if (input.skala !== undefined) gpsData.skala = input.skala;
+      if (input.transform) gpsData.transform = input.transform;
       return ctx.prisma.drawing.update({
         where: { id: input.drawingId },
         data: { gpsOverride: gpsData as Prisma.InputJsonValue },
