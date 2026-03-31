@@ -385,7 +385,7 @@ export function ViewerCanvas({
               // Sett target rett foran kamera (0.01 enheter) → rotasjon på stedet
               const dir = new THREE.Vector3();
               cam.getWorldDirection(dir);
-              const t = cam.position.clone().add(dir.multiplyScalar(0.01));
+              const t = cam.position.clone().add(dir.multiplyScalar(2));
               ctrl.setTarget(t.x, t.y, t.z, false);
             }
           });
@@ -396,7 +396,7 @@ export function ViewerCanvas({
             requestAnimationFrame(() => {
               const dir = new THREE.Vector3();
               cam.getWorldDirection(dir);
-              const t = cam.position.clone().add(dir.multiplyScalar(0.01));
+              const t = cam.position.clone().add(dir.multiplyScalar(2));
               ctrl.setTarget(t.x, t.y, t.z, false);
             });
           }, { passive: true });
