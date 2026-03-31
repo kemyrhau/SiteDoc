@@ -376,9 +376,9 @@ export function ViewerCanvas({
           ctrl.dollyToCursor = true;    // Scroll mot musepekeren
           ctrl.dollySpeed = 1.0;
 
-          // Inspeksjonsmodus: hold target alltid nær kamera (2m foran)
-          // → rotasjon skjer rundt ståsted, ikke fjern senter
-          const TARGET_DIST = 2;
+          // Førstepersons-navigering: target = 0.5m foran kamera
+          // → rotasjon skjer nær kameraets akse, ikke rundt et fjernt punkt
+          const TARGET_DIST = 0.5;
           const oppdaterTarget = () => {
             const dir = new THREE.Vector3();
             cam.getWorldDirection(dir);
@@ -386,15 +386,13 @@ export function ViewerCanvas({
             ctrl.setTarget(t.x, t.y, t.z, false);
           };
 
-          // Oppdater target etter scroll (beveger kameraet)
+          // Oppdater target kontinuerlig under all interaksjon
+          ctrl.addEventListener("control", () => {
+            oppdaterTarget();
+          });
           container.addEventListener("wheel", () => {
             requestAnimationFrame(oppdaterTarget);
           }, { passive: true });
-
-          // Oppdater target etter pan/truck (høyreklikk-drag)
-          ctrl.addEventListener("controlend", () => {
-            oppdaterTarget();
-          });
         }
 
         components.init();
