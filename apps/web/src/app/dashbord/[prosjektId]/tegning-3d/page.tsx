@@ -830,18 +830,11 @@ export default function Tegning3DSide() {
               </div>
             </div>
             {/* Markør-overlay utenfor transform (faste pikselposisjoner) */}
+            {/* Kamera-posisjon (blå prikk fra klikk-navigering) */}
             {innholdStr.w > 0 && tegningMarkør && klikkKalibSteg === 0 && (() => {
               const p = pktTilPx(tegningMarkør);
-              const v = tegningMarkør.vinkel ?? 0;
               return (
-                <>
-                  <div className="pointer-events-none absolute z-20" style={{ left: p.x, top: p.y }}>
-                    <svg width="48" height="48" viewBox="-24 -24 48 48" style={{ transform: `rotate(${v}deg)`, overflow: "visible" }}>
-                      <path d="M0,0 L20,-10 L20,10 Z" fill="rgba(59,130,246,0.25)" stroke="rgba(59,130,246,0.6)" strokeWidth="1" />
-                    </svg>
-                  </div>
-                  <div className="pointer-events-none absolute z-20 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-500 ring-2 ring-white" style={{ left: p.x, top: p.y }} />
-                </>
+                <div className="pointer-events-none absolute z-20 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-500 ring-2 ring-white" style={{ left: p.x, top: p.y }} />
               );
             })()}
             {/* Kalibrerings-markører A og B */}
@@ -861,18 +854,7 @@ export default function Tegning3DSide() {
                 </div>
               );
             })()}
-            {/* Live synsfelt: klikk-posisjon + live retning fra kamera */}
-            {innholdStr.w > 0 && tegningMarkør && kameraMarkør && (() => {
-              // Posisjon fra klikk-markør (riktig), retning fra live kamera-tracking (riktig)
-              const p = pktTilPx(tegningMarkør);
-              return (
-                <div className="pointer-events-none absolute z-30" style={{ left: p.x, top: p.y }}>
-                  <svg width="100" height="100" viewBox="-50 -50 100 100" style={{ transform: `rotate(${kameraMarkør.vinkel}deg)`, overflow: "visible" }}>
-                    <path d="M0,0 L45,-22 L45,22 Z" fill="rgba(59,130,246,0.13)" stroke="rgba(59,130,246,0.4)" strokeWidth="0.8" />
-                  </svg>
-                </div>
-              );
-            })()}
+            {/* Fjernet: FOV-trekant — retningsberegning trenger mer arbeid */}
             </>
           ) : (
             <div className="flex h-full items-center justify-center">
