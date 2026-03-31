@@ -834,18 +834,19 @@ model FtdKontrakt {
 }
 
 model FtdDocumentChunk {
-  id             String  @id @default(cuid())
-  documentId     String  @map("document_id")
-  chunkIndex     Int     @map("chunk_index")
-  chunkText      String  @map("chunk_text")
-  pageNumber     Int?    @map("page_number")
-  sectionTitle   String? @map("section_title")
-  sectionLevel   Int?    @map("section_level")
-  pageHeading    String? @map("page_heading")
-  nsCode         String? @map("ns_code")
-  headingNumber  String? @map("heading_number")
-  embeddingState String  @default("pending") @map("embedding_state")
-  profile        String?
+  id              String                          @id @default(cuid())
+  documentId      String                          @map("document_id")
+  chunkIndex      Int                             @map("chunk_index")
+  chunkText       String                          @map("chunk_text")
+  pageNumber      Int?                            @map("page_number")
+  sectionTitle    String?                         @map("section_title")
+  sectionLevel    Int?                            @map("section_level")
+  pageHeading     String?                         @map("page_heading")
+  nsCode          String?                         @map("ns_code")
+  headingNumber   String?                         @map("heading_number")
+  embeddingState  String                          @default("pending") @map("embedding_state")
+  profile         String?
+  embeddingVector Unsupported("vector(1536)")?    @map("embedding_vector")
 
   document FtdDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
 

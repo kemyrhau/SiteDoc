@@ -22,6 +22,7 @@ import { punktskyRouter } from "../routes/punktsky";
 import { mengdeRouter } from "../routes/mengde";
 import { ftdSokRouter } from "../routes/ftdSok";
 import { kontraktRouter } from "../routes/kontrakt";
+import { aiSokRouter } from "../routes/aiSok";
 
 export const appRouter = router({
   prosjekt: prosjektRouter,
@@ -47,6 +48,7 @@ export const appRouter = router({
   mengde: mengdeRouter,
   ftdSok: ftdSokRouter,
   kontrakt: kontraktRouter,
+  aiSok: aiSokRouter,
 });
 
 export type AppRouter = typeof appRouter;
