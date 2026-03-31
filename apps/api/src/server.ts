@@ -87,6 +87,19 @@ async function start() {
   try {
     await server.listen({ port, host });
     server.log.info(`SiteDoc API kjører på http://${host}:${port}`);
+
+    // Recovery: sett stuck embedding-chunks tilbake til pending ved oppstart
+    try {
+      const { prisma } = await import("@sitedoc/db");
+      const stuck = await prisma.$executeRawUnsafe(
+        `UPDATE ftd_document_chunks SET embedding_state = 'pending' WHERE embedding_state = 'processing'`,
+      );
+      if (stuck > 0) {
+        server.log.info(`Embedding recovery: ${stuck} stuck chunks satt tilbake til pending`);
+      }
+    } catch (_e) {
+      // Ikke kritisk — ignorer hvis tabellen ikke finnes ennå
+    }
   } catch (err) {
     server.log.error(err);
     process.exit(1);
