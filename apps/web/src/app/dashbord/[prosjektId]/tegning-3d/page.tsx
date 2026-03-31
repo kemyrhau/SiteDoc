@@ -502,8 +502,8 @@ export default function Tegning3DSide() {
     }
   }, [valgtObjekt]); // eslint-disable-line
 
-  // Live kamera-tracking: inkrementell delta fra klikk-posisjon
-  // Starter fra tegningMarkør (korrekt) og legger til 3D-delta konvertert til tegning%
+  // Live kamera-tracking: inkrementell delta
+  // Starter fra klikk-posisjon (korrekt) eller approx fra treDTilTegning
   const forrigeKamPosRef = useRef<{ x: number; z: number } | null>(null);
   useEffect(() => {
     if (!synkAktiv || !kalibTransform) {
@@ -516,10 +516,22 @@ export default function Tegning3DSide() {
       const kam = viewerRef.current?.hentKameraPosisjon();
       if (kam) {
         const nåPos = { x: kam.pos.x, z: kam.pos.z };
+
+        // Initialiser markør fra kameraposisjon hvis den ikke finnes
+        setTegningMarkør((prev) => {
+          if (!prev && treDTilTegning) {
+            const init = treDTilTegning(nåPos);
+            if (init) {
+              forrigeKamPosRef.current = nåPos;
+              return { x: init.x, y: init.y };
+            }
+          }
+          return prev;
+        });
+
         if (forrigeKamPosRef.current) {
           const dx3d = nåPos.x - forrigeKamPosRef.current.x;
           const dz3d = nåPos.z - forrigeKamPosRef.current.z;
-          // Bare oppdater hvis kameraet faktisk har beveget seg
           if (Math.abs(dx3d) > 0.001 || Math.abs(dz3d) > 0.001) {
             const delta = treDDeltaTilTegning(dx3d, dz3d);
             if (delta) {
@@ -533,7 +545,7 @@ export default function Tegning3DSide() {
     }
     requestAnimationFrame(oppdater);
     return () => { aktiv = false; };
-  }, [synkAktiv, kalibTransform, viewerRef, treDDeltaTilTegning]);
+  }, [synkAktiv, kalibTransform, viewerRef, treDDeltaTilTegning, treDTilTegning]);
 
   const tegningUrl = valgtTegning?.fileUrl
     ? valgtTegning.fileUrl.startsWith("/api") ? valgtTegning.fileUrl : `/api${valgtTegning.fileUrl}`
