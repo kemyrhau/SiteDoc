@@ -384,19 +384,22 @@ export const tegningRouter = router({
       });
     }),
 
-  // Sett GPS-override for IFC-modell (kalibrering)
+  // Sett GPS-override for IFC-modell (kalibrering med valgfri rotasjon)
   settGpsOverride: protectedProcedure
     .input(z.object({
       drawingId: z.string().uuid(),
       lat: z.number().min(-90).max(90),
       lng: z.number().min(-180).max(180),
+      rotasjon: z.number().optional(), // Rotasjon i radianer (IFC XZ vs UTM)
     }))
     .mutation(async ({ ctx, input }) => {
       const tegning = await ctx.prisma.drawing.findUniqueOrThrow({ where: { id: input.drawingId }, select: { projectId: true } });
       await verifiserProsjektmedlem(ctx.userId, tegning.projectId);
+      const data: Record<string, unknown> = { lat: input.lat, lng: input.lng };
+      if (input.rotasjon !== undefined) data.rotasjon = input.rotasjon;
       return ctx.prisma.drawing.update({
         where: { id: input.drawingId },
-        data: { gpsOverride: { lat: input.lat, lng: input.lng } },
+        data: { gpsOverride: data },
       });
     }),
 

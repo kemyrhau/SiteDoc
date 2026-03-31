@@ -97,7 +97,7 @@ interface TegningData {
     gpsLengdegrad?: number | null;
     etasjer?: Array<{ navn: string; høyde: number | null }>;
   } | null;
-  gpsOverride?: { lat: number; lng: number } | null;
+  gpsOverride?: { lat: number; lng: number; rotasjon?: number } | null;
   coordinateSystem?: string | null;
 }
 
@@ -147,6 +147,34 @@ export default function Tegning3DSide() {
     return "utm33";
   }, [ifcModeller]);
 
+  // Rotasjon fra kalibrering (radianer)
+  const ifcRotasjon = useMemo(() => {
+    for (const m of ifcModeller) {
+      if (m.gpsOverride?.rotasjon != null) return m.gpsOverride.rotasjon;
+    }
+    return 0;
+  }, [ifcModeller]);
+
+  /** GPS → 3D med rotasjon */
+  const gpsTil3DRotert = useCallback((gps: { lat: number; lng: number }, hoyde: number = 0) => {
+    if (!ifcOpprinnelse) return null;
+    const punkt = gpsTil3D(gps, ifcOpprinnelse, coordSystem, hoyde);
+    if (!punkt || ifcRotasjon === 0) return punkt;
+    const cos = Math.cos(ifcRotasjon), sin = Math.sin(ifcRotasjon);
+    return { x: punkt.x * cos - punkt.z * sin, y: punkt.y, z: punkt.x * sin + punkt.z * cos };
+  }, [ifcOpprinnelse, coordSystem, ifcRotasjon]);
+
+  /** 3D → GPS med invers rotasjon */
+  const tredjeTilGpsRotert = useCallback((punkt: { x: number; y: number; z: number }) => {
+    if (!ifcOpprinnelse) return null;
+    let p = punkt;
+    if (ifcRotasjon !== 0) {
+      const cos = Math.cos(-ifcRotasjon), sin = Math.sin(-ifcRotasjon);
+      p = { x: punkt.x * cos - punkt.z * sin, y: punkt.y, z: punkt.x * sin + punkt.z * cos };
+    }
+    return tredjeTilGps(p, ifcOpprinnelse, coordSystem);
+  }, [ifcOpprinnelse, coordSystem, ifcRotasjon]);
+
   const etasjer = useMemo(() => {
     for (const m of ifcModeller) {
       if (m.ifcMetadata?.etasjer && m.ifcMetadata.etasjer.length > 0) return m.ifcMetadata.etasjer;
@@ -175,9 +203,15 @@ export default function Tegning3DSide() {
   const [gpsInput, setGpsInput] = useState("");
   const [gpsFeil, setGpsFeil] = useState<string | null>(null);
 
-  // Klikk-kalibrering: steg 1 = klikk tegning, steg 2 = klikk 3D
-  const [klikkKalibSteg, setKlikkKalibSteg] = useState<0 | 1 | 2>(0);
-  const [klikkKalibTegningGps, setKlikkKalibTegningGps] = useState<{ lat: number; lng: number } | null>(null);
+  // Klikk-kalibrering: 4 steg (2 punkt-par for posisjon + rotasjon)
+  // Steg 1: klikk tegning A, 2: klikk 3D A, 3: klikk tegning B, 4: klikk 3D B
+  const [klikkKalibSteg, setKlikkKalibSteg] = useState<0 | 1 | 2 | 3 | 4>(0);
+  const kalibTegningGpsARef = useRef<{ lat: number; lng: number } | null>(null);
+  const [kalibPunktA, setKalibPunktA] = useState<{
+    tegningGps: { lat: number; lng: number };
+    treD: { x: number; y: number; z: number };
+  } | null>(null);
+  const [kalibTegningGpsB, setKalibTegningGpsB] = useState<{ lat: number; lng: number } | null>(null);
 
   const utils = trpc.useUtils();
   const settGpsOverrideMutation = trpc.tegning.settGpsOverride.useMutation({
@@ -348,34 +382,69 @@ export default function Tegning3DSide() {
       return;
     }
 
-    // Klikk-kalibrering steg 2: beregn korrekt GPS-opprinnelse
-    if (klikkKalibSteg === 2 && klikkKalibTegningGps) {
-      // Tegning-GPS i UTM
-      const tegningUtm = wgs84TilProjeksjon(klikkKalibTegningGps.lat, klikkKalibTegningGps.lng, coordSystem);
-      if (tegningUtm) {
-        // Ny opprinnelse = tegning-UTM minus 3D-offset
-        // Fordi: 3D.x = punkt_utm_ost - origin_utm_ost → origin_utm_ost = tegning_utm_ost - 3D.x
-        // Og:    3D.z = -(punkt_utm_nord - origin_utm_nord) → origin_utm_nord = tegning_utm_nord + 3D.z
-        const nyOriginUtmOst = tegningUtm.ost - punkt.x;
-        const nyOriginUtmNord = tegningUtm.nord + punkt.z;
-        const nyOriginGps = konverterTilWgs84(nyOriginUtmNord, nyOriginUtmOst, coordSystem);
+    // Klikk-kalibrering steg 2: lagre punkt A komplett, gå til steg 3
+    if (klikkKalibSteg === 2 && kalibTegningGpsARef.current) {
+      setKalibPunktA({
+        tegningGps: kalibTegningGpsARef.current,
+        treD: { x: punkt.x, y: punkt.y, z: punkt.z },
+      });
+      kalibTegningGpsARef.current = null;
+      setKlikkKalibSteg(3);
+      return;
+    }
+
+    // Klikk-kalibrering steg 4: beregn rotasjon + opprinnelse fra 2 punkt-par
+    if (klikkKalibSteg === 4 && kalibPunktA && kalibTegningGpsB) {
+      const utmA = wgs84TilProjeksjon(kalibPunktA.tegningGps.lat, kalibPunktA.tegningGps.lng, coordSystem);
+      const utmB = wgs84TilProjeksjon(kalibTegningGpsB.lat, kalibTegningGpsB.lng, coordSystem);
+      if (utmA && utmB) {
+        // Retningsvektor i UTM-rom (uten rotasjon: dx=ost, dz=-nord)
+        const utmDx = utmB.ost - utmA.ost;
+        const utmDz = -(utmB.nord - utmA.nord);
+
+        // Retningsvektor i 3D-rom
+        const tdDx = punkt.x - kalibPunktA.treD.x;
+        const tdDz = punkt.z - kalibPunktA.treD.z;
+
+        // Rotasjonsvinkel: differanse mellom UTM-retning og 3D-retning
+        const utmVinkel = Math.atan2(utmDz, utmDx);
+        const tdVinkel = Math.atan2(tdDz, tdDx);
+        const rotasjon = tdVinkel - utmVinkel;
+
+        // Beregn opprinnelse fra punkt A med rotasjon
+        // 3d = R(θ) * (utm - origin) → origin_utm = utm_a - R(-θ) * 3d_a
+        const cosR = Math.cos(-rotasjon);
+        const sinR = Math.sin(-rotasjon);
+        const invX = kalibPunktA.treD.x * cosR - kalibPunktA.treD.z * sinR;
+        const invZ = kalibPunktA.treD.x * sinR + kalibPunktA.treD.z * cosR;
+        // invX = utm_dx, invZ = utm_dz → origin_ost = utm_a.ost - invX, origin_nord = utm_a.nord + invZ
+        const nyOriginOst = utmA.ost - invX;
+        const nyOriginNord = utmA.nord + invZ;
+
+        const nyOriginGps = konverterTilWgs84(nyOriginNord, nyOriginOst, coordSystem);
         if (nyOriginGps) {
           const ifcId = ifcModeller[0]?.id;
           if (ifcId) {
-            settGpsOverrideMutation.mutate({ drawingId: ifcId, lat: nyOriginGps.lat, lng: nyOriginGps.lng });
+            settGpsOverrideMutation.mutate({
+              drawingId: ifcId,
+              lat: nyOriginGps.lat,
+              lng: nyOriginGps.lng,
+              rotasjon,
+            });
           }
         }
       }
       setKlikkKalibSteg(0);
-      setKlikkKalibTegningGps(null);
+      setKalibPunktA(null);
+      setKalibTegningGpsB(null);
       return;
     }
 
     if (!ifcOpprinnelse) return;
 
-    // Normal synk
+    // Normal synk (med rotasjon)
     if (!synkAktiv || !transformasjon) { setTegningMarkør(null); return; }
-    const gps = tredjeTilGps(punkt, ifcOpprinnelse, coordSystem);
+    const gps = tredjeTilGpsRotert(punkt);
     if (!gps) return;
     setTegningMarkør(gpsTilTegning(gps, transformasjon));
   }, [valgtObjekt]); // eslint-disable-line
@@ -409,19 +478,25 @@ export default function Tegning3DSide() {
         y: ((e.clientY - rect.top) / rect.height) * 100,
       };
 
-      // Klikk-kalibrering steg 1: lagre tegning-GPS, gå til steg 2
+      // Klikk-kalibrering steg 1: lagre tegning-GPS A, gå til steg 2
       if (klikkKalibSteg === 1 && transformasjon) {
-        const gps = tegningTilGps(pxProsent, transformasjon);
-        setKlikkKalibTegningGps(gps);
+        kalibTegningGpsARef.current = tegningTilGps(pxProsent, transformasjon);
         setKlikkKalibSteg(2);
         setTegningMarkør({ ...pxProsent });
         return;
       }
 
-      // Synk-modus
+      // Klikk-kalibrering steg 3: lagre tegning-GPS B, gå til steg 4
+      if (klikkKalibSteg === 3 && transformasjon) {
+        setKalibTegningGpsB(tegningTilGps(pxProsent, transformasjon));
+        setKlikkKalibSteg(4);
+        return;
+      }
+
+      // Synk-modus (med rotasjon)
       if (!synkAktiv || !transformasjon || !ifcOpprinnelse) return;
       const gps = tegningTilGps(pxProsent, transformasjon);
-      const punkt3d = gpsTil3D(gps, ifcOpprinnelse, coordSystem, 0);
+      const punkt3d = gpsTil3DRotert(gps, 0);
       if (!punkt3d) return;
       // Beregn retningsvinkel: kamera ser mot byggets sentrum projisert på tegningen
       const senterGps = ifcOpprinnelse; // GPS-sentrum ≈ IFC-opprinnelse
@@ -525,12 +600,13 @@ export default function Tegning3DSide() {
         {klikkKalibSteg > 0 && (
           <div className="pointer-events-auto flex items-center gap-2 rounded border border-purple-200 bg-purple-50 px-3 py-1.5">
             <span className="text-xs font-medium text-purple-700">
-              {klikkKalibSteg === 1
-                ? "① Klikk et gjenkjennelig punkt på tegningen (f.eks. et hjørne)"
-                : "② Klikk NØYAKTIG samme punkt i 3D-modellen"}
+              {klikkKalibSteg === 1 && "① Klikk punkt A på tegningen (f.eks. et hjørne)"}
+              {klikkKalibSteg === 2 && "② Klikk SAMME punkt A i 3D-modellen"}
+              {klikkKalibSteg === 3 && "③ Klikk punkt B på tegningen (langt fra A)"}
+              {klikkKalibSteg === 4 && "④ Klikk SAMME punkt B i 3D-modellen"}
             </span>
             <button
-              onClick={() => { setKlikkKalibSteg(0); setKlikkKalibTegningGps(null); }}
+              onClick={() => { setKlikkKalibSteg(0); setKalibPunktA(null); setKalibTegningGpsB(null); kalibTegningGpsARef.current = null; }}
               className="rounded bg-white px-2 py-0.5 text-xs text-gray-500 hover:bg-gray-100"
             >
               Avbryt
