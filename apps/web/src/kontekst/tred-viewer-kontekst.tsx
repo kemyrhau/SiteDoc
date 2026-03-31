@@ -394,7 +394,7 @@ export function ViewerCanvas({
             e.preventDefault();
             const fremover = e.deltaY < 0;
             const steg = Math.abs(e.deltaY) / 100;
-            const fart = fremover ? 5.0 : 1.5;
+            const fart = 2.5;
             const avstand = fart * steg * (fremover ? 1 : -1);
             const dir = blikkretning();
             const nyPos = cam.position.clone().addScaledVector(dir, avstand);
