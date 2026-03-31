@@ -48,8 +48,8 @@ Tre-kolonne layout (skjules på mobil < 768px, hamburger-meny i Toppbar):
 /dashbord/[prosjektId]/punktskyer            -> Redirect → /3d-visning
 /dashbord/[prosjektId]/modeller              -> Redirect → /3d-visning
 /dashbord/[prosjektId]/bilder                 -> Bildegalleri (liste + tegningsvisning)
-/dashbord/[prosjektId]/okonomi               -> Økonomi: 4 faner (Oversikt, Avviksanalyse, Rapport, Dokumenter). Kontrakt-velger + Type + Nr. Oversikt: spec-poster med piltast-nav, sammenligning, overskridelsesmarkering (rød bg), referansemodus i merknad, merknad-eksport (PDF/e-post), NS-kode arv. Dobbeltklikk rad → detaljmodal med beskrivelse, tall, NS-kode, merknad, dokumentasjon-seksjon (side-lenker fra FtdDocumentPage). Rapport-fane: dropdown for rapporttype, Innestående-tabell over alle A-notas (deduplisert per notaNr). Dokumenter-fane: Nr-kolonne, inline type-editor. Import: auto-detect docType/notaType/notaNr
-/dashbord/[prosjektId]/sok                   -> Dokumentsøk (alle prosjekter, ingen modulkrav): tsvector fulltekstsøk med norsk stemming, treffliste med sidenr, fulltekst-panel. Tilgangskontrollert via hentTilgjengeligeMappeIder
+/dashbord/[prosjektId]/okonomi               -> Økonomi: 4 faner (Oversikt, Avviksanalyse, Rapport, Dokumenter). Kontrakt påkrevd (auto-velg hvis kun én). Oversikt: spec-poster med piltast-nav, sammenligning, overskridelsesmarkering, NS-kode arv, gul prikk (●) ved postnr der split-dokumentasjon finnes. Dobbeltklikk rad → detaljmodal med dokumentasjon-seksjon ("Åpne dokumentasjon (X sider)" + kildeliste "A-nota 4: s.1-3"), NS-kode panel med NS 3420-oppslag. Rapport-fane: Innestående-tabell. Dokumenter-fane: Nr-kolonne, inline type-editor
+/dashbord/[prosjektId]/sok                   -> Dokumentsøk (alle prosjekter, ingen modulkrav): tsvector fulltekstsøk med norsk stemming, dedup per dokument, treffliste med sidenr, fulltekst-panel. Tilgangskontrollert via hentTilgjengeligeMappeIder
 /dashbord/oppsett                             -> Innstillinger
 /dashbord/oppsett/brukere                     -> Brukergrupper, roller
 /dashbord/oppsett/brukere/tillatelser         -> Tillatelsesmatrise (read-only)

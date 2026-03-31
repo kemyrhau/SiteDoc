@@ -50,11 +50,12 @@ Alle routere i `apps/api/src/routes/`:
 - Excel: exceljs (xlsx) + SheetJS fallback (xls) → chunks (richText/formel-håndtering) + spec-poster. `cellDesimalRaw()` håndterer richText-celler fra Proadm Excel. Excel A-nota: dato→postnr via numFmt-deteksjon, kolonne-deteksjon med enhetspris som skillelinje mellom mengde/verdi-seksjoner
 - GAB/GA1: `prosesserGab()` — ISY Beskrivelse binærfil-parser (.gab/.ga1), ekstraherer postnr/NS-kode/beskrivelse/enhet/enhetspris fra binærformat (enhetspris: IEEE 754 double LE ved offset +31 fra NS-kode-slutt), tekst-segmenter mellom poster, RTF-opprenskning
 - XML: fast-xml-parser → NS3459 poster
+- **PDF-splitting:** `apps/api/src/services/pdf-splitting.ts` — splitter målebrev per NS-kode (pdf-lib). NS-kode-ekstraksjon fra OCR-tekst (linje 1-10) + POST-regex fallback. Arv fra forrige side. Append-modus: nye sider legges til eksisterende post-PDF. Kilde-sporbarhet via `splitSources` JSON på FtdDocument [{filnavn, dokumentId, kildeSider, startSide}]. Auto-splitting ved opplasting til mappe med kontraktId
 - Service: `apps/api/src/services/ftd-prosessering.ts`
 
 **Modulavhengighet:** Økonomi (`okonomi`) krever Dokumentsøk (`dokumentsok`). Auto-aktiveres. Deaktivering blokkeres.
 
-**Dokumentsøk tilgjengelighet:** Søk er tilgjengelig for alle prosjekter (ingen modulkrav i sidebar). Tilgangskontroll via `hentTilgjengeligeMappeIder()` — brukere ser kun treff fra mapper de har tilgang til.
+**Dokumentsøk:** Tilgjengelig for alle prosjekter (ingen modulkrav). Tilgangskontroll via `hentTilgjengeligeMappeIder()`. Dedup per dokument (DISTINCT ON document_id). NS 3420-standarddokumentasjon søkbar via `nsStandardSok` (ILIKE i NS 3420-chunks). Gul prikk (●) i økonomi-tabell der split-dokumentasjon finnes (sjekker undermapper "Post {kode}").
 
 **Neste steg (økonomi):** A-nota nummer = periodenummer. Kontrakt + periode-velger → vis og sammenlign perioder i Oversikt. Anbudsgrunnlag = anbud (fane), A-nota 4/5/6/7 = perioder under samme kontrakt. Sluttnota støttes som nota-type.
 
