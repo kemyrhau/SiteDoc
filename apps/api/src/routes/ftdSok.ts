@@ -41,8 +41,9 @@ export const ftdSokRouter = router({
           ? Prisma.empty
           : Prisma.sql`AND (d.folder_id IS NULL OR d.folder_id IN (${Prisma.join(mappeIder)}))`;
 
+      // Dedup: DISTINCT ON tekst-prefix (200 tegn) — behold best-ranked per unik tekst
       let treff = await ctx.prisma.$queryRaw<SokTreff[]>`
-        SELECT
+        SELECT DISTINCT ON (LEFT(c.chunk_text, 200))
           c.id,
           c.document_id AS "documentId",
           c.chunk_text AS "chunkText",
@@ -60,14 +61,16 @@ export const ftdSokRouter = router({
           AND d.is_active = true
           AND c.search_vector @@ plainto_tsquery('norwegian', ${input.query})
           ${mappeKlausul}
-        ORDER BY rank DESC
-        LIMIT ${input.limit}
+        ORDER BY LEFT(c.chunk_text, 200), rank DESC
       `;
+      // Re-sorter på rank etter dedup
+      treff.sort((a, b) => b.rank - a.rank);
+      if (treff.length > input.limit) treff = treff.slice(0, input.limit);
 
       // Fallback til ILIKE hvis tsvector gir 0 treff (delord, forkortelser)
       if (treff.length === 0) {
         treff = await ctx.prisma.$queryRaw<SokTreff[]>`
-          SELECT
+          SELECT DISTINCT ON (LEFT(c.chunk_text, 200))
             c.id,
             c.document_id AS "documentId",
             c.chunk_text AS "chunkText",
@@ -85,8 +88,9 @@ export const ftdSokRouter = router({
             AND d.is_active = true
             AND c.chunk_text ILIKE ${"%" + input.query + "%"}
             ${mappeKlausul}
-          LIMIT ${input.limit}
+          ORDER BY LEFT(c.chunk_text, 200), rank DESC
         `;
+        if (treff.length > input.limit) treff = treff.slice(0, input.limit);
       }
 
       return treff;
