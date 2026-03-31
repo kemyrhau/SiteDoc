@@ -1,16 +1,16 @@
 /**
  * Embedding-service for AI-søk.
- * Genererer embeddings for FtdDocumentChunk via OpenAI text-embedding-3-small.
+ * Støtter NorBERT (lokal, 768 dim) og OpenAI (sky, 1536 dim).
  * Portert fra Fil til database-kopi: src/backends/embedding.py + src/services/embedding_service.py
  */
-import { PrismaClient, Prisma } from "@sitedoc/db";
+import { PrismaClient } from "@sitedoc/db";
 
 // ---- Typer ----
 
 export interface EmbeddingInnstillinger {
-  provider: "openai";
-  apiKey: string;
-  model: string; // "text-embedding-3-small"
+  provider: "local" | "openai";
+  model: string; // "norbert2" | "text-embedding-3-small"
+  apiKey?: string; // Kun for OpenAI
   batchSize: number;
 }
 
@@ -26,17 +26,52 @@ export interface EmbeddingStatus {
 let _prosesserer = false;
 let _stoppSignal = false;
 
+// ---- NorBERT (lokal via @xenova/transformers) ----
+
+let _pipeline: ((texts: string[]) => Promise<number[][]>) | null = null;
+
+async function lastNorBERT(): Promise<
+  (texts: string[]) => Promise<number[][]>
+> {
+  if (_pipeline) return _pipeline;
+
+  console.log("[EMBEDDING] Laster NorBERT-modell (ltgoslo/norbert2)...");
+  const { pipeline } = await import("@xenova/transformers");
+  const embedder = await pipeline(
+    "feature-extraction",
+    "Xenova/norbert2", // Xenova ONNX-konvertert versjon av ltgoslo/norbert2
+    { quantized: true },
+  );
+  console.log("[EMBEDDING] NorBERT lastet");
+
+  _pipeline = async (texts: string[]) => {
+    const resultater: number[][] = [];
+    for (const tekst of texts) {
+      // Trunker til 512 tokens (~2000 tegn for norsk)
+      const input = tekst.length > 2000 ? tekst.slice(0, 2000) : tekst;
+      const output = await embedder(input, {
+        pooling: "mean",
+        normalize: true,
+      });
+      // output.data er Float32Array, konverter til number[]
+      resultater.push(Array.from(output.data as Float32Array));
+    }
+    return resultater;
+  };
+
+  return _pipeline;
+}
+
 // ---- OpenAI embedding ----
 
-async function genererEmbeddings(
+async function genererOpenAIEmbeddings(
   tekster: string[],
-  innstillinger: EmbeddingInnstillinger,
+  apiKey: string,
+  model: string,
 ): Promise<number[][]> {
-  // Dynamisk import for å unngå avhengighet hvis ikke brukt
   const { default: OpenAI } = await import("openai");
-  const client = new OpenAI({ apiKey: innstillinger.apiKey });
+  const client = new OpenAI({ apiKey });
 
-  // OpenAI maks 8191 tokens per tekst — trunker til ~12000 tegn
   const MAX_CHARS = 12000;
   const trunkert = tekster.map((t) =>
     t.length > MAX_CHARS ? t.slice(0, MAX_CHARS) : t,
@@ -44,10 +79,31 @@ async function genererEmbeddings(
 
   const response = await client.embeddings.create({
     input: trunkert,
-    model: innstillinger.model,
+    model,
   });
 
   return response.data.map((d) => d.embedding);
+}
+
+// ---- Felles embedding-funksjon ----
+
+async function genererEmbeddings(
+  tekster: string[],
+  innstillinger: EmbeddingInnstillinger,
+): Promise<number[][]> {
+  if (innstillinger.provider === "local") {
+    const encode = await lastNorBERT();
+    return encode(tekster);
+  } else {
+    if (!innstillinger.apiKey) {
+      throw new Error("OpenAI API-nøkkel mangler");
+    }
+    return genererOpenAIEmbeddings(
+      tekster,
+      innstillinger.apiKey,
+      innstillinger.model,
+    );
+  }
 }
 
 // ---- Recovery (fra embedding_service.py recover_stuck_processing) ----
@@ -93,6 +149,11 @@ export async function startEmbeddingGenerering(
       );
     }
 
+    // For NorBERT: forlast modellen slik at vi ikke laster den for hver batch
+    if (innstillinger.provider === "local") {
+      await lastNorBERT();
+    }
+
     // Tell totalt antall pending
     const totalt = await prisma.ftdDocumentChunk.count({
       where: {
@@ -106,17 +167,24 @@ export async function startEmbeddingGenerering(
       return { generert: 0, feilet: 0 };
     }
 
-    console.log(`[EMBEDDING] Starter generering av ${totalt} chunks`);
+    console.log(
+      `[EMBEDDING] Starter generering av ${totalt} chunks med ${innstillinger.provider}/${innstillinger.model}`,
+    );
 
     while (!_stoppSignal) {
-      // Hent neste batch
+      // Hent neste batch (mindre batch for lokal modell)
+      const batchSize =
+        innstillinger.provider === "local"
+          ? Math.min(innstillinger.batchSize, 8)
+          : innstillinger.batchSize;
+
       const chunks = await prisma.ftdDocumentChunk.findMany({
         where: {
           document: { projectId },
           embeddingState: "pending",
         },
         select: { id: true, chunkText: true },
-        take: innstillinger.batchSize,
+        take: batchSize,
       });
 
       if (chunks.length === 0) break;

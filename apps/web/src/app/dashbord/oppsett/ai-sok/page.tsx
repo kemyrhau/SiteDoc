@@ -34,9 +34,10 @@ export default function AiSokSide() {
   const utils = trpc.useUtils();
 
   // Lokale state for redigering
+  const [embeddingProvider, setEmbeddingProvider] = useState("local");
   const [embeddingApiKey, setEmbeddingApiKey] = useState("");
+  const [embeddingModel, setEmbeddingModel] = useState("norbert2");
   const [llmApiKey, setLlmApiKey] = useState("");
-  const [embeddingModel, setEmbeddingModel] = useState("text-embedding-3-small");
   const [llmProvider, setLlmProvider] = useState("claude");
   const [llmModel, setLlmModel] = useState("claude-sonnet-4-5");
 
@@ -73,6 +74,7 @@ export default function AiSokSide() {
     if (!prosjektId) return;
     oppdaterMut.mutate({
       projectId: prosjektId,
+      embeddingProvider,
       embeddingModel,
       ...(embeddingApiKey ? { embeddingApiKey } : {}),
       llmProvider,
@@ -90,7 +92,8 @@ export default function AiSokSide() {
     );
   }
 
-  const harApiNøkkel = innstillinger?.embeddingApiKey != null;
+  const erLokal = embeddingProvider === "local";
+  const harApiNøkkel = erLokal || innstillinger?.embeddingApiKey != null;
   const prosent =
     status && status.totalt > 0
       ? Math.round((status.ferdig / status.totalt) * 100)
@@ -187,7 +190,7 @@ export default function AiSokSide() {
           {!harApiNøkkel && (
             <p className="mt-2 flex items-center gap-1 text-xs text-amber-600">
               <AlertCircle className="h-3.5 w-3.5" />
-              Legg inn OpenAI API-nøkkel for å generere embeddings
+              Legg inn OpenAI API-nøkkel, eller bytt til NorBERT (lokal)
             </p>
           )}
         </div>
@@ -203,44 +206,71 @@ export default function AiSokSide() {
         <div className="space-y-4">
           <div>
             <label className="mb-1 block text-xs font-medium text-gray-600">
-              Modell
+              Provider
             </label>
             <select
-              value={embeddingModel}
+              value={embeddingProvider}
               onChange={(e) => {
-                setEmbeddingModel(e.target.value);
+                const v = e.target.value;
+                setEmbeddingProvider(v);
+                setEmbeddingModel(v === "local" ? "norbert2" : "text-embedding-3-small");
                 setHarEndringer(true);
               }}
               className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
             >
-              <option value="text-embedding-3-small">
-                text-embedding-3-small (1536 dim, anbefalt)
-              </option>
-              <option value="text-embedding-3-large">
-                text-embedding-3-large (3072 dim, høyere kvalitet)
-              </option>
+              <option value="local">NorBERT (lokal, norsk, gratis)</option>
+              <option value="openai">OpenAI (sky, flerspråklig)</option>
             </select>
           </div>
 
           <div>
             <label className="mb-1 block text-xs font-medium text-gray-600">
-              OpenAI API-nøkkel
+              Modell
             </label>
-            <input
-              type="password"
-              value={embeddingApiKey}
-              onChange={(e) => {
-                setEmbeddingApiKey(e.target.value);
-                setHarEndringer(true);
-              }}
-              placeholder={
-                innstillinger?.embeddingApiKey
-                  ? `Lagret (${innstillinger.embeddingApiKey})`
-                  : "sk-..."
-              }
-              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-            />
+            {erLokal ? (
+              <div className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-sm text-gray-600">
+                ltgoslo/norbert2 — 768 dimensjoner, optimalisert for norsk
+              </div>
+            ) : (
+              <select
+                value={embeddingModel}
+                onChange={(e) => {
+                  setEmbeddingModel(e.target.value);
+                  setHarEndringer(true);
+                }}
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+              >
+                <option value="text-embedding-3-small">
+                  text-embedding-3-small (1536 dim)
+                </option>
+                <option value="text-embedding-3-large">
+                  text-embedding-3-large (3072 dim)
+                </option>
+              </select>
+            )}
           </div>
+
+          {!erLokal && (
+            <div>
+              <label className="mb-1 block text-xs font-medium text-gray-600">
+                OpenAI API-nøkkel
+              </label>
+              <input
+                type="password"
+                value={embeddingApiKey}
+                onChange={(e) => {
+                  setEmbeddingApiKey(e.target.value);
+                  setHarEndringer(true);
+                }}
+                placeholder={
+                  innstillinger?.embeddingApiKey
+                    ? `Lagret (${innstillinger.embeddingApiKey})`
+                    : "sk-..."
+                }
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+              />
+            </div>
+          )}
         </div>
       </div>
 

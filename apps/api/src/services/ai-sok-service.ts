@@ -153,7 +153,32 @@ function beregReRank(
 
 // ---- Embedding-kall ----
 
-async function encodeQuery(
+// NorBERT pipeline-cache (singleton)
+let _norbertPipeline: ((text: string) => Promise<number[]>) | null = null;
+
+async function encodeQueryLokal(query: string): Promise<number[]> {
+  if (!_norbertPipeline) {
+    console.log("[AI-SØK] Laster NorBERT for query-encoding...");
+    const { pipeline } = await import("@xenova/transformers");
+    const embedder = await pipeline(
+      "feature-extraction",
+      "Xenova/norbert2",
+      { quantized: true },
+    );
+    _norbertPipeline = async (text: string) => {
+      const input = text.length > 2000 ? text.slice(0, 2000) : text;
+      const output = await embedder(input, {
+        pooling: "mean",
+        normalize: true,
+      });
+      return Array.from(output.data as Float32Array);
+    };
+    console.log("[AI-SØK] NorBERT lastet");
+  }
+  return _norbertPipeline(query);
+}
+
+async function encodeQueryOpenAI(
   query: string,
   apiKey: string,
   model: string,
@@ -167,6 +192,19 @@ async function encodeQuery(
   return response.data[0]!.embedding;
 }
 
+async function encodeQuery(
+  query: string,
+  provider: "local" | "openai",
+  apiKey?: string,
+  model?: string,
+): Promise<number[]> {
+  if (provider === "local") {
+    return encodeQueryLokal(query);
+  }
+  if (!apiKey) throw new Error("OpenAI API-nøkkel mangler");
+  return encodeQueryOpenAI(query, apiKey, model ?? "text-embedding-3-small");
+}
+
 // ---- Hybrid søk ----
 
 export async function hybridSok(
@@ -175,14 +213,15 @@ export async function hybridSok(
   query: string,
   mappeIder: string[] | null,
   options: {
-    apiKey: string;
+    provider?: "local" | "openai";
+    apiKey?: string;
     model?: string;
     vekter?: Partial<SokVekter>;
     topK?: number;
     kandidatK?: number;
   },
 ): Promise<HybridSokTreff[]> {
-  const model = options.model ?? "text-embedding-3-small";
+  const provider = options.provider ?? "local";
   const vekter = { ...DEFAULT_VEKTER, ...options.vekter };
   const topK = options.topK ?? 20;
   const kandidatK = options.kandidatK ?? 300;
@@ -205,7 +244,12 @@ export async function hybridSok(
   // 1. Encode query → embedding
   let queryEmbedding: number[];
   try {
-    queryEmbedding = await encodeQuery(query, options.apiKey, model);
+    queryEmbedding = await encodeQuery(
+      query,
+      provider,
+      options.apiKey,
+      options.model,
+    );
   } catch (err) {
     console.error("[AI-SØK] Embedding-feil, faller tilbake til leksikalsk:", err);
     // Fallback: kun leksikalsk søk

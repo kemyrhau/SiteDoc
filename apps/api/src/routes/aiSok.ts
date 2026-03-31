@@ -51,22 +51,25 @@ export const aiSokRouter = router({
         input.projectId,
       );
 
-      // Hent API-nøkkel fra innstillinger
       const innstillinger = await hentInnstillingerInternt(
         ctx.prisma,
         input.projectId,
       );
 
-      if (!innstillinger?.embeddingApiKey) {
-        // Ingen API-nøkkel — fall tilbake til rent leksikalsk søk via vanlig ftdSok
+      // NorBERT krever ingen API-nøkkel, OpenAI krever
+      if (
+        innstillinger.embeddingProvider === "openai" &&
+        !innstillinger.embeddingApiKey
+      ) {
         throw new Error(
-          "AI-søk krever OpenAI API-nøkkel. Konfigurer under Oppsett → AI-søk.",
+          "OpenAI API-nøkkel mangler. Konfigurer under Oppsett → AI-søk.",
         );
       }
 
       return hybridSok(ctx.prisma, input.projectId, input.query, mappeIder, {
-        apiKey: innstillinger.embeddingApiKey,
-        model: innstillinger.embeddingModel ?? "text-embedding-3-small",
+        provider: innstillinger.embeddingProvider as "local" | "openai",
+        apiKey: innstillinger.embeddingApiKey ?? undefined,
+        model: innstillinger.embeddingModel,
         vekter: input.vekter,
         topK: input.topK,
       });
@@ -83,16 +86,19 @@ export const aiSokRouter = router({
         input.projectId,
       );
 
-      if (!innstillinger?.embeddingApiKey) {
+      if (
+        innstillinger.embeddingProvider === "openai" &&
+        !innstillinger.embeddingApiKey
+      ) {
         throw new Error("OpenAI API-nøkkel mangler");
       }
 
       // Fire-and-forget — kjører i bakgrunnen
       startEmbeddingGenerering(ctx.prisma, input.projectId, {
-        provider: "openai",
-        apiKey: innstillinger.embeddingApiKey,
-        model: innstillinger.embeddingModel ?? "text-embedding-3-small",
-        batchSize: 64,
+        provider: innstillinger.embeddingProvider as "local" | "openai",
+        apiKey: innstillinger.embeddingApiKey ?? undefined,
+        model: innstillinger.embeddingModel,
+        batchSize: innstillinger.embeddingProvider === "local" ? 8 : 64,
       }).catch((err) => {
         console.error("[AI-SØK] Embedding-generering feilet:", err);
       });
@@ -149,8 +155,8 @@ export const aiSokRouter = router({
 
       if (innst.length === 0) {
         return {
-          embeddingProvider: "openai",
-          embeddingModel: "text-embedding-3-small",
+          embeddingProvider: "local",
+          embeddingModel: "norbert2",
           embeddingApiKey: null,
           llmProvider: null,
           llmModel: "claude-sonnet-4-5",
@@ -241,21 +247,29 @@ async function hentInnstillingerInternt(
   prisma: PrismaClient,
   projectId: string,
 ): Promise<{
+  embeddingProvider: string;
   embeddingApiKey: string | null;
-  embeddingModel: string | null;
-} | null> {
+  embeddingModel: string;
+}> {
   const rows = await prisma.$queryRaw<
     Array<{
+      embeddingProvider: string | null;
       embeddingApiKey: string | null;
       embeddingModel: string | null;
     }>
   >`
     SELECT
+      embedding_provider AS "embeddingProvider",
       embedding_api_key AS "embeddingApiKey",
       embedding_model AS "embeddingModel"
     FROM ai_sok_innstillinger
     WHERE project_id = ${projectId}
     LIMIT 1
   `;
-  return rows[0] ?? null;
+  const rad = rows[0];
+  return {
+    embeddingProvider: rad?.embeddingProvider ?? "local",
+    embeddingApiKey: rad?.embeddingApiKey ?? null,
+    embeddingModel: rad?.embeddingModel ?? "norbert2",
+  };
 }
