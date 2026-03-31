@@ -186,6 +186,7 @@ export default function Tegning3DSide() {
       setGpsKalibrerÅpen(false);
       setGpsInput("");
       setGpsFeil(null);
+      setSynkAktiv(true); // Aktiver synk automatisk etter kalibrering
     },
     onError: (err: { message: string }) => setGpsFeil(err.message),
   });
@@ -522,13 +523,15 @@ export default function Tegning3DSide() {
 
         {/* Klikk-kalibrering statuslinje */}
         {klikkKalibSteg > 0 && (
-          <div className="flex items-center gap-2">
-            <span className="rounded bg-purple-100 px-2.5 py-1 text-xs font-medium text-purple-700 animate-pulse">
-              {klikkKalibSteg === 1 ? "Steg 1: Klikk et punkt på tegningen" : "Steg 2: Klikk samme punkt i 3D-modellen"}
+          <div className="pointer-events-auto flex items-center gap-2 rounded border border-purple-200 bg-purple-50 px-3 py-1.5">
+            <span className="text-xs font-medium text-purple-700">
+              {klikkKalibSteg === 1
+                ? "① Klikk et gjenkjennelig punkt på tegningen (f.eks. et hjørne)"
+                : "② Klikk NØYAKTIG samme punkt i 3D-modellen"}
             </span>
             <button
               onClick={() => { setKlikkKalibSteg(0); setKlikkKalibTegningGps(null); }}
-              className="rounded bg-gray-100 px-2 py-1 text-xs text-gray-500 hover:bg-gray-200"
+              className="rounded bg-white px-2 py-0.5 text-xs text-gray-500 hover:bg-gray-100"
             >
               Avbryt
             </button>
