@@ -374,7 +374,7 @@ export function ViewerCanvas({
 
           ctrl.minDistance = 0.01;
           ctrl.dollyToCursor = true;    // Scroll mot musepekeren
-          ctrl.dollySpeed = 1.0;
+          ctrl.dollySpeed = 1.5;
 
           // Førstepersons-navigering: target = 0.5m foran kamera
           // → rotasjon skjer nær kameraets akse, ikke rundt et fjernt punkt
