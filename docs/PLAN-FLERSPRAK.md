@@ -1223,19 +1223,48 @@ Bruker kan skrive på annet språk enn sin innstilling (f.eks. norsk bruker skri
 Mobil bruker `i18next` (standard for React Native). Web kan bruke enten `next-intl` eller `react-i18next`.
 **Beslutning:** Bruk `i18next` + `react-i18next` for **begge** plattformer. Samme JSON-filer i `packages/shared/src/i18n/`. `next-intl` er unødvendig kompleksitet når vi ikke bruker locale-basert ruting.
 
-## Risiko
+## Risikomatrise
 
-| Risiko | Mitigering |
-|--------|------------|
-| AI-oversettelser har feil fagterminologi | Admin kan redigere mal-oversettelser + manuell korrigering av fritekst |
-| ~1900 UI-nøkler å ekstrahere (300 mobil + 1600 web) | Systematisk gjennomgang. Norsk fallback for manglende nøkler |
-| Ytelse: ekstra DB-query per mal for oversettelser | Eager-load oversettelser med mal, cache i React Query |
-| Offline: oversettelser må caches lokalt | SQLite-tabell for oversettelser, synkes ved oppstart |
-| Verdier lagret som norsk nøkkel — hva om etikett endres? | Bruk `value`-felt (ikke label) som nøkkel for opsjoner |
-| Fritekst-oversettelseskostnad ved høyt volum | Cache eliminerer duplikater. Google gratis-tier dekker de fleste |
-| Google Translate uoffisiell API blokkeres | Bytt til offisiell Google Cloud ($20/M tegn) eller DeepL |
-| Oversettelseskvalitet varierer per språk | Grundigere QA for fagtermer. Manuell korrigering tilgjengelig |
-| Latens ved fritekst-oversettelse | Fire-and-forget ved lagring. Batch cache-oppslag ved lesing (<5ms) |
-| Offline fritekst fra andre brukere | Vis original + "Oversettelse tilgjengelig når du er på nett" |
-| Bruker redigerer fritekst → gammel oversettelse utdatert | Ny hash = ny oversettelse. Gammel cache irrelevant (ingen referanse) |
-| E-post på feil språk | Send på mottakerens `User.language`, ikke avsenderens |
+| # | Risiko | Alvorlighet | Sannsynlighet | Løsning |
+|---|--------|-------------|---------------|---------|
+| R1 | AI-oversettelser har feil fagterminologi | Høy | Høy | **Tre lag:** (1) Segmentert oversettelse bevarer NS-koder, produktnavn, mengder (F3). (2) Admin redigerer mal-oversettelser i malbygger med QA-sjekkliste. (3) Manuell korrigering av fritekst med "Rediger oversettelse"-knapp |
+| R2 | ~1900 UI-nøkler å ekstrahere | Medium | Sikker | Gradvis migrering — norsk fallback for manglende nøkler (`t('key', { defaultValue: 'Norsk tekst' })`). Start med navigasjon (86 nøkler), deretter statuser (38), handlinger (30). Script `generate.ts` auto-oversetter til 12 språk |
+| R3 | Ytelse: ekstra DB-query for oversettelser | Medium | Medium | Mal-oversettelser eager-loades med `include: { translations: true }`. React Query cacher i 5 min. Fritekst: batch cache-oppslag (<5ms for 50 felt). Ingen ekstra query uten aktiv flerspråk-modul |
+| R4 | Offline: oversettelser utilgjengelige | Medium | Høy | SQLite-tabell `content_translation_cache` på mobil. Synkes ved oppstart + etter hvert API-svar. Offline viser: lokal cache → original tekst → "Oversettelse tilgjengelig når du er på nett". Forhåndslast oversettelser for tildelte sjekklister ved synk |
+| R5 | Valgverdi-nøkkel endres | Medium | Lav | Opsjoner bruker `value`-felt (ikke `label`) som nøkkel der mulig. For egendefinerte opsjoner: norsk tekst er nøkkel. Ved endring av opsjon-tekst → `isOutdated`-flagg på oversettelser (F4) |
+| R6 | Google Translate blokkeres | Høy | Medium | Automatisk fallback-kjede: Google uoffisiell → Google Cloud → DeepL → Claude → vis original med varsel (F1). Overvåkning: logg antall fallbacks per dag, varsle admin ved >10% feilrate |
+| R7 | Oversettelseskvalitet varierer per språk | Høy | Høy | **Per-språk QA-runde** ved lansering — fokus på byggfagtermer (se QA-sjekkliste). Manuell korrigering for alle lag. Admin-dashboard: "X oversettelser korrigert manuelt" → identifiserer problematiske språk. Vurder Claude-provider for språk med lav Google-kvalitet |
+| R8 | Latens ved fritekst-oversettelse | Lav | Medium | Fire-and-forget ved lagring (bruker merker ingenting). Lesing: batch cache-oppslag <5ms. Worst case (cache miss + API): ~200ms for Google, ~500ms for Claude — kun ved første lesing av ny tekst |
+| R9 | Offline fritekst fra andre brukere | Medium | Høy | Vis original tekst umiddelbart (alltid tilgjengelig). Liten badge: "🌐 Oversettelse lastes...". Ved nettverkstilkobling: hent oversettelse → oppdater UI. Forhåndslast kjente oversettelser ved synk |
+| R10 | Bruker redigerer fritekst | Lav | Høy | Ny tekst = ny SHA-256 hash = ny oversettelse automatisk. Gammel cache forblir (andre sjekklister kan referere). Ingen manuell invalidering nødvendig |
+| R11 | E-post på feil språk | Medium | Medium | E-post sendes på `mottaker.language`. E-postmaler i `packages/shared/src/i18n/email/`. Fritekst i e-post oversettes via ContentTranslation. Fallback: prosjektspråk |
+| R12 | Blanding av språk i fritekst | Høy | Høy | Segmentert oversettelse (F3): NS-koder, produktnavn, mengder, enheter beskyttes med `{{placeholder}}`. Regex-regler for norske byggebransje-mønstre. Google Translate håndterer delvis blanding — segmentering forbedrer ytterligere |
+| R13 | Nytt alternativ i mal etter oversettelse | Medium | Medium | Malbygger: ved ny opsjon → marker alle oversettelser `isOutdated`. Vis varsel: "1 ny opsjon mangler oversettelse". Admin klikker "Oppdater" → kun nye opsjoner oversettes (eksisterende beholdes) |
+| R14 | Oversettelse-provider endrer API/prising | Medium | Lav | Provider-abstraksjon (interface) gjør bytte trivielt. Alle providere testes med integrasjonstest. Bytte krever: endre config, restart — ingen kodeendring |
+| R15 | Bruker-opplevd forvirring ved feil oversettelse | Høy | Medium | Alltid vis "ⓘ Oversatt fra [språk]" med klikk for å se original. Manuell korrigering tilgjengelig for alle brukere med skrivetilgang. Korrigert oversettelse merkes med ✓ (verifisert) i UI |
+
+## QA-sjekkliste per språk (ved lansering)
+
+For hvert av de 13 språkene — verifiser at disse fagtermer er korrekte:
+
+| Norsk | Beskrivelse | Typisk feil |
+|-------|-------------|-------------|
+| Sjekkliste | Dokument med sjekkpunkter | "Check list" (to ord), "Inspection form" |
+| Oppgave | Arbeidsoppgave/issue | "Exercise", "Assignment" |
+| Entreprise | Kontraktspart/fagområde | "Enterprise" (betyr bedrift), "Company" |
+| Anmerkning | Mindre avvik, påpekning | "Annotation", "Note" |
+| Avvik | Non-conformance, mangel | "Deviation" (ok), "Error" (feil) |
+| Byggherre | Oppdragsgiver/eier | "Builder" (feil), "Developer" |
+| Arbeidsforløp | Dokumentflyt/workflow | "Work process", "Work sequence" |
+| Maler | Rapportmaler/templates | "Paintings" (vanlig Google-feil!) |
+| Fagområde | Disiplin (bygg/elektro/VVS) | "Subject area", "Expertise" |
+| Innestående | Tilbakeholdt beløp | "Outstanding" (ok), "Remaining" |
+| Målebrev | Periodisk oppgjørsgrunnlag | "Measurement letter" (direkte oversettelse) |
+| Dagmulkt | Forsinkelsesgebyr | "Day fine" (direkte oversettelse) |
+
+**Prosess per språk:**
+1. Generer maskinoversettelse (Google Translate)
+2. Fagperson (eller morsmålsbruker i byggebransjen) gjennomgår alle termer over
+3. Korriger i JSON-fil
+4. Test i appen — naviger alle sider
+5. Godkjenn
