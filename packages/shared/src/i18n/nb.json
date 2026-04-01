@@ -48,6 +48,8 @@
   "status.underBehandling": "Under behandling",
   "status.ventende": "Ventende",
   "status.tilGodkjenning": "Til godkjenning",
+  "status.aktiv": "Aktiv",
+  "status.arkivert": "Arkivert",
 
   "handling.opprett": "Opprett",
   "handling.lagre": "Lagre",

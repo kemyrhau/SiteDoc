@@ -5,24 +5,25 @@ import { trpc } from "@/lib/trpc";
 import { SearchInput, Spinner } from "@sitedoc/ui";
 import { useState } from "react";
 import { useBygning } from "@/kontekst/bygning-kontekst";
+import { useTranslation } from "react-i18next";
 import { MapPin, X } from "lucide-react";
 
 interface StatusGruppe {
   id: string;
-  label: string;
+  labelKey: string;
   farge: string;
 }
 
 const statusGrupper: StatusGruppe[] = [
-  { id: "alle", label: "Alle", farge: "bg-gray-500" },
-  { id: "draft", label: "Utkast", farge: "bg-gray-400" },
-  { id: "sent", label: "Sendt", farge: "bg-blue-500" },
-  { id: "received", label: "Mottatt", farge: "bg-indigo-500" },
-  { id: "in_progress", label: "Under arbeid", farge: "bg-yellow-500" },
-  { id: "responded", label: "Besvart", farge: "bg-purple-500" },
-  { id: "approved", label: "Godkjent", farge: "bg-green-500" },
-  { id: "rejected", label: "Avvist", farge: "bg-red-500" },
-  { id: "closed", label: "Lukket", farge: "bg-gray-600" },
+  { id: "alle", labelKey: "status.alle", farge: "bg-gray-500" },
+  { id: "draft", labelKey: "status.utkast", farge: "bg-gray-400" },
+  { id: "sent", labelKey: "status.sendt", farge: "bg-blue-500" },
+  { id: "received", labelKey: "status.mottatt", farge: "bg-indigo-500" },
+  { id: "in_progress", labelKey: "status.underArbeid", farge: "bg-yellow-500" },
+  { id: "responded", labelKey: "status.besvart", farge: "bg-purple-500" },
+  { id: "approved", labelKey: "status.godkjent", farge: "bg-green-500" },
+  { id: "rejected", labelKey: "status.avvist", farge: "bg-red-500" },
+  { id: "closed", labelKey: "status.lukket", farge: "bg-gray-600" },
 ];
 
 export function SjekklisterPanel() {
@@ -32,6 +33,7 @@ export function SjekklisterPanel() {
   const aktivStatus = searchParams.get("status") ?? "alle";
   const [sok, setSok] = useState("");
   const { aktivBygning, standardTegning, settStandardTegning } = useBygning();
+  const { t } = useTranslation();
 
   const { data: sjekklister, isLoading } =
     trpc.sjekkliste.hentForProsjekt.useQuery(
@@ -63,7 +65,7 @@ export function SjekklisterPanel() {
       <SearchInput
         verdi={sok}
         onChange={setSok}
-        placeholder="Søk sjekklister..."
+        placeholder={t("sjekklister.sokPlaceholder")}
       />
 
       {/* Standard-tegning for opprettelse */}
@@ -80,7 +82,7 @@ export function SjekklisterPanel() {
             <button
               onClick={() => settStandardTegning(null)}
               className="rounded p-0.5 text-blue-400 hover:bg-blue-100 hover:text-blue-600"
-              title="Fjern standard-tegning"
+              title={t("handling.fjern")}
             >
               <X className="h-3 w-3" />
             </button>
@@ -103,7 +105,7 @@ export function SjekklisterPanel() {
             >
               <div className="flex items-center gap-2">
                 <span className={`h-2 w-2 rounded-full ${gruppe.farge}`} />
-                <span>{gruppe.label}</span>
+                <span>{t(gruppe.labelKey)}</span>
               </div>
               <span className="text-xs text-gray-400">{antall}</span>
             </button>

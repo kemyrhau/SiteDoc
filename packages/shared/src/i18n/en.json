@@ -48,6 +48,8 @@
   "status.underBehandling": "Under review",
   "status.ventende": "Pending",
   "status.tilGodkjenning": "For approval",
+  "status.aktiv": "Active",
+  "status.arkivert": "Archived",
 
   "handling.opprett": "Create",
   "handling.lagre": "Save",

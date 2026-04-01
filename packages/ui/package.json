@@ -12,7 +12,9 @@
     "lint": "eslint src/"
   },
   "dependencies": {
-    "react": "^18.3.0"
+    "i18next": "^26.0.3",
+    "react": "^18.3.0",
+    "react-i18next": "^17.0.2"
   },
   "devDependencies": {
     "@types/react": "^18.3.0",
