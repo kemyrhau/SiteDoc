@@ -157,7 +157,7 @@ function beregReRank(
 
 const NORBERT_PYTHON =
   process.env.NORBERT_PYTHON ?? join(process.env.HOME ?? "", "norbert-env", "bin", "python3");
-const NORBERT_SCRIPT = join(__dirname, "norbert-embed.py");
+const NORBERT_SCRIPT = join(process.cwd(), "src", "services", "norbert-embed.py");
 
 async function encodeQueryLokal(query: string): Promise<number[]> {
   const embeddings = await new Promise<number[][]>((resolve, reject) => {

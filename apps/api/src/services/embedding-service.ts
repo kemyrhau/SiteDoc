@@ -36,7 +36,7 @@ let _stoppSignal = false;
 
 const PYTHON_PATH =
   process.env.NORBERT_PYTHON ?? join(process.env.HOME ?? "", "norbert-env", "bin", "python3");
-const SCRIPT_PATH = join(__dirname, "norbert-embed.py");
+const SCRIPT_PATH = join(process.cwd(), "src", "services", "norbert-embed.py");
 
 async function genererNorBERTEmbeddings(
   tekster: string[],
