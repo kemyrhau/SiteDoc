@@ -228,7 +228,7 @@ class ClaudeProvider implements TranslationProvider {
 2. **Oppgrader til:** Google Cloud eller DeepL ved høyere volum/kvalitetskrav
 3. **Fallback:** Claude for byggfagspesifikke termer
 
-Alle providere støtter de 12 målspråkene: nb, sv, en, lt, pl, ro, uk, ru, et, fi, cs, de.
+Alle providere støtter de 13 målspråkene: nb, sv, en, lt, pl, uk, ro, et, fi, cs, de, lv, ru.
 
 **Konfigurasjon per prosjekt:**
 ```typescript
@@ -351,7 +351,7 @@ const SPRAAK_MODUL: ModulDefinisjon = {
   ikon: "Languages",
   maler: [], // Ingen maler — dette er en systemmodul
   config: {
-    tilgjengeligeSpraak: ["nb", "sv", "en", "lt", "pl", "ro", "uk", "ru"],
+    tilgjengeligeSpraak: ["nb", "sv", "en", "lt", "pl", "uk", "ro", "et", "fi", "cs", "de", "lv", "ru"],
     standardSpraak: "nb",
   }
 }
@@ -996,18 +996,45 @@ DEEPL_API_KEY=...           # DeepL API-nøkkel (gratis eller pro)
 ANTHROPIC_API_KEY=...       # Claude fallback (valgfritt)
 ```
 
+## Kjente kanttilfeller
+
+### 1. Cache-invalidering ved redigering
+Bruker endrer sin fritekst → gammel oversettelse er utdatert.
+**Løsning:** Ved oppdatering av fritekstfelt — slett `ContentTranslation` der `sourceHash` matcher gammel tekst, generer ny oversettelse for ny tekst. Hash endres automatisk siden teksten endres.
+
+### 2. Kommentarer (task_comments)
+Kommentarer er en separat tabell med fritekst. Må også oversettes.
+**Løsning:** Samme `ContentTranslation`-mekanisme. Ved henting av kommentarer — batch-oppslag av oversettelser basert på leserens språk.
+
+### 3. Emne-feltet (subjects)
+Brukeren skriver emne som fritekst ved opprettelse av sjekkliste/oppgave.
+**Løsning:** Oversettes som fritekst (Lag 3). Predefinerte emner fra malen oversettes som mal-innhold (Lag 2).
+
+### 4. E-postvarsler
+Når sjekkliste sendes → e-post til mottaker.
+**Løsning:** E-post sendes på **mottakerens språk** (`User.language`). E-postmaler oversettes som UI-tekst (Lag 1). Innhold (emne, kommentar) oversettes via `ContentTranslation`.
+
+### 5. Språkdeteksjon vs brukerinnstilling
+Bruker kan skrive på annet språk enn sin innstilling (f.eks. norsk bruker skriver på engelsk).
+**Løsning:** Lagre `sourceLang` basert på `User.language`. Hvis oversettelse gir dårlig resultat — manuell korrigering. Fremtidig: auto-detect via Google Translate API.
+
+### 6. Rammeverk-valg: i18next vs next-intl
+Mobil bruker `i18next` (standard for React Native). Web kan bruke enten `next-intl` eller `react-i18next`.
+**Beslutning:** Bruk `i18next` + `react-i18next` for **begge** plattformer. Samme JSON-filer i `packages/shared/src/i18n/`. `next-intl` er unødvendig kompleksitet når vi ikke bruker locale-basert ruting.
+
 ## Risiko
 
 | Risiko | Mitigering |
 |--------|------------|
-| AI-oversettelser har feil fagterminologi | Admin kan redigere mal-oversettelser i malbygger |
-| ~300 UI-nøkler å ekstrahere fra mobil | Systematisk gjennomgang, komponent for komponent |
+| AI-oversettelser har feil fagterminologi | Admin kan redigere mal-oversettelser + manuell korrigering av fritekst |
+| ~1900 UI-nøkler å ekstrahere (300 mobil + 1600 web) | Systematisk gjennomgang. Norsk fallback for manglende nøkler |
 | Ytelse: ekstra DB-query per mal for oversettelser | Eager-load oversettelser med mal, cache i React Query |
 | Offline: oversettelser må caches lokalt | SQLite-tabell for oversettelser, synkes ved oppstart |
-| Verdier lagret som norsk nøkkel — hva om etikett endres? | Opsjoner bruk `value`-felt (ikke label) som nøkkel der mulig |
-| Fritekst-oversettelseskostnad ved høyt volum | DeepL-cache eliminerer duplikater, budsjettgrense per prosjekt |
-| DeepL nede / rate limit | Automatisk fallback til Claude API |
-| Oversettelseskvalitet varierer per språk | Litauisk/rumensk/ukrainsk: grundigere QA av mal-oversettelser |
-| Latens ved fritekst-oversettelse | Batch-kall + cache → sub-100ms for cache hits |
+| Verdier lagret som norsk nøkkel — hva om etikett endres? | Bruk `value`-felt (ikke label) som nøkkel for opsjoner |
+| Fritekst-oversettelseskostnad ved høyt volum | Cache eliminerer duplikater. Google gratis-tier dekker de fleste |
+| Google Translate uoffisiell API blokkeres | Bytt til offisiell Google Cloud ($20/M tegn) eller DeepL |
+| Oversettelseskvalitet varierer per språk | Grundigere QA for fagtermer. Manuell korrigering tilgjengelig |
+| Latens ved fritekst-oversettelse | Fire-and-forget ved lagring. Batch cache-oppslag ved lesing (<5ms) |
 | Offline fritekst fra andre brukere | Vis original + "Oversettelse tilgjengelig når du er på nett" |
-| Bruker skriver på annet språk enn sin innstilling | DeepL auto-detect (`source_lang: null`) i Fase 4 |
+| Bruker redigerer fritekst → gammel oversettelse utdatert | Ny hash = ny oversettelse. Gammel cache irrelevant (ingen referanse) |
+| E-post på feil språk | Send på mottakerens `User.language`, ikke avsenderens |
