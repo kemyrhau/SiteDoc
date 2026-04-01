@@ -9,16 +9,29 @@ import { byttSpraak, hentLagretSpraak } from "@/lib/i18n";
 import type { SpraakKode } from "@sitedoc/shared";
 
 function SpraakSynkroniserer() {
+  const [harSynkronisert, setHarSynkronisert] = useState(false);
+  const lagretSpraak = hentLagretSpraak();
+
+  // Hent kun fra server hvis bruker ikke har valgt språk lokalt
   const { data: serverSpraak } = trpc.bruker.hentSpraak.useQuery(undefined, {
+    enabled: !harSynkronisert && lagretSpraak === "nb",
     staleTime: Infinity,
   });
 
   useEffect(() => {
-    // Synkroniser server-språk til klient ved innlogging
-    if (serverSpraak && serverSpraak !== hentLagretSpraak()) {
-      byttSpraak(serverSpraak as SpraakKode);
+    if (harSynkronisert) return;
+    // Hvis bruker har lagret språk lokalt, bruk det
+    if (lagretSpraak !== "nb") {
+      byttSpraak(lagretSpraak);
+      setHarSynkronisert(true);
+      return;
     }
-  }, [serverSpraak]);
+    // Ellers synkroniser fra server (første innlogging)
+    if (serverSpraak && serverSpraak !== "nb") {
+      byttSpraak(serverSpraak as SpraakKode);
+      setHarSynkronisert(true);
+    }
+  }, [serverSpraak, lagretSpraak, harSynkronisert]);
 
   return null;
 }
