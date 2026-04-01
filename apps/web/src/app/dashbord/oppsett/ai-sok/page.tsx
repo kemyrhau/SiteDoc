@@ -182,10 +182,7 @@ export default function AiSokSide() {
             ) : (
               <Button
                 size="sm"
-                onClick={() => {
-                  alert("Kaller genererEmbeddings med projectId: " + prosjektId);
-                  genererMut.mutate({ projectId: prosjektId! });
-                }}
+                onClick={() => genererMut.mutate({ projectId: prosjektId! })}
                 disabled={genererMut.isPending || !harApiNøkkel}
               >
                 <Play className="mr-1.5 h-3.5 w-3.5" />

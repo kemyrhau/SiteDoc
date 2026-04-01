@@ -91,6 +91,11 @@ export async function prosesserDokument(
       where: { id: documentId },
       data: { processingState: "completed" },
     });
+
+    // Automatisk embedding av nye chunks (fire-and-forget)
+    embeddNyeChunks(prisma, documentId).catch((err) => {
+      console.error(`Embedding feilet for ${documentId}:`, err);
+    });
   } catch (err) {
     const melding =
       err instanceof Error ? err.message : "Ukjent prosesseringsfeil";
@@ -2487,4 +2492,89 @@ function detekterOverskrift(tekst: string): string | null {
     }
   }
   return null;
+}
+
+// --------------------------------------------------------------------------
+// Automatisk embedding av nye chunks via NorBERT Python-subprosess
+// --------------------------------------------------------------------------
+
+const NORBERT_PYTHON = join(
+  process.env.HOME ?? "",
+  "norbert-env",
+  "bin",
+  "python3",
+);
+const NORBERT_SCRIPT = join(process.cwd(), "src", "services", "norbert-embed.py");
+
+async function embeddNyeChunks(
+  prisma: PrismaClient,
+  documentId: string,
+): Promise<void> {
+  const { existsSync } = await import("node:fs");
+
+  // Sjekk om NorBERT er tilgjengelig
+  if (!existsSync(NORBERT_PYTHON) || !existsSync(NORBERT_SCRIPT)) {
+    console.warn(`[EMBEDDING] NorBERT ikke tilgjengelig — hopper over for ${documentId}`);
+    return;
+  }
+
+  const chunks = await prisma.ftdDocumentChunk.findMany({
+    where: { documentId, embeddingState: "pending" },
+    select: { id: true, chunkText: true },
+  });
+
+  if (chunks.length === 0) return;
+
+  const ider = chunks.map((c) => c.id);
+  await prisma.ftdDocumentChunk.updateMany({
+    where: { id: { in: ider } },
+    data: { embeddingState: "processing" },
+  });
+
+  try {
+    const BATCH = 16;
+    for (let i = 0; i < chunks.length; i += BATCH) {
+      const batch = chunks.slice(i, i + BATCH);
+      const tekster = batch.map((c) => c.chunkText);
+
+      const embeddings = await new Promise<number[][]>((resolve, reject) => {
+        const proc = execFile(
+          NORBERT_PYTHON,
+          [NORBERT_SCRIPT],
+          { encoding: "utf-8", maxBuffer: 50 * 1024 * 1024, timeout: 120_000 },
+          (err, stdout) => {
+            if (err) return reject(err);
+            try { resolve(JSON.parse(stdout as string)); } catch (e) { reject(e); }
+          },
+        );
+        proc.stdin?.write(JSON.stringify(tekster));
+        proc.stdin?.end();
+      });
+
+      for (let j = 0; j < batch.length; j++) {
+        const emb = embeddings[j]!;
+        const chunk = batch[j]!;
+        const vecStr = `[${emb.join(",")}]`;
+        await prisma.$executeRaw`
+          UPDATE ftd_document_chunks
+          SET embedding_vector = ${vecStr}::vector,
+              embedding_state = 'done'
+          WHERE id = ${chunk.id}
+        `;
+      }
+    }
+  } catch (err) {
+    // Sett tilbake til pending ved feil
+    await prisma.ftdDocumentChunk.updateMany({
+      where: { id: { in: ider } },
+      data: { embeddingState: "pending" },
+    });
+
+    // Logg embedding-feil på dokumentet
+    const melding = err instanceof Error ? err.message : "Embedding feilet";
+    await prisma.ftdDocument.update({
+      where: { id: documentId },
+      data: { processingError: `Embedding: ${melding}` },
+    }).catch(() => {});
+  }
 }
