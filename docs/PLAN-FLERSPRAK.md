@@ -13,9 +13,13 @@ Brukeren velger språk i mobilappen. Alt vises på valgt språk: UI, mal-etikett
 | `en` | Engelsk | Høy |
 | `lt` | Litauisk | Høy |
 | `pl` | Polsk | Høy |
+| `uk` | Ukrainsk | Høy |
 | `ro` | Rumensk | Middels |
-| `uk` | Ukrainsk | Middels |
-| `ru` | Russisk | Middels |
+| `et` | Estisk | Middels |
+| `fi` | Finsk | Middels |
+| `cs` | Tsjekkisk | Middels |
+| `de` | Tysk | Middels |
+| `ru` | Russisk | Lav |
 
 ## Tre lag av oversettelse
 
@@ -180,41 +184,59 @@ Tekst: "{brukerInput}"
 Returner kun oversatt tekst, ingen forklaring.
 ```
 
-**Oversettelsestilbyder: DeepL API (valgt løsning)**
+**Oversettelsestilbyder: Dynamisk provider-abstraksjon**
 
-DeepL API kjøres fra SiteDoc sin egen Node.js-server — en enkel HTTP-request, likt vær-API-et (Open-Meteo).
+Samme mønster som embedding-servicen — en felles interface med utbyttbare providere. Konfigurerbart per prosjekt via innstillinger.
 
 ```typescript
 // apps/api/src/services/oversettelse.ts
 
-const response = await fetch("https://api-free.deepl.com/v2/translate", {
-  method: "POST",
-  headers: {
-    "Authorization": `DeepL-Auth-Key ${process.env.DEEPL_API_KEY}`,
-    "Content-Type": "application/json",
-  },
-  body: JSON.stringify({
-    text: ["Pęknięcie w ścianie fundamentowej"],
-    source_lang: "PL",
-    target_lang: "NB",
-  }),
-});
-// → { translations: [{ text: "Sprekk i grunnmuren" }] }
+interface TranslationProvider {
+  oversett(tekster: string[], fraSpraak: string, tilSpraak: string): Promise<string[]>;
+  navn: string;
+}
+
+class GoogleTranslateProvider implements TranslationProvider {
+  // google-translate-api-x (gratis, uoffisiell) eller @google-cloud/translate (offisiell)
+  navn = "google";
+}
+
+class DeepLProvider implements TranslationProvider {
+  // DeepL API (api-free.deepl.com eller api.deepl.com)
+  navn = "deepl";
+}
+
+class ClaudeProvider implements TranslationProvider {
+  // Anthropic Claude API med byggfaglig kontekst-prompt
+  navn = "claude";
+}
 ```
 
-| Plan | Pris | Tegn/mnd | Vurdering |
-|------|------|----------|-----------|
-| DeepL API Free | $0 | 500 000 | Nok for oppstart og testing |
-| DeepL API Pro | ~$5.50/mnd + bruk | 5 000 000+ | For produksjon med høyere volum |
+**Tilgjengelige providere:**
 
-DeepL støtter alle 8 målspråk: nb, sv, en, lt, pl, ro, uk, ru.
+| Provider | Pris | Kvalitet | API-nøkkel | Språk |
+|----------|------|----------|------------|-------|
+| Google Translate (uoffisiell) | Gratis | God | Nei | 130+ |
+| Google Cloud Translation | $20/M tegn | God | Ja | 130+ |
+| DeepL Free | Gratis (500k/mnd) | Svært god | Ja | ~30 |
+| DeepL Pro | $25/M tegn | Svært god | Ja | ~30 |
+| Claude | ~$3/M tokens | Best for fagtermer | Ja | Alle |
 
-**Fallback:** Claude API for byggfagspesifikke termer der DeepL er upresis. Claude kan instrueres med kontekst ("Oversett til norsk byggfaglig språk").
+**Anbefalt oppsett:**
+1. **Start med:** `google-translate-api-x` (gratis, ingen nøkkel, robust)
+2. **Oppgrader til:** Google Cloud eller DeepL ved høyere volum/kvalitetskrav
+3. **Fallback:** Claude for byggfagspesifikke termer
 
-**Hvorfor ikke lokale modeller (LibreTranslate/LTEngine)?**
-- DeepL gir bedre kvalitet til lavere totalkostnad enn å drifte en GPU-server
-- Serverens GTX 1660 (6 GB VRAM) er for liten for de store LLM-modellene som matcher DeepL
-- En Azure GPU-VM koster ~$500/mnd — DeepL koster ~$5.50/mnd for samme kvalitet
+Alle providere støtter de 12 målspråkene: nb, sv, en, lt, pl, ro, uk, ru, et, fi, cs, de.
+
+**Konfigurasjon per prosjekt:**
+```typescript
+// ai_sok_innstillinger eller egen tabell
+{
+  translationProvider: "google" | "deepl" | "claude",
+  translationApiKey?: string, // Kun for offisiell Google Cloud / DeepL / Claude
+}
+```
 - LibreTranslate (uten GPU) gir ~70% nøyaktighet — ikke godt nok for fagterminologi
 
 **Dataflyt ved felt-endring:**
