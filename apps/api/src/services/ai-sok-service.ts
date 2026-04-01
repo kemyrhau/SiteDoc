@@ -109,6 +109,7 @@ function beregReRank(
 ): number {
   const tekstLower = chunk.chunkText.toLowerCase();
   const headingLower = (chunk.pageHeading ?? "").toLowerCase();
+  const filnavnLower = (chunk.filename ?? "").toLowerCase();
 
   // Frase-treff
   const fraseHits = fraser.filter((f) => tekstLower.includes(f)).length;
@@ -125,6 +126,13 @@ function beregReRank(
     headingHits += termer.filter((t) => headingLower.includes(t)).length;
   }
 
+  // Filnavn-boost: søkeord som finnes i filnavnet gir sterk bonus
+  let filnavnBoost = 0;
+  const filnavnTermHits = termer.filter((t) => filnavnLower.includes(t)).length;
+  if (filnavnTermHits > 0) {
+    filnavnBoost = 0.15 * Math.min(filnavnTermHits, 3); // maks 0.45
+  }
+
   // Sideposisjon
   const side = chunk.pageNumber ?? 0;
   let pagepos = 0;
@@ -139,7 +147,6 @@ function beregReRank(
     for (const t of tallISøk) {
       if (tallIChunk.has(t)) tallBonus += 0.3;
     }
-    // Mild straff for fremmede tall (maks -0.3 totalt)
     let straffCount = 0;
     for (const t of tallIChunk) {
       if (!tallISøk.has(t)) straffCount++;
@@ -147,9 +154,9 @@ function beregReRank(
     tallBonus -= Math.min(straffCount * 0.05, 0.3);
   }
 
-  // NS 3420 nedvekting — standarddokumenter er generisk og matcher mye
+  // NS 3420 nedvekting
   let ns3420Straff = 0;
-  if (chunk.filename.includes("3420") || chunk.filename.includes("ns-3420")) {
+  if (filnavnLower.includes("3420") || filnavnLower.includes("ns-3420")) {
     ns3420Straff = -0.15;
   }
 
@@ -158,6 +165,7 @@ function beregReRank(
     vekter.termWeight * termHits +
     vekter.headingWeight * headingHits +
     vekter.pageposWeight * pagepos +
+    filnavnBoost +
     tallBonus +
     ns3420Straff
   );

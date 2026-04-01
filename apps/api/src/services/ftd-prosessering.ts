@@ -22,6 +22,25 @@ const OVERLAPP = 100;
 // NS 3420 kodemønster: f.eks. "21.341", "21.341.1", "01.1"
 const NS_KODE_REGEX = /\b(\d{2}\.\d{1,3}(?:\.\d+)?)\b/;
 
+/**
+ * Rens OCR-tekst: splitt sammensatte ord, fiks vanlige OCR-feil.
+ * "StorgataNord" → "Storgata Nord", "Utførtpr:" → "Utført pr:"
+ */
+function rensOcrTekst(tekst: string): string {
+  let t = tekst;
+  // Splitt CamelCase: "StorgataNord" → "Storgata Nord" (kun store bokstaver etter små)
+  t = t.replace(/([a-zæøå])([A-ZÆØÅ])/g, "$1 $2");
+  // Splitt tall+bokstav: "84310299,80" beholder, men "20.10.2025Utført" → "20.10.2025 Utført"
+  t = t.replace(/(\d)([A-ZÆØÅ])/g, "$1 $2");
+  // Splitt bokstav+tall der det mangler mellomrom: "Side02" → "Side 02"
+  t = t.replace(/([a-zæøå])(\d)/g, "$1 $2");
+  // Fiks kolon uten mellomrom: "Utførtpr:" → "Utført pr:"
+  t = t.replace(/([a-zæøå]):([A-Za-zæøåÆØÅ])/g, "$1: $2");
+  // Fjern overflødige mellomrom
+  t = t.replace(/  +/g, " ");
+  return t;
+}
+
 // Overskrift: nummerert (f.eks. "3.2.1 Betongarbeid") eller ALL CAPS
 const OVERSKRIFT_REGEX = /^(\d+(?:\.\d+)*)\s+(.+)/;
 
@@ -224,7 +243,7 @@ async function prosesserPdf(
       data: chunks.map((c) => ({
         documentId,
         chunkIndex: c.chunkIndex,
-        chunkText: c.chunkText,
+        chunkText: rensOcrTekst(c.chunkText),
         pageNumber: c.pageNumber,
         sectionTitle: c.sectionTitle,
         nsCode: c.nsCode,
