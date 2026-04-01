@@ -461,10 +461,12 @@ Draggbar skillelinje.
 - Auto-fit PDF til container ved oppstart
 - Full scroll-zoom og panorering
 
-**Live kamera-tracking:**
-- Blå prikk + synsfelt-trapes (FOV) på tegningen som følger 3D-kameraet i sanntid
-- Oppdateres via requestAnimationFrame
-- Kjent begrensning: ~5m offset i live posisjon (klikk-navigering er presis)
+**Live kamera-tracking (blå prikk):**
+- Blå prikk på tegningen viser kameraposisjon
+- **Inkrementell delta-tracking:** Startposisjon fra klikk (presis), bevegelse via `treDDeltaTilTegning` (lineærdel av similarity-transform, ingen absolutt offset)
+- Absolutt `treDTilTegning` har kjent offset — brukes IKKE for posisjon
+- `flyTil`-animasjon pauses i 600ms for å unngå at animasjonsframes tolkes som brukerbevegelse
+- Hint "Klikk på tegningen for å plassere kamera" vises uten markør
 
 **IFC GPS-kalibrering** (`gpsOverride` JSON-felt på Drawing):
 - **4-stegs klikk-kalibrering:** Klikk 2 matchende punkt-par (tegning → 3D) → beregner similarity-transform (a, b, tx, tz) som mapper tegning-% til 3D xz-koordinater. Håndterer posisjon, rotasjon, skalering og speiling automatisk
@@ -475,10 +477,10 @@ Draggbar skillelinje.
 - API: `tegning.settGpsOverride` / `tegning.fjernGpsOverride`
 
 **Kamerakontroller (førsteperson):**
-- Venstreklikk-drag: roter rundt ståsted (target 0.5m foran kamera)
-- Høyreklikk-drag: truck/pan (sidelengs bevegelse)
-- Scroll: dollyToCursor (zoom mot musepekeren, hastighet 1.8)
-- Target oppdateres kun ved venstreklikk-start og etter scroll
+- Venstreklikk-drag: roter rundt ståsted (target 2 enheter foran kamera, settes ved pointerdown)
+- Høyreklikk-drag: truck/pan (sidelengs bevegelse, standard orbit-kontroll)
+- Scroll: `ctrl.forward()` langs blikkretning (hastighet 2.5, symmetrisk). Bruker IKKE dolly (som begrenses av target)
+- Hjelpefunksjoner: `blikkretning()` (kopi, ikke muter), `oppdaterTarget()` (2 enheter foran)
 
 **Kamerahøyde-kalibrering:**
 - Klikk på gulv i 3D for å kalibrere kamerahøyde
@@ -492,7 +494,8 @@ Draggbar skillelinje.
 - `gpsTil3D(gps, ifcOrigin, system, hoyde)` — GPS → Three.js
 - `tredjeTilGps(punkt3d, ifcOrigin, system)` — Three.js → GPS
 - `wgs84TilUtm/wgs84TilNtm` — WGS84 → UTM/NTM projeksjon
-- Når `kalibTransform` finnes, brukes `tegningTil3D` / `treDTilTegning` direkte (uten GPS/UTM)
+- `tegningTil3D` / `treDTilTegning` — direkte similarity-transform (forward=presis, invers=har offset)
+- `treDDeltaTilTegning` — lineærdel for inkrementell tracking (presis)
 
 **Georeferanse:**
 - Georeferanse-redigering skjer KUN i Lokasjoner-siden (`/dashbord/oppsett/lokasjoner`)
