@@ -41,6 +41,15 @@ function rensOcrTekst(tekst: string): string {
   return t;
 }
 
+/**
+ * Sjekk om chunk er OCR-søppel (innholdsfortegnelse med prikk-linjer).
+ * Mønster: lange sekvenser av repeterende bokstaver som "ssevsseevsseven..."
+ */
+function erOcrSøppel(tekst: string): boolean {
+  // Mer enn 20 repeterende konsonanter/vokaler i sekvens = søppel
+  return /[srvne]{20,}/.test(tekst);
+}
+
 // Overskrift: nummerert (f.eks. "3.2.1 Betongarbeid") eller ALL CAPS
 const OVERSKRIFT_REGEX = /^(\d+(?:\.\d+)*)\s+(.+)/;
 
@@ -239,8 +248,9 @@ async function prosesserPdf(
   const chunks = delTekstIChunks(sideData);
 
   if (chunks.length > 0) {
-    await prisma.ftdDocumentChunk.createMany({
-      data: chunks.map((c) => ({
+    const rensetChunks = chunks
+      .filter((c) => !erOcrSøppel(c.chunkText))
+      .map((c) => ({
         documentId,
         chunkIndex: c.chunkIndex,
         chunkText: rensOcrTekst(c.chunkText),
@@ -248,8 +258,10 @@ async function prosesserPdf(
         sectionTitle: c.sectionTitle,
         nsCode: c.nsCode,
         profile: "pdf",
-      })),
-    });
+      }));
+    if (rensetChunks.length > 0) {
+      await prisma.ftdDocumentChunk.createMany({ data: rensetChunks });
+    }
   }
 
   // Side→postnr indeksering for dokumentasjon per post
