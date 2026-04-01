@@ -19,6 +19,7 @@ Brukeren velger språk i mobilappen. Alt vises på valgt språk: UI, mal-etikett
 | `fi` | Finsk | Middels |
 | `cs` | Tsjekkisk | Middels |
 | `de` | Tysk | Middels |
+| `lv` | Latvisk | Middels |
 | `ru` | Russisk | Lav |
 
 ## Tre lag av oversettelse
@@ -488,6 +489,7 @@ apps/web/src/components/SprakModal.tsx — Modal ved første innlogging (web)
 | 🇫🇮 | `fi` | Finsk | Suomi |
 | 🇨🇿 | `cs` | Tsjekkisk | Čeština |
 | 🇩🇪 | `de` | Tysk | Deutsch |
+| 🇱🇻 | `lv` | Latvisk | Latviešu |
 | 🇷🇺 | `ru` | Russisk | Русский |
 
 **Viktig:** Hvert språk vises på *sitt eget språk* i listen — en ukrainsk bruker skal gjenkjenne "Українська" uten å kunne lese norsk.
