@@ -9,6 +9,18 @@ import { Fulltekst } from "@/components/ftd-sok/fulltekst";
 
 type SokModus = "ai" | "leksikalsk";
 
+/** Forkort NS-filnavn for dropdown: "ns-3420-f_2024_no_002.pdf" → "NS 3420-F" */
+function kortFilnavn(filnavn: string): string {
+  // "ns-3420-f_2024..." → "NS 3420-F"
+  const m = filnavn.match(/ns-3420-([a-z]+)/i);
+  if (m) return `NS 3420-${m[1]!.toUpperCase()}`;
+  // "NS 3420 Del K..." → "NS 3420-K"
+  const m2 = filnavn.match(/NS 3420 Del ([A-Z])/);
+  if (m2) return `NS 3420-${m2[1]}`;
+  // Fjern .pdf
+  return filnavn.replace(/\.pdf$/i, "");
+}
+
 export default function DokumentsokSide() {
   const params = useParams<{ prosjektId: string }>();
   const prosjektId = params.prosjektId;
@@ -18,7 +30,8 @@ export default function DokumentsokSide() {
   const [valgtTreffId, setValgtTreffId] = useState<string | null>(null);
   const [valgtDokumentId, setValgtDokumentId] = useState<string | null>(null);
   const [modus, setModus] = useState<SokModus>("ai");
-  const [nsFilter, setNsFilter] = useState<"ekskluder" | "kun" | "alle">("ekskluder");
+  const [nsFilter, setNsFilter] = useState<"ekskluder" | "alle" | string>("ekskluder");
+  // string = dokument-ID for enkeltdokument-filter
 
   // Sjekk embedding-status
   const { data: embeddingStatus } = trpc.aiSok.embeddingStatus.useQuery(
@@ -37,6 +50,14 @@ export default function DokumentsokSide() {
   const nsMappeIder = refDok?.mapper.map((m) => m.id).filter((id) => id !== "__ingen__") ?? [];
   const nsDokumentIder = refDok?.dokumenter.map((d) => d.id) ?? [];
 
+  // Bygg filter basert på valg
+  const erEnkeltDok = nsFilter !== "ekskluder" && nsFilter !== "alle";
+  const sokFilter = erEnkeltDok
+    ? { dokumentIder: [nsFilter] }
+    : nsFilter === "ekskluder" && nsMappeIder.length > 0
+      ? { ekskluderMappeIder: nsMappeIder }
+      : {};
+
   // AI-søk (hybrid vektor + leksikalsk + re-ranking)
   const {
     data: aiTreff,
@@ -46,12 +67,7 @@ export default function DokumentsokSide() {
     {
       projectId: prosjektId,
       query: aktivtSok,
-      ...(nsFilter === "ekskluder" && nsMappeIder.length > 0
-        ? { ekskluderMappeIder: nsMappeIder }
-        : {}),
-      ...(nsFilter === "kun" && nsDokumentIder.length > 0
-        ? { dokumentIder: nsDokumentIder }
-        : {}),
+      ...sokFilter,
     },
     { enabled: !!prosjektId && aktivtSok.length > 0 && modus === "ai" && harEmbeddings, retry: false },
   );
@@ -148,18 +164,23 @@ export default function DokumentsokSide() {
             Tekstsøk
           </button>
 
-          {/* NS-dokumentfilter */}
-          {nsMappeIder.length > 0 && (
+          {/* Dokumentfilter */}
+          {(refDok?.dokumenter.length ?? 0) > 0 && (
             <div className="ml-auto flex items-center gap-1">
               <Filter className="h-3.5 w-3.5 text-gray-400" />
               <select
                 value={nsFilter}
-                onChange={(e) => setNsFilter(e.target.value as typeof nsFilter)}
-                className="rounded border-0 bg-transparent py-0.5 text-xs text-gray-600 focus:ring-0"
+                onChange={(e) => setNsFilter(e.target.value)}
+                className="max-w-[220px] rounded border-0 bg-transparent py-0.5 text-xs text-gray-600 focus:ring-0"
               >
-                <option value="ekskluder">Uten NS-standarder</option>
+                <option value="ekskluder">Prosjektdokumenter</option>
                 <option value="alle">Alle dokumenter</option>
-                <option value="kun">Kun NS-standarder</option>
+                <option disabled>──────────</option>
+                {refDok?.dokumenter.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {kortFilnavn(d.filename)}
+                  </option>
+                ))}
               </select>
             </div>
           )}
