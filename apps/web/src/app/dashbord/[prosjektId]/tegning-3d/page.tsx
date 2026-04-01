@@ -499,6 +499,7 @@ export default function Tegning3DSide() {
   // Live kamera-tracking: oppdater tegningMarkør inkrementelt fra 3D-bevegelse
   // Startposisjon settes ved klikk på tegning (presis). Delta-bevegelse er presis.
   const forrigeKamPosRef = useRef<{ x: number; z: number } | null>(null);
+  const pauseDeltaRef = useRef(false);
   useEffect(() => {
     if (!synkAktiv || !kalibTransform) {
       forrigeKamPosRef.current = null;
@@ -507,6 +508,7 @@ export default function Tegning3DSide() {
     let aktiv = true;
     function oppdater() {
       if (!aktiv) return;
+      if (pauseDeltaRef.current) { requestAnimationFrame(oppdater); return; }
       const kam = viewerRef.current?.hentKameraPosisjon();
       if (kam) {
         const nåPos = { x: kam.pos.x, z: kam.pos.z };
@@ -602,8 +604,12 @@ export default function Tegning3DSide() {
       } else return;
 
       setTegningMarkør({ ...pxProsent });
-      forrigeKamPosRef.current = null; // Reset delta-tracking ved ny navigering
+      // Pause delta-tracking under flyTil-animasjon (600ms)
+      // Uten dette tolkes animasjonen som brukerbevegelse → prikken drifter
+      pauseDeltaRef.current = true;
+      forrigeKamPosRef.current = null;
       viewerRef.current?.flyTil(flyX, 0, flyZ, gulvY ?? undefined);
+      setTimeout(() => { pauseDeltaRef.current = false; forrigeKamPosRef.current = null; }, 600);
     },
     [synkAktiv, transformasjon, ifcOpprinnelse, coordSystem, viewerRef, klikkKalibSteg, finjusterSteg],
   );
