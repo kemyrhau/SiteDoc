@@ -47,10 +47,9 @@ export default function DokumentsokSide() {
   // Bestem hva som vises
   const aiAktiv = modus === "ai" && harEmbeddings;
   const aiFeilet = aiAktiv && !!aiError;
-  const aiTomme = aiAktiv && !aiLaster && aiTreff?.length === 0;
 
-  // Bruk AI-treff hvis tilgjengelig, ellers leksikalsk
-  let visbareTreff = leksTreff;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let visbareTreff: any[] | undefined = leksTreff;
   let brukFallback = false;
 
   if (aiAktiv && !aiFeilet && (aiTreff?.length ?? 0) > 0) {
