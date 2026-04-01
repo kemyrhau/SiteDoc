@@ -19,8 +19,10 @@ import {
 } from "lucide-react";
 import { beregnSynligeMapper } from "@sitedoc/shared/utils";
 import type { MappeTilgangInput, BrukerTilgangInfo } from "@sitedoc/shared/utils";
+import { useTranslation } from "react-i18next";
 
 export default function MapperSide() {
+  const { t } = useTranslation();
   const { prosjektId } = useProsjekt();
   const { data: session } = useSession();
   const searchParams = useSearchParams();
@@ -182,9 +184,9 @@ export default function MapperSide() {
     return (
       <div className="flex flex-1 flex-col items-center justify-center py-20">
         <FolderOpen className="mb-3 h-12 w-12 text-gray-300" />
-        <h2 className="mb-1 text-lg font-semibold text-gray-700">Mapper</h2>
+        <h2 className="mb-1 text-lg font-semibold text-gray-700">{t("mapper.tittel")}</h2>
         <p className="text-sm text-gray-400">
-          Velg en mappe i panelet til venstre for å se innholdet.
+          {t("mapper.velgMappe")}
         </p>
       </div>
     );
@@ -199,7 +201,7 @@ export default function MapperSide() {
           {valgtMappe?.name ?? "Mappe"}
         </h2>
         <p className="text-sm text-gray-400">
-          Du har ikke tilgang til innholdet i denne mappen.
+          {t("mapper.ingenTilgang")}
         </p>
       </div>
     );
@@ -249,12 +251,12 @@ export default function MapperSide() {
           ) : lasterOpp ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" />
-              Laster opp...
+              {t("handling.lasterOpp")}
             </>
           ) : (
             <>
               <Upload className="h-4 w-4" />
-              Last opp
+              {t("handling.lastOpp")}
             </>
           )}
         </button>
@@ -286,7 +288,7 @@ export default function MapperSide() {
         <div className="rounded-lg border border-dashed border-gray-300 bg-white px-6 py-12 text-center">
           <FileText className="mx-auto mb-2 h-10 w-10 text-gray-300" />
           <p className="text-sm text-gray-500">
-            Denne mappen er tom.
+            {t("mapper.tom")}
           </p>
         </div>
       ) : (
@@ -300,7 +302,7 @@ export default function MapperSide() {
             },
             {
               id: "name",
-              header: "Navn",
+              header: t("tabell.navn"),
               celle: (rad) => (
                 <div className="flex items-center gap-2">
                   <FileText className="h-4 w-4 flex-shrink-0 text-gray-400" />
@@ -310,7 +312,7 @@ export default function MapperSide() {
             },
             {
               id: "version",
-              header: "Versjon",
+              header: t("tabell.versjon"),
               celle: (rad) => (
                 <span className="text-sm text-gray-500">v{rad.version}</span>
               ),
@@ -318,7 +320,7 @@ export default function MapperSide() {
             },
             {
               id: "uploadedAt",
-              header: "Opprettet",
+              header: t("tabell.opprettet"),
               celle: (rad) => (
                 <span className="text-sm text-gray-500">
                   {new Date(rad.uploadedAt).toLocaleDateString("nb-NO")}
@@ -336,7 +338,7 @@ export default function MapperSide() {
                     target="_blank"
                     rel="noopener noreferrer"
                     className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-                    title="Last ned"
+                    title={t("handling.lastNed")}
                   >
                     <Download className="h-4 w-4" />
                   </a>
@@ -347,7 +349,7 @@ export default function MapperSide() {
                       }
                     }}
                     className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-500"
-                    title="Slett"
+                    title={t("handling.slett")}
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -367,6 +369,7 @@ export default function MapperSide() {
 
 /** Embedding-statusindikator per dokument */
 function EmbeddingIndikator({ rad }: { rad: { processingState: string | null; processingError: string | null; chunksTotalt: number; chunksEmbedded: number } }) {
+  const { t } = useTranslation();
   // Feil
   if (rad.processingError) {
     return (
@@ -379,7 +382,7 @@ function EmbeddingIndikator({ rad }: { rad: { processingState: string | null; pr
   // Prosesserer
   if (rad.processingState === "pending" || rad.processingState === "processing") {
     return (
-      <span title="Prosesserer...">
+      <span title={t("handling.prosesserer")}>
         <Loader2 className="h-3.5 w-3.5 animate-spin text-gray-400" />
       </span>
     );
@@ -388,7 +391,7 @@ function EmbeddingIndikator({ rad }: { rad: { processingState: string | null; pr
   // Ingen chunks (ukjent filtype eller tom fil)
   if (rad.chunksTotalt === 0) {
     return (
-      <span title="Ingen søkbart innhold">
+      <span title={t("mapper.ingenSokbartInnhold")}>
         <Circle className="h-3 w-3 text-gray-300" />
       </span>
     );
@@ -397,7 +400,7 @@ function EmbeddingIndikator({ rad }: { rad: { processingState: string | null; pr
   // Alle embedded
   if (rad.chunksEmbedded >= rad.chunksTotalt) {
     return (
-      <span title={`AI-søk klar (${rad.chunksEmbedded} chunks)`}>
+      <span title={`${t("mapper.aiSokKlar")} (${rad.chunksEmbedded} chunks)`}>
         <Circle className="h-3 w-3 fill-green-500 text-green-500" />
       </span>
     );
@@ -414,7 +417,7 @@ function EmbeddingIndikator({ rad }: { rad: { processingState: string | null; pr
 
   // Chunks finnes men ingen embedded
   return (
-    <span title={`Venter på embedding (${rad.chunksTotalt} chunks)`}>
+    <span title={`${t("mapper.venterPaaEmbedding")} (${rad.chunksTotalt} chunks)`}>
       <Circle className="h-3 w-3 fill-gray-400 text-gray-400" />
     </span>
   );
