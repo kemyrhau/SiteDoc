@@ -4,6 +4,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useState, useRef, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { MoreVertical, Settings, Printer, Download } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { Card, Spinner, StatusBadge } from "@sitedoc/ui";
@@ -11,6 +12,7 @@ import { SekundaertPanel } from "@/components/layout/SekundaertPanel";
 import { DashbordPanel } from "@/components/paneler/DashbordPanel";
 
 export default function ProsjektOversikt() {
+  const { t } = useTranslation();
   const params = useParams<{ prosjektId: string }>();
   const router = useRouter();
   const { data: session } = useSession();
@@ -64,17 +66,17 @@ export default function ProsjektOversikt() {
 
   const kort = [
     {
-      label: "Entrepriser",
+      label: t("dashbord.entrepriser"),
       verdi: prosjekt.enterprises.length,
       href: `${basePath}/entrepriser`,
     },
     {
-      label: "Maler",
+      label: t("dashbord.maler"),
       verdi: prosjekt.templates.length,
       href: `${basePath}/maler`,
     },
     {
-      label: "Medlemmer",
+      label: t("dashbord.medlemmer"),
       verdi: prosjekt.members.length,
       href: basePath,
     },
@@ -88,7 +90,7 @@ export default function ProsjektOversikt() {
       <main className="flex-1 overflow-auto bg-gray-50 p-6">
         {erDeaktivert && (
           <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-            Prøveperioden har utløpt og prosjektet er deaktivert. Data beholdes i 60 dager. Kontakt SiteDoc for å oppgradere.
+            {t("dashbord.proveperiodeUtlopt")}
           </div>
         )}
         {!erDeaktivert && dagerIgjen !== null && dagerIgjen <= 14 && (
@@ -100,8 +102,8 @@ export default function ProsjektOversikt() {
                 : "border-amber-200 bg-amber-50 text-amber-700"
           }`}>
             {dagerIgjen <= 0
-              ? "Prøveperioden har utløpt. Prosjektet vil bli deaktivert snart. Kontakt SiteDoc for å oppgradere."
-              : `Prøveperioden utløper om ${dagerIgjen} dag${dagerIgjen !== 1 ? "er" : ""}. Kontakt SiteDoc for å oppgradere.`
+              ? t("dashbord.proveperiodeDeaktiveres")
+              : t("dashbord.proveperiode", { dager: dagerIgjen })
             }
           </div>
         )}
@@ -128,7 +130,7 @@ export default function ProsjektOversikt() {
                     className="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     <Settings className="h-4 w-4" />
-                    Prosjektinnstillinger
+                    {t("dashbord.prosjektinnstillinger")}
                   </button>
                   <button
                     onClick={() => {
@@ -138,7 +140,7 @@ export default function ProsjektOversikt() {
                     className="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
                   >
                     <Printer className="h-4 w-4" />
-                    Skriv ut
+                    {t("handling.skrivUt")}
                   </button>
                   <button
                     onClick={() => {
@@ -148,7 +150,7 @@ export default function ProsjektOversikt() {
                     className="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
                   >
                     <Download className="h-4 w-4" />
-                    Eksporter
+                    {t("handling.eksporter")}
                   </button>
                 </div>
               )}
@@ -173,14 +175,14 @@ export default function ProsjektOversikt() {
 
         {prosjekt.description && (
           <Card className="mb-6">
-            <h3 className="mb-2 text-sm font-medium text-gray-500">Beskrivelse</h3>
+            <h3 className="mb-2 text-sm font-medium text-gray-500">{t("dashbord.beskrivelse")}</h3>
             <p className="text-sm text-gray-700">{prosjekt.description}</p>
           </Card>
         )}
 
         {prosjekt.members.length > 0 && (
           <Card>
-            <h3 className="mb-3 text-sm font-medium text-gray-500">Medlemmer</h3>
+            <h3 className="mb-3 text-sm font-medium text-gray-500">{t("dashbord.medlemmer")}</h3>
             <div className="divide-y divide-gray-100">
               {prosjekt.members.map((m) => (
                 <div key={m.id} className="flex items-center justify-between py-2">

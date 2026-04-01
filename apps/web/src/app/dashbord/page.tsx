@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { Card, Spinner, StatusBadge, Button, EmptyState } from "@sitedoc/ui";
 import { SekundaertPanel } from "@/components/layout/SekundaertPanel";
@@ -11,6 +12,7 @@ import { DashbordPanel } from "@/components/paneler/DashbordPanel";
 import { Plus } from "lucide-react";
 
 export default function DashbordSide() {
+  const { t } = useTranslation();
   const { data: session } = useSession();
   const router = useRouter();
   const { data: prosjekter, isLoading } = trpc.prosjekt.hentAlle.useQuery();
@@ -30,12 +32,12 @@ export default function DashbordSide() {
       <main className="flex-1 overflow-auto bg-gray-50 p-6">
         <div className="mb-6 flex items-center justify-between">
           <h2 className="text-xl font-bold text-gray-900">
-            Velkommen, {session?.user?.name ?? "bruker"}
+            {t("dashbord.velkommen", { navn: session?.user?.name ?? t("dashbord.bruker") })}
           </h2>
           <Link href="/dashbord/nytt-prosjekt">
             <Button size="sm">
               <Plus className="mr-1.5 h-4 w-4" />
-              Nytt prosjekt
+              {t("dashbord.nyttProsjekt")}
             </Button>
           </Link>
         </div>
@@ -46,11 +48,11 @@ export default function DashbordSide() {
           </div>
         ) : !prosjekter?.length ? (
           <EmptyState
-            title="Ingen prosjekter ennå"
-            description="Opprett ditt første byggeprosjekt for å komme i gang."
+            title={t("dashbord.ingenProsjekter")}
+            description={t("dashbord.ingenProsjekterBeskrivelse")}
             action={
               <Link href="/dashbord/nytt-prosjekt">
-                <Button>Opprett prosjekt</Button>
+                <Button>{t("dashbord.opprettProsjekt")}</Button>
               </Link>
             }
           />
@@ -61,19 +63,19 @@ export default function DashbordSide() {
                 <p className="text-3xl font-bold text-sitedoc-primary">
                   {prosjekter.length}
                 </p>
-                <p className="mt-1 text-sm text-gray-500">Prosjekter</p>
+                <p className="mt-1 text-sm text-gray-500">{t("dashbord.prosjekter")}</p>
               </Card>
               <Card className="text-center">
                 <p className="text-3xl font-bold text-sitedoc-secondary">0</p>
-                <p className="mt-1 text-sm text-gray-500">Aktive sjekklister</p>
+                <p className="mt-1 text-sm text-gray-500">{t("dashbord.aktiveSjekklister")}</p>
               </Card>
               <Card className="text-center">
                 <p className="text-3xl font-bold text-sitedoc-accent">0</p>
-                <p className="mt-1 text-sm text-gray-500">Åpne oppgaver</p>
+                <p className="mt-1 text-sm text-gray-500">{t("dashbord.aapneOppgaver")}</p>
               </Card>
             </div>
 
-            <h3 className="mb-3 text-lg font-semibold">Siste prosjekter</h3>
+            <h3 className="mb-3 text-lg font-semibold">{t("dashbord.sisteProsjekter")}</h3>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {prosjekter.slice(0, 6).map((prosjekt) => (
                 <Link key={prosjekt.id} href={`/dashbord/${prosjekt.id}`}>

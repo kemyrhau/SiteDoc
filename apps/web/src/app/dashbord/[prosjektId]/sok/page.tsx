@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useParams } from "next/navigation";
+import { useTranslation } from "react-i18next";
 import { FileSearch, Search, Brain, BookOpen, AlertTriangle, Filter } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { TreffListe } from "@/components/ftd-sok/treff-liste";
@@ -25,6 +26,7 @@ function kortFilnavn(filnavn: string): string {
 }
 
 export default function DokumentsokSide() {
+  const { t } = useTranslation();
   const params = useParams<{ prosjektId: string }>();
   const prosjektId = params.prosjektId;
 
@@ -113,7 +115,7 @@ export default function DokumentsokSide() {
       {/* Toppseksjon */}
       <div className="flex items-center gap-2 border-b px-4 py-3">
         <FileSearch className="h-5 w-5 text-sitedoc-primary" />
-        <h1 className="text-lg font-semibold">Dokumentsøk</h1>
+        <h1 className="text-lg font-semibold">{t("sok.tittel")}</h1>
       </div>
 
       {/* Søkefelt + modusveksler */}
@@ -124,7 +126,7 @@ export default function DokumentsokSide() {
             <input
               type="text"
               className="w-full rounded border border-gray-300 py-2 pl-9 pr-3 text-sm focus:border-sitedoc-primary focus:outline-none focus:ring-1 focus:ring-sitedoc-primary"
-              placeholder="Søk i prosjektdokumenter..."
+              placeholder={t("sok.placeholder")}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleSok()}
@@ -135,7 +137,7 @@ export default function DokumentsokSide() {
             onClick={handleSok}
             disabled={!query.trim()}
           >
-            Søk
+            {t("handling.soek")}
           </button>
         </div>
 
@@ -150,7 +152,7 @@ export default function DokumentsokSide() {
             }`}
           >
             <Brain className="h-3.5 w-3.5" />
-            AI-søk
+            {t("sok.aiSok")}
             {!harEmbeddings && (
               <span className="text-[10px] text-gray-400">(ingen embeddings)</span>
             )}
@@ -164,7 +166,7 @@ export default function DokumentsokSide() {
             }`}
           >
             <BookOpen className="h-3.5 w-3.5" />
-            Tekstsøk
+            {t("sok.tekstsok")}
           </button>
 
           {/* Dokumentfilter */}
@@ -176,8 +178,8 @@ export default function DokumentsokSide() {
                 onChange={(e) => setNsFilter(e.target.value)}
                 className="max-w-[220px] rounded border-0 bg-transparent py-0.5 text-xs text-gray-600 focus:ring-0"
               >
-                <option value="ekskluder">Prosjektdokumenter</option>
-                <option value="alle">Alle dokumenter</option>
+                <option value="ekskluder">{t("sok.prosjektdokumenter")}</option>
+                <option value="alle">{t("sok.alleDokumenter")}</option>
                 <option disabled>──────────</option>
                 {refDok?.dokumenter.map((d) => (
                   <option key={d.id} value={d.id}>
@@ -194,8 +196,8 @@ export default function DokumentsokSide() {
           <div className="mt-2 flex items-center gap-1.5 rounded bg-amber-50 px-3 py-1.5 text-xs text-amber-700">
             <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0" />
             {aiFeilet
-              ? "AI-søk feilet — viser tekstsøk-resultater i stedet"
-              : "AI-søk ga ingen treff — viser tekstsøk-resultater"}
+              ? t("sok.fallbackVarselFeilet")
+              : t("sok.fallbackVarsel")}
           </div>
         )}
       </div>
@@ -206,7 +208,7 @@ export default function DokumentsokSide() {
         <div className="w-1/2 shrink-0 overflow-y-auto border-r p-4">
           {isLoading ? (
             <div className="py-8 text-center text-sm text-gray-400">
-              Søker...
+              {t("sok.soeker")}
             </div>
           ) : aktivtSok ? (
             <TreffListe
@@ -219,7 +221,7 @@ export default function DokumentsokSide() {
             />
           ) : (
             <div className="py-8 text-center text-sm text-gray-400">
-              Skriv inn søkeord for å søke i prosjektdokumenter.
+              {t("sok.skrivInnSokeord")}
             </div>
           )}
         </div>
@@ -230,7 +232,7 @@ export default function DokumentsokSide() {
             <Fulltekst documentId={valgtDokumentId} søkeord={aktivtSok} />
           ) : (
             <div className="py-8 text-center text-sm text-gray-400">
-              Klikk på et treff for å se dokumentinnhold.
+              {t("sok.klikkPaaTreff")}
             </div>
           )}
         </div>

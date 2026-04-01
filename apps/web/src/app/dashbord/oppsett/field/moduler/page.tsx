@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslation } from "react-i18next";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { trpc } from "@/lib/trpc";
 import { Button, Spinner } from "@sitedoc/ui";
@@ -27,14 +28,15 @@ const IKON_MAP: Record<string, React.ReactNode> = {
   FileSearch: <FileSearch className="h-6 w-6" />,
 };
 
-const KATEGORI_LABEL: Record<string, string> = {
-  oppgave: "Oppgavemal",
-  sjekkliste: "Sjekklistemal",
-  funksjon: "Funksjon",
-};
-
 export default function ModulerSide() {
+  const { t } = useTranslation();
   const { prosjektId } = useProsjekt();
+
+  const KATEGORI_LABEL: Record<string, string> = {
+    oppgave: t("moduler.oppgavemal"),
+    sjekkliste: t("moduler.sjekklistemal"),
+    funksjon: t("moduler.funksjon"),
+  };
 
   const { data: aktiveModuler, isLoading } = trpc.modul.hentForProsjekt.useQuery(
     { projectId: prosjektId! },
@@ -77,9 +79,9 @@ export default function ModulerSide() {
             <Package className="h-5 w-5 text-sitedoc-primary" />
           </div>
           <div>
-            <h2 className="text-lg font-semibold text-gray-900">Moduler</h2>
+            <h2 className="text-lg font-semibold text-gray-900">{t("oppsett.moduler")}</h2>
             <p className="text-sm text-gray-500">
-              Aktiver forhåndsdefinerte maler og arbeidsflyter tilpasset ditt prosjekt
+              {t("moduler.beskrivelse")}
             </p>
           </div>
         </div>
@@ -106,7 +108,7 @@ export default function ModulerSide() {
               {erAktiv && (
                 <div className="absolute right-3 top-3 flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
                   <Check className="h-3 w-3" />
-                  Aktiv
+                  {t("moduler.aktiv")}
                 </div>
               )}
 
@@ -126,7 +128,7 @@ export default function ModulerSide() {
                   <span className="text-xs text-gray-400">
                     {KATEGORI_LABEL[modul.kategori] ?? modul.kategori}
                     {modul.maler.length > 0 && (
-                      <>{" · "}{modul.maler.length} {modul.maler.length === 1 ? "mal" : "maler"}</>
+                      <>{" · "}{modul.maler.length} {modul.maler.length === 1 ? t("moduler.mal") : t("moduler.mal")}</>
                     )}
                   </span>
                 </div>
@@ -148,7 +150,7 @@ export default function ModulerSide() {
                         {mal.prefix}
                       </span>
                       <span className="text-[10px] text-gray-400">
-                        {mal.objekter.length} felter
+                        {mal.objekter.length} {t("moduler.felter")}
                       </span>
                     </div>
                   </div>
@@ -187,7 +189,7 @@ export default function ModulerSide() {
                   className="flex items-center justify-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-500 transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-600"
                 >
                   <ToggleRight className="h-4 w-4" />
-                  {erPending ? "Deaktiverer..." : "Deaktiver"}
+                  {erPending ? "Deaktiverer..." : t("moduler.deaktiver")}
                 </button>
               ) : (
                 <Button

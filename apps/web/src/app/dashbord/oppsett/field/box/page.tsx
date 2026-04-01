@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { trpc } from "@/lib/trpc";
 import { Button, Modal, Input, Spinner, Select } from "@sitedoc/ui";
@@ -417,6 +418,7 @@ function MappeTreRad({
   onRedigerTilgang: (id: string, navn: string) => void;
   onKobleTilKontrakt: (id: string, navn: string, kontraktId: string | null) => void;
 }) {
+  const { t } = useTranslation();
   const [ekspandert, setEkspandert] = useState(dybde < 2);
   const harBarn = mappe.children.length > 0;
   const antallDokumenter = mappe._count?.ftdDocuments ?? 0;
@@ -463,29 +465,29 @@ function MappeTreRad({
           <TreprikkMeny
             handlinger={[
               {
-                label: "Ny undermappe",
+                label: t("mappeoppsett.nyUndermappe"),
                 ikon: <FolderPlus className="h-4 w-4 text-gray-400" />,
                 onClick: () => onLeggTilUndermappe(mappe.id),
               },
               {
-                label: "Rediger tilgang",
+                label: t("mappeoppsett.redigerTilgang"),
                 ikon: <Shield className="h-4 w-4 text-blue-400" />,
                 onClick: () => onRedigerTilgang(mappe.id, mappe.name),
               },
               {
-                label: mappe.kontraktId ? "Fjern kontrakt-kobling" : "Koble til kontrakt",
+                label: mappe.kontraktId ? "Fjern kontrakt-kobling" : t("mappeoppsett.kobleTilKontrakt"),
                 ikon: <FileArchive className={`h-4 w-4 ${mappe.kontraktId ? "text-amber-400" : "text-blue-400"}`} />,
                 onClick: () => mappe.kontraktId
                   ? onKobleTilKontrakt(mappe.id, mappe.name, null)
                   : onKobleTilKontrakt(mappe.id, mappe.name, mappe.kontraktId ?? null),
               },
               {
-                label: "Gi nytt navn",
+                label: t("mappeoppsett.giNyttNavn"),
                 ikon: <Pencil className="h-4 w-4 text-gray-400" />,
                 onClick: () => onGiNyttNavn(mappe.id, mappe.name),
               },
               {
-                label: "Slett mappe",
+                label: t("mappeoppsett.slettMappe"),
                 ikon: <Trash2 className="h-4 w-4 text-red-400" />,
                 onClick: () => onSlett(mappe.id),
                 fare: true,
@@ -886,6 +888,7 @@ function ImportMapperModal({
 /* ------------------------------------------------------------------ */
 
 export default function BoxSide() {
+  const { t } = useTranslation();
   const { prosjektId } = useProsjekt();
   const utils = trpc.useUtils();
 
@@ -1009,13 +1012,13 @@ export default function BoxSide() {
 
   return (
     <div>
-      <h2 className="mb-6 text-xl font-bold text-gray-900">Mappeoppsett</h2>
+      <h2 className="mb-6 text-xl font-bold text-gray-900">{t("mappeoppsett.tittel")}</h2>
 
       {/* Mappestruktur */}
       <div>
         <div className="mb-3 flex items-center gap-3">
           <h3 className="text-sm font-semibold text-gray-700">
-            Mappestruktur
+            {t("mappeoppsett.mappestruktur")}
           </h3>
           <Button
             size="sm"
@@ -1027,7 +1030,7 @@ export default function BoxSide() {
             }}
           >
             <Plus className="mr-1 h-3.5 w-3.5" />
-            Ny mappe
+            {t("mappeoppsett.nyMappe")}
           </Button>
           <Button
             size="sm"
@@ -1035,7 +1038,7 @@ export default function BoxSide() {
             onClick={() => setVisImportModal(true)}
           >
             <Import className="mr-1 h-3.5 w-3.5" />
-            Importer
+            {t("handling.importer")}
           </Button>
         </div>
 
@@ -1084,7 +1087,7 @@ export default function BoxSide() {
       <Modal
         open={visNyMappeModal}
         onClose={() => setVisNyMappeModal(false)}
-        title={nyMappeParentId ? "Ny undermappe" : "Ny mappe"}
+        title={nyMappeParentId ? t("mappeoppsett.nyUndermappe") : t("mappeoppsett.nyMappe")}
       >
         <form
           onSubmit={(e) => {
@@ -1124,7 +1127,7 @@ export default function BoxSide() {
       <Modal
         open={giNyttNavnId !== null}
         onClose={() => setGiNyttNavnId(null)}
-        title="Gi nytt navn"
+        title={t("mappeoppsett.giNyttNavn")}
       >
         <form
           onSubmit={(e) => {
@@ -1162,7 +1165,7 @@ export default function BoxSide() {
       <Modal
         open={slettMappeId !== null}
         onClose={() => setSlettMappeId(null)}
-        title="Slett mappe"
+        title={t("mappeoppsett.slettMappe")}
       >
         <div className="flex flex-col gap-4">
           <p className="text-sm text-gray-600">
@@ -1194,7 +1197,7 @@ export default function BoxSide() {
       <Modal
         open={tilgangMappe !== null}
         onClose={() => setTilgangMappe(null)}
-        title={`Rediger tilgang – ${tilgangMappe?.navn ?? ""}`}
+        title={`${t("mappeoppsett.redigerTilgang")} – ${tilgangMappe?.navn ?? ""}`}
       >
         {tilgangMappe && prosjektId && (
           <TilgangModal
@@ -1227,7 +1230,7 @@ export default function BoxSide() {
       <Modal
         open={!!kontraktModal}
         onClose={() => setKontraktModal(null)}
-        title={`Koble til kontrakt – ${kontraktModal?.navn ?? ""}`}
+        title={`${t("mappeoppsett.kobleTilKontrakt")} – ${kontraktModal?.navn ?? ""}`}
       >
         <div className="space-y-4 p-4">
           <p className="text-sm text-gray-600">
