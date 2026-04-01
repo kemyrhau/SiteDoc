@@ -62,6 +62,10 @@ export default function AiSokSide() {
     onSuccess: () => {
       oppdaterStatus();
     },
+    onError: (err) => {
+      console.error("[AI-SØK] genererEmbeddings feilet:", err.message);
+      alert(`Embedding-generering feilet: ${err.message}`);
+    },
   });
 
   const stoppMut = trpc.aiSok.stoppEmbeddings.useMutation({
