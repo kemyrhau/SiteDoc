@@ -9,7 +9,9 @@ import { BygningsVelger } from "./BygningsVelger";
 import { useState, useRef, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import Link from "next/link";
+import { useTranslation } from "react-i18next";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
+import { SpraakVelger } from "./SpraakVelger";
 import {
   LayoutDashboard,
   ClipboardCheck,
@@ -28,6 +30,7 @@ export function Toppbar() {
   const router = useRouter();
   const aktivSeksjon = useAktivSeksjon();
   const { prosjektId } = useProsjekt();
+  const { t } = useTranslation();
 
   // Sjekk om bruker har organisasjon (firmaadmin)
   const { data: organisasjon } = trpc.organisasjon.hentMin.useQuery(undefined, {
@@ -99,7 +102,9 @@ export function Toppbar() {
         )}
       </div>
 
-      {/* Høyre: Brukerinfo */}
+      {/* Høyre: Språk + Brukerinfo */}
+      <div className="flex items-center gap-1">
+        <SpraakVelger />
       <div ref={ref} className="relative">
         <button
           onClick={() => setBrukerMeny(!brukerMeny)}
@@ -109,7 +114,7 @@ export function Toppbar() {
             <User className="h-4 w-4" />
           </div>
           <span className="hidden max-w-[150px] truncate sm:inline">
-            {session?.user?.name ?? session?.user?.email ?? "Bruker"}
+            {session?.user?.name ?? session?.user?.email ?? t("toppbar.bruker")}
           </span>
         </button>
 
@@ -128,23 +133,24 @@ export function Toppbar() {
               className="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
             >
               <LogOut className="h-4 w-4" />
-              Logg ut
+              {t("toppbar.loggUt")}
             </button>
           </div>
         )}
+      </div>
       </div>
       {/* Mobil-navigasjonsmeny */}
       {mobilMeny && (
         <div className="absolute left-0 top-12 z-50 w-full border-b border-gray-200 bg-white shadow-lg md:hidden">
           <nav className="flex flex-col p-3 gap-1">
             {[
-              { id: "dashbord", label: "Dashbord", ikon: <LayoutDashboard className="h-5 w-5" /> },
-              { id: "sjekklister", label: "Sjekklister", ikon: <ClipboardCheck className="h-5 w-5" />, kreverProsjekt: true },
-              { id: "oppgaver", label: "Oppgaver", ikon: <ListTodo className="h-5 w-5" />, kreverProsjekt: true },
-              { id: "maler", label: "Maler", ikon: <FileText className="h-5 w-5" />, kreverProsjekt: true },
-              { id: "tegninger", label: "Tegninger", ikon: <Map className="h-5 w-5" />, kreverProsjekt: true },
-              { id: "mapper", label: "Mapper", ikon: <FolderOpen className="h-5 w-5" />, kreverProsjekt: true },
-              { id: "oppsett", label: "Innstillinger", ikon: <Settings className="h-5 w-5" /> },
+              { id: "dashbord", labelKey: "nav.dashbord", ikon: <LayoutDashboard className="h-5 w-5" /> },
+              { id: "sjekklister", labelKey: "nav.sjekklister", ikon: <ClipboardCheck className="h-5 w-5" />, kreverProsjekt: true },
+              { id: "oppgaver", labelKey: "nav.oppgaver", ikon: <ListTodo className="h-5 w-5" />, kreverProsjekt: true },
+              { id: "maler", labelKey: "nav.maler", ikon: <FileText className="h-5 w-5" />, kreverProsjekt: true },
+              { id: "tegninger", labelKey: "nav.tegninger", ikon: <Map className="h-5 w-5" />, kreverProsjekt: true },
+              { id: "mapper", labelKey: "nav.mapper", ikon: <FolderOpen className="h-5 w-5" />, kreverProsjekt: true },
+              { id: "oppsett", labelKey: "nav.innstillinger", ikon: <Settings className="h-5 w-5" /> },
             ].map((element) => {
               const deaktivert = element.kreverProsjekt && !prosjektId;
               const aktiv = aktivSeksjon === element.id;
@@ -171,7 +177,7 @@ export function Toppbar() {
                   }`}
                 >
                   {element.ikon}
-                  {element.label}
+                  {t(element.labelKey)}
                 </button>
               );
             })}

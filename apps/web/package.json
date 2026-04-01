@@ -27,6 +27,7 @@
     "delaunator": "^5.0.1",
     "exceljs": "^4.4.0",
     "fast-xml-parser": "^5.5.8",
+    "i18next": "^26.0.3",
     "jszip": "^3.10.1",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.575.0",
@@ -37,6 +38,7 @@
     "potree-core": "^2.0.13",
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
+    "react-i18next": "^17.0.2",
     "react-leaflet": "^5.0.0",
     "three": "^0.183.2",
     "web-ifc": "^0.0.77"
