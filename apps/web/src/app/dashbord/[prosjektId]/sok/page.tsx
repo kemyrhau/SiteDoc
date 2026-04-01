@@ -168,7 +168,7 @@ export default function DokumentsokSide() {
         {/* Fulltekst-panel */}
         <div className="w-1/2 overflow-y-auto p-4">
           {valgtDokumentId ? (
-            <Fulltekst documentId={valgtDokumentId} />
+            <Fulltekst documentId={valgtDokumentId} søkeord={aktivtSok} />
           ) : (
             <div className="py-8 text-center text-sm text-gray-400">
               Velg et treff for å se dokumentinnhold.
