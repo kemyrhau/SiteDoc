@@ -1,19 +1,10 @@
 /**
  * AI-søk service: hybrid vektor + leksikalsk søk med 6 re-ranking signaler.
  * Portert fra Fil til database-kopi: src/services/ai_search.py
- *
- * Flyt:
- * 1. Encode query → embedding via OpenAI
- * 2. pgvector: cosine similarity top 300 kandidater
- * 3. tsvector: norsk fulltekstsøk
- * 4. Union av vektor + leksikalsk (hybrid)
- * 5. Per-chunk: beregn 6 re-ranking signaler + cosine sim
- * 6. Normalisér + kombiner: recall×sim + precision×rerank + latency×lat
- * 7. Grupper per dokument, maks 10 chunks per dok
  */
 import { PrismaClient, Prisma } from "@sitedoc/db";
 
-// ---- Norske stoppord ----
+// ---- Norske stoppord + søke-fraser ----
 
 const STOPPORD = new Set([
   "og", "i", "er", "det", "som", "en", "et", "til", "for", "av",
@@ -25,12 +16,28 @@ const STOPPORD = new Set([
   "mellom", "inn", "ut", "opp", "ned", "her", "der", "nå", "før",
 ]);
 
+// Naturlig-språk fraser som fjernes fra query
+const SØKE_PREFIKS = [
+  "kan du finne", "finn", "søk etter", "vis meg", "hva er",
+  "hvor er", "gi meg", "let etter", "hjelp meg finne",
+];
+
+function rensQuery(query: string): string {
+  let q = query.toLowerCase().trim();
+  for (const p of SØKE_PREFIKS) {
+    if (q.startsWith(p)) {
+      q = q.slice(p.length).trim();
+    }
+  }
+  return q || query;
+}
+
 // ---- Typer ----
 
 export interface SokVekter {
-  recall: number;     // Vekt på semantisk likhet (cosine sim)
-  precision: number;  // Vekt på eksakt matching (re-rank)
-  latency: number;    // Vekt på dokumentstørrelse
+  recall: number;
+  precision: number;
+  latency: number;
   phraseWeight: number;
   termWeight: number;
   qualityWeight: number;
@@ -40,11 +47,11 @@ export interface SokVekter {
 }
 
 export const DEFAULT_VEKTER: SokVekter = {
-  recall: 0.5,
-  precision: 0.5,
-  latency: 0.5,
-  phraseWeight: 0.08,
-  termWeight: 0.03,
+  recall: 0.6,
+  precision: 0.4,
+  latency: 0.2,
+  phraseWeight: 0.10,
+  termWeight: 0.05,
   qualityWeight: 0.03,
   headingWeight: 0.08,
   bm25Weight: 0.06,
@@ -63,7 +70,6 @@ export interface HybridSokTreff {
   docType: string | null;
   folderId: string | null;
   score: number;
-  // Debug-info
   cosineSim?: number;
   reRankScore?: number;
 }
@@ -84,7 +90,7 @@ interface RåChunk {
   kilde: "vektor" | "leksikalsk" | "begge";
 }
 
-// ---- Hjelpefunksjoner (fra ai_search.py) ----
+// ---- Hjelpefunksjoner ----
 
 function normaliserListe(verdier: number[]): number[] {
   if (verdier.length === 0) return [];
@@ -107,8 +113,10 @@ function beregReRank(
   // Frase-treff
   const fraseHits = fraser.filter((f) => tekstLower.includes(f)).length;
 
-  // Term-treff
-  const termHits = termer.filter((t) => tekstLower.includes(t)).length;
+  // Term-treff (normalisert: andel av søketermer som finnes)
+  const termHits = termer.length > 0
+    ? termer.filter((t) => tekstLower.includes(t)).length / termer.length
+    : 0;
 
   // Heading-treff
   let headingHits = 0;
@@ -123,31 +131,35 @@ function beregReRank(
   if (side > 0 && side <= 3) pagepos = 1.0;
   else if (side > 0 && side <= 10) pagepos = 0.5;
 
-  // Tall-bonus (NS-standardnumre)
+  // Tall-bonus (mildere enn før)
   const tallISøk = new Set(tallTokens);
   let tallBonus = 0;
   if (tallISøk.size > 0) {
-    const tallIChunk = new Set(
-      tekstLower.match(/\b\d{3,6}\b/g) ?? [],
-    );
-    // Bonus for treff
+    const tallIChunk = new Set(tekstLower.match(/\b\d{3,6}\b/g) ?? []);
     for (const t of tallISøk) {
-      if (tallIChunk.has(t)) tallBonus += 0.4;
+      if (tallIChunk.has(t)) tallBonus += 0.3;
     }
-    // Straff for feil nummer
+    // Mild straff for fremmede tall (maks -0.3 totalt)
+    let straffCount = 0;
     for (const t of tallIChunk) {
-      if (!tallISøk.has(t)) tallBonus -= 0.6;
+      if (!tallISøk.has(t)) straffCount++;
     }
+    tallBonus -= Math.min(straffCount * 0.05, 0.3);
+  }
+
+  // NS 3420 nedvekting — standarddokumenter er generisk og matcher mye
+  let ns3420Straff = 0;
+  if (chunk.filename.includes("3420") || chunk.filename.includes("ns-3420")) {
+    ns3420Straff = -0.15;
   }
 
   return (
     vekter.phraseWeight * fraseHits +
     vekter.termWeight * termHits +
-    vekter.qualityWeight * 0 + // quality_score ikke lagret ennå
     vekter.headingWeight * headingHits +
-    vekter.bm25Weight * 0 + // keywords_topk ikke lagret ennå
     vekter.pageposWeight * pagepos +
-    tallBonus
+    tallBonus +
+    ns3420Straff
   );
 }
 
@@ -218,8 +230,11 @@ export async function hybridSok(
   const topK = options.topK ?? 20;
   const kandidatK = options.kandidatK ?? 300;
 
-  // Tokeniser query
-  const queryLower = query.toLowerCase();
+  // Rens naturlig-språk fra query
+  const rensetQuery = rensQuery(query);
+
+  // Tokeniser
+  const queryLower = rensetQuery.toLowerCase();
   const alleTokens = queryLower.split(/\s+/).filter(Boolean);
   const termer = alleTokens.filter((t) => !STOPPORD.has(t) && t.length > 1);
   const tallTokens = alleTokens.filter((t) => /^\d{3,6}$/.test(t));
@@ -236,16 +251,10 @@ export async function hybridSok(
   // 1. Encode query → embedding
   let queryEmbedding: number[];
   try {
-    queryEmbedding = await encodeQuery(
-      query,
-      provider,
-      options.apiKey,
-      options.model,
-    );
+    queryEmbedding = await encodeQuery(rensetQuery, provider, options.apiKey, options.model);
   } catch (err) {
-    console.error("[AI-SØK] Embedding-feil, faller tilbake til leksikalsk:", err);
     // Fallback: kun leksikalsk søk
-    return leksikalskSok(prisma, projectId, query, mappeIder, topK);
+    return leksikalskSok(prisma, projectId, rensetQuery, mappeIder, topK);
   }
 
   const vecStr = `[${queryEmbedding.join(",")}]`;
@@ -294,7 +303,7 @@ export async function hybridSok(
     JOIN ftd_documents d ON d.id = c.document_id
     WHERE d.project_id = ${projectId}
       AND d.is_active = true
-      AND c.search_vector @@ plainto_tsquery('norwegian', ${query})
+      AND c.search_vector @@ plainto_tsquery('norwegian', ${rensetQuery})
       ${mappeKlausul}
     LIMIT ${kandidatK}
   `;
@@ -318,9 +327,10 @@ export async function hybridSok(
   const alleChunks = [...chunkMap.values()];
   if (alleChunks.length === 0) return [];
 
-  // Filtrer lav cosine similarity (terskel 0.15, fra ai_search.py)
+  // Filtrer lav cosine similarity (økt terskel fra 0.15 til 0.30)
+  const SIM_TERSKEL = 0.30;
   const filtrert = alleChunks.filter(
-    (c) => c.cosineSim >= 0.15 || c.kilde === "leksikalsk" || c.kilde === "begge",
+    (c) => Number(c.cosineSim) >= SIM_TERSKEL || c.kilde === "leksikalsk" || c.kilde === "begge",
   );
 
   if (filtrert.length === 0) return [];
@@ -331,7 +341,7 @@ export async function hybridSok(
     beregReRank(c, termer, fraser, tallTokens, vekter),
   );
 
-  // Latency: færre chunks per dokument = høyere score
+  // Latency
   const chunksPerDok = new Map<string, number>();
   for (const c of filtrert) {
     chunksPerDok.set(c.documentId, (chunksPerDok.get(c.documentId) ?? 0) + 1);
@@ -357,34 +367,32 @@ export async function hybridSok(
     reRankScore: reRankVerdier[i] ?? 0,
   }));
 
-  // 8. Grupper per dokument, maks 10 chunks per dok
-  const perDok = new Map<string, typeof scoredChunks>();
+  // 8. Dedup per dokument — maks 1 best-scored chunk per dokument
+  const bestPerDok = new Map<string, (typeof scoredChunks)[0]>();
   for (const s of scoredChunks) {
-    const arr = perDok.get(s.chunk.documentId) ?? [];
-    arr.push(s);
-    perDok.set(s.chunk.documentId, arr);
+    const existing = bestPerDok.get(s.chunk.documentId);
+    if (!existing || s.score > existing.score) {
+      bestPerDok.set(s.chunk.documentId, s);
+    }
   }
 
   const resultater: HybridSokTreff[] = [];
-  for (const [_dokId, chunks] of perDok) {
-    chunks.sort((a, b) => b.score - a.score);
-    for (const s of chunks.slice(0, 10)) {
-      resultater.push({
-        id: s.chunk.id,
-        documentId: s.chunk.documentId,
-        chunkText: s.chunk.chunkText,
-        pageNumber: s.chunk.pageNumber,
-        sectionTitle: s.chunk.sectionTitle,
-        nsCode: s.chunk.nsCode,
-        filename: s.chunk.filename,
-        fileUrl: s.chunk.fileUrl,
-        docType: s.chunk.docType,
-        folderId: s.chunk.folderId,
-        score: s.score,
-        cosineSim: s.cosineSim,
-        reRankScore: s.reRankScore,
-      });
-    }
+  for (const [_dokId, s] of bestPerDok) {
+    resultater.push({
+      id: s.chunk.id,
+      documentId: s.chunk.documentId,
+      chunkText: s.chunk.chunkText,
+      pageNumber: s.chunk.pageNumber,
+      sectionTitle: s.chunk.sectionTitle,
+      nsCode: s.chunk.nsCode,
+      filename: s.chunk.filename,
+      fileUrl: s.chunk.fileUrl,
+      docType: s.chunk.docType,
+      folderId: s.chunk.folderId,
+      score: s.score,
+      cosineSim: s.cosineSim,
+      reRankScore: s.reRankScore,
+    });
   }
 
   // Sorter globalt etter score
