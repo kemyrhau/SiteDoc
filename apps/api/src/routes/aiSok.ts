@@ -79,7 +79,15 @@ export const aiSokRouter = router({
   genererEmbeddings: protectedProcedure
     .input(z.object({ projectId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
+      const { appendFileSync } = await import("fs");
+      const { join } = await import("path");
+      const _log = (m: string) => {
+        try { appendFileSync(join(process.cwd(), "embedding.log"), `[${new Date().toISOString()}] ${m}\n`); } catch (_e) { /* */ }
+      };
+
+      _log(`genererEmbeddings kallt med projectId=${input.projectId}`);
       await verifiserAdmin(ctx.userId, input.projectId);
+      _log("verifiserAdmin OK");
 
       const innstillinger = await hentInnstillingerInternt(
         ctx.prisma,
@@ -92,6 +100,8 @@ export const aiSokRouter = router({
       ) {
         throw new Error("OpenAI API-nøkkel mangler");
       }
+
+      _log(`Innstillinger: provider=${innstillinger.embeddingProvider}, model=${innstillinger.embeddingModel}`);
 
       // Fire-and-forget — kjører i bakgrunnen
       startEmbeddingGenerering(ctx.prisma, input.projectId, {
