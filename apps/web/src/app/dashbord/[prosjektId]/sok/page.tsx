@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useParams } from "next/navigation";
-import { FileSearch, Search, Brain, BookOpen } from "lucide-react";
+import { FileSearch, Search, Brain, BookOpen, AlertTriangle } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { TreffListe } from "@/components/ftd-sok/treff-liste";
 import { Fulltekst } from "@/components/ftd-sok/fulltekst";
@@ -19,7 +19,7 @@ export default function DokumentsokSide() {
   const [valgtDokumentId, setValgtDokumentId] = useState<string | null>(null);
   const [modus, setModus] = useState<SokModus>("ai");
 
-  // Sjekk embedding-status for å vise riktig modus
+  // Sjekk embedding-status
   const { data: embeddingStatus } = trpc.aiSok.embeddingStatus.useQuery(
     { projectId: prosjektId },
     { enabled: !!prosjektId },
@@ -34,22 +34,34 @@ export default function DokumentsokSide() {
     error: aiError,
   } = trpc.aiSok.sok.useQuery(
     { projectId: prosjektId, query: aktivtSok },
-    { enabled: !!prosjektId && aktivtSok.length > 0 && modus === "ai" && harEmbeddings },
+    { enabled: !!prosjektId && aktivtSok.length > 0 && modus === "ai" && harEmbeddings, retry: false },
   );
 
-  // Leksikalsk søk (tsvector + ILIKE fallback)
+  // Leksikalsk søk — kjør ALLTID ved aktivt søk (brukes som fallback)
   const { data: leksTreff, isLoading: leksLaster } =
     trpc.ftdSok.sokDokumenter.useQuery(
       { projectId: prosjektId, query: aktivtSok },
-      { enabled: !!prosjektId && aktivtSok.length > 0 && (modus === "leksikalsk" || !harEmbeddings) },
+      { enabled: !!prosjektId && aktivtSok.length > 0 },
     );
 
-  const treff = modus === "ai" && harEmbeddings ? aiTreff : leksTreff;
-  const isLoading = modus === "ai" && harEmbeddings ? aiLaster : leksLaster;
+  // Bestem hva som vises
+  const aiAktiv = modus === "ai" && harEmbeddings;
+  const aiFeilet = aiAktiv && !!aiError;
+  const aiTomme = aiAktiv && !aiLaster && aiTreff?.length === 0;
 
-  // Fallback til leksikalsk ved AI-feil
-  const brukFallback = modus === "ai" && aiError && leksTreff;
-  const visbareTreff = brukFallback ? leksTreff : treff;
+  // Bruk AI-treff hvis tilgjengelig, ellers leksikalsk
+  let visbareTreff = leksTreff;
+  let brukFallback = false;
+
+  if (aiAktiv && !aiFeilet && (aiTreff?.length ?? 0) > 0) {
+    visbareTreff = aiTreff;
+  } else if (aiAktiv) {
+    brukFallback = true;
+  } else if (modus === "leksikalsk") {
+    visbareTreff = leksTreff;
+  }
+
+  const isLoading = aiAktiv ? aiLaster && leksLaster : leksLaster;
 
   const handleSok = () => {
     if (query.trim()) {
@@ -117,12 +129,17 @@ export default function DokumentsokSide() {
             <BookOpen className="h-3.5 w-3.5" />
             Tekstsøk
           </button>
-          {brukFallback && (
-            <span className="text-[10px] text-amber-600">
-              AI-søk feilet — viser tekstsøk
-            </span>
-          )}
         </div>
+
+        {/* Fallback-varsel */}
+        {aktivtSok && brukFallback && (
+          <div className="mt-2 flex items-center gap-1.5 rounded bg-amber-50 px-3 py-1.5 text-xs text-amber-700">
+            <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0" />
+            {aiFeilet
+              ? "AI-søk feilet — viser tekstsøk-resultater i stedet"
+              : "AI-søk ga ingen treff — viser tekstsøk-resultater"}
+          </div>
+        )}
       </div>
 
       {/* Resultater */}
