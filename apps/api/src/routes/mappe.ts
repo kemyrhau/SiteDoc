@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { Prisma } from "@sitedoc/db";
 import { join } from "node:path";
 import { readFile } from "node:fs/promises";
 import { router, protectedProcedure } from "../trpc/trpc";
@@ -100,10 +101,38 @@ export const mappeRouter = router({
         select: { projectId: true },
       });
       await verifiserProsjektmedlem(ctx.userId, mappe.projectId);
-      return ctx.prisma.ftdDocument.findMany({
+      const docs = await ctx.prisma.ftdDocument.findMany({
         where: { folderId: input.folderId, isActive: true },
         orderBy: { uploadedAt: "desc" },
       });
+
+      // Hent embedding-status per dokument
+      if (docs.length === 0) return [];
+      const docIds = docs.map((d) => d.id);
+      const embeddingStats = await ctx.prisma.$queryRaw<
+        Array<{ documentId: string; totalt: bigint; embedded: bigint }>
+      >`
+        SELECT
+          document_id AS "documentId",
+          COUNT(*) AS totalt,
+          COUNT(*) FILTER (WHERE embedding_state = 'done') AS embedded
+        FROM ftd_document_chunks
+        WHERE document_id IN (${Prisma.join(docIds)})
+        GROUP BY document_id
+      `;
+
+      const statsMap = new Map(
+        embeddingStats.map((s) => [
+          s.documentId,
+          { totalt: Number(s.totalt), embedded: Number(s.embedded) },
+        ]),
+      );
+
+      return docs.map((d) => ({
+        ...d,
+        chunksTotalt: statsMap.get(d.id)?.totalt ?? 0,
+        chunksEmbedded: statsMap.get(d.id)?.embedded ?? 0,
+      }));
     }),
 
   // Hent tilgangskonfigurasjon for én mappe

@@ -6,7 +6,17 @@ import { useSession } from "next-auth/react";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { trpc } from "@/lib/trpc";
 import { Spinner, Table } from "@sitedoc/ui";
-import { FolderOpen, FileText, Download, Lock, Upload, Loader2, Trash2 } from "lucide-react";
+import {
+  FolderOpen,
+  FileText,
+  Download,
+  Lock,
+  Upload,
+  Loader2,
+  Trash2,
+  Circle,
+  AlertCircle,
+} from "lucide-react";
 import { beregnSynligeMapper } from "@sitedoc/shared/utils";
 import type { MappeTilgangInput, BrukerTilgangInfo } from "@sitedoc/shared/utils";
 
@@ -160,6 +170,13 @@ export default function MapperSide() {
     if (filInputRef.current) filInputRef.current.value = "";
   };
 
+  /** Åpne fil — dobbelt-klikk */
+  function åpneFil(rad: DokumentRad) {
+    if (!rad.fileUrl) return;
+    const url = rad.fileUrl.startsWith("/api") ? rad.fileUrl : `/api${rad.fileUrl}`;
+    window.open(url, "_blank");
+  }
+
   // Ingen mappe valgt — vis velkomstmelding
   if (!valgtMappeId) {
     return (
@@ -205,6 +222,9 @@ export default function MapperSide() {
     version: number;
     uploadedAt: string;
     processingState: string | null;
+    processingError: string | null;
+    chunksTotalt: number;
+    chunksEmbedded: number;
   };
 
   return (
@@ -273,6 +293,12 @@ export default function MapperSide() {
         <Table<DokumentRad>
           kolonner={[
             {
+              id: "status",
+              header: "",
+              celle: (rad) => <EmbeddingIndikator rad={rad} />,
+              bredde: "36px",
+            },
+            {
               id: "name",
               header: "Navn",
               celle: (rad) => (
@@ -332,8 +358,64 @@ export default function MapperSide() {
           ]}
           data={(dokumenter ?? []) as DokumentRad[]}
           radNokkel={(rad) => rad.id}
+          onRadDobbeltklikk={(rad) => åpneFil(rad)}
         />
       )}
     </div>
+  );
+}
+
+/** Embedding-statusindikator per dokument */
+function EmbeddingIndikator({ rad }: { rad: { processingState: string | null; processingError: string | null; chunksTotalt: number; chunksEmbedded: number } }) {
+  // Feil
+  if (rad.processingError) {
+    return (
+      <span title={`Feil: ${rad.processingError}`}>
+        <AlertCircle className="h-3.5 w-3.5 text-red-500" />
+      </span>
+    );
+  }
+
+  // Prosesserer
+  if (rad.processingState === "pending" || rad.processingState === "processing") {
+    return (
+      <span title="Prosesserer...">
+        <Loader2 className="h-3.5 w-3.5 animate-spin text-gray-400" />
+      </span>
+    );
+  }
+
+  // Ingen chunks (ukjent filtype eller tom fil)
+  if (rad.chunksTotalt === 0) {
+    return (
+      <span title="Ingen søkbart innhold">
+        <Circle className="h-3 w-3 text-gray-300" />
+      </span>
+    );
+  }
+
+  // Alle embedded
+  if (rad.chunksEmbedded >= rad.chunksTotalt) {
+    return (
+      <span title={`AI-søk klar (${rad.chunksEmbedded} chunks)`}>
+        <Circle className="h-3 w-3 fill-green-500 text-green-500" />
+      </span>
+    );
+  }
+
+  // Delvis embedded
+  if (rad.chunksEmbedded > 0) {
+    return (
+      <span title={`Embedding: ${rad.chunksEmbedded}/${rad.chunksTotalt} chunks`}>
+        <Circle className="h-3 w-3 fill-amber-500 text-amber-500" />
+      </span>
+    );
+  }
+
+  // Chunks finnes men ingen embedded
+  return (
+    <span title={`Venter på embedding (${rad.chunksTotalt} chunks)`}>
+      <Circle className="h-3 w-3 fill-gray-400 text-gray-400" />
+    </span>
   );
 }

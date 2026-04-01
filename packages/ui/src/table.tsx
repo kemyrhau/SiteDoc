@@ -18,6 +18,7 @@ interface TableProps<T> {
   data: T[];
   radNokkel: (rad: T) => string;
   onRadKlikk?: (rad: T) => void;
+  onRadDobbeltklikk?: (rad: T) => void;
   tomMelding?: string;
   velgbar?: boolean;
   valgteRader?: Set<string>;
@@ -153,6 +154,7 @@ export function Table<T>({
   data,
   radNokkel,
   onRadKlikk,
+  onRadDobbeltklikk,
   tomMelding = "Ingen data å vise",
   velgbar,
   valgteRader,
@@ -273,10 +275,11 @@ export function Table<T>({
               <tr
                 key={nokkel}
                 onClick={() => onRadKlikk?.(rad)}
+                onDoubleClick={() => onRadDobbeltklikk?.(rad)}
                 className={`transition-colors ${
                   erValgt ? "bg-blue-50" : ""
                 } ${
-                  onRadKlikk
+                  onRadKlikk || onRadDobbeltklikk
                     ? "cursor-pointer hover:bg-blue-50"
                     : ""
                 }`}
