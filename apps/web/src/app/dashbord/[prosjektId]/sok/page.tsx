@@ -142,9 +142,9 @@ export default function DokumentsokSide() {
       </div>
 
       {/* Resultater */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex min-h-0 flex-1">
         {/* Treffliste */}
-        <div className="w-1/2 overflow-y-auto border-r p-4">
+        <div className="w-1/2 shrink-0 overflow-y-auto border-r p-4">
           {isLoading ? (
             <div className="py-8 text-center text-sm text-gray-400">
               Søker...
@@ -166,12 +166,12 @@ export default function DokumentsokSide() {
         </div>
 
         {/* Fulltekst-panel */}
-        <div className="w-1/2 overflow-y-auto p-4">
+        <div className="w-1/2 shrink-0 overflow-y-auto bg-gray-50 p-4">
           {valgtDokumentId ? (
             <Fulltekst documentId={valgtDokumentId} søkeord={aktivtSok} />
           ) : (
             <div className="py-8 text-center text-sm text-gray-400">
-              Velg et treff for å se dokumentinnhold.
+              Klikk på et treff for å se dokumentinnhold.
             </div>
           )}
         </div>
