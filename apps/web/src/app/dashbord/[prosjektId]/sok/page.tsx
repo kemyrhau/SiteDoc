@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useParams } from "next/navigation";
-import { FileSearch, Search, Brain, BookOpen, AlertTriangle } from "lucide-react";
+import { FileSearch, Search, Brain, BookOpen, AlertTriangle, Filter } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { TreffListe } from "@/components/ftd-sok/treff-liste";
 import { Fulltekst } from "@/components/ftd-sok/fulltekst";
@@ -18,6 +18,7 @@ export default function DokumentsokSide() {
   const [valgtTreffId, setValgtTreffId] = useState<string | null>(null);
   const [valgtDokumentId, setValgtDokumentId] = useState<string | null>(null);
   const [modus, setModus] = useState<SokModus>("ai");
+  const [nsFilter, setNsFilter] = useState<"ekskluder" | "kun" | "alle">("ekskluder");
 
   // Sjekk embedding-status
   const { data: embeddingStatus } = trpc.aiSok.embeddingStatus.useQuery(
@@ -27,13 +28,31 @@ export default function DokumentsokSide() {
 
   const harEmbeddings = (embeddingStatus?.ferdig ?? 0) > 0;
 
+  // Hent NS/referansedokumenter for filter
+  const { data: refDok } = trpc.aiSok.hentReferanseDokumenter.useQuery(
+    { projectId: prosjektId },
+    { enabled: !!prosjektId },
+  );
+
+  const nsMappeIder = refDok?.mapper.map((m) => m.id).filter((id) => id !== "__ingen__") ?? [];
+  const nsDokumentIder = refDok?.dokumenter.map((d) => d.id) ?? [];
+
   // AI-søk (hybrid vektor + leksikalsk + re-ranking)
   const {
     data: aiTreff,
     isLoading: aiLaster,
     error: aiError,
   } = trpc.aiSok.sok.useQuery(
-    { projectId: prosjektId, query: aktivtSok },
+    {
+      projectId: prosjektId,
+      query: aktivtSok,
+      ...(nsFilter === "ekskluder" && nsMappeIder.length > 0
+        ? { ekskluderMappeIder: nsMappeIder }
+        : {}),
+      ...(nsFilter === "kun" && nsDokumentIder.length > 0
+        ? { dokumentIder: nsDokumentIder }
+        : {}),
+    },
     { enabled: !!prosjektId && aktivtSok.length > 0 && modus === "ai" && harEmbeddings, retry: false },
   );
 
@@ -128,6 +147,22 @@ export default function DokumentsokSide() {
             <BookOpen className="h-3.5 w-3.5" />
             Tekstsøk
           </button>
+
+          {/* NS-dokumentfilter */}
+          {nsMappeIder.length > 0 && (
+            <div className="ml-auto flex items-center gap-1">
+              <Filter className="h-3.5 w-3.5 text-gray-400" />
+              <select
+                value={nsFilter}
+                onChange={(e) => setNsFilter(e.target.value as typeof nsFilter)}
+                className="rounded border-0 bg-transparent py-0.5 text-xs text-gray-600 focus:ring-0"
+              >
+                <option value="ekskluder">Uten NS-standarder</option>
+                <option value="alle">Alle dokumenter</option>
+                <option value="kun">Kun NS-standarder</option>
+              </select>
+            </div>
+          )}
         </div>
 
         {/* Fallback-varsel */}

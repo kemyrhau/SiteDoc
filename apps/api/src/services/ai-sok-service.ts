@@ -227,6 +227,8 @@ export async function hybridSok(
   options: {
     provider?: "local" | "openai";
     apiKey?: string;
+    dokumentIder?: string[];
+    ekskluderMappeIder?: string[];
     model?: string;
     vekter?: Partial<SokVekter>;
     topK?: number;
@@ -255,6 +257,16 @@ export async function hybridSok(
     mappeIder === null
       ? Prisma.empty
       : Prisma.sql`AND (d.folder_id IS NULL OR d.folder_id IN (${Prisma.join(mappeIder)}))`;
+
+  // Dokumentfilter (kun søk i bestemte dokumenter)
+  const dokKlausul = options.dokumentIder?.length
+    ? Prisma.sql`AND d.id IN (${Prisma.join(options.dokumentIder)})`
+    : Prisma.empty;
+
+  // Ekskluder mapper (f.eks. NS 3420)
+  const ekskluderKlausul = options.ekskluderMappeIder?.length
+    ? Prisma.sql`AND (d.folder_id IS NULL OR d.folder_id NOT IN (${Prisma.join(options.ekskluderMappeIder)}))`
+    : Prisma.empty;
 
   // 1. Encode query → embedding
   let queryEmbedding: number[];
@@ -288,6 +300,8 @@ export async function hybridSok(
       AND d.is_active = true
       AND c.embedding_vector IS NOT NULL
       ${mappeKlausul}
+      ${dokKlausul}
+      ${ekskluderKlausul}
     ORDER BY c.embedding_vector <=> ${vecStr}::vector
     LIMIT ${kandidatK}
   `;
@@ -313,6 +327,8 @@ export async function hybridSok(
       AND d.is_active = true
       AND c.search_vector @@ plainto_tsquery('norwegian', ${rensetQuery})
       ${mappeKlausul}
+      ${dokKlausul}
+      ${ekskluderKlausul}
     LIMIT ${kandidatK}
   `;
 

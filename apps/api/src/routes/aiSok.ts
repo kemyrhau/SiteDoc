@@ -40,6 +40,8 @@ export const aiSokRouter = router({
         projectId: z.string().uuid(),
         query: z.string().min(1),
         topK: z.number().default(20),
+        dokumentIder: z.array(z.string()).optional(),
+        ekskluderMappeIder: z.array(z.string()).optional(),
         vekter: vekterSchema.optional(),
       }),
     )
@@ -72,6 +74,8 @@ export const aiSokRouter = router({
         model: innstillinger.embeddingModel,
         vekter: input.vekter,
         topK: input.topK,
+        dokumentIder: input.dokumentIder,
+        ekskluderMappeIder: input.ekskluderMappeIder,
       });
     }),
 
@@ -134,6 +138,53 @@ export const aiSokRouter = router({
     .query(async ({ ctx, input }) => {
       await verifiserProsjektmedlem(ctx.userId, input.projectId);
       return hentEmbeddingStatus(ctx.prisma, input.projectId);
+    }),
+
+  /** Hent referansedokumenter (NS 3420 etc) for filter-dropdown */
+  hentReferanseDokumenter: protectedProcedure
+    .input(z.object({ projectId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      await verifiserProsjektmedlem(ctx.userId, input.projectId);
+
+      // Finn mapper som inneholder NS/standard-dokumenter
+      const nsDokumenter = await ctx.prisma.ftdDocument.findMany({
+        where: {
+          projectId: input.projectId,
+          isActive: true,
+          OR: [
+            { filename: { contains: "3420" } },
+            { filename: { contains: "ns-" } },
+            { filename: { startsWith: "NS " } },
+          ],
+        },
+        select: {
+          id: true,
+          filename: true,
+          folderId: true,
+          folder: { select: { id: true, name: true } },
+        },
+        orderBy: { filename: "asc" },
+      });
+
+      // Grupper per mappe
+      const mapper = new Map<string, { id: string; navn: string; dokumenter: typeof nsDokumenter }>();
+      for (const d of nsDokumenter) {
+        const mappeId = d.folderId ?? "__ingen__";
+        const mappeNavn = d.folder?.name ?? "Uten mappe";
+        if (!mapper.has(mappeId)) {
+          mapper.set(mappeId, { id: mappeId, navn: mappeNavn, dokumenter: [] });
+        }
+        mapper.get(mappeId)!.dokumenter.push(d);
+      }
+
+      return {
+        dokumenter: nsDokumenter.map((d) => ({
+          id: d.id,
+          filename: d.filename,
+          folderId: d.folderId,
+        })),
+        mapper: [...mapper.values()],
+      };
     }),
 
   /** Hent AI-søk innstillinger for prosjektet */
