@@ -100,7 +100,10 @@ export const aiSokRouter = router({
         model: innstillinger.embeddingModel,
         batchSize: innstillinger.embeddingProvider === "local" ? 8 : 64,
       }).catch((err) => {
-        console.error("[AI-SØK] Embedding-generering feilet:", err);
+        const { appendFileSync } = require("fs");
+        const { join } = require("path");
+        const msg = `[${new Date().toISOString()}] [AI-SØK] Embedding feilet: ${err?.message ?? err}\n${err?.stack ?? ""}\n`;
+        try { appendFileSync(join(process.cwd(), "embedding.log"), msg); } catch (_e) { /* */ }
       });
 
       return { startet: true };

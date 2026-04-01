@@ -6,10 +6,16 @@
  */
 import { PrismaClient } from "@sitedoc/db";
 import { execFile } from "child_process";
-import { promisify } from "util";
 import { join } from "path";
+import { appendFileSync } from "fs";
 
-const execFileAsync = promisify(execFile);
+const LOG_FILE = join(process.cwd(), "embedding.log");
+
+function logg(msg: string) {
+  const line = `[${new Date().toISOString()}] ${msg}`;
+  try { appendFileSync(LOG_FILE, line + "\n"); } catch (_e) { /* */ }
+  process.stdout.write(line + "\n");
+}
 
 // ---- Typer ----
 
@@ -38,35 +44,6 @@ const PYTHON_PATH =
   process.env.NORBERT_PYTHON ?? join(process.env.HOME ?? "", "norbert-env", "bin", "python3");
 const SCRIPT_PATH = join(process.cwd(), "src", "services", "norbert-embed.py");
 
-async function genererNorBERTEmbeddings(
-  tekster: string[],
-): Promise<number[][]> {
-  const input = JSON.stringify(tekster);
-  const { stdout, stderr } = await execFileAsync(
-    PYTHON_PATH,
-    [SCRIPT_PATH],
-    {
-      encoding: "utf-8",
-      maxBuffer: 50 * 1024 * 1024, // 50 MB
-      timeout: 120_000, // 2 min per batch
-      env: { ...process.env, PYTHONIOENCODING: "utf-8" },
-    },
-  );
-
-  if (stderr) {
-    // Filtrer HuggingFace-advarsler (ikke feil)
-    const feil = stderr
-      .split("\n")
-      .filter((l) => !l.includes("Warning:") && !l.includes("Loading weights") && !l.includes("LOAD REPORT") && !l.includes("UNEXPECTED") && !l.includes("Notes:") && !l.includes("---") && !l.includes("Key") && l.trim())
-      .join("\n");
-    if (feil) console.warn("[NORBERT]", feil);
-  }
-
-  // Skriv input til stdin via en ny prosess
-  return JSON.parse(stdout) as number[][];
-}
-
-// Wrapper som sender stdin
 async function kallNorBERT(tekster: string[]): Promise<number[][]> {
   return new Promise((resolve, reject) => {
     const proc = execFile(
@@ -172,7 +149,7 @@ export async function startEmbeddingGenerering(
     // Recovery: sett stuck 'processing' tilbake til 'pending'
     const recovered = await recoveryStuckProcessing(prisma, projectId);
     if (recovered > 0) {
-      console.log(
+      logg(
         `[EMBEDDING] Recovery: ${recovered} rader satt tilbake til 'pending'`,
       );
     }
@@ -186,11 +163,11 @@ export async function startEmbeddingGenerering(
     });
 
     if (totalt === 0) {
-      console.log("[EMBEDDING] Ingen ventende chunks å prosessere");
+      logg("[EMBEDDING] Ingen ventende chunks å prosessere");
       return { generert: 0, feilet: 0 };
     }
 
-    console.log(
+    logg(
       `[EMBEDDING] Starter generering av ${totalt} chunks med ${innstillinger.provider}/${innstillinger.model}`,
     );
 
@@ -237,7 +214,7 @@ export async function startEmbeddingGenerering(
 
         generert += chunks.length;
       } catch (err) {
-        console.error("[EMBEDDING] Batch feilet:", err);
+        logg(`[EMBEDDING] Batch feilet: ${(err as Error)?.message ?? err}`);
         // Sett tilbake til pending
         await prisma.ftdDocumentChunk.updateMany({
           where: { id: { in: ider } },
@@ -250,14 +227,14 @@ export async function startEmbeddingGenerering(
       }
 
       onFremdrift?.(generert, totalt);
-      console.log(`[EMBEDDING] Fremdrift: ${generert}/${totalt}`);
+      logg(`[EMBEDDING] Fremdrift: ${generert}/${totalt}`);
     }
   } finally {
     _prosesserer = false;
     _stoppSignal = false;
   }
 
-  console.log(
+  logg(
     `[EMBEDDING] Ferdig: ${generert} generert, ${feilet} feilet`,
   );
   return { generert, feilet };
