@@ -928,6 +928,207 @@ Ved åpning av sjekkliste/oppgave:
 - [ ] Cache-oppslag for 50 felt < 50ms
 - [ ] Ingen merkbar forsinkelse ved åpning av sjekkliste med oversettelser
 
+## Feilscenarier og løsninger
+
+### F1: Google Translate blokkeres (MEDIUM-HØY)
+
+Uoffisiell API kan rate-limites eller blokkeres.
+
+**Løsning: Automatisk fallback-kjede**
+```typescript
+class TranslationService {
+  private providere: TranslationProvider[]; // [Google, DeepL, Claude]
+
+  async oversett(tekst: string, fra: string, til: string): Promise<string> {
+    // Cache-sjekk først (alltid)
+    const cachet = await this.sjekkCache(tekst, til);
+    if (cachet) return cachet;
+
+    // Prøv providere i rekkefølge
+    for (const provider of this.providere) {
+      try {
+        const resultat = await provider.oversett([tekst], fra, til);
+        await this.lagreCache(tekst, fra, til, resultat[0], provider.navn);
+        return resultat[0];
+      } catch (err) {
+        console.warn(`[OVERSETT] ${provider.navn} feilet, prøver neste:`, err.message);
+        continue;
+      }
+    }
+
+    // Alle feilet — returner original med markering
+    return tekst;
+  }
+}
+```
+
+Konfigurerbar rekkefølge per prosjekt. Default: Google (gratis) → DeepL → Claude.
+
+### F2: Oversettelse feiler stille (HØY)
+
+Fire-and-forget betyr at feilen ikke oppdages.
+
+**Løsning: translationState + retry-kø**
+```prisma
+// Legg til på sjekkliste/oppgave:
+model Checklist {
+  // ... eksisterende
+  translationState  String  @default("none") // "none" | "pending" | "done" | "failed"
+  translationError  String? // Feilmelding ved failure
+}
+```
+
+```
+Ved lagring:
+  1. Sett translationState = "pending"
+  2. Fire-and-forget oversettelse
+  3. Ved suksess: translationState = "done"
+  4. Ved feil: translationState = "failed", translationError = melding
+  5. Retry-jobb: sjekk alle "failed" hvert 15. minutt, prøv igjen (maks 3)
+
+UI:
+  Sjekkliste-listen viser ⚠️ ved "failed" → admin ser "Oversettelse feilet"
+  Klikk → prøv igjen manuelt
+```
+
+### F3: Blanding av språk (MEDIUM — reelt problem)
+
+Byggebransjen blander språk konstant:
+- "Montert Geberit duofix på стіні" (norsk + produktnavn + ukrainsk)
+- "Sprawdzono Hilti HIT-RE 500 V3" (polsk + produktnavn)
+- "Установлено 3 stk Pipelife 110mm" (ukrainsk + norsk enhet + produktnavn)
+- "KD1.22112 ferdig, mangler fuging ved vindu 3" (NS-kode + norsk)
+
+**Løsning: Segmentert oversettelse med beskyttede tokens**
+
+```typescript
+// Steg 1: Identifiser segmenter som IKKE skal oversettes
+const BESKYTTET = [
+  /\b[A-Z]{1,3}\d[\w.]*\b/g,          // NS-koder: KD1.22112, FV3.14210
+  /\b\d+(?:[.,]\d+)?\s*(?:mm|cm|m|stk|kg|lm|m²|m³)\b/gi,  // Mengder: 110mm, 3 stk
+  /\b[A-Z][a-z]+(?:\s[A-Z][a-z]+)*\s+[A-Z0-9][\w.-]*\b/g,  // Produktnavn: Geberit duofix, Hilti HIT-RE 500
+  /\b\d{2}\.\d{1,3}(?:\.\d+)*\b/g,     // Postnumre: 02.74.04.1
+];
+
+function segmenter(tekst: string): Array<{ tekst: string; oversett: boolean }> {
+  // Erstatt beskyttede segmenter med plassholdere
+  const plassholdere: string[] = [];
+  let arbeids = tekst;
+
+  for (const regex of BESKYTTET) {
+    arbeids = arbeids.replace(regex, (match) => {
+      plassholdere.push(match);
+      return `{{${plassholdere.length - 1}}}`;
+    });
+  }
+
+  return { renset: arbeids, plassholdere };
+}
+
+async function oversettMedBeskyttelse(
+  tekst: string, fra: string, til: string,
+): Promise<string> {
+  const { renset, plassholdere } = segmenter(tekst);
+
+  // Oversett kun den rensede teksten
+  const oversatt = await provider.oversett([renset], fra, til);
+
+  // Sett tilbake plassholdere
+  let resultat = oversatt[0];
+  plassholdere.forEach((original, i) => {
+    resultat = resultat.replace(`{{${i}}}`, original);
+  });
+
+  return resultat;
+}
+```
+
+**Eksempler:**
+```
+Input (uk+nb):  "Установлено 3 stk Pipelife 110mm на стіні"
+Segmentert:     "Установлено {{0}} {{1}} {{2}} на стіні"
+Beskyttet:      ["3 stk", "Pipelife", "110mm"]
+Oversatt (nb):  "Montert {{0}} {{1}} {{2}} på veggen"
+Resultat:       "Montert 3 stk Pipelife 110mm på veggen" ✓
+
+Input (pl+nb):  "Sprawdzono Hilti HIT-RE 500 V3, brak pęknięć"
+Segmentert:     "Sprawdzono {{0}}, brak pęknięć"
+Beskyttet:      ["Hilti HIT-RE 500 V3"]
+Oversatt (nb):  "Kontrollert {{0}}, ingen sprekker"
+Resultat:       "Kontrollert Hilti HIT-RE 500 V3, ingen sprekker" ✓
+
+Input (nb+kode): "KD1.22112 ferdig, mangler fuging ved vindu 3"
+Segmentert:      "{{0}} ferdig, mangler fuging ved vindu 3"
+Beskyttet:       ["KD1.22112"]
+Oversatt (uk):   "{{0}} готово, бракує фугування біля вікна 3"
+Resultat:        "KD1.22112 готово, бракує фугування біля вікна 3" ✓
+```
+
+### F4: Mal-etikett endres etter oversettelse (MEDIUM)
+
+Admin endrer "Ansvarlig person" → "Ansvarlig". 12 språk-oversettelser er utdaterte.
+
+**Løsning: Utdatert-flagg**
+```prisma
+model ReportObjectTranslation {
+  // ... eksisterende
+  isOutdated  Boolean @default(false) // Settes til true når original endres
+}
+```
+
+```
+Ved endring av mal-etikett:
+  1. Oppdater norsk etikett
+  2. Sett isOutdated = true på alle oversettelser for dette objektet
+  3. Vis ⚠️ i malbyggeren: "5 oversettelser er utdaterte"
+  4. Admin klikker "Oppdater oversettelser" → re-oversett alle utdaterte
+```
+
+### F5: Offline-synk konflikt (MEDIUM)
+
+Oleksandr (offline) endrer tekst. Kjetil (online) korrigerer oversettelsen.
+
+**Løsning:** Original tekst vinner alltid. Ny original → ny hash → ny oversettelse. Kjetils manuelle korrigering gjelder kun for den gamle teksten (gammelt hash). Ny tekst trigrer ny maskinoversettelse som Kjetil kan korrigere igjen.
+
+### F6: Lang tekst (>5000 tegn) (LAV)
+
+Google Translate grense: ~5000 tegn per segment.
+
+**Løsning:** Splitt på setningsgrenser, oversett i deler, sett sammen:
+```typescript
+function splittLangTekst(tekst: string, maks: number = 4000): string[] {
+  if (tekst.length <= maks) return [tekst];
+  const setninger = tekst.split(/(?<=[.!?\n])\s+/);
+  const deler: string[] = [];
+  let gjeldende = "";
+  for (const s of setninger) {
+    if ((gjeldende + " " + s).length > maks) {
+      deler.push(gjeldende.trim());
+      gjeldende = s;
+    } else {
+      gjeldende += " " + s;
+    }
+  }
+  if (gjeldende.trim()) deler.push(gjeldende.trim());
+  return deler;
+}
+```
+
+### F7: Print med manglende oversettelse (MEDIUM)
+
+**Løsning:** Fallback ved print:
+```
+Hvis oversettelse mangler:
+  → Vis original tekst i kursiv
+  → Fotnotemerknad: "⚠ Ikke oversatt — originalspråk: ukrainsk"
+  → Logg mangelen for admin-oversikt
+```
+
+### F8: Database-vekst (LAV)
+
+**Estimat:** 1000 sjekklister × 5 felt × 13 språk = 65 000 rader. ~10 MB. Ubetydelig.
+**Vedlikehold:** Årlig jobb: slett oversettelser der kildetekst ikke lenger refereres fra noen sjekkliste/oppgave.
+
 ## Modulsystem: Alle tre moduler
 
 | Modul | Slug | Avhengighet | Beskrivelse |
