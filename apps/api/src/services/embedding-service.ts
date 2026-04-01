@@ -1,9 +1,15 @@
 /**
  * Embedding-service for AI-søk.
- * Støtter NorBERT (lokal, 768 dim) og OpenAI (sky, 1536 dim).
+ * Støtter NorBERT (lokal via Python, 768 dim) og OpenAI (sky, 1536 dim).
+ * NorBERT kjøres via Python-subprosess med torch+transformers (~/norbert-env).
  * Portert fra Fil til database-kopi: src/backends/embedding.py + src/services/embedding_service.py
  */
 import { PrismaClient } from "@sitedoc/db";
+import { execFile } from "child_process";
+import { promisify } from "util";
+import { join } from "path";
+
+const execFileAsync = promisify(execFile);
 
 // ---- Typer ----
 
@@ -26,40 +32,63 @@ export interface EmbeddingStatus {
 let _prosesserer = false;
 let _stoppSignal = false;
 
-// ---- NorBERT (lokal via @xenova/transformers) ----
+// ---- NorBERT via Python-subprosess ----
 
-let _pipeline: ((texts: string[]) => Promise<number[][]>) | null = null;
+const PYTHON_PATH =
+  process.env.NORBERT_PYTHON ?? join(process.env.HOME ?? "", "norbert-env", "bin", "python3");
+const SCRIPT_PATH = join(__dirname, "norbert-embed.py");
 
-async function lastNorBERT(): Promise<
-  (texts: string[]) => Promise<number[][]>
-> {
-  if (_pipeline) return _pipeline;
-
-  console.log("[EMBEDDING] Laster NorBERT-modell (ltgoslo/norbert2)...");
-  const { pipeline } = await import("@xenova/transformers");
-  const embedder = await pipeline(
-    "feature-extraction",
-    "Xenova/multilingual-e5-small", // Xenova ONNX-konvertert versjon av ltgoslo/norbert2
-    { quantized: true },
+async function genererNorBERTEmbeddings(
+  tekster: string[],
+): Promise<number[][]> {
+  const input = JSON.stringify(tekster);
+  const { stdout, stderr } = await execFileAsync(
+    PYTHON_PATH,
+    [SCRIPT_PATH],
+    {
+      encoding: "utf-8",
+      maxBuffer: 50 * 1024 * 1024, // 50 MB
+      timeout: 120_000, // 2 min per batch
+      env: { ...process.env, PYTHONIOENCODING: "utf-8" },
+    },
   );
-  console.log("[EMBEDDING] NorBERT lastet");
 
-  _pipeline = async (texts: string[]) => {
-    const resultater: number[][] = [];
-    for (const tekst of texts) {
-      // Trunker til 512 tokens (~2000 tegn for norsk)
-      const input = tekst.length > 2000 ? tekst.slice(0, 2000) : tekst;
-      const output = await embedder(input, {
-        pooling: "mean",
-        normalize: true,
-      });
-      // output.data er Float32Array, konverter til number[]
-      resultater.push(Array.from(output.data as Float32Array));
-    }
-    return resultater;
-  };
+  if (stderr) {
+    // Filtrer HuggingFace-advarsler (ikke feil)
+    const feil = stderr
+      .split("\n")
+      .filter((l) => !l.includes("Warning:") && !l.includes("Loading weights") && !l.includes("LOAD REPORT") && !l.includes("UNEXPECTED") && !l.includes("Notes:") && !l.includes("---") && !l.includes("Key") && l.trim())
+      .join("\n");
+    if (feil) console.warn("[NORBERT]", feil);
+  }
 
-  return _pipeline;
+  // Skriv input til stdin via en ny prosess
+  return JSON.parse(stdout) as number[][];
+}
+
+// Wrapper som sender stdin
+async function kallNorBERT(tekster: string[]): Promise<number[][]> {
+  return new Promise((resolve, reject) => {
+    const proc = execFile(
+      PYTHON_PATH,
+      [SCRIPT_PATH],
+      {
+        encoding: "utf-8",
+        maxBuffer: 50 * 1024 * 1024,
+        timeout: 120_000,
+      },
+      (err, stdout, _stderr) => {
+        if (err) return reject(err);
+        try {
+          resolve(JSON.parse(stdout) as number[][]);
+        } catch (e) {
+          reject(new Error(`Kunne ikke parse NorBERT-output: ${stdout.slice(0, 200)}`));
+        }
+      },
+    );
+    proc.stdin?.write(JSON.stringify(tekster));
+    proc.stdin?.end();
+  });
 }
 
 // ---- OpenAI embedding ----
@@ -92,8 +121,7 @@ async function genererEmbeddings(
   innstillinger: EmbeddingInnstillinger,
 ): Promise<number[][]> {
   if (innstillinger.provider === "local") {
-    const encode = await lastNorBERT();
-    return encode(tekster);
+    return kallNorBERT(tekster);
   } else {
     if (!innstillinger.apiKey) {
       throw new Error("OpenAI API-nøkkel mangler");
@@ -149,11 +177,6 @@ export async function startEmbeddingGenerering(
       );
     }
 
-    // For NorBERT: forlast modellen slik at vi ikke laster den for hver batch
-    if (innstillinger.provider === "local") {
-      await lastNorBERT();
-    }
-
     // Tell totalt antall pending
     const totalt = await prisma.ftdDocumentChunk.count({
       where: {
@@ -172,10 +195,9 @@ export async function startEmbeddingGenerering(
     );
 
     while (!_stoppSignal) {
-      // Hent neste batch (mindre batch for lokal modell)
       const batchSize =
         innstillinger.provider === "local"
-          ? Math.min(innstillinger.batchSize, 8)
+          ? Math.min(innstillinger.batchSize, 16)
           : innstillinger.batchSize;
 
       const chunks = await prisma.ftdDocumentChunk.findMany({

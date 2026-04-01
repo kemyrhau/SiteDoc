@@ -36,7 +36,7 @@ export default function AiSokSide() {
   // Lokale state for redigering
   const [embeddingProvider, setEmbeddingProvider] = useState("local");
   const [embeddingApiKey, setEmbeddingApiKey] = useState("");
-  const [embeddingModel, setEmbeddingModel] = useState("multilingual-e5-small");
+  const [embeddingModel, setEmbeddingModel] = useState("norbert2");
   const [llmApiKey, setLlmApiKey] = useState("");
   const [llmProvider, setLlmProvider] = useState("claude");
   const [llmModel, setLlmModel] = useState("claude-sonnet-4-5");
@@ -213,12 +213,12 @@ export default function AiSokSide() {
               onChange={(e) => {
                 const v = e.target.value;
                 setEmbeddingProvider(v);
-                setEmbeddingModel(v === "local" ? "multilingual-e5-small" : "text-embedding-3-small");
+                setEmbeddingModel(v === "local" ? "norbert2" : "text-embedding-3-small");
                 setHarEndringer(true);
               }}
               className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
             >
-              <option value="local">E5 multilingual (lokal, gratis)</option>
+              <option value="local">NorBERT (lokal, norsk, gratis)</option>
               <option value="openai">OpenAI (sky, flerspråklig)</option>
             </select>
           </div>
@@ -229,7 +229,7 @@ export default function AiSokSide() {
             </label>
             {erLokal ? (
               <div className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-sm text-gray-600">
-                multilingual-e5-small — 384 dimensjoner, flerspråklig med god norsk-støtte
+                ltgoslo/norbert2 — 768 dimensjoner, optimalisert for norsk
               </div>
             ) : (
               <select

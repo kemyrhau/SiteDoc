@@ -12,6 +12,8 @@
  * 7. Grupper per dokument, maks 10 chunks per dok
  */
 import { PrismaClient, Prisma } from "@sitedoc/db";
+import { execFile } from "child_process";
+import { join } from "path";
 
 // ---- Norske stoppord ----
 
@@ -153,29 +155,25 @@ function beregReRank(
 
 // ---- Embedding-kall ----
 
-// NorBERT pipeline-cache (singleton)
-let _norbertPipeline: ((text: string) => Promise<number[]>) | null = null;
+const NORBERT_PYTHON =
+  process.env.NORBERT_PYTHON ?? join(process.env.HOME ?? "", "norbert-env", "bin", "python3");
+const NORBERT_SCRIPT = join(__dirname, "norbert-embed.py");
 
 async function encodeQueryLokal(query: string): Promise<number[]> {
-  if (!_norbertPipeline) {
-    console.log("[AI-SØK] Laster NorBERT for query-encoding...");
-    const { pipeline } = await import("@xenova/transformers");
-    const embedder = await pipeline(
-      "feature-extraction",
-      "Xenova/multilingual-e5-small",
-      { quantized: true },
+  const embeddings = await new Promise<number[][]>((resolve, reject) => {
+    const proc = execFile(
+      NORBERT_PYTHON,
+      [NORBERT_SCRIPT],
+      { encoding: "utf-8", maxBuffer: 10 * 1024 * 1024, timeout: 60_000 },
+      (err, stdout) => {
+        if (err) return reject(err);
+        try { resolve(JSON.parse(stdout)); } catch (e) { reject(e); }
+      },
     );
-    _norbertPipeline = async (text: string) => {
-      const input = text.length > 2000 ? text.slice(0, 2000) : text;
-      const output = await embedder(input, {
-        pooling: "mean",
-        normalize: true,
-      });
-      return Array.from(output.data as Float32Array);
-    };
-    console.log("[AI-SØK] NorBERT lastet");
-  }
-  return _norbertPipeline(query);
+    proc.stdin?.write(JSON.stringify([query]));
+    proc.stdin?.end();
+  });
+  return embeddings[0]!;
 }
 
 async function encodeQueryOpenAI(
