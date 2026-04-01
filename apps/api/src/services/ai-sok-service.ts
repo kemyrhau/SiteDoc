@@ -154,10 +154,10 @@ function beregReRank(
     tallBonus -= Math.min(straffCount * 0.05, 0.3);
   }
 
-  // NS 3420 nedvekting
-  let ns3420Straff = 0;
-  if (filnavnLower.includes("3420") || filnavnLower.includes("ns-3420")) {
-    ns3420Straff = -0.15;
+  // NS-standard nedvekting (referansedokumenter er generiske)
+  let nsStandardStraff = 0;
+  if (/3420|8405|8406|8407|ns-/.test(filnavnLower)) {
+    nsStandardStraff = -0.15;
   }
 
   return (
@@ -167,7 +167,7 @@ function beregReRank(
     vekter.pageposWeight * pagepos +
     filnavnBoost +
     tallBonus +
-    ns3420Straff
+    nsStandardStraff
   );
 }
 

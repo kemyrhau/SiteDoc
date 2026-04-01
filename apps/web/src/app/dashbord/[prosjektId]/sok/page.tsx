@@ -9,14 +9,17 @@ import { Fulltekst } from "@/components/ftd-sok/fulltekst";
 
 type SokModus = "ai" | "leksikalsk";
 
-/** Forkort NS-filnavn for dropdown: "ns-3420-f_2024_no_002.pdf" → "NS 3420-F" */
+/** Forkort NS-filnavn for dropdown */
 function kortFilnavn(filnavn: string): string {
   // "ns-3420-f_2024..." → "NS 3420-F"
-  const m = filnavn.match(/ns-3420-([a-z]+)/i);
-  if (m) return `NS 3420-${m[1]!.toUpperCase()}`;
+  const m = filnavn.match(/ns-(\d{4})-([a-z]+)/i);
+  if (m) return `NS ${m[1]}-${m[2]!.toUpperCase()}`;
   // "NS 3420 Del K..." → "NS 3420-K"
-  const m2 = filnavn.match(/NS 3420 Del ([A-Z])/);
-  if (m2) return `NS 3420-${m2[1]}`;
+  const m2 = filnavn.match(/NS (\d{4}) Del ([A-Z])/);
+  if (m2) return `NS ${m2[1]}-${m2[2]}`;
+  // "NS 8405..." → "NS 8405"
+  const m3 = filnavn.match(/NS[_ ]?(\d{4})/);
+  if (m3) return `NS ${m3[1]}`;
   // Fjern .pdf
   return filnavn.replace(/\.pdf$/i, "");
 }

@@ -153,6 +153,9 @@ export const aiSokRouter = router({
           isActive: true,
           OR: [
             { filename: { contains: "3420" } },
+            { filename: { contains: "8405" } },
+            { filename: { contains: "8406" } },
+            { filename: { contains: "8407" } },
             { filename: { contains: "ns-" } },
             { filename: { startsWith: "NS " } },
           ],
