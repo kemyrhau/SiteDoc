@@ -49,7 +49,9 @@ Tre-kolonne layout (skjules på mobil < 768px, hamburger-meny i Toppbar):
 /dashbord/[prosjektId]/modeller              -> Redirect → /3d-visning
 /dashbord/[prosjektId]/bilder                 -> Bildegalleri (liste + tegningsvisning)
 /dashbord/[prosjektId]/okonomi               -> Økonomi: 4 faner (Oversikt, Avviksanalyse, Rapport, Dokumenter). Kontrakt påkrevd (auto-velg hvis kun én). Oversikt: spec-poster med piltast-nav, sammenligning, overskridelsesmarkering, NS-kode arv, gul prikk (●) ved postnr der split-dokumentasjon finnes. Dobbeltklikk rad → detaljmodal med dokumentasjon-seksjon ("Åpne dokumentasjon (X sider)" + kildeliste "A-nota 4: s.1-3"), NS-kode panel med NS 3420-oppslag. Rapport-fane: Innestående-tabell. Dokumenter-fane: Nr-kolonne, inline type-editor
-/dashbord/[prosjektId]/sok                   -> Dokumentsøk (alle prosjekter, ingen modulkrav): tsvector fulltekstsøk med norsk stemming, dedup per dokument, treffliste med sidenr, fulltekst-panel. Tilgangskontrollert via hentTilgjengeligeMappeIder
+/dashbord/[prosjektId]/sok                   -> Dokumentsøk: AI-søk (NorBERT hybrid vektor+leksikalsk+re-ranking) med fallback til tekstsøk. Modusveksler, NS-dokumentfilter (dropdown med enkeltdokumenter), dedup per dokument, søkeord-highlighting, dobbelt-klikk åpner original. Tilgangskontrollert via hentTilgjengeligeMappeIder
+/dashbord/[prosjektId]/mapper                -> Mapper: dokumentliste med embedding-statusindikator (grønn/gul/grå/rød prikk), dobbelt-klikk åpner fil, opplasting med fremdrift
+/dashbord/oppsett/ai-sok                     -> AI-søk innstillinger: embedding-status, generer/stopp, NorBERT/OpenAI modellvalg, LLM-konfig, recall/precision/latency sliders
 /dashbord/oppsett                             -> Innstillinger
 /dashbord/oppsett/brukere                     -> Brukergrupper, roller
 /dashbord/oppsett/brukere/tillatelser         -> Tillatelsesmatrise (read-only)
