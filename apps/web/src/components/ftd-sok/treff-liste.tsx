@@ -12,8 +12,7 @@ interface Treff {
   fileUrl: string | null;
   docType: string | null;
   folderId: string | null;
-  score?: number;
-  nsCode?: string | null;
+  [key: string]: unknown; // Tillat score, rank, nsCode etc.
 }
 
 interface TreffListeProps {
