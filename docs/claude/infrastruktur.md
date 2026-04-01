@@ -19,7 +19,19 @@ PC/WSL (server):
 
   Felles:
     SSH        :22   → ssh.sitedoc.no      (Cloudflare Tunnel)
+    NorBERT    :3302 → lokal embedding-server (PM2: norbert-embed)
+    Python venv: ~/norbert-env (torch + transformers)
 ```
+
+## PM2-prosesser
+
+| Navn | Port | Beskrivelse |
+|------|------|-------------|
+| `sitedoc-web` | 3100 | Produksjon Next.js |
+| `sitedoc-api` | 3001 | Produksjon Fastify/tRPC |
+| `sitedoc-test-web` | 3300 | Test Next.js |
+| `sitedoc-test-api` | 3301 | Test Fastify/tRPC |
+| `norbert-embed` | 3302 | NorBERT embedding HTTP-server (Python) |
 
 ## Server-avhengigheter (apt)
 
