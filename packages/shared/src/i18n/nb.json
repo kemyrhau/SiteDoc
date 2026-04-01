@@ -295,5 +295,27 @@
   "brukere.listevisning": "Listevisning",
   "brukere.rutenettvisning": "Rutenettvisning",
   "brukere.tilfoeyFilter": "+ Tilføy filter",
-  "brukere.sokPlaceholder": "Søk"
+  "brukere.sokPlaceholder": "Søk",
+
+  "bilder.tittel": "Bilder",
+  "bilder.liste": "Liste",
+  "bilder.tegning": "Tegning",
+  "bilder.kart": "Kart",
+  "bilder.ingenBilder": "Ingen bilder i prosjektet",
+
+  "3d.modell": "3D-modell",
+  "3d.overflater": "Overflater",
+  "3d.kuttFyll": "Kutt/fyll",
+  "3d.modeller": "Modeller",
+  "3d.lastOpp": "Last opp",
+  "3d.snitt": "Snitt",
+  "3d.synk": "Synk",
+  "3d.georeferert": "Georeferert",
+  "3d.gpsKalibrert": "GPS kalibrert",
+  "3d.tilbakestill": "Tilbakestill",
+  "3d.alleEtasjer": "Alle etasjer",
+  "3d.gulv": "Gulv",
+  "3d.modellAntall": "{{antall}} modeller",
+
+  "status.feilet": "Feilet"
 }

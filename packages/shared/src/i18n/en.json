@@ -295,5 +295,27 @@
   "brukere.listevisning": "List view",
   "brukere.rutenettvisning": "Grid view",
   "brukere.tilfoeyFilter": "+ Add filter",
-  "brukere.sokPlaceholder": "Search"
+  "brukere.sokPlaceholder": "Search",
+
+  "bilder.tittel": "Images",
+  "bilder.liste": "List",
+  "bilder.tegning": "Drawing",
+  "bilder.kart": "Map",
+  "bilder.ingenBilder": "No images in the project",
+
+  "3d.modell": "3D model",
+  "3d.overflater": "Surfaces",
+  "3d.kuttFyll": "Cut/fill",
+  "3d.modeller": "Models",
+  "3d.lastOpp": "Upload",
+  "3d.snitt": "Section",
+  "3d.synk": "Sync",
+  "3d.georeferert": "Georeferenced",
+  "3d.gpsKalibrert": "GPS calibrated",
+  "3d.tilbakestill": "Reset",
+  "3d.alleEtasjer": "All floors",
+  "3d.gulv": "Floor",
+  "3d.modellAntall": "{{antall}} models",
+
+  "status.feilet": "Failed"
 }

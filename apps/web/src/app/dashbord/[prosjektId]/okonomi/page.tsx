@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useRef, useCallback, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { BarChart3, Upload, FileText, Trash2, Loader2, CheckCircle, AlertCircle, RefreshCw, Plus, Pencil, FileSearch } from "lucide-react";
@@ -17,6 +18,7 @@ type Fane = "oversikt" | "avviksanalyse" | "rapport" | "dokumenter";
 type DokType = "a_nota" | "t_nota";
 
 export default function OkonomiSide() {
+  const { t } = useTranslation();
   const params = useParams<{ prosjektId: string }>();
   const prosjektId = params.prosjektId;
   const { data: session } = useSession();
@@ -167,20 +169,20 @@ export default function OkonomiSide() {
       <div className="flex items-center justify-between border-b px-4 py-3">
         <div className="flex items-center gap-2">
           <BarChart3 className="h-5 w-5 text-sitedoc-primary" />
-          <h1 className="text-lg font-semibold">Økonomi</h1>
+          <h1 className="text-lg font-semibold">{t("okonomi.tittel")}</h1>
         </div>
         <button
           onClick={() => setImportOpen(true)}
           className="flex items-center gap-1.5 rounded bg-sitedoc-primary px-3 py-1.5 text-sm text-white hover:bg-sitedoc-secondary"
         >
           <Upload className="h-4 w-4" />
-          Importer
+          {t("handling.importer")}
         </button>
       </div>
 
       {/* Velgere */}
       <div className="flex items-center gap-3 border-b px-4 py-2">
-        <label className="text-xs text-gray-500">Kontrakt:</label>
+        <label className="text-xs text-gray-500">{t("okonomi.kontrakt")}</label>
         <div className="flex items-center gap-1">
           <select
             className="rounded border border-gray-300 bg-white px-3 py-1.5 text-sm"
@@ -190,7 +192,7 @@ export default function OkonomiSide() {
               setValgtNotaNr(null);
             }}
           >
-            <option value="">Velg kontrakt</option>
+            <option value="">{t("okonomi.velgKontrakt")}</option>
             {kontrakter?.map((k) => (
               <option key={k.id} value={k.id}>
                 {k.navn}
@@ -200,7 +202,7 @@ export default function OkonomiSide() {
           <button
             onClick={() => setVisNyKontrakt(true)}
             className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-            title="Ny kontrakt"
+            title={t("okonomi.nyKontrakt")}
           >
             <Plus className="h-4 w-4" />
           </button>
@@ -208,7 +210,7 @@ export default function OkonomiSide() {
             <button
               onClick={() => setVisRedigerKontrakt(true)}
               className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-              title="Rediger kontrakt"
+              title={t("okonomi.redigerKontrakt")}
             >
               <Pencil className="h-3.5 w-3.5" />
             </button>
@@ -217,7 +219,7 @@ export default function OkonomiSide() {
 
         <div className="mx-1 h-4 w-px bg-gray-300" />
 
-        <label className="text-xs text-gray-500">Type:</label>
+        <label className="text-xs text-gray-500">{t("okonomi.type")}</label>
         <select
           className="rounded border border-gray-300 bg-white px-3 py-1.5 text-sm"
           value={dokType}
@@ -226,20 +228,20 @@ export default function OkonomiSide() {
             setValgtNotaNr(null);
           }}
         >
-          <option value="a_nota">A-Nota</option>
-          <option value="t_nota">T-Nota</option>
+          <option value="a_nota">{t("okonomi.aNota")}</option>
+          <option value="t_nota">{t("okonomi.tNota")}</option>
         </select>
 
-        <label className="text-xs text-gray-500">Nr:</label>
+        <label className="text-xs text-gray-500">{t("okonomi.nr")}</label>
         <select
           className="rounded border border-gray-300 bg-white px-3 py-1.5 text-sm"
           value={valgtNotaNr ?? ""}
           onChange={(e) => setValgtNotaNr(e.target.value ? parseInt(e.target.value, 10) : null)}
         >
-          <option value="">Kun anbud</option>
+          <option value="">{t("okonomi.kunAnbud")}</option>
           {kontraktDokumenter.notas.map((d) => (
             <option key={d.id} value={d.notaNr!}>
-              {d.notaType === "Sluttnota" ? "Sluttnota" : d.notaNr}
+              {d.notaType === "Sluttnota" ? t("okonomi.sluttnota") : d.notaNr}
             </option>
           ))}
         </select>
@@ -251,25 +253,25 @@ export default function OkonomiSide() {
           aktiv={aktivFane === "oversikt"}
           onClick={() => setAktivFane("oversikt")}
         >
-          Oversikt
+          {t("okonomi.oversikt")}
         </FaneKnapp>
         <FaneKnapp
           aktiv={aktivFane === "avviksanalyse"}
           onClick={() => setAktivFane("avviksanalyse")}
         >
-          Avviksanalyse
+          {t("okonomi.avviksanalyse")}
         </FaneKnapp>
         <FaneKnapp
           aktiv={aktivFane === "rapport"}
           onClick={() => setAktivFane("rapport")}
         >
-          Rapport
+          {t("okonomi.rapport")}
         </FaneKnapp>
         <FaneKnapp
           aktiv={aktivFane === "dokumenter"}
           onClick={() => setAktivFane("dokumenter")}
         >
-          Dokumenter
+          {t("okonomi.dokumenter")}
           {dokumenter && dokumenter.length > 0 && (
             <span className="ml-1.5 rounded-full bg-gray-200 px-1.5 py-0.5 text-[10px]">
               {dokumenter.length}
@@ -287,7 +289,7 @@ export default function OkonomiSide() {
               poster={poster ?? []}
               sammenligningPoster={valgtNotaNr !== null ? (notaPoster ?? []) : undefined}
               sammenligningLabel={valgtNotaNr !== null
-                ? (valgtNotaDok?.notaType === "Sluttnota" ? "Sluttnota" : `${dokType === "a_nota" ? "A-Nota" : "T-Nota"} ${valgtNotaNr}`)
+                ? (valgtNotaDok?.notaType === "Sluttnota" ? t("okonomi.sluttnota") : `${dokType === "a_nota" ? t("okonomi.aNota") : t("okonomi.tNota")} ${valgtNotaNr}`)
                 : undefined}
               onVelgPost={handleVelgPost}
               valgtPostId={valgtPostId}
@@ -373,11 +375,11 @@ export default function OkonomiSide() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setVisNyKontrakt(false)}>
           <div className="w-full max-w-md rounded-lg bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="border-b px-5 py-3">
-              <h2 className="text-base font-semibold">Ny kontrakt</h2>
+              <h2 className="text-base font-semibold">{t("okonomi.nyKontrakt")}</h2>
             </div>
             <div className="space-y-3 p-5">
               <div>
-                <label className="mb-1 block text-xs font-medium text-gray-500">Kontraktnavn</label>
+                <label className="mb-1 block text-xs font-medium text-gray-500">{t("okonomi.kontraktnavn")}</label>
                 <input
                   type="text"
                   className="w-full rounded border border-gray-300 px-3 py-1.5 text-sm"
@@ -388,20 +390,20 @@ export default function OkonomiSide() {
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium text-gray-500">Kontrakttype</label>
+                <label className="mb-1 block text-xs font-medium text-gray-500">{t("okonomi.kontrakttype")}</label>
                 <select
                   className="w-full rounded border border-gray-300 bg-white px-3 py-1.5 text-sm"
                   value={nyKontraktType}
                   onChange={(e) => setNyKontraktType(e.target.value)}
                 >
-                  <option value="">Velg type...</option>
+                  <option value="">{t("okonomi.velgType")}</option>
                   <option value="8405">NS 8405 — Utførelsesentreprise</option>
                   <option value="8406">NS 8406 — Forenklet utførelsesentreprise</option>
                   <option value="8407">NS 8407 — Totalentreprise</option>
                 </select>
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium text-gray-500">Byggherre</label>
+                <label className="mb-1 block text-xs font-medium text-gray-500">{t("okonomi.byggherre")}</label>
                 <input
                   type="text"
                   className="w-full rounded border border-gray-300 px-3 py-1.5 text-sm"
@@ -411,7 +413,7 @@ export default function OkonomiSide() {
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium text-gray-500">Entreprenør</label>
+                <label className="mb-1 block text-xs font-medium text-gray-500">{t("okonomi.entreprenor")}</label>
                 <input
                   type="text"
                   className="w-full rounded border border-gray-300 px-3 py-1.5 text-sm"
@@ -421,13 +423,13 @@ export default function OkonomiSide() {
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium text-gray-500">Bygning</label>
+                <label className="mb-1 block text-xs font-medium text-gray-500">{t("tabell.bygning")}</label>
                 <select
                   className="w-full rounded border border-gray-300 bg-white px-3 py-1.5 text-sm"
                   value={nyKontraktBygningId}
                   onChange={(e) => setNyKontraktBygningId(e.target.value)}
                 >
-                  <option value="">Ingen bygning (valgfritt)</option>
+                  <option value="">{t("okonomi.ingenBygning")}</option>
                   {bygninger?.map((b) => (
                     <option key={b.id} value={b.id}>
                       {b.number ? `${b.number} — ` : ""}{b.name}
@@ -441,7 +443,7 @@ export default function OkonomiSide() {
                 onClick={() => setVisNyKontrakt(false)}
                 className="rounded px-4 py-1.5 text-sm text-gray-600 hover:bg-gray-100"
               >
-                Avbryt
+                {t("handling.avbryt")}
               </button>
               <button
                 onClick={() => {
@@ -459,7 +461,7 @@ export default function OkonomiSide() {
                 disabled={!nyKontraktNavn.trim()}
                 className="rounded bg-sitedoc-primary px-4 py-1.5 text-sm text-white hover:bg-sitedoc-secondary disabled:opacity-50"
               >
-                Opprett
+                {t("handling.opprett")}
               </button>
             </div>
           </div>
@@ -501,6 +503,7 @@ function RedigerKontraktModal({
   onSlett: () => void;
   onLukk: () => void;
 }) {
+  const { t } = useTranslation();
   const [navn, setNavn] = useState(kontrakt.navn);
   const [type, setType] = useState(kontrakt.kontraktType ?? "");
   const [byggherre, setByggherre] = useState(kontrakt.byggherre ?? "");
@@ -511,34 +514,34 @@ function RedigerKontraktModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onLukk}>
       <div className="w-full max-w-md rounded-lg bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="border-b px-5 py-3">
-          <h2 className="text-base font-semibold">Rediger kontrakt</h2>
+          <h2 className="text-base font-semibold">{t("okonomi.redigerKontrakt")}</h2>
         </div>
         <div className="space-y-3 p-5">
           <div>
-            <label className="mb-1 block text-xs font-medium text-gray-500">Kontraktnavn</label>
+            <label className="mb-1 block text-xs font-medium text-gray-500">{t("okonomi.kontraktnavn")}</label>
             <input type="text" className="w-full rounded border border-gray-300 px-3 py-1.5 text-sm" value={navn} onChange={(e) => setNavn(e.target.value)} autoFocus />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-gray-500">Kontrakttype</label>
+            <label className="mb-1 block text-xs font-medium text-gray-500">{t("okonomi.kontrakttype")}</label>
             <select className="w-full rounded border border-gray-300 bg-white px-3 py-1.5 text-sm" value={type} onChange={(e) => setType(e.target.value)}>
-              <option value="">Velg type...</option>
+              <option value="">{t("okonomi.velgType")}</option>
               <option value="8405">NS 8405 — Utførelsesentreprise</option>
               <option value="8406">NS 8406 — Forenklet utførelsesentreprise</option>
               <option value="8407">NS 8407 — Totalentreprise</option>
             </select>
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-gray-500">Byggherre</label>
+            <label className="mb-1 block text-xs font-medium text-gray-500">{t("okonomi.byggherre")}</label>
             <input type="text" className="w-full rounded border border-gray-300 px-3 py-1.5 text-sm" placeholder="f.eks. Din Kommune" value={byggherre} onChange={(e) => setByggherre(e.target.value)} />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-gray-500">Entreprenør</label>
+            <label className="mb-1 block text-xs font-medium text-gray-500">{t("okonomi.entreprenor")}</label>
             <input type="text" className="w-full rounded border border-gray-300 px-3 py-1.5 text-sm" placeholder="f.eks. Firma AS" value={entreprenor} onChange={(e) => setEntreprenor(e.target.value)} />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-gray-500">Bygning</label>
+            <label className="mb-1 block text-xs font-medium text-gray-500">{t("tabell.bygning")}</label>
             <select className="w-full rounded border border-gray-300 bg-white px-3 py-1.5 text-sm" value={bygningId} onChange={(e) => setBygningId(e.target.value)}>
-              <option value="">Ingen bygning</option>
+              <option value="">{t("okonomi.ingenBygning")}</option>
               {bygninger.map((b) => (
                 <option key={b.id} value={b.id}>{b.number ? `${b.number} — ` : ""}{b.name}</option>
               ))}
@@ -546,9 +549,9 @@ function RedigerKontraktModal({
           </div>
         </div>
         <div className="flex items-center justify-between border-t px-5 py-3">
-          <button onClick={onSlett} className="rounded px-3 py-1.5 text-sm text-red-500 hover:bg-red-50">Slett</button>
+          <button onClick={onSlett} className="rounded px-3 py-1.5 text-sm text-red-500 hover:bg-red-50">{t("handling.slett")}</button>
           <div className="flex gap-2">
-            <button onClick={onLukk} className="rounded px-4 py-1.5 text-sm text-gray-600 hover:bg-gray-100">Avbryt</button>
+            <button onClick={onLukk} className="rounded px-4 py-1.5 text-sm text-gray-600 hover:bg-gray-100">{t("handling.avbryt")}</button>
             <button
               onClick={() => onLagre({
                 navn: navn.trim() || undefined,
@@ -560,7 +563,7 @@ function RedigerKontraktModal({
               disabled={!navn.trim()}
               className="rounded bg-sitedoc-primary px-4 py-1.5 text-sm text-white hover:bg-sitedoc-secondary disabled:opacity-50"
             >
-              Lagre
+              {t("handling.lagre")}
             </button>
           </div>
         </div>
@@ -591,6 +594,7 @@ function DokumentListe({
   }>;
   projectId: string;
 }) {
+  const { t } = useTranslation();
   const utils = trpc.useUtils();
   const slettMutation = trpc.mengde.fjernFraOkonomi.useMutation({
     onSuccess: () => utils.mengde.hentDokumenter.invalidate({ projectId }),
@@ -613,20 +617,20 @@ function DokumentListe({
   const [redigerDokId, setRedigerDokId] = useState<string | null>(null);
 
   const DOC_TYPE_LABEL: Record<string, string> = {
-    anbudsgrunnlag: "Anbudsgrunnlag",
-    budsjett: "Anbud",
-    a_nota: "A-nota",
-    t_nota: "T-nota",
-    mengdebeskrivelse: "Mengdebeskrivelse",
-    annet: "Dokument",
+    anbudsgrunnlag: t("okonomi.anbudsgrunnlag"),
+    budsjett: t("okonomi.anbud"),
+    a_nota: t("okonomi.aNota"),
+    t_nota: t("okonomi.tNota"),
+    mengdebeskrivelse: t("okonomi.mengdebeskrivelse"),
+    annet: t("okonomi.dokument"),
   };
 
   if (dokumenter.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-gray-400">
         <FileText className="mb-2 h-8 w-8" />
-        <div className="text-sm">Ingen dokumenter importert ennå.</div>
-        <div className="text-xs">Klikk «Importer» for å laste opp.</div>
+        <div className="text-sm">{t("okonomi.ingenDokumenter")}</div>
+        <div className="text-xs">{t("okonomi.klikkImporter")}</div>
       </div>
     );
   }
@@ -635,12 +639,12 @@ function DokumentListe({
     <table className="w-full text-left text-sm">
       <thead>
         <tr className="border-b text-xs font-medium uppercase text-gray-500">
-          <th className="px-3 py-2">Filnavn</th>
-          <th className="px-3 py-2">Type</th>
-          <th className="px-3 py-2">Nr</th>
-          <th className="px-3 py-2">Mappe</th>
-          <th className="px-3 py-2">Lastet opp</th>
-          <th className="px-3 py-2">Status</th>
+          <th className="px-3 py-2">{t("tabell.filnavn")}</th>
+          <th className="px-3 py-2">{t("tabell.type")}</th>
+          <th className="px-3 py-2">{t("tabell.nr")}</th>
+          <th className="px-3 py-2">{t("tabell.mappe")}</th>
+          <th className="px-3 py-2">{t("tabell.lastetOpp")}</th>
+          <th className="px-3 py-2">{t("tabell.status")}</th>
           <th className="px-3 py-2 w-20"></th>
         </tr>
       </thead>
@@ -666,7 +670,7 @@ function DokumentListe({
                 <button
                   onClick={() => setRedigerDokId(dok.id)}
                   className="rounded px-2 py-0.5 text-left text-sm text-gray-600 hover:bg-gray-100"
-                  title="Klikk for å endre"
+                  title={t("okonomi.klikkForAaEndre")}
                 >
                   <div>
                     {dok.notaType
@@ -692,17 +696,17 @@ function DokumentListe({
               {dok.processingState === "pending" || dok.processingState === "processing" ? (
                 <span className="flex items-center gap-1 text-xs text-amber-600">
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  Prosesserer...
+                  {t("handling.prosesserer")}
                 </span>
               ) : dok.processingState === "completed" ? (
                 <span className="flex items-center gap-1 text-xs text-green-600">
                   <CheckCircle className="h-3.5 w-3.5" />
-                  Ferdig
+                  {t("status.ferdig")}
                 </span>
               ) : dok.processingState === "failed" ? (
                 <span className="flex items-center gap-1 text-xs text-red-500" title={dok.processingError ?? ""}>
                   <AlertCircle className="h-3.5 w-3.5" />
-                  Feilet
+                  {t("status.feilet")}
                 </span>
               ) : null}
             </td>
@@ -711,7 +715,7 @@ function DokumentListe({
                 <button
                   onClick={() => reprosesserMutation.mutate({ documentId: dok.id })}
                   className="rounded p-1 text-gray-400 hover:bg-blue-50 hover:text-blue-500"
-                  title="Prøv igjen"
+                  title={t("handling.provIgjen")}
                 >
                   <RefreshCw className="h-3.5 w-3.5" />
                 </button>
@@ -751,6 +755,7 @@ function DokumentTypeEditor({
   }) => void;
   onAvbryt: () => void;
 }) {
+  const { t } = useTranslation();
   const [type, setType] = useState(dok.docType ?? "annet");
   const [nr, setNr] = useState(dok.notaNr?.toString() ?? "");
   const [valgtKontraktId, setValgtKontraktId] = useState(dok.kontraktId ?? "");
@@ -766,11 +771,11 @@ function DokumentTypeEditor({
         value={type}
         onChange={(e) => setType(e.target.value)}
       >
-        <option value="anbudsgrunnlag">Anbudsgrunnlag</option>
-        <option value="a_nota">A-nota</option>
-        <option value="t_nota">T-nota</option>
-        <option value="mengdebeskrivelse">Mengdebeskrivelse</option>
-        <option value="annet">Annet</option>
+        <option value="anbudsgrunnlag">{t("okonomi.anbudsgrunnlag")}</option>
+        <option value="a_nota">{t("okonomi.aNota")}</option>
+        <option value="t_nota">{t("okonomi.tNota")}</option>
+        <option value="mengdebeskrivelse">{t("okonomi.mengdebeskrivelse")}</option>
+        <option value="annet">{t("okonomi.annet")}</option>
       </select>
 
       {/* Kontrakt — for alle typer */}
@@ -779,7 +784,7 @@ function DokumentTypeEditor({
         value={valgtKontraktId}
         onChange={(e) => setValgtKontraktId(e.target.value)}
       >
-        <option value="">Velg kontrakt...</option>
+        <option value="">{t("okonomi.velgKontrakt")}</option>
         {kontrakter.map((k) => (
           <option key={k.id} value={k.id}>{k.navn}</option>
         ))}
@@ -809,13 +814,13 @@ function DokumentTypeEditor({
           }
           className="rounded bg-sitedoc-primary px-2 py-0.5 text-xs text-white"
         >
-          Lagre
+          {t("handling.lagre")}
         </button>
         <button
           onClick={onAvbryt}
           className="rounded px-2 py-0.5 text-xs text-gray-500 hover:bg-gray-100"
         >
-          Avbryt
+          {t("handling.avbryt")}
         </button>
       </div>
     </div>
@@ -831,6 +836,7 @@ function DokumentasjonPanel({
   kontraktId: string | null;
   postnr: string;
 }) {
+  const { t } = useTranslation();
   const { data: sider, isLoading } = trpc.mengde.hentDokumentasjonForPost.useQuery(
     { projectId: prosjektId, kontraktId: kontraktId ?? undefined, postnr },
     { enabled: !!postnr },
@@ -863,10 +869,10 @@ function DokumentasjonPanel({
     <div>
       <div className="mb-2 flex items-center gap-1.5 text-xs font-medium text-gray-500">
         <FileSearch className="h-3.5 w-3.5" />
-        Dokumentasjon
+        {t("okonomi.dokumentasjon")}
       </div>
       {isLoading ? (
-        <div className="text-xs text-gray-400">Søker...</div>
+        <div className="text-xs text-gray-400">{t("okonomi.soker")}</div>
       ) : gruppert.length === 0 ? (
         <div className="text-xs text-gray-400">Ingen dokumentasjon funnet for post {postnr}</div>
       ) : (
@@ -907,6 +913,7 @@ function RapportPanel({
   prosjektId: string;
   kontraktId: string | null;
 }) {
+  const { t } = useTranslation();
   const [rapportType, setRapportType] = useState<RapportType>("innestaaende");
 
   const { data: notas, isLoading } = trpc.mengde.hentNotaRapport.useQuery(
@@ -917,7 +924,7 @@ function RapportPanel({
   if (!kontraktId) {
     return (
       <div className="flex items-center justify-center py-12 text-sm text-gray-400">
-        Velg en kontrakt for å se rapport
+        {t("okonomi.velgKontraktForRapport")}
       </div>
     );
   }
@@ -938,20 +945,20 @@ function RapportPanel({
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3">
-        <label className="text-xs text-gray-500">Rapport:</label>
+        <label className="text-xs text-gray-500">{t("okonomi.rapport")}:</label>
         <select
           className="rounded border border-gray-300 bg-white px-3 py-1.5 text-sm"
           value={rapportType}
           onChange={(e) => setRapportType(e.target.value as RapportType)}
         >
-          <option value="innestaaende">Innestående</option>
+          <option value="innestaaende">{t("okonomi.innestaaende")}</option>
         </select>
       </div>
 
       {isLoading ? (
         <div className="flex items-center gap-2 py-8 text-sm text-gray-400">
           <Loader2 className="h-4 w-4 animate-spin" />
-          Laster rapport...
+          {t("okonomi.lasterRapport")}
         </div>
       ) : !notas || notas.length === 0 ? (
         <div className="py-8 text-center text-sm text-gray-400">
@@ -964,24 +971,24 @@ function RapportPanel({
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b bg-gray-50 text-left text-xs text-gray-500">
-                <th className="whitespace-nowrap px-3 py-2">Nota</th>
-                <th className="whitespace-nowrap px-3 py-2">Utført pr</th>
-                <th className="whitespace-nowrap px-3 py-2 text-right">Utført totalt</th>
-                <th className="whitespace-nowrap px-3 py-2 text-right">Utført forrige</th>
-                <th className="whitespace-nowrap px-3 py-2 text-right">Utført denne</th>
-                <th className="whitespace-nowrap px-3 py-2 text-right">Innestående</th>
-                <th className="whitespace-nowrap px-3 py-2 text-right">Innest. forrige</th>
-                <th className="whitespace-nowrap px-3 py-2 text-right">Innest. denne</th>
-                <th className="whitespace-nowrap px-3 py-2 text-right">Netto denne</th>
-                <th className="whitespace-nowrap px-3 py-2 text-right">Mva</th>
-                <th className="whitespace-nowrap px-3 py-2 text-right">Sum inkl. mva</th>
+                <th className="whitespace-nowrap px-3 py-2">{t("okonomi.nota")}</th>
+                <th className="whitespace-nowrap px-3 py-2">{t("okonomi.utfortPr")}</th>
+                <th className="whitespace-nowrap px-3 py-2 text-right">{t("okonomi.utfortTotalt")}</th>
+                <th className="whitespace-nowrap px-3 py-2 text-right">{t("okonomi.utfortForrige")}</th>
+                <th className="whitespace-nowrap px-3 py-2 text-right">{t("okonomi.utfortDenne")}</th>
+                <th className="whitespace-nowrap px-3 py-2 text-right">{t("okonomi.innestaaende")}</th>
+                <th className="whitespace-nowrap px-3 py-2 text-right">{t("okonomi.innestForrige")}</th>
+                <th className="whitespace-nowrap px-3 py-2 text-right">{t("okonomi.innestDenne")}</th>
+                <th className="whitespace-nowrap px-3 py-2 text-right">{t("okonomi.nettoDenne")}</th>
+                <th className="whitespace-nowrap px-3 py-2 text-right">{t("okonomi.mva")}</th>
+                <th className="whitespace-nowrap px-3 py-2 text-right">{t("okonomi.sumInklMva")}</th>
               </tr>
             </thead>
             <tbody>
               {notas.map((n) => (
                 <tr key={n.id} className="border-b hover:bg-gray-50">
                   <td className="whitespace-nowrap px-3 py-2 font-medium">
-                    {n.notaType === "Sluttnota" ? "Sluttnota" : `${n.notaType ?? "A-Nota"} ${n.notaNr}`}
+                    {n.notaType === "Sluttnota" ? t("okonomi.sluttnota") : `${n.notaType ?? t("okonomi.aNota")} ${n.notaNr}`}
                   </td>
                   <td className="whitespace-nowrap px-3 py-2">{fmtDato(n.utfortPr)}</td>
                   <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">{fmt(n.utfortTotalt)}</td>
@@ -1003,7 +1010,7 @@ function RapportPanel({
             {notas.length > 1 && (
               <tfoot>
                 <tr className="border-t-2 bg-gray-50 font-semibold">
-                  <td className="px-3 py-2">Totalt</td>
+                  <td className="px-3 py-2">{t("okonomi.totalt")}</td>
                   <td className="px-3 py-2" />
                   <td className="px-3 py-2 text-right tabular-nums">
                     {fmt(Math.max(...notas.map((n) => Number(n.utfortTotalt ?? 0))))}

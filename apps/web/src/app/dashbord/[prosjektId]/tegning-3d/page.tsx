@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { useParams } from "next/navigation";
 import { trpc } from "@/lib/trpc";
 import { useTreDViewer } from "@/kontekst/tred-viewer-kontekst";
@@ -105,6 +106,7 @@ interface TegningData {
 }
 
 export default function Tegning3DSide() {
+  const { t } = useTranslation();
   const { prosjektId } = useParams<{ prosjektId: string }>();
   const { viewerRef, valgtObjekt } = useTreDViewer();
   const { aktivBygning } = useBygning();
@@ -643,7 +645,7 @@ export default function Tegning3DSide() {
             onChange={(e) => setValgtEtasje(e.target.value || null)}
             className="rounded border border-gray-300 px-2 py-1 text-sm"
           >
-            <option value="">Alle etasjer</option>
+            <option value="">{t("3d.alleEtasjer")}</option>
             {etasjer.map((e) => (
               <option key={e.navn} value={e.navn}>{e.navn} {e.høyde != null ? `(${e.høyde.toFixed(1)}m)` : ""}</option>
             ))}
@@ -659,7 +661,7 @@ export default function Tegning3DSide() {
           title={harSynkMulighet ? "Synkroniser klikk mellom tegning og 3D" : "Krever georeferert tegning og IFC med GPS"}
         >
           {synkAktiv ? <Link2 size={14} /> : <Link2Off size={14} />}
-          Synk
+          {t("3d.synk")}
         </button>
 
         {/* Georeferanse-status */}
@@ -667,7 +669,7 @@ export default function Tegning3DSide() {
           transformasjon ? (
             <span className="flex items-center gap-1.5 text-xs text-green-700">
               <MapPin size={14} />
-              Georeferert
+              {t("3d.georeferert")}
             </span>
           ) : harRedigerTilgang ? (
             <span className="text-xs text-gray-400">Georeferér i Lokasjoner</span>
@@ -683,7 +685,7 @@ export default function Tegning3DSide() {
           title={gulvY != null ? `Gulvhøyde: ${gulvY.toFixed(1)}m — klikk for å endre` : "Klikk på gulvet i 3D for å kalibrere kamerahøyde"}
         >
           <Ruler size={14} />
-          {kalibrerModus ? "Klikk på gulvet..." : gulvY != null ? `Gulv: ${gulvY.toFixed(1)}` : "Kalibrer"}
+          {kalibrerModus ? "Klikk på gulvet..." : gulvY != null ? `${t("3d.gulv")}: ${gulvY.toFixed(1)}` : "Kalibrer"}
         </button>}
 
         {/* GPS-kalibrering (kun felt-admin, kun når IFC finnes) */}
@@ -696,7 +698,7 @@ export default function Tegning3DSide() {
             title={harGpsOverride ? "GPS kalibrert manuelt" : harIfcGps ? "GPS fra IFC-metadata" : "Ingen GPS — klikk for å kalibrere"}
           >
             <Navigation size={14} />
-            {harGpsOverride ? "GPS kalibrert" : harIfcGps ? "GPS (IFC)" : "Kalibrer GPS"}
+            {harGpsOverride ? t("3d.gpsKalibrert") : harIfcGps ? "GPS (IFC)" : "Kalibrer GPS"}
           </button>
         )}
 
@@ -756,7 +758,7 @@ export default function Tegning3DSide() {
             onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }}
             className="rounded bg-gray-100 px-2 py-1 text-xs text-gray-600"
           >
-            {Math.round(zoom * 100)}% — Tilbakestill
+            {Math.round(zoom * 100)}% — {t("3d.tilbakestill")}
           </button>
         )}
       </div>
@@ -988,7 +990,7 @@ export default function Tegning3DSide() {
                     disabled={fjernGpsOverrideMutation.isPending}
                     className="rounded border border-gray-300 px-4 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
                   >
-                    Tilbakestill til IFC
+                    {t("3d.tilbakestill")} til IFC
                   </button>
                 )}
               </div>
