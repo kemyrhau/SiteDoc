@@ -428,23 +428,101 @@ const response = await fetch("https://api-free.deepl.com/v2/translate", {
 
 ## Implementeringsplan
 
+### Fase 0: Førstegangs språkvalg ved installasjon
+
+**Mål:** Brukeren velger språk ved første åpning — appen oppleves umiddelbart på riktig språk.
+
+**Mobil (Expo):**
+
+```
+Første åpning:
+  1. expo-localization: les enhetens språk (f.eks. "uk" for ukrainsk telefon)
+  2. Vis velkomstskjerm på detektert språk:
+     "Ласкаво просимо до SiteDoc" (ukrainsk)
+     "Velkommen til SiteDoc" (norsk)
+  3. Dropdown: "Velg språk / Виберіть мову" med alle 12 språk + flagg
+  4. Bruker bekrefter → lagres lokalt (AsyncStorage) + User.language i DB
+  5. Appen laster med valgt språk — alle skjermer er oversatt
+```
+
+**Web (Next.js):**
+
+```
+Første innlogging:
+  1. Sjekk navigator.language (nettleser-språk)
+  2. Hvis brukerens User.language ikke er satt:
+     → Vis språkvelger-modal: "Velg språk" med flagg-ikoner
+  3. Lagre i localStorage + User.language
+  4. Påfølgende besøk: bruk lagret språk direkte
+```
+
+**Invitasjonsflyt:**
+
+```
+Bruker inviteres til prosjekt via e-post:
+  → E-posten sendes på prosjektets standardspråk (norsk)
+  → Bruker klikker lenke → registrerer seg
+  → Første innlogging: språkvelger-modal
+  → Brukeren velger ukrainsk → alt vises på ukrainsk fra nå av
+```
+
+**Komponenter:**
+
+```
+apps/mobile/app/sprakvalg.tsx      — Velkomstskjerm med språkvelger (mobil)
+apps/web/src/components/SprakModal.tsx — Modal ved første innlogging (web)
+```
+
+**Språkliste med flagg:**
+
+| Flagg | Kode | Norsk | Lokalt |
+|-------|------|-------|--------|
+| 🇳🇴 | `nb` | Norsk bokmål | Norsk bokmål |
+| 🇸🇪 | `sv` | Svensk | Svenska |
+| 🇬🇧 | `en` | Engelsk | English |
+| 🇱🇹 | `lt` | Litauisk | Lietuvių |
+| 🇵🇱 | `pl` | Polsk | Polski |
+| 🇺🇦 | `uk` | Ukrainsk | Українська |
+| 🇷🇴 | `ro` | Rumensk | Română |
+| 🇪🇪 | `et` | Estisk | Eesti |
+| 🇫🇮 | `fi` | Finsk | Suomi |
+| 🇨🇿 | `cs` | Tsjekkisk | Čeština |
+| 🇩🇪 | `de` | Tysk | Deutsch |
+| 🇷🇺 | `ru` | Russisk | Русский |
+
+**Viktig:** Hvert språk vises på *sitt eget språk* i listen — en ukrainsk bruker skal gjenkjenne "Українська" uten å kunne lese norsk.
+
+**Testing — fase 0:**
+- [ ] Ny installasjon på ukrainsk telefon → velkomstskjerm på ukrainsk
+- [ ] Ny installasjon på norsk telefon → velkomstskjerm på norsk
+- [ ] Ukjent systemspråk (f.eks. kinesisk) → velkomstskjerm på engelsk (fallback)
+- [ ] Valgt språk beholdes etter app-restart
+- [ ] Valgt språk synkes til User.language i DB
+- [ ] Web: første innlogging viser språkvelger-modal
+- [ ] Web: påfølgende besøk bruker lagret språk uten modal
+
 ### Fase 1: UI-oversettelse (Lag 1)
 
-**Mål:** Mobilappen viser UI på brukerens språk
+**Mål:** App og web viser UI på brukerens valgte språk
 
 1. Sett opp `i18next` i `packages/shared/src/i18n/`
-2. Ekstraher alle hardkodede norske strenger fra mobil-appen (~300 nøkler)
+2. Ekstraher alle hardkodede norske strenger (~300 mobil, ~1600 web)
 3. Lag norsk kilde-fil (`nb.json`)
-4. Oversett til 7 språk (AI-assistert + manuell QA)
-5. Integrer `expo-localization` for system-språk-deteksjon
-6. Legg til språkvelger i Mer-fanen (mobil)
-7. Legg til `language`-felt på User-modellen
+4. Google Translate script: auto-oversett til alle 11 språk
+5. Manuell QA av fagtermer per språk
+6. Integrer `expo-localization` + `i18next` i mobil
+7. Integrer `next-intl` i web
+8. Språkvelger i toppbar (web) og Mer-fanen (mobil)
+9. Legg til `language`-felt på User-modellen
+10. API-endpoint: `bruker.oppdaterSpraak`
 
 **Filer som endres:**
-- `packages/shared/src/i18n/` (ny)
+- `packages/shared/src/i18n/` (ny — delt mellom web og mobil)
 - `apps/mobile/src/` — alle skjermer og komponenter (erstatt hardkodet tekst)
+- `apps/web/src/` — alle sider og komponenter (erstatt hardkodet tekst)
 - `packages/db/prisma/schema.prisma` — `language` på User
 - `apps/mobile/app/(tabs)/mer.tsx` — språkvelger
+- `apps/web/src/components/layout/Toppbar.tsx` — språkvelger dropdown
 
 ### Fase 2: Mal-oversettelse (Lag 2)
 
