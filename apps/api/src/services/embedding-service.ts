@@ -5,9 +5,8 @@
  * Portert fra Fil til database-kopi: src/backends/embedding.py + src/services/embedding_service.py
  */
 import { PrismaClient } from "@sitedoc/db";
-import { execFile } from "child_process";
-import { join } from "path";
 import { appendFileSync } from "fs";
+import { join } from "path";
 
 const LOG_FILE = join(process.cwd(), "embedding.log");
 
@@ -38,34 +37,23 @@ export interface EmbeddingStatus {
 let _prosesserer = false;
 let _stoppSignal = false;
 
-// ---- NorBERT via Python-subprosess ----
+// ---- NorBERT via HTTP-server (persistent Python-prosess på port 3302) ----
 
-const PYTHON_PATH =
-  process.env.NORBERT_PYTHON ?? join(process.env.HOME ?? "", "norbert-env", "bin", "python3");
-const SCRIPT_PATH = join(process.cwd(), "src", "services", "norbert-embed.py");
+const NORBERT_URL = process.env.NORBERT_URL ?? "http://127.0.0.1:3302";
 
 async function kallNorBERT(tekster: string[]): Promise<number[][]> {
-  return new Promise((resolve, reject) => {
-    const proc = execFile(
-      PYTHON_PATH,
-      [SCRIPT_PATH],
-      {
-        encoding: "utf-8",
-        maxBuffer: 50 * 1024 * 1024,
-        timeout: 120_000,
-      },
-      (err, stdout, _stderr) => {
-        if (err) return reject(err);
-        try {
-          resolve(JSON.parse(stdout) as number[][]);
-        } catch (e) {
-          reject(new Error(`Kunne ikke parse NorBERT-output: ${stdout.slice(0, 200)}`));
-        }
-      },
-    );
-    proc.stdin?.write(JSON.stringify(tekster));
-    proc.stdin?.end();
+  const response = await fetch(`${NORBERT_URL}/embed`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(tekster),
   });
+
+  if (!response.ok) {
+    const body = await response.text().catch(() => "");
+    throw new Error(`NorBERT-server feilet (${response.status}): ${body.slice(0, 200)}`);
+  }
+
+  return (await response.json()) as number[][];
 }
 
 // ---- OpenAI embedding ----

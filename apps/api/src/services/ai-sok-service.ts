@@ -12,8 +12,6 @@
  * 7. Grupper per dokument, maks 10 chunks per dok
  */
 import { PrismaClient, Prisma } from "@sitedoc/db";
-import { execFile } from "child_process";
-import { join } from "path";
 
 // ---- Norske stoppord ----
 
@@ -155,24 +153,20 @@ function beregReRank(
 
 // ---- Embedding-kall ----
 
-const NORBERT_PYTHON =
-  process.env.NORBERT_PYTHON ?? join(process.env.HOME ?? "", "norbert-env", "bin", "python3");
-const NORBERT_SCRIPT = join(process.cwd(), "src", "services", "norbert-embed.py");
+const NORBERT_URL = process.env.NORBERT_URL ?? "http://127.0.0.1:3302";
 
 async function encodeQueryLokal(query: string): Promise<number[]> {
-  const embeddings = await new Promise<number[][]>((resolve, reject) => {
-    const proc = execFile(
-      NORBERT_PYTHON,
-      [NORBERT_SCRIPT],
-      { encoding: "utf-8", maxBuffer: 10 * 1024 * 1024, timeout: 60_000 },
-      (err, stdout) => {
-        if (err) return reject(err);
-        try { resolve(JSON.parse(stdout)); } catch (e) { reject(e); }
-      },
-    );
-    proc.stdin?.write(JSON.stringify([query]));
-    proc.stdin?.end();
+  const response = await fetch(`${NORBERT_URL}/embed`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify([query]),
   });
+
+  if (!response.ok) {
+    throw new Error(`NorBERT-server feilet (${response.status})`);
+  }
+
+  const embeddings = (await response.json()) as number[][];
   return embeddings[0]!;
 }
 
