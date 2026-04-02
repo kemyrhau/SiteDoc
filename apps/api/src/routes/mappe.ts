@@ -80,6 +80,55 @@ export const mappeRouter = router({
       });
     }),
 
+  // Hent dokumenter med oversettelsesinfo for dokumentleser
+  hentDokumenterMedSpraak: protectedProcedure
+    .input(z.object({ folderId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const mappe = await ctx.prisma.folder.findUniqueOrThrow({
+        where: { id: input.folderId },
+        select: { projectId: true, languages: true },
+      });
+      await verifiserProsjektmedlem(ctx.userId, mappe.projectId);
+
+      const dokumenter = await ctx.prisma.ftdDocument.findMany({
+        where: { folderId: input.folderId, isActive: true },
+        select: { id: true, filename: true, uploadedAt: true },
+        orderBy: { uploadedAt: "desc" },
+      });
+
+      // Hent tilgjengelige språk og første overskrift per dokument
+      const result = await Promise.all(
+        dokumenter.map(async (dok) => {
+          const språkRader = await ctx.prisma.ftdDocumentBlock.findMany({
+            where: { documentId: dok.id },
+            select: { language: true },
+            distinct: ["language"],
+          });
+
+          // Hent første heading per språk for tittel
+          const titler: Record<string, string> = {};
+          for (const { language } of språkRader) {
+            const heading = await ctx.prisma.ftdDocumentBlock.findFirst({
+              where: { documentId: dok.id, language, blockType: "heading" },
+              orderBy: { sortOrder: "asc" },
+              select: { content: true },
+            });
+            if (heading) titler[language] = heading.content;
+          }
+
+          return {
+            id: dok.id,
+            filename: dok.filename,
+            uploadedAt: dok.uploadedAt,
+            tilgjengeligeSprak: språkRader.map((r) => r.language),
+            titler,
+          };
+        }),
+      );
+
+      return { dokumenter: result, mappeSprak: mappe.languages };
+    }),
+
   // Hent dokumentblokker for lesevisning
   hentDokumentBlokker: protectedProcedure
     .input(
