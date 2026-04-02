@@ -427,7 +427,10 @@
   "mappeoppsett.kildesprakProsjekt": "settes i prosjektinnstillinger",
   "mappeoppsett.kilde": "kilde",
   "dokumentleser.spraakAvvik": "Mulig språkavvik",
+  "dokumentleser.detektertSom": "Detektert som",
   "dokumentleser.forventet": "forventet",
+  "dokumentleser.bekreftSpraak": "Bekreft {{spraak}}",
+  "dokumentleser.brukForventet": "Bruk {{spraak}}",
 
   "tegninger.sokLokasjoner": "Søk lokasjoner...",
   "tegninger.alleLokasjoner": "Alle lokasjoner",

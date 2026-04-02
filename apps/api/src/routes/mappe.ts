@@ -409,6 +409,12 @@ export const mappeRouter = router({
         );
       }
 
+      // Hent prosjektets kildespråk for avvik-sjekk
+      const prosjekt = await ctx.prisma.project.findUnique({
+        where: { id: mappe.projectId },
+        select: { sourceLanguage: true },
+      });
+
       return {
         dokumenter: docs.map((d) => ({
           ...d,
@@ -417,6 +423,7 @@ export const mappeRouter = router({
           oversettelse: oversettStatusMap.get(d.id) ?? null,
         })),
         mappeSprak,
+        prosjektKildesprak: prosjekt?.sourceLanguage ?? "nb",
       };
     }),
 
@@ -490,6 +497,85 @@ export const mappeRouter = router({
           },
         });
       });
+    }),
+
+  // Bekreft dokumentspråk ved avvik — oppdaterer sourceLanguage og trigger oversettelse
+  bekreftDokumentSpraak: protectedProcedure
+    .input(z.object({
+      documentId: z.string(),
+      bekreftSpraak: z.string().min(2).max(5), // Brukeren bekrefter riktig kildespråk
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const doc = await ctx.prisma.ftdDocument.findUniqueOrThrow({
+        where: { id: input.documentId },
+        select: { id: true, projectId: true, folderId: true, sourceLanguage: true, detectedLanguage: true },
+      });
+      await verifiserProsjektmedlem(ctx.userId, doc.projectId);
+
+      const gammeltSpråk = doc.sourceLanguage;
+      const nyttSpråk = input.bekreftSpraak;
+
+      // Oppdater dokumentets kildespråk og fjern avvik
+      await ctx.prisma.ftdDocument.update({
+        where: { id: input.documentId },
+        data: {
+          sourceLanguage: nyttSpråk,
+          detectedLanguage: nyttSpråk, // Ingen avvik lenger
+        },
+      });
+
+      // Hvis kildespråk endret seg, re-merk blokker
+      if (gammeltSpråk !== nyttSpråk) {
+        await ctx.prisma.ftdDocumentBlock.updateMany({
+          where: { documentId: input.documentId, language: gammeltSpråk },
+          data: { language: nyttSpråk },
+        });
+      }
+
+      // Trigger oversettelsesoppdrag hvis mappen har flere språk
+      if (doc.folderId) {
+        const alleMapper = await ctx.prisma.folder.findMany({
+          where: { projectId: doc.projectId },
+          select: { id: true, parentId: true, languageMode: true, languages: true },
+        });
+        const effektiv = resolverSpråk(doc.folderId, alleMapper.map((m) => ({
+          id: m.id, parentId: m.parentId, languageMode: m.languageMode,
+          languages: m.languages as string[],
+        })));
+
+        const ekstraSpråk = effektiv.languages.filter((l) => l !== nyttSpråk);
+        if (ekstraSpråk.length > 0) {
+          // Sjekk om oversettelsesmodulen er aktiv
+          const modul = await ctx.prisma.projectModule.findUnique({
+            where: { projectId_moduleSlug: { projectId: doc.projectId, moduleSlug: "oversettelse" } },
+          });
+          if (modul?.active) {
+            const antallBlokker = await ctx.prisma.ftdDocumentBlock.count({
+              where: { documentId: input.documentId, language: nyttSpråk },
+            });
+            for (const lang of ekstraSpråk) {
+              await ctx.prisma.ftdTranslationJob.upsert({
+                where: { documentId_targetLang: { documentId: input.documentId, targetLang: lang } },
+                create: {
+                  id: `${input.documentId}-${lang}`,
+                  documentId: input.documentId,
+                  targetLang: lang,
+                  blocksTotal: antallBlokker,
+                  status: "pending",
+                },
+                update: {
+                  status: "pending",
+                  blocksTotal: antallBlokker,
+                  blocksDone: 0,
+                  error: null,
+                },
+              });
+            }
+          }
+        }
+      }
+
+      return { ok: true };
     }),
 
   // Slett dokument fra mappe (soft-delete + fjern chunks/spec-poster)

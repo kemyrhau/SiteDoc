@@ -187,10 +187,11 @@ async function genererBlokkOgOversett(
   const tekst = buffer.toString("utf-8").slice(0, 5000);
   const detektert = detekterSpraak(tekst);
 
-  // Bruk prosjektets kildespråk, men lagre detektert for kontroll
-  const kildeSpråk = prosjektKildespråk;
+  // Bruk detektert språk for blokker (det faktiske innholdet)
+  const kildeSpråk = detektert;
+  const harAvvik = detektert !== prosjektKildespråk;
 
-  // Lagre kildespråk + detektert språk på dokumentet
+  // Lagre begge på dokumentet
   await prisma.ftdDocument.update({
     where: { id: documentId },
     data: {
@@ -199,11 +200,11 @@ async function genererBlokkOgOversett(
     },
   });
 
-  if (detektert !== kildeSpråk) {
-    console.warn(`Språkavvik: dokument ${documentId} detektert som "${detektert}", mappe satt til "${kildeSpråk}"`);
+  if (harAvvik) {
+    console.warn(`Språkavvik: dokument ${documentId} detektert som "${detektert}", prosjekt forventer "${prosjektKildespråk}"`);
   }
 
-  // Generer blokker (heading, text, image, caption) — alltid for PDF-er
+  // Generer blokker med detektert språk (riktig merking)
   const antall = await genererBlokker(prisma, documentId, buffer, ext, kildeSpråk);
   console.log(`Blokkprosessering: ${antall} blokker for ${documentId} (kilde: ${kildeSpråk})`);
 
@@ -211,6 +212,9 @@ async function genererBlokkOgOversett(
   embeddNyeBlokker(prisma, documentId).catch((err) => {
     console.error(`Blokk-embedding feilet for ${documentId}:`, err);
   });
+
+  // Ved språkavvik: IKKE opprett oversettelsesoppdrag — vent på bekreftelse fra bruker
+  if (harAvvik) return;
 
   // Oversettelsesoppdrag kun når mappen har flere språk og modul er aktiv
   const ekstraSpråk = languages.filter((l: string) => l !== kildeSpråk);

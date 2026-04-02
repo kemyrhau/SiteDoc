@@ -47,6 +47,7 @@ export default function MapperSide() {
     );
   const dokumenter = Array.isArray(dokumentData) ? dokumentData : dokumentData?.dokumenter;
   const mappeSprak = Array.isArray(dokumentData) ? ["nb"] : (dokumentData?.mappeSprak ?? ["nb"]);
+  const prosjektKildesprak = Array.isArray(dokumentData) ? "nb" : ((dokumentData as unknown as { prosjektKildesprak?: string })?.prosjektKildesprak ?? "nb");
   const harOversettelse = mappeSprak.length > 1;
 
   // Hent brukerens medlemskap og grupper for tilgangskontroll
@@ -126,6 +127,12 @@ export default function MapperSide() {
     onSuccess: () => {
       utils.mappe.hentDokumenter.invalidate({ folderId: valgtMappeId! });
       utils.mappe.hentForProsjekt.invalidate({ projectId: prosjektId! });
+    },
+  });
+
+  const bekreftSpraakMut = trpc.mappe.bekreftDokumentSpraak.useMutation({
+    onSuccess: () => {
+      utils.mappe.hentDokumenter.invalidate({ folderId: valgtMappeId! });
     },
   });
 
@@ -314,21 +321,36 @@ export default function MapperSide() {
               id: "name",
               header: t("tabell.navn"),
               celle: (rad) => {
-                const harAvvik = rad.detectedLanguage && rad.detectedLanguage !== rad.sourceLanguage;
+                const harAvvik = rad.detectedLanguage && rad.detectedLanguage !== prosjektKildesprak;
                 const detInfo = harAvvik ? STOETTEDE_SPRAAK.find((s) => s.kode === rad.detectedLanguage) : null;
-                const srcInfo = harAvvik ? STOETTEDE_SPRAAK.find((s) => s.kode === rad.sourceLanguage) : null;
+                const prosjektInfo = STOETTEDE_SPRAAK.find((s) => s.kode === prosjektKildesprak);
                 return (
-                  <div className="flex items-center gap-2">
-                    <FileText className="h-4 w-4 flex-shrink-0 text-gray-400" />
-                    <span className="font-medium text-gray-900">{rad.filename}</span>
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center gap-2">
+                      <FileText className="h-4 w-4 flex-shrink-0 text-gray-400" />
+                      <span className="font-medium text-gray-900">{rad.filename}</span>
+                    </div>
                     {harAvvik && (
-                      <span
-                        className="flex items-center gap-1 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] text-amber-700 border border-amber-200"
-                        title={`${t("dokumentleser.spraakAvvik")}: ${detInfo?.navn ?? rad.detectedLanguage} (${t("dokumentleser.forventet")} ${srcInfo?.navn ?? rad.sourceLanguage})`}
-                      >
-                        <AlertCircle className="h-3 w-3" />
-                        {detInfo?.flagg} {detInfo?.navn ?? rad.detectedLanguage}?
-                      </span>
+                      <div className="flex items-center gap-1.5 ml-6">
+                        <AlertCircle className="h-3 w-3 flex-shrink-0 text-amber-500" />
+                        <span className="text-[11px] text-amber-700">
+                          {t("dokumentleser.detektertSom")} {detInfo?.flagg} {detInfo?.navn}, {t("dokumentleser.forventet")} {prosjektInfo?.flagg} {prosjektInfo?.navn}
+                        </span>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); bekreftSpraakMut.mutate({ documentId: rad.id, bekreftSpraak: rad.detectedLanguage! }); }}
+                          disabled={bekreftSpraakMut.isPending}
+                          className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800 hover:bg-amber-200"
+                        >
+                          {t("dokumentleser.bekreftSpraak", { spraak: detInfo?.navn })}
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); bekreftSpraakMut.mutate({ documentId: rad.id, bekreftSpraak: prosjektKildesprak }); }}
+                          disabled={bekreftSpraakMut.isPending}
+                          className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-600 hover:bg-gray-200"
+                        >
+                          {t("dokumentleser.brukForventet", { spraak: prosjektInfo?.navn })}
+                        </button>
+                      </div>
                     )}
                   </div>
                 );
