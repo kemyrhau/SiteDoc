@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useMemo, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import {
   DndContext,
   pointerWithin,
@@ -152,6 +153,7 @@ function erEtterkommer(objekter: MalObjekt[], objektId: string, muligForelderId:
 }
 
 export function MalBygger({ mal }: MalByggerProps) {
+  const { t } = useTranslation();
   const utils = trpc.useUtils();
   const [valgtId, setValgtId] = useState<string | null>(null);
   const [aktivtDrag, setAktivtDrag] = useState<Active | null>(null);
@@ -653,7 +655,7 @@ export function MalBygger({ mal }: MalByggerProps) {
           {/* Faste metadata-felter — vises ved opprettelse/utfylling */}
           <div className="mb-2">
             <div className="mb-1 flex items-center gap-1.5 text-xs font-medium text-gray-500 uppercase tracking-wide">
-              Faste felt
+              {t("malbygger.fasteFelt")}
             </div>
             <div className="space-y-1.5">
               {/* Emne */}
@@ -790,7 +792,7 @@ export function MalBygger({ mal }: MalByggerProps) {
 
           <DropSone
             zone="topptekst"
-            label="Topptekst"
+            label={t("malbygger.topptekst")}
             treObjekter={topptekstTre}
             alleObjekter={objekter}
             valgtId={valgtId}
@@ -804,7 +806,7 @@ export function MalBygger({ mal }: MalByggerProps) {
 
           <DropSone
             zone="datafelter"
-            label="Datafelter"
+            label={t("malbygger.datafelter")}
             treObjekter={datafeltTre}
             alleObjekter={objekter}
             valgtId={valgtId}
@@ -834,7 +836,7 @@ export function MalBygger({ mal }: MalByggerProps) {
       ) : (
         <aside className="flex w-72 shrink-0 items-center justify-center border-l border-gray-200 bg-gray-50 p-4">
           <p className="text-center text-sm text-gray-400">
-            Velg et felt for å redigere konfigurasjon
+            {t("malbygger.velgFelt")}
           </p>
         </aside>
       )}
