@@ -68,7 +68,7 @@ async function ekstraherBlokkerFraPdf(
   buffer: Buffer,
   documentId: string,
 ): Promise<RåBlokk[]> {
-  const { getDocument, OPS } = await import("pdfjs-dist");
+  const { getDocument, OPS } = await import("pdfjs-dist/legacy/build/pdf.mjs");
   const data = new Uint8Array(buffer);
   const doc = await getDocument({ data, useSystemFonts: true }).promise;
 
@@ -193,17 +193,24 @@ async function ekstraherBlokkerFraPdf(
 
 /**
  * Hent bildedata fra en PDF-side via objekt-navn.
+ * Bruker callback-mønster for å vente på asynkront lastede objekter.
  */
 async function hentBildeData(
-  page: { objs: { get: (name: string) => unknown } },
+  page: { objs: { get: (name: string, callback?: (data: unknown) => void) => unknown } },
   imgName: string,
 ): Promise<{ data: Uint8ClampedArray; width: number; height: number } | null> {
   try {
-    const imgObj = page.objs.get(imgName) as {
+    const imgObj = await new Promise<{
       data?: Uint8ClampedArray;
       width?: number;
       height?: number;
-    } | null;
+    } | null>((resolve) => {
+      const timeout = setTimeout(() => resolve(null), 10000);
+      page.objs.get(imgName, (obj: unknown) => {
+        clearTimeout(timeout);
+        resolve(obj as { data?: Uint8ClampedArray; width?: number; height?: number } | null);
+      });
+    });
     if (imgObj?.data && imgObj.width && imgObj.height) {
       return { data: imgObj.data, width: imgObj.width, height: imgObj.height };
     }
