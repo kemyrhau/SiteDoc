@@ -685,6 +685,7 @@ function OpprettDokumentflytModal({
   maler: Array<{ id: string; name: string; category: string }>;
   forvalgtEntrepriseId?: string;
 }) {
+  const { t } = useTranslation();
   const [navn, setNavn] = useState("");
   const [oppretterType, setOppretterType] = useState<"bruker" | "gruppe">("bruker");
   const [oppretterId, setOppretterId] = useState("");
@@ -812,10 +813,10 @@ function OpprettDokumentflytModal({
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="Ny dokumentflyt">
+    <Modal open={open} onClose={onClose} title={t("entrepriser.nyDokumentflyt")}>
       <form onSubmit={handleOpprett} className="flex flex-col gap-4">
         <Input
-          label="Navn"
+          label={t("tabell.navn")}
           placeholder="F.eks. Byggherre → Bygg"
           value={navn}
           onChange={(e) => setNavn(e.target.value)}
@@ -824,7 +825,7 @@ function OpprettDokumentflytModal({
 
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-700">
-            Opprett/send
+            {t("entrepriser.opprettSend")}
           </label>
           <div className="mb-2 flex gap-2">
             <button
@@ -832,14 +833,14 @@ function OpprettDokumentflytModal({
               onClick={() => { setOppretterType("bruker"); setOppretterId(""); }}
               className={`rounded-full px-3 py-1 text-xs font-medium ${oppretterType === "bruker" ? "bg-sitedoc-primary text-white" : "bg-gray-100 text-gray-600"}`}
             >
-              Bruker
+              {t("entrepriser.bruker")}
             </button>
             <button
               type="button"
               onClick={() => { setOppretterType("gruppe"); setOppretterId(""); }}
               className={`rounded-full px-3 py-1 text-xs font-medium ${oppretterType === "gruppe" ? "bg-sitedoc-primary text-white" : "bg-gray-100 text-gray-600"}`}
             >
-              Gruppe
+              {t("entrepriser.gruppe")}
             </button>
           </div>
           <select
@@ -849,7 +850,7 @@ function OpprettDokumentflytModal({
           >
             {oppretterType === "bruker" ? (
               <>
-                <option value="">Velg bruker...</option>
+                <option value="">{t("entrepriser.velgBruker")}</option>
                 {medlemmer.map((m) => {
                   const gr = medlemGrupper.get(m.id);
                   const grTekst = gr?.length ? ` · ${gr.join(", ")}` : "";
@@ -862,7 +863,7 @@ function OpprettDokumentflytModal({
               </>
             ) : (
               <>
-                <option value="">Velg gruppe...</option>
+                <option value="">{t("entrepriser.velgGruppe")}</option>
                 {grupper.map((g) => (
                   <option key={g.id} value={g.id}>{g.name}</option>
                 ))}
@@ -873,7 +874,7 @@ function OpprettDokumentflytModal({
 
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-700">
-            Mottaker
+            {t("entrepriser.mottaker")}
           </label>
           <div className="mb-2 flex gap-2">
             <button
@@ -881,14 +882,14 @@ function OpprettDokumentflytModal({
               onClick={() => { setMottakerType("bruker"); setMottakerId(""); }}
               className={`rounded-full px-3 py-1 text-xs font-medium ${mottakerType === "bruker" ? "bg-sitedoc-primary text-white" : "bg-gray-100 text-gray-600"}`}
             >
-              Bruker
+              {t("entrepriser.bruker")}
             </button>
             <button
               type="button"
               onClick={() => { setMottakerType("gruppe"); setMottakerId(""); }}
               className={`rounded-full px-3 py-1 text-xs font-medium ${mottakerType === "gruppe" ? "bg-sitedoc-primary text-white" : "bg-gray-100 text-gray-600"}`}
             >
-              Gruppe
+              {t("entrepriser.gruppe")}
             </button>
           </div>
           <select
@@ -898,7 +899,7 @@ function OpprettDokumentflytModal({
           >
             {mottakerType === "bruker" ? (
               <>
-                <option value="">Velg bruker...</option>
+                <option value="">{t("entrepriser.velgBruker")}</option>
                 {medlemmer.map((m) => {
                   const gr = medlemGrupper.get(m.id);
                   const grTekst = gr?.length ? ` · ${gr.join(", ")}` : "";
@@ -911,7 +912,7 @@ function OpprettDokumentflytModal({
               </>
             ) : (
               <>
-                <option value="">Velg gruppe...</option>
+                <option value="">{t("entrepriser.velgGruppe")}</option>
                 {grupper.map((g) => (
                   <option key={g.id} value={g.id}>{g.name}</option>
                 ))}
@@ -939,7 +940,7 @@ function OpprettDokumentflytModal({
                   });
                 }}
               />
-              <span className="text-sm font-semibold text-gray-900">Oppgavetype</span>
+              <span className="text-sm font-semibold text-gray-900">{t("entrepriser.oppgavetype")}</span>
             </label>
             <div className="space-y-1.5">
               {oppgaveMaler.map((mal) => (
@@ -973,7 +974,7 @@ function OpprettDokumentflytModal({
                   });
                 }}
               />
-              <span className="text-sm font-semibold text-gray-900">Sjekklistetype</span>
+              <span className="text-sm font-semibold text-gray-900">{t("entrepriser.sjekklistetype")}</span>
             </label>
             <div className="space-y-1.5">
               {sjekklisteMaler.map((mal) => (
@@ -1026,6 +1027,7 @@ function RedigerDokumentflytModal({
   dokumentflyt: DokumentflytData | null;
   maler: Array<{ id: string; name: string; category: string }>;
 }) {
+  const { t } = useTranslation();
   const [navn, setNavn] = useState("");
   const [valgteMaler, setValgteMaler] = useState<Set<string>>(new Set());
 
@@ -1095,7 +1097,7 @@ function RedigerDokumentflytModal({
                   });
                 }}
               />
-              <span className="text-sm font-semibold text-gray-900">Oppgavetype</span>
+              <span className="text-sm font-semibold text-gray-900">{t("entrepriser.oppgavetype")}</span>
             </label>
             <div className="space-y-1.5">
               {oppgaveMaler.map((mal) => (
@@ -1129,7 +1131,7 @@ function RedigerDokumentflytModal({
                   });
                 }}
               />
-              <span className="text-sm font-semibold text-gray-900">Sjekklistetype</span>
+              <span className="text-sm font-semibold text-gray-900">{t("entrepriser.sjekklistetype")}</span>
             </label>
             <div className="space-y-1.5">
               {sjekklisteMaler.map((mal) => (
