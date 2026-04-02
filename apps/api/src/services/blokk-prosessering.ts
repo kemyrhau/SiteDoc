@@ -33,7 +33,8 @@ export async function genererBlokker(
   _ext: string,
   sourceLanguage: string = "nb",
 ): Promise<number> {
-  const blokker = await ekstraherBlokkerFraPdf(buffer, documentId);
+  const råBlokker = await ekstraherBlokkerFraPdf(buffer, documentId);
+  const blokker = slåSammenBildetekster(råBlokker);
 
   if (blokker.length === 0) return 0;
 
@@ -59,6 +60,37 @@ export async function genererBlokker(
   });
 
   return blokker.length;
+}
+
+/**
+ * Etterprosessering: slå sammen sammenhengende captions til én blokk,
+ * og koble caption-blokker til forutgående bilde-blokk.
+ *
+ * Mønster i Dalux-rapporter:
+ *   [bilde] [bilde] [bilde] [caption: "1.3, 2022-06-29"] [caption: "1.4, 2022-06-29"]
+ * Ønsket resultat:
+ *   [bilde] [bilde] [bilde] [caption: "1.3, 2022-06-29 · 1.4, 2022-06-29"]
+ */
+function slåSammenBildetekster(blokker: RåBlokk[]): RåBlokk[] {
+  const resultat: RåBlokk[] = [];
+
+  for (let i = 0; i < blokker.length; i++) {
+    const blokk = blokker[i]!;
+
+    if (blokk.type === "caption") {
+      // Samle sammenhengende captions
+      let samlet = blokk.content;
+      while (i + 1 < blokker.length && blokker[i + 1]!.type === "caption") {
+        i++;
+        samlet += " " + blokker[i]!.content;
+      }
+      resultat.push({ ...blokk, content: samlet });
+    } else {
+      resultat.push(blokk);
+    }
+  }
+
+  return resultat;
 }
 
 /**
@@ -225,6 +257,9 @@ async function prosesserTekstSide(
   let currentText = "";
   let currentType: "heading" | "text" = "text";
 
+  // Regex for bildetekster: timestamps, korte nummererte linjer
+  const BILDETEKST_REGEX = /^(\d+\.\s*\d+,\s*\d{4}-\d{2}-\d{2}|Figur|Fig\.|Bilde|Tabell|Table|Figure)/i;
+
   for (const items of sortertRader) {
     const linje = items.map((i) => i.tekst).join(" ").trim();
     if (!linje) continue;
@@ -247,7 +282,7 @@ async function prosesserTekstSide(
       });
       currentType = "text";
     } else {
-      if (/^(Figur|Fig\.|Bilde|Tabell|Table|Figure)\s/i.test(linje) && linje.length < 200) {
+      if (BILDETEKST_REGEX.test(linje) && linje.length < 200) {
         if (currentText.trim()) {
           alleBlokker.push({ type: "text", content: currentText.trim(), pageNumber: sideNr });
           currentText = "";
