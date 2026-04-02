@@ -78,11 +78,17 @@ export const mappeRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      // Brukerens språk som standard kildespråk for nye mapper
+      const bruker = await ctx.prisma.user.findUnique({
+        where: { id: ctx.userId },
+        select: { language: true },
+      });
       return ctx.prisma.folder.create({
         data: {
           projectId: input.projectId,
           name: input.name,
           parentId: input.parentId ?? null,
+          sourceLanguage: bruker?.language ?? "nb",
         },
       });
     }),

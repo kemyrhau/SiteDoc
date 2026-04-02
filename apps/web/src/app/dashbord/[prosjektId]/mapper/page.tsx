@@ -233,6 +233,8 @@ export default function MapperSide() {
     uploadedAt: string;
     processingState: string | null;
     processingError: string | null;
+    sourceLanguage: string;
+    detectedLanguage: string | null;
     chunksTotalt: number;
     chunksEmbedded: number;
   };
@@ -311,12 +313,26 @@ export default function MapperSide() {
             {
               id: "name",
               header: t("tabell.navn"),
-              celle: (rad) => (
-                <div className="flex items-center gap-2">
-                  <FileText className="h-4 w-4 flex-shrink-0 text-gray-400" />
-                  <span className="font-medium text-gray-900">{rad.filename}</span>
-                </div>
-              ),
+              celle: (rad) => {
+                const harAvvik = rad.detectedLanguage && rad.detectedLanguage !== rad.sourceLanguage;
+                const detInfo = harAvvik ? STOETTEDE_SPRAAK.find((s) => s.kode === rad.detectedLanguage) : null;
+                const srcInfo = harAvvik ? STOETTEDE_SPRAAK.find((s) => s.kode === rad.sourceLanguage) : null;
+                return (
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-4 w-4 flex-shrink-0 text-gray-400" />
+                    <span className="font-medium text-gray-900">{rad.filename}</span>
+                    {harAvvik && (
+                      <span
+                        className="flex items-center gap-1 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] text-amber-700 border border-amber-200"
+                        title={`${t("dokumentleser.spraakAvvik")}: ${detInfo?.navn ?? rad.detectedLanguage} (${t("dokumentleser.forventet")} ${srcInfo?.navn ?? rad.sourceLanguage})`}
+                      >
+                        <AlertCircle className="h-3 w-3" />
+                        {detInfo?.flagg} {detInfo?.navn ?? rad.detectedLanguage}?
+                      </span>
+                    )}
+                  </div>
+                );
+              },
             },
             {
               id: "version",

@@ -537,6 +537,7 @@ function SpraakModal({
   mappeId,
   mappeNavn,
   initialSpraak,
+  initialKildesprak,
   languageMode,
   onLukk,
   onLagre,
@@ -546,15 +547,17 @@ function SpraakModal({
   mappeId: string;
   mappeNavn: string;
   initialSpraak: string[];
+  initialKildesprak: string;
   languageMode: string;
   onLukk: () => void;
-  onLagre: (spraak: string[]) => void;
+  onLagre: (spraak: string[], kildesprak: string) => void;
   onSettArv: () => void;
   lagrer: boolean;
 }) {
   const { t } = useTranslation();
   const [modus, setModus] = useState<"inherit" | "custom">(languageMode === "custom" ? "custom" : "inherit");
   const [valgte, setValgte] = useState<string[]>(initialSpraak.length > 0 ? initialSpraak : ["nb"]);
+  const [kildesprak, setKildesprak] = useState(initialKildesprak);
 
   // Hent kostnadsestimat
   const { data: estimat } = trpc.mappe.estimerOversettelse.useQuery(
@@ -562,7 +565,7 @@ function SpraakModal({
     { enabled: !!mappeId && modus === "custom" },
   );
 
-  const ekstraSpraak = valgte.filter((k) => k !== "nb").length;
+  const ekstraSpraak = valgte.filter((k) => k !== kildesprak).length;
   const totaltOrd = estimat?.totaltOrd ?? 0;
 
   return (
@@ -616,37 +619,65 @@ function SpraakModal({
           </div>
         ) : (
           <>
+            {/* Kildespråk-velger */}
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">
+                {t("mappeoppsett.kildesprak")}
+              </label>
+              <select
+                value={kildesprak}
+                onChange={(e) => {
+                  const nytt = e.target.value;
+                  setKildesprak(nytt);
+                  // Sørg for at kildespråk alltid er i listen
+                  setValgte((prev) => prev.includes(nytt) ? prev : [nytt, ...prev]);
+                }}
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700"
+              >
+                {STOETTEDE_SPRAAK.map((s) => (
+                  <option key={s.kode} value={s.kode}>
+                    {s.flagg} {s.navn}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-gray-400">{t("mappeoppsett.kildesprakBeskrivelse")}</p>
+            </div>
+
             <p className="text-sm text-gray-500">{t("mappeoppsett.spraakBeskrivelse")}</p>
 
-            {/* Språkvelger */}
+            {/* Målspråk-velger */}
             <div className="grid grid-cols-2 gap-2">
-              {STOETTEDE_SPRAAK.map((spraak) => (
-                <label
-                  key={spraak.kode}
-                  className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${
-                    valgte.includes(spraak.kode)
-                      ? "border-sitedoc-primary bg-blue-50 text-sitedoc-primary"
-                      : "border-gray-200 text-gray-700 hover:bg-gray-50"
-                  } ${spraak.kode === "nb" ? "opacity-60" : ""}`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={valgte.includes(spraak.kode)}
-                    disabled={spraak.kode === "nb"}
-                    onChange={() => {
-                      if (spraak.kode === "nb") return;
-                      setValgte((prev) =>
-                        prev.includes(spraak.kode)
-                          ? prev.filter((k) => k !== spraak.kode)
-                          : [...prev, spraak.kode],
-                      );
-                    }}
-                    className="h-3.5 w-3.5 rounded border-gray-300 text-sitedoc-primary"
-                  />
-                  <span>{spraak.flagg}</span>
-                  <span>{spraak.navn}</span>
-                </label>
-              ))}
+              {STOETTEDE_SPRAAK.map((spraak) => {
+                const erKilde = spraak.kode === kildesprak;
+                return (
+                  <label
+                    key={spraak.kode}
+                    className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${
+                      valgte.includes(spraak.kode)
+                        ? "border-sitedoc-primary bg-blue-50 text-sitedoc-primary"
+                        : "border-gray-200 text-gray-700 hover:bg-gray-50"
+                    } ${erKilde ? "opacity-60" : ""}`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={valgte.includes(spraak.kode)}
+                      disabled={erKilde}
+                      onChange={() => {
+                        if (erKilde) return;
+                        setValgte((prev) =>
+                          prev.includes(spraak.kode)
+                            ? prev.filter((k) => k !== spraak.kode)
+                            : [...prev, spraak.kode],
+                        );
+                      }}
+                      className="h-3.5 w-3.5 rounded border-gray-300 text-sitedoc-primary"
+                    />
+                    <span>{spraak.flagg}</span>
+                    <span>{spraak.navn}</span>
+                    {erKilde && <span className="text-[10px] text-gray-400">({t("mappeoppsett.kilde")})</span>}
+                  </label>
+                );
+              })}
             </div>
 
             {/* Kostnadsestimat */}
@@ -677,7 +708,7 @@ function SpraakModal({
               if (modus === "inherit") {
                 onSettArv();
               } else {
-                onLagre(valgte);
+                onLagre(valgte, kildesprak);
               }
             }}
           >
@@ -1138,8 +1169,7 @@ export default function BoxSide() {
   });
 
   // Språk-modal
-  const [spraakModal, setSpraakModal] = useState<{ id: string; navn: string; languages: string[]; languageMode: string } | null>(null);
-  const [valgteSpaak, setValgteSpaak] = useState<string[]>([]);
+  const [spraakModal, setSpraakModal] = useState<{ id: string; navn: string; languages: string[]; kildesprak: string; languageMode: string } | null>(null);
 
   const oppdaterSpraakMut = trpc.mappe.oppdaterSpraak.useMutation({
     onSuccess: () => {
@@ -1156,11 +1186,10 @@ export default function BoxSide() {
   });
 
   function handleRedigerSpraak(id: string, navn: string, languages: string[]) {
-    // Finn languageMode fra mapper-data
     const mappeData = mapper?.find((m) => m.id === id);
     const languageMode = mappeData?.languageMode ?? "inherit";
-    setSpraakModal({ id, navn, languages, languageMode });
-    setValgteSpaak(languages.length > 0 ? languages : ["nb"]);
+    const kildesprak = (mappeData as unknown as { effektivKildesprak?: string })?.effektivKildesprak ?? "nb";
+    setSpraakModal({ id, navn, languages, kildesprak, languageMode });
   }
 
   function handleKobleTilKontrakt(id: string, navn: string, eksisterende: string | null) {
@@ -1474,10 +1503,11 @@ export default function BoxSide() {
           mappeId={spraakModal.id}
           mappeNavn={spraakModal.navn}
           initialSpraak={spraakModal.languages}
+          initialKildesprak={spraakModal.kildesprak}
           languageMode={spraakModal.languageMode}
           onLukk={() => setSpraakModal(null)}
-          onLagre={(spraak) => {
-            oppdaterSpraakMut.mutate({ id: spraakModal.id, languages: spraak, languageMode: "custom" });
+          onLagre={(spraak, kildesprak) => {
+            oppdaterSpraakMut.mutate({ id: spraakModal.id, languages: spraak, sourceLanguage: kildesprak, languageMode: "custom" });
           }}
           onSettArv={() => {
             settSpraakArvMut.mutate({ id: spraakModal.id });

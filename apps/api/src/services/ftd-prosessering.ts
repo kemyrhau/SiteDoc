@@ -179,18 +179,25 @@ async function genererBlokkOgOversett(
     }
   }
 
-  // Detekter kildespråk eller bruk mappens standard
-  let kildeSpråk = mappeSpråk;
-  if (mappeSpråk === "nb") {
-    const tekst = buffer.toString("utf-8").slice(0, 5000);
-    kildeSpråk = detekterSpraak(tekst);
-  }
+  // Alltid detekter språk fra innhold
+  const tekst = buffer.toString("utf-8").slice(0, 5000);
+  const detektert = detekterSpraak(tekst);
 
-  // Lagre kildespråk på dokumentet
+  // Bruk mappens kildespråk som standard, men lagre detektert for kontroll
+  const kildeSpråk = mappeSpråk;
+
+  // Lagre kildespråk + detektert språk på dokumentet
   await prisma.ftdDocument.update({
     where: { id: documentId },
-    data: { sourceLanguage: kildeSpråk },
+    data: {
+      sourceLanguage: kildeSpråk,
+      detectedLanguage: detektert,
+    },
   });
+
+  if (detektert !== kildeSpråk) {
+    console.warn(`Språkavvik: dokument ${documentId} detektert som "${detektert}", mappe satt til "${kildeSpråk}"`);
+  }
 
   // Generer blokker (heading, text, image, caption) — alltid for PDF-er
   const antall = await genererBlokker(prisma, documentId, buffer, ext, kildeSpråk);
