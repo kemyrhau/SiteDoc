@@ -107,7 +107,7 @@ export default function BoksSkjerm() {
                     {item.filename}
                   </Text>
                   <Text className="mt-0.5 text-xs text-gray-400">
-                    {item.fileType.toUpperCase()}
+                    {(item.fileType ?? "").toUpperCase()}
                     {item.processingState === "processing" && " — Prosesserer..."}
                     {item.processingState === "pending" && " — Venter..."}
                     {item.processingState === "failed" && " — Feilet"}
