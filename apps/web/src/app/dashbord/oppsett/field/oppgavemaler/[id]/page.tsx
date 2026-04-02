@@ -3,11 +3,13 @@
 import { useParams, useRouter } from "next/navigation";
 import { trpc } from "@/lib/trpc";
 import { Spinner } from "@sitedoc/ui";
+import { useTranslation } from "react-i18next";
 import { MalBygger } from "@/components/malbygger";
 
 export default function OppgavemalByggerSide() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
+  const { t } = useTranslation();
 
   const { data: mal, isLoading } = trpc.mal.hentMedId.useQuery({
     id: params.id,
@@ -40,7 +42,7 @@ export default function OppgavemalByggerSide() {
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
-          Tilbake til oppgavemaler
+          {t("malbygger.tilbakeTilOppgavemaler")}
         </button>
       </div>
       <MalBygger

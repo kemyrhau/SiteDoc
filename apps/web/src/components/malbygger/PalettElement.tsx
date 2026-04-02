@@ -2,6 +2,7 @@
 
 import { useDraggable } from "@dnd-kit/core";
 import type { ReportObjectType, ReportObjectTypeMeta } from "@sitedoc/shared";
+import { useTranslation } from "react-i18next";
 
 interface PalettElementProps {
   type: ReportObjectType;
@@ -34,7 +35,33 @@ const ikonMap: Record<string, string> = {
   Repeat: "↻",
 };
 
+// i18n-nøkler for felttyper (type → nøkkel)
+const felttypeNokler: Record<string, string> = {
+  heading: "malbygger.overskrift",
+  subtitle: "malbygger.undertittel",
+  text_field: "malbygger.tekstfelt",
+  list_single: "malbygger.enkeltvalg",
+  list_multi: "malbygger.flervalg",
+  traffic_light: "malbygger.trafikklys",
+  integer: "malbygger.heltall",
+  decimal: "malbygger.desimaltall",
+  calculation: "malbygger.beregning",
+  date: "malbygger.dato_felt",
+  date_time: "malbygger.datoOgTid",
+  person: "malbygger.personFelt",
+  persons: "malbygger.flerePersoner",
+  company: "malbygger.firma",
+  attachments: "malbygger.vedlegg",
+  bim_property: "malbygger.bimEgenskap",
+  zone_property: "malbygger.soneEgenskap",
+  room_property: "malbygger.romEgenskap",
+  weather: "malbygger.vaer",
+  signature: "malbygger.signatur",
+  repeater: "malbygger.repeater",
+};
+
 export function PalettElement({ type, meta }: PalettElementProps) {
+  const { t } = useTranslation();
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `palett-${type}`,
     data: { type, fraKilde: "palett" },
@@ -52,7 +79,7 @@ export function PalettElement({ type, meta }: PalettElementProps) {
       <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-gray-100 text-[11px]">
         {ikonMap[meta.icon] ?? "?"}
       </span>
-      <span className="truncate font-medium text-gray-700">{meta.label}</span>
+      <span className="truncate font-medium text-gray-700">{felttypeNokler[type] ? t(felttypeNokler[type]) : meta.label}</span>
     </div>
   );
 }
