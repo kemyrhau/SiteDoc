@@ -35,8 +35,30 @@ export function startOversettelsesløkke(prisma: PrismaClient): void {
     setTimeout(poll, POLL_INTERVALL);
   }
 
-  // Start etter 5 sekunder
+  // Watchdog: sjekk for stuck jobber hvert 5. minutt
+  async function watchdog() {
+    try {
+      // Jobber som har vært "processing" i over 10 minutter er stuck
+      const tiMinSiden = new Date(Date.now() - 10 * 60 * 1000);
+      const stuck = await prisma.ftdTranslationJob.updateMany({
+        where: {
+          status: "processing",
+          updatedAt: { lt: tiMinSiden },
+        },
+        data: { status: "pending", blocksDone: 0 },
+      });
+      if (stuck.count > 0) {
+        console.log(`Watchdog: ${stuck.count} stuck oversettelsesoppdrag restartet`);
+      }
+    } catch (err) {
+      console.error("Watchdog feil:", err);
+    }
+    setTimeout(watchdog, 5 * 60 * 1000);
+  }
+
+  // Start etter 5 sekunder (poll) og 60 sekunder (watchdog)
   setTimeout(poll, 5000);
+  setTimeout(watchdog, 60_000);
 }
 
 /**
