@@ -104,8 +104,7 @@ interface CachetBilde {
   data: Uint8ClampedArray;
   width: number;
   height: number;
-  xPos: number; // X-posisjon i PDF-koordinater
-  yPos: number; // Y-posisjon i PDF-koordinater (0 = bunn)
+  opIndex: number; // Sekvensiell indeks i PDF-operatørlisten
 }
 
 interface SideAnalyse {
@@ -139,22 +138,12 @@ async function analyserSide(
   // Finn bilder med Y-posisjon via transform-operatører
   const opList = await page.getOperatorList();
   const bilder: CachetBilde[] = [];
-  let lastTransformX = 0;
-  let lastTransformY = 0;
   for (let i = 0; i < opList.fnArray.length; i++) {
-    // Track CTM: transform args = [scaleX, 0, 0, scaleY, translateX, translateY]
-    if (opList.fnArray[i] === OPS.transform) {
-      const args = opList.argsArray[i] as number[];
-      if (args && args.length >= 6) {
-        lastTransformX = args[4]!;
-        lastTransformY = args[5]!;
-      }
-    }
     if (opList.fnArray[i] === OPS.paintImageXObject) {
       const imgName = opList.argsArray[i]![0] as string;
       const imgData = await hentBildeData(page, imgName);
       if (imgData && imgData.width > 150 && imgData.height > 150) {
-        bilder.push({ ...imgData, xPos: lastTransformX, yPos: lastTransformY });
+        bilder.push({ ...imgData, opIndex: i });
       }
     }
   }
@@ -232,8 +221,11 @@ async function prosesserSkannetSide(
 }
 
 /**
- * Tekstbasert side: interleave bilder og tekst etter Y-posisjon.
- * Hvert bilde plasseres i riktig posisjon i teksten, med bildetekst rett under.
+ * Tekstbasert side: ekstraher bilder og tekst, koble bildetekster 1:1 til bilder.
+ *
+ * Typisk mønster i befaringsrapporter:
+ *   PDF: [bilder] [overskrift] [metadata] [bildetekster]
+ *   Vi vil ha: [bilde + caption] [bilde + caption] ... [overskrift] [metadata]
  */
 async function prosesserTekstSide(
   analyse: SideAnalyse,
@@ -241,89 +233,87 @@ async function prosesserTekstSide(
   documentId: string,
   sideNr: number,
 ): Promise<void> {
-  // Bygg en felles liste av elementer med Y-posisjon, sortert topp→bunn
-  type Element = { yPos: number } & (
-    | { kind: "tekst"; items: Array<{ x: number; tekst: string; fontSize: number }> }
-    | { kind: "bilde"; bilde: CachetBilde }
-  );
+  const sortertRader = [...analyse.rader.entries()]
+    .sort((a, b) => b[0] - a[0])
+    .map(([_y, items]) => {
+      items.sort((a, b) => a.x - b.x);
+      return items;
+    });
 
-  const elementer: Element[] = [];
-
-  // Tekstrader med Y-posisjon
-  for (const [y, items] of analyse.rader.entries()) {
-    items.sort((a, b) => a.x - b.x);
-    elementer.push({ yPos: y, kind: "tekst", items });
-  }
-
-  // Bilder med Y-posisjon
-  for (const bilde of analyse.bilder) {
-    elementer.push({ yPos: bilde.yPos, kind: "bilde", bilde });
-  }
-
-  // Sorter topp→bunn (høy Y = topp i PDF)
-  elementer.sort((a, b) => b.yPos - a.yPos);
-
-  // Gjennomsnittlig fontstørrelse for overskrift-deteksjon
-  const fontStørrelser = [...analyse.rader.values()].flat().map((i) => i.fontSize).filter((f) => f > 0);
+  const fontStørrelser = sortertRader.flat().map((i) => i.fontSize).filter((f) => f > 0);
   const gjennomsnittFont = fontStørrelser.length > 0
     ? fontStørrelser.reduce((a, b) => a + b, 0) / fontStørrelser.length
     : 10;
 
-  // Regex for bildetekster
   const BILDETEKST_REGEX = /^(\d+\.\s*\d+,\s*\d{4}-\d{2}-\d{2}|Figur|Fig\.|Bilde|Tabell|Table|Figure)/i;
+  // Regex for individuelle bildetekster: "1. 3, 2022-06-28, 08.39"
+  const ENKELT_BILDETEKST = /\d+\.\s*\d+,\s*\d{4}-\d{2}-\d{2},?\s*\d{2}[.:]\d{2}/g;
 
-  let currentText = "";
+  // Steg 1: Lagre bilder
+  const bildeUrler: string[] = [];
   let bildeNr = 0;
-
-  for (const el of elementer) {
-    if (el.kind === "bilde") {
-      // Flush tekst før bildet
-      if (currentText.trim()) {
-        alleBlokker.push({ type: "text", content: currentText.trim(), pageNumber: sideNr });
-        currentText = "";
-      }
-      try {
-        const bildeUrl = await lagreBilde(documentId, sideNr, bildeNr++, el.bilde);
-        alleBlokker.push({ type: "image", content: "", pageNumber: sideNr, imageUrl: bildeUrl });
-      } catch (err) {
-        console.error(`Bilde s${sideNr}_b${bildeNr - 1} feilet:`, (err as Error).message);
-      }
-    } else {
-      const linje = el.items.map((i) => i.tekst).join(" ").trim();
-      if (!linje) continue;
-
-      const maxFont = Math.max(...el.items.map((i) => i.fontSize));
-      const erOverskrift = maxFont > gjennomsnittFont * 1.15 || OVERSKRIFT_REGEX.test(linje);
-
-      if (erOverskrift) {
-        if (currentText.trim()) {
-          alleBlokker.push({ type: "text", content: currentText.trim(), pageNumber: sideNr });
-          currentText = "";
-        }
-        const match = linje.match(OVERSKRIFT_REGEX);
-        const nivå = match ? match[1]!.split(".").length : 1;
-        alleBlokker.push({
-          type: "heading",
-          content: linje,
-          pageNumber: sideNr,
-          headingLevel: Math.min(nivå, 6),
-        });
-      } else if (BILDETEKST_REGEX.test(linje) && linje.length < 200) {
-        // Bildetekst: sjekk om forrige blokk er et bilde — legg til som caption
-        if (currentText.trim()) {
-          alleBlokker.push({ type: "text", content: currentText.trim(), pageNumber: sideNr });
-          currentText = "";
-        }
-        alleBlokker.push({ type: "caption", content: linje, pageNumber: sideNr });
-      } else {
-        currentText += (currentText ? "\n" : "") + linje;
-      }
+  for (const bilde of analyse.bilder) {
+    try {
+      bildeUrler.push(await lagreBilde(documentId, sideNr, bildeNr++, bilde));
+    } catch (err) {
+      console.error(`Bilde s${sideNr}_b${bildeNr - 1} feilet:`, (err as Error).message);
     }
   }
 
-  if (currentText.trim()) {
-    alleBlokker.push({ type: "text", content: currentText.trim(), pageNumber: sideNr });
+  // Steg 2: Prosesser tekst — skill bildetekster fra resten
+  const bildetekster: string[] = [];
+  const andreBlokker: RåBlokk[] = [];
+  let currentText = "";
+
+  for (const items of sortertRader) {
+    const linje = items.map((i) => i.tekst).join(" ").trim();
+    if (!linje) continue;
+
+    const maxFont = Math.max(...items.map((i) => i.fontSize));
+    const erOverskrift = maxFont > gjennomsnittFont * 1.15 || OVERSKRIFT_REGEX.test(linje);
+
+    if (erOverskrift) {
+      if (currentText.trim()) {
+        andreBlokker.push({ type: "text", content: currentText.trim(), pageNumber: sideNr });
+        currentText = "";
+      }
+      const match = linje.match(OVERSKRIFT_REGEX);
+      const nivå = match ? match[1]!.split(".").length : 1;
+      andreBlokker.push({ type: "heading", content: linje, pageNumber: sideNr, headingLevel: Math.min(nivå, 6) });
+    } else if (BILDETEKST_REGEX.test(linje) && linje.length < 200) {
+      if (currentText.trim()) {
+        andreBlokker.push({ type: "text", content: currentText.trim(), pageNumber: sideNr });
+        currentText = "";
+      }
+      // Splitt sammenslåtte: "1. 3, 2022-06-28, 08.39 1. 4, 2022-06-28, 08.31"
+      const enkelt = linje.match(ENKELT_BILDETEKST);
+      if (enkelt) {
+        bildetekster.push(...enkelt);
+      } else {
+        bildetekster.push(linje);
+      }
+    } else {
+      currentText += (currentText ? "\n" : "") + linje;
+    }
   }
+  if (currentText.trim()) {
+    andreBlokker.push({ type: "text", content: currentText.trim(), pageNumber: sideNr });
+  }
+
+  // Steg 3: Bygg resultat — bilde + bildetekst parvis
+  for (let i = 0; i < bildeUrler.length; i++) {
+    alleBlokker.push({ type: "image", content: "", pageNumber: sideNr, imageUrl: bildeUrler[i]! });
+    if (i < bildetekster.length) {
+      alleBlokker.push({ type: "caption", content: bildetekster[i]!, pageNumber: sideNr });
+    }
+  }
+  // Overskytende bildetekster
+  for (let i = bildeUrler.length; i < bildetekster.length; i++) {
+    alleBlokker.push({ type: "caption", content: bildetekster[i]!, pageNumber: sideNr });
+  }
+
+  // Steg 4: Resten av teksten (overskrifter, metadata)
+  alleBlokker.push(...andreBlokker);
 }
 
 /**
