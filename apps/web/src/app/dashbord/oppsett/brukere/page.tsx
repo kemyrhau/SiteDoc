@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { Button, Input, Modal, SearchInput } from "@sitedoc/ui";
+import { useTranslation } from "react-i18next";
 import {
   Plus,
   Search,
@@ -126,6 +127,7 @@ function RedigerGruppeModal({
   const [redigererNavn, setRedigererNavn] = useState(false);
   const [nyttGruppeNavn, setNyttGruppeNavn] = useState(gruppe.navn);
   const [redigererMedlem, setRedigererMedlem] = useState(false);
+  const { t } = useTranslation();
   const [redigerNavn, setRedigerNavn] = useState("");
   const [redigerEpost, setRedigerEpost] = useState("");
   const [redigerTelefon, setRedigerTelefon] = useState("");
@@ -401,7 +403,7 @@ function RedigerGruppeModal({
     <Modal
       open={open}
       onClose={onClose}
-      title="Rediger brukergrupper"
+      title={t("brukere.redigerBrukergrupper")}
       className="max-w-2xl"
     >
       <div className="flex flex-col gap-4">
@@ -449,7 +451,7 @@ function RedigerGruppeModal({
               className="flex items-center gap-1.5 rounded px-2.5 py-1.5 text-sm text-gray-600 hover:bg-gray-100"
             >
               <Plus className="h-4 w-4" />
-              Tilføy
+              {t("handling.leggTil")}
             </button>
             <button
               onClick={() => {
@@ -477,7 +479,7 @@ function RedigerGruppeModal({
               }`}
             >
               <Pencil className="h-4 w-4" />
-              Rediger
+              {t("handling.rediger")}
             </button>
             <button
               onClick={() => handleFjern()}
@@ -494,14 +496,14 @@ function RedigerGruppeModal({
               }`}
             >
               <Trash2 className="h-4 w-4" />
-              Fjern
+              {t("handling.fjern")}
             </button>
             <button
               className="flex items-center gap-1.5 rounded px-2.5 py-1.5 text-sm text-gray-400"
               disabled
             >
               <MoreHorizontal className="h-4 w-4" />
-              Mer
+              {t("handling.mer")}
             </button>
           </div>
           <div className="relative">
@@ -522,10 +524,10 @@ function RedigerGruppeModal({
             <thead>
               <tr className="border-b border-gray-200 text-left">
                 <th className="pb-2 text-xs font-medium uppercase tracking-wider text-gray-500">
-                  Navn
+                  {t("tabell.navn")}
                 </th>
                 <th className="pb-2 text-xs font-medium uppercase tracking-wider text-gray-500">
-                  Firma
+                  {t("tabell.firma")}
                 </th>
               </tr>
             </thead>
@@ -569,13 +571,13 @@ function RedigerGruppeModal({
                       )}
                       {erDbGruppe && medlem.erAdmin && (
                         <span className="rounded bg-blue-100 px-1.5 py-0.5 text-xs text-blue-700">
-                          Gruppeadmin
+                          {t("brukere.gruppeadmin")}
                         </span>
                       )}
                       {medlem.ventendeInvitasjon && (
                         <span className="flex items-center gap-1 rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-700">
                           <Mail className="h-3 w-3" />
-                          Invitasjon sendt
+                          {t("brukere.invitasjonSendt")}
                         </span>
                       )}
                     </div>
@@ -592,10 +594,10 @@ function RedigerGruppeModal({
                               setEttersendMelding("");
                             }}
                             className="flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-sitedoc-primary hover:bg-blue-50"
-                            title="Ettersend invitasjon"
+                            title={t("brukere.ettersendInvitasjon")}
                           >
                             <RefreshCw className="h-3 w-3" />
-                            Ettersend
+                            {t("brukere.ettersend")}
                           </button>
                           <button
                             onClick={(e) => {
@@ -604,10 +606,10 @@ function RedigerGruppeModal({
                             }}
                             disabled={trekkTilbake.isPending}
                             className="flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-red-600 hover:bg-red-50"
-                            title="Deaktiver invitasjon"
+                            title={t("brukere.deaktiverInvitasjon")}
                           >
                             <X className="h-3 w-3" />
-                            Deaktiver
+                            {t("brukere.deaktiver")}
                           </button>
                         </>
                       )}
@@ -626,10 +628,10 @@ function RedigerGruppeModal({
                           className={`flex items-center gap-1 rounded px-1.5 py-0.5 text-xs opacity-0 group-hover/row:opacity-100 ${
                             medlem.erAdmin ? "text-blue-600 hover:bg-blue-50" : "text-gray-500 hover:bg-gray-100"
                           }`}
-                          title={medlem.erAdmin ? "Fjern gruppeadmin" : "Gjør til gruppeadmin"}
+                          title={medlem.erAdmin ? t("brukere.fjernAdmin") : t("brukere.gjorTilAdmin")}
                         >
                           <Shield className="h-3 w-3" />
-                          {medlem.erAdmin ? "Fjern admin" : "Admin"}
+                          {medlem.erAdmin ? t("brukere.fjernAdmin") : t("brukere.gruppeadmin")}
                         </button>
                       )}
                       {!medlem.ventendeInvitasjon && (
@@ -640,10 +642,10 @@ function RedigerGruppeModal({
                           }}
                           disabled={fjernMedlem.isPending || fjernGruppeMedlem.isPending || fjernFraEntreprise.isPending}
                           className="flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-red-600 opacity-0 group-hover/row:opacity-100 hover:bg-red-50"
-                          title="Fjern medlem"
+                          title={t("brukere.fjernMedlem")}
                         >
                           <Trash2 className="h-3 w-3" />
-                          Fjern
+                          {t("handling.fjern")}
                         </button>
                       )}
                     </div>
@@ -656,7 +658,7 @@ function RedigerGruppeModal({
                     colSpan={2}
                     className="py-8 text-center text-sm text-gray-400"
                   >
-                    Ingen medlemmer i denne gruppen
+                    {t("brukere.ingenMedlemmer")}
                   </td>
                 </tr>
               )}
@@ -683,7 +685,7 @@ function RedigerGruppeModal({
                 </div>
                 <div className="flex flex-col gap-2">
                   <div>
-                    <label className="mb-1 block text-xs text-gray-500">Navn</label>
+                    <label className="mb-1 block text-xs text-gray-500">{t("tabell.navn")}</label>
                     <input
                       type="text"
                       value={redigerNavn}
@@ -692,7 +694,7 @@ function RedigerGruppeModal({
                     />
                   </div>
                   <div>
-                    <label className="mb-1 block text-xs text-gray-500">E-post</label>
+                    <label className="mb-1 block text-xs text-gray-500">{t("label.epost")}</label>
                     <input
                       type="email"
                       value={redigerEpost}
@@ -701,24 +703,24 @@ function RedigerGruppeModal({
                     />
                   </div>
                   <div>
-                    <label className="mb-1 block text-xs text-gray-500">Telefon</label>
+                    <label className="mb-1 block text-xs text-gray-500">{t("label.telefon")}</label>
                     <input
                       type="tel"
                       value={redigerTelefon}
                       onChange={(e) => setRedigerTelefon(e.target.value)}
-                      placeholder="Valgfritt"
+                      placeholder={t("label.valgfritt")}
                       className="w-full rounded border border-gray-300 px-3 py-1.5 text-sm focus:border-sitedoc-primary focus:outline-none focus:ring-1 focus:ring-sitedoc-primary"
                     />
                   </div>
                   <div>
-                    <label className="mb-1 block text-xs text-gray-500">Rolle</label>
+                    <label className="mb-1 block text-xs text-gray-500">{t("label.rolle")}</label>
                     <select
                       value={redigerRolle}
                       onChange={(e) => setRedigerRolle(e.target.value as "member" | "admin")}
                       className="w-full rounded border border-gray-300 px-3 py-1.5 text-sm focus:border-sitedoc-primary focus:outline-none focus:ring-1 focus:ring-sitedoc-primary"
                     >
-                      <option value="member">Medlem</option>
-                      <option value="admin">Administrator</option>
+                      <option value="member">{t("brukere.medlem")}</option>
+                      <option value="admin">{t("brukere.administrator")}</option>
                     </select>
                   </div>
                   <div className="flex justify-end pt-1">
@@ -736,7 +738,7 @@ function RedigerGruppeModal({
                       }}
                       disabled={oppdaterMedlem.isPending || !redigerNavn.trim()}
                     >
-                      {oppdaterMedlem.isPending ? "Lagrer..." : "Lagre"}
+                      {oppdaterMedlem.isPending ? t("handling.lagrer") : t("handling.lagre")}
                     </Button>
                   </div>
                 </div>
@@ -1119,6 +1121,7 @@ function GruppeKort({
   onLeggTilMedlem?: (gruppeId: string) => void;
   onDoubleClick?: () => void;
 }) {
+  const { t } = useTranslation();
   const [visAlle, setVisAlle] = useState(false);
   const harMedlemmer = gruppe.medlemmer.length > 0;
   const synlige = visAlle
@@ -1182,7 +1185,7 @@ function GruppeKort({
                 {medlem.ventendeInvitasjon && (
                   <span className="flex items-center gap-0.5 text-xs text-amber-600">
                     <Mail className="h-3 w-3" />
-                    Invitasjon sendt
+                    {t("brukere.invitasjonSendt")}
                   </span>
                 )}
               </div>
@@ -1195,13 +1198,13 @@ function GruppeKort({
                 }}
                 className="mt-1 self-start text-xs text-gray-400 hover:text-gray-600"
               >
-                + {skjulte} mer
+                + {skjulte} {t("handling.mer")}
               </button>
             )}
           </div>
         ) : (
           <div className="flex flex-1 items-center justify-center">
-            <span className="text-sm text-gray-300">Tom gruppe</span>
+            <span className="text-sm text-gray-300">{t("brukere.tomGruppe")}</span>
           </div>
         )}
       </div>
@@ -1217,7 +1220,7 @@ function GruppeKort({
             className="flex items-center gap-1.5 text-xs text-sitedoc-primary hover:underline"
           >
             <UserPlus className="h-3.5 w-3.5" />
-            Legg til medlem
+            {t("brukere.leggTilMedlem")}
           </button>
         </div>
       )}
@@ -1280,6 +1283,7 @@ function GruppeSeksjon({
 
 export default function BrukereSide() {
   const { prosjektId } = useProsjekt();
+  const { t } = useTranslation();
   const [sok, setSok] = useState("");
   const [visNyGruppeModal, setVisNyGruppeModal] = useState(false);
   const [nyGruppeNavn, setNyGruppeNavn] = useState("");
@@ -1446,18 +1450,18 @@ export default function BrukereSide() {
         <div className="flex items-center gap-3">
           <Button size="sm" onClick={() => setVisNyGruppeModal(true)}>
             <Plus className="mr-1.5 h-4 w-4" />
-            Legg til gruppe
+            {t("brukere.leggTilGruppe")}
           </Button>
           <Button variant="ghost" size="sm">
             <Users className="mr-1.5 h-4 w-4" />
-            Kontakter
+            {t("brukere.kontakter")}
           </Button>
         </div>
       </div>
 
       {/* Tittel + søk */}
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-xl font-bold text-gray-900">Brukere</h2>
+        <h2 className="text-xl font-bold text-gray-900">{t("brukere.tittel")}</h2>
         <div className="flex items-center gap-2">
           <button
             onClick={() => setVisningsModus("liste")}
@@ -1466,7 +1470,7 @@ export default function BrukereSide() {
                 ? "bg-gray-200 text-gray-700"
                 : "text-gray-400 hover:text-gray-600"
             }`}
-            aria-label="Listevisning"
+            aria-label={t("brukere.listevisning")}
           >
             <LayoutList className="h-5 w-5" />
           </button>
@@ -1477,7 +1481,7 @@ export default function BrukereSide() {
                 ? "bg-gray-200 text-gray-700"
                 : "text-gray-400 hover:text-gray-600"
             }`}
-            aria-label="Rutenettvisning"
+            aria-label={t("brukere.rutenettvisning")}
           >
             <LayoutGrid className="h-5 w-5" />
           </button>
@@ -1489,30 +1493,30 @@ export default function BrukereSide() {
         <SearchInput
           verdi={sok}
           onChange={setSok}
-          placeholder="Søk"
+          placeholder={t("brukere.sokPlaceholder")}
           className="w-64"
         />
         <button className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700">
           <Plus className="h-3.5 w-3.5" />
-          Tilføy filter
+          {t("brukere.tilfoeyFilter")}
         </button>
       </div>
 
       {/* Gruppevisning */}
       <GruppeSeksjon
-        tittel="Generelt"
+        tittel={t("brukere.generelt")}
         grupper={generelt}
         onLeggTilMedlem={handleLeggTilMedlem}
         onDoubleClickGruppe={(g) => setRedigerGruppeId(g.id)}
       />
       <GruppeSeksjon
-        tittel="Feltarbeid"
+        tittel={t("brukere.feltarbeid")}
         grupper={field}
         onLeggTilMedlem={handleLeggTilMedlem}
         onDoubleClickGruppe={(g) => setRedigerGruppeId(g.id)}
       />
       <GruppeSeksjon
-        tittel="Brukergrupper"
+        tittel={t("brukere.brukergrupper")}
         grupper={brukergrupper}
         onLeggTilMedlem={handleLeggTilMedlem}
         onDoubleClickGruppe={(g) => setRedigerGruppeId(g.id)}
@@ -1524,7 +1528,7 @@ export default function BrukereSide() {
 
       {filtrert.length === 0 && (
         <div className="py-12 text-center text-sm text-gray-400">
-          Ingen grupper matcher søket
+          {t("brukere.ingenGrupperMatcher")}
         </div>
       )}
 
@@ -1544,14 +1548,14 @@ export default function BrukereSide() {
       <Modal
         open={visNyGruppeModal}
         onClose={() => setVisNyGruppeModal(false)}
-        title="Legg til gruppe"
+        title={t("brukere.leggTilGruppe")}
       >
         <form
           onSubmit={handleOpprettGruppe}
           className="flex flex-col gap-4"
         >
           <Input
-            label="Gruppenavn"
+            label={t("brukere.gruppenavn")}
             placeholder="F.eks. HMS-ledere"
             value={nyGruppeNavn}
             onChange={(e) => setNyGruppeNavn(e.target.value)}
@@ -1559,7 +1563,7 @@ export default function BrukereSide() {
           />
           <div className="flex flex-col gap-1">
             <label className="text-sm font-medium text-gray-700">
-              Kategori
+              {t("brukere.kategori")}
             </label>
             <select
               className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-sitedoc-primary focus:outline-none focus:ring-1 focus:ring-sitedoc-primary"
@@ -1570,21 +1574,21 @@ export default function BrukereSide() {
                 )
               }
             >
-              <option value="generelt">Generelt</option>
-              <option value="field">Feltarbeid</option>
-              <option value="brukergrupper">Brukergrupper</option>
+              <option value="generelt">{t("brukere.generelt")}</option>
+              <option value="field">{t("brukere.feltarbeid")}</option>
+              <option value="brukergrupper">{t("brukere.brukergrupper")}</option>
             </select>
           </div>
           <div className="flex gap-3 pt-2">
             <Button type="submit" disabled={opprettGruppe.isPending}>
-              {opprettGruppe.isPending ? "Oppretter..." : "Opprett"}
+              {opprettGruppe.isPending ? t("handling.oppretter") : t("handling.opprett")}
             </Button>
             <Button
               type="button"
               variant="secondary"
               onClick={() => setVisNyGruppeModal(false)}
             >
-              Avbryt
+              {t("handling.avbryt")}
             </Button>
           </div>
         </form>
