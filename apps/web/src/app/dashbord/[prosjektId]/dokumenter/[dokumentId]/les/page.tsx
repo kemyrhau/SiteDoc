@@ -213,10 +213,12 @@ export default function DokumentLeser() {
                     </button>
                   </div>
 
-                  {/* Norsk original */}
+                  {/* Kildetekst (original) */}
                   {sammenlignData?.norskOriginal && (
                     <div className="mb-3 rounded-lg border border-gray-200 bg-gray-50 p-3">
-                      <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">Norsk original</span>
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">
+                        Original ({STOETTEDE_SPRAAK.find((s) => s.kode === (sammenlignData.kildesprak ?? "nb"))?.navn ?? "Norsk"})
+                      </span>
                       <p className="mt-1 text-sm text-gray-700">{sammenlignData.norskOriginal}</p>
                     </div>
                   )}

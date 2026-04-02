@@ -189,19 +189,21 @@ export const mappeRouter = router({
       z.object({
         id: z.string().uuid(),
         languages: z.array(z.string().min(2).max(5)).min(1),
+        sourceLanguage: z.string().min(2).max(5).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
       const mappe = await ctx.prisma.folder.findUniqueOrThrow({
         where: { id: input.id },
-        select: { projectId: true },
+        select: { projectId: true, sourceLanguage: true },
       });
       await verifiserProsjektmedlem(ctx.userId, mappe.projectId);
-      // Sørg for at "nb" alltid er inkludert
-      const languages = Array.from(new Set(["nb", ...input.languages]));
+      const srcLang = input.sourceLanguage ?? mappe.sourceLanguage ?? "nb";
+      // Sørg for at kildespråk alltid er inkludert i målspråk
+      const languages = Array.from(new Set([srcLang, ...input.languages]));
       return ctx.prisma.folder.update({
         where: { id: input.id },
-        data: { languages },
+        data: { languages, sourceLanguage: srcLang },
       });
     }),
 

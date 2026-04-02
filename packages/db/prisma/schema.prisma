@@ -576,7 +576,8 @@ model Folder {
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
 
-  languages String[] @default(["nb"]) // Språk for dokumentoversettelse, f.eks. ["nb", "en", "fi"]
+  sourceLanguage String   @default("nb") @map("source_language") // Standard kildespråk for dokumenter i mappen
+  languages      String[] @default(["nb"]) // Målspråk for dokumentoversettelse
 
   project       Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
   parent        Folder?        @relation("FolderHierarchy", fields: [parentId], references: [id])
@@ -773,6 +774,7 @@ model FtdDocument {
   filetype        String?
   docType         String?  @map("doc_type")
   isActive        Boolean  @default(true) @map("is_active")
+  sourceLanguage  String   @default("nb") @map("source_language") // Kildespråk for dokumentet (nb, en, etc.)
   processingState String   @default("pending") @map("processing_state")
   processingError String?  @map("processing_error")
   fileHash        String?  @map("file_hash")

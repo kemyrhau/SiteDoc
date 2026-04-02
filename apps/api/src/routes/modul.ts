@@ -219,25 +219,32 @@ export const modulRouter = router({
     .query(async ({ ctx, input }) => {
       await verifiserProsjektmedlem(ctx.userId, input.projectId);
 
-      // Hent blokken og finn norsk original
+      // Hent blokken og finn original kildetekst
       const blokk = await ctx.prisma.ftdDocumentBlock.findUnique({
         where: { id: input.blokkId },
-        select: { content: true, language: true, sourceBlockId: true },
+        select: { content: true, language: true, sourceBlockId: true, documentId: true },
       });
       if (!blokk) throw new Error("Blokk ikke funnet");
 
-      // Hent norsk kildetekst
-      let norskTekst: string;
-      if (blokk.language === "nb") {
-        norskTekst = blokk.content;
+      // Hent dokumentets kildespråk
+      const dok = await ctx.prisma.ftdDocument.findUnique({
+        where: { id: blokk.documentId },
+        select: { sourceLanguage: true },
+      });
+      const sourceLang = dok?.sourceLanguage ?? "nb";
+
+      // Hent kildetekst (original)
+      let kildeTekst: string;
+      if (blokk.language === sourceLang) {
+        kildeTekst = blokk.content;
       } else if (blokk.sourceBlockId) {
         const kilde = await ctx.prisma.ftdDocumentBlock.findUnique({
           where: { id: blokk.sourceBlockId },
           select: { content: true },
         });
-        norskTekst = kilde?.content ?? blokk.content;
+        kildeTekst = kilde?.content ?? blokk.content;
       } else {
-        norskTekst = blokk.content;
+        kildeTekst = blokk.content;
       }
 
       const modul = await ctx.prisma.projectModule.findUnique({
@@ -246,8 +253,9 @@ export const modulRouter = router({
       const config = (modul?.config ?? {}) as { apiKey?: string };
       const { sammenlignMotorer } = await import("../services/oversettelse-service");
       return {
-        norskOriginal: norskTekst,
-        oversettelser: await sammenlignMotorer(norskTekst, input.targetLang, config.apiKey),
+        norskOriginal: kildeTekst,
+        kildesprak: sourceLang,
+        oversettelser: await sammenlignMotorer(kildeTekst, input.targetLang, config.apiKey, sourceLang),
       };
     }),
 

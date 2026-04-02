@@ -13,6 +13,7 @@ import type { PrismaClient } from "@sitedoc/db";
 import { splittMalebrevPdf } from "./pdf-splitting";
 import { genererBlokker } from "./blokk-prosessering";
 import { embeddNyeBlokker } from "./embedding-service";
+import { detekterSpraak } from "./spraak-deteksjon";
 
 const execFileAsync = promisify(execFile);
 
@@ -159,7 +160,7 @@ async function genererBlokkHvisSpraak(
 ): Promise<void> {
   const mappe = await prisma.folder.findUnique({
     where: { id: folderId },
-    select: { languages: true, projectId: true },
+    select: { languages: true, projectId: true, sourceLanguage: true },
   });
   const languages = mappe?.languages ?? ["nb"];
   if (languages.length <= 1 && languages[0] === "nb") return;
@@ -172,8 +173,23 @@ async function genererBlokkHvisSpraak(
     if (!modul?.active) return;
   }
 
-  const antall = await genererBlokker(prisma, documentId, buffer, ext);
-  console.log(`Blokkprosessering: ${antall} blokker generert for ${documentId}`);
+  // Detekter kildespråk eller bruk mappens standard
+  const mappeSpråk = mappe?.sourceLanguage ?? "nb";
+  let kildeSpråk = mappeSpråk;
+  if (mappeSpråk === "nb") {
+    // Auto-detekter fra innholdet
+    const tekst = buffer.toString("utf-8").slice(0, 5000);
+    kildeSpråk = detekterSpraak(tekst);
+  }
+
+  // Lagre kildespråk på dokumentet
+  await prisma.ftdDocument.update({
+    where: { id: documentId },
+    data: { sourceLanguage: kildeSpråk },
+  });
+
+  const antall = await genererBlokker(prisma, documentId, buffer, ext, kildeSpråk);
+  console.log(`Blokkprosessering: ${antall} blokker for ${documentId} (kilde: ${kildeSpråk})`);
 
   // Generer embeddings for norske blokker (fire-and-forget)
   embeddNyeBlokker(prisma, documentId).catch((err) => {

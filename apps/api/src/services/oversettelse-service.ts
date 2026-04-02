@@ -75,10 +75,10 @@ async function prosesserNesteJobb(prisma: PrismaClient): Promise<void> {
 
   if (!jobb) return;
 
-  // Hent prosjekt-ID fra dokumentet
+  // Hent prosjekt-ID og kildespråk fra dokumentet
   const dok = await prisma.ftdDocument.findUnique({
     where: { id: jobb.documentId },
-    select: { projectId: true },
+    select: { projectId: true, sourceLanguage: true },
   });
   if (!dok) return;
 
@@ -107,7 +107,7 @@ async function prosesserNesteJobb(prisma: PrismaClient): Promise<void> {
       data: { status: "processing" },
     });
 
-    await oversettBlokker(prisma, jobb.id, jobb.documentId, jobb.targetLang, motor, config.apiKey);
+    await oversettBlokker(prisma, jobb.id, jobb.documentId, jobb.targetLang, motor, config.apiKey, dok.sourceLanguage ?? "nb");
 
     await prisma.ftdTranslationJob.update({
       where: { id: jobb.id },
@@ -141,15 +141,16 @@ async function oversettBlokker(
   targetLang: string,
   motor: OversettelsesMotor = "opus-mt",
   apiKey?: string,
+  sourceLanguage: string = "nb",
 ): Promise<void> {
-  // Hent norske blokker
+  // Hent kildeblokker (på dokumentets kildespråk)
   const norskBlokker = await prisma.ftdDocumentBlock.findMany({
-    where: { documentId, language: "nb" },
+    where: { documentId, language: sourceLanguage },
     orderBy: { sortOrder: "asc" },
   });
 
   if (norskBlokker.length === 0) {
-    throw new Error("Ingen norske blokker funnet");
+    throw new Error(`Ingen kildeblokker funnet (${sourceLanguage})`);
   }
 
   // Slett eksisterende oversettelser for dette språket
@@ -167,7 +168,7 @@ async function oversettBlokker(
   const cachetreff = await prisma.translationCache.findMany({
     where: {
       contentHash: { in: hashes },
-      sourceLang: "nb",
+      sourceLang: sourceLanguage,
       targetLang,
     },
   });
@@ -192,7 +193,7 @@ async function oversettBlokker(
     const batch = uoversatte.slice(i, i + BATCH_STØRRELSE);
     const tekster = batch.map((b) => b.tekst);
 
-    const oversatt = await oversettMedMotor(tekster, "nb", targetLang, motor, apiKey);
+    const oversatt = await oversettMedMotor(tekster, sourceLanguage, targetLang, motor, apiKey);
     batch.forEach((b, j) => {
       nyeOversettelser.set(b.idx, oversatt[j]!);
     });
@@ -212,7 +213,7 @@ async function oversettBlokker(
     const cacheData = [...nyeOversettelser.entries()].map(([idx, oversatt]) => ({
       id: randomUUID(),
       contentHash: hashes[idx]!,
-      sourceLang: "nb",
+      sourceLang: sourceLanguage,
       targetLang,
       sourceText: tekstBlokker[idx]!.content,
       targetText: oversatt,
@@ -419,12 +420,13 @@ export async function sammenlignMotorer(
   tekst: string,
   targetLang: string,
   apiKey?: string,
+  sourceLang: string = "nb",
 ): Promise<Array<{ motor: string; navn: string; resultat: string | null; feil: string | null }>> {
   const resultater: Array<{ motor: string; navn: string; resultat: string | null; feil: string | null }> = [];
 
   // OPUS-MT (alltid tilgjengelig)
   try {
-    const [oversatt] = await kallOversettelsesServer([tekst], "nb", targetLang);
+    const [oversatt] = await kallOversettelsesServer([tekst], sourceLang, targetLang);
     resultater.push({ motor: "opus-mt", navn: "OPUS-MT (gratis)", resultat: oversatt ?? null, feil: null });
   } catch (err) {
     resultater.push({ motor: "opus-mt", navn: "OPUS-MT (gratis)", resultat: null, feil: err instanceof Error ? err.message : "Feil" });
@@ -432,7 +434,7 @@ export async function sammenlignMotorer(
 
   // Google Translate (alltid tilgjengelig, ingen API-nøkkel)
   try {
-    const [oversatt] = await kallGoogleTranslate([tekst], "nb", targetLang);
+    const [oversatt] = await kallGoogleTranslate([tekst], sourceLang, targetLang);
     resultater.push({ motor: "google", navn: "Google Translate", resultat: oversatt ?? null, feil: null });
   } catch (err) {
     resultater.push({ motor: "google", navn: "Google Translate", resultat: null, feil: err instanceof Error ? err.message : "Feil" });
@@ -441,7 +443,7 @@ export async function sammenlignMotorer(
   // DeepL (kun med API-nøkkel)
   if (apiKey) {
     try {
-      const [oversatt] = await kallDeepL([tekst], "nb", targetLang, apiKey);
+      const [oversatt] = await kallDeepL([tekst], sourceLang, targetLang, apiKey);
       resultater.push({ motor: "deepl", navn: "DeepL", resultat: oversatt ?? null, feil: null });
     } catch (err) {
       resultater.push({ motor: "deepl", navn: "DeepL", resultat: null, feil: err instanceof Error ? err.message : "Feil" });

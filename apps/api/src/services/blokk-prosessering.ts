@@ -31,17 +31,18 @@ export async function genererBlokker(
   documentId: string,
   buffer: Buffer,
   _ext: string,
+  sourceLanguage: string = "nb",
 ): Promise<number> {
   const blokker = await ekstraherBlokkerFraPdf(buffer, documentId);
 
   if (blokker.length === 0) return 0;
 
-  // Slett eksisterende blokker for dette dokumentet (norsk)
+  // Slett eksisterende blokker for dette dokumentet (kildespråk)
   await prisma.ftdDocumentBlock.deleteMany({
-    where: { documentId, language: "nb" },
+    where: { documentId, language: sourceLanguage },
   });
 
-  // Lagre blokker
+  // Lagre blokker med kildespråk
   await prisma.ftdDocumentBlock.createMany({
     data: blokker.map((b, i) => ({
       id: randomUUID(),
@@ -49,7 +50,7 @@ export async function genererBlokker(
       sortOrder: i,
       pageNumber: b.pageNumber,
       blockType: b.type,
-      language: "nb",
+      language: sourceLanguage,
       content: b.content,
       headingLevel: b.headingLevel ?? null,
       imageUrl: b.imageUrl ?? null,
