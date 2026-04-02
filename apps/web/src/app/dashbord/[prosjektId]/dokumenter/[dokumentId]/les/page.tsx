@@ -195,7 +195,9 @@ export default function DokumentLeser() {
                   <img
                     src={`/api${blokk.imageUrl}`}
                     alt=""
-                    className="mx-auto w-full rounded-lg border border-gray-200 shadow-sm"
+                    className={`mx-auto rounded-lg border border-gray-200 shadow-sm ${
+                      blokk.imageUrl.includes("_full.") ? "w-full" : "max-w-full h-auto"
+                    }`}
                     loading="lazy"
                   />
                 </figure>
