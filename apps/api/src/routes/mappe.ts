@@ -299,13 +299,41 @@ export const mappeRouter = router({
       });
       const srcLang = prosjekt.sourceLanguage ?? "nb";
       const languages = Array.from(new Set([srcLang, ...input.languages]));
-      return ctx.prisma.folder.update({
+
+      // Hent gamle språk for opprydding
+      const gammelMappe = await ctx.prisma.folder.findUniqueOrThrow({
+        where: { id: input.id },
+        select: { languages: true },
+      });
+      const gamleSpråk = new Set(gammelMappe.languages as string[]);
+      const fjernedeSpråk = [...gamleSpråk].filter((l) => !languages.includes(l));
+
+      const result = await ctx.prisma.folder.update({
         where: { id: input.id },
         data: {
           languages,
           languageMode: input.languageMode ?? "custom",
         },
       });
+
+      // Rydd opp fjernede språk: slett oversettelsesblokker og avbryt jobber
+      if (fjernedeSpråk.length > 0) {
+        const dokIder = await ctx.prisma.ftdDocument.findMany({
+          where: { folderId: input.id, isActive: true },
+          select: { id: true },
+        });
+        const docIds = dokIder.map((d) => d.id);
+        if (docIds.length > 0) {
+          await ctx.prisma.ftdDocumentBlock.deleteMany({
+            where: { documentId: { in: docIds }, language: { in: fjernedeSpråk } },
+          });
+          await ctx.prisma.ftdTranslationJob.deleteMany({
+            where: { documentId: { in: docIds }, targetLang: { in: fjernedeSpråk } },
+          });
+        }
+      }
+
+      return result;
     }),
 
   // Sett språkmodus til "inherit" (arv fra forelder)

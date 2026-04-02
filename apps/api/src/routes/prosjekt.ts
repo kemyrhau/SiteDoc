@@ -293,10 +293,32 @@ export const prosjektRouter = router({
     .mutation(async ({ ctx, input }) => {
       await verifiserAdmin(ctx.userId, input.id);
 
+      // Sjekk om kildespråk endres
+      const gammelt = await ctx.prisma.project.findUniqueOrThrow({
+        where: { id: input.id },
+        select: { sourceLanguage: true },
+      });
+
       const { id, ...data } = input;
-      return ctx.prisma.project.update({
+      const result = await ctx.prisma.project.update({
         where: { id },
         data,
       });
+
+      // Hvis kildespråk endret: reset languageConfirmed på dokumenter
+      // som hadde gammelt kildespråk som detektert → de trenger ny vurdering
+      if (input.sourceLanguage && input.sourceLanguage !== gammelt.sourceLanguage) {
+        await ctx.prisma.ftdDocument.updateMany({
+          where: {
+            projectId: id,
+            isActive: true,
+            detectedLanguage: gammelt.sourceLanguage,
+            languageConfirmed: true,
+          },
+          data: { languageConfirmed: false },
+        });
+      }
+
+      return result;
     }),
 });

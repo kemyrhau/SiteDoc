@@ -322,7 +322,8 @@ export default function MapperSide() {
               id: "name",
               header: t("tabell.navn"),
               celle: (rad) => {
-                const harAvvik = rad.detectedLanguage && rad.detectedLanguage !== prosjektKildesprak && !rad.languageConfirmed;
+                const erFerdig = rad.processingState === "completed" || rad.processingState === "done";
+                const harAvvik = erFerdig && rad.detectedLanguage && rad.detectedLanguage !== prosjektKildesprak && !rad.languageConfirmed;
                 const detInfo = harAvvik ? STOETTEDE_SPRAAK.find((s) => s.kode === rad.detectedLanguage) : null;
                 const prosjektInfo = STOETTEDE_SPRAAK.find((s) => s.kode === prosjektKildesprak);
                 return (
