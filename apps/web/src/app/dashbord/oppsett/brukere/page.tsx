@@ -1369,9 +1369,19 @@ export default function BrukereSide() {
 
   // Bygg Field-grupper fra DB-data
   // Ekskluder prosjektadmin-grupper (vises allerede som virtuell gruppe under Generelt)
+  // Mapping fra slug til i18n-nøkkel for systemgrupper
+  const SLUG_I18N: Record<string, string> = {
+    "prosjekt-admin": "brukere.gruppe.prosjektAdmin",
+    "field-admin": "brukere.gruppe.fieldAdmin",
+    "oppgave-sjekkliste-koord": "brukere.gruppe.oppgaveSjekklisteKoord",
+    "field-observatorer": "brukere.gruppe.fieldObservatorer",
+    "hms-ledere": "brukere.gruppe.hmsLedere",
+    "brukergruppe": "brukere.gruppe.brukergruppe",
+  };
+
   const fieldGrupper: BrukerGruppe[] = ((dbGrupper ?? []) as DbGruppe[]).filter((g) => g.slug !== "prosjekt-admin").map((g) => ({
     id: g.id,
-    navn: g.name,
+    navn: SLUG_I18N[g.slug] ? t(SLUG_I18N[g.slug] as string) : g.name,
     kategori: g.category as "generelt" | "field" | "brukergrupper",
     moduler: (g as unknown as { modules?: string[] }).modules ?? ["sjekklister", "oppgaver", "tegninger", "3d"],
     ikon: SLUG_IKON[g.slug] ?? <Users className="h-4 w-4" />,
