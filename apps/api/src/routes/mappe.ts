@@ -26,7 +26,7 @@ export const mappeRouter = router({
       return ctx.prisma.folder.findMany({
         where: { projectId: input.projectId },
         include: {
-          _count: { select: { ftdDocuments: true } },
+          _count: { select: { ftdDocuments: { where: { isActive: true } } } },
           kontrakt: { select: { id: true, navn: true } },
           accessEntries: {
             include: {
