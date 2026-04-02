@@ -4,6 +4,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { trpc } from "@/lib/trpc";
 import { Button, Input, Select, Textarea, Modal, Spinner, EmptyState } from "@sitedoc/ui";
+import { useTranslation } from "react-i18next";
 import {
   DRAWING_DISCIPLINES,
   DRAWING_TYPES,
@@ -102,6 +103,7 @@ function RedigerLokasjon({
   onLukk: () => void;
 }) {
   const { prosjektId } = useProsjekt();
+  const { t } = useTranslation();
   const utils = trpc.useUtils();
   const filInputRef = useRef<HTMLInputElement>(null);
   const [visTilføyMeny, setVisTilføyMeny] = useState(false);
@@ -410,7 +412,7 @@ function RedigerLokasjon({
             className="flex items-center gap-1 rounded-md px-3 py-1.5 text-sm text-gray-500 transition-colors hover:bg-gray-100"
           >
             <MoreVertical className="h-4 w-4" />
-            Mer
+            {t("handling.mer")}
           </button>
           {visMerMeny && (
             <>
@@ -764,6 +766,7 @@ function PublisertLokasjonKort({
 
 export default function LokasjonerSide() {
   const { prosjektId } = useProsjekt();
+  const { t } = useTranslation();
   const utils = trpc.useUtils();
   const [visModal, setVisModal] = useState(false);
   const [visEndreNavnModal, setVisEndreNavnModal] = useState(false);
@@ -863,7 +866,7 @@ export default function LokasjonerSide() {
       <div className="mb-6 flex items-center gap-1 border-b border-gray-200 pb-3">
         <Button size="sm" onClick={() => setVisModal(true)}>
           <Plus className="mr-1.5 h-4 w-4" />
-          Tilføy
+          {t("handling.leggTil")}
         </Button>
         <button
           disabled={!harValgt}
@@ -871,7 +874,7 @@ export default function LokasjonerSide() {
           className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm text-gray-500 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40"
         >
           <Copy className="h-4 w-4" />
-          Endre navn
+          {t("lokasjoner.endreNavn")}
         </button>
         <button
           disabled={!harValgt}
@@ -879,7 +882,7 @@ export default function LokasjonerSide() {
           className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm text-gray-500 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40"
         >
           <Trash2 className="h-4 w-4" />
-          Slett
+          {t("handling.slett")}
         </button>
         <button
           disabled={!harValgt}
@@ -889,7 +892,7 @@ export default function LokasjonerSide() {
           className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm text-gray-500 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40"
         >
           <Pencil className="h-4 w-4" />
-          Rediger
+          {t("handling.rediger")}
         </button>
         <div className="relative">
           <button
@@ -897,7 +900,7 @@ export default function LokasjonerSide() {
             className="flex items-center gap-1 rounded-md px-3 py-1.5 text-sm text-gray-500 transition-colors hover:bg-gray-100"
           >
             <MoreVertical className="h-4 w-4" />
-            Mer
+            {t("handling.mer")}
           </button>
           {visMerMeny && (
             <>
@@ -913,7 +916,7 @@ export default function LokasjonerSide() {
                     }}
                     className="flex w-full items-center px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
                   >
-                    Publiser
+                    {t("lokasjoner.publiser")}
                   </button>
                 )}
                 <button
@@ -924,7 +927,7 @@ export default function LokasjonerSide() {
                   }}
                   className="flex w-full items-center px-4 py-2 text-left text-sm text-red-600 hover:bg-gray-50 disabled:opacity-40"
                 >
-                  Slett lokasjon
+                  {t("lokasjoner.slettLokasjon")}
                 </button>
               </div>
             </>
@@ -935,8 +938,8 @@ export default function LokasjonerSide() {
       {/* Innhold */}
       {!lokasjoner || lokasjoner.length === 0 ? (
         <EmptyState
-          title="Ingen lokasjoner"
-          description="Opprett din første lokasjon for å begynne å organisere tegninger."
+          title={t("lokasjoner.ingenLokasjoner")}
+          description={t("lokasjoner.ingenLokasjonerBeskrivelse")}
         />
       ) : (
         <>
@@ -944,7 +947,7 @@ export default function LokasjonerSide() {
           {upubliserte.length > 0 && (
             <div className="mb-8">
               <h3 className="mb-3 text-lg font-bold text-gray-900">
-                Upubliserte lokasjoner
+                {t("lokasjoner.upubliserte")}
               </h3>
 
               <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
@@ -952,10 +955,10 @@ export default function LokasjonerSide() {
                   <thead>
                     <tr className="border-b border-gray-200 bg-gray-50">
                       <th className="px-4 py-2.5 text-left text-sm font-semibold text-gray-700">
-                        Navn
+                        {t("tabell.navn")}
                       </th>
                       <th className="px-4 py-2.5 text-left text-sm font-semibold text-gray-700">
-                        Status
+                        {t("tabell.status")}
                       </th>
                       <th className="px-4 py-2.5 text-right text-sm font-semibold text-gray-700">
                         Oppdatert av
@@ -978,7 +981,7 @@ export default function LokasjonerSide() {
                           {lokasjon.name}
                         </td>
                         <td className="px-4 py-2.5 text-sm text-gray-500">
-                          Upublisert
+                          {t("lokasjoner.upublisert")}
                         </td>
                         <td className="px-4 py-2.5 text-right text-sm text-gray-500">
                           &mdash;
@@ -1000,7 +1003,7 @@ export default function LokasjonerSide() {
           {publiserte.length > 0 && (
             <div>
               <h3 className="mb-3 text-lg font-bold text-gray-900">
-                Publiserte lokasjoner
+                {t("lokasjoner.publiserte")}
               </h3>
               <div className="flex flex-wrap gap-4">
                 {publiserte.map((lokasjon) => (
@@ -1022,7 +1025,7 @@ export default function LokasjonerSide() {
       <Modal
         open={visModal}
         onClose={() => setVisModal(false)}
-        title="Tilføy lokasjon"
+        title={t("lokasjoner.tilfoey")}
       >
         {opprettMutation.isPending ? (
           <div className="flex items-center justify-center py-8">
@@ -1031,7 +1034,7 @@ export default function LokasjonerSide() {
         ) : (
           <form onSubmit={handleOpprett} className="flex flex-col gap-4">
             <Input
-              label="Navn"
+              label={t("tabell.navn")}
               value={nyNavn}
               onChange={(e) => setNyNavn(e.target.value)}
               required
@@ -1042,9 +1045,9 @@ export default function LokasjonerSide() {
                 variant="secondary"
                 onClick={() => setVisModal(false)}
               >
-                Avbryt
+                {t("handling.avbryt")}
               </Button>
-              <Button type="submit">Tilføy lokasjon</Button>
+              <Button type="submit">{t("lokasjoner.tilfoey")}</Button>
             </div>
           </form>
         )}
@@ -1054,11 +1057,11 @@ export default function LokasjonerSide() {
       <Modal
         open={visEndreNavnModal}
         onClose={() => setVisEndreNavnModal(false)}
-        title="Endre navn"
+        title={t("lokasjoner.endreNavn")}
       >
         <form onSubmit={handleEndreNavn} className="flex flex-col gap-4">
           <Input
-            label="Nytt navn"
+            label={t("lokasjoner.nyttNavn")}
             value={endreNavn}
             onChange={(e) => setEndreNavn(e.target.value)}
             required

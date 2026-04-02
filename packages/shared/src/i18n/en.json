@@ -422,5 +422,16 @@
   "aiSok.precisionBeskrivelse": "High = prioritizes exact matches, low = broader results",
   "aiSok.latencyBeskrivelse": "High = prefers shorter documents, low = no preference",
   "aiSok.lagreInnstillinger": "Save settings",
-  "aiSok.lagret": "Saved"
+  "aiSok.lagret": "Saved",
+
+  "lokasjoner.endreNavn": "Rename",
+  "lokasjoner.nyttNavn": "New name",
+  "lokasjoner.tilfoey": "Add location",
+  "lokasjoner.publiser": "Publish",
+  "lokasjoner.slettLokasjon": "Delete location",
+  "lokasjoner.ingenLokasjoner": "No locations",
+  "lokasjoner.ingenLokasjonerBeskrivelse": "Create your first location to start organizing drawings.",
+  "lokasjoner.upubliserte": "Unpublished locations",
+  "lokasjoner.publiserte": "Published locations",
+  "lokasjoner.upublisert": "Unpublished"
 }
