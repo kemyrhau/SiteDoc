@@ -382,6 +382,69 @@ export const sjekklisteRouter = router({
       });
     }),
 
+  // Forbedre oversettelse: manuell redigering eller re-oversettelse med bedre motor
+  forbedreOversettelse: protectedProcedure
+    .input(z.object({
+      id: z.string().uuid(),
+      feltId: z.string(),
+      // Enten manuell tekst ELLER motor for re-oversettelse
+      manuellVerdi: z.string().optional(),
+      manuellKommentar: z.string().optional(),
+      motor: z.enum(["opus-mt", "google", "deepl"]).optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const sjekkliste = await ctx.prisma.checklist.findUniqueOrThrow({
+        where: { id: input.id },
+        include: { template: { select: { projectId: true, domain: true } } },
+      });
+      await verifiserDokumentTilgang(
+        ctx.userId, sjekkliste.template.projectId,
+        sjekkliste.creatorEnterpriseId, sjekkliste.responderEnterpriseId,
+        sjekkliste.template.domain,
+      );
+
+      const data = (sjekkliste.data ?? {}) as Record<string, Record<string, unknown>>;
+      const felt = data[input.feltId];
+      if (!felt) throw new TRPCError({ code: "NOT_FOUND", message: "Felt ikke funnet" });
+
+      const original = felt.original as { spraak: string; verdi?: string; kommentar?: string } | undefined;
+      if (!original) throw new TRPCError({ code: "BAD_REQUEST", message: "Ingen original å forbedre" });
+
+      if (input.motor) {
+        // Re-oversett med valgt motor
+        const prosjekt = await ctx.prisma.project.findUnique({
+          where: { id: sjekkliste.template.projectId },
+          select: { sourceLanguage: true },
+        });
+        const modul = await ctx.prisma.projectModule.findUnique({
+          where: { projectId_moduleSlug: { projectId: sjekkliste.template.projectId, moduleSlug: "oversettelse" } },
+        });
+        const apiKey = (modul?.config as { apiKey?: string })?.apiKey;
+        const prosjektSpraak = prosjekt?.sourceLanguage ?? "nb";
+
+        const tekster: string[] = [];
+        if (original.verdi) tekster.push(original.verdi);
+        if (original.kommentar) tekster.push(original.kommentar);
+
+        if (tekster.length > 0) {
+          const { oversettMedMotor } = await import("../services/oversettelse-service");
+          const oversatte = await oversettMedMotor(tekster, original.spraak, prosjektSpraak, input.motor, apiKey);
+          let idx = 0;
+          if (original.verdi) { felt.verdi = oversatte[idx++]; }
+          if (original.kommentar) { felt.kommentar = oversatte[idx]; }
+        }
+      } else {
+        // Manuell redigering
+        if (input.manuellVerdi !== undefined) felt.verdi = input.manuellVerdi;
+        if (input.manuellKommentar !== undefined) felt.kommentar = input.manuellKommentar;
+      }
+
+      return ctx.prisma.checklist.update({
+        where: { id: input.id },
+        data: { data: data as Prisma.InputJsonValue },
+      });
+    }),
+
   // Endre status (med overgangslogging)
   endreStatus: protectedProcedure
     .input(
