@@ -525,6 +525,109 @@ function MappeTreRad({
 }
 
 /* ------------------------------------------------------------------ */
+/*  Språk-modal med kostnadsestimat                                     */
+/* ------------------------------------------------------------------ */
+
+function SpraakModal({
+  mappeId,
+  mappeNavn,
+  initialSpraak,
+  onLukk,
+  onLagre,
+  lagrer,
+}: {
+  mappeId: string;
+  mappeNavn: string;
+  initialSpraak: string[];
+  onLukk: () => void;
+  onLagre: (spraak: string[]) => void;
+  lagrer: boolean;
+}) {
+  const { t } = useTranslation();
+  const [valgte, setValgte] = useState<string[]>(initialSpraak.length > 0 ? initialSpraak : ["nb"]);
+
+  // Hent kostnadsestimat
+  const { data: estimat } = trpc.mappe.estimerOversettelse.useQuery(
+    { folderId: mappeId },
+    { enabled: !!mappeId },
+  );
+
+  const ekstraSpraak = valgte.filter((k) => k !== "nb").length;
+  const totaltOrd = estimat?.totaltOrd ?? 0;
+
+  return (
+    <Modal
+      open={true}
+      onClose={onLukk}
+      title={`${t("mappeoppsett.spraak")} — ${mappeNavn}`}
+    >
+      <div className="flex flex-col gap-4">
+        <p className="text-sm text-gray-500">{t("mappeoppsett.spraakBeskrivelse")}</p>
+
+        {/* Språkvelger */}
+        <div className="grid grid-cols-2 gap-2">
+          {STOETTEDE_SPRAAK.map((spraak) => (
+            <label
+              key={spraak.kode}
+              className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${
+                valgte.includes(spraak.kode)
+                  ? "border-sitedoc-primary bg-blue-50 text-sitedoc-primary"
+                  : "border-gray-200 text-gray-700 hover:bg-gray-50"
+              } ${spraak.kode === "nb" ? "opacity-60" : ""}`}
+            >
+              <input
+                type="checkbox"
+                checked={valgte.includes(spraak.kode)}
+                disabled={spraak.kode === "nb"}
+                onChange={() => {
+                  if (spraak.kode === "nb") return;
+                  setValgte((prev) =>
+                    prev.includes(spraak.kode)
+                      ? prev.filter((k) => k !== spraak.kode)
+                      : [...prev, spraak.kode],
+                  );
+                }}
+                className="h-3.5 w-3.5 rounded border-gray-300 text-sitedoc-primary"
+              />
+              <span>{spraak.flagg}</span>
+              <span>{spraak.navn}</span>
+            </label>
+          ))}
+        </div>
+
+        {/* Kostnadsestimat */}
+        {estimat && ekstraSpraak > 0 && (
+          <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
+            <p className="text-sm font-medium text-gray-800">Estimat</p>
+            <div className="mt-1 text-xs text-gray-600">
+              <p>{estimat.antallDokumenter} dokument{estimat.antallDokumenter !== 1 ? "er" : ""} · {totaltOrd.toLocaleString("nb-NO")} ord</p>
+              <p>{totaltOrd.toLocaleString("nb-NO")} ord × {ekstraSpraak} språk = <span className="font-semibold">{(totaltOrd * ekstraSpraak).toLocaleString("nb-NO")} ord totalt</span></p>
+              <div className="mt-2 flex flex-col gap-0.5">
+                <span>OPUS-MT: <span className="font-medium text-green-700">Gratis</span></span>
+                <span>Google Translate: <span className="font-medium text-green-700">Gratis</span></span>
+                <span>DeepL: <span className="font-medium text-gray-700">{estimat.perSpraak.deepl.label}</span></span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="flex justify-end gap-2">
+          <Button variant="secondary" onClick={onLukk}>
+            {t("handling.avbryt")}
+          </Button>
+          <Button
+            disabled={lagrer}
+            onClick={() => onLagre(valgte)}
+          >
+            {lagrer ? t("handling.lagrer") : t("handling.lagre")}
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Import-modal                                                       */
 /* ------------------------------------------------------------------ */
 
@@ -1292,59 +1395,18 @@ export default function BoxSide() {
       </Modal>
 
       {/* Språk-modal */}
-      <Modal
-        open={spraakModal !== null}
-        onClose={() => setSpraakModal(null)}
-        title={`${t("mappeoppsett.spraak")} — ${spraakModal?.navn ?? ""}`}
-      >
-        <div className="flex flex-col gap-4">
-          <p className="text-sm text-gray-500">{t("mappeoppsett.spraakBeskrivelse")}</p>
-          <div className="grid grid-cols-2 gap-2">
-            {STOETTEDE_SPRAAK.map((spraak) => (
-              <label
-                key={spraak.kode}
-                className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${
-                  valgteSpaak.includes(spraak.kode)
-                    ? "border-sitedoc-primary bg-blue-50 text-sitedoc-primary"
-                    : "border-gray-200 text-gray-700 hover:bg-gray-50"
-                } ${spraak.kode === "nb" ? "opacity-60" : ""}`}
-              >
-                <input
-                  type="checkbox"
-                  checked={valgteSpaak.includes(spraak.kode)}
-                  disabled={spraak.kode === "nb"}
-                  onChange={() => {
-                    if (spraak.kode === "nb") return;
-                    setValgteSpaak((prev) =>
-                      prev.includes(spraak.kode)
-                        ? prev.filter((k) => k !== spraak.kode)
-                        : [...prev, spraak.kode],
-                    );
-                  }}
-                  className="h-3.5 w-3.5 rounded border-gray-300 text-sitedoc-primary"
-                />
-                <span>{spraak.flagg}</span>
-                <span>{spraak.navn}</span>
-              </label>
-            ))}
-          </div>
-          <div className="flex justify-end gap-2">
-            <Button variant="secondary" onClick={() => setSpraakModal(null)}>
-              {t("handling.avbryt")}
-            </Button>
-            <Button
-              disabled={oppdaterSpraakMut.isPending}
-              onClick={() => {
-                if (spraakModal) {
-                  oppdaterSpraakMut.mutate({ id: spraakModal.id, languages: valgteSpaak });
-                }
-              }}
-            >
-              {oppdaterSpraakMut.isPending ? t("handling.lagrer") : t("handling.lagre")}
-            </Button>
-          </div>
-        </div>
-      </Modal>
+      {spraakModal && (
+        <SpraakModal
+          mappeId={spraakModal.id}
+          mappeNavn={spraakModal.navn}
+          initialSpraak={spraakModal.languages}
+          onLukk={() => setSpraakModal(null)}
+          onLagre={(spraak) => {
+            oppdaterSpraakMut.mutate({ id: spraakModal.id, languages: spraak });
+          }}
+          lagrer={oppdaterSpraakMut.isPending}
+        />
+      )}
     </div>
   );
 }

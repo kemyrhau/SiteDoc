@@ -184,6 +184,61 @@ export const mappeRouter = router({
     }),
 
   // Oppdater dokumentspråk for mappen
+  // Estimer oversettelseskostnad for en mappe
+  estimerOversettelse: protectedProcedure
+    .input(z.object({ folderId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const mappe = await ctx.prisma.folder.findUniqueOrThrow({
+        where: { id: input.folderId },
+        select: { projectId: true },
+      });
+      await verifiserProsjektmedlem(ctx.userId, mappe.projectId);
+
+      // Tell ord i alle aktive dokumenter i mappen
+      const stats = await ctx.prisma.$queryRaw<Array<{ antall_dok: bigint; totalt_ord: bigint }>>`
+        SELECT
+          COUNT(DISTINCT d.id) as antall_dok,
+          COALESCE(SUM(d.word_count), 0) as totalt_ord
+        FROM ftd_documents d
+        WHERE d.folder_id = ${input.folderId} AND d.is_active = true
+      `;
+      const antallDok = Number(stats[0]?.antall_dok ?? 0);
+      let totaltOrd = Number(stats[0]?.totalt_ord ?? 0);
+
+      // Hvis word_count er 0, estimer fra blokker
+      if (totaltOrd === 0 && antallDok > 0) {
+        const blokkStats = await ctx.prisma.$queryRaw<Array<{ totalt_tegn: bigint }>>`
+          SELECT COALESCE(SUM(LENGTH(content)), 0) as totalt_tegn
+          FROM ftd_document_blocks b
+          JOIN ftd_documents d ON d.id = b.document_id
+          WHERE d.folder_id = ${input.folderId} AND d.is_active = true
+            AND b.language = d.source_language
+            AND b.block_type IN ('heading', 'text', 'caption')
+        `;
+        const tegn = Number(blokkStats[0]?.totalt_tegn ?? 0);
+        totaltOrd = Math.round(tegn / 5); // Gjennomsnitt 5 tegn per ord
+      }
+
+      const totaltTegn = totaltOrd * 5; // Estimat tilbake til tegn
+
+      return {
+        antallDokumenter: antallDok,
+        totaltOrd,
+        totaltTegn,
+        // Prisestimater per motor per ekstra språk
+        perSpraak: {
+          "opus-mt": { pris: 0, valuta: "NOK", label: "Gratis" },
+          "google": { pris: 0, valuta: "NOK", label: "Gratis" },
+          "deepl": {
+            // DeepL Free: 500k tegn/mnd gratis, deretter €25/mln tegn
+            pris: totaltTegn > 500000 ? Math.round((totaltTegn - 500000) * 0.00025) : 0,
+            valuta: "NOK",
+            label: totaltTegn > 500000 ? `~${Math.round((totaltTegn - 500000) * 0.00025)} NOK` : "Gratis (under 500k tegn)",
+          },
+        },
+      };
+    }),
+
   oppdaterSpraak: protectedProcedure
     .input(
       z.object({
