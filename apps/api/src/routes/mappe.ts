@@ -6,6 +6,7 @@ import { router, protectedProcedure } from "../trpc/trpc";
 import { settMappeTilgangSchema } from "@sitedoc/shared/validation";
 import { verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
 import { splittMalebrevPdf } from "../services/pdf-splitting";
+import { resolverSpråk, resolverAlleSpråk } from "../services/folder-spraak";
 
 const UPLOADS_DIR = join(process.cwd(), "uploads");
 // Prosessering kjøres på API-serveren (ren Node) — ikke i Next.js
@@ -44,10 +45,26 @@ export const mappeRouter = router({
         GROUP BY folder_id
       `;
       const tellMap = new Map(tellinger.map((t) => [t.folder_id, Number(t.antall)]));
-      return mapper.map((m) => ({
-        ...m,
-        _count: { ftdDocuments: tellMap.get(m.id) ?? 0 },
-      }));
+
+      // Beregn effektive språk for alle mapper (arv)
+      const språkMap = resolverAlleSpråk(mapper.map((m) => ({
+        id: m.id,
+        parentId: m.parentId,
+        languageMode: m.languageMode,
+        languages: m.languages as string[],
+        sourceLanguage: m.sourceLanguage,
+      })));
+
+      return mapper.map((m) => {
+        const effektiv = språkMap.get(m.id);
+        return {
+          ...m,
+          _count: { ftdDocuments: tellMap.get(m.id) ?? 0 },
+          effektiveSpraak: effektiv?.languages ?? ["nb"],
+          effektivKildesprak: effektiv?.sourceLanguage ?? "nb",
+          spraakArvet: effektiv?.arvet ?? true,
+        };
+      });
     }),
 
   // Opprett ny mappe
@@ -96,9 +113,19 @@ export const mappeRouter = router({
     .query(async ({ ctx, input }) => {
       const mappe = await ctx.prisma.folder.findUniqueOrThrow({
         where: { id: input.folderId },
-        select: { projectId: true, languages: true },
+        select: { projectId: true, languageMode: true, languages: true, sourceLanguage: true, parentId: true },
       });
       await verifiserProsjektmedlem(ctx.userId, mappe.projectId);
+
+      // Resolve effektive språk via arv
+      const alleMapper = await ctx.prisma.folder.findMany({
+        where: { projectId: mappe.projectId },
+        select: { id: true, parentId: true, languageMode: true, languages: true, sourceLanguage: true },
+      });
+      const effektiv = resolverSpråk(input.folderId, alleMapper.map((m) => ({
+        id: m.id, parentId: m.parentId, languageMode: m.languageMode,
+        languages: m.languages as string[], sourceLanguage: m.sourceLanguage,
+      })));
 
       const dokumenter = await ctx.prisma.ftdDocument.findMany({
         where: { folderId: input.folderId, isActive: true },
@@ -136,7 +163,7 @@ export const mappeRouter = router({
         }),
       );
 
-      return { dokumenter: result, mappeSprak: mappe.languages };
+      return { dokumenter: result, mappeSprak: effektiv.languages };
     }),
 
   // Hent dokumentblokker for lesevisning
@@ -245,6 +272,7 @@ export const mappeRouter = router({
         id: z.string().uuid(),
         languages: z.array(z.string().min(2).max(5)).min(1),
         sourceLanguage: z.string().min(2).max(5).optional(),
+        languageMode: z.enum(["inherit", "custom"]).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -258,7 +286,26 @@ export const mappeRouter = router({
       const languages = Array.from(new Set([srcLang, ...input.languages]));
       return ctx.prisma.folder.update({
         where: { id: input.id },
-        data: { languages, sourceLanguage: srcLang },
+        data: {
+          languages,
+          sourceLanguage: srcLang,
+          languageMode: input.languageMode ?? "custom", // Å sette språk eksplisitt → custom
+        },
+      });
+    }),
+
+  // Sett språkmodus til "inherit" (arv fra forelder)
+  settSpraakArv: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const mappe = await ctx.prisma.folder.findUniqueOrThrow({
+        where: { id: input.id },
+        select: { projectId: true },
+      });
+      await verifiserProsjektmedlem(ctx.userId, mappe.projectId);
+      return ctx.prisma.folder.update({
+        where: { id: input.id },
+        data: { languageMode: "inherit" },
       });
     }),
 
@@ -280,16 +327,27 @@ export const mappeRouter = router({
     .query(async ({ ctx, input }) => {
       const mappe = await ctx.prisma.folder.findUniqueOrThrow({
         where: { id: input.folderId },
-        select: { projectId: true, languages: true },
+        select: { projectId: true, languageMode: true, languages: true, sourceLanguage: true, parentId: true },
       });
       await verifiserProsjektmedlem(ctx.userId, mappe.projectId);
+
+      // Resolve effektive språk via arv
+      const alleMapper = await ctx.prisma.folder.findMany({
+        where: { projectId: mappe.projectId },
+        select: { id: true, parentId: true, languageMode: true, languages: true, sourceLanguage: true },
+      });
+      const effektiv = resolverSpråk(input.folderId, alleMapper.map((m) => ({
+        id: m.id, parentId: m.parentId, languageMode: m.languageMode,
+        languages: m.languages as string[], sourceLanguage: m.sourceLanguage,
+      })));
+
       const docs = await ctx.prisma.ftdDocument.findMany({
         where: { folderId: input.folderId, isActive: true },
         orderBy: { uploadedAt: "desc" },
       });
 
       // Hent embedding-status per dokument
-      if (docs.length === 0) return { dokumenter: [], mappeSprak: mappe.languages as string[] };
+      if (docs.length === 0) return { dokumenter: [], mappeSprak: effektiv.languages };
       const docIds = docs.map((d) => d.id);
       const embeddingStats = await ctx.prisma.$queryRaw<
         Array<{ documentId: string; totalt: bigint; embedded: bigint }>
@@ -311,7 +369,7 @@ export const mappeRouter = router({
       );
 
       // Hent oversettelsestatus per dokument (kun for mapper med flere språk)
-      const mappeSprak = (mappe.languages ?? ["nb"]) as string[];
+      const mappeSprak = effektiv.languages;
       const harOversettelse = mappeSprak.length > 1;
       let oversettStatusMap = new Map<string, { tilgjengelig: string[]; pågår: boolean }>();
 

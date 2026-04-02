@@ -419,6 +419,9 @@
   "mappeoppsett.spraak": "Dokumentspråk",
   "mappeoppsett.spraakBeskrivelse": "Velg hvilke språk dokumentene i denne mappen skal oversettes til. Norsk er alltid inkludert.",
   "mappeoppsett.spraakLagret": "Språkinnstillinger lagret",
+  "mappeoppsett.spraakArv": "Arv fra forelder",
+  "mappeoppsett.spraakEgendefinert": "Egendefinert",
+  "mappeoppsett.spraakArvBeskrivelse": "Denne mappen arver språkinnstillinger fra sin overordnede mappe. Hvis ingen overordnet mappe har egne språkinnstillinger, brukes kun norsk.",
 
   "tegninger.sokLokasjoner": "Søk lokasjoner...",
   "tegninger.alleLokasjoner": "Alle lokasjoner",

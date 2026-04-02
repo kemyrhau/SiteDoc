@@ -397,6 +397,8 @@ interface MappeTreData {
   id: string;
   name: string;
   accessMode: string;
+  languageMode: string;
+  effektiveSpraak: string[];
   children: MappeTreData[];
   _count?: { ftdDocuments: number };
   kontraktId?: string | null;
@@ -459,6 +461,9 @@ function MappeTreRad({
         {harEgenTilgang && (
           <Shield className="h-3.5 w-3.5 flex-shrink-0 text-blue-500" />
         )}
+        {mappe.languageMode === "custom" && mappe.effektiveSpraak.length > 1 && (
+          <Globe className="h-3.5 w-3.5 flex-shrink-0 text-green-500" />
+        )}
         {antallDokumenter > 0 && (
           <span className="mr-2 text-xs text-gray-400">
             {antallDokumenter} <File className="mb-px inline h-3 w-3" />
@@ -488,7 +493,7 @@ function MappeTreRad({
               {
                 label: t("mappeoppsett.spraak"),
                 ikon: <Globe className="h-4 w-4 text-blue-400" />,
-                onClick: () => onRedigerSpraak(mappe.id, mappe.name, (mappe as unknown as { languages?: string[] }).languages ?? ["nb"]),
+                onClick: () => onRedigerSpraak(mappe.id, mappe.name, mappe.effektiveSpraak ?? ["nb"]),
               },
               {
                 label: t("mappeoppsett.giNyttNavn"),
@@ -532,24 +537,29 @@ function SpraakModal({
   mappeId,
   mappeNavn,
   initialSpraak,
+  languageMode,
   onLukk,
   onLagre,
+  onSettArv,
   lagrer,
 }: {
   mappeId: string;
   mappeNavn: string;
   initialSpraak: string[];
+  languageMode: string;
   onLukk: () => void;
   onLagre: (spraak: string[]) => void;
+  onSettArv: () => void;
   lagrer: boolean;
 }) {
   const { t } = useTranslation();
+  const [modus, setModus] = useState<"inherit" | "custom">(languageMode === "custom" ? "custom" : "inherit");
   const [valgte, setValgte] = useState<string[]>(initialSpraak.length > 0 ? initialSpraak : ["nb"]);
 
   // Hent kostnadsestimat
   const { data: estimat } = trpc.mappe.estimerOversettelse.useQuery(
     { folderId: mappeId },
-    { enabled: !!mappeId },
+    { enabled: !!mappeId && modus === "custom" },
   );
 
   const ekstraSpraak = valgte.filter((k) => k !== "nb").length;
@@ -562,53 +572,99 @@ function SpraakModal({
       title={`${t("mappeoppsett.spraak")} — ${mappeNavn}`}
     >
       <div className="flex flex-col gap-4">
-        <p className="text-sm text-gray-500">{t("mappeoppsett.spraakBeskrivelse")}</p>
-
-        {/* Språkvelger */}
-        <div className="grid grid-cols-2 gap-2">
-          {STOETTEDE_SPRAAK.map((spraak) => (
-            <label
-              key={spraak.kode}
-              className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${
-                valgte.includes(spraak.kode)
-                  ? "border-sitedoc-primary bg-blue-50 text-sitedoc-primary"
-                  : "border-gray-200 text-gray-700 hover:bg-gray-50"
-              } ${spraak.kode === "nb" ? "opacity-60" : ""}`}
-            >
-              <input
-                type="checkbox"
-                checked={valgte.includes(spraak.kode)}
-                disabled={spraak.kode === "nb"}
-                onChange={() => {
-                  if (spraak.kode === "nb") return;
-                  setValgte((prev) =>
-                    prev.includes(spraak.kode)
-                      ? prev.filter((k) => k !== spraak.kode)
-                      : [...prev, spraak.kode],
-                  );
-                }}
-                className="h-3.5 w-3.5 rounded border-gray-300 text-sitedoc-primary"
-              />
-              <span>{spraak.flagg}</span>
-              <span>{spraak.navn}</span>
-            </label>
-          ))}
+        {/* Arv/egendefinert-velger */}
+        <div className="flex gap-2">
+          <button
+            onClick={() => setModus("inherit")}
+            className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+              modus === "inherit"
+                ? "border-sitedoc-primary bg-blue-50 text-sitedoc-primary"
+                : "border-gray-200 text-gray-500 hover:bg-gray-50"
+            }`}
+          >
+            {t("mappeoppsett.spraakArv")}
+          </button>
+          <button
+            onClick={() => setModus("custom")}
+            className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+              modus === "custom"
+                ? "border-sitedoc-primary bg-blue-50 text-sitedoc-primary"
+                : "border-gray-200 text-gray-500 hover:bg-gray-50"
+            }`}
+          >
+            {t("mappeoppsett.spraakEgendefinert")}
+          </button>
         </div>
 
-        {/* Kostnadsestimat */}
-        {estimat && ekstraSpraak > 0 && (
-          <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
-            <p className="text-sm font-medium text-gray-800">Estimat</p>
-            <div className="mt-1 text-xs text-gray-600">
-              <p>{estimat.antallDokumenter} dokument{estimat.antallDokumenter !== 1 ? "er" : ""} · {totaltOrd.toLocaleString("nb-NO")} ord</p>
-              <p>{totaltOrd.toLocaleString("nb-NO")} ord × {ekstraSpraak} språk = <span className="font-semibold">{(totaltOrd * ekstraSpraak).toLocaleString("nb-NO")} ord totalt</span></p>
-              <div className="mt-2 flex flex-col gap-0.5">
-                <span>OPUS-MT: <span className="font-medium text-green-700">Gratis</span></span>
-                <span>Google Translate: <span className="font-medium text-green-700">Gratis</span></span>
-                <span>DeepL: <span className="font-medium text-gray-700">{estimat.perSpraak.deepl.label}</span></span>
+        {modus === "inherit" ? (
+          <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+            <p className="text-sm text-gray-600">
+              {t("mappeoppsett.spraakArvBeskrivelse")}
+            </p>
+            {initialSpraak.length > 1 && (
+              <div className="mt-2 flex flex-wrap gap-1">
+                {initialSpraak.map((kode) => {
+                  const info = STOETTEDE_SPRAAK.find((s) => s.kode === kode);
+                  return (
+                    <span key={kode} className="rounded bg-white px-2 py-0.5 text-xs text-gray-600 border border-gray-200">
+                      {info?.flagg} {info?.navn ?? kode}
+                    </span>
+                  );
+                })}
               </div>
-            </div>
+            )}
           </div>
+        ) : (
+          <>
+            <p className="text-sm text-gray-500">{t("mappeoppsett.spraakBeskrivelse")}</p>
+
+            {/* Språkvelger */}
+            <div className="grid grid-cols-2 gap-2">
+              {STOETTEDE_SPRAAK.map((spraak) => (
+                <label
+                  key={spraak.kode}
+                  className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${
+                    valgte.includes(spraak.kode)
+                      ? "border-sitedoc-primary bg-blue-50 text-sitedoc-primary"
+                      : "border-gray-200 text-gray-700 hover:bg-gray-50"
+                  } ${spraak.kode === "nb" ? "opacity-60" : ""}`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={valgte.includes(spraak.kode)}
+                    disabled={spraak.kode === "nb"}
+                    onChange={() => {
+                      if (spraak.kode === "nb") return;
+                      setValgte((prev) =>
+                        prev.includes(spraak.kode)
+                          ? prev.filter((k) => k !== spraak.kode)
+                          : [...prev, spraak.kode],
+                      );
+                    }}
+                    className="h-3.5 w-3.5 rounded border-gray-300 text-sitedoc-primary"
+                  />
+                  <span>{spraak.flagg}</span>
+                  <span>{spraak.navn}</span>
+                </label>
+              ))}
+            </div>
+
+            {/* Kostnadsestimat */}
+            {estimat && ekstraSpraak > 0 && (
+              <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
+                <p className="text-sm font-medium text-gray-800">Estimat</p>
+                <div className="mt-1 text-xs text-gray-600">
+                  <p>{estimat.antallDokumenter} dokument{estimat.antallDokumenter !== 1 ? "er" : ""} · {totaltOrd.toLocaleString("nb-NO")} ord</p>
+                  <p>{totaltOrd.toLocaleString("nb-NO")} ord × {ekstraSpraak} språk = <span className="font-semibold">{(totaltOrd * ekstraSpraak).toLocaleString("nb-NO")} ord totalt</span></p>
+                  <div className="mt-2 flex flex-col gap-0.5">
+                    <span>OPUS-MT: <span className="font-medium text-green-700">Gratis</span></span>
+                    <span>Google Translate: <span className="font-medium text-green-700">Gratis</span></span>
+                    <span>DeepL: <span className="font-medium text-gray-700">{estimat.perSpraak.deepl.label}</span></span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
         )}
 
         <div className="flex justify-end gap-2">
@@ -617,7 +673,13 @@ function SpraakModal({
           </Button>
           <Button
             disabled={lagrer}
-            onClick={() => onLagre(valgte)}
+            onClick={() => {
+              if (modus === "inherit") {
+                onSettArv();
+              } else {
+                onLagre(valgte);
+              }
+            }}
           >
             {lagrer ? t("handling.lagrer") : t("handling.lagre")}
           </Button>
@@ -1076,7 +1138,7 @@ export default function BoxSide() {
   });
 
   // Språk-modal
-  const [spraakModal, setSpraakModal] = useState<{ id: string; navn: string; languages: string[] } | null>(null);
+  const [spraakModal, setSpraakModal] = useState<{ id: string; navn: string; languages: string[]; languageMode: string } | null>(null);
   const [valgteSpaak, setValgteSpaak] = useState<string[]>([]);
 
   const oppdaterSpraakMut = trpc.mappe.oppdaterSpraak.useMutation({
@@ -1086,8 +1148,18 @@ export default function BoxSide() {
     },
   });
 
+  const settSpraakArvMut = trpc.mappe.settSpraakArv.useMutation({
+    onSuccess: () => {
+      utils.mappe.hentForProsjekt.invalidate({ projectId: prosjektId! });
+      setSpraakModal(null);
+    },
+  });
+
   function handleRedigerSpraak(id: string, navn: string, languages: string[]) {
-    setSpraakModal({ id, navn, languages });
+    // Finn languageMode fra mapper-data
+    const mappeData = mapper?.find((m) => m.id === id);
+    const languageMode = mappeData?.languageMode ?? "inherit";
+    setSpraakModal({ id, navn, languages, languageMode });
     setValgteSpaak(languages.length > 0 ? languages : ["nb"]);
   }
 
@@ -1108,6 +1180,8 @@ export default function BoxSide() {
       name: string;
       parentId: string | null;
       accessMode: string;
+      languageMode: string;
+      effektiveSpraak?: string[];
       _count?: { ftdDocuments: number };
       kontraktId?: string | null;
       kontraktNavn?: string | null;
@@ -1117,7 +1191,7 @@ export default function BoxSide() {
     const roots: MappeTreData[] = [];
 
     for (const m of flat) {
-      map.set(m.id, { id: m.id, name: m.name, accessMode: m.accessMode, children: [], _count: m._count, kontraktId: m.kontraktId, kontraktNavn: m.kontraktNavn });
+      map.set(m.id, { id: m.id, name: m.name, accessMode: m.accessMode, languageMode: m.languageMode, effektiveSpraak: m.effektiveSpraak ?? ["nb"], children: [], _count: m._count, kontraktId: m.kontraktId, kontraktNavn: m.kontraktNavn });
     }
 
     for (const m of flat) {
@@ -1134,7 +1208,7 @@ export default function BoxSide() {
     return roots;
   }
 
-  const mappeTre = mapper ? byggTre((mapper as Array<{ id: string; name: string; parentId: string | null; accessMode: string; _count?: { ftdDocuments: number }; kontraktId?: string | null; kontrakt?: { id: string; navn: string } | null }>).map(m => ({
+  const mappeTre = mapper ? byggTre((mapper as Array<{ id: string; name: string; parentId: string | null; accessMode: string; languageMode: string; effektiveSpraak?: string[]; _count?: { ftdDocuments: number }; kontraktId?: string | null; kontrakt?: { id: string; navn: string } | null }>).map(m => ({
     ...m,
     kontraktNavn: m.kontrakt?.navn ?? null,
   }))) : [];
@@ -1400,11 +1474,15 @@ export default function BoxSide() {
           mappeId={spraakModal.id}
           mappeNavn={spraakModal.navn}
           initialSpraak={spraakModal.languages}
+          languageMode={spraakModal.languageMode}
           onLukk={() => setSpraakModal(null)}
           onLagre={(spraak) => {
-            oppdaterSpraakMut.mutate({ id: spraakModal.id, languages: spraak });
+            oppdaterSpraakMut.mutate({ id: spraakModal.id, languages: spraak, languageMode: "custom" });
           }}
-          lagrer={oppdaterSpraakMut.isPending}
+          onSettArv={() => {
+            settSpraakArvMut.mutate({ id: spraakModal.id });
+          }}
+          lagrer={oppdaterSpraakMut.isPending || settSpraakArvMut.isPending}
         />
       )}
     </div>

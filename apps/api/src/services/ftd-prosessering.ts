@@ -158,7 +158,7 @@ async function genererBlokkOgOversett(
   buffer: Buffer,
   ext: string,
 ): Promise<void> {
-  // Hent mappeinfo for språkinnstillinger
+  // Hent mappeinfo for språkinnstillinger (med arv)
   let languages: string[] = ["nb"];
   let mappeSpråk = "nb";
   let projectId: string | null = null;
@@ -166,12 +166,16 @@ async function genererBlokkOgOversett(
   if (folderId) {
     const mappe = await prisma.folder.findUnique({
       where: { id: folderId },
-      select: { languages: true, projectId: true, sourceLanguage: true },
+      select: { projectId: true, sourceLanguage: true },
     });
     if (mappe) {
-      languages = (mappe.languages as string[]) ?? ["nb"];
-      mappeSpråk = mappe.sourceLanguage ?? "nb";
       projectId = mappe.projectId;
+      mappeSpråk = mappe.sourceLanguage ?? "nb";
+      // Resolve effektive språk via arv
+      const { hentEffektiveSpråk } = await import("./folder-spraak");
+      const effektiv = await hentEffektiveSpråk(prisma, folderId);
+      languages = effektiv.languages;
+      mappeSpråk = effektiv.sourceLanguage;
     }
   }
 

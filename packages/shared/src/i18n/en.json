@@ -419,6 +419,9 @@
   "mappeoppsett.spraak": "Document languages",
   "mappeoppsett.spraakBeskrivelse": "Select which languages the documents in this folder should be translated to. Norwegian is always included.",
   "mappeoppsett.spraakLagret": "Language settings saved",
+  "mappeoppsett.spraakArv": "Inherit from parent",
+  "mappeoppsett.spraakEgendefinert": "Custom",
+  "mappeoppsett.spraakArvBeskrivelse": "This folder inherits language settings from its parent folder. If no parent folder has custom language settings, only Norwegian is used.",
 
   "tegninger.sokLokasjoner": "Search locations...",
   "tegninger.alleLokasjoner": "All locations",

@@ -62,7 +62,7 @@ export default function DokumentleserSide() {
       id: m.id,
       name: m.name,
       parentId: m.parentId,
-      languages: (m.languages ?? ["nb"]) as string[],
+      languages: ((m as unknown as { effektiveSpraak?: string[] }).effektiveSpraak ?? m.languages ?? ["nb"]) as string[],
       children: [] as MappeNode[],
       harDokumenter: (m._count?.ftdDocuments ?? 0) > 0,
     }));

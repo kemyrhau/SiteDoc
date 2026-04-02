@@ -578,6 +578,7 @@ model Folder {
 
   sourceLanguage String   @default("nb") @map("source_language") // Standard kildespråk for dokumenter i mappen
   languages      String[] @default(["nb"]) // Målspråk for dokumentoversettelse
+  languageMode   String   @default("inherit") @map("language_mode") // "inherit" | "custom"
 
   project       Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
   parent        Folder?        @relation("FolderHierarchy", fields: [parentId], references: [id])
