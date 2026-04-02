@@ -463,3 +463,115 @@ async function leksikalskSok(
   treff.sort((a, b) => b.score - a.score);
   return treff.slice(0, limit);
 }
+
+// ---- Flerspråklig blokk-søk ----
+
+export interface BlokkSokTreff {
+  id: string;
+  documentId: string;
+  content: string;
+  blockType: string;
+  pageNumber: number;
+  language: string;
+  filename: string;
+  fileUrl: string | null;
+  folderId: string | null;
+  score: number;
+}
+
+/**
+ * Søk i FtdDocumentBlock med multilingual E5 embedding.
+ * Brukes for flerspråklig søk — finner blokker på brukerens språk.
+ * Faller tilbake til norsk hvis ingen treff på valgt språk.
+ */
+export async function blokkSok(
+  prisma: PrismaClient,
+  projectId: string,
+  query: string,
+  language: string,
+  mappeIder: string[] | null,
+  topK: number = 20,
+): Promise<BlokkSokTreff[]> {
+  // Encode query med multilingual E5
+  const NORBERT_URL = process.env.NORBERT_URL ?? "http://127.0.0.1:3302";
+  const response = await fetch(`${NORBERT_URL}/embed/model`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ model: "multilingual-e5-query", texts: [query] }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`E5 query embedding feilet: ${response.status}`);
+  }
+
+  const data = (await response.json()) as { embeddings: number[][] };
+  const queryVec = data.embeddings[0];
+  if (!queryVec) throw new Error("Ingen embedding returnert");
+
+  const vecStr = `[${queryVec.join(",")}]`;
+
+  const mappeKlausul =
+    mappeIder === null
+      ? Prisma.empty
+      : Prisma.sql`AND d.folder_id IN (${Prisma.join(mappeIder)})`;
+
+  // Søk i blokker på brukerens språk
+  const treff = await prisma.$queryRaw<BlokkSokTreff[]>`
+    SELECT
+      b.id,
+      b.document_id AS "documentId",
+      b.content,
+      b.block_type AS "blockType",
+      b.page_number AS "pageNumber",
+      b.language,
+      d.filename,
+      d.file_url AS "fileUrl",
+      d.folder_id AS "folderId",
+      (1 - (b.embedding_vector <=> ${vecStr}::vector)) AS score
+    FROM ftd_document_blocks b
+    JOIN ftd_documents d ON d.id = b.document_id
+    WHERE d.project_id = ${projectId}
+      AND d.is_active = true
+      AND b.embedding_vector IS NOT NULL
+      AND b.language = ${language}
+      AND b.block_type IN ('heading', 'text', 'caption')
+      ${mappeKlausul}
+    ORDER BY b.embedding_vector <=> ${vecStr}::vector
+    LIMIT ${topK}
+  `;
+
+  // Fallback til norsk hvis < 3 treff
+  if (treff.length < 3 && language !== "nb") {
+    const nbTreff = await prisma.$queryRaw<BlokkSokTreff[]>`
+      SELECT
+        b.id,
+        b.document_id AS "documentId",
+        b.content,
+        b.block_type AS "blockType",
+        b.page_number AS "pageNumber",
+        b.language,
+        d.filename,
+        d.file_url AS "fileUrl",
+        d.folder_id AS "folderId",
+        (1 - (b.embedding_vector <=> ${vecStr}::vector)) AS score
+      FROM ftd_document_blocks b
+      JOIN ftd_documents d ON d.id = b.document_id
+      WHERE d.project_id = ${projectId}
+        AND d.is_active = true
+        AND b.embedding_vector IS NOT NULL
+        AND b.language = 'nb'
+        AND b.block_type IN ('heading', 'text', 'caption')
+        ${mappeKlausul}
+      ORDER BY b.embedding_vector <=> ${vecStr}::vector
+      LIMIT ${topK}
+    `;
+    // Kombiner: brukerens språk først, deretter norsk
+    const eksisterende = new Set(treff.map((t) => t.id));
+    for (const t of nbTreff) {
+      if (!eksisterende.has(t.id)) treff.push(t);
+    }
+    treff.sort((a, b) => b.score - a.score);
+  }
+
+  return treff.slice(0, topK);
+}

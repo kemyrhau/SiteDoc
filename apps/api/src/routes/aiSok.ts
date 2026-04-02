@@ -12,6 +12,7 @@ import {
 import { hentTilgjengeligeMappeIder } from "../services/folder-tilgang";
 import {
   hybridSok,
+  blokkSok,
   DEFAULT_VEKTER,
 } from "../services/ai-sok-service";
 import {
@@ -77,6 +78,22 @@ export const aiSokRouter = router({
         dokumentIder: input.dokumentIder,
         ekskluderMappeIder: input.ekskluderMappeIder,
       });
+    }),
+
+  /** Flerspråklig søk i dokumentblokker */
+  blokkSok: protectedProcedure
+    .input(
+      z.object({
+        projectId: z.string().uuid(),
+        query: z.string().min(1),
+        language: z.string().min(2).max(5).default("nb"),
+        topK: z.number().default(20),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      const mappeIder = await hentTilgjengeligeMappeIder(ctx.userId, input.projectId);
+      return blokkSok(ctx.prisma, input.projectId, input.query, input.language, mappeIder, input.topK);
     }),
 
   /** Trigger embedding-generering for alle pending chunks */
