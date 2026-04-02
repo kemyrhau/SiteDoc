@@ -159,10 +159,18 @@ async function genererBlokkHvisSpraak(
 ): Promise<void> {
   const mappe = await prisma.folder.findUnique({
     where: { id: folderId },
-    select: { languages: true },
+    select: { languages: true, projectId: true },
   });
   const languages = mappe?.languages ?? ["nb"];
   if (languages.length <= 1 && languages[0] === "nb") return;
+
+  // Sjekk om oversettelsesmodulen er aktiv
+  if (mappe?.projectId) {
+    const modul = await prisma.projectModule.findUnique({
+      where: { projectId_moduleSlug: { projectId: mappe.projectId, moduleSlug: "oversettelse" } },
+    });
+    if (!modul?.active) return;
+  }
 
   const antall = await genererBlokker(prisma, documentId, buffer, ext);
   console.log(`Blokkprosessering: ${antall} blokker generert for ${documentId}`);

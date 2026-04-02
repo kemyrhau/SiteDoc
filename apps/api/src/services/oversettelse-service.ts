@@ -12,6 +12,8 @@ const OVERSETTELSE_URL = process.env.OVERSETTELSE_URL ?? "http://localhost:3303"
 const BATCH_STØRRELSE = 30;
 const POLL_INTERVALL = 10_000; // 10 sekunder
 
+type OversettelsesMotor = "opus-mt" | "google" | "deepl";
+
 /**
  * Start bakgrunnsløkke som prosesserer oversettelsesoppdrag.
  */
@@ -73,7 +75,30 @@ async function prosesserNesteJobb(prisma: PrismaClient): Promise<void> {
 
   if (!jobb) return;
 
-  console.log(`Oversetter dokument ${jobb.documentId} til ${jobb.targetLang}...`);
+  // Hent prosjekt-ID fra dokumentet
+  const dok = await prisma.ftdDocument.findUnique({
+    where: { id: jobb.documentId },
+    select: { projectId: true },
+  });
+  if (!dok) return;
+
+  // Sjekk om oversettelsesmodulen er aktiv
+  const modul = await prisma.projectModule.findUnique({
+    where: { projectId_moduleSlug: { projectId: dok.projectId, moduleSlug: "oversettelse" } },
+  });
+  if (!modul?.active) {
+    console.log(`Oversettelse hoppet over for ${jobb.documentId} — modulen er ikke aktiv`);
+    await prisma.ftdTranslationJob.update({
+      where: { id: jobb.id },
+      data: { status: "failed", error: "Oversettelsesmodulen er ikke aktivert" },
+    });
+    return;
+  }
+
+  const config = (modul.config ?? {}) as { motor?: string; apiKey?: string };
+  const motor = (config.motor ?? "opus-mt") as OversettelsesMotor;
+
+  console.log(`Oversetter dokument ${jobb.documentId} til ${jobb.targetLang} (${motor})...`);
 
   try {
     // Sett status til processing
@@ -82,7 +107,7 @@ async function prosesserNesteJobb(prisma: PrismaClient): Promise<void> {
       data: { status: "processing" },
     });
 
-    await oversettBlokker(prisma, jobb.id, jobb.documentId, jobb.targetLang);
+    await oversettBlokker(prisma, jobb.id, jobb.documentId, jobb.targetLang, motor, config.apiKey);
 
     await prisma.ftdTranslationJob.update({
       where: { id: jobb.id },
@@ -114,6 +139,8 @@ async function oversettBlokker(
   jobbId: string,
   documentId: string,
   targetLang: string,
+  motor: OversettelsesMotor = "opus-mt",
+  apiKey?: string,
 ): Promise<void> {
   // Hent norske blokker
   const norskBlokker = await prisma.ftdDocumentBlock.findMany({
@@ -165,7 +192,7 @@ async function oversettBlokker(
     const batch = uoversatte.slice(i, i + BATCH_STØRRELSE);
     const tekster = batch.map((b) => b.tekst);
 
-    const oversatt = await kallOversettelsesServer(tekster, "nb", targetLang);
+    const oversatt = await oversettMedMotor(tekster, "nb", targetLang, motor, apiKey);
     batch.forEach((b, j) => {
       nyeOversettelser.set(b.idx, oversatt[j]!);
     });
@@ -263,6 +290,99 @@ async function oversettBlokker(
 
   // Lagre alle oversatte blokker
   await prisma.ftdDocumentBlock.createMany({ data: nyeBlokker });
+}
+
+/**
+ * Velg oversettelsesmotor og oversett.
+ */
+async function oversettMedMotor(
+  tekster: string[],
+  kilde: string,
+  maal: string,
+  motor: OversettelsesMotor,
+  apiKey?: string,
+): Promise<string[]> {
+  switch (motor) {
+    case "google":
+      return kallGoogleTranslate(tekster, kilde, maal, apiKey!);
+    case "deepl":
+      return kallDeepL(tekster, kilde, maal, apiKey!);
+    case "opus-mt":
+    default:
+      return kallOversettelsesServer(tekster, kilde, maal);
+  }
+}
+
+/**
+ * Google Cloud Translation API v2.
+ */
+async function kallGoogleTranslate(
+  tekster: string[],
+  kilde: string,
+  maal: string,
+  apiKey: string,
+): Promise<string[]> {
+  const resultater: string[] = [];
+  // Google Translate API har maks 128 segmenter per kall
+  for (let i = 0; i < tekster.length; i += 100) {
+    const batch = tekster.slice(i, i + 100);
+    const response = await fetch(
+      `https://translation.googleapis.com/language/translate/v2?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          q: batch,
+          source: kilde === "nb" ? "no" : kilde,
+          target: maal,
+          format: "text",
+        }),
+      },
+    );
+    if (!response.ok) {
+      const feil = await response.text().catch(() => "");
+      throw new Error(`Google Translate feil (${response.status}): ${feil.slice(0, 200)}`);
+    }
+    const data = (await response.json()) as {
+      data: { translations: Array<{ translatedText: string }> };
+    };
+    resultater.push(...data.data.translations.map((t) => t.translatedText));
+  }
+  return resultater;
+}
+
+/**
+ * DeepL API.
+ */
+async function kallDeepL(
+  tekster: string[],
+  kilde: string,
+  maal: string,
+  apiKey: string,
+): Promise<string[]> {
+  const deepLKilde = kilde === "nb" ? "NB" : kilde.toUpperCase();
+  const deepLMaal = maal === "en" ? "EN-GB" : maal.toUpperCase();
+
+  const response = await fetch("https://api-free.deepl.com/v2/translate", {
+    method: "POST",
+    headers: {
+      "Authorization": `DeepL-Auth-Key ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      text: tekster,
+      source_lang: deepLKilde,
+      target_lang: deepLMaal,
+    }),
+  });
+  if (!response.ok) {
+    const feil = await response.text().catch(() => "");
+    throw new Error(`DeepL feil (${response.status}): ${feil.slice(0, 200)}`);
+  }
+  const data = (await response.json()) as {
+    translations: Array<{ text: string }>;
+  };
+  return data.translations.map((t) => t.text);
 }
 
 /**

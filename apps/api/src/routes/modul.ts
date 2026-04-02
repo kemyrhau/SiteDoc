@@ -165,4 +165,47 @@ export const modulRouter = router({
         data: { active: false },
       });
     }),
+
+  // Hent oversettelsesinnstillinger for et prosjekt
+  hentOversettelsesInnstillinger: protectedProcedure
+    .input(z.object({ projectId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      const modul = await ctx.prisma.projectModule.findUnique({
+        where: { projectId_moduleSlug: { projectId: input.projectId, moduleSlug: "oversettelse" } },
+      });
+      if (!modul || !modul.active) return { aktiv: false, motor: "opus-mt" as const, apiKey: null };
+      const config = (modul.config ?? {}) as { motor?: string; apiKey?: string };
+      return {
+        aktiv: true,
+        motor: (config.motor ?? "opus-mt") as "opus-mt" | "google" | "deepl",
+        apiKey: config.apiKey ? "••••••••" : null, // Skjul nøkkel
+      };
+    }),
+
+  // Oppdater oversettelsesinnstillinger (kun firmaadmin/prosjektadmin)
+  oppdaterOversettelsesInnstillinger: protectedProcedure
+    .input(z.object({
+      projectId: z.string().uuid(),
+      motor: z.enum(["opus-mt", "google", "deepl"]),
+      apiKey: z.string().optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      const config: Record<string, string> = { motor: input.motor };
+      if (input.apiKey && input.apiKey !== "••••••••") {
+        config.apiKey = input.apiKey;
+      } else if (input.apiKey === "••••••••") {
+        // Behold eksisterende nøkkel
+        const eksisterende = await ctx.prisma.projectModule.findUnique({
+          where: { projectId_moduleSlug: { projectId: input.projectId, moduleSlug: "oversettelse" } },
+        });
+        const eksConfig = (eksisterende?.config ?? {}) as { apiKey?: string };
+        if (eksConfig.apiKey) config.apiKey = eksConfig.apiKey;
+      }
+      return ctx.prisma.projectModule.update({
+        where: { projectId_moduleSlug: { projectId: input.projectId, moduleSlug: "oversettelse" } },
+        data: { config },
+      });
+    }),
 });

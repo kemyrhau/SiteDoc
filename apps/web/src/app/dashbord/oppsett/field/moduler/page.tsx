@@ -16,7 +16,10 @@ import {
   ToggleRight,
   BarChart3,
   FileSearch,
+  Globe,
+  Settings,
 } from "lucide-react";
+import { useState } from "react";
 
 /* Ikon-mapping fra strengnavn til komponent */
 const IKON_MAP: Record<string, React.ReactNode> = {
@@ -26,6 +29,13 @@ const IKON_MAP: Record<string, React.ReactNode> = {
   Box: <Box className="h-6 w-6" />,
   BarChart3: <BarChart3 className="h-6 w-6" />,
   FileSearch: <FileSearch className="h-6 w-6" />,
+  Globe: <Globe className="h-6 w-6" />,
+};
+
+const MOTOR_INFO: Record<string, { navn: string; beskrivelse: string; betalt: boolean }> = {
+  "opus-mt": { navn: "OPUS-MT (gratis)", beskrivelse: "Selvhostet maskinoversettelse. God for enkle tekster.", betalt: false },
+  "google": { navn: "Google Translate", beskrivelse: "Høy kvalitet med kontekstforståelse. Krever API-nøkkel.", betalt: true },
+  "deepl": { navn: "DeepL", beskrivelse: "Beste kvalitet for europeiske språk. Krever API-nøkkel.", betalt: true },
 };
 
 export default function ModulerSide() {
@@ -210,6 +220,123 @@ export default function ModulerSide() {
             </div>
           );
         })}
+      </div>
+
+      {/* Oversettelsesinnstillinger — vises under modulkortet når aktiv */}
+      {aktivMap.get("oversettelse")?.active && prosjektId && (
+        <OversettelsesInnstillinger prosjektId={prosjektId} />
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Oversettelsesinnstillinger                                         */
+/* ------------------------------------------------------------------ */
+
+function OversettelsesInnstillinger({ prosjektId }: { prosjektId: string }) {
+  const { t } = useTranslation();
+  const utils = trpc.useUtils();
+
+  const { data } = trpc.modul.hentOversettelsesInnstillinger.useQuery(
+    { projectId: prosjektId },
+    { enabled: !!prosjektId },
+  );
+
+  const [motor, setMotor] = useState<string>(data?.motor ?? "opus-mt");
+  const [apiKey, setApiKey] = useState(data?.apiKey ?? "");
+  const [lagret, setLagret] = useState(false);
+
+  // Synk state når data lastes
+  if (data && motor === "opus-mt" && data.motor !== "opus-mt" && !lagret) {
+    setMotor(data.motor);
+    setApiKey(data.apiKey ?? "");
+  }
+
+  const oppdaterMut = trpc.modul.oppdaterOversettelsesInnstillinger.useMutation({
+    onSuccess: () => {
+      utils.modul.hentOversettelsesInnstillinger.invalidate({ projectId: prosjektId });
+      setLagret(true);
+      setTimeout(() => setLagret(false), 2000);
+    },
+  });
+
+  const valgtMotor = MOTOR_INFO[motor] ?? MOTOR_INFO["opus-mt"]!;
+
+  return (
+    <div className="mt-6 rounded-xl border border-blue-200 bg-blue-50/50 p-5">
+      <div className="mb-4 flex items-center gap-2">
+        <Settings className="h-5 w-5 text-sitedoc-primary" />
+        <h3 className="font-semibold text-gray-900">Oversettelsesinnstillinger</h3>
+      </div>
+
+      {/* Motorvalg */}
+      <div className="mb-4">
+        <label className="mb-2 block text-sm font-medium text-gray-700">Oversettelsesmotor</label>
+        <div className="grid gap-2 sm:grid-cols-3">
+          {Object.entries(MOTOR_INFO).map(([key, info]) => (
+            <button
+              key={key}
+              onClick={() => setMotor(key)}
+              className={`rounded-lg border p-3 text-left text-sm transition-all ${
+                motor === key
+                  ? "border-sitedoc-primary bg-white shadow-sm"
+                  : "border-gray-200 bg-white hover:border-gray-300"
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="font-medium">{info.navn}</span>
+                {info.betalt && (
+                  <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">Betalt</span>
+                )}
+              </div>
+              <p className="mt-1 text-xs text-gray-500">{info.beskrivelse}</p>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* API-nøkkel (kun for betalte motorer) */}
+      {valgtMotor.betalt && (
+        <div className="mb-4">
+          <label className="mb-1 block text-sm font-medium text-gray-700">
+            API-nøkkel ({motor === "google" ? "Google Cloud" : "DeepL"})
+          </label>
+          <input
+            type="password"
+            value={apiKey}
+            onChange={(e) => setApiKey(e.target.value)}
+            placeholder="Lim inn API-nøkkel..."
+            className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-sitedoc-primary focus:outline-none focus:ring-1 focus:ring-sitedoc-primary"
+          />
+          <p className="mt-1 text-xs text-gray-400">
+            {motor === "google"
+              ? "Opprett en nøkkel på console.cloud.google.com → APIs → Cloud Translation"
+              : "Opprett en nøkkel på deepl.com/pro-api"}
+          </p>
+        </div>
+      )}
+
+      {/* Lagre */}
+      <div className="flex items-center gap-3">
+        <Button
+          size="sm"
+          disabled={oppdaterMut.isPending || (valgtMotor.betalt && !apiKey)}
+          onClick={() => {
+            oppdaterMut.mutate({
+              projectId: prosjektId,
+              motor: motor as "opus-mt" | "google" | "deepl",
+              apiKey: valgtMotor.betalt ? apiKey : undefined,
+            });
+          }}
+        >
+          {oppdaterMut.isPending ? t("handling.lagrer") : t("handling.lagre")}
+        </Button>
+        {lagret && (
+          <span className="flex items-center gap-1 text-sm text-green-600">
+            <Check className="h-4 w-4" /> Lagret
+          </span>
+        )}
       </div>
     </div>
   );

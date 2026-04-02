@@ -715,6 +715,7 @@ model ProjectModule {
   projectId  String   @map("project_id")
   moduleSlug String   @map("module_slug")
   active     Boolean  @default(true)
+  config     Json?    // Modulspesifikk konfigurasjon (f.eks. oversettelsesmotor)
   createdAt  DateTime @default(now()) @map("created_at")
 
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)

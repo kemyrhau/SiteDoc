@@ -391,7 +391,17 @@ export interface ModulObjekt {
   config: Record<string, unknown>;
 }
 
+export type OversettelsesMotor = "opus-mt" | "google" | "deepl";
+
 export const PROSJEKT_MODULER: ModulDefinisjon[] = [
+  {
+    slug: "oversettelse",
+    navn: "Dokumentoversettelse",
+    beskrivelse: "Oversett dokumenter i mapper til flere språk. Gratis med OPUS-MT, eller oppgrader til Google Translate / DeepL for bedre kvalitet.",
+    kategori: "funksjon",
+    ikon: "Globe",
+    maler: [],
+  },
   {
     slug: "godkjenning",
     navn: "Godkjenning",
