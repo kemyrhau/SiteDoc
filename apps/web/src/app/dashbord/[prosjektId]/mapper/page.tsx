@@ -16,7 +16,9 @@ import {
   Trash2,
   Circle,
   AlertCircle,
+  BookOpen,
 } from "lucide-react";
+import Link from "next/link";
 import { beregnSynligeMapper } from "@sitedoc/shared/utils";
 import type { MappeTilgangInput, BrukerTilgangInfo } from "@sitedoc/shared/utils";
 import { useTranslation } from "react-i18next";
@@ -333,6 +335,13 @@ export default function MapperSide() {
               header: "",
               celle: (rad) => (
                 <div className="flex items-center gap-1">
+                  <Link
+                    href={`/dashbord/${prosjektId}/dokumenter/${rad.id}/les`}
+                    className="rounded p-1 text-gray-400 hover:bg-blue-50 hover:text-sitedoc-primary"
+                    title={t("handling.vis")}
+                  >
+                    <BookOpen className="h-4 w-4" />
+                  </Link>
                   <a
                     href={rad.fileUrl}
                     target="_blank"
@@ -355,7 +364,7 @@ export default function MapperSide() {
                   </button>
                 </div>
               ),
-              bredde: "80px",
+              bredde: "110px",
             },
           ]}
           data={(dokumenter ?? []) as DokumentRad[]}
