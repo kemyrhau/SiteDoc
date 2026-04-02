@@ -46,14 +46,19 @@ export const mappeRouter = router({
       `;
       const tellMap = new Map(tellinger.map((t) => [t.folder_id, Number(t.antall)]));
 
-      // Beregn effektive språk for alle mapper (arv)
+      // Beregn effektive målspråk for alle mapper (arv)
       const språkMap = resolverAlleSpråk(mapper.map((m) => ({
         id: m.id,
         parentId: m.parentId,
         languageMode: m.languageMode,
         languages: m.languages as string[],
-        sourceLanguage: m.sourceLanguage,
       })));
+
+      // Hent kildespråk fra prosjektet
+      const prosjekt = await ctx.prisma.project.findUnique({
+        where: { id: input.projectId },
+        select: { sourceLanguage: true },
+      });
 
       return mapper.map((m) => {
         const effektiv = språkMap.get(m.id);
@@ -61,7 +66,7 @@ export const mappeRouter = router({
           ...m,
           _count: { ftdDocuments: tellMap.get(m.id) ?? 0 },
           effektiveSpraak: effektiv?.languages ?? ["nb"],
-          effektivKildesprak: effektiv?.sourceLanguage ?? "nb",
+          kildesprak: prosjekt?.sourceLanguage ?? "nb",
           spraakArvet: effektiv?.arvet ?? true,
         };
       });
@@ -78,17 +83,11 @@ export const mappeRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       await verifiserProsjektmedlem(ctx.userId, input.projectId);
-      // Brukerens språk som standard kildespråk for nye mapper
-      const bruker = await ctx.prisma.user.findUnique({
-        where: { id: ctx.userId },
-        select: { language: true },
-      });
       return ctx.prisma.folder.create({
         data: {
           projectId: input.projectId,
           name: input.name,
           parentId: input.parentId ?? null,
-          sourceLanguage: bruker?.language ?? "nb",
         },
       });
     }),
@@ -119,18 +118,18 @@ export const mappeRouter = router({
     .query(async ({ ctx, input }) => {
       const mappe = await ctx.prisma.folder.findUniqueOrThrow({
         where: { id: input.folderId },
-        select: { projectId: true, languageMode: true, languages: true, sourceLanguage: true, parentId: true },
+        select: { projectId: true },
       });
       await verifiserProsjektmedlem(ctx.userId, mappe.projectId);
 
-      // Resolve effektive språk via arv
+      // Resolve effektive målspråk via arv
       const alleMapper = await ctx.prisma.folder.findMany({
         where: { projectId: mappe.projectId },
-        select: { id: true, parentId: true, languageMode: true, languages: true, sourceLanguage: true },
+        select: { id: true, parentId: true, languageMode: true, languages: true },
       });
       const effektiv = resolverSpråk(input.folderId, alleMapper.map((m) => ({
         id: m.id, parentId: m.parentId, languageMode: m.languageMode,
-        languages: m.languages as string[], sourceLanguage: m.sourceLanguage,
+        languages: m.languages as string[],
       })));
 
       const dokumenter = await ctx.prisma.ftdDocument.findMany({
@@ -277,25 +276,27 @@ export const mappeRouter = router({
       z.object({
         id: z.string().uuid(),
         languages: z.array(z.string().min(2).max(5)).min(1),
-        sourceLanguage: z.string().min(2).max(5).optional(),
         languageMode: z.enum(["inherit", "custom"]).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
       const mappe = await ctx.prisma.folder.findUniqueOrThrow({
         where: { id: input.id },
-        select: { projectId: true, sourceLanguage: true },
+        select: { projectId: true },
       });
       await verifiserProsjektmedlem(ctx.userId, mappe.projectId);
-      const srcLang = input.sourceLanguage ?? mappe.sourceLanguage ?? "nb";
-      // Sørg for at kildespråk alltid er inkludert i målspråk
+      // Hent prosjektets kildespråk og sørg for at det er inkludert
+      const prosjekt = await ctx.prisma.project.findUniqueOrThrow({
+        where: { id: mappe.projectId },
+        select: { sourceLanguage: true },
+      });
+      const srcLang = prosjekt.sourceLanguage ?? "nb";
       const languages = Array.from(new Set([srcLang, ...input.languages]));
       return ctx.prisma.folder.update({
         where: { id: input.id },
         data: {
           languages,
-          sourceLanguage: srcLang,
-          languageMode: input.languageMode ?? "custom", // Å sette språk eksplisitt → custom
+          languageMode: input.languageMode ?? "custom",
         },
       });
     }),
@@ -333,18 +334,18 @@ export const mappeRouter = router({
     .query(async ({ ctx, input }) => {
       const mappe = await ctx.prisma.folder.findUniqueOrThrow({
         where: { id: input.folderId },
-        select: { projectId: true, languageMode: true, languages: true, sourceLanguage: true, parentId: true },
+        select: { projectId: true },
       });
       await verifiserProsjektmedlem(ctx.userId, mappe.projectId);
 
-      // Resolve effektive språk via arv
+      // Resolve effektive målspråk via arv
       const alleMapper = await ctx.prisma.folder.findMany({
         where: { projectId: mappe.projectId },
-        select: { id: true, parentId: true, languageMode: true, languages: true, sourceLanguage: true },
+        select: { id: true, parentId: true, languageMode: true, languages: true },
       });
       const effektiv = resolverSpråk(input.folderId, alleMapper.map((m) => ({
         id: m.id, parentId: m.parentId, languageMode: m.languageMode,
-        languages: m.languages as string[], sourceLanguage: m.sourceLanguage,
+        languages: m.languages as string[],
       })));
 
       const docs = await ctx.prisma.ftdDocument.findMany({

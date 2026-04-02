@@ -286,6 +286,7 @@ export const prosjektRouter = router({
         externalProjectNumber: z.string().max(100).nullable().optional(),
         logoUrl: z.string().max(500).nullable().optional(),
         showInternalProjectNumber: z.boolean().optional(),
+        sourceLanguage: z.string().min(2).max(5).optional(),
         status: z.enum(["active", "archived", "completed", "deactivated"]).optional(),
       }),
     )

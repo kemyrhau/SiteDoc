@@ -537,7 +537,7 @@ function SpraakModal({
   mappeId,
   mappeNavn,
   initialSpraak,
-  initialKildesprak,
+  kildesprak,
   languageMode,
   onLukk,
   onLagre,
@@ -547,17 +547,16 @@ function SpraakModal({
   mappeId: string;
   mappeNavn: string;
   initialSpraak: string[];
-  initialKildesprak: string;
+  kildesprak: string;
   languageMode: string;
   onLukk: () => void;
-  onLagre: (spraak: string[], kildesprak: string) => void;
+  onLagre: (spraak: string[]) => void;
   onSettArv: () => void;
   lagrer: boolean;
 }) {
   const { t } = useTranslation();
   const [modus, setModus] = useState<"inherit" | "custom">(languageMode === "custom" ? "custom" : "inherit");
-  const [valgte, setValgte] = useState<string[]>(initialSpraak.length > 0 ? initialSpraak : ["nb"]);
-  const [kildesprak, setKildesprak] = useState(initialKildesprak);
+  const [valgte, setValgte] = useState<string[]>(initialSpraak.length > 0 ? initialSpraak : [kildesprak]);
 
   // Hent kostnadsestimat
   const { data: estimat } = trpc.mappe.estimerOversettelse.useQuery(
@@ -567,6 +566,7 @@ function SpraakModal({
 
   const ekstraSpraak = valgte.filter((k) => k !== kildesprak).length;
   const totaltOrd = estimat?.totaltOrd ?? 0;
+  const kildeInfo = STOETTEDE_SPRAAK.find((s) => s.kode === kildesprak);
 
   return (
     <Modal
@@ -575,6 +575,13 @@ function SpraakModal({
       title={`${t("mappeoppsett.spraak")} — ${mappeNavn}`}
     >
       <div className="flex flex-col gap-4">
+        {/* Kildespråk (read-only, settes på prosjektnivå) */}
+        <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
+          <span className="text-xs font-medium text-gray-500">{t("mappeoppsett.kildesprak")}:</span>
+          <span className="text-sm text-gray-800">{kildeInfo?.flagg} {kildeInfo?.navn ?? kildesprak}</span>
+          <span className="text-[10px] text-gray-400">({t("mappeoppsett.kildesprakProsjekt")})</span>
+        </div>
+
         {/* Arv/egendefinert-velger */}
         <div className="flex gap-2">
           <button
@@ -619,30 +626,6 @@ function SpraakModal({
           </div>
         ) : (
           <>
-            {/* Kildespråk-velger */}
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
-                {t("mappeoppsett.kildesprak")}
-              </label>
-              <select
-                value={kildesprak}
-                onChange={(e) => {
-                  const nytt = e.target.value;
-                  setKildesprak(nytt);
-                  // Sørg for at kildespråk alltid er i listen
-                  setValgte((prev) => prev.includes(nytt) ? prev : [nytt, ...prev]);
-                }}
-                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700"
-              >
-                {STOETTEDE_SPRAAK.map((s) => (
-                  <option key={s.kode} value={s.kode}>
-                    {s.flagg} {s.navn}
-                  </option>
-                ))}
-              </select>
-              <p className="mt-1 text-xs text-gray-400">{t("mappeoppsett.kildesprakBeskrivelse")}</p>
-            </div>
-
             <p className="text-sm text-gray-500">{t("mappeoppsett.spraakBeskrivelse")}</p>
 
             {/* Målspråk-velger */}
@@ -708,7 +691,7 @@ function SpraakModal({
               if (modus === "inherit") {
                 onSettArv();
               } else {
-                onLagre(valgte, kildesprak);
+                onLagre(valgte);
               }
             }}
           >
@@ -1171,6 +1154,9 @@ export default function BoxSide() {
   // Språk-modal
   const [spraakModal, setSpraakModal] = useState<{ id: string; navn: string; languages: string[]; kildesprak: string; languageMode: string } | null>(null);
 
+  // Hent prosjektets kildespråk (for SpraakModal)
+  const prosjektKildesprak = (mapper?.[0] as unknown as { kildesprak?: string })?.kildesprak ?? "nb";
+
   const oppdaterSpraakMut = trpc.mappe.oppdaterSpraak.useMutation({
     onSuccess: () => {
       utils.mappe.hentForProsjekt.invalidate({ projectId: prosjektId! });
@@ -1188,8 +1174,7 @@ export default function BoxSide() {
   function handleRedigerSpraak(id: string, navn: string, languages: string[]) {
     const mappeData = mapper?.find((m) => m.id === id);
     const languageMode = mappeData?.languageMode ?? "inherit";
-    const kildesprak = (mappeData as unknown as { effektivKildesprak?: string })?.effektivKildesprak ?? "nb";
-    setSpraakModal({ id, navn, languages, kildesprak, languageMode });
+    setSpraakModal({ id, navn, languages, kildesprak: prosjektKildesprak, languageMode });
   }
 
   function handleKobleTilKontrakt(id: string, navn: string, eksisterende: string | null) {
@@ -1503,11 +1488,11 @@ export default function BoxSide() {
           mappeId={spraakModal.id}
           mappeNavn={spraakModal.navn}
           initialSpraak={spraakModal.languages}
-          initialKildesprak={spraakModal.kildesprak}
+          kildesprak={spraakModal.kildesprak}
           languageMode={spraakModal.languageMode}
           onLukk={() => setSpraakModal(null)}
-          onLagre={(spraak, kildesprak) => {
-            oppdaterSpraakMut.mutate({ id: spraakModal.id, languages: spraak, sourceLanguage: kildesprak, languageMode: "custom" });
+          onLagre={(spraak) => {
+            oppdaterSpraakMut.mutate({ id: spraakModal.id, languages: spraak, languageMode: "custom" });
           }}
           onSettArv={() => {
             settSpraakArvMut.mutate({ id: spraakModal.id });

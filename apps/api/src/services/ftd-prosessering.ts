@@ -158,24 +158,28 @@ async function genererBlokkOgOversett(
   buffer: Buffer,
   ext: string,
 ): Promise<void> {
-  // Hent mappeinfo for språkinnstillinger (med arv)
+  // Hent prosjekt + mappeinfo for språkinnstillinger
   let languages: string[] = ["nb"];
-  let mappeSpråk = "nb";
+  let prosjektKildespråk = "nb";
   let projectId: string | null = null;
 
   if (folderId) {
     const mappe = await prisma.folder.findUnique({
       where: { id: folderId },
-      select: { projectId: true, sourceLanguage: true },
+      select: { projectId: true },
     });
     if (mappe) {
       projectId = mappe.projectId;
-      mappeSpråk = mappe.sourceLanguage ?? "nb";
-      // Resolve effektive språk via arv
+      // Kildespråk fra prosjektet
+      const prosjekt = await prisma.project.findUnique({
+        where: { id: mappe.projectId },
+        select: { sourceLanguage: true },
+      });
+      prosjektKildespråk = prosjekt?.sourceLanguage ?? "nb";
+      // Resolve effektive målspråk via arv
       const { hentEffektiveSpråk } = await import("./folder-spraak");
       const effektiv = await hentEffektiveSpråk(prisma, folderId);
       languages = effektiv.languages;
-      mappeSpråk = effektiv.sourceLanguage;
     }
   }
 
@@ -183,8 +187,8 @@ async function genererBlokkOgOversett(
   const tekst = buffer.toString("utf-8").slice(0, 5000);
   const detektert = detekterSpraak(tekst);
 
-  // Bruk mappens kildespråk som standard, men lagre detektert for kontroll
-  const kildeSpråk = mappeSpråk;
+  // Bruk prosjektets kildespråk, men lagre detektert for kontroll
+  const kildeSpråk = prosjektKildespråk;
 
   // Lagre kildespråk + detektert språk på dokumentet
   await prisma.ftdDocument.update({

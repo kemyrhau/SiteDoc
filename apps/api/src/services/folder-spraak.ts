@@ -5,12 +5,10 @@ interface SpråkMappe {
   parentId: string | null;
   languageMode: string;
   languages: string[];
-  sourceLanguage: string;
 }
 
 export interface EffektiveSpråk {
   languages: string[];
-  sourceLanguage: string;
   /** ID-en til mappen som faktisk definerer språkene (null = prosjektstandard) */
   kildeMappeId: string | null;
   /** Om denne mappen arver eller har egne innstillinger */
@@ -18,20 +16,21 @@ export interface EffektiveSpråk {
 }
 
 /**
- * Hent effektive språkinnstillinger for en mappe.
+ * Hent effektive målspråk for en mappe.
  * Går opp foreldrekjeden til den finner en mappe med languageMode = "custom".
- * Hvis ingen finnes → standard (["nb"], "nb").
+ * Hvis ingen finnes → standard (kun kildespråk fra prosjektet).
+ *
+ * Kildespråk defineres på prosjektnivå, ikke per mappe.
  */
 export async function hentEffektiveSpråk(
   prisma: PrismaClient,
   mappeId: string,
 ): Promise<EffektiveSpråk> {
-  // Hent alle mapper i prosjektet (samme mønster som tilgangskontroll)
   const mappe = await prisma.folder.findUnique({
     where: { id: mappeId },
     select: { projectId: true },
   });
-  if (!mappe) return { languages: ["nb"], sourceLanguage: "nb", kildeMappeId: null, arvet: false };
+  if (!mappe) return { languages: ["nb"], kildeMappeId: null, arvet: false };
 
   const mapper = await prisma.folder.findMany({
     where: { projectId: mappe.projectId },
@@ -40,7 +39,6 @@ export async function hentEffektiveSpråk(
       parentId: true,
       languageMode: true,
       languages: true,
-      sourceLanguage: true,
     },
   });
 
@@ -48,42 +46,34 @@ export async function hentEffektiveSpråk(
 }
 
 /**
- * Resolver språkinnstillinger fra en flat liste med mapper.
- * Kan brukes direkte når mappelisten allerede er hentet.
+ * Resolver målspråk fra en flat liste med mapper.
  */
 export function resolverSpråk(
   mappeId: string,
   mapper: SpråkMappe[],
 ): EffektiveSpråk {
   const mappe = mapper.find((m) => m.id === mappeId);
-  if (!mappe) return { languages: ["nb"], sourceLanguage: "nb", kildeMappeId: null, arvet: false };
+  if (!mappe) return { languages: ["nb"], kildeMappeId: null, arvet: false };
 
-  // Custom → bruk egne innstillinger
   if (mappe.languageMode === "custom") {
     return {
       languages: mappe.languages.length > 0 ? mappe.languages : ["nb"],
-      sourceLanguage: mappe.sourceLanguage ?? "nb",
       kildeMappeId: mappe.id,
       arvet: false,
     };
   }
 
-  // Inherit → gå opp til forelder
   if (mappe.parentId) {
     const foreldreResultat = resolverSpråk(mappe.parentId, mapper);
-    return {
-      ...foreldreResultat,
-      arvet: true,
-    };
+    return { ...foreldreResultat, arvet: true };
   }
 
-  // Rot med inherit → prosjektstandard
-  return { languages: ["nb"], sourceLanguage: "nb", kildeMappeId: null, arvet: true };
+  // Rot med inherit → kun prosjektets kildespråk
+  return { languages: ["nb"], kildeMappeId: null, arvet: true };
 }
 
 /**
- * Beregn effektive språk for alle mapper i ett prosjekt (batch).
- * Returnerer Map<mappeId, EffektiveSpråk>.
+ * Beregn effektive målspråk for alle mapper i ett prosjekt (batch).
  */
 export function resolverAlleSpråk(
   mapper: SpråkMappe[],

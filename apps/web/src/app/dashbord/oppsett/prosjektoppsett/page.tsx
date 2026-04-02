@@ -18,7 +18,9 @@ import {
   X,
   Upload,
   ImageIcon,
+  Globe,
 } from "lucide-react";
+import { STOETTEDE_SPRAAK } from "@sitedoc/shared";
 
 // Leaflet krever window — laster dynamisk uten SSR
 const KartVelgerDynamic = dynamic(
@@ -107,6 +109,7 @@ export default function ProsjektoppsettSide() {
   const [eksterntNummer, setEksterntNummer] = useState("");
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [visInterntNummer, setVisInterntNummer] = useState(true);
+  const [kildesprak, setKildesprak] = useState("nb");
   const [lasterOppLogo, setLasterOppLogo] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
   const [harEndringer, setHarEndringer] = useState(false);
@@ -124,6 +127,7 @@ export default function ProsjektoppsettSide() {
       setEksterntNummer(prosjekt.externalProjectNumber ?? "");
       setLogoUrl(prosjekt.logoUrl ?? null);
       setVisInterntNummer((prosjekt as { showInternalProjectNumber?: boolean }).showInternalProjectNumber !== false);
+      setKildesprak((prosjekt as unknown as { sourceLanguage?: string }).sourceLanguage ?? "nb");
       setHarEndringer(false);
     }
   }, [prosjekt]);
@@ -179,6 +183,7 @@ export default function ProsjektoppsettSide() {
       externalProjectNumber: eksterntNummer.trim() || null,
       logoUrl: logoUrl || null,
       showInternalProjectNumber: visInterntNummer,
+      sourceLanguage: kildesprak,
       status: status as "active" | "archived" | "completed",
     });
   }
@@ -390,6 +395,27 @@ export default function ProsjektoppsettSide() {
               </p>
             </div>
           </label>
+        </Seksjon>
+
+        {/* Kildespråk */}
+        <Seksjon
+          tittel={t("prosjektoppsett.kildesprak")}
+          beskrivelse={t("prosjektoppsett.kildesprakBeskrivelse")}
+        >
+          <div className="flex items-center gap-3">
+            <Globe className="h-4 w-4 text-gray-400" />
+            <select
+              value={kildesprak}
+              onChange={(e) => handleFeltEndring(setKildesprak)(e.target.value)}
+              className="rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700"
+            >
+              {STOETTEDE_SPRAAK.map((s) => (
+                <option key={s.kode} value={s.kode}>
+                  {s.flagg} {s.navn}
+                </option>
+              ))}
+            </select>
+          </div>
         </Seksjon>
 
         {/* Prosjektstatus */}

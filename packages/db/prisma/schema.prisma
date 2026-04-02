@@ -123,6 +123,7 @@ model Project {
   externalProjectNumber     String?  @map("external_project_number")
   logoUrl                   String?  @map("logo_url")
   showInternalProjectNumber Boolean  @default(true) @map("show_internal_project_number")
+  sourceLanguage            String   @default("nb") @map("source_language") // Kildespråk for prosjektet
   status                    String   @default("active")
   createdAt                 DateTime @default(now()) @map("created_at")
   updatedAt                 DateTime @updatedAt @map("updated_at")
@@ -576,7 +577,6 @@ model Folder {
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
 
-  sourceLanguage String   @default("nb") @map("source_language") // Standard kildespråk for dokumenter i mappen
   languages      String[] @default(["nb"]) // Målspråk for dokumentoversettelse
   languageMode   String   @default("inherit") @map("language_mode") // "inherit" | "custom"
 
