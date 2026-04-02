@@ -1,6 +1,6 @@
-import { View, Text, Pressable } from "react-native";
+import { View, Text, Pressable, ActivityIndicator } from "react-native";
 import { useState, type ReactNode } from "react";
-import { Plus, Info } from "lucide-react-native";
+import { Plus, Info, Globe } from "lucide-react-native";
 import type { Vedlegg } from "../../hooks/useSjekklisteSkjema";
 import { FeltDokumentasjon } from "./FeltDokumentasjon";
 
@@ -30,6 +30,11 @@ interface FeltWrapperProps {
   oppgaveId?: string;
   onOpprettOppgave?: () => void;
   onNavigerTilOppgave?: (id: string) => void;
+  /** Oversettelser for firmainnhold (on-demand) */
+  oversettelser?: Record<string, string>;
+  oversettelseLaster?: boolean;
+  onOversett?: () => void;
+  visOversettKnapp?: boolean;
   children: ReactNode;
 }
 
@@ -52,9 +57,16 @@ export function FeltWrapper({
   oppgaveId,
   onOpprettOppgave,
   onNavigerTilOppgave,
+  oversettelser,
+  oversettelseLaster,
+  onOversett,
+  visOversettKnapp,
   children,
 }: FeltWrapperProps) {
   const [visHjelpetekst, setVisHjelpetekst] = useState(false);
+  const [visOversettelse, setVisOversettelse] = useState(false);
+  const oversattLabel = oversettelser?.[objekt.label];
+  const oversattHjelpetekst = typeof objekt.config.helpText === "string" ? oversettelser?.[objekt.config.helpText] : undefined;
 
   // Bakoverkompatibilitet: erBetinget → nestingNivå=1
   const effektivNivå = nestingNivå > 0 ? nestingNivå : (erBetinget ? 1 : 0);
@@ -69,7 +81,7 @@ export function FeltWrapper({
     <View
       className={`rounded-lg bg-white p-4 ${marginKlasse} ${rammeKlasse}`}
     >
-      {/* Label + påkrevd-badge + hjelpetekst */}
+      {/* Label + påkrevd-badge + hjelpetekst + oversettelse */}
       <View className="mb-2 flex-row items-center gap-2">
         <Text className="text-sm font-medium text-gray-900">{objekt.label}</Text>
         {objekt.required && (
@@ -82,9 +94,31 @@ export function FeltWrapper({
             <Info size={14} color="#60a5fa" />
           </Pressable>
         )}
+        {visOversettKnapp && (
+          <Pressable
+            onPress={() => {
+              if (!oversattLabel && onOversett) onOversett();
+              setVisOversettelse((v) => !v);
+            }}
+          >
+            {oversettelseLaster ? (
+              <ActivityIndicator size="small" color="#3b82f6" />
+            ) : (
+              <Globe size={14} color={visOversettelse && oversattLabel ? "#1e40af" : "#93c5fd"} />
+            )}
+          </Pressable>
+        )}
       </View>
+      {visOversettelse && oversattLabel && (
+        <Text className="mb-1 text-xs italic text-blue-600">{oversattLabel}</Text>
+      )}
       {visHjelpetekst && typeof objekt.config.helpText === "string" && (
-        <Text className="mb-2 text-xs text-gray-500">{objekt.config.helpText}</Text>
+        <View className="mb-2">
+          <Text className="text-xs text-gray-500">{objekt.config.helpText}</Text>
+          {visOversettelse && oversattHjelpetekst && (
+            <Text className="mt-0.5 text-xs italic text-blue-500">{oversattHjelpetekst}</Text>
+          )}
+        </View>
       )}
 
       {/* Typespesifikk input */}

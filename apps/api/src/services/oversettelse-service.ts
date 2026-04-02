@@ -12,7 +12,7 @@ const OVERSETTELSE_URL = process.env.OVERSETTELSE_URL ?? "http://localhost:3303"
 const BATCH_STØRRELSE = 30;
 const POLL_INTERVALL = 10_000; // 10 sekunder
 
-type OversettelsesMotor = "opus-mt" | "google" | "deepl";
+export type OversettelsesMotor = "opus-mt" | "google" | "deepl";
 
 /**
  * Start bakgrunnsløkke som prosesserer oversettelsesoppdrag.
@@ -296,7 +296,7 @@ async function oversettBlokker(
 /**
  * Velg oversettelsesmotor og oversett.
  */
-async function oversettMedMotor(
+export async function oversettMedMotor(
   tekster: string[],
   kilde: string,
   maal: string,
@@ -408,7 +408,7 @@ async function kallOversettelsesServer(
 /**
  * SHA-256 hash av tekst for translation cache.
  */
-function hashTekst(tekst: string): string {
+export function hashTekst(tekst: string): string {
   return createHash("sha256").update(tekst).digest("hex");
 }
 

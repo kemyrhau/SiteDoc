@@ -88,6 +88,7 @@ export const oppgaveRouter = router({
           template: {
             include: {
               objects: { orderBy: { sortOrder: "asc" } },
+              project: { select: { sourceLanguage: true } },
             },
           },
           creator: true,

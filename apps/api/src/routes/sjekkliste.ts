@@ -53,7 +53,7 @@ export const sjekklisteRouter = router({
       const sjekkliste = await ctx.prisma.checklist.findUniqueOrThrow({
         where: { id: input.id },
         include: {
-          template: { include: { objects: { orderBy: { sortOrder: "asc" } } } },
+          template: { include: { objects: { orderBy: { sortOrder: "asc" } }, project: { select: { sourceLanguage: true } } } },
           creatorEnterprise: true,
           responderEnterprise: true,
           creator: true,

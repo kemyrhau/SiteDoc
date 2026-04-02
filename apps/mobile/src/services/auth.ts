@@ -13,6 +13,7 @@ export interface BrukerData {
   name: string | null;
   email: string;
   image: string | null;
+  language?: string;
 }
 
 // --- Plattformspesifikk lagring (SecureStore på native, localStorage på web) ---

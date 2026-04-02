@@ -1,5 +1,5 @@
-import type { ReactNode } from "react";
-import { Plus, Info } from "lucide-react";
+import { useState, type ReactNode } from "react";
+import { Plus, Info, Globe, Loader2 } from "lucide-react";
 import type { Vedlegg } from "./typer";
 import { FeltDokumentasjon } from "./FeltDokumentasjon";
 
@@ -26,6 +26,11 @@ interface FeltWrapperProps {
   oppgaveId?: string;
   onOpprettOppgave?: () => void;
   onNavigerTilOppgave?: (id: string) => void;
+  /** Oversettelser for firmainnhold (on-demand) */
+  oversettelser?: Record<string, string>;
+  oversettelseLaster?: boolean;
+  onOversett?: () => void;
+  visOversettKnapp?: boolean;
   children: ReactNode;
 }
 
@@ -46,8 +51,16 @@ export function FeltWrapper({
   oppgaveId,
   onOpprettOppgave,
   onNavigerTilOppgave,
+  oversettelser,
+  oversettelseLaster,
+  onOversett,
+  visOversettKnapp,
   children,
 }: FeltWrapperProps) {
+  const [visOversettelse, setVisOversettelse] = useState(false);
+  const oversattLabel = oversettelser?.[objekt.label];
+  const oversattHjelpetekst = typeof objekt.config.helpText === "string" ? oversettelser?.[objekt.config.helpText] : undefined;
+
   // Gradert innrykk: ml-4 per nivå, maks ml-12
   const marginKlasse = nestingNivå > 0
     ? nestingNivå === 1 ? "ml-4" : nestingNivå === 2 ? "ml-8" : "ml-12"
@@ -56,7 +69,7 @@ export function FeltWrapper({
 
   return (
     <div className={`rounded-lg bg-white p-4 shadow-sm ${marginKlasse} ${rammeKlasse}`}>
-      {/* Label + påkrevd-badge + hjelpetekst */}
+      {/* Label + påkrevd-badge + hjelpetekst + oversettelse */}
       <div className="mb-2 flex items-center gap-2">
         <span className="text-sm font-medium text-gray-900">{objekt.label}</span>
         {objekt.required && (
@@ -69,10 +82,32 @@ export function FeltWrapper({
             <Info size={14} className="text-blue-400" />
             <span className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-1 hidden w-56 -translate-x-1/2 rounded bg-gray-800 px-2.5 py-1.5 text-xs text-white shadow-lg group-hover:block">
               {objekt.config.helpText as string}
+              {visOversettelse && oversattHjelpetekst && (
+                <span className="mt-1 block border-t border-gray-600 pt-1 italic text-blue-300">{oversattHjelpetekst}</span>
+              )}
             </span>
           </span>
         )}
+        {visOversettKnapp && (
+          <button
+            type="button"
+            onClick={() => {
+              if (!oversattLabel && onOversett) onOversett();
+              setVisOversettelse((v) => !v);
+            }}
+            className="rounded p-0.5 hover:bg-blue-50"
+          >
+            {oversettelseLaster ? (
+              <Loader2 size={14} className="animate-spin text-blue-400" />
+            ) : (
+              <Globe size={14} className={visOversettelse && oversattLabel ? "text-sitedoc-primary" : "text-blue-300"} />
+            )}
+          </button>
+        )}
       </div>
+      {visOversettelse && oversattLabel && (
+        <p className="mb-1 text-xs italic text-blue-600">{oversattLabel}</p>
+      )}
 
       {/* Typespesifikk input */}
       {children}

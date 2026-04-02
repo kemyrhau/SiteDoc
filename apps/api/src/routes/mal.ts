@@ -3,6 +3,8 @@ import type { Prisma } from "@sitedoc/db";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { reportObjectTypeSchema, templateZoneSchema, createTemplateSchema } from "@sitedoc/shared";
 import { verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
+import { oversettMedMotor, hashTekst } from "../services/oversettelse-service";
+import type { OversettelsesMotor } from "../services/oversettelse-service";
 
 // Config-schema: aksepterer vilkårlig JSON for rapportobjekt-konfigurasjon
 const configSchema = z.preprocess(
@@ -288,5 +290,78 @@ export const malRouter = router({
       const objekt = await ctx.prisma.reportObject.findUniqueOrThrow({ where: { id: input.id }, include: { template: { select: { projectId: true } } } });
       await verifiserProsjektmedlem(ctx.userId, objekt.template.projectId);
       return ctx.prisma.reportObject.delete({ where: { id: input.id } });
+    }),
+
+  // On-demand oversettelse av firmainnhold (feltlabels, hjelpetekst, valgalternativer)
+  oversettFelter: protectedProcedure
+    .input(z.object({
+      projectId: z.string().uuid(),
+      tekster: z.array(z.string().min(1)).min(1).max(200),
+      targetLang: z.string().min(2).max(5),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      await verifiserProsjektmedlem(ctx.userId, input.projectId);
+
+      // Hent prosjektets kildespråk
+      const prosjekt = await ctx.prisma.project.findUniqueOrThrow({
+        where: { id: input.projectId },
+        select: { sourceLanguage: true },
+      });
+      const sourceLang = prosjekt.sourceLanguage ?? "nb";
+
+      // Ingen oversettelse nødvendig hvis samme språk
+      if (sourceLang === input.targetLang) {
+        return Object.fromEntries(input.tekster.map((t) => [t, t]));
+      }
+
+      // Sjekk TranslationCache
+      const hashes = input.tekster.map((t) => hashTekst(t));
+      const hashTilTekst = new Map(input.tekster.map((t, i) => [hashes[i]!, t]));
+      const cached = await ctx.prisma.translationCache.findMany({
+        where: {
+          contentHash: { in: hashes },
+          sourceLang,
+          targetLang: input.targetLang,
+        },
+      });
+      const cacheMap = new Map(cached.map((c) => [c.contentHash, c.targetText]));
+
+      // Finn uncached tekster
+      const manglendeHashes = hashes.filter((h) => !cacheMap.has(h));
+      const manglendeTekster = manglendeHashes.map((h) => hashTilTekst.get(h)!);
+
+      // Oversett manglende
+      if (manglendeTekster.length > 0) {
+        // Hent oversettelsesmotor fra prosjektets modul-config
+        const modul = await ctx.prisma.projectModule.findUnique({
+          where: { projectId_moduleSlug: { projectId: input.projectId, moduleSlug: "oversettelse" } },
+        });
+        const config = (modul?.config ?? {}) as { motor?: string; apiKey?: string };
+        const motor = (config.motor ?? "opus-mt") as OversettelsesMotor;
+
+        const oversatte = await oversettMedMotor(manglendeTekster, sourceLang, input.targetLang, motor, config.apiKey);
+
+        // Lagre i cache
+        const cacheData = manglendeTekster.map((tekst, i) => ({
+          contentHash: hashTekst(tekst),
+          sourceLang,
+          targetLang: input.targetLang,
+          sourceText: tekst,
+          targetText: oversatte[i] ?? tekst,
+        }));
+        await ctx.prisma.translationCache.createMany({ data: cacheData, skipDuplicates: true });
+
+        // Legg til i cacheMap
+        for (let i = 0; i < manglendeTekster.length; i++) {
+          cacheMap.set(hashTekst(manglendeTekster[i]!), oversatte[i] ?? manglendeTekster[i]!);
+        }
+      }
+
+      // Bygg resultat: original → oversettelse
+      const resultat: Record<string, string> = {};
+      for (const tekst of input.tekster) {
+        resultat[tekst] = cacheMap.get(hashTekst(tekst)) ?? tekst;
+      }
+      return resultat;
     }),
 });
