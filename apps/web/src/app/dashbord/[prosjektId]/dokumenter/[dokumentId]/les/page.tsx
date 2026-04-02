@@ -125,67 +125,14 @@ export default function DokumentLeser() {
       {/* Innhold */}
       <main className="flex-1 overflow-y-auto">
         <div className="mx-auto max-w-3xl px-4 py-8">
-        {/* Sammenlign-popover */}
-        {sammenlignBlokk && språk !== "nb" && (
-          <div className="mb-6 rounded-xl border-2 border-sitedoc-primary/30 bg-white p-4 shadow-lg">
-            <div className="mb-3 flex items-center justify-between">
-              <h4 className="text-sm font-semibold text-gray-900">{t("handling.vis")} — {t("mappeoppsett.spraak")}</h4>
-              <button onClick={() => setSammenlignBlokk(null)} className="rounded p-1 text-gray-400 hover:bg-gray-100">
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-            <p className="mb-3 rounded bg-gray-50 p-2 text-xs italic text-gray-500">{sammenlignBlokk.content}</p>
-            {sammenlignLaster ? (
-              <div className="flex items-center gap-2 py-4 text-sm text-gray-400">
-                <Loader2 className="h-4 w-4 animate-spin" /> {t("handling.laster")}
-              </div>
-            ) : (
-              <div className="flex flex-col gap-2">
-                {sammenlignData?.map((r) => (
-                  <div key={r.motor} className={`rounded-lg border p-3 ${r.feil ? "border-red-200 bg-red-50" : "border-gray-200"}`}>
-                    <div className="mb-1 flex items-center justify-between">
-                      <span className="text-xs font-medium text-gray-600">{r.navn}</span>
-                      {!r.feil && (
-                        <button
-                          onClick={() => {
-                            reOversettMut.mutate({
-                              projectId: prosjektId,
-                              documentId: dokumentId,
-                              targetLang: språk,
-                              motor: r.motor as "opus-mt" | "google" | "deepl",
-                            });
-                          }}
-                          disabled={reOversettMut.isPending}
-                          className="flex items-center gap-1 rounded bg-sitedoc-primary px-2 py-0.5 text-[10px] font-medium text-white hover:bg-sitedoc-secondary"
-                        >
-                          <RefreshCw className="h-3 w-3" />
-                          Re-oversett
-                        </button>
-                      )}
-                    </div>
-                    <p className="text-sm text-gray-800">{r.resultat ?? r.feil}</p>
-                  </div>
-                ))}
-                {reOversettMut.isPending && (
-                  <div className="flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-700">
-                    <Loader2 className="h-4 w-4 animate-spin" /> Re-oversetter hele dokumentet...
-                  </div>
-                )}
-                {reOversettMut.isSuccess && (
-                  <div className="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700">
-                    <Check className="h-4 w-4" /> Oversettelse startet — oppdateres automatisk
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-
         {data.blokker.map((blokk) => {
           const innhold = highlightTekst(blokk.content, highlight);
           const erKlikkbar = språk !== "nb" && ["heading", "text", "caption"].includes(blokk.blockType);
+          const erValgt = sammenlignBlokk?.id === blokk.id;
 
-          switch (blokk.blockType) {
+          // Wrapper som rendrer blokk + inline sammenlign-panel
+          const blokkElement = (() => {
+            switch (blokk.blockType) {
             case "heading": {
               const Tag = `h${Math.min(blokk.headingLevel ?? 2, 6)}` as keyof JSX.IntrinsicElements;
               const størrelse = {
@@ -199,9 +146,8 @@ export default function DokumentLeser() {
 
               return (
                 <Tag
-                  key={blokk.id}
-                  className={`text-gray-900 ${størrelse} ${erKlikkbar ? "cursor-pointer rounded px-1 -mx-1 hover:bg-amber-50 transition-colors" : ""}`}
-                  onClick={erKlikkbar ? () => setSammenlignBlokk({ id: blokk.id, content: blokk.content }) : undefined}
+                  className={`text-gray-900 ${størrelse} ${erKlikkbar ? "cursor-pointer rounded px-1 -mx-1 hover:bg-amber-50 transition-colors" : ""} ${erValgt ? "bg-amber-100 rounded px-1 -mx-1" : ""}`}
+                  onClick={erKlikkbar ? () => setSammenlignBlokk(erValgt ? null : { id: blokk.id, content: blokk.content }) : undefined}
                   dangerouslySetInnerHTML={{ __html: innhold }}
                 />
               );
@@ -210,9 +156,8 @@ export default function DokumentLeser() {
             case "text":
               return (
                 <div
-                  key={blokk.id}
-                  className={`mb-4 whitespace-pre-wrap text-base leading-7 text-gray-800 ${erKlikkbar ? "cursor-pointer rounded px-1 -mx-1 hover:bg-amber-50 transition-colors" : ""}`}
-                  onClick={erKlikkbar ? () => setSammenlignBlokk({ id: blokk.id, content: blokk.content }) : undefined}
+                  className={`mb-4 whitespace-pre-wrap text-base leading-7 text-gray-800 ${erKlikkbar ? "cursor-pointer rounded px-1 -mx-1 hover:bg-amber-50 transition-colors" : ""} ${erValgt ? "bg-amber-100 rounded px-1 -mx-1" : ""}`}
+                  onClick={erKlikkbar ? () => setSammenlignBlokk(erValgt ? null : { id: blokk.id, content: blokk.content }) : undefined}
                   dangerouslySetInnerHTML={{ __html: innhold }}
                 />
               );
@@ -232,8 +177,8 @@ export default function DokumentLeser() {
             case "caption":
               return (
                 <figcaption
-                  key={blokk.id}
-                  className="mb-6 text-center text-sm italic text-gray-500"
+                  className={`mb-6 text-center text-sm italic text-gray-500 ${erKlikkbar ? "cursor-pointer hover:bg-amber-50 transition-colors" : ""} ${erValgt ? "bg-amber-100" : ""}`}
+                  onClick={erKlikkbar ? () => setSammenlignBlokk(erValgt ? null : { id: blokk.id, content: blokk.content }) : undefined}
                   dangerouslySetInnerHTML={{ __html: innhold }}
                 />
               );
@@ -241,7 +186,6 @@ export default function DokumentLeser() {
             case "table":
               return (
                 <div
-                  key={blokk.id}
                   className="my-4 overflow-x-auto rounded-lg border border-gray-200"
                   dangerouslySetInnerHTML={{ __html: blokk.content }}
                 />
@@ -249,11 +193,80 @@ export default function DokumentLeser() {
 
             default:
               return (
-                <p key={blokk.id} className="mb-4 text-gray-700">
+                <p className="mb-4 text-gray-700">
                   {blokk.content}
                 </p>
               );
-          }
+            }
+          })();
+
+          return (
+            <div key={blokk.id}>
+              {blokkElement}
+              {/* Inline sammenlign-panel — vises rett under den klikkede blokken */}
+              {erValgt && språk !== "nb" && (
+                <div className="mb-6 mt-2 rounded-xl border-2 border-amber-300 bg-amber-50 p-4 shadow-md">
+                  <div className="mb-3 flex items-center justify-between">
+                    <h4 className="text-sm font-semibold text-gray-900">Sammenlign oversettelse</h4>
+                    <button onClick={() => setSammenlignBlokk(null)} className="rounded p-1 text-gray-400 hover:bg-amber-100">
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+
+                  {sammenlignLaster ? (
+                    <div className="flex items-center gap-2 py-4 text-sm text-gray-500">
+                      <Loader2 className="h-4 w-4 animate-spin" /> Henter oversettelser fra tilgjengelige motorer...
+                    </div>
+                  ) : sammenlignData && sammenlignData.length > 0 ? (
+                    <div className="flex flex-col gap-3">
+                      {sammenlignData.map((r) => (
+                        <div key={r.motor} className={`rounded-lg border p-3 bg-white ${r.feil ? "border-red-200" : "border-gray-200"}`}>
+                          <div className="mb-2 flex items-center justify-between">
+                            <span className="text-xs font-semibold text-gray-700">{r.navn}</span>
+                            {r.feil ? (
+                              <span className="text-[10px] text-red-500">{r.feil.slice(0, 60)}</span>
+                            ) : (
+                              <button
+                                onClick={() => {
+                                  reOversettMut.mutate({
+                                    projectId: prosjektId,
+                                    documentId: dokumentId,
+                                    targetLang: språk,
+                                    motor: r.motor as "opus-mt" | "google" | "deepl",
+                                  });
+                                }}
+                                disabled={reOversettMut.isPending}
+                                className="flex items-center gap-1.5 rounded-lg bg-sitedoc-primary px-3 py-1 text-xs font-medium text-white hover:bg-sitedoc-secondary disabled:opacity-50"
+                              >
+                                <RefreshCw className="h-3 w-3" />
+                                Re-oversett hele dokumentet
+                              </button>
+                            )}
+                          </div>
+                          {r.resultat && (
+                            <p className="text-sm leading-6 text-gray-800">{r.resultat}</p>
+                          )}
+                        </div>
+                      ))}
+
+                      {reOversettMut.isPending && (
+                        <div className="flex items-center gap-2 rounded-lg bg-blue-50 p-3 text-sm text-blue-700">
+                          <Loader2 className="h-4 w-4 animate-spin" /> Re-oversetter hele dokumentet — dette tar noen minutter...
+                        </div>
+                      )}
+                      {reOversettMut.isSuccess && (
+                        <div className="flex items-center gap-2 rounded-lg bg-green-50 p-3 text-sm text-green-700">
+                          <Check className="h-4 w-4" /> Oversettelse startet — siden oppdateres automatisk
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-500">Ingen alternative oversettelser tilgjengelig. Legg til API-nøkkel i modulinnstillingene for Google Translate eller DeepL.</p>
+                  )}
+                </div>
+              )}
+            </div>
+          );
         })}
         </div>
       </main>
