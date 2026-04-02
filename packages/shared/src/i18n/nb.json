@@ -439,5 +439,25 @@
   "entrepriser.nyEntreprise": "Ny entreprise",
   "entrepriser.leggTilEntreprise": "Legg til entreprise",
   "entrepriser.ingenEntrepriser": "Ingen entrepriser",
-  "entrepriser.ingenEntrepriserBeskrivelse": "Legg til entrepriser med dokumentflyt for å styre godkjenning og kommunikasjon."
+  "entrepriser.ingenEntrepriserBeskrivelse": "Legg til entrepriser med dokumentflyt for å styre godkjenning og kommunikasjon.",
+
+  "maler.opprettNy": "Opprett ny",
+  "maler.importerFraProsjekt": "Importer fra annet prosjekt",
+  "maler.importerFraFirma": "Importer fra firma",
+  "maler.opprettFraPdf": "Opprett fra PDF",
+  "maler.kopierMal": "Kopier mal",
+  "maler.redigerMal": "Rediger mal",
+  "maler.slettMal": "Slett mal",
+  "maler.malnavn": "Malnavn",
+  "maler.prefiks": "Prefiks",
+  "maler.versjon": "Versjon",
+  "maler.ingenEntrepriserValgt": "Ingen entrepriser er valgt",
+  "maler.arbeidsforlopValgt": "arbeidsforløp valgt",
+  "maler.leggTilEmne": "Legg til emne",
+  "maler.nySjekklistemal": "Ny sjekklistemal",
+  "maler.nyOppgavemal": "Ny oppgavemal",
+  "maler.ingenSjekklistemaler": "Ingen sjekklistemaler",
+  "maler.ingenOppgavemaler": "Ingen oppgavemaler",
+  "maler.ingenSjekklstemalBeskrivelse": "Opprett en sjekklistemal for å bygge sjekklister i prosjektet.",
+  "maler.ingenOppgavemalBeskrivelse": "Opprett en oppgavemal for å definere oppgavetyper i prosjektet."
 }

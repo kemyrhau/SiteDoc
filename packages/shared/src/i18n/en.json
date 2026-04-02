@@ -439,5 +439,25 @@
   "entrepriser.nyEntreprise": "New contractor",
   "entrepriser.leggTilEntreprise": "Add contractor",
   "entrepriser.ingenEntrepriser": "No contractors",
-  "entrepriser.ingenEntrepriserBeskrivelse": "Add contractors with document flow to manage approval and communication."
+  "entrepriser.ingenEntrepriserBeskrivelse": "Add contractors with document flow to manage approval and communication.",
+
+  "maler.opprettNy": "Create new",
+  "maler.importerFraProsjekt": "Import from another project",
+  "maler.importerFraFirma": "Import from company",
+  "maler.opprettFraPdf": "Create from PDF",
+  "maler.kopierMal": "Copy template",
+  "maler.redigerMal": "Edit template",
+  "maler.slettMal": "Delete template",
+  "maler.malnavn": "Template name",
+  "maler.prefiks": "Prefix",
+  "maler.versjon": "Version",
+  "maler.ingenEntrepriserValgt": "No contractors selected",
+  "maler.arbeidsforlopValgt": "workflows selected",
+  "maler.leggTilEmne": "Add subject",
+  "maler.nySjekklistemal": "New checklist template",
+  "maler.nyOppgavemal": "New task template",
+  "maler.ingenSjekklistemaler": "No checklist templates",
+  "maler.ingenOppgavemaler": "No task templates",
+  "maler.ingenSjekklstemalBeskrivelse": "Create a checklist template to build checklists in the project.",
+  "maler.ingenOppgavemalBeskrivelse": "Create a task template to define task types in the project."
 }

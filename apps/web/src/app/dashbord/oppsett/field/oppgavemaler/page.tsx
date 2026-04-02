@@ -1,13 +1,17 @@
+"use client";
+
 import { MalListe } from "../_components/MalListe";
+import { useTranslation } from "react-i18next";
 
 export default function OppgavemalerSide() {
+  const { t } = useTranslation();
   return (
     <MalListe
       kategori="oppgave"
-      tittel="Oppgavemaler"
-      opprettTekst="Ny oppgavemal"
-      tomTittel="Ingen oppgavemaler"
-      tomBeskrivelse="Opprett en oppgavemal for å definere oppgavetyper i prosjektet."
+      tittel={t("oppsett.oppgavemaler")}
+      opprettTekst={t("maler.nyOppgavemal")}
+      tomTittel={t("maler.ingenOppgavemaler")}
+      tomBeskrivelse={t("maler.ingenOppgavemalBeskrivelse")}
     />
   );
 }
