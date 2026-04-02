@@ -294,8 +294,8 @@ async function hentBildeData(
 }
 
 /**
- * Lagre råbildedata som PNG til disk.
- * Returnerer relativ URL for S3/uploads.
+ * Lagre bildedata som komprimert JPEG (300-400KB) via sharp.
+ * Returnerer relativ URL for uploads.
  */
 async function lagreBilde(
   documentId: string,
@@ -303,15 +303,25 @@ async function lagreBilde(
   bildeNr: number,
   imgData: { data: Uint8ClampedArray; width: number; height: number },
 ): Promise<string> {
-  // Konverter RGBA til enkel PNG via minimal header
-  const pngBuffer = rgbaToPng(imgData.data, imgData.width, imgData.height);
+  const sharp = (await import("sharp")).default;
+
+  // Konverter til RGBA hvis nødvendig
+  const rgbaData = tilRgba(imgData.data, imgData.width, imgData.height);
+
+  // Sharp: raw RGBA → JPEG med maks 1200px bredde, 80% kvalitet
+  const jpegBuffer = await sharp(Buffer.from(rgbaData.buffer, rgbaData.byteOffset, rgbaData.byteLength), {
+    raw: { width: imgData.width, height: imgData.height, channels: 4 },
+  })
+    .resize({ width: 1200, withoutEnlargement: true })
+    .jpeg({ quality: 80 })
+    .toBuffer();
 
   const mappeNavn = `documents/${documentId}/images`;
-  const filnavn = `s${sideNr}_b${bildeNr}.png`;
+  const filnavn = `s${sideNr}_b${bildeNr}.jpg`;
   const fullSti = join(UPLOADS_DIR, mappeNavn);
 
   await mkdir(fullSti, { recursive: true });
-  await writeFile(join(fullSti, filnavn), pngBuffer);
+  await writeFile(join(fullSti, filnavn), jpegBuffer);
 
   return `/uploads/${mappeNavn}/${filnavn}`;
 }
@@ -339,107 +349,4 @@ function tilRgba(
   return rgba;
 }
 
-/**
- * Skaler ned store bilder til maks 1600px bredde for å spare disk og minne.
- */
-function skalerNed(
-  data: Uint8ClampedArray,
-  width: number,
-  height: number,
-): { data: Uint8ClampedArray; width: number; height: number } {
-  const MAKS_BREDDE = 1600;
-  if (width <= MAKS_BREDDE) return { data, width, height };
-
-  const skala = MAKS_BREDDE / width;
-  const nyBredde = Math.round(width * skala);
-  const nyHøyde = Math.round(height * skala);
-  const nyData = new Uint8ClampedArray(nyBredde * nyHøyde * 4);
-
-  for (let y = 0; y < nyHøyde; y++) {
-    const kildeY = Math.min(Math.round(y / skala), height - 1);
-    for (let x = 0; x < nyBredde; x++) {
-      const kildeX = Math.min(Math.round(x / skala), width - 1);
-      const srcIdx = (kildeY * width + kildeX) * 4;
-      const dstIdx = (y * nyBredde + x) * 4;
-      nyData[dstIdx] = data[srcIdx]!;
-      nyData[dstIdx + 1] = data[srcIdx + 1]!;
-      nyData[dstIdx + 2] = data[srcIdx + 2]!;
-      nyData[dstIdx + 3] = data[srcIdx + 3]!;
-    }
-  }
-  return { data: nyData, width: nyBredde, height: nyHøyde };
-}
-
-/**
- * Bildedata → PNG via zlib. Håndterer RGB og RGBA fra pdfjs-dist.
- */
-function rgbaToPng(
-  inputData: Uint8ClampedArray,
-  inputWidth: number,
-  inputHeight: number,
-): Buffer {
-  const { deflateSync } = require("node:zlib") as typeof import("node:zlib");
-
-  // Konverter til RGBA hvis nødvendig (pdfjs-dist kan gi RGB)
-  const rgbaData = tilRgba(inputData, inputWidth, inputHeight);
-
-  // Verifiser at data-lengde matcher dimensjoner
-  const forventet = inputWidth * inputHeight * 4;
-  if (rgbaData.length < forventet) {
-    throw new Error(`RGBA data for kort: ${rgbaData.length} < ${forventet} (${inputWidth}x${inputHeight})`);
-  }
-
-  // Skaler ned store bilder
-  const { data, width, height } = skalerNed(rgbaData, inputWidth, inputHeight);
-
-  // PNG IDAT: filterbyte (0 = None) foran hver rad, deretter RGBA-piksler
-  const radBredde = width * 4;
-  const rawLen = height * (1 + radBredde);
-  const raw = Buffer.alloc(rawLen);
-  for (let y = 0; y < height; y++) {
-    const rowOffset = y * (1 + radBredde);
-    raw[rowOffset] = 0; // filter: None
-    const srcStart = y * radBredde;
-    for (let i = 0; i < radBredde; i++) {
-      raw[rowOffset + 1 + i] = data[srcStart + i] ?? 0;
-    }
-  }
-  const compressed = deflateSync(raw);
-
-  // CRC32-beregning
-  const crcTabell = new Uint32Array(256);
-  for (let n = 0; n < 256; n++) {
-    let c = n;
-    for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
-    crcTabell[n] = c;
-  }
-  function crc32(buf: Buffer): number {
-    let crc = 0xffffffff;
-    for (let i = 0; i < buf.length; i++) crc = crcTabell[(crc ^ buf[i]!) & 0xff]! ^ (crc >>> 8);
-    return (crc ^ 0xffffffff) >>> 0;
-  }
-
-  function chunk(type: string, payload: Buffer): Buffer {
-    const len = Buffer.alloc(4);
-    len.writeUInt32BE(payload.length, 0);
-    const typeAndData = Buffer.concat([Buffer.from(type, "ascii"), payload]);
-    const crcBuf = Buffer.alloc(4);
-    crcBuf.writeUInt32BE(crc32(typeAndData), 0);
-    return Buffer.concat([len, typeAndData, crcBuf]);
-  }
-
-  // IHDR: width, height, 8-bit, RGBA (colorType=6)
-  const ihdr = Buffer.alloc(13);
-  ihdr.writeUInt32BE(width, 0);
-  ihdr.writeUInt32BE(height, 4);
-  ihdr[8] = 8;  // bitDepth
-  ihdr[9] = 6;  // colorType RGBA
-  ihdr[10] = 0; // compression
-  ihdr[11] = 0; // filter
-  ihdr[12] = 0; // interlace
-
-  const signature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
-  const iend = chunk("IEND", Buffer.alloc(0));
-
-  return Buffer.concat([signature, chunk("IHDR", ihdr), chunk("IDAT", compressed), iend]);
-}
+// skalerNed og rgbaToPng er erstattet av sharp i lagreBilde()
