@@ -1,6 +1,7 @@
 "use client";
 
 import { SearchInput, Spinner } from "@sitedoc/ui";
+import { useTranslation } from "react-i18next";
 import { useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { trpc } from "@/lib/trpc";
@@ -117,6 +118,7 @@ function tegningVisningstekst(t: Tegning): string {
 export function TegningerPanel() {
   const params = useParams<{ prosjektId: string }>();
   const [sok, setSok] = useState("");
+  const { t } = useTranslation();
   const [utvidede, setUtvidede] = useState<Set<string>>(new Set());
   const { aktivBygning, velgBygning, standardTegning, settStandardTegning, aktivTegning, settAktivTegning } =
     useBygning();
@@ -266,7 +268,7 @@ export function TegningerPanel() {
       <SearchInput
         verdi={sok}
         onChange={setSok}
-        placeholder="Søk lokasjoner..."
+        placeholder={t("tegninger.sokLokasjoner")}
       />
 
       <div className="flex flex-col gap-0.5">
@@ -280,7 +282,7 @@ export function TegningerPanel() {
           }`}
         >
           <MapPin className="h-4 w-4 shrink-0" />
-          <span>Alle lokasjoner</span>
+          <span>{t("tegninger.alleLokasjoner")}</span>
         </button>
 
         {/* Bygningsliste */}

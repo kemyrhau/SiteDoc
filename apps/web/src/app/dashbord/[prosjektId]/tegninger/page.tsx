@@ -4,6 +4,7 @@ import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { trpc } from "@/lib/trpc";
 import { useBygning } from "@/kontekst/bygning-kontekst";
+import { useTranslation } from "react-i18next";
 import { Button, Select, Modal, Spinner } from "@sitedoc/ui";
 import {
   beregnTransformasjon,
@@ -97,6 +98,7 @@ const STANDARD_ZOOM = 1;
 export default function TegningerSide() {
   const params = useParams<{ prosjektId: string }>();
   const router = useRouter();
+  const { t } = useTranslation();
   const {
     aktivTegning,
     aktivBygning,
@@ -551,8 +553,8 @@ export default function TegningerSide() {
           <Map className="mx-auto mb-4 h-16 w-16 text-gray-200" />
           <p className="text-lg font-medium text-gray-400">
             {aktivBygning
-              ? "Velg en tegning i panelet"
-              : "Velg en lokasjon og tegning i panelet"}
+              ? t("tegninger.velgTegning")
+              : t("tegninger.velgLokasjonOgTegning")}
           </p>
         </div>
       </div>

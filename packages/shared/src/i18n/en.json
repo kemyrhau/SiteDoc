@@ -393,5 +393,10 @@
   "mappeoppsett.redigerTilgang": "Edit access",
   "mappeoppsett.kobleTilKontrakt": "Link to contract",
   "mappeoppsett.giNyttNavn": "Rename",
-  "mappeoppsett.slettMappe": "Delete folder"
+  "mappeoppsett.slettMappe": "Delete folder",
+
+  "tegninger.sokLokasjoner": "Search locations...",
+  "tegninger.alleLokasjoner": "All locations",
+  "tegninger.velgTegning": "Select a drawing in the panel",
+  "tegninger.velgLokasjonOgTegning": "Select a location and drawing in the panel"
 }
