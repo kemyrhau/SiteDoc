@@ -80,6 +80,28 @@ export const mappeRouter = router({
       });
     }),
 
+  // Oppdater dokumentspråk for mappen
+  oppdaterSpraak: protectedProcedure
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        languages: z.array(z.string().min(2).max(5)).min(1),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const mappe = await ctx.prisma.folder.findUniqueOrThrow({
+        where: { id: input.id },
+        select: { projectId: true },
+      });
+      await verifiserProsjektmedlem(ctx.userId, mappe.projectId);
+      // Sørg for at "nb" alltid er inkludert
+      const languages = Array.from(new Set(["nb", ...input.languages]));
+      return ctx.prisma.folder.update({
+        where: { id: input.id },
+        data: { languages },
+      });
+    }),
+
   // Slett mappe (kaskaderer til undermapper)
   slett: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))

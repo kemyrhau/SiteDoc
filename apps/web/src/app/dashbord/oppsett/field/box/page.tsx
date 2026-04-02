@@ -26,7 +26,9 @@ import {
   AlignLeft,
   Loader2,
   Upload,
+  Globe,
 } from "lucide-react";
+import { STOETTEDE_SPRAAK } from "@sitedoc/shared";
 
 /* ------------------------------------------------------------------ */
 /*  Typer                                                              */
@@ -409,6 +411,7 @@ function MappeTreRad({
   onSlett,
   onRedigerTilgang,
   onKobleTilKontrakt,
+  onRedigerSpraak,
 }: {
   mappe: MappeTreData;
   dybde: number;
@@ -417,6 +420,7 @@ function MappeTreRad({
   onSlett: (id: string) => void;
   onRedigerTilgang: (id: string, navn: string) => void;
   onKobleTilKontrakt: (id: string, navn: string, kontraktId: string | null) => void;
+  onRedigerSpraak: (id: string, navn: string, languages: string[]) => void;
 }) {
   const { t } = useTranslation();
   const [ekspandert, setEkspandert] = useState(dybde < 2);
@@ -482,6 +486,11 @@ function MappeTreRad({
                   : onKobleTilKontrakt(mappe.id, mappe.name, mappe.kontraktId ?? null),
               },
               {
+                label: t("mappeoppsett.spraak"),
+                ikon: <Globe className="h-4 w-4 text-blue-400" />,
+                onClick: () => onRedigerSpraak(mappe.id, mappe.name, (mappe as unknown as { languages?: string[] }).languages ?? ["nb"]),
+              },
+              {
                 label: t("mappeoppsett.giNyttNavn"),
                 ikon: <Pencil className="h-4 w-4 text-gray-400" />,
                 onClick: () => onGiNyttNavn(mappe.id, mappe.name),
@@ -508,6 +517,7 @@ function MappeTreRad({
             onSlett={onSlett}
             onRedigerTilgang={onRedigerTilgang}
             onKobleTilKontrakt={onKobleTilKontrakt}
+            onRedigerSpraak={onRedigerSpraak}
           />
         ))}
     </div>
@@ -962,6 +972,22 @@ export default function BoxSide() {
     },
   });
 
+  // Språk-modal
+  const [spraakModal, setSpraakModal] = useState<{ id: string; navn: string; languages: string[] } | null>(null);
+  const [valgteSpaak, setValgteSpaak] = useState<string[]>([]);
+
+  const oppdaterSpraakMut = trpc.mappe.oppdaterSpraak.useMutation({
+    onSuccess: () => {
+      utils.mappe.hentForProsjekt.invalidate({ projectId: prosjektId! });
+      setSpraakModal(null);
+    },
+  });
+
+  function handleRedigerSpraak(id: string, navn: string, languages: string[]) {
+    setSpraakModal({ id, navn, languages });
+    setValgteSpaak(languages.length > 0 ? languages : ["nb"]);
+  }
+
   function handleKobleTilKontrakt(id: string, navn: string, eksisterende: string | null) {
     if (eksisterende) {
       // Fjern kobling direkte
@@ -1077,6 +1103,7 @@ export default function BoxSide() {
                 onSlett={setSlettMappeId}
                 onRedigerTilgang={handleRedigerTilgang}
                 onKobleTilKontrakt={handleKobleTilKontrakt}
+                onRedigerSpraak={handleRedigerSpraak}
               />
             ))}
           </div>
@@ -1259,6 +1286,61 @@ export default function BoxSide() {
               }}
             >
               Koble
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Språk-modal */}
+      <Modal
+        open={spraakModal !== null}
+        onClose={() => setSpraakModal(null)}
+        title={`${t("mappeoppsett.spraak")} — ${spraakModal?.navn ?? ""}`}
+      >
+        <div className="flex flex-col gap-4">
+          <p className="text-sm text-gray-500">{t("mappeoppsett.spraakBeskrivelse")}</p>
+          <div className="grid grid-cols-2 gap-2">
+            {STOETTEDE_SPRAAK.map((spraak) => (
+              <label
+                key={spraak.kode}
+                className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${
+                  valgteSpaak.includes(spraak.kode)
+                    ? "border-sitedoc-primary bg-blue-50 text-sitedoc-primary"
+                    : "border-gray-200 text-gray-700 hover:bg-gray-50"
+                } ${spraak.kode === "nb" ? "opacity-60" : ""}`}
+              >
+                <input
+                  type="checkbox"
+                  checked={valgteSpaak.includes(spraak.kode)}
+                  disabled={spraak.kode === "nb"}
+                  onChange={() => {
+                    if (spraak.kode === "nb") return;
+                    setValgteSpaak((prev) =>
+                      prev.includes(spraak.kode)
+                        ? prev.filter((k) => k !== spraak.kode)
+                        : [...prev, spraak.kode],
+                    );
+                  }}
+                  className="h-3.5 w-3.5 rounded border-gray-300 text-sitedoc-primary"
+                />
+                <span>{spraak.flagg}</span>
+                <span>{spraak.navn}</span>
+              </label>
+            ))}
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" onClick={() => setSpraakModal(null)}>
+              {t("handling.avbryt")}
+            </Button>
+            <Button
+              disabled={oppdaterSpraakMut.isPending}
+              onClick={() => {
+                if (spraakModal) {
+                  oppdaterSpraakMut.mutate({ id: spraakModal.id, languages: valgteSpaak });
+                }
+              }}
+            >
+              {oppdaterSpraakMut.isPending ? t("handling.lagrer") : t("handling.lagre")}
             </Button>
           </div>
         </div>

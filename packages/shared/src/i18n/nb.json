@@ -413,6 +413,9 @@
   "mappeoppsett.kobleTilKontrakt": "Koble til kontrakt",
   "mappeoppsett.giNyttNavn": "Gi nytt navn",
   "mappeoppsett.slettMappe": "Slett mappe",
+  "mappeoppsett.spraak": "Dokumentspråk",
+  "mappeoppsett.spraakBeskrivelse": "Velg hvilke språk dokumentene i denne mappen skal oversettes til. Norsk er alltid inkludert.",
+  "mappeoppsett.spraakLagret": "Språkinnstillinger lagret",
 
   "tegninger.sokLokasjoner": "Søk lokasjoner...",
   "tegninger.alleLokasjoner": "Alle lokasjoner",

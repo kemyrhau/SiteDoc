@@ -413,6 +413,9 @@
   "mappeoppsett.kobleTilKontrakt": "Link to contract",
   "mappeoppsett.giNyttNavn": "Rename",
   "mappeoppsett.slettMappe": "Delete folder",
+  "mappeoppsett.spraak": "Document languages",
+  "mappeoppsett.spraakBeskrivelse": "Select which languages the documents in this folder should be translated to. Norwegian is always included.",
+  "mappeoppsett.spraakLagret": "Language settings saved",
 
   "tegninger.sokLokasjoner": "Search locations...",
   "tegninger.alleLokasjoner": "All locations",
