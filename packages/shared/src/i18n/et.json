@@ -142,6 +142,8 @@
   "tom.ingenSjekklister": "Kontrollnimekirjad puuduvad",
   "tom.ingenOppgaver": "Pole ülesandeid",
   "tom.ingenMatcherFilter": "Ükski üksus ei vasta filtritele",
+  "dokumentleser.ikkeKlar": "Dokument pole veel vaatamiseks valmis. Proovige peagi uuesti või laadige alla originaal.",
+  "dokument.dokument": "Dokument",
   "label.fornavn": "Eesnimi",
   "label.etternavn": "Perekonnanimi",
   "label.epost": "Meil",

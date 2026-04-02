@@ -142,6 +142,8 @@
   "tom.ingenSjekklister": "Inga checklistor",
   "tom.ingenOppgaver": "Inga uppgifter",
   "tom.ingenMatcherFilter": "Inga objekt matchar filtren",
+  "dokumentleser.ikkeKlar": "Dokumentet är inte klart för visning ännu. Försök igen snart, eller ladda ner originalet.",
+  "dokument.dokument": "Dokumentera",
   "label.fornavn": "Förnamn",
   "label.etternavn": "Efternamn",
   "label.epost": "E-post",

@@ -153,6 +153,9 @@
   "tom.ingenOppgaver": "Ingen oppgaver",
   "tom.ingenMatcherFilter": "Ingen matcher filtrene",
 
+  "dokumentleser.ikkeKlar": "Dokumentet er ikke klart for visning ennå. Prøv igjen om litt, eller last ned originalen.",
+  "dokument.dokument": "Dokument",
+
   "label.fornavn": "Fornavn",
   "label.etternavn": "Etternavn",
   "label.epost": "E-post",

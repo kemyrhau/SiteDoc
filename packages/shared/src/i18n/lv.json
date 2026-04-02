@@ -142,6 +142,8 @@
   "tom.ingenSjekklister": "Nav kontrolsarakstu",
   "tom.ingenOppgaver": "Nav uzdevumu",
   "tom.ingenMatcherFilter": "Neviens vienums neatbilst filtriem",
+  "dokumentleser.ikkeKlar": "Dokuments vēl nav gatavs apskatei. Drīz mēģiniet vēlreiz vai lejupielādējiet oriģinālu.",
+  "dokument.dokument": "Dokuments",
   "label.fornavn": "Vārds",
   "label.etternavn": "Uzvārds",
   "label.epost": "E-pasts",

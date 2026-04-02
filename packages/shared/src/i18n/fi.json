@@ -142,6 +142,8 @@
   "tom.ingenSjekklister": "Ei tarkistuslistoja",
   "tom.ingenOppgaver": "Ei tehtäviä",
   "tom.ingenMatcherFilter": "Yksikään kohde ei vastaa suodattimia",
+  "dokumentleser.ikkeKlar": "Asiakirja ei ole vielä valmis katseltavaksi. Yritä hetken kuluttua uudelleen tai lataa alkuperäinen.",
+  "dokument.dokument": "Asiakirja",
   "label.fornavn": "Etunimi",
   "label.etternavn": "Sukunimi",
   "label.epost": "Sähköposti",

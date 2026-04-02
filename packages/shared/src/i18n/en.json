@@ -153,6 +153,9 @@
   "tom.ingenOppgaver": "No tasks",
   "tom.ingenMatcherFilter": "No items match the filters",
 
+  "dokumentleser.ikkeKlar": "The document is not ready for viewing yet. Try again shortly, or download the original.",
+  "dokument.dokument": "Document",
+
   "label.fornavn": "First name",
   "label.etternavn": "Last name",
   "label.epost": "Email",

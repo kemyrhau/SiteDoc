@@ -142,6 +142,8 @@
   "tom.ingenSjekklister": "Brak list kontrolnych",
   "tom.ingenOppgaver": "Brak zadań",
   "tom.ingenMatcherFilter": "Żaden element nie pasuje do filtrów",
+  "dokumentleser.ikkeKlar": "Dokument nie jest jeszcze gotowy do przeglądania. Spróbuj ponownie wkrótce lub pobierz oryginał.",
+  "dokument.dokument": "Dokument",
   "label.fornavn": "Imię",
   "label.etternavn": "Nazwisko",
   "label.epost": "E-mail",

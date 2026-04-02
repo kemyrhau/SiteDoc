@@ -142,6 +142,8 @@
   "tom.ingenSjekklister": "Keine Checklisten",
   "tom.ingenOppgaver": "Keine Aufgaben",
   "tom.ingenMatcherFilter": "Keine Artikel entsprechen den Filtern",
+  "dokumentleser.ikkeKlar": "Das Dokument ist noch nicht zur Ansicht bereit. Versuchen Sie es in Kürze noch einmal oder laden Sie das Original herunter.",
+  "dokument.dokument": "Dokumentieren",
   "label.fornavn": "Vorname",
   "label.etternavn": "Nachname",
   "label.epost": "E-Mail",

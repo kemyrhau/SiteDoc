@@ -142,6 +142,8 @@
   "tom.ingenSjekklister": "Jokių kontrolinių sąrašų",
   "tom.ingenOppgaver": "Jokių užduočių",
   "tom.ingenMatcherFilter": "Nėra elementų, atitinkančių filtrus",
+  "dokumentleser.ikkeKlar": "Dokumentas dar neparengtas peržiūrėti. Netrukus bandykite dar kartą arba atsisiųskite originalą.",
+  "dokument.dokument": "dokumentas",
   "label.fornavn": "Vardas",
   "label.etternavn": "Pavardė",
   "label.epost": "El. paštas",

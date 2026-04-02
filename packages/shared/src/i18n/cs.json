@@ -142,6 +142,8 @@
   "tom.ingenSjekklister": "Žádné kontrolní seznamy",
   "tom.ingenOppgaver": "Žádné úkoly",
   "tom.ingenMatcherFilter": "Filtrům neodpovídají žádné položky",
+  "dokumentleser.ikkeKlar": "Dokument ještě není připraven k prohlížení. Zkuste to za chvíli znovu nebo si stáhněte originál.",
+  "dokument.dokument": "Dokument",
   "label.fornavn": "Křestní jméno",
   "label.etternavn": "Příjmení",
   "label.epost": "E-mail",

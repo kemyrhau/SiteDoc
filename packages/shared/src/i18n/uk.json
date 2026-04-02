@@ -142,6 +142,8 @@
   "tom.ingenSjekklister": "Жодних контрольних списків",
   "tom.ingenOppgaver": "Завдань немає",
   "tom.ingenMatcherFilter": "Жоден товар не відповідає фільтрам",
+  "dokumentleser.ikkeKlar": "Документ ще не готовий для перегляду. Повторіть спробу незабаром або завантажте оригінал.",
+  "dokument.dokument": "документ",
   "label.fornavn": "ім'я",
   "label.etternavn": "Прізвище",
   "label.epost": "Електронна пошта",

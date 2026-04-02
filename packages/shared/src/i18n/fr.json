@@ -142,6 +142,8 @@
   "tom.ingenSjekklister": "Aucune liste de contrôle",
   "tom.ingenOppgaver": "Aucune tâche",
   "tom.ingenMatcherFilter": "Aucun article ne correspond aux filtres",
+  "dokumentleser.ikkeKlar": "Le document n'est pas encore prêt à être consulté. Réessayez sous peu ou téléchargez l'original.",
+  "dokument.dokument": "Document",
   "label.fornavn": "Prénom",
   "label.etternavn": "Nom de famille",
   "label.epost": "E-mail",

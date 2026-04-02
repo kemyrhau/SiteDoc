@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
-import { ArrowLeft, Globe, Loader2, RefreshCw, Check, X } from "lucide-react";
+import { ArrowLeft, Globe, Loader2, RefreshCw, Check, X, FileText, Download } from "lucide-react";
 import { Button } from "@sitedoc/ui";
 import Link from "next/link";
 import { STOETTEDE_SPRAAK } from "@sitedoc/shared";
@@ -17,7 +17,7 @@ export default function DokumentLeser() {
   const dokumentId = params.dokumentId as string;
   const highlight = searchParams.get("highlight") ?? "";
 
-  const [språk, setSpråk] = useState(i18n.language || "nb");
+  const [språk, setSpråk] = useState("nb"); // Start alltid med kildespråk
   const [visSpraakmeny, setVisSpraakmeny] = useState(false);
   const [sammenlignBlokk, setSammenlignBlokk] = useState<{ id: string; content: string } | null>(null);
 
@@ -25,6 +25,14 @@ export default function DokumentLeser() {
     { documentId: dokumentId, language: språk },
     { enabled: !!dokumentId },
   );
+
+  // Når data lastes og valgt språk mangler blokker, fall tilbake til tilgjengelig språk
+  useEffect(() => {
+    if (data && data.blokker.length === 0 && data.tilgjengeligeSprak.length > 0) {
+      const fallback = data.tilgjengeligeSprak[0]!;
+      if (fallback !== språk) setSpråk(fallback);
+    }
+  }, [data, språk]);
 
   // Sammenlign-query (lazy) — sender blokkId, API henter norsk original
   const { data: sammenlignData, isLoading: sammenlignLaster } = trpc.modul.sammenlignOversettelse.useQuery(
@@ -36,7 +44,6 @@ export default function DokumentLeser() {
   const reOversettMut = trpc.modul.reOversettDokument.useMutation({
     onSuccess: () => {
       setSammenlignBlokk(null);
-      // Poll for ferdig oversettelse
       const interval = setInterval(() => {
         refetch().then((r) => {
           if (r.data && r.data.blokker.length > 0) clearInterval(interval);
@@ -56,16 +63,36 @@ export default function DokumentLeser() {
     );
   }
 
-  if (!data || data.blokker.length === 0) {
+  // Tom tilstand: vis nyttig info med nedlastingslenke
+  if (!data || (data.blokker.length === 0 && data.tilgjengeligeSprak.length === 0)) {
     return (
-      <div className="flex h-screen flex-col items-center justify-center gap-4">
-        <p className="text-gray-500">{t("tom.ingenData")}</p>
-        <Link
-          href={`/dashbord/${prosjektId}/mapper`}
-          className="text-sm text-sitedoc-primary hover:underline"
-        >
-          {t("handling.tilbake")}
-        </Link>
+      <div className="flex h-full flex-col bg-gray-50">
+        <header className="shrink-0 flex items-center gap-3 border-b border-gray-200 bg-white px-4 py-3 shadow-sm">
+          <Link
+            href={`/dashbord/${prosjektId}/mapper`}
+            className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Link>
+          <h1 className="text-sm font-semibold text-gray-900">{data?.filename ?? t("dokument.dokument")}</h1>
+        </header>
+        <div className="flex flex-1 flex-col items-center justify-center gap-4 px-4">
+          <FileText className="h-12 w-12 text-gray-300" />
+          <p className="text-center text-sm text-gray-500">
+            {t("dokumentleser.ikkeKlar")}
+          </p>
+          {data?.fileUrl && (
+            <a
+              href={`/api${data.fileUrl}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 rounded-lg bg-sitedoc-primary px-4 py-2 text-sm font-medium text-white hover:bg-sitedoc-secondary"
+            >
+              <Download className="h-4 w-4" />
+              {t("handling.lastNed")} PDF
+            </a>
+          )}
+        </div>
       </div>
     );
   }

@@ -142,6 +142,8 @@
   "tom.ingenSjekklister": "Fără liste de verificare",
   "tom.ingenOppgaver": "Fără sarcini",
   "tom.ingenMatcherFilter": "Niciun articol nu se potrivește cu filtrele",
+  "dokumentleser.ikkeKlar": "Documentul nu este încă pregătit pentru vizualizare. Încercați din nou în scurt timp sau descărcați originalul.",
+  "dokument.dokument": "Document",
   "label.fornavn": "Prenume",
   "label.etternavn": "Nume",
   "label.epost": "E-mail",

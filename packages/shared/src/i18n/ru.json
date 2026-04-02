@@ -142,6 +142,8 @@
   "tom.ingenSjekklister": "Нет контрольных списков",
   "tom.ingenOppgaver": "Нет задач",
   "tom.ingenMatcherFilter": "Нет товаров, соответствующих фильтрам",
+  "dokumentleser.ikkeKlar": "Документ еще не готов к просмотру. Повторите попытку позже или загрузите оригинал.",
+  "dokument.dokument": "Документ",
   "label.fornavn": "Имя",
   "label.etternavn": "Фамилия",
   "label.epost": "Электронная почта",
