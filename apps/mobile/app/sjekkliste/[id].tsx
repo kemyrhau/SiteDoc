@@ -17,6 +17,7 @@ import { hentStatusHandlinger } from "@sitedoc/shared";
 import type { StatusHandling } from "@sitedoc/shared";
 import { useSjekklisteSkjema } from "../../src/hooks/useSjekklisteSkjema";
 import { useAutoVaer } from "../../src/hooks/useAutoVaer";
+import { useOversettelse } from "../../src/hooks/useOversettelse";
 import { useOpplastingsKo } from "../../src/providers/OpplastingsKoProvider";
 import { useAuth } from "../../src/providers/AuthProvider";
 import { StatusMerkelapp } from "../../src/components/StatusMerkelapp";
@@ -255,6 +256,19 @@ export default function SjekklisteUtfylling() {
     lagreStatus,
     synkStatus,
   } = useSjekklisteSkjema(id!);
+
+  // On-demand oversettelse av firmainnhold
+  const prosjektKildesprak = (sjekklisteDetalj?.template as unknown as { project?: { sourceLanguage?: string } })?.project?.sourceLanguage;
+  const {
+    oversettelser,
+    laster: oversettelseLaster,
+    visOversettKnapp,
+    oversettFelt,
+  } = useOversettelse(
+    valgtProsjektId ?? undefined,
+    prosjektKildesprak,
+    sjekkliste?.template?.objects ?? [],
+  );
 
   // Auto-hent værdata basert på dato og prosjektlokasjon
   useAutoVaer({
@@ -624,6 +638,10 @@ export default function SjekklisteUtfylling() {
                 setOpprettOppgaveKategori("oppgave");
               }}
               onNavigerTilOppgave={(oppgaveId) => router.push(`/oppgave/${oppgaveId}`)}
+              oversettelser={oversettelser}
+              oversettelseLaster={oversettelseLaster}
+              onOversett={() => oversettFelt(objekt)}
+              visOversettKnapp={visOversettKnapp}
             >
               <RapportObjektRenderer
                 objekt={objekt}

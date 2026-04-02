@@ -34,6 +34,7 @@ import { hentStatusHandlinger } from "@sitedoc/shared";
 import type { StatusHandling } from "@sitedoc/shared";
 import { useOppgaveSkjema } from "../../src/hooks/useOppgaveSkjema";
 import { useAutoVaer } from "../../src/hooks/useAutoVaer";
+import { useOversettelse } from "../../src/hooks/useOversettelse";
 import { useOpplastingsKo } from "../../src/providers/OpplastingsKoProvider";
 import { useAuth } from "../../src/providers/AuthProvider";
 import { StatusMerkelapp } from "../../src/components/StatusMerkelapp";
@@ -247,6 +248,19 @@ export default function OppgaveDetalj() {
     lagreStatus,
     synkStatus,
   } = useOppgaveSkjema(id!);
+
+  // On-demand oversettelse av firmainnhold
+  const prosjektKildesprak = (detaljQuery.data as unknown as { template?: { project?: { sourceLanguage?: string } } })?.template?.project?.sourceLanguage;
+  const {
+    oversettelser,
+    laster: oversettelseLaster,
+    visOversettKnapp,
+    oversettFelt,
+  } = useOversettelse(
+    valgtProsjektId ?? undefined,
+    prosjektKildesprak,
+    oppgave?.template?.objects ?? [],
+  );
 
   // Auto-hent værdata basert på dato og prosjektlokasjon
   useAutoVaer({
@@ -647,6 +661,10 @@ export default function OppgaveDetalj() {
               oppgaveIdForKo={oppgave.id}
               nestingNivå={nestingNivå}
               valideringsfeil={valideringsfeil[objekt.id]}
+              oversettelser={oversettelser}
+              oversettelseLaster={oversettelseLaster}
+              onOversett={() => oversettFelt(objekt)}
+              visOversettKnapp={visOversettKnapp}
             >
               <RapportObjektRenderer
                 objekt={objekt}
