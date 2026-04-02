@@ -56,6 +56,82 @@ async function kallNorBERT(tekster: string[]): Promise<number[][]> {
   return (await response.json()) as number[][];
 }
 
+// ---- Multilingual E5 via HTTP-server (port 3302, /embed/model) ----
+
+async function kallMultilingualE5(
+  tekster: string[],
+  type: "passage" | "query" = "passage",
+): Promise<number[][]> {
+  const model = type === "query" ? "multilingual-e5-query" : "multilingual-e5-base";
+  const response = await fetch(`${NORBERT_URL}/embed/model`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ model, texts: tekster }),
+  });
+
+  if (!response.ok) {
+    const body = await response.text().catch(() => "");
+    throw new Error(`E5-embedding feilet (${response.status}): ${body.slice(0, 200)}`);
+  }
+
+  const data = (await response.json()) as { embeddings: number[][] };
+  return data.embeddings;
+}
+
+// ---- Blokk-embedding (bruker multilingual E5 for alle språk) ----
+
+export async function embeddNyeBlokker(
+  prisma: PrismaClient,
+  documentId: string,
+): Promise<number> {
+  const blokker = await prisma.ftdDocumentBlock.findMany({
+    where: {
+      documentId,
+      embeddingState: "pending",
+      blockType: { in: ["heading", "text", "caption"] },
+    },
+    select: { id: true, content: true },
+  });
+
+  if (blokker.length === 0) return 0;
+
+  const BATCH = 16;
+  let generert = 0;
+
+  for (let i = 0; i < blokker.length; i += BATCH) {
+    const batch = blokker.slice(i, i + BATCH);
+    const tekster = batch.map((b) => b.content);
+
+    try {
+      const embeddings = await kallMultilingualE5(tekster, "passage");
+
+      for (let j = 0; j < batch.length; j++) {
+        const vektor = embeddings[j];
+        if (!vektor) continue;
+        const vektorStr = `[${vektor.join(",")}]`;
+        await prisma.$executeRawUnsafe(
+          `UPDATE ftd_document_blocks SET embedding_vector = $1::vector, embedding_state = 'done', embedding_model = 'multilingual-e5-base' WHERE id = $2`,
+          vektorStr,
+          batch[j]!.id,
+        );
+        generert++;
+      }
+    } catch (err) {
+      logg(`Blokk-embedding batch ${i} feilet: ${err}`);
+      // Marker som feilet
+      for (const b of batch) {
+        await prisma.ftdDocumentBlock.update({
+          where: { id: b.id },
+          data: { embeddingState: "failed" },
+        }).catch(() => {});
+      }
+    }
+  }
+
+  logg(`Blokk-embedding: ${generert}/${blokker.length} for dokument ${documentId}`);
+  return generert;
+}
+
 // ---- OpenAI embedding ----
 
 async function genererOpenAIEmbeddings(

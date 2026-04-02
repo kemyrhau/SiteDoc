@@ -12,6 +12,7 @@ import { promisify } from "node:util";
 import type { PrismaClient } from "@sitedoc/db";
 import { splittMalebrevPdf } from "./pdf-splitting";
 import { genererBlokker } from "./blokk-prosessering";
+import { embeddNyeBlokker } from "./embedding-service";
 
 const execFileAsync = promisify(execFile);
 
@@ -165,6 +166,11 @@ async function genererBlokkHvisSpraak(
 
   const antall = await genererBlokker(prisma, documentId, buffer, ext);
   console.log(`Blokkprosessering: ${antall} blokker generert for ${documentId}`);
+
+  // Generer embeddings for norske blokker (fire-and-forget)
+  embeddNyeBlokker(prisma, documentId).catch((err) => {
+    console.error(`Blokk-embedding feilet for ${documentId}:`, err);
+  });
 
   // Opprett oversettelsesoppdrag for ekstra språk
   for (const lang of languages.filter((l: string) => l !== "nb")) {

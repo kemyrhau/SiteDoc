@@ -6,6 +6,7 @@
  */
 import { randomUUID } from "node:crypto";
 import type { PrismaClient } from "@sitedoc/db";
+import { embeddNyeBlokker } from "./embedding-service";
 
 const OVERSETTELSE_URL = process.env.OVERSETTELSE_URL ?? "http://localhost:3303";
 const BATCH_STØRRELSE = 30;
@@ -59,6 +60,11 @@ async function prosesserNesteJobb(prisma: PrismaClient): Promise<void> {
     });
 
     console.log(`Oversettelse ferdig: ${jobb.documentId} → ${jobb.targetLang}`);
+
+    // Generer embeddings for de oversatte blokkene (fire-and-forget)
+    embeddNyeBlokker(prisma, jobb.documentId).catch((err) => {
+      console.error(`Blokk-embedding feilet etter oversettelse:`, err);
+    });
   } catch (err) {
     const melding = err instanceof Error ? err.message : "Ukjent feil";
     console.error(`Oversettelse feilet for ${jobb.documentId}→${jobb.targetLang}:`, melding);
