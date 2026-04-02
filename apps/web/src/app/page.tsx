@@ -21,6 +21,11 @@ import {
   Printer,
   GripVertical,
   ChevronRight,
+  Box,
+  Search,
+  Globe,
+  BarChart3,
+  FolderOpen,
 } from "lucide-react";
 
 export default async function Hjem() {
@@ -58,6 +63,12 @@ export default async function Hjem() {
               Arbeidsflyt
             </a>
             <a
+              href="#priser"
+              className="hidden text-sm text-blue-200/80 transition hover:text-white sm:block"
+            >
+              Priser
+            </a>
+            <a
               href="/logg-inn"
               className="rounded-lg bg-white px-5 py-2 text-sm font-medium text-[#0f1b3d] transition hover:bg-blue-50"
             >
@@ -90,8 +101,8 @@ export default async function Hjem() {
               </h1>
               <p className="mb-8 max-w-lg text-lg leading-relaxed text-blue-100/70">
                 SiteDoc er et komplett rapport- og kvalitetsstyringssystem for
-                byggeprosjekter. Sjekklister, oppgaver, tegninger og
-                dokumenthåndtering — alt samlet på én plattform.
+                byggeprosjekter. Sjekklister, 3D-modeller, AI-søk, økonomi
+                og flerspråklig støtte — alt samlet på én plattform.
               </p>
               <div className="flex flex-col gap-4 sm:flex-row">
                 <a
@@ -214,10 +225,10 @@ export default async function Hjem() {
         <div className="mx-auto max-w-5xl px-6">
           <div className="grid grid-cols-2 gap-6 sm:grid-cols-4">
             {[
-              { tall: "23", label: "Felttyper", ikon: <GripVertical className="h-5 w-5" /> },
-              { tall: "9", label: "Statusnivåer", ikon: <CircleDot className="h-5 w-5" /> },
+              { tall: "13", label: "Språk", ikon: <Globe className="h-5 w-5" /> },
+              { tall: "3D", label: "IFC-modeller", ikon: <Box className="h-5 w-5" /> },
               { tall: "100%", label: "Offline-støtte", ikon: <WifiOff className="h-5 w-5" /> },
-              { tall: "3", label: "Plattformer", ikon: <Smartphone className="h-5 w-5" /> },
+              { tall: "AI", label: "Dokumentsøk", ikon: <Search className="h-5 w-5" /> },
             ].map((item) => (
               <div key={item.label} className="rounded-xl border border-gray-100 bg-white p-5 text-center shadow-sm">
                 <div className="mx-auto mb-2 inline-flex rounded-lg bg-blue-50 p-2 text-sitedoc-primary">
@@ -304,8 +315,62 @@ export default async function Hjem() {
             </StortFunksjonskort>
           </div>
 
+          {/* Rad 2 — 3D og AI-søk */}
+          <div className="mb-8 grid gap-8 lg:grid-cols-2">
+            <StortFunksjonskort
+              ikon={<Box className="h-6 w-6" />}
+              tittel="3D-modeller og IFC"
+              beskrivelse="Last opp IFC-filer og visualiser bygningsmodeller i 3D. Split-view med tegning og modell, GPS-synkronisering og snitt-verktøy."
+              farge="cyan"
+            >
+              <div className="mt-4 rounded-lg border border-cyan-100 bg-white p-3 shadow-sm">
+                <div className="relative h-24 rounded bg-gradient-to-br from-gray-800 to-gray-700 border border-gray-600 overflow-hidden">
+                  {/* 3D-bygning forenklet */}
+                  <div className="absolute bottom-2 left-1/2 -translate-x-1/2">
+                    <div className="flex gap-0.5">
+                      <div className="h-10 w-14 bg-gray-400/60 border border-gray-500/40 rounded-sm" />
+                      <div className="h-14 w-10 bg-gray-300/60 border border-gray-500/40 rounded-sm -mt-4" />
+                      <div className="h-8 w-12 bg-gray-400/60 border border-gray-500/40 rounded-sm mt-2" />
+                    </div>
+                  </div>
+                  <div className="absolute top-2 right-2 rounded bg-white/10 px-1.5 py-0.5 text-[8px] text-white/70">
+                    7 modeller
+                  </div>
+                  <div className="absolute top-2 left-2 flex gap-1">
+                    <div className="rounded bg-cyan-500/30 px-1 py-0.5 text-[7px] text-cyan-200">IFC</div>
+                    <div className="rounded bg-green-500/30 px-1 py-0.5 text-[7px] text-green-200">Snitt</div>
+                  </div>
+                </div>
+              </div>
+            </StortFunksjonskort>
+
+            <StortFunksjonskort
+              ikon={<Search className="h-6 w-6" />}
+              tittel="AI-dokumentsøk"
+              beskrivelse="Søk på tvers av alle prosjektdokumenter med AI. NorBERT-modell optimalisert for norsk byggdokumentasjon med semantisk og leksikalsk søk."
+              farge="blue"
+            >
+              <div className="mt-4 rounded-lg border border-blue-100 bg-white p-3 shadow-sm">
+                <div className="mb-2 flex items-center gap-2 rounded-md border border-gray-200 px-2 py-1.5">
+                  <Search className="h-3 w-3 text-gray-400" />
+                  <span className="text-[9px] text-gray-400">Søk i prosjektdokumenter...</span>
+                  <div className="ml-auto rounded bg-sitedoc-primary px-1.5 py-0.5 text-[7px] text-white">Søk</div>
+                </div>
+                <div className="flex gap-2 mb-2">
+                  <div className="rounded-full bg-blue-100 px-2 py-0.5 text-[8px] text-blue-700 font-medium">AI-søk</div>
+                  <div className="rounded-full bg-gray-100 px-2 py-0.5 text-[8px] text-gray-500">Tekstsøk</div>
+                </div>
+                {["NS 3420 — Betongarbeider, s.14", "A-Nota 3 — Grunnarbeider, s.2"].map((r) => (
+                  <div key={r} className="border-t border-gray-50 py-1">
+                    <span className="text-[8px] text-gray-600">{r}</span>
+                  </div>
+                ))}
+              </div>
+            </StortFunksjonskort>
+          </div>
+
           {/* Resten som grid */}
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             <Funksjonsort
               ikon={<CheckSquare className="h-5 w-5" />}
               tittel="Oppgaver"
@@ -317,14 +382,24 @@ export default async function Hjem() {
               beskrivelse="Dokumenter flyter mellom oppretter og svarer med 9 statusnivåer og full sporbarhet."
             />
             <Funksjonsort
+              ikon={<Globe className="h-5 w-5" />}
+              tittel="13 språk"
+              beskrivelse="Bytt språk i appen — norsk, engelsk, polsk, ukrainsk, litauisk og 8 andre. Perfekt for internasjonale team."
+            />
+            <Funksjonsort
+              ikon={<BarChart3 className="h-5 w-5" />}
+              tittel="Økonomi"
+              beskrivelse="A-nota, budsjett og avviksanalyse. Importer fra Excel, sammenlign poster og generer rapporter."
+            />
+            <Funksjonsort
               ikon={<Camera className="h-5 w-5" />}
               tittel="Bildedokumentasjon"
               beskrivelse="Kamera med komprimering, GPS-tagging og annotering. Synkroniseres i bakgrunnen."
             />
             <Funksjonsort
-              ikon={<FileText className="h-5 w-5" />}
-              tittel="PDF-eksport"
-              beskrivelse="Profesjonelle PDF-er med firmalogo, prosjektinfo, bilder og all utfylt data."
+              ikon={<FolderOpen className="h-5 w-5" />}
+              tittel="Dokumenthåndtering"
+              beskrivelse="Mappestruktur med tilgangsstyring. Last opp PDF, DWG og IFC — automatisk prosessering og søkbart innhold."
             />
             <Funksjonsort
               ikon={<Shield className="h-5 w-5" />}
@@ -332,14 +407,9 @@ export default async function Hjem() {
               beskrivelse="Brukergrupper, entreprise-tilgang og fagområder. Admin ser alt, brukere ser sitt."
             />
             <Funksjonsort
-              ikon={<CloudSun className="h-5 w-5" />}
-              tittel="Automatisk vær"
-              beskrivelse="Værdata hentes automatisk fra prosjektlokasjon. Temperatur, vind og forhold."
-            />
-            <Funksjonsort
               ikon={<MapPin className="h-5 w-5" />}
-              tittel="Georeferanse"
-              beskrivelse="Kalibrer tegninger med GPS. Mobilappen plasserer markører automatisk."
+              tittel="GPS og georeferanse"
+              beskrivelse="Kalibrer tegninger med GPS. 3D-synkronisering og automatisk posisjonering fra mobil."
             />
           </div>
         </div>
@@ -364,12 +434,13 @@ export default async function Hjem() {
             <Plattformkort
               ikon={<Monitor className="h-7 w-7" />}
               tittel="PC / Nettleser"
-              beskrivelse="Administrasjon og malbygging"
+              beskrivelse="Administrasjon og modellering"
               funksjoner={[
                 "Malbygger med drag-and-drop",
-                "Entreprise- og arbeidsforløp",
-                "Tegningsvisning med zoom",
-                "Brukergrupper og tilgang",
+                "3D-modellvisning (IFC) med snitt",
+                "AI-dokumentsøk med NorBERT",
+                "Økonomi: budsjett og avviksanalyse",
+                "Brukergrupper og tilgangskontroll",
                 "PDF-eksport og utskrift",
               ]}
             />
@@ -381,7 +452,7 @@ export default async function Hjem() {
                 "Offline-first med lokal lagring",
                 "Kamera med komprimering",
                 "GPS-tagging og posisjonering",
-                "Oppgaver fra tegninger",
+                "13 språk — perfekt for utenlandske fagarbeidere",
                 "Bakgrunnssynkronisering",
               ]}
               fremhevet
@@ -463,6 +534,68 @@ export default async function Hjem() {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Priser */}
+      <section id="priser" className="bg-gradient-to-b from-white to-gray-50 py-20">
+        <div className="mx-auto max-w-6xl px-6">
+          <div className="mb-16 text-center">
+            <div className="mb-3 text-sm font-semibold uppercase tracking-wider text-sitedoc-primary">
+              Priser
+            </div>
+            <h2 className="mb-4 text-3xl font-bold text-gray-900 sm:text-4xl">
+              Start gratis, oppgrader ved behov
+            </h2>
+            <p className="mx-auto max-w-2xl text-gray-500">
+              Prøv SiteDoc gratis i 14 dager med full funksjonalitet. Ingen kredittkort.
+            </p>
+          </div>
+          <div className="mx-auto grid max-w-4xl gap-8 sm:grid-cols-2">
+            <div className="rounded-2xl border border-gray-200 bg-white p-8">
+              <h3 className="text-lg font-semibold text-gray-900">Prøveperiode</h3>
+              <div className="mt-2 flex items-baseline gap-1">
+                <span className="text-4xl font-bold text-gray-900">Gratis</span>
+                <span className="text-gray-500">/ 14 dager</span>
+              </div>
+              <p className="mt-3 text-sm text-gray-500">Perfekt for å teste systemet i et reelt prosjekt.</p>
+              <ul className="mt-6 space-y-3">
+                {["Full funksjonalitet", "Alle moduler inkludert", "Ubegrenset brukere", "Mobilapp inkludert", "Ingen kredittkort"].map((f) => (
+                  <li key={f} className="flex items-center gap-2 text-sm text-gray-600">
+                    <Check className="h-4 w-4 text-green-500" />
+                    {f}
+                  </li>
+                ))}
+              </ul>
+              <a
+                href="/logg-inn"
+                className="mt-8 block rounded-xl border border-gray-200 px-6 py-3 text-center text-sm font-semibold text-gray-900 transition hover:border-gray-300 hover:bg-gray-50"
+              >
+                Start prøveperiode
+              </a>
+            </div>
+            <div className="rounded-2xl border-2 border-sitedoc-primary/30 bg-gradient-to-b from-blue-50/50 to-white p-8 shadow-lg shadow-blue-500/10">
+              <h3 className="text-lg font-semibold text-gray-900">Prosjektlisens</h3>
+              <div className="mt-2 flex items-baseline gap-1">
+                <span className="text-4xl font-bold text-gray-900">Kontakt oss</span>
+              </div>
+              <p className="mt-3 text-sm text-gray-500">Tilpasset pris basert på prosjektstørrelse og behov.</p>
+              <ul className="mt-6 space-y-3">
+                {["Alt i prøveperioden", "3D-modellvisning (IFC)", "AI-dokumentsøk", "Økonomi og rapporter", "Flerspråklig støtte (13 språk)", "Dedikert support"].map((f) => (
+                  <li key={f} className="flex items-center gap-2 text-sm text-gray-600">
+                    <Check className="h-4 w-4 text-sitedoc-primary" />
+                    {f}
+                  </li>
+                ))}
+              </ul>
+              <a
+                href="mailto:post@sitedoc.no"
+                className="mt-8 block rounded-xl bg-sitedoc-primary px-6 py-3 text-center text-sm font-semibold text-white transition hover:bg-blue-700"
+              >
+                Kontakt oss
+              </a>
+            </div>
           </div>
         </div>
       </section>
