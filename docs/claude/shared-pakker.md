@@ -12,7 +12,7 @@
 | `Select` | Dropdown med options-array |
 | `Card` | Kort-wrapper med valgfri padding |
 | `Badge` | Varianter (default, primary, success, warning, danger) |
-| `StatusBadge` | Dokumentstatus → norsk tekst og farge |
+| `StatusBadge` | Dokumentstatus → oversatt tekst og farge (bruker i18next) |
 | `Spinner` | Lastespinner (sm, md, lg) |
 | `Modal` | HTML `<dialog>`, tittel, lukk-knapp |
 | `EmptyState` | Tom tilstand med tittel, beskrivelse, handling |
@@ -23,7 +23,13 @@
 
 ## @sitedoc/shared — Typer, validering og utils
 
-Tre eksportpunkter: `types`, `validation`, `utils`
+Fire eksportpunkter: `types`, `validation`, `utils`, `i18n`
+
+### i18n (`packages/shared/src/i18n/`)
+
+- `nb.json` / `en.json` — ~500 oversettelsesnøkler (norsk kilde, engelsk manuell)
+- `index.ts` — `STOETTEDE_SPRAAK` (13 språk med flagg), `SpraakKode` type, `STANDARD_SPRAAK`
+- `generate.ts` — CLI-script for auto-oversettelse via Google Translate
 
 ### Typer (`packages/shared/src/types/`)
 

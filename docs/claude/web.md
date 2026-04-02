@@ -87,9 +87,33 @@ Tre-kolonne layout (skjules på mobil < 768px, hamburger-meny i Toppbar):
 - `useVerktoylinje(handlinger)` — Registrerer handlinger per side med auto-cleanup
 - `useAutoVaer(...)` — Auto-henter værdata fra Open-Meteo
 
+## Flerspråklig støtte (i18n)
+
+**Teknologi:** `i18next` + `react-i18next`, initialisert i `apps/web/src/lib/i18n.ts`
+
+**Språk:** 13 støttet (nb, en, sv, lt, pl, uk, ro, et, fi, cs, de, ru, lv). Norsk (nb) er kilde, engelsk (en) har manuell oversettelse. Andre språk genereres via `packages/shared/src/i18n/generate.ts` med Google Translate.
+
+**Oversettelserfiler:** `packages/shared/src/i18n/nb.json` og `en.json` (~500 nøkler)
+
+**Arkitektur:**
+- `SpraakVelger` i Toppbar — dropdown med flagg + språknavn
+- `SpraakSynkroniserer` i Providers — synkroniserer localStorage ↔ DB
+- `bruker.hentSpraak` / `bruker.oppdaterSpraak` — tRPC-endepunkter
+- `User.language` felt i Prisma (default "nb")
+- Lazy-loading: kun nb og en er statisk importert, andre lastes on-demand
+- `StatusBadge` i `packages/ui` bruker `useTranslation()` direkte
+
+**Konvensjoner:**
+- Nøkkelstruktur: `seksjon.nøkkel` (f.eks. `nav.dashbord`, `status.utkast`, `handling.lagre`)
+- Statiske data utenfor komponenter bruker `labelKey` i stedet for `label`, kaller `t()` ved rendering
+- Interpolering: `t("dashbord.proveperiode", { dager: X })`
+- Nye strenger: legg til i **både** `nb.json` og `en.json`
+
+**Oversatte sider:** Alle hovedsider, navigasjon, statuspaneler, modaler, malbygger, innstillinger, prosjektoppsett
+
 ## Layout-komponenter
 
-- `Toppbar` — Klikkbar logo (→ `/`), prosjektvelger, brukermeny, hamburgermeny (mobil). Admin: ShieldCheck-ikon, Firma: Building2-ikon
+- `Toppbar` — Klikkbar logo (→ `/`), prosjektvelger, brukermeny, `SpraakVelger`, hamburgermeny (mobil). Admin: ShieldCheck-ikon, Firma: Building2-ikon
 - `HovedSidebar` — 60px ikonbar (`hidden md:flex`), deaktiverte ikoner uten prosjekt
 - `SekundaertPanel` — 280px panel (`hidden md:flex`)
 - `Verktoylinje` — Kontekstuell handlingsbar
