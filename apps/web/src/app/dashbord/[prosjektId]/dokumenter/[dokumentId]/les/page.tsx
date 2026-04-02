@@ -1,0 +1,201 @@
+"use client";
+
+import { useState } from "react";
+import { useParams, useSearchParams } from "next/navigation";
+import { useTranslation } from "react-i18next";
+import { trpc } from "@/lib/trpc";
+import { ArrowLeft, Globe, Loader2 } from "lucide-react";
+import Link from "next/link";
+import { STOETTEDE_SPRAAK } from "@sitedoc/shared";
+
+export default function DokumentLeser() {
+  const { t, i18n } = useTranslation();
+  const params = useParams();
+  const searchParams = useSearchParams();
+  const prosjektId = params.prosjektId as string;
+  const dokumentId = params.dokumentId as string;
+  const highlight = searchParams.get("highlight") ?? "";
+
+  const [språk, setSpråk] = useState(i18n.language || "nb");
+  const [visSpraakmeny, setVisSpraakmeny] = useState(false);
+
+  const { data, isLoading } = trpc.mappe.hentDokumentBlokker.useQuery(
+    { documentId: dokumentId, language: språk },
+    { enabled: !!dokumentId },
+  );
+
+  const valgtSpråkInfo = STOETTEDE_SPRAAK.find((s) => s.kode === språk);
+
+  if (isLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+      </div>
+    );
+  }
+
+  if (!data || data.blokker.length === 0) {
+    return (
+      <div className="flex h-screen flex-col items-center justify-center gap-4">
+        <p className="text-gray-500">{t("tom.ingenData")}</p>
+        <Link
+          href={`/dashbord/${prosjektId}/mapper`}
+          className="text-sm text-sitedoc-primary hover:underline"
+        >
+          {t("handling.tilbake")}
+        </Link>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Topplinje */}
+      <header className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-200 bg-white px-4 py-3 shadow-sm">
+        <div className="flex items-center gap-3">
+          <Link
+            href={`/dashbord/${prosjektId}/mapper`}
+            className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Link>
+          <h1 className="max-w-md truncate text-sm font-semibold text-gray-900">
+            {data.filename}
+          </h1>
+        </div>
+
+        {/* Språkvelger */}
+        {data.tilgjengeligeSprak.length > 1 && (
+          <div className="relative">
+            <button
+              onClick={() => setVisSpraakmeny(!visSpraakmeny)}
+              className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+            >
+              <Globe className="h-4 w-4" />
+              {valgtSpråkInfo?.flagg} {valgtSpråkInfo?.navn ?? språk}
+            </button>
+            {visSpraakmeny && (
+              <div className="absolute right-0 top-full z-20 mt-1 rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
+                {data.tilgjengeligeSprak.map((kode) => {
+                  const info = STOETTEDE_SPRAAK.find((s) => s.kode === kode);
+                  return (
+                    <button
+                      key={kode}
+                      onClick={() => {
+                        setSpråk(kode);
+                        setVisSpraakmeny(false);
+                      }}
+                      className={`flex w-full items-center gap-2 px-4 py-2 text-left text-sm hover:bg-gray-50 ${
+                        kode === språk ? "bg-blue-50 font-medium text-sitedoc-primary" : "text-gray-700"
+                      }`}
+                    >
+                      <span>{info?.flagg ?? "🌐"}</span>
+                      <span>{info?.navn ?? kode}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+      </header>
+
+      {/* Innhold */}
+      <main className="mx-auto max-w-3xl px-4 py-8">
+        {data.blokker.map((blokk) => {
+          const innhold = highlightTekst(blokk.content, highlight);
+
+          switch (blokk.blockType) {
+            case "heading": {
+              const Tag = `h${Math.min(blokk.headingLevel ?? 2, 6)}` as keyof JSX.IntrinsicElements;
+              const størrelse = {
+                1: "text-2xl font-bold mt-10 mb-4",
+                2: "text-xl font-bold mt-8 mb-3",
+                3: "text-lg font-semibold mt-6 mb-2",
+                4: "text-base font-semibold mt-5 mb-2",
+                5: "text-sm font-semibold mt-4 mb-1",
+                6: "text-sm font-medium mt-3 mb-1",
+              }[blokk.headingLevel ?? 2] ?? "text-lg font-semibold mt-6 mb-2";
+
+              return (
+                <Tag
+                  key={blokk.id}
+                  className={`text-gray-900 ${størrelse}`}
+                  dangerouslySetInnerHTML={{ __html: innhold }}
+                />
+              );
+            }
+
+            case "text":
+              return (
+                <div
+                  key={blokk.id}
+                  className="mb-4 whitespace-pre-wrap text-base leading-7 text-gray-800"
+                  dangerouslySetInnerHTML={{ __html: innhold }}
+                />
+              );
+
+            case "image":
+              return blokk.imageUrl ? (
+                <figure key={blokk.id} className="my-6">
+                  <img
+                    src={`/api${blokk.imageUrl}`}
+                    alt=""
+                    className="mx-auto max-h-96 rounded-lg border border-gray-200 shadow-sm"
+                    loading="lazy"
+                  />
+                </figure>
+              ) : null;
+
+            case "caption":
+              return (
+                <figcaption
+                  key={blokk.id}
+                  className="mb-6 text-center text-sm italic text-gray-500"
+                  dangerouslySetInnerHTML={{ __html: innhold }}
+                />
+              );
+
+            case "table":
+              return (
+                <div
+                  key={blokk.id}
+                  className="my-4 overflow-x-auto rounded-lg border border-gray-200"
+                  dangerouslySetInnerHTML={{ __html: blokk.content }}
+                />
+              );
+
+            default:
+              return (
+                <p key={blokk.id} className="mb-4 text-gray-700">
+                  {blokk.content}
+                </p>
+              );
+          }
+        })}
+      </main>
+    </div>
+  );
+}
+
+/**
+ * Highlight søkeord i tekst med <mark> tags.
+ */
+function highlightTekst(tekst: string, query: string): string {
+  if (!query.trim()) return escapeHtml(tekst);
+
+  const escaped = escapeHtml(tekst);
+  const ord = query.split(/\s+/).filter((o) => o.length > 2);
+  if (ord.length === 0) return escaped;
+
+  const mønster = new RegExp(`(${ord.map(escapeRegex).join("|")})`, "gi");
+  return escaped.replace(mønster, '<mark class="bg-yellow-200 rounded px-0.5">$1</mark>');
+}
+
+function escapeHtml(str: string): string {
+  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}

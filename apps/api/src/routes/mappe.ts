@@ -80,6 +80,50 @@ export const mappeRouter = router({
       });
     }),
 
+  // Hent dokumentblokker for lesevisning
+  hentDokumentBlokker: protectedProcedure
+    .input(
+      z.object({
+        documentId: z.string(),
+        language: z.string().min(2).max(5).default("nb"),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const dok = await ctx.prisma.ftdDocument.findUniqueOrThrow({
+        where: { id: input.documentId },
+        select: { projectId: true, filename: true, fileUrl: true },
+      });
+      await verifiserProsjektmedlem(ctx.userId, dok.projectId);
+
+      const blokker = await ctx.prisma.ftdDocumentBlock.findMany({
+        where: { documentId: input.documentId, language: input.language },
+        orderBy: { sortOrder: "asc" },
+        select: {
+          id: true,
+          sortOrder: true,
+          pageNumber: true,
+          blockType: true,
+          content: true,
+          headingLevel: true,
+          imageUrl: true,
+        },
+      });
+
+      // Finn tilgjengelige språk for dette dokumentet
+      const språkRader = await ctx.prisma.ftdDocumentBlock.findMany({
+        where: { documentId: input.documentId },
+        select: { language: true },
+        distinct: ["language"],
+      });
+
+      return {
+        blokker,
+        tilgjengeligeSprak: språkRader.map((r) => r.language),
+        filename: dok.filename,
+        fileUrl: dok.fileUrl,
+      };
+    }),
+
   // Oppdater dokumentspråk for mappen
   oppdaterSpraak: protectedProcedure
     .input(
