@@ -25,8 +25,7 @@ export function useOversettelse(
   const [laster, setLaster] = useState(false);
 
   const brukerSpraak = i18n.language ?? "nb";
-  const kildesprak = prosjektKildesprak ?? "nb";
-  const visOversettKnapp = brukerSpraak !== kildesprak;
+  const visOversettKnapp = brukerSpraak !== (prosjektKildesprak ?? "nb");
 
   const oversettMut = trpc.mal.oversettFelter.useMutation({
     onSuccess: (data: Record<string, string>) => {
