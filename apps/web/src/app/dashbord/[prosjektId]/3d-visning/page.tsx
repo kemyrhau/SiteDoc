@@ -162,44 +162,44 @@ function Fane3DModell() {
           {!harModeller && (!punktskyer || punktskyer.length === 0) && (
             <div className="flex flex-col items-center gap-2 py-10 text-center">
               <Layers className="h-8 w-8 text-gray-300" />
-              <p className="text-sm text-gray-400">Ingen 3D-data</p>
-              <p className="text-xs text-gray-400">{t("handling.lastOpp")} IFC-modeller</p>
+              <p className="text-sm text-gray-400">{t("3d.ingen3dData")}</p>
+              <p className="text-xs text-gray-400">{t("3d.lastOppIfcKort")}</p>
             </div>
           )}
 
           {/* IFC-modeller med avkrysning */}
-          {tegninger.map((t) => {
-            const status = modellStatuser.find((m) => m.id === t.id);
+          {tegninger.map((teg) => {
+            const status = modellStatuser.find((m) => m.id === teg.id);
             return (
               <label
-                key={t.id}
+                key={teg.id}
                 className="flex w-full cursor-pointer items-center gap-3 border-b border-gray-100 px-4 py-2.5 transition-colors hover:bg-gray-50"
               >
                 <input
                   type="checkbox"
                   checked={status?.synlig ?? true}
-                  onChange={() => toggleSynlighet(t.id)}
+                  onChange={() => toggleSynlighet(teg.id)}
                   className="h-3.5 w-3.5 shrink-0 rounded border-gray-300 text-sitedoc-primary accent-sitedoc-primary"
                 />
                 <Box className="h-4 w-4 shrink-0 text-gray-400" />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-gray-900">{t.name}</p>
+                  <p className="truncate text-sm font-medium text-gray-900">{teg.name}</p>
                   <p className="text-xs text-gray-500">
                     {status?.laster ? (
                       <span className="flex items-center gap-1 text-amber-600">
-                        <Loader2 className="h-3 w-3 animate-spin" /> Laster...
+                        <Loader2 className="h-3 w-3 animate-spin" /> {t("handling.laster")}
                       </span>
                     ) : status?.feil ? (
-                      <span className="text-red-500" title={status.feil}>Feilet</span>
+                      <span className="text-red-500" title={status.feil}>{t("status.feilet")}</span>
                     ) : (
                       "IFC"
                     )}
                   </p>
                 </div>
                 <button
-                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); soloModell(t.id); }}
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); soloModell(teg.id); }}
                   className="shrink-0 rounded p-1 text-gray-400 hover:bg-gray-200 hover:text-gray-700"
-                  title="Solo — vis kun denne modellen"
+                  title={t("3d.soloTittel")}
                 >
                   <Layers className="h-3.5 w-3.5" />
                 </button>
@@ -238,7 +238,7 @@ function Fane3DModell() {
         <div className="pointer-events-auto flex items-center gap-3 border-b border-gray-200 bg-white px-4 py-2">
           <Layers className="h-4 w-4 text-gray-400" />
           <span className="text-sm font-medium text-gray-900">
-            {tegninger.length} modell{tegninger.length !== 1 ? "er" : ""}
+            {t("3d.modellAntall", { antall: tegninger.length })}
           </span>
           <div className="flex-1" />
           <div className="flex items-center gap-1 border-r border-gray-200 pr-3">
@@ -264,7 +264,7 @@ function Fane3DModell() {
                 }}
                 className="rounded px-2 py-1 text-xs text-gray-500 hover:bg-gray-100"
               >
-                Fjern alle
+                {t("3d.fjernAlle")}
               </button>
             )}
           </div>
@@ -287,7 +287,7 @@ function Fane3DModell() {
           <div className="pointer-events-auto flex flex-1 items-center justify-center bg-gray-100">
             <div className="text-center text-gray-400">
               <Box className="mx-auto mb-2 h-12 w-12 text-gray-300" />
-              <p className="text-sm">{t("handling.lastOpp")} IFC-modeller for 3D-visning</p>
+              <p className="text-sm">{t("3d.lastOppIfcBeskrivelse")}</p>
             </div>
           </div>
         )}
@@ -405,7 +405,7 @@ function FaneOverflater({
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium text-gray-900">{o.navn}</p>
                 <p className="text-xs text-gray-500">
-                  {o.kilde === "landxml" ? "LandXML" : "Punktsky"} — {(o.triangles.length / 3).toLocaleString()} trekanter
+                  {o.kilde === "landxml" ? "LandXML" : t("3d.punktsky")} — {t("3d.trekanter", { antall: (o.triangles.length / 3).toLocaleString() })}
                 </p>
               </div>
               <button
@@ -501,7 +501,7 @@ function FaneKuttFyll({
       const res = beregnKuttFyll(topp, bunn, celleStr);
       setResultat(res);
     } catch (err) {
-      setFeil(err instanceof Error ? err.message : "Beregning feilet");
+      setFeil(err instanceof Error ? err.message : t("3d.beregningFeilet"));
     } finally {
       setBeregner(false);
     }

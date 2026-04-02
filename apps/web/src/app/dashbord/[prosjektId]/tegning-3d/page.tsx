@@ -682,10 +682,10 @@ export default function Tegning3DSide() {
           className={`flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium ${
             kalibrerModus ? "bg-purple-100 text-purple-700" : gulvY != null ? "bg-gray-50 text-gray-500" : "bg-orange-50 text-orange-700"
           }`}
-          title={gulvY != null ? `Gulvhøyde: ${gulvY.toFixed(1)}m — klikk for å endre` : "Klikk på gulvet i 3D for å kalibrere kamerahøyde"}
+          title={gulvY != null ? t("3d.gulvhoydeTittel", { hoyde: gulvY.toFixed(1) }) : t("3d.klikkGulvKalibrer")}
         >
           <Ruler size={14} />
-          {kalibrerModus ? "Klikk på gulvet..." : gulvY != null ? `${t("3d.gulv")}: ${gulvY.toFixed(1)}` : "Kalibrer"}
+          {kalibrerModus ? t("3d.klikkPaaGulvet") : gulvY != null ? `${t("3d.gulv")}: ${gulvY.toFixed(1)}` : t("3d.kalibrer")}
         </button>}
 
         {/* GPS-kalibrering (kun felt-admin, kun når IFC finnes) */}
@@ -814,7 +814,7 @@ export default function Tegning3DSide() {
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={tegningUrl}
-                    alt={valgtTegning?.name ?? "Tegning"}
+                    alt={valgtTegning?.name ?? t("nav.tegninger")}
                     className="max-w-none select-none"
                     onPointerDown={handleImgPointerDown}
                     onClick={handleTegningElementClick}
@@ -970,7 +970,7 @@ export default function Tegning3DSide() {
                 <button
                   onClick={() => {
                     const parsed = parserGpsInput(gpsInput);
-                    if (!parsed) { setGpsFeil("Kunne ikke tolke koordinatene"); return; }
+                    if (!parsed) { setGpsFeil(t("3d.ikkeTolkeKoordinater")); return; }
                     const ifcId = ifcModeller[0]?.id;
                     if (!ifcId) return;
                     settGpsOverrideMutation.mutate({ drawingId: ifcId, lat: parsed.lat, lng: parsed.lng });
