@@ -18,6 +18,14 @@ const POLL_INTERVALL = 10_000; // 10 sekunder
 export function startOversettelsesløkke(prisma: PrismaClient): void {
   console.log("Oversettelsesløkke startet");
 
+  // Recovery: sett stuck "processing"-jobber tilbake til "pending"
+  prisma.ftdTranslationJob.updateMany({
+    where: { status: "processing" },
+    data: { status: "pending", blocksDone: 0 },
+  }).then((r) => {
+    if (r.count > 0) console.log(`Oversettelse recovery: ${r.count} stuck jobber satt til pending`);
+  }).catch(() => {});
+
   async function poll() {
     try {
       await prosesserNesteJobb(prisma);
