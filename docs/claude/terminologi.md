@@ -40,3 +40,12 @@
 - **Eksternt prosjektnummer:** Kundens/byggeherrens referanse
 - **Firmalogo:** Prosjektets logo i print-header
 - **Print-til-PDF:** `@media print` CSS + nettleserens "Lagre som PDF"
+- **Kildespråk (sourceLanguage):** Prosjektets hovedspråk. Settes av firma i Prosjektoppsett
+- **Målspråk (languages):** Språk dokumenter oversettes til. Per mappe via arv (languageMode)
+- **Språkarv (languageMode):** "inherit" arver fra forelder-mappe, "custom" har egne målspråk
+- **Språkdeteksjon:** Auto-detektering av dokumentspråk via ordfrekvens (~60 ord/språk, 14 språk)
+- **Lag 1 (UI-oversettelse):** i18next-basert, automatisk basert på User.language
+- **Lag 2 (Mal→arbeider):** On-demand 🌐-knapp. Oversetter feltlabels/hjelpetekst til arbeiderens språk
+- **Lag 3 (Arbeider→firma):** Auto-oversetter fritekst ved lagring. Original bevares i `.original`
+- **TranslationCache:** SHA-256 hash-basert cache for oversettelser. Unngår gjentatte API-kall
+- **forbedreOversettelse:** Admin kan manuelt redigere eller re-oversette med bedre motor (DeepL)

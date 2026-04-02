@@ -93,9 +93,9 @@ Tre-kolonne layout (skjules på mobil < 768px, hamburger-meny i Toppbar):
 
 **Teknologi:** `i18next` + `react-i18next`, initialisert i `apps/web/src/lib/i18n.ts`
 
-**Språk:** 13 støttet (nb, en, sv, lt, pl, uk, ro, et, fi, cs, de, ru, lv). Norsk (nb) er kilde, engelsk (en) har manuell oversettelse. Andre språk genereres via `packages/shared/src/i18n/generate.ts` med Google Translate.
+**Språk:** 14 støttet (nb, en, sv, lt, pl, uk, ro, et, fi, cs, de, ru, lv, fr). Norsk (nb) er kilde, engelsk (en) har manuell oversettelse. Andre språk genereres via `packages/shared/src/i18n/generate.ts` med Google Translate.
 
-**Oversettelserfiler:** `packages/shared/src/i18n/nb.json` og `en.json` (~500 nøkler)
+**Oversettelserfiler:** `packages/shared/src/i18n/nb.json` og `en.json` (~600 nøkler)
 
 **Arkitektur:**
 - `SpraakVelger` i Toppbar — dropdown med flagg + språknavn
@@ -112,6 +112,48 @@ Tre-kolonne layout (skjules på mobil < 768px, hamburger-meny i Toppbar):
 - Nye strenger: legg til i **både** `nb.json` og `en.json`
 
 **Oversatte sider:** Alle hovedsider, navigasjon, statuspaneler, modaler, malbygger, innstillinger, prosjektoppsett
+
+## Oversettelsessystem (3 lag)
+
+### Lag 1: UI-strenger (i18n)
+Standard `i18next` + `react-i18next`. Alle UI-tekster i JSON-filer. Automatisk basert på `User.language`.
+
+### Lag 2: Mal-innhold → arbeider (on-demand)
+Firmainnhold (feltlabels, hjelpetekst, valgalternativer) oversettes on-demand når arbeider trykker 🌐-knappen.
+- **Trigger:** 🌐-knapp i FeltWrapper, kun synlig når `User.language !== Project.sourceLanguage`
+- **API:** `mal.oversettFelter` — batch-oversetter med TranslationCache
+- **Visning:** Oversettelse under originaltekst (blå, italic). Erstatter ikke — viser begge
+- **Motor:** Prosjektets konfigurasjon (OPUS-MT standard, Google/DeepL valgfritt)
+- **Cache:** TranslationCache (SHA-256) — oversetter kun én gang per tekst per språkpar
+- **Hook:** `useOversettelse` (mobil) kobler FeltWrapper til API
+
+### Lag 3: Fritekst → firma (automatisk)
+Arbeiderens fritekst auto-oversettes til prosjektspråket ved lagring.
+- **Trigger:** Automatisk i `oppdaterData` (sjekkliste + oppgave) når `User.language !== Project.sourceLanguage`
+- **Lagring:** `verdi` = oversettelse (prosjektspråk), `original` = { spraak, verdi, kommentar }
+- **Visning:** Prosjektspråk som hovedtekst, original i grå boks under
+- **Felttyper:** `text_field` verdier + `kommentar` på alle felttyper
+- **Forbedring:** `forbedreOversettelse` mutation — manuell redigering ELLER re-oversett med bedre motor (DeepL)
+- **Beskyttelse:** Admin-redigering overskrives ikke ved neste lagring (original-sjekk)
+
+### Språkinnstillinger
+- **Prosjekt.sourceLanguage:** Kildespråk (firma definerer). Velges i Prosjektoppsett
+- **Folder.languages:** Målspråk per mappe (for dokumentoversettelse). Arv via `languageMode` (inherit/custom)
+- **Folder.languageMode:** "inherit" arver fra forelder, "custom" har egne innstillinger
+- **User.language:** Brukerens UI-språk (14 valg)
+- **FtdDocument.detectedLanguage:** Auto-detektert språk fra innhold
+- **FtdDocument.languageConfirmed:** Bruker har bekreftet språkavvik
+
+### Språkdeteksjon
+- `apps/api/src/services/spraak-deteksjon.ts` — ordfrekvens-basert, ~60 ord per språk, 14 språk
+- Returnerer ISO 639-1 kode. Terskel: 3% treffrate
+- Ved avvik mot prosjektspråk: varsel i dokumentlisten med 3 valg (bekreft+oversett, bekreft uten oversettelse, bruk forventet)
+
+### Språkarv i mapper
+- `apps/api/src/services/folder-spraak.ts` — `resolverSpråk()` med syklusdeteksjon (visited-set)
+- Går opp foreldrekjeden til nærmeste `languageMode = "custom"` ancestor
+- Rot med inherit → kun prosjektets kildespråk
+- Batch: `resolverAlleSpråk()` for hele prosjektet
 
 ## Layout-komponenter
 
