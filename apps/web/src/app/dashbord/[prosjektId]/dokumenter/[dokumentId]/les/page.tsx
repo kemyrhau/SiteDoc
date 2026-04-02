@@ -49,9 +49,9 @@ export default function DokumentLeser() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="flex h-full flex-col bg-gray-50">
       {/* Topplinje */}
-      <header className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-200 bg-white px-4 py-3 shadow-sm">
+      <header className="shrink-0 flex items-center justify-between border-b border-gray-200 bg-white px-4 py-3 shadow-sm">
         <div className="flex items-center gap-3">
           <Link
             href={`/dashbord/${prosjektId}/mapper`}
@@ -101,7 +101,8 @@ export default function DokumentLeser() {
       </header>
 
       {/* Innhold */}
-      <main className="mx-auto max-w-3xl px-4 py-8">
+      <main className="flex-1 overflow-y-auto">
+        <div className="mx-auto max-w-3xl px-4 py-8">
         {data.blokker.map((blokk) => {
           const innhold = highlightTekst(blokk.content, highlight);
 
@@ -173,6 +174,7 @@ export default function DokumentLeser() {
               );
           }
         })}
+        </div>
       </main>
     </div>
   );
