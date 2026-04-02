@@ -36,7 +36,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="boks"
         options={{
-          title: "Box",
+          title: "Mapper",
           tabBarIcon: ({ color, size }) => (
             <FolderOpen size={size} color={color} />
           ),

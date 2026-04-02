@@ -44,7 +44,7 @@ export default function BoksSkjerm() {
     return (
       <SafeAreaView className="flex-1 bg-gray-50" edges={["top"]}>
         <View className="border-b border-gray-200 bg-white px-4 py-3">
-          <Text className="text-lg font-semibold text-gray-900">Box</Text>
+          <Text className="text-lg font-semibold text-gray-900">Mapper</Text>
         </View>
         <View className="flex-1 items-center justify-center px-8">
           <FolderOpen size={48} color="#9ca3af" />
@@ -131,7 +131,7 @@ export default function BoksSkjerm() {
   return (
     <SafeAreaView className="flex-1 bg-gray-50" edges={["top"]}>
       <View className="border-b border-gray-200 bg-white px-4 py-3">
-        <Text className="text-lg font-semibold text-gray-900">Box</Text>
+        <Text className="text-lg font-semibold text-gray-900">Mapper</Text>
       </View>
       {mapperLaster ? (
         <View className="flex-1 items-center justify-center">
