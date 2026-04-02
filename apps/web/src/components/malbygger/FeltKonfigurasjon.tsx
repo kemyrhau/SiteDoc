@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { REPORT_OBJECT_TYPE_META, type ReportObjectType } from "@sitedoc/shared";
 import { Input, Button, Badge } from "@sitedoc/ui";
+import { useTranslation } from "react-i18next";
 import type { MalObjekt } from "./DraggbartFelt";
 
 // Hent streng-verdi fra opsjon (støtter både string og {label, value}-format)
@@ -33,6 +34,7 @@ export function FeltKonfigurasjon({
   onFjernBetingelse,
   onFjernBarnFraKontainer,
 }: FeltKonfigurasjonProps) {
+  const { t } = useTranslation();
   const [label, setLabel] = useState(objekt.label);
   const [påkrevd, setPåkrevd] = useState(objekt.required);
   const [config, setConfig] = useState(objekt.config);
@@ -71,13 +73,13 @@ export function FeltKonfigurasjon({
   return (
     <aside className="flex h-full w-72 shrink-0 flex-col overflow-y-auto border-l border-gray-200 bg-gray-50 p-4">
       <h3 className="mb-1 text-xs font-semibold uppercase tracking-wider text-gray-500">
-        Konfigurasjon
+        {t("malbygger.konfigurasjon")}
       </h3>
       <p className="mb-4 text-xs text-gray-400">{meta?.label ?? objekt.type}</p>
 
       <div className="flex flex-col gap-4">
         <Input
-          label="Etikett"
+          label={t("malbygger.etikett")}
           value={label}
           onChange={(e) => setLabel(e.target.value)}
         />
@@ -89,11 +91,11 @@ export function FeltKonfigurasjon({
             onChange={(e) => setPåkrevd(e.target.checked)}
             className="rounded border-gray-300"
           />
-          Påkrevd felt
+          {t("malbygger.paakrevdFelt")}
         </label>
 
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-gray-600">Hjelpetekst</label>
+          <label className="text-xs font-medium text-gray-600">{t("malbygger.hjelpetekst")}</label>
           <textarea
             placeholder="Veiledningstekst for utfyller (valgfritt)"
             value={(config.helpText as string) ?? ""}
@@ -129,14 +131,14 @@ export function FeltKonfigurasjon({
               }
               className="rounded border-gray-300"
             />
-            Flerlinjet
+            {t("malbygger.flerlinjet")}
           </label>
         )}
 
         {(objekt.type === "integer" || objekt.type === "decimal") && (
           <div className="flex flex-col gap-2">
             <Input
-              label="Enhet"
+              label={t("malbygger.enhet")}
               placeholder="f.eks. kg, m², °C"
               value={(config.unit as string) ?? ""}
               onChange={(e) => setConfig({ ...config, unit: e.target.value })}
@@ -146,7 +148,7 @@ export function FeltKonfigurasjon({
 
         {(objekt.type === "person" || objekt.type === "persons" || objekt.type === "company") && (
           <Input
-            label="Rolle"
+            label={t("malbygger.rolle")}
             placeholder="f.eks. Kontrollør, Prosjektleder"
             value={(config.role as string) ?? ""}
             onChange={(e) => setConfig({ ...config, role: e.target.value })}
@@ -155,7 +157,7 @@ export function FeltKonfigurasjon({
 
         {objekt.type === "attachments" && (
           <Input
-            label="Maks antall filer"
+            label={t("malbygger.maksAntallFiler")}
             type="number"
             min={1}
             value={(config.maxFiles as number) ?? 10}
@@ -190,7 +192,7 @@ export function FeltKonfigurasjon({
         {(erBarn || harAktivBetingelse) && (
           <div className="mt-2 border-t border-gray-200 pt-4">
             <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500">
-              Betingelse
+              {t("malbygger.betingelse")}
             </p>
 
             {erBarn && (
@@ -206,7 +208,7 @@ export function FeltKonfigurasjon({
                     onClick={() => onFjernBarnFraKontainer(objekt.id)}
                     className="w-full"
                   >
-                    Fjern fra betingelse
+                    {t("malbygger.fjernFraBetingelse")}
                   </Button>
                 )}
               </div>
@@ -233,7 +235,7 @@ export function FeltKonfigurasjon({
                     onClick={() => onFjernBetingelse(objekt.id)}
                     className="w-full"
                   >
-                    Fjern betingelse
+                    {t("malbygger.fjernBetingelse")}
                   </Button>
                 )}
               </div>
@@ -250,7 +252,7 @@ export function FeltKonfigurasjon({
           size="sm"
           className="w-full"
         >
-          Lagre endringer
+          {t("prosjektoppsett.lagreEndringer")}
         </Button>
       </div>
     </aside>
@@ -265,6 +267,7 @@ function ValglisteKonfig({
   options: string[];
   onChange: (options: string[]) => void;
 }) {
+  const { t } = useTranslation();
   const [nytt, setNytt] = useState("");
 
   function leggTil() {
@@ -279,7 +282,7 @@ function ValglisteKonfig({
 
   return (
     <div className="flex flex-col gap-2">
-      <p className="text-sm font-medium text-gray-700">Valgalternativer</p>
+      <p className="text-sm font-medium text-gray-700">{t("malbygger.valgalternativer")}</p>
       {options.map((opt, i) => (
         <div key={i} className="flex items-center gap-2">
           <input
