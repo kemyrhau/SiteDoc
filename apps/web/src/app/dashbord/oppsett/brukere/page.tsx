@@ -320,7 +320,7 @@ function RedigerGruppeModal({
     if (!nyEpost.trim()) return;
     const epostRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!epostRegex.test(nyEpost.trim())) {
-      setFeilmelding("Ugyldig e-postadresse");
+      setFeilmelding(t("feil.ugyldigEpost"));
       return;
     }
     setFeilmelding("");
@@ -330,7 +330,7 @@ function RedigerGruppeModal({
   function handleLeggTil(e: React.FormEvent) {
     e.preventDefault();
     if (!nyFornavn.trim() || !nyEtternavn.trim()) {
-      setFeilmelding("Fornavn og etternavn er påkrevd");
+      setFeilmelding(t("feil.navnPaakrevd"));
       return;
     }
     setLeggerTil(true);
@@ -462,7 +462,7 @@ function RedigerGruppeModal({
                     setRedigerEpost(medlem.epost ?? "");
                     setRedigerTelefon(medlem.telefon ?? "");
                     setRedigerRolle(
-                      medlem.rolle === "Kontaktperson" || gruppe.id === "prosjektadmin"
+                      medlem.rolle === t("label.kontakt") || gruppe.id === "prosjektadmin"
                         ? "admin"
                         : "member",
                     );
@@ -750,7 +750,7 @@ function RedigerGruppeModal({
           {visLeggTil && (
             <div className="mt-2 rounded border border-gray-200 bg-gray-50 p-3">
               <div className="mb-2 flex items-center justify-between">
-                <p className="text-xs font-medium text-gray-500">Prosjektmedlemmer</p>
+                <p className="text-xs font-medium text-gray-500">{t("brukere.prosjektmedlemmer")}</p>
                 <button
                   type="button"
                   onClick={() => resetLeggTilSkjema()}
@@ -860,7 +860,7 @@ function RedigerGruppeModal({
                         setNyMelding("");
                       }}
                       className="rounded p-1 text-gray-400 hover:text-gray-600"
-                      title="Endre e-post"
+                      title={t("brukere.endreEpost")}
                     >
                       <Pencil className="h-3.5 w-3.5" />
                     </button>
@@ -925,7 +925,7 @@ function RedigerGruppeModal({
                       size="sm"
                       disabled={leggerTil || !nyFornavn.trim() || !nyEtternavn.trim()}
                     >
-                      {leggerTil ? "Legger til..." : "Legg til"}
+                      {leggerTil ? t("handling.laster") : t("handling.leggTil")}
                     </Button>
                   )}
                 </div>
@@ -940,8 +940,8 @@ function RedigerGruppeModal({
         {/* Moduler — feltarbeid-admin kan slå av/på */}
         {erDbGruppe && dbGruppe && (
           <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-            <h4 className="mb-3 text-sm font-semibold text-gray-900">Moduler</h4>
-            <p className="mb-2 text-xs text-gray-500">Hvilke moduler gruppen har tilgang til</p>
+            <h4 className="mb-3 text-sm font-semibold text-gray-900">{t("brukere.moduler")}</h4>
+            <p className="mb-2 text-xs text-gray-500">{t("brukere.modulerBeskrivelse")}</p>
             <div className="flex flex-col gap-2">
               {([
                 { id: "sjekklister", label: "Sjekklister", ikon: <ClipboardCheck className="h-4 w-4" /> },
@@ -981,8 +981,8 @@ function RedigerGruppeModal({
         {/* Bygninger — velg hvilke bygninger gruppen ser */}
         {erDbGruppe && dbGruppe && alleBygninger && alleBygninger.length > 0 && (
           <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-            <h4 className="mb-3 text-sm font-semibold text-gray-900">Bygninger</h4>
-            <p className="mb-2 text-xs text-gray-500">Velg hvilke bygninger gruppen har tilgang til (alle = standard)</p>
+            <h4 className="mb-3 text-sm font-semibold text-gray-900">{t("brukere.bygninger")}</h4>
+            <p className="mb-2 text-xs text-gray-500">{t("brukere.bygningerBeskrivelse")}</p>
             <div className="flex flex-col gap-2">
               {alleBygninger.map((b) => {
                 const bygningIder = ((dbGruppe as unknown as { buildingIds?: string[] | null }).buildingIds) ?? null;
@@ -1044,7 +1044,7 @@ function RedigerGruppeModal({
                   disabled={slettGruppe.isPending}
                   onClick={() => slettGruppe.mutate({ id: gruppe.id, projectId: prosjektId })}
                 >
-                  {slettGruppe.isPending ? "Sletter..." : "Bekreft sletting"}
+                  {slettGruppe.isPending ? t("handling.sletter") : t("brukere.bekreftSletting")}
                 </Button>
               </div>
             ) : (
@@ -1064,14 +1064,14 @@ function RedigerGruppeModal({
       <Modal
         open={ettersendId !== null}
         onClose={() => { setEttersendId(null); setEttersendMelding(""); }}
-        title="Ettersend invitasjon"
+        title={t("brukere.ettersendInvitasjon")}
       >
         <div className="flex flex-col gap-4">
           <p className="text-sm text-gray-600">
-            Send invitasjonen på nytt med en valgfri personlig melding.
+            {t("brukere.ettersendBeskrivelse")}
           </p>
           <textarea
-            placeholder="Personlig melding (valgfritt)"
+            placeholder={t("brukere.personligMelding")}
             value={ettersendMelding}
             onChange={(e) => setEttersendMelding(e.target.value)}
             rows={3}
@@ -1084,7 +1084,7 @@ function RedigerGruppeModal({
               size="sm"
               onClick={() => { setEttersendId(null); setEttersendMelding(""); }}
             >
-              Avbryt
+              {t("handling.avbryt")}
             </Button>
             <Button
               size="sm"
@@ -1097,7 +1097,7 @@ function RedigerGruppeModal({
                 });
               }}
             >
-              {sendPaNytt.isPending ? "Sender..." : "Send invitasjon"}
+              {sendPaNytt.isPending ? t("handling.sender") : t("brukere.sendInvitasjon")}
             </Button>
           </div>
         </div>
@@ -1142,10 +1142,10 @@ function GruppeKort({
         <div className="flex gap-1.5">
           {(gruppe.moduler ?? ["sjekklister", "oppgaver", "tegninger", "3d"]).map((modul) => {
             const info: Record<string, { ikon: JSX.Element; tekst: string }> = {
-              sjekklister: { ikon: <ClipboardCheck className="h-3.5 w-3.5" />, tekst: "Sjekklister" },
-              oppgaver: { ikon: <ListTodo className="h-3.5 w-3.5" />, tekst: "Oppgaver" },
-              tegninger: { ikon: <Map className="h-3.5 w-3.5" />, tekst: "Tegninger" },
-              "3d": { ikon: <Box className="h-3.5 w-3.5" />, tekst: "3D-modeller" },
+              sjekklister: { ikon: <ClipboardCheck className="h-3.5 w-3.5" />, tekst: t("brukere.sjekklister") },
+              oppgaver: { ikon: <ListTodo className="h-3.5 w-3.5" />, tekst: t("brukere.oppgaver") },
+              tegninger: { ikon: <Map className="h-3.5 w-3.5" />, tekst: t("brukere.tegninger") },
+              "3d": { ikon: <Box className="h-3.5 w-3.5" />, tekst: t("brukere.3dModeller") },
             };
             const m = info[modul];
             if (!m) return null;
@@ -1245,6 +1245,7 @@ function GruppeSeksjon({
   onDoubleClickGruppe?: (gruppe: BrukerGruppe) => void;
   onOpprett?: () => void;
 }) {
+  const { t } = useTranslation();
   if (grupper.length === 0 && !onOpprett) return null;
   return (
     <div className="mb-8">
@@ -1255,7 +1256,7 @@ function GruppeSeksjon({
             onClick={onOpprett}
             className="flex items-center gap-1 rounded-lg bg-sitedoc-primary px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-800"
           >
-            + Ny gruppe
+            {t("brukere.nyGruppe")}
           </button>
         )}
       </div>
@@ -1271,7 +1272,7 @@ function GruppeSeksjon({
           ))}
         </div>
       ) : (
-        <p className="text-sm text-gray-400">Ingen grupper — opprett en ny</p>
+        <p className="text-sm text-gray-400">{t("brukere.ingenGrupper")}</p>
       )}
     </div>
   );
@@ -1391,17 +1392,17 @@ export default function BrukereSide() {
     // Generelt — prosjektadministratorer fra ProjectMember.role
     {
       id: "prosjektadmin",
-      navn: "Prosjektadministratorer",
+      navn: t("brukere.prosjektadministratorer"),
       kategori: "generelt",
       ikon: <Shield className="h-4 w-4" />,
       medlemmer: prosjekt?.members
         ?.filter((m) => m.role === "admin" || m.role === "owner")
         .map((m) => ({
           id: m.id,
-          navn: m.user.name ?? m.user.email ?? "Ukjent",
+          navn: m.user.name ?? m.user.email ?? t("brukere.ukjent"),
           epost: m.user.email ?? undefined,
           telefon: (m.user as { phone?: string | null }).phone ?? undefined,
-          rolle: m.role === "owner" ? "Kontaktperson" : undefined,
+          rolle: m.role === "owner" ? t("label.kontakt") : undefined,
           ventendeInvitasjon: finnInvitasjon("prosjektadmin", m.user.email),
         })) ?? [],
     },
