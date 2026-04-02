@@ -510,7 +510,7 @@ function RedigerGruppeModal({
             <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
             <input
               type="text"
-              placeholder="Søk"
+              placeholder={t("brukere.sokPlaceholder")}
               value={sok}
               onChange={(e) => setSok(e.target.value)}
               className="rounded border border-gray-200 py-1.5 pl-8 pr-3 text-sm focus:border-sitedoc-primary focus:outline-none focus:ring-1 focus:ring-sitedoc-primary"
@@ -944,10 +944,10 @@ function RedigerGruppeModal({
             <p className="mb-2 text-xs text-gray-500">{t("brukere.modulerBeskrivelse")}</p>
             <div className="flex flex-col gap-2">
               {([
-                { id: "sjekklister", label: "Sjekklister", ikon: <ClipboardCheck className="h-4 w-4" /> },
-                { id: "oppgaver", label: "Oppgaver", ikon: <ListTodo className="h-4 w-4" /> },
-                { id: "tegninger", label: "Tegninger", ikon: <Map className="h-4 w-4" /> },
-                { id: "3d", label: "3D-modeller", ikon: <Box className="h-4 w-4" /> },
+                { id: "sjekklister", labelKey: "brukere.sjekklister", ikon: <ClipboardCheck className="h-4 w-4" /> },
+                { id: "oppgaver", labelKey: "brukere.oppgaver", ikon: <ListTodo className="h-4 w-4" /> },
+                { id: "tegninger", labelKey: "brukere.tegninger", ikon: <Map className="h-4 w-4" /> },
+                { id: "3d", labelKey: "brukere.3dModeller", ikon: <Box className="h-4 w-4" /> },
               ] as const).map((modul) => {
                 const aktiveModuler = ((dbGruppe as unknown as { modules?: string[] }).modules ?? ["sjekklister", "oppgaver", "tegninger", "3d"]);
                 const erAktiv = aktiveModuler.includes(modul.id);
@@ -969,7 +969,7 @@ function RedigerGruppeModal({
                       className="h-4 w-4 rounded border-gray-300 text-sitedoc-primary focus:ring-sitedoc-primary"
                     />
                     <span className="flex items-center gap-1.5 text-sm text-gray-700">
-                      {modul.ikon} {modul.label}
+                      {modul.ikon} {t(modul.labelKey)}
                     </span>
                   </label>
                 );
@@ -1378,7 +1378,7 @@ export default function BrukereSide() {
     medlemmer: g.members.map((m) => ({
       id: m.id,
       projectMemberId: m.projectMember.id,
-      navn: m.projectMember.user.name ?? m.projectMember.user.email ?? "Ukjent",
+      navn: m.projectMember.user.name ?? m.projectMember.user.email ?? t("brukere.ukjent"),
       epost: m.projectMember.user.email ?? undefined,
       telefon: m.projectMember.user.phone ?? undefined,
       firma: m.projectMember.enterprises?.[0]?.enterprise?.name ?? undefined,
