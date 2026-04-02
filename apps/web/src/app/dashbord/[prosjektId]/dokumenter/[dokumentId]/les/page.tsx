@@ -191,20 +191,21 @@ export default function DokumentLeser() {
 
             case "image":
               return blokk.imageUrl ? (
-                <figure key={blokk.id} className="my-6">
+                <figure key={blokk.id} className="my-4">
                   <img
                     src={`/api${blokk.imageUrl}`}
                     alt=""
-                    className="mx-auto max-h-96 rounded-lg border border-gray-200 shadow-sm"
+                    className="mx-auto w-full rounded-lg border border-gray-200 shadow-sm"
                     loading="lazy"
                   />
                 </figure>
               ) : null;
 
             case "caption":
+              if (!blokk.content.trim()) return null;
               return (
                 <figcaption
-                  className={`mb-6 text-center text-sm italic text-gray-500 ${erKlikkbar ? "cursor-pointer hover:bg-amber-50 transition-colors" : ""} ${erValgt ? "bg-amber-100" : ""}`}
+                  className={`-mt-2 mb-4 text-center text-sm italic text-gray-500 ${erKlikkbar ? "cursor-pointer hover:bg-amber-50 transition-colors" : ""} ${erValgt ? "bg-amber-100" : ""}`}
                   onClick={erKlikkbar ? () => setSammenlignBlokk(erValgt ? null : { id: blokk.id, content: blokk.content }) : undefined}
                   dangerouslySetInnerHTML={{ __html: innhold }}
                 />

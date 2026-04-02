@@ -109,7 +109,7 @@ async function analyserSide(
     if (opList.fnArray[i] === OPS.paintImageXObject) {
       const imgName = opList.argsArray[i]![0] as string;
       const imgData = await hentBildeData(page, imgName);
-      if (imgData && imgData.width > 50 && imgData.height > 50) {
+      if (imgData && imgData.width > 150 && imgData.height > 150) {
         bilder.push(imgData);
       }
     }
