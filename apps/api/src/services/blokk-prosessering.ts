@@ -318,15 +318,52 @@ async function lagreBilde(
 }
 
 /**
+ * Skaler ned store bilder til maks 1600px bredde for å spare disk og minne.
+ */
+function skalerNed(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+): { data: Uint8ClampedArray; width: number; height: number } {
+  const MAKS_BREDDE = 1600;
+  if (width <= MAKS_BREDDE) return { data, width, height };
+
+  const skala = MAKS_BREDDE / width;
+  const nyBredde = Math.round(width * skala);
+  const nyHøyde = Math.round(height * skala);
+  const nyData = new Uint8ClampedArray(nyBredde * nyHøyde * 4);
+
+  for (let y = 0; y < nyHøyde; y++) {
+    const kildeY = Math.min(Math.round(y / skala), height - 1);
+    for (let x = 0; x < nyBredde; x++) {
+      const kildeX = Math.min(Math.round(x / skala), width - 1);
+      const srcIdx = (kildeY * width + kildeX) * 4;
+      const dstIdx = (y * nyBredde + x) * 4;
+      nyData[dstIdx] = data[srcIdx]!;
+      nyData[dstIdx + 1] = data[srcIdx + 1]!;
+      nyData[dstIdx + 2] = data[srcIdx + 2]!;
+      nyData[dstIdx + 3] = data[srcIdx + 3]!;
+    }
+  }
+  return { data: nyData, width: nyBredde, height: nyHøyde };
+}
+
+/**
  * RGBA→PNG konvertering via zlib (ingen native deps).
  * Genererer gyldig PNG som nettlesere kan vise.
  */
 function rgbaToPng(
-  data: Uint8ClampedArray,
-  width: number,
-  height: number,
+  inputData: Uint8ClampedArray,
+  inputWidth: number,
+  inputHeight: number,
 ): Buffer {
   const { deflateSync } = require("node:zlib") as typeof import("node:zlib");
+
+  // Skaler ned store bilder
+  const { data, width, height } = skalerNed(inputData, inputWidth, inputHeight);
+
+  // Kopier data til en ren Buffer for trygg tilgang (unngå byteOffset-problemer)
+  const piksler = Buffer.from(data.buffer, data.byteOffset, data.byteLength);
 
   // PNG IDAT: filterbyte (0 = None) foran hver rad, deretter RGBA-piksler
   const rawLen = height * (1 + width * 4);
@@ -334,7 +371,7 @@ function rgbaToPng(
   for (let y = 0; y < height; y++) {
     const rowOffset = y * (1 + width * 4);
     raw[rowOffset] = 0; // filter: None
-    data.buffer && Buffer.from(data.buffer, data.byteOffset + y * width * 4, width * 4).copy(raw, rowOffset + 1);
+    piksler.copy(raw, rowOffset + 1, y * width * 4, (y + 1) * width * 4);
   }
   const compressed = deflateSync(raw);
 
