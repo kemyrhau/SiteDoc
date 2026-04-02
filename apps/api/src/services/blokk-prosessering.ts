@@ -167,8 +167,12 @@ async function prosesserSkannetSide(
   // Lagre bilder (typisk 1 stort bilde per skannet side) — data allerede cachet
   let bildeNr = 0;
   for (const bilde of analyse.bilder) {
-    const bildeUrl = await lagreBilde(documentId, sideNr, bildeNr++, bilde);
-    alleBlokker.push({ type: "image", content: "", pageNumber: sideNr, imageUrl: bildeUrl });
+    try {
+      const bildeUrl = await lagreBilde(documentId, sideNr, bildeNr++, bilde);
+      alleBlokker.push({ type: "image", content: "", pageNumber: sideNr, imageUrl: bildeUrl });
+    } catch (err) {
+      console.error(`Bilde s${sideNr}_b${bildeNr - 1} feilet (${bilde.width}x${bilde.height}, data: ${bilde.data.length}):`, (err as Error).message);
+    }
   }
 
   // OCR-tekst som enkelt tekstblokk (hvis noe finnes)
@@ -209,8 +213,12 @@ async function prosesserTekstSide(
   // Lagre illustrasjonsbilder — data allerede cachet
   let bildeNr = 0;
   for (const bilde of analyse.bilder) {
-    const bildeUrl = await lagreBilde(documentId, sideNr, bildeNr++, bilde);
-    alleBlokker.push({ type: "image", content: "", pageNumber: sideNr, imageUrl: bildeUrl });
+    try {
+      const bildeUrl = await lagreBilde(documentId, sideNr, bildeNr++, bilde);
+      alleBlokker.push({ type: "image", content: "", pageNumber: sideNr, imageUrl: bildeUrl });
+    } catch (err) {
+      console.error(`Bilde s${sideNr}_b${bildeNr - 1} feilet (${bilde.width}x${bilde.height}, data: ${bilde.data.length}):`, (err as Error).message);
+    }
   }
 
   // Bygg tekst-blokker fra rader
@@ -375,17 +383,25 @@ function rgbaToPng(
   // Konverter til RGBA hvis nødvendig (pdfjs-dist kan gi RGB)
   const rgbaData = tilRgba(inputData, inputWidth, inputHeight);
 
+  // Verifiser at data-lengde matcher dimensjoner
+  const forventet = inputWidth * inputHeight * 4;
+  if (rgbaData.length < forventet) {
+    throw new Error(`RGBA data for kort: ${rgbaData.length} < ${forventet} (${inputWidth}x${inputHeight})`);
+  }
+
   // Skaler ned store bilder
   const { data, width, height } = skalerNed(rgbaData, inputWidth, inputHeight);
 
   // PNG IDAT: filterbyte (0 = None) foran hver rad, deretter RGBA-piksler
-  const rawLen = height * (1 + width * 4);
+  const radBredde = width * 4;
+  const rawLen = height * (1 + radBredde);
   const raw = Buffer.alloc(rawLen);
   for (let y = 0; y < height; y++) {
-    const rowOffset = y * (1 + width * 4);
+    const rowOffset = y * (1 + radBredde);
     raw[rowOffset] = 0; // filter: None
-    for (let x = 0; x < width * 4; x++) {
-      raw[rowOffset + 1 + x] = data[y * width * 4 + x]!;
+    const srcStart = y * radBredde;
+    for (let i = 0; i < radBredde; i++) {
+      raw[rowOffset + 1 + i] = data[srcStart + i] ?? 0;
     }
   }
   const compressed = deflateSync(raw);
