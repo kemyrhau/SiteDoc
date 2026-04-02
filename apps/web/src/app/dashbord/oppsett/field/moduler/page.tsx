@@ -297,6 +297,14 @@ function OversettelsesInnstillinger({ prosjektId }: { prosjektId: string }) {
             placeholder="API-nøkkel..."
             className="w-full rounded border border-gray-300 px-2 py-1.5 text-xs focus:border-sitedoc-primary focus:outline-none focus:ring-1 focus:ring-sitedoc-primary"
           />
+          <a
+            href={motor === "google" ? "https://console.cloud.google.com/apis/credentials" : "https://www.deepl.com/your-account/keys"}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-1 inline-block text-[10px] text-sitedoc-secondary hover:underline"
+          >
+            {motor === "google" ? "Hent nøkkel fra Google Cloud Console →" : "Hent nøkkel fra DeepL →"}
+          </a>
         </div>
       )}
 
