@@ -97,6 +97,10 @@ async function start() {
       if (stuck > 0) {
         server.log.info(`Embedding recovery: ${stuck} stuck chunks satt tilbake til pending`);
       }
+
+      // Start oversettelsesløkke (prosesserer FtdTranslationJob-køen)
+      const { startOversettelsesløkke } = await import("./services/oversettelse-service");
+      startOversettelsesløkke(prisma);
     } catch (_e) {
       // Ikke kritisk — ignorer hvis tabellen ikke finnes ennå
     }
