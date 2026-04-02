@@ -23,10 +23,9 @@ export const mappeRouter = router({
     .input(z.object({ projectId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       await verifiserProsjektmedlem(ctx.userId, input.projectId);
-      return ctx.prisma.folder.findMany({
+      const mapper = await ctx.prisma.folder.findMany({
         where: { projectId: input.projectId },
         include: {
-          _count: { select: { ftdDocuments: { where: { isActive: true } } } },
           kontrakt: { select: { id: true, navn: true } },
           accessEntries: {
             include: {
@@ -38,6 +37,17 @@ export const mappeRouter = router({
         },
         orderBy: { name: "asc" },
       });
+      // Tell kun aktive dokumenter per mappe
+      const tellinger = await ctx.prisma.ftdDocument.groupBy({
+        by: ["folderId"],
+        where: { projectId: input.projectId, isActive: true },
+        _count: true,
+      });
+      const tellMap = new Map(tellinger.map((t) => [t.folderId, t._count]));
+      return mapper.map((m) => ({
+        ...m,
+        _count: { ftdDocuments: tellMap.get(m.id) ?? 0 },
+      }));
     }),
 
   // Opprett ny mappe
