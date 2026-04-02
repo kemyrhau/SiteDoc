@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { trpc } from "@/lib/trpc";
 import { Button, Spinner } from "@sitedoc/ui";
+import { useTranslation } from "react-i18next";
 import {
   Brain,
   Key,
@@ -18,6 +19,7 @@ import {
 
 export default function AiSokSide() {
   const { prosjektId } = useProsjekt();
+  const { t } = useTranslation();
 
   const { data: innstillinger, isLoading: lasterInnstillinger } =
     trpc.aiSok.hentInnstillinger.useQuery(
@@ -112,9 +114,9 @@ export default function AiSokSide() {
             <Brain className="h-5 w-5 text-sitedoc-primary" />
           </div>
           <div>
-            <h2 className="text-lg font-semibold text-gray-900">AI-søk</h2>
+            <h2 className="text-lg font-semibold text-gray-900">{t("oppsett.aiSok")}</h2>
             <p className="text-sm text-gray-500">
-              Konfigurer embedding-modell, LLM og søkeparametere
+              {t("aiSok.beskrivelse")}
             </p>
           </div>
         </div>
@@ -125,37 +127,37 @@ export default function AiSokSide() {
         <div className="mb-6 rounded-xl border border-gray-200 bg-white p-5">
           <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-900">
             <Info className="h-4 w-4 text-gray-400" />
-            Embedding-status
+            {t("aiSok.embeddingStatus")}
           </h3>
           <div className="grid grid-cols-3 gap-4 text-center">
             <div>
               <div className="text-2xl font-bold text-gray-900">
                 {status.totalt.toLocaleString("nb-NO")}
               </div>
-              <div className="text-xs text-gray-500">Totalt chunks</div>
+              <div className="text-xs text-gray-500">{t("aiSok.totaltChunks")}</div>
             </div>
             <div>
               <div className="text-2xl font-bold text-green-600">
                 {status.ferdig.toLocaleString("nb-NO")}
               </div>
-              <div className="text-xs text-gray-500">Ferdig</div>
+              <div className="text-xs text-gray-500">{t("aiSok.ferdig")}</div>
             </div>
             <div>
               <div className="text-2xl font-bold text-amber-600">
                 {status.ventende.toLocaleString("nb-NO")}
               </div>
-              <div className="text-xs text-gray-500">Ventende</div>
+              <div className="text-xs text-gray-500">{t("aiSok.ventende")}</div>
             </div>
           </div>
 
           {status.totalt > 0 && (
             <div className="mt-3">
               <div className="mb-1 flex items-center justify-between text-xs text-gray-500">
-                <span>{prosent}% ferdig</span>
+                <span>{prosent}% {t("aiSok.ferdig")}</span>
                 {status.prosesserer && (
                   <span className="flex items-center gap-1 text-sitedoc-primary">
                     <RefreshCw className="h-3 w-3 animate-spin" />
-                    Genererer...
+                    {t("aiSok.genererer")}
                   </span>
                 )}
               </div>
@@ -177,7 +179,7 @@ export default function AiSokSide() {
                 disabled={stoppMut.isPending}
               >
                 <Square className="mr-1.5 h-3.5 w-3.5" />
-                Stopp
+                {t("aiSok.stopp")}
               </Button>
             ) : (
               <Button
@@ -186,7 +188,7 @@ export default function AiSokSide() {
                 disabled={genererMut.isPending || !harApiNøkkel}
               >
                 <Play className="mr-1.5 h-3.5 w-3.5" />
-                {status.ventende > 0 ? "Generer embeddings" : "Re-generer alle"}
+                {status.ventende > 0 ? t("aiSok.generer") : t("aiSok.regenAlle")}
               </Button>
             )}
           </div>
@@ -204,13 +206,13 @@ export default function AiSokSide() {
       <div className="mb-6 rounded-xl border border-gray-200 bg-white p-5">
         <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold text-gray-900">
           <Key className="h-4 w-4 text-gray-400" />
-          Embedding-modell
+          {t("aiSok.embeddingModell")}
         </h3>
 
         <div className="space-y-4">
           <div>
             <label className="mb-1 block text-xs font-medium text-gray-600">
-              Provider
+              {t("aiSok.provider")}
             </label>
             <select
               value={embeddingProvider}
@@ -229,7 +231,7 @@ export default function AiSokSide() {
 
           <div>
             <label className="mb-1 block text-xs font-medium text-gray-600">
-              Modell
+              {t("aiSok.modell")}
             </label>
             {erLokal ? (
               <div className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-sm text-gray-600">
@@ -282,13 +284,13 @@ export default function AiSokSide() {
       <div className="mb-6 rounded-xl border border-gray-200 bg-white p-5">
         <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold text-gray-900">
           <Brain className="h-4 w-4 text-gray-400" />
-          LLM (RAG-svar)
+          {t("aiSok.llm")}
         </h3>
 
         <div className="space-y-4">
           <div>
             <label className="mb-1 block text-xs font-medium text-gray-600">
-              Provider
+              {t("aiSok.provider")}
             </label>
             <select
               value={llmProvider}
@@ -334,7 +336,7 @@ export default function AiSokSide() {
 
               <div>
                 <label className="mb-1 block text-xs font-medium text-gray-600">
-                  API-nøkkel
+                  {t("aiSok.apiNokkel")}
                 </label>
                 <input
                   type="password"
@@ -362,36 +364,36 @@ export default function AiSokSide() {
       <div className="mb-6 rounded-xl border border-gray-200 bg-white p-5">
         <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold text-gray-900">
           <Sliders className="h-4 w-4 text-gray-400" />
-          Søkeparametere
+          {t("aiSok.sokeparametere")}
         </h3>
 
         <div className="space-y-4">
           <VektSlider
-            label="Recall (semantisk likhet)"
+            label={t("aiSok.recall")}
             verdi={recall}
             onChange={(v) => {
               setRecall(v);
               setHarEndringer(true);
             }}
-            beskrivelse="Høy = vektlegger betydning, lav = vektlegger eksakte ord"
+            beskrivelse={t("aiSok.recallBeskrivelse")}
           />
           <VektSlider
-            label="Precision (eksakt matching)"
+            label={t("aiSok.precision")}
             verdi={precision}
             onChange={(v) => {
               setPrecision(v);
               setHarEndringer(true);
             }}
-            beskrivelse="Høy = prioriterer nøyaktige treff, lav = bredere resultater"
+            beskrivelse={t("aiSok.precisionBeskrivelse")}
           />
           <VektSlider
-            label="Latency (dokumentstørrelse)"
+            label={t("aiSok.latency")}
             verdi={latency}
             onChange={(v) => {
               setLatency(v);
               setHarEndringer(true);
             }}
-            beskrivelse="Høy = foretrekker kortere dokumenter, lav = ingen preferanse"
+            beskrivelse={t("aiSok.latencyBeskrivelse")}
           />
         </div>
       </div>
@@ -402,12 +404,12 @@ export default function AiSokSide() {
           onClick={lagreInnstillinger}
           disabled={!harEndringer || oppdaterMut.isPending}
         >
-          {oppdaterMut.isPending ? "Lagrer..." : "Lagre innstillinger"}
+          {oppdaterMut.isPending ? t("handling.lagrer") : t("aiSok.lagreInnstillinger")}
         </Button>
         {lagret && (
           <span className="flex items-center gap-1 text-sm text-green-600">
             <CheckCircle2 className="h-4 w-4" />
-            Lagret
+            {t("aiSok.lagret")}
           </span>
         )}
       </div>
