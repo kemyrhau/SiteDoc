@@ -19,8 +19,9 @@ PC/WSL (server):
 
   Felles:
     SSH        :22   → ssh.sitedoc.no      (Cloudflare Tunnel)
-    NorBERT    :3302 → lokal embedding-server (PM2: norbert-embed)
-    Python venv: ~/norbert-env (torch + transformers)
+    Embedding  :3302 → NorBERT + multilingual-e5-base (PM2: norbert-embed)
+    Oversettelse:3303 → OPUS-MT oversettelsesserver (PM2: oversettelse-server)
+    Python venv: ~/norbert-env (torch + transformers + sentencepiece)
 ```
 
 ## PM2-prosesser
@@ -31,7 +32,8 @@ PC/WSL (server):
 | `sitedoc-api` | 3001 | Produksjon Fastify/tRPC |
 | `sitedoc-test-web` | 3300 | Test Next.js |
 | `sitedoc-test-api` | 3301 | Test Fastify/tRPC |
-| `norbert-embed` | 3302 | NorBERT embedding HTTP-server (Python) |
+| `norbert-embed` | 3302 | Multi-modell embedding: NorBERT (norsk) + multilingual-e5-base (flerspråklig, lazy) |
+| `oversettelse-server` | 3303 | Helsinki-NLP/OPUS-MT oversettelse, LRU-cache maks 3 modeller, pivot nb→en→target |
 
 ## Server-avhengigheter (apt)
 

@@ -905,6 +905,20 @@ model FtdTranslationJob {
   @@map("ftd_translation_jobs")
 }
 
+// Translation memory — cache for allerede oversatte tekster
+model TranslationCache {
+  id           String   @id @default(cuid())
+  contentHash  String   @map("content_hash")  // SHA-256 av kildetekst
+  sourceLang   String   @map("source_lang")
+  targetLang   String   @map("target_lang")
+  sourceText   String   @map("source_text")
+  targetText   String   @map("target_text")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@unique([contentHash, sourceLang, targetLang])
+  @@map("translation_cache")
+}
+
 model FtdDocumentPage {
   id         String @id @default(cuid())
   documentId String @map("document_id")

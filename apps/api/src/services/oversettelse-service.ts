@@ -4,7 +4,7 @@
  * Poller for pending-jobber og oversetter norske blokker til målspråk
  * via oversettelse-server.py (OPUS-MT, port 3303).
  */
-import { randomUUID } from "node:crypto";
+import { randomUUID, createHash } from "node:crypto";
 import type { PrismaClient } from "@sitedoc/db";
 import { embeddNyeBlokker } from "./embedding-service";
 
@@ -104,26 +104,74 @@ async function oversettBlokker(
   const tekstBlokker = norskBlokker.filter((b) =>
     ["heading", "text", "caption"].includes(b.blockType) && b.content.trim(),
   );
-  const bildeBlokker = norskBlokker.filter((b) => b.blockType === "image");
 
-  // Batch-oversett tekst
-  const oversattTekster: string[] = [];
-  for (let i = 0; i < tekstBlokker.length; i += BATCH_STØRRELSE) {
-    const batch = tekstBlokker.slice(i, i + BATCH_STØRRELSE);
-    const tekster = batch.map((b) => b.content);
+  // Slå opp i translation cache
+  const hashes = tekstBlokker.map((b) => hashTekst(b.content));
+  const cachetreff = await prisma.translationCache.findMany({
+    where: {
+      contentHash: { in: hashes },
+      sourceLang: "nb",
+      targetLang,
+    },
+  });
+  const cachemap = new Map(cachetreff.map((c) => [c.contentHash, c.targetText]));
+
+  // Finn blokker som trenger oversettelse (ikke i cache)
+  const uoversatte: Array<{ idx: number; tekst: string }> = [];
+  for (let i = 0; i < tekstBlokker.length; i++) {
+    if (!cachemap.has(hashes[i]!)) {
+      uoversatte.push({ idx: i, tekst: tekstBlokker[i]!.content });
+    }
+  }
+
+  const cacheHits = tekstBlokker.length - uoversatte.length;
+  if (cacheHits > 0) {
+    console.log(`Translation cache: ${cacheHits}/${tekstBlokker.length} treff for ${targetLang}`);
+  }
+
+  // Batch-oversett kun ukjente tekster
+  const nyeOversettelser = new Map<number, string>();
+  for (let i = 0; i < uoversatte.length; i += BATCH_STØRRELSE) {
+    const batch = uoversatte.slice(i, i + BATCH_STØRRELSE);
+    const tekster = batch.map((b) => b.tekst);
 
     const oversatt = await kallOversettelsesServer(tekster, "nb", targetLang);
-    oversattTekster.push(...oversatt);
+    batch.forEach((b, j) => {
+      nyeOversettelser.set(b.idx, oversatt[j]!);
+    });
 
     // Oppdater fremdrift
     await prisma.ftdTranslationJob.update({
       where: { id: jobbId },
       data: {
-        blocksDone: Math.min(i + BATCH_STØRRELSE, tekstBlokker.length),
+        blocksDone: Math.min(cacheHits + i + BATCH_STØRRELSE, tekstBlokker.length),
         blocksTotal: tekstBlokker.length,
       },
     });
   }
+
+  // Lagre nye oversettelser i cache
+  if (nyeOversettelser.size > 0) {
+    const cacheData = [...nyeOversettelser.entries()].map(([idx, oversatt]) => ({
+      id: randomUUID(),
+      contentHash: hashes[idx]!,
+      sourceLang: "nb",
+      targetLang,
+      sourceText: tekstBlokker[idx]!.content,
+      targetText: oversatt,
+    }));
+    await prisma.translationCache.createMany({
+      data: cacheData,
+      skipDuplicates: true,
+    });
+  }
+
+  // Bygg komplett oversatt tekst-array
+  const oversattTekster: string[] = tekstBlokker.map((_, i) => {
+    const cached = cachemap.get(hashes[i]!);
+    if (cached) return cached;
+    return nyeOversettelser.get(i) ?? tekstBlokker[i]!.content;
+  });
 
   // Bygg oversatte blokker
   const nyeBlokker = norskBlokker.map((blokk, _idx) => {
@@ -208,4 +256,11 @@ async function kallOversettelsesServer(
 
   const data = await response.json() as { translations: string[] };
   return data.translations;
+}
+
+/**
+ * SHA-256 hash av tekst for translation cache.
+ */
+function hashTekst(tekst: string): string {
+  return createHash("sha256").update(tekst).digest("hex");
 }

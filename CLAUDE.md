@@ -36,7 +36,9 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 - **3D/Punktsky:** Three.js, potree-core (punktsky-viewer), @thatopen/components (IFC 3D-viewer)
 - **Tegningskonvertering:** ODA File Converter / libredwg (DWG→SVG), CloudCompare (E57/PLY→LAS), PotreeConverter (LAS→Potree octree)
 - **Ikoner:** lucide-react
-- **i18n:** i18next + react-i18next (13 språk, ~500 nøkler i packages/shared/src/i18n/)
+- **i18n:** i18next + react-i18next (13 språk, ~600 nøkler i packages/shared/src/i18n/)
+- **Dokumentoversettelse:** Helsinki-NLP/OPUS-MT (selvhostet Python-server, port 3303), translation memory cache
+- **Flerspråklig embedding:** intfloat/multilingual-e5-base (768 dim, 100+ språk, port 3302)
 
 ## Prosjektstruktur
 
