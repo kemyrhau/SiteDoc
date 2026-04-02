@@ -38,12 +38,12 @@ export const mappeRouter = router({
         orderBy: { name: "asc" },
       });
       // Tell kun aktive dokumenter per mappe
-      const tellinger = await ctx.prisma.ftdDocument.groupBy({
-        by: ["folderId"],
-        where: { projectId: input.projectId, isActive: true },
-        _count: true,
-      });
-      const tellMap = new Map(tellinger.map((t) => [t.folderId, t._count]));
+      const tellinger = await ctx.prisma.$queryRaw<Array<{ folder_id: string; antall: bigint }>>`
+        SELECT folder_id, count(*) as antall FROM ftd_documents
+        WHERE project_id = ${input.projectId} AND is_active = true AND folder_id IS NOT NULL
+        GROUP BY folder_id
+      `;
+      const tellMap = new Map(tellinger.map((t) => [t.folder_id, Number(t.antall)]));
       return mapper.map((m) => ({
         ...m,
         _count: { ftdDocuments: tellMap.get(m.id) ?? 0 },
