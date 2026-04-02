@@ -180,9 +180,16 @@ Etter endringer, oppgi alltid hvilken reload-metode som trengs:
 
 ## Språk
 
-- All kode, UI-tekst, kommentarer og commits på **norsk bokmål**
+- All kode, kommentarer og commits på **norsk bokmål**
 - Variabelnavn kan være engelske der naturlig (`id`, `status`, `config`)
 - Bruk alltid æ, ø, å — ALDRI ASCII-erstatninger
+- **i18n-krav:** Alle synlige UI-strenger i web-appen MÅ bruke `t()` fra react-i18next — ALDRI hardkod norsk tekst i JSX. Ved nye sider/komponenter:
+  1. `import { useTranslation } from "react-i18next";`
+  2. `const { t } = useTranslation();`
+  3. Legg til nøkler i **både** `packages/shared/src/i18n/nb.json` og `en.json`
+  4. Nøkkelformat: `seksjon.noekkel` (f.eks. `oppgaver.tittel`, `handling.lagre`)
+  5. Gjenbruk eksisterende nøkler der mulig (`handling.lagre`, `handling.avbryt`, `tabell.navn` etc.)
+  6. For data utenfor komponenter (arrays, configs): bruk `labelKey` i stedet for `label`, kall `t()` ved rendering
 
 ## Viktige regler
 
