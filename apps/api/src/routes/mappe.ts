@@ -332,6 +332,8 @@ export const mappeRouter = router({
       await verifiserProsjektmedlem(ctx.userId, doc.projectId);
       await ctx.prisma.ftdDocumentChunk.deleteMany({ where: { documentId: input.documentId } });
       await ctx.prisma.ftdSpecPost.deleteMany({ where: { documentId: input.documentId } });
+      await ctx.prisma.ftdDocumentBlock.deleteMany({ where: { documentId: input.documentId } });
+      await ctx.prisma.ftdTranslationJob.deleteMany({ where: { documentId: input.documentId } });
       return ctx.prisma.ftdDocument.update({
         where: { id: input.documentId },
         data: { isActive: false },
