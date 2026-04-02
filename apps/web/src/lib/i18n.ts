@@ -14,10 +14,11 @@ import cs from "@sitedoc/shared/src/i18n/cs.json";
 import de from "@sitedoc/shared/src/i18n/de.json";
 import ru from "@sitedoc/shared/src/i18n/ru.json";
 import lv from "@sitedoc/shared/src/i18n/lv.json";
+import fr from "@sitedoc/shared/src/i18n/fr.json";
 
-// Alle 13 språk — statisk importert
+// Alle 14 språk — statisk importert
 const oversettelser: Record<SpraakKode, Record<string, string>> = {
-  nb, en, sv, lt, pl, uk, ro, et, fi, cs, de, ru, lv,
+  nb, en, sv, lt, pl, uk, ro, et, fi, cs, de, ru, lv, fr,
 };
 
 const STORAGE_KEY = "sitedoc-language";
