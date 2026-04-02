@@ -37,8 +37,9 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 - **Tegningskonvertering:** ODA File Converter / libredwg (DWG→SVG), CloudCompare (E57/PLY→LAS), PotreeConverter (LAS→Potree octree)
 - **Ikoner:** lucide-react
 - **i18n:** i18next + react-i18next (13 språk, ~600 nøkler i packages/shared/src/i18n/)
-- **Dokumentoversettelse:** Helsinki-NLP/OPUS-MT (selvhostet Python-server, port 3303), translation memory cache
+- **Dokumentoversettelse:** OPUS-MT (selvhostet, port 3303) + Google Translate (gratis, google-translate-api-x) + DeepL (betalt). Translation memory cache, kildespråk-deteksjon
 - **Flerspråklig embedding:** intfloat/multilingual-e5-base (768 dim, 100+ språk, port 3302)
+- **Dokumentleser:** Blokkbasert Reader View med språkvelger, sammenlign-panel for motorbytte
 
 ## Prosjektstruktur
 
