@@ -24,37 +24,25 @@ models = {}
 MAKS_MODELLER = 3
 PORT = 3303
 
-# Språkpar-mapping: OPUS-MT bruker ISO 639-1/639-2 koder
-# Noen par finnes direkte, andre trenger pivot via engelsk
-DIREKTE_PAR = {
-    "en": "Helsinki-NLP/opus-mt-tc-big-gmn-en",  # Germansk→Engelsk (dekker norsk)
-    "de": "Helsinki-NLP/opus-mt-gmn-de",          # Germansk→Tysk
-    "sv": "Helsinki-NLP/opus-mt-sv-no",           # Bruker reversert: no→sv via sv→no
-    "fi": "Helsinki-NLP/opus-mt-tc-big-en-fi",    # Via pivot
-    "ru": "Helsinki-NLP/opus-mt-en-ru",           # Via pivot
-    "pl": "Helsinki-NLP/opus-mt-en-pl",           # Via pivot
-}
+# nb→en modell (Germanic→English, dekker norsk med >>nob<< prefix)
+NB_TIL_EN = "Helsinki-NLP/opus-mt-gem-en"
+NB_PREFIX = ">>nob<< "  # Norsk bokmål prefix for gem-en modellen
 
-# Språk som trenger pivot via engelsk (nb→en→target)
-PIVOT_SPRAAK = {"fi", "ru", "pl", "cs", "ro", "lt", "et", "lv", "uk"}
-
+# Alle oversettelser går via pivot: nb→en→target
 # OPUS-MT modeller for en→target
 EN_TIL_TARGET = {
+    "sv": "Helsinki-NLP/opus-mt-en-sv",
+    "de": "Helsinki-NLP/opus-mt-en-de",
     "fi": "Helsinki-NLP/opus-mt-en-fi",
     "ru": "Helsinki-NLP/opus-mt-en-ru",
-    "pl": "Helsinki-NLP/opus-mt-en-sla",    # Slavisk gruppe
+    "pl": "Helsinki-NLP/opus-mt-en-pl",
     "cs": "Helsinki-NLP/opus-mt-en-cs",
-    "ro": "Helsinki-NLP/opus-mt-en-roa",    # Romansk gruppe
+    "ro": "Helsinki-NLP/opus-mt-en-ro",
     "lt": "Helsinki-NLP/opus-mt-en-lt",
     "et": "Helsinki-NLP/opus-mt-en-et",
     "lv": "Helsinki-NLP/opus-mt-en-lv",
     "uk": "Helsinki-NLP/opus-mt-en-uk",
-    "sv": "Helsinki-NLP/opus-mt-en-sv",
-    "de": "Helsinki-NLP/opus-mt-en-de",
 }
-
-# nb→en modell
-NB_TIL_EN = "Helsinki-NLP/opus-mt-gmn-en"
 
 class ModellCache:
     """LRU-cache for oversettelsesmodeller."""
@@ -102,24 +90,18 @@ def oversett_tekster(tekster: list[str], kilde: str, maal: str) -> list[str]:
     if kilde == maal:
         return tekster
 
-    # Strategi 1: nb→en (direkte via gmn-en)
+    # nb/no → en (direkte via gem-en med >>nob<< prefix)
     if kilde in ("nb", "no") and maal == "en":
-        return _oversett_batch(tekster, NB_TIL_EN)
+        prefixed = [NB_PREFIX + t for t in tekster]
+        return _oversett_batch(prefixed, NB_TIL_EN)
 
-    # Strategi 2: nb→sv/de (direkte par hvis tilgjengelig)
-    if kilde in ("nb", "no") and maal in ("sv", "de") and maal not in PIVOT_SPRAAK:
-        modell = EN_TIL_TARGET.get(maal)
-        if modell:
-            # Pivot: nb→en→target
-            en_tekster = _oversett_batch(tekster, NB_TIL_EN)
-            return _oversett_batch(en_tekster, modell)
-
-    # Strategi 3: Pivot via engelsk (nb→en→target)
+    # nb/no → annet språk (pivot via engelsk: nb→en→target)
     if kilde in ("nb", "no") and maal in EN_TIL_TARGET:
-        en_tekster = _oversett_batch(tekster, NB_TIL_EN)
+        prefixed = [NB_PREFIX + t for t in tekster]
+        en_tekster = _oversett_batch(prefixed, NB_TIL_EN)
         return _oversett_batch(en_tekster, EN_TIL_TARGET[maal])
 
-    # Fallback: prøv en→target
+    # en → target (direkte)
     if kilde == "en" and maal in EN_TIL_TARGET:
         return _oversett_batch(tekster, EN_TIL_TARGET[maal])
 
