@@ -30,7 +30,7 @@ async function main() {
   const alleNøkler = Object.keys(nb);
 
   // Språk som skal genereres (ekskluder nb og en)
-  const SPRAAK = ["sv", "lt", "pl", "uk", "ro", "et", "fi", "cs", "de", "ru", "lv"];
+  const SPRAAK = ["sv", "lt", "pl", "uk", "ro", "et", "fi", "cs", "de", "ru", "lv", "fr"];
 
   for (const lang of SPRAAK) {
     const filsti = join(__dirname, `${lang}.json`);

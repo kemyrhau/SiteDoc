@@ -128,9 +128,9 @@ export async function prosesserDokument(
       console.error(`Embedding feilet for ${documentId}:`, err);
     });
 
-    // Blokkbasert parsing for mapper med språkstøtte (fire-and-forget)
-    if (ext === ".pdf" && dok.folderId) {
-      genererBlokkHvisSpraak(prisma, documentId, dok.folderId, buffer, ext).catch((err) => {
+    // Blokkbasert parsing for alle PDF-er (bilder + strukturert tekst)
+    if (ext === ".pdf") {
+      genererBlokkOgOversett(prisma, documentId, dok.folderId, buffer, ext).catch((err) => {
         console.error(`Blokkgenerering feilet for ${documentId}:`, err);
       });
     }
@@ -148,36 +148,36 @@ export async function prosesserDokument(
 }
 
 /**
- * Generer blokker hvis mappen har konfigurert flere språk.
- * Oppretter også oversettelsesoppdrag for hvert ekstra språk.
+ * Generer blokker for alle PDF-er (bilder + strukturert tekst).
+ * Oversettelsesoppdrag opprettes kun når mappen har flere språk og modul er aktiv.
  */
-async function genererBlokkHvisSpraak(
+async function genererBlokkOgOversett(
   prisma: PrismaClient,
   documentId: string,
-  folderId: string,
+  folderId: string | null,
   buffer: Buffer,
   ext: string,
 ): Promise<void> {
-  const mappe = await prisma.folder.findUnique({
-    where: { id: folderId },
-    select: { languages: true, projectId: true, sourceLanguage: true },
-  });
-  const languages = mappe?.languages ?? ["nb"];
-  if (languages.length <= 1 && languages[0] === "nb") return;
+  // Hent mappeinfo for språkinnstillinger
+  let languages: string[] = ["nb"];
+  let mappeSpråk = "nb";
+  let projectId: string | null = null;
 
-  // Sjekk om oversettelsesmodulen er aktiv
-  if (mappe?.projectId) {
-    const modul = await prisma.projectModule.findUnique({
-      where: { projectId_moduleSlug: { projectId: mappe.projectId, moduleSlug: "oversettelse" } },
+  if (folderId) {
+    const mappe = await prisma.folder.findUnique({
+      where: { id: folderId },
+      select: { languages: true, projectId: true, sourceLanguage: true },
     });
-    if (!modul?.active) return;
+    if (mappe) {
+      languages = (mappe.languages as string[]) ?? ["nb"];
+      mappeSpråk = mappe.sourceLanguage ?? "nb";
+      projectId = mappe.projectId;
+    }
   }
 
   // Detekter kildespråk eller bruk mappens standard
-  const mappeSpråk = mappe?.sourceLanguage ?? "nb";
   let kildeSpråk = mappeSpråk;
   if (mappeSpråk === "nb") {
-    // Auto-detekter fra innholdet
     const tekst = buffer.toString("utf-8").slice(0, 5000);
     kildeSpråk = detekterSpraak(tekst);
   }
@@ -188,16 +188,28 @@ async function genererBlokkHvisSpraak(
     data: { sourceLanguage: kildeSpråk },
   });
 
+  // Generer blokker (heading, text, image, caption) — alltid for PDF-er
   const antall = await genererBlokker(prisma, documentId, buffer, ext, kildeSpråk);
   console.log(`Blokkprosessering: ${antall} blokker for ${documentId} (kilde: ${kildeSpråk})`);
 
-  // Generer embeddings for norske blokker (fire-and-forget)
+  // Generer embeddings for blokker (fire-and-forget)
   embeddNyeBlokker(prisma, documentId).catch((err) => {
     console.error(`Blokk-embedding feilet for ${documentId}:`, err);
   });
 
-  // Opprett oversettelsesoppdrag for ekstra språk
-  for (const lang of languages.filter((l: string) => l !== "nb")) {
+  // Oversettelsesoppdrag kun når mappen har flere språk og modul er aktiv
+  const ekstraSpråk = languages.filter((l: string) => l !== kildeSpråk);
+  if (ekstraSpråk.length === 0) return;
+
+  // Sjekk om oversettelsesmodulen er aktiv
+  if (projectId) {
+    const modul = await prisma.projectModule.findUnique({
+      where: { projectId_moduleSlug: { projectId, moduleSlug: "oversettelse" } },
+    });
+    if (!modul?.active) return;
+  }
+
+  for (const lang of ekstraSpråk) {
     await prisma.ftdTranslationJob.upsert({
       where: { documentId_targetLang: { documentId, targetLang: lang } },
       create: {

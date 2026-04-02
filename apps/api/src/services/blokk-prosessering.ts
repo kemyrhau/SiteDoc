@@ -237,19 +237,60 @@ async function lagreBilde(
 }
 
 /**
- * Minimal RGBA→PNG konvertering (ucompressed).
- * For produksjon bør sharp eller canvas brukes, men dette fungerer uten native deps.
+ * RGBA→PNG konvertering via zlib (ingen native deps).
+ * Genererer gyldig PNG som nettlesere kan vise.
  */
 function rgbaToPng(
   data: Uint8ClampedArray,
   width: number,
   height: number,
 ): Buffer {
-  // Bruk raw RGBA som BMP-lignende format — enklere enn ekte PNG
-  // For nå: lagre som raw RGBA med dimensjoner i filnavn
-  // TODO: Bytt til sharp for ekte PNG-komprimering
-  const header = Buffer.alloc(8);
-  header.writeUInt32BE(width, 0);
-  header.writeUInt32BE(height, 4);
-  return Buffer.concat([header, Buffer.from(data.buffer)]);
+  const { deflateSync } = require("node:zlib") as typeof import("node:zlib");
+
+  // PNG IDAT: filterbyte (0 = None) foran hver rad, deretter RGBA-piksler
+  const rawLen = height * (1 + width * 4);
+  const raw = Buffer.alloc(rawLen);
+  for (let y = 0; y < height; y++) {
+    const rowOffset = y * (1 + width * 4);
+    raw[rowOffset] = 0; // filter: None
+    data.buffer && Buffer.from(data.buffer, data.byteOffset + y * width * 4, width * 4).copy(raw, rowOffset + 1);
+  }
+  const compressed = deflateSync(raw);
+
+  // CRC32-beregning
+  const crcTabell = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+    crcTabell[n] = c;
+  }
+  function crc32(buf: Buffer): number {
+    let crc = 0xffffffff;
+    for (let i = 0; i < buf.length; i++) crc = crcTabell[(crc ^ buf[i]!) & 0xff]! ^ (crc >>> 8);
+    return (crc ^ 0xffffffff) >>> 0;
+  }
+
+  function chunk(type: string, payload: Buffer): Buffer {
+    const len = Buffer.alloc(4);
+    len.writeUInt32BE(payload.length, 0);
+    const typeAndData = Buffer.concat([Buffer.from(type, "ascii"), payload]);
+    const crcBuf = Buffer.alloc(4);
+    crcBuf.writeUInt32BE(crc32(typeAndData), 0);
+    return Buffer.concat([len, typeAndData, crcBuf]);
+  }
+
+  // IHDR: width, height, 8-bit, RGBA (colorType=6)
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(width, 0);
+  ihdr.writeUInt32BE(height, 4);
+  ihdr[8] = 8;  // bitDepth
+  ihdr[9] = 6;  // colorType RGBA
+  ihdr[10] = 0; // compression
+  ihdr[11] = 0; // filter
+  ihdr[12] = 0; // interlace
+
+  const signature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+  const iend = chunk("IEND", Buffer.alloc(0));
+
+  return Buffer.concat([signature, chunk("IHDR", ihdr), chunk("IDAT", compressed), iend]);
 }
