@@ -777,6 +777,7 @@ model FtdDocument {
   isActive        Boolean  @default(true) @map("is_active")
   sourceLanguage    String   @default("nb") @map("source_language") // Kildespråk for dokumentet (nb, en, etc.)
   detectedLanguage  String?  @map("detected_language") // Auto-detektert språk (null = ikke detektert ennå)
+  languageConfirmed Boolean  @default(false) @map("language_confirmed") // Bruker har bekreftet språk ved avvik
   processingState   String   @default("pending") @map("processing_state")
   processingError String?  @map("processing_error")
   fileHash        String?  @map("file_hash")

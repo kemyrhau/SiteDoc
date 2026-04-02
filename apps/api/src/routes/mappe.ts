@@ -515,12 +515,12 @@ export const mappeRouter = router({
       const gammeltSpråk = doc.sourceLanguage;
       const nyttSpråk = input.bekreftSpraak;
 
-      // Oppdater dokumentets kildespråk og fjern avvik
+      // Oppdater dokumentets kildespråk og merk som bekreftet
       await ctx.prisma.ftdDocument.update({
         where: { id: input.documentId },
         data: {
           sourceLanguage: nyttSpråk,
-          detectedLanguage: nyttSpråk, // Ingen avvik lenger
+          languageConfirmed: true,
         },
       });
 

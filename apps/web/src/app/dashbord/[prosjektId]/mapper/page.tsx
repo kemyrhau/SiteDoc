@@ -242,6 +242,7 @@ export default function MapperSide() {
     processingError: string | null;
     sourceLanguage: string;
     detectedLanguage: string | null;
+    languageConfirmed: boolean;
     chunksTotalt: number;
     chunksEmbedded: number;
   };
@@ -321,7 +322,7 @@ export default function MapperSide() {
               id: "name",
               header: t("tabell.navn"),
               celle: (rad) => {
-                const harAvvik = rad.detectedLanguage && rad.detectedLanguage !== prosjektKildesprak;
+                const harAvvik = rad.detectedLanguage && rad.detectedLanguage !== prosjektKildesprak && !rad.languageConfirmed;
                 const detInfo = harAvvik ? STOETTEDE_SPRAAK.find((s) => s.kode === rad.detectedLanguage) : null;
                 const prosjektInfo = STOETTEDE_SPRAAK.find((s) => s.kode === prosjektKildesprak);
                 return (

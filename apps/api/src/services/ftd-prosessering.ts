@@ -197,6 +197,7 @@ async function genererBlokkOgOversett(
     data: {
       sourceLanguage: kildeSpråk,
       detectedLanguage: detektert,
+      languageConfirmed: !harAvvik, // Auto-bekreftet kun når språk matcher
     },
   });
 
