@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
+import { LandingSpraakVelger } from "@/components/LandingSpraakVelger";
 import {
   ClipboardCheck,
   CheckSquare,
@@ -68,6 +69,7 @@ export default async function Hjem() {
             >
               Priser
             </a>
+            <LandingSpraakVelger />
             <a
               href="/logg-inn"
               className="rounded-lg bg-white px-5 py-2 text-sm font-medium text-[#0f1b3d] transition hover:bg-blue-50"
