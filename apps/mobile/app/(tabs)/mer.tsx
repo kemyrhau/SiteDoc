@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { View, Text, Pressable, ScrollView, Alert } from "react-native";
+import { View, Text, Pressable, ScrollView, Alert, Modal, TouchableOpacity } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { LucideIcon } from "lucide-react-native";
 import {
@@ -12,19 +12,27 @@ import {
   QrCode,
   ChevronRight,
   LogOut,
+  Globe,
+  Check,
 } from "lucide-react-native";
 import { ActivityIndicator } from "react-native";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "../../src/providers/AuthProvider";
 import { useProsjekt } from "../../src/kontekst/ProsjektKontekst";
 import { useBygning } from "../../src/kontekst/BygningKontekst";
 import { trpc } from "../../src/lib/trpc";
 import { klargjørForOffline } from "../../src/services/offlineKlargjoring";
+import { byttSpraak } from "../../src/lib/i18n";
+import { STOETTEDE_SPRAAK } from "@sitedoc/shared";
+import type { SpraakKode } from "@sitedoc/shared";
 
 export default function MerSkjerm() {
+  const { t, i18n } = useTranslation();
   const { bruker, loggUt } = useAuth();
   const { valgtProsjektId } = useProsjekt();
   const { valgtBygningId } = useBygning();
   const [offlineTekst, setOfflineTekst] = useState<string | null>(null);
+  const [visSpraakModal, setVisSpraakModal] = useState(false);
 
   const { data: medlemmer } = trpc.medlem.hentForProsjekt.useQuery(
     { projectId: valgtProsjektId! },
@@ -35,6 +43,8 @@ export default function MerSkjerm() {
     { projectId: valgtProsjektId!, ...(valgtBygningId ? { buildingId: valgtBygningId } : {}) },
     { enabled: !!valgtProsjektId },
   );
+
+  const oppdaterSpraakMut = trpc.bruker.oppdaterSpraak.useMutation();
 
   const startOffline = useCallback(async () => {
     if (!tegningerQuery.data) {
@@ -55,6 +65,12 @@ export default function MerSkjerm() {
     }
   }, [tegningerQuery.data]);
 
+  const velgSpraak = useCallback(async (kode: SpraakKode) => {
+    setVisSpraakModal(false);
+    await byttSpraak(kode);
+    oppdaterSpraakMut.mutate({ language: kode });
+  }, [oppdaterSpraakMut]);
+
   const erAdmin = medlemmer?.some(
     (m) => m.user.email === bruker?.email && m.role === "admin",
   );
@@ -67,6 +83,8 @@ export default function MerSkjerm() {
         .toUpperCase()
         .slice(0, 2)
     : "??";
+
+  const aktivtSpraak = STOETTEDE_SPRAAK.find((s) => s.kode === i18n.language);
 
   return (
     <SafeAreaView className="flex-1 bg-gray-50" edges={["top"]}>
@@ -92,6 +110,8 @@ export default function MerSkjerm() {
                   "Ingen tilgang",
                   "Kun prosjektadministratorer har tilgang til prosjektinnstillinger.",
                 );
+              } else {
+                Alert.alert("Prosjektinnstillinger", "Åpne prosjektinnstillinger på sitedoc.no for full redigering.");
               }
             }}
           />
@@ -122,6 +142,30 @@ export default function MerSkjerm() {
           <MenyRad ikon={Building2} tekst="Grupper" />
           <MenyRad ikon={WifiOff} tekst={offlineTekst ?? "Forbered til offline"} onPress={startOffline} />
           <MenyRad ikon={QrCode} tekst="Skann QR-kode" />
+        </View>
+
+        {/* Språk */}
+        <View className="mt-4">
+          <View className="border-b border-gray-200 px-4 pb-1.5 pt-3">
+            <Text className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+              Språk
+            </Text>
+          </View>
+          <Pressable
+            onPress={() => setVisSpraakModal(true)}
+            className="flex-row items-center justify-between border-b border-gray-100 bg-white px-4 py-3.5 active:bg-gray-50"
+          >
+            <View className="flex-row items-center gap-3">
+              <Globe size={20} color="#6b7280" />
+              <Text className="text-base text-gray-900">App-språk</Text>
+            </View>
+            <View className="flex-row items-center gap-2">
+              <Text className="text-sm text-gray-500">
+                {aktivtSpraak?.flagg} {aktivtSpraak?.navn ?? i18n.language}
+              </Text>
+              <ChevronRight size={18} color="#d1d5db" />
+            </View>
+          </Pressable>
         </View>
 
         {/* Brukerprofil */}
@@ -158,6 +202,37 @@ export default function MerSkjerm() {
           </Pressable>
         </View>
       </ScrollView>
+
+      {/* Språkvelger-modal */}
+      <Modal visible={visSpraakModal} transparent animationType="fade">
+        <TouchableOpacity
+          activeOpacity={1}
+          onPress={() => setVisSpraakModal(false)}
+          className="flex-1 bg-black/30 justify-end"
+        >
+          <View className="rounded-t-2xl bg-white pb-8 pt-4">
+            <Text className="mb-3 px-5 text-sm font-semibold text-gray-900">Velg språk</Text>
+            <ScrollView style={{ maxHeight: 400 }}>
+              {STOETTEDE_SPRAAK.map((spraak) => {
+                const erValgt = spraak.kode === i18n.language;
+                return (
+                  <TouchableOpacity
+                    key={spraak.kode}
+                    onPress={() => velgSpraak(spraak.kode)}
+                    className={`flex-row items-center gap-3 px-5 py-3 ${erValgt ? "bg-blue-50" : ""}`}
+                  >
+                    <Text className="text-base">{spraak.flagg}</Text>
+                    <Text className={`flex-1 text-sm ${erValgt ? "font-semibold text-sitedoc-primary" : "text-gray-700"}`}>
+                      {spraak.navn}
+                    </Text>
+                    {erValgt && <Check size={18} color="#1e40af" />}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 }
