@@ -12,6 +12,15 @@
   "nav.oppsett": "Settings",
   "nav.innstillinger": "Settings",
   "nav.maler": "Templates",
+  "nav.hjem": "Home",
+  "nav.mer": "More",
+  "nav.box": "Box",
+  "nav.innboks": "Inbox",
+  "nav.liveView": "Live View",
+  "nav.lokasjoner": "Locations",
+  "nav.kontrollplan": "Control Plans",
+  "nav.kontakter": "Contacts",
+  "nav.grupper": "Groups",
 
   "toppbar.loggUt": "Log out",
   "toppbar.bruker": "User",
@@ -652,5 +661,42 @@
   "prosjektoppsett.fullfort": "Completed",
   "prosjektoppsett.fullfortBeskrivelse": "The project has been completed",
   "prosjektoppsett.arkivert": "Archived",
-  "prosjektoppsett.arkivertBeskrivelse": "The project is archived and read-only"
+  "prosjektoppsett.arkivertBeskrivelse": "The project is archived and read-only",
+
+  "hjem.velgProsjekt": "Select a project to get started",
+  "hjem.registrerPaaSitedoc": "You can log in to sitedoc.no and register a new project",
+  "hjem.ingenInnboks": "No active items in inbox",
+  "hjem.oppdatert": "Updated {{tid}}",
+  "hjem.henterProsjekter": "Fetching projects...",
+  "hjem.nySjekkliste": "New checklist",
+  "hjem.nyOppgave": "New task",
+
+  "tid.akkuratNaa": "Just now",
+  "tid.minSiden": "{{n}} min ago",
+  "tid.timerSiden": "{{n}} h ago",
+  "tid.dagerSiden": "{{n}} d ago",
+
+  "mer.prosjekt": "Project",
+  "mer.generelt": "General",
+  "mer.prosjektinnstillinger": "Project settings",
+  "mer.forberedOffline": "Prepare for offline",
+  "mer.skannQR": "Scan QR code",
+
+  "auth.loggInnGoogle": "Log in with Google",
+  "auth.loggInnMicrosoft": "Log in with Microsoft 365",
+  "auth.loggerInn": "Logging in...",
+  "auth.innloggingsfeil": "Login error",
+  "auth.apiTilkoblingFeil": "Could not connect to API",
+
+  "feil.kunAdmin": "Only project administrators have access to project settings.",
+  "feil.kunneIkkeHente": "Could not fetch data",
+  "feil.sjekkNettverk": "Check your network connection and try again",
+  "feil.kunneIkkeSlett": "Could not delete",
+  "feil.ukjentFeil": "Unknown error",
+
+  "bekreft.slettSjekkliste": "Are you sure you want to delete this checklist? This cannot be undone.",
+  "bekreft.slettOppgave": "Are you sure you want to delete this task? This cannot be undone.",
+
+  "app.tagline": "Report and quality management",
+  "app.navn": "SiteDoc"
 }

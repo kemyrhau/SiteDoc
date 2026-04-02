@@ -12,6 +12,15 @@
   "nav.oppsett": "Ustawienia",
   "nav.innstillinger": "Ustawienia",
   "nav.maler": "Szablony",
+  "nav.hjem": "Strona główna",
+  "nav.mer": "Więcej",
+  "nav.box": "Box",
+  "nav.innboks": "Skrzynka odbiorcza",
+  "nav.liveView": "Live View",
+  "nav.lokasjoner": "Lokalizacje",
+  "nav.kontrollplan": "Plany kontroli",
+  "nav.kontakter": "Kontakty",
+  "nav.grupper": "Grupy",
   "toppbar.loggUt": "Wyloguj się",
   "toppbar.bruker": "Użytkownik",
   "toppbar.admin": "Administrator",
@@ -604,5 +613,42 @@
   "prosjektoppsett.fullfort": "Zakończony",
   "prosjektoppsett.fullfortBeskrivelse": "Projekt został ukończony",
   "prosjektoppsett.arkivert": "Zarchiwizowane",
-  "prosjektoppsett.arkivertBeskrivelse": "Projekt jest zarchiwizowany i dostępny tylko do odczytu"
+  "prosjektoppsett.arkivertBeskrivelse": "Projekt jest zarchiwizowany i dostępny tylko do odczytu",
+
+  "hjem.velgProsjekt": "Wybierz projekt, aby rozpocząć",
+  "hjem.registrerPaaSitedoc": "Możesz zalogować się na sitedoc.no i zarejestrować nowy projekt",
+  "hjem.ingenInnboks": "Brak aktywnych elementów w skrzynce",
+  "hjem.oppdatert": "Zaktualizowano {{tid}}",
+  "hjem.henterProsjekter": "Pobieranie projektów...",
+  "hjem.nySjekkliste": "Nowa lista kontrolna",
+  "hjem.nyOppgave": "Nowe zadanie",
+
+  "tid.akkuratNaa": "Właśnie teraz",
+  "tid.minSiden": "{{n}} min temu",
+  "tid.timerSiden": "{{n}} godz. temu",
+  "tid.dagerSiden": "{{n}} dn. temu",
+
+  "mer.prosjekt": "Projekt",
+  "mer.generelt": "Ogólne",
+  "mer.prosjektinnstillinger": "Ustawienia projektu",
+  "mer.forberedOffline": "Przygotuj do pracy offline",
+  "mer.skannQR": "Skanuj kod QR",
+
+  "auth.loggInnGoogle": "Zaloguj się przez Google",
+  "auth.loggInnMicrosoft": "Zaloguj się przez Microsoft 365",
+  "auth.loggerInn": "Logowanie...",
+  "auth.innloggingsfeil": "Błąd logowania",
+  "auth.apiTilkoblingFeil": "Nie można połączyć się z API",
+
+  "feil.kunAdmin": "Tylko administratorzy projektu mają dostęp do ustawień projektu.",
+  "feil.kunneIkkeHente": "Nie można pobrać danych",
+  "feil.sjekkNettverk": "Sprawdź połączenie sieciowe i spróbuj ponownie",
+  "feil.kunneIkkeSlett": "Nie można usunąć",
+  "feil.ukjentFeil": "Nieznany błąd",
+
+  "bekreft.slettSjekkliste": "Czy na pewno chcesz usunąć tę listę kontrolną? Tej operacji nie można cofnąć.",
+  "bekreft.slettOppgave": "Czy na pewno chcesz usunąć to zadanie? Tej operacji nie można cofnąć.",
+
+  "app.tagline": "Zarządzanie raportami i jakością",
+  "app.navn": "SiteDoc"
 }

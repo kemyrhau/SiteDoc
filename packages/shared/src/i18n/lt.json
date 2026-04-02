@@ -12,6 +12,15 @@
   "nav.oppsett": "Nustatymai",
   "nav.innstillinger": "Nustatymai",
   "nav.maler": "Šablonai",
+  "nav.hjem": "Pradžia",
+  "nav.mer": "Daugiau",
+  "nav.box": "Box",
+  "nav.innboks": "Gautieji",
+  "nav.liveView": "Live View",
+  "nav.lokasjoner": "Vietos",
+  "nav.kontrollplan": "Kontrolės planai",
+  "nav.kontakter": "Kontaktai",
+  "nav.grupper": "Grupės",
   "toppbar.loggUt": "Atsijungti",
   "toppbar.bruker": "Vartotojas",
   "toppbar.admin": "Admin",
@@ -604,5 +613,42 @@
   "prosjektoppsett.fullfort": "Baigta",
   "prosjektoppsett.fullfortBeskrivelse": "Projektas baigtas",
   "prosjektoppsett.arkivert": "Suarchyvuota",
-  "prosjektoppsett.arkivertBeskrivelse": "Projektas yra archyvuojamas ir tik skaitomas"
+  "prosjektoppsett.arkivertBeskrivelse": "Projektas yra archyvuojamas ir tik skaitomas",
+
+  "hjem.velgProsjekt": "Pasirinkite projektą, kad pradėtumėte",
+  "hjem.registrerPaaSitedoc": "Galite prisijungti prie sitedoc.no ir užregistruoti naują projektą",
+  "hjem.ingenInnboks": "Nėra aktyvių elementų gautuosiuose",
+  "hjem.oppdatert": "Atnaujinta {{tid}}",
+  "hjem.henterProsjekter": "Gaunami projektai...",
+  "hjem.nySjekkliste": "Naujas kontrolinis sąrašas",
+  "hjem.nyOppgave": "Nauja užduotis",
+
+  "tid.akkuratNaa": "Ką tik",
+  "tid.minSiden": "prieš {{n}} min.",
+  "tid.timerSiden": "prieš {{n}} val.",
+  "tid.dagerSiden": "prieš {{n}} d.",
+
+  "mer.prosjekt": "Projektas",
+  "mer.generelt": "Bendra",
+  "mer.prosjektinnstillinger": "Projekto nustatymai",
+  "mer.forberedOffline": "Paruošti darbui neprisijungus",
+  "mer.skannQR": "Nuskaityti QR kodą",
+
+  "auth.loggInnGoogle": "Prisijungti su Google",
+  "auth.loggInnMicrosoft": "Prisijungti su Microsoft 365",
+  "auth.loggerInn": "Jungiamasi...",
+  "auth.innloggingsfeil": "Prisijungimo klaida",
+  "auth.apiTilkoblingFeil": "Nepavyko prisijungti prie API",
+
+  "feil.kunAdmin": "Tik projekto administratoriai turi prieigą prie projekto nustatymų.",
+  "feil.kunneIkkeHente": "Nepavyko gauti duomenų",
+  "feil.sjekkNettverk": "Patikrinkite tinklo ryšį ir bandykite dar kartą",
+  "feil.kunneIkkeSlett": "Nepavyko ištrinti",
+  "feil.ukjentFeil": "Nežinoma klaida",
+
+  "bekreft.slettSjekkliste": "Ar tikrai norite ištrinti šį kontrolinį sąrašą? Šio veiksmo negalima atšaukti.",
+  "bekreft.slettOppgave": "Ar tikrai norite ištrinti šią užduotį? Šio veiksmo negalima atšaukti.",
+
+  "app.tagline": "Ataskaitų ir kokybės valdymas",
+  "app.navn": "SiteDoc"
 }

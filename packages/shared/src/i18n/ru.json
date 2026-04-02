@@ -12,6 +12,15 @@
   "nav.oppsett": "Настройки",
   "nav.innstillinger": "Настройки",
   "nav.maler": "Шаблоны",
+  "nav.hjem": "Главная",
+  "nav.mer": "Ещё",
+  "nav.box": "Box",
+  "nav.innboks": "Входящие",
+  "nav.liveView": "Live View",
+  "nav.lokasjoner": "Локации",
+  "nav.kontrollplan": "Планы контроля",
+  "nav.kontakter": "Контакты",
+  "nav.grupper": "Группы",
   "toppbar.loggUt": "Выйти",
   "toppbar.bruker": "Пользователь",
   "toppbar.admin": "Админ",
@@ -604,5 +613,42 @@
   "prosjektoppsett.fullfort": "Завершенный",
   "prosjektoppsett.fullfortBeskrivelse": "Проект завершен",
   "prosjektoppsett.arkivert": "В архиве",
-  "prosjektoppsett.arkivertBeskrivelse": "Проект заархивирован и доступен только для чтения."
+  "prosjektoppsett.arkivertBeskrivelse": "Проект заархивирован и доступен только для чтения.",
+
+  "hjem.velgProsjekt": "Выберите проект для начала работы",
+  "hjem.registrerPaaSitedoc": "Вы можете войти на sitedoc.no и зарегистрировать новый проект",
+  "hjem.ingenInnboks": "Нет активных элементов во входящих",
+  "hjem.oppdatert": "Обновлено {{tid}}",
+  "hjem.henterProsjekter": "Загрузка проектов...",
+  "hjem.nySjekkliste": "Новый контрольный список",
+  "hjem.nyOppgave": "Новая задача",
+
+  "tid.akkuratNaa": "Только что",
+  "tid.minSiden": "{{n}} мин. назад",
+  "tid.timerSiden": "{{n}} ч. назад",
+  "tid.dagerSiden": "{{n}} дн. назад",
+
+  "mer.prosjekt": "Проект",
+  "mer.generelt": "Общее",
+  "mer.prosjektinnstillinger": "Настройки проекта",
+  "mer.forberedOffline": "Подготовить для офлайн",
+  "mer.skannQR": "Сканировать QR-код",
+
+  "auth.loggInnGoogle": "Войти через Google",
+  "auth.loggInnMicrosoft": "Войти через Microsoft 365",
+  "auth.loggerInn": "Вход...",
+  "auth.innloggingsfeil": "Ошибка входа",
+  "auth.apiTilkoblingFeil": "Не удалось подключиться к API",
+
+  "feil.kunAdmin": "Только администраторы проекта имеют доступ к настройкам проекта.",
+  "feil.kunneIkkeHente": "Не удалось загрузить данные",
+  "feil.sjekkNettverk": "Проверьте сетевое подключение и попробуйте снова",
+  "feil.kunneIkkeSlett": "Не удалось удалить",
+  "feil.ukjentFeil": "Неизвестная ошибка",
+
+  "bekreft.slettSjekkliste": "Вы уверены, что хотите удалить этот контрольный список? Это действие нельзя отменить.",
+  "bekreft.slettOppgave": "Вы уверены, что хотите удалить эту задачу? Это действие нельзя отменить.",
+
+  "app.tagline": "Управление отчётами и качеством",
+  "app.navn": "SiteDoc"
 }

@@ -12,6 +12,15 @@
   "nav.oppsett": "Iestatījumi",
   "nav.innstillinger": "Iestatījumi",
   "nav.maler": "Veidnes",
+  "nav.hjem": "Sākums",
+  "nav.mer": "Vairāk",
+  "nav.box": "Box",
+  "nav.innboks": "Iesūtne",
+  "nav.liveView": "Live View",
+  "nav.lokasjoner": "Atrašanās vietas",
+  "nav.kontrollplan": "Kontroles plāni",
+  "nav.kontakter": "Kontakti",
+  "nav.grupper": "Grupas",
   "toppbar.loggUt": "Atteikties",
   "toppbar.bruker": "Lietotājs",
   "toppbar.admin": "Administrators",
@@ -604,5 +613,42 @@
   "prosjektoppsett.fullfort": "Pabeigts",
   "prosjektoppsett.fullfortBeskrivelse": "Projekts ir pabeigts",
   "prosjektoppsett.arkivert": "Arhivēts",
-  "prosjektoppsett.arkivertBeskrivelse": "Projekts ir arhivēts un tikai lasāms"
+  "prosjektoppsett.arkivertBeskrivelse": "Projekts ir arhivēts un tikai lasāms",
+
+  "hjem.velgProsjekt": "Izvēlieties projektu, lai sāktu",
+  "hjem.registrerPaaSitedoc": "Jūs varat pieteikties sitedoc.no un reģistrēt jaunu projektu",
+  "hjem.ingenInnboks": "Nav aktīvu elementu iesūtnē",
+  "hjem.oppdatert": "Atjaunināts {{tid}}",
+  "hjem.henterProsjekter": "Ielādē projektus...",
+  "hjem.nySjekkliste": "Jauns kontrolsaraksts",
+  "hjem.nyOppgave": "Jauns uzdevums",
+
+  "tid.akkuratNaa": "Tikko",
+  "tid.minSiden": "pirms {{n}} min",
+  "tid.timerSiden": "pirms {{n}} st.",
+  "tid.dagerSiden": "pirms {{n}} d.",
+
+  "mer.prosjekt": "Projekts",
+  "mer.generelt": "Vispārīgi",
+  "mer.prosjektinnstillinger": "Projekta iestatījumi",
+  "mer.forberedOffline": "Sagatavot bezsaistes darbam",
+  "mer.skannQR": "Skenēt QR kodu",
+
+  "auth.loggInnGoogle": "Pieteikties ar Google",
+  "auth.loggInnMicrosoft": "Pieteikties ar Microsoft 365",
+  "auth.loggerInn": "Pieteikšanās...",
+  "auth.innloggingsfeil": "Pieteikšanās kļūda",
+  "auth.apiTilkoblingFeil": "Nevarēja izveidot savienojumu ar API",
+
+  "feil.kunAdmin": "Tikai projekta administratoriem ir piekļuve projekta iestatījumiem.",
+  "feil.kunneIkkeHente": "Nevarēja ielādēt datus",
+  "feil.sjekkNettverk": "Pārbaudiet tīkla savienojumu un mēģiniet vēlreiz",
+  "feil.kunneIkkeSlett": "Nevarēja izdzēst",
+  "feil.ukjentFeil": "Nezināma kļūda",
+
+  "bekreft.slettSjekkliste": "Vai tiešām vēlaties dzēst šo kontrolsarakstu? Šo darbību nevar atsaukt.",
+  "bekreft.slettOppgave": "Vai tiešām vēlaties dzēst šo uzdevumu? Šo darbību nevar atsaukt.",
+
+  "app.tagline": "Atskaišu un kvalitātes pārvaldība",
+  "app.navn": "SiteDoc"
 }

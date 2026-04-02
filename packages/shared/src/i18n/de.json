@@ -12,6 +12,15 @@
   "nav.oppsett": "Einstellungen",
   "nav.innstillinger": "Einstellungen",
   "nav.maler": "Vorlagen",
+  "nav.hjem": "Startseite",
+  "nav.mer": "Mehr",
+  "nav.box": "Box",
+  "nav.innboks": "Posteingang",
+  "nav.liveView": "Live View",
+  "nav.lokasjoner": "Standorte",
+  "nav.kontrollplan": "Kontrollpläne",
+  "nav.kontakter": "Kontakte",
+  "nav.grupper": "Gruppen",
   "toppbar.loggUt": "Abmelden",
   "toppbar.bruker": "Benutzer",
   "toppbar.admin": "Admin",
@@ -604,5 +613,42 @@
   "prosjektoppsett.fullfort": "Vollendet",
   "prosjektoppsett.fullfortBeskrivelse": "Das Projekt ist abgeschlossen",
   "prosjektoppsett.arkivert": "Archiviert",
-  "prosjektoppsett.arkivertBeskrivelse": "Das Projekt ist archiviert und schreibgeschützt"
+  "prosjektoppsett.arkivertBeskrivelse": "Das Projekt ist archiviert und schreibgeschützt",
+
+  "hjem.velgProsjekt": "Wählen Sie ein Projekt, um zu beginnen",
+  "hjem.registrerPaaSitedoc": "Sie können sich auf sitedoc.no anmelden und ein neues Projekt registrieren",
+  "hjem.ingenInnboks": "Keine aktiven Elemente im Posteingang",
+  "hjem.oppdatert": "Aktualisiert {{tid}}",
+  "hjem.henterProsjekter": "Projekte werden geladen...",
+  "hjem.nySjekkliste": "Neue Checkliste",
+  "hjem.nyOppgave": "Neue Aufgabe",
+
+  "tid.akkuratNaa": "Gerade eben",
+  "tid.minSiden": "vor {{n}} Min.",
+  "tid.timerSiden": "vor {{n}} Std.",
+  "tid.dagerSiden": "vor {{n}} T.",
+
+  "mer.prosjekt": "Projekt",
+  "mer.generelt": "Allgemein",
+  "mer.prosjektinnstillinger": "Projekteinstellungen",
+  "mer.forberedOffline": "Für Offline vorbereiten",
+  "mer.skannQR": "QR-Code scannen",
+
+  "auth.loggInnGoogle": "Mit Google anmelden",
+  "auth.loggInnMicrosoft": "Mit Microsoft 365 anmelden",
+  "auth.loggerInn": "Anmeldung...",
+  "auth.innloggingsfeil": "Anmeldefehler",
+  "auth.apiTilkoblingFeil": "Verbindung zum API fehlgeschlagen",
+
+  "feil.kunAdmin": "Nur Projektadministratoren haben Zugang zu den Projekteinstellungen.",
+  "feil.kunneIkkeHente": "Daten konnten nicht abgerufen werden",
+  "feil.sjekkNettverk": "Überprüfen Sie die Netzwerkverbindung und versuchen Sie es erneut",
+  "feil.kunneIkkeSlett": "Konnte nicht gelöscht werden",
+  "feil.ukjentFeil": "Unbekannter Fehler",
+
+  "bekreft.slettSjekkliste": "Sind Sie sicher, dass Sie diese Checkliste löschen möchten? Dies kann nicht rückgängig gemacht werden.",
+  "bekreft.slettOppgave": "Sind Sie sicher, dass Sie diese Aufgabe löschen möchten? Dies kann nicht rückgängig gemacht werden.",
+
+  "app.tagline": "Berichts- und Qualitätsmanagement",
+  "app.navn": "SiteDoc"
 }

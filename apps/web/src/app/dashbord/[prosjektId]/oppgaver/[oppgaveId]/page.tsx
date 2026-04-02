@@ -11,6 +11,7 @@ import { LokasjonVelger } from "@/components/LokasjonVelger";
 import { RapportObjektRenderer, DISPLAY_TYPER, SKJULT_I_UTFYLLING } from "@/components/rapportobjekter/RapportObjektRenderer";
 import { FeltWrapper } from "@/components/rapportobjekter/FeltWrapper";
 import type { RapportObjekt } from "@/components/rapportobjekter/typer";
+import { useOversettelse } from "@/hooks/useOversettelse";
 
 /* ------------------------------------------------------------------ */
 /*  LagreIndikator                                                     */
@@ -213,6 +214,19 @@ export default function OppgaveDetaljSide() {
     erRedigerbar,
     lagreStatus,
   } = useOppgaveSkjema(params.oppgaveId);
+
+  // Oversettelse (Lag 2): on-demand felt-oversettelse for bruker med annet språk
+  const oppgaveKildesprak = (oppgave as unknown as { template?: { project?: { sourceLanguage?: string } } })?.template?.project?.sourceLanguage;
+  const {
+    oversettelser,
+    laster: oversettelseLaster,
+    visOversettKnapp,
+    oversettFelt,
+  } = useOversettelse(
+    params.prosjektId,
+    oppgaveKildesprak,
+    (oppgave?.template?.objects ?? []) as { id: string; label: string; config: Record<string, unknown> }[],
+  );
 
   const utils = trpc.useUtils();
 
@@ -482,6 +496,11 @@ export default function OppgaveDetaljSide() {
                   nestingNivå={nestingNivå}
                   valideringsfeil={valideringsfeil[objekt.id]}
                   prosjektId={params.prosjektId}
+                  oversettelser={oversettelser}
+                  oversettelseLaster={oversettelseLaster}
+                  onOversett={() => oversettFelt(objekt as { id: string; label: string; config: Record<string, unknown> })}
+                  visOversettKnapp={visOversettKnapp}
+                  originalData={(feltVerdi as unknown as { original?: { spraak: string; verdi?: string; kommentar?: string } }).original}
                 >
                   <RapportObjektRenderer
                     objekt={objekt}

@@ -15,6 +15,7 @@ import { StatusHandlinger } from "@/components/StatusHandlinger";
 import { LokasjonVelger } from "@/components/LokasjonVelger";
 import type { RapportObjekt } from "@/components/rapportobjekter/typer";
 import { useBygning } from "@/kontekst/bygning-kontekst";
+import { useOversettelse } from "@/hooks/useOversettelse";
 
 /* ------------------------------------------------------------------ */
 /*  LagreIndikator                                                     */
@@ -157,6 +158,19 @@ export default function SjekklisteDetaljSide() {
     building?: { id: string; name: string } | null;
     drawing?: { id: string; name: string; drawingNumber: string | null } | null;
   } | undefined;
+
+  // Oversettelse (Lag 2): on-demand felt-oversettelse for bruker med annet språk
+  const prosjektKildesprak = (fullSjekklisteRå as { template?: { project?: { sourceLanguage?: string } } } | undefined)?.template?.project?.sourceLanguage;
+  const {
+    oversettelser,
+    laster: oversettelseLaster,
+    visOversettKnapp,
+    oversettFelt,
+  } = useOversettelse(
+    params.prosjektId,
+    prosjektKildesprak,
+    (sjekkliste?.template?.objects ?? []) as { id: string; label: string; config: Record<string, unknown> }[],
+  );
 
   // Hent oppgaver tilknyttet denne sjekklisten
   const { data: sjekklisteOppgaverRå } = trpc.oppgave.hentForSjekkliste.useQuery(
@@ -498,6 +512,11 @@ export default function SjekklisteDetaljSide() {
                 onNavigerTilOppgave={(id) =>
                   router.push(`/dashbord/${params.prosjektId}/oppgaver?oppgave=${id}`)
                 }
+                oversettelser={oversettelser}
+                oversettelseLaster={oversettelseLaster}
+                onOversett={() => oversettFelt(objekt as { id: string; label: string; config: Record<string, unknown> })}
+                visOversettKnapp={visOversettKnapp}
+                originalData={(feltVerdi as unknown as { original?: { spraak: string; verdi?: string; kommentar?: string } }).original}
               >
                 <RapportObjektRenderer
                   objekt={objekt}

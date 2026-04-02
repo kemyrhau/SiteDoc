@@ -12,6 +12,15 @@
   "nav.oppsett": "Inställningar",
   "nav.innstillinger": "Inställningar",
   "nav.maler": "Mallar",
+  "nav.hjem": "Hem",
+  "nav.mer": "Mer",
+  "nav.box": "Box",
+  "nav.innboks": "Inkorg",
+  "nav.liveView": "Live View",
+  "nav.lokasjoner": "Platser",
+  "nav.kontrollplan": "Kontrollplaner",
+  "nav.kontakter": "Kontakter",
+  "nav.grupper": "Grupper",
   "toppbar.loggUt": "Logga ut",
   "toppbar.bruker": "Användare",
   "toppbar.admin": "Administration",
@@ -604,5 +613,42 @@
   "prosjektoppsett.fullfort": "Avslutad",
   "prosjektoppsett.fullfortBeskrivelse": "Projektet har slutförts",
   "prosjektoppsett.arkivert": "Arkiverad",
-  "prosjektoppsett.arkivertBeskrivelse": "Projektet är arkiverat och skrivskyddat"
+  "prosjektoppsett.arkivertBeskrivelse": "Projektet är arkiverat och skrivskyddat",
+
+  "hjem.velgProsjekt": "Välj ett projekt för att komma igång",
+  "hjem.registrerPaaSitedoc": "Du kan logga in på sitedoc.no och registrera nytt projekt",
+  "hjem.ingenInnboks": "Inga aktiva element i inkorgen",
+  "hjem.oppdatert": "Uppdaterad {{tid}}",
+  "hjem.henterProsjekter": "Hämtar projekt...",
+  "hjem.nySjekkliste": "Ny checklista",
+  "hjem.nyOppgave": "Ny uppgift",
+
+  "tid.akkuratNaa": "Just nu",
+  "tid.minSiden": "{{n}} min sedan",
+  "tid.timerSiden": "{{n}} t sedan",
+  "tid.dagerSiden": "{{n}} d sedan",
+
+  "mer.prosjekt": "Projekt",
+  "mer.generelt": "Allmänt",
+  "mer.prosjektinnstillinger": "Projektinställningar",
+  "mer.forberedOffline": "Förbered för offline",
+  "mer.skannQR": "Skanna QR-kod",
+
+  "auth.loggInnGoogle": "Logga in med Google",
+  "auth.loggInnMicrosoft": "Logga in med Microsoft 365",
+  "auth.loggerInn": "Loggar in...",
+  "auth.innloggingsfeil": "Inloggningsfel",
+  "auth.apiTilkoblingFeil": "Kunde inte ansluta till API",
+
+  "feil.kunAdmin": "Endast projektadministratörer har tillgång till projektinställningar.",
+  "feil.kunneIkkeHente": "Kunde inte hämta data",
+  "feil.sjekkNettverk": "Kontrollera nätverksanslutningen och försök igen",
+  "feil.kunneIkkeSlett": "Kunde inte radera",
+  "feil.ukjentFeil": "Okänt fel",
+
+  "bekreft.slettSjekkliste": "Är du säker på att du vill radera denna checklista? Detta kan inte ångras.",
+  "bekreft.slettOppgave": "Är du säker på att du vill radera denna uppgift? Detta kan inte ångras.",
+
+  "app.tagline": "Rapport- och kvalitetsstyrning",
+  "app.navn": "SiteDoc"
 }

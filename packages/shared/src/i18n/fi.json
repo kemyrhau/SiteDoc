@@ -12,6 +12,15 @@
   "nav.oppsett": "Asetukset",
   "nav.innstillinger": "Asetukset",
   "nav.maler": "Mallit",
+  "nav.hjem": "Etusivu",
+  "nav.mer": "Lisää",
+  "nav.box": "Box",
+  "nav.innboks": "Saapuneet",
+  "nav.liveView": "Live View",
+  "nav.lokasjoner": "Sijainnit",
+  "nav.kontrollplan": "Tarkastussuunnitelmat",
+  "nav.kontakter": "Yhteystiedot",
+  "nav.grupper": "Ryhmät",
   "toppbar.loggUt": "Kirjaudu ulos",
   "toppbar.bruker": "Käyttäjä",
   "toppbar.admin": "Admin",
@@ -604,5 +613,42 @@
   "prosjektoppsett.fullfort": "Valmis",
   "prosjektoppsett.fullfortBeskrivelse": "Projekti on saatu päätökseen",
   "prosjektoppsett.arkivert": "Arkistoitu",
-  "prosjektoppsett.arkivertBeskrivelse": "Projekti on arkistoitu ja vain luku -tilassa"
+  "prosjektoppsett.arkivertBeskrivelse": "Projekti on arkistoitu ja vain luku -tilassa",
+
+  "hjem.velgProsjekt": "Valitse projekti aloittaaksesi",
+  "hjem.registrerPaaSitedoc": "Voit kirjautua sisään osoitteessa sitedoc.no ja rekisteröidä uuden projektin",
+  "hjem.ingenInnboks": "Ei aktiivisia kohteita saapuneissa",
+  "hjem.oppdatert": "Päivitetty {{tid}}",
+  "hjem.henterProsjekter": "Haetaan projekteja...",
+  "hjem.nySjekkliste": "Uusi tarkistuslista",
+  "hjem.nyOppgave": "Uusi tehtävä",
+
+  "tid.akkuratNaa": "Juuri nyt",
+  "tid.minSiden": "{{n}} min sitten",
+  "tid.timerSiden": "{{n}} t sitten",
+  "tid.dagerSiden": "{{n}} pv sitten",
+
+  "mer.prosjekt": "Projekti",
+  "mer.generelt": "Yleinen",
+  "mer.prosjektinnstillinger": "Projektiasetukset",
+  "mer.forberedOffline": "Valmistele offline-käyttöön",
+  "mer.skannQR": "Skannaa QR-koodi",
+
+  "auth.loggInnGoogle": "Kirjaudu Googlella",
+  "auth.loggInnMicrosoft": "Kirjaudu Microsoft 365:llä",
+  "auth.loggerInn": "Kirjaudutaan...",
+  "auth.innloggingsfeil": "Kirjautumisvirhe",
+  "auth.apiTilkoblingFeil": "API-yhteys epäonnistui",
+
+  "feil.kunAdmin": "Vain projektien ylläpitäjillä on pääsy projektiasetuksiin.",
+  "feil.kunneIkkeHente": "Tietojen haku epäonnistui",
+  "feil.sjekkNettverk": "Tarkista verkkoyhteys ja yritä uudelleen",
+  "feil.kunneIkkeSlett": "Poistaminen epäonnistui",
+  "feil.ukjentFeil": "Tuntematon virhe",
+
+  "bekreft.slettSjekkliste": "Haluatko varmasti poistaa tämän tarkistuslistan? Tätä toimintoa ei voi kumota.",
+  "bekreft.slettOppgave": "Haluatko varmasti poistaa tämän tehtävän? Tätä toimintoa ei voi kumota.",
+
+  "app.tagline": "Raporttien ja laadun hallinta",
+  "app.navn": "SiteDoc"
 }

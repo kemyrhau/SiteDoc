@@ -12,6 +12,15 @@
   "nav.oppsett": "Seaded",
   "nav.innstillinger": "Seaded",
   "nav.maler": "Mallid",
+  "nav.hjem": "Avaleht",
+  "nav.mer": "Rohkem",
+  "nav.box": "Box",
+  "nav.innboks": "Postkast",
+  "nav.liveView": "Live View",
+  "nav.lokasjoner": "Asukohad",
+  "nav.kontrollplan": "Kontrollplaanid",
+  "nav.kontakter": "Kontaktid",
+  "nav.grupper": "Grupid",
   "toppbar.loggUt": "Logi välja",
   "toppbar.bruker": "Kasutaja",
   "toppbar.admin": "Admin",
@@ -604,5 +613,42 @@
   "prosjektoppsett.fullfort": "Lõpetatud",
   "prosjektoppsett.fullfortBeskrivelse": "Projekt on lõpetatud",
   "prosjektoppsett.arkivert": "Arhiveeritud",
-  "prosjektoppsett.arkivertBeskrivelse": "Projekt on arhiveeritud ja kirjutuskaitstud"
+  "prosjektoppsett.arkivertBeskrivelse": "Projekt on arhiveeritud ja kirjutuskaitstud",
+
+  "hjem.velgProsjekt": "Valige projekt alustamiseks",
+  "hjem.registrerPaaSitedoc": "Saate sisse logida sitedoc.no ja registreerida uue projekti",
+  "hjem.ingenInnboks": "Postkastis pole aktiivseid elemente",
+  "hjem.oppdatert": "Uuendatud {{tid}}",
+  "hjem.henterProsjekter": "Projektide laadimine...",
+  "hjem.nySjekkliste": "Uus kontrollnimekiri",
+  "hjem.nyOppgave": "Uus ülesanne",
+
+  "tid.akkuratNaa": "Just praegu",
+  "tid.minSiden": "{{n}} min tagasi",
+  "tid.timerSiden": "{{n}} t tagasi",
+  "tid.dagerSiden": "{{n}} p tagasi",
+
+  "mer.prosjekt": "Projekt",
+  "mer.generelt": "Üldine",
+  "mer.prosjektinnstillinger": "Projekti seaded",
+  "mer.forberedOffline": "Valmista ette võrguühenduseta tööks",
+  "mer.skannQR": "Skanni QR-kood",
+
+  "auth.loggInnGoogle": "Logi sisse Google'iga",
+  "auth.loggInnMicrosoft": "Logi sisse Microsoft 365-ga",
+  "auth.loggerInn": "Sisselogimine...",
+  "auth.innloggingsfeil": "Sisselogimise viga",
+  "auth.apiTilkoblingFeil": "API-ga ühendamine ebaõnnestus",
+
+  "feil.kunAdmin": "Ainult projekti administraatoritel on juurdepääs projekti seadetele.",
+  "feil.kunneIkkeHente": "Andmete laadimine ebaõnnestus",
+  "feil.sjekkNettverk": "Kontrollige võrguühendust ja proovige uuesti",
+  "feil.kunneIkkeSlett": "Kustutamine ebaõnnestus",
+  "feil.ukjentFeil": "Tundmatu viga",
+
+  "bekreft.slettSjekkliste": "Kas olete kindel, et soovite selle kontrollnimekirja kustutada? Seda toimingut ei saa tagasi võtta.",
+  "bekreft.slettOppgave": "Kas olete kindel, et soovite selle ülesande kustutada? Seda toimingut ei saa tagasi võtta.",
+
+  "app.tagline": "Aruannete ja kvaliteedi haldamine",
+  "app.navn": "SiteDoc"
 }

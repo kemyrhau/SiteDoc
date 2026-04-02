@@ -18,7 +18,7 @@ export interface BrukerData {
 
 // --- Plattformspesifikk lagring (SecureStore på native, localStorage på web) ---
 
-async function lagreVerdi(key: string, value: string): Promise<void> {
+export async function lagreVerdi(key: string, value: string): Promise<void> {
   if (Platform.OS === "web") {
     localStorage.setItem(key, value);
   } else {
@@ -27,7 +27,7 @@ async function lagreVerdi(key: string, value: string): Promise<void> {
   }
 }
 
-async function hentVerdi(key: string): Promise<string | null> {
+export async function hentVerdi(key: string): Promise<string | null> {
   if (Platform.OS === "web") {
     return localStorage.getItem(key);
   }

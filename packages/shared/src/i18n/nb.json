@@ -12,6 +12,15 @@
   "nav.oppsett": "Oppsett",
   "nav.innstillinger": "Innstillinger",
   "nav.maler": "Maler",
+  "nav.hjem": "Hjem",
+  "nav.mer": "Mer",
+  "nav.box": "Box",
+  "nav.innboks": "Innboks",
+  "nav.liveView": "Live View",
+  "nav.lokasjoner": "Lokasjoner",
+  "nav.kontrollplan": "Kontrollplaner",
+  "nav.kontakter": "Kontakter",
+  "nav.grupper": "Grupper",
 
   "toppbar.loggUt": "Logg ut",
   "toppbar.bruker": "Bruker",
@@ -652,5 +661,42 @@
   "prosjektoppsett.fullfort": "Fullført",
   "prosjektoppsett.fullfortBeskrivelse": "Prosjektet er ferdigstilt",
   "prosjektoppsett.arkivert": "Arkivert",
-  "prosjektoppsett.arkivertBeskrivelse": "Prosjektet er arkivert og skrivebeskyttet"
+  "prosjektoppsett.arkivertBeskrivelse": "Prosjektet er arkivert og skrivebeskyttet",
+
+  "hjem.velgProsjekt": "Velg et prosjekt for å komme i gang",
+  "hjem.registrerPaaSitedoc": "Du kan logge inn på sitedoc.no og registrere nytt prosjekt",
+  "hjem.ingenInnboks": "Ingen aktive elementer i innboksen",
+  "hjem.oppdatert": "Oppdatert {{tid}}",
+  "hjem.henterProsjekter": "Henter prosjekter...",
+  "hjem.nySjekkliste": "Ny sjekkliste",
+  "hjem.nyOppgave": "Ny oppgave",
+
+  "tid.akkuratNaa": "Akkurat nå",
+  "tid.minSiden": "{{n}} min siden",
+  "tid.timerSiden": "{{n}} t siden",
+  "tid.dagerSiden": "{{n}} d siden",
+
+  "mer.prosjekt": "Prosjekt",
+  "mer.generelt": "Generelt",
+  "mer.prosjektinnstillinger": "Prosjektinnstillinger",
+  "mer.forberedOffline": "Forbered til offline",
+  "mer.skannQR": "Skann QR-kode",
+
+  "auth.loggInnGoogle": "Logg inn med Google",
+  "auth.loggInnMicrosoft": "Logg inn med Microsoft 365",
+  "auth.loggerInn": "Logger inn...",
+  "auth.innloggingsfeil": "Innloggingsfeil",
+  "auth.apiTilkoblingFeil": "Kunne ikke koble til API",
+
+  "feil.kunAdmin": "Kun prosjektadministratorer har tilgang til prosjektinnstillinger.",
+  "feil.kunneIkkeHente": "Kunne ikke hente data",
+  "feil.sjekkNettverk": "Sjekk nettverkstilkoblingen og prøv igjen",
+  "feil.kunneIkkeSlett": "Kunne ikke slette",
+  "feil.ukjentFeil": "Ukjent feil",
+
+  "bekreft.slettSjekkliste": "Er du sikker på at du vil slette denne sjekklisten? Dette kan ikke angres.",
+  "bekreft.slettOppgave": "Er du sikker på at du vil slette denne oppgaven? Dette kan ikke angres.",
+
+  "app.tagline": "Rapport- og kvalitetsstyring",
+  "app.navn": "SiteDoc"
 }

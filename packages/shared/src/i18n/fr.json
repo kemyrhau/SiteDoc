@@ -12,6 +12,15 @@
   "nav.oppsett": "Paramètres",
   "nav.innstillinger": "Paramètres",
   "nav.maler": "Modèles",
+  "nav.hjem": "Accueil",
+  "nav.mer": "Plus",
+  "nav.box": "Box",
+  "nav.innboks": "Boîte de réception",
+  "nav.liveView": "Live View",
+  "nav.lokasjoner": "Emplacements",
+  "nav.kontrollplan": "Plans de contrôle",
+  "nav.kontakter": "Contacts",
+  "nav.grupper": "Groupes",
   "toppbar.loggUt": "Se déconnecter",
   "toppbar.bruker": "Utilisatrice",
   "toppbar.admin": "Administratrice",
@@ -604,5 +613,42 @@
   "prosjektoppsett.fullfort": "Complété",
   "prosjektoppsett.fullfortBeskrivelse": "Le projet est terminé",
   "prosjektoppsett.arkivert": "Archivé",
-  "prosjektoppsett.arkivertBeskrivelse": "Le projet est archivé et en lecture seule"
+  "prosjektoppsett.arkivertBeskrivelse": "Le projet est archivé et en lecture seule",
+
+  "hjem.velgProsjekt": "Sélectionnez un projet pour commencer",
+  "hjem.registrerPaaSitedoc": "Vous pouvez vous connecter sur sitedoc.no et enregistrer un nouveau projet",
+  "hjem.ingenInnboks": "Aucun élément actif dans la boîte de réception",
+  "hjem.oppdatert": "Mis à jour {{tid}}",
+  "hjem.henterProsjekter": "Chargement des projets...",
+  "hjem.nySjekkliste": "Nouvelle liste de contrôle",
+  "hjem.nyOppgave": "Nouvelle tâche",
+
+  "tid.akkuratNaa": "À l'instant",
+  "tid.minSiden": "il y a {{n}} min",
+  "tid.timerSiden": "il y a {{n}} h",
+  "tid.dagerSiden": "il y a {{n}} j",
+
+  "mer.prosjekt": "Projet",
+  "mer.generelt": "Général",
+  "mer.prosjektinnstillinger": "Paramètres du projet",
+  "mer.forberedOffline": "Préparer pour le mode hors ligne",
+  "mer.skannQR": "Scanner le code QR",
+
+  "auth.loggInnGoogle": "Se connecter avec Google",
+  "auth.loggInnMicrosoft": "Se connecter avec Microsoft 365",
+  "auth.loggerInn": "Connexion...",
+  "auth.innloggingsfeil": "Erreur de connexion",
+  "auth.apiTilkoblingFeil": "Impossible de se connecter à l'API",
+
+  "feil.kunAdmin": "Seuls les administrateurs du projet ont accès aux paramètres du projet.",
+  "feil.kunneIkkeHente": "Impossible de récupérer les données",
+  "feil.sjekkNettverk": "Vérifiez la connexion réseau et réessayez",
+  "feil.kunneIkkeSlett": "Impossible de supprimer",
+  "feil.ukjentFeil": "Erreur inconnue",
+
+  "bekreft.slettSjekkliste": "Êtes-vous sûr de vouloir supprimer cette liste de contrôle ? Cette action est irréversible.",
+  "bekreft.slettOppgave": "Êtes-vous sûr de vouloir supprimer cette tâche ? Cette action est irréversible.",
+
+  "app.tagline": "Gestion des rapports et de la qualité",
+  "app.navn": "SiteDoc"
 }

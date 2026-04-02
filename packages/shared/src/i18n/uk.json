@@ -12,6 +12,15 @@
   "nav.oppsett": "Налаштування",
   "nav.innstillinger": "Налаштування",
   "nav.maler": "Шаблони",
+  "nav.hjem": "Головна",
+  "nav.mer": "Більше",
+  "nav.box": "Box",
+  "nav.innboks": "Вхідні",
+  "nav.liveView": "Live View",
+  "nav.lokasjoner": "Локації",
+  "nav.kontrollplan": "Плани контролю",
+  "nav.kontakter": "Контакти",
+  "nav.grupper": "Групи",
   "toppbar.loggUt": "Вийти",
   "toppbar.bruker": "Користувач",
   "toppbar.admin": "адмін",
@@ -604,5 +613,42 @@
   "prosjektoppsett.fullfort": "Виконано",
   "prosjektoppsett.fullfortBeskrivelse": "Проект завершено",
   "prosjektoppsett.arkivert": "Архівовано",
-  "prosjektoppsett.arkivertBeskrivelse": "Проект заархівований і доступний лише для читання"
+  "prosjektoppsett.arkivertBeskrivelse": "Проект заархівований і доступний лише для читання",
+
+  "hjem.velgProsjekt": "Виберіть проєкт, щоб почати",
+  "hjem.registrerPaaSitedoc": "Ви можете увійти на sitedoc.no та зареєструвати новий проєкт",
+  "hjem.ingenInnboks": "Немає активних елементів у вхідних",
+  "hjem.oppdatert": "Оновлено {{tid}}",
+  "hjem.henterProsjekter": "Завантаження проєктів...",
+  "hjem.nySjekkliste": "Новий контрольний список",
+  "hjem.nyOppgave": "Нове завдання",
+
+  "tid.akkuratNaa": "Щойно",
+  "tid.minSiden": "{{n}} хв. тому",
+  "tid.timerSiden": "{{n}} год. тому",
+  "tid.dagerSiden": "{{n}} дн. тому",
+
+  "mer.prosjekt": "Проєкт",
+  "mer.generelt": "Загальне",
+  "mer.prosjektinnstillinger": "Налаштування проєкту",
+  "mer.forberedOffline": "Підготувати для офлайн",
+  "mer.skannQR": "Сканувати QR-код",
+
+  "auth.loggInnGoogle": "Увійти через Google",
+  "auth.loggInnMicrosoft": "Увійти через Microsoft 365",
+  "auth.loggerInn": "Вхід...",
+  "auth.innloggingsfeil": "Помилка входу",
+  "auth.apiTilkoblingFeil": "Не вдалося підключитися до API",
+
+  "feil.kunAdmin": "Лише адміністратори проєкту мають доступ до налаштувань проєкту.",
+  "feil.kunneIkkeHente": "Не вдалося отримати дані",
+  "feil.sjekkNettverk": "Перевірте мережеве з'єднання та спробуйте ще раз",
+  "feil.kunneIkkeSlett": "Не вдалося видалити",
+  "feil.ukjentFeil": "Невідома помилка",
+
+  "bekreft.slettSjekkliste": "Ви впевнені, що хочете видалити цей контрольний список? Цю дію не можна скасувати.",
+  "bekreft.slettOppgave": "Ви впевнені, що хочете видалити це завдання? Цю дію не можна скасувати.",
+
+  "app.tagline": "Управління звітами та якістю",
+  "app.navn": "SiteDoc"
 }

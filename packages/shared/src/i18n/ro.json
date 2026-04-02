@@ -12,6 +12,15 @@
   "nav.oppsett": "Setări",
   "nav.innstillinger": "Setări",
   "nav.maler": "Șabloane",
+  "nav.hjem": "Acasă",
+  "nav.mer": "Mai mult",
+  "nav.box": "Box",
+  "nav.innboks": "Inbox",
+  "nav.liveView": "Live View",
+  "nav.lokasjoner": "Locații",
+  "nav.kontrollplan": "Planuri de control",
+  "nav.kontakter": "Contacte",
+  "nav.grupper": "Grupuri",
   "toppbar.loggUt": "Deconectați-vă",
   "toppbar.bruker": "Utilizator",
   "toppbar.admin": "Admin",
@@ -604,5 +613,42 @@
   "prosjektoppsett.fullfort": "Terminat",
   "prosjektoppsett.fullfortBeskrivelse": "Proiectul a fost finalizat",
   "prosjektoppsett.arkivert": "Arhivat",
-  "prosjektoppsett.arkivertBeskrivelse": "Proiectul este arhivat și numai în citire"
+  "prosjektoppsett.arkivertBeskrivelse": "Proiectul este arhivat și numai în citire",
+
+  "hjem.velgProsjekt": "Selectați un proiect pentru a începe",
+  "hjem.registrerPaaSitedoc": "Puteți să vă autentificați pe sitedoc.no și să înregistrați un proiect nou",
+  "hjem.ingenInnboks": "Niciun element activ în inbox",
+  "hjem.oppdatert": "Actualizat {{tid}}",
+  "hjem.henterProsjekter": "Se încarcă proiectele...",
+  "hjem.nySjekkliste": "Listă de control nouă",
+  "hjem.nyOppgave": "Sarcină nouă",
+
+  "tid.akkuratNaa": "Chiar acum",
+  "tid.minSiden": "acum {{n}} min",
+  "tid.timerSiden": "acum {{n}} ore",
+  "tid.dagerSiden": "acum {{n}} zile",
+
+  "mer.prosjekt": "Proiect",
+  "mer.generelt": "General",
+  "mer.prosjektinnstillinger": "Setări proiect",
+  "mer.forberedOffline": "Pregătire pentru offline",
+  "mer.skannQR": "Scanare cod QR",
+
+  "auth.loggInnGoogle": "Autentificare cu Google",
+  "auth.loggInnMicrosoft": "Autentificare cu Microsoft 365",
+  "auth.loggerInn": "Se autentifică...",
+  "auth.innloggingsfeil": "Eroare de autentificare",
+  "auth.apiTilkoblingFeil": "Nu s-a putut conecta la API",
+
+  "feil.kunAdmin": "Doar administratorii proiectului au acces la setările proiectului.",
+  "feil.kunneIkkeHente": "Nu s-au putut obține datele",
+  "feil.sjekkNettverk": "Verificați conexiunea la rețea și încercați din nou",
+  "feil.kunneIkkeSlett": "Nu s-a putut șterge",
+  "feil.ukjentFeil": "Eroare necunoscută",
+
+  "bekreft.slettSjekkliste": "Sunteți sigur că doriți să ștergeți această listă de control? Această acțiune nu poate fi anulată.",
+  "bekreft.slettOppgave": "Sunteți sigur că doriți să ștergeți această sarcină? Această acțiune nu poate fi anulată.",
+
+  "app.tagline": "Management rapoarte și calitate",
+  "app.navn": "SiteDoc"
 }

@@ -12,6 +12,15 @@
   "nav.oppsett": "Nastavení",
   "nav.innstillinger": "Nastavení",
   "nav.maler": "Šablony",
+  "nav.hjem": "Domů",
+  "nav.mer": "Více",
+  "nav.box": "Box",
+  "nav.innboks": "Doručená pošta",
+  "nav.liveView": "Live View",
+  "nav.lokasjoner": "Lokality",
+  "nav.kontrollplan": "Kontrolní plány",
+  "nav.kontakter": "Kontakty",
+  "nav.grupper": "Skupiny",
   "toppbar.loggUt": "Odhlaste se",
   "toppbar.bruker": "Uživatel",
   "toppbar.admin": "Admin",
@@ -604,5 +613,42 @@
   "prosjektoppsett.fullfort": "Dokončeno",
   "prosjektoppsett.fullfortBeskrivelse": "Projekt byl dokončen",
   "prosjektoppsett.arkivert": "Archivováno",
-  "prosjektoppsett.arkivertBeskrivelse": "Projekt je archivován a je pouze pro čtení"
+  "prosjektoppsett.arkivertBeskrivelse": "Projekt je archivován a je pouze pro čtení",
+
+  "hjem.velgProsjekt": "Vyberte projekt pro zahájení",
+  "hjem.registrerPaaSitedoc": "Můžete se přihlásit na sitedoc.no a zaregistrovat nový projekt",
+  "hjem.ingenInnboks": "Žádné aktivní položky v doručené poště",
+  "hjem.oppdatert": "Aktualizováno {{tid}}",
+  "hjem.henterProsjekter": "Načítání projektů...",
+  "hjem.nySjekkliste": "Nový kontrolní seznam",
+  "hjem.nyOppgave": "Nový úkol",
+
+  "tid.akkuratNaa": "Právě teď",
+  "tid.minSiden": "před {{n}} min",
+  "tid.timerSiden": "před {{n}} hod.",
+  "tid.dagerSiden": "před {{n}} dny",
+
+  "mer.prosjekt": "Projekt",
+  "mer.generelt": "Obecné",
+  "mer.prosjektinnstillinger": "Nastavení projektu",
+  "mer.forberedOffline": "Připravit pro offline",
+  "mer.skannQR": "Naskenovat QR kód",
+
+  "auth.loggInnGoogle": "Přihlásit se přes Google",
+  "auth.loggInnMicrosoft": "Přihlásit se přes Microsoft 365",
+  "auth.loggerInn": "Přihlašování...",
+  "auth.innloggingsfeil": "Chyba přihlášení",
+  "auth.apiTilkoblingFeil": "Nepodařilo se připojit k API",
+
+  "feil.kunAdmin": "Pouze administrátoři projektu mají přístup k nastavení projektu.",
+  "feil.kunneIkkeHente": "Nepodařilo se načíst data",
+  "feil.sjekkNettverk": "Zkontrolujte síťové připojení a zkuste to znovu",
+  "feil.kunneIkkeSlett": "Nepodařilo se smazat",
+  "feil.ukjentFeil": "Neznámá chyba",
+
+  "bekreft.slettSjekkliste": "Opravdu chcete smazat tento kontrolní seznam? Tuto akci nelze vrátit.",
+  "bekreft.slettOppgave": "Opravdu chcete smazat tento úkol? Tuto akci nelze vrátit.",
+
+  "app.tagline": "Správa reportů a kvality",
+  "app.navn": "SiteDoc"
 }
