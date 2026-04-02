@@ -223,7 +223,7 @@ export const mappeRouter = router({
     .query(async ({ ctx, input }) => {
       const mappe = await ctx.prisma.folder.findUniqueOrThrow({
         where: { id: input.folderId },
-        select: { projectId: true },
+        select: { projectId: true, languages: true },
       });
       await verifiserProsjektmedlem(ctx.userId, mappe.projectId);
       const docs = await ctx.prisma.ftdDocument.findMany({
@@ -232,7 +232,7 @@ export const mappeRouter = router({
       });
 
       // Hent embedding-status per dokument
-      if (docs.length === 0) return [];
+      if (docs.length === 0) return { dokumenter: [], mappeSprak: mappe.languages as string[] };
       const docIds = docs.map((d) => d.id);
       const embeddingStats = await ctx.prisma.$queryRaw<
         Array<{ documentId: string; totalt: bigint; embedded: bigint }>
@@ -253,11 +253,49 @@ export const mappeRouter = router({
         ]),
       );
 
-      return docs.map((d) => ({
-        ...d,
-        chunksTotalt: statsMap.get(d.id)?.totalt ?? 0,
-        chunksEmbedded: statsMap.get(d.id)?.embedded ?? 0,
-      }));
+      // Hent oversettelsestatus per dokument (kun for mapper med flere språk)
+      const mappeSprak = (mappe.languages ?? ["nb"]) as string[];
+      const harOversettelse = mappeSprak.length > 1;
+      let oversettStatusMap = new Map<string, { tilgjengelig: string[]; pågår: boolean }>();
+
+      if (harOversettelse) {
+        // Tilgjengelige språk per dokument
+        const blokkSprak = await ctx.prisma.$queryRaw<
+          Array<{ document_id: string; language: string }>
+        >`
+          SELECT DISTINCT document_id, language FROM ftd_document_blocks
+          WHERE document_id IN (${Prisma.join(docIds)})
+        `;
+        // Pågående oversettelser
+        const pågående = await ctx.prisma.ftdTranslationJob.findMany({
+          where: { documentId: { in: docIds }, status: { in: ["pending", "processing"] } },
+          select: { documentId: true },
+        });
+        const pågåendeSet = new Set(pågående.map((p) => p.documentId));
+
+        const språkPerDok = new Map<string, Set<string>>();
+        for (const r of blokkSprak) {
+          if (!språkPerDok.has(r.document_id)) språkPerDok.set(r.document_id, new Set());
+          språkPerDok.get(r.document_id)!.add(r.language);
+        }
+
+        oversettStatusMap = new Map(
+          docIds.map((id) => [id, {
+            tilgjengelig: [...(språkPerDok.get(id) ?? [])],
+            pågår: pågåendeSet.has(id),
+          }]),
+        );
+      }
+
+      return {
+        dokumenter: docs.map((d) => ({
+          ...d,
+          chunksTotalt: statsMap.get(d.id)?.totalt ?? 0,
+          chunksEmbedded: statsMap.get(d.id)?.embedded ?? 0,
+          oversettelse: oversettStatusMap.get(d.id) ?? null,
+        })),
+        mappeSprak,
+      };
     }),
 
   // Hent tilgangskonfigurasjon for én mappe

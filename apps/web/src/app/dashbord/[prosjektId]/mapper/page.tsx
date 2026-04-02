@@ -17,8 +17,11 @@ import {
   Circle,
   AlertCircle,
   BookOpen,
+  Globe,
+  Loader2 as Spinner2,
 } from "lucide-react";
 import Link from "next/link";
+import { STOETTEDE_SPRAAK } from "@sitedoc/shared";
 import { beregnSynligeMapper } from "@sitedoc/shared/utils";
 import type { MappeTilgangInput, BrukerTilgangInfo } from "@sitedoc/shared/utils";
 import { useTranslation } from "react-i18next";
@@ -37,11 +40,14 @@ export default function MapperSide() {
   );
 
   // Hent dokumenter for valgt mappe
-  const { data: dokumenter, isLoading: lasterDokumenter } =
+  const { data: dokumentData, isLoading: lasterDokumenter } =
     trpc.mappe.hentDokumenter.useQuery(
       { folderId: valgtMappeId! },
       { enabled: !!valgtMappeId },
     );
+  const dokumenter = Array.isArray(dokumentData) ? dokumentData : dokumentData?.dokumenter;
+  const mappeSprak = Array.isArray(dokumentData) ? ["nb"] : (dokumentData?.mappeSprak ?? ["nb"]);
+  const harOversettelse = mappeSprak.length > 1;
 
   // Hent brukerens medlemskap og grupper for tilgangskontroll
   const { data: medlemmer } = trpc.medlem.hentForProsjekt.useQuery(
@@ -337,10 +343,15 @@ export default function MapperSide() {
                 <div className="flex items-center gap-1">
                   <Link
                     href={`/dashbord/${prosjektId}/dokumenter/${rad.id}/les`}
-                    className="rounded p-1 text-gray-400 hover:bg-blue-50 hover:text-sitedoc-primary"
+                    className="group/les relative rounded p-1 text-gray-400 hover:bg-blue-50 hover:text-sitedoc-primary"
                     title={t("handling.vis")}
                   >
                     <BookOpen className="h-4 w-4" />
+                    {(rad as unknown as { oversettelse?: { tilgjengelig: string[]; pågår: boolean } }).oversettelse?.pågår ? (
+                      <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 animate-spin rounded-full border border-sitedoc-primary border-t-transparent" />
+                    ) : (rad as unknown as { oversettelse?: { tilgjengelig: string[]; pågår: boolean } }).oversettelse?.tilgjengelig && (rad as unknown as { oversettelse?: { tilgjengelig: string[]; pågår: boolean } }).oversettelse!.tilgjengelig.length > 1 ? (
+                      <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-sitedoc-success" />
+                    ) : null}
                   </Link>
                   <a
                     href={rad.fileUrl}

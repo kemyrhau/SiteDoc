@@ -82,10 +82,11 @@ export function ImportDialog({ projectId, open, onClose }: ImportDialogProps) {
   );
 
   // Hent dokumenter i valgt mappe
-  const { data: mappeDokumenter } = trpc.mappe.hentDokumenter.useQuery(
+  const { data: mappeDokumenterRaw } = trpc.mappe.hentDokumenter.useQuery(
     { folderId: velgtMappeId! },
     { enabled: !!velgtMappeId && kilde === "fra-mappe" },
   );
+  const mappeDokumenter = Array.isArray(mappeDokumenterRaw) ? mappeDokumenterRaw : mappeDokumenterRaw?.dokumenter;
 
   // Bygg flat liste med innrykk for dropdown
   const mappeValg = useMemo(() => {
