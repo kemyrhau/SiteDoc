@@ -433,5 +433,11 @@
   "lokasjoner.ingenLokasjonerBeskrivelse": "Opprett din første lokasjon for å begynne å organisere tegninger.",
   "lokasjoner.upubliserte": "Upubliserte lokasjoner",
   "lokasjoner.publiserte": "Publiserte lokasjoner",
-  "lokasjoner.upublisert": "Upublisert"
+  "lokasjoner.upublisert": "Upublisert",
+
+  "entrepriser.nyDokumentflyt": "Ny dokumentflyt",
+  "entrepriser.nyEntreprise": "Ny entreprise",
+  "entrepriser.leggTilEntreprise": "Legg til entreprise",
+  "entrepriser.ingenEntrepriser": "Ingen entrepriser",
+  "entrepriser.ingenEntrepriserBeskrivelse": "Legg til entrepriser med dokumentflyt for å styre godkjenning og kommunikasjon."
 }

@@ -12,6 +12,7 @@ import {
   EmptyState,
   SearchInput,
 } from "@sitedoc/ui";
+import { useTranslation } from "react-i18next";
 import {
   Plus,
   ChevronDown,
@@ -1166,6 +1167,7 @@ function RedigerDokumentflytModal({
 
 export default function EntrepriserSide() {
   const { prosjektId, prosjekter } = useProsjekt();
+  const { t } = useTranslation();
   const utils = trpc.useUtils();
 
   const [sok, setSok] = useState("");
@@ -1338,15 +1340,15 @@ export default function EntrepriserSide() {
     <div>
       {/* Verktøylinje */}
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-lg font-bold text-gray-900">Entrepriser og dokumentflyt</h2>
+        <h2 className="text-lg font-bold text-gray-900">{t("oppsett.entrepriser")}</h2>
         <div className="flex items-center gap-2">
           <Button size="sm" variant="secondary" onClick={() => { setForvalgtEntrepriseId(undefined); setVisOpprettDf(true); }}>
             <Plus className="mr-1.5 h-4 w-4" />
-            Ny dokumentflyt
+            {t("entrepriser.nyDokumentflyt")}
           </Button>
           <Button size="sm" onClick={() => setVisVeiviser(true)}>
             <Plus className="mr-1.5 h-4 w-4" />
-            Ny entreprise
+            {t("entrepriser.nyEntreprise")}
           </Button>
         </div>
       </div>
@@ -1366,11 +1368,11 @@ export default function EntrepriserSide() {
       {/* Entrepriser med dokumentflyter */}
       {filtrert.length === 0 && fellesDf.length === 0 ? (
         <EmptyState
-          title="Ingen entrepriser"
-          description="Legg til entrepriser med dokumentflyt for å styre godkjenning og kommunikasjon."
+          title={t("entrepriser.ingenEntrepriser")}
+          description={t("entrepriser.ingenEntrepriserBeskrivelse")}
           action={
             <Button onClick={() => setVisVeiviser(true)}>
-              Legg til entreprise
+              {t("entrepriser.leggTilEntreprise")}
             </Button>
           }
         />

@@ -433,5 +433,11 @@
   "lokasjoner.ingenLokasjonerBeskrivelse": "Create your first location to start organizing drawings.",
   "lokasjoner.upubliserte": "Unpublished locations",
   "lokasjoner.publiserte": "Published locations",
-  "lokasjoner.upublisert": "Unpublished"
+  "lokasjoner.upublisert": "Unpublished",
+
+  "entrepriser.nyDokumentflyt": "New document flow",
+  "entrepriser.nyEntreprise": "New contractor",
+  "entrepriser.leggTilEntreprise": "Add contractor",
+  "entrepriser.ingenEntrepriser": "No contractors",
+  "entrepriser.ingenEntrepriserBeskrivelse": "Add contractors with document flow to manage approval and communication."
 }
