@@ -68,10 +68,16 @@ export async function genererBlokker(
  * - Skannet: 1 stort bilde som dekker >60% av sidearealet, lite tekst
  * - Tekstbasert: flere tekstelementer, bilder er illustrasjoner
  */
+interface CachetBilde {
+  data: Uint8ClampedArray;
+  width: number;
+  height: number;
+}
+
 interface SideAnalyse {
   type: "skannet" | "tekst";
   rader: Map<number, Array<{ x: number; tekst: string; fontSize: number }>>;
-  bilder: Array<{ imgName: string; width: number; height: number }>;
+  bilder: CachetBilde[];
   viewport: { width: number; height: number };
 }
 
@@ -96,15 +102,15 @@ async function analyserSide(
     rader.get(y)!.push({ x, tekst: el.str.trim(), fontSize });
   }
 
-  // Finn bilder med størrelse
+  // Finn bilder — cache data for å unngå dobbelt-henting
   const opList = await page.getOperatorList();
-  const bilder: Array<{ imgName: string; width: number; height: number }> = [];
+  const bilder: CachetBilde[] = [];
   for (let i = 0; i < opList.fnArray.length; i++) {
     if (opList.fnArray[i] === OPS.paintImageXObject) {
       const imgName = opList.argsArray[i]![0] as string;
       const imgData = await hentBildeData(page, imgName);
       if (imgData && imgData.width > 50 && imgData.height > 50) {
-        bilder.push({ imgName, width: imgData.width, height: imgData.height });
+        bilder.push(imgData);
       }
     }
   }
@@ -115,9 +121,6 @@ async function analyserSide(
     ? Math.max(...bilder.map((b) => b.width * b.height))
     : 0;
   const bildeDekning = sideAreal > 0 ? størsteBilde / sideAreal : 0;
-
-  // Skannet: ett dominerende bilde som dekker >40% av arealet
-  // og relativt lite tekst (OCR-lag typisk < 500 tegn per side)
   const erSkannet = bilder.length <= 2 && bildeDekning > 0.4 && totaleTegn < 1000;
 
   return { type: erSkannet ? "skannet" : "tekst", rader, bilder, viewport };
@@ -142,11 +145,9 @@ async function ekstraherBlokkerFraPdf(
     const analyse = await analyserSide(page, OPS);
 
     if (analyse.type === "skannet") {
-      // Skannet side: vis hele siden som bilde, tekst som caption/overlay
-      await prosesserSkannetSide(page, OPS, analyse, alleBlokker, documentId, p);
+      await prosesserSkannetSide(analyse, alleBlokker, documentId, p);
     } else {
-      // Tekstbasert side: ekstraher tekst og bilder separat
-      await prosesserTekstSide(page, OPS, analyse, alleBlokker, documentId, p);
+      await prosesserTekstSide(analyse, alleBlokker, documentId, p);
     }
   }
 
@@ -158,21 +159,16 @@ async function ekstraherBlokkerFraPdf(
  * Skannet side: lagre store bilder direkte, OCR-tekst som tekstblokker mellom bildene.
  */
 async function prosesserSkannetSide(
-  page: { objs: { get: (name: string, callback?: (data: unknown) => void) => unknown } },
-  _OPS: { paintImageXObject: number },
   analyse: SideAnalyse,
   alleBlokker: RåBlokk[],
   documentId: string,
   sideNr: number,
 ): Promise<void> {
-  // Lagre bilder (typisk 1 stort bilde per skannet side)
+  // Lagre bilder (typisk 1 stort bilde per skannet side) — data allerede cachet
   let bildeNr = 0;
   for (const bilde of analyse.bilder) {
-    const imgData = await hentBildeData(page, bilde.imgName);
-    if (imgData) {
-      const bildeUrl = await lagreBilde(documentId, sideNr, bildeNr++, imgData);
-      alleBlokker.push({ type: "image", content: "", pageNumber: sideNr, imageUrl: bildeUrl });
-    }
+    const bildeUrl = await lagreBilde(documentId, sideNr, bildeNr++, bilde);
+    alleBlokker.push({ type: "image", content: "", pageNumber: sideNr, imageUrl: bildeUrl });
   }
 
   // OCR-tekst som enkelt tekstblokk (hvis noe finnes)
@@ -191,8 +187,6 @@ async function prosesserSkannetSide(
  * Tekstbasert side: ekstraher overskrifter, tekst, bilder og bildetekster.
  */
 async function prosesserTekstSide(
-  page: { objs: { get: (name: string, callback?: (data: unknown) => void) => unknown } },
-  _OPS: { paintImageXObject: number },
   analyse: SideAnalyse,
   alleBlokker: RåBlokk[],
   documentId: string,
@@ -212,14 +206,11 @@ async function prosesserTekstSide(
     ? fontStørrelser.reduce((a, b) => a + b, 0) / fontStørrelser.length
     : 10;
 
-  // Lagre illustrasjonsbilder
+  // Lagre illustrasjonsbilder — data allerede cachet
   let bildeNr = 0;
   for (const bilde of analyse.bilder) {
-    const imgData = await hentBildeData(page, bilde.imgName);
-    if (imgData) {
-      const bildeUrl = await lagreBilde(documentId, sideNr, bildeNr++, imgData);
-      alleBlokker.push({ type: "image", content: "", pageNumber: sideNr, imageUrl: bildeUrl });
-    }
+    const bildeUrl = await lagreBilde(documentId, sideNr, bildeNr++, bilde);
+    alleBlokker.push({ type: "image", content: "", pageNumber: sideNr, imageUrl: bildeUrl });
   }
 
   // Bygg tekst-blokker fra rader
