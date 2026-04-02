@@ -314,39 +314,35 @@ async function oversettMedMotor(
 }
 
 /**
- * Google Cloud Translation API v2.
+ * Google Translate via google-translate-api-x (ingen API-nøkkel).
  */
 async function kallGoogleTranslate(
   tekster: string[],
   kilde: string,
   maal: string,
-  apiKey: string,
+  _apiKey?: string,
 ): Promise<string[]> {
+  const { default: translate } = await import("google-translate-api-x");
   const resultater: string[] = [];
-  // Google Translate API har maks 128 segmenter per kall
-  for (let i = 0; i < tekster.length; i += 100) {
-    const batch = tekster.slice(i, i + 100);
-    const response = await fetch(
-      `https://translation.googleapis.com/language/translate/v2?key=${apiKey}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          q: batch,
-          source: kilde === "nb" ? "no" : kilde,
-          target: maal,
-          format: "text",
-        }),
-      },
-    );
-    if (!response.ok) {
-      const feil = await response.text().catch(() => "");
-      throw new Error(`Google Translate feil (${response.status}): ${feil.slice(0, 200)}`);
+  // Batch à 20 for å unngå rate-limiting
+  for (let i = 0; i < tekster.length; i += 20) {
+    const batch = tekster.slice(i, i + 20);
+    try {
+      const oversatt = await translate(batch, {
+        from: kilde === "nb" ? "no" : kilde,
+        to: maal,
+      });
+      const res = Array.isArray(oversatt) ? oversatt : [oversatt];
+      resultater.push(...res.map((r) => r.text));
+    } catch (err) {
+      // Fallback: returner original
+      console.error("Google Translate batch feilet:", err);
+      resultater.push(...batch);
     }
-    const data = (await response.json()) as {
-      data: { translations: Array<{ translatedText: string }> };
-    };
-    resultater.push(...data.data.translations.map((t) => t.translatedText));
+    // Rate-limiting pause
+    if (i + 20 < tekster.length) {
+      await new Promise((r) => setTimeout(r, 1000));
+    }
   }
   return resultater;
 }
@@ -434,16 +430,16 @@ export async function sammenlignMotorer(
     resultater.push({ motor: "opus-mt", navn: "OPUS-MT (gratis)", resultat: null, feil: err instanceof Error ? err.message : "Feil" });
   }
 
-  // Google Translate (kun med API-nøkkel)
-  if (apiKey) {
-    try {
-      const [oversatt] = await kallGoogleTranslate([tekst], "nb", targetLang, apiKey);
-      resultater.push({ motor: "google", navn: "Google Translate", resultat: oversatt ?? null, feil: null });
-    } catch (err) {
-      resultater.push({ motor: "google", navn: "Google Translate", resultat: null, feil: err instanceof Error ? err.message : "Feil" });
-    }
+  // Google Translate (alltid tilgjengelig, ingen API-nøkkel)
+  try {
+    const [oversatt] = await kallGoogleTranslate([tekst], "nb", targetLang);
+    resultater.push({ motor: "google", navn: "Google Translate", resultat: oversatt ?? null, feil: null });
+  } catch (err) {
+    resultater.push({ motor: "google", navn: "Google Translate", resultat: null, feil: err instanceof Error ? err.message : "Feil" });
+  }
 
-    // DeepL (bruker samme nøkkel-felt — brukeren velger motor)
+  // DeepL (kun med API-nøkkel)
+  if (apiKey) {
     try {
       const [oversatt] = await kallDeepL([tekst], "nb", targetLang, apiKey);
       resultater.push({ motor: "deepl", navn: "DeepL", resultat: oversatt ?? null, feil: null });

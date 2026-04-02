@@ -51,6 +51,9 @@ importers:
       fastify:
         specifier: ^5.2.0
         version: 5.7.4
+      google-translate-api-x:
+        specifier: ^10.7.2
+        version: 10.7.2
       openai:
         specifier: ^6.33.0
         version: 6.33.0(ws@8.19.0)(zod@3.25.76)

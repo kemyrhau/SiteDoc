@@ -34,7 +34,7 @@ const IKON_MAP: Record<string, React.ReactNode> = {
 
 const MOTOR_INFO: Record<string, { navn: string; beskrivelse: string; betalt: boolean }> = {
   "opus-mt": { navn: "OPUS-MT (gratis)", beskrivelse: "Selvhostet maskinoversettelse. God for enkle tekster.", betalt: false },
-  "google": { navn: "Google Translate", beskrivelse: "Høy kvalitet med kontekstforståelse. Krever API-nøkkel.", betalt: true },
+  "google": { navn: "Google Translate (gratis)", beskrivelse: "Høy kvalitet med kontekstforståelse. Ingen API-nøkkel nødvendig.", betalt: false },
   "deepl": { navn: "DeepL", beskrivelse: "Beste kvalitet for europeiske språk. Krever API-nøkkel.", betalt: true },
 };
 
