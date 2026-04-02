@@ -4,7 +4,8 @@ import { useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
-import { ArrowLeft, Globe, Loader2 } from "lucide-react";
+import { ArrowLeft, Globe, Loader2, RefreshCw, Check, X } from "lucide-react";
+import { Button } from "@sitedoc/ui";
 import Link from "next/link";
 import { STOETTEDE_SPRAAK } from "@sitedoc/shared";
 
@@ -18,11 +19,32 @@ export default function DokumentLeser() {
 
   const [språk, setSpråk] = useState(i18n.language || "nb");
   const [visSpraakmeny, setVisSpraakmeny] = useState(false);
+  const [sammenlignBlokk, setSammenlignBlokk] = useState<{ id: string; content: string } | null>(null);
 
-  const { data, isLoading } = trpc.mappe.hentDokumentBlokker.useQuery(
+  const { data, isLoading, refetch } = trpc.mappe.hentDokumentBlokker.useQuery(
     { documentId: dokumentId, language: språk },
     { enabled: !!dokumentId },
   );
+
+  // Sammenlign-query (lazy)
+  const { data: sammenlignData, isLoading: sammenlignLaster } = trpc.modul.sammenlignOversettelse.useQuery(
+    { projectId: prosjektId, tekst: sammenlignBlokk?.content ?? "", targetLang: språk },
+    { enabled: !!sammenlignBlokk && språk !== "nb" },
+  );
+
+  // Re-oversett mutation
+  const reOversettMut = trpc.modul.reOversettDokument.useMutation({
+    onSuccess: () => {
+      setSammenlignBlokk(null);
+      // Poll for ferdig oversettelse
+      const interval = setInterval(() => {
+        refetch().then((r) => {
+          if (r.data && r.data.blokker.length > 0) clearInterval(interval);
+        });
+      }, 5000);
+      setTimeout(() => clearInterval(interval), 120000);
+    },
+  });
 
   const valgtSpråkInfo = STOETTEDE_SPRAAK.find((s) => s.kode === språk);
 
@@ -103,8 +125,65 @@ export default function DokumentLeser() {
       {/* Innhold */}
       <main className="flex-1 overflow-y-auto">
         <div className="mx-auto max-w-3xl px-4 py-8">
+        {/* Sammenlign-popover */}
+        {sammenlignBlokk && språk !== "nb" && (
+          <div className="mb-6 rounded-xl border-2 border-sitedoc-primary/30 bg-white p-4 shadow-lg">
+            <div className="mb-3 flex items-center justify-between">
+              <h4 className="text-sm font-semibold text-gray-900">{t("handling.vis")} — {t("mappeoppsett.spraak")}</h4>
+              <button onClick={() => setSammenlignBlokk(null)} className="rounded p-1 text-gray-400 hover:bg-gray-100">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <p className="mb-3 rounded bg-gray-50 p-2 text-xs italic text-gray-500">{sammenlignBlokk.content}</p>
+            {sammenlignLaster ? (
+              <div className="flex items-center gap-2 py-4 text-sm text-gray-400">
+                <Loader2 className="h-4 w-4 animate-spin" /> {t("handling.laster")}
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {sammenlignData?.map((r) => (
+                  <div key={r.motor} className={`rounded-lg border p-3 ${r.feil ? "border-red-200 bg-red-50" : "border-gray-200"}`}>
+                    <div className="mb-1 flex items-center justify-between">
+                      <span className="text-xs font-medium text-gray-600">{r.navn}</span>
+                      {!r.feil && (
+                        <button
+                          onClick={() => {
+                            reOversettMut.mutate({
+                              projectId: prosjektId,
+                              documentId: dokumentId,
+                              targetLang: språk,
+                              motor: r.motor as "opus-mt" | "google" | "deepl",
+                            });
+                          }}
+                          disabled={reOversettMut.isPending}
+                          className="flex items-center gap-1 rounded bg-sitedoc-primary px-2 py-0.5 text-[10px] font-medium text-white hover:bg-sitedoc-secondary"
+                        >
+                          <RefreshCw className="h-3 w-3" />
+                          Re-oversett
+                        </button>
+                      )}
+                    </div>
+                    <p className="text-sm text-gray-800">{r.resultat ?? r.feil}</p>
+                  </div>
+                ))}
+                {reOversettMut.isPending && (
+                  <div className="flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-700">
+                    <Loader2 className="h-4 w-4 animate-spin" /> Re-oversetter hele dokumentet...
+                  </div>
+                )}
+                {reOversettMut.isSuccess && (
+                  <div className="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700">
+                    <Check className="h-4 w-4" /> Oversettelse startet — oppdateres automatisk
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
         {data.blokker.map((blokk) => {
           const innhold = highlightTekst(blokk.content, highlight);
+          const erKlikkbar = språk !== "nb" && ["heading", "text", "caption"].includes(blokk.blockType);
 
           switch (blokk.blockType) {
             case "heading": {
@@ -121,7 +200,8 @@ export default function DokumentLeser() {
               return (
                 <Tag
                   key={blokk.id}
-                  className={`text-gray-900 ${størrelse}`}
+                  className={`text-gray-900 ${størrelse} ${erKlikkbar ? "cursor-pointer rounded px-1 -mx-1 hover:bg-amber-50 transition-colors" : ""}`}
+                  onClick={erKlikkbar ? () => setSammenlignBlokk({ id: blokk.id, content: blokk.content }) : undefined}
                   dangerouslySetInnerHTML={{ __html: innhold }}
                 />
               );
@@ -131,7 +211,8 @@ export default function DokumentLeser() {
               return (
                 <div
                   key={blokk.id}
-                  className="mb-4 whitespace-pre-wrap text-base leading-7 text-gray-800"
+                  className={`mb-4 whitespace-pre-wrap text-base leading-7 text-gray-800 ${erKlikkbar ? "cursor-pointer rounded px-1 -mx-1 hover:bg-amber-50 transition-colors" : ""}`}
+                  onClick={erKlikkbar ? () => setSammenlignBlokk({ id: blokk.id, content: blokk.content }) : undefined}
                   dangerouslySetInnerHTML={{ __html: innhold }}
                 />
               );

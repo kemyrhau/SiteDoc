@@ -208,4 +208,64 @@ export const modulRouter = router({
         data: { config },
       });
     }),
+
+  // Sammenlign oversettelse av én tekst med alle motorer
+  sammenlignOversettelse: protectedProcedure
+    .input(z.object({
+      projectId: z.string().uuid(),
+      tekst: z.string().min(1).max(5000),
+      targetLang: z.string().min(2).max(5),
+    }))
+    .query(async ({ ctx, input }) => {
+      await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      const modul = await ctx.prisma.projectModule.findUnique({
+        where: { projectId_moduleSlug: { projectId: input.projectId, moduleSlug: "oversettelse" } },
+      });
+      const config = (modul?.config ?? {}) as { apiKey?: string };
+      const { sammenlignMotorer } = await import("../services/oversettelse-service");
+      return sammenlignMotorer(input.tekst, input.targetLang, config.apiKey);
+    }),
+
+  // Re-oversett hele dokumentet med valgt motor
+  reOversettDokument: protectedProcedure
+    .input(z.object({
+      projectId: z.string().uuid(),
+      documentId: z.string(),
+      targetLang: z.string().min(2).max(5),
+      motor: z.enum(["opus-mt", "google", "deepl"]),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      await ctx.prisma.ftdDocumentBlock.deleteMany({
+        where: { documentId: input.documentId, language: input.targetLang },
+      });
+      // Tøm cache for dette dokumentet+språket
+      const blokker = await ctx.prisma.ftdDocumentBlock.findMany({
+        where: { documentId: input.documentId, language: "nb" },
+        select: { content: true },
+      });
+      if (blokker.length > 0) {
+        const { createHash } = await import("node:crypto");
+        const hashes = blokker.map((b) => createHash("sha256").update(b.content).digest("hex"));
+        await ctx.prisma.translationCache.deleteMany({
+          where: { contentHash: { in: hashes }, targetLang: input.targetLang },
+        });
+      }
+      await ctx.prisma.ftdTranslationJob.upsert({
+        where: { documentId_targetLang: { documentId: input.documentId, targetLang: input.targetLang } },
+        create: { id: `${input.documentId}-${input.targetLang}`, documentId: input.documentId, targetLang: input.targetLang, status: "pending", blocksTotal: blokker.length },
+        update: { status: "pending", blocksDone: 0, error: null, blocksTotal: blokker.length },
+      });
+      // Oppdater motor
+      const modul = await ctx.prisma.projectModule.findUnique({
+        where: { projectId_moduleSlug: { projectId: input.projectId, moduleSlug: "oversettelse" } },
+      });
+      const config = (modul?.config ?? {}) as Record<string, string>;
+      config.motor = input.motor;
+      await ctx.prisma.projectModule.update({
+        where: { projectId_moduleSlug: { projectId: input.projectId, moduleSlug: "oversettelse" } },
+        data: { config },
+      });
+      return { status: "queued", blokker: blokker.length };
+    }),
 });

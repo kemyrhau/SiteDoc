@@ -414,3 +414,43 @@ async function kallOversettelsesServer(
 function hashTekst(tekst: string): string {
   return createHash("sha256").update(tekst).digest("hex");
 }
+
+/**
+ * Sammenlign oversettelse fra alle tilgjengelige motorer.
+ * Returnerer resultat per motor (OPUS-MT alltid, Google/DeepL kun med API-nøkkel).
+ */
+export async function sammenlignMotorer(
+  tekst: string,
+  targetLang: string,
+  apiKey?: string,
+): Promise<Array<{ motor: string; navn: string; resultat: string | null; feil: string | null }>> {
+  const resultater: Array<{ motor: string; navn: string; resultat: string | null; feil: string | null }> = [];
+
+  // OPUS-MT (alltid tilgjengelig)
+  try {
+    const [oversatt] = await kallOversettelsesServer([tekst], "nb", targetLang);
+    resultater.push({ motor: "opus-mt", navn: "OPUS-MT (gratis)", resultat: oversatt ?? null, feil: null });
+  } catch (err) {
+    resultater.push({ motor: "opus-mt", navn: "OPUS-MT (gratis)", resultat: null, feil: err instanceof Error ? err.message : "Feil" });
+  }
+
+  // Google Translate (kun med API-nøkkel)
+  if (apiKey) {
+    try {
+      const [oversatt] = await kallGoogleTranslate([tekst], "nb", targetLang, apiKey);
+      resultater.push({ motor: "google", navn: "Google Translate", resultat: oversatt ?? null, feil: null });
+    } catch (err) {
+      resultater.push({ motor: "google", navn: "Google Translate", resultat: null, feil: err instanceof Error ? err.message : "Feil" });
+    }
+
+    // DeepL (bruker samme nøkkel-felt — brukeren velger motor)
+    try {
+      const [oversatt] = await kallDeepL([tekst], "nb", targetLang, apiKey);
+      resultater.push({ motor: "deepl", navn: "DeepL", resultat: oversatt ?? null, feil: null });
+    } catch (err) {
+      resultater.push({ motor: "deepl", navn: "DeepL", resultat: null, feil: err instanceof Error ? err.message : "Feil" });
+    }
+  }
+
+  return resultater;
+}
