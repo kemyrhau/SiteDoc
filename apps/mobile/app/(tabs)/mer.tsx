@@ -89,7 +89,7 @@ export default function MerSkjerm() {
   return (
     <SafeAreaView className="flex-1 bg-gray-50" edges={["top"]}>
       <View className="border-b border-gray-200 bg-white px-4 py-3">
-        <Text className="text-lg font-semibold text-gray-900">Mer</Text>
+        <Text className="text-lg font-semibold text-gray-900">{t("nav.mer")}</Text>
       </View>
 
       <ScrollView className="flex-1" contentContainerClassName="pb-8">
@@ -97,36 +97,33 @@ export default function MerSkjerm() {
         <View className="mt-4">
           <View className="border-b border-gray-200 px-4 pb-1.5 pt-3">
             <Text className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-              Prosjekt
+              {t("mer.prosjekt")}
             </Text>
           </View>
           <MenyRad
             ikon={Settings}
-            tekst="Prosjektinnstillinger"
+            tekst={t("mer.prosjektinnstillinger")}
             deaktivert={!erAdmin}
             onPress={() => {
               if (!erAdmin) {
-                Alert.alert(
-                  "Ingen tilgang",
-                  "Kun prosjektadministratorer har tilgang til prosjektinnstillinger.",
-                );
+                Alert.alert(t("feil.ingenTilgang"), t("feil.kunAdmin"));
               } else {
-                Alert.alert("Prosjektinnstillinger", "Åpne prosjektinnstillinger på sitedoc.no for full redigering.");
+                Alert.alert(t("mer.prosjektinnstillinger"), "Åpne prosjektinnstillinger på sitedoc.no for full redigering.");
               }
             }}
           />
           <MenyRad
             ikon={Printer}
-            tekst="Skriv ut"
+            tekst={t("handling.skrivUt")}
             onPress={() => {
-              Alert.alert("Skriv ut", "Utskriftsfunksjonalitet kommer snart.");
+              Alert.alert(t("handling.skrivUt"), "Utskriftsfunksjonalitet kommer snart.");
             }}
           />
           <MenyRad
             ikon={Download}
-            tekst="Eksporter"
+            tekst={t("handling.eksporter")}
             onPress={() => {
-              Alert.alert("Eksporter", "Eksportfunksjonalitet kommer snart.");
+              Alert.alert(t("handling.eksporter"), "Eksportfunksjonalitet kommer snart.");
             }}
           />
         </View>
@@ -135,20 +132,20 @@ export default function MerSkjerm() {
         <View className="mt-4">
           <View className="border-b border-gray-200 px-4 pb-1.5 pt-3">
             <Text className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-              Generelt
+              {t("mer.generelt")}
             </Text>
           </View>
-          <MenyRad ikon={Users} tekst="Kontakter" />
-          <MenyRad ikon={Building2} tekst="Grupper" />
-          <MenyRad ikon={WifiOff} tekst={offlineTekst ?? "Forbered til offline"} onPress={startOffline} />
-          <MenyRad ikon={QrCode} tekst="Skann QR-kode" />
+          <MenyRad ikon={Users} tekst={t("nav.kontakter")} />
+          <MenyRad ikon={Building2} tekst={t("nav.grupper")} />
+          <MenyRad ikon={WifiOff} tekst={offlineTekst ?? t("mer.forberedOffline")} onPress={startOffline} />
+          <MenyRad ikon={QrCode} tekst={t("mer.skannQR")} />
         </View>
 
         {/* Språk */}
         <View className="mt-4">
           <View className="border-b border-gray-200 px-4 pb-1.5 pt-3">
             <Text className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-              Språk
+              {t("toppbar.spraak")}
             </Text>
           </View>
           <Pressable
@@ -157,7 +154,7 @@ export default function MerSkjerm() {
           >
             <View className="flex-row items-center gap-3">
               <Globe size={20} color="#6b7280" />
-              <Text className="text-base text-gray-900">App-språk</Text>
+              <Text className="text-base text-gray-900">{t("toppbar.spraak")}</Text>
             </View>
             <View className="flex-row items-center gap-2">
               <Text className="text-sm text-gray-500">
@@ -196,7 +193,7 @@ export default function MerSkjerm() {
             <View className="flex-row items-center gap-2">
               <LogOut size={18} color="#ef4444" />
               <Text className="text-base font-medium text-red-600">
-                Logg ut
+                {t("toppbar.loggUt")}
               </Text>
             </View>
           </Pressable>

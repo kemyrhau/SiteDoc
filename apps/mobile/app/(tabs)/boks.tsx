@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, FlatList, ActivityIndicator } from "react
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Folder, FolderOpen, FileText, ChevronRight, ArrowLeft } from "lucide-react-native";
 import { router } from "expo-router";
+import { useTranslation } from "react-i18next";
 import { trpc } from "../../src/lib/trpc";
 import { useProsjekt } from "../../src/kontekst/ProsjektKontekst";
 
@@ -22,6 +23,7 @@ interface Dokument {
 }
 
 export default function BoksSkjerm() {
+  const { t } = useTranslation();
   const { valgtProsjektId } = useProsjekt();
   const [åpenMappe, setÅpenMappe] = useState<{ id: string; navn: string } | null>(null);
 
@@ -44,12 +46,12 @@ export default function BoksSkjerm() {
     return (
       <SafeAreaView className="flex-1 bg-gray-50" edges={["top"]}>
         <View className="border-b border-gray-200 bg-white px-4 py-3">
-          <Text className="text-lg font-semibold text-gray-900">Mapper</Text>
+          <Text className="text-lg font-semibold text-gray-900">{t("nav.mapper")}</Text>
         </View>
         <View className="flex-1 items-center justify-center px-8">
           <FolderOpen size={48} color="#9ca3af" />
           <Text className="mt-4 text-center text-sm text-gray-500">
-            Velg et prosjekt for å se dokumenter
+            {t("hjem.velgProsjekt")}
           </Text>
         </View>
       </SafeAreaView>
@@ -76,7 +78,7 @@ export default function BoksSkjerm() {
         ) : dokumenter.length === 0 ? (
           <View className="flex-1 items-center justify-center px-8">
             <FileText size={40} color="#d1d5db" />
-            <Text className="mt-3 text-sm text-gray-500">Ingen dokumenter i denne mappen</Text>
+            <Text className="mt-3 text-sm text-gray-500">{t("feil.ikkeFunnet")}</Text>
           </View>
         ) : (
           <FlatList
@@ -131,7 +133,7 @@ export default function BoksSkjerm() {
   return (
     <SafeAreaView className="flex-1 bg-gray-50" edges={["top"]}>
       <View className="border-b border-gray-200 bg-white px-4 py-3">
-        <Text className="text-lg font-semibold text-gray-900">Mapper</Text>
+        <Text className="text-lg font-semibold text-gray-900">{t("nav.mapper")}</Text>
       </View>
       {mapperLaster ? (
         <View className="flex-1 items-center justify-center">
@@ -141,7 +143,7 @@ export default function BoksSkjerm() {
         <View className="flex-1 items-center justify-center px-8">
           <FolderOpen size={48} color="#9ca3af" />
           <Text className="mt-4 text-center text-sm text-gray-500">
-            Ingen mapper i dette prosjektet
+            {t("feil.ikkeFunnet")}
           </Text>
         </View>
       ) : (
