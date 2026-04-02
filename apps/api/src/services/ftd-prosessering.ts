@@ -11,6 +11,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import type { PrismaClient } from "@sitedoc/db";
 import { splittMalebrevPdf } from "./pdf-splitting";
+import { genererBlokker } from "./blokk-prosessering";
 
 const execFileAsync = promisify(execFile);
 
@@ -124,6 +125,13 @@ export async function prosesserDokument(
     embeddNyeChunks(prisma, documentId).catch((err) => {
       console.error(`Embedding feilet for ${documentId}:`, err);
     });
+
+    // Blokkbasert parsing for mapper med språkstøtte (fire-and-forget)
+    if (ext === ".pdf" && dok.folderId) {
+      genererBlokkHvisSpraak(prisma, documentId, dok.folderId, buffer, ext).catch((err) => {
+        console.error(`Blokkgenerering feilet for ${documentId}:`, err);
+      });
+    }
   } catch (err) {
     const melding =
       err instanceof Error ? err.message : "Ukjent prosesseringsfeil";
@@ -134,6 +142,48 @@ export async function prosesserDokument(
         data: { processingState: "failed", processingError: melding },
       })
       .catch(() => {});
+  }
+}
+
+/**
+ * Generer blokker hvis mappen har konfigurert flere språk.
+ * Oppretter også oversettelsesoppdrag for hvert ekstra språk.
+ */
+async function genererBlokkHvisSpraak(
+  prisma: PrismaClient,
+  documentId: string,
+  folderId: string,
+  buffer: Buffer,
+  ext: string,
+): Promise<void> {
+  const mappe = await prisma.folder.findUnique({
+    where: { id: folderId },
+    select: { languages: true },
+  });
+  const languages = mappe?.languages ?? ["nb"];
+  if (languages.length <= 1 && languages[0] === "nb") return;
+
+  const antall = await genererBlokker(prisma, documentId, buffer, ext);
+  console.log(`Blokkprosessering: ${antall} blokker generert for ${documentId}`);
+
+  // Opprett oversettelsesoppdrag for ekstra språk
+  for (const lang of languages.filter((l: string) => l !== "nb")) {
+    await prisma.ftdTranslationJob.upsert({
+      where: { documentId_targetLang: { documentId, targetLang: lang } },
+      create: {
+        id: `${documentId}-${lang}`,
+        documentId,
+        targetLang: lang,
+        blocksTotal: antall,
+        status: "pending",
+      },
+      update: {
+        status: "pending",
+        blocksTotal: antall,
+        blocksDone: 0,
+        error: null,
+      },
+    });
   }
 }
 
