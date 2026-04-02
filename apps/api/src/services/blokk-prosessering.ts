@@ -6,7 +6,8 @@
  * lagres som FtdDocumentBlock med språk og rekkefølge.
  */
 import { join } from "node:path";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, writeFile, unlink, readFile } from "node:fs/promises";
+import { execFile } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import type { PrismaClient } from "@sitedoc/db";
 
@@ -160,8 +161,12 @@ async function analyserSide(
 }
 
 /**
- * Ekstraher ordnede blokker fra PDF via pdfjs-dist.
- * Analyserer hver side for å velge riktig strategi.
+ * Ekstraher ordnede blokker fra PDF.
+ *
+ * Strategi per side:
+ * - Sider med bilder: rendre hele siden som JPEG via pdftoppm (bevarer layout)
+ *   + tekst som egen søkbar blokk
+ * - Rene tekstsider: ekstraher headings og tekst via pdfjs-dist
  */
 async function ekstraherBlokkerFraPdf(
   buffer: Buffer,
@@ -171,21 +176,109 @@ async function ekstraherBlokkerFraPdf(
   const data = new Uint8Array(buffer);
   const doc = await getDocument({ data, useSystemFonts: true }).promise;
 
+  // Skriv PDF til temp-fil for pdftoppm
+  const tmpDir = join(UPLOADS_DIR, "tmp");
+  await mkdir(tmpDir, { recursive: true });
+  const tmpPdf = join(tmpDir, `${documentId}.pdf`);
+  await writeFile(tmpPdf, buffer);
+
   const alleBlokker: RåBlokk[] = [];
 
   for (let p = 1; p <= doc.numPages; p++) {
     const page = await doc.getPage(p);
     const analyse = await analyserSide(page, OPS);
 
-    if (analyse.type === "skannet") {
-      await prosesserSkannetSide(analyse, alleBlokker, documentId, p);
+    if (analyse.bilder.length > 0) {
+      // Side med bilder → rendre hele siden som JPEG via pdftoppm
+      await prosesserSideSomBilde(tmpPdf, alleBlokker, documentId, p, analyse);
     } else {
+      // Ren tekstside → ekstraher headings og tekst
       await prosesserTekstSide(analyse, alleBlokker, documentId, p);
     }
   }
 
   await doc.destroy();
+  // Rydd opp temp-fil
+  await unlink(tmpPdf).catch(() => {});
   return alleBlokker;
+}
+
+/**
+ * Rendre PDF-side som JPEG via pdftoppm + sharp.
+ * Bevarer layout, bildeplassering og bildetekster nøyaktig som i originalen.
+ */
+async function prosesserSideSomBilde(
+  pdfPath: string,
+  alleBlokker: RåBlokk[],
+  documentId: string,
+  sideNr: number,
+  analyse: SideAnalyse,
+): Promise<void> {
+  const sharp = (await import("sharp")).default;
+
+  // pdftoppm rendrer side som PPM (f=sideNr, l=sideNr, -jpeg for JPEG, -r for DPI)
+  const imgDir = join(UPLOADS_DIR, `documents/${documentId}/images`);
+  await mkdir(imgDir, { recursive: true });
+  const outputPrefix = join(imgDir, `page`);
+
+  try {
+    await new Promise<void>((resolve, reject) => {
+      execFile("pdftoppm", [
+        "-f", String(sideNr), "-l", String(sideNr),
+        "-jpeg", "-r", "150", "-jpegopt", "quality=80",
+        pdfPath, outputPrefix,
+      ], (err) => err ? reject(err) : resolve());
+    });
+
+    // pdftoppm lager filer som page-01.jpg, page-001.jpg etc.
+    const { readdirSync } = require("node:fs") as typeof import("node:fs");
+    const filer = readdirSync(imgDir).filter((f: string) =>
+      f.startsWith("page-") && f.endsWith(".jpg"),
+    );
+
+    if (filer.length > 0) {
+      // Sorter og ta siste (denne siden)
+      filer.sort();
+      const kildefil = join(imgDir, filer[filer.length - 1]!);
+      const endeligFil = `s${sideNr}_full.jpg`;
+      const endeligSti = join(imgDir, endeligFil);
+
+      // Optimaliser med sharp (maks 1200px bredde)
+      await sharp(kildefil)
+        .resize({ width: 1200, withoutEnlargement: true })
+        .jpeg({ quality: 80 })
+        .toFile(endeligSti);
+
+      // Rydd opp pdftoppm-output
+      for (const f of filer) {
+        await unlink(join(imgDir, f)).catch(() => {});
+      }
+
+      const bildeUrl = `/uploads/documents/${documentId}/images/${endeligFil}`;
+      alleBlokker.push({ type: "image", content: "", pageNumber: sideNr, imageUrl: bildeUrl });
+    }
+  } catch (err) {
+    console.error(`pdftoppm feilet for side ${sideNr}:`, (err as Error).message);
+    // Fallback: bruk gammelt bildeutrekk
+    let bildeNr = 0;
+    for (const bilde of analyse.bilder) {
+      try {
+        const url = await lagreBilde(documentId, sideNr, bildeNr++, bilde);
+        alleBlokker.push({ type: "image", content: "", pageNumber: sideNr, imageUrl: url });
+      } catch { /* ignorer */ }
+    }
+  }
+
+  // Tekst som egen søkbar blokk (ikke synlig i reader, men søkbar)
+  const tekst = [...analyse.rader.entries()]
+    .sort((a, b) => b[0] - a[0])
+    .map(([_y, items]) => items.sort((a, b) => a.x - b.x).map((i) => i.tekst).join(" "))
+    .join("\n")
+    .trim();
+
+  if (tekst.length > 10) {
+    alleBlokker.push({ type: "text", content: tekst, pageNumber: sideNr });
+  }
 }
 
 /**
