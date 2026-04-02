@@ -26,9 +26,9 @@ export default function DokumentLeser() {
     { enabled: !!dokumentId },
   );
 
-  // Sammenlign-query (lazy)
+  // Sammenlign-query (lazy) — sender blokkId, API henter norsk original
   const { data: sammenlignData, isLoading: sammenlignLaster } = trpc.modul.sammenlignOversettelse.useQuery(
-    { projectId: prosjektId, tekst: sammenlignBlokk?.content ?? "", targetLang: språk },
+    { projectId: prosjektId, blokkId: sammenlignBlokk?.id ?? "", targetLang: språk },
     { enabled: !!sammenlignBlokk && språk !== "nb" },
   );
 
@@ -213,13 +213,21 @@ export default function DokumentLeser() {
                     </button>
                   </div>
 
+                  {/* Norsk original */}
+                  {sammenlignData?.norskOriginal && (
+                    <div className="mb-3 rounded-lg border border-gray-200 bg-gray-50 p-3">
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">Norsk original</span>
+                      <p className="mt-1 text-sm text-gray-700">{sammenlignData.norskOriginal}</p>
+                    </div>
+                  )}
+
                   {sammenlignLaster ? (
                     <div className="flex items-center gap-2 py-4 text-sm text-gray-500">
                       <Loader2 className="h-4 w-4 animate-spin" /> Henter oversettelser fra tilgjengelige motorer...
                     </div>
-                  ) : sammenlignData && sammenlignData.length > 0 ? (
+                  ) : sammenlignData?.oversettelser && sammenlignData.oversettelser.length > 0 ? (
                     <div className="flex flex-col gap-3">
-                      {sammenlignData.map((r) => (
+                      {sammenlignData.oversettelser.map((r) => (
                         <div key={r.motor} className={`rounded-lg border p-3 bg-white ${r.feil ? "border-red-200" : "border-gray-200"}`}>
                           <div className="mb-2 flex items-center justify-between">
                             <span className="text-xs font-semibold text-gray-700">{r.navn}</span>

@@ -209,21 +209,46 @@ export const modulRouter = router({
       });
     }),
 
-  // Sammenlign oversettelse av én tekst med alle motorer
+  // Sammenlign oversettelse av én blokk med alle motorer
   sammenlignOversettelse: protectedProcedure
     .input(z.object({
       projectId: z.string().uuid(),
-      tekst: z.string().min(1).max(5000),
+      blokkId: z.string(),
       targetLang: z.string().min(2).max(5),
     }))
     .query(async ({ ctx, input }) => {
       await verifiserProsjektmedlem(ctx.userId, input.projectId);
+
+      // Hent blokken og finn norsk original
+      const blokk = await ctx.prisma.ftdDocumentBlock.findUnique({
+        where: { id: input.blokkId },
+        select: { content: true, language: true, sourceBlockId: true },
+      });
+      if (!blokk) throw new Error("Blokk ikke funnet");
+
+      // Hent norsk kildetekst
+      let norskTekst: string;
+      if (blokk.language === "nb") {
+        norskTekst = blokk.content;
+      } else if (blokk.sourceBlockId) {
+        const kilde = await ctx.prisma.ftdDocumentBlock.findUnique({
+          where: { id: blokk.sourceBlockId },
+          select: { content: true },
+        });
+        norskTekst = kilde?.content ?? blokk.content;
+      } else {
+        norskTekst = blokk.content;
+      }
+
       const modul = await ctx.prisma.projectModule.findUnique({
         where: { projectId_moduleSlug: { projectId: input.projectId, moduleSlug: "oversettelse" } },
       });
       const config = (modul?.config ?? {}) as { apiKey?: string };
       const { sammenlignMotorer } = await import("../services/oversettelse-service");
-      return sammenlignMotorer(input.tekst, input.targetLang, config.apiKey);
+      return {
+        norskOriginal: norskTekst,
+        oversettelser: await sammenlignMotorer(norskTekst, input.targetLang, config.apiKey),
+      };
     }),
 
   // Re-oversett hele dokumentet med valgt motor
