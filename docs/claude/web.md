@@ -125,7 +125,7 @@ Firmainnhold (feltlabels, hjelpetekst, valgalternativer) oversettes on-demand n�
 - **Visning:** Oversettelse under originaltekst (blå, italic). Erstatter ikke — viser begge
 - **Motor:** Prosjektets konfigurasjon (OPUS-MT standard, Google/DeepL valgfritt)
 - **Cache:** TranslationCache (SHA-256) — oversetter kun én gang per tekst per språkpar
-- **Hook:** `useOversettelse` (mobil) kobler FeltWrapper til API
+- **Hook:** `useOversettelse` i `apps/web/src/hooks/useOversettelse.ts` (web) og `apps/mobile/src/hooks/useOversettelse.ts` (mobil) — kobler FeltWrapper til API. Web bruker `i18n.language`, mobil bruker `useAuth().bruker.language`
 
 ### Lag 3: Fritekst → firma (automatisk)
 Arbeiderens fritekst auto-oversettes til prosjektspråket ved lagring.

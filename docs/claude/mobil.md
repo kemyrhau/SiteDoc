@@ -116,6 +116,27 @@ Sjekkliste-/oppgave-detaljskjermen har kontekstuelle statusknapper i bunnpanelet
 
 **Viktig:** `@expo/ngrok` (v2) er fjernet. Vi bruker systeminstallert ngrok v3 (`brew install ngrok`).
 
+## Flerspråklig (i18n)
+
+**Oppsett:** i18next + react-i18next, gjenbruker JSON-filer fra `packages/shared/src/i18n/` (14 språk, ~690 nøkler).
+
+**Filer:**
+- `apps/mobile/src/lib/i18n.ts` — Config, statisk import av alle 14 språk, SecureStore-lagring
+- `apps/mobile/src/providers/SpraakProvider.tsx` — Synkroniserer brukerens språk
+
+**Provider-plassering:** `AuthProvider → SpraakProvider → ProsjektProvider`
+
+**Språkprioritet:** `bruker.language` (server) > lagret i SecureStore > `nb` (standard)
+
+**Bruk i komponenter:**
+```typescript
+import { useTranslation } from "react-i18next";
+const { t } = useTranslation();
+// t("nav.hjem"), t("tid.minSiden", { n: 5 })
+```
+
+**Skjermkonvertering:** Pågår — tabs, login, hjem, mer, boks, lokasjoner, sjekkliste, oppgave.
+
 ## Offline-first (SQLite)
 
 **SQLite-tabeller:**
