@@ -20,6 +20,7 @@
     "zod": "^3.24.0"
   },
   "devDependencies": {
+    "google-translate-api-x": "^10.7.2",
     "typescript": "^5.7.0"
   }
 }
