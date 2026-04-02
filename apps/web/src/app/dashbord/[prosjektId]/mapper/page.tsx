@@ -332,7 +332,7 @@ export default function MapperSide() {
                       <span className="font-medium text-gray-900">{rad.filename}</span>
                     </div>
                     {harAvvik && (
-                      <div className="flex items-center gap-1.5 ml-6">
+                      <div className="flex flex-wrap items-center gap-1.5 ml-6">
                         <AlertCircle className="h-3 w-3 flex-shrink-0 text-amber-500" />
                         <span className="text-[11px] text-amber-700">
                           {t("dokumentleser.detektertSom")} {detInfo?.flagg} {detInfo?.navn}, {t("dokumentleser.forventet")} {prosjektInfo?.flagg} {prosjektInfo?.navn}
@@ -340,9 +340,16 @@ export default function MapperSide() {
                         <button
                           onClick={(e) => { e.stopPropagation(); bekreftSpraakMut.mutate({ documentId: rad.id, bekreftSpraak: rad.detectedLanguage! }); }}
                           disabled={bekreftSpraakMut.isPending}
+                          className="rounded bg-sitedoc-primary px-1.5 py-0.5 text-[10px] font-medium text-white hover:bg-sitedoc-secondary"
+                        >
+                          {t("dokumentleser.bekreftOgOversett", { spraak: detInfo?.navn })}
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); bekreftSpraakMut.mutate({ documentId: rad.id, bekreftSpraak: rad.detectedLanguage!, skipOversettelse: true }); }}
+                          disabled={bekreftSpraakMut.isPending}
                           className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800 hover:bg-amber-200"
                         >
-                          {t("dokumentleser.bekreftSpraak", { spraak: detInfo?.navn })}
+                          {t("dokumentleser.bekreftUtenOversettelse")}
                         </button>
                         <button
                           onClick={(e) => { e.stopPropagation(); bekreftSpraakMut.mutate({ documentId: rad.id, bekreftSpraak: prosjektKildesprak }); }}

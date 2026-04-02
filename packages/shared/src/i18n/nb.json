@@ -429,7 +429,8 @@
   "dokumentleser.spraakAvvik": "Mulig språkavvik",
   "dokumentleser.detektertSom": "Detektert som",
   "dokumentleser.forventet": "forventet",
-  "dokumentleser.bekreftSpraak": "Bekreft {{spraak}}",
+  "dokumentleser.bekreftOgOversett": "Bekreft {{spraak}} + oversett",
+  "dokumentleser.bekreftUtenOversettelse": "Bekreft uten oversettelse",
   "dokumentleser.brukForventet": "Bruk {{spraak}}",
 
   "tegninger.sokLokasjoner": "Søk lokasjoner...",

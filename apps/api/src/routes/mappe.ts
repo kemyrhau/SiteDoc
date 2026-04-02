@@ -503,7 +503,8 @@ export const mappeRouter = router({
   bekreftDokumentSpraak: protectedProcedure
     .input(z.object({
       documentId: z.string(),
-      bekreftSpraak: z.string().min(2).max(5), // Brukeren bekrefter riktig kildespråk
+      bekreftSpraak: z.string().min(2).max(5),
+      skipOversettelse: z.boolean().optional(), // Bekreft språk men ikke oversett
     }))
     .mutation(async ({ ctx, input }) => {
       const doc = await ctx.prisma.ftdDocument.findUniqueOrThrow({
@@ -532,8 +533,8 @@ export const mappeRouter = router({
         });
       }
 
-      // Trigger oversettelsesoppdrag hvis mappen har flere språk
-      if (doc.folderId) {
+      // Trigger oversettelsesoppdrag hvis mappen har flere språk (og bruker ikke hoppet over)
+      if (doc.folderId && !input.skipOversettelse) {
         const alleMapper = await ctx.prisma.folder.findMany({
           where: { projectId: doc.projectId },
           select: { id: true, parentId: true, languageMode: true, languages: true },

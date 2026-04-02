@@ -429,7 +429,8 @@
   "dokumentleser.spraakAvvik": "Possible language mismatch",
   "dokumentleser.detektertSom": "Detected as",
   "dokumentleser.forventet": "expected",
-  "dokumentleser.bekreftSpraak": "Confirm {{spraak}}",
+  "dokumentleser.bekreftOgOversett": "Confirm {{spraak}} + translate",
+  "dokumentleser.bekreftUtenOversettelse": "Confirm without translation",
   "dokumentleser.brukForventet": "Use {{spraak}}",
 
   "tegninger.sokLokasjoner": "Search locations...",
