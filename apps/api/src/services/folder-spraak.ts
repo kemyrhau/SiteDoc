@@ -9,18 +9,15 @@ interface SpråkMappe {
 
 export interface EffektiveSpråk {
   languages: string[];
-  /** ID-en til mappen som faktisk definerer språkene (null = prosjektstandard) */
   kildeMappeId: string | null;
-  /** Om denne mappen arver eller har egne innstillinger */
   arvet: boolean;
 }
+
+const STANDARD: EffektiveSpråk = { languages: ["nb"], kildeMappeId: null, arvet: true };
 
 /**
  * Hent effektive målspråk for en mappe.
  * Går opp foreldrekjeden til den finner en mappe med languageMode = "custom".
- * Hvis ingen finnes → standard (kun kildespråk fra prosjektet).
- *
- * Kildespråk defineres på prosjektnivå, ikke per mappe.
  */
 export async function hentEffektiveSpråk(
   prisma: PrismaClient,
@@ -30,16 +27,11 @@ export async function hentEffektiveSpråk(
     where: { id: mappeId },
     select: { projectId: true },
   });
-  if (!mappe) return { languages: ["nb"], kildeMappeId: null, arvet: false };
+  if (!mappe) return STANDARD;
 
   const mapper = await prisma.folder.findMany({
     where: { projectId: mappe.projectId },
-    select: {
-      id: true,
-      parentId: true,
-      languageMode: true,
-      languages: true,
-    },
+    select: { id: true, parentId: true, languageMode: true, languages: true },
   });
 
   return resolverSpråk(mappeId, mapper);
@@ -47,13 +39,21 @@ export async function hentEffektiveSpråk(
 
 /**
  * Resolver målspråk fra en flat liste med mapper.
+ * Beskyttet mot sirkulære referanser via visited-set.
  */
 export function resolverSpråk(
   mappeId: string,
   mapper: SpråkMappe[],
+  besøkt?: Set<string>,
 ): EffektiveSpråk {
+  const visited = besøkt ?? new Set<string>();
+
+  // Syklusdeteksjon
+  if (visited.has(mappeId)) return STANDARD;
+  visited.add(mappeId);
+
   const mappe = mapper.find((m) => m.id === mappeId);
-  if (!mappe) return { languages: ["nb"], kildeMappeId: null, arvet: false };
+  if (!mappe) return STANDARD;
 
   if (mappe.languageMode === "custom") {
     return {
@@ -64,12 +64,11 @@ export function resolverSpråk(
   }
 
   if (mappe.parentId) {
-    const foreldreResultat = resolverSpråk(mappe.parentId, mapper);
+    const foreldreResultat = resolverSpråk(mappe.parentId, mapper, visited);
     return { ...foreldreResultat, arvet: true };
   }
 
-  // Rot med inherit → kun prosjektets kildespråk
-  return { languages: ["nb"], kildeMappeId: null, arvet: true };
+  return STANDARD;
 }
 
 /**
@@ -80,15 +79,10 @@ export function resolverAlleSpråk(
 ): Map<string, EffektiveSpråk> {
   const cache = new Map<string, EffektiveSpråk>();
 
-  function resolver(mappeId: string): EffektiveSpråk {
-    if (cache.has(mappeId)) return cache.get(mappeId)!;
-    const result = resolverSpråk(mappeId, mapper);
-    cache.set(mappeId, result);
-    return result;
-  }
-
   for (const mappe of mapper) {
-    resolver(mappe.id);
+    if (!cache.has(mappe.id)) {
+      cache.set(mappe.id, resolverSpråk(mappe.id, mapper));
+    }
   }
 
   return cache;

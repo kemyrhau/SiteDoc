@@ -7,6 +7,9 @@ import { settMappeTilgangSchema } from "@sitedoc/shared/validation";
 import { verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
 import { splittMalebrevPdf } from "../services/pdf-splitting";
 import { resolverSpråk, resolverAlleSpråk } from "../services/folder-spraak";
+import { STOETTEDE_SPRAAK } from "@sitedoc/shared";
+
+const GYLDIGE_SPRAAK = new Set<string>(STOETTEDE_SPRAAK.map((s) => s.kode));
 
 const UPLOADS_DIR = join(process.cwd(), "uploads");
 // Prosessering kjøres på API-serveren (ren Node) — ikke i Next.js
@@ -280,6 +283,10 @@ export const mappeRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      // Valider at alle språkkoder er støttet
+      const ugyldigSpraak = input.languages.find((l) => !GYLDIGE_SPRAAK.has(l));
+      if (ugyldigSpraak) throw new Error(`Ustøttet språk: ${ugyldigSpraak}`);
+
       const mappe = await ctx.prisma.folder.findUniqueOrThrow({
         where: { id: input.id },
         select: { projectId: true },
@@ -516,6 +523,11 @@ export const mappeRouter = router({
       const gammeltSpråk = doc.sourceLanguage;
       const nyttSpråk = input.bekreftSpraak;
 
+      // Tell blokker FØR re-merking (blokker ligger i gammelt språk)
+      const antallBlokker = await ctx.prisma.ftdDocumentBlock.count({
+        where: { documentId: input.documentId, language: gammeltSpråk },
+      });
+
       // Oppdater dokumentets kildespråk og merk som bekreftet
       await ctx.prisma.ftdDocument.update({
         where: { id: input.documentId },
@@ -534,7 +546,7 @@ export const mappeRouter = router({
       }
 
       // Trigger oversettelsesoppdrag hvis mappen har flere språk (og bruker ikke hoppet over)
-      if (doc.folderId && !input.skipOversettelse) {
+      if (doc.folderId && !input.skipOversettelse && antallBlokker > 0) {
         const alleMapper = await ctx.prisma.folder.findMany({
           where: { projectId: doc.projectId },
           select: { id: true, parentId: true, languageMode: true, languages: true },
@@ -546,14 +558,10 @@ export const mappeRouter = router({
 
         const ekstraSpråk = effektiv.languages.filter((l) => l !== nyttSpråk);
         if (ekstraSpråk.length > 0) {
-          // Sjekk om oversettelsesmodulen er aktiv
           const modul = await ctx.prisma.projectModule.findUnique({
             where: { projectId_moduleSlug: { projectId: doc.projectId, moduleSlug: "oversettelse" } },
           });
           if (modul?.active) {
-            const antallBlokker = await ctx.prisma.ftdDocumentBlock.count({
-              where: { documentId: input.documentId, language: nyttSpråk },
-            });
             for (const lang of ekstraSpråk) {
               await ctx.prisma.ftdTranslationJob.upsert({
                 where: { documentId_targetLang: { documentId: input.documentId, targetLang: lang } },

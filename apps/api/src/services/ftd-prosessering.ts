@@ -259,11 +259,18 @@ function harTilstrekkeligTekst(sideData: Array<{ side: number; tekst: string }>)
   return totaltOrd > 50;
 }
 
+// Tesseract-språkkoder (ISO 639-1 → tessdata)
+const TESS_SPRAAK: Record<string, string> = {
+  nb: "nor", en: "eng", sv: "swe", de: "deu", pl: "pol", fi: "fin",
+  cs: "ces", ro: "ron", lt: "lit", et: "est", lv: "lav", uk: "ukr", ru: "rus", fr: "fra",
+};
+
 /** OCR-fallback: pdftoppm rendrer sider til PNG, tesseract leser tekst.
  *  Prosesserer i batches à 20 sider for å unngå minne-/timeout-problemer. */
 async function ocrPdf(
   filsti: string,
   antallSider: number,
+  spraak = "nb",
 ): Promise<Array<{ side: number; tekst: string }>> {
   const BATCH = 20;
   const sideData: Array<{ side: number; tekst: string }> = [];
@@ -289,7 +296,7 @@ async function ocrPdf(
         try {
           const { stdout } = await execFileAsync(
             "tesseract",
-            [pngSti, "stdout", "-l", "nor", "--psm", "6"],
+            [pngSti, "stdout", "-l", TESS_SPRAAK[spraak] ?? "eng", "--psm", "6"],
             { timeout: 30_000, maxBuffer: 5 * 1024 * 1024 },
           );
           sideData.push({ side: start + i, tekst: stdout.trim() });
@@ -348,9 +355,12 @@ async function prosesserPdf(
 
   // OCR-fallback for skannede PDFer
   if (!harTilstrekkeligTekst(sideData)) {
-    console.log(`Skannet PDF oppdaget (${documentId}), kjører OCR...`);
+    // Hent prosjektets kildespråk for OCR
+    const prosjekt = await prisma.project.findUnique({ where: { id: projectId }, select: { sourceLanguage: true } });
+    const ocrSpråk = prosjekt?.sourceLanguage ?? "nb";
+    console.log(`Skannet PDF oppdaget (${documentId}), kjører OCR (${ocrSpråk})...`);
     try {
-      sideData = await ocrPdf(filsti, resultat.numpages);
+      sideData = await ocrPdf(filsti, resultat.numpages, ocrSpråk);
     } catch (err) {
       console.error(`OCR feilet for ${documentId}:`, err);
       // Fortsett med tom sideData — bedre enn å krasje
