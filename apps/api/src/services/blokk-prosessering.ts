@@ -318,6 +318,29 @@ async function lagreBilde(
 }
 
 /**
+ * Konverter bildedata til RGBA (pdfjs-dist kan returnere RGB eller RGBA).
+ */
+function tilRgba(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+): Uint8ClampedArray {
+  const forventetRgba = width * height * 4;
+  if (data.length >= forventetRgba) return data; // Allerede RGBA
+
+  // RGB → RGBA
+  const rgba = new Uint8ClampedArray(forventetRgba);
+  const piksler = width * height;
+  for (let i = 0; i < piksler; i++) {
+    rgba[i * 4] = data[i * 3]!;
+    rgba[i * 4 + 1] = data[i * 3 + 1]!;
+    rgba[i * 4 + 2] = data[i * 3 + 2]!;
+    rgba[i * 4 + 3] = 255;
+  }
+  return rgba;
+}
+
+/**
  * Skaler ned store bilder til maks 1600px bredde for å spare disk og minne.
  */
 function skalerNed(
@@ -349,8 +372,7 @@ function skalerNed(
 }
 
 /**
- * RGBA→PNG konvertering via zlib (ingen native deps).
- * Genererer gyldig PNG som nettlesere kan vise.
+ * Bildedata → PNG via zlib. Håndterer RGB og RGBA fra pdfjs-dist.
  */
 function rgbaToPng(
   inputData: Uint8ClampedArray,
@@ -359,11 +381,11 @@ function rgbaToPng(
 ): Buffer {
   const { deflateSync } = require("node:zlib") as typeof import("node:zlib");
 
-  // Skaler ned store bilder
-  const { data, width, height } = skalerNed(inputData, inputWidth, inputHeight);
+  // Konverter til RGBA hvis nødvendig (pdfjs-dist kan gi RGB)
+  const rgbaData = tilRgba(inputData, inputWidth, inputHeight);
 
-  // Kopier data til en ren Buffer for trygg tilgang (unngå byteOffset-problemer)
-  const piksler = Buffer.from(data.buffer, data.byteOffset, data.byteLength);
+  // Skaler ned store bilder
+  const { data, width, height } = skalerNed(rgbaData, inputWidth, inputHeight);
 
   // PNG IDAT: filterbyte (0 = None) foran hver rad, deretter RGBA-piksler
   const rawLen = height * (1 + width * 4);
@@ -371,7 +393,9 @@ function rgbaToPng(
   for (let y = 0; y < height; y++) {
     const rowOffset = y * (1 + width * 4);
     raw[rowOffset] = 0; // filter: None
-    piksler.copy(raw, rowOffset + 1, y * width * 4, (y + 1) * width * 4);
+    for (let x = 0; x < width * 4; x++) {
+      raw[rowOffset + 1 + x] = data[y * width * 4 + x]!;
+    }
   }
   const compressed = deflateSync(raw);
 
