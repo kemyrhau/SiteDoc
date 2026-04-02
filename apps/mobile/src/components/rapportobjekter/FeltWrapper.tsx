@@ -30,11 +30,13 @@ interface FeltWrapperProps {
   oppgaveId?: string;
   onOpprettOppgave?: () => void;
   onNavigerTilOppgave?: (id: string) => void;
-  /** Oversettelser for firmainnhold (on-demand) */
+  /** Oversettelser for firmainnhold (on-demand, Lag 2) */
   oversettelser?: Record<string, string>;
   oversettelseLaster?: boolean;
   onOversett?: () => void;
   visOversettKnapp?: boolean;
+  /** Original fritekst-data (Lag 3: arbeiderens originaltekst) */
+  originalData?: { spraak: string; verdi?: string; kommentar?: string };
   children: ReactNode;
 }
 
@@ -61,6 +63,7 @@ export function FeltWrapper({
   oversettelseLaster,
   onOversett,
   visOversettKnapp,
+  originalData,
   children,
 }: FeltWrapperProps) {
   const [visHjelpetekst, setVisHjelpetekst] = useState(false);
@@ -123,6 +126,14 @@ export function FeltWrapper({
 
       {/* Typespesifikk input */}
       {children}
+
+      {/* Original fritekst (Lag 3: arbeiderens tekst på originalspråk) */}
+      {originalData?.verdi && (
+        <View className="mt-1 rounded bg-gray-50 px-2 py-1.5">
+          <Text className="text-[10px] uppercase tracking-wider text-gray-400">Original ({originalData.spraak})</Text>
+          <Text className="text-xs text-gray-500">{originalData.verdi}</Text>
+        </View>
+      )}
 
       {/* Valideringsfeil */}
       {valideringsfeil && (

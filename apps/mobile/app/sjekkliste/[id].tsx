@@ -642,6 +642,7 @@ export default function SjekklisteUtfylling() {
               oversettelseLaster={oversettelseLaster}
               onOversett={() => oversettFelt(objekt)}
               visOversettKnapp={visOversettKnapp}
+              originalData={(feltVerdi as unknown as { original?: { spraak: string; verdi?: string; kommentar?: string } }).original}
             >
               <RapportObjektRenderer
                 objekt={objekt}

@@ -11,6 +11,9 @@ import {
   verifiserProsjektmedlem,
 } from "../trpc/tilgangskontroll";
 import { sendDokumentVarsling, hentMottakerEposter } from "../services/epost";
+import { oversettFritekst } from "../services/oversettelse-service";
+
+const FRITEKST_TYPER = new Set(["text_field"]);
 
 export const oppgaveRouter = router({
   // Hent alle oppgaver for et prosjekt
@@ -397,7 +400,13 @@ export const oppgaveRouter = router({
         where: { id: input.id },
         include: {
           creatorEnterprise: { select: { projectId: true } },
-          template: { select: { domain: true } },
+          template: {
+            select: {
+              domain: true,
+              projectId: true,
+              objects: { select: { id: true, type: true } },
+            },
+          },
         },
       });
       await verifiserDokumentTilgang(
@@ -407,6 +416,59 @@ export const oppgaveRouter = router({
         oppgave.responderEnterpriseId,
         oppgave.template?.domain,
       );
+
+      // Fritekst-oversettelse Lag 3
+      const projectId = oppgave.template?.projectId ?? oppgave.creatorEnterprise.projectId;
+      const prosjekt = await ctx.prisma.project.findUnique({
+        where: { id: projectId },
+        select: { sourceLanguage: true },
+      });
+      const bruker = await ctx.prisma.user.findUnique({
+        where: { id: ctx.userId },
+        select: { language: true },
+      });
+      const prosjektSpraak = prosjekt?.sourceLanguage ?? "nb";
+      const brukerSpraak = bruker?.language ?? "nb";
+
+      if (brukerSpraak !== prosjektSpraak && oppgave.template?.objects) {
+        const data = input.data as Record<string, Record<string, unknown>>;
+        const objektTyper = new Map(oppgave.template.objects.map((o) => [o.id, o.type]));
+        const teksterÅOversette: string[] = [];
+
+        for (const [feltId, felt] of Object.entries(data)) {
+          if (!felt || typeof felt !== "object") continue;
+          if ((felt as Record<string, unknown>).original) continue;
+          const type = objektTyper.get(feltId);
+          if (type && FRITEKST_TYPER.has(type) && typeof felt.verdi === "string" && felt.verdi.trim()) {
+            teksterÅOversette.push(felt.verdi);
+          }
+          if (typeof felt.kommentar === "string" && felt.kommentar.trim()) {
+            teksterÅOversette.push(felt.kommentar);
+          }
+        }
+
+        if (teksterÅOversette.length > 0) {
+          const oversettMap = await oversettFritekst(
+            ctx.prisma, teksterÅOversette, brukerSpraak, prosjektSpraak,
+          );
+          for (const [feltId, felt] of Object.entries(data)) {
+            if (!felt || typeof felt !== "object" || (felt as Record<string, unknown>).original) continue;
+            const type = objektTyper.get(feltId);
+            const feltObj = felt as Record<string, unknown>;
+            const harFritekstVerdi = type && FRITEKST_TYPER.has(type) && typeof feltObj.verdi === "string" && (feltObj.verdi as string).trim();
+            const harKommentar = typeof feltObj.kommentar === "string" && (feltObj.kommentar as string).trim();
+            if (harFritekstVerdi || harKommentar) {
+              feltObj.original = {
+                spraak: brukerSpraak,
+                verdi: harFritekstVerdi ? feltObj.verdi : undefined,
+                kommentar: harKommentar ? feltObj.kommentar : undefined,
+              };
+              if (harFritekstVerdi) feltObj.verdi = oversettMap.get(feltObj.verdi as string) ?? feltObj.verdi;
+              if (harKommentar) feltObj.kommentar = oversettMap.get(feltObj.kommentar as string) ?? feltObj.kommentar;
+            }
+          }
+        }
+      }
 
       return ctx.prisma.task.update({
         where: { id: input.id },

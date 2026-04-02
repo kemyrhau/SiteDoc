@@ -413,6 +413,64 @@ export function hashTekst(tekst: string): string {
 }
 
 /**
+ * Oversett fritekst med cache. Brukes av Lag 3 (arbeider→firma).
+ * Sjekker TranslationCache, oversetter manglende, cacher resultatet.
+ * Returnerer Map<originalTekst, oversattTekst>.
+ */
+export async function oversettFritekst(
+  prisma: PrismaClient,
+  tekster: string[],
+  kilde: string,
+  maal: string,
+  motor: OversettelsesMotor = "opus-mt",
+  apiKey?: string,
+): Promise<Map<string, string>> {
+  if (tekster.length === 0 || kilde === maal) return new Map();
+
+  const filtrert = tekster.filter((t) => t.trim().length > 0);
+  const hashes = filtrert.map((t) => hashTekst(t));
+  const hashTilTekst = new Map(filtrert.map((t, i) => [hashes[i]!, t]));
+
+  // Sjekk cache
+  const cached = await prisma.translationCache.findMany({
+    where: { contentHash: { in: hashes }, sourceLang: kilde, targetLang: maal },
+  });
+  const resultat = new Map<string, string>();
+  const cachedHashes = new Set<string>();
+  for (const c of cached) {
+    const original = hashTilTekst.get(c.contentHash);
+    if (original) {
+      resultat.set(original, c.targetText);
+      cachedHashes.add(c.contentHash);
+    }
+  }
+
+  // Oversett manglende
+  const manglendeHashes = hashes.filter((h) => !cachedHashes.has(h));
+  const manglendeTekster = manglendeHashes.map((h) => hashTilTekst.get(h)!);
+
+  if (manglendeTekster.length > 0) {
+    const oversatte = await oversettMedMotor(manglendeTekster, kilde, maal, motor, apiKey);
+
+    // Cache og bygg resultat
+    const cacheData = manglendeTekster.map((tekst, i) => ({
+      contentHash: hashTekst(tekst),
+      sourceLang: kilde,
+      targetLang: maal,
+      sourceText: tekst,
+      targetText: oversatte[i] ?? tekst,
+    }));
+    await prisma.translationCache.createMany({ data: cacheData, skipDuplicates: true });
+
+    for (let i = 0; i < manglendeTekster.length; i++) {
+      resultat.set(manglendeTekster[i]!, oversatte[i] ?? manglendeTekster[i]!);
+    }
+  }
+
+  return resultat;
+}
+
+/**
  * Sammenlign oversettelse fra alle tilgjengelige motorer.
  * Returnerer resultat per motor (OPUS-MT alltid, Google/DeepL kun med API-nøkkel).
  */

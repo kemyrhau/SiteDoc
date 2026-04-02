@@ -31,6 +31,8 @@ interface FeltWrapperProps {
   oversettelseLaster?: boolean;
   onOversett?: () => void;
   visOversettKnapp?: boolean;
+  /** Original fritekst-data (Lag 3) */
+  originalData?: { spraak: string; verdi?: string; kommentar?: string };
   children: ReactNode;
 }
 
@@ -55,6 +57,7 @@ export function FeltWrapper({
   oversettelseLaster,
   onOversett,
   visOversettKnapp,
+  originalData,
   children,
 }: FeltWrapperProps) {
   const [visOversettelse, setVisOversettelse] = useState(false);
@@ -111,6 +114,14 @@ export function FeltWrapper({
 
       {/* Typespesifikk input */}
       {children}
+
+      {/* Original fritekst (Lag 3: arbeiderens tekst på originalspråk) */}
+      {originalData?.verdi && (
+        <div className="mt-1 rounded bg-gray-50 px-2 py-1.5">
+          <span className="text-[10px] uppercase tracking-wider text-gray-400">Original ({originalData.spraak})</span>
+          <p className="text-xs text-gray-500">{originalData.verdi}</p>
+        </div>
+      )}
 
       {/* Valideringsfeil */}
       {valideringsfeil && (
