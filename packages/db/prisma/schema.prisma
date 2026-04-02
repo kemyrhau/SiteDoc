@@ -576,6 +576,8 @@ model Folder {
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
 
+  languages String[] @default(["nb"]) // Språk for dokumentoversettelse, f.eks. ["nb", "en", "fi"]
+
   project       Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
   parent        Folder?        @relation("FolderHierarchy", fields: [parentId], references: [id])
   children      Folder[]       @relation("FolderHierarchy")
@@ -799,9 +801,9 @@ model FtdDocument {
   uploadedAt      DateTime @default(now()) @map("uploaded_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 
-  project   Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  folder    Folder?            @relation(fields: [folderId], references: [id], onDelete: SetNull)
-  kontrakt  FtdKontrakt?       @relation(fields: [kontraktId], references: [id], onDelete: SetNull)
+  project   Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  folder    Folder?              @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  kontrakt  FtdKontrakt?         @relation(fields: [kontraktId], references: [id], onDelete: SetNull)
   chunks    FtdDocumentChunk[]
   specPosts FtdSpecPost[]
   pages     FtdDocumentPage[]
@@ -855,6 +857,52 @@ model FtdDocumentChunk {
   @@index([embeddingState])
   @@index([nsCode])
   @@map("ftd_document_chunks")
+}
+
+// Blokkbasert dokumentinnhold — brukes for flerspråklig dokumentvisning
+model FtdDocumentBlock {
+  id            String  @id @default(cuid())
+  documentId    String  @map("document_id")
+  sortOrder     Int     @map("sort_order")
+  pageNumber    Int     @map("page_number")
+  blockType     String  @map("block_type")       // "heading" | "text" | "image" | "caption" | "table"
+  language      String  @default("nb")
+  content       String                            // Tekst for heading/text/caption, JSON for table, tom for image
+  sourceBlockId String? @map("source_block_id")   // Peker til norsk original (null for nb)
+  headingLevel  Int?    @map("heading_level")     // 1-6 for heading-blokker
+  imageUrl      String? @map("image_url")         // S3-URL for ekstraherte bilder
+
+  // Embedding for flerspråklig søk
+  embeddingState  String                       @default("pending") @map("embedding_state")
+  embeddingVector Unsupported("vector(768)")?  @map("embedding_vector")
+  embeddingModel  String?                      @map("embedding_model") // "multilingual-e5-base" | "norbert2"
+
+  // Ingen Prisma-relasjon til FtdDocument — bruker rå SQL for å unngå rekursive typer i tRPC
+  // FK constraint finnes i SQL: document_id → ftd_documents(id) ON DELETE CASCADE
+
+  @@index([documentId, language, sortOrder])
+  @@index([embeddingState])
+  @@index([sourceBlockId])
+  @@map("ftd_document_blocks")
+}
+
+// Oversettelsesoppdrag — sporer asynkron oversettelse av dokumentblokker
+model FtdTranslationJob {
+  id          String   @id @default(cuid())
+  documentId  String   @map("document_id")
+  targetLang  String   @map("target_lang")
+  status      String   @default("pending")  // pending | processing | done | failed
+  error       String?
+  blocksTotal Int      @default(0) @map("blocks_total")
+  blocksDone  Int      @default(0) @map("blocks_done")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Ingen Prisma-relasjon til FtdDocument — bruker rå SQL
+  // FK constraint finnes i SQL: document_id → ftd_documents(id) ON DELETE CASCADE
+
+  @@unique([documentId, targetLang])
+  @@map("ftd_translation_jobs")
 }
 
 model FtdDocumentPage {
