@@ -319,15 +319,18 @@ export function useSjekklisteSkjema(sjekklisteId: string): UseSjekklisteSkjemaRe
   // Lagre til server
   const oppdaterDataMutasjon = trpc.sjekkliste.oppdaterData.useMutation();
 
+  const lagrerNaaRef = useRef(false);
+
   const lagreIntern = useCallback(async () => {
     if (!sjekklisteId) return;
+    if (lagrerNaaRef.current) return; // Forhindre concurrent saves
+    lagrerNaaRef.current = true;
 
     const data = feltVerdierRef.current;
 
     // 1. Skriv til SQLite umiddelbart (alltid suksess)
     skrivTilSQLite(sjekklisteId, data, false);
     settLagreStatus("lagret");
-    settSynkStatus("lokalt_lagret");
 
     if (statusTimerRef.current) clearTimeout(statusTimerRef.current);
     statusTimerRef.current = setTimeout(() => settLagreStatus("idle"), 2000);
@@ -346,11 +349,15 @@ export function useSjekklisteSkjema(sjekklisteId: string): UseSjekklisteSkjemaRe
         // Marker som synkronisert i SQLite
         skrivTilSQLite(sjekklisteId, data, true);
         settSynkStatus("synkronisert");
-      } catch {
-        // Server feilet — data er trygg i SQLite
+      } catch (feil) {
+        console.warn("[LAGRE] Server-lagring feilet:", feil);
         settSynkStatus("lokalt_lagret");
       }
+    } else {
+      settSynkStatus("lokalt_lagret");
     }
+
+    lagrerNaaRef.current = false;
   }, [sjekklisteId, erPaaNettet, oppdaterDataMutasjon, utils]);
 
   // Refs for stabile funksjonsreferanser — bryter dependency-kaskaden

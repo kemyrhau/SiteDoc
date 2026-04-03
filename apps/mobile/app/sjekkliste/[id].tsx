@@ -236,7 +236,7 @@ export default function SjekklisteUtfylling() {
         ],
       );
     },
-    [bruker?.id, id, endreStatusMutasjon, t],
+    [bruker?.id, id, endreStatusMutasjon],
   );
 
   const {
@@ -699,26 +699,26 @@ export default function SjekklisteUtfylling() {
               <Text className="text-sm font-semibold text-gray-700">{t("dokument.historikk")}</Text>
             </View>
             <View className="rounded-lg bg-white">
-              {overforinger.map((ovf, i) => (
+              {overforinger.map((t, i) => (
                 <View
-                  key={ovf.id}
+                  key={t.id}
                   className={`flex-row items-center gap-2 px-3 py-2.5 ${i > 0 ? "border-t border-gray-100" : ""}`}
                 >
                   <View className="flex-1">
                     <View className="flex-row items-center gap-1.5">
-                      <StatusMerkelapp status={ovf.fromStatus} />
+                      <StatusMerkelapp status={t.fromStatus} />
                       <Text className="text-xs text-gray-400">→</Text>
-                      <StatusMerkelapp status={ovf.toStatus} />
+                      <StatusMerkelapp status={t.toStatus} />
                     </View>
-                    {ovf.sender?.name && (
-                      <Text className="mt-0.5 text-xs text-gray-500">{ovf.sender.name}</Text>
+                    {t.sender?.name && (
+                      <Text className="mt-0.5 text-xs text-gray-500">{t.sender.name}</Text>
                     )}
-                    {ovf.comment && (
-                      <Text className="mt-0.5 text-xs text-gray-600">{ovf.comment}</Text>
+                    {t.comment && (
+                      <Text className="mt-0.5 text-xs text-gray-600">{t.comment}</Text>
                     )}
                   </View>
                   <Text className="text-xs text-gray-400">
-                    {formaterHistorikkDato(ovf.createdAt)}
+                    {formaterHistorikkDato(t.createdAt)}
                   </Text>
                 </View>
               ))}
