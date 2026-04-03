@@ -17,6 +17,7 @@ import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import {
   REPORT_OBJECT_TYPE_META,
   EMNE_KATEGORIER,
+  STOETTEDE_SPRAAK,
   type ReportObjectType,
   type TemplateZone,
   type EmneKategori,
@@ -29,7 +30,7 @@ import { FeltKonfigurasjon } from "./FeltKonfigurasjon";
 import { DragOverlayKomponent } from "./DragOverlay_";
 import type { MalObjekt } from "./DraggbartFelt";
 import type { TreObjekt } from "./typer";
-import { MapPin, Pencil, FileText, Building2, Eye, EyeOff, AlertTriangle } from "lucide-react";
+import { MapPin, Pencil, FileText, Building2, Eye, EyeOff, AlertTriangle, Globe, Check } from "lucide-react";
 
 // Hent streng-verdi fra opsjon (støtter både string og {label, value}-format)
 function opsjonTilStreng(opsjon: unknown): string {
@@ -44,6 +45,7 @@ function opsjonTilStreng(opsjon: unknown): string {
 
 interface MalData {
   id: string;
+  projectId?: string;
   name: string;
   description: string | null;
   category?: string;
@@ -160,6 +162,33 @@ export function MalBygger({ mal }: MalByggerProps) {
   const [visForhandsvisning, setVisForhandsvisning] = useState(false);
   const [aktivtDrag, setAktivtDrag] = useState<Active | null>(null);
   const [slettBekreftelse, setSlettBekreftelse] = useState<{ id: string; label: string } | null>(null);
+  const [visSpraakVelger, setVisSpraakVelger] = useState(false);
+
+  // PSI: hent psi-data (languages) via templateId
+  const psiQuery = trpc.psi.hentForProsjekt.useQuery(
+    { projectId: mal.projectId ?? "" },
+    { enabled: psiModus && !!mal.projectId },
+  );
+  const psiData = psiQuery.data?.find((p) => p.templateId === mal.id);
+  const psiSpraak = psiData?.languages ?? [];
+
+  const oppdaterSpraakMutation = trpc.psi.oppdaterSpraak.useMutation({
+    onSuccess: () => psiQuery.refetch(),
+  });
+  const oversettMutation = trpc.psi.oversettInnhold.useMutation({
+    onSuccess: () => {
+      utils.mal.hentMedId.invalidate({ id: mal.id });
+      psiQuery.refetch();
+    },
+  });
+
+  const toggleSpraak = useCallback((kode: string) => {
+    if (!psiData) return;
+    const nyListe = psiSpraak.includes(kode)
+      ? psiSpraak.filter((s) => s !== kode)
+      : [...psiSpraak, kode];
+    oppdaterSpraakMutation.mutate({ psiId: psiData.id, languages: nyListe });
+  }, [psiData, psiSpraak, oppdaterSpraakMutation]);
 
   // Inline-redigering av malnavn
   const [redigererNavn, setRedigererNavn] = useState(false);
@@ -653,17 +682,67 @@ export function MalBygger({ mal }: MalByggerProps) {
               <p className="text-sm text-gray-500">{mal.description}</p>
             )}
             {psiModus && (
-              <button
-                onClick={() => setVisForhandsvisning(!visForhandsvisning)}
-                className={`mt-1 inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium ${
-                  visForhandsvisning
-                    ? "border-sitedoc-primary bg-blue-50 text-sitedoc-primary"
-                    : "border-gray-200 text-gray-600 hover:bg-gray-50"
-                }`}
-              >
-                <Eye className="h-3.5 w-3.5" />
-                {t("psi.forhandsvisning")}
-              </button>
+              <div className="mt-1 flex flex-wrap items-center gap-2">
+                <button
+                  onClick={() => setVisForhandsvisning(!visForhandsvisning)}
+                  className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium ${
+                    visForhandsvisning
+                      ? "border-sitedoc-primary bg-blue-50 text-sitedoc-primary"
+                      : "border-gray-200 text-gray-600 hover:bg-gray-50"
+                  }`}
+                >
+                  <Eye className="h-3.5 w-3.5" />
+                  {t("psi.forhandsvisning")}
+                </button>
+
+                {/* Språkvelger — velg hvilke språk PSI skal oversettes til */}
+                <button
+                  onClick={() => setVisSpraakVelger(!visSpraakVelger)}
+                  className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium ${
+                    visSpraakVelger
+                      ? "border-sitedoc-primary bg-blue-50 text-sitedoc-primary"
+                      : "border-gray-200 text-gray-600 hover:bg-gray-50"
+                  }`}
+                >
+                  <Globe className="h-3.5 w-3.5" />
+                  {t("psi.spraak")} {psiSpraak.length > 0 && `(${psiSpraak.length})`}
+                </button>
+
+                {psiSpraak.length > 0 && (
+                  <button
+                    onClick={() => psiData && oversettMutation.mutate({ psiId: psiData.id })}
+                    disabled={oversettMutation.isPending || !psiData}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-green-300 bg-green-50 px-3 py-1.5 text-xs font-medium text-green-700 hover:bg-green-100 disabled:opacity-50"
+                  >
+                    {oversettMutation.isPending ? <Spinner size="sm" /> : <Check className="h-3.5 w-3.5" />}
+                    {oversettMutation.isPending ? t("handling.prosesserer") : t("psi.oversett")}
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Språkvelger dropdown */}
+            {psiModus && visSpraakVelger && (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {STOETTEDE_SPRAAK.filter((s) => s.kode !== "nb").map((s) => {
+                  const aktiv = psiSpraak.includes(s.kode);
+                  return (
+                    <button
+                      key={s.kode}
+                      onClick={() => toggleSpraak(s.kode)}
+                      className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
+                        aktiv
+                          ? "border-sitedoc-primary bg-blue-50 text-sitedoc-primary"
+                          : "border-gray-200 text-gray-500 hover:border-gray-300 hover:bg-gray-50"
+                      }`}
+                    >
+                      <span>{s.flagg}</span>
+                      <span>{s.navn}</span>
+                      {aktiv && <Check className="h-3 w-3" />}
+                    </button>
+                  );
+                })}
+              </div>
             )}
           </div>
 

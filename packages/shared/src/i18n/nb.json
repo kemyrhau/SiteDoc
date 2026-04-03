@@ -833,6 +833,9 @@
   "psi.tilbakeTilOppsett": "Tilbake til PSI-oppsett",
   "malbygger.innhold": "Innhold",
   "psi.forhandsvisning": "Forhåndsvisning",
+  "psi.spraak": "Språk",
+  "psi.oversett": "Oversett innhold",
+  "psi.oversattTil": "Oversatt til {{antall}} språk",
 
   "hjem.velgProsjektKnapp": "Velg prosjekt",
   "hjem.henterData": "Henter data...",

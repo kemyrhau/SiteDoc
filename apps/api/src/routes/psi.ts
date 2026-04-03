@@ -2,6 +2,7 @@ import { z } from "zod";
 import { router, protectedProcedure, publicProcedure } from "../trpc/trpc";
 import { TRPCError } from "@trpc/server";
 import { verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
+import { oversettFritekst } from "../services/oversettelse-service";
 
 // Hjelpefunksjon for å finne PSI med prosjekt + bygning (null = prosjektnivå)
 function psiWhere(projectId: string, buildingId?: string | null) {
@@ -285,6 +286,116 @@ Risikovurderinger (SJA) for ditt arbeidsområde finnes i HMS-dokumentasjonen i S
       return ctx.prisma.psi.update({ where: { id: input.psiId }, data: { guestMessage: input.guestMessage } });
     }),
 
+  // Oppdater hvilke språk PSI-en skal støtte
+  oppdaterSpraak: protectedProcedure
+    .input(z.object({ psiId: z.string().uuid(), languages: z.array(z.string().min(2).max(5)) }))
+    .mutation(async ({ ctx, input }) => {
+      const psi = await ctx.prisma.psi.findUniqueOrThrow({ where: { id: input.psiId } });
+      const medlem = await ctx.prisma.projectMember.findFirst({
+        where: { userId: ctx.userId, projectId: psi.projectId, role: "admin" },
+      });
+      if (!medlem) throw new TRPCError({ code: "FORBIDDEN" });
+      return ctx.prisma.psi.update({
+        where: { id: input.psiId },
+        data: { languages: input.languages },
+      });
+    }),
+
+  // Auto-oversett alt PSI-innhold til valgte språk
+  oversettInnhold: protectedProcedure
+    .input(z.object({ psiId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const psi = await ctx.prisma.psi.findUniqueOrThrow({
+        where: { id: input.psiId },
+        include: { template: { include: { objects: { orderBy: { sortOrder: "asc" } } } } },
+      });
+      const medlem = await ctx.prisma.projectMember.findFirst({
+        where: { userId: ctx.userId, projectId: psi.projectId, role: "admin" },
+      });
+      if (!medlem) throw new TRPCError({ code: "FORBIDDEN" });
+
+      if (psi.languages.length === 0) return { oversatt: 0 };
+
+      // Hent oversettelsesmotor fra prosjektmodul
+      const modul = await ctx.prisma.projectModule.findUnique({
+        where: { projectId_moduleSlug: { projectId: psi.projectId, moduleSlug: "oversettelse" } },
+      });
+      const modulConfig = (modul?.config ?? {}) as { motor?: string; apiKey?: string };
+      const motor = (modulConfig.motor ?? "google") as "opus-mt" | "google" | "deepl";
+      const apiKey = modulConfig.apiKey;
+
+      let oversattTeller = 0;
+
+      for (const lang of psi.languages) {
+        // Samle alle oversettbare strenger
+        const strengerPerObjekt: Array<{ objektId: string; felter: Record<string, string | string[]> }> = [];
+        const alleTekster: string[] = [];
+
+        for (const obj of psi.template.objects) {
+          const config = obj.config as Record<string, unknown>;
+          const felter: Record<string, string | string[]> = {};
+
+          // Label (for headings, subtitles, og andre synlige etiketter)
+          if (["heading", "subtitle", "quiz", "info_text", "info_image"].includes(obj.type)) {
+            felter.label = obj.label;
+            alleTekster.push(obj.label);
+          }
+
+          if (obj.type === "info_text" && typeof config.content === "string" && config.content) {
+            felter.content = config.content;
+            alleTekster.push(config.content);
+          }
+          if (obj.type === "info_image" && typeof config.caption === "string" && config.caption) {
+            felter.caption = config.caption;
+            alleTekster.push(config.caption);
+          }
+          if (obj.type === "quiz") {
+            if (typeof config.question === "string" && config.question) {
+              felter.question = config.question;
+              alleTekster.push(config.question);
+            }
+            if (Array.isArray(config.options)) {
+              const opts = config.options.filter((o): o is string => typeof o === "string" && o.length > 0);
+              if (opts.length > 0) {
+                felter.options = opts;
+                alleTekster.push(...opts);
+              }
+            }
+          }
+
+          if (Object.keys(felter).length > 0) {
+            strengerPerObjekt.push({ objektId: obj.id, felter });
+          }
+        }
+
+        if (alleTekster.length === 0) continue;
+
+        // Batch-oversett alle tekster for dette språket
+        const oversettelser = await oversettFritekst(ctx.prisma, alleTekster, "nb", lang, motor, apiKey);
+
+        // Bygg translations JSON per objekt
+        for (const { objektId, felter } of strengerPerObjekt) {
+          const obj = psi.template.objects.find((o) => o.id === objektId)!;
+          const eksisterende = (obj.translations as Record<string, unknown>) ?? {};
+          const oversatt: Record<string, unknown> = {};
+
+          if (typeof felter.label === "string") oversatt.label = oversettelser.get(felter.label) ?? felter.label;
+          if (typeof felter.content === "string") oversatt.content = oversettelser.get(felter.content) ?? felter.content;
+          if (typeof felter.caption === "string") oversatt.caption = oversettelser.get(felter.caption) ?? felter.caption;
+          if (typeof felter.question === "string") oversatt.question = oversettelser.get(felter.question) ?? felter.question;
+          if (Array.isArray(felter.options)) oversatt.options = felter.options.map((o) => oversettelser.get(o) ?? o);
+
+          await ctx.prisma.reportObject.update({
+            where: { id: objektId },
+            data: { translations: { ...eksisterende, [lang]: oversatt } as object },
+          });
+          oversattTeller++;
+        }
+      }
+
+      return { oversatt: oversattTeller };
+    }),
+
   // Dashboard: hent alle signaturer for én PSI
   hentSignaturer: protectedProcedure
     .input(z.object({ psiId: z.string().uuid() }))
@@ -479,6 +590,7 @@ Risikovurderinger (SJA) for ditt arbeidsområde finnes i HMS-dokumentasjonen i S
         select: {
           id: true,
           version: true,
+          languages: true,
           guestMessage: true,
           building: { select: { id: true, name: true } },
           template: { select: { id: true, name: true, prefix: true } },
@@ -539,6 +651,7 @@ Risikovurderinger (SJA) for ditt arbeidsområde finnes i HMS-dokumentasjonen i S
             type: obj.type,
             label: obj.label,
             config: obj.config as object ?? {},
+            translations: obj.translations as object ?? {},
             required: obj.required,
             sortOrder: obj.sortOrder,
             parentId: obj.parentId ? idMapping.get(obj.parentId) ?? null : null,
@@ -547,13 +660,14 @@ Risikovurderinger (SJA) for ditt arbeidsområde finnes i HMS-dokumentasjonen i S
         idMapping.set(obj.id, nyttObj.id);
       }
 
-      // Opprett PSI for målbygning
+      // Opprett PSI for målbygning (kopier språkvalg)
       return ctx.prisma.psi.create({
         data: {
           projectId: kildePsi.projectId,
           buildingId: input.targetBuildingId,
           templateId: nyMal.id,
           version: 1,
+          languages: kildePsi.languages,
         },
         include: {
           template: { select: { id: true, name: true, prefix: true } },

@@ -51,6 +51,7 @@ export default function SjekklistemalByggerSide() {
         mal={
           mal as {
             id: string;
+            projectId?: string;
             name: string;
             description: string | null;
             category?: string;

@@ -436,9 +436,10 @@ model ReportObject {
   parentId   String?  @map("parent_id")
   type       String
   label      String
-  config     Json     @default("{}")
-  sortOrder  Int      @map("sort_order")
-  required   Boolean  @default(false)
+  config       Json     @default("{}")
+  translations Json     @default("{}") // i18n: { "en": { label, content, question, options, caption }, ... }
+  sortOrder    Int      @map("sort_order")
+  required     Boolean  @default(false)
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
 
@@ -1045,6 +1046,7 @@ model Psi {
   templateId String   @map("template_id")
   version      Int      @default(1)
   active       Boolean  @default(true)
+  languages    String[] @default([])            // Språk PSI er oversatt til (f.eks. ["en", "lt", "pl"])
   guestMessage String?  @map("guest_message")  // Admin-beskjed til gjester uten HMS-kort
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
