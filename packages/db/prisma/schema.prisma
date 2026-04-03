@@ -145,7 +145,7 @@ model Project {
   ftdSpecPosts         FtdSpecPost[]
   ftdNotaPeriods       FtdNotaPeriod[]
   ftdKontrakter        FtdKontrakt[]
-  psi                  Psi?
+  psiEr                Psi[]
 
   @@map("projects")
 }
@@ -396,6 +396,7 @@ model Building {
   pointClouds   PointCloud[]
   checklists    Checklist[]
   ftdKontrakter FtdKontrakt[]
+  psiEr         Psi[]
 
   @@map("buildings")
 }
@@ -1040,6 +1041,7 @@ model FtdNotaComment {
 model Psi {
   id         String   @id @default(uuid())
   projectId  String   @map("project_id")
+  buildingId String?  @map("building_id")  // null = gjelder hele prosjektet
   templateId String   @map("template_id")
   version    Int      @default(1)
   active     Boolean  @default(true)
@@ -1047,10 +1049,11 @@ model Psi {
   updatedAt  DateTime @updatedAt @map("updated_at")
 
   project    Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  building   Building?      @relation(fields: [buildingId], references: [id], onDelete: SetNull)
   template   ReportTemplate @relation(fields: [templateId], references: [id])
   signaturer PsiSignatur[]
 
-  @@unique([projectId])
+  @@unique([projectId, buildingId])  // Én PSI per prosjekt+bygning
   @@map("psi")
 }
 
