@@ -1,0 +1,326 @@
+import { useState, useMemo, useCallback, useRef } from "react";
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  ActivityIndicator,
+  SafeAreaView,
+  Alert,
+} from "react-native";
+import type { NativeScrollEvent, NativeSyntheticEvent } from "react-native";
+import { useLocalSearchParams, router } from "expo-router";
+import { ArrowLeft, ChevronRight, Check, Globe } from "lucide-react-native";
+import { trpc } from "../../src/lib/trpc";
+import { useAuth } from "../../src/providers/AuthProvider";
+import { RapportObjektRenderer, DISPLAY_TYPER } from "../../src/components/rapportobjekter/RapportObjektRenderer";
+import { SignaturObjekt } from "../../src/components/rapportobjekter/SignaturObjekt";
+import { STOETTEDE_SPRAAK } from "@sitedoc/shared";
+
+interface SeksjonData {
+  tittel: string;
+  objekter: Array<{ id: string; type: string; label: string; required: boolean; config: Record<string, unknown> }>;
+  harQuiz: boolean;
+  harVideo: boolean;
+  harSignatur: boolean;
+}
+
+export default function PsiLeser() {
+  const { prosjektId } = useLocalSearchParams<{ prosjektId: string }>();
+  const { bruker } = useAuth();
+  const brukerSpraak = bruker?.language ?? "nb";
+
+  const [aktivSeksjon, setAktivSeksjon] = useState(0);
+  const [seksjonFullfort, setSeksjonFullfort] = useState<Set<number>>(new Set());
+  const [feltVerdier, setFeltVerdier] = useState<Record<string, unknown>>({});
+  const [signaturData, setSignaturData] = useState<string | null>(null);
+  const scrollRef = useRef<ScrollView>(null);
+  const [harScrolletTilBunn, setHarScrolletTilBunn] = useState(false);
+
+  // Hent eller start gjennomføring
+  const startMut = trpc.psi.startGjennomforing.useMutation();
+  const oppdaterMut = trpc.psi.oppdaterProgresjon.useMutation();
+  const fullforMut = trpc.psi.fullfør.useMutation({
+    onSuccess: () => {
+      Alert.alert("PSI fullført", "Du har gjennomført og signert sikkerhetsinstruksen.", [
+        { text: "OK", onPress: () => router.back() },
+      ]);
+    },
+  });
+
+  // Hent PSI data
+  const { data: psi, isLoading: psiLaster } = trpc.psi.hentForProsjekt.useQuery(
+    { projectId: prosjektId ?? "" },
+    { enabled: !!prosjektId },
+  );
+
+  // Start gjennomføring ved første lasting
+  const [signaturId, setSignaturId] = useState<string | null>(null);
+  const harStartet = useRef(false);
+
+  const startPsi = useCallback(async () => {
+    if (harStartet.current || !prosjektId) return;
+    harStartet.current = true;
+    try {
+      const resultat = await startMut.mutateAsync({
+        projectId: prosjektId,
+        language: brukerSpraak,
+      });
+      setSignaturId(resultat.signaturId);
+      // Gjenopprett progresjon
+      if (resultat.progresjon > 0) {
+        setAktivSeksjon(resultat.progresjon);
+        const fullførte = new Set<number>();
+        for (let i = 0; i < resultat.progresjon; i++) fullførte.add(i);
+        setSeksjonFullfort(fullførte);
+      }
+    } catch (_err) {
+      // Ignorer — bruker ser loading
+    }
+  }, [prosjektId, brukerSpraak, startMut]);
+
+  // Start automatisk når PSI er lastet
+  if (psi && !signaturId && !startMut.isPending) {
+    startPsi();
+  }
+
+  // Del objekter inn i seksjoner basert på headings
+  const seksjoner = useMemo((): SeksjonData[] => {
+    if (!psi?.template?.objects) return [];
+    const objekter = (psi.template as unknown as { objects: Array<{
+      id: string; type: string; label: string; required: boolean;
+      config: Record<string, unknown>; sortOrder: number; parentId: string | null;
+    }> }).objects;
+
+    // Filtrer ut rot-objekter (ikke barn)
+    const rotObjekter = objekter.filter((o) => !o.parentId);
+    const result: SeksjonData[] = [];
+    let gjeldende: SeksjonData | null = null;
+
+    for (const obj of rotObjekter) {
+      if (obj.type === "heading") {
+        if (gjeldende) result.push(gjeldende);
+        gjeldende = {
+          tittel: obj.label,
+          objekter: [],
+          harQuiz: false,
+          harVideo: false,
+          harSignatur: false,
+        };
+      } else {
+        if (!gjeldende) {
+          gjeldende = { tittel: "Introduksjon", objekter: [], harQuiz: false, harVideo: false, harSignatur: false };
+        }
+        gjeldende.objekter.push(obj);
+        if (obj.type === "quiz") gjeldende.harQuiz = true;
+        if (obj.type === "video") gjeldende.harVideo = true;
+        if (obj.type === "signature") gjeldende.harSignatur = true;
+      }
+    }
+    if (gjeldende) result.push(gjeldende);
+    return result;
+  }, [psi]);
+
+  const gjeldendeSeksjon = seksjoner[aktivSeksjon];
+  const erSisteSeksjon = aktivSeksjon === seksjoner.length - 1;
+  const erSignaturSeksjon = gjeldendeSeksjon?.harSignatur ?? false;
+
+  // Sjekk om seksjonen kan fullføres
+  const kanGåVidere = useMemo(() => {
+    if (!gjeldendeSeksjon) return false;
+
+    // Quiz: alle quiz-felter må ha riktig svar
+    if (gjeldendeSeksjon.harQuiz) {
+      const quizObjekter = gjeldendeSeksjon.objekter.filter((o) => o.type === "quiz");
+      return quizObjekter.every((o) => feltVerdier[o.id] !== undefined);
+    }
+
+    // Video: må ha sett ferdig
+    if (gjeldendeSeksjon.harVideo) {
+      const videoObjekter = gjeldendeSeksjon.objekter.filter((o) => o.type === "video");
+      return videoObjekter.every((o) => feltVerdier[o.id] === "watched");
+    }
+
+    // Signatur: må ha signert
+    if (erSignaturSeksjon) {
+      return !!signaturData;
+    }
+
+    // Tekst/bilder: scroll til bunn
+    return harScrolletTilBunn;
+  }, [gjeldendeSeksjon, feltVerdier, harScrolletTilBunn, signaturData, erSignaturSeksjon]);
+
+  const gåTilNeste = useCallback(async () => {
+    if (!signaturId) return;
+
+    const nyeFullførte = new Set(seksjonFullfort);
+    nyeFullførte.add(aktivSeksjon);
+    setSeksjonFullfort(nyeFullførte);
+
+    if (erSignaturSeksjon && signaturData) {
+      // Fullfør PSI
+      await fullforMut.mutateAsync({
+        signaturId,
+        signatureData: signaturData,
+        data: feltVerdier as Record<string, unknown>,
+      });
+      return;
+    }
+
+    // Lagre progresjon
+    const nySeksjon = aktivSeksjon + 1;
+    oppdaterMut.mutate({
+      signaturId,
+      progress: nySeksjon,
+      data: feltVerdier as Record<string, unknown>,
+    });
+
+    setAktivSeksjon(nySeksjon);
+    setHarScrolletTilBunn(false);
+    scrollRef.current?.scrollTo({ y: 0, animated: false });
+  }, [signaturId, aktivSeksjon, seksjonFullfort, erSignaturSeksjon, signaturData, feltVerdier, fullforMut, oppdaterMut]);
+
+  // Scroll-tracking
+  const onScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
+    const erNærBunn = layoutMeasurement.height + contentOffset.y >= contentSize.height - 50;
+    if (erNærBunn && !harScrolletTilBunn) {
+      setHarScrolletTilBunn(true);
+    }
+  }, [harScrolletTilBunn]);
+
+  const settFeltVerdi = useCallback((objektId: string, verdi: unknown) => {
+    setFeltVerdier((prev) => ({ ...prev, [objektId]: verdi }));
+  }, []);
+
+  // Loading
+  if (psiLaster || !psi) {
+    return (
+      <SafeAreaView className="flex-1 bg-white">
+        <View className="flex-1 items-center justify-center">
+          <ActivityIndicator size="large" color="#1e40af" />
+          <Text className="mt-3 text-sm text-gray-500">Laster sikkerhetsinstruks...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (seksjoner.length === 0) {
+    return (
+      <SafeAreaView className="flex-1 bg-white">
+        <Header onTilbake={() => router.back()} tittel="PSI" />
+        <View className="flex-1 items-center justify-center px-6">
+          <Text className="text-sm text-gray-500">Ingen innhold i PSI</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView className="flex-1 bg-white">
+      {/* Header med progresjon */}
+      <Header onTilbake={() => router.back()} tittel={psi.template.name} />
+
+      {/* Progresjonslinje */}
+      <View className="flex-row border-b border-gray-100 px-4 py-2">
+        {seksjoner.map((_, i) => (
+          <View
+            key={i}
+            className={`mx-0.5 h-1.5 flex-1 rounded-full ${
+              seksjonFullfort.has(i)
+                ? "bg-green-500"
+                : i === aktivSeksjon
+                  ? "bg-sitedoc-primary"
+                  : "bg-gray-200"
+            }`}
+          />
+        ))}
+      </View>
+
+      {/* Seksjonstittel */}
+      <View className="border-b border-gray-100 px-4 py-3">
+        <Text className="text-xs text-gray-400">
+          {aktivSeksjon + 1} / {seksjoner.length}
+        </Text>
+        <Text className="mt-0.5 text-base font-semibold text-gray-900">
+          {gjeldendeSeksjon?.tittel}
+        </Text>
+      </View>
+
+      {/* Innhold */}
+      <ScrollView
+        ref={scrollRef}
+        className="flex-1"
+        contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
+        onScroll={onScroll}
+        scrollEventThrottle={200}
+      >
+        {gjeldendeSeksjon?.objekter.map((objekt) => {
+          if (objekt.type === "signature") {
+            return (
+              <View key={objekt.id} className="mt-4">
+                <Text className="mb-2 text-sm font-medium text-gray-700">Signatur</Text>
+                <SignaturObjekt
+                  objekt={objekt}
+                  verdi={signaturData ?? ""}
+                  onEndreVerdi={(v) => setSignaturData(v as string)}
+                  leseModus={false}
+                />
+              </View>
+            );
+          }
+
+          return (
+            <RapportObjektRenderer
+              key={objekt.id}
+              objekt={objekt}
+              verdi={feltVerdier[objekt.id] ?? null}
+              onEndreVerdi={(v) => settFeltVerdi(objekt.id, v)}
+              leseModus={DISPLAY_TYPER.has(objekt.type)}
+            />
+          );
+        })}
+      </ScrollView>
+
+      {/* Bunnknapp */}
+      <View className="border-t border-gray-200 bg-white px-4 py-3">
+        <TouchableOpacity
+          onPress={gåTilNeste}
+          disabled={!kanGåVidere || fullforMut.isPending}
+          className={`flex-row items-center justify-center rounded-lg py-3 ${
+            kanGåVidere
+              ? erSignaturSeksjon
+                ? "bg-green-600"
+                : "bg-sitedoc-primary"
+              : "bg-gray-200"
+          }`}
+        >
+          {fullforMut.isPending ? (
+            <ActivityIndicator color="#ffffff" />
+          ) : (
+            <>
+              <Text className={`text-sm font-semibold ${kanGåVidere ? "text-white" : "text-gray-400"}`}>
+                {erSignaturSeksjon ? "Bekreft og signer" : "Neste"}
+              </Text>
+              {!erSignaturSeksjon && kanGåVidere && <ChevronRight size={18} color="#ffffff" className="ml-1" />}
+              {erSignaturSeksjon && kanGåVidere && <Check size={18} color="#ffffff" className="ml-1" />}
+            </>
+          )}
+        </TouchableOpacity>
+      </View>
+    </SafeAreaView>
+  );
+}
+
+function Header({ onTilbake, tittel }: { onTilbake: () => void; tittel: string }) {
+  return (
+    <View className="flex-row items-center border-b border-gray-200 px-3 py-2.5">
+      <TouchableOpacity onPress={onTilbake} className="mr-2 rounded-lg p-1.5">
+        <ArrowLeft size={22} color="#374151" />
+      </TouchableOpacity>
+      <Text className="flex-1 text-sm font-semibold text-gray-900" numberOfLines={1}>
+        {tittel}
+      </Text>
+    </View>
+  );
+}
