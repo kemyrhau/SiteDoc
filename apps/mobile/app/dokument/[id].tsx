@@ -12,7 +12,7 @@ import {
   Linking,
 } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
-import { ArrowLeft, Download, FileText, Check } from "lucide-react-native";
+import { ArrowLeft, Download, FileText, Check, X } from "lucide-react-native";
 import { trpc } from "../../src/lib/trpc";
 import { hentWebUrl } from "../../src/config/auth";
 import { STOETTEDE_SPRAAK } from "@sitedoc/shared";
@@ -37,6 +37,7 @@ export default function DokumentLeser() {
   const brukerSpraak = bruker?.language ?? "nb";
   const [språk, setSpråk] = useState(brukerSpraak);
   const [visSpraakmeny, setVisSpraakmeny] = useState(false);
+  const [zoomBilde, setZoomBilde] = useState<string | null>(null);
 
   const { data, isLoading } = trpc.mappe.hentDokumentBlokker.useQuery(
     { documentId: id ?? "", language: språk },
@@ -128,6 +129,7 @@ export default function DokumentLeser() {
             blokk={blokk as Blokk}
             baseUrl={baseUrl}
             skjermBredde={skjermBredde}
+            onZoomBilde={setZoomBilde}
           />
         ))}
         <View className="h-12" />
@@ -161,6 +163,35 @@ export default function DokumentLeser() {
             })}
           </View>
         </TouchableOpacity>
+      </Modal>
+      {/* Zoom-modal for bilder */}
+      <Modal visible={!!zoomBilde} transparent animationType="fade">
+        <View className="flex-1 bg-black">
+          <SafeAreaView className="flex-1">
+            <TouchableOpacity
+              onPress={() => setZoomBilde(null)}
+              className="absolute right-4 top-2 z-10 rounded-full bg-black/50 p-2"
+            >
+              <X size={24} color="#ffffff" />
+            </TouchableOpacity>
+            <ScrollView
+              maximumZoomScale={5}
+              minimumZoomScale={1}
+              contentContainerStyle={{ flex: 1, justifyContent: "center", alignItems: "center" }}
+              showsVerticalScrollIndicator={false}
+              showsHorizontalScrollIndicator={false}
+              bouncesZoom
+            >
+              {zoomBilde && (
+                <Image
+                  source={{ uri: zoomBilde }}
+                  style={{ width: skjermBredde, height: skjermBredde }}
+                  resizeMode="contain"
+                />
+              )}
+            </ScrollView>
+          </SafeAreaView>
+        </View>
       </Modal>
     </SafeAreaView>
   );
@@ -209,10 +240,12 @@ function BlokkRenderer({
   blokk,
   baseUrl,
   skjermBredde,
+  onZoomBilde,
 }: {
   blokk: Blokk;
   baseUrl: string;
   skjermBredde: number;
+  onZoomBilde: (url: string) => void;
 }) {
   switch (blokk.blockType) {
     case "heading": {
@@ -239,13 +272,17 @@ function BlokkRenderer({
       const erFullBredde = blokk.imageUrl.includes("_full.");
       const bredde = erFullBredde ? skjermBredde - 32 : Math.min(skjermBredde - 32, 400);
       return (
-        <View className="my-3 items-center">
+        <TouchableOpacity
+          onPress={() => onZoomBilde(bildeUrl)}
+          className="my-3 items-center"
+          activeOpacity={0.8}
+        >
           <Image
             source={{ uri: bildeUrl }}
             style={{ width: bredde, height: bredde * 0.75, borderRadius: 8 }}
             resizeMode="contain"
           />
-        </View>
+        </TouchableOpacity>
       );
     }
 
