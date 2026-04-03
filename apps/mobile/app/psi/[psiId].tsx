@@ -295,7 +295,7 @@ export default function PsiLeser() {
       </ScrollView>
 
       {/* Bunnknapper — Forrige + Neste */}
-      <View className="flex-row gap-2 border-t border-gray-200 bg-white px-4 py-3">
+      <View style={{ flexDirection: "row", gap: 8, borderTopWidth: 1, borderTopColor: "#e5e7eb", backgroundColor: "#fff", paddingHorizontal: 16, paddingVertical: 12 }}>
         {aktivSeksjon > 0 && (
           <TouchableOpacity
             onPress={() => {
@@ -304,7 +304,7 @@ export default function PsiLeser() {
               setInnholdKortNok(false);
               scrollRef.current?.scrollTo({ y: 0, animated: true });
             }}
-            className="rounded-lg border border-gray-200 px-4 py-3"
+            style={{ borderRadius: 8, borderWidth: 1, borderColor: "#e5e7eb", paddingHorizontal: 16, paddingVertical: 12 }}
           >
             <Text className="text-sm font-medium text-gray-600">Forrige</Text>
           </TouchableOpacity>
@@ -312,11 +312,15 @@ export default function PsiLeser() {
         <TouchableOpacity
           onPress={gåTilNeste}
           disabled={!kanGåVidere || fullforMut.isPending}
-          className={`flex-1 flex-row items-center justify-center rounded-lg py-3 ${
-            kanGåVidere
-              ? erSignaturSeksjon ? "bg-green-600" : "bg-sitedoc-primary"
-              : "bg-gray-200"
-          }`}
+          style={{
+            flex: 1,
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "center",
+            borderRadius: 8,
+            paddingVertical: 12,
+            backgroundColor: !kanGåVidere ? "#e5e7eb" : erSignaturSeksjon ? "#16a34a" : "#1e40af",
+          }}
         >
           {fullforMut.isPending ? (
             <ActivityIndicator color="#ffffff" />
