@@ -249,13 +249,15 @@ export default function PsiOppsettSide() {
                 <h3 className="text-sm font-semibold text-gray-900">Bytt mal</h3>
               </div>
               <p className="mb-3 text-xs text-gray-500">
-                Velg en annen mal for PSI-en. Eksisterende signaturer påvirkes ikke.
+                Bytter til en helt annen mal. Alle eksisterende signaturer blir ugyldige og alle må signere på nytt.
               </p>
               <select
                 value=""
                 onChange={(e) => {
                   if (!e.target.value || !prosjektId) return;
-                  byttMalMut.mutate({ projectId: prosjektId, templateId: e.target.value });
+                  if (confirm("Alle eksisterende signaturer blir ugyldige. Alle arbeidere må gjennomføre den nye PSI-en. Fortsett?")) {
+                    byttMalMut.mutate({ projectId: prosjektId, templateId: e.target.value });
+                  }
                 }}
                 className="w-full rounded-lg border border-gray-300 px-2 py-1.5 text-xs"
               >

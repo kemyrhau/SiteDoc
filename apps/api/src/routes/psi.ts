@@ -80,7 +80,7 @@ export const psiRouter = router({
 
       return ctx.prisma.psi.update({
         where: { id: psi.id },
-        data: { templateId: input.templateId },
+        data: { templateId: input.templateId, version: psi.version + 1 },
       });
     }),
 
