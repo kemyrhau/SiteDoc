@@ -161,27 +161,28 @@ export default function PsiOppsettSide() {
 
           {/* Handlinger */}
           <div className="grid gap-3 sm:grid-cols-2">
-            {/* Ny versjon */}
+            {/* Krev ny signering */}
             <Card className="p-4">
               <div className="flex items-center gap-3 mb-3">
                 <RefreshCw className="h-5 w-5 text-gray-500" />
-                <h3 className="text-sm font-semibold text-gray-900">Ny versjon</h3>
+                <h3 className="text-sm font-semibold text-gray-900">Krev ny signering</h3>
               </div>
               <p className="mb-3 text-xs text-gray-500">
-                Har du oppdatert innholdet i PSI-malen? Krev at alle arbeidere gjennomfører og signerer på nytt.
+                Bruk dette ved vesentlige endringer i sikkerhetsforholdene, f.eks. nye risikoområder, endret evakueringsplan eller omplassering av sperringer. Mindre rettelser krever ikke ny signering.
               </p>
               <Button
                 variant="secondary"
                 size="sm"
                 onClick={() => {
                   if (!prosjektId) return;
-                  if (confirm("Alle som allerede har signert vil få beskjed om å gjennomføre PSI på nytt. Er du sikker?")) {
+                  if (confirm("Alle som allerede har signert må gjennomføre og signere PSI-en på nytt. Bruk dette kun ved vesentlige endringer. Fortsett?")) {
                     bumpMut.mutate({ projectId: prosjektId });
                   }
                 }}
                 disabled={bumpMut.isPending}
               >
-                Krev ny signering</Button>
+                Krev ny signering
+              </Button>
             </Card>
 
             {/* QR-kode */}
@@ -247,13 +248,14 @@ export default function PsiOppsettSide() {
                 <FileText className="h-5 w-5 text-gray-500" />
                 <h3 className="text-sm font-semibold text-gray-900">Bytt mal</h3>
               </div>
+              <p className="mb-3 text-xs text-gray-500">
+                Velg en annen mal for PSI-en. Eksisterende signaturer påvirkes ikke.
+              </p>
               <select
                 value=""
                 onChange={(e) => {
                   if (!e.target.value || !prosjektId) return;
-                  if (confirm("Når du bytter mal må alle arbeidere gjennomføre og signere den nye PSI-en på nytt. Vil du bytte?")) {
-                    byttMalMut.mutate({ projectId: prosjektId, templateId: e.target.value });
-                  }
+                  byttMalMut.mutate({ projectId: prosjektId, templateId: e.target.value });
                 }}
                 className="w-full rounded-lg border border-gray-300 px-2 py-1.5 text-xs"
               >
