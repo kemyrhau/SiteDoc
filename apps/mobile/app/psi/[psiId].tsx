@@ -38,6 +38,7 @@ export default function PsiLeser() {
   const [signaturData, setSignaturData] = useState<string | null>(null);
   const [hmsKortNr, setHmsKortNr] = useState("");
   const [harIkkeHmsKort, setHarIkkeHmsKort] = useState(false);
+  const [scrollLåst, setScrollLåst] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
   const [harScrolletTilBunn, setHarScrolletTilBunn] = useState(false);
 
@@ -135,12 +136,6 @@ export default function PsiLeser() {
   const gjeldendeSeksjon = seksjoner[aktivSeksjon];
   const erSignaturSeksjon = gjeldendeSeksjon?.harSignatur ?? false;
   const [innholdKortNok, setInnholdKortNok] = useState(false);
-
-  // Debug: vis status for siste seksjon
-  const quizStatus = gjeldendeSeksjon?.objekter
-    .filter((o) => o.type === "quiz")
-    .map((o) => `${o.label}: ${feltVerdier[o.id] !== undefined ? "OK" : "mangler"}`)
-    .join(", ") ?? "";
 
   const kanGåVidere = useMemo(() => {
     if (!gjeldendeSeksjon) return false;
@@ -279,6 +274,7 @@ export default function PsiLeser() {
         contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
         onScroll={onScroll}
         scrollEventThrottle={100}
+        scrollEnabled={!scrollLåst}
       >
         {gjeldendeSeksjon?.objekter.map((objekt) => {
           if (objekt.type === "signature") {
@@ -311,6 +307,8 @@ export default function PsiLeser() {
                 <PsiSignaturFelt
                   verdi={signaturData}
                   onEndre={setSignaturData}
+                  onTegnStart={() => setScrollLåst(true)}
+                  onTegnSlutt={() => setScrollLåst(false)}
                 />
               </View>
             );
@@ -379,14 +377,6 @@ export default function PsiLeser() {
           )}
         </TouchableOpacity>
       </View>
-      {/* DEBUG — fjernes etter testing */}
-      {erSignaturSeksjon && (
-        <View className="bg-yellow-50 px-4 py-1">
-          <Text className="text-[10px] text-yellow-700">
-            Quiz: {quizStatus || "ingen"} | Signatur: {signaturData ? "JA" : "NEI"} | Kan videre: {kanGåVidere ? "JA" : "NEI"}
-          </Text>
-        </View>
-      )}
     </SafeAreaView>
   );
 }
@@ -451,16 +441,23 @@ function PsiQuiz({ objekt, verdi, onRiktig }: {
 }
 
 /* Enkel signatur for PSI — auto-lagrer ved tegneslutt, ingen "Lagre"-knapp */
-const PSI_SIGNATUR_HTML = `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"><style>*{margin:0;padding:0;box-sizing:border-box}body{background:#fff}canvas{width:100%;height:180px;display:block;border-bottom:1px solid #d1d5db}.hint{text-align:center;padding:8px;color:#9ca3af;font:13px system-ui}.actions{display:flex;justify-content:center;padding:6px;gap:8px}.btn{font:13px system-ui;padding:6px 16px;border-radius:6px;border:1px solid #d1d5db;background:#fff;color:#374151;cursor:pointer}</style></head><body><canvas id="c"></canvas><div class="hint">Tegn signaturen din</div><div class="actions"><button class="btn" onclick="tøm()">Tøm</button></div><script>const c=document.getElementById('c'),ctx=c.getContext('2d');let d=false,harTegnet=false;function r(){c.width=c.offsetWidth;c.height=180;ctx.strokeStyle='#1e40af';ctx.lineWidth=2;ctx.lineCap='round'}r();function gp(e){const r=c.getBoundingClientRect();const t=e.touches?e.touches[0]:e;return{x:t.clientX-r.left,y:t.clientY-r.top}}c.onpointerdown=e=>{d=true;harTegnet=true;const p=gp(e);ctx.beginPath();ctx.moveTo(p.x,p.y)};c.onpointermove=e=>{if(!d)return;e.preventDefault();const p=gp(e);ctx.lineTo(p.x,p.y);ctx.stroke()};c.onpointerup=c.onpointerleave=()=>{if(d){d=false;if(harTegnet){window.ReactNativeWebView.postMessage(JSON.stringify({type:'signatur',dataUrl:c.toDataURL()}))}}};function tøm(){ctx.clearRect(0,0,c.width,c.height);harTegnet=false;window.ReactNativeWebView.postMessage(JSON.stringify({type:'tøm'}))}</script></body></html>`;
+const PSI_SIGNATUR_HTML = `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"><style>*{margin:0;padding:0;box-sizing:border-box;touch-action:none}body{background:#fff}canvas{width:100%;height:180px;display:block;border-bottom:1px solid #d1d5db}.hint{text-align:center;padding:8px;color:#9ca3af;font:13px system-ui}.actions{display:flex;justify-content:center;padding:6px;gap:8px}.btn{font:13px system-ui;padding:6px 16px;border-radius:6px;border:1px solid #d1d5db;background:#fff;color:#374151;cursor:pointer}</style></head><body><canvas id="c"></canvas><div class="hint">Tegn signaturen din</div><div class="actions"><button class="btn" onclick="tøm()">Tøm</button></div><script>const c=document.getElementById('c'),ctx=c.getContext('2d');let d=false,harTegnet=false;function r(){c.width=c.offsetWidth;c.height=180;ctx.strokeStyle='#1e40af';ctx.lineWidth=2;ctx.lineCap='round'}r();function gp(e){const r=c.getBoundingClientRect();const t=e.touches?e.touches[0]:e;return{x:t.clientX-r.left,y:t.clientY-r.top}}c.onpointerdown=e=>{e.preventDefault();d=true;harTegnet=true;window.ReactNativeWebView.postMessage(JSON.stringify({type:'touchStart'}));const p=gp(e);ctx.beginPath();ctx.moveTo(p.x,p.y)};c.onpointermove=e=>{if(!d)return;e.preventDefault();const p=gp(e);ctx.lineTo(p.x,p.y);ctx.stroke()};c.onpointerup=c.onpointerleave=()=>{if(d){d=false;window.ReactNativeWebView.postMessage(JSON.stringify({type:'touchEnd'}));if(harTegnet){window.ReactNativeWebView.postMessage(JSON.stringify({type:'signatur',dataUrl:c.toDataURL()}))}}};function tøm(){ctx.clearRect(0,0,c.width,c.height);harTegnet=false;window.ReactNativeWebView.postMessage(JSON.stringify({type:'tøm'}))}</script></body></html>`;
 
-function PsiSignaturFelt({ verdi, onEndre }: { verdi: string | null; onEndre: (v: string | null) => void }) {
+function PsiSignaturFelt({ verdi, onEndre, onTegnStart, onTegnSlutt }: {
+  verdi: string | null;
+  onEndre: (v: string | null) => void;
+  onTegnStart?: () => void;
+  onTegnSlutt?: () => void;
+}) {
   const håndterMelding = useCallback((e: WebViewMessageEvent) => {
     try {
       const data = JSON.parse(e.nativeEvent.data);
+      if (data.type === "touchStart") onTegnStart?.();
+      if (data.type === "touchEnd") onTegnSlutt?.();
       if (data.type === "signatur") onEndre(data.dataUrl);
       if (data.type === "tøm") onEndre(null);
     } catch { /* ignorer */ }
-  }, [onEndre]);
+  }, [onEndre, onTegnStart, onTegnSlutt]);
 
   return (
     <View className="overflow-hidden rounded-lg border border-gray-300 bg-white">
