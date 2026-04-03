@@ -256,16 +256,16 @@ export default function HjemSkjerm() {
 
   const håndterOpprettet = useCallback(
     (id: string) => {
+      const kat = opprettKategori;
       setValgtMal(null);
       setOpprettKategori(null);
-      // Invalidér queries for å oppdatere listene
       if (valgtProsjektId) {
         utils.sjekkliste.hentForProsjekt.invalidate({ projectId: valgtProsjektId });
         utils.oppgave.hentForProsjekt.invalidate({ projectId: valgtProsjektId });
       }
-      if (opprettKategori === "sjekkliste") {
+      if (kat === "sjekkliste") {
         router.push(`/sjekkliste/${id}`);
-      } else if (opprettKategori === "oppgave") {
+      } else if (kat === "oppgave") {
         router.push(`/oppgave/${id}`);
       }
     },
