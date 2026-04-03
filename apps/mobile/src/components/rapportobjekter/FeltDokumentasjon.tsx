@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from "react";
 import { View, Text, TextInput, Pressable, Image, Alert, Modal, ScrollView, InteractionManager, SafeAreaView, KeyboardAvoidingView, Platform } from "react-native";
+import { useTranslation } from "react-i18next";
 import { Camera, Paperclip, Map, FileText, Trash2, Pencil, ChevronLeft, ChevronRight } from "lucide-react-native";
 import * as DocumentPicker from "expo-document-picker";
 import { randomUUID } from "expo-crypto";
@@ -53,6 +54,7 @@ export function FeltDokumentasjon({
   const [lokalKommentar, settLokalKommentar] = useState("");
   const { valgtProsjektId } = useProsjekt();
   const { leggIKo } = useOpplastingsKo();
+  const { t } = useTranslation();
 
   // Refs for callbacks — stabiliserer håndterBilde/håndterKameraBilde slik at
   // KameraModal IKKE re-rendres når repeater-state oppdateres
@@ -151,7 +153,7 @@ export function FeltDokumentasjon({
         opprettet: new Date().toISOString(),
       });
     } catch {
-      Alert.alert("Feil", "Kunne ikke laste opp filen");
+      Alert.alert(t("feil.tittel"), t("felt.kunneIkkeLasteOpp"));
     } finally {
       settLasterOpp(false);
     }
@@ -195,7 +197,7 @@ export function FeltDokumentasjon({
                 kommentar ? "text-gray-700" : "text-gray-400"
               } ${leseModus ? "text-gray-500" : ""}`}
             >
-              {kommentar || "Kommentar..."}
+              {kommentar || t("felt.kommentarPlaceholder")}
             </Text>
           </Pressable>
 
@@ -209,7 +211,7 @@ export function FeltDokumentasjon({
                 className="flex-1"
               >
                 <View className="flex-row items-center justify-between border-b border-gray-200 bg-[#1e40af] px-4 py-3">
-                  <Text className="flex-1 text-base font-semibold text-white">Kommentar</Text>
+                  <Text className="flex-1 text-base font-semibold text-white">{t("felt.kommentar")}</Text>
                   <Pressable
                     onPress={() => {
                       onEndreKommentar(lokalKommentar);
@@ -217,13 +219,13 @@ export function FeltDokumentasjon({
                     }}
                     className="ml-3 rounded-lg bg-white/20 px-4 py-1.5"
                   >
-                    <Text className="text-sm font-semibold text-white">Ferdig</Text>
+                    <Text className="text-sm font-semibold text-white">{t("felt.ferdig")}</Text>
                   </Pressable>
                 </View>
                 <TextInput
                   value={lokalKommentar}
                   onChangeText={settLokalKommentar}
-                  placeholder="Skriv kommentar..."
+                  placeholder={t("felt.skrivKommentar")}
                   multiline
                   autoFocus
                   textAlignVertical="top"
@@ -261,7 +263,7 @@ export function FeltDokumentasjon({
             className="flex-row items-center gap-1.5 rounded-lg bg-red-50 px-3 py-1.5"
           >
             <Trash2 size={14} color="#ef4444" />
-            <Text className="text-xs font-medium text-red-600">Slett</Text>
+            <Text className="text-xs font-medium text-red-600">{t("handling.slett")}</Text>
           </Pressable>
           {valgtVedlegg.type === "bilde" && (
             <Pressable
@@ -269,7 +271,7 @@ export function FeltDokumentasjon({
               className="flex-row items-center gap-1.5 rounded-lg bg-blue-50 px-3 py-1.5"
             >
               <Pencil size={14} color="#1e40af" />
-              <Text className="text-xs font-medium text-blue-700">Annoter</Text>
+              <Text className="text-xs font-medium text-blue-700">{t("felt.annoter")}</Text>
             </Pressable>
           )}
         </View>
@@ -337,7 +339,7 @@ export function FeltDokumentasjon({
             className="flex-1 flex-row items-center justify-center gap-1.5 rounded-lg border border-gray-300 bg-white py-2"
           >
             <Camera size={16} color="#6b7280" />
-            <Text className="text-xs text-gray-600">Ta bilde</Text>
+            <Text className="text-xs text-gray-600">{t("felt.taBilde")}</Text>
           </Pressable>
           <Pressable
             onPress={håndterVelgFil}
@@ -345,7 +347,7 @@ export function FeltDokumentasjon({
             className="flex-1 flex-row items-center justify-center gap-1.5 rounded-lg border border-gray-300 bg-white py-2"
           >
             <Paperclip size={16} color="#6b7280" />
-            <Text className="text-xs text-gray-600">Velg fil</Text>
+            <Text className="text-xs text-gray-600">{t("felt.velgFil")}</Text>
           </Pressable>
           {valgtProsjektId && (
             <Pressable
@@ -354,14 +356,14 @@ export function FeltDokumentasjon({
               className="flex-1 flex-row items-center justify-center gap-1.5 rounded-lg border border-gray-300 bg-white py-2"
             >
               <Map size={16} color="#6b7280" />
-              <Text className="text-xs text-gray-600">Tegning</Text>
+              <Text className="text-xs text-gray-600">{t("felt.tegning")}</Text>
             </Pressable>
           )}
         </View>
       )}
 
       {lasterOpp && (
-        <Text className="text-center text-xs text-gray-400">Laster opp fil...</Text>
+        <Text className="text-center text-xs text-gray-400">{t("felt.lasterOppFil")}</Text>
       )}
 
       {/* Bildeannotering modal */}

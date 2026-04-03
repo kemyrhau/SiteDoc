@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { View, Text, TextInput, Pressable, Modal, SafeAreaView, KeyboardAvoidingView, Platform } from "react-native";
+import { useTranslation } from "react-i18next";
 import type { RapportObjektProps } from "./typer";
 
 export function TekstfeltObjekt({ objekt, verdi, onEndreVerdi, leseModus }: RapportObjektProps) {
+  const { t } = useTranslation();
   const [visModal, settVisModal] = useState(false);
   const [lokalTekst, settLokalTekst] = useState("");
 
@@ -32,7 +34,7 @@ export function TekstfeltObjekt({ objekt, verdi, onEndreVerdi, leseModus }: Rapp
             tekstVerdi ? "text-gray-900" : "text-gray-400"
           } ${leseModus ? "text-gray-500" : ""}`}
         >
-          {tekstVerdi || "Trykk for å skrive..."}
+          {tekstVerdi || t("felt.trykkForAaSkrive")}
         </Text>
       </Pressable>
 
@@ -48,7 +50,7 @@ export function TekstfeltObjekt({ objekt, verdi, onEndreVerdi, leseModus }: Rapp
                 {objekt.label}
               </Text>
               <Pressable onPress={ferdig} className="ml-3 rounded-lg bg-white/20 px-4 py-1.5">
-                <Text className="text-sm font-semibold text-white">Ferdig</Text>
+                <Text className="text-sm font-semibold text-white">{t("felt.ferdig")}</Text>
               </Pressable>
             </View>
 
@@ -56,7 +58,7 @@ export function TekstfeltObjekt({ objekt, verdi, onEndreVerdi, leseModus }: Rapp
             <TextInput
               value={lokalTekst}
               onChangeText={settLokalTekst}
-              placeholder="Skriv inn tekst..."
+              placeholder={t("felt.skrivInnTekst")}
               multiline
               autoFocus
               textAlignVertical="top"

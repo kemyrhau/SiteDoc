@@ -1,6 +1,7 @@
 import { View, Text, Pressable, ActivityIndicator } from "react-native";
 import { useState, type ReactNode } from "react";
 import { Plus, Info, Globe } from "lucide-react-native";
+import { useTranslation } from "react-i18next";
 import type { Vedlegg } from "../../hooks/useSjekklisteSkjema";
 import { FeltDokumentasjon } from "./FeltDokumentasjon";
 
@@ -66,6 +67,7 @@ export function FeltWrapper({
   originalData,
   children,
 }: FeltWrapperProps) {
+  const { t } = useTranslation();
   const [visHjelpetekst, setVisHjelpetekst] = useState(false);
   const [visOversettelse, setVisOversettelse] = useState(false);
   const oversattLabel = oversettelser?.[objekt.label];
@@ -89,7 +91,7 @@ export function FeltWrapper({
         <Text className="text-sm font-medium text-gray-900">{objekt.label}</Text>
         {objekt.required && (
           <View className="rounded bg-red-50 px-1.5 py-0.5">
-            <Text className="text-[10px] font-medium text-red-600">Påkrevd</Text>
+            <Text className="text-[10px] font-medium text-red-600">{t("felt.paakrevd")}</Text>
           </View>
         )}
         {typeof objekt.config.helpText === "string" && objekt.config.helpText && (
@@ -130,7 +132,7 @@ export function FeltWrapper({
       {/* Original fritekst (Lag 3: arbeiderens tekst på originalspråk) */}
       {originalData?.verdi && (
         <View className="mt-1 rounded bg-gray-50 px-2 py-1.5">
-          <Text className="text-[10px] uppercase tracking-wider text-gray-400">Original ({originalData.spraak})</Text>
+          <Text className="text-[10px] uppercase tracking-wider text-gray-400">{t("felt.original", { spraak: originalData.spraak })}</Text>
           <Text className="text-xs text-gray-500">{originalData.verdi}</Text>
         </View>
       )}
@@ -172,7 +174,7 @@ export function FeltWrapper({
           className="mt-2 flex-row items-center gap-1 self-start rounded-full bg-gray-100 px-2.5 py-1"
         >
           <Plus size={12} color="#6b7280" />
-          <Text className="text-xs font-medium text-gray-600">Oppgave</Text>
+          <Text className="text-xs font-medium text-gray-600">{t("felt.oppgave")}</Text>
         </Pressable>
       ) : null}
     </View>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { hentStatusHandlinger } from "@sitedoc/shared";
 
 const FARGE_MAP: Record<string, { bg: string; hover: string }> = {
@@ -26,6 +27,7 @@ interface StatusHandlingerProps {
 }
 
 export function StatusHandlinger({ status, erLaster, onEndreStatus, onSlett, mottakerValg }: StatusHandlingerProps) {
+  const { t } = useTranslation();
   const [bekreftHandling, setBekreftHandling] = useState<string | null>(null);
   const [kommentar, setKommentar] = useState("");
   const [valgtMottaker, setValgtMottaker] = useState("");
@@ -93,7 +95,7 @@ export function StatusHandlinger({ status, erLaster, onEndreStatus, onSlett, mot
                 erValgt ? "ring-2 ring-offset-1 ring-gray-400" : ""
               } ${farger.bg} ${farger.hover}`}
             >
-              {erLaster ? "Endrer..." : erValgt ? `Bekreft: ${h.tekst}` : h.tekst}
+              {erLaster ? t("statushandling.endrer") : erValgt ? t("statushandling.bekreftHandling", { handling: t(h.tekstNoekkel) }) : t(h.tekstNoekkel)}
             </button>
           );
         })}
@@ -102,7 +104,7 @@ export function StatusHandlinger({ status, erLaster, onEndreStatus, onSlett, mot
             onClick={avbrytBekreft}
             className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-600 hover:bg-gray-50"
           >
-            Avbryt
+            {t("handling.avbryt")}
           </button>
         )}
       </div>
@@ -114,7 +116,7 @@ export function StatusHandlinger({ status, erLaster, onEndreStatus, onSlett, mot
               onChange={(e) => setValgtMottaker(e.target.value)}
               className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
             >
-              <option value="">{bekreftHandling === "forwarded" ? "Velg mottaker..." : "Velg mottaker (valgfritt)..."}</option>
+              <option value="">{bekreftHandling === "forwarded" ? t("statushandling.velgMottaker") : t("statushandling.velgMottakerValgfritt")}</option>
               {mottakerValg!.grupper.length > 0 && (
                 <optgroup label="Grupper">
                   {mottakerValg!.grupper.map((g) => (
@@ -140,7 +142,7 @@ export function StatusHandlinger({ status, erLaster, onEndreStatus, onSlett, mot
             onKeyDown={(e) => {
               if (e.key === "Enter") håndterKlikk(bekreftHandling);
             }}
-            placeholder="Valgfri kommentar..."
+            placeholder={t("statushandling.valgfriKommentar")}
             className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
             autoFocus={!visMottakerVelger}
           />

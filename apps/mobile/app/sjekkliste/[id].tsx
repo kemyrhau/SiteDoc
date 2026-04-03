@@ -209,12 +209,13 @@ export default function SjekklisteUtfylling() {
     (handling: StatusHandling) => {
       if (!bruker?.id) return;
 
-      const bekreftTekst = handling.nyStatus === "cancelled" ? t("bekreft.jaAvbrytSjekklisten") : handling.tekst;
+      const oversattTekst = t(handling.tekstNoekkel);
+      const bekreftTekst = handling.nyStatus === "cancelled" ? t("bekreft.jaAvbrytSjekklisten") : oversattTekst;
       const erDestruktiv = handling.nyStatus === "rejected" || handling.nyStatus === "cancelled";
 
       Alert.alert(
         t("bekreft.statusendring"),
-        t("bekreft.endreStatusTil", { status: handling.tekst.toLowerCase() }),
+        t("bekreft.endreStatusTil", { status: oversattTekst.toLowerCase() }),
         [
           { text: t("bekreft.ikkeNaa"), style: "cancel" },
           {
@@ -745,7 +746,7 @@ export default function SjekklisteUtfylling() {
                   {endreStatusMutasjon.isPending ? (
                     <ActivityIndicator size="small" color="#ffffff" />
                   ) : (
-                    <Text className="font-medium text-white">{handling.tekst}</Text>
+                    <Text className="font-medium text-white">{t(handling.tekstNoekkel)}</Text>
                   )}
                 </Pressable>
               ))}
