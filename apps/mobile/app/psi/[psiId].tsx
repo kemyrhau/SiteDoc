@@ -206,7 +206,16 @@ export default function PsiLeser() {
   return (
     <SafeAreaView className="flex-1 bg-white">
       <Header
-        onTilbake={() => router.back()}
+        onTilbake={() => {
+          if (aktivSeksjon > 0) {
+            setAktivSeksjon(aktivSeksjon - 1);
+            setHarScrolletTilBunn(false);
+            setInnholdKortNok(false);
+            scrollRef.current?.scrollTo({ y: 0, animated: true });
+          } else {
+            router.back();
+          }
+        }}
         tittel={(psi.template as unknown as { name: string }).name}
         ekstra={visOversettKnapp ? (
           <TouchableOpacity
@@ -284,12 +293,25 @@ export default function PsiLeser() {
         })}
       </ScrollView>
 
-      {/* Bunnknapp */}
-      <View className="border-t border-gray-200 bg-white px-4 py-3">
+      {/* Bunnknapper — Forrige + Neste */}
+      <View className="flex-row gap-2 border-t border-gray-200 bg-white px-4 py-3">
+        {aktivSeksjon > 0 && (
+          <TouchableOpacity
+            onPress={() => {
+              setAktivSeksjon(aktivSeksjon - 1);
+              setHarScrolletTilBunn(false);
+              setInnholdKortNok(false);
+              scrollRef.current?.scrollTo({ y: 0, animated: true });
+            }}
+            className="rounded-lg border border-gray-200 px-4 py-3"
+          >
+            <Text className="text-sm font-medium text-gray-600">Forrige</Text>
+          </TouchableOpacity>
+        )}
         <TouchableOpacity
           onPress={gåTilNeste}
           disabled={!kanGåVidere || fullforMut.isPending}
-          className={`flex-row items-center justify-center rounded-lg py-3 ${
+          className={`flex-1 flex-row items-center justify-center rounded-lg py-3 ${
             kanGåVidere
               ? erSignaturSeksjon ? "bg-green-600" : "bg-sitedoc-primary"
               : "bg-gray-200"

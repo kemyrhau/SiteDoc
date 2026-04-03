@@ -80,7 +80,8 @@ export default function PsiGjestSide() {
     },
   });
 
-  const hmsGyldig = harIkkeHmsKort || /^\d{7}$/.test(hmsKortNr.trim());
+  // HMS-kort er gyldig hvis: checkbox, 7 siffer, eller tomt (valgfritt)
+  const hmsGyldig = harIkkeHmsKort || hmsKortNr.trim() === "" || /^\d{7}$/.test(hmsKortNr.trim());
 
   const startPsi = () => {
     if (!gjestNavn.trim() || !gjestFirma.trim() || !valgtPsiId || !hmsGyldig) return;
@@ -244,7 +245,9 @@ export default function PsiGjestSide() {
 
           {/* HMS-kort */}
           <div className="mb-6">
-            <label className="mb-1 block text-sm font-medium text-gray-700">HMS-kortnummer</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              HMS-kortnummer <span className="font-normal text-gray-400">(valgfritt)</span>
+            </label>
             {!harIkkeHmsKort && (
               <input
                 type="text"
@@ -252,7 +255,9 @@ export default function PsiGjestSide() {
                 maxLength={7}
                 value={hmsKortNr}
                 onChange={(e) => setHmsKortNr(e.target.value.replace(/\D/g, "").slice(0, 7))}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                className={`w-full rounded-lg border px-3 py-2 text-sm ${
+                  hmsKortNr.trim() && !/^\d{7}$/.test(hmsKortNr.trim()) ? "border-amber-400" : "border-gray-300"
+                }`}
                 placeholder="7 siffer"
               />
             )}
@@ -437,12 +442,26 @@ function PsiGjennomforing({
         </div>
       </div>
 
-      {/* Bunnknapp */}
-      <div className="shrink-0 border-t border-gray-200 px-4 py-3">
+      {/* Bunnknapper — Forrige + Neste */}
+      <div className="flex shrink-0 gap-2 border-t border-gray-200 px-4 py-3">
+        <button
+          onClick={() => {
+            if (aktivSeksjon > 0) {
+              setAktivSeksjon(aktivSeksjon - 1);
+              setHarScrolletNed(false);
+              setInnholdKortNok(false);
+              innholdRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+            }
+          }}
+          disabled={aktivSeksjon === 0}
+          className="flex items-center justify-center rounded-lg border border-gray-200 px-4 py-3 text-sm font-medium text-gray-600 disabled:opacity-30"
+        >
+          Forrige
+        </button>
         <button
           onClick={neste}
           disabled={!kanVidere || fullforMut.isPending}
-          className={`flex w-full items-center justify-center gap-2 rounded-lg py-3 text-sm font-semibold ${
+          className={`flex flex-1 items-center justify-center gap-2 rounded-lg py-3 text-sm font-semibold ${
             kanVidere
               ? erSignatur ? "bg-green-600 text-white hover:bg-green-700" : "bg-sitedoc-primary text-white hover:bg-sitedoc-secondary"
               : "bg-gray-200 text-gray-400"
