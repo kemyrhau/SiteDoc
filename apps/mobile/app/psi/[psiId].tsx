@@ -136,6 +136,12 @@ export default function PsiLeser() {
   const erSignaturSeksjon = gjeldendeSeksjon?.harSignatur ?? false;
   const [innholdKortNok, setInnholdKortNok] = useState(false);
 
+  // Debug: vis status for siste seksjon
+  const quizStatus = gjeldendeSeksjon?.objekter
+    .filter((o) => o.type === "quiz")
+    .map((o) => `${o.label}: ${feltVerdier[o.id] !== undefined ? "OK" : "mangler"}`)
+    .join(", ") ?? "";
+
   const kanGåVidere = useMemo(() => {
     if (!gjeldendeSeksjon) return false;
     let ok = true;
@@ -362,6 +368,14 @@ export default function PsiLeser() {
           )}
         </TouchableOpacity>
       </View>
+      {/* DEBUG — fjernes etter testing */}
+      {erSignaturSeksjon && (
+        <View className="bg-yellow-50 px-4 py-1">
+          <Text className="text-[10px] text-yellow-700">
+            Quiz: {quizStatus || "ingen"} | Signatur: {signaturData ? "JA" : "NEI"} | Kan videre: {kanGåVidere ? "JA" : "NEI"}
+          </Text>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
