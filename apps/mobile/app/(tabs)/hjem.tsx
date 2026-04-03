@@ -23,7 +23,7 @@ import {
   ShieldCheck,
 } from "lucide-react-native";
 import { useQueryClient } from "@tanstack/react-query";
-import i18next from "i18next";
+import { useTranslation } from "react-i18next";
 import { trpc } from "../../src/lib/trpc";
 import { useProsjekt } from "../../src/kontekst/ProsjektKontekst";
 import { useBygning } from "../../src/kontekst/BygningKontekst";
@@ -90,9 +90,8 @@ function formaterNummer(prefix: string | null | undefined, nummer: number | null
   return `${prefix}${nummer}`;
 }
 
-const t = i18next.t.bind(i18next);
-
 export default function HjemSkjerm() {
+  const { t } = useTranslation();
   const { valgtProsjektId } = useProsjekt();
   const { valgtBygningId } = useBygning();
   const [velgerSynlig, setVelgerSynlig] = useState(false);
@@ -631,6 +630,7 @@ function PsiStatusRad({ psi, onPress }: {
   psi: { id: string; version: number; buildingId: string | null; building: { id: string; name: string } | null };
   onPress: () => void;
 }) {
+  const { t } = useTranslation();
   const statusQuery = trpc.psi.hentMinStatus.useQuery({ psiId: psi.id });
   const status = statusQuery.data;
   const navn = psi.building?.name ?? null;
