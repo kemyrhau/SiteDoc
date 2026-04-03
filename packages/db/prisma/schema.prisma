@@ -36,6 +36,7 @@ model User {
   taskComments         TaskComment[]
   checklistChangeLogs  ChecklistChangeLog[]
   ansvarligEntrepriser Enterprise[]         @relation("EnterpriseAnsvarlig")
+  psiSignaturer        PsiSignatur[]
 
   @@map("users")
 }
@@ -144,6 +145,7 @@ model Project {
   ftdSpecPosts         FtdSpecPost[]
   ftdNotaPeriods       FtdNotaPeriod[]
   ftdKontrakter        FtdKontrakt[]
+  psi                  Psi?
 
   @@map("projects")
 }
@@ -422,6 +424,7 @@ model ReportTemplate {
   tasks             Task[]
   workflowTemplates WorkflowTemplate[]
   dokumentflytMaler DokumentflytMal[]
+  psi               Psi[]
 
   @@map("report_templates")
 }
@@ -1030,4 +1033,49 @@ model FtdNotaComment {
   period   FtdNotaPeriod? @relation(fields: [periodId], references: [id], onDelete: Cascade)
 
   @@map("ftd_nota_comments")
+}
+
+// ── PSI (Prosjektspesifikk Sikkerhetsinstruks) ──────────────────────
+
+model Psi {
+  id         String   @id @default(uuid())
+  projectId  String   @map("project_id")
+  templateId String   @map("template_id")
+  version    Int      @default(1)
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  project    Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  template   ReportTemplate @relation(fields: [templateId], references: [id])
+  signaturer PsiSignatur[]
+
+  @@unique([projectId])
+  @@map("psi")
+}
+
+model PsiSignatur {
+  id           String    @id @default(uuid())
+  psiId        String    @map("psi_id")
+  psiVersion   Int       @map("psi_version")
+
+  // Innlogget bruker ELLER gjest
+  userId       String?   @map("user_id")
+  guestName    String?   @map("guest_name")
+  guestCompany String?   @map("guest_company")
+  guestPhone   String?   @map("guest_phone")
+
+  data          Json     @default("{}")
+  signatureData String?  @map("signature_data")
+  language      String   @default("nb")
+  progress      Int      @default(0)
+  completedAt   DateTime? @map("completed_at")
+  startedAt     DateTime  @default(now()) @map("started_at")
+
+  psi  Psi   @relation(fields: [psiId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@unique([psiId, userId])
+  @@index([psiId])
+  @@map("psi_signaturer")
 }

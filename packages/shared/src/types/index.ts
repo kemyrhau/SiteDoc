@@ -526,6 +526,14 @@ export const PROSJEKT_MODULER: ModulDefinisjon[] = [
     ikon: "FileSearch",
     maler: [],
   },
+  {
+    slug: "psi",
+    navn: "PSI — Sikkerhetsinstruks",
+    beskrivelse: "Prosjektspesifikk sikkerhetsinstruks med video, quiz og signatur. Arbeidere gjennomfører og signerer digitalt.",
+    kategori: "funksjon",
+    ikon: "ShieldCheck",
+    maler: [],
+  },
 ];
 
 // Entreprisebransjer
