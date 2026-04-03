@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { trpc } from "@/lib/trpc";
 import { Button, Spinner, Card } from "@sitedoc/ui";
-import { ShieldCheck, QrCode, RefreshCw, FileText, Printer } from "lucide-react";
+import { ShieldCheck, QrCode, RefreshCw, FileText, Printer, Pencil } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 
 export default function PsiOppsettSide() {
@@ -153,9 +153,18 @@ export default function PsiOppsettSide() {
                   Versjon {psi.version} — opprettet {new Date(psi.createdAt).toLocaleDateString("nb-NO")}
                 </p>
               </div>
-              <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700">
-                Aktiv
-              </span>
+              <div className="flex items-center gap-2">
+                <a
+                  href={`/dashbord/oppsett/field/sjekklistemaler/${(psi as unknown as { templateId: string }).templateId}`}
+                  className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                  Rediger mal
+                </a>
+                <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700">
+                  Aktiv
+                </span>
+              </div>
             </div>
           </Card>
 
