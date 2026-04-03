@@ -699,26 +699,26 @@ export default function SjekklisteUtfylling() {
               <Text className="text-sm font-semibold text-gray-700">{t("dokument.historikk")}</Text>
             </View>
             <View className="rounded-lg bg-white">
-              {overforinger.map((t, i) => (
+              {overforinger.map((ovf, i) => (
                 <View
-                  key={t.id}
+                  key={ovf.id}
                   className={`flex-row items-center gap-2 px-3 py-2.5 ${i > 0 ? "border-t border-gray-100" : ""}`}
                 >
                   <View className="flex-1">
                     <View className="flex-row items-center gap-1.5">
-                      <StatusMerkelapp status={t.fromStatus} />
+                      <StatusMerkelapp status={ovf.fromStatus} />
                       <Text className="text-xs text-gray-400">→</Text>
-                      <StatusMerkelapp status={t.toStatus} />
+                      <StatusMerkelapp status={ovf.toStatus} />
                     </View>
-                    {t.sender?.name && (
-                      <Text className="mt-0.5 text-xs text-gray-500">{t.sender.name}</Text>
+                    {ovf.sender?.name && (
+                      <Text className="mt-0.5 text-xs text-gray-500">{ovf.sender.name}</Text>
                     )}
-                    {t.comment && (
-                      <Text className="mt-0.5 text-xs text-gray-600">{t.comment}</Text>
+                    {ovf.comment && (
+                      <Text className="mt-0.5 text-xs text-gray-600">{ovf.comment}</Text>
                     )}
                   </View>
                   <Text className="text-xs text-gray-400">
-                    {formaterHistorikkDato(t.createdAt)}
+                    {formaterHistorikkDato(ovf.createdAt)}
                   </Text>
                 </View>
               ))}
