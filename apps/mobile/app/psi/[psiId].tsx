@@ -15,7 +15,8 @@ import { ArrowLeft, ChevronRight, Check, Globe } from "lucide-react-native";
 import { trpc } from "../../src/lib/trpc";
 import { useAuth } from "../../src/providers/AuthProvider";
 import { RapportObjektRenderer, DISPLAY_TYPER } from "../../src/components/rapportobjekter/RapportObjektRenderer";
-import { SignaturObjekt } from "../../src/components/rapportobjekter/SignaturObjekt";
+import { WebView } from "react-native-webview";
+import type { WebViewMessageEvent } from "react-native-webview";
 import { useOversettelse } from "../../src/hooks/useOversettelse";
 
 interface SeksjonData {
@@ -301,11 +302,9 @@ export default function PsiLeser() {
                   <Text className="text-sm text-gray-600">Har ikke HMS-kort</Text>
                 </TouchableOpacity>
                 <Text className="mb-2 text-sm font-medium text-gray-700">Signatur</Text>
-                <SignaturObjekt
-                  objekt={objekt}
-                  verdi={signaturData ?? ""}
-                  onEndreVerdi={(v) => setSignaturData(v as string)}
-                  leseModus={false}
+                <PsiSignaturFelt
+                  verdi={signaturData}
+                  onEndre={setSignaturData}
                 />
               </View>
             );
@@ -364,6 +363,31 @@ export default function PsiLeser() {
         </TouchableOpacity>
       </View>
     </SafeAreaView>
+  );
+}
+
+/* Enkel signatur for PSI — auto-lagrer ved tegneslutt, ingen "Lagre"-knapp */
+const PSI_SIGNATUR_HTML = `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"><style>*{margin:0;padding:0;box-sizing:border-box}body{background:#fff}canvas{width:100%;height:180px;display:block;border-bottom:1px solid #d1d5db}.hint{text-align:center;padding:8px;color:#9ca3af;font:13px system-ui}.actions{display:flex;justify-content:center;padding:6px;gap:8px}.btn{font:13px system-ui;padding:6px 16px;border-radius:6px;border:1px solid #d1d5db;background:#fff;color:#374151;cursor:pointer}</style></head><body><canvas id="c"></canvas><div class="hint">Tegn signaturen din</div><div class="actions"><button class="btn" onclick="tøm()">Tøm</button></div><script>const c=document.getElementById('c'),ctx=c.getContext('2d');let d=false,harTegnet=false;function r(){c.width=c.offsetWidth;c.height=180;ctx.strokeStyle='#1e40af';ctx.lineWidth=2;ctx.lineCap='round'}r();function gp(e){const r=c.getBoundingClientRect();const t=e.touches?e.touches[0]:e;return{x:t.clientX-r.left,y:t.clientY-r.top}}c.onpointerdown=e=>{d=true;harTegnet=true;const p=gp(e);ctx.beginPath();ctx.moveTo(p.x,p.y)};c.onpointermove=e=>{if(!d)return;e.preventDefault();const p=gp(e);ctx.lineTo(p.x,p.y);ctx.stroke()};c.onpointerup=c.onpointerleave=()=>{if(d){d=false;if(harTegnet){window.ReactNativeWebView.postMessage(JSON.stringify({type:'signatur',dataUrl:c.toDataURL()}))}}};function tøm(){ctx.clearRect(0,0,c.width,c.height);harTegnet=false;window.ReactNativeWebView.postMessage(JSON.stringify({type:'tøm'}))}</script></body></html>`;
+
+function PsiSignaturFelt({ verdi, onEndre }: { verdi: string | null; onEndre: (v: string | null) => void }) {
+  const håndterMelding = useCallback((e: WebViewMessageEvent) => {
+    try {
+      const data = JSON.parse(e.nativeEvent.data);
+      if (data.type === "signatur") onEndre(data.dataUrl);
+      if (data.type === "tøm") onEndre(null);
+    } catch { /* ignorer */ }
+  }, [onEndre]);
+
+  return (
+    <View className="overflow-hidden rounded-lg border border-gray-300 bg-white">
+      <WebView
+        source={{ html: PSI_SIGNATUR_HTML }}
+        style={{ height: 240 }}
+        scrollEnabled={false}
+        onMessage={håndterMelding}
+        javaScriptEnabled
+      />
+    </View>
   );
 }
 
