@@ -128,6 +128,7 @@ export default function PsiLeser() {
 
   const gjeldendeSeksjon = seksjoner[aktivSeksjon];
   const erSignaturSeksjon = gjeldendeSeksjon?.harSignatur ?? false;
+  const [innholdKortNok, setInnholdKortNok] = useState(false);
 
   const kanGåVidere = useMemo(() => {
     if (!gjeldendeSeksjon) return false;
@@ -138,8 +139,8 @@ export default function PsiLeser() {
       return gjeldendeSeksjon.objekter.filter((o) => o.type === "video").every((o) => feltVerdier[o.id] === "watched");
     }
     if (erSignaturSeksjon) return !!signaturData;
-    return harScrolletTilBunn;
-  }, [gjeldendeSeksjon, feltVerdier, harScrolletTilBunn, signaturData, erSignaturSeksjon]);
+    return harScrolletTilBunn || innholdKortNok;
+  }, [gjeldendeSeksjon, feltVerdier, harScrolletTilBunn, innholdKortNok, signaturData, erSignaturSeksjon]);
 
   const gåTilNeste = useCallback(async () => {
     if (!signaturId) return;
@@ -161,14 +162,20 @@ export default function PsiLeser() {
     oppdaterMut.mutate({ signaturId, progress: nySeksjon, data: feltVerdier as Record<string, unknown> });
     setAktivSeksjon(nySeksjon);
     setHarScrolletTilBunn(false);
-    scrollRef.current?.scrollTo({ y: 0, animated: false });
+    setInnholdKortNok(false);
+    scrollRef.current?.scrollTo({ y: 0, animated: true });
   }, [signaturId, aktivSeksjon, seksjonFullfort, erSignaturSeksjon, signaturData, feltVerdier, fullforMut, oppdaterMut]);
 
   const onScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
+    // Innhold passer uten scroll → tillat videre direkte
+    if (contentSize.height <= layoutMeasurement.height + 50) {
+      if (!innholdKortNok) setInnholdKortNok(true);
+      return;
+    }
     const erNærBunn = layoutMeasurement.height + contentOffset.y >= contentSize.height - 50;
     if (erNærBunn && !harScrolletTilBunn) setHarScrolletTilBunn(true);
-  }, [harScrolletTilBunn]);
+  }, [harScrolletTilBunn, innholdKortNok]);
 
   const settFeltVerdi = useCallback((objektId: string, verdi: unknown) => {
     setFeltVerdier((prev) => ({ ...prev, [objektId]: verdi }));

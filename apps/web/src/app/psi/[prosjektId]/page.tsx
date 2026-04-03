@@ -336,6 +336,8 @@ function PsiGjennomforing({
   const seksjon = seksjoner[aktivSeksjon];
   const erSignatur = seksjon?.harSignatur ?? false;
 
+  const [innholdKortNok, setInnholdKortNok] = useState(false);
+
   // Kan gå videre?
   const kanVidere = useMemo(() => {
     if (!seksjon) return false;
@@ -346,20 +348,29 @@ function PsiGjennomforing({
       return seksjon.objekter.filter((o) => o.type === "video").every((o) => feltVerdier[o.id] === "watched");
     }
     if (erSignatur) return !!signaturBilde;
-    return harScrolletNed;
-  }, [seksjon, feltVerdier, harScrolletNed, signaturBilde, erSignatur]);
+    // Tekst/bilder: tillat videre hvis innholdet er kort nok eller scrollet til bunn
+    return harScrolletNed || innholdKortNok;
+  }, [seksjon, feltVerdier, harScrolletNed, innholdKortNok, signaturBilde, erSignatur]);
 
-  // Scroll-tracking
+  // Scroll-tracking + sjekk om innholdet er kort nok
   useEffect(() => {
     const el = innholdRef.current;
     if (!el) return;
+    // Sjekk umiddelbart om innholdet passer uten scroll
+    const sjekkHøyde = () => {
+      if (el.scrollHeight <= el.clientHeight + 50) {
+        setInnholdKortNok(true);
+      }
+    };
+    // Vent litt på at innholdet rendres
+    const timer = setTimeout(sjekkHøyde, 100);
     const handler = () => {
       if (el.scrollTop + el.clientHeight >= el.scrollHeight - 50) {
         setHarScrolletNed(true);
       }
     };
     el.addEventListener("scroll", handler);
-    return () => el.removeEventListener("scroll", handler);
+    return () => { el.removeEventListener("scroll", handler); clearTimeout(timer); };
   }, [aktivSeksjon]);
 
   const neste = useCallback(async () => {
@@ -380,7 +391,8 @@ function PsiGjennomforing({
     oppdaterMut.mutate({ signaturId, progress: ny, data: feltVerdier as Record<string, unknown> });
     setAktivSeksjon(ny);
     setHarScrolletNed(false);
-    innholdRef.current?.scrollTo({ top: 0 });
+    setInnholdKortNok(false);
+    innholdRef.current?.scrollTo({ top: 0, behavior: "smooth" });
   }, [fullforte, aktivSeksjon, erSignatur, signaturBilde, signaturId, feltVerdier, fullforMut, oppdaterMut]);
 
   if (seksjoner.length === 0) return <div className="p-8 text-center text-gray-500">Ingen innhold</div>;
