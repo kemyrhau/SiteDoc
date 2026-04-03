@@ -64,6 +64,9 @@ Tre-kolonne layout (skjules på mobil < 768px, hamburger-meny i Toppbar):
 /dashbord/oppsett/field/oppgavemaler          -> Oppgavemaler
 /dashbord/oppsett/field/sjekklistemaler       -> Sjekklistemaler
 /dashbord/oppsett/field/moduler               -> Forhåndsdefinerte mal-pakker
+/dashbord/oppsett/field/psi                  -> PSI-oppsett: velg mal, krev ny signering, QR-plakat, bytt mal, veiledning
+/dashbord/[prosjektId]/psi                   -> PSI-dashboard: signaturoversikt (fullført/pågår/utdatert), filtrering, tabell
+/psi/[prosjektId]                            -> Offentlig PSI-leser for gjester (QR): registrering → seksjoner → quiz → signatur
 /dashbord/oppsett/field/box                   -> Mappeoppsett: tre-visning, kontekstmeny (ny undermappe, rediger tilgang, gi nytt navn, koble til kontrakt, slett). Mapper koblet til kontrakt viser blått ikon + kontraktnavn
 /dashbord/oppsett/prosjektoppsett             -> Prosjektoppsett
 /dashbord/oppsett/firma                       -> Firmainnstillinger

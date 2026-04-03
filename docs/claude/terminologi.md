@@ -49,3 +49,8 @@
 - **Lag 3 (Arbeider→firma):** Auto-oversetter fritekst ved lagring. Original bevares i `.original`
 - **TranslationCache:** SHA-256 hash-basert cache for oversettelser. Unngår gjentatte API-kall
 - **forbedreOversettelse:** Admin kan manuelt redigere eller re-oversette med bedre motor (DeepL)
+- **PSI (Prosjektspesifikk Sikkerhetsinstruks):** Personlig sikkerhetsgjennomgang som alle arbeidere må fullføre. Bygges i malbygger, gjennomføres via QR. Inneholder lesetekst, bilder, video, quiz og signatur. Kategori `"psi"` (ikke `"sjekkliste"`). Modell: `Psi` + `PsiSignatur`
+- **Lesetekst (`info_text`):** Ikke-redigerbar tekst for instruksjoner. Config: `content`
+- **Instruksjonsbilde (`info_image`):** Bilde med valgfri caption. Config: `imageUrl`, `caption`
+- **Video (`video`):** Video-avspilling (WebView). Config: `url`
+- **Quiz (`quiz`):** Flervalg med riktig svar. Config: `question`, `options[]`, `correctIndex`

@@ -19,7 +19,7 @@
 | `point_clouds` | Punktskyer med `potreeUrl` (konvertert octree), `hasClassification`, `hasRgb`, `classifications` (JSON), `boundingBox` (JSON), asynkron konvertering via CloudCompare+PotreeConverter |
 | `drawing_revisions` | Revisjonshistorikk for tegninger med fil, status og hvem som lastet opp |
 | `report_templates` | Maler med category (oppgave/sjekkliste), prefix, versjon, `domain` (bygg/hms/kvalitet, default "bygg"), `subjects` (JSON-array), `enable_change_log` (Boolean, default false) |
-| `report_objects` | Rapportobjekter i maler (23 typer, JSON-konfig), rekursiv nesting via `parent_id` |
+| `report_objects` | Rapportobjekter i maler (27 typer inkl. PSI: info_text, info_image, video, quiz), rekursiv nesting via `parent_id` |
 | `checklists` | Sjekklister med oppretter/svarer-entreprise, status, data (JSON) |
 | `tasks` | Oppgaver med påkrevd mal (`template_id`), prefiks+løpenummer (`number`), prioritet, frist, oppretter/svarer, utfylt data (`data` JSON), valgfri tegningsposisjon og sjekkliste-kobling |
 | `document_transfers` | Sporbarhet: all sending mellom entrepriser |
@@ -35,6 +35,8 @@
 | `project_invitations` | E-postinvitasjoner med token, status, utløpsdato |
 | `group_enterprises` | Mange-til-mange mellom `project_groups` og `enterprises` |
 | `project_modules` | Aktiverte moduler per prosjekt |
+| `psi` | Prosjektspesifikk Sikkerhetsinstruks. Én per prosjekt+bygning (buildingId valgfri). Peker til ReportTemplate, versjonering for ny signering. category = "psi" (ikke "sjekkliste") |
+| `psi_signaturer` | Personlig PSI-gjennomføring. Innlogget bruker (userId) ELLER gjest (guestName/guestCompany/guestPhone). Progresjon, quiz-data, signatur (base64), completedAt. Unique: (psiId, userId) |
 | `organizations` | Firmaer/organisasjoner med navn, org.nr, fakturaadresse, logo |
 | `organization_projects` | Mange-til-mange mellom organisasjoner og prosjekter |
 | `ftd_kontrakter` | Overliggende kontrakt: Byggherre → Entreprenør. Felter: navn, kontraktType (8405/8406/8407), byggherre, entreprenor, buildingId (valgfri), hmsSamordningsgruppe. Entrepriser og dokumenter kobles via kontraktId |

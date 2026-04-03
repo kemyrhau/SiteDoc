@@ -117,6 +117,23 @@ Sjekkliste-/oppgave-detaljskjermen har kontekstuelle statusknapper i bunnpanelet
 
 **Viktig:** `@expo/ngrok` (v2) er fjernet. Vi bruker systeminstallert ngrok v3 (`brew install ngrok`).
 
+## PSI (Prosjektspesifikk Sikkerhetsinstruks)
+
+**Skjerm:** `apps/mobile/app/psi/[prosjektId].tsx` — Presentasjonsmodus
+
+PSI er en personlig sikkerhetsgjennomgang, IKKE en sjekkliste. Gjennomføres via QR-kode eller innboks-lenke.
+
+**Flyt:** Seksjon-for-seksjon progresjon → quiz → signatur → fullført
+- Seksjoner basert på `heading`-objekter i malen
+- Tekst/bilder: scroll til bunnen for å gå videre
+- Video: må ses ferdig (WebView HTML5 video)
+- Quiz: må svare riktig
+- Signatur: siste seksjon
+
+**Nye rapportobjekter:** `info_text`, `info_image`, `video` (WebView), `quiz`
+
+**Viktig:** PSI-maler har `category = "psi"` — IKKE `"sjekkliste"`. Skal ALDRI vises i sjekkliste-opprettelsesdialogen.
+
 ## Flerspråklig (i18n)
 
 **Oppsett:** i18next + react-i18next, gjenbruker JSON-filer fra `packages/shared/src/i18n/` (14 språk, ~690 nøkler).
