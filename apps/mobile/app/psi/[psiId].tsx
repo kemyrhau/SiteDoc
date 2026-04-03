@@ -15,7 +15,6 @@ import { trpc } from "../../src/lib/trpc";
 import { useAuth } from "../../src/providers/AuthProvider";
 import { RapportObjektRenderer, DISPLAY_TYPER } from "../../src/components/rapportobjekter/RapportObjektRenderer";
 import { SignaturObjekt } from "../../src/components/rapportobjekter/SignaturObjekt";
-import { STOETTEDE_SPRAAK } from "@sitedoc/shared";
 import { useOversettelse } from "../../src/hooks/useOversettelse";
 
 interface SeksjonData {
@@ -27,7 +26,7 @@ interface SeksjonData {
 }
 
 export default function PsiLeser() {
-  const { prosjektId } = useLocalSearchParams<{ prosjektId: string }>();
+  const { psiId } = useLocalSearchParams<{ psiId: string }>();
   const { bruker } = useAuth();
   const brukerSpraak = bruker?.language ?? "nb";
 
@@ -38,7 +37,13 @@ export default function PsiLeser() {
   const scrollRef = useRef<ScrollView>(null);
   const [harScrolletTilBunn, setHarScrolletTilBunn] = useState(false);
 
-  // Hent eller start gjennomføring
+  // Hent PSI med malobjekter
+  const { data: psi, isLoading: psiLaster } = trpc.psi.hentMedObjekter.useQuery(
+    { psiId: psiId ?? "" },
+    { enabled: !!psiId },
+  );
+
+  // Start gjennomføring
   const startMut = trpc.psi.startGjennomforing.useMutation();
   const oppdaterMut = trpc.psi.oppdaterProgresjon.useMutation();
   const fullforMut = trpc.psi.fullfør.useMutation({
@@ -49,17 +54,12 @@ export default function PsiLeser() {
     },
   });
 
-  // Hent PSI data
-  const { data: psi, isLoading: psiLaster } = trpc.psi.hentForProsjekt.useQuery(
-    { projectId: prosjektId ?? "" },
-    { enabled: !!prosjektId },
-  );
-
   // Oversettelse av PSI-innhold (Lag 2)
+  const prosjektId = (psi as unknown as { projectId?: string })?.projectId;
   const psiKildesprak = (psi as unknown as { template?: { project?: { sourceLanguage?: string } } })?.template?.project?.sourceLanguage;
   const psiObjekter = (psi?.template as unknown as { objects?: Array<{ id: string; label: string; config: Record<string, unknown> }> })?.objects ?? [];
   const {
-    oversettelser,
+    oversettelser: _oversettelser,
     laster: oversettelseLaster,
     visOversettKnapp,
     oversettAlt,
@@ -70,15 +70,14 @@ export default function PsiLeser() {
   const harStartet = useRef(false);
 
   const startPsi = useCallback(async () => {
-    if (harStartet.current || !prosjektId) return;
+    if (harStartet.current || !psiId) return;
     harStartet.current = true;
     try {
       const resultat = await startMut.mutateAsync({
-        projectId: prosjektId,
+        psiId,
         language: brukerSpraak,
       });
       setSignaturId(resultat.signaturId);
-      // Gjenopprett progresjon
       if (resultat.progresjon > 0) {
         setAktivSeksjon(resultat.progresjon);
         const fullførte = new Set<number>();
@@ -86,9 +85,9 @@ export default function PsiLeser() {
         setSeksjonFullfort(fullførte);
       }
     } catch (_err) {
-      // Ignorer — bruker ser loading
+      // Ignorer
     }
-  }, [prosjektId, brukerSpraak, startMut]);
+  }, [psiId, brukerSpraak, startMut]);
 
   // Start automatisk når PSI er lastet
   if (psi && !signaturId && !startMut.isPending) {
@@ -103,7 +102,6 @@ export default function PsiLeser() {
       config: Record<string, unknown>; sortOrder: number; parentId: string | null;
     }> }).objects;
 
-    // Filtrer ut rot-objekter (ikke barn)
     const rotObjekter = objekter.filter((o) => !o.parentId);
     const result: SeksjonData[] = [];
     let gjeldende: SeksjonData | null = null;
@@ -111,13 +109,7 @@ export default function PsiLeser() {
     for (const obj of rotObjekter) {
       if (obj.type === "heading") {
         if (gjeldende) result.push(gjeldende);
-        gjeldende = {
-          tittel: obj.label,
-          objekter: [],
-          harQuiz: false,
-          harVideo: false,
-          harSignatur: false,
-        };
+        gjeldende = { tittel: obj.label, objekter: [], harQuiz: false, harVideo: false, harSignatur: false };
       } else {
         if (!gjeldende) {
           gjeldende = { tittel: "Introduksjon", objekter: [], harQuiz: false, harVideo: false, harSignatur: false };
@@ -133,43 +125,27 @@ export default function PsiLeser() {
   }, [psi]);
 
   const gjeldendeSeksjon = seksjoner[aktivSeksjon];
-  const erSisteSeksjon = aktivSeksjon === seksjoner.length - 1;
   const erSignaturSeksjon = gjeldendeSeksjon?.harSignatur ?? false;
 
-  // Sjekk om seksjonen kan fullføres
   const kanGåVidere = useMemo(() => {
     if (!gjeldendeSeksjon) return false;
-
-    // Quiz: alle quiz-felter må ha riktig svar
     if (gjeldendeSeksjon.harQuiz) {
-      const quizObjekter = gjeldendeSeksjon.objekter.filter((o) => o.type === "quiz");
-      return quizObjekter.every((o) => feltVerdier[o.id] !== undefined);
+      return gjeldendeSeksjon.objekter.filter((o) => o.type === "quiz").every((o) => feltVerdier[o.id] !== undefined);
     }
-
-    // Video: må ha sett ferdig
     if (gjeldendeSeksjon.harVideo) {
-      const videoObjekter = gjeldendeSeksjon.objekter.filter((o) => o.type === "video");
-      return videoObjekter.every((o) => feltVerdier[o.id] === "watched");
+      return gjeldendeSeksjon.objekter.filter((o) => o.type === "video").every((o) => feltVerdier[o.id] === "watched");
     }
-
-    // Signatur: må ha signert
-    if (erSignaturSeksjon) {
-      return !!signaturData;
-    }
-
-    // Tekst/bilder: scroll til bunn
+    if (erSignaturSeksjon) return !!signaturData;
     return harScrolletTilBunn;
   }, [gjeldendeSeksjon, feltVerdier, harScrolletTilBunn, signaturData, erSignaturSeksjon]);
 
   const gåTilNeste = useCallback(async () => {
     if (!signaturId) return;
-
     const nyeFullførte = new Set(seksjonFullfort);
     nyeFullførte.add(aktivSeksjon);
     setSeksjonFullfort(nyeFullførte);
 
     if (erSignaturSeksjon && signaturData) {
-      // Fullfør PSI
       await fullforMut.mutateAsync({
         signaturId,
         signatureData: signaturData,
@@ -178,33 +154,23 @@ export default function PsiLeser() {
       return;
     }
 
-    // Lagre progresjon
     const nySeksjon = aktivSeksjon + 1;
-    oppdaterMut.mutate({
-      signaturId,
-      progress: nySeksjon,
-      data: feltVerdier as Record<string, unknown>,
-    });
-
+    oppdaterMut.mutate({ signaturId, progress: nySeksjon, data: feltVerdier as Record<string, unknown> });
     setAktivSeksjon(nySeksjon);
     setHarScrolletTilBunn(false);
     scrollRef.current?.scrollTo({ y: 0, animated: false });
   }, [signaturId, aktivSeksjon, seksjonFullfort, erSignaturSeksjon, signaturData, feltVerdier, fullforMut, oppdaterMut]);
 
-  // Scroll-tracking
   const onScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
     const erNærBunn = layoutMeasurement.height + contentOffset.y >= contentSize.height - 50;
-    if (erNærBunn && !harScrolletTilBunn) {
-      setHarScrolletTilBunn(true);
-    }
+    if (erNærBunn && !harScrolletTilBunn) setHarScrolletTilBunn(true);
   }, [harScrolletTilBunn]);
 
   const settFeltVerdi = useCallback((objektId: string, verdi: unknown) => {
     setFeltVerdier((prev) => ({ ...prev, [objektId]: verdi }));
   }, []);
 
-  // Loading
   if (psiLaster || !psi) {
     return (
       <SafeAreaView className="flex-1 bg-white">
@@ -229,10 +195,9 @@ export default function PsiLeser() {
 
   return (
     <SafeAreaView className="flex-1 bg-white">
-      {/* Header med progresjon + oversettelse */}
       <Header
         onTilbake={() => router.back()}
-        tittel={psi.template.name}
+        tittel={(psi.template as unknown as { name: string }).name}
         ekstra={visOversettKnapp ? (
           <TouchableOpacity
             onPress={oversettAlt}
@@ -253,11 +218,7 @@ export default function PsiLeser() {
           <View
             key={i}
             className={`mx-0.5 h-1.5 flex-1 rounded-full ${
-              seksjonFullfort.has(i)
-                ? "bg-green-500"
-                : i === aktivSeksjon
-                  ? "bg-sitedoc-primary"
-                  : "bg-gray-200"
+              seksjonFullfort.has(i) ? "bg-green-500" : i === aktivSeksjon ? "bg-sitedoc-primary" : "bg-gray-200"
             }`}
           />
         ))}
@@ -265,12 +226,8 @@ export default function PsiLeser() {
 
       {/* Seksjonstittel */}
       <View className="border-b border-gray-100 px-4 py-3">
-        <Text className="text-xs text-gray-400">
-          {aktivSeksjon + 1} / {seksjoner.length}
-        </Text>
-        <Text className="mt-0.5 text-base font-semibold text-gray-900">
-          {gjeldendeSeksjon?.tittel}
-        </Text>
+        <Text className="text-xs text-gray-400">{aktivSeksjon + 1} / {seksjoner.length}</Text>
+        <Text className="mt-0.5 text-base font-semibold text-gray-900">{gjeldendeSeksjon?.tittel}</Text>
       </View>
 
       {/* Innhold */}
@@ -295,7 +252,6 @@ export default function PsiLeser() {
               </View>
             );
           }
-
           return (
             <RapportObjektRenderer
               key={objekt.id}
@@ -315,9 +271,7 @@ export default function PsiLeser() {
           disabled={!kanGåVidere || fullforMut.isPending}
           className={`flex-row items-center justify-center rounded-lg py-3 ${
             kanGåVidere
-              ? erSignaturSeksjon
-                ? "bg-green-600"
-                : "bg-sitedoc-primary"
+              ? erSignaturSeksjon ? "bg-green-600" : "bg-sitedoc-primary"
               : "bg-gray-200"
           }`}
         >

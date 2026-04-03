@@ -1,11 +1,11 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { Spinner, Card } from "@sitedoc/ui";
-import { ShieldCheck, CheckCircle, Clock, AlertTriangle, Users } from "lucide-react";
+import { ShieldCheck, CheckCircle, Clock, AlertTriangle, Users, Building2, Globe } from "lucide-react";
 
 type Filter = "alle" | "fullfort" | "paagaar" | "utdatert";
 
@@ -13,13 +13,28 @@ export default function PsiDashboardSide() {
   const { t } = useTranslation();
   const params = useParams<{ prosjektId: string }>();
   const [filter, setFilter] = useState<Filter>("alle");
+  const [valgtPsiId, setValgtPsiId] = useState<string | null>(null);
 
-  const { data, isLoading } = trpc.psi.hentSignaturer.useQuery(
+  // Hent alle PSI-er for prosjektet
+  const { data: psiListe, isLoading: psiLaster } = trpc.psi.hentForProsjekt.useQuery(
     { projectId: params.prosjektId },
     { enabled: !!params.prosjektId },
   );
 
-  if (isLoading) {
+  type PsiRad = NonNullable<typeof psiListe>[number];
+
+  // Velg første PSI som default
+  const aktivPsiId = valgtPsiId ?? (psiListe as PsiRad[] | undefined)?.[0]?.id ?? null;
+
+  // Hent signaturer for valgt PSI
+  const { data, isLoading: sigLaster } = trpc.psi.hentSignaturer.useQuery(
+    { psiId: aktivPsiId! },
+    { enabled: !!aktivPsiId },
+  );
+
+  const isLoading = psiLaster || (sigLaster && !!aktivPsiId);
+
+  if (psiLaster) {
     return (
       <div className="flex flex-1 items-center justify-center">
         <Spinner size="lg" />
@@ -27,22 +42,24 @@ export default function PsiDashboardSide() {
     );
   }
 
-  if (!data || data.versjon === 0) {
+  if (!psiListe || (psiListe as PsiRad[]).length === 0) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-3 px-4">
         <ShieldCheck className="h-12 w-12 text-gray-300" />
-        <p className="text-sm text-gray-500">Ingen PSI er opprettet for dette prosjektet.</p>
+        <p className="text-sm text-gray-500">{t("psi.ingenPsi")}</p>
         <a
-          href={`/dashbord/oppsett/field/psi`}
+          href="/dashbord/oppsett/field/psi"
           className="text-sm text-sitedoc-primary hover:underline"
         >
-          Gå til PSI-oppsett
+          {t("psi.gaaTilOppsett")}
         </a>
       </div>
     );
   }
 
-  const { signaturer, versjon } = data;
+  const harFlerePsi = (psiListe as PsiRad[]).length > 1;
+  const signaturer = data?.signaturer ?? [];
+  const versjon = data?.versjon ?? 0;
 
   const fullforte = signaturer.filter((s) => s.fullfort && s.gjeldende);
   const paagaar = signaturer.filter((s) => !s.fullfort);
@@ -64,110 +81,142 @@ export default function PsiDashboardSide() {
           <div className="flex items-center gap-3">
             <ShieldCheck className="h-7 w-7 text-sitedoc-primary" />
             <div>
-              <h1 className="text-xl font-bold text-gray-900">PSI — Signaturoversikt</h1>
-              <p className="text-sm text-gray-500">Versjon {versjon}</p>
+              <h1 className="text-xl font-bold text-gray-900">{t("psi.signaturoversikt")}</h1>
+              {aktivPsiId && <p className="text-sm text-gray-500">{t("psi.versjon")} {versjon}</p>}
             </div>
           </div>
           <a
-            href={`/dashbord/oppsett/field/psi`}
+            href="/dashbord/oppsett/field/psi"
             className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
           >
-            Oppsett
+            {t("nav.oppsett")}
           </a>
         </div>
 
-        {/* Statistikk */}
-        <div className="mb-6 grid grid-cols-4 gap-3">
-          <StatKort
-            ikon={<Users className="h-5 w-5 text-gray-500" />}
-            tall={signaturer.length}
-            label="Totalt"
-            aktiv={filter === "alle"}
-            onClick={() => setFilter("alle")}
-          />
-          <StatKort
-            ikon={<CheckCircle className="h-5 w-5 text-green-500" />}
-            tall={fullforte.length}
-            label="Fullført"
-            aktiv={filter === "fullfort"}
-            onClick={() => setFilter("fullfort")}
-          />
-          <StatKort
-            ikon={<Clock className="h-5 w-5 text-amber-500" />}
-            tall={paagaar.length}
-            label="Pågår"
-            aktiv={filter === "paagaar"}
-            onClick={() => setFilter("paagaar")}
-          />
-          <StatKort
-            ikon={<AlertTriangle className="h-5 w-5 text-red-400" />}
-            tall={utdaterte.length}
-            label="Utdatert"
-            aktiv={filter === "utdatert"}
-            onClick={() => setFilter("utdatert")}
-          />
-        </div>
+        {/* Bygnings-tabs (kun hvis flere PSI) */}
+        {harFlerePsi && (
+          <div className="mb-6 flex gap-2 overflow-x-auto">
+            {(psiListe as PsiRad[]).map((psi) => {
+              const erValgt = psi.id === aktivPsiId;
+              return (
+                <button
+                  key={psi.id}
+                  onClick={() => { setValgtPsiId(psi.id); setFilter("alle"); }}
+                  className={`flex items-center gap-1.5 whitespace-nowrap rounded-lg border px-3 py-2 text-sm transition-colors ${
+                    erValgt
+                      ? "border-sitedoc-primary bg-blue-50 font-medium text-sitedoc-primary"
+                      : "border-gray-200 text-gray-600 hover:bg-gray-50"
+                  }`}
+                >
+                  {psi.building ? (
+                    <><Building2 className="h-3.5 w-3.5" /> {psi.building.name}</>
+                  ) : (
+                    <><Globe className="h-3.5 w-3.5" /> {t("psi.heleProsjektet")}</>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        )}
 
-        {/* Tabell */}
-        {filtrert.length === 0 ? (
-          <div className="rounded-lg border border-gray-200 bg-gray-50 px-6 py-12 text-center text-sm text-gray-500">
-            Ingen signaturer å vise
-          </div>
+        {/* Statistikk */}
+        {sigLaster ? (
+          <div className="flex justify-center py-12"><Spinner size="lg" /></div>
         ) : (
-          <div className="overflow-hidden rounded-lg border border-gray-200">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-2.5 text-left font-medium text-gray-500">Navn</th>
-                  <th className="px-4 py-2.5 text-left font-medium text-gray-500">Firma</th>
-                  <th className="px-4 py-2.5 text-left font-medium text-gray-500">Type</th>
-                  <th className="px-4 py-2.5 text-left font-medium text-gray-500">Versjon</th>
-                  <th className="px-4 py-2.5 text-left font-medium text-gray-500">Status</th>
-                  <th className="px-4 py-2.5 text-left font-medium text-gray-500">Dato</th>
-                  <th className="px-4 py-2.5 text-left font-medium text-gray-500">Språk</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {filtrert.map((s) => (
-                  <tr key={s.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-2.5 font-medium text-gray-900">{s.brukerNavn}</td>
-                    <td className="px-4 py-2.5 text-gray-600">{s.firma ?? s.brukerEpost ?? "—"}</td>
-                    <td className="px-4 py-2.5">
-                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                        s.erGjest ? "bg-amber-100 text-amber-700" : "bg-blue-100 text-blue-700"
-                      }`}>
-                        {s.erGjest ? "Gjest" : "Bruker"}
-                      </span>
-                    </td>
-                    <td className="px-4 py-2.5 text-gray-600">v{s.signertVersjon}</td>
-                    <td className="px-4 py-2.5">
-                      {s.fullfort && s.gjeldende && (
-                        <span className="flex items-center gap-1 text-green-600">
-                          <CheckCircle className="h-3.5 w-3.5" /> Signert
-                        </span>
-                      )}
-                      {s.fullfort && !s.gjeldende && (
-                        <span className="flex items-center gap-1 text-red-500">
-                          <AlertTriangle className="h-3.5 w-3.5" /> Utdatert
-                        </span>
-                      )}
-                      {!s.fullfort && (
-                        <span className="flex items-center gap-1 text-amber-500">
-                          <Clock className="h-3.5 w-3.5" /> Pågår ({s.progresjon})
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-4 py-2.5 text-gray-500">
-                      {s.fullfortDato
-                        ? new Date(s.fullfortDato).toLocaleDateString("nb-NO")
-                        : new Date(s.startetDato).toLocaleDateString("nb-NO")}
-                    </td>
-                    <td className="px-4 py-2.5 text-gray-500">{s.spraak}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <>
+            <div className="mb-6 grid grid-cols-4 gap-3">
+              <StatKort
+                ikon={<Users className="h-5 w-5 text-gray-500" />}
+                tall={signaturer.length}
+                label={t("psi.totalt")}
+                aktiv={filter === "alle"}
+                onClick={() => setFilter("alle")}
+              />
+              <StatKort
+                ikon={<CheckCircle className="h-5 w-5 text-green-500" />}
+                tall={fullforte.length}
+                label={t("psi.fullfort")}
+                aktiv={filter === "fullfort"}
+                onClick={() => setFilter("fullfort")}
+              />
+              <StatKort
+                ikon={<Clock className="h-5 w-5 text-amber-500" />}
+                tall={paagaar.length}
+                label={t("psi.paagaar")}
+                aktiv={filter === "paagaar"}
+                onClick={() => setFilter("paagaar")}
+              />
+              <StatKort
+                ikon={<AlertTriangle className="h-5 w-5 text-red-400" />}
+                tall={utdaterte.length}
+                label={t("psi.utdatert")}
+                aktiv={filter === "utdatert"}
+                onClick={() => setFilter("utdatert")}
+              />
+            </div>
+
+            {/* Tabell */}
+            {filtrert.length === 0 ? (
+              <div className="rounded-lg border border-gray-200 bg-gray-50 px-6 py-12 text-center text-sm text-gray-500">
+                Ingen signaturer å vise
+              </div>
+            ) : (
+              <div className="overflow-hidden rounded-lg border border-gray-200">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-2.5 text-left font-medium text-gray-500">Navn</th>
+                      <th className="px-4 py-2.5 text-left font-medium text-gray-500">Firma</th>
+                      <th className="px-4 py-2.5 text-left font-medium text-gray-500">Type</th>
+                      <th className="px-4 py-2.5 text-left font-medium text-gray-500">{t("psi.versjon")}</th>
+                      <th className="px-4 py-2.5 text-left font-medium text-gray-500">Status</th>
+                      <th className="px-4 py-2.5 text-left font-medium text-gray-500">Dato</th>
+                      <th className="px-4 py-2.5 text-left font-medium text-gray-500">{t("toppbar.spraak")}</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {filtrert.map((s) => (
+                      <tr key={s.id} className="hover:bg-gray-50">
+                        <td className="px-4 py-2.5 font-medium text-gray-900">{s.brukerNavn}</td>
+                        <td className="px-4 py-2.5 text-gray-600">{s.firma ?? s.brukerEpost ?? "—"}</td>
+                        <td className="px-4 py-2.5">
+                          <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                            s.erGjest ? "bg-amber-100 text-amber-700" : "bg-blue-100 text-blue-700"
+                          }`}>
+                            {s.erGjest ? "Gjest" : "Bruker"}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2.5 text-gray-600">v{s.signertVersjon}</td>
+                        <td className="px-4 py-2.5">
+                          {s.fullfort && s.gjeldende && (
+                            <span className="flex items-center gap-1 text-green-600">
+                              <CheckCircle className="h-3.5 w-3.5" /> {t("psi.signert")}
+                            </span>
+                          )}
+                          {s.fullfort && !s.gjeldende && (
+                            <span className="flex items-center gap-1 text-red-500">
+                              <AlertTriangle className="h-3.5 w-3.5" /> {t("psi.utdatert")}
+                            </span>
+                          )}
+                          {!s.fullfort && (
+                            <span className="flex items-center gap-1 text-amber-500">
+                              <Clock className="h-3.5 w-3.5" /> {t("psi.paagaar")} ({s.progresjon})
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-2.5 text-gray-500">
+                          {s.fullfortDato
+                            ? new Date(s.fullfortDato).toLocaleDateString("nb-NO")
+                            : new Date(s.startetDato).toLocaleDateString("nb-NO")}
+                        </td>
+                        <td className="px-4 py-2.5 text-gray-500">{s.spraak}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

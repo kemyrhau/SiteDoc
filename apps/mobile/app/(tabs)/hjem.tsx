@@ -20,6 +20,7 @@ import {
   ListTodo,
   AlertTriangle,
   RefreshCw,
+  ShieldCheck,
 } from "lucide-react-native";
 import { useQueryClient } from "@tanstack/react-query";
 import { trpc } from "../../src/lib/trpc";
@@ -127,6 +128,19 @@ export default function HjemSkjerm() {
     if (!modulQuery.data) return false;
     return modulQuery.data.some((m: { moduleSlug: string; active: boolean }) => m.moduleSlug === "3d-visning" && m.active);
   }, [modulQuery.data]);
+
+  const erPsiAktiv = useMemo(() => {
+    if (!modulQuery.data) return false;
+    return modulQuery.data.some((m: { moduleSlug: string; active: boolean }) => m.moduleSlug === "psi" && m.active);
+  }, [modulQuery.data]);
+
+  // Hent PSI-er og status per PSI
+  const psiQuery = trpc.psi.hentForProsjekt.useQuery(
+    { projectId: valgtProsjektId! },
+    { enabled: !!valgtProsjektId && erPsiAktiv },
+  );
+  type PsiData = { id: string; version: number; buildingId: string | null; building: { id: string; name: string } | null; template: { id: string; name: string; prefix: string | null } };
+  const psiListe = (psiQuery.data ?? []) as PsiData[];
 
   // Sjekk om valgt bygning har IFC-modeller OG 3D-modulen er aktiv
   const harIfcModeller = useMemo(() => {
@@ -367,6 +381,11 @@ export default function HjemSkjerm() {
           </View>
         ) : (
           <>
+            {/* PSI-statuskort (over innboks) */}
+            {erPsiAktiv && psiListe.length > 0 && (
+              <PsiStatusKort psiListe={psiListe} />
+            )}
+
             {/* Innboks-seksjon */}
             <Pressable className="flex-row items-center justify-between border-b border-gray-200 bg-white px-4 py-3">
               <View className="flex-row items-center gap-2">
@@ -589,5 +608,57 @@ export default function HjemSkjerm() {
         }}
       />
     </SafeAreaView>
+  );
+}
+
+/* PSI-statuskort — viser signaturstatus per PSI */
+function PsiStatusKort({ psiListe }: { psiListe: Array<{ id: string; version: number; buildingId: string | null; building: { id: string; name: string } | null; template: { id: string; name: string; prefix: string | null } }> }) {
+  const router = useRouter();
+
+  return (
+    <View className="mx-4 mt-3 mb-2 rounded-xl border border-blue-200 bg-blue-50 p-3">
+      <View className="mb-2 flex-row items-center gap-2">
+        <ShieldCheck size={18} color="#1e40af" />
+        <Text className="text-sm font-semibold text-sitedoc-primary">PSI — Sikkerhetsinstruks</Text>
+      </View>
+      {psiListe.map((psi) => (
+        <PsiStatusRad key={psi.id} psi={psi} onPress={() => router.push(`/psi/${psi.id}`)} />
+      ))}
+    </View>
+  );
+}
+
+function PsiStatusRad({ psi, onPress }: {
+  psi: { id: string; version: number; buildingId: string | null; building: { id: string; name: string } | null };
+  onPress: () => void;
+}) {
+  const statusQuery = trpc.psi.hentMinStatus.useQuery({ psiId: psi.id });
+  const status = statusQuery.data;
+  const navn = psi.building?.name ?? "Hele prosjektet";
+
+  let farge = "bg-amber-100";
+  let tekst = "Ikke gjennomført";
+  let tekstFarge = "text-amber-700";
+
+  if (status?.signert && !status.utdatert) {
+    farge = "bg-green-100";
+    tekst = `Signert v${status.versjon}`;
+    tekstFarge = "text-green-700";
+  } else if (status?.utdatert) {
+    farge = "bg-red-100";
+    tekst = "Ny signering kreves";
+    tekstFarge = "text-red-600";
+  }
+
+  return (
+    <Pressable onPress={onPress} className="mt-1 flex-row items-center justify-between rounded-lg bg-white px-3 py-2.5">
+      <View className="flex-row items-center gap-2 flex-1">
+        <Text className="text-sm text-gray-900" numberOfLines={1}>{navn}</Text>
+        <View className={`rounded-full px-2 py-0.5 ${farge}`}>
+          <Text className={`text-xs font-medium ${tekstFarge}`}>{tekst}</Text>
+        </View>
+      </View>
+      <ChevronRight size={16} color="#9ca3af" />
+    </Pressable>
   );
 }

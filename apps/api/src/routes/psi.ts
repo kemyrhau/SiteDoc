@@ -269,4 +269,93 @@ export const psiRouter = router({
         data: { signatureData: input.signatureData, completedAt: new Date(), ...(input.data ? { data: input.data as object } : {}) },
       });
     }),
+
+  // Offentlig: hent PSI-er for prosjekt (gjestesiden — bygningsvalg)
+  hentForProsjektPublic: publicProcedure
+    .input(z.object({ projectId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      return ctx.prisma.psi.findMany({
+        where: { projectId: input.projectId, active: true },
+        include: {
+          template: { select: { id: true, name: true, prefix: true } },
+          building: { select: { id: true, name: true } },
+        },
+        orderBy: { createdAt: "asc" },
+      });
+    }),
+
+  // Kopier PSI til annen bygning (deep copy av mal + rapportobjekter)
+  kopier: protectedProcedure
+    .input(z.object({
+      psiId: z.string().uuid(),
+      targetBuildingId: z.string().uuid(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const kildePsi = await ctx.prisma.psi.findUniqueOrThrow({
+        where: { id: input.psiId },
+        include: {
+          template: { include: { objects: { orderBy: { sortOrder: "asc" } } } },
+          building: { select: { name: true } },
+        },
+      });
+
+      const medlem = await ctx.prisma.projectMember.findFirst({
+        where: { userId: ctx.userId, projectId: kildePsi.projectId, role: "admin" },
+      });
+      if (!medlem) throw new TRPCError({ code: "FORBIDDEN" });
+
+      // Sjekk at målbygning ikke allerede har PSI
+      const eksisterende = await ctx.prisma.psi.findUnique({
+        where: { projectId_buildingId: { projectId: kildePsi.projectId, buildingId: input.targetBuildingId } },
+      });
+      if (eksisterende) throw new TRPCError({ code: "CONFLICT", message: "Bygningen har allerede en PSI" });
+
+      // Hent målbygnings navn
+      const målBygning = await ctx.prisma.building.findUniqueOrThrow({
+        where: { id: input.targetBuildingId },
+        select: { name: true },
+      });
+
+      // Deep copy av mal
+      const nyMal = await ctx.prisma.reportTemplate.create({
+        data: {
+          projectId: kildePsi.projectId,
+          name: `${kildePsi.template.name} — ${målBygning.name}`,
+          prefix: kildePsi.template.prefix,
+          category: "psi",
+          version: 1,
+        },
+      });
+
+      // Kopier rapportobjekter (flat — bevar parent_id-mapping)
+      const idMapping = new Map<string, string>();
+      for (const obj of kildePsi.template.objects) {
+        const nyttObj = await ctx.prisma.reportObject.create({
+          data: {
+            templateId: nyMal.id,
+            type: obj.type,
+            label: obj.label,
+            config: obj.config as object ?? {},
+            required: obj.required,
+            sortOrder: obj.sortOrder,
+            parentId: obj.parentId ? idMapping.get(obj.parentId) ?? null : null,
+          },
+        });
+        idMapping.set(obj.id, nyttObj.id);
+      }
+
+      // Opprett PSI for målbygning
+      return ctx.prisma.psi.create({
+        data: {
+          projectId: kildePsi.projectId,
+          buildingId: input.targetBuildingId,
+          templateId: nyMal.id,
+          version: 1,
+        },
+        include: {
+          template: { select: { id: true, name: true, prefix: true } },
+          building: { select: { id: true, name: true } },
+        },
+      });
+    }),
 });

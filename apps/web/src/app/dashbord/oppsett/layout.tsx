@@ -62,6 +62,7 @@ const navigasjon: NavElement[] = [
       { labelKey: "oppsett.moduler", href: "/dashbord/oppsett/field/moduler" },
       { labelKey: "oppsett.kontrollplan", href: "/dashbord/oppsett/field/kontrollplaner" },
       { labelKey: "oppsett.mappeoppsett", href: "/dashbord/oppsett/field/box" },
+      { labelKey: "nav.psi", href: "/dashbord/oppsett/field/psi", skjult: true },
     ],
   },
   {
@@ -106,6 +107,12 @@ export default function OppsettLayout({
     { enabled: !!prosjektId },
   );
 
+  const { data: moduler } = trpc.modul.hentForProsjekt.useQuery(
+    { projectId: prosjektId! },
+    { enabled: !!prosjektId },
+  );
+  const erPsiAktiv = moduler?.some((m: { moduleSlug: string; active: boolean }) => m.moduleSlug === "psi" && m.active) ?? false;
+
   const harFirmaTilgang = !!prosjektFirma || !!erAdmin;
 
   const filtrertNavigasjon = navigasjon
@@ -119,6 +126,9 @@ export default function OppsettLayout({
       const filtrerBarn = element.barn.filter((barn) => {
         if (barn.href === "/dashbord/oppsett/firma") {
           return harFirmaTilgang;
+        }
+        if (barn.href === "/dashbord/oppsett/field/psi") {
+          return erPsiAktiv;
         }
         return !barn.skjult;
       });

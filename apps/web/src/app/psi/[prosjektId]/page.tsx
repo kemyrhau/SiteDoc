@@ -37,8 +37,9 @@ export default function PsiGjestSide() {
   const params = useParams<{ prosjektId: string }>();
   const prosjektId = params.prosjektId;
 
-  // Steg: registrering → gjennomføring → ferdig
-  const [steg, setSteg] = useState<"registrering" | "gjennomforing" | "ferdig">("registrering");
+  // Steg: bygningsvalg → registrering → gjennomføring → ferdig
+  const [steg, setSteg] = useState<"bygningsvalg" | "registrering" | "gjennomforing" | "ferdig">("bygningsvalg");
+  const [valgtPsiId, setValgtPsiId] = useState<string | null>(null);
   const [gjestNavn, setGjestNavn] = useState("");
   const [gjestFirma, setGjestFirma] = useState("");
   const [gjestTlf, setGjestTlf] = useState("");
@@ -46,6 +47,24 @@ export default function PsiGjestSide() {
   const [signaturId, setSignaturId] = useState<string | null>(null);
   const [malObjekter, setMalObjekter] = useState<Objekt[]>([]);
   const [malNavn, setMalNavn] = useState("");
+
+  // Hent PSI-er for bygningsvalg (public endpoint)
+  const { data: psiListe, isLoading: psiLaster } = trpc.psi.hentForProsjektPublic.useQuery(
+    { projectId: prosjektId },
+    { enabled: !!prosjektId },
+  );
+
+  type PsiPublic = NonNullable<typeof psiListe>[number];
+
+  // Auto-skip bygningsvalg hvis kun én PSI
+  useEffect(() => {
+    if (steg !== "bygningsvalg" || !psiListe) return;
+    const liste = psiListe as PsiPublic[];
+    if (liste.length === 1) {
+      setValgtPsiId(liste[0]!.id);
+      setSteg("registrering");
+    }
+  }, [psiListe, steg]);
 
   const guestStartMut = trpc.psi.guestStart.useMutation({
     onSuccess: (_data: unknown) => {
@@ -58,9 +77,9 @@ export default function PsiGjestSide() {
   });
 
   const startPsi = () => {
-    if (!gjestNavn.trim() || !gjestFirma.trim() || !prosjektId) return;
+    if (!gjestNavn.trim() || !gjestFirma.trim() || !valgtPsiId) return;
     guestStartMut.mutate({
-      projectId: prosjektId,
+      psiId: valgtPsiId,
       name: gjestNavn.trim(),
       company: gjestFirma.trim(),
       phone: gjestTlf.trim() || undefined,
@@ -89,6 +108,61 @@ export default function PsiGjestSide() {
         malNavn={malNavn}
         onFullfort={() => setSteg("ferdig")}
       />
+    );
+  }
+
+  // Bygningsvalg-skjerm (kun hvis >1 PSI)
+  if (steg === "bygningsvalg") {
+    if (psiLaster) {
+      return (
+        <div className="flex min-h-screen items-center justify-center bg-gray-50">
+          <Spinner size="lg" />
+        </div>
+      );
+    }
+    const liste = (psiListe ?? []) as PsiPublic[];
+    if (liste.length === 0) {
+      return (
+        <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 px-4">
+          <ShieldCheck className="h-12 w-12 text-gray-300" />
+          <p className="mt-3 text-gray-500">Ingen PSI er tilgjengelig for dette prosjektet.</p>
+        </div>
+      );
+    }
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 px-4">
+        <div className="w-full max-w-md">
+          <div className="mb-8 text-center">
+            <ShieldCheck className="mx-auto h-12 w-12 text-sitedoc-primary" />
+            <h1 className="mt-3 text-2xl font-bold text-gray-900">Sikkerhetsinstruks</h1>
+            <p className="mt-1 text-sm text-gray-500">Hvilken bygning skal du jobbe på?</p>
+          </div>
+          <div className="space-y-3">
+            {liste.map((psi) => (
+              <button
+                key={psi.id}
+                onClick={() => { setValgtPsiId(psi.id); setSteg("registrering"); }}
+                className="flex w-full items-center gap-3 rounded-xl border border-gray-200 bg-white px-5 py-4 text-left shadow-sm transition-colors hover:border-sitedoc-primary hover:bg-blue-50"
+              >
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100">
+                  {psi.building ? (
+                    <span className="text-lg">🏗️</span>
+                  ) : (
+                    <Globe className="h-5 w-5 text-gray-500" />
+                  )}
+                </div>
+                <div>
+                  <p className="font-semibold text-gray-900">
+                    {psi.building?.name ?? "Hele prosjektet"}
+                  </p>
+                  <p className="text-xs text-gray-500">{psi.template.name}</p>
+                </div>
+                <ChevronRight className="ml-auto h-5 w-5 text-gray-300" />
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
     );
   }
 
