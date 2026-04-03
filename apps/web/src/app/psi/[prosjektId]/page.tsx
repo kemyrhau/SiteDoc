@@ -343,18 +343,20 @@ function PsiGjennomforing({
 
   const [innholdKortNok, setInnholdKortNok] = useState(false);
 
-  // Kan gå videre?
+  // Kan gå videre? Sjekker ALLE krav i seksjonen (quiz + video + signatur kan kombineres)
   const kanVidere = useMemo(() => {
     if (!seksjon) return false;
+    let ok = true;
     if (seksjon.harQuiz) {
-      return seksjon.objekter.filter((o) => o.type === "quiz").every((o) => feltVerdier[o.id] !== undefined);
+      ok = ok && seksjon.objekter.filter((o) => o.type === "quiz").every((o) => feltVerdier[o.id] !== undefined);
     }
     if (seksjon.harVideo) {
-      return seksjon.objekter.filter((o) => o.type === "video").every((o) => feltVerdier[o.id] === "watched");
+      ok = ok && seksjon.objekter.filter((o) => o.type === "video").every((o) => feltVerdier[o.id] === "watched");
     }
-    if (erSignatur) return !!signaturBilde;
-    // Tekst/bilde-seksjoner: alltid tillat videre
-    return true;
+    if (erSignatur) {
+      ok = ok && !!signaturBilde;
+    }
+    return ok;
   }, [seksjon, feltVerdier, signaturBilde, erSignatur]);
 
   // Scroll-tracking + sjekk om innholdet er kort nok

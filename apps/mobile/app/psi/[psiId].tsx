@@ -132,15 +132,20 @@ export default function PsiLeser() {
 
   const kanGåVidere = useMemo(() => {
     if (!gjeldendeSeksjon) return false;
+    let ok = true;
+    // Quiz: alle quiz-felter besvart riktig
     if (gjeldendeSeksjon.harQuiz) {
-      return gjeldendeSeksjon.objekter.filter((o) => o.type === "quiz").every((o) => feltVerdier[o.id] !== undefined);
+      ok = ok && gjeldendeSeksjon.objekter.filter((o) => o.type === "quiz").every((o) => feltVerdier[o.id] !== undefined);
     }
+    // Video: alle sett ferdig
     if (gjeldendeSeksjon.harVideo) {
-      return gjeldendeSeksjon.objekter.filter((o) => o.type === "video").every((o) => feltVerdier[o.id] === "watched");
+      ok = ok && gjeldendeSeksjon.objekter.filter((o) => o.type === "video").every((o) => feltVerdier[o.id] === "watched");
     }
-    if (erSignaturSeksjon) return !!signaturData;
-    // Tekst/bilde-seksjoner: alltid tillat videre (innholdet er synlig)
-    return true;
+    // Signatur: må ha signert
+    if (erSignaturSeksjon) {
+      ok = ok && !!signaturData;
+    }
+    return ok;
   }, [gjeldendeSeksjon, feltVerdier, signaturData, erSignaturSeksjon]);
 
   const gåTilNeste = useCallback(async () => {
@@ -217,6 +222,7 @@ export default function PsiLeser() {
             router.back();
           }
         }}
+        onLukk={() => router.back()}
         tittel={(psi.template as unknown as { name: string }).name}
         ekstra={visOversettKnapp ? (
           <TouchableOpacity
@@ -339,7 +345,7 @@ export default function PsiLeser() {
   );
 }
 
-function Header({ onTilbake, tittel, ekstra }: { onTilbake: () => void; tittel: string; ekstra?: React.ReactNode }) {
+function Header({ onTilbake, onLukk, tittel, ekstra }: { onTilbake: () => void; onLukk: () => void; tittel: string; ekstra?: React.ReactNode }) {
   return (
     <View className="flex-row items-center border-b border-gray-200 px-3 py-2.5">
       <TouchableOpacity onPress={onTilbake} className="mr-2 rounded-lg p-1.5">
@@ -349,6 +355,17 @@ function Header({ onTilbake, tittel, ekstra }: { onTilbake: () => void; tittel: 
         {tittel}
       </Text>
       {ekstra}
+      <TouchableOpacity
+        onPress={() => {
+          Alert.alert("Avslutt PSI?", "Progresjonen din er lagret. Du kan fortsette senere.", [
+            { text: "Fortsett", style: "cancel" },
+            { text: "Avslutt", style: "destructive", onPress: onLukk },
+          ]);
+        }}
+        className="ml-2 rounded-lg p-1.5"
+      >
+        <Text className="text-xs font-medium text-gray-400">Lukk</Text>
+      </TouchableOpacity>
     </View>
   );
 }
