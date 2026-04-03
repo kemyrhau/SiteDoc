@@ -44,11 +44,10 @@ export const psiRouter = router({
       return psi;
     }),
 
-  // Opprett PSI (admin) — kan være prosjektnivå eller per bygning
+  // Opprett PSI (admin) — auto-oppretter mal med 8 seksjoner
   opprett: protectedProcedure
     .input(z.object({
       projectId: z.string().uuid(),
-      templateId: z.string().uuid(),
       buildingId: z.string().uuid().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
@@ -57,20 +56,94 @@ export const psiRouter = router({
       });
       if (!medlem) throw new TRPCError({ code: "FORBIDDEN", message: "Kun admin kan opprette PSI" });
 
-      // Sett category til "psi" slik at malen ikke dukker opp i sjekkliste-opprettelse
-      await ctx.prisma.reportTemplate.update({
-        where: { id: input.templateId },
-        data: { category: "psi" },
-      });
+      // Hent bygningsnavn for malnavn
+      let bygningNavn = "";
+      if (input.buildingId) {
+        const bygning = await ctx.prisma.building.findUnique({ where: { id: input.buildingId }, select: { name: true } });
+        bygningNavn = bygning?.name ? ` — ${bygning.name}` : "";
+      }
 
-      return ctx.prisma.psi.create({
+      // Auto-opprett mal med 8 PSI-seksjoner
+      const mal = await ctx.prisma.reportTemplate.create({
         data: {
           projectId: input.projectId,
-          buildingId: input.buildingId ?? null,
-          templateId: input.templateId,
+          name: `Sikkerhetsinstruks${bygningNavn}`,
+          prefix: "PSI",
+          category: "psi",
           version: 1,
         },
       });
+
+      // Ferdig strukturerte seksjoner iht. Byggherreforskriften
+      const seksjoner: Array<{ type: string; label: string; config?: object }[]> = [
+        [
+          { type: "heading", label: "1. Velkommen og prosjektinfo" },
+          { type: "info_text", label: "Prosjektinfo", config: { content: "Fyll inn prosjektnavn, adresse, byggherre, nøkkelpersoner (KU, HMS-ansvarlig) og kontaktinfo." } },
+        ],
+        [
+          { type: "heading", label: "2. Nødprosedyrer" },
+          { type: "info_text", label: "Nødprosedyrer", config: { content: "Fyll inn nødnummer (110/112/113), møteplass, evakueringsruter, plassering av førstehjelpsutstyr og AED." } },
+          { type: "info_image", label: "Evakueringskart", config: { imageUrl: "", caption: "Last opp evakueringskart" } },
+        ],
+        [
+          { type: "heading", label: "3. Verneutstyr (PPE)" },
+          { type: "info_text", label: "Verneutstyr", config: { content: "Fyll inn krav til verneutstyr. Alltid påkrevd: hjelm, vernesko, refleksvest, briller. Aktivitetsbasert: hørselsvern, fallsikring, åndedrettsvern." } },
+        ],
+        [
+          { type: "heading", label: "4. Rigg og adkomst" },
+          { type: "info_text", label: "Rigg og adkomst", config: { content: "Fyll inn informasjon om inngang/utgang, parkering, gangveier, besøksprosedyre og fartsgrense." } },
+        ],
+        [
+          { type: "heading", label: "5. Sikkerhetsregler" },
+          { type: "info_text", label: "Sikkerhetsregler", config: { content: "Fyll inn prosjektets sikkerhetsregler: rusmiddelpolitikk, arbeidstid, ryddighet, arbeid i høyden, varme arbeider, graving, avviksrapportering." } },
+        ],
+        [
+          { type: "heading", label: "6. Spesifikke risikoforhold" },
+          { type: "info_text", label: "Risikoforhold", config: { content: "Fyll inn prosjektspesifikke farer: kran, grøfter, asbest, trafikk, tunge løft. Bruk bilder!" } },
+          { type: "info_image", label: "Risikobilde", config: { imageUrl: "", caption: "Last opp bilde av risikoforhold" } },
+        ],
+        [
+          { type: "heading", label: "7. Video" },
+          { type: "video", label: "Sikkerhetsvideo", config: { url: "" } },
+        ],
+        [
+          { type: "heading", label: "8. Kontrollspørsmål + Signatur" },
+          { type: "quiz", label: "Spørsmål 1", config: { question: "Skriv inn spørsmål her", options: ["Alternativ A", "Alternativ B", "Alternativ C"], correctIndex: 0 } },
+          { type: "quiz", label: "Spørsmål 2", config: { question: "Skriv inn spørsmål her", options: ["Alternativ A", "Alternativ B", "Alternativ C"], correctIndex: 0 } },
+          { type: "signature", label: "Signatur" },
+        ],
+      ];
+
+      let sortOrder = 0;
+      for (const seksjon of seksjoner) {
+        for (const obj of seksjon) {
+          await ctx.prisma.reportObject.create({
+            data: {
+              templateId: mal.id,
+              type: obj.type,
+              label: obj.label,
+              config: obj.config ?? {},
+              required: obj.type === "signature" || obj.type === "quiz",
+              sortOrder: sortOrder++,
+            },
+          });
+        }
+      }
+
+      const psi = await ctx.prisma.psi.create({
+        data: {
+          projectId: input.projectId,
+          buildingId: input.buildingId ?? null,
+          templateId: mal.id,
+          version: 1,
+        },
+        include: {
+          template: { select: { id: true, name: true, prefix: true } },
+          building: { select: { id: true, name: true } },
+        },
+      });
+
+      return { ...psi, templateId: mal.id };
     }),
 
   // Bump versjon — krev ny signering

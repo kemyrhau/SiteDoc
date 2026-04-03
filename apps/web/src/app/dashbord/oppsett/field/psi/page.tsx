@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { trpc } from "@/lib/trpc";
@@ -24,6 +25,7 @@ export default function PsiOppsettSide() {
   const { t } = useTranslation();
   const { prosjektId } = useProsjekt();
   const utils = trpc.useUtils();
+  const router = useRouter();
 
   const { data: psiListe, isLoading } = trpc.psi.hentForProsjekt.useQuery(
     { projectId: prosjektId! },
@@ -41,7 +43,12 @@ export default function PsiOppsettSide() {
   );
 
   const opprettMut = trpc.psi.opprett.useMutation({
-    onSuccess: () => utils.psi.hentForProsjekt.invalidate(),
+    onSuccess: (_data: unknown) => {
+      const data = _data as { templateId: string };
+      utils.psi.hentForProsjekt.invalidate();
+      // Åpne malbygger for den nye PSI-malen
+      router.push(`/dashbord/oppsett/field/sjekklistemaler/${data.templateId}`);
+    },
   });
 
   const bumpMut = trpc.psi.bumpVersjon.useMutation({
@@ -391,60 +398,44 @@ export default function PsiOppsettSide() {
       ) : (
         <Card className="p-6">
           <h2 className="mb-2 text-base font-semibold text-gray-900">{t("psi.opprettNy")}</h2>
-          <p className="mb-4 text-sm text-gray-500">{t("psi.opprettBeskrivelse")}</p>
+          <p className="mb-4 text-sm text-gray-500">
+            En mal med 8 seksjoner opprettes automatisk. Du blir sendt til malbyggeren for å fylle inn innhold.
+          </p>
 
-          <div className="mb-4">
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t("psi.bygning")}</label>
-            <select
-              value={nyBygningId}
-              onChange={(e) => setNyBygningId(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-            >
-              <option value="" disabled={harProsjektnivaPsi}>
-                {t("psi.heleProsjektet")} {harProsjektnivaPsi ? `(${t("psi.bygningHarPsi")})` : ""}
-              </option>
-              {bygningsListe.map((b) => (
-                <option key={b.id} value={b.id} disabled={bygningerMedPsi.has(b.id)}>
-                  {b.name} {bygningerMedPsi.has(b.id) ? `(${t("psi.bygningHarPsi")})` : ""}
+          {bygningsListe.length > 0 && (
+            <div className="mb-4">
+              <label className="mb-1 block text-sm font-medium text-gray-700">{t("psi.bygning")}</label>
+              <select
+                value={nyBygningId}
+                onChange={(e) => setNyBygningId(e.target.value)}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+              >
+                <option value="" disabled={harProsjektnivaPsi}>
+                  {t("psi.heleProsjektet")} {harProsjektnivaPsi ? `(${t("psi.bygningHarPsi")})` : ""}
                 </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="mb-4">
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t("psi.velgMal")}</label>
-            <select
-              value={nyMalId}
-              onChange={(e) => setNyMalId(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-            >
-              <option value="">— {t("psi.velgMal")} —</option>
-              {tilgjengeligeMaler.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.prefix ? `${m.prefix} — ` : ""}{m.name}
-                </option>
-              ))}
-            </select>
-          </div>
+                {bygningsListe.map((b) => (
+                  <option key={b.id} value={b.id} disabled={bygningerMedPsi.has(b.id)}>
+                    {b.name} {bygningerMedPsi.has(b.id) ? `(${t("psi.bygningHarPsi")})` : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div className="flex gap-2">
             <Button
               onClick={() => {
-                if (!nyMalId || !prosjektId) return;
+                if (!prosjektId) return;
                 opprettMut.mutate({
                   projectId: prosjektId,
-                  templateId: nyMalId,
                   ...(nyBygningId ? { buildingId: nyBygningId } : {}),
                 });
-                setVisOpprettSkjema(false);
-                setNyMalId("");
-                setNyBygningId("");
               }}
-              disabled={!nyMalId || opprettMut.isPending}
+              disabled={opprettMut.isPending}
             >
-              {opprettMut.isPending ? "..." : t("psi.opprettNy")}
+              {opprettMut.isPending ? "Oppretter..." : "Opprett og åpne malbygger"}
             </Button>
-            <Button variant="secondary" onClick={() => { setVisOpprettSkjema(false); setNyMalId(""); setNyBygningId(""); }}>
+            <Button variant="secondary" onClick={() => { setVisOpprettSkjema(false); setNyBygningId(""); }}>
               {t("handling.avbryt")}
             </Button>
           </div>
