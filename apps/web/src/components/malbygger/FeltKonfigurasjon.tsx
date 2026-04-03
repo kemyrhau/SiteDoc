@@ -99,7 +99,7 @@ export function FeltKonfigurasjon({
         <div className="flex flex-col gap-1">
           <label className="text-xs font-medium text-gray-600">{t("malbygger.hjelpetekst")}</label>
           <textarea
-            placeholder="Veiledningstekst for utfyller (valgfritt)"
+            placeholder={t("malbygger.hjelpetekstPlaceholder")}
             value={(config.helpText as string) ?? ""}
             onChange={(e) => {
               const verdi = e.target.value;
@@ -141,7 +141,7 @@ export function FeltKonfigurasjon({
           <div className="flex flex-col gap-2">
             <Input
               label={t("malbygger.enhet")}
-              placeholder="f.eks. kg, m², °C"
+              placeholder={t("malbygger.enhetPlaceholder")}
               value={(config.unit as string) ?? ""}
               onChange={(e) => setConfig({ ...config, unit: e.target.value })}
             />
@@ -151,7 +151,7 @@ export function FeltKonfigurasjon({
         {(objekt.type === "person" || objekt.type === "persons" || objekt.type === "company") && (
           <Input
             label={t("malbygger.rolle")}
-            placeholder="f.eks. Kontrollør, Prosjektleder"
+            placeholder={t("malbygger.rollePlaceholder")}
             value={(config.role as string) ?? ""}
             onChange={(e) => setConfig({ ...config, role: e.target.value })}
           />
@@ -172,16 +172,16 @@ export function FeltKonfigurasjon({
         {objekt.type === "drawing_position" && (
           <div className="flex flex-col gap-2">
             <Input
-              label="Bygningsfilter (ID)"
-              placeholder="Valgfritt — begrens til bygning"
+              label={t("malbygger.bygningsfilter")}
+              placeholder={t("malbygger.bygningsfilterPlaceholder")}
               value={(config.buildingFilter as string) ?? ""}
               onChange={(e) =>
                 setConfig({ ...config, buildingFilter: e.target.value || null })
               }
             />
             <Input
-              label="Fagdisiplinfilter"
-              placeholder="f.eks. ARK, RIB, RIE"
+              label={t("malbygger.fagdisiplinfilter")}
+              placeholder={t("malbygger.fagdisiplinfilterPlaceholder")}
               value={(config.disciplineFilter as string) ?? ""}
               onChange={(e) =>
                 setConfig({ ...config, disciplineFilter: e.target.value || null })
@@ -193,14 +193,14 @@ export function FeltKonfigurasjon({
         {/* Lesetekst (info_text) */}
         {objekt.type === "info_text" && (
           <div>
-            <label className="mb-1 block text-xs font-medium text-gray-700">Innhold</label>
-            <p className="mb-1.5 text-[10px] text-gray-400">Teksten arbeideren leser i denne seksjonen</p>
+            <label className="mb-1 block text-xs font-medium text-gray-700">{t("malbygger.innholdLabel")}</label>
+            <p className="mb-1.5 text-[10px] text-gray-400">{t("malbygger.innholdHjelp")}</p>
             <textarea
               value={(config.content as string) ?? ""}
               onChange={(e) => setConfig({ ...config, content: e.target.value })}
               rows={15}
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm leading-relaxed"
-              placeholder="Skriv instruksjonstekst her..."
+              placeholder={t("malbygger.innholdPlaceholder")}
             />
           </div>
         )}
@@ -210,7 +210,7 @@ export function FeltKonfigurasjon({
           <div className="flex flex-col gap-2">
             {/* Bildeopplasting */}
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-700">Bilde</label>
+              <label className="mb-1 block text-xs font-medium text-gray-700">{t("malbygger.bilde")}</label>
               <input
                 type="file"
                 accept="image/*"
@@ -232,20 +232,20 @@ export function FeltKonfigurasjon({
               {(config.imageUrl as string) && (
                 <img
                   src={(config.imageUrl as string).startsWith("http") ? (config.imageUrl as string) : `/api${config.imageUrl as string}`}
-                  alt="Forhåndsvisning"
+                  alt={t("malbygger.forhandsvisning")}
                   className="mt-2 max-h-40 rounded-lg border border-gray-200 object-contain"
                 />
               )}
             </div>
             <Input
-              label="Eller lim inn URL"
-              placeholder="/uploads/... eller https://..."
+              label={t("malbygger.ellerLimInnUrl")}
+              placeholder="/uploads/... https://..."
               value={(config.imageUrl as string) ?? ""}
               onChange={(e) => setConfig({ ...config, imageUrl: e.target.value })}
             />
             <Input
-              label="Bildetekst"
-              placeholder="Valgfri beskrivelse under bildet"
+              label={t("malbygger.bildetekst")}
+              placeholder={t("malbygger.bildetekstPlaceholder")}
               value={(config.caption as string) ?? ""}
               onChange={(e) => setConfig({ ...config, caption: e.target.value })}
             />
@@ -256,12 +256,12 @@ export function FeltKonfigurasjon({
         {objekt.type === "video" && (
           <div>
             <Input
-              label="Video-URL"
-              placeholder="https://... eller /uploads/..."
+              label={t("malbygger.videoUrl")}
+              placeholder="https://... /uploads/..."
               value={(config.url as string) ?? ""}
               onChange={(e) => setConfig({ ...config, url: e.target.value })}
             />
-            <p className="mt-1 text-[10px] text-gray-400">YouTube, Vimeo eller direkte videolenke</p>
+            <p className="mt-1 text-[10px] text-gray-400">{t("malbygger.videoHjelp")}</p>
           </div>
         )}
 
@@ -269,13 +269,13 @@ export function FeltKonfigurasjon({
         {objekt.type === "quiz" && (
           <div className="flex flex-col gap-3">
             <Input
-              label="Spørsmål"
+              label={t("malbygger.spoersmaal")}
               value={(config.question as string) ?? ""}
               onChange={(e) => setConfig({ ...config, question: e.target.value })}
-              placeholder="Hva er nødnummeret for brann?"
+              placeholder={t("malbygger.spoersmaalPlaceholder")}
             />
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-700">Alternativer</label>
+              <label className="mb-1 block text-xs font-medium text-gray-700">{t("malbygger.alternativer")}</label>
               {((config.options as string[]) ?? []).map((alt, i) => (
                 <div key={i} className="mb-1.5 flex items-center gap-2">
                   <input
@@ -283,7 +283,7 @@ export function FeltKonfigurasjon({
                     name={`quiz-riktig-${objekt.id}`}
                     checked={(config.correctIndex as number) === i}
                     onChange={() => setConfig({ ...config, correctIndex: i })}
-                    title="Marker som riktig svar"
+                    title={t("malbygger.markerRiktigSvar")}
                   />
                   <input
                     type="text"
@@ -314,10 +314,10 @@ export function FeltKonfigurasjon({
                 onClick={() => setConfig({ ...config, options: [...((config.options as string[]) ?? []), ""] })}
                 className="mt-1 text-xs text-sitedoc-primary hover:underline"
               >
-                + Legg til alternativ
+                {t("malbygger.leggTilAlternativ")}
               </button>
             </div>
-            <p className="text-xs text-gray-400">Marker riktig svar med radioknappen til venstre</p>
+            <p className="text-xs text-gray-400">{t("malbygger.markerRiktigHjelp")}</p>
           </div>
         )}
 
@@ -331,7 +331,7 @@ export function FeltKonfigurasjon({
             {erBarn && (
               <div className="flex flex-col gap-2">
                 <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <span>Tilhører:</span>
+                  <span>{t("malbygger.tilhoerer")}</span>
                   <Badge variant="default">{forelderLabel}</Badge>
                 </div>
                 {onFjernBarnFraKontainer && (
@@ -350,7 +350,7 @@ export function FeltKonfigurasjon({
             {harAktivBetingelse && (
               <div className="flex flex-col gap-2">
                 <div className="text-sm text-gray-600">
-                  <span>Utløserverdier: </span>
+                  <span>{t("malbygger.utloserverdier")} </span>
                   <span className="flex flex-wrap gap-1 mt-1">
                     {((objekt.config.conditionValues as unknown[]) ?? []).map((v) => {
                       const label = opsjonTilStreng(v);

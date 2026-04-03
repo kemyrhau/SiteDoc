@@ -643,7 +643,7 @@ export function MalBygger({ mal }: MalByggerProps) {
               <button
                 onClick={() => { setRedigererNavn(true); setMalNavn(mal.name); }}
                 className="group flex items-center gap-1.5 text-base font-semibold hover:text-blue-700"
-                title="Rediger malnavn"
+                title={t("malbygger.redigerMalnavn")}
               >
                 {mal.name}
                 <Pencil className="h-3.5 w-3.5 text-gray-300 group-hover:text-blue-500" />
@@ -680,7 +680,7 @@ export function MalBygger({ mal }: MalByggerProps) {
               <div className="rounded-md border border-dashed border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-500">
                 <div className="flex items-center gap-2">
                   <FileText className="h-4 w-4 shrink-0 text-gray-400" />
-                  <span className={mal.showSubject === false ? "line-through text-gray-300" : ""}>Emne</span>
+                  <span className={mal.showSubject === false ? "line-through text-gray-300" : ""}>{t("malbygger.emne")}</span>
                   {mal.showSubject !== false && (
                     <select
                       value={(() => {
@@ -703,7 +703,7 @@ export function MalBygger({ mal }: MalByggerProps) {
                       }}
                       className="ml-auto rounded border border-gray-200 bg-white px-2 py-0.5 text-xs text-gray-600 focus:border-blue-500 focus:outline-none"
                     >
-                      <option value="">Ingen emner</option>
+                      <option value="">{t("malbygger.ingenEmner")}</option>
                       {Object.entries(EMNE_KATEGORIER).map(([key, kat]) => (
                         <option key={key} value={key}>{kat.navn} ({kat.emner.length})</option>
                       ))}
@@ -712,7 +712,7 @@ export function MalBygger({ mal }: MalByggerProps) {
                         const erStandard = Object.values(EMNE_KATEGORIER).some(
                           (kat) => kat.emner.length === subjects.length && kat.emner.every((e) => subjects.includes(e)),
                         );
-                        return !erStandard ? <option value="egendefinert">Egendefinert ({subjects.length})</option> : null;
+                        return !erStandard ? <option value="egendefinert">{t("malbygger.egendefinert", { antall: subjects.length })}</option> : null;
                       })()}
                     </select>
                   )}
@@ -720,7 +720,7 @@ export function MalBygger({ mal }: MalByggerProps) {
                     type="button"
                     onClick={() => oppdaterMalMutation.mutate({ id: mal.id, showSubject: !(mal.showSubject !== false) })}
                     className={`${mal.showSubject !== false ? "" : "ml-auto"} rounded p-1 hover:bg-gray-200`}
-                    title={mal.showSubject === false ? "Vis emne-felt" : "Skjul emne-felt"}
+                    title={mal.showSubject === false ? t("malbygger.visEmneFelt") : t("malbygger.skjulEmneFelt")}
                   >
                     {mal.showSubject === false
                       ? <EyeOff className="h-3.5 w-3.5 text-gray-400" />
@@ -751,15 +751,15 @@ export function MalBygger({ mal }: MalByggerProps) {
               {!psiModus && (
               <div className="flex items-center gap-2 rounded-md border border-dashed border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-500">
                 <Building2 className="h-4 w-4 shrink-0 text-gray-400" />
-                <span className={mal.showEnterprise === false ? "line-through text-gray-300" : ""}>Oppretter-entreprise</span>
+                <span className={mal.showEnterprise === false ? "line-through text-gray-300" : ""}>{t("malbygger.oppretterEntreprise")}</span>
                 <span className="text-xs text-gray-400">
-                  {mal.showEnterprise === false ? "Skjult — settes automatisk" : "Velges ved opprettelse"}
+                  {mal.showEnterprise === false ? t("malbygger.skjultSettesAuto") : t("malbygger.velgesVedOpprettelse")}
                 </span>
                 <button
                   type="button"
                   onClick={() => oppdaterMalMutation.mutate({ id: mal.id, showEnterprise: !(mal.showEnterprise !== false) })}
                   className="ml-auto rounded p-1 hover:bg-gray-200"
-                  title={mal.showEnterprise === false ? "Vis entreprise-felt" : "Skjul entreprise-felt"}
+                  title={mal.showEnterprise === false ? t("malbygger.visEntrepriseFelt") : t("malbygger.skjulEntrepriseFelt")}
                 >
                   {mal.showEnterprise === false
                     ? <EyeOff className="h-3.5 w-3.5 text-gray-400" />
@@ -771,15 +771,15 @@ export function MalBygger({ mal }: MalByggerProps) {
               {/* Lokasjon */}
               <div className="flex items-center gap-2 rounded-md border border-dashed border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-500">
                 <MapPin className="h-4 w-4 shrink-0 text-gray-400" />
-                <span className={mal.showLocation === false ? "line-through text-gray-300" : ""}>Lokasjon</span>
+                <span className={mal.showLocation === false ? "line-through text-gray-300" : ""}>{t("malbygger.lokasjon")}</span>
                 <span className="text-xs text-gray-400">
-                  {mal.showLocation === false ? "Skjult" : "Settes automatisk fra valgt bygning/tegning"}
+                  {mal.showLocation === false ? t("malbygger.skjult") : t("malbygger.settesAutoFraBygning")}
                 </span>
                 <button
                   type="button"
                   onClick={() => oppdaterMalMutation.mutate({ id: mal.id, showLocation: !(mal.showLocation !== false) })}
                   className="ml-auto rounded p-1 hover:bg-gray-200"
-                  title={mal.showLocation === false ? "Vis lokasjon-felt" : "Skjul lokasjon-felt"}
+                  title={mal.showLocation === false ? t("malbygger.visLokasjonFelt") : t("malbygger.skjulLokasjonFelt")}
                 >
                   {mal.showLocation === false
                     ? <EyeOff className="h-3.5 w-3.5 text-gray-400" />
@@ -791,15 +791,15 @@ export function MalBygger({ mal }: MalByggerProps) {
               {mal.category === "oppgave" && (
                 <div className="flex items-center gap-2 rounded-md border border-dashed border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-500">
                   <AlertTriangle className="h-4 w-4 shrink-0 text-gray-400" />
-                  <span className={mal.showPriority === false ? "line-through text-gray-300" : ""}>Prioritet</span>
+                  <span className={mal.showPriority === false ? "line-through text-gray-300" : ""}>{t("malbygger.prioritet")}</span>
                   <span className="text-xs text-gray-400">
-                    {mal.showPriority === false ? "Skjult" : "Lav / Medium / Høy / Kritisk"}
+                    {mal.showPriority === false ? t("malbygger.skjult") : t("malbygger.prioritetVerdier")}
                   </span>
                   <button
                     type="button"
                     onClick={() => oppdaterMalMutation.mutate({ id: mal.id, showPriority: !(mal.showPriority !== false) })}
                     className="ml-auto rounded p-1 hover:bg-gray-200"
-                    title={mal.showPriority === false ? "Vis prioritet-felt" : "Skjul prioritet-felt"}
+                    title={mal.showPriority === false ? t("malbygger.visPrioritetFelt") : t("malbygger.skjulPrioritetFelt")}
                   >
                     {mal.showPriority === false
                       ? <EyeOff className="h-3.5 w-3.5 text-gray-400" />
@@ -883,6 +883,7 @@ export function MalBygger({ mal }: MalByggerProps) {
 /* ------------------------------------------------------------------ */
 
 function PsiForhandsvisning({ objekter, malNavn, onLukk }: { objekter: MalObjekt[]; malNavn: string; onLukk: () => void }) {
+  const { t } = useTranslation();
   const [aktivSeksjon, setAktivSeksjon] = useState(0);
 
   // Del inn i seksjoner basert på headings
@@ -896,7 +897,7 @@ function PsiForhandsvisning({ objekter, malNavn, onLukk }: { objekter: MalObjekt
         if (gjeldende) result.push(gjeldende);
         gjeldende = { tittel: obj.label, objekter: [] };
       } else {
-        if (!gjeldende) gjeldende = { tittel: "Introduksjon", objekter: [] };
+        if (!gjeldende) gjeldende = { tittel: t("malbygger.introduksjon"), objekter: [] };
         gjeldende.objekter.push(obj);
       }
     }
@@ -911,7 +912,7 @@ function PsiForhandsvisning({ objekter, malNavn, onLukk }: { objekter: MalObjekt
       {/* Header med progresjon */}
       <div className="border-b border-gray-200 px-5 py-3">
         <div className="flex items-center justify-between">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">Forhåndsvisning</p>
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">{t("malbygger.forhandsvisning")}</p>
           <button onClick={onLukk} className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600">
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
@@ -944,7 +945,7 @@ function PsiForhandsvisning({ objekter, malNavn, onLukk }: { objekter: MalObjekt
           <PsiPreviewObjekt key={obj.id} objekt={obj} />
         ))}
         {seksjon?.objekter.length === 0 && (
-          <p className="text-sm italic text-gray-400">Ingen innhold i denne seksjonen</p>
+          <p className="text-sm italic text-gray-400">{t("malbygger.ingenInnhold")}</p>
         )}
       </div>
 
@@ -955,14 +956,14 @@ function PsiForhandsvisning({ objekter, malNavn, onLukk }: { objekter: MalObjekt
           disabled={aktivSeksjon === 0}
           className="flex-1 rounded-lg border border-gray-200 py-2 text-sm font-medium text-gray-600 disabled:opacity-30"
         >
-          Forrige
+          {t("malbygger.forrige")}
         </button>
         <button
           onClick={() => setAktivSeksjon(Math.min(seksjoner.length - 1, aktivSeksjon + 1))}
           disabled={aktivSeksjon === seksjoner.length - 1}
           className="flex-1 rounded-lg bg-sitedoc-primary py-2 text-sm font-medium text-white disabled:opacity-30"
         >
-          Neste
+          {t("malbygger.neste")}
         </button>
       </div>
     </aside>
@@ -970,6 +971,7 @@ function PsiForhandsvisning({ objekter, malNavn, onLukk }: { objekter: MalObjekt
 }
 
 function PsiPreviewObjekt({ objekt }: { objekt: MalObjekt }) {
+  const { t } = useTranslation();
   const config = objekt.config as Record<string, unknown>;
 
   switch (objekt.type) {
@@ -978,7 +980,7 @@ function PsiPreviewObjekt({ objekt }: { objekt: MalObjekt }) {
       return innhold ? (
         <p className="mb-4 whitespace-pre-wrap text-sm leading-relaxed text-gray-800">{innhold}</p>
       ) : (
-        <p className="mb-4 text-sm italic text-gray-300">Ingen tekst lagt inn</p>
+        <p className="mb-4 text-sm italic text-gray-300">{t("malbygger.ingenTekst")}</p>
       );
     }
     case "info_image": {
@@ -994,7 +996,7 @@ function PsiPreviewObjekt({ objekt }: { objekt: MalObjekt }) {
             />
           ) : (
             <div className="flex h-32 items-center justify-center rounded-lg border-2 border-dashed border-gray-200 bg-gray-50 text-sm text-gray-400">
-              Bilde ikke lastet opp
+              {t("malbygger.bildeIkkeLastet")}
             </div>
           )}
           {caption && <figcaption className="mt-1 text-center text-xs italic text-gray-500">{caption}</figcaption>}
@@ -1009,7 +1011,7 @@ function PsiPreviewObjekt({ objekt }: { objekt: MalObjekt }) {
         </div>
       ) : (
         <div className="mb-4 flex h-32 items-center justify-center rounded-lg border-2 border-dashed border-gray-200 bg-gray-50 text-sm text-gray-400">
-          Video-URL ikke satt
+          {t("malbygger.videoIkkeSatt")}
         </div>
       );
     }
@@ -1037,7 +1039,7 @@ function PsiPreviewObjekt({ objekt }: { objekt: MalObjekt }) {
       return (
         <div className="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-4 text-center">
           <div className="mx-auto h-20 w-full max-w-xs rounded border border-dashed border-gray-300 bg-white" />
-          <p className="mt-2 text-xs text-gray-500">Signatur</p>
+          <p className="mt-2 text-xs text-gray-500">{t("malbygger.signaturLabel")}</p>
         </div>
       );
     case "subtitle":
@@ -1064,29 +1066,29 @@ function SlettBekreftelse({
   onBekreft: () => void;
   onAvbryt: () => void;
 }) {
+  const { t } = useTranslation();
   const { data, isLoading } = trpc.mal.sjekkObjektBruk.useQuery({ id });
 
   const harBruk = data && (data.sjekklister.length > 0 || data.oppgaver.length > 0);
 
   return (
-    <Modal open={true} title={`Slett «${label}»?`} onClose={onAvbryt}>
+    <Modal open={true} title={t("malbygger.slettFelt", { label })} onClose={onAvbryt}>
       <div className="space-y-4">
         {isLoading ? (
           <div className="flex items-center gap-2 text-sm text-gray-500">
             <Spinner size="sm" />
-            Sjekker bruk i sjekklister og oppgaver…
+            {t("malbygger.sjekkerBruk")}
           </div>
         ) : harBruk ? (
           <>
             <p className="text-sm text-gray-700">
-              Feltet kan ikke slettes fordi følgende dokumenter inneholder data for dette feltet.
-              Fjern eller tøm dataen i disse dokumentene først.
+              {t("malbygger.kanIkkeSlettes")}
             </p>
 
             {data.sjekklister.length > 0 && (
               <div>
                 <h4 className="mb-1 text-sm font-medium text-gray-700">
-                  Sjekklister ({data.sjekklister.length})
+                  {t("malbygger.sjekklisterBruk", { antall: data.sjekklister.length })}
                 </h4>
                 <ul className="max-h-40 space-y-1 overflow-y-auto text-sm">
                   {data.sjekklister.map((s) => (
@@ -1104,7 +1106,7 @@ function SlettBekreftelse({
             {data.oppgaver.length > 0 && (
               <div>
                 <h4 className="mb-1 text-sm font-medium text-gray-700">
-                  Oppgaver ({data.oppgaver.length})
+                  {t("malbygger.oppgaverBruk", { antall: data.oppgaver.length })}
                 </h4>
                 <ul className="max-h-40 space-y-1 overflow-y-auto text-sm">
                   {data.oppgaver.map((o) => (
@@ -1121,20 +1123,20 @@ function SlettBekreftelse({
           </>
         ) : (
           <p className="text-sm text-gray-500">
-            Ingen sjekklister eller oppgaver bruker dette feltet.
+            {t("malbygger.ingenBruk")}
           </p>
         )}
 
         <div className="flex justify-end gap-2">
           <Button variant="secondary" onClick={onAvbryt}>
-            {harBruk ? "Lukk" : "Avbryt"}
+            {harBruk ? t("handling.lukk") : t("handling.avbryt")}
           </Button>
           {harBruk && (
             <Button
               variant="danger"
               onClick={onBekreft}
             >
-              Tving slett (test)
+              {t("malbygger.tvingSlett")}
             </Button>
           )}
           {!harBruk && (
@@ -1143,7 +1145,7 @@ function SlettBekreftelse({
               onClick={onBekreft}
               disabled={isLoading}
             >
-              Slett
+              {t("handling.slett")}
             </Button>
           )}
         </div>
