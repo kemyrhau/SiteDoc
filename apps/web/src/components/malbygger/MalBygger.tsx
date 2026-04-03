@@ -846,7 +846,7 @@ export function MalBygger({ mal }: MalByggerProps) {
 
       {/* Høyre — Konfigurasjon eller Forhåndsvisning */}
       {psiModus && visForhandsvisning ? (
-        <PsiForhandsvisning objekter={objekter} malNavn={mal.name} />
+        <PsiForhandsvisning objekter={objekter} malNavn={mal.name} onLukk={() => setVisForhandsvisning(false)} />
       ) : valgtObjekt ? (
         <FeltKonfigurasjon
           objekt={valgtObjekt}
@@ -882,7 +882,7 @@ export function MalBygger({ mal }: MalByggerProps) {
 /*  PSI Forhåndsvisning — seksjon-for-seksjon som arbeideren ser det    */
 /* ------------------------------------------------------------------ */
 
-function PsiForhandsvisning({ objekter, malNavn }: { objekter: MalObjekt[]; malNavn: string }) {
+function PsiForhandsvisning({ objekter, malNavn, onLukk }: { objekter: MalObjekt[]; malNavn: string; onLukk: () => void }) {
   const [aktivSeksjon, setAktivSeksjon] = useState(0);
 
   // Del inn i seksjoner basert på headings
@@ -910,7 +910,12 @@ function PsiForhandsvisning({ objekter, malNavn }: { objekter: MalObjekt[]; malN
     <aside className="flex h-full w-[560px] shrink-0 flex-col border-l border-gray-200 bg-white">
       {/* Header med progresjon */}
       <div className="border-b border-gray-200 px-5 py-3">
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">Forhåndsvisning</p>
+        <div className="flex items-center justify-between">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">Forhåndsvisning</p>
+          <button onClick={onLukk} className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600">
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+          </button>
+        </div>
         <p className="mt-0.5 text-sm font-semibold text-gray-900">{malNavn}</p>
         <div className="mt-2 flex gap-1">
           {seksjoner.map((_, i) => (
