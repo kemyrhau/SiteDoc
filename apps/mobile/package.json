@@ -43,7 +43,6 @@
     "expo-sharing": "^55.0.12",
     "expo-sqlite": "~16.0.10",
     "expo-status-bar": "~3.0.9",
-    "expo-video": "^55.0.13",
     "expo-web-browser": "^15.0.10",
     "i18next": "^26.0.3",
     "lucide-react-native": "^0.575.0",
