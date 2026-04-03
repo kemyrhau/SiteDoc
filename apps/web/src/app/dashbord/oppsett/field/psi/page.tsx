@@ -5,7 +5,8 @@ import { useTranslation } from "react-i18next";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { trpc } from "@/lib/trpc";
 import { Button, Spinner, Card } from "@sitedoc/ui";
-import { ShieldCheck, QrCode, RefreshCw, FileText } from "lucide-react";
+import { ShieldCheck, QrCode, RefreshCw, FileText, Printer } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
 
 export default function PsiOppsettSide() {
   const { t } = useTranslation();
@@ -191,21 +192,53 @@ export default function PsiOppsettSide() {
                 <h3 className="text-sm font-semibold text-gray-900">QR-kode for gjester</h3>
               </div>
               <p className="mb-3 text-xs text-gray-500">
-                Arbeidere uten konto skanner QR-koden ved porten for å gjennomføre PSI.
+                Skriv ut og heng opp ved porten. Arbeidere skanner med mobilen for å gjennomføre PSI.
               </p>
               <Button variant="secondary" size="sm" onClick={() => setVisQR(!visQR)}>
-                {visQR ? "Skjul QR" : "Vis QR-lenke"}
+                {visQR ? "Skjul" : "Vis QR-kode"}
               </Button>
               {visQR && (
-                <div className="mt-3 rounded-lg border border-gray-200 bg-gray-50 p-3">
-                  <p className="break-all text-xs font-mono text-gray-600">{qrUrl}</p>
-                  <button
-                    onClick={() => navigator.clipboard.writeText(qrUrl)}
-                    className="mt-2 text-xs text-sitedoc-primary hover:underline"
-                  >
-                    Kopier lenke
-                  </button>
-                </div>
+                <>
+                  {/* Utskriftsvennlig QR-plakat */}
+                  <div id="psi-qr-print" className="mt-4 rounded-xl border-2 border-gray-200 bg-white p-8 text-center print:border-none print:p-0">
+                    <div className="mb-4">
+                      <ShieldCheck className="mx-auto h-10 w-10 text-sitedoc-primary print:text-black" />
+                      <h2 className="mt-2 text-2xl font-bold text-gray-900">Sikkerhetsinstruks (PSI)</h2>
+                      <p className="mt-1 text-base text-gray-600">Skann QR-koden for å gjennomføre</p>
+                    </div>
+                    <div className="mx-auto my-6 inline-block rounded-xl border-4 border-gray-900 p-4">
+                      <QRCodeSVG value={qrUrl} size={200} level="H" />
+                    </div>
+                    <p className="text-sm text-gray-500">
+                      Alle arbeidere, besøkende og underleverandører<br />
+                      <strong>MÅ</strong> gjennomføre og signere før arbeid kan starte.
+                    </p>
+                    <p className="mt-4 break-all text-xs font-mono text-gray-400">{qrUrl}</p>
+                  </div>
+                  <div className="mt-3 flex gap-2">
+                    <button
+                      onClick={() => {
+                        const el = document.getElementById("psi-qr-print");
+                        if (!el) return;
+                        const w = window.open("", "_blank");
+                        if (!w) return;
+                        w.document.write(`<html><head><title>PSI QR-kode</title><style>body{font-family:system-ui,sans-serif;display:flex;justify-content:center;align-items:center;min-height:100vh;margin:0}div{text-align:center}h2{font-size:28px;margin:8px 0}p{margin:6px 0;color:#555}.qr{border:4px solid #000;border-radius:12px;padding:16px;display:inline-block;margin:24px 0}.url{font-family:monospace;font-size:10px;color:#999;word-break:break-all}.must{font-weight:bold}</style></head><body>${el.innerHTML}</body></html>`);
+                        w.document.close();
+                        w.print();
+                      }}
+                      className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                    >
+                      <Printer className="h-3.5 w-3.5" />
+                      Skriv ut QR-plakat
+                    </button>
+                    <button
+                      onClick={() => navigator.clipboard.writeText(qrUrl)}
+                      className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-50"
+                    >
+                      Kopier lenke
+                    </button>
+                  </div>
+                </>
               )}
             </Card>
 
