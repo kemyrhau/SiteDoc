@@ -166,16 +166,19 @@ export default function PsiLeser() {
     scrollRef.current?.scrollTo({ y: 0, animated: true });
   }, [signaturId, aktivSeksjon, seksjonFullfort, erSignaturSeksjon, signaturData, feltVerdier, fullforMut, oppdaterMut]);
 
+  // Sjekk om innholdet passer uten scroll (fyres ved layout, ikke scroll)
+  const [scrollViewHøyde, setScrollViewHøyde] = useState(0);
+  const onInnholdStørrelse = useCallback((_w: number, h: number) => {
+    if (scrollViewHøyde > 0 && h <= scrollViewHøyde + 50) {
+      setInnholdKortNok(true);
+    }
+  }, [scrollViewHøyde]);
+
   const onScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
-    // Innhold passer uten scroll → tillat videre direkte
-    if (contentSize.height <= layoutMeasurement.height + 50) {
-      if (!innholdKortNok) setInnholdKortNok(true);
-      return;
-    }
     const erNærBunn = layoutMeasurement.height + contentOffset.y >= contentSize.height - 50;
     if (erNærBunn && !harScrolletTilBunn) setHarScrolletTilBunn(true);
-  }, [harScrolletTilBunn, innholdKortNok]);
+  }, [harScrolletTilBunn]);
 
   const settFeltVerdi = useCallback((objektId: string, verdi: unknown) => {
     setFeltVerdier((prev) => ({ ...prev, [objektId]: verdi }));
@@ -256,6 +259,8 @@ export default function PsiLeser() {
         contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
         onScroll={onScroll}
         scrollEventThrottle={200}
+        onLayout={(e) => setScrollViewHøyde(e.nativeEvent.layout.height)}
+        onContentSizeChange={onInnholdStørrelse}
       >
         {gjeldendeSeksjon?.objekter.map((objekt) => {
           if (objekt.type === "signature") {
