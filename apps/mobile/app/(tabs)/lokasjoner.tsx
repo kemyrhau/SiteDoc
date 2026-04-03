@@ -23,7 +23,7 @@ import {
   ChevronDown,
 } from "lucide-react-native";
 import * as Location from "expo-location";
-import { useTranslation } from "react-i18next";
+import i18next from "i18next";
 import { trpc } from "../../src/lib/trpc";
 import { useProsjekt } from "../../src/kontekst/ProsjektKontekst";
 import { useBygning } from "../../src/kontekst/BygningKontekst";
@@ -79,8 +79,9 @@ interface OppgaveMarkør {
   template: { prefix: string | null } | null;
 }
 
+const t = i18next.t.bind(i18next);
+
 export default function LokasjonerSkjerm() {
-  const { t } = useTranslation();
   const { valgtProsjektId } = useProsjekt();
   const { valgtBygningId, settBygning } = useBygning();
   const [valgtTegningId, setValgtTegningId] = useState<string | null>(null);

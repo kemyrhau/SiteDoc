@@ -32,7 +32,7 @@ import {
 import { harBetingelse, harForelderObjekt } from "@sitedoc/shared";
 import { hentStatusHandlinger } from "@sitedoc/shared";
 import type { StatusHandling } from "@sitedoc/shared";
-import { useTranslation } from "react-i18next";
+import i18next from "i18next";
 import { useOppgaveSkjema } from "../../src/hooks/useOppgaveSkjema";
 import { useAutoVaer } from "../../src/hooks/useAutoVaer";
 import { useOversettelse } from "../../src/hooks/useOversettelse";
@@ -82,8 +82,9 @@ function formaterNummer(
   return `${prefix}${nummer}`;
 }
 
+const t = i18next.t.bind(i18next);
+
 export default function OppgaveDetalj() {
-  const { t } = useTranslation();
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { bruker } = useAuth();
