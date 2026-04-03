@@ -6,6 +6,7 @@
 - **SafeAreaView i Modals:** Bruk fra `react-native` (IKKE `react-native-safe-area-context`)
 - **React Query invalidering:** Invalider query-cache etter mutasjoner
 - **`InteractionManager.runAfterInteractions`:** MÅ brukes etter kamera/picker lukkes
+- **Lukkeknapp i modaler/fullskjerm:** ALLTID i en header-bar under SafeAreaView — ALDRI absolutt posisjonert (havner under notch/Dynamic Island). Standard: `<X size={22} color="#ffffff" />` med `hitSlop={12}` i en `flex-row items-center px-4 py-3` View. Se `PdfForhandsvisning.tsx` som referanse.
 
 ## Opprettelsesflyt
 

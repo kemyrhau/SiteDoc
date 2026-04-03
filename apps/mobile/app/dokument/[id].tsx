@@ -168,13 +168,12 @@ export default function DokumentLeser() {
       <Modal visible={!!zoomBilde} transparent animationType="fade">
         <View className="flex-1 bg-black">
           <SafeAreaView className="flex-1">
-            <View className="flex-row justify-end px-4 py-2">
+            <View className="flex-row items-center px-4 py-3">
               <TouchableOpacity
                 onPress={() => setZoomBilde(null)}
-                className="rounded-full bg-white/20 p-3"
-                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                hitSlop={12}
               >
-                <X size={24} color="#ffffff" />
+                <X size={22} color="#ffffff" />
               </TouchableOpacity>
             </View>
             <ScrollView
