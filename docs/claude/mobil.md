@@ -155,27 +155,18 @@ PSI er en personlig sikkerhetsgjennomgang, IKKE en sjekkliste. Gjennomføres via
 
 **Språkprioritet:** `bruker.language` (server) > lagret i SecureStore > `nb` (standard)
 
-**Bruk i komponenter — to mønstre:**
-
-1. **Lette komponenter** (tabs, login, mer, boks): `useTranslation()` hook — re-rendrer ved språkbytte
+**Bruk i komponenter:**
 ```typescript
 import { useTranslation } from "react-i18next";
 const { t } = useTranslation();
+// t("nav.hjem"), t("tid.minSiden", { n: 5 })
 ```
-
-2. **Tunge komponenter** med auto-save hooks (sjekkliste, oppgave, hjem, lokasjoner): `i18next.t.bind()` — INGEN re-render ved språkbytte (unngår kaskade med mutation-hooks)
-```typescript
-import i18next from "i18next";
-const t = i18next.t.bind(i18next); // Utenfor komponenten!
-```
-
-**VIKTIG**: `useTranslation()` i sjekkliste/oppgave trigger re-render ved språkbytte som kaskaderer gjennom auto-save hooks → uendelig loop. Bruk `i18next.t.bind()` for disse.
 
 **Skjermkonvertering:** Ferdig for hjem, lokasjoner, sjekkliste/[id], oppgave/[id], tabs, login, mer, boks. **Gjenstår:** FeltDokumentasjon, FeltWrapper, RepeaterObjekt, StatusMerkelapp, hentStatusHandlinger.
 
-**Auto-save hooks (useSjekklisteSkjema/useOppgaveSkjema):** Bruker `lagreInternRef` og stabil `planleggLagring` (tom dep-array) for å bryte dependency-kaskaden `oppdaterDataMutasjon → lagreIntern → planleggLagring → oppdaterFelt → settVerdi`.
+**Auto-save hooks (useSjekklisteSkjema/useOppgaveSkjema):** Bruker `lagreInternRef` og stabil `planleggLagring` (tom dep-array) for å bryte dependency-kaskaden `oppdaterDataMutasjon → lagreIntern → planleggLagring → oppdaterFelt → settVerdi`. Uten refs: mutation-state-skifte gjenskaper hele kjeden → effects re-trigges → loop.
 
-**Oversettelse ved lagring:** API `oppdaterData` prøver auto-oversettelse (OPUS-MT) ved lagring. Wrappet i try/catch — lagring skal ALDRI feile pga. oversettelsesserver. Manglende språkpar (f.eks. lt→nb) logges som warning.
+**Oversettelse ved lagring (Lag 3):** API `oppdaterData` prøver auto-oversettelse (OPUS-MT) ved lagring. Wrappet i try/catch — lagring skal ALDRI feile pga. oversettelsesserver. OPUS-MT trenger pivot via engelsk (lt→en→nb) — **TODO**: implementer pivot-logikk i `kallOversettelsesServer()`.
 
 ## Offline-first (SQLite)
 
