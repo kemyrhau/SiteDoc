@@ -57,6 +57,12 @@ export const psiRouter = router({
       });
       if (!medlem) throw new TRPCError({ code: "FORBIDDEN", message: "Kun admin kan opprette PSI" });
 
+      // Sett category til "psi" slik at malen ikke dukker opp i sjekkliste-opprettelse
+      await ctx.prisma.reportTemplate.update({
+        where: { id: input.templateId },
+        data: { category: "psi" },
+      });
+
       return ctx.prisma.psi.create({
         data: {
           projectId: input.projectId,
