@@ -371,18 +371,19 @@ export function useOppgaveSkjema(oppgaveId: string): UseOppgaveSkjemaResultat {
     }
   }, [oppgaveId, erPaaNettet, oppdaterDataMutasjon, utils]);
 
+  // Refs for stabile funksjonsreferanser — bryter dependency-kaskaden
+  const lagreInternRef = useRef(lagreIntern);
+  lagreInternRef.current = lagreIntern;
+
   const planleggLagring = useCallback(() => {
     if (lagreTimerRef.current) clearTimeout(lagreTimerRef.current);
     lagreTimerRef.current = setTimeout(() => {
-      lagreIntern();
+      lagreInternRef.current();
     }, 2000);
-  }, [lagreIntern]);
+  }, []);
 
-  // Refs for å unngå dependency-sirkler i effects
   const planleggLagringRef = useRef(planleggLagring);
   planleggLagringRef.current = planleggLagring;
-  const lagreInternRef = useRef(lagreIntern);
-  lagreInternRef.current = lagreIntern;
 
   const lagre = useCallback(async () => {
     if (lagreTimerRef.current) {
