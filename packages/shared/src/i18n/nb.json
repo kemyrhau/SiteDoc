@@ -766,5 +766,6 @@
   "psi.harIkkeHmsKort": "Har ikke HMS-kort",
   "psi.hmsKortPaakrevd": "HMS-kortnummer eller «Har ikke HMS-kort» er påkrevd",
   "psi.tilbakeTilOppsett": "Tilbake til PSI-oppsett",
-  "malbygger.innhold": "Innhold"
+  "malbygger.innhold": "Innhold",
+  "psi.forhandsvisning": "Forhåndsvisning"
 }

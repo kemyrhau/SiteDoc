@@ -145,16 +145,16 @@ Riggplan og oversiktskart er tilgjengelig ved hovedinngang og i brakkeriggen.` }
 • Rusmidler er strengt forbudt på byggeplassen
 • Rydd etter deg — god orden er god sikkerhet
 • Sikre arbeidsområdet med sperring ved fare for andre
-• Meld fra om alle avvik, nestenulykker og farlige forhold
+• Meld fra om alle uønskede hendelser (RUH), nestenulykker og farlige forhold
 • Arbeid i høyden krever alltid fallsikringsplan
 • Varme arbeider krever godkjent SJA og brannvakthold
 • Gravearbeid krever påvisning av kabler og rør
 • Ikke fjern andres sperring eller sikring uten tillatelse
 
 Arbeidstid: 07:00 – 16:00 (støyende arbeid 08:00 – 17:00)
-Avviksmelding: Meld avvik til din arbeidsleder eller bruk SiteDoc
+RUH (Rapport om Uønsket Hendelse): Registrer i SiteDoc-appen eller meld til din arbeidsleder
 
-Full HMS-plan og SHA-plan er tilgjengelig hos HMS-ansvarlig og i prosjektets dokumentmappe.` } },
+Full HMS-plan og SHA-plan er tilgjengelig i SiteDoc-appen under HMS-dokumentasjon.` } },
         ],
         [
           { type: "heading", label: "6. Risikoforhold på denne byggeplassen" },
@@ -165,7 +165,7 @@ Full HMS-plan og SHA-plan er tilgjengelig hos HMS-ansvarlig og i prosjektets dok
 • Tungtrafikk på riggvei — hold avstand til anleggsmaskiner
 • Rivingsarbeid i bygg B — støv og asbest, eget saneringsfelt
 
-Risikovurderinger (SJA) for ditt arbeidsområde finnes i prosjektets HMS-dokumentasjon. Spør din arbeidsleder om du er usikker på risikoen i ditt arbeidsområde.` } },
+Risikovurderinger (SJA) for ditt arbeidsområde finnes i HMS-dokumentasjonen i SiteDoc-appen. Spør din arbeidsleder om du er usikker på risikoen i ditt arbeidsområde.` } },
           { type: "info_image", label: "Risikoområder", config: { imageUrl: "", caption: "Oversikt over risikoområder og sperrede soner" } },
         ],
         [
@@ -176,7 +176,7 @@ Risikovurderinger (SJA) for ditt arbeidsområde finnes i prosjektets HMS-dokumen
         [
           { type: "heading", label: "8. Kontrollspørsmål" },
           { type: "quiz", label: "Møteplass", config: { question: "Hvor er møteplassen ved evakuering?", options: ["I kantina", "Ved hovedporten", "Se evakueringskart for din bygning"], correctIndex: 2 } },
-          { type: "quiz", label: "Avvik", config: { question: "Hva gjør du hvis du oppdager en farlig situasjon?", options: ["Ignorerer det — ikke mitt ansvar", "Melder avvik til arbeidsleder eller i SiteDoc", "Venter til noen andre reagerer"], correctIndex: 1 } },
+          { type: "quiz", label: "RUH", config: { question: "Hva gjør du hvis du oppdager en farlig situasjon?", options: ["Ignorerer det — ikke mitt ansvar", "Registrerer RUH i SiteDoc eller melder til arbeidsleder", "Venter til noen andre reagerer"], correctIndex: 1 } },
           { type: "quiz", label: "Verneutstyr", config: { question: "Hvilket verneutstyr er alltid påkrevd?", options: ["Bare hjelm", "Hjelm, vernesko, refleksvest og vernebriller", "Det bestemmer jeg selv ut fra situasjonen"], correctIndex: 1 } },
           { type: "signature", label: "Signatur" },
         ],

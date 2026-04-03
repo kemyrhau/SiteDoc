@@ -766,5 +766,6 @@
   "psi.harIkkeHmsKort": "No HSE card",
   "psi.hmsKortPaakrevd": "HSE card number or «No HSE card» is required",
   "psi.tilbakeTilOppsett": "Back to PSI settings",
-  "malbygger.innhold": "Content"
+  "malbygger.innhold": "Content",
+  "psi.forhandsvisning": "Preview"
 }

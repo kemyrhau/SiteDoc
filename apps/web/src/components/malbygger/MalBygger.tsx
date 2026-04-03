@@ -651,15 +651,29 @@ export function MalBygger({ mal }: MalByggerProps) {
             {mal.description && (
               <p className="text-sm text-gray-500">{mal.description}</p>
             )}
+            {psiModus && (
+              <a
+                href={`/psi/${(mal as unknown as { projectId?: string }).projectId ?? ""}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-1 inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
+              >
+                <Eye className="h-3.5 w-3.5" />
+                {t("psi.forhandsvisning")}
+              </a>
+            )}
           </div>
 
           {/* Faste metadata-felter — vises ved opprettelse/utfylling */}
           <div className="mb-2">
+            {!psiModus && (
             <div className="mb-1 flex items-center gap-1.5 text-xs font-medium text-gray-500 uppercase tracking-wide">
               {t("malbygger.fasteFelt")}
             </div>
+            )}
             <div className="space-y-1.5">
-              {/* Emne */}
+              {/* Emne — skjules i PSI-modus */}
+              {!psiModus && (
               <div className="rounded-md border border-dashed border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-500">
                 <div className="flex items-center gap-2">
                   <FileText className="h-4 w-4 shrink-0 text-gray-400" />
@@ -729,7 +743,9 @@ export function MalBygger({ mal }: MalByggerProps) {
                   </div>
                 )}
               </div>
-              {/* Oppretter-entreprise */}
+              )}
+              {/* Oppretter-entreprise — skjules i PSI-modus */}
+              {!psiModus && (
               <div className="flex items-center gap-2 rounded-md border border-dashed border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-500">
                 <Building2 className="h-4 w-4 shrink-0 text-gray-400" />
                 <span className={mal.showEnterprise === false ? "line-through text-gray-300" : ""}>Oppretter-entreprise</span>
@@ -748,6 +764,7 @@ export function MalBygger({ mal }: MalByggerProps) {
                   }
                 </button>
               </div>
+              )}
               {/* Lokasjon */}
               <div className="flex items-center gap-2 rounded-md border border-dashed border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-500">
                 <MapPin className="h-4 w-4 shrink-0 text-gray-400" />
@@ -833,9 +850,10 @@ export function MalBygger({ mal }: MalByggerProps) {
           erLagrer={oppdaterObjektMutation.isPending}
           onFjernBetingelse={handleFjernBetingelse}
           onFjernBarnFraKontainer={handleFjernBarnFraKontainer}
+          psiModus={psiModus}
         />
       ) : (
-        <aside className="flex w-72 shrink-0 items-center justify-center border-l border-gray-200 bg-gray-50 p-4">
+        <aside className={`flex shrink-0 items-center justify-center border-l border-gray-200 bg-gray-50 p-4 ${psiModus ? "w-[480px]" : "w-72"}`}>
           <p className="text-center text-sm text-gray-400">
             {t("malbygger.velgFelt")}
           </p>

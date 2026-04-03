@@ -24,6 +24,7 @@ interface FeltKonfigurasjonProps {
   erLagrer: boolean;
   onFjernBetingelse?: (parentId: string) => void;
   onFjernBarnFraKontainer?: (barnId: string) => void;
+  psiModus?: boolean;
 }
 
 export function FeltKonfigurasjon({
@@ -33,6 +34,7 @@ export function FeltKonfigurasjon({
   erLagrer,
   onFjernBetingelse,
   onFjernBarnFraKontainer,
+  psiModus,
 }: FeltKonfigurasjonProps) {
   const { t } = useTranslation();
   const [label, setLabel] = useState(objekt.label);
@@ -71,7 +73,7 @@ export function FeltKonfigurasjon({
     : 0;
 
   return (
-    <aside className="flex h-full w-72 shrink-0 flex-col overflow-y-auto border-l border-gray-200 bg-gray-50 p-4">
+    <aside className={`flex h-full shrink-0 flex-col overflow-y-auto border-l border-gray-200 bg-gray-50 p-4 ${psiModus ? "w-[480px]" : "w-72"}`}>
       <h3 className="mb-1 text-xs font-semibold uppercase tracking-wider text-gray-500">
         {t("malbygger.konfigurasjon")}
       </h3>
