@@ -59,6 +59,52 @@ export default function PsiOppsettSide() {
         <h1 className="text-xl font-bold text-gray-900">PSI — Sikkerhetsinstruks</h1>
       </div>
 
+      {/* Veiledning — alltid synlig */}
+      <Card className="mb-6 border-blue-200 bg-blue-50 p-5">
+        <h3 className="mb-2 text-sm font-semibold text-blue-900">Hva bør en PSI inneholde?</h3>
+        <p className="mb-3 text-xs text-blue-800">
+          Byggherreforskriften krever at alle arbeidere gjennomfører prosjektspesifikk sikkerhetsinstruks.
+          Bygg malen i malbyggeren med disse seksjonene:
+        </p>
+        <div className="grid gap-2 text-xs text-blue-800 sm:grid-cols-2">
+          <div className="rounded-lg bg-white/60 p-3">
+            <p className="font-semibold">1. Velkommen og prosjektinfo</p>
+            <p className="mt-0.5 text-blue-700">Prosjektnavn, adresse, nøkkelpersoner (KU, HMS-ansvarlig), kontaktinfo</p>
+          </div>
+          <div className="rounded-lg bg-white/60 p-3">
+            <p className="font-semibold">2. Nødprosedyrer</p>
+            <p className="mt-0.5 text-blue-700">Nødnummer (110/112/113), møteplass, evakueringsruter, førstehjelpsutstyr, AED-plassering</p>
+          </div>
+          <div className="rounded-lg bg-white/60 p-3">
+            <p className="font-semibold">3. Verneutstyr (PPE)</p>
+            <p className="mt-0.5 text-blue-700">Alltid påkrevd: hjelm, vernesko, refleksvest, briller. Aktivitetsbasert: hørselsvern, fallsikring, åndedrettsvern</p>
+          </div>
+          <div className="rounded-lg bg-white/60 p-3">
+            <p className="font-semibold">4. Rigg og adkomst</p>
+            <p className="mt-0.5 text-blue-700">Inngang/utgang, parkering, gangveier, besøksprosedyre, fartsgrense</p>
+          </div>
+          <div className="rounded-lg bg-white/60 p-3">
+            <p className="font-semibold">5. Sikkerhetsregler</p>
+            <p className="mt-0.5 text-blue-700">Rusmiddelpolitikk, arbeidstid, ryddighet, arbeid i høyden, varme arbeider, graving, avviksrapportering</p>
+          </div>
+          <div className="rounded-lg bg-white/60 p-3">
+            <p className="font-semibold">6. Spesifikke risikoforhold</p>
+            <p className="mt-0.5 text-blue-700">Prosjektspesifikke farer: kran, grøfter, asbest, trafikk, tunge løft — bruk bilder!</p>
+          </div>
+          <div className="rounded-lg bg-white/60 p-3">
+            <p className="font-semibold">7. Video (anbefalt)</p>
+            <p className="mt-0.5 text-blue-700">3–5 min video som viser byggeplassen, nødutganger og spesifikke farer. Bruk «video»-feltet i malbyggeren</p>
+          </div>
+          <div className="rounded-lg bg-white/60 p-3">
+            <p className="font-semibold">8. Kontrollspørsmål + Signatur</p>
+            <p className="mt-0.5 text-blue-700">2–5 quiz-spørsmål for å verifisere forståelse. Avslutt med signatur-felt</p>
+          </div>
+        </div>
+        <p className="mt-3 text-xs text-blue-600">
+          Tips: Bruk felttyper <strong>heading</strong> (seksjonstittel), <strong>info_text</strong> (lesetekst), <strong>info_image</strong> (bilde), <strong>video</strong>, <strong>quiz</strong> og <strong>signature</strong> i malbyggeren.
+        </p>
+      </Card>
+
       {!psi ? (
         /* Ingen PSI opprettet ennå */
         <Card className="p-6">
