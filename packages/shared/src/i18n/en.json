@@ -754,5 +754,15 @@
   "psi.ferdig": "PSI completed",
   "psi.ferdigBeskrivelse": "You have completed and signed the safety instructions.",
   "psi.opprettet": "Created",
-  "psi.bygningHarPsi": "This building already has a PSI"
+  "psi.bygningHarPsi": "This building already has a PSI",
+  "psi.deaktiver": "Deactivate",
+  "psi.reaktiver": "Reactivate",
+  "psi.bekreftDeaktiver": "The PSI will be deactivated. The template and signatures are preserved and can be reactivated later. Continue?",
+  "psi.gjesteBeskjed": "Rules for guests",
+  "psi.gjesteBeskjedPlaceholder": "E.g.: Guests without an HSE card must be accompanied by a responsible person at all times.",
+  "psi.gjesteBeskjedHjelp": "Shown to guests who check «No HSE card». Saved automatically.",
+  "psi.hmsKort": "HSE card number",
+  "psi.hmsKortPlaceholder": "7 digits",
+  "psi.harIkkeHmsKort": "No HSE card",
+  "psi.hmsKortPaakrevd": "HSE card number or «No HSE card» is required"
 }

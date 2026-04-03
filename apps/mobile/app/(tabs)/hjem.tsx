@@ -611,16 +611,12 @@ export default function HjemSkjerm() {
   );
 }
 
-/* PSI-statuskort — viser signaturstatus per PSI */
+/* PSI-statuslinje — smal linje per PSI */
 function PsiStatusKort({ psiListe }: { psiListe: Array<{ id: string; version: number; buildingId: string | null; building: { id: string; name: string } | null; template: { id: string; name: string; prefix: string | null } }> }) {
   const router = useRouter();
 
   return (
-    <View className="mx-4 mt-3 mb-2 rounded-xl border border-blue-200 bg-blue-50 p-3">
-      <View className="mb-2 flex-row items-center gap-2">
-        <ShieldCheck size={18} color="#1e40af" />
-        <Text className="text-sm font-semibold text-sitedoc-primary">PSI — Sikkerhetsinstruks</Text>
-      </View>
+    <View className="mt-2">
       {psiListe.map((psi) => (
         <PsiStatusRad key={psi.id} psi={psi} onPress={() => router.push(`/psi/${psi.id}`)} />
       ))}
@@ -634,31 +630,32 @@ function PsiStatusRad({ psi, onPress }: {
 }) {
   const statusQuery = trpc.psi.hentMinStatus.useQuery({ psiId: psi.id });
   const status = statusQuery.data;
-  const navn = psi.building?.name ?? "Hele prosjektet";
+  const navn = psi.building?.name ?? null;
 
-  let farge = "bg-amber-100";
-  let tekst = "Ikke gjennomført";
+  let bakgrunn = "bg-amber-50";
+  let ikon = "#f59e0b";
+  let tekst = "PSI kreves";
   let tekstFarge = "text-amber-700";
 
   if (status?.signert && !status.utdatert) {
-    farge = "bg-green-100";
-    tekst = `Signert v${status.versjon}`;
+    bakgrunn = "bg-green-50";
+    ikon = "#10b981";
+    tekst = "PSI signert";
     tekstFarge = "text-green-700";
   } else if (status?.utdatert) {
-    farge = "bg-red-100";
-    tekst = "Ny signering kreves";
+    bakgrunn = "bg-red-50";
+    ikon = "#ef4444";
+    tekst = "Ny signering";
     tekstFarge = "text-red-600";
   }
 
   return (
-    <Pressable onPress={onPress} className="mt-1 flex-row items-center justify-between rounded-lg bg-white px-3 py-2.5">
-      <View className="flex-row items-center gap-2 flex-1">
-        <Text className="text-sm text-gray-900" numberOfLines={1}>{navn}</Text>
-        <View className={`rounded-full px-2 py-0.5 ${farge}`}>
-          <Text className={`text-xs font-medium ${tekstFarge}`}>{tekst}</Text>
-        </View>
-      </View>
-      <ChevronRight size={16} color="#9ca3af" />
+    <Pressable onPress={onPress} className={`flex-row items-center border-b border-gray-100 ${bakgrunn} px-4 py-2.5`}>
+      <ShieldCheck size={16} color={ikon} />
+      <Text className={`ml-2 flex-1 text-xs font-medium ${tekstFarge}`} numberOfLines={1}>
+        {tekst}{navn ? ` — ${navn}` : ""}
+      </Text>
+      <ChevronRight size={14} color="#9ca3af" />
     </Pressable>
   );
 }

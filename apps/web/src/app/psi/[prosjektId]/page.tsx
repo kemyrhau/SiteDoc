@@ -43,6 +43,9 @@ export default function PsiGjestSide() {
   const [gjestNavn, setGjestNavn] = useState("");
   const [gjestFirma, setGjestFirma] = useState("");
   const [gjestTlf, setGjestTlf] = useState("");
+  const [hmsKortNr, setHmsKortNr] = useState("");
+  const [harIkkeHmsKort, setHarIkkeHmsKort] = useState(false);
+  const [gjesteBeskjed, setGjesteBeskjed] = useState<string | null>(null);
   const [spraak, setSpraak] = useState("nb");
   const [signaturId, setSignaturId] = useState<string | null>(null);
   const [malObjekter, setMalObjekter] = useState<Objekt[]>([]);
@@ -68,21 +71,26 @@ export default function PsiGjestSide() {
 
   const guestStartMut = trpc.psi.guestStart.useMutation({
     onSuccess: (_data: unknown) => {
-      const data = _data as { signaturId: string; psiVersjon: number; template: { name: string; objects: Objekt[] } };
+      const data = _data as { signaturId: string; psiVersjon: number; template: { name: string; objects: Objekt[] }; guestMessage?: string | null };
       setSignaturId(data.signaturId);
       setMalObjekter(data.template.objects ?? []);
       setMalNavn(data.template.name ?? "PSI");
+      if (data.guestMessage && harIkkeHmsKort) setGjesteBeskjed(data.guestMessage);
       setSteg("gjennomforing");
     },
   });
 
+  const hmsGyldig = harIkkeHmsKort || /^\d{7}$/.test(hmsKortNr.trim());
+
   const startPsi = () => {
-    if (!gjestNavn.trim() || !gjestFirma.trim() || !valgtPsiId) return;
+    if (!gjestNavn.trim() || !gjestFirma.trim() || !valgtPsiId || !hmsGyldig) return;
     guestStartMut.mutate({
       psiId: valgtPsiId,
       name: gjestNavn.trim(),
       company: gjestFirma.trim(),
       phone: gjestTlf.trim() || undefined,
+      hmsKortNr: harIkkeHmsKort ? undefined : hmsKortNr.trim() || undefined,
+      harIkkeHmsKort,
       language: spraak,
     });
   };
@@ -102,12 +110,19 @@ export default function PsiGjestSide() {
 
   if (steg === "gjennomforing" && signaturId) {
     return (
-      <PsiGjennomforing
-        signaturId={signaturId}
-        objekter={malObjekter}
-        malNavn={malNavn}
-        onFullfort={() => setSteg("ferdig")}
-      />
+      <>
+        {gjesteBeskjed && (
+          <div className="border-b border-amber-200 bg-amber-50 px-4 py-3 text-center text-sm text-amber-800">
+            <strong>Viktig:</strong> {gjesteBeskjed}
+          </div>
+        )}
+        <PsiGjennomforing
+          signaturId={signaturId}
+          objekter={malObjekter}
+          malNavn={malNavn}
+          onFullfort={() => setSteg("ferdig")}
+        />
+      </>
     );
   }
 
@@ -216,7 +231,7 @@ export default function PsiGjestSide() {
             />
           </div>
 
-          <div className="mb-6">
+          <div className="mb-4">
             <label className="mb-1 block text-sm font-medium text-gray-700">Telefon</label>
             <input
               type="tel"
@@ -227,9 +242,34 @@ export default function PsiGjestSide() {
             />
           </div>
 
+          {/* HMS-kort */}
+          <div className="mb-6">
+            <label className="mb-1 block text-sm font-medium text-gray-700">HMS-kortnummer</label>
+            {!harIkkeHmsKort && (
+              <input
+                type="text"
+                inputMode="numeric"
+                maxLength={7}
+                value={hmsKortNr}
+                onChange={(e) => setHmsKortNr(e.target.value.replace(/\D/g, "").slice(0, 7))}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                placeholder="7 siffer"
+              />
+            )}
+            <label className="mt-2 flex items-center gap-2 text-sm text-gray-600">
+              <input
+                type="checkbox"
+                checked={harIkkeHmsKort}
+                onChange={(e) => { setHarIkkeHmsKort(e.target.checked); if (e.target.checked) setHmsKortNr(""); }}
+                className="rounded border-gray-300"
+              />
+              Har ikke HMS-kort
+            </label>
+          </div>
+
           <button
             onClick={startPsi}
-            disabled={!gjestNavn.trim() || !gjestFirma.trim() || guestStartMut.isPending}
+            disabled={!gjestNavn.trim() || !gjestFirma.trim() || !hmsGyldig || guestStartMut.isPending}
             className="w-full rounded-lg bg-sitedoc-primary py-3 text-sm font-semibold text-white hover:bg-sitedoc-secondary disabled:bg-gray-300 disabled:text-gray-500"
           >
             {guestStartMut.isPending ? "Starter..." : "Start PSI"}

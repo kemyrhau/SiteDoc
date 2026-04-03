@@ -2,6 +2,7 @@ import { useState, useMemo, useCallback, useRef } from "react";
 import {
   View,
   Text,
+  TextInput,
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
@@ -34,6 +35,7 @@ export default function PsiLeser() {
   const [seksjonFullfort, setSeksjonFullfort] = useState<Set<number>>(new Set());
   const [feltVerdier, setFeltVerdier] = useState<Record<string, unknown>>({});
   const [signaturData, setSignaturData] = useState<string | null>(null);
+  const [hmsKortNr, setHmsKortNr] = useState("");
   const scrollRef = useRef<ScrollView>(null);
   const [harScrolletTilBunn, setHarScrolletTilBunn] = useState(false);
 
@@ -149,6 +151,7 @@ export default function PsiLeser() {
       await fullforMut.mutateAsync({
         signaturId,
         signatureData: signaturData,
+        hmsKortNr: /^\d{7}$/.test(hmsKortNr) ? hmsKortNr : undefined,
         data: feltVerdier as Record<string, unknown>,
       });
       return;
@@ -242,6 +245,16 @@ export default function PsiLeser() {
           if (objekt.type === "signature") {
             return (
               <View key={objekt.id} className="mt-4">
+                {/* HMS-kortnummer */}
+                <Text className="mb-1 text-sm font-medium text-gray-700">HMS-kortnummer</Text>
+                <TextInput
+                  value={hmsKortNr}
+                  onChangeText={(t) => setHmsKortNr(t.replace(/\D/g, "").slice(0, 7))}
+                  keyboardType="number-pad"
+                  maxLength={7}
+                  placeholder="7 siffer"
+                  className="mb-4 rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm"
+                />
                 <Text className="mb-2 text-sm font-medium text-gray-700">Signatur</Text>
                 <SignaturObjekt
                   objekt={objekt}

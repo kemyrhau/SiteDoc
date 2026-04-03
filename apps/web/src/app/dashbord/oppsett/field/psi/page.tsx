@@ -52,7 +52,15 @@ export default function PsiOppsettSide() {
     onSuccess: () => utils.psi.hentForProsjekt.invalidate(),
   });
 
-  const slettMut = trpc.psi.slett.useMutation({
+  const deaktiverMut = trpc.psi.deaktiver.useMutation({
+    onSuccess: () => utils.psi.hentForProsjekt.invalidate(),
+  });
+
+  const reaktiverMut = trpc.psi.reaktiver.useMutation({
+    onSuccess: () => utils.psi.hentForProsjekt.invalidate(),
+  });
+
+  const gjesteBeskjedMut = trpc.psi.oppdaterGjesteBeskjed.useMutation({
     onSuccess: () => utils.psi.hentForProsjekt.invalidate(),
   });
 
@@ -217,7 +225,7 @@ export default function PsiOppsettSide() {
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {(psiListe as PsiRad[]).map((psi) => (
-                  <tr key={psi.id} className="hover:bg-gray-50">
+                  <tr key={psi.id} className={`hover:bg-gray-50 ${!(psi as unknown as { active: boolean }).active ? "opacity-50" : ""}`}>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         {psi.building ? (
@@ -231,11 +239,23 @@ export default function PsiOppsettSide() {
                             <span className="font-medium text-gray-900">{t("psi.heleProsjektet")}</span>
                           </>
                         )}
+                        {!(psi as unknown as { active: boolean }).active && (
+                          <button
+                            onClick={() => reaktiverMut.mutate({ psiId: psi.id })}
+                            className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700 hover:bg-amber-200"
+                          >
+                            {t("psi.reaktiver")}
+                          </button>
+                        )}
                       </div>
                     </td>
                     <td className="px-4 py-3 text-gray-600">{psi.template.name}</td>
                     <td className="px-4 py-3">
-                      <span className="rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700">
+                      <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                        (psi as unknown as { active: boolean }).active
+                          ? "bg-green-100 text-green-700"
+                          : "bg-gray-100 text-gray-500"
+                      }`}>
                         v{psi.version}
                       </span>
                     </td>
@@ -272,12 +292,12 @@ export default function PsiOppsettSide() {
                         </button>
                         <button
                           onClick={() => {
-                            if (confirm(t("psi.bekreftSlett"))) {
-                              slettMut.mutate({ psiId: psi.id });
+                            if (confirm(t("psi.bekreftDeaktiver"))) {
+                              deaktiverMut.mutate({ psiId: psi.id });
                             }
                           }}
-                          className="rounded-md px-2 py-1 text-xs text-red-500 hover:bg-red-50"
-                          title={t("psi.slettPsi")}
+                          className="rounded-md px-2 py-1 text-xs text-amber-600 hover:bg-amber-50"
+                          title={t("psi.deaktiver")}
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
@@ -332,6 +352,25 @@ export default function PsiOppsettSide() {
                               </option>
                             ))}
                           </select>
+                        </div>
+                      </details>
+                      {/* Gjestebeskjed */}
+                      <details className="mt-2">
+                        <summary className="cursor-pointer text-xs text-gray-500 hover:text-gray-700">
+                          {t("psi.gjesteBeskjed")}
+                        </summary>
+                        <div className="mt-1.5">
+                          <textarea
+                            defaultValue={(psi as unknown as { guestMessage?: string | null }).guestMessage ?? ""}
+                            placeholder={t("psi.gjesteBeskjedPlaceholder")}
+                            rows={3}
+                            className="w-full rounded-lg border border-gray-300 px-2 py-1 text-xs"
+                            onBlur={(e) => {
+                              const nyVerdi = e.target.value.trim() || null;
+                              gjesteBeskjedMut.mutate({ psiId: psi.id, guestMessage: nyVerdi });
+                            }}
+                          />
+                          <p className="mt-0.5 text-[10px] text-gray-400">{t("psi.gjesteBeskjedHjelp")}</p>
                         </div>
                       </details>
                     </td>

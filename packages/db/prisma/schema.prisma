@@ -1043,10 +1043,11 @@ model Psi {
   projectId  String   @map("project_id")
   buildingId String?  @map("building_id")  // null = gjelder hele prosjektet
   templateId String   @map("template_id")
-  version    Int      @default(1)
-  active     Boolean  @default(true)
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @updatedAt @map("updated_at")
+  version      Int      @default(1)
+  active       Boolean  @default(true)
+  guestMessage String?  @map("guest_message")  // Admin-beskjed til gjester uten HMS-kort
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
 
   project    Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
   building   Building?      @relation(fields: [buildingId], references: [id], onDelete: SetNull)
@@ -1068,12 +1069,15 @@ model PsiSignatur {
   guestCompany String?   @map("guest_company")
   guestPhone   String?   @map("guest_phone")
 
-  data          Json     @default("{}")
-  signatureData String?  @map("signature_data")
-  language      String   @default("nb")
-  progress      Int      @default(0)
-  completedAt   DateTime? @map("completed_at")
-  startedAt     DateTime  @default(now()) @map("started_at")
+  hmsKortNr       String?   @map("hms_kort_nr")       // HMS-kortnummer (NO xxxxxxxxx)
+  harIkkeHmsKort  Boolean   @default(false) @map("har_ikke_hms_kort")  // Gjest: har ikke HMS-kort
+
+  data            Json      @default("{}")
+  signatureData   String?   @map("signature_data")
+  language        String    @default("nb")
+  progress        Int       @default(0)
+  completedAt     DateTime? @map("completed_at")
+  startedAt       DateTime  @default(now()) @map("started_at")
 
   psi  Psi   @relation(fields: [psiId], references: [id], onDelete: Cascade)
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)

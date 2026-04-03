@@ -108,8 +108,8 @@ export const psiRouter = router({
       });
     }),
 
-  // Slett PSI
-  slett: protectedProcedure
+  // Deaktiver PSI (soft delete — malen bevares)
+  deaktiver: protectedProcedure
     .input(z.object({ psiId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       const psi = await ctx.prisma.psi.findUniqueOrThrow({ where: { id: input.psiId } });
@@ -117,7 +117,31 @@ export const psiRouter = router({
         where: { userId: ctx.userId, projectId: psi.projectId, role: "admin" },
       });
       if (!medlem) throw new TRPCError({ code: "FORBIDDEN" });
-      return ctx.prisma.psi.delete({ where: { id: input.psiId } });
+      return ctx.prisma.psi.update({ where: { id: input.psiId }, data: { active: false } });
+    }),
+
+  // Reaktiver PSI
+  reaktiver: protectedProcedure
+    .input(z.object({ psiId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const psi = await ctx.prisma.psi.findUniqueOrThrow({ where: { id: input.psiId } });
+      const medlem = await ctx.prisma.projectMember.findFirst({
+        where: { userId: ctx.userId, projectId: psi.projectId, role: "admin" },
+      });
+      if (!medlem) throw new TRPCError({ code: "FORBIDDEN" });
+      return ctx.prisma.psi.update({ where: { id: input.psiId }, data: { active: true } });
+    }),
+
+  // Oppdater gjeste-beskjed (regler for gjester uten HMS-kort)
+  oppdaterGjesteBeskjed: protectedProcedure
+    .input(z.object({ psiId: z.string().uuid(), guestMessage: z.string().max(2000).nullable() }))
+    .mutation(async ({ ctx, input }) => {
+      const psi = await ctx.prisma.psi.findUniqueOrThrow({ where: { id: input.psiId } });
+      const medlem = await ctx.prisma.projectMember.findFirst({
+        where: { userId: ctx.userId, projectId: psi.projectId, role: "admin" },
+      });
+      if (!medlem) throw new TRPCError({ code: "FORBIDDEN" });
+      return ctx.prisma.psi.update({ where: { id: input.psiId }, data: { guestMessage: input.guestMessage } });
     }),
 
   // Dashboard: hent alle signaturer for én PSI
@@ -150,6 +174,8 @@ export const psiRouter = router({
           startetDato: s.startedAt,
           progresjon: s.progress,
           spraak: s.language,
+          hmsKortNr: s.hmsKortNr ?? null,
+          harIkkeHmsKort: s.harIkkeHmsKort,
         })),
         versjon: psi.version,
       };
@@ -211,26 +237,38 @@ export const psiRouter = router({
       });
     }),
 
-  // Fullfør med signatur
+  // Fullfør med signatur + HMS-kortnummer
   fullfør: protectedProcedure
-    .input(z.object({ signaturId: z.string().uuid(), signatureData: z.string().min(1), data: z.record(z.unknown()).optional() }))
+    .input(z.object({
+      signaturId: z.string().uuid(),
+      signatureData: z.string().min(1),
+      hmsKortNr: z.string().regex(/^\d{7}$/, "HMS-kortnummer må være 7 siffer").optional(),
+      data: z.record(z.unknown()).optional(),
+    }))
     .mutation(async ({ ctx, input }) => {
       const signatur = await ctx.prisma.psiSignatur.findUniqueOrThrow({ where: { id: input.signaturId } });
       if (signatur.userId !== ctx.userId) throw new TRPCError({ code: "FORBIDDEN" });
       if (signatur.completedAt) throw new TRPCError({ code: "BAD_REQUEST", message: "Allerede fullført" });
       return ctx.prisma.psiSignatur.update({
         where: { id: input.signaturId },
-        data: { signatureData: input.signatureData, completedAt: new Date(), ...(input.data ? { data: input.data as object } : {}) },
+        data: {
+          signatureData: input.signatureData,
+          completedAt: new Date(),
+          ...(input.hmsKortNr ? { hmsKortNr: input.hmsKortNr } : {}),
+          ...(input.data ? { data: input.data as object } : {}),
+        },
       });
     }),
 
-  // Gjest: start
+  // Gjest: start (inkl. HMS-kort eller "har ikke HMS-kort")
   guestStart: publicProcedure
     .input(z.object({
       psiId: z.string().uuid(),
       name: z.string().min(1).max(200),
       company: z.string().min(1).max(200),
       phone: z.string().max(30).optional(),
+      hmsKortNr: z.string().regex(/^\d{7}$/, "HMS-kortnummer må være 7 siffer").optional(),
+      harIkkeHmsKort: z.boolean().default(false),
       language: z.string().default("nb"),
     }))
     .mutation(async ({ ctx, input }) => {
@@ -239,9 +277,18 @@ export const psiRouter = router({
         include: { template: { include: { objects: { orderBy: { sortOrder: "asc" } } } } },
       });
       const signatur = await ctx.prisma.psiSignatur.create({
-        data: { psiId: input.psiId, psiVersion: psi.version, guestName: input.name, guestCompany: input.company, guestPhone: input.phone, language: input.language },
+        data: {
+          psiId: input.psiId,
+          psiVersion: psi.version,
+          guestName: input.name,
+          guestCompany: input.company,
+          guestPhone: input.phone,
+          hmsKortNr: input.hmsKortNr ?? null,
+          harIkkeHmsKort: input.harIkkeHmsKort,
+          language: input.language,
+        },
       });
-      return { signaturId: signatur.id, psiVersjon: psi.version, template: psi.template };
+      return { signaturId: signatur.id, psiVersjon: psi.version, template: psi.template, guestMessage: psi.guestMessage };
     }),
 
   // Gjest: oppdater progresjon
@@ -259,26 +306,41 @@ export const psiRouter = router({
 
   // Gjest: fullfør
   guestFullfør: publicProcedure
-    .input(z.object({ signaturId: z.string().uuid(), signatureData: z.string().min(1), data: z.record(z.unknown()).optional() }))
+    .input(z.object({
+      signaturId: z.string().uuid(),
+      signatureData: z.string().min(1),
+      hmsKortNr: z.string().regex(/^\d{7}$/, "HMS-kortnummer må være 7 siffer").optional(),
+      harIkkeHmsKort: z.boolean().optional(),
+      data: z.record(z.unknown()).optional(),
+    }))
     .mutation(async ({ ctx, input }) => {
       const signatur = await ctx.prisma.psiSignatur.findUniqueOrThrow({ where: { id: input.signaturId } });
       if (signatur.userId) throw new TRPCError({ code: "FORBIDDEN" });
       if (signatur.completedAt) throw new TRPCError({ code: "BAD_REQUEST" });
       return ctx.prisma.psiSignatur.update({
         where: { id: input.signaturId },
-        data: { signatureData: input.signatureData, completedAt: new Date(), ...(input.data ? { data: input.data as object } : {}) },
+        data: {
+          signatureData: input.signatureData,
+          completedAt: new Date(),
+          ...(input.hmsKortNr ? { hmsKortNr: input.hmsKortNr } : {}),
+          ...(input.harIkkeHmsKort !== undefined ? { harIkkeHmsKort: input.harIkkeHmsKort } : {}),
+          ...(input.data ? { data: input.data as object } : {}),
+        },
       });
     }),
 
-  // Offentlig: hent PSI-er for prosjekt (gjestesiden — bygningsvalg)
+  // Offentlig: hent PSI-er for prosjekt (gjestesiden — bygningsvalg + guestMessage)
   hentForProsjektPublic: publicProcedure
     .input(z.object({ projectId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       return ctx.prisma.psi.findMany({
         where: { projectId: input.projectId, active: true },
-        include: {
-          template: { select: { id: true, name: true, prefix: true } },
+        select: {
+          id: true,
+          version: true,
+          guestMessage: true,
           building: { select: { id: true, name: true } },
+          template: { select: { id: true, name: true, prefix: true } },
         },
         orderBy: { createdAt: "asc" },
       });

@@ -754,5 +754,15 @@
   "psi.ferdig": "PSI fullført",
   "psi.ferdigBeskrivelse": "Du har gjennomført og signert sikkerhetsinstruksen.",
   "psi.opprettet": "Opprettet",
-  "psi.bygningHarPsi": "Denne bygningen har allerede en PSI"
+  "psi.bygningHarPsi": "Denne bygningen har allerede en PSI",
+  "psi.deaktiver": "Deaktiver",
+  "psi.reaktiver": "Reaktiver",
+  "psi.bekreftDeaktiver": "PSI-en deaktiveres. Malen og signaturene bevares og kan reaktiveres senere. Fortsett?",
+  "psi.gjesteBeskjed": "Regler for gjester",
+  "psi.gjesteBeskjedPlaceholder": "F.eks: Gjester uten HMS-kort plikter å ha følge av ansvarlig person til enhver tid.",
+  "psi.gjesteBeskjedHjelp": "Vises til gjester som krysser av for «Har ikke HMS-kort». Lagres automatisk.",
+  "psi.hmsKort": "HMS-kortnummer",
+  "psi.hmsKortPlaceholder": "7 siffer",
+  "psi.harIkkeHmsKort": "Har ikke HMS-kort",
+  "psi.hmsKortPaakrevd": "HMS-kortnummer eller «Har ikke HMS-kort» er påkrevd"
 }

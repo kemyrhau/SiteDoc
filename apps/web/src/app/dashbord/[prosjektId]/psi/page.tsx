@@ -167,7 +167,7 @@ export default function PsiDashboardSide() {
                     <tr>
                       <th className="px-4 py-2.5 text-left font-medium text-gray-500">Navn</th>
                       <th className="px-4 py-2.5 text-left font-medium text-gray-500">Firma</th>
-                      <th className="px-4 py-2.5 text-left font-medium text-gray-500">Type</th>
+                      <th className="px-4 py-2.5 text-left font-medium text-gray-500">{t("psi.hmsKort")}</th>
                       <th className="px-4 py-2.5 text-left font-medium text-gray-500">{t("psi.versjon")}</th>
                       <th className="px-4 py-2.5 text-left font-medium text-gray-500">Status</th>
                       <th className="px-4 py-2.5 text-left font-medium text-gray-500">Dato</th>
@@ -179,12 +179,14 @@ export default function PsiDashboardSide() {
                       <tr key={s.id} className="hover:bg-gray-50">
                         <td className="px-4 py-2.5 font-medium text-gray-900">{s.brukerNavn}</td>
                         <td className="px-4 py-2.5 text-gray-600">{s.firma ?? s.brukerEpost ?? "—"}</td>
-                        <td className="px-4 py-2.5">
-                          <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                            s.erGjest ? "bg-amber-100 text-amber-700" : "bg-blue-100 text-blue-700"
-                          }`}>
-                            {s.erGjest ? "Gjest" : "Bruker"}
-                          </span>
+                        <td className="px-4 py-2.5 text-gray-600">
+                          {s.hmsKortNr ? (
+                            <span className="font-mono text-xs">{s.hmsKortNr}</span>
+                          ) : s.harIkkeHmsKort ? (
+                            <span className="text-xs text-amber-600">Mangler</span>
+                          ) : (
+                            <span className="text-xs text-gray-400">—</span>
+                          )}
                         </td>
                         <td className="px-4 py-2.5 text-gray-600">v{s.signertVersjon}</td>
                         <td className="px-4 py-2.5">
