@@ -16,6 +16,7 @@ import { useAuth } from "../../src/providers/AuthProvider";
 import { RapportObjektRenderer, DISPLAY_TYPER } from "../../src/components/rapportobjekter/RapportObjektRenderer";
 import { SignaturObjekt } from "../../src/components/rapportobjekter/SignaturObjekt";
 import { STOETTEDE_SPRAAK } from "@sitedoc/shared";
+import { useOversettelse } from "../../src/hooks/useOversettelse";
 
 interface SeksjonData {
   tittel: string;
@@ -53,6 +54,16 @@ export default function PsiLeser() {
     { projectId: prosjektId ?? "" },
     { enabled: !!prosjektId },
   );
+
+  // Oversettelse av PSI-innhold (Lag 2)
+  const psiKildesprak = (psi as unknown as { template?: { project?: { sourceLanguage?: string } } })?.template?.project?.sourceLanguage;
+  const psiObjekter = (psi?.template as unknown as { objects?: Array<{ id: string; label: string; config: Record<string, unknown> }> })?.objects ?? [];
+  const {
+    oversettelser,
+    laster: oversettelseLaster,
+    visOversettKnapp,
+    oversettAlt,
+  } = useOversettelse(prosjektId, psiKildesprak, psiObjekter);
 
   // Start gjennomføring ved første lasting
   const [signaturId, setSignaturId] = useState<string | null>(null);
@@ -218,8 +229,23 @@ export default function PsiLeser() {
 
   return (
     <SafeAreaView className="flex-1 bg-white">
-      {/* Header med progresjon */}
-      <Header onTilbake={() => router.back()} tittel={psi.template.name} />
+      {/* Header med progresjon + oversettelse */}
+      <Header
+        onTilbake={() => router.back()}
+        tittel={psi.template.name}
+        ekstra={visOversettKnapp ? (
+          <TouchableOpacity
+            onPress={oversettAlt}
+            className="rounded-lg border border-gray-200 p-1.5"
+            disabled={oversettelseLaster}
+          >
+            {oversettelseLaster
+              ? <ActivityIndicator size="small" color="#1e40af" />
+              : <Globe size={18} color="#1e40af" />
+            }
+          </TouchableOpacity>
+        ) : undefined}
+      />
 
       {/* Progresjonslinje */}
       <View className="flex-row border-b border-gray-100 px-4 py-2">
@@ -312,7 +338,7 @@ export default function PsiLeser() {
   );
 }
 
-function Header({ onTilbake, tittel }: { onTilbake: () => void; tittel: string }) {
+function Header({ onTilbake, tittel, ekstra }: { onTilbake: () => void; tittel: string; ekstra?: React.ReactNode }) {
   return (
     <View className="flex-row items-center border-b border-gray-200 px-3 py-2.5">
       <TouchableOpacity onPress={onTilbake} className="mr-2 rounded-lg p-1.5">
@@ -321,6 +347,7 @@ function Header({ onTilbake, tittel }: { onTilbake: () => void; tittel: string }
       <Text className="flex-1 text-sm font-semibold text-gray-900" numberOfLines={1}>
         {tittel}
       </Text>
+      {ekstra}
     </View>
   );
 }
