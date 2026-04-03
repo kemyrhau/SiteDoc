@@ -15,6 +15,7 @@ import { ArrowLeft, Save, Check, AlertTriangle, Clock, CloudOff, Cloud, Trash2, 
 import { harBetingelse, harForelderObjekt } from "@sitedoc/shared";
 import { hentStatusHandlinger } from "@sitedoc/shared";
 import type { StatusHandling } from "@sitedoc/shared";
+import { useTranslation } from "react-i18next";
 import { useSjekklisteSkjema } from "../../src/hooks/useSjekklisteSkjema";
 import { useAutoVaer } from "../../src/hooks/useAutoVaer";
 import { useOversettelse } from "../../src/hooks/useOversettelse";
@@ -96,6 +97,7 @@ interface SjekklisteOppgave {
 }
 
 export default function SjekklisteUtfylling() {
+  const { t } = useTranslation();
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { bruker } = useAuth();
@@ -184,18 +186,18 @@ export default function SjekklisteUtfylling() {
       router.back();
     },
     onError: (feil: { message?: string }) => {
-      Alert.alert("Kunne ikke slette", feil.message || "Ukjent feil ved sletting");
+      Alert.alert(t("feil.kunneIkkeSlett"), feil.message || t("feil.ukjentFeil"));
     },
   });
 
   const håndterSlett = useCallback(() => {
     Alert.alert(
-      "Slett sjekkliste",
-      "Er du sikker på at du vil slette denne sjekklisten? Dette kan ikke angres.",
+      t("sjekkliste.slettSjekkliste"),
+      t("bekreft.slettSjekkliste"),
       [
-        { text: "Avbryt", style: "cancel" },
+        { text: t("handling.avbryt"), style: "cancel" },
         {
-          text: "Slett",
+          text: t("handling.slett"),
           style: "destructive",
           onPress: () => slettMutasjon.mutate({ id: id! }),
         },
@@ -207,14 +209,14 @@ export default function SjekklisteUtfylling() {
     (handling: StatusHandling) => {
       if (!bruker?.id) return;
 
-      const bekreftTekst = handling.nyStatus === "cancelled" ? "Ja, avbryt sjekklisten" : handling.tekst;
+      const bekreftTekst = handling.nyStatus === "cancelled" ? t("bekreft.jaAvbrytSjekklisten") : handling.tekst;
       const erDestruktiv = handling.nyStatus === "rejected" || handling.nyStatus === "cancelled";
 
       Alert.alert(
-        "Bekreft statusendring",
-        `Er du sikker på at du vil endre status til "${handling.tekst.toLowerCase()}"?`,
+        t("bekreft.statusendring"),
+        t("bekreft.endreStatusTil", { status: handling.tekst.toLowerCase() }),
         [
-          { text: "Ikke nå", style: "cancel" },
+          { text: t("bekreft.ikkeNaa"), style: "cancel" },
           {
             text: bekreftTekst,
             style: erDestruktiv ? "destructive" : "default",
@@ -226,14 +228,14 @@ export default function SjekklisteUtfylling() {
                   senderId: bruker.id,
                 });
               } catch {
-                Alert.alert("Feil", "Kunne ikke endre status. Prøv igjen.");
+                Alert.alert(t("feil.tittel"), t("feil.kunneIkkeEndreStatus"));
               }
             },
           },
         ],
       );
     },
-    [bruker?.id, id, endreStatusMutasjon],
+    [bruker?.id, id, endreStatusMutasjon, t],
   );
 
   const {
@@ -351,11 +353,11 @@ export default function SjekklisteUtfylling() {
   const håndterLagre = useCallback(async () => {
     const erGyldig = valider();
     if (!erGyldig) {
-      Alert.alert("Valideringsfeil", "Fyll inn alle påkrevde felt før du lagrer.");
+      Alert.alert(t("dokument.valideringsfeil"), t("dokument.fyllInnPaakrevde"));
       return;
     }
     await lagre();
-    Alert.alert("Lagret", "Utfyllingen er lagret.");
+    Alert.alert(t("dokument.lagret"), t("dokument.utfyllingLagret"));
   }, [valider, lagre]);
 
   // Beregn objekter og repeater-logikk FØR tidlige returns (hooks må alltid kjøres)
@@ -390,7 +392,7 @@ export default function SjekklisteUtfylling() {
     return (
       <SafeAreaView className="flex-1 items-center justify-center bg-gray-50">
         <ActivityIndicator size="large" color="#1e40af" />
-        <Text className="mt-3 text-sm text-gray-500">Henter sjekkliste...</Text>
+        <Text className="mt-3 text-sm text-gray-500">{t("sjekkliste.henter")}</Text>
       </SafeAreaView>
     );
   }
@@ -398,9 +400,9 @@ export default function SjekklisteUtfylling() {
   if (!sjekkliste) {
     return (
       <SafeAreaView className="flex-1 items-center justify-center bg-gray-50">
-        <Text className="text-base text-gray-500">Sjekklisten ble ikke funnet</Text>
+        <Text className="text-base text-gray-500">{t("sjekkliste.ikkeFunnet")}</Text>
         <Pressable onPress={() => router.back()} className="mt-4">
-          <Text className="text-blue-600">Gå tilbake</Text>
+          <Text className="text-blue-600">{t("dokument.gaaTilbake")}</Text>
         </Pressable>
       </SafeAreaView>
     );
@@ -491,10 +493,10 @@ export default function SjekklisteUtfylling() {
               className="flex-1"
               onPress={() => settVisEntrepriseListe(visEntrepriseListe === "oppretter" ? null : "oppretter")}
             >
-              <Text className="text-[10px] text-gray-400">Fra</Text>
+              <Text className="text-[10px] text-gray-400">{t("dokument.fra")}</Text>
               <View className="flex-row items-center justify-between">
                 <Text className="text-xs font-medium text-gray-700">
-                  {sjekkliste.creatorEnterprise?.name ?? "Velg…"}
+                  {sjekkliste.creatorEnterprise?.name ?? t("dokument.velgEntreprise")}
                 </Text>
                 <ChevronDown size={12} color="#9ca3af" />
               </View>
@@ -504,10 +506,10 @@ export default function SjekklisteUtfylling() {
               className="flex-1"
               onPress={() => settVisEntrepriseListe(visEntrepriseListe === "svarer" ? null : "svarer")}
             >
-              <Text className="text-right text-[10px] text-gray-400">Til</Text>
+              <Text className="text-right text-[10px] text-gray-400">{t("dokument.til")}</Text>
               <View className="flex-row items-center justify-between">
                 <Text className="text-xs font-medium text-gray-700">
-                  {sjekkliste.responderEnterprise?.name ?? "Velg…"}
+                  {sjekkliste.responderEnterprise?.name ?? t("dokument.velgEntreprise")}
                 </Text>
                 <ChevronDown size={12} color="#9ca3af" />
               </View>
@@ -554,12 +556,12 @@ export default function SjekklisteUtfylling() {
         <View className="flex-row border-b border-gray-200 bg-white px-4 py-1.5">
           {sjekkliste.creatorEnterprise && (
             <Text className="flex-1 text-xs text-gray-500">
-              Oppretter: {sjekkliste.creatorEnterprise.name}
+              {t("dokument.oppretter", { navn: sjekkliste.creatorEnterprise.name })}
             </Text>
           )}
           {sjekkliste.responderEnterprise && (
             <Text className="flex-1 text-right text-xs text-gray-500">
-              Svarer: {sjekkliste.responderEnterprise.name}
+              {t("dokument.svarer", { navn: sjekkliste.responderEnterprise.name })}
             </Text>
           )}
         </View>
@@ -661,7 +663,7 @@ export default function SjekklisteUtfylling() {
           <View className="mt-4">
             <View className="flex-row items-center gap-2 px-1 pb-2">
               <Clock size={16} color="#6b7280" />
-              <Text className="text-sm font-semibold text-gray-700">Endringslogg</Text>
+              <Text className="text-sm font-semibold text-gray-700">{t("dokument.endringslogg")}</Text>
             </View>
             <View className="rounded-lg bg-white">
               {(sjekklisteDetalj.changeLog ?? []).map((rad, i) => (
@@ -678,7 +680,7 @@ export default function SjekklisteUtfylling() {
                     </Text>
                   </View>
                   <Text className="mt-0.5 text-xs text-gray-600">
-                    Endret <Text className="font-medium">{rad.fieldLabel}</Text>
+                    {t("dokument.endret")} <Text className="font-medium">{rad.fieldLabel}</Text>
                     {rad.oldValue != null && ` fra «${formaterLoggVerdi(rad.oldValue)}»`}
                     {` til «${formaterLoggVerdi(rad.newValue)}»`}
                   </Text>
@@ -693,29 +695,29 @@ export default function SjekklisteUtfylling() {
           <View className="mt-4">
             <View className="flex-row items-center gap-2 px-1 pb-2">
               <Clock size={16} color="#6b7280" />
-              <Text className="text-sm font-semibold text-gray-700">Historikk</Text>
+              <Text className="text-sm font-semibold text-gray-700">{t("dokument.historikk")}</Text>
             </View>
             <View className="rounded-lg bg-white">
-              {overforinger.map((t, i) => (
+              {overforinger.map((ovf, i) => (
                 <View
-                  key={t.id}
+                  key={ovf.id}
                   className={`flex-row items-center gap-2 px-3 py-2.5 ${i > 0 ? "border-t border-gray-100" : ""}`}
                 >
                   <View className="flex-1">
                     <View className="flex-row items-center gap-1.5">
-                      <StatusMerkelapp status={t.fromStatus} />
+                      <StatusMerkelapp status={ovf.fromStatus} />
                       <Text className="text-xs text-gray-400">→</Text>
-                      <StatusMerkelapp status={t.toStatus} />
+                      <StatusMerkelapp status={ovf.toStatus} />
                     </View>
-                    {t.sender?.name && (
-                      <Text className="mt-0.5 text-xs text-gray-500">{t.sender.name}</Text>
+                    {ovf.sender?.name && (
+                      <Text className="mt-0.5 text-xs text-gray-500">{ovf.sender.name}</Text>
                     )}
-                    {t.comment && (
-                      <Text className="mt-0.5 text-xs text-gray-600">{t.comment}</Text>
+                    {ovf.comment && (
+                      <Text className="mt-0.5 text-xs text-gray-600">{ovf.comment}</Text>
                     )}
                   </View>
                   <Text className="text-xs text-gray-400">
-                    {formaterHistorikkDato(t.createdAt)}
+                    {formaterHistorikkDato(ovf.createdAt)}
                   </Text>
                 </View>
               ))}
@@ -759,7 +761,7 @@ export default function SjekklisteUtfylling() {
             className={`items-center rounded-lg py-3 ${erLagrer ? "bg-blue-400" : "bg-blue-600"}`}
           >
             <Text className="font-medium text-white">
-              {erLagrer ? "Lagrer..." : "Lagre utfylling"}
+              {erLagrer ? t("handling.lagrer") : t("dokument.lagreUtfylling")}
             </Text>
           </Pressable>
         )}
@@ -773,7 +775,7 @@ export default function SjekklisteUtfylling() {
           >
             <Trash2 size={16} color="#dc2626" />
             <Text className="font-medium text-red-600">
-              {slettMutasjon.isPending ? "Sletter..." : "Slett sjekkliste"}
+              {slettMutasjon.isPending ? t("handling.sletter") : t("sjekkliste.slettSjekkliste")}
             </Text>
           </Pressable>
         )}

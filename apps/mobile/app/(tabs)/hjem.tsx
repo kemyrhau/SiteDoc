@@ -23,6 +23,7 @@ import {
   ShieldCheck,
 } from "lucide-react-native";
 import { useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { trpc } from "../../src/lib/trpc";
 import { useProsjekt } from "../../src/kontekst/ProsjektKontekst";
 import { useBygning } from "../../src/kontekst/BygningKontekst";
@@ -50,7 +51,7 @@ interface InnboksElement {
   status: string;
 }
 
-function formaterTidspunkt(dato: Date | string): string {
+function formaterTidspunkt(dato: Date | string, t: (key: string, opts?: Record<string, unknown>) => string): string {
   const d = new Date(dato);
   const na = new Date();
   const diffMs = na.getTime() - d.getTime();
@@ -58,10 +59,10 @@ function formaterTidspunkt(dato: Date | string): string {
   const diffTimer = Math.floor(diffMs / 3600000);
   const diffDager = Math.floor(diffMs / 86400000);
 
-  if (diffMin < 1) return "Akkurat nå";
-  if (diffMin < 60) return `${diffMin} min siden`;
-  if (diffTimer < 24) return `${diffTimer} t siden`;
-  if (diffDager < 7) return `${diffDager} d siden`;
+  if (diffMin < 1) return t("tid.akkuratNaa");
+  if (diffMin < 60) return t("tid.minSiden", { n: diffMin });
+  if (diffTimer < 24) return t("tid.timerSiden", { n: diffTimer });
+  if (diffDager < 7) return t("tid.dagerSiden", { n: diffDager });
   return d.toLocaleDateString("nb-NO", { day: "numeric", month: "short" });
 }
 
@@ -77,11 +78,11 @@ function formaterSistOppdatert(timestamp: number): string {
   });
 }
 
-const PRIORITETS_TEKST: Record<string, string> = {
-  low: "Lav prioritet",
-  medium: "Medium prioritet",
-  high: "Hoy prioritet",
-  critical: "Kritisk",
+const PRIORITETS_NOEKLER: Record<string, string> = {
+  low: "prioritet.lavPrioritet",
+  medium: "prioritet.mediumPrioritet",
+  high: "prioritet.hoyPrioritet",
+  critical: "prioritet.kritisk",
 };
 
 function formaterNummer(prefix: string | null | undefined, nummer: number | null | undefined): string | null {
@@ -90,6 +91,7 @@ function formaterNummer(prefix: string | null | undefined, nummer: number | null
 }
 
 export default function HjemSkjerm() {
+  const { t } = useTranslation();
   const { valgtProsjektId } = useProsjekt();
   const { valgtBygningId } = useBygning();
   const [velgerSynlig, setVelgerSynlig] = useState(false);
@@ -206,7 +208,7 @@ export default function HjemSkjerm() {
         type: "oppgave" as const,
         tittel: o.title,
         nummer: formaterNummer(o.template?.prefix, o.number),
-        undertekst: PRIORITETS_TEKST[o.priority] ?? o.priority,
+        undertekst: PRIORITETS_NOEKLER[o.priority] ? t(PRIORITETS_NOEKLER[o.priority]) : o.priority,
         tidspunkt: o.updatedAt,
         status: o.status,
       })),
@@ -238,7 +240,7 @@ export default function HjemSkjerm() {
     if (Platform.OS === "ios") {
       ActionSheetIOS.showActionSheetWithOptions(
         {
-          options: ["Ny sjekkliste", "Ny oppgave", "Avbryt"],
+          options: [t("hjem.nySjekkliste"), t("hjem.nyOppgave"), t("handling.avbryt")],
           cancelButtonIndex: 2,
         },
         (indeks) => {
@@ -284,7 +286,7 @@ export default function HjemSkjerm() {
           <View className="h-2.5 w-2.5 rounded-full bg-blue-300" />
           <View>
             <Text className="text-lg font-semibold text-white" numberOfLines={1}>
-              {valgtProsjekt?.name ?? "Velg prosjekt"}
+              {valgtProsjekt?.name ?? t("hjem.velgProsjektKnapp")}
             </Text>
             {valgtBygningNavn && (
               <Text className="text-[10px] text-blue-200" numberOfLines={1}>
@@ -311,7 +313,7 @@ export default function HjemSkjerm() {
           <View className="items-center pt-20">
             <ActivityIndicator size="large" color="#1e40af" />
             <Text className="mt-3 text-sm text-gray-500">
-              Henter prosjekter...
+              {t("hjem.henterProsjekter")}
             </Text>
           </View>
         ) : prosjektQuery.isError ? (
@@ -319,17 +321,17 @@ export default function HjemSkjerm() {
           <View className="flex-1 items-center justify-center px-6 pt-20">
             <AlertTriangle size={40} color="#f59e0b" />
             <Text className="mt-4 text-center text-base font-medium text-gray-900">
-              Kunne ikke hente prosjekter
+              {t("hjem.kunneIkkeHenteProsjekter")}
             </Text>
             <Text className="mt-2 text-center text-sm text-gray-500">
-              {prosjektQuery.error?.message ?? "Sjekk nettverkstilkoblingen og prøv igjen"}
+              {prosjektQuery.error?.message ?? t("feil.sjekkNettverk")}
             </Text>
             <Pressable
               onPress={() => prosjektQuery.refetch()}
               className="mt-4 flex-row items-center gap-2 rounded-lg bg-blue-600 px-6 py-3"
             >
               <RefreshCw size={16} color="#ffffff" />
-              <Text className="font-medium text-white">Prøv igjen</Text>
+              <Text className="font-medium text-white">{t("handling.provIgjen")}</Text>
             </Pressable>
           </View>
         ) : !valgtProsjektId ? (
@@ -337,18 +339,18 @@ export default function HjemSkjerm() {
           <View className="flex-1 items-center justify-center px-4 pt-20">
             {prosjektQuery.data && prosjektQuery.data.length === 0 ? (
               <Text className="text-center text-base text-gray-500">
-                Du kan logge inn på sitedoc.no og registrere nytt prosjekt
+                {t("hjem.registrerPaaSitedoc")}
               </Text>
             ) : (
               <>
                 <Text className="text-center text-base text-gray-500">
-                  Velg et prosjekt for å komme i gang
+                  {t("hjem.velgProsjekt")}
                 </Text>
                 <Pressable
                   onPress={() => setVelgerSynlig(true)}
                   className="mt-4 rounded-lg bg-blue-600 px-6 py-3"
                 >
-                  <Text className="font-medium text-white">Velg prosjekt</Text>
+                  <Text className="font-medium text-white">{t("hjem.velgProsjektKnapp")}</Text>
                 </Pressable>
               </>
             )}
@@ -358,7 +360,7 @@ export default function HjemSkjerm() {
           <View className="items-center pt-20">
             <ActivityIndicator size="large" color="#1e40af" />
             <Text className="mt-3 text-sm text-gray-500">
-              Henter data...
+              {t("hjem.henterData")}
             </Text>
           </View>
         ) : (sjekklisteQuery.isError || oppgaveQuery.isError) ? (
@@ -366,17 +368,17 @@ export default function HjemSkjerm() {
           <View className="flex-1 items-center justify-center px-6 pt-20">
             <AlertTriangle size={40} color="#f59e0b" />
             <Text className="mt-4 text-center text-base font-medium text-gray-900">
-              Kunne ikke hente data
+              {t("feil.kunneIkkeHente")}
             </Text>
             <Text className="mt-2 text-center text-sm text-gray-500">
-              {sjekklisteQuery.error?.message ?? oppgaveQuery.error?.message ?? "Sjekk nettverkstilkoblingen"}
+              {sjekklisteQuery.error?.message ?? oppgaveQuery.error?.message ?? t("feil.sjekkNettverk")}
             </Text>
             <Pressable
               onPress={onRefresh}
               className="mt-4 flex-row items-center gap-2 rounded-lg bg-blue-600 px-6 py-3"
             >
               <RefreshCw size={16} color="#ffffff" />
-              <Text className="font-medium text-white">Prøv igjen</Text>
+              <Text className="font-medium text-white">{t("handling.provIgjen")}</Text>
             </Pressable>
           </View>
         ) : (
@@ -390,7 +392,7 @@ export default function HjemSkjerm() {
             <Pressable className="flex-row items-center justify-between border-b border-gray-200 bg-white px-4 py-3">
               <View className="flex-row items-center gap-2">
                 <Text className="text-base font-semibold text-gray-900">
-                  Innboks
+                  {t("hjem.innboks")}
                 </Text>
                 <View className="rounded-full bg-gray-100 px-2 py-0.5">
                   <Text className="text-xs font-medium text-gray-600">
@@ -405,7 +407,7 @@ export default function HjemSkjerm() {
             {innboksElementer.length === 0 ? (
               <View className="border-b border-gray-200 bg-white px-4 py-6">
                 <Text className="text-center text-sm text-gray-400">
-                  Ingen aktive elementer i innboksen
+                  {t("hjem.ingenInnboks")}
                 </Text>
               </View>
             ) : (
@@ -438,7 +440,7 @@ export default function HjemSkjerm() {
                     <Text className="text-xs text-gray-500" numberOfLines={1}>
                       {element.undertekst}
                       {element.undertekst ? " · " : ""}
-                      {formaterTidspunkt(element.tidspunkt)}
+                      {formaterTidspunkt(element.tidspunkt, t)}
                     </Text>
                   </View>
                 </Pressable>
@@ -453,7 +455,7 @@ export default function HjemSkjerm() {
               >
                 <View className="flex-row items-center gap-2">
                   <Text className="text-base font-semibold text-gray-900">
-                    Oppgaver
+                    {t("hjem.oppgaver")}
                   </Text>
                   {totaleOppgaver > 0 && (
                     <View className="rounded-full bg-gray-100 px-2 py-0.5">
@@ -472,7 +474,7 @@ export default function HjemSkjerm() {
               >
                 <View className="flex-row items-center gap-2">
                   <Text className="text-base font-semibold text-gray-900">
-                    Sjekklister
+                    {t("hjem.sjekklister")}
                   </Text>
                   {totaleSjekklister > 0 && (
                     <View className="rounded-full bg-gray-100 px-2 py-0.5">
@@ -487,7 +489,7 @@ export default function HjemSkjerm() {
 
               <Pressable className="flex-row items-center justify-between border-b border-gray-200 bg-white px-4 py-3">
                 <Text className="text-base font-semibold text-gray-900">
-                  Kontrollplaner
+                  {t("hjem.kontrollplaner")}
                 </Text>
                 <ChevronRight size={20} color="#9ca3af" />
               </Pressable>
@@ -498,7 +500,7 @@ export default function HjemSkjerm() {
                 className="flex-row items-center justify-between border-b border-gray-200 bg-white px-4 py-3"
               >
                 <Text className="text-base font-semibold text-gray-900">
-                  3D-visning
+                  {t("hjem.3dVisning")}
                 </Text>
                 <ChevronRight size={20} color="#9ca3af" />
               </Pressable>
@@ -510,7 +512,7 @@ export default function HjemSkjerm() {
                 className="flex-row items-center justify-between border-b border-gray-200 bg-white px-4 py-3"
               >
                 <Text className="text-base font-semibold text-gray-900">
-                  Live View
+                  {t("hjem.liveView")}
                 </Text>
                 <ChevronRight size={20} color="#9ca3af" />
               </Pressable>
@@ -522,7 +524,7 @@ export default function HjemSkjerm() {
                 className="flex-row items-center justify-between border-b border-gray-200 bg-white px-4 py-3"
               >
                 <Text className="text-base font-semibold text-gray-900">
-                  Tegning + 3D
+                  {t("hjem.tegning3d")}
                 </Text>
                 <ChevronRight size={20} color="#9ca3af" />
               </Pressable>
@@ -534,7 +536,7 @@ export default function HjemSkjerm() {
             {sistOppdatert > 0 && (
               <View className="mt-6 px-4">
                 <Text className="text-center text-xs text-gray-400">
-                  Oppdatert {formaterSistOppdatert(sistOppdatert)}
+                  {t("hjem.oppdatert", { tid: formaterSistOppdatert(sistOppdatert) })}
                 </Text>
               </View>
             )}
@@ -567,7 +569,7 @@ export default function HjemSkjerm() {
               }}
               className="px-6 py-4"
             >
-              <Text className="text-base font-medium text-gray-900">Ny sjekkliste</Text>
+              <Text className="text-base font-medium text-gray-900">{t("hjem.nySjekkliste")}</Text>
             </Pressable>
             <Pressable
               onPress={() => {
@@ -576,13 +578,13 @@ export default function HjemSkjerm() {
               }}
               className="px-6 py-4"
             >
-              <Text className="text-base font-medium text-gray-900">Ny oppgave</Text>
+              <Text className="text-base font-medium text-gray-900">{t("hjem.nyOppgave")}</Text>
             </Pressable>
             <Pressable
               onPress={() => setVisAndroidMeny(false)}
               className="px-6 py-4"
             >
-              <Text className="text-base text-gray-500">Avbryt</Text>
+              <Text className="text-base text-gray-500">{t("handling.avbryt")}</Text>
             </Pressable>
           </View>
         </Pressable>
@@ -628,24 +630,25 @@ function PsiStatusRad({ psi, onPress }: {
   psi: { id: string; version: number; buildingId: string | null; building: { id: string; name: string } | null };
   onPress: () => void;
 }) {
+  const { t } = useTranslation();
   const statusQuery = trpc.psi.hentMinStatus.useQuery({ psiId: psi.id });
   const status = statusQuery.data;
   const navn = psi.building?.name ?? null;
 
   let bakgrunn = "bg-amber-50";
   let ikon = "#f59e0b";
-  let tekst = "PSI kreves";
+  let tekst = t("psi.signeringKreves");
   let tekstFarge = "text-amber-700";
 
   if (status?.signert && !status.utdatert) {
     bakgrunn = "bg-green-50";
     ikon = "#10b981";
-    tekst = "PSI signert";
+    tekst = t("hjem.psiSignert");
     tekstFarge = "text-green-700";
   } else if (status?.utdatert) {
     bakgrunn = "bg-red-50";
     ikon = "#ef4444";
-    tekst = "Ny signering";
+    tekst = t("hjem.psiNySignering");
     tekstFarge = "text-red-600";
   }
 
