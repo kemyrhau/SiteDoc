@@ -14,6 +14,7 @@ import {
   Columns2,
   BarChart3,
   FileSearch,
+  ShieldCheck,
 } from "lucide-react";
 import { SidebarIkon } from "@sitedoc/ui";
 import { useTranslation } from "react-i18next";
@@ -98,6 +99,13 @@ const hovedelementer: SidebarElement[] = [
     labelKey: "nav.sok",
     ikon: <FileSearch className="h-5 w-5" />,
     kreverProsjekt: true,
+  },
+  {
+    id: "psi",
+    labelKey: "nav.psi",
+    ikon: <ShieldCheck className="h-5 w-5" />,
+    kreverProsjekt: true,
+    kreverModul: "psi",
   },
 ];
 

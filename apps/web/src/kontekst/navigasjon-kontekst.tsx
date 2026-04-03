@@ -17,6 +17,7 @@ export type Seksjon =
   | "mapper"
   | "okonomi"
   | "sok"
+  | "psi"
   | "oppsett";
 
 export interface VerktoylinjeHandling {
