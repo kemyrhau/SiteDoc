@@ -360,24 +360,26 @@ export function useSjekklisteSkjema(sjekklisteId: string): UseSjekklisteSkjemaRe
     }, 2000);
   }, [lagreIntern]);
 
-  // Ref for opplastingskø-callback — unngår dependency-sirkel
+  // Refs for å unngå dependency-sirkler i effects
   const planleggLagringRef = useRef(planleggLagring);
   planleggLagringRef.current = planleggLagring;
+  const lagreInternRef = useRef(lagreIntern);
+  lagreInternRef.current = lagreIntern;
 
   const lagre = useCallback(async () => {
     if (lagreTimerRef.current) {
       clearTimeout(lagreTimerRef.current);
       lagreTimerRef.current = null;
     }
-    await lagreIntern();
-  }, [lagreIntern]);
+    await lagreInternRef.current();
+  }, []);
 
   // Synk til server når nett kommer tilbake
   useEffect(() => {
     if (erPaaNettet && erInitialisert && synkStatus === "lokalt_lagret") {
-      lagreIntern();
+      lagreInternRef.current();
     }
-  }, [erPaaNettet, erInitialisert, synkStatus, lagreIntern]);
+  }, [erPaaNettet, erInitialisert, synkStatus]);
 
   // Oppdater én nøkkel i et felt og planlegg auto-lagring
   const oppdaterFelt = useCallback(
