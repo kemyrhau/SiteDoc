@@ -22,10 +22,14 @@ import { SignaturObjekt } from "./SignaturObjekt";
 import { RepeaterObjekt } from "./RepeaterObjekt";
 import { LokasjonObjekt } from "./LokasjonObjekt";
 import { TegningPosisjonObjekt } from "./TegningPosisjonObjekt";
+import { InfoTekstObjekt } from "./InfoTekstObjekt";
+import { InfoBildeObjekt } from "./InfoBildeObjekt";
+import { VideoObjekt } from "./VideoObjekt";
+import { QuizObjekt } from "./QuizObjekt";
 import { UkjentObjekt } from "./UkjentObjekt";
 
 // Display-only typer som ikke wrappes med FeltDokumentasjon
-export const DISPLAY_TYPER = new Set(["heading", "subtitle", "location"]);
+export const DISPLAY_TYPER = new Set(["heading", "subtitle", "location", "info_text", "info_image"]);
 
 // Read-only typer (viser verdi men kan ikke endres av bruker)
 export const READONLY_TYPER = new Set(["calculation"]);
@@ -54,6 +58,10 @@ const KOMPONENT_MAP: Record<string, React.ComponentType<RapportObjektProps>> = {
   repeater: RepeaterObjekt,
   location: LokasjonObjekt,
   drawing_position: TegningPosisjonObjekt,
+  info_text: InfoTekstObjekt,
+  info_image: InfoBildeObjekt,
+  video: VideoObjekt,
+  quiz: QuizObjekt,
 };
 
 export function RapportObjektRenderer(props: RapportObjektProps) {
