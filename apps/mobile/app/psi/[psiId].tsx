@@ -315,6 +315,17 @@ export default function PsiLeser() {
               </View>
             );
           }
+          // Quiz: bruk forenklet PSI-quiz med auto-sjekk
+          if (objekt.type === "quiz") {
+            return (
+              <PsiQuiz
+                key={objekt.id}
+                objekt={objekt}
+                verdi={feltVerdier[objekt.id] as number | undefined}
+                onRiktig={(v) => settFeltVerdi(objekt.id, v)}
+              />
+            );
+          }
           return (
             <RapportObjektRenderer
               key={objekt.id}
@@ -377,6 +388,65 @@ export default function PsiLeser() {
         </View>
       )}
     </SafeAreaView>
+  );
+}
+
+/* PSI Quiz — auto-sjekk ved valg, ingen separat "Sjekk svar"-knapp */
+function PsiQuiz({ objekt, verdi, onRiktig }: {
+  objekt: { id: string; label: string; config: Record<string, unknown> };
+  verdi: number | undefined;
+  onRiktig: (v: number) => void;
+}) {
+  const spørsmål = (objekt.config.question as string) ?? objekt.label;
+  const alternativer = (objekt.config.options as string[]) ?? [];
+  const riktigIndex = (objekt.config.correctIndex as number) ?? 0;
+  const [valgt, setValgt] = useState<number | null>(verdi ?? null);
+  const erBesvart = verdi !== undefined;
+
+  const velg = (index: number) => {
+    if (erBesvart) return;
+    setValgt(index);
+    if (index === riktigIndex) {
+      onRiktig(index);
+    }
+  };
+
+  return (
+    <View className="my-3 rounded-xl border border-gray-200 bg-white p-4">
+      <Text className="mb-3 text-base font-semibold text-gray-900">{spørsmål}</Text>
+      {alternativer.map((alt, i) => {
+        const erValgt = valgt === i;
+        const visRiktig = erValgt && i === riktigIndex;
+        const visFeil = erValgt && i !== riktigIndex;
+        return (
+          <TouchableOpacity
+            key={i}
+            onPress={() => velg(i)}
+            disabled={erBesvart}
+            style={{
+              flexDirection: "row", alignItems: "center", borderRadius: 8, borderWidth: 1, paddingHorizontal: 16, paddingVertical: 12, marginBottom: 8,
+              borderColor: visRiktig ? "#22c55e" : visFeil ? "#f87171" : erValgt ? "#1e40af" : "#e5e7eb",
+              backgroundColor: visRiktig ? "#f0fdf4" : visFeil ? "#fef2f2" : erValgt ? "#eff6ff" : "#fff",
+            }}
+          >
+            <View style={{
+              width: 20, height: 20, borderRadius: 10, borderWidth: 2, marginRight: 12, alignItems: "center", justifyContent: "center",
+              borderColor: erValgt ? "#1e40af" : "#d1d5db",
+              backgroundColor: erValgt ? "#1e40af" : "#fff",
+            }}>
+              {erValgt && <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: "#fff" }} />}
+            </View>
+            <Text style={{ flex: 1, fontSize: 14, color: visRiktig ? "#15803d" : visFeil ? "#dc2626" : "#1f2937" }}>{alt}</Text>
+          </TouchableOpacity>
+        );
+      })}
+      {valgt !== null && valgt !== riktigIndex && !erBesvart && (
+        <Text className="mt-1 text-center text-sm text-red-600">Feil svar — prøv igjen</Text>
+      )}
+      {erBesvart && (
+        <Text className="mt-1 text-center text-sm text-green-600">✓ Riktig!</Text>
+      )}
+    </View>
   );
 }
 
