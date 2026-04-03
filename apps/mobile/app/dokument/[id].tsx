@@ -168,7 +168,7 @@ export default function DokumentLeser() {
       <Modal visible={!!zoomBilde} transparent animationType="fade">
         <View className="flex-1 bg-black">
           <SafeAreaView className="flex-1">
-            <View className="flex-row items-center px-4 py-3">
+            <View className="flex-row items-center justify-end px-4 py-3">
               <TouchableOpacity
                 onPress={() => setZoomBilde(null)}
                 hitSlop={12}
