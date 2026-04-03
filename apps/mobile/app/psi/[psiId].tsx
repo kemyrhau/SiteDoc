@@ -36,6 +36,7 @@ export default function PsiLeser() {
   const [feltVerdier, setFeltVerdier] = useState<Record<string, unknown>>({});
   const [signaturData, setSignaturData] = useState<string | null>(null);
   const [hmsKortNr, setHmsKortNr] = useState("");
+  const [harIkkeHmsKort, setHarIkkeHmsKort] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
   const [harScrolletTilBunn, setHarScrolletTilBunn] = useState(false);
 
@@ -48,8 +49,12 @@ export default function PsiLeser() {
   // Start gjennomføring
   const startMut = trpc.psi.startGjennomforing.useMutation();
   const oppdaterMut = trpc.psi.oppdaterProgresjon.useMutation();
+  const utils = trpc.useUtils();
   const fullforMut = trpc.psi.fullfør.useMutation({
     onSuccess: () => {
+      // Invalidér PSI-status slik at hjemskjermen oppdateres
+      utils.psi.hentMinStatus.invalidate();
+      utils.psi.hentForProsjekt.invalidate();
       Alert.alert("PSI fullført", "Du har gjennomført og signert sikkerhetsinstruksen.", [
         { text: "OK", onPress: () => router.back() },
       ]);
@@ -155,12 +160,16 @@ export default function PsiLeser() {
     setSeksjonFullfort(nyeFullførte);
 
     if (erSignaturSeksjon && signaturData) {
-      await fullforMut.mutateAsync({
-        signaturId,
-        signatureData: signaturData,
-        hmsKortNr: /^\d{7}$/.test(hmsKortNr) ? hmsKortNr : undefined,
-        data: feltVerdier as Record<string, unknown>,
-      });
+      try {
+        await fullforMut.mutateAsync({
+          signaturId,
+          signatureData: signaturData,
+          hmsKortNr: /^\d{7}$/.test(hmsKortNr) ? hmsKortNr : undefined,
+          data: feltVerdier as Record<string, unknown>,
+        });
+      } catch (err) {
+        Alert.alert("Feil", `Kunne ikke fullføre PSI: ${err instanceof Error ? err.message : "Ukjent feil"}`);
+      }
       return;
     }
 
@@ -269,15 +278,28 @@ export default function PsiLeser() {
             return (
               <View key={objekt.id} className="mt-4">
                 {/* HMS-kortnummer */}
-                <Text className="mb-1 text-sm font-medium text-gray-700">HMS-kortnummer</Text>
-                <TextInput
-                  value={hmsKortNr}
-                  onChangeText={(t) => setHmsKortNr(t.replace(/\D/g, "").slice(0, 7))}
-                  keyboardType="number-pad"
-                  maxLength={7}
-                  placeholder="7 siffer"
-                  className="mb-4 rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm"
-                />
+                <Text className="mb-1 text-sm font-medium text-gray-700">
+                  HMS-kortnummer <Text className="font-normal text-gray-400">(valgfritt)</Text>
+                </Text>
+                {!harIkkeHmsKort && (
+                  <TextInput
+                    value={hmsKortNr}
+                    onChangeText={(t) => setHmsKortNr(t.replace(/\D/g, "").slice(0, 7))}
+                    keyboardType="number-pad"
+                    maxLength={7}
+                    placeholder="7 siffer"
+                    className="mb-2 rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm"
+                  />
+                )}
+                <TouchableOpacity
+                  onPress={() => { setHarIkkeHmsKort(!harIkkeHmsKort); if (!harIkkeHmsKort) setHmsKortNr(""); }}
+                  className="mb-4 flex-row items-center gap-2"
+                >
+                  <View className={`h-5 w-5 items-center justify-center rounded border ${harIkkeHmsKort ? "border-sitedoc-primary bg-sitedoc-primary" : "border-gray-300 bg-white"}`}>
+                    {harIkkeHmsKort && <Check size={14} color="#ffffff" />}
+                  </View>
+                  <Text className="text-sm text-gray-600">Har ikke HMS-kort</Text>
+                </TouchableOpacity>
                 <Text className="mb-2 text-sm font-medium text-gray-700">Signatur</Text>
                 <SignaturObjekt
                   objekt={objekt}
