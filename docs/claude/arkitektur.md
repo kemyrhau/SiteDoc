@@ -35,8 +35,8 @@
 | `project_invitations` | E-postinvitasjoner med token, status, utløpsdato |
 | `group_enterprises` | Mange-til-mange mellom `project_groups` og `enterprises` |
 | `project_modules` | Aktiverte moduler per prosjekt |
-| `psi` | Prosjektspesifikk Sikkerhetsinstruks. Én per prosjekt+bygning (buildingId valgfri). Peker til ReportTemplate, versjonering for ny signering. category = "psi" (ikke "sjekkliste") |
-| `psi_signaturer` | Personlig PSI-gjennomføring. Innlogget bruker (userId) ELLER gjest (guestName/guestCompany/guestPhone). Progresjon, quiz-data, signatur (base64), completedAt. Unique: (psiId, userId) |
+| `psi` | Prosjektspesifikk Sikkerhetsinstruks. Én per prosjekt+bygning (buildingId valgfri). Peker til ReportTemplate, versjonering for ny signering, `guestMessage` (HTML-tekst vist til gjester ved QR-tilgang), soft delete via `deactivatedAt`. category = "psi" (ikke "sjekkliste"). API: 15 endepunkter inkl. deaktiver/reaktiver, kopier (deep copy mal til annen bygning), hentForProsjektPublic, oppdaterGjesteBeskjed |
+| `psi_signaturer` | Personlig PSI-gjennomføring. Innlogget bruker (userId) ELLER gjest (guestName/guestCompany/guestPhone). Progresjon, quiz-data, signatur (base64), completedAt, `hmsKortNr` (String? — HMS-kortnummer), `harIkkeHmsKort` (Boolean, default false — avkrysning "Har ikke HMS-kort"). Unique: (psiId, userId) |
 | `organizations` | Firmaer/organisasjoner med navn, org.nr, fakturaadresse, logo |
 | `organization_projects` | Mange-til-mange mellom organisasjoner og prosjekter |
 | `ftd_kontrakter` | Overliggende kontrakt: Byggherre → Entreprenør. Felter: navn, kontraktType (8405/8406/8407), byggherre, entreprenor, buildingId (valgfri), hmsSamordningsgruppe. Entrepriser og dokumenter kobles via kontraktId |

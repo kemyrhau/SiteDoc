@@ -54,3 +54,5 @@
 - **Instruksjonsbilde (`info_image`):** Bilde med valgfri caption. Config: `imageUrl`, `caption`
 - **Video (`video`):** Video-avspilling (WebView). Config: `url`
 - **Quiz (`quiz`):** Flervalg med riktig svar. Config: `question`, `options[]`, `correctIndex`
+- **HMS-kort:** Obligatorisk identitetskort for alle som jobber på bygge- og anleggsplasser i Norge. Utstedes av Arbeidstilsynet. Nummer registreres ved PSI-gjennomføring (`hmsKortNr` i PsiSignatur). "Har ikke HMS-kort"-avkrysning for gjester/besøkende
+- **RUH (Rapport om Uønsket Hendelse):** Avviksrapport for HMS-hendelser på byggeplass. Refereres i PSI-innhold som del av sikkerhetsopplæringen

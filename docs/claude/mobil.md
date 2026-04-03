@@ -119,7 +119,7 @@ Sjekkliste-/oppgave-detaljskjermen har kontekstuelle statusknapper i bunnpanelet
 
 ## PSI (Prosjektspesifikk Sikkerhetsinstruks)
 
-**Skjerm:** `apps/mobile/app/psi/[prosjektId].tsx` — Presentasjonsmodus
+**Skjerm:** `apps/mobile/app/psi/[psiId].tsx` — PSI-leser
 
 PSI er en personlig sikkerhetsgjennomgang, IKKE en sjekkliste. Gjennomføres via QR-kode eller innboks-lenke.
 
@@ -127,8 +127,16 @@ PSI er en personlig sikkerhetsgjennomgang, IKKE en sjekkliste. Gjennomføres via
 - Seksjoner basert på `heading`-objekter i malen
 - Tekst/bilder: scroll til bunnen for å gå videre
 - Video: må ses ferdig (WebView HTML5 video)
-- Quiz: må svare riktig
-- Signatur: siste seksjon
+- Quiz: må svare riktig (`PsiQuiz`-komponent med auto-sjekk)
+- Signatur: siste seksjon (`PsiSignaturFelt`-komponent med scroll-lås og auto-lagring)
+- Forrige/Neste/Lukk-knapper for navigering
+
+**HMS-kort:** HMS-kort-felt + "Har ikke HMS-kort"-avkrysning ved signering
+
+**Hjemskjerm PSI-statuslinje:** Slankt statusbånd (grønn/amber/rød) over innboksen:
+- Grønn: PSI fullført og gyldig
+- Amber: PSI pågår eller utdatert (ny versjon krever re-signering)
+- Rød: PSI ikke gjennomført
 
 **Nye rapportobjekter:** `info_text`, `info_image`, `video` (WebView), `quiz`
 

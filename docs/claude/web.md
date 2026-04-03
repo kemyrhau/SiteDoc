@@ -64,9 +64,10 @@ Tre-kolonne layout (skjules på mobil < 768px, hamburger-meny i Toppbar):
 /dashbord/oppsett/field/oppgavemaler          -> Oppgavemaler
 /dashbord/oppsett/field/sjekklistemaler       -> Sjekklistemaler
 /dashbord/oppsett/field/moduler               -> Forhåndsdefinerte mal-pakker
-/dashbord/oppsett/field/psi                  -> PSI-oppsett: velg mal, krev ny signering, QR-plakat, bytt mal, veiledning
-/dashbord/[prosjektId]/psi                   -> PSI-dashboard: signaturoversikt (fullført/pågår/utdatert), filtrering, tabell
-/psi/[prosjektId]                            -> Offentlig PSI-leser for gjester (QR): registrering → seksjoner → quiz → signatur
+/dashbord/oppsett/field/psi                  -> PSI-oppsett: Multi-bygning støtte (én PSI per bygning), deaktiver/reaktiver (soft delete), kopier mal til annen bygning, QR-kode per bygning, gjestebeskjed-editor, auto-opprett standardmal med 8 seksjoner. Vises under Feltarbeid når modul er aktiv
+/dashbord/oppsett/field/psi/[psiId]/mal      -> Malbygger i PSI-modus: filtrert palett (kun PSI-typer), bredere config-panel (480px), bildeopplasting, større textarea, "INNHOLD"-labels, forhåndsvisningspanel (560px) med seksjonsnavigering, tilbake-knapp til PSI-oppsett
+/dashbord/[prosjektId]/psi                   -> PSI-dashboard: Bygningsfaner, signaturtabell med HMS-kort-kolonne, statistikk (fullført/pågår/utdatert)
+/psi/[prosjektId]                            -> Offentlig PSI-side for gjester (QR): Bygningsvalg, HMS-kort felt + "Har ikke HMS-kort"-avkrysning, gjestebeskjed-visning, Forrige/Neste-navigering mellom seksjoner → quiz → signatur
 /dashbord/oppsett/field/box                   -> Mappeoppsett: tre-visning, kontekstmeny (ny undermappe, rediger tilgang, gi nytt navn, koble til kontrakt, slett). Mapper koblet til kontrakt viser blått ikon + kontraktnavn
 /dashbord/oppsett/prosjektoppsett             -> Prosjektoppsett
 /dashbord/oppsett/firma                       -> Firmainnstillinger
