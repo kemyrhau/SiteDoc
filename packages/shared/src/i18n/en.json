@@ -525,6 +525,7 @@
   "malbygger.person": "Person / Company",
   "malbygger.filer": "Files",
   "malbygger.spesialfelt": "Special fields",
+  "malbygger.instruksjon": "Instruction / PSI",
   "malbygger.overskrift": "Heading",
   "malbygger.undertittel": "Subtitle",
   "malbygger.tekstfelt": "Text field",
@@ -546,6 +547,10 @@
   "malbygger.vaer": "Weather",
   "malbygger.signatur": "Signature",
   "malbygger.repeater": "Repeater",
+  "malbygger.lesetekst": "Read-only text",
+  "malbygger.bildeMedTekst": "Image with text",
+  "malbygger.video": "Video",
+  "malbygger.quiz": "Quiz question",
   "malbygger.tilbakeTilSjekklistemaler": "Back to checklist templates",
   "malbygger.tilbakeTilOppgavemaler": "Back to task templates",
 

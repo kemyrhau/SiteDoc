@@ -33,6 +33,10 @@ const ikonMap: Record<string, string> = {
   CloudSun: "☁",
   PenLine: "✍",
   Repeat: "↻",
+  FileText: "📄",
+  Image: "🖼",
+  Play: "▶",
+  HelpCircle: "❓",
 };
 
 // i18n-nøkler for felttyper (type → nøkkel)
@@ -58,6 +62,10 @@ const felttypeNokler: Record<string, string> = {
   weather: "malbygger.vaer",
   signature: "malbygger.signatur",
   repeater: "malbygger.repeater",
+  info_text: "malbygger.lesetekst",
+  info_image: "malbygger.bildeMedTekst",
+  video: "malbygger.video",
+  quiz: "malbygger.quiz",
 };
 
 export function PalettElement({ type, meta }: PalettElementProps) {

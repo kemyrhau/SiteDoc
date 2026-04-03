@@ -525,6 +525,7 @@
   "malbygger.person": "Person / Firma",
   "malbygger.filer": "Filer",
   "malbygger.spesialfelt": "Spesialfelt",
+  "malbygger.instruksjon": "Instruksjon / PSI",
   "malbygger.overskrift": "Overskrift",
   "malbygger.undertittel": "Undertittel",
   "malbygger.tekstfelt": "Tekstfelt",
@@ -546,6 +547,10 @@
   "malbygger.vaer": "Vær",
   "malbygger.signatur": "Signatur",
   "malbygger.repeater": "Repeater",
+  "malbygger.lesetekst": "Lesetekst",
+  "malbygger.bildeMedTekst": "Bilde med tekst",
+  "malbygger.video": "Video",
+  "malbygger.quiz": "Quiz-spørsmål",
   "malbygger.tilbakeTilSjekklistemaler": "Tilbake til sjekklistemaler",
   "malbygger.tilbakeTilOppgavemaler": "Tilbake til oppgavemaler",
 

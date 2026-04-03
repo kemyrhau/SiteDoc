@@ -16,6 +16,7 @@ const kategoriLabelKeys: Record<ReportObjectCategory, string> = {
   person: "malbygger.person",
   fil: "malbygger.filer",
   spesial: "malbygger.spesialfelt",
+  instruksjon: "malbygger.instruksjon",
 };
 
 const kategoriRekkefølge: ReportObjectCategory[] = [
@@ -26,6 +27,7 @@ const kategoriRekkefølge: ReportObjectCategory[] = [
   "person",
   "fil",
   "spesial",
+  "instruksjon",
 ];
 
 export function FeltPalett() {

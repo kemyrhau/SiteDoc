@@ -188,6 +188,106 @@ export function FeltKonfigurasjon({
           </div>
         )}
 
+        {/* Lesetekst (info_text) */}
+        {objekt.type === "info_text" && (
+          <div>
+            <label className="mb-1 block text-xs font-medium text-gray-700">Innhold</label>
+            <textarea
+              value={(config.content as string) ?? ""}
+              onChange={(e) => setConfig({ ...config, content: e.target.value })}
+              rows={8}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+              placeholder="Skriv instruksjonstekst her..."
+            />
+          </div>
+        )}
+
+        {/* Bilde med tekst (info_image) */}
+        {objekt.type === "info_image" && (
+          <div className="flex flex-col gap-2">
+            <Input
+              label="Bilde-URL"
+              placeholder="/uploads/... eller https://..."
+              value={(config.imageUrl as string) ?? ""}
+              onChange={(e) => setConfig({ ...config, imageUrl: e.target.value })}
+            />
+            <Input
+              label="Bildetekst"
+              placeholder="Valgfri beskrivelse under bildet"
+              value={(config.caption as string) ?? ""}
+              onChange={(e) => setConfig({ ...config, caption: e.target.value })}
+            />
+          </div>
+        )}
+
+        {/* Video */}
+        {objekt.type === "video" && (
+          <div>
+            <Input
+              label="Video-URL"
+              placeholder="https://... eller /uploads/..."
+              value={(config.url as string) ?? ""}
+              onChange={(e) => setConfig({ ...config, url: e.target.value })}
+            />
+          </div>
+        )}
+
+        {/* Quiz-spørsmål */}
+        {objekt.type === "quiz" && (
+          <div className="flex flex-col gap-3">
+            <Input
+              label="Spørsmål"
+              value={(config.question as string) ?? ""}
+              onChange={(e) => setConfig({ ...config, question: e.target.value })}
+              placeholder="Hva er nødnummeret for brann?"
+            />
+            <div>
+              <label className="mb-1 block text-xs font-medium text-gray-700">Alternativer</label>
+              {((config.options as string[]) ?? []).map((alt, i) => (
+                <div key={i} className="mb-1.5 flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name={`quiz-riktig-${objekt.id}`}
+                    checked={(config.correctIndex as number) === i}
+                    onChange={() => setConfig({ ...config, correctIndex: i })}
+                    title="Marker som riktig svar"
+                  />
+                  <input
+                    type="text"
+                    value={alt}
+                    onChange={(e) => {
+                      const nyeOpts = [...((config.options as string[]) ?? [])];
+                      nyeOpts[i] = e.target.value;
+                      setConfig({ ...config, options: nyeOpts });
+                    }}
+                    className="flex-1 rounded border border-gray-300 px-2 py-1 text-sm"
+                    placeholder={`Alternativ ${i + 1}`}
+                  />
+                  {((config.options as string[]) ?? []).length > 2 && (
+                    <button
+                      onClick={() => {
+                        const nyeOpts = ((config.options as string[]) ?? []).filter((_, j) => j !== i);
+                        const nyRiktig = (config.correctIndex as number) >= i ? Math.max(0, (config.correctIndex as number) - 1) : (config.correctIndex as number);
+                        setConfig({ ...config, options: nyeOpts, correctIndex: nyRiktig });
+                      }}
+                      className="text-xs text-red-400 hover:text-red-600"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+              ))}
+              <button
+                onClick={() => setConfig({ ...config, options: [...((config.options as string[]) ?? []), ""] })}
+                className="mt-1 text-xs text-sitedoc-primary hover:underline"
+              >
+                + Legg til alternativ
+              </button>
+            </div>
+            <p className="text-xs text-gray-400">Marker riktig svar med radioknappen til venstre</p>
+          </div>
+        )}
+
         {/* Betingelse-seksjon */}
         {(erBarn || harAktivBetingelse) && (
           <div className="mt-2 border-t border-gray-200 pt-4">

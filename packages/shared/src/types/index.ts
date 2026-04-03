@@ -40,6 +40,10 @@ export const REPORT_OBJECT_TYPES = [
   "repeater",
   "location",
   "drawing_position",
+  "info_text",
+  "info_image",
+  "video",
+  "quiz",
 ] as const;
 
 export type ReportObjectType = (typeof REPORT_OBJECT_TYPES)[number];
@@ -52,7 +56,8 @@ export type ReportObjectCategory =
   | "dato"
   | "person"
   | "fil"
-  | "spesial";
+  | "spesial"
+  | "instruksjon";
 
 // Metadata for rapportobjekttyper
 export interface ReportObjectTypeMeta {
@@ -208,6 +213,30 @@ export const REPORT_OBJECT_TYPE_META: Record<ReportObjectType, ReportObjectTypeM
     icon: "Target",
     category: "spesial",
     defaultConfig: { buildingFilter: null, disciplineFilter: null },
+  },
+  info_text: {
+    label: "Lesetekst",
+    icon: "FileText",
+    category: "instruksjon",
+    defaultConfig: { content: "" },
+  },
+  info_image: {
+    label: "Bilde med tekst",
+    icon: "Image",
+    category: "instruksjon",
+    defaultConfig: { imageUrl: "", caption: "" },
+  },
+  video: {
+    label: "Video",
+    icon: "Play",
+    category: "instruksjon",
+    defaultConfig: { url: "" },
+  },
+  quiz: {
+    label: "Quiz-spørsmål",
+    icon: "HelpCircle",
+    category: "instruksjon",
+    defaultConfig: { question: "", options: ["", "", ""], correctIndex: 0 },
   },
 };
 
