@@ -139,8 +139,9 @@ export default function PsiLeser() {
       return gjeldendeSeksjon.objekter.filter((o) => o.type === "video").every((o) => feltVerdier[o.id] === "watched");
     }
     if (erSignaturSeksjon) return !!signaturData;
-    return harScrolletTilBunn || innholdKortNok;
-  }, [gjeldendeSeksjon, feltVerdier, harScrolletTilBunn, innholdKortNok, signaturData, erSignaturSeksjon]);
+    // Tekst/bilde-seksjoner: alltid tillat videre (innholdet er synlig)
+    return true;
+  }, [gjeldendeSeksjon, feltVerdier, signaturData, erSignaturSeksjon]);
 
   const gåTilNeste = useCallback(async () => {
     if (!signaturId) return;
@@ -166,19 +167,16 @@ export default function PsiLeser() {
     scrollRef.current?.scrollTo({ y: 0, animated: true });
   }, [signaturId, aktivSeksjon, seksjonFullfort, erSignaturSeksjon, signaturData, feltVerdier, fullforMut, oppdaterMut]);
 
-  // Sjekk om innholdet passer uten scroll (fyres ved layout, ikke scroll)
-  const [scrollViewHøyde, setScrollViewHøyde] = useState(0);
-  const onInnholdStørrelse = useCallback((_w: number, h: number) => {
-    if (scrollViewHøyde > 0 && h <= scrollViewHøyde + 50) {
-      setInnholdKortNok(true);
-    }
-  }, [scrollViewHøyde]);
-
+  // Sjekk om innholdet passer uten scroll
   const onScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
+    if (contentSize.height <= layoutMeasurement.height + 50) {
+      if (!innholdKortNok) setInnholdKortNok(true);
+      return;
+    }
     const erNærBunn = layoutMeasurement.height + contentOffset.y >= contentSize.height - 50;
     if (erNærBunn && !harScrolletTilBunn) setHarScrolletTilBunn(true);
-  }, [harScrolletTilBunn]);
+  }, [harScrolletTilBunn, innholdKortNok]);
 
   const settFeltVerdi = useCallback((objektId: string, verdi: unknown) => {
     setFeltVerdier((prev) => ({ ...prev, [objektId]: verdi }));
@@ -258,9 +256,7 @@ export default function PsiLeser() {
         className="flex-1"
         contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
         onScroll={onScroll}
-        scrollEventThrottle={200}
-        onLayout={(e) => setScrollViewHøyde(e.nativeEvent.layout.height)}
-        onContentSizeChange={onInnholdStørrelse}
+        scrollEventThrottle={100}
       >
         {gjeldendeSeksjon?.objekter.map((objekt) => {
           if (objekt.type === "signature") {

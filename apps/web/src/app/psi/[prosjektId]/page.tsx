@@ -353,9 +353,9 @@ function PsiGjennomforing({
       return seksjon.objekter.filter((o) => o.type === "video").every((o) => feltVerdier[o.id] === "watched");
     }
     if (erSignatur) return !!signaturBilde;
-    // Tekst/bilder: tillat videre hvis innholdet er kort nok eller scrollet til bunn
-    return harScrolletNed || innholdKortNok;
-  }, [seksjon, feltVerdier, harScrolletNed, innholdKortNok, signaturBilde, erSignatur]);
+    // Tekst/bilde-seksjoner: alltid tillat videre
+    return true;
+  }, [seksjon, feltVerdier, signaturBilde, erSignatur]);
 
   // Scroll-tracking + sjekk om innholdet er kort nok
   useEffect(() => {
