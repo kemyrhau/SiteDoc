@@ -168,21 +168,20 @@ export default function PsiOppsettSide() {
                 <h3 className="text-sm font-semibold text-gray-900">Ny versjon</h3>
               </div>
               <p className="mb-3 text-xs text-gray-500">
-                Bump versjon for å kreve at alle arbeidere signerer på nytt.
+                Har du oppdatert innholdet i PSI-malen? Krev at alle arbeidere gjennomfører og signerer på nytt.
               </p>
               <Button
                 variant="secondary"
                 size="sm"
                 onClick={() => {
                   if (!prosjektId) return;
-                  if (confirm("Alle eksisterende signaturer vil bli markert som utdatert. Fortsett?")) {
+                  if (confirm("Alle som allerede har signert vil få beskjed om å gjennomføre PSI på nytt. Er du sikker?")) {
                     bumpMut.mutate({ projectId: prosjektId });
                   }
                 }}
                 disabled={bumpMut.isPending}
               >
-                Bump til v{psi.version + 1}
-              </Button>
+                Krev ny signering</Button>
             </Card>
 
             {/* QR-kode */}
@@ -252,7 +251,7 @@ export default function PsiOppsettSide() {
                 value=""
                 onChange={(e) => {
                   if (!e.target.value || !prosjektId) return;
-                  if (confirm("Bytting av mal bumper versjon og krever ny signering. Fortsett?")) {
+                  if (confirm("Når du bytter mal må alle arbeidere gjennomføre og signere den nye PSI-en på nytt. Vil du bytte?")) {
                     byttMalMut.mutate({ projectId: prosjektId, templateId: e.target.value });
                   }
                 }}
