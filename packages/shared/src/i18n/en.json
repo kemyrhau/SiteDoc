@@ -764,5 +764,7 @@
   "psi.hmsKort": "HSE card number",
   "psi.hmsKortPlaceholder": "7 digits",
   "psi.harIkkeHmsKort": "No HSE card",
-  "psi.hmsKortPaakrevd": "HSE card number or «No HSE card» is required"
+  "psi.hmsKortPaakrevd": "HSE card number or «No HSE card» is required",
+  "psi.tilbakeTilOppsett": "Back to PSI settings",
+  "malbygger.innhold": "Content"
 }

@@ -30,20 +30,26 @@ const kategoriRekkefølge: ReportObjectCategory[] = [
   "instruksjon",
 ];
 
-export function FeltPalett() {
+// PSI-modus: kun innholdsrelevante typer
+const PSI_TYPER = new Set(["heading", "subtitle", "info_text", "info_image", "video", "quiz", "signature"]);
+
+export function FeltPalett({ psiModus }: { psiModus?: boolean }) {
   const { t } = useTranslation();
-  const gruppert = kategoriRekkefølge.map((kategori) => ({
-    kategori,
-    label: t(kategoriLabelKeys[kategori]),
-    typer: REPORT_OBJECT_TYPES.filter(
-      (type) => REPORT_OBJECT_TYPE_META[type].category === kategori,
-    ),
-  }));
+  const gruppert = kategoriRekkefølge
+    .map((kategori) => ({
+      kategori,
+      label: t(kategoriLabelKeys[kategori]),
+      typer: REPORT_OBJECT_TYPES.filter((type) => {
+        if (psiModus && !PSI_TYPER.has(type)) return false;
+        return REPORT_OBJECT_TYPE_META[type].category === kategori;
+      }),
+    }))
+    .filter((g) => g.typer.length > 0);
 
   return (
     <aside className="flex h-full w-56 shrink-0 flex-col overflow-y-auto border-r border-gray-200 bg-gray-50 p-3">
       <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-500">
-        {t("malbygger.felttyper")}
+        {psiModus ? t("malbygger.innhold") : t("malbygger.felttyper")}
       </h3>
       <div className="flex flex-col gap-3">
         {gruppert.map(({ kategori, label, typer }) => (

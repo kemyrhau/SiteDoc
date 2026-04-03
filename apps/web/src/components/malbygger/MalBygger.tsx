@@ -154,6 +154,7 @@ function erEtterkommer(objekter: MalObjekt[], objektId: string, muligForelderId:
 
 export function MalBygger({ mal }: MalByggerProps) {
   const { t } = useTranslation();
+  const psiModus = mal.category === "psi";
   const utils = trpc.useUtils();
   const [valgtId, setValgtId] = useState<string | null>(null);
   const [aktivtDrag, setAktivtDrag] = useState<Active | null>(null);
@@ -618,7 +619,7 @@ export function MalBygger({ mal }: MalByggerProps) {
         onDragEnd={handleDragEnd}
       >
         {/* Venstre — Feltpalett */}
-        <FeltPalett />
+        <FeltPalett psiModus={psiModus} />
 
         {/* Midt — Malsoner */}
         <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-4">
@@ -806,7 +807,7 @@ export function MalBygger({ mal }: MalByggerProps) {
 
           <DropSone
             zone="datafelter"
-            label={t("malbygger.datafelter")}
+            label={psiModus ? t("malbygger.innhold") : t("malbygger.datafelter")}
             treObjekter={datafeltTre}
             alleObjekter={objekter}
             valgtId={valgtId}

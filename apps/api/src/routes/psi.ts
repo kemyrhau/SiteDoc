@@ -74,42 +74,110 @@ export const psiRouter = router({
         },
       });
 
-      // Ferdig strukturerte seksjoner iht. Byggherreforskriften
+      // Ferdig strukturerte PSI-seksjoner med standardinnhold og subtile hint
       const seksjoner: Array<{ type: string; label: string; config?: object }[]> = [
         [
           { type: "heading", label: "1. Velkommen og prosjektinfo" },
-          { type: "info_text", label: "Prosjektinfo", config: { content: "Fyll inn prosjektnavn, adresse, byggherre, nøkkelpersoner (KU, HMS-ansvarlig) og kontaktinfo." } },
+          { type: "info_text", label: "Prosjektinfo", config: { content: `Velkommen til denne byggeplassen. Denne sikkerhetsinstruksen gir deg oversikt over de viktigste sikkerhetsreglene og rutinene du må kjenne til før arbeidet starter.
+
+Prosjekt: Tverrlia Borettslag
+Adresse: Eksempelveien 12, 0123 Oslo
+Byggherre: Boligbyggelaget AS
+Hovedentreprenør: Bygg & Anlegg AS
+
+Koordinator utførelse (KU): Kari Nordmann, 900 00 000
+HMS-ansvarlig: Ola Hansen, 900 00 001
+Verneombud: Per Nilsen, 900 00 002
+
+Ved spørsmål om HMS, kontakt HMS-ansvarlig eller din nærmeste leder.` } },
         ],
         [
           { type: "heading", label: "2. Nødprosedyrer" },
-          { type: "info_text", label: "Nødprosedyrer", config: { content: "Fyll inn nødnummer (110/112/113), møteplass, evakueringsruter, plassering av førstehjelpsutstyr og AED." } },
-          { type: "info_image", label: "Evakueringskart", config: { imageUrl: "", caption: "Last opp evakueringskart" } },
+          { type: "info_text", label: "Nødprosedyrer", config: { content: `Ved nødsituasjon:
+• Brann: Ring 110
+• Politi: Ring 112
+• Ambulanse: Ring 113
+
+Byggeplassens nødnummer: 900 00 003
+Møteplass ved evakuering: Ved hovedporten, markert med grønt skilt
+
+Førstehjelpsutstyr finnes ved: Brakkeriggen, 2. etasje inngangsparti
+Hjertestarter (AED) finnes ved: Brakkeriggen, ved resepsjonen
+Brannslukker finnes ved: Hvert etasjeplan og i brakkeriggen
+
+Evakueringsrutene er merket med grønne skilt. Gjør deg kjent med nærmeste nødutgang fra ditt arbeidsområde.` } },
+          { type: "info_image", label: "Evakueringskart", config: { imageUrl: "", caption: "Evakueringskart med møteplass og nødutganger" } },
         ],
         [
-          { type: "heading", label: "3. Verneutstyr (PPE)" },
-          { type: "info_text", label: "Verneutstyr", config: { content: "Fyll inn krav til verneutstyr. Alltid påkrevd: hjelm, vernesko, refleksvest, briller. Aktivitetsbasert: hørselsvern, fallsikring, åndedrettsvern." } },
+          { type: "heading", label: "3. Påkrevd verneutstyr" },
+          { type: "info_text", label: "Verneutstyr", config: { content: `Følgende verneutstyr er alltid påkrevd på byggeplassen:
+• Hjelm (EN 397)
+• Vernesko med tåbeskyttelse (EN ISO 20345 S3)
+• Refleksvest / synlighetsklær (EN ISO 20471)
+• Vernebriller ved fare for sprut eller partikler
+
+Aktivitetsbasert verneutstyr:
+• Hørselsvern ved støynivå over 85 dB
+• Fallsikring ved arbeid over 2 meter
+• Åndedrettsvern ved støv, gass eller røyk
+• Ansiktsskjerm ved sveising og kapping
+• Hansker tilpasset arbeidsoppgaven
+
+Mangler du verneutstyr? Kontakt din arbeidsleder eller HMS-ansvarlig.` } },
         ],
         [
           { type: "heading", label: "4. Rigg og adkomst" },
-          { type: "info_text", label: "Rigg og adkomst", config: { content: "Fyll inn informasjon om inngang/utgang, parkering, gangveier, besøksprosedyre og fartsgrense." } },
+          { type: "info_text", label: "Rigg og adkomst", config: { content: `Adkomst og ferdsel:
+• Bruk kun godkjente adkomstveier — følg skilting og sperringer
+• Fartsgrense på riggområdet: 20 km/t
+• Parkering kun på anviste plasser
+
+Inngang for personell: Hovedport, østsiden
+Vareleveranse: Vestporten, etter avtale med anleggsleder
+Besøkende: Alle besøkende skal registreres ved hovedport og ha følge
+
+Riggplan og oversiktskart er tilgjengelig ved hovedinngang og i brakkeriggen.` } },
+          { type: "info_image", label: "Riggplan", config: { imageUrl: "", caption: "Riggplan med adkomst, parkering og leveringssone" } },
         ],
         [
           { type: "heading", label: "5. Sikkerhetsregler" },
-          { type: "info_text", label: "Sikkerhetsregler", config: { content: "Fyll inn prosjektets sikkerhetsregler: rusmiddelpolitikk, arbeidstid, ryddighet, arbeid i høyden, varme arbeider, graving, avviksrapportering." } },
+          { type: "info_text", label: "Sikkerhetsregler", config: { content: `Generelle sikkerhetsregler:
+• Rusmidler er strengt forbudt på byggeplassen
+• Rydd etter deg — god orden er god sikkerhet
+• Sikre arbeidsområdet med sperring ved fare for andre
+• Meld fra om alle avvik, nestenulykker og farlige forhold
+• Arbeid i høyden krever alltid fallsikringsplan
+• Varme arbeider krever godkjent SJA og brannvakthold
+• Gravearbeid krever påvisning av kabler og rør
+• Ikke fjern andres sperring eller sikring uten tillatelse
+
+Arbeidstid: 07:00 – 16:00 (støyende arbeid 08:00 – 17:00)
+Avviksmelding: Meld avvik til din arbeidsleder eller bruk SiteDoc
+
+Full HMS-plan og SHA-plan er tilgjengelig hos HMS-ansvarlig og i prosjektets dokumentmappe.` } },
         ],
         [
-          { type: "heading", label: "6. Spesifikke risikoforhold" },
-          { type: "info_text", label: "Risikoforhold", config: { content: "Fyll inn prosjektspesifikke farer: kran, grøfter, asbest, trafikk, tunge løft. Bruk bilder!" } },
-          { type: "info_image", label: "Risikobilde", config: { imageUrl: "", caption: "Last opp bilde av risikoforhold" } },
+          { type: "heading", label: "6. Risikoforhold på denne byggeplassen" },
+          { type: "info_text", label: "Risikoforhold", config: { content: `Gjør deg kjent med følgende risikoforhold som gjelder dette prosjektet:
+
+• Kranløft i sone A — sperret sone, opphold under last forbudt
+• Åpne sjakter i kjeller — sikret med rekkverk, ikke fjern sperring
+• Tungtrafikk på riggvei — hold avstand til anleggsmaskiner
+• Rivingsarbeid i bygg B — støv og asbest, eget saneringsfelt
+
+Risikovurderinger (SJA) for ditt arbeidsområde finnes i prosjektets HMS-dokumentasjon. Spør din arbeidsleder om du er usikker på risikoen i ditt arbeidsområde.` } },
+          { type: "info_image", label: "Risikoområder", config: { imageUrl: "", caption: "Oversikt over risikoområder og sperrede soner" } },
         ],
         [
-          { type: "heading", label: "7. Video" },
+          { type: "heading", label: "7. Byggeplassomvisning" },
+          { type: "info_text", label: "Videointro", config: { content: "Se videoen under for en visuell gjennomgang av byggeplassen, nødutganger og viktige sikkerhetsforhold." } },
           { type: "video", label: "Sikkerhetsvideo", config: { url: "" } },
         ],
         [
-          { type: "heading", label: "8. Kontrollspørsmål + Signatur" },
-          { type: "quiz", label: "Spørsmål 1", config: { question: "Skriv inn spørsmål her", options: ["Alternativ A", "Alternativ B", "Alternativ C"], correctIndex: 0 } },
-          { type: "quiz", label: "Spørsmål 2", config: { question: "Skriv inn spørsmål her", options: ["Alternativ A", "Alternativ B", "Alternativ C"], correctIndex: 0 } },
+          { type: "heading", label: "8. Kontrollspørsmål" },
+          { type: "quiz", label: "Møteplass", config: { question: "Hvor er møteplassen ved evakuering?", options: ["I kantina", "Ved hovedporten", "Se evakueringskart for din bygning"], correctIndex: 2 } },
+          { type: "quiz", label: "Avvik", config: { question: "Hva gjør du hvis du oppdager en farlig situasjon?", options: ["Ignorerer det — ikke mitt ansvar", "Melder avvik til arbeidsleder eller i SiteDoc", "Venter til noen andre reagerer"], correctIndex: 1 } },
+          { type: "quiz", label: "Verneutstyr", config: { question: "Hvilket verneutstyr er alltid påkrevd?", options: ["Bare hjelm", "Hjelm, vernesko, refleksvest og vernebriller", "Det bestemmer jeg selv ut fra situasjonen"], correctIndex: 1 } },
           { type: "signature", label: "Signatur" },
         ],
       ];

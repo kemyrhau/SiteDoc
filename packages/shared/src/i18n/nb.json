@@ -764,5 +764,7 @@
   "psi.hmsKort": "HMS-kortnummer",
   "psi.hmsKortPlaceholder": "7 siffer",
   "psi.harIkkeHmsKort": "Har ikke HMS-kort",
-  "psi.hmsKortPaakrevd": "HMS-kortnummer eller «Har ikke HMS-kort» er påkrevd"
+  "psi.hmsKortPaakrevd": "HMS-kortnummer eller «Har ikke HMS-kort» er påkrevd",
+  "psi.tilbakeTilOppsett": "Tilbake til PSI-oppsett",
+  "malbygger.innhold": "Innhold"
 }

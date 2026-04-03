@@ -31,18 +31,20 @@ export default function SjekklistemalByggerSide() {
     );
   }
 
+  const erPsi = (mal as unknown as { category?: string }).category === "psi";
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center gap-3">
         <button
           type="button"
-          onClick={() => router.push("/dashbord/oppsett/field/sjekklistemaler")}
+          onClick={() => router.push(erPsi ? "/dashbord/oppsett/field/psi" : "/dashbord/oppsett/field/sjekklistemaler")}
           className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
         >
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
-          {t("malbygger.tilbakeTilSjekklistemaler")}
+          {erPsi ? t("psi.tilbakeTilOppsett") : t("malbygger.tilbakeTilSjekklistemaler")}
         </button>
       </div>
       <MalBygger
@@ -51,6 +53,7 @@ export default function SjekklistemalByggerSide() {
             id: string;
             name: string;
             description: string | null;
+            category?: string;
             objects: Array<{
               id: string;
               type: string;

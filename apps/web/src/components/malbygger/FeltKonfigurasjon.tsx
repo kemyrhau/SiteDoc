@@ -192,11 +192,12 @@ export function FeltKonfigurasjon({
         {objekt.type === "info_text" && (
           <div>
             <label className="mb-1 block text-xs font-medium text-gray-700">Innhold</label>
+            <p className="mb-1.5 text-[10px] text-gray-400">Teksten arbeideren leser i denne seksjonen</p>
             <textarea
               value={(config.content as string) ?? ""}
               onChange={(e) => setConfig({ ...config, content: e.target.value })}
-              rows={8}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+              rows={15}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm leading-relaxed"
               placeholder="Skriv instruksjonstekst her..."
             />
           </div>
@@ -205,8 +206,37 @@ export function FeltKonfigurasjon({
         {/* Bilde med tekst (info_image) */}
         {objekt.type === "info_image" && (
           <div className="flex flex-col gap-2">
+            {/* Bildeopplasting */}
+            <div>
+              <label className="mb-1 block text-xs font-medium text-gray-700">Bilde</label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={async (e) => {
+                  const fil = e.target.files?.[0];
+                  if (!fil) return;
+                  const formData = new FormData();
+                  formData.append("file", fil);
+                  try {
+                    const resp = await fetch("/api/upload", { method: "POST", body: formData });
+                    const data = await resp.json() as { fileUrl: string };
+                    setConfig({ ...config, imageUrl: data.fileUrl });
+                  } catch (_err) {
+                    /* ignorer */
+                  }
+                }}
+                className="w-full text-xs file:mr-2 file:rounded file:border-0 file:bg-sitedoc-primary file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-white"
+              />
+              {(config.imageUrl as string) && (
+                <img
+                  src={(config.imageUrl as string).startsWith("http") ? (config.imageUrl as string) : `/api${config.imageUrl as string}`}
+                  alt="Forhåndsvisning"
+                  className="mt-2 max-h-40 rounded-lg border border-gray-200 object-contain"
+                />
+              )}
+            </div>
             <Input
-              label="Bilde-URL"
+              label="Eller lim inn URL"
               placeholder="/uploads/... eller https://..."
               value={(config.imageUrl as string) ?? ""}
               onChange={(e) => setConfig({ ...config, imageUrl: e.target.value })}
@@ -229,6 +259,7 @@ export function FeltKonfigurasjon({
               value={(config.url as string) ?? ""}
               onChange={(e) => setConfig({ ...config, url: e.target.value })}
             />
+            <p className="mt-1 text-[10px] text-gray-400">YouTube, Vimeo eller direkte videolenke</p>
           </div>
         )}
 
