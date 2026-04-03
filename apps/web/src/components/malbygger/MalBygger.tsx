@@ -157,6 +157,7 @@ export function MalBygger({ mal }: MalByggerProps) {
   const psiModus = mal.category === "psi";
   const utils = trpc.useUtils();
   const [valgtId, setValgtId] = useState<string | null>(null);
+  const [visForhandsvisning, setVisForhandsvisning] = useState(false);
   const [aktivtDrag, setAktivtDrag] = useState<Active | null>(null);
   const [slettBekreftelse, setSlettBekreftelse] = useState<{ id: string; label: string } | null>(null);
 
@@ -652,15 +653,17 @@ export function MalBygger({ mal }: MalByggerProps) {
               <p className="text-sm text-gray-500">{mal.description}</p>
             )}
             {psiModus && (
-              <a
-                href={`/psi/${(mal as unknown as { projectId?: string }).projectId ?? ""}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-1 inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
+              <button
+                onClick={() => setVisForhandsvisning(!visForhandsvisning)}
+                className={`mt-1 inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium ${
+                  visForhandsvisning
+                    ? "border-sitedoc-primary bg-blue-50 text-sitedoc-primary"
+                    : "border-gray-200 text-gray-600 hover:bg-gray-50"
+                }`}
               >
                 <Eye className="h-3.5 w-3.5" />
                 {t("psi.forhandsvisning")}
-              </a>
+              </button>
             )}
           </div>
 
@@ -841,8 +844,10 @@ export function MalBygger({ mal }: MalByggerProps) {
         <DragOverlayKomponent aktivt={aktivtDrag} />
       </DndContext>
 
-      {/* Høyre — Konfigurasjon */}
-      {valgtObjekt ? (
+      {/* Høyre — Konfigurasjon eller Forhåndsvisning */}
+      {psiModus && visForhandsvisning ? (
+        <PsiForhandsvisning objekter={objekter} malNavn={mal.name} />
+      ) : valgtObjekt ? (
         <FeltKonfigurasjon
           objekt={valgtObjekt}
           alleObjekter={objekter}
@@ -871,6 +876,170 @@ export function MalBygger({ mal }: MalByggerProps) {
       )}
     </div>
   );
+}
+
+/* ------------------------------------------------------------------ */
+/*  PSI Forhåndsvisning — seksjon-for-seksjon som arbeideren ser det    */
+/* ------------------------------------------------------------------ */
+
+function PsiForhandsvisning({ objekter, malNavn }: { objekter: MalObjekt[]; malNavn: string }) {
+  const [aktivSeksjon, setAktivSeksjon] = useState(0);
+
+  // Del inn i seksjoner basert på headings
+  const seksjoner = useMemo(() => {
+    const rot = [...objekter].sort((a, b) => a.sortOrder - b.sortOrder).filter((o) => !o.parentId);
+    const result: Array<{ tittel: string; objekter: MalObjekt[] }> = [];
+    let gjeldende: { tittel: string; objekter: MalObjekt[] } | null = null;
+
+    for (const obj of rot) {
+      if (obj.type === "heading") {
+        if (gjeldende) result.push(gjeldende);
+        gjeldende = { tittel: obj.label, objekter: [] };
+      } else {
+        if (!gjeldende) gjeldende = { tittel: "Introduksjon", objekter: [] };
+        gjeldende.objekter.push(obj);
+      }
+    }
+    if (gjeldende) result.push(gjeldende);
+    return result;
+  }, [objekter]);
+
+  const seksjon = seksjoner[aktivSeksjon];
+
+  return (
+    <aside className="flex h-full w-[560px] shrink-0 flex-col border-l border-gray-200 bg-white">
+      {/* Header med progresjon */}
+      <div className="border-b border-gray-200 px-5 py-3">
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">Forhåndsvisning</p>
+        <p className="mt-0.5 text-sm font-semibold text-gray-900">{malNavn}</p>
+        <div className="mt-2 flex gap-1">
+          {seksjoner.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => setAktivSeksjon(i)}
+              className={`h-1.5 flex-1 rounded-full transition-colors ${
+                i === aktivSeksjon ? "bg-sitedoc-primary" : i < aktivSeksjon ? "bg-green-400" : "bg-gray-200"
+              }`}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Seksjonstittel */}
+      {seksjon && (
+        <div className="border-b border-gray-100 px-5 py-3">
+          <span className="text-xs text-gray-400">{aktivSeksjon + 1} / {seksjoner.length}</span>
+          <h2 className="mt-0.5 text-lg font-semibold text-gray-900">{seksjon.tittel}</h2>
+        </div>
+      )}
+
+      {/* Innhold */}
+      <div className="flex-1 overflow-y-auto px-5 py-4">
+        {seksjon?.objekter.map((obj) => (
+          <PsiPreviewObjekt key={obj.id} objekt={obj} />
+        ))}
+        {seksjon?.objekter.length === 0 && (
+          <p className="text-sm italic text-gray-400">Ingen innhold i denne seksjonen</p>
+        )}
+      </div>
+
+      {/* Navigasjon */}
+      <div className="flex gap-2 border-t border-gray-200 px-5 py-3">
+        <button
+          onClick={() => setAktivSeksjon(Math.max(0, aktivSeksjon - 1))}
+          disabled={aktivSeksjon === 0}
+          className="flex-1 rounded-lg border border-gray-200 py-2 text-sm font-medium text-gray-600 disabled:opacity-30"
+        >
+          Forrige
+        </button>
+        <button
+          onClick={() => setAktivSeksjon(Math.min(seksjoner.length - 1, aktivSeksjon + 1))}
+          disabled={aktivSeksjon === seksjoner.length - 1}
+          className="flex-1 rounded-lg bg-sitedoc-primary py-2 text-sm font-medium text-white disabled:opacity-30"
+        >
+          Neste
+        </button>
+      </div>
+    </aside>
+  );
+}
+
+function PsiPreviewObjekt({ objekt }: { objekt: MalObjekt }) {
+  const config = objekt.config as Record<string, unknown>;
+
+  switch (objekt.type) {
+    case "info_text": {
+      const innhold = (config.content as string) ?? "";
+      return innhold ? (
+        <p className="mb-4 whitespace-pre-wrap text-sm leading-relaxed text-gray-800">{innhold}</p>
+      ) : (
+        <p className="mb-4 text-sm italic text-gray-300">Ingen tekst lagt inn</p>
+      );
+    }
+    case "info_image": {
+      const url = (config.imageUrl as string) ?? "";
+      const caption = (config.caption as string) ?? "";
+      return (
+        <figure className="mb-4">
+          {url ? (
+            <img
+              src={url.startsWith("http") ? url : `/api${url}`}
+              alt={caption}
+              className="max-w-full rounded-lg border border-gray-200"
+            />
+          ) : (
+            <div className="flex h-32 items-center justify-center rounded-lg border-2 border-dashed border-gray-200 bg-gray-50 text-sm text-gray-400">
+              Bilde ikke lastet opp
+            </div>
+          )}
+          {caption && <figcaption className="mt-1 text-center text-xs italic text-gray-500">{caption}</figcaption>}
+        </figure>
+      );
+    }
+    case "video": {
+      const url = (config.url as string) ?? "";
+      return url ? (
+        <div className="mb-4 aspect-video overflow-hidden rounded-lg border border-gray-200 bg-black">
+          <video src={url.startsWith("http") ? url : `/api${url}`} controls className="h-full w-full" />
+        </div>
+      ) : (
+        <div className="mb-4 flex h-32 items-center justify-center rounded-lg border-2 border-dashed border-gray-200 bg-gray-50 text-sm text-gray-400">
+          Video-URL ikke satt
+        </div>
+      );
+    }
+    case "quiz": {
+      const spørsmål = (config.question as string) ?? objekt.label;
+      const alternativer = (config.options as string[]) ?? [];
+      const riktig = (config.correctIndex as number) ?? 0;
+      return (
+        <div className="mb-4 rounded-xl border border-gray-200 bg-gray-50 p-4">
+          <p className="mb-2 text-sm font-semibold text-gray-900">{spørsmål}</p>
+          {alternativer.map((alt, i) => (
+            <div key={i} className={`mb-1.5 flex items-center gap-2 rounded-lg border px-3 py-2 text-sm ${
+              i === riktig ? "border-green-300 bg-green-50 text-green-800" : "border-gray-200 text-gray-700"
+            }`}>
+              <div className={`h-4 w-4 rounded-full border-2 ${i === riktig ? "border-green-500 bg-green-500" : "border-gray-300"}`}>
+                {i === riktig && <div className="mx-auto mt-0.5 h-2 w-2 rounded-full bg-white" />}
+              </div>
+              {alt}
+            </div>
+          ))}
+        </div>
+      );
+    }
+    case "signature":
+      return (
+        <div className="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-4 text-center">
+          <div className="mx-auto h-20 w-full max-w-xs rounded border border-dashed border-gray-300 bg-white" />
+          <p className="mt-2 text-xs text-gray-500">Signatur</p>
+        </div>
+      );
+    case "subtitle":
+      return <p className="mb-2 text-sm font-medium text-gray-600">{objekt.label}</p>;
+    default:
+      return null;
+  }
 }
 
 function formaterNummer(prefiks: string | null | undefined, nummer: number | null | undefined): string {
