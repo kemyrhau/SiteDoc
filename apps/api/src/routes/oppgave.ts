@@ -431,42 +431,46 @@ export const oppgaveRouter = router({
       const brukerSpraak = bruker?.language ?? "nb";
 
       if (brukerSpraak !== prosjektSpraak && oppgave.template?.objects) {
-        const data = input.data as Record<string, Record<string, unknown>>;
-        const objektTyper = new Map(oppgave.template.objects.map((o) => [o.id, o.type]));
-        const teksterÅOversette: string[] = [];
+        try {
+          const data = input.data as Record<string, Record<string, unknown>>;
+          const objektTyper = new Map(oppgave.template.objects.map((o) => [o.id, o.type]));
+          const teksterÅOversette: string[] = [];
 
-        for (const [feltId, felt] of Object.entries(data)) {
-          if (!felt || typeof felt !== "object") continue;
-          if ((felt as Record<string, unknown>).original) continue;
-          const type = objektTyper.get(feltId);
-          if (type && FRITEKST_TYPER.has(type) && typeof felt.verdi === "string" && felt.verdi.trim()) {
-            teksterÅOversette.push(felt.verdi);
-          }
-          if (typeof felt.kommentar === "string" && felt.kommentar.trim()) {
-            teksterÅOversette.push(felt.kommentar);
-          }
-        }
-
-        if (teksterÅOversette.length > 0) {
-          const oversettMap = await oversettFritekst(
-            ctx.prisma, teksterÅOversette, brukerSpraak, prosjektSpraak,
-          );
           for (const [feltId, felt] of Object.entries(data)) {
-            if (!felt || typeof felt !== "object" || (felt as Record<string, unknown>).original) continue;
+            if (!felt || typeof felt !== "object") continue;
+            if ((felt as Record<string, unknown>).original) continue;
             const type = objektTyper.get(feltId);
-            const feltObj = felt as Record<string, unknown>;
-            const harFritekstVerdi = type && FRITEKST_TYPER.has(type) && typeof feltObj.verdi === "string" && (feltObj.verdi as string).trim();
-            const harKommentar = typeof feltObj.kommentar === "string" && (feltObj.kommentar as string).trim();
-            if (harFritekstVerdi || harKommentar) {
-              feltObj.original = {
-                spraak: brukerSpraak,
-                verdi: harFritekstVerdi ? feltObj.verdi : undefined,
-                kommentar: harKommentar ? feltObj.kommentar : undefined,
-              };
-              if (harFritekstVerdi) feltObj.verdi = oversettMap.get(feltObj.verdi as string) ?? feltObj.verdi;
-              if (harKommentar) feltObj.kommentar = oversettMap.get(feltObj.kommentar as string) ?? feltObj.kommentar;
+            if (type && FRITEKST_TYPER.has(type) && typeof felt.verdi === "string" && felt.verdi.trim()) {
+              teksterÅOversette.push(felt.verdi);
+            }
+            if (typeof felt.kommentar === "string" && felt.kommentar.trim()) {
+              teksterÅOversette.push(felt.kommentar);
             }
           }
+
+          if (teksterÅOversette.length > 0) {
+            const oversettMap = await oversettFritekst(
+              ctx.prisma, teksterÅOversette, brukerSpraak, prosjektSpraak,
+            );
+            for (const [feltId, felt] of Object.entries(data)) {
+              if (!felt || typeof felt !== "object" || (felt as Record<string, unknown>).original) continue;
+              const type = objektTyper.get(feltId);
+              const feltObj = felt as Record<string, unknown>;
+              const harFritekstVerdi = type && FRITEKST_TYPER.has(type) && typeof feltObj.verdi === "string" && (feltObj.verdi as string).trim();
+              const harKommentar = typeof feltObj.kommentar === "string" && (feltObj.kommentar as string).trim();
+              if (harFritekstVerdi || harKommentar) {
+                feltObj.original = {
+                  spraak: brukerSpraak,
+                  verdi: harFritekstVerdi ? feltObj.verdi : undefined,
+                  kommentar: harKommentar ? feltObj.kommentar : undefined,
+                };
+                if (harFritekstVerdi) feltObj.verdi = oversettMap.get(feltObj.verdi as string) ?? feltObj.verdi;
+                if (harKommentar) feltObj.kommentar = oversettMap.get(feltObj.kommentar as string) ?? feltObj.kommentar;
+              }
+            }
+          }
+        } catch (oversettFeil) {
+          console.warn("Auto-oversettelse feilet, lagrer uten oversettelse:", oversettFeil);
         }
       }
 
