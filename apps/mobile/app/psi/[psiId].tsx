@@ -19,12 +19,41 @@ import { WebView } from "react-native-webview";
 import type { WebViewMessageEvent } from "react-native-webview";
 import { useOversettelse } from "../../src/hooks/useOversettelse";
 
+interface PsiObjekt {
+  id: string;
+  type: string;
+  label: string;
+  required: boolean;
+  config: Record<string, unknown>;
+  translations?: Record<string, Record<string, unknown>>;
+}
+
 interface SeksjonData {
   tittel: string;
-  objekter: Array<{ id: string; type: string; label: string; required: boolean; config: Record<string, unknown> }>;
+  objekter: PsiObjekt[];
   harQuiz: boolean;
   harVideo: boolean;
   harSignatur: boolean;
+}
+
+/** Hent oversatt verdi med fallback til original */
+function psiOversatt(obj: PsiObjekt, felt: string, spraak: string): string {
+  if (spraak === "nb") {
+    if (felt === "label") return obj.label;
+    return (obj.config[felt] as string) ?? "";
+  }
+  const t = obj.translations?.[spraak];
+  if (t && typeof t[felt] === "string") return t[felt] as string;
+  if (felt === "label") return obj.label;
+  return (obj.config[felt] as string) ?? "";
+}
+
+function psiOversattOptions(obj: PsiObjekt, spraak: string): string[] {
+  if (spraak !== "nb") {
+    const t = obj.translations?.[spraak];
+    if (t && Array.isArray(t.options)) return t.options as string[];
+  }
+  return (obj.config.options as string[]) ?? [];
 }
 
 export default function PsiLeser() {
@@ -108,7 +137,8 @@ export default function PsiLeser() {
     if (!psi?.template?.objects) return [];
     const objekter = (psi.template as unknown as { objects: Array<{
       id: string; type: string; label: string; required: boolean;
-      config: Record<string, unknown>; sortOrder: number; parentId: string | null;
+      config: Record<string, unknown>; translations?: Record<string, Record<string, unknown>>;
+      sortOrder: number; parentId: string | null;
     }> }).objects;
 
     const rotObjekter = objekter.filter((o) => !o.parentId);
@@ -118,7 +148,7 @@ export default function PsiLeser() {
     for (const obj of rotObjekter) {
       if (obj.type === "heading") {
         if (gjeldende) result.push(gjeldende);
-        gjeldende = { tittel: obj.label, objekter: [], harQuiz: false, harVideo: false, harSignatur: false };
+        gjeldende = { tittel: psiOversatt(obj, "label", brukerSpraak), objekter: [], harQuiz: false, harVideo: false, harSignatur: false };
       } else {
         if (!gjeldende) {
           gjeldende = { tittel: "Introduksjon", objekter: [], harQuiz: false, harVideo: false, harSignatur: false };
@@ -131,7 +161,7 @@ export default function PsiLeser() {
     }
     if (gjeldende) result.push(gjeldende);
     return result;
-  }, [psi]);
+  }, [psi, brukerSpraak]);
 
   const gjeldendeSeksjon = seksjoner[aktivSeksjon];
   const erSignaturSeksjon = gjeldendeSeksjon?.harSignatur ?? false;
@@ -276,7 +306,21 @@ export default function PsiLeser() {
         scrollEventThrottle={100}
         scrollEnabled={!scrollLåst}
       >
-        {gjeldendeSeksjon?.objekter.map((objekt) => {
+        {gjeldendeSeksjon?.objekter.map((rawObjekt) => {
+          // Bygg oversatt objekt: erstatt config-felt med oversettelser
+          const objekt = brukerSpraak === "nb" ? rawObjekt : {
+            ...rawObjekt,
+            label: psiOversatt(rawObjekt, "label", brukerSpraak),
+            config: {
+              ...rawObjekt.config,
+              ...(rawObjekt.type === "info_text" && { content: psiOversatt(rawObjekt, "content", brukerSpraak) }),
+              ...(rawObjekt.type === "info_image" && { caption: psiOversatt(rawObjekt, "caption", brukerSpraak) }),
+              ...(rawObjekt.type === "quiz" && {
+                question: psiOversatt(rawObjekt, "question", brukerSpraak),
+                options: psiOversattOptions(rawObjekt, brukerSpraak),
+              }),
+            },
+          };
           if (objekt.type === "signature") {
             return (
               <View key={objekt.id} className="mt-4">
