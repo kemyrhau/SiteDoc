@@ -87,6 +87,8 @@ sitedoc/
 | **Database** | `sitedoc_test` | `sitedoc` |
 | **Uploads** | Delt (symlinket) | Delt |
 
+**KRITISK:** Databasene er SEPARATE. `psql -d sitedoc_test` for test, `psql -d sitedoc` for prod. ALDRI kjør testdata mot prod-databasen.
+
 ### Arbeidsflyt
 
 1. **Utvikle** — jobb på `develop`, commit og push
