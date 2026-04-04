@@ -401,9 +401,17 @@ export const sjekklisteRouter = router({
       }
 
       return ctx.prisma.$transaction(async (tx) => {
+        // Feltvis merge: hent fersk data fra DB og merg kun innsendte felt
+        const fersk = await tx.checklist.findUniqueOrThrow({
+          where: { id: input.id },
+          select: { data: true },
+        });
+        const eksisterende = (fersk.data ?? {}) as Record<string, unknown>;
+        const merget = { ...eksisterende, ...input.data };
+
         const oppdatert = await tx.checklist.update({
           where: { id: input.id },
-          data: { data: input.data as Prisma.InputJsonValue },
+          data: { data: merget as Prisma.InputJsonValue },
         });
 
         if (endringsloggRader.length > 0) {

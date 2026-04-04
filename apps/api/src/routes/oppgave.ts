@@ -501,9 +501,19 @@ export const oppgaveRouter = router({
         }
       }
 
-      return ctx.prisma.task.update({
-        where: { id: input.id },
-        data: { data: input.data as Prisma.InputJsonValue },
+      // Feltvis merge i transaksjon: hent fersk data og merg kun innsendte felt
+      return ctx.prisma.$transaction(async (tx) => {
+        const fersk = await tx.task.findUniqueOrThrow({
+          where: { id: input.id },
+          select: { data: true },
+        });
+        const eksisterende = (fersk.data ?? {}) as Record<string, unknown>;
+        const merget = { ...eksisterende, ...input.data };
+
+        return tx.task.update({
+          where: { id: input.id },
+          data: { data: merget as Prisma.InputJsonValue },
+        });
       });
     }),
 
