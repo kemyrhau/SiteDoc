@@ -176,6 +176,27 @@ export const sjekklisteRouter = router({
           }
         }
 
+        // Finn hovedansvarlig fra dokumentflyt (svarer med erHovedansvarlig)
+        let recipientUserId: string | undefined;
+        let recipientGroupId: string | undefined;
+        if (dokumentflytId) {
+          const hovedansvarlig = await tx.dokumentflytMedlem.findFirst({
+            where: {
+              dokumentflytId,
+              rolle: "svarer",
+              erHovedansvarlig: true,
+            },
+            include: {
+              projectMember: { select: { userId: true } },
+            },
+          });
+          if (hovedansvarlig?.projectMember) {
+            recipientUserId = hovedansvarlig.projectMember.userId;
+          } else if (hovedansvarlig?.groupId) {
+            recipientGroupId = hovedansvarlig.groupId;
+          }
+        }
+
         return tx.checklist.create({
           data: {
             templateId: input.templateId,
@@ -191,6 +212,8 @@ export const sjekklisteRouter = router({
             drawingId: input.drawingId,
             dueDate: input.dueDate ? new Date(input.dueDate) : undefined,
             status: "draft",
+            recipientUserId,
+            recipientGroupId,
           },
         });
       });

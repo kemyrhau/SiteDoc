@@ -26,6 +26,7 @@ export interface DokumentflytMedlemData {
   id: string;
   rolle: string;
   steg: number;
+  erHovedansvarlig?: boolean;
   enterprise: { id: string; name: string; color: string | null } | null;
   projectMember: {
     id: string;
@@ -65,16 +66,33 @@ export function MedlemListe({
   medlemmer,
   entrepriser,
   onFjern,
+  onSettHovedansvarlig,
 }: {
   medlemmer: DokumentflytMedlemData[];
   entrepriser: EntrepriseItem[];
   onFjern: (id: string) => void;
+  onSettHovedansvarlig?: (id: string, erHovedansvarlig: boolean) => void;
 }) {
   if (medlemmer.length === 0) return null;
 
   return (
     <div className="space-y-1">
       {medlemmer.map((m) => {
+        const erHovedansvarlig = m.erHovedansvarlig === true;
+        const kanVaereHovedansvarlig = onSettHovedansvarlig && (m.projectMember || m.group);
+
+        const hovedansvarligKnapp = kanVaereHovedansvarlig ? (
+          <button
+            onClick={(e) => { e.stopPropagation(); onSettHovedansvarlig(m.id, !erHovedansvarlig); }}
+            className={`shrink-0 rounded-full transition-colors ${
+              erHovedansvarlig
+                ? "h-2.5 w-2.5 bg-blue-500 ring-2 ring-blue-200"
+                : "h-2.5 w-2.5 bg-gray-300 opacity-0 group-hover:opacity-100 hover:bg-blue-400"
+            }`}
+            title={erHovedansvarlig ? "Fjern som hovedansvarlig" : "Sett som hovedansvarlig"}
+          />
+        ) : null;
+
         if (m.enterprise) {
           const ent = entrepriser.find((e) => e.id === m.enterprise!.id);
           const fargeIdx = ent ? entrepriser.indexOf(ent) : 0;
@@ -104,6 +122,7 @@ export function MedlemListe({
               key={m.id}
               className="group flex items-center gap-1.5 rounded bg-blue-50 px-1.5 py-1"
             >
+              {hovedansvarligKnapp}
               <Users className="h-3.5 w-3.5 text-blue-600" />
               <span className="flex-1 text-[13px] font-medium text-blue-700">
                 {m.group.name}
@@ -124,6 +143,7 @@ export function MedlemListe({
               key={m.id}
               className="group flex items-center gap-1.5 rounded px-1.5 py-1 hover:bg-gray-50"
             >
+              {hovedansvarligKnapp}
               <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gray-200 text-[10px] font-medium text-gray-600">
                 {(m.projectMember.user.name ?? m.projectMember.user.email).charAt(0).toUpperCase()}
               </div>
@@ -514,6 +534,10 @@ export function DokumentflytInlineKort({
     onSuccess: () => onOppdatert(),
   });
 
+  const settHovedansvarligMutation = trpc.dokumentflyt.settHovedansvarlig.useMutation({
+    onSuccess: () => onOppdatert(),
+  });
+
   const opprettere = dokumentflyt.medlemmer.filter((m) => m.rolle === "oppretter");
   const svarere = dokumentflyt.medlemmer.filter((m) => m.rolle === "svarer");
 
@@ -529,6 +553,10 @@ export function DokumentflytInlineKort({
 
   function fjernMedlem(id: string) {
     fjernMedlemMutation.mutate({ id, projectId: prosjektId });
+  }
+
+  function settHovedansvarlig(id: string, erHovedansvarlig: boolean) {
+    settHovedansvarligMutation.mutate({ id, projectId: prosjektId, erHovedansvarlig });
   }
 
   return (
@@ -621,6 +649,7 @@ export function DokumentflytInlineKort({
                     medlemmer={stegMedlemmer}
                     entrepriser={entrepriser}
                     onFjern={fjernMedlem}
+                    onSettHovedansvarlig={settHovedansvarlig}
                   />
                   <div className="mt-1">
                     <LeggTilMedlemDropdown

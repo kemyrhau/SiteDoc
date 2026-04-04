@@ -127,4 +127,39 @@ export const dokumentflytRouter = router({
       await verifiserProsjektmedlem(ctx.userId, input.projectId);
       return ctx.prisma.dokumentflytMedlem.delete({ where: { id: input.id } });
     }),
+
+  // Sett/fjern hovedansvarlig for et medlem
+  settHovedansvarlig: protectedProcedure
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        projectId: z.string().uuid(),
+        erHovedansvarlig: z.boolean(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await verifiserProsjektmedlem(ctx.userId, input.projectId);
+
+      const medlem = await ctx.prisma.dokumentflytMedlem.findUniqueOrThrow({
+        where: { id: input.id },
+      });
+
+      // Fjern hovedansvarlig fra andre i samme dokumentflyt+rolle+steg
+      if (input.erHovedansvarlig) {
+        await ctx.prisma.dokumentflytMedlem.updateMany({
+          where: {
+            dokumentflytId: medlem.dokumentflytId,
+            rolle: medlem.rolle,
+            steg: medlem.steg,
+            erHovedansvarlig: true,
+          },
+          data: { erHovedansvarlig: false },
+        });
+      }
+
+      return ctx.prisma.dokumentflytMedlem.update({
+        where: { id: input.id },
+        data: { erHovedansvarlig: input.erHovedansvarlig },
+      });
+    }),
 });

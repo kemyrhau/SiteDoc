@@ -689,9 +689,10 @@ model DokumentflytMedlem {
   enterpriseId    String?  @map("enterprise_id")
   projectMemberId String?  @map("project_member_id")
   groupId         String?  @map("group_id")
-  rolle           String // "oppretter" | "svarer"
-  steg            Int      @default(1)
-  createdAt       DateTime @default(now()) @map("created_at")
+  rolle              String // "oppretter" | "svarer"
+  steg               Int      @default(1)
+  erHovedansvarlig   Boolean  @default(false) @map("er_hovedansvarlig")
+  createdAt          DateTime @default(now()) @map("created_at")
 
   dokumentflyt  Dokumentflyt   @relation(fields: [dokumentflytId], references: [id], onDelete: Cascade)
   enterprise    Enterprise?    @relation(fields: [enterpriseId], references: [id], onDelete: Cascade)
