@@ -628,7 +628,7 @@ export function DokumentflytInlineKort({
                   prosjektId={prosjektId}
                   rolle="oppretter"
                   steg={1}
-                  entrepriser={entrepriser}
+                  entrepriser={[]}
                   medlemmer={medlemmer}
                   grupper={grupper}
                   eksisterende={opprettere}
