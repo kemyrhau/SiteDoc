@@ -724,6 +724,26 @@ export function MalBygger({ mal }: MalByggerProps) {
             {/* Språkvelger dropdown */}
             {psiModus && visSpraakVelger && (
               <div className="mt-2 flex flex-wrap gap-1.5">
+                {(() => {
+                  const ikkNb = STOETTEDE_SPRAAK.filter((s) => s.kode !== "nb");
+                  const alleValgt = ikkNb.every((s) => psiSpraak.includes(s.kode));
+                  return (
+                    <button
+                      onClick={() => {
+                        if (!psiData) return;
+                        const nyListe = alleValgt ? [] : ikkNb.map((s) => s.kode);
+                        oppdaterSpraakMutation.mutate({ psiId: psiData.id, languages: nyListe });
+                      }}
+                      className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
+                        alleValgt
+                          ? "border-sitedoc-primary bg-blue-50 text-sitedoc-primary"
+                          : "border-gray-300 text-gray-600 hover:bg-gray-50"
+                      }`}
+                    >
+                      {alleValgt ? t("handling.fjernAlle") : t("handling.velgAlle")}
+                    </button>
+                  );
+                })()}
                 {STOETTEDE_SPRAAK.filter((s) => s.kode !== "nb").map((s) => {
                   const aktiv = psiSpraak.includes(s.kode);
                   return (

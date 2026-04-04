@@ -80,6 +80,7 @@
   "handling.soek": "Search",
   "handling.velg": "Select",
   "handling.velgAlle": "Select all",
+  "handling.fjernAlle": "Deselect all",
   "handling.tilbake": "Back",
   "handling.neste": "Next",
   "handling.bekreft": "Confirm",
