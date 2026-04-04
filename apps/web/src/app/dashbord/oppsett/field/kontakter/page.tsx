@@ -80,6 +80,77 @@ function EntrepriseFargePrikk({ farge }: { farge: string | null }) {
 }
 
 /* ------------------------------------------------------------------ */
+/*  FlytBoks — viser rolle med gruppemedlemmer                         */
+/* ------------------------------------------------------------------ */
+
+const FLYT_FARGER: Record<string, { border: string; bg: string; tittel: string; tekst: string; ikon: string; prikk: string }> = {
+  blue: { border: "border-blue-200", bg: "bg-blue-50/50", tittel: "text-blue-600", tekst: "text-blue-500", ikon: "text-blue-400", prikk: "text-blue-500" },
+  purple: { border: "border-purple-200", bg: "bg-purple-50/50", tittel: "text-purple-600", tekst: "text-purple-500", ikon: "text-purple-400", prikk: "text-purple-500" },
+  green: { border: "border-green-200", bg: "bg-green-50/50", tittel: "text-green-600", tekst: "text-green-500", ikon: "text-green-400", prikk: "text-green-500" },
+};
+
+interface GruppeMedlemInfo { navn: string }
+
+function FlytBoks({
+  tittel,
+  beskrivelse,
+  ikon,
+  farge,
+  avrunding,
+  medlemmer,
+  gruppemedlemmer,
+}: {
+  tittel: string;
+  beskrivelse: string;
+  ikon: React.ReactNode;
+  farge: "blue" | "purple" | "green";
+  avrunding: string;
+  medlemmer: DokumentflytMedlem[];
+  gruppemedlemmer: Map<string, GruppeMedlemInfo[]>;
+}) {
+  const f = FLYT_FARGER[farge] ?? FLYT_FARGER.blue!;
+  return (
+    <div className={`flex-1 ${avrunding} border ${f.border} ${f.bg} p-3`}>
+      <div className={`mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide ${f.tittel}`}>
+        {ikon}
+        {tittel}
+      </div>
+      <div className={`text-xs ${f.tekst} mb-2`}>{beskrivelse}</div>
+      {medlemmer.length === 0
+        ? <span className="text-xs text-gray-400">—</span>
+        : medlemmer.map((m, idx) => {
+            const erGruppe = !!m.group;
+            const navn = m.projectMember?.user?.name ?? m.group?.name ?? "—";
+            const gruppePersoner = erGruppe && m.group ? gruppemedlemmer.get(m.group.id) ?? [] : [];
+
+            return (
+              <div key={idx} className="mb-1.5">
+                {/* Gruppe/person-header */}
+                <div className="flex items-center gap-1.5 text-sm text-gray-700">
+                  {erGruppe ? <Users className={`h-3.5 w-3.5 ${f.ikon}`} /> : <User className={`h-3.5 w-3.5 ${f.ikon}`} />}
+                  <span className={m.erHovedansvarlig ? "font-semibold" : ""}>{navn}</span>
+                  {m.erHovedansvarlig && <span className={`ml-0.5 text-xs ${f.prikk}`}>●</span>}
+                </div>
+                {/* Gruppemedlemmer */}
+                {gruppePersoner.length > 0 && (
+                  <div className="ml-5 mt-0.5 space-y-0.5">
+                    {gruppePersoner.map((gm, gIdx) => (
+                      <div key={gIdx} className="flex items-center gap-1.5 text-xs text-gray-500">
+                        <User className="h-3 w-3 text-gray-300" />
+                        {gm.navn}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })
+      }
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Hovedkomponent                                                     */
 /* ------------------------------------------------------------------ */
 
@@ -101,8 +172,12 @@ export default function KontakterSide() {
     { projectId: prosjektId! },
     { enabled: !!prosjektId },
   );
+  const { data: grupper, isLoading: e4 } = trpc.gruppe.hentForProsjekt.useQuery(
+    { projectId: prosjektId! },
+    { enabled: !!prosjektId },
+  );
 
-  const erLaster = e1 || e2 || e3;
+  const erLaster = e1 || e2 || e3 || e4;
 
   // Bygg oppslag: entrepriseId → kontakter (prosjektmedlemmer tilknyttet entreprisen)
   const entrepriseKontakter = useMemo(() => {
@@ -118,6 +193,29 @@ export default function KontakterSide() {
     }
     return map;
   }, [medlemmer]);
+
+  // Bygg oppslag: gruppeId → liste med medlemsnavn
+  const gruppemedlemmer = useMemo(() => {
+    const map = new Map<string, GruppeMedlemInfo[]>();
+    if (!grupper) return map;
+    const alle = grupper as Array<{
+      id: string;
+      members: Array<{
+        isAdmin: boolean;
+        projectMember: { user: { name: string | null } } | null;
+      }>;
+    }>;
+    for (const g of alle) {
+      const medlemsListe: GruppeMedlemInfo[] = [];
+      for (const m of g.members) {
+        if (m.projectMember?.user?.name) {
+          medlemsListe.push({ navn: m.projectMember.user.name });
+        }
+      }
+      map.set(g.id, medlemsListe);
+    }
+    return map;
+  }, [grupper]);
 
   // Bygg oppslag: entrepriseId → dokumentflyter
   const entrepriseDokumentflyter = useMemo(() => {
@@ -259,77 +357,41 @@ export default function KontakterSide() {
                         {/* Visuell flyt: Oppretter → Svarer → Godkjenner */}
                         <div className="flex items-stretch gap-0">
                           {/* Oppretter-boks */}
-                          <div className="flex-1 rounded-l-lg border border-blue-200 bg-blue-50/50 p-3">
-                            <div className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-blue-600">
-                              <Send className="h-3 w-3" />
-                              {t("kontakter.oppretter")}
-                            </div>
-                            <div className="text-xs text-blue-500 mb-2">{t("kontakter.oppretterBeskrivelse")}</div>
-                            {opprettere.length === 0
-                              ? <span className="text-xs text-gray-400">—</span>
-                              : opprettere.map((m, idx) => (
-                                  <div key={idx} className="flex items-center gap-1.5 text-sm text-gray-700">
-                                    {m.group ? <Users className="h-3.5 w-3.5 text-blue-400" /> : <User className="h-3.5 w-3.5 text-blue-400" />}
-                                    <span className={m.erHovedansvarlig ? "font-semibold" : ""}>
-                                      {m.projectMember?.user?.name ?? m.group?.name ?? "—"}
-                                    </span>
-                                    {m.erHovedansvarlig && <span className="ml-1 text-blue-500 text-xs">●</span>}
-                                  </div>
-                                ))
-                            }
-                          </div>
-
-                          {/* Pil */}
+                          <FlytBoks
+                            tittel={t("kontakter.oppretter")}
+                            beskrivelse={t("kontakter.oppretterBeskrivelse")}
+                            ikon={<Send className="h-3 w-3" />}
+                            farge="blue"
+                            avrunding="rounded-l-lg"
+                            medlemmer={opprettere}
+                            gruppemedlemmer={gruppemedlemmer}
+                          />
                           <div className="flex items-center px-2">
                             <ArrowRight className="h-5 w-5 text-gray-300" />
                           </div>
-
                           {/* Svarer-boks */}
-                          <div className="flex-1 border border-purple-200 bg-purple-50/50 p-3">
-                            <div className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-purple-600">
-                              <ClipboardCheck className="h-3 w-3" />
-                              {t("kontakter.svarerLabel")}
-                            </div>
-                            <div className="text-xs text-purple-500 mb-2">{t("kontakter.svarerBeskrivelse")}</div>
-                            {svarere.length === 0
-                              ? <span className="text-xs text-gray-400">—</span>
-                              : svarere.map((m, idx) => (
-                                  <div key={idx} className="flex items-center gap-1.5 text-sm text-gray-700">
-                                    {m.group ? <Users className="h-3.5 w-3.5 text-purple-400" /> : <User className="h-3.5 w-3.5 text-purple-400" />}
-                                    <span className={m.erHovedansvarlig ? "font-semibold" : ""}>
-                                      {m.projectMember?.user?.name ?? m.group?.name ?? "—"}
-                                    </span>
-                                    {m.erHovedansvarlig && <span className="ml-1 text-purple-500 text-xs">●</span>}
-                                  </div>
-                                ))
-                            }
-                          </div>
-
-                          {/* Pil */}
+                          <FlytBoks
+                            tittel={t("kontakter.svarerLabel")}
+                            beskrivelse={t("kontakter.svarerBeskrivelse")}
+                            ikon={<ClipboardCheck className="h-3 w-3" />}
+                            farge="purple"
+                            avrunding=""
+                            medlemmer={svarere}
+                            gruppemedlemmer={gruppemedlemmer}
+                          />
                           <div className="flex items-center px-2">
                             <ArrowRight className="h-5 w-5 text-gray-300" />
                           </div>
-
-                          {/* Godkjenner-boks (oppretter godkjenner etter besvarelse) */}
-                          <div className="flex-1 rounded-r-lg border border-green-200 bg-green-50/50 p-3">
-                            <div className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-green-600">
-                              <CheckCircle2 className="h-3 w-3" />
-                              {t("kontakter.godkjenner")}
-                            </div>
-                            <div className="text-xs text-green-500 mb-2">{t("kontakter.godkjennerBeskrivelse")}</div>
-                            {opprettere.length === 0
-                              ? <span className="text-xs text-gray-400">—</span>
-                              : opprettere.map((m, idx) => (
-                                  <div key={idx} className="flex items-center gap-1.5 text-sm text-gray-700">
-                                    {m.group ? <Users className="h-3.5 w-3.5 text-green-400" /> : <User className="h-3.5 w-3.5 text-green-400" />}
-                                    <span className={m.erHovedansvarlig ? "font-semibold" : ""}>
-                                      {m.projectMember?.user?.name ?? m.group?.name ?? "—"}
-                                    </span>
-                                    {m.erHovedansvarlig && <span className="ml-1 text-green-500 text-xs">●</span>}
-                                  </div>
-                                ))
-                            }
-                          </div>
+                          {/* Godkjenner-boks */}
+                          <FlytBoks
+                            tittel={t("kontakter.godkjenner")}
+                            beskrivelse={t("kontakter.godkjennerBeskrivelse")}
+                            ikon={<CheckCircle2 className="h-3 w-3" />}
+                            farge="green"
+                            avrunding="rounded-r-lg"
+                            medlemmer={opprettere}
+                            gruppemedlemmer={gruppemedlemmer}
+                          />
                         </div>
 
                         {/* Maler */}
