@@ -3,7 +3,7 @@
 import { useParams, useRouter } from "next/navigation";
 import { useState, useMemo, useCallback } from "react";
 import { Spinner, StatusBadge, Card, Badge } from "@sitedoc/ui";
-import { Check, AlertCircle, Loader2, Send, FileText, Printer } from "lucide-react";
+import { Check, AlertCircle, Loader2, Send, FileText, Printer, Pencil } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useOppgaveSkjema } from "@/hooks/useOppgaveSkjema";
 import { StatusHandlinger } from "@/components/StatusHandlinger";
@@ -13,6 +13,7 @@ import { FeltWrapper } from "@/components/rapportobjekter/FeltWrapper";
 import type { RapportObjekt } from "@/components/rapportobjekter/typer";
 import { useOversettelse } from "@/hooks/useOversettelse";
 import { DokumentTidslinje } from "@/components/DokumentTidslinje";
+import { usePresence } from "@/hooks/usePresence";
 
 /* ------------------------------------------------------------------ */
 /*  LagreIndikator                                                     */
@@ -177,6 +178,8 @@ export default function OppgaveDetaljSide() {
     erRedigerbar,
     lagreStatus,
   } = useOppgaveSkjema(params.oppgaveId);
+
+  const { andreRedaktorer } = usePresence(params.oppgaveId, "oppgave");
 
   // Oversettelse (Lag 2): on-demand felt-oversettelse for bruker med annet språk
   const oppgaveKildesprak = (oppgave as unknown as { template?: { project?: { sourceLanguage?: string } } })?.template?.project?.sourceLanguage;
@@ -350,6 +353,12 @@ export default function OppgaveDetaljSide() {
             {PRIORITETS_TEKST[oppgave.priority] ?? oppgave.priority}
           </Badge>
           <LagreIndikator status={lagreStatus} />
+          {andreRedaktorer.length > 0 && (
+            <div className="flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-sm text-amber-700">
+              <Pencil className="h-3.5 w-3.5 animate-pulse" />
+              {andreRedaktorer.map((u) => u.navn).join(", ")} redigerer
+            </div>
+          )}
           <div className="ml-auto flex items-center gap-2 print-skjul">
             <button
               onClick={() => window.open(`/utskrift/oppgave/${params.oppgaveId}`, "_blank")}

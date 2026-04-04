@@ -1031,5 +1031,7 @@
   "dokumentflyt.fornavn": "First name",
   "dokumentflyt.etternavn": "Last name",
   "dokumentflyt.telefonValgfritt": "Phone (optional)",
-  "dokumentflyt.inviterOgLeggTil": "Invite and add"
+  "dokumentflyt.inviterOgLeggTil": "Invite and add",
+  "presence.redigerer": "is editing",
+  "presence.redigererAntall": "{{antall}} others editing"
 }

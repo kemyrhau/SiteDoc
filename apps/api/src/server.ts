@@ -3,10 +3,12 @@ import Fastify from "fastify";
 import cors from "@fastify/cors";
 import multipart from "@fastify/multipart";
 import fastifyStatic from "@fastify/static";
+import websocket from "@fastify/websocket";
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { healthRoute } from "./routes/health";
 import { uploadRoute } from "./routes/upload";
 import { prosesserRoute } from "./routes/prosesser";
+import { registrerWebSocket } from "./routes/ws";
 import { appRouter } from "./trpc/router";
 import { createContext } from "./trpc/context";
 
@@ -32,6 +34,10 @@ async function start() {
     },
     credentials: true,
   });
+
+  // WebSocket for sanntids presence
+  await server.register(websocket);
+  await registrerWebSocket(server);
 
   // Multipart filopplasting (maks 500 MB)
   await server.register(multipart, {

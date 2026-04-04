@@ -3,7 +3,7 @@
 import { useParams, useRouter } from "next/navigation";
 import { useState, useMemo, useCallback } from "react";
 import { Spinner, StatusBadge, Card } from "@sitedoc/ui";
-import { Check, AlertCircle, Loader2, Printer, FileText, Trash2 } from "lucide-react";
+import { Check, AlertCircle, Loader2, Printer, FileText, Trash2, Pencil } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useSjekklisteSkjema } from "@/hooks/useSjekklisteSkjema";
 import { useAutoVaer } from "@/hooks/useAutoVaer";
@@ -17,6 +17,7 @@ import type { RapportObjekt } from "@/components/rapportobjekter/typer";
 import { useBygning } from "@/kontekst/bygning-kontekst";
 import { useOversettelse } from "@/hooks/useOversettelse";
 import { DokumentTidslinje } from "@/components/DokumentTidslinje";
+import { usePresence } from "@/hooks/usePresence";
 
 /* ------------------------------------------------------------------ */
 /*  LagreIndikator                                                     */
@@ -83,6 +84,7 @@ export default function SjekklisteDetaljSide() {
   } = useSjekklisteSkjema(params.sjekklisteId);
 
   const { standardTegning } = useBygning();
+  const { andreRedaktorer } = usePresence(params.sjekklisteId, "sjekkliste");
 
   const slettMutasjon = trpc.sjekkliste.slett.useMutation({
     onSuccess: () => {
@@ -341,6 +343,12 @@ export default function SjekklisteDetaljSide() {
           <h3 className="text-xl font-bold">{sjekkliste.title}</h3>
           <StatusBadge status={sjekkliste.status} />
           <LagreIndikator status={lagreStatus} />
+          {andreRedaktorer.length > 0 && (
+            <div className="flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-sm text-amber-700">
+              <Pencil className="h-3.5 w-3.5 animate-pulse" />
+              {andreRedaktorer.map((u) => u.navn).join(", ")} redigerer
+            </div>
+          )}
           <div className="ml-auto flex items-center gap-2">
             <button
               onClick={() => window.open(`/utskrift/sjekkliste/${params.sjekklisteId}`, "_blank")}
