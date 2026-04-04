@@ -29,7 +29,7 @@ Prosjektomfattende dokumentflyt under Innstillinger > Feltarbeid > Dokumentflyt:
 - **Modell:** `Dokumentflyt` → `DokumentflytMedlem` (rolle + steg + enterpriseId/projectMemberId/groupId) + `DokumentflytMal` (maltilknytning)
 - Sjekklister/oppgaver knyttes via `dokumentflytId` (og bakoverkompatibelt `workflowId`)
 - Emne: malen har `subjects`-array → nedtrekksmeny. Uten → fritekst/skjult
-- **Mottaker ved «Send»:** Bruker velger mottaker (person/gruppe) ved sending. Lagres i `recipientUserId`/`recipientGroupId` på dokument + `DocumentTransfer`
+- **Mottaker ved «Send»:** Auto-utledes fra dokumentflytens svarer (hovedansvarlig først). Ved videresending kan registratorer (create_checklists/create_tasks) velge entreprise — mottaker utledes fra valgt entreprises dokumentflyt. Lagres i `recipientUserId`/`recipientGroupId` på dokument + `DocumentTransfer`
 - **Auto-mottatt:** `sent` → `received` skjer automatisk (ingen manuell "Motta"-klikk). Mottaker ser dokumentet som arbeidsordre umiddelbart
 - **Videresending:** Mottatte og under arbeid-dokumenter kan videresendes til annen person/gruppe med kommentar. Dokumentet forblir i `received`-status men mottaker oppdateres
 - **Gruppevisning i dropdown:** Bruker-dropdown i dokumentflyt-oppsett viser gruppemedlemskap: «Kenneth Myrhaug · Byggherre, Tømrer»
@@ -41,12 +41,23 @@ Prosjektomfattende dokumentflyt under Innstillinger > Feltarbeid > Dokumentflyt:
 - Data migrert fra workflows → dokumentflyter via SQL INSERT...SELECT
 - Mobilappen bruker fortsatt gammel router inntil oppdatert
 
+## Dokumenttyper — lik struktur, ulik redigering
+
+Sjekklister og oppgaver har **identisk** UI-struktur (sidebar, tabellvisning, detaljside, statusflyt, entreprise-velger, tidslinje). Forskjellen er kun:
+
+| | Sjekkliste | Oppgave | Godkjenning (planlagt) | SHA-avvik (planlagt) |
+|---|---|---|---|---|
+| **Redigering** | Ja (endre eksisterende) | Kun tilføye (kommentar, vedlegg, nye verdier) | TBD | TBD |
+| **Sletting** | Kun draft | Aldri (unike løpenumre) | TBD | TBD |
+| **Flyt** | Entreprise/dokumentflyt | Entreprise/dokumentflyt | Hierarkisk | Gruppebasert |
+
 ## Invitasjonsflyt
 
 1. Admin legger til bruker → `ProjectMember` opprettes
 2. Ingen `Account` → `ProjectInvitation` med token (7 dager) → e-post via Resend
 3. Akseptlenke → `/aksepter-invitasjon?token=...`
 4. OAuth-innlogging → `allowDangerousEmailAccountLinking` → akseptert → redirect
+5. **Auto-akseptering:** Ved OAuth-innlogging aksepteres ventende invitasjoner automatisk (events.signIn i auth.ts)
 
 **Personlig melding:** Valgfri tekst (maks 500 tegn) inkluderes i e-posten.
 **Resend:** `RESEND_API_KEY` i BÅDE `apps/api/.env` OG `apps/web/.env.local`.
