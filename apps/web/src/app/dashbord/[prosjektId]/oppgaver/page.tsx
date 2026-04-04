@@ -7,7 +7,7 @@ import { trpc } from "@/lib/trpc";
 import { Button, Modal, Spinner, EmptyState, StatusBadge, Badge, Table } from "@sitedoc/ui";
 import { useVerktoylinje } from "@/hooks/useVerktoylinje";
 import { useBygning } from "@/kontekst/bygning-kontekst";
-import { Plus, Trash2, Search, ChevronDown, ChevronRight } from "lucide-react";
+import { Plus, Search, ChevronDown, ChevronRight } from "lucide-react";
 
 // --- Typer ---
 
@@ -98,7 +98,6 @@ const SYSTEM_KOLONNER: KolonneParam[] = [
   { id: "opprettet", navn: "Opprettelsesdato", navnKey: "tabell.opprettelsesdato", gruppe: "kolonner" },
   { id: "endret", navn: "Endringsdato", navnKey: "tabell.endringsdato", gruppe: "kolonner" },
   { id: "frist", navn: "Tidsfrist", navnKey: "tabell.tidsfrist", gruppe: "kolonner" },
-  { id: "handlinger", navn: "", gruppe: "kolonner", fast: true },
 ];
 
 const POSISJON_KOLONNER: KolonneParam[] = [
@@ -107,7 +106,7 @@ const POSISJON_KOLONNER: KolonneParam[] = [
   { id: "tegning", navn: "Tegning", navnKey: "tabell.tegning", gruppe: "posisjon" },
 ];
 
-const STANDARD_AKTIVE = new Set(["nr", "tittel", "emne", "status", "ansvarlig", "frist", "handlinger"]);
+const STANDARD_AKTIVE = new Set(["nr", "tittel", "emne", "status", "ansvarlig", "frist"]);
 const STORAGE_KEY = "sitedoc-oppgave-kolonner-v3";
 
 function hentLagredeKolonner(): Set<string> {
@@ -298,12 +297,6 @@ export default function OppgaverSide() {
   const { data: dokumentflyter } = trpc.dokumentflyt.hentForProsjekt.useQuery(
     { projectId: params.prosjektId },
   );
-
-  const slettMutasjon = trpc.oppgave.slett.useMutation({
-    onSuccess: () => {
-      utils.oppgave.hentForProsjekt.invalidate({ projectId: params.prosjektId });
-    },
-  });
 
   const opprettMutation = trpc.oppgave.opprett.useMutation({
     onSuccess: (_data: unknown) => {
@@ -568,25 +561,6 @@ export default function OppgaverSide() {
         sorterbar: true, sorterVerdi: (rad) => rad.drawing?.name ?? "",
         filtrerbar: true, filterAlternativer: dynamiskFilter.tegning ?? [],
       },
-      handlinger: {
-        id: "handlinger", header: "",
-        celle: (rad) =>
-          (rad.status === "draft" || rad.status === "cancelled") ? (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                if (confirm(t("oppgaver.slettBekreftelse"))) {
-                  slettMutasjon.mutate({ id: rad.id });
-                }
-              }}
-              className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-600"
-              title={t("handling.slett")}
-            >
-              <Trash2 className="h-4 w-4" />
-            </button>
-          ) : null,
-        bredde: "48px",
-      },
     };
 
     // Dynamiske verdier-kolonner
@@ -614,7 +588,7 @@ export default function OppgaverSide() {
       if (aktiveKolonner.has(k.id) && def) resultat.push(def);
     }
     return resultat;
-  }, [aktiveKolonner, dynamiskFilter, slettMutasjon, verdiFelter, t]);
+  }, [aktiveKolonner, dynamiskFilter, verdiFelter, t]);
 
   // Aktive filter for visning
   const aktiveFilter = Object.entries(filterVerdier).filter(([_, v]) => v);

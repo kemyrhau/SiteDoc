@@ -10,6 +10,7 @@ const statusGrupper = [
   { id: "alle", labelKey: "status.alle", farge: "bg-gray-500" },
   { id: "draft", labelKey: "status.utkast", farge: "bg-gray-400" },
   { id: "sent", labelKey: "status.sendt", farge: "bg-blue-500" },
+  { id: "received", labelKey: "status.mottatt", farge: "bg-indigo-500" },
   { id: "in_progress", labelKey: "status.underArbeid", farge: "bg-yellow-500" },
   { id: "responded", labelKey: "status.besvart", farge: "bg-purple-500" },
   { id: "approved", labelKey: "status.godkjent", farge: "bg-green-500" },

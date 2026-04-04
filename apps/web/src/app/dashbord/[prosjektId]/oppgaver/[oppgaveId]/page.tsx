@@ -14,18 +14,20 @@ import type { RapportObjekt } from "@/components/rapportobjekter/typer";
 import { useOversettelse } from "@/hooks/useOversettelse";
 import { DokumentTidslinje } from "@/components/DokumentTidslinje";
 import { usePresence } from "@/hooks/usePresence";
+import { useTranslation } from "react-i18next";
 
 /* ------------------------------------------------------------------ */
 /*  LagreIndikator                                                     */
 /* ------------------------------------------------------------------ */
 
 function LagreIndikator({ status }: { status: "idle" | "lagrer" | "lagret" | "feil" }) {
+  const { t } = useTranslation();
   if (status === "idle") return null;
   if (status === "lagrer") {
     return (
       <span className="flex items-center gap-1 text-xs text-gray-400">
         <Loader2 size={14} className="animate-spin" />
-        Lagrer...
+        {t("lagring.lagrer")}
       </span>
     );
   }
@@ -33,14 +35,14 @@ function LagreIndikator({ status }: { status: "idle" | "lagrer" | "lagret" | "fe
     return (
       <span className="flex items-center gap-1 text-xs text-green-600">
         <Check size={14} />
-        Lagret
+        {t("lagring.lagret")}
       </span>
     );
   }
   return (
     <span className="flex items-center gap-1 text-xs text-red-500">
       <AlertCircle size={14} />
-      Lagring feilet
+      {t("lagring.feil")}
     </span>
   );
 }
@@ -75,6 +77,7 @@ interface Kommentar {
 }
 
 function DialogSeksjon({ oppgaveId }: { oppgaveId: string }) {
+  const { t } = useTranslation();
   const [nyTekst, setNyTekst] = useState("");
   const utils = trpc.useUtils();
 
@@ -100,7 +103,7 @@ function DialogSeksjon({ oppgaveId }: { oppgaveId: string }) {
 
   return (
     <Card className="mt-6">
-      <h4 className="mb-3 text-sm font-medium text-gray-500">Dialog</h4>
+      <h4 className="mb-3 text-sm font-medium text-gray-500">{t("dialog.tittel")}</h4>
 
       {liste.length > 0 && (
         <div className="mb-3 flex flex-col gap-2">
@@ -127,7 +130,7 @@ function DialogSeksjon({ oppgaveId }: { oppgaveId: string }) {
       )}
 
       {liste.length === 0 && (
-        <p className="mb-3 text-xs text-gray-400">Ingen kommentarer ennå</p>
+        <p className="mb-3 text-xs text-gray-400">{t("dialog.ingenKommentarer")}</p>
       )}
 
       <div className="flex gap-2">
@@ -141,7 +144,7 @@ function DialogSeksjon({ oppgaveId }: { oppgaveId: string }) {
               håndterSend();
             }
           }}
-          placeholder="Skriv en kommentar..."
+          placeholder={t("dialog.skrivKommentar")}
           className="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
         />
         <button
@@ -164,6 +167,7 @@ function DialogSeksjon({ oppgaveId }: { oppgaveId: string }) {
 export default function OppgaveDetaljSide() {
   const params = useParams<{ prosjektId: string; oppgaveId: string }>();
   const router = useRouter();
+  const { t } = useTranslation();
 
   const {
     oppgave,
@@ -174,6 +178,7 @@ export default function OppgaveDetaljSide() {
     leggTilVedlegg,
     fjernVedlegg,
     erSynlig,
+    erFeltLåst,
     valideringsfeil,
     erRedigerbar,
     lagreStatus,
@@ -256,18 +261,12 @@ export default function OppgaveDetaljSide() {
     });
   }, [alleEntrepriser, _dokumentflyter]);
 
-  const oppdaterLokasjonMutasjon = trpc.oppgave.oppdater.useMutation({
+  const oppdaterMutasjon = trpc.oppgave.oppdater.useMutation({
     onSuccess: () => {
       utils.oppgave.hentMedId.invalidate({ id: params.oppgaveId });
     },
   });
 
-  const slettMutasjon = trpc.oppgave.slett.useMutation({
-    onSuccess: () => {
-      utils.oppgave.hentForProsjekt.invalidate();
-      router.push(`/dashbord/${params.prosjektId}/oppgaver`);
-    },
-  });
 
   // Bygg trestruktur og flat ut i DFS-rekkefølge
   const objekter = useMemo(() => {
@@ -352,55 +351,82 @@ export default function OppgaveDetaljSide() {
   }
 
   if (!oppgave) {
-    return <p className="py-12 text-center text-gray-500">Oppgaven ble ikke funnet.</p>;
+    return <p className="py-12 text-center text-gray-500">{t("oppgaver.ikkeFunnet")}</p>;
   }
 
   return (
     <div className="mx-auto max-w-3xl pb-12">
       {/* Header */}
-      <div className="mb-6">
+      <div className="print-skjul mb-6">
         <div className="flex items-center gap-3">
-          {oppgaveNummer && (
-            <span className="text-sm font-mono text-gray-400">{oppgaveNummer}</span>
-          )}
           <h3 className="text-xl font-bold">{oppgave.title}</h3>
           <StatusBadge status={oppgave.status} />
           <Badge variant={PRIORITETS_VARIANT[oppgave.priority] ?? "default"}>
-            {PRIORITETS_TEKST[oppgave.priority] ?? oppgave.priority}
+            {t(`prioritet.${oppgave.priority}`, PRIORITETS_TEKST[oppgave.priority] ?? oppgave.priority)}
           </Badge>
           <LagreIndikator status={lagreStatus} />
           {andreRedaktorer.length > 0 && (
             <div className="flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-sm text-amber-700">
               <Pencil className="h-3.5 w-3.5 animate-pulse" />
-              {andreRedaktorer.map((u) => u.navn).join(", ")} redigerer
+              {andreRedaktorer.map((u) => u.navn).join(", ")} {t("presence.redigerer")}
             </div>
           )}
-          <div className="ml-auto flex items-center gap-2 print-skjul">
+          <div className="ml-auto flex items-center gap-2">
             <button
               onClick={() => window.open(`/utskrift/oppgave/${params.oppgaveId}`, "_blank")}
               className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
             >
               <FileText className="h-4 w-4" />
-              Vis PDF
+              {t("handling.visPdf")}
             </button>
             <button
               onClick={() => window.print()}
               className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
             >
               <Printer className="h-4 w-4" />
-              Skriv ut
+              {t("handling.skrivUtEnkel")}
             </button>
           </div>
         </div>
         <div className="flex items-center gap-1 text-sm text-gray-500">
-          {oppgave.template && <span>Mal: {oppgave.template.name}</span>}
-          {oppgave.creatorEnterprise && (
-            <span>&middot; Oppretter: {oppgave.creatorEnterprise.name}</span>
-          )}
-          {oppgave.responderEnterprise && (
-            <span>&middot; Svarer: {oppgave.responderEnterprise.name}</span>
+          {oppgave.template && <span>{t("tabell.mal")}: {oppgave.template.name}</span>}
+          {oppgave.status === "draft" ? (
+            <>
+              <span>&middot; {t("tabell.oppretter")}:</span>
+              <select
+                value={oppgave.creatorEnterprise?.id ?? ""}
+                onChange={(e) => oppdaterMutasjon.mutate({ id: params.oppgaveId, creatorEnterpriseId: e.target.value })}
+                className="rounded border border-gray-200 bg-white px-1.5 py-0.5 text-sm text-gray-700"
+              >
+                {(mineEntrepriser ?? []).map((ent: { id: string; name: string }) => (
+                  <option key={ent.id} value={ent.id}>{ent.name}</option>
+                ))}
+              </select>
+              <span>&middot; {t("tabell.svarer")}:</span>
+              <select
+                value={oppgave.responderEnterprise?.id ?? ""}
+                onChange={(e) => oppdaterMutasjon.mutate({ id: params.oppgaveId, responderEnterpriseId: e.target.value })}
+                className="rounded border border-gray-200 bg-white px-1.5 py-0.5 text-sm text-gray-700"
+              >
+                {(alleEntrepriser ?? []).map((ent: { id: string; name: string }) => (
+                  <option key={ent.id} value={ent.id}>{ent.name}</option>
+                ))}
+              </select>
+            </>
+          ) : (
+            <>
+              {oppgave.creatorEnterprise && (
+                <span>&middot; {t("tabell.oppretter")}: {oppgave.creatorEnterprise.name}</span>
+              )}
+              {oppgave.responderEnterprise && (
+                <span>&middot; {t("tabell.svarer")}: {oppgave.responderEnterprise.name}</span>
+              )}
+            </>
           )}
         </div>
+        {oppgaveNummer && (
+          <p className="mt-1 text-xs text-gray-400">{t("tabell.nr")}: {oppgaveNummer}</p>
+        )}
         {oppgave.description && (
           <p className="mt-2 text-sm text-gray-600">{oppgave.description}</p>
         )}
@@ -416,7 +442,7 @@ export default function OppgaveDetaljSide() {
             positionY={(oppgave as unknown as { positionY?: number | null }).positionY}
             visPosisjon
             onLagre={(data) => {
-              oppdaterLokasjonMutasjon.mutate({
+              oppdaterMutasjon.mutate({
                 id: params.oppgaveId,
                 drawingId: data.drawingId,
                 positionX: data.positionX ?? null,
@@ -428,10 +454,10 @@ export default function OppgaveDetaljSide() {
         </div>
 
         {/* Statushandlinger */}
-        <div className="mt-3">
+        <div className="mt-3 print-skjul">
           <StatusHandlinger
             status={oppgave.status}
-            erLaster={endreStatusMutasjon.isPending || slettMutasjon.isPending}
+            erLaster={endreStatusMutasjon.isPending}
             onEndreStatus={(nyStatus, kommentar, mottaker) => {
               endreStatusMutasjon.mutate({
                 id: params.oppgaveId,
@@ -442,7 +468,6 @@ export default function OppgaveDetaljSide() {
                 recipientGroupId: mottaker?.groupId,
               });
             }}
-            onSlett={() => slettMutasjon.mutate({ id: params.oppgaveId })}
             entrepriseValg={entrepriseValg}
             standardEntrepriseId={oppgave.responderEnterprise?.id}
             mineEntrepriseIder={mineEntrepriser ? (mineEntrepriser as Array<{ id: string }>).map((e) => e.id) : undefined}
@@ -461,6 +486,9 @@ export default function OppgaveDetaljSide() {
             const erDisplay = DISPLAY_TYPER.has(objekt.type);
             const nestingNivå = hentNestingNivå(objekt, objekter);
             const feltVerdi = hentFeltVerdi(objekt.id);
+            // Append-only: verdi-feltet er låst, men kommentar/vedlegg er redigerbare
+            const feltLåst = erFeltLåst(objekt.id);
+            const verdiLeseModus = leseModus || feltLåst;
 
             if (erDisplay) {
               const marginKlasse = nestingNivå > 0
@@ -472,7 +500,7 @@ export default function OppgaveDetaljSide() {
                     objekt={objekt}
                     verdi={feltVerdi.verdi}
                     onEndreVerdi={(v) => settVerdi(objekt.id, v)}
-                    leseModus={leseModus}
+                    leseModus={verdiLeseModus}
                     prosjektId={params.prosjektId}
                   />
                 </div>
@@ -502,7 +530,7 @@ export default function OppgaveDetaljSide() {
                     objekt={objekt}
                     verdi={feltVerdi.verdi}
                     onEndreVerdi={(v) => settVerdi(objekt.id, v)}
-                    leseModus={leseModus}
+                    leseModus={verdiLeseModus}
                     prosjektId={params.prosjektId}
                     barneObjekter={barneObjekterMap.get(objekt.id)}
                   />
