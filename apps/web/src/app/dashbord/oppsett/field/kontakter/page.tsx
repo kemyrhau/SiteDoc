@@ -109,38 +109,36 @@ function FlytBoks({
   gruppemedlemmer: Map<string, GruppeMedlemInfo[]>;
 }) {
   const f = FLYT_FARGER[farge] ?? FLYT_FARGER.blue!;
+
+  // Finn hovedansvarlig person for gruppen
+  const finnAnsvarlig = (m: DokumentflytMedlem): string | null => {
+    if (!m.group) return null;
+    const personer = gruppemedlemmer.get(m.group.id) ?? [];
+    return personer[0]?.navn ?? null; // Første person som placeholder til hovedansvarlig er implementert
+  };
+
   return (
-    <div className={`flex-1 ${avrunding} border ${f.border} ${f.bg} p-3`}>
-      <div className={`mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide ${f.tittel}`}>
+    <div className={`flex-1 ${avrunding} border ${f.border} ${f.bg} px-3 py-2`}>
+      <div className={`mb-1 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide ${f.tittel}`}>
         {ikon}
         {tittel}
       </div>
-      <div className={`text-xs ${f.tekst} mb-2`}>{beskrivelse}</div>
       {medlemmer.length === 0
         ? <span className="text-xs text-gray-400">—</span>
         : medlemmer.map((m, idx) => {
             const erGruppe = !!m.group;
-            const navn = m.projectMember?.user?.name ?? m.group?.name ?? "—";
-            const gruppePersoner = erGruppe && m.group ? gruppemedlemmer.get(m.group.id) ?? [] : [];
+            const gruppeNavn = m.group?.name;
+            const personNavn = m.projectMember?.user?.name;
+            const ansvarlig = erGruppe ? finnAnsvarlig(m) : null;
 
             return (
-              <div key={idx} className="mb-1.5">
-                {/* Gruppe/person-header */}
-                <div className="flex items-center gap-1.5 text-sm text-gray-700">
-                  {erGruppe ? <Users className={`h-3.5 w-3.5 ${f.ikon}`} /> : <User className={`h-3.5 w-3.5 ${f.ikon}`} />}
-                  <span className={m.erHovedansvarlig ? "font-semibold" : ""}>{navn}</span>
-                  {m.erHovedansvarlig && <span className={`ml-0.5 text-xs ${f.prikk}`}>●</span>}
-                </div>
-                {/* Gruppemedlemmer */}
-                {gruppePersoner.length > 0 && (
-                  <div className="ml-5 mt-0.5 space-y-0.5">
-                    {gruppePersoner.map((gm, gIdx) => (
-                      <div key={gIdx} className="flex items-center gap-1.5 text-xs text-gray-500">
-                        <User className="h-3 w-3 text-gray-300" />
-                        {gm.navn}
-                      </div>
-                    ))}
-                  </div>
+              <div key={idx} className="flex items-center gap-1.5 text-sm text-gray-700">
+                {erGruppe ? <Users className={`h-3.5 w-3.5 ${f.ikon} shrink-0`} /> : <User className={`h-3.5 w-3.5 ${f.ikon} shrink-0`} />}
+                <span className="font-medium">{gruppeNavn ?? personNavn ?? "—"}</span>
+                {ansvarlig && (
+                  <span className="text-xs text-gray-400">
+                    <span className={`${f.prikk}`}>●</span> {ansvarlig}
+                  </span>
                 )}
               </div>
             );
