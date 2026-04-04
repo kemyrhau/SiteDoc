@@ -209,7 +209,7 @@ export default function OppgaveDetaljSide() {
     },
   });
 
-  // Mottaker-valg: medlemmer og grupper for «Send»
+  // Mottaker-valg — filtrert basert på dokumentflyt
   const { data: _prosjektMedlemmer } = trpc.medlem.hentForProsjekt.useQuery(
     { projectId: params.prosjektId },
     { enabled: !!params.prosjektId },
@@ -218,10 +218,14 @@ export default function OppgaveDetaljSide() {
     { projectId: params.prosjektId },
     { enabled: !!params.prosjektId },
   );
+  const { data: _dokumentflyter } = trpc.dokumentflyt.hentForProsjekt.useQuery(
+    { projectId: params.prosjektId },
+    { enabled: !!params.prosjektId },
+  );
 
-  const mottakerValg = (() => {
+  const mottakerValg = useMemo(() => {
     const medlemGruppeMap = new Map<string, string[]>();
-    const grupperRå = (_prosjektGrupper ?? []) as Array<{ id: string; name: string; members: Array<{ projectMember: { id: string } }> }>;
+    const grupperRå = (_prosjektGrupper ?? []) as Array<{ id: string; name: string; category?: string; members: Array<{ projectMember: { id: string } }> }>;
     for (const g of grupperRå) {
       for (const m of g.members ?? []) {
         const pmId = m.projectMember?.id;
@@ -231,14 +235,52 @@ export default function OppgaveDetaljSide() {
         medlemGruppeMap.set(pmId, eks);
       }
     }
-    const personer = ((_prosjektMedlemmer ?? []) as Array<{ id: string; user: { id: string; name: string | null; email: string } }>).map((m) => ({
+
+    const alleMedlemmer = (_prosjektMedlemmer ?? []) as Array<{ id: string; user: { id: string; name: string | null; email: string } }>;
+
+    // Finn dokumentflyten for denne oppgaven
+    const dokumentflytId = (oppgave as unknown as { dokumentflytId?: string })?.dokumentflytId;
+    const templateDomain = (oppgave as unknown as { template?: { domain?: string } })?.template?.domain;
+    const erHms = templateDomain === "hms";
+    const dokumentflyt = dokumentflytId && !erHms
+      ? (_dokumentflyter ?? []).find((df: { id: string }) => df.id === dokumentflytId)
+      : null;
+
+    if (dokumentflyt) {
+      const dfMedlemmer = (dokumentflyt as { medlemmer: Array<{
+        rolle: string;
+        projectMember?: { user: { id: string; name: string | null; email: string } } | null;
+        group?: { id: string; name: string } | null;
+      }> }).medlemmer.filter((m) => m.rolle === "svarer");
+
+      const personer: Array<{ id: string; navn: string; grupper?: string }> = [];
+      const grupper: Array<{ id: string; navn: string }> = [];
+
+      for (const m of dfMedlemmer) {
+        if (m.group) {
+          grupper.push({ id: m.group.id, navn: m.group.name });
+        } else if (m.projectMember?.user) {
+          const pm = alleMedlemmer.find((am) => am.user.id === m.projectMember!.user.id);
+          personer.push({
+            id: m.projectMember.user.id,
+            navn: m.projectMember.user.name ?? m.projectMember.user.email,
+            grupper: pm ? medlemGruppeMap.get(pm.id)?.join(", ") : undefined,
+          });
+        }
+      }
+
+      return { personer, grupper };
+    }
+
+    // Fallback: alle (HMS eller ingen dokumentflyt)
+    const personer = alleMedlemmer.map((m) => ({
       id: m.user.id,
       navn: m.user.name ?? m.user.email,
       grupper: medlemGruppeMap.get(m.id)?.join(", "),
     }));
     const grupper = grupperRå.map((g) => ({ id: g.id, navn: g.name }));
     return { personer, grupper };
-  })();
+  }, [_prosjektMedlemmer, _prosjektGrupper, _dokumentflyter, oppgave]);
 
   const oppdaterLokasjonMutasjon = trpc.oppgave.oppdater.useMutation({
     onSuccess: () => {
