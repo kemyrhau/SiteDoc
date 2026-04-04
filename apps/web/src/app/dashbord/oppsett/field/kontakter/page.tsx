@@ -93,7 +93,6 @@ interface GruppeMedlemInfo { navn: string }
 
 function FlytBoks({
   tittel,
-  beskrivelse,
   ikon,
   farge,
   avrunding,
@@ -101,20 +100,27 @@ function FlytBoks({
   gruppemedlemmer,
 }: {
   tittel: string;
-  beskrivelse: string;
   ikon: React.ReactNode;
   farge: "blue" | "purple" | "green";
   avrunding: string;
   medlemmer: DokumentflytMedlem[];
   gruppemedlemmer: Map<string, GruppeMedlemInfo[]>;
 }) {
+  const [utvidetGruppe, setUtvidetGruppe] = useState<Set<string>>(new Set());
   const f = FLYT_FARGER[farge] ?? FLYT_FARGER.blue!;
 
-  // Finn hovedansvarlig person for gruppen
   const finnAnsvarlig = (m: DokumentflytMedlem): string | null => {
     if (!m.group) return null;
     const personer = gruppemedlemmer.get(m.group.id) ?? [];
-    return personer[0]?.navn ?? null; // Første person som placeholder til hovedansvarlig er implementert
+    return personer[0]?.navn ?? null;
+  };
+
+  const toggleGruppe = (id: string) => {
+    setUtvidetGruppe((prev) => {
+      const ny = new Set(prev);
+      ny.has(id) ? ny.delete(id) : ny.add(id);
+      return ny;
+    });
   };
 
   return (
@@ -130,15 +136,46 @@ function FlytBoks({
             const gruppeNavn = m.group?.name;
             const personNavn = m.projectMember?.user?.name;
             const ansvarlig = erGruppe ? finnAnsvarlig(m) : null;
+            const gruppePersoner = erGruppe && m.group ? gruppemedlemmer.get(m.group.id) ?? [] : [];
+            const erUtvidet = m.group ? utvidetGruppe.has(m.group.id) : false;
 
             return (
-              <div key={idx} className="flex items-center gap-1.5 text-sm text-gray-700">
-                {erGruppe ? <Users className={`h-3.5 w-3.5 ${f.ikon} shrink-0`} /> : <User className={`h-3.5 w-3.5 ${f.ikon} shrink-0`} />}
-                <span className="font-medium">{gruppeNavn ?? personNavn ?? "—"}</span>
-                {ansvarlig && (
-                  <span className="text-xs text-gray-400">
-                    <span className={`${f.prikk}`}>●</span> {ansvarlig}
-                  </span>
+              <div key={idx} className="mb-0.5">
+                <div className="flex items-center gap-1.5 text-sm text-gray-700">
+                  {erGruppe ? (
+                    <button
+                      onClick={() => m.group && toggleGruppe(m.group.id)}
+                      className="flex items-center gap-1.5 hover:underline"
+                    >
+                      <Users className={`h-3.5 w-3.5 ${f.ikon} shrink-0`} />
+                      <span className="font-medium">{gruppeNavn}</span>
+                      {gruppePersoner.length > 0 && (
+                        <span className="text-xs text-gray-400">({gruppePersoner.length})</span>
+                      )}
+                    </button>
+                  ) : (
+                    <>
+                      <User className={`h-3.5 w-3.5 ${f.ikon} shrink-0`} />
+                      <span className="text-gray-600">{personNavn ?? "—"}</span>
+                    </>
+                  )}
+                  {ansvarlig && (
+                    <span className="text-xs text-gray-400">
+                      <span className={f.prikk}>●</span> {ansvarlig}
+                    </span>
+                  )}
+                </div>
+                {/* Utvidet gruppemedlemmer */}
+                {erUtvidet && gruppePersoner.length > 0 && (
+                  <div className="ml-5 mt-0.5 mb-1 space-y-0.5">
+                    {gruppePersoner.map((gm, gIdx) => (
+                      <div key={gIdx} className="flex items-center gap-1.5 text-xs text-gray-500">
+                        <User className="h-3 w-3 text-gray-300 shrink-0" />
+                        {gm.navn}
+                        {gIdx === 0 && <span className={`text-xs ${f.prikk}`}>●</span>}
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
             );
@@ -357,7 +394,7 @@ export default function KontakterSide() {
                           {/* Oppretter-boks */}
                           <FlytBoks
                             tittel={t("kontakter.oppretter")}
-                            beskrivelse={t("kontakter.oppretterBeskrivelse")}
+
                             ikon={<Send className="h-3 w-3" />}
                             farge="blue"
                             avrunding="rounded-l-lg"
@@ -370,7 +407,7 @@ export default function KontakterSide() {
                           {/* Svarer-boks */}
                           <FlytBoks
                             tittel={t("kontakter.svarerLabel")}
-                            beskrivelse={t("kontakter.svarerBeskrivelse")}
+
                             ikon={<ClipboardCheck className="h-3 w-3" />}
                             farge="purple"
                             avrunding=""
@@ -383,7 +420,7 @@ export default function KontakterSide() {
                           {/* Godkjenner-boks */}
                           <FlytBoks
                             tittel={t("kontakter.godkjenner")}
-                            beskrivelse={t("kontakter.godkjennerBeskrivelse")}
+
                             ikon={<CheckCircle2 className="h-3 w-3" />}
                             farge="green"
                             avrunding="rounded-r-lg"
