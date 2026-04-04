@@ -52,13 +52,15 @@ export default function ProsjektOversikt() {
       (m.role === "admin" || m.role === "owner"),
   );
 
-  // Prøveperiode: 30 dager fra opprettet, kun for prosjekter uten firma
+  // Prøveperiode: basert på trialExpiresAt, fallback til createdAt + 30 dager
   const harFirma = !!(prosjekt as unknown as { organizationProjects?: unknown[] }).organizationProjects?.length;
   const erDeaktivert = prosjekt.status === "deactivated";
   const dagerIgjen = (() => {
     if (harFirma) return null;
-    const utloper = new Date(prosjekt.createdAt);
-    utloper.setDate(utloper.getDate() + 30);
+    const trialUtloper = (prosjekt as unknown as { trialExpiresAt?: string | null }).trialExpiresAt;
+    const utloper = trialUtloper
+      ? new Date(trialUtloper)
+      : (() => { const d = new Date(prosjekt.createdAt); d.setDate(d.getDate() + 30); return d; })();
     return Math.ceil((utloper.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
   })();
 

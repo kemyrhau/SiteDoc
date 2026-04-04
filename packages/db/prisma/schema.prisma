@@ -126,6 +126,7 @@ model Project {
   showInternalProjectNumber Boolean  @default(true) @map("show_internal_project_number")
   sourceLanguage            String   @default("nb") @map("source_language") // Kildespråk for prosjektet
   status                    String   @default("active")
+  trialExpiresAt            DateTime? @map("trial_expires_at")
   createdAt                 DateTime @default(now()) @map("created_at")
   updatedAt                 DateTime @updatedAt @map("updated_at")
 
