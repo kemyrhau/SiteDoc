@@ -23,7 +23,8 @@ En bruker kan tilhøre flere entrepriser via `MemberEnterprise`. Admin uten tilk
 
 Prosjektomfattende dokumentflyt under Innstillinger > Feltarbeid > Dokumentflyt:
 - **Entreprise-tilhørighet:** Dokumentflyt har `enterpriseId` som bestemmer hvilken entreprise den vises under i UI. Settes ved opprettelse via `forvalgtEntrepriseId`
-- **Fleksible roller:** Medlemmer kan være entrepriser, brukergrupper (`groupId` → `ProjectGroup`) eller enkeltpersoner (`projectMemberId`). Hver har rolle `oppretter` eller `svarer` per steg
+- **Fleksible roller:** Medlemmer kan være brukergrupper (`groupId` → `ProjectGroup`) eller enkeltpersoner (`projectMemberId`). Hver har rolle `oppretter` eller `svarer` per steg. Dropdown i dokumentflyt viser kun personer og brukergrupper (ikke entrepriser eller systemgrupper)
+- **Hovedansvarlig:** `DokumentflytMedlem.erHovedansvarlig` (Boolean) — blå prikk i oppsett-UI. Maks én per steg. Valgfritt. Ved opprettelse av sjekkliste/oppgave auto-settes `recipientUserId`/`recipientGroupId` fra hovedansvarlig. Vises i Ansvarlig-kolonnen i tabellvisning
 - **Grupper vs brukere:** I opprett-modalen velger man «Bruker» (enkeltperson) eller «Gruppe» (brukergruppe/ProjectGroup). Grupper gir lik tilgang til alle gruppemedlemmer
 - **Modell:** `Dokumentflyt` → `DokumentflytMedlem` (rolle + steg + enterpriseId/projectMemberId/groupId) + `DokumentflytMal` (maltilknytning)
 - Sjekklister/oppgaver knyttes via `dokumentflytId` (og bakoverkompatibelt `workflowId`)

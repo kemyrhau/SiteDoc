@@ -55,12 +55,12 @@ Tre-kolonne layout (skjules på mobil < 768px, hamburger-meny i Toppbar):
 /dashbord/[prosjektId]/dokumentleser         -> Dokumentleser med mappenavigering: venstre panel (mappetreet + dokumentliste med flagg), høyre panel (inline Reader View)
 /dashbord/oppsett/ai-sok                     -> AI-søk innstillinger: embedding-status, generer/stopp, NorBERT/OpenAI modellvalg, LLM-konfig, recall/precision/latency sliders
 /dashbord/oppsett                             -> Innstillinger
-/dashbord/oppsett/brukere                     -> Brukergrupper, roller
+/dashbord/oppsett/brukere                     -> Brukergrupper, roller + Kontakter-tabell (toggle-knapp). Kontakttabell viser alle prosjektmedlemmer med Navn, E-post, Telefon, Firma, Rolle, Entrepriser (redigerbare via +/x), Grupper
 /dashbord/oppsett/brukere/tillatelser         -> Tillatelsesmatrise (read-only)
 /dashbord/oppsett/lokasjoner                  -> Lokasjonsliste med georeferanse
 /dashbord/oppsett/field                       -> Field-oversikt
 /dashbord/oppsett/field/dokumentflyt          -> Dokumentflyt (roller, maler, medlemmer)
-/dashbord/oppsett/field/entrepriser           -> Entrepriser med arbeidsforløp (gammel)
+/dashbord/oppsett/field/entrepriser           -> Entrepriser med dokumentflyt. Hovedansvarlig markeres med blå prikk (erHovedansvarlig). Dropdown i dokumentflyt viser kun personer og brukergrupper (ikke entrepriser/systemgrupper). Feilmelding ved sletting med tilknyttede dokumenter
 /dashbord/oppsett/field/oppgavemaler          -> Oppgavemaler
 /dashbord/oppsett/field/sjekklistemaler       -> Sjekklistemaler
 /dashbord/oppsett/field/moduler               -> Forhåndsdefinerte mal-pakker
@@ -471,6 +471,24 @@ Erstatter separate `/punktskyer` og `/modeller`-ruter. Gamle URLer redirectes vi
 - **Children:** Page-innhold (sidepanel, verktøylinje, filter-bar) rendres over vieweren med `pointer-events-none` på wrapper, `pointer-events-auto` på interaktive elementer
 - **Bakgrunnslasting:** IFC-modeller begynner lasting så snart prosjektet åpnes, uavhengig av aktiv rute. Når bruker navigerer til 3D-visning er modellene ofte allerede lastet
 - **Verktøylinje og filter-bar:** Flyttet fra ViewerCanvas til page.tsx (`Fane3DModell`-komponenten)
+
+## Dokumenttidslinje
+
+Visuell tidslinje i sjekkliste- og oppgave-detaljsider. Delt komponent `DokumentTidslinje.tsx`:
+- Vertikal linje med prikker per hendelse (blå for siste, grå for eldre)
+- Viser avsender → mottaker (person/gruppe) per overføring
+- Status-badges, kommentarer, tidspunkt
+- Data fra `DocumentTransfer` (kronologisk, `asc`)
+- API inkluderer `recipientUser` og `recipientGroup` i transfer-queries
+
+## Feltvis merge (samtidighetsbeskyttelse)
+
+`oppdaterData`-mutasjonene (sjekkliste + oppgave) bruker **feltvis merge** i transaksjon:
+1. Henter fersk `data` fra DB inne i transaksjonen
+2. Merger innsendte felt: `{ ...eksisterende, ...input.data }`
+3. Lagrer merget resultat
+
+Forhindrer at samtidige brukere overskriver hverandres endringer på ulike felt.
 
 ## Sjekkliste-endringslogg
 
