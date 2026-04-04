@@ -490,6 +490,26 @@ Visuell tidslinje i sjekkliste- og oppgave-detaljsider. Delt komponent `Dokument
 
 Forhindrer at samtidige brukere overskriver hverandres endringer på ulike felt.
 
+## Sanntids presence (WebSocket)
+
+WebSocket-tilkobling til Fastify API (`/ws?token=...`) for å vise hvem som redigerer samme dokument.
+
+**Arkitektur:**
+- `apps/api/src/services/presence.ts` — in-memory store (transient)
+- `apps/api/src/routes/ws.ts` — WebSocket-endepunkt med auth + meldingshåndtering
+- `apps/web/src/kontekst/presence-kontekst.tsx` — React context med WS-tilkobling
+- `apps/web/src/hooks/usePresence.ts` — hook for dokumentspesifikk presence
+
+**Meldingsprotokoll:**
+- Klient→Server: `join` (åpner dokument), `leave` (lukker), `heartbeat` (30s)
+- Server→Klient: `presence` (liste over aktive brukere per dokument)
+
+**UI:** Amber pille med pulserende blyantikon + navn i dokumentheader (sjekkliste/oppgave).
+
+**URL-logikk:** `test.sitedoc.no` → `wss://api-test.sitedoc.no/ws`, `sitedoc.no` → `wss://api.sitedoc.no/ws`
+
+**Auto-reconnect:** Eksponentiell backoff (1s→2s→4s→...→30s maks). Ventende joins sendes på nytt ved reconnect.
+
 ## Sjekkliste-endringslogg
 
 `enableChangeLog` på mal → server-side diff i `oppdaterData` → `ChecklistChangeLog`-poster. `EndringsloggSeksjon` i detaljsiden.
