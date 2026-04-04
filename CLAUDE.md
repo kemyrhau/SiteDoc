@@ -84,7 +84,7 @@ sitedoc/
 | **Branch** | `develop` | `main` |
 | **Repo på server** | `~/programmering/sitedoc-test` | `~/programmering/sitedoc` |
 | **API-port** | 3301 | 3001 |
-| **Database** | Delt PostgreSQL | Delt PostgreSQL |
+| **Database** | `sitedoc_test` | `sitedoc` |
 | **Uploads** | Delt (symlinket) | Delt |
 
 ### Arbeidsflyt
