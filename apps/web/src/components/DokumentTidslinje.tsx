@@ -72,8 +72,8 @@ export function DokumentTidslinje({ overforinger, opprettetAv, opprettetDato }: 
           {overforinger.map((ovf, i) => {
             const erSiste = i === overforinger.length - 1;
             const harMottaker = ovf.recipientUser || ovf.recipientGroup;
-            // Videresending: status endres ikke, kommentar starter med "Videresendt"
-            const erVideresending = ovf.fromStatus === ovf.toStatus && ovf.comment?.startsWith("Videresendt");
+            // Videresending: kommentar starter med "Videresendt"
+            const erVideresending = ovf.comment?.startsWith("Videresendt") ?? false;
             // Fjern "Videresendt: " prefiks fra kommentar (vises allerede i badge)
             const visKommentar = erVideresending
               ? ovf.comment?.replace(/^Videresendt:\s*/, "").trim() || null
