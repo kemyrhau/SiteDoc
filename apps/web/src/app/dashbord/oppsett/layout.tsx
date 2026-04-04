@@ -56,7 +56,7 @@ const navigasjon: NavElement[] = [
     kreverProsjekt: true,
     tillatelse: "manage_field",
     barn: [
-      { labelKey: "oppsett.kontakter", href: "/dashbord/oppsett/field/kontakter" },
+      { labelKey: "oppsett.kontakter", href: "/dashbord/oppsett/field/kontakter", skjult: true },
       { labelKey: "oppsett.entrepriser", href: "/dashbord/oppsett/field/entrepriser" },
       { labelKey: "oppsett.oppgavemaler", href: "/dashbord/oppsett/field/oppgavemaler" },
       { labelKey: "oppsett.sjekklistemaler", href: "/dashbord/oppsett/field/sjekklistemaler" },
