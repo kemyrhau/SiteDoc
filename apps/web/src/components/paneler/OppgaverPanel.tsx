@@ -15,6 +15,7 @@ const statusGrupper = [
   { id: "responded", labelKey: "status.besvart", farge: "bg-purple-500" },
   { id: "approved", labelKey: "status.godkjent", farge: "bg-green-500" },
   { id: "rejected", labelKey: "status.avvist", farge: "bg-red-500" },
+  { id: "cancelled", labelKey: "status.avbrutt", farge: "bg-red-400" },
   { id: "closed", labelKey: "status.lukket", farge: "bg-gray-600" },
 ];
 
