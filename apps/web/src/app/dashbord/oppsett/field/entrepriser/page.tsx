@@ -1223,7 +1223,8 @@ export default function EntrepriserSide() {
     { projectId: prosjektId! },
     { enabled: !!prosjektId },
   );
-  const gruppeListe = (grupperData ?? []) as Array<{ id: string; name: string }>;
+  const gruppeListe = ((grupperData ?? []) as Array<{ id: string; name: string; category: string }>)
+    .filter((g) => g.category === "brukergrupper");
 
   const oppdaterEntrepriseMutation = trpc.entreprise.oppdater.useMutation({
     onSuccess: () => {

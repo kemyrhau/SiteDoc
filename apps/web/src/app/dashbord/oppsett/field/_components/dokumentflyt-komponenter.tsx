@@ -657,7 +657,7 @@ export function DokumentflytInlineKort({
                       prosjektId={prosjektId}
                       rolle="svarer"
                       steg={steg}
-                      entrepriser={entrepriser}
+                      entrepriser={[]}
                       medlemmer={medlemmer}
                       grupper={grupper}
                       eksisterende={stegMedlemmer}
@@ -679,7 +679,7 @@ export function DokumentflytInlineKort({
                     prosjektId={prosjektId}
                     rolle="svarer"
                     steg={1}
-                    entrepriser={entrepriser}
+                    entrepriser={[]}
                     medlemmer={medlemmer}
                     grupper={grupper}
                     eksisterende={[]}
