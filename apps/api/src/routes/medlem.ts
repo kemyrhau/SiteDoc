@@ -19,9 +19,13 @@ export const medlemRouter = router({
       return ctx.prisma.projectMember.findMany({
         where: { projectId: input.projectId },
         include: {
-          user: true,
+          user: {
+            include: {
+              organization: { select: { id: true, name: true } },
+            },
+          },
           enterprises: {
-            include: { enterprise: true },
+            include: { enterprise: { select: { id: true, name: true, color: true } } },
           },
         },
         orderBy: { createdAt: "asc" },

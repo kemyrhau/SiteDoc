@@ -976,5 +976,15 @@
   "statushandling.valgfriKommentar": "Optional comment...",
 
   "tidslinje.tittel": "Timeline",
-  "tidslinje.opprettet": "created the document"
+  "tidslinje.opprettet": "created the document",
+
+  "kontakter.epost": "Email",
+  "kontakter.telefon": "Phone",
+  "kontakter.firma": "Company",
+  "kontakter.rolle": "Role",
+  "kontakter.entrepriser": "Enterprises",
+  "kontakter.grupper": "Groups",
+  "kontakter.medlem": "Member",
+  "kontakter.velgEntreprise": "Select enterprise...",
+  "kontakter.leggTilEntreprise": "Add enterprise"
 }

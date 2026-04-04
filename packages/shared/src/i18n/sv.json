@@ -921,5 +921,14 @@
   "statushandling.velgMottakerValgfritt": "Välj mottagare (valfritt)...",
   "statushandling.valgfriKommentar": "Valfri kommentar...",
   "tidslinje.tittel": "Tidslinje",
-  "tidslinje.opprettet": "skapade dokumentet"
+  "tidslinje.opprettet": "skapade dokumentet",
+  "kontakter.epost": "E-post",
+  "kontakter.telefon": "Telefon",
+  "kontakter.firma": "Företag",
+  "kontakter.rolle": "Roll",
+  "kontakter.entrepriser": "Företag",
+  "kontakter.grupper": "Grupper",
+  "kontakter.medlem": "Medlem",
+  "kontakter.velgEntreprise": "Välj företag...",
+  "kontakter.leggTilEntreprise": "Lägg till företag"
 }

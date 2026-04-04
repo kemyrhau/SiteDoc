@@ -921,5 +921,14 @@
   "statushandling.velgMottakerValgfritt": "Виберіть одержувача (необов'язково)...",
   "statushandling.valgfriKommentar": "Необов'язковий коментар...",
   "tidslinje.tittel": "Хронологія",
-  "tidslinje.opprettet": "створив документ"
+  "tidslinje.opprettet": "створив документ",
+  "kontakter.epost": "Електронна пошта",
+  "kontakter.telefon": "Телефон",
+  "kontakter.firma": "Компанія",
+  "kontakter.rolle": "Роль",
+  "kontakter.entrepriser": "Підприємства",
+  "kontakter.grupper": "Групи",
+  "kontakter.medlem": "Член",
+  "kontakter.velgEntreprise": "Виберіть підприємство...",
+  "kontakter.leggTilEntreprise": "Додати підприємство"
 }

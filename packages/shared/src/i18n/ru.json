@@ -921,5 +921,14 @@
   "statushandling.velgMottakerValgfritt": "Выберите получателя (необязательно)...",
   "statushandling.valgfriKommentar": "Необязательный комментарий...",
   "tidslinje.tittel": "Хронология",
-  "tidslinje.opprettet": "создал документ"
+  "tidslinje.opprettet": "создал документ",
+  "kontakter.epost": "Электронная почта",
+  "kontakter.telefon": "Телефон",
+  "kontakter.firma": "Компания",
+  "kontakter.rolle": "Роль",
+  "kontakter.entrepriser": "Предприятия",
+  "kontakter.grupper": "Группы",
+  "kontakter.medlem": "Член",
+  "kontakter.velgEntreprise": "Выберите предприятие...",
+  "kontakter.leggTilEntreprise": "Добавить предприятие"
 }

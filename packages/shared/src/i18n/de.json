@@ -921,5 +921,14 @@
   "statushandling.velgMottakerValgfritt": "Empfänger auswählen (optional)...",
   "statushandling.valgfriKommentar": "Optionaler Kommentar...",
   "tidslinje.tittel": "Zeitleiste",
-  "tidslinje.opprettet": "hat das Dokument erstellt"
+  "tidslinje.opprettet": "hat das Dokument erstellt",
+  "kontakter.epost": "E-Mail",
+  "kontakter.telefon": "Telefon",
+  "kontakter.firma": "Unternehmen",
+  "kontakter.rolle": "Rolle",
+  "kontakter.entrepriser": "Unternehmen",
+  "kontakter.grupper": "Gruppen",
+  "kontakter.medlem": "Mitglied",
+  "kontakter.velgEntreprise": "Unternehmen auswählen...",
+  "kontakter.leggTilEntreprise": "Unternehmen hinzufügen"
 }

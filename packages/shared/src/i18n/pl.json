@@ -921,5 +921,14 @@
   "statushandling.velgMottakerValgfritt": "Wybierz odbiorcę (opcjonalnie)...",
   "statushandling.valgfriKommentar": "Opcjonalny komentarz...",
   "tidslinje.tittel": "Oś czasu",
-  "tidslinje.opprettet": "utworzył dokument"
+  "tidslinje.opprettet": "utworzył dokument",
+  "kontakter.epost": "E-mail",
+  "kontakter.telefon": "Telefon",
+  "kontakter.firma": "Firma",
+  "kontakter.rolle": "Rola",
+  "kontakter.entrepriser": "Przedsiębiorstwa",
+  "kontakter.grupper": "Grupy",
+  "kontakter.medlem": "Członek",
+  "kontakter.velgEntreprise": "Wybierz przedsiębiorstwo...",
+  "kontakter.leggTilEntreprise": "Dodaj przedsiębiorstwo"
 }

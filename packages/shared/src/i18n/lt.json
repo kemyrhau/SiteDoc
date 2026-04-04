@@ -921,5 +921,14 @@
   "statushandling.velgMottakerValgfritt": "Pasirinkite gavėją (nebūtina)...",
   "statushandling.valgfriKommentar": "Neprivalomas komentaras...",
   "tidslinje.tittel": "Laiko juosta",
-  "tidslinje.opprettet": "sukūrė dokumentą"
+  "tidslinje.opprettet": "sukūrė dokumentą",
+  "kontakter.epost": "El. paštas",
+  "kontakter.telefon": "Telefonas",
+  "kontakter.firma": "Įmonė",
+  "kontakter.rolle": "Vaidmuo",
+  "kontakter.entrepriser": "Įmonės",
+  "kontakter.grupper": "Grupės",
+  "kontakter.medlem": "narys",
+  "kontakter.velgEntreprise": "Pasirinkite įmonę...",
+  "kontakter.leggTilEntreprise": "Pridėti įmonę"
 }

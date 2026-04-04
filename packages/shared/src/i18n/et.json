@@ -921,5 +921,14 @@
   "statushandling.velgMottakerValgfritt": "Valige adressaat (valikuline)...",
   "statushandling.valgfriKommentar": "Valikuline kommentaar...",
   "tidslinje.tittel": "Ajaskaala",
-  "tidslinje.opprettet": "lõi dokumendi"
+  "tidslinje.opprettet": "lõi dokumendi",
+  "kontakter.epost": "Meil",
+  "kontakter.telefon": "Telefon",
+  "kontakter.firma": "Ettevõte",
+  "kontakter.rolle": "Roll",
+  "kontakter.entrepriser": "Ettevõtted",
+  "kontakter.grupper": "Rühmad",
+  "kontakter.medlem": "liige",
+  "kontakter.velgEntreprise": "Valige ettevõte...",
+  "kontakter.leggTilEntreprise": "Lisa ettevõte"
 }

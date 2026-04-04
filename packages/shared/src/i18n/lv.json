@@ -921,5 +921,14 @@
   "statushandling.velgMottakerValgfritt": "Izvēlieties adresātu (neobligāti)...",
   "statushandling.valgfriKommentar": "Neobligāts komentārs...",
   "tidslinje.tittel": "Laika skala",
-  "tidslinje.opprettet": "izveidoja dokumentu"
+  "tidslinje.opprettet": "izveidoja dokumentu",
+  "kontakter.epost": "E-pasts",
+  "kontakter.telefon": "Tālrunis",
+  "kontakter.firma": "Uzņēmums",
+  "kontakter.rolle": "Loma",
+  "kontakter.entrepriser": "Uzņēmumi",
+  "kontakter.grupper": "Grupas",
+  "kontakter.medlem": "Biedrs",
+  "kontakter.velgEntreprise": "Izvēlieties uzņēmumu...",
+  "kontakter.leggTilEntreprise": "Pievienot uzņēmumu"
 }

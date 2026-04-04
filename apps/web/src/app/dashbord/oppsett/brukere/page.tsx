@@ -1279,6 +1279,220 @@ function GruppeSeksjon({
 }
 
 /* ------------------------------------------------------------------ */
+/*  KontaktTabell                                                      */
+/* ------------------------------------------------------------------ */
+
+interface KontaktMedlem {
+  id: string;
+  role: string;
+  user: {
+    id: string;
+    name: string | null;
+    email: string;
+    phone: string | null;
+    organization?: { id: string; name: string } | null;
+  };
+  enterprises: Array<{
+    enterprise: { id: string; name: string; color: string | null };
+  }>;
+}
+
+function KontaktTabell({ prosjektId }: { prosjektId: string }) {
+  const { t } = useTranslation();
+  const utils = trpc.useUtils();
+  const [leggTilEntrepriseForMedlem, setLeggTilEntrepriseForMedlem] = useState<string | null>(null);
+
+  const { data: medlemmer } = trpc.medlem.hentForProsjekt.useQuery(
+    { projectId: prosjektId },
+    { enabled: !!prosjektId },
+  );
+
+  const { data: alleEntrepriser } = trpc.entreprise.hentForProsjekt.useQuery(
+    { projectId: prosjektId },
+    { enabled: !!prosjektId },
+  );
+
+  const { data: dbGrupper } = trpc.gruppe.hentForProsjekt.useQuery(
+    { projectId: prosjektId },
+    { enabled: !!prosjektId },
+  );
+
+  const tilknyttMutation = trpc.medlem.tilknyttEntreprise.useMutation({
+    onSuccess: () => {
+      utils.medlem.hentForProsjekt.invalidate({ projectId: prosjektId });
+      setLeggTilEntrepriseForMedlem(null);
+    },
+  });
+
+  const fjernMutation = trpc.medlem.fjernFraEntreprise.useMutation({
+    onSuccess: () => {
+      utils.medlem.hentForProsjekt.invalidate({ projectId: prosjektId });
+    },
+  });
+
+  // Bygg gruppe-map: userId → gruppenavn[]
+  const gruppeMap: Record<string, string[]> = {};
+  if (dbGrupper) {
+    for (const g of dbGrupper as Array<{ name: string; members: Array<{ projectMember: { user: { id: string } } }> }>) {
+      for (const m of g.members) {
+        const userId = m.projectMember.user.id;
+        if (!gruppeMap[userId]) gruppeMap[userId] = [];
+        gruppeMap[userId].push(g.name);
+      }
+    }
+  }
+
+  const kontakter = (medlemmer ?? []) as KontaktMedlem[];
+
+  return (
+    <div className="mb-6">
+      <h2 className="mb-4 text-xl font-bold text-gray-900">{t("brukere.kontakter")}</h2>
+      <div className="overflow-x-auto rounded-lg border border-gray-200">
+        <table className="w-full text-left text-sm">
+          <thead className="border-b border-gray-200 bg-gray-50 text-xs font-medium uppercase tracking-wide text-gray-500">
+            <tr>
+              <th className="px-4 py-2.5">{t("tabell.navn")}</th>
+              <th className="px-4 py-2.5">{t("kontakter.epost")}</th>
+              <th className="px-4 py-2.5">{t("kontakter.telefon")}</th>
+              <th className="px-4 py-2.5">{t("kontakter.firma")}</th>
+              <th className="px-4 py-2.5">{t("kontakter.rolle")}</th>
+              <th className="px-4 py-2.5">{t("kontakter.entrepriser")}</th>
+              <th className="px-4 py-2.5">{t("kontakter.grupper")}</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {kontakter.map((m) => {
+              const brukerGrupper = gruppeMap[m.user.id] ?? [];
+              const entrepriseIder = new Set(m.enterprises.map((e) => e.enterprise.id));
+              const tilgjengeligeEntrepriser = (alleEntrepriser ?? []).filter(
+                (e: { id: string }) => !entrepriseIder.has(e.id),
+              );
+
+              return (
+                <tr key={m.id} className="hover:bg-gray-50">
+                  {/* Navn */}
+                  <td className="whitespace-nowrap px-4 py-2.5 font-medium text-gray-900">
+                    {m.user.name ?? "—"}
+                  </td>
+
+                  {/* E-post */}
+                  <td className="whitespace-nowrap px-4 py-2.5 text-gray-600">
+                    {m.user.email}
+                  </td>
+
+                  {/* Telefon */}
+                  <td className="whitespace-nowrap px-4 py-2.5 text-gray-600">
+                    {m.user.phone ?? "—"}
+                  </td>
+
+                  {/* Firma */}
+                  <td className="whitespace-nowrap px-4 py-2.5 text-gray-600">
+                    {(m.user as KontaktMedlem["user"]).organization?.name ?? "—"}
+                  </td>
+
+                  {/* Rolle */}
+                  <td className="whitespace-nowrap px-4 py-2.5">
+                    <span className={`inline-flex rounded px-1.5 py-0.5 text-xs font-medium ${
+                      m.role === "admin"
+                        ? "bg-blue-50 text-blue-700"
+                        : "bg-gray-100 text-gray-600"
+                    }`}>
+                      {m.role === "admin" ? "Admin" : t("kontakter.medlem")}
+                    </span>
+                  </td>
+
+                  {/* Entrepriser (redigerbare) */}
+                  <td className="px-4 py-2.5">
+                    <div className="flex flex-wrap items-center gap-1">
+                      {m.enterprises.map((me) => (
+                        <span
+                          key={me.enterprise.id}
+                          className="group inline-flex items-center gap-1 rounded bg-gray-100 px-1.5 py-0.5 text-xs font-medium text-gray-700"
+                        >
+                          {me.enterprise.name}
+                          <button
+                            onClick={() =>
+                              fjernMutation.mutate({
+                                projectMemberId: m.id,
+                                enterpriseId: me.enterprise.id,
+                                projectId: prosjektId,
+                              })
+                            }
+                            className="rounded-full p-0.5 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-red-100 hover:text-red-600"
+                            title={t("handling.fjern")}
+                          >
+                            <X className="h-2.5 w-2.5" />
+                          </button>
+                        </span>
+                      ))}
+
+                      {/* Legg til entreprise */}
+                      {leggTilEntrepriseForMedlem === m.id ? (
+                        <div className="relative">
+                          <select
+                            className="rounded border border-gray-300 bg-white px-1.5 py-0.5 text-xs"
+                            onChange={(e) => {
+                              if (e.target.value) {
+                                tilknyttMutation.mutate({
+                                  projectMemberId: m.id,
+                                  enterpriseId: e.target.value,
+                                  projectId: prosjektId,
+                                });
+                              }
+                            }}
+                            onBlur={() => setLeggTilEntrepriseForMedlem(null)}
+                            autoFocus
+                            defaultValue=""
+                          >
+                            <option value="" disabled>
+                              {t("kontakter.velgEntreprise")}
+                            </option>
+                            {tilgjengeligeEntrepriser.map((e: { id: string; name: string }) => (
+                              <option key={e.id} value={e.id}>
+                                {e.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setLeggTilEntrepriseForMedlem(m.id)}
+                          className="rounded px-1 py-0.5 text-xs text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                          title={t("kontakter.leggTilEntreprise")}
+                        >
+                          <Plus className="h-3 w-3" />
+                        </button>
+                      )}
+                    </div>
+                  </td>
+
+                  {/* Grupper */}
+                  <td className="px-4 py-2.5">
+                    <div className="flex flex-wrap gap-1">
+                      {brukerGrupper.length > 0
+                        ? brukerGrupper.map((g) => (
+                            <span
+                              key={g}
+                              className="inline-flex rounded bg-blue-50 px-1.5 py-0.5 text-xs font-medium text-blue-700"
+                            >
+                              {g}
+                            </span>
+                          ))
+                        : <span className="text-xs text-gray-400">—</span>
+                      }
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Hovudside                                                          */
 /* ------------------------------------------------------------------ */
 
@@ -1292,6 +1506,7 @@ export default function BrukereSide() {
     "generelt" | "field" | "brukergrupper"
   >("brukergrupper");
   const [visningsModus, setVisningsModus] = useState<"grid" | "liste">("grid");
+  const [visKontakter, setVisKontakter] = useState(false);
   const [redigerGruppeId, setRedigerGruppeId] = useState<string | null>(null);
 
   const utils = trpc.useUtils();
@@ -1463,15 +1678,24 @@ export default function BrukereSide() {
             <Plus className="mr-1.5 h-4 w-4" />
             {t("brukere.leggTilGruppe")}
           </Button>
-          <Button variant="ghost" size="sm">
+          <Button
+            variant={visKontakter ? "primary" : "ghost"}
+            size="sm"
+            onClick={() => setVisKontakter(!visKontakter)}
+          >
             <Users className="mr-1.5 h-4 w-4" />
             {t("brukere.kontakter")}
           </Button>
         </div>
       </div>
 
+      {/* Kontakttabell */}
+      {visKontakter && prosjektId && (
+        <KontaktTabell prosjektId={prosjektId} />
+      )}
+
       {/* Tittel + søk */}
-      <div className="mb-4 flex items-center justify-between">
+      {!visKontakter && <><div className="mb-4 flex items-center justify-between">
         <h2 className="text-xl font-bold text-gray-900">{t("brukere.tittel")}</h2>
         <div className="flex items-center gap-2">
           <button
@@ -1542,6 +1766,7 @@ export default function BrukereSide() {
           {t("brukere.ingenGrupperMatcher")}
         </div>
       )}
+      </>}
 
       {/* Rediger gruppe modal */}
       {redigerGruppe && prosjektId && (

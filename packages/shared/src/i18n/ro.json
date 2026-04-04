@@ -921,5 +921,14 @@
   "statushandling.velgMottakerValgfritt": "Selectați destinatarul (opțional)...",
   "statushandling.valgfriKommentar": "Comentariu optional...",
   "tidslinje.tittel": "Cronologie",
-  "tidslinje.opprettet": "a creat documentul"
+  "tidslinje.opprettet": "a creat documentul",
+  "kontakter.epost": "E-mail",
+  "kontakter.telefon": "Telefon",
+  "kontakter.firma": "Companie",
+  "kontakter.rolle": "Rol",
+  "kontakter.entrepriser": "Întreprinderi",
+  "kontakter.grupper": "Grupuri",
+  "kontakter.medlem": "Membru",
+  "kontakter.velgEntreprise": "Selectați întreprindere...",
+  "kontakter.leggTilEntreprise": "Adăugați întreprindere"
 }

@@ -921,5 +921,14 @@
   "statushandling.velgMottakerValgfritt": "Sélectionnez le destinataire (facultatif)...",
   "statushandling.valgfriKommentar": "Commentaire facultatif...",
   "tidslinje.tittel": "Chronologie",
-  "tidslinje.opprettet": "créé le document"
+  "tidslinje.opprettet": "créé le document",
+  "kontakter.epost": "E-mail",
+  "kontakter.telefon": "Téléphone",
+  "kontakter.firma": "Entreprise",
+  "kontakter.rolle": "Rôle",
+  "kontakter.entrepriser": "Entreprises",
+  "kontakter.grupper": "Groupes",
+  "kontakter.medlem": "Membre",
+  "kontakter.velgEntreprise": "Sélectionnez une entreprise...",
+  "kontakter.leggTilEntreprise": "Ajouter une entreprise"
 }

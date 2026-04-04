@@ -976,5 +976,15 @@
   "statushandling.valgfriKommentar": "Valgfri kommentar...",
 
   "tidslinje.tittel": "Tidslinje",
-  "tidslinje.opprettet": "opprettet dokumentet"
+  "tidslinje.opprettet": "opprettet dokumentet",
+
+  "kontakter.epost": "E-post",
+  "kontakter.telefon": "Telefon",
+  "kontakter.firma": "Firma",
+  "kontakter.rolle": "Rolle",
+  "kontakter.entrepriser": "Entrepriser",
+  "kontakter.grupper": "Grupper",
+  "kontakter.medlem": "Medlem",
+  "kontakter.velgEntreprise": "Velg entreprise...",
+  "kontakter.leggTilEntreprise": "Legg til entreprise"
 }

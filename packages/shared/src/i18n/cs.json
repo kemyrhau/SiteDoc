@@ -921,5 +921,14 @@
   "statushandling.velgMottakerValgfritt": "Vyberte příjemce (volitelné)...",
   "statushandling.valgfriKommentar": "Nepovinný komentář...",
   "tidslinje.tittel": "Časová osa",
-  "tidslinje.opprettet": "vytvořil dokument"
+  "tidslinje.opprettet": "vytvořil dokument",
+  "kontakter.epost": "E-mail",
+  "kontakter.telefon": "Telefon",
+  "kontakter.firma": "Společnost",
+  "kontakter.rolle": "Role",
+  "kontakter.entrepriser": "Podniky",
+  "kontakter.grupper": "Skupiny",
+  "kontakter.medlem": "Člen",
+  "kontakter.velgEntreprise": "Vyberte podnik...",
+  "kontakter.leggTilEntreprise": "Přidat podnik"
 }

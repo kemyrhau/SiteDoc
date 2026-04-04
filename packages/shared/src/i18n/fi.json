@@ -921,5 +921,14 @@
   "statushandling.velgMottakerValgfritt": "Valitse vastaanottaja (valinnainen)...",
   "statushandling.valgfriKommentar": "Valinnainen kommentti...",
   "tidslinje.tittel": "Aikajana",
-  "tidslinje.opprettet": "loi asiakirjan"
+  "tidslinje.opprettet": "loi asiakirjan",
+  "kontakter.epost": "Sähköposti",
+  "kontakter.telefon": "Puhelin",
+  "kontakter.firma": "Yritys",
+  "kontakter.rolle": "Rooli",
+  "kontakter.entrepriser": "Yritykset",
+  "kontakter.grupper": "Ryhmät",
+  "kontakter.medlem": "Jäsen",
+  "kontakter.velgEntreprise": "Valitse yritys...",
+  "kontakter.leggTilEntreprise": "Lisää yritys"
 }
