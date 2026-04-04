@@ -17,6 +17,7 @@ import {
   MapPin,
 } from "lucide-react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useTranslation } from "react-i18next";
 
 interface Bygning {
   id: string;
@@ -61,6 +62,7 @@ export function TegningsVelger({
   onAvbryt,
   laster,
 }: TegningsVelgerProps) {
+  const { t } = useTranslation();
   const [utvidet, setUtvidet] = useState(false);
   const [søkTekst, setSøkTekst] = useState("");
   const [åpneEtasjer, setÅpneEtasjer] = useState<Set<string>>(new Set());
@@ -257,7 +259,7 @@ export function TegningsVelger({
               }}
               hitSlop={8}
             >
-              <Text className="text-sm font-medium text-white">Avbryt</Text>
+              <Text className="text-sm font-medium text-white">{t("handling.avbryt")}</Text>
             </Pressable>
 
             <Pressable

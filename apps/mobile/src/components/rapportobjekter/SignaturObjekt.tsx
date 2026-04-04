@@ -3,10 +3,12 @@ import { View, Text, Pressable } from "react-native";
 import { WebView } from "react-native-webview";
 import type { WebViewMessageEvent } from "react-native-webview";
 import { PenLine, RotateCcw } from "lucide-react-native";
+import { useTranslation } from "react-i18next";
 import type { RapportObjektProps } from "./typer";
 import { SIGNATUR_HTML } from "../../assets/signatur-html";
 
 export function SignaturObjekt({ verdi, onEndreVerdi, leseModus }: RapportObjektProps) {
+  const { t } = useTranslation();
   const [redigerer, settRedigerer] = useState(false);
   const webViewRef = useRef<WebView>(null);
   const harSignatur = typeof verdi === "string" && verdi.length > 0;
@@ -85,7 +87,7 @@ export function SignaturObjekt({ verdi, onEndreVerdi, leseModus }: RapportObjekt
             className="flex-row items-center gap-1 rounded-lg bg-blue-600 px-4 py-2"
           >
             <PenLine size={14} color="#ffffff" />
-            <Text className="text-sm font-medium text-white">Lagre</Text>
+            <Text className="text-sm font-medium text-white">{t("handling.lagre")}</Text>
           </Pressable>
         </View>
       </View>

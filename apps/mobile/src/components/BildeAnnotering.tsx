@@ -19,6 +19,7 @@ import {
   Undo2,
 } from "lucide-react-native";
 import * as FileSystem from "expo-file-system/legacy";
+import { useTranslation } from "react-i18next";
 import { ANNOTERINGS_HTML } from "../assets/annoterings-html";
 import { AUTH_CONFIG } from "../config/auth";
 
@@ -39,6 +40,7 @@ const VERKTOYER: { id: Verktoy; ikon: typeof ArrowUpRight; label: string }[] = [
 ];
 
 export function BildeAnnotering({ bildeUri, onFerdig, onAvbryt }: BildeAnnoteringProps) {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [aktivtVerktoy, settAktivtVerktoy] = useState<Verktoy>("arrow");
   const [erKlar, settErKlar] = useState(false);
@@ -146,7 +148,7 @@ export function BildeAnnotering({ bildeUri, onFerdig, onAvbryt }: BildeAnnoterin
       {/* Header */}
       <View className="flex-row items-center justify-between bg-gray-900 px-6 py-3">
         <Pressable onPress={onAvbryt} hitSlop={16} className="min-w-[60px] py-2">
-          <Text className="text-base text-gray-400">Avbryt</Text>
+          <Text className="text-base text-gray-400">{t("handling.avbryt")}</Text>
         </Pressable>
         <Text className="text-base font-semibold text-white">Annoter bilde</Text>
         <Pressable
@@ -237,14 +239,14 @@ export function BildeAnnotering({ bildeUri, onFerdig, onAvbryt }: BildeAnnoterin
                 hitSlop={8}
                 className="rounded-lg px-4 py-2"
               >
-                <Text className="text-sm font-medium text-gray-500">Avbryt</Text>
+                <Text className="text-sm font-medium text-gray-500">{t("handling.avbryt")}</Text>
               </Pressable>
               <Pressable
                 onPress={håndterTekstBekreft}
                 hitSlop={8}
                 className="rounded-lg bg-blue-600 px-5 py-2"
               >
-                <Text className="text-sm font-medium text-white">Legg til</Text>
+                <Text className="text-sm font-medium text-white">{t("handling.leggTil")}</Text>
               </Pressable>
             </View>
           </View>
