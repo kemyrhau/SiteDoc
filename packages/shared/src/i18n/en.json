@@ -51,7 +51,7 @@
   "status.godkjent": "Approved",
   "status.avvist": "Rejected",
   "status.lukket": "Closed",
-  "status.avbrutt": "Cancelled",
+  "status.avbrutt": "Rejected",
   "status.paaBegynt": "In progress",
   "status.ferdig": "Completed",
   "status.aapen": "Open",

@@ -20,17 +20,17 @@ export function hentStatusHandlinger(status: string): StatusHandling[] {
     ],
     sent: [
       // "Motta" fjernet — sendt → mottatt skjer automatisk
-      { tekstNoekkel: "handling.avbryt", nyStatus: "cancelled", farge: "bg-red-600", aktivFarge: "bg-red-400" },
+      { tekstNoekkel: "handling.avvis", nyStatus: "cancelled", farge: "bg-red-600", aktivFarge: "bg-red-400" },
     ],
     received: [
       { tekstNoekkel: "statushandling.startArbeid", nyStatus: "in_progress", farge: "bg-amber-500", aktivFarge: "bg-amber-400" },
       { tekstNoekkel: "statushandling.videresend", nyStatus: "forwarded", farge: "bg-gray-500", aktivFarge: "bg-gray-400" },
-      { tekstNoekkel: "handling.avbryt", nyStatus: "cancelled", farge: "bg-red-600", aktivFarge: "bg-red-400" },
+      { tekstNoekkel: "handling.avvis", nyStatus: "cancelled", farge: "bg-red-600", aktivFarge: "bg-red-400" },
     ],
     in_progress: [
       { tekstNoekkel: "statushandling.besvar", nyStatus: "responded", farge: "bg-purple-600", aktivFarge: "bg-purple-400" },
       { tekstNoekkel: "statushandling.videresend", nyStatus: "forwarded", farge: "bg-gray-500", aktivFarge: "bg-gray-400" },
-      { tekstNoekkel: "handling.avbryt", nyStatus: "cancelled", farge: "bg-red-600", aktivFarge: "bg-red-400" },
+      { tekstNoekkel: "handling.avvis", nyStatus: "cancelled", farge: "bg-red-600", aktivFarge: "bg-red-400" },
     ],
     responded: [
       { tekstNoekkel: "handling.godkjenn", nyStatus: "approved", farge: "bg-green-600", aktivFarge: "bg-green-400" },
