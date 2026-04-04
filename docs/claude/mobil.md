@@ -145,7 +145,7 @@ PSI er en personlig sikkerhetsgjennomgang, IKKE en sjekkliste. Gjennomføres via
 
 ## Flerspråklig (i18n)
 
-**Oppsett:** i18next + react-i18next, gjenbruker JSON-filer fra `packages/shared/src/i18n/` (14 språk, ~690 nøkler).
+**Oppsett:** i18next + react-i18next, gjenbruker JSON-filer fra `packages/shared/src/i18n/` (14 språk, ~920 nøkler).
 
 **Filer:**
 - `apps/mobile/src/lib/i18n.ts` — Config, statisk import av alle 14 språk, SecureStore-lagring
@@ -162,7 +162,7 @@ const { t } = useTranslation();
 // t("nav.hjem"), t("tid.minSiden", { n: 5 })
 ```
 
-**Skjermkonvertering:** Ferdig for hjem, lokasjoner, sjekkliste/[id], oppgave/[id], tabs, login, mer, boks. **Gjenstår:** FeltDokumentasjon, FeltWrapper, RepeaterObjekt, StatusMerkelapp, hentStatusHandlinger.
+**Skjermkonvertering:** Komplett — alle skjermer og komponenter bruker t(). Inkludert: hjem, lokasjoner, sjekkliste/[id], oppgave/[id], tabs, login, mer, boks, OpprettDokumentModal, FeltDokumentasjon, FeltWrapper, RepeaterObjekt, TekstfeltObjekt, StatusMerkelapp. `hentStatusHandlinger()` i shared bruker `tekstNoekkel` (i18n-nøkler).
 
 **Auto-save hooks (useSjekklisteSkjema/useOppgaveSkjema):** Bruker `lagreInternRef` og stabil `planleggLagring` (tom dep-array) for å bryte dependency-kaskaden `oppdaterDataMutasjon → lagreIntern → planleggLagring → oppdaterFelt → settVerdi`. Uten refs: mutation-state-skifte gjenskaper hele kjeden → effects re-trigges → loop.
 
