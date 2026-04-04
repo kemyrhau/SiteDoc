@@ -13,7 +13,10 @@ import {
   FileText,
   Mail,
   Phone,
-  Building2,
+  ArrowRight,
+  Send,
+  ClipboardCheck,
+  CheckCircle2,
 } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
@@ -191,9 +194,8 @@ export default function KontakterSide() {
       <div className="rounded-t-lg border border-gray-200 bg-gray-50 px-4 py-2">
         <div className="grid grid-cols-12 gap-2 text-xs font-medium uppercase tracking-wide text-gray-500">
           <div className="col-span-4">{t("tabell.entreprise")}</div>
-          <div className="col-span-3">🔵 {t("kontakter.ansvarligSO")}</div>
-          <div className="col-span-3">🟡 {t("kontakter.ansvarligGOD")}</div>
-          <div className="col-span-2">{t("kontakter.maler")}</div>
+          <div className="col-span-5">{t("kontakter.dokumentflyter")}</div>
+          <div className="col-span-3">{t("kontakter.kontakter")}</div>
         </div>
       </div>
 
@@ -221,118 +223,171 @@ export default function KontakterSide() {
                     }
                     <EntrepriseFargePrikk farge={ent.color} />
                     <span className="font-medium text-gray-900">{ent.name}</span>
-                    <span className="text-xs text-gray-400">({kontakter.length})</span>
                   </div>
-                  <div className="col-span-3 text-sm text-gray-600">
-                    {ansvarlige?.sjekklisteAnsvarlig ?? <span className="text-gray-300">—</span>}
+                  <div className="col-span-5 flex flex-wrap gap-1.5">
+                    {dflyter.length === 0
+                      ? <span className="text-xs text-gray-300">{t("kontakter.ingenFlyter")}</span>
+                      : dflyter.map((df) => (
+                          <span key={df.id} className="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-500">
+                            {df.name}
+                          </span>
+                        ))
+                    }
                   </div>
-                  <div className="col-span-3 text-sm text-gray-600">
-                    {ansvarlige?.godkjennerAnsvarlig ?? <span className="text-gray-300">—</span>}
-                  </div>
-                  <div className="col-span-2 text-sm text-gray-400">
-                    {antallMaler > 0 ? `${antallMaler} ${t("kontakter.malerSuffix")}` : "—"}
+                  <div className="col-span-3 text-sm text-gray-400">
+                    {kontakter.length > 0 ? `${kontakter.length} ${t("kontakter.personerSuffix")}` : "—"}
                   </div>
                 </div>
               </button>
 
               {/* Utvidet innhold */}
               {erUtvidet && (
-                <div className="border-t border-gray-100 bg-gray-50/50 px-4 py-3">
-                  {/* Kontakter */}
-                  <div className="mb-3">
-                    <h4 className="mb-2 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-gray-400">
-                      <Users className="h-3.5 w-3.5" />
-                      {t("kontakter.kontakter")} ({kontakter.length})
-                    </h4>
-                    {kontakter.length === 0 ? (
-                      <p className="text-xs text-gray-400 italic">{t("kontakter.ingenKontakter")}</p>
-                    ) : (
-                      <div className="space-y-1">
-                        {kontakter.map((k) => {
-                          const erSOAnsvarlig = ansvarlige?.sjekklisteAnsvarlig === k.user.name;
-                          const erGODAnsvarlig = ansvarlige?.godkjennerAnsvarlig === k.user.name;
-                          return (
-                            <div
-                              key={k.id}
-                              className="flex items-center gap-3 rounded-md bg-white px-3 py-2 text-sm"
-                            >
-                              <User className="h-4 w-4 text-gray-400 shrink-0" />
-                              <span className="font-medium text-gray-700 min-w-[140px]">
-                                {k.user.name ?? "—"}
-                              </span>
-                              <div className="flex items-center gap-1.5">
-                                {erSOAnsvarlig && (
-                                  <span className="flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
-                                    🔵 S/O
-                                  </span>
-                                )}
-                                {erGODAnsvarlig && (
-                                  <span className="flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
-                                    🟡 GOD
-                                  </span>
-                                )}
-                              </div>
-                              <div className="ml-auto flex items-center gap-4 text-xs text-gray-400">
-                                {k.user.email && (
-                                  <span className="flex items-center gap-1">
-                                    <Mail className="h-3 w-3" />
-                                    {k.user.email}
-                                  </span>
-                                )}
-                                {k.user.phone && (
-                                  <span className="flex items-center gap-1">
-                                    <Phone className="h-3 w-3" />
-                                    {k.user.phone}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
+                <div className="border-t border-gray-100 bg-gray-50/50 px-4 py-4 space-y-4">
 
-                  {/* Dokumentflyter og maler */}
-                  {dflyter.length > 0 && (
-                    <div>
-                      <h4 className="mb-2 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-gray-400">
-                        <FileText className="h-3.5 w-3.5" />
-                        {t("kontakter.dokumentflyterOgMaler")}
-                      </h4>
-                      {dflyter.map((df) => (
-                        <div key={df.id} className="mb-2 rounded-md bg-white px-3 py-2">
-                          <div className="flex items-center gap-2 text-sm">
-                            <Building2 className="h-3.5 w-3.5 text-gray-400" />
-                            <span className="font-medium text-gray-600">{df.name}</span>
+                  {/* Dokumentflyter — visuell flyt */}
+                  {dflyter.map((df) => {
+                    const opprettere = df.medlemmer.filter((m) => m.rolle === "oppretter");
+                    const svarere = df.medlemmer.filter((m) => m.rolle === "svarer");
+
+                    return (
+                      <div key={df.id} className="rounded-lg border border-gray-200 bg-white p-3">
+                        <div className="mb-3 flex items-center gap-2">
+                          <FileText className="h-4 w-4 text-gray-400" />
+                          <span className="text-sm font-semibold text-gray-700">{df.name}</span>
+                        </div>
+
+                        {/* Visuell flyt: Oppretter → Svarer → Godkjenner */}
+                        <div className="flex items-stretch gap-0">
+                          {/* Oppretter-boks */}
+                          <div className="flex-1 rounded-l-lg border border-blue-200 bg-blue-50/50 p-3">
+                            <div className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-blue-600">
+                              <Send className="h-3 w-3" />
+                              {t("kontakter.oppretter")}
+                            </div>
+                            <div className="text-xs text-blue-500 mb-2">{t("kontakter.oppretterBeskrivelse")}</div>
+                            {opprettere.length === 0
+                              ? <span className="text-xs text-gray-400">—</span>
+                              : opprettere.map((m, idx) => (
+                                  <div key={idx} className="flex items-center gap-1.5 text-sm text-gray-700">
+                                    {m.group ? <Users className="h-3.5 w-3.5 text-blue-400" /> : <User className="h-3.5 w-3.5 text-blue-400" />}
+                                    <span className={m.erHovedansvarlig ? "font-semibold" : ""}>
+                                      {m.projectMember?.user?.name ?? m.group?.name ?? "—"}
+                                    </span>
+                                    {m.erHovedansvarlig && <span className="ml-1 text-blue-500 text-xs">●</span>}
+                                  </div>
+                                ))
+                            }
                           </div>
-                          {/* Medlemmer */}
-                          <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
-                            {df.medlemmer.map((m, idx) => (
-                              <span key={idx} className="flex items-center gap-1">
-                                <span className={`font-medium ${m.rolle === "oppretter" ? "text-blue-600" : "text-purple-600"}`}>
-                                  {m.rolle === "oppretter" ? t("kontakter.oppretter") : t("kontakter.svarerLabel")}:
-                                </span>
-                                {m.projectMember?.user?.name ?? m.group?.name ?? "—"}
-                                {m.erHovedansvarlig && <span className="text-blue-500">●</span>}
+
+                          {/* Pil */}
+                          <div className="flex items-center px-2">
+                            <ArrowRight className="h-5 w-5 text-gray-300" />
+                          </div>
+
+                          {/* Svarer-boks */}
+                          <div className="flex-1 border border-purple-200 bg-purple-50/50 p-3">
+                            <div className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-purple-600">
+                              <ClipboardCheck className="h-3 w-3" />
+                              {t("kontakter.svarerLabel")}
+                            </div>
+                            <div className="text-xs text-purple-500 mb-2">{t("kontakter.svarerBeskrivelse")}</div>
+                            {svarere.length === 0
+                              ? <span className="text-xs text-gray-400">—</span>
+                              : svarere.map((m, idx) => (
+                                  <div key={idx} className="flex items-center gap-1.5 text-sm text-gray-700">
+                                    {m.group ? <Users className="h-3.5 w-3.5 text-purple-400" /> : <User className="h-3.5 w-3.5 text-purple-400" />}
+                                    <span className={m.erHovedansvarlig ? "font-semibold" : ""}>
+                                      {m.projectMember?.user?.name ?? m.group?.name ?? "—"}
+                                    </span>
+                                    {m.erHovedansvarlig && <span className="ml-1 text-purple-500 text-xs">●</span>}
+                                  </div>
+                                ))
+                            }
+                          </div>
+
+                          {/* Pil */}
+                          <div className="flex items-center px-2">
+                            <ArrowRight className="h-5 w-5 text-gray-300" />
+                          </div>
+
+                          {/* Godkjenner-boks (oppretter godkjenner etter besvarelse) */}
+                          <div className="flex-1 rounded-r-lg border border-green-200 bg-green-50/50 p-3">
+                            <div className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-green-600">
+                              <CheckCircle2 className="h-3 w-3" />
+                              {t("kontakter.godkjenner")}
+                            </div>
+                            <div className="text-xs text-green-500 mb-2">{t("kontakter.godkjennerBeskrivelse")}</div>
+                            {opprettere.length === 0
+                              ? <span className="text-xs text-gray-400">—</span>
+                              : opprettere.map((m, idx) => (
+                                  <div key={idx} className="flex items-center gap-1.5 text-sm text-gray-700">
+                                    {m.group ? <Users className="h-3.5 w-3.5 text-green-400" /> : <User className="h-3.5 w-3.5 text-green-400" />}
+                                    <span className={m.erHovedansvarlig ? "font-semibold" : ""}>
+                                      {m.projectMember?.user?.name ?? m.group?.name ?? "—"}
+                                    </span>
+                                    {m.erHovedansvarlig && <span className="ml-1 text-green-500 text-xs">●</span>}
+                                  </div>
+                                ))
+                            }
+                          </div>
+                        </div>
+
+                        {/* Maler */}
+                        {df.maler.length > 0 && (
+                          <div className="mt-3 flex flex-wrap gap-1.5">
+                            {df.maler.map((m) => (
+                              <span
+                                key={m.template.id}
+                                className="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-500"
+                              >
+                                {m.template.name}
                               </span>
                             ))}
                           </div>
-                          {/* Maler */}
-                          {df.maler.length > 0 && (
-                            <div className="mt-1.5 flex flex-wrap gap-1.5">
-                              {df.maler.map((m) => (
-                                <span
-                                  key={m.template.id}
-                                  className="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-500"
-                                >
-                                  {m.template.name}
+                        )}
+                      </div>
+                    );
+                  })}
+
+                  {dflyter.length === 0 && (
+                    <p className="text-xs text-gray-400 italic">{t("kontakter.ingenFlyter")}</p>
+                  )}
+
+                  {/* Kontaktliste */}
+                  {kontakter.length > 0 && (
+                    <div>
+                      <h4 className="mb-2 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-gray-400">
+                        <Users className="h-3.5 w-3.5" />
+                        {t("kontakter.kontakter")} ({kontakter.length})
+                      </h4>
+                      <div className="space-y-1">
+                        {kontakter.map((k) => (
+                          <div
+                            key={k.id}
+                            className="flex items-center gap-3 rounded-md bg-white px-3 py-2 text-sm"
+                          >
+                            <User className="h-4 w-4 text-gray-400 shrink-0" />
+                            <span className="font-medium text-gray-700 min-w-[140px]">
+                              {k.user.name ?? "—"}
+                            </span>
+                            <span className="text-xs text-gray-400">{k.role === "admin" ? "Admin" : ""}</span>
+                            <div className="ml-auto flex items-center gap-4 text-xs text-gray-400">
+                              {k.user.email && (
+                                <span className="flex items-center gap-1">
+                                  <Mail className="h-3 w-3" />
+                                  {k.user.email}
                                 </span>
-                              ))}
+                              )}
+                              {k.user.phone && (
+                                <span className="flex items-center gap-1">
+                                  <Phone className="h-3 w-3" />
+                                  {k.user.phone}
+                                </span>
+                              )}
                             </div>
-                          )}
-                        </div>
-                      ))}
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>
