@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import type { MalObjekt } from "./DraggbartFelt";
 
 // Hent streng-verdi fra opsjon (støtter både string og {label, value}-format)
@@ -27,6 +28,7 @@ export function BetingelseBjelke({
   onEndreVerdier,
   onFjern,
 }: BetingelseBjelkeProps) {
+  const { t } = useTranslation();
   const [dropdownÅpen, setDropdownÅpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -70,7 +72,7 @@ export function BetingelseBjelke({
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
           </svg>
           <span className="shrink-0 text-sm text-blue-700">
-            Vis felter hvis verdien er en av følgende:
+            {t("malbygger.visFelterHvis")}
           </span>
           {normaliserteVerdier.map((verdi) => (
             <span
@@ -95,7 +97,7 @@ export function BetingelseBjelke({
           type="button"
           onClick={onFjern}
           className="shrink-0 rounded p-1 text-blue-400 hover:bg-blue-100 hover:text-blue-600"
-          title="Fjern betingelse"
+          title={t("malbygger.fjernBetingelse")}
         >
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -110,7 +112,7 @@ export function BetingelseBjelke({
             onClick={() => setDropdownÅpen(!dropdownÅpen)}
             className="inline-flex items-center gap-1 rounded-full border border-blue-300 bg-white px-2.5 py-0.5 text-xs text-blue-600 hover:bg-blue-50"
           >
-            Velg...
+            {t("malbygger.velg")}
             <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>

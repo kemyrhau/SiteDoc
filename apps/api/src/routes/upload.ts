@@ -21,6 +21,16 @@ const TILLATTE_TYPER = new Set([
   ".laz",
   ".e57",
   ".ply",
+  // FTD-modul: dokumentimport
+  ".xlsx",
+  ".xls",
+  ".xml",
+  ".csv",
+  ".docx",
+  ".doc",
+  // ISY Beskrivelse/Linker
+  ".gab",
+  ".ga1",
 ]);
 
 export async function uploadRoute(server: FastifyInstance) {

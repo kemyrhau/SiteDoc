@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { Button, Input, Modal } from "@sitedoc/ui";
+import { useTranslation } from "react-i18next";
 import {
   Plus,
   Building2,
@@ -26,6 +27,7 @@ export interface DokumentflytMedlemData {
   id: string;
   rolle: string;
   steg: number;
+  erHovedansvarlig?: boolean;
   enterprise: { id: string; name: string; color: string | null } | null;
   projectMember: {
     id: string;
@@ -65,16 +67,33 @@ export function MedlemListe({
   medlemmer,
   entrepriser,
   onFjern,
+  onSettHovedansvarlig,
 }: {
   medlemmer: DokumentflytMedlemData[];
   entrepriser: EntrepriseItem[];
   onFjern: (id: string) => void;
+  onSettHovedansvarlig?: (id: string, erHovedansvarlig: boolean) => void;
 }) {
   if (medlemmer.length === 0) return null;
 
   return (
     <div className="space-y-1">
       {medlemmer.map((m) => {
+        const erHovedansvarlig = m.erHovedansvarlig === true;
+        const kanVaereHovedansvarlig = onSettHovedansvarlig && (m.projectMember || m.group);
+
+        const hovedansvarligKnapp = kanVaereHovedansvarlig ? (
+          <button
+            onClick={(e) => { e.stopPropagation(); onSettHovedansvarlig(m.id, !erHovedansvarlig); }}
+            className={`shrink-0 rounded-full transition-colors ${
+              erHovedansvarlig
+                ? "h-2.5 w-2.5 bg-blue-500 ring-2 ring-blue-200"
+                : "h-2.5 w-2.5 bg-gray-300 opacity-0 group-hover:opacity-100 hover:bg-blue-400"
+            }`}
+            title={erHovedansvarlig ? "Fjern som hovedansvarlig" : "Sett som hovedansvarlig"}
+          />
+        ) : null;
+
         if (m.enterprise) {
           const ent = entrepriser.find((e) => e.id === m.enterprise!.id);
           const fargeIdx = ent ? entrepriser.indexOf(ent) : 0;
@@ -104,6 +123,7 @@ export function MedlemListe({
               key={m.id}
               className="group flex items-center gap-1.5 rounded bg-blue-50 px-1.5 py-1"
             >
+              {hovedansvarligKnapp}
               <Users className="h-3.5 w-3.5 text-blue-600" />
               <span className="flex-1 text-[13px] font-medium text-blue-700">
                 {m.group.name}
@@ -124,6 +144,7 @@ export function MedlemListe({
               key={m.id}
               className="group flex items-center gap-1.5 rounded px-1.5 py-1 hover:bg-gray-50"
             >
+              {hovedansvarligKnapp}
               <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gray-200 text-[10px] font-medium text-gray-600">
                 {(m.projectMember.user.name ?? m.projectMember.user.email).charAt(0).toUpperCase()}
               </div>
@@ -179,6 +200,7 @@ export function LeggTilMedlemDropdown({
   onLagtTil: () => void;
   onInviterNy?: () => void;
 }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -229,10 +251,10 @@ export function LeggTilMedlemDropdown({
       <button
         onClick={() => setOpen(!open)}
         className="flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-        title="Legg til"
+        title={t("handling.leggTil")}
       >
         <Plus className="h-3 w-3" />
-        <span>Legg til</span>
+        <span>{t("handling.leggTil")}</span>
       </button>
 
       {open && (
@@ -240,7 +262,7 @@ export function LeggTilMedlemDropdown({
           {tilgjengeligeEntrepriser.length > 0 && (
             <div className="border-b border-gray-100 px-3 py-1.5">
               <div className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
-                Entrepriser
+                {t("kontakter.entrepriser")}
               </div>
             </div>
           )}
@@ -261,7 +283,7 @@ export function LeggTilMedlemDropdown({
           {tilgjengeligeGrupper.length > 0 && (
             <div className="border-b border-t border-gray-100 px-3 py-1.5">
               <div className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
-                Grupper
+                {t("kontakter.grupper")}
               </div>
             </div>
           )}
@@ -282,7 +304,7 @@ export function LeggTilMedlemDropdown({
           {tilgjengeligeMedlemmer.length > 0 && (
             <div className="border-b border-t border-gray-100 px-3 py-1.5">
               <div className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
-                Personer
+                {t("kontakter.personer")}
               </div>
             </div>
           )}
@@ -314,7 +336,7 @@ export function LeggTilMedlemDropdown({
               className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-sitedoc-primary hover:bg-blue-50"
             >
               <UserPlus className="h-3.5 w-3.5" />
-              Inviter ny person
+              {t("dokumentflyt.inviterNyPerson")}
             </button>
           </div>
         </div>
@@ -344,6 +366,7 @@ export function InviterNyMedlemModal({
   steg: number;
   onFerdig: () => void;
 }) {
+  const { t } = useTranslation();
   const [epost, setEpost] = useState("");
   const [fornavn, setFornavn] = useState("");
   const [etternavn, setEtternavn] = useState("");
@@ -396,14 +419,14 @@ export function InviterNyMedlemModal({
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="Inviter ny person">
+    <Modal open={open} onClose={onClose} title={t("dokumentflyt.inviterNyPerson")}>
       <form onSubmit={handleInviter} className="flex flex-col gap-4">
         <p className="text-sm text-gray-500">
-          Personen blir lagt til i prosjektet og denne dokumentflyten, og mottar en invitasjon på e-post.
+          {t("dokumentflyt.inviterBeskrivelse")}
         </p>
 
         <Input
-          label="E-postadresse"
+          label={t("dokumentflyt.epostadresse")}
           type="email"
           placeholder="navn@firma.no"
           value={epost}
@@ -413,13 +436,13 @@ export function InviterNyMedlemModal({
 
         <div className="grid grid-cols-2 gap-3">
           <Input
-            label="Fornavn"
+            label={t("dokumentflyt.fornavn")}
             value={fornavn}
             onChange={(e) => setFornavn(e.target.value)}
             required
           />
           <Input
-            label="Etternavn"
+            label={t("dokumentflyt.etternavn")}
             value={etternavn}
             onChange={(e) => setEtternavn(e.target.value)}
             required
@@ -427,7 +450,7 @@ export function InviterNyMedlemModal({
         </div>
 
         <Input
-          label="Telefon (valgfritt)"
+          label={t("dokumentflyt.telefonValgfritt")}
           type="tel"
           value={telefon}
           onChange={(e) => setTelefon(e.target.value)}
@@ -449,7 +472,7 @@ export function InviterNyMedlemModal({
             disabled={!epost.trim() || !fornavn.trim() || !etternavn.trim()}
           >
             <UserPlus className="mr-1.5 h-4 w-4" />
-            Inviter og legg til
+            {t("dokumentflyt.inviterOgLeggTil")}
           </Button>
         </div>
       </form>
@@ -508,9 +531,14 @@ export function DokumentflytInlineKort({
   onOppdatert: () => void;
   onInviterNy: (dokumentflytId: string, rolle: "oppretter" | "svarer", steg: number) => void;
 }) {
+  const { t } = useTranslation();
   const [ekspandert, setEkspandert] = useState(false);
 
   const fjernMedlemMutation = trpc.dokumentflyt.fjernMedlem.useMutation({
+    onSuccess: () => onOppdatert(),
+  });
+
+  const settHovedansvarligMutation = trpc.dokumentflyt.settHovedansvarlig.useMutation({
     onSuccess: () => onOppdatert(),
   });
 
@@ -531,6 +559,10 @@ export function DokumentflytInlineKort({
     fjernMedlemMutation.mutate({ id, projectId: prosjektId });
   }
 
+  function settHovedansvarlig(id: string, erHovedansvarlig: boolean) {
+    settHovedansvarligMutation.mutate({ id, projectId: prosjektId, erHovedansvarlig });
+  }
+
   return (
     <div className="rounded border border-gray-200 bg-white">
       {/* Kompakt rad */}
@@ -549,10 +581,10 @@ export function DokumentflytInlineKort({
         </span>
 
         <div className="flex min-w-0 flex-1 items-center gap-1 text-[11px] text-gray-400">
-          <span className="shrink-0">Opprett/send:</span>
+          <span className="shrink-0">{t("dokumentflyt.opprettSend")}:</span>
           <MedlemmerKompakt medlemmer={opprettere} />
           <span className="mx-1 shrink-0">→</span>
-          <span className="shrink-0">Mottaker:</span>
+          <span className="shrink-0">{t("dokumentflyt.mottaker")}:</span>
           <MedlemmerKompakt medlemmer={svarere} />
         </div>
 
@@ -587,7 +619,7 @@ export function DokumentflytInlineKort({
             {/* Opprett/send */}
             <div className="flex-1 p-2.5">
               <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
-                Opprett/send
+                {t("dokumentflyt.opprettSend")}
               </div>
               <MedlemListe
                 medlemmer={opprettere}
@@ -600,7 +632,7 @@ export function DokumentflytInlineKort({
                   prosjektId={prosjektId}
                   rolle="oppretter"
                   steg={1}
-                  entrepriser={entrepriser}
+                  entrepriser={[]}
                   medlemmer={medlemmer}
                   grupper={grupper}
                   eksisterende={opprettere}
@@ -615,12 +647,13 @@ export function DokumentflytInlineKort({
               sorterteSteg.map(([steg, stegMedlemmer]) => (
                 <div key={steg} className="flex-1 p-2.5">
                   <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
-                    Mottaker{steg > 1 ? ` ${steg}` : ""}
+                    {t("dokumentflyt.mottaker")}{steg > 1 ? ` ${steg}` : ""}
                   </div>
                   <MedlemListe
                     medlemmer={stegMedlemmer}
                     entrepriser={entrepriser}
                     onFjern={fjernMedlem}
+                    onSettHovedansvarlig={settHovedansvarlig}
                   />
                   <div className="mt-1">
                     <LeggTilMedlemDropdown
@@ -628,7 +661,7 @@ export function DokumentflytInlineKort({
                       prosjektId={prosjektId}
                       rolle="svarer"
                       steg={steg}
-                      entrepriser={entrepriser}
+                      entrepriser={[]}
                       medlemmer={medlemmer}
                       grupper={grupper}
                       eksisterende={stegMedlemmer}
@@ -641,16 +674,16 @@ export function DokumentflytInlineKort({
             ) : (
               <div className="flex-1 p-2.5">
                 <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
-                  Mottaker
+                  {t("dokumentflyt.mottaker")}
                 </div>
-                <span className="text-xs text-gray-300">Ikke konfigurert</span>
+                <span className="text-xs text-gray-300">{t("dokumentflyt.ikkeKonfigurert")}</span>
                 <div className="mt-1">
                   <LeggTilMedlemDropdown
                     dokumentflytId={dokumentflyt.id}
                     prosjektId={prosjektId}
                     rolle="svarer"
                     steg={1}
-                    entrepriser={entrepriser}
+                    entrepriser={[]}
                     medlemmer={medlemmer}
                     grupper={grupper}
                     eksisterende={[]}

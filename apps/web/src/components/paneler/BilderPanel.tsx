@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useParams } from "next/navigation";
+import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { useBygning } from "@/kontekst/bygning-kontekst";
 import { useBilder } from "@/kontekst/bilder-kontekst";
@@ -33,6 +34,7 @@ interface BygningMedTegninger {
 }
 
 export function BilderPanel() {
+  const { t } = useTranslation();
   const params = useParams<{ prosjektId: string }>();
   const { aktivBygning, velgBygning, aktivTegning, settAktivTegning } = useBygning();
   const { visningsmodus, settVisningsmodus } = useBilder();
@@ -95,7 +97,7 @@ export function BilderPanel() {
           }`}
         >
           <Image className="h-3.5 w-3.5" />
-          Liste
+          {t("bilder.liste")}
         </button>
         <button
           onClick={() => settVisningsmodus("tegning")}
@@ -106,7 +108,7 @@ export function BilderPanel() {
           }`}
         >
           <Map className="h-3.5 w-3.5" />
-          Tegning
+          {t("bilder.tegning")}
         </button>
         <button
           onClick={() => settVisningsmodus("kart")}
@@ -117,7 +119,7 @@ export function BilderPanel() {
           }`}
         >
           <MapPin className="h-3.5 w-3.5" />
-          Kart
+          {t("bilder.kart")}
         </button>
       </div>
 

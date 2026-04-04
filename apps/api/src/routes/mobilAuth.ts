@@ -174,7 +174,7 @@ export const mobilAuthRouter = router({
 
     const bruker = await ctx.prisma.user.findUniqueOrThrow({
       where: { id: ctx.userId },
-      select: { id: true, name: true, email: true, image: true },
+      select: { id: true, name: true, email: true, image: true, language: true },
     });
 
     return { valid: true, user: bruker, nyttToken };

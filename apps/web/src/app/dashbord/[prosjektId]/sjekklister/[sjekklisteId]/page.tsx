@@ -3,7 +3,7 @@
 import { useParams, useRouter } from "next/navigation";
 import { useState, useMemo, useCallback } from "react";
 import { Spinner, StatusBadge, Card } from "@sitedoc/ui";
-import { Check, AlertCircle, Loader2, Printer, FileText, Trash2 } from "lucide-react";
+import { Check, AlertCircle, Loader2, Printer, FileText, Trash2, Pencil } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useSjekklisteSkjema } from "@/hooks/useSjekklisteSkjema";
 import { useAutoVaer } from "@/hooks/useAutoVaer";
@@ -15,6 +15,9 @@ import { StatusHandlinger } from "@/components/StatusHandlinger";
 import { LokasjonVelger } from "@/components/LokasjonVelger";
 import type { RapportObjekt } from "@/components/rapportobjekter/typer";
 import { useBygning } from "@/kontekst/bygning-kontekst";
+import { useOversettelse } from "@/hooks/useOversettelse";
+import { DokumentTidslinje } from "@/components/DokumentTidslinje";
+import { usePresence } from "@/hooks/usePresence";
 
 /* ------------------------------------------------------------------ */
 /*  LagreIndikator                                                     */
@@ -81,6 +84,7 @@ export default function SjekklisteDetaljSide() {
   } = useSjekklisteSkjema(params.sjekklisteId);
 
   const { standardTegning } = useBygning();
+  const { andreRedaktorer } = usePresence(params.sjekklisteId, "sjekkliste");
 
   const slettMutasjon = trpc.sjekkliste.slett.useMutation({
     onSuccess: () => {
@@ -97,40 +101,19 @@ export default function SjekklisteDetaljSide() {
 
   const endreStatusMutasjon = trpc.sjekkliste.endreStatus.useMutation({
     onSuccess: () => {
-      utils.sjekkliste.hentMedId.invalidate({ id: params.sjekklisteId });
       utils.sjekkliste.hentForProsjekt.invalidate();
+      router.push(`/dashbord/${params.prosjektId}/sjekklister`);
     },
   });
 
-  // Mottaker-valg
-  const { data: _prosjektMedlemmer } = trpc.medlem.hentForProsjekt.useQuery(
+  // Hent tillatelser for å sjekke registrator-status
+  const { data: mineTillatelser } = trpc.medlem.hentMineTillatelser.useQuery(
     { projectId: params.prosjektId },
+    { enabled: !!params.prosjektId },
   );
-  const { data: _prosjektGrupper } = trpc.gruppe.hentForProsjekt.useQuery(
-    { projectId: params.prosjektId },
-  );
-  const mottakerValg = (() => {
-    const medlemGruppeMap = new Map<string, string[]>();
-    const grupperRå = (_prosjektGrupper ?? []) as Array<{ id: string; name: string; members: Array<{ projectMember: { id: string } }> }>;
-    for (const g of grupperRå) {
-      for (const m of g.members ?? []) {
-        const pmId = m.projectMember?.id;
-        if (!pmId) continue;
-        const eks = medlemGruppeMap.get(pmId) ?? [];
-        eks.push(g.name);
-        medlemGruppeMap.set(pmId, eks);
-      }
-    }
-    const personer = ((_prosjektMedlemmer ?? []) as Array<{ id: string; user: { id: string; name: string | null; email: string } }>).map((m) => ({
-      id: m.user.id,
-      navn: m.user.name ?? m.user.email,
-      grupper: medlemGruppeMap.get(m.id)?.join(", "),
-    }));
-    const grupper = grupperRå.map((g) => ({ id: g.id, navn: g.name }));
-    return { personer, grupper };
-  })();
+  const erRegistrator = mineTillatelser?.includes("create_checklists") || mineTillatelser?.includes("create_tasks") || false;
 
-  // Hent entrepriser for redigering
+  // Hent entrepriser og dokumentflyter
   const { data: mineEntrepriser } = trpc.medlem.hentMineEntrepriser.useQuery(
     { projectId: params.prosjektId },
     { enabled: !!params.prosjektId },
@@ -139,6 +122,46 @@ export default function SjekklisteDetaljSide() {
     { projectId: params.prosjektId },
     { enabled: !!params.prosjektId },
   );
+  const { data: _dokumentflyter } = trpc.dokumentflyt.hentForProsjekt.useQuery(
+    { projectId: params.prosjektId },
+    { enabled: !!params.prosjektId },
+  );
+
+  // Entreprise-valg for mottaker — utleder mottaker fra dokumentflyt
+  const entrepriseValg = useMemo(() => {
+    const alleEntrepriserRå = (alleEntrepriser ?? []) as Array<{ id: string; name: string; color: string | null }>;
+    const dokumentflyterRå = (_dokumentflyter ?? []) as Array<{
+      id: string;
+      enterpriseId: string | null;
+      medlemmer: Array<{
+        rolle: string;
+        erHovedansvarlig: boolean;
+        projectMember?: { user: { id: string; name: string | null } } | null;
+        group?: { id: string; name: string } | null;
+      }>;
+    }>;
+
+    return alleEntrepriserRå.map((e) => {
+      // Finn dokumentflyt for denne entreprisen
+      const df = dokumentflyterRå.find((d) => d.enterpriseId === e.id);
+      let mottaker: { userId?: string; groupId?: string } | undefined;
+
+      if (df) {
+        // Finn hovedansvarlig svarer, eller første svarer
+        const svarere = df.medlemmer.filter((m) => m.rolle === "svarer");
+        const hovedansvarlig = svarere.find((m) => m.erHovedansvarlig);
+        const valgtSvarer = hovedansvarlig ?? svarere[0];
+
+        if (valgtSvarer?.group) {
+          mottaker = { groupId: valgtSvarer.group.id };
+        } else if (valgtSvarer?.projectMember?.user) {
+          mottaker = { userId: valgtSvarer.projectMember.user.id };
+        }
+      }
+
+      return { id: e.id, navn: e.name, farge: e.color, mottaker };
+    });
+  }, [alleEntrepriser, _dokumentflyter]);
 
   // Hent prosjektdata for print-header
   const { data: prosjekt } = trpc.prosjekt.hentMedId.useQuery(
@@ -157,6 +180,19 @@ export default function SjekklisteDetaljSide() {
     building?: { id: string; name: string } | null;
     drawing?: { id: string; name: string; drawingNumber: string | null } | null;
   } | undefined;
+
+  // Oversettelse (Lag 2): on-demand felt-oversettelse for bruker med annet språk
+  const prosjektKildesprak = (fullSjekklisteRå as { template?: { project?: { sourceLanguage?: string } } } | undefined)?.template?.project?.sourceLanguage;
+  const {
+    oversettelser,
+    laster: oversettelseLaster,
+    visOversettKnapp,
+    oversettFelt,
+  } = useOversettelse(
+    params.prosjektId,
+    prosjektKildesprak,
+    (sjekkliste?.template?.objects ?? []) as { id: string; label: string; config: Record<string, unknown> }[],
+  );
 
   // Hent oppgaver tilknyttet denne sjekklisten
   const { data: sjekklisteOppgaverRå } = trpc.oppgave.hentForSjekkliste.useQuery(
@@ -326,6 +362,12 @@ export default function SjekklisteDetaljSide() {
           <h3 className="text-xl font-bold">{sjekkliste.title}</h3>
           <StatusBadge status={sjekkliste.status} />
           <LagreIndikator status={lagreStatus} />
+          {andreRedaktorer.length > 0 && (
+            <div className="flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-sm text-amber-700">
+              <Pencil className="h-3.5 w-3.5 animate-pulse" />
+              {andreRedaktorer.map((u) => u.navn).join(", ")} redigerer
+            </div>
+          )}
           <div className="ml-auto flex items-center gap-2">
             <button
               onClick={() => window.open(`/utskrift/sjekkliste/${params.sjekklisteId}`, "_blank")}
@@ -431,7 +473,10 @@ export default function SjekklisteDetaljSide() {
               });
             }}
             onSlett={() => slettMutasjon.mutate({ id: params.sjekklisteId })}
-            mottakerValg={mottakerValg}
+            entrepriseValg={entrepriseValg}
+            standardEntrepriseId={sjekkliste.responderEnterprise?.id}
+            mineEntrepriseIder={mineEntrepriser ? (mineEntrepriser as Array<{ id: string }>).map((e) => e.id) : undefined}
+            erRegistrator={erRegistrator}
           />
         </div>
       </div>
@@ -498,6 +543,11 @@ export default function SjekklisteDetaljSide() {
                 onNavigerTilOppgave={(id) =>
                   router.push(`/dashbord/${params.prosjektId}/oppgaver?oppgave=${id}`)
                 }
+                oversettelser={oversettelser}
+                oversettelseLaster={oversettelseLaster}
+                onOversett={() => oversettFelt(objekt as { id: string; label: string; config: Record<string, unknown> })}
+                visOversettKnapp={visOversettKnapp}
+                originalData={(feltVerdi as unknown as { original?: { spraak: string; verdi?: string; kommentar?: string } }).original}
               >
                 <RapportObjektRenderer
                   objekt={objekt}
@@ -518,9 +568,18 @@ export default function SjekklisteDetaljSide() {
         <EndringsloggSeksjon sjekklisteId={params.sjekklisteId} />
       )}
 
-      {/* Historikk */}
-      {sjekkliste && (
-        <HistorikkSeksjon sjekklisteId={params.sjekklisteId} />
+      {/* Tidslinje */}
+      {fullSjekklisteRå && (
+        <DokumentTidslinje
+          overforinger={((fullSjekklisteRå as { transfers?: unknown[] }).transfers ?? []) as Array<{
+            id: string; fromStatus: string; toStatus: string; comment: string | null; createdAt: string;
+            sender?: { id: string; name: string | null } | null;
+            recipientUser?: { id: string; name: string | null } | null;
+            recipientGroup?: { id: string; name: string | null } | null;
+          }>}
+          opprettetAv={fullSjekkliste?.creator?.name ?? null}
+          opprettetDato={(fullSjekklisteRå as { createdAt?: string }).createdAt ?? null}
+        />
       )}
 
       {/* Opprett oppgave fra felt */}
@@ -604,37 +663,3 @@ function EndringsloggSeksjon({ sjekklisteId }: { sjekklisteId: string }) {
   );
 }
 
-function HistorikkSeksjon({ sjekklisteId }: { sjekklisteId: string }) {
-  const { data: sjekkliste } = trpc.sjekkliste.hentMedId.useQuery({ id: sjekklisteId });
-
-  const overgangshistorikk = (sjekkliste?.transfers ?? []) as Array<{
-    id: string;
-    fromStatus: string;
-    toStatus: string;
-    comment: string | null;
-    createdAt: string;
-  }>;
-
-  if (overgangshistorikk.length === 0) return null;
-
-  return (
-    <Card className="mt-8">
-      <h4 className="mb-3 text-sm font-medium text-gray-500">Historikk</h4>
-      <div className="flex flex-col gap-2">
-        {overgangshistorikk.map((overgang) => (
-          <div key={overgang.id} className="flex items-center gap-3 text-sm print-no-break">
-            <span className="text-xs text-gray-400">
-              {new Date(overgang.createdAt).toLocaleString("nb-NO")}
-            </span>
-            <StatusBadge status={overgang.fromStatus} />
-            <span className="text-gray-400">&rarr;</span>
-            <StatusBadge status={overgang.toStatus} />
-            {overgang.comment && (
-              <span className="text-gray-500">&mdash; {overgang.comment}</span>
-            )}
-          </div>
-        ))}
-      </div>
-    </Card>
-  );
-}

@@ -8,33 +8,35 @@ datasource db {
 }
 
 model User {
-  id              String    @id @default(uuid())
-  name            String?
-  email           String    @unique
-  emailVerified   DateTime? @map("email_verified")
-  image           String?
-  phone           String?
-  role            String    @default("user") // "user" | "company_admin" | "sitedoc_admin"
-  organizationId  String?   @map("organization_id")
-  createdAt       DateTime  @default(now()) @map("created_at")
-  updatedAt       DateTime  @updatedAt @map("updated_at")
+  id             String    @id @default(uuid())
+  name           String?
+  email          String    @unique
+  emailVerified  DateTime? @map("email_verified")
+  image          String?
+  phone          String?
+  role           String    @default("user") // "user" | "company_admin" | "sitedoc_admin"
+  language       String    @default("nb") // nb, en, sv, lt, pl, uk, ro, et, fi, cs, de, ru, lv
+  organizationId String?   @map("organization_id")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
 
-  organization         Organization?      @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  organization         Organization?        @relation(fields: [organizationId], references: [id], onDelete: SetNull)
   accounts             Account[]
   sessions             Session[]
   projects             ProjectMember[]
-  createdChecklists    Checklist[]        @relation("ChecklistCreator")
-  createdTasks         Task[]             @relation("TaskCreator")
-  sentTransfers          DocumentTransfer[] @relation("TransferSender")
-  receivedTransfers      DocumentTransfer[] @relation("TransferRecipient")
-  recipientChecklists    Checklist[]        @relation("ChecklistRecipient")
-  recipientTasks         Task[]             @relation("TaskRecipient")
-  drawingRevisions       DrawingRevision[]  @relation("DrawingRevisionUploader")
-  sentInvitations      ProjectInvitation[] @relation("InvitationSender")
+  createdChecklists    Checklist[]          @relation("ChecklistCreator")
+  createdTasks         Task[]               @relation("TaskCreator")
+  sentTransfers        DocumentTransfer[]   @relation("TransferSender")
+  receivedTransfers    DocumentTransfer[]   @relation("TransferRecipient")
+  recipientChecklists  Checklist[]          @relation("ChecklistRecipient")
+  recipientTasks       Task[]               @relation("TaskRecipient")
+  drawingRevisions     DrawingRevision[]    @relation("DrawingRevisionUploader")
+  sentInvitations      ProjectInvitation[]  @relation("InvitationSender")
   folderAccess         FolderAccess[]
   taskComments         TaskComment[]
   checklistChangeLogs  ChecklistChangeLog[]
   ansvarligEntrepriser Enterprise[]         @relation("EnterpriseAnsvarlig")
+  psiSignaturer        PsiSignatur[]
 
   @@map("users")
 }
@@ -111,20 +113,22 @@ model VerificationToken {
 }
 
 model Project {
-  id            String   @id @default(uuid())
-  projectNumber String   @unique @map("project_number")
-  name          String
-  description   String?
-  address       String?
-  latitude              Float?   @map("latitude")
-  longitude             Float?   @map("longitude")
-  internalProjectNumber String?  @map("internal_project_number")
-  externalProjectNumber String?  @map("external_project_number")
-  logoUrl               String?  @map("logo_url")
-  showInternalProjectNumber Boolean @default(true) @map("show_internal_project_number")
-  status                String   @default("active")
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
+  id                        String   @id @default(uuid())
+  projectNumber             String   @unique @map("project_number")
+  name                      String
+  description               String?
+  address                   String?
+  latitude                  Float?   @map("latitude")
+  longitude                 Float?   @map("longitude")
+  internalProjectNumber     String?  @map("internal_project_number")
+  externalProjectNumber     String?  @map("external_project_number")
+  logoUrl                   String?  @map("logo_url")
+  showInternalProjectNumber Boolean  @default(true) @map("show_internal_project_number")
+  sourceLanguage            String   @default("nb") @map("source_language") // Kildespråk for prosjektet
+  status                    String   @default("active")
+  trialExpiresAt            DateTime? @map("trial_expires_at")
+  createdAt                 DateTime @default(now()) @map("created_at")
+  updatedAt                 DateTime @updatedAt @map("updated_at")
 
   members              ProjectMember[]
   enterprises          Enterprise[]
@@ -138,22 +142,27 @@ model Project {
   modules              ProjectModule[]
   organizationProjects OrganizationProject[]
   dokumentflyter       Dokumentflyt[]
+  ftdDocuments         FtdDocument[]
+  ftdSpecPosts         FtdSpecPost[]
+  ftdNotaPeriods       FtdNotaPeriod[]
+  ftdKontrakter        FtdKontrakt[]
+  psiEr                Psi[]
 
   @@map("projects")
 }
 
 model ProjectMember {
-  id           String   @id @default(uuid())
-  userId       String   @map("user_id")
-  projectId    String   @map("project_id")
-  role         String   @default("member")
-  createdAt    DateTime @default(now()) @map("created_at")
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  projectId String   @map("project_id")
+  role      String   @default("member")
+  createdAt DateTime @default(now()) @map("created_at")
 
-  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  project    Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  enterprises MemberEnterprise[]
-  groupMemberships ProjectGroupMember[]
-  workflowSteps        WorkflowStepMember[]
+  user                   User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project                Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  enterprises            MemberEnterprise[]
+  groupMemberships       ProjectGroupMember[]
+  workflowSteps          WorkflowStepMember[]
   dokumentflytMedlemskap DokumentflytMedlem[]
 
   @@unique([userId, projectId])
@@ -180,9 +189,9 @@ model ProjectGroup {
   slug        String
   category    String   @default("field") // generelt, field, brukergrupper
   permissions Json     @default("[]")
-  domains     Json     @default("[]")  // ["bygg"], ["hms"], ["bygg","hms"], etc.
+  domains     Json     @default("[]") // ["bygg"], ["hms"], ["bygg","hms"], etc.
   modules     Json     @default("[\"sjekklister\",\"oppgaver\",\"tegninger\",\"3d\"]") // aktive moduler
-  buildingIds Json?    @map("building_ids")  // null = alle bygninger, ellers array med bygning-IDer
+  buildingIds Json?    @map("building_ids") // null = alle bygninger, ellers array med bygning-IDer
   isDefault   Boolean  @default(false) @map("is_default")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
@@ -192,10 +201,10 @@ model ProjectGroup {
   invitations           ProjectInvitation[]
   folderAccess          FolderAccess[]
   groupEnterprises      GroupEnterprise[]
-  dokumentflytMedlemmer  DokumentflytMedlem[]
-  recipientTransfers     DocumentTransfer[]   @relation("TransferRecipientGroup")
-  recipientChecklists    Checklist[]          @relation("ChecklistRecipientGroup")
-  recipientTasks         Task[]               @relation("TaskRecipientGroup")
+  dokumentflytMedlemmer DokumentflytMedlem[]
+  recipientTransfers    DocumentTransfer[]   @relation("TransferRecipientGroup")
+  recipientChecklists   Checklist[]          @relation("ChecklistRecipientGroup")
+  recipientTasks        Task[]               @relation("TaskRecipientGroup")
 
   @@unique([projectId, slug])
   @@map("project_groups")
@@ -242,10 +251,10 @@ model ProjectInvitation {
   acceptedAt      DateTime? @map("accepted_at")
   createdAt       DateTime  @default(now()) @map("created_at")
 
-  project    Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  enterprise Enterprise?    @relation(fields: [enterpriseId], references: [id], onDelete: SetNull)
-  group      ProjectGroup?  @relation(fields: [groupId], references: [id], onDelete: SetNull)
-  invitedBy  User           @relation("InvitationSender", fields: [invitedByUserId], references: [id])
+  project    Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  enterprise Enterprise?   @relation(fields: [enterpriseId], references: [id], onDelete: SetNull)
+  group      ProjectGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  invitedBy  User          @relation("InvitationSender", fields: [invitedByUserId], references: [id])
 
   @@index([email])
   @@map("project_invitations")
@@ -254,6 +263,7 @@ model ProjectInvitation {
 model Enterprise {
   id                 String   @id @default(uuid())
   projectId          String   @map("project_id")
+  kontraktId         String?  @map("kontrakt_id")
   name               String
   enterpriseNumber   String?  @map("enterprise_number")
   organizationNumber String?  @map("organization_number")
@@ -264,53 +274,56 @@ model Enterprise {
   createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @updatedAt @map("updated_at")
 
-  project            Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  ansvarlig          User?            @relation("EnterpriseAnsvarlig", fields: [ansvarligId], references: [id], onDelete: SetNull)
-  memberEnterprises  MemberEnterprise[]
-  createdChecklists  Checklist[]      @relation("ChecklistCreatorEnterprise")
-  respondChecklists  Checklist[]      @relation("ChecklistResponderEnterprise")
-  createdTasks       Task[]           @relation("TaskCreatorEnterprise")
-  respondTasks       Task[]           @relation("TaskResponderEnterprise")
-  createdWorkflows    Workflow[]       @relation("WorkflowCreator")
-  respondWorkflows    Workflow[]       @relation("WorkflowResponder")
-  respondWorkflows2   Workflow[]       @relation("WorkflowResponder2")
-  respondWorkflows3   Workflow[]       @relation("WorkflowResponder3")
+  project                Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  kontrakt               FtdKontrakt?         @relation(fields: [kontraktId], references: [id], onDelete: SetNull)
+  ansvarlig              User?                @relation("EnterpriseAnsvarlig", fields: [ansvarligId], references: [id], onDelete: SetNull)
+  memberEnterprises      MemberEnterprise[]
+  createdChecklists      Checklist[]          @relation("ChecklistCreatorEnterprise")
+  respondChecklists      Checklist[]          @relation("ChecklistResponderEnterprise")
+  createdTasks           Task[]               @relation("TaskCreatorEnterprise")
+  respondTasks           Task[]               @relation("TaskResponderEnterprise")
+  createdWorkflows       Workflow[]           @relation("WorkflowCreator")
+  respondWorkflows       Workflow[]           @relation("WorkflowResponder")
+  respondWorkflows2      Workflow[]           @relation("WorkflowResponder2")
+  respondWorkflows3      Workflow[]           @relation("WorkflowResponder3")
   dokumentflytMedlemskap DokumentflytMedlem[]
-  dokumentflyter     Dokumentflyt[]   @relation("dokumentflytEnterprise")
-  invitations        ProjectInvitation[]
-  folderAccess       FolderAccess[]
-  groupEnterprises   GroupEnterprise[]
+  dokumentflyter         Dokumentflyt[]       @relation("dokumentflytEnterprise")
+  invitations            ProjectInvitation[]
+  folderAccess           FolderAccess[]
+  groupEnterprises       GroupEnterprise[]
+  ftdNotaPeriods         FtdNotaPeriod[]
 
   @@map("enterprises")
 }
 
 model Drawing {
-  id            String    @id @default(uuid())
-  projectId     String    @map("project_id")
-  buildingId    String?   @map("building_id")
-  name          String
-  drawingNumber String?   @map("drawing_number")     // Tegningsnummer: ARK-P-101
-  discipline    String?                               // Fagdisiplin: ARK, RIB, RIV, RIE, RIBr, RIG, LARK, RIAku
-  drawingType   String?   @map("drawing_type")        // Tegningstype: plan, snitt, fasade, detalj, oversikt, skjema
-  revision      String    @default("A")               // Revisjonskode: A, B, C eller R01, R02
-  version       Int       @default(1)                 // Internversjon (økes ved opplasting)
-  status        String    @default("utkast")          // utkast, delt, under_behandling, godkjent, for_bygging, som_bygget
-  floor         String?                               // Etasje: U2, U1, 01, 02, 03, Tak
-  scale         String?                               // Målestokk: 1:50, 1:100, 1:200
-  description   String?                               // Innholdsbeskrivelse
-  originator    String?                               // Opphav (firma/person)
-  fileUrl       String    @map("file_url")
-  fileType      String    @map("file_type")           // PDF, DWG, DXF, IFC
-  fileSize      Int?      @map("file_size")           // Filstørrelse i bytes
-  originalFileUrl String? @map("original_file_url")   // Original DWG-fil (før konvertering)
-  coordinateSystem String? @map("coordinate_system")  // Detektert koordinatsystem (utm33, ntm6, etc.)
-  conversionStatus String? @map("conversion_status")  // pending, converting, done, failed
-  conversionError  String? @map("conversion_error")   // Feilmelding ved konvertering
-  issuedAt      DateTime? @map("issued_at")           // Utstedelsesdato
-  geoReference  Json?     @map("geo_reference")       // Georeferanse med 2 referansepunkter
-  ifcMetadata   Json?     @map("ifc_metadata")        // Uttrukket IFC-metadata (prosjekt, organisasjon, etasjer, GPS)
-  createdAt     DateTime  @default(now()) @map("created_at")
-  updatedAt     DateTime  @updatedAt @map("updated_at")
+  id               String    @id @default(uuid())
+  projectId        String    @map("project_id")
+  buildingId       String?   @map("building_id")
+  name             String
+  drawingNumber    String?   @map("drawing_number") // Tegningsnummer: ARK-P-101
+  discipline       String? // Fagdisiplin: ARK, RIB, RIV, RIE, RIBr, RIG, LARK, RIAku
+  drawingType      String?   @map("drawing_type") // Tegningstype: plan, snitt, fasade, detalj, oversikt, skjema
+  revision         String    @default("A") // Revisjonskode: A, B, C eller R01, R02
+  version          Int       @default(1) // Internversjon (økes ved opplasting)
+  status           String    @default("utkast") // utkast, delt, under_behandling, godkjent, for_bygging, som_bygget
+  floor            String? // Etasje: U2, U1, 01, 02, 03, Tak
+  scale            String? // Målestokk: 1:50, 1:100, 1:200
+  description      String? // Innholdsbeskrivelse
+  originator       String? // Opphav (firma/person)
+  fileUrl          String    @map("file_url")
+  fileType         String    @map("file_type") // PDF, DWG, DXF, IFC
+  fileSize         Int?      @map("file_size") // Filstørrelse i bytes
+  originalFileUrl  String?   @map("original_file_url") // Original DWG-fil (før konvertering)
+  coordinateSystem String?   @map("coordinate_system") // Detektert koordinatsystem (utm33, ntm6, etc.)
+  conversionStatus String?   @map("conversion_status") // pending, converting, done, failed
+  conversionError  String?   @map("conversion_error") // Feilmelding ved konvertering
+  issuedAt         DateTime? @map("issued_at") // Utstedelsesdato
+  geoReference     Json?     @map("geo_reference") // Georeferanse med 2 referansepunkter
+  ifcMetadata      Json?     @map("ifc_metadata") // Uttrukket IFC-metadata (prosjekt, organisasjon, etasjer, GPS)
+  gpsOverride      Json?     @map("gps_override") // Manuell GPS-kalibrering for IFC: {lat, lng} — overstyrer ifcMetadata GPS
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
 
   project    Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
   building   Building?         @relation(fields: [buildingId], references: [id], onDelete: SetNull)
@@ -322,44 +335,44 @@ model Drawing {
 }
 
 model PointCloud {
-  id                 String    @id @default(uuid())
-  projectId          String    @map("project_id")
-  buildingId         String?   @map("building_id")
-  name               String
-  description        String?
-  fileUrl            String    @map("file_url")           // Opplastet fil (LAS, LAZ, E57, PLY)
-  fileType           String    @map("file_type")          // las, laz, e57, ply
-  fileSize           Int?      @map("file_size")
-  potreeUrl          String?   @map("potree_url")         // Sti til Potree-output (metadata.json)
-  conversionStatus   String    @default("pending") @map("conversion_status") // pending, converting, done, failed
-  conversionError    String?   @map("conversion_error")
-  coordinateSystem   String?   @map("coordinate_system")  // utm33, ntm6, etc.
-  pointCount         Int?      @map("point_count")        // Antall punkter
-  hasClassification  Boolean   @default(false) @map("has_classification")
-  hasRgb             Boolean   @default(false) @map("has_rgb")
-  classifications    Json?                                 // [{kode: 2, navn: "Bakke", antall: 50000}, ...]
-  boundingBox        Json?     @map("bounding_box")       // {min: {x,y,z}, max: {x,y,z}}
-  createdAt          DateTime  @default(now()) @map("created_at")
-  updatedAt          DateTime  @updatedAt @map("updated_at")
+  id                String   @id @default(uuid())
+  projectId         String   @map("project_id")
+  buildingId        String?  @map("building_id")
+  name              String
+  description       String?
+  fileUrl           String   @map("file_url") // Opplastet fil (LAS, LAZ, E57, PLY)
+  fileType          String   @map("file_type") // las, laz, e57, ply
+  fileSize          Int?     @map("file_size")
+  potreeUrl         String?  @map("potree_url") // Sti til Potree-output (metadata.json)
+  conversionStatus  String   @default("pending") @map("conversion_status") // pending, converting, done, failed
+  conversionError   String?  @map("conversion_error")
+  coordinateSystem  String?  @map("coordinate_system") // utm33, ntm6, etc.
+  pointCount        Int?     @map("point_count") // Antall punkter
+  hasClassification Boolean  @default(false) @map("has_classification")
+  hasRgb            Boolean  @default(false) @map("has_rgb")
+  classifications   Json? // [{kode: 2, navn: "Bakke", antall: 50000}, ...]
+  boundingBox       Json?    @map("bounding_box") // {min: {x,y,z}, max: {x,y,z}}
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
 
-  project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  building  Building? @relation(fields: [buildingId], references: [id], onDelete: SetNull)
+  project  Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  building Building? @relation(fields: [buildingId], references: [id], onDelete: SetNull)
 
   @@map("point_clouds")
 }
 
 model DrawingRevision {
-  id           String   @id @default(uuid())
-  drawingId    String   @map("drawing_id")
-  revision     String                                  // Revisjonskode ved denne versjonen (A, B, C)
-  version      Int                                     // Versjonsnummer ved denne revisjonen
-  fileUrl      String   @map("file_url")
-  fileSize     Int?     @map("file_size")
-  description  String?                                 // Beskrivelse av endringer
-  uploadedById String?  @map("uploaded_by_id")
-  status       String                                  // Status ved revisjon
+  id           String    @id @default(uuid())
+  drawingId    String    @map("drawing_id")
+  revision     String // Revisjonskode ved denne versjonen (A, B, C)
+  version      Int // Versjonsnummer ved denne revisjonen
+  fileUrl      String    @map("file_url")
+  fileSize     Int?      @map("file_size")
+  description  String? // Beskrivelse av endringer
+  uploadedById String?   @map("uploaded_by_id")
+  status       String // Status ved revisjon
   issuedAt     DateTime? @map("issued_at")
-  createdAt    DateTime @default(now()) @map("created_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
 
   drawing    Drawing @relation(fields: [drawingId], references: [id], onDelete: Cascade)
   uploadedBy User?   @relation("DrawingRevisionUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
@@ -374,43 +387,46 @@ model Building {
   name        String
   description String?
   address     String?
-  type        String   @default("bygg")  // "bygg" | "anlegg"
+  type        String   @default("bygg") // "bygg" | "anlegg"
   status      String   @default("unpublished")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  project     Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  drawings    Drawing[]
-  pointClouds PointCloud[]
-  checklists  Checklist[]
+  project       Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  drawings      Drawing[]
+  pointClouds   PointCloud[]
+  checklists    Checklist[]
+  ftdKontrakter FtdKontrakt[]
+  psiEr         Psi[]
 
   @@map("buildings")
 }
 
 model ReportTemplate {
-  id          String   @id @default(uuid())
-  projectId   String   @map("project_id")
-  name        String
-  description String?
-  prefix      String?
-  category    String   @default("sjekkliste") // "oppgave" | "sjekkliste"
-  domain      String   @default("bygg")      // "bygg" | "hms" | "kvalitet"
-  subjects    Json?    @default("[]")         // Forhåndsdefinerte emnetekster ["3. etasje", "Kjeller", ...]
-  showSubject    Boolean  @default(true)  @map("show_subject")
-  showEnterprise Boolean  @default(true)  @map("show_enterprise")
-  showLocation   Boolean  @default(true)  @map("show_location")
-  showPriority   Boolean  @default(true)  @map("show_priority")
-  version        Int      @default(1)
-  enableChangeLog Boolean @default(false) @map("enable_change_log")
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
+  id              String   @id @default(uuid())
+  projectId       String   @map("project_id")
+  name            String
+  description     String?
+  prefix          String?
+  category        String   @default("sjekkliste") // "oppgave" | "sjekkliste"
+  domain          String   @default("bygg") // "bygg" | "hms" | "kvalitet"
+  subjects        Json?    @default("[]") // Forhåndsdefinerte emnetekster ["3. etasje", "Kjeller", ...]
+  showSubject     Boolean  @default(true) @map("show_subject")
+  showEnterprise  Boolean  @default(true) @map("show_enterprise")
+  showLocation    Boolean  @default(true) @map("show_location")
+  showPriority    Boolean  @default(true) @map("show_priority")
+  version         Int      @default(1)
+  enableChangeLog Boolean  @default(false) @map("enable_change_log")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
 
-  project            Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  objects            ReportObject[]
-  checklists         Checklist[]
-  tasks              Task[]
-  workflowTemplates  WorkflowTemplate[]
-  dokumentflytMaler  DokumentflytMal[]
+  project           Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  objects           ReportObject[]
+  checklists        Checklist[]
+  tasks             Task[]
+  workflowTemplates WorkflowTemplate[]
+  dokumentflytMaler DokumentflytMal[]
+  psi               Psi[]
 
   @@map("report_templates")
 }
@@ -421,98 +437,99 @@ model ReportObject {
   parentId   String?  @map("parent_id")
   type       String
   label      String
-  config     Json     @default("{}")
-  sortOrder  Int      @map("sort_order")
-  required   Boolean  @default(false)
+  config       Json     @default("{}")
+  translations Json     @default("{}") // i18n: { "en": { label, content, question, options, caption }, ... }
+  sortOrder    Int      @map("sort_order")
+  required     Boolean  @default(false)
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
 
-  template ReportTemplate  @relation(fields: [templateId], references: [id], onDelete: Cascade)
-  parent   ReportObject?   @relation("ObjektHierarki", fields: [parentId], references: [id], onDelete: Cascade)
-  children ReportObject[]  @relation("ObjektHierarki")
+  template ReportTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  parent   ReportObject?  @relation("ObjektHierarki", fields: [parentId], references: [id], onDelete: Cascade)
+  children ReportObject[] @relation("ObjektHierarki")
 
   @@index([parentId])
   @@map("report_objects")
 }
 
 model Checklist {
-  id                   String   @id @default(uuid())
-  templateId           String   @map("template_id")
-  creatorUserId        String   @map("creator_user_id")
-  creatorEnterpriseId  String   @map("creator_enterprise_id")
-  responderEnterpriseId String  @map("responder_enterprise_id")
-  status               String   @default("draft")
-  title                String
-  number               Int?     @map("number")
-  data                 Json     @default("{}")
-  dueDate              DateTime? @map("due_date")
-  workflowId           String?  @map("workflow_id")
-  dokumentflytId       String?  @map("dokumentflyt_id")
-  subject              String?
-  buildingId           String?  @map("building_id")
-  drawingId            String?  @map("drawing_id")
-  recipientUserId      String?  @map("recipient_user_id")
-  recipientGroupId     String?  @map("recipient_group_id")
-  createdAt            DateTime @default(now()) @map("created_at")
-  updatedAt            DateTime @updatedAt @map("updated_at")
+  id                    String    @id @default(uuid())
+  templateId            String    @map("template_id")
+  creatorUserId         String    @map("creator_user_id")
+  creatorEnterpriseId   String    @map("creator_enterprise_id")
+  responderEnterpriseId String    @map("responder_enterprise_id")
+  status                String    @default("draft")
+  title                 String
+  number                Int?      @map("number")
+  data                  Json      @default("{}")
+  dueDate               DateTime? @map("due_date")
+  workflowId            String?   @map("workflow_id")
+  dokumentflytId        String?   @map("dokumentflyt_id")
+  subject               String?
+  buildingId            String?   @map("building_id")
+  drawingId             String?   @map("drawing_id")
+  recipientUserId       String?   @map("recipient_user_id")
+  recipientGroupId      String?   @map("recipient_group_id")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
 
-  template           ReportTemplate     @relation(fields: [templateId], references: [id])
-  creator            User               @relation("ChecklistCreator", fields: [creatorUserId], references: [id])
-  creatorEnterprise  Enterprise         @relation("ChecklistCreatorEnterprise", fields: [creatorEnterpriseId], references: [id])
-  responderEnterprise Enterprise        @relation("ChecklistResponderEnterprise", fields: [responderEnterpriseId], references: [id])
-  workflow           Workflow?          @relation(fields: [workflowId], references: [id], onDelete: SetNull)
-  dokumentflyt       Dokumentflyt?      @relation(fields: [dokumentflytId], references: [id], onDelete: SetNull)
-  building           Building?          @relation(fields: [buildingId], references: [id], onDelete: SetNull)
-  drawing            Drawing?           @relation(fields: [drawingId], references: [id], onDelete: SetNull)
-  recipientUser      User?              @relation("ChecklistRecipient", fields: [recipientUserId], references: [id], onDelete: SetNull)
-  recipientGroup     ProjectGroup?      @relation("ChecklistRecipientGroup", fields: [recipientGroupId], references: [id], onDelete: SetNull)
-  transfers          DocumentTransfer[]
-  images             Image[]
-  tasks              Task[]
-  changeLog          ChecklistChangeLog[]
+  template            ReportTemplate       @relation(fields: [templateId], references: [id])
+  creator             User                 @relation("ChecklistCreator", fields: [creatorUserId], references: [id])
+  creatorEnterprise   Enterprise           @relation("ChecklistCreatorEnterprise", fields: [creatorEnterpriseId], references: [id])
+  responderEnterprise Enterprise           @relation("ChecklistResponderEnterprise", fields: [responderEnterpriseId], references: [id])
+  workflow            Workflow?            @relation(fields: [workflowId], references: [id], onDelete: SetNull)
+  dokumentflyt        Dokumentflyt?        @relation(fields: [dokumentflytId], references: [id], onDelete: SetNull)
+  building            Building?            @relation(fields: [buildingId], references: [id], onDelete: SetNull)
+  drawing             Drawing?             @relation(fields: [drawingId], references: [id], onDelete: SetNull)
+  recipientUser       User?                @relation("ChecklistRecipient", fields: [recipientUserId], references: [id], onDelete: SetNull)
+  recipientGroup      ProjectGroup?        @relation("ChecklistRecipientGroup", fields: [recipientGroupId], references: [id], onDelete: SetNull)
+  transfers           DocumentTransfer[]
+  images              Image[]
+  tasks               Task[]
+  changeLog           ChecklistChangeLog[]
 
   @@map("checklists")
 }
 
 model Task {
-  id                   String    @id @default(uuid())
-  templateId           String?   @map("template_id")
-  creatorUserId        String    @map("creator_user_id")
-  creatorEnterpriseId  String    @map("creator_enterprise_id")
-  responderEnterpriseId String   @map("responder_enterprise_id")
-  status               String    @default("draft")
-  title                String
-  description          String?
-  subject              String?
-  number               Int?      @map("number")
-  priority             String    @default("medium")
-  dueDate              DateTime? @map("due_date")
-  drawingId            String?   @map("drawing_id")
-  positionX            Float?    @map("position_x")
-  positionY            Float?    @map("position_y")
-  workflowId           String?   @map("workflow_id")
-  dokumentflytId       String?   @map("dokumentflyt_id")
-  checklistId          String?   @map("checklist_id")
-  checklistFieldId     String?   @map("checklist_field_id")
-  data                 Json?
-  recipientUserId      String?  @map("recipient_user_id")
-  recipientGroupId     String?  @map("recipient_group_id")
-  createdAt            DateTime  @default(now()) @map("created_at")
-  updatedAt            DateTime  @updatedAt @map("updated_at")
+  id                    String    @id @default(uuid())
+  templateId            String?   @map("template_id")
+  creatorUserId         String    @map("creator_user_id")
+  creatorEnterpriseId   String    @map("creator_enterprise_id")
+  responderEnterpriseId String    @map("responder_enterprise_id")
+  status                String    @default("draft")
+  title                 String
+  description           String?
+  subject               String?
+  number                Int?      @map("number")
+  priority              String    @default("medium")
+  dueDate               DateTime? @map("due_date")
+  drawingId             String?   @map("drawing_id")
+  positionX             Float?    @map("position_x")
+  positionY             Float?    @map("position_y")
+  workflowId            String?   @map("workflow_id")
+  dokumentflytId        String?   @map("dokumentflyt_id")
+  checklistId           String?   @map("checklist_id")
+  checklistFieldId      String?   @map("checklist_field_id")
+  data                  Json?
+  recipientUserId       String?   @map("recipient_user_id")
+  recipientGroupId      String?   @map("recipient_group_id")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
 
-  template           ReportTemplate?    @relation(fields: [templateId], references: [id])
-  creator            User               @relation("TaskCreator", fields: [creatorUserId], references: [id])
-  creatorEnterprise  Enterprise         @relation("TaskCreatorEnterprise", fields: [creatorEnterpriseId], references: [id])
-  responderEnterprise Enterprise        @relation("TaskResponderEnterprise", fields: [responderEnterpriseId], references: [id])
-  drawing            Drawing?           @relation(fields: [drawingId], references: [id])
-  workflow           Workflow?          @relation(fields: [workflowId], references: [id], onDelete: SetNull)
-  dokumentflyt       Dokumentflyt?      @relation(fields: [dokumentflytId], references: [id], onDelete: SetNull)
-  checklist          Checklist?         @relation(fields: [checklistId], references: [id], onDelete: SetNull)
-  recipientUser      User?              @relation("TaskRecipient", fields: [recipientUserId], references: [id], onDelete: SetNull)
-  recipientGroup     ProjectGroup?      @relation("TaskRecipientGroup", fields: [recipientGroupId], references: [id], onDelete: SetNull)
-  transfers          DocumentTransfer[]
-  images             Image[]
-  comments           TaskComment[]
+  template            ReportTemplate?    @relation(fields: [templateId], references: [id])
+  creator             User               @relation("TaskCreator", fields: [creatorUserId], references: [id])
+  creatorEnterprise   Enterprise         @relation("TaskCreatorEnterprise", fields: [creatorEnterpriseId], references: [id])
+  responderEnterprise Enterprise         @relation("TaskResponderEnterprise", fields: [responderEnterpriseId], references: [id])
+  drawing             Drawing?           @relation(fields: [drawingId], references: [id])
+  workflow            Workflow?          @relation(fields: [workflowId], references: [id], onDelete: SetNull)
+  dokumentflyt        Dokumentflyt?      @relation(fields: [dokumentflytId], references: [id], onDelete: SetNull)
+  checklist           Checklist?         @relation(fields: [checklistId], references: [id], onDelete: SetNull)
+  recipientUser       User?              @relation("TaskRecipient", fields: [recipientUserId], references: [id], onDelete: SetNull)
+  recipientGroup      ProjectGroup?      @relation("TaskRecipientGroup", fields: [recipientGroupId], references: [id], onDelete: SetNull)
+  transfers           DocumentTransfer[]
+  images              Image[]
+  comments            TaskComment[]
 
   @@map("tasks")
 }
@@ -560,17 +577,23 @@ model Folder {
   id         String   @id @default(uuid())
   projectId  String   @map("project_id")
   parentId   String?  @map("parent_id")
+  kontraktId String?  @map("kontrakt_id")
   name       String
   accessMode String   @default("inherit") @map("access_mode") // "inherit" | "custom"
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
 
+  languages      String[] @default(["nb"]) // Målspråk for dokumentoversettelse
+  languageMode   String   @default("inherit") @map("language_mode") // "inherit" | "custom"
+
   project       Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
   parent        Folder?        @relation("FolderHierarchy", fields: [parentId], references: [id])
   children      Folder[]       @relation("FolderHierarchy")
-  documents     Document[]
+  kontrakt      FtdKontrakt?   @relation(fields: [kontraktId], references: [id], onDelete: SetNull)
   accessEntries FolderAccess[]
+  ftdDocuments  FtdDocument[]
 
+  @@index([kontraktId])
   @@map("folders")
 }
 
@@ -592,22 +615,6 @@ model FolderAccess {
   @@map("folder_access")
 }
 
-model Document {
-  id        String   @id @default(uuid())
-  folderId  String   @map("folder_id")
-  name      String
-  fileUrl   String   @map("file_url")
-  fileType  String   @map("file_type")
-  fileSize  Int      @map("file_size")
-  version   Int      @default(1)
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  folder Folder @relation(fields: [folderId], references: [id], onDelete: Cascade)
-
-  @@map("documents")
-}
-
 model Workflow {
   id                     String   @id @default(uuid())
   enterpriseId           String   @map("enterprise_id")
@@ -618,10 +625,10 @@ model Workflow {
   createdAt              DateTime @default(now()) @map("created_at")
   updatedAt              DateTime @updatedAt @map("updated_at")
 
-  enterprise           Enterprise  @relation("WorkflowCreator", fields: [enterpriseId], references: [id], onDelete: Cascade)
-  responderEnterprise  Enterprise? @relation("WorkflowResponder", fields: [responderEnterpriseId], references: [id], onDelete: SetNull)
-  responderEnterprise2 Enterprise? @relation("WorkflowResponder2", fields: [responderEnterprise2Id], references: [id], onDelete: SetNull)
-  responderEnterprise3 Enterprise? @relation("WorkflowResponder3", fields: [responderEnterprise3Id], references: [id], onDelete: SetNull)
+  enterprise           Enterprise           @relation("WorkflowCreator", fields: [enterpriseId], references: [id], onDelete: Cascade)
+  responderEnterprise  Enterprise?          @relation("WorkflowResponder", fields: [responderEnterpriseId], references: [id], onDelete: SetNull)
+  responderEnterprise2 Enterprise?          @relation("WorkflowResponder2", fields: [responderEnterprise2Id], references: [id], onDelete: SetNull)
+  responderEnterprise3 Enterprise?          @relation("WorkflowResponder3", fields: [responderEnterprise3Id], references: [id], onDelete: SetNull)
   templates            WorkflowTemplate[]
   checklists           Checklist[]
   tasks                Task[]
@@ -644,14 +651,14 @@ model WorkflowTemplate {
 }
 
 model WorkflowStepMember {
-  id              String        @id @default(uuid())
-  workflowId      String        @map("workflow_id")
-  projectMemberId String        @map("project_member_id")
-  step            Int           // 2 eller 3
-  createdAt       DateTime      @default(now()) @map("created_at")
+  id              String   @id @default(uuid())
+  workflowId      String   @map("workflow_id")
+  projectMemberId String   @map("project_member_id")
+  step            Int // 2 eller 3
+  createdAt       DateTime @default(now()) @map("created_at")
 
-  workflow        Workflow      @relation(fields: [workflowId], references: [id], onDelete: Cascade)
-  projectMember   ProjectMember @relation(fields: [projectMemberId], references: [id], onDelete: Cascade)
+  workflow      Workflow      @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  projectMember ProjectMember @relation(fields: [projectMemberId], references: [id], onDelete: Cascade)
 
   @@unique([workflowId, projectMemberId, step])
   @@map("workflow_step_members")
@@ -683,9 +690,10 @@ model DokumentflytMedlem {
   enterpriseId    String?  @map("enterprise_id")
   projectMemberId String?  @map("project_member_id")
   groupId         String?  @map("group_id")
-  rolle           String   // "oppretter" | "svarer"
-  steg            Int      @default(1)
-  createdAt       DateTime @default(now()) @map("created_at")
+  rolle              String // "oppretter" | "svarer"
+  steg               Int      @default(1)
+  erHovedansvarlig   Boolean  @default(false) @map("er_hovedansvarlig")
+  createdAt          DateTime @default(now()) @map("created_at")
 
   dokumentflyt  Dokumentflyt   @relation(fields: [dokumentflytId], references: [id], onDelete: Cascade)
   enterprise    Enterprise?    @relation(fields: [enterpriseId], references: [id], onDelete: Cascade)
@@ -716,6 +724,7 @@ model ProjectModule {
   projectId  String   @map("project_id")
   moduleSlug String   @map("module_slug")
   active     Boolean  @default(true)
+  config     Json?    // Modulspesifikk konfigurasjon (f.eks. oversettelsesmotor)
   createdAt  DateTime @default(now()) @map("created_at")
 
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
@@ -753,4 +762,331 @@ model ChecklistChangeLog {
 
   @@index([checklistId])
   @@map("checklist_change_log")
+}
+
+// ============================================================
+// FTD-MODUL: Dokumenthåndtering og mengde/økonomi
+// Tabellene er aktive kun når modul "okonomi" eller
+// "dokumentsok" er aktivert for prosjektet.
+// Dokumenter lever i mapper — tilgang til mapper styrer
+// søkbarhet og synlighet av økonomidata.
+// ============================================================
+
+model FtdDocument {
+  id              String   @id @default(cuid())
+  projectId       String   @map("project_id")
+  folderId        String?  @map("folder_id")
+  kontraktId      String?  @map("kontrakt_id")
+  filename        String
+  fileUrl         String?  @map("file_url")
+  filetype        String?
+  docType         String?  @map("doc_type")
+  isActive        Boolean  @default(true) @map("is_active")
+  sourceLanguage    String   @default("nb") @map("source_language") // Kildespråk for dokumentet (nb, en, etc.)
+  detectedLanguage  String?  @map("detected_language") // Auto-detektert språk (null = ikke detektert ennå)
+  languageConfirmed Boolean  @default(false) @map("language_confirmed") // Bruker har bekreftet språk ved avvik
+  processingState   String   @default("pending") @map("processing_state")
+  processingError String?  @map("processing_error")
+  fileHash        String?  @map("file_hash")
+  standardNumber  String?  @map("standard_number")
+  fileSize        Int?     @map("file_size")
+  version         Int      @default(1)
+  kontraktNavn    String?  @map("kontrakt_navn")
+  notaType        String?  @map("nota_type") // "A-Nota" | "T-Nota" | "Sluttnota"
+  notaNr          Int?     @map("nota_nr")
+  entreprenor     String?  @map("entreprenor")
+  pageCount       Int?     @map("page_count")
+  wordCount       Int?     @map("word_count")
+  splitSources    Json?    @map("split_sources") // [{filnavn, dokumentId, kildeSider, startSide}]
+
+  // Header-verdier fra A-nota/Sluttnota PDF
+  utfortPr              DateTime? @map("utfort_pr")
+  utfortTotalt          Decimal?  @map("utfort_totalt") @db.Decimal(18, 2)
+  utfortForrige         Decimal?  @map("utfort_forrige") @db.Decimal(18, 2)
+  utfortDenne           Decimal?  @map("utfort_denne") @db.Decimal(18, 2)
+  innestaaende          Decimal?  @map("innestaaende") @db.Decimal(18, 2)
+  innestaaendeForrige   Decimal?  @map("innestaaende_forrige") @db.Decimal(18, 2)
+  innestaaendeDenne     Decimal?  @map("innestaaende_denne") @db.Decimal(18, 2)
+  nettoDenne            Decimal?  @map("netto_denne") @db.Decimal(18, 2)
+  mva                   Decimal?  @map("mva") @db.Decimal(18, 2)
+  sumInkMva             Decimal?  @map("sum_ink_mva") @db.Decimal(18, 2)
+
+  uploadedAt      DateTime @default(now()) @map("uploaded_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  project   Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  folder    Folder?              @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  kontrakt  FtdKontrakt?         @relation(fields: [kontraktId], references: [id], onDelete: SetNull)
+  chunks    FtdDocumentChunk[]
+  specPosts FtdSpecPost[]
+  pages     FtdDocumentPage[]
+
+  @@unique([projectId, filename])
+  @@index([folderId])
+  @@index([kontraktId])
+  @@map("ftd_documents")
+}
+
+model FtdKontrakt {
+  id                   String   @id @default(cuid())
+  projectId            String   @map("project_id")
+  navn                 String
+  kontraktType         String?  @map("kontrakt_type") // "8405" | "8406" | "8407"
+  byggherre            String?
+  entreprenor          String?
+  buildingId           String?  @map("building_id")
+  hmsSamordningsgruppe String?  @map("hms_samordningsgruppe")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  project     Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  building    Building?     @relation(fields: [buildingId], references: [id], onDelete: SetNull)
+  entrepriser Enterprise[]
+  dokumenter  FtdDocument[]
+  mapper      Folder[]
+
+  @@index([projectId])
+  @@map("ftd_kontrakter")
+}
+
+model FtdDocumentChunk {
+  id              String                          @id @default(cuid())
+  documentId      String                          @map("document_id")
+  chunkIndex      Int                             @map("chunk_index")
+  chunkText       String                          @map("chunk_text")
+  pageNumber      Int?                            @map("page_number")
+  sectionTitle    String?                         @map("section_title")
+  sectionLevel    Int?                            @map("section_level")
+  pageHeading     String?                         @map("page_heading")
+  nsCode          String?                         @map("ns_code")
+  headingNumber   String?                         @map("heading_number")
+  embeddingState  String                          @default("pending") @map("embedding_state")
+  profile         String?
+  embeddingVector Unsupported("vector(768)")?     @map("embedding_vector")
+
+  document FtdDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([documentId])
+  @@index([embeddingState])
+  @@index([nsCode])
+  @@map("ftd_document_chunks")
+}
+
+// Blokkbasert dokumentinnhold — brukes for flerspråklig dokumentvisning
+model FtdDocumentBlock {
+  id            String  @id @default(cuid())
+  documentId    String  @map("document_id")
+  sortOrder     Int     @map("sort_order")
+  pageNumber    Int     @map("page_number")
+  blockType     String  @map("block_type")       // "heading" | "text" | "image" | "caption" | "table"
+  language      String  @default("nb")
+  content       String                            // Tekst for heading/text/caption, JSON for table, tom for image
+  sourceBlockId String? @map("source_block_id")   // Peker til norsk original (null for nb)
+  headingLevel  Int?    @map("heading_level")     // 1-6 for heading-blokker
+  imageUrl      String? @map("image_url")         // S3-URL for ekstraherte bilder
+
+  // Embedding for flerspråklig søk
+  embeddingState  String                       @default("pending") @map("embedding_state")
+  embeddingVector Unsupported("vector(768)")?  @map("embedding_vector")
+  embeddingModel  String?                      @map("embedding_model") // "multilingual-e5-base" | "norbert2"
+
+  // Ingen Prisma-relasjon til FtdDocument — bruker rå SQL for å unngå rekursive typer i tRPC
+  // FK constraint finnes i SQL: document_id → ftd_documents(id) ON DELETE CASCADE
+
+  @@index([documentId, language, sortOrder])
+  @@index([embeddingState])
+  @@index([sourceBlockId])
+  @@map("ftd_document_blocks")
+}
+
+// Oversettelsesoppdrag — sporer asynkron oversettelse av dokumentblokker
+model FtdTranslationJob {
+  id          String   @id @default(cuid())
+  documentId  String   @map("document_id")
+  targetLang  String   @map("target_lang")
+  status      String   @default("pending")  // pending | processing | done | failed
+  error       String?
+  blocksTotal Int      @default(0) @map("blocks_total")
+  blocksDone  Int      @default(0) @map("blocks_done")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Ingen Prisma-relasjon til FtdDocument — bruker rå SQL
+  // FK constraint finnes i SQL: document_id → ftd_documents(id) ON DELETE CASCADE
+
+  @@unique([documentId, targetLang])
+  @@map("ftd_translation_jobs")
+}
+
+// Translation memory — cache for allerede oversatte tekster
+model TranslationCache {
+  id           String   @id @default(cuid())
+  contentHash  String   @map("content_hash")  // SHA-256 av kildetekst
+  sourceLang   String   @map("source_lang")
+  targetLang   String   @map("target_lang")
+  sourceText   String   @map("source_text")
+  targetText   String   @map("target_text")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@unique([contentHash, sourceLang, targetLang])
+  @@map("translation_cache")
+}
+
+model FtdDocumentPage {
+  id         String @id @default(cuid())
+  documentId String @map("document_id")
+  pageNumber Int    @map("page_number")
+  postnr     String
+
+  document FtdDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@unique([documentId, pageNumber])
+  @@index([postnr])
+  @@map("ftd_document_pages")
+}
+
+model FtdSpecPost {
+  id            String   @id @default(cuid())
+  projectId     String   @map("project_id")
+  documentId    String?  @map("document_id")
+  postnr        String?
+  beskrivelse   String?
+  enhet         String?
+  mengdeAnbud   Decimal? @map("mengde_anbud") @db.Decimal(18, 2)
+  enhetspris    Decimal? @db.Decimal(18, 2)
+  sumAnbud      Decimal? @map("sum_anbud") @db.Decimal(18, 2)
+  mengdeDenne   Decimal? @map("mengde_denne") @db.Decimal(18, 2)
+  mengdeTotal   Decimal? @map("mengde_total") @db.Decimal(18, 2)
+  verdiDenne    Decimal? @map("verdi_denne") @db.Decimal(18, 2)
+  verdiTotal    Decimal? @map("verdi_total") @db.Decimal(18, 2)
+  prosentFerdig Decimal? @map("prosent_ferdig") @db.Decimal(18, 2)
+  nsKode        String?  @map("ns_kode")
+  nsTittel      String?  @map("ns_tittel")
+  fullNsTekst   String?  @map("full_ns_tekst")
+  eksternNotat  String?  @map("ekstern_notat")
+  importNotat   String?  @map("import_notat")
+
+  project     Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  document    FtdDocument?     @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  notaPoster  FtdNotaPost[]
+  kommentarer FtdNotaComment[]
+
+  @@index([projectId])
+  @@map("ftd_spec_posts")
+}
+
+model FtdNotaPeriod {
+  id               String    @id @default(cuid())
+  projectId        String    @map("project_id")
+  enterpriseId     String?   @map("enterprise_id")
+  periodeNr        Int       @map("periode_nr")
+  periodeStart     DateTime? @map("periode_start")
+  periodeSlutt     DateTime? @map("periode_slutt")
+  type             String    @default("a_nota") // "a_nota" | "t_nota"
+  kildeFilnavn     String?   @map("kilde_filnavn")
+  totalMengdeDenne Decimal?  @map("total_mengde_denne") @db.Decimal(18, 2)
+  totalVerdiDenne  Decimal?  @map("total_verdi_denne") @db.Decimal(18, 2)
+  totalMvaDenne    Decimal?  @map("total_mva_denne") @db.Decimal(18, 2)
+  totalSumDenne    Decimal?  @map("total_sum_denne") @db.Decimal(18, 2)
+  importertAv      String?   @map("importert_av")
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  project     Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  enterprise  Enterprise?      @relation(fields: [enterpriseId], references: [id], onDelete: SetNull)
+  poster      FtdNotaPost[]
+  kommentarer FtdNotaComment[]
+
+  @@index([projectId])
+  @@index([enterpriseId])
+  @@map("ftd_nota_periods")
+}
+
+model FtdNotaPost {
+  id            String   @id @default(cuid())
+  periodId      String   @map("period_id")
+  specPostId    String   @map("spec_post_id")
+  mengdeDenne   Decimal? @map("mengde_denne") @db.Decimal(18, 2)
+  mengdeTotal   Decimal? @map("mengde_total") @db.Decimal(18, 2)
+  mengdeForrige Decimal? @map("mengde_forrige") @db.Decimal(18, 2)
+  verdiDenne    Decimal? @map("verdi_denne") @db.Decimal(18, 2)
+  verdiTotal    Decimal? @map("verdi_total") @db.Decimal(18, 2)
+  verdiForrige  Decimal? @map("verdi_forrige") @db.Decimal(18, 2)
+  prosentFerdig Decimal? @map("prosent_ferdig") @db.Decimal(18, 2)
+  mvaDenne      Decimal? @map("mva_denne") @db.Decimal(18, 2)
+  sumDenne      Decimal? @map("sum_denne") @db.Decimal(18, 2)
+  mengdeAnbud   Decimal? @map("mengde_anbud") @db.Decimal(18, 2)
+  enhetspris    Decimal? @db.Decimal(18, 2)
+  sumAnbud      Decimal? @map("sum_anbud") @db.Decimal(18, 2)
+
+  period   FtdNotaPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
+  specPost FtdSpecPost   @relation(fields: [specPostId], references: [id], onDelete: Cascade)
+
+  @@index([periodId])
+  @@index([specPostId])
+  @@map("ftd_nota_posts")
+}
+
+model FtdNotaComment {
+  id          String   @id @default(cuid())
+  specPostId  String?  @map("spec_post_id")
+  periodId    String?  @map("period_id")
+  commentText String   @map("comment_text")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  specPost FtdSpecPost?   @relation(fields: [specPostId], references: [id], onDelete: Cascade)
+  period   FtdNotaPeriod? @relation(fields: [periodId], references: [id], onDelete: Cascade)
+
+  @@map("ftd_nota_comments")
+}
+
+// ── PSI (Prosjektspesifikk Sikkerhetsinstruks) ──────────────────────
+
+model Psi {
+  id         String   @id @default(uuid())
+  projectId  String   @map("project_id")
+  buildingId String?  @map("building_id")  // null = gjelder hele prosjektet
+  templateId String   @map("template_id")
+  version      Int      @default(1)
+  active       Boolean  @default(true)
+  languages    String[] @default([])            // Språk PSI er oversatt til (f.eks. ["en", "lt", "pl"])
+  guestMessage String?  @map("guest_message")  // Admin-beskjed til gjester uten HMS-kort
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  project    Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  building   Building?      @relation(fields: [buildingId], references: [id], onDelete: SetNull)
+  template   ReportTemplate @relation(fields: [templateId], references: [id])
+  signaturer PsiSignatur[]
+
+  @@unique([projectId, buildingId])  // Én PSI per prosjekt+bygning
+  @@map("psi")
+}
+
+model PsiSignatur {
+  id           String    @id @default(uuid())
+  psiId        String    @map("psi_id")
+  psiVersion   Int       @map("psi_version")
+
+  // Innlogget bruker ELLER gjest
+  userId       String?   @map("user_id")
+  guestName    String?   @map("guest_name")
+  guestCompany String?   @map("guest_company")
+  guestPhone   String?   @map("guest_phone")
+
+  hmsKortNr       String?   @map("hms_kort_nr")       // HMS-kortnummer (NO xxxxxxxxx)
+  harIkkeHmsKort  Boolean   @default(false) @map("har_ikke_hms_kort")  // Gjest: har ikke HMS-kort
+
+  data            Json      @default("{}")
+  signatureData   String?   @map("signature_data")
+  language        String    @default("nb")
+  progress        Int       @default(0)
+  completedAt     DateTime? @map("completed_at")
+  startedAt       DateTime  @default(now()) @map("started_at")
+
+  psi  Psi   @relation(fields: [psiId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@unique([psiId, userId])
+  @@index([psiId])
+  @@map("psi_signaturer")
 }

@@ -8,8 +8,12 @@ import { DatabaseProvider } from "./DatabaseProvider";
 import { NettverkProvider } from "./NettverkProvider";
 import { OpplastingsKoProvider } from "./OpplastingsKoProvider";
 import { AuthProvider } from "./AuthProvider";
+import { SpraakProvider } from "./SpraakProvider";
 import { ProsjektProvider } from "../kontekst/ProsjektKontekst";
 import { BygningProvider } from "../kontekst/BygningKontekst";
+
+// Sideeffekt: initialiser i18next med nb som standard
+import "../lib/i18n";
 import { loggUt } from "../services/auth";
 import { router } from "expo-router";
 
@@ -68,9 +72,11 @@ export function Providers({ children }: { children: ReactNode }) {
           <NettverkProvider>
             <OpplastingsKoProvider>
               <AuthProvider>
-                <ProsjektProvider>
-                  <BygningProvider>{children}</BygningProvider>
-                </ProsjektProvider>
+                <SpraakProvider>
+                  <ProsjektProvider>
+                    <BygningProvider>{children}</BygningProvider>
+                  </ProsjektProvider>
+                </SpraakProvider>
               </AuthProvider>
             </OpplastingsKoProvider>
           </NettverkProvider>

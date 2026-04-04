@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslation } from "react-i18next";
 import {
   Wrench,
   ClipboardCheck,
@@ -30,100 +31,10 @@ interface FieldKategori {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Kategorier                                                         */
-/* ------------------------------------------------------------------ */
-
-const kategorier: FieldKategori[] = [
-  {
-    tittel: "Oppgaver",
-    ikon: <Wrench className="h-12 w-12 text-gray-400" />,
-    aktiv: true,
-    lenker: [
-      { label: "Oppgavemaler", href: "/dashbord/oppsett/field/oppgavemaler" },
-      { label: "Hurtig-overskrifter", href: "/dashbord/oppsett/field/hurtig-overskrifter" },
-      { label: "Bransjekartlegging", href: "/dashbord/oppsett/field/bransjekartlegging" },
-      { label: "Entreprisetilknytning", href: "/dashbord/oppsett/field/entrepriser" },
-      { label: "Maler for oppgavenotifikasjon", href: "/dashbord/oppsett/field/oppgavenotifikasjon" },
-    ],
-  },
-  {
-    tittel: "Sjekklister",
-    ikon: <ClipboardCheck className="h-12 w-12 text-gray-400" />,
-    aktiv: true,
-    lenker: [
-      { label: "Sjekklistemaler", href: "/dashbord/oppsett/field/sjekklistemaler" },
-      { label: "Sjekklistemaler med holdepunkt", href: "/dashbord/oppsett/field/sjekklistemaler-holdepunkt" },
-      { label: "Slettede sjekklister", href: "/dashbord/oppsett/field/slettede-sjekklister" },
-      { label: "Entreprisetilknytning", href: "/dashbord/oppsett/field/sjekkliste-entrepriser" },
-    ],
-  },
-  {
-    tittel: "Kontrollplaner",
-    ikon: <SearchCheck className="h-12 w-12 text-gray-300" />,
-    aktiv: false,
-    lenker: [
-      { label: "Kontrollplaner", href: "#" },
-      { label: "Kontrollplanmatriser", href: "#" },
-      { label: "Arbeidsforløp oppgave knytning", href: "#" },
-    ],
-  },
-  {
-    tittel: "Godkjennelser",
-    ikon: <ThumbsUp className="h-12 w-12 text-gray-300" />,
-    aktiv: false,
-    lenker: [
-      { label: "Godkjennelsesmaler", href: "#" },
-    ],
-  },
-  {
-    tittel: "Vær",
-    ikon: <CloudSun className="h-12 w-12 text-gray-300" />,
-    aktiv: false,
-    lenker: [
-      { label: "Vær", href: "#", undertekst: "Deaktivert" },
-      { label: "Vis været på dashbordet", href: "#", undertekst: "Deaktivert" },
-      { label: "Værdata", href: "#" },
-    ],
-  },
-  {
-    tittel: "Capture",
-    ikon: <Camera className="h-12 w-12 text-gray-300" />,
-    aktiv: false,
-    lenker: [
-      { label: "Capture typer", href: "#", undertekst: "Fotoalbumer" },
-      { label: "Grupper med adgang", href: "#" },
-      { label: "Slettede fotoalbum", href: "#" },
-    ],
-  },
-  {
-    tittel: "Daglig logg",
-    ikon: <BookOpen className="h-12 w-12 text-gray-300" />,
-    aktiv: false,
-    lenker: [
-      { label: "Typer", href: "#" },
-      { label: "Rettigheter", href: "#" },
-      { label: "Loggfør været", href: "#" },
-      { label: "Signaturer", href: "#", undertekst: "Deaktivert" },
-    ],
-  },
-  {
-    tittel: "HMS",
-    ikon: <HardHat className="h-12 w-12 text-gray-300" />,
-    aktiv: false,
-    lenker: [
-      { label: "HMS-kategorier", href: "#" },
-      { label: "HMS-observasjon", href: "#" },
-      { label: "Verneprotokoll", href: "#" },
-      { label: "HMS-oppgave", href: "#" },
-    ],
-  },
-];
-
-/* ------------------------------------------------------------------ */
 /*  Kort-komponent                                                     */
 /* ------------------------------------------------------------------ */
 
-function FieldKort({ kategori }: { kategori: FieldKategori }) {
+function FieldKort({ kategori, kommerSnartTekst }: { kategori: FieldKategori; kommerSnartTekst: string }) {
   return (
     <div
       className={`rounded-lg border border-gray-200 bg-white ${
@@ -171,7 +82,7 @@ function FieldKort({ kategori }: { kategori: FieldKategori }) {
       {/* Kommer snart-melding for inaktive */}
       {!kategori.aktiv && (
         <div className="border-t border-gray-100 px-5 py-2">
-          <span className="text-xs text-gray-400">Kommer snart</span>
+          <span className="text-xs text-gray-400">{kommerSnartTekst}</span>
         </div>
       )}
     </div>
@@ -183,13 +94,101 @@ function FieldKort({ kategori }: { kategori: FieldKategori }) {
 /* ------------------------------------------------------------------ */
 
 export default function FieldSide() {
+  const { t } = useTranslation();
+
+  const kategorier: FieldKategori[] = [
+    {
+      tittel: t("nav.oppgaver"),
+      ikon: <Wrench className="h-12 w-12 text-gray-400" />,
+      aktiv: true,
+      lenker: [
+        { label: t("oppsett.oppgavemaler"), href: "/dashbord/oppsett/field/oppgavemaler" },
+        { label: t("feltarbeid.hurtigOverskrifter"), href: "/dashbord/oppsett/field/hurtig-overskrifter" },
+        { label: t("feltarbeid.bransjekartlegging"), href: "/dashbord/oppsett/field/bransjekartlegging" },
+        { label: t("feltarbeid.entreprisetilknytning"), href: "/dashbord/oppsett/field/entrepriser" },
+        { label: t("feltarbeid.malerOppgavenotifikasjon"), href: "/dashbord/oppsett/field/oppgavenotifikasjon" },
+      ],
+    },
+    {
+      tittel: t("nav.sjekklister"),
+      ikon: <ClipboardCheck className="h-12 w-12 text-gray-400" />,
+      aktiv: true,
+      lenker: [
+        { label: t("oppsett.sjekklistemaler"), href: "/dashbord/oppsett/field/sjekklistemaler" },
+        { label: t("feltarbeid.sjekklisteHoldepunkt"), href: "/dashbord/oppsett/field/sjekklistemaler-holdepunkt" },
+        { label: t("feltarbeid.slettedeSjekklister"), href: "/dashbord/oppsett/field/slettede-sjekklister" },
+        { label: t("feltarbeid.entreprisetilknytning"), href: "/dashbord/oppsett/field/sjekkliste-entrepriser" },
+      ],
+    },
+    {
+      tittel: t("feltarbeid.kontrollplaner"),
+      ikon: <SearchCheck className="h-12 w-12 text-gray-300" />,
+      aktiv: false,
+      lenker: [
+        { label: t("feltarbeid.kontrollplaner"), href: "#" },
+        { label: t("feltarbeid.kontrollplanmatriser"), href: "#" },
+        { label: t("feltarbeid.arbeidsforlopKnytning"), href: "#" },
+      ],
+    },
+    {
+      tittel: t("feltarbeid.godkjennelser"),
+      ikon: <ThumbsUp className="h-12 w-12 text-gray-300" />,
+      aktiv: false,
+      lenker: [
+        { label: t("feltarbeid.godkjennelsesmaler"), href: "#" },
+      ],
+    },
+    {
+      tittel: t("feltarbeid.vaer"),
+      ikon: <CloudSun className="h-12 w-12 text-gray-300" />,
+      aktiv: false,
+      lenker: [
+        { label: t("feltarbeid.vaer"), href: "#", undertekst: t("feltarbeid.deaktivert") },
+        { label: t("feltarbeid.visVaer"), href: "#", undertekst: t("feltarbeid.deaktivert") },
+        { label: t("feltarbeid.vaerdata"), href: "#" },
+      ],
+    },
+    {
+      tittel: t("feltarbeid.capture"),
+      ikon: <Camera className="h-12 w-12 text-gray-300" />,
+      aktiv: false,
+      lenker: [
+        { label: t("feltarbeid.captureTyper"), href: "#", undertekst: t("feltarbeid.fotoalbumer") },
+        { label: t("feltarbeid.grupperMedAdgang"), href: "#" },
+        { label: t("feltarbeid.slettedeFotoalbum"), href: "#" },
+      ],
+    },
+    {
+      tittel: t("feltarbeid.dagligLogg"),
+      ikon: <BookOpen className="h-12 w-12 text-gray-300" />,
+      aktiv: false,
+      lenker: [
+        { label: "Typer", href: "#" },
+        { label: "Rettigheter", href: "#" },
+        { label: "Loggfør været", href: "#" },
+        { label: "Signaturer", href: "#", undertekst: t("feltarbeid.deaktivert") },
+      ],
+    },
+    {
+      tittel: t("feltarbeid.hms"),
+      ikon: <HardHat className="h-12 w-12 text-gray-300" />,
+      aktiv: false,
+      lenker: [
+        { label: t("feltarbeid.hmsKategorier"), href: "#" },
+        { label: "HMS-observasjon", href: "#" },
+        { label: "Verneprotokoll", href: "#" },
+        { label: "HMS-oppgave", href: "#" },
+      ],
+    },
+  ];
+
   return (
     <div>
-      <h2 className="mb-6 text-xl font-bold text-gray-900">Feltarbeid</h2>
+      <h2 className="mb-6 text-xl font-bold text-gray-900">{t("oppsett.feltarbeid")}</h2>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {kategorier.map((kategori) => (
-          <FieldKort key={kategori.tittel} kategori={kategori} />
+          <FieldKort key={kategori.tittel} kategori={kategori} kommerSnartTekst={t("feltarbeid.kommerSnart")} />
         ))}
       </div>
     </div>

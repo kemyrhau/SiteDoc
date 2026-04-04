@@ -4,6 +4,7 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { REPORT_OBJECT_TYPE_META, type ReportObjectType, erKontainerType } from "@sitedoc/shared";
 import { Badge } from "@sitedoc/ui";
+import { useTranslation } from "react-i18next";
 import { Info } from "lucide-react";
 import { TreprikkMeny } from "./TreprikkMeny";
 import type { ReactNode } from "react";
@@ -75,6 +76,7 @@ export function DraggbartFelt({
     id: objekt.id,
     data: { objekt, fraKilde: "sone" },
   });
+  const { t } = useTranslation();
 
   const stil = {
     transform: CSS.Transform.toString(transform),
@@ -140,8 +142,8 @@ export function DraggbartFelt({
 
         {/* Badges og meny */}
         <div className="flex items-center gap-2">
-          {erBarn && <Badge variant="default">Betinget</Badge>}
-          {objekt.required && <Badge variant="warning">Påkrevd</Badge>}
+          {erBarn && <Badge variant="default">{t("malbygger.betinget")}</Badge>}
+          {objekt.required && <Badge variant="warning">{t("malbygger.paakrevd")}</Badge>}
           <TreprikkMeny
             onRediger={onClick}
             onSlett={onSlett}

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { createEnterpriseSchema, copyEnterpriseSchema } from "@sitedoc/shared";
 import { verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
@@ -191,9 +192,40 @@ export const entrepriseRouter = router({
     .mutation(async ({ ctx, input }) => {
       const entreprise = await ctx.prisma.enterprise.findUniqueOrThrow({
         where: { id: input.id },
-        select: { projectId: true },
+        select: { projectId: true, name: true },
       });
       await verifiserProsjektmedlem(ctx.userId, entreprise.projectId);
+
+      // Sjekk om entreprisen har tilknyttede sjekklister eller oppgaver
+      const [sjekklisteAntall, oppgaveAntall] = await Promise.all([
+        ctx.prisma.checklist.count({
+          where: {
+            OR: [
+              { creatorEnterpriseId: input.id },
+              { responderEnterpriseId: input.id },
+            ],
+          },
+        }),
+        ctx.prisma.task.count({
+          where: {
+            OR: [
+              { creatorEnterpriseId: input.id },
+              { responderEnterpriseId: input.id },
+            ],
+          },
+        }),
+      ]);
+
+      if (sjekklisteAntall > 0 || oppgaveAntall > 0) {
+        const detaljer: string[] = [];
+        if (sjekklisteAntall > 0) detaljer.push(`${sjekklisteAntall} sjekkliste${sjekklisteAntall !== 1 ? "r" : ""}`);
+        if (oppgaveAntall > 0) detaljer.push(`${oppgaveAntall} oppgave${oppgaveAntall !== 1 ? "r" : ""}`);
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: `Kan ikke slette «${entreprise.name}» fordi den har ${detaljer.join(" og ")} tilknyttet. Flytt eller slett disse først.`,
+        });
+      }
+
       return ctx.prisma.enterprise.delete({ where: { id: input.id } });
     }),
 });

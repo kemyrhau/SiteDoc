@@ -1,0 +1,31 @@
+{
+  "extends": ["next/core-web-vitals"],
+  "plugins": ["i18next"],
+  "rules": {
+    "i18next/no-literal-string": ["warn", {
+      "markupOnly": true,
+      "ignoreAttribute": [
+        "className", "style", "type", "href", "src", "alt", "key", "id",
+        "name", "value", "htmlFor", "target", "rel", "method", "action",
+        "autoComplete", "inputMode", "pattern", "role", "aria-label",
+        "data-testid", "strokeLinecap", "strokeLinejoin", "strokeWidth",
+        "viewBox", "fill", "stroke", "d", "cx", "cy", "r", "rx", "ry",
+        "x1", "x2", "y1", "y2", "transform", "gradientUnits",
+        "variant", "size", "align", "side", "asChild"
+      ],
+      "ignore": [
+        "^[A-Z0-9_\\-\\.\\s/:@#]+$",
+        "^\\d",
+        "^[^a-zA-ZæøåÆØÅа-яА-Я]"
+      ]
+    }]
+  },
+  "overrides": [
+    {
+      "files": ["**/lib/**", "**/hooks/**", "**/kontekst/**", "**/api/**"],
+      "rules": {
+        "i18next/no-literal-string": "off"
+      }
+    }
+  ]
+}

@@ -23,6 +23,7 @@ import {
   ChevronDown,
 } from "lucide-react-native";
 import * as Location from "expo-location";
+import { useTranslation } from "react-i18next";
 import { trpc } from "../../src/lib/trpc";
 import { useProsjekt } from "../../src/kontekst/ProsjektKontekst";
 import { useBygning } from "../../src/kontekst/BygningKontekst";
@@ -79,6 +80,7 @@ interface OppgaveMarkør {
 }
 
 export default function LokasjonerSkjerm() {
+  const { t } = useTranslation();
   const { valgtProsjektId } = useProsjekt();
   const { valgtBygningId, settBygning } = useBygning();
   const [valgtTegningId, setValgtTegningId] = useState<string | null>(null);
@@ -323,13 +325,13 @@ export default function LokasjonerSkjerm() {
   // Bygningsvelger — nedtrekksmeny (alltid én aktiv bygning)
   const visBygningsvelger = useCallback(() => {
     if (bygninger.length <= 1) return;
-    const alternativ = [...bygninger.map((b) => b.name), "Avbryt"];
+    const alternativ = [...bygninger.map((b) => b.name), t("handling.avbryt")];
     if (Platform.OS === "ios") {
       ActionSheetIOS.showActionSheetWithOptions(
         {
           options: alternativ,
           cancelButtonIndex: alternativ.length - 1,
-          title: "Velg bygning",
+          title: t("lokasjoner.velgBygning"),
         },
         (indeks) => {
           if (indeks < alternativ.length - 1) {
@@ -340,14 +342,14 @@ export default function LokasjonerSkjerm() {
       );
     } else {
       Alert.alert(
-        "Velg bygning",
+        t("lokasjoner.velgBygning"),
         undefined,
         [
           ...bygninger.map((b) => ({
             text: b.name,
             onPress: () => settBygning(b.id),
           })),
-          { text: "Avbryt", style: "cancel" as const },
+          { text: t("handling.avbryt"), style: "cancel" as const },
         ],
       );
     }
@@ -359,10 +361,10 @@ export default function LokasjonerSkjerm() {
       ActionSheetIOS.showActionSheetWithOptions(
         {
           options: [
-            "Avbryt",
-            "Tegningsinformasjon",
-            "Forbered til offline",
-            "Oppdatere oppgaver",
+            t("handling.avbryt"),
+            t("lokasjoner.tegningsinformasjon"),
+            t("lokasjoner.forberedOffline"),
+            t("lokasjoner.oppdatereOppgaver"),
           ],
           cancelButtonIndex: 0,
         },
@@ -413,7 +415,7 @@ export default function LokasjonerSkjerm() {
     if (gpsMarkør) {
       setMarkørPosisjon({ x: gpsMarkør.x, y: gpsMarkør.y });
     } else {
-      Alert.alert("GPS ikke tilgjengelig", "Venter på GPS-posisjon. Prøv igjen om et øyeblikk.");
+      Alert.alert(t("lokasjoner.gpsIkkeTilgjengelig"), t("lokasjoner.venterPaaGps"));
     }
   }, [gpsMarkør]);
 
@@ -460,10 +462,10 @@ export default function LokasjonerSkjerm() {
         <View className="flex-1 items-center justify-center px-8">
           <MapPin size={48} color="#9ca3af" />
           <Text className="mt-4 text-base font-medium text-gray-500">
-            Lokasjoner
+            {t("lokasjoner.tittel")}
           </Text>
           <Text className="mt-2 text-center text-sm text-gray-400">
-            Velg et prosjekt for å se lokasjoner
+            {t("lokasjoner.velgProsjekt")}
           </Text>
         </View>
       </SafeAreaView>
@@ -480,10 +482,10 @@ export default function LokasjonerSkjerm() {
           <View>
             <Text className="text-sm font-semibold text-white" numberOfLines={1}>
               {valgtBygningId
-                ? bygninger.find((b) => b.id === valgtBygningId)?.name ?? "Velg bygning"
-                : "Velg bygning"}
+                ? bygninger.find((b) => b.id === valgtBygningId)?.name ?? t("lokasjoner.velgBygning")
+                : t("lokasjoner.velgBygning")}
             </Text>
-            <Text className="text-[10px] text-blue-200">Lokasjoner</Text>
+            <Text className="text-[10px] text-blue-200">{t("lokasjoner.tittel")}</Text>
           </View>
           {bygninger.length > 1 && <ChevronDown size={14} color="#93c5fd" />}
         </Pressable>
@@ -505,7 +507,7 @@ export default function LokasjonerSkjerm() {
                   <Navigation size={14} color="#ffffff" />
                 )}
                 <Text className={`text-xs font-medium ${plasseringsmodus ? "text-sitedoc-blue" : "text-white"}`}>
-                  {plasseringsmodus ? "Plassering" : "Navigering"}
+                  {plasseringsmodus ? t("lokasjoner.plassering") : t("lokasjoner.navigering")}
                 </Text>
               </View>
             </Pressable>
@@ -524,10 +526,10 @@ export default function LokasjonerSkjerm() {
         >
           <View className="flex-1">
             <Text className="text-xs font-medium text-red-700">
-              GPS-tillatelse mangler
+              {t("lokasjoner.gpsTillatelse")}
             </Text>
             <Text className="text-xs text-red-600">
-              Trykk her for å åpne Innstillinger og aktivere stedstjenester
+              {t("lokasjoner.gpsTillatelseInfo")}
             </Text>
           </View>
           <MapPin size={16} color="#dc2626" />
@@ -536,21 +538,21 @@ export default function LokasjonerSkjerm() {
       {visserTegning && harGeoRef && gpsStatus === "ugyldig_georef" && (
         <View className="flex-row items-center gap-2 bg-amber-50 px-4 py-2">
           <Text className="flex-1 text-xs text-amber-700">
-            Georeferansen har identiske referansepunkter. Sett to ulike punkter på tegningen.
+            {t("lokasjoner.ugyldigGeoref")}
           </Text>
         </View>
       )}
       {visserTegning && harGeoRef && gpsStatus === "feil" && (
         <View className="flex-row items-center gap-2 bg-amber-50 px-4 py-2">
           <Text className="flex-1 text-xs text-amber-700">
-            GPS-posisjon utilgjengelig. Prøv å gå utendørs eller vent litt.
+            {t("lokasjoner.gpsUtilgjengelig")}
           </Text>
         </View>
       )}
       {visserTegning && harGeoRef && gpsStatus === "venter" && (
         <View className="flex-row items-center gap-2 bg-blue-50 px-4 py-2">
           <ActivityIndicator size="small" color="#1e40af" />
-          <Text className="text-xs text-blue-700">Henter GPS-posisjon…</Text>
+          <Text className="text-xs text-blue-700">{t("lokasjoner.henterGps")}</Text>
         </View>
       )}
       {visserTegning && harGeoRef && gpsDebug && gpsStatus === "aktiv" && (
@@ -566,7 +568,7 @@ export default function LokasjonerSkjerm() {
             {markørPosisjon ? (
               <>
                 <Text className="text-xs text-amber-700">
-                  Verifiser posisjon
+                  {t("lokasjoner.verifiserPosisjon")}
                 </Text>
                 <View className="flex-row items-center gap-2">
                   <Pressable
@@ -574,21 +576,21 @@ export default function LokasjonerSkjerm() {
                     className="flex-row items-center gap-1 rounded-full bg-gray-200 px-2.5 py-1"
                   >
                     <X size={12} color="#6b7280" />
-                    <Text className="text-xs font-medium text-gray-600">Flytt</Text>
+                    <Text className="text-xs font-medium text-gray-600">{t("handling.flytt")}</Text>
                   </Pressable>
                   <Pressable
                     onPress={bekreftPosisjon}
                     className="flex-row items-center gap-1 rounded-full bg-green-600 px-3 py-1"
                   >
                     <Check size={12} color="#ffffff" />
-                    <Text className="text-xs font-medium text-white">Bekreft</Text>
+                    <Text className="text-xs font-medium text-white">{t("handling.bekreft")}</Text>
                   </Pressable>
                 </View>
               </>
             ) : (
               <>
                 <Text className="text-xs text-amber-700">
-                  Trykk på tegningen for å plassere markør
+                  {t("lokasjoner.trykkPaaTegning")}
                 </Text>
                 {harGeoRef && gpsMarkør && (
                   <Pressable
@@ -596,7 +598,7 @@ export default function LokasjonerSkjerm() {
                     className="flex-row items-center gap-1 rounded-full bg-blue-100 px-2.5 py-1"
                   >
                     <Crosshair size={12} color="#1e40af" />
-                    <Text className="text-xs font-medium text-blue-700">Bruk GPS</Text>
+                    <Text className="text-xs font-medium text-blue-700">{t("lokasjoner.brukGps")}</Text>
                   </Pressable>
                 )}
               </>
@@ -613,7 +615,7 @@ export default function LokasjonerSkjerm() {
               <EyeOff size={12} color="#6b7280" />
             )}
             <Text className="text-xs text-gray-500">
-              {visEksisterende ? "Skjul tidligere oppgaver" : "Vis tidligere oppgaver"}
+              {visEksisterende ? t("lokasjoner.skjulOppgaver") : t("lokasjoner.visOppgaver")}
             </Text>
           </Pressable>
         </View>
@@ -625,7 +627,7 @@ export default function LokasjonerSkjerm() {
           <View className="flex-1 items-center justify-center">
             <ActivityIndicator size="large" color="#1e40af" />
             <Text className="mt-3 text-sm text-gray-500">
-              Henter lokasjonsdata…
+              {t("lokasjoner.henterData")}
             </Text>
           </View>
         ) : visserTegning ? (

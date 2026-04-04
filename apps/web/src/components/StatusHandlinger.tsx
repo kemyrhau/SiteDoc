@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { hentStatusHandlinger } from "@sitedoc/shared";
 
 const FARGE_MAP: Record<string, { bg: string; hover: string }> = {
@@ -12,9 +13,12 @@ const FARGE_MAP: Record<string, { bg: string; hover: string }> = {
   "bg-gray-500": { bg: "bg-gray-500", hover: "hover:bg-gray-600" },
 };
 
-interface MottakerValg {
-  personer: Array<{ id: string; navn: string; grupper?: string }>;
-  grupper: Array<{ id: string; navn: string }>;
+export interface EntrepriseValg {
+  id: string;
+  navn: string;
+  farge?: string | null;
+  /** Forhåndsutledet mottaker fra dokumentflyt */
+  mottaker?: { userId?: string; groupId?: string };
 }
 
 interface StatusHandlingerProps {
@@ -22,15 +26,28 @@ interface StatusHandlingerProps {
   erLaster: boolean;
   onEndreStatus: (nyStatus: string, kommentar?: string, mottaker?: { userId?: string; groupId?: string }) => void;
   onSlett?: () => void;
-  mottakerValg?: MottakerValg;
+  /** Alle entrepriser med forhåndsutledet mottaker */
+  entrepriseValg?: EntrepriseValg[];
+  /** ID til standard-entreprise (svarer/responder) */
+  standardEntrepriseId?: string;
+  /** Brukerens egne entreprise-IDer (for videresend-filtrering) */
+  mineEntrepriseIder?: string[];
+  /** Om bruker er registrator (create_checklists/create_tasks) — styrer tilgang til Lukk fra avvist */
+  erRegistrator?: boolean;
 }
 
-export function StatusHandlinger({ status, erLaster, onEndreStatus, onSlett, mottakerValg }: StatusHandlingerProps) {
+export function StatusHandlinger({ status, erLaster, onEndreStatus, onSlett, entrepriseValg, standardEntrepriseId, mineEntrepriseIder, erRegistrator }: StatusHandlingerProps) {
+  const { t } = useTranslation();
   const [bekreftHandling, setBekreftHandling] = useState<string | null>(null);
   const [kommentar, setKommentar] = useState("");
-  const [valgtMottaker, setValgtMottaker] = useState("");
+  const [valgtEntreprise, setValgtEntreprise] = useState("");
 
-  const handlinger = hentStatusHandlinger(status);
+  const alleHandlinger = hentStatusHandlinger(status);
+  // Lukk fra avvist: kun for registratorer
+  const handlinger = alleHandlinger.filter((h) => {
+    if (status === "rejected" && h.nyStatus === "closed" && !erRegistrator) return false;
+    return true;
+  });
 
   if (handlinger.length === 0) return null;
 
@@ -46,36 +63,45 @@ export function StatusHandlinger({ status, erLaster, onEndreStatus, onSlett, mot
       return;
     }
     if (bekreftHandling === nyStatus) {
-      // Parse mottaker fra valgt verdi
       let mottaker: { userId?: string; groupId?: string } | undefined;
-      if (valgtMottaker) {
-        if (valgtMottaker.startsWith("u:")) {
-          mottaker = { userId: valgtMottaker.slice(2) };
-        } else if (valgtMottaker.startsWith("g:")) {
-          mottaker = { groupId: valgtMottaker.slice(2) };
+
+      if (nyStatus === "forwarded") {
+        // Videresend: bruk valgt entreprise (eller standard)
+        const valgtId = valgtEntreprise || standardEntrepriseId;
+        if (valgtId && entrepriseValg) {
+          const valgt = entrepriseValg.find((e) => e.id === valgtId);
+          mottaker = valgt?.mottaker;
         }
+        if (!mottaker) return;
+      } else if (standardEntrepriseId && entrepriseValg) {
+        // Normal overgang: auto-utled mottaker fra standard-entreprise (dokumentflyt)
+        const standard = entrepriseValg.find((e) => e.id === standardEntrepriseId);
+        mottaker = standard?.mottaker;
       }
-      // Videresend krever mottaker
-      if (nyStatus === "forwarded" && !mottaker) return;
+
       onEndreStatus(nyStatus, kommentar.trim() || undefined, mottaker);
       setBekreftHandling(null);
       setKommentar("");
-      setValgtMottaker("");
+      setValgtEntreprise("");
     } else {
       setBekreftHandling(nyStatus);
       setKommentar("");
-      setValgtMottaker("");
+      setValgtEntreprise("");
     }
   };
 
   const avbrytBekreft = () => {
     setBekreftHandling(null);
     setKommentar("");
-    setValgtMottaker("");
+    setValgtEntreprise("");
   };
 
-  const visMottakerVelger = (bekreftHandling === "sent" || bekreftHandling === "forwarded") && mottakerValg &&
-    (mottakerValg.personer.length > 0 || mottakerValg.grupper.length > 0);
+  // Entreprise-velger kun ved videresend OG bruker har flere entrepriser
+  const videresendEntrepriser = mineEntrepriseIder
+    ? entrepriseValg?.filter((e) => mineEntrepriseIder.includes(e.id))
+    : entrepriseValg; // Ikke lastet ennå / admin → vis alle
+  const visEntrepriseVelger = bekreftHandling === "forwarded"
+    && videresendEntrepriser && videresendEntrepriser.length > 1;
 
   return (
     <div className="flex flex-col gap-2">
@@ -93,7 +119,7 @@ export function StatusHandlinger({ status, erLaster, onEndreStatus, onSlett, mot
                 erValgt ? "ring-2 ring-offset-1 ring-gray-400" : ""
               } ${farger.bg} ${farger.hover}`}
             >
-              {erLaster ? "Endrer..." : erValgt ? `Bekreft: ${h.tekst}` : h.tekst}
+              {erLaster ? t("statushandling.endrer") : erValgt ? t("statushandling.bekreftHandling", { handling: t(h.tekstNoekkel) }) : t(h.tekstNoekkel)}
             </button>
           );
         })}
@@ -102,35 +128,23 @@ export function StatusHandlinger({ status, erLaster, onEndreStatus, onSlett, mot
             onClick={avbrytBekreft}
             className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-600 hover:bg-gray-50"
           >
-            Avbryt
+            {t("handling.avbryt")}
           </button>
         )}
       </div>
       {bekreftHandling && (
         <div className="flex max-w-lg flex-col gap-2">
-          {visMottakerVelger && (
+          {visEntrepriseVelger && (
             <select
-              value={valgtMottaker}
-              onChange={(e) => setValgtMottaker(e.target.value)}
+              value={valgtEntreprise || standardEntrepriseId || ""}
+              onChange={(e) => setValgtEntreprise(e.target.value)}
               className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
             >
-              <option value="">{bekreftHandling === "forwarded" ? "Velg mottaker..." : "Velg mottaker (valgfritt)..."}</option>
-              {mottakerValg!.grupper.length > 0 && (
-                <optgroup label="Grupper">
-                  {mottakerValg!.grupper.map((g) => (
-                    <option key={`g:${g.id}`} value={`g:${g.id}`}>{g.navn}</option>
-                  ))}
-                </optgroup>
-              )}
-              {mottakerValg!.personer.length > 0 && (
-                <optgroup label="Personer">
-                  {mottakerValg!.personer.map((p) => (
-                    <option key={`u:${p.id}`} value={`u:${p.id}`}>
-                      {p.navn}{p.grupper ? ` · ${p.grupper}` : ""}
-                    </option>
-                  ))}
-                </optgroup>
-              )}
+              {videresendEntrepriser!.map((e) => (
+                <option key={e.id} value={e.id}>
+                  {e.navn}
+                </option>
+              ))}
             </select>
           )}
           <input
@@ -140,9 +154,9 @@ export function StatusHandlinger({ status, erLaster, onEndreStatus, onSlett, mot
             onKeyDown={(e) => {
               if (e.key === "Enter") håndterKlikk(bekreftHandling);
             }}
-            placeholder="Valgfri kommentar..."
+            placeholder={t("statushandling.valgfriKommentar")}
             className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
-            autoFocus={!visMottakerVelger}
+            autoFocus={!visEntrepriseVelger}
           />
         </div>
       )}

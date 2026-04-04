@@ -8,21 +8,24 @@ import {
   MapPin,
   Wrench,
   Home,
+  Brain,
   ChevronRight,
   ChevronDown,
 } from "lucide-react";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { trpc } from "@/lib/trpc";
+import { useTranslation } from "react-i18next";
 import type { Permission } from "@sitedoc/shared";
 
 interface NavBarn {
-  label: string;
+  labelKey: string;
   href: string;
   skjult?: boolean;
 }
 
 interface NavElement {
-  label: string;
+  id: string;
+  labelKey: string;
   href: string;
   ikon: React.ReactNode;
   barn?: NavBarn[];
@@ -32,40 +35,52 @@ interface NavElement {
 
 const navigasjon: NavElement[] = [
   {
-    label: "Brukere",
+    id: "brukere",
+    labelKey: "oppsett.brukere",
     href: "/dashbord/oppsett/brukere",
     ikon: <Users className="h-4 w-4" />,
     kreverProsjekt: true,
   },
   {
-    label: "Lokasjoner",
+    id: "lokasjoner",
+    labelKey: "oppsett.lokasjoner",
     href: "/dashbord/oppsett/lokasjoner",
     ikon: <MapPin className="h-4 w-4" />,
     kreverProsjekt: true,
   },
   {
-    label: "Feltarbeid",
+    id: "feltarbeid",
+    labelKey: "oppsett.feltarbeid",
     href: "/dashbord/oppsett/field",
     ikon: <Wrench className="h-4 w-4" />,
     kreverProsjekt: true,
     tillatelse: "manage_field",
     barn: [
-      { label: "Entrepriser og dokumentflyt", href: "/dashbord/oppsett/field/entrepriser" },
-      { label: "Oppgavemaler", href: "/dashbord/oppsett/field/oppgavemaler" },
-      { label: "Sjekklistemaler", href: "/dashbord/oppsett/field/sjekklistemaler" },
-      { label: "Moduler", href: "/dashbord/oppsett/field/moduler" },
-      { label: "Kontrollplan", href: "/dashbord/oppsett/field/kontrollplaner" },
-      { label: "Mappeoppsett", href: "/dashbord/oppsett/field/box" },
+      { labelKey: "oppsett.kontakter", href: "/dashbord/oppsett/field/kontakter" },
+      { labelKey: "oppsett.entrepriser", href: "/dashbord/oppsett/field/entrepriser" },
+      { labelKey: "oppsett.oppgavemaler", href: "/dashbord/oppsett/field/oppgavemaler" },
+      { labelKey: "oppsett.sjekklistemaler", href: "/dashbord/oppsett/field/sjekklistemaler" },
+      { labelKey: "oppsett.moduler", href: "/dashbord/oppsett/field/moduler" },
+      { labelKey: "oppsett.kontrollplan", href: "/dashbord/oppsett/field/kontrollplaner" },
+      { labelKey: "oppsett.mappeoppsett", href: "/dashbord/oppsett/field/box" },
+      { labelKey: "nav.psi", href: "/dashbord/oppsett/field/psi", skjult: true },
     ],
   },
   {
-    label: "Prosjekteiers innstillinger",
+    id: "ai-sok",
+    labelKey: "oppsett.aiSok",
+    href: "/dashbord/oppsett/ai-sok",
+    ikon: <Brain className="h-4 w-4" />,
+    kreverProsjekt: true,
+  },
+  {
+    id: "prosjekteier",
+    labelKey: "oppsett.prosjekteier",
     href: "/dashbord/oppsett/prosjektoppsett",
     ikon: <Home className="h-4 w-4" />,
     barn: [
-      // Firmainnstillinger — skjult-flagg settes dynamisk basert på prosjektets firma
-      { label: "Firmainnstillinger", href: "/dashbord/oppsett/firma" },
-      { label: "Prosjektoppsett", href: "/dashbord/oppsett/prosjektoppsett" },
+      { labelKey: "oppsett.firmainnstillinger", href: "/dashbord/oppsett/firma" },
+      { labelKey: "oppsett.prosjektoppsett", href: "/dashbord/oppsett/prosjektoppsett" },
     ],
   },
 ];
@@ -77,6 +92,7 @@ export default function OppsettLayout({
 }) {
   const { prosjektId } = useProsjekt();
   const pathname = usePathname();
+  const { t } = useTranslation();
 
   // Hent prosjektets firma (for Firmainnstillinger-synlighet)
   const { data: prosjektFirma } = trpc.organisasjon.hentForProsjekt.useQuery(
@@ -92,6 +108,12 @@ export default function OppsettLayout({
     { enabled: !!prosjektId },
   );
 
+  const { data: moduler } = trpc.modul.hentForProsjekt.useQuery(
+    { projectId: prosjektId! },
+    { enabled: !!prosjektId },
+  );
+  const erPsiAktiv = moduler?.some((m: { moduleSlug: string; active: boolean }) => m.moduleSlug === "psi" && m.active) ?? false;
+
   const harFirmaTilgang = !!prosjektFirma || !!erAdmin;
 
   const filtrertNavigasjon = navigasjon
@@ -106,15 +128,18 @@ export default function OppsettLayout({
         if (barn.href === "/dashbord/oppsett/firma") {
           return harFirmaTilgang;
         }
+        if (barn.href === "/dashbord/oppsett/field/psi") {
+          return erPsiAktiv;
+        }
         return !barn.skjult;
       });
       return { ...element, barn: filtrerBarn };
     });
 
   const [ekspandert, setEkspandert] = useState<Record<string, boolean>>({
-    Lokasjoner: true,
-    Feltarbeid: true,
-    "Prosjekteiers innstillinger": false,
+    lokasjoner: true,
+    feltarbeid: true,
+    prosjekteier: false,
   });
 
   function toggleEkspander(label: string) {
@@ -130,23 +155,23 @@ export default function OppsettLayout({
       {/* Innstillings-sidebar */}
       <aside className="hidden w-[280px] flex-col border-r border-gray-200 bg-white md:flex">
         <div className="border-b border-gray-200 px-5 py-4">
-          <h2 className="text-lg font-semibold text-gray-900">Innstillinger</h2>
+          <h2 className="text-lg font-semibold text-gray-900">{t("nav.innstillinger")}</h2>
         </div>
 
         <nav className="flex-1 overflow-y-auto px-3 py-3">
           {filtrertNavigasjon.map((element) => {
             const harBarn = element.barn && element.barn.length > 0;
-            const erEkspandert = ekspandert[element.label] ?? false;
+            const erEkspandert = ekspandert[element.id] ?? false;
             const aktiv = erAktiv(element.href);
             const deaktivert = element.kreverProsjekt && !prosjektId;
 
             return (
-              <div key={element.label} className={`mb-0.5 ${deaktivert ? "opacity-40" : ""}`}>
+              <div key={element.id} className={`mb-0.5 ${deaktivert ? "opacity-40" : ""}`}>
                 <div className="flex items-center">
                   {harBarn ? (
                     <>
                       <button
-                        onClick={() => !deaktivert && toggleEkspander(element.label)}
+                        onClick={() => !deaktivert && toggleEkspander(element.id)}
                         className={`mr-1 rounded p-0.5 ${deaktivert ? "text-gray-300 cursor-not-allowed" : "text-gray-400 hover:bg-gray-100 hover:text-gray-600"}`}
                       >
                         {erEkspandert ? (
@@ -158,7 +183,7 @@ export default function OppsettLayout({
                       {deaktivert ? (
                         <span className="flex flex-1 items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium text-gray-400 cursor-not-allowed">
                           {element.ikon}
-                          {element.label}
+                          {t(element.labelKey)}
                         </span>
                       ) : (
                         <Link
@@ -170,14 +195,14 @@ export default function OppsettLayout({
                           }`}
                         >
                           {element.ikon}
-                          {element.label}
+                          {t(element.labelKey)}
                         </Link>
                       )}
                     </>
                   ) : deaktivert ? (
                     <span className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 pl-[30px] text-sm font-medium text-gray-400 cursor-not-allowed">
                       {element.ikon}
-                      {element.label}
+                      {t(element.labelKey)}
                     </span>
                   ) : (
                     <Link
@@ -189,7 +214,7 @@ export default function OppsettLayout({
                       }`}
                     >
                       {element.ikon}
-                      {element.label}
+                      {t(element.labelKey)}
                     </Link>
                   )}
                 </div>
@@ -207,7 +232,7 @@ export default function OppsettLayout({
                             : "text-gray-500 hover:bg-gray-50 hover:text-gray-700"
                         }`}
                       >
-                        {barn.label}
+                        {t(barn.labelKey)}
                       </Link>
                     ))}
                   </div>

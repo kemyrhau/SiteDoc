@@ -4,6 +4,7 @@ import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import dynamic from "next/dynamic";
+import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { useBygning } from "@/kontekst/bygning-kontekst";
 import { useBilder } from "@/kontekst/bilder-kontekst";
@@ -124,6 +125,7 @@ function harGpsUtenforTegninger(
 // ──────────────────────────────────────────────────────────────
 
 export default function BilderSide() {
+  const { t } = useTranslation();
   const params = useParams<{ prosjektId: string }>();
   const { aktivBygning, aktivTegning } = useBygning();
   const {
@@ -378,7 +380,7 @@ export default function BilderSide() {
       return (
         <div className="flex flex-1 flex-col items-center justify-center gap-2">
           <ImageIcon className="h-16 w-16 text-gray-200" />
-          <p className="text-lg font-medium text-gray-400">Ingen bilder i prosjektet</p>
+          <p className="text-lg font-medium text-gray-400">{t("bilder.ingenBilder")}</p>
         </div>
       );
     }

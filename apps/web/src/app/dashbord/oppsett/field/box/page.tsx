@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { trpc } from "@/lib/trpc";
 import { Button, Modal, Input, Spinner, Select } from "@sitedoc/ui";
@@ -19,7 +20,15 @@ import {
   Building2,
   Users,
   User,
+  Import,
+  Info,
+  FileArchive,
+  AlignLeft,
+  Loader2,
+  Upload,
+  Globe,
 } from "lucide-react";
+import { STOETTEDE_SPRAAK } from "@sitedoc/shared";
 
 /* ------------------------------------------------------------------ */
 /*  Typer                                                              */
@@ -388,8 +397,12 @@ interface MappeTreData {
   id: string;
   name: string;
   accessMode: string;
+  languageMode: string;
+  effektiveSpraak: string[];
   children: MappeTreData[];
-  _count?: { documents: number };
+  _count?: { ftdDocuments: number };
+  kontraktId?: string | null;
+  kontraktNavn?: string | null;
 }
 
 function MappeTreRad({
@@ -399,6 +412,8 @@ function MappeTreRad({
   onGiNyttNavn,
   onSlett,
   onRedigerTilgang,
+  onKobleTilKontrakt,
+  onRedigerSpraak,
 }: {
   mappe: MappeTreData;
   dybde: number;
@@ -406,10 +421,13 @@ function MappeTreRad({
   onGiNyttNavn: (id: string, navn: string) => void;
   onSlett: (id: string) => void;
   onRedigerTilgang: (id: string, navn: string) => void;
+  onKobleTilKontrakt: (id: string, navn: string, kontraktId: string | null) => void;
+  onRedigerSpraak: (id: string, navn: string, languages: string[]) => void;
 }) {
+  const { t } = useTranslation();
   const [ekspandert, setEkspandert] = useState(dybde < 2);
   const harBarn = mappe.children.length > 0;
-  const antallDokumenter = mappe._count?.documents ?? 0;
+  const antallDokumenter = mappe._count?.ftdDocuments ?? 0;
   const harEgenTilgang = mappe.accessMode === "custom";
 
   return (
@@ -433,12 +451,18 @@ function MappeTreRad({
           )}
         </button>
 
-        <FolderOpen className="h-4 w-4 flex-shrink-0 text-amber-500" />
+        <FolderOpen className={`h-4 w-4 flex-shrink-0 ${mappe.kontraktId ? "text-blue-500" : "text-amber-500"}`} />
         <span className="flex-1 truncate text-sm text-gray-800">
           {mappe.name}
+          {mappe.kontraktNavn && (
+            <span className="ml-1.5 text-[10px] text-blue-400">{mappe.kontraktNavn}</span>
+          )}
         </span>
         {harEgenTilgang && (
           <Shield className="h-3.5 w-3.5 flex-shrink-0 text-blue-500" />
+        )}
+        {mappe.languageMode === "custom" && mappe.effektiveSpraak.length > 1 && (
+          <Globe className="h-3.5 w-3.5 flex-shrink-0 text-green-500" />
         )}
         {antallDokumenter > 0 && (
           <span className="mr-2 text-xs text-gray-400">
@@ -450,22 +474,34 @@ function MappeTreRad({
           <TreprikkMeny
             handlinger={[
               {
-                label: "Ny undermappe",
+                label: t("mappeoppsett.nyUndermappe"),
                 ikon: <FolderPlus className="h-4 w-4 text-gray-400" />,
                 onClick: () => onLeggTilUndermappe(mappe.id),
               },
               {
-                label: "Rediger tilgang",
+                label: t("mappeoppsett.redigerTilgang"),
                 ikon: <Shield className="h-4 w-4 text-blue-400" />,
                 onClick: () => onRedigerTilgang(mappe.id, mappe.name),
               },
               {
-                label: "Gi nytt navn",
+                label: mappe.kontraktId ? "Fjern kontrakt-kobling" : t("mappeoppsett.kobleTilKontrakt"),
+                ikon: <FileArchive className={`h-4 w-4 ${mappe.kontraktId ? "text-amber-400" : "text-blue-400"}`} />,
+                onClick: () => mappe.kontraktId
+                  ? onKobleTilKontrakt(mappe.id, mappe.name, null)
+                  : onKobleTilKontrakt(mappe.id, mappe.name, mappe.kontraktId ?? null),
+              },
+              {
+                label: t("mappeoppsett.spraak"),
+                ikon: <Globe className="h-4 w-4 text-blue-400" />,
+                onClick: () => onRedigerSpraak(mappe.id, mappe.name, mappe.effektiveSpraak ?? ["nb"]),
+              },
+              {
+                label: t("mappeoppsett.giNyttNavn"),
                 ikon: <Pencil className="h-4 w-4 text-gray-400" />,
                 onClick: () => onGiNyttNavn(mappe.id, mappe.name),
               },
               {
-                label: "Slett mappe",
+                label: t("mappeoppsett.slettMappe"),
                 ikon: <Trash2 className="h-4 w-4 text-red-400" />,
                 onClick: () => onSlett(mappe.id),
                 fare: true,
@@ -485,8 +521,553 @@ function MappeTreRad({
             onGiNyttNavn={onGiNyttNavn}
             onSlett={onSlett}
             onRedigerTilgang={onRedigerTilgang}
+            onKobleTilKontrakt={onKobleTilKontrakt}
+            onRedigerSpraak={onRedigerSpraak}
           />
         ))}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Språk-modal med kostnadsestimat                                     */
+/* ------------------------------------------------------------------ */
+
+function SpraakModal({
+  mappeId,
+  mappeNavn,
+  initialSpraak,
+  kildesprak,
+  languageMode,
+  onLukk,
+  onLagre,
+  onSettArv,
+  lagrer,
+}: {
+  mappeId: string;
+  mappeNavn: string;
+  initialSpraak: string[];
+  kildesprak: string;
+  languageMode: string;
+  onLukk: () => void;
+  onLagre: (spraak: string[]) => void;
+  onSettArv: () => void;
+  lagrer: boolean;
+}) {
+  const { t } = useTranslation();
+  const [modus, setModus] = useState<"inherit" | "custom">(languageMode === "custom" ? "custom" : "inherit");
+  const [valgte, setValgte] = useState<string[]>(initialSpraak.length > 0 ? initialSpraak : [kildesprak]);
+
+  // Hent kostnadsestimat
+  const { data: estimat } = trpc.mappe.estimerOversettelse.useQuery(
+    { folderId: mappeId },
+    { enabled: !!mappeId && modus === "custom" },
+  );
+
+  const ekstraSpraak = valgte.filter((k) => k !== kildesprak).length;
+  const totaltOrd = estimat?.totaltOrd ?? 0;
+  const kildeInfo = STOETTEDE_SPRAAK.find((s) => s.kode === kildesprak);
+
+  return (
+    <Modal
+      open={true}
+      onClose={onLukk}
+      title={`${t("mappeoppsett.spraak")} — ${mappeNavn}`}
+    >
+      <div className="flex flex-col gap-4">
+        {/* Kildespråk (read-only, settes på prosjektnivå) */}
+        <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
+          <span className="text-xs font-medium text-gray-500">{t("mappeoppsett.kildesprak")}:</span>
+          <span className="text-sm text-gray-800">{kildeInfo?.flagg} {kildeInfo?.navn ?? kildesprak}</span>
+          <span className="text-[10px] text-gray-400">({t("mappeoppsett.kildesprakProsjekt")})</span>
+        </div>
+
+        {/* Arv/egendefinert-velger */}
+        <div className="flex gap-2">
+          <button
+            onClick={() => setModus("inherit")}
+            className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+              modus === "inherit"
+                ? "border-sitedoc-primary bg-blue-50 text-sitedoc-primary"
+                : "border-gray-200 text-gray-500 hover:bg-gray-50"
+            }`}
+          >
+            {t("mappeoppsett.spraakArv")}
+          </button>
+          <button
+            onClick={() => setModus("custom")}
+            className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+              modus === "custom"
+                ? "border-sitedoc-primary bg-blue-50 text-sitedoc-primary"
+                : "border-gray-200 text-gray-500 hover:bg-gray-50"
+            }`}
+          >
+            {t("mappeoppsett.spraakEgendefinert")}
+          </button>
+        </div>
+
+        {modus === "inherit" ? (
+          <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+            <p className="text-sm text-gray-600">
+              {t("mappeoppsett.spraakArvBeskrivelse")}
+            </p>
+            {initialSpraak.length > 1 && (
+              <div className="mt-2 flex flex-wrap gap-1">
+                {initialSpraak.map((kode) => {
+                  const info = STOETTEDE_SPRAAK.find((s) => s.kode === kode);
+                  return (
+                    <span key={kode} className="rounded bg-white px-2 py-0.5 text-xs text-gray-600 border border-gray-200">
+                      {info?.flagg} {info?.navn ?? kode}
+                    </span>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        ) : (
+          <>
+            <p className="text-sm text-gray-500">{t("mappeoppsett.spraakBeskrivelse")}</p>
+
+            {/* Målspråk-velger */}
+            <div className="grid grid-cols-2 gap-2">
+              {STOETTEDE_SPRAAK.map((spraak) => {
+                const erKilde = spraak.kode === kildesprak;
+                return (
+                  <label
+                    key={spraak.kode}
+                    className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${
+                      valgte.includes(spraak.kode)
+                        ? "border-sitedoc-primary bg-blue-50 text-sitedoc-primary"
+                        : "border-gray-200 text-gray-700 hover:bg-gray-50"
+                    } ${erKilde ? "opacity-60" : ""}`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={valgte.includes(spraak.kode)}
+                      disabled={erKilde}
+                      onChange={() => {
+                        if (erKilde) return;
+                        setValgte((prev) =>
+                          prev.includes(spraak.kode)
+                            ? prev.filter((k) => k !== spraak.kode)
+                            : [...prev, spraak.kode],
+                        );
+                      }}
+                      className="h-3.5 w-3.5 rounded border-gray-300 text-sitedoc-primary"
+                    />
+                    <span>{spraak.flagg}</span>
+                    <span>{spraak.navn}</span>
+                    {erKilde && <span className="text-[10px] text-gray-400">({t("mappeoppsett.kilde")})</span>}
+                  </label>
+                );
+              })}
+            </div>
+
+            {/* Kostnadsestimat */}
+            {estimat && ekstraSpraak > 0 && (
+              <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
+                <p className="text-sm font-medium text-gray-800">Estimat</p>
+                <div className="mt-1 text-xs text-gray-600">
+                  <p>{estimat.antallDokumenter} dokument{estimat.antallDokumenter !== 1 ? "er" : ""} · {totaltOrd.toLocaleString("nb-NO")} ord</p>
+                  <p>{totaltOrd.toLocaleString("nb-NO")} ord × {ekstraSpraak} språk = <span className="font-semibold">{(totaltOrd * ekstraSpraak).toLocaleString("nb-NO")} ord totalt</span></p>
+                  <div className="mt-2 flex flex-col gap-0.5">
+                    <span>OPUS-MT: <span className="font-medium text-green-700">Gratis</span></span>
+                    <span>Google Translate: <span className="font-medium text-green-700">Gratis</span></span>
+                    <span>DeepL: <span className="font-medium text-gray-700">{estimat.perSpraak.deepl.label}</span></span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        <div className="flex justify-end gap-2">
+          <Button variant="secondary" onClick={onLukk}>
+            {t("handling.avbryt")}
+          </Button>
+          <Button
+            disabled={lagrer}
+            onClick={() => {
+              if (modus === "inherit") {
+                onSettArv();
+              } else {
+                onLagre(valgte);
+              }
+            }}
+          >
+            {lagrer ? t("handling.lagrer") : t("handling.lagre")}
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Import-modal                                                       */
+/* ------------------------------------------------------------------ */
+
+type ImportModus = "tekstliste" | "zip";
+
+function ImportMapperModal({
+  prosjektId,
+  onLukk,
+  onFerdig,
+}: {
+  prosjektId: string;
+  onLukk: () => void;
+  onFerdig: () => void;
+}) {
+  const [modus, setModus] = useState<ImportModus>("tekstliste");
+  const [tekstInput, setTekstInput] = useState("");
+  const [zipFil, setZipFil] = useState<File | null>(null);
+  const [lasterOpp, setLasterOpp] = useState(false);
+  const [resultat, setResultat] = useState<string | null>(null);
+  const [feil, setFeil] = useState<string | null>(null);
+  const [visVeileder, setVisVeileder] = useState(false);
+
+  const opprettMappe = trpc.mappe.opprett.useMutation();
+  const lastOppDokument = trpc.mappe.lastOppDokument.useMutation();
+
+  async function importerTekstliste() {
+    const linjer = tekstInput
+      .split("\n")
+      .map((l) => l.trim())
+      .filter((l) => l.length > 0);
+
+    if (linjer.length === 0) {
+      setFeil("Ingen mapper å importere. Skriv inn minst én mappesti.");
+      return;
+    }
+
+    setLasterOpp(true);
+    setFeil(null);
+    let opprettet = 0;
+
+    // Opprett mapper rekursivt
+    const opprettedeMapper = new Map<string, string>(); // sti → id
+
+    for (const linje of linjer) {
+      const deler = linje.split("/").map((d) => d.trim()).filter((d) => d.length > 0);
+      let parentId: string | undefined = undefined;
+      let sti = "";
+
+      for (const del of deler) {
+        sti = sti ? `${sti}/${del}` : del;
+
+        if (opprettedeMapper.has(sti)) {
+          parentId = opprettedeMapper.get(sti);
+          continue;
+        }
+
+        try {
+          const mappe = await opprettMappe.mutateAsync({
+            projectId: prosjektId,
+            name: del,
+            parentId,
+          });
+          opprettedeMapper.set(sti, mappe.id);
+          parentId = mappe.id;
+          opprettet++;
+        } catch {
+          // Kan allerede eksistere — ignorer
+          parentId = undefined;
+        }
+      }
+    }
+
+    setLasterOpp(false);
+    setResultat(`${opprettet} mapper opprettet.`);
+    onFerdig();
+  }
+
+  async function importerZip() {
+    if (!zipFil) {
+      setFeil("Velg en ZIP-fil.");
+      return;
+    }
+
+    setLasterOpp(true);
+    setFeil(null);
+
+    try {
+      const JSZip = (await import("jszip")).default;
+      const zip = await JSZip.loadAsync(zipFil);
+
+      // Finn alle mapper og filer
+      const opprettedeMapper = new Map<string, string>();
+      let opprettetMapper = 0;
+      let opprettetFiler = 0;
+
+      // Sorter entries slik at mapper kommer først
+      const entries = Object.entries(zip.files).sort(([a], [b]) => {
+        const aDeler = a.split("/").length;
+        const bDeler = b.split("/").length;
+        return aDeler - bDeler;
+      });
+
+      for (const [sti, entry] of entries) {
+        // Fjern leading __MACOSX og lignende
+        if (sti.startsWith("__MACOSX") || sti.startsWith(".")) continue;
+
+        const deler = sti.split("/").filter((d) => d.length > 0);
+        if (deler.length === 0) continue;
+
+        if (entry.dir) {
+          // Opprett mappestruktur
+          let parentId: string | undefined = undefined;
+          let mappeSti = "";
+
+          for (const del of deler) {
+            mappeSti = mappeSti ? `${mappeSti}/${del}` : del;
+
+            if (opprettedeMapper.has(mappeSti)) {
+              parentId = opprettedeMapper.get(mappeSti);
+              continue;
+            }
+
+            try {
+              const mappe = await opprettMappe.mutateAsync({
+                projectId: prosjektId,
+                name: del,
+                parentId,
+              });
+              opprettedeMapper.set(mappeSti, mappe.id);
+              parentId = mappe.id;
+              opprettetMapper++;
+            } catch {
+              parentId = undefined;
+            }
+          }
+        } else {
+          // Fil — sikre at forelder-mappene finnes
+          const filnavn = deler[deler.length - 1];
+          const mappeDeler = deler.slice(0, -1);
+          let parentId: string | undefined = undefined;
+          let mappeSti = "";
+
+          for (const del of mappeDeler) {
+            mappeSti = mappeSti ? `${mappeSti}/${del}` : del;
+
+            if (opprettedeMapper.has(mappeSti)) {
+              parentId = opprettedeMapper.get(mappeSti);
+              continue;
+            }
+
+            try {
+              const mappe = await opprettMappe.mutateAsync({
+                projectId: prosjektId,
+                name: del,
+                parentId,
+              });
+              opprettedeMapper.set(mappeSti, mappe.id);
+              parentId = mappe.id;
+              opprettetMapper++;
+            } catch {
+              parentId = undefined;
+            }
+          }
+
+          // Last opp filen
+          if (parentId && filnavn) {
+            try {
+              const blob = await entry.async("blob");
+              const file = new window.File([blob], filnavn);
+              const formData = new FormData();
+              formData.append("file", file);
+              const res = await fetch("/api/upload", { method: "POST", body: formData });
+
+              if (res.ok) {
+                const { fileUrl, fileType } = await res.json();
+                await lastOppDokument.mutateAsync({
+                  folderId: parentId!,
+                  name: filnavn!,
+                  fileUrl,
+                  fileType: fileType ?? file.type,
+                  fileSize: file.size,
+                });
+                opprettetFiler++;
+              }
+            } catch {
+              // Ignorér individuelle filfeil
+            }
+          }
+        }
+      }
+
+      setResultat(`${opprettetMapper} mapper og ${opprettetFiler} filer importert.`);
+      onFerdig();
+    } catch (err) {
+      setFeil(err instanceof Error ? err.message : "Kunne ikke lese ZIP-filen.");
+    }
+
+    setLasterOpp(false);
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      {/* Modus-velger */}
+      <div className="flex gap-2">
+        <button
+          onClick={() => setModus("tekstliste")}
+          className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm transition-colors ${
+            modus === "tekstliste"
+              ? "border-sitedoc-primary bg-blue-50 text-sitedoc-primary"
+              : "border-gray-200 text-gray-600 hover:border-gray-300"
+          }`}
+        >
+          <AlignLeft className="h-4 w-4" />
+          Tekstliste
+        </button>
+        <button
+          onClick={() => setModus("zip")}
+          className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm transition-colors ${
+            modus === "zip"
+              ? "border-sitedoc-primary bg-blue-50 text-sitedoc-primary"
+              : "border-gray-200 text-gray-600 hover:border-gray-300"
+          }`}
+        >
+          <FileArchive className="h-4 w-4" />
+          ZIP-fil
+        </button>
+
+        {/* Veileder */}
+        <div className="relative ml-auto">
+          <button
+            onClick={() => setVisVeileder(!visVeileder)}
+            className="rounded-full p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+            title="Hjelp"
+          >
+            <Info className="h-4 w-4" />
+          </button>
+          {visVeileder && (
+            <>
+              <div className="fixed inset-0 z-10" onClick={() => setVisVeileder(false)} />
+              <div className="absolute right-0 top-full z-20 mt-1 w-80 rounded-lg border border-gray-200 bg-white p-4 shadow-lg">
+                <h4 className="mb-2 text-sm font-semibold text-gray-800">Slik importerer du mapper</h4>
+
+                <div className="mb-3">
+                  <p className="mb-1 text-xs font-medium text-gray-600">Tekstliste</p>
+                  <p className="text-xs text-gray-500">
+                    Skriv én mappesti per linje. Bruk <code className="rounded bg-gray-100 px-1">/</code> for å lage undermapper.
+                  </p>
+                  <div className="mt-1 rounded bg-gray-50 p-2 font-mono text-[11px] text-gray-600">
+                    Røstbakken/Økonomi/A-Nota<br />
+                    Røstbakken/Økonomi/Budsjett<br />
+                    Røstbakken/Tegninger<br />
+                    Felles/HMS
+                  </div>
+                </div>
+
+                <div>
+                  <p className="mb-1 text-xs font-medium text-gray-600">ZIP-fil</p>
+                  <p className="text-xs text-gray-500">
+                    Pakk mappestrukturen i en ZIP. Mapper opprettes automatisk, og filer lastes opp til riktig mappe.
+                  </p>
+                  <div className="mt-1 rounded bg-gray-50 p-2 font-mono text-[11px] text-gray-600">
+                    prosjekt.zip<br />
+                    ├── Røstbakken/<br />
+                    │   ├── Økonomi/<br />
+                    │   │   └── budsjett.xlsx<br />
+                    │   └── Tegninger/<br />
+                    └── Felles/
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Innhold basert på modus */}
+      {modus === "tekstliste" ? (
+        <div>
+          <label className="mb-1 block text-xs font-medium text-gray-500">
+            Lim inn mappestier (én per linje)
+          </label>
+          <textarea
+            className="w-full rounded border border-gray-300 p-3 font-mono text-sm leading-relaxed"
+            rows={8}
+            placeholder={"Røstbakken/Økonomi/A-Nota\nRøstbakken/Økonomi/Budsjett\nRøstbakken/Tegninger\nFelles/HMS"}
+            value={tekstInput}
+            onChange={(e) => setTekstInput(e.target.value)}
+          />
+          <div className="mt-1 text-xs text-gray-400">
+            {tekstInput.split("\n").filter((l) => l.trim()).length} mapper
+          </div>
+        </div>
+      ) : (
+        <div>
+          <label className="mb-1 block text-xs font-medium text-gray-500">
+            Velg ZIP-fil med mappestruktur
+          </label>
+          <div
+            className={`flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 transition-colors ${
+              zipFil ? "border-green-300 bg-green-50" : "border-gray-300 hover:border-gray-400"
+            }`}
+          >
+            {zipFil ? (
+              <div className="flex items-center gap-3">
+                <FileArchive className="h-6 w-6 text-green-600" />
+                <div>
+                  <div className="text-sm font-medium">{zipFil.name}</div>
+                  <div className="text-xs text-gray-500">
+                    {(zipFil.size / 1024).toFixed(0)} KB
+                  </div>
+                </div>
+                <button
+                  onClick={() => setZipFil(null)}
+                  className="ml-2 rounded p-1 text-gray-400 hover:bg-gray-100"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            ) : (
+              <>
+                <Upload className="mb-1 h-6 w-6 text-gray-400" />
+                <label className="cursor-pointer text-sm text-sitedoc-primary hover:underline">
+                  Velg ZIP-fil
+                  <input
+                    type="file"
+                    className="hidden"
+                    accept=".zip"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) setZipFil(f);
+                    }}
+                  />
+                </label>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Feil / resultat */}
+      {feil && (
+        <div className="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
+          {feil}
+        </div>
+      )}
+      {resultat && (
+        <div className="rounded border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
+          {resultat}
+        </div>
+      )}
+
+      {/* Handlinger */}
+      <div className="flex gap-3 pt-2">
+        <Button
+          onClick={modus === "tekstliste" ? importerTekstliste : importerZip}
+          disabled={lasterOpp || (modus === "tekstliste" ? !tekstInput.trim() : !zipFil)}
+          loading={lasterOpp}
+        >
+          {lasterOpp ? "Importerer..." : "Importer"}
+        </Button>
+        <Button variant="secondary" onClick={onLukk}>
+          Lukk
+        </Button>
+      </div>
     </div>
   );
 }
@@ -496,6 +1077,7 @@ function MappeTreRad({
 /* ------------------------------------------------------------------ */
 
 export default function BoxSide() {
+  const { t } = useTranslation();
   const { prosjektId } = useProsjekt();
   const utils = trpc.useUtils();
 
@@ -506,6 +1088,7 @@ export default function BoxSide() {
   const [giNyttNavnVerdi, setGiNyttNavnVerdi] = useState("");
   const [slettMappeId, setSlettMappeId] = useState<string | null>(null);
   const [tilgangMappe, setTilgangMappe] = useState<{ id: string; navn: string } | null>(null);
+  const [visImportModal, setVisImportModal] = useState(false);
 
   // Hent mappestruktur
   const { data: mapper, isLoading } = trpc.mappe.hentForProsjekt.useQuery(
@@ -553,6 +1136,57 @@ export default function BoxSide() {
     setTilgangMappe({ id, navn });
   }
 
+  const [kontraktModal, setKontraktModal] = useState<{ id: string; navn: string } | null>(null);
+  const [valgtKontraktId, setValgtKontraktId] = useState("");
+
+  const { data: kontrakter } = trpc.kontrakt.hentForProsjekt.useQuery(
+    { projectId: prosjektId! },
+    { enabled: !!prosjektId },
+  );
+
+  const settKontraktMut = trpc.mappe.settKontrakt.useMutation({
+    onSuccess: () => {
+      utils.mappe.hentForProsjekt.invalidate({ projectId: prosjektId! });
+      setKontraktModal(null);
+    },
+  });
+
+  // Språk-modal
+  const [spraakModal, setSpraakModal] = useState<{ id: string; navn: string; languages: string[]; kildesprak: string; languageMode: string } | null>(null);
+
+  // Hent prosjektets kildespråk (for SpraakModal)
+  const prosjektKildesprak = (mapper?.[0] as unknown as { kildesprak?: string })?.kildesprak ?? "nb";
+
+  const oppdaterSpraakMut = trpc.mappe.oppdaterSpraak.useMutation({
+    onSuccess: () => {
+      utils.mappe.hentForProsjekt.invalidate({ projectId: prosjektId! });
+      setSpraakModal(null);
+    },
+  });
+
+  const settSpraakArvMut = trpc.mappe.settSpraakArv.useMutation({
+    onSuccess: () => {
+      utils.mappe.hentForProsjekt.invalidate({ projectId: prosjektId! });
+      setSpraakModal(null);
+    },
+  });
+
+  function handleRedigerSpraak(id: string, navn: string, languages: string[]) {
+    const mappeData = mapper?.find((m) => m.id === id);
+    const languageMode = mappeData?.languageMode ?? "inherit";
+    setSpraakModal({ id, navn, languages, kildesprak: prosjektKildesprak, languageMode });
+  }
+
+  function handleKobleTilKontrakt(id: string, navn: string, eksisterende: string | null) {
+    if (eksisterende) {
+      // Fjern kobling direkte
+      settKontraktMut.mutate({ folderId: id, kontraktId: null });
+    } else {
+      setKontraktModal({ id, navn });
+      setValgtKontraktId("");
+    }
+  }
+
   // Bygg tre fra flat liste
   function byggTre(
     flat: Array<{
@@ -560,14 +1194,18 @@ export default function BoxSide() {
       name: string;
       parentId: string | null;
       accessMode: string;
-      _count?: { documents: number };
+      languageMode: string;
+      effektiveSpraak?: string[];
+      _count?: { ftdDocuments: number };
+      kontraktId?: string | null;
+      kontraktNavn?: string | null;
     }>,
   ): MappeTreData[] {
     const map = new Map<string, MappeTreData>();
     const roots: MappeTreData[] = [];
 
     for (const m of flat) {
-      map.set(m.id, { id: m.id, name: m.name, accessMode: m.accessMode, children: [], _count: m._count });
+      map.set(m.id, { id: m.id, name: m.name, accessMode: m.accessMode, languageMode: m.languageMode, effektiveSpraak: m.effektiveSpraak ?? ["nb"], children: [], _count: m._count, kontraktId: m.kontraktId, kontraktNavn: m.kontraktNavn });
     }
 
     for (const m of flat) {
@@ -584,17 +1222,20 @@ export default function BoxSide() {
     return roots;
   }
 
-  const mappeTre = mapper ? byggTre(mapper as Array<{ id: string; name: string; parentId: string | null; accessMode: string; _count?: { documents: number } }>) : [];
+  const mappeTre = mapper ? byggTre((mapper as Array<{ id: string; name: string; parentId: string | null; accessMode: string; languageMode: string; effektiveSpraak?: string[]; _count?: { ftdDocuments: number }; kontraktId?: string | null; kontrakt?: { id: string; navn: string } | null }>).map(m => ({
+    ...m,
+    kontraktNavn: m.kontrakt?.navn ?? null,
+  }))) : [];
 
   return (
     <div>
-      <h2 className="mb-6 text-xl font-bold text-gray-900">Mappeoppsett</h2>
+      <h2 className="mb-6 text-xl font-bold text-gray-900">{t("mappeoppsett.tittel")}</h2>
 
       {/* Mappestruktur */}
       <div>
         <div className="mb-3 flex items-center gap-3">
           <h3 className="text-sm font-semibold text-gray-700">
-            Mappestruktur
+            {t("mappeoppsett.mappestruktur")}
           </h3>
           <Button
             size="sm"
@@ -606,7 +1247,15 @@ export default function BoxSide() {
             }}
           >
             <Plus className="mr-1 h-3.5 w-3.5" />
-            Ny mappe
+            {t("mappeoppsett.nyMappe")}
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setVisImportModal(true)}
+          >
+            <Import className="mr-1 h-3.5 w-3.5" />
+            {t("handling.importer")}
           </Button>
         </div>
 
@@ -644,6 +1293,8 @@ export default function BoxSide() {
                 onGiNyttNavn={handleGiNyttNavn}
                 onSlett={setSlettMappeId}
                 onRedigerTilgang={handleRedigerTilgang}
+                onKobleTilKontrakt={handleKobleTilKontrakt}
+                onRedigerSpraak={handleRedigerSpraak}
               />
             ))}
           </div>
@@ -654,7 +1305,7 @@ export default function BoxSide() {
       <Modal
         open={visNyMappeModal}
         onClose={() => setVisNyMappeModal(false)}
-        title={nyMappeParentId ? "Ny undermappe" : "Ny mappe"}
+        title={nyMappeParentId ? t("mappeoppsett.nyUndermappe") : t("mappeoppsett.nyMappe")}
       >
         <form
           onSubmit={(e) => {
@@ -694,7 +1345,7 @@ export default function BoxSide() {
       <Modal
         open={giNyttNavnId !== null}
         onClose={() => setGiNyttNavnId(null)}
-        title="Gi nytt navn"
+        title={t("mappeoppsett.giNyttNavn")}
       >
         <form
           onSubmit={(e) => {
@@ -732,7 +1383,7 @@ export default function BoxSide() {
       <Modal
         open={slettMappeId !== null}
         onClose={() => setSlettMappeId(null)}
-        title="Slett mappe"
+        title={t("mappeoppsett.slettMappe")}
       >
         <div className="flex flex-col gap-4">
           <p className="text-sm text-gray-600">
@@ -764,7 +1415,7 @@ export default function BoxSide() {
       <Modal
         open={tilgangMappe !== null}
         onClose={() => setTilgangMappe(null)}
-        title={`Rediger tilgang – ${tilgangMappe?.navn ?? ""}`}
+        title={`${t("mappeoppsett.redigerTilgang")} – ${tilgangMappe?.navn ?? ""}`}
       >
         {tilgangMappe && prosjektId && (
           <TilgangModal
@@ -775,6 +1426,80 @@ export default function BoxSide() {
           />
         )}
       </Modal>
+
+      {/* Import-modal */}
+      <Modal
+        open={visImportModal}
+        onClose={() => setVisImportModal(false)}
+        title="Importer mappestruktur"
+      >
+        {prosjektId && (
+          <ImportMapperModal
+            prosjektId={prosjektId}
+            onLukk={() => setVisImportModal(false)}
+            onFerdig={() => {
+              utils.mappe.hentForProsjekt.invalidate({ projectId: prosjektId! });
+            }}
+          />
+        )}
+      </Modal>
+
+      {/* Koble til kontrakt modal */}
+      <Modal
+        open={!!kontraktModal}
+        onClose={() => setKontraktModal(null)}
+        title={`${t("mappeoppsett.kobleTilKontrakt")} – ${kontraktModal?.navn ?? ""}`}
+      >
+        <div className="space-y-4 p-4">
+          <p className="text-sm text-gray-600">
+            Velg kontrakt for mappen. Dokumenter i mappen blir tilgjengelig som dokumentasjon i økonomi-modulen.
+          </p>
+          <select
+            className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm"
+            value={valgtKontraktId}
+            onChange={(e) => setValgtKontraktId(e.target.value)}
+          >
+            <option value="">Velg kontrakt...</option>
+            {kontrakter?.map((k) => (
+              <option key={k.id} value={k.id}>{k.navn}</option>
+            ))}
+          </select>
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" onClick={() => setKontraktModal(null)}>
+              Avbryt
+            </Button>
+            <Button
+              disabled={!valgtKontraktId}
+              onClick={() => {
+                if (kontraktModal && valgtKontraktId) {
+                  settKontraktMut.mutate({ folderId: kontraktModal.id, kontraktId: valgtKontraktId });
+                }
+              }}
+            >
+              Koble
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Språk-modal */}
+      {spraakModal && (
+        <SpraakModal
+          mappeId={spraakModal.id}
+          mappeNavn={spraakModal.navn}
+          initialSpraak={spraakModal.languages}
+          kildesprak={spraakModal.kildesprak}
+          languageMode={spraakModal.languageMode}
+          onLukk={() => setSpraakModal(null)}
+          onLagre={(spraak) => {
+            oppdaterSpraakMut.mutate({ id: spraakModal.id, languages: spraak, languageMode: "custom" });
+          }}
+          onSettArv={() => {
+            settSpraakArvMut.mutate({ id: spraakModal.id });
+          }}
+          lagrer={oppdaterSpraakMut.isPending || settSpraakArvMut.isPending}
+        />
+      )}
     </div>
   );
 }

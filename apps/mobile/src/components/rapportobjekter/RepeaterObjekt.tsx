@@ -1,6 +1,7 @@
 import { useCallback, useRef } from "react";
 import { View, Text, Pressable } from "react-native";
 import { Plus, Trash2 } from "lucide-react-native";
+import { useTranslation } from "react-i18next";
 import type { RapportObjektProps, RapportObjekt } from "./typer";
 import type { FeltVerdi } from "../../hooks/useSjekklisteSkjema";
 import { RapportObjektRenderer, DISPLAY_TYPER } from "./RapportObjektRenderer";
@@ -20,6 +21,7 @@ export function RepeaterObjekt({
   sjekklisteId,
   oppgaveIdForKo,
 }: RapportObjektProps) {
+  const { t } = useTranslation();
   const rader = Array.isArray(verdi) ? (verdi as RepeaterVerdi) : [];
   const barn = barneObjekter ?? [];
 
@@ -106,7 +108,7 @@ export function RepeaterObjekt({
     return (
       <View className="rounded-lg border border-dashed border-gray-300 px-4 py-6">
         <Text className="text-center text-sm text-gray-400">
-          Ingen felter definert i malen for denne repeateren.
+          {t("felt.ingenFelter")}
         </Text>
       </View>
     );
@@ -191,7 +193,7 @@ export function RepeaterObjekt({
           className="flex-row items-center justify-center gap-1.5 rounded border border-dashed border-gray-300 py-2"
         >
           <Plus size={14} color="#6b7280" />
-          <Text className="text-xs text-gray-500">Legg til rad</Text>
+          <Text className="text-xs text-gray-500">{t("felt.leggTilRad")}</Text>
         </Pressable>
       )}
     </View>

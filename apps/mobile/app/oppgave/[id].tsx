@@ -32,8 +32,10 @@ import {
 import { harBetingelse, harForelderObjekt } from "@sitedoc/shared";
 import { hentStatusHandlinger } from "@sitedoc/shared";
 import type { StatusHandling } from "@sitedoc/shared";
+import { useTranslation } from "react-i18next";
 import { useOppgaveSkjema } from "../../src/hooks/useOppgaveSkjema";
 import { useAutoVaer } from "../../src/hooks/useAutoVaer";
+import { useOversettelse } from "../../src/hooks/useOversettelse";
 import { useOpplastingsKo } from "../../src/providers/OpplastingsKoProvider";
 import { useAuth } from "../../src/providers/AuthProvider";
 import { StatusMerkelapp } from "../../src/components/StatusMerkelapp";
@@ -46,10 +48,10 @@ import { oppgaveFeltdata, opplastingsKo } from "../../src/db/schema";
 import { eq } from "drizzle-orm";
 
 const PRIORITETER = [
-  { verdi: "low", label: "Lav", farge: "bg-gray-200 text-gray-700" },
-  { verdi: "medium", label: "Medium", farge: "bg-blue-100 text-blue-700" },
-  { verdi: "high", label: "Høy", farge: "bg-orange-100 text-orange-700" },
-  { verdi: "critical", label: "Kritisk", farge: "bg-red-100 text-red-700" },
+  { verdi: "low", labelKey: "prioritet.lav", farge: "bg-gray-200 text-gray-700" },
+  { verdi: "medium", labelKey: "prioritet.medium", farge: "bg-blue-100 text-blue-700" },
+  { verdi: "high", labelKey: "prioritet.hoy", farge: "bg-orange-100 text-orange-700" },
+  { verdi: "critical", labelKey: "prioritet.kritisk", farge: "bg-red-100 text-red-700" },
 ] as const;
 
 interface Transfer {
@@ -58,7 +60,9 @@ interface Transfer {
   toStatus: string;
   comment: string | null;
   createdAt: Date | string;
-  sender?: { name: string | null } | null;
+  sender?: { id: string; name: string | null } | null;
+  recipientUser?: { id: string; name: string | null } | null;
+  recipientGroup?: { id: string; name: string | null } | null;
 }
 
 function formaterHistorikkDato(dato: Date | string): string {
@@ -81,6 +85,7 @@ function formaterNummer(
 }
 
 export default function OppgaveDetalj() {
+  const { t } = useTranslation();
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { bruker } = useAuth();
@@ -150,7 +155,7 @@ export default function OppgaveDetalj() {
       router.back();
     },
     onError: (feil: { message?: string }) => {
-      Alert.alert("Kunne ikke slette", feil.message || "Ukjent feil ved sletting");
+      Alert.alert(t("feil.kunneIkkeSlett"), feil.message || t("feil.ukjentFeil"));
     },
   });
 
@@ -181,12 +186,12 @@ export default function OppgaveDetalj() {
 
   const håndterSlett = useCallback(() => {
     Alert.alert(
-      "Slett oppgave",
-      "Er du sikker på at du vil slette denne oppgaven? Dette kan ikke angres.",
+      t("oppgave.slettOppgave"),
+      t("bekreft.slettOppgave"),
       [
-        { text: "Avbryt", style: "cancel" },
+        { text: t("handling.avbryt"), style: "cancel" },
         {
-          text: "Slett",
+          text: t("handling.slett"),
           style: "destructive",
           onPress: () => slettMutasjon.mutate({ id: id! }),
         },
@@ -198,14 +203,15 @@ export default function OppgaveDetalj() {
     (handling: StatusHandling) => {
       if (!bruker?.id) return;
 
-      const bekreftTekst = handling.nyStatus === "cancelled" ? "Ja, avbryt oppgaven" : handling.tekst;
+      const oversattTekst = t(handling.tekstNoekkel);
+      const bekreftTekst = handling.nyStatus === "cancelled" ? t("bekreft.jaAvbrytOppgaven") : oversattTekst;
       const erDestruktiv = handling.nyStatus === "rejected" || handling.nyStatus === "cancelled";
 
       Alert.alert(
-        "Bekreft statusendring",
-        `Er du sikker på at du vil endre status til "${handling.tekst.toLowerCase()}"?`,
+        t("bekreft.statusendring"),
+        t("bekreft.endreStatusTil", { status: oversattTekst.toLowerCase() }),
         [
-          { text: "Ikke nå", style: "cancel" },
+          { text: t("bekreft.ikkeNaa"), style: "cancel" },
           {
             text: bekreftTekst,
             style: erDestruktiv ? "destructive" : "default",
@@ -217,14 +223,14 @@ export default function OppgaveDetalj() {
                   senderId: bruker.id,
                 });
               } catch {
-                Alert.alert("Feil", "Kunne ikke endre status. Prøv igjen.");
+                Alert.alert(t("feil.tittel"), t("feil.kunneIkkeEndreStatus"));
               }
             },
           },
         ],
       );
     },
-    [bruker?.id, id, endreStatusMutasjon],
+    [bruker?.id, id, endreStatusMutasjon, t],
   );
 
   const {
@@ -248,6 +254,19 @@ export default function OppgaveDetalj() {
     synkStatus,
   } = useOppgaveSkjema(id!);
 
+  // On-demand oversettelse av firmainnhold
+  const prosjektKildesprak = (detaljQuery.data as unknown as { template?: { project?: { sourceLanguage?: string } } })?.template?.project?.sourceLanguage;
+  const {
+    oversettelser,
+    laster: oversettelseLaster,
+    visOversettKnapp,
+    oversettFelt,
+  } = useOversettelse(
+    valgtProsjektId ?? undefined,
+    prosjektKildesprak,
+    oppgave?.template?.objects ?? [],
+  );
+
   // Auto-hent værdata basert på dato og prosjektlokasjon
   useAutoVaer({
     prosjektId: valgtProsjektId,
@@ -266,11 +285,11 @@ export default function OppgaveDetalj() {
   const håndterLagre = useCallback(async () => {
     const erGyldig = valider();
     if (!erGyldig) {
-      Alert.alert("Valideringsfeil", "Fyll inn alle påkrevde felt før du lagrer.");
+      Alert.alert(t("dokument.valideringsfeil"), t("dokument.fyllInnPaakrevde"));
       return;
     }
     await lagre();
-    Alert.alert("Lagret", "Utfyllingen er lagret.");
+    Alert.alert(t("dokument.lagret"), t("dokument.utfyllingLagret"));
   }, [valider, lagre]);
 
   const endrePrioritet = useCallback(
@@ -324,7 +343,7 @@ export default function OppgaveDetalj() {
     return (
       <SafeAreaView className="flex-1 items-center justify-center bg-gray-50">
         <ActivityIndicator size="large" color="#1e40af" />
-        <Text className="mt-3 text-sm text-gray-500">Henter oppgave...</Text>
+        <Text className="mt-3 text-sm text-gray-500">{t("oppgave.henter")}</Text>
       </SafeAreaView>
     );
   }
@@ -332,9 +351,9 @@ export default function OppgaveDetalj() {
   if (!oppgave) {
     return (
       <SafeAreaView className="flex-1 items-center justify-center bg-gray-50">
-        <Text className="text-base text-gray-500">Oppgaven ble ikke funnet</Text>
+        <Text className="text-base text-gray-500">{t("oppgave.ikkeFunnet")}</Text>
         <Pressable onPress={() => router.back()} className="mt-4">
-          <Text className="text-blue-600">Gå tilbake</Text>
+          <Text className="text-blue-600">{t("dokument.gaaTilbake")}</Text>
         </Pressable>
       </SafeAreaView>
     );
@@ -356,7 +375,7 @@ export default function OppgaveDetalj() {
           <ArrowLeft size={22} color="#ffffff" />
         </Pressable>
         <Text className="flex-1 px-3 text-center text-base font-semibold text-white" numberOfLines={1}>
-          {nummer ? `${nummer} ` : ""}Oppgave
+          {nummer ? `${nummer} ` : ""}{t("oppgave.tittel")}
         </Text>
         {erRedigerbar ? (
           <View className="flex-row items-center gap-2">
@@ -426,10 +445,10 @@ export default function OppgaveDetalj() {
               className="flex-1"
               onPress={() => settVisEntrepriseListe(visEntrepriseListe === "oppretter" ? null : "oppretter")}
             >
-              <Text className="text-[10px] text-gray-400">Fra</Text>
+              <Text className="text-[10px] text-gray-400">{t("dokument.fra")}</Text>
               <View className="flex-row items-center justify-between">
                 <Text className="text-xs font-medium text-gray-700">
-                  {oppgave.creatorEnterprise?.name ?? "Velg…"}
+                  {oppgave.creatorEnterprise?.name ?? t("dokument.velgEntreprise")}
                 </Text>
                 <ChevronDown size={12} color="#9ca3af" />
               </View>
@@ -440,10 +459,10 @@ export default function OppgaveDetalj() {
               className="flex-1"
               onPress={() => settVisEntrepriseListe(visEntrepriseListe === "svarer" ? null : "svarer")}
             >
-              <Text className="text-right text-[10px] text-gray-400">Til</Text>
+              <Text className="text-right text-[10px] text-gray-400">{t("dokument.til")}</Text>
               <View className="flex-row items-center justify-between">
                 <Text className="text-xs font-medium text-gray-700">
-                  {oppgave.responderEnterprise?.name ?? "Velg…"}
+                  {oppgave.responderEnterprise?.name ?? t("dokument.velgEntreprise")}
                 </Text>
                 <ChevronDown size={12} color="#9ca3af" />
               </View>
@@ -492,12 +511,12 @@ export default function OppgaveDetalj() {
         <View className="flex-row border-b border-gray-200 bg-white px-4 py-1.5">
           {oppgave.creatorEnterprise && (
             <Text className="flex-1 text-xs text-gray-500">
-              Oppretter: {oppgave.creatorEnterprise.name}
+              {t("dokument.oppretter", { navn: oppgave.creatorEnterprise.name })}
             </Text>
           )}
           {oppgave.responderEnterprise && (
             <Text className="flex-1 text-right text-xs text-gray-500">
-              Svarer: {oppgave.responderEnterprise.name}
+              {t("dokument.svarer", { navn: oppgave.responderEnterprise.name })}
             </Text>
           )}
         </View>
@@ -511,7 +530,7 @@ export default function OppgaveDetalj() {
       >
         {/* Tittel */}
         <View className="rounded-lg bg-white p-4">
-          <Text className="mb-1 text-xs font-medium text-gray-500">Tittel</Text>
+          <Text className="mb-1 text-xs font-medium text-gray-500">{t("oppgave.tittelLabel")}</Text>
           <Pressable
             onPress={() => {
               if (leseModus) return;
@@ -526,7 +545,7 @@ export default function OppgaveDetalj() {
         {/* Prioritet (skjulbar via mal) */}
         {(oppgave.template as Record<string, unknown>)?.showPriority !== false && (
         <View className="rounded-lg bg-white p-4">
-          <Text className="mb-2 text-xs font-medium text-gray-500">Prioritet</Text>
+          <Text className="mb-2 text-xs font-medium text-gray-500">{t("oppgave.prioritet")}</Text>
           <View className="flex-row gap-2">
             {PRIORITETER.map((p) => {
               const erValgt = oppgave.priority === p.verdi;
@@ -539,7 +558,7 @@ export default function OppgaveDetalj() {
                   <Text
                     className={`text-xs font-medium ${erValgt ? "" : "text-gray-500"}`}
                   >
-                    {p.label}
+                    {t(p.labelKey)}
                   </Text>
                 </Pressable>
               );
@@ -550,7 +569,7 @@ export default function OppgaveDetalj() {
 
         {/* Beskrivelse */}
         <View className="rounded-lg bg-white p-4">
-          <Text className="mb-1 text-xs font-medium text-gray-500">Beskrivelse</Text>
+          <Text className="mb-1 text-xs font-medium text-gray-500">{t("oppgave.beskrivelse")}</Text>
           <Pressable
             onPress={() => {
               if (leseModus) return;
@@ -559,7 +578,7 @@ export default function OppgaveDetalj() {
             }}
           >
             <Text className={`text-sm ${oppgave.description ? "text-gray-800" : "text-gray-400 italic"}`}>
-              {oppgave.description || "Trykk for å legge til beskrivelse…"}
+              {oppgave.description || t("oppgave.leggTilBeskrivelse")}
             </Text>
           </Pressable>
         </View>
@@ -572,7 +591,7 @@ export default function OppgaveDetalj() {
           >
             <ClipboardCheck size={18} color="#2563eb" />
             <View className="flex-1">
-              <Text className="text-xs font-medium text-blue-600">Fra sjekkliste</Text>
+              <Text className="text-xs font-medium text-blue-600">{t("oppgave.fraSjekkliste")}</Text>
               <Text className="text-sm text-blue-800">
                 {sjekklisteNummer ? `${sjekklisteNummer} ` : ""}{oppgave.checklist.title}
               </Text>
@@ -585,7 +604,7 @@ export default function OppgaveDetalj() {
           <View className="flex-row items-center gap-3 rounded-lg bg-purple-50 p-4">
             <MapPin size={18} color="#7c3aed" />
             <View className="flex-1">
-              <Text className="text-xs font-medium text-purple-600">Fra tegning</Text>
+              <Text className="text-xs font-medium text-purple-600">{t("oppgave.fraTegning")}</Text>
               <Text className="text-sm text-purple-800">
                 {oppgave.drawing.drawingNumber ? `${oppgave.drawing.drawingNumber} ` : ""}{oppgave.drawing.name}
               </Text>
@@ -647,6 +666,11 @@ export default function OppgaveDetalj() {
               oppgaveIdForKo={oppgave.id}
               nestingNivå={nestingNivå}
               valideringsfeil={valideringsfeil[objekt.id]}
+              oversettelser={oversettelser}
+              oversettelseLaster={oversettelseLaster}
+              onOversett={() => oversettFelt(objekt)}
+              visOversettKnapp={visOversettKnapp}
+              originalData={(feltVerdi as unknown as { original?: { spraak: string; verdi?: string; kommentar?: string } }).original}
             >
               <RapportObjektRenderer
                 objekt={objekt}
@@ -666,7 +690,7 @@ export default function OppgaveDetalj() {
             <View className="flex-row items-center gap-2">
               <MessageCircle size={16} color="#6b7280" />
               <Text className="text-sm font-semibold text-gray-700">
-                Dialog {kommentarer.length > 0 ? `(${kommentarer.length})` : ""}
+                {t("oppgave.dialog")} {kommentarer.length > 0 ? `(${kommentarer.length})` : ""}
               </Text>
             </View>
             <Pressable
@@ -677,7 +701,7 @@ export default function OppgaveDetalj() {
               className="flex-row items-center gap-1 rounded-full bg-blue-50 px-3 py-1"
             >
               <Send size={12} color="#2563eb" />
-              <Text className="text-xs font-medium text-blue-600">Ny</Text>
+              <Text className="text-xs font-medium text-blue-600">{t("oppgave.ny")}</Text>
             </Pressable>
           </View>
           {kommentarer.length > 0 ? (
@@ -707,42 +731,68 @@ export default function OppgaveDetalj() {
             </View>
           ) : (
             <View className="rounded-lg bg-white px-3 py-4">
-              <Text className="text-center text-xs text-gray-400">Ingen kommentarer ennå</Text>
+              <Text className="text-center text-xs text-gray-400">{t("oppgave.ingenKommentarer")}</Text>
             </View>
           )}
         </View>
 
-        {/* Historikk */}
+        {/* Tidslinje */}
         {overforinger && overforinger.length > 0 && (
           <View className="mt-4">
             <View className="flex-row items-center gap-2 px-1 pb-2">
               <Clock size={16} color="#6b7280" />
-              <Text className="text-sm font-semibold text-gray-700">Historikk</Text>
+              <Text className="text-sm font-semibold text-gray-700">{t("tidslinje.tittel")}</Text>
             </View>
-            <View className="rounded-lg bg-white">
-              {overforinger.map((t, i) => (
-                <View
-                  key={t.id}
-                  className={`flex-row items-center gap-2 px-3 py-2.5 ${i > 0 ? "border-t border-gray-100" : ""}`}
-                >
-                  <View className="flex-1">
-                    <View className="flex-row items-center gap-1.5">
-                      <StatusMerkelapp status={t.fromStatus} />
-                      <Text className="text-xs text-gray-400">→</Text>
-                      <StatusMerkelapp status={t.toStatus} />
+            <View className="rounded-lg bg-white px-3 py-2">
+              {overforinger.map((ovf, i) => {
+                const erSiste = i === overforinger.length - 1;
+                const harMottaker = ovf.recipientUser || ovf.recipientGroup;
+                return (
+                  <View key={ovf.id} className="flex-row">
+                    {/* Vertikal linje + prikk */}
+                    <View className="mr-3 items-center" style={{ width: 16 }}>
+                      <View
+                        className={`h-3 w-3 rounded-full ${erSiste ? "bg-blue-600" : "bg-gray-400"}`}
+                        style={{ marginTop: 4 }}
+                      />
+                      {!erSiste && (
+                        <View className="flex-1 bg-gray-200" style={{ width: 1 }} />
+                      )}
                     </View>
-                    {t.sender?.name && (
-                      <Text className="mt-0.5 text-xs text-gray-500">{t.sender.name}</Text>
-                    )}
-                    {t.comment && (
-                      <Text className="mt-0.5 text-xs text-gray-600">{t.comment}</Text>
-                    )}
+
+                    {/* Innhold */}
+                    <View className={`flex-1 ${!erSiste ? "pb-3" : ""}`}>
+                      <View className="flex-row items-center gap-1.5">
+                        <StatusMerkelapp status={ovf.fromStatus} />
+                        <Text className="text-xs text-gray-400">→</Text>
+                        <StatusMerkelapp status={ovf.toStatus} />
+                        <Text className="ml-auto text-xs text-gray-400">
+                          {formaterHistorikkDato(ovf.createdAt)}
+                        </Text>
+                      </View>
+                      {/* Avsender → Mottaker */}
+                      <View className="mt-0.5 flex-row items-center gap-1">
+                        {ovf.sender?.name && (
+                          <Text className="text-xs text-gray-500">{ovf.sender.name}</Text>
+                        )}
+                        {harMottaker && (
+                          <>
+                            <Text className="text-xs text-gray-400">→</Text>
+                            <Text className="text-xs text-gray-500">
+                              {ovf.recipientUser?.name ?? ovf.recipientGroup?.name}
+                            </Text>
+                          </>
+                        )}
+                      </View>
+                      {ovf.comment && (
+                        <Text className="mt-0.5 text-xs italic text-gray-500">
+                          &ldquo;{ovf.comment}&rdquo;
+                        </Text>
+                      )}
+                    </View>
                   </View>
-                  <Text className="text-xs text-gray-400">
-                    {formaterHistorikkDato(t.createdAt)}
-                  </Text>
-                </View>
-              ))}
+                );
+              })}
             </View>
           </View>
         )}
@@ -767,7 +817,7 @@ export default function OppgaveDetalj() {
                   {endreStatusMutasjon.isPending ? (
                     <ActivityIndicator size="small" color="#ffffff" />
                   ) : (
-                    <Text className="font-medium text-white">{handling.tekst}</Text>
+                    <Text className="font-medium text-white">{t(handling.tekstNoekkel)}</Text>
                   )}
                 </Pressable>
               ))}
@@ -783,7 +833,7 @@ export default function OppgaveDetalj() {
             className={`items-center rounded-lg py-3 ${erLagrer ? "bg-blue-400" : "bg-blue-600"}`}
           >
             <Text className="font-medium text-white">
-              {erLagrer ? "Lagrer..." : "Lagre utfylling"}
+              {erLagrer ? t("handling.lagrer") : t("dokument.lagreUtfylling")}
             </Text>
           </Pressable>
         )}
@@ -797,7 +847,7 @@ export default function OppgaveDetalj() {
           >
             <Trash2 size={16} color="#dc2626" />
             <Text className="font-medium text-red-600">
-              {slettMutasjon.isPending ? "Sletter..." : "Slett oppgave"}
+              {slettMutasjon.isPending ? t("handling.sletter") : t("oppgave.slettOppgave")}
             </Text>
           </Pressable>
         )}
@@ -813,18 +863,18 @@ export default function OppgaveDetalj() {
             className="flex-1"
           >
             <View className="flex-row items-center justify-between border-b border-gray-200 bg-[#1e40af] px-4 py-3">
-              <Text className="flex-1 text-base font-semibold text-white">Rediger tittel</Text>
+              <Text className="flex-1 text-base font-semibold text-white">{t("oppgave.redigerTittel")}</Text>
               <Pressable
                 onPress={lagreTittel}
                 className="ml-3 rounded-lg bg-white/20 px-4 py-1.5"
               >
-                <Text className="text-sm font-semibold text-white">Ferdig</Text>
+                <Text className="text-sm font-semibold text-white">{t("oppgave.ferdig")}</Text>
               </Pressable>
             </View>
             <TextInput
               value={tittelUtkast}
               onChangeText={settTittelUtkast}
-              placeholder="Tittel..."
+              placeholder={t("oppgave.tittelPlaceholder")}
               autoFocus
               className="flex-1 px-4 py-3 text-base text-gray-900"
             />
@@ -840,18 +890,18 @@ export default function OppgaveDetalj() {
             className="flex-1"
           >
             <View className="flex-row items-center justify-between border-b border-gray-200 bg-[#1e40af] px-4 py-3">
-              <Text className="flex-1 text-base font-semibold text-white">Beskrivelse</Text>
+              <Text className="flex-1 text-base font-semibold text-white">{t("oppgave.beskrivelse")}</Text>
               <Pressable
                 onPress={lagreBeskrivelse}
                 className="ml-3 rounded-lg bg-white/20 px-4 py-1.5"
               >
-                <Text className="text-sm font-semibold text-white">Ferdig</Text>
+                <Text className="text-sm font-semibold text-white">{t("oppgave.ferdig")}</Text>
               </Pressable>
             </View>
             <TextInput
               value={beskrivelseUtkast}
               onChangeText={settBeskrivelseUtkast}
-              placeholder="Skriv beskrivelse..."
+              placeholder={t("oppgave.beskrivelsePlaceholder")}
               multiline
               autoFocus
               textAlignVertical="top"
@@ -869,21 +919,21 @@ export default function OppgaveDetalj() {
             className="flex-1"
           >
             <View className="flex-row items-center justify-between border-b border-gray-200 bg-[#1e40af] px-4 py-3">
-              <Text className="flex-1 text-base font-semibold text-white">Ny kommentar</Text>
+              <Text className="flex-1 text-base font-semibold text-white">{t("oppgave.nyKommentar")}</Text>
               <Pressable
                 onPress={håndterSendKommentar}
                 disabled={!dialogTekst.trim() || leggTilKommentarMutasjon.isPending}
                 className="ml-3 rounded-lg bg-white/20 px-4 py-1.5"
               >
                 <Text className="text-sm font-semibold text-white">
-                  {leggTilKommentarMutasjon.isPending ? "Sender..." : "Send"}
+                  {leggTilKommentarMutasjon.isPending ? t("handling.sender") : t("handling.send")}
                 </Text>
               </Pressable>
             </View>
             <TextInput
               value={dialogTekst}
               onChangeText={settDialogTekst}
-              placeholder="Skriv kommentar..."
+              placeholder={t("oppgave.skrivKommentar")}
               multiline
               autoFocus
               textAlignVertical="top"

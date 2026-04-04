@@ -2,11 +2,12 @@
 
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
+import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { Button, Modal, Spinner, EmptyState, StatusBadge, Badge, Table } from "@sitedoc/ui";
 import { useVerktoylinje } from "@/hooks/useVerktoylinje";
 import { useBygning } from "@/kontekst/bygning-kontekst";
-import { Plus, Trash2, Search, ChevronDown, ChevronRight } from "lucide-react";
+import { Plus, Search, ChevronDown, ChevronRight } from "lucide-react";
 
 // --- Typer ---
 
@@ -40,22 +41,22 @@ interface MalObjekt {
 // --- Konstanter ---
 
 const STATUS_ALTERNATIVER = [
-  { value: "draft", label: "Utkast" },
-  { value: "sent", label: "Sendt" },
-  { value: "received", label: "Mottatt" },
-  { value: "in_progress", label: "Under arbeid" },
-  { value: "responded", label: "Besvart" },
-  { value: "approved", label: "Godkjent" },
-  { value: "rejected", label: "Avvist" },
-  { value: "closed", label: "Lukket" },
-  { value: "cancelled", label: "Avbrutt" },
+  { value: "draft", labelKey: "status.utkast" },
+  { value: "sent", labelKey: "status.sendt" },
+  { value: "received", labelKey: "status.mottatt" },
+  { value: "in_progress", labelKey: "status.underArbeid" },
+  { value: "responded", labelKey: "status.besvart" },
+  { value: "approved", labelKey: "status.godkjent" },
+  { value: "rejected", labelKey: "status.avvist" },
+  { value: "closed", labelKey: "status.lukket" },
+  { value: "cancelled", labelKey: "status.avbrutt" },
 ];
 
 const PRIORITETER = [
-  { value: "low", label: "Lav" },
-  { value: "medium", label: "Medium" },
-  { value: "high", label: "Høy" },
-  { value: "critical", label: "Kritisk" },
+  { value: "low", labelKey: "prioritet.lav" },
+  { value: "medium", labelKey: "prioritet.middels" },
+  { value: "high", labelKey: "prioritet.hoey" },
+  { value: "critical", labelKey: "prioritet.kritisk" },
 ];
 
 const prioritetFarge: Record<string, "default" | "primary" | "warning" | "danger"> = {
@@ -77,35 +78,35 @@ const FILTRERBARE_TYPER = new Set([
 interface KolonneParam {
   id: string;
   navn: string;
+  navnKey?: string;
   gruppe: "kolonner" | "posisjon" | "verdier";
   fast?: boolean;
 }
 
 const SYSTEM_KOLONNER: KolonneParam[] = [
-  { id: "nr", navn: "Nr", gruppe: "kolonner", fast: true },
-  { id: "tittel", navn: "Tittel", gruppe: "kolonner", fast: true },
-  { id: "status", navn: "Status", gruppe: "kolonner", fast: true },
-  { id: "emne", navn: "Emne", gruppe: "kolonner" },
-  { id: "prioritet", navn: "Prioritet", gruppe: "kolonner" },
-  { id: "ansvarlig", navn: "Ansvarlig", gruppe: "kolonner" },
-  { id: "opprettetAv", navn: "Opprettet av", gruppe: "kolonner" },
-  { id: "oppretterEntreprise", navn: "Oppretter-entreprise", gruppe: "kolonner" },
-  { id: "svarerEntreprise", navn: "Svarer-entreprise", gruppe: "kolonner" },
-  { id: "dokumentflyt", navn: "Dokumentflyt", gruppe: "kolonner" },
-  { id: "mal", navn: "Mal", gruppe: "kolonner" },
-  { id: "opprettet", navn: "Opprettelsesdato", gruppe: "kolonner" },
-  { id: "endret", navn: "Endringsdato", gruppe: "kolonner" },
-  { id: "frist", navn: "Tidsfrist", gruppe: "kolonner" },
-  { id: "handlinger", navn: "", gruppe: "kolonner", fast: true },
+  { id: "nr", navn: "Nr", navnKey: "tabell.nr", gruppe: "kolonner", fast: true },
+  { id: "tittel", navn: "Tittel", navnKey: "tabell.tittel", gruppe: "kolonner", fast: true },
+  { id: "status", navn: "Status", navnKey: "tabell.status", gruppe: "kolonner", fast: true },
+  { id: "emne", navn: "Emne", navnKey: "tabell.emne", gruppe: "kolonner" },
+  { id: "prioritet", navn: "Prioritet", navnKey: "tabell.prioritet", gruppe: "kolonner" },
+  { id: "ansvarlig", navn: "Ansvarlig", navnKey: "tabell.ansvarlig", gruppe: "kolonner" },
+  { id: "opprettetAv", navn: "Opprettet av", navnKey: "tabell.opprettetAv", gruppe: "kolonner" },
+  { id: "oppretterEntreprise", navn: "Oppretter-entreprise", navnKey: "tabell.oppretterEntreprise", gruppe: "kolonner" },
+  { id: "svarerEntreprise", navn: "Svarer-entreprise", navnKey: "tabell.svarerEntreprise", gruppe: "kolonner" },
+  { id: "dokumentflyt", navn: "Dokumentflyt", navnKey: "tabell.dokumentflyt", gruppe: "kolonner" },
+  { id: "mal", navn: "Mal", navnKey: "tabell.mal", gruppe: "kolonner" },
+  { id: "opprettet", navn: "Opprettelsesdato", navnKey: "tabell.opprettelsesdato", gruppe: "kolonner" },
+  { id: "endret", navn: "Endringsdato", navnKey: "tabell.endringsdato", gruppe: "kolonner" },
+  { id: "frist", navn: "Tidsfrist", navnKey: "tabell.tidsfrist", gruppe: "kolonner" },
 ];
 
 const POSISJON_KOLONNER: KolonneParam[] = [
-  { id: "bygning", navn: "Bygning", gruppe: "posisjon" },
-  { id: "etasje", navn: "Etasje", gruppe: "posisjon" },
-  { id: "tegning", navn: "Tegning", gruppe: "posisjon" },
+  { id: "bygning", navn: "Bygning", navnKey: "tabell.bygning", gruppe: "posisjon" },
+  { id: "etasje", navn: "Etasje", navnKey: "tabell.etasje", gruppe: "posisjon" },
+  { id: "tegning", navn: "Tegning", navnKey: "tabell.tegning", gruppe: "posisjon" },
 ];
 
-const STANDARD_AKTIVE = new Set(["nr", "tittel", "emne", "status", "ansvarlig", "frist", "handlinger"]);
+const STANDARD_AKTIVE = new Set(["nr", "tittel", "emne", "status", "ansvarlig", "frist"]);
 const STORAGE_KEY = "sitedoc-oppgave-kolonner-v3";
 
 function hentLagredeKolonner(): Set<string> {
@@ -169,6 +170,7 @@ function KolonneVelger({
   onToggle: (id: string) => void;
   verdiFelter: KolonneParam[];
 }) {
+  const { t } = useTranslation();
   const [sok, setSok] = useState("");
   const [apneGrupper, setApneGrupper] = useState<Set<string>>(new Set(["kolonner", "posisjon", "verdier"]));
   const ref = useRef<HTMLDivElement>(null);
@@ -184,12 +186,13 @@ function KolonneVelger({
   if (!apen) return null;
 
   const sokLower = sok.toLowerCase();
-  const filtrer = (p: KolonneParam) => !sok || p.navn.toLowerCase().includes(sokLower);
+  const hentNavn = (p: KolonneParam) => p.navnKey ? t(p.navnKey) : p.navn;
+  const filtrer = (p: KolonneParam) => !sok || hentNavn(p).toLowerCase().includes(sokLower);
 
   const grupper = [
-    { id: "kolonner", navn: "Kolonner", felter: SYSTEM_KOLONNER.filter((k) => k.navn && !k.fast).filter(filtrer) },
-    { id: "posisjon", navn: "Posisjon", felter: POSISJON_KOLONNER.filter(filtrer) },
-    { id: "verdier", navn: "Verdier", felter: verdiFelter.filter(filtrer) },
+    { id: "kolonner", navn: t("kolonne.kolonner"), felter: SYSTEM_KOLONNER.filter((k) => k.navn && !k.fast).filter(filtrer) },
+    { id: "posisjon", navn: t("kolonne.posisjon"), felter: POSISJON_KOLONNER.filter(filtrer) },
+    { id: "verdier", navn: t("kolonne.verdier"), felter: verdiFelter.filter(filtrer) },
   ].filter((g) => g.felter.length > 0);
 
   const toggleGruppe = (id: string) => {
@@ -209,7 +212,7 @@ function KolonneVelger({
             type="text"
             value={sok}
             onChange={(e) => setSok(e.target.value)}
-            placeholder="Søk..."
+            placeholder={t("oppgaver.sokPlaceholder")}
             className="w-full rounded-md border border-gray-200 py-1.5 pl-8 pr-3 text-xs focus:border-blue-500 focus:outline-none"
             autoFocus
           />
@@ -239,7 +242,7 @@ function KolonneVelger({
                   onChange={() => onToggle(felt.id)}
                   className="h-3.5 w-3.5 rounded border-gray-300 text-blue-600"
                 />
-                <span className="truncate">{felt.navn}</span>
+                <span className="truncate">{felt.navnKey ? t(felt.navnKey) : felt.navn}</span>
               </label>
             ))}
           </div>
@@ -255,10 +258,10 @@ function KolonneVelger({
           }}
           className="text-xs text-gray-500 hover:text-gray-700"
         >
-          Nullstill
+          {t("handling.nullstill")}
         </button>
         <button onClick={onLukk} className="rounded bg-blue-600 px-3 py-1 text-xs font-medium text-white hover:bg-blue-700">
-          OK
+          {t("handling.ok")}
         </button>
       </div>
     </div>
@@ -268,6 +271,7 @@ function KolonneVelger({
 // --- Hovedkomponent ---
 
 export default function OppgaverSide() {
+  const { t } = useTranslation();
   const params = useParams<{ prosjektId: string }>();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -294,12 +298,6 @@ export default function OppgaverSide() {
     { projectId: params.prosjektId },
   );
 
-  const slettMutasjon = trpc.oppgave.slett.useMutation({
-    onSuccess: () => {
-      utils.oppgave.hentForProsjekt.invalidate({ projectId: params.prosjektId });
-    },
-  });
-
   const opprettMutation = trpc.oppgave.opprett.useMutation({
     onSuccess: (_data: unknown) => {
       const resultat = _data as { id: string };
@@ -312,7 +310,7 @@ export default function OppgaverSide() {
   useVerktoylinje([
     {
       id: "ny-oppgave",
-      label: "Ny oppgave",
+      label: t("oppgaver.ny"),
       ikon: <Plus className="h-4 w-4" />,
       onClick: () => setVisModal(true),
       variant: "primary",
@@ -382,8 +380,8 @@ export default function OppgaverSide() {
       bygning: bygg(oppgaver.map((o) => o.drawing?.building?.name)),
       etasje: bygg(oppgaver.map((o) => o.drawing?.floor)),
       tegning: bygg(oppgaver.map((o) => o.drawing?.name)),
-      prioritet: PRIORITETER,
-      status: STATUS_ALTERNATIVER,
+      prioritet: PRIORITETER.map((p) => ({ value: p.value, label: t(p.labelKey) })),
+      status: STATUS_ALTERNATIVER.map((s) => ({ value: s.value, label: t(s.labelKey) })),
     };
 
     // Verdier fra data-JSON
@@ -396,12 +394,16 @@ export default function OppgaverSide() {
     }
 
     return filter;
-  }, [oppgaver, verdiFelter]);
+  }, [oppgaver, verdiFelter, t]);
 
   // Filtrer data
   const filtrerte = useMemo(() => {
     let resultat = oppgaver ?? [];
-    if (statusFilter) resultat = resultat.filter((o) => o.status === statusFilter);
+    if (statusFilter === "avvist") {
+      resultat = resultat.filter((o) => o.status === "rejected" || o.status === "cancelled");
+    } else if (statusFilter) {
+      resultat = resultat.filter((o) => o.status === statusFilter);
+    }
     for (const [kolId, verdi] of Object.entries(filterVerdier)) {
       if (!verdi) continue;
       resultat = resultat.filter((o) => {
@@ -450,17 +452,17 @@ export default function OppgaverSide() {
     type KolDef = Parameters<typeof Table<OppgaveRad>>[0]["kolonner"][number];
     const defs: Record<string, KolDef> = {
       nr: {
-        id: "nr", header: "Nr",
+        id: "nr", header: t("tabell.nr"),
         celle: (rad) => <span className="text-xs font-medium text-gray-500 whitespace-nowrap">{formaterNummer(rad)}</span>,
         bredde: "90px", sorterbar: true, sorterVerdi: (rad) => rad.number ?? 0,
       },
       tittel: {
-        id: "tittel", header: "Tittel",
+        id: "tittel", header: t("tabell.tittel"),
         celle: (rad) => <span className="font-medium text-gray-900">{rad.title}</span>,
         sorterbar: true, sorterVerdi: (rad) => rad.title,
       },
       emne: {
-        id: "emne", header: "Emne",
+        id: "emne", header: t("tabell.emne"),
         celle: (rad) => rad.subject
           ? <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-600">{rad.subject}</span>
           : <span className="text-gray-300">—</span>,
@@ -468,16 +470,16 @@ export default function OppgaverSide() {
         filtrerbar: true, filterAlternativer: dynamiskFilter.emne ?? [],
       },
       status: {
-        id: "status", header: "Status",
+        id: "status", header: t("tabell.status"),
         celle: (rad) => <StatusBadge status={rad.status} />,
         bredde: "130px", sorterbar: true, sorterVerdi: (rad) => rad.status,
         filtrerbar: true, filterAlternativer: dynamiskFilter.status ?? [],
       },
       prioritet: {
-        id: "prioritet", header: "Prioritet",
+        id: "prioritet", header: t("tabell.prioritet"),
         celle: (rad) => (
           <Badge variant={prioritetFarge[rad.priority] ?? "default"}>
-            {PRIORITETER.find((p) => p.value === rad.priority)?.label ?? rad.priority}
+            {(() => { const p = PRIORITETER.find((p) => p.value === rad.priority); return p ? t(p.labelKey) : rad.priority; })()}
           </Badge>
         ),
         bredde: "100px", sorterbar: true,
@@ -485,13 +487,13 @@ export default function OppgaverSide() {
         filtrerbar: true, filterAlternativer: dynamiskFilter.prioritet ?? [],
       },
       ansvarlig: {
-        id: "ansvarlig", header: "Ansvarlig",
+        id: "ansvarlig", header: t("tabell.ansvarlig"),
         celle: (rad) => <span className="text-gray-600">{formaterAnsvarlig(rad)}</span>,
         sorterbar: true, sorterVerdi: (rad) => formaterAnsvarlig(rad),
         filtrerbar: true, filterAlternativer: dynamiskFilter.ansvarlig ?? [],
       },
       opprettetAv: {
-        id: "opprettetAv", header: "Opprettet av",
+        id: "opprettetAv", header: t("tabell.opprettetAv"),
         celle: (rad) => rad.creator?.name
           ? <span className="text-gray-600">{rad.creator.name}</span>
           : <span className="text-gray-300">—</span>,
@@ -499,19 +501,19 @@ export default function OppgaverSide() {
         filtrerbar: true, filterAlternativer: dynamiskFilter.opprettetAv ?? [],
       },
       oppretterEntreprise: {
-        id: "oppretterEntreprise", header: "Oppretter-entreprise",
+        id: "oppretterEntreprise", header: t("tabell.oppretterEntreprise"),
         celle: (rad) => <span className="text-xs text-gray-500">{rad.creatorEnterprise.name}</span>,
         sorterbar: true, sorterVerdi: (rad) => rad.creatorEnterprise.name,
         filtrerbar: true, filterAlternativer: dynamiskFilter.oppretterEntreprise ?? [],
       },
       svarerEntreprise: {
-        id: "svarerEntreprise", header: "Svarer-entreprise",
+        id: "svarerEntreprise", header: t("tabell.svarerEntreprise"),
         celle: (rad) => <span className="text-xs text-gray-500">{rad.responderEnterprise.name}</span>,
         sorterbar: true, sorterVerdi: (rad) => rad.responderEnterprise.name,
         filtrerbar: true, filterAlternativer: dynamiskFilter.svarerEntreprise ?? [],
       },
       mal: {
-        id: "mal", header: "Mal",
+        id: "mal", header: t("tabell.mal"),
         celle: (rad) => rad.template
           ? <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-500">{rad.template.name}</span>
           : <span className="text-gray-300">—</span>,
@@ -519,28 +521,28 @@ export default function OppgaverSide() {
         filtrerbar: true, filterAlternativer: dynamiskFilter.mal ?? [],
       },
       dokumentflyt: {
-        id: "dokumentflyt", header: "Dokumentflyt",
+        id: "dokumentflyt", header: t("tabell.dokumentflyt"),
         celle: () => <span className="text-gray-300">—</span>,
       },
       opprettet: {
-        id: "opprettet", header: "Opprettet",
+        id: "opprettet", header: t("tabell.opprettelsesdato"),
         celle: (rad) => <span className="text-xs text-gray-500">{formaterDato(rad.createdAt)}</span>,
         bredde: "120px", sorterbar: true, sorterVerdi: (rad) => new Date(rad.createdAt).getTime(),
       },
       endret: {
-        id: "endret", header: "Sist endret",
+        id: "endret", header: t("tabell.endringsdato"),
         celle: (rad) => <span className="text-xs text-gray-500">{formaterDato(rad.updatedAt)}</span>,
         bredde: "120px", sorterbar: true, sorterVerdi: (rad) => new Date(rad.updatedAt).getTime(),
       },
       frist: {
-        id: "frist", header: "Frist",
+        id: "frist", header: t("tabell.tidsfrist"),
         celle: (rad) => rad.dueDate
           ? <span className="text-xs text-gray-500">{formaterDato(rad.dueDate)}</span>
           : <span className="text-gray-300">—</span>,
         bredde: "120px", sorterbar: true, sorterVerdi: (rad) => rad.dueDate ? new Date(rad.dueDate).getTime() : null,
       },
       bygning: {
-        id: "bygning", header: "Bygning",
+        id: "bygning", header: t("tabell.bygning"),
         celle: (rad) => rad.drawing?.building?.name
           ? <span className="text-xs text-gray-600">{rad.drawing.building.name}</span>
           : <span className="text-gray-300">—</span>,
@@ -548,7 +550,7 @@ export default function OppgaverSide() {
         filtrerbar: true, filterAlternativer: dynamiskFilter.bygning ?? [],
       },
       etasje: {
-        id: "etasje", header: "Etasje",
+        id: "etasje", header: t("tabell.etasje"),
         celle: (rad) => rad.drawing?.floor
           ? <span className="text-xs text-gray-600">{rad.drawing.floor}</span>
           : <span className="text-gray-300">—</span>,
@@ -556,31 +558,12 @@ export default function OppgaverSide() {
         filtrerbar: true, filterAlternativer: dynamiskFilter.etasje ?? [],
       },
       tegning: {
-        id: "tegning", header: "Tegning",
+        id: "tegning", header: t("tabell.tegning"),
         celle: (rad) => rad.drawing?.name
           ? <span className="text-xs text-gray-600">{rad.drawing.name}</span>
           : <span className="text-gray-300">—</span>,
         sorterbar: true, sorterVerdi: (rad) => rad.drawing?.name ?? "",
         filtrerbar: true, filterAlternativer: dynamiskFilter.tegning ?? [],
-      },
-      handlinger: {
-        id: "handlinger", header: "",
-        celle: (rad) =>
-          (rad.status === "draft" || rad.status === "cancelled") ? (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                if (confirm("Er du sikker på at du vil slette denne oppgaven?")) {
-                  slettMutasjon.mutate({ id: rad.id });
-                }
-              }}
-              className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-600"
-              title="Slett oppgave"
-            >
-              <Trash2 className="h-4 w-4" />
-            </button>
-          ) : null,
-        bredde: "48px",
       },
     };
 
@@ -609,7 +592,7 @@ export default function OppgaverSide() {
       if (aktiveKolonner.has(k.id) && def) resultat.push(def);
     }
     return resultat;
-  }, [aktiveKolonner, dynamiskFilter, slettMutasjon, verdiFelter]);
+  }, [aktiveKolonner, dynamiskFilter, verdiFelter, t]);
 
   // Aktive filter for visning
   const aktiveFilter = Object.entries(filterVerdier).filter(([_, v]) => v);
@@ -634,7 +617,7 @@ export default function OppgaverSide() {
               className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
             >
               <Search className="h-3.5 w-3.5" />
-              Velg parameter
+              {t("kolonne.velgParameter")}
             </button>
             <KolonneVelger
               apen={visKolonneVelger}
@@ -647,7 +630,8 @@ export default function OppgaverSide() {
 
           {/* Aktive filter-tags */}
           {aktiveFilter.map(([kolId, verdi]) => {
-            const kolNavn = alleKolonner.find((k) => k.id === kolId)?.navn ?? kolId;
+            const kol = alleKolonner.find((k) => k.id === kolId);
+            const kolNavn = kol?.navnKey ? t(kol.navnKey) : (kol?.navn ?? kolId);
             return (
               <span
                 key={kolId}
@@ -666,7 +650,7 @@ export default function OppgaverSide() {
               onClick={() => setFilterVerdier({})}
               className="text-xs text-gray-400 hover:text-gray-600"
             >
-              Nullstill
+              {t("handling.nullstill")}
             </button>
           )}
 
@@ -679,9 +663,9 @@ export default function OppgaverSide() {
 
       {!oppgaver?.length ? (
         <EmptyState
-          title="Ingen oppgaver"
-          description="Opprett oppgaver for å tildele arbeid til entrepriser."
-          action={<Button onClick={() => setVisModal(true)}>Opprett oppgave</Button>}
+          title={t("oppgaver.ingen")}
+          description={t("oppgaver.ingenBeskrivelse")}
+          action={<Button onClick={() => setVisModal(true)}>{t("oppgaver.opprett")}</Button>}
         />
       ) : (
         <Table<OppgaveRad>
@@ -689,16 +673,16 @@ export default function OppgaverSide() {
           data={filtrerte}
           radNokkel={(rad) => rad.id}
           onRadKlikk={(rad) => router.push(`/dashbord/${params.prosjektId}/oppgaver/${rad.id}`)}
-          tomMelding="Ingen oppgaver matcher filtrene"
+          tomMelding={t("oppgaver.ingenMatcherFilter")}
           filterVerdier={filterVerdier}
           onFilterEndring={handleFilterEndring}
         />
       )}
 
-      <Modal open={visModal} onClose={() => setVisModal(false)} title="Velg oppgavemal">
+      <Modal open={visModal} onClose={() => setVisModal(false)} title={t("oppgaver.velgMal")}>
         <div className="space-y-1">
           {oppgaveMaler.length === 0 ? (
-            <p className="py-4 text-center text-sm text-gray-400">Ingen oppgavemaler tilgjengelig</p>
+            <p className="py-4 text-center text-sm text-gray-400">{t("oppgaver.ingenMaler")}</p>
           ) : (
             oppgaveMaler.map((m) => (
               <button

@@ -13,18 +13,18 @@
 | `projects` | Prosjekter med prosjektnummer (SD-YYYYMMDD-XXXX), status, valgfri lokasjon (`latitude`, `longitude`), valgfritt eksternt prosjektnummer (`external_project_number`), valgfri firmalogo (`logo_url`), `show_internal_project_number` (Boolean, default true) |
 | `project_members` | Prosjektmedlemmer med rolle (member/admin), entrepriser via `member_enterprises` |
 | `member_enterprises` | Mange-til-mange join-tabell mellom `project_members` og `enterprises` |
-| `enterprises` | Entrepriser med `enterprise_number` (Dalux-format: "04 Tømrer, Econor"), bransje, firma, farge |
+| `enterprises` | Entrepriser med `enterprise_number` (format: "04 Tømrer, Econor"), bransje, firma, farge |
 | `buildings` | Lokasjoner med `number` (auto-generert per prosjekt), `type` (deprecated, default `"bygg"`), status (unpublished/published) |
-| `drawings` | Tegninger med metadata: tegningsnummer, fagdisiplin, revisjon, status, etasje, målestokk, opphav, valgfri `geoReference` (JSON), `ifcMetadata` (JSON — prosjekt, org, GPS, etasjer, programvare), DWG-konvertering (`conversionStatus`, `coordinateSystem`) |
+| `drawings` | Tegninger med metadata: tegningsnummer, fagdisiplin, revisjon, status, etasje, målestokk, opphav, valgfri `geoReference` (JSON), `ifcMetadata` (JSON — prosjekt, org, GPS, etasjer, programvare), `gpsOverride` (JSON — manuell GPS/kalibrering for IFC med valgfri similarity-transform), DWG-konvertering (`conversionStatus`, `coordinateSystem`) |
 | `point_clouds` | Punktskyer med `potreeUrl` (konvertert octree), `hasClassification`, `hasRgb`, `classifications` (JSON), `boundingBox` (JSON), asynkron konvertering via CloudCompare+PotreeConverter |
 | `drawing_revisions` | Revisjonshistorikk for tegninger med fil, status og hvem som lastet opp |
 | `report_templates` | Maler med category (oppgave/sjekkliste), prefix, versjon, `domain` (bygg/hms/kvalitet, default "bygg"), `subjects` (JSON-array), `enable_change_log` (Boolean, default false) |
-| `report_objects` | Rapportobjekter i maler (23 typer, JSON-konfig), rekursiv nesting via `parent_id` |
+| `report_objects` | Rapportobjekter i maler (27 typer inkl. PSI: info_text, info_image, video, quiz), rekursiv nesting via `parent_id` |
 | `checklists` | Sjekklister med oppretter/svarer-entreprise, status, data (JSON) |
 | `tasks` | Oppgaver med påkrevd mal (`template_id`), prefiks+løpenummer (`number`), prioritet, frist, oppretter/svarer, utfylt data (`data` JSON), valgfri tegningsposisjon og sjekkliste-kobling |
 | `document_transfers` | Sporbarhet: all sending mellom entrepriser |
 | `images` | Bilder med valgfri GPS-data |
-| `folders` | Rekursiv mappestruktur med parent_id, `access_mode` (inherit/custom) |
+| `folders` | Rekursiv mappestruktur med parent_id, `access_mode` (inherit/custom), valgfri `kontrakt_id` (kobler mappe til økonomi-kontrakt → blått ikon) |
 | `folder_access` | Tilgangsoppføringer per mappe: entreprise, gruppe eller bruker |
 | `documents` | Dokumenter i mapper med fil-URL og versjon |
 | `workflows` | Arbeidsforløp med oppretter-entreprise og opptil 3 svarer-entrepriser |
@@ -35,8 +35,22 @@
 | `project_invitations` | E-postinvitasjoner med token, status, utløpsdato |
 | `group_enterprises` | Mange-til-mange mellom `project_groups` og `enterprises` |
 | `project_modules` | Aktiverte moduler per prosjekt |
+| `psi` | Prosjektspesifikk Sikkerhetsinstruks. Én per prosjekt+bygning (buildingId valgfri). Peker til ReportTemplate, versjonering for ny signering, `guestMessage` (HTML-tekst vist til gjester ved QR-tilgang), soft delete via `deactivatedAt`. category = "psi" (ikke "sjekkliste"). API: 15 endepunkter inkl. deaktiver/reaktiver, kopier (deep copy mal til annen bygning), hentForProsjektPublic, oppdaterGjesteBeskjed |
+| `psi_signaturer` | Personlig PSI-gjennomføring. Innlogget bruker (userId) ELLER gjest (guestName/guestCompany/guestPhone). Progresjon, quiz-data, signatur (base64), completedAt, `hmsKortNr` (String? — HMS-kortnummer), `harIkkeHmsKort` (Boolean, default false — avkrysning "Har ikke HMS-kort"). Unique: (psiId, userId) |
 | `organizations` | Firmaer/organisasjoner med navn, org.nr, fakturaadresse, logo |
 | `organization_projects` | Mange-til-mange mellom organisasjoner og prosjekter |
+| `ftd_kontrakter` | Overliggende kontrakt: Byggherre → Entreprenør. Felter: navn, kontraktType (8405/8406/8407), byggherre, entreprenor, buildingId (valgfri), hmsSamordningsgruppe. Entrepriser og dokumenter kobles via kontraktId |
+| `ftd_documents` | Eneste dokumentmodell. Filinfo, docType, processingState, kontraktId, notaType, notaNr. Header-verdier fra A-nota: utfortPr, utfortTotalt, utfortForrige, utfortDenne, innestaaende, innestaaendeForrige, innestaaendeDenne, nettoDenne, mva, sumInkMva. Mapper → auto scanning. Økonomi → manuell import |
+| `ftd_document_pages` | Side→postnr mapping for dokumentasjon per post. Regex: POST XX.YY.ZZ. Arv fra forrige side. Unique constraint (documentId, pageNumber) |
+| `ftd_document_chunks` | Søkbare tekstbiter med tsvector (norsk stemming, GIN), NS-koder, sideinfo, `embedding_vector` (pgvector 768 dim, NorBERT), `embeddingState` (pending/processing/done). OCR-fallback (pdftoppm+tesseract), OCR-rensing (CamelCase-splitting, søppelfilter). HNSW-indeks for vektor-søk |
+| `ftd_document_blocks` | Blokkbasert dokumentinnhold for flerspråklig visning. Typer: heading/text/image/caption/table. Felter: language, sourceBlockId (peker til norsk original), headingLevel, imageUrl, embedding_vector (multilingual-e5-base 768 dim). Indeks: (documentId, language, sortOrder) |
+| `ftd_translation_jobs` | Asynkron oversettelseskø. Status: pending/processing/done/failed. Fremdrift: blocksDone/blocksTotal. Unique constraint: (documentId, targetLang) |
+| `translation_cache` | Translation memory — SHA-256 hash av kildetekst → oversatt tekst. Unngår re-oversettelse av identisk innhold. Unique: (contentHash, sourceLang, targetLang) |
+| `ai_sok_innstillinger` | AI-søk konfigurasjon per prosjekt: embedding_provider (local/openai), embedding_model, API-nøkler, LLM-provider, søkevekter (JSONB). Én rad per prosjekt |
+| `ftd_spec_posts` | NS 3420 budsjettlinjer fra PDF/Excel/XML/GAB. Postnr, beskrivelse, enhet, mengde, pris, sum, NS-kode, fullNsTekst, mengdeDenne, mengdeTotal, verdiDenne, verdiTotal, prosentFerdig (Decimal — sammenligningsfelter for A-nota/perioder), importNotat (String? — notat fra import, f.eks. mengde-avvik). Seksjonsoverskrifter lagres som poster (erOverskrift). Sub-postnr fra prislinjer, postnr-tail merging, auto-dedup. Migrering: `20260330180000_legg_til_import_notat` |
+| `ftd_nota_periods` | A-nota/T-nota perioder per entreprise |
+| `ftd_nota_posts` | Poster per periode med mengde/verdi denne, forrige, total |
+| `ftd_nota_comments` | Kommentarer på spesifikasjonsposter og perioder |
 
 ## Viktige relasjoner
 

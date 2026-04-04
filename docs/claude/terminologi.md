@@ -40,3 +40,19 @@
 - **Eksternt prosjektnummer:** Kundens/byggeherrens referanse
 - **Firmalogo:** Prosjektets logo i print-header
 - **Print-til-PDF:** `@media print` CSS + nettleserens "Lagre som PDF"
+- **Kildespråk (sourceLanguage):** Prosjektets hovedspråk. Settes av firma i Prosjektoppsett
+- **Målspråk (languages):** Språk dokumenter oversettes til. Per mappe via arv (languageMode)
+- **Språkarv (languageMode):** "inherit" arver fra forelder-mappe, "custom" har egne målspråk
+- **Språkdeteksjon:** Auto-detektering av dokumentspråk via ordfrekvens (~60 ord/språk, 14 språk)
+- **Lag 1 (UI-oversettelse):** i18next-basert, automatisk basert på User.language
+- **Lag 2 (Mal→arbeider):** On-demand 🌐-knapp. Oversetter feltlabels/hjelpetekst til arbeiderens språk
+- **Lag 3 (Arbeider→firma):** Auto-oversetter fritekst ved lagring. Original bevares i `.original`
+- **TranslationCache:** SHA-256 hash-basert cache for oversettelser. Unngår gjentatte API-kall
+- **forbedreOversettelse:** Admin kan manuelt redigere eller re-oversette med bedre motor (DeepL)
+- **PSI (Prosjektspesifikk Sikkerhetsinstruks):** Personlig sikkerhetsgjennomgang som alle arbeidere må fullføre. Bygges i malbygger, gjennomføres via QR. Inneholder lesetekst, bilder, video, quiz og signatur. Kategori `"psi"` (ikke `"sjekkliste"`). Modell: `Psi` + `PsiSignatur`
+- **Lesetekst (`info_text`):** Ikke-redigerbar tekst for instruksjoner. Config: `content`
+- **Instruksjonsbilde (`info_image`):** Bilde med valgfri caption. Config: `imageUrl`, `caption`
+- **Video (`video`):** Video-avspilling (WebView). Config: `url`
+- **Quiz (`quiz`):** Flervalg med riktig svar. Config: `question`, `options[]`, `correctIndex`
+- **HMS-kort:** Obligatorisk identitetskort for alle som jobber på bygge- og anleggsplasser i Norge. Utstedes av Arbeidstilsynet. Nummer registreres ved PSI-gjennomføring (`hmsKortNr` i PsiSignatur). "Har ikke HMS-kort"-avkrysning for gjester/besøkende
+- **RUH (Rapport om Uønsket Hendelse):** Avviksrapport for HMS-hendelser på byggeplass. Refereres i PSI-innhold som del av sikkerhetsopplæringen

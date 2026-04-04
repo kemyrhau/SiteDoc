@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 
 interface TreprikkMenyProps {
   onRediger: () => void;
@@ -19,6 +20,7 @@ export function TreprikkMeny({
   kanHaBetingelse,
   erBarnFelt,
 }: TreprikkMenyProps) {
+  const { t } = useTranslation();
   const [åpen, setÅpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -43,7 +45,7 @@ export function TreprikkMeny({
           setÅpen(!åpen);
         }}
         className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-        title="Handlinger"
+        title={t("malbygger.handlinger")}
       >
         <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
           <circle cx="12" cy="5" r="1.5" />
@@ -66,7 +68,7 @@ export function TreprikkMeny({
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
             </svg>
-            Rediger
+            {t("malbygger.rediger")}
           </button>
 
           {kanHaBetingelse && onTilfoyjBetingelse && (
@@ -82,7 +84,7 @@ export function TreprikkMeny({
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
-              Tilføy betingelse
+              {t("malbygger.tilfoyjBetingelse")}
             </button>
           )}
 
@@ -99,7 +101,7 @@ export function TreprikkMeny({
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
               </svg>
-              Fjern betingelse
+              {t("malbygger.fjernBetingelse")}
             </button>
           )}
 
@@ -117,7 +119,7 @@ export function TreprikkMeny({
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
             </svg>
-            Slett
+            {t("handling.slett")}
           </button>
         </div>
       )}

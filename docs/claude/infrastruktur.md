@@ -19,11 +19,26 @@ PC/WSL (server):
 
   Felles:
     SSH        :22   → ssh.sitedoc.no      (Cloudflare Tunnel)
+    Embedding  :3302 → NorBERT + multilingual-e5-base (PM2: norbert-embed)
+    Oversettelse:3303 → OPUS-MT oversettelsesserver (PM2: oversettelse-server)
+    Python venv: ~/norbert-env (torch + transformers + sentencepiece)
 ```
+
+## PM2-prosesser
+
+| Navn | Port | Beskrivelse |
+|------|------|-------------|
+| `sitedoc-web` | 3100 | Produksjon Next.js |
+| `sitedoc-api` | 3001 | Produksjon Fastify/tRPC |
+| `sitedoc-test-web` | 3300 | Test Next.js |
+| `sitedoc-test-api` | 3301 | Test Fastify/tRPC |
+| `norbert-embed` | 3302 | Multi-modell embedding: NorBERT (norsk) + multilingual-e5-base (flerspråklig, lazy) |
+| `oversettelse-server` | 3303 | Helsinki-NLP/OPUS-MT oversettelse, LRU-cache maks 3 modeller, pivot nb→en→target |
 
 ## Server-avhengigheter (apt)
 
-- `poppler-utils` — pdftoppm for PDF→PNG konvertering av tegninger
+- `poppler-utils` — pdftoppm for PDF→PNG (tegninger + OCR-rendering)
+- `tesseract-ocr` + `tesseract-ocr-nor` — OCR for skannede PDFer (v5.3.4, norsk språkpakke)
 - `xvfb` — virtuelt display for CloudCompare (punktsky-konvertering)
 
 ## Miljøvariabler (PM2)

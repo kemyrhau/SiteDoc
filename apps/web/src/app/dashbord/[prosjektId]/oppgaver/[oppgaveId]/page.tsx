@@ -3,7 +3,7 @@
 import { useParams, useRouter } from "next/navigation";
 import { useState, useMemo, useCallback } from "react";
 import { Spinner, StatusBadge, Card, Badge } from "@sitedoc/ui";
-import { Check, AlertCircle, Loader2, Send, FileText, Printer } from "lucide-react";
+import { Check, AlertCircle, Loader2, Send, FileText, Printer, Pencil } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useOppgaveSkjema } from "@/hooks/useOppgaveSkjema";
 import { StatusHandlinger } from "@/components/StatusHandlinger";
@@ -11,18 +11,23 @@ import { LokasjonVelger } from "@/components/LokasjonVelger";
 import { RapportObjektRenderer, DISPLAY_TYPER, SKJULT_I_UTFYLLING } from "@/components/rapportobjekter/RapportObjektRenderer";
 import { FeltWrapper } from "@/components/rapportobjekter/FeltWrapper";
 import type { RapportObjekt } from "@/components/rapportobjekter/typer";
+import { useOversettelse } from "@/hooks/useOversettelse";
+import { DokumentTidslinje } from "@/components/DokumentTidslinje";
+import { usePresence } from "@/hooks/usePresence";
+import { useTranslation } from "react-i18next";
 
 /* ------------------------------------------------------------------ */
 /*  LagreIndikator                                                     */
 /* ------------------------------------------------------------------ */
 
 function LagreIndikator({ status }: { status: "idle" | "lagrer" | "lagret" | "feil" }) {
+  const { t } = useTranslation();
   if (status === "idle") return null;
   if (status === "lagrer") {
     return (
       <span className="flex items-center gap-1 text-xs text-gray-400">
         <Loader2 size={14} className="animate-spin" />
-        Lagrer...
+        {t("lagring.lagrer")}
       </span>
     );
   }
@@ -30,14 +35,14 @@ function LagreIndikator({ status }: { status: "idle" | "lagrer" | "lagret" | "fe
     return (
       <span className="flex items-center gap-1 text-xs text-green-600">
         <Check size={14} />
-        Lagret
+        {t("lagring.lagret")}
       </span>
     );
   }
   return (
     <span className="flex items-center gap-1 text-xs text-red-500">
       <AlertCircle size={14} />
-      Lagring feilet
+      {t("lagring.feil")}
     </span>
   );
 }
@@ -72,6 +77,7 @@ interface Kommentar {
 }
 
 function DialogSeksjon({ oppgaveId }: { oppgaveId: string }) {
+  const { t } = useTranslation();
   const [nyTekst, setNyTekst] = useState("");
   const utils = trpc.useUtils();
 
@@ -97,7 +103,7 @@ function DialogSeksjon({ oppgaveId }: { oppgaveId: string }) {
 
   return (
     <Card className="mt-6">
-      <h4 className="mb-3 text-sm font-medium text-gray-500">Dialog</h4>
+      <h4 className="mb-3 text-sm font-medium text-gray-500">{t("dialog.tittel")}</h4>
 
       {liste.length > 0 && (
         <div className="mb-3 flex flex-col gap-2">
@@ -124,7 +130,7 @@ function DialogSeksjon({ oppgaveId }: { oppgaveId: string }) {
       )}
 
       {liste.length === 0 && (
-        <p className="mb-3 text-xs text-gray-400">Ingen kommentarer ennå</p>
+        <p className="mb-3 text-xs text-gray-400">{t("dialog.ingenKommentarer")}</p>
       )}
 
       <div className="flex gap-2">
@@ -138,7 +144,7 @@ function DialogSeksjon({ oppgaveId }: { oppgaveId: string }) {
               håndterSend();
             }
           }}
-          placeholder="Skriv en kommentar..."
+          placeholder={t("dialog.skrivKommentar")}
           className="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
         />
         <button
@@ -153,44 +159,6 @@ function DialogSeksjon({ oppgaveId }: { oppgaveId: string }) {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Historikk                                                          */
-/* ------------------------------------------------------------------ */
-
-function HistorikkSeksjon({ oppgaveId }: { oppgaveId: string }) {
-  const { data: oppgave } = trpc.oppgave.hentMedId.useQuery({ id: oppgaveId });
-
-  const overgangshistorikk = ((oppgave as { transfers?: Array<{
-    id: string;
-    fromStatus: string;
-    toStatus: string;
-    comment: string | null;
-    createdAt: string;
-  }> })?.transfers ?? []);
-
-  if (overgangshistorikk.length === 0) return null;
-
-  return (
-    <Card className="mt-6">
-      <h4 className="mb-3 text-sm font-medium text-gray-500">Historikk</h4>
-      <div className="flex flex-col gap-2">
-        {overgangshistorikk.map((overgang) => (
-          <div key={overgang.id} className="flex items-center gap-3 text-sm">
-            <span className="text-xs text-gray-400">
-              {new Date(overgang.createdAt).toLocaleString("nb-NO")}
-            </span>
-            <StatusBadge status={overgang.fromStatus} />
-            <span className="text-gray-400">&rarr;</span>
-            <StatusBadge status={overgang.toStatus} />
-            {overgang.comment && (
-              <span className="text-gray-500">&mdash; {overgang.comment}</span>
-            )}
-          </div>
-        ))}
-      </div>
-    </Card>
-  );
-}
 
 /* ------------------------------------------------------------------ */
 /*  Hovedside                                                          */
@@ -199,6 +167,7 @@ function HistorikkSeksjon({ oppgaveId }: { oppgaveId: string }) {
 export default function OppgaveDetaljSide() {
   const params = useParams<{ prosjektId: string; oppgaveId: string }>();
   const router = useRouter();
+  const { t } = useTranslation();
 
   const {
     oppgave,
@@ -209,63 +178,102 @@ export default function OppgaveDetaljSide() {
     leggTilVedlegg,
     fjernVedlegg,
     erSynlig,
+    erFeltLåst,
     valideringsfeil,
     erRedigerbar,
     lagreStatus,
   } = useOppgaveSkjema(params.oppgaveId);
 
+  const { andreRedaktorer } = usePresence(params.oppgaveId, "oppgave");
+
+  // Oversettelse (Lag 2): on-demand felt-oversettelse for bruker med annet språk
+  const oppgaveKildesprak = (oppgave as unknown as { template?: { project?: { sourceLanguage?: string } } })?.template?.project?.sourceLanguage;
+  const {
+    oversettelser,
+    laster: oversettelseLaster,
+    visOversettKnapp,
+    oversettFelt,
+  } = useOversettelse(
+    params.prosjektId,
+    oppgaveKildesprak,
+    (oppgave?.template?.objects ?? []) as { id: string; label: string; config: Record<string, unknown> }[],
+  );
+
+  // Hent full oppgavedata for tidslinje/creator (cast for TS2589)
+  const { data: fullOppgaveRå } = trpc.oppgave.hentMedId.useQuery(
+    { id: params.oppgaveId },
+    { enabled: !!params.oppgaveId },
+  );
+
   const utils = trpc.useUtils();
 
   const endreStatusMutasjon = trpc.oppgave.endreStatus.useMutation({
-    onSuccess: () => {
-      utils.oppgave.hentMedId.invalidate({ id: params.oppgaveId });
-      utils.oppgave.hentForProsjekt.invalidate();
-    },
-  });
-
-  // Mottaker-valg: medlemmer og grupper for «Send»
-  const { data: _prosjektMedlemmer } = trpc.medlem.hentForProsjekt.useQuery(
-    { projectId: params.prosjektId },
-    { enabled: !!params.prosjektId },
-  );
-  const { data: _prosjektGrupper } = trpc.gruppe.hentForProsjekt.useQuery(
-    { projectId: params.prosjektId },
-    { enabled: !!params.prosjektId },
-  );
-
-  const mottakerValg = (() => {
-    const medlemGruppeMap = new Map<string, string[]>();
-    const grupperRå = (_prosjektGrupper ?? []) as Array<{ id: string; name: string; members: Array<{ projectMember: { id: string } }> }>;
-    for (const g of grupperRå) {
-      for (const m of g.members ?? []) {
-        const pmId = m.projectMember?.id;
-        if (!pmId) continue;
-        const eks = medlemGruppeMap.get(pmId) ?? [];
-        eks.push(g.name);
-        medlemGruppeMap.set(pmId, eks);
-      }
-    }
-    const personer = ((_prosjektMedlemmer ?? []) as Array<{ id: string; user: { id: string; name: string | null; email: string } }>).map((m) => ({
-      id: m.user.id,
-      navn: m.user.name ?? m.user.email,
-      grupper: medlemGruppeMap.get(m.id)?.join(", "),
-    }));
-    const grupper = grupperRå.map((g) => ({ id: g.id, navn: g.name }));
-    return { personer, grupper };
-  })();
-
-  const oppdaterLokasjonMutasjon = trpc.oppgave.oppdater.useMutation({
-    onSuccess: () => {
-      utils.oppgave.hentMedId.invalidate({ id: params.oppgaveId });
-    },
-  });
-
-  const slettMutasjon = trpc.oppgave.slett.useMutation({
     onSuccess: () => {
       utils.oppgave.hentForProsjekt.invalidate();
       router.push(`/dashbord/${params.prosjektId}/oppgaver`);
     },
   });
+
+  // Hent tillatelser for å sjekke registrator-status
+  const { data: mineTillatelser } = trpc.medlem.hentMineTillatelser.useQuery(
+    { projectId: params.prosjektId },
+    { enabled: !!params.prosjektId },
+  );
+  const erRegistrator = mineTillatelser?.includes("create_checklists") || mineTillatelser?.includes("create_tasks") || false;
+
+  // Entreprise-valg for mottaker — utleder mottaker fra dokumentflyt
+  const { data: mineEntrepriser } = trpc.medlem.hentMineEntrepriser.useQuery(
+    { projectId: params.prosjektId },
+    { enabled: !!params.prosjektId },
+  );
+  const { data: alleEntrepriser } = trpc.entreprise.hentForProsjekt.useQuery(
+    { projectId: params.prosjektId },
+    { enabled: !!params.prosjektId },
+  );
+  const { data: _dokumentflyter } = trpc.dokumentflyt.hentForProsjekt.useQuery(
+    { projectId: params.prosjektId },
+    { enabled: !!params.prosjektId },
+  );
+
+  const entrepriseValg = useMemo(() => {
+    const alleEntrepriserRå = (alleEntrepriser ?? []) as Array<{ id: string; name: string; color: string | null }>;
+    const dokumentflyterRå = (_dokumentflyter ?? []) as Array<{
+      id: string;
+      enterpriseId: string | null;
+      medlemmer: Array<{
+        rolle: string;
+        erHovedansvarlig: boolean;
+        projectMember?: { user: { id: string; name: string | null } } | null;
+        group?: { id: string; name: string } | null;
+      }>;
+    }>;
+
+    return alleEntrepriserRå.map((e) => {
+      const df = dokumentflyterRå.find((d) => d.enterpriseId === e.id);
+      let mottaker: { userId?: string; groupId?: string } | undefined;
+
+      if (df) {
+        const svarere = df.medlemmer.filter((m) => m.rolle === "svarer");
+        const hovedansvarlig = svarere.find((m) => m.erHovedansvarlig);
+        const valgtSvarer = hovedansvarlig ?? svarere[0];
+
+        if (valgtSvarer?.group) {
+          mottaker = { groupId: valgtSvarer.group.id };
+        } else if (valgtSvarer?.projectMember?.user) {
+          mottaker = { userId: valgtSvarer.projectMember.user.id };
+        }
+      }
+
+      return { id: e.id, navn: e.name, farge: e.color, mottaker };
+    });
+  }, [alleEntrepriser, _dokumentflyter]);
+
+  const oppdaterMutasjon = trpc.oppgave.oppdater.useMutation({
+    onSuccess: () => {
+      utils.oppgave.hentMedId.invalidate({ id: params.oppgaveId });
+    },
+  });
+
 
   // Bygg trestruktur og flat ut i DFS-rekkefølge
   const objekter = useMemo(() => {
@@ -350,49 +358,82 @@ export default function OppgaveDetaljSide() {
   }
 
   if (!oppgave) {
-    return <p className="py-12 text-center text-gray-500">Oppgaven ble ikke funnet.</p>;
+    return <p className="py-12 text-center text-gray-500">{t("oppgaver.ikkeFunnet")}</p>;
   }
 
   return (
     <div className="mx-auto max-w-3xl pb-12">
       {/* Header */}
-      <div className="mb-6">
+      <div className="print-skjul mb-6">
         <div className="flex items-center gap-3">
-          {oppgaveNummer && (
-            <span className="text-sm font-mono text-gray-400">{oppgaveNummer}</span>
-          )}
           <h3 className="text-xl font-bold">{oppgave.title}</h3>
           <StatusBadge status={oppgave.status} />
           <Badge variant={PRIORITETS_VARIANT[oppgave.priority] ?? "default"}>
-            {PRIORITETS_TEKST[oppgave.priority] ?? oppgave.priority}
+            {t(`prioritet.${oppgave.priority}`, PRIORITETS_TEKST[oppgave.priority] ?? oppgave.priority)}
           </Badge>
           <LagreIndikator status={lagreStatus} />
-          <div className="ml-auto flex items-center gap-2 print-skjul">
+          {andreRedaktorer.length > 0 && (
+            <div className="flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-sm text-amber-700">
+              <Pencil className="h-3.5 w-3.5 animate-pulse" />
+              {andreRedaktorer.map((u) => u.navn).join(", ")} {t("presence.redigerer")}
+            </div>
+          )}
+          <div className="ml-auto flex items-center gap-2">
             <button
               onClick={() => window.open(`/utskrift/oppgave/${params.oppgaveId}`, "_blank")}
               className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
             >
               <FileText className="h-4 w-4" />
-              Vis PDF
+              {t("handling.visPdf")}
             </button>
             <button
               onClick={() => window.print()}
               className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
             >
               <Printer className="h-4 w-4" />
-              Skriv ut
+              {t("handling.skrivUtEnkel")}
             </button>
           </div>
         </div>
         <div className="flex items-center gap-1 text-sm text-gray-500">
-          {oppgave.template && <span>Mal: {oppgave.template.name}</span>}
-          {oppgave.creatorEnterprise && (
-            <span>&middot; Oppretter: {oppgave.creatorEnterprise.name}</span>
-          )}
-          {oppgave.responderEnterprise && (
-            <span>&middot; Svarer: {oppgave.responderEnterprise.name}</span>
+          {oppgave.template && <span>{t("tabell.mal")}: {oppgave.template.name}</span>}
+          {oppgave.status === "draft" ? (
+            <>
+              <span>&middot; {t("tabell.oppretter")}:</span>
+              <select
+                value={oppgave.creatorEnterprise?.id ?? ""}
+                onChange={(e) => oppdaterMutasjon.mutate({ id: params.oppgaveId, creatorEnterpriseId: e.target.value })}
+                className="rounded border border-gray-200 bg-white px-1.5 py-0.5 text-sm text-gray-700"
+              >
+                {(mineEntrepriser ?? []).map((ent: { id: string; name: string }) => (
+                  <option key={ent.id} value={ent.id}>{ent.name}</option>
+                ))}
+              </select>
+              <span>&middot; {t("tabell.svarer")}:</span>
+              <select
+                value={oppgave.responderEnterprise?.id ?? ""}
+                onChange={(e) => oppdaterMutasjon.mutate({ id: params.oppgaveId, responderEnterpriseId: e.target.value })}
+                className="rounded border border-gray-200 bg-white px-1.5 py-0.5 text-sm text-gray-700"
+              >
+                {(alleEntrepriser ?? []).map((ent: { id: string; name: string }) => (
+                  <option key={ent.id} value={ent.id}>{ent.name}</option>
+                ))}
+              </select>
+            </>
+          ) : (
+            <>
+              {oppgave.creatorEnterprise && (
+                <span>&middot; {t("tabell.oppretter")}: {oppgave.creatorEnterprise.name}</span>
+              )}
+              {oppgave.responderEnterprise && (
+                <span>&middot; {t("tabell.svarer")}: {oppgave.responderEnterprise.name}</span>
+              )}
+            </>
           )}
         </div>
+        {oppgaveNummer && (
+          <p className="mt-1 text-xs text-gray-400">{t("tabell.nr")}: {oppgaveNummer}</p>
+        )}
         {oppgave.description && (
           <p className="mt-2 text-sm text-gray-600">{oppgave.description}</p>
         )}
@@ -408,7 +449,7 @@ export default function OppgaveDetaljSide() {
             positionY={(oppgave as unknown as { positionY?: number | null }).positionY}
             visPosisjon
             onLagre={(data) => {
-              oppdaterLokasjonMutasjon.mutate({
+              oppdaterMutasjon.mutate({
                 id: params.oppgaveId,
                 drawingId: data.drawingId,
                 positionX: data.positionX ?? null,
@@ -420,10 +461,10 @@ export default function OppgaveDetaljSide() {
         </div>
 
         {/* Statushandlinger */}
-        <div className="mt-3">
+        <div className="mt-3 print-skjul">
           <StatusHandlinger
             status={oppgave.status}
-            erLaster={endreStatusMutasjon.isPending || slettMutasjon.isPending}
+            erLaster={endreStatusMutasjon.isPending}
             onEndreStatus={(nyStatus, kommentar, mottaker) => {
               endreStatusMutasjon.mutate({
                 id: params.oppgaveId,
@@ -434,8 +475,10 @@ export default function OppgaveDetaljSide() {
                 recipientGroupId: mottaker?.groupId,
               });
             }}
-            onSlett={() => slettMutasjon.mutate({ id: params.oppgaveId })}
-            mottakerValg={mottakerValg}
+            entrepriseValg={entrepriseValg}
+            standardEntrepriseId={oppgave.responderEnterprise?.id}
+            mineEntrepriseIder={mineEntrepriser ? (mineEntrepriser as Array<{ id: string }>).map((e) => e.id) : undefined}
+            erRegistrator={erRegistrator}
           />
         </div>
       </div>
@@ -451,6 +494,9 @@ export default function OppgaveDetaljSide() {
             const erDisplay = DISPLAY_TYPER.has(objekt.type);
             const nestingNivå = hentNestingNivå(objekt, objekter);
             const feltVerdi = hentFeltVerdi(objekt.id);
+            // Append-only: verdi-feltet er låst, men kommentar/vedlegg er redigerbare
+            const feltLåst = erFeltLåst(objekt.id);
+            const verdiLeseModus = leseModus || feltLåst;
 
             if (erDisplay) {
               const marginKlasse = nestingNivå > 0
@@ -462,7 +508,7 @@ export default function OppgaveDetaljSide() {
                     objekt={objekt}
                     verdi={feltVerdi.verdi}
                     onEndreVerdi={(v) => settVerdi(objekt.id, v)}
-                    leseModus={leseModus}
+                    leseModus={verdiLeseModus}
                     prosjektId={params.prosjektId}
                   />
                 </div>
@@ -482,12 +528,17 @@ export default function OppgaveDetaljSide() {
                   nestingNivå={nestingNivå}
                   valideringsfeil={valideringsfeil[objekt.id]}
                   prosjektId={params.prosjektId}
+                  oversettelser={oversettelser}
+                  oversettelseLaster={oversettelseLaster}
+                  onOversett={() => oversettFelt(objekt as { id: string; label: string; config: Record<string, unknown> })}
+                  visOversettKnapp={visOversettKnapp}
+                  originalData={(feltVerdi as unknown as { original?: { spraak: string; verdi?: string; kommentar?: string } }).original}
                 >
                   <RapportObjektRenderer
                     objekt={objekt}
                     verdi={feltVerdi.verdi}
                     onEndreVerdi={(v) => settVerdi(objekt.id, v)}
-                    leseModus={leseModus}
+                    leseModus={verdiLeseModus}
                     prosjektId={params.prosjektId}
                     barneObjekter={barneObjekterMap.get(objekt.id)}
                   />
@@ -501,8 +552,19 @@ export default function OppgaveDetaljSide() {
       {/* Dialog */}
       <DialogSeksjon oppgaveId={params.oppgaveId} />
 
-      {/* Historikk */}
-      <HistorikkSeksjon oppgaveId={params.oppgaveId} />
+      {/* Tidslinje */}
+      {fullOppgaveRå && (
+        <DokumentTidslinje
+          overforinger={((fullOppgaveRå as { transfers?: unknown[] }).transfers ?? []) as Array<{
+            id: string; fromStatus: string; toStatus: string; comment: string | null; createdAt: string;
+            sender?: { id: string; name: string | null } | null;
+            recipientUser?: { id: string; name: string | null } | null;
+            recipientGroup?: { id: string; name: string | null } | null;
+          }>}
+          opprettetAv={(fullOppgaveRå as { creator?: { name?: string | null } }).creator?.name ?? null}
+          opprettetDato={(fullOppgaveRå as { createdAt?: string }).createdAt ?? null}
+        />
+      )}
     </div>
   );
 }

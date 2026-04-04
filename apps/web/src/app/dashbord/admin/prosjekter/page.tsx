@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { Spinner, EmptyState, Button, Input, Modal } from "@sitedoc/ui";
-import { FolderKanban, Plus, Trash2, X, Clock, AlertTriangle, Sparkles } from "lucide-react";
+import { FolderKanban, Plus, Trash2, X, Clock, AlertTriangle, Sparkles, CalendarPlus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
@@ -76,11 +76,19 @@ export default function AdminProsjekter() {
     },
   });
 
-  function dagerIgjen(opprettet: string | Date) {
-    const utloper = new Date(opprettet);
-    utloper.setDate(utloper.getDate() + 30);
-    const diff = Math.ceil((utloper.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-    return diff;
+  const forlengMutasjon = trpc.admin.forlengProsjekt.useMutation({
+    onSuccess: () => invalidateAll(),
+  });
+
+  function dagerIgjen(opprettet: string | Date, trialExpiresAt?: string | Date | null) {
+    const utloper = trialExpiresAt
+      ? new Date(trialExpiresAt)
+      : (() => { const d = new Date(opprettet); d.setDate(d.getDate() + 30); return d; })();
+    return Math.ceil((utloper.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+  }
+
+  function forleng(projectId: string, dager: number) {
+    forlengMutasjon.mutate({ projectId, dager });
   }
 
   function aapneSlett(id: string, navn: string) {
@@ -261,33 +269,44 @@ export default function AdminProsjekter() {
                   <td className="px-4 py-3 text-center text-gray-500">{(p as unknown as { _count: { checklists: number } })._count?.checklists ?? 0}</td>
                   <td className="px-4 py-3 text-center text-gray-500">{(p as unknown as { _count: { tasks: number } })._count?.tasks ?? 0}</td>
                   <td className="px-4 py-3">
-                    {orgProj ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
-                        Aktiv
-                      </span>
-                    ) : (() => {
-                      const dager = dagerIgjen(p.createdAt);
-                      if (dager <= 0) {
-                        return (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
-                            <AlertTriangle className="h-3 w-3" />
-                            Utløpt
-                          </span>
-                        );
-                      }
-                      return (
-                        <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${
-                          dager <= 7
-                            ? "bg-red-100 text-red-700"
-                            : dager <= 14
-                              ? "bg-amber-100 text-amber-700"
-                              : "bg-blue-100 text-blue-700"
-                        }`}>
-                          <Clock className="h-3 w-3" />
-                          {dager} dager
+                    <div className="flex items-center gap-1">
+                      {orgProj ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
+                          Aktiv
                         </span>
-                      );
-                    })()}
+                      ) : (() => {
+                        const dager = dagerIgjen(p.createdAt, (p as unknown as { trialExpiresAt?: string | null }).trialExpiresAt);
+                        return (
+                          <>
+                            {dager <= 0 ? (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
+                                <AlertTriangle className="h-3 w-3" />
+                                Utløpt
+                              </span>
+                            ) : (
+                              <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${
+                                dager <= 7
+                                  ? "bg-red-100 text-red-700"
+                                  : dager <= 14
+                                    ? "bg-amber-100 text-amber-700"
+                                    : "bg-blue-100 text-blue-700"
+                              }`}>
+                                <Clock className="h-3 w-3" />
+                                {dager} dager
+                              </span>
+                            )}
+                            <button
+                              onClick={() => forleng(p.id, 30)}
+                              className="rounded p-0.5 text-gray-400 hover:bg-blue-50 hover:text-blue-600"
+                              title="Forleng 30 dager"
+                              disabled={forlengMutasjon.isPending}
+                            >
+                              <CalendarPlus className="h-3.5 w-3.5" />
+                            </button>
+                          </>
+                        );
+                      })()}
+                    </div>
                   </td>
                   <td className="px-4 py-3">
                     <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${

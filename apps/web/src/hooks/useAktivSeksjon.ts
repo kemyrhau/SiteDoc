@@ -12,9 +12,12 @@ const seksjonMap: Record<string, Seksjon> = {
   punktskyer: "3d-visning",
   modeller: "3d-visning",
   "3d-visning": "3d-visning",
+  "tegning-3d": "tegning-3d",
   bilder: "bilder",
   entrepriser: "entrepriser",
   mapper: "mapper",
+  okonomi: "okonomi",
+  sok: "sok",
   oppsett: "oppsett",
 };
 

@@ -3,9 +3,12 @@ import Fastify from "fastify";
 import cors from "@fastify/cors";
 import multipart from "@fastify/multipart";
 import fastifyStatic from "@fastify/static";
+import websocket from "@fastify/websocket";
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { healthRoute } from "./routes/health";
 import { uploadRoute } from "./routes/upload";
+import { prosesserRoute } from "./routes/prosesser";
+import { registrerWebSocket } from "./routes/ws";
 import { appRouter } from "./trpc/router";
 import { createContext } from "./trpc/context";
 
@@ -32,6 +35,10 @@ async function start() {
     credentials: true,
   });
 
+  // WebSocket for sanntids presence
+  await server.register(websocket);
+  await registrerWebSocket(server);
+
   // Multipart filopplasting (maks 500 MB)
   await server.register(multipart, {
     limits: { fileSize: 500 * 1024 * 1024 },
@@ -52,6 +59,9 @@ async function start() {
 
   // Filopplasting
   await server.register(uploadRoute);
+
+  // FTD dokumentprosessering
+  await server.register(prosesserRoute);
 
   // tRPC-endepunkt via fetch-adapter
   server.all("/trpc/*", async (req, res) => {
@@ -83,6 +93,23 @@ async function start() {
   try {
     await server.listen({ port, host });
     server.log.info(`SiteDoc API kjører på http://${host}:${port}`);
+
+    // Recovery: sett stuck embedding-chunks tilbake til pending ved oppstart
+    try {
+      const { prisma } = await import("@sitedoc/db");
+      const stuck = await prisma.$executeRawUnsafe(
+        `UPDATE ftd_document_chunks SET embedding_state = 'pending' WHERE embedding_state = 'processing'`,
+      );
+      if (stuck > 0) {
+        server.log.info(`Embedding recovery: ${stuck} stuck chunks satt tilbake til pending`);
+      }
+
+      // Start oversettelsesløkke (prosesserer FtdTranslationJob-køen)
+      const { startOversettelsesløkke } = await import("./services/oversettelse-service");
+      startOversettelsesløkke(prisma);
+    } catch (_e) {
+      // Ikke kritisk — ignorer hvis tabellen ikke finnes ennå
+    }
   } catch (err) {
     server.log.error(err);
     process.exit(1);

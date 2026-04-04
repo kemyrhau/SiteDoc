@@ -4,6 +4,7 @@ import { CameraView, useCameraPermissions } from "expo-camera";
 import { Accelerometer } from "expo-sensors";
 import { X, Timer, Flashlight, FlashlightOff } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTranslation } from "react-i18next";
 
 interface KameraModalProps {
   synlig: boolean;
@@ -39,6 +40,7 @@ function orienteringTilGrader(orientering: Orientering): number {
 }
 
 export function KameraModal({ synlig, onBilde, onLukk }: KameraModalProps) {
+  const { t } = useTranslation();
   const cameraRef = useRef<CameraView>(null);
   const insets = useSafeAreaInsets();
   const [tillatelse, spørOmTillatelse] = useCameraPermissions();
@@ -202,7 +204,7 @@ export function KameraModal({ synlig, onBilde, onLukk }: KameraModalProps) {
             <Text className="font-medium text-white">Gi tilgang</Text>
           </Pressable>
           <Pressable onPress={håndterLukk} className="mt-4 px-6 py-3">
-            <Text className="text-gray-400">Avbryt</Text>
+            <Text className="text-gray-400">{t("handling.avbryt")}</Text>
           </Pressable>
         </View>
       ) : synlig ? (

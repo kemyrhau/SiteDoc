@@ -371,14 +371,17 @@ export function useOppgaveSkjema(oppgaveId: string): UseOppgaveSkjemaResultat {
     }
   }, [oppgaveId, erPaaNettet, oppdaterDataMutasjon, utils]);
 
+  // Refs for stabile funksjonsreferanser — bryter dependency-kaskaden
+  const lagreInternRef = useRef(lagreIntern);
+  lagreInternRef.current = lagreIntern;
+
   const planleggLagring = useCallback(() => {
     if (lagreTimerRef.current) clearTimeout(lagreTimerRef.current);
     lagreTimerRef.current = setTimeout(() => {
-      lagreIntern();
+      lagreInternRef.current();
     }, 2000);
-  }, [lagreIntern]);
+  }, []);
 
-  // Ref for opplastingskø-callback — unngår dependency-sirkel
   const planleggLagringRef = useRef(planleggLagring);
   planleggLagringRef.current = planleggLagring;
 
@@ -387,15 +390,15 @@ export function useOppgaveSkjema(oppgaveId: string): UseOppgaveSkjemaResultat {
       clearTimeout(lagreTimerRef.current);
       lagreTimerRef.current = null;
     }
-    await lagreIntern();
-  }, [lagreIntern]);
+    await lagreInternRef.current();
+  }, []);
 
   // Synk til server når nett kommer tilbake
   useEffect(() => {
     if (erPaaNettet && erInitialisert && synkStatus === "lokalt_lagret") {
-      lagreIntern();
+      lagreInternRef.current();
     }
-  }, [erPaaNettet, erInitialisert, synkStatus, lagreIntern]);
+  }, [erPaaNettet, erInitialisert, synkStatus]);
 
   // Oppdater én nøkkel i et felt og planlegg auto-lagring
   const oppdaterFelt = useCallback(

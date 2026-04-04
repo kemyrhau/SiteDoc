@@ -287,27 +287,31 @@ export const adminRouter = router({
     .mutation(async ({ ctx }) => {
       await verifiserSiteDocAdmin(ctx.prisma, ctx.userId);
 
-      const deaktiverGrense = new Date();
-      deaktiverGrense.setDate(deaktiverGrense.getDate() - 30);
-
+      const nå = new Date();
       const slettGrense = new Date();
-      slettGrense.setDate(slettGrense.getDate() - 90);
+      slettGrense.setDate(slettGrense.getDate() - 60); // 60 dager etter utløp
 
-      // Deaktiver prosjekter eldre enn 30 dager uten firma (som fortsatt er aktive)
+      // Deaktiver prosjekter der prøveperioden har utløpt (trialExpiresAt < nå, eller createdAt + 30d < nå for eldre prosjekter)
       const deaktiverte = await ctx.prisma.project.updateMany({
         where: {
-          createdAt: { lt: deaktiverGrense },
           organizationProjects: { none: {} },
           status: "active",
+          OR: [
+            { trialExpiresAt: { lt: nå } },
+            { trialExpiresAt: null, createdAt: { lt: new Date(nå.getTime() - 30 * 24 * 60 * 60 * 1000) } },
+          ],
         },
         data: { status: "deactivated" },
       });
 
-      // Slett prosjekter eldre enn 90 dager uten firma
+      // Slett prosjekter der prøveperioden utløp for mer enn 60 dager siden
       const utlopte = await ctx.prisma.project.findMany({
         where: {
-          createdAt: { lt: slettGrense },
           organizationProjects: { none: {} },
+          OR: [
+            { trialExpiresAt: { lt: slettGrense } },
+            { trialExpiresAt: null, createdAt: { lt: new Date(slettGrense.getTime() - 30 * 24 * 60 * 60 * 1000) } },
+          ],
         },
         select: { id: true, name: true },
       });
@@ -321,6 +325,38 @@ export const adminRouter = router({
         slettet: utlopte.length,
         prosjekter: utlopte,
       };
+    }),
+
+  // Forleng prøveperiode for et prosjekt
+  forlengProsjekt: protectedProcedure
+    .input(z.object({
+      projectId: z.string(),
+      dager: z.number().int().min(1).max(365),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      await verifiserSiteDocAdmin(ctx.prisma, ctx.userId);
+
+      const prosjekt = await ctx.prisma.project.findUniqueOrThrow({
+        where: { id: input.projectId },
+        select: { trialExpiresAt: true, createdAt: true, status: true },
+      });
+
+      // Beregn ny utløpsdato: forleng fra nåværende utløp eller fra nå (hvis allerede utløpt)
+      const nåværendeUtløp = prosjekt.trialExpiresAt
+        ?? new Date(prosjekt.createdAt.getTime() + 30 * 24 * 60 * 60 * 1000);
+      const basis = nåværendeUtløp > new Date() ? nåværendeUtløp : new Date();
+      const nyUtløp = new Date(basis.getTime() + input.dager * 24 * 60 * 60 * 1000);
+
+      await ctx.prisma.project.update({
+        where: { id: input.projectId },
+        data: {
+          trialExpiresAt: nyUtløp,
+          // Reaktiver hvis deaktivert
+          ...(prosjekt.status === "deactivated" ? { status: "active" } : {}),
+        },
+      });
+
+      return { nyUtløp };
     }),
 
   // Hent alle brukere (kun sitedoc_admin)

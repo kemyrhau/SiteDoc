@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { trpc } from "@/lib/trpc";
 import { Button, Input, Textarea, Modal, Spinner, EmptyState, SearchInput } from "@sitedoc/ui";
+import { useTranslation } from "react-i18next";
 import { Plus, Pencil, Trash2, MoreVertical, ChevronDown, Lock, Building2 } from "lucide-react";
 import { EntrepriseTilknytningModal } from "./EntrepriseTilknytningModal";
 
@@ -102,6 +103,7 @@ export function MalListe({
   tomBeskrivelse,
 }: MalListeProps) {
   const { prosjektId } = useProsjekt();
+  const { t } = useTranslation();
   const router = useRouter();
   const utils = trpc.useUtils();
 
@@ -250,17 +252,17 @@ export function MalListe({
           trigger={
             <button className="inline-flex items-center gap-1.5 rounded-md bg-[#5a7a2e] px-4 py-2 text-sm font-medium text-white hover:bg-[#4d6926] transition-colors">
               <Plus className="h-4 w-4" />
-              Tilføy
+              {t("handling.leggTil")}
               <ChevronDown className="h-3 w-3" />
             </button>
           }
         >
           <DropdownItem onClick={() => setVisOpprettModal(true)}>
-            Opprett ny
+            {t("maler.opprettNy")}
           </DropdownItem>
-          <DropdownItem disabled>Importer fra annet prosjekt</DropdownItem>
-          <DropdownItem disabled>Importer fra firma</DropdownItem>
-          <DropdownItem disabled>Opprett fra PDF</DropdownItem>
+          <DropdownItem disabled>{t("maler.importerFraProsjekt")}</DropdownItem>
+          <DropdownItem disabled>{t("maler.importerFraFirma")}</DropdownItem>
+          <DropdownItem disabled>{t("maler.opprettFraPdf")}</DropdownItem>
         </Dropdown>
 
         {/* Rediger */}
@@ -274,7 +276,7 @@ export function MalListe({
           }`}
         >
           <Pencil className="h-4 w-4" />
-          Rediger
+          {t("handling.rediger")}
         </button>
 
         {/* Slett */}
@@ -288,7 +290,7 @@ export function MalListe({
           }`}
         >
           <Trash2 className="h-4 w-4" />
-          Slett
+          {t("handling.slett")}
         </button>
 
         {/* Mer-meny */}
@@ -296,13 +298,13 @@ export function MalListe({
           trigger={
             <button className="inline-flex items-center gap-1.5 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 transition-colors">
               <MoreVertical className="h-4 w-4" />
-              Mer
+              {t("handling.mer")}
               <ChevronDown className="h-3 w-3" />
             </button>
           }
         >
-          <DropdownItem disabled>Kopier mal</DropdownItem>
-          <DropdownItem disabled>Eksporter</DropdownItem>
+          <DropdownItem disabled>{t("maler.kopierMal")}</DropdownItem>
+          <DropdownItem disabled>{t("handling.eksporter")}</DropdownItem>
         </Dropdown>
 
         {/* Søk */}
@@ -310,7 +312,7 @@ export function MalListe({
           <SearchInput
             verdi={sok}
             onChange={setSok}
-            placeholder="Søk..."
+            placeholder={t("handling.soek") + "..."}
             className="w-48"
           />
         </div>
@@ -341,13 +343,13 @@ export function MalListe({
             <thead className="sticky top-0 border-b border-gray-200 bg-gray-50">
               <tr>
                 <th className="px-4 py-3 text-xs font-bold uppercase tracking-wide text-gray-700">
-                  Navn
+                  {t("tabell.navn")}
                 </th>
                 <th className="px-4 py-3 text-xs font-bold uppercase tracking-wide text-gray-700 w-[140px]">
-                  Prefiks
+                  {t("maler.prefiks")}
                 </th>
                 <th className="px-4 py-3 text-xs font-bold uppercase tracking-wide text-gray-700 w-[100px]">
-                  Versjon
+                  {t("maler.versjon")}
                 </th>
               </tr>
             </thead>
@@ -414,7 +416,7 @@ export function MalListe({
       >
         <form onSubmit={handleOpprett} className="flex flex-col gap-4">
           <Input
-            label="Malnavn"
+            label={t("maler.malnavn")}
             placeholder={
               kategori === "oppgave"
                 ? "F.eks. Avvik, Befaringsnotat..."
@@ -425,7 +427,7 @@ export function MalListe({
             required
           />
           <Input
-            label="Prefiks"
+            label={t("maler.prefiks")}
             placeholder="F.eks. BHO, S-BET, KBO..."
             value={prefiks}
             onChange={(e) => handlePrefiksEndring(e.target.value)}
@@ -435,13 +437,13 @@ export function MalListe({
           {/* Entreprisetilknytning */}
           <div className="flex flex-col gap-1">
             <label className="text-sm font-medium text-gray-700">
-              Entreprise
+              {t("tabell.entreprise")}
             </label>
             <div className="flex items-center gap-3">
               <span className="text-sm text-gray-500">
                 {valgteWorkflowIds.size === 0
-                  ? "Ingen entrepriser er valgt"
-                  : `${valgteWorkflowIds.size} arbeidsforløp valgt`}
+                  ? t("maler.ingenEntrepriserValgt")
+                  : `${valgteWorkflowIds.size} ${t("maler.arbeidsforlopValgt")}`}
               </span>
               <button
                 type="button"
@@ -449,7 +451,7 @@ export function MalListe({
                 className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
               >
                 <Building2 className="h-3.5 w-3.5" />
-                Velg
+                {t("handling.velg")}
               </button>
             </div>
           </div>
@@ -457,7 +459,7 @@ export function MalListe({
           {/* Fagområde */}
           <div className="flex flex-col gap-1">
             <label className="text-sm font-medium text-gray-700">
-              Fagområde
+              {t("tabell.fagomraade")}
             </label>
             <select
               value={domain}
@@ -473,7 +475,7 @@ export function MalListe({
           {/* Innstillinger */}
           <div className="flex flex-col gap-1">
             <label className="text-sm font-medium text-gray-700">
-              Innstillinger
+              {t("nav.innstillinger")}
             </label>
             <label className="flex items-center gap-2 cursor-not-allowed opacity-60">
               <input
@@ -487,7 +489,7 @@ export function MalListe({
                 Aktiver oppretting av nye {kategori === "sjekkliste" ? "sjekklister" : "oppgaver"}
               </span>
               <span className="ml-1 rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-400">
-                kommer snart
+                {t("feltarbeid.kommerSnart")}
               </span>
             </label>
           </div>
@@ -498,10 +500,10 @@ export function MalListe({
               variant="secondary"
               onClick={() => setVisOpprettModal(false)}
             >
-              Avbryt
+              {t("handling.avbryt")}
             </Button>
             <Button type="submit" loading={opprettMutation.isPending} disabled={!!prefiksFeil}>
-              OK
+              {t("handling.ok")}
             </Button>
           </div>
         </form>
@@ -526,23 +528,23 @@ export function MalListe({
       <Modal
         open={visRedigerModal}
         onClose={() => setVisRedigerModal(false)}
-        title="Rediger mal"
+        title={t("maler.redigerMal")}
       >
         <form onSubmit={handleRediger} className="flex flex-col gap-4">
           <Input
-            label="Malnavn"
+            label={t("maler.malnavn")}
             value={redigerNavn}
             onChange={(e) => setRedigerNavn(e.target.value)}
             required
           />
           <Input
-            label="Prefiks"
+            label={t("maler.prefiks")}
             placeholder="F.eks. BHO, S-BET, KBO..."
             value={redigerPrefiks}
             onChange={(e) => setRedigerPrefiks(e.target.value)}
           />
           <Textarea
-            label="Beskrivelse"
+            label={t("tabell.beskrivelse")}
             value={redigerBeskrivelse}
             onChange={(e) => setRedigerBeskrivelse(e.target.value)}
           />
@@ -587,7 +589,7 @@ export function MalListe({
                 className="inline-flex items-center gap-1.5 self-start rounded-md border border-dashed border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:border-gray-400 hover:text-gray-800 transition-colors"
               >
                 <Plus className="h-3.5 w-3.5" />
-                Legg til emne
+                {t("maler.leggTilEmne")}
               </button>
             </div>
           </div>
@@ -617,14 +619,14 @@ export function MalListe({
 
           <div className="flex gap-3 pt-2">
             <Button type="submit" loading={oppdaterMutation.isPending}>
-              Lagre
+              {t("handling.lagre")}
             </Button>
             <Button
               type="button"
               variant="secondary"
               onClick={() => setVisRedigerModal(false)}
             >
-              Avbryt
+              {t("handling.avbryt")}
             </Button>
           </div>
         </form>
@@ -634,7 +636,7 @@ export function MalListe({
       <Modal
         open={visSlettBekreftelse}
         onClose={() => setVisSlettBekreftelse(false)}
-        title="Slett mal"
+        title={t("maler.slettMal")}
       >
         <div className="flex flex-col gap-4">
           <p className="text-sm text-gray-600">
@@ -647,13 +649,13 @@ export function MalListe({
               onClick={handleSlett}
               loading={slettMutation.isPending}
             >
-              Slett
+              {t("handling.slett")}
             </Button>
             <Button
               variant="secondary"
               onClick={() => setVisSlettBekreftelse(false)}
             >
-              Avbryt
+              {t("handling.avbryt")}
             </Button>
           </div>
         </div>

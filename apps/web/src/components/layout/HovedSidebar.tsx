@@ -12,8 +12,12 @@ import {
   FolderOpen,
   Settings,
   Columns2,
+  BarChart3,
+  FileSearch,
+  ShieldCheck,
 } from "lucide-react";
 import { SidebarIkon } from "@sitedoc/ui";
+import { useTranslation } from "react-i18next";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { useBygning } from "@/kontekst/bygning-kontekst";
 import { useAktivSeksjon } from "@/hooks/useAktivSeksjon";
@@ -23,71 +27,92 @@ import type { Permission } from "@sitedoc/shared";
 
 interface SidebarElement {
   id: Seksjon;
-  label: string;
+  labelKey: string;
   ikon: JSX.Element;
   kreverProsjekt: boolean;
   tillatelse?: Permission;
   kreverIfc?: boolean;
+  kreverModul?: string;
 }
 
 const hovedelementer: SidebarElement[] = [
   {
     id: "dashbord",
-    label: "Dashbord",
+    labelKey: "nav.dashbord",
     ikon: <LayoutDashboard className="h-5 w-5" />,
     kreverProsjekt: false,
   },
   {
     id: "sjekklister",
-    label: "Sjekklister",
+    labelKey: "nav.sjekklister",
     ikon: <ClipboardCheck className="h-5 w-5" />,
     kreverProsjekt: true,
   },
   {
     id: "oppgaver",
-    label: "Oppgaver",
+    labelKey: "nav.oppgaver",
     ikon: <ListTodo className="h-5 w-5" />,
     kreverProsjekt: true,
   },
   // Maler er tilgjengelig via Innstillinger → Oppgavemaler / Sjekklistemaler
   {
     id: "tegninger",
-    label: "Tegninger",
+    labelKey: "nav.tegninger",
     ikon: <Map className="h-5 w-5" />,
     kreverProsjekt: true,
   },
   {
     id: "3d-visning",
-    label: "3D",
+    labelKey: "nav.3d",
     ikon: <Box className="h-5 w-5" />,
     kreverProsjekt: true,
     kreverIfc: true,
   },
   {
     id: "tegning-3d",
-    label: "Tegning+3D",
+    labelKey: "nav.tegning3d",
     ikon: <Columns2 className="h-5 w-5" />,
     kreverProsjekt: true,
     kreverIfc: true,
   },
   {
     id: "bilder",
-    label: "Bilder",
+    labelKey: "nav.bilder",
     ikon: <Image className="h-5 w-5" />,
     kreverProsjekt: true,
   },
   {
     id: "mapper",
-    label: "Mapper",
+    labelKey: "nav.mapper",
     ikon: <FolderOpen className="h-5 w-5" />,
     kreverProsjekt: true,
+  },
+  {
+    id: "okonomi",
+    labelKey: "nav.okonomi",
+    ikon: <BarChart3 className="h-5 w-5" />,
+    kreverProsjekt: true,
+    kreverModul: "okonomi",
+  },
+  {
+    id: "sok",
+    labelKey: "nav.sok",
+    ikon: <FileSearch className="h-5 w-5" />,
+    kreverProsjekt: true,
+  },
+  {
+    id: "psi",
+    labelKey: "nav.psi",
+    ikon: <ShieldCheck className="h-5 w-5" />,
+    kreverProsjekt: true,
+    kreverModul: "psi",
   },
 ];
 
 const bunnelementer: SidebarElement[] = [
   {
     id: "oppsett",
-    label: "Oppsett",
+    labelKey: "nav.oppsett",
     ikon: <Settings className="h-5 w-5" />,
     kreverProsjekt: false,
   },
@@ -98,8 +123,14 @@ export function HovedSidebar() {
   const { prosjektId } = useProsjekt();
   const aktivSeksjon = useAktivSeksjon();
   const { aktivBygning } = useBygning();
+  const { t } = useTranslation();
 
   const { data: tillatelser } = trpc.gruppe.hentMineTillatelser.useQuery(
+    { projectId: prosjektId! },
+    { enabled: !!prosjektId },
+  );
+
+  const { data: aktiveModuler } = trpc.modul.hentForProsjekt.useQuery(
     { projectId: prosjektId! },
     { enabled: !!prosjektId },
   );
@@ -119,6 +150,9 @@ export function HovedSidebar() {
   const filtrertHovedelementer = hovedelementer.filter((element) => {
     if (element.tillatelse && (!tillatelser || !tillatelser.includes(element.tillatelse))) return false;
     if (element.kreverIfc && !harIfc) return false;
+    if (element.kreverModul && (!aktiveModuler || !aktiveModuler.some(
+      (m) => m.moduleSlug === element.kreverModul && m.active,
+    ))) return false;
     return true;
   });
 
@@ -145,7 +179,7 @@ export function HovedSidebar() {
             >
               <SidebarIkon
                 ikon={element.ikon}
-                label={element.label}
+                label={t(element.labelKey)}
                 aktiv={aktivSeksjon === element.id}
                 onClick={deaktivert ? undefined : () => naviger(element)}
               />
@@ -165,7 +199,7 @@ export function HovedSidebar() {
             >
               <SidebarIkon
                 ikon={element.ikon}
-                label={element.label}
+                label={t(element.labelKey)}
                 aktiv={aktivSeksjon === element.id}
                 onClick={deaktivert ? undefined : () => naviger(element)}
               />

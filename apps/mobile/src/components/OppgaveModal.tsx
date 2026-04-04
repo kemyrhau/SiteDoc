@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native";
 import { MapPin, ChevronDown, ArrowRight } from "lucide-react-native";
+import { useTranslation } from "react-i18next";
 import { trpc } from "../lib/trpc";
 import { useProsjekt } from "../kontekst/ProsjektKontekst";
 
@@ -69,6 +70,7 @@ export function OppgaveModal({
   gpsPositionert,
   templateId,
 }: OppgaveModalProps) {
+  const { t } = useTranslation();
   const { valgtProsjektId } = useProsjekt();
 
   const [prioritet, setPrioritet] = useState<Prioritet>("medium");
@@ -199,7 +201,7 @@ export function OppgaveModal({
         {/* Header */}
         <View className="flex-row items-center justify-between bg-sitedoc-blue px-4 py-3">
           <Pressable onPress={håndterAvbryt} hitSlop={8}>
-            <Text className="text-sm font-medium text-white">Avbryt</Text>
+            <Text className="text-sm font-medium text-white">{t("handling.avbryt")}</Text>
           </Pressable>
           <Text className="text-sm font-semibold text-white">Ny oppgave</Text>
           <Pressable

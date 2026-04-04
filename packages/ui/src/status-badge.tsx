@@ -1,18 +1,34 @@
 import { Badge } from "./badge";
+import { useTranslation } from "react-i18next";
 
-const statusKonfig: Record<string, { label: string; variant: "default" | "primary" | "success" | "warning" | "danger" }> = {
-  draft: { label: "Utkast", variant: "default" },
-  sent: { label: "Sendt", variant: "primary" },
-  received: { label: "Mottatt", variant: "primary" },
-  in_progress: { label: "Under arbeid", variant: "warning" },
-  responded: { label: "Besvart", variant: "warning" },
-  approved: { label: "Godkjent", variant: "success" },
-  rejected: { label: "Avvist", variant: "danger" },
-  closed: { label: "Lukket", variant: "default" },
-  cancelled: { label: "Avbrutt", variant: "danger" },
-  active: { label: "Aktiv", variant: "success" },
-  archived: { label: "Arkivert", variant: "default" },
-  completed: { label: "Fullført", variant: "success" },
+const STATUS_I18N: Record<string, string> = {
+  draft: "status.utkast",
+  sent: "status.sendt",
+  received: "status.mottatt",
+  in_progress: "status.underArbeid",
+  responded: "status.besvart",
+  approved: "status.godkjent",
+  rejected: "status.avvist",
+  closed: "status.lukket",
+  cancelled: "status.avbrutt",
+  active: "status.aktiv",
+  archived: "status.arkivert",
+  completed: "status.ferdig",
+};
+
+const statusVariant: Record<string, "default" | "primary" | "success" | "warning" | "danger"> = {
+  draft: "default",
+  sent: "primary",
+  received: "primary",
+  in_progress: "warning",
+  responded: "warning",
+  approved: "success",
+  rejected: "danger",
+  closed: "default",
+  cancelled: "danger",
+  active: "success",
+  archived: "default",
+  completed: "success",
 };
 
 interface StatusBadgeProps {
@@ -21,10 +37,13 @@ interface StatusBadgeProps {
 }
 
 export function StatusBadge({ status, className }: StatusBadgeProps) {
-  const config = statusKonfig[status] ?? { label: status, variant: "default" as const };
+  const { t } = useTranslation();
+  const variant = statusVariant[status] ?? "default";
+  const i18nKey = STATUS_I18N[status];
+  const label = i18nKey ? t(i18nKey) : status;
   return (
-    <Badge variant={config.variant} className={className}>
-      {config.label}
+    <Badge variant={variant} className={className}>
+      {label}
     </Badge>
   );
 }

@@ -368,6 +368,42 @@ export function ViewerCanvas({
         world.renderer = new OBC.SimpleRenderer(components, container);
         world.camera = new OBC.SimpleCamera(components);
         world.camera.controls?.setLookAt(20, 20, 20, 0, 0, 0);
+        if (world.camera.controls) {
+          const ctrl = world.camera.controls;
+          const cam = world.camera.three;
+
+          ctrl.minDistance = 0.01;
+
+          // ── Hjelpefunksjon: hent blikkretning som kopi (ikke muter) ──
+          function blikkretning() {
+            // Bruk target→pos-retning (orbit-kontrollens faktiske retning)
+            const tgt = new THREE.Vector3();
+            ctrl.getTarget(tgt);
+            return tgt.sub(cam.position).normalize();
+          }
+
+          // ── Hjelpefunksjon: sett target 2 enheter foran kamera ──
+          function oppdaterTarget() {
+            const t = cam.position.clone().add(blikkretning().multiplyScalar(2));
+            ctrl.setTarget(t.x, t.y, t.z, false);
+          }
+
+          // ── Scroll: flytt kamera fremover/bakover ──
+          // Bruker ctrl.forward() som respekterer orbit-kontrollens interne tilstand.
+          container.addEventListener("wheel", (e: WheelEvent) => {
+            e.preventDefault();
+            const steg = -e.deltaY / 100; // positiv = fremover
+            ctrl.forward(steg * 2.5, false);
+          }, { passive: false });
+
+          // ── Venstreklikk: sett target nær kamera → rotasjon rundt ståsted ──
+          container.addEventListener("pointerdown", (e: PointerEvent) => {
+            if (e.button === 0) oppdaterTarget();
+          });
+
+          // ── Etter all interaksjon: oppdater target for neste rotasjon ──
+          ctrl.addEventListener("controlend", oppdaterTarget);
+        }
 
         components.init();
 
@@ -487,7 +523,7 @@ export function ViewerCanvas({
           threeCamera.far = maxDim * 20;
           threeCamera.updateProjectionMatrix();
           world.camera.controls?.setLookAt(
-            center.x + maxDim, center.y + maxDim * 0.7, center.z + maxDim,
+            center.x + maxDim * 0.6, center.y + maxDim * 0.4, center.z + maxDim * 0.6,
             center.x, center.y, center.z,
           );
         }
@@ -1091,6 +1127,22 @@ export function ViewerCanvas({
             );
           },
           sisteKlikkPunkt: () => sisteKlikkPunkt3D,
+          hentKameraPosisjon: () => {
+            const cam = world.camera.three;
+            const ctrl = world.camera.controls;
+            if (!cam || !ctrl) return null;
+            const pos = cam.position;
+            const dir = new THREE.Vector3();
+            cam.getWorldDirection(dir);
+            // Orbit target = det kameraet fokuserer på (mer stabilt enn cam.position)
+            const tgt = new THREE.Vector3();
+            ctrl.getTarget(tgt);
+            return {
+              pos: { x: pos.x, y: pos.y, z: pos.z },
+              target: { x: tgt.x, y: tgt.y, z: tgt.z },
+              retning: { x: dir.x, y: dir.y, z: dir.z },
+            };
+          },
           settEtasjeKlipp: (nedre: number, øvre: number) => {
             // Fjern eksisterende etasjeklipp-plan
             clipper.deleteAll();

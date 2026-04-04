@@ -2,7 +2,7 @@
 
 ## UI-arkitektur
 
-Dalux-inspirert tre-kolonne layout (skjules på mobil < 768px, hamburger-meny i Toppbar):
+Tre-kolonne layout (skjules på mobil < 768px, hamburger-meny i Toppbar):
 
 ```
 +----------------------------------------------------------+
@@ -41,24 +41,34 @@ Dalux-inspirert tre-kolonne layout (skjules på mobil < 768px, hamburger-meny i 
 /dashbord/[prosjektId]/maler                  -> Mal-liste
 /dashbord/[prosjektId]/maler/[id]             -> Malbygger
 /dashbord/[prosjektId]/entrepriser            -> Entreprise-liste
-/dashbord/[prosjektId]/mapper                 -> Mapper (read-only, ?mappe=id)
+/dashbord/[prosjektId]/mapper                 -> Mapper (read-only, ?mappe=id, filopplasting m/fremdriftsindikator via XMLHttpRequest progress)
 /dashbord/[prosjektId]/tegninger              -> Interaktiv tegningsvisning
 /dashbord/[prosjektId]/3d-visning            -> Samlet 3D-visning (IFC + punktsky + overflater + kutt/fyll)
 /dashbord/[prosjektId]/tegning-3d            -> Split-view tegning + 3D-modell med koordinatsynk og georeferanse
 /dashbord/[prosjektId]/punktskyer            -> Redirect → /3d-visning
 /dashbord/[prosjektId]/modeller              -> Redirect → /3d-visning
 /dashbord/[prosjektId]/bilder                 -> Bildegalleri (liste + tegningsvisning)
+/dashbord/[prosjektId]/okonomi               -> Økonomi: 4 faner (Oversikt, Avviksanalyse, Rapport, Dokumenter). Kontrakt påkrevd (auto-velg hvis kun én). Oversikt: spec-poster med piltast-nav, sammenligning, overskridelsesmarkering, NS-kode arv, gul prikk (●) ved postnr der split-dokumentasjon finnes. Dobbeltklikk rad → detaljmodal med dokumentasjon-seksjon ("Åpne dokumentasjon (X sider)" + kildeliste "A-nota 4: s.1-3"), NS-kode panel med NS 3420-oppslag. Rapport-fane: Innestående-tabell. Dokumenter-fane: Nr-kolonne, inline type-editor
+/dashbord/[prosjektId]/sok                   -> Dokumentsøk: AI-søk (NorBERT hybrid vektor+leksikalsk+re-ranking) med fallback til tekstsøk. Modusveksler, NS-dokumentfilter (dropdown med enkeltdokumenter), dedup per dokument, søkeord-highlighting, dobbelt-klikk åpner original. Tilgangskontrollert via hentTilgjengeligeMappeIder
+/dashbord/[prosjektId]/mapper                -> Mapper: dokumentliste med embedding-statusindikator + oversettelsestatus (grønn prikk/spinner på BookOpen-ikon). Les-knapp åpner Reader View
+/dashbord/[prosjektId]/dokumenter/[id]/les   -> Dokumentleser (Reader View): PDF-sider med bilder rendres som hele sidebilder (pdftoppm 150 DPI + sharp JPEG 80%), rene tekstsider viser headings/tekst. Språkvelger, fallback til nb, nedlastingsknapp. Sammenlign-panel for oversettelsesmotorbytte. ?embed=true for mobil WebView
+/dashbord/[prosjektId]/dokumentleser         -> Dokumentleser med mappenavigering: venstre panel (mappetreet + dokumentliste med flagg), høyre panel (inline Reader View)
+/dashbord/oppsett/ai-sok                     -> AI-søk innstillinger: embedding-status, generer/stopp, NorBERT/OpenAI modellvalg, LLM-konfig, recall/precision/latency sliders
 /dashbord/oppsett                             -> Innstillinger
-/dashbord/oppsett/brukere                     -> Brukergrupper, roller
+/dashbord/oppsett/brukere                     -> Brukergrupper, roller + Kontakter-tabell (toggle-knapp). Kontakttabell viser alle prosjektmedlemmer med Navn, E-post, Telefon, Firma, Rolle, Entrepriser (redigerbare via +/x), Grupper
 /dashbord/oppsett/brukere/tillatelser         -> Tillatelsesmatrise (read-only)
 /dashbord/oppsett/lokasjoner                  -> Lokasjonsliste med georeferanse
 /dashbord/oppsett/field                       -> Field-oversikt
 /dashbord/oppsett/field/dokumentflyt          -> Dokumentflyt (roller, maler, medlemmer)
-/dashbord/oppsett/field/entrepriser           -> Entrepriser med arbeidsforløp (gammel)
+/dashbord/oppsett/field/entrepriser           -> Entrepriser med dokumentflyt. Hovedansvarlig markeres med blå prikk (erHovedansvarlig). Dropdown i dokumentflyt viser kun personer og brukergrupper (ikke entrepriser/systemgrupper). Feilmelding ved sletting med tilknyttede dokumenter
 /dashbord/oppsett/field/oppgavemaler          -> Oppgavemaler
 /dashbord/oppsett/field/sjekklistemaler       -> Sjekklistemaler
 /dashbord/oppsett/field/moduler               -> Forhåndsdefinerte mal-pakker
-/dashbord/oppsett/field/box                   -> Mappeoppsett
+/dashbord/oppsett/field/psi                  -> PSI-oppsett: Multi-bygning støtte (én PSI per bygning), deaktiver/reaktiver (soft delete), kopier mal til annen bygning, QR-kode per bygning, gjestebeskjed-editor, auto-opprett standardmal med 8 seksjoner. Vises under Feltarbeid når modul er aktiv
+/dashbord/oppsett/field/psi/[psiId]/mal      -> Malbygger i PSI-modus: filtrert palett (kun PSI-typer), bredere config-panel (480px), bildeopplasting, større textarea, "INNHOLD"-labels, forhåndsvisningspanel (560px) med seksjonsnavigering, tilbake-knapp til PSI-oppsett, språkvelger (Psi.languages) + auto-oversett-knapp
+/dashbord/[prosjektId]/psi                   -> PSI-dashboard: Bygningsfaner, signaturtabell med HMS-kort-kolonne, statistikk (fullført/pågår/utdatert)
+/psi/[prosjektId]                            -> Offentlig PSI-side for gjester (QR): Bygningsvalg, HMS-kort felt + "Har ikke HMS-kort"-avkrysning, gjestebeskjed-visning, Forrige/Neste-navigering mellom seksjoner → quiz → signatur. Språkvelger filtrert til PSI-ens languages. Innhold rendres via oversatt()/oversattOptions() med fallback til norsk
+/dashbord/oppsett/field/box                   -> Mappeoppsett: tre-visning, kontekstmeny (ny undermappe, rediger tilgang, gi nytt navn, koble til kontrakt, slett). Mapper koblet til kontrakt viser blått ikon + kontraktnavn
 /dashbord/oppsett/prosjektoppsett             -> Prosjektoppsett
 /dashbord/oppsett/firma                       -> Firmainnstillinger
 /dashbord/admin                               -> SiteDoc-admin (kun sitedoc_admin)
@@ -83,9 +93,75 @@ Dalux-inspirert tre-kolonne layout (skjules på mobil < 768px, hamburger-meny i 
 - `useVerktoylinje(handlinger)` — Registrerer handlinger per side med auto-cleanup
 - `useAutoVaer(...)` — Auto-henter værdata fra Open-Meteo
 
+## Flerspråklig støtte (i18n)
+
+**Teknologi:** `i18next` + `react-i18next`, initialisert i `apps/web/src/lib/i18n.ts`
+
+**Språk:** 14 støttet (nb, en, sv, lt, pl, uk, ro, et, fi, cs, de, ru, lv, fr). Norsk (nb) er kilde, engelsk (en) har manuell oversettelse. Andre språk genereres via `packages/shared/src/i18n/generate.ts` med Google Translate.
+
+**Oversettelserfiler:** `packages/shared/src/i18n/nb.json` og `en.json` (~600 nøkler)
+
+**Arkitektur:**
+- `SpraakVelger` i Toppbar — dropdown med flagg + språknavn
+- `SpraakSynkroniserer` i Providers — synkroniserer localStorage ↔ DB
+- `bruker.hentSpraak` / `bruker.oppdaterSpraak` — tRPC-endepunkter
+- `User.language` felt i Prisma (default "nb")
+- Lazy-loading: kun nb og en er statisk importert, andre lastes on-demand
+- `StatusBadge` i `packages/ui` bruker `useTranslation()` direkte
+
+**Konvensjoner:**
+- Nøkkelstruktur: `seksjon.nøkkel` (f.eks. `nav.dashbord`, `status.utkast`, `handling.lagre`)
+- Statiske data utenfor komponenter bruker `labelKey` i stedet for `label`, kaller `t()` ved rendering
+- Interpolering: `t("dashbord.proveperiode", { dager: X })`
+- Nye strenger: legg til i **både** `nb.json` og `en.json`
+
+**Oversatte sider:** Alle hovedsider, navigasjon, statuspaneler, modaler, malbygger, innstillinger, prosjektoppsett
+
+## Oversettelsessystem (3 lag)
+
+### Lag 1: UI-strenger (i18n)
+Standard `i18next` + `react-i18next`. Alle UI-tekster i JSON-filer. Automatisk basert på `User.language`.
+
+### Lag 2: Mal-innhold → arbeider (on-demand)
+Firmainnhold (feltlabels, hjelpetekst, valgalternativer) oversettes on-demand når arbeider trykker 🌐-knappen.
+- **Trigger:** 🌐-knapp i FeltWrapper, kun synlig når `User.language !== Project.sourceLanguage`
+- **API:** `mal.oversettFelter` — batch-oversetter med TranslationCache
+- **Visning:** Oversettelse under originaltekst (blå, italic). Erstatter ikke — viser begge
+- **Motor:** Prosjektets konfigurasjon (OPUS-MT standard, Google/DeepL valgfritt)
+- **Cache:** TranslationCache (SHA-256) — oversetter kun én gang per tekst per språkpar
+- **Hook:** `useOversettelse` i `apps/web/src/hooks/useOversettelse.ts` (web) og `apps/mobile/src/hooks/useOversettelse.ts` (mobil) — kobler FeltWrapper til API. Web bruker `i18n.language`, mobil bruker `useAuth().bruker.language`
+
+### Lag 3: Fritekst → firma (automatisk)
+Arbeiderens fritekst auto-oversettes til prosjektspråket ved lagring.
+- **Trigger:** Automatisk i `oppdaterData` (sjekkliste + oppgave) når `User.language !== Project.sourceLanguage`
+- **Lagring:** `verdi` = oversettelse (prosjektspråk), `original` = { spraak, verdi, kommentar }
+- **Visning:** Prosjektspråk som hovedtekst, original i grå boks under
+- **Felttyper:** `text_field` verdier + `kommentar` på alle felttyper
+- **Forbedring:** `forbedreOversettelse` mutation — manuell redigering ELLER re-oversett med bedre motor (DeepL)
+- **Beskyttelse:** Admin-redigering overskrives ikke ved neste lagring (original-sjekk)
+
+### Språkinnstillinger
+- **Prosjekt.sourceLanguage:** Kildespråk (firma definerer). Velges i Prosjektoppsett
+- **Folder.languages:** Målspråk per mappe (for dokumentoversettelse). Arv via `languageMode` (inherit/custom)
+- **Folder.languageMode:** "inherit" arver fra forelder, "custom" har egne innstillinger
+- **User.language:** Brukerens UI-språk (14 valg)
+- **FtdDocument.detectedLanguage:** Auto-detektert språk fra innhold
+- **FtdDocument.languageConfirmed:** Bruker har bekreftet språkavvik
+
+### Språkdeteksjon
+- `apps/api/src/services/spraak-deteksjon.ts` — ordfrekvens-basert, ~60 ord per språk, 14 språk
+- Returnerer ISO 639-1 kode. Terskel: 3% treffrate
+- Ved avvik mot prosjektspråk: varsel i dokumentlisten med 3 valg (bekreft+oversett, bekreft uten oversettelse, bruk forventet)
+
+### Språkarv i mapper
+- `apps/api/src/services/folder-spraak.ts` — `resolverSpråk()` med syklusdeteksjon (visited-set)
+- Går opp foreldrekjeden til nærmeste `languageMode = "custom"` ancestor
+- Rot med inherit → kun prosjektets kildespråk
+- Batch: `resolverAlleSpråk()` for hele prosjektet
+
 ## Layout-komponenter
 
-- `Toppbar` — Klikkbar logo (→ `/`), prosjektvelger, brukermeny, hamburgermeny (mobil). Admin: ShieldCheck-ikon, Firma: Building2-ikon
+- `Toppbar` — Klikkbar logo (→ `/`), prosjektvelger, brukermeny, `SpraakVelger`, hamburgermeny (mobil). Admin: ShieldCheck-ikon, Firma: Building2-ikon
 - `HovedSidebar` — 60px ikonbar (`hidden md:flex`), deaktiverte ikoner uten prosjekt
 - `SekundaertPanel` — 280px panel (`hidden md:flex`)
 - `Verktoylinje` — Kontekstuell handlingsbar
@@ -133,7 +209,7 @@ Etter opprettelse navigeres brukeren direkte til detaljsiden for å begynne regi
 - For oppgaver: klikk på tegning for å plassere punkt (positionX/Y)
 - API: `oppgave.oppdater` og `sjekkliste.oppdater` aksepterer `drawingId`, `positionX`, `positionY`, `buildingId`
 
-## Tabellvisning — Dalux-stil kolonnevelger
+## Tabellvisning — konfigurerbar kolonnevelger
 
 Oppgave- og sjekkliste-lister bruker konfigurerbar tabellvisning med:
 
@@ -396,6 +472,44 @@ Erstatter separate `/punktskyer` og `/modeller`-ruter. Gamle URLer redirectes vi
 - **Bakgrunnslasting:** IFC-modeller begynner lasting så snart prosjektet åpnes, uavhengig av aktiv rute. Når bruker navigerer til 3D-visning er modellene ofte allerede lastet
 - **Verktøylinje og filter-bar:** Flyttet fra ViewerCanvas til page.tsx (`Fane3DModell`-komponenten)
 
+## Dokumenttidslinje
+
+Visuell tidslinje i sjekkliste- og oppgave-detaljsider. Delt komponent `DokumentTidslinje.tsx`:
+- Vertikal linje med prikker per hendelse (blå for siste, grå for eldre)
+- Viser avsender → mottaker (person/gruppe) per overføring
+- Status-badges, kommentarer, tidspunkt
+- Data fra `DocumentTransfer` (kronologisk, `asc`)
+- API inkluderer `recipientUser` og `recipientGroup` i transfer-queries
+
+## Feltvis merge (samtidighetsbeskyttelse)
+
+`oppdaterData`-mutasjonene (sjekkliste + oppgave) bruker **feltvis merge** i transaksjon:
+1. Henter fersk `data` fra DB inne i transaksjonen
+2. Merger innsendte felt: `{ ...eksisterende, ...input.data }`
+3. Lagrer merget resultat
+
+Forhindrer at samtidige brukere overskriver hverandres endringer på ulike felt.
+
+## Sanntids presence (WebSocket)
+
+WebSocket-tilkobling til Fastify API (`/ws?token=...`) for å vise hvem som redigerer samme dokument.
+
+**Arkitektur:**
+- `apps/api/src/services/presence.ts` — in-memory store (transient)
+- `apps/api/src/routes/ws.ts` — WebSocket-endepunkt med auth + meldingshåndtering
+- `apps/web/src/kontekst/presence-kontekst.tsx` — React context med WS-tilkobling
+- `apps/web/src/hooks/usePresence.ts` — hook for dokumentspesifikk presence
+
+**Meldingsprotokoll:**
+- Klient→Server: `join` (åpner dokument), `leave` (lukker), `heartbeat` (30s)
+- Server→Klient: `presence` (liste over aktive brukere per dokument)
+
+**UI:** Amber pille med pulserende blyantikon + navn i dokumentheader (sjekkliste/oppgave).
+
+**URL-logikk:** `test.sitedoc.no` → `wss://api-test.sitedoc.no/ws`, `sitedoc.no` → `wss://api.sitedoc.no/ws`
+
+**Auto-reconnect:** Eksponentiell backoff (1s→2s→4s→...→30s maks). Ventende joins sendes på nytt ved reconnect.
+
 ## Sjekkliste-endringslogg
 
 `enableChangeLog` på mal → server-side diff i `oppdaterData` → `ChecklistChangeLog`-poster. `EndringsloggSeksjon` i detaljsiden.
@@ -457,14 +571,30 @@ Draggbar skillelinje.
 - Auto-fit PDF til container ved oppstart
 - Full scroll-zoom og panorering
 
-**Markør med retningsindikator:**
-- SVG-kjegle viser kameraretning fra 3D-vieweren på tegningen
-- Oppdateres live ved kamerabevegelse i 3D
+**Live kamera-tracking (blå prikk):**
+- Blå prikk på tegningen viser kameraposisjon
+- **Inkrementell delta-tracking:** Startposisjon fra klikk (presis), bevegelse via `treDDeltaTilTegning` (lineærdel av similarity-transform, ingen absolutt offset)
+- Absolutt `treDTilTegning` har kjent offset — brukes IKKE for posisjon
+- `flyTil`-animasjon pauses i 600ms for å unngå at animasjonsframes tolkes som brukerbevegelse
+- Hint "Klikk på tegningen for å plassere kamera" vises uten markør
+
+**IFC GPS-kalibrering** (`gpsOverride` JSON-felt på Drawing):
+- **4-stegs klikk-kalibrering:** Klikk 2 matchende punkt-par (tegning → 3D) → beregner similarity-transform (a, b, tx, tz) som mapper tegning-% til 3D xz-koordinater. Håndterer posisjon, rotasjon, skalering og speiling automatisk
+- **Finjustering:** Klikk 1 punkt-par → korrigerer bare tx/tz (offset) uten å endre rotasjon/skala
+- **Grov kalibrering:** Hent GPS fra georeferert tegnings sentrum (ett klikk)
+- **Manuell input:** WGS84, UTM eller Norgeskart-format
+- **Tilbakestill:** Fjern override, tilbake til IFC-metadata GPS
+- API: `tegning.settGpsOverride` / `tegning.fjernGpsOverride`
+
+**Kamerakontroller (førsteperson):**
+- Venstreklikk-drag: roter rundt ståsted (target 2 enheter foran kamera, settes ved pointerdown)
+- Høyreklikk-drag: truck/pan (sidelengs bevegelse, standard orbit-kontroll)
+- Scroll: `ctrl.forward()` langs blikkretning (hastighet 2.5, symmetrisk). Bruker IKKE dolly (som begrenses av target)
+- Hjelpefunksjoner: `blikkretning()` (kopi, ikke muter), `oppdaterTarget()` (2 enheter foran)
 
 **Kamerahøyde-kalibrering:**
 - Klikk på gulv i 3D for å kalibrere kamerahøyde
 - Lagres i localStorage per bygning
-- Brukes for nøyaktig posisjonering av markør på tegning
 
 **Etasjeklipp:**
 - OBC `Clipper.createFromNormalAndCoplanarPoint()` klipper modellen horisontalt
@@ -474,10 +604,12 @@ Draggbar skillelinje.
 - `gpsTil3D(gps, ifcOrigin, system, hoyde)` — GPS → Three.js
 - `tredjeTilGps(punkt3d, ifcOrigin, system)` — Three.js → GPS
 - `wgs84TilUtm/wgs84TilNtm` — WGS84 → UTM/NTM projeksjon
+- `tegningTil3D` / `treDTilTegning` — direkte similarity-transform (forward=presis, invers=har offset)
+- `treDDeltaTilTegning` — lineærdel for inkrementell tracking (presis)
 
 **Georeferanse:**
-- Georeferanse-redigering (opprett/slett) skjer KUN i Lokasjoner-siden (`/dashbord/oppsett/lokasjoner`)
-- Tegning-3d viser kun status: "Georeferert" (grønt) eller "Georeferér i Lokasjoner" (lenke)
+- Georeferanse-redigering skjer KUN i Lokasjoner-siden (`/dashbord/oppsett/lokasjoner`)
+- Tegning-3d viser kun status: "Georeferert" (grønt) eller "Georeferér i Lokasjoner"
 - Støtter 3+ punkter: affin transformasjon med `ekstraPunkter`-array, viser kalibreringsfeil i meter
 
 **Tilgangskontroll:**

@@ -6,14 +6,16 @@
 - **SafeAreaView i Modals:** Bruk fra `react-native` (IKKE `react-native-safe-area-context`)
 - **React Query invalidering:** Invalider query-cache etter mutasjoner
 - **`InteractionManager.runAfterInteractions`:** MÅ brukes etter kamera/picker lukkes
+- **Lukkeknapp i modaler/fullskjerm:** ALLTID i en header-bar under SafeAreaView — ALDRI absolutt posisjonert (havner under notch/Dynamic Island). Standard: `<X size={22} color="#ffffff" />` med `hitSlop={12}` i en `flex-row items-center px-4 py-3` View. Se `PdfForhandsvisning.tsx` som referanse.
 
 ## Opprettelsesflyt
 
-`OpprettDokumentModal` — brukes for både sjekklister og oppgaver. **Ett-klikk**: når bruker har 1 entreprise og arbeidsforløp matcher, opprettes umiddelbart uten modal. Modal vises kun ved flervalg (flere entrepriser eller forhåndsdefinerte emner).
+`OpprettDokumentModal` — brukes for både sjekklister og oppgaver. Brukeren trykker alltid "Opprett" manuelt (auto-opprett fjernet pga. iOS Modal-animasjon som blokkerte navigering).
 - **Entreprise**: Auto-velges hvis bruker kun er i 1 entreprise
 - **Svarer**: Auto fra arbeidsforløp/dokumentflyt (read-only)
 - **Tittel**: Auto-generert i API (malnavn + løpenummer)
 - **Lokasjon**: IKKE i opprettelsesmodal — settes fra tegning ved klikk, eller kobles etterpå
+- **VIKTIG**: Ikke bruk `presentationStyle="pageSheet"` på Modal — forstyrrer navigering etter dismiss på iOS
 - Etter opprettelse navigeres til detaljskjermen for umiddelbar registrering
 
 ## Bildeannotering
@@ -115,6 +117,56 @@ Sjekkliste-/oppgave-detaljskjermen har kontekstuelle statusknapper i bunnpanelet
 4. Rydder opp ngrok-prosess ved Ctrl+C
 
 **Viktig:** `@expo/ngrok` (v2) er fjernet. Vi bruker systeminstallert ngrok v3 (`brew install ngrok`).
+
+## PSI (Prosjektspesifikk Sikkerhetsinstruks)
+
+**Skjerm:** `apps/mobile/app/psi/[psiId].tsx` — PSI-leser
+
+PSI er en personlig sikkerhetsgjennomgang, IKKE en sjekkliste. Gjennomføres via QR-kode eller innboks-lenke.
+
+**Flyt:** Seksjon-for-seksjon progresjon → quiz → signatur → fullført
+- Seksjoner basert på `heading`-objekter i malen
+- Tekst/bilder: scroll til bunnen for å gå videre
+- Video: må ses ferdig (WebView HTML5 video)
+- Quiz: må svare riktig (`PsiQuiz`-komponent med auto-sjekk)
+- Signatur: siste seksjon (`PsiSignaturFelt`-komponent med scroll-lås og auto-lagring)
+- Forrige/Neste/Lukk-knapper for navigering
+
+**HMS-kort:** HMS-kort-felt + "Har ikke HMS-kort"-avkrysning ved signering
+
+**Hjemskjerm PSI-statuslinje:** Slankt statusbånd (grønn/amber/rød) over innboksen:
+- Grønn: PSI fullført og gyldig
+- Amber: PSI pågår eller utdatert (ny versjon krever re-signering)
+- Rød: PSI ikke gjennomført
+
+**Nye rapportobjekter:** `info_text`, `info_image`, `video` (WebView), `quiz`
+
+**Viktig:** PSI-maler har `category = "psi"` — IKKE `"sjekkliste"`. Skal ALDRI vises i sjekkliste-opprettelsesdialogen.
+
+## Flerspråklig (i18n)
+
+**Oppsett:** i18next + react-i18next, gjenbruker JSON-filer fra `packages/shared/src/i18n/` (14 språk, ~920 nøkler).
+
+**Filer:**
+- `apps/mobile/src/lib/i18n.ts` — Config, statisk import av alle 14 språk, SecureStore-lagring
+- `apps/mobile/src/providers/SpraakProvider.tsx` — Synkroniserer brukerens språk
+
+**Provider-plassering:** `AuthProvider → SpraakProvider → ProsjektProvider`
+
+**Språkprioritet:** `bruker.language` (server) > lagret i SecureStore > `nb` (standard)
+
+**Bruk i komponenter:**
+```typescript
+import { useTranslation } from "react-i18next";
+const { t } = useTranslation();
+// t("nav.hjem"), t("tid.minSiden", { n: 5 })
+```
+
+**Skjermkonvertering:** Komplett — alle skjermer og komponenter bruker t(). Inkludert: hjem, lokasjoner, sjekkliste/[id], oppgave/[id], tabs, login, mer, boks, OpprettDokumentModal, FeltDokumentasjon, FeltWrapper, RepeaterObjekt, TekstfeltObjekt, StatusMerkelapp. `hentStatusHandlinger()` i shared bruker `tekstNoekkel` (i18n-nøkler).
+
+**Auto-save hooks (useSjekklisteSkjema/useOppgaveSkjema):** Bruker `lagreInternRef` og stabil `planleggLagring` (tom dep-array) for å bryte dependency-kaskaden `oppdaterDataMutasjon → lagreIntern → planleggLagring → oppdaterFelt → settVerdi`. Uten refs: mutation-state-skifte gjenskaper hele kjeden → effects re-trigges → loop.
+
+**Oversettelse ved lagring (Lag 3):** API `oppdaterData` prøver auto-oversettelse (OPUS-MT) ved lagring. Wrappet i try/catch — lagring skal ALDRI feile pga. oversettelsesserver. OPUS-MT trenger pivot via engelsk (lt→en→nb) — **TODO**: implementer pivot-logikk i `kallOversettelsesServer()`.
 
 ## Offline-first (SQLite)
 

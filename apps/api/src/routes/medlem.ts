@@ -7,6 +7,7 @@ import { sendInvitasjonsEpost } from "../services/epost";
 import {
   verifiserAdmin,
   verifiserProsjektmedlem,
+  hentBrukerTillatelser,
 } from "../trpc/tilgangskontroll";
 
 export const medlemRouter = router({
@@ -19,9 +20,13 @@ export const medlemRouter = router({
       return ctx.prisma.projectMember.findMany({
         where: { projectId: input.projectId },
         include: {
-          user: true,
+          user: {
+            include: {
+              organization: { select: { id: true, name: true } },
+            },
+          },
           enterprises: {
-            include: { enterprise: true },
+            include: { enterprise: { select: { id: true, name: true, color: true } } },
           },
         },
         orderBy: { createdAt: "asc" },
@@ -50,8 +55,10 @@ export const medlemRouter = router({
 
       if (!medlem) return [];
 
-      // Admin uten entreprise-tilknytning ser alle entrepriser
-      if (medlem.role === "admin" && medlem.enterprises.length === 0) {
+      // Registratorer (create_checklists/create_tasks) eller admin → se alle entrepriser
+      const tillatelser = await hentBrukerTillatelser(ctx.userId, input.projectId);
+      const erRegistrator = tillatelser.has("create_checklists") || tillatelser.has("create_tasks");
+      if (erRegistrator || medlem.role === "admin") {
         const alle = await ctx.prisma.enterprise.findMany({
           where: { projectId: input.projectId },
           orderBy: { name: "asc" },
@@ -60,6 +67,15 @@ export const medlemRouter = router({
       }
 
       return medlem.enterprises.map((me) => me.enterprise);
+    }),
+
+  // Hent mine tillatelser i et prosjekt
+  hentMineTillatelser: protectedProcedure
+    .input(z.object({ projectId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      const tillatelser = await hentBrukerTillatelser(ctx.userId, input.projectId);
+      return [...tillatelser];
     }),
 
   // Legg til medlem i prosjekt (krever admin)

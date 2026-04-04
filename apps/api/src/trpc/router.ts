@@ -19,6 +19,12 @@ import { modulRouter } from "../routes/modul";
 import { organisasjonRouter } from "../routes/organisasjon";
 import { adminRouter } from "../routes/admin";
 import { punktskyRouter } from "../routes/punktsky";
+import { mengdeRouter } from "../routes/mengde";
+import { ftdSokRouter } from "../routes/ftdSok";
+import { kontraktRouter } from "../routes/kontrakt";
+import { aiSokRouter } from "../routes/aiSok";
+import { brukerRouter } from "../routes/bruker";
+import { psiRouter } from "../routes/psi";
 
 export const appRouter = router({
   prosjekt: prosjektRouter,
@@ -41,6 +47,12 @@ export const appRouter = router({
   organisasjon: organisasjonRouter,
   admin: adminRouter,
   punktsky: punktskyRouter,
+  mengde: mengdeRouter,
+  ftdSok: ftdSokRouter,
+  kontrakt: kontraktRouter,
+  aiSok: aiSokRouter,
+  bruker: brukerRouter,
+  psi: psiRouter,
 });
 
 export type AppRouter = typeof appRouter;

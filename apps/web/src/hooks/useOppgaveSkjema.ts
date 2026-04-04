@@ -36,6 +36,8 @@ export interface UseOppgaveSkjemaResultat {
   leggTilVedlegg: (objektId: string, vedlegg: Vedlegg) => void;
   fjernVedlegg: (objektId: string, vedleggId: string) => void;
   erSynlig: (objekt: RapportObjekt) => boolean;
+  /** Append-only: felt med eksisterende verdi er låst for verdi-endring */
+  erFeltLåst: (objektId: string) => boolean;
   valideringsfeil: Record<string, string>;
   valider: () => boolean;
   lagre: () => Promise<void>;
@@ -52,6 +54,9 @@ export function useOppgaveSkjema(oppgaveId: string): UseOppgaveSkjemaResultat {
   const statusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const feltVerdierRef = useRef(feltVerdier);
   feltVerdierRef.current = feltVerdier;
+
+  // Append-only: felt som hadde verdier fra server er låst for verdi-endring
+  const låsteFelterRef = useRef<Set<string>>(new Set());
 
   const utils = trpc.useUtils();
   const slettBildeMutation = trpc.bilde.slettMedUrl.useMutation();
@@ -75,6 +80,7 @@ export function useOppgaveSkjema(oppgaveId: string): UseOppgaveSkjemaResultat {
 
     const eksisterendeData = (oppgave.data ?? {}) as Record<string, Record<string, unknown>>;
     const initialisert: Record<string, FeltVerdi> = {};
+    const låste = new Set<string>();
 
     for (const objekt of alleObjekter) {
       if (DISPLAY_TYPER.has(objekt.type)) continue;
@@ -86,11 +92,18 @@ export function useOppgaveSkjema(oppgaveId: string): UseOppgaveSkjemaResultat {
           kommentar: (lagret.kommentar as string) ?? "",
           vedlegg: (lagret.vedlegg as Vedlegg[]) ?? [],
         };
+
+        // Append-only: lås felt som allerede har verdi (ikke tom/null)
+        const v = lagret.verdi;
+        if (v !== null && v !== undefined && v !== "" && !(Array.isArray(v) && v.length === 0)) {
+          låste.add(objekt.id);
+        }
       } else {
         initialisert[objekt.id] = { ...TOM_FELTVERDI };
       }
     }
 
+    låsteFelterRef.current = låste;
     settFeltVerdier(initialisert);
     settErInitialisert(true);
   }, [oppgave, alleObjekter, erInitialisert]);
@@ -151,8 +164,18 @@ export function useOppgaveSkjema(oppgaveId: string): UseOppgaveSkjemaResultat {
     [planleggLagring],
   );
 
+  // Append-only: sjekk om felt er låst for verdi-endring
+  const erFeltLåst = useCallback(
+    (objektId: string): boolean => låsteFelterRef.current.has(objektId),
+    [],
+  );
+
   const settVerdi = useCallback(
-    (objektId: string, verdi: unknown) => oppdaterFelt(objektId, { verdi }),
+    (objektId: string, verdi: unknown) => {
+      // Append-only: blokker endring av felt som allerede har verdi
+      if (låsteFelterRef.current.has(objektId)) return;
+      oppdaterFelt(objektId, { verdi });
+    },
     [oppdaterFelt],
   );
 
@@ -282,6 +305,7 @@ export function useOppgaveSkjema(oppgaveId: string): UseOppgaveSkjemaResultat {
     leggTilVedlegg,
     fjernVedlegg,
     erSynlig,
+    erFeltLåst,
     valideringsfeil,
     valider,
     lagre,

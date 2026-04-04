@@ -1,6 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  transpilePackages: ["@sitedoc/shared", "@sitedoc/ui", "pdfjs-dist"],
+  experimental: {
+    serverComponentsExternalPackages: ["pdf-parse", "exceljs", "fast-xml-parser", "pdfjs-dist", "@xenova/transformers", "onnxruntime-node"],
+  },
+  transpilePackages: ["@sitedoc/shared", "@sitedoc/ui"],
   webpack: (config, { isServer }) => {
     // pdfjs-dist bruker canvas som optional dependency — ignorer i webpack
     config.resolve.alias.canvas = false;
@@ -11,10 +14,13 @@ const nextConfig = {
       asyncWebAssembly: true,
     };
 
-    // Ikke bundle @thatopen/web-ifc på server (bruker WebGL/WASM)
+    // Ikke bundle server-only pakker
     if (isServer) {
       config.externals = config.externals || [];
-      config.externals.push("web-ifc", "@thatopen/components", "@thatopen/fragments");
+      config.externals.push(
+        "web-ifc", "@thatopen/components", "@thatopen/fragments",
+        "@xenova/transformers", "onnxruntime-node", "onnxruntime-common",
+      );
     }
 
     // @thatopen bruker ESM med inlinet Three.js — SWC må gjenkjenne .mjs som ESM

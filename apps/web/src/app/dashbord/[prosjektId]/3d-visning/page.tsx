@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { useParams } from "next/navigation";
 import { Spinner } from "@sitedoc/ui";
 import {
@@ -30,6 +31,7 @@ import type {
 /* ------------------------------------------------------------------ */
 
 export default function TreDVisning() {
+  const { t } = useTranslation();
   const { prosjektId } = useParams<{ prosjektId: string }>();
   const [aktivFane, setAktivFane] = useState<Fane>("3d-modell");
 
@@ -45,9 +47,9 @@ export default function TreDVisning() {
   }, []);
 
   const faner: { id: Fane; label: string; ikon: JSX.Element }[] = [
-    { id: "3d-modell", label: "3D-modell", ikon: <Box className="h-4 w-4" /> },
-    { id: "overflater", label: "Overflater", ikon: <Mountain className="h-4 w-4" /> },
-    { id: "kutt-fyll", label: "Kutt/fyll", ikon: <BarChart3 className="h-4 w-4" /> },
+    { id: "3d-modell", label: t("3d.modell"), ikon: <Box className="h-4 w-4" /> },
+    { id: "overflater", label: t("3d.overflater"), ikon: <Mountain className="h-4 w-4" /> },
+    { id: "kutt-fyll", label: t("3d.kuttFyll"), ikon: <BarChart3 className="h-4 w-4" /> },
   ];
 
   return (
@@ -100,6 +102,7 @@ export default function TreDVisning() {
 /* ================================================================== */
 
 function Fane3DModell() {
+  const { t } = useTranslation();
   const {
     tegninger,
     punktskyer,
@@ -139,7 +142,7 @@ function Fane3DModell() {
       {/* Sidepanel — pointer-events-auto fordi layout setter pointer-events-none på children-wrapperen */}
       <div className="pointer-events-auto flex w-[280px] flex-col border-r border-gray-200 bg-white">
         <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
-          <h2 className="text-sm font-semibold text-gray-900">Modeller</h2>
+          <h2 className="text-sm font-semibold text-gray-900">{t("3d.modeller")}</h2>
           <label className="cursor-pointer">
             <input
               type="file"
@@ -150,7 +153,7 @@ function Fane3DModell() {
             />
             <span className="flex items-center gap-1 rounded bg-sitedoc-primary px-2.5 py-1.5 text-xs font-medium text-white hover:bg-sitedoc-primary/90">
               {lasterOpp ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
-              Last opp
+              {t("handling.lastOpp")}
             </span>
           </label>
         </div>
@@ -159,44 +162,44 @@ function Fane3DModell() {
           {!harModeller && (!punktskyer || punktskyer.length === 0) && (
             <div className="flex flex-col items-center gap-2 py-10 text-center">
               <Layers className="h-8 w-8 text-gray-300" />
-              <p className="text-sm text-gray-400">Ingen 3D-data</p>
-              <p className="text-xs text-gray-400">Last opp IFC-modeller</p>
+              <p className="text-sm text-gray-400">{t("3d.ingen3dData")}</p>
+              <p className="text-xs text-gray-400">{t("3d.lastOppIfcKort")}</p>
             </div>
           )}
 
           {/* IFC-modeller med avkrysning */}
-          {tegninger.map((t) => {
-            const status = modellStatuser.find((m) => m.id === t.id);
+          {tegninger.map((teg) => {
+            const status = modellStatuser.find((m) => m.id === teg.id);
             return (
               <label
-                key={t.id}
+                key={teg.id}
                 className="flex w-full cursor-pointer items-center gap-3 border-b border-gray-100 px-4 py-2.5 transition-colors hover:bg-gray-50"
               >
                 <input
                   type="checkbox"
                   checked={status?.synlig ?? true}
-                  onChange={() => toggleSynlighet(t.id)}
+                  onChange={() => toggleSynlighet(teg.id)}
                   className="h-3.5 w-3.5 shrink-0 rounded border-gray-300 text-sitedoc-primary accent-sitedoc-primary"
                 />
                 <Box className="h-4 w-4 shrink-0 text-gray-400" />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-gray-900">{t.name}</p>
+                  <p className="truncate text-sm font-medium text-gray-900">{teg.name}</p>
                   <p className="text-xs text-gray-500">
                     {status?.laster ? (
                       <span className="flex items-center gap-1 text-amber-600">
-                        <Loader2 className="h-3 w-3 animate-spin" /> Laster...
+                        <Loader2 className="h-3 w-3 animate-spin" /> {t("handling.laster")}
                       </span>
                     ) : status?.feil ? (
-                      <span className="text-red-500" title={status.feil}>Feilet</span>
+                      <span className="text-red-500" title={status.feil}>{t("status.feilet")}</span>
                     ) : (
                       "IFC"
                     )}
                   </p>
                 </div>
                 <button
-                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); soloModell(t.id); }}
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); soloModell(teg.id); }}
                   className="shrink-0 rounded p-1 text-gray-400 hover:bg-gray-200 hover:text-gray-700"
-                  title="Solo — vis kun denne modellen"
+                  title={t("3d.soloTittel")}
                 >
                   <Layers className="h-3.5 w-3.5" />
                 </button>
@@ -235,7 +238,7 @@ function Fane3DModell() {
         <div className="pointer-events-auto flex items-center gap-3 border-b border-gray-200 bg-white px-4 py-2">
           <Layers className="h-4 w-4 text-gray-400" />
           <span className="text-sm font-medium text-gray-900">
-            {tegninger.length} modell{tegninger.length !== 1 ? "er" : ""}
+            {t("3d.modellAntall", { antall: tegninger.length })}
           </span>
           <div className="flex-1" />
           <div className="flex items-center gap-1 border-r border-gray-200 pr-3">
@@ -248,10 +251,10 @@ function Fane3DModell() {
               className={`flex items-center gap-1 rounded px-2 py-1 text-xs ${
                 klippModus ? "bg-sitedoc-primary text-white" : "text-gray-600 hover:bg-gray-100"
               }`}
-              title="Snitt-modus"
+              title={t("3d.snitt")}
             >
               <Scissors className="h-3.5 w-3.5" />
-              Snitt
+              {t("3d.snitt")}
             </button>
             {klippModus && (
               <button
@@ -261,7 +264,7 @@ function Fane3DModell() {
                 }}
                 className="rounded px-2 py-1 text-xs text-gray-500 hover:bg-gray-100"
               >
-                Fjern alle
+                {t("3d.fjernAlle")}
               </button>
             )}
           </div>
@@ -284,7 +287,7 @@ function Fane3DModell() {
           <div className="pointer-events-auto flex flex-1 items-center justify-center bg-gray-100">
             <div className="text-center text-gray-400">
               <Box className="mx-auto mb-2 h-12 w-12 text-gray-300" />
-              <p className="text-sm">Last opp IFC-modeller for 3D-visning</p>
+              <p className="text-sm">{t("3d.lastOppIfcBeskrivelse")}</p>
             </div>
           </div>
         )}
@@ -330,6 +333,7 @@ function FaneOverflater({
   onLeggTil: (o: OverflateData) => void;
   onFjern: (id: string) => void;
 }) {
+  const { t } = useTranslation();
   const [valgtOverflateId, setValgtOverflateId] = useState<string | null>(null);
   const [lasterInn, setLasterInn] = useState(false);
   const [feil, setFeil] = useState<string | null>(null);
@@ -364,7 +368,7 @@ function FaneOverflater({
       {/* Sidepanel */}
       <div className="flex w-[280px] flex-col border-r border-gray-200 bg-white">
         <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
-          <h2 className="text-sm font-semibold text-gray-900">Overflater</h2>
+          <h2 className="text-sm font-semibold text-gray-900">{t("3d.overflater")}</h2>
           <label className="cursor-pointer">
             <input
               type="file"
@@ -385,7 +389,7 @@ function FaneOverflater({
             <div className="flex flex-col items-center gap-2 py-10 text-center">
               <Mountain className="h-8 w-8 text-gray-300" />
               <p className="text-sm text-gray-400">Ingen overflater</p>
-              <p className="text-xs text-gray-400">Last opp LandXML-filer</p>
+              <p className="text-xs text-gray-400">{t("handling.lastOpp")} LandXML-filer</p>
             </div>
           )}
 
@@ -401,7 +405,7 @@ function FaneOverflater({
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium text-gray-900">{o.navn}</p>
                 <p className="text-xs text-gray-500">
-                  {o.kilde === "landxml" ? "LandXML" : "Punktsky"} — {(o.triangles.length / 3).toLocaleString()} trekanter
+                  {o.kilde === "landxml" ? "LandXML" : t("3d.punktsky")} — {t("3d.trekanter", { antall: (o.triangles.length / 3).toLocaleString() })}
                 </p>
               </div>
               <button
@@ -427,7 +431,7 @@ function FaneOverflater({
           <div className="flex flex-1 items-center justify-center">
             <div className="text-center text-gray-400">
               <Mountain className="mx-auto mb-2 h-12 w-12 text-gray-300" />
-              <p className="text-sm">Last opp en LandXML-fil for å vise overflaten</p>
+              <p className="text-sm">{t("handling.lastOpp")} en LandXML-fil for å vise overflaten</p>
             </div>
           </div>
         ) : (
@@ -450,6 +454,7 @@ function FaneKuttFyll({
   overflater: OverflateData[];
   onLeggTil: (o: OverflateData) => void;
 }) {
+  const { t } = useTranslation();
   const [toppId, setToppId] = useState<string | null>(null);
   const [bunnId, setBunnId] = useState<string | null>(null);
   const [celleStr, setCelleStr] = useState(1.0);
@@ -496,7 +501,7 @@ function FaneKuttFyll({
       const res = beregnKuttFyll(topp, bunn, celleStr);
       setResultat(res);
     } catch (err) {
-      setFeil(err instanceof Error ? err.message : "Beregning feilet");
+      setFeil(err instanceof Error ? err.message : t("3d.beregningFeilet"));
     } finally {
       setBeregner(false);
     }
@@ -507,7 +512,7 @@ function FaneKuttFyll({
       {/* Sidepanel */}
       <div className="flex w-[280px] flex-col border-r border-gray-200 bg-white">
         <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
-          <h2 className="text-sm font-semibold text-gray-900">Kutt/fyll</h2>
+          <h2 className="text-sm font-semibold text-gray-900">{t("3d.kuttFyll")}</h2>
           <label className="cursor-pointer">
             <input
               type="file"
@@ -649,7 +654,7 @@ function FaneKuttFyll({
           <div className="flex flex-1 items-center justify-center">
             <div className="text-center text-gray-400">
               <BarChart3 className="mx-auto mb-2 h-12 w-12 text-gray-300" />
-              <p className="text-sm">Last opp to overflater og kjør analyse</p>
+              <p className="text-sm">{t("handling.lastOpp")} to overflater og kjør analyse</p>
               <p className="mt-1 text-xs text-gray-400">
                 Blå = kutt (terreng fjernet), Rød = fyll (masse tilført)
               </p>

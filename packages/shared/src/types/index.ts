@@ -1,3 +1,5 @@
+export * from "./ftd";
+
 // Statusflyt for entreprisedokumenter
 export const DOCUMENT_STATUSES = [
   "draft",
@@ -38,6 +40,10 @@ export const REPORT_OBJECT_TYPES = [
   "repeater",
   "location",
   "drawing_position",
+  "info_text",
+  "info_image",
+  "video",
+  "quiz",
 ] as const;
 
 export type ReportObjectType = (typeof REPORT_OBJECT_TYPES)[number];
@@ -50,7 +56,8 @@ export type ReportObjectCategory =
   | "dato"
   | "person"
   | "fil"
-  | "spesial";
+  | "spesial"
+  | "instruksjon";
 
 // Metadata for rapportobjekttyper
 export interface ReportObjectTypeMeta {
@@ -206,6 +213,30 @@ export const REPORT_OBJECT_TYPE_META: Record<ReportObjectType, ReportObjectTypeM
     icon: "Target",
     category: "spesial",
     defaultConfig: { buildingFilter: null, disciplineFilter: null },
+  },
+  info_text: {
+    label: "Lesetekst",
+    icon: "FileText",
+    category: "instruksjon",
+    defaultConfig: { content: "" },
+  },
+  info_image: {
+    label: "Bilde med tekst",
+    icon: "Image",
+    category: "instruksjon",
+    defaultConfig: { imageUrl: "", caption: "" },
+  },
+  video: {
+    label: "Video",
+    icon: "Play",
+    category: "instruksjon",
+    defaultConfig: { url: "" },
+  },
+  quiz: {
+    label: "Quiz-spørsmål",
+    icon: "HelpCircle",
+    category: "instruksjon",
+    defaultConfig: { question: "", options: ["", "", ""], correctIndex: 0 },
   },
 };
 
@@ -368,6 +399,7 @@ export interface ModulDefinisjon {
   kategori: "oppgave" | "sjekkliste" | "funksjon";
   ikon: string; // lucide-react ikonnavn
   maler: ModulMal[];
+  krever?: string[]; // slugs av moduler denne avhenger av
 }
 
 export interface ModulMal {
@@ -388,7 +420,17 @@ export interface ModulObjekt {
   config: Record<string, unknown>;
 }
 
+export type OversettelsesMotor = "opus-mt" | "google" | "deepl";
+
 export const PROSJEKT_MODULER: ModulDefinisjon[] = [
+  {
+    slug: "oversettelse",
+    navn: "Dokumentoversettelse",
+    beskrivelse: "Oversett dokumenter i mapper til flere språk. Gratis med OPUS-MT, eller oppgrader til Google Translate / DeepL for bedre kvalitet.",
+    kategori: "funksjon",
+    ikon: "Globe",
+    maler: [],
+  },
   {
     slug: "godkjenning",
     navn: "Godkjenning",
@@ -493,6 +535,33 @@ export const PROSJEKT_MODULER: ModulDefinisjon[] = [
     kategori: "funksjon",
     ikon: "Box",
     maler: [], // Ingen maler — ren funksjon
+  },
+  {
+    slug: "okonomi",
+    navn: "Økonomi",
+    beskrivelse:
+      "Mengdeoversikt, A-nota/T-nota, budsjettimport og avviksanalyse",
+    kategori: "funksjon",
+    ikon: "BarChart3",
+    maler: [],
+    krever: ["dokumentsok"],
+  },
+  {
+    slug: "dokumentsok",
+    navn: "Dokumentsøk",
+    beskrivelse:
+      "Søk i prosjektdokumenter med fulltekst og AI-embeddings",
+    kategori: "funksjon",
+    ikon: "FileSearch",
+    maler: [],
+  },
+  {
+    slug: "psi",
+    navn: "PSI — Sikkerhetsinstruks",
+    beskrivelse: "Prosjektspesifikk sikkerhetsinstruks med video, quiz og signatur. Arbeidere gjennomfører og signerer digitalt.",
+    kategori: "funksjon",
+    ikon: "ShieldCheck",
+    maler: [],
   },
 ];
 

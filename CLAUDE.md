@@ -14,6 +14,7 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 | [docs/claude/shared-pakker.md](docs/claude/shared-pakker.md) | @sitedoc/shared typer + validering + utils, @sitedoc/ui komponenter |
 | [docs/claude/infrastruktur.md](docs/claude/infrastruktur.md) | Deploy, server, env-filer, EAS Build, TestFlight, OAuth |
 | [docs/claude/terminologi.md](docs/claude/terminologi.md) | Alle termer og definisjoner |
+| [docs/claude/ai-sok.md](docs/claude/ai-sok.md) | AI-søk plan: embedding, hybrid søk, RAG, settings UI, testing UI |
 
 **Ved "oppdater CLAUDE.md"**: oppdater den relevante detalj-filen i `docs/claude/`, ikke denne hovedfilen (med mindre det gjelder tech stack, struktur, kommandoer, kodestil eller regler).
 
@@ -35,6 +36,10 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 - **3D/Punktsky:** Three.js, potree-core (punktsky-viewer), @thatopen/components (IFC 3D-viewer)
 - **Tegningskonvertering:** ODA File Converter / libredwg (DWG→SVG), CloudCompare (E57/PLY→LAS), PotreeConverter (LAS→Potree octree)
 - **Ikoner:** lucide-react
+- **i18n:** i18next + react-i18next (13 språk, ~600 nøkler i packages/shared/src/i18n/)
+- **Dokumentoversettelse:** OPUS-MT (selvhostet, port 3303) + Google Translate (gratis, google-translate-api-x) + DeepL (betalt). Translation memory cache, kildespråk-deteksjon
+- **Flerspråklig embedding:** intfloat/multilingual-e5-base (768 dim, 100+ språk, port 3302)
+- **Dokumentleser:** Blokkbasert Reader View med språkvelger, sammenlign-panel for motorbytte
 
 ## Prosjektstruktur
 
@@ -79,8 +84,10 @@ sitedoc/
 | **Branch** | `develop` | `main` |
 | **Repo på server** | `~/programmering/sitedoc-test` | `~/programmering/sitedoc` |
 | **API-port** | 3301 | 3001 |
-| **Database** | Delt PostgreSQL | Delt PostgreSQL |
+| **Database** | `sitedoc_test` | `sitedoc` |
 | **Uploads** | Delt (symlinket) | Delt |
+
+**KRITISK:** Databasene er SEPARATE. `psql -d sitedoc_test` for test, `psql -d sitedoc` for prod. ALDRI kjør testdata mot prod-databasen.
 
 ### Arbeidsflyt
 
@@ -178,9 +185,16 @@ Etter endringer, oppgi alltid hvilken reload-metode som trengs:
 
 ## Språk
 
-- All kode, UI-tekst, kommentarer og commits på **norsk bokmål**
+- All kode, kommentarer og commits på **norsk bokmål**
 - Variabelnavn kan være engelske der naturlig (`id`, `status`, `config`)
 - Bruk alltid æ, ø, å — ALDRI ASCII-erstatninger
+- **i18n-krav:** Alle synlige UI-strenger i web-appen MÅ bruke `t()` fra react-i18next — ALDRI hardkod norsk tekst i JSX. Ved nye sider/komponenter:
+  1. `import { useTranslation } from "react-i18next";`
+  2. `const { t } = useTranslation();`
+  3. Legg til nøkler i **både** `packages/shared/src/i18n/nb.json` og `en.json`
+  4. Nøkkelformat: `seksjon.noekkel` (f.eks. `oppgaver.tittel`, `handling.lagre`)
+  5. Gjenbruk eksisterende nøkler der mulig (`handling.lagre`, `handling.avbryt`, `tabell.navn` etc.)
+  6. For data utenfor komponenter (arrays, configs): bruk `labelKey` i stedet for `label`, kall `t()` ved rendering
 
 ## Viktige regler
 

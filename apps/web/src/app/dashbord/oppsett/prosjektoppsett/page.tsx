@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { trpc } from "@/lib/trpc";
 import { Button, Input, Spinner } from "@sitedoc/ui";
+import { useTranslation } from "react-i18next";
 import {
   Save,
   MapPin,
@@ -17,7 +18,9 @@ import {
   X,
   Upload,
   ImageIcon,
+  Globe,
 } from "lucide-react";
+import { STOETTEDE_SPRAAK } from "@sitedoc/shared";
 
 // Leaflet krever window — laster dynamisk uten SSR
 const KartVelgerDynamic = dynamic(
@@ -32,24 +35,24 @@ const KartVelgerDynamic = dynamic(
 const statusAlternativer = [
   {
     value: "active",
-    label: "Aktivt",
-    beskrivelse: "Prosjektet er i aktiv bruk",
+    labelKey: "prosjektoppsett.aktivt",
+    beskrivelseKey: "prosjektoppsett.aktivtBeskrivelse",
     ikon: <CircleDot className="h-5 w-5 text-green-500" />,
     fargeBg: "bg-green-50",
     fargeBorder: "border-green-200",
   },
   {
     value: "completed",
-    label: "Fullført",
-    beskrivelse: "Prosjektet er ferdigstilt",
+    labelKey: "prosjektoppsett.fullfort",
+    beskrivelseKey: "prosjektoppsett.fullfortBeskrivelse",
     ikon: <CheckCircle2 className="h-5 w-5 text-blue-500" />,
     fargeBg: "bg-blue-50",
     fargeBorder: "border-blue-200",
   },
   {
     value: "archived",
-    label: "Arkivert",
-    beskrivelse: "Prosjektet er arkivert og skrivebeskyttet",
+    labelKey: "prosjektoppsett.arkivert",
+    beskrivelseKey: "prosjektoppsett.arkivertBeskrivelse",
     ikon: <Archive className="h-5 w-5 text-gray-400" />,
     fargeBg: "bg-gray-50",
     fargeBorder: "border-gray-200",
@@ -88,6 +91,7 @@ function Seksjon({
 
 export default function ProsjektoppsettSide() {
   const { prosjektId } = useProsjekt();
+  const { t } = useTranslation();
   const utils = trpc.useUtils();
 
   const { data: prosjekt, isLoading } = trpc.prosjekt.hentMedId.useQuery(
@@ -105,6 +109,7 @@ export default function ProsjektoppsettSide() {
   const [eksterntNummer, setEksterntNummer] = useState("");
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [visInterntNummer, setVisInterntNummer] = useState(true);
+  const [kildesprak, setKildesprak] = useState("nb");
   const [lasterOppLogo, setLasterOppLogo] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
   const [harEndringer, setHarEndringer] = useState(false);
@@ -122,6 +127,7 @@ export default function ProsjektoppsettSide() {
       setEksterntNummer(prosjekt.externalProjectNumber ?? "");
       setLogoUrl(prosjekt.logoUrl ?? null);
       setVisInterntNummer((prosjekt as { showInternalProjectNumber?: boolean }).showInternalProjectNumber !== false);
+      setKildesprak((prosjekt as unknown as { sourceLanguage?: string }).sourceLanguage ?? "nb");
       setHarEndringer(false);
     }
   }, [prosjekt]);
@@ -177,6 +183,7 @@ export default function ProsjektoppsettSide() {
       externalProjectNumber: eksterntNummer.trim() || null,
       logoUrl: logoUrl || null,
       showInternalProjectNumber: visInterntNummer,
+      sourceLanguage: kildesprak,
       status: status as "active" | "archived" | "completed",
     });
   }
@@ -207,7 +214,7 @@ export default function ProsjektoppsettSide() {
 
       <div className="flex flex-col gap-5">
         {/* Firmalogo */}
-        <Seksjon tittel="Firmalogo" beskrivelse="Logoen vises i utskriftshodet på sjekklister og rapporter">
+        <Seksjon tittel={t("prosjektoppsett.firmalogo")} beskrivelse={t("prosjektoppsett.firmalogoBeskrivelse")}>
           <div className="flex items-center gap-4">
             {logoUrl ? (
               <div className="relative">
@@ -245,7 +252,7 @@ export default function ProsjektoppsettSide() {
                 ) : (
                   <Upload className="h-4 w-4" />
                 )}
-                {lasterOppLogo ? "Laster opp..." : "Last opp logo"}
+                {lasterOppLogo ? t("handling.lasterOpp") : t("prosjektoppsett.lastOppLogo")}
               </button>
               <p className="mt-1 text-xs text-gray-400">PNG eller JPG, maks 200×60px anbefalt</p>
             </div>
@@ -260,7 +267,7 @@ export default function ProsjektoppsettSide() {
         </Seksjon>
 
         {/* Generell informasjon */}
-        <Seksjon tittel="Generell informasjon">
+        <Seksjon tittel={t("prosjektoppsett.generellInfo")}>
           <div className="flex flex-col gap-4">
             <div className="flex items-center gap-3 rounded-lg bg-gray-50 px-4 py-3">
               <Hash className="h-4 w-4 text-gray-400" />
@@ -273,7 +280,7 @@ export default function ProsjektoppsettSide() {
             </div>
 
             <Input
-              label="Internt prosjektnummer"
+              label={t("prosjektoppsett.interntNr")}
               placeholder="F.eks. referanse til SharePoint, ERP e.l."
               value={interntNummer}
               onChange={(e) =>
@@ -282,7 +289,7 @@ export default function ProsjektoppsettSide() {
             />
 
             <Input
-              label="Eksternt prosjektnummer"
+              label={t("prosjektoppsett.ekstertNr")}
               placeholder="F.eks. kundens prosjektnummer..."
               value={eksterntNummer}
               onChange={(e) =>
@@ -291,7 +298,7 @@ export default function ProsjektoppsettSide() {
             />
 
             <Input
-              label="Prosjektnavn"
+              label={t("prosjektoppsett.prosjektnavn")}
               value={navn}
               onChange={(e) =>
                 handleFeltEndring(setNavn)(e.target.value)
@@ -332,8 +339,8 @@ export default function ProsjektoppsettSide() {
 
         {/* Prosjektlokasjon */}
         <Seksjon
-          tittel="Prosjektlokasjon"
-          beskrivelse="Klikk i kartet for å sette prosjektets posisjon. Brukes til automatisk værhenting i sjekklister."
+          tittel={t("prosjektoppsett.prosjektlokasjon")}
+          beskrivelse={t("prosjektoppsett.prosjektlokasjonBeskrivelse")}
         >
           <div className="flex flex-col gap-3">
             <KartVelgerDynamic
@@ -369,8 +376,8 @@ export default function ProsjektoppsettSide() {
 
         {/* Rapportinnstillinger */}
         <Seksjon
-          tittel="Rapportinnstillinger"
-          beskrivelse="Styr hva som vises på utskrifter og rapporter"
+          tittel={t("prosjektoppsett.rapportinnstillinger")}
+          beskrivelse={t("prosjektoppsett.rapportinnstillingerBeskrivelse")}
         >
           <label className="flex items-center gap-3 cursor-pointer">
             <input
@@ -390,10 +397,31 @@ export default function ProsjektoppsettSide() {
           </label>
         </Seksjon>
 
+        {/* Kildespråk */}
+        <Seksjon
+          tittel={t("prosjektoppsett.kildesprak")}
+          beskrivelse={t("prosjektoppsett.kildesprakBeskrivelse")}
+        >
+          <div className="flex items-center gap-3">
+            <Globe className="h-4 w-4 text-gray-400" />
+            <select
+              value={kildesprak}
+              onChange={(e) => handleFeltEndring(setKildesprak)(e.target.value)}
+              className="rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700"
+            >
+              {STOETTEDE_SPRAAK.map((s) => (
+                <option key={s.kode} value={s.kode}>
+                  {s.flagg} {s.navn}
+                </option>
+              ))}
+            </select>
+          </div>
+        </Seksjon>
+
         {/* Prosjektstatus */}
         <Seksjon
-          tittel="Prosjektstatus"
-          beskrivelse="Statusen påvirker synlighet og tilgjengelighet for brukere"
+          tittel={t("prosjektoppsett.prosjektstatus")}
+          beskrivelse={t("prosjektoppsett.prosjektstatusBeskrivelse")}
         >
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             {statusAlternativer.map((alt) => {
@@ -415,10 +443,10 @@ export default function ProsjektoppsettSide() {
                         erValgt ? "text-gray-900" : "text-gray-700"
                       }`}
                     >
-                      {alt.label}
+                      {t(alt.labelKey)}
                     </p>
                     <p className="mt-0.5 text-xs text-gray-500">
-                      {alt.beskrivelse}
+                      {t(alt.beskrivelseKey)}
                     </p>
                   </div>
                 </button>
@@ -428,7 +456,7 @@ export default function ProsjektoppsettSide() {
         </Seksjon>
 
         {/* Prosjektdetaljer (read-only) */}
-        <Seksjon tittel="Prosjektdetaljer">
+        <Seksjon tittel={t("prosjektoppsett.prosjektdetaljer")}>
           <div className="grid grid-cols-2 gap-4">
             <div className="flex items-center gap-3 rounded-lg bg-gray-50 px-4 py-3">
               <Calendar className="h-4 w-4 text-gray-400" />
@@ -484,7 +512,7 @@ export default function ProsjektoppsettSide() {
             disabled={!harEndringer}
           >
             <Save className="mr-1.5 h-4 w-4" />
-            {harEndringer ? "Lagre endringer" : "Ingen endringer"}
+            {harEndringer ? t("prosjektoppsett.lagreEndringer") : t("prosjektoppsett.ingenEndringer")}
           </Button>
         </div>
       </div>

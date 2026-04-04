@@ -13,9 +13,14 @@ Brukeren velger språk i mobilappen. Alt vises på valgt språk: UI, mal-etikett
 | `en` | Engelsk | Høy |
 | `lt` | Litauisk | Høy |
 | `pl` | Polsk | Høy |
+| `uk` | Ukrainsk | Høy |
 | `ro` | Rumensk | Middels |
-| `uk` | Ukrainsk | Middels |
-| `ru` | Russisk | Middels |
+| `et` | Estisk | Middels |
+| `fi` | Finsk | Middels |
+| `cs` | Tsjekkisk | Middels |
+| `de` | Tysk | Middels |
+| `lv` | Latvisk | Middels |
+| `ru` | Russisk | Lav |
 
 ## Tre lag av oversettelse
 
@@ -180,41 +185,59 @@ Tekst: "{brukerInput}"
 Returner kun oversatt tekst, ingen forklaring.
 ```
 
-**Oversettelsestilbyder: DeepL API (valgt løsning)**
+**Oversettelsestilbyder: Dynamisk provider-abstraksjon**
 
-DeepL API kjøres fra SiteDoc sin egen Node.js-server — en enkel HTTP-request, likt vær-API-et (Open-Meteo).
+Samme mønster som embedding-servicen — en felles interface med utbyttbare providere. Konfigurerbart per prosjekt via innstillinger.
 
 ```typescript
 // apps/api/src/services/oversettelse.ts
 
-const response = await fetch("https://api-free.deepl.com/v2/translate", {
-  method: "POST",
-  headers: {
-    "Authorization": `DeepL-Auth-Key ${process.env.DEEPL_API_KEY}`,
-    "Content-Type": "application/json",
-  },
-  body: JSON.stringify({
-    text: ["Pęknięcie w ścianie fundamentowej"],
-    source_lang: "PL",
-    target_lang: "NB",
-  }),
-});
-// → { translations: [{ text: "Sprekk i grunnmuren" }] }
+interface TranslationProvider {
+  oversett(tekster: string[], fraSpraak: string, tilSpraak: string): Promise<string[]>;
+  navn: string;
+}
+
+class GoogleTranslateProvider implements TranslationProvider {
+  // google-translate-api-x (gratis, uoffisiell) eller @google-cloud/translate (offisiell)
+  navn = "google";
+}
+
+class DeepLProvider implements TranslationProvider {
+  // DeepL API (api-free.deepl.com eller api.deepl.com)
+  navn = "deepl";
+}
+
+class ClaudeProvider implements TranslationProvider {
+  // Anthropic Claude API med byggfaglig kontekst-prompt
+  navn = "claude";
+}
 ```
 
-| Plan | Pris | Tegn/mnd | Vurdering |
-|------|------|----------|-----------|
-| DeepL API Free | $0 | 500 000 | Nok for oppstart og testing |
-| DeepL API Pro | ~$5.50/mnd + bruk | 5 000 000+ | For produksjon med høyere volum |
+**Tilgjengelige providere:**
 
-DeepL støtter alle 8 målspråk: nb, sv, en, lt, pl, ro, uk, ru.
+| Provider | Pris | Kvalitet | API-nøkkel | Språk |
+|----------|------|----------|------------|-------|
+| Google Translate (uoffisiell) | Gratis | God | Nei | 130+ |
+| Google Cloud Translation | $20/M tegn | God | Ja | 130+ |
+| DeepL Free | Gratis (500k/mnd) | Svært god | Ja | ~30 |
+| DeepL Pro | $25/M tegn | Svært god | Ja | ~30 |
+| Claude | ~$3/M tokens | Best for fagtermer | Ja | Alle |
 
-**Fallback:** Claude API for byggfagspesifikke termer der DeepL er upresis. Claude kan instrueres med kontekst ("Oversett til norsk byggfaglig språk").
+**Anbefalt oppsett:**
+1. **Start med:** `google-translate-api-x` (gratis, ingen nøkkel, robust)
+2. **Oppgrader til:** Google Cloud eller DeepL ved høyere volum/kvalitetskrav
+3. **Fallback:** Claude for byggfagspesifikke termer
 
-**Hvorfor ikke lokale modeller (LibreTranslate/LTEngine)?**
-- DeepL gir bedre kvalitet til lavere totalkostnad enn å drifte en GPU-server
-- Serverens GTX 1660 (6 GB VRAM) er for liten for de store LLM-modellene som matcher DeepL
-- En Azure GPU-VM koster ~$500/mnd — DeepL koster ~$5.50/mnd for samme kvalitet
+Alle providere støtter de 13 målspråkene: nb, sv, en, lt, pl, uk, ro, et, fi, cs, de, lv, ru.
+
+**Konfigurasjon per prosjekt:**
+```typescript
+// ai_sok_innstillinger eller egen tabell
+{
+  translationProvider: "google" | "deepl" | "claude",
+  translationApiKey?: string, // Kun for offisiell Google Cloud / DeepL / Claude
+}
+```
 - LibreTranslate (uten GPU) gir ~70% nøyaktighet — ikke godt nok for fagterminologi
 
 **Dataflyt ved felt-endring:**
@@ -328,7 +351,7 @@ const SPRAAK_MODUL: ModulDefinisjon = {
   ikon: "Languages",
   maler: [], // Ingen maler — dette er en systemmodul
   config: {
-    tilgjengeligeSpraak: ["nb", "sv", "en", "lt", "pl", "ro", "uk", "ru"],
+    tilgjengeligeSpraak: ["nb", "sv", "en", "lt", "pl", "uk", "ro", "et", "fi", "cs", "de", "lv", "ru"],
     standardSpraak: "nb",
   }
 }
@@ -406,23 +429,102 @@ const response = await fetch("https://api-free.deepl.com/v2/translate", {
 
 ## Implementeringsplan
 
+### Fase 0: Førstegangs språkvalg ved installasjon
+
+**Mål:** Brukeren velger språk ved første åpning — appen oppleves umiddelbart på riktig språk.
+
+**Mobil (Expo):**
+
+```
+Første åpning:
+  1. expo-localization: les enhetens språk (f.eks. "uk" for ukrainsk telefon)
+  2. Vis velkomstskjerm på detektert språk:
+     "Ласкаво просимо до SiteDoc" (ukrainsk)
+     "Velkommen til SiteDoc" (norsk)
+  3. Dropdown: "Velg språk / Виберіть мову" med alle 12 språk + flagg
+  4. Bruker bekrefter → lagres lokalt (AsyncStorage) + User.language i DB
+  5. Appen laster med valgt språk — alle skjermer er oversatt
+```
+
+**Web (Next.js):**
+
+```
+Første innlogging:
+  1. Sjekk navigator.language (nettleser-språk)
+  2. Hvis brukerens User.language ikke er satt:
+     → Vis språkvelger-modal: "Velg språk" med flagg-ikoner
+  3. Lagre i localStorage + User.language
+  4. Påfølgende besøk: bruk lagret språk direkte
+```
+
+**Invitasjonsflyt:**
+
+```
+Bruker inviteres til prosjekt via e-post:
+  → E-posten sendes på prosjektets standardspråk (norsk)
+  → Bruker klikker lenke → registrerer seg
+  → Første innlogging: språkvelger-modal
+  → Brukeren velger ukrainsk → alt vises på ukrainsk fra nå av
+```
+
+**Komponenter:**
+
+```
+apps/mobile/app/sprakvalg.tsx      — Velkomstskjerm med språkvelger (mobil)
+apps/web/src/components/SprakModal.tsx — Modal ved første innlogging (web)
+```
+
+**Språkliste med flagg:**
+
+| Flagg | Kode | Norsk | Lokalt |
+|-------|------|-------|--------|
+| 🇳🇴 | `nb` | Norsk bokmål | Norsk bokmål |
+| 🇸🇪 | `sv` | Svensk | Svenska |
+| 🇬🇧 | `en` | Engelsk | English |
+| 🇱🇹 | `lt` | Litauisk | Lietuvių |
+| 🇵🇱 | `pl` | Polsk | Polski |
+| 🇺🇦 | `uk` | Ukrainsk | Українська |
+| 🇷🇴 | `ro` | Rumensk | Română |
+| 🇪🇪 | `et` | Estisk | Eesti |
+| 🇫🇮 | `fi` | Finsk | Suomi |
+| 🇨🇿 | `cs` | Tsjekkisk | Čeština |
+| 🇩🇪 | `de` | Tysk | Deutsch |
+| 🇱🇻 | `lv` | Latvisk | Latviešu |
+| 🇷🇺 | `ru` | Russisk | Русский |
+
+**Viktig:** Hvert språk vises på *sitt eget språk* i listen — en ukrainsk bruker skal gjenkjenne "Українська" uten å kunne lese norsk.
+
+**Testing — fase 0:**
+- [ ] Ny installasjon på ukrainsk telefon → velkomstskjerm på ukrainsk
+- [ ] Ny installasjon på norsk telefon → velkomstskjerm på norsk
+- [ ] Ukjent systemspråk (f.eks. kinesisk) → velkomstskjerm på engelsk (fallback)
+- [ ] Valgt språk beholdes etter app-restart
+- [ ] Valgt språk synkes til User.language i DB
+- [ ] Web: første innlogging viser språkvelger-modal
+- [ ] Web: påfølgende besøk bruker lagret språk uten modal
+
 ### Fase 1: UI-oversettelse (Lag 1)
 
-**Mål:** Mobilappen viser UI på brukerens språk
+**Mål:** App og web viser UI på brukerens valgte språk
 
 1. Sett opp `i18next` i `packages/shared/src/i18n/`
-2. Ekstraher alle hardkodede norske strenger fra mobil-appen (~300 nøkler)
+2. Ekstraher alle hardkodede norske strenger (~300 mobil, ~1600 web)
 3. Lag norsk kilde-fil (`nb.json`)
-4. Oversett til 7 språk (AI-assistert + manuell QA)
-5. Integrer `expo-localization` for system-språk-deteksjon
-6. Legg til språkvelger i Mer-fanen (mobil)
-7. Legg til `language`-felt på User-modellen
+4. Google Translate script: auto-oversett til alle 11 språk
+5. Manuell QA av fagtermer per språk
+6. Integrer `expo-localization` + `i18next` i mobil
+7. Integrer `next-intl` i web
+8. Språkvelger i toppbar (web) og Mer-fanen (mobil)
+9. Legg til `language`-felt på User-modellen
+10. API-endpoint: `bruker.oppdaterSpraak`
 
 **Filer som endres:**
-- `packages/shared/src/i18n/` (ny)
+- `packages/shared/src/i18n/` (ny — delt mellom web og mobil)
 - `apps/mobile/src/` — alle skjermer og komponenter (erstatt hardkodet tekst)
+- `apps/web/src/` — alle sider og komponenter (erstatt hardkodet tekst)
 - `packages/db/prisma/schema.prisma` — `language` på User
 - `apps/mobile/app/(tabs)/mer.tsx` — språkvelger
+- `apps/web/src/components/layout/Toppbar.tsx` — språkvelger dropdown
 
 ### Fase 2: Mal-oversettelse (Lag 2)
 
@@ -453,48 +555,579 @@ const response = await fetch("https://api-free.deepl.com/v2/translate", {
 3. Oppdater print-ruter til å hente oversettelser basert på prosjektspråk
 4. `RapportObjektVisning` bruker prosjektspråk ved print
 
-### Fase 4: Automatisk fritekst-oversettelse (Lag 3) — FREMTIDIG
+### Fase 4: Automatisk fritekst-oversettelse (Lag 3)
 
-> **Status:** Planlagt som fremtidig forbedring. Fase 1–3 gir nok verdi til lansering.
-> Fase 4 krever mer detaljering av offline-sync-logikk, UX for feiloversettelser,
-> og språkdeteksjon (bruker kan skrive på annet språk enn sin innstilling).
+**Mål:** Brukergenerert innhold oversettes automatisk. Ukrainsk bruker skriver på ukrainsk, norsk sjef leser på norsk, utskrift leveres på prosjektets standardspråk.
 
-**Mål:** Brukergenerert innhold oversettes automatisk server-side
+#### Komplett scenario
 
-**Åpne spørsmål som må løses før implementering:**
+```
+Oleksandr (ukrainsk, mobil) fyller ut sjekkliste:
+  Trafikklys: 🟡 → velger "Anmerkning" (vises som "Зауваження" på ukrainsk)
+  Fritekst:   "Тріщина у фундаментній стіні, ширина ~2мм"
+  Bilde:      Tar foto av sprekken
+  Signatur:   Signerer
+  → Lagres:   data.trafikklys = "Anmerkning" (norsk nøkkel)
+              data.fritekst = "Тріщина у фундаментній стіні, ширина ~2мм"
+              data.fritekst_lang = "uk"
+                    ↓
+  → Server (automatisk, fire-and-forget):
+    TranslationService.oversettOgCache({
+      tekst: "Тріщина у фундаментній стіні, ширина ~2мм",
+      fraSpraak: "uk",   // fra User.language
+      tilSpraak: ["nb"], // prosjektets standardspråk (alltid)
+    })
+    → Google Translate: "Sprekk i grunnmuren, bredde ~2mm"
+    → Lagres i ContentTranslation-tabell
+                    ↓
+Kjetil (norsk, PC) åpner samme sjekkliste:
+  → API: hent data + oversettelser for brukerens språk (nb)
+  → Trafikklys: "Anmerkning" (norsk nøkkel → vises direkte)
+  → Fritekst: slå opp ContentTranslation(hash, "nb")
+    → Cache hit: "Sprekk i grunnmuren, bredde ~2mm"
+  → Vises med markering: "Sprekk i grunnmuren, bredde ~2mm"
+                          ⓘ Oversatt fra ukrainsk
+  → Kjetil kan klikke ⓘ for å se original: "Тріщина у..."
+  → Kjetil kan korrigere oversettelsen manuelt
+                    ↓
+Utskrift (prosjektspråk: norsk):
+  → Alle etiketter på norsk (fra mal-oversettelse)
+  → Valgverdier på norsk (norsk nøkkel)
+  → Fritekst: norsk oversettelse fra cache
+  → Fotnote: "Originalspråk: ukrainsk" (valgfri innstilling)
+```
 
-1. **Språkdeteksjon på kildetekst:** Skal vi stole på `User.language`, eller bruke
-   DeepL sin automatiske språkdeteksjon? En norsk bruker kan skrive på engelsk.
-   DeepL støtter `source_lang: null` for auto-detect — bør trolig brukes.
+#### Database
 
-2. **UX ved feiloversettelse:** Hvordan håndterer vi dårlige oversettelser?
-   - "Oversatt fra {språk}"-markering under feltet
-   - Mulighet for bruker å se originaltekst (toggle?)
-   - Rapporterings-/korrigeringsmekanisme?
+```prisma
+model ContentTranslation {
+  id             String   @id @default(cuid())
+  sourceHash     String   // SHA-256 av originaltekst (for cache-oppslag)
+  sourceLang     String   // "uk" (fra User.language)
+  targetLang     String   // "nb"
+  sourceText     String   // Originaltekst (ukrainsk)
+  translatedText String   // Oversatt tekst (norsk)
+  provider       String   // "google" | "deepl" | "claude" | "manual"
+  isManual       Boolean  @default(false) // Manuelt korrigert av bruker
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-3. **Offline-sync av oversettelser:** Ikke-triviell logikk:
-   - Når caches oversettelser i SQLite?
-   - Hva vises offline for tekst skrevet av andre brukere?
-   - Synkroniseringsstrategi for nye oversettelser ved nettverkstilkobling
+  @@unique([sourceHash, targetLang])
+  @@index([sourceHash])
+  @@map("content_translations")
+}
+```
 
-4. **Kostnads-/volumkontroll:** Budsjettgrense per prosjekt? Rate limiting?
+**Viktig:** `sourceHash` er SHA-256 av kildeteksten. Identisk tekst = samme hash = ingen ny oversettelse. Cache-hit er <5ms (indeksert oppslag).
 
-**Skisse (implementeres når åpne spørsmål er løst):**
+#### TranslationService — dynamisk provider
 
-1. Opprett `ContentTranslation`-tabell (cache for oversettelser)
-2. Bygg `TranslationService` med DeepL (primær) + Claude (fallback)
-3. tRPC-router `oversett`:
-   - `oversett.tekst({ tekst, fraSpraak, tilSpraak, innholdstype? })` — enkeltfelt
-   - `oversett.batch({ felter: [...], tilSpraak })` — hele skjema på én gang
-   - `oversett.hentCachet({ hashListe, tilSpraak })` — bulk cache-oppslag
-4. Integrer i `sjekkliste.hentMedId` / `oppgave.hentMedId`
-5. Oppdater mobil-hooks og print
+```typescript
+// apps/api/src/services/oversettelse.ts
 
-**Kostnadsestimat (DeepL):**
-- Typisk sjekkliste: 5-10 fritekstfelt, ~200 tegn hver
-- Per sjekkliste-oversettelse: ~2000 tegn → $0.04 (DeepL Pro)
-- 100 sjekklister/mnd: ~$4/mnd
-- Cache eliminerer gjentatte oversettelser av identisk tekst
+interface TranslationProvider {
+  navn: string;
+  oversett(tekster: string[], fra: string, til: string): Promise<string[]>;
+}
+
+class GoogleTranslateProvider implements TranslationProvider {
+  navn = "google";
+  async oversett(tekster: string[], fra: string, til: string): Promise<string[]> {
+    // google-translate-api-x (gratis, uoffisiell)
+    const translate = (await import("google-translate-api-x")).default;
+    const resultater = await translate(tekster, { from: fra, to: til });
+    return Array.isArray(resultater)
+      ? resultater.map(r => r.text)
+      : [resultater.text];
+  }
+}
+
+class DeepLProvider implements TranslationProvider { ... }
+class ClaudeProvider implements TranslationProvider { ... }
+
+class TranslationService {
+  private provider: TranslationProvider;
+  private prisma: PrismaClient;
+
+  async oversett(tekst: string, fra: string, til: string): Promise<string> {
+    if (fra === til) return tekst;
+
+    // 1. Cache-sjekk
+    const hash = sha256(tekst);
+    const cachet = await this.prisma.contentTranslation.findUnique({
+      where: { sourceHash_targetLang: { sourceHash: hash, targetLang: til } },
+    });
+    if (cachet) return cachet.translatedText;
+
+    // 2. Oversett
+    const [oversatt] = await this.provider.oversett([tekst], fra, til);
+
+    // 3. Cache
+    await this.prisma.contentTranslation.create({
+      data: {
+        sourceHash: hash,
+        sourceLang: fra,
+        targetLang: til,
+        sourceText: tekst,
+        translatedText: oversatt,
+        provider: this.provider.navn,
+      },
+    });
+
+    return oversatt;
+  }
+
+  async oversettBatch(
+    felter: Array<{ nøkkel: string; tekst: string }>,
+    fra: string,
+    til: string,
+  ): Promise<Record<string, string>> {
+    if (fra === til) {
+      return Object.fromEntries(felter.map(f => [f.nøkkel, f.tekst]));
+    }
+
+    // 1. Sjekk cache for alle
+    const hashes = felter.map(f => ({ ...f, hash: sha256(f.tekst) }));
+    const cachet = await this.prisma.contentTranslation.findMany({
+      where: {
+        sourceHash: { in: hashes.map(h => h.hash) },
+        targetLang: til,
+      },
+    });
+    const cacheMap = new Map(cachet.map(c => [c.sourceHash, c.translatedText]));
+
+    // 2. Finn manglende
+    const manglende = hashes.filter(h => !cacheMap.has(h.hash));
+
+    // 3. Oversett manglende i batch
+    if (manglende.length > 0) {
+      const oversatte = await this.provider.oversett(
+        manglende.map(m => m.tekst), fra, til,
+      );
+      // Cache alle nye
+      await this.prisma.contentTranslation.createMany({
+        data: manglende.map((m, i) => ({
+          sourceHash: m.hash,
+          sourceLang: fra,
+          targetLang: til,
+          sourceText: m.tekst,
+          translatedText: oversatte[i],
+          provider: this.provider.navn,
+        })),
+        skipDuplicates: true,
+      });
+      manglende.forEach((m, i) => cacheMap.set(m.hash, oversatte[i]));
+    }
+
+    // 4. Returner alle
+    return Object.fromEntries(
+      hashes.map(h => [h.nøkkel, cacheMap.get(h.hash) ?? h.tekst]),
+    );
+  }
+}
+```
+
+#### Dataflyt ved lagring (sjekkliste/oppgave)
+
+```
+Mobil → API: sjekkliste.oppdater({
+  id: "...",
+  data: { "felt_abc": "Тріщина у фундаментній стіні" },
+})
+    ↓
+API (sjekkliste.oppdater):
+  1. Lagre data som vanlig (original ukrainsk tekst i data JSON)
+  2. Fire-and-forget: oversett fritekstfelt til prosjektspråk
+     oversettService.oversettBatch(
+       fritekstFelter,     // kun text_field-typer med ny verdi
+       bruker.language,    // "uk"
+       prosjekt.defaultLanguage, // "nb"
+     )
+  3. Returner suksess umiddelbart (ikke vent på oversettelse)
+```
+
+#### Dataflyt ved lesing
+
+```
+API: sjekkliste.hentMedId({ id, språk: "nb" })
+    ↓
+  1. Hent sjekkliste med data JSON
+  2. Finn alle fritekstfelt i data
+  3. For hvert felt med tekst på annet språk:
+     - Beregn hash
+     - Batch-oppslag i ContentTranslation
+  4. Returner:
+     {
+       data: { "felt_abc": "Тріщина у фундаментній стіні" },  // original
+       oversettelser: {
+         "felt_abc": {
+           tekst: "Sprekk i grunnmuren, bredde ~2mm",
+           fraSpraak: "uk",
+           provider: "google",
+           erManuell: false,
+         }
+       }
+     }
+  5. UI viser oversatt tekst + "ⓘ Oversatt fra ukrainsk"
+```
+
+#### Manuell korrigering
+
+```
+Kjetil (norsk) ser dårlig oversettelse → klikker "Rediger oversettelse"
+    ↓
+Modal: viser original (ukrainsk) + oversettelse (norsk) side om side
+    ↓
+Kjetil korrigerer → lagre
+    ↓
+API: oversett.korrigerOversettelse({
+  sourceHash: "abc123",
+  targetLang: "nb",
+  korrigertTekst: "Sprekk i grunnmur, bredde ca. 2 mm",
+})
+    ↓
+ContentTranslation oppdateres:
+  translatedText = korrigert tekst
+  isManual = true
+  provider = "manual"
+    ↓
+Neste gang noen ser denne teksten → cache hit med manuell oversettelse
+```
+
+#### tRPC-router
+
+```typescript
+// apps/api/src/routes/oversett.ts
+
+export const oversettRouter = router({
+  // Oversett enkeltfelt (brukes av web-klient for inline-oversettelse)
+  tekst: protectedProcedure
+    .input(z.object({
+      tekst: z.string(),
+      fraSpraak: z.string(),
+      tilSpraak: z.string(),
+    }))
+    .query(/* ... */),
+
+  // Oversett alle fritekstfelt i en sjekkliste/oppgave
+  batch: protectedProcedure
+    .input(z.object({
+      felter: z.array(z.object({ nøkkel: z.string(), tekst: z.string() })),
+      fraSpraak: z.string(),
+      tilSpraak: z.string(),
+    }))
+    .query(/* ... */),
+
+  // Hent cached oversettelser for en liste med hashes
+  hentCachet: protectedProcedure
+    .input(z.object({
+      hashes: z.array(z.string()),
+      tilSpraak: z.string(),
+    }))
+    .query(/* ... */),
+
+  // Manuell korrigering av oversettelse
+  korriger: protectedProcedure
+    .input(z.object({
+      sourceHash: z.string(),
+      targetLang: z.string(),
+      korrigertTekst: z.string(),
+    }))
+    .mutation(/* ... */),
+});
+```
+
+#### Utskrift
+
+```
+Print-rute: /api/print/sjekkliste/[id]
+    ↓
+  1. Hent sjekkliste med data
+  2. Hent mal med oversettelser for prosjektspråk (Lag 2)
+  3. Hent fritekst-oversettelser fra ContentTranslation (Lag 3)
+  4. Generer PDF:
+     - Etiketter: prosjektspråk (norsk)
+     - Valgverdier: norsk (lagret som nøkkel)
+     - Fritekst: norsk oversettelse fra cache
+     - Valgfri fotnote: "Original: ukrainsk"
+  5. Byggherre mottar norsk dokumentasjon ✓
+```
+
+#### Offline-håndtering (mobil)
+
+```
+Oleksandr er offline og fyller ut sjekkliste:
+  → Tekst lagres i SQLite med spraak = "uk"
+  → Synk-kø: markert for oversettelse
+  → Vises på hans enhet: ukrainsk original (alltid tilgjengelig)
+    ↓
+Oleksandr kommer online:
+  → Synk sender data til server
+  → Server oversetter fritekst → cacher i ContentTranslation
+  → Neste synk: mobil henter oversettelser for lokal cache
+    ↓
+Kjetil (online) ser oversatt tekst umiddelbart etter synk
+```
+
+**SQLite-cache på mobil:**
+```sql
+CREATE TABLE content_translation_cache (
+  source_hash TEXT NOT NULL,
+  target_lang TEXT NOT NULL,
+  translated_text TEXT NOT NULL,
+  synced_at TEXT NOT NULL,
+  PRIMARY KEY (source_hash, target_lang)
+);
+```
+
+Ved åpning av sjekkliste/oppgave:
+1. Sjekk lokal cache først → instant visning
+2. Hent oppdateringer fra server i bakgrunnen
+3. Oppdater cache + UI ved nye oversettelser
+
+#### Kostnadsestimat
+
+| Provider | Per sjekkliste (~2000 tegn) | 100 sjekklister/mnd | 1000/mnd |
+|----------|---------------------------|---------------------|----------|
+| Google Translate (uoffisiell) | $0 | $0 | $0 |
+| Google Cloud Translation | $0.04 | $4 | $40 |
+| DeepL Pro | $0.05 | $5 | $50 |
+
+**Med cache:** Identisk tekst oversettes kun én gang. "Godkjent" oversettes til ukrainsk én gang — brukes for alle sjekklister. Typisk cache-hit rate: 60-80% etter første måned.
+
+**Anbefaling:** Start med `google-translate-api-x` (gratis). Bytt til Google Cloud/DeepL ved behov.
+
+#### Testing — fase 4
+
+**Enhetstester:**
+- [ ] `TranslationService.oversett()` returnerer korrekt oversettelse
+- [ ] Cache-hit returnerer lagret tekst uten API-kall
+- [ ] Batch-oversettelse: noen fra cache, resten via API
+- [ ] Manuell korrigering overskriver maskinoversettelse
+- [ ] SHA-256 hash er deterministisk for identisk tekst
+- [ ] Provider-bytte (Google → DeepL) fungerer uten datamigrasjon
+
+**Integrasjonstester:**
+- [ ] Ukrainsk bruker lagrer fritekst → oversettelse opprettes i ContentTranslation
+- [ ] Norsk bruker åpner samme sjekkliste → ser norsk oversettelse
+- [ ] Litauisk bruker åpner → trigger ny oversettelse (uk→lt)
+- [ ] Utskrift inneholder norsk tekst (prosjektspråk)
+- [ ] Offline: original tekst vises → oversettelse dukker opp etter synk
+
+**E2E-tester (manuell):**
+- [ ] Opprett sjekkliste som ukrainsk bruker på mobil (offline)
+- [ ] Synk → verifiser at oversettelse opprettes
+- [ ] Åpne som norsk bruker på PC → les norsk versjon
+- [ ] Korrigere oversettelse manuelt → verifiser at endringen lagres
+- [ ] Skriv ut → verifiser norsk PDF
+- [ ] Bytt provider (Google → DeepL) → nye oversettelser bruker ny provider
+- [ ] Eksisterende cache beholdes uendret
+
+**Ytelsestester:**
+- [ ] Batch-oversettelse av 10 felt < 2 sekunder
+- [ ] Cache-oppslag for 50 felt < 50ms
+- [ ] Ingen merkbar forsinkelse ved åpning av sjekkliste med oversettelser
+
+## Feilscenarier og løsninger
+
+### F1: Google Translate blokkeres (MEDIUM-HØY)
+
+Uoffisiell API kan rate-limites eller blokkeres.
+
+**Løsning: Automatisk fallback-kjede**
+```typescript
+class TranslationService {
+  private providere: TranslationProvider[]; // [Google, DeepL, Claude]
+
+  async oversett(tekst: string, fra: string, til: string): Promise<string> {
+    // Cache-sjekk først (alltid)
+    const cachet = await this.sjekkCache(tekst, til);
+    if (cachet) return cachet;
+
+    // Prøv providere i rekkefølge
+    for (const provider of this.providere) {
+      try {
+        const resultat = await provider.oversett([tekst], fra, til);
+        await this.lagreCache(tekst, fra, til, resultat[0], provider.navn);
+        return resultat[0];
+      } catch (err) {
+        console.warn(`[OVERSETT] ${provider.navn} feilet, prøver neste:`, err.message);
+        continue;
+      }
+    }
+
+    // Alle feilet — returner original med markering
+    return tekst;
+  }
+}
+```
+
+Konfigurerbar rekkefølge per prosjekt. Default: Google (gratis) → DeepL → Claude.
+
+### F2: Oversettelse feiler stille (HØY)
+
+Fire-and-forget betyr at feilen ikke oppdages.
+
+**Løsning: translationState + retry-kø**
+```prisma
+// Legg til på sjekkliste/oppgave:
+model Checklist {
+  // ... eksisterende
+  translationState  String  @default("none") // "none" | "pending" | "done" | "failed"
+  translationError  String? // Feilmelding ved failure
+}
+```
+
+```
+Ved lagring:
+  1. Sett translationState = "pending"
+  2. Fire-and-forget oversettelse
+  3. Ved suksess: translationState = "done"
+  4. Ved feil: translationState = "failed", translationError = melding
+  5. Retry-jobb: sjekk alle "failed" hvert 15. minutt, prøv igjen (maks 3)
+
+UI:
+  Sjekkliste-listen viser ⚠️ ved "failed" → admin ser "Oversettelse feilet"
+  Klikk → prøv igjen manuelt
+```
+
+### F3: Blanding av språk (MEDIUM — reelt problem)
+
+Byggebransjen blander språk konstant:
+- "Montert Geberit duofix på стіні" (norsk + produktnavn + ukrainsk)
+- "Sprawdzono Hilti HIT-RE 500 V3" (polsk + produktnavn)
+- "Установлено 3 stk Pipelife 110mm" (ukrainsk + norsk enhet + produktnavn)
+- "KD1.22112 ferdig, mangler fuging ved vindu 3" (NS-kode + norsk)
+
+**Løsning: Segmentert oversettelse med beskyttede tokens**
+
+```typescript
+// Steg 1: Identifiser segmenter som IKKE skal oversettes
+const BESKYTTET = [
+  /\b[A-Z]{1,3}\d[\w.]*\b/g,          // NS-koder: KD1.22112, FV3.14210
+  /\b\d+(?:[.,]\d+)?\s*(?:mm|cm|m|stk|kg|lm|m²|m³)\b/gi,  // Mengder: 110mm, 3 stk
+  /\b[A-Z][a-z]+(?:\s[A-Z][a-z]+)*\s+[A-Z0-9][\w.-]*\b/g,  // Produktnavn: Geberit duofix, Hilti HIT-RE 500
+  /\b\d{2}\.\d{1,3}(?:\.\d+)*\b/g,     // Postnumre: 02.74.04.1
+];
+
+function segmenter(tekst: string): Array<{ tekst: string; oversett: boolean }> {
+  // Erstatt beskyttede segmenter med plassholdere
+  const plassholdere: string[] = [];
+  let arbeids = tekst;
+
+  for (const regex of BESKYTTET) {
+    arbeids = arbeids.replace(regex, (match) => {
+      plassholdere.push(match);
+      return `{{${plassholdere.length - 1}}}`;
+    });
+  }
+
+  return { renset: arbeids, plassholdere };
+}
+
+async function oversettMedBeskyttelse(
+  tekst: string, fra: string, til: string,
+): Promise<string> {
+  const { renset, plassholdere } = segmenter(tekst);
+
+  // Oversett kun den rensede teksten
+  const oversatt = await provider.oversett([renset], fra, til);
+
+  // Sett tilbake plassholdere
+  let resultat = oversatt[0];
+  plassholdere.forEach((original, i) => {
+    resultat = resultat.replace(`{{${i}}}`, original);
+  });
+
+  return resultat;
+}
+```
+
+**Eksempler:**
+```
+Input (uk+nb):  "Установлено 3 stk Pipelife 110mm на стіні"
+Segmentert:     "Установлено {{0}} {{1}} {{2}} на стіні"
+Beskyttet:      ["3 stk", "Pipelife", "110mm"]
+Oversatt (nb):  "Montert {{0}} {{1}} {{2}} på veggen"
+Resultat:       "Montert 3 stk Pipelife 110mm på veggen" ✓
+
+Input (pl+nb):  "Sprawdzono Hilti HIT-RE 500 V3, brak pęknięć"
+Segmentert:     "Sprawdzono {{0}}, brak pęknięć"
+Beskyttet:      ["Hilti HIT-RE 500 V3"]
+Oversatt (nb):  "Kontrollert {{0}}, ingen sprekker"
+Resultat:       "Kontrollert Hilti HIT-RE 500 V3, ingen sprekker" ✓
+
+Input (nb+kode): "KD1.22112 ferdig, mangler fuging ved vindu 3"
+Segmentert:      "{{0}} ferdig, mangler fuging ved vindu 3"
+Beskyttet:       ["KD1.22112"]
+Oversatt (uk):   "{{0}} готово, бракує фугування біля вікна 3"
+Resultat:        "KD1.22112 готово, бракує фугування біля вікна 3" ✓
+```
+
+### F4: Mal-etikett endres etter oversettelse (MEDIUM)
+
+Admin endrer "Ansvarlig person" → "Ansvarlig". 12 språk-oversettelser er utdaterte.
+
+**Løsning: Utdatert-flagg**
+```prisma
+model ReportObjectTranslation {
+  // ... eksisterende
+  isOutdated  Boolean @default(false) // Settes til true når original endres
+}
+```
+
+```
+Ved endring av mal-etikett:
+  1. Oppdater norsk etikett
+  2. Sett isOutdated = true på alle oversettelser for dette objektet
+  3. Vis ⚠️ i malbyggeren: "5 oversettelser er utdaterte"
+  4. Admin klikker "Oppdater oversettelser" → re-oversett alle utdaterte
+```
+
+### F5: Offline-synk konflikt (MEDIUM)
+
+Oleksandr (offline) endrer tekst. Kjetil (online) korrigerer oversettelsen.
+
+**Løsning:** Original tekst vinner alltid. Ny original → ny hash → ny oversettelse. Kjetils manuelle korrigering gjelder kun for den gamle teksten (gammelt hash). Ny tekst trigrer ny maskinoversettelse som Kjetil kan korrigere igjen.
+
+### F6: Lang tekst (>5000 tegn) (LAV)
+
+Google Translate grense: ~5000 tegn per segment.
+
+**Løsning:** Splitt på setningsgrenser, oversett i deler, sett sammen:
+```typescript
+function splittLangTekst(tekst: string, maks: number = 4000): string[] {
+  if (tekst.length <= maks) return [tekst];
+  const setninger = tekst.split(/(?<=[.!?\n])\s+/);
+  const deler: string[] = [];
+  let gjeldende = "";
+  for (const s of setninger) {
+    if ((gjeldende + " " + s).length > maks) {
+      deler.push(gjeldende.trim());
+      gjeldende = s;
+    } else {
+      gjeldende += " " + s;
+    }
+  }
+  if (gjeldende.trim()) deler.push(gjeldende.trim());
+  return deler;
+}
+```
+
+### F7: Print med manglende oversettelse (MEDIUM)
+
+**Løsning:** Fallback ved print:
+```
+Hvis oversettelse mangler:
+  → Vis original tekst i kursiv
+  → Fotnotemerknad: "⚠ Ikke oversatt — originalspråk: ukrainsk"
+  → Logg mangelen for admin-oversikt
+```
+
+### F8: Database-vekst (LAV)
+
+**Estimat:** 1000 sjekklister × 5 felt × 13 språk = 65 000 rader. ~10 MB. Ubetydelig.
+**Vedlikehold:** Årlig jobb: slett oversettelser der kildetekst ikke lenger refereres fra noen sjekkliste/oppgave.
 
 ## Modulsystem: Alle tre moduler
 
@@ -564,18 +1197,74 @@ DEEPL_API_KEY=...           # DeepL API-nøkkel (gratis eller pro)
 ANTHROPIC_API_KEY=...       # Claude fallback (valgfritt)
 ```
 
-## Risiko
+## Kjente kanttilfeller
 
-| Risiko | Mitigering |
-|--------|------------|
-| AI-oversettelser har feil fagterminologi | Admin kan redigere mal-oversettelser i malbygger |
-| ~300 UI-nøkler å ekstrahere fra mobil | Systematisk gjennomgang, komponent for komponent |
-| Ytelse: ekstra DB-query per mal for oversettelser | Eager-load oversettelser med mal, cache i React Query |
-| Offline: oversettelser må caches lokalt | SQLite-tabell for oversettelser, synkes ved oppstart |
-| Verdier lagret som norsk nøkkel — hva om etikett endres? | Opsjoner bruk `value`-felt (ikke label) som nøkkel der mulig |
-| Fritekst-oversettelseskostnad ved høyt volum | DeepL-cache eliminerer duplikater, budsjettgrense per prosjekt |
-| DeepL nede / rate limit | Automatisk fallback til Claude API |
-| Oversettelseskvalitet varierer per språk | Litauisk/rumensk/ukrainsk: grundigere QA av mal-oversettelser |
-| Latens ved fritekst-oversettelse | Batch-kall + cache → sub-100ms for cache hits |
-| Offline fritekst fra andre brukere | Vis original + "Oversettelse tilgjengelig når du er på nett" |
-| Bruker skriver på annet språk enn sin innstilling | DeepL auto-detect (`source_lang: null`) i Fase 4 |
+### 1. Cache-invalidering ved redigering
+Bruker endrer sin fritekst → gammel oversettelse er utdatert.
+**Løsning:** Ved oppdatering av fritekstfelt — slett `ContentTranslation` der `sourceHash` matcher gammel tekst, generer ny oversettelse for ny tekst. Hash endres automatisk siden teksten endres.
+
+### 2. Kommentarer (task_comments)
+Kommentarer er en separat tabell med fritekst. Må også oversettes.
+**Løsning:** Samme `ContentTranslation`-mekanisme. Ved henting av kommentarer — batch-oppslag av oversettelser basert på leserens språk.
+
+### 3. Emne-feltet (subjects)
+Brukeren skriver emne som fritekst ved opprettelse av sjekkliste/oppgave.
+**Løsning:** Oversettes som fritekst (Lag 3). Predefinerte emner fra malen oversettes som mal-innhold (Lag 2).
+
+### 4. E-postvarsler
+Når sjekkliste sendes → e-post til mottaker.
+**Løsning:** E-post sendes på **mottakerens språk** (`User.language`). E-postmaler oversettes som UI-tekst (Lag 1). Innhold (emne, kommentar) oversettes via `ContentTranslation`.
+
+### 5. Språkdeteksjon vs brukerinnstilling
+Bruker kan skrive på annet språk enn sin innstilling (f.eks. norsk bruker skriver på engelsk).
+**Løsning:** Lagre `sourceLang` basert på `User.language`. Hvis oversettelse gir dårlig resultat — manuell korrigering. Fremtidig: auto-detect via Google Translate API.
+
+### 6. Rammeverk-valg: i18next vs next-intl
+Mobil bruker `i18next` (standard for React Native). Web kan bruke enten `next-intl` eller `react-i18next`.
+**Beslutning:** Bruk `i18next` + `react-i18next` for **begge** plattformer. Samme JSON-filer i `packages/shared/src/i18n/`. `next-intl` er unødvendig kompleksitet når vi ikke bruker locale-basert ruting.
+
+## Risikomatrise
+
+| # | Risiko | Alvorlighet | Sannsynlighet | Løsning |
+|---|--------|-------------|---------------|---------|
+| R1 | AI-oversettelser har feil fagterminologi | Høy | Høy | **Tre lag:** (1) Segmentert oversettelse bevarer NS-koder, produktnavn, mengder (F3). (2) Admin redigerer mal-oversettelser i malbygger med QA-sjekkliste. (3) Manuell korrigering av fritekst med "Rediger oversettelse"-knapp |
+| R2 | ~1900 UI-nøkler å ekstrahere | Medium | Sikker | Gradvis migrering — norsk fallback for manglende nøkler (`t('key', { defaultValue: 'Norsk tekst' })`). Start med navigasjon (86 nøkler), deretter statuser (38), handlinger (30). Script `generate.ts` auto-oversetter til 12 språk |
+| R3 | Ytelse: ekstra DB-query for oversettelser | Medium | Medium | Mal-oversettelser eager-loades med `include: { translations: true }`. React Query cacher i 5 min. Fritekst: batch cache-oppslag (<5ms for 50 felt). Ingen ekstra query uten aktiv flerspråk-modul |
+| R4 | Offline: oversettelser utilgjengelige | Medium | Høy | SQLite-tabell `content_translation_cache` på mobil. Synkes ved oppstart + etter hvert API-svar. Offline viser: lokal cache → original tekst → "Oversettelse tilgjengelig når du er på nett". Forhåndslast oversettelser for tildelte sjekklister ved synk |
+| R5 | Valgverdi-nøkkel endres | Medium | Lav | Opsjoner bruker `value`-felt (ikke `label`) som nøkkel der mulig. For egendefinerte opsjoner: norsk tekst er nøkkel. Ved endring av opsjon-tekst → `isOutdated`-flagg på oversettelser (F4) |
+| R6 | Google Translate blokkeres | Høy | Medium | Automatisk fallback-kjede: Google uoffisiell → Google Cloud → DeepL → Claude → vis original med varsel (F1). Overvåkning: logg antall fallbacks per dag, varsle admin ved >10% feilrate |
+| R7 | Oversettelseskvalitet varierer per språk | Høy | Høy | **Per-språk QA-runde** ved lansering — fokus på byggfagtermer (se QA-sjekkliste). Manuell korrigering for alle lag. Admin-dashboard: "X oversettelser korrigert manuelt" → identifiserer problematiske språk. Vurder Claude-provider for språk med lav Google-kvalitet |
+| R8 | Latens ved fritekst-oversettelse | Lav | Medium | Fire-and-forget ved lagring (bruker merker ingenting). Lesing: batch cache-oppslag <5ms. Worst case (cache miss + API): ~200ms for Google, ~500ms for Claude — kun ved første lesing av ny tekst |
+| R9 | Offline fritekst fra andre brukere | Medium | Høy | Vis original tekst umiddelbart (alltid tilgjengelig). Liten badge: "🌐 Oversettelse lastes...". Ved nettverkstilkobling: hent oversettelse → oppdater UI. Forhåndslast kjente oversettelser ved synk |
+| R10 | Bruker redigerer fritekst | Lav | Høy | Ny tekst = ny SHA-256 hash = ny oversettelse automatisk. Gammel cache forblir (andre sjekklister kan referere). Ingen manuell invalidering nødvendig |
+| R11 | E-post på feil språk | Medium | Medium | E-post sendes på `mottaker.language`. E-postmaler i `packages/shared/src/i18n/email/`. Fritekst i e-post oversettes via ContentTranslation. Fallback: prosjektspråk |
+| R12 | Blanding av språk i fritekst | Høy | Høy | Segmentert oversettelse (F3): NS-koder, produktnavn, mengder, enheter beskyttes med `{{placeholder}}`. Regex-regler for norske byggebransje-mønstre. Google Translate håndterer delvis blanding — segmentering forbedrer ytterligere |
+| R13 | Nytt alternativ i mal etter oversettelse | Medium | Medium | Malbygger: ved ny opsjon → marker alle oversettelser `isOutdated`. Vis varsel: "1 ny opsjon mangler oversettelse". Admin klikker "Oppdater" → kun nye opsjoner oversettes (eksisterende beholdes) |
+| R14 | Oversettelse-provider endrer API/prising | Medium | Lav | Provider-abstraksjon (interface) gjør bytte trivielt. Alle providere testes med integrasjonstest. Bytte krever: endre config, restart — ingen kodeendring |
+| R15 | Bruker-opplevd forvirring ved feil oversettelse | Høy | Medium | Alltid vis "ⓘ Oversatt fra [språk]" med klikk for å se original. Manuell korrigering tilgjengelig for alle brukere med skrivetilgang. Korrigert oversettelse merkes med ✓ (verifisert) i UI |
+
+## QA-sjekkliste per språk (ved lansering)
+
+For hvert av de 13 språkene — verifiser at disse fagtermer er korrekte:
+
+| Norsk | Beskrivelse | Typisk feil |
+|-------|-------------|-------------|
+| Sjekkliste | Dokument med sjekkpunkter | "Check list" (to ord), "Inspection form" |
+| Oppgave | Arbeidsoppgave/issue | "Exercise", "Assignment" |
+| Entreprise | Kontraktspart/fagområde | "Enterprise" (betyr bedrift), "Company" |
+| Anmerkning | Mindre avvik, påpekning | "Annotation", "Note" |
+| Avvik | Non-conformance, mangel | "Deviation" (ok), "Error" (feil) |
+| Byggherre | Oppdragsgiver/eier | "Builder" (feil), "Developer" |
+| Arbeidsforløp | Dokumentflyt/workflow | "Work process", "Work sequence" |
+| Maler | Rapportmaler/templates | "Paintings" (vanlig Google-feil!) |
+| Fagområde | Disiplin (bygg/elektro/VVS) | "Subject area", "Expertise" |
+| Innestående | Tilbakeholdt beløp | "Outstanding" (ok), "Remaining" |
+| Målebrev | Periodisk oppgjørsgrunnlag | "Measurement letter" (direkte oversettelse) |
+| Dagmulkt | Forsinkelsesgebyr | "Day fine" (direkte oversettelse) |
+
+**Prosess per språk:**
+1. Generer maskinoversettelse (Google Translate)
+2. Fagperson (eller morsmålsbruker i byggebransjen) gjennomgår alle termer over
+3. Korriger i JSON-fil
+4. Test i appen — naviger alle sider
+5. Godkjenn

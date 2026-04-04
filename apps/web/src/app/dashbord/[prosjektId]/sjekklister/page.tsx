@@ -8,6 +8,7 @@ import { useVerktoylinje } from "@/hooks/useVerktoylinje";
 import { useBygning } from "@/kontekst/bygning-kontekst";
 import type { VerktoylinjeHandling } from "@/kontekst/navigasjon-kontekst";
 import { Plus, Printer, Trash2, Search, ChevronDown, ChevronRight } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 // --- Typer ---
 
@@ -41,15 +42,15 @@ interface SjekklisteRad {
 // --- Konstanter ---
 
 const STATUS_ALTERNATIVER = [
-  { value: "draft", label: "Utkast" },
-  { value: "sent", label: "Sendt" },
-  { value: "received", label: "Mottatt" },
-  { value: "in_progress", label: "Under arbeid" },
-  { value: "responded", label: "Besvart" },
-  { value: "approved", label: "Godkjent" },
-  { value: "rejected", label: "Avvist" },
-  { value: "closed", label: "Lukket" },
-  { value: "cancelled", label: "Avbrutt" },
+  { value: "draft", labelKey: "status.utkast" },
+  { value: "sent", labelKey: "status.sendt" },
+  { value: "received", labelKey: "status.mottatt" },
+  { value: "in_progress", labelKey: "status.underArbeid" },
+  { value: "responded", labelKey: "status.besvart" },
+  { value: "approved", labelKey: "status.godkjent" },
+  { value: "rejected", labelKey: "status.avvist" },
+  { value: "closed", labelKey: "status.lukket" },
+  { value: "cancelled", labelKey: "status.avbrutt" },
 ];
 
 const FILTRERBARE_TYPER = new Set([
@@ -60,30 +61,31 @@ const FILTRERBARE_TYPER = new Set([
 
 interface KolonneParam {
   id: string;
-  navn: string;
+  navnKey?: string;
+  navn?: string;
   gruppe: "kolonner" | "posisjon" | "verdier";
   fast?: boolean;
 }
 
 const SYSTEM_KOLONNER: KolonneParam[] = [
-  { id: "nr", navn: "Nr", gruppe: "kolonner", fast: true },
-  { id: "tittel", navn: "Tittel", gruppe: "kolonner", fast: true },
-  { id: "status", navn: "Status", gruppe: "kolonner", fast: true },
-  { id: "emne", navn: "Emne", gruppe: "kolonner" },
-  { id: "ansvarlig", navn: "Ansvarlig", gruppe: "kolonner" },
-  { id: "opprettetAv", navn: "Opprettet av", gruppe: "kolonner" },
-  { id: "oppretterEntreprise", navn: "Oppretter-entreprise", gruppe: "kolonner" },
-  { id: "svarerEntreprise", navn: "Svarer-entreprise", gruppe: "kolonner" },
-  { id: "mal", navn: "Mal", gruppe: "kolonner" },
-  { id: "opprettet", navn: "Opprettelsesdato", gruppe: "kolonner" },
-  { id: "endret", navn: "Endringsdato", gruppe: "kolonner" },
-  { id: "frist", navn: "Tidsfrist", gruppe: "kolonner" },
+  { id: "nr", navnKey: "tabell.nr", gruppe: "kolonner", fast: true },
+  { id: "tittel", navnKey: "tabell.tittel", gruppe: "kolonner", fast: true },
+  { id: "status", navnKey: "tabell.status", gruppe: "kolonner", fast: true },
+  { id: "emne", navnKey: "tabell.emne", gruppe: "kolonner" },
+  { id: "ansvarlig", navnKey: "tabell.ansvarlig", gruppe: "kolonner" },
+  { id: "opprettetAv", navnKey: "tabell.opprettetAv", gruppe: "kolonner" },
+  { id: "oppretterEntreprise", navnKey: "tabell.oppretterEntreprise", gruppe: "kolonner" },
+  { id: "svarerEntreprise", navnKey: "tabell.svarerEntreprise", gruppe: "kolonner" },
+  { id: "mal", navnKey: "tabell.mal", gruppe: "kolonner" },
+  { id: "opprettet", navnKey: "tabell.opprettelsesdato", gruppe: "kolonner" },
+  { id: "endret", navnKey: "tabell.endringsdato", gruppe: "kolonner" },
+  { id: "frist", navnKey: "tabell.tidsfrist", gruppe: "kolonner" },
 ];
 
 const POSISJON_KOLONNER: KolonneParam[] = [
-  { id: "bygning", navn: "Bygning", gruppe: "posisjon" },
-  { id: "etasje", navn: "Etasje", gruppe: "posisjon" },
-  { id: "tegning", navn: "Tegning", gruppe: "posisjon" },
+  { id: "bygning", navnKey: "tabell.bygning", gruppe: "posisjon" },
+  { id: "etasje", navnKey: "tabell.etasje", gruppe: "posisjon" },
+  { id: "tegning", navnKey: "tabell.tegning", gruppe: "posisjon" },
 ];
 
 const STANDARD_AKTIVE = new Set(["nr", "tittel", "emne", "mal", "status", "ansvarlig", "frist"]);
@@ -142,6 +144,7 @@ function KolonneVelger({
 }: {
   apen: boolean; onLukk: () => void; aktive: Set<string>; onToggle: (id: string) => void; verdiFelter: KolonneParam[];
 }) {
+  const { t } = useTranslation();
   const [sok, setSok] = useState("");
   const [apneGrupper, setApneGrupper] = useState<Set<string>>(new Set(["kolonner", "posisjon", "verdier"]));
   const ref = useRef<HTMLDivElement>(null);
@@ -156,12 +159,13 @@ function KolonneVelger({
 
   if (!apen) return null;
 
+  const hentNavn = (p: KolonneParam) => p.navnKey ? t(p.navnKey) : (p.navn ?? p.id);
   const sokLower = sok.toLowerCase();
-  const filtrer = (p: KolonneParam) => !sok || p.navn.toLowerCase().includes(sokLower);
+  const filtrer = (p: KolonneParam) => !sok || hentNavn(p).toLowerCase().includes(sokLower);
   const grupper = [
-    { id: "kolonner", navn: "Kolonner", felter: SYSTEM_KOLONNER.filter((k) => !k.fast).filter(filtrer) },
-    { id: "posisjon", navn: "Posisjon", felter: POSISJON_KOLONNER.filter(filtrer) },
-    { id: "verdier", navn: "Verdier", felter: verdiFelter.filter(filtrer) },
+    { id: "kolonner", navn: t("kolonne.kolonner"), felter: SYSTEM_KOLONNER.filter((k) => !k.fast).filter(filtrer) },
+    { id: "posisjon", navn: t("kolonne.posisjon"), felter: POSISJON_KOLONNER.filter(filtrer) },
+    { id: "verdier", navn: t("kolonne.verdier"), felter: verdiFelter.filter(filtrer) },
   ].filter((g) => g.felter.length > 0);
 
   const toggleGruppe = (id: string) => {
@@ -173,7 +177,7 @@ function KolonneVelger({
       <div className="p-2">
         <div className="relative">
           <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
-          <input type="text" value={sok} onChange={(e) => setSok(e.target.value)} placeholder="Søk..."
+          <input type="text" value={sok} onChange={(e) => setSok(e.target.value)} placeholder={t("sjekklister.sokPlaceholder")}
             className="w-full rounded-md border border-gray-200 py-1.5 pl-8 pr-3 text-xs focus:border-blue-500 focus:outline-none" autoFocus />
         </div>
       </div>
@@ -189,15 +193,15 @@ function KolonneVelger({
               <label key={felt.id} className="flex cursor-pointer items-center gap-2 py-1 pl-6 pr-2 text-xs hover:bg-gray-50">
                 <input type="checkbox" checked={aktive.has(felt.id)} onChange={() => onToggle(felt.id)}
                   className="h-3.5 w-3.5 rounded border-gray-300 text-blue-600" />
-                <span className="truncate">{felt.navn}</span>
+                <span className="truncate">{hentNavn(felt)}</span>
               </label>
             ))}
           </div>
         ))}
       </div>
       <div className="flex items-center justify-between border-t border-gray-100 px-3 py-2">
-        <button onClick={() => onToggle("__reset__")} className="text-xs text-gray-500 hover:text-gray-700">Nullstill</button>
-        <button onClick={onLukk} className="rounded bg-blue-600 px-3 py-1 text-xs font-medium text-white hover:bg-blue-700">OK</button>
+        <button onClick={() => onToggle("__reset__")} className="text-xs text-gray-500 hover:text-gray-700">{t("handling.nullstill")}</button>
+        <button onClick={onLukk} className="rounded bg-blue-600 px-3 py-1 text-xs font-medium text-white hover:bg-blue-700">{t("handling.ok")}</button>
       </div>
     </div>
   );
@@ -206,6 +210,7 @@ function KolonneVelger({
 // --- Hovedkomponent ---
 
 export default function SjekklisteSide() {
+  const { t } = useTranslation();
   const params = useParams<{ prosjektId: string }>();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -278,12 +283,12 @@ export default function SjekklisteSide() {
 
   const verktoylinjeHandlinger = useMemo((): VerktoylinjeHandling[] => {
     const h: VerktoylinjeHandling[] = [
-      { id: "ny-sjekkliste", label: "Ny sjekkliste", ikon: <Plus className="h-4 w-4" />, onClick: () => setVisModal(true), variant: "primary" },
+      { id: "ny-sjekkliste", label: t("sjekklister.ny"), ikon: <Plus className="h-4 w-4" />, onClick: () => setVisModal(true), variant: "primary" },
     ];
     if (valgte.size > 0) {
-      h.push({ id: "skriv-ut-valgte", label: `Skriv ut valgte (${valgte.size})`, ikon: <Printer className="h-4 w-4" />,
+      h.push({ id: "skriv-ut-valgte", label: `${t("handling.skrivUt")} (${valgte.size})`, ikon: <Printer className="h-4 w-4" />,
         onClick: () => router.push(`/dashbord/${params.prosjektId}/sjekklister/skriv-ut?ider=${Array.from(valgte).join(",")}`), variant: "secondary" });
-      h.push({ id: "slett-valgte", label: `Slett (${valgte.size})`, ikon: <Trash2 className="h-4 w-4" />,
+      h.push({ id: "slett-valgte", label: `${t("handling.slett")} (${valgte.size})`, ikon: <Trash2 className="h-4 w-4" />,
         onClick: () => { setSlettFeil(null); setVisSlettModal(true); }, variant: "danger" });
     }
     return h;
@@ -304,7 +309,7 @@ export default function SjekklisteSide() {
         }
       }
     }
-    return [...sett.values()].sort((a, b) => a.navn.localeCompare(b.navn, "nb-NO"));
+    return [...sett.values()].sort((a, b) => (a.navn ?? "").localeCompare(b.navn ?? "", "nb-NO"));
   }, [sjekklister]);
 
   const alleKolonner = useMemo(() => [...SYSTEM_KOLONNER, ...POSISJON_KOLONNER, ...verdiFelter], [verdiFelter]);
@@ -324,19 +329,23 @@ export default function SjekklisteSide() {
       bygning: bygg(data.map((s) => s.building?.name)),
       etasje: bygg(data.map((s) => s.drawing?.floor)),
       tegning: bygg(data.map((s) => s.drawing?.name)),
-      status: STATUS_ALTERNATIVER,
+      status: STATUS_ALTERNATIVER.map((s) => ({ value: s.value, label: t(s.labelKey) })),
     };
     for (const felt of verdiFelter) {
       const objektId = felt.id.replace("felt:", "");
       filter[felt.id] = bygg(data.map((s) => { const v = hentFeltVerdi(s, objektId); return v === "—" ? null : v; }));
     }
     return filter;
-  }, [sjekklister, verdiFelter]);
+  }, [sjekklister, verdiFelter, t]);
 
   // Filtrer
   const filtrerte = useMemo(() => {
     let resultat = (sjekklister ?? []);
-    if (statusFilter) resultat = resultat.filter((s) => s.status === statusFilter);
+    if (statusFilter === "avvist") {
+      resultat = resultat.filter((s) => s.status === "rejected" || s.status === "cancelled");
+    } else if (statusFilter) {
+      resultat = resultat.filter((s) => s.status === statusFilter);
+    }
     for (const [kolId, verdi] of Object.entries(filterVerdier)) {
       if (!verdi) continue;
       resultat = resultat.filter((s) => {
@@ -376,43 +385,43 @@ export default function SjekklisteSide() {
       filtrerbar?: boolean; filterAlternativer?: { value: string; label: string }[];
     }
     const defs: Record<string, KolDef> = {
-      nr: { id: "nr", header: "Nr", celle: (rad) => <span className="text-xs font-medium text-gray-500 whitespace-nowrap">{formaterNummer(rad)}</span>,
+      nr: { id: "nr", header: t("tabell.nr"), celle: (rad) => <span className="text-xs font-medium text-gray-500 whitespace-nowrap">{formaterNummer(rad)}</span>,
         bredde: "90px", sorterbar: true, sorterVerdi: (rad) => rad.number ?? 0 },
-      tittel: { id: "tittel", header: "Tittel", celle: (rad) => <span className="font-medium text-gray-900">{rad.title}</span>,
+      tittel: { id: "tittel", header: t("tabell.tittel"), celle: (rad) => <span className="font-medium text-gray-900">{rad.title}</span>,
         sorterbar: true, sorterVerdi: (rad) => rad.title },
-      emne: { id: "emne", header: "Emne", celle: (rad) => rad.subject
+      emne: { id: "emne", header: t("tabell.emne"), celle: (rad) => rad.subject
         ? <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-600">{rad.subject}</span>
         : <span className="text-gray-300">—</span>,
         sorterbar: true, sorterVerdi: (rad) => rad.subject ?? "", filtrerbar: true, filterAlternativer: dynamiskFilter.emne ?? [] },
-      status: { id: "status", header: "Status", celle: (rad) => <StatusBadge status={rad.status} />,
+      status: { id: "status", header: t("tabell.status"), celle: (rad) => <StatusBadge status={rad.status} />,
         bredde: "130px", sorterbar: true, sorterVerdi: (rad) => rad.status, filtrerbar: true, filterAlternativer: dynamiskFilter.status ?? [] },
-      ansvarlig: { id: "ansvarlig", header: "Ansvarlig", celle: (rad) => <span className="text-gray-600">{formaterAnsvarlig(rad)}</span>,
+      ansvarlig: { id: "ansvarlig", header: t("tabell.ansvarlig"), celle: (rad) => <span className="text-gray-600">{formaterAnsvarlig(rad)}</span>,
         sorterbar: true, sorterVerdi: (rad) => formaterAnsvarlig(rad), filtrerbar: true, filterAlternativer: dynamiskFilter.ansvarlig ?? [] },
-      opprettetAv: { id: "opprettetAv", header: "Opprettet av", celle: (rad) => rad.creator?.name
+      opprettetAv: { id: "opprettetAv", header: t("tabell.opprettetAv"), celle: (rad) => rad.creator?.name
         ? <span className="text-gray-600">{rad.creator.name}</span> : <span className="text-gray-300">—</span>,
         sorterbar: true, sorterVerdi: (rad) => rad.creator?.name ?? "", filtrerbar: true, filterAlternativer: dynamiskFilter.opprettetAv ?? [] },
-      oppretterEntreprise: { id: "oppretterEntreprise", header: "Oppretter-entreprise",
+      oppretterEntreprise: { id: "oppretterEntreprise", header: t("tabell.oppretterEntreprise"),
         celle: (rad) => <span className="text-xs text-gray-500">{rad.creatorEnterprise.name}</span>,
         sorterbar: true, sorterVerdi: (rad) => rad.creatorEnterprise.name, filtrerbar: true, filterAlternativer: dynamiskFilter.oppretterEntreprise ?? [] },
-      svarerEntreprise: { id: "svarerEntreprise", header: "Svarer-entreprise",
+      svarerEntreprise: { id: "svarerEntreprise", header: t("tabell.svarerEntreprise"),
         celle: (rad) => <span className="text-xs text-gray-500">{rad.responderEnterprise.name}</span>,
         sorterbar: true, sorterVerdi: (rad) => rad.responderEnterprise.name, filtrerbar: true, filterAlternativer: dynamiskFilter.svarerEntreprise ?? [] },
-      mal: { id: "mal", header: "Mal", celle: (rad) => <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-500">{rad.template.name}</span>,
+      mal: { id: "mal", header: t("tabell.mal"), celle: (rad) => <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-500">{rad.template.name}</span>,
         sorterbar: true, sorterVerdi: (rad) => rad.template.name, filtrerbar: true, filterAlternativer: dynamiskFilter.mal ?? [] },
-      opprettet: { id: "opprettet", header: "Opprettet", celle: (rad) => <span className="text-xs text-gray-500">{formaterDato(rad.createdAt)}</span>,
+      opprettet: { id: "opprettet", header: t("tabell.opprettelsesdato"), celle: (rad) => <span className="text-xs text-gray-500">{formaterDato(rad.createdAt)}</span>,
         bredde: "120px", sorterbar: true, sorterVerdi: (rad) => new Date(rad.createdAt).getTime() },
-      endret: { id: "endret", header: "Sist endret", celle: (rad) => <span className="text-xs text-gray-500">{formaterDato(rad.updatedAt)}</span>,
+      endret: { id: "endret", header: t("tabell.endringsdato"), celle: (rad) => <span className="text-xs text-gray-500">{formaterDato(rad.updatedAt)}</span>,
         bredde: "120px", sorterbar: true, sorterVerdi: (rad) => new Date(rad.updatedAt).getTime() },
-      frist: { id: "frist", header: "Frist", celle: (rad) => rad.dueDate
+      frist: { id: "frist", header: t("tabell.tidsfrist"), celle: (rad) => rad.dueDate
         ? <span className="text-xs text-gray-500">{formaterDato(rad.dueDate)}</span> : <span className="text-gray-300">—</span>,
         bredde: "120px", sorterbar: true, sorterVerdi: (rad) => rad.dueDate ? new Date(rad.dueDate).getTime() : null },
-      bygning: { id: "bygning", header: "Bygning", celle: (rad) => rad.building?.name
+      bygning: { id: "bygning", header: t("tabell.bygning"), celle: (rad) => rad.building?.name
         ? <span className="text-xs text-gray-600">{rad.building.name}</span> : <span className="text-gray-300">—</span>,
         sorterbar: true, sorterVerdi: (rad) => rad.building?.name ?? "", filtrerbar: true, filterAlternativer: dynamiskFilter.bygning ?? [] },
-      etasje: { id: "etasje", header: "Etasje", celle: (rad) => rad.drawing?.floor
+      etasje: { id: "etasje", header: t("tabell.etasje"), celle: (rad) => rad.drawing?.floor
         ? <span className="text-xs text-gray-600">{rad.drawing.floor}</span> : <span className="text-gray-300">—</span>,
         sorterbar: true, sorterVerdi: (rad) => rad.drawing?.floor ?? "", filtrerbar: true, filterAlternativer: dynamiskFilter.etasje ?? [] },
-      tegning: { id: "tegning", header: "Tegning", celle: (rad) => rad.drawing?.name
+      tegning: { id: "tegning", header: t("tabell.tegning"), celle: (rad) => rad.drawing?.name
         ? <span className="text-xs text-gray-600">{rad.drawing.name}</span> : <span className="text-gray-300">—</span>,
         sorterbar: true, sorterVerdi: (rad) => rad.drawing?.name ?? "", filtrerbar: true, filterAlternativer: dynamiskFilter.tegning ?? [] },
     };
@@ -420,7 +429,7 @@ export default function SjekklisteSide() {
     for (const felt of verdiFelter) {
       const objektId = felt.id.replace("felt:", "");
       defs[felt.id] = {
-        id: felt.id, header: felt.navn,
+        id: felt.id, header: felt.navn ?? felt.id,
         celle: (rad) => { const v = hentFeltVerdi(rad, objektId); return v !== "—" ? <span className="text-xs text-gray-600">{v}</span> : <span className="text-gray-300">—</span>; },
         sorterbar: true, sorterVerdi: (rad) => hentFeltVerdi(rad, objektId),
         filtrerbar: (dynamiskFilter[felt.id]?.length ?? 0) > 0, filterAlternativer: dynamiskFilter[felt.id] ?? [],
@@ -430,7 +439,7 @@ export default function SjekklisteSide() {
     const resultat: KolDef[] = [];
     for (const k of rekkefølge) { const def = defs[k.id]; if (aktiveKolonner.has(k.id) && def) resultat.push(def); }
     return resultat;
-  }, [aktiveKolonner, dynamiskFilter, verdiFelter]);
+  }, [aktiveKolonner, dynamiskFilter, verdiFelter, t]);
 
   const aktiveFilter = Object.entries(filterVerdier).filter(([_, v]) => v);
 
@@ -443,13 +452,14 @@ export default function SjekklisteSide() {
           <div className="relative">
             <button onClick={() => setVisKolonneVelger(!visKolonneVelger)}
               className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50">
-              <Search className="h-3.5 w-3.5" /> Velg parameter
+              <Search className="h-3.5 w-3.5" /> {t("kolonne.velgParameter")}
             </button>
             <KolonneVelger apen={visKolonneVelger} onLukk={() => setVisKolonneVelger(false)}
               aktive={aktiveKolonner} onToggle={handleToggleKolonne} verdiFelter={verdiFelter} />
           </div>
           {aktiveFilter.map(([kolId, verdi]) => {
-            const kolNavn = alleKolonner.find((k) => k.id === kolId)?.navn ?? kolId;
+            const kol = alleKolonner.find((k) => k.id === kolId);
+            const kolNavn = kol?.navnKey ? t(kol.navnKey) : (kol?.navn ?? kolId);
             return (
               <span key={kolId} className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700">
                 {kolNavn}: {verdi}
@@ -458,38 +468,38 @@ export default function SjekklisteSide() {
             );
           })}
           {aktiveFilter.length > 1 && (
-            <button onClick={() => setFilterVerdier({})} className="text-xs text-gray-400 hover:text-gray-600">Nullstill</button>
+            <button onClick={() => setFilterVerdier({})} className="text-xs text-gray-400 hover:text-gray-600">{t("handling.nullstill")}</button>
           )}
           <span className="ml-auto text-xs text-gray-400">{filtrerte.length} av {sjekklister?.length ?? 0}</span>
         </div>
       )}
 
       {!sjekklister?.length ? (
-        <EmptyState title="Ingen sjekklister" description="Opprett en sjekkliste basert på en rapportmal."
-          action={<Button onClick={() => setVisModal(true)}>Opprett sjekkliste</Button>} />
+        <EmptyState title={t("sjekklister.ingen")} description={t("sjekklister.ingenBeskrivelse")}
+          action={<Button onClick={() => setVisModal(true)}>{t("sjekklister.opprett")}</Button>} />
       ) : (
         <Table<SjekklisteRad>
           kolonner={kolonneDefinisjoner} data={filtrerte} radNokkel={(rad) => rad.id}
           onRadKlikk={(rad) => router.push(`/dashbord/${params.prosjektId}/sjekklister/${rad.id}`)}
-          tomMelding="Ingen sjekklister matcher filtrene" velgbar valgteRader={valgte} onValgEndring={setValgte}
+          tomMelding={t("sjekklister.ingenMatcherFilter")} velgbar valgteRader={valgte} onValgEndring={setValgte}
           filterVerdier={filterVerdier} onFilterEndring={handleFilterEndring} />
       )}
 
-      <Modal open={visSlettModal} onClose={() => setVisSlettModal(false)} title="Slett sjekkliste(r)?">
+      <Modal open={visSlettModal} onClose={() => setVisSlettModal(false)} title={t("sjekklister.slettTittel")}>
         <div className="flex flex-col gap-4">
           <p className="text-gray-600">Er du sikker på at du vil slette {valgte.size} sjekkliste(r)? Denne handlingen kan ikke angres.</p>
           {slettFeil && <p className="text-sm text-red-600 bg-red-50 rounded p-3">{slettFeil}</p>}
           <div className="flex gap-3 pt-2">
-            <Button variant="danger" onClick={slettValgte} loading={slettMutation.isPending}>Slett</Button>
-            <Button variant="secondary" onClick={() => setVisSlettModal(false)}>Avbryt</Button>
+            <Button variant="danger" onClick={slettValgte} loading={slettMutation.isPending}>{t("handling.slett")}</Button>
+            <Button variant="secondary" onClick={() => setVisSlettModal(false)}>{t("handling.avbryt")}</Button>
           </div>
         </div>
       </Modal>
 
-      <Modal open={visModal} onClose={() => setVisModal(false)} title="Velg sjekklistemal">
+      <Modal open={visModal} onClose={() => setVisModal(false)} title={t("sjekklister.velgMal")}>
         <div className="space-y-1">
           {sjekklisteMaler.length === 0 ? (
-            <p className="py-4 text-center text-sm text-gray-400">Ingen sjekklistemaler tilgjengelig</p>
+            <p className="py-4 text-center text-sm text-gray-400">{t("sjekklister.ingenMaler")}</p>
           ) : sjekklisteMaler.map((m: { id: string; name: string; prefix?: string }) => (
             <button key={m.id} onClick={() => handleOpprettFraMal(m.id)} disabled={opprettMutation.isPending}
               className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left hover:bg-gray-50 disabled:opacity-50">

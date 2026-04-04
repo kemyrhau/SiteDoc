@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useMemo, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import {
   DndContext,
   pointerWithin,
@@ -16,6 +17,7 @@ import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import {
   REPORT_OBJECT_TYPE_META,
   EMNE_KATEGORIER,
+  STOETTEDE_SPRAAK,
   type ReportObjectType,
   type TemplateZone,
   type EmneKategori,
@@ -28,7 +30,7 @@ import { FeltKonfigurasjon } from "./FeltKonfigurasjon";
 import { DragOverlayKomponent } from "./DragOverlay_";
 import type { MalObjekt } from "./DraggbartFelt";
 import type { TreObjekt } from "./typer";
-import { MapPin, Pencil, FileText, Building2, Eye, EyeOff, AlertTriangle } from "lucide-react";
+import { MapPin, Pencil, FileText, Building2, Eye, EyeOff, AlertTriangle, Globe, Check } from "lucide-react";
 
 // Hent streng-verdi fra opsjon (støtter både string og {label, value}-format)
 function opsjonTilStreng(opsjon: unknown): string {
@@ -43,6 +45,7 @@ function opsjonTilStreng(opsjon: unknown): string {
 
 interface MalData {
   id: string;
+  projectId?: string;
   name: string;
   description: string | null;
   category?: string;
@@ -152,10 +155,40 @@ function erEtterkommer(objekter: MalObjekt[], objektId: string, muligForelderId:
 }
 
 export function MalBygger({ mal }: MalByggerProps) {
+  const { t } = useTranslation();
+  const psiModus = mal.category === "psi";
   const utils = trpc.useUtils();
   const [valgtId, setValgtId] = useState<string | null>(null);
+  const [visForhandsvisning, setVisForhandsvisning] = useState(false);
   const [aktivtDrag, setAktivtDrag] = useState<Active | null>(null);
   const [slettBekreftelse, setSlettBekreftelse] = useState<{ id: string; label: string } | null>(null);
+  const [visSpraakVelger, setVisSpraakVelger] = useState(false);
+
+  // PSI: hent psi-data (languages) via templateId
+  const psiQuery = trpc.psi.hentForProsjekt.useQuery(
+    { projectId: mal.projectId ?? "" },
+    { enabled: psiModus && !!mal.projectId },
+  );
+  const psiData = psiQuery.data?.find((p) => p.templateId === mal.id);
+  const psiSpraak = psiData?.languages ?? [];
+
+  const oppdaterSpraakMutation = trpc.psi.oppdaterSpraak.useMutation({
+    onSuccess: () => psiQuery.refetch(),
+  });
+  const oversettMutation = trpc.psi.oversettInnhold.useMutation({
+    onSuccess: () => {
+      utils.mal.hentMedId.invalidate({ id: mal.id });
+      psiQuery.refetch();
+    },
+  });
+
+  const toggleSpraak = useCallback((kode: string) => {
+    if (!psiData) return;
+    const nyListe = psiSpraak.includes(kode)
+      ? psiSpraak.filter((s) => s !== kode)
+      : [...psiSpraak, kode];
+    oppdaterSpraakMutation.mutate({ psiId: psiData.id, languages: nyListe });
+  }, [psiData, psiSpraak, oppdaterSpraakMutation]);
 
   // Inline-redigering av malnavn
   const [redigererNavn, setRedigererNavn] = useState(false);
@@ -616,7 +649,7 @@ export function MalBygger({ mal }: MalByggerProps) {
         onDragEnd={handleDragEnd}
       >
         {/* Venstre — Feltpalett */}
-        <FeltPalett />
+        <FeltPalett psiModus={psiModus} />
 
         {/* Midt — Malsoner */}
         <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-4">
@@ -639,7 +672,7 @@ export function MalBygger({ mal }: MalByggerProps) {
               <button
                 onClick={() => { setRedigererNavn(true); setMalNavn(mal.name); }}
                 className="group flex items-center gap-1.5 text-base font-semibold hover:text-blue-700"
-                title="Rediger malnavn"
+                title={t("malbygger.redigerMalnavn")}
               >
                 {mal.name}
                 <Pencil className="h-3.5 w-3.5 text-gray-300 group-hover:text-blue-500" />
@@ -648,19 +681,105 @@ export function MalBygger({ mal }: MalByggerProps) {
             {mal.description && (
               <p className="text-sm text-gray-500">{mal.description}</p>
             )}
+            {psiModus && (
+              <div className="mt-1 flex flex-wrap items-center gap-2">
+                <button
+                  onClick={() => setVisForhandsvisning(!visForhandsvisning)}
+                  className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium ${
+                    visForhandsvisning
+                      ? "border-sitedoc-primary bg-blue-50 text-sitedoc-primary"
+                      : "border-gray-200 text-gray-600 hover:bg-gray-50"
+                  }`}
+                >
+                  <Eye className="h-3.5 w-3.5" />
+                  {t("psi.forhandsvisning")}
+                </button>
+
+                {/* Språkvelger — velg hvilke språk PSI skal oversettes til */}
+                <button
+                  onClick={() => setVisSpraakVelger(!visSpraakVelger)}
+                  className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium ${
+                    visSpraakVelger
+                      ? "border-sitedoc-primary bg-blue-50 text-sitedoc-primary"
+                      : "border-gray-200 text-gray-600 hover:bg-gray-50"
+                  }`}
+                >
+                  <Globe className="h-3.5 w-3.5" />
+                  {t("psi.spraak")} {psiSpraak.length > 0 && `(${psiSpraak.length})`}
+                </button>
+
+                {psiSpraak.length > 0 && (
+                  <button
+                    onClick={() => psiData && oversettMutation.mutate({ psiId: psiData.id })}
+                    disabled={oversettMutation.isPending || !psiData}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-green-300 bg-green-50 px-3 py-1.5 text-xs font-medium text-green-700 hover:bg-green-100 disabled:opacity-50"
+                  >
+                    {oversettMutation.isPending ? <Spinner size="sm" /> : <Check className="h-3.5 w-3.5" />}
+                    {oversettMutation.isPending ? t("handling.prosesserer") : t("psi.oversett")}
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Språkvelger dropdown */}
+            {psiModus && visSpraakVelger && (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {(() => {
+                  const ikkNb = STOETTEDE_SPRAAK.filter((s) => s.kode !== "nb");
+                  const alleValgt = ikkNb.every((s) => psiSpraak.includes(s.kode));
+                  return (
+                    <button
+                      onClick={() => {
+                        if (!psiData) return;
+                        const nyListe = alleValgt ? [] : ikkNb.map((s) => s.kode);
+                        oppdaterSpraakMutation.mutate({ psiId: psiData.id, languages: nyListe });
+                      }}
+                      className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
+                        alleValgt
+                          ? "border-sitedoc-primary bg-blue-50 text-sitedoc-primary"
+                          : "border-gray-300 text-gray-600 hover:bg-gray-50"
+                      }`}
+                    >
+                      {alleValgt ? t("handling.fjernAlle") : t("handling.velgAlle")}
+                    </button>
+                  );
+                })()}
+                {STOETTEDE_SPRAAK.filter((s) => s.kode !== "nb").map((s) => {
+                  const aktiv = psiSpraak.includes(s.kode);
+                  return (
+                    <button
+                      key={s.kode}
+                      onClick={() => toggleSpraak(s.kode)}
+                      className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
+                        aktiv
+                          ? "border-sitedoc-primary bg-blue-50 text-sitedoc-primary"
+                          : "border-gray-200 text-gray-500 hover:border-gray-300 hover:bg-gray-50"
+                      }`}
+                    >
+                      <span>{s.flagg}</span>
+                      <span>{s.navn}</span>
+                      {aktiv && <Check className="h-3 w-3" />}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Faste metadata-felter — vises ved opprettelse/utfylling */}
           <div className="mb-2">
+            {!psiModus && (
             <div className="mb-1 flex items-center gap-1.5 text-xs font-medium text-gray-500 uppercase tracking-wide">
-              Faste felt
+              {t("malbygger.fasteFelt")}
             </div>
+            )}
             <div className="space-y-1.5">
-              {/* Emne */}
+              {/* Emne — skjules i PSI-modus */}
+              {!psiModus && (
               <div className="rounded-md border border-dashed border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-500">
                 <div className="flex items-center gap-2">
                   <FileText className="h-4 w-4 shrink-0 text-gray-400" />
-                  <span className={mal.showSubject === false ? "line-through text-gray-300" : ""}>Emne</span>
+                  <span className={mal.showSubject === false ? "line-through text-gray-300" : ""}>{t("malbygger.emne")}</span>
                   {mal.showSubject !== false && (
                     <select
                       value={(() => {
@@ -683,7 +802,7 @@ export function MalBygger({ mal }: MalByggerProps) {
                       }}
                       className="ml-auto rounded border border-gray-200 bg-white px-2 py-0.5 text-xs text-gray-600 focus:border-blue-500 focus:outline-none"
                     >
-                      <option value="">Ingen emner</option>
+                      <option value="">{t("malbygger.ingenEmner")}</option>
                       {Object.entries(EMNE_KATEGORIER).map(([key, kat]) => (
                         <option key={key} value={key}>{kat.navn} ({kat.emner.length})</option>
                       ))}
@@ -692,7 +811,7 @@ export function MalBygger({ mal }: MalByggerProps) {
                         const erStandard = Object.values(EMNE_KATEGORIER).some(
                           (kat) => kat.emner.length === subjects.length && kat.emner.every((e) => subjects.includes(e)),
                         );
-                        return !erStandard ? <option value="egendefinert">Egendefinert ({subjects.length})</option> : null;
+                        return !erStandard ? <option value="egendefinert">{t("malbygger.egendefinert", { antall: subjects.length })}</option> : null;
                       })()}
                     </select>
                   )}
@@ -700,7 +819,7 @@ export function MalBygger({ mal }: MalByggerProps) {
                     type="button"
                     onClick={() => oppdaterMalMutation.mutate({ id: mal.id, showSubject: !(mal.showSubject !== false) })}
                     className={`${mal.showSubject !== false ? "" : "ml-auto"} rounded p-1 hover:bg-gray-200`}
-                    title={mal.showSubject === false ? "Vis emne-felt" : "Skjul emne-felt"}
+                    title={mal.showSubject === false ? t("malbygger.visEmneFelt") : t("malbygger.skjulEmneFelt")}
                   >
                     {mal.showSubject === false
                       ? <EyeOff className="h-3.5 w-3.5 text-gray-400" />
@@ -726,18 +845,20 @@ export function MalBygger({ mal }: MalByggerProps) {
                   </div>
                 )}
               </div>
-              {/* Oppretter-entreprise */}
+              )}
+              {/* Oppretter-entreprise — skjules i PSI-modus */}
+              {!psiModus && (
               <div className="flex items-center gap-2 rounded-md border border-dashed border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-500">
                 <Building2 className="h-4 w-4 shrink-0 text-gray-400" />
-                <span className={mal.showEnterprise === false ? "line-through text-gray-300" : ""}>Oppretter-entreprise</span>
+                <span className={mal.showEnterprise === false ? "line-through text-gray-300" : ""}>{t("malbygger.oppretterEntreprise")}</span>
                 <span className="text-xs text-gray-400">
-                  {mal.showEnterprise === false ? "Skjult — settes automatisk" : "Velges ved opprettelse"}
+                  {mal.showEnterprise === false ? t("malbygger.skjultSettesAuto") : t("malbygger.velgesVedOpprettelse")}
                 </span>
                 <button
                   type="button"
                   onClick={() => oppdaterMalMutation.mutate({ id: mal.id, showEnterprise: !(mal.showEnterprise !== false) })}
                   className="ml-auto rounded p-1 hover:bg-gray-200"
-                  title={mal.showEnterprise === false ? "Vis entreprise-felt" : "Skjul entreprise-felt"}
+                  title={mal.showEnterprise === false ? t("malbygger.visEntrepriseFelt") : t("malbygger.skjulEntrepriseFelt")}
                 >
                   {mal.showEnterprise === false
                     ? <EyeOff className="h-3.5 w-3.5 text-gray-400" />
@@ -745,18 +866,19 @@ export function MalBygger({ mal }: MalByggerProps) {
                   }
                 </button>
               </div>
+              )}
               {/* Lokasjon */}
               <div className="flex items-center gap-2 rounded-md border border-dashed border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-500">
                 <MapPin className="h-4 w-4 shrink-0 text-gray-400" />
-                <span className={mal.showLocation === false ? "line-through text-gray-300" : ""}>Lokasjon</span>
+                <span className={mal.showLocation === false ? "line-through text-gray-300" : ""}>{t("malbygger.lokasjon")}</span>
                 <span className="text-xs text-gray-400">
-                  {mal.showLocation === false ? "Skjult" : "Settes automatisk fra valgt bygning/tegning"}
+                  {mal.showLocation === false ? t("malbygger.skjult") : t("malbygger.settesAutoFraBygning")}
                 </span>
                 <button
                   type="button"
                   onClick={() => oppdaterMalMutation.mutate({ id: mal.id, showLocation: !(mal.showLocation !== false) })}
                   className="ml-auto rounded p-1 hover:bg-gray-200"
-                  title={mal.showLocation === false ? "Vis lokasjon-felt" : "Skjul lokasjon-felt"}
+                  title={mal.showLocation === false ? t("malbygger.visLokasjonFelt") : t("malbygger.skjulLokasjonFelt")}
                 >
                   {mal.showLocation === false
                     ? <EyeOff className="h-3.5 w-3.5 text-gray-400" />
@@ -768,15 +890,15 @@ export function MalBygger({ mal }: MalByggerProps) {
               {mal.category === "oppgave" && (
                 <div className="flex items-center gap-2 rounded-md border border-dashed border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-500">
                   <AlertTriangle className="h-4 w-4 shrink-0 text-gray-400" />
-                  <span className={mal.showPriority === false ? "line-through text-gray-300" : ""}>Prioritet</span>
+                  <span className={mal.showPriority === false ? "line-through text-gray-300" : ""}>{t("malbygger.prioritet")}</span>
                   <span className="text-xs text-gray-400">
-                    {mal.showPriority === false ? "Skjult" : "Lav / Medium / Høy / Kritisk"}
+                    {mal.showPriority === false ? t("malbygger.skjult") : t("malbygger.prioritetVerdier")}
                   </span>
                   <button
                     type="button"
                     onClick={() => oppdaterMalMutation.mutate({ id: mal.id, showPriority: !(mal.showPriority !== false) })}
                     className="ml-auto rounded p-1 hover:bg-gray-200"
-                    title={mal.showPriority === false ? "Vis prioritet-felt" : "Skjul prioritet-felt"}
+                    title={mal.showPriority === false ? t("malbygger.visPrioritetFelt") : t("malbygger.skjulPrioritetFelt")}
                   >
                     {mal.showPriority === false
                       ? <EyeOff className="h-3.5 w-3.5 text-gray-400" />
@@ -790,7 +912,7 @@ export function MalBygger({ mal }: MalByggerProps) {
 
           <DropSone
             zone="topptekst"
-            label="Topptekst"
+            label={t("malbygger.topptekst")}
             treObjekter={topptekstTre}
             alleObjekter={objekter}
             valgtId={valgtId}
@@ -804,7 +926,7 @@ export function MalBygger({ mal }: MalByggerProps) {
 
           <DropSone
             zone="datafelter"
-            label="Datafelter"
+            label={psiModus ? t("malbygger.innhold") : t("malbygger.datafelter")}
             treObjekter={datafeltTre}
             alleObjekter={objekter}
             valgtId={valgtId}
@@ -821,8 +943,10 @@ export function MalBygger({ mal }: MalByggerProps) {
         <DragOverlayKomponent aktivt={aktivtDrag} />
       </DndContext>
 
-      {/* Høyre — Konfigurasjon */}
-      {valgtObjekt ? (
+      {/* Høyre — Konfigurasjon eller Forhåndsvisning */}
+      {psiModus && visForhandsvisning ? (
+        <PsiForhandsvisning objekter={objekter} malNavn={mal.name} onLukk={() => setVisForhandsvisning(false)} />
+      ) : valgtObjekt ? (
         <FeltKonfigurasjon
           objekt={valgtObjekt}
           alleObjekter={objekter}
@@ -830,11 +954,12 @@ export function MalBygger({ mal }: MalByggerProps) {
           erLagrer={oppdaterObjektMutation.isPending}
           onFjernBetingelse={handleFjernBetingelse}
           onFjernBarnFraKontainer={handleFjernBarnFraKontainer}
+          psiModus={psiModus}
         />
       ) : (
-        <aside className="flex w-72 shrink-0 items-center justify-center border-l border-gray-200 bg-gray-50 p-4">
+        <aside className={`flex shrink-0 items-center justify-center border-l border-gray-200 bg-gray-50 p-4 ${psiModus ? "w-[480px]" : "w-72"}`}>
           <p className="text-center text-sm text-gray-400">
-            Velg et felt for å redigere konfigurasjon
+            {t("malbygger.velgFelt")}
           </p>
         </aside>
       )}
@@ -850,6 +975,177 @@ export function MalBygger({ mal }: MalByggerProps) {
       )}
     </div>
   );
+}
+
+/* ------------------------------------------------------------------ */
+/*  PSI Forhåndsvisning — seksjon-for-seksjon som arbeideren ser det    */
+/* ------------------------------------------------------------------ */
+
+function PsiForhandsvisning({ objekter, malNavn, onLukk }: { objekter: MalObjekt[]; malNavn: string; onLukk: () => void }) {
+  const { t } = useTranslation();
+  const [aktivSeksjon, setAktivSeksjon] = useState(0);
+
+  // Del inn i seksjoner basert på headings
+  const seksjoner = useMemo(() => {
+    const rot = [...objekter].sort((a, b) => a.sortOrder - b.sortOrder).filter((o) => !o.parentId);
+    const result: Array<{ tittel: string; objekter: MalObjekt[] }> = [];
+    let gjeldende: { tittel: string; objekter: MalObjekt[] } | null = null;
+
+    for (const obj of rot) {
+      if (obj.type === "heading") {
+        if (gjeldende) result.push(gjeldende);
+        gjeldende = { tittel: obj.label, objekter: [] };
+      } else {
+        if (!gjeldende) gjeldende = { tittel: t("malbygger.introduksjon"), objekter: [] };
+        gjeldende.objekter.push(obj);
+      }
+    }
+    if (gjeldende) result.push(gjeldende);
+    return result;
+  }, [objekter]);
+
+  const seksjon = seksjoner[aktivSeksjon];
+
+  return (
+    <aside className="flex h-full w-[560px] shrink-0 flex-col border-l border-gray-200 bg-white">
+      {/* Header med progresjon */}
+      <div className="border-b border-gray-200 px-5 py-3">
+        <div className="flex items-center justify-between">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">{t("malbygger.forhandsvisning")}</p>
+          <button onClick={onLukk} className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600">
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+          </button>
+        </div>
+        <p className="mt-0.5 text-sm font-semibold text-gray-900">{malNavn}</p>
+        <div className="mt-2 flex gap-1">
+          {seksjoner.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => setAktivSeksjon(i)}
+              className={`h-1.5 flex-1 rounded-full transition-colors ${
+                i === aktivSeksjon ? "bg-sitedoc-primary" : i < aktivSeksjon ? "bg-green-400" : "bg-gray-200"
+              }`}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Seksjonstittel */}
+      {seksjon && (
+        <div className="border-b border-gray-100 px-5 py-3">
+          <span className="text-xs text-gray-400">{aktivSeksjon + 1} / {seksjoner.length}</span>
+          <h2 className="mt-0.5 text-lg font-semibold text-gray-900">{seksjon.tittel}</h2>
+        </div>
+      )}
+
+      {/* Innhold */}
+      <div className="flex-1 overflow-y-auto px-5 py-4">
+        {seksjon?.objekter.map((obj) => (
+          <PsiPreviewObjekt key={obj.id} objekt={obj} />
+        ))}
+        {seksjon?.objekter.length === 0 && (
+          <p className="text-sm italic text-gray-400">{t("malbygger.ingenInnhold")}</p>
+        )}
+      </div>
+
+      {/* Navigasjon */}
+      <div className="flex gap-2 border-t border-gray-200 px-5 py-3">
+        <button
+          onClick={() => setAktivSeksjon(Math.max(0, aktivSeksjon - 1))}
+          disabled={aktivSeksjon === 0}
+          className="flex-1 rounded-lg border border-gray-200 py-2 text-sm font-medium text-gray-600 disabled:opacity-30"
+        >
+          {t("malbygger.forrige")}
+        </button>
+        <button
+          onClick={() => setAktivSeksjon(Math.min(seksjoner.length - 1, aktivSeksjon + 1))}
+          disabled={aktivSeksjon === seksjoner.length - 1}
+          className="flex-1 rounded-lg bg-sitedoc-primary py-2 text-sm font-medium text-white disabled:opacity-30"
+        >
+          {t("malbygger.neste")}
+        </button>
+      </div>
+    </aside>
+  );
+}
+
+function PsiPreviewObjekt({ objekt }: { objekt: MalObjekt }) {
+  const { t } = useTranslation();
+  const config = objekt.config as Record<string, unknown>;
+
+  switch (objekt.type) {
+    case "info_text": {
+      const innhold = (config.content as string) ?? "";
+      return innhold ? (
+        <p className="mb-4 whitespace-pre-wrap text-sm leading-relaxed text-gray-800">{innhold}</p>
+      ) : (
+        <p className="mb-4 text-sm italic text-gray-300">{t("malbygger.ingenTekst")}</p>
+      );
+    }
+    case "info_image": {
+      const url = (config.imageUrl as string) ?? "";
+      const caption = (config.caption as string) ?? "";
+      return (
+        <figure className="mb-4">
+          {url ? (
+            <img
+              src={url.startsWith("http") ? url : `/api${url}`}
+              alt={caption}
+              className="max-w-full rounded-lg border border-gray-200"
+            />
+          ) : (
+            <div className="flex h-32 items-center justify-center rounded-lg border-2 border-dashed border-gray-200 bg-gray-50 text-sm text-gray-400">
+              {t("malbygger.bildeIkkeLastet")}
+            </div>
+          )}
+          {caption && <figcaption className="mt-1 text-center text-xs italic text-gray-500">{caption}</figcaption>}
+        </figure>
+      );
+    }
+    case "video": {
+      const url = (config.url as string) ?? "";
+      return url ? (
+        <div className="mb-4 aspect-video overflow-hidden rounded-lg border border-gray-200 bg-black">
+          <video src={url.startsWith("http") ? url : `/api${url}`} controls className="h-full w-full" />
+        </div>
+      ) : (
+        <div className="mb-4 flex h-32 items-center justify-center rounded-lg border-2 border-dashed border-gray-200 bg-gray-50 text-sm text-gray-400">
+          {t("malbygger.videoIkkeSatt")}
+        </div>
+      );
+    }
+    case "quiz": {
+      const spørsmål = (config.question as string) ?? objekt.label;
+      const alternativer = (config.options as string[]) ?? [];
+      const riktig = (config.correctIndex as number) ?? 0;
+      return (
+        <div className="mb-4 rounded-xl border border-gray-200 bg-gray-50 p-4">
+          <p className="mb-2 text-sm font-semibold text-gray-900">{spørsmål}</p>
+          {alternativer.map((alt, i) => (
+            <div key={i} className={`mb-1.5 flex items-center gap-2 rounded-lg border px-3 py-2 text-sm ${
+              i === riktig ? "border-green-300 bg-green-50 text-green-800" : "border-gray-200 text-gray-700"
+            }`}>
+              <div className={`h-4 w-4 rounded-full border-2 ${i === riktig ? "border-green-500 bg-green-500" : "border-gray-300"}`}>
+                {i === riktig && <div className="mx-auto mt-0.5 h-2 w-2 rounded-full bg-white" />}
+              </div>
+              {alt}
+            </div>
+          ))}
+        </div>
+      );
+    }
+    case "signature":
+      return (
+        <div className="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-4 text-center">
+          <div className="mx-auto h-20 w-full max-w-xs rounded border border-dashed border-gray-300 bg-white" />
+          <p className="mt-2 text-xs text-gray-500">{t("malbygger.signaturLabel")}</p>
+        </div>
+      );
+    case "subtitle":
+      return <p className="mb-2 text-sm font-medium text-gray-600">{objekt.label}</p>;
+    default:
+      return null;
+  }
 }
 
 function formaterNummer(prefiks: string | null | undefined, nummer: number | null | undefined): string {
@@ -869,29 +1165,29 @@ function SlettBekreftelse({
   onBekreft: () => void;
   onAvbryt: () => void;
 }) {
+  const { t } = useTranslation();
   const { data, isLoading } = trpc.mal.sjekkObjektBruk.useQuery({ id });
 
   const harBruk = data && (data.sjekklister.length > 0 || data.oppgaver.length > 0);
 
   return (
-    <Modal open={true} title={`Slett «${label}»?`} onClose={onAvbryt}>
+    <Modal open={true} title={t("malbygger.slettFelt", { label })} onClose={onAvbryt}>
       <div className="space-y-4">
         {isLoading ? (
           <div className="flex items-center gap-2 text-sm text-gray-500">
             <Spinner size="sm" />
-            Sjekker bruk i sjekklister og oppgaver…
+            {t("malbygger.sjekkerBruk")}
           </div>
         ) : harBruk ? (
           <>
             <p className="text-sm text-gray-700">
-              Feltet kan ikke slettes fordi følgende dokumenter inneholder data for dette feltet.
-              Fjern eller tøm dataen i disse dokumentene først.
+              {t("malbygger.kanIkkeSlettes")}
             </p>
 
             {data.sjekklister.length > 0 && (
               <div>
                 <h4 className="mb-1 text-sm font-medium text-gray-700">
-                  Sjekklister ({data.sjekklister.length})
+                  {t("malbygger.sjekklisterBruk", { antall: data.sjekklister.length })}
                 </h4>
                 <ul className="max-h-40 space-y-1 overflow-y-auto text-sm">
                   {data.sjekklister.map((s) => (
@@ -909,7 +1205,7 @@ function SlettBekreftelse({
             {data.oppgaver.length > 0 && (
               <div>
                 <h4 className="mb-1 text-sm font-medium text-gray-700">
-                  Oppgaver ({data.oppgaver.length})
+                  {t("malbygger.oppgaverBruk", { antall: data.oppgaver.length })}
                 </h4>
                 <ul className="max-h-40 space-y-1 overflow-y-auto text-sm">
                   {data.oppgaver.map((o) => (
@@ -926,20 +1222,20 @@ function SlettBekreftelse({
           </>
         ) : (
           <p className="text-sm text-gray-500">
-            Ingen sjekklister eller oppgaver bruker dette feltet.
+            {t("malbygger.ingenBruk")}
           </p>
         )}
 
         <div className="flex justify-end gap-2">
           <Button variant="secondary" onClick={onAvbryt}>
-            {harBruk ? "Lukk" : "Avbryt"}
+            {harBruk ? t("handling.lukk") : t("handling.avbryt")}
           </Button>
           {harBruk && (
             <Button
               variant="danger"
               onClick={onBekreft}
             >
-              Tving slett (test)
+              {t("malbygger.tvingSlett")}
             </Button>
           )}
           {!harBruk && (
@@ -948,7 +1244,7 @@ function SlettBekreftelse({
               onClick={onBekreft}
               disabled={isLoading}
             >
-              Slett
+              {t("handling.slett")}
             </Button>
           )}
         </div>

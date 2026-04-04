@@ -12,6 +12,7 @@ import {
   EmptyState,
   SearchInput,
 } from "@sitedoc/ui";
+import { useTranslation } from "react-i18next";
 import {
   Plus,
   ChevronDown,
@@ -173,6 +174,7 @@ function EntrepriseKort({
   onNyDokumentflyt: (entrepriseId: string) => void;
   onInviterNy: (dokumentflytId: string, rolle: "oppretter" | "svarer", steg: number) => void;
 }) {
+  const { t } = useTranslation();
   const [ekspandert, setEkspandert] = useState(true);
   const farge = hentFargeForEntreprise(entreprise.color, entreprise.fargeIndeks);
 
@@ -210,7 +212,7 @@ function EntrepriseKort({
             </span>
           )}
           <span className={`ml-1 text-xs ${farge.tekst} opacity-60`}>
-            ({dokumentflyter.length} dokumentflyt{dokumentflyter.length !== 1 ? "er" : ""})
+            ({t("entrepriser.dokumentflytAntall", { count: dokumentflyter.length })})
           </span>
         </button>
 
@@ -219,17 +221,17 @@ function EntrepriseKort({
             className="[&>button]:text-white [&>button]:hover:bg-white/20"
             handlinger={[
               {
-                label: "Rediger entreprise",
+                label: t("entrepriser.redigerEntreprise"),
                 ikon: <Pencil className="h-4 w-4 text-gray-400" />,
                 onClick: onRediger,
               },
               {
-                label: "Ny dokumentflyt",
+                label: t("entrepriser.nyDokumentflyt"),
                 ikon: <FileText className="h-4 w-4 text-gray-400" />,
                 onClick: () => onNyDokumentflyt(entreprise.id),
               },
               {
-                label: "Slett entreprise",
+                label: t("entrepriser.slettEntreprise"),
                 ikon: <Trash2 className="h-4 w-4 text-red-400" />,
                 onClick: onSlett,
                 fare: true,
@@ -244,13 +246,13 @@ function EntrepriseKort({
         <div className="p-3">
           {dokumentflyter.length === 0 ? (
             <div className="flex items-center justify-between rounded-md border border-dashed border-gray-200 px-4 py-3">
-              <span className="text-sm text-gray-400">Ingen dokumentflyter</span>
+              <span className="text-sm text-gray-400">{t("entrepriser.ingenDokumentflyter")}</span>
               <button
                 onClick={() => onNyDokumentflyt(entreprise.id)}
                 className="flex items-center gap-1 rounded px-2 py-1 text-xs text-sitedoc-primary hover:bg-blue-50"
               >
                 <Plus className="h-3 w-3" />
-                Legg til
+                {t("handling.leggTil")}
               </button>
             </div>
           ) : (
@@ -274,7 +276,7 @@ function EntrepriseKort({
                 className="flex items-center gap-1 rounded px-2 py-1 text-xs text-gray-400 hover:bg-gray-50 hover:text-gray-600"
               >
                 <Plus className="h-3 w-3" />
-                Ny dokumentflyt
+                {t("entrepriser.nyDokumentflyt")}
               </button>
             </div>
           )}
@@ -305,6 +307,7 @@ function EntrepriseVeiviser({
   prosjekter: Array<{ id: string; name: string; projectNumber: string }>;
   onOpprettet: () => void;
 }) {
+  const { t } = useTranslation();
   const [steg, setSteg] = useState(1);
   const [metode, setMetode] = useState<VeiviserMetode>("tom");
 
@@ -431,19 +434,19 @@ function EntrepriseVeiviser({
   })();
 
   const knappTekst = (() => {
-    if (steg === 2 && metode === "kopier") return "Kopier";
-    if (steg === 2 && metode === "importer") return "Importer";
-    if (steg === 2 && metode === "tom") return "Opprett";
-    return "Neste";
+    if (steg === 2 && metode === "kopier") return t("handling.kopier");
+    if (steg === 2 && metode === "importer") return t("handling.importer");
+    if (steg === 2 && metode === "tom") return t("handling.opprett");
+    return t("handling.neste");
   })();
 
   return (
-    <Modal open={open} onClose={lukkOgNullstill} title="Legg til entreprise">
+    <Modal open={open} onClose={lukkOgNullstill} title={t("entrepriser.leggTilEntreprise")}>
       <div className="flex flex-col gap-5">
         {steg === 1 && (
           <>
             <p className="text-sm text-gray-600">
-              Velg hvordan du vil legge til en entreprise:
+              {t("entrepriser.velgMetode")}
             </p>
             <div className="flex flex-col gap-2">
               <label
@@ -462,13 +465,13 @@ function EntrepriseVeiviser({
                 />
                 <div className="flex-1">
                   <span className="text-sm font-medium text-gray-900">
-                    Kopier fra nåværende prosjekt
+                    {t("entrepriser.kopierFraProsjekt")}
                   </span>
                   {metode === "kopier" && harEntrepriser && (
                     <div className="mt-2">
                       <Select
                         options={[
-                          { value: "", label: "Velg entreprise..." },
+                          { value: "", label: t("entrepriser.velgEntreprise") },
                           ...entrepriser.map((e) => ({ value: e.id, label: e.name })),
                         ]}
                         value={kopierEntrepriseId}
@@ -494,7 +497,7 @@ function EntrepriseVeiviser({
                   className="mt-0.5 accent-sitedoc-primary"
                 />
                 <span className="text-sm font-medium text-gray-900">
-                  Importer fra annet prosjekt
+                  {t("entrepriser.importerFraAnnet")}
                 </span>
               </label>
 
@@ -512,7 +515,7 @@ function EntrepriseVeiviser({
                   className="mt-0.5 accent-sitedoc-primary"
                 />
                 <span className="text-sm font-medium text-gray-900">
-                  Opprett tom entreprise
+                  {t("entrepriser.opprettTom")}
                 </span>
               </label>
             </div>
@@ -522,10 +525,10 @@ function EntrepriseVeiviser({
         {steg === 2 && metode === "kopier" && (
           <>
             <p className="text-sm text-gray-500">
-              Strukturen fra <strong>{entrepriser.find((e) => e.id === kopierEntrepriseId)?.name}</strong> kopieres. Gi den nye entreprisen et navn:
+              {t("entrepriser.kopierBeskrivelse", { navn: entrepriser.find((e) => e.id === kopierEntrepriseId)?.name })}
             </p>
             <Input
-              label="Navn på ny entreprise"
+              label={t("entrepriser.navnPaaNy")}
               placeholder="F.eks. Tømrer"
               value={nyNavn}
               onChange={(e) => setNyNavn(e.target.value)}
@@ -537,9 +540,9 @@ function EntrepriseVeiviser({
         {steg === 2 && metode === "importer" && (
           <>
             <Select
-              label="Velg prosjekt"
+              label={t("entrepriser.velgProsjekt")}
               options={[
-                { value: "", label: "Velg prosjekt..." },
+                { value: "", label: t("entrepriser.velgProsjekt") + "..." },
                 ...andreProsjekter.map((p) => ({
                   value: p.id,
                   label: `${p.name} (${p.projectNumber})`,
@@ -553,9 +556,9 @@ function EntrepriseVeiviser({
             />
             {importProsjektId && (
               <Select
-                label="Velg entreprise å kopiere"
+                label={t("entrepriser.velgEntrepriseKopier")}
                 options={[
-                  { value: "", label: "Velg entreprise..." },
+                  { value: "", label: t("entrepriser.velgEntreprise") },
                   ...(importEntrepriser?.map((e) => ({
                     value: e.id,
                     label: e.name,
@@ -567,7 +570,7 @@ function EntrepriseVeiviser({
             )}
             {importEntrepriseId && (
               <Input
-                label="Navn på ny entreprise"
+                label={t("entrepriser.navnPaaNy")}
                 placeholder="F.eks. Tømrer"
                 value={nyNavn}
                 onChange={(e) => setNyNavn(e.target.value)}
@@ -581,7 +584,7 @@ function EntrepriseVeiviser({
           <>
             <div>
               <label className="mb-1.5 block text-sm font-medium text-gray-700">
-                Gruppe <span className="text-red-500">*</span>
+                {t("entrepriser.gruppe")} <span className="text-red-500">*</span>
               </label>
               <div className="flex items-center gap-3">
                 <input
@@ -602,10 +605,10 @@ function EntrepriseVeiviser({
               </div>
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Bransje</label>
+              <label className="mb-1 block text-sm font-medium text-gray-700">{t("entrepriser.bransje")}</label>
               <input
                 list="bransje-liste-ny"
-                placeholder="Velg eller skriv inn bransje..."
+                placeholder={t("entrepriser.velgBransje")}
                 className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 value={nyBransje}
                 onChange={(e) => setNyBransje(e.target.value)}
@@ -617,8 +620,8 @@ function EntrepriseVeiviser({
               </datalist>
             </div>
             <Input
-              label="Firma"
-              placeholder="Firmanavn"
+              label={t("entrepriser.firma")}
+              placeholder={t("entrepriser.firma")}
               value={nyFirma}
               onChange={(e) => setNyFirma(e.target.value)}
             />
@@ -628,7 +631,7 @@ function EntrepriseVeiviser({
         {/* Fargevelger (valgfri) */}
         {steg === 2 && (
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Farge (valgfri)</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700">{t("entrepriser.fargeValgfri")}</label>
             <div className="flex flex-wrap gap-1.5">
               {Object.keys(FARGE_MAP).slice(0, 20).map((farge) => {
                 const f = FARGE_MAP[farge]!;
@@ -643,17 +646,17 @@ function EntrepriseVeiviser({
                 );
               })}
             </div>
-            {!nyFarge && <p className="mt-1 text-xs text-gray-400">Tildeles automatisk hvis ikke valgt</p>}
+            {!nyFarge && <p className="mt-1 text-xs text-gray-400">{t("entrepriser.fargeAuto")}</p>}
           </div>
         )}
 
         <div className="flex gap-3 pt-2">
           <Button variant="secondary" type="button" onClick={lukkOgNullstill}>
-            Avbryt
+            {t("handling.avbryt")}
           </Button>
           {steg > 1 && (
             <Button variant="secondary" type="button" onClick={() => setSteg(1)}>
-              Forrige
+              {t("entrepriser.forrige")}
             </Button>
           )}
           <Button onClick={handleNeste} loading={erLagrer} disabled={!kanGaVidere}>
@@ -684,6 +687,7 @@ function OpprettDokumentflytModal({
   maler: Array<{ id: string; name: string; category: string }>;
   forvalgtEntrepriseId?: string;
 }) {
+  const { t } = useTranslation();
   const [navn, setNavn] = useState("");
   const [oppretterType, setOppretterType] = useState<"bruker" | "gruppe">("bruker");
   const [oppretterId, setOppretterId] = useState("");
@@ -726,7 +730,7 @@ function OpprettDokumentflytModal({
       onClose();
     },
     onError: (err) => {
-      setFeilmelding(err.message || "Kunne ikke opprette dokumentflyt");
+      setFeilmelding(err.message || t("entrepriser.kunneIkkeOpprette"));
     },
   });
 
@@ -811,10 +815,10 @@ function OpprettDokumentflytModal({
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="Ny dokumentflyt">
+    <Modal open={open} onClose={onClose} title={t("entrepriser.nyDokumentflyt")}>
       <form onSubmit={handleOpprett} className="flex flex-col gap-4">
         <Input
-          label="Navn"
+          label={t("tabell.navn")}
           placeholder="F.eks. Byggherre → Bygg"
           value={navn}
           onChange={(e) => setNavn(e.target.value)}
@@ -823,7 +827,7 @@ function OpprettDokumentflytModal({
 
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-700">
-            Opprett/send
+            {t("entrepriser.opprettSend")}
           </label>
           <div className="mb-2 flex gap-2">
             <button
@@ -831,14 +835,14 @@ function OpprettDokumentflytModal({
               onClick={() => { setOppretterType("bruker"); setOppretterId(""); }}
               className={`rounded-full px-3 py-1 text-xs font-medium ${oppretterType === "bruker" ? "bg-sitedoc-primary text-white" : "bg-gray-100 text-gray-600"}`}
             >
-              Bruker
+              {t("entrepriser.bruker")}
             </button>
             <button
               type="button"
               onClick={() => { setOppretterType("gruppe"); setOppretterId(""); }}
               className={`rounded-full px-3 py-1 text-xs font-medium ${oppretterType === "gruppe" ? "bg-sitedoc-primary text-white" : "bg-gray-100 text-gray-600"}`}
             >
-              Gruppe
+              {t("entrepriser.gruppe")}
             </button>
           </div>
           <select
@@ -848,7 +852,7 @@ function OpprettDokumentflytModal({
           >
             {oppretterType === "bruker" ? (
               <>
-                <option value="">Velg bruker...</option>
+                <option value="">{t("entrepriser.velgBruker")}</option>
                 {medlemmer.map((m) => {
                   const gr = medlemGrupper.get(m.id);
                   const grTekst = gr?.length ? ` · ${gr.join(", ")}` : "";
@@ -861,7 +865,7 @@ function OpprettDokumentflytModal({
               </>
             ) : (
               <>
-                <option value="">Velg gruppe...</option>
+                <option value="">{t("entrepriser.velgGruppe")}</option>
                 {grupper.map((g) => (
                   <option key={g.id} value={g.id}>{g.name}</option>
                 ))}
@@ -872,7 +876,7 @@ function OpprettDokumentflytModal({
 
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-700">
-            Mottaker
+            {t("entrepriser.mottaker")}
           </label>
           <div className="mb-2 flex gap-2">
             <button
@@ -880,14 +884,14 @@ function OpprettDokumentflytModal({
               onClick={() => { setMottakerType("bruker"); setMottakerId(""); }}
               className={`rounded-full px-3 py-1 text-xs font-medium ${mottakerType === "bruker" ? "bg-sitedoc-primary text-white" : "bg-gray-100 text-gray-600"}`}
             >
-              Bruker
+              {t("entrepriser.bruker")}
             </button>
             <button
               type="button"
               onClick={() => { setMottakerType("gruppe"); setMottakerId(""); }}
               className={`rounded-full px-3 py-1 text-xs font-medium ${mottakerType === "gruppe" ? "bg-sitedoc-primary text-white" : "bg-gray-100 text-gray-600"}`}
             >
-              Gruppe
+              {t("entrepriser.gruppe")}
             </button>
           </div>
           <select
@@ -897,7 +901,7 @@ function OpprettDokumentflytModal({
           >
             {mottakerType === "bruker" ? (
               <>
-                <option value="">Velg bruker...</option>
+                <option value="">{t("entrepriser.velgBruker")}</option>
                 {medlemmer.map((m) => {
                   const gr = medlemGrupper.get(m.id);
                   const grTekst = gr?.length ? ` · ${gr.join(", ")}` : "";
@@ -910,7 +914,7 @@ function OpprettDokumentflytModal({
               </>
             ) : (
               <>
-                <option value="">Velg gruppe...</option>
+                <option value="">{t("entrepriser.velgGruppe")}</option>
                 {grupper.map((g) => (
                   <option key={g.id} value={g.id}>{g.name}</option>
                 ))}
@@ -938,7 +942,7 @@ function OpprettDokumentflytModal({
                   });
                 }}
               />
-              <span className="text-sm font-semibold text-gray-900">Oppgavetype</span>
+              <span className="text-sm font-semibold text-gray-900">{t("entrepriser.oppgavetype")}</span>
             </label>
             <div className="space-y-1.5">
               {oppgaveMaler.map((mal) => (
@@ -952,7 +956,7 @@ function OpprettDokumentflytModal({
                   <span className="text-sm text-gray-700">{mal.name}</span>
                 </label>
               ))}
-              {oppgaveMaler.length === 0 && <p className="text-xs text-gray-400">Ingen oppgavemaler</p>}
+              {oppgaveMaler.length === 0 && <p className="text-xs text-gray-400">{t("tom.ingenOppgavemaler")}</p>}
             </div>
           </div>
           <div>
@@ -972,7 +976,7 @@ function OpprettDokumentflytModal({
                   });
                 }}
               />
-              <span className="text-sm font-semibold text-gray-900">Sjekklistetype</span>
+              <span className="text-sm font-semibold text-gray-900">{t("entrepriser.sjekklistetype")}</span>
             </label>
             <div className="space-y-1.5">
               {sjekklisteMaler.map((mal) => (
@@ -986,7 +990,7 @@ function OpprettDokumentflytModal({
                   <span className="text-sm text-gray-700">{mal.name}</span>
                 </label>
               ))}
-              {sjekklisteMaler.length === 0 && <p className="text-xs text-gray-400">Ingen sjekklistemaler</p>}
+              {sjekklisteMaler.length === 0 && <p className="text-xs text-gray-400">{t("tom.ingenSjekklistemaler")}</p>}
             </div>
           </div>
         </div>
@@ -997,10 +1001,10 @@ function OpprettDokumentflytModal({
 
         <div className="flex gap-3 pt-2">
           <Button variant="secondary" type="button" onClick={onClose}>
-            Avbryt
+            {t("handling.avbryt")}
           </Button>
           <Button type="submit" loading={opprettMutation.isPending} disabled={!navn.trim()}>
-            Opprett
+            {t("handling.opprett")}
           </Button>
         </div>
       </form>
@@ -1025,6 +1029,7 @@ function RedigerDokumentflytModal({
   dokumentflyt: DokumentflytData | null;
   maler: Array<{ id: string; name: string; category: string }>;
 }) {
+  const { t } = useTranslation();
   const [navn, setNavn] = useState("");
   const [valgteMaler, setValgteMaler] = useState<Set<string>>(new Set());
 
@@ -1067,10 +1072,10 @@ function RedigerDokumentflytModal({
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="Rediger dokumentflyt">
+    <Modal open={open} onClose={onClose} title={t("entrepriser.redigerDokumentflyt")}>
       <form onSubmit={handleLagre} className="flex flex-col gap-4">
         <Input
-          label="Navn"
+          label={t("tabell.navn")}
           value={navn}
           onChange={(e) => setNavn(e.target.value)}
           required
@@ -1094,7 +1099,7 @@ function RedigerDokumentflytModal({
                   });
                 }}
               />
-              <span className="text-sm font-semibold text-gray-900">Oppgavetype</span>
+              <span className="text-sm font-semibold text-gray-900">{t("entrepriser.oppgavetype")}</span>
             </label>
             <div className="space-y-1.5">
               {oppgaveMaler.map((mal) => (
@@ -1108,7 +1113,7 @@ function RedigerDokumentflytModal({
                   <span className="text-sm text-gray-700">{mal.name}</span>
                 </label>
               ))}
-              {oppgaveMaler.length === 0 && <p className="text-xs text-gray-400">Ingen oppgavemaler</p>}
+              {oppgaveMaler.length === 0 && <p className="text-xs text-gray-400">{t("tom.ingenOppgavemaler")}</p>}
             </div>
           </div>
           <div>
@@ -1128,7 +1133,7 @@ function RedigerDokumentflytModal({
                   });
                 }}
               />
-              <span className="text-sm font-semibold text-gray-900">Sjekklistetype</span>
+              <span className="text-sm font-semibold text-gray-900">{t("entrepriser.sjekklistetype")}</span>
             </label>
             <div className="space-y-1.5">
               {sjekklisteMaler.map((mal) => (
@@ -1142,17 +1147,17 @@ function RedigerDokumentflytModal({
                   <span className="text-sm text-gray-700">{mal.name}</span>
                 </label>
               ))}
-              {sjekklisteMaler.length === 0 && <p className="text-xs text-gray-400">Ingen sjekklistemaler</p>}
+              {sjekklisteMaler.length === 0 && <p className="text-xs text-gray-400">{t("tom.ingenSjekklistemaler")}</p>}
             </div>
           </div>
         </div>
 
         <div className="flex gap-3 pt-2">
           <Button variant="secondary" type="button" onClick={onClose}>
-            Avbryt
+            {t("handling.avbryt")}
           </Button>
           <Button type="submit" loading={oppdaterMutation.isPending} disabled={!navn.trim()}>
-            Lagre
+            {t("handling.lagre")}
           </Button>
         </div>
       </form>
@@ -1166,6 +1171,7 @@ function RedigerDokumentflytModal({
 
 export default function EntrepriserSide() {
   const { prosjektId, prosjekter } = useProsjekt();
+  const { t } = useTranslation();
   const utils = trpc.useUtils();
 
   const [sok, setSok] = useState("");
@@ -1219,7 +1225,8 @@ export default function EntrepriserSide() {
     { projectId: prosjektId! },
     { enabled: !!prosjektId },
   );
-  const gruppeListe = (grupperData ?? []) as Array<{ id: string; name: string }>;
+  const gruppeListe = ((grupperData ?? []) as Array<{ id: string; name: string; category: string }>)
+    .filter((g) => g.category === "brukergrupper");
 
   const oppdaterEntrepriseMutation = trpc.entreprise.oppdater.useMutation({
     onSuccess: () => {
@@ -1338,15 +1345,15 @@ export default function EntrepriserSide() {
     <div>
       {/* Verktøylinje */}
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-lg font-bold text-gray-900">Entrepriser og dokumentflyt</h2>
+        <h2 className="text-lg font-bold text-gray-900">{t("oppsett.entrepriser")}</h2>
         <div className="flex items-center gap-2">
           <Button size="sm" variant="secondary" onClick={() => { setForvalgtEntrepriseId(undefined); setVisOpprettDf(true); }}>
             <Plus className="mr-1.5 h-4 w-4" />
-            Ny dokumentflyt
+            {t("entrepriser.nyDokumentflyt")}
           </Button>
           <Button size="sm" onClick={() => setVisVeiviser(true)}>
             <Plus className="mr-1.5 h-4 w-4" />
-            Ny entreprise
+            {t("entrepriser.nyEntreprise")}
           </Button>
         </div>
       </div>
@@ -1357,7 +1364,7 @@ export default function EntrepriserSide() {
           <SearchInput
             verdi={sok}
             onChange={setSok}
-            placeholder="Søk i entrepriser..."
+            placeholder={t("entrepriser.sokIEntrepriser")}
             className="w-72"
           />
         </div>
@@ -1366,11 +1373,11 @@ export default function EntrepriserSide() {
       {/* Entrepriser med dokumentflyter */}
       {filtrert.length === 0 && fellesDf.length === 0 ? (
         <EmptyState
-          title="Ingen entrepriser"
-          description="Legg til entrepriser med dokumentflyt for å styre godkjenning og kommunikasjon."
+          title={t("entrepriser.ingenEntrepriser")}
+          description={t("entrepriser.ingenEntrepriserBeskrivelse")}
           action={
             <Button onClick={() => setVisVeiviser(true)}>
-              Legg til entreprise
+              {t("entrepriser.leggTilEntreprise")}
             </Button>
           }
         />
@@ -1403,10 +1410,10 @@ export default function EntrepriserSide() {
               <div className="flex items-center rounded-t-lg border border-gray-300 bg-gray-100 px-4 py-2.5">
                 <Building2 className="mr-2 h-4 w-4 text-gray-500" />
                 <span className="text-sm font-semibold text-gray-700">
-                  Felles
+                  {t("entrepriser.felles")}
                 </span>
                 <span className="ml-1 text-xs text-gray-400">
-                  ({fellesDf.length} dokumentflyt{fellesDf.length !== 1 ? "er" : ""})
+                  ({t("entrepriser.dokumentflytAntall", { count: fellesDf.length })})
                 </span>
               </div>
               <div className="space-y-2 p-3">
@@ -1476,7 +1483,7 @@ export default function EntrepriserSide() {
       <Modal
         open={redigerEntrepriseId !== null}
         onClose={() => setRedigerEntrepriseId(null)}
-        title="Rediger entreprise"
+        title={t("entrepriser.redigerEntreprise")}
       >
         <form
           onSubmit={(e) => {
@@ -1496,7 +1503,7 @@ export default function EntrepriserSide() {
         >
           <div>
             <label className="mb-1.5 block text-sm font-medium text-gray-700">
-              Gruppe <span className="text-red-500">*</span>
+              {t("entrepriser.gruppe")} <span className="text-red-500">*</span>
             </label>
             <div className="flex items-center gap-3">
               <FargeVelger valgt={redigerFarge} onChange={setRedigerFarge} />
@@ -1511,7 +1518,7 @@ export default function EntrepriserSide() {
                 type="text"
                 value={redigerNavn}
                 onChange={(e) => setRedigerNavn(e.target.value)}
-                placeholder="Navn"
+                placeholder={t("tabell.navn")}
                 className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 required
               />
@@ -1519,10 +1526,10 @@ export default function EntrepriserSide() {
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Bransje</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700">{t("entrepriser.bransje")}</label>
             <input
               list="bransje-liste-rediger"
-              placeholder="Velg eller skriv inn bransje..."
+              placeholder={t("entrepriser.velgBransje")}
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               value={redigerBransje}
               onChange={(e) => setRedigerBransje(e.target.value)}
@@ -1535,25 +1542,25 @@ export default function EntrepriserSide() {
           </div>
 
           <Input
-            label="Firma"
-            placeholder="Firmanavn"
+            label={t("entrepriser.firma")}
+            placeholder={t("entrepriser.firma")}
             value={redigerFirma}
             onChange={(e) => setRedigerFirma(e.target.value)}
           />
 
           <Input
-            label="Organisasjonsnummer"
-            placeholder="Valgfritt"
+            label={t("entrepriser.organisasjonsnummer")}
+            placeholder={t("entrepriser.organisasjonsnummer")}
             value={redigerOrgNummer}
             onChange={(e) => setRedigerOrgNummer(e.target.value)}
           />
 
           <div className="flex gap-3 pt-2">
             <Button type="submit" loading={oppdaterEntrepriseMutation.isPending}>
-              Lagre
+              {t("handling.lagre")}
             </Button>
             <Button type="button" variant="secondary" onClick={() => setRedigerEntrepriseId(null)}>
-              Avbryt
+              {t("handling.avbryt")}
             </Button>
           </div>
         </form>
@@ -1563,12 +1570,17 @@ export default function EntrepriserSide() {
       <Modal
         open={slettEntrepriseId !== null}
         onClose={() => setSlettEntrepriseId(null)}
-        title="Slett entreprise"
+        title={t("entrepriser.slettEntreprise")}
       >
         <div className="flex flex-col gap-4">
           <p className="text-sm text-gray-600">
-            Er du sikker på at du vil slette denne entreprisen og alle tilhørende dokumentflyter?
+            {t("entrepriser.bekreftSlettEntreprise")}
           </p>
+          {slettEntrepriseMutation.error && (
+            <p className="rounded bg-red-50 px-3 py-2 text-sm text-red-700">
+              {slettEntrepriseMutation.error.message}
+            </p>
+          )}
           <div className="flex gap-3 pt-2">
             <Button
               variant="danger"
@@ -1578,10 +1590,10 @@ export default function EntrepriserSide() {
                 slettEntrepriseMutation.mutate({ id: slettEntrepriseId });
               }}
             >
-              Slett
+              {t("handling.slett")}
             </Button>
-            <Button variant="secondary" onClick={() => setSlettEntrepriseId(null)}>
-              Avbryt
+            <Button variant="secondary" onClick={() => { setSlettEntrepriseId(null); slettEntrepriseMutation.reset(); }}>
+              {t("handling.avbryt")}
             </Button>
           </div>
         </div>
@@ -1591,16 +1603,15 @@ export default function EntrepriserSide() {
       <Modal
         open={slettDfId !== null}
         onClose={() => setSlettDfId(null)}
-        title="Slett dokumentflyt"
+        title={t("entrepriser.slettDokumentflyt")}
       >
         <div className="flex flex-col gap-4">
           <p className="text-sm text-gray-600">
-            Er du sikker på at du vil slette denne dokumentflyten?
-            Eksisterende dokumenter påvirkes ikke.
+            {t("entrepriser.bekreftSlettDokumentflyt")}
           </p>
           <div className="flex gap-3">
             <Button variant="secondary" onClick={() => setSlettDfId(null)}>
-              Avbryt
+              {t("handling.avbryt")}
             </Button>
             <Button
               variant="danger"
@@ -1611,7 +1622,7 @@ export default function EntrepriserSide() {
                 }
               }}
             >
-              Slett
+              {t("handling.slett")}
             </Button>
           </div>
         </div>

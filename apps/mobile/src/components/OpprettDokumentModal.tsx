@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native";
 import { ChevronDown } from "lucide-react-native";
+import { useTranslation } from "react-i18next";
 import { trpc } from "../lib/trpc";
 import { useProsjekt } from "../kontekst/ProsjektKontekst";
 
@@ -90,6 +91,7 @@ interface OpprettDokumentModalProps {
   mal: MalData;
   onOpprettet: (id: string) => void;
   onLukk: () => void;
+  onModalLukket?: () => void;
   // Props for oppgave fra sjekkliste
   sjekklisteId?: string;
   sjekklisteFeltId?: string;
@@ -97,11 +99,11 @@ interface OpprettDokumentModalProps {
   feltLabel?: string;
 }
 
-const PRIORITETER: { verdi: Prioritet; label: string }[] = [
-  { verdi: "low", label: "Lav" },
-  { verdi: "medium", label: "Medium" },
-  { verdi: "high", label: "Høy" },
-  { verdi: "critical", label: "Kritisk" },
+const PRIORITETER: { verdi: Prioritet; labelKey: string }[] = [
+  { verdi: "low", labelKey: "prioritet.lav" },
+  { verdi: "medium", labelKey: "prioritet.middels" },
+  { verdi: "high", labelKey: "prioritet.hoey" },
+  { verdi: "critical", labelKey: "prioritet.kritisk" },
 ];
 
 const PRIORITET_FARGER: Record<Prioritet, string> = {
@@ -117,11 +119,13 @@ export function OpprettDokumentModal({
   mal,
   onOpprettet,
   onLukk,
+  onModalLukket,
   sjekklisteId,
   sjekklisteFeltId,
   sjekklisteNummer,
   feltLabel,
 }: OpprettDokumentModalProps) {
+  const { t } = useTranslation();
   const erOppgave = kategori === "oppgave";
   const erFraSjekkliste = !!sjekklisteId && !!sjekklisteFeltId;
   const { valgtProsjektId } = useProsjekt();
@@ -243,7 +247,7 @@ export function OpprettDokumentModal({
       onOpprettet(resultat.id);
     },
     onError: (feil: { message: string }) => {
-      Alert.alert("Feil", feil.message || "Kunne ikke opprette sjekkliste");
+      Alert.alert(t("feil.tittel"), feil.message || t("opprettModal.kunneIkkeOpprette"));
     },
   });
 
@@ -255,7 +259,7 @@ export function OpprettDokumentModal({
       onOpprettet(resultat.id);
     },
     onError: (feil: { message: string }) => {
-      Alert.alert("Feil", feil.message || "Kunne ikke opprette oppgave");
+      Alert.alert(t("feil.tittel"), feil.message || t("opprettModal.kunneIkkeOpprette"));
     },
   });
 
@@ -279,13 +283,13 @@ export function OpprettDokumentModal({
 
   const håndterOpprett = useCallback(() => {
     if (!oppretterEntrepriseId) {
-      Alert.alert("Mangler oppretter", "Velg en oppretter-entreprise");
+      Alert.alert(t("opprettModal.manglerOppretter"), t("opprettModal.velgOppretterEntreprise"));
       return;
     }
     if (!matchendeArbeidsforlop || !autoSvarerEntrepriseId) {
       Alert.alert(
-        "Mangler arbeidsforløp",
-        "Denne entreprisen har ikke et arbeidsforløp konfigurert for denne malen. Sett opp arbeidsforløp under Innstillinger > Feltarbeid > Entrepriser.",
+        t("opprettModal.manglerArbeidsforlop"),
+        t("opprettModal.manglerArbeidsforlopBeskrivelse"),
       );
       return;
     }
@@ -337,19 +341,8 @@ export function OpprettDokumentModal({
 
   const kanOpprett = !!oppretterEntrepriseId && !!matchendeArbeidsforlop && !erPending;
 
-  // Auto-opprett hvis alt kan utledes (1 entreprise + arbeidsforløp matcher)
-  const harAutoOpprettet = useRef(false);
-  useEffect(() => {
-    if (!synlig) { harAutoOpprettet.current = false; return; }
-    if (harAutoOpprettet.current || erPending) return;
-    if (mineEntrepriser.length !== 1) return;
-    if (!oppretterEntrepriseId || !matchendeArbeidsforlop || !autoSvarerEntrepriseId) return;
-    // Sjekklister med forhåndsdefinerte emner trenger brukerens valg
-    if (!erOppgave && harSubjects) return;
-
-    harAutoOpprettet.current = true;
-    håndterOpprett();
-  }, [synlig, mineEntrepriser, oppretterEntrepriseId, matchendeArbeidsforlop, autoSvarerEntrepriseId, erPending, erOppgave, harSubjects, håndterOpprett]);
+  // Auto-opprett deaktivert — modal-animasjon + navigering kolliderer på iOS
+  // Brukeren trykker "Opprett" manuelt
 
   // Lukk alle åpne dropdowns
   const lukkAlleDropdowns = () => {
@@ -363,22 +356,8 @@ export function OpprettDokumentModal({
   const valgtBygning = bygninger.find((b) => b.id === valgtBygningId);
   const valgtTegning = tegninger.find((t) => t.id === valgtTegningId);
 
-  // Auto-opprettelse pågår — vis loading
-  if (harAutoOpprettet.current && erPending) {
-    return (
-      <Modal visible={synlig} animationType="slide" presentationStyle="pageSheet">
-        <SafeAreaView style={{ flex: 1, backgroundColor: "#ffffff" }}>
-          <View className="flex-1 items-center justify-center">
-            <ActivityIndicator size="large" color="#1e40af" />
-            <Text className="mt-3 text-sm text-gray-500">Oppretter {erOppgave ? "oppgave" : "sjekkliste"}…</Text>
-          </View>
-        </SafeAreaView>
-      </Modal>
-    );
-  }
-
   return (
-    <Modal visible={synlig} animationType="slide" presentationStyle="pageSheet">
+    <Modal visible={synlig} animationType="slide" onRequestClose={onLukk}>
       <SafeAreaView style={{ flex: 1, backgroundColor: "#ffffff" }}>
         <KeyboardAvoidingView
           style={{ flex: 1 }}
@@ -387,10 +366,10 @@ export function OpprettDokumentModal({
         {/* Header */}
         <View className="flex-row items-center justify-between bg-sitedoc-blue px-4 py-3">
           <Pressable onPress={håndterAvbryt} hitSlop={8}>
-            <Text className="text-sm font-medium text-white">Avbryt</Text>
+            <Text className="text-sm font-medium text-white">{t("handling.avbryt")}</Text>
           </Pressable>
           <Text className="text-sm font-semibold text-white">
-            Ny {kategori === "sjekkliste" ? "sjekkliste" : "oppgave"}
+            {kategori === "sjekkliste" ? t("sjekklister.opprett") : t("oppgave.ny")}
           </Text>
           <Pressable onPress={håndterOpprett} disabled={!kanOpprett} hitSlop={8}>
             {erPending ? (
@@ -399,7 +378,7 @@ export function OpprettDokumentModal({
               <Text
                 className={`text-sm font-medium ${kanOpprett ? "text-white" : "text-white/40"}`}
               >
-                Opprett
+                {t("handling.opprett")}
               </Text>
             )}
           </Pressable>
@@ -408,7 +387,7 @@ export function OpprettDokumentModal({
         <ScrollView className="flex-1" keyboardShouldPersistTaps="handled">
           {/* 1. Mal-info med prefix-badge */}
           <View className="border-b border-gray-100 bg-gray-50 px-4 py-3">
-            <Text className="text-xs font-medium text-gray-500">Mal</Text>
+            <Text className="text-xs font-medium text-gray-500">{t("opprettModal.mal")}</Text>
             <View className="mt-1 flex-row items-center gap-2">
               <Text className="text-sm font-medium text-gray-900">{mal.name}</Text>
               {mal.prefix ? (
@@ -421,16 +400,16 @@ export function OpprettDokumentModal({
 
           {/* 2. Prosjekt (read-only, auto fra kontekst) */}
           <View className="border-b border-gray-100 px-4 py-3">
-            <Text className="text-xs font-medium text-gray-500">Prosjekt</Text>
+            <Text className="text-xs font-medium text-gray-500">{t("opprettModal.prosjekt")}</Text>
             <Text className="mt-1 text-sm text-gray-800">
-              {prosjektNavn || "Laster…"}
+              {prosjektNavn || t("handling.laster")}
             </Text>
           </View>
 
           {/* 3. Emne — dropdown med forhåndsdefinerte tekster, eller fritekst som fallback */}
           {!erOppgave && (
             <View className="border-b border-gray-100 px-4 py-3">
-              <Text className="mb-1 text-xs font-medium text-gray-500">Emne</Text>
+              <Text className="mb-1 text-xs font-medium text-gray-500">{t("opprettModal.emne")}</Text>
               {harSubjects ? (
                 <>
                   <Pressable
@@ -443,7 +422,7 @@ export function OpprettDokumentModal({
                     <Text
                       className={`text-sm ${emne ? "text-gray-800" : "text-gray-400"}`}
                     >
-                      {emne || "Velg emne…"}
+                      {emne || t("opprettModal.velgEmne")}
                     </Text>
                     <ChevronDown size={16} color="#9ca3af" />
                   </Pressable>
@@ -456,7 +435,7 @@ export function OpprettDokumentModal({
                         }}
                         className="border-b border-gray-50 px-3 py-2.5"
                       >
-                        <Text className="text-sm italic text-gray-400">Ingen emne</Text>
+                        <Text className="text-sm italic text-gray-400">{t("opprettModal.ingenEmne")}</Text>
                       </Pressable>
                       {malSubjects.map((s) => (
                         <Pressable
@@ -480,7 +459,7 @@ export function OpprettDokumentModal({
               ) : (
                 <TextInput
                   className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-800"
-                  placeholder="Beskriv emnet (valgfritt)…"
+                  placeholder={t("opprettModal.beskrivEmne")}
                   placeholderTextColor="#9ca3af"
                   value={emne}
                   onChangeText={setEmne}
@@ -492,7 +471,7 @@ export function OpprettDokumentModal({
           {/* Sjekkliste-referanse (kun for oppgave fra sjekkliste) */}
           {erOppgave && erFraSjekkliste && (
             <View className="border-b border-gray-100 bg-blue-50 px-4 py-3">
-              <Text className="text-xs font-medium text-blue-600">Fra sjekkliste</Text>
+              <Text className="text-xs font-medium text-blue-600">{t("oppgave.fraSjekkliste")}</Text>
               <Text className="mt-0.5 text-sm text-blue-800">
                 {sjekklisteNummer ? `${sjekklisteNummer}: ` : ""}{feltLabel ?? ""}
               </Text>
@@ -504,7 +483,7 @@ export function OpprettDokumentModal({
           {/* 5. Oppretter-entreprise (kun brukerens entrepriser) */}
           <View className="border-b border-gray-100 px-4 py-3">
             <Text className="mb-1 text-xs font-medium text-gray-500">
-              Oppretter-entreprise *
+              {t("opprettModal.oppretterEntreprise")} *
             </Text>
             {mineEntrepriser.length === 1 ? (
               /* Auto-valgt — vises som read-only */
@@ -523,7 +502,7 @@ export function OpprettDokumentModal({
                   <Text
                     className={`text-sm ${valgtOppretter ? "text-gray-800" : "text-gray-400"}`}
                   >
-                    {valgtOppretter?.name ?? "Velg entreprise…"}
+                    {valgtOppretter?.name ?? t("opprettModal.velgEntreprise")}
                   </Text>
                   <ChevronDown size={16} color="#9ca3af" />
                 </Pressable>
@@ -554,22 +533,22 @@ export function OpprettDokumentModal({
           {/* 6. Svarer-entreprise (read-only, auto-utledet fra arbeidsforløp) */}
           {oppretterEntrepriseId && (
             <View className="border-b border-gray-100 bg-gray-50 px-4 py-3">
-              <Text className="text-xs font-medium text-gray-500">Svarer-entreprise</Text>
+              <Text className="text-xs font-medium text-gray-500">{t("opprettModal.svarerEntreprise")}</Text>
               {arbeidsforlopQuery.isLoading ? (
                 <View className="mt-1 flex-row items-center gap-2">
                   <ActivityIndicator size="small" color="#1e40af" />
-                  <Text className="text-sm text-gray-500">Henter arbeidsforløp…</Text>
+                  <Text className="text-sm text-gray-500">{t("opprettModal.henterArbeidsforlop")}</Text>
                 </View>
               ) : matchendeArbeidsforlop ? (
                 <View className="mt-1 flex-row items-center gap-2">
                   <Text className="text-sm text-gray-800">{autoSvarerNavn}</Text>
                   {!matchendeArbeidsforlop.responderEnterpriseId && (
-                    <Text className="text-xs text-gray-400">(intern flyt)</Text>
+                    <Text className="text-xs text-gray-400">({t("opprettModal.internFlyt")})</Text>
                   )}
                 </View>
               ) : (
                 <Text className="mt-1 text-sm text-amber-600">
-                  Ingen arbeidsforløp konfigurert for denne malen
+                  {t("opprettModal.ingenArbeidsforlop")}
                 </Text>
               )}
             </View>

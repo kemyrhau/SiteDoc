@@ -6,6 +6,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import type { TemplateZone } from "@sitedoc/shared";
+import { useTranslation } from "react-i18next";
 import { DraggbartFelt, type MalObjekt } from "./DraggbartFelt";
 import { BetingelseBjelke } from "./BetingelseBjelke";
 import type { TreObjekt } from "./typer";
@@ -41,6 +42,7 @@ export function DropSone({
     id: `sone-${zone}`,
     data: { zone },
   });
+  const { t } = useTranslation();
 
   // Samle alle ID-er (flat) for SortableContext
   const alleIder = samleIder(treObjekter);
@@ -61,7 +63,7 @@ export function DropSone({
         >
           {treObjekter.length === 0 ? (
             <p className="py-8 text-center text-lg font-semibold text-gray-200 select-none">
-              Dra og slipp felter her
+              {t("malbygger.draDrop")}
             </p>
           ) : (
             <div className="flex flex-col gap-1.5 pb-8">
@@ -114,6 +116,7 @@ function RekursivtFelt({
   onFjernBetingelse,
   onFjernBarnFraKontainer,
 }: RekursivtFeltProps) {
+  const { t } = useTranslation();
   const malObjekt = treObjekt as MalObjekt;
   const harAktivBetingelse = malObjekt.config.conditionActive === true;
   const erRepeater = malObjekt.type === "repeater";
@@ -180,8 +183,8 @@ function RekursivtFelt({
               : "border-blue-300 text-blue-400"
           }`}>
             {erRepeater
-              ? "Dra og slipp felter som skal gjentas i hver rad"
-              : "Dra og slipp felter her"}
+              ? t("malbygger.draDropRepeater")
+              : t("malbygger.draDrop")}
           </div>
         </div>
       )}

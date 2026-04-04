@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { Button, Input, Modal, SearchInput } from "@sitedoc/ui";
+import { useTranslation } from "react-i18next";
 import {
   Plus,
   Search,
@@ -126,6 +127,7 @@ function RedigerGruppeModal({
   const [redigererNavn, setRedigererNavn] = useState(false);
   const [nyttGruppeNavn, setNyttGruppeNavn] = useState(gruppe.navn);
   const [redigererMedlem, setRedigererMedlem] = useState(false);
+  const { t } = useTranslation();
   const [redigerNavn, setRedigerNavn] = useState("");
   const [redigerEpost, setRedigerEpost] = useState("");
   const [redigerTelefon, setRedigerTelefon] = useState("");
@@ -318,7 +320,7 @@ function RedigerGruppeModal({
     if (!nyEpost.trim()) return;
     const epostRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!epostRegex.test(nyEpost.trim())) {
-      setFeilmelding("Ugyldig e-postadresse");
+      setFeilmelding(t("feil.ugyldigEpost"));
       return;
     }
     setFeilmelding("");
@@ -328,7 +330,7 @@ function RedigerGruppeModal({
   function handleLeggTil(e: React.FormEvent) {
     e.preventDefault();
     if (!nyFornavn.trim() || !nyEtternavn.trim()) {
-      setFeilmelding("Fornavn og etternavn er påkrevd");
+      setFeilmelding(t("feil.navnPaakrevd"));
       return;
     }
     setLeggerTil(true);
@@ -401,7 +403,7 @@ function RedigerGruppeModal({
     <Modal
       open={open}
       onClose={onClose}
-      title="Rediger brukergrupper"
+      title={t("brukere.redigerBrukergrupper")}
       className="max-w-2xl"
     >
       <div className="flex flex-col gap-4">
@@ -449,7 +451,7 @@ function RedigerGruppeModal({
               className="flex items-center gap-1.5 rounded px-2.5 py-1.5 text-sm text-gray-600 hover:bg-gray-100"
             >
               <Plus className="h-4 w-4" />
-              Tilføy
+              {t("handling.leggTil")}
             </button>
             <button
               onClick={() => {
@@ -460,7 +462,7 @@ function RedigerGruppeModal({
                     setRedigerEpost(medlem.epost ?? "");
                     setRedigerTelefon(medlem.telefon ?? "");
                     setRedigerRolle(
-                      medlem.rolle === "Kontaktperson" || gruppe.id === "prosjektadmin"
+                      medlem.rolle === t("label.kontakt") || gruppe.id === "prosjektadmin"
                         ? "admin"
                         : "member",
                     );
@@ -477,7 +479,7 @@ function RedigerGruppeModal({
               }`}
             >
               <Pencil className="h-4 w-4" />
-              Rediger
+              {t("handling.rediger")}
             </button>
             <button
               onClick={() => handleFjern()}
@@ -494,21 +496,21 @@ function RedigerGruppeModal({
               }`}
             >
               <Trash2 className="h-4 w-4" />
-              Fjern
+              {t("handling.fjern")}
             </button>
             <button
               className="flex items-center gap-1.5 rounded px-2.5 py-1.5 text-sm text-gray-400"
               disabled
             >
               <MoreHorizontal className="h-4 w-4" />
-              Mer
+              {t("handling.mer")}
             </button>
           </div>
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
             <input
               type="text"
-              placeholder="Søk"
+              placeholder={t("brukere.sokPlaceholder")}
               value={sok}
               onChange={(e) => setSok(e.target.value)}
               className="rounded border border-gray-200 py-1.5 pl-8 pr-3 text-sm focus:border-sitedoc-primary focus:outline-none focus:ring-1 focus:ring-sitedoc-primary"
@@ -522,10 +524,10 @@ function RedigerGruppeModal({
             <thead>
               <tr className="border-b border-gray-200 text-left">
                 <th className="pb-2 text-xs font-medium uppercase tracking-wider text-gray-500">
-                  Navn
+                  {t("tabell.navn")}
                 </th>
                 <th className="pb-2 text-xs font-medium uppercase tracking-wider text-gray-500">
-                  Firma
+                  {t("tabell.firma")}
                 </th>
               </tr>
             </thead>
@@ -569,13 +571,13 @@ function RedigerGruppeModal({
                       )}
                       {erDbGruppe && medlem.erAdmin && (
                         <span className="rounded bg-blue-100 px-1.5 py-0.5 text-xs text-blue-700">
-                          Gruppeadmin
+                          {t("brukere.gruppeadmin")}
                         </span>
                       )}
                       {medlem.ventendeInvitasjon && (
                         <span className="flex items-center gap-1 rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-700">
                           <Mail className="h-3 w-3" />
-                          Invitasjon sendt
+                          {t("brukere.invitasjonSendt")}
                         </span>
                       )}
                     </div>
@@ -592,10 +594,10 @@ function RedigerGruppeModal({
                               setEttersendMelding("");
                             }}
                             className="flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-sitedoc-primary hover:bg-blue-50"
-                            title="Ettersend invitasjon"
+                            title={t("brukere.ettersendInvitasjon")}
                           >
                             <RefreshCw className="h-3 w-3" />
-                            Ettersend
+                            {t("brukere.ettersend")}
                           </button>
                           <button
                             onClick={(e) => {
@@ -604,10 +606,10 @@ function RedigerGruppeModal({
                             }}
                             disabled={trekkTilbake.isPending}
                             className="flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-red-600 hover:bg-red-50"
-                            title="Deaktiver invitasjon"
+                            title={t("brukere.deaktiverInvitasjon")}
                           >
                             <X className="h-3 w-3" />
-                            Deaktiver
+                            {t("brukere.deaktiver")}
                           </button>
                         </>
                       )}
@@ -626,10 +628,10 @@ function RedigerGruppeModal({
                           className={`flex items-center gap-1 rounded px-1.5 py-0.5 text-xs opacity-0 group-hover/row:opacity-100 ${
                             medlem.erAdmin ? "text-blue-600 hover:bg-blue-50" : "text-gray-500 hover:bg-gray-100"
                           }`}
-                          title={medlem.erAdmin ? "Fjern gruppeadmin" : "Gjør til gruppeadmin"}
+                          title={medlem.erAdmin ? t("brukere.fjernAdmin") : t("brukere.gjorTilAdmin")}
                         >
                           <Shield className="h-3 w-3" />
-                          {medlem.erAdmin ? "Fjern admin" : "Admin"}
+                          {medlem.erAdmin ? t("brukere.fjernAdmin") : t("brukere.gruppeadmin")}
                         </button>
                       )}
                       {!medlem.ventendeInvitasjon && (
@@ -640,10 +642,10 @@ function RedigerGruppeModal({
                           }}
                           disabled={fjernMedlem.isPending || fjernGruppeMedlem.isPending || fjernFraEntreprise.isPending}
                           className="flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-red-600 opacity-0 group-hover/row:opacity-100 hover:bg-red-50"
-                          title="Fjern medlem"
+                          title={t("brukere.fjernMedlem")}
                         >
                           <Trash2 className="h-3 w-3" />
-                          Fjern
+                          {t("handling.fjern")}
                         </button>
                       )}
                     </div>
@@ -656,7 +658,7 @@ function RedigerGruppeModal({
                     colSpan={2}
                     className="py-8 text-center text-sm text-gray-400"
                   >
-                    Ingen medlemmer i denne gruppen
+                    {t("brukere.ingenMedlemmer")}
                   </td>
                 </tr>
               )}
@@ -683,7 +685,7 @@ function RedigerGruppeModal({
                 </div>
                 <div className="flex flex-col gap-2">
                   <div>
-                    <label className="mb-1 block text-xs text-gray-500">Navn</label>
+                    <label className="mb-1 block text-xs text-gray-500">{t("tabell.navn")}</label>
                     <input
                       type="text"
                       value={redigerNavn}
@@ -692,7 +694,7 @@ function RedigerGruppeModal({
                     />
                   </div>
                   <div>
-                    <label className="mb-1 block text-xs text-gray-500">E-post</label>
+                    <label className="mb-1 block text-xs text-gray-500">{t("label.epost")}</label>
                     <input
                       type="email"
                       value={redigerEpost}
@@ -701,24 +703,24 @@ function RedigerGruppeModal({
                     />
                   </div>
                   <div>
-                    <label className="mb-1 block text-xs text-gray-500">Telefon</label>
+                    <label className="mb-1 block text-xs text-gray-500">{t("label.telefon")}</label>
                     <input
                       type="tel"
                       value={redigerTelefon}
                       onChange={(e) => setRedigerTelefon(e.target.value)}
-                      placeholder="Valgfritt"
+                      placeholder={t("label.valgfritt")}
                       className="w-full rounded border border-gray-300 px-3 py-1.5 text-sm focus:border-sitedoc-primary focus:outline-none focus:ring-1 focus:ring-sitedoc-primary"
                     />
                   </div>
                   <div>
-                    <label className="mb-1 block text-xs text-gray-500">Rolle</label>
+                    <label className="mb-1 block text-xs text-gray-500">{t("label.rolle")}</label>
                     <select
                       value={redigerRolle}
                       onChange={(e) => setRedigerRolle(e.target.value as "member" | "admin")}
                       className="w-full rounded border border-gray-300 px-3 py-1.5 text-sm focus:border-sitedoc-primary focus:outline-none focus:ring-1 focus:ring-sitedoc-primary"
                     >
-                      <option value="member">Medlem</option>
-                      <option value="admin">Administrator</option>
+                      <option value="member">{t("brukere.medlem")}</option>
+                      <option value="admin">{t("brukere.administrator")}</option>
                     </select>
                   </div>
                   <div className="flex justify-end pt-1">
@@ -736,7 +738,7 @@ function RedigerGruppeModal({
                       }}
                       disabled={oppdaterMedlem.isPending || !redigerNavn.trim()}
                     >
-                      {oppdaterMedlem.isPending ? "Lagrer..." : "Lagre"}
+                      {oppdaterMedlem.isPending ? t("handling.lagrer") : t("handling.lagre")}
                     </Button>
                   </div>
                 </div>
@@ -748,7 +750,7 @@ function RedigerGruppeModal({
           {visLeggTil && (
             <div className="mt-2 rounded border border-gray-200 bg-gray-50 p-3">
               <div className="mb-2 flex items-center justify-between">
-                <p className="text-xs font-medium text-gray-500">Prosjektmedlemmer</p>
+                <p className="text-xs font-medium text-gray-500">{t("brukere.prosjektmedlemmer")}</p>
                 <button
                   type="button"
                   onClick={() => resetLeggTilSkjema()}
@@ -858,7 +860,7 @@ function RedigerGruppeModal({
                         setNyMelding("");
                       }}
                       className="rounded p-1 text-gray-400 hover:text-gray-600"
-                      title="Endre e-post"
+                      title={t("brukere.endreEpost")}
                     >
                       <Pencil className="h-3.5 w-3.5" />
                     </button>
@@ -923,7 +925,7 @@ function RedigerGruppeModal({
                       size="sm"
                       disabled={leggerTil || !nyFornavn.trim() || !nyEtternavn.trim()}
                     >
-                      {leggerTil ? "Legger til..." : "Legg til"}
+                      {leggerTil ? t("handling.laster") : t("handling.leggTil")}
                     </Button>
                   )}
                 </div>
@@ -938,14 +940,14 @@ function RedigerGruppeModal({
         {/* Moduler — feltarbeid-admin kan slå av/på */}
         {erDbGruppe && dbGruppe && (
           <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-            <h4 className="mb-3 text-sm font-semibold text-gray-900">Moduler</h4>
-            <p className="mb-2 text-xs text-gray-500">Hvilke moduler gruppen har tilgang til</p>
+            <h4 className="mb-3 text-sm font-semibold text-gray-900">{t("brukere.moduler")}</h4>
+            <p className="mb-2 text-xs text-gray-500">{t("brukere.modulerBeskrivelse")}</p>
             <div className="flex flex-col gap-2">
               {([
-                { id: "sjekklister", label: "Sjekklister", ikon: <ClipboardCheck className="h-4 w-4" /> },
-                { id: "oppgaver", label: "Oppgaver", ikon: <ListTodo className="h-4 w-4" /> },
-                { id: "tegninger", label: "Tegninger", ikon: <Map className="h-4 w-4" /> },
-                { id: "3d", label: "3D-modeller", ikon: <Box className="h-4 w-4" /> },
+                { id: "sjekklister", labelKey: "brukere.sjekklister", ikon: <ClipboardCheck className="h-4 w-4" /> },
+                { id: "oppgaver", labelKey: "brukere.oppgaver", ikon: <ListTodo className="h-4 w-4" /> },
+                { id: "tegninger", labelKey: "brukere.tegninger", ikon: <Map className="h-4 w-4" /> },
+                { id: "3d", labelKey: "brukere.3dModeller", ikon: <Box className="h-4 w-4" /> },
               ] as const).map((modul) => {
                 const aktiveModuler = ((dbGruppe as unknown as { modules?: string[] }).modules ?? ["sjekklister", "oppgaver", "tegninger", "3d"]);
                 const erAktiv = aktiveModuler.includes(modul.id);
@@ -967,7 +969,7 @@ function RedigerGruppeModal({
                       className="h-4 w-4 rounded border-gray-300 text-sitedoc-primary focus:ring-sitedoc-primary"
                     />
                     <span className="flex items-center gap-1.5 text-sm text-gray-700">
-                      {modul.ikon} {modul.label}
+                      {modul.ikon} {t(modul.labelKey)}
                     </span>
                   </label>
                 );
@@ -979,8 +981,8 @@ function RedigerGruppeModal({
         {/* Bygninger — velg hvilke bygninger gruppen ser */}
         {erDbGruppe && dbGruppe && alleBygninger && alleBygninger.length > 0 && (
           <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-            <h4 className="mb-3 text-sm font-semibold text-gray-900">Bygninger</h4>
-            <p className="mb-2 text-xs text-gray-500">Velg hvilke bygninger gruppen har tilgang til (alle = standard)</p>
+            <h4 className="mb-3 text-sm font-semibold text-gray-900">{t("brukere.bygninger")}</h4>
+            <p className="mb-2 text-xs text-gray-500">{t("brukere.bygningerBeskrivelse")}</p>
             <div className="flex flex-col gap-2">
               {alleBygninger.map((b) => {
                 const bygningIder = ((dbGruppe as unknown as { buildingIds?: string[] | null }).buildingIds) ?? null;
@@ -1042,7 +1044,7 @@ function RedigerGruppeModal({
                   disabled={slettGruppe.isPending}
                   onClick={() => slettGruppe.mutate({ id: gruppe.id, projectId: prosjektId })}
                 >
-                  {slettGruppe.isPending ? "Sletter..." : "Bekreft sletting"}
+                  {slettGruppe.isPending ? t("handling.sletter") : t("brukere.bekreftSletting")}
                 </Button>
               </div>
             ) : (
@@ -1062,14 +1064,14 @@ function RedigerGruppeModal({
       <Modal
         open={ettersendId !== null}
         onClose={() => { setEttersendId(null); setEttersendMelding(""); }}
-        title="Ettersend invitasjon"
+        title={t("brukere.ettersendInvitasjon")}
       >
         <div className="flex flex-col gap-4">
           <p className="text-sm text-gray-600">
-            Send invitasjonen på nytt med en valgfri personlig melding.
+            {t("brukere.ettersendBeskrivelse")}
           </p>
           <textarea
-            placeholder="Personlig melding (valgfritt)"
+            placeholder={t("brukere.personligMelding")}
             value={ettersendMelding}
             onChange={(e) => setEttersendMelding(e.target.value)}
             rows={3}
@@ -1082,7 +1084,7 @@ function RedigerGruppeModal({
               size="sm"
               onClick={() => { setEttersendId(null); setEttersendMelding(""); }}
             >
-              Avbryt
+              {t("handling.avbryt")}
             </Button>
             <Button
               size="sm"
@@ -1095,7 +1097,7 @@ function RedigerGruppeModal({
                 });
               }}
             >
-              {sendPaNytt.isPending ? "Sender..." : "Send invitasjon"}
+              {sendPaNytt.isPending ? t("handling.sender") : t("brukere.sendInvitasjon")}
             </Button>
           </div>
         </div>
@@ -1119,6 +1121,7 @@ function GruppeKort({
   onLeggTilMedlem?: (gruppeId: string) => void;
   onDoubleClick?: () => void;
 }) {
+  const { t } = useTranslation();
   const [visAlle, setVisAlle] = useState(false);
   const harMedlemmer = gruppe.medlemmer.length > 0;
   const synlige = visAlle
@@ -1139,10 +1142,10 @@ function GruppeKort({
         <div className="flex gap-1.5">
           {(gruppe.moduler ?? ["sjekklister", "oppgaver", "tegninger", "3d"]).map((modul) => {
             const info: Record<string, { ikon: JSX.Element; tekst: string }> = {
-              sjekklister: { ikon: <ClipboardCheck className="h-3.5 w-3.5" />, tekst: "Sjekklister" },
-              oppgaver: { ikon: <ListTodo className="h-3.5 w-3.5" />, tekst: "Oppgaver" },
-              tegninger: { ikon: <Map className="h-3.5 w-3.5" />, tekst: "Tegninger" },
-              "3d": { ikon: <Box className="h-3.5 w-3.5" />, tekst: "3D-modeller" },
+              sjekklister: { ikon: <ClipboardCheck className="h-3.5 w-3.5" />, tekst: t("brukere.sjekklister") },
+              oppgaver: { ikon: <ListTodo className="h-3.5 w-3.5" />, tekst: t("brukere.oppgaver") },
+              tegninger: { ikon: <Map className="h-3.5 w-3.5" />, tekst: t("brukere.tegninger") },
+              "3d": { ikon: <Box className="h-3.5 w-3.5" />, tekst: t("brukere.3dModeller") },
             };
             const m = info[modul];
             if (!m) return null;
@@ -1182,7 +1185,7 @@ function GruppeKort({
                 {medlem.ventendeInvitasjon && (
                   <span className="flex items-center gap-0.5 text-xs text-amber-600">
                     <Mail className="h-3 w-3" />
-                    Invitasjon sendt
+                    {t("brukere.invitasjonSendt")}
                   </span>
                 )}
               </div>
@@ -1195,13 +1198,13 @@ function GruppeKort({
                 }}
                 className="mt-1 self-start text-xs text-gray-400 hover:text-gray-600"
               >
-                + {skjulte} mer
+                + {skjulte} {t("handling.mer")}
               </button>
             )}
           </div>
         ) : (
           <div className="flex flex-1 items-center justify-center">
-            <span className="text-sm text-gray-300">Tom gruppe</span>
+            <span className="text-sm text-gray-300">{t("brukere.tomGruppe")}</span>
           </div>
         )}
       </div>
@@ -1217,7 +1220,7 @@ function GruppeKort({
             className="flex items-center gap-1.5 text-xs text-sitedoc-primary hover:underline"
           >
             <UserPlus className="h-3.5 w-3.5" />
-            Legg til medlem
+            {t("brukere.leggTilMedlem")}
           </button>
         </div>
       )}
@@ -1242,6 +1245,7 @@ function GruppeSeksjon({
   onDoubleClickGruppe?: (gruppe: BrukerGruppe) => void;
   onOpprett?: () => void;
 }) {
+  const { t } = useTranslation();
   if (grupper.length === 0 && !onOpprett) return null;
   return (
     <div className="mb-8">
@@ -1252,7 +1256,7 @@ function GruppeSeksjon({
             onClick={onOpprett}
             className="flex items-center gap-1 rounded-lg bg-sitedoc-primary px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-800"
           >
-            + Ny gruppe
+            {t("brukere.nyGruppe")}
           </button>
         )}
       </div>
@@ -1268,8 +1272,222 @@ function GruppeSeksjon({
           ))}
         </div>
       ) : (
-        <p className="text-sm text-gray-400">Ingen grupper — opprett en ny</p>
+        <p className="text-sm text-gray-400">{t("brukere.ingenGrupper")}</p>
       )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  KontaktTabell                                                      */
+/* ------------------------------------------------------------------ */
+
+interface KontaktMedlem {
+  id: string;
+  role: string;
+  user: {
+    id: string;
+    name: string | null;
+    email: string;
+    phone: string | null;
+    organization?: { id: string; name: string } | null;
+  };
+  enterprises: Array<{
+    enterprise: { id: string; name: string; color: string | null };
+  }>;
+}
+
+function KontaktTabell({ prosjektId }: { prosjektId: string }) {
+  const { t } = useTranslation();
+  const utils = trpc.useUtils();
+  const [leggTilEntrepriseForMedlem, setLeggTilEntrepriseForMedlem] = useState<string | null>(null);
+
+  const { data: medlemmer } = trpc.medlem.hentForProsjekt.useQuery(
+    { projectId: prosjektId },
+    { enabled: !!prosjektId },
+  );
+
+  const { data: alleEntrepriser } = trpc.entreprise.hentForProsjekt.useQuery(
+    { projectId: prosjektId },
+    { enabled: !!prosjektId },
+  );
+
+  const { data: dbGrupper } = trpc.gruppe.hentForProsjekt.useQuery(
+    { projectId: prosjektId },
+    { enabled: !!prosjektId },
+  );
+
+  const tilknyttMutation = trpc.medlem.tilknyttEntreprise.useMutation({
+    onSuccess: () => {
+      utils.medlem.hentForProsjekt.invalidate({ projectId: prosjektId });
+      setLeggTilEntrepriseForMedlem(null);
+    },
+  });
+
+  const fjernMutation = trpc.medlem.fjernFraEntreprise.useMutation({
+    onSuccess: () => {
+      utils.medlem.hentForProsjekt.invalidate({ projectId: prosjektId });
+    },
+  });
+
+  // Bygg gruppe-map: userId → gruppenavn[]
+  const gruppeMap: Record<string, string[]> = {};
+  if (dbGrupper) {
+    for (const g of dbGrupper as Array<{ name: string; members: Array<{ projectMember: { user: { id: string } } }> }>) {
+      for (const m of g.members) {
+        const userId = m.projectMember.user.id;
+        if (!gruppeMap[userId]) gruppeMap[userId] = [];
+        gruppeMap[userId].push(g.name);
+      }
+    }
+  }
+
+  const kontakter = (medlemmer ?? []) as KontaktMedlem[];
+
+  return (
+    <div className="mb-6">
+      <h2 className="mb-4 text-xl font-bold text-gray-900">{t("brukere.kontakter")}</h2>
+      <div className="overflow-x-auto rounded-lg border border-gray-200">
+        <table className="w-full text-left text-sm">
+          <thead className="border-b border-gray-200 bg-gray-50 text-xs font-medium uppercase tracking-wide text-gray-500">
+            <tr>
+              <th className="px-4 py-2.5">{t("tabell.navn")}</th>
+              <th className="px-4 py-2.5">{t("kontakter.epost")}</th>
+              <th className="px-4 py-2.5">{t("kontakter.telefon")}</th>
+              <th className="px-4 py-2.5">{t("kontakter.firma")}</th>
+              <th className="px-4 py-2.5">{t("kontakter.rolle")}</th>
+              <th className="px-4 py-2.5">{t("kontakter.entrepriser")}</th>
+              <th className="px-4 py-2.5">{t("kontakter.grupper")}</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {kontakter.map((m) => {
+              const brukerGrupper = gruppeMap[m.user.id] ?? [];
+              const entrepriseIder = new Set(m.enterprises.map((e) => e.enterprise.id));
+              const tilgjengeligeEntrepriser = (alleEntrepriser ?? []).filter(
+                (e: { id: string }) => !entrepriseIder.has(e.id),
+              );
+
+              return (
+                <tr key={m.id} className="hover:bg-gray-50">
+                  {/* Navn */}
+                  <td className="whitespace-nowrap px-4 py-2.5 font-medium text-gray-900">
+                    {m.user.name ?? "—"}
+                  </td>
+
+                  {/* E-post */}
+                  <td className="whitespace-nowrap px-4 py-2.5 text-gray-600">
+                    {m.user.email}
+                  </td>
+
+                  {/* Telefon */}
+                  <td className="whitespace-nowrap px-4 py-2.5 text-gray-600">
+                    {m.user.phone ?? "—"}
+                  </td>
+
+                  {/* Firma */}
+                  <td className="whitespace-nowrap px-4 py-2.5 text-gray-600">
+                    {(m.user as KontaktMedlem["user"]).organization?.name ?? "—"}
+                  </td>
+
+                  {/* Rolle */}
+                  <td className="whitespace-nowrap px-4 py-2.5">
+                    <span className={`inline-flex rounded px-1.5 py-0.5 text-xs font-medium ${
+                      m.role === "admin"
+                        ? "bg-blue-50 text-blue-700"
+                        : "bg-gray-100 text-gray-600"
+                    }`}>
+                      {m.role === "admin" ? "Admin" : t("kontakter.medlem")}
+                    </span>
+                  </td>
+
+                  {/* Entrepriser (redigerbare) */}
+                  <td className="px-4 py-2.5">
+                    <div className="flex flex-wrap items-center gap-1">
+                      {m.enterprises.map((me) => (
+                        <span
+                          key={me.enterprise.id}
+                          className="group inline-flex items-center gap-1 rounded bg-gray-100 px-1.5 py-0.5 text-xs font-medium text-gray-700"
+                        >
+                          {me.enterprise.name}
+                          <button
+                            onClick={() =>
+                              fjernMutation.mutate({
+                                projectMemberId: m.id,
+                                enterpriseId: me.enterprise.id,
+                                projectId: prosjektId,
+                              })
+                            }
+                            className="rounded-full p-0.5 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-red-100 hover:text-red-600"
+                            title={t("handling.fjern")}
+                          >
+                            <X className="h-2.5 w-2.5" />
+                          </button>
+                        </span>
+                      ))}
+
+                      {/* Legg til entreprise */}
+                      {leggTilEntrepriseForMedlem === m.id ? (
+                        <div className="relative">
+                          <select
+                            className="rounded border border-gray-300 bg-white px-1.5 py-0.5 text-xs"
+                            onChange={(e) => {
+                              if (e.target.value) {
+                                tilknyttMutation.mutate({
+                                  projectMemberId: m.id,
+                                  enterpriseId: e.target.value,
+                                  projectId: prosjektId,
+                                });
+                              }
+                            }}
+                            onBlur={() => setLeggTilEntrepriseForMedlem(null)}
+                            autoFocus
+                            defaultValue=""
+                          >
+                            <option value="" disabled>
+                              {t("kontakter.velgEntreprise")}
+                            </option>
+                            {tilgjengeligeEntrepriser.map((e: { id: string; name: string }) => (
+                              <option key={e.id} value={e.id}>
+                                {e.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setLeggTilEntrepriseForMedlem(m.id)}
+                          className="rounded px-1 py-0.5 text-xs text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                          title={t("kontakter.leggTilEntreprise")}
+                        >
+                          <Plus className="h-3 w-3" />
+                        </button>
+                      )}
+                    </div>
+                  </td>
+
+                  {/* Grupper */}
+                  <td className="px-4 py-2.5">
+                    <div className="flex flex-wrap gap-1">
+                      {brukerGrupper.length > 0
+                        ? brukerGrupper.map((g) => (
+                            <span
+                              key={g}
+                              className="inline-flex rounded bg-blue-50 px-1.5 py-0.5 text-xs font-medium text-blue-700"
+                            >
+                              {g}
+                            </span>
+                          ))
+                        : <span className="text-xs text-gray-400">—</span>
+                      }
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -1280,6 +1498,7 @@ function GruppeSeksjon({
 
 export default function BrukereSide() {
   const { prosjektId } = useProsjekt();
+  const { t } = useTranslation();
   const [sok, setSok] = useState("");
   const [visNyGruppeModal, setVisNyGruppeModal] = useState(false);
   const [nyGruppeNavn, setNyGruppeNavn] = useState("");
@@ -1287,6 +1506,7 @@ export default function BrukereSide() {
     "generelt" | "field" | "brukergrupper"
   >("brukergrupper");
   const [visningsModus, setVisningsModus] = useState<"grid" | "liste">("grid");
+  const [visKontakter, setVisKontakter] = useState(false);
   const [redigerGruppeId, setRedigerGruppeId] = useState<string | null>(null);
 
   const utils = trpc.useUtils();
@@ -1364,16 +1584,26 @@ export default function BrukereSide() {
 
   // Bygg Field-grupper fra DB-data
   // Ekskluder prosjektadmin-grupper (vises allerede som virtuell gruppe under Generelt)
+  // Mapping fra slug til i18n-nøkkel for systemgrupper
+  const SLUG_I18N: Record<string, string> = {
+    "prosjekt-admin": "brukere.gruppe.prosjektAdmin",
+    "field-admin": "brukere.gruppe.fieldAdmin",
+    "oppgave-sjekkliste-koord": "brukere.gruppe.oppgaveSjekklisteKoord",
+    "field-observatorer": "brukere.gruppe.fieldObservatorer",
+    "hms-ledere": "brukere.gruppe.hmsLedere",
+    "brukergruppe": "brukere.gruppe.brukergruppe",
+  };
+
   const fieldGrupper: BrukerGruppe[] = ((dbGrupper ?? []) as DbGruppe[]).filter((g) => g.slug !== "prosjekt-admin").map((g) => ({
     id: g.id,
-    navn: g.name,
+    navn: SLUG_I18N[g.slug] ? t(SLUG_I18N[g.slug] as string) : g.name,
     kategori: g.category as "generelt" | "field" | "brukergrupper",
     moduler: (g as unknown as { modules?: string[] }).modules ?? ["sjekklister", "oppgaver", "tegninger", "3d"],
     ikon: SLUG_IKON[g.slug] ?? <Users className="h-4 w-4" />,
     medlemmer: g.members.map((m) => ({
       id: m.id,
       projectMemberId: m.projectMember.id,
-      navn: m.projectMember.user.name ?? m.projectMember.user.email ?? "Ukjent",
+      navn: m.projectMember.user.name ?? m.projectMember.user.email ?? t("brukere.ukjent"),
       epost: m.projectMember.user.email ?? undefined,
       telefon: m.projectMember.user.phone ?? undefined,
       firma: m.projectMember.enterprises?.[0]?.enterprise?.name ?? undefined,
@@ -1387,17 +1617,17 @@ export default function BrukereSide() {
     // Generelt — prosjektadministratorer fra ProjectMember.role
     {
       id: "prosjektadmin",
-      navn: "Prosjektadministratorer",
+      navn: t("brukere.prosjektadministratorer"),
       kategori: "generelt",
       ikon: <Shield className="h-4 w-4" />,
       medlemmer: prosjekt?.members
         ?.filter((m) => m.role === "admin" || m.role === "owner")
         .map((m) => ({
           id: m.id,
-          navn: m.user.name ?? m.user.email ?? "Ukjent",
+          navn: m.user.name ?? m.user.email ?? t("brukere.ukjent"),
           epost: m.user.email ?? undefined,
           telefon: (m.user as { phone?: string | null }).phone ?? undefined,
-          rolle: m.role === "owner" ? "Kontaktperson" : undefined,
+          rolle: m.role === "owner" ? t("label.kontakt") : undefined,
           ventendeInvitasjon: finnInvitasjon("prosjektadmin", m.user.email),
         })) ?? [],
     },
@@ -1446,18 +1676,27 @@ export default function BrukereSide() {
         <div className="flex items-center gap-3">
           <Button size="sm" onClick={() => setVisNyGruppeModal(true)}>
             <Plus className="mr-1.5 h-4 w-4" />
-            Legg til gruppe
+            {t("brukere.leggTilGruppe")}
           </Button>
-          <Button variant="ghost" size="sm">
+          <Button
+            variant={visKontakter ? "primary" : "ghost"}
+            size="sm"
+            onClick={() => setVisKontakter(!visKontakter)}
+          >
             <Users className="mr-1.5 h-4 w-4" />
-            Kontakter
+            {t("brukere.kontakter")}
           </Button>
         </div>
       </div>
 
+      {/* Kontakttabell */}
+      {visKontakter && prosjektId && (
+        <KontaktTabell prosjektId={prosjektId} />
+      )}
+
       {/* Tittel + søk */}
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-xl font-bold text-gray-900">Brukere</h2>
+      {!visKontakter && <><div className="mb-4 flex items-center justify-between">
+        <h2 className="text-xl font-bold text-gray-900">{t("brukere.tittel")}</h2>
         <div className="flex items-center gap-2">
           <button
             onClick={() => setVisningsModus("liste")}
@@ -1466,7 +1705,7 @@ export default function BrukereSide() {
                 ? "bg-gray-200 text-gray-700"
                 : "text-gray-400 hover:text-gray-600"
             }`}
-            aria-label="Listevisning"
+            aria-label={t("brukere.listevisning")}
           >
             <LayoutList className="h-5 w-5" />
           </button>
@@ -1477,7 +1716,7 @@ export default function BrukereSide() {
                 ? "bg-gray-200 text-gray-700"
                 : "text-gray-400 hover:text-gray-600"
             }`}
-            aria-label="Rutenettvisning"
+            aria-label={t("brukere.rutenettvisning")}
           >
             <LayoutGrid className="h-5 w-5" />
           </button>
@@ -1489,30 +1728,30 @@ export default function BrukereSide() {
         <SearchInput
           verdi={sok}
           onChange={setSok}
-          placeholder="Søk"
+          placeholder={t("brukere.sokPlaceholder")}
           className="w-64"
         />
         <button className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700">
           <Plus className="h-3.5 w-3.5" />
-          Tilføy filter
+          {t("brukere.tilfoeyFilter")}
         </button>
       </div>
 
       {/* Gruppevisning */}
       <GruppeSeksjon
-        tittel="Generelt"
+        tittel={t("brukere.generelt")}
         grupper={generelt}
         onLeggTilMedlem={handleLeggTilMedlem}
         onDoubleClickGruppe={(g) => setRedigerGruppeId(g.id)}
       />
       <GruppeSeksjon
-        tittel="Feltarbeid"
+        tittel={t("brukere.feltarbeid")}
         grupper={field}
         onLeggTilMedlem={handleLeggTilMedlem}
         onDoubleClickGruppe={(g) => setRedigerGruppeId(g.id)}
       />
       <GruppeSeksjon
-        tittel="Brukergrupper"
+        tittel={t("brukere.brukergrupper")}
         grupper={brukergrupper}
         onLeggTilMedlem={handleLeggTilMedlem}
         onDoubleClickGruppe={(g) => setRedigerGruppeId(g.id)}
@@ -1524,9 +1763,10 @@ export default function BrukereSide() {
 
       {filtrert.length === 0 && (
         <div className="py-12 text-center text-sm text-gray-400">
-          Ingen grupper matcher søket
+          {t("brukere.ingenGrupperMatcher")}
         </div>
       )}
+      </>}
 
       {/* Rediger gruppe modal */}
       {redigerGruppe && prosjektId && (
@@ -1544,14 +1784,14 @@ export default function BrukereSide() {
       <Modal
         open={visNyGruppeModal}
         onClose={() => setVisNyGruppeModal(false)}
-        title="Legg til gruppe"
+        title={t("brukere.leggTilGruppe")}
       >
         <form
           onSubmit={handleOpprettGruppe}
           className="flex flex-col gap-4"
         >
           <Input
-            label="Gruppenavn"
+            label={t("brukere.gruppenavn")}
             placeholder="F.eks. HMS-ledere"
             value={nyGruppeNavn}
             onChange={(e) => setNyGruppeNavn(e.target.value)}
@@ -1559,7 +1799,7 @@ export default function BrukereSide() {
           />
           <div className="flex flex-col gap-1">
             <label className="text-sm font-medium text-gray-700">
-              Kategori
+              {t("brukere.kategori")}
             </label>
             <select
               className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-sitedoc-primary focus:outline-none focus:ring-1 focus:ring-sitedoc-primary"
@@ -1570,21 +1810,21 @@ export default function BrukereSide() {
                 )
               }
             >
-              <option value="generelt">Generelt</option>
-              <option value="field">Feltarbeid</option>
-              <option value="brukergrupper">Brukergrupper</option>
+              <option value="generelt">{t("brukere.generelt")}</option>
+              <option value="field">{t("brukere.feltarbeid")}</option>
+              <option value="brukergrupper">{t("brukere.brukergrupper")}</option>
             </select>
           </div>
           <div className="flex gap-3 pt-2">
             <Button type="submit" disabled={opprettGruppe.isPending}>
-              {opprettGruppe.isPending ? "Oppretter..." : "Opprett"}
+              {opprettGruppe.isPending ? t("handling.oppretter") : t("handling.opprett")}
             </Button>
             <Button
               type="button"
               variant="secondary"
               onClick={() => setVisNyGruppeModal(false)}
             >
-              Avbryt
+              {t("handling.avbryt")}
             </Button>
           </div>
         </form>
