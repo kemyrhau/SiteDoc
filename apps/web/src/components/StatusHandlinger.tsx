@@ -90,9 +90,9 @@ export function StatusHandlinger({ status, erLaster, onEndreStatus, onSlett, ent
   };
 
   // Entreprise-velger kun ved videresend OG bruker har flere entrepriser
-  const videresendEntrepriser = entrepriseValg?.filter(
-    (e) => !mineEntrepriseIder || mineEntrepriseIder.includes(e.id),
-  );
+  const videresendEntrepriser = mineEntrepriseIder
+    ? entrepriseValg?.filter((e) => mineEntrepriseIder.includes(e.id))
+    : entrepriseValg; // Ikke lastet ennå / admin → vis alle
   const visEntrepriseVelger = bekreftHandling === "forwarded"
     && videresendEntrepriser && videresendEntrepriser.length > 1;
 

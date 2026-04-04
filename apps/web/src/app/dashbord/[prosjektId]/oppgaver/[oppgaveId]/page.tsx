@@ -445,7 +445,7 @@ export default function OppgaveDetaljSide() {
             onSlett={() => slettMutasjon.mutate({ id: params.oppgaveId })}
             entrepriseValg={entrepriseValg}
             standardEntrepriseId={oppgave.responderEnterprise?.id}
-            mineEntrepriseIder={(mineEntrepriser ?? []).map((e: { id: string }) => e.id)}
+            mineEntrepriseIder={mineEntrepriser ? (mineEntrepriser as Array<{ id: string }>).map((e) => e.id) : undefined}
           />
         </div>
       </div>
