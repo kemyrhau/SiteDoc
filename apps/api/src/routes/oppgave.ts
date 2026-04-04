@@ -109,8 +109,12 @@ export const oppgaveRouter = router({
           },
           images: true,
           transfers: {
-            include: { sender: true },
-            orderBy: { createdAt: "desc" },
+            include: {
+              sender: { select: { id: true, name: true } },
+              recipientUser: { select: { id: true, name: true } },
+              recipientGroup: { select: { id: true, name: true } },
+            },
+            orderBy: { createdAt: "asc" },
           },
           comments: {
             include: { user: { select: { id: true, name: true, email: true } } },

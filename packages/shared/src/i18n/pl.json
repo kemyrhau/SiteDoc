@@ -919,5 +919,7 @@
   "statushandling.bekreftHandling": "Potwierdź: {{obsługa}}",
   "statushandling.velgMottaker": "Wybierz odbiorcę...",
   "statushandling.velgMottakerValgfritt": "Wybierz odbiorcę (opcjonalnie)...",
-  "statushandling.valgfriKommentar": "Opcjonalny komentarz..."
+  "statushandling.valgfriKommentar": "Opcjonalny komentarz...",
+  "tidslinje.tittel": "Oś czasu",
+  "tidslinje.opprettet": "utworzył dokument"
 }

@@ -919,5 +919,7 @@
   "statushandling.bekreftHandling": "Bestätigen: {{handling}}",
   "statushandling.velgMottaker": "Empfänger auswählen...",
   "statushandling.velgMottakerValgfritt": "Empfänger auswählen (optional)...",
-  "statushandling.valgfriKommentar": "Optionaler Kommentar..."
+  "statushandling.valgfriKommentar": "Optionaler Kommentar...",
+  "tidslinje.tittel": "Zeitleiste",
+  "tidslinje.opprettet": "hat das Dokument erstellt"
 }

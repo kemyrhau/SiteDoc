@@ -65,8 +65,12 @@ export const sjekklisteRouter = router({
           drawing: { select: { id: true, name: true, drawingNumber: true } },
           images: true,
           transfers: {
-            include: { sender: true },
-            orderBy: { createdAt: "desc" },
+            include: {
+              sender: { select: { id: true, name: true } },
+              recipientUser: { select: { id: true, name: true } },
+              recipientGroup: { select: { id: true, name: true } },
+            },
+            orderBy: { createdAt: "asc" },
           },
           changeLog: {
             include: { user: { select: { id: true, name: true, email: true } } },

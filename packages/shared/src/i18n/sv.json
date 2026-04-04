@@ -919,5 +919,7 @@
   "statushandling.bekreftHandling": "Bekräfta: {{hantering}}",
   "statushandling.velgMottaker": "Välj mottagare...",
   "statushandling.velgMottakerValgfritt": "Välj mottagare (valfritt)...",
-  "statushandling.valgfriKommentar": "Valfri kommentar..."
+  "statushandling.valgfriKommentar": "Valfri kommentar...",
+  "tidslinje.tittel": "Tidslinje",
+  "tidslinje.opprettet": "skapade dokumentet"
 }

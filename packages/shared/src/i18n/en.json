@@ -973,5 +973,8 @@
   "statushandling.bekreftHandling": "Confirm: {{handling}}",
   "statushandling.velgMottaker": "Select recipient...",
   "statushandling.velgMottakerValgfritt": "Select recipient (optional)...",
-  "statushandling.valgfriKommentar": "Optional comment..."
+  "statushandling.valgfriKommentar": "Optional comment...",
+
+  "tidslinje.tittel": "Timeline",
+  "tidslinje.opprettet": "created the document"
 }

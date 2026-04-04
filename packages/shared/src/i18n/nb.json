@@ -973,5 +973,8 @@
   "statushandling.bekreftHandling": "Bekreft: {{handling}}",
   "statushandling.velgMottaker": "Velg mottaker...",
   "statushandling.velgMottakerValgfritt": "Velg mottaker (valgfritt)...",
-  "statushandling.valgfriKommentar": "Valgfri kommentar..."
+  "statushandling.valgfriKommentar": "Valgfri kommentar...",
+
+  "tidslinje.tittel": "Tidslinje",
+  "tidslinje.opprettet": "opprettet dokumentet"
 }

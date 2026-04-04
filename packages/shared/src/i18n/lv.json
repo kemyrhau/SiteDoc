@@ -919,5 +919,7 @@
   "statushandling.bekreftHandling": "Apstiprināt: {{handling}}",
   "statushandling.velgMottaker": "Izvēlieties adresātu...",
   "statushandling.velgMottakerValgfritt": "Izvēlieties adresātu (neobligāti)...",
-  "statushandling.valgfriKommentar": "Neobligāts komentārs..."
+  "statushandling.valgfriKommentar": "Neobligāts komentārs...",
+  "tidslinje.tittel": "Laika skala",
+  "tidslinje.opprettet": "izveidoja dokumentu"
 }

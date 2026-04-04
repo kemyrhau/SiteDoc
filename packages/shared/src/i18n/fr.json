@@ -919,5 +919,7 @@
   "statushandling.bekreftHandling": "Confirmer : {{handling}}",
   "statushandling.velgMottaker": "Sélectionnez le destinataire...",
   "statushandling.velgMottakerValgfritt": "Sélectionnez le destinataire (facultatif)...",
-  "statushandling.valgfriKommentar": "Commentaire facultatif..."
+  "statushandling.valgfriKommentar": "Commentaire facultatif...",
+  "tidslinje.tittel": "Chronologie",
+  "tidslinje.opprettet": "créé le document"
 }

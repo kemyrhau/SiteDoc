@@ -43,7 +43,9 @@ interface Transfer {
   toStatus: string;
   comment: string | null;
   createdAt: Date | string;
-  sender?: { name: string | null } | null;
+  sender?: { id: string; name: string | null } | null;
+  recipientUser?: { id: string; name: string | null } | null;
+  recipientGroup?: { id: string; name: string | null } | null;
 }
 
 interface EndringsloggRad {
@@ -691,37 +693,63 @@ export default function SjekklisteUtfylling() {
           </View>
         )}
 
-        {/* Historikk */}
+        {/* Tidslinje */}
         {overforinger && overforinger.length > 0 && (
           <View className="mt-4">
             <View className="flex-row items-center gap-2 px-1 pb-2">
               <Clock size={16} color="#6b7280" />
-              <Text className="text-sm font-semibold text-gray-700">{t("dokument.historikk")}</Text>
+              <Text className="text-sm font-semibold text-gray-700">{t("tidslinje.tittel")}</Text>
             </View>
-            <View className="rounded-lg bg-white">
-              {overforinger.map((ovf, i) => (
-                <View
-                  key={ovf.id}
-                  className={`flex-row items-center gap-2 px-3 py-2.5 ${i > 0 ? "border-t border-gray-100" : ""}`}
-                >
-                  <View className="flex-1">
-                    <View className="flex-row items-center gap-1.5">
-                      <StatusMerkelapp status={ovf.fromStatus} />
-                      <Text className="text-xs text-gray-400">→</Text>
-                      <StatusMerkelapp status={ovf.toStatus} />
+            <View className="rounded-lg bg-white px-3 py-2">
+              {overforinger.map((ovf, i) => {
+                const erSiste = i === overforinger.length - 1;
+                const harMottaker = ovf.recipientUser || ovf.recipientGroup;
+                return (
+                  <View key={ovf.id} className="flex-row">
+                    {/* Vertikal linje + prikk */}
+                    <View className="mr-3 items-center" style={{ width: 16 }}>
+                      <View
+                        className={`h-3 w-3 rounded-full ${erSiste ? "bg-blue-600" : "bg-gray-400"}`}
+                        style={{ marginTop: 4 }}
+                      />
+                      {!erSiste && (
+                        <View className="flex-1 bg-gray-200" style={{ width: 1 }} />
+                      )}
                     </View>
-                    {ovf.sender?.name && (
-                      <Text className="mt-0.5 text-xs text-gray-500">{ovf.sender.name}</Text>
-                    )}
-                    {ovf.comment && (
-                      <Text className="mt-0.5 text-xs text-gray-600">{ovf.comment}</Text>
-                    )}
+
+                    {/* Innhold */}
+                    <View className={`flex-1 ${!erSiste ? "pb-3" : ""}`}>
+                      <View className="flex-row items-center gap-1.5">
+                        <StatusMerkelapp status={ovf.fromStatus} />
+                        <Text className="text-xs text-gray-400">→</Text>
+                        <StatusMerkelapp status={ovf.toStatus} />
+                        <Text className="ml-auto text-xs text-gray-400">
+                          {formaterHistorikkDato(ovf.createdAt)}
+                        </Text>
+                      </View>
+                      {/* Avsender → Mottaker */}
+                      <View className="mt-0.5 flex-row items-center gap-1">
+                        {ovf.sender?.name && (
+                          <Text className="text-xs text-gray-500">{ovf.sender.name}</Text>
+                        )}
+                        {harMottaker && (
+                          <>
+                            <Text className="text-xs text-gray-400">→</Text>
+                            <Text className="text-xs text-gray-500">
+                              {ovf.recipientUser?.name ?? ovf.recipientGroup?.name}
+                            </Text>
+                          </>
+                        )}
+                      </View>
+                      {ovf.comment && (
+                        <Text className="mt-0.5 text-xs italic text-gray-500">
+                          &ldquo;{ovf.comment}&rdquo;
+                        </Text>
+                      )}
+                    </View>
                   </View>
-                  <Text className="text-xs text-gray-400">
-                    {formaterHistorikkDato(ovf.createdAt)}
-                  </Text>
-                </View>
-              ))}
+                );
+              })}
             </View>
           </View>
         )}

@@ -919,5 +919,7 @@
   "statushandling.bekreftHandling": "Kinnitage: {{handling}}",
   "statushandling.velgMottaker": "Valige adressaat...",
   "statushandling.velgMottakerValgfritt": "Valige adressaat (valikuline)...",
-  "statushandling.valgfriKommentar": "Valikuline kommentaar..."
+  "statushandling.valgfriKommentar": "Valikuline kommentaar...",
+  "tidslinje.tittel": "Ajaskaala",
+  "tidslinje.opprettet": "lõi dokumendi"
 }

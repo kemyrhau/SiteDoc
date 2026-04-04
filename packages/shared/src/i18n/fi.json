@@ -919,5 +919,7 @@
   "statushandling.bekreftHandling": "Vahvista: {{handling}}",
   "statushandling.velgMottaker": "Valitse vastaanottaja...",
   "statushandling.velgMottakerValgfritt": "Valitse vastaanottaja (valinnainen)...",
-  "statushandling.valgfriKommentar": "Valinnainen kommentti..."
+  "statushandling.valgfriKommentar": "Valinnainen kommentti...",
+  "tidslinje.tittel": "Aikajana",
+  "tidslinje.opprettet": "loi asiakirjan"
 }

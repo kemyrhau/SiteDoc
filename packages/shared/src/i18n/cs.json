@@ -919,5 +919,7 @@
   "statushandling.bekreftHandling": "Potvrďte: {{handling}}",
   "statushandling.velgMottaker": "Vyberte příjemce...",
   "statushandling.velgMottakerValgfritt": "Vyberte příjemce (volitelné)...",
-  "statushandling.valgfriKommentar": "Nepovinný komentář..."
+  "statushandling.valgfriKommentar": "Nepovinný komentář...",
+  "tidslinje.tittel": "Časová osa",
+  "tidslinje.opprettet": "vytvořil dokument"
 }

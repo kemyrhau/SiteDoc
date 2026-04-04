@@ -12,6 +12,7 @@ import { RapportObjektRenderer, DISPLAY_TYPER, SKJULT_I_UTFYLLING } from "@/comp
 import { FeltWrapper } from "@/components/rapportobjekter/FeltWrapper";
 import type { RapportObjekt } from "@/components/rapportobjekter/typer";
 import { useOversettelse } from "@/hooks/useOversettelse";
+import { DokumentTidslinje } from "@/components/DokumentTidslinje";
 
 /* ------------------------------------------------------------------ */
 /*  LagreIndikator                                                     */
@@ -154,44 +155,6 @@ function DialogSeksjon({ oppgaveId }: { oppgaveId: string }) {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Historikk                                                          */
-/* ------------------------------------------------------------------ */
-
-function HistorikkSeksjon({ oppgaveId }: { oppgaveId: string }) {
-  const { data: oppgave } = trpc.oppgave.hentMedId.useQuery({ id: oppgaveId });
-
-  const overgangshistorikk = ((oppgave as { transfers?: Array<{
-    id: string;
-    fromStatus: string;
-    toStatus: string;
-    comment: string | null;
-    createdAt: string;
-  }> })?.transfers ?? []);
-
-  if (overgangshistorikk.length === 0) return null;
-
-  return (
-    <Card className="mt-6">
-      <h4 className="mb-3 text-sm font-medium text-gray-500">Historikk</h4>
-      <div className="flex flex-col gap-2">
-        {overgangshistorikk.map((overgang) => (
-          <div key={overgang.id} className="flex items-center gap-3 text-sm">
-            <span className="text-xs text-gray-400">
-              {new Date(overgang.createdAt).toLocaleString("nb-NO")}
-            </span>
-            <StatusBadge status={overgang.fromStatus} />
-            <span className="text-gray-400">&rarr;</span>
-            <StatusBadge status={overgang.toStatus} />
-            {overgang.comment && (
-              <span className="text-gray-500">&mdash; {overgang.comment}</span>
-            )}
-          </div>
-        ))}
-      </div>
-    </Card>
-  );
-}
 
 /* ------------------------------------------------------------------ */
 /*  Hovedside                                                          */
@@ -226,6 +189,12 @@ export default function OppgaveDetaljSide() {
     params.prosjektId,
     oppgaveKildesprak,
     (oppgave?.template?.objects ?? []) as { id: string; label: string; config: Record<string, unknown> }[],
+  );
+
+  // Hent full oppgavedata for tidslinje/creator (cast for TS2589)
+  const { data: fullOppgaveRå } = trpc.oppgave.hentMedId.useQuery(
+    { id: params.oppgaveId },
+    { enabled: !!params.oppgaveId },
   );
 
   const utils = trpc.useUtils();
@@ -520,8 +489,19 @@ export default function OppgaveDetaljSide() {
       {/* Dialog */}
       <DialogSeksjon oppgaveId={params.oppgaveId} />
 
-      {/* Historikk */}
-      <HistorikkSeksjon oppgaveId={params.oppgaveId} />
+      {/* Tidslinje */}
+      {fullOppgaveRå && (
+        <DokumentTidslinje
+          overforinger={((fullOppgaveRå as { transfers?: unknown[] }).transfers ?? []) as Array<{
+            id: string; fromStatus: string; toStatus: string; comment: string | null; createdAt: string;
+            sender?: { id: string; name: string | null } | null;
+            recipientUser?: { id: string; name: string | null } | null;
+            recipientGroup?: { id: string; name: string | null } | null;
+          }>}
+          opprettetAv={(fullOppgaveRå as { creator?: { name?: string | null } }).creator?.name ?? null}
+          opprettetDato={(fullOppgaveRå as { createdAt?: string }).createdAt ?? null}
+        />
+      )}
     </div>
   );
 }

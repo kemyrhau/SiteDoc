@@ -919,5 +919,7 @@
   "statushandling.bekreftHandling": "Подтвердите: {{обработка}}",
   "statushandling.velgMottaker": "Выберите получателя...",
   "statushandling.velgMottakerValgfritt": "Выберите получателя (необязательно)...",
-  "statushandling.valgfriKommentar": "Необязательный комментарий..."
+  "statushandling.valgfriKommentar": "Необязательный комментарий...",
+  "tidslinje.tittel": "Хронология",
+  "tidslinje.opprettet": "создал документ"
 }

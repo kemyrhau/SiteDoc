@@ -919,5 +919,7 @@
   "statushandling.bekreftHandling": "Confirmați: {{handling}}",
   "statushandling.velgMottaker": "Selectați destinatarul...",
   "statushandling.velgMottakerValgfritt": "Selectați destinatarul (opțional)...",
-  "statushandling.valgfriKommentar": "Comentariu optional..."
+  "statushandling.valgfriKommentar": "Comentariu optional...",
+  "tidslinje.tittel": "Cronologie",
+  "tidslinje.opprettet": "a creat documentul"
 }

@@ -919,5 +919,7 @@
   "statushandling.bekreftHandling": "Patvirtinti: {{handling}}",
   "statushandling.velgMottaker": "Pasirinkite gavėją...",
   "statushandling.velgMottakerValgfritt": "Pasirinkite gavėją (nebūtina)...",
-  "statushandling.valgfriKommentar": "Neprivalomas komentaras..."
+  "statushandling.valgfriKommentar": "Neprivalomas komentaras...",
+  "tidslinje.tittel": "Laiko juosta",
+  "tidslinje.opprettet": "sukūrė dokumentą"
 }
