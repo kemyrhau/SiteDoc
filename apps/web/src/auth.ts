@@ -35,4 +35,21 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       return session;
     },
   },
+  events: {
+    async signIn({ user }) {
+      // Auto-aksepter ventende invitasjoner for denne e-posten
+      if (user.email) {
+        await prisma.projectInvitation.updateMany({
+          where: {
+            email: { equals: user.email, mode: "insensitive" },
+            status: "pending",
+          },
+          data: {
+            status: "accepted",
+            acceptedAt: new Date(),
+          },
+        });
+      }
+    },
+  },
 });
