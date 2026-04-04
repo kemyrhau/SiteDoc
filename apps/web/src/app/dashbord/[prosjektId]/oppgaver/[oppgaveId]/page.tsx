@@ -210,6 +210,10 @@ export default function OppgaveDetaljSide() {
   });
 
   // Entreprise-valg for mottaker — utleder mottaker fra dokumentflyt
+  const { data: mineEntrepriser } = trpc.medlem.hentMineEntrepriser.useQuery(
+    { projectId: params.prosjektId },
+    { enabled: !!params.prosjektId },
+  );
   const { data: alleEntrepriser } = trpc.entreprise.hentForProsjekt.useQuery(
     { projectId: params.prosjektId },
     { enabled: !!params.prosjektId },
@@ -441,6 +445,7 @@ export default function OppgaveDetaljSide() {
             onSlett={() => slettMutasjon.mutate({ id: params.oppgaveId })}
             entrepriseValg={entrepriseValg}
             standardEntrepriseId={oppgave.responderEnterprise?.id}
+            mineEntrepriseIder={(mineEntrepriser ?? []).map((e: { id: string }) => e.id)}
           />
         </div>
       </div>

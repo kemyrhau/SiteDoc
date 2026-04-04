@@ -26,13 +26,15 @@ interface StatusHandlingerProps {
   erLaster: boolean;
   onEndreStatus: (nyStatus: string, kommentar?: string, mottaker?: { userId?: string; groupId?: string }) => void;
   onSlett?: () => void;
-  /** Entrepriser bruker kan sende til (standardvalg = responderEnterprise) */
+  /** Alle entrepriser med forhåndsutledet mottaker */
   entrepriseValg?: EntrepriseValg[];
-  /** ID til standard-entreprise (responderEnterprise) */
+  /** ID til standard-entreprise (svarer/responder) */
   standardEntrepriseId?: string;
+  /** Brukerens egne entreprise-IDer (for videresend-filtrering) */
+  mineEntrepriseIder?: string[];
 }
 
-export function StatusHandlinger({ status, erLaster, onEndreStatus, onSlett, entrepriseValg, standardEntrepriseId }: StatusHandlingerProps) {
+export function StatusHandlinger({ status, erLaster, onEndreStatus, onSlett, entrepriseValg, standardEntrepriseId, mineEntrepriseIder }: StatusHandlingerProps) {
   const { t } = useTranslation();
   const [bekreftHandling, setBekreftHandling] = useState<string | null>(null);
   const [kommentar, setKommentar] = useState("");
@@ -54,15 +56,22 @@ export function StatusHandlinger({ status, erLaster, onEndreStatus, onSlett, ent
       return;
     }
     if (bekreftHandling === nyStatus) {
-      // Finn mottaker fra valgt entreprise
       let mottaker: { userId?: string; groupId?: string } | undefined;
-      const valgtId = valgtEntreprise || standardEntrepriseId;
-      if (valgtId && entrepriseValg) {
-        const valgt = entrepriseValg.find((e) => e.id === valgtId);
-        mottaker = valgt?.mottaker;
+
+      if (nyStatus === "forwarded") {
+        // Videresend: bruk valgt entreprise (eller standard)
+        const valgtId = valgtEntreprise || standardEntrepriseId;
+        if (valgtId && entrepriseValg) {
+          const valgt = entrepriseValg.find((e) => e.id === valgtId);
+          mottaker = valgt?.mottaker;
+        }
+        if (!mottaker) return;
+      } else if (standardEntrepriseId && entrepriseValg) {
+        // Normal overgang: auto-utled mottaker fra standard-entreprise (dokumentflyt)
+        const standard = entrepriseValg.find((e) => e.id === standardEntrepriseId);
+        mottaker = standard?.mottaker;
       }
-      // Videresend krever mottaker
-      if (nyStatus === "forwarded" && !mottaker) return;
+
       onEndreStatus(nyStatus, kommentar.trim() || undefined, mottaker);
       setBekreftHandling(null);
       setKommentar("");
@@ -80,8 +89,12 @@ export function StatusHandlinger({ status, erLaster, onEndreStatus, onSlett, ent
     setValgtEntreprise("");
   };
 
-  const visEntrepriseVelger = (bekreftHandling === "sent" || bekreftHandling === "forwarded")
-    && entrepriseValg && entrepriseValg.length > 1;
+  // Entreprise-velger kun ved videresend OG bruker har flere entrepriser
+  const videresendEntrepriser = entrepriseValg?.filter(
+    (e) => !mineEntrepriseIder || mineEntrepriseIder.includes(e.id),
+  );
+  const visEntrepriseVelger = bekreftHandling === "forwarded"
+    && videresendEntrepriser && videresendEntrepriser.length > 1;
 
   return (
     <div className="flex flex-col gap-2">
@@ -120,7 +133,7 @@ export function StatusHandlinger({ status, erLaster, onEndreStatus, onSlett, ent
               onChange={(e) => setValgtEntreprise(e.target.value)}
               className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
             >
-              {entrepriseValg!.map((e) => (
+              {videresendEntrepriser!.map((e) => (
                 <option key={e.id} value={e.id}>
                   {e.navn}
                 </option>

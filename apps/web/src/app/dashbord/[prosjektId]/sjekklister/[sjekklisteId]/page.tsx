@@ -468,6 +468,7 @@ export default function SjekklisteDetaljSide() {
             onSlett={() => slettMutasjon.mutate({ id: params.sjekklisteId })}
             entrepriseValg={entrepriseValg}
             standardEntrepriseId={sjekkliste.responderEnterprise?.id}
+            mineEntrepriseIder={(mineEntrepriser ?? []).map((e: { id: string }) => e.id)}
           />
         </div>
       </div>
