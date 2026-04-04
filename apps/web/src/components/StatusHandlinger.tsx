@@ -13,9 +13,12 @@ const FARGE_MAP: Record<string, { bg: string; hover: string }> = {
   "bg-gray-500": { bg: "bg-gray-500", hover: "hover:bg-gray-600" },
 };
 
-interface MottakerValg {
-  personer: Array<{ id: string; navn: string; grupper?: string }>;
-  grupper: Array<{ id: string; navn: string }>;
+export interface EntrepriseValg {
+  id: string;
+  navn: string;
+  farge?: string | null;
+  /** Forhåndsutledet mottaker fra dokumentflyt */
+  mottaker?: { userId?: string; groupId?: string };
 }
 
 interface StatusHandlingerProps {
@@ -23,14 +26,17 @@ interface StatusHandlingerProps {
   erLaster: boolean;
   onEndreStatus: (nyStatus: string, kommentar?: string, mottaker?: { userId?: string; groupId?: string }) => void;
   onSlett?: () => void;
-  mottakerValg?: MottakerValg;
+  /** Entrepriser bruker kan sende til (standardvalg = responderEnterprise) */
+  entrepriseValg?: EntrepriseValg[];
+  /** ID til standard-entreprise (responderEnterprise) */
+  standardEntrepriseId?: string;
 }
 
-export function StatusHandlinger({ status, erLaster, onEndreStatus, onSlett, mottakerValg }: StatusHandlingerProps) {
+export function StatusHandlinger({ status, erLaster, onEndreStatus, onSlett, entrepriseValg, standardEntrepriseId }: StatusHandlingerProps) {
   const { t } = useTranslation();
   const [bekreftHandling, setBekreftHandling] = useState<string | null>(null);
   const [kommentar, setKommentar] = useState("");
-  const [valgtMottaker, setValgtMottaker] = useState("");
+  const [valgtEntreprise, setValgtEntreprise] = useState("");
 
   const handlinger = hentStatusHandlinger(status);
 
@@ -48,36 +54,34 @@ export function StatusHandlinger({ status, erLaster, onEndreStatus, onSlett, mot
       return;
     }
     if (bekreftHandling === nyStatus) {
-      // Parse mottaker fra valgt verdi
+      // Finn mottaker fra valgt entreprise
       let mottaker: { userId?: string; groupId?: string } | undefined;
-      if (valgtMottaker) {
-        if (valgtMottaker.startsWith("u:")) {
-          mottaker = { userId: valgtMottaker.slice(2) };
-        } else if (valgtMottaker.startsWith("g:")) {
-          mottaker = { groupId: valgtMottaker.slice(2) };
-        }
+      const valgtId = valgtEntreprise || standardEntrepriseId;
+      if (valgtId && entrepriseValg) {
+        const valgt = entrepriseValg.find((e) => e.id === valgtId);
+        mottaker = valgt?.mottaker;
       }
       // Videresend krever mottaker
       if (nyStatus === "forwarded" && !mottaker) return;
       onEndreStatus(nyStatus, kommentar.trim() || undefined, mottaker);
       setBekreftHandling(null);
       setKommentar("");
-      setValgtMottaker("");
+      setValgtEntreprise("");
     } else {
       setBekreftHandling(nyStatus);
       setKommentar("");
-      setValgtMottaker("");
+      setValgtEntreprise("");
     }
   };
 
   const avbrytBekreft = () => {
     setBekreftHandling(null);
     setKommentar("");
-    setValgtMottaker("");
+    setValgtEntreprise("");
   };
 
-  const visMottakerVelger = (bekreftHandling === "sent" || bekreftHandling === "forwarded") && mottakerValg &&
-    (mottakerValg.personer.length > 0 || mottakerValg.grupper.length > 0);
+  const visEntrepriseVelger = (bekreftHandling === "sent" || bekreftHandling === "forwarded")
+    && entrepriseValg && entrepriseValg.length > 1;
 
   return (
     <div className="flex flex-col gap-2">
@@ -110,29 +114,17 @@ export function StatusHandlinger({ status, erLaster, onEndreStatus, onSlett, mot
       </div>
       {bekreftHandling && (
         <div className="flex max-w-lg flex-col gap-2">
-          {visMottakerVelger && (
+          {visEntrepriseVelger && (
             <select
-              value={valgtMottaker}
-              onChange={(e) => setValgtMottaker(e.target.value)}
+              value={valgtEntreprise || standardEntrepriseId || ""}
+              onChange={(e) => setValgtEntreprise(e.target.value)}
               className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
             >
-              <option value="">{bekreftHandling === "forwarded" ? t("statushandling.velgMottaker") : t("statushandling.velgMottakerValgfritt")}</option>
-              {mottakerValg!.grupper.length > 0 && (
-                <optgroup label="Grupper">
-                  {mottakerValg!.grupper.map((g) => (
-                    <option key={`g:${g.id}`} value={`g:${g.id}`}>{g.navn}</option>
-                  ))}
-                </optgroup>
-              )}
-              {mottakerValg!.personer.length > 0 && (
-                <optgroup label="Personer">
-                  {mottakerValg!.personer.map((p) => (
-                    <option key={`u:${p.id}`} value={`u:${p.id}`}>
-                      {p.navn}{p.grupper ? ` · ${p.grupper}` : ""}
-                    </option>
-                  ))}
-                </optgroup>
-              )}
+              {entrepriseValg!.map((e) => (
+                <option key={e.id} value={e.id}>
+                  {e.navn}
+                </option>
+              ))}
             </select>
           )}
           <input
@@ -144,7 +136,7 @@ export function StatusHandlinger({ status, erLaster, onEndreStatus, onSlett, mot
             }}
             placeholder={t("statushandling.valgfriKommentar")}
             className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
-            autoFocus={!visMottakerVelger}
+            autoFocus={!visEntrepriseVelger}
           />
         </div>
       )}

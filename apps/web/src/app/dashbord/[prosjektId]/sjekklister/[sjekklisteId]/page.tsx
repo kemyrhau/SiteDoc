@@ -106,80 +106,7 @@ export default function SjekklisteDetaljSide() {
     },
   });
 
-  // Mottaker-valg — filtrert basert på dokumentflyt
-  const { data: _prosjektMedlemmer } = trpc.medlem.hentForProsjekt.useQuery(
-    { projectId: params.prosjektId },
-  );
-  const { data: _prosjektGrupper } = trpc.gruppe.hentForProsjekt.useQuery(
-    { projectId: params.prosjektId },
-  );
-  const { data: _dokumentflyter } = trpc.dokumentflyt.hentForProsjekt.useQuery(
-    { projectId: params.prosjektId },
-    { enabled: !!params.prosjektId },
-  );
-
-  const mottakerValg = useMemo(() => {
-    // Bygg gruppe-medlemskapsmap for visning
-    const medlemGruppeMap = new Map<string, string[]>();
-    const grupperRå = (_prosjektGrupper ?? []) as Array<{ id: string; name: string; category?: string; members: Array<{ projectMember: { id: string } }> }>;
-    for (const g of grupperRå) {
-      for (const m of g.members ?? []) {
-        const pmId = m.projectMember?.id;
-        if (!pmId) continue;
-        const eks = medlemGruppeMap.get(pmId) ?? [];
-        eks.push(g.name);
-        medlemGruppeMap.set(pmId, eks);
-      }
-    }
-
-    const alleMedlemmer = (_prosjektMedlemmer ?? []) as Array<{ id: string; user: { id: string; name: string | null; email: string } }>;
-
-    // Finn dokumentflyten for denne sjekklisten
-    const dokumentflytId = (sjekkliste as unknown as { dokumentflytId?: string })?.dokumentflytId;
-    const templateDomain = (sjekkliste as unknown as { template?: { domain?: string } })?.template?.domain;
-    const erHms = templateDomain === "hms";
-    const dokumentflyt = dokumentflytId && !erHms
-      ? (_dokumentflyter ?? []).find((df: { id: string }) => df.id === dokumentflytId)
-      : null;
-
-    if (dokumentflyt) {
-      // Filtrer til kun svarer-medlemmer i dokumentflyten
-      const dfMedlemmer = (dokumentflyt as { medlemmer: Array<{
-        rolle: string;
-        projectMember?: { user: { id: string; name: string | null; email: string } } | null;
-        group?: { id: string; name: string } | null;
-      }> }).medlemmer.filter((m) => m.rolle === "svarer");
-
-      const personer: Array<{ id: string; navn: string; grupper?: string }> = [];
-      const grupper: Array<{ id: string; navn: string }> = [];
-
-      for (const m of dfMedlemmer) {
-        if (m.group) {
-          grupper.push({ id: m.group.id, navn: m.group.name });
-        } else if (m.projectMember?.user) {
-          const pm = alleMedlemmer.find((am) => am.user.id === m.projectMember!.user.id);
-          personer.push({
-            id: m.projectMember.user.id,
-            navn: m.projectMember.user.name ?? m.projectMember.user.email,
-            grupper: pm ? medlemGruppeMap.get(pm.id)?.join(", ") : undefined,
-          });
-        }
-      }
-
-      return { personer, grupper };
-    }
-
-    // Fallback: alle (HMS eller ingen dokumentflyt)
-    const personer = alleMedlemmer.map((m) => ({
-      id: m.user.id,
-      navn: m.user.name ?? m.user.email,
-      grupper: medlemGruppeMap.get(m.id)?.join(", "),
-    }));
-    const grupper = grupperRå.map((g) => ({ id: g.id, navn: g.name }));
-    return { personer, grupper };
-  }, [_prosjektMedlemmer, _prosjektGrupper, _dokumentflyter, sjekkliste]);
-
-  // Hent entrepriser for redigering
+  // Hent entrepriser og dokumentflyter
   const { data: mineEntrepriser } = trpc.medlem.hentMineEntrepriser.useQuery(
     { projectId: params.prosjektId },
     { enabled: !!params.prosjektId },
@@ -188,6 +115,46 @@ export default function SjekklisteDetaljSide() {
     { projectId: params.prosjektId },
     { enabled: !!params.prosjektId },
   );
+  const { data: _dokumentflyter } = trpc.dokumentflyt.hentForProsjekt.useQuery(
+    { projectId: params.prosjektId },
+    { enabled: !!params.prosjektId },
+  );
+
+  // Entreprise-valg for mottaker — utleder mottaker fra dokumentflyt
+  const entrepriseValg = useMemo(() => {
+    const alleEntrepriserRå = (alleEntrepriser ?? []) as Array<{ id: string; name: string; color: string | null }>;
+    const dokumentflyterRå = (_dokumentflyter ?? []) as Array<{
+      id: string;
+      enterpriseId: string | null;
+      medlemmer: Array<{
+        rolle: string;
+        erHovedansvarlig: boolean;
+        projectMember?: { user: { id: string; name: string | null } } | null;
+        group?: { id: string; name: string } | null;
+      }>;
+    }>;
+
+    return alleEntrepriserRå.map((e) => {
+      // Finn dokumentflyt for denne entreprisen
+      const df = dokumentflyterRå.find((d) => d.enterpriseId === e.id);
+      let mottaker: { userId?: string; groupId?: string } | undefined;
+
+      if (df) {
+        // Finn hovedansvarlig svarer, eller første svarer
+        const svarere = df.medlemmer.filter((m) => m.rolle === "svarer");
+        const hovedansvarlig = svarere.find((m) => m.erHovedansvarlig);
+        const valgtSvarer = hovedansvarlig ?? svarere[0];
+
+        if (valgtSvarer?.group) {
+          mottaker = { groupId: valgtSvarer.group.id };
+        } else if (valgtSvarer?.projectMember?.user) {
+          mottaker = { userId: valgtSvarer.projectMember.user.id };
+        }
+      }
+
+      return { id: e.id, navn: e.name, farge: e.color, mottaker };
+    });
+  }, [alleEntrepriser, _dokumentflyter]);
 
   // Hent prosjektdata for print-header
   const { data: prosjekt } = trpc.prosjekt.hentMedId.useQuery(
@@ -499,7 +466,8 @@ export default function SjekklisteDetaljSide() {
               });
             }}
             onSlett={() => slettMutasjon.mutate({ id: params.sjekklisteId })}
-            mottakerValg={mottakerValg}
+            entrepriseValg={entrepriseValg}
+            standardEntrepriseId={sjekkliste.responderEnterprise?.id}
           />
         </div>
       </div>
