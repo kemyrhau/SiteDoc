@@ -31,9 +31,12 @@ Prosjektomfattende dokumentflyt under Innstillinger > Feltarbeid > Dokumentflyt:
 - Emne: malen har `subjects`-array → nedtrekksmeny. Uten → fritekst/skjult
 - **Mottaker ved «Send»:** Auto-utledes fra dokumentflytens svarer (hovedansvarlig først). Ved videresending kan registratorer (create_checklists/create_tasks) velge entreprise — mottaker utledes fra valgt entreprises dokumentflyt. Lagres i `recipientUserId`/`recipientGroupId` på dokument + `DocumentTransfer`
 - **Auto-mottatt:** `sent` → `received` skjer automatisk (ingen manuell "Motta"-klikk). Mottaker ser dokumentet som arbeidsordre umiddelbart
-- **Videresending:** Mottatte og under arbeid-dokumenter kan videresendes til annen person/gruppe med kommentar. Dokumentet forblir i `received`-status men mottaker oppdateres
+- **Videresending:** Dokumenter i received/in_progress/responded/rejected/approved kan videresendes. Status endres ikke, kun mottaker oppdateres. `toStatus` i transfer = nåværende status
+- **Besvar (responded):** Kjede-bevisst — sender automatisk tilbake til forrige avsender via siste `DocumentTransfer.senderId`. Muliggjør kjeder: HE → UE → Arbeider → UE → HE
+- **E-postvarsling:** Sendes ved `sent`, `responded`, `approved`, `rejected` og `forwarded` (ikke bare send)
+- **Lukk fra avvist:** Kun brukere med `create_checklists`/`create_tasks` (registratorer) kan lukke avviste dokumenter
 - **Gruppevisning i dropdown:** Bruker-dropdown i dokumentflyt-oppsett viser gruppemedlemskap: «Kenneth Myrhaug · Byggherre, Tømrer»
-- **Planlagt:** HMS-avvik som egen dokumentflyt, intern godkjenning (ansatt → fagleder → TE), varsling
+- **Planlagt:** HMS-avvik som egen dokumentflyt, intern godkjenning (ansatt → fagleder → TE)
 
 ### Bakoverkompatibilitet
 - Gammel `arbeidsforlop`-router beholdt som alias i tRPC
@@ -117,9 +120,60 @@ Revisjonshistorikk via `drawing_revisions`. Georeferanse med 2+ punkter: 2 punkt
 
 - **Brukere** — Grupper, roller, medlemmer
 - **Lokasjoner** — Samlet lokasjonsliste med redigering/georeferanse
-- **Field** — Dokumentflyt, Entrepriser, Oppgavemaler, Sjekklistemaler, Kontrollplan, Mappeoppsett, Moduler
+- **Field** — Kontakter, Dokumentflyt, Entrepriser, Oppgavemaler, Sjekklistemaler, Kontrollplan, Mappeoppsett, Moduler
 - **Prosjekteiers innstillinger** — Prosjektoppsett
 - **Firmainnstillinger** — Firmainformasjon (synlig med tilknyttet firma)
+
+## Statusflyt — komplett
+
+```
+draft → sent → received → in_progress → responded → approved → closed
+                                                   → rejected → in_progress (ny runde)
+                                                               → closed (kun registrator)
+Alle unntatt responded/approved/rejected/closed → cancelled (avvist)
+cancelled → draft (gjenåpne)
+```
+
+| Fra | Til | Knapp | Mottaker | E-post |
+|-----|-----|-------|----------|--------|
+| draft | sent→received | Send | Auto fra dokumentflyt | ✓ |
+| received | in_progress | Start arbeid | Uendret | — |
+| received | forwarded | Videresend | Velges i dropdown | ✓ |
+| in_progress | responded | Besvar | Auto tilbake til forrige avsender | ✓ |
+| in_progress | forwarded | Videresend | Velges | ✓ |
+| responded | approved | Godkjenn | Uendret | ✓ |
+| responded | rejected | Avvis | Uendret | ✓ |
+| rejected | in_progress | Start arbeid igjen | Uendret | — |
+| rejected | closed | Lukk (kun registrator) | — | — |
+| approved | closed | Lukk | — | — |
+| \* | cancelled | Avvis | Uendret | — |
+| cancelled | draft | Gjenåpne | — | — |
+
+**Sidebar:** `rejected` og `cancelled` slått sammen som én "Avvist"-rad.
+
+### Kjede-eksempel (NS 8407)
+
+```
+HE oppretter → Send → 🔵 UE-ansvarlig (received)
+UE-ansvarlig → Videresend → Arbeider (received)
+Arbeider → Start arbeid (in_progress) → Besvar → auto til UE-ansvarlig (responded)
+UE-ansvarlig → Videresend → HE (responded)
+HE → Godkjenn/Avvis
+```
+
+## Kontaktliste (prototype)
+
+Innstillinger > Feltarbeid > Kontakter — visuell oversikt over entrepriser, kontakter og dokumentflyter:
+
+- **Utvidbar tabell:** Lukket rad viser entreprise + dokumentflyter + antall kontakter. Åpen rad viser flytbokser + kontaktliste
+- **Visuell flyt:** Tre fargekodede bokser per dokumentflyt: Oppretter (blå) → Svarer (lilla) → Godkjenner (grønn)
+- **Mennesker under grupper:** Gruppemedlemmer vises innrykket under gruppens navn i flytboksene
+- **● Ansvarlig-prikk:** Hovedansvarlig i gruppen mottar dokumenter automatisk. Bytt person → flytt prikk
+- **Kontraktsform-uavhengig:** Samme system for NS 8405/8406 (BH eier), NS 8407 (HE/TE eier), intern UE-flyt
+
+### Planlagt forbedring: Overordnet-entreprise
+
+Felt `overordnetEntrepriseId` på Enterprise — definerer hvem som er flyteier. Dokumentflyt utledes fra entreprise-hierarkiet i stedet for separate dokumentflyt-oppføringer.
 
 ## TODO
 
