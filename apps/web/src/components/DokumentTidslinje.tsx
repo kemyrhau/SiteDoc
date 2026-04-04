@@ -72,6 +72,12 @@ export function DokumentTidslinje({ overforinger, opprettetAv, opprettetDato }: 
           {overforinger.map((ovf, i) => {
             const erSiste = i === overforinger.length - 1;
             const harMottaker = ovf.recipientUser || ovf.recipientGroup;
+            // Videresending: status endres ikke, kommentar starter med "Videresendt"
+            const erVideresending = ovf.fromStatus === ovf.toStatus && ovf.comment?.startsWith("Videresendt");
+            // Fjern "Videresendt: " prefiks fra kommentar (vises allerede i badge)
+            const visKommentar = erVideresending
+              ? ovf.comment?.replace(/^Videresendt:\s*/, "").trim() || null
+              : ovf.comment;
 
             return (
               <TidslinjeRad
@@ -81,11 +87,19 @@ export function DokumentTidslinje({ overforinger, opprettetAv, opprettetDato }: 
                 ikon={<div className="h-2 w-2 rounded-full bg-white" />}
               >
                 <div className="flex flex-col gap-1">
-                  {/* Status-overgang */}
+                  {/* Status-overgang eller videresending */}
                   <div className="flex items-center gap-2 flex-wrap">
-                    <StatusBadge status={ovf.fromStatus} />
-                    <ArrowRight size={14} className="text-gray-400 shrink-0" />
-                    <StatusBadge status={ovf.toStatus} />
+                    {erVideresending ? (
+                      <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600">
+                        {t("statushandling.videresend")}
+                      </span>
+                    ) : (
+                      <>
+                        <StatusBadge status={ovf.fromStatus} />
+                        <ArrowRight size={14} className="text-gray-400 shrink-0" />
+                        <StatusBadge status={ovf.toStatus} />
+                      </>
+                    )}
                   </div>
 
                   {/* Avsender → Mottaker */}
@@ -112,8 +126,8 @@ export function DokumentTidslinje({ overforinger, opprettetAv, opprettetDato }: 
                   </div>
 
                   {/* Kommentar */}
-                  {ovf.comment && (
-                    <p className="text-xs text-gray-500 italic">&ldquo;{ovf.comment}&rdquo;</p>
+                  {visKommentar && (
+                    <p className="text-xs text-gray-500 italic">&ldquo;{visKommentar}&rdquo;</p>
                   )}
                 </div>
               </TidslinjeRad>
