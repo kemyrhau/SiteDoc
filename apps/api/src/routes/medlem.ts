@@ -69,6 +69,15 @@ export const medlemRouter = router({
       return medlem.enterprises.map((me) => me.enterprise);
     }),
 
+  // Hent mine tillatelser i et prosjekt
+  hentMineTillatelser: protectedProcedure
+    .input(z.object({ projectId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      const tillatelser = await hentBrukerTillatelser(ctx.userId, input.projectId);
+      return [...tillatelser];
+    }),
+
   // Legg til medlem i prosjekt (krever admin)
   leggTil: protectedProcedure
     .input(addMemberSchema)

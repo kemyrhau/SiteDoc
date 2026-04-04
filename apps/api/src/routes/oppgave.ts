@@ -587,7 +587,7 @@ export const oppgaveRouter = router({
       z.object({
         id: z.string().uuid(),
         nyStatus: z.union([documentStatusSchema, z.literal("forwarded")]),
-        senderId: z.string().uuid(),
+        senderId: z.string().uuid().optional(), // Deprecated — bruker ctx.userId
         kommentar: z.string().optional(),
         recipientUserId: z.string().uuid().optional(),
         recipientGroupId: z.string().uuid().optional(),
@@ -613,11 +613,12 @@ export const oppgaveRouter = router({
         oppgave.template?.domain,
       );
 
-      // Hjelpefunksjon for varsling
-      const varsle = async (erVideresending: boolean) => {
+      // Hjelpefunksjon for varsling (bruker input-mottaker eller besvar-mottaker)
+      const varsle = async (erVideresending: boolean, overrideMottaker?: { recipientUserId?: string | null; recipientGroupId?: string | null }) => {
+        const mottaker = overrideMottaker ?? { recipientUserId: input.recipientUserId, recipientGroupId: input.recipientGroupId };
         const eposter = await hentMottakerEposter(ctx.prisma, {
-          recipientUserId: input.recipientUserId,
-          recipientGroupId: input.recipientGroupId,
+          recipientUserId: mottaker.recipientUserId ?? undefined,
+          recipientGroupId: mottaker.recipientGroupId ?? undefined,
           ekskluderUserId: ctx.userId,
         });
         if (eposter.length === 0) return;
@@ -657,7 +658,7 @@ export const oppgaveRouter = router({
               taskId: input.id,
               senderId: ctx.userId,
               fromStatus: oppgave.status,
-              toStatus: "received",
+              toStatus: oppgave.status,
               comment: input.kommentar ? `Videresendt: ${input.kommentar}` : "Videresendt",
               recipientUserId: input.recipientUserId,
               recipientGroupId: input.recipientGroupId,
@@ -679,6 +680,19 @@ export const oppgaveRouter = router({
       // Auto-mottatt: sent → received umiddelbart
       const effektivStatus = input.nyStatus === "sent" ? "received" : input.nyStatus;
 
+      // Besvar (responded): finn forrige avsender og send tilbake
+      let besvarMottaker: { recipientUserId?: string | null; recipientGroupId?: string | null } = {};
+      if (input.nyStatus === "responded") {
+        const sisteTransfer = await ctx.prisma.documentTransfer.findFirst({
+          where: { taskId: input.id },
+          orderBy: { createdAt: "desc" },
+          select: { senderId: true },
+        });
+        if (sisteTransfer?.senderId) {
+          besvarMottaker = { recipientUserId: sisteTransfer.senderId, recipientGroupId: null };
+        }
+      }
+
       const resultat = await ctx.prisma.$transaction(async (tx) => {
         const oppdatert = await tx.task.update({
           where: { id: input.id },
@@ -688,23 +702,27 @@ export const oppgaveRouter = router({
               recipientUserId: input.recipientUserId ?? null,
               recipientGroupId: input.recipientGroupId ?? null,
             } : {}),
+            ...(input.nyStatus === "responded" ? besvarMottaker : {}),
           },
         });
 
-        // Logg «sent»-overgangen
         await tx.documentTransfer.create({
           data: {
             taskId: input.id,
             senderId: ctx.userId,
             fromStatus: oppgave.status,
-            toStatus: "sent",
+            toStatus: input.nyStatus,
             comment: input.kommentar,
-            recipientUserId: input.recipientUserId,
-            recipientGroupId: input.recipientGroupId,
+            ...(input.nyStatus === "sent" ? {
+              recipientUserId: input.recipientUserId,
+              recipientGroupId: input.recipientGroupId,
+            } : {}),
+            ...(input.nyStatus === "responded" && besvarMottaker.recipientUserId ? {
+              recipientUserId: besvarMottaker.recipientUserId,
+            } : {}),
           },
         });
 
-        // Logg auto «received» hvis sendt
         if (input.nyStatus === "sent") {
           await tx.documentTransfer.create({
             data: {
@@ -719,8 +737,10 @@ export const oppgaveRouter = router({
         return oppdatert;
       });
 
-      // Varsle mottaker ved sending
-      if (input.nyStatus === "sent") {
+      // Varsle mottaker ved sending, besvar, godkjenning, avvisning
+      if (input.nyStatus === "responded" && besvarMottaker.recipientUserId) {
+        void varsle(false, besvarMottaker);
+      } else if (["sent", "approved", "rejected"].includes(input.nyStatus)) {
         void varsle(false);
       }
 

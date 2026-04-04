@@ -40,6 +40,7 @@ export function hentStatusHandlinger(status: string): StatusHandling[] {
     rejected: [
       { tekstNoekkel: "statushandling.startArbeidIgjen", nyStatus: "in_progress", farge: "bg-amber-500", aktivFarge: "bg-amber-400" },
       { tekstNoekkel: "statushandling.videresend", nyStatus: "forwarded", farge: "bg-gray-500", aktivFarge: "bg-gray-400" },
+      { tekstNoekkel: "handling.lukk", nyStatus: "closed", farge: "bg-gray-500", aktivFarge: "bg-gray-400" },
     ],
     approved: [
       { tekstNoekkel: "handling.lukk", nyStatus: "closed", farge: "bg-gray-500", aktivFarge: "bg-gray-400" },

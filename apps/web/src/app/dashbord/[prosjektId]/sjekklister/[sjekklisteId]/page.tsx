@@ -106,6 +106,13 @@ export default function SjekklisteDetaljSide() {
     },
   });
 
+  // Hent tillatelser for å sjekke registrator-status
+  const { data: mineTillatelser } = trpc.medlem.hentMineTillatelser.useQuery(
+    { projectId: params.prosjektId },
+    { enabled: !!params.prosjektId },
+  );
+  const erRegistrator = mineTillatelser?.includes("create_checklists") || mineTillatelser?.includes("create_tasks") || false;
+
   // Hent entrepriser og dokumentflyter
   const { data: mineEntrepriser } = trpc.medlem.hentMineEntrepriser.useQuery(
     { projectId: params.prosjektId },
@@ -469,6 +476,7 @@ export default function SjekklisteDetaljSide() {
             entrepriseValg={entrepriseValg}
             standardEntrepriseId={sjekkliste.responderEnterprise?.id}
             mineEntrepriseIder={mineEntrepriser ? (mineEntrepriser as Array<{ id: string }>).map((e) => e.id) : undefined}
+            erRegistrator={erRegistrator}
           />
         </div>
       </div>

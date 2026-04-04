@@ -32,15 +32,22 @@ interface StatusHandlingerProps {
   standardEntrepriseId?: string;
   /** Brukerens egne entreprise-IDer (for videresend-filtrering) */
   mineEntrepriseIder?: string[];
+  /** Om bruker er registrator (create_checklists/create_tasks) — styrer tilgang til Lukk fra avvist */
+  erRegistrator?: boolean;
 }
 
-export function StatusHandlinger({ status, erLaster, onEndreStatus, onSlett, entrepriseValg, standardEntrepriseId, mineEntrepriseIder }: StatusHandlingerProps) {
+export function StatusHandlinger({ status, erLaster, onEndreStatus, onSlett, entrepriseValg, standardEntrepriseId, mineEntrepriseIder, erRegistrator }: StatusHandlingerProps) {
   const { t } = useTranslation();
   const [bekreftHandling, setBekreftHandling] = useState<string | null>(null);
   const [kommentar, setKommentar] = useState("");
   const [valgtEntreprise, setValgtEntreprise] = useState("");
 
-  const handlinger = hentStatusHandlinger(status);
+  const alleHandlinger = hentStatusHandlinger(status);
+  // Lukk fra avvist: kun for registratorer
+  const handlinger = alleHandlinger.filter((h) => {
+    if (status === "rejected" && h.nyStatus === "closed" && !erRegistrator) return false;
+    return true;
+  });
 
   if (handlinger.length === 0) return null;
 
