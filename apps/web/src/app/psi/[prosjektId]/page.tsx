@@ -17,8 +17,29 @@ interface Objekt {
   label: string;
   required: boolean;
   config: Record<string, unknown>;
+  translations?: Record<string, Record<string, unknown>>;
   sortOrder: number;
   parentId: string | null;
+}
+
+/** Hent oversatt verdi for et objekt-felt, med fallback til original */
+function oversatt(objekt: Objekt, felt: string, spraak: string): string {
+  if (spraak === "nb") {
+    if (felt === "label") return objekt.label;
+    return (objekt.config[felt] as string) ?? "";
+  }
+  const t = objekt.translations?.[spraak];
+  if (t && typeof t[felt] === "string") return t[felt] as string;
+  if (felt === "label") return objekt.label;
+  return (objekt.config[felt] as string) ?? "";
+}
+
+function oversattOptions(objekt: Objekt, spraak: string): string[] {
+  if (spraak !== "nb") {
+    const t = objekt.translations?.[spraak];
+    if (t && Array.isArray(t.options)) return t.options as string[];
+  }
+  return (objekt.config.options as string[]) ?? [];
 }
 
 interface Seksjon {
@@ -121,6 +142,7 @@ export default function PsiGjestSide() {
           signaturId={signaturId}
           objekter={malObjekter}
           malNavn={malNavn}
+          spraak={spraak}
           onFullfort={() => setSteg("ferdig")}
         />
       </>
@@ -204,9 +226,15 @@ export default function PsiGjestSide() {
               onChange={(e) => setSpraak(e.target.value)}
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
             >
-              {STOETTEDE_SPRAAK.map((s) => (
-                <option key={s.kode} value={s.kode}>{s.flagg} {s.navn}</option>
-              ))}
+              {STOETTEDE_SPRAAK
+                .filter((s) => {
+                  if (s.kode === "nb") return true;
+                  const valgtPsi = (psiListe as PsiPublic[] | undefined)?.find((p) => p.id === valgtPsiId);
+                  return valgtPsi?.languages?.includes(s.kode) ?? false;
+                })
+                .map((s) => (
+                  <option key={s.kode} value={s.kode}>{s.flagg} {s.navn}</option>
+                ))}
             </select>
           </div>
 
@@ -299,11 +327,13 @@ function PsiGjennomforing({
   signaturId,
   objekter,
   malNavn,
+  spraak,
   onFullfort,
 }: {
   signaturId: string;
   objekter: Objekt[];
   malNavn: string;
+  spraak: string;
   onFullfort: () => void;
 }) {
   const [aktivSeksjon, setAktivSeksjon] = useState(0);
@@ -325,7 +355,7 @@ function PsiGjennomforing({
     for (const obj of rot) {
       if (obj.type === "heading") {
         if (gjeldende) result.push(gjeldende);
-        gjeldende = { tittel: obj.label, objekter: [], harQuiz: false, harVideo: false, harSignatur: false };
+        gjeldende = { tittel: oversatt(obj, "label", spraak), objekter: [], harQuiz: false, harVideo: false, harSignatur: false };
       } else {
         if (!gjeldende) gjeldende = { tittel: "Introduksjon", objekter: [], harQuiz: false, harVideo: false, harSignatur: false };
         gjeldende.objekter.push(obj);
@@ -336,7 +366,7 @@ function PsiGjennomforing({
     }
     if (gjeldende) result.push(gjeldende);
     return result;
-  }, [objekter]);
+  }, [objekter, spraak]);
 
   const seksjon = seksjoner[aktivSeksjon];
   const erSignatur = seksjon?.harSignatur ?? false;
@@ -435,6 +465,7 @@ function PsiGjennomforing({
             <WebObjektRenderer
               key={obj.id}
               objekt={obj}
+              spraak={spraak}
               verdi={feltVerdier[obj.id]}
               onEndre={(v) => setFeltVerdier((prev) => ({ ...prev, [obj.id]: v }))}
               signatur={signaturBilde}
@@ -489,12 +520,14 @@ function PsiGjennomforing({
 
 function WebObjektRenderer({
   objekt,
+  spraak,
   verdi,
   onEndre,
   signatur,
   onSignatur,
 }: {
   objekt: Objekt;
+  spraak: string;
   verdi: unknown;
   onEndre: (v: unknown) => void;
   signatur: string | null;
@@ -502,11 +535,11 @@ function WebObjektRenderer({
 }) {
   switch (objekt.type) {
     case "info_text":
-      return <p className="mb-4 whitespace-pre-wrap text-base leading-7 text-gray-800">{(objekt.config.content as string) ?? ""}</p>;
+      return <p className="mb-4 whitespace-pre-wrap text-base leading-7 text-gray-800">{oversatt(objekt, "content", spraak)}</p>;
 
     case "info_image": {
       const url = (objekt.config.imageUrl as string) ?? "";
-      const caption = (objekt.config.caption as string) ?? "";
+      const caption = oversatt(objekt, "caption", spraak);
       if (!url) return null;
       const fullUrl = url.startsWith("http") ? url : `/api${url}`;
       return (
@@ -536,8 +569,8 @@ function WebObjektRenderer({
     }
 
     case "quiz": {
-      const spørsmål = (objekt.config.question as string) ?? objekt.label;
-      const alternativer = (objekt.config.options as string[]) ?? [];
+      const spørsmål = oversatt(objekt, "question", spraak) || oversatt(objekt, "label", spraak);
+      const alternativer = oversattOptions(objekt, spraak);
       const riktigIdx = (objekt.config.correctIndex as number) ?? 0;
       return (
         <QuizWeb
@@ -559,7 +592,7 @@ function WebObjektRenderer({
       );
 
     case "subtitle":
-      return <p className="mb-2 text-sm font-medium text-gray-600">{objekt.label}</p>;
+      return <p className="mb-2 text-sm font-medium text-gray-600">{oversatt(objekt, "label", spraak)}</p>;
 
     default:
       return null;
