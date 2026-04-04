@@ -7,6 +7,7 @@ import { sendInvitasjonsEpost } from "../services/epost";
 import {
   verifiserAdmin,
   verifiserProsjektmedlem,
+  hentBrukerTillatelser,
 } from "../trpc/tilgangskontroll";
 
 export const medlemRouter = router({
@@ -54,8 +55,10 @@ export const medlemRouter = router({
 
       if (!medlem) return [];
 
-      // Admin uten entreprise-tilknytning ser alle entrepriser
-      if (medlem.role === "admin" && medlem.enterprises.length === 0) {
+      // Registratorer (create_checklists/create_tasks) eller admin → se alle entrepriser
+      const tillatelser = await hentBrukerTillatelser(ctx.userId, input.projectId);
+      const erRegistrator = tillatelser.has("create_checklists") || tillatelser.has("create_tasks");
+      if (erRegistrator || medlem.role === "admin") {
         const alle = await ctx.prisma.enterprise.findMany({
           where: { projectId: input.projectId },
           orderBy: { name: "asc" },

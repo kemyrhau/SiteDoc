@@ -89,11 +89,6 @@ export function StatusHandlinger({ status, erLaster, onEndreStatus, onSlett, ent
     setValgtEntreprise("");
   };
 
-  // DEBUG — fjern etter testing
-  if (bekreftHandling === "forwarded") {
-    console.log("DEBUG entrepriseValg:", entrepriseValg?.length, entrepriseValg?.map(e => e.navn));
-    console.log("DEBUG mineEntrepriseIder:", mineEntrepriseIder);
-  }
   // Entreprise-velger kun ved videresend OG bruker har flere entrepriser
   const videresendEntrepriser = mineEntrepriseIder
     ? entrepriseValg?.filter((e) => mineEntrepriseIder.includes(e.id))
