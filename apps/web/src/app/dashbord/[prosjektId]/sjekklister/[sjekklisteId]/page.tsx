@@ -101,8 +101,8 @@ export default function SjekklisteDetaljSide() {
 
   const endreStatusMutasjon = trpc.sjekkliste.endreStatus.useMutation({
     onSuccess: () => {
-      utils.sjekkliste.hentMedId.invalidate({ id: params.sjekklisteId });
       utils.sjekkliste.hentForProsjekt.invalidate();
+      router.push(`/dashbord/${params.prosjektId}/sjekklister`);
     },
   });
 

@@ -204,8 +204,8 @@ export default function OppgaveDetaljSide() {
 
   const endreStatusMutasjon = trpc.oppgave.endreStatus.useMutation({
     onSuccess: () => {
-      utils.oppgave.hentMedId.invalidate({ id: params.oppgaveId });
       utils.oppgave.hentForProsjekt.invalidate();
+      router.push(`/dashbord/${params.prosjektId}/oppgaver`);
     },
   });
 
