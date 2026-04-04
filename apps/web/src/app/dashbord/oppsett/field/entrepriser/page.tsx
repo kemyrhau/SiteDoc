@@ -1573,6 +1573,11 @@ export default function EntrepriserSide() {
           <p className="text-sm text-gray-600">
             Er du sikker på at du vil slette denne entreprisen og alle tilhørende dokumentflyter?
           </p>
+          {slettEntrepriseMutation.error && (
+            <p className="rounded bg-red-50 px-3 py-2 text-sm text-red-700">
+              {slettEntrepriseMutation.error.message}
+            </p>
+          )}
           <div className="flex gap-3 pt-2">
             <Button
               variant="danger"
@@ -1584,7 +1589,7 @@ export default function EntrepriserSide() {
             >
               Slett
             </Button>
-            <Button variant="secondary" onClick={() => setSlettEntrepriseId(null)}>
+            <Button variant="secondary" onClick={() => { setSlettEntrepriseId(null); slettEntrepriseMutation.reset(); }}>
               Avbryt
             </Button>
           </div>
