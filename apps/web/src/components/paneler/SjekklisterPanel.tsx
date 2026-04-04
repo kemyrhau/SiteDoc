@@ -22,8 +22,7 @@ const statusGrupper: StatusGruppe[] = [
   { id: "in_progress", labelKey: "status.underArbeid", farge: "bg-yellow-500" },
   { id: "responded", labelKey: "status.besvart", farge: "bg-purple-500" },
   { id: "approved", labelKey: "status.godkjent", farge: "bg-green-500" },
-  { id: "rejected", labelKey: "status.avvist", farge: "bg-red-500" },
-  { id: "cancelled", labelKey: "status.avbrutt", farge: "bg-red-400" },
+  { id: "avvist", labelKey: "status.avvist", farge: "bg-red-500" },
   { id: "closed", labelKey: "status.lukket", farge: "bg-gray-600" },
 ];
 
@@ -42,9 +41,13 @@ export function SjekklisterPanel() {
       { enabled: !!params.prosjektId },
     );
 
+  // "avvist" i sidebaren dekker både rejected og cancelled
+  const AVVIST_STATUSER = new Set(["rejected", "cancelled"]);
+
   function tellForStatus(statusId: string): number {
     if (!sjekklister) return 0;
     if (statusId === "alle") return sjekklister.length;
+    if (statusId === "avvist") return sjekklister.filter((s: { status: string }) => AVVIST_STATUSER.has(s.status)).length;
     return sjekklister.filter((s: { status: string }) => s.status === statusId).length;
   }
 

@@ -14,8 +14,7 @@ const statusGrupper = [
   { id: "in_progress", labelKey: "status.underArbeid", farge: "bg-yellow-500" },
   { id: "responded", labelKey: "status.besvart", farge: "bg-purple-500" },
   { id: "approved", labelKey: "status.godkjent", farge: "bg-green-500" },
-  { id: "rejected", labelKey: "status.avvist", farge: "bg-red-500" },
-  { id: "cancelled", labelKey: "status.avbrutt", farge: "bg-red-400" },
+  { id: "avvist", labelKey: "status.avvist", farge: "bg-red-500" },
   { id: "closed", labelKey: "status.lukket", farge: "bg-gray-600" },
 ];
 
@@ -40,9 +39,12 @@ export function OppgaverPanel() {
       { enabled: !!params.prosjektId },
     ) as { data: Array<{ status: string; priority: string; title: string }> | undefined; isLoading: boolean };
 
+  const AVVIST_STATUSER = new Set(["rejected", "cancelled"]);
+
   function tellForStatus(statusId: string): number {
     if (!oppgaver) return 0;
     if (statusId === "alle") return oppgaver.length;
+    if (statusId === "avvist") return oppgaver.filter((o) => AVVIST_STATUSER.has(o.status)).length;
     return oppgaver.filter((o) => o.status === statusId).length;
   }
 

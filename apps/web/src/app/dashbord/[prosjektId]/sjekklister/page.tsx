@@ -341,7 +341,11 @@ export default function SjekklisteSide() {
   // Filtrer
   const filtrerte = useMemo(() => {
     let resultat = (sjekklister ?? []);
-    if (statusFilter) resultat = resultat.filter((s) => s.status === statusFilter);
+    if (statusFilter === "avvist") {
+      resultat = resultat.filter((s) => s.status === "rejected" || s.status === "cancelled");
+    } else if (statusFilter) {
+      resultat = resultat.filter((s) => s.status === statusFilter);
+    }
     for (const [kolId, verdi] of Object.entries(filterVerdier)) {
       if (!verdi) continue;
       resultat = resultat.filter((s) => {

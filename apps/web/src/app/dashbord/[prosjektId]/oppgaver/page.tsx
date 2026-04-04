@@ -399,7 +399,11 @@ export default function OppgaverSide() {
   // Filtrer data
   const filtrerte = useMemo(() => {
     let resultat = oppgaver ?? [];
-    if (statusFilter) resultat = resultat.filter((o) => o.status === statusFilter);
+    if (statusFilter === "avvist") {
+      resultat = resultat.filter((o) => o.status === "rejected" || o.status === "cancelled");
+    } else if (statusFilter) {
+      resultat = resultat.filter((o) => o.status === statusFilter);
+    }
     for (const [kolId, verdi] of Object.entries(filterVerdier)) {
       if (!verdi) continue;
       resultat = resultat.filter((o) => {
