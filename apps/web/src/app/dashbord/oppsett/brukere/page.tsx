@@ -35,6 +35,75 @@ import {
 } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
+/*  KompaktBadgeListe — viser første verdi + "+N" utvidbar             */
+/* ------------------------------------------------------------------ */
+
+function KompaktBadgeListe({
+  verdier,
+  bgKlasse,
+  leggTilKnapp,
+}: {
+  verdier: string[];
+  bgKlasse: string;
+  leggTilKnapp?: React.ReactNode;
+}) {
+  const [utvidet, setUtvidet] = useState(false);
+
+  if (verdier.length === 0) {
+    return (
+      <div className="flex items-center gap-1">
+        <span className="text-xs text-gray-400">—</span>
+        {leggTilKnapp}
+      </div>
+    );
+  }
+
+  if (verdier.length === 1) {
+    return (
+      <div className="flex items-center gap-1">
+        <span className={`inline-flex rounded px-1.5 py-0.5 text-xs font-medium ${bgKlasse}`}>
+          {verdier[0]}
+        </span>
+        {leggTilKnapp}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-1">
+      {utvidet ? (
+        <>
+          {verdier.map((v) => (
+            <span key={v} className={`inline-flex rounded px-1.5 py-0.5 text-xs font-medium ${bgKlasse}`}>
+              {v}
+            </span>
+          ))}
+          <button
+            onClick={() => setUtvidet(false)}
+            className="rounded px-1 py-0.5 text-xs text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+          >
+            <ChevronDown className="h-3 w-3" />
+          </button>
+        </>
+      ) : (
+        <>
+          <span className={`inline-flex rounded px-1.5 py-0.5 text-xs font-medium ${bgKlasse}`}>
+            {verdier[0]}
+          </span>
+          <button
+            onClick={() => setUtvidet(true)}
+            className="inline-flex rounded bg-gray-200 px-1.5 py-0.5 text-xs font-medium text-gray-500 hover:bg-gray-300"
+          >
+            +{verdier.length - 1}
+          </button>
+        </>
+      )}
+      {leggTilKnapp}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Typer                                                              */
 /* ------------------------------------------------------------------ */
 
@@ -1559,34 +1628,13 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
                     </span>
                   </td>
 
-                  {/* Entrepriser (redigerbare) */}
+                  {/* Entrepriser (kompakt) */}
                   <td className="px-4 py-2.5">
-                    <div className="flex flex-wrap items-center gap-1">
-                      {m.enterprises.map((me) => (
-                        <span
-                          key={me.enterprise.id}
-                          className="group inline-flex items-center gap-1 rounded bg-gray-100 px-1.5 py-0.5 text-xs font-medium text-gray-700"
-                        >
-                          {me.enterprise.name}
-                          <button
-                            onClick={() =>
-                              fjernMutation.mutate({
-                                projectMemberId: m.id,
-                                enterpriseId: me.enterprise.id,
-                                projectId: prosjektId,
-                              })
-                            }
-                            className="rounded-full p-0.5 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-red-100 hover:text-red-600"
-                            title={t("handling.fjern")}
-                          >
-                            <X className="h-2.5 w-2.5" />
-                          </button>
-                        </span>
-                      ))}
-
-                      {/* Legg til entreprise */}
-                      {leggTilEntrepriseForMedlem === m.id ? (
-                        <div className="relative">
+                    <KompaktBadgeListe
+                      verdier={m.enterprises.map((me) => me.enterprise.name)}
+                      bgKlasse="bg-gray-100 text-gray-700"
+                      leggTilKnapp={
+                        leggTilEntrepriseForMedlem === m.id ? (
                           <select
                             className="rounded border border-gray-300 bg-white px-1.5 py-0.5 text-xs"
                             onChange={(e) => {
@@ -1602,43 +1650,30 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
                             autoFocus
                             defaultValue=""
                           >
-                            <option value="" disabled>
-                              {t("kontakter.velgEntreprise")}
-                            </option>
+                            <option value="" disabled>{t("kontakter.velgEntreprise")}</option>
                             {tilgjengeligeEntrepriser.map((e: { id: string; name: string }) => (
-                              <option key={e.id} value={e.id}>
-                                {e.name}
-                              </option>
+                              <option key={e.id} value={e.id}>{e.name}</option>
                             ))}
                           </select>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => setLeggTilEntrepriseForMedlem(m.id)}
-                          className="rounded px-1 py-0.5 text-xs text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-                          title={t("kontakter.leggTilEntreprise")}
-                        >
-                          <Plus className="h-3 w-3" />
-                        </button>
-                      )}
-                    </div>
+                        ) : (
+                          <button
+                            onClick={() => setLeggTilEntrepriseForMedlem(m.id)}
+                            className="rounded px-1 py-0.5 text-xs text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                            title={t("kontakter.leggTilEntreprise")}
+                          >
+                            <Plus className="h-3 w-3" />
+                          </button>
+                        )
+                      }
+                    />
                   </td>
 
-                  {/* Grupper */}
+                  {/* Grupper (kompakt) */}
                   <td className="px-4 py-2.5">
-                    <div className="flex flex-wrap gap-1">
-                      {brukerGrupper.length > 0
-                        ? brukerGrupper.map((g) => (
-                            <span
-                              key={g}
-                              className="inline-flex rounded bg-blue-50 px-1.5 py-0.5 text-xs font-medium text-blue-700"
-                            >
-                              {g}
-                            </span>
-                          ))
-                        : <span className="text-xs text-gray-400">—</span>
-                      }
-                    </div>
+                    <KompaktBadgeListe
+                      verdier={brukerGrupper}
+                      bgKlasse="bg-blue-50 text-blue-700"
+                    />
                   </td>
                 </tr>
               );
