@@ -108,6 +108,7 @@ function FlytBoks({
   alleMedlemmer,
   alleGrupper,
   gruppeOppslag,
+  gruppeMedlemNavn,
 }: {
   tittel: string;
   ikon: React.ReactNode;
@@ -121,10 +122,12 @@ function FlytBoks({
   alleMedlemmer: ProsjektMedlem[];
   alleGrupper: Array<{ id: string; name: string }>;
   gruppeOppslag: Map<string, Set<string>>; // gruppeId → Set<projectMemberId>
+  gruppeMedlemNavn: Map<string, string[]>; // gruppeId → navn[]
 }) {
   const { t } = useTranslation();
   const utils = trpc.useUtils();
   const [visInviterNy, setVisInviterNy] = useState(false);
+  const [utvidetGruppe, setUtvidetGruppe] = useState<Set<string>>(new Set());
   const f = FLYT_FARGER[farge] ?? FLYT_FARGER.blue!;
 
   const settHovedansvarligMutation = trpc.dokumentflyt.settHovedansvarlig.useMutation({
@@ -185,14 +188,47 @@ function FlytBoks({
         {tittel}
       </div>
 
-      {/* Grupper */}
-      {gruppeMedlemmer.map((m) => (
-        <div key={m.id} className="group/medlem mb-0.5 flex items-center gap-1.5 text-sm text-gray-700">
-          {renderHovedansvarligPrikk(m)}
-          <Users className={`h-3.5 w-3.5 ${f.ikon} shrink-0`} />
-          <span className="font-medium">{m.group?.name}</span>
-        </div>
-      ))}
+      {/* Grupper — klikkbar for å se medlemmer */}
+      {gruppeMedlemmer.map((m) => {
+        const gruppeId = m.group?.id;
+        const erUtvidet = gruppeId ? utvidetGruppe.has(gruppeId) : false;
+        const medlemNavn = gruppeId ? gruppeMedlemNavn.get(gruppeId) ?? [] : [];
+
+        return (
+          <div key={m.id} className="mb-0.5">
+            <div className="group/medlem flex items-center gap-1.5 text-sm text-gray-700">
+              {renderHovedansvarligPrikk(m)}
+              <button
+                onClick={() => {
+                  if (!gruppeId) return;
+                  setUtvidetGruppe((prev) => {
+                    const ny = new Set(prev);
+                    ny.has(gruppeId) ? ny.delete(gruppeId) : ny.add(gruppeId);
+                    return ny;
+                  });
+                }}
+                className="flex items-center gap-1.5 hover:underline"
+              >
+                <Users className={`h-3.5 w-3.5 ${f.ikon} shrink-0`} />
+                <span className="font-medium">{m.group?.name}</span>
+                {medlemNavn.length > 0 && (
+                  <span className="text-xs text-gray-400">({medlemNavn.length})</span>
+                )}
+              </button>
+            </div>
+            {erUtvidet && medlemNavn.length > 0 && (
+              <div className="ml-5 mt-0.5 mb-1 space-y-0.5">
+                {medlemNavn.map((navn: string, idx: number) => (
+                  <div key={idx} className="flex items-center gap-1.5 text-xs text-gray-500">
+                    <User className="h-3 w-3 text-gray-300 shrink-0" />
+                    {navn}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
 
       {/* Skillelinje */}
       {harBegge && <div className="border-t border-dashed border-gray-200 my-1.5" />}
@@ -307,6 +343,26 @@ export default function KontakterSide() {
         if (m.projectMember) ider.add(m.projectMember.id);
       }
       map.set(g.id, ider);
+    }
+    return map;
+  }, [grupper]);
+
+  // Bygg oppslag: gruppeId → medlemsnavn[]
+  const gruppeMedlemNavn = useMemo(() => {
+    const map = new Map<string, string[]>();
+    if (!grupper) return map;
+    const alle = grupper as Array<{
+      id: string;
+      members: Array<{
+        projectMember: { user: { name: string | null } } | null;
+      }>;
+    }>;
+    for (const g of alle) {
+      const navn: string[] = [];
+      for (const m of g.members) {
+        if (m.projectMember?.user?.name) navn.push(m.projectMember.user.name);
+      }
+      map.set(g.id, navn);
     }
     return map;
   }, [grupper]);
@@ -438,6 +494,7 @@ export default function KontakterSide() {
                             alleMedlemmer={alleMedlemmer}
                             alleGrupper={alleGrupper}
                             gruppeOppslag={gruppeOppslag}
+                            gruppeMedlemNavn={gruppeMedlemNavn}
                           />
                           <div className="flex items-center px-2">
                             <ArrowRight className="h-5 w-5 text-gray-300" />
@@ -455,6 +512,7 @@ export default function KontakterSide() {
                             alleMedlemmer={alleMedlemmer}
                             alleGrupper={alleGrupper}
                             gruppeOppslag={gruppeOppslag}
+                            gruppeMedlemNavn={gruppeMedlemNavn}
                           />
                           <div className="flex items-center px-2">
                             <ArrowRight className="h-5 w-5 text-gray-300" />
@@ -472,6 +530,7 @@ export default function KontakterSide() {
                             alleMedlemmer={alleMedlemmer}
                             alleGrupper={alleGrupper}
                             gruppeOppslag={gruppeOppslag}
+                            gruppeMedlemNavn={gruppeMedlemNavn}
                           />
                         </div>
 
