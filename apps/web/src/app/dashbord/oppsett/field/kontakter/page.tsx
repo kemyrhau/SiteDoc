@@ -657,44 +657,6 @@ export default function KontakterSide() {
 
                   {/* Ny dokumentflyt */}
                   <NyDokumentflytKnapp entrepriseId={ent.id} prosjektId={prosjektId!} />
-
-                  {/* Kontaktliste */}
-                  {kontakter.length > 0 && (
-                    <div>
-                      <h4 className="mb-2 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-gray-400">
-                        <Users className="h-3.5 w-3.5" />
-                        {t("kontakter.kontakter")} ({kontakter.length})
-                      </h4>
-                      <div className="space-y-1">
-                        {kontakter.map((k) => (
-                          <div
-                            key={k.id}
-                            className="flex items-center gap-3 rounded-md bg-white px-3 py-2 text-sm"
-                          >
-                            <User className="h-4 w-4 text-gray-400 shrink-0" />
-                            <span className="font-medium text-gray-700 min-w-[140px]">
-                              {k.user.name ?? "—"}
-                            </span>
-                            <span className="text-xs text-gray-400">{k.role === "admin" ? "Admin" : ""}</span>
-                            <div className="ml-auto flex items-center gap-4 text-xs text-gray-400">
-                              {k.user.email && (
-                                <span className="flex items-center gap-1">
-                                  <Mail className="h-3 w-3" />
-                                  {k.user.email}
-                                </span>
-                              )}
-                              {k.user.phone && (
-                                <span className="flex items-center gap-1">
-                                  <Phone className="h-3 w-3" />
-                                  {k.user.phone}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
                 </div>
               )}
             </div>
