@@ -26,6 +26,7 @@ import {
   LeggTilMedlemDropdown,
   InviterNyMedlemModal,
 } from "../_components/dokumentflyt-komponenter";
+import { nesteAutoFarge } from "../_components/entreprise-farger";
 import type { DokumentflytMedlemData } from "../_components/dokumentflyt-komponenter";
 
 /* ------------------------------------------------------------------ */
@@ -255,7 +256,7 @@ function DokumentflytKort({
           <ArrowRight className="h-5 w-5 text-gray-300" />
         </div>
         <FlytBoks
-          tittel={t("kontakter.utforerLabel")}
+          tittel={t("kontakter.utforer")}
           ikon={<ClipboardCheck className="h-3 w-3" />}
           farge="purple"
           avrunding=""
@@ -568,6 +569,8 @@ export default function KontakterSide() {
   const { prosjektId } = useProsjekt();
   const { t } = useTranslation();
   const [utvidetEntreprise, setUtvidetEntreprise] = useState<Set<string>>(new Set());
+  const [nyEntrepriseNavn, setNyEntrepriseNavn] = useState("");
+  const [visNyEntreprise, setVisNyEntreprise] = useState(false);
 
   // Hent data
   const { data: entrepriser, isLoading: e1 } = trpc.entreprise.hentForProsjekt.useQuery(
@@ -588,6 +591,22 @@ export default function KontakterSide() {
   );
 
   const erLaster = e1 || e2 || e3 || e4;
+  const utils = trpc.useUtils();
+
+  const opprettEntrepriseMutation = trpc.entreprise.opprett.useMutation({
+    onSuccess: () => {
+      utils.entreprise.hentForProsjekt.invalidate();
+      setNyEntrepriseNavn("");
+      setVisNyEntreprise(false);
+    },
+  });
+
+  const slettEntrepriseMutation = trpc.entreprise.slett.useMutation({
+    onSuccess: () => {
+      utils.entreprise.hentForProsjekt.invalidate();
+      utils.dokumentflyt.hentForProsjekt.invalidate();
+    },
+  });
 
   // Bygg oppslag: entrepriseId → kontakter
   const entrepriseKontakter = useMemo(() => {
@@ -718,7 +737,7 @@ export default function KontakterSide() {
               {/* Hovedrad */}
               <button
                 onClick={() => toggleUtvidet(ent.id)}
-                className="flex w-full items-center px-4 py-3 text-left hover:bg-gray-50 transition-colors"
+                className="group/rad flex w-full items-center px-4 py-3 text-left hover:bg-gray-50 transition-colors"
               >
                 <div className="grid grid-cols-12 gap-2 w-full items-center">
                   <div className="col-span-4 flex items-center gap-2">
@@ -739,8 +758,20 @@ export default function KontakterSide() {
                         ))
                     }
                   </div>
-                  <div className="col-span-3 text-sm text-gray-400">
-                    {kontakter.length > 0 ? `${kontakter.length} ${t("kontakter.personerSuffix")}` : "—"}
+                  <div className="col-span-3 flex items-center justify-between text-sm text-gray-400">
+                    <span>{kontakter.length > 0 ? `${kontakter.length} ${t("kontakter.personerSuffix")}` : "—"}</span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (confirm(t("entrepriser.bekreftSlettEntreprise"))) {
+                          slettEntrepriseMutation.mutate({ id: ent.id, projectId: prosjektId! });
+                        }
+                      }}
+                      className="rounded p-1 text-gray-300 hover:bg-red-100 hover:text-red-600 opacity-0 group-hover/rad:opacity-100 transition-opacity"
+                      title={t("entrepriser.slettEntreprise")}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
                   </div>
                 </div>
               </button>
@@ -782,6 +813,61 @@ export default function KontakterSide() {
           );
         })}
       </div>
+
+      {/* Legg til entreprise */}
+      {visNyEntreprise ? (
+        <div className="mt-3 flex items-center gap-2">
+          <input
+            type="text"
+            value={nyEntrepriseNavn}
+            onChange={(e) => setNyEntrepriseNavn(e.target.value)}
+            placeholder={t("entrepriser.navnPaaNy")}
+            className="rounded border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-400 focus:outline-none"
+            autoFocus
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && nyEntrepriseNavn.trim()) {
+                opprettEntrepriseMutation.mutate({
+                  name: nyEntrepriseNavn.trim(),
+                  projectId: prosjektId!,
+                  color: nesteAutoFarge(alleEntrepriser.map((e) => e.color)),
+                  memberIds: [],
+                });
+              }
+              if (e.key === "Escape") { setVisNyEntreprise(false); setNyEntrepriseNavn(""); }
+            }}
+          />
+          <button
+            onClick={() => {
+              if (nyEntrepriseNavn.trim()) {
+                opprettEntrepriseMutation.mutate({
+                  name: nyEntrepriseNavn.trim(),
+                  projectId: prosjektId!,
+                  color: nesteAutoFarge(alleEntrepriser.map((e) => e.color)),
+                  memberIds: [],
+                });
+              }
+            }}
+            disabled={!nyEntrepriseNavn.trim()}
+            className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700 disabled:opacity-50"
+          >
+            {t("handling.lagre")}
+          </button>
+          <button
+            onClick={() => { setVisNyEntreprise(false); setNyEntrepriseNavn(""); }}
+            className="rounded px-3 py-1.5 text-sm text-gray-500 hover:bg-gray-100"
+          >
+            {t("handling.avbryt")}
+          </button>
+        </div>
+      ) : (
+        <button
+          onClick={() => setVisNyEntreprise(true)}
+          className="mt-3 flex items-center gap-1.5 rounded-md border border-dashed border-gray-300 px-3 py-2 text-xs text-gray-400 hover:border-gray-400 hover:text-gray-600"
+        >
+          <Plus className="h-3.5 w-3.5" />
+          {t("entrepriser.leggTilEntreprise")}
+        </button>
+      )}
     </div>
   );
 }
