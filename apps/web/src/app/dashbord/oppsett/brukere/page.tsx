@@ -1373,6 +1373,8 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
   const utils = trpc.useUtils();
   const [leggTilEntrepriseForMedlem, setLeggTilEntrepriseForMedlem] = useState<string | null>(null);
   const [kollapserteGrupper, setKollapserteGrupper] = useState<Set<string>>(new Set());
+  const [redigerMedlemId, setRedigerMedlemId] = useState<string | null>(null);
+  const [redigerData, setRedigerData] = useState({ name: "", email: "", phone: "", role: "" });
   const [filterNavn, setFilterNavn] = useState("");
   const [filterRolle, setFilterRolle] = useState("");
   const [filterEntreprise, setFilterEntreprise] = useState("");
@@ -1438,6 +1440,34 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
       utils.medlem.hentForProsjekt.invalidate({ projectId: prosjektId });
     },
   });
+
+  const oppdaterMedlemMutation = trpc.medlem.oppdater.useMutation({
+    onSuccess: () => {
+      utils.medlem.hentForProsjekt.invalidate({ projectId: prosjektId });
+      setRedigerMedlemId(null);
+    },
+  });
+
+  const startRediger = (m: KontaktMedlem) => {
+    setRedigerMedlemId(m.id);
+    setRedigerData({
+      name: m.user.name ?? "",
+      email: m.user.email,
+      phone: m.user.phone ?? "",
+      role: m.role,
+    });
+  };
+
+  const lagreRediger = (medlemId: string) => {
+    oppdaterMedlemMutation.mutate({
+      id: medlemId,
+      projectId: prosjektId,
+      name: redigerData.name.trim() || undefined,
+      email: redigerData.email.trim() || undefined,
+      phone: redigerData.phone.trim() || undefined,
+      role: (redigerData.role as "member" | "admin") || undefined,
+    });
+  };
 
   // Bygg gruppe-map: userId → gruppenavn[]
   const gruppeMap: Record<string, string[]> = {};
@@ -1799,34 +1829,79 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
                 ? gruppeMedlemIdMap[radGruppeId]?.[m.user.id]
                 : undefined;
 
+              const erRedigering = redigerMedlemId === m.id;
+
               return (
                 <tr key={`${m.id}-${rad.gruppeNavn}`} className="group/mrow hover:bg-gray-50">
-                  {/* Navn med remove-from-group */}
+                  {/* Navn */}
                   <td className="whitespace-nowrap px-4 py-2.5 font-medium text-gray-900">
                     <div className="flex items-center gap-1.5">
-                      {m.user.name ?? "—"}
-                      {radGruppeId && gruppeMedlemId && (
-                        <button
-                          onClick={() => {
-                            fjernMedlemMutation.mutate({ id: gruppeMedlemId, projectId: prosjektId });
+                      {erRedigering ? (
+                        <input
+                          value={redigerData.name}
+                          onChange={(e) => setRedigerData((p) => ({ ...p, name: e.target.value }))}
+                          className="w-full rounded border border-blue-300 px-1.5 py-0.5 text-sm font-medium focus:outline-none focus:ring-1 focus:ring-blue-400"
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") lagreRediger(m.id);
+                            if (e.key === "Escape") setRedigerMedlemId(null);
                           }}
-                          className="rounded p-0.5 text-gray-300 opacity-0 group-hover/mrow:opacity-100 hover:bg-red-50 hover:text-red-500 transition-opacity"
-                          title={t("brukere.fjernMedlem")}
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
+                          autoFocus
+                        />
+                      ) : (
+                        <>
+                          <span
+                            className="cursor-pointer hover:text-blue-600"
+                            onClick={() => startRediger(m)}
+                            title={t("handling.rediger")}
+                          >
+                            {m.user.name ?? "—"}
+                          </span>
+                          {radGruppeId && gruppeMedlemId && (
+                            <button
+                              onClick={() => fjernMedlemMutation.mutate({ id: gruppeMedlemId, projectId: prosjektId })}
+                              className="rounded p-0.5 text-gray-300 opacity-0 group-hover/mrow:opacity-100 hover:bg-red-50 hover:text-red-500 transition-opacity"
+                              title={t("brukere.fjernMedlem")}
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          )}
+                        </>
                       )}
                     </div>
                   </td>
 
                   {/* E-post */}
                   <td className="whitespace-nowrap px-4 py-2.5 text-gray-600">
-                    {m.user.email}
+                    {erRedigering ? (
+                      <input
+                        value={redigerData.email}
+                        onChange={(e) => setRedigerData((p) => ({ ...p, email: e.target.value }))}
+                        className="w-full rounded border border-blue-300 px-1.5 py-0.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") lagreRediger(m.id);
+                          if (e.key === "Escape") setRedigerMedlemId(null);
+                        }}
+                      />
+                    ) : (
+                      m.user.email
+                    )}
                   </td>
 
                   {/* Telefon */}
                   <td className="whitespace-nowrap px-4 py-2.5 text-gray-600">
-                    {m.user.phone ?? "—"}
+                    {erRedigering ? (
+                      <input
+                        value={redigerData.phone}
+                        onChange={(e) => setRedigerData((p) => ({ ...p, phone: e.target.value }))}
+                        className="w-full rounded border border-blue-300 px-1.5 py-0.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") lagreRediger(m.id);
+                          if (e.key === "Escape") setRedigerMedlemId(null);
+                        }}
+                      />
+                    ) : (
+                      m.user.phone ?? "—"
+                    )}
                   </td>
 
                   {/* Firma */}
@@ -1836,13 +1911,24 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
 
                   {/* Rolle */}
                   <td className="whitespace-nowrap px-4 py-2.5">
-                    <span className={`inline-flex rounded px-1.5 py-0.5 text-xs font-medium ${
-                      m.role === "admin"
-                        ? "bg-blue-50 text-blue-700"
-                        : "bg-gray-100 text-gray-600"
-                    }`}>
-                      {m.role === "admin" ? "Admin" : t("kontakter.medlem")}
-                    </span>
+                    {erRedigering ? (
+                      <select
+                        value={redigerData.role}
+                        onChange={(e) => setRedigerData((p) => ({ ...p, role: e.target.value }))}
+                        className="rounded border border-blue-300 px-1.5 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
+                      >
+                        <option value="member">{t("kontakter.medlem")}</option>
+                        <option value="admin">Admin</option>
+                      </select>
+                    ) : (
+                      <span className={`inline-flex rounded px-1.5 py-0.5 text-xs font-medium ${
+                        m.role === "admin"
+                          ? "bg-blue-50 text-blue-700"
+                          : "bg-gray-100 text-gray-600"
+                      }`}>
+                        {m.role === "admin" ? "Admin" : t("kontakter.medlem")}
+                      </span>
+                    )}
                   </td>
 
                   {/* Entrepriser (kompakt) */}
@@ -1885,12 +1971,29 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
                     />
                   </td>
 
-                  {/* Grupper (kompakt) */}
+                  {/* Grupper (kompakt) / lagre-avbryt */}
                   <td className="px-4 py-2.5">
-                    <KompaktBadgeListe
-                      verdier={brukerGrupper}
-                      bgKlasse="bg-blue-50 text-blue-700"
-                    />
+                    {erRedigering ? (
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => lagreRediger(m.id)}
+                          className="rounded bg-blue-600 px-2 py-0.5 text-xs text-white hover:bg-blue-700"
+                        >
+                          {t("handling.lagre")}
+                        </button>
+                        <button
+                          onClick={() => setRedigerMedlemId(null)}
+                          className="rounded px-2 py-0.5 text-xs text-gray-500 hover:bg-gray-100"
+                        >
+                          {t("handling.avbryt")}
+                        </button>
+                      </div>
+                    ) : (
+                      <KompaktBadgeListe
+                        verdier={brukerGrupper}
+                        bgKlasse="bg-blue-50 text-blue-700"
+                      />
+                    )}
                   </td>
                 </tr>
               );
