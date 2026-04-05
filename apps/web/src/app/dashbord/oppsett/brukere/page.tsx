@@ -1467,8 +1467,6 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
         !brukteMedlemIder.has(m.id) &&
         g.members.some((gm) => gm.projectMember?.user?.id === m.user.id),
       );
-      if (gruppeKontakter.length === 0) continue;
-
       rader.push({ type: "header", gruppeNavn: g.name, antall: gruppeKontakter.length });
       for (const m of gruppeKontakter) {
         rader.push({ type: "medlem", medlem: m, gruppeNavn: g.name });

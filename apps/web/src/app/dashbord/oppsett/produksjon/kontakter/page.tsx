@@ -72,20 +72,6 @@ interface Dokumentflyt {
   maler: Array<{ template: { id: string; name: string; category: string } }>;
 }
 
-interface BrukergruppeData {
-  id: string;
-  name: string;
-  category: string;
-  members: Array<{
-    id: string;
-    isAdmin: boolean;
-    projectMember: {
-      id: string;
-      user: { id: string; name: string | null; email: string };
-    } | null;
-  }>;
-}
-
 /* ------------------------------------------------------------------ */
 /*  Fargeprikk                                                         */
 /* ------------------------------------------------------------------ */
@@ -579,121 +565,12 @@ function FlytBoks({
 /*  Hovedkomponent                                                     */
 /* ------------------------------------------------------------------ */
 
-/* ------------------------------------------------------------------ */
-/*  Legg til medlem i gruppe — inline skjema                           */
-/* ------------------------------------------------------------------ */
-
-function LeggTilGruppeMedlemSkjema({
-  gruppeId, prosjektId, eksisterendeMedlemIder, alleMedlemmer, onLeggTil, onAvbryt,
-}: {
-  gruppeId: string;
-  prosjektId: string;
-  eksisterendeMedlemIder: Set<string>;
-  alleMedlemmer: ProsjektMedlem[];
-  onLeggTil: (data: { groupId: string; projectId: string; email: string; firstName: string; lastName: string; phone?: string }) => void;
-  onAvbryt: () => void;
-}) {
-  const { t } = useTranslation();
-  const [valgtMedlem, setValgtMedlem] = useState("");
-  const [nyFornavn, setNyFornavn] = useState("");
-  const [nyEtternavn, setNyEtternavn] = useState("");
-  const [nyEmail, setNyEmail] = useState("");
-  const [modus, setModus] = useState<"velg" | "ny">("velg");
-
-  const tilgjengelige = alleMedlemmer.filter((m) => !eksisterendeMedlemIder.has(m.user.email));
-
-  return (
-    <div className="mt-1 rounded border border-gray-200 bg-white p-3 space-y-2">
-      <div className="flex gap-2 text-xs">
-        <button
-          onClick={() => setModus("velg")}
-          className={`px-2 py-1 rounded ${modus === "velg" ? "bg-blue-100 text-blue-700" : "text-gray-500 hover:bg-gray-100"}`}
-        >
-          {t("kontakter.velgEksisterende")}
-        </button>
-        <button
-          onClick={() => setModus("ny")}
-          className={`px-2 py-1 rounded ${modus === "ny" ? "bg-blue-100 text-blue-700" : "text-gray-500 hover:bg-gray-100"}`}
-        >
-          {t("kontakter.opprettNy")}
-        </button>
-      </div>
-
-      {modus === "velg" ? (
-        <div className="flex items-center gap-2">
-          <select
-            value={valgtMedlem}
-            onChange={(e) => setValgtMedlem(e.target.value)}
-            className="flex-1 rounded border border-gray-300 px-2 py-1.5 text-sm"
-          >
-            <option value="">{t("kontakter.velgPerson")}</option>
-            {tilgjengelige.map((m) => (
-              <option key={m.id} value={m.user.email}>
-                {m.user.name} ({m.user.email})
-              </option>
-            ))}
-          </select>
-          <button
-            onClick={() => {
-              const m = alleMedlemmer.find((m) => m.user.email === valgtMedlem);
-              if (m) {
-                const deler = (m.user.name ?? "").split(" ");
-                onLeggTil({
-                  groupId: gruppeId, projectId: prosjektId,
-                  email: m.user.email,
-                  firstName: deler[0] ?? "",
-                  lastName: deler.slice(1).join(" ") || (deler[0] ?? ""),
-                });
-              }
-            }}
-            disabled={!valgtMedlem}
-            className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700 disabled:opacity-50"
-          >
-            {t("handling.leggTil")}
-          </button>
-          <button onClick={onAvbryt} className="text-xs text-gray-400 hover:text-gray-600">
-            {t("handling.avbryt")}
-          </button>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          <div className="flex gap-2">
-            <input value={nyFornavn} onChange={(e) => setNyFornavn(e.target.value)} placeholder={t("label.fornavn")} className="flex-1 rounded border border-gray-300 px-2 py-1.5 text-sm" />
-            <input value={nyEtternavn} onChange={(e) => setNyEtternavn(e.target.value)} placeholder={t("label.etternavn")} className="flex-1 rounded border border-gray-300 px-2 py-1.5 text-sm" />
-          </div>
-          <div className="flex items-center gap-2">
-            <input value={nyEmail} onChange={(e) => setNyEmail(e.target.value)} placeholder={t("brukere.epostPlaceholder")} className="flex-1 rounded border border-gray-300 px-2 py-1.5 text-sm" />
-            <button
-              onClick={() => {
-                if (nyFornavn.trim() && nyEtternavn.trim() && nyEmail.trim()) {
-                  onLeggTil({ groupId: gruppeId, projectId: prosjektId, email: nyEmail.trim(), firstName: nyFornavn.trim(), lastName: nyEtternavn.trim() });
-                }
-              }}
-              disabled={!nyFornavn.trim() || !nyEtternavn.trim() || !nyEmail.trim()}
-              className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700 disabled:opacity-50"
-            >
-              {t("kontakter.opprettOgLeggTil")}
-            </button>
-            <button onClick={onAvbryt} className="text-xs text-gray-400 hover:text-gray-600">
-              {t("handling.avbryt")}
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
 export default function KontakterSide() {
   const { prosjektId } = useProsjekt();
   const { t } = useTranslation();
   const [utvidetEntreprise, setUtvidetEntreprise] = useState<Set<string>>(new Set());
   const [nyEntrepriseNavn, setNyEntrepriseNavn] = useState("");
   const [visNyEntreprise, setVisNyEntreprise] = useState(false);
-  const [nyGruppeNavn, setNyGruppeNavn] = useState("");
-  const [visNyGruppe, setVisNyGruppe] = useState(false);
-  const [utvidetGruppe, setUtvidetGruppe] = useState<Set<string>>(new Set());
-  const [leggTilMedlemGruppeId, setLeggTilMedlemGruppeId] = useState<string | null>(null);
 
   // Hent data
   const { data: entrepriser, isLoading: e1 } = trpc.entreprise.hentForProsjekt.useQuery(
@@ -731,32 +608,6 @@ export default function KontakterSide() {
     },
   });
 
-  const opprettGruppeMutation = trpc.gruppe.opprett.useMutation({
-    onSuccess: () => {
-      utils.gruppe.hentForProsjekt.invalidate();
-      setNyGruppeNavn("");
-      setVisNyGruppe(false);
-    },
-  });
-
-  const slettGruppeMutation = trpc.gruppe.slett.useMutation({
-    onSuccess: () => utils.gruppe.hentForProsjekt.invalidate(),
-  });
-
-  const leggTilGruppeMedlemMutation = trpc.gruppe.leggTilMedlem.useMutation({
-    onSuccess: () => {
-      utils.gruppe.hentForProsjekt.invalidate();
-      utils.medlem.hentForProsjekt.invalidate();
-      setLeggTilMedlemGruppeId(null);
-    },
-  });
-
-  const fjernGruppeMedlemMutation = trpc.gruppe.fjernMedlem.useMutation({
-    onSuccess: () => {
-      utils.gruppe.hentForProsjekt.invalidate();
-      utils.medlem.hentForProsjekt.invalidate();
-    },
-  });
 
   // Bygg oppslag: entrepriseId → kontakter
   const entrepriseKontakter = useMemo(() => {
@@ -858,11 +709,6 @@ export default function KontakterSide() {
 
   const alleEntrepriser = (entrepriser ?? []) as Entreprise[];
   const alleMedlemmer = (medlemmer ?? []) as ProsjektMedlem[];
-  const alleBrukergrupper = useMemo(() => {
-    if (!grupper) return [];
-    return (grupper as BrukergruppeData[]).filter((g) => g.category === "brukergrupper");
-  }, [grupper]);
-
   return (
     <div>
       <div className="mb-4">
@@ -968,96 +814,6 @@ export default function KontakterSide() {
         })}
       </div>
 
-      {/* ---- BRUKERGRUPPER ---- */}
-      <div className="mt-8 mb-4">
-        <h2 className="text-lg font-semibold text-gray-900">{t("brukere.brukergrupper")}</h2>
-        <p className="text-sm text-gray-500">{t("brukere.brukergruppeBeskrivelse")}</p>
-      </div>
-
-      <div className="divide-y divide-gray-200 rounded-lg border border-gray-200">
-        {alleBrukergrupper.map((g) => {
-          const erUtvidet = utvidetGruppe.has(g.id);
-          return (
-            <div key={g.id}>
-              <button
-                onClick={() => {
-                  setUtvidetGruppe((prev) => {
-                    const ny = new Set(prev);
-                    ny.has(g.id) ? ny.delete(g.id) : ny.add(g.id);
-                    return ny;
-                  });
-                }}
-                className="group/grad flex w-full items-center justify-between px-4 py-3 text-left hover:bg-gray-50 transition-colors"
-              >
-                <div className="flex items-center gap-2">
-                  {erUtvidet
-                    ? <ChevronDown className="h-4 w-4 text-gray-400 shrink-0" />
-                    : <ChevronRight className="h-4 w-4 text-gray-400 shrink-0" />
-                  }
-                  <Users className="h-4 w-4 text-blue-500 shrink-0" />
-                  <span className="font-medium text-gray-900">{g.name}</span>
-                  <span className="text-xs text-gray-400">({g.members.length})</span>
-                </div>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (confirm(t("brukere.bekreftSletting"))) {
-                      slettGruppeMutation.mutate({ id: g.id, projectId: prosjektId! });
-                    }
-                  }}
-                  className="rounded p-1 text-gray-300 hover:bg-red-100 hover:text-red-600 opacity-0 group-hover/grad:opacity-100 transition-opacity"
-                  title={t("handling.slett")}
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
-              </button>
-
-              {erUtvidet && (
-                <div className="border-t border-gray-100 bg-gray-50/50 px-6 py-3 space-y-1">
-                  {g.members.length === 0 && (
-                    <p className="text-xs text-gray-400 italic">{t("brukere.tomGruppe")}</p>
-                  )}
-                  {g.members.map((m) => (
-                    <div key={m.id} className="group/gmedlem flex items-center gap-2 text-sm text-gray-700 py-0.5">
-                      <User className="h-3.5 w-3.5 text-gray-400 shrink-0" />
-                      <span>{m.projectMember?.user?.name ?? "—"}</span>
-                      <span className="text-xs text-gray-400">{m.projectMember?.user?.email}</span>
-                      <button
-                        onClick={() => fjernGruppeMedlemMutation.mutate({ id: m.id, projectId: prosjektId! })}
-                        className="ml-auto rounded p-0.5 text-gray-300 hover:bg-red-100 hover:text-red-600 opacity-0 group-hover/gmedlem:opacity-100"
-                        title={t("handling.fjern")}
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </div>
-                  ))}
-
-                  {/* Legg til medlem */}
-                  {leggTilMedlemGruppeId === g.id ? (
-                    <LeggTilGruppeMedlemSkjema
-                      gruppeId={g.id}
-                      prosjektId={prosjektId!}
-                      eksisterendeMedlemIder={new Set(g.members.map((m) => m.projectMember?.user?.email).filter(Boolean) as string[])}
-                      alleMedlemmer={alleMedlemmer}
-                      onLeggTil={(data) => leggTilGruppeMedlemMutation.mutate(data)}
-                      onAvbryt={() => setLeggTilMedlemGruppeId(null)}
-                    />
-                  ) : (
-                    <button
-                      onClick={() => setLeggTilMedlemGruppeId(g.id)}
-                      className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 mt-1"
-                    >
-                      <Plus className="h-3 w-3" />
-                      {t("kontakter.leggTilMedlem")}
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
       {/* Legg til entreprise */}
       {visNyEntreprise ? (
         <div className="mt-3 flex items-center gap-2">
@@ -1113,58 +869,6 @@ export default function KontakterSide() {
         </button>
       )}
 
-      {/* Legg til gruppe */}
-      {visNyGruppe ? (
-        <div className="mt-2 flex items-center gap-2">
-          <input
-            type="text"
-            value={nyGruppeNavn}
-            onChange={(e) => setNyGruppeNavn(e.target.value)}
-            placeholder={t("brukere.gruppenavn")}
-            className="rounded border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-400 focus:outline-none"
-            autoFocus
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && nyGruppeNavn.trim()) {
-                opprettGruppeMutation.mutate({
-                  name: nyGruppeNavn.trim(),
-                  projectId: prosjektId!,
-                  category: "brukergrupper",
-                });
-              }
-              if (e.key === "Escape") { setVisNyGruppe(false); setNyGruppeNavn(""); }
-            }}
-          />
-          <button
-            onClick={() => {
-              if (nyGruppeNavn.trim()) {
-                opprettGruppeMutation.mutate({
-                  name: nyGruppeNavn.trim(),
-                  projectId: prosjektId!,
-                  category: "brukergrupper",
-                });
-              }
-            }}
-            disabled={!nyGruppeNavn.trim()}
-            className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700 disabled:opacity-50"
-          >
-            {t("handling.lagre")}
-          </button>
-          <button
-            onClick={() => { setVisNyGruppe(false); setNyGruppeNavn(""); }}
-            className="rounded px-3 py-1.5 text-sm text-gray-500 hover:bg-gray-100"
-          >
-            {t("handling.avbryt")}
-          </button>
-        </div>
-      ) : (
-        <button
-          onClick={() => setVisNyGruppe(true)}
-          className="mt-2 flex items-center gap-1.5 rounded-md border border-dashed border-gray-300 px-3 py-2 text-xs text-gray-400 hover:border-gray-400 hover:text-gray-600"
-        >
-          <Plus className="h-3.5 w-3.5" />
-          {t("brukere.leggTilGruppe")}
-        </button>
-      )}
     </div>
   );
 }
