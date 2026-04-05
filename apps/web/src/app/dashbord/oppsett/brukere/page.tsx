@@ -1377,6 +1377,9 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
   const [filterRolle, setFilterRolle] = useState("");
   const [filterEntreprise, setFilterEntreprise] = useState("");
   const [filterGruppe, setFilterGruppe] = useState("");
+  const [redigerGruppeNavn, setRedigerGruppeNavn] = useState<string | null>(null);
+  const [nyGruppeNavnVerdi, setNyGruppeNavnVerdi] = useState("");
+  const [leggTilMedlemIGruppe, setLeggTilMedlemIGruppe] = useState<string | null>(null);
 
   const { data: medlemmer } = trpc.medlem.hentForProsjekt.useQuery(
     { projectId: prosjektId },
@@ -1406,6 +1409,36 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
     },
   });
 
+  const oppdaterGruppeMutation = trpc.gruppe.oppdater.useMutation({
+    onSuccess: () => {
+      utils.gruppe.hentForProsjekt.invalidate({ projectId: prosjektId });
+      setRedigerGruppeNavn(null);
+      setNyGruppeNavnVerdi("");
+    },
+  });
+
+  const slettGruppeMutation = trpc.gruppe.slett.useMutation({
+    onSuccess: () => {
+      utils.gruppe.hentForProsjekt.invalidate({ projectId: prosjektId });
+      utils.medlem.hentForProsjekt.invalidate({ projectId: prosjektId });
+    },
+  });
+
+  const leggTilMedlemMutation = trpc.gruppe.leggTilMedlem.useMutation({
+    onSuccess: () => {
+      utils.gruppe.hentForProsjekt.invalidate({ projectId: prosjektId });
+      utils.medlem.hentForProsjekt.invalidate({ projectId: prosjektId });
+      setLeggTilMedlemIGruppe(null);
+    },
+  });
+
+  const fjernMedlemMutation = trpc.gruppe.fjernMedlem.useMutation({
+    onSuccess: () => {
+      utils.gruppe.hentForProsjekt.invalidate({ projectId: prosjektId });
+      utils.medlem.hentForProsjekt.invalidate({ projectId: prosjektId });
+    },
+  });
+
   // Bygg gruppe-map: userId → gruppenavn[]
   const gruppeMap: Record<string, string[]> = {};
   if (dbGrupper) {
@@ -1417,6 +1450,45 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
       }
     }
   }
+
+  // Bygg gruppeNavn → gruppeId map og gruppeId → userId → gruppeMedlemId map
+  const gruppeNavnTilId = useMemo((): Record<string, string> => {
+    const map: Record<string, string> = {};
+    if (dbGrupper) {
+      for (const g of dbGrupper as Array<{ id: string; name: string }>) {
+        map[g.name] = g.id;
+      }
+    }
+    return map;
+  }, [dbGrupper]);
+
+  const gruppeMedlemIdMap = useMemo((): Record<string, Record<string, string>> => {
+    // gruppeId → userId → gruppeMedlemId
+    const map: Record<string, Record<string, string>> = {};
+    if (dbGrupper) {
+      for (const g of dbGrupper as Array<{ id: string; members: Array<{ id: string; projectMember: { user: { id: string } } | null }> }>) {
+        const innerMap: Record<string, string> = {};
+        for (const m of g.members) {
+          if (m.projectMember?.user?.id) {
+            innerMap[m.projectMember.user.id] = m.id;
+          }
+        }
+        map[g.id] = innerMap;
+      }
+    }
+    return map;
+  }, [dbGrupper]);
+
+  // Bygg map fra userId → brukerinfo for leggTilMedlem
+  const medlemTilPmId = useMemo((): Record<string, { id: string; email: string; name: string | null; phone: string | null }> => {
+    const map: Record<string, { id: string; email: string; name: string | null; phone: string | null }> = {};
+    if (medlemmer) {
+      for (const m of medlemmer as KontaktMedlem[]) {
+        map[m.user.id] = { id: m.id, email: m.user.email, name: m.user.name, phone: m.user.phone };
+      }
+    }
+    return map;
+  }, [medlemmer]);
 
   const kontakterRå = (medlemmer ?? []) as KontaktMedlem[];
 
@@ -1557,28 +1629,158 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
             {gruppertKontakter.map((rad, idx) => {
               if (rad.type === "header") {
                 const erKollapset = kollapserteGrupper.has(rad.gruppeNavn);
+                const gruppeId = gruppeNavnTilId[rad.gruppeNavn];
+                const erUtenGruppe = !gruppeId;
+                const toggleKollaps = () => {
+                  setKollapserteGrupper((prev) => {
+                    const ny = new Set(prev);
+                    ny.has(rad.gruppeNavn) ? ny.delete(rad.gruppeNavn) : ny.add(rad.gruppeNavn);
+                    return ny;
+                  });
+                };
+
+                // Medlemmer som ikke allerede er i denne gruppen (for legg-til-dropdown)
+                const medlemmerIkkeIGruppe = gruppeId
+                  ? kontakterRå.filter((k) => !gruppeMedlemIdMap[gruppeId]?.[k.user.id])
+                  : [];
+
                 return (
                   <tr
                     key={`header-${idx}`}
-                    className="bg-gray-50/80 cursor-pointer hover:bg-gray-100/80"
-                    onClick={() => {
-                      setKollapserteGrupper((prev) => {
-                        const ny = new Set(prev);
-                        ny.has(rad.gruppeNavn) ? ny.delete(rad.gruppeNavn) : ny.add(rad.gruppeNavn);
-                        return ny;
-                      });
-                    }}
+                    className="group/gheader bg-gray-50/80 cursor-pointer hover:bg-gray-100/80"
                   >
                     <td colSpan={7} className="px-4 py-2">
                       <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                        {erKollapset
-                          ? <ChevronRight className="h-3.5 w-3.5" />
-                          : <ChevronDown className="h-3.5 w-3.5" />
-                        }
-                        <Users className="h-3.5 w-3.5" />
-                        {rad.gruppeNavn}
-                        <span className="font-normal text-gray-400">({rad.antall})</span>
+                        <span onClick={toggleKollaps} className="flex items-center gap-2">
+                          {erKollapset
+                            ? <ChevronRight className="h-3.5 w-3.5" />
+                            : <ChevronDown className="h-3.5 w-3.5" />
+                          }
+                          <Users className="h-3.5 w-3.5" />
+                        </span>
+
+                        {/* Inline rename or group name */}
+                        {redigerGruppeNavn === rad.gruppeNavn && gruppeId ? (
+                          <input
+                            type="text"
+                            value={nyGruppeNavnVerdi}
+                            onChange={(e) => setNyGruppeNavnVerdi(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" && nyGruppeNavnVerdi.trim()) {
+                                oppdaterGruppeMutation.mutate({
+                                  id: gruppeId,
+                                  name: nyGruppeNavnVerdi.trim(),
+                                  projectId: prosjektId,
+                                });
+                              } else if (e.key === "Escape") {
+                                setRedigerGruppeNavn(null);
+                                setNyGruppeNavnVerdi("");
+                              }
+                            }}
+                            onBlur={() => {
+                              if (nyGruppeNavnVerdi.trim() && nyGruppeNavnVerdi.trim() !== rad.gruppeNavn) {
+                                oppdaterGruppeMutation.mutate({
+                                  id: gruppeId,
+                                  name: nyGruppeNavnVerdi.trim(),
+                                  projectId: prosjektId,
+                                });
+                              } else {
+                                setRedigerGruppeNavn(null);
+                                setNyGruppeNavnVerdi("");
+                              }
+                            }}
+                            autoFocus
+                            className="rounded border border-blue-300 bg-white px-2 py-0.5 text-xs font-semibold uppercase text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        ) : (
+                          <span onClick={toggleKollaps}>{rad.gruppeNavn}</span>
+                        )}
+
+                        <span className="font-normal text-gray-400" onClick={toggleKollaps}>({rad.antall})</span>
+
+                        {/* Action buttons - visible on hover, only for real groups */}
+                        {!erUtenGruppe && (
+                          <div className="ml-auto flex items-center gap-1 opacity-0 group-hover/gheader:opacity-100 transition-opacity">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setRedigerGruppeNavn(rad.gruppeNavn);
+                                setNyGruppeNavnVerdi(rad.gruppeNavn);
+                              }}
+                              className="rounded p-1 text-gray-400 hover:bg-gray-200 hover:text-gray-600"
+                              title={t("handling.rediger")}
+                            >
+                              <Pencil className="h-3 w-3" />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setLeggTilMedlemIGruppe((prev) => prev === gruppeId ? null : gruppeId!);
+                              }}
+                              className="rounded p-1 text-gray-400 hover:bg-gray-200 hover:text-gray-600"
+                              title={t("brukere.leggTilMedlem")}
+                            >
+                              <Plus className="h-3 w-3" />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (confirm(t("brukere.slettGruppeBekreftelse"))) {
+                                  slettGruppeMutation.mutate({ id: gruppeId!, projectId: prosjektId });
+                                }
+                              }}
+                              className="rounded p-1 text-gray-400 hover:bg-red-100 hover:text-red-600"
+                              title={t("brukere.slettGruppe")}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </button>
+                          </div>
+                        )}
                       </div>
+
+                      {/* Add member dropdown */}
+                      {leggTilMedlemIGruppe === gruppeId && gruppeId && (
+                        <div className="mt-2 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                          <select
+                            className="rounded border border-gray-300 bg-white px-2 py-1 text-xs"
+                            onChange={(e) => {
+                              if (e.target.value) {
+                                const info = medlemTilPmId[e.target.value];
+                                if (info) {
+                                  const nameParts = (info.name ?? "").split(" ");
+                                  const firstName = nameParts[0] || info.email;
+                                  const lastName = nameParts.slice(1).join(" ") || "-";
+                                  leggTilMedlemMutation.mutate({
+                                    groupId: gruppeId,
+                                    projectId: prosjektId,
+                                    email: info.email,
+                                    firstName,
+                                    lastName,
+                                    phone: info.phone ?? undefined,
+                                  });
+                                }
+                              }
+                            }}
+                            onBlur={() => setLeggTilMedlemIGruppe(null)}
+                            autoFocus
+                            defaultValue=""
+                          >
+                            <option value="" disabled>{t("brukere.velgMedlem")}</option>
+                            {medlemmerIkkeIGruppe.map((k) => (
+                              <option key={k.user.id} value={k.user.id}>
+                                {k.user.name ?? k.user.email}
+                              </option>
+                            ))}
+                          </select>
+                          <button
+                            onClick={() => setLeggTilMedlemIGruppe(null)}
+                            className="rounded p-0.5 text-gray-400 hover:text-gray-600"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 );
@@ -1592,12 +1794,29 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
               const tilgjengeligeEntrepriser = (alleEntrepriser ?? []).filter(
                 (e: { id: string }) => !entrepriseIder.has(e.id),
               );
+              const radGruppeId = gruppeNavnTilId[rad.gruppeNavn];
+              const gruppeMedlemId = radGruppeId
+                ? gruppeMedlemIdMap[radGruppeId]?.[m.user.id]
+                : undefined;
 
               return (
-                <tr key={m.id} className="hover:bg-gray-50">
-                  {/* Navn */}
+                <tr key={`${m.id}-${rad.gruppeNavn}`} className="group/mrow hover:bg-gray-50">
+                  {/* Navn med remove-from-group */}
                   <td className="whitespace-nowrap px-4 py-2.5 font-medium text-gray-900">
-                    {m.user.name ?? "—"}
+                    <div className="flex items-center gap-1.5">
+                      {m.user.name ?? "—"}
+                      {radGruppeId && gruppeMedlemId && (
+                        <button
+                          onClick={() => {
+                            fjernMedlemMutation.mutate({ id: gruppeMedlemId, projectId: prosjektId });
+                          }}
+                          className="rounded p-0.5 text-gray-300 opacity-0 group-hover/mrow:opacity-100 hover:bg-red-50 hover:text-red-500 transition-opacity"
+                          title={t("brukere.fjernMedlem")}
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      )}
+                    </div>
                   </td>
 
                   {/* E-post */}
