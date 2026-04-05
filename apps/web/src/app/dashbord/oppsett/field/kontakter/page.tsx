@@ -123,7 +123,7 @@ function FlytBoks({
   alleMedlemmer: ProsjektMedlem[];
   alleGrupper: Array<{ id: string; name: string }>;
   gruppeOppslag: Map<string, Set<string>>; // gruppeId → Set<projectMemberId>
-  gruppeMedlemNavn: Map<string, string[]>; // gruppeId → navn[]
+  gruppeMedlemNavn: Map<string, Array<{ navn: string; projectMemberId: string; gruppeMedlemId: string }>>; // gruppeId → info[]
 }) {
   const { t } = useTranslation();
   const utils = trpc.useUtils();
@@ -140,6 +140,12 @@ function FlytBoks({
   const fjernMedlemMutation = trpc.dokumentflyt.fjernMedlem.useMutation({
     onSuccess: () => {
       utils.dokumentflyt.hentForProsjekt.invalidate({ projectId: prosjektId });
+    },
+  });
+
+  const fjernGruppeMedlemMutation = trpc.gruppe.fjernMedlem.useMutation({
+    onSuccess: () => {
+      utils.gruppe.hentForProsjekt.invalidate({ projectId: prosjektId });
     },
   });
 
@@ -222,23 +228,23 @@ function FlytBoks({
                   <span className="text-xs text-gray-400">({medlemNavn.length})</span>
                 )}
               </button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  fjernMedlemMutation.mutate({ id: m.id, projectId: prosjektId });
-                }}
-                className="rounded p-0.5 opacity-0 transition-opacity group-hover/medlem:opacity-100 hover:bg-red-100 hover:text-red-600"
-                title={t("handling.fjern")}
-              >
-                <X className="h-3 w-3 text-gray-400" />
-              </button>
             </div>
             {erUtvidet && medlemNavn.length > 0 && (
               <div className="ml-5 mt-0.5 mb-1 space-y-0.5">
-                {medlemNavn.map((navn: string, idx: number) => (
-                  <div key={idx} className="flex items-center gap-1.5 text-xs text-gray-500">
+                {medlemNavn.map((gm) => (
+                  <div key={gm.gruppeMedlemId} className="flex items-center gap-1.5 text-xs text-gray-500">
                     <User className="h-3 w-3 text-gray-300 shrink-0" />
-                    {navn}
+                    {gm.navn}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        fjernGruppeMedlemMutation.mutate({ id: gm.gruppeMedlemId, projectId: prosjektId });
+                      }}
+                      className="ml-0.5 rounded p-0.5 text-gray-300 hover:bg-red-100 hover:text-red-600"
+                      title={t("handling.fjern")}
+                    >
+                      <X className="h-2.5 w-2.5" />
+                    </button>
                   </div>
                 ))}
               </div>
@@ -374,22 +380,25 @@ export default function KontakterSide() {
     return map;
   }, [grupper]);
 
-  // Bygg oppslag: gruppeId → medlemsnavn[]
+  // Bygg oppslag: gruppeId → {navn, projectMemberId, gruppeMedlemId}[]
   const gruppeMedlemNavn = useMemo(() => {
-    const map = new Map<string, string[]>();
+    const map = new Map<string, Array<{ navn: string; projectMemberId: string; gruppeMedlemId: string }>>();
     if (!grupper) return map;
     const alle = grupper as Array<{
       id: string;
       members: Array<{
-        projectMember: { user: { name: string | null } } | null;
+        id: string;
+        projectMember: { id: string; user: { name: string | null } } | null;
       }>;
     }>;
     for (const g of alle) {
-      const navn: string[] = [];
+      const info: Array<{ navn: string; projectMemberId: string; gruppeMedlemId: string }> = [];
       for (const m of g.members) {
-        if (m.projectMember?.user?.name) navn.push(m.projectMember.user.name);
+        if (m.projectMember?.user?.name) {
+          info.push({ navn: m.projectMember.user.name, projectMemberId: m.projectMember.id, gruppeMedlemId: m.id });
+        }
       }
-      map.set(g.id, navn);
+      map.set(g.id, info);
     }
     return map;
   }, [grupper]);
