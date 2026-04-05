@@ -19,7 +19,7 @@ import { ActivityIndicator } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../../src/providers/AuthProvider";
 import { useProsjekt } from "../../src/kontekst/ProsjektKontekst";
-import { useBygning } from "../../src/kontekst/BygningKontekst";
+import { useByggeplass } from "../../src/kontekst/ByggeplassKontekst";
 import { trpc } from "../../src/lib/trpc";
 import { klargjørForOffline } from "../../src/services/offlineKlargjoring";
 import { byttSpraak } from "../../src/lib/i18n";
@@ -30,7 +30,7 @@ export default function MerSkjerm() {
   const { t, i18n } = useTranslation();
   const { bruker, loggUt } = useAuth();
   const { valgtProsjektId } = useProsjekt();
-  const { valgtBygningId } = useBygning();
+  const { valgtBygningId } = useByggeplass();
   const [offlineTekst, setOfflineTekst] = useState<string | null>(null);
   const [visSpraakModal, setVisSpraakModal] = useState(false);
 
@@ -40,7 +40,7 @@ export default function MerSkjerm() {
   );
 
   const tegningerQuery = trpc.tegning.hentForProsjekt.useQuery(
-    { projectId: valgtProsjektId!, ...(valgtBygningId ? { buildingId: valgtBygningId } : {}) },
+    { projectId: valgtProsjektId!, ...(valgtBygningId ? { byggeplassId: valgtBygningId } : {}) },
     { enabled: !!valgtProsjektId },
   );
 

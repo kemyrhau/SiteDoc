@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { useParams } from "next/navigation";
 import { trpc } from "@/lib/trpc";
 import { useTreDViewer } from "@/kontekst/tred-viewer-kontekst";
-import { useBygning } from "@/kontekst/bygning-kontekst";
+import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
 import {
   beregnTransformasjon,
   tegningTilGps,
@@ -109,7 +109,7 @@ export default function Tegning3DSide() {
   const { t } = useTranslation();
   const { prosjektId } = useParams<{ prosjektId: string }>();
   const { viewerRef, valgtObjekt } = useTreDViewer();
-  const { aktivBygning } = useBygning();
+  const { aktivByggeplass } = useByggeplass();
 
   // Tilgangskontroll — kun felt-admin kan endre georeferanse/kalibrering
   const { data: minTilgang } = (trpc.gruppe.hentMinTilgang as unknown as {
@@ -118,9 +118,9 @@ export default function Tegning3DSide() {
   const harRedigerTilgang = minTilgang?.erAdmin || minTilgang?.tillatelser?.includes("manage_field") || minTilgang?.tillatelser?.includes("drawing_manage");
 
   const tegningQuery = (trpc.tegning.hentForProsjekt as unknown as {
-    useQuery: (input: { projectId: string; buildingId?: string }, opts: { enabled: boolean }) => { data: unknown };
+    useQuery: (input: { projectId: string; byggeplassId?: string }, opts: { enabled: boolean }) => { data: unknown };
   }).useQuery(
-    { projectId: prosjektId!, ...(aktivBygning?.id ? { buildingId: aktivBygning.id } : {}) },
+    { projectId: prosjektId!, ...(aktivByggeplass?.id ? { byggeplassId: aktivByggeplass.id } : {}) },
     { enabled: !!prosjektId },
   );
   const tegninger = (tegningQuery.data ?? []) as TegningData[];
@@ -212,7 +212,7 @@ export default function Tegning3DSide() {
   const [innholdStr, setInnholdStr] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
 
   // Kalibrert gulvhøyde — lagres i localStorage per bygning
-  const gulvNøkkel = aktivBygning?.id ? `gulvY_${aktivBygning.id}` : null;
+  const gulvNøkkel = aktivByggeplass?.id ? `gulvY_${aktivByggeplass.id}` : null;
   const [gulvY, setGulvY] = useState<number | null>(() => {
     if (typeof window === "undefined" || !gulvNøkkel) return null;
     const lagret = localStorage.getItem(gulvNøkkel);

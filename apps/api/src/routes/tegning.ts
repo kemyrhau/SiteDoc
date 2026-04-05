@@ -32,37 +32,37 @@ export const tegningRouter = router({
         projectId: z.string().uuid(),
         discipline: z.string().optional(),
         status: z.string().optional(),
-        buildingId: z.string().uuid().optional(),
+        byggeplassId: z.string().uuid().optional(),
         floor: z.string().optional(),
       }),
     )
     .query(async ({ ctx, input }) => {
       await verifiserProsjektmedlem(ctx.userId, input.projectId);
-      const { projectId, discipline, status, buildingId, floor } = input;
+      const { projectId, discipline, status, byggeplassId, floor } = input;
       return ctx.prisma.drawing.findMany({
         where: {
           projectId,
           ...(discipline ? { discipline } : {}),
           ...(status ? { status } : {}),
-          ...(buildingId ? { buildingId } : {}),
+          ...(byggeplassId ? { byggeplassId } : {}),
           ...(floor ? { floor } : {}),
         },
         include: {
-          building: { select: { id: true, name: true } },
+          byggeplass: { select: { id: true, name: true } },
           _count: { select: { revisions: true } },
         },
         orderBy: [{ discipline: "asc" }, { drawingNumber: "asc" }, { name: "asc" }],
       });
     }),
 
-  // Hent tegninger for en bygning
-  hentForBygning: protectedProcedure
-    .input(z.object({ buildingId: z.string().uuid() }))
+  // Hent tegninger for en byggeplass
+  hentForByggeplass: protectedProcedure
+    .input(z.object({ byggeplassId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
-      const bygning = await ctx.prisma.building.findUniqueOrThrow({ where: { id: input.buildingId }, select: { projectId: true } });
-      await verifiserProsjektmedlem(ctx.userId, bygning.projectId);
+      const byggeplass = await ctx.prisma.byggeplass.findUniqueOrThrow({ where: { id: input.byggeplassId }, select: { projectId: true } });
+      await verifiserProsjektmedlem(ctx.userId, byggeplass.projectId);
       return ctx.prisma.drawing.findMany({
-        where: { buildingId: input.buildingId },
+        where: { byggeplassId: input.byggeplassId },
         include: { _count: { select: { revisions: true } } },
         orderBy: [{ discipline: "asc" }, { drawingNumber: "asc" }],
       });
@@ -75,7 +75,7 @@ export const tegningRouter = router({
       const tegning = await ctx.prisma.drawing.findUniqueOrThrow({
         where: { id: input.id },
         include: {
-          building: true,
+          byggeplass: true,
           project: { select: { id: true, name: true } },
           revisions: {
             orderBy: { createdAt: "desc" },
@@ -93,7 +93,7 @@ export const tegningRouter = router({
     .input(
       z.object({
         projectId: z.string().uuid(),
-        buildingId: z.string().uuid().optional(),
+        byggeplassId: z.string().uuid().optional(),
         name: z.string().min(1).max(255),
         drawingNumber: z.string().max(50).optional(),
         discipline: fagdisipliner.optional(),
@@ -163,7 +163,7 @@ export const tegningRouter = router({
                   await ctx.prisma.drawing.create({
                     data: {
                       projectId: input.projectId,
-                      buildingId: input.buildingId,
+                      byggeplassId: input.byggeplassId,
                       name: layout.navn,
                       fileUrl: layout.visningUrl,
                       fileType: layout.visningFilType,
@@ -276,7 +276,7 @@ export const tegningRouter = router({
         scale: z.string().max(20).optional(),
         description: z.string().optional(),
         originator: z.string().max(255).optional(),
-        buildingId: z.string().uuid().nullable().optional(),
+        byggeplassId: z.string().uuid().nullable().optional(),
         issuedAt: z.date().nullable().optional(),
       }),
     )
@@ -352,12 +352,12 @@ export const tegningRouter = router({
       });
     }),
 
-  // Tilknytt eller fjern tegning fra bygning
-  tilknyttBygning: protectedProcedure
+  // Tilknytt eller fjern tegning fra byggeplass
+  tilknyttByggeplass: protectedProcedure
     .input(
       z.object({
         drawingId: z.string().uuid(),
-        buildingId: z.string().uuid().nullable(),
+        byggeplassId: z.string().uuid().nullable(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -365,7 +365,7 @@ export const tegningRouter = router({
       await verifiserProsjektmedlem(ctx.userId, tegning.projectId);
       return ctx.prisma.drawing.update({
         where: { id: input.drawingId },
-        data: { buildingId: input.buildingId },
+        data: { byggeplassId: input.byggeplassId },
       });
     }),
 
@@ -499,7 +499,7 @@ export const tegningRouter = router({
                 await ctx.prisma.drawing.create({
                   data: {
                     projectId: tegning.projectId,
-                    buildingId: tegning.buildingId,
+                    byggeplassId: tegning.byggeplassId,
                     name: layout.navn,
                     fileUrl: layout.visningUrl,
                     fileType: layout.visningFilType,

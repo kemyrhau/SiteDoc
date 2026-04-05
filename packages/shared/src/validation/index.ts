@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { DOCUMENT_STATUSES, REPORT_OBJECT_TYPES, TEMPLATE_ZONES, GROUP_CATEGORIES, FOLDER_ACCESS_MODES, FOLDER_ACCESS_TYPES, BUILDING_TYPES } from "../types";
+import { DOCUMENT_STATUSES, REPORT_OBJECT_TYPES, TEMPLATE_ZONES, GROUP_CATEGORIES, FOLDER_ACCESS_MODES, FOLDER_ACCESS_TYPES, BYGGEPLASS_TYPER } from "../types";
 
 // Dokumentstatus-validering
 export const documentStatusSchema = z.enum(DOCUMENT_STATUSES);
@@ -8,7 +8,7 @@ export const documentStatusSchema = z.enum(DOCUMENT_STATUSES);
 export const reportObjectTypeSchema = z.enum(REPORT_OBJECT_TYPES);
 
 // Entrepriserolle-validering
-export const enterpriseRoleSchema = z.enum(["creator", "responder"]);
+export const enterpriseRoleSchema = z.enum(["bestiller", "utforer"]);
 
 // Malsone-validering
 export const templateZoneSchema = z.enum(TEMPLATE_ZONES);
@@ -51,8 +51,10 @@ export const copyEnterpriseSchema = z.object({
   memberIds: z.array(z.string().uuid()).default([]),
 });
 
-// Bygningstype-validering
-export const buildingTypeSchema = z.enum(BUILDING_TYPES);
+// Byggeplasstype-validering
+export const byggeplassTypeSchema = z.enum(BYGGEPLASS_TYPER);
+/** @deprecated Bruk byggeplassTypeSchema */
+export const buildingTypeSchema = byggeplassTypeSchema;
 
 // Georeferanse-validering
 const geoReferansePunktSchema = z.object({
@@ -72,14 +74,16 @@ export const geoReferanseSchema = z.object({
   ekstraPunkter: z.array(geoReferansePunktSchema).optional(),
 });
 
-// Bygningsvalidering
-export const createBuildingSchema = z.object({
+// Byggeplassvalidering
+export const createByggeplassSchema = z.object({
   name: z.string().min(1, "Navn er påkrevd").max(255),
   projectId: z.string().uuid(),
   description: z.string().optional(),
   address: z.string().optional(),
-  type: buildingTypeSchema.default("bygg"),
+  type: byggeplassTypeSchema.default("bygg"),
 });
+/** @deprecated Bruk createByggeplassSchema */
+export const createBuildingSchema = createByggeplassSchema;
 
 // Malkategori-validering
 export const templateCategorySchema = z.enum(["oppgave", "sjekkliste"]);
@@ -105,21 +109,21 @@ export const createTemplateSchema = z.object({
   workflowIds: z.array(z.string().uuid()).default([]),
 });
 
-// Arbeidsforløpvalidering
+// Arbeidsforløpvalidering (deprecated — bruk dokumentflyt)
 export const createWorkflowSchema = z.object({
   enterpriseId: z.string().uuid(),
-  responderEnterpriseId: z.string().uuid().nullable().optional(),
-  responderEnterprise2Id: z.string().uuid().nullable().optional(),
-  responderEnterprise3Id: z.string().uuid().nullable().optional(),
+  utforerEnterpriseId: z.string().uuid().nullable().optional(),
+  utforerEnterprise2Id: z.string().uuid().nullable().optional(),
+  utforerEnterprise3Id: z.string().uuid().nullable().optional(),
   name: z.string().min(1).max(255),
   templateIds: z.array(z.string().uuid()).default([]),
 });
 
 export const updateWorkflowSchema = z.object({
   id: z.string().uuid(),
-  responderEnterpriseId: z.string().uuid().nullable().optional(),
-  responderEnterprise2Id: z.string().uuid().nullable().optional(),
-  responderEnterprise3Id: z.string().uuid().nullable().optional(),
+  utforerEnterpriseId: z.string().uuid().nullable().optional(),
+  utforerEnterprise2Id: z.string().uuid().nullable().optional(),
+  utforerEnterprise3Id: z.string().uuid().nullable().optional(),
   name: z.string().min(1).max(255).optional(),
   templateIds: z.array(z.string().uuid()).optional(),
 });
@@ -159,7 +163,7 @@ export const drawingStatusSchema = z.enum(DRAWING_STATUSES);
 
 export const createDrawingSchema = z.object({
   projectId: z.string().uuid(),
-  buildingId: z.string().uuid().optional(),
+  byggeplassId: z.string().uuid().optional(),
   name: z.string().min(1).max(255),
   drawingNumber: z.string().max(50).optional(),
   discipline: drawingDisciplineSchema.optional(),
@@ -206,15 +210,15 @@ export const settMappeTilgangSchema = z.object({
   })).default([]),
 });
 
-// Arbeidsforløp steg-medlemmer
+// Arbeidsforløp steg-medlemmer (deprecated)
 export const addWorkflowStepMemberSchema = z.object({
-  workflowId: z.string().uuid(),
+  dokumentflytId: z.string().uuid(),
   projectMemberId: z.string().uuid(),
   step: z.number().int().min(2).max(3),
 });
 
 export const removeWorkflowStepMemberSchema = z.object({
-  workflowId: z.string().uuid(),
+  dokumentflytId: z.string().uuid(),
   projectMemberId: z.string().uuid(),
   step: z.number().int().min(2).max(3),
 });
@@ -229,7 +233,7 @@ export const createDokumentflytSchema = z.object({
     enterpriseId: z.string().uuid().optional(),
     projectMemberId: z.string().uuid().optional(),
     groupId: z.string().uuid().optional(),
-    rolle: z.enum(["oppretter", "svarer"]),
+    rolle: z.enum(["bestiller", "utforer"]),
     steg: z.number().int().min(1).default(1),
   })).default([]),
 });
@@ -247,7 +251,7 @@ export const addDokumentflytMedlemSchema = z.object({
   enterpriseId: z.string().uuid().optional(),
   projectMemberId: z.string().uuid().optional(),
   groupId: z.string().uuid().optional(),
-  rolle: z.enum(["oppretter", "svarer"]),
+  rolle: z.enum(["bestiller", "utforer"]),
   steg: z.number().int().min(1).default(1),
 });
 

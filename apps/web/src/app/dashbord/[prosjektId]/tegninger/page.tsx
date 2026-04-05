@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { trpc } from "@/lib/trpc";
-import { useBygning } from "@/kontekst/bygning-kontekst";
+import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
 import { useTranslation } from "react-i18next";
 import { Button, Select, Modal, Spinner } from "@sitedoc/ui";
 import {
@@ -12,15 +12,14 @@ import {
 } from "@sitedoc/shared";
 import type { GeoReferanse } from "@sitedoc/shared";
 
-interface ArbeidsflopMal {
+interface DokumentflytMalRad {
   template: { id: string; name: string; category: string };
 }
 
-interface ArbeidsflopRad {
+interface DokumentflytRad {
   id: string;
-  enterpriseId: string;
-  responderEnterprise: { id: string; name: string } | null;
-  templates: ArbeidsflopMal[];
+  enterpriseId: string | null;
+  maler: DokumentflytMalRad[];
 }
 import { Map, FileText, MapPin, Plus, ZoomIn, ZoomOut, ArrowLeft, Crosshair, Loader2, AlertTriangle, Info } from "lucide-react";
 
@@ -101,11 +100,11 @@ export default function TegningerSide() {
   const { t } = useTranslation();
   const {
     aktivTegning,
-    aktivBygning,
+    aktivByggeplass,
     posisjonsvelgerAktiv,
     fullførPosisjonsvelger,
     avbrytPosisjonsvelger,
-  } = useBygning();
+  } = useByggeplass();
   const utils = trpc.useUtils();
   const containerRef = useRef<HTMLDivElement | null>(null);
 
@@ -165,7 +164,7 @@ export default function TegningerSide() {
     { projectId: params.prosjektId },
     { enabled: visOpprettModal },
   );
-  const { data: arbeidsforlop } = trpc.arbeidsforlop.hentForProsjekt.useQuery(
+  const { data: arbeidsforlop } = trpc.dokumentflyt.hentForProsjekt.useQuery(
     { projectId: params.prosjektId },
     { enabled: visOpprettModal },
   );
@@ -435,12 +434,12 @@ export default function TegningerSide() {
   }, [posisjonsvelgerAktiv, aktivTegning, fullførPosisjonsvelger, router, klikkModus]);
 
   // Finn matchende arbeidsforløp for valgt oppretter + mal
-  const alleArbeidsforlop = (arbeidsforlop ?? []) as unknown as ArbeidsflopRad[];
+  const alleArbeidsforlop = (arbeidsforlop ?? []) as unknown as DokumentflytRad[];
   const matchendeArbeidsforlop = alleArbeidsforlop.find((af) =>
     af.enterpriseId === valgtOppretter &&
-    af.templates.some((wt) => wt.template.id === valgtMal),
+    af.maler.some((wt) => wt.template.id === valgtMal),
   );
-  const utledetSvarer = matchendeArbeidsforlop?.responderEnterprise?.id ?? valgtOppretter;
+  const utledetSvarer = valgtOppretter;
 
   function handleOpprett(e: React.FormEvent) {
     e.preventDefault();
@@ -449,22 +448,20 @@ export default function TegningerSide() {
     if (opprettType === "oppgave") {
       opprettOppgaveMutation.mutate({
         templateId: valgtMal,
-        creatorEnterpriseId: valgtOppretter,
-        responderEnterpriseId: utledetSvarer,
+        bestillerEnterpriseId: valgtOppretter,
+        utforerEnterpriseId: utledetSvarer,
         title: "Ny oppgave",
         drawingId: aktivTegning?.id,
         positionX: nyMarkør?.x,
         positionY: nyMarkør?.y,
-        workflowId: matchendeArbeidsforlop?.id,
       });
     } else {
       opprettSjekklisteMutation.mutate({
         templateId: valgtMal,
-        creatorEnterpriseId: valgtOppretter,
-        responderEnterpriseId: utledetSvarer,
-        buildingId: aktivBygning?.id,
+        bestillerEnterpriseId: valgtOppretter,
+        utforerEnterpriseId: utledetSvarer,
+        byggeplassId: aktivByggeplass?.id,
         drawingId: aktivTegning?.id,
-        workflowId: matchendeArbeidsforlop?.id,
       });
     }
   }
@@ -498,7 +495,7 @@ export default function TegningerSide() {
 
   // Filtrerte maler basert på tilgang:
   // 1. Admin / manage_field → alle maler
-  // 2. Enterprise-arbeidsforløp → maler knyttet via workflow + HMS (alle kan opprette HMS)
+  // 2. Enterprise-arbeidsforløp → maler knyttet via dokumentflyt + HMS (alle kan opprette HMS)
   // 3. Domene-grupper (HMS, Bygg) → maler med matchende domain
   const filtrerMaler = (() => {
     if (!valgtOppretter) return [];
@@ -512,10 +509,10 @@ export default function TegningerSide() {
 
     const synligeMalIder = new Set<string>();
 
-    // Entreprise-arbeidsforløp: maler knyttet til valgt oppretter via workflow
+    // Entreprise-arbeidsforløp: maler knyttet til valgt oppretter via dokumentflyt
     for (const af of alleArbeidsforlop) {
       if (af.enterpriseId !== valgtOppretter) continue;
-      for (const wt of af.templates) {
+      for (const wt of af.maler) {
         if (wt.template.category === opprettType) {
           synligeMalIder.add(wt.template.id);
         }
@@ -552,7 +549,7 @@ export default function TegningerSide() {
         <div className="text-center">
           <Map className="mx-auto mb-4 h-16 w-16 text-gray-200" />
           <p className="text-lg font-medium text-gray-400">
-            {aktivBygning
+            {aktivByggeplass
               ? t("tegninger.velgTegning")
               : t("tegninger.velgLokasjonOgTegning")}
           </p>
@@ -952,13 +949,6 @@ export default function TegningerSide() {
             onChange={(e) => setValgtMal(e.target.value)}
             placeholder="Velg mal..."
           />
-
-          {/* Vis svarer-info hvis utledet fra arbeidsforløp */}
-          {valgtMal && matchendeArbeidsforlop?.responderEnterprise && (
-            <p className="text-xs text-gray-500">
-              Svarer: {matchendeArbeidsforlop.responderEnterprise.name}
-            </p>
-          )}
 
           <div className="flex gap-3 pt-2">
             <Button type="submit" loading={erLaster} disabled={!valgtMal || !valgtOppretter}>

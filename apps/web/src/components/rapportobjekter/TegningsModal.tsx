@@ -10,7 +10,7 @@ interface TegningsModalProps {
   open: boolean;
   onClose: () => void;
   prosjektId: string;
-  bygningId?: string | null;
+  byggeplassId?: string | null;
   standardTegningId?: string | null;
   onVelgSkjermbilde: (vedlegg: Vedlegg) => void;
 }
@@ -91,7 +91,7 @@ export function TegningsModal({
   open,
   onClose,
   prosjektId,
-  bygningId,
+  byggeplassId,
   standardTegningId,
   onVelgSkjermbilde,
 }: TegningsModalProps) {
@@ -110,11 +110,11 @@ export function TegningsModal({
   // Filtrer til sjekklistens bygning hvis satt, ellers vis alle
   const filtrerteBygnigner = useMemo(() => {
     if (!bygninger) return [];
-    if (bygningId) {
-      return bygninger.filter((b) => b.id === bygningId);
+    if (byggeplassId) {
+      return bygninger.filter((b) => b.id === byggeplassId);
     }
     return bygninger;
-  }, [bygninger, bygningId]);
+  }, [bygninger, byggeplassId]);
 
   // Flat liste over alle tegninger (for å finne valgt tegning + fileUrl)
   const alleTegninger = useMemo(() => {

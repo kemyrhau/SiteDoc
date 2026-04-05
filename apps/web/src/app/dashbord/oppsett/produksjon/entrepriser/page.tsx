@@ -172,7 +172,7 @@ function EntrepriseKort({
   onDfSlett: (id: string) => void;
   onDfOppdatert: () => void;
   onNyDokumentflyt: (entrepriseId: string) => void;
-  onInviterNy: (dokumentflytId: string, rolle: "oppretter" | "svarer", steg: number) => void;
+  onInviterNy: (dokumentflytId: string, rolle: "bestiller" | "utforer", steg: number) => void;
 }) {
   const { t } = useTranslation();
   const [ekspandert, setEkspandert] = useState(true);
@@ -689,8 +689,8 @@ function OpprettDokumentflytModal({
 }) {
   const { t } = useTranslation();
   const [navn, setNavn] = useState("");
-  const [oppretterType, setOppretterType] = useState<"bruker" | "gruppe">("bruker");
-  const [oppretterId, setOppretterId] = useState("");
+  const [bestillerType, setOppretterType] = useState<"bruker" | "gruppe">("bruker");
+  const [bestillerId, setOppretterId] = useState("");
   const [mottakerType, setMottakerType] = useState<"bruker" | "gruppe">("bruker");
   const [mottakerId, setMottakerId] = useState("");
   const [valgteMaler, setValgteMaler] = useState<Set<string>>(new Set());
@@ -770,21 +770,21 @@ function OpprettDokumentflytModal({
       enterpriseId?: string;
       projectMemberId?: string;
       groupId?: string;
-      rolle: "oppretter" | "svarer";
+      rolle: "bestiller" | "utforer";
       steg: number;
     }> = [];
 
-    if (oppretterId) {
-      if (oppretterType === "gruppe") {
+    if (bestillerId) {
+      if (bestillerType === "gruppe") {
         dfMedlemmer.push({
-          groupId: oppretterId,
-          rolle: "oppretter",
+          groupId: bestillerId,
+          rolle: "bestiller",
           steg: 1,
         });
       } else {
         dfMedlemmer.push({
-          projectMemberId: oppretterId,
-          rolle: "oppretter",
+          projectMemberId: bestillerId,
+          rolle: "bestiller",
           steg: 1,
         });
       }
@@ -793,13 +793,13 @@ function OpprettDokumentflytModal({
       if (mottakerType === "gruppe") {
         dfMedlemmer.push({
           groupId: mottakerId,
-          rolle: "svarer",
+          rolle: "utforer",
           steg: 1,
         });
       } else {
         dfMedlemmer.push({
           projectMemberId: mottakerId,
-          rolle: "svarer",
+          rolle: "utforer",
           steg: 1,
         });
       }
@@ -833,24 +833,24 @@ function OpprettDokumentflytModal({
             <button
               type="button"
               onClick={() => { setOppretterType("bruker"); setOppretterId(""); }}
-              className={`rounded-full px-3 py-1 text-xs font-medium ${oppretterType === "bruker" ? "bg-sitedoc-primary text-white" : "bg-gray-100 text-gray-600"}`}
+              className={`rounded-full px-3 py-1 text-xs font-medium ${bestillerType === "bruker" ? "bg-sitedoc-primary text-white" : "bg-gray-100 text-gray-600"}`}
             >
               {t("entrepriser.bruker")}
             </button>
             <button
               type="button"
               onClick={() => { setOppretterType("gruppe"); setOppretterId(""); }}
-              className={`rounded-full px-3 py-1 text-xs font-medium ${oppretterType === "gruppe" ? "bg-sitedoc-primary text-white" : "bg-gray-100 text-gray-600"}`}
+              className={`rounded-full px-3 py-1 text-xs font-medium ${bestillerType === "gruppe" ? "bg-sitedoc-primary text-white" : "bg-gray-100 text-gray-600"}`}
             >
               {t("entrepriser.gruppe")}
             </button>
           </div>
           <select
             className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-sitedoc-primary focus:outline-none focus:ring-1 focus:ring-sitedoc-primary"
-            value={oppretterId}
+            value={bestillerId}
             onChange={(e) => setOppretterId(e.target.value)}
           >
-            {oppretterType === "bruker" ? (
+            {bestillerType === "bruker" ? (
               <>
                 <option value="">{t("entrepriser.velgBruker")}</option>
                 {medlemmer.map((m) => {
@@ -1196,7 +1196,7 @@ export default function EntrepriserSide() {
   // Inviter
   const [inviterInfo, setInviterInfo] = useState<{
     dokumentflytId: string;
-    rolle: "oppretter" | "svarer";
+    rolle: "bestiller" | "utforer";
     steg: number;
   } | null>(null);
 
@@ -1310,7 +1310,7 @@ export default function EntrepriserSide() {
   const alleDf = (dokumentflyter ?? []) as DokumentflytData[];
 
   // Grupper dokumentflyter per entreprise
-  // En dokumentflyt tilhører en entreprise hvis den har et medlem (oppretter eller svarer) fra den entreprisen
+  // En dokumentflyt tilhører en entreprise hvis den har et medlem (bestiller eller utfører) fra den entreprisen
   const entrepriseIder = new Set(entrepriseData.map((e) => e.id));
 
   function hentDfForEntreprise(entrepriseId: string): DokumentflytData[] {
@@ -1471,7 +1471,7 @@ export default function EntrepriserSide() {
         onClose={() => setInviterInfo(null)}
         prosjektId={prosjektId}
         dokumentflytId={inviterInfo?.dokumentflytId ?? ""}
-        rolle={inviterInfo?.rolle ?? "oppretter"}
+        rolle={inviterInfo?.rolle ?? "bestiller"}
         steg={inviterInfo?.steg ?? 1}
         onFerdig={() => {
           handleDfOppdatert();

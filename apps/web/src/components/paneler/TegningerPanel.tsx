@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { trpc } from "@/lib/trpc";
-import { useBygning } from "@/kontekst/bygning-kontekst";
+import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
 import {
   Building2,
   ChevronDown,
@@ -120,8 +120,8 @@ export function TegningerPanel() {
   const [sok, setSok] = useState("");
   const { t } = useTranslation();
   const [utvidede, setUtvidede] = useState<Set<string>>(new Set());
-  const { aktivBygning, velgBygning, standardTegning, settStandardTegning, aktivTegning, settAktivTegning } =
-    useBygning();
+  const { aktivByggeplass, velgByggeplass, standardTegning, settStandardTegning, aktivTegning, settAktivTegning } =
+    useByggeplass();
 
   const { data: bygninger, isLoading } =
     trpc.bygning.hentForProsjekt.useQuery(
@@ -146,10 +146,10 @@ export function TegningerPanel() {
     name: string;
     number: number | null;
   }) {
-    if (aktivBygning?.id === bygning.id) {
-      velgBygning(null);
+    if (aktivByggeplass?.id === bygning.id) {
+      velgByggeplass(null);
     } else {
-      velgBygning(bygning);
+      velgByggeplass(bygning);
       setUtvidede((prev) => new Set(prev).add(bygning.id));
     }
   }
@@ -160,10 +160,10 @@ export function TegningerPanel() {
   ) {
     // Enkelt-klikk = vis tegningen (uten å endre standard)
     settAktivTegning(aktivTegning?.id === tegning.id ? null : tegning);
-    if (aktivBygning?.id !== bygningId) {
+    if (aktivByggeplass?.id !== bygningId) {
       const byg = bygninger?.find((b) => b.id === bygningId);
       if (byg) {
-        velgBygning({ id: byg.id, name: byg.name, number: byg.number });
+        velgByggeplass({ id: byg.id, name: byg.name, number: byg.number });
         setUtvidede((prev) => new Set(prev).add(bygningId));
       }
     }
@@ -181,10 +181,10 @@ export function TegningerPanel() {
       settStandardTegning(tegning);
     }
     // Sørg for at bygningen er aktiv
-    if (aktivBygning?.id !== bygningId) {
+    if (aktivByggeplass?.id !== bygningId) {
       const byg = bygninger?.find((b) => b.id === bygningId);
       if (byg) {
-        velgBygning({ id: byg.id, name: byg.name, number: byg.number });
+        velgByggeplass({ id: byg.id, name: byg.name, number: byg.number });
         setUtvidede((prev) => new Set(prev).add(bygningId));
       }
     }
@@ -217,16 +217,16 @@ export function TegningerPanel() {
   }, [bygninger, sok, sokLower]);
 
   // Auto-utvid aktiv bygning og etasje med standardtegning
-  if (aktivBygning && !utvidede.has(aktivBygning.id)) {
-    const finnes = filtrerte.some((b) => b.id === aktivBygning.id);
+  if (aktivByggeplass && !utvidede.has(aktivByggeplass.id)) {
+    const finnes = filtrerte.some((b) => b.id === aktivByggeplass.id);
     if (finnes) {
-      setUtvidede((prev) => new Set(prev).add(aktivBygning.id));
+      setUtvidede((prev) => new Set(prev).add(aktivByggeplass.id));
     }
   }
 
   // Auto-utvid etasje som inneholder standardtegning
-  if (standardTegning && aktivBygning) {
-    const bygning = filtrerte.find((b) => b.id === aktivBygning.id);
+  if (standardTegning && aktivByggeplass) {
+    const bygning = filtrerte.find((b) => b.id === aktivByggeplass.id);
     if (bygning) {
       for (const gruppe of bygning.filtrerteGrupper) {
         const etasjeNokkel = `${bygning.id}::${gruppe.nokkel}`;
@@ -274,9 +274,9 @@ export function TegningerPanel() {
       <div className="flex flex-col gap-0.5">
         {/* Alle lokasjoner */}
         <button
-          onClick={() => velgBygning(null)}
+          onClick={() => velgByggeplass(null)}
           className={`flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors ${
-            !aktivBygning
+            !aktivByggeplass
               ? "bg-blue-50 text-blue-700 font-medium"
               : "text-gray-700 hover:bg-gray-50"
           }`}
@@ -287,7 +287,7 @@ export function TegningerPanel() {
 
         {/* Bygningsliste */}
         {filtrerte.map((bygning) => {
-          const erAktiv = aktivBygning?.id === bygning.id;
+          const erAktiv = aktivByggeplass?.id === bygning.id;
           const erUtvidet = utvidede.has(bygning.id);
           const antallTegninger = bygning._count.drawings;
 

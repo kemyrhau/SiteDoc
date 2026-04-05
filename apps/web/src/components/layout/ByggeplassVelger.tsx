@@ -4,17 +4,17 @@ import { useState, useRef, useEffect } from "react";
 import { Building2, ChevronDown, Check } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
-import { useBygning } from "@/kontekst/bygning-kontekst";
+import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
 
-interface BygningData {
+interface ByggeplassData {
   id: string;
   name: string;
   number: number | null;
 }
 
-export function BygningsVelger() {
+export function ByggeplassVelger() {
   const { prosjektId } = useProsjekt();
-  const { aktivBygning, velgBygning } = useBygning();
+  const { aktivByggeplass, velgByggeplass } = useByggeplass();
   const [åpen, setÅpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -22,14 +22,14 @@ export function BygningsVelger() {
     { projectId: prosjektId! },
     { enabled: !!prosjektId },
   );
-  const bygninger = (_bygninger ?? []) as BygningData[];
+  const bygninger = (_bygninger ?? []) as ByggeplassData[];
 
-  // Auto-velg første bygning hvis ingen er valgt
+  // Auto-velg første byggeplass hvis ingen er valgt
   useEffect(() => {
-    if (!aktivBygning && bygninger.length > 0 && bygninger[0]) {
-      velgBygning(bygninger[0]);
+    if (!aktivByggeplass && bygninger.length > 0 && bygninger[0]) {
+      velgByggeplass(bygninger[0]);
     }
-  }, [aktivBygning, bygninger, velgBygning]);
+  }, [aktivByggeplass, bygninger, velgByggeplass]);
 
   // Lukk ved klikk utenfor
   useEffect(() => {
@@ -44,7 +44,7 @@ export function BygningsVelger() {
 
   if (!prosjektId || bygninger.length === 0) return null;
 
-  // Kun én bygning — vis navn uten dropdown
+  // Kun én byggeplass — vis navn uten dropdown
   if (bygninger.length === 1) {
     return (
       <div className="flex items-center gap-1.5 text-sm text-blue-200">
@@ -62,7 +62,7 @@ export function BygningsVelger() {
       >
         <Building2 className="h-3.5 w-3.5" />
         <span className="max-w-[120px] truncate">
-          {aktivBygning?.name ?? "Velg bygning"}
+          {aktivByggeplass?.name ?? "Velg byggeplass"}
         </span>
         <ChevronDown className="h-3 w-3" />
       </button>
@@ -73,17 +73,17 @@ export function BygningsVelger() {
             <button
               key={b.id}
               onClick={() => {
-                velgBygning(b);
+                velgByggeplass(b);
                 setÅpen(false);
               }}
               className="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
             >
-              {aktivBygning?.id === b.id ? (
+              {aktivByggeplass?.id === b.id ? (
                 <Check className="h-3.5 w-3.5 text-sitedoc-primary" />
               ) : (
                 <span className="h-3.5 w-3.5" />
               )}
-              <span className={aktivBygning?.id === b.id ? "font-medium text-sitedoc-primary" : ""}>
+              <span className={aktivByggeplass?.id === b.id ? "font-medium text-sitedoc-primary" : ""}>
                 {b.name}
               </span>
             </button>

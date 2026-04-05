@@ -23,10 +23,10 @@ export const entrepriseRouter = router({
           },
           _count: {
             select: {
-              createdChecklists: true,
-              respondChecklists: true,
-              createdTasks: true,
-              respondTasks: true,
+              bestillerChecklists: true,
+              utforerChecklists: true,
+              bestillerTasks: true,
+              utforerTasks: true,
             },
           },
         },
@@ -58,7 +58,7 @@ export const entrepriseRouter = router({
       });
     }),
 
-  // Opprett ny entreprise med auto-opprettet "Navnløst arbeidsforløp"
+  // Opprett ny entreprise
   opprett: protectedProcedure
     .input(createEnterpriseSchema)
     .mutation(async ({ ctx, input }) => {
@@ -66,12 +66,6 @@ export const entrepriseRouter = router({
       const { memberIds, ...data } = input;
       return ctx.prisma.$transaction(async (tx) => {
         const entreprise = await tx.enterprise.create({ data });
-        await tx.workflow.create({
-          data: {
-            enterpriseId: entreprise.id,
-            name: "Navnløst arbeidsforløp",
-          },
-        });
         if (memberIds.length > 0) {
           await tx.memberEnterprise.createMany({
             data: memberIds.map((memberId) => ({
@@ -116,9 +110,6 @@ export const entrepriseRouter = router({
       await verifiserProsjektmedlem(ctx.userId, input.targetProjectId);
       const kilde = await ctx.prisma.enterprise.findUniqueOrThrow({
         where: { id: input.sourceEnterpriseId },
-        include: {
-          createdWorkflows: true,
-        },
       });
 
       return ctx.prisma.$transaction(async (tx) => {
@@ -133,24 +124,6 @@ export const entrepriseRouter = router({
             companyName: kilde.companyName,
           },
         });
-
-        if (kilde.createdWorkflows.length > 0) {
-          for (const af of kilde.createdWorkflows) {
-            await tx.workflow.create({
-              data: {
-                enterpriseId: nyEntreprise.id,
-                name: af.name,
-              },
-            });
-          }
-        } else {
-          await tx.workflow.create({
-            data: {
-              enterpriseId: nyEntreprise.id,
-              name: "Navnløst arbeidsforløp",
-            },
-          });
-        }
 
         if (input.memberIds.length > 0) {
           await tx.memberEnterprise.createMany({
@@ -201,16 +174,16 @@ export const entrepriseRouter = router({
         ctx.prisma.checklist.count({
           where: {
             OR: [
-              { creatorEnterpriseId: input.id },
-              { responderEnterpriseId: input.id },
+              { bestillerEnterpriseId: input.id },
+              { utforerEnterpriseId: input.id },
             ],
           },
         }),
         ctx.prisma.task.count({
           where: {
             OR: [
-              { creatorEnterpriseId: input.id },
-              { responderEnterpriseId: input.id },
+              { bestillerEnterpriseId: input.id },
+              { utforerEnterpriseId: input.id },
             ],
           },
         }),

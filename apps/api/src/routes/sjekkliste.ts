@@ -22,7 +22,7 @@ export const sjekklisteRouter = router({
       z.object({
         projectId: z.string().uuid(),
         status: documentStatusSchema.optional(),
-        buildingId: z.string().uuid().optional(),
+        byggeplassId: z.string().uuid().optional(),
       }),
     )
     .query(async ({ ctx, input }) => {
@@ -32,15 +32,15 @@ export const sjekklisteRouter = router({
         where: {
           template: { projectId: input.projectId },
           ...(input.status ? { status: input.status } : {}),
-          ...(input.buildingId ? { OR: [{ buildingId: input.buildingId }, { buildingId: null }] } : {}),
+          ...(input.byggeplassId ? { OR: [{ byggeplassId: input.byggeplassId }, { byggeplassId: null }] } : {}),
           ...(tilgangsFilter ?? {}),
         },
         include: {
           template: { include: { objects: { select: { id: true, label: true, type: true, config: true } } } },
-          creatorEnterprise: true,
-          responderEnterprise: true,
-          creator: true,
-          building: { select: { id: true, name: true, number: true } },
+          bestillerEnterprise: true,
+          utforerEnterprise: true,
+          bestiller: true,
+          byggeplass: { select: { id: true, name: true, number: true } },
           drawing: { select: { id: true, name: true, floor: true } },
           recipientUser: { select: { id: true, name: true } },
           recipientGroup: { select: { id: true, name: true } },
@@ -58,10 +58,10 @@ export const sjekklisteRouter = router({
         where: { id: input.id },
         include: {
           template: { include: { objects: { orderBy: { sortOrder: "asc" } }, project: { select: { sourceLanguage: true } } } },
-          creatorEnterprise: true,
-          responderEnterprise: true,
-          creator: true,
-          building: { select: { id: true, name: true } },
+          bestillerEnterprise: true,
+          utforerEnterprise: true,
+          bestiller: true,
+          byggeplass: { select: { id: true, name: true } },
           drawing: { select: { id: true, name: true, drawingNumber: true } },
           images: true,
           transfers: {
@@ -83,8 +83,8 @@ export const sjekklisteRouter = router({
       await verifiserDokumentTilgang(
         ctx.userId,
         sjekkliste.template.projectId,
-        sjekkliste.creatorEnterpriseId,
-        sjekkliste.responderEnterpriseId,
+        sjekkliste.bestillerEnterpriseId,
+        sjekkliste.utforerEnterpriseId,
         sjekkliste.template.domain,
       );
 
@@ -96,19 +96,19 @@ export const sjekklisteRouter = router({
     .input(
       z.object({
         templateId: z.string().uuid(),
-        creatorEnterpriseId: z.string().uuid(),
-        responderEnterpriseId: z.string().uuid(),
+        bestillerEnterpriseId: z.string().uuid(),
+        utforerEnterpriseId: z.string().uuid(),
         title: z.string().max(255).optional(),
-        workflowId: z.string().uuid().optional(),
+        dokumentflytId: z.string().uuid().optional(),
         subject: z.string().max(500).optional(),
-        buildingId: z.string().uuid().optional(),
+        byggeplassId: z.string().uuid().optional(),
         drawingId: z.string().uuid().optional(),
         dueDate: z.string().datetime().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
       // Verifiser at bruker tilhører oppretter-entreprisen
-      await verifiserEntrepriseTilhorighet(ctx.userId, input.creatorEnterpriseId);
+      await verifiserEntrepriseTilhorighet(ctx.userId, input.bestillerEnterpriseId);
 
       // Sjekk grense for gratisbrukere (10 sjekklister per prosjekt)
       const bruker = await ctx.prisma.user.findUniqueOrThrow({
@@ -117,11 +117,11 @@ export const sjekklisteRouter = router({
       });
       if (bruker.role !== "sitedoc_admin") {
         const entreprise = await ctx.prisma.enterprise.findUniqueOrThrow({
-          where: { id: input.creatorEnterpriseId },
+          where: { id: input.bestillerEnterpriseId },
           select: { projectId: true },
         });
         const antall = await ctx.prisma.checklist.count({
-          where: { creatorEnterprise: { projectId: entreprise.projectId } },
+          where: { bestillerEnterprise: { projectId: entreprise.projectId } },
         });
         if (antall >= 10) {
           throw new TRPCError({
@@ -154,36 +154,14 @@ export const sjekklisteRouter = router({
         // Auto-generer tittel fra malnavn (nummer vises separat i Nr-kolonne)
         const tittel = input.title?.trim() || mal.name;
 
-        // Sjekk om workflowId er en Workflow eller DokumentFlyt
-        let workflowId: string | undefined;
-        let dokumentflytId: string | undefined;
-        if (input.workflowId) {
-          const workflow = await tx.workflow.findUnique({
-            where: { id: input.workflowId },
-            select: { id: true },
-          });
-          if (workflow) {
-            workflowId = input.workflowId;
-          } else {
-            // Sjekk om det er en DokumentFlyt-ID (ny modell)
-            const df = await tx.dokumentflyt.findUnique({
-              where: { id: input.workflowId },
-              select: { id: true },
-            });
-            if (df) {
-              dokumentflytId = input.workflowId;
-            }
-          }
-        }
-
-        // Finn hovedansvarlig fra dokumentflyt (svarer med erHovedansvarlig)
+        // Finn hovedansvarlig fra dokumentflyt (utfører med erHovedansvarlig)
         let recipientUserId: string | undefined;
         let recipientGroupId: string | undefined;
-        if (dokumentflytId) {
+        if (input.dokumentflytId) {
           const hovedansvarlig = await tx.dokumentflytMedlem.findFirst({
             where: {
-              dokumentflytId,
-              rolle: "svarer",
+              dokumentflytId: input.dokumentflytId,
+              rolle: "utfører",
               erHovedansvarlig: true,
             },
             include: {
@@ -200,15 +178,14 @@ export const sjekklisteRouter = router({
         return tx.checklist.create({
           data: {
             templateId: input.templateId,
-            creatorEnterpriseId: input.creatorEnterpriseId,
-            responderEnterpriseId: input.responderEnterpriseId,
+            bestillerEnterpriseId: input.bestillerEnterpriseId,
+            utforerEnterpriseId: input.utforerEnterpriseId,
             title: tittel,
-            creatorUserId: ctx.userId,
+            bestillerUserId: ctx.userId,
             number: nummer,
-            workflowId,
-            dokumentflytId,
+            dokumentflytId: input.dokumentflytId,
             subject: input.subject,
-            buildingId: input.buildingId,
+            byggeplassId: input.byggeplassId,
             drawingId: input.drawingId,
             dueDate: input.dueDate ? new Date(input.dueDate) : undefined,
             status: "draft",
@@ -225,10 +202,10 @@ export const sjekklisteRouter = router({
       z.object({
         id: z.string().uuid(),
         title: z.string().max(255).optional(),
-        creatorEnterpriseId: z.string().uuid().optional(),
-        responderEnterpriseId: z.string().uuid().optional(),
+        bestillerEnterpriseId: z.string().uuid().optional(),
+        utforerEnterpriseId: z.string().uuid().optional(),
         drawingId: z.string().uuid().nullable().optional(),
-        buildingId: z.string().uuid().nullable().optional(),
+        byggeplassId: z.string().uuid().nullable().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -239,13 +216,13 @@ export const sjekklisteRouter = router({
       await verifiserDokumentTilgang(
         ctx.userId,
         sjekkliste.template.projectId,
-        sjekkliste.creatorEnterpriseId,
-        sjekkliste.responderEnterpriseId,
+        sjekkliste.bestillerEnterpriseId,
+        sjekkliste.utforerEnterpriseId,
         sjekkliste.template.domain,
       );
 
       // Entreprise-endring kun tillatt i utkast-status
-      if ((input.creatorEnterpriseId || input.responderEnterpriseId) && sjekkliste.status !== "draft") {
+      if ((input.bestillerEnterpriseId || input.utforerEnterpriseId) && sjekkliste.status !== "draft") {
         throw new TRPCError({
           code: "BAD_REQUEST",
           message: "Entrepriser kan kun endres i utkast-status",
@@ -285,8 +262,8 @@ export const sjekklisteRouter = router({
       await verifiserDokumentTilgang(
         ctx.userId,
         sjekkliste.template.projectId,
-        sjekkliste.creatorEnterpriseId,
-        sjekkliste.responderEnterpriseId,
+        sjekkliste.bestillerEnterpriseId,
+        sjekkliste.utforerEnterpriseId,
         sjekkliste.template.domain,
       );
 
@@ -439,7 +416,7 @@ export const sjekklisteRouter = router({
       });
       await verifiserDokumentTilgang(
         ctx.userId, sjekkliste.template.projectId,
-        sjekkliste.creatorEnterpriseId, sjekkliste.responderEnterpriseId,
+        sjekkliste.bestillerEnterpriseId, sjekkliste.utforerEnterpriseId,
         sjekkliste.template.domain,
       );
 
@@ -518,8 +495,8 @@ export const sjekklisteRouter = router({
       await verifiserDokumentTilgang(
         ctx.userId,
         projectId,
-        sjekkliste.creatorEnterpriseId,
-        sjekkliste.responderEnterpriseId,
+        sjekkliste.bestillerEnterpriseId,
+        sjekkliste.utforerEnterpriseId,
         sjekkliste.template.domain,
       );
 
@@ -672,8 +649,8 @@ export const sjekklisteRouter = router({
       await verifiserDokumentTilgang(
         ctx.userId,
         sjekkliste.template.projectId,
-        sjekkliste.creatorEnterpriseId,
-        sjekkliste.responderEnterpriseId,
+        sjekkliste.bestillerEnterpriseId,
+        sjekkliste.utforerEnterpriseId,
         sjekkliste.template.domain,
       );
 

@@ -234,15 +234,15 @@ function DokumentflytKort({
         )}
       </div>
 
-      {/* Visuell flyt: Oppretter → Svarer → Godkjenner */}
+      {/* Visuell flyt: Bestiller → Utfører → Godkjenner */}
       <div className="flex items-stretch gap-0">
         <FlytBoks
-          tittel={t("kontakter.oppretter")}
+          tittel={t("kontakter.bestiller")}
           ikon={<Send className="h-3 w-3" />}
           farge="blue"
           avrunding="rounded-l-lg"
           dokumentflytId={df.id}
-          rolle="oppretter"
+          rolle="bestiller"
           medlemmer={opprettere}
           prosjektId={prosjektId}
           entrepriser={alleEntrepriser}
@@ -255,12 +255,12 @@ function DokumentflytKort({
           <ArrowRight className="h-5 w-5 text-gray-300" />
         </div>
         <FlytBoks
-          tittel={t("kontakter.svarerLabel")}
+          tittel={t("kontakter.utforerLabel")}
           ikon={<ClipboardCheck className="h-3 w-3" />}
           farge="purple"
           avrunding=""
           dokumentflytId={df.id}
-          rolle="svarer"
+          rolle="utforer"
           medlemmer={svarere}
           prosjektId={prosjektId}
           entrepriser={alleEntrepriser}
@@ -278,7 +278,7 @@ function DokumentflytKort({
           farge="green"
           avrunding="rounded-r-lg"
           dokumentflytId={df.id}
-          rolle="oppretter"
+          rolle="bestiller"
           medlemmer={opprettere}
           prosjektId={prosjektId}
           entrepriser={alleEntrepriser}
@@ -333,7 +333,7 @@ function FlytBoks({
   farge: "blue" | "purple" | "green";
   avrunding: string;
   dokumentflytId: string;
-  rolle: "oppretter" | "svarer";
+  rolle: "bestiller" | "utforer";
   medlemmer: DokumentflytMedlem[];
   prosjektId: string;
   entrepriser: Entreprise[];
@@ -751,8 +751,8 @@ export default function KontakterSide() {
 
                   {/* Dokumentflyter — visuell flyt */}
                   {dflyter.map((df) => {
-                    const opprettere = df.medlemmer.filter((m) => m.rolle === "oppretter");
-                    const svarere = df.medlemmer.filter((m) => m.rolle === "svarer");
+                    const opprettere = df.medlemmer.filter((m) => m.rolle === "bestiller");
+                    const svarere = df.medlemmer.filter((m) => m.rolle === "utforer");
 
                     return (
                       <DokumentflytKort

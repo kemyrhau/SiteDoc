@@ -4,14 +4,14 @@ export interface PrintHeaderProps {
   eksterntNummer?: string | null;
   sjekklisteTittel: string;
   sjekklisteNummer?: string | null;
-  oppretter?: string | null;
-  oppretterBruker?: string | null;
-  svarer?: string | null;
+  bestiller?: string | null;
+  bestillerBruker?: string | null;
+  utforer?: string | null;
   vaerTekst?: string | null;
   logoUrl?: string | null;
   prosjektAdresse?: string | null;
   status?: string | null;
-  bygningNavn?: string | null;
+  byggeplassNavn?: string | null;
   tegningNavn?: string | null;
   visInterntNummer?: boolean;
 }
@@ -27,13 +27,13 @@ export function PrintHeader({
   eksterntNummer,
   sjekklisteTittel,
   sjekklisteNummer,
-  oppretter,
-  oppretterBruker,
-  svarer,
+  bestiller,
+  bestillerBruker,
+  utforer,
   vaerTekst,
   logoUrl,
   prosjektAdresse,
-  bygningNavn,
+  byggeplassNavn,
   tegningNavn,
   visInterntNummer = true,
 }: PrintHeaderProps) {
@@ -65,10 +65,10 @@ export function PrintHeader({
             {prosjektAdresse && (
               <p className="text-xs text-gray-500">Adresse: {prosjektAdresse}</p>
             )}
-            {(bygningNavn || tegningNavn) && (
+            {(byggeplassNavn || tegningNavn) && (
               <p className="text-xs text-gray-500">
-                {bygningNavn && <>Lokasjon: {bygningNavn}</>}
-                {bygningNavn && tegningNavn && <> &middot; </>}
+                {byggeplassNavn && <>Lokasjon: {byggeplassNavn}</>}
+                {byggeplassNavn && tegningNavn && <> &middot; </>}
                 {tegningNavn && <>Tegning: {tegningNavn}</>}
               </p>
             )}
@@ -84,14 +84,14 @@ export function PrintHeader({
             Sjekkliste: {sjekklisteTittel}
           </p>
           <p className="text-xs text-gray-600">
-            {oppretter && (
+            {bestiller && (
               <>
-                Oppretter: {oppretter}
-                {oppretterBruker && ` (${oppretterBruker})`}
+                Bestiller: {bestiller}
+                {bestillerBruker && ` (${bestillerBruker})`}
               </>
             )}
-            {oppretter && svarer && <> &middot; </>}
-            {svarer && <>Svarer: {svarer}</>}
+            {bestiller && utforer && <> &middot; </>}
+            {utforer && <>Utfører: {utforer}</>}
           </p>
         </div>
         {sjekklisteNummer && (

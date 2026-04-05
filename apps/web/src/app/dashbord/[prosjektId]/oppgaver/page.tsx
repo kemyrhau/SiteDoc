@@ -6,7 +6,7 @@ import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { Button, Modal, Spinner, EmptyState, StatusBadge, Badge, Table } from "@sitedoc/ui";
 import { useVerktoylinje } from "@/hooks/useVerktoylinje";
-import { useBygning } from "@/kontekst/bygning-kontekst";
+import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
 import { Plus, Search, ChevronDown, ChevronRight } from "lucide-react";
 
 // --- Typer ---
@@ -23,10 +23,10 @@ interface OppgaveRad {
   updatedAt: string;
   data: Record<string, unknown> | null;
   template: { id: string; prefix: string | null; name: string; objects: MalObjekt[] } | null;
-  creator: { name: string | null } | null;
-  creatorEnterprise: { name: string };
-  responderEnterprise: { name: string };
-  drawing: { name: string; floor: string | null; building: { id: string; name: string } | null } | null;
+  bestiller: { name: string | null } | null;
+  bestillerEnterprise: { name: string };
+  utforerEnterprise: { name: string };
+  drawing: { name: string; floor: string | null; byggeplass: { id: string; name: string } | null } | null;
   recipientUser: { name: string | null } | null;
   recipientGroup: { name: string } | null;
 }
@@ -91,8 +91,8 @@ const SYSTEM_KOLONNER: KolonneParam[] = [
   { id: "prioritet", navn: "Prioritet", navnKey: "tabell.prioritet", gruppe: "kolonner" },
   { id: "ansvarlig", navn: "Ansvarlig", navnKey: "tabell.ansvarlig", gruppe: "kolonner" },
   { id: "opprettetAv", navn: "Opprettet av", navnKey: "tabell.opprettetAv", gruppe: "kolonner" },
-  { id: "oppretterEntreprise", navn: "Oppretter-entreprise", navnKey: "tabell.oppretterEntreprise", gruppe: "kolonner" },
-  { id: "svarerEntreprise", navn: "Svarer-entreprise", navnKey: "tabell.svarerEntreprise", gruppe: "kolonner" },
+  { id: "bestillerEntreprise", navn: "Bestiller-entreprise", navnKey: "tabell.bestillerEntreprise", gruppe: "kolonner" },
+  { id: "utforerEntreprise", navn: "Utfører-entreprise", navnKey: "tabell.utforerEntreprise", gruppe: "kolonner" },
   { id: "dokumentflyt", navn: "Dokumentflyt", navnKey: "tabell.dokumentflyt", gruppe: "kolonner" },
   { id: "mal", navn: "Mal", navnKey: "tabell.mal", gruppe: "kolonner" },
   { id: "opprettet", navn: "Opprettelsesdato", navnKey: "tabell.opprettelsesdato", gruppe: "kolonner" },
@@ -136,7 +136,7 @@ function formaterNummer(rad: OppgaveRad): string {
 function formaterAnsvarlig(rad: OppgaveRad): string {
   if (rad.recipientUser?.name) return rad.recipientUser.name;
   if (rad.recipientGroup?.name) return rad.recipientGroup.name;
-  return rad.responderEnterprise.name;
+  return rad.utforerEnterprise.name;
 }
 
 function formaterDato(dato: string | null): string {
@@ -281,10 +281,10 @@ export default function OppgaverSide() {
   const [visKolonneVelger, setVisKolonneVelger] = useState(false);
   const [aktiveKolonner, setAktiveKolonner] = useState<Set<string>>(hentLagredeKolonner);
   const [filterVerdier, setFilterVerdier] = useState<Record<string, string>>({});
-  const { aktivBygning } = useBygning();
+  const { aktivByggeplass } = useByggeplass();
 
   const oppgaveQuery = trpc.oppgave.hentForProsjekt.useQuery(
-    { projectId: params.prosjektId, ...(aktivBygning?.id ? { buildingId: aktivBygning.id } : {}) },
+    { projectId: params.prosjektId, ...(aktivByggeplass?.id ? { byggeplassId: aktivByggeplass.id } : {}) },
   );
   const oppgaver = oppgaveQuery.data as OppgaveRad[] | undefined;
   const isLoading = oppgaveQuery.isLoading;
@@ -338,11 +338,10 @@ export default function OppgaverSide() {
     const mal = oppgaveMaler.find((m) => m.id === malId);
     opprettMutation.mutate({
       templateId: malId,
-      creatorEnterpriseId: oppretter.id,
-      responderEnterpriseId: svarerEntrepriseId,
+      bestillerEnterpriseId: oppretter.id,
+      utforerEnterpriseId: svarerEntrepriseId,
       title: mal?.name ?? "Ny oppgave",
       priority: "medium",
-      workflowId: matchDf?.id,
     });
   }
 
@@ -373,11 +372,11 @@ export default function OppgaverSide() {
     const filter: Record<string, { value: string; label: string }[]> = {
       emne: bygg(oppgaver.map((o) => o.subject)),
       ansvarlig: bygg(oppgaver.map((o) => formaterAnsvarlig(o))),
-      opprettetAv: bygg(oppgaver.map((o) => o.creator?.name)),
-      oppretterEntreprise: bygg(oppgaver.map((o) => o.creatorEnterprise.name)),
-      svarerEntreprise: bygg(oppgaver.map((o) => o.responderEnterprise.name)),
+      opprettetAv: bygg(oppgaver.map((o) => o.bestiller?.name)),
+      bestillerEntreprise: bygg(oppgaver.map((o) => o.bestillerEnterprise.name)),
+      utforerEntreprise: bygg(oppgaver.map((o) => o.utforerEnterprise.name)),
       mal: bygg(oppgaver.map((o) => o.template?.name)),
-      bygning: bygg(oppgaver.map((o) => o.drawing?.building?.name)),
+      bygning: bygg(oppgaver.map((o) => o.drawing?.byggeplass?.name)),
       etasje: bygg(oppgaver.map((o) => o.drawing?.floor)),
       tegning: bygg(oppgaver.map((o) => o.drawing?.name)),
       prioritet: PRIORITETER.map((p) => ({ value: p.value, label: t(p.labelKey) })),
@@ -415,11 +414,11 @@ export default function OppgaverSide() {
           case "emne": return o.subject === verdi;
           case "prioritet": return o.priority === verdi;
           case "ansvarlig": return formaterAnsvarlig(o) === verdi;
-          case "opprettetAv": return o.creator?.name === verdi;
-          case "oppretterEntreprise": return o.creatorEnterprise.name === verdi;
-          case "svarerEntreprise": return o.responderEnterprise.name === verdi;
+          case "opprettetAv": return o.bestiller?.name === verdi;
+          case "bestillerEntreprise": return o.bestillerEnterprise.name === verdi;
+          case "utforerEntreprise": return o.utforerEnterprise.name === verdi;
           case "mal": return o.template?.name === verdi;
-          case "bygning": return o.drawing?.building?.name === verdi;
+          case "bygning": return o.drawing?.byggeplass?.name === verdi;
           case "etasje": return o.drawing?.floor === verdi;
           case "tegning": return o.drawing?.name === verdi;
           default: return true;
@@ -494,23 +493,23 @@ export default function OppgaverSide() {
       },
       opprettetAv: {
         id: "opprettetAv", header: t("tabell.opprettetAv"),
-        celle: (rad) => rad.creator?.name
-          ? <span className="text-gray-600">{rad.creator.name}</span>
+        celle: (rad) => rad.bestiller?.name
+          ? <span className="text-gray-600">{rad.bestiller.name}</span>
           : <span className="text-gray-300">—</span>,
-        sorterbar: true, sorterVerdi: (rad) => rad.creator?.name ?? "",
+        sorterbar: true, sorterVerdi: (rad) => rad.bestiller?.name ?? "",
         filtrerbar: true, filterAlternativer: dynamiskFilter.opprettetAv ?? [],
       },
-      oppretterEntreprise: {
-        id: "oppretterEntreprise", header: t("tabell.oppretterEntreprise"),
-        celle: (rad) => <span className="text-xs text-gray-500">{rad.creatorEnterprise.name}</span>,
-        sorterbar: true, sorterVerdi: (rad) => rad.creatorEnterprise.name,
-        filtrerbar: true, filterAlternativer: dynamiskFilter.oppretterEntreprise ?? [],
+      bestillerEntreprise: {
+        id: "bestillerEntreprise", header: t("tabell.bestillerEntreprise"),
+        celle: (rad) => <span className="text-xs text-gray-500">{rad.bestillerEnterprise.name}</span>,
+        sorterbar: true, sorterVerdi: (rad) => rad.bestillerEnterprise.name,
+        filtrerbar: true, filterAlternativer: dynamiskFilter.bestillerEntreprise ?? [],
       },
-      svarerEntreprise: {
-        id: "svarerEntreprise", header: t("tabell.svarerEntreprise"),
-        celle: (rad) => <span className="text-xs text-gray-500">{rad.responderEnterprise.name}</span>,
-        sorterbar: true, sorterVerdi: (rad) => rad.responderEnterprise.name,
-        filtrerbar: true, filterAlternativer: dynamiskFilter.svarerEntreprise ?? [],
+      utforerEntreprise: {
+        id: "utforerEntreprise", header: t("tabell.utforerEntreprise"),
+        celle: (rad) => <span className="text-xs text-gray-500">{rad.utforerEnterprise.name}</span>,
+        sorterbar: true, sorterVerdi: (rad) => rad.utforerEnterprise.name,
+        filtrerbar: true, filterAlternativer: dynamiskFilter.utforerEntreprise ?? [],
       },
       mal: {
         id: "mal", header: t("tabell.mal"),
@@ -543,10 +542,10 @@ export default function OppgaverSide() {
       },
       bygning: {
         id: "bygning", header: t("tabell.bygning"),
-        celle: (rad) => rad.drawing?.building?.name
-          ? <span className="text-xs text-gray-600">{rad.drawing.building.name}</span>
+        celle: (rad) => rad.drawing?.byggeplass?.name
+          ? <span className="text-xs text-gray-600">{rad.drawing.byggeplass.name}</span>
           : <span className="text-gray-300">—</span>,
-        sorterbar: true, sorterVerdi: (rad) => rad.drawing?.building?.name ?? "",
+        sorterbar: true, sorterVerdi: (rad) => rad.drawing?.byggeplass?.name ?? "",
         filtrerbar: true, filterAlternativer: dynamiskFilter.bygning ?? [],
       },
       etasje: {

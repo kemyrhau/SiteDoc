@@ -24,8 +24,8 @@ model User {
   accounts             Account[]
   sessions             Session[]
   projects             ProjectMember[]
-  createdChecklists    Checklist[]          @relation("ChecklistCreator")
-  createdTasks         Task[]               @relation("TaskCreator")
+  bestilteChecklists   Checklist[]          @relation("ChecklistCreator")
+  bestilteTasks        Task[]               @relation("TaskCreator")
   sentTransfers        DocumentTransfer[]   @relation("TransferSender")
   receivedTransfers    DocumentTransfer[]   @relation("TransferRecipient")
   recipientChecklists  Checklist[]          @relation("ChecklistRecipient")
@@ -134,7 +134,7 @@ model Project {
   enterprises          Enterprise[]
   drawings             Drawing[]
   pointClouds          PointCloud[]
-  buildings            Building[]
+  byggeplasser         Byggeplass[]
   templates            ReportTemplate[]
   folders              Folder[]
   groups               ProjectGroup[]
@@ -162,7 +162,6 @@ model ProjectMember {
   project                Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
   enterprises            MemberEnterprise[]
   groupMemberships       ProjectGroupMember[]
-  workflowSteps          WorkflowStepMember[]
   dokumentflytMedlemskap DokumentflytMedlem[]
 
   @@unique([userId, projectId])
@@ -191,7 +190,7 @@ model ProjectGroup {
   permissions Json     @default("[]")
   domains     Json     @default("[]") // ["bygg"], ["hms"], ["bygg","hms"], etc.
   modules     Json     @default("[\"sjekklister\",\"oppgaver\",\"tegninger\",\"3d\"]") // aktive moduler
-  buildingIds Json?    @map("building_ids") // null = alle bygninger, ellers array med bygning-IDer
+  byggeplassIder Json?    @map("building_ids") // null = alle byggeplasser, ellers array med byggeplass-IDer
   isDefault   Boolean  @default(false) @map("is_default")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
@@ -278,14 +277,10 @@ model Enterprise {
   kontrakt               FtdKontrakt?         @relation(fields: [kontraktId], references: [id], onDelete: SetNull)
   ansvarlig              User?                @relation("EnterpriseAnsvarlig", fields: [ansvarligId], references: [id], onDelete: SetNull)
   memberEnterprises      MemberEnterprise[]
-  createdChecklists      Checklist[]          @relation("ChecklistCreatorEnterprise")
-  respondChecklists      Checklist[]          @relation("ChecklistResponderEnterprise")
-  createdTasks           Task[]               @relation("TaskCreatorEnterprise")
-  respondTasks           Task[]               @relation("TaskResponderEnterprise")
-  createdWorkflows       Workflow[]           @relation("WorkflowCreator")
-  respondWorkflows       Workflow[]           @relation("WorkflowResponder")
-  respondWorkflows2      Workflow[]           @relation("WorkflowResponder2")
-  respondWorkflows3      Workflow[]           @relation("WorkflowResponder3")
+  bestillerChecklists    Checklist[]          @relation("ChecklistCreatorEnterprise")
+  utforerChecklists      Checklist[]          @relation("ChecklistResponderEnterprise")
+  bestillerTasks         Task[]               @relation("TaskCreatorEnterprise")
+  utforerTasks           Task[]               @relation("TaskResponderEnterprise")
   dokumentflytMedlemskap DokumentflytMedlem[]
   dokumentflyter         Dokumentflyt[]       @relation("dokumentflytEnterprise")
   invitations            ProjectInvitation[]
@@ -299,7 +294,7 @@ model Enterprise {
 model Drawing {
   id               String    @id @default(uuid())
   projectId        String    @map("project_id")
-  buildingId       String?   @map("building_id")
+  byggeplassId     String?   @map("byggeplass_id")
   name             String
   drawingNumber    String?   @map("drawing_number") // Tegningsnummer: ARK-P-101
   discipline       String? // Fagdisiplin: ARK, RIB, RIV, RIE, RIBr, RIG, LARK, RIAku
@@ -326,7 +321,7 @@ model Drawing {
   updatedAt        DateTime  @updatedAt @map("updated_at")
 
   project    Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  building   Building?         @relation(fields: [buildingId], references: [id], onDelete: SetNull)
+  byggeplass Byggeplass?       @relation(fields: [byggeplassId], references: [id], onDelete: SetNull)
   revisions  DrawingRevision[]
   tasks      Task[]
   checklists Checklist[]
@@ -337,7 +332,7 @@ model Drawing {
 model PointCloud {
   id                String   @id @default(uuid())
   projectId         String   @map("project_id")
-  buildingId        String?  @map("building_id")
+  byggeplassId      String?  @map("byggeplass_id")
   name              String
   description       String?
   fileUrl           String   @map("file_url") // Opplastet fil (LAS, LAZ, E57, PLY)
@@ -355,8 +350,8 @@ model PointCloud {
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @updatedAt @map("updated_at")
 
-  project  Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  building Building? @relation(fields: [buildingId], references: [id], onDelete: SetNull)
+  project    Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  byggeplass Byggeplass? @relation(fields: [byggeplassId], references: [id], onDelete: SetNull)
 
   @@map("point_clouds")
 }
@@ -380,7 +375,7 @@ model DrawingRevision {
   @@map("drawing_revisions")
 }
 
-model Building {
+model Byggeplass {
   id          String   @id @default(uuid())
   projectId   String   @map("project_id")
   number      Int?     @map("number")
@@ -399,7 +394,7 @@ model Building {
   ftdKontrakter FtdKontrakt[]
   psiEr         Psi[]
 
-  @@map("buildings")
+  @@map("byggeplasser")
 }
 
 model ReportTemplate {
@@ -424,7 +419,6 @@ model ReportTemplate {
   objects           ReportObject[]
   checklists        Checklist[]
   tasks             Task[]
-  workflowTemplates WorkflowTemplate[]
   dokumentflytMaler DokumentflytMal[]
   psi               Psi[]
 
@@ -454,32 +448,30 @@ model ReportObject {
 
 model Checklist {
   id                    String    @id @default(uuid())
-  templateId            String    @map("template_id")
-  creatorUserId         String    @map("creator_user_id")
-  creatorEnterpriseId   String    @map("creator_enterprise_id")
-  responderEnterpriseId String    @map("responder_enterprise_id")
-  status                String    @default("draft")
-  title                 String
-  number                Int?      @map("number")
-  data                  Json      @default("{}")
-  dueDate               DateTime? @map("due_date")
-  workflowId            String?   @map("workflow_id")
-  dokumentflytId        String?   @map("dokumentflyt_id")
-  subject               String?
-  buildingId            String?   @map("building_id")
+  templateId              String    @map("template_id")
+  bestillerUserId         String    @map("bestiller_user_id")
+  bestillerEnterpriseId   String    @map("bestiller_enterprise_id")
+  utforerEnterpriseId     String    @map("utforer_enterprise_id")
+  status                  String    @default("draft")
+  title                   String
+  number                  Int?      @map("number")
+  data                    Json      @default("{}")
+  dueDate                 DateTime? @map("due_date")
+  dokumentflytId          String?   @map("dokumentflyt_id")
+  subject                 String?
+  byggeplassId            String?   @map("byggeplass_id")
   drawingId             String?   @map("drawing_id")
   recipientUserId       String?   @map("recipient_user_id")
   recipientGroupId      String?   @map("recipient_group_id")
   createdAt             DateTime  @default(now()) @map("created_at")
   updatedAt             DateTime  @updatedAt @map("updated_at")
 
-  template            ReportTemplate       @relation(fields: [templateId], references: [id])
-  creator             User                 @relation("ChecklistCreator", fields: [creatorUserId], references: [id])
-  creatorEnterprise   Enterprise           @relation("ChecklistCreatorEnterprise", fields: [creatorEnterpriseId], references: [id])
-  responderEnterprise Enterprise           @relation("ChecklistResponderEnterprise", fields: [responderEnterpriseId], references: [id])
-  workflow            Workflow?            @relation(fields: [workflowId], references: [id], onDelete: SetNull)
-  dokumentflyt        Dokumentflyt?        @relation(fields: [dokumentflytId], references: [id], onDelete: SetNull)
-  building            Building?            @relation(fields: [buildingId], references: [id], onDelete: SetNull)
+  template              ReportTemplate       @relation(fields: [templateId], references: [id])
+  bestiller             User                 @relation("ChecklistCreator", fields: [bestillerUserId], references: [id])
+  bestillerEnterprise   Enterprise           @relation("ChecklistCreatorEnterprise", fields: [bestillerEnterpriseId], references: [id])
+  utforerEnterprise     Enterprise           @relation("ChecklistResponderEnterprise", fields: [utforerEnterpriseId], references: [id])
+  dokumentflyt          Dokumentflyt?        @relation(fields: [dokumentflytId], references: [id], onDelete: SetNull)
+  byggeplass            Byggeplass?          @relation(fields: [byggeplassId], references: [id], onDelete: SetNull)
   drawing             Drawing?             @relation(fields: [drawingId], references: [id], onDelete: SetNull)
   recipientUser       User?                @relation("ChecklistRecipient", fields: [recipientUserId], references: [id], onDelete: SetNull)
   recipientGroup      ProjectGroup?        @relation("ChecklistRecipientGroup", fields: [recipientGroupId], references: [id], onDelete: SetNull)
@@ -493,22 +485,21 @@ model Checklist {
 
 model Task {
   id                    String    @id @default(uuid())
-  templateId            String?   @map("template_id")
-  creatorUserId         String    @map("creator_user_id")
-  creatorEnterpriseId   String    @map("creator_enterprise_id")
-  responderEnterpriseId String    @map("responder_enterprise_id")
-  status                String    @default("draft")
-  title                 String
-  description           String?
-  subject               String?
-  number                Int?      @map("number")
-  priority              String    @default("medium")
-  dueDate               DateTime? @map("due_date")
-  drawingId             String?   @map("drawing_id")
-  positionX             Float?    @map("position_x")
-  positionY             Float?    @map("position_y")
-  workflowId            String?   @map("workflow_id")
-  dokumentflytId        String?   @map("dokumentflyt_id")
+  templateId              String?   @map("template_id")
+  bestillerUserId         String    @map("bestiller_user_id")
+  bestillerEnterpriseId   String    @map("bestiller_enterprise_id")
+  utforerEnterpriseId     String    @map("utforer_enterprise_id")
+  status                  String    @default("draft")
+  title                   String
+  description             String?
+  subject                 String?
+  number                  Int?      @map("number")
+  priority                String    @default("medium")
+  dueDate                 DateTime? @map("due_date")
+  drawingId               String?   @map("drawing_id")
+  positionX               Float?    @map("position_x")
+  positionY               Float?    @map("position_y")
+  dokumentflytId          String?   @map("dokumentflyt_id")
   checklistId           String?   @map("checklist_id")
   checklistFieldId      String?   @map("checklist_field_id")
   data                  Json?
@@ -517,13 +508,12 @@ model Task {
   createdAt             DateTime  @default(now()) @map("created_at")
   updatedAt             DateTime  @updatedAt @map("updated_at")
 
-  template            ReportTemplate?    @relation(fields: [templateId], references: [id])
-  creator             User               @relation("TaskCreator", fields: [creatorUserId], references: [id])
-  creatorEnterprise   Enterprise         @relation("TaskCreatorEnterprise", fields: [creatorEnterpriseId], references: [id])
-  responderEnterprise Enterprise         @relation("TaskResponderEnterprise", fields: [responderEnterpriseId], references: [id])
-  drawing             Drawing?           @relation(fields: [drawingId], references: [id])
-  workflow            Workflow?          @relation(fields: [workflowId], references: [id], onDelete: SetNull)
-  dokumentflyt        Dokumentflyt?      @relation(fields: [dokumentflytId], references: [id], onDelete: SetNull)
+  template              ReportTemplate?    @relation(fields: [templateId], references: [id])
+  bestiller             User               @relation("TaskCreator", fields: [bestillerUserId], references: [id])
+  bestillerEnterprise   Enterprise         @relation("TaskCreatorEnterprise", fields: [bestillerEnterpriseId], references: [id])
+  utforerEnterprise     Enterprise         @relation("TaskResponderEnterprise", fields: [utforerEnterpriseId], references: [id])
+  drawing               Drawing?           @relation(fields: [drawingId], references: [id])
+  dokumentflyt          Dokumentflyt?      @relation(fields: [dokumentflytId], references: [id], onDelete: SetNull)
   checklist           Checklist?         @relation(fields: [checklistId], references: [id], onDelete: SetNull)
   recipientUser       User?              @relation("TaskRecipient", fields: [recipientUserId], references: [id], onDelete: SetNull)
   recipientGroup      ProjectGroup?      @relation("TaskRecipientGroup", fields: [recipientGroupId], references: [id], onDelete: SetNull)
@@ -615,56 +605,7 @@ model FolderAccess {
   @@map("folder_access")
 }
 
-model Workflow {
-  id                     String   @id @default(uuid())
-  enterpriseId           String   @map("enterprise_id")
-  responderEnterpriseId  String?  @map("responder_enterprise_id")
-  responderEnterprise2Id String?  @map("responder_enterprise_2_id")
-  responderEnterprise3Id String?  @map("responder_enterprise_3_id")
-  name                   String
-  createdAt              DateTime @default(now()) @map("created_at")
-  updatedAt              DateTime @updatedAt @map("updated_at")
-
-  enterprise           Enterprise           @relation("WorkflowCreator", fields: [enterpriseId], references: [id], onDelete: Cascade)
-  responderEnterprise  Enterprise?          @relation("WorkflowResponder", fields: [responderEnterpriseId], references: [id], onDelete: SetNull)
-  responderEnterprise2 Enterprise?          @relation("WorkflowResponder2", fields: [responderEnterprise2Id], references: [id], onDelete: SetNull)
-  responderEnterprise3 Enterprise?          @relation("WorkflowResponder3", fields: [responderEnterprise3Id], references: [id], onDelete: SetNull)
-  templates            WorkflowTemplate[]
-  checklists           Checklist[]
-  tasks                Task[]
-  stepMembers          WorkflowStepMember[]
-
-  @@map("workflows")
-}
-
-model WorkflowTemplate {
-  id         String   @id @default(uuid())
-  workflowId String   @map("workflow_id")
-  templateId String   @map("template_id")
-  createdAt  DateTime @default(now()) @map("created_at")
-
-  workflow Workflow       @relation(fields: [workflowId], references: [id], onDelete: Cascade)
-  template ReportTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
-
-  @@unique([workflowId, templateId])
-  @@map("workflow_templates")
-}
-
-model WorkflowStepMember {
-  id              String   @id @default(uuid())
-  workflowId      String   @map("workflow_id")
-  projectMemberId String   @map("project_member_id")
-  step            Int // 2 eller 3
-  createdAt       DateTime @default(now()) @map("created_at")
-
-  workflow      Workflow      @relation(fields: [workflowId], references: [id], onDelete: Cascade)
-  projectMember ProjectMember @relation(fields: [projectMemberId], references: [id], onDelete: Cascade)
-
-  @@unique([workflowId, projectMemberId, step])
-  @@map("workflow_step_members")
-}
-
-// ---- Dokumentflyt (ny modell, erstatter Workflow over tid) ----
+// ---- Dokumentflyt ----
 
 model Dokumentflyt {
   id           String   @id @default(uuid())
@@ -834,13 +775,13 @@ model FtdKontrakt {
   kontraktType         String?  @map("kontrakt_type") // "8405" | "8406" | "8407"
   byggherre            String?
   entreprenor          String?
-  buildingId           String?  @map("building_id")
+  byggeplassId         String?  @map("byggeplass_id")
   hmsSamordningsgruppe String?  @map("hms_samordningsgruppe")
   createdAt            DateTime @default(now()) @map("created_at")
   updatedAt            DateTime @updatedAt @map("updated_at")
 
-  project     Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  building    Building?     @relation(fields: [buildingId], references: [id], onDelete: SetNull)
+  project    Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  byggeplass Byggeplass? @relation(fields: [byggeplassId], references: [id], onDelete: SetNull)
   entrepriser Enterprise[]
   dokumenter  FtdDocument[]
   mapper      Folder[]
@@ -1044,8 +985,8 @@ model FtdNotaComment {
 model Psi {
   id         String   @id @default(uuid())
   projectId  String   @map("project_id")
-  buildingId String?  @map("building_id")  // null = gjelder hele prosjektet
-  templateId String   @map("template_id")
+  byggeplassId String?  @map("byggeplass_id")  // null = gjelder hele prosjektet
+  templateId   String   @map("template_id")
   version      Int      @default(1)
   active       Boolean  @default(true)
   languages    String[] @default([])            // Språk PSI er oversatt til (f.eks. ["en", "lt", "pl"])
@@ -1054,11 +995,11 @@ model Psi {
   updatedAt    DateTime @updatedAt @map("updated_at")
 
   project    Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  building   Building?      @relation(fields: [buildingId], references: [id], onDelete: SetNull)
+  byggeplass Byggeplass?    @relation(fields: [byggeplassId], references: [id], onDelete: SetNull)
   template   ReportTemplate @relation(fields: [templateId], references: [id])
   signaturer PsiSignatur[]
 
-  @@unique([projectId, buildingId])  // Én PSI per prosjekt+bygning
+  @@unique([projectId, byggeplassId])  // Én PSI per prosjekt+byggeplass
   @@map("psi")
 }
 

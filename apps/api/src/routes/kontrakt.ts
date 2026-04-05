@@ -10,7 +10,7 @@ export const kontraktRouter = router({
       return ctx.prisma.ftdKontrakt.findMany({
         where: { projectId: input.projectId },
         include: {
-          building: { select: { id: true, name: true, number: true } },
+          byggeplass: { select: { id: true, name: true, number: true } },
           _count: { select: { entrepriser: true, dokumenter: true } },
         },
         orderBy: { createdAt: "asc" },
@@ -25,7 +25,7 @@ export const kontraktRouter = router({
         kontraktType: z.enum(["8405", "8406", "8407"]).optional(),
         byggherre: z.string().optional(),
         entreprenor: z.string().optional(),
-        buildingId: z.string().uuid().optional(),
+        byggeplassId: z.string().uuid().optional(),
         hmsSamordningsgruppe: z.string().optional(),
       }),
     )
@@ -38,7 +38,7 @@ export const kontraktRouter = router({
           kontraktType: input.kontraktType ?? null,
           byggherre: input.byggherre ?? null,
           entreprenor: input.entreprenor ?? null,
-          buildingId: input.buildingId ?? null,
+          byggeplassId: input.byggeplassId ?? null,
           hmsSamordningsgruppe: input.hmsSamordningsgruppe ?? null,
         },
       });
@@ -52,7 +52,7 @@ export const kontraktRouter = router({
         kontraktType: z.enum(["8405", "8406", "8407"]).nullable().optional(),
         byggherre: z.string().nullable().optional(),
         entreprenor: z.string().nullable().optional(),
-        buildingId: z.string().uuid().nullable().optional(),
+        byggeplassId: z.string().uuid().nullable().optional(),
         hmsSamordningsgruppe: z.string().nullable().optional(),
       }),
     )

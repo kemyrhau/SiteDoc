@@ -102,11 +102,11 @@ export default function FieldSide() {
       ikon: <Wrench className="h-12 w-12 text-gray-400" />,
       aktiv: true,
       lenker: [
-        { label: t("oppsett.oppgavemaler"), href: "/dashbord/oppsett/field/oppgavemaler" },
-        { label: t("feltarbeid.hurtigOverskrifter"), href: "/dashbord/oppsett/field/hurtig-overskrifter" },
-        { label: t("feltarbeid.bransjekartlegging"), href: "/dashbord/oppsett/field/bransjekartlegging" },
-        { label: t("feltarbeid.entreprisetilknytning"), href: "/dashbord/oppsett/field/entrepriser" },
-        { label: t("feltarbeid.malerOppgavenotifikasjon"), href: "/dashbord/oppsett/field/oppgavenotifikasjon" },
+        { label: t("oppsett.oppgavemaler"), href: "/dashbord/oppsett/produksjon/oppgavemaler" },
+        { label: t("produksjon.hurtigOverskrifter"), href: "/dashbord/oppsett/produksjon/hurtig-overskrifter" },
+        { label: t("produksjon.bransjekartlegging"), href: "/dashbord/oppsett/produksjon/bransjekartlegging" },
+        { label: t("produksjon.entreprisetilknytning"), href: "/dashbord/oppsett/produksjon/entrepriser" },
+        { label: t("produksjon.malerOppgavenotifikasjon"), href: "/dashbord/oppsett/produksjon/oppgavenotifikasjon" },
       ],
     },
     {
@@ -114,67 +114,67 @@ export default function FieldSide() {
       ikon: <ClipboardCheck className="h-12 w-12 text-gray-400" />,
       aktiv: true,
       lenker: [
-        { label: t("oppsett.sjekklistemaler"), href: "/dashbord/oppsett/field/sjekklistemaler" },
-        { label: t("feltarbeid.sjekklisteHoldepunkt"), href: "/dashbord/oppsett/field/sjekklistemaler-holdepunkt" },
-        { label: t("feltarbeid.slettedeSjekklister"), href: "/dashbord/oppsett/field/slettede-sjekklister" },
-        { label: t("feltarbeid.entreprisetilknytning"), href: "/dashbord/oppsett/field/sjekkliste-entrepriser" },
+        { label: t("oppsett.sjekklistemaler"), href: "/dashbord/oppsett/produksjon/sjekklistemaler" },
+        { label: t("produksjon.sjekklisteHoldepunkt"), href: "/dashbord/oppsett/produksjon/sjekklistemaler-holdepunkt" },
+        { label: t("produksjon.slettedeSjekklister"), href: "/dashbord/oppsett/produksjon/slettede-sjekklister" },
+        { label: t("produksjon.entreprisetilknytning"), href: "/dashbord/oppsett/produksjon/sjekkliste-entrepriser" },
       ],
     },
     {
-      tittel: t("feltarbeid.kontrollplaner"),
+      tittel: t("produksjon.kontrollplaner"),
       ikon: <SearchCheck className="h-12 w-12 text-gray-300" />,
       aktiv: false,
       lenker: [
-        { label: t("feltarbeid.kontrollplaner"), href: "#" },
-        { label: t("feltarbeid.kontrollplanmatriser"), href: "#" },
-        { label: t("feltarbeid.arbeidsforlopKnytning"), href: "#" },
+        { label: t("produksjon.kontrollplaner"), href: "#" },
+        { label: t("produksjon.kontrollplanmatriser"), href: "#" },
+        { label: t("produksjon.arbeidsforlopKnytning"), href: "#" },
       ],
     },
     {
-      tittel: t("feltarbeid.godkjennelser"),
+      tittel: t("produksjon.godkjennelser"),
       ikon: <ThumbsUp className="h-12 w-12 text-gray-300" />,
       aktiv: false,
       lenker: [
-        { label: t("feltarbeid.godkjennelsesmaler"), href: "#" },
+        { label: t("produksjon.godkjennelsesmaler"), href: "#" },
       ],
     },
     {
-      tittel: t("feltarbeid.vaer"),
+      tittel: t("produksjon.vaer"),
       ikon: <CloudSun className="h-12 w-12 text-gray-300" />,
       aktiv: false,
       lenker: [
-        { label: t("feltarbeid.vaer"), href: "#", undertekst: t("feltarbeid.deaktivert") },
-        { label: t("feltarbeid.visVaer"), href: "#", undertekst: t("feltarbeid.deaktivert") },
-        { label: t("feltarbeid.vaerdata"), href: "#" },
+        { label: t("produksjon.vaer"), href: "#", undertekst: t("produksjon.deaktivert") },
+        { label: t("produksjon.visVaer"), href: "#", undertekst: t("produksjon.deaktivert") },
+        { label: t("produksjon.vaerdata"), href: "#" },
       ],
     },
     {
-      tittel: t("feltarbeid.capture"),
+      tittel: t("produksjon.capture"),
       ikon: <Camera className="h-12 w-12 text-gray-300" />,
       aktiv: false,
       lenker: [
-        { label: t("feltarbeid.captureTyper"), href: "#", undertekst: t("feltarbeid.fotoalbumer") },
-        { label: t("feltarbeid.grupperMedAdgang"), href: "#" },
-        { label: t("feltarbeid.slettedeFotoalbum"), href: "#" },
+        { label: t("produksjon.captureTyper"), href: "#", undertekst: t("produksjon.fotoalbumer") },
+        { label: t("produksjon.grupperMedAdgang"), href: "#" },
+        { label: t("produksjon.slettedeFotoalbum"), href: "#" },
       ],
     },
     {
-      tittel: t("feltarbeid.dagligLogg"),
+      tittel: t("produksjon.dagligLogg"),
       ikon: <BookOpen className="h-12 w-12 text-gray-300" />,
       aktiv: false,
       lenker: [
         { label: "Typer", href: "#" },
         { label: "Rettigheter", href: "#" },
         { label: "Loggfør været", href: "#" },
-        { label: "Signaturer", href: "#", undertekst: t("feltarbeid.deaktivert") },
+        { label: "Signaturer", href: "#", undertekst: t("produksjon.deaktivert") },
       ],
     },
     {
-      tittel: t("feltarbeid.hms"),
+      tittel: t("produksjon.hms"),
       ikon: <HardHat className="h-12 w-12 text-gray-300" />,
       aktiv: false,
       lenker: [
-        { label: t("feltarbeid.hmsKategorier"), href: "#" },
+        { label: t("produksjon.hmsKategorier"), href: "#" },
         { label: "HMS-observasjon", href: "#" },
         { label: "Verneprotokoll", href: "#" },
         { label: "HMS-oppgave", href: "#" },
@@ -184,11 +184,11 @@ export default function FieldSide() {
 
   return (
     <div>
-      <h2 className="mb-6 text-xl font-bold text-gray-900">{t("oppsett.feltarbeid")}</h2>
+      <h2 className="mb-6 text-xl font-bold text-gray-900">{t("oppsett.produksjon")}</h2>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {kategorier.map((kategori) => (
-          <FieldKort key={kategori.tittel} kategori={kategori} kommerSnartTekst={t("feltarbeid.kommerSnart")} />
+          <FieldKort key={kategori.tittel} kategori={kategori} kommerSnartTekst={t("produksjon.kommerSnart")} />
         ))}
       </div>
     </div>

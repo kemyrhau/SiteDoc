@@ -26,7 +26,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { trpc } from "../../src/lib/trpc";
 import { useProsjekt } from "../../src/kontekst/ProsjektKontekst";
-import { useBygning } from "../../src/kontekst/BygningKontekst";
+import { useByggeplass } from "../../src/kontekst/ByggeplassKontekst";
 import { ProsjektVelger } from "../../src/components/ProsjektVelger";
 import { MalVelger } from "../../src/components/MalVelger";
 import { OpprettDokumentModal } from "../../src/components/OpprettDokumentModal";
@@ -93,7 +93,7 @@ function formaterNummer(prefix: string | null | undefined, nummer: number | null
 export default function HjemSkjerm() {
   const { t } = useTranslation();
   const { valgtProsjektId } = useProsjekt();
-  const { valgtBygningId } = useBygning();
+  const { valgtBygningId } = useByggeplass();
   const [velgerSynlig, setVelgerSynlig] = useState(false);
   const [opprettKategori, setOpprettKategori] = useState<"sjekkliste" | "oppgave" | null>(null);
   const [valgtMal, setValgtMal] = useState<MalData | null>(null);
@@ -141,7 +141,7 @@ export default function HjemSkjerm() {
     { projectId: valgtProsjektId! },
     { enabled: !!valgtProsjektId && erPsiAktiv },
   );
-  type PsiData = { id: string; version: number; buildingId: string | null; building: { id: string; name: string } | null; template: { id: string; name: string; prefix: string | null } };
+  type PsiData = { id: string; version: number; byggeplassId: string | null; building: { id: string; name: string } | null; template: { id: string; name: string; prefix: string | null } };
   const psiListe = (psiQuery.data ?? []) as PsiData[];
 
   // Sjekk om valgt bygning har IFC-modeller OG 3D-modulen er aktiv
@@ -157,7 +157,7 @@ export default function HjemSkjerm() {
   const sjekklisteQuery = trpc.sjekkliste.hentForProsjekt.useQuery(
     {
       projectId: valgtProsjektId!,
-      ...(valgtBygningId ? { buildingId: valgtBygningId } : {}),
+      ...(valgtBygningId ? { byggeplassId: valgtBygningId } : {}),
     },
     { enabled: !!valgtProsjektId },
   );
@@ -614,7 +614,7 @@ export default function HjemSkjerm() {
 }
 
 /* PSI-statuslinje — smal linje per PSI */
-function PsiStatusKort({ psiListe }: { psiListe: Array<{ id: string; version: number; buildingId: string | null; building: { id: string; name: string } | null; template: { id: string; name: string; prefix: string | null } }> }) {
+function PsiStatusKort({ psiListe }: { psiListe: Array<{ id: string; version: number; byggeplassId: string | null; building: { id: string; name: string } | null; template: { id: string; name: string; prefix: string | null } }> }) {
   const router = useRouter();
 
   return (
@@ -627,7 +627,7 @@ function PsiStatusKort({ psiListe }: { psiListe: Array<{ id: string; version: nu
 }
 
 function PsiStatusRad({ psi, onPress }: {
-  psi: { id: string; version: number; buildingId: string | null; building: { id: string; name: string } | null };
+  psi: { id: string; version: number; byggeplassId: string | null; building: { id: string; name: string } | null };
   onPress: () => void;
 }) {
   const { t } = useTranslation();

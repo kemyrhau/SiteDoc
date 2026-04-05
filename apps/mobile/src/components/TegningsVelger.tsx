@@ -30,7 +30,7 @@ interface Tegning {
   drawingNumber: string | null;
   discipline: string | null;
   floor: string | null;
-  buildingId: string | null;
+  byggeplassId: string | null;
   geoReference?: unknown;
   _count: { revisions: number };
 }
@@ -73,7 +73,7 @@ export function TegningsVelger({
     let resultat = tegninger;
 
     if (valgtBygningId) {
-      resultat = resultat.filter((t) => t.buildingId === valgtBygningId);
+      resultat = resultat.filter((t) => t.byggeplassId === valgtBygningId);
     }
 
     if (søkTekst.trim()) {

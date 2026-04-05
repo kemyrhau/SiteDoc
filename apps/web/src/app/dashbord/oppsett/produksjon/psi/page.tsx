@@ -47,7 +47,7 @@ export default function PsiOppsettSide() {
       const data = _data as { templateId: string };
       utils.psi.hentForProsjekt.invalidate();
       // Åpne malbygger for den nye PSI-malen
-      router.push(`/dashbord/oppsett/field/sjekklistemaler/${data.templateId}`);
+      router.push(`/dashbord/oppsett/produksjon/sjekklistemaler/${data.templateId}`);
     },
   });
 
@@ -88,8 +88,8 @@ export default function PsiOppsettSide() {
   const bygningsListe = (bygninger ?? []) as BygningData[];
 
   // Hvilke bygninger har allerede PSI?
-  const bygningerMedPsi = new Set((psiListe ?? []).map((p: PsiRad) => p.buildingId).filter(Boolean));
-  const harProsjektnivaPsi = (psiListe ?? []).some((p: PsiRad) => !p.buildingId);
+  const bygningerMedPsi = new Set((psiListe ?? []).map((p: PsiRad) => p.byggeplassId).filter(Boolean));
+  const harProsjektnivaPsi = (psiListe ?? []).some((p: PsiRad) => !p.byggeplassId);
 
   // Bygninger tilgjengelig for opprettelse
   const tilgjengeligeBygninger = bygningsListe.filter((b) => !bygningerMedPsi.has(b.id));
@@ -235,10 +235,10 @@ export default function PsiOppsettSide() {
                   <tr key={psi.id} className={`hover:bg-gray-50 ${!(psi as unknown as { active: boolean }).active ? "opacity-50" : ""}`}>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
-                        {psi.building ? (
+                        {psi.byggeplass ? (
                           <>
                             <Building2 className="h-4 w-4 text-gray-400" />
-                            <span className="font-medium text-gray-900">{psi.building.name}</span>
+                            <span className="font-medium text-gray-900">{psi.byggeplass.name}</span>
                           </>
                         ) : (
                           <>
@@ -269,7 +269,7 @@ export default function PsiOppsettSide() {
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-1">
                         <a
-                          href={`/dashbord/oppsett/field/sjekklistemaler/${psi.templateId}`}
+                          href={`/dashbord/oppsett/produksjon/sjekklistemaler/${psi.templateId}`}
                           className="rounded-md px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100"
                           title={t("psi.redigerMal")}
                         >
@@ -327,7 +327,7 @@ export default function PsiOppsettSide() {
                             variant="secondary"
                             onClick={() => {
                               if (!kopierMålBygning) return;
-                              kopierMut.mutate({ psiId: psi.id, targetBuildingId: kopierMålBygning });
+                              kopierMut.mutate({ psiId: psi.id, targetByggeplassId: kopierMålBygning });
                               setVisKopierForPsi(null);
                             }}
                             disabled={!kopierMålBygning || kopierMut.isPending}
@@ -428,7 +428,7 @@ export default function PsiOppsettSide() {
                 if (!prosjektId) return;
                 opprettMut.mutate({
                   projectId: prosjektId,
-                  ...(nyBygningId ? { buildingId: nyBygningId } : {}),
+                  ...(nyBygningId ? { byggeplassId: nyBygningId } : {}),
                 });
               }}
               disabled={opprettMut.isPending}

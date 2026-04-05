@@ -7,7 +7,7 @@ export default function DokumentflytSide() {
   const router = useRouter();
 
   useEffect(() => {
-    router.replace("/dashbord/oppsett/field/entrepriser");
+    router.replace("/dashbord/oppsett/produksjon/entrepriser");
   }, [router]);
 
   return null;

@@ -4,7 +4,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { trpc } from "@/lib/trpc";
 import { SearchInput, Spinner } from "@sitedoc/ui";
 import { useState } from "react";
-import { useBygning } from "@/kontekst/bygning-kontekst";
+import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
 import { useTranslation } from "react-i18next";
 import { MapPin, X } from "lucide-react";
 
@@ -32,7 +32,7 @@ export function SjekklisterPanel() {
   const searchParams = useSearchParams();
   const aktivStatus = searchParams.get("status") ?? "alle";
   const [sok, setSok] = useState("");
-  const { aktivBygning, standardTegning, settStandardTegning } = useBygning();
+  const { aktivByggeplass, standardTegning, settStandardTegning } = useByggeplass();
   const { t } = useTranslation();
 
   const { data: sjekklister, isLoading } =
@@ -81,7 +81,7 @@ export function SjekklisterPanel() {
           <div className="flex items-center gap-1.5">
             <MapPin className="h-3.5 w-3.5 shrink-0 text-blue-500" />
             <span className="flex-1 truncate text-xs font-medium text-blue-700">
-              {aktivBygning ? `${aktivBygning.name} — ` : ""}{standardTegning.name}
+              {aktivByggeplass ? `${aktivByggeplass.name} — ` : ""}{standardTegning.name}
             </span>
             <button
               onClick={() => settStandardTegning(null)}

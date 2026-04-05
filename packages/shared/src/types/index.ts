@@ -245,7 +245,7 @@ export const TEMPLATE_ZONES = ["topptekst", "datafelter"] as const;
 export type TemplateZone = (typeof TEMPLATE_ZONES)[number];
 
 // Entreprisevelger-roller
-export type EnterpriseRole = "creator" | "responder";
+export type EnterpriseRole = "bestiller" | "utforer";
 
 // Tillatelser — granulære tillatelser for prosjektgrupper
 export const PERMISSIONS = [
@@ -271,10 +271,10 @@ export type Permission = (typeof PERMISSIONS)[number];
 
 // Norske labels for tillatelser
 export const PERMISSION_LABELS: Record<Permission, string> = {
-  manage_field: "Administrer feltarbeid",
+  manage_field: "Administrer produksjon",
   create_tasks: "Opprett oppgaver",
   create_checklists: "Opprett sjekklister",
-  view_field: "Se feltarbeid",
+  view_field: "Se produksjon",
   checklist_edit: "Rediger sjekklister",
   checklist_view: "Se sjekklister",
   task_edit: "Rediger oppgaver",
@@ -352,10 +352,10 @@ export const STANDARD_PROJECT_GROUPS: StandardProjectGroup[] = [
     permissions: ["manage_field", "create_tasks", "create_checklists", "checklist_edit", "checklist_view", "task_edit", "task_view", "template_manage", "drawing_manage", "drawing_view", "folder_manage", "folder_view", "enterprise_manage", "member_manage"],
     domains: ["bygg", "hms", "kvalitet"],
   },
-  // Feltarbeid
+  // Produksjon
   {
     slug: "field-admin",
-    name: "Feltarbeid-administratorer",
+    name: "Produksjonsadministratorer",
     category: "field",
     permissions: ["manage_field", "create_tasks", "create_checklists", "checklist_edit", "checklist_view", "task_edit", "task_view", "template_manage", "drawing_manage", "drawing_view", "folder_manage", "folder_view", "enterprise_manage", "member_manage"],
     domains: ["bygg"],
@@ -369,7 +369,7 @@ export const STANDARD_PROJECT_GROUPS: StandardProjectGroup[] = [
   },
   {
     slug: "field-observatorer",
-    name: "Feltarbeid-registrator",
+    name: "Produksjonsregistrator",
     category: "field",
     permissions: ["view_field", "checklist_view", "task_view", "drawing_view", "folder_view"],
     domains: ["bygg"],
@@ -603,9 +603,9 @@ export const STANDARD_ENTREPRISER: StandardEntreprise[] = [
 // Refererer til entrepriser og maler via indeks (løst opp under opprettelse)
 export interface StandardDokumentflyt {
   navn: string;
-  /** Indekser inn i STANDARD_ENTREPRISER for oppretter-rolle */
+  /** Indekser inn i STANDARD_ENTREPRISER for bestiller-rolle */
   oppretter: number[];
-  /** Indekser inn i STANDARD_ENTREPRISER for svarer-rolle */
+  /** Indekser inn i STANDARD_ENTREPRISER for utfører-rolle */
   svarer: number[];
   /** Mal-slugger fra PROSJEKT_MODULER som skal tilknyttes */
   malPrefixer: string[];
@@ -772,9 +772,14 @@ export interface VaerVerdi {
   kilde?: "manuell" | "automatisk";
 }
 
-// Bygningstyper
-export const BUILDING_TYPES = ["bygg", "anlegg"] as const;
-export type BuildingType = (typeof BUILDING_TYPES)[number];
+// Byggeplasstyper
+export const BYGGEPLASS_TYPER = ["bygg", "anlegg"] as const;
+export type ByggeplassType = (typeof BYGGEPLASS_TYPER)[number];
+
+/** @deprecated Bruk BYGGEPLASS_TYPER */
+export const BUILDING_TYPES = BYGGEPLASS_TYPER;
+/** @deprecated Bruk ByggeplassType */
+export type BuildingType = ByggeplassType;
 
 // Georeferanse for tegninger (2+ referansepunkter)
 export interface GeoReferansePunkt {

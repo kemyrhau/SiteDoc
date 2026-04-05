@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback } from "react";
 import { Modal, Button } from "@sitedoc/ui";
 import { trpc } from "@/lib/trpc";
-import { useBygning } from "@/kontekst/bygning-kontekst";
+import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
 import { MapPin, X, ZoomIn, ZoomOut, RotateCcw } from "lucide-react";
 
 interface LokasjonVelgerProps {
@@ -16,7 +16,7 @@ interface LokasjonVelgerProps {
   visPosisjon?: boolean;
   onLagre: (data: {
     drawingId: string | null;
-    buildingId?: string | null;
+    byggeplassId?: string | null;
     positionX?: number | null;
     positionY?: number | null;
   }) => void;
@@ -34,7 +34,7 @@ export function LokasjonVelger({
   onLagre,
   leseModus,
 }: LokasjonVelgerProps) {
-  const { aktivBygning, standardTegning } = useBygning();
+  const { aktivByggeplass, standardTegning } = useByggeplass();
   const [open, setOpen] = useState(false);
   const [valgtBygningId, setValgtBygningId] = useState<string>("");
   const [valgtTegningId, setValgtTegningId] = useState<string>("");
@@ -58,9 +58,9 @@ export function LokasjonVelger({
 
   const tegninger = ((tegningerRå ?? []) as Array<{
     id: string; name: string; drawingNumber: string | null;
-    floor: string | null; buildingId: string | null;
+    floor: string | null; byggeplassId: string | null;
     fileUrl: string | null; fileType: string | null;
-  }>).filter((t) => !valgtBygningId || t.buildingId === valgtBygningId);
+  }>).filter((t) => !valgtBygningId || t.byggeplassId === valgtBygningId);
 
   const { data: valgtTegningData } = trpc.tegning.hentMedId.useQuery(
     { id: valgtTegningId },
@@ -73,7 +73,7 @@ export function LokasjonVelger({
 
   function åpne() {
     // Bruk eksisterende verdier, eller fall tilbake til aktiv bygning/tegning fra kontekst
-    setValgtBygningId(aktivBygning?.id ?? "");
+    setValgtBygningId(aktivByggeplass?.id ?? "");
     setValgtTegningId(tegningId ?? standardTegning?.id ?? "");
     setPunkt(positionX != null && positionY != null ? { x: positionX, y: positionY } : null);
     setZoom(1);
@@ -121,7 +121,7 @@ export function LokasjonVelger({
     const tegning = tegninger.find((t) => t.id === valgtTegningId);
     onLagre({
       drawingId: valgtTegningId || null,
-      buildingId: tegning?.buildingId ?? null,
+      byggeplassId: tegning?.byggeplassId ?? null,
       positionX: visPosisjon ? (punkt?.x ?? null) : undefined,
       positionY: visPosisjon ? (punkt?.y ?? null) : undefined,
     });
@@ -129,7 +129,7 @@ export function LokasjonVelger({
   }
 
   function handleFjern() {
-    onLagre({ drawingId: null, buildingId: null, positionX: null, positionY: null });
+    onLagre({ drawingId: null, byggeplassId: null, positionX: null, positionY: null });
     setOpen(false);
   }
 

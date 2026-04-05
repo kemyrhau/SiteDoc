@@ -58,8 +58,8 @@ export default function OppgaverSide() {
 
     opprettMutation.mutate({
       templateId: valgtMalId,
-      creatorEnterpriseId: oppretterEntreprise.id,
-      responderEnterpriseId: valgtSvarer,
+      bestillerEnterpriseId: oppretterEntreprise.id,
+      utforerEnterpriseId: valgtSvarer,
       title: tittel.trim(),
       description: beskrivelse.trim() || undefined,
       priority: prioritet,
@@ -89,7 +89,7 @@ export default function OppgaverSide() {
         />
       ) : (
         <div className="flex flex-col gap-3">
-          {(oppgaver as Array<{ id: string; title: string; description: string | null; priority: string; status: string; dueDate: string | null; responderEnterprise: { name: string } }>).map((oppgave) => (
+          {(oppgaver as Array<{ id: string; title: string; description: string | null; priority: string; status: string; dueDate: string | null; utforerEnterprise: { name: string } }>).map((oppgave) => (
             <Card key={oppgave.id} className="flex items-center justify-between">
               <div>
                 <div className="flex items-center gap-2">
@@ -99,7 +99,7 @@ export default function OppgaverSide() {
                   </Badge>
                 </div>
                 <p className="text-xs text-gray-400">
-                  Svarer: {oppgave.responderEnterprise.name}
+                  Svarer: {oppgave.utforerEnterprise.name}
                   {oppgave.description && ` · ${oppgave.description.slice(0, 60)}...`}
                 </p>
               </div>

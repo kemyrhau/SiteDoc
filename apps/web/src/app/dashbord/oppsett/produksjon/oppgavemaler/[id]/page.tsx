@@ -36,7 +36,7 @@ export default function OppgavemalByggerSide() {
       <div className="flex items-center gap-3">
         <button
           type="button"
-          onClick={() => router.push("/dashbord/oppsett/field/oppgavemaler")}
+          onClick={() => router.push("/dashbord/oppsett/produksjon/oppgavemaler")}
           className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
         >
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

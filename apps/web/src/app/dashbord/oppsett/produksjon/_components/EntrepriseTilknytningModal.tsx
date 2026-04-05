@@ -39,25 +39,24 @@ export function EntrepriseTilknytningModal({
     );
 
   const { data: alleArbeidsforlop, isLoading: lasterAf } =
-    trpc.arbeidsforlop.hentForProsjekt.useQuery(
+    trpc.dokumentflyt.hentForProsjekt.useQuery(
       { projectId: prosjektId },
       { enabled: !!prosjektId && open },
     );
 
   const laster = lasterEntrepriser || lasterAf;
 
-  // Bygg map: entrepriseId -> arbeidsforløp[]
+  // Bygg map: entrepriseId -> dokumentflyter[]
   const arbeidsforlopMap = new Map<
     string,
     Array<{
       id: string;
       name: string;
-      responderEnterpriseId: string | null;
-      responderEnterprise: { id: string; name: string } | null;
     }>
   >();
   if (alleArbeidsforlop) {
     for (const af of alleArbeidsforlop) {
+      if (!af.enterpriseId) continue;
       const liste = arbeidsforlopMap.get(af.enterpriseId) ?? [];
       liste.push(af);
       arbeidsforlopMap.set(af.enterpriseId, liste);
@@ -137,8 +136,6 @@ function EntrepriseGruppe({
   arbeidsforloper: Array<{
     id: string;
     name: string;
-    responderEnterpriseId: string | null;
-    responderEnterprise: { id: string; name: string } | null;
   }>;
   lokaleValg: Set<string>;
   onToggle: (id: string) => void;
@@ -163,32 +160,24 @@ function EntrepriseGruppe({
         <span className={`text-sm font-semibold ${farge.tekst}`}>{navn}</span>
       </button>
 
-      {/* Arbeidsforløp-liste */}
+      {/* Dokumentflyt-liste */}
       {ekspandert && (
         <div className="bg-white py-1">
-          {arbeidsforloper.map((af) => {
-            const svarerNavn = af.responderEnterprise?.name;
-            return (
-              <label
-                key={af.id}
-                className="flex items-center gap-2.5 px-4 py-2 hover:bg-gray-50 cursor-pointer"
-              >
-                <input
-                  type="checkbox"
-                  className="h-4 w-4 rounded border-gray-300 text-sitedoc-primary accent-sitedoc-primary"
-                  checked={lokaleValg.has(af.id)}
-                  onChange={() => onToggle(af.id)}
-                />
-                <WorkflowIcon className="h-3.5 w-3.5 shrink-0 text-gray-400" />
-                <span className="text-sm text-gray-700">{af.name}</span>
-                {svarerNavn && (
-                  <span className="text-xs text-gray-400">
-                    → {svarerNavn}
-                  </span>
-                )}
-              </label>
-            );
-          })}
+          {arbeidsforloper.map((af) => (
+            <label
+              key={af.id}
+              className="flex items-center gap-2.5 px-4 py-2 hover:bg-gray-50 cursor-pointer"
+            >
+              <input
+                type="checkbox"
+                className="h-4 w-4 rounded border-gray-300 text-sitedoc-primary accent-sitedoc-primary"
+                checked={lokaleValg.has(af.id)}
+                onChange={() => onToggle(af.id)}
+              />
+              <WorkflowIcon className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+              <span className="text-sm text-gray-700">{af.name}</span>
+            </label>
+          ))}
         </div>
       )}
     </div>

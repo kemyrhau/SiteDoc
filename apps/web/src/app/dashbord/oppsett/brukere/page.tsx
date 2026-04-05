@@ -306,7 +306,7 @@ function RedigerGruppeModal({
     },
   });
 
-  const oppdaterBygninger = trpc.gruppe.oppdaterBygninger.useMutation({
+  const oppdaterBygninger = trpc.gruppe.oppdaterByggeplasser.useMutation({
     onSuccess: () => {
       utils.gruppe.hentForProsjekt.invalidate({ projectId: prosjektId });
     },
@@ -1008,7 +1008,7 @@ function RedigerGruppeModal({
           )}
         </div>
 
-        {/* Moduler — feltarbeid-admin kan slå av/på */}
+        {/* Moduler — produksjons-admin kan slå av/på */}
         {erDbGruppe && dbGruppe && (
           <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
             <h4 className="mb-3 text-sm font-semibold text-gray-900">{t("brukere.moduler")}</h4>
@@ -1049,14 +1049,14 @@ function RedigerGruppeModal({
           </div>
         )}
 
-        {/* Bygninger — velg hvilke bygninger gruppen ser */}
+        {/* Byggeplasser — velg hvilke byggeplasser gruppen ser */}
         {erDbGruppe && dbGruppe && alleBygninger && alleBygninger.length > 0 && (
           <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-            <h4 className="mb-3 text-sm font-semibold text-gray-900">{t("brukere.bygninger")}</h4>
-            <p className="mb-2 text-xs text-gray-500">{t("brukere.bygningerBeskrivelse")}</p>
+            <h4 className="mb-3 text-sm font-semibold text-gray-900">{t("brukere.byggeplasser")}</h4>
+            <p className="mb-2 text-xs text-gray-500">{t("brukere.byggeplasserBeskrivelse")}</p>
             <div className="flex flex-col gap-2">
               {alleBygninger.map((b) => {
-                const bygningIder = ((dbGruppe as unknown as { buildingIds?: string[] | null }).buildingIds) ?? null;
+                const bygningIder = ((dbGruppe as unknown as { byggeplassIder?: string[] | null }).byggeplassIder) ?? null;
                 const alleValgt = bygningIder === null;
                 const erValgt = alleValgt || (bygningIder?.includes(b.id) ?? false);
                 return (
@@ -1081,7 +1081,7 @@ function RedigerGruppeModal({
                         oppdaterBygninger.mutate({
                           groupId: dbGruppe.id,
                           projectId: prosjektId,
-                          buildingIds: nye,
+                          byggeplassIder: nye,
                         });
                       }}
                       className="h-4 w-4 rounded border-gray-300 text-sitedoc-primary focus:ring-sitedoc-primary"
@@ -1938,7 +1938,7 @@ export default function BrukereSide() {
         onDoubleClickGruppe={(g) => setRedigerGruppeId(g.id)}
       />
       <GruppeSeksjon
-        tittel={t("brukere.feltarbeid")}
+        tittel={t("brukere.produksjon")}
         grupper={field}
         onLeggTilMedlem={handleLeggTilMedlem}
         onDoubleClickGruppe={(g) => setRedigerGruppeId(g.id)}
@@ -2004,7 +2004,7 @@ export default function BrukereSide() {
               }
             >
               <option value="generelt">{t("brukere.generelt")}</option>
-              <option value="field">{t("brukere.feltarbeid")}</option>
+              <option value="field">{t("brukere.produksjon")}</option>
               <option value="brukergrupper">{t("brukere.brukergrupper")}</option>
             </select>
           </div>

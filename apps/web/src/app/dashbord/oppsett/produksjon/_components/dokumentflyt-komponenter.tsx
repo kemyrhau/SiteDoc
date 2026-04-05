@@ -191,7 +191,7 @@ export function LeggTilMedlemDropdown({
 }: {
   dokumentflytId: string;
   prosjektId: string;
-  rolle: "oppretter" | "svarer";
+  rolle: "bestiller" | "utforer";
   steg: number;
   entrepriser: EntrepriseItem[];
   medlemmer: ProsjektMedlemItem[];
@@ -362,7 +362,7 @@ export function InviterNyMedlemModal({
   onClose: () => void;
   prosjektId: string;
   dokumentflytId: string;
-  rolle: "oppretter" | "svarer";
+  rolle: "bestiller" | "utforer";
   steg: number;
   onFerdig: () => void;
 }) {
@@ -529,7 +529,7 @@ export function DokumentflytInlineKort({
   onRediger: () => void;
   onSlett: () => void;
   onOppdatert: () => void;
-  onInviterNy: (dokumentflytId: string, rolle: "oppretter" | "svarer", steg: number) => void;
+  onInviterNy: (dokumentflytId: string, rolle: "bestiller" | "utforer", steg: number) => void;
 }) {
   const { t } = useTranslation();
   const [ekspandert, setEkspandert] = useState(false);
@@ -542,8 +542,8 @@ export function DokumentflytInlineKort({
     onSuccess: () => onOppdatert(),
   });
 
-  const opprettere = dokumentflyt.medlemmer.filter((m) => m.rolle === "oppretter");
-  const svarere = dokumentflyt.medlemmer.filter((m) => m.rolle === "svarer");
+  const opprettere = dokumentflyt.medlemmer.filter((m) => m.rolle === "bestiller");
+  const svarere = dokumentflyt.medlemmer.filter((m) => m.rolle === "utforer");
 
   const stegMap = new Map<number, DokumentflytMedlemData[]>();
   for (const s of svarere) {
@@ -630,14 +630,14 @@ export function DokumentflytInlineKort({
                 <LeggTilMedlemDropdown
                   dokumentflytId={dokumentflyt.id}
                   prosjektId={prosjektId}
-                  rolle="oppretter"
+                  rolle="bestiller"
                   steg={1}
                   entrepriser={[]}
                   medlemmer={medlemmer}
                   grupper={grupper}
                   eksisterende={opprettere}
                   onLagtTil={onOppdatert}
-                  onInviterNy={() => onInviterNy(dokumentflyt.id, "oppretter", 1)}
+                  onInviterNy={() => onInviterNy(dokumentflyt.id, "bestiller", 1)}
                 />
               </div>
             </div>
@@ -659,14 +659,14 @@ export function DokumentflytInlineKort({
                     <LeggTilMedlemDropdown
                       dokumentflytId={dokumentflyt.id}
                       prosjektId={prosjektId}
-                      rolle="svarer"
+                      rolle="utforer"
                       steg={steg}
                       entrepriser={[]}
                       medlemmer={medlemmer}
                       grupper={grupper}
                       eksisterende={stegMedlemmer}
                       onLagtTil={onOppdatert}
-                      onInviterNy={() => onInviterNy(dokumentflyt.id, "svarer", steg)}
+                      onInviterNy={() => onInviterNy(dokumentflyt.id, "utforer", steg)}
                     />
                   </div>
                 </div>
@@ -681,14 +681,14 @@ export function DokumentflytInlineKort({
                   <LeggTilMedlemDropdown
                     dokumentflytId={dokumentflyt.id}
                     prosjektId={prosjektId}
-                    rolle="svarer"
+                    rolle="utforer"
                     steg={1}
                     entrepriser={[]}
                     medlemmer={medlemmer}
                     grupper={grupper}
                     eksisterende={[]}
                     onLagtTil={onOppdatert}
-                    onInviterNy={() => onInviterNy(dokumentflyt.id, "svarer", 1)}
+                    onInviterNy={() => onInviterNy(dokumentflyt.id, "utforer", 1)}
                   />
                 </div>
               </div>

@@ -8,7 +8,7 @@
 
 ```
 Lag 1: Admin-bypass → ser ALT, null-filter
-Lag 2: Direkte entreprise → MemberEnterprise → oppretter/svarer (alle domener)
+Lag 2: Direkte entreprise → MemberEnterprise → bestiller/utfører (alle domener)
 Lag 3: Gruppe-tilgang → domain-match + valgfri entreprise-begrensning
 ```
 
@@ -31,7 +31,7 @@ byggTilgangsFilter(userId, projectId)
   → null (admin) | Prisma WHERE { OR: [...] }
   // Kombinerer entreprise-tilgang + gruppe-domain-tilgang
 
-verifiserDokumentTilgang(userId, projectId, creatorId, responderId, domain?)
+verifiserDokumentTilgang(userId, projectId, bestillerId, utforerId, domain?)
   // Kaster FORBIDDEN hvis bruker ikke har tilgang
 
 hentBrukerTillatelser(userId, projectId)
@@ -49,10 +49,10 @@ const filter = await byggTilgangsFilter(ctx.userId, input.projectId);
 return prisma.checklist.findMany({ where: { ...filter } });
 
 // Enkelt-dokument (verifikasjon)
-await verifiserDokumentTilgang(ctx.userId, projectId, creatorId, responderId, domain);
+await verifiserDokumentTilgang(ctx.userId, projectId, bestillerId, utforerId, domain);
 
 // Opprettelse (entreprise-tilhørighet)
-await verifiserEntrepriseTilhorighet(ctx.userId, input.creatorEnterpriseId);
+await verifiserEntrepriseTilhorighet(ctx.userId, input.bestillerEnterpriseId);
 
 // Tillatelsessjekk
 await verifiserTillatelse(ctx.userId, projectId, "manage_field");

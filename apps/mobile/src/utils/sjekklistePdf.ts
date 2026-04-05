@@ -43,8 +43,8 @@ interface SjekklisteForPdf {
     objects: RapportObjekt[];
   };
   creator?: { name?: string | null } | null;
-  creatorEnterprise?: { name: string } | null;
-  responderEnterprise?: { name: string } | null;
+  bestillerEnterprise?: { name: string } | null;
+  utforerEnterprise?: { name: string } | null;
   building?: { name: string } | null;
   drawing?: { name: string; drawingNumber?: string | null } | null;
   changeLog?: Array<{ createdAt: Date | string; user: { name: string | null } }>;

@@ -424,13 +424,13 @@ export const gruppeRouter = router({
       });
     }),
 
-  // Oppdater bygningsfilter for en gruppe
-  oppdaterBygninger: protectedProcedure
+  // Oppdater byggeplassfilter for en gruppe
+  oppdaterByggeplasser: protectedProcedure
     .input(
       z.object({
         groupId: z.string().uuid(),
         projectId: z.string().uuid(),
-        buildingIds: z.array(z.string().uuid()).nullable(), // null = alle
+        byggeplassIder: z.array(z.string().uuid()).nullable(), // null = alle
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -438,7 +438,7 @@ export const gruppeRouter = router({
       return ctx.prisma.projectGroup.update({
         where: { id: input.groupId },
         data: {
-          buildingIds: input.buildingIds ?? Prisma.DbNull,
+          byggeplassIder: input.byggeplassIder ?? Prisma.DbNull,
         },
       });
     }),

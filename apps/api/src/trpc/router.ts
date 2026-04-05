@@ -4,9 +4,8 @@ import { entrepriseRouter } from "../routes/entreprise";
 import { sjekklisteRouter } from "../routes/sjekkliste";
 import { oppgaveRouter } from "../routes/oppgave";
 import { malRouter } from "../routes/mal";
-import { bygningRouter } from "../routes/bygning";
+import { byggeplassRouter } from "../routes/byggeplass";
 import { tegningRouter } from "../routes/tegning";
-import { arbeidsforlopRouter } from "../routes/arbeidsforlop";
 import { dokumentflytRouter } from "../routes/dokumentflyt";
 import { mappeRouter } from "../routes/mappe";
 import { medlemRouter } from "../routes/medlem";
@@ -32,9 +31,8 @@ export const appRouter = router({
   sjekkliste: sjekklisteRouter,
   oppgave: oppgaveRouter,
   mal: malRouter,
-  bygning: bygningRouter,
+  bygning: byggeplassRouter, // bakoverkompatibel nøkkel (1 uke)
   tegning: tegningRouter,
-  arbeidsforlop: arbeidsforlopRouter, // bakoverkompatibilitet for mobil
   dokumentflyt: dokumentflytRouter,
   mappe: mappeRouter,
   medlem: medlemRouter,

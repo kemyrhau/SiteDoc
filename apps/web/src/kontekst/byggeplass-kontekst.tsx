@@ -11,10 +11,11 @@ import {
 } from "react";
 import { useProsjekt } from "./prosjekt-kontekst";
 
-const BYGNING_STORAGE_KEY = "sitedoc-aktiv-bygning";
+// Beholder samme localStorage-nøkkel for bakoverkompatibilitet
+const BYGGEPLASS_STORAGE_KEY = "sitedoc-aktiv-bygning";
 const TEGNING_STORAGE_KEY = "sitedoc-standard-tegning";
 
-interface AktivBygning {
+interface AktivByggeplass {
   id: string;
   name: string;
   number: number | null;
@@ -37,9 +38,9 @@ export interface PosisjonsResultat {
   positionY: number;
 }
 
-interface BygningKontekstType {
-  aktivBygning: AktivBygning | null;
-  velgBygning: (bygning: AktivBygning | null) => void;
+interface ByggeplassKontekstType {
+  aktivByggeplass: AktivByggeplass | null;
+  velgByggeplass: (byggeplass: AktivByggeplass | null) => void;
   standardTegning: StandardTegning | null;
   settStandardTegning: (tegning: StandardTegning | null) => void;
   aktivTegning: AktivTegning | null;
@@ -53,11 +54,11 @@ interface BygningKontekstType {
   hentOgTømPosisjonsResultat: (feltId: string) => PosisjonsResultat | null;
 }
 
-const BygningKontekst = createContext<BygningKontekstType | null>(null);
+const ByggeplassKontekst = createContext<ByggeplassKontekstType | null>(null);
 
-export function BygningProvider({ children }: { children: ReactNode }) {
+export function ByggeplassProvider({ children }: { children: ReactNode }) {
   const { prosjektId } = useProsjekt();
-  const [aktivBygning, setAktivBygning] = useState<AktivBygning | null>(null);
+  const [aktivByggeplass, setAktivByggeplass] = useState<AktivByggeplass | null>(null);
   const [standardTegning, setStandardTegning] = useState<StandardTegning | null>(null);
   const [aktivTegning, setAktivTegning] = useState<AktivTegning | null>(null);
   const [posisjonsvelgerAktiv, setPosisjonsvelgerAktiv] = useState(false);
@@ -67,19 +68,19 @@ export function BygningProvider({ children }: { children: ReactNode }) {
   // Les fra localStorage etter mount
   useEffect(() => {
     if (!prosjektId) {
-      setAktivBygning(null);
+      setAktivByggeplass(null);
       setStandardTegning(null);
       return;
     }
 
     try {
-      const lagretBygning = localStorage.getItem(BYGNING_STORAGE_KEY);
-      if (lagretBygning) {
-        const parsed = JSON.parse(lagretBygning) as Record<string, AktivBygning>;
+      const lagretByggeplass = localStorage.getItem(BYGGEPLASS_STORAGE_KEY);
+      if (lagretByggeplass) {
+        const parsed = JSON.parse(lagretByggeplass) as Record<string, AktivByggeplass>;
         if (parsed[prosjektId]) {
-          setAktivBygning(parsed[prosjektId]);
+          setAktivByggeplass(parsed[prosjektId]);
 
-          // Les standard-tegning for denne bygningen
+          // Les standard-tegning for denne byggeplassen
           const lagretTegning = localStorage.getItem(TEGNING_STORAGE_KEY);
           if (lagretTegning) {
             const parsedTegning = JSON.parse(lagretTegning) as Record<string, StandardTegning>;
@@ -90,7 +91,7 @@ export function BygningProvider({ children }: { children: ReactNode }) {
             }
           }
         } else {
-          setAktivBygning(null);
+          setAktivByggeplass(null);
           setStandardTegning(null);
         }
       }
@@ -99,34 +100,34 @@ export function BygningProvider({ children }: { children: ReactNode }) {
     }
   }, [prosjektId]);
 
-  const velgBygning = useCallback(
-    (bygning: AktivBygning | null) => {
-      setAktivBygning(bygning);
+  const velgByggeplass = useCallback(
+    (byggeplass: AktivByggeplass | null) => {
+      setAktivByggeplass(byggeplass);
       setStandardTegning(null);
       setAktivTegning(null);
 
       if (!prosjektId) return;
 
       try {
-        const lagret = localStorage.getItem(BYGNING_STORAGE_KEY);
-        const parsed = lagret ? (JSON.parse(lagret) as Record<string, AktivBygning>) : {};
-        if (bygning) {
-          parsed[prosjektId] = bygning;
+        const lagret = localStorage.getItem(BYGGEPLASS_STORAGE_KEY);
+        const parsed = lagret ? (JSON.parse(lagret) as Record<string, AktivByggeplass>) : {};
+        if (byggeplass) {
+          parsed[prosjektId] = byggeplass;
         } else {
           delete parsed[prosjektId];
         }
-        localStorage.setItem(BYGNING_STORAGE_KEY, JSON.stringify(parsed));
+        localStorage.setItem(BYGGEPLASS_STORAGE_KEY, JSON.stringify(parsed));
       } catch {
         // Ignorer localStorage-feil
       }
 
-      // Les standard-tegning for ny bygning
-      if (bygning) {
+      // Les standard-tegning for ny byggeplass
+      if (byggeplass) {
         try {
           const lagretTegning = localStorage.getItem(TEGNING_STORAGE_KEY);
           if (lagretTegning) {
             const parsedTegning = JSON.parse(lagretTegning) as Record<string, StandardTegning>;
-            const t = parsedTegning[bygning.id];
+            const t = parsedTegning[byggeplass.id];
             if (t) {
               setStandardTegning(t);
               setAktivTegning(t);
@@ -144,22 +145,22 @@ export function BygningProvider({ children }: { children: ReactNode }) {
     (tegning: StandardTegning | null) => {
       setStandardTegning(tegning);
 
-      if (!aktivBygning) return;
+      if (!aktivByggeplass) return;
 
       try {
         const lagret = localStorage.getItem(TEGNING_STORAGE_KEY);
         const parsed = lagret ? (JSON.parse(lagret) as Record<string, StandardTegning>) : {};
         if (tegning) {
-          parsed[aktivBygning.id] = tegning;
+          parsed[aktivByggeplass.id] = tegning;
         } else {
-          delete parsed[aktivBygning.id];
+          delete parsed[aktivByggeplass.id];
         }
         localStorage.setItem(TEGNING_STORAGE_KEY, JSON.stringify(parsed));
       } catch {
         // Ignorer localStorage-feil
       }
     },
-    [aktivBygning],
+    [aktivByggeplass],
   );
 
   const settAktivTegningCallback = useCallback(
@@ -197,10 +198,10 @@ export function BygningProvider({ children }: { children: ReactNode }) {
   }, [posisjonsvelgerFeltId]);
 
   return (
-    <BygningKontekst.Provider
+    <ByggeplassKontekst.Provider
       value={{
-        aktivBygning,
-        velgBygning,
+        aktivByggeplass,
+        velgByggeplass,
         standardTegning,
         settStandardTegning,
         aktivTegning,
@@ -214,14 +215,19 @@ export function BygningProvider({ children }: { children: ReactNode }) {
       }}
     >
       {children}
-    </BygningKontekst.Provider>
+    </ByggeplassKontekst.Provider>
   );
 }
 
+/** @deprecated Bruk useByggeplass() i stedet */
 export function useBygning() {
-  const ctx = useContext(BygningKontekst);
+  return useByggeplass();
+}
+
+export function useByggeplass() {
+  const ctx = useContext(ByggeplassKontekst);
   if (!ctx) {
-    throw new Error("useBygning må brukes innenfor BygningProvider");
+    throw new Error("useByggeplass må brukes innenfor ByggeplassProvider");
   }
   return ctx;
 }

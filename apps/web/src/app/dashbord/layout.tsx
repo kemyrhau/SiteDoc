@@ -2,7 +2,7 @@
 
 import { NavigasjonProvider } from "@/kontekst/navigasjon-kontekst";
 import { ProsjektProvider } from "@/kontekst/prosjekt-kontekst";
-import { BygningProvider } from "@/kontekst/bygning-kontekst";
+import { ByggeplassProvider } from "@/kontekst/byggeplass-kontekst";
 import { PresenceProvider } from "@/kontekst/presence-kontekst";
 import { Toppbar } from "@/components/layout/Toppbar";
 import { HovedSidebar } from "@/components/layout/HovedSidebar";
@@ -15,7 +15,7 @@ export default function DashbordLayout({
   return (
     <NavigasjonProvider>
       <ProsjektProvider>
-        <BygningProvider>
+        <ByggeplassProvider>
           <PresenceProvider>
           <div className="flex h-screen flex-col overflow-hidden">
             <Toppbar />
@@ -25,7 +25,7 @@ export default function DashbordLayout({
             </div>
           </div>
           </PresenceProvider>
-        </BygningProvider>
+        </ByggeplassProvider>
       </ProsjektProvider>
     </NavigasjonProvider>
   );

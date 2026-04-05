@@ -4,15 +4,14 @@ import { useState, useEffect, useMemo } from "react";
 import { Modal, Select, Button } from "@sitedoc/ui";
 import { trpc } from "@/lib/trpc";
 
-interface ArbeidsflopMal {
+interface DokumentflytMal {
   template: { id: string; name: string; category: string };
 }
 
-interface ArbeidsflopRad {
+interface DokumentflytRad {
   id: string;
-  enterpriseId: string;
-  responderEnterprise: { id: string; name: string } | null;
-  templates: ArbeidsflopMal[];
+  enterpriseId: string | null;
+  maler: DokumentflytMal[];
 }
 
 interface OpprettOppgaveModalProps {
@@ -37,13 +36,13 @@ export function OpprettOppgaveModal({
   const utils = trpc.useUtils();
 
   const [valgtMal, setValgtMal] = useState("");
-  const [valgtOppretter, setValgtOppretter] = useState("");
+  const [valgtBestiller, setValgtOppretter] = useState("");
 
   const { data: mineEntrepriser } = trpc.medlem.hentMineEntrepriser.useQuery(
     { projectId: prosjektId },
     { enabled: open },
   );
-  const { data: arbeidsforlop } = trpc.arbeidsforlop.hentForProsjekt.useQuery(
+  const { data: arbeidsforlop } = trpc.dokumentflyt.hentForProsjekt.useQuery(
     { projectId: prosjektId },
     { enabled: open },
   );
@@ -56,14 +55,14 @@ export function OpprettOppgaveModal({
     { enabled: open },
   );
 
-  // Auto-velg oppretter-entreprise
+  // Auto-velg bestiller-entreprise
   useEffect(() => {
-    if (!open || valgtOppretter) return;
+    if (!open || valgtBestiller) return;
     if (mineEntrepriser && mineEntrepriser.length > 0) {
       const forste = mineEntrepriser[0];
       if (forste) setValgtOppretter(forste.id);
     }
-  }, [mineEntrepriser, open, valgtOppretter]);
+  }, [mineEntrepriser, open, valgtBestiller]);
 
   // Reset state ved lukking
   useEffect(() => {
@@ -73,19 +72,19 @@ export function OpprettOppgaveModal({
     }
   }, [open]);
 
-  const alleArbeidsforlop = (arbeidsforlop ?? []) as unknown as ArbeidsflopRad[];
+  const alleArbeidsforlop = (arbeidsforlop ?? []) as unknown as DokumentflytRad[];
 
-  // Finn matchende arbeidsforløp for svarer-utledning
+  // Finn matchende dokumentflyt for utfører-utledning
   const matchendeArbeidsforlop = alleArbeidsforlop.find(
     (af) =>
-      af.enterpriseId === valgtOppretter &&
-      af.templates.some((wt) => wt.template.id === valgtMal),
+      af.enterpriseId === valgtBestiller &&
+      af.maler.some((wt) => wt.template.id === valgtMal),
   );
-  const utledetSvarer = matchendeArbeidsforlop?.responderEnterprise?.id ?? valgtOppretter;
+  const utledetUtforer = valgtBestiller;
 
   // Filtrer maler (samme logikk som tegninger-siden)
   const filtrerMaler = useMemo(() => {
-    if (!valgtOppretter) return [];
+    if (!valgtBestiller) return [];
     const alleMalerTypet = (alleMaler ?? []) as Array<{
       id: string;
       name: string;
@@ -101,8 +100,8 @@ export function OpprettOppgaveModal({
     const synligeMalIder = new Set<string>();
 
     for (const af of alleArbeidsforlop) {
-      if (af.enterpriseId !== valgtOppretter) continue;
-      for (const wt of af.templates) {
+      if (af.enterpriseId !== valgtBestiller) continue;
+      for (const wt of af.maler) {
         if (wt.template.category === "oppgave") {
           synligeMalIder.add(wt.template.id);
         }
@@ -126,7 +125,7 @@ export function OpprettOppgaveModal({
     return kategoriMaler
       .filter((m) => synligeMalIder.has(m.id))
       .map((m) => ({ id: m.id, name: m.name }));
-  }, [valgtOppretter, alleMaler, minTilgang, alleArbeidsforlop]);
+  }, [valgtBestiller, alleMaler, minTilgang, alleArbeidsforlop]);
 
   // Auto-tittel
   const tittel = useMemo(() => {
@@ -145,20 +144,20 @@ export function OpprettOppgaveModal({
 
   function handleOpprett(e: React.FormEvent) {
     e.preventDefault();
-    if (!valgtMal || !valgtOppretter) return;
+    if (!valgtMal || !valgtBestiller) return;
 
     opprettMutation.mutate({
       templateId: valgtMal,
-      creatorEnterpriseId: valgtOppretter,
-      responderEnterpriseId: utledetSvarer,
+      bestillerEnterpriseId: valgtBestiller,
+      utforerEnterpriseId: utledetUtforer,
       title: tittel,
       checklistId: sjekklisteId,
       checklistFieldId: sjekklisteFeltId,
-      workflowId: matchendeArbeidsforlop?.id,
+      dokumentflytId: matchendeArbeidsforlop?.id,
     });
   }
 
-  const oppretterAlternativer = (mineEntrepriser ?? []).map((e) => ({
+  const bestillerAlternativer = (mineEntrepriser ?? []).map((e) => ({
     value: e.id,
     label: e.name,
   }));
@@ -167,13 +166,13 @@ export function OpprettOppgaveModal({
     <Modal open={open} onClose={onClose} title="Opprett oppgave fra felt">
       <form onSubmit={handleOpprett} className="flex flex-col gap-4">
         <Select
-          label="Oppretter-entreprise"
-          value={valgtOppretter}
+          label="Bestiller-entreprise"
+          value={valgtBestiller}
           onChange={(e) => {
             setValgtOppretter(e.target.value);
             setValgtMal("");
           }}
-          options={oppretterAlternativer}
+          options={bestillerAlternativer}
           placeholder="Velg entreprise"
         />
 
@@ -185,19 +184,13 @@ export function OpprettOppgaveModal({
           placeholder="Velg mal"
         />
 
-        {valgtMal && matchendeArbeidsforlop?.responderEnterprise && (
-          <p className="text-sm text-gray-500">
-            Svarer: {matchendeArbeidsforlop.responderEnterprise.name}
-          </p>
-        )}
-
         <p className="text-sm text-gray-500">
           Tittel: {tittel}
         </p>
 
         <Button
           type="submit"
-          disabled={!valgtMal || !valgtOppretter}
+          disabled={!valgtMal || !valgtBestiller}
           loading={opprettMutation.isPending}
         >
           Opprett oppgave

@@ -5,7 +5,7 @@ import * as Location from "expo-location";
 import { WebView } from "react-native-webview";
 import { useRouter } from "expo-router";
 import { useProsjekt } from "../src/kontekst/ProsjektKontekst";
-import { useBygning } from "../src/kontekst/BygningKontekst";
+import { useByggeplass } from "../src/kontekst/ByggeplassKontekst";
 import { trpc } from "../src/lib/trpc";
 import { hentWebUrl } from "../src/config/auth";
 import { hentSessionToken } from "../src/services/auth";
@@ -16,7 +16,7 @@ const { height: SKJERMHOYDE } = Dimensions.get("window");
 export default function LiveViewSkjerm() {
   const router = useRouter();
   const { valgtProsjektId } = useProsjekt();
-  const { valgtBygningId } = useBygning();
+  const { valgtBygningId } = useByggeplass();
   const webViewRef = useRef<WebView>(null);
 
   const [kameraTillatelse, beKameraTillatelse] = useCameraPermissions();
@@ -29,7 +29,7 @@ export default function LiveViewSkjerm() {
   const { data: tegninger } = trpc.tegning.hentForProsjekt.useQuery(
     {
       projectId: valgtProsjektId!,
-      ...(valgtBygningId ? { buildingId: valgtBygningId } : {}),
+      ...(valgtBygningId ? { byggeplassId: valgtBygningId } : {}),
     },
     { enabled: !!valgtProsjektId },
   );

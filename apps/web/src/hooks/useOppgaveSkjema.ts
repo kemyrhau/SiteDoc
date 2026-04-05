@@ -17,16 +17,16 @@ export interface UseOppgaveSkjemaResultat {
     status: string;
     description: string | null;
     priority: string;
-    creatorEnterpriseId: string;
-    responderEnterpriseId: string;
+    bestillerEnterpriseId: string;
+    utforerEnterpriseId: string;
     template: {
       id: string;
       name: string;
       prefix: string | null;
       objects: RapportObjekt[];
     } | null;
-    creatorEnterprise: { id: string; name: string } | null;
-    responderEnterprise: { id: string; name: string } | null;
+    bestillerEnterprise: { id: string; name: string } | null;
+    utforerEnterprise: { id: string; name: string } | null;
     number: number | null;
   } | undefined;
   erLaster: boolean;
@@ -220,7 +220,7 @@ export function useOppgaveSkjema(oppgaveId: string): UseOppgaveSkjemaResultat {
       planleggLagring();
 
       // Slett fra images-tabellen i bakgrunnen
-      if (vedlegg?.url && oppgave?.creatorEnterpriseId) {
+      if (vedlegg?.url && oppgave?.bestillerEnterpriseId) {
         const projectId = (oppgave as unknown as { template?: { projectId?: string } })?.template?.projectId;
         if (projectId) {
           slettBildeMutation.mutate({ fileUrl: vedlegg.url, projectId });
@@ -290,11 +290,11 @@ export function useOppgaveSkjema(oppgaveId: string): UseOppgaveSkjemaResultat {
           status: oppgave.status,
           description: oppgave.description,
           priority: oppgave.priority,
-          creatorEnterpriseId: oppgave.creatorEnterpriseId,
-          responderEnterpriseId: oppgave.responderEnterpriseId,
+          bestillerEnterpriseId: oppgave.bestillerEnterpriseId,
+          utforerEnterpriseId: oppgave.utforerEnterpriseId,
           template: oppgave.template,
-          creatorEnterprise: oppgave.creatorEnterprise,
-          responderEnterprise: oppgave.responderEnterprise,
+          bestillerEnterprise: oppgave.bestillerEnterprise,
+          utforerEnterprise: oppgave.utforerEnterprise,
           number: oppgave.number,
         }
       : undefined,

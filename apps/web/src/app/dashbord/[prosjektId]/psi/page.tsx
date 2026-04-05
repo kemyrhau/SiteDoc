@@ -48,7 +48,7 @@ export default function PsiDashboardSide() {
         <ShieldCheck className="h-12 w-12 text-gray-300" />
         <p className="text-sm text-gray-500">{t("psi.ingenPsi")}</p>
         <a
-          href="/dashbord/oppsett/field/psi"
+          href="/dashbord/oppsett/produksjon/psi"
           className="text-sm text-sitedoc-primary hover:underline"
         >
           {t("psi.gaaTilOppsett")}
@@ -86,7 +86,7 @@ export default function PsiDashboardSide() {
             </div>
           </div>
           <a
-            href="/dashbord/oppsett/field/psi"
+            href="/dashbord/oppsett/produksjon/psi"
             className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
           >
             {t("nav.oppsett")}
@@ -108,8 +108,8 @@ export default function PsiDashboardSide() {
                       : "border-gray-200 text-gray-600 hover:bg-gray-50"
                   }`}
                 >
-                  {psi.building ? (
-                    <><Building2 className="h-3.5 w-3.5" /> {psi.building.name}</>
+                  {psi.byggeplass ? (
+                    <><Building2 className="h-3.5 w-3.5" /> {psi.byggeplass.name}</>
                   ) : (
                     <><Globe className="h-3.5 w-3.5" /> {t("psi.heleProsjektet")}</>
                   )}

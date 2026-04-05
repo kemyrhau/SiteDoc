@@ -66,7 +66,7 @@ export default function MalerSide() {
     return (
       <EmptyState
         title="Ingen tilgang"
-        description="Du har ikke tilgang til denne siden. Kun feltarbeid-administratorer kan se maler."
+        description="Du har ikke tilgang til denne siden. Kun produksjons-administratorer kan se maler."
       />
     );
   }

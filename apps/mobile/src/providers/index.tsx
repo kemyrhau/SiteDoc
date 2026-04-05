@@ -10,7 +10,7 @@ import { OpplastingsKoProvider } from "./OpplastingsKoProvider";
 import { AuthProvider } from "./AuthProvider";
 import { SpraakProvider } from "./SpraakProvider";
 import { ProsjektProvider } from "../kontekst/ProsjektKontekst";
-import { BygningProvider } from "../kontekst/BygningKontekst";
+import { ByggeplassProvider } from "../kontekst/ByggeplassKontekst";
 
 // Sideeffekt: initialiser i18next med nb som standard
 import "../lib/i18n";
@@ -74,7 +74,7 @@ export function Providers({ children }: { children: ReactNode }) {
               <AuthProvider>
                 <SpraakProvider>
                   <ProsjektProvider>
-                    <BygningProvider>{children}</BygningProvider>
+                    <ByggeplassProvider>{children}</ByggeplassProvider>
                   </ProsjektProvider>
                 </SpraakProvider>
               </AuthProvider>

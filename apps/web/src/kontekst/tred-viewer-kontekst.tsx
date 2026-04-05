@@ -12,7 +12,7 @@ import {
 import { useParams } from "next/navigation";
 import { trpc } from "@/lib/trpc";
 import { Loader2 } from "lucide-react";
-import { useBygning as useBygningKontekst } from "@/kontekst/bygning-kontekst";
+import { useByggeplass as useByggeplassKontekst } from "@/kontekst/byggeplass-kontekst";
 import type {
   TegningRad,
   PunktSkyRad,
@@ -76,7 +76,7 @@ export function useTreDViewer() {
 
 export function TreDViewerProvider({ children }: { children: ReactNode }) {
   const { prosjektId } = useParams<{ prosjektId: string }>();
-  const { aktivBygning } = useBygningKontekst();
+  const { aktivByggeplass } = useByggeplassKontekst();
 
   const utils = trpc.useUtils();
 
@@ -84,7 +84,7 @@ export function TreDViewerProvider({ children }: { children: ReactNode }) {
   const { data: _tegninger, isLoading: lasterTegninger } = trpc.tegning.hentForProsjekt.useQuery(
     {
       projectId: prosjektId!,
-      ...(aktivBygning?.id ? { buildingId: aktivBygning.id } : {}),
+      ...(aktivByggeplass?.id ? { byggeplassId: aktivByggeplass.id } : {}),
     },
     { enabled: !!prosjektId },
   );

@@ -138,7 +138,7 @@ export function MalListe({
   const opprettMutation = trpc.mal.opprett.useMutation({
     onSuccess: () => {
       utils.mal.hentForProsjekt.invalidate({ projectId: prosjektId! });
-      utils.arbeidsforlop.hentForProsjekt.invalidate({ projectId: prosjektId! });
+      utils.dokumentflyt.hentForProsjekt.invalidate({ projectId: prosjektId! });
       setVisOpprettModal(false);
       setNavn("");
       setPrefiks("");
@@ -215,7 +215,7 @@ export function MalListe({
   }
 
   function handleDobbeltklikk(mal: MalRad) {
-    router.push(`/dashbord/oppsett/field/${kategori === "sjekkliste" ? "sjekklistemaler" : "oppgavemaler"}/${mal.id}`);
+    router.push(`/dashbord/oppsett/produksjon/${kategori === "sjekkliste" ? "sjekklistemaler" : "oppgavemaler"}/${mal.id}`);
   }
 
   if (isLoading) {
@@ -489,7 +489,7 @@ export function MalListe({
                 Aktiver oppretting av nye {kategori === "sjekkliste" ? "sjekklister" : "oppgaver"}
               </span>
               <span className="ml-1 rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-400">
-                {t("feltarbeid.kommerSnart")}
+                {t("produksjon.kommerSnart")}
               </span>
             </label>
           </div>
