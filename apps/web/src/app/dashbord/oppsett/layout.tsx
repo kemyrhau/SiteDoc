@@ -49,21 +49,21 @@ const navigasjon: NavElement[] = [
     kreverProsjekt: true,
   },
   {
-    id: "feltarbeid",
-    labelKey: "oppsett.feltarbeid",
-    href: "/dashbord/oppsett/field",
+    id: "produksjon",
+    labelKey: "oppsett.produksjon",
+    href: "/dashbord/oppsett/produksjon",
     ikon: <Wrench className="h-4 w-4" />,
     kreverProsjekt: true,
     tillatelse: "manage_field",
     barn: [
-      { labelKey: "oppsett.kontakter", href: "/dashbord/oppsett/field/kontakter", skjult: true },
-      { labelKey: "oppsett.entrepriser", href: "/dashbord/oppsett/field/entrepriser" },
-      { labelKey: "oppsett.oppgavemaler", href: "/dashbord/oppsett/field/oppgavemaler" },
-      { labelKey: "oppsett.sjekklistemaler", href: "/dashbord/oppsett/field/sjekklistemaler" },
-      { labelKey: "oppsett.moduler", href: "/dashbord/oppsett/field/moduler" },
-      { labelKey: "oppsett.kontrollplan", href: "/dashbord/oppsett/field/kontrollplaner" },
-      { labelKey: "oppsett.mappeoppsett", href: "/dashbord/oppsett/field/box" },
-      { labelKey: "nav.psi", href: "/dashbord/oppsett/field/psi", skjult: true },
+      { labelKey: "oppsett.kontakter", href: "/dashbord/oppsett/produksjon/kontakter" },
+      { labelKey: "oppsett.entrepriser", href: "/dashbord/oppsett/produksjon/entrepriser" },
+      { labelKey: "oppsett.oppgavemaler", href: "/dashbord/oppsett/produksjon/oppgavemaler" },
+      { labelKey: "oppsett.sjekklistemaler", href: "/dashbord/oppsett/produksjon/sjekklistemaler" },
+      { labelKey: "oppsett.moduler", href: "/dashbord/oppsett/produksjon/moduler" },
+      { labelKey: "oppsett.kontrollplan", href: "/dashbord/oppsett/produksjon/kontrollplaner" },
+      { labelKey: "oppsett.mappeoppsett", href: "/dashbord/oppsett/produksjon/box" },
+      { labelKey: "nav.psi", href: "/dashbord/oppsett/produksjon/psi", skjult: true },
     ],
   },
   {
@@ -128,7 +128,7 @@ export default function OppsettLayout({
         if (barn.href === "/dashbord/oppsett/firma") {
           return harFirmaTilgang;
         }
-        if (barn.href === "/dashbord/oppsett/field/psi") {
+        if (barn.href === "/dashbord/oppsett/produksjon/psi") {
           return erPsiAktiv;
         }
         return !barn.skjult;
@@ -138,7 +138,7 @@ export default function OppsettLayout({
 
   const [ekspandert, setEkspandert] = useState<Record<string, boolean>>({
     lokasjoner: true,
-    feltarbeid: true,
+    produksjon: true,
     prosjekteier: false,
   });
 

@@ -3,8 +3,8 @@
 ## Entrepriseflyt
 
 Dokumenter (sjekklister/oppgaver) flyter mellom entrepriser:
-- Oppretter-entreprise initierer og godkjenner/avviser
-- Svar-entreprise mottar, fyller ut og besvarer
+- Bestiller-entreprise initierer og godkjenner/avviser
+- Utfører-entreprise mottar, fyller ut og besvarer
 - Alle overganger logges i `document_transfers`
 - **I draft-status:** entrepriser kan endres via dropdown. Etter draft → låst
 - **Automatisk fargevalg:** Neste ledige fra `ENTERPRISE_COLORS` (32 farger). Fargevelger kun i redigeringsmodal
@@ -21,15 +21,15 @@ En bruker kan tilhøre flere entrepriser via `MemberEnterprise`. Admin uten tilk
 
 ## Dokumentflyt (erstatter Arbeidsforløp)
 
-Prosjektomfattende dokumentflyt under Innstillinger > Feltarbeid > Dokumentflyt:
+Prosjektomfattende dokumentflyt under Innstillinger > Produksjon > Dokumentflyt:
 - **Entreprise-tilhørighet:** Dokumentflyt har `enterpriseId` som bestemmer hvilken entreprise den vises under i UI. Settes ved opprettelse via `forvalgtEntrepriseId`
-- **Fleksible roller:** Medlemmer kan være brukergrupper (`groupId` → `ProjectGroup`) eller enkeltpersoner (`projectMemberId`). Hver har rolle `oppretter` eller `svarer` per steg. Dropdown i dokumentflyt viser kun personer og brukergrupper (ikke entrepriser eller systemgrupper)
+- **Fleksible roller:** Medlemmer kan være brukergrupper (`groupId` → `ProjectGroup`) eller enkeltpersoner (`projectMemberId`). Hver har rolle `bestiller` eller `utfører` per steg. Dropdown i dokumentflyt viser kun personer og brukergrupper (ikke entrepriser eller systemgrupper)
 - **Hovedansvarlig:** `DokumentflytMedlem.erHovedansvarlig` (Boolean) — blå prikk i oppsett-UI. Maks én per steg. Valgfritt. Ved opprettelse av sjekkliste/oppgave auto-settes `recipientUserId`/`recipientGroupId` fra hovedansvarlig. Vises i Ansvarlig-kolonnen i tabellvisning
 - **Grupper vs brukere:** I opprett-modalen velger man «Bruker» (enkeltperson) eller «Gruppe» (brukergruppe/ProjectGroup). Grupper gir lik tilgang til alle gruppemedlemmer
-- **Modell:** `Dokumentflyt` → `DokumentflytMedlem` (rolle + steg + enterpriseId/projectMemberId/groupId) + `DokumentflytMal` (maltilknytning)
+- **Modell:** `Dokumentflyt` → `DokumentflytMedlem` (rolle: bestiller/utfører + steg + enterpriseId/projectMemberId/groupId) + `DokumentflytMal` (maltilknytning)
 - Sjekklister/oppgaver knyttes via `dokumentflytId` (og bakoverkompatibelt `workflowId`)
 - Emne: malen har `subjects`-array → nedtrekksmeny. Uten → fritekst/skjult
-- **Mottaker ved «Send»:** Auto-utledes fra dokumentflytens svarer (hovedansvarlig først). Ved videresending kan registratorer (create_checklists/create_tasks) velge entreprise — mottaker utledes fra valgt entreprises dokumentflyt. Lagres i `recipientUserId`/`recipientGroupId` på dokument + `DocumentTransfer`
+- **Mottaker ved «Send»:** Auto-utledes fra dokumentflytens utfører (hovedansvarlig først). Ved videresending kan registratorer (create_checklists/create_tasks) velge entreprise — mottaker utledes fra valgt entreprises dokumentflyt. Lagres i `recipientUserId`/`recipientGroupId` på dokument + `DocumentTransfer`
 - **Auto-mottatt:** `sent` → `received` skjer automatisk (ingen manuell "Motta"-klikk). Mottaker ser dokumentet som arbeidsordre umiddelbart
 - **Videresending:** Dokumenter i received/in_progress/responded/rejected/approved kan videresendes. Status endres ikke, kun mottaker oppdateres. `toStatus` i transfer = nåværende status
 - **Besvar (responded):** Kjede-bevisst — sender automatisk tilbake til forrige avsender via siste `DocumentTransfer.senderId`. Muliggjør kjeder: HE → UE → Arbeider → UE → HE
@@ -74,16 +74,16 @@ Sjekklister og oppgaver har **identisk** UI-struktur (sidebar, tabellvisning, de
 
 ## Prosjektgrupper
 
-Kategorier: `generelt`, `field`, `brukergrupper`. Standardgrupper:
+Kategorier: `generelt`, `produksjon`, `brukergrupper`. Standardgrupper:
 - **Prosjektadministratorer** — alle tillatelser, alle fagområder
-- **Feltarbeid-administratorer** — manage_field, create_tasks/checklists
+- **Produksjonsadministratorer** — manage_field, create_tasks/checklists
 - **Oppgave- og sjekklisteregistratorer** — create_tasks/checklists
-- **Feltarbeid-registrator** — view_field
+- **Produksjonsregistrator** — view_field
 - **HMS** — create_tasks/checklists
 
 ## Modulsystem
 
-Forhåndsdefinerte mal-pakker via Innstillinger > Feltarbeid > Moduler:
+Forhåndsdefinerte mal-pakker via Innstillinger > Produksjon > Moduler:
 
 | Modul | Slug | Prefix | Kategori |
 |-------|------|--------|----------|
@@ -120,7 +120,7 @@ Revisjonshistorikk via `drawing_revisions`. Georeferanse med 2+ punkter: 2 punkt
 
 - **Brukere** — Grupper, roller, medlemmer
 - **Lokasjoner** — Samlet lokasjonsliste med redigering/georeferanse
-- **Field** — Kontakter, Dokumentflyt, Entrepriser, Oppgavemaler, Sjekklistemaler, Kontrollplan, Mappeoppsett, Moduler
+- **Produksjon** — Kontakter, Dokumentflyt, Entrepriser, Oppgavemaler, Sjekklistemaler, Kontrollplan, Mapper, Moduler (tidligere «Field»/«Feltarbeid»)
 - **Prosjekteiers innstillinger** — Prosjektoppsett
 - **Firmainnstillinger** — Firmainformasjon (synlig med tilknyttet firma)
 
@@ -161,19 +161,25 @@ UE-ansvarlig → Videresend → HE (responded)
 HE → Godkjenn/Avvis
 ```
 
-## Kontaktliste (prototype)
+## Kontaktliste
 
-Innstillinger > Feltarbeid > Kontakter — visuell oversikt over entrepriser, kontakter og dokumentflyter:
+Innstillinger > Produksjon > Kontakter — komplett administrasjon av dokumentflyter og kontakter:
 
-- **Utvidbar tabell:** Lukket rad viser entreprise + dokumentflyter + antall kontakter. Åpen rad viser flytbokser + kontaktliste
-- **Visuell flyt:** Tre fargekodede bokser per dokumentflyt: Oppretter (blå) → Svarer (lilla) → Godkjenner (grønn)
-- **Mennesker under grupper:** Gruppemedlemmer vises innrykket under gruppens navn i flytboksene
-- **● Ansvarlig-prikk:** Hovedansvarlig i gruppen mottar dokumenter automatisk. Bytt person → flytt prikk
-- **Kontraktsform-uavhengig:** Samme system for NS 8405/8406 (BH eier), NS 8407 (HE/TE eier), intern UE-flyt
+- **Utvidbar tabell:** Entreprise → dokumentflyter med visuell flyt (Bestiller → Utfører → Godkjenner)
+- **LeggTilMedlemDropdown:** Legg til grupper eller enkeltpersoner i FlytBoks. Gjenbruker dokumentflyt-komponent
+- **Klikkbar ansvarlig-prikk (●):** Per DokumentflytMedlem, setter `erHovedansvarlig`
+- **Gruppeansvarlig (blå prikk):** Per gruppemedlem i utvidet gruppe, toggle `isAdmin`
+- **Visuelt skille:** Grupper øverst, stiplet linje, enkeltpersoner under med gruppetag (· Byggherre)
+- **Fjern:** X på gruppemedlemmer (fjerner fra gruppe), X på grupper (fjerner fra flyt), X på enkeltpersoner (fjerner fra flyt)
+- **Rediger dokumentflyt:** Klikk tittel → inline redigering + slett-knapp i redigeringsmodus
+- **Ny dokumentflyt:** Stiplet knapp per entreprise
+- **Kontraktsform-uavhengig:** Samme system for NS 8405/8406/8407
 
-### Planlagt forbedring: Overordnet-entreprise
+### Brukersiden — kontakttabell
 
-Felt `overordnetEntrepriseId` på Enterprise — definerer hvem som er flyteier. Dokumentflyt utledes fra entreprise-hierarkiet i stedet for separate dokumentflyt-oppføringer.
+- **Gruppert etter brukergruppe** med klikkbare overskrifter (expand/collapse)
+- **Kolonnefiltre:** Søk + dropdown for rolle, entreprise, gruppe
+- **Kompakt badge-visning:** Første verdi + "+N" for entrepriser og grupper
 
 ## TODO
 

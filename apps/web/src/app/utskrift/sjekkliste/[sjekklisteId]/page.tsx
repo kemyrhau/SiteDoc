@@ -74,10 +74,10 @@ export default function UtskriftSjekklisteSide() {
       prefix?: string | null;
       objects: RapportObjektRå[];
     };
-    creatorEnterprise?: { name: string } | null;
-    responderEnterprise?: { name: string } | null;
-    creator?: { name?: string | null } | null;
-    building?: { id: string; name: string } | null;
+    bestillerEnterprise?: { name: string } | null;
+    utforerEnterprise?: { name: string } | null;
+    bestiller?: { name?: string | null } | null;
+    byggeplass?: { id: string; name: string } | null;
     drawing?: { id: string; name: string; drawingNumber: string | null } | null;
   } | undefined;
 
@@ -199,10 +199,10 @@ export default function UtskriftSjekklisteSide() {
                 {prosjekt?.address && (
                   <p className="text-xs text-gray-500">Adresse: {prosjekt.address}</p>
                 )}
-                {(sjekkliste.building || sjekkliste.drawing) && (
+                {(sjekkliste.byggeplass || sjekkliste.drawing) && (
                   <p className="text-xs text-gray-500">
-                    {sjekkliste.building && <>Lokasjon: {sjekkliste.building.name}</>}
-                    {sjekkliste.building && sjekkliste.drawing && <> &middot; </>}
+                    {sjekkliste.byggeplass && <>Lokasjon: {sjekkliste.byggeplass.name}</>}
+                    {sjekkliste.byggeplass && sjekkliste.drawing && <> &middot; </>}
                     {sjekkliste.drawing && (
                       <>Tegning: {sjekkliste.drawing.drawingNumber ? `${sjekkliste.drawing.drawingNumber} ` : ""}{sjekkliste.drawing.name}</>
                     )}
@@ -220,15 +220,15 @@ export default function UtskriftSjekklisteSide() {
                 Sjekkliste: {sjekkliste.title}
               </p>
               <p className="text-xs text-gray-600">
-                {sjekkliste.creatorEnterprise && (
+                {sjekkliste.bestillerEnterprise && (
                   <>
-                    Oppretter: {sjekkliste.creatorEnterprise.name}
-                    {sjekkliste.creator?.name && ` (${sjekkliste.creator.name})`}
+                    Oppretter: {sjekkliste.bestillerEnterprise.name}
+                    {sjekkliste.bestiller?.name && ` (${sjekkliste.bestiller.name})`}
                   </>
                 )}
-                {sjekkliste.creatorEnterprise && sjekkliste.responderEnterprise && <> &middot; </>}
-                {sjekkliste.responderEnterprise && (
-                  <>Svarer: {sjekkliste.responderEnterprise.name}</>
+                {sjekkliste.bestillerEnterprise && sjekkliste.utforerEnterprise && <> &middot; </>}
+                {sjekkliste.utforerEnterprise && (
+                  <>Svarer: {sjekkliste.utforerEnterprise.name}</>
                 )}
               </p>
             </div>

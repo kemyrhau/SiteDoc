@@ -6,7 +6,7 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
-import { useBygning } from "@/kontekst/bygning-kontekst";
+import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
 import { useBilder } from "@/kontekst/bilder-kontekst";
 import { Spinner } from "@sitedoc/ui";
 import { BildeLightbox, type LightboxBilde } from "@/components/BildeLightbox";
@@ -42,7 +42,7 @@ interface TegningData {
   geoReference: unknown;
   fileUrl: string | null;
   fileType: string | null;
-  buildingId: string | null;
+  byggeplassId: string | null;
 }
 
 interface NormalisertBilde {
@@ -61,8 +61,8 @@ interface NormalisertBilde {
   parentDrawing: TegningData | null;
   positionX: number | null;
   positionY: number | null;
-  buildingId: string | null;
-  buildingName: string | null;
+  byggeplassId: string | null;
+  byggeplassName: string | null;
   templateId: string | null;
   templateName: string | null;
 }
@@ -127,7 +127,7 @@ function harGpsUtenforTegninger(
 export default function BilderSide() {
   const { t } = useTranslation();
   const params = useParams<{ prosjektId: string }>();
-  const { aktivBygning, aktivTegning } = useBygning();
+  const { aktivByggeplass, aktivTegning } = useByggeplass();
   const {
     visningsmodus,
     plasseringsmodus,
@@ -150,7 +150,7 @@ export default function BilderSide() {
   const containerRef = useRef<HTMLDivElement>(null);
 
   const { data, isLoading } = trpc.bilde.hentForProsjekt.useQuery(
-    { projectId: params.prosjektId, ...(aktivBygning?.id ? { buildingId: aktivBygning.id } : {}) },
+    { projectId: params.prosjektId, ...(aktivByggeplass?.id ? { byggeplassId: aktivByggeplass.id } : {}) },
     { enabled: !!params.prosjektId },
   );
 
@@ -190,7 +190,7 @@ export default function BilderSide() {
       if (!c) continue;
       const prefix = c.template?.prefix ?? "SJK";
       const nummer = String(c.number ?? 0).padStart(3, "0");
-      const bygning = (c as unknown as { building?: { id: string; name: string } | null }).building;
+      const bygning = (c as unknown as { byggeplass?: { id: string; name: string } | null }).byggeplass;
       const mal = c.template as unknown as { id?: string; prefix?: string; name?: string } | null;
       resultat.push({
         id: b.id,
@@ -208,8 +208,8 @@ export default function BilderSide() {
         parentDrawing: c.drawing as TegningData | null,
         positionX: null,
         positionY: null,
-        buildingId: bygning?.id ?? (c.drawing as unknown as { buildingId?: string } | null)?.buildingId ?? null,
-        buildingName: bygning?.name ?? null,
+        byggeplassId: bygning?.id ?? (c.drawing as unknown as { byggeplassId?: string } | null)?.byggeplassId ?? null,
+        byggeplassName: bygning?.name ?? null,
         templateId: mal?.id ?? null,
         templateName: mal?.name ?? null,
       });
@@ -237,8 +237,8 @@ export default function BilderSide() {
         parentDrawing: t.drawing as TegningData | null,
         positionX: t.positionX,
         positionY: t.positionY,
-        buildingId: (t.drawing as unknown as { buildingId?: string } | null)?.buildingId ?? null,
-        buildingName: null,
+        byggeplassId: (t.drawing as unknown as { byggeplassId?: string } | null)?.byggeplassId ?? null,
+        byggeplassName: null,
         templateId: tMal?.id ?? null,
         templateName: tMal?.name ?? null,
       });
@@ -955,7 +955,7 @@ function KartVisningMedValg({
   const bygninger = useMemo(() => {
     const map = new Map<string, string>();
     for (const b of bilderMedGps) {
-      if (b.buildingId) map.set(b.buildingId, b.buildingName ?? b.buildingId);
+      if (b.byggeplassId) map.set(b.byggeplassId, b.byggeplassName ?? b.byggeplassId);
     }
     return [...map.entries()].sort((a, b) => a[1].localeCompare(b[1]));
   }, [bilderMedGps]);
@@ -971,7 +971,7 @@ function KartVisningMedValg({
   // Filtrerte bilder
   const filtrerteBilder = useMemo(() => {
     return bilderMedGps.filter((b) => {
-      if (filterBygning && b.buildingId !== filterBygning) return false;
+      if (filterBygning && b.byggeplassId !== filterBygning) return false;
       if (filterMal && b.templateId !== filterMal) return false;
       return true;
     });
@@ -1058,7 +1058,7 @@ function KartVisningMedValg({
             </div>
             <div class="info">
               ${valgteBilder.length} bilder · ${new Date(valgteBilder[0]!.createdAt).toLocaleDateString("nb-NO")} – ${new Date(valgteBilder[valgteBilder.length - 1]!.createdAt).toLocaleDateString("nb-NO")}
-              ${valgteBilder[0]?.buildingName ? ` · ${valgteBilder[0].buildingName}` : ""}
+              ${valgteBilder[0]?.byggeplassName ? ` · ${valgteBilder[0].byggeplassName}` : ""}
               ${filterMal ? ` · ${maler.find(([id]) => id === filterMal)?.[1] ?? ""}` : ""}
             </div>
           </div>

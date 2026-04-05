@@ -4,18 +4,18 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { ChevronLeft, Box } from "lucide-react-native";
 import { IfcViewer } from "../src/components/IfcViewer";
 import { useProsjekt } from "../src/kontekst/ProsjektKontekst";
-import { useBygning } from "../src/kontekst/BygningKontekst";
+import { useByggeplass } from "../src/kontekst/ByggeplassKontekst";
 import { trpc } from "../src/lib/trpc";
 
 export default function TreDVisningSkjerm() {
   const router = useRouter();
   const { valgtProsjektId } = useProsjekt();
-  const { valgtBygningId } = useBygning();
+  const { valgtBygningId } = useByggeplass();
 
   const { data: tegninger, isLoading } = trpc.tegning.hentForProsjekt.useQuery(
     {
       projectId: valgtProsjektId!,
-      ...(valgtBygningId ? { buildingId: valgtBygningId } : {}),
+      ...(valgtBygningId ? { byggeplassId: valgtBygningId } : {}),
     },
     { enabled: !!valgtProsjektId },
   );

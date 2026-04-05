@@ -12,7 +12,7 @@
 
 `OpprettDokumentModal` — brukes for både sjekklister og oppgaver. Brukeren trykker alltid "Opprett" manuelt (auto-opprett fjernet pga. iOS Modal-animasjon som blokkerte navigering).
 - **Entreprise**: Auto-velges hvis bruker kun er i 1 entreprise
-- **Svarer**: Auto fra arbeidsforløp/dokumentflyt (read-only)
+- **Utfører**: Auto fra dokumentflyt (read-only)
 - **Tittel**: Auto-generert i API (malnavn + løpenummer)
 - **Lokasjon**: IKKE i opprettelsesmodal — settes fra tegning ved klikk, eller kobles etterpå
 - **VIKTIG**: Ikke bruk `presentationStyle="pageSheet"` på Modal — forstyrrer navigering etter dismiss på iOS
@@ -317,23 +317,23 @@ Vis IFC-modell overlagt på kamera for å følge/sjekke byggeprosessen i sanntid
 
 **Verdi:** Kvalitetskontroll på byggeplass — sjekke at ting er bygget riktig uten å gå tilbake til kontoret. Marker avvik direkte i visningen.
 
-## Implementert: Bygningskontekst — sentral bygningsvelger (Dalux-mønster)
+## Implementert: Byggeplasskontekst — sentral byggeplassvelger (Dalux-mønster)
 
-**Kontekst:** `apps/mobile/src/kontekst/BygningKontekst.tsx`
-- `valgtBygningId: string | null` — persistent i SecureStore, lagret per prosjekt (Map<prosjektId, bygningId>)
-- `settBygning(id | null)` — oppdaterer valg, null = "Alle"
-- `useBygning()` hook for alle barn-komponenter
+**Kontekst:** `apps/mobile/src/kontekst/ByggeplassKontekst.tsx`
+- `valgtByggeplassId: string | null` — persistent i SecureStore, lagret per prosjekt (Map<prosjektId, byggeplassId>)
+- `settByggeplass(id | null)` — oppdaterer valg, null = "Alle"
+- `useByggeplass()` hook for alle barn-komponenter
 
-**Bygningsvelger UI:**
-- **Lokasjoner-fanen** har horisontalt chip-bånd ("Alle" + bygninger) øverst når tegning ikke vises
-- Valgt bygning vises som undertekst i lokasjoner-headeren og hjem-headeren
+**Byggeplassvelger UI:**
+- **Lokasjoner-fanen** har horisontalt chip-bånd ("Alle" + byggeplasser) øverst når tegning ikke vises
+- Valgt byggeplass vises som undertekst i lokasjoner-headeren og hjem-headeren
 - Prosjektvelgeren i headeren forblir uendret
 
-**Hva som filtreres på bygning (implementert):**
+**Hva som filtreres på byggeplass (implementert):**
 - Sjekklister i hjem (`checklist.buildingId` via API)
 - Tegninger i lokasjoner (`drawing.buildingId` via API)
 - 3D-modeller/IFC (`drawing.buildingId + fileType=ifc`)
-- Live View (kun modeller for valgt bygning)
+- Live View (kun modeller for valgt byggeplass)
 
 **Gjenstår:**
 - Oppgaver: API-ruten `oppgave.hentForProsjekt` mangler `buildingId`-filter (oppgaver kobles via `drawing.buildingId`)
@@ -341,7 +341,7 @@ Vis IFC-modell overlagt på kamera for å følge/sjekke byggeprosessen i sanntid
 
 **Provider-plassering:**
 ```
-DatabaseProvider → trpc → QueryClient → Nettverk → OpplastingsKo → Auth → Prosjekt → Bygning
+DatabaseProvider → trpc → QueryClient → Nettverk → OpplastingsKo → Auth → Prosjekt → Byggeplass
 ```
 
 ## Tegningsmarkører
@@ -364,7 +364,7 @@ Georeferansepunkter (P1, P2, P3) vises som oransje markører for visuell verifis
 
 **Layout:**
 1. Tittel (stor, fet) med logo til venstre
-2. 4×2 metadata-rutenett: Prosjekt, Prosjekt nr, Bygning, Opprettet av, Opprettet, Endret av, Endret, Status
+2. 4×2 metadata-rutenett: Prosjekt, Prosjekt nr, Byggeplass, Opprettet av, Opprettet, Endret av, Endret, Status
 3. Feltblokker: label øverst → bilder i 2-kolonners rutenett med nummerering → tekstverdi → kommentar
 
 **Bildevisning i PDF:** Vedlegg-bilder embedderes som `<img>` med full URL (`apiUrl + /uploads/...`). Nummerering per felt (1, 2, 3...).

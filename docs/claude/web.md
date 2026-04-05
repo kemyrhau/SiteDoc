@@ -58,17 +58,17 @@ Tre-kolonne layout (skjules på mobil < 768px, hamburger-meny i Toppbar):
 /dashbord/oppsett/brukere                     -> Brukergrupper, roller + Kontakter-tabell (toggle-knapp). Kontakttabell viser alle prosjektmedlemmer med Navn, E-post, Telefon, Firma, Rolle, Entrepriser (redigerbare via +/x), Grupper
 /dashbord/oppsett/brukere/tillatelser         -> Tillatelsesmatrise (read-only)
 /dashbord/oppsett/lokasjoner                  -> Lokasjonsliste med georeferanse
-/dashbord/oppsett/field                       -> Field-oversikt
-/dashbord/oppsett/field/dokumentflyt          -> Dokumentflyt (roller, maler, medlemmer)
-/dashbord/oppsett/field/entrepriser           -> Entrepriser med dokumentflyt. Hovedansvarlig markeres med blå prikk (erHovedansvarlig). Dropdown i dokumentflyt viser kun personer og brukergrupper (ikke entrepriser/systemgrupper). Feilmelding ved sletting med tilknyttede dokumenter
-/dashbord/oppsett/field/oppgavemaler          -> Oppgavemaler
-/dashbord/oppsett/field/sjekklistemaler       -> Sjekklistemaler
-/dashbord/oppsett/field/moduler               -> Forhåndsdefinerte mal-pakker
-/dashbord/oppsett/field/psi                  -> PSI-oppsett: Multi-bygning støtte (én PSI per bygning), deaktiver/reaktiver (soft delete), kopier mal til annen bygning, QR-kode per bygning, gjestebeskjed-editor, auto-opprett standardmal med 8 seksjoner. Vises under Feltarbeid når modul er aktiv
-/dashbord/oppsett/field/psi/[psiId]/mal      -> Malbygger i PSI-modus: filtrert palett (kun PSI-typer), bredere config-panel (480px), bildeopplasting, større textarea, "INNHOLD"-labels, forhåndsvisningspanel (560px) med seksjonsnavigering, tilbake-knapp til PSI-oppsett, språkvelger (Psi.languages) + auto-oversett-knapp
-/dashbord/[prosjektId]/psi                   -> PSI-dashboard: Bygningsfaner, signaturtabell med HMS-kort-kolonne, statistikk (fullført/pågår/utdatert)
-/psi/[prosjektId]                            -> Offentlig PSI-side for gjester (QR): Bygningsvalg, HMS-kort felt + "Har ikke HMS-kort"-avkrysning, gjestebeskjed-visning, Forrige/Neste-navigering mellom seksjoner → quiz → signatur. Språkvelger filtrert til PSI-ens languages. Innhold rendres via oversatt()/oversattOptions() med fallback til norsk
-/dashbord/oppsett/field/box                   -> Mappeoppsett: tre-visning, kontekstmeny (ny undermappe, rediger tilgang, gi nytt navn, koble til kontrakt, slett). Mapper koblet til kontrakt viser blått ikon + kontraktnavn
+/dashbord/oppsett/produksjon                   -> Produksjon-oversikt (tidligere field/)
+/dashbord/oppsett/produksjon/dokumentflyt      -> Dokumentflyt (roller, maler, medlemmer)
+/dashbord/oppsett/produksjon/entrepriser       -> Entrepriser med dokumentflyt. Hovedansvarlig markeres med blå prikk (erHovedansvarlig). Dropdown i dokumentflyt viser kun personer og brukergrupper (ikke entrepriser/systemgrupper). Feilmelding ved sletting med tilknyttede dokumenter
+/dashbord/oppsett/produksjon/oppgavemaler      -> Oppgavemaler
+/dashbord/oppsett/produksjon/sjekklistemaler   -> Sjekklistemaler
+/dashbord/oppsett/produksjon/moduler           -> Forhåndsdefinerte mal-pakker
+/dashbord/oppsett/produksjon/psi              -> PSI-oppsett: Multi-byggeplass støtte (én PSI per byggeplass), deaktiver/reaktiver (soft delete), kopier mal til annen byggeplass, QR-kode per byggeplass, gjestebeskjed-editor, auto-opprett standardmal med 8 seksjoner. Vises under Produksjon når modul er aktiv
+/dashbord/oppsett/produksjon/psi/[psiId]/mal  -> Malbygger i PSI-modus: filtrert palett (kun PSI-typer), bredere config-panel (480px), bildeopplasting, større textarea, "INNHOLD"-labels, forhåndsvisningspanel (560px) med seksjonsnavigering, tilbake-knapp til PSI-oppsett, språkvelger (Psi.languages) + auto-oversett-knapp
+/dashbord/[prosjektId]/psi                   -> PSI-dashboard: Byggeplassfaner, signaturtabell med HMS-kort-kolonne, statistikk (fullført/pågår/utdatert)
+/psi/[prosjektId]                            -> Offentlig PSI-side for gjester (QR): Byggeplassvalg, HMS-kort felt + "Har ikke HMS-kort"-avkrysning, gjestebeskjed-visning, Forrige/Neste-navigering mellom seksjoner → quiz → signatur. Språkvelger filtrert til PSI-ens languages. Innhold rendres via oversatt()/oversattOptions() med fallback til norsk
+/dashbord/oppsett/produksjon/mapper            -> Mappeoppsett: tre-visning, kontekstmeny (ny undermappe, rediger tilgang, gi nytt navn, koble til kontrakt, slett). Mapper koblet til kontrakt viser blått ikon + kontraktnavn
 /dashbord/oppsett/prosjektoppsett             -> Prosjektoppsett
 /dashbord/oppsett/firma                       -> Firmainnstillinger
 /dashbord/admin                               -> SiteDoc-admin (kun sitedoc_admin)
@@ -85,7 +85,7 @@ Tre-kolonne layout (skjules på mobil < 768px, hamburger-meny i Toppbar):
 ## Kontekster og hooks
 
 - `ProsjektKontekst` — Valgt prosjekt fra URL `[prosjektId]`, alle prosjekter, loading
-- `BygningKontekst` — Aktiv bygning + `standardTegning` (persistent, localStorage) + `aktivTegning` (visning). Posisjonsvelger: `startPosisjonsvelger(feltId)` → `fullførPosisjonsvelger(resultat)` → `hentOgTømPosisjonsResultat(feltId)`
+- `ByggeplassKontekst` — Aktiv byggeplass + `standardTegning` (persistent, localStorage) + `aktivTegning` (visning). Posisjonsvelger: `startPosisjonsvelger(feltId)` → `fullførPosisjonsvelger(resultat)` → `hentOgTømPosisjonsResultat(feltId)`
 - `BilderKontekst` — Visningsmodus (liste/tegning), plasseringsmodus (rapportlokasjon/GPS), datofilter, områdevalg
 - `TreDViewerKontekst` — Persistent IFC 3D-viewer som lever i prosjekt-layouten. Holder modellStatuser, valgtObjekt, skjulteObjekter, aktiveFiltre, viewerRef (ViewerAPI). `ViewerCanvas`-komponenten rendres i 3d-visning/page.tsx men Three.js-scenen overlever navigasjon mellom ruter fordi all state og OBC-initialisering styres av konteksten. Typer, konstanter og hjelpefunksjoner er ekstrahert til separate filer under `3d-visning/`.
 - `NavigasjonKontekst` — Aktiv seksjon + verktøylinje-handlinger
@@ -173,16 +173,16 @@ Arbeiderens fritekst auto-oversettes til prosjektspråket ved lagring.
 - `OppgaverPanel` — Status- og prioritetsgrupper
 - `MalerPanel` — Malliste med søk
 - `EntrepriserPanel` — Entrepriseliste med søk
-- `TegningerPanel` — Bygning+tegningstrevisning med etasje-gruppering, stjerne-standard
-- `BilderPanel` — Visningsmodus-toggle (liste/tegning) + tegningsvelger med bygning/etasje-tre
+- `TegningerPanel` — Byggeplass+tegningstrevisning med etasje-gruppering, stjerne-standard
+- `BilderPanel` — Visningsmodus-toggle (liste/tegning) + tegningsvelger med byggeplass/etasje-tre
 - `MapperPanel` — Klikkbar mappestruktur med søk
 
 ## Malbygger
 
 Drag-and-drop i `apps/web/src/components/malbygger/`: `MalBygger`, `FeltPalett`, `DropSone`, `DraggbartFelt`, `FeltKonfigurasjon`, `BetingelseBjelke`, `TreprikkMeny`.
 
-- **Faste felt** (metadata): Emne, Oppretter-entreprise, Lokasjon — vises øverst i «Faste felt»-seksjonen med øye-toggle (`showSubject`, `showEnterprise`, `showLocation` på `ReportTemplate`)
-- **Lokasjon settes IKKE i opprettelsesmodal** — settes automatisk fra tegning ved klikk, eller kobles etterpå via tegningsvisning. Bygning/tegning-dropdown er fjernet fra opprettelseskjema (web + mobil)
+- **Faste felt** (metadata): Emne, Bestiller-entreprise, Lokasjon — vises øverst i «Faste felt»-seksjonen med øye-toggle (`showSubject`, `showEnterprise`, `showLocation` på `ReportTemplate`)
+- **Lokasjon settes IKKE i opprettelsesmodal** — settes automatisk fra tegning ved klikk, eller kobles etterpå via tegningsvisning. Byggeplass/tegning-dropdown er fjernet fra opprettelseskjema (web + mobil)
 - Rekursiv `RekursivtFelt`-rendering med nesting
 - Repeater: grønn ramme, uten BetingelseBjelke
 - Slett-validering: blokkeres ved bruk (JSONB `?|` operator)
@@ -192,8 +192,8 @@ Drag-and-drop i `apps/web/src/components/malbygger/`: `MalBygger`, `FeltPalett`,
 ## Opprettelsesflyt — ett-klikk
 
 Oppgaver og sjekklister opprettes med ett klikk — velg mal, alt annet utledes automatisk:
-- **Oppretter-entreprise**: Første fra `hentMineEntrepriser`
-- **Svarer-entreprise**: Utledes fra dokumentflyt som matcher malen og oppretter-entreprisen
+- **Bestiller-entreprise**: Første fra `hentMineEntrepriser`
+- **Utfører-entreprise**: Utledes fra dokumentflyt som matcher malen og bestiller-entreprisen
 - **Tittel**: Settes til malnavn (nummer vises separat i Nr-kolonne)
 - **Prioritet**: Default "medium"
 - **Lokasjon**: Settes fra tegning (ved klikk) eller kobles etterpå — ALDRI i opprettelsesmodal
@@ -204,8 +204,8 @@ Etter opprettelse navigeres brukeren direkte til detaljsiden for å begynne regi
 ## Lokasjon i detalj
 
 `LokasjonVelger`-komponent (`apps/web/src/components/LokasjonVelger.tsx`): klikkbar lokasjon-rad i oppgave/sjekkliste-detalj.
-- Viser bygning + tegning (eller "Ikke satt")
-- Klikk → modal med bygning/tegning-velger + tegningsvisning
+- Viser byggeplass + tegning (eller "Ikke satt")
+- Klikk → modal med byggeplass/tegning-velger + tegningsvisning
 - For oppgaver: klikk på tegning for å plassere punkt (positionX/Y)
 - API: `oppgave.oppdater` og `sjekkliste.oppdater` aksepterer `drawingId`, `positionX`, `positionY`, `buildingId`
 
@@ -215,7 +215,7 @@ Oppgave- og sjekkliste-lister bruker konfigurerbar tabellvisning med:
 
 **Velg parameter** — modal med søkefelt og tre grupper:
 - **Kolonner**: Nr, Tittel, Status, Emne, Ansvarlig, Opprettet av, Entrepriser, Mal, Datoer
-- **Posisjon**: Bygning, Etasje, Tegning (separate kolonner)
+- **Posisjon**: Byggeplass, Etasje, Tegning (separate kolonner)
 - **Verdier**: Dynamiske felt fra malenes `ReportObject`-er (`list_single`, `traffic_light`, `integer`, `decimal`, `text_field`, `person`, etc.)
 
 **Ansvarlig** = hvem som har dokumentet nå: `recipientUser` → `recipientGroup` → fallback `responderEnterprise`. Oppdateres ved videresending.
@@ -254,7 +254,7 @@ Ved sending og videresending av oppgaver/sjekklister sendes e-post til mottaker 
 
 ## Print-til-PDF
 
-**Print-header** (`PrintHeader`): logo, prosjektnavn, nr, adresse, dato, sjekkliste-tittel, oppretter/svarer, vær.
+**Print-header** (`PrintHeader`): logo, prosjektnavn, nr, adresse, dato, sjekkliste-tittel, bestiller/utfører, vær.
 
 **Tegningsutsnitt** i oppgave-utskrift: oversiktsbilde (venstre) med rød prikk + zoomet utsnitt (høyre). Vises kun for oppgaver med tegning + posisjon.
 
@@ -323,20 +323,20 @@ Tredje visningsmodus i Bilder-seksjonen: kart med markører for bilder med GPS.
 ### Planlagt: Kartfilter og utvidet eksport
 
 **Dynamisk filtersystem for kartvisning:**
-- **Bygning** — dropdown, filtrer bilder etter hvilken bygning de tilhører (via sjekkliste/oppgave → building_id)
+- **Byggeplass** — dropdown, filtrer bilder etter hvilken byggeplass de tilhører (via sjekkliste/oppgave → building_id)
 - **Rapportmal** — dropdown, filtrer etter mal (template_id på sjekklisten/oppgaven)
 - **Datoperiode** — fra/til datovalg (datoFra/datoTil finnes allerede i BilderKontekst)
 - Filtrene bør ligge i en kompakt verktøylinje over kartet, eller i BilderPanel
-- Filtrene er dynamiske — bygningslisten hentes fra prosjektet, mallisten fra tilgjengelige maler
+- Filtrene er dynamiske — byggeplasslisten hentes fra prosjektet, mallisten fra tilgjengelige maler
 
 **Utvidet eksport — forsideinformasjon:**
 - Prosjektnavn, prosjektnummer, adresse
-- Bygning bildene tilhører
+- Byggeplass bildene tilhører
 - Dato-range for utvalget
 - Antall bilder
 - Valgfri: kartutsnitt med markerte posisjoner (Leaflet canvas export)
 
-**Datakrav:** `NormalisertBilde` trenger utvidelse med `buildingId`, `buildingName`, `templateId`, `templateName` for filtrering. Disse kan utledes fra `parentId` (sjekkliste/oppgave) → building_id/template_id. Kan kreve utvidelse av `bilde.hentForProsjekt`-queryen.
+**Datakrav:** `NormalisertBilde` trenger utvidelse med `byggeplassId`, `byggeplassName`, `templateId`, `templateName` for filtrering. Disse kan utledes fra `parentId` (sjekkliste/oppgave) → building_id/template_id. Kan kreve utvidelse av `bilde.hentForProsjekt`-queryen.
 
 **Berører:** `BildeKart.tsx`, `page.tsx` (KartVisningMedValg), `BilderPanel.tsx`, `apps/api/src/routes/bilde.ts`
 
@@ -530,7 +530,7 @@ Kommentarseksjon med `TaskComment`. `DialogSeksjon` med innlinjet tekstfelt, Ent
 
 Begge i `SKJULT_I_UTFYLLING` — kun lesemodus/print.
 - `location`: Leaflet-kart + adresse
-- `drawing_position`: Navigasjonsbasert velger via `BygningKontekst`
+- `drawing_position`: Navigasjonsbasert velger via `ByggeplassKontekst`
 
 ## Bildegalleri
 
@@ -546,17 +546,17 @@ Samlet oversikt over alle bilder i prosjektet. To visningsmodus:
 
 `BildeLightbox`: Fullskjerm overlay med pil-navigering, metadata, rapport-lenke. Escape lukker.
 
-## Bygningsvelger (toppbar)
+## Byggeplassvelger (toppbar)
 
-`BygningsVelger` i `apps/web/src/components/layout/BygningsVelger.tsx`.
-Dropdown i toppbar etter prosjektvelger. Auto-velger første bygning.
-Lagrer valg per prosjekt i localStorage via `BygningKontekst`.
+`ByggeplassVelger` i `apps/web/src/components/layout/ByggeplassVelger.tsx`.
+Dropdown i toppbar etter prosjektvelger. Auto-velger første byggeplass.
+Lagrer valg per prosjekt i localStorage via `ByggeplassKontekst`.
 
-Bygningsvalg påvirker:
+Byggeplassvalg påvirker:
 - 3D-viewer (filtrerer IFC-modeller)
 - Tegning+3D split-view (filtrerer tegninger)
-- Sidebar: 3D og Tegning+3D skjules hvis bygning ikke har IFC
-- API-filtrering: oppgaver, sjekklister og bilder filtrerer på `aktivBygning.id`
+- Sidebar: 3D og Tegning+3D skjules hvis byggeplass ikke har IFC
+- API-filtrering: oppgaver, sjekklister og bilder filtrerer på `aktivByggeplass.id`
 
 ## Tegning+3D split-view
 
@@ -594,7 +594,7 @@ Draggbar skillelinje.
 
 **Kamerahøyde-kalibrering:**
 - Klikk på gulv i 3D for å kalibrere kamerahøyde
-- Lagres i localStorage per bygning
+- Lagres i localStorage per byggeplass
 
 **Etasjeklipp:**
 - OBC `Clipper.createFromNormalAndCoplanarPoint()` klipper modellen horisontalt
@@ -622,13 +622,13 @@ Modulikoner med tooltip (sjekklister, oppgaver, tegninger, 3D).
 
 **Rettigheter per gruppe:**
 - Moduler: sjekklister, oppgaver, tegninger, 3D (default alle på)
-- Bygningsfilter: velg spesifikke bygninger (null = alle)
+- Byggeplassfilter: velg spesifikke byggeplasser (null = alle)
 - Gruppeadmin: `isAdmin` på `ProjectGroupMember` — badge + toggle i brukergrupper-UI (`settGruppeAdmin` mutation)
 - Slett: kun feltarbeid-admin
 
 **Dokumentflyt:**
 - Opprett/send og Mottaker: bruker eller gruppe (ikke entreprise)
-- Dokumentflyt kobles til entreprise via `forvalgtEntrepriseId` på oppretter-medlemmet
+- Dokumentflyt kobles til entreprise via `forvalgtEntrepriseId` på bestiller-medlemmet
 - Entrepriser fjernet fra sidebar — kun i Oppsett
 
 **Entreprise fargevelger:**

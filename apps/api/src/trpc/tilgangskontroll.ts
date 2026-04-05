@@ -43,8 +43,8 @@ export function byggEntrepriseFilter(entreIder: string[] | null) {
 
   return {
     OR: [
-      { creatorEnterpriseId: { in: entreIder } },
-      { responderEnterpriseId: { in: entreIder } },
+      { bestillerEnterpriseId: { in: entreIder } },
+      { utforerEnterpriseId: { in: entreIder } },
     ],
   };
 }
@@ -146,8 +146,8 @@ export async function verifiserProsjektmedlem(
 export async function verifiserDokumentTilgang(
   userId: string,
   projectId: string,
-  creatorEnterpriseId: string | null,
-  responderEnterpriseId: string | null,
+  bestillerEnterpriseId: string | null,
+  utforerEnterpriseId: string | null,
   templateDomain?: string | null,
 ): Promise<void> {
   // sitedoc_admin ser alt
@@ -183,8 +183,8 @@ export async function verifiserDokumentTilgang(
   // Direkte entreprise-tilgang
   const direkteEntreIder = medlem.enterprises.map((e) => e.enterpriseId);
   const harDirekteTilgang =
-    (creatorEnterpriseId && direkteEntreIder.includes(creatorEnterpriseId)) ||
-    (responderEnterpriseId && direkteEntreIder.includes(responderEnterpriseId));
+    (bestillerEnterpriseId && direkteEntreIder.includes(bestillerEnterpriseId)) ||
+    (utforerEnterpriseId && direkteEntreIder.includes(utforerEnterpriseId));
 
   if (harDirekteTilgang) return;
 
@@ -200,8 +200,8 @@ export async function verifiserDokumentTilgang(
       // Entreprise-begrenset: sjekk om dokumentets entrepriser matcher gruppens
       const gruppeEntreIder = gm.group.groupEnterprises.map((ge) => ge.enterpriseId);
       const matcherEntreprise =
-        (creatorEnterpriseId && gruppeEntreIder.includes(creatorEnterpriseId)) ||
-        (responderEnterpriseId && gruppeEntreIder.includes(responderEnterpriseId));
+        (bestillerEnterpriseId && gruppeEntreIder.includes(bestillerEnterpriseId)) ||
+        (utforerEnterpriseId && gruppeEntreIder.includes(utforerEnterpriseId));
       if (matcherEntreprise) return;
     }
   }
@@ -256,8 +256,8 @@ export async function byggTilgangsFilter(
   // Direkte entreprise-tilgang (alle domener)
   const direkteEntreIder = medlem.enterprises.map((e) => e.enterpriseId);
   if (direkteEntreIder.length > 0) {
-    orBetingelser.push({ creatorEnterpriseId: { in: direkteEntreIder } });
-    orBetingelser.push({ responderEnterpriseId: { in: direkteEntreIder } });
+    orBetingelser.push({ bestillerEnterpriseId: { in: direkteEntreIder } });
+    orBetingelser.push({ utforerEnterpriseId: { in: direkteEntreIder } });
   }
 
   // Fagområde-tilgang via grupper
@@ -279,8 +279,8 @@ export async function byggTilgangsFilter(
             { template: { domain } },
             {
               OR: [
-                { creatorEnterpriseId: { in: gruppeEntreIder } },
-                { responderEnterpriseId: { in: gruppeEntreIder } },
+                { bestillerEnterpriseId: { in: gruppeEntreIder } },
+                { utforerEnterpriseId: { in: gruppeEntreIder } },
               ],
             },
           ],

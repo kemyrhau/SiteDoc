@@ -14,7 +14,7 @@ import { OpprettOppgaveModal } from "@/components/OpprettOppgaveModal";
 import { StatusHandlinger } from "@/components/StatusHandlinger";
 import { LokasjonVelger } from "@/components/LokasjonVelger";
 import type { RapportObjekt } from "@/components/rapportobjekter/typer";
-import { useBygning } from "@/kontekst/bygning-kontekst";
+import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
 import { useOversettelse } from "@/hooks/useOversettelse";
 import { DokumentTidslinje } from "@/components/DokumentTidslinje";
 import { usePresence } from "@/hooks/usePresence";
@@ -83,7 +83,7 @@ export default function SjekklisteDetaljSide() {
     lagreStatus,
   } = useSjekklisteSkjema(params.sjekklisteId);
 
-  const { standardTegning } = useBygning();
+  const { standardTegning } = useByggeplass();
   const { andreRedaktorer } = usePresence(params.sjekklisteId, "sjekkliste");
 
   const slettMutasjon = trpc.sjekkliste.slett.useMutation({
@@ -176,8 +176,8 @@ export default function SjekklisteDetaljSide() {
   );
   const fullSjekkliste = fullSjekklisteRå as {
     number?: number | null;
-    creator?: { name?: string | null };
-    building?: { id: string; name: string } | null;
+    bestiller?: { name?: string | null };
+    byggeplass?: { id: string; name: string } | null;
     drawing?: { id: string; name: string; drawingNumber: string | null } | null;
   } | undefined;
 
@@ -331,7 +331,7 @@ export default function SjekklisteDetaljSide() {
     return <p className="py-12 text-center text-gray-500">Sjekklisten ble ikke funnet.</p>;
   }
 
-  const oppretterBruker = fullSjekkliste?.creator?.name;
+  const oppretterBruker = fullSjekkliste?.bestiller?.name;
 
   return (
     <div className="mx-auto max-w-3xl pb-12">
@@ -342,14 +342,14 @@ export default function SjekklisteDetaljSide() {
         eksterntNummer={prosjekt?.externalProjectNumber}
         sjekklisteTittel={sjekkliste.title}
         sjekklisteNummer={sjekklisteNummer}
-        oppretter={sjekkliste.creatorEnterprise?.name}
-        oppretterBruker={oppretterBruker ?? null}
-        svarer={sjekkliste.responderEnterprise?.name}
+        bestiller={sjekkliste.bestillerEnterprise?.name}
+        bestillerBruker={oppretterBruker ?? null}
+        utforer={sjekkliste.utforerEnterprise?.name}
         vaerTekst={vaerTekst}
         logoUrl={prosjekt?.logoUrl}
         prosjektAdresse={prosjekt?.address}
         status={sjekkliste.status}
-        bygningNavn={fullSjekkliste?.building?.name}
+        byggeplassNavn={fullSjekkliste?.byggeplass?.name}
         tegningNavn={fullSjekkliste?.drawing?.drawingNumber
           ? `${fullSjekkliste.drawing.drawingNumber} ${fullSjekkliste.drawing.name}`
           : fullSjekkliste?.drawing?.name}
@@ -403,20 +403,20 @@ export default function SjekklisteDetaljSide() {
           <span>Mal: {sjekkliste.template.name}</span>
           {sjekkliste.status === "draft" ? (
             <>
-              <span>&middot; Oppretter:</span>
+              <span>&middot; Bestiller:</span>
               <select
-                value={sjekkliste.creatorEnterprise?.id ?? ""}
-                onChange={(e) => oppdaterMutasjon.mutate({ id: params.sjekklisteId, creatorEnterpriseId: e.target.value })}
+                value={sjekkliste.bestillerEnterprise?.id ?? ""}
+                onChange={(e) => oppdaterMutasjon.mutate({ id: params.sjekklisteId, bestillerEnterpriseId: e.target.value })}
                 className="rounded border border-gray-200 bg-white px-1.5 py-0.5 text-sm text-gray-700"
               >
                 {(mineEntrepriser ?? []).map((ent: { id: string; name: string }) => (
                   <option key={ent.id} value={ent.id}>{ent.name}</option>
                 ))}
               </select>
-              <span>&middot; Svarer:</span>
+              <span>&middot; Utfører:</span>
               <select
-                value={sjekkliste.responderEnterprise?.id ?? ""}
-                onChange={(e) => oppdaterMutasjon.mutate({ id: params.sjekklisteId, responderEnterpriseId: e.target.value })}
+                value={sjekkliste.utforerEnterprise?.id ?? ""}
+                onChange={(e) => oppdaterMutasjon.mutate({ id: params.sjekklisteId, utforerEnterpriseId: e.target.value })}
                 className="rounded border border-gray-200 bg-white px-1.5 py-0.5 text-sm text-gray-700"
               >
                 {(alleEntrepriser ?? []).map((ent: { id: string; name: string }) => (
@@ -426,11 +426,11 @@ export default function SjekklisteDetaljSide() {
             </>
           ) : (
             <>
-              {sjekkliste.creatorEnterprise && (
-                <span>&middot; Oppretter: {sjekkliste.creatorEnterprise.name}</span>
+              {sjekkliste.bestillerEnterprise && (
+                <span>&middot; Bestiller: {sjekkliste.bestillerEnterprise.name}</span>
               )}
-              {sjekkliste.responderEnterprise && (
-                <span>&middot; Svarer: {sjekkliste.responderEnterprise.name}</span>
+              {sjekkliste.utforerEnterprise && (
+                <span>&middot; Utfører: {sjekkliste.utforerEnterprise.name}</span>
               )}
             </>
           )}
@@ -445,12 +445,12 @@ export default function SjekklisteDetaljSide() {
             prosjektId={params.prosjektId}
             tegningId={(sjekkliste as unknown as { drawingId?: string | null }).drawingId}
             tegningNavn={(sjekkliste as unknown as { drawing?: { name?: string } | null }).drawing?.name}
-            bygningNavn={(sjekkliste as unknown as { building?: { name?: string } | null }).building?.name}
+            bygningNavn={(sjekkliste as unknown as { byggeplass?: { name?: string } | null }).byggeplass?.name}
             onLagre={(data) => {
               oppdaterMutasjon.mutate({
                 id: params.sjekklisteId,
                 drawingId: data.drawingId,
-                buildingId: data.buildingId ?? undefined,
+                byggeplassId: data.byggeplassId ?? undefined,
               });
             }}
             leseModus={!erRedigerbar}
@@ -474,7 +474,7 @@ export default function SjekklisteDetaljSide() {
             }}
             onSlett={() => slettMutasjon.mutate({ id: params.sjekklisteId })}
             entrepriseValg={entrepriseValg}
-            standardEntrepriseId={sjekkliste.responderEnterprise?.id}
+            standardEntrepriseId={sjekkliste.utforerEnterprise?.id}
             mineEntrepriseIder={mineEntrepriser ? (mineEntrepriser as Array<{ id: string }>).map((e) => e.id) : undefined}
             erRegistrator={erRegistrator}
           />
@@ -532,7 +532,7 @@ export default function SjekklisteDetaljSide() {
                 nestingNivå={nestingNivå}
                 valideringsfeil={valideringsfeil[objekt.id]}
                 prosjektId={params.prosjektId}
-                bygningId={fullSjekkliste?.building?.id}
+                byggeplassId={fullSjekkliste?.byggeplass?.id}
                 standardTegningId={standardTegning?.id}
                 oppgaveNummer={oppgaveNummer}
                 oppgaveId={feltOppgave?.id}
@@ -577,7 +577,7 @@ export default function SjekklisteDetaljSide() {
             recipientUser?: { id: string; name: string | null } | null;
             recipientGroup?: { id: string; name: string | null } | null;
           }>}
-          opprettetAv={fullSjekkliste?.creator?.name ?? null}
+          opprettetAv={fullSjekkliste?.bestiller?.name ?? null}
           opprettetDato={(fullSjekklisteRå as { createdAt?: string }).createdAt ?? null}
         />
       )}

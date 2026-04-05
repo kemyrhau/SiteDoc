@@ -48,14 +48,14 @@ export const adminRouter = router({
     const prosjektIder = prosjekter.map((p) => p.id);
     const [sjekklisteTellere, oppgaveTellere] = await Promise.all([
       ctx.prisma.checklist.groupBy({
-        by: ["creatorEnterpriseId"],
+        by: ["bestillerEnterpriseId"],
         _count: true,
-        where: { creatorEnterprise: { projectId: { in: prosjektIder } } },
+        where: { bestillerEnterprise: { projectId: { in: prosjektIder } } },
       }),
       ctx.prisma.task.groupBy({
-        by: ["creatorEnterpriseId"],
+        by: ["bestillerEnterpriseId"],
         _count: true,
-        where: { creatorEnterprise: { projectId: { in: prosjektIder } } },
+        where: { bestillerEnterprise: { projectId: { in: prosjektIder } } },
       }),
     ]);
 
@@ -71,11 +71,11 @@ export const adminRouter = router({
     const sjekklistePerProsjekt = new Map<string, number>();
     const oppgavePerProsjekt = new Map<string, number>();
     for (const s of sjekklisteTellere) {
-      const pid = enterpriseProsjektMap.get(s.creatorEnterpriseId);
+      const pid = enterpriseProsjektMap.get(s.bestillerEnterpriseId);
       if (pid) sjekklistePerProsjekt.set(pid, (sjekklistePerProsjekt.get(pid) ?? 0) + s._count);
     }
     for (const o of oppgaveTellere) {
-      const pid = enterpriseProsjektMap.get(o.creatorEnterpriseId);
+      const pid = enterpriseProsjektMap.get(o.bestillerEnterpriseId);
       if (pid) oppgavePerProsjekt.set(pid, (oppgavePerProsjekt.get(pid) ?? 0) + o._count);
     }
 
@@ -235,7 +235,7 @@ export const adminRouter = router({
     .query(async ({ ctx, input }) => {
       await verifiserSiteDocAdmin(ctx.prisma, ctx.userId);
 
-      const entFilter = { creatorEnterprise: { projectId: input.projectId } };
+      const entFilter = { bestillerEnterprise: { projectId: input.projectId } };
       const [sjekklister, oppgaver, maler, entrepriser, medlemmer, tegninger, mapper] = await Promise.all([
         ctx.prisma.checklist.count({ where: entFilter }),
         ctx.prisma.task.count({ where: entFilter }),

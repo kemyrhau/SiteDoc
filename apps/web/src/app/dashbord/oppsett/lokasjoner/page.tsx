@@ -35,7 +35,7 @@ import { GeoReferanseEditor } from "@/components/GeoReferanseEditor";
 type TegningRad = {
   id: string;
   name: string;
-  buildingId: string | null;
+  byggeplassId: string | null;
   fileUrl: string;
   fileType: string;
   floor?: string | null;
@@ -245,7 +245,7 @@ function RedigerLokasjon({
     { enabled: !!prosjektId },
   );
 
-  const tilknyttMutation = trpc.tegning.tilknyttBygning.useMutation({
+  const tilknyttMutation = trpc.tegning.tilknyttByggeplass.useMutation({
     onSuccess: () => {
       utils.bygning.hentMedId.invalidate({ id: lokasjonId });
       utils.tegning.hentForProsjekt.invalidate({ projectId: prosjektId! });
@@ -310,7 +310,7 @@ function RedigerLokasjon({
 
     opprettTegningMutation.mutate({
       projectId: prosjektId,
-      buildingId: lokasjonId,
+      byggeplassId: lokasjonId,
       name: metaNavn,
       drawingNumber: metaTegningsnr || undefined,
       discipline: (metaDisiplin || undefined) as typeof DRAWING_DISCIPLINES[number] | undefined,
@@ -327,7 +327,7 @@ function RedigerLokasjon({
   }
 
   const utilknyttede = (alleTegninger as TegningRad[] | undefined)
-    ?.filter((t) => !t.buildingId) ?? [];
+    ?.filter((t) => !t.byggeplassId) ?? [];
   const tegninger = (lokasjon?.drawings ?? []) as TegningRad[];
   const valgtTegning = tegninger.find((t) => t.id === valgtTegningId) ?? null;
   const tegningGrupper = grupperTegninger(tegninger);
@@ -375,7 +375,7 @@ function RedigerLokasjon({
                         onClick={() => {
                           tilknyttMutation.mutate({
                             drawingId: tegning.id,
-                            buildingId: lokasjonId,
+                            byggeplassId: lokasjonId,
                           });
                           setVisTilføyMeny(false);
                         }}
@@ -422,7 +422,7 @@ function RedigerLokasjon({
                   disabled={!valgtTegningId}
                   onClick={() => {
                     if (valgtTegningId) {
-                      tilknyttMutation.mutate({ drawingId: valgtTegningId, buildingId: null });
+                      tilknyttMutation.mutate({ drawingId: valgtTegningId, byggeplassId: null });
                       setValgtTegningId(null);
                     }
                     setVisMerMeny(false);

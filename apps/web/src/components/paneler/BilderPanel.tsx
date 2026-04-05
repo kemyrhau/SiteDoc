@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
-import { useBygning } from "@/kontekst/bygning-kontekst";
+import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
 import { useBilder } from "@/kontekst/bilder-kontekst";
 import { Spinner } from "@sitedoc/ui";
 import {
@@ -23,7 +23,7 @@ interface TegningInfo {
   fileType: string | null;
   floor: string | null;
   geoReference: unknown;
-  buildingId: string | null;
+  byggeplassId: string | null;
 }
 
 interface BygningMedTegninger {
@@ -36,7 +36,7 @@ interface BygningMedTegninger {
 export function BilderPanel() {
   const { t } = useTranslation();
   const params = useParams<{ prosjektId: string }>();
-  const { aktivBygning, velgBygning, aktivTegning, settAktivTegning } = useBygning();
+  const { aktivByggeplass, velgByggeplass, aktivTegning, settAktivTegning } = useByggeplass();
   const { visningsmodus, settVisningsmodus } = useBilder();
   const [utvidede, setUtvidede] = useState<Set<string>>(new Set());
 
@@ -57,10 +57,10 @@ export function BilderPanel() {
   function handleVelgTegning(tegning: TegningInfo, bygningId: string) {
     settVisningsmodus("tegning");
     settAktivTegning(aktivTegning?.id === tegning.id ? null : tegning);
-    if (aktivBygning?.id !== bygningId) {
+    if (aktivByggeplass?.id !== bygningId) {
       const byg = bygninger?.find((b) => b.id === bygningId) as BygningMedTegninger | undefined;
       if (byg) {
-        velgBygning({ id: byg.id, name: byg.name, number: byg.number });
+        velgByggeplass({ id: byg.id, name: byg.name, number: byg.number });
         setUtvidede((prev) => new Set(prev).add(bygningId));
       }
     }
@@ -142,10 +142,10 @@ export function BilderPanel() {
                     <button
                       onClick={() => {
                         toggleUtvid(bygning.id);
-                        velgBygning({ id: bygning.id, name: bygning.name, number: bygning.number });
+                        velgByggeplass({ id: bygning.id, name: bygning.name, number: bygning.number });
                       }}
                       className={`flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-sm transition-colors ${
-                        aktivBygning?.id === bygning.id
+                        aktivByggeplass?.id === bygning.id
                           ? "bg-blue-50 text-blue-700 font-medium"
                           : "text-gray-700 hover:bg-gray-50"
                       }`}

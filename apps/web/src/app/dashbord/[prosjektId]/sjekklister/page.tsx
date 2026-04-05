@@ -5,7 +5,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { trpc } from "@/lib/trpc";
 import { Button, Modal, Spinner, EmptyState, StatusBadge, Table } from "@sitedoc/ui";
 import { useVerktoylinje } from "@/hooks/useVerktoylinje";
-import { useBygning } from "@/kontekst/bygning-kontekst";
+import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
 import type { VerktoylinjeHandling } from "@/kontekst/navigasjon-kontekst";
 import { Plus, Printer, Trash2, Search, ChevronDown, ChevronRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -30,10 +30,10 @@ interface SjekklisteRad {
   updatedAt: string;
   data: Record<string, unknown>;
   template: { id: string; prefix: string | null; name: string; objects: MalObjekt[] };
-  creator: { name: string | null } | null;
-  creatorEnterprise: { name: string };
-  responderEnterprise: { name: string };
-  building: { id: string; name: string } | null;
+  bestiller: { name: string | null } | null;
+  bestillerEnterprise: { name: string };
+  utforerEnterprise: { name: string };
+  byggeplass: { id: string; name: string } | null;
   drawing: { name: string; floor: string | null } | null;
   recipientUser: { name: string | null } | null;
   recipientGroup: { name: string } | null;
@@ -74,8 +74,8 @@ const SYSTEM_KOLONNER: KolonneParam[] = [
   { id: "emne", navnKey: "tabell.emne", gruppe: "kolonner" },
   { id: "ansvarlig", navnKey: "tabell.ansvarlig", gruppe: "kolonner" },
   { id: "opprettetAv", navnKey: "tabell.opprettetAv", gruppe: "kolonner" },
-  { id: "oppretterEntreprise", navnKey: "tabell.oppretterEntreprise", gruppe: "kolonner" },
-  { id: "svarerEntreprise", navnKey: "tabell.svarerEntreprise", gruppe: "kolonner" },
+  { id: "bestillerEntreprise", navnKey: "tabell.bestillerEntreprise", gruppe: "kolonner" },
+  { id: "utforerEntreprise", navnKey: "tabell.utforerEntreprise", gruppe: "kolonner" },
   { id: "mal", navnKey: "tabell.mal", gruppe: "kolonner" },
   { id: "opprettet", navnKey: "tabell.opprettelsesdato", gruppe: "kolonner" },
   { id: "endret", navnKey: "tabell.endringsdato", gruppe: "kolonner" },
@@ -88,7 +88,7 @@ const POSISJON_KOLONNER: KolonneParam[] = [
   { id: "tegning", navnKey: "tabell.tegning", gruppe: "posisjon" },
 ];
 
-const STANDARD_AKTIVE = new Set(["nr", "tittel", "emne", "mal", "status", "ansvarlig", "frist"]);
+const STANDARD_AKTIVE = new Set(["nr", "tittel", "emne", "mal", "status", "ansvarlig", "bygning", "frist"]);
 const STORAGE_KEY = "sitedoc-sjekkliste-kolonner-v3";
 
 function hentLagredeKolonner(): Set<string> {
@@ -118,7 +118,7 @@ function formaterNummer(rad: SjekklisteRad): string {
 function formaterAnsvarlig(rad: SjekklisteRad): string {
   if (rad.recipientUser?.name) return rad.recipientUser.name;
   if (rad.recipientGroup?.name) return rad.recipientGroup.name;
-  return rad.responderEnterprise.name;
+  return rad.utforerEnterprise.name;
 }
 
 function formaterDato(dato: string | null): string {
@@ -216,7 +216,7 @@ export default function SjekklisteSide() {
   const searchParams = useSearchParams();
   const statusFilter = searchParams.get("status");
   const utils = trpc.useUtils();
-  const { aktivBygning, standardTegning } = useBygning();
+  const { aktivByggeplass, standardTegning } = useByggeplass();
   const [visModal, setVisModal] = useState(false);
   const [valgte, setValgte] = useState<Set<string>>(new Set());
   const [visSlettModal, setVisSlettModal] = useState(false);
@@ -226,7 +226,7 @@ export default function SjekklisteSide() {
   const [filterVerdier, setFilterVerdier] = useState<Record<string, string>>({});
 
   const sjekklisteQuery = trpc.sjekkliste.hentForProsjekt.useQuery(
-    { projectId: params.prosjektId, ...(aktivBygning?.id ? { buildingId: aktivBygning.id } : {}) },
+    { projectId: params.prosjektId },
   );
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sjekklister = sjekklisteQuery.data as any as SjekklisteRad[] | undefined;
@@ -275,9 +275,8 @@ export default function SjekklisteSide() {
     const svarer = matchDf?.medlemmer.find((m) => m.rolle === "svarer");
     opprettMutation.mutate({
       templateId: malId,
-      creatorEnterpriseId: oppretter.id,
-      responderEnterpriseId: svarer?.enterprise?.id ?? oppretter.id,
-      workflowId: matchDf?.id,
+      bestillerEnterpriseId: oppretter.id,
+      utforerEnterpriseId: svarer?.enterprise?.id ?? oppretter.id,
     });
   }
 
@@ -293,9 +292,9 @@ export default function SjekklisteSide() {
     }
     return h;
     // eslint-disable-next-line
-  }, [valgte, params.prosjektId, router, aktivBygning?.id, standardTegning?.id]);
+  }, [valgte, params.prosjektId, router, aktivByggeplass?.id, standardTegning?.id]);
 
-  useVerktoylinje(verktoylinjeHandlinger, [valgte.size, aktivBygning?.id, standardTegning?.id]);
+  useVerktoylinje(verktoylinjeHandlinger, [valgte.size, aktivByggeplass?.id, standardTegning?.id]);
 
   // Verdier-kolonner fra maler
   const verdiFelter = useMemo<KolonneParam[]>(() => {
@@ -322,11 +321,11 @@ export default function SjekklisteSide() {
     const filter: Record<string, { value: string; label: string }[]> = {
       emne: bygg(data.map((s) => s.subject)),
       ansvarlig: bygg(data.map((s) => formaterAnsvarlig(s))),
-      opprettetAv: bygg(data.map((s) => s.creator?.name)),
-      oppretterEntreprise: bygg(data.map((s) => s.creatorEnterprise.name)),
-      svarerEntreprise: bygg(data.map((s) => s.responderEnterprise.name)),
+      opprettetAv: bygg(data.map((s) => s.bestiller?.name)),
+      bestillerEntreprise: bygg(data.map((s) => s.bestillerEnterprise.name)),
+      utforerEntreprise: bygg(data.map((s) => s.utforerEnterprise.name)),
       mal: bygg(data.map((s) => s.template.name)),
-      bygning: bygg(data.map((s) => s.building?.name)),
+      bygning: bygg(data.map((s) => s.byggeplass?.name)),
       etasje: bygg(data.map((s) => s.drawing?.floor)),
       tegning: bygg(data.map((s) => s.drawing?.name)),
       status: STATUS_ALTERNATIVER.map((s) => ({ value: s.value, label: t(s.labelKey) })),
@@ -354,11 +353,11 @@ export default function SjekklisteSide() {
           case "status": return s.status === verdi;
           case "emne": return s.subject === verdi;
           case "ansvarlig": return formaterAnsvarlig(s) === verdi;
-          case "opprettetAv": return s.creator?.name === verdi;
-          case "oppretterEntreprise": return s.creatorEnterprise.name === verdi;
-          case "svarerEntreprise": return s.responderEnterprise.name === verdi;
+          case "opprettetAv": return s.bestiller?.name === verdi;
+          case "bestillerEntreprise": return s.bestillerEnterprise.name === verdi;
+          case "utforerEntreprise": return s.utforerEnterprise.name === verdi;
           case "mal": return s.template.name === verdi;
-          case "bygning": return s.building?.name === verdi;
+          case "bygning": return s.byggeplass?.name === verdi;
           case "etasje": return s.drawing?.floor === verdi;
           case "tegning": return s.drawing?.name === verdi;
           default: return true;
@@ -397,15 +396,15 @@ export default function SjekklisteSide() {
         bredde: "130px", sorterbar: true, sorterVerdi: (rad) => rad.status, filtrerbar: true, filterAlternativer: dynamiskFilter.status ?? [] },
       ansvarlig: { id: "ansvarlig", header: t("tabell.ansvarlig"), celle: (rad) => <span className="text-gray-600">{formaterAnsvarlig(rad)}</span>,
         sorterbar: true, sorterVerdi: (rad) => formaterAnsvarlig(rad), filtrerbar: true, filterAlternativer: dynamiskFilter.ansvarlig ?? [] },
-      opprettetAv: { id: "opprettetAv", header: t("tabell.opprettetAv"), celle: (rad) => rad.creator?.name
-        ? <span className="text-gray-600">{rad.creator.name}</span> : <span className="text-gray-300">—</span>,
-        sorterbar: true, sorterVerdi: (rad) => rad.creator?.name ?? "", filtrerbar: true, filterAlternativer: dynamiskFilter.opprettetAv ?? [] },
-      oppretterEntreprise: { id: "oppretterEntreprise", header: t("tabell.oppretterEntreprise"),
-        celle: (rad) => <span className="text-xs text-gray-500">{rad.creatorEnterprise.name}</span>,
-        sorterbar: true, sorterVerdi: (rad) => rad.creatorEnterprise.name, filtrerbar: true, filterAlternativer: dynamiskFilter.oppretterEntreprise ?? [] },
-      svarerEntreprise: { id: "svarerEntreprise", header: t("tabell.svarerEntreprise"),
-        celle: (rad) => <span className="text-xs text-gray-500">{rad.responderEnterprise.name}</span>,
-        sorterbar: true, sorterVerdi: (rad) => rad.responderEnterprise.name, filtrerbar: true, filterAlternativer: dynamiskFilter.svarerEntreprise ?? [] },
+      opprettetAv: { id: "opprettetAv", header: t("tabell.opprettetAv"), celle: (rad) => rad.bestiller?.name
+        ? <span className="text-gray-600">{rad.bestiller.name}</span> : <span className="text-gray-300">—</span>,
+        sorterbar: true, sorterVerdi: (rad) => rad.bestiller?.name ?? "", filtrerbar: true, filterAlternativer: dynamiskFilter.opprettetAv ?? [] },
+      bestillerEntreprise: { id: "bestillerEntreprise", header: t("tabell.bestillerEntreprise"),
+        celle: (rad) => <span className="text-xs text-gray-500">{rad.bestillerEnterprise.name}</span>,
+        sorterbar: true, sorterVerdi: (rad) => rad.bestillerEnterprise.name, filtrerbar: true, filterAlternativer: dynamiskFilter.bestillerEntreprise ?? [] },
+      utforerEntreprise: { id: "utforerEntreprise", header: t("tabell.utforerEntreprise"),
+        celle: (rad) => <span className="text-xs text-gray-500">{rad.utforerEnterprise.name}</span>,
+        sorterbar: true, sorterVerdi: (rad) => rad.utforerEnterprise.name, filtrerbar: true, filterAlternativer: dynamiskFilter.utforerEntreprise ?? [] },
       mal: { id: "mal", header: t("tabell.mal"), celle: (rad) => <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-500">{rad.template.name}</span>,
         sorterbar: true, sorterVerdi: (rad) => rad.template.name, filtrerbar: true, filterAlternativer: dynamiskFilter.mal ?? [] },
       opprettet: { id: "opprettet", header: t("tabell.opprettelsesdato"), celle: (rad) => <span className="text-xs text-gray-500">{formaterDato(rad.createdAt)}</span>,
@@ -415,9 +414,9 @@ export default function SjekklisteSide() {
       frist: { id: "frist", header: t("tabell.tidsfrist"), celle: (rad) => rad.dueDate
         ? <span className="text-xs text-gray-500">{formaterDato(rad.dueDate)}</span> : <span className="text-gray-300">—</span>,
         bredde: "120px", sorterbar: true, sorterVerdi: (rad) => rad.dueDate ? new Date(rad.dueDate).getTime() : null },
-      bygning: { id: "bygning", header: t("tabell.bygning"), celle: (rad) => rad.building?.name
-        ? <span className="text-xs text-gray-600">{rad.building.name}</span> : <span className="text-gray-300">—</span>,
-        sorterbar: true, sorterVerdi: (rad) => rad.building?.name ?? "", filtrerbar: true, filterAlternativer: dynamiskFilter.bygning ?? [] },
+      bygning: { id: "bygning", header: t("tabell.bygning"), celle: (rad) => rad.byggeplass?.name
+        ? <span className="text-xs text-gray-600">{rad.byggeplass.name}</span> : <span className="text-gray-300">—</span>,
+        sorterbar: true, sorterVerdi: (rad) => rad.byggeplass?.name ?? "", filtrerbar: true, filterAlternativer: dynamiskFilter.bygning ?? [] },
       etasje: { id: "etasje", header: t("tabell.etasje"), celle: (rad) => rad.drawing?.floor
         ? <span className="text-xs text-gray-600">{rad.drawing.floor}</span> : <span className="text-gray-300">—</span>,
         sorterbar: true, sorterVerdi: (rad) => rad.drawing?.floor ?? "", filtrerbar: true, filterAlternativer: dynamiskFilter.etasje ?? [] },

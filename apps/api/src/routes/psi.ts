@@ -5,11 +5,11 @@ import { verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
 import { oversettFritekst } from "../services/oversettelse-service";
 
 // Hjelpefunksjon for å finne PSI med prosjekt + bygning (null = prosjektnivå)
-function psiWhere(projectId: string, buildingId?: string | null) {
+function psiWhere(projectId: string, byggeplassId?: string | null) {
   return {
-    projectId_buildingId: {
+    projectId_byggeplassId: {
       projectId,
-      buildingId: buildingId ?? null,
+      byggeplassId: byggeplassId ?? null,
     },
   } as const;
 }
@@ -24,7 +24,7 @@ export const psiRouter = router({
         where: { projectId: input.projectId },
         include: {
           template: { select: { id: true, name: true, prefix: true } },
-          building: { select: { id: true, name: true } },
+          byggeplass: { select: { id: true, name: true } },
         },
         orderBy: { createdAt: "asc" },
       });
@@ -38,7 +38,7 @@ export const psiRouter = router({
         where: { id: input.psiId },
         include: {
           template: { include: { objects: { orderBy: { sortOrder: "asc" } } } },
-          building: { select: { id: true, name: true } },
+          byggeplass: { select: { id: true, name: true } },
         },
       });
       await verifiserProsjektmedlem(ctx.userId, psi.projectId);
@@ -49,7 +49,7 @@ export const psiRouter = router({
   opprett: protectedProcedure
     .input(z.object({
       projectId: z.string().uuid(),
-      buildingId: z.string().uuid().optional(),
+      byggeplassId: z.string().uuid().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
       const medlem = await ctx.prisma.projectMember.findFirst({
@@ -58,17 +58,17 @@ export const psiRouter = router({
       if (!medlem) throw new TRPCError({ code: "FORBIDDEN", message: "Kun admin kan opprette PSI" });
 
       // Hent bygningsnavn for malnavn
-      let bygningNavn = "";
-      if (input.buildingId) {
-        const bygning = await ctx.prisma.building.findUnique({ where: { id: input.buildingId }, select: { name: true } });
-        bygningNavn = bygning?.name ? ` — ${bygning.name}` : "";
+      let byggeplassNavn = "";
+      if (input.byggeplassId) {
+        const byggeplass = await ctx.prisma.byggeplass.findUnique({ where: { id: input.byggeplassId }, select: { name: true } });
+        byggeplassNavn = byggeplass?.name ? ` — ${byggeplass.name}` : "";
       }
 
       // Auto-opprett mal med 8 PSI-seksjoner
       const mal = await ctx.prisma.reportTemplate.create({
         data: {
           projectId: input.projectId,
-          name: `Sikkerhetsinstruks${bygningNavn}`,
+          name: `Sikkerhetsinstruks${byggeplassNavn}`,
           prefix: "PSI",
           category: "psi",
           version: 1,
@@ -202,13 +202,13 @@ Risikovurderinger (SJA) for ditt arbeidsområde finnes i HMS-dokumentasjonen i S
       const psi = await ctx.prisma.psi.create({
         data: {
           projectId: input.projectId,
-          buildingId: input.buildingId ?? null,
+          byggeplassId: input.byggeplassId ?? null,
           templateId: mal.id,
           version: 1,
         },
         include: {
           template: { select: { id: true, name: true, prefix: true } },
-          building: { select: { id: true, name: true } },
+          byggeplass: { select: { id: true, name: true } },
         },
       });
 
@@ -592,7 +592,7 @@ Risikovurderinger (SJA) for ditt arbeidsområde finnes i HMS-dokumentasjonen i S
           version: true,
           languages: true,
           guestMessage: true,
-          building: { select: { id: true, name: true } },
+          byggeplass: { select: { id: true, name: true } },
           template: { select: { id: true, name: true, prefix: true } },
         },
         orderBy: { createdAt: "asc" },
@@ -603,14 +603,14 @@ Risikovurderinger (SJA) for ditt arbeidsområde finnes i HMS-dokumentasjonen i S
   kopier: protectedProcedure
     .input(z.object({
       psiId: z.string().uuid(),
-      targetBuildingId: z.string().uuid(),
+      targetByggeplassId: z.string().uuid(),
     }))
     .mutation(async ({ ctx, input }) => {
       const kildePsi = await ctx.prisma.psi.findUniqueOrThrow({
         where: { id: input.psiId },
         include: {
           template: { include: { objects: { orderBy: { sortOrder: "asc" } } } },
-          building: { select: { name: true } },
+          byggeplass: { select: { name: true } },
         },
       });
 
@@ -621,13 +621,13 @@ Risikovurderinger (SJA) for ditt arbeidsområde finnes i HMS-dokumentasjonen i S
 
       // Sjekk at målbygning ikke allerede har PSI
       const eksisterende = await ctx.prisma.psi.findUnique({
-        where: { projectId_buildingId: { projectId: kildePsi.projectId, buildingId: input.targetBuildingId } },
+        where: { projectId_byggeplassId: { projectId: kildePsi.projectId, byggeplassId: input.targetByggeplassId } },
       });
       if (eksisterende) throw new TRPCError({ code: "CONFLICT", message: "Bygningen har allerede en PSI" });
 
       // Hent målbygnings navn
-      const målBygning = await ctx.prisma.building.findUniqueOrThrow({
-        where: { id: input.targetBuildingId },
+      const målByggeplass = await ctx.prisma.byggeplass.findUniqueOrThrow({
+        where: { id: input.targetByggeplassId },
         select: { name: true },
       });
 
@@ -635,7 +635,7 @@ Risikovurderinger (SJA) for ditt arbeidsområde finnes i HMS-dokumentasjonen i S
       const nyMal = await ctx.prisma.reportTemplate.create({
         data: {
           projectId: kildePsi.projectId,
-          name: `${kildePsi.template.name} — ${målBygning.name}`,
+          name: `${kildePsi.template.name} — ${målByggeplass.name}`,
           prefix: kildePsi.template.prefix,
           category: "psi",
           version: 1,
@@ -664,14 +664,14 @@ Risikovurderinger (SJA) for ditt arbeidsområde finnes i HMS-dokumentasjonen i S
       return ctx.prisma.psi.create({
         data: {
           projectId: kildePsi.projectId,
-          buildingId: input.targetBuildingId,
+          byggeplassId: input.targetByggeplassId,
           templateId: nyMal.id,
           version: 1,
           languages: kildePsi.languages,
         },
         include: {
           template: { select: { id: true, name: true, prefix: true } },
-          building: { select: { id: true, name: true } },
+          byggeplass: { select: { id: true, name: true } },
         },
       });
     }),

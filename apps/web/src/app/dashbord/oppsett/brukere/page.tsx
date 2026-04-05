@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { Button, Input, Modal, SearchInput } from "@sitedoc/ui";
@@ -30,7 +30,78 @@ import {
   ListTodo,
   Map,
   Box,
+  ChevronRight,
+  ChevronDown,
 } from "lucide-react";
+
+/* ------------------------------------------------------------------ */
+/*  KompaktBadgeListe — viser første verdi + "+N" utvidbar             */
+/* ------------------------------------------------------------------ */
+
+function KompaktBadgeListe({
+  verdier,
+  bgKlasse,
+  leggTilKnapp,
+}: {
+  verdier: string[];
+  bgKlasse: string;
+  leggTilKnapp?: React.ReactNode;
+}) {
+  const [utvidet, setUtvidet] = useState(false);
+
+  if (verdier.length === 0) {
+    return (
+      <div className="flex items-center gap-1">
+        <span className="text-xs text-gray-400">—</span>
+        {leggTilKnapp}
+      </div>
+    );
+  }
+
+  if (verdier.length === 1) {
+    return (
+      <div className="flex items-center gap-1">
+        <span className={`inline-flex rounded px-1.5 py-0.5 text-xs font-medium ${bgKlasse}`}>
+          {verdier[0]}
+        </span>
+        {leggTilKnapp}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-1">
+      {utvidet ? (
+        <>
+          {verdier.map((v) => (
+            <span key={v} className={`inline-flex rounded px-1.5 py-0.5 text-xs font-medium ${bgKlasse}`}>
+              {v}
+            </span>
+          ))}
+          <button
+            onClick={() => setUtvidet(false)}
+            className="rounded px-1 py-0.5 text-xs text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+          >
+            <ChevronDown className="h-3 w-3" />
+          </button>
+        </>
+      ) : (
+        <>
+          <span className={`inline-flex rounded px-1.5 py-0.5 text-xs font-medium ${bgKlasse}`}>
+            {verdier[0]}
+          </span>
+          <button
+            onClick={() => setUtvidet(true)}
+            className="inline-flex rounded bg-gray-200 px-1.5 py-0.5 text-xs font-medium text-gray-500 hover:bg-gray-300"
+          >
+            +{verdier.length - 1}
+          </button>
+        </>
+      )}
+      {leggTilKnapp}
+    </div>
+  );
+}
 
 /* ------------------------------------------------------------------ */
 /*  Typer                                                              */
@@ -235,7 +306,7 @@ function RedigerGruppeModal({
     },
   });
 
-  const oppdaterBygninger = trpc.gruppe.oppdaterBygninger.useMutation({
+  const oppdaterBygninger = trpc.gruppe.oppdaterByggeplasser.useMutation({
     onSuccess: () => {
       utils.gruppe.hentForProsjekt.invalidate({ projectId: prosjektId });
     },
@@ -937,7 +1008,7 @@ function RedigerGruppeModal({
           )}
         </div>
 
-        {/* Moduler — feltarbeid-admin kan slå av/på */}
+        {/* Moduler — produksjons-admin kan slå av/på */}
         {erDbGruppe && dbGruppe && (
           <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
             <h4 className="mb-3 text-sm font-semibold text-gray-900">{t("brukere.moduler")}</h4>
@@ -978,14 +1049,14 @@ function RedigerGruppeModal({
           </div>
         )}
 
-        {/* Bygninger — velg hvilke bygninger gruppen ser */}
+        {/* Byggeplasser — velg hvilke byggeplasser gruppen ser */}
         {erDbGruppe && dbGruppe && alleBygninger && alleBygninger.length > 0 && (
           <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-            <h4 className="mb-3 text-sm font-semibold text-gray-900">{t("brukere.bygninger")}</h4>
-            <p className="mb-2 text-xs text-gray-500">{t("brukere.bygningerBeskrivelse")}</p>
+            <h4 className="mb-3 text-sm font-semibold text-gray-900">{t("brukere.byggeplasser")}</h4>
+            <p className="mb-2 text-xs text-gray-500">{t("brukere.byggeplasserBeskrivelse")}</p>
             <div className="flex flex-col gap-2">
               {alleBygninger.map((b) => {
-                const bygningIder = ((dbGruppe as unknown as { buildingIds?: string[] | null }).buildingIds) ?? null;
+                const bygningIder = ((dbGruppe as unknown as { byggeplassIder?: string[] | null }).byggeplassIder) ?? null;
                 const alleValgt = bygningIder === null;
                 const erValgt = alleValgt || (bygningIder?.includes(b.id) ?? false);
                 return (
@@ -1010,7 +1081,7 @@ function RedigerGruppeModal({
                         oppdaterBygninger.mutate({
                           groupId: dbGruppe.id,
                           projectId: prosjektId,
-                          buildingIds: nye,
+                          byggeplassIder: nye,
                         });
                       }}
                       className="h-4 w-4 rounded border-gray-300 text-sitedoc-primary focus:ring-sitedoc-primary"
@@ -1301,6 +1372,11 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
   const { t } = useTranslation();
   const utils = trpc.useUtils();
   const [leggTilEntrepriseForMedlem, setLeggTilEntrepriseForMedlem] = useState<string | null>(null);
+  const [kollapserteGrupper, setKollapserteGrupper] = useState<Set<string>>(new Set());
+  const [filterNavn, setFilterNavn] = useState("");
+  const [filterRolle, setFilterRolle] = useState("");
+  const [filterEntreprise, setFilterEntreprise] = useState("");
+  const [filterGruppe, setFilterGruppe] = useState("");
 
   const { data: medlemmer } = trpc.medlem.hentForProsjekt.useQuery(
     { projectId: prosjektId },
@@ -1342,7 +1418,73 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
     }
   }
 
-  const kontakter = (medlemmer ?? []) as KontaktMedlem[];
+  const kontakterRå = (medlemmer ?? []) as KontaktMedlem[];
+
+  // Filtrer kontakter
+  const kontakter = useMemo(() => {
+    let resultat = kontakterRå;
+    if (filterNavn) {
+      const søk = filterNavn.toLowerCase();
+      resultat = resultat.filter((m) =>
+        (m.user.name ?? "").toLowerCase().includes(søk) ||
+        m.user.email.toLowerCase().includes(søk) ||
+        (m.user.phone ?? "").includes(søk),
+      );
+    }
+    if (filterRolle) {
+      resultat = resultat.filter((m) => m.role === filterRolle);
+    }
+    if (filterEntreprise) {
+      resultat = resultat.filter((m) =>
+        m.enterprises.some((e) => e.enterprise.id === filterEntreprise),
+      );
+    }
+    if (filterGruppe) {
+      const gUserIder = new Set(
+        (dbGrupper as Array<{ id: string; members: Array<{ projectMember: { user: { id: string } } | null }> }> ?? [])
+          .find((g) => g.id === filterGruppe)?.members
+          .map((gm) => gm.projectMember?.user?.id)
+          .filter(Boolean) ?? [],
+      );
+      resultat = resultat.filter((m) => gUserIder.has(m.user.id));
+    }
+    return resultat;
+  }, [kontakterRå, filterNavn, filterRolle, filterEntreprise, filterGruppe, dbGrupper]);
+
+  // Grupper kontakter etter brukergruppe med overskrifter (deduplisert)
+  const gruppertKontakter = useMemo(() => {
+    const rader: Array<{ type: "header"; gruppeNavn: string; antall: number } | { type: "medlem"; medlem: KontaktMedlem; gruppeNavn: string }> = [];
+    const brukteMedlemIder = new Set<string>();
+
+    const brukerGrupperListe = dbGrupper
+      ? (dbGrupper as Array<{ id: string; name: string; category: string; members: Array<{ projectMember: { user: { id: string } } | null }> }>)
+          .filter((g) => g.category === "brukergrupper")
+      : [];
+
+    for (const g of brukerGrupperListe) {
+      // Filtrer bort allerede viste medlemmer (deduplisering)
+      const gruppeKontakter = kontakter.filter((m) =>
+        !brukteMedlemIder.has(m.id) &&
+        g.members.some((gm) => gm.projectMember?.user?.id === m.user.id),
+      );
+      rader.push({ type: "header", gruppeNavn: g.name, antall: gruppeKontakter.length });
+      for (const m of gruppeKontakter) {
+        rader.push({ type: "medlem", medlem: m, gruppeNavn: g.name });
+        brukteMedlemIder.add(m.id);
+      }
+    }
+
+    const utenGruppe = kontakter.filter((m) => !brukteMedlemIder.has(m.id));
+    if (utenGruppe.length > 0) {
+      const utenGruppeNavn = t("brukere.utenGruppe");
+      rader.push({ type: "header", gruppeNavn: utenGruppeNavn, antall: utenGruppe.length });
+      for (const m of utenGruppe) {
+        rader.push({ type: "medlem", medlem: m, gruppeNavn: utenGruppeNavn });
+      }
+    }
+
+    return rader;
+  }, [kontakter, dbGrupper, t]);
 
   return (
     <div className="mb-6">
@@ -1359,9 +1501,92 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
               <th className="px-4 py-2.5">{t("kontakter.entrepriser")}</th>
               <th className="px-4 py-2.5">{t("kontakter.grupper")}</th>
             </tr>
+            {/* Filterrad */}
+            <tr className="border-b border-gray-200 bg-gray-50/50">
+              <th colSpan={3} className="px-4 py-1.5">
+                <input
+                  type="text"
+                  value={filterNavn}
+                  onChange={(e) => setFilterNavn(e.target.value)}
+                  placeholder={t("handling.sok")}
+                  className="w-full rounded border border-gray-200 bg-white px-2 py-1 text-xs font-normal text-gray-700 placeholder-gray-400 focus:border-blue-400 focus:outline-none"
+                />
+              </th>
+              <th className="px-4 py-1.5" />
+              <th className="px-4 py-1.5">
+                <select
+                  value={filterRolle}
+                  onChange={(e) => setFilterRolle(e.target.value)}
+                  className="w-full rounded border border-gray-200 bg-white px-2 py-1 text-xs font-normal text-gray-700 focus:border-blue-400 focus:outline-none"
+                >
+                  <option value="">{t("status.alle")}</option>
+                  <option value="admin">Admin</option>
+                  <option value="member">{t("kontakter.medlem")}</option>
+                </select>
+              </th>
+              <th className="px-4 py-1.5">
+                <select
+                  value={filterEntreprise}
+                  onChange={(e) => setFilterEntreprise(e.target.value)}
+                  className="w-full rounded border border-gray-200 bg-white px-2 py-1 text-xs font-normal text-gray-700 focus:border-blue-400 focus:outline-none"
+                >
+                  <option value="">{t("status.alle")}</option>
+                  {(alleEntrepriser as Array<{ id: string; name: string }> ?? []).map((e) => (
+                    <option key={e.id} value={e.id}>{e.name}</option>
+                  ))}
+                </select>
+              </th>
+              <th className="px-4 py-1.5">
+                <select
+                  value={filterGruppe}
+                  onChange={(e) => setFilterGruppe(e.target.value)}
+                  className="w-full rounded border border-gray-200 bg-white px-2 py-1 text-xs font-normal text-gray-700 focus:border-blue-400 focus:outline-none"
+                >
+                  <option value="">{t("status.alle")}</option>
+                  {(dbGrupper as Array<{ id: string; name: string; category: string }> ?? [])
+                    .filter((g) => g.category === "brukergrupper")
+                    .map((g) => (
+                      <option key={g.id} value={g.id}>{g.name}</option>
+                    ))
+                  }
+                </select>
+              </th>
+            </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {kontakter.map((m) => {
+            {gruppertKontakter.map((rad, idx) => {
+              if (rad.type === "header") {
+                const erKollapset = kollapserteGrupper.has(rad.gruppeNavn);
+                return (
+                  <tr
+                    key={`header-${idx}`}
+                    className="bg-gray-50/80 cursor-pointer hover:bg-gray-100/80"
+                    onClick={() => {
+                      setKollapserteGrupper((prev) => {
+                        const ny = new Set(prev);
+                        ny.has(rad.gruppeNavn) ? ny.delete(rad.gruppeNavn) : ny.add(rad.gruppeNavn);
+                        return ny;
+                      });
+                    }}
+                  >
+                    <td colSpan={7} className="px-4 py-2">
+                      <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                        {erKollapset
+                          ? <ChevronRight className="h-3.5 w-3.5" />
+                          : <ChevronDown className="h-3.5 w-3.5" />
+                        }
+                        <Users className="h-3.5 w-3.5" />
+                        {rad.gruppeNavn}
+                        <span className="font-normal text-gray-400">({rad.antall})</span>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              }
+
+              if (kollapserteGrupper.has(rad.gruppeNavn)) return null;
+
+              const m = rad.medlem;
               const brukerGrupper = gruppeMap[m.user.id] ?? [];
               const entrepriseIder = new Set(m.enterprises.map((e) => e.enterprise.id));
               const tilgjengeligeEntrepriser = (alleEntrepriser ?? []).filter(
@@ -1401,34 +1626,13 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
                     </span>
                   </td>
 
-                  {/* Entrepriser (redigerbare) */}
+                  {/* Entrepriser (kompakt) */}
                   <td className="px-4 py-2.5">
-                    <div className="flex flex-wrap items-center gap-1">
-                      {m.enterprises.map((me) => (
-                        <span
-                          key={me.enterprise.id}
-                          className="group inline-flex items-center gap-1 rounded bg-gray-100 px-1.5 py-0.5 text-xs font-medium text-gray-700"
-                        >
-                          {me.enterprise.name}
-                          <button
-                            onClick={() =>
-                              fjernMutation.mutate({
-                                projectMemberId: m.id,
-                                enterpriseId: me.enterprise.id,
-                                projectId: prosjektId,
-                              })
-                            }
-                            className="rounded-full p-0.5 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-red-100 hover:text-red-600"
-                            title={t("handling.fjern")}
-                          >
-                            <X className="h-2.5 w-2.5" />
-                          </button>
-                        </span>
-                      ))}
-
-                      {/* Legg til entreprise */}
-                      {leggTilEntrepriseForMedlem === m.id ? (
-                        <div className="relative">
+                    <KompaktBadgeListe
+                      verdier={m.enterprises.map((me) => me.enterprise.name)}
+                      bgKlasse="bg-gray-100 text-gray-700"
+                      leggTilKnapp={
+                        leggTilEntrepriseForMedlem === m.id ? (
                           <select
                             className="rounded border border-gray-300 bg-white px-1.5 py-0.5 text-xs"
                             onChange={(e) => {
@@ -1444,43 +1648,30 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
                             autoFocus
                             defaultValue=""
                           >
-                            <option value="" disabled>
-                              {t("kontakter.velgEntreprise")}
-                            </option>
+                            <option value="" disabled>{t("kontakter.velgEntreprise")}</option>
                             {tilgjengeligeEntrepriser.map((e: { id: string; name: string }) => (
-                              <option key={e.id} value={e.id}>
-                                {e.name}
-                              </option>
+                              <option key={e.id} value={e.id}>{e.name}</option>
                             ))}
                           </select>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => setLeggTilEntrepriseForMedlem(m.id)}
-                          className="rounded px-1 py-0.5 text-xs text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-                          title={t("kontakter.leggTilEntreprise")}
-                        >
-                          <Plus className="h-3 w-3" />
-                        </button>
-                      )}
-                    </div>
+                        ) : (
+                          <button
+                            onClick={() => setLeggTilEntrepriseForMedlem(m.id)}
+                            className="rounded px-1 py-0.5 text-xs text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                            title={t("kontakter.leggTilEntreprise")}
+                          >
+                            <Plus className="h-3 w-3" />
+                          </button>
+                        )
+                      }
+                    />
                   </td>
 
-                  {/* Grupper */}
+                  {/* Grupper (kompakt) */}
                   <td className="px-4 py-2.5">
-                    <div className="flex flex-wrap gap-1">
-                      {brukerGrupper.length > 0
-                        ? brukerGrupper.map((g) => (
-                            <span
-                              key={g}
-                              className="inline-flex rounded bg-blue-50 px-1.5 py-0.5 text-xs font-medium text-blue-700"
-                            >
-                              {g}
-                            </span>
-                          ))
-                        : <span className="text-xs text-gray-400">—</span>
-                      }
-                    </div>
+                    <KompaktBadgeListe
+                      verdier={brukerGrupper}
+                      bgKlasse="bg-blue-50 text-blue-700"
+                    />
                   </td>
                 </tr>
               );
@@ -1745,7 +1936,7 @@ export default function BrukereSide() {
         onDoubleClickGruppe={(g) => setRedigerGruppeId(g.id)}
       />
       <GruppeSeksjon
-        tittel={t("brukere.feltarbeid")}
+        tittel={t("brukere.produksjon")}
         grupper={field}
         onLeggTilMedlem={handleLeggTilMedlem}
         onDoubleClickGruppe={(g) => setRedigerGruppeId(g.id)}
@@ -1811,7 +2002,7 @@ export default function BrukereSide() {
               }
             >
               <option value="generelt">{t("brukere.generelt")}</option>
-              <option value="field">{t("brukere.feltarbeid")}</option>
+              <option value="field">{t("brukere.produksjon")}</option>
               <option value="brukergrupper">{t("brukere.brukergrupper")}</option>
             </select>
           </div>

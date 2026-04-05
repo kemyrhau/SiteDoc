@@ -42,27 +42,14 @@ export const malRouter = router({
       return mal;
     }),
 
-  // Opprett ny mal (med valgfri entreprisetilknytning via arbeidsforløp)
+  // Opprett ny mal
   opprett: protectedProcedure
     .input(createTemplateSchema)
     .mutation(async ({ ctx, input }) => {
       await verifiserProsjektmedlem(ctx.userId, input.projectId);
-      const { workflowIds, ...malData } = input;
+      const { workflowIds: _workflowIds, ...malData } = input;
 
-      return ctx.prisma.$transaction(async (tx) => {
-        const mal = await tx.reportTemplate.create({ data: malData });
-
-        if (workflowIds.length > 0) {
-          await tx.workflowTemplate.createMany({
-            data: workflowIds.map((workflowId) => ({
-              workflowId,
-              templateId: mal.id,
-            })),
-          });
-        }
-
-        return mal;
-      });
+      return ctx.prisma.reportTemplate.create({ data: malData });
     }),
 
   // Oppdater mal (navn, beskrivelse, prefiks, fagområde)

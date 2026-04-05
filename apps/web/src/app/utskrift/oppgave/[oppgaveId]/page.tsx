@@ -84,10 +84,10 @@ export default function UtskriftOppgaveSide() {
       objects: RapportObjektRå[];
       showPriority?: boolean;
     };
-    creatorEnterprise?: { name: string } | null;
-    responderEnterprise?: { name: string } | null;
-    creator?: { name?: string | null } | null;
-    drawing?: { id: string; name: string; drawingNumber: string | null; fileUrl?: string | null; building?: { id: string; name: string } | null } | null;
+    bestillerEnterprise?: { name: string } | null;
+    utforerEnterprise?: { name: string } | null;
+    bestiller?: { name?: string | null } | null;
+    drawing?: { id: string; name: string; drawingNumber: string | null; fileUrl?: string | null; byggeplass?: { id: string; name: string } | null } | null;
     positionX?: number | null;
     positionY?: number | null;
   } | undefined;
@@ -192,7 +192,7 @@ export default function UtskriftOppgaveSide() {
                 )}
                 {oppgave.drawing && (
                   <p className="text-xs text-gray-500">
-                    {oppgave.drawing.building && <>Lokasjon: {oppgave.drawing.building.name} &middot; </>}
+                    {oppgave.drawing.byggeplass && <>Lokasjon: {oppgave.drawing.byggeplass.name} &middot; </>}
                     Tegning: {oppgave.drawing.drawingNumber ? `${oppgave.drawing.drawingNumber} ` : ""}{oppgave.drawing.name}
                   </p>
                 )}
@@ -208,15 +208,15 @@ export default function UtskriftOppgaveSide() {
                 Oppgave: {oppgave.title}
               </p>
               <p className="text-xs text-gray-600">
-                {oppgave.creatorEnterprise && (
+                {oppgave.bestillerEnterprise && (
                   <>
-                    Oppretter: {oppgave.creatorEnterprise.name}
-                    {oppgave.creator?.name && ` (${oppgave.creator.name})`}
+                    Bestiller: {oppgave.bestillerEnterprise.name}
+                    {oppgave.bestiller?.name && ` (${oppgave.bestiller.name})`}
                   </>
                 )}
-                {oppgave.creatorEnterprise && oppgave.responderEnterprise && <> &middot; </>}
-                {oppgave.responderEnterprise && (
-                  <>Svarer: {oppgave.responderEnterprise.name}</>
+                {oppgave.bestillerEnterprise && oppgave.utforerEnterprise && <> &middot; </>}
+                {oppgave.utforerEnterprise && (
+                  <>Utfører: {oppgave.utforerEnterprise.name}</>
                 )}
               </p>
             </div>

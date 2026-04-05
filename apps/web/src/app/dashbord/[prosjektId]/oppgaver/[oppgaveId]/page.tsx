@@ -399,20 +399,20 @@ export default function OppgaveDetaljSide() {
           {oppgave.template && <span>{t("tabell.mal")}: {oppgave.template.name}</span>}
           {oppgave.status === "draft" ? (
             <>
-              <span>&middot; {t("tabell.oppretter")}:</span>
+              <span>&middot; {t("tabell.bestiller")}:</span>
               <select
-                value={oppgave.creatorEnterprise?.id ?? ""}
-                onChange={(e) => oppdaterMutasjon.mutate({ id: params.oppgaveId, creatorEnterpriseId: e.target.value })}
+                value={oppgave.bestillerEnterprise?.id ?? ""}
+                onChange={(e) => oppdaterMutasjon.mutate({ id: params.oppgaveId, bestillerEnterpriseId: e.target.value })}
                 className="rounded border border-gray-200 bg-white px-1.5 py-0.5 text-sm text-gray-700"
               >
                 {(mineEntrepriser ?? []).map((ent: { id: string; name: string }) => (
                   <option key={ent.id} value={ent.id}>{ent.name}</option>
                 ))}
               </select>
-              <span>&middot; {t("tabell.svarer")}:</span>
+              <span>&middot; {t("tabell.utforer")}:</span>
               <select
-                value={oppgave.responderEnterprise?.id ?? ""}
-                onChange={(e) => oppdaterMutasjon.mutate({ id: params.oppgaveId, responderEnterpriseId: e.target.value })}
+                value={oppgave.utforerEnterprise?.id ?? ""}
+                onChange={(e) => oppdaterMutasjon.mutate({ id: params.oppgaveId, utforerEnterpriseId: e.target.value })}
                 className="rounded border border-gray-200 bg-white px-1.5 py-0.5 text-sm text-gray-700"
               >
                 {(alleEntrepriser ?? []).map((ent: { id: string; name: string }) => (
@@ -422,11 +422,11 @@ export default function OppgaveDetaljSide() {
             </>
           ) : (
             <>
-              {oppgave.creatorEnterprise && (
-                <span>&middot; {t("tabell.oppretter")}: {oppgave.creatorEnterprise.name}</span>
+              {oppgave.bestillerEnterprise && (
+                <span>&middot; {t("tabell.bestiller")}: {oppgave.bestillerEnterprise.name}</span>
               )}
-              {oppgave.responderEnterprise && (
-                <span>&middot; {t("tabell.svarer")}: {oppgave.responderEnterprise.name}</span>
+              {oppgave.utforerEnterprise && (
+                <span>&middot; {t("tabell.utforer")}: {oppgave.utforerEnterprise.name}</span>
               )}
             </>
           )}
@@ -444,7 +444,7 @@ export default function OppgaveDetaljSide() {
             prosjektId={params.prosjektId}
             tegningId={(oppgave as unknown as { drawingId?: string | null }).drawingId}
             tegningNavn={(oppgave as unknown as { drawing?: { name?: string } | null }).drawing?.name}
-            bygningNavn={(oppgave as unknown as { drawing?: { building?: { name?: string } | null } | null }).drawing?.building?.name}
+            bygningNavn={(oppgave as unknown as { drawing?: { byggeplass?: { name?: string } | null } | null }).drawing?.byggeplass?.name}
             positionX={(oppgave as unknown as { positionX?: number | null }).positionX}
             positionY={(oppgave as unknown as { positionY?: number | null }).positionY}
             visPosisjon
@@ -476,7 +476,7 @@ export default function OppgaveDetaljSide() {
               });
             }}
             entrepriseValg={entrepriseValg}
-            standardEntrepriseId={oppgave.responderEnterprise?.id}
+            standardEntrepriseId={oppgave.utforerEnterprise?.id}
             mineEntrepriseIder={mineEntrepriser ? (mineEntrepriser as Array<{ id: string }>).map((e) => e.id) : undefined}
             erRegistrator={erRegistrator}
           />
@@ -561,7 +561,7 @@ export default function OppgaveDetaljSide() {
             recipientUser?: { id: string; name: string | null } | null;
             recipientGroup?: { id: string; name: string | null } | null;
           }>}
-          opprettetAv={(fullOppgaveRå as { creator?: { name?: string | null } }).creator?.name ?? null}
+          opprettetAv={(fullOppgaveRå as { bestiller?: { name?: string | null } }).bestiller?.name ?? null}
           opprettetDato={(fullOppgaveRå as { createdAt?: string }).createdAt ?? null}
         />
       )}

@@ -850,7 +850,7 @@ export function MalBygger({ mal }: MalByggerProps) {
               {!psiModus && (
               <div className="flex items-center gap-2 rounded-md border border-dashed border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-500">
                 <Building2 className="h-4 w-4 shrink-0 text-gray-400" />
-                <span className={mal.showEnterprise === false ? "line-through text-gray-300" : ""}>{t("malbygger.oppretterEntreprise")}</span>
+                <span className={mal.showEnterprise === false ? "line-through text-gray-300" : ""}>{t("malbygger.bestillerEntreprise")}</span>
                 <span className="text-xs text-gray-400">
                   {mal.showEnterprise === false ? t("malbygger.skjultSettesAuto") : t("malbygger.velgesVedOpprettelse")}
                 </span>

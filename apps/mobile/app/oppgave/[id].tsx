@@ -448,7 +448,7 @@ export default function OppgaveDetalj() {
               <Text className="text-[10px] text-gray-400">{t("dokument.fra")}</Text>
               <View className="flex-row items-center justify-between">
                 <Text className="text-xs font-medium text-gray-700">
-                  {oppgave.creatorEnterprise?.name ?? t("dokument.velgEntreprise")}
+                  {oppgave.bestillerEnterprise?.name ?? t("dokument.velgEntreprise")}
                 </Text>
                 <ChevronDown size={12} color="#9ca3af" />
               </View>
@@ -462,7 +462,7 @@ export default function OppgaveDetalj() {
               <Text className="text-right text-[10px] text-gray-400">{t("dokument.til")}</Text>
               <View className="flex-row items-center justify-between">
                 <Text className="text-xs font-medium text-gray-700">
-                  {oppgave.responderEnterprise?.name ?? t("dokument.velgEntreprise")}
+                  {oppgave.utforerEnterprise?.name ?? t("dokument.velgEntreprise")}
                 </Text>
                 <ChevronDown size={12} color="#9ca3af" />
               </View>
@@ -475,12 +475,12 @@ export default function OppgaveDetalj() {
                 <Pressable
                   key={e.id}
                   onPress={() => {
-                    oppdaterMutasjon.mutate({ id: id!, creatorEnterpriseId: e.id });
+                    oppdaterMutasjon.mutate({ id: id!, bestillerEnterpriseId: e.id });
                     settVisEntrepriseListe(null);
                   }}
-                  className={`border-b border-gray-50 px-3 py-2 ${e.id === oppgave.creatorEnterprise?.id ? "bg-blue-50" : ""}`}
+                  className={`border-b border-gray-50 px-3 py-2 ${e.id === oppgave.bestillerEnterprise?.id ? "bg-blue-50" : ""}`}
                 >
-                  <Text className={`text-xs ${e.id === oppgave.creatorEnterprise?.id ? "font-medium text-blue-700" : "text-gray-700"}`}>
+                  <Text className={`text-xs ${e.id === oppgave.bestillerEnterprise?.id ? "font-medium text-blue-700" : "text-gray-700"}`}>
                     {e.name}
                   </Text>
                 </Pressable>
@@ -494,12 +494,12 @@ export default function OppgaveDetalj() {
                 <Pressable
                   key={e.id}
                   onPress={() => {
-                    oppdaterMutasjon.mutate({ id: id!, responderEnterpriseId: e.id });
+                    oppdaterMutasjon.mutate({ id: id!, utforerEnterpriseId: e.id });
                     settVisEntrepriseListe(null);
                   }}
-                  className={`border-b border-gray-50 px-3 py-2 ${e.id === oppgave.responderEnterprise?.id ? "bg-blue-50" : ""}`}
+                  className={`border-b border-gray-50 px-3 py-2 ${e.id === oppgave.utforerEnterprise?.id ? "bg-blue-50" : ""}`}
                 >
-                  <Text className={`text-xs ${e.id === oppgave.responderEnterprise?.id ? "font-medium text-blue-700" : "text-gray-700"}`}>
+                  <Text className={`text-xs ${e.id === oppgave.utforerEnterprise?.id ? "font-medium text-blue-700" : "text-gray-700"}`}>
                     {e.name}
                   </Text>
                 </Pressable>
@@ -509,14 +509,14 @@ export default function OppgaveDetalj() {
         </View>
       ) : (
         <View className="flex-row border-b border-gray-200 bg-white px-4 py-1.5">
-          {oppgave.creatorEnterprise && (
+          {oppgave.bestillerEnterprise && (
             <Text className="flex-1 text-xs text-gray-500">
-              {t("dokument.oppretter", { navn: oppgave.creatorEnterprise.name })}
+              {t("dokument.oppretter", { navn: oppgave.bestillerEnterprise.name })}
             </Text>
           )}
-          {oppgave.responderEnterprise && (
+          {oppgave.utforerEnterprise && (
             <Text className="flex-1 text-right text-xs text-gray-500">
-              {t("dokument.svarer", { navn: oppgave.responderEnterprise.name })}
+              {t("dokument.svarer", { navn: oppgave.utforerEnterprise.name })}
             </Text>
           )}
         </View>

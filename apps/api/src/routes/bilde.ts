@@ -8,7 +8,7 @@ export const bildeRouter = router({
     .input(
       z.object({
         projectId: z.string().uuid(),
-        buildingId: z.string().uuid().optional(),
+        byggeplassId: z.string().uuid().optional(),
       }),
     )
     .query(async ({ ctx, input }) => {
@@ -21,7 +21,7 @@ export const bildeRouter = router({
           checklistId: { not: null },
           checklist: {
             template: { projectId: input.projectId },
-            ...(input.buildingId ? { buildingId: input.buildingId } : {}),
+            ...(input.byggeplassId ? { byggeplassId: input.byggeplassId } : {}),
             ...(tilgangsFilter ?? {}),
           },
         },
@@ -32,8 +32,8 @@ export const bildeRouter = router({
               status: true,
               number: true,
               drawingId: true,
-              buildingId: true,
-              building: { select: { id: true, name: true } },
+              byggeplassId: true,
+              byggeplass: { select: { id: true, name: true } },
               drawing: {
                 select: {
                   id: true,
@@ -42,7 +42,7 @@ export const bildeRouter = router({
                   geoReference: true,
                   fileUrl: true,
                   fileType: true,
-                  buildingId: true,
+                  byggeplassId: true,
                 },
               },
               template: {
@@ -64,7 +64,7 @@ export const bildeRouter = router({
           taskId: { not: null },
           task: {
             template: { projectId: input.projectId },
-            ...(input.buildingId ? { OR: [{ drawing: { buildingId: input.buildingId } }, { drawingId: null }] } : {}),
+            ...(input.byggeplassId ? { OR: [{ drawing: { byggeplassId: input.byggeplassId } }, { drawingId: null }] } : {}),
             ...(tilgangsFilter ?? {}),
           },
         },
@@ -86,7 +86,7 @@ export const bildeRouter = router({
                   geoReference: true,
                   fileUrl: true,
                   fileType: true,
-                  buildingId: true,
+                  byggeplassId: true,
                 },
               },
               template: {

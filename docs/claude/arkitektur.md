@@ -14,22 +14,22 @@
 | `project_members` | Prosjektmedlemmer med rolle (member/admin), entrepriser via `member_enterprises` |
 | `member_enterprises` | Mange-til-mange join-tabell mellom `project_members` og `enterprises` |
 | `enterprises` | Entrepriser med `enterprise_number` (format: "04 Tømrer, Econor"), bransje, firma, farge |
-| `buildings` | Lokasjoner med `number` (auto-generert per prosjekt), `type` (deprecated, default `"bygg"`), status (unpublished/published) |
+| `byggeplasser` | Lokasjoner med `number` (auto-generert per prosjekt), `type` (deprecated, default `"bygg"`), status (unpublished/published) |
 | `drawings` | Tegninger med metadata: tegningsnummer, fagdisiplin, revisjon, status, etasje, målestokk, opphav, valgfri `geoReference` (JSON), `ifcMetadata` (JSON — prosjekt, org, GPS, etasjer, programvare), `gpsOverride` (JSON — manuell GPS/kalibrering for IFC med valgfri similarity-transform), DWG-konvertering (`conversionStatus`, `coordinateSystem`) |
 | `point_clouds` | Punktskyer med `potreeUrl` (konvertert octree), `hasClassification`, `hasRgb`, `classifications` (JSON), `boundingBox` (JSON), asynkron konvertering via CloudCompare+PotreeConverter |
 | `drawing_revisions` | Revisjonshistorikk for tegninger med fil, status og hvem som lastet opp |
 | `report_templates` | Maler med category (oppgave/sjekkliste), prefix, versjon, `domain` (bygg/hms/kvalitet, default "bygg"), `subjects` (JSON-array), `enable_change_log` (Boolean, default false) |
 | `report_objects` | Rapportobjekter i maler (27 typer inkl. PSI: info_text, info_image, video, quiz), rekursiv nesting via `parent_id` |
-| `checklists` | Sjekklister med oppretter/svarer-entreprise, status, data (JSON) |
-| `tasks` | Oppgaver med påkrevd mal (`template_id`), prefiks+løpenummer (`number`), prioritet, frist, oppretter/svarer, utfylt data (`data` JSON), valgfri tegningsposisjon og sjekkliste-kobling |
+| `checklists` | Sjekklister med bestiller/utfører-entreprise, status, data (JSON) |
+| `tasks` | Oppgaver med påkrevd mal (`template_id`), prefiks+løpenummer (`number`), prioritet, frist, bestiller/utfører, utfylt data (`data` JSON), valgfri tegningsposisjon og sjekkliste-kobling |
 | `document_transfers` | Sporbarhet: all sending mellom entrepriser |
 | `images` | Bilder med valgfri GPS-data |
 | `folders` | Rekursiv mappestruktur med parent_id, `access_mode` (inherit/custom), valgfri `kontrakt_id` (kobler mappe til økonomi-kontrakt → blått ikon) |
 | `folder_access` | Tilgangsoppføringer per mappe: entreprise, gruppe eller bruker |
 | `documents` | Dokumenter i mapper med fil-URL og versjon |
-| `workflows` | Arbeidsforløp med oppretter-entreprise og opptil 3 svarer-entrepriser |
-| `workflow_templates` | Kobling mellom arbeidsforløp og maler (mange-til-mange) |
-| `workflow_step_members` | Personbaserte steg-medlemmer i arbeidsforløp (Svarer 2/3) |
+| `workflows` | (Deprecated — erstattet av Dokumentflyt) Gammel arbeidsforløp-tabell, beholdt for bakoverkompatibilitet |
+| `workflow_templates` | (Deprecated) Kobling mellom arbeidsforløp og maler |
+| `workflow_step_members` | (Deprecated) Personbaserte steg-medlemmer i arbeidsforløp |
 | `task_comments` | Kommentarer/dialog på oppgaver |
 | `checklist_change_log` | Automatisk endringslogg for sjekklister |
 | `project_invitations` | E-postinvitasjoner med token, status, utløpsdato |
@@ -39,7 +39,7 @@
 | `psi_signaturer` | Personlig PSI-gjennomføring. Innlogget bruker (userId) ELLER gjest (guestName/guestCompany/guestPhone). Progresjon, quiz-data, signatur (base64), completedAt, `hmsKortNr` (String? — HMS-kortnummer), `harIkkeHmsKort` (Boolean, default false — avkrysning "Har ikke HMS-kort"). Unique: (psiId, userId) |
 | `organizations` | Firmaer/organisasjoner med navn, org.nr, fakturaadresse, logo |
 | `organization_projects` | Mange-til-mange mellom organisasjoner og prosjekter |
-| `ftd_kontrakter` | Overliggende kontrakt: Byggherre → Entreprenør. Felter: navn, kontraktType (8405/8406/8407), byggherre, entreprenor, buildingId (valgfri), hmsSamordningsgruppe. Entrepriser og dokumenter kobles via kontraktId |
+| `ftd_kontrakter` | Overliggende kontrakt: Byggherre → Entreprenør. Felter: navn, kontraktType (8405/8406/8407), byggherre, entreprenor, byggeplassId (valgfri), hmsSamordningsgruppe. Entrepriser og dokumenter kobles via kontraktId |
 | `ftd_documents` | Eneste dokumentmodell. Filinfo, docType, processingState, kontraktId, notaType, notaNr. Header-verdier fra A-nota: utfortPr, utfortTotalt, utfortForrige, utfortDenne, innestaaende, innestaaendeForrige, innestaaendeDenne, nettoDenne, mva, sumInkMva. Mapper → auto scanning. Økonomi → manuell import |
 | `ftd_document_pages` | Side→postnr mapping for dokumentasjon per post. Regex: POST XX.YY.ZZ. Arv fra forrige side. Unique constraint (documentId, pageNumber) |
 | `ftd_document_chunks` | Søkbare tekstbiter med tsvector (norsk stemming, GIN), NS-koder, sideinfo, `embedding_vector` (pgvector 768 dim, NorBERT), `embeddingState` (pending/processing/done). OCR-fallback (pdftoppm+tesseract), OCR-rensing (CamelCase-splitting, søppelfilter). HNSW-indeks for vektor-søk |
@@ -55,14 +55,14 @@
 ## Viktige relasjoner
 
 - `member_enterprises` er mange-til-mange: en bruker kan tilhøre flere entrepriser i samme prosjekt via `MemberEnterprise(projectMemberId, enterpriseId)`
-- Sjekklister og oppgaver har ALLTID `creator_enterprise_id` (oppretter) og `responder_enterprise_id` (svarer)
+- Sjekklister og oppgaver har ALLTID `creator_enterprise_id` (bestiller) og `responder_enterprise_id` (utfører)
 - `document_transfers` logger all sending mellom entrepriser med full sporbarhet
 - Bilder har valgfri GPS-data (`gps_lat`, `gps_lng`, `gps_enabled`)
 - Oppgaver kan kobles til tegning med posisjon (`drawing_id`, `position_x`, `position_y`)
-- `workflows` tilhører oppretter-entreprise med valgfri svarer-entreprise. Svarer 2/3 er personbasert via `workflow_step_members`
+- `workflows` (deprecated) — erstattet av Dokumentflyt. Tabellen beholdes for bakoverkompatibilitet
 - `report_objects` bruker selvrefererande relasjon (`parent_id`) for rekursiv nesting — CASCADE-sletting av barn
 - `report_templates` har `category` (`oppgave` | `sjekkliste`), valgfritt `prefix` og valgfri `subjects` (forhåndsdefinerte emnetekster)
-- `buildings` tilhører prosjekt, tegninger koblet via `building_id`. `type`-feltet er deprecated
+- `byggeplasser` tilhører prosjekt, tegninger koblet via `building_id`. `type`-feltet er deprecated
 - `drawings` har full metadata med `drawing_revisions` for historikk. Valgfri `geoReference` (JSON) med 2 referansepunkter
 - `folders` bruker selvrefererande relasjon for mappetreet. `accessMode`: `"inherit"` eller `"custom"`
 - `folder_access` kobler mapper til entrepriser/grupper/brukere via `accessType`
@@ -81,13 +81,13 @@ Hjelpemodul i `apps/api/src/trpc/tilgangskontroll.ts`:
 | `verifiserEntrepriseTilhorighet(userId, enterpriseId)` | FORBIDDEN hvis ikke tilhører (admin-bypass) |
 | `verifiserAdmin(userId, projectId)` | FORBIDDEN hvis ikke admin |
 | `verifiserProsjektmedlem(userId, projectId)` | FORBIDDEN hvis ikke medlem |
-| `verifiserDokumentTilgang(userId, projectId, creatorId, responderId, domain?)` | Entreprise + fagområde-tilgang |
+| `verifiserDokumentTilgang(userId, projectId, bestillerId, utforerId, domain?)` | Entreprise + fagområde-tilgang |
 | `hentBrukerTillatelser(userId, projectId)` | `Permission`-set fra grupper. Admin har alle |
 | `verifiserTillatelse(userId, projectId, permission)` | FORBIDDEN hvis mangler |
 
 **Tilgangslogikk for dokumentvisning:**
 - Admin ser alltid alt
-- Direkte entreprise-tilgang: bruker ser dokumenter der egen entreprise er oppretter/svarer
+- Direkte entreprise-tilgang: bruker ser dokumenter der egen entreprise er bestiller/utfører
 - Fagområde-tilgang via grupper:
   - Gruppe uten entrepriser → tverrgående: ser ALLE dokumenter med matchende domain
   - Gruppe med entrepriser → entreprise-begrenset: kun matchende domain OG entreprise
@@ -96,7 +96,7 @@ Hjelpemodul i `apps/api/src/trpc/tilgangskontroll.ts`:
 **UI-tilgangskontroll (web):**
 - `gruppe.hentMineTillatelser` eksponerer tillatelser til klienten
 - `HovedSidebar` — Maler-ikonet skjules uten `manage_field`
-- `OppsettLayout` — Field-seksjonen skjules uten `manage_field`
+- `OppsettLayout` — Produksjon-seksjonen skjules uten `manage_field`
 - Mønster: `tillatelse?: Permission` på nav-element-interfaces
 
 ## Fagområder (domain)

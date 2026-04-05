@@ -12,7 +12,7 @@ export const punktskyRouter = router({
     .input(
       z.object({
         projectId: z.string().uuid(),
-        buildingId: z.string().uuid().optional(),
+        byggeplassId: z.string().uuid().optional(),
       }),
     )
     .query(async ({ ctx, input }) => {
@@ -20,10 +20,10 @@ export const punktskyRouter = router({
       return ctx.prisma.pointCloud.findMany({
         where: {
           projectId: input.projectId,
-          ...(input.buildingId ? { buildingId: input.buildingId } : {}),
+          ...(input.byggeplassId ? { byggeplassId: input.byggeplassId } : {}),
         },
         include: {
-          building: { select: { id: true, name: true } },
+          byggeplass: { select: { id: true, name: true } },
         },
         orderBy: { createdAt: "desc" },
       });
@@ -36,7 +36,7 @@ export const punktskyRouter = router({
       const ps = await ctx.prisma.pointCloud.findUniqueOrThrow({
         where: { id: input.id },
         include: {
-          building: { select: { id: true, name: true } },
+          byggeplass: { select: { id: true, name: true } },
           project: { select: { id: true, name: true } },
         },
       });
@@ -49,7 +49,7 @@ export const punktskyRouter = router({
     .input(
       z.object({
         projectId: z.string().uuid(),
-        buildingId: z.string().uuid().optional(),
+        byggeplassId: z.string().uuid().optional(),
         name: z.string().min(1).max(255),
         description: z.string().optional(),
         fileUrl: z.string(),
@@ -63,7 +63,7 @@ export const punktskyRouter = router({
       const punktsky = await ctx.prisma.pointCloud.create({
         data: {
           projectId: input.projectId,
-          buildingId: input.buildingId,
+          byggeplassId: input.byggeplassId,
           name: input.name,
           description: input.description,
           fileUrl: input.fileUrl,

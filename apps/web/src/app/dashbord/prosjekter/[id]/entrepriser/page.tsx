@@ -67,8 +67,8 @@ export default function EntrepriserSide() {
               )}
               <div className="mt-3 flex gap-2">
                 <Badge variant="default">{ent.memberEnterprises.length} medlemmer</Badge>
-                <Badge variant="primary">{ent._count.createdChecklists} sjekklister</Badge>
-                <Badge variant="warning">{ent._count.createdTasks} oppgaver</Badge>
+                <Badge variant="primary">{ent._count.bestillerChecklists} sjekklister</Badge>
+                <Badge variant="warning">{ent._count.bestillerTasks} oppgaver</Badge>
               </div>
             </Card>
           ))}

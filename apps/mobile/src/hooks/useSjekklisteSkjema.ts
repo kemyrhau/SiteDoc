@@ -53,8 +53,8 @@ export interface UseSjekklisteSkjemaResultat {
       prefix: string | null;
       objects: RapportObjekt[];
     };
-    creatorEnterprise: { id: string; name: string } | null;
-    responderEnterprise: { id: string; name: string } | null;
+    bestillerEnterprise: { id: string; name: string } | null;
+    utforerEnterprise: { id: string; name: string } | null;
   } | undefined;
   erLaster: boolean;
   hentFeltVerdi: (objektId: string) => FeltVerdi;
@@ -561,8 +561,8 @@ export function useSjekklisteSkjema(sjekklisteId: string): UseSjekklisteSkjemaRe
           title: sjekkliste.title,
           status: sjekkliste.status,
           template: sjekkliste.template,
-          creatorEnterprise: sjekkliste.creatorEnterprise,
-          responderEnterprise: sjekkliste.responderEnterprise,
+          bestillerEnterprise: sjekkliste.bestillerEnterprise,
+          utforerEnterprise: sjekkliste.utforerEnterprise,
         }
       : undefined,
     erLaster: sjekklisteQuery.isLoading,

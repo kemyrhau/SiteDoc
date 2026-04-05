@@ -28,7 +28,7 @@ interface StatusHandlingerProps {
   onSlett?: () => void;
   /** Alle entrepriser med forhåndsutledet mottaker */
   entrepriseValg?: EntrepriseValg[];
-  /** ID til standard-entreprise (svarer/responder) */
+  /** ID til standard-entreprise (utfører) */
   standardEntrepriseId?: string;
   /** Brukerens egne entreprise-IDer (for videresend-filtrering) */
   mineEntrepriseIder?: string[];

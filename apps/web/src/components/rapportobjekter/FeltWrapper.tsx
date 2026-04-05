@@ -20,7 +20,7 @@ interface FeltWrapperProps {
   nestingNivå?: number;
   valideringsfeil?: string;
   prosjektId?: string;
-  bygningId?: string | null;
+  byggeplassId?: string | null;
   standardTegningId?: string | null;
   oppgaveNummer?: string;
   oppgaveId?: string;
@@ -47,7 +47,7 @@ export function FeltWrapper({
   nestingNivå = 0,
   valideringsfeil,
   prosjektId,
-  bygningId,
+  byggeplassId,
   standardTegningId,
   oppgaveNummer,
   oppgaveId,
@@ -138,7 +138,7 @@ export function FeltWrapper({
         leseModus={leseModus}
         skjulKommentar={objekt.type === "text_field"}
         prosjektId={prosjektId}
-        bygningId={bygningId}
+        byggeplassId={byggeplassId}
         standardTegningId={standardTegningId}
       />
 

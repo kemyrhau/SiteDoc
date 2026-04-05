@@ -42,9 +42,9 @@ interface SjekklistePrintData {
     prefix?: string | null;
     objects: RapportObjektRå[];
   };
-  creatorEnterprise?: { name: string } | null;
-  responderEnterprise?: { name: string } | null;
-  creator?: { name?: string | null } | null;
+  bestillerEnterprise?: { name: string } | null;
+  utforerEnterprise?: { name: string } | null;
+  bestiller?: { name?: string | null } | null;
 }
 
 export default function SkrivUtFlereSide() {
@@ -198,9 +198,9 @@ function SjekklistePrint({
           eksterntNummer={prosjekt?.externalProjectNumber}
           sjekklisteTittel={sjekkliste.title}
           sjekklisteNummer={sjekklisteNummer}
-          oppretter={sjekkliste.creatorEnterprise?.name}
-          oppretterBruker={sjekkliste.creator?.name ?? null}
-          svarer={sjekkliste.responderEnterprise?.name}
+          bestiller={sjekkliste.bestillerEnterprise?.name}
+          bestillerBruker={sjekkliste.bestiller?.name ?? null}
+          utforer={sjekkliste.utforerEnterprise?.name}
           vaerTekst={vaerTekst}
           logoUrl={prosjekt?.logoUrl}
           prosjektAdresse={prosjekt?.address}
@@ -212,11 +212,11 @@ function SjekklistePrint({
           <h3 className="text-lg font-bold text-gray-900">{sjekkliste.title}</h3>
           <p className="text-sm text-gray-500">
             Mal: {sjekkliste.template.name}
-            {sjekkliste.creatorEnterprise && (
-              <> &middot; Oppretter: {sjekkliste.creatorEnterprise.name}</>
+            {sjekkliste.bestillerEnterprise && (
+              <> &middot; Bestiller: {sjekkliste.bestillerEnterprise.name}</>
             )}
-            {sjekkliste.responderEnterprise && (
-              <> &middot; Svarer: {sjekkliste.responderEnterprise.name}</>
+            {sjekkliste.utforerEnterprise && (
+              <> &middot; Utfører: {sjekkliste.utforerEnterprise.name}</>
             )}
           </p>
         </div>

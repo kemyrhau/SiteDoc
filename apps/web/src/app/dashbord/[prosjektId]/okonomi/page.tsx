@@ -454,7 +454,7 @@ export default function OkonomiSide() {
                       kontraktType: (nyKontraktType as "8405" | "8406" | "8407") || undefined,
                       byggherre: nyKontraktByggherre.trim() || undefined,
                       entreprenor: nyKontraktEntreprenor.trim() || undefined,
-                      buildingId: nyKontraktBygningId || undefined,
+                      byggeplassId: nyKontraktBygningId || undefined,
                     });
                   }
                 }}
@@ -497,9 +497,9 @@ function RedigerKontraktModal({
   onSlett,
   onLukk,
 }: {
-  kontrakt: { id: string; navn: string; kontraktType: string | null; byggherre: string | null; entreprenor: string | null; buildingId: string | null };
+  kontrakt: { id: string; navn: string; kontraktType: string | null; byggherre: string | null; entreprenor: string | null; byggeplassId: string | null };
   bygninger: Array<{ id: string; name: string; number: number | null }>;
-  onLagre: (data: { navn?: string; kontraktType?: "8405" | "8406" | "8407" | null; byggherre?: string | null; entreprenor?: string | null; buildingId?: string | null }) => void;
+  onLagre: (data: { navn?: string; kontraktType?: "8405" | "8406" | "8407" | null; byggherre?: string | null; entreprenor?: string | null; byggeplassId?: string | null }) => void;
   onSlett: () => void;
   onLukk: () => void;
 }) {
@@ -508,7 +508,7 @@ function RedigerKontraktModal({
   const [type, setType] = useState(kontrakt.kontraktType ?? "");
   const [byggherre, setByggherre] = useState(kontrakt.byggherre ?? "");
   const [entreprenor, setEntreprenor] = useState(kontrakt.entreprenor ?? "");
-  const [bygningId, setBygningId] = useState(kontrakt.buildingId ?? "");
+  const [bygningId, setBygningId] = useState(kontrakt.byggeplassId ?? "");
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onLukk}>
@@ -558,7 +558,7 @@ function RedigerKontraktModal({
                 kontraktType: (type as "8405" | "8406" | "8407") || null,
                 byggherre: byggherre.trim() || null,
                 entreprenor: entreprenor.trim() || null,
-                buildingId: bygningId || null,
+                byggeplassId: bygningId || null,
               })}
               disabled={!navn.trim()}
               className="rounded bg-sitedoc-primary px-4 py-1.5 text-sm text-white hover:bg-sitedoc-secondary disabled:opacity-50"

@@ -66,8 +66,8 @@ interface ArbeidsforlopData {
   id: string;
   name: string;
   enterpriseId: string;
-  responderEnterpriseId: string | null;
-  responderEnterprise: { id: string; name: string } | null;
+  utforerEnterpriseId: string | null;
+  utforerEnterprise: { id: string; name: string } | null;
   templates: Array<{
     templateId: string;
     template: { id: string; name: string; category: string };
@@ -217,10 +217,10 @@ export function OpprettDokumentModal({
 
   // Svarer-entreprise utledes fra arbeidsforløpet
   const autoSvarerEntrepriseId = matchendeArbeidsforlop
-    ? matchendeArbeidsforlop.responderEnterpriseId ?? matchendeArbeidsforlop.enterpriseId
+    ? matchendeArbeidsforlop.utforerEnterpriseId ?? matchendeArbeidsforlop.enterpriseId
     : null;
   const autoSvarerNavn = matchendeArbeidsforlop
-    ? matchendeArbeidsforlop.responderEnterprise?.name ??
+    ? matchendeArbeidsforlop.utforerEnterprise?.name ??
       entrepriser.find((e) => e.id === matchendeArbeidsforlop.enterpriseId)?.name ??
       ""
     : "";
@@ -234,7 +234,7 @@ export function OpprettDokumentModal({
 
   // Hent tegninger — filtrert etter bygning
   const tegningQuery = trpc.tegning.hentForProsjekt.useQuery(
-    { projectId: valgtProsjektId!, buildingId: valgtBygningId ?? undefined },
+    { projectId: valgtProsjektId!, byggeplassId: valgtBygningId ?? undefined },
     { enabled: !!valgtProsjektId && !!valgtBygningId && synlig },
   );
   const tegninger = (tegningQuery.data ?? []) as TegningData[];
@@ -297,9 +297,8 @@ export function OpprettDokumentModal({
     if (kategori === "sjekkliste") {
       opprettSjekkliste.mutate({
         templateId: mal.id,
-        creatorEnterpriseId: oppretterEntrepriseId,
-        responderEnterpriseId: autoSvarerEntrepriseId,
-        workflowId: matchendeArbeidsforlop.id,
+        bestillerEnterpriseId: oppretterEntrepriseId,
+        utforerEnterpriseId: autoSvarerEntrepriseId,
         subject: emne.trim() || undefined,
       });
     } else {
@@ -310,11 +309,10 @@ export function OpprettDokumentModal({
 
       opprettOppgave.mutate({
         templateId: mal.id,
-        creatorEnterpriseId: oppretterEntrepriseId,
-        responderEnterpriseId: autoSvarerEntrepriseId,
+        bestillerEnterpriseId: oppretterEntrepriseId,
+        utforerEnterpriseId: autoSvarerEntrepriseId,
         title: oppgaveTittel,
         priority: prioritet,
-        workflowId: matchendeArbeidsforlop.id,
         checklistId: sjekklisteId || undefined,
         checklistFieldId: sjekklisteFeltId || undefined,
       });
@@ -542,7 +540,7 @@ export function OpprettDokumentModal({
               ) : matchendeArbeidsforlop ? (
                 <View className="mt-1 flex-row items-center gap-2">
                   <Text className="text-sm text-gray-800">{autoSvarerNavn}</Text>
-                  {!matchendeArbeidsforlop.responderEnterpriseId && (
+                  {!matchendeArbeidsforlop.utforerEnterpriseId && (
                     <Text className="text-xs text-gray-400">({t("opprettModal.internFlyt")})</Text>
                   )}
                 </View>

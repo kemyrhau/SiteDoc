@@ -42,8 +42,8 @@ export default function SjekklisteSide() {
 
     opprettMutation.mutate({
       templateId: valgtMal,
-      creatorEnterpriseId: oppretterEntreprise.id,
-      responderEnterpriseId: valgtSvarer,
+      bestillerEnterpriseId: oppretterEntreprise.id,
+      utforerEnterpriseId: valgtSvarer,
       subject: valgtEmne || undefined,
     });
   }
@@ -71,7 +71,7 @@ export default function SjekklisteSide() {
         />
       ) : (
         <div className="flex flex-col gap-3">
-          {(sjekklister as Array<{ id: string; title: string; status: string; dueDate: string | null; template: { name: string }; responderEnterprise: { name: string } }>).map((sjekk) => (
+          {(sjekklister as Array<{ id: string; title: string; status: string; dueDate: string | null; template: { name: string }; utforerEnterprise: { name: string } }>).map((sjekk) => (
             <Link
               key={sjekk.id}
               href={`/dashbord/prosjekter/${params.id}/sjekklister/${sjekk.id}`}
@@ -80,7 +80,7 @@ export default function SjekklisteSide() {
                 <div>
                   <p className="font-medium">{sjekk.title}</p>
                   <p className="text-xs text-gray-400">
-                    {sjekk.template.name} &middot; Svarer: {sjekk.responderEnterprise.name}
+                    {sjekk.template.name} &middot; Svarer: {sjekk.utforerEnterprise.name}
                   </p>
                 </div>
                 <div className="flex items-center gap-3">

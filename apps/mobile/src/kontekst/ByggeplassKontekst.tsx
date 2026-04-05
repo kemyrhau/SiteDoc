@@ -10,7 +10,7 @@ import type { ReactNode } from "react";
 import { Platform } from "react-native";
 import { useProsjekt } from "./ProsjektKontekst";
 
-const BYGNING_MAP_KEY = "sitedoc_bygning_per_prosjekt";
+const BYGGEPLASS_MAP_KEY = "sitedoc_bygning_per_prosjekt";
 
 async function lagreVerdi(key: string, value: string): Promise<void> {
   if (Platform.OS === "web") {
@@ -29,23 +29,23 @@ async function hentVerdi(key: string): Promise<string | null> {
   return SecureStore.getItemAsync(key);
 }
 
-interface BygningKontekstType {
+interface ByggeplassKontekstType {
   valgtBygningId: string | null;
   settBygning: (id: string) => void;
   lasterBygningId: boolean;
 }
 
-const BygningContext = createContext<BygningKontekstType>({
+const ByggeplassContext = createContext<ByggeplassKontekstType>({
   valgtBygningId: null,
   settBygning: () => {},
   lasterBygningId: true,
 });
 
-export function useBygning() {
-  return useContext(BygningContext);
+export function useByggeplass() {
+  return useContext(ByggeplassContext);
 }
 
-export function BygningProvider({ children }: { children: ReactNode }) {
+export function ByggeplassProvider({ children }: { children: ReactNode }) {
   const { valgtProsjektId } = useProsjekt();
   const [bygningMap, setBygningMap] = useState<Record<string, string>>({});
   const [lasterBygningId, setLasterBygningId] = useState(true);
@@ -54,7 +54,7 @@ export function BygningProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     async function lastLagretBygninger() {
       try {
-        const lagret = await hentVerdi(BYGNING_MAP_KEY);
+        const lagret = await hentVerdi(BYGGEPLASS_MAP_KEY);
         if (lagret) {
           setBygningMap(JSON.parse(lagret));
         }
@@ -77,7 +77,7 @@ export function BygningProvider({ children }: { children: ReactNode }) {
       if (!valgtProsjektId) return;
       setBygningMap((prev) => {
         const neste = { ...prev, [valgtProsjektId]: id };
-        lagreVerdi(BYGNING_MAP_KEY, JSON.stringify(neste)).catch(() => {});
+        lagreVerdi(BYGGEPLASS_MAP_KEY, JSON.stringify(neste)).catch(() => {});
         return neste;
       });
     },
@@ -85,8 +85,8 @@ export function BygningProvider({ children }: { children: ReactNode }) {
   );
 
   return (
-    <BygningContext.Provider value={{ valgtBygningId, settBygning, lasterBygningId }}>
+    <ByggeplassContext.Provider value={{ valgtBygningId, settBygning, lasterBygningId }}>
       {children}
-    </BygningContext.Provider>
+    </ByggeplassContext.Provider>
   );
 }

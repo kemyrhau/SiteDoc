@@ -26,7 +26,7 @@ import * as Location from "expo-location";
 import { useTranslation } from "react-i18next";
 import { trpc } from "../../src/lib/trpc";
 import { useProsjekt } from "../../src/kontekst/ProsjektKontekst";
-import { useBygning } from "../../src/kontekst/BygningKontekst";
+import { useByggeplass } from "../../src/kontekst/ByggeplassKontekst";
 import { AUTH_CONFIG } from "../../src/config/auth";
 import { KartVisning } from "../../src/components/KartVisning";
 import { TegningsVisning } from "../../src/components/TegningsVisning";
@@ -55,7 +55,7 @@ interface TegningData {
   drawingNumber: string | null;
   discipline: string | null;
   floor: string | null;
-  buildingId: string | null;
+  byggeplassId: string | null;
   fileUrl: string | null;
   geoReference?: unknown;
   _count: { revisions: number };
@@ -82,7 +82,7 @@ interface OppgaveMarkør {
 export default function LokasjonerSkjerm() {
   const { t } = useTranslation();
   const { valgtProsjektId } = useProsjekt();
-  const { valgtBygningId, settBygning } = useBygning();
+  const { valgtBygningId, settBygning } = useByggeplass();
   const [valgtTegningId, setValgtTegningId] = useState<string | null>(null);
 
   const router = useRouter();
@@ -107,7 +107,7 @@ export default function LokasjonerSkjerm() {
   const tegningQuery = trpc.tegning.hentForProsjekt.useQuery(
     {
       projectId: valgtProsjektId!,
-      ...(valgtBygningId ? { buildingId: valgtBygningId } : {}),
+      ...(valgtBygningId ? { byggeplassId: valgtBygningId } : {}),
     },
     { enabled: !!valgtProsjektId },
   );

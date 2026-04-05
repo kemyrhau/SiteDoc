@@ -25,8 +25,8 @@ interface ArbeidsforlopData {
   id: string;
   name: string;
   enterpriseId: string;
-  responderEnterpriseId: string | null;
-  responderEnterprise: { id: string; name: string } | null;
+  utforerEnterpriseId: string | null;
+  utforerEnterprise: { id: string; name: string } | null;
   templates: Array<{
     templateId: string;
     template: { id: string; name: string; category: string };
@@ -119,7 +119,7 @@ export function OppgaveModal({
 
   // Svarer: fra arbeidsforløp, eller samme som oppretter (standard)
   const autoSvarerEntrepriseId = matchendeArbeidsforlop
-    ? matchendeArbeidsforlop.responderEnterpriseId ?? matchendeArbeidsforlop.enterpriseId
+    ? matchendeArbeidsforlop.utforerEnterpriseId ?? matchendeArbeidsforlop.enterpriseId
     : oppretterEntrepriseId;
 
   // Sett svarer automatisk når oppretter endres
@@ -167,15 +167,15 @@ export function OppgaveModal({
     const effektivSvarer = svarerEntrepriseId ?? oppretterEntrepriseId;
 
     opprettMutasjon.mutate({
-      creatorEnterpriseId: oppretterEntrepriseId,
-      responderEnterpriseId: effektivSvarer,
+      bestillerEnterpriseId: oppretterEntrepriseId,
+      utforerEnterpriseId: effektivSvarer,
       title: `Oppgave — ${tegningNavn}`,
       priority: prioritet,
       templateId,
       drawingId: tegningId,
       positionX: posisjonX,
       positionY: posisjonY,
-      workflowId: matchendeArbeidsforlop?.id,
+
     });
   }, [
     oppretterEntrepriseId,

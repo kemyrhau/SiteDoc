@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Target, MapPin } from "lucide-react";
-import { useBygning } from "@/kontekst/bygning-kontekst";
+import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
 import type { RapportObjektProps } from "./typer";
 import type { TegningPosisjonVerdi } from "@sitedoc/shared";
 
@@ -16,7 +16,7 @@ export function TegningPosisjonObjekt({
   const posisjon = verdi as TegningPosisjonVerdi | null;
   const params = useParams<{ prosjektId: string }>();
   const router = useRouter();
-  const { startPosisjonsvelger, hentOgTømPosisjonsResultat } = useBygning();
+  const { startPosisjonsvelger, hentOgTømPosisjonsResultat } = useByggeplass();
   const harSjekketResultat = useRef(false);
 
   // Sjekk om det finnes et ventende posisjonsresultat fra tegningssiden

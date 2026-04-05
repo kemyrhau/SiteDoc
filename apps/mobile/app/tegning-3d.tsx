@@ -4,7 +4,7 @@ import { WebView } from "react-native-webview";
 import type { WebViewMessageEvent } from "react-native-webview";
 import { useRouter } from "expo-router";
 import { useProsjekt } from "../src/kontekst/ProsjektKontekst";
-import { useBygning } from "../src/kontekst/BygningKontekst";
+import { useByggeplass } from "../src/kontekst/ByggeplassKontekst";
 import { trpc } from "../src/lib/trpc";
 import { hentWebUrl } from "../src/config/auth";
 import { hentSessionToken } from "../src/services/auth";
@@ -41,7 +41,7 @@ interface TegningData {
 export default function Tegning3DSkjerm() {
   const router = useRouter();
   const { valgtProsjektId } = useProsjekt();
-  const { valgtBygningId } = useBygning();
+  const { valgtBygningId } = useByggeplass();
   const webViewRef = useRef<WebView>(null);
 
   const [splitRatio, setSplitRatio] = useState(0.5);
@@ -52,9 +52,9 @@ export default function Tegning3DSkjerm() {
 
   // Hent tegninger
   const tegningQuery = (trpc.tegning.hentForProsjekt as unknown as {
-    useQuery: (input: { projectId: string; buildingId?: string }, opts: { enabled: boolean }) => { data: unknown; isLoading: boolean };
+    useQuery: (input: { projectId: string; byggeplassId?: string }, opts: { enabled: boolean }) => { data: unknown; isLoading: boolean };
   }).useQuery(
-    { projectId: valgtProsjektId!, ...(valgtBygningId ? { buildingId: valgtBygningId } : {}) },
+    { projectId: valgtProsjektId!, ...(valgtBygningId ? { byggeplassId: valgtBygningId } : {}) },
     { enabled: !!valgtProsjektId },
   );
   const isLoading = tegningQuery.isLoading;

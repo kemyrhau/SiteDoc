@@ -24,7 +24,7 @@ export default function EntrepriserSide() {
     name: string;
     organizationNumber: string | null;
     memberEnterprises: Array<{ id: string }>;
-    _count: { createdChecklists: number; createdTasks: number };
+    _count: { bestillerChecklists: number; bestillerTasks: number };
   };
 
   return (
@@ -63,7 +63,7 @@ export default function EntrepriserSide() {
               id: "checklists",
               header: "Sjekklister",
               celle: (rad) => (
-                <Badge variant="primary">{rad._count.createdChecklists}</Badge>
+                <Badge variant="primary">{rad._count.bestillerChecklists}</Badge>
               ),
               bredde: "100px",
             },
@@ -71,7 +71,7 @@ export default function EntrepriserSide() {
               id: "tasks",
               header: "Oppgaver",
               celle: (rad) => (
-                <Badge variant="warning">{rad._count.createdTasks}</Badge>
+                <Badge variant="warning">{rad._count.bestillerTasks}</Badge>
               ),
               bredde: "100px",
             },

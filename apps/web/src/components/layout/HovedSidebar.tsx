@@ -19,7 +19,7 @@ import {
 import { SidebarIkon } from "@sitedoc/ui";
 import { useTranslation } from "react-i18next";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
-import { useBygning } from "@/kontekst/bygning-kontekst";
+import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
 import { useAktivSeksjon } from "@/hooks/useAktivSeksjon";
 import { trpc } from "@/lib/trpc";
 import type { Seksjon } from "@/kontekst/navigasjon-kontekst";
@@ -122,7 +122,7 @@ export function HovedSidebar() {
   const router = useRouter();
   const { prosjektId } = useProsjekt();
   const aktivSeksjon = useAktivSeksjon();
-  const { aktivBygning } = useBygning();
+  const { aktivByggeplass } = useByggeplass();
   const { t } = useTranslation();
 
   const { data: tillatelser } = trpc.gruppe.hentMineTillatelser.useQuery(
@@ -141,9 +141,9 @@ export function HovedSidebar() {
     { enabled: !!prosjektId },
   );
   const harIfc = (() => {
-    if (!aktivBygning || !_bygninger) return false;
+    if (!aktivByggeplass || !_bygninger) return false;
     const bygning = (_bygninger as Array<{ id: string; drawings: Array<{ fileType: string | null }> }>)
-      .find((b) => b.id === aktivBygning.id);
+      .find((b) => b.id === aktivByggeplass.id);
     return bygning?.drawings?.some((d) => d.fileType?.toLowerCase() === "ifc") ?? false;
   })();
 

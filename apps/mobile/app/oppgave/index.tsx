@@ -41,8 +41,8 @@ interface OppgaveRad {
   updatedAt: Date | string;
   createdAt: Date | string;
   template?: { name: string; prefix?: string | null } | null;
-  creatorEnterprise?: { name: string } | null;
-  responderEnterprise?: { name: string } | null;
+  bestillerEnterprise?: { name: string } | null;
+  utforerEnterprise?: { name: string } | null;
   creator?: { name: string | null } | null;
 }
 
@@ -71,7 +71,7 @@ export default function OppgaveListe() {
     ({ item }: { item: OppgaveRad }) => {
       const nummer = formaterNummer(item.template?.prefix, item.number);
       const undertekst = [
-        item.responderEnterprise?.name,
+        item.utforerEnterprise?.name,
         item.dueDate
           ? new Date(item.dueDate).toLocaleDateString("nb-NO", {
               day: "numeric",

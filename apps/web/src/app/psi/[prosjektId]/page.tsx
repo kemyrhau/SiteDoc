@@ -183,7 +183,7 @@ export default function PsiGjestSide() {
                 className="flex w-full items-center gap-3 rounded-xl border border-gray-200 bg-white px-5 py-4 text-left shadow-sm transition-colors hover:border-sitedoc-primary hover:bg-blue-50"
               >
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100">
-                  {psi.building ? (
+                  {psi.byggeplass ? (
                     <span className="text-lg">🏗️</span>
                   ) : (
                     <Globe className="h-5 w-5 text-gray-500" />
@@ -191,7 +191,7 @@ export default function PsiGjestSide() {
                 </div>
                 <div>
                   <p className="font-semibold text-gray-900">
-                    {psi.building?.name ?? "Hele prosjektet"}
+                    {psi.byggeplass?.name ?? "Hele prosjektet"}
                   </p>
                   <p className="text-xs text-gray-500">{psi.template.name}</p>
                 </div>

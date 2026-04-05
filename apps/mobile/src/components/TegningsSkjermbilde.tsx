@@ -18,7 +18,7 @@ interface Tegning {
   drawingNumber: string | null;
   discipline: string | null;
   floor: string | null;
-  buildingId: string | null;
+  byggeplassId: string | null;
   _count: { revisions: number };
 }
 

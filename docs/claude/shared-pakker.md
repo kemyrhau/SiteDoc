@@ -39,7 +39,7 @@ Fire eksportpunkter: `types`, `validation`, `utils`, `i18n`
 - `REPORT_OBJECT_TYPE_META` — Komplett metadata for alle typer
 - `TegningPosisjonVerdi` — `{ drawingId, positionX, positionY, drawingName }`
 - `VaerVerdi` — `{ temp?, conditions?, wind?, kilde? }`
-- `BuildingType`, `GeoReferansePunkt`, `GeoReferanse` (utvidet med `ekstraPunkter?: GeoReferansePunkt[]`), `TemplateZone`, `EnterpriseRole`
+- `ByggeplassType` (tidligere `BuildingType`), `GeoReferansePunkt`, `GeoReferanse` (utvidet med `ekstraPunkter?: GeoReferansePunkt[]`), `TemplateZone`, `EnterpriseRole`
 - `GroupCategory`, `StandardProjectGroup`, `STANDARD_PROJECT_GROUPS`
 - `PERMISSIONS` — 15 tillatelser (4 gamle + 11 nye)
 - `PERMISSION_LABELS`, `PERMISSION_GROUPS`, `LEGACY_PERMISSION_MAP`, `utvidTillatelser()`
@@ -54,8 +54,8 @@ Fire eksportpunkter: `types`, `validation`, `utils`, `i18n`
 - `documentStatusSchema`, `reportObjectTypeSchema`, `enterpriseRoleSchema`
 - `templateZoneSchema`, `templateCategorySchema`, `templateDomainSchema`
 - `gpsDataSchema`, `geoReferanseSchema`
-- `createProjectSchema`, `createEnterpriseSchema`, `createBuildingSchema`
-- `createWorkflowSchema`, `updateWorkflowSchema`
+- `createProjectSchema`, `createEnterpriseSchema`, `createByggeplassSchema` (tidligere `createBuildingSchema`)
+- `createWorkflowSchema`, `updateWorkflowSchema` (deprecated — erstattet av Dokumentflyt)
 - `addMemberSchema`, `addGroupMemberByEmailSchema`
 - `drawingDisciplineSchema`, `drawingTypeSchema`, `drawingStatusSchema`, `createDrawingSchema`
 - `groupCategorySchema`, `createProjectGroupSchema`, `updateProjectGroupSchema`
