@@ -281,6 +281,7 @@
   "brukere.kategori": "Category",
   "brukere.generelt": "General",
   "brukere.brukergrupper": "User groups",
+  "brukere.brukergruppeBeskrivelse": "Manage user groups and members",
   "brukere.tomGruppe": "Empty group",
   "brukere.gruppe.prosjektAdmin": "Project administrators",
   "brukere.gruppe.fieldAdmin": "Field administrators",

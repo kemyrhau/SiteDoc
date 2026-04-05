@@ -281,6 +281,7 @@
   "brukere.kategori": "Kategori",
   "brukere.generelt": "Generelt",
   "brukere.brukergrupper": "Brukergrupper",
+  "brukere.brukergruppeBeskrivelse": "Administrer brukergrupper og medlemmer",
   "brukere.tomGruppe": "Tom gruppe",
   "brukere.gruppe.prosjektAdmin": "Prosjektadministratorer",
   "brukere.gruppe.fieldAdmin": "Feltarbeid-administratorer",
