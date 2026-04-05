@@ -727,7 +727,7 @@ export default function KontakterSide() {
                       : <ChevronRight className="h-4 w-4 text-gray-400 shrink-0" />
                     }
                     <EntrepriseFargePrikk farge={ent.color} />
-                    <span className="font-medium text-gray-900">{ent.name}</span>
+                    <span className="font-medium text-blue-700">{ent.name}</span>
                   </div>
                   <div className="col-span-5 flex flex-wrap gap-1.5">
                     {dflyter.length === 0
