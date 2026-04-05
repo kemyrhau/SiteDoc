@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { trpc } from "@/lib/trpc";
-import { Spinner } from "@sitedoc/ui";
+import { Spinner, Button } from "@sitedoc/ui";
 import { useTranslation } from "react-i18next";
 import {
   ChevronDown,
@@ -18,6 +18,7 @@ import {
   ClipboardCheck,
   CheckCircle2,
   X,
+  Plus,
 } from "lucide-react";
 import {
   LeggTilMedlemDropdown,
@@ -84,6 +85,69 @@ const FARGE_MAP: Record<string, string> = {
 function EntrepriseFargePrikk({ farge }: { farge: string | null }) {
   const bg = farge ? FARGE_MAP[farge] ?? "bg-gray-400" : "bg-gray-400";
   return <span className={`inline-block h-3 w-3 rounded-full ${bg} shrink-0`} />;
+}
+
+/* ------------------------------------------------------------------ */
+/*  NyDokumentflytKnapp                                                */
+/* ------------------------------------------------------------------ */
+
+function NyDokumentflytKnapp({ entrepriseId: enterpriseId, prosjektId }: { entrepriseId: string; prosjektId: string }) {
+  const { t } = useTranslation();
+  const utils = trpc.useUtils();
+  const [visInput, setVisInput] = useState(false);
+  const [navn, setNavn] = useState("");
+
+  const opprettMutation = trpc.dokumentflyt.opprett.useMutation({
+    onSuccess: () => {
+      utils.dokumentflyt.hentForProsjekt.invalidate({ projectId: prosjektId });
+      setVisInput(false);
+      setNavn("");
+    },
+  });
+
+  if (!visInput) {
+    return (
+      <button
+        onClick={() => setVisInput(true)}
+        className="flex items-center gap-1.5 rounded-md border border-dashed border-gray-300 px-3 py-2 text-xs text-gray-400 hover:border-gray-400 hover:text-gray-600"
+      >
+        <Plus className="h-3.5 w-3.5" />
+        {t("kontakter.nyDokumentflyt")}
+      </button>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <input
+        type="text"
+        value={navn}
+        onChange={(e) => setNavn(e.target.value)}
+        placeholder={t("kontakter.dokumentflytNavn")}
+        className="rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
+        autoFocus
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && navn.trim()) {
+            opprettMutation.mutate({ projectId: prosjektId, enterpriseId, name: navn.trim() });
+          }
+          if (e.key === "Escape") { setVisInput(false); setNavn(""); }
+        }}
+      />
+      <Button
+        size="sm"
+        onClick={() => {
+          if (navn.trim()) opprettMutation.mutate({ projectId: prosjektId, enterpriseId, name: navn.trim() });
+        }}
+        disabled={!navn.trim() || opprettMutation.isPending}
+        loading={opprettMutation.isPending}
+      >
+        {t("handling.opprett")}
+      </Button>
+      <Button size="sm" variant="secondary" onClick={() => { setVisInput(false); setNavn(""); }}>
+        {t("handling.avbryt")}
+      </Button>
+    </div>
+  );
 }
 
 /* ------------------------------------------------------------------ */
@@ -292,7 +356,7 @@ function FlytBoks({
           prosjektId={prosjektId}
           rolle={rolle}
           steg={1}
-          entrepriser={entrepriser.map((e) => ({ id: e.id, name: e.name, color: e.color }))}
+          entrepriser={[]}
           medlemmer={alleMedlemmer.map((m) => ({ id: m.id, user: { name: m.user.name, email: m.user.email } }))}
           grupper={alleGrupper}
           eksisterende={eksisterende}
@@ -590,6 +654,9 @@ export default function KontakterSide() {
                   {dflyter.length === 0 && (
                     <p className="text-xs text-gray-400 italic">{t("kontakter.ingenFlyter")}</p>
                   )}
+
+                  {/* Ny dokumentflyt */}
+                  <NyDokumentflytKnapp entrepriseId={ent.id} prosjektId={prosjektId!} />
 
                   {/* Kontaktliste */}
                   {kontakter.length > 0 && (

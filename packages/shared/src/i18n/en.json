@@ -60,6 +60,8 @@
   "kontakter.velgPerson": "Select person...",
   "kontakter.opprettNy": "Create new person",
   "kontakter.opprettOgLeggTil": "Create and add",
+  "kontakter.nyDokumentflyt": "New document flow",
+  "kontakter.dokumentflytNavn": "Document flow name...",
   "kontakter.settHovedansvarlig": "Set as primary responsible",
   "kontakter.fjernHovedansvarlig": "Remove as primary responsible",
   "oppsett.oppgavemaler": "Task templates",
