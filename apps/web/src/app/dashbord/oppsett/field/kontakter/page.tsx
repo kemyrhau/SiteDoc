@@ -19,6 +19,8 @@ import {
   CheckCircle2,
   X,
   Plus,
+  Trash2,
+  Pencil,
 } from "lucide-react";
 import {
   LeggTilMedlemDropdown,
@@ -146,6 +148,157 @@ function NyDokumentflytKnapp({ entrepriseId: enterpriseId, prosjektId }: { entre
       <Button size="sm" variant="secondary" onClick={() => { setVisInput(false); setNavn(""); }}>
         {t("handling.avbryt")}
       </Button>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  DokumentflytKort — tittel med redigering/sletting + flytbokser     */
+/* ------------------------------------------------------------------ */
+
+function DokumentflytKort({
+  df, opprettere, svarere, prosjektId,
+  alleEntrepriser, alleMedlemmer, alleGrupper, gruppeOppslag, gruppeMedlemNavn,
+}: {
+  df: Dokumentflyt;
+  opprettere: DokumentflytMedlem[];
+  svarere: DokumentflytMedlem[];
+  prosjektId: string;
+  alleEntrepriser: Entreprise[];
+  alleMedlemmer: ProsjektMedlem[];
+  alleGrupper: Array<{ id: string; name: string }>;
+  gruppeOppslag: Map<string, Set<string>>;
+  gruppeMedlemNavn: Map<string, Array<{ navn: string; projectMemberId: string; gruppeMedlemId: string; erAdmin: boolean }>>;
+}) {
+  const { t } = useTranslation();
+  const utils = trpc.useUtils();
+  const [erRedigering, setErRedigering] = useState(false);
+  const [navn, setNavn] = useState(df.name);
+
+  const oppdaterMutation = trpc.dokumentflyt.oppdater.useMutation({
+    onSuccess: () => {
+      utils.dokumentflyt.hentForProsjekt.invalidate({ projectId: prosjektId });
+      setErRedigering(false);
+    },
+  });
+
+  const slettMutation = trpc.dokumentflyt.slett.useMutation({
+    onSuccess: () => {
+      utils.dokumentflyt.hentForProsjekt.invalidate({ projectId: prosjektId });
+    },
+  });
+
+  return (
+    <div className="rounded-lg border border-gray-200 bg-white p-3">
+      {/* Tittel med redigering */}
+      <div className="mb-3 flex items-center gap-2">
+        <FileText className="h-4 w-4 text-gray-400 shrink-0" />
+        {erRedigering ? (
+          <div className="flex flex-1 items-center gap-2">
+            <input
+              type="text"
+              value={navn}
+              onChange={(e) => setNavn(e.target.value)}
+              className="flex-1 rounded border border-gray-300 px-2 py-1 text-sm font-semibold text-gray-700 focus:border-blue-400 focus:outline-none"
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && navn.trim()) {
+                  oppdaterMutation.mutate({ id: df.id, projectId: prosjektId, name: navn.trim() });
+                }
+                if (e.key === "Escape") { setErRedigering(false); setNavn(df.name); }
+              }}
+            />
+            <button
+              onClick={() => slettMutation.mutate({ id: df.id, projectId: prosjektId })}
+              className="rounded p-1 text-gray-400 hover:bg-red-100 hover:text-red-600"
+              title={t("handling.slett")}
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => { setErRedigering(false); setNavn(df.name); }}
+              className="rounded p-1 text-gray-400 hover:bg-gray-100"
+              title={t("handling.avbryt")}
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => setErRedigering(true)}
+            className="flex-1 text-left text-sm font-semibold text-gray-700 hover:text-blue-600"
+            title={t("handling.rediger")}
+          >
+            {df.name}
+          </button>
+        )}
+      </div>
+
+      {/* Visuell flyt: Oppretter → Svarer → Godkjenner */}
+      <div className="flex items-stretch gap-0">
+        <FlytBoks
+          tittel={t("kontakter.oppretter")}
+          ikon={<Send className="h-3 w-3" />}
+          farge="blue"
+          avrunding="rounded-l-lg"
+          dokumentflytId={df.id}
+          rolle="oppretter"
+          medlemmer={opprettere}
+          prosjektId={prosjektId}
+          entrepriser={alleEntrepriser}
+          alleMedlemmer={alleMedlemmer}
+          alleGrupper={alleGrupper}
+          gruppeOppslag={gruppeOppslag}
+          gruppeMedlemNavn={gruppeMedlemNavn}
+        />
+        <div className="flex items-center px-2">
+          <ArrowRight className="h-5 w-5 text-gray-300" />
+        </div>
+        <FlytBoks
+          tittel={t("kontakter.svarerLabel")}
+          ikon={<ClipboardCheck className="h-3 w-3" />}
+          farge="purple"
+          avrunding=""
+          dokumentflytId={df.id}
+          rolle="svarer"
+          medlemmer={svarere}
+          prosjektId={prosjektId}
+          entrepriser={alleEntrepriser}
+          alleMedlemmer={alleMedlemmer}
+          alleGrupper={alleGrupper}
+          gruppeOppslag={gruppeOppslag}
+          gruppeMedlemNavn={gruppeMedlemNavn}
+        />
+        <div className="flex items-center px-2">
+          <ArrowRight className="h-5 w-5 text-gray-300" />
+        </div>
+        <FlytBoks
+          tittel={t("kontakter.godkjenner")}
+          ikon={<CheckCircle2 className="h-3 w-3" />}
+          farge="green"
+          avrunding="rounded-r-lg"
+          dokumentflytId={df.id}
+          rolle="oppretter"
+          medlemmer={opprettere}
+          prosjektId={prosjektId}
+          entrepriser={alleEntrepriser}
+          alleMedlemmer={alleMedlemmer}
+          alleGrupper={alleGrupper}
+          gruppeOppslag={gruppeOppslag}
+          gruppeMedlemNavn={gruppeMedlemNavn}
+        />
+      </div>
+
+      {/* Maler */}
+      {df.maler.length > 0 && (
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {df.maler.map((m) => (
+            <span key={m.template.id} className="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-500">
+              {m.template.name}
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -297,6 +450,16 @@ function FlytBoks({
                 {medlemNavn.length > 0 && (
                   <span className="text-xs text-gray-400">({medlemNavn.length})</span>
                 )}
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  fjernMedlemMutation.mutate({ id: m.id, projectId: prosjektId });
+                }}
+                className="rounded p-0.5 opacity-0 transition-opacity group-hover/medlem:opacity-100 hover:bg-red-100 hover:text-red-600"
+                title={t("handling.fjern")}
+              >
+                <X className="h-3 w-3 text-gray-400" />
               </button>
             </div>
             {erUtvidet && medlemNavn.length > 0 && (
@@ -592,81 +755,18 @@ export default function KontakterSide() {
                     const svarere = df.medlemmer.filter((m) => m.rolle === "svarer");
 
                     return (
-                      <div key={df.id} className="rounded-lg border border-gray-200 bg-white p-3">
-                        <div className="mb-3 flex items-center gap-2">
-                          <FileText className="h-4 w-4 text-gray-400" />
-                          <span className="text-sm font-semibold text-gray-700">{df.name}</span>
-                        </div>
-
-                        {/* Visuell flyt: Oppretter → Svarer → Godkjenner */}
-                        <div className="flex items-stretch gap-0">
-                          <FlytBoks
-                            tittel={t("kontakter.oppretter")}
-                            ikon={<Send className="h-3 w-3" />}
-                            farge="blue"
-                            avrunding="rounded-l-lg"
-                            dokumentflytId={df.id}
-                            rolle="oppretter"
-                            medlemmer={opprettere}
-                            prosjektId={prosjektId!}
-                            entrepriser={alleEntrepriser}
-                            alleMedlemmer={alleMedlemmer}
-                            alleGrupper={alleGrupper}
-                            gruppeOppslag={gruppeOppslag}
-                            gruppeMedlemNavn={gruppeMedlemNavn}
-                          />
-                          <div className="flex items-center px-2">
-                            <ArrowRight className="h-5 w-5 text-gray-300" />
-                          </div>
-                          <FlytBoks
-                            tittel={t("kontakter.svarerLabel")}
-                            ikon={<ClipboardCheck className="h-3 w-3" />}
-                            farge="purple"
-                            avrunding=""
-                            dokumentflytId={df.id}
-                            rolle="svarer"
-                            medlemmer={svarere}
-                            prosjektId={prosjektId!}
-                            entrepriser={alleEntrepriser}
-                            alleMedlemmer={alleMedlemmer}
-                            alleGrupper={alleGrupper}
-                            gruppeOppslag={gruppeOppslag}
-                            gruppeMedlemNavn={gruppeMedlemNavn}
-                          />
-                          <div className="flex items-center px-2">
-                            <ArrowRight className="h-5 w-5 text-gray-300" />
-                          </div>
-                          <FlytBoks
-                            tittel={t("kontakter.godkjenner")}
-                            ikon={<CheckCircle2 className="h-3 w-3" />}
-                            farge="green"
-                            avrunding="rounded-r-lg"
-                            dokumentflytId={df.id}
-                            rolle="oppretter"
-                            medlemmer={opprettere}
-                            prosjektId={prosjektId!}
-                            entrepriser={alleEntrepriser}
-                            alleMedlemmer={alleMedlemmer}
-                            alleGrupper={alleGrupper}
-                            gruppeOppslag={gruppeOppslag}
-                            gruppeMedlemNavn={gruppeMedlemNavn}
-                          />
-                        </div>
-
-                        {/* Maler */}
-                        {df.maler.length > 0 && (
-                          <div className="mt-3 flex flex-wrap gap-1.5">
-                            {df.maler.map((m) => (
-                              <span
-                                key={m.template.id}
-                                className="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-500"
-                              >
-                                {m.template.name}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
+                      <DokumentflytKort
+                        key={df.id}
+                        df={df}
+                        opprettere={opprettere}
+                        svarere={svarere}
+                        prosjektId={prosjektId!}
+                        alleEntrepriser={alleEntrepriser}
+                        alleMedlemmer={alleMedlemmer}
+                        alleGrupper={alleGrupper}
+                        gruppeOppslag={gruppeOppslag}
+                        gruppeMedlemNavn={gruppeMedlemNavn}
+                      />
                     );
                   })}
 
