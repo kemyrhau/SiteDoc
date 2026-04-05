@@ -17,6 +17,7 @@ import {
   Send,
   ClipboardCheck,
   CheckCircle2,
+  X,
 } from "lucide-react";
 import {
   LeggTilMedlemDropdown,
@@ -136,6 +137,12 @@ function FlytBoks({
     },
   });
 
+  const fjernMedlemMutation = trpc.dokumentflyt.fjernMedlem.useMutation({
+    onSuccess: () => {
+      utils.dokumentflyt.hentForProsjekt.invalidate({ projectId: prosjektId });
+    },
+  });
+
   // Del medlemmer i grupper og enkeltpersoner
   const gruppeMedlemmer = medlemmer.filter((m) => !!m.group);
   const enkeltpersoner = medlemmer.filter((m) => !m.group && !!m.projectMember);
@@ -207,13 +214,23 @@ function FlytBoks({
                     return ny;
                   });
                 }}
-                className="flex items-center gap-1.5 hover:underline"
+                className="flex flex-1 items-center gap-1.5 hover:underline"
               >
                 <Users className={`h-3.5 w-3.5 ${f.ikon} shrink-0`} />
                 <span className="font-medium">{m.group?.name}</span>
                 {medlemNavn.length > 0 && (
                   <span className="text-xs text-gray-400">({medlemNavn.length})</span>
                 )}
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  fjernMedlemMutation.mutate({ id: m.id, projectId: prosjektId });
+                }}
+                className="rounded p-0.5 opacity-0 transition-opacity group-hover/medlem:opacity-100 hover:bg-red-100 hover:text-red-600"
+                title={t("handling.fjern")}
+              >
+                <X className="h-3 w-3 text-gray-400" />
               </button>
             </div>
             {erUtvidet && medlemNavn.length > 0 && (
@@ -242,12 +259,22 @@ function FlytBoks({
           <div key={m.id} className="group/medlem mb-0.5 flex items-center gap-1.5 text-sm">
             {renderHovedansvarligPrikk(m)}
             <User className={`h-3 w-3 ${f.ikon} shrink-0`} />
-            <span className="text-gray-700">{personNavn ?? "—"}</span>
+            <span className="flex-1 text-gray-700">{personNavn ?? "—"}</span>
             {grupperNavn.length > 0 && (
               <span className="text-[11px] text-gray-400">
                 · {grupperNavn.join(", ")}
               </span>
             )}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                fjernMedlemMutation.mutate({ id: m.id, projectId: prosjektId });
+              }}
+              className="rounded p-0.5 opacity-0 transition-opacity group-hover/medlem:opacity-100 hover:bg-red-100 hover:text-red-600"
+              title={t("handling.fjern")}
+            >
+              <X className="h-3 w-3 text-gray-400" />
+            </button>
           </div>
         );
       })}
