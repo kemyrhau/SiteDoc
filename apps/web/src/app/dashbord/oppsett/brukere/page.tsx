@@ -1304,6 +1304,10 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
   const utils = trpc.useUtils();
   const [leggTilEntrepriseForMedlem, setLeggTilEntrepriseForMedlem] = useState<string | null>(null);
   const [kollapserteGrupper, setKollapserteGrupper] = useState<Set<string>>(new Set());
+  const [filterNavn, setFilterNavn] = useState("");
+  const [filterRolle, setFilterRolle] = useState("");
+  const [filterEntreprise, setFilterEntreprise] = useState("");
+  const [filterGruppe, setFilterGruppe] = useState("");
 
   const { data: medlemmer } = trpc.medlem.hentForProsjekt.useQuery(
     { projectId: prosjektId },
@@ -1345,7 +1349,38 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
     }
   }
 
-  const kontakter = (medlemmer ?? []) as KontaktMedlem[];
+  const kontakterRå = (medlemmer ?? []) as KontaktMedlem[];
+
+  // Filtrer kontakter
+  const kontakter = useMemo(() => {
+    let resultat = kontakterRå;
+    if (filterNavn) {
+      const søk = filterNavn.toLowerCase();
+      resultat = resultat.filter((m) =>
+        (m.user.name ?? "").toLowerCase().includes(søk) ||
+        m.user.email.toLowerCase().includes(søk) ||
+        (m.user.phone ?? "").includes(søk),
+      );
+    }
+    if (filterRolle) {
+      resultat = resultat.filter((m) => m.role === filterRolle);
+    }
+    if (filterEntreprise) {
+      resultat = resultat.filter((m) =>
+        m.enterprises.some((e) => e.enterprise.id === filterEntreprise),
+      );
+    }
+    if (filterGruppe) {
+      const gUserIder = new Set(
+        (dbGrupper as Array<{ id: string; members: Array<{ projectMember: { user: { id: string } } | null }> }> ?? [])
+          .find((g) => g.id === filterGruppe)?.members
+          .map((gm) => gm.projectMember?.user?.id)
+          .filter(Boolean) ?? [],
+      );
+      resultat = resultat.filter((m) => gUserIder.has(m.user.id));
+    }
+    return resultat;
+  }, [kontakterRå, filterNavn, filterRolle, filterEntreprise, filterGruppe, dbGrupper]);
 
   // Grupper kontakter etter brukergruppe med overskrifter (deduplisert)
   const gruppertKontakter = useMemo(() => {
@@ -1398,6 +1433,57 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
               <th className="px-4 py-2.5">{t("kontakter.rolle")}</th>
               <th className="px-4 py-2.5">{t("kontakter.entrepriser")}</th>
               <th className="px-4 py-2.5">{t("kontakter.grupper")}</th>
+            </tr>
+            {/* Filterrad */}
+            <tr className="border-b border-gray-200 bg-gray-50/50">
+              <th colSpan={3} className="px-4 py-1.5">
+                <input
+                  type="text"
+                  value={filterNavn}
+                  onChange={(e) => setFilterNavn(e.target.value)}
+                  placeholder={t("handling.sok")}
+                  className="w-full rounded border border-gray-200 bg-white px-2 py-1 text-xs font-normal text-gray-700 placeholder-gray-400 focus:border-blue-400 focus:outline-none"
+                />
+              </th>
+              <th className="px-4 py-1.5" />
+              <th className="px-4 py-1.5">
+                <select
+                  value={filterRolle}
+                  onChange={(e) => setFilterRolle(e.target.value)}
+                  className="w-full rounded border border-gray-200 bg-white px-2 py-1 text-xs font-normal text-gray-700 focus:border-blue-400 focus:outline-none"
+                >
+                  <option value="">{t("status.alle")}</option>
+                  <option value="admin">Admin</option>
+                  <option value="member">{t("kontakter.medlem")}</option>
+                </select>
+              </th>
+              <th className="px-4 py-1.5">
+                <select
+                  value={filterEntreprise}
+                  onChange={(e) => setFilterEntreprise(e.target.value)}
+                  className="w-full rounded border border-gray-200 bg-white px-2 py-1 text-xs font-normal text-gray-700 focus:border-blue-400 focus:outline-none"
+                >
+                  <option value="">{t("status.alle")}</option>
+                  {(alleEntrepriser as Array<{ id: string; name: string }> ?? []).map((e) => (
+                    <option key={e.id} value={e.id}>{e.name}</option>
+                  ))}
+                </select>
+              </th>
+              <th className="px-4 py-1.5">
+                <select
+                  value={filterGruppe}
+                  onChange={(e) => setFilterGruppe(e.target.value)}
+                  className="w-full rounded border border-gray-200 bg-white px-2 py-1 text-xs font-normal text-gray-700 focus:border-blue-400 focus:outline-none"
+                >
+                  <option value="">{t("status.alle")}</option>
+                  {(dbGrupper as Array<{ id: string; name: string; category: string }> ?? [])
+                    .filter((g) => g.category === "brukergrupper")
+                    .map((g) => (
+                      <option key={g.id} value={g.id}>{g.name}</option>
+                    ))
+                  }
+                </select>
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
