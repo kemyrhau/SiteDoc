@@ -1347,7 +1347,7 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
 
   const kontakter = (medlemmer ?? []) as KontaktMedlem[];
 
-  // Grupper kontakter etter brukergruppe med overskrifter
+  // Grupper kontakter etter brukergruppe med overskrifter (deduplisert)
   const gruppertKontakter = useMemo(() => {
     const rader: Array<{ type: "header"; gruppeNavn: string; antall: number } | { type: "medlem"; medlem: KontaktMedlem; gruppeNavn: string }> = [];
     const brukteMedlemIder = new Set<string>();
@@ -1358,7 +1358,9 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
       : [];
 
     for (const g of brukerGrupperListe) {
+      // Filtrer bort allerede viste medlemmer (deduplisering)
       const gruppeKontakter = kontakter.filter((m) =>
+        !brukteMedlemIder.has(m.id) &&
         g.members.some((gm) => gm.projectMember?.user?.id === m.user.id),
       );
       if (gruppeKontakter.length === 0) continue;
@@ -1370,9 +1372,9 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
       }
     }
 
-    const utenGruppeNavn = t("brukere.utenGruppe");
     const utenGruppe = kontakter.filter((m) => !brukteMedlemIder.has(m.id));
     if (utenGruppe.length > 0) {
+      const utenGruppeNavn = t("brukere.utenGruppe");
       rader.push({ type: "header", gruppeNavn: utenGruppeNavn, antall: utenGruppe.length });
       for (const m of utenGruppe) {
         rader.push({ type: "medlem", medlem: m, gruppeNavn: utenGruppeNavn });
@@ -1429,7 +1431,6 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
                 );
               }
 
-              // Skjul medlemmer under kollapset gruppe
               if (kollapserteGrupper.has(rad.gruppeNavn)) return null;
 
               const m = rad.medlem;
