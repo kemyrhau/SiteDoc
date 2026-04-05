@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { trpc } from "@/lib/trpc";
-import { Spinner } from "@sitedoc/ui";
+import { Spinner, Modal, Input, Button } from "@sitedoc/ui";
 import { useTranslation } from "react-i18next";
 import {
   ChevronDown,
@@ -17,6 +17,8 @@ import {
   Send,
   ClipboardCheck,
   CheckCircle2,
+  Plus,
+  UserPlus,
 } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
@@ -46,6 +48,7 @@ interface ProsjektMedlem {
 }
 
 interface DokumentflytMedlem {
+  id: string;
   rolle: string;
   erHovedansvarlig: boolean;
   steg: number;
@@ -80,16 +83,205 @@ function EntrepriseFargePrikk({ farge }: { farge: string | null }) {
 }
 
 /* ------------------------------------------------------------------ */
+/*  GruppeMedlemInfo                                                    */
+/* ------------------------------------------------------------------ */
+
+interface GruppeMedlemInfo {
+  navn: string;
+  projectMemberId: string;
+}
+
+/* ------------------------------------------------------------------ */
+/*  LeggTilGruppeMedlemModal                                            */
+/* ------------------------------------------------------------------ */
+
+function LeggTilGruppeMedlemModal({
+  open,
+  onClose,
+  gruppeId,
+  prosjektId,
+  eksisterendeMedlemIder,
+}: {
+  open: boolean;
+  onClose: () => void;
+  gruppeId: string;
+  prosjektId: string;
+  eksisterendeMedlemIder: Set<string>;
+}) {
+  const { t } = useTranslation();
+  const utils = trpc.useUtils();
+
+  // Skjema-state for ny person
+  const [epost, setEpost] = useState("");
+  const [fornavn, setFornavn] = useState("");
+  const [etternavn, setEtternavn] = useState("");
+  const [telefon, setTelefon] = useState("");
+  const [valgtMedlemId, setValgtMedlemId] = useState("");
+
+  // Hent eksisterende prosjektmedlemmer for dropdown
+  const { data: alleMedlemmer } = trpc.medlem.hentForProsjekt.useQuery(
+    { projectId: prosjektId },
+    { enabled: open },
+  );
+
+  const leggTilMutation = trpc.gruppe.leggTilMedlem.useMutation({
+    onSuccess: () => {
+      utils.gruppe.hentForProsjekt.invalidate({ projectId: prosjektId });
+      utils.medlem.hentForProsjekt.invalidate({ projectId: prosjektId });
+      onClose();
+    },
+  });
+
+  // Reset skjema ved åpning
+  const [forrigeOpen, setForrigeOpen] = useState(false);
+  if (open && !forrigeOpen) {
+    setEpost("");
+    setFornavn("");
+    setEtternavn("");
+    setTelefon("");
+    setValgtMedlemId("");
+  }
+  if (open !== forrigeOpen) setForrigeOpen(open);
+
+  // Filtrer bort de som allerede er i gruppen
+  const tilgjengeligeMedlemmer = useMemo(() => {
+    if (!alleMedlemmer) return [];
+    return (alleMedlemmer as ProsjektMedlem[]).filter(
+      (m) => !eksisterendeMedlemIder.has(m.id) && m.user.name,
+    );
+  }, [alleMedlemmer, eksisterendeMedlemIder]);
+
+  async function handleLeggTilEksisterende() {
+    if (!valgtMedlemId) return;
+    const medlem = tilgjengeligeMedlemmer.find((m) => m.id === valgtMedlemId);
+    if (!medlem) return;
+
+    const [fornavn_, ...resten] = (medlem.user.name ?? "").split(" ");
+    await leggTilMutation.mutateAsync({
+      groupId: gruppeId,
+      projectId: prosjektId,
+      email: medlem.user.email,
+      firstName: fornavn_ ?? "",
+      lastName: resten.join(" ") || (fornavn_ ?? ""),
+    });
+  }
+
+  async function handleOpprettNy(e: React.FormEvent) {
+    e.preventDefault();
+    if (!epost.trim() || !fornavn.trim() || !etternavn.trim()) return;
+
+    await leggTilMutation.mutateAsync({
+      groupId: gruppeId,
+      projectId: prosjektId,
+      email: epost.trim(),
+      firstName: fornavn.trim(),
+      lastName: etternavn.trim(),
+      phone: telefon.trim() || undefined,
+    });
+  }
+
+  return (
+    <Modal open={open} onClose={onClose} title={t("kontakter.leggTilMedlem")} className="z-[60]">
+      <div className="flex flex-col gap-5">
+        {/* Velg eksisterende */}
+        <div>
+          <label className="mb-1.5 block text-sm font-medium text-gray-700">
+            {t("kontakter.velgEksisterende")}
+          </label>
+          <div className="flex gap-2">
+            <select
+              value={valgtMedlemId}
+              onChange={(e) => setValgtMedlemId(e.target.value)}
+              className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            >
+              <option value="">{t("kontakter.velgPerson")}</option>
+              {tilgjengeligeMedlemmer.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.user.name} ({m.user.email})
+                </option>
+              ))}
+            </select>
+            <Button
+              onClick={handleLeggTilEksisterende}
+              disabled={!valgtMedlemId || leggTilMutation.isPending}
+              loading={leggTilMutation.isPending && !!valgtMedlemId}
+            >
+              <Plus className="mr-1 h-4 w-4" />
+              {t("handling.leggTil")}
+            </Button>
+          </div>
+        </div>
+
+        {/* Skillelinje */}
+        <div className="flex items-center gap-3">
+          <div className="flex-1 border-t border-gray-200" />
+          <span className="text-xs text-gray-400">{t("kontakter.opprettNy")}</span>
+          <div className="flex-1 border-t border-gray-200" />
+        </div>
+
+        {/* Opprett ny person */}
+        <form onSubmit={handleOpprettNy} className="flex flex-col gap-3">
+          <Input
+            label={t("dokumentflyt.epostadresse")}
+            type="email"
+            placeholder="navn@firma.no"
+            value={epost}
+            onChange={(e) => setEpost(e.target.value)}
+            required
+          />
+          <div className="grid grid-cols-2 gap-3">
+            <Input
+              label={t("dokumentflyt.fornavn")}
+              value={fornavn}
+              onChange={(e) => setFornavn(e.target.value)}
+              required
+            />
+            <Input
+              label={t("dokumentflyt.etternavn")}
+              value={etternavn}
+              onChange={(e) => setEtternavn(e.target.value)}
+              required
+            />
+          </div>
+          <Input
+            label={t("dokumentflyt.telefonValgfritt")}
+            type="tel"
+            value={telefon}
+            onChange={(e) => setTelefon(e.target.value)}
+          />
+
+          {leggTilMutation.error && (
+            <p className="text-sm text-red-600">{leggTilMutation.error.message}</p>
+          )}
+
+          <div className="flex gap-3 pt-2">
+            <Button variant="secondary" type="button" onClick={onClose}>
+              {t("handling.avbryt")}
+            </Button>
+            <Button
+              type="submit"
+              loading={leggTilMutation.isPending && !valgtMedlemId}
+              disabled={!epost.trim() || !fornavn.trim() || !etternavn.trim()}
+            >
+              <UserPlus className="mr-1.5 h-4 w-4" />
+              {t("kontakter.opprettOgLeggTil")}
+            </Button>
+          </div>
+        </form>
+      </div>
+    </Modal>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  FlytBoks — viser rolle med gruppemedlemmer                         */
 /* ------------------------------------------------------------------ */
 
-const FLYT_FARGER: Record<string, { border: string; bg: string; tittel: string; tekst: string; ikon: string; prikk: string }> = {
-  blue: { border: "border-blue-200", bg: "bg-blue-50/50", tittel: "text-blue-600", tekst: "text-blue-500", ikon: "text-blue-400", prikk: "text-blue-500" },
-  purple: { border: "border-purple-200", bg: "bg-purple-50/50", tittel: "text-purple-600", tekst: "text-purple-500", ikon: "text-purple-400", prikk: "text-purple-500" },
-  green: { border: "border-green-200", bg: "bg-green-50/50", tittel: "text-green-600", tekst: "text-green-500", ikon: "text-green-400", prikk: "text-green-500" },
+const FLYT_FARGER: Record<string, { border: string; bg: string; tittel: string; tekst: string; ikon: string; prikk: string; prikkBg: string; prikkRing: string }> = {
+  blue: { border: "border-blue-200", bg: "bg-blue-50/50", tittel: "text-blue-600", tekst: "text-blue-500", ikon: "text-blue-400", prikk: "text-blue-500", prikkBg: "bg-blue-500", prikkRing: "ring-blue-200" },
+  purple: { border: "border-purple-200", bg: "bg-purple-50/50", tittel: "text-purple-600", tekst: "text-purple-500", ikon: "text-purple-400", prikk: "text-purple-500", prikkBg: "bg-purple-500", prikkRing: "ring-purple-200" },
+  green: { border: "border-green-200", bg: "bg-green-50/50", tittel: "text-green-600", tekst: "text-green-500", ikon: "text-green-400", prikk: "text-green-500", prikkBg: "bg-green-500", prikkRing: "ring-green-200" },
 };
-
-interface GruppeMedlemInfo { navn: string }
 
 function FlytBoks({
   tittel,
@@ -98,6 +290,7 @@ function FlytBoks({
   avrunding,
   medlemmer,
   gruppemedlemmer,
+  prosjektId,
 }: {
   tittel: string;
   ikon: React.ReactNode;
@@ -105,15 +298,19 @@ function FlytBoks({
   avrunding: string;
   medlemmer: DokumentflytMedlem[];
   gruppemedlemmer: Map<string, GruppeMedlemInfo[]>;
+  prosjektId: string;
 }) {
+  const { t } = useTranslation();
+  const utils = trpc.useUtils();
   const [utvidetGruppe, setUtvidetGruppe] = useState<Set<string>>(new Set());
+  const [leggTilGruppeId, setLeggTilGruppeId] = useState<string | null>(null);
   const f = FLYT_FARGER[farge] ?? FLYT_FARGER.blue!;
 
-  const finnAnsvarlig = (m: DokumentflytMedlem): string | null => {
-    if (!m.group) return null;
-    const personer = gruppemedlemmer.get(m.group.id) ?? [];
-    return personer[0]?.navn ?? null;
-  };
+  const settHovedansvarligMutation = trpc.dokumentflyt.settHovedansvarlig.useMutation({
+    onSuccess: () => {
+      utils.dokumentflyt.hentForProsjekt.invalidate({ projectId: prosjektId });
+    },
+  });
 
   const toggleGruppe = (id: string) => {
     setUtvidetGruppe((prev) => {
@@ -123,6 +320,98 @@ function FlytBoks({
     });
   };
 
+  // Del medlemmer i grupper og enkeltpersoner
+  const gruppeMedlemmer = medlemmer.filter((m) => !!m.group);
+  const enkeltpersoner = medlemmer.filter((m) => !m.group && !!m.projectMember);
+  const harBegge = gruppeMedlemmer.length > 0 && enkeltpersoner.length > 0;
+
+  // Eksisterende medlemmer i valgt gruppe (for modal-filtrering)
+  const eksisterendeMedlemIder = useMemo(() => {
+    if (!leggTilGruppeId) return new Set<string>();
+    const personer = gruppemedlemmer.get(leggTilGruppeId) ?? [];
+    return new Set(personer.map((p) => p.projectMemberId));
+  }, [leggTilGruppeId, gruppemedlemmer]);
+
+  function renderHovedansvarligPrikk(m: DokumentflytMedlem) {
+    return (
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          settHovedansvarligMutation.mutate({
+            id: m.id,
+            projectId: prosjektId,
+            erHovedansvarlig: !m.erHovedansvarlig,
+          });
+        }}
+        className={`shrink-0 rounded-full transition-all ${
+          m.erHovedansvarlig
+            ? `h-2.5 w-2.5 ${f.prikkBg} ring-2 ${f.prikkRing}`
+            : "h-2.5 w-2.5 bg-gray-300 opacity-0 group-hover/medlem:opacity-100 hover:bg-gray-400"
+        }`}
+        title={m.erHovedansvarlig ? t("kontakter.fjernHovedansvarlig") : t("kontakter.settHovedansvarlig")}
+      />
+    );
+  }
+
+  function renderGruppeMedlem(m: DokumentflytMedlem) {
+    const gruppeNavn = m.group?.name;
+    const gruppePersoner = m.group ? gruppemedlemmer.get(m.group.id) ?? [] : [];
+    const erUtvidet = m.group ? utvidetGruppe.has(m.group.id) : false;
+
+    return (
+      <div key={m.id} className="mb-0.5">
+        <div className="group/medlem flex items-center gap-1.5 text-sm text-gray-700">
+          {renderHovedansvarligPrikk(m)}
+          <button
+            onClick={() => m.group && toggleGruppe(m.group.id)}
+            className="flex items-center gap-1.5 hover:underline"
+          >
+            <Users className={`h-3.5 w-3.5 ${f.ikon} shrink-0`} />
+            <span className="font-medium">{gruppeNavn}</span>
+            {gruppePersoner.length > 0 && (
+              <span className="text-xs text-gray-400">({gruppePersoner.length})</span>
+            )}
+          </button>
+          {m.erHovedansvarlig && gruppePersoner.length > 0 && (
+            <span className="text-xs text-gray-400">
+              {gruppePersoner[0]?.navn}
+            </span>
+          )}
+        </div>
+        {/* Utvidet gruppemedlemmer */}
+        {erUtvidet && gruppePersoner.length > 0 && (
+          <div className="ml-5 mt-0.5 mb-1 space-y-0.5">
+            {gruppePersoner.map((gm, gIdx) => (
+              <div key={gIdx} className="flex items-center gap-1.5 text-xs text-gray-500">
+                <User className="h-3 w-3 text-gray-300 shrink-0" />
+                {gm.navn}
+              </div>
+            ))}
+            <button
+              onClick={() => m.group && setLeggTilGruppeId(m.group.id)}
+              className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 mt-0.5"
+            >
+              <Plus className="h-3 w-3" />
+              {t("kontakter.leggTilMedlem")}
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  function renderEnkeltperson(m: DokumentflytMedlem) {
+    const personNavn = m.projectMember?.user?.name;
+
+    return (
+      <div key={m.id} className="group/medlem mb-0.5 flex items-center gap-1.5 text-xs text-gray-500 italic">
+        {renderHovedansvarligPrikk(m)}
+        <User className={`h-3 w-3 ${f.ikon} shrink-0 opacity-60`} />
+        <span>{personNavn ?? "—"}</span>
+      </div>
+    );
+  }
+
   return (
     <div className={`flex-1 ${avrunding} border ${f.border} ${f.bg} px-3 py-2`}>
       <div className={`mb-1 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide ${f.tittel}`}>
@@ -131,56 +420,25 @@ function FlytBoks({
       </div>
       {medlemmer.length === 0
         ? <span className="text-xs text-gray-400">—</span>
-        : medlemmer.map((m, idx) => {
-            const erGruppe = !!m.group;
-            const gruppeNavn = m.group?.name;
-            const personNavn = m.projectMember?.user?.name;
-            const ansvarlig = erGruppe ? finnAnsvarlig(m) : null;
-            const gruppePersoner = erGruppe && m.group ? gruppemedlemmer.get(m.group.id) ?? [] : [];
-            const erUtvidet = m.group ? utvidetGruppe.has(m.group.id) : false;
-
-            return (
-              <div key={idx} className="mb-0.5">
-                <div className="flex items-center gap-1.5 text-sm text-gray-700">
-                  {erGruppe ? (
-                    <button
-                      onClick={() => m.group && toggleGruppe(m.group.id)}
-                      className="flex items-center gap-1.5 hover:underline"
-                    >
-                      <Users className={`h-3.5 w-3.5 ${f.ikon} shrink-0`} />
-                      <span className="font-medium">{gruppeNavn}</span>
-                      {gruppePersoner.length > 0 && (
-                        <span className="text-xs text-gray-400">({gruppePersoner.length})</span>
-                      )}
-                    </button>
-                  ) : (
-                    <>
-                      <User className={`h-3.5 w-3.5 ${f.ikon} shrink-0`} />
-                      <span className="text-gray-600">{personNavn ?? "—"}</span>
-                    </>
-                  )}
-                  {ansvarlig && (
-                    <span className="text-xs text-gray-400">
-                      <span className={f.prikk}>●</span> {ansvarlig}
-                    </span>
-                  )}
-                </div>
-                {/* Utvidet gruppemedlemmer */}
-                {erUtvidet && gruppePersoner.length > 0 && (
-                  <div className="ml-5 mt-0.5 mb-1 space-y-0.5">
-                    {gruppePersoner.map((gm, gIdx) => (
-                      <div key={gIdx} className="flex items-center gap-1.5 text-xs text-gray-500">
-                        <User className="h-3 w-3 text-gray-300 shrink-0" />
-                        {gm.navn}
-                        {gIdx === 0 && <span className={`text-xs ${f.prikk}`}>●</span>}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })
+        : (
+          <>
+            {gruppeMedlemmer.map(renderGruppeMedlem)}
+            {harBegge && <div className="border-t border-dashed border-gray-200 my-1.5" />}
+            {enkeltpersoner.map(renderEnkeltperson)}
+          </>
+        )
       }
+
+      {/* Modal for å legge til gruppemedlem */}
+      {leggTilGruppeId && (
+        <LeggTilGruppeMedlemModal
+          open={!!leggTilGruppeId}
+          onClose={() => setLeggTilGruppeId(null)}
+          gruppeId={leggTilGruppeId}
+          prosjektId={prosjektId}
+          eksisterendeMedlemIder={eksisterendeMedlemIder}
+        />
+      )}
     </div>
   );
 }
@@ -229,7 +487,7 @@ export default function KontakterSide() {
     return map;
   }, [medlemmer]);
 
-  // Bygg oppslag: gruppeId → liste med medlemsnavn
+  // Bygg oppslag: gruppeId → liste med medlemsnavn og projectMemberId
   const gruppemedlemmer = useMemo(() => {
     const map = new Map<string, GruppeMedlemInfo[]>();
     if (!grupper) return map;
@@ -237,14 +495,17 @@ export default function KontakterSide() {
       id: string;
       members: Array<{
         isAdmin: boolean;
-        projectMember: { user: { name: string | null } } | null;
+        projectMember: { id: string; user: { name: string | null } } | null;
       }>;
     }>;
     for (const g of alle) {
       const medlemsListe: GruppeMedlemInfo[] = [];
       for (const m of g.members) {
         if (m.projectMember?.user?.name) {
-          medlemsListe.push({ navn: m.projectMember.user.name });
+          medlemsListe.push({
+            navn: m.projectMember.user.name,
+            projectMemberId: m.projectMember.id,
+          });
         }
       }
       map.set(g.id, medlemsListe);
@@ -262,38 +523,6 @@ export default function KontakterSide() {
       const liste = map.get(df.enterpriseId) ?? [];
       liste.push(df);
       map.set(df.enterpriseId, liste);
-    }
-    return map;
-  }, [dokumentflyter]);
-
-  // Finn ansvarlig (🔵) og godkjenner (🟡) per entreprise fra dokumentflyt
-  const entrepriseAnsvarlige = useMemo(() => {
-    const map = new Map<string, { sjekklisteAnsvarlig: string | null; godkjennerAnsvarlig: string | null }>();
-    if (!dokumentflyter) return map;
-    const alle = dokumentflyter as Dokumentflyt[];
-
-    for (const df of alle) {
-      if (!df.enterpriseId) continue;
-
-      // Finn svarer-hovedansvarlig
-      const svarere = df.medlemmer.filter((m) => m.rolle === "svarer");
-      const hovedansvarlig = svarere.find((m) => m.erHovedansvarlig) ?? svarere[0];
-      const ansvarligNavn = hovedansvarlig?.projectMember?.user?.name
-        ?? hovedansvarlig?.group?.name
-        ?? null;
-
-      // Finn oppretter-hovedansvarlig (godkjenner)
-      const opprettere = df.medlemmer.filter((m) => m.rolle === "oppretter");
-      const hovedoppretter = opprettere.find((m) => m.erHovedansvarlig) ?? opprettere[0];
-      const godkjennerNavn = hovedoppretter?.projectMember?.user?.name
-        ?? hovedoppretter?.group?.name
-        ?? null;
-
-      const eksisterende = map.get(df.enterpriseId);
-      map.set(df.enterpriseId, {
-        sjekklisteAnsvarlig: ansvarligNavn ?? eksisterende?.sjekklisteAnsvarlig ?? null,
-        godkjennerAnsvarlig: godkjennerNavn ?? eksisterende?.godkjennerAnsvarlig ?? null,
-      });
     }
     return map;
   }, [dokumentflyter]);
@@ -338,8 +567,6 @@ export default function KontakterSide() {
           const erUtvidet = utvidetEntreprise.has(ent.id);
           const kontakter = entrepriseKontakter.get(ent.id) ?? [];
           const dflyter = entrepriseDokumentflyter.get(ent.id) ?? [];
-          const ansvarlige = entrepriseAnsvarlige.get(ent.id);
-          const antallMaler = dflyter.reduce((sum, df) => sum + df.maler.length, 0);
 
           return (
             <div key={ent.id}>
@@ -394,12 +621,12 @@ export default function KontakterSide() {
                           {/* Oppretter-boks */}
                           <FlytBoks
                             tittel={t("kontakter.oppretter")}
-
                             ikon={<Send className="h-3 w-3" />}
                             farge="blue"
                             avrunding="rounded-l-lg"
                             medlemmer={opprettere}
                             gruppemedlemmer={gruppemedlemmer}
+                            prosjektId={prosjektId!}
                           />
                           <div className="flex items-center px-2">
                             <ArrowRight className="h-5 w-5 text-gray-300" />
@@ -407,12 +634,12 @@ export default function KontakterSide() {
                           {/* Svarer-boks */}
                           <FlytBoks
                             tittel={t("kontakter.svarerLabel")}
-
                             ikon={<ClipboardCheck className="h-3 w-3" />}
                             farge="purple"
                             avrunding=""
                             medlemmer={svarere}
                             gruppemedlemmer={gruppemedlemmer}
+                            prosjektId={prosjektId!}
                           />
                           <div className="flex items-center px-2">
                             <ArrowRight className="h-5 w-5 text-gray-300" />
@@ -420,12 +647,12 @@ export default function KontakterSide() {
                           {/* Godkjenner-boks */}
                           <FlytBoks
                             tittel={t("kontakter.godkjenner")}
-
                             ikon={<CheckCircle2 className="h-3 w-3" />}
                             farge="green"
                             avrunding="rounded-r-lg"
                             medlemmer={opprettere}
                             gruppemedlemmer={gruppemedlemmer}
+                            prosjektId={prosjektId!}
                           />
                         </div>
 
