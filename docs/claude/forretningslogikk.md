@@ -161,19 +161,25 @@ UE-ansvarlig → Videresend → HE (responded)
 HE → Godkjenn/Avvis
 ```
 
-## Kontaktliste (prototype)
+## Kontaktliste
 
-Innstillinger > Feltarbeid > Kontakter — visuell oversikt over entrepriser, kontakter og dokumentflyter:
+Innstillinger > Feltarbeid > Kontakter — komplett administrasjon av dokumentflyter og kontakter:
 
-- **Utvidbar tabell:** Lukket rad viser entreprise + dokumentflyter + antall kontakter. Åpen rad viser flytbokser + kontaktliste
-- **Visuell flyt:** Tre fargekodede bokser per dokumentflyt: Oppretter (blå) → Svarer (lilla) → Godkjenner (grønn)
-- **Mennesker under grupper:** Gruppemedlemmer vises innrykket under gruppens navn i flytboksene
-- **● Ansvarlig-prikk:** Hovedansvarlig i gruppen mottar dokumenter automatisk. Bytt person → flytt prikk
-- **Kontraktsform-uavhengig:** Samme system for NS 8405/8406 (BH eier), NS 8407 (HE/TE eier), intern UE-flyt
+- **Utvidbar tabell:** Entreprise → dokumentflyter med visuell flyt (Oppretter → Svarer → Godkjenner)
+- **LeggTilMedlemDropdown:** Legg til grupper eller enkeltpersoner i FlytBoks. Gjenbruker dokumentflyt-komponent
+- **Klikkbar ansvarlig-prikk (●):** Per DokumentflytMedlem, setter `erHovedansvarlig`
+- **Gruppeansvarlig (blå prikk):** Per gruppemedlem i utvidet gruppe, toggle `isAdmin`
+- **Visuelt skille:** Grupper øverst, stiplet linje, enkeltpersoner under med gruppetag (· Byggherre)
+- **Fjern:** X på gruppemedlemmer (fjerner fra gruppe), X på grupper (fjerner fra flyt), X på enkeltpersoner (fjerner fra flyt)
+- **Rediger dokumentflyt:** Klikk tittel → inline redigering + slett-knapp i redigeringsmodus
+- **Ny dokumentflyt:** Stiplet knapp per entreprise
+- **Kontraktsform-uavhengig:** Samme system for NS 8405/8406/8407
 
-### Planlagt forbedring: Overordnet-entreprise
+### Brukersiden — kontakttabell
 
-Felt `overordnetEntrepriseId` på Enterprise — definerer hvem som er flyteier. Dokumentflyt utledes fra entreprise-hierarkiet i stedet for separate dokumentflyt-oppføringer.
+- **Gruppert etter brukergruppe** med klikkbare overskrifter (expand/collapse)
+- **Kolonnefiltre:** Søk + dropdown for rolle, entreprise, gruppe
+- **Kompakt badge-visning:** Første verdi + "+N" for entrepriser og grupper
 
 ## TODO
 
