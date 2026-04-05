@@ -101,11 +101,13 @@ Minnebasert rate limiter i `apps/api/src/utils/rateLimiter.ts`. Automatisk oppry
 
 ## Prøveperiode og testsider
 
-- 30 dager aktiv prøveperiode fra `createdAt` for prosjekter uten `organizationProjects`
-- Etter 30 dager: prosjektet deaktiveres (`status: "deactivated"`)
-- Etter 90 dager (30 aktiv + 60 grace): prosjektet slettes permanent
-- `admin.slettUtlopteProsjekter` — deaktiverer >30 dager, sletter >90 dager uten firma
+- Prøveperiode styres av `trialExpiresAt`-feltet (default: `createdAt + 30 dager`). Prosjekter med `organizationProjects` har ingen prøveperiode.
+- Etter utløp: prosjektet deaktiveres (`status: "deactivated"`)
+- 60 dager etter utløp: prosjektet slettes permanent
+- `admin.forlengProsjekt` — forlenger prøveperiode med N dager (reaktiverer deaktiverte)
+- `admin.slettUtlopteProsjekter` — deaktiverer utløpte, sletter 60+ dager etter utløp uten firma
 - Prøveperiode-banner i prosjektoversikt (gul/rød varsling ≤14 dager, rød ved deaktivert)
+- Admin prosjektliste har forleng-knapp (kalenderikon, +30 dager per klikk)
 
 **Testside-opprettelse (`prosjekt.opprettTestprosjekt`):**
 - Én-klikks opprettelse fra `/dashbord/kom-i-gang`
