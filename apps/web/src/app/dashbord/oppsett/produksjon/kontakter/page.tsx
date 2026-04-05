@@ -571,6 +571,8 @@ export default function KontakterSide() {
   const [utvidetEntreprise, setUtvidetEntreprise] = useState<Set<string>>(new Set());
   const [nyEntrepriseNavn, setNyEntrepriseNavn] = useState("");
   const [visNyEntreprise, setVisNyEntreprise] = useState(false);
+  const [nyGruppeNavn, setNyGruppeNavn] = useState("");
+  const [visNyGruppe, setVisNyGruppe] = useState(false);
 
   // Hent data
   const { data: entrepriser, isLoading: e1 } = trpc.entreprise.hentForProsjekt.useQuery(
@@ -605,6 +607,14 @@ export default function KontakterSide() {
     onSuccess: () => {
       utils.entreprise.hentForProsjekt.invalidate();
       utils.dokumentflyt.hentForProsjekt.invalidate();
+    },
+  });
+
+  const opprettGruppeMutation = trpc.gruppe.opprett.useMutation({
+    onSuccess: () => {
+      utils.gruppe.hentForProsjekt.invalidate();
+      setNyGruppeNavn("");
+      setVisNyGruppe(false);
     },
   });
 
@@ -866,6 +876,59 @@ export default function KontakterSide() {
         >
           <Plus className="h-3.5 w-3.5" />
           {t("entrepriser.leggTilEntreprise")}
+        </button>
+      )}
+
+      {/* Legg til gruppe */}
+      {visNyGruppe ? (
+        <div className="mt-2 flex items-center gap-2">
+          <input
+            type="text"
+            value={nyGruppeNavn}
+            onChange={(e) => setNyGruppeNavn(e.target.value)}
+            placeholder={t("brukere.gruppenavn")}
+            className="rounded border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-400 focus:outline-none"
+            autoFocus
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && nyGruppeNavn.trim()) {
+                opprettGruppeMutation.mutate({
+                  name: nyGruppeNavn.trim(),
+                  projectId: prosjektId!,
+                  category: "brukergrupper",
+                });
+              }
+              if (e.key === "Escape") { setVisNyGruppe(false); setNyGruppeNavn(""); }
+            }}
+          />
+          <button
+            onClick={() => {
+              if (nyGruppeNavn.trim()) {
+                opprettGruppeMutation.mutate({
+                  name: nyGruppeNavn.trim(),
+                  projectId: prosjektId!,
+                  category: "brukergrupper",
+                });
+              }
+            }}
+            disabled={!nyGruppeNavn.trim()}
+            className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700 disabled:opacity-50"
+          >
+            {t("handling.lagre")}
+          </button>
+          <button
+            onClick={() => { setVisNyGruppe(false); setNyGruppeNavn(""); }}
+            className="rounded px-3 py-1.5 text-sm text-gray-500 hover:bg-gray-100"
+          >
+            {t("handling.avbryt")}
+          </button>
+        </div>
+      ) : (
+        <button
+          onClick={() => setVisNyGruppe(true)}
+          className="mt-2 flex items-center gap-1.5 rounded-md border border-dashed border-gray-300 px-3 py-2 text-xs text-gray-400 hover:border-gray-400 hover:text-gray-600"
+        >
+          <Plus className="h-3.5 w-3.5" />
+          {t("brukere.leggTilGruppe")}
         </button>
       )}
     </div>
