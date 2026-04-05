@@ -333,6 +333,8 @@
   "brukere.gjorTilAdmin": "Gjør til gruppeadmin",
   "brukere.fjernAdmin": "Fjern gruppeadmin",
   "brukere.gruppeadmin": "Gruppeadmin",
+  "brukere.settGruppeadmin": "Sett som gruppeansvarlig",
+  "brukere.fjernGruppeadmin": "Fjern som gruppeansvarlig",
   "brukere.fjernMedlem": "Fjern medlem",
   "brukere.ingenMedlemmer": "Ingen medlemmer i denne gruppen",
   "brukere.ingenGrupperMatcher": "Ingen grupper matcher søket",

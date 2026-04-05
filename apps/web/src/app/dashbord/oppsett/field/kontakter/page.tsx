@@ -187,7 +187,7 @@ function FlytBoks({
   alleMedlemmer: ProsjektMedlem[];
   alleGrupper: Array<{ id: string; name: string }>;
   gruppeOppslag: Map<string, Set<string>>; // gruppeId → Set<projectMemberId>
-  gruppeMedlemNavn: Map<string, Array<{ navn: string; projectMemberId: string; gruppeMedlemId: string }>>; // gruppeId → info[]
+  gruppeMedlemNavn: Map<string, Array<{ navn: string; projectMemberId: string; gruppeMedlemId: string; erAdmin: boolean }>>; // gruppeId → info[]
 }) {
   const { t } = useTranslation();
   const utils = trpc.useUtils();
@@ -208,6 +208,12 @@ function FlytBoks({
   });
 
   const fjernGruppeMedlemMutation = trpc.gruppe.fjernMedlem.useMutation({
+    onSuccess: () => {
+      utils.gruppe.hentForProsjekt.invalidate({ projectId: prosjektId });
+    },
+  });
+
+  const settGruppeAdminMutation = trpc.gruppe.settGruppeAdmin.useMutation({
     onSuccess: () => {
       utils.gruppe.hentForProsjekt.invalidate({ projectId: prosjektId });
     },
@@ -297,6 +303,18 @@ function FlytBoks({
               <div className="ml-5 mt-0.5 mb-1 space-y-0.5">
                 {medlemNavn.map((gm) => (
                   <div key={gm.gruppeMedlemId} className="flex items-center gap-1.5 text-xs text-gray-500">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        settGruppeAdminMutation.mutate({ groupId: gruppeId!, projectMemberId: gm.projectMemberId, projectId: prosjektId, isAdmin: !gm.erAdmin });
+                      }}
+                      className={`shrink-0 rounded-full transition-all ${
+                        gm.erAdmin
+                          ? "h-2 w-2 bg-blue-500 ring-2 ring-blue-200"
+                          : "h-2 w-2 bg-gray-300 hover:bg-blue-400"
+                      }`}
+                      title={gm.erAdmin ? t("brukere.fjernGruppeadmin") : t("brukere.settGruppeadmin")}
+                    />
                     <User className="h-3 w-3 text-gray-300 shrink-0" />
                     {gm.navn}
                     <button
@@ -444,22 +462,23 @@ export default function KontakterSide() {
     return map;
   }, [grupper]);
 
-  // Bygg oppslag: gruppeId → {navn, projectMemberId, gruppeMedlemId}[]
+  // Bygg oppslag: gruppeId → {navn, projectMemberId, gruppeMedlemId, erAdmin}[]
   const gruppeMedlemNavn = useMemo(() => {
-    const map = new Map<string, Array<{ navn: string; projectMemberId: string; gruppeMedlemId: string }>>();
+    const map = new Map<string, Array<{ navn: string; projectMemberId: string; gruppeMedlemId: string; erAdmin: boolean }>>();
     if (!grupper) return map;
     const alle = grupper as Array<{
       id: string;
       members: Array<{
         id: string;
+        isAdmin: boolean;
         projectMember: { id: string; user: { name: string | null } } | null;
       }>;
     }>;
     for (const g of alle) {
-      const info: Array<{ navn: string; projectMemberId: string; gruppeMedlemId: string }> = [];
+      const info: Array<{ navn: string; projectMemberId: string; gruppeMedlemId: string; erAdmin: boolean }> = [];
       for (const m of g.members) {
         if (m.projectMember?.user?.name) {
-          info.push({ navn: m.projectMember.user.name, projectMemberId: m.projectMember.id, gruppeMedlemId: m.id });
+          info.push({ navn: m.projectMember.user.name, projectMemberId: m.projectMember.id, gruppeMedlemId: m.id, erAdmin: m.isAdmin });
         }
       }
       map.set(g.id, info);

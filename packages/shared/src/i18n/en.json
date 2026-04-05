@@ -333,6 +333,8 @@
   "brukere.gjorTilAdmin": "Make group admin",
   "brukere.fjernAdmin": "Remove group admin",
   "brukere.gruppeadmin": "Group admin",
+  "brukere.settGruppeadmin": "Set as group responsible",
+  "brukere.fjernGruppeadmin": "Remove as group responsible",
   "brukere.fjernMedlem": "Remove member",
   "brukere.ingenMedlemmer": "No members in this group",
   "brukere.ingenGrupperMatcher": "No groups match the search",
