@@ -1,18 +1,19 @@
 # Terminologi
 
 - **Entreprise:** Kontrakt/arbeidspakke i et prosjekt. Dalux-format: `NUMMER Navn, Firma`. Felter: `enterpriseNumber`, `name`, `industry`, `companyName`, `color`
-- **Oppretter (creator):** Entreprisen som initierer en sjekkliste/oppgave
-- **Svarer (responder):** Entreprisen som mottar og besvarer
+- **Bestiller (creator):** Entreprisen som initierer en sjekkliste/oppgave (tidligere «Oppretter»)
+- **Utfører (responder):** Entreprisen som mottar og besvarer (tidligere «Svarer»)
 - **UE:** Underentreprenør
 - **Sjekkliste:** Strukturert dokument med rapportobjekter som fylles ut
 - **Oppgave:** Arbeidsoppgave med ansvarlig og frist, påkrevd mal
 - **Tegning:** Prosjekttegning (PDF/DWG) med versjonering
 - **Rapportobjekt:** Byggeblokk i en mal (23 typer)
 - **Mal (template):** Gjenbrukbar oppskrift med drag-and-drop, prefiks og versjon
-- **Arbeidsforløp (workflow):** Oppretter-entreprise + opptil 3 svarer + maler
-- **Mapper:** Filstruktur med rekursiv mappestruktur og tilgangskontroll
+- **Arbeidsforløp (workflow):** (Deprecated — erstattet av Dokumentflyt) Gammel modell med bestiller-entreprise + opptil 3 utfører + maler
+- **Mapper:** Filstruktur med rekursiv mappestruktur og tilgangskontroll (tidligere «Box»)
 - **Mappeadgangskontroll:** `inherit` (arv) eller `custom` (tilgangsliste). Admin ser alt
-- **Lokasjon:** Bygning/anlegg i prosjektet (Building-modellen)
+- **Byggeplass:** Lokasjon/anlegg i prosjektet (tidligere «Bygning»/«Building»-modellen)
+- **Produksjon:** Innstillingsseksjon for feltarbeid-oppsett (tidligere «Feltarbeid»/«Field»)
 - **Utomhus-tegning:** Med `geoReference` — GPS auto-plassering i mobilappen
 - **Etasje-tegning:** Uten `geoReference` — grupperes etter `floor`-felt
 - **Georeferanse:** 2 referansepunkter (pixel ↔ GPS) for similaritetstransformasjon
