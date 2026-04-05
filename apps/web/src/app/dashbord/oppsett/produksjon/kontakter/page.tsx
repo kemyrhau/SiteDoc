@@ -764,7 +764,7 @@ export default function KontakterSide() {
                       onClick={(e) => {
                         e.stopPropagation();
                         if (confirm(t("entrepriser.bekreftSlettEntreprise"))) {
-                          slettEntrepriseMutation.mutate({ id: ent.id, projectId: prosjektId! });
+                          slettEntrepriseMutation.mutate({ id: ent.id });
                         }
                       }}
                       className="rounded p-1 text-gray-300 hover:bg-red-100 hover:text-red-600 opacity-0 group-hover/rad:opacity-100 transition-opacity"
