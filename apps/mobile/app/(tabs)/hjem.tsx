@@ -47,6 +47,7 @@ interface InnboksElement {
   tittel: string;
   nummer: string | null;
   undertekst: string;
+  bygning: string | null;
   tidspunkt: Date | string;
   status: string;
 }
@@ -169,7 +170,7 @@ export default function HjemSkjerm() {
 
   // Cast tRPC-data for å unngå TS2589 (excessively deep type instantiation)
   const sjekklister = sjekklisteQuery.data as
-    | Array<{ id: string; title: string; status: string; number?: number | null; updatedAt: Date | string; template?: { name: string; prefix?: string | null } | null }>
+    | Array<{ id: string; title: string; status: string; number?: number | null; updatedAt: Date | string; template?: { name: string; prefix?: string | null } | null; byggeplass?: { name: string } | null }>
     | undefined;
 
   const oppgaver = oppgaveQuery.data as
@@ -200,6 +201,7 @@ export default function HjemSkjerm() {
         tittel: s.title,
         nummer: formaterNummer(s.template?.prefix, s.number),
         undertekst: s.template?.name ?? "",
+        bygning: s.byggeplass?.name ?? null,
         tidspunkt: s.updatedAt,
         status: s.status,
       })),
@@ -209,6 +211,7 @@ export default function HjemSkjerm() {
         tittel: o.title,
         nummer: formaterNummer(o.template?.prefix, o.number),
         undertekst: PRIORITETS_NOEKLER[o.priority] ? t(PRIORITETS_NOEKLER[o.priority]) : o.priority,
+        bygning: null,
         tidspunkt: o.updatedAt,
         status: o.status,
       })),
@@ -439,7 +442,8 @@ export default function HjemSkjerm() {
                     </Text>
                     <Text className="text-xs text-gray-500" numberOfLines={1}>
                       {element.undertekst}
-                      {element.undertekst ? " · " : ""}
+                      {element.bygning ? ` · ${element.bygning}` : ""}
+                      {(element.undertekst || element.bygning) ? " · " : ""}
                       {formaterTidspunkt(element.tidspunkt, t)}
                     </Text>
                   </View>

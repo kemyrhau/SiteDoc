@@ -106,7 +106,7 @@ const POSISJON_KOLONNER: KolonneParam[] = [
   { id: "tegning", navn: "Tegning", navnKey: "tabell.tegning", gruppe: "posisjon" },
 ];
 
-const STANDARD_AKTIVE = new Set(["nr", "tittel", "emne", "status", "ansvarlig", "frist"]);
+const STANDARD_AKTIVE = new Set(["nr", "tittel", "emne", "status", "ansvarlig", "bygning", "frist"]);
 const STORAGE_KEY = "sitedoc-oppgave-kolonner-v3";
 
 function hentLagredeKolonner(): Set<string> {
@@ -284,7 +284,7 @@ export default function OppgaverSide() {
   const { aktivByggeplass } = useByggeplass();
 
   const oppgaveQuery = trpc.oppgave.hentForProsjekt.useQuery(
-    { projectId: params.prosjektId, ...(aktivByggeplass?.id ? { byggeplassId: aktivByggeplass.id } : {}) },
+    { projectId: params.prosjektId },
   );
   const oppgaver = oppgaveQuery.data as OppgaveRad[] | undefined;
   const isLoading = oppgaveQuery.isLoading;

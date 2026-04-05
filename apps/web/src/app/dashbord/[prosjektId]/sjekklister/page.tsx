@@ -88,7 +88,7 @@ const POSISJON_KOLONNER: KolonneParam[] = [
   { id: "tegning", navnKey: "tabell.tegning", gruppe: "posisjon" },
 ];
 
-const STANDARD_AKTIVE = new Set(["nr", "tittel", "emne", "mal", "status", "ansvarlig", "frist"]);
+const STANDARD_AKTIVE = new Set(["nr", "tittel", "emne", "mal", "status", "ansvarlig", "bygning", "frist"]);
 const STORAGE_KEY = "sitedoc-sjekkliste-kolonner-v3";
 
 function hentLagredeKolonner(): Set<string> {
@@ -226,7 +226,7 @@ export default function SjekklisteSide() {
   const [filterVerdier, setFilterVerdier] = useState<Record<string, string>>({});
 
   const sjekklisteQuery = trpc.sjekkliste.hentForProsjekt.useQuery(
-    { projectId: params.prosjektId, ...(aktivByggeplass?.id ? { byggeplassId: aktivByggeplass.id } : {}) },
+    { projectId: params.prosjektId },
   );
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sjekklister = sjekklisteQuery.data as any as SjekklisteRad[] | undefined;

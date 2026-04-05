@@ -36,6 +36,7 @@ interface SjekklisteRad {
   bestillerEnterprise?: { name: string } | null;
   utforerEnterprise?: { name: string } | null;
   creator?: { name: string | null } | null;
+  byggeplass?: { name: string } | null;
 }
 
 function formaterNummer(prefix: string | null | undefined, nummer: number | null | undefined): string | null {
@@ -67,6 +68,7 @@ export default function SjekklisteListe() {
       const nummer = formaterNummer(item.template?.prefix, item.number);
       const undertekst = [
         item.template?.name,
+        item.byggeplass?.name,
         item.utforerEnterprise?.name,
       ]
         .filter(Boolean)
