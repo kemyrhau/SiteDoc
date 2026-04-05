@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { Button, Input, Modal, SearchInput } from "@sitedoc/ui";
@@ -30,6 +30,8 @@ import {
   ListTodo,
   Map,
   Box,
+  ChevronRight,
+  ChevronDown,
 } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
@@ -1301,6 +1303,7 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
   const { t } = useTranslation();
   const utils = trpc.useUtils();
   const [leggTilEntrepriseForMedlem, setLeggTilEntrepriseForMedlem] = useState<string | null>(null);
+  const [kollapserteGrupper, setKollapserteGrupper] = useState<Set<string>>(new Set());
 
   const { data: medlemmer } = trpc.medlem.hentForProsjekt.useQuery(
     { projectId: prosjektId },
@@ -1344,6 +1347,41 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
 
   const kontakter = (medlemmer ?? []) as KontaktMedlem[];
 
+  // Grupper kontakter etter brukergruppe med overskrifter
+  const gruppertKontakter = useMemo(() => {
+    const rader: Array<{ type: "header"; gruppeNavn: string; antall: number } | { type: "medlem"; medlem: KontaktMedlem; gruppeNavn: string }> = [];
+    const brukteMedlemIder = new Set<string>();
+
+    const brukerGrupperListe = dbGrupper
+      ? (dbGrupper as Array<{ id: string; name: string; category: string; members: Array<{ projectMember: { user: { id: string } } | null }> }>)
+          .filter((g) => g.category === "brukergrupper")
+      : [];
+
+    for (const g of brukerGrupperListe) {
+      const gruppeKontakter = kontakter.filter((m) =>
+        g.members.some((gm) => gm.projectMember?.user?.id === m.user.id),
+      );
+      if (gruppeKontakter.length === 0) continue;
+
+      rader.push({ type: "header", gruppeNavn: g.name, antall: gruppeKontakter.length });
+      for (const m of gruppeKontakter) {
+        rader.push({ type: "medlem", medlem: m, gruppeNavn: g.name });
+        brukteMedlemIder.add(m.id);
+      }
+    }
+
+    const utenGruppeNavn = t("brukere.utenGruppe");
+    const utenGruppe = kontakter.filter((m) => !brukteMedlemIder.has(m.id));
+    if (utenGruppe.length > 0) {
+      rader.push({ type: "header", gruppeNavn: utenGruppeNavn, antall: utenGruppe.length });
+      for (const m of utenGruppe) {
+        rader.push({ type: "medlem", medlem: m, gruppeNavn: utenGruppeNavn });
+      }
+    }
+
+    return rader;
+  }, [kontakter, dbGrupper, t]);
+
   return (
     <div className="mb-6">
       <h2 className="mb-4 text-xl font-bold text-gray-900">{t("brukere.kontakter")}</h2>
@@ -1361,7 +1399,40 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {kontakter.map((m) => {
+            {gruppertKontakter.map((rad, idx) => {
+              if (rad.type === "header") {
+                const erKollapset = kollapserteGrupper.has(rad.gruppeNavn);
+                return (
+                  <tr
+                    key={`header-${idx}`}
+                    className="bg-gray-50/80 cursor-pointer hover:bg-gray-100/80"
+                    onClick={() => {
+                      setKollapserteGrupper((prev) => {
+                        const ny = new Set(prev);
+                        ny.has(rad.gruppeNavn) ? ny.delete(rad.gruppeNavn) : ny.add(rad.gruppeNavn);
+                        return ny;
+                      });
+                    }}
+                  >
+                    <td colSpan={7} className="px-4 py-2">
+                      <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                        {erKollapset
+                          ? <ChevronRight className="h-3.5 w-3.5" />
+                          : <ChevronDown className="h-3.5 w-3.5" />
+                        }
+                        <Users className="h-3.5 w-3.5" />
+                        {rad.gruppeNavn}
+                        <span className="font-normal text-gray-400">({rad.antall})</span>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              }
+
+              // Skjul medlemmer under kollapset gruppe
+              if (kollapserteGrupper.has(rad.gruppeNavn)) return null;
+
+              const m = rad.medlem;
               const brukerGrupper = gruppeMap[m.user.id] ?? [];
               const entrepriseIder = new Set(m.enterprises.map((e) => e.enterprise.id));
               const tilgjengeligeEntrepriser = (alleEntrepriser ?? []).filter(
