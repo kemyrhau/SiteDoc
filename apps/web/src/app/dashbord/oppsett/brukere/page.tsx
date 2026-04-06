@@ -1893,11 +1893,14 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
                             defaultValue=""
                           >
                             <option value="" disabled>{t("brukere.velgMedlem")}</option>
-                            {medlemmerIkkeIGruppe.map((k) => (
-                              <option key={k.user.id} value={k.user.id}>
-                                {k.user.name ?? k.user.email}
-                              </option>
-                            ))}
+                            {medlemmerIkkeIGruppe.map((k) => {
+                              const entrepriseNavn = k.enterprises.map((e) => e.enterprise.name).join(", ");
+                              return (
+                                <option key={k.user.id} value={k.user.id}>
+                                  {k.user.name ?? k.user.email}{entrepriseNavn ? ` · ${entrepriseNavn}` : ""}
+                                </option>
+                              );
+                            })}
                           </select>
                           <button
                             onClick={() => setLeggTilMedlemIGruppe(null)}
