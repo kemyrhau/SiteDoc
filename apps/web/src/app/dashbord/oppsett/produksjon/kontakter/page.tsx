@@ -488,18 +488,6 @@ function FlytBoks({
     },
   });
 
-  const fjernGruppeMedlemMutation = trpc.gruppe.fjernMedlem.useMutation({
-    onSuccess: () => {
-      utils.gruppe.hentForProsjekt.invalidate({ projectId: prosjektId });
-    },
-  });
-
-  const settGruppeAdminMutation = trpc.gruppe.settGruppeAdmin.useMutation({
-    onSuccess: () => {
-      utils.gruppe.hentForProsjekt.invalidate({ projectId: prosjektId });
-    },
-  });
-
   // Del medlemmer i grupper og enkeltpersoner
   const gruppeMedlemmer = medlemmer.filter((m) => !!m.group);
   const enkeltpersoner = medlemmer.filter((m) => !m.group && !!m.projectMember);
@@ -612,31 +600,9 @@ function FlytBoks({
             {erUtvidet && medlemNavn.length > 0 && (
               <div className="ml-5 mt-0.5 mb-1 space-y-0.5">
                 {medlemNavn.map((gm) => (
-                  <div key={gm.gruppeMedlemId} className="flex items-center gap-1.5 text-xs text-gray-500">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        settGruppeAdminMutation.mutate({ groupId: gruppeId!, projectMemberId: gm.projectMemberId, projectId: prosjektId, isAdmin: !gm.erAdmin });
-                      }}
-                      className={`shrink-0 rounded-full transition-all ${
-                        gm.erAdmin
-                          ? "h-2 w-2 bg-blue-500 ring-2 ring-blue-200"
-                          : "h-2 w-2 bg-gray-300 hover:bg-blue-400"
-                      }`}
-                      title={gm.erAdmin ? t("brukere.fjernGruppeadmin") : t("brukere.settGruppeadmin")}
-                    />
+                  <div key={gm.gruppeMedlemId} className="flex items-center gap-1.5 text-xs text-gray-400">
                     <User className="h-3 w-3 text-gray-300 shrink-0" />
                     {gm.navn}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        fjernGruppeMedlemMutation.mutate({ id: gm.gruppeMedlemId, projectId: prosjektId });
-                      }}
-                      className="ml-0.5 rounded p-0.5 text-gray-300 hover:bg-red-100 hover:text-red-600"
-                      title={t("handling.fjern")}
-                    >
-                      <X className="h-2.5 w-2.5" />
-                    </button>
                   </div>
                 ))}
               </div>
