@@ -59,9 +59,11 @@ interface DokumentflytMedlem {
   id: string;
   rolle: string;
   erHovedansvarlig: boolean;
+  hovedansvarligPersonId?: string | null;
   steg: number;
   projectMember?: { id: string; user: { id: string; name: string | null } } | null;
   group?: { id: string; name: string } | null;
+  hovedansvarligPerson?: { id: string; user: { id: string; name: string | null } } | null;
 }
 
 type DokumentflytRolle = "registrator" | "bestiller" | "utforer" | "godkjenner";
@@ -583,6 +585,12 @@ function FlytBoks({
     },
   });
 
+  const settGruppeHovedansvarligMutation = trpc.dokumentflyt.settGruppeHovedansvarlig.useMutation({
+    onSuccess: () => {
+      utils.dokumentflyt.hentForProsjekt.invalidate({ projectId: prosjektId });
+    },
+  });
+
   // Del medlemmer i grupper og enkeltpersoner
   const gruppeMedlemmer = medlemmer.filter((m) => !!m.group);
   const enkeltpersoner = medlemmer.filter((m) => !m.group && !!m.projectMember);
@@ -706,12 +714,31 @@ function FlytBoks({
             </div>
             {erUtvidet && medlemNavn.length > 0 && (
               <div className="ml-5 mt-0.5 mb-1 space-y-0.5">
-                {medlemNavn.map((gm) => (
-                  <div key={gm.gruppeMedlemId} className="flex items-center gap-1.5 text-xs text-gray-600">
-                    <User className={`h-3 w-3 ${f.ikon} shrink-0`} />
-                    {gm.navn}
-                  </div>
-                ))}
+                {medlemNavn.map((gm) => {
+                  const erHA = m.hovedansvarligPersonId === gm.projectMemberId;
+                  return (
+                    <div key={gm.gruppeMedlemId} className="flex items-center gap-1.5 text-xs text-gray-600">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          settGruppeHovedansvarligMutation.mutate({
+                            id: m.id,
+                            projectId: prosjektId,
+                            hovedansvarligPersonId: erHA ? null : gm.projectMemberId,
+                          });
+                        }}
+                        className={`shrink-0 rounded-full transition-all ${
+                          erHA
+                            ? `h-2 w-2 ${f.prikkBg} ring-2 ${f.prikkRing}`
+                            : "h-2 w-2 border border-gray-300 hover:bg-gray-400 hover:border-gray-400"
+                        }`}
+                        title={erHA ? t("kontakter.fjernHovedansvarlig") : t("kontakter.settHovedansvarlig")}
+                      />
+                      <User className={`h-3 w-3 ${f.ikon} shrink-0`} />
+                      {gm.navn}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>

@@ -162,7 +162,8 @@ model ProjectMember {
   project                Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
   enterprises            MemberEnterprise[]
   groupMemberships       ProjectGroupMember[]
-  dokumentflytMedlemskap DokumentflytMedlem[]
+  dokumentflytMedlemskap           DokumentflytMedlem[]
+  hovedansvarligIDokumentflyter    DokumentflytMedlem[] @relation("HovedansvarligPerson")
 
   @@unique([userId, projectId])
   @@map("project_members")
@@ -627,20 +628,22 @@ model Dokumentflyt {
 }
 
 model DokumentflytMedlem {
-  id              String   @id @default(uuid())
-  dokumentflytId  String   @map("dokumentflyt_id")
-  enterpriseId    String?  @map("enterprise_id")
-  projectMemberId String?  @map("project_member_id")
-  groupId         String?  @map("group_id")
-  rolle              String // "registrator" | "bestiller" | "utforer" | "godkjenner"
-  steg               Int      @default(1)
-  erHovedansvarlig   Boolean  @default(false) @map("er_hovedansvarlig")
-  createdAt          DateTime @default(now()) @map("created_at")
+  id                      String   @id @default(uuid())
+  dokumentflytId          String   @map("dokumentflyt_id")
+  enterpriseId            String?  @map("enterprise_id")
+  projectMemberId         String?  @map("project_member_id")
+  groupId                 String?  @map("group_id")
+  hovedansvarligPersonId  String?  @map("hovedansvarlig_person_id") // Spesifikk person i gruppen som er hovedansvarlig
+  rolle                   String // "registrator" | "bestiller" | "utforer" | "godkjenner"
+  steg                    Int      @default(1)
+  erHovedansvarlig        Boolean  @default(false) @map("er_hovedansvarlig")
+  createdAt               DateTime @default(now()) @map("created_at")
 
-  dokumentflyt  Dokumentflyt   @relation(fields: [dokumentflytId], references: [id], onDelete: Cascade)
-  enterprise    Enterprise?    @relation(fields: [enterpriseId], references: [id], onDelete: Cascade)
-  projectMember ProjectMember? @relation(fields: [projectMemberId], references: [id], onDelete: Cascade)
-  group         ProjectGroup?  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  dokumentflyt          Dokumentflyt   @relation(fields: [dokumentflytId], references: [id], onDelete: Cascade)
+  enterprise            Enterprise?    @relation(fields: [enterpriseId], references: [id], onDelete: Cascade)
+  projectMember         ProjectMember? @relation(fields: [projectMemberId], references: [id], onDelete: Cascade)
+  group                 ProjectGroup?  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  hovedansvarligPerson  ProjectMember? @relation("HovedansvarligPerson", fields: [hovedansvarligPersonId], references: [id], onDelete: SetNull)
 
   @@unique([dokumentflytId, enterpriseId, rolle, steg])
   @@unique([dokumentflytId, projectMemberId, rolle, steg])

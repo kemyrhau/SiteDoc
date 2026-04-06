@@ -19,6 +19,11 @@ const dokumentflytInclude = {
         },
       },
       group: { select: { id: true, name: true } },
+      hovedansvarligPerson: {
+        include: {
+          user: { select: { id: true, name: true } },
+        },
+      },
     },
     orderBy: { steg: "asc" as const },
   },
@@ -197,6 +202,51 @@ export const dokumentflytRouter = router({
       return ctx.prisma.dokumentflytMedlem.update({
         where: { id: input.id },
         data: { erHovedansvarlig: input.erHovedansvarlig },
+      });
+    }),
+
+  // Sett hovedansvarlig person innenfor en gruppe (uten å opprette nye rader)
+  settGruppeHovedansvarlig: protectedProcedure
+    .input(
+      z.object({
+        id: z.string().uuid(), // DokumentflytMedlem-id (gruppe-raden)
+        projectId: z.string().uuid(),
+        hovedansvarligPersonId: z.string().uuid().nullable(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await verifiserProsjektmedlem(ctx.userId, input.projectId);
+
+      const medlem = await ctx.prisma.dokumentflytMedlem.findUniqueOrThrow({
+        where: { id: input.id },
+      });
+
+      // Fjern hovedansvarlig fra alle andre i samme dokumentflyt + rolle
+      await ctx.prisma.dokumentflytMedlem.updateMany({
+        where: {
+          dokumentflytId: medlem.dokumentflytId,
+          rolle: medlem.rolle,
+          steg: medlem.steg,
+        },
+        data: {
+          erHovedansvarlig: false,
+          hovedansvarligPersonId: null,
+        },
+      });
+
+      // Sett ny hovedansvarlig på denne gruppe-raden
+      if (input.hovedansvarligPersonId) {
+        return ctx.prisma.dokumentflytMedlem.update({
+          where: { id: input.id },
+          data: {
+            erHovedansvarlig: true,
+            hovedansvarligPersonId: input.hovedansvarligPersonId,
+          },
+        });
+      }
+
+      return ctx.prisma.dokumentflytMedlem.findUniqueOrThrow({
+        where: { id: input.id },
       });
     }),
 });
