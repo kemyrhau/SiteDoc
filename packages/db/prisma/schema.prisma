@@ -152,11 +152,12 @@ model Project {
 }
 
 model ProjectMember {
-  id        String   @id @default(uuid())
-  userId    String   @map("user_id")
-  projectId String   @map("project_id")
-  role      String   @default("member")
-  createdAt DateTime @default(now()) @map("created_at")
+  id                  String   @id @default(uuid())
+  userId              String   @map("user_id")
+  projectId           String   @map("project_id")
+  role                String   @default("member")
+  erFirmaansvarlig    Boolean  @default(false) @map("er_firmaansvarlig")
+  createdAt           DateTime @default(now()) @map("created_at")
 
   user                   User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   project                Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)

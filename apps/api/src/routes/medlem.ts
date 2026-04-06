@@ -367,4 +367,21 @@ export const medlemRouter = router({
         select: { id: true, name: true, email: true, image: true },
       });
     }),
+
+  // Toggle firmaansvarlig-status for et prosjektmedlem
+  settFirmaansvarlig: protectedProcedure
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        projectId: z.string().uuid(),
+        erFirmaansvarlig: z.boolean(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await verifiserAdmin(ctx.userId, input.projectId);
+      return ctx.prisma.projectMember.update({
+        where: { id: input.id },
+        data: { erFirmaansvarlig: input.erFirmaansvarlig },
+      });
+    }),
 });

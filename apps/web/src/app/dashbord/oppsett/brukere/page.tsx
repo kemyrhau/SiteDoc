@@ -14,6 +14,7 @@ import {
   Trash2,
   ChevronRight,
   ChevronDown,
+  Shield,
 } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
@@ -92,6 +93,7 @@ function KompaktBadgeListe({
 interface KontaktMedlem {
   id: string;
   role: string;
+  erFirmaansvarlig: boolean;
   user: {
     id: string;
     name: string | null;
@@ -118,6 +120,12 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
   const [redigerGruppeNavn, setRedigerGruppeNavn] = useState<string | null>(null);
   const [nyGruppeNavnVerdi, setNyGruppeNavnVerdi] = useState("");
   const [leggTilMedlemIGruppe, setLeggTilMedlemIGruppe] = useState<string | null>(null);
+
+  const settFirmaansvarligMutation = trpc.medlem.settFirmaansvarlig.useMutation({
+    onSuccess: () => {
+      utils.medlem.hentForProsjekt.invalidate({ projectId: prosjektId });
+    },
+  });
 
   const { data: medlemmer } = trpc.medlem.hentForProsjekt.useQuery(
     { projectId: prosjektId },
@@ -744,7 +752,24 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
 
                   {/* Firma */}
                   <td className="whitespace-nowrap px-4 py-2.5 text-gray-600">
-                    {(m.user as KontaktMedlem["user"]).organization?.name ?? "—"}
+                    <div className="flex items-center gap-1">
+                      {(m.user as KontaktMedlem["user"]).organization?.name ?? "—"}
+                      <button
+                        onClick={() => settFirmaansvarligMutation.mutate({
+                          id: m.id,
+                          projectId: prosjektId,
+                          erFirmaansvarlig: !m.erFirmaansvarlig,
+                        })}
+                        className={`shrink-0 rounded p-0.5 transition-colors ${
+                          m.erFirmaansvarlig
+                            ? "text-amber-500 hover:text-amber-600"
+                            : "text-gray-300 opacity-0 group-hover/mrow:opacity-100 hover:text-amber-500"
+                        }`}
+                        title={m.erFirmaansvarlig ? t("brukere.fjernFirmaansvarlig") : t("brukere.settFirmaansvarlig")}
+                      >
+                        <Shield className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
                   </td>
 
                   {/* Rolle */}
