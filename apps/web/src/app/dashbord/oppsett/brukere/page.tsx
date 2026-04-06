@@ -1971,22 +1971,72 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
                     />
                   </td>
 
-                  {/* Grupper (kompakt) / lagre-avbryt */}
+                  {/* Grupper */}
                   <td className="px-4 py-2.5">
                     {erRedigering ? (
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => lagreRediger(m.id)}
-                          className="rounded bg-blue-600 px-2 py-0.5 text-xs text-white hover:bg-blue-700"
+                      <div className="space-y-1">
+                        {/* Nåværende grupper med fjern-knapp */}
+                        <div className="flex flex-wrap gap-1">
+                          {brukerGrupper.map((gNavn) => {
+                            const gId = gruppeNavnTilId[gNavn];
+                            const gmId = gId ? gruppeMedlemIdMap[gId]?.[m.user.id] : undefined;
+                            return (
+                              <span key={gNavn} className="inline-flex items-center gap-0.5 rounded bg-blue-50 px-1.5 py-0.5 text-xs text-blue-700">
+                                {gNavn}
+                                {gmId && (
+                                  <button
+                                    onClick={() => fjernMedlemMutation.mutate({ id: gmId, projectId: prosjektId })}
+                                    className="ml-0.5 rounded-full hover:bg-blue-200 p-0.5"
+                                    title={t("handling.fjern")}
+                                  >
+                                    <X className="h-2.5 w-2.5" />
+                                  </button>
+                                )}
+                              </span>
+                            );
+                          })}
+                        </div>
+                        {/* Legg til i gruppe */}
+                        <select
+                          className="rounded border border-gray-300 bg-white px-1.5 py-0.5 text-xs w-full"
+                          onChange={(e) => {
+                            if (e.target.value) {
+                              const nameParts = (m.user.name ?? "").split(" ");
+                              leggTilMedlemMutation.mutate({
+                                groupId: e.target.value,
+                                projectId: prosjektId,
+                                email: m.user.email,
+                                firstName: nameParts[0] || m.user.email,
+                                lastName: nameParts.slice(1).join(" ") || "-",
+                              });
+                              e.target.value = "";
+                            }
+                          }}
+                          defaultValue=""
                         >
-                          {t("handling.lagre")}
-                        </button>
-                        <button
-                          onClick={() => setRedigerMedlemId(null)}
-                          className="rounded px-2 py-0.5 text-xs text-gray-500 hover:bg-gray-100"
-                        >
-                          {t("handling.avbryt")}
-                        </button>
+                          <option value="">{t("brukere.leggTilGruppe")}</option>
+                          {(dbGrupper as Array<{ id: string; name: string; category: string }> ?? [])
+                            .filter((g) => g.category === "brukergrupper" && !brukerGrupper.includes(g.name))
+                            .map((g) => (
+                              <option key={g.id} value={g.id}>{g.name}</option>
+                            ))
+                          }
+                        </select>
+                        {/* Lagre/Avbryt */}
+                        <div className="flex items-center gap-1 mt-1">
+                          <button
+                            onClick={() => lagreRediger(m.id)}
+                            className="rounded bg-blue-600 px-2 py-0.5 text-xs text-white hover:bg-blue-700"
+                          >
+                            {t("handling.lagre")}
+                          </button>
+                          <button
+                            onClick={() => setRedigerMedlemId(null)}
+                            className="rounded px-2 py-0.5 text-xs text-gray-500 hover:bg-gray-100"
+                          >
+                            {t("handling.avbryt")}
+                          </button>
+                        </div>
                       </div>
                     ) : (
                       <KompaktBadgeListe
