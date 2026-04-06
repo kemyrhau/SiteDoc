@@ -23,10 +23,12 @@ En bruker kan tilhøre flere entrepriser via `MemberEnterprise`. Admin uten tilk
 
 Prosjektomfattende dokumentflyt under Innstillinger > Produksjon > Dokumentflyt:
 - **Entreprise-tilhørighet:** Dokumentflyt har `enterpriseId` som bestemmer hvilken entreprise den vises under i UI. Settes ved opprettelse via `forvalgtEntrepriseId`
-- **Fleksible roller:** Medlemmer kan være brukergrupper (`groupId` → `ProjectGroup`) eller enkeltpersoner (`projectMemberId`). Hver har rolle `bestiller` eller `utfører` per steg. Dropdown i dokumentflyt viser kun personer og brukergrupper (ikke entrepriser eller systemgrupper)
+- **4 roller:** `registrator`, `bestiller`, `utforer`, `godkjenner` — valgfrie byggeklosser per flyt. Medlemmer kan være brukergrupper (`groupId` → `ProjectGroup`) eller enkeltpersoner (`projectMemberId`). Dropdown viser kun personer og brukergrupper (ikke entrepriser eller systemgrupper)
+- **Tilpassbare rollenavn:** Hvert rolle-steg kan ha egendefinert `label` (f.eks. "Spørsmål" i stedet for "Registrator"). Lagres i `Dokumentflyt.roller` JSON-felt
+- **Tre-lags prinsipp:** Kontaktliste (mennesker) → Grupper (rettigheter) → Dokumentflyt (logikk). Dokumentflyt PEKER PÅ grupper/personer, eier dem aldri. FlytBoks er read-only for gruppeinnhold
 - **Hovedansvarlig:** `DokumentflytMedlem.erHovedansvarlig` (Boolean) — blå prikk i oppsett-UI. Maks én per steg. Valgfritt. Ved opprettelse av sjekkliste/oppgave auto-settes `recipientUserId`/`recipientGroupId` fra hovedansvarlig. Vises i Ansvarlig-kolonnen i tabellvisning
 - **Grupper vs brukere:** I opprett-modalen velger man «Bruker» (enkeltperson) eller «Gruppe» (brukergruppe/ProjectGroup). Grupper gir lik tilgang til alle gruppemedlemmer
-- **Modell:** `Dokumentflyt` → `DokumentflytMedlem` (rolle: bestiller/utfører + steg + enterpriseId/projectMemberId/groupId) + `DokumentflytMal` (maltilknytning)
+- **Modell:** `Dokumentflyt` (+ `roller` JSON) → `DokumentflytMedlem` (rolle + steg + enterpriseId/projectMemberId/groupId) + `DokumentflytMal` (maltilknytning)
 - Sjekklister/oppgaver knyttes via `dokumentflytId` (og bakoverkompatibelt `workflowId`)
 - Emne: malen har `subjects`-array → nedtrekksmeny. Uten → fritekst/skjult
 - **Mottaker ved «Send»:** Auto-utledes fra dokumentflytens utfører (hovedansvarlig først). Ved videresending kan registratorer (create_checklists/create_tasks) velge entreprise — mottaker utledes fra valgt entreprises dokumentflyt. Lagres i `recipientUserId`/`recipientGroupId` på dokument + `DocumentTransfer`
