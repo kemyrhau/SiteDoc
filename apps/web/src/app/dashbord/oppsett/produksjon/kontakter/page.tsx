@@ -707,12 +707,12 @@ function FlytBoks({
             {erUtvidet && medlemNavn.length > 0 && (
               <div className="ml-5 mt-0.5 mb-1 space-y-0.5">
                 {medlemNavn.map((gm) => (
-                  <div key={gm.gruppeMedlemId} className="flex items-center gap-1.5 text-xs text-gray-400">
+                  <div key={gm.gruppeMedlemId} className="flex items-center gap-1.5 text-xs text-gray-600">
                     {gm.erAdmin
                       ? <span className={`h-2 w-2 shrink-0 rounded-full ${f.prikkBg}`} title={t("kontakter.gruppeansvarlig")} />
                       : <span className="h-2 w-2 shrink-0 rounded-full border border-gray-300" />
                     }
-                    <User className="h-3 w-3 text-gray-300 shrink-0" />
+                    <User className={`h-3 w-3 ${f.ikon} shrink-0`} />
                     {gm.navn}
                   </div>
                 ))}
