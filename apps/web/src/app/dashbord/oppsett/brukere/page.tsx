@@ -1441,6 +1441,14 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
     },
   });
 
+  const oppdaterModulerMutation = trpc.gruppe.oppdaterModuler.useMutation({
+    onSuccess: () => {
+      utils.gruppe.hentForProsjekt.invalidate({ projectId: prosjektId });
+    },
+  });
+
+  const [redigerModulerGruppe, setRedigerModulerGruppe] = useState<string | null>(null);
+
   const oppdaterMedlemMutation = trpc.medlem.oppdater.useMutation({
     onSuccess: () => {
       utils.medlem.hentForProsjekt.invalidate({ projectId: prosjektId });
@@ -1487,6 +1495,17 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
     if (dbGrupper) {
       for (const g of dbGrupper as Array<{ id: string; name: string }>) {
         map[g.name] = g.id;
+      }
+    }
+    return map;
+  }, [dbGrupper]);
+
+  // Bygg gruppeId → modules map
+  const gruppeModuler = useMemo((): Record<string, string[]> => {
+    const map: Record<string, string[]> = {};
+    if (dbGrupper) {
+      for (const g of dbGrupper as Array<{ id: string; modules: unknown }>) {
+        map[g.id] = (g.modules as string[] | null) ?? [];
       }
     }
     return map;
@@ -1729,9 +1748,86 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
 
                         <span className="font-normal text-gray-400" onClick={toggleKollaps}>({rad.antall})</span>
 
+                        {/* Modul-badges */}
+                        {!erUtenGruppe && gruppeId && (() => {
+                          const moduler = gruppeModuler[gruppeId] ?? [];
+                          const MODUL_LABELS: Record<string, { label: string; bg: string }> = {
+                            sjekklister: { label: t("nav.sjekklister"), bg: "bg-green-100 text-green-700" },
+                            oppgaver: { label: t("nav.oppgaver"), bg: "bg-blue-100 text-blue-700" },
+                            tegninger: { label: t("nav.tegninger"), bg: "bg-amber-100 text-amber-700" },
+                            "3d": { label: "3D", bg: "bg-purple-100 text-purple-700" },
+                          };
+                          const erRedigerer = redigerModulerGruppe === gruppeId;
+                          const alleModulNavn: Array<"sjekklister" | "oppgaver" | "tegninger" | "3d"> = ["sjekklister", "oppgaver", "tegninger", "3d"];
+
+                          return (
+                            <div className="ml-2 flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                              {erRedigerer ? (
+                                <>
+                                  {alleModulNavn.map((mod) => {
+                                    const info = MODUL_LABELS[mod]!;
+                                    const erAktiv = moduler.includes(mod);
+                                    return (
+                                      <button
+                                        key={mod}
+                                        onClick={() => {
+                                          const nyeModuler = erAktiv
+                                            ? moduler.filter((m) => m !== mod) as typeof alleModulNavn
+                                            : [...moduler, mod] as typeof alleModulNavn;
+                                          oppdaterModulerMutation.mutate({
+                                            groupId: gruppeId,
+                                            projectId: prosjektId,
+                                            modules: nyeModuler,
+                                          });
+                                        }}
+                                        className={`rounded px-1.5 py-0.5 text-[10px] font-medium normal-case tracking-normal transition-colors ${
+                                          erAktiv ? info.bg : "bg-gray-100 text-gray-400 line-through"
+                                        }`}
+                                      >
+                                        {info.label}
+                                      </button>
+                                    );
+                                  })}
+                                  <button
+                                    onClick={() => setRedigerModulerGruppe(null)}
+                                    className="rounded p-0.5 text-gray-400 hover:text-gray-600"
+                                  >
+                                    <X className="h-3 w-3" />
+                                  </button>
+                                </>
+                              ) : (
+                                <>
+                                  {moduler.map((mod) => {
+                                    const info = MODUL_LABELS[mod];
+                                    if (!info) return null;
+                                    return (
+                                      <span key={mod} className={`rounded px-1.5 py-0.5 text-[10px] font-medium normal-case tracking-normal ${info.bg}`}>
+                                        {info.label}
+                                      </span>
+                                    );
+                                  })}
+                                  {moduler.length === 0 && (
+                                    <span className="text-[10px] font-normal normal-case tracking-normal text-gray-400 italic">{t("brukere.ingenModuler")}</span>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                          );
+                        })()}
+
                         {/* Action buttons - visible on hover, only for real groups */}
                         {!erUtenGruppe && (
                           <div className="ml-auto flex items-center gap-1 opacity-0 group-hover/gheader:opacity-100 transition-opacity">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setRedigerModulerGruppe((prev) => prev === gruppeId ? null : gruppeId!);
+                              }}
+                              className="rounded p-1 text-gray-400 hover:bg-gray-200 hover:text-gray-600"
+                              title={t("brukere.redigerModuler")}
+                            >
+                              <Settings className="h-3 w-3" />
+                            </button>
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
