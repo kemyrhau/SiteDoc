@@ -38,6 +38,7 @@ model User {
   ansvarligEntrepriser Enterprise[]         @relation("EnterpriseAnsvarlig")
   psiSignaturer        PsiSignatur[]
 
+  @@index([organizationId])
   @@map("users")
 }
 
@@ -482,6 +483,9 @@ model Checklist {
   tasks               Task[]
   changeLog           ChecklistChangeLog[]
 
+  @@index([templateId])
+  @@index([bestillerUserId])
+  @@index([recipientUserId])
   @@map("checklists")
 }
 
@@ -523,6 +527,9 @@ model Task {
   images              Image[]
   comments            TaskComment[]
 
+  @@index([templateId])
+  @@index([bestillerUserId])
+  @@index([recipientUserId])
   @@map("tasks")
 }
 
@@ -544,6 +551,7 @@ model DocumentTransfer {
   recipientUser  User?         @relation("TransferRecipient", fields: [recipientUserId], references: [id], onDelete: SetNull)
   recipientGroup ProjectGroup? @relation("TransferRecipientGroup", fields: [recipientGroupId], references: [id], onDelete: SetNull)
 
+  @@index([senderId])
   @@map("document_transfers")
 }
 
