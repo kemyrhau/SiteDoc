@@ -85,7 +85,7 @@ export default function OkonomiSide() {
     },
   });
 
-  // @ts-expect-error — Prisma Json-type (splitSources) trigger TS2589 i tRPC
+  // @ts-ignore — Prisma Json-type (splitSources) trigger TS2589 i tRPC
   const dokumenterQuery = trpc.mengde.hentDokumenter.useQuery(
     { projectId: prosjektId },
     {
