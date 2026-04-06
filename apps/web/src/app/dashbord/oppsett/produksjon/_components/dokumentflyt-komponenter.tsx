@@ -234,16 +234,18 @@ export function LeggTilMedlemDropdown({
   const tilgjengeligeMedlemmer = medlemmer.filter((m) => !eksisterendeMedlemIder.has(m.id));
   const tilgjengeligeGrupper = (grupper ?? []).filter((g) => !eksisterendeGruppeIder.has(g.id));
 
+  const typedRolle = rolle as "registrator" | "bestiller" | "utforer" | "godkjenner";
+
   function leggTilEntreprise(enterpriseId: string) {
-    leggTilMutation.mutate({ dokumentflytId, projectId: prosjektId, enterpriseId, rolle, steg });
+    leggTilMutation.mutate({ dokumentflytId, projectId: prosjektId, enterpriseId, rolle: typedRolle, steg });
   }
 
   function leggTilPerson(projectMemberId: string) {
-    leggTilMutation.mutate({ dokumentflytId, projectId: prosjektId, projectMemberId, rolle, steg });
+    leggTilMutation.mutate({ dokumentflytId, projectId: prosjektId, projectMemberId, rolle: typedRolle, steg });
   }
 
   function leggTilGruppe(groupId: string) {
-    leggTilMutation.mutate({ dokumentflytId, projectId: prosjektId, groupId, rolle, steg });
+    leggTilMutation.mutate({ dokumentflytId, projectId: prosjektId, groupId, rolle: typedRolle, steg });
   }
 
   return (
@@ -406,7 +408,7 @@ export function InviterNyMedlemModal({
           dokumentflytId,
           projectId: prosjektId,
           projectMemberId: nyttMedlem.id,
-          rolle,
+          rolle: rolle as "registrator" | "bestiller" | "utforer" | "godkjenner",
           steg,
         });
       }
