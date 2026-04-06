@@ -11,7 +11,7 @@
 | `sessions` | Database-sesjoner for Auth.js |
 | `verification_tokens` | E-postverifiseringstokens |
 | `projects` | Prosjekter med prosjektnummer (SD-YYYYMMDD-XXXX), status, valgfri lokasjon (`latitude`, `longitude`), valgfritt eksternt prosjektnummer (`external_project_number`), valgfri firmalogo (`logo_url`), `show_internal_project_number` (Boolean, default true) |
-| `project_members` | Prosjektmedlemmer med rolle (member/admin), entrepriser via `member_enterprises` |
+| `project_members` | Prosjektmedlemmer med rolle (member/admin), `erFirmaansvarlig` (Boolean, per prosjekt), entrepriser via `member_enterprises` |
 | `member_enterprises` | Mange-til-mange join-tabell mellom `project_members` og `enterprises` |
 | `enterprises` | Entrepriser med `enterprise_number` (format: "04 Tømrer, Econor"), bransje, firma, farge |
 | `byggeplasser` | Lokasjoner med `number` (auto-generert per prosjekt), `type` (deprecated, default `"bygg"`), status (unpublished/published) |
@@ -30,6 +30,9 @@
 | `workflows` | (Deprecated — erstattet av Dokumentflyt) Gammel arbeidsforløp-tabell, beholdt for bakoverkompatibilitet |
 | `workflow_templates` | (Deprecated) Kobling mellom arbeidsforløp og maler |
 | `workflow_step_members` | (Deprecated) Personbaserte steg-medlemmer i arbeidsforløp |
+| `dokumentflyter` | Dokumentflyt per prosjekt. `enterpriseId`, `roller` (JSONB — tilpassbare labels per rolle: `{ registrator?: { label }, bestiller?: { label }, utforer?: { label }, godkjenner?: { label } }`) |
+| `dokumentflyt_medlemmer` | Medlemmer i dokumentflyt-steg. `rolle`, `steg`, `enterpriseId`/`projectMemberId`/`groupId`, `erHovedansvarlig` (Boolean), `hovedansvarligPersonId` (valgfri referanse til `ProjectMember` — utpeker hovedansvarlig person innenfor en gruppe) |
+| `dokumentflyt_maler` | Maltilknytning per dokumentflyt |
 | `task_comments` | Kommentarer/dialog på oppgaver |
 | `checklist_change_log` | Automatisk endringslogg for sjekklister |
 | `project_invitations` | E-postinvitasjoner med token, status, utløpsdato |
@@ -157,3 +160,12 @@ Metadata i `REPORT_OBJECT_TYPE_META`. Konfigurasjon lagres som JSON i `report_ob
 **Opsjon-normalisering:**
 - Alternativer kan være strenger (`"Ja"`) eller objekter (`{value, label}`)
 - `opsjonTilStreng()` (web) og `normaliserOpsjon()` (mobil)
+
+## Ytelsesindekser
+
+8 dedikerte indekser for ytelse:
+- `checklists`: `(project_id, status)`, `(project_id, dokumentflyt_id)`
+- `tasks`: `(project_id, status)`, `(project_id, dokumentflyt_id)`
+- `document_transfers`: `(project_id, sender_id)`, `(project_id, recipient_user_id)`
+- `dokumentflyt_medlemmer`: `(dokumentflyt_id, rolle)`
+- `project_members`: `(project_id, er_firmaansvarlig)`

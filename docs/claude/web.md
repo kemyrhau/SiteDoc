@@ -55,12 +55,12 @@ Tre-kolonne layout (skjules på mobil < 768px, hamburger-meny i Toppbar):
 /dashbord/[prosjektId]/dokumentleser         -> Dokumentleser med mappenavigering: venstre panel (mappetreet + dokumentliste med flagg), høyre panel (inline Reader View)
 /dashbord/oppsett/ai-sok                     -> AI-søk innstillinger: embedding-status, generer/stopp, NorBERT/OpenAI modellvalg, LLM-konfig, recall/precision/latency sliders
 /dashbord/oppsett                             -> Innstillinger
-/dashbord/oppsett/brukere                     -> Brukergrupper, roller + Kontakter-tabell (toggle-knapp). Kontakttabell viser alle prosjektmedlemmer med Navn, E-post, Telefon, Firma, Rolle, Entrepriser (redigerbare via +/x), Grupper
+/dashbord/oppsett/brukere                     -> Brukergrupper med modul-badges i overskrifter + Kontakttabell (eneste visning, ingen toggle). Sticky header med filter. Firmaansvarlig via rolle-dropdown. Skjold-ikoner: blått=Admin, gult=Firmaansvarlig. Kontakttabell viser alle prosjektmedlemmer med Navn, E-post, Telefon, Firma, Rolle, Entrepriser (redigerbare via +/x), Grupper
 /dashbord/oppsett/brukere/tillatelser         -> Tillatelsesmatrise (read-only)
 /dashbord/oppsett/lokasjoner                  -> Lokasjonsliste med georeferanse
 /dashbord/oppsett/produksjon                   -> Produksjon-oversikt (tidligere field/)
-/dashbord/oppsett/produksjon/dokumentflyt      -> Dokumentflyt (roller, maler, medlemmer)
-/dashbord/oppsett/produksjon/entrepriser       -> Entrepriser med dokumentflyt. Hovedansvarlig markeres med blå prikk (erHovedansvarlig). Dropdown i dokumentflyt viser kun personer og brukergrupper (ikke entrepriser/systemgrupper). Feilmelding ved sletting med tilknyttede dokumenter
+/dashbord/oppsett/produksjon/dokumentflyt      -> Dokumentflyt (roller med tilpassbare labels, maler per flyt, medlemmer). Sidebar viser Dokumentflyt (ikke Kontakter) under Produksjon
+/dashbord/oppsett/produksjon/entrepriser       -> Entrepriser med dokumentflyt. Hovedansvarlig markeres med blå prikk (erHovedansvarlig). hovedansvarligPersonId for person innenfor gruppe. Dropdown i dokumentflyt viser kun personer og brukergrupper (ikke entrepriser/systemgrupper). Feilmelding ved sletting med tilknyttede dokumenter
 /dashbord/oppsett/produksjon/oppgavemaler      -> Oppgavemaler
 /dashbord/oppsett/produksjon/sjekklistemaler   -> Sjekklistemaler
 /dashbord/oppsett/produksjon/moduler           -> Forhåndsdefinerte mal-pakker

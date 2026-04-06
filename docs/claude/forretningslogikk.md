@@ -19,14 +19,19 @@ Dokumenter (sjekklister/oppgaver) flyter mellom entrepriser:
 
 En bruker kan tilhøre flere entrepriser via `MemberEnterprise`. Admin uten tilknytning ser alle.
 
+## Firmaansvarlig
+
+`ProjectMember.erFirmaansvarlig` (Boolean, per prosjekt) — markerer prosjektmedlemmet som firmaansvarlig. Skjold-ikoner i UI: blått = Admin, gult = Firmaansvarlig. Settes via rolle-dropdown i kontakttabellen (Brukere-siden).
+
 ## Dokumentflyt (erstatter Arbeidsforløp)
 
 Prosjektomfattende dokumentflyt under Innstillinger > Produksjon > Dokumentflyt:
 - **Entreprise-tilhørighet:** Dokumentflyt har `enterpriseId` som bestemmer hvilken entreprise den vises under i UI. Settes ved opprettelse via `forvalgtEntrepriseId`
 - **4 roller:** `registrator`, `bestiller`, `utforer`, `godkjenner` — valgfrie byggeklosser per flyt. Medlemmer kan være brukergrupper (`groupId` → `ProjectGroup`) eller enkeltpersoner (`projectMemberId`). Dropdown viser kun personer og brukergrupper (ikke entrepriser eller systemgrupper)
-- **Tilpassbare rollenavn:** Hvert rolle-steg kan ha egendefinert `label` (f.eks. "Spørsmål" i stedet for "Registrator"). Lagres i `Dokumentflyt.roller` JSON-felt
+- **Tilpassbare rollenavn:** Hvert rolle-steg kan ha egendefinert `label` (f.eks. "Spørsmål" i stedet for "Registrator"). Lagres i `Dokumentflyt.roller` JSONB-felt (format: `{ registrator?: { label }, bestiller?: { label }, utforer?: { label }, godkjenner?: { label } }`)
 - **Tre-lags prinsipp:** Kontaktliste (mennesker) → Grupper (rettigheter) → Dokumentflyt (logikk). Dokumentflyt PEKER PÅ grupper/personer, eier dem aldri. FlytBoks er read-only for gruppeinnhold
 - **Hovedansvarlig:** `DokumentflytMedlem.erHovedansvarlig` (Boolean) — blå prikk i oppsett-UI. Maks én per steg. Valgfritt. Ved opprettelse av sjekkliste/oppgave auto-settes `recipientUserId`/`recipientGroupId` fra hovedansvarlig. Vises i Ansvarlig-kolonnen i tabellvisning
+- **Hovedansvarlig per person i gruppe:** `DokumentflytMedlem.hovedansvarligPersonId` (valgfri referanse til `ProjectMember`) — utpeker en spesifikk person som hovedansvarlig innenfor en gruppe-medlem. Brukes for auto-utledning av mottaker ved opprettelse
 - **Grupper vs brukere:** I opprett-modalen velger man «Bruker» (enkeltperson) eller «Gruppe» (brukergruppe/ProjectGroup). Grupper gir lik tilgang til alle gruppemedlemmer
 - **Modell:** `Dokumentflyt` (+ `roller` JSON) → `DokumentflytMedlem` (rolle + steg + enterpriseId/projectMemberId/groupId) + `DokumentflytMal` (maltilknytning)
 - Sjekklister/oppgaver knyttes via `dokumentflytId` (og bakoverkompatibelt `workflowId`)
@@ -38,6 +43,8 @@ Prosjektomfattende dokumentflyt under Innstillinger > Produksjon > Dokumentflyt:
 - **E-postvarsling:** Sendes ved `sent`, `responded`, `approved`, `rejected` og `forwarded` (ikke bare send)
 - **Lukk fra avvist:** Kun brukere med `create_checklists`/`create_tasks` (registratorer) kan lukke avviste dokumenter
 - **Gruppevisning i dropdown:** Bruker-dropdown i dokumentflyt-oppsett viser gruppemedlemskap: «Kenneth Myrhaug · Byggherre, Tømrer»
+- **Person-basert tilgangssjekk (Valg B):** Firmamedlemmer ser dokumenter der en person fra firmaet er `bestillerUserId`, `recipientUserId` eller `senderId` (i DocumentTransfer). Erstatter entreprise-basert filtrering for firmaansvarlige
+- **Mal-velger per dokumentflyt:** Dokumentflyt har tilknyttede maler via `DokumentflytMal`. Ved opprettelse av oppgave/sjekkliste vises kun maler som tilhører valgt dokumentflyt
 - **Planlagt:** HMS-avvik som egen dokumentflyt, intern godkjenning (ansatt → fagleder → TE)
 
 ### Bakoverkompatibilitet
@@ -120,9 +127,9 @@ Revisjonshistorikk via `drawing_revisions`. Georeferanse med 2+ punkter: 2 punkt
 
 ## Innstillings-sidebar
 
-- **Brukere** — Grupper, roller, medlemmer
+- **Brukere** — Grupper, roller, medlemmer. Kontakttabell er eneste visning (ingen toggle). Sticky header med filter. Modul-badges i gruppeoverskrifter. Firmaansvarlig settes via rolle-dropdown. Skjold-ikoner: blått=Admin, gult=Firmaansvarlig
 - **Lokasjoner** — Samlet lokasjonsliste med redigering/georeferanse
-- **Produksjon** — Kontakter, Dokumentflyt, Entrepriser, Oppgavemaler, Sjekklistemaler, Kontrollplan, Mapper, Moduler (tidligere «Field»/«Feltarbeid»)
+- **Produksjon** — Dokumentflyt, Entrepriser, Oppgavemaler, Sjekklistemaler, Kontrollplan, Mapper, Moduler (tidligere «Field»/«Feltarbeid»). Gammel entreprise-side og gruppevisning fjernet. Dokumentflyt (ikke Kontakter) i sidebar
 - **Prosjekteiers innstillinger** — Prosjektoppsett
 - **Firmainnstillinger** — Firmainformasjon (synlig med tilknyttet firma)
 
@@ -179,9 +186,13 @@ Innstillinger > Produksjon > Kontakter — komplett administrasjon av dokumentfl
 
 ### Brukersiden — kontakttabell
 
-- **Gruppert etter brukergruppe** med klikkbare overskrifter (expand/collapse)
+- **Eneste visning** under Brukere (ingen toggle mellom grupper og kontakter)
+- **Gruppert etter brukergruppe** med klikkbare overskrifter (expand/collapse) og modul-badges
+- **Sticky header** med filter
 - **Kolonnefiltre:** Søk + dropdown for rolle, entreprise, gruppe
 - **Kompakt badge-visning:** Første verdi + "+N" for entrepriser og grupper
+- **Firmaansvarlig:** Settes via rolle-dropdown (Admin/Firmaansvarlig/Medlem)
+- **Skjold-ikoner:** Blått = Admin, gult = Firmaansvarlig
 
 ## TODO
 
