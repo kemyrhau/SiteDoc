@@ -26,6 +26,7 @@ import {
   LeggTilMedlemDropdown,
   InviterNyMedlemModal,
 } from "../_components/dokumentflyt-komponenter";
+import { HjelpKnapp } from "@/components/hjelp/HjelpModal";
 import { nesteAutoFarge, FARGE_MAP as ENTREPRISE_FARGER } from "../_components/entreprise-farger";
 import type { DokumentflytMedlemData } from "../_components/dokumentflyt-komponenter";
 
@@ -981,8 +982,13 @@ export default function KontakterSide() {
   return (
     <div>
       <div className="mb-4">
-        <h2 className="text-lg font-semibold text-gray-900">{t("kontakter.tittel")}</h2>
-        <p className="text-sm text-gray-500">{t("kontakter.beskrivelse")}</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">{t("kontakter.tittel")}</h2>
+            <p className="text-sm text-gray-500">{t("kontakter.beskrivelse")}</p>
+          </div>
+          <HjelpKnapp />
+        </div>
       </div>
 
       {/* Tabell-header */}

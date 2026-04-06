@@ -16,6 +16,7 @@ import {
   ChevronDown,
   Shield,
 } from "lucide-react";
+import { HjelpKnapp } from "@/components/hjelp/HjelpModal";
 
 /* ------------------------------------------------------------------ */
 /*  KompaktBadgeListe — viser første verdi + "+N" utvidbar             */
@@ -350,7 +351,10 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
   return (
     <div className="-mx-6 -mt-6">
       <div className="sticky top-0 z-30 bg-gray-50 px-6 pt-6 pb-3 border-b border-gray-200">
-        <h2 className="text-xl font-bold text-gray-900">{t("brukere.kontakter")}</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-bold text-gray-900">{t("brukere.kontakter")}</h2>
+          <HjelpKnapp />
+        </div>
       </div>
       <div className="px-6 pt-3 pb-6">
       <div className="rounded-lg border border-gray-200">
