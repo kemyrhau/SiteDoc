@@ -1677,10 +1677,10 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
                 return (
                   <tr
                     key={`header-${idx}`}
-                    className="group/gheader bg-gray-50/80 cursor-pointer hover:bg-gray-100/80"
+                    className="group/gheader bg-gray-100 border-t-2 border-gray-200 cursor-pointer hover:bg-gray-200/80"
                   >
-                    <td colSpan={7} className="px-4 py-2">
-                      <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    <td colSpan={7} className="px-4 py-2.5">
+                      <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-gray-600">
                         <span onClick={toggleKollaps} className="flex items-center gap-2">
                           {erKollapset
                             ? <ChevronRight className="h-3.5 w-3.5" />
