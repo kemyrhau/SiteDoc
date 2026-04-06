@@ -614,7 +614,7 @@ function FlytBoks({
         className={`shrink-0 rounded-full transition-all ${
           m.erHovedansvarlig
             ? `h-2.5 w-2.5 ${f.prikkBg} ring-2 ${f.prikkRing}`
-            : "h-2.5 w-2.5 bg-gray-300 opacity-0 group-hover/medlem:opacity-100 hover:bg-gray-400"
+            : "h-2.5 w-2.5 border border-gray-300 hover:bg-gray-400 hover:border-gray-400"
         }`}
         title={m.erHovedansvarlig ? t("kontakter.fjernHovedansvarlig") : t("kontakter.settHovedansvarlig")}
       />
@@ -708,6 +708,10 @@ function FlytBoks({
               <div className="ml-5 mt-0.5 mb-1 space-y-0.5">
                 {medlemNavn.map((gm) => (
                   <div key={gm.gruppeMedlemId} className="flex items-center gap-1.5 text-xs text-gray-400">
+                    {gm.erAdmin
+                      ? <span className={`h-2 w-2 shrink-0 rounded-full ${f.prikkBg}`} title={t("kontakter.gruppeansvarlig")} />
+                      : <span className="h-2 w-2 shrink-0 rounded-full border border-gray-300" />
+                    }
                     <User className="h-3 w-3 text-gray-300 shrink-0" />
                     {gm.navn}
                   </div>
