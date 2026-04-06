@@ -224,11 +224,24 @@ export const removeWorkflowStepMemberSchema = z.object({
   step: z.number().int().min(2).max(3),
 });
 
+// Rolle-konfigurasjon for dokumentflyt
+export const rolleKonfigSchema = z.object({
+  rolle: dokumentflytRolleSchema,
+  label: z.string().max(100).nullish(),
+});
+
+export const oppdaterRollerSchema = z.object({
+  id: z.string().uuid(),
+  projectId: z.string().uuid(),
+  roller: z.array(rolleKonfigSchema),
+});
+
 // Dokumentflyt-validering (ny modell)
 export const createDokumentflytSchema = z.object({
   projectId: z.string().uuid(),
   enterpriseId: z.string().uuid().optional(),
   name: z.string().min(1).max(255),
+  roller: z.array(rolleKonfigSchema).default([]),
   templateIds: z.array(z.string().uuid()).default([]),
   medlemmer: z.array(z.object({
     enterpriseId: z.string().uuid().optional(),

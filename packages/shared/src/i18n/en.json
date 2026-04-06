@@ -984,6 +984,8 @@
   "kontakter.leggTilRolle": "Add role",
   "kontakter.velgRolle": "Select role",
   "kontakter.nivaa": "Level",
+  "kontakter.ingenRoller": "No roles configured",
+  "kontakter.redigerRollenavn": "Click to change role name",
   "tabell.bestiller": "Orderer",
   "tabell.utforer": "Executor",
   "tabell.bestillerEntreprise": "Orderer contractor",

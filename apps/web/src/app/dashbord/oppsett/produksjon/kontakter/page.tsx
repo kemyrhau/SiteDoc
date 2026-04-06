@@ -64,10 +64,18 @@ interface DokumentflytMedlem {
   group?: { id: string; name: string } | null;
 }
 
+type DokumentflytRolle = "registrator" | "bestiller" | "utforer" | "godkjenner";
+
+interface RolleKonfig {
+  rolle: DokumentflytRolle;
+  label?: string | null;
+}
+
 interface Dokumentflyt {
   id: string;
   name: string;
   enterpriseId: string | null;
+  roller: RolleKonfig[];
   medlemmer: DokumentflytMedlem[];
   maler: Array<{ template: { id: string; name: string; category: string } }>;
 }
@@ -300,10 +308,19 @@ function DynamiskFlyt({
   const { t } = useTranslation();
   const utils = trpc.useUtils();
   const [visLeggTilRolle, setVisLeggTilRolle] = useState(false);
-  const [nyRolle, setNyRolle] = useState<{ rolle: string; steg: number } | null>(null);
+  const [redigerLabel, setRedigerLabel] = useState<string | null>(null);
+  const [labelVerdi, setLabelVerdi] = useState("");
 
-  // Grupper medlemmer per rolle (sortert)
-  const rolleRekkefølge = ["registrator", "bestiller", "utforer", "godkjenner"];
+  const oppdaterRollerMutation = trpc.dokumentflyt.oppdaterRoller.useMutation({
+    onSuccess: () => {
+      utils.dokumentflyt.hentForProsjekt.invalidate({ projectId: prosjektId });
+    },
+  });
+
+  // Roller fra df.roller (stabile, persistert i DB)
+  const konfigRoller = (df.roller ?? []) as RolleKonfig[];
+
+  // Grupper medlemmer per rolle
   const rollerMedMedlemmer = new Map<string, DokumentflytMedlem[]>();
   for (const m of df.medlemmer) {
     const liste = rollerMedMedlemmer.get(m.rolle) ?? [];
@@ -311,39 +328,57 @@ function DynamiskFlyt({
     rollerMedMedlemmer.set(m.rolle, liste);
   }
 
-  // Sorter rollene
-  const aktiveRoller = [...rollerMedMedlemmer.keys()].sort(
-    (a, b) => (ROLLE_KONFIG[a]?.rekkefølge ?? 99) - (ROLLE_KONFIG[b]?.rekkefølge ?? 99)
-  );
+  // Roller som kan legges til (ikke allerede konfigurert)
+  const rolleRekkefølge: DokumentflytRolle[] = ["registrator", "bestiller", "utforer", "godkjenner"];
+  const eksisterendeRoller = new Set(konfigRoller.map((r) => r.rolle));
+  const tilgjengeligeRoller = rolleRekkefølge.filter((r) => !eksisterendeRoller.has(r));
 
-  // Roller som kan legges til (ikke allerede i flyten, untatt godkjenner som kan ha flere steg)
-  const tilgjengeligeRoller = rolleRekkefølge.filter(
-    (r) => !rollerMedMedlemmer.has(r) || r === "godkjenner"
-  );
+  const leggTilRolle = (rolle: DokumentflytRolle) => {
+    const nyeRoller: RolleKonfig[] = [...konfigRoller, { rolle, label: null }];
+    nyeRoller.sort((a, b) => (ROLLE_KONFIG[a.rolle]?.rekkefølge ?? 99) - (ROLLE_KONFIG[b.rolle]?.rekkefølge ?? 99));
+    oppdaterRollerMutation.mutate({ id: df.id, projectId: prosjektId, roller: nyeRoller });
+    setVisLeggTilRolle(false);
+  };
+
+  const fjernRolle = (rolle: string) => {
+    const harMedlemmer = (rollerMedMedlemmer.get(rolle) ?? []).length > 0;
+    if (harMedlemmer && !confirm(t("kontakter.bekreftFjernRolle"))) return;
+    const nyeRoller = konfigRoller.filter((r) => r.rolle !== rolle);
+    oppdaterRollerMutation.mutate({ id: df.id, projectId: prosjektId, roller: nyeRoller });
+  };
+
+  const lagreLabel = (rolle: string, label: string) => {
+    const nyeRoller = konfigRoller.map((r) =>
+      r.rolle === rolle ? { ...r, label: label.trim() || null } : r
+    );
+    oppdaterRollerMutation.mutate({ id: df.id, projectId: prosjektId, roller: nyeRoller });
+    setRedigerLabel(null);
+  };
 
   return (
     <div className="flex items-stretch gap-0 flex-wrap">
-      {aktiveRoller.map((rolle, idx) => {
-        const konfig = ROLLE_KONFIG[rolle];
+      {konfigRoller.map((rk, idx) => {
+        const konfig = ROLLE_KONFIG[rk.rolle];
         if (!konfig) return null;
-        const medlemmer = rollerMedMedlemmer.get(rolle) ?? [];
+        const medlemmer = rollerMedMedlemmer.get(rk.rolle) ?? [];
         const erFørst = idx === 0;
-        const erSist = idx === aktiveRoller.length - 1 && tilgjengeligeRoller.length === 0;
+        const erSist = idx === konfigRoller.length - 1 && tilgjengeligeRoller.length === 0;
+        const visTittel = rk.label ?? t(konfig.tittelNoekkel);
 
         return (
-          <Fragment key={rolle}>
+          <Fragment key={rk.rolle}>
             {idx > 0 && (
               <div className="flex items-center px-2">
                 <ArrowRight className="h-5 w-5 text-gray-300" />
               </div>
             )}
             <FlytBoks
-              tittel={t(konfig.tittelNoekkel)}
-              ikon={<RolleIkon rolle={rolle} />}
+              tittel={visTittel}
+              ikon={<RolleIkon rolle={rk.rolle} />}
               farge={konfig.farge}
               avrunding={erFørst && erSist ? "rounded-lg" : erFørst ? "rounded-l-lg" : erSist ? "rounded-r-lg" : ""}
               dokumentflytId={df.id}
-              rolle={rolle}
+              rolle={rk.rolle}
               medlemmer={medlemmer}
               prosjektId={prosjektId}
               entrepriser={alleEntrepriser}
@@ -351,47 +386,27 @@ function DynamiskFlyt({
               alleGrupper={alleGrupper}
               gruppeOppslag={gruppeOppslag}
               gruppeMedlemNavn={gruppeMedlemNavn}
+              onFjernRolle={() => fjernRolle(rk.rolle)}
+              redigerLabel={redigerLabel === rk.rolle}
+              labelVerdi={labelVerdi}
+              onStartRedigerLabel={() => { setRedigerLabel(rk.rolle); setLabelVerdi(rk.label ?? ""); }}
+              onLabelEndring={setLabelVerdi}
+              onLagreLabel={() => lagreLabel(rk.rolle, labelVerdi)}
+              onAvbrytLabel={() => setRedigerLabel(null)}
             />
           </Fragment>
         );
       })}
 
-      {/* Ny rolle-boks (tom, venter på første medlem) */}
-      {nyRolle && !rollerMedMedlemmer.has(nyRolle.rolle) && (() => {
-        const konfig = ROLLE_KONFIG[nyRolle.rolle];
-        if (!konfig) return null;
-        return (
-          <Fragment>
-            {aktiveRoller.length > 0 && (
-              <div className="flex items-center px-2">
-                <ArrowRight className="h-5 w-5 text-gray-300" />
-              </div>
-            )}
-            <FlytBoks
-              tittel={t(konfig.tittelNoekkel)}
-              ikon={<RolleIkon rolle={nyRolle.rolle} />}
-              farge={konfig.farge}
-              avrunding={aktiveRoller.length === 0 ? "rounded-lg" : "rounded-r-lg"}
-              dokumentflytId={df.id}
-              rolle={nyRolle.rolle}
-              medlemmer={[]}
-              prosjektId={prosjektId}
-              entrepriser={alleEntrepriser}
-              alleMedlemmer={alleMedlemmer}
-              alleGrupper={alleGrupper}
-              gruppeOppslag={gruppeOppslag}
-              gruppeMedlemNavn={gruppeMedlemNavn}
-              startAapen={true}
-              onFoersteMedlem={() => setNyRolle(null)}
-            />
-          </Fragment>
-        );
-      })()}
+      {/* Melding ved tom flyt */}
+      {konfigRoller.length === 0 && tilgjengeligeRoller.length > 0 && !visLeggTilRolle && (
+        <span className="text-xs text-gray-400 italic self-center mr-2">{t("kontakter.ingenRoller")}</span>
+      )}
 
       {/* + Legg til rolle */}
-      {tilgjengeligeRoller.length > 0 && !nyRolle && (
+      {tilgjengeligeRoller.length > 0 && (
         <>
-          {aktiveRoller.length > 0 && (
+          {konfigRoller.length > 0 && (
             <div className="flex items-center px-2">
               <ArrowRight className="h-5 w-5 text-gray-300" />
             </div>
@@ -402,19 +417,14 @@ function DynamiskFlyt({
               {tilgjengeligeRoller.map((rolle) => {
                 const konfig = ROLLE_KONFIG[rolle];
                 if (!konfig) return null;
-                const steg = rolle === "godkjenner" ? (rollerMedMedlemmer.get("godkjenner")?.length ?? 0) + 1 : 1;
                 return (
                   <button
-                    key={`${rolle}-${steg}`}
-                    onClick={() => {
-                      setNyRolle({ rolle, steg });
-                      setVisLeggTilRolle(false);
-                    }}
+                    key={rolle}
+                    onClick={() => leggTilRolle(rolle)}
                     className={`flex items-center gap-1.5 rounded px-2 py-1 text-xs hover:bg-gray-100 ${FLYT_FARGER[konfig.farge]?.tittel ?? "text-gray-500"}`}
                   >
-                    {<RolleIkon rolle={rolle} />}
+                    <RolleIkon rolle={rolle} />
                     {t(konfig.tittelNoekkel)}
-                    {rolle === "godkjenner" && steg > 1 && ` (${t("kontakter.nivaa")} ${steg})`}
                   </button>
                 );
               })}
@@ -451,8 +461,13 @@ function FlytBoks({
   alleGrupper,
   gruppeOppslag,
   gruppeMedlemNavn,
-  startAapen = false,
-  onFoersteMedlem,
+  onFjernRolle,
+  redigerLabel = false,
+  labelVerdi = "",
+  onStartRedigerLabel,
+  onLabelEndring,
+  onLagreLabel,
+  onAvbrytLabel,
 }: {
   tittel: string;
   ikon: JSX.Element;
@@ -467,8 +482,13 @@ function FlytBoks({
   alleGrupper: Array<{ id: string; name: string }>;
   gruppeOppslag: Map<string, Set<string>>;
   gruppeMedlemNavn: Map<string, Array<{ navn: string; projectMemberId: string; gruppeMedlemId: string; erAdmin: boolean }>>;
-  startAapen?: boolean;
-  onFoersteMedlem?: () => void;
+  onFjernRolle?: () => void;
+  redigerLabel?: boolean;
+  labelVerdi?: string;
+  onStartRedigerLabel?: () => void;
+  onLabelEndring?: (v: string) => void;
+  onLagreLabel?: () => void;
+  onAvbrytLabel?: () => void;
 }) {
   const { t } = useTranslation();
   const utils = trpc.useUtils();
@@ -531,32 +551,44 @@ function FlytBoks({
 
   const handleLagtTil = () => {
     utils.dokumentflyt.hentForProsjekt.invalidate({ projectId: prosjektId });
-    if (onFoersteMedlem && medlemmer.length === 0) onFoersteMedlem();
-  };
-
-  const fjernRolleMutation = trpc.dokumentflyt.fjernMedlem.useMutation({
-    onSuccess: () => utils.dokumentflyt.hentForProsjekt.invalidate({ projectId: prosjektId }),
-  });
-
-  const fjernHelRolle = () => {
-    if (!confirm(t("kontakter.bekreftFjernRolle"))) return;
-    for (const m of medlemmer) {
-      fjernRolleMutation.mutate({ id: m.id, projectId: prosjektId });
-    }
   };
 
   return (
     <div className={`group/boks flex-1 ${avrunding} border ${f.border} ${f.bg} px-3 py-2`}>
       <div className={`mb-1 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide ${f.tittel}`}>
         {ikon}
-        {tittel}
-        <button
-          onClick={fjernHelRolle}
-          className="ml-auto rounded p-0.5 text-gray-300 opacity-0 group-hover/boks:opacity-100 hover:bg-red-100 hover:text-red-500 transition-opacity"
-          title={t("kontakter.fjernRolle")}
-        >
-          <X className="h-3 w-3" />
-        </button>
+        {redigerLabel ? (
+          <input
+            type="text"
+            value={labelVerdi}
+            onChange={(e) => onLabelEndring?.(e.target.value)}
+            placeholder={tittel}
+            className="flex-1 rounded border border-gray-300 px-1.5 py-0.5 text-xs font-semibold uppercase focus:border-blue-400 focus:outline-none"
+            autoFocus
+            onKeyDown={(e) => {
+              if (e.key === "Enter") onLagreLabel?.();
+              if (e.key === "Escape") onAvbrytLabel?.();
+            }}
+            onBlur={() => onLagreLabel?.()}
+          />
+        ) : (
+          <button
+            onClick={() => onStartRedigerLabel?.()}
+            className="hover:underline"
+            title={t("kontakter.redigerRollenavn")}
+          >
+            {tittel}
+          </button>
+        )}
+        {onFjernRolle && (
+          <button
+            onClick={onFjernRolle}
+            className="ml-auto rounded p-0.5 text-gray-300 opacity-0 group-hover/boks:opacity-100 hover:bg-red-100 hover:text-red-500 transition-opacity"
+            title={t("kontakter.fjernRolle")}
+          >
+            <X className="h-3 w-3" />
+          </button>
+        )}
       </div>
 
       {/* Grupper — klikkbar for å se medlemmer */}
@@ -793,7 +825,7 @@ export default function KontakterSide() {
   const entrepriseDokumentflyter = useMemo(() => {
     const map = new Map<string, Dokumentflyt[]>();
     if (!dokumentflyter) return map;
-    const alle = dokumentflyter as Dokumentflyt[];
+    const alle = dokumentflyter as unknown as Dokumentflyt[];
     for (const df of alle) {
       if (!df.enterpriseId) continue;
       const liste = map.get(df.enterpriseId) ?? [];

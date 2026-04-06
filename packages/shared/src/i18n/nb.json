@@ -984,6 +984,8 @@
   "kontakter.leggTilRolle": "Legg til rolle",
   "kontakter.velgRolle": "Velg rolle",
   "kontakter.nivaa": "Nivå",
+  "kontakter.ingenRoller": "Ingen roller konfigurert",
+  "kontakter.redigerRollenavn": "Klikk for å endre rollenavn",
   "tabell.bestiller": "Bestiller",
   "tabell.utforer": "Utfører",
   "tabell.bestillerEntreprise": "Bestiller-entreprise",

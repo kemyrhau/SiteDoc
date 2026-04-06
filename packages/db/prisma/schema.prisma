@@ -612,6 +612,7 @@ model Dokumentflyt {
   projectId    String   @map("project_id")
   enterpriseId String?  @map("enterprise_id")
   name         String
+  roller       Json     @default("[]") // Array<{ rolle: string, label?: string | null }>
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 

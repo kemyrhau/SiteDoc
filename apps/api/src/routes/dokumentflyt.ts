@@ -5,6 +5,7 @@ import {
   updateDokumentflytSchema,
   addDokumentflytMedlemSchema,
   removeDokumentflytMedlemSchema,
+  oppdaterRollerSchema,
 } from "@sitedoc/shared";
 import { verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
 
@@ -44,10 +45,11 @@ export const dokumentflytRouter = router({
     .input(createDokumentflytSchema)
     .mutation(async ({ ctx, input }) => {
       await verifiserProsjektmedlem(ctx.userId, input.projectId);
-      const { templateIds, medlemmer, ...data } = input;
+      const { templateIds, medlemmer, roller, ...data } = input;
       return ctx.prisma.dokumentflyt.create({
         data: {
           ...data,
+          roller: roller ?? [],
           maler: {
             create: templateIds.map((templateId) => ({ templateId })),
           },
@@ -88,6 +90,41 @@ export const dokumentflytRouter = router({
 
       return ctx.prisma.dokumentflyt.findUniqueOrThrow({
         where: { id },
+        include: dokumentflytInclude,
+      });
+    }),
+
+  // Oppdater roller-konfigurasjon (legg til/fjern roller, endre labels)
+  oppdaterRoller: protectedProcedure
+    .input(oppdaterRollerSchema)
+    .mutation(async ({ ctx, input }) => {
+      await verifiserProsjektmedlem(ctx.userId, input.projectId);
+
+      const eksisterende = await ctx.prisma.dokumentflyt.findUniqueOrThrow({
+        where: { id: input.id },
+        select: { roller: true },
+      });
+
+      // Finn roller som ble fjernet
+      const nyeRolleNavn: Set<string> = new Set(input.roller.map((r) => r.rolle));
+      const gamleRoller = (eksisterende.roller as Array<{ rolle: string }>) ?? [];
+      const fjernedeRoller = gamleRoller
+        .map((r) => r.rolle)
+        .filter((rolle) => !nyeRolleNavn.has(rolle));
+
+      // Slett DokumentflytMedlem for fjernede roller
+      if (fjernedeRoller.length > 0) {
+        await ctx.prisma.dokumentflytMedlem.deleteMany({
+          where: {
+            dokumentflytId: input.id,
+            rolle: { in: fjernedeRoller },
+          },
+        });
+      }
+
+      return ctx.prisma.dokumentflyt.update({
+        where: { id: input.id },
+        data: { roller: input.roller },
         include: dokumentflytInclude,
       });
     }),
