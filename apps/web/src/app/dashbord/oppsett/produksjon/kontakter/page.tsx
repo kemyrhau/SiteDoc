@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { trpc } from "@/lib/trpc";
 import { Spinner, Button } from "@sitedoc/ui";
@@ -158,12 +158,10 @@ function NyDokumentflytKnapp({ entrepriseId: enterpriseId, prosjektId }: { entre
 /* ------------------------------------------------------------------ */
 
 function DokumentflytKort({
-  df, opprettere, svarere, prosjektId,
+  df, prosjektId,
   alleEntrepriser, alleMedlemmer, alleGrupper, gruppeOppslag, gruppeMedlemNavn,
 }: {
   df: Dokumentflyt;
-  opprettere: DokumentflytMedlem[];
-  svarere: DokumentflytMedlem[];
   prosjektId: string;
   alleEntrepriser: Entreprise[];
   alleMedlemmer: ProsjektMedlem[];
@@ -235,60 +233,16 @@ function DokumentflytKort({
         )}
       </div>
 
-      {/* Visuell flyt: Bestiller → Utfører → Godkjenner */}
-      <div className="flex items-stretch gap-0">
-        <FlytBoks
-          tittel={t("kontakter.bestiller")}
-          ikon={<Send className="h-3 w-3" />}
-          farge="blue"
-          avrunding="rounded-l-lg"
-          dokumentflytId={df.id}
-          rolle="bestiller"
-          medlemmer={opprettere}
-          prosjektId={prosjektId}
-          entrepriser={alleEntrepriser}
-          alleMedlemmer={alleMedlemmer}
-          alleGrupper={alleGrupper}
-          gruppeOppslag={gruppeOppslag}
-          gruppeMedlemNavn={gruppeMedlemNavn}
-        />
-        <div className="flex items-center px-2">
-          <ArrowRight className="h-5 w-5 text-gray-300" />
-        </div>
-        <FlytBoks
-          tittel={t("kontakter.utforer")}
-          ikon={<ClipboardCheck className="h-3 w-3" />}
-          farge="purple"
-          avrunding=""
-          dokumentflytId={df.id}
-          rolle="utforer"
-          medlemmer={svarere}
-          prosjektId={prosjektId}
-          entrepriser={alleEntrepriser}
-          alleMedlemmer={alleMedlemmer}
-          alleGrupper={alleGrupper}
-          gruppeOppslag={gruppeOppslag}
-          gruppeMedlemNavn={gruppeMedlemNavn}
-        />
-        <div className="flex items-center px-2">
-          <ArrowRight className="h-5 w-5 text-gray-300" />
-        </div>
-        <FlytBoks
-          tittel={t("kontakter.godkjenner")}
-          ikon={<CheckCircle2 className="h-3 w-3" />}
-          farge="green"
-          avrunding="rounded-r-lg"
-          dokumentflytId={df.id}
-          rolle="bestiller"
-          medlemmer={opprettere}
-          prosjektId={prosjektId}
-          entrepriser={alleEntrepriser}
-          alleMedlemmer={alleMedlemmer}
-          alleGrupper={alleGrupper}
-          gruppeOppslag={gruppeOppslag}
-          gruppeMedlemNavn={gruppeMedlemNavn}
-        />
-      </div>
+      {/* Visuell flyt — dynamiske bokser basert på konfigurerte roller */}
+      <DynamiskFlyt
+        df={df}
+        prosjektId={prosjektId}
+        alleEntrepriser={alleEntrepriser}
+        alleMedlemmer={alleMedlemmer}
+        alleGrupper={alleGrupper}
+        gruppeOppslag={gruppeOppslag}
+        gruppeMedlemNavn={gruppeMedlemNavn}
+      />
 
       {/* Maler */}
       {df.maler.length > 0 && (
@@ -309,10 +263,154 @@ function DokumentflytKort({
 /* ------------------------------------------------------------------ */
 
 const FLYT_FARGER: Record<string, { border: string; bg: string; tittel: string; tekst: string; ikon: string; prikkBg: string; prikkRing: string }> = {
+  gray: { border: "border-gray-200", bg: "bg-gray-50/50", tittel: "text-gray-600", tekst: "text-gray-500", ikon: "text-gray-400", prikkBg: "bg-gray-500", prikkRing: "ring-gray-200" },
   blue: { border: "border-blue-200", bg: "bg-blue-50/50", tittel: "text-blue-600", tekst: "text-blue-500", ikon: "text-blue-400", prikkBg: "bg-blue-500", prikkRing: "ring-blue-200" },
   purple: { border: "border-purple-200", bg: "bg-purple-50/50", tittel: "text-purple-600", tekst: "text-purple-500", ikon: "text-purple-400", prikkBg: "bg-purple-500", prikkRing: "ring-purple-200" },
   green: { border: "border-green-200", bg: "bg-green-50/50", tittel: "text-green-600", tekst: "text-green-500", ikon: "text-green-400", prikkBg: "bg-green-500", prikkRing: "ring-green-200" },
 };
+
+const ROLLE_KONFIG: Record<string, { farge: string; ikonNavn: string; tittelNoekkel: string; rekkefølge: number }> = {
+  registrator: { farge: "gray", ikonNavn: "FileEdit", tittelNoekkel: "kontakter.registrator", rekkefølge: 0 },
+  bestiller: { farge: "blue", ikonNavn: "Send", tittelNoekkel: "kontakter.bestiller", rekkefølge: 1 },
+  utforer: { farge: "purple", ikonNavn: "ClipboardCheck", tittelNoekkel: "kontakter.utforer", rekkefølge: 2 },
+  godkjenner: { farge: "green", ikonNavn: "CheckCircle2", tittelNoekkel: "kontakter.godkjenner", rekkefølge: 3 },
+};
+
+function RolleIkon({ rolle }: { rolle: string }) {
+  switch (rolle) {
+    case "registrator": return <Pencil className="h-3 w-3" />;
+    case "bestiller": return <Send className="h-3 w-3" />;
+    case "utforer": return <ClipboardCheck className="h-3 w-3" />;
+    case "godkjenner": return <CheckCircle2 className="h-3 w-3" />;
+    default: return <FileText className="h-3 w-3" />;
+  }
+}
+
+function DynamiskFlyt({
+  df, prosjektId, alleEntrepriser, alleMedlemmer, alleGrupper, gruppeOppslag, gruppeMedlemNavn,
+}: {
+  df: Dokumentflyt;
+  prosjektId: string;
+  alleEntrepriser: Entreprise[];
+  alleMedlemmer: ProsjektMedlem[];
+  alleGrupper: Array<{ id: string; name: string }>;
+  gruppeOppslag: Map<string, Set<string>>;
+  gruppeMedlemNavn: Map<string, Array<{ navn: string; projectMemberId: string; gruppeMedlemId: string; erAdmin: boolean }>>;
+}) {
+  const { t } = useTranslation();
+  const utils = trpc.useUtils();
+  const [visLeggTilRolle, setVisLeggTilRolle] = useState(false);
+
+  const leggTilMedlemMutation = trpc.dokumentflyt.leggTilMedlem.useMutation({
+    onSuccess: () => {
+      utils.dokumentflyt.hentForProsjekt.invalidate();
+      setVisLeggTilRolle(false);
+    },
+  });
+
+  // Grupper medlemmer per rolle (sortert)
+  const rolleRekkefølge = ["registrator", "bestiller", "utforer", "godkjenner"];
+  const rollerMedMedlemmer = new Map<string, DokumentflytMedlem[]>();
+  for (const m of df.medlemmer) {
+    const liste = rollerMedMedlemmer.get(m.rolle) ?? [];
+    liste.push(m);
+    rollerMedMedlemmer.set(m.rolle, liste);
+  }
+
+  // Sorter rollene
+  const aktiveRoller = [...rollerMedMedlemmer.keys()].sort(
+    (a, b) => (ROLLE_KONFIG[a]?.rekkefølge ?? 99) - (ROLLE_KONFIG[b]?.rekkefølge ?? 99)
+  );
+
+  // Roller som kan legges til (ikke allerede i flyten, untatt godkjenner som kan ha flere steg)
+  const tilgjengeligeRoller = rolleRekkefølge.filter(
+    (r) => !rollerMedMedlemmer.has(r) || r === "godkjenner"
+  );
+
+  return (
+    <div className="flex items-stretch gap-0 flex-wrap">
+      {aktiveRoller.map((rolle, idx) => {
+        const konfig = ROLLE_KONFIG[rolle];
+        if (!konfig) return null;
+        const medlemmer = rollerMedMedlemmer.get(rolle) ?? [];
+        const erFørst = idx === 0;
+        const erSist = idx === aktiveRoller.length - 1 && tilgjengeligeRoller.length === 0;
+
+        return (
+          <React.Fragment key={rolle}>
+            {idx > 0 && (
+              <div className="flex items-center px-2">
+                <ArrowRight className="h-5 w-5 text-gray-300" />
+              </div>
+            )}
+            <FlytBoks
+              tittel={t(konfig.tittelNoekkel)}
+              ikon={<RolleIkon rolle={rolle} />}
+              farge={konfig.farge}
+              avrunding={erFørst && erSist ? "rounded-lg" : erFørst ? "rounded-l-lg" : erSist ? "rounded-r-lg" : ""}
+              dokumentflytId={df.id}
+              rolle={rolle}
+              medlemmer={medlemmer}
+              prosjektId={prosjektId}
+              entrepriser={alleEntrepriser}
+              alleMedlemmer={alleMedlemmer}
+              alleGrupper={alleGrupper}
+              gruppeOppslag={gruppeOppslag}
+              gruppeMedlemNavn={gruppeMedlemNavn}
+            />
+          </React.Fragment>
+        );
+      })}
+
+      {/* + Legg til rolle */}
+      {tilgjengeligeRoller.length > 0 && (
+        <>
+          {aktiveRoller.length > 0 && (
+            <div className="flex items-center px-2">
+              <ArrowRight className="h-5 w-5 text-gray-300" />
+            </div>
+          )}
+          {visLeggTilRolle ? (
+            <div className="flex flex-col items-start gap-1 rounded-lg border border-dashed border-gray-300 bg-gray-50/50 px-3 py-2">
+              <span className="text-xs font-semibold uppercase tracking-wide text-gray-400">{t("kontakter.velgRolle")}</span>
+              {tilgjengeligeRoller.map((rolle) => {
+                const konfig = ROLLE_KONFIG[rolle];
+                if (!konfig) return null;
+                const steg = rolle === "godkjenner" ? (rollerMedMedlemmer.get("godkjenner")?.length ?? 0) + 1 : 1;
+                return (
+                  <button
+                    key={`${rolle}-${steg}`}
+                    onClick={() => {
+                      // Legg til en tom rolle-boks ved å opprette et placeholder-medlem
+                      // For nå: åpne LeggTilMedlem-dropdown direkte med denne rollen
+                      setVisLeggTilRolle(false);
+                    }}
+                    className={`flex items-center gap-1.5 rounded px-2 py-1 text-xs hover:bg-gray-100 ${FLYT_FARGER[konfig.farge]?.tittel ?? "text-gray-500"}`}
+                  >
+                    {<RolleIkon rolle={rolle} />}
+                    {t(konfig.tittelNoekkel)}
+                    {rolle === "godkjenner" && steg > 1 && ` (${t("kontakter.nivaa")} ${steg})`}
+                  </button>
+                );
+              })}
+              <button onClick={() => setVisLeggTilRolle(false)} className="text-xs text-gray-400 hover:text-gray-600 mt-1">
+                {t("handling.avbryt")}
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setVisLeggTilRolle(true)}
+              className="flex items-center gap-1.5 rounded-lg border border-dashed border-gray-300 px-3 py-2 text-xs text-gray-400 hover:border-gray-400 hover:text-gray-600 self-stretch"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              {t("kontakter.leggTilRolle")}
+            </button>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
 
 function FlytBoks({
   tittel,
@@ -331,10 +429,10 @@ function FlytBoks({
 }: {
   tittel: string;
   ikon: React.ReactNode;
-  farge: "blue" | "purple" | "green";
+  farge: string;
   avrunding: string;
   dokumentflytId: string;
-  rolle: "bestiller" | "utforer";
+  rolle: string;
   medlemmer: DokumentflytMedlem[];
   prosjektId: string;
   entrepriser: Entreprise[];
@@ -781,16 +879,10 @@ export default function KontakterSide() {
                 <div className="border-t border-gray-100 bg-gray-50/50 px-4 py-4 space-y-4">
 
                   {/* Dokumentflyter — visuell flyt */}
-                  {dflyter.map((df) => {
-                    const opprettere = df.medlemmer.filter((m) => m.rolle === "bestiller");
-                    const svarere = df.medlemmer.filter((m) => m.rolle === "utforer");
-
-                    return (
+                  {dflyter.map((df) => (
                       <DokumentflytKort
                         key={df.id}
                         df={df}
-                        opprettere={opprettere}
-                        svarere={svarere}
                         prosjektId={prosjektId!}
                         alleEntrepriser={alleEntrepriser}
                         alleMedlemmer={alleMedlemmer}
@@ -798,8 +890,7 @@ export default function KontakterSide() {
                         gruppeOppslag={gruppeOppslag}
                         gruppeMedlemNavn={gruppeMedlemNavn}
                       />
-                    );
-                  })}
+                  ))}
 
                   {dflyter.length === 0 && (
                     <p className="text-xs text-gray-400 italic">{t("kontakter.ingenFlyter")}</p>

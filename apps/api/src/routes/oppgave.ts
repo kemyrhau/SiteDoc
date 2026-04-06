@@ -296,7 +296,7 @@ export const oppgaveRouter = router({
           const hovedansvarlig = await tx.dokumentflytMedlem.findFirst({
             where: {
               dokumentflytId: input.dokumentflytId,
-              rolle: "utfører",
+              rolle: "utforer",
               erHovedansvarlig: true,
             },
             include: {

@@ -250,7 +250,7 @@ export const prosjektRouter = router({
                 data: {
                   dokumentflytId: flyt.id,
                   enterpriseId: entrepriseIder[idx],
-                  rolle: "utfører",
+                  rolle: "utforer",
                   steg: 1,
                 },
               });

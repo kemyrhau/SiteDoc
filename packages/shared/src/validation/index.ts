@@ -8,7 +8,8 @@ export const documentStatusSchema = z.enum(DOCUMENT_STATUSES);
 export const reportObjectTypeSchema = z.enum(REPORT_OBJECT_TYPES);
 
 // Entrepriserolle-validering
-export const enterpriseRoleSchema = z.enum(["bestiller", "utforer"]);
+export const dokumentflytRolleSchema = z.enum(["registrator", "bestiller", "utforer", "godkjenner"]);
+export const enterpriseRoleSchema = dokumentflytRolleSchema;
 
 // Malsone-validering
 export const templateZoneSchema = z.enum(TEMPLATE_ZONES);
@@ -233,7 +234,7 @@ export const createDokumentflytSchema = z.object({
     enterpriseId: z.string().uuid().optional(),
     projectMemberId: z.string().uuid().optional(),
     groupId: z.string().uuid().optional(),
-    rolle: z.enum(["bestiller", "utforer"]),
+    rolle: dokumentflytRolleSchema,
     steg: z.number().int().min(1).default(1),
   })).default([]),
 });
@@ -251,7 +252,7 @@ export const addDokumentflytMedlemSchema = z.object({
   enterpriseId: z.string().uuid().optional(),
   projectMemberId: z.string().uuid().optional(),
   groupId: z.string().uuid().optional(),
-  rolle: z.enum(["bestiller", "utforer"]),
+  rolle: dokumentflytRolleSchema,
   steg: z.number().int().min(1).default(1),
 });
 

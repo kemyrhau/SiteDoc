@@ -631,7 +631,7 @@ model DokumentflytMedlem {
   enterpriseId    String?  @map("enterprise_id")
   projectMemberId String?  @map("project_member_id")
   groupId         String?  @map("group_id")
-  rolle              String // "oppretter" | "svarer"
+  rolle              String // "registrator" | "bestiller" | "utforer" | "godkjenner"
   steg               Int      @default(1)
   erHovedansvarlig   Boolean  @default(false) @map("er_hovedansvarlig")
   createdAt          DateTime @default(now()) @map("created_at")
