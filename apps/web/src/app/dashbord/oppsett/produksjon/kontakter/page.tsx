@@ -516,11 +516,29 @@ function FlytBoks({
     utils.dokumentflyt.hentForProsjekt.invalidate({ projectId: prosjektId });
   };
 
+  const fjernRolleMutation = trpc.dokumentflyt.fjernMedlem.useMutation({
+    onSuccess: () => utils.dokumentflyt.hentForProsjekt.invalidate({ projectId: prosjektId }),
+  });
+
+  const fjernHelRolle = () => {
+    if (!confirm(t("kontakter.bekreftFjernRolle"))) return;
+    for (const m of medlemmer) {
+      fjernRolleMutation.mutate({ id: m.id, projectId: prosjektId });
+    }
+  };
+
   return (
-    <div className={`flex-1 ${avrunding} border ${f.border} ${f.bg} px-3 py-2`}>
+    <div className={`group/boks flex-1 ${avrunding} border ${f.border} ${f.bg} px-3 py-2`}>
       <div className={`mb-1 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide ${f.tittel}`}>
         {ikon}
         {tittel}
+        <button
+          onClick={fjernHelRolle}
+          className="ml-auto rounded p-0.5 text-gray-300 opacity-0 group-hover/boks:opacity-100 hover:bg-red-100 hover:text-red-500 transition-opacity"
+          title={t("kontakter.fjernRolle")}
+        >
+          <X className="h-3 w-3" />
+        </button>
       </div>
 
       {/* Grupper — klikkbar for å se medlemmer */}

@@ -979,6 +979,8 @@
   "kontakter.bestillerBeskrivelse": "Orders and sends documents",
   "kontakter.utforer": "Executor",
   "kontakter.utforerBeskrivelse": "Receives, fills out and responds",
+  "kontakter.fjernRolle": "Remove role",
+  "kontakter.bekreftFjernRolle": "Are you sure you want to remove this role and all its members from the document flow?",
   "kontakter.leggTilRolle": "Add role",
   "kontakter.velgRolle": "Select role",
   "kontakter.nivaa": "Level",

@@ -979,6 +979,8 @@
   "kontakter.bestillerBeskrivelse": "Bestiller og sender dokumenter",
   "kontakter.utforer": "Utfører",
   "kontakter.utforerBeskrivelse": "Mottar, utfyller og besvarer",
+  "kontakter.fjernRolle": "Fjern rolle",
+  "kontakter.bekreftFjernRolle": "Er du sikker på at du vil fjerne denne rollen og alle dens medlemmer fra dokumentflyten?",
   "kontakter.leggTilRolle": "Legg til rolle",
   "kontakter.velgRolle": "Velg rolle",
   "kontakter.nivaa": "Nivå",
