@@ -770,7 +770,7 @@ function OpprettDokumentflytModal({
       enterpriseId?: string;
       projectMemberId?: string;
       groupId?: string;
-      rolle: string;
+      rolle: "registrator" | "bestiller" | "utforer" | "godkjenner";
       steg: number;
     }> = [];
 
