@@ -300,13 +300,7 @@ function DynamiskFlyt({
   const { t } = useTranslation();
   const utils = trpc.useUtils();
   const [visLeggTilRolle, setVisLeggTilRolle] = useState(false);
-
-  const leggTilMedlemMutation = trpc.dokumentflyt.leggTilMedlem.useMutation({
-    onSuccess: () => {
-      utils.dokumentflyt.hentForProsjekt.invalidate();
-      setVisLeggTilRolle(false);
-    },
-  });
+  const [nyRolle, setNyRolle] = useState<{ rolle: string; steg: number } | null>(null);
 
   // Grupper medlemmer per rolle (sortert)
   const rolleRekkefølge = ["registrator", "bestiller", "utforer", "godkjenner"];
@@ -362,8 +356,40 @@ function DynamiskFlyt({
         );
       })}
 
+      {/* Ny rolle-boks (tom, venter på første medlem) */}
+      {nyRolle && !rollerMedMedlemmer.has(nyRolle.rolle) && (() => {
+        const konfig = ROLLE_KONFIG[nyRolle.rolle];
+        if (!konfig) return null;
+        return (
+          <Fragment>
+            {aktiveRoller.length > 0 && (
+              <div className="flex items-center px-2">
+                <ArrowRight className="h-5 w-5 text-gray-300" />
+              </div>
+            )}
+            <FlytBoks
+              tittel={t(konfig.tittelNoekkel)}
+              ikon={<RolleIkon rolle={nyRolle.rolle} />}
+              farge={konfig.farge}
+              avrunding={aktiveRoller.length === 0 ? "rounded-lg" : "rounded-r-lg"}
+              dokumentflytId={df.id}
+              rolle={nyRolle.rolle}
+              medlemmer={[]}
+              prosjektId={prosjektId}
+              entrepriser={alleEntrepriser}
+              alleMedlemmer={alleMedlemmer}
+              alleGrupper={alleGrupper}
+              gruppeOppslag={gruppeOppslag}
+              gruppeMedlemNavn={gruppeMedlemNavn}
+              startAapen={true}
+              onFoersteMedlem={() => setNyRolle(null)}
+            />
+          </Fragment>
+        );
+      })()}
+
       {/* + Legg til rolle */}
-      {tilgjengeligeRoller.length > 0 && (
+      {tilgjengeligeRoller.length > 0 && !nyRolle && (
         <>
           {aktiveRoller.length > 0 && (
             <div className="flex items-center px-2">
@@ -381,8 +407,7 @@ function DynamiskFlyt({
                   <button
                     key={`${rolle}-${steg}`}
                     onClick={() => {
-                      // Legg til en tom rolle-boks ved å opprette et placeholder-medlem
-                      // For nå: åpne LeggTilMedlem-dropdown direkte med denne rollen
+                      setNyRolle({ rolle, steg });
                       setVisLeggTilRolle(false);
                     }}
                     className={`flex items-center gap-1.5 rounded px-2 py-1 text-xs hover:bg-gray-100 ${FLYT_FARGER[konfig.farge]?.tittel ?? "text-gray-500"}`}
@@ -426,9 +451,11 @@ function FlytBoks({
   alleGrupper,
   gruppeOppslag,
   gruppeMedlemNavn,
+  startAapen = false,
+  onFoersteMedlem,
 }: {
   tittel: string;
-  ikon: React.ReactNode;
+  ikon: JSX.Element;
   farge: string;
   avrunding: string;
   dokumentflytId: string;
@@ -438,8 +465,10 @@ function FlytBoks({
   entrepriser: Entreprise[];
   alleMedlemmer: ProsjektMedlem[];
   alleGrupper: Array<{ id: string; name: string }>;
-  gruppeOppslag: Map<string, Set<string>>; // gruppeId → Set<projectMemberId>
-  gruppeMedlemNavn: Map<string, Array<{ navn: string; projectMemberId: string; gruppeMedlemId: string; erAdmin: boolean }>>; // gruppeId → info[]
+  gruppeOppslag: Map<string, Set<string>>;
+  gruppeMedlemNavn: Map<string, Array<{ navn: string; projectMemberId: string; gruppeMedlemId: string; erAdmin: boolean }>>;
+  startAapen?: boolean;
+  onFoersteMedlem?: () => void;
 }) {
   const { t } = useTranslation();
   const utils = trpc.useUtils();
@@ -514,6 +543,7 @@ function FlytBoks({
 
   const handleLagtTil = () => {
     utils.dokumentflyt.hentForProsjekt.invalidate({ projectId: prosjektId });
+    if (onFoersteMedlem && medlemmer.length === 0) onFoersteMedlem();
   };
 
   const fjernRolleMutation = trpc.dokumentflyt.fjernMedlem.useMutation({
