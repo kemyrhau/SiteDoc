@@ -892,14 +892,26 @@ export default function KontakterSide() {
                     <EntrepriseFargePrikk farge={ent.color} />
                     <span className="font-medium text-blue-700">{ent.name}</span>
                   </div>
-                  <div className="col-span-5 flex flex-wrap gap-1.5">
+                  <div className="col-span-5 flex flex-col gap-1">
                     {dflyter.length === 0
                       ? <span className="text-xs text-gray-300">{t("kontakter.ingenFlyter")}</span>
-                      : dflyter.map((df) => (
-                          <span key={df.id} className="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-500">
-                            {df.name}
-                          </span>
-                        ))
+                      : dflyter.map((df) => {
+                          const rolleNavn = ((df.roller ?? []) as RolleKonfig[])
+                            .map((r) => {
+                              const konfig = ROLLE_KONFIG[r.rolle];
+                              return r.label ?? (konfig ? t(konfig.tittelNoekkel) : r.rolle);
+                            });
+                          return (
+                            <div key={df.id} className="flex items-center gap-1.5 text-xs">
+                              <span className="font-medium text-gray-600">{df.name}</span>
+                              {rolleNavn.length > 0 && (
+                                <span className="text-gray-400">
+                                  ({rolleNavn.join(" → ")})
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })
                     }
                   </div>
                   <div className="col-span-3 flex items-center justify-between text-sm text-gray-400">
