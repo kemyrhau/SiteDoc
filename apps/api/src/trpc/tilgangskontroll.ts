@@ -180,6 +180,33 @@ export async function verifiserDokumentTilgang(
   // Prosjektadmin ser alt
   if (medlem.role === "admin") return;
 
+  // Firmaansvarlig ser alle dokumenter der firmaets entrepriser er involvert
+  if (medlem.erFirmaansvarlig) {
+    const brukerOrg = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { organizationId: true },
+    });
+    if (brukerOrg?.organizationId) {
+      // Finn alle prosjektmedlemmer fra samme firma
+      const firmamedlemmer = await prisma.projectMember.findMany({
+        where: {
+          projectId,
+          user: { organizationId: brukerOrg.organizationId },
+        },
+        select: {
+          enterprises: { select: { enterpriseId: true } },
+        },
+      });
+      const firmaEntreIder = new Set(
+        firmamedlemmer.flatMap((m) => m.enterprises.map((e) => e.enterpriseId)),
+      );
+      const harFirmaTilgang =
+        (bestillerEnterpriseId && firmaEntreIder.has(bestillerEnterpriseId)) ||
+        (utforerEnterpriseId && firmaEntreIder.has(utforerEnterpriseId));
+      if (harFirmaTilgang) return;
+    }
+  }
+
   // Direkte entreprise-tilgang
   const direkteEntreIder = medlem.enterprises.map((e) => e.enterpriseId);
   const harDirekteTilgang =
@@ -252,6 +279,32 @@ export async function byggTilgangsFilter(
 
   // Samle alle OR-betingelser
   const orBetingelser: Record<string, unknown>[] = [];
+
+  // Firmaansvarlig: ser alle dokumenter der firmaets entrepriser er involvert
+  if (medlem.erFirmaansvarlig) {
+    const brukerOrg = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { organizationId: true },
+    });
+    if (brukerOrg?.organizationId) {
+      const firmamedlemmer = await prisma.projectMember.findMany({
+        where: {
+          projectId,
+          user: { organizationId: brukerOrg.organizationId },
+        },
+        select: {
+          enterprises: { select: { enterpriseId: true } },
+        },
+      });
+      const firmaEntreIder = [
+        ...new Set(firmamedlemmer.flatMap((m) => m.enterprises.map((e) => e.enterpriseId))),
+      ];
+      if (firmaEntreIder.length > 0) {
+        orBetingelser.push({ bestillerEnterpriseId: { in: firmaEntreIder } });
+        orBetingelser.push({ utforerEnterpriseId: { in: firmaEntreIder } });
+      }
+    }
+  }
 
   // Direkte entreprise-tilgang (alle domener)
   const direkteEntreIder = medlem.enterprises.map((e) => e.enterpriseId);

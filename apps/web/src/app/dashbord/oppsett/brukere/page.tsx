@@ -759,17 +759,25 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
                   <td className="whitespace-nowrap px-4 py-2.5">
                     {erRedigering ? (
                       <select
-                        value={m.erFirmaansvarlig ? "firmaansvarlig" : redigerData.role}
+                        value={m.erFirmaansvarlig && m.role !== "admin" ? "firmaansvarlig" : redigerData.role}
                         onChange={(e) => {
                           const val = e.target.value;
                           if (val === "firmaansvarlig") {
+                            // Sett role=member + erFirmaansvarlig=true
+                            setRedigerData((p) => ({ ...p, role: "member" }));
                             settFirmaansvarligMutation.mutate({ id: m.id, projectId: prosjektId, erFirmaansvarlig: true });
-                            setRedigerData((p) => ({ ...p, role: p.role }));
-                          } else {
+                          } else if (val === "admin") {
+                            // Sett role=admin + erFirmaansvarlig=false
+                            setRedigerData((p) => ({ ...p, role: "admin" }));
                             if (m.erFirmaansvarlig) {
                               settFirmaansvarligMutation.mutate({ id: m.id, projectId: prosjektId, erFirmaansvarlig: false });
                             }
-                            setRedigerData((p) => ({ ...p, role: val }));
+                          } else {
+                            // Medlem: role=member + erFirmaansvarlig=false
+                            setRedigerData((p) => ({ ...p, role: "member" }));
+                            if (m.erFirmaansvarlig) {
+                              settFirmaansvarligMutation.mutate({ id: m.id, projectId: prosjektId, erFirmaansvarlig: false });
+                            }
                           }
                         }}
                         className="rounded border border-blue-300 px-1.5 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
