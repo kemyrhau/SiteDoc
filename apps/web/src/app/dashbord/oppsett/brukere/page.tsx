@@ -692,7 +692,10 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
                         />
                       ) : (
                         <>
-                          {m.erFirmaansvarlig && (
+                          {m.role === "admin" && (
+                            <span title="Admin"><Shield className="h-3.5 w-3.5 text-blue-600 shrink-0" /></span>
+                          )}
+                          {m.erFirmaansvarlig && m.role !== "admin" && (
                             <span title={t("brukere.firmaansvarlig")}><Shield className="h-3.5 w-3.5 text-amber-500 shrink-0" /></span>
                           )}
                           <span
