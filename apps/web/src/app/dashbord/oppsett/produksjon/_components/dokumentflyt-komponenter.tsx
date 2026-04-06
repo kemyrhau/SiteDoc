@@ -191,7 +191,7 @@ export function LeggTilMedlemDropdown({
 }: {
   dokumentflytId: string;
   prosjektId: string;
-  rolle: "bestiller" | "utforer";
+  rolle: string;
   steg: number;
   entrepriser: EntrepriseItem[];
   medlemmer: ProsjektMedlemItem[];
@@ -362,7 +362,7 @@ export function InviterNyMedlemModal({
   onClose: () => void;
   prosjektId: string;
   dokumentflytId: string;
-  rolle: "bestiller" | "utforer";
+  rolle: string;
   steg: number;
   onFerdig: () => void;
 }) {
@@ -529,7 +529,7 @@ export function DokumentflytInlineKort({
   onRediger: () => void;
   onSlett: () => void;
   onOppdatert: () => void;
-  onInviterNy: (dokumentflytId: string, rolle: "bestiller" | "utforer", steg: number) => void;
+  onInviterNy: (dokumentflytId: string, rolle: string, steg: number) => void;
 }) {
   const { t } = useTranslation();
   const [ekspandert, setEkspandert] = useState(false);

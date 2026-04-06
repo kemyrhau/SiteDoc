@@ -172,7 +172,7 @@ function EntrepriseKort({
   onDfSlett: (id: string) => void;
   onDfOppdatert: () => void;
   onNyDokumentflyt: (entrepriseId: string) => void;
-  onInviterNy: (dokumentflytId: string, rolle: "bestiller" | "utforer", steg: number) => void;
+  onInviterNy: (dokumentflytId: string, rolle: string, steg: number) => void;
 }) {
   const { t } = useTranslation();
   const [ekspandert, setEkspandert] = useState(true);
@@ -770,7 +770,7 @@ function OpprettDokumentflytModal({
       enterpriseId?: string;
       projectMemberId?: string;
       groupId?: string;
-      rolle: "bestiller" | "utforer";
+      rolle: string;
       steg: number;
     }> = [];
 
@@ -1196,7 +1196,7 @@ export default function EntrepriserSide() {
   // Inviter
   const [inviterInfo, setInviterInfo] = useState<{
     dokumentflytId: string;
-    rolle: "bestiller" | "utforer";
+    rolle: string;
     steg: number;
   } | null>(null);
 
