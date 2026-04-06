@@ -346,9 +346,9 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
   return (
     <div className="mb-6">
       <h2 className="mb-4 text-xl font-bold text-gray-900">{t("brukere.kontakter")}</h2>
-      <div className="overflow-x-auto rounded-lg border border-gray-200">
+      <div className="rounded-lg border border-gray-200">
         <table className="w-full text-left text-sm">
-          <thead className="border-b border-gray-200 bg-gray-50 text-xs font-medium uppercase tracking-wide text-gray-500">
+          <thead className="sticky top-0 z-10 border-b border-gray-200 bg-gray-50 text-xs font-medium uppercase tracking-wide text-gray-500">
             <tr>
               <th className="px-4 py-2.5">{t("tabell.navn")}</th>
               <th className="px-4 py-2.5">{t("kontakter.epost")}</th>
@@ -359,7 +359,7 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
               <th className="px-4 py-2.5">{t("kontakter.grupper")}</th>
             </tr>
             {/* Filterrad */}
-            <tr className="border-b border-gray-200 bg-gray-50/50">
+            <tr className="border-b border-gray-200 bg-gray-50">
               <th colSpan={3} className="px-4 py-1.5">
                 <input
                   type="text"
