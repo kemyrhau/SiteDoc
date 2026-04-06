@@ -109,7 +109,6 @@ interface KontaktMedlem {
 function KontaktTabell({ prosjektId }: { prosjektId: string }) {
   const { t } = useTranslation();
   const utils = trpc.useUtils();
-  const [leggTilEntrepriseForMedlem, setLeggTilEntrepriseForMedlem] = useState<string | null>(null);
   const [kollapserteGrupper, setKollapserteGrupper] = useState<Set<string>>(new Set());
   const [redigerMedlemId, setRedigerMedlemId] = useState<string | null>(null);
   const [redigerData, setRedigerData] = useState({ name: "", email: "", phone: "", role: "" });
@@ -141,13 +140,6 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
     { projectId: prosjektId },
     { enabled: !!prosjektId },
   );
-
-  const tilknyttMutation = trpc.medlem.tilknyttEntreprise.useMutation({
-    onSuccess: () => {
-      utils.medlem.hentForProsjekt.invalidate({ projectId: prosjektId });
-      setLeggTilEntrepriseForMedlem(null);
-    },
-  });
 
   const fjernMutation = trpc.medlem.fjernFraEntreprise.useMutation({
     onSuccess: () => {
@@ -357,13 +349,13 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
 
   return (
     <div className="-mx-6 -mt-6">
-      <div className="sticky top-0 z-20 bg-gray-50 px-6 pt-6 pb-3 border-b border-gray-200">
+      <div className="sticky top-0 z-30 bg-gray-50 px-6 pt-6 pb-3 border-b border-gray-200">
         <h2 className="text-xl font-bold text-gray-900">{t("brukere.kontakter")}</h2>
       </div>
       <div className="px-6 pt-3 pb-6">
       <div className="rounded-lg border border-gray-200">
         <table className="w-full text-left text-sm">
-          <thead className="sticky top-[69px] z-10 border-b border-gray-200 bg-gray-50 text-xs font-medium uppercase tracking-wide text-gray-500">
+          <thead className="sticky top-[69px] z-20 border-b border-gray-200 bg-gray-50 text-xs font-medium uppercase tracking-wide text-gray-500 shadow-sm">
             <tr>
               <th className="px-4 py-2.5">{t("tabell.navn")}</th>
               <th className="px-4 py-2.5">{t("kontakter.epost")}</th>
