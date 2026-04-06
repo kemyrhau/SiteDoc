@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import { useState, useMemo, Fragment } from "react";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { trpc } from "@/lib/trpc";
 import { Spinner, Button } from "@sitedoc/ui";
@@ -337,7 +337,7 @@ function DynamiskFlyt({
         const erSist = idx === aktiveRoller.length - 1 && tilgjengeligeRoller.length === 0;
 
         return (
-          <React.Fragment key={rolle}>
+          <Fragment key={rolle}>
             {idx > 0 && (
               <div className="flex items-center px-2">
                 <ArrowRight className="h-5 w-5 text-gray-300" />
@@ -358,7 +358,7 @@ function DynamiskFlyt({
               gruppeOppslag={gruppeOppslag}
               gruppeMedlemNavn={gruppeMedlemNavn}
             />
-          </React.Fragment>
+          </Fragment>
         );
       })}
 
