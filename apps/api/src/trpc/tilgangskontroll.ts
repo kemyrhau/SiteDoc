@@ -149,6 +149,8 @@ export async function verifiserDokumentTilgang(
   bestillerEnterpriseId: string | null,
   utforerEnterpriseId: string | null,
   templateDomain?: string | null,
+  dokumentId?: string,
+  dokumentType?: "task" | "checklist",
 ): Promise<void> {
   // sitedoc_admin ser alt
   const bruker = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
@@ -180,30 +182,50 @@ export async function verifiserDokumentTilgang(
   // Prosjektadmin ser alt
   if (medlem.role === "admin") return;
 
-  // Firmaansvarlig ser alle dokumenter der firmaets entrepriser er involvert
-  if (medlem.erFirmaansvarlig) {
+  // Firmaansvarlig: ser dokumenter der firmamedlemmer er direkte involvert
+  if (medlem.erFirmaansvarlig && dokumentId && dokumentType) {
     const brukerOrg = await prisma.user.findUnique({
       where: { id: userId },
       select: { organizationId: true },
     });
     if (brukerOrg?.organizationId) {
-      // Finn alle prosjektmedlemmer fra samme firma
-      const firmamedlemmer = await prisma.projectMember.findMany({
+      const firmaUserIder = (await prisma.user.findMany({
+        where: { organizationId: brukerOrg.organizationId },
+        select: { id: true },
+      })).map((u) => u.id);
+
+      // Sjekk bestillerUserId og recipientUserId
+      const dokument = dokumentType === "task"
+        ? await prisma.task.findUnique({
+            where: { id: dokumentId },
+            select: { bestillerUserId: true, recipientUserId: true },
+          })
+        : await prisma.checklist.findUnique({
+            where: { id: dokumentId },
+            select: { bestillerUserId: true, recipientUserId: true },
+          });
+
+      if (dokument) {
+        const involverteUserIder = new Set(firmaUserIder);
+        if (
+          (dokument.bestillerUserId && involverteUserIder.has(dokument.bestillerUserId)) ||
+          (dokument.recipientUserId && involverteUserIder.has(dokument.recipientUserId))
+        ) {
+          return;
+        }
+      }
+
+      // Sjekk DocumentTransfer.senderId
+      const transferMatch = await prisma.documentTransfer.findFirst({
         where: {
-          projectId,
-          user: { organizationId: brukerOrg.organizationId },
+          senderId: { in: firmaUserIder },
+          ...(dokumentType === "task"
+            ? { taskId: dokumentId }
+            : { checklistId: dokumentId }),
         },
-        select: {
-          enterprises: { select: { enterpriseId: true } },
-        },
+        select: { id: true },
       });
-      const firmaEntreIder = new Set(
-        firmamedlemmer.flatMap((m) => m.enterprises.map((e) => e.enterpriseId)),
-      );
-      const harFirmaTilgang =
-        (bestillerEnterpriseId && firmaEntreIder.has(bestillerEnterpriseId)) ||
-        (utforerEnterpriseId && firmaEntreIder.has(utforerEnterpriseId));
-      if (harFirmaTilgang) return;
+      if (transferMatch) return;
     }
   }
 
@@ -280,28 +302,27 @@ export async function byggTilgangsFilter(
   // Samle alle OR-betingelser
   const orBetingelser: Record<string, unknown>[] = [];
 
-  // Firmaansvarlig: ser alle dokumenter der firmaets entrepriser er involvert
+  // Firmaansvarlig: ser dokumenter der firmamedlemmer er direkte involvert
   if (medlem.erFirmaansvarlig) {
     const brukerOrg = await prisma.user.findUnique({
       where: { id: userId },
       select: { organizationId: true },
     });
     if (brukerOrg?.organizationId) {
-      const firmamedlemmer = await prisma.projectMember.findMany({
-        where: {
-          projectId,
-          user: { organizationId: brukerOrg.organizationId },
-        },
-        select: {
-          enterprises: { select: { enterpriseId: true } },
-        },
-      });
-      const firmaEntreIder = [
-        ...new Set(firmamedlemmer.flatMap((m) => m.enterprises.map((e) => e.enterpriseId))),
-      ];
-      if (firmaEntreIder.length > 0) {
-        orBetingelser.push({ bestillerEnterpriseId: { in: firmaEntreIder } });
-        orBetingelser.push({ utforerEnterpriseId: { in: firmaEntreIder } });
+      const firmaUserIder = (await prisma.user.findMany({
+        where: { organizationId: brukerOrg.organizationId },
+        select: { id: true },
+      })).map((u) => u.id);
+
+      if (firmaUserIder.length > 0) {
+        // Dokumenter opprettet av firmamedlem
+        orBetingelser.push({ bestillerUserId: { in: firmaUserIder } });
+        // Dokumenter der firmamedlem er mottaker
+        orBetingelser.push({ recipientUserId: { in: firmaUserIder } });
+        // Dokumenter der firmamedlem har sendt/videresendt
+        orBetingelser.push({
+          transfers: { some: { senderId: { in: firmaUserIder } } },
+        });
       }
     }
   }

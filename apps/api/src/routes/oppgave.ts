@@ -130,6 +130,8 @@ export const oppgaveRouter = router({
         oppgave.bestillerEnterpriseId,
         oppgave.utforerEnterpriseId,
         oppgave.template?.domain,
+        oppgave.id,
+        "task",
       );
 
       return oppgave;
@@ -152,6 +154,8 @@ export const oppgaveRouter = router({
         oppgave.bestillerEnterpriseId,
         oppgave.utforerEnterpriseId,
         oppgave.template?.domain,
+        oppgave.id,
+        "task",
       );
 
       return ctx.prisma.taskComment.findMany({
@@ -183,6 +187,8 @@ export const oppgaveRouter = router({
         oppgave.bestillerEnterpriseId,
         oppgave.utforerEnterpriseId,
         oppgave.template?.domain,
+        oppgave.id,
+        "task",
       );
 
       return ctx.prisma.taskComment.create({
@@ -209,6 +215,9 @@ export const oppgaveRouter = router({
         sjekkliste.template.projectId,
         sjekkliste.bestillerEnterpriseId,
         sjekkliste.utforerEnterpriseId,
+        undefined,
+        sjekkliste.id,
+        "checklist",
       );
 
       return ctx.prisma.task.findMany({
@@ -366,6 +375,8 @@ export const oppgaveRouter = router({
         oppgave.bestillerEnterpriseId,
         oppgave.utforerEnterpriseId,
         oppgave.template?.domain,
+        oppgave.id,
+        "task",
       );
 
       // Entreprise-endring kun tillatt i utkast-status
@@ -415,6 +426,8 @@ export const oppgaveRouter = router({
         oppgave.bestillerEnterpriseId,
         oppgave.utforerEnterpriseId,
         oppgave.template?.domain,
+        oppgave.id,
+        "task",
       );
 
       // Fritekst-oversettelse Lag 3
@@ -512,6 +525,8 @@ export const oppgaveRouter = router({
         ctx.userId, projectId,
         oppgave.bestillerEnterpriseId, oppgave.utforerEnterpriseId,
         oppgave.template?.domain,
+        oppgave.id,
+        "task",
       );
 
       const data = (oppgave.data ?? {}) as Record<string, Record<string, unknown>>;
@@ -584,6 +599,8 @@ export const oppgaveRouter = router({
         oppgave.bestillerEnterpriseId,
         oppgave.utforerEnterpriseId,
         oppgave.template?.domain,
+        oppgave.id,
+        "task",
       );
 
       // Hjelpefunksjon for varsling (bruker input-mottaker eller besvar-mottaker)
@@ -738,6 +755,8 @@ export const oppgaveRouter = router({
         oppgave.bestillerEnterpriseId,
         oppgave.utforerEnterpriseId,
         oppgave.template?.domain,
+        oppgave.id,
+        "task",
       );
 
       if (oppgave.status !== "draft" && oppgave.status !== "cancelled") {

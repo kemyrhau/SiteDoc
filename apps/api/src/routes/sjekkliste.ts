@@ -86,6 +86,8 @@ export const sjekklisteRouter = router({
         sjekkliste.bestillerEnterpriseId,
         sjekkliste.utforerEnterpriseId,
         sjekkliste.template.domain,
+        sjekkliste.id,
+        "checklist",
       );
 
       return sjekkliste;
@@ -219,6 +221,8 @@ export const sjekklisteRouter = router({
         sjekkliste.bestillerEnterpriseId,
         sjekkliste.utforerEnterpriseId,
         sjekkliste.template.domain,
+        sjekkliste.id,
+        "checklist",
       );
 
       // Entreprise-endring kun tillatt i utkast-status
@@ -265,6 +269,8 @@ export const sjekklisteRouter = router({
         sjekkliste.bestillerEnterpriseId,
         sjekkliste.utforerEnterpriseId,
         sjekkliste.template.domain,
+        sjekkliste.id,
+        "checklist",
       );
 
       // Generer endringslogg hvis aktivert på malen
@@ -418,6 +424,8 @@ export const sjekklisteRouter = router({
         ctx.userId, sjekkliste.template.projectId,
         sjekkliste.bestillerEnterpriseId, sjekkliste.utforerEnterpriseId,
         sjekkliste.template.domain,
+        sjekkliste.id,
+        "checklist",
       );
 
       const data = (sjekkliste.data ?? {}) as Record<string, Record<string, unknown>>;
@@ -498,6 +506,8 @@ export const sjekklisteRouter = router({
         sjekkliste.bestillerEnterpriseId,
         sjekkliste.utforerEnterpriseId,
         sjekkliste.template.domain,
+        sjekkliste.id,
+        "checklist",
       );
 
       // Hjelpefunksjon for varsling (bruker input-mottaker eller besvar-mottaker)
@@ -652,6 +662,8 @@ export const sjekklisteRouter = router({
         sjekkliste.bestillerEnterpriseId,
         sjekkliste.utforerEnterpriseId,
         sjekkliste.template.domain,
+        sjekkliste.id,
+        "checklist",
       );
 
       if (sjekkliste.status !== "draft" && sjekkliste.status !== "cancelled") {
