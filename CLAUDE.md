@@ -198,6 +198,7 @@ Etter endringer, oppgi alltid hvilken reload-metode som trengs:
 
 ## Viktige regler
 
+- **Beskriv løsningen først:** Før kodeendringer, beskriv den logiske løsningen med ord og be om brukerens godkjenning. Ikke anta — still kontrollspørsmål ved tvil
 - ALDRI commit `.env`-filer
 - Bilder komprimeres til 300–400 KB før opplasting
 - Alle database-endringer via Prisma-migreringer

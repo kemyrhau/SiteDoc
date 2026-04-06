@@ -583,12 +583,6 @@ function FlytBoks({
     },
   });
 
-  const leggTilMedlemMutation = trpc.dokumentflyt.leggTilMedlem.useMutation({
-    onSuccess: () => {
-      utils.dokumentflyt.hentForProsjekt.invalidate({ projectId: prosjektId });
-    },
-  });
-
   // Del medlemmer i grupper og enkeltpersoner
   const gruppeMedlemmer = medlemmer.filter((m) => !!m.group);
   const enkeltpersoner = medlemmer.filter((m) => !m.group && !!m.projectMember);
@@ -712,50 +706,12 @@ function FlytBoks({
             </div>
             {erUtvidet && medlemNavn.length > 0 && (
               <div className="ml-5 mt-0.5 mb-1 space-y-0.5">
-                {medlemNavn.map((gm) => {
-                  // Sjekk om personen allerede er lagt til som enkelt-DokumentflytMedlem
-                  const eksisterendeSom = enkeltpersoner.find(
-                    (ep) => ep.projectMember?.id === gm.projectMemberId
-                  );
-                  const erHovedansvarlig = eksisterendeSom?.erHovedansvarlig === true;
-
-                  return (
-                    <div key={gm.gruppeMedlemId} className="group/gmedlem flex items-center gap-1.5 text-xs text-gray-600">
-                      <button
-                        onClick={() => {
-                          if (eksisterendeSom) {
-                            // Toggle hovedansvarlig på eksisterende DokumentflytMedlem
-                            settHovedansvarligMutation.mutate({
-                              id: eksisterendeSom.id,
-                              projectId: prosjektId,
-                              erHovedansvarlig: !erHovedansvarlig,
-                            });
-                          } else {
-                            // Legg til som enkelt-DokumentflytMedlem med erHovedansvarlig
-                            leggTilMedlemMutation.mutate({
-                              dokumentflytId: dokumentflytId,
-                              projectId: prosjektId,
-                              projectMemberId: gm.projectMemberId,
-                              rolle: rolle as "registrator" | "bestiller" | "utforer" | "godkjenner",
-                              steg: 1,
-                            });
-                          }
-                        }}
-                        className={`shrink-0 rounded-full transition-all ${
-                          erHovedansvarlig
-                            ? `h-2 w-2 ${f.prikkBg} ring-2 ${f.prikkRing}`
-                            : "h-2 w-2 border border-gray-300 hover:bg-gray-400 hover:border-gray-400"
-                        }`}
-                        title={erHovedansvarlig ? t("kontakter.fjernHovedansvarlig") : t("kontakter.settHovedansvarlig")}
-                      />
-                      <User className={`h-3 w-3 ${f.ikon} shrink-0`} />
-                      <span>{gm.navn}</span>
-                      {erHovedansvarlig && (
-                        <span className={`text-[10px] ${f.tittel}`}>●</span>
-                      )}
-                    </div>
-                  );
-                })}
+                {medlemNavn.map((gm) => (
+                  <div key={gm.gruppeMedlemId} className="flex items-center gap-1.5 text-xs text-gray-600">
+                    <User className={`h-3 w-3 ${f.ikon} shrink-0`} />
+                    {gm.navn}
+                  </div>
+                ))}
               </div>
             )}
           </div>
