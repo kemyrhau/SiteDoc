@@ -297,7 +297,11 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
       );
     }
     if (filterRolle) {
-      resultat = resultat.filter((m) => m.role === filterRolle);
+      if (filterRolle === "firmaansvarlig") {
+        resultat = resultat.filter((m) => m.erFirmaansvarlig);
+      } else {
+        resultat = resultat.filter((m) => m.role === filterRolle);
+      }
     }
     if (filterEntreprise) {
       resultat = resultat.filter((m) =>
@@ -389,6 +393,7 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
                 >
                   <option value="">{t("status.alle")}</option>
                   <option value="admin">Admin</option>
+                  <option value="firmaansvarlig">{t("brukere.firmaansvarlig")}</option>
                   <option value="member">{t("kontakter.medlem")}</option>
                 </select>
               </th>
@@ -695,6 +700,9 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
                         />
                       ) : (
                         <>
+                          {m.erFirmaansvarlig && (
+                            <span title={t("brukere.firmaansvarlig")}><Shield className="h-3.5 w-3.5 text-amber-500 shrink-0" /></span>
+                          )}
                           <span
                             className="cursor-pointer hover:text-blue-600"
                             onClick={() => startRediger(m)}
@@ -752,85 +760,50 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
 
                   {/* Firma */}
                   <td className="whitespace-nowrap px-4 py-2.5 text-gray-600">
-                    <div className="flex items-center gap-1">
-                      {(m.user as KontaktMedlem["user"]).organization?.name ?? "—"}
-                      <button
-                        onClick={() => settFirmaansvarligMutation.mutate({
-                          id: m.id,
-                          projectId: prosjektId,
-                          erFirmaansvarlig: !m.erFirmaansvarlig,
-                        })}
-                        className={`shrink-0 rounded p-0.5 transition-colors ${
-                          m.erFirmaansvarlig
-                            ? "text-amber-500 hover:text-amber-600"
-                            : "text-gray-300 opacity-0 group-hover/mrow:opacity-100 hover:text-amber-500"
-                        }`}
-                        title={m.erFirmaansvarlig ? t("brukere.fjernFirmaansvarlig") : t("brukere.settFirmaansvarlig")}
-                      >
-                        <Shield className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
+                    {(m.user as KontaktMedlem["user"]).organization?.name ?? "—"}
                   </td>
 
                   {/* Rolle */}
                   <td className="whitespace-nowrap px-4 py-2.5">
                     {erRedigering ? (
                       <select
-                        value={redigerData.role}
-                        onChange={(e) => setRedigerData((p) => ({ ...p, role: e.target.value }))}
+                        value={m.erFirmaansvarlig ? "firmaansvarlig" : redigerData.role}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (val === "firmaansvarlig") {
+                            settFirmaansvarligMutation.mutate({ id: m.id, projectId: prosjektId, erFirmaansvarlig: true });
+                            setRedigerData((p) => ({ ...p, role: p.role }));
+                          } else {
+                            if (m.erFirmaansvarlig) {
+                              settFirmaansvarligMutation.mutate({ id: m.id, projectId: prosjektId, erFirmaansvarlig: false });
+                            }
+                            setRedigerData((p) => ({ ...p, role: val }));
+                          }
+                        }}
                         className="rounded border border-blue-300 px-1.5 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
                       >
                         <option value="member">{t("kontakter.medlem")}</option>
+                        <option value="firmaansvarlig">{t("brukere.firmaansvarlig")}</option>
                         <option value="admin">Admin</option>
                       </select>
                     ) : (
                       <span className={`inline-flex rounded px-1.5 py-0.5 text-xs font-medium ${
                         m.role === "admin"
                           ? "bg-blue-50 text-blue-700"
-                          : "bg-gray-100 text-gray-600"
+                          : m.erFirmaansvarlig
+                            ? "bg-amber-50 text-amber-700"
+                            : "bg-gray-100 text-gray-600"
                       }`}>
-                        {m.role === "admin" ? "Admin" : t("kontakter.medlem")}
+                        {m.role === "admin" ? "Admin" : m.erFirmaansvarlig ? t("brukere.firmaansvarlig") : t("kontakter.medlem")}
                       </span>
                     )}
                   </td>
 
-                  {/* Entrepriser (kompakt) */}
+                  {/* Entrepriser (read-only) */}
                   <td className="px-4 py-2.5">
                     <KompaktBadgeListe
                       verdier={m.enterprises.map((me) => me.enterprise.name)}
                       bgKlasse="bg-gray-100 text-gray-700"
-                      leggTilKnapp={
-                        leggTilEntrepriseForMedlem === m.id ? (
-                          <select
-                            className="rounded border border-gray-300 bg-white px-1.5 py-0.5 text-xs"
-                            onChange={(e) => {
-                              if (e.target.value) {
-                                tilknyttMutation.mutate({
-                                  projectMemberId: m.id,
-                                  enterpriseId: e.target.value,
-                                  projectId: prosjektId,
-                                });
-                              }
-                            }}
-                            onBlur={() => setLeggTilEntrepriseForMedlem(null)}
-                            autoFocus
-                            defaultValue=""
-                          >
-                            <option value="" disabled>{t("kontakter.velgEntreprise")}</option>
-                            {tilgjengeligeEntrepriser.map((e: { id: string; name: string }) => (
-                              <option key={e.id} value={e.id}>{e.name}</option>
-                            ))}
-                          </select>
-                        ) : (
-                          <button
-                            onClick={() => setLeggTilEntrepriseForMedlem(m.id)}
-                            className="rounded px-1 py-0.5 text-xs text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-                            title={t("kontakter.leggTilEntreprise")}
-                          >
-                            <Plus className="h-3 w-3" />
-                          </button>
-                        )
-                      }
                     />
                   </td>
 
