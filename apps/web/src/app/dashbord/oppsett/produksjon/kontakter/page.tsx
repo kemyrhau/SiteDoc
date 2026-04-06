@@ -26,7 +26,7 @@ import {
   LeggTilMedlemDropdown,
   InviterNyMedlemModal,
 } from "../_components/dokumentflyt-komponenter";
-import { nesteAutoFarge } from "../_components/entreprise-farger";
+import { nesteAutoFarge, FARGE_MAP as ENTREPRISE_FARGER } from "../_components/entreprise-farger";
 import type { DokumentflytMedlemData } from "../_components/dokumentflyt-komponenter";
 
 /* ------------------------------------------------------------------ */
@@ -790,6 +790,10 @@ export default function KontakterSide() {
   const [utvidetEntreprise, setUtvidetEntreprise] = useState<Set<string>>(new Set());
   const [nyEntrepriseNavn, setNyEntrepriseNavn] = useState("");
   const [visNyEntreprise, setVisNyEntreprise] = useState(false);
+  const [redigerEntreprise, setRedigerEntreprise] = useState<string | null>(null);
+  const [redigerEntNavn, setRedigerEntNavn] = useState("");
+  const [redigerEntFarge, setRedigerEntFarge] = useState<string | null>(null);
+  const [visFargeVelger, setVisFargeVelger] = useState(false);
 
   // Hent data
   const { data: entrepriser, isLoading: e1 } = trpc.entreprise.hentForProsjekt.useQuery(
@@ -821,6 +825,14 @@ export default function KontakterSide() {
       utils.entreprise.hentForProsjekt.invalidate();
       setNyEntrepriseNavn("");
       setVisNyEntreprise(false);
+    },
+  });
+
+  const oppdaterEntrepriseMutation = trpc.entreprise.oppdater.useMutation({
+    onSuccess: () => {
+      utils.entreprise.hentForProsjekt.invalidate();
+      setRedigerEntreprise(null);
+      setVisFargeVelger(false);
     },
   });
 
@@ -975,8 +987,77 @@ export default function KontakterSide() {
                       ? <ChevronDown className="h-4 w-4 text-gray-400 shrink-0" />
                       : <ChevronRight className="h-4 w-4 text-gray-400 shrink-0" />
                     }
-                    <EntrepriseFargePrikk farge={ent.color} />
-                    <span className="font-medium text-blue-700">{ent.name}</span>
+                    {redigerEntreprise === ent.id ? (
+                      <div className="flex items-center gap-2 flex-1" onClick={(e) => e.stopPropagation()}>
+                        <div className="relative">
+                          <button
+                            onClick={() => setVisFargeVelger(!visFargeVelger)}
+                            title={t("entrepriser.velgFarge")}
+                          >
+                            <EntrepriseFargePrikk farge={redigerEntFarge} />
+                          </button>
+                          {visFargeVelger && (
+                            <div className="absolute left-0 top-full z-10 mt-1 grid grid-cols-6 gap-1 rounded-lg border border-gray-200 bg-white p-2 shadow-lg">
+                              {Object.keys(ENTREPRISE_FARGER).map((farge) => (
+                                <button
+                                  key={farge}
+                                  onClick={() => {
+                                    setRedigerEntFarge(farge);
+                                    setVisFargeVelger(false);
+                                  }}
+                                  className={`h-5 w-5 rounded-full ${FARGE_MAP[farge] ?? "bg-gray-400"} ${redigerEntFarge === farge ? "ring-2 ring-blue-500 ring-offset-1" : ""}`}
+                                />
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        <input
+                          type="text"
+                          value={redigerEntNavn}
+                          onChange={(e) => setRedigerEntNavn(e.target.value)}
+                          className="flex-1 rounded border border-gray-300 px-2 py-0.5 text-sm font-medium text-gray-700 focus:border-blue-400 focus:outline-none"
+                          autoFocus
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" && redigerEntNavn.trim()) {
+                              oppdaterEntrepriseMutation.mutate({
+                                id: ent.id,
+                                name: redigerEntNavn.trim(),
+                                color: redigerEntFarge ?? undefined,
+                              });
+                            }
+                            if (e.key === "Escape") {
+                              setRedigerEntreprise(null);
+                              setVisFargeVelger(false);
+                            }
+                          }}
+                        />
+                        <button
+                          onClick={() => {
+                            if (redigerEntNavn.trim()) {
+                              oppdaterEntrepriseMutation.mutate({
+                                id: ent.id,
+                                name: redigerEntNavn.trim(),
+                                color: redigerEntFarge ?? undefined,
+                              });
+                            }
+                          }}
+                          className="rounded bg-blue-600 px-2 py-0.5 text-xs text-white hover:bg-blue-700"
+                        >
+                          {t("handling.lagre")}
+                        </button>
+                        <button
+                          onClick={() => { setRedigerEntreprise(null); setVisFargeVelger(false); }}
+                          className="rounded p-0.5 text-gray-400 hover:text-gray-600"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <EntrepriseFargePrikk farge={ent.color} />
+                        <span className="font-medium text-blue-700">{ent.name}</span>
+                      </>
+                    )}
                   </div>
                   <div className="col-span-5 flex flex-col gap-1">
                     {dflyter.length === 0
@@ -1002,18 +1083,33 @@ export default function KontakterSide() {
                   </div>
                   <div className="col-span-3 flex items-center justify-between text-sm text-gray-400">
                     <span>{kontakter.length > 0 ? `${kontakter.length} ${t("kontakter.personerSuffix")}` : "—"}</span>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (confirm(t("entrepriser.bekreftSlettEntreprise"))) {
-                          slettEntrepriseMutation.mutate({ id: ent.id });
-                        }
-                      }}
-                      className="rounded p-1 text-gray-300 hover:bg-red-100 hover:text-red-600 opacity-0 group-hover/rad:opacity-100 transition-opacity"
-                      title={t("entrepriser.slettEntreprise")}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
+                    <div className="flex items-center gap-0.5 opacity-0 group-hover/rad:opacity-100 transition-opacity">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setRedigerEntreprise(ent.id);
+                          setRedigerEntNavn(ent.name);
+                          setRedigerEntFarge(ent.color);
+                          setVisFargeVelger(false);
+                        }}
+                        className="rounded p-1 text-gray-300 hover:bg-gray-200 hover:text-gray-600"
+                        title={t("handling.rediger")}
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (confirm(t("entrepriser.bekreftSlettEntreprise"))) {
+                            slettEntrepriseMutation.mutate({ id: ent.id });
+                          }
+                        }}
+                        className="rounded p-1 text-gray-300 hover:bg-red-100 hover:text-red-600"
+                        title={t("entrepriser.slettEntreprise")}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               </button>

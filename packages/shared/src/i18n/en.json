@@ -497,6 +497,7 @@
   "entrepriser.navnPaaNy": "Name for new contractor",
   "entrepriser.bransje": "Industry",
   "entrepriser.firma": "Company",
+  "entrepriser.velgFarge": "Select color",
   "entrepriser.fargeValgfri": "Color (optional)",
   "entrepriser.fargeAuto": "Assigned automatically if not selected",
   "entrepriser.velgEntrepriseKopier": "Select contractor to copy",
