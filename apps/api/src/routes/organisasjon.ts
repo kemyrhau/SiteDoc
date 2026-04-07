@@ -44,6 +44,16 @@ export const organisasjonRouter = router({
     });
   }),
 
+  // Opprett ny organisasjon
+  opprett: protectedProcedure
+    .input(z.object({ name: z.string().min(1).max(255) }))
+    .mutation(async ({ ctx, input }) => {
+      return ctx.prisma.organization.create({
+        data: { name: input.name },
+        select: { id: true, name: true },
+      });
+    }),
+
   // Hent innlogget brukers organisasjon (null hvis ingen)
   hentMin: protectedProcedure.query(async ({ ctx }) => {
     const bruker = await ctx.prisma.user.findUniqueOrThrow({

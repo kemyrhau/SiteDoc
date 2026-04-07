@@ -125,10 +125,21 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
   const [nyGruppeNavn, setNyGruppeNavn] = useState("");
   const [inviterOpen, setInviterOpen] = useState(false);
   const [inviterData, setInviterData] = useState({ fornavn: "", etternavn: "", epost: "", telefon: "", organizationId: "" });
+  const [visNyttFirmaInput, setVisNyttFirmaInput] = useState(false);
+  const [nyttFirmaNavn, setNyttFirmaNavn] = useState("");
 
   const settFirmaansvarligMutation = trpc.medlem.settFirmaansvarlig.useMutation({
     onSuccess: () => {
       utils.medlem.hentForProsjekt.invalidate({ projectId: prosjektId });
+    },
+  });
+
+  const opprettOrgMutation = trpc.organisasjon.opprett.useMutation({
+    onSuccess: (nyOrg) => {
+      utils.organisasjon.hentAlle.invalidate();
+      setInviterData((p) => ({ ...p, organizationId: (nyOrg as { id: string }).id }));
+      setNyttFirmaNavn("");
+      setVisNyttFirmaInput(false);
     },
   });
 
@@ -488,16 +499,57 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
             </div>
             <div>
               <label className="block text-[10px] font-medium text-gray-500 mb-0.5">{t("tabell.firma")} *</label>
-              <select
-                value={inviterData.organizationId}
-                onChange={(e) => setInviterData((p) => ({ ...p, organizationId: e.target.value }))}
-                className="rounded border border-gray-300 px-2 py-1 text-sm w-40 focus:border-blue-400 focus:outline-none"
-              >
-                <option value="">{t("handling.velg")}...</option>
-                {(alleOrganisasjoner as Array<{ id: string; name: string }> ?? []).map((org) => (
-                  <option key={org.id} value={org.id}>{org.name}</option>
-                ))}
-              </select>
+              {visNyttFirmaInput ? (
+                <div className="flex items-center gap-1">
+                  <input
+                    type="text"
+                    value={nyttFirmaNavn}
+                    onChange={(e) => setNyttFirmaNavn(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && nyttFirmaNavn.trim()) {
+                        opprettOrgMutation.mutate({ name: nyttFirmaNavn.trim() });
+                      } else if (e.key === "Escape") {
+                        setVisNyttFirmaInput(false);
+                        setNyttFirmaNavn("");
+                      }
+                    }}
+                    autoFocus
+                    placeholder="Firmanavn..."
+                    className="rounded border border-blue-300 px-2 py-1 text-sm w-36 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                  />
+                  <button
+                    onClick={() => { if (nyttFirmaNavn.trim()) opprettOrgMutation.mutate({ name: nyttFirmaNavn.trim() }); }}
+                    disabled={!nyttFirmaNavn.trim() || opprettOrgMutation.isPending}
+                    className="rounded bg-blue-600 px-2 py-1 text-xs text-white hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    OK
+                  </button>
+                  <button
+                    onClick={() => { setVisNyttFirmaInput(false); setNyttFirmaNavn(""); }}
+                    className="rounded p-0.5 text-gray-400 hover:text-gray-600"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <select
+                  value={inviterData.organizationId}
+                  onChange={(e) => {
+                    if (e.target.value === "__ny__") {
+                      setVisNyttFirmaInput(true);
+                    } else {
+                      setInviterData((p) => ({ ...p, organizationId: e.target.value }));
+                    }
+                  }}
+                  className="rounded border border-gray-300 px-2 py-1 text-sm w-40 focus:border-blue-400 focus:outline-none"
+                >
+                  <option value="">{t("handling.velg")}...</option>
+                  {(alleOrganisasjoner as Array<{ id: string; name: string }> ?? []).map((org) => (
+                    <option key={org.id} value={org.id}>{org.name}</option>
+                  ))}
+                  <option value="__ny__">+ Nytt firma</option>
+                </select>
+              )}
             </div>
             <button
               onClick={() => {
