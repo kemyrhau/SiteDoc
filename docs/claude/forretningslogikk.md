@@ -43,7 +43,8 @@ Prosjektomfattende dokumentflyt under Innstillinger > Produksjon > Dokumentflyt:
 - **Videresending:** Dokumenter i received/in_progress/responded/rejected/approved kan videresendes. Status endres ikke, kun mottaker oppdateres. `toStatus` i transfer = nåværende status
 - **Besvar (responded):** Kjede-bevisst — sender automatisk tilbake til forrige avsender via siste `DocumentTransfer.senderId`. Muliggjør kjeder: HE → UE → Arbeider → UE → HE
 - **E-postvarsling:** Sendes ved `sent`, `responded`, `approved`, `rejected` og `forwarded` (ikke bare send)
-- **Lukk fra avvist:** Kun brukere med `create_checklists`/`create_tasks` (registratorer) kan lukke avviste dokumenter
+- **Rollebaserte handlingsknapper:** `utledMinRolle()` i `@sitedoc/shared` mapper innlogget bruker → rolle i dokumentflyten. `hentRolleFiltrertHandlinger()` viser kun relevante knapper per rolle. Bestiller: Send/Avbryt/Lukk. Utfører: Besvar/Send tilbake/Videresend. Godkjenner: Godkjenn/Send tilbake/Videresend. Registrator: alle. `null` = lesevisning. API: `gruppe.hentMinFlytInfo` returnerer `projectMemberId`, `entrepriseIder`, `gruppeIder`, `erAdmin`
+- **Send tilbake:** Ny statusovergang `in_progress → sent` — utfører sender tilbake til bestiller (auto-mottatt som `received`). `responded → rejected` — godkjenner sender tilbake til utfører
 - **Gruppevisning i dropdown:** Bruker-dropdown i dokumentflyt-oppsett viser gruppemedlemskap: «Kenneth Myrhaug · Byggherre, Tømrer»
 - **Person-basert tilgangssjekk (Valg B):** Firmamedlemmer ser dokumenter der en person fra firmaet er `bestillerUserId`, `recipientUserId` eller `senderId` (i DocumentTransfer). Erstatter entreprise-basert filtrering for firmaansvarlige
 - **Mal-velger per dokumentflyt:** Dokumentflyt har tilknyttede maler via `DokumentflytMal`. Ved opprettelse av oppgave/sjekkliste vises kun maler som tilhører valgt dokumentflyt
