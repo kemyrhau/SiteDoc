@@ -271,6 +271,9 @@ export function useSjekklisteSkjema(sjekklisteId: string): UseSjekklisteSkjemaRe
 
   const erRedigerbar = sjekkliste ? REDIGERBARE_STATUSER.has(sjekkliste.status) : false;
 
+  // Fullt sjekkliste-objekt med alle felt (inkl. drawingId, byggeplass etc.)
+  const fullSjekkliste = sjekklisteQuery.data as Record<string, unknown> | undefined;
+
   return {
     sjekkliste: sjekkliste
       ? {
@@ -280,6 +283,21 @@ export function useSjekklisteSkjema(sjekklisteId: string): UseSjekklisteSkjemaRe
           template: sjekkliste.template,
           bestillerEnterprise: sjekkliste.bestillerEnterprise,
           utforerEnterprise: sjekkliste.utforerEnterprise,
+          // Lokasjon + ekstra felt fra full query-data
+          ...(fullSjekkliste && {
+            drawingId: fullSjekkliste.drawingId,
+            drawing: fullSjekkliste.drawing,
+            byggeplass: fullSjekkliste.byggeplass,
+            byggeplassId: fullSjekkliste.byggeplassId,
+            positionX: fullSjekkliste.positionX,
+            positionY: fullSjekkliste.positionY,
+            templateId: fullSjekkliste.templateId,
+            dokumentflytId: fullSjekkliste.dokumentflytId,
+            recipientUserId: fullSjekkliste.recipientUserId,
+            transfers: fullSjekkliste.transfers,
+            bestiller: fullSjekkliste.bestiller,
+            number: fullSjekkliste.number,
+          }),
         }
       : undefined,
     erLaster: sjekklisteQuery.isLoading,

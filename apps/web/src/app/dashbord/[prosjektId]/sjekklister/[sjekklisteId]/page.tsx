@@ -98,9 +98,6 @@ export default function SjekklisteDetaljSide() {
     onSuccess: () => {
       utils.sjekkliste.hentMedId.invalidate({ id: params.sjekklisteId });
     },
-    onError: (err) => {
-      console.error("[oppdater] Feil:", err.message);
-    },
   });
 
   const endreStatusMutasjon = trpc.sjekkliste.endreStatus.useMutation({
@@ -428,16 +425,12 @@ export default function SjekklisteDetaljSide() {
             positionY={(sjekkliste as unknown as { positionY?: number | null }).positionY}
             visPosisjon
             onLagre={(data) => {
-              console.log("[LokasjonVelger] onLagre kalt:", JSON.stringify(data));
               oppdaterMutasjon.mutate({
                 id: params.sjekklisteId,
                 drawingId: data.drawingId,
                 byggeplassId: data.byggeplassId ?? undefined,
                 positionX: data.positionX ?? null,
                 positionY: data.positionY ?? null,
-              }, {
-                onSuccess: (res) => console.log("[LokasjonVelger] Lagret OK:", res),
-                onError: (err) => console.error("[LokasjonVelger] Feil:", err.message),
               });
             }}
             leseModus={["closed", "approved"].includes(sjekkliste.status)}

@@ -21,14 +21,24 @@ export const vaerRouter = router({
       }),
     )
     .query(async ({ input }) => {
-      const url = `https://api.open-meteo.com/v1/forecast?latitude=${input.latitude}&longitude=${input.longitude}&hourly=temperature_2m,weather_code,wind_speed_10m,precipitation&wind_speed_unit=ms&start_date=${input.dato}&end_date=${input.dato}`;
+      // Bruk archive-API for historiske datoer, forecast for fremtidige
+      const iDag = new Date().toISOString().slice(0, 10);
+      const erHistorisk = input.dato < iDag;
+      const baseUrl = erHistorisk
+        ? "https://archive-api.open-meteo.com/v1/archive"
+        : "https://api.open-meteo.com/v1/forecast";
 
-      const respons = await fetch(url);
-      if (!respons.ok) {
-        throw new Error(`Open-Meteo feilet: ${respons.status}`);
+      const url = `${baseUrl}?latitude=${input.latitude}&longitude=${input.longitude}&hourly=temperature_2m,weather_code,wind_speed_10m,precipitation&wind_speed_unit=ms&start_date=${input.dato}&end_date=${input.dato}`;
+
+      try {
+        const respons = await fetch(url, { signal: AbortSignal.timeout(5000) });
+        if (!respons.ok) return null;
+
+        const data = await respons.json();
+        return openMeteoResponseSchema.parse(data);
+      } catch {
+        // Feil stille — vær er ikke kritisk
+        return null;
       }
-
-      const data = await respons.json();
-      return openMeteoResponseSchema.parse(data);
     }),
 });
