@@ -995,6 +995,8 @@
   "brukere.redigerModuler": "Rediger moduler",
   "kontakter.leggTilMal": "Legg til mal",
   "kontakter.ingenMaler": "Ingen maler opprettet",
+  "kontakter.malDuplikatAdvarsel": "Denne malen er allerede tilknyttet «{{flytNavn}}» for samme entreprise. En entreprise bør ikke ha to flyter med samme mal da dette skaper tvetydighet ved videresending.",
+  "kontakter.malDuplikatFortsett": "Fortsett likevel",
   "tabell.bestiller": "Bestiller",
   "tabell.utforer": "Utfører",
   "tabell.bestillerEntreprise": "Bestiller-entreprise",

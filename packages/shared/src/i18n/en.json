@@ -995,6 +995,8 @@
   "brukere.redigerModuler": "Edit modules",
   "kontakter.leggTilMal": "Add template",
   "kontakter.ingenMaler": "No templates created",
+  "kontakter.malDuplikatAdvarsel": "This template is already attached to «{{flytNavn}}» for the same enterprise. An enterprise should not have two flows with the same template as this creates ambiguity when forwarding.",
+  "kontakter.malDuplikatFortsett": "Continue anyway",
   "tabell.bestiller": "Orderer",
   "tabell.utforer": "Executor",
   "tabell.bestillerEntreprise": "Orderer contractor",

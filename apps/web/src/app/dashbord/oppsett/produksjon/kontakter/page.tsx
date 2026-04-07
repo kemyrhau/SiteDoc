@@ -178,7 +178,7 @@ interface MalInfo {
 function DokumentflytKort({
   df, prosjektId,
   alleEntrepriser, alleMedlemmer, alleGrupper, gruppeOppslag, gruppeMedlemNavn,
-  alleMaler,
+  alleMaler, alleDokumentflyter,
 }: {
   df: Dokumentflyt;
   prosjektId: string;
@@ -188,6 +188,7 @@ function DokumentflytKort({
   gruppeOppslag: Map<string, Set<string>>;
   gruppeMedlemNavn: Map<string, Array<{ navn: string; projectMemberId: string; gruppeMedlemId: string; erAdmin: boolean }>>;
   alleMaler: MalInfo[];
+  alleDokumentflyter: Dokumentflyt[];
 }) {
   const { t } = useTranslation();
   const utils = trpc.useUtils();
@@ -195,6 +196,7 @@ function DokumentflytKort({
   const [navn, setNavn] = useState(df.name);
 
   const [visMalVelger, setVisMalVelger] = useState(false);
+  const [malAdvarsel, setMalAdvarsel] = useState<{ malId: string; flytNavn: string } | null>(null);
 
   const oppdaterMutation = trpc.dokumentflyt.oppdater.useMutation({
     onSuccess: () => {
@@ -211,11 +213,34 @@ function DokumentflytKort({
 
   const tilknyttedeMalIder = new Set(df.maler.map((m) => m.template.id));
 
-  const toggleMal = (malId: string) => {
+  const utforToggleMal = (malId: string) => {
     const nyeIds = tilknyttedeMalIder.has(malId)
       ? [...tilknyttedeMalIder].filter((id) => id !== malId)
       : [...tilknyttedeMalIder, malId];
     oppdaterMutation.mutate({ id: df.id, projectId: prosjektId, templateIds: nyeIds });
+    setMalAdvarsel(null);
+  };
+
+  const toggleMal = (malId: string) => {
+    // Kun sjekk ved tillegg, ikke fjerning
+    if (tilknyttedeMalIder.has(malId)) {
+      utforToggleMal(malId);
+      return;
+    }
+    // Sjekk om malen allerede finnes i en annen dokumentflyt for samme entreprise
+    if (df.enterpriseId) {
+      const duplikatFlyt = alleDokumentflyter.find(
+        (annen) =>
+          annen.id !== df.id &&
+          annen.enterpriseId === df.enterpriseId &&
+          annen.maler.some((m) => m.template.id === malId),
+      );
+      if (duplikatFlyt) {
+        setMalAdvarsel({ malId, flytNavn: duplikatFlyt.name });
+        return;
+      }
+    }
+    utforToggleMal(malId);
   };
 
   return (
@@ -339,6 +364,29 @@ function DokumentflytKort({
             </div>
           )}
         </div>
+
+        {/* Advarsel: mal allerede tilknyttet en annen flyt */}
+        {malAdvarsel && (
+          <div className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2">
+            <p className="text-xs text-amber-800">
+              {t("kontakter.malDuplikatAdvarsel", { flytNavn: malAdvarsel.flytNavn })}
+            </p>
+            <div className="mt-1.5 flex gap-2">
+              <button
+                onClick={() => utforToggleMal(malAdvarsel.malId)}
+                className="rounded bg-amber-600 px-2 py-0.5 text-xs font-medium text-white hover:bg-amber-700"
+              >
+                {t("kontakter.malDuplikatFortsett")}
+              </button>
+              <button
+                onClick={() => setMalAdvarsel(null)}
+                className="rounded bg-white px-2 py-0.5 text-xs text-gray-600 border border-gray-200 hover:bg-gray-50"
+              >
+                {t("handling.avbryt")}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -947,19 +995,23 @@ export default function KontakterSide() {
       .map((m) => ({ id: m.id, name: m.name, category: m.category, prefix: m.prefix }));
   }, [maler]);
 
+  // Flat liste over alle dokumentflyter (brukt for duplikatsjekk av maler)
+  const alleDokumentflyter = useMemo(() => {
+    if (!dokumentflyter) return [] as Dokumentflyt[];
+    return dokumentflyter as unknown as Dokumentflyt[];
+  }, [dokumentflyter]);
+
   // Bygg oppslag: entrepriseId → dokumentflyter
   const entrepriseDokumentflyter = useMemo(() => {
     const map = new Map<string, Dokumentflyt[]>();
-    if (!dokumentflyter) return map;
-    const alle = dokumentflyter as unknown as Dokumentflyt[];
-    for (const df of alle) {
+    for (const df of alleDokumentflyter) {
       if (!df.enterpriseId) continue;
       const liste = map.get(df.enterpriseId) ?? [];
       liste.push(df);
       map.set(df.enterpriseId, liste);
     }
     return map;
-  }, [dokumentflyter]);
+  }, [alleDokumentflyter]);
 
   const toggleUtvidet = (id: string) => {
     setUtvidetEntreprise((prev) => {
@@ -1163,6 +1215,7 @@ export default function KontakterSide() {
                         gruppeOppslag={gruppeOppslag}
                         gruppeMedlemNavn={gruppeMedlemNavn}
                         alleMaler={alleMaler}
+                        alleDokumentflyter={alleDokumentflyter}
                       />
                   ))}
 
