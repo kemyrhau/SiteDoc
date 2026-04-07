@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { trpc } from "@/lib/trpc";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { Spinner } from "@sitedoc/ui";
@@ -111,6 +111,7 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
   const { t } = useTranslation();
   const utils = trpc.useUtils();
   const [kollapserteGrupper, setKollapserteGrupper] = useState<Set<string>>(new Set());
+  const harInitialisertKollaps = useRef(false);
   const [redigerMedlemId, setRedigerMedlemId] = useState<string | null>(null);
   const [redigerData, setRedigerData] = useState({ name: "", email: "", phone: "", role: "" });
   const [filterNavn, setFilterNavn] = useState("");
@@ -120,6 +121,8 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
   const [redigerGruppeNavn, setRedigerGruppeNavn] = useState<string | null>(null);
   const [nyGruppeNavnVerdi, setNyGruppeNavnVerdi] = useState("");
   const [leggTilMedlemIGruppe, setLeggTilMedlemIGruppe] = useState<string | null>(null);
+  const [nyGruppeInput, setNyGruppeInput] = useState(false);
+  const [nyGruppeNavn, setNyGruppeNavn] = useState("");
 
   const settFirmaansvarligMutation = trpc.medlem.settFirmaansvarlig.useMutation({
     onSuccess: () => {
@@ -184,7 +187,24 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
     },
   });
 
+  const opprettGruppeMutation = trpc.gruppe.opprett.useMutation({
+    onSuccess: () => {
+      utils.gruppe.hentForProsjekt.invalidate({ projectId: prosjektId });
+      setNyGruppeInput(false);
+      setNyGruppeNavn("");
+    },
+  });
+
   const [redigerModulerGruppe, setRedigerModulerGruppe] = useState<string | null>(null);
+
+  // Default kollaps: lukk alle grupper ved første lasting
+  useEffect(() => {
+    if (harInitialisertKollaps.current || !dbGrupper) return;
+    const alleNavn = (dbGrupper as Array<{ name: string }>).map((g) => g.name);
+    alleNavn.push(t("brukere.utenGruppe"));
+    setKollapserteGrupper(new Set(alleNavn));
+    harInitialisertKollaps.current = true;
+  }, [dbGrupper, t]);
 
   const oppdaterMedlemMutation = trpc.medlem.oppdater.useMutation({
     onSuccess: () => {
@@ -353,7 +373,43 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
       <div className="sticky top-0 z-30 bg-gray-50 px-6 pt-6 pb-3 border-b border-gray-200">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-bold text-gray-900">{t("brukere.kontakter")}</h2>
-          <HjelpKnapp />
+          <div className="flex items-center gap-2">
+            {nyGruppeInput ? (
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="text"
+                  value={nyGruppeNavn}
+                  onChange={(e) => setNyGruppeNavn(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && nyGruppeNavn.trim()) {
+                      opprettGruppeMutation.mutate({ projectId: prosjektId, name: nyGruppeNavn.trim(), category: "brukergrupper" });
+                    } else if (e.key === "Escape") {
+                      setNyGruppeInput(false);
+                      setNyGruppeNavn("");
+                    }
+                  }}
+                  autoFocus
+                  placeholder={t("brukere.gruppenavn")}
+                  className="rounded-lg border border-blue-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
+                />
+                <button
+                  onClick={() => { setNyGruppeInput(false); setNyGruppeNavn(""); }}
+                  className="rounded p-1 text-gray-400 hover:text-gray-600"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setNyGruppeInput(true)}
+                className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100"
+              >
+                <Plus className="h-4 w-4" />
+                {t("brukere.nyGruppe")}
+              </button>
+            )}
+            <HjelpKnapp />
+          </div>
         </div>
       </div>
       <div className="px-6 pt-3 pb-6">
@@ -636,7 +692,6 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
                                 }
                               }
                             }}
-                            onBlur={() => setLeggTilMedlemIGruppe(null)}
                             autoFocus
                             defaultValue=""
                           >
