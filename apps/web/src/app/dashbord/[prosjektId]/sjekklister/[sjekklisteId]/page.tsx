@@ -11,7 +11,7 @@ import { RapportObjektRenderer, DISPLAY_TYPER, SKJULT_I_UTFYLLING } from "@/comp
 import { FeltWrapper } from "@/components/rapportobjekter/FeltWrapper";
 import { PrintHeader } from "@/components/PrintHeader";
 import { OpprettOppgaveModal } from "@/components/OpprettOppgaveModal";
-import { StatusHandlinger } from "@/components/StatusHandlinger";
+import { DokumentBunnbar } from "@/components/DokumentBunnbar";
 import { utledMinRolle } from "@sitedoc/shared";
 import type { FlytMedlemInfo } from "@sitedoc/shared";
 import { LokasjonVelger } from "@/components/LokasjonVelger";
@@ -321,7 +321,7 @@ export default function SjekklisteDetaljSide() {
   const oppretterBruker = fullSjekkliste?.bestiller?.name;
 
   return (
-    <div className="mx-auto max-w-3xl pb-12">
+    <div className="mx-auto max-w-3xl pb-24">
       {/* Print-header: skjult på skjerm, synlig ved print */}
       <PrintHeader
         prosjektnavn={prosjekt?.name ?? ""}
@@ -449,30 +449,6 @@ export default function SjekklisteDetaljSide() {
           />
         </div>
 
-        {/* Statushandlinger */}
-        <div className="mt-3 print-skjul">
-          <StatusHandlinger
-            status={sjekkliste.status}
-            erLaster={endreStatusMutasjon.isPending || slettMutasjon.isPending}
-            onEndreStatus={(nyStatus, kommentar, mottaker) => {
-              endreStatusMutasjon.mutate({
-                id: params.sjekklisteId,
-                nyStatus: nyStatus as "draft" | "sent" | "received" | "in_progress" | "responded" | "approved" | "rejected" | "closed" | "cancelled",
-                senderId: sjekkliste.id,
-                kommentar,
-                recipientUserId: mottaker?.userId,
-                recipientGroupId: mottaker?.groupId,
-                dokumentflytId: mottaker?.dokumentflytId,
-              });
-            }}
-            onSlett={() => slettMutasjon.mutate({ id: params.sjekklisteId })}
-            alleEntrepriser={alleEntrepriser}
-            dokumentflyter={dokumentflyter}
-            templateId={sjekkliste.template?.id ?? (sjekkliste as unknown as { templateId?: string }).templateId}
-            standardEntrepriseId={sjekkliste.utforerEnterprise?.id}
-            minRolle={minRolle}
-          />
-        </div>
       </div>
 
       {/* Rapportobjekter */}
@@ -585,6 +561,28 @@ export default function SjekklisteDetaljSide() {
         sjekklisteFeltId={opprettOppgaveFeltId ?? ""}
         sjekklisteNummer={sjekklisteNummer}
         feltLabel={opprettOppgaveFeltLabel}
+      />
+
+      <DokumentBunnbar
+        status={sjekkliste.status}
+        erLaster={endreStatusMutasjon.isPending || slettMutasjon.isPending}
+        onEndreStatus={(nyStatus, kommentar, mottaker) => {
+          endreStatusMutasjon.mutate({
+            id: params.sjekklisteId,
+            nyStatus: nyStatus as "draft" | "sent" | "received" | "in_progress" | "responded" | "approved" | "rejected" | "closed" | "cancelled",
+            senderId: sjekkliste.id,
+            kommentar,
+            recipientUserId: mottaker?.userId,
+            recipientGroupId: mottaker?.groupId,
+            dokumentflytId: mottaker?.dokumentflytId,
+          });
+        }}
+        onSlett={() => slettMutasjon.mutate({ id: params.sjekklisteId })}
+        alleEntrepriser={alleEntrepriser}
+        dokumentflyter={dokumentflyter}
+        templateId={sjekkliste.template?.id ?? (sjekkliste as unknown as { templateId?: string }).templateId}
+        standardEntrepriseId={sjekkliste.utforerEnterprise?.id}
+        minRolle={minRolle}
       />
     </div>
   );
