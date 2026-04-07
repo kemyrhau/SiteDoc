@@ -253,6 +253,7 @@ export const medlemRouter = router({
         email: z.string().email().optional(),
         phone: z.string().optional(),
         role: z.enum(["member", "admin"]).optional(),
+        organizationId: z.string().uuid().nullable().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -264,9 +265,10 @@ export const medlemRouter = router({
       });
 
       // Oppdater User-felter
-      const brukerOppdatering: { name?: string; email?: string; phone?: string | null } = {};
+      const brukerOppdatering: { name?: string; email?: string; phone?: string | null; organizationId?: string | null } = {};
       if (input.name !== undefined) brukerOppdatering.name = input.name;
       if (input.phone !== undefined) brukerOppdatering.phone = input.phone || null;
+      if (input.organizationId !== undefined) brukerOppdatering.organizationId = input.organizationId;
       if (input.email !== undefined && input.email !== medlem.user.email) {
         const eksisterende = await ctx.prisma.user.findUnique({
           where: { email: input.email },

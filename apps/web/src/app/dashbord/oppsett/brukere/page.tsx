@@ -113,7 +113,7 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
   const [kollapserteGrupper, setKollapserteGrupper] = useState<Set<string>>(new Set());
   const harInitialisertKollaps = useRef(false);
   const [redigerMedlemId, setRedigerMedlemId] = useState<string | null>(null);
-  const [redigerData, setRedigerData] = useState({ name: "", email: "", phone: "", role: "" });
+  const [redigerData, setRedigerData] = useState({ name: "", email: "", phone: "", role: "", organizationId: "" });
   const [filterNavn, setFilterNavn] = useState("");
   const [filterRolle, setFilterRolle] = useState("");
   const [filterEntreprise, setFilterEntreprise] = useState("");
@@ -123,10 +123,20 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
   const [leggTilMedlemIGruppe, setLeggTilMedlemIGruppe] = useState<string | null>(null);
   const [nyGruppeInput, setNyGruppeInput] = useState(false);
   const [nyGruppeNavn, setNyGruppeNavn] = useState("");
+  const [inviterOpen, setInviterOpen] = useState(false);
+  const [inviterData, setInviterData] = useState({ fornavn: "", etternavn: "", epost: "", telefon: "" });
 
   const settFirmaansvarligMutation = trpc.medlem.settFirmaansvarlig.useMutation({
     onSuccess: () => {
       utils.medlem.hentForProsjekt.invalidate({ projectId: prosjektId });
+    },
+  });
+
+  const inviterMutation = trpc.medlem.leggTil.useMutation({
+    onSuccess: () => {
+      utils.medlem.hentForProsjekt.invalidate({ projectId: prosjektId });
+      setInviterOpen(false);
+      setInviterData({ fornavn: "", etternavn: "", epost: "", telefon: "" });
     },
   });
 
@@ -138,6 +148,12 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
   const { data: alleEntrepriser } = trpc.entreprise.hentForProsjekt.useQuery(
     { projectId: prosjektId },
     { enabled: !!prosjektId },
+  );
+
+  // Hent alle organisasjoner for firma-dropdown
+  const { data: alleOrganisasjoner } = trpc.organisasjon.hentAlle.useQuery(
+    undefined,
+    { enabled: !!redigerMedlemId }, // Kun hent ved redigering
   );
 
   const { data: dbGrupper } = trpc.gruppe.hentForProsjekt.useQuery(
@@ -220,6 +236,7 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
       email: m.user.email,
       phone: m.user.phone ?? "",
       role: m.role,
+      organizationId: (m.user as KontaktMedlem["user"]).organization?.id ?? "",
     });
   };
 
@@ -231,6 +248,7 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
       email: redigerData.email.trim() || undefined,
       phone: redigerData.phone.trim() || undefined,
       role: (redigerData.role as "member" | "admin") || undefined,
+      organizationId: redigerData.organizationId || null,
     });
   };
 
@@ -408,9 +426,93 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
                 {t("brukere.nyGruppe")}
               </button>
             )}
+            <button
+              onClick={() => setInviterOpen((p) => !p)}
+              className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100"
+            >
+              <Plus className="h-4 w-4" />
+              {t("brukere.inviterNy")}
+            </button>
             <HjelpKnapp />
           </div>
         </div>
+        {/* Inviter ny bruker — inline form */}
+        {inviterOpen && (
+          <div className="flex items-end gap-2 px-6 pt-2 pb-1">
+            <div>
+              <label className="block text-[10px] font-medium text-gray-500 mb-0.5">{t("label.fornavn")}</label>
+              <input
+                type="text"
+                value={inviterData.fornavn}
+                onChange={(e) => setInviterData((p) => ({ ...p, fornavn: e.target.value }))}
+                className="rounded border border-gray-300 px-2 py-1 text-sm w-28 focus:border-blue-400 focus:outline-none"
+                autoFocus
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-medium text-gray-500 mb-0.5">{t("label.etternavn")}</label>
+              <input
+                type="text"
+                value={inviterData.etternavn}
+                onChange={(e) => setInviterData((p) => ({ ...p, etternavn: e.target.value }))}
+                className="rounded border border-gray-300 px-2 py-1 text-sm w-28 focus:border-blue-400 focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-medium text-gray-500 mb-0.5">{t("label.epost")}</label>
+              <input
+                type="email"
+                value={inviterData.epost}
+                onChange={(e) => setInviterData((p) => ({ ...p, epost: e.target.value }))}
+                className="rounded border border-gray-300 px-2 py-1 text-sm w-48 focus:border-blue-400 focus:outline-none"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && inviterData.fornavn.trim() && inviterData.etternavn.trim() && inviterData.epost.trim()) {
+                    inviterMutation.mutate({
+                      projectId: prosjektId,
+                      firstName: inviterData.fornavn.trim(),
+                      lastName: inviterData.etternavn.trim(),
+                      email: inviterData.epost.trim(),
+                      phone: inviterData.telefon.trim() || undefined,
+                    });
+                  }
+                }}
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-medium text-gray-500 mb-0.5">{t("label.telefon")}</label>
+              <input
+                type="text"
+                value={inviterData.telefon}
+                onChange={(e) => setInviterData((p) => ({ ...p, telefon: e.target.value }))}
+                className="rounded border border-gray-300 px-2 py-1 text-sm w-28 focus:border-blue-400 focus:outline-none"
+                placeholder={t("label.valgfritt")}
+              />
+            </div>
+            <button
+              onClick={() => {
+                if (inviterData.fornavn.trim() && inviterData.etternavn.trim() && inviterData.epost.trim()) {
+                  inviterMutation.mutate({
+                    projectId: prosjektId,
+                    firstName: inviterData.fornavn.trim(),
+                    lastName: inviterData.etternavn.trim(),
+                    email: inviterData.epost.trim(),
+                    phone: inviterData.telefon.trim() || undefined,
+                  });
+                }
+              }}
+              disabled={!inviterData.fornavn.trim() || !inviterData.etternavn.trim() || !inviterData.epost.trim() || inviterMutation.isPending}
+              className="rounded-lg bg-blue-600 px-3 py-1 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+            >
+              {inviterMutation.isPending ? t("handling.sender") : t("brukere.sendInvitasjon")}
+            </button>
+            <button
+              onClick={() => { setInviterOpen(false); setInviterData({ fornavn: "", etternavn: "", epost: "", telefon: "" }); }}
+              className="rounded p-1 text-gray-400 hover:text-gray-600"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        )}
       </div>
       <div className="px-6 pt-3 pb-6">
       <div className="rounded-lg border border-gray-200">
@@ -623,8 +725,10 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
                         {!erUtenGruppe && (
                           <div className="ml-auto flex items-center gap-1 opacity-0 group-hover/gheader:opacity-100 transition-opacity">
                             <button
+                              type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
+                                e.preventDefault();
                                 setRedigerModulerGruppe((prev) => prev === gruppeId ? null : gruppeId!);
                               }}
                               className="rounded p-1 text-gray-400 hover:bg-gray-200 hover:text-gray-600"
@@ -818,7 +922,21 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
 
                   {/* Firma */}
                   <td className="whitespace-nowrap px-4 py-2.5 text-gray-600">
-                    {(m.user as KontaktMedlem["user"]).organization?.name ?? "—"}
+                    {erRedigering ? (
+                      <select
+                        value={redigerData.organizationId}
+                        onChange={(e) => setRedigerData((p) => ({ ...p, organizationId: e.target.value }))}
+                        className="rounded border border-blue-300 px-1.5 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
+                        title="Endrer firma på brukernivå — påvirker alle prosjekter"
+                      >
+                        <option value="">— Ingen —</option>
+                        {(alleOrganisasjoner as Array<{ id: string; name: string }> ?? []).map((org) => (
+                          <option key={org.id} value={org.id}>{org.name}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      (m.user as KontaktMedlem["user"]).organization?.name ?? "—"
+                    )}
                   </td>
 
                   {/* Rolle */}

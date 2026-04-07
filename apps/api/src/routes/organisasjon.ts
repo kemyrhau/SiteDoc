@@ -36,6 +36,14 @@ async function erSiteDocAdmin(userId: string): Promise<boolean> {
 }
 
 export const organisasjonRouter = router({
+  // Hent alle organisasjoner (for firma-dropdown i admin)
+  hentAlle: protectedProcedure.query(async ({ ctx }) => {
+    return ctx.prisma.organization.findMany({
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    });
+  }),
+
   // Hent innlogget brukers organisasjon (null hvis ingen)
   hentMin: protectedProcedure.query(async ({ ctx }) => {
     const bruker = await ctx.prisma.user.findUniqueOrThrow({
