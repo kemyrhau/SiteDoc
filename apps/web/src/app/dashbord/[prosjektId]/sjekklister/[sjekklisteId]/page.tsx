@@ -343,8 +343,8 @@ export default function SjekklisteDetaljSide() {
         visInterntNummer={(prosjekt as { showInternalProjectNumber?: boolean } | undefined)?.showInternalProjectNumber !== false}
       />
 
-      {/* Skjerm-header: synlig på skjerm, skjult ved print */}
-      <div className="print-skjul mb-6">
+      {/* Skjerm-header: sticky under hovednavigasjon */}
+      <div className="print-skjul mb-6 sticky top-0 z-20 -mx-4 px-4 py-3 bg-white/95 backdrop-blur-sm">
         <div className="flex items-center gap-3">
           <h3 className="text-xl font-bold">{sjekkliste.title}</h3>
           <StatusBadge status={sjekkliste.status} />
