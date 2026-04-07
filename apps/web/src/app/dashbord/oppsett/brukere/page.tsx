@@ -356,10 +356,11 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
     return resultat;
   }, [kontakterRå, filterNavn, filterRolle, filterEntreprise, filterGruppe, dbGrupper]);
 
-  // Grupper kontakter etter brukergruppe med overskrifter (deduplisert)
+  // Grupper kontakter etter brukergruppe med overskrifter
+  // Medlemmer vises under HVER gruppe de tilhører (ingen deduplisering mellom grupper)
   const gruppertKontakter = useMemo(() => {
     const rader: Array<{ type: "header"; gruppeNavn: string; antall: number } | { type: "medlem"; medlem: KontaktMedlem; gruppeNavn: string }> = [];
-    const brukteMedlemIder = new Set<string>();
+    const medlemmerMedGruppe = new Set<string>();
 
     const brukerGrupperListe = dbGrupper
       ? (dbGrupper as Array<{ id: string; name: string; category: string; members: Array<{ projectMember: { user: { id: string } } | null }> }>)
@@ -367,19 +368,17 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
       : [];
 
     for (const g of brukerGrupperListe) {
-      // Filtrer bort allerede viste medlemmer (deduplisering)
       const gruppeKontakter = kontakter.filter((m) =>
-        !brukteMedlemIder.has(m.id) &&
         g.members.some((gm) => gm.projectMember?.user?.id === m.user.id),
       );
       rader.push({ type: "header", gruppeNavn: g.name, antall: gruppeKontakter.length });
       for (const m of gruppeKontakter) {
         rader.push({ type: "medlem", medlem: m, gruppeNavn: g.name });
-        brukteMedlemIder.add(m.id);
+        medlemmerMedGruppe.add(m.id);
       }
     }
 
-    const utenGruppe = kontakter.filter((m) => !brukteMedlemIder.has(m.id));
+    const utenGruppe = kontakter.filter((m) => !medlemmerMedGruppe.has(m.id));
     if (utenGruppe.length > 0) {
       const utenGruppeNavn = t("brukere.utenGruppe");
       rader.push({ type: "header", gruppeNavn: utenGruppeNavn, antall: utenGruppe.length });
