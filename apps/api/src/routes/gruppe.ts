@@ -408,6 +408,7 @@ export const gruppeRouter = router({
     }),
 
   // Oppdater moduler for en gruppe
+  // TODO: Håndhev gruppemodulere i sidebar og API-endepunkter
   oppdaterModuler: protectedProcedure
     .input(
       z.object({

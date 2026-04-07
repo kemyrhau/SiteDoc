@@ -147,6 +147,7 @@ export function HovedSidebar() {
     return bygning?.drawings?.some((d) => d.fileType?.toLowerCase() === "ifc") ?? false;
   })();
 
+  // TODO: Håndhev gruppemodulere i sidebar og API-endepunkter
   const filtrertHovedelementer = hovedelementer.filter((element) => {
     if (element.tillatelse && (!tillatelser || !tillatelser.includes(element.tillatelse))) return false;
     if (element.kreverIfc && !harIfc) return false;
