@@ -8,6 +8,7 @@ import {
   byggTilgangsFilter,
   verifiserEntrepriseTilhorighet,
   verifiserDokumentTilgang,
+  verifiserFlytRolle,
   hentBrukerTillatelser,
 } from "../trpc/tilgangskontroll";
 import { sendDokumentVarsling, hentMottakerEposter } from "../services/epost";
@@ -512,6 +513,17 @@ export const sjekklisteRouter = router({
         sjekkliste.template.domain,
         sjekkliste.id,
         "checklist",
+      );
+
+      // Rollevalidering: sjekk at bruker har riktig rolle i dokumentflyten
+      await verifiserFlytRolle(
+        ctx.userId,
+        projectId,
+        sjekkliste.dokumentflytId,
+        sjekkliste.bestillerEnterpriseId,
+        sjekkliste.utforerEnterpriseId,
+        sjekkliste.status,
+        input.nyStatus,
       );
 
       // Hjelpefunksjon for varsling (bruker input-mottaker eller besvar-mottaker)

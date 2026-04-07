@@ -1,6 +1,7 @@
 import { TRPCError } from "@trpc/server";
 import { prisma } from "@sitedoc/db";
-import { type Permission, PERMISSIONS, utvidTillatelser } from "@sitedoc/shared";
+import { type Permission, PERMISSIONS, utvidTillatelser, utledMinRolle, erTillattForRolle } from "@sitedoc/shared";
+import type { FlytMedlemInfo } from "@sitedoc/shared";
 
 /**
  * Hent brukerens entreprise-IDer i et prosjekt.
@@ -259,6 +260,75 @@ export async function verifiserDokumentTilgang(
     code: "FORBIDDEN",
     message: "Du har ikke tilgang til dette dokumentet",
   });
+}
+
+/**
+ * Verifiser at bruker har riktig rolle i dokumentflyten for å utføre statusendringen.
+ * Dokumenter uten dokumentflytId slipper gjennom (bakoverkompatibilitet).
+ * Admin/registrator har alltid lov.
+ */
+export async function verifiserFlytRolle(
+  userId: string,
+  projectId: string,
+  dokumentflytId: string | null | undefined,
+  bestillerEnterpriseId: string,
+  utforerEnterpriseId: string,
+  gjeldendStatus: string,
+  nyStatus: string,
+): Promise<void> {
+  // Dokumenter uten dokumentflyt — bakoverkompatibilitet
+  if (!dokumentflytId) return;
+
+  // Hent brukerens info
+  const bruker = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { role: true },
+  });
+  if (bruker?.role === "sitedoc_admin") return;
+
+  const medlem = await prisma.projectMember.findUnique({
+    where: { userId_projectId: { userId, projectId } },
+    include: {
+      enterprises: { select: { enterpriseId: true } },
+      groupMemberships: { select: { groupId: true } },
+    },
+  });
+  if (!medlem) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Ikke medlem av prosjektet" });
+  }
+
+  // Hent flytens medlemmer
+  const flytMedlemmer = await prisma.dokumentflytMedlem.findMany({
+    where: { dokumentflytId },
+    select: { rolle: true, enterpriseId: true, projectMemberId: true, groupId: true },
+  });
+
+  const medlemmerInfo: FlytMedlemInfo[] = flytMedlemmer.map((m) => ({
+    rolle: m.rolle,
+    enterpriseId: m.enterpriseId,
+    projectMemberId: m.projectMemberId,
+    groupId: m.groupId,
+  }));
+
+  const rolle = utledMinRolle(
+    {
+      userId,
+      projectMemberId: medlem.id,
+      entrepriseIder: medlem.enterprises.map((e) => e.enterpriseId),
+      gruppeIder: medlem.groupMemberships.map((gm) => gm.groupId),
+      erAdmin: medlem.role === "admin",
+    },
+    medlemmerInfo,
+    { bestillerEnterpriseId, utforerEnterpriseId },
+  );
+
+  if (!erTillattForRolle(rolle, gjeldendStatus, nyStatus)) {
+    const rolleNavn = rolle ?? "ingen";
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: `Du har rollen «${rolleNavn}» i denne dokumentflyten og kan ikke utføre overgangen ${gjeldendStatus} → ${nyStatus}`,
+    });
+  }
 }
 
 /**

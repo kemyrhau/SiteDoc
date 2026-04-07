@@ -8,6 +8,7 @@ import {
   byggTilgangsFilter,
   verifiserEntrepriseTilhorighet,
   verifiserDokumentTilgang,
+  verifiserFlytRolle,
   verifiserProsjektmedlem,
   hentBrukerTillatelser,
 } from "../trpc/tilgangskontroll";
@@ -603,6 +604,17 @@ export const oppgaveRouter = router({
         oppgave.template?.domain,
         oppgave.id,
         "task",
+      );
+
+      // Rollevalidering: sjekk at bruker har riktig rolle i dokumentflyten
+      await verifiserFlytRolle(
+        ctx.userId,
+        projectId,
+        oppgave.dokumentflytId,
+        oppgave.bestillerEnterpriseId,
+        oppgave.utforerEnterpriseId,
+        oppgave.status,
+        input.nyStatus,
       );
 
       // Hjelpefunksjon for varsling (bruker input-mottaker eller besvar-mottaker)

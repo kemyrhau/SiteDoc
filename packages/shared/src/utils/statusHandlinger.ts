@@ -91,6 +91,23 @@ export function hentRolleFiltrertHandlinger(
   return alle.filter((h) => tillatt.has(h.nyStatus));
 }
 
+/**
+ * Sjekk om en rolle har lov til å utføre en statusovergang.
+ * Brukes av backend for API-rollevalidering.
+ * Registrator har alltid lov. null-rolle har aldri lov.
+ */
+export function erTillattForRolle(
+  rolle: DokumentflytRolle | null,
+  gjeldendStatus: string,
+  nyStatus: string,
+): boolean {
+  if (!rolle) return false;
+  if (rolle === "registrator") return true;
+  const tillatt = ROLLE_HANDLINGER[rolle]?.[gjeldendStatus];
+  if (!tillatt) return false;
+  return tillatt.has(nyStatus);
+}
+
 /** Roller → status → tillatte nyStatus-verdier */
 const ROLLE_HANDLINGER: Record<string, Record<string, Set<string>>> = {
   bestiller: {

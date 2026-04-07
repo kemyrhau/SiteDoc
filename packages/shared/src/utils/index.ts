@@ -1,6 +1,6 @@
 export { utledMinRolle } from "./flytRolle";
 export type { FlytBrukerInfo, FlytMedlemInfo, DokumentKontekst } from "./flytRolle";
-export { hentRolleFiltrertHandlinger } from "./statusHandlinger";
+export { hentRolleFiltrertHandlinger, erTillattForRolle } from "./statusHandlinger";
 export { vaerkodeTilTekst } from "./vaer";
 export { beregnSynligeMapper } from "./mappeTilgang";
 export type { MappeTilgangInput, BrukerTilgangInfo, SynligeMapperResultat } from "./mappeTilgang";
