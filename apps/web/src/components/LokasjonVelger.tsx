@@ -4,7 +4,7 @@ import { useState, useRef, useCallback } from "react";
 import { Modal, Button } from "@sitedoc/ui";
 import { trpc } from "@/lib/trpc";
 import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
-import { MapPin, X, ZoomIn, ZoomOut, RotateCcw } from "lucide-react";
+import { MapPin, X, ZoomIn, ZoomOut, RotateCcw, Loader2 } from "lucide-react";
 
 interface LokasjonVelgerProps {
   prosjektId: string;
@@ -67,12 +67,23 @@ export function LokasjonVelger({
     { enabled: !!valgtTegningId },
   );
 
-  const tegningUrl = valgtTegningData
-    ? `/api${(valgtTegningData as { fileUrl?: string }).fileUrl ?? ""}`
+  const tegningInfo = valgtTegningData as {
+    fileUrl?: string;
+    fileType?: string;
+    conversionStatus?: string | null;
+  } | undefined;
+
+  const tegningUrl = tegningInfo?.fileUrl
+    ? `/api${tegningInfo.fileUrl}`
     : null;
 
+  const erPdf = tegningInfo?.fileType === "pdf";
+  const konverteringsStatus = tegningInfo?.conversionStatus;
+  const erKonverterer = konverteringsStatus === "converting" || konverteringsStatus === "pending";
+  // Pin-plassering aktiveres kun for bilde-filer (ikke PDF)
+  const kanPlasserPin = visPosisjon && !erPdf;
+
   function åpne() {
-    // Bruk eksisterende verdier, eller fall tilbake til aktiv bygning/tegning fra kontekst
     setValgtBygningId(aktivByggeplass?.id ?? "");
     setValgtTegningId(tegningId ?? standardTegning?.id ?? "");
     setPunkt(positionX != null && positionY != null ? { x: positionX, y: positionY } : null);
@@ -83,27 +94,27 @@ export function LokasjonVelger({
 
   const handleImgKlikk = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
-      if (!visPosisjon || !imgRef.current || isPanning) return;
+      if (!kanPlasserPin || !imgRef.current || isPanning) return;
       const rect = imgRef.current.getBoundingClientRect();
       const x = ((e.clientX - rect.left) / rect.width) * 100;
       const y = ((e.clientY - rect.top) / rect.height) * 100;
       setPunkt({ x: Math.max(0, Math.min(100, x)), y: Math.max(0, Math.min(100, y)) });
     },
-    [visPosisjon, isPanning],
+    [kanPlasserPin, isPanning],
   );
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
+    if (erPdf) return; // Ingen zoom for PDF-visning
     e.preventDefault();
     setZoom((prev) => Math.max(1, Math.min(10, prev * (e.deltaY < 0 ? 1.15 : 0.87))));
-  }, []);
+  }, [erPdf]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    if (e.button !== 0) return;
-    // Kun pan når zoomet inn
+    if (e.button !== 0 || erPdf) return;
     if (zoom <= 1) return;
     setIsPanning(true);
     panStart.current = { x: e.clientX, y: e.clientY, panX: pan.x, panY: pan.y };
-  }, [zoom, pan]);
+  }, [zoom, pan, erPdf]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     if (!isPanning) return;
@@ -200,43 +211,72 @@ export function LokasjonVelger({
             </select>
           </div>
 
-          {/* Tegningsvisning med zoom/pan og klikk-plassering */}
+          {/* Tegningsvisning */}
           {tegningUrl && (
             <div>
-              <div
-                ref={containerRef}
-                className="relative overflow-hidden rounded-lg border border-gray-200 bg-gray-100"
-                style={{ maxHeight: 400, cursor: zoom > 1 ? (isPanning ? "grabbing" : "grab") : (visPosisjon ? "crosshair" : "default") }}
-                onWheel={handleWheel}
-                onMouseDown={handleMouseDown}
-                onMouseMove={handleMouseMove}
-                onMouseUp={handleMouseUp}
-                onMouseLeave={handleMouseUp}
-                onClick={handleImgKlikk}
-              >
-                <div style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`, transformOrigin: "center center", transition: isPanning ? "none" : "transform 0.1s" }}>
-                  <img
-                    ref={imgRef}
-                    src={tegningUrl}
-                    alt="Tegning"
-                    className="w-full"
-                    draggable={false}
-                  />
-                  {punkt && visPosisjon && (
-                    <div
-                      className="pointer-events-none absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-red-500 shadow"
-                      style={{ left: `${punkt.x}%`, top: `${punkt.y}%` }}
-                    />
+              {erPdf ? (
+                /* PDF-visning via <object> — pin deaktivert */
+                <div>
+                  <object
+                    data={tegningUrl}
+                    type="application/pdf"
+                    className="w-full rounded-lg border border-gray-200"
+                    style={{ height: 400 }}
+                  >
+                    <p className="p-4 text-sm text-gray-500">PDF kan ikke vises i nettleseren.</p>
+                  </object>
+                  {visPosisjon && (
+                    <div className="mt-1.5 flex items-center gap-1.5 text-[10px] text-amber-600">
+                      {erKonverterer ? (
+                        <>
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                          <span>Konverteres — pin-plassering tilgjengelig snart</span>
+                        </>
+                      ) : (
+                        <span>PDF-tegning — pin-plassering tilgjengelig etter konvertering</span>
+                      )}
+                    </div>
                   )}
                 </div>
-              </div>
-              <div className="mt-1.5 flex items-center gap-1">
-                <button type="button" onClick={() => setZoom((z) => Math.min(10, z * 1.3))} className="rounded p-1 text-gray-400 hover:bg-gray-100"><ZoomIn className="h-4 w-4" /></button>
-                <button type="button" onClick={() => setZoom((z) => Math.max(1, z / 1.3))} className="rounded p-1 text-gray-400 hover:bg-gray-100"><ZoomOut className="h-4 w-4" /></button>
-                <button type="button" onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }} className="rounded p-1 text-gray-400 hover:bg-gray-100"><RotateCcw className="h-4 w-4" /></button>
-                <span className="ml-1 text-[10px] text-gray-400">{Math.round(zoom * 100)}%</span>
-                {visPosisjon && <span className="ml-auto text-[10px] text-gray-400">Scroll for å zoome · Klikk for å plassere punkt</span>}
-              </div>
+              ) : (
+                /* Bilde-visning (SVG/PNG) med zoom/pan og klikk-plassering */
+                <div>
+                  <div
+                    ref={containerRef}
+                    className="relative overflow-hidden rounded-lg border border-gray-200 bg-gray-100"
+                    style={{ maxHeight: 400, cursor: zoom > 1 ? (isPanning ? "grabbing" : "grab") : (kanPlasserPin ? "crosshair" : "default") }}
+                    onWheel={handleWheel}
+                    onMouseDown={handleMouseDown}
+                    onMouseMove={handleMouseMove}
+                    onMouseUp={handleMouseUp}
+                    onMouseLeave={handleMouseUp}
+                    onClick={handleImgKlikk}
+                  >
+                    <div style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`, transformOrigin: "center center", transition: isPanning ? "none" : "transform 0.1s" }}>
+                      <img
+                        ref={imgRef}
+                        src={tegningUrl}
+                        alt="Tegning"
+                        className="w-full"
+                        draggable={false}
+                      />
+                      {punkt && kanPlasserPin && (
+                        <div
+                          className="pointer-events-none absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-red-500 shadow"
+                          style={{ left: `${punkt.x}%`, top: `${punkt.y}%` }}
+                        />
+                      )}
+                    </div>
+                  </div>
+                  <div className="mt-1.5 flex items-center gap-1">
+                    <button type="button" onClick={() => setZoom((z) => Math.min(10, z * 1.3))} className="rounded p-1 text-gray-400 hover:bg-gray-100"><ZoomIn className="h-4 w-4" /></button>
+                    <button type="button" onClick={() => setZoom((z) => Math.max(1, z / 1.3))} className="rounded p-1 text-gray-400 hover:bg-gray-100"><ZoomOut className="h-4 w-4" /></button>
+                    <button type="button" onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }} className="rounded p-1 text-gray-400 hover:bg-gray-100"><RotateCcw className="h-4 w-4" /></button>
+                    <span className="ml-1 text-[10px] text-gray-400">{Math.round(zoom * 100)}%</span>
+                    {kanPlasserPin && <span className="ml-auto text-[10px] text-gray-400">Scroll for å zoome · Klikk for å plassere punkt</span>}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

@@ -535,4 +535,82 @@ export const tegningRouter = router({
       await verifiserProsjektmedlem(ctx.userId, tegning.projectId);
       return ctx.prisma.drawing.delete({ where: { id: input.id } });
     }),
+
+  // Batch re-konverter PDF-tegninger som mangler konvertering
+  rekonverterPdf: protectedProcedure
+    .input(z.object({ projectId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      // Kun sitedoc_admin eller prosjektadmin
+      const bruker = await ctx.prisma.user.findUnique({ where: { id: ctx.userId }, select: { role: true } });
+      if (bruker?.role !== "sitedoc_admin") {
+        const medlem = await ctx.prisma.projectMember.findUnique({
+          where: { userId_projectId: { userId: ctx.userId, projectId: input.projectId } },
+        });
+        if (medlem?.role !== "admin") {
+          return { startet: 0, melding: "Kun admin kan starte re-konvertering" };
+        }
+      }
+
+      // Finn PDF-tegninger uten konvertering (eller feilet)
+      const pdfTegninger = await ctx.prisma.drawing.findMany({
+        where: {
+          projectId: input.projectId,
+          fileType: "pdf",
+          OR: [
+            { conversionStatus: null },
+            { conversionStatus: "failed" },
+          ],
+        },
+        select: { id: true, fileUrl: true, name: true },
+      });
+
+      if (pdfTegninger.length === 0) {
+        return { startet: 0, melding: "Ingen PDF-tegninger å konvertere" };
+      }
+
+      // Sett alle til "converting" og start asynkront
+      for (const tegning of pdfTegninger) {
+        await ctx.prisma.drawing.update({
+          where: { id: tegning.id },
+          data: { conversionStatus: "converting" },
+        });
+
+        const pdfFilSti = join(UPLOADS_DIR, tegning.fileUrl.replace("/uploads/", ""));
+        const pngFilnavn = `${randomUUID()}.png`;
+        const pngUtSti = join(UPLOADS_DIR, pngFilnavn.replace(".png", ""));
+
+        // Fire-and-forget — konverter hver tegning asynkront
+        (async () => {
+          try {
+            console.log(`[PDF-batch] Konverterer: ${tegning.name} (${tegning.id})...`);
+            await execFileAsync("pdftoppm", [
+              "-png", "-r", "200", "-singlefile",
+              pdfFilSti, pngUtSti,
+            ], { timeout: 60000 });
+
+            await ctx.prisma.drawing.update({
+              where: { id: tegning.id },
+              data: {
+                fileUrl: `/uploads/${pngFilnavn}`,
+                fileType: "png",
+                conversionStatus: "done",
+              },
+            });
+            console.log(`[PDF-batch] Ferdig: ${tegning.name}`);
+          } catch (err) {
+            const melding = err instanceof Error ? err.message : "Ukjent feil";
+            console.error(`[PDF-batch] Feilet: ${tegning.name}: ${melding}`);
+            await ctx.prisma.drawing.update({
+              where: { id: tegning.id },
+              data: {
+                conversionStatus: "failed",
+                conversionError: `PDF→PNG batch-feil: ${melding}`,
+              },
+            });
+          }
+        })();
+      }
+
+      return { startet: pdfTegninger.length, melding: `Startet konvertering av ${pdfTegninger.length} PDF-tegning(er)` };
+    }),
 });
