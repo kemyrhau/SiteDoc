@@ -547,6 +547,12 @@ model DocumentTransfer {
   comment          String?
   createdAt        DateTime @default(now()) @map("created_at")
 
+  // Snapshot-felt — fanger kontekst ved tidspunktet hendelsen skjedde
+  senderEnterpriseName    String?  @map("sender_enterprise_name")
+  recipientEnterpriseName String?  @map("recipient_enterprise_name")
+  dokumentflytName        String?  @map("dokumentflyt_name")
+  senderRolle             String?  @map("sender_rolle") // bestiller | utforer | godkjenner | registrator
+
   checklist      Checklist?    @relation(fields: [checklistId], references: [id])
   task           Task?         @relation(fields: [taskId], references: [id])
   sender         User          @relation("TransferSender", fields: [senderId], references: [id])

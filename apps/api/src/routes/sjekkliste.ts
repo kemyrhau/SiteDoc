@@ -12,6 +12,7 @@ import {
 } from "../trpc/tilgangskontroll";
 import { sendDokumentVarsling, hentMottakerEposter } from "../services/epost";
 import { oversettFritekst } from "../services/oversettelse-service";
+import { byggTransferSnapshot } from "../services/transfer-snapshot";
 
 // Felttyper der verdi er fritekst som skal oversettes
 const FRITEKST_TYPER = new Set(["text_field"]);
@@ -540,6 +541,16 @@ export const sjekklisteRouter = router({
         });
       };
 
+      // Bygg snapshot for tidslinje-kontekst
+      const snapshot = await byggTransferSnapshot({
+        senderId: ctx.userId,
+        projektId: projectId,
+        dokumentStatus: sjekkliste.status,
+        bestillerEnterpriseId: sjekkliste.bestillerEnterpriseId,
+        utforerEnterpriseId: sjekkliste.utforerEnterpriseId,
+        dokumentflytId: sjekkliste.dokumentflytId,
+      });
+
       // Videresending: bytt mottaker uten å endre status
       if (input.nyStatus === "forwarded") {
         if (!input.recipientUserId && !input.recipientGroupId) {
@@ -562,6 +573,7 @@ export const sjekklisteRouter = router({
               comment: input.kommentar ? `Videresendt: ${input.kommentar}` : "Videresendt",
               recipientUserId: input.recipientUserId,
               recipientGroupId: input.recipientGroupId,
+              ...snapshot,
             },
           });
           return oppdatert;
@@ -620,6 +632,7 @@ export const sjekklisteRouter = router({
             ...(input.nyStatus === "responded" && besvarMottaker.recipientUserId ? {
               recipientUserId: besvarMottaker.recipientUserId,
             } : {}),
+            ...snapshot,
           },
         });
 
@@ -630,6 +643,7 @@ export const sjekklisteRouter = router({
               senderId: ctx.userId,
               fromStatus: "sent",
               toStatus: "received",
+              ...snapshot,
             },
           });
         }
@@ -747,7 +761,6 @@ export const sjekklisteRouter = router({
       const brukerNavn = bruker?.name ?? "Ukjent";
 
       return ctx.prisma.$transaction(async (tx) => {
-        // Oppdater sjekklisten
         await tx.checklist.update({
           where: { id: input.id },
           data: {
@@ -757,7 +770,6 @@ export const sjekklisteRouter = router({
           },
         });
 
-        // Systemlogg via DocumentTransfer
         await tx.documentTransfer.create({
           data: {
             checklistId: input.id,
@@ -767,6 +779,10 @@ export const sjekklisteRouter = router({
             fromStatus: sjekkliste.status,
             toStatus: sjekkliste.status,
             comment: `Flyttet av ${brukerNavn} fra ${gammelEntrepriseNavn} til ${nyEntrepriseNavn}`,
+            senderEnterpriseName: gammelEntrepriseNavn,
+            recipientEnterpriseName: nyEntrepriseNavn,
+            dokumentflytName: nyFlyt.name,
+            senderRolle: "registrator",
           },
         });
 

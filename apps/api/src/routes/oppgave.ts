@@ -13,6 +13,7 @@ import {
 } from "../trpc/tilgangskontroll";
 import { sendDokumentVarsling, hentMottakerEposter } from "../services/epost";
 import { oversettFritekst } from "../services/oversettelse-service";
+import { byggTransferSnapshot } from "../services/transfer-snapshot";
 
 const FRITEKST_TYPER = new Set(["text_field"]);
 
@@ -631,6 +632,16 @@ export const oppgaveRouter = router({
         });
       };
 
+      // Bygg snapshot for tidslinje-kontekst
+      const snapshot = await byggTransferSnapshot({
+        senderId: ctx.userId,
+        projektId: projectId,
+        dokumentStatus: oppgave.status,
+        bestillerEnterpriseId: oppgave.bestillerEnterpriseId,
+        utforerEnterpriseId: oppgave.utforerEnterpriseId,
+        dokumentflytId: oppgave.dokumentflytId,
+      });
+
       // Videresending: bytt mottaker uten å endre status
       if (input.nyStatus === "forwarded") {
         if (!input.recipientUserId && !input.recipientGroupId) {
@@ -653,6 +664,7 @@ export const oppgaveRouter = router({
               comment: input.kommentar ? `Videresendt: ${input.kommentar}` : "Videresendt",
               recipientUserId: input.recipientUserId,
               recipientGroupId: input.recipientGroupId,
+              ...snapshot,
             },
           });
           return oppdatert;
@@ -711,6 +723,7 @@ export const oppgaveRouter = router({
             ...(input.nyStatus === "responded" && besvarMottaker.recipientUserId ? {
               recipientUserId: besvarMottaker.recipientUserId,
             } : {}),
+            ...snapshot,
           },
         });
 
@@ -721,6 +734,7 @@ export const oppgaveRouter = router({
               senderId: ctx.userId,
               fromStatus: "sent",
               toStatus: "received",
+              ...snapshot,
             },
           });
         }
@@ -853,6 +867,10 @@ export const oppgaveRouter = router({
             fromStatus: oppgave.status,
             toStatus: oppgave.status,
             comment: `Flyttet av ${brukerNavn} fra ${gammelEntrepriseNavn} til ${nyEntrepriseNavn}`,
+            senderEnterpriseName: gammelEntrepriseNavn,
+            recipientEnterpriseName: nyEntrepriseNavn,
+            dokumentflytName: nyFlyt.name,
+            senderRolle: "registrator",
           },
         });
 

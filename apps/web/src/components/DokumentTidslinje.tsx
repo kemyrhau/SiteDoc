@@ -17,6 +17,11 @@ interface Overfoering {
   sender?: { id: string; name: string | null } | null;
   recipientUser?: { id: string; name: string | null } | null;
   recipientGroup?: { id: string; name: string | null } | null;
+  // Snapshot-felt for kontekst
+  senderEnterpriseName?: string | null;
+  recipientEnterpriseName?: string | null;
+  dokumentflytName?: string | null;
+  senderRolle?: string | null;
 }
 
 interface DokumentTidslinjeProps {
@@ -38,6 +43,13 @@ function formaterDato(dato: string): string {
     minute: "2-digit",
   });
 }
+
+const ROLLE_TEKST: Record<string, string> = {
+  bestiller: "Bestiller",
+  utforer: "Utfører",
+  godkjenner: "Godkjenner",
+  registrator: "Registrator",
+};
 
 /* ------------------------------------------------------------------ */
 /*  Komponent                                                          */
@@ -72,12 +84,15 @@ export function DokumentTidslinje({ overforinger, opprettetAv, opprettetDato }: 
           {overforinger.map((ovf, i) => {
             const erSiste = i === overforinger.length - 1;
             const harMottaker = ovf.recipientUser || ovf.recipientGroup;
-            // Videresending: kommentar starter med "Videresendt"
             const erVideresending = ovf.comment?.startsWith("Videresendt") ?? false;
-            // Fjern "Videresendt: " prefiks fra kommentar (vises allerede i badge)
             const visKommentar = erVideresending
               ? ovf.comment?.replace(/^Videresendt:\s*/, "").trim() || null
               : ovf.comment;
+
+            // Snapshot-kontekst
+            const senderNavn = ovf.sender?.name ?? "Ukjent";
+            const mottakerNavn = ovf.recipientUser?.name ?? ovf.recipientGroup?.name;
+            const harSnapshot = !!ovf.senderEnterpriseName || !!ovf.dokumentflytName;
 
             return (
               <TidslinjeRad
@@ -102,14 +117,17 @@ export function DokumentTidslinje({ overforinger, opprettetAv, opprettetDato }: 
                     )}
                   </div>
 
-                  {/* Avsender → Mottaker */}
+                  {/* Avsender (entreprise) → Mottaker (entreprise) */}
                   <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                    {ovf.sender?.name && (
-                      <span className="flex items-center gap-1">
-                        <User size={12} className="shrink-0" />
-                        {ovf.sender.name}
+                    <span className="flex items-center gap-1">
+                      <User size={12} className="shrink-0" />
+                      <span>
+                        {senderNavn}
+                        {ovf.senderEnterpriseName && (
+                          <span className="text-gray-400"> ({ovf.senderEnterpriseName})</span>
+                        )}
                       </span>
-                    )}
+                    </span>
                     {harMottaker && (
                       <>
                         <ArrowRight size={10} className="text-gray-400 shrink-0" />
@@ -119,11 +137,25 @@ export function DokumentTidslinje({ overforinger, opprettetAv, opprettetDato }: 
                           ) : (
                             <User size={12} className="shrink-0" />
                           )}
-                          {ovf.recipientUser?.name ?? ovf.recipientGroup?.name}
+                          <span>
+                            {mottakerNavn}
+                            {ovf.recipientEnterpriseName && (
+                              <span className="text-gray-400"> ({ovf.recipientEnterpriseName})</span>
+                            )}
+                          </span>
                         </span>
                       </>
                     )}
                   </div>
+
+                  {/* Snapshot undertekst: Flyt + Rolle */}
+                  {harSnapshot && (
+                    <p className="text-[11px] text-gray-400">
+                      {ovf.dokumentflytName && <>Flyt: {ovf.dokumentflytName}</>}
+                      {ovf.dokumentflytName && ovf.senderRolle && <> · </>}
+                      {ovf.senderRolle && <>{ROLLE_TEKST[ovf.senderRolle] ?? ovf.senderRolle}</>}
+                    </p>
+                  )}
 
                   {/* Kommentar */}
                   {visKommentar && (
