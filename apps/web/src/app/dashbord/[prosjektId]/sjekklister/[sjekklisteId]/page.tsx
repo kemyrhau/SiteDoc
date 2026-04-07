@@ -343,8 +343,8 @@ export default function SjekklisteDetaljSide() {
         visInterntNummer={(prosjekt as { showInternalProjectNumber?: boolean } | undefined)?.showInternalProjectNumber !== false}
       />
 
-      {/* Skjerm-header: sticky ved scrolling */}
-      <div className="print-skjul sticky top-0 z-10 bg-white border-b border-gray-100 -mx-6 px-6 py-3 mb-3">
+      {/* Skjerm-header: sticky ved scrolling — -mt-6 kompenserer main sin p-6 */}
+      <div className="print-skjul sticky top-0 z-10 bg-white border-b border-gray-100 -mx-6 px-6 pt-6 pb-3 -mt-6 mb-3">
         <div className="flex items-center gap-3">
           <h3 className="text-xl font-bold">{sjekkliste.title}</h3>
           <StatusBadge status={sjekkliste.status} />
