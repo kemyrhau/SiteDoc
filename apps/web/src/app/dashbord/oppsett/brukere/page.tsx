@@ -8,7 +8,6 @@ import { useTranslation } from "react-i18next";
 import {
   Plus,
   Users,
-  Settings,
   X,
   Pencil,
   Trash2,
@@ -218,8 +217,6 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
       setNyGruppeNavn("");
     },
   });
-
-  const [redigerModulerGruppe, setRedigerModulerGruppe] = useState<string | null>(null);
 
   // Default kollaps: lukk alle grupper ved første lasting
   useEffect(() => {
@@ -717,69 +714,45 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
 
                         <span className="font-normal text-gray-400" onClick={toggleKollaps}>({rad.antall})</span>
 
-                        {/* Modul-badges */}
+                        {/* Modul-badges — alltid klikkbare for toggle */}
                         {!erUtenGruppe && gruppeId && (() => {
                           const moduler = gruppeModuler[gruppeId] ?? [];
-                          const MODUL_LABELS: Record<string, { label: string; bg: string }> = {
-                            sjekklister: { label: t("nav.sjekklister"), bg: "bg-green-100 text-green-700" },
-                            oppgaver: { label: t("nav.oppgaver"), bg: "bg-blue-100 text-blue-700" },
-                            tegninger: { label: t("nav.tegninger"), bg: "bg-amber-100 text-amber-700" },
-                            "3d": { label: "3D", bg: "bg-purple-100 text-purple-700" },
+                          const MODUL_LABELS: Record<string, { label: string; aktivBg: string; inaktivBg: string }> = {
+                            sjekklister: { label: t("nav.sjekklister"), aktivBg: "bg-green-100 text-green-700", inaktivBg: "bg-gray-100 text-gray-400 line-through" },
+                            oppgaver: { label: t("nav.oppgaver"), aktivBg: "bg-blue-100 text-blue-700", inaktivBg: "bg-gray-100 text-gray-400 line-through" },
+                            tegninger: { label: t("nav.tegninger"), aktivBg: "bg-amber-100 text-amber-700", inaktivBg: "bg-gray-100 text-gray-400 line-through" },
+                            "3d": { label: "3D", aktivBg: "bg-purple-100 text-purple-700", inaktivBg: "bg-gray-100 text-gray-400 line-through" },
                           };
-                          const erRedigerer = redigerModulerGruppe === gruppeId;
                           const alleModulNavn: Array<"sjekklister" | "oppgaver" | "tegninger" | "3d"> = ["sjekklister", "oppgaver", "tegninger", "3d"];
 
                           return (
                             <div className="ml-2 flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                              {erRedigerer ? (
-                                <>
-                                  {alleModulNavn.map((mod) => {
-                                    const info = MODUL_LABELS[mod]!;
-                                    const erAktiv = moduler.includes(mod);
-                                    return (
-                                      <button
-                                        key={mod}
-                                        onClick={() => {
-                                          const nyeModuler = erAktiv
-                                            ? moduler.filter((m) => m !== mod) as typeof alleModulNavn
-                                            : [...moduler, mod] as typeof alleModulNavn;
-                                          oppdaterModulerMutation.mutate({
-                                            groupId: gruppeId,
-                                            projectId: prosjektId,
-                                            modules: nyeModuler,
-                                          });
-                                        }}
-                                        className={`rounded px-1.5 py-0.5 text-[10px] font-medium normal-case tracking-normal transition-colors ${
-                                          erAktiv ? info.bg : "bg-gray-100 text-gray-400 line-through"
-                                        }`}
-                                      >
-                                        {info.label}
-                                      </button>
-                                    );
-                                  })}
+                              {alleModulNavn.map((mod) => {
+                                const info = MODUL_LABELS[mod]!;
+                                const erAktiv = moduler.includes(mod);
+                                return (
                                   <button
-                                    onClick={() => setRedigerModulerGruppe(null)}
-                                    className="rounded p-0.5 text-gray-400 hover:text-gray-600"
+                                    key={mod}
+                                    type="button"
+                                    onClick={() => {
+                                      const nyeModuler = erAktiv
+                                        ? moduler.filter((m) => m !== mod) as typeof alleModulNavn
+                                        : [...moduler, mod] as typeof alleModulNavn;
+                                      oppdaterModulerMutation.mutate({
+                                        groupId: gruppeId,
+                                        projectId: prosjektId,
+                                        modules: nyeModuler,
+                                      });
+                                    }}
+                                    className={`rounded px-1.5 py-0.5 text-[10px] font-medium normal-case tracking-normal transition-colors cursor-pointer hover:opacity-80 ${
+                                      erAktiv ? info.aktivBg : info.inaktivBg
+                                    }`}
+                                    title={erAktiv ? `${info.label}: aktiv — klikk for å deaktivere` : `${info.label}: inaktiv — klikk for å aktivere`}
                                   >
-                                    <X className="h-3 w-3" />
+                                    {info.label}
                                   </button>
-                                </>
-                              ) : (
-                                <>
-                                  {moduler.map((mod) => {
-                                    const info = MODUL_LABELS[mod];
-                                    if (!info) return null;
-                                    return (
-                                      <span key={mod} className={`rounded px-1.5 py-0.5 text-[10px] font-medium normal-case tracking-normal ${info.bg}`}>
-                                        {info.label}
-                                      </span>
-                                    );
-                                  })}
-                                  {moduler.length === 0 && (
-                                    <span className="text-[10px] font-normal normal-case tracking-normal text-gray-400 italic">{t("brukere.ingenModuler")}</span>
-                                  )}
-                                </>
-                              )}
+                                );
+                              })}
                             </div>
                           );
                         })()}
@@ -787,18 +760,6 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
                         {/* Action buttons - visible on hover, only for real groups */}
                         {!erUtenGruppe && (
                           <div className="ml-auto flex items-center gap-1 opacity-0 group-hover/gheader:opacity-100 transition-opacity">
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                e.preventDefault();
-                                setRedigerModulerGruppe((prev) => prev === gruppeId ? null : gruppeId!);
-                              }}
-                              className="rounded p-1 text-gray-400 hover:bg-gray-200 hover:text-gray-600"
-                              title={t("brukere.redigerModuler")}
-                            >
-                              <Settings className="h-3 w-3" />
-                            </button>
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
