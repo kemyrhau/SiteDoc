@@ -485,6 +485,8 @@ export const sjekklisteRouter = router({
         kommentar: z.string().optional(),
         recipientUserId: z.string().uuid().optional(),
         recipientGroupId: z.string().uuid().optional(),
+        /** Ny dokumentflyt-ID ved videresending til annen entreprise */
+        dokumentflytId: z.string().uuid().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -499,6 +501,7 @@ export const sjekklisteRouter = router({
               project: { select: { name: true } },
             },
           },
+          utforerEnterprise: { select: { name: true } },
         },
       });
 
@@ -563,29 +566,63 @@ export const sjekklisteRouter = router({
         dokumentflytId: sjekkliste.dokumentflytId,
       });
 
-      // Videresending: bytt mottaker uten å endre status
+      // Videresending: bytt mottaker, evt. bytt dokumentflyt + entreprise
       if (input.nyStatus === "forwarded") {
         if (!input.recipientUserId && !input.recipientGroupId) {
           throw new TRPCError({ code: "BAD_REQUEST", message: "Videresending krever en mottaker" });
         }
+
+        // Sjekk om dokumentflyt/entreprise endres
+        let flytBytteData: { dokumentflytId: string; utforerEnterpriseId: string; nyEntrepriseNavn: string; nyFlytNavn: string } | null = null;
+        if (input.dokumentflytId && input.dokumentflytId !== sjekkliste.dokumentflytId) {
+          const nyFlyt = await ctx.prisma.dokumentflyt.findUniqueOrThrow({
+            where: { id: input.dokumentflytId },
+            include: { enterprise: { select: { id: true, name: true } } },
+          });
+          if (!nyFlyt.enterpriseId) {
+            throw new TRPCError({ code: "BAD_REQUEST", message: "Dokumentflyten mangler entreprise" });
+          }
+          flytBytteData = {
+            dokumentflytId: input.dokumentflytId,
+            utforerEnterpriseId: nyFlyt.enterpriseId,
+            nyEntrepriseNavn: nyFlyt.enterprise?.name ?? "Ukjent",
+            nyFlytNavn: nyFlyt.name,
+          };
+        }
+
+        const gammelEntrepriseNavn = sjekkliste.utforerEnterprise?.name ?? "Ukjent";
+
         const resultat = await ctx.prisma.$transaction(async (tx) => {
           const oppdatert = await tx.checklist.update({
             where: { id: input.id },
             data: {
               recipientUserId: input.recipientUserId ?? null,
               recipientGroupId: input.recipientGroupId ?? null,
+              ...(flytBytteData ? {
+                dokumentflytId: flytBytteData.dokumentflytId,
+                utforerEnterpriseId: flytBytteData.utforerEnterpriseId,
+              } : {}),
             },
           });
+
+          const kommentar = flytBytteData
+            ? (input.kommentar ? `Videresendt til ${flytBytteData.nyEntrepriseNavn}: ${input.kommentar}` : `Videresendt fra ${gammelEntrepriseNavn} til ${flytBytteData.nyEntrepriseNavn}`)
+            : (input.kommentar ? `Videresendt: ${input.kommentar}` : "Videresendt");
+
           await tx.documentTransfer.create({
             data: {
               checklistId: input.id,
               senderId: ctx.userId,
               fromStatus: sjekkliste.status,
               toStatus: sjekkliste.status,
-              comment: input.kommentar ? `Videresendt: ${input.kommentar}` : "Videresendt",
+              comment: kommentar,
               recipientUserId: input.recipientUserId,
               recipientGroupId: input.recipientGroupId,
               ...snapshot,
+              ...(flytBytteData ? {
+                recipientEnterpriseName: flytBytteData.nyEntrepriseNavn,
+                dokumentflytName: flytBytteData.nyFlytNavn,
+              } : {}),
             },
           });
           return oppdatert;
@@ -718,6 +755,7 @@ export const sjekklisteRouter = router({
     }),
 
   // Flytt sjekkliste til en annen dokumentflyt (Sentralbord)
+  // @deprecated — Bruk endreStatus med nyStatus="forwarded" + dokumentflytId i stedet. Beholdes for bakoverkompatibilitet
   flytt: protectedProcedure
     .input(
       z.object({

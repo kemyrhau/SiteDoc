@@ -129,7 +129,7 @@ function finnMottaker(df: DokumentflytData): { userId?: string; groupId?: string
 interface StatusHandlingerProps {
   status: string;
   erLaster: boolean;
-  onEndreStatus: (nyStatus: string, kommentar?: string, mottaker?: { userId?: string; groupId?: string }) => void;
+  onEndreStatus: (nyStatus: string, kommentar?: string, mottaker?: { userId?: string; groupId?: string; dokumentflytId?: string }) => void;
   onSlett?: () => void;
   /** Alle entrepriser i prosjektet */
   alleEntrepriser?: EntrepriseData[];
@@ -181,12 +181,12 @@ export function StatusHandlinger({ status, erLaster, onEndreStatus, onSlett, all
       return;
     }
     if (bekreftHandling === nyStatus) {
-      let mottaker: { userId?: string; groupId?: string } | undefined;
+      let mottaker: { userId?: string; groupId?: string; dokumentflytId?: string } | undefined;
 
       if (nyStatus === "forwarded") {
         const aktivKey = valgtKey || standardKey;
         const valgt = videresendValg.find((v) => v.key === aktivKey);
-        mottaker = valgt?.mottaker;
+        mottaker = valgt?.mottaker ? { ...valgt.mottaker, dokumentflytId: valgt.dokumentflytId } : undefined;
         if (!mottaker) return;
       } else if (standardEntrepriseId) {
         // Normal overgang: utled mottaker fra standard-entreprisens flyt

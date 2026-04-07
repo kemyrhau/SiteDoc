@@ -7,7 +7,6 @@ import { Check, AlertCircle, Loader2, Send, FileText, Printer, Pencil } from "lu
 import { trpc } from "@/lib/trpc";
 import { useOppgaveSkjema } from "@/hooks/useOppgaveSkjema";
 import { StatusHandlinger } from "@/components/StatusHandlinger";
-import { FlyttDokument } from "@/components/FlyttDokument";
 import { utledMinRolle } from "@sitedoc/shared";
 import type { FlytMedlemInfo } from "@sitedoc/shared";
 import { LokasjonVelger } from "@/components/LokasjonVelger";
@@ -217,26 +216,11 @@ export default function OppgaveDetaljSide() {
     },
   });
 
-  // Hent tillatelser for å sjekke registrator-status
-  const { data: mineTillatelser } = trpc.medlem.hentMineTillatelser.useQuery(
-    { projectId: params.prosjektId },
-    { enabled: !!params.prosjektId },
-  );
-  const erRegistrator = mineTillatelser?.includes("create_checklists") || mineTillatelser?.includes("create_tasks") || false;
-
   // Hent brukerens flyt-info for rollebaserte knapper
   const { data: minFlytInfo } = trpc.gruppe.hentMinFlytInfo.useQuery(
     { projectId: params.prosjektId },
     { enabled: !!params.prosjektId },
   );
-
-  // Flytt-mutasjon (Sentralbord)
-  const flyttMutasjon = trpc.oppgave.flytt.useMutation({
-    onSuccess: () => {
-      utils.oppgave.hentMedId.invalidate({ id: params.oppgaveId });
-      utils.oppgave.hentForProsjekt.invalidate();
-    },
-  });
 
   // Entreprise-valg for mottaker — utleder mottaker fra dokumentflyt + mal-match
   const { data: mineEntrepriser } = trpc.medlem.hentMineEntrepriser.useQuery(
@@ -479,6 +463,7 @@ export default function OppgaveDetaljSide() {
                 kommentar,
                 recipientUserId: mottaker?.userId,
                 recipientGroupId: mottaker?.groupId,
+                dokumentflytId: mottaker?.dokumentflytId,
               });
             }}
             alleEntrepriser={alleEntrepriser}
@@ -486,24 +471,6 @@ export default function OppgaveDetaljSide() {
             templateId={(oppgave as unknown as { templateId?: string }).templateId ?? oppgave.template?.id}
             standardEntrepriseId={oppgave.utforerEnterprise?.id}
             minRolle={minRolle}
-          />
-          <FlyttDokument
-            status={oppgave.status}
-            templateId={(oppgave as unknown as { templateId?: string }).templateId ?? oppgave.template?.id}
-            alleEntrepriser={alleEntrepriser}
-            dokumentflyter={dokumentflyter}
-            nåværendeEntrepriseId={oppgave.utforerEnterprise?.id}
-            erAdminEllerRegistrator={erRegistrator}
-            erLaster={flyttMutasjon.isPending}
-            onFlytt={(nyDokumentflytId, mottaker) => {
-              flyttMutasjon.mutate({
-                id: params.oppgaveId,
-                projectId: params.prosjektId,
-                nyDokumentflytId,
-                recipientUserId: mottaker?.userId,
-                recipientGroupId: mottaker?.groupId,
-              });
-            }}
           />
         </div>
       </div>

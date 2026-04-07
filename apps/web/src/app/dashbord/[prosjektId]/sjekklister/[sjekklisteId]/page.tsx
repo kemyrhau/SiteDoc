@@ -12,7 +12,6 @@ import { FeltWrapper } from "@/components/rapportobjekter/FeltWrapper";
 import { PrintHeader } from "@/components/PrintHeader";
 import { OpprettOppgaveModal } from "@/components/OpprettOppgaveModal";
 import { StatusHandlinger } from "@/components/StatusHandlinger";
-import { FlyttDokument } from "@/components/FlyttDokument";
 import { utledMinRolle } from "@sitedoc/shared";
 import type { FlytMedlemInfo } from "@sitedoc/shared";
 import { LokasjonVelger } from "@/components/LokasjonVelger";
@@ -109,26 +108,11 @@ export default function SjekklisteDetaljSide() {
     },
   });
 
-  // Hent tillatelser for å sjekke registrator-status
-  const { data: mineTillatelser } = trpc.medlem.hentMineTillatelser.useQuery(
-    { projectId: params.prosjektId },
-    { enabled: !!params.prosjektId },
-  );
-  const erRegistrator = mineTillatelser?.includes("create_checklists") || mineTillatelser?.includes("create_tasks") || false;
-
   // Hent brukerens flyt-info for rollebaserte knapper
   const { data: minFlytInfo } = trpc.gruppe.hentMinFlytInfo.useQuery(
     { projectId: params.prosjektId },
     { enabled: !!params.prosjektId },
   );
-
-  // Flytt-mutasjon (Sentralbord)
-  const flyttMutasjon = trpc.sjekkliste.flytt.useMutation({
-    onSuccess: () => {
-      utils.sjekkliste.hentMedId.invalidate({ id: params.sjekklisteId });
-      utils.sjekkliste.hentForProsjekt.invalidate();
-    },
-  });
 
   // Hent entrepriser og dokumentflyter for videresend-logikk
   const { data: mineEntrepriser } = trpc.medlem.hentMineEntrepriser.useQuery(
@@ -478,6 +462,7 @@ export default function SjekklisteDetaljSide() {
                 kommentar,
                 recipientUserId: mottaker?.userId,
                 recipientGroupId: mottaker?.groupId,
+                dokumentflytId: mottaker?.dokumentflytId,
               });
             }}
             onSlett={() => slettMutasjon.mutate({ id: params.sjekklisteId })}
@@ -486,24 +471,6 @@ export default function SjekklisteDetaljSide() {
             templateId={sjekkliste.template?.id ?? (sjekkliste as unknown as { templateId?: string }).templateId}
             standardEntrepriseId={sjekkliste.utforerEnterprise?.id}
             minRolle={minRolle}
-          />
-          <FlyttDokument
-            status={sjekkliste.status}
-            templateId={sjekkliste.template?.id ?? (sjekkliste as unknown as { templateId?: string }).templateId}
-            alleEntrepriser={alleEntrepriser}
-            dokumentflyter={dokumentflyter}
-            nåværendeEntrepriseId={sjekkliste.utforerEnterprise?.id}
-            erAdminEllerRegistrator={erRegistrator}
-            erLaster={flyttMutasjon.isPending}
-            onFlytt={(nyDokumentflytId, mottaker) => {
-              flyttMutasjon.mutate({
-                id: params.sjekklisteId,
-                projectId: params.prosjektId,
-                nyDokumentflytId,
-                recipientUserId: mottaker?.userId,
-                recipientGroupId: mottaker?.groupId,
-              });
-            }}
           />
         </div>
       </div>
