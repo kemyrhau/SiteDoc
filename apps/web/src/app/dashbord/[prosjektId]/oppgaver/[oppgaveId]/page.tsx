@@ -354,8 +354,8 @@ export default function OppgaveDetaljSide() {
   return (
     <div className="mx-auto max-w-3xl pb-12">
       {/* Header */}
-      {/* Skjerm-header: sticky under hovednavigasjon */}
-      <div className="print-skjul mb-6 sticky top-0 z-20 -mx-4 px-4 py-3 bg-white/95 backdrop-blur-sm">
+      {/* Skjerm-header: sticky ved scrolling */}
+      <div className="print-skjul sticky top-0 z-10 bg-white border-b border-gray-100 -mx-6 px-6 py-3 mb-3">
         <div className="flex items-center gap-3">
           <h3 className="text-xl font-bold">{oppgave.title}</h3>
           <StatusBadge status={oppgave.status} />
