@@ -6,7 +6,7 @@ import { Spinner, StatusBadge, Card, Badge } from "@sitedoc/ui";
 import { Check, AlertCircle, Loader2, Send, FileText, Printer, Pencil } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useOppgaveSkjema } from "@/hooks/useOppgaveSkjema";
-import { DokumentBunnbar } from "@/components/DokumentBunnbar";
+import { DokumentHandlingsmeny } from "@/components/DokumentHandlingsmeny";
 import { utledMinRolle } from "@sitedoc/shared";
 import type { FlytMedlemInfo } from "@sitedoc/shared";
 import { LokasjonVelger } from "@/components/LokasjonVelger";
@@ -352,7 +352,7 @@ export default function OppgaveDetaljSide() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl pb-24">
+    <div className="mx-auto max-w-3xl pb-12">
       {/* Header */}
       <div className="print-skjul mb-6">
         <div className="flex items-center gap-3">
@@ -369,6 +369,26 @@ export default function OppgaveDetaljSide() {
             </div>
           )}
           <div className="ml-auto flex items-center gap-2">
+            <DokumentHandlingsmeny
+              status={oppgave.status}
+              erLaster={endreStatusMutasjon.isPending}
+              onEndreStatus={(nyStatus, kommentar, mottaker) => {
+                endreStatusMutasjon.mutate({
+                  id: params.oppgaveId,
+                  nyStatus: nyStatus as "draft" | "sent" | "received" | "in_progress" | "responded" | "approved" | "rejected" | "closed" | "cancelled",
+                  senderId: oppgave.id,
+                  kommentar,
+                  recipientUserId: mottaker?.userId,
+                  recipientGroupId: mottaker?.groupId,
+                  dokumentflytId: mottaker?.dokumentflytId,
+                });
+              }}
+              alleEntrepriser={alleEntrepriser}
+              dokumentflyter={dokumentflyter}
+              templateId={(oppgave as unknown as { templateId?: string }).templateId ?? oppgave.template?.id}
+              standardEntrepriseId={oppgave.utforerEnterprise?.id}
+              minRolle={minRolle}
+            />
             <button
               onClick={() => window.open(`/utskrift/oppgave/${params.oppgaveId}`, "_blank")}
               className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
@@ -535,26 +555,6 @@ export default function OppgaveDetaljSide() {
         />
       )}
 
-      <DokumentBunnbar
-        status={oppgave.status}
-        erLaster={endreStatusMutasjon.isPending}
-        onEndreStatus={(nyStatus, kommentar, mottaker) => {
-          endreStatusMutasjon.mutate({
-            id: params.oppgaveId,
-            nyStatus: nyStatus as "draft" | "sent" | "received" | "in_progress" | "responded" | "approved" | "rejected" | "closed" | "cancelled",
-            senderId: oppgave.id,
-            kommentar,
-            recipientUserId: mottaker?.userId,
-            recipientGroupId: mottaker?.groupId,
-            dokumentflytId: mottaker?.dokumentflytId,
-          });
-        }}
-        alleEntrepriser={alleEntrepriser}
-        dokumentflyter={dokumentflyter}
-        templateId={(oppgave as unknown as { templateId?: string }).templateId ?? oppgave.template?.id}
-        standardEntrepriseId={oppgave.utforerEnterprise?.id}
-        minRolle={minRolle}
-      />
     </div>
   );
 }

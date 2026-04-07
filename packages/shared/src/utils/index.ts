@@ -34,7 +34,7 @@ export function isValidStatusTransition(
   const validTransitions: Record<string, string[]> = {
     draft: ["sent", "cancelled"],
     sent: ["received", "cancelled"],
-    received: ["in_progress", "cancelled"],
+    received: ["in_progress", "responded", "cancelled"],
     in_progress: ["responded", "sent", "cancelled"],
     responded: ["approved", "rejected"],
     approved: ["closed"],
