@@ -138,6 +138,7 @@ export const addMemberSchema = z.object({
   phone: z.string().optional(),
   role: z.enum(["member", "admin"]).default("member"),
   enterpriseIds: z.array(z.string().uuid()).default([]),
+  organizationId: z.string().uuid().optional(),
   melding: z.string().max(500).optional(),
 });
 

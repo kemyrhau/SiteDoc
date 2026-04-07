@@ -95,16 +95,21 @@ export const medlemRouter = router({
             email: input.email,
             name: `${input.firstName} ${input.lastName}`,
             phone: input.phone,
+            organizationId: input.organizationId,
           },
         });
-      } else if (!user.name) {
-        user = await ctx.prisma.user.update({
-          where: { id: user.id },
-          data: {
-            name: `${input.firstName} ${input.lastName}`,
-            phone: input.phone ?? user.phone,
-          },
-        });
+      } else {
+        // Oppdater manglende felter (navn, telefon, firma)
+        const oppdatering: { name?: string; phone?: string; organizationId?: string } = {};
+        if (!user.name) oppdatering.name = `${input.firstName} ${input.lastName}`;
+        if (input.phone && !user.phone) oppdatering.phone = input.phone;
+        if (input.organizationId && !user.organizationId) oppdatering.organizationId = input.organizationId;
+        if (Object.keys(oppdatering).length > 0) {
+          user = await ctx.prisma.user.update({
+            where: { id: user.id },
+            data: oppdatering,
+          });
+        }
       }
 
       // Sjekk om medlemskap allerede finnes

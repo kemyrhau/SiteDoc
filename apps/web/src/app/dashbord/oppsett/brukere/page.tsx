@@ -124,7 +124,7 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
   const [nyGruppeInput, setNyGruppeInput] = useState(false);
   const [nyGruppeNavn, setNyGruppeNavn] = useState("");
   const [inviterOpen, setInviterOpen] = useState(false);
-  const [inviterData, setInviterData] = useState({ fornavn: "", etternavn: "", epost: "", telefon: "" });
+  const [inviterData, setInviterData] = useState({ fornavn: "", etternavn: "", epost: "", telefon: "", organizationId: "" });
 
   const settFirmaansvarligMutation = trpc.medlem.settFirmaansvarlig.useMutation({
     onSuccess: () => {
@@ -136,7 +136,7 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
     onSuccess: () => {
       utils.medlem.hentForProsjekt.invalidate({ projectId: prosjektId });
       setInviterOpen(false);
-      setInviterData({ fornavn: "", etternavn: "", epost: "", telefon: "" });
+      setInviterData({ fornavn: "", etternavn: "", epost: "", telefon: "", organizationId: "" });
     },
   });
 
@@ -150,11 +150,8 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
     { enabled: !!prosjektId },
   );
 
-  // Hent alle organisasjoner for firma-dropdown
-  const { data: alleOrganisasjoner } = trpc.organisasjon.hentAlle.useQuery(
-    undefined,
-    { enabled: !!redigerMedlemId }, // Kun hent ved redigering
-  );
+  // Hent alle organisasjoner for firma-dropdown (redigering + invitasjon)
+  const { data: alleOrganisasjoner } = trpc.organisasjon.hentAlle.useQuery();
 
   const { data: dbGrupper } = trpc.gruppe.hentForProsjekt.useQuery(
     { projectId: prosjektId },
@@ -466,13 +463,14 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
                 onChange={(e) => setInviterData((p) => ({ ...p, epost: e.target.value }))}
                 className="rounded border border-gray-300 px-2 py-1 text-sm w-48 focus:border-blue-400 focus:outline-none"
                 onKeyDown={(e) => {
-                  if (e.key === "Enter" && inviterData.fornavn.trim() && inviterData.etternavn.trim() && inviterData.epost.trim()) {
+                  if (e.key === "Enter" && inviterData.fornavn.trim() && inviterData.etternavn.trim() && inviterData.epost.trim() && inviterData.organizationId) {
                     inviterMutation.mutate({
                       projectId: prosjektId,
                       firstName: inviterData.fornavn.trim(),
                       lastName: inviterData.etternavn.trim(),
                       email: inviterData.epost.trim(),
                       phone: inviterData.telefon.trim() || undefined,
+                      organizationId: inviterData.organizationId,
                     });
                   }
                 }}
@@ -488,6 +486,19 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
                 placeholder={t("label.valgfritt")}
               />
             </div>
+            <div>
+              <label className="block text-[10px] font-medium text-gray-500 mb-0.5">{t("tabell.firma")} *</label>
+              <select
+                value={inviterData.organizationId}
+                onChange={(e) => setInviterData((p) => ({ ...p, organizationId: e.target.value }))}
+                className="rounded border border-gray-300 px-2 py-1 text-sm w-40 focus:border-blue-400 focus:outline-none"
+              >
+                <option value="">{t("handling.velg")}...</option>
+                {(alleOrganisasjoner as Array<{ id: string; name: string }> ?? []).map((org) => (
+                  <option key={org.id} value={org.id}>{org.name}</option>
+                ))}
+              </select>
+            </div>
             <button
               onClick={() => {
                 if (inviterData.fornavn.trim() && inviterData.etternavn.trim() && inviterData.epost.trim()) {
@@ -500,13 +511,13 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
                   });
                 }
               }}
-              disabled={!inviterData.fornavn.trim() || !inviterData.etternavn.trim() || !inviterData.epost.trim() || inviterMutation.isPending}
+              disabled={!inviterData.fornavn.trim() || !inviterData.etternavn.trim() || !inviterData.epost.trim() || !inviterData.organizationId || inviterMutation.isPending}
               className="rounded-lg bg-blue-600 px-3 py-1 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
             >
               {inviterMutation.isPending ? t("handling.sender") : t("brukere.sendInvitasjon")}
             </button>
             <button
-              onClick={() => { setInviterOpen(false); setInviterData({ fornavn: "", etternavn: "", epost: "", telefon: "" }); }}
+              onClick={() => { setInviterOpen(false); setInviterData({ fornavn: "", etternavn: "", epost: "", telefon: "", organizationId: "" }); }}
               className="rounded p-1 text-gray-400 hover:text-gray-600"
             >
               <X className="h-4 w-4" />
