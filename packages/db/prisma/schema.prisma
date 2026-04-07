@@ -464,6 +464,8 @@ model Checklist {
   subject                 String?
   byggeplassId            String?   @map("byggeplass_id")
   drawingId             String?   @map("drawing_id")
+  positionX             Float?    @map("position_x")
+  positionY             Float?    @map("position_y")
   recipientUserId       String?   @map("recipient_user_id")
   recipientGroupId      String?   @map("recipient_group_id")
   createdAt             DateTime  @default(now()) @map("created_at")

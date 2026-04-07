@@ -434,7 +434,7 @@ export default function OppgaveDetaljSide() {
                 positionY: data.positionY ?? null,
               });
             }}
-            leseModus={!erRedigerbar}
+            leseModus={["closed", "approved"].includes(oppgave.status)}
           />
         </div>
 

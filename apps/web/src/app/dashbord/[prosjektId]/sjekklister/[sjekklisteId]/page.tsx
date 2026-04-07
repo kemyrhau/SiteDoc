@@ -421,14 +421,19 @@ export default function SjekklisteDetaljSide() {
             tegningId={(sjekkliste as unknown as { drawingId?: string | null }).drawingId}
             tegningNavn={(sjekkliste as unknown as { drawing?: { name?: string } | null }).drawing?.name}
             bygningNavn={(sjekkliste as unknown as { byggeplass?: { name?: string } | null }).byggeplass?.name}
+            positionX={(sjekkliste as unknown as { positionX?: number | null }).positionX}
+            positionY={(sjekkliste as unknown as { positionY?: number | null }).positionY}
+            visPosisjon
             onLagre={(data) => {
               oppdaterMutasjon.mutate({
                 id: params.sjekklisteId,
                 drawingId: data.drawingId,
                 byggeplassId: data.byggeplassId ?? undefined,
+                positionX: data.positionX ?? null,
+                positionY: data.positionY ?? null,
               });
             }}
-            leseModus={!erRedigerbar}
+            leseModus={["closed", "approved"].includes(sjekkliste.status)}
           />
         </div>
 
