@@ -55,7 +55,7 @@ Tre-kolonne layout (skjules på mobil < 768px, hamburger-meny i Toppbar):
 /dashbord/[prosjektId]/dokumentleser         -> Dokumentleser med mappenavigering: venstre panel (mappetreet + dokumentliste med flagg), høyre panel (inline Reader View)
 /dashbord/oppsett/ai-sok                     -> AI-søk innstillinger: embedding-status, generer/stopp, NorBERT/OpenAI modellvalg, LLM-konfig, recall/precision/latency sliders
 /dashbord/oppsett                             -> Innstillinger
-/dashbord/oppsett/brukere                     -> Brukergrupper med modul-badges i overskrifter + Kontakttabell (eneste visning, ingen toggle). Sticky header med filter. Firmaansvarlig via rolle-dropdown. Skjold-ikoner: blått=Admin, gult=Firmaansvarlig. Kontakttabell viser alle prosjektmedlemmer med Navn, E-post, Telefon, Firma, Rolle, Entrepriser (redigerbare via +/x), Grupper
+/dashbord/oppsett/brukere                     -> Kontakttabell med grupper (default kollapsert). Sticky header: «+ Ny gruppe» + «Inviter ny» (inline form med fornavn/etternavn/e-post/telefon/firma). Modul-badges direkte klikkbare for toggle (sjekklister/oppgaver/tegninger/3D). Firma-dropdown i redigeringsvisning (endrer organizationId på brukernivå, inkl. «+ Nytt firma»). Firmaansvarlig via rolle-dropdown. Skjold: blått=Admin, gult=Firmaansvarlig. Legg til person i gruppe via custom dropdown (ikke native select). HjelpKnapp øverst til høyre
 /dashbord/oppsett/brukere/tillatelser         -> Tillatelsesmatrise (read-only)
 /dashbord/oppsett/lokasjoner                  -> Lokasjonsliste med georeferanse
 /dashbord/oppsett/produksjon                   -> Produksjon-oversikt (tidligere field/)

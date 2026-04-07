@@ -7,6 +7,8 @@ Dokumenter (sjekklister/oppgaver) flyter mellom entrepriser:
 - Utfører-entreprise mottar, fyller ut og besvarer
 - Alle overganger logges i `document_transfers`
 - **I draft-status:** entrepriser kan endres via dropdown. Etter draft → låst
+- **Lokasjon:** Alltid redigerbar (drawingId, positionX/Y) unntatt i `closed`/`approved`-status
+- **Sentralbord (Flytt dokument):** Admin og registratorer kan flytte dokumenter mellom dokumentflyter. Oppdaterer `dokumentflytId` + `utforerEnterpriseId` + `recipientUserId`. Tillatt i draft/sent/received/in_progress. Logges i DocumentTransfer med flyttekommentar
 - **Automatisk fargevalg:** Neste ledige fra `ENTERPRISE_COLORS` (32 farger). Fargevelger kun i redigeringsmodal
 
 **Sletting:**
@@ -45,6 +47,8 @@ Prosjektomfattende dokumentflyt under Innstillinger > Produksjon > Dokumentflyt:
 - **Gruppevisning i dropdown:** Bruker-dropdown i dokumentflyt-oppsett viser gruppemedlemskap: «Kenneth Myrhaug · Byggherre, Tømrer»
 - **Person-basert tilgangssjekk (Valg B):** Firmamedlemmer ser dokumenter der en person fra firmaet er `bestillerUserId`, `recipientUserId` eller `senderId` (i DocumentTransfer). Erstatter entreprise-basert filtrering for firmaansvarlige
 - **Mal-velger per dokumentflyt:** Dokumentflyt har tilknyttede maler via `DokumentflytMal`. Ved opprettelse av oppgave/sjekkliste vises kun maler som tilhører valgt dokumentflyt
+- **Videresend-dropdown:** Matcher entreprise + dokumentets mal via `DokumentflytMal`. Én flyt → auto-velg. Flere flyter → flytnavn i parentes (f.eks. «Tømrer (HE → Tømrer - Avvik)»). Mottaker utledes fra utfører-rolle, fallback bestiller → godkjenner
+- **Tidslinje-snapshot:** `DocumentTransfer` har snapshot-felt: `senderEnterpriseName`, `recipientEnterpriseName`, `dokumentflytName`, `senderRolle`. Populeres ved statusendring/videresending/flytt. Viser kontekst i tidslinje: «Kenneth (Byggherre) → HE-Leder (Elektro) · Flyt: Elektro–HE · Bestiller»
 - **Planlagt:** HMS-avvik som egen dokumentflyt, intern godkjenning (ansatt → fagleder → TE)
 
 ### Bakoverkompatibilitet
@@ -65,11 +69,14 @@ Sjekklister og oppgaver har **identisk** UI-struktur (sidebar, tabellvisning, de
 
 ## Invitasjonsflyt
 
-1. Admin legger til bruker → `ProjectMember` opprettes
-2. Ingen `Account` → `ProjectInvitation` med token (7 dager) → e-post via Resend
-3. Akseptlenke → `/aksepter-invitasjon?token=...`
-4. OAuth-innlogging → `allowDangerousEmailAccountLinking` → akseptert → redirect
-5. **Auto-akseptering:** Ved OAuth-innlogging aksepteres ventende invitasjoner automatisk (events.signIn i auth.ts)
+1. Admin klikker «Inviter ny» i kontakttabellen (sticky header)
+2. Fyller ut fornavn, etternavn, e-post, telefon (valgfritt), firma (påkrevd)
+3. Firma-dropdown: eksisterende organisasjoner + «+ Nytt firma» (oppretter Organization inline)
+4. `medlem.leggTil` → `ProjectMember` opprettes med `organizationId` satt på brukeren
+5. Ingen `Account` → `ProjectInvitation` med token (7 dager) → e-post via Resend
+6. Akseptlenke → `/aksepter-invitasjon?token=...`
+7. OAuth-innlogging → `allowDangerousEmailAccountLinking` → akseptert → redirect
+8. **Auto-akseptering:** Ved OAuth-innlogging aksepteres ventende invitasjoner automatisk (events.signIn i auth.ts)
 
 **Personlig melding:** Valgfri tekst (maks 500 tegn) inkluderes i e-posten.
 **Resend:** `RESEND_API_KEY` i BÅDE `apps/api/.env` OG `apps/web/.env.local`.
