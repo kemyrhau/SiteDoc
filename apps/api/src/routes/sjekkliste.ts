@@ -8,6 +8,7 @@ import {
   byggTilgangsFilter,
   verifiserEntrepriseTilhorighet,
   verifiserDokumentTilgang,
+  hentBrukerTillatelser,
 } from "../trpc/tilgangskontroll";
 import { sendDokumentVarsling, hentMottakerEposter } from "../services/epost";
 import { oversettFritekst } from "../services/oversettelse-service";
@@ -684,6 +685,89 @@ export const sjekklisteRouter = router({
         await tx.documentTransfer.deleteMany({ where: { checklistId: input.id } });
         await tx.image.deleteMany({ where: { checklistId: input.id } });
         await tx.checklist.delete({ where: { id: input.id } });
+        return { success: true };
+      });
+    }),
+
+  // Flytt sjekkliste til en annen dokumentflyt (Sentralbord)
+  flytt: protectedProcedure
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        projectId: z.string().uuid(),
+        nyDokumentflytId: z.string().uuid(),
+        /** Ny mottaker utledet fra ny dokumentflyt */
+        recipientUserId: z.string().uuid().optional(),
+        recipientGroupId: z.string().uuid().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Verifiser admin eller registrator
+      const tillatelser = await hentBrukerTillatelser(ctx.userId, input.projectId);
+      const erRegistrator = tillatelser.has("create_checklists") || tillatelser.has("create_tasks");
+
+      const bruker = await ctx.prisma.user.findUnique({ where: { id: ctx.userId }, select: { role: true, name: true } });
+      const medlem = await ctx.prisma.projectMember.findUnique({
+        where: { userId_projectId: { userId: ctx.userId, projectId: input.projectId } },
+      });
+      const erProjektAdmin = bruker?.role === "sitedoc_admin" || medlem?.role === "admin";
+
+      if (!erProjektAdmin && !erRegistrator) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Kun admin og registratorer kan flytte dokumenter" });
+      }
+
+      // Hent sjekklisten
+      const sjekkliste = await ctx.prisma.checklist.findUniqueOrThrow({
+        where: { id: input.id },
+        include: {
+          utforerEnterprise: { select: { name: true } },
+        },
+      });
+
+      // Verifiser status
+      const tillattStatus = ["draft", "sent", "received", "in_progress"];
+      if (!tillattStatus.includes(sjekkliste.status)) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Kan ikke flytte dokumenter med status: " + sjekkliste.status });
+      }
+
+      // Hent ny dokumentflyt
+      const nyFlyt = await ctx.prisma.dokumentflyt.findUniqueOrThrow({
+        where: { id: input.nyDokumentflytId },
+        include: { enterprise: { select: { id: true, name: true } } },
+      });
+
+      if (!nyFlyt.enterpriseId) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Dokumentflyten mangler entreprise" });
+      }
+
+      const gammelEntrepriseNavn = sjekkliste.utforerEnterprise?.name ?? "Ukjent";
+      const nyEntrepriseNavn = nyFlyt.enterprise?.name ?? "Ukjent";
+      const brukerNavn = bruker?.name ?? "Ukjent";
+
+      return ctx.prisma.$transaction(async (tx) => {
+        // Oppdater sjekklisten
+        await tx.checklist.update({
+          where: { id: input.id },
+          data: {
+            dokumentflytId: input.nyDokumentflytId,
+            utforerEnterpriseId: nyFlyt.enterpriseId!,
+            recipientUserId: input.recipientUserId ?? null,
+          },
+        });
+
+        // Systemlogg via DocumentTransfer
+        await tx.documentTransfer.create({
+          data: {
+            checklistId: input.id,
+            senderId: ctx.userId,
+            recipientUserId: input.recipientUserId,
+            recipientGroupId: input.recipientGroupId,
+            fromStatus: sjekkliste.status,
+            toStatus: sjekkliste.status,
+            comment: `Flyttet av ${brukerNavn} fra ${gammelEntrepriseNavn} til ${nyEntrepriseNavn}`,
+          },
+        });
+
         return { success: true };
       });
     }),

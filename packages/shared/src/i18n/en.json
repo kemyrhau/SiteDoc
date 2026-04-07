@@ -1055,5 +1055,9 @@
   "hjelp.flyt.utforer": "Executor",
   "hjelp.flyt.godkjenner": "Approver",
   "hjelp.flytForklaring1": "The orderer creates and sends the document. The executor receives, performs the work and responds. The approver reviews and approves or rejects.",
-  "hjelp.flytForklaring2": "The groups in each flow box determine who can fill the role. E.g. 'HE-Leader' (3 people) can be the orderer, while 'Client' (4 people) is executor and approver."
+  "hjelp.flytForklaring2": "The groups in each flow box determine who can fill the role. E.g. 'HE-Leader' (3 people) can be the orderer, while 'Client' (4 people) is executor and approver.",
+  "flytt.knapp": "Move",
+  "flytt.velgDokumentflyt": "Select new document flow...",
+  "flytt.bekreft": "Confirm move",
+  "flytt.flytter": "Moving..."
 }

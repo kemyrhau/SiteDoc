@@ -12,6 +12,7 @@ import { FeltWrapper } from "@/components/rapportobjekter/FeltWrapper";
 import { PrintHeader } from "@/components/PrintHeader";
 import { OpprettOppgaveModal } from "@/components/OpprettOppgaveModal";
 import { StatusHandlinger } from "@/components/StatusHandlinger";
+import { FlyttDokument } from "@/components/FlyttDokument";
 import { LokasjonVelger } from "@/components/LokasjonVelger";
 import type { RapportObjekt } from "@/components/rapportobjekter/typer";
 import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
@@ -112,6 +113,14 @@ export default function SjekklisteDetaljSide() {
     { enabled: !!params.prosjektId },
   );
   const erRegistrator = mineTillatelser?.includes("create_checklists") || mineTillatelser?.includes("create_tasks") || false;
+
+  // Flytt-mutasjon (Sentralbord)
+  const flyttMutasjon = trpc.sjekkliste.flytt.useMutation({
+    onSuccess: () => {
+      utils.sjekkliste.hentMedId.invalidate({ id: params.sjekklisteId });
+      utils.sjekkliste.hentForProsjekt.invalidate();
+    },
+  });
 
   // Hent entrepriser og dokumentflyter for videresend-logikk
   const { data: mineEntrepriser } = trpc.medlem.hentMineEntrepriser.useQuery(
@@ -444,6 +453,24 @@ export default function SjekklisteDetaljSide() {
             templateId={sjekkliste.template?.id ?? (sjekkliste as unknown as { templateId?: string }).templateId}
             standardEntrepriseId={sjekkliste.utforerEnterprise?.id}
             erRegistrator={erRegistrator}
+          />
+          <FlyttDokument
+            status={sjekkliste.status}
+            templateId={sjekkliste.template?.id ?? (sjekkliste as unknown as { templateId?: string }).templateId}
+            alleEntrepriser={alleEntrepriser}
+            dokumentflyter={dokumentflyter}
+            nåværendeEntrepriseId={sjekkliste.utforerEnterprise?.id}
+            erAdminEllerRegistrator={erRegistrator}
+            erLaster={flyttMutasjon.isPending}
+            onFlytt={(nyDokumentflytId, mottaker) => {
+              flyttMutasjon.mutate({
+                id: params.sjekklisteId,
+                projectId: params.prosjektId,
+                nyDokumentflytId,
+                recipientUserId: mottaker?.userId,
+                recipientGroupId: mottaker?.groupId,
+              });
+            }}
           />
         </div>
       </div>

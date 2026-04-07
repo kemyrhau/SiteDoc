@@ -7,6 +7,7 @@ import { Check, AlertCircle, Loader2, Send, FileText, Printer, Pencil } from "lu
 import { trpc } from "@/lib/trpc";
 import { useOppgaveSkjema } from "@/hooks/useOppgaveSkjema";
 import { StatusHandlinger } from "@/components/StatusHandlinger";
+import { FlyttDokument } from "@/components/FlyttDokument";
 import { LokasjonVelger } from "@/components/LokasjonVelger";
 import { RapportObjektRenderer, DISPLAY_TYPER, SKJULT_I_UTFYLLING } from "@/components/rapportobjekter/RapportObjektRenderer";
 import { FeltWrapper } from "@/components/rapportobjekter/FeltWrapper";
@@ -220,6 +221,14 @@ export default function OppgaveDetaljSide() {
     { enabled: !!params.prosjektId },
   );
   const erRegistrator = mineTillatelser?.includes("create_checklists") || mineTillatelser?.includes("create_tasks") || false;
+
+  // Flytt-mutasjon (Sentralbord)
+  const flyttMutasjon = trpc.oppgave.flytt.useMutation({
+    onSuccess: () => {
+      utils.oppgave.hentMedId.invalidate({ id: params.oppgaveId });
+      utils.oppgave.hentForProsjekt.invalidate();
+    },
+  });
 
   // Entreprise-valg for mottaker — utleder mottaker fra dokumentflyt + mal-match
   const { data: mineEntrepriser } = trpc.medlem.hentMineEntrepriser.useQuery(
@@ -449,6 +458,24 @@ export default function OppgaveDetaljSide() {
             templateId={(oppgave as unknown as { templateId?: string }).templateId ?? oppgave.template?.id}
             standardEntrepriseId={oppgave.utforerEnterprise?.id}
             erRegistrator={erRegistrator}
+          />
+          <FlyttDokument
+            status={oppgave.status}
+            templateId={(oppgave as unknown as { templateId?: string }).templateId ?? oppgave.template?.id}
+            alleEntrepriser={alleEntrepriser}
+            dokumentflyter={dokumentflyter}
+            nåværendeEntrepriseId={oppgave.utforerEnterprise?.id}
+            erAdminEllerRegistrator={erRegistrator}
+            erLaster={flyttMutasjon.isPending}
+            onFlytt={(nyDokumentflytId, mottaker) => {
+              flyttMutasjon.mutate({
+                id: params.oppgaveId,
+                projectId: params.prosjektId,
+                nyDokumentflytId,
+                recipientUserId: mottaker?.userId,
+                recipientGroupId: mottaker?.groupId,
+              });
+            }}
           />
         </div>
       </div>

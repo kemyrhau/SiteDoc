@@ -1055,5 +1055,9 @@
   "hjelp.flyt.utforer": "Utfører",
   "hjelp.flyt.godkjenner": "Godkjenner",
   "hjelp.flytForklaring1": "Bestiller oppretter og sender dokumentet. Utfører mottar, utfører arbeidet og svarer. Godkjenner gjennomgår og godkjenner eller avviser.",
-  "hjelp.flytForklaring2": "Gruppene i hver flytboks bestemmer hvem som kan fylle rollen. F.eks. kan «HE-Leder» (3 personer) være bestiller, mens «Byggherre» (4 personer) er utfører og godkjenner."
+  "hjelp.flytForklaring2": "Gruppene i hver flytboks bestemmer hvem som kan fylle rollen. F.eks. kan «HE-Leder» (3 personer) være bestiller, mens «Byggherre» (4 personer) er utfører og godkjenner.",
+  "flytt.knapp": "Flytt",
+  "flytt.velgDokumentflyt": "Velg ny dokumentflyt...",
+  "flytt.bekreft": "Bekreft flytting",
+  "flytt.flytter": "Flytter..."
 }
