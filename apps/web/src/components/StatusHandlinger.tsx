@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { hentStatusHandlinger } from "@sitedoc/shared";
 
@@ -13,12 +13,113 @@ const FARGE_MAP: Record<string, { bg: string; hover: string }> = {
   "bg-gray-500": { bg: "bg-gray-500", hover: "hover:bg-gray-600" },
 };
 
-export interface EntrepriseValg {
-  id: string;
-  navn: string;
+export interface VideresendValg {
+  /** Unik nøkkel: entrepriseId eller entrepriseId__dokumentflytId ved flere flyter */
+  key: string;
+  entrepriseId: string;
+  entrepriseNavn: string;
+  dokumentflytId: string;
+  dokumentflytNavn: string;
+  /** Visningsnavn i dropdown. Entreprisenavn alene hvis 1 flyt, med flytnavn i parentes hvis flere */
+  visningsnavn: string;
   farge?: string | null;
-  /** Forhåndsutledet mottaker fra dokumentflyt */
   mottaker?: { userId?: string; groupId?: string };
+}
+
+export interface DokumentflytData {
+  id: string;
+  name: string;
+  enterpriseId: string | null;
+  roller: Array<{ rolle: string; label?: string | null }>;
+  maler: Array<{ template: { id: string } }>;
+  medlemmer: Array<{
+    rolle: string;
+    erHovedansvarlig: boolean;
+    hovedansvarligPerson?: { user: { id: string; name: string | null } } | null;
+    projectMember?: { user: { id: string; name: string | null } } | null;
+    group?: { id: string; name: string } | null;
+  }>;
+}
+
+export interface EntrepriseData {
+  id: string;
+  name: string;
+  color: string | null;
+}
+
+/**
+ * Bygg videresend-valg basert på entreprise + mal-match.
+ * For hver entreprise, finn dokumentflyter som har:
+ * 1. enterpriseId === entrepriseId
+ * 2. dokumentets templateId i maler-listen
+ * Utled mottaker fra utfører-rollen (fallback: bestiller → godkjenner).
+ */
+export function byggVideresendValg(
+  alleEntrepriser: EntrepriseData[],
+  dokumentflyter: DokumentflytData[],
+  templateId: string | null | undefined,
+): VideresendValg[] {
+  const valg: VideresendValg[] = [];
+
+  // Tell antall matchende flyter per entreprise for å avgjøre visningsnavn
+  const flyterPerEntreprise = new Map<string, DokumentflytData[]>();
+
+  for (const ent of alleEntrepriser) {
+    const matchendeFlyter = dokumentflyter.filter((df) => {
+      if (df.enterpriseId !== ent.id) return false;
+      if (!templateId) return true; // Ingen mal → vis alle flyter for entreprisen
+      return df.maler.some((m) => m.template.id === templateId);
+    });
+    if (matchendeFlyter.length > 0) {
+      flyterPerEntreprise.set(ent.id, matchendeFlyter);
+    }
+  }
+
+  for (const ent of alleEntrepriser) {
+    const flyter = flyterPerEntreprise.get(ent.id);
+    if (!flyter) continue;
+
+    const flereFlyterForEntreprise = flyter.length > 1;
+
+    for (const df of flyter) {
+      // Utled mottaker: prioriter utfører → bestiller → godkjenner
+      const mottaker = finnMottaker(df);
+
+      const visningsnavn = flereFlyterForEntreprise
+        ? `${ent.name} (${df.name})`
+        : ent.name;
+
+      valg.push({
+        key: flereFlyterForEntreprise ? `${ent.id}__${df.id}` : ent.id,
+        entrepriseId: ent.id,
+        entrepriseNavn: ent.name,
+        dokumentflytId: df.id,
+        dokumentflytNavn: df.name,
+        visningsnavn,
+        farge: ent.color,
+        mottaker,
+      });
+    }
+  }
+
+  return valg;
+}
+
+/** Finn mottaker fra dokumentflyt: utfører → bestiller → godkjenner */
+function finnMottaker(df: DokumentflytData): { userId?: string; groupId?: string } | undefined {
+  for (const rollePrioritet of ["utforer", "bestiller", "godkjenner"]) {
+    const medlemmerMedRolle = df.medlemmer.filter((m) => m.rolle === rollePrioritet);
+    if (medlemmerMedRolle.length === 0) continue;
+
+    // Foretrekk hovedansvarlig
+    const hovedansvarlig = medlemmerMedRolle.find((m) => m.erHovedansvarlig);
+    const valgt = hovedansvarlig ?? medlemmerMedRolle[0];
+
+    if (valgt?.group) return { groupId: valgt.group.id };
+    if (valgt?.hovedansvarligPerson?.user) return { userId: valgt.hovedansvarligPerson.user.id };
+    if (valgt?.projectMember?.user) return { userId: valgt.projectMember.user.id };
+  }
+  return undefined;
 }
 
 interface StatusHandlingerProps {
@@ -26,21 +127,23 @@ interface StatusHandlingerProps {
   erLaster: boolean;
   onEndreStatus: (nyStatus: string, kommentar?: string, mottaker?: { userId?: string; groupId?: string }) => void;
   onSlett?: () => void;
-  /** Alle entrepriser med forhåndsutledet mottaker */
-  entrepriseValg?: EntrepriseValg[];
+  /** Alle entrepriser i prosjektet */
+  alleEntrepriser?: EntrepriseData[];
+  /** Alle dokumentflyter i prosjektet (med maler og medlemmer) */
+  dokumentflyter?: DokumentflytData[];
+  /** Dokumentets mal-ID for å filtrere relevante dokumentflyter */
+  templateId?: string | null;
   /** ID til standard-entreprise (utfører) */
   standardEntrepriseId?: string;
-  /** Brukerens egne entreprise-IDer (for videresend-filtrering) */
-  mineEntrepriseIder?: string[];
   /** Om bruker er registrator (create_checklists/create_tasks) — styrer tilgang til Lukk fra avvist */
   erRegistrator?: boolean;
 }
 
-export function StatusHandlinger({ status, erLaster, onEndreStatus, onSlett, entrepriseValg, standardEntrepriseId, mineEntrepriseIder, erRegistrator }: StatusHandlingerProps) {
+export function StatusHandlinger({ status, erLaster, onEndreStatus, onSlett, alleEntrepriser, dokumentflyter, templateId, standardEntrepriseId, erRegistrator }: StatusHandlingerProps) {
   const { t } = useTranslation();
   const [bekreftHandling, setBekreftHandling] = useState<string | null>(null);
   const [kommentar, setKommentar] = useState("");
-  const [valgtEntreprise, setValgtEntreprise] = useState("");
+  const [valgtKey, setValgtKey] = useState("");
 
   const alleHandlinger = hentStatusHandlinger(status);
   // Lukk fra avvist: kun for registratorer
@@ -48,6 +151,19 @@ export function StatusHandlinger({ status, erLaster, onEndreStatus, onSlett, ent
     if (status === "rejected" && h.nyStatus === "closed" && !erRegistrator) return false;
     return true;
   });
+
+  // Bygg videresend-valg med entreprise + mal-matching
+  const videresendValg = useMemo(
+    () => byggVideresendValg(alleEntrepriser ?? [], dokumentflyter ?? [], templateId),
+    [alleEntrepriser, dokumentflyter, templateId],
+  );
+
+  // Standard-valg: finn key for standard-entreprise
+  const standardKey = useMemo(() => {
+    if (!standardEntrepriseId) return "";
+    const match = videresendValg.find((v) => v.entrepriseId === standardEntrepriseId);
+    return match?.key ?? "";
+  }, [videresendValg, standardEntrepriseId]);
 
   if (handlinger.length === 0) return null;
 
@@ -66,42 +182,34 @@ export function StatusHandlinger({ status, erLaster, onEndreStatus, onSlett, ent
       let mottaker: { userId?: string; groupId?: string } | undefined;
 
       if (nyStatus === "forwarded") {
-        // Videresend: bruk valgt entreprise (eller standard)
-        const valgtId = valgtEntreprise || standardEntrepriseId;
-        if (valgtId && entrepriseValg) {
-          const valgt = entrepriseValg.find((e) => e.id === valgtId);
-          mottaker = valgt?.mottaker;
-        }
+        const aktivKey = valgtKey || standardKey;
+        const valgt = videresendValg.find((v) => v.key === aktivKey);
+        mottaker = valgt?.mottaker;
         if (!mottaker) return;
-      } else if (standardEntrepriseId && entrepriseValg) {
-        // Normal overgang: auto-utled mottaker fra standard-entreprise (dokumentflyt)
-        const standard = entrepriseValg.find((e) => e.id === standardEntrepriseId);
+      } else if (standardEntrepriseId) {
+        // Normal overgang: utled mottaker fra standard-entreprisens flyt
+        const standard = videresendValg.find((v) => v.entrepriseId === standardEntrepriseId);
         mottaker = standard?.mottaker;
       }
 
       onEndreStatus(nyStatus, kommentar.trim() || undefined, mottaker);
       setBekreftHandling(null);
       setKommentar("");
-      setValgtEntreprise("");
+      setValgtKey("");
     } else {
       setBekreftHandling(nyStatus);
       setKommentar("");
-      setValgtEntreprise("");
+      setValgtKey("");
     }
   };
 
   const avbrytBekreft = () => {
     setBekreftHandling(null);
     setKommentar("");
-    setValgtEntreprise("");
+    setValgtKey("");
   };
 
-  // Entreprise-velger kun ved videresend OG bruker har flere entrepriser
-  const videresendEntrepriser = mineEntrepriseIder
-    ? entrepriseValg?.filter((e) => mineEntrepriseIder.includes(e.id))
-    : entrepriseValg; // Ikke lastet ennå / admin → vis alle
-  const visEntrepriseVelger = bekreftHandling === "forwarded"
-    && videresendEntrepriser && videresendEntrepriser.length > 1;
+  const visEntrepriseVelger = bekreftHandling === "forwarded" && videresendValg.length > 1;
 
   return (
     <div className="flex flex-col gap-2">
@@ -136,13 +244,13 @@ export function StatusHandlinger({ status, erLaster, onEndreStatus, onSlett, ent
         <div className="flex max-w-lg flex-col gap-2">
           {visEntrepriseVelger && (
             <select
-              value={valgtEntreprise || standardEntrepriseId || ""}
-              onChange={(e) => setValgtEntreprise(e.target.value)}
+              value={valgtKey || standardKey}
+              onChange={(e) => setValgtKey(e.target.value)}
               className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
             >
-              {videresendEntrepriser!.map((e) => (
-                <option key={e.id} value={e.id}>
-                  {e.navn}
+              {videresendValg.map((v) => (
+                <option key={v.key} value={v.key}>
+                  {v.visningsnavn}
                 </option>
               ))}
             </select>

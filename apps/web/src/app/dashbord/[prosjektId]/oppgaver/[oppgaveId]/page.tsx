@@ -221,52 +221,21 @@ export default function OppgaveDetaljSide() {
   );
   const erRegistrator = mineTillatelser?.includes("create_checklists") || mineTillatelser?.includes("create_tasks") || false;
 
-  // Entreprise-valg for mottaker — utleder mottaker fra dokumentflyt
+  // Entreprise-valg for mottaker — utleder mottaker fra dokumentflyt + mal-match
   const { data: mineEntrepriser } = trpc.medlem.hentMineEntrepriser.useQuery(
     { projectId: params.prosjektId },
     { enabled: !!params.prosjektId },
   );
-  const { data: alleEntrepriser } = trpc.entreprise.hentForProsjekt.useQuery(
+  const { data: alleEntrepriserRå } = trpc.entreprise.hentForProsjekt.useQuery(
     { projectId: params.prosjektId },
     { enabled: !!params.prosjektId },
   );
-  const { data: _dokumentflyter } = trpc.dokumentflyt.hentForProsjekt.useQuery(
+  const { data: dokumentflyterRå } = trpc.dokumentflyt.hentForProsjekt.useQuery(
     { projectId: params.prosjektId },
     { enabled: !!params.prosjektId },
   );
-
-  const entrepriseValg = useMemo(() => {
-    const alleEntrepriserRå = (alleEntrepriser ?? []) as Array<{ id: string; name: string; color: string | null }>;
-    const dokumentflyterRå = (_dokumentflyter ?? []) as Array<{
-      id: string;
-      enterpriseId: string | null;
-      medlemmer: Array<{
-        rolle: string;
-        erHovedansvarlig: boolean;
-        projectMember?: { user: { id: string; name: string | null } } | null;
-        group?: { id: string; name: string } | null;
-      }>;
-    }>;
-
-    return alleEntrepriserRå.map((e) => {
-      const df = dokumentflyterRå.find((d) => d.enterpriseId === e.id);
-      let mottaker: { userId?: string; groupId?: string } | undefined;
-
-      if (df) {
-        const svarere = df.medlemmer.filter((m) => m.rolle === "svarer");
-        const hovedansvarlig = svarere.find((m) => m.erHovedansvarlig);
-        const valgtSvarer = hovedansvarlig ?? svarere[0];
-
-        if (valgtSvarer?.group) {
-          mottaker = { groupId: valgtSvarer.group.id };
-        } else if (valgtSvarer?.projectMember?.user) {
-          mottaker = { userId: valgtSvarer.projectMember.user.id };
-        }
-      }
-
-      return { id: e.id, navn: e.name, farge: e.color, mottaker };
-    });
-  }, [alleEntrepriser, _dokumentflyter]);
+  const alleEntrepriser = (alleEntrepriserRå ?? []) as Array<{ id: string; name: string; color: string | null }>;
+  const dokumentflyter = (dokumentflyterRå ?? []) as unknown as import("@/components/StatusHandlinger").DokumentflytData[];
 
   const oppdaterMutasjon = trpc.oppgave.oppdater.useMutation({
     onSuccess: () => {
@@ -475,9 +444,10 @@ export default function OppgaveDetaljSide() {
                 recipientGroupId: mottaker?.groupId,
               });
             }}
-            entrepriseValg={entrepriseValg}
+            alleEntrepriser={alleEntrepriser}
+            dokumentflyter={dokumentflyter}
+            templateId={(oppgave as unknown as { templateId?: string }).templateId ?? oppgave.template?.id}
             standardEntrepriseId={oppgave.utforerEnterprise?.id}
-            mineEntrepriseIder={mineEntrepriser ? (mineEntrepriser as Array<{ id: string }>).map((e) => e.id) : undefined}
             erRegistrator={erRegistrator}
           />
         </div>
