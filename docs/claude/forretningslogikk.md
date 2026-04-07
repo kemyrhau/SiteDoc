@@ -8,7 +8,7 @@ Dokumenter (sjekklister/oppgaver) flyter mellom entrepriser:
 - Alle overganger logges i `document_transfers`
 - **I draft-status:** entrepriser kan endres via dropdown. Etter draft → låst
 - **Lokasjon:** Alltid redigerbar (drawingId, positionX/Y) unntatt i `closed`/`approved`-status
-- **Sentralbord (Flytt dokument):** Admin og registratorer kan flytte dokumenter mellom dokumentflyter. Oppdaterer `dokumentflytId` + `utforerEnterpriseId` + `recipientUserId`. Tillatt i draft/sent/received/in_progress. Logges i DocumentTransfer med flyttekommentar
+- **Sentralbord (Flytt dokument):** API-rutene `sjekkliste.flytt` og `oppgave.flytt` beholdes som deprecated. Videresending håndterer nå alt (dokumentflyt-bytte + entreprise-bytte + mottaker)
 - **Automatisk fargevalg:** Neste ledige fra `ENTERPRISE_COLORS` (32 farger). Fargevelger kun i redigeringsmodal
 
 **Sletting:**
@@ -40,7 +40,7 @@ Prosjektomfattende dokumentflyt under Innstillinger > Produksjon > Dokumentflyt:
 - Emne: malen har `subjects`-array → nedtrekksmeny. Uten → fritekst/skjult
 - **Mottaker ved «Send»:** Auto-utledes fra dokumentflytens utfører (hovedansvarlig først). Ved videresending kan registratorer (create_checklists/create_tasks) velge entreprise — mottaker utledes fra valgt entreprises dokumentflyt. Lagres i `recipientUserId`/`recipientGroupId` på dokument + `DocumentTransfer`
 - **Auto-mottatt:** `sent` → `received` skjer automatisk (ingen manuell "Motta"-klikk). Mottaker ser dokumentet som arbeidsordre umiddelbart
-- **Videresending:** Dokumenter i received/in_progress/responded/rejected/approved kan videresendes. Status endres ikke, kun mottaker oppdateres. `toStatus` i transfer = nåværende status
+- **Videresending:** Dokumenter i received/in_progress/responded/rejected/approved kan videresendes. Status endres ikke, kun mottaker oppdateres. `toStatus` i transfer = nåværende status. Ved videresending til annen entreprise oppdateres `dokumentflytId` + `utforerEnterpriseId` automatisk (erstatter FlyttDokument-komponenten)
 - **Besvar (responded):** Kjede-bevisst — sender automatisk tilbake til forrige avsender via siste `DocumentTransfer.senderId`. Muliggjør kjeder: HE → UE → Arbeider → UE → HE
 - **E-postvarsling:** Sendes ved `sent`, `responded`, `approved`, `rejected` og `forwarded` (ikke bare send)
 - **Rollebaserte handlingsknapper:** `utledMinRolle()` i `@sitedoc/shared` mapper innlogget bruker → rolle i dokumentflyten. `hentRolleFiltrertHandlinger()` viser kun relevante knapper per rolle. Bestiller: Send/Avbryt/Lukk. Utfører: Besvar/Send tilbake/Videresend. Godkjenner: Godkjenn/Send tilbake/Videresend. Registrator: alle. `null` = lesevisning. API: `gruppe.hentMinFlytInfo` returnerer `projectMemberId`, `entrepriseIder`, `gruppeIder`, `erAdmin`
