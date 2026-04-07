@@ -19,6 +19,39 @@ import {
 } from "../trpc/tilgangskontroll";
 
 export const gruppeRouter = router({
+  // Hent innlogget brukers flyt-info (for utledMinRolle)
+  hentMinFlytInfo: protectedProcedure
+    .input(z.object({ projectId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      // sitedoc_admin
+      const bruker = await ctx.prisma.user.findUnique({
+        where: { id: ctx.userId },
+        select: { role: true },
+      });
+      if (bruker?.role === "sitedoc_admin") {
+        return { projectMemberId: "", entrepriseIder: [], gruppeIder: [], erAdmin: true };
+      }
+
+      const medlem = await ctx.prisma.projectMember.findUnique({
+        where: { userId_projectId: { userId: ctx.userId, projectId: input.projectId } },
+        include: {
+          enterprises: { select: { enterpriseId: true } },
+          groupMemberships: { select: { groupId: true } },
+        },
+      });
+
+      if (!medlem) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Ikke medlem" });
+      }
+
+      return {
+        projectMemberId: medlem.id,
+        entrepriseIder: medlem.enterprises.map((e) => e.enterpriseId),
+        gruppeIder: medlem.groupMemberships.map((gm) => gm.groupId),
+        erAdmin: medlem.role === "admin",
+      };
+    }),
+
   // Hent innlogget brukers tillatelser i et prosjekt
   hentMineTillatelser: protectedProcedure
     .input(z.object({ projectId: z.string().uuid() }))

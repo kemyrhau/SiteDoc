@@ -8,6 +8,8 @@ import { trpc } from "@/lib/trpc";
 import { useOppgaveSkjema } from "@/hooks/useOppgaveSkjema";
 import { StatusHandlinger } from "@/components/StatusHandlinger";
 import { FlyttDokument } from "@/components/FlyttDokument";
+import { utledMinRolle } from "@sitedoc/shared";
+import type { FlytMedlemInfo } from "@sitedoc/shared";
 import { LokasjonVelger } from "@/components/LokasjonVelger";
 import { RapportObjektRenderer, DISPLAY_TYPER, SKJULT_I_UTFYLLING } from "@/components/rapportobjekter/RapportObjektRenderer";
 import { FeltWrapper } from "@/components/rapportobjekter/FeltWrapper";
@@ -222,6 +224,12 @@ export default function OppgaveDetaljSide() {
   );
   const erRegistrator = mineTillatelser?.includes("create_checklists") || mineTillatelser?.includes("create_tasks") || false;
 
+  // Hent brukerens flyt-info for rollebaserte knapper
+  const { data: minFlytInfo } = trpc.gruppe.hentMinFlytInfo.useQuery(
+    { projectId: params.prosjektId },
+    { enabled: !!params.prosjektId },
+  );
+
   // Flytt-mutasjon (Sentralbord)
   const flyttMutasjon = trpc.oppgave.flytt.useMutation({
     onSuccess: () => {
@@ -245,6 +253,26 @@ export default function OppgaveDetaljSide() {
   );
   const alleEntrepriser = (alleEntrepriserRå ?? []) as Array<{ id: string; name: string; color: string | null }>;
   const dokumentflyter = (dokumentflyterRå ?? []) as unknown as import("@/components/StatusHandlinger").DokumentflytData[];
+
+  // Utled brukerens rolle i dokumentflyten
+  const minRolle = useMemo(() => {
+    if (!minFlytInfo || !oppgave) return undefined;
+    const op = oppgave as unknown as { dokumentflytId?: string | null; bestillerEnterprise?: { id: string }; utforerEnterprise?: { id: string } };
+    if (!op.dokumentflytId) return null;
+    const flyt = dokumentflyter.find((df) => df.id === op.dokumentflytId);
+    if (!flyt) return null;
+    const medlemmer = flyt.medlemmer.map((m): FlytMedlemInfo => ({
+      rolle: m.rolle,
+      enterpriseId: m.enterpriseId ?? null,
+      projectMemberId: m.projectMemberId ?? null,
+      groupId: m.groupId ?? null,
+    }));
+    return utledMinRolle(
+      { ...minFlytInfo, userId: "", erAdmin: minFlytInfo.erAdmin },
+      medlemmer,
+      { bestillerEnterpriseId: op.bestillerEnterprise?.id ?? "", utforerEnterpriseId: op.utforerEnterprise?.id ?? "" },
+    );
+  }, [minFlytInfo, oppgave, dokumentflyter]);
 
   const oppdaterMutasjon = trpc.oppgave.oppdater.useMutation({
     onSuccess: () => {
@@ -457,7 +485,7 @@ export default function OppgaveDetaljSide() {
             dokumentflyter={dokumentflyter}
             templateId={(oppgave as unknown as { templateId?: string }).templateId ?? oppgave.template?.id}
             standardEntrepriseId={oppgave.utforerEnterprise?.id}
-            erRegistrator={erRegistrator}
+            minRolle={minRolle}
           />
           <FlyttDokument
             status={oppgave.status}

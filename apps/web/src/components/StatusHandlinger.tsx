@@ -2,7 +2,8 @@
 
 import { useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { hentStatusHandlinger } from "@sitedoc/shared";
+import { hentRolleFiltrertHandlinger, hentStatusHandlinger } from "@sitedoc/shared";
+import type { DokumentflytRolle } from "@sitedoc/shared";
 
 const FARGE_MAP: Record<string, { bg: string; hover: string }> = {
   "bg-blue-600": { bg: "bg-blue-600", hover: "hover:bg-blue-700" },
@@ -35,6 +36,9 @@ export interface DokumentflytData {
   medlemmer: Array<{
     rolle: string;
     erHovedansvarlig: boolean;
+    enterpriseId?: string | null;
+    projectMemberId?: string | null;
+    groupId?: string | null;
     hovedansvarligPerson?: { user: { id: string; name: string | null } } | null;
     projectMember?: { user: { id: string; name: string | null } } | null;
     group?: { id: string; name: string } | null;
@@ -135,22 +139,20 @@ interface StatusHandlingerProps {
   templateId?: string | null;
   /** ID til standard-entreprise (utfører) */
   standardEntrepriseId?: string;
-  /** Om bruker er registrator (create_checklists/create_tasks) — styrer tilgang til Lukk fra avvist */
-  erRegistrator?: boolean;
+  /** Brukerens rolle i dokumentflyten (fra utledMinRolle) */
+  minRolle?: DokumentflytRolle | null;
 }
 
-export function StatusHandlinger({ status, erLaster, onEndreStatus, onSlett, alleEntrepriser, dokumentflyter, templateId, standardEntrepriseId, erRegistrator }: StatusHandlingerProps) {
+export function StatusHandlinger({ status, erLaster, onEndreStatus, onSlett, alleEntrepriser, dokumentflyter, templateId, standardEntrepriseId, minRolle }: StatusHandlingerProps) {
   const { t } = useTranslation();
   const [bekreftHandling, setBekreftHandling] = useState<string | null>(null);
   const [kommentar, setKommentar] = useState("");
   const [valgtKey, setValgtKey] = useState("");
 
-  const alleHandlinger = hentStatusHandlinger(status);
-  // Lukk fra avvist: kun for registratorer
-  const handlinger = alleHandlinger.filter((h) => {
-    if (status === "rejected" && h.nyStatus === "closed" && !erRegistrator) return false;
-    return true;
-  });
+  // Rollefiltrerte handlinger — null/undefined rolle bruker ufiltrert (bakoverkompatibilitet for mobil)
+  const handlinger = minRolle !== undefined
+    ? hentRolleFiltrertHandlinger(status, minRolle)
+    : hentStatusHandlinger(status);
 
   // Bygg videresend-valg med entreprise + mal-matching
   const videresendValg = useMemo(

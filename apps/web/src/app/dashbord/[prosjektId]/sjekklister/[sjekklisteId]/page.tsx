@@ -13,6 +13,8 @@ import { PrintHeader } from "@/components/PrintHeader";
 import { OpprettOppgaveModal } from "@/components/OpprettOppgaveModal";
 import { StatusHandlinger } from "@/components/StatusHandlinger";
 import { FlyttDokument } from "@/components/FlyttDokument";
+import { utledMinRolle } from "@sitedoc/shared";
+import type { FlytMedlemInfo } from "@sitedoc/shared";
 import { LokasjonVelger } from "@/components/LokasjonVelger";
 import type { RapportObjekt } from "@/components/rapportobjekter/typer";
 import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
@@ -114,6 +116,12 @@ export default function SjekklisteDetaljSide() {
   );
   const erRegistrator = mineTillatelser?.includes("create_checklists") || mineTillatelser?.includes("create_tasks") || false;
 
+  // Hent brukerens flyt-info for rollebaserte knapper
+  const { data: minFlytInfo } = trpc.gruppe.hentMinFlytInfo.useQuery(
+    { projectId: params.prosjektId },
+    { enabled: !!params.prosjektId },
+  );
+
   // Flytt-mutasjon (Sentralbord)
   const flyttMutasjon = trpc.sjekkliste.flytt.useMutation({
     onSuccess: () => {
@@ -137,6 +145,26 @@ export default function SjekklisteDetaljSide() {
   );
   const alleEntrepriser = (alleEntrepriserRå ?? []) as Array<{ id: string; name: string; color: string | null }>;
   const dokumentflyter = (dokumentflyterRå ?? []) as unknown as import("@/components/StatusHandlinger").DokumentflytData[];
+
+  // Utled brukerens rolle i dokumentflyten
+  const minRolle = useMemo(() => {
+    if (!minFlytInfo || !sjekkliste) return undefined; // Venter på data
+    const sj = sjekkliste as unknown as { dokumentflytId?: string | null; bestillerEnterprise?: { id: string }; utforerEnterprise?: { id: string } };
+    if (!sj.dokumentflytId) return null; // Ingen flyt → ingen rolle
+    const flyt = dokumentflyter.find((df) => df.id === sj.dokumentflytId);
+    if (!flyt) return null;
+    const medlemmer = flyt.medlemmer.map((m): FlytMedlemInfo => ({
+      rolle: m.rolle,
+      enterpriseId: m.enterpriseId ?? null,
+      projectMemberId: m.projectMemberId ?? null,
+      groupId: m.groupId ?? null,
+    }));
+    return utledMinRolle(
+      { ...minFlytInfo, userId: "", erAdmin: minFlytInfo.erAdmin },
+      medlemmer,
+      { bestillerEnterpriseId: sj.bestillerEnterprise?.id ?? "", utforerEnterpriseId: sj.utforerEnterprise?.id ?? "" },
+    );
+  }, [minFlytInfo, sjekkliste, dokumentflyter]);
 
   // Hent prosjektdata for print-header
   const { data: prosjekt } = trpc.prosjekt.hentMedId.useQuery(
@@ -457,7 +485,7 @@ export default function SjekklisteDetaljSide() {
             dokumentflyter={dokumentflyter}
             templateId={sjekkliste.template?.id ?? (sjekkliste as unknown as { templateId?: string }).templateId}
             standardEntrepriseId={sjekkliste.utforerEnterprise?.id}
-            erRegistrator={erRegistrator}
+            minRolle={minRolle}
           />
           <FlyttDokument
             status={sjekkliste.status}

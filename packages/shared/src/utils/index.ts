@@ -1,5 +1,6 @@
 export { utledMinRolle } from "./flytRolle";
 export type { FlytBrukerInfo, FlytMedlemInfo, DokumentKontekst } from "./flytRolle";
+export { hentRolleFiltrertHandlinger } from "./statusHandlinger";
 export { vaerkodeTilTekst } from "./vaer";
 export { beregnSynligeMapper } from "./mappeTilgang";
 export type { MappeTilgangInput, BrukerTilgangInfo, SynligeMapperResultat } from "./mappeTilgang";
@@ -34,7 +35,7 @@ export function isValidStatusTransition(
     draft: ["sent", "cancelled"],
     sent: ["received", "cancelled"],
     received: ["in_progress", "cancelled"],
-    in_progress: ["responded", "cancelled"],
+    in_progress: ["responded", "sent", "cancelled"],
     responded: ["approved", "rejected"],
     approved: ["closed"],
     rejected: ["in_progress", "closed"],

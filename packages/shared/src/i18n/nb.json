@@ -950,6 +950,8 @@
   "statushandling.velgMottaker": "Velg mottaker...",
   "statushandling.velgMottakerValgfritt": "Velg mottaker (valgfritt)...",
   "statushandling.valgfriKommentar": "Valgfri kommentar...",
+  "statushandling.sendTilbake": "Send tilbake",
+  "statushandling.sendTilbakeUtforer": "Send tilbake",
   "tidslinje.tittel": "Tidslinje",
   "tidslinje.opprettet": "opprettet dokumentet",
   "kontakter.epost": "E-post",
