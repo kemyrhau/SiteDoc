@@ -669,48 +669,52 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
                         )}
                       </div>
 
-                      {/* Add member dropdown */}
+                      {/* Legg til medlem — custom dropdown */}
                       {leggTilMedlemIGruppe === gruppeId && gruppeId && (
-                        <div className="mt-2 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                          <select
-                            className="rounded border border-gray-300 bg-white px-2 py-1 text-xs"
-                            onChange={(e) => {
-                              if (e.target.value) {
-                                const info = medlemTilPmId[e.target.value];
-                                if (info) {
-                                  const nameParts = (info.name ?? "").split(" ");
-                                  const firstName = nameParts[0] || info.email;
-                                  const lastName = nameParts.slice(1).join(" ") || "-";
-                                  leggTilMedlemMutation.mutate({
-                                    groupId: gruppeId,
-                                    projectId: prosjektId,
-                                    email: info.email,
-                                    firstName,
-                                    lastName,
-                                    phone: info.phone ?? undefined,
-                                  });
-                                }
-                              }
-                            }}
-                            autoFocus
-                            defaultValue=""
-                          >
-                            <option value="" disabled>{t("brukere.velgMedlem")}</option>
-                            {medlemmerIkkeIGruppe.map((k) => {
-                              const entrepriseNavn = k.enterprises.map((e) => e.enterprise.name).join(", ");
-                              return (
-                                <option key={k.user.id} value={k.user.id}>
-                                  {k.user.name ?? k.user.email}{entrepriseNavn ? ` · ${entrepriseNavn}` : ""}
-                                </option>
-                              );
-                            })}
-                          </select>
-                          <button
-                            onClick={() => setLeggTilMedlemIGruppe(null)}
-                            className="rounded p-0.5 text-gray-400 hover:text-gray-600"
-                          >
-                            <X className="h-3 w-3" />
-                          </button>
+                        <div className="mt-2" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-[10px] font-medium text-gray-500">{t("brukere.leggTilMedlem")}</span>
+                            <button
+                              onClick={() => setLeggTilMedlemIGruppe(null)}
+                              className="rounded p-0.5 text-gray-400 hover:text-gray-600"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </div>
+                          <div className="max-h-48 overflow-y-auto rounded border border-gray-200 bg-white">
+                            {medlemmerIkkeIGruppe.length === 0 ? (
+                              <div className="px-3 py-2 text-xs text-gray-400 italic">{t("brukere.ingenMedlemmer")}</div>
+                            ) : (
+                              medlemmerIkkeIGruppe.map((k) => {
+                                const entrepriseNavn = k.enterprises.map((e) => e.enterprise.name).join(", ");
+                                return (
+                                  <button
+                                    key={k.user.id}
+                                    onClick={() => {
+                                      const info = medlemTilPmId[k.user.id];
+                                      if (info) {
+                                        const nameParts = (info.name ?? "").split(" ");
+                                        const firstName = nameParts[0] || info.email;
+                                        const lastName = nameParts.slice(1).join(" ") || "-";
+                                        leggTilMedlemMutation.mutate({
+                                          groupId: gruppeId,
+                                          projectId: prosjektId,
+                                          email: info.email,
+                                          firstName,
+                                          lastName,
+                                          phone: info.phone ?? undefined,
+                                        });
+                                      }
+                                    }}
+                                    className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-blue-50 transition-colors"
+                                  >
+                                    <span className="font-medium text-gray-700">{k.user.name ?? k.user.email}</span>
+                                    {entrepriseNavn && <span className="text-gray-400">· {entrepriseNavn}</span>}
+                                  </button>
+                                );
+                              })
+                            )}
+                          </div>
                         </div>
                       )}
                     </td>
