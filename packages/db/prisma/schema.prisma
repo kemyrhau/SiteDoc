@@ -128,6 +128,7 @@ model Project {
   externalProjectNumber     String?  @map("external_project_number")
   logoUrl                   String?  @map("logo_url")
   showInternalProjectNumber Boolean  @default(true) @map("show_internal_project_number")
+  utskriftsinnstillinger     Json?    @map("utskrifts_innstillinger") // { logo, eksternProsjektnummer, prosjektnavn, fraTil, lokasjon, tegningsnummer, vaer }
   sourceLanguage            String   @default("nb") @map("source_language") // Kildespråk for prosjektet
   status                    String   @default("active")
   trialExpiresAt            DateTime? @map("trial_expires_at")

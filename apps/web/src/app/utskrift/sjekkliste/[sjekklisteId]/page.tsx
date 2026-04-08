@@ -175,78 +175,87 @@ export default function UtskriftSjekklisteSide() {
 
       {/* A4-ark — 210mm bredde, 15mm padding matcher @page margin */}
       <div className="a4-ark mx-auto mt-8 min-h-[297mm] w-[794px] rounded bg-white px-[15mm] py-[15mm] shadow-lg print:mt-0 print:min-h-0 print:w-auto print:max-w-none print:rounded-none print:px-0 print:py-0 print:shadow-none">
-        {/* Header (alltid synlig — ikke .print-header) */}
-        <div className="mb-6 border border-gray-300 print-no-break">
-          {/* Rad 1: Prosjekt med logo */}
-          <div className="flex items-start justify-between border-b border-gray-300 px-4 py-2">
-            <div className="flex items-start gap-4">
-              {prosjekt?.logoUrl && (
-                <img
-                  src={logoSrc(prosjekt.logoUrl)}
-                  alt="Firmalogo"
-                  className="max-h-[60px] max-w-[120px] object-contain"
-                />
-              )}
-              <div>
-                <p className="text-base font-bold text-gray-900">{prosjekt?.name ?? ""}</p>
-                <p className="text-xs text-gray-600">
-                  {(prosjekt as { showInternalProjectNumber?: boolean } | undefined)?.showInternalProjectNumber !== false && (
-                    <>Prosjektnr: {prosjekt?.projectNumber ?? ""}</>
+        {/* Header — styrt av utskriftsinnstillinger */}
+        {(() => {
+          const ui = (prosjekt as unknown as { utskriftsinnstillinger?: Record<string, boolean> | null })?.utskriftsinnstillinger;
+          const vis = (felt: string) => ui?.[felt] ?? true; // Default: vis alt
+          return (
+            <div className="mb-6 border border-gray-300 print-no-break">
+              {/* Rad 1: Prosjekt med logo */}
+              <div className="flex items-start justify-between border-b border-gray-300 px-4 py-2">
+                <div className="flex items-start gap-4">
+                  {vis("logo") && prosjekt?.logoUrl && (
+                    <img
+                      src={logoSrc(prosjekt.logoUrl)}
+                      alt="Firmalogo"
+                      className="max-h-[60px] max-w-[120px] object-contain"
+                    />
                   )}
-                  {(prosjekt as { showInternalProjectNumber?: boolean } | undefined)?.showInternalProjectNumber !== false &&
-                    prosjekt?.externalProjectNumber && <> &middot; </>}
-                  {prosjekt?.externalProjectNumber && (
-                    <>Ekst: {prosjekt.externalProjectNumber}</>
-                  )}
-                </p>
-                {prosjekt?.address && (
-                  <p className="text-xs text-gray-500">Adresse: {prosjekt.address}</p>
-                )}
-                {(sjekkliste.byggeplass || sjekkliste.drawing) && (
-                  <p className="text-xs text-gray-500">
-                    {sjekkliste.byggeplass && <>Lokasjon: {sjekkliste.byggeplass.name}</>}
-                    {sjekkliste.byggeplass && sjekkliste.drawing && <> &middot; </>}
-                    {sjekkliste.drawing && (
-                      <>Tegning: {sjekkliste.drawing.drawingNumber ? `${sjekkliste.drawing.drawingNumber} ` : ""}{sjekkliste.drawing.name}</>
+                  <div>
+                    {vis("prosjektnavn") && (
+                      <p className="text-base font-bold text-gray-900">{prosjekt?.name ?? ""}</p>
                     )}
+                    <p className="text-xs text-gray-600">
+                      {vis("eksternProsjektnummer") && prosjekt?.externalProjectNumber ? (
+                        <>Prosjektnr: {prosjekt.externalProjectNumber}</>
+                      ) : (
+                        (prosjekt as { showInternalProjectNumber?: boolean } | undefined)?.showInternalProjectNumber !== false && (
+                          <>Prosjektnr: {prosjekt?.projectNumber ?? ""}</>
+                        )
+                      )}
+                    </p>
+                    {prosjekt?.address && (
+                      <p className="text-xs text-gray-500">Adresse: {prosjekt.address}</p>
+                    )}
+                    {(vis("lokasjon") || vis("tegningsnummer")) && (sjekkliste.byggeplass || sjekkliste.drawing) && (
+                      <p className="text-xs text-gray-500">
+                        {vis("lokasjon") && sjekkliste.byggeplass && <>Lokasjon: {sjekkliste.byggeplass.name}</>}
+                        {vis("lokasjon") && sjekkliste.byggeplass && vis("tegningsnummer") && sjekkliste.drawing && <> &middot; </>}
+                        {vis("tegningsnummer") && sjekkliste.drawing && (
+                          <>Tegning: {sjekkliste.drawing.drawingNumber ? `${sjekkliste.drawing.drawingNumber} ` : ""}{sjekkliste.drawing.name}</>
+                        )}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <p className="whitespace-nowrap text-xs text-gray-600">Dato: {dato}</p>
+              </div>
+
+              {/* Rad 2: Sjekkliste */}
+              <div className="flex items-center justify-between border-b border-gray-300 px-4 py-2">
+                <div>
+                  <p className="text-sm font-semibold text-gray-900">
+                    Sjekkliste: {sjekkliste.title}
                   </p>
+                  {vis("fraTil") && (
+                    <p className="text-xs text-gray-600">
+                      {sjekkliste.bestillerEnterprise && (
+                        <>
+                          Oppretter: {sjekkliste.bestillerEnterprise.name}
+                          {sjekkliste.bestiller?.name && ` (${sjekkliste.bestiller.name})`}
+                        </>
+                      )}
+                      {sjekkliste.bestillerEnterprise && sjekkliste.utforerEnterprise && <> &middot; </>}
+                      {sjekkliste.utforerEnterprise && (
+                        <>Svarer: {sjekkliste.utforerEnterprise.name}</>
+                      )}
+                    </p>
+                  )}
+                </div>
+                {sjekklisteNummer && (
+                  <p className="text-sm font-medium text-gray-700">Nr: {sjekklisteNummer}</p>
                 )}
               </div>
-            </div>
-            <p className="whitespace-nowrap text-xs text-gray-600">Dato: {dato}</p>
-          </div>
 
-          {/* Rad 2: Sjekkliste */}
-          <div className="flex items-center justify-between border-b border-gray-300 px-4 py-2">
-            <div>
-              <p className="text-sm font-semibold text-gray-900">
-                Sjekkliste: {sjekkliste.title}
-              </p>
-              <p className="text-xs text-gray-600">
-                {sjekkliste.bestillerEnterprise && (
-                  <>
-                    Oppretter: {sjekkliste.bestillerEnterprise.name}
-                    {sjekkliste.bestiller?.name && ` (${sjekkliste.bestiller.name})`}
-                  </>
-                )}
-                {sjekkliste.bestillerEnterprise && sjekkliste.utforerEnterprise && <> &middot; </>}
-                {sjekkliste.utforerEnterprise && (
-                  <>Svarer: {sjekkliste.utforerEnterprise.name}</>
-                )}
-              </p>
+              {/* Rad 3: Vær */}
+              {vis("vaer") && vaerTekst && (
+                <div className="px-4 py-2">
+                  <p className="text-xs text-gray-600">Vær: {vaerTekst}</p>
+                </div>
+              )}
             </div>
-            {sjekklisteNummer && (
-              <p className="text-sm font-medium text-gray-700">Nr: {sjekklisteNummer}</p>
-            )}
-          </div>
-
-          {/* Rad 3: Vær */}
-          {vaerTekst && (
-            <div className="px-4 py-2">
-              <p className="text-xs text-gray-600">Vær: {vaerTekst}</p>
-            </div>
-          )}
-        </div>
+          );
+        })()}
 
         {/* Lokasjonstegning med posisjon */}
         {sjekkliste.drawingId && sjekkliste.positionX != null && sjekkliste.positionY != null && (

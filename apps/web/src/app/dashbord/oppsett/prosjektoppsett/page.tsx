@@ -113,6 +113,15 @@ export default function ProsjektoppsettSide() {
   const [lasterOppLogo, setLasterOppLogo] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
   const [harEndringer, setHarEndringer] = useState(false);
+  const [utskrift, setUtskrift] = useState({
+    logo: true,
+    eksternProsjektnummer: false,
+    prosjektnavn: true,
+    fraTil: true,
+    lokasjon: true,
+    tegningsnummer: true,
+    vaer: true,
+  });
 
   // Synkroniser skjemafelter med prosjektdata
   useEffect(() => {
@@ -128,6 +137,8 @@ export default function ProsjektoppsettSide() {
       setLogoUrl(prosjekt.logoUrl ?? null);
       setVisInterntNummer((prosjekt as { showInternalProjectNumber?: boolean }).showInternalProjectNumber !== false);
       setKildesprak((prosjekt as unknown as { sourceLanguage?: string }).sourceLanguage ?? "nb");
+      const ui = (prosjekt as unknown as { utskriftsinnstillinger?: Record<string, boolean> | null }).utskriftsinnstillinger;
+      if (ui) setUtskrift({ logo: ui.logo ?? true, eksternProsjektnummer: ui.eksternProsjektnummer ?? false, prosjektnavn: ui.prosjektnavn ?? true, fraTil: ui.fraTil ?? true, lokasjon: ui.lokasjon ?? true, tegningsnummer: ui.tegningsnummer ?? true, vaer: ui.vaer ?? true });
       setHarEndringer(false);
     }
   }, [prosjekt]);
@@ -183,6 +194,7 @@ export default function ProsjektoppsettSide() {
       externalProjectNumber: eksterntNummer.trim() || null,
       logoUrl: logoUrl || null,
       showInternalProjectNumber: visInterntNummer,
+      utskriftsinnstillinger: utskrift,
       sourceLanguage: kildesprak,
       status: status as "active" | "archived" | "completed",
     });
@@ -395,6 +407,29 @@ export default function ProsjektoppsettSide() {
               </p>
             </div>
           </label>
+        </Seksjon>
+
+        {/* Utskriftsinnstillinger */}
+        <Seksjon
+          tittel={t("prosjektoppsett.utskrift")}
+          beskrivelse={t("prosjektoppsett.utskriftBeskrivelse")}
+        >
+          <div className="space-y-2">
+            {(["logo", "eksternProsjektnummer", "prosjektnavn", "fraTil", "lokasjon", "tegningsnummer", "vaer"] as const).map((felt) => (
+              <label key={felt} className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={utskrift[felt]}
+                  onChange={(e) => {
+                    setUtskrift((prev) => ({ ...prev, [felt]: e.target.checked }));
+                    setHarEndringer(true);
+                  }}
+                  className="h-4 w-4 rounded border-gray-300 text-sitedoc-primary focus:ring-sitedoc-primary"
+                />
+                <span className="text-sm text-gray-700">{t(`prosjektoppsett.utskrift.${felt}`)}</span>
+              </label>
+            ))}
+          </div>
         </Seksjon>
 
         {/* Kildespråk */}
