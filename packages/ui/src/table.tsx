@@ -316,16 +316,17 @@ export function Table<T>({
                   {/* Resize-håndtak */}
                   <div
                     onMouseDown={(e) => handleResizeStart(e, kol.id)}
-                    className={`absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400 ${
-                      resizeKolId === kol.id ? "bg-blue-400" : ""
+                    className={`absolute -right-1 top-0 z-10 h-full w-2 cursor-col-resize ${
+                      resizeKolId === kol.id ? "bg-blue-400" : "bg-gray-300 hover:bg-blue-400"
                     }`}
+                    style={{ width: "3px" }}
                   />
                 </th>
               );
             })}
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-100">
+        <tbody className="divide-y divide-gray-200">
           {sortertData.map((rad) => {
             const nokkel = radNokkel(rad);
             const erValgt = valgteRader?.has(nokkel) ?? false;
