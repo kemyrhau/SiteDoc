@@ -121,8 +121,8 @@ const POSISJON_KOLONNER: KolonneParam[] = [
   { id: "tegning", navn: "Tegning", navnKey: "tabell.tegning", gruppe: "posisjon" },
 ];
 
-const STANDARD_AKTIVE = new Set(["nr", "tittel", "emne", "status", "ansvarlig", "bygning", "frist"]);
-const STORAGE_KEY = "sitedoc-oppgave-kolonner-v3";
+const STANDARD_AKTIVE = new Set(["nr", "tittel", "emne", "status", "ansvarlig", "flyt", "bygning", "frist"]);
+const STORAGE_KEY = "sitedoc-oppgave-kolonner-v4";
 
 function hentLagredeKolonner(): Set<string> {
   if (typeof window === "undefined") return STANDARD_AKTIVE;
@@ -378,6 +378,22 @@ export default function OppgaverSide() {
   // Alle tilgjengelige kolonner
   const alleKolonner = useMemo(() => [...SYSTEM_KOLONNER, ...POSISJON_KOLONNER, ...verdiFelter], [verdiFelter]);
 
+  // Utled aktivt flyt-ledd for en rad (for filter/sortering)
+  const hentFlytLedd = useCallback((rad: OppgaveRad): string => {
+    const medl = rad.dokumentflyt?.medlemmer;
+    if (!medl || medl.length === 0) return "";
+    if (rad.status === "closed" || rad.status === "approved") return "";
+    const recipientGroupId = rad.recipientGroup?.id;
+    const recipientUserId = rad.recipientUser?.id;
+    for (const m of medl) {
+      if (recipientGroupId && m.group?.id === recipientGroupId) return m.group.name;
+      if (recipientUserId && m.projectMember?.user?.id === recipientUserId) return m.projectMember.user.name ?? "";
+    }
+    const ent = medl.find((m) => m.enterprise);
+    if (ent?.enterprise) return ent.enterprise.name;
+    return "";
+  }, []);
+
   // Dynamiske filteralternativer
   const dynamiskFilter = useMemo(() => {
     if (!oppgaver) return {} as Record<string, { value: string; label: string }[]>;
@@ -390,6 +406,7 @@ export default function OppgaverSide() {
       opprettetAv: bygg(oppgaver.map((o) => o.bestiller?.name)),
       bestillerEntreprise: bygg(oppgaver.map((o) => o.bestillerEnterprise.name)),
       utforerEntreprise: bygg(oppgaver.map((o) => o.utforerEnterprise.name)),
+      flyt: bygg(oppgaver.map((o) => hentFlytLedd(o))),
       mal: bygg(oppgaver.map((o) => o.template?.name)),
       bygning: bygg(oppgaver.map((o) => o.drawing?.byggeplass?.name)),
       etasje: bygg(oppgaver.map((o) => o.drawing?.floor)),
@@ -436,6 +453,7 @@ export default function OppgaverSide() {
           case "bygning": return o.drawing?.byggeplass?.name === verdi;
           case "etasje": return o.drawing?.floor === verdi;
           case "tegning": return o.drawing?.name === verdi;
+          case "flyt": return hentFlytLedd(o) === verdi;
           default: return true;
         }
       });
@@ -564,7 +582,8 @@ export default function OppgaverSide() {
           status={rad.status}
           bestillerUserId={rad.bestillerUserId}
         />,
-        bredde: "200px",
+        bredde: "200px", sorterbar: true, sorterVerdi: (rad) => hentFlytLedd(rad),
+        filtrerbar: true, filterAlternativer: dynamiskFilter.flyt ?? [],
       },
       bygning: {
         id: "bygning", header: t("tabell.bygning"),

@@ -103,8 +103,8 @@ const POSISJON_KOLONNER: KolonneParam[] = [
   { id: "tegning", navnKey: "tabell.tegning", gruppe: "posisjon" },
 ];
 
-const STANDARD_AKTIVE = new Set(["nr", "tittel", "emne", "mal", "status", "ansvarlig", "bygning", "frist"]);
-const STORAGE_KEY = "sitedoc-sjekkliste-kolonner-v3";
+const STANDARD_AKTIVE = new Set(["nr", "tittel", "emne", "mal", "status", "ansvarlig", "flyt", "bygning", "frist"]);
+const STORAGE_KEY = "sitedoc-sjekkliste-kolonner-v4";
 
 function hentLagredeKolonner(): Set<string> {
   if (typeof window === "undefined") return STANDARD_AKTIVE;
@@ -328,6 +328,27 @@ export default function SjekklisteSide() {
 
   const alleKolonner = useMemo(() => [...SYSTEM_KOLONNER, ...POSISJON_KOLONNER, ...verdiFelter], [verdiFelter]);
 
+  // Utled aktivt flyt-ledd for en rad (for filter/sortering)
+  const hentFlytLedd = useCallback((rad: SjekklisteRad): string => {
+    const medl = rad.dokumentflyt?.medlemmer;
+    if (!medl || medl.length === 0) return "";
+    // Finn mottaker-ledd
+    const recipientGroupId = rad.recipientGroup?.id;
+    const recipientUserId = rad.recipientUser?.id;
+    if (rad.status === "closed" || rad.status === "approved") return "";
+    for (const m of medl) {
+      if (recipientGroupId && m.group?.id === recipientGroupId) return m.group.name;
+      if (recipientUserId && m.projectMember?.user?.id === recipientUserId) return m.projectMember.user.name ?? "";
+    }
+    // Fallback: entreprise-match
+    if (recipientUserId || recipientGroupId) {
+      // Bruk første entreprise-medlem som fallback
+      const ent = medl.find((m) => m.enterprise);
+      if (ent?.enterprise) return ent.enterprise.name;
+    }
+    return "";
+  }, []);
+
   // Dynamiske filteralternativer
   const dynamiskFilter = useMemo(() => {
     const data = (sjekklister ?? []);
@@ -343,6 +364,7 @@ export default function SjekklisteSide() {
       bygning: bygg(data.map((s) => s.byggeplass?.name)),
       etasje: bygg(data.map((s) => s.drawing?.floor)),
       tegning: bygg(data.map((s) => s.drawing?.name)),
+      flyt: bygg(data.map((s) => hentFlytLedd(s))),
       status: STATUS_ALTERNATIVER.map((s) => ({ value: s.value, label: t(s.labelKey) })),
     };
     for (const felt of verdiFelter) {
@@ -375,6 +397,7 @@ export default function SjekklisteSide() {
           case "bygning": return s.byggeplass?.name === verdi;
           case "etasje": return s.drawing?.floor === verdi;
           case "tegning": return s.drawing?.name === verdi;
+          case "flyt": return hentFlytLedd(s) === verdi;
           default: return true;
         }
       });
@@ -437,7 +460,8 @@ export default function SjekklisteSide() {
           status={rad.status}
           bestillerUserId={rad.bestillerUserId}
         />,
-        bredde: "200px" },
+        bredde: "200px", sorterbar: true, sorterVerdi: (rad) => hentFlytLedd(rad),
+        filtrerbar: true, filterAlternativer: dynamiskFilter.flyt ?? [] },
       bygning: { id: "bygning", header: t("tabell.bygning"), celle: (rad) => rad.byggeplass?.name
         ? <span className="text-xs text-gray-600">{rad.byggeplass.name}</span> : <span className="text-gray-300">—</span>,
         sorterbar: true, sorterVerdi: (rad) => rad.byggeplass?.name ?? "", filtrerbar: true, filterAlternativer: dynamiskFilter.bygning ?? [] },
