@@ -8,6 +8,7 @@ import { Button, Modal, Spinner, EmptyState, StatusBadge, Badge, Table } from "@
 import { useVerktoylinje } from "@/hooks/useVerktoylinje";
 import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
 import { Plus, Search, ChevronDown, ChevronRight } from "lucide-react";
+import { FlytIndikator } from "@/components/FlytIndikator";
 
 // --- Typer ---
 
@@ -27,8 +28,21 @@ interface OppgaveRad {
   bestillerEnterprise: { name: string };
   utforerEnterprise: { name: string };
   drawing: { name: string; floor: string | null; byggeplass: { id: string; name: string } | null } | null;
-  recipientUser: { name: string | null } | null;
-  recipientGroup: { name: string } | null;
+  recipientUser: { id: string; name: string | null } | null;
+  recipientGroup: { id: string; name: string } | null;
+  bestillerUserId?: string;
+  dokumentflyt: {
+    id: string;
+    name: string;
+    medlemmer: {
+      id: string;
+      rolle: string;
+      steg: number;
+      enterprise: { id: string; name: string } | null;
+      projectMember: { user: { id: string; name: string | null } } | null;
+      group: { id: string; name: string } | null;
+    }[];
+  } | null;
 }
 
 interface MalObjekt {
@@ -98,6 +112,7 @@ const SYSTEM_KOLONNER: KolonneParam[] = [
   { id: "opprettet", navn: "Opprettelsesdato", navnKey: "tabell.opprettelsesdato", gruppe: "kolonner" },
   { id: "endret", navn: "Endringsdato", navnKey: "tabell.endringsdato", gruppe: "kolonner" },
   { id: "frist", navn: "Tidsfrist", navnKey: "tabell.tidsfrist", gruppe: "kolonner" },
+  { id: "flyt", navn: "Flyt", navnKey: "tabell.flyt", gruppe: "kolonner" },
 ];
 
 const POSISJON_KOLONNER: KolonneParam[] = [
@@ -539,6 +554,17 @@ export default function OppgaverSide() {
           ? <span className="text-xs text-gray-500">{formaterDato(rad.dueDate)}</span>
           : <span className="text-gray-300">—</span>,
         bredde: "120px", sorterbar: true, sorterVerdi: (rad) => rad.dueDate ? new Date(rad.dueDate).getTime() : null,
+      },
+      flyt: {
+        id: "flyt", header: t("tabell.flyt"),
+        celle: (rad) => <FlytIndikator
+          medlemmer={rad.dokumentflyt?.medlemmer ?? []}
+          recipientUserId={rad.recipientUser?.id}
+          recipientGroupId={rad.recipientGroup?.id}
+          status={rad.status}
+          bestillerUserId={rad.bestillerUserId}
+        />,
+        bredde: "200px",
       },
       bygning: {
         id: "bygning", header: t("tabell.bygning"),

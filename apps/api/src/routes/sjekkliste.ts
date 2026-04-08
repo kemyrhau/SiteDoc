@@ -47,6 +47,23 @@ export const sjekklisteRouter = router({
           drawing: { select: { id: true, name: true, floor: true } },
           recipientUser: { select: { id: true, name: true } },
           recipientGroup: { select: { id: true, name: true } },
+          dokumentflyt: {
+            select: {
+              id: true,
+              name: true,
+              medlemmer: {
+                select: {
+                  id: true,
+                  rolle: true,
+                  steg: true,
+                  enterprise: { select: { id: true, name: true } },
+                  projectMember: { include: { user: { select: { id: true, name: true } } } },
+                  group: { select: { id: true, name: true } },
+                },
+                orderBy: { steg: "asc" },
+              },
+            },
+          },
           _count: { select: { images: true, transfers: true } },
         },
         orderBy: { updatedAt: "desc" },

@@ -9,6 +9,7 @@ import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
 import type { VerktoylinjeHandling } from "@/kontekst/navigasjon-kontekst";
 import { Plus, Printer, Trash2, Search, ChevronDown, ChevronRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { FlytIndikator } from "@/components/FlytIndikator";
 
 // --- Typer ---
 
@@ -35,8 +36,21 @@ interface SjekklisteRad {
   utforerEnterprise: { name: string };
   byggeplass: { id: string; name: string } | null;
   drawing: { name: string; floor: string | null } | null;
-  recipientUser: { name: string | null } | null;
-  recipientGroup: { name: string } | null;
+  recipientUser: { id: string; name: string | null } | null;
+  recipientGroup: { id: string; name: string } | null;
+  bestillerUserId?: string;
+  dokumentflyt: {
+    id: string;
+    name: string;
+    medlemmer: {
+      id: string;
+      rolle: string;
+      steg: number;
+      enterprise: { id: string; name: string } | null;
+      projectMember: { user: { id: string; name: string | null } } | null;
+      group: { id: string; name: string } | null;
+    }[];
+  } | null;
 }
 
 // --- Konstanter ---
@@ -80,6 +94,7 @@ const SYSTEM_KOLONNER: KolonneParam[] = [
   { id: "opprettet", navnKey: "tabell.opprettelsesdato", gruppe: "kolonner" },
   { id: "endret", navnKey: "tabell.endringsdato", gruppe: "kolonner" },
   { id: "frist", navnKey: "tabell.tidsfrist", gruppe: "kolonner" },
+  { id: "flyt", navnKey: "tabell.flyt", gruppe: "kolonner" },
 ];
 
 const POSISJON_KOLONNER: KolonneParam[] = [
@@ -414,6 +429,15 @@ export default function SjekklisteSide() {
       frist: { id: "frist", header: t("tabell.tidsfrist"), celle: (rad) => rad.dueDate
         ? <span className="text-xs text-gray-500">{formaterDato(rad.dueDate)}</span> : <span className="text-gray-300">—</span>,
         bredde: "120px", sorterbar: true, sorterVerdi: (rad) => rad.dueDate ? new Date(rad.dueDate).getTime() : null },
+      flyt: { id: "flyt", header: t("tabell.flyt"),
+        celle: (rad) => <FlytIndikator
+          medlemmer={rad.dokumentflyt?.medlemmer ?? []}
+          recipientUserId={rad.recipientUser?.id}
+          recipientGroupId={rad.recipientGroup?.id}
+          status={rad.status}
+          bestillerUserId={rad.bestillerUserId}
+        />,
+        bredde: "200px" },
       bygning: { id: "bygning", header: t("tabell.bygning"), celle: (rad) => rad.byggeplass?.name
         ? <span className="text-xs text-gray-600">{rad.byggeplass.name}</span> : <span className="text-gray-300">—</span>,
         sorterbar: true, sorterVerdi: (rad) => rad.byggeplass?.name ?? "", filtrerbar: true, filterAlternativer: dynamiskFilter.bygning ?? [] },
