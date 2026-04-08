@@ -146,7 +146,7 @@ export default function ProsjektoppsettSide() {
     try {
       const formData = new FormData();
       formData.append("file", fil);
-      const respons = await fetch("/api/trpc/../../../upload", {
+      const respons = await fetch("/api/upload", {
         method: "POST",
         body: formData,
       });
