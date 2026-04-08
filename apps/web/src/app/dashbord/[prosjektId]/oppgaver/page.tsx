@@ -9,6 +9,7 @@ import { useVerktoylinje } from "@/hooks/useVerktoylinje";
 import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
 import { Plus, Search, ChevronDown, ChevronRight } from "lucide-react";
 import { FlytIndikator } from "@/components/FlytIndikator";
+import { useTabelloppsett } from "@/hooks/useTabelloppsett";
 
 // --- Typer ---
 
@@ -124,39 +125,6 @@ const POSISJON_KOLONNER: KolonneParam[] = [
 ];
 
 const STANDARD_AKTIVE = new Set(["prefix", "nr", "emne", "status", "ansvarlig", "flyt", "bygning", "frist"]);
-const STORAGE_KEY = "sitedoc-oppgave-kolonner-v5";
-
-function hentLagredeKolonner(): Set<string> {
-  if (typeof window === "undefined") return STANDARD_AKTIVE;
-  try {
-    const lagret = localStorage.getItem(STORAGE_KEY);
-    if (lagret) return new Set(JSON.parse(lagret) as string[]);
-  } catch { /* ignorer */ }
-  return STANDARD_AKTIVE;
-}
-
-function lagreKolonner(kolonner: Set<string>) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify([...kolonner]));
-  } catch { /* ignorer */ }
-}
-
-const BREDDE_KEY = "sitedoc-oppgave-bredder-v1";
-
-function hentLagredeBredder(): Record<string, number> {
-  if (typeof window === "undefined") return {};
-  try {
-    const lagret = localStorage.getItem(BREDDE_KEY);
-    if (lagret) return JSON.parse(lagret) as Record<string, number>;
-  } catch { /* ignorer */ }
-  return {};
-}
-
-function lagreBredder(bredder: Record<string, number>) {
-  try {
-    localStorage.setItem(BREDDE_KEY, JSON.stringify(bredder));
-  } catch { /* ignorer */ }
-}
 
 // --- Hjelpefunksjoner ---
 
@@ -310,9 +278,6 @@ function KolonneVelger({
       <div className="flex items-center justify-between border-t border-gray-100 px-3 py-2">
         <button
           onClick={() => {
-            const ny = new Set(STANDARD_AKTIVE);
-            lagreKolonner(ny);
-            // Reset via parent
             onToggle("__reset__");
           }}
           className="text-xs text-gray-500 hover:text-gray-700"
@@ -338,8 +303,15 @@ export default function OppgaverSide() {
   const utils = trpc.useUtils();
   const [visModal, setVisModal] = useState(false);
   const [visKolonneVelger, setVisKolonneVelger] = useState(false);
-  const [aktiveKolonner, setAktiveKolonner] = useState<Set<string>>(hentLagredeKolonner);
-  const [kolonneBredder, setKolonneBredder] = useState<Record<string, number>>(hentLagredeBredder);
+  const {
+    aktiveKolonner, kolonneBredder,
+    handleToggleKolonne, handleBreddeEndring,
+  } = useTabelloppsett({
+    liste: "oppgaver",
+    standardKolonner: STANDARD_AKTIVE,
+    migrerNokkel: "sitedoc-oppgave-kolonner-v5",
+    migrerBreddeNokkel: "sitedoc-oppgave-bredder-v1",
+  });
   const [filterVerdier, setFilterVerdier] = useState<Record<string, string>>({});
   const { aktivByggeplass } = useByggeplass();
 
@@ -541,25 +513,6 @@ export default function OppgaverSide() {
 
   const handleFilterEndring = useCallback((kolonneId: string, verdi: string) => {
     setFilterVerdier((prev) => ({ ...prev, [kolonneId]: verdi }));
-  }, []);
-
-  const handleToggleKolonne = useCallback((id: string) => {
-    if (id === "__reset__") {
-      setAktiveKolonner(new Set(STANDARD_AKTIVE));
-      lagreKolonner(new Set(STANDARD_AKTIVE));
-      return;
-    }
-    setAktiveKolonner((prev) => {
-      const ny = new Set(prev);
-      ny.has(id) ? ny.delete(id) : ny.add(id);
-      lagreKolonner(ny);
-      return ny;
-    });
-  }, []);
-
-  const handleBreddeEndring = useCallback((bredder: Record<string, number>) => {
-    setKolonneBredder(bredder);
-    lagreBredder(bredder);
   }, []);
 
   // Bygg kolonnedefinisjoner
