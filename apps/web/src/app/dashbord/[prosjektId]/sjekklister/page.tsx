@@ -122,6 +122,23 @@ function lagreKolonner(kolonner: Set<string>) {
   } catch { /* ignorer */ }
 }
 
+const BREDDE_KEY = "sitedoc-sjekkliste-bredder-v1";
+
+function hentLagredeBredder(): Record<string, number> {
+  if (typeof window === "undefined") return {};
+  try {
+    const lagret = localStorage.getItem(BREDDE_KEY);
+    if (lagret) return JSON.parse(lagret) as Record<string, number>;
+  } catch { /* ignorer */ }
+  return {};
+}
+
+function lagreBredder(bredder: Record<string, number>) {
+  try {
+    localStorage.setItem(BREDDE_KEY, JSON.stringify(bredder));
+  } catch { /* ignorer */ }
+}
+
 // --- Hjelpefunksjoner ---
 
 function formaterLopenummer(rad: SjekklisteRad): string {
@@ -236,6 +253,7 @@ export default function SjekklisteSide() {
   const [slettFeil, setSlettFeil] = useState<string | null>(null);
   const [visKolonneVelger, setVisKolonneVelger] = useState(false);
   const [aktiveKolonner, setAktiveKolonner] = useState<Set<string>>(hentLagredeKolonner);
+  const [kolonneBredder, setKolonneBredder] = useState<Record<string, number>>(hentLagredeBredder);
   const [filterVerdier, setFilterVerdier] = useState<Record<string, string>>({});
 
   const sjekklisteQuery = trpc.sjekkliste.hentForProsjekt.useQuery(
@@ -415,6 +433,11 @@ export default function SjekklisteSide() {
     setAktiveKolonner((prev) => { const ny = new Set(prev); ny.has(id) ? ny.delete(id) : ny.add(id); lagreKolonner(ny); return ny; });
   }, []);
 
+  const handleBreddeEndring = useCallback((bredder: Record<string, number>) => {
+    setKolonneBredder(bredder);
+    lagreBredder(bredder);
+  }, []);
+
   // Kolonnedefinisjoner
   const kolonneDefinisjoner = useMemo(() => {
     interface KolDef {
@@ -537,7 +560,8 @@ export default function SjekklisteSide() {
           kolonner={kolonneDefinisjoner} data={filtrerte} radNokkel={(rad) => rad.id}
           onRadKlikk={(rad) => router.push(`/dashbord/${params.prosjektId}/sjekklister/${rad.id}`)}
           tomMelding={t("sjekklister.ingenMatcherFilter")} velgbar valgteRader={valgte} onValgEndring={setValgte}
-          filterVerdier={filterVerdier} onFilterEndring={handleFilterEndring} />
+          filterVerdier={filterVerdier} onFilterEndring={handleFilterEndring}
+          kolonneBredder={kolonneBredder} onKolonneBreddeEndring={handleBreddeEndring} />
       )}
 
       <Modal open={visSlettModal} onClose={() => setVisSlettModal(false)} title={t("sjekklister.slettTittel")}>

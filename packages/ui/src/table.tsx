@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect, type ReactNode } from "react";
+import { useState, useMemo, useRef, useEffect, useCallback, type ReactNode } from "react";
 
 interface KolonneDef<T> {
   id: string;
@@ -25,6 +25,10 @@ interface TableProps<T> {
   onValgEndring?: (valgteIder: Set<string>) => void;
   filterVerdier?: Record<string, string>;
   onFilterEndring?: (kolonneId: string, verdi: string) => void;
+  /** Lagrede kolonnebredder i piksler */
+  kolonneBredder?: Record<string, number>;
+  /** Callback når bruker endrer kolonnebredde */
+  onKolonneBreddeEndring?: (bredder: Record<string, number>) => void;
 }
 
 function IndeterminateCheckbox({
@@ -161,9 +165,51 @@ export function Table<T>({
   onValgEndring,
   filterVerdier,
   onFilterEndring,
+  kolonneBredder,
+  onKolonneBreddeEndring,
 }: TableProps<T>) {
   const [sorterKolonne, setSorterKolonne] = useState<string | null>(null);
   const [sorterRetning, setSorterRetning] = useState<SorterRetning>("asc");
+
+  // Resize-state
+  const [resizeKolId, setResizeKolId] = useState<string | null>(null);
+  const resizeStartX = useRef(0);
+  const resizeStartBredde = useRef(0);
+  const lokaleBreader = useRef<Record<string, number>>({});
+  const thRefs = useRef<Record<string, HTMLTableCellElement | null>>({});
+
+  const handleResizeStart = useCallback((e: React.MouseEvent, kolId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const th = thRefs.current[kolId];
+    if (!th) return;
+    resizeStartX.current = e.clientX;
+    resizeStartBredde.current = th.offsetWidth;
+    setResizeKolId(kolId);
+  }, []);
+
+  useEffect(() => {
+    if (!resizeKolId) return;
+    const handleMove = (e: MouseEvent) => {
+      const diff = e.clientX - resizeStartX.current;
+      const nyBredde = Math.max(40, resizeStartBredde.current + diff);
+      lokaleBreader.current = { ...lokaleBreader.current, [resizeKolId]: nyBredde };
+      const th = thRefs.current[resizeKolId];
+      if (th) th.style.width = `${nyBredde}px`;
+    };
+    const handleUp = () => {
+      setResizeKolId(null);
+      if (onKolonneBreddeEndring) {
+        onKolonneBreddeEndring({ ...kolonneBredder, ...lokaleBreader.current });
+      }
+    };
+    document.addEventListener("mousemove", handleMove);
+    document.addEventListener("mouseup", handleUp);
+    return () => {
+      document.removeEventListener("mousemove", handleMove);
+      document.removeEventListener("mouseup", handleUp);
+    };
+  }, [resizeKolId, kolonneBredder, onKolonneBreddeEndring]);
 
   function handleSorter(kolonneId: string) {
     if (sorterKolonne === kolonneId) {
@@ -226,12 +272,12 @@ export function Table<T>({
   }
 
   return (
-    <div className="overflow-auto rounded-lg border border-gray-200 bg-white">
-      <table className="w-full text-left text-sm">
-        <thead className="sticky top-0 border-b border-gray-200 bg-gray-50">
+    <div className="overflow-auto rounded-lg border border-gray-200 bg-white" style={resizeKolId ? { cursor: "col-resize" } : undefined}>
+      <table className="w-full text-left text-sm" style={{ tableLayout: "fixed" }}>
+        <thead className="sticky top-0 border-b-2 border-gray-200 bg-gray-100">
           <tr>
             {velgbar && (
-              <th className="w-10 px-3 py-3">
+              <th className="w-10 px-3 py-2.5">
                 <IndeterminateCheckbox
                   checked={alleValgt}
                   indeterminate={noenValgt}
@@ -239,32 +285,44 @@ export function Table<T>({
                 />
               </th>
             )}
-            {kolonner.map((kol) => (
-              <th
-                key={kol.id}
-                className={`px-4 py-3 text-xs font-medium uppercase tracking-wide text-gray-500 ${
-                  kol.sorterbar ? "cursor-pointer select-none hover:text-gray-700" : ""
-                }`}
-                style={kol.bredde ? { width: kol.bredde } : undefined}
-                onClick={kol.sorterbar ? () => handleSorter(kol.id) : undefined}
-              >
-                <span className="inline-flex items-center gap-0.5">
-                  {kol.header}
-                  {kol.sorterbar && sorterKolonne === kol.id && (
-                    sorterRetning === "asc"
-                      ? <SorterPilOpp />
-                      : <SorterPilNed />
-                  )}
-                  {kol.filtrerbar && kol.filterAlternativer && onFilterEndring && (
-                    <FilterDropdown
-                      alternativer={kol.filterAlternativer}
-                      verdi={filterVerdier?.[kol.id] ?? ""}
-                      onChange={(v) => onFilterEndring(kol.id, v)}
-                    />
-                  )}
-                </span>
-              </th>
-            ))}
+            {kolonner.map((kol) => {
+              const lagretBredde = kolonneBredder?.[kol.id];
+              const stilBredde = lagretBredde ? `${lagretBredde}px` : kol.bredde;
+              return (
+                <th
+                  key={kol.id}
+                  ref={(el) => { thRefs.current[kol.id] = el; }}
+                  className={`relative px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 ${
+                    kol.sorterbar ? "cursor-pointer select-none hover:text-gray-700" : ""
+                  }`}
+                  style={stilBredde ? { width: stilBredde } : undefined}
+                  onClick={kol.sorterbar ? () => handleSorter(kol.id) : undefined}
+                >
+                  <span className="inline-flex items-center gap-0.5">
+                    {kol.header}
+                    {kol.sorterbar && sorterKolonne === kol.id && (
+                      sorterRetning === "asc"
+                        ? <SorterPilOpp />
+                        : <SorterPilNed />
+                    )}
+                    {kol.filtrerbar && kol.filterAlternativer && onFilterEndring && (
+                      <FilterDropdown
+                        alternativer={kol.filterAlternativer}
+                        verdi={filterVerdier?.[kol.id] ?? ""}
+                        onChange={(v) => onFilterEndring(kol.id, v)}
+                      />
+                    )}
+                  </span>
+                  {/* Resize-håndtak */}
+                  <div
+                    onMouseDown={(e) => handleResizeStart(e, kol.id)}
+                    className={`absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400 ${
+                      resizeKolId === kol.id ? "bg-blue-400" : ""
+                    }`}
+                  />
+                </th>
+              );
+            })}
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-100">

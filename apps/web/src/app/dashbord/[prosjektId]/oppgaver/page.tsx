@@ -140,6 +140,23 @@ function lagreKolonner(kolonner: Set<string>) {
   } catch { /* ignorer */ }
 }
 
+const BREDDE_KEY = "sitedoc-oppgave-bredder-v1";
+
+function hentLagredeBredder(): Record<string, number> {
+  if (typeof window === "undefined") return {};
+  try {
+    const lagret = localStorage.getItem(BREDDE_KEY);
+    if (lagret) return JSON.parse(lagret) as Record<string, number>;
+  } catch { /* ignorer */ }
+  return {};
+}
+
+function lagreBredder(bredder: Record<string, number>) {
+  try {
+    localStorage.setItem(BREDDE_KEY, JSON.stringify(bredder));
+  } catch { /* ignorer */ }
+}
+
 // --- Hjelpefunksjoner ---
 
 function formaterLopenummer(rad: OppgaveRad): string {
@@ -293,6 +310,7 @@ export default function OppgaverSide() {
   const [visModal, setVisModal] = useState(false);
   const [visKolonneVelger, setVisKolonneVelger] = useState(false);
   const [aktiveKolonner, setAktiveKolonner] = useState<Set<string>>(hentLagredeKolonner);
+  const [kolonneBredder, setKolonneBredder] = useState<Record<string, number>>(hentLagredeBredder);
   const [filterVerdier, setFilterVerdier] = useState<Record<string, string>>({});
   const { aktivByggeplass } = useByggeplass();
 
@@ -478,6 +496,11 @@ export default function OppgaverSide() {
       lagreKolonner(ny);
       return ny;
     });
+  }, []);
+
+  const handleBreddeEndring = useCallback((bredder: Record<string, number>) => {
+    setKolonneBredder(bredder);
+    lagreBredder(bredder);
   }, []);
 
   // Bygg kolonnedefinisjoner
@@ -729,6 +752,8 @@ export default function OppgaverSide() {
           tomMelding={t("oppgaver.ingenMatcherFilter")}
           filterVerdier={filterVerdier}
           onFilterEndring={handleFilterEndring}
+          kolonneBredder={kolonneBredder}
+          onKolonneBreddeEndring={handleBreddeEndring}
         />
       )}
 
