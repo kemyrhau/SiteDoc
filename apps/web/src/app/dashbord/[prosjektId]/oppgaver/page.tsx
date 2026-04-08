@@ -98,9 +98,10 @@ interface KolonneParam {
 }
 
 const SYSTEM_KOLONNER: KolonneParam[] = [
+  { id: "prefix", navn: "Prefix", navnKey: "tabell.prefix", gruppe: "kolonner", fast: true },
   { id: "nr", navn: "Nr", navnKey: "tabell.nr", gruppe: "kolonner", fast: true },
-  { id: "tittel", navn: "Tittel", navnKey: "tabell.tittel", gruppe: "kolonner", fast: true },
   { id: "status", navn: "Status", navnKey: "tabell.status", gruppe: "kolonner", fast: true },
+  { id: "tittel", navn: "Tittel", navnKey: "tabell.tittel", gruppe: "kolonner" },
   { id: "emne", navn: "Emne", navnKey: "tabell.emne", gruppe: "kolonner" },
   { id: "prioritet", navn: "Prioritet", navnKey: "tabell.prioritet", gruppe: "kolonner" },
   { id: "ansvarlig", navn: "Ansvarlig", navnKey: "tabell.ansvarlig", gruppe: "kolonner" },
@@ -121,8 +122,8 @@ const POSISJON_KOLONNER: KolonneParam[] = [
   { id: "tegning", navn: "Tegning", navnKey: "tabell.tegning", gruppe: "posisjon" },
 ];
 
-const STANDARD_AKTIVE = new Set(["nr", "tittel", "emne", "status", "ansvarlig", "flyt", "bygning", "frist"]);
-const STORAGE_KEY = "sitedoc-oppgave-kolonner-v4";
+const STANDARD_AKTIVE = new Set(["prefix", "nr", "emne", "status", "ansvarlig", "flyt", "bygning", "frist"]);
+const STORAGE_KEY = "sitedoc-oppgave-kolonner-v5";
 
 function hentLagredeKolonner(): Set<string> {
   if (typeof window === "undefined") return STANDARD_AKTIVE;
@@ -141,11 +142,8 @@ function lagreKolonner(kolonner: Set<string>) {
 
 // --- Hjelpefunksjoner ---
 
-function formaterNummer(rad: OppgaveRad): string {
-  if (rad.template?.prefix && rad.number) {
-    return `${rad.template.prefix}-${String(rad.number).padStart(3, "0")}`;
-  }
-  return rad.number ? String(rad.number) : "—";
+function formaterLopenummer(rad: OppgaveRad): string {
+  return rad.number ? String(rad.number).padStart(3, "0") : "—";
 }
 
 function formaterAnsvarlig(rad: OppgaveRad): string {
@@ -402,6 +400,7 @@ export default function OppgaverSide() {
       [...new Set(felter.filter(Boolean) as string[])].sort().map((v) => ({ value: v, label: v }));
 
     const filter: Record<string, { value: string; label: string }[]> = {
+      prefix: bygg(oppgaver.map((o) => o.template?.prefix)),
       emne: bygg(oppgaver.map((o) => o.subject)),
       ansvarlig: bygg(oppgaver.map((o) => formaterAnsvarlig(o))),
       opprettetAv: bygg(oppgaver.map((o) => o.bestiller?.name)),
@@ -443,6 +442,7 @@ export default function OppgaverSide() {
           return hentFeltVerdi(o, kolId.replace("felt:", "")) === verdi;
         }
         switch (kolId) {
+          case "prefix": return o.template?.prefix === verdi;
           case "status": return o.status === verdi;
           case "emne": return o.subject === verdi;
           case "prioritet": return o.priority === verdi;
@@ -484,10 +484,18 @@ export default function OppgaverSide() {
   const kolonneDefinisjoner = useMemo(() => {
     type KolDef = Parameters<typeof Table<OppgaveRad>>[0]["kolonner"][number];
     const defs: Record<string, KolDef> = {
+      prefix: {
+        id: "prefix", header: t("tabell.prefix"),
+        celle: (rad) => rad.template?.prefix
+          ? <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs font-medium text-gray-600">{rad.template.prefix}</span>
+          : <span className="text-gray-300">—</span>,
+        bredde: "70px", sorterbar: true, sorterVerdi: (rad) => rad.template?.prefix ?? "",
+        filtrerbar: true, filterAlternativer: dynamiskFilter.prefix ?? [],
+      },
       nr: {
         id: "nr", header: t("tabell.nr"),
-        celle: (rad) => <span className="text-xs font-medium text-gray-500 whitespace-nowrap">{formaterNummer(rad)}</span>,
-        bredde: "90px", sorterbar: true, sorterVerdi: (rad) => rad.number ?? 0,
+        celle: (rad) => <span className="text-xs font-medium text-gray-500 whitespace-nowrap">{formaterLopenummer(rad)}</span>,
+        bredde: "60px", sorterbar: true, sorterVerdi: (rad) => rad.number ?? 0,
       },
       tittel: {
         id: "tittel", header: t("tabell.tittel"),

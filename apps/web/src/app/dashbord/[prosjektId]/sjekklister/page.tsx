@@ -82,9 +82,10 @@ interface KolonneParam {
 }
 
 const SYSTEM_KOLONNER: KolonneParam[] = [
+  { id: "prefix", navnKey: "tabell.prefix", gruppe: "kolonner", fast: true },
   { id: "nr", navnKey: "tabell.nr", gruppe: "kolonner", fast: true },
-  { id: "tittel", navnKey: "tabell.tittel", gruppe: "kolonner", fast: true },
   { id: "status", navnKey: "tabell.status", gruppe: "kolonner", fast: true },
+  { id: "tittel", navnKey: "tabell.tittel", gruppe: "kolonner" },
   { id: "emne", navnKey: "tabell.emne", gruppe: "kolonner" },
   { id: "ansvarlig", navnKey: "tabell.ansvarlig", gruppe: "kolonner" },
   { id: "opprettetAv", navnKey: "tabell.opprettetAv", gruppe: "kolonner" },
@@ -103,8 +104,8 @@ const POSISJON_KOLONNER: KolonneParam[] = [
   { id: "tegning", navnKey: "tabell.tegning", gruppe: "posisjon" },
 ];
 
-const STANDARD_AKTIVE = new Set(["nr", "tittel", "emne", "mal", "status", "ansvarlig", "flyt", "bygning", "frist"]);
-const STORAGE_KEY = "sitedoc-sjekkliste-kolonner-v4";
+const STANDARD_AKTIVE = new Set(["prefix", "nr", "emne", "status", "ansvarlig", "flyt", "bygning", "frist"]);
+const STORAGE_KEY = "sitedoc-sjekkliste-kolonner-v5";
 
 function hentLagredeKolonner(): Set<string> {
   if (typeof window === "undefined") return STANDARD_AKTIVE;
@@ -123,11 +124,8 @@ function lagreKolonner(kolonner: Set<string>) {
 
 // --- Hjelpefunksjoner ---
 
-function formaterNummer(rad: SjekklisteRad): string {
-  if (rad.template?.prefix && rad.number) {
-    return `${rad.template.prefix}-${String(rad.number).padStart(3, "0")}`;
-  }
-  return rad.number ? String(rad.number) : "—";
+function formaterLopenummer(rad: SjekklisteRad): string {
+  return rad.number ? String(rad.number).padStart(3, "0") : "—";
 }
 
 function formaterAnsvarlig(rad: SjekklisteRad): string {
@@ -356,6 +354,7 @@ export default function SjekklisteSide() {
     const bygg = (felter: (string | null | undefined)[]) =>
       [...new Set(felter.filter(Boolean) as string[])].sort().map((v) => ({ value: v, label: v }));
     const filter: Record<string, { value: string; label: string }[]> = {
+      prefix: bygg(data.map((s) => s.template?.prefix)),
       emne: bygg(data.map((s) => s.subject)),
       ansvarlig: bygg(data.map((s) => formaterAnsvarlig(s))),
       opprettetAv: bygg(data.map((s) => s.bestiller?.name)),
@@ -388,6 +387,7 @@ export default function SjekklisteSide() {
       resultat = resultat.filter((s) => {
         if (kolId.startsWith("felt:")) return hentFeltVerdi(s, kolId.replace("felt:", "")) === verdi;
         switch (kolId) {
+          case "prefix": return s.template?.prefix === verdi;
           case "status": return s.status === verdi;
           case "emne": return s.subject === verdi;
           case "ansvarlig": return formaterAnsvarlig(s) === verdi;
@@ -423,8 +423,15 @@ export default function SjekklisteSide() {
       filtrerbar?: boolean; filterAlternativer?: { value: string; label: string }[];
     }
     const defs: Record<string, KolDef> = {
-      nr: { id: "nr", header: t("tabell.nr"), celle: (rad) => <span className="text-xs font-medium text-gray-500 whitespace-nowrap">{formaterNummer(rad)}</span>,
-        bredde: "90px", sorterbar: true, sorterVerdi: (rad) => rad.number ?? 0 },
+      prefix: { id: "prefix", header: t("tabell.prefix"),
+        celle: (rad) => rad.template?.prefix
+          ? <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs font-medium text-gray-600">{rad.template.prefix}</span>
+          : <span className="text-gray-300">—</span>,
+        bredde: "70px", sorterbar: true, sorterVerdi: (rad) => rad.template?.prefix ?? "",
+        filtrerbar: true, filterAlternativer: dynamiskFilter.prefix ?? [] },
+      nr: { id: "nr", header: t("tabell.nr"),
+        celle: (rad) => <span className="text-xs font-medium text-gray-500 whitespace-nowrap">{formaterLopenummer(rad)}</span>,
+        bredde: "60px", sorterbar: true, sorterVerdi: (rad) => rad.number ?? 0 },
       tittel: { id: "tittel", header: t("tabell.tittel"), celle: (rad) => <span className="font-medium text-gray-900">{rad.title}</span>,
         sorterbar: true, sorterVerdi: (rad) => rad.title },
       emne: { id: "emne", header: t("tabell.emne"), celle: (rad) => rad.subject
