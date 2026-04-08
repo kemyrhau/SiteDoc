@@ -104,9 +104,14 @@
     display: block !important;
   }
 
-  /* Unngå sideskift inni felter */
-  .print-no-break {
-    page-break-inside: avoid;
+  /* Unngå sideskift inni felter, bilder og bilde-containere */
+  .print-no-break,
+  img,
+  .grid,
+  .flex:has(> img),
+  .grid:has(> div > img) {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
   }
 
   /* Sideskift mellom sjekklister */
