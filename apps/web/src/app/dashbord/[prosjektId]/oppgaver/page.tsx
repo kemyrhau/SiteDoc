@@ -605,7 +605,7 @@ export default function OppgaverSide() {
   }
 
   return (
-    <div>
+    <div className="pt-6">
       {/* Filterbar */}
       {(oppgaver?.length ?? 0) > 0 && (
         <div className="mb-3 flex items-center gap-2">

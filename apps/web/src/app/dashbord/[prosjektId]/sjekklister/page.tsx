@@ -445,7 +445,7 @@ export default function SjekklisteSide() {
   if (isLoading) return <div className="flex justify-center py-12"><Spinner size="lg" /></div>;
 
   return (
-    <div>
+    <div className="pt-6">
       {(sjekklister?.length ?? 0) > 0 && (
         <div className="mb-3 flex items-center gap-2">
           <div className="relative">

@@ -321,7 +321,7 @@ export default function SjekklisteDetaljSide() {
   const oppretterBruker = fullSjekkliste?.bestiller?.name;
 
   return (
-    <div className="mx-auto max-w-3xl pb-12 -mt-6">
+    <div className="mx-auto max-w-3xl pb-12">
       {/* Print-header: skjult på skjerm, synlig ved print */}
       <PrintHeader
         prosjektnavn={prosjekt?.name ?? ""}
@@ -344,7 +344,7 @@ export default function SjekklisteDetaljSide() {
       />
 
       {/* Skjerm-header: sticky ved scrolling */}
-      <div className="print-skjul sticky top-0 z-10 bg-white border-b border-gray-100 -mx-6 px-6 pt-4 pb-3 mb-3">
+      <div className="print-skjul sticky top-0 z-10 bg-white border-b border-gray-100 -mx-6 px-6 py-4 mb-3">
         <div className="flex items-center gap-3">
           <h3 className="text-xl font-bold">{sjekkliste.title}</h3>
           <StatusBadge status={sjekkliste.status} />
