@@ -5,7 +5,7 @@ import { useMemo } from "react";
 import { trpc } from "@/lib/trpc";
 import { Spinner } from "@sitedoc/ui";
 import { Printer, ExternalLink } from "lucide-react";
-import { RapportObjektVisning } from "@/components/RapportObjektVisning";
+import { RapportObjektVisning, TegningPosisjonPrint } from "@/components/RapportObjektVisning";
 import { byggObjektTre } from "@sitedoc/shared/types";
 import type { Vedlegg } from "@/components/rapportobjekter/typer";
 
@@ -78,6 +78,9 @@ export default function UtskriftSjekklisteSide() {
     utforerEnterprise?: { name: string } | null;
     bestiller?: { name?: string | null } | null;
     byggeplass?: { id: string; name: string } | null;
+    drawingId?: string | null;
+    positionX?: number | null;
+    positionY?: number | null;
     drawing?: { id: string; name: string; drawingNumber: string | null } | null;
   } | undefined;
 
@@ -244,6 +247,18 @@ export default function UtskriftSjekklisteSide() {
             </div>
           )}
         </div>
+
+        {/* Lokasjonstegning med posisjon */}
+        {sjekkliste.drawingId && sjekkliste.positionX != null && sjekkliste.positionY != null && (
+          <div className="mb-3 print-no-break">
+            <TegningPosisjonPrint pos={{
+              drawingId: sjekkliste.drawingId,
+              positionX: sjekkliste.positionX,
+              positionY: sjekkliste.positionY,
+              drawingName: sjekkliste.drawing?.name,
+            }} />
+          </div>
+        )}
 
         {/* Rapportobjekter */}
         <div className="flex flex-col gap-1">

@@ -25,7 +25,7 @@ interface VaerVerdi {
   kilde?: "manuell" | "automatisk";
 }
 
-interface TegningPosisjonVerdi {
+export interface TegningPosisjonVerdi {
   drawingId?: string;
   positionX?: number;
   positionY?: number;
@@ -558,7 +558,7 @@ function useTegningSomBilde(url: string | null, erPdf: boolean): string | null {
   return bildeUrl;
 }
 
-function TegningPosisjonPrint({ pos }: { pos: TegningPosisjonVerdi }) {
+export function TegningPosisjonPrint({ pos }: { pos: TegningPosisjonVerdi }) {
   const { data: tegning } = trpc.tegning.hentMedId.useQuery(
     { id: pos.drawingId! },
     { enabled: !!pos.drawingId },

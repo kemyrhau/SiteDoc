@@ -5,7 +5,7 @@ import { useMemo } from "react";
 import { trpc } from "@/lib/trpc";
 import { Spinner } from "@sitedoc/ui";
 import { Printer, ExternalLink } from "lucide-react";
-import { RapportObjektVisning } from "@/components/RapportObjektVisning";
+import { RapportObjektVisning, TegningPosisjonPrint } from "@/components/RapportObjektVisning";
 import { byggObjektTre } from "@sitedoc/shared/types";
 import type { Vedlegg } from "@/components/rapportobjekter/typer";
 
@@ -287,6 +287,18 @@ export default function UtskriftOppgaveSide() {
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Lokasjonstegning med posisjon */}
+        {oppgave.drawing?.id && oppgave.positionX != null && oppgave.positionY != null && (
+          <div className="mb-3 print-no-break">
+            <TegningPosisjonPrint pos={{
+              drawingId: oppgave.drawing.id,
+              positionX: oppgave.positionX,
+              positionY: oppgave.positionY,
+              drawingName: oppgave.drawing?.name,
+            }} />
           </div>
         )}
 
