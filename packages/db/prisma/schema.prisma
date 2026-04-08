@@ -25,7 +25,9 @@ model User {
   sessions             Session[]
   projects             ProjectMember[]
   bestilteChecklists   Checklist[]          @relation("ChecklistCreator")
+  eideChecklists       Checklist[]          @relation("ChecklistOwner")
   bestilteTasks        Task[]               @relation("TaskCreator")
+  eideTasks            Task[]               @relation("TaskOwner")
   sentTransfers        DocumentTransfer[]   @relation("TransferSender")
   receivedTransfers    DocumentTransfer[]   @relation("TransferRecipient")
   recipientChecklists  Checklist[]          @relation("ChecklistRecipient")
@@ -455,6 +457,7 @@ model Checklist {
   bestillerUserId         String    @map("bestiller_user_id")
   bestillerEnterpriseId   String    @map("bestiller_enterprise_id")
   utforerEnterpriseId     String    @map("utforer_enterprise_id")
+  eierUserId              String?   @map("eier_user_id")
   status                  String    @default("draft")
   title                   String
   number                  Int?      @map("number")
@@ -475,6 +478,7 @@ model Checklist {
   bestiller             User                 @relation("ChecklistCreator", fields: [bestillerUserId], references: [id])
   bestillerEnterprise   Enterprise           @relation("ChecklistCreatorEnterprise", fields: [bestillerEnterpriseId], references: [id])
   utforerEnterprise     Enterprise           @relation("ChecklistResponderEnterprise", fields: [utforerEnterpriseId], references: [id])
+  eier                  User?                @relation("ChecklistOwner", fields: [eierUserId], references: [id], onDelete: SetNull)
   dokumentflyt          Dokumentflyt?        @relation(fields: [dokumentflytId], references: [id], onDelete: SetNull)
   byggeplass            Byggeplass?          @relation(fields: [byggeplassId], references: [id], onDelete: SetNull)
   drawing             Drawing?             @relation(fields: [drawingId], references: [id], onDelete: SetNull)
@@ -497,6 +501,7 @@ model Task {
   bestillerUserId         String    @map("bestiller_user_id")
   bestillerEnterpriseId   String    @map("bestiller_enterprise_id")
   utforerEnterpriseId     String    @map("utforer_enterprise_id")
+  eierUserId              String?   @map("eier_user_id")
   status                  String    @default("draft")
   title                   String
   description             String?
@@ -520,6 +525,7 @@ model Task {
   bestiller             User               @relation("TaskCreator", fields: [bestillerUserId], references: [id])
   bestillerEnterprise   Enterprise         @relation("TaskCreatorEnterprise", fields: [bestillerEnterpriseId], references: [id])
   utforerEnterprise     Enterprise         @relation("TaskResponderEnterprise", fields: [utforerEnterpriseId], references: [id])
+  eier                  User?              @relation("TaskOwner", fields: [eierUserId], references: [id], onDelete: SetNull)
   drawing               Drawing?           @relation(fields: [drawingId], references: [id])
   dokumentflyt          Dokumentflyt?      @relation(fields: [dokumentflytId], references: [id], onDelete: SetNull)
   checklist           Checklist?         @relation(fields: [checklistId], references: [id], onDelete: SetNull)
@@ -654,6 +660,8 @@ model DokumentflytMedlem {
   rolle                   String // "registrator" | "bestiller" | "utforer" | "godkjenner"
   steg                    Int      @default(1)
   erHovedansvarlig        Boolean  @default(false) @map("er_hovedansvarlig")
+  kanRedigere             Boolean  @default(true) @map("kan_redigere")
+  låsesEtterPasseringer   Int?     @map("laases_etter_passeringer")
   createdAt               DateTime @default(now()) @map("created_at")
 
   dokumentflyt          Dokumentflyt   @relation(fields: [dokumentflytId], references: [id], onDelete: Cascade)

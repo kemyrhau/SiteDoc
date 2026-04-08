@@ -326,6 +326,7 @@ export const oppgaveRouter = router({
           data: {
             templateId: input.templateId,
             bestillerUserId: ctx.userId,
+            eierUserId: ctx.userId,
             bestillerEnterpriseId: input.bestillerEnterpriseId,
             utforerEnterpriseId: input.utforerEnterpriseId,
             title: input.title,
@@ -382,11 +383,11 @@ export const oppgaveRouter = router({
         "task",
       );
 
-      // Entreprise-endring kun tillatt i utkast-status
-      if ((input.bestillerEnterpriseId || input.utforerEnterpriseId) && oppgave.status !== "draft") {
+      // Append-only: Oppgaver kan kun redigeres i utkast-status
+      if (oppgave.status !== "draft") {
         throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "Entrepriser kan kun endres i utkast-status",
+          code: "FORBIDDEN",
+          message: "Oppgaver kan ikke redigeres etter sending — kun tilføyelser er tillatt",
         });
       }
 
@@ -657,6 +658,26 @@ export const oppgaveRouter = router({
         dokumentflytId: oppgave.dokumentflytId,
       });
 
+      // Utled ny eier basert på mottaker:
+      // Person → personen. Gruppe → gruppens hovedansvarlig. Fallback: beholder gjeldende.
+      const utledNyEier = async (recipientUserId?: string | null, recipientGroupId?: string | null): Promise<string | undefined> => {
+        if (recipientUserId) return recipientUserId;
+        if (recipientGroupId && oppgave.dokumentflytId) {
+          const gruppemedlem = await ctx.prisma.dokumentflytMedlem.findFirst({
+            where: {
+              dokumentflytId: oppgave.dokumentflytId,
+              groupId: recipientGroupId,
+              erHovedansvarlig: true,
+            },
+            include: { hovedansvarligPerson: { select: { userId: true } } },
+          });
+          if (gruppemedlem?.hovedansvarligPerson?.userId) {
+            return gruppemedlem.hovedansvarligPerson.userId;
+          }
+        }
+        return undefined; // Beholder gjeldende eier
+      };
+
       // Videresending: bytt mottaker, evt. bytt dokumentflyt + entreprise
       if (input.nyStatus === "forwarded") {
         if (!input.recipientUserId && !input.recipientGroupId) {
@@ -679,9 +700,28 @@ export const oppgaveRouter = router({
             nyEntrepriseNavn: nyFlyt.enterprise?.name ?? "Ukjent",
             nyFlytNavn: nyFlyt.name,
           };
+
+          // Kryssentreprise-validering: kun prosjekteier/registrator/admin kan sende på tvers
+          const bruker = await ctx.prisma.user.findUnique({ where: { id: ctx.userId }, select: { role: true } });
+          if (bruker?.role !== "sitedoc_admin") {
+            const medlem = await ctx.prisma.projectMember.findUnique({
+              where: { userId_projectId: { userId: ctx.userId, projectId } },
+            });
+            if (medlem?.role !== "admin") {
+              const tillatelser = await hentBrukerTillatelser(ctx.userId, projectId);
+              const erRegistrator = tillatelser.has("create_checklists") || tillatelser.has("create_tasks");
+              if (!erRegistrator) {
+                throw new TRPCError({
+                  code: "FORBIDDEN",
+                  message: "Kun prosjekteier eller registrator kan sende på tvers av entrepriser",
+                });
+              }
+            }
+          }
         }
 
         const gammelEntrepriseNavn = oppgave.utforerEnterprise?.name ?? "Ukjent";
+        const nyEier = await utledNyEier(input.recipientUserId, input.recipientGroupId);
 
         const resultat = await ctx.prisma.$transaction(async (tx) => {
           const oppdatert = await tx.task.update({
@@ -689,6 +729,7 @@ export const oppgaveRouter = router({
             data: {
               recipientUserId: input.recipientUserId ?? null,
               recipientGroupId: input.recipientGroupId ?? null,
+              ...(nyEier ? { eierUserId: nyEier } : {}),
               ...(flytBytteData ? {
                 dokumentflytId: flytBytteData.dokumentflytId,
                 utforerEnterpriseId: flytBytteData.utforerEnterpriseId,
@@ -745,11 +786,21 @@ export const oppgaveRouter = router({
         }
       }
 
+      // Utled ny eier ved sending eller besvar
+      let eierOppdatering: { eierUserId: string } | Record<string, never> = {};
+      if (input.nyStatus === "sent") {
+        const nyEier = await utledNyEier(input.recipientUserId, input.recipientGroupId);
+        if (nyEier) eierOppdatering = { eierUserId: nyEier };
+      } else if (input.nyStatus === "responded" && besvarMottaker.recipientUserId) {
+        eierOppdatering = { eierUserId: besvarMottaker.recipientUserId };
+      }
+
       const resultat = await ctx.prisma.$transaction(async (tx) => {
         const oppdatert = await tx.task.update({
           where: { id: input.id },
           data: {
             status: effektivStatus,
+            ...eierOppdatering,
             ...(input.nyStatus === "sent" ? {
               recipientUserId: input.recipientUserId ?? null,
               recipientGroupId: input.recipientGroupId ?? null,
@@ -835,6 +886,63 @@ export const oppgaveRouter = router({
         await tx.image.deleteMany({ where: { taskId: input.id } });
         await tx.task.delete({ where: { id: input.id } });
         return { success: true };
+      });
+    }),
+
+  // Bytt eier av oppgave — kun prosjekteier eller registrator/admin
+  byttEier: protectedProcedure
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        nyEierUserId: z.string().uuid(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const oppgave = await ctx.prisma.task.findUniqueOrThrow({
+        where: { id: input.id },
+        include: {
+          bestillerEnterprise: { select: { projectId: true } },
+        },
+      });
+
+      const projectId = oppgave.bestillerEnterprise.projectId;
+
+      // Sjekk at bruker er admin eller registrator
+      const bruker = await ctx.prisma.user.findUniqueOrThrow({
+        where: { id: ctx.userId },
+        select: { role: true },
+      });
+      const medlem = await ctx.prisma.projectMember.findUnique({
+        where: { userId_projectId: { userId: ctx.userId, projectId } },
+      });
+      const erAdmin = bruker.role === "sitedoc_admin" || medlem?.role === "admin";
+
+      if (!erAdmin) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Kun prosjekteier eller admin kan bytte eier",
+        });
+      }
+
+      // Valider at ny eier tilhører samme entreprise
+      const nyEierMedlem = await ctx.prisma.projectMember.findFirst({
+        where: {
+          userId: input.nyEierUserId,
+          projectId,
+          enterprises: { some: { enterpriseId: oppgave.bestillerEnterpriseId } },
+        },
+      });
+
+      if (!nyEierMedlem) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Ny eier må tilhøre samme entreprise som dokumentet",
+        });
+      }
+
+      return ctx.prisma.task.update({
+        where: { id: input.id },
+        data: { eierUserId: input.nyEierUserId },
       });
     }),
 

@@ -268,6 +268,8 @@ export const addDokumentflytMedlemSchema = z.object({
   groupId: z.string().uuid().optional(),
   rolle: dokumentflytRolleSchema,
   steg: z.number().int().min(1).default(1),
+  kanRedigere: z.boolean().default(true),
+  låsesEtterPasseringer: z.number().int().min(1).nullable().optional(),
 });
 
 export const removeDokumentflytMedlemSchema = z.object({
