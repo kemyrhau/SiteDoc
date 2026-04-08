@@ -69,8 +69,9 @@ const STATUS_ALTERNATIVER = [
 
 const FILTRERBARE_TYPER = new Set([
   "list_single", "list_multi", "traffic_light",
-  "text_field", "integer", "decimal",
-  "date", "date_time", "person", "company",
+  "text_field", "integer", "decimal", "calculation",
+  "date", "date_time", "person", "persons", "company",
+  "signature",
 ]);
 
 interface KolonneParam {
@@ -156,10 +157,43 @@ function formaterDato(dato: string | null): string {
   return new Date(dato).toLocaleDateString("nb-NO", { day: "numeric", month: "short", year: "numeric" });
 }
 
-function hentFeltVerdi(rad: SjekklisteRad, objektId: string): string {
+function hentFeltVerdi(
+  rad: SjekklisteRad,
+  objektId: string,
+  objektType?: string,
+  navneLookup?: Map<string, string>,
+): string {
   if (!rad.data) return "—";
   const verdi = rad.data[objektId];
   if (verdi == null || verdi === "") return "—";
+
+  // Signatur: vis ✓ eller —
+  if (objektType === "signature") return verdi ? "✓" : "—";
+
+  // Dato: norsk format
+  if (objektType === "date" && typeof verdi === "string") {
+    try { return new Date(verdi).toLocaleDateString("nb-NO", { day: "numeric", month: "short", year: "numeric" }); } catch { return String(verdi); }
+  }
+  if (objektType === "date_time" && typeof verdi === "string") {
+    try { return new Date(verdi).toLocaleDateString("nb-NO", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }); } catch { return String(verdi); }
+  }
+
+  // Trafikklys: norsk tekst
+  if (objektType === "traffic_light" && typeof verdi === "string") {
+    const TRAFIKKLYS: Record<string, string> = { green: "🟢", yellow: "🟡", red: "🔴", gray: "⚪" };
+    return TRAFIKKLYS[verdi] ?? verdi;
+  }
+
+  // Person/firma: oppslag i navne-map
+  if ((objektType === "person" || objektType === "company") && typeof verdi === "string" && navneLookup) {
+    return navneLookup.get(verdi) ?? verdi;
+  }
+
+  // Flere personer: oppslag for hver
+  if (objektType === "persons" && Array.isArray(verdi) && navneLookup) {
+    return verdi.map((id) => navneLookup.get(String(id)) ?? String(id)).join(", ");
+  }
+
   if (typeof verdi === "string") return verdi;
   if (typeof verdi === "number") return String(verdi);
   if (typeof verdi === "boolean") return verdi ? "Ja" : "Nei";
@@ -343,6 +377,39 @@ export default function SjekklisteSide() {
     return [...sett.values()].sort((a, b) => (a.navn ?? "").localeCompare(b.navn ?? "", "nb-NO"));
   }, [sjekklister]);
 
+  // Map objektId → type for spesialformatering
+  const objektTyper = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const rad of sjekklister ?? []) {
+      for (const obj of rad.template?.objects ?? []) {
+        if (!map.has(obj.id)) map.set(obj.id, obj.type);
+      }
+    }
+    return map;
+  }, [sjekklister]);
+
+  // Navne-lookup for person/firma-IDer (fra dokumentflyt-medlemmer + entrepriser)
+  const navneLookup = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const df of dokumentflyter ?? []) {
+      for (const m of (df as { medlemmer?: { projectMember?: { user?: { id: string; name: string | null } } | null; enterprise?: { id: string; name: string } | null }[] }).medlemmer ?? []) {
+        if (m.projectMember?.user?.id && m.projectMember.user.name) {
+          map.set(m.projectMember.user.id, m.projectMember.user.name);
+        }
+        if (m.enterprise?.id && m.enterprise.name) {
+          map.set(m.enterprise.id, m.enterprise.name);
+        }
+      }
+    }
+    // Legg til fra sjekkliste-data (bestiller, entrepriser)
+    for (const rad of sjekklister ?? []) {
+      if (rad.bestiller?.name) map.set((rad as unknown as { bestillerUserId: string }).bestillerUserId ?? "", rad.bestiller.name);
+      if (rad.bestillerEnterprise) map.set((rad as unknown as { bestillerEnterpriseId: string }).bestillerEnterpriseId ?? "", rad.bestillerEnterprise.name);
+      if (rad.utforerEnterprise) map.set((rad as unknown as { utforerEnterpriseId: string }).utforerEnterpriseId ?? "", rad.utforerEnterprise.name);
+    }
+    return map;
+  }, [dokumentflyter, sjekklister]);
+
   const alleKolonner = useMemo(() => [...SYSTEM_KOLONNER, ...POSISJON_KOLONNER, ...verdiFelter], [verdiFelter]);
 
   // Utled aktivt flyt-ledd for en rad (for filter/sortering)
@@ -387,10 +454,11 @@ export default function SjekklisteSide() {
     };
     for (const felt of verdiFelter) {
       const objektId = felt.id.replace("felt:", "");
-      filter[felt.id] = bygg(data.map((s) => { const v = hentFeltVerdi(s, objektId); return v === "—" ? null : v; }));
+      const type = objektTyper.get(objektId);
+      filter[felt.id] = bygg(data.map((s) => { const v = hentFeltVerdi(s, objektId, type, navneLookup); return v === "—" ? null : v; }));
     }
     return filter;
-  }, [sjekklister, verdiFelter, t]);
+  }, [sjekklister, verdiFelter, t, objektTyper, navneLookup]);
 
   // Filtrer
   const filtrerte = useMemo(() => {
@@ -403,7 +471,10 @@ export default function SjekklisteSide() {
     for (const [kolId, verdi] of Object.entries(filterVerdier)) {
       if (!verdi) continue;
       resultat = resultat.filter((s) => {
-        if (kolId.startsWith("felt:")) return hentFeltVerdi(s, kolId.replace("felt:", "")) === verdi;
+        if (kolId.startsWith("felt:")) {
+          const oid = kolId.replace("felt:", "");
+          return hentFeltVerdi(s, oid, objektTyper.get(oid), navneLookup) === verdi;
+        }
         switch (kolId) {
           case "prefix": return s.template?.prefix === verdi;
           case "status": return s.status === verdi;
@@ -506,10 +577,11 @@ export default function SjekklisteSide() {
     // Dynamiske verdier
     for (const felt of verdiFelter) {
       const objektId = felt.id.replace("felt:", "");
+      const type = objektTyper.get(objektId);
       defs[felt.id] = {
         id: felt.id, header: felt.navn ?? felt.id,
-        celle: (rad) => { const v = hentFeltVerdi(rad, objektId); return v !== "—" ? <span className="text-xs text-gray-600">{v}</span> : <span className="text-gray-300">—</span>; },
-        sorterbar: true, sorterVerdi: (rad) => hentFeltVerdi(rad, objektId),
+        celle: (rad) => { const v = hentFeltVerdi(rad, objektId, type, navneLookup); return v !== "—" ? <span className="text-xs text-gray-600">{v}</span> : <span className="text-gray-300">—</span>; },
+        sorterbar: true, sorterVerdi: (rad) => hentFeltVerdi(rad, objektId, type, navneLookup),
         filtrerbar: (dynamiskFilter[felt.id]?.length ?? 0) > 0, filterAlternativer: dynamiskFilter[felt.id] ?? [],
       };
     }

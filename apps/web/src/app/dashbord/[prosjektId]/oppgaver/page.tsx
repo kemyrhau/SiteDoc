@@ -83,8 +83,9 @@ const prioritetFarge: Record<string, "default" | "primary" | "warning" | "danger
 // Felttyper som kan filtreres/vises som kolonner
 const FILTRERBARE_TYPER = new Set([
   "list_single", "list_multi", "traffic_light",
-  "text_field", "integer", "decimal",
-  "date", "date_time", "person", "company",
+  "text_field", "integer", "decimal", "calculation",
+  "date", "date_time", "person", "persons", "company",
+  "signature",
 ]);
 
 // --- Kolonnegrupper (Dalux-stil) ---
@@ -174,10 +175,38 @@ function formaterDato(dato: string | null): string {
   return new Date(dato).toLocaleDateString("nb-NO", { day: "numeric", month: "short", year: "numeric" });
 }
 
-function hentFeltVerdi(rad: OppgaveRad, objektId: string): string {
+function hentFeltVerdi(
+  rad: OppgaveRad,
+  objektId: string,
+  objektType?: string,
+  navneLookup?: Map<string, string>,
+): string {
   if (!rad.data) return "—";
   const verdi = rad.data[objektId];
   if (verdi == null || verdi === "") return "—";
+
+  if (objektType === "signature") return verdi ? "✓" : "—";
+
+  if (objektType === "date" && typeof verdi === "string") {
+    try { return new Date(verdi).toLocaleDateString("nb-NO", { day: "numeric", month: "short", year: "numeric" }); } catch { return String(verdi); }
+  }
+  if (objektType === "date_time" && typeof verdi === "string") {
+    try { return new Date(verdi).toLocaleDateString("nb-NO", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }); } catch { return String(verdi); }
+  }
+
+  if (objektType === "traffic_light" && typeof verdi === "string") {
+    const TRAFIKKLYS: Record<string, string> = { green: "🟢", yellow: "🟡", red: "🔴", gray: "⚪" };
+    return TRAFIKKLYS[verdi] ?? verdi;
+  }
+
+  if ((objektType === "person" || objektType === "company") && typeof verdi === "string" && navneLookup) {
+    return navneLookup.get(verdi) ?? verdi;
+  }
+
+  if (objektType === "persons" && Array.isArray(verdi) && navneLookup) {
+    return verdi.map((id) => navneLookup.get(String(id)) ?? String(id)).join(", ");
+  }
+
   if (typeof verdi === "string") return verdi;
   if (typeof verdi === "number") return String(verdi);
   if (typeof verdi === "boolean") return verdi ? "Ja" : "Nei";
@@ -393,6 +422,34 @@ export default function OppgaverSide() {
   }, [oppgaver]);
 
   // Alle tilgjengelige kolonner
+  // Map objektId → type for spesialformatering
+  const objektTyper = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const rad of oppgaver ?? []) {
+      for (const obj of rad.template?.objects ?? []) {
+        if (!map.has(obj.id)) map.set(obj.id, obj.type);
+      }
+    }
+    return map;
+  }, [oppgaver]);
+
+  // Navne-lookup for person/firma-IDer
+  const navneLookup = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const df of dokumentflyter ?? []) {
+      for (const m of (df as { medlemmer?: { projectMember?: { user?: { id: string; name: string | null } } | null; enterprise?: { id: string; name: string } | null }[] }).medlemmer ?? []) {
+        if (m.projectMember?.user?.id && m.projectMember.user.name) map.set(m.projectMember.user.id, m.projectMember.user.name);
+        if (m.enterprise?.id && m.enterprise.name) map.set(m.enterprise.id, m.enterprise.name);
+      }
+    }
+    for (const rad of oppgaver ?? []) {
+      if (rad.bestiller?.name) map.set((rad as unknown as { bestillerUserId: string }).bestillerUserId ?? "", rad.bestiller.name);
+      if (rad.bestillerEnterprise) map.set((rad as unknown as { bestillerEnterpriseId: string }).bestillerEnterpriseId ?? "", rad.bestillerEnterprise.name);
+      if (rad.utforerEnterprise) map.set((rad as unknown as { utforerEnterpriseId: string }).utforerEnterpriseId ?? "", rad.utforerEnterprise.name);
+    }
+    return map;
+  }, [dokumentflyter, oppgaver]);
+
   const alleKolonner = useMemo(() => [...SYSTEM_KOLONNER, ...POSISJON_KOLONNER, ...verdiFelter], [verdiFelter]);
 
   // Utled aktivt flyt-ledd for en rad (for filter/sortering)
@@ -436,14 +493,15 @@ export default function OppgaverSide() {
     // Verdier fra data-JSON
     for (const felt of verdiFelter) {
       const objektId = felt.id.replace("felt:", "");
+      const type = objektTyper.get(objektId);
       filter[felt.id] = bygg(oppgaver.map((o) => {
-        const v = hentFeltVerdi(o, objektId);
+        const v = hentFeltVerdi(o, objektId, type, navneLookup);
         return v === "—" ? null : v;
       }));
     }
 
     return filter;
-  }, [oppgaver, verdiFelter, t]);
+  }, [oppgaver, verdiFelter, t, objektTyper, navneLookup]);
 
   // Filtrer data
   const filtrerte = useMemo(() => {
@@ -457,7 +515,8 @@ export default function OppgaverSide() {
       if (!verdi) continue;
       resultat = resultat.filter((o) => {
         if (kolId.startsWith("felt:")) {
-          return hentFeltVerdi(o, kolId.replace("felt:", "")) === verdi;
+          const oid = kolId.replace("felt:", "");
+          return hentFeltVerdi(o, oid, objektTyper.get(oid), navneLookup) === verdi;
         }
         switch (kolId) {
           case "prefix": return o.template?.prefix === verdi;
@@ -646,15 +705,16 @@ export default function OppgaverSide() {
     // Dynamiske verdier-kolonner
     for (const felt of verdiFelter) {
       const objektId = felt.id.replace("felt:", "");
+      const type = objektTyper.get(objektId);
       defs[felt.id] = {
         id: felt.id, header: felt.navn,
         celle: (rad) => {
-          const v = hentFeltVerdi(rad, objektId);
+          const v = hentFeltVerdi(rad, objektId, type, navneLookup);
           return v !== "—"
             ? <span className="text-xs text-gray-600">{v}</span>
             : <span className="text-gray-300">—</span>;
         },
-        sorterbar: true, sorterVerdi: (rad) => hentFeltVerdi(rad, objektId),
+        sorterbar: true, sorterVerdi: (rad) => hentFeltVerdi(rad, objektId, type, navneLookup),
         filtrerbar: (dynamiskFilter[felt.id]?.length ?? 0) > 0,
         filterAlternativer: dynamiskFilter[felt.id] ?? [],
       };
