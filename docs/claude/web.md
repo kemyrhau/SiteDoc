@@ -234,17 +234,40 @@ Forhåndsdefinerte emnekategorier i `@sitedoc/shared`: HMS (14), Kvalitet (15), 
 
 Ved sending og videresending av oppgaver/sjekklister sendes e-post til mottaker (person eller alle i gruppe) via Resend. Inneholder dokumentinfo, avsendernavn, kommentar og direktelenke. Fire-and-forget — blokkerer ikke statusendring.
 
-## Statushandlinger
+## Statushandlinger og rollebasert UI
 
-- **Utkast**: `Send` + `Slett` (sletter helt med bekreftelse)
-- **Sendt**: `Avbryt`
-- **Mottatt/Under arbeid**: Statusknapper + `Videresend` + `Avbryt`
-- **Besvart**: `Godkjenn` + `Avvis` + `Videresend`
-- **Avvist**: `Start arbeid igjen` + `Videresend`
-- **Godkjent**: `Lukk` + `Videresend`
-- **Avbrutt**: `Gjenåpne` (→ draft) + `Slett`
+### DokumentHandlingsmeny
+Kompakt handlingsmeny i sticky header (`apps/web/src/components/DokumentHandlingsmeny.tsx`). Primærhandling som knapp, sekundære i dropdown (ChevronDown). Rolle-badge viser brukerens flytrolle.
+
+### Rollebaserte knapper
+`utledMinRolle()` fra `@sitedoc/shared` mapper bruker → rolle i dokumentflyten. `hentRolleFiltrertHandlinger()` filtrerer knapper:
+
+| Status | registrator | bestiller | utfører | godkjenner |
+|--------|-------------|-----------|---------|------------|
+| draft | Send, Slett | Send, Slett | — | — |
+| sent | Avbryt | Avbryt | — | — |
+| received | Besvar, Videresend | — | Besvar, Videresend | — |
+| in_progress | Besvar, Tilbake, Videresend | — | Besvar, Tilbake, Videresend | — |
+| responded | Godkjenn, Tilbake, Videresend | — | — | Godkjenn, Tilbake, Videresend |
+| rejected | Besvar, Videresend, Lukk | — | Besvar, Videresend | — |
+| approved | Lukk, Videresend | Lukk | — | — |
+| cancelled | Gjenåpne, Slett | Gjenåpne | — | — |
+
+- `null`-rolle = lesevisning (ingen knapper)
+- Admin/registrator ser alle knapper
+- **Send tilbake**: `in_progress → sent` (utfører → bestiller), `responded → rejected` (godkjenner → utfører)
+- **Besvar direkte**: `received → responded` — «Start arbeid» fjernet, utfører besvarer direkte
+- **API:** `gruppe.hentMinFlytInfo` returnerer brukerens `projectMemberId`, `entrepriseIder`, `gruppeIder`, `erAdmin`
+- **API-validering:** `verifiserFlytRolle()` i backend sjekker rolle før statusendring (403 ved mismatch)
+- **Videresend med flytbytte:** Ved videresending til annen entreprise oppdateres `dokumentflytId` + `utforerEnterpriseId` automatisk
 - Videresend krever mottakervalg (person/gruppe). Mobil filtrerer ut `forwarded`/`deleted` (krever spesialbehandling)
 - `cancelled → draft` er gyldig overgang (gjenåpning)
+
+### Sticky header
+Detaljsider (sjekkliste/oppgave) har sticky header med tittel, StatusBadge, rolle-badge og handlingsmeny. Layout: `<main>` i sjekklister/oppgaver-layout har `px-6 pb-6` (IKKE pt) slik at `sticky top-0` fester seg helt øverst. Listesidene har `pt-6` på rot-div.
+
+### TODO: Mobilapp
+Mobilappen bruker `hentStatusHandlinger()` direkte — skal migreres til `hentRolleFiltrertHandlinger()` med `utledMinRolle()` for konsistent rollebasert UI.
 
 ## Bildevedlegg
 
