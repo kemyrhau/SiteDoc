@@ -202,15 +202,14 @@ export default function UtskriftSjekklisteSide() {
                     <img
                       src={logoSrc(prosjekt.logoUrl)}
                       alt="Firmalogo"
-                      className="max-h-[60px] max-w-[120px] object-contain"
+                      className="h-[50px] w-auto shrink-0 object-contain"
                     />
                   )}
                   <div>
-                    {vis("prosjektnavn") && (
-                      <p className="text-base font-bold text-gray-900">{prosjekt?.name ?? ""}</p>
-                    )}
-                    {prosjektnummer && (
-                      <p className="text-sm font-medium text-gray-700">{prosjektnummer}</p>
+                    {(prosjektnummer || vis("prosjektnavn")) && (
+                      <p className="text-base font-bold text-gray-900">
+                        {prosjektnummer}{prosjektnummer && vis("prosjektnavn") && " · "}{vis("prosjektnavn") && (prosjekt?.name ?? "")}
+                      </p>
                     )}
                     {lokTegn.length > 0 && (
                       <p className="text-xs text-gray-500">{lokTegn.join(" · ")}</p>
