@@ -134,7 +134,7 @@ export default function SjekklisteDetaljSide() {
   const minRolle = useMemo(() => {
     if (!minFlytInfo || !sjekkliste) return undefined; // Venter på data
     const sj = sjekkliste as unknown as { dokumentflytId?: string | null; bestillerEnterprise?: { id: string }; utforerEnterprise?: { id: string } };
-    if (!sj.dokumentflytId) return null; // Ingen flyt → ingen rolle
+    if (!sj.dokumentflytId) return undefined; // Ingen flyt → ufiltrerte handlinger
     const flyt = dokumentflyter.find((df) => df.id === sj.dokumentflytId);
     if (!flyt) return null;
     const medlemmer = flyt.medlemmer.map((m): FlytMedlemInfo => ({

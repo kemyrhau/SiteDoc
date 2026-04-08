@@ -242,7 +242,7 @@ export default function OppgaveDetaljSide() {
   const minRolle = useMemo(() => {
     if (!minFlytInfo || !oppgave) return undefined;
     const op = oppgave as unknown as { dokumentflytId?: string | null; bestillerEnterprise?: { id: string }; utforerEnterprise?: { id: string } };
-    if (!op.dokumentflytId) return null;
+    if (!op.dokumentflytId) return undefined; // Ingen flyt → ufiltrerte handlinger
     const flyt = dokumentflyter.find((df) => df.id === op.dokumentflytId);
     if (!flyt) return null;
     const medlemmer = flyt.medlemmer.map((m): FlytMedlemInfo => ({
