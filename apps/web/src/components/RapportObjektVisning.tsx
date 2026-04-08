@@ -610,9 +610,9 @@ export function TegningPosisjonPrint({ pos }: { pos: TegningPosisjonVerdi }) {
     <div className="print-no-break">
       <p className="mb-2 text-sm font-medium text-gray-700">{visNavn}</p>
 
-      <div className="flex gap-3">
-        {/* Oversiktsbilde med markør — kvadrat */}
-        <div className="relative w-1/2 overflow-hidden rounded border border-gray-200" style={{ aspectRatio: "1/1" }}>
+      <div className="grid grid-cols-2 gap-3">
+        {/* Oversiktsbilde med markør */}
+        <div className="relative overflow-hidden rounded border border-gray-200" style={{ aspectRatio: "5/4" }}>
           <img
             src={bildeSrc}
             alt={drawingName}
@@ -635,8 +635,8 @@ export function TegningPosisjonPrint({ pos }: { pos: TegningPosisjonVerdi }) {
           />
         </div>
 
-        {/* Detaljutsnitt — kvadrat */}
-        <div className="relative w-1/2 overflow-hidden rounded border border-gray-200" style={{ aspectRatio: "1/1" }}>
+        {/* Detaljutsnitt */}
+        <div className="relative overflow-hidden rounded border border-gray-200" style={{ aspectRatio: "5/4" }}>
           <img
             src={bildeSrc}
             alt={`Detalj: ${drawingName}`}
