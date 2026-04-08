@@ -12,20 +12,29 @@
   display: none;
 }
 
-/* A4-forhåndsvisning: visuell sidekant med repeating gradient */
-/* 1123px = 297mm ved 96dpi. 16px gap mellom "ark". */
+/* A4-forhåndsvisning: visuell sidekant */
+/* 1123px = 297mm ved 96dpi */
 .a4-ark {
+  position: relative;
+}
+
+/* Horisontale linjer som markerer sidekanter */
+.a4-ark::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10;
   background:
     repeating-linear-gradient(
       to bottom,
-      white 0px,
-      white 1123px,
-      #e5e7eb 1123px,
-      #e5e7eb 1125px,
-      transparent 1125px,
+      transparent 0px,
+      transparent 1121px,
+      #94a3b8 1121px,
+      #94a3b8 1123px,
+      transparent 1123px,
       transparent 1139px
     );
-  background-clip: padding-box;
 }
 
 /* Unngå at seksjoner og bilder deles mellom visuelle sider */
@@ -74,6 +83,10 @@
     box-shadow: none !important;
     border-radius: 0 !important;
     background: white !important;
+  }
+
+  .a4-ark::after {
+    display: none !important;
   }
 
   /* Vis print-header */
