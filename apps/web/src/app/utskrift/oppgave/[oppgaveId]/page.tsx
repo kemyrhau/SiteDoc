@@ -164,7 +164,7 @@ export default function UtskriftOppgaveSide() {
       {/* A4-ark — 210mm bredde, 15mm padding matcher @page margin */}
       <div className="a4-ark mx-auto mt-8 min-h-[297mm] w-[794px] rounded bg-white px-[15mm] py-[15mm] shadow-lg print:mt-0 print:min-h-0 print:w-auto print:max-w-none print:rounded-none print:px-0 print:py-0 print:shadow-none">
         {/* Header */}
-        <div className="mb-6 border border-gray-300">
+        <div className="mb-6 border border-gray-300 print-no-break">
           {/* Rad 1: Prosjekt */}
           <div className="flex items-start justify-between border-b border-gray-300 px-4 py-2">
             <div className="flex items-start gap-4">
@@ -344,7 +344,7 @@ function FeltVedlegg({
   const filer = vedlegg?.filter((v) => !bilder.includes(v)) ?? [];
 
   return (
-    <div className="ml-0 mt-1 border-t border-gray-100 pt-1">
+    <div className="ml-0 mt-1 border-t border-gray-100 pt-1 print-no-break">
       {harKommentar && (
         <p className="text-xs italic text-gray-500">{kommentar}</p>
       )}

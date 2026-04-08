@@ -12,6 +12,29 @@
   display: none;
 }
 
+/* A4-forhåndsvisning: visuell sidekant med repeating gradient */
+/* 1123px = 297mm ved 96dpi. 16px gap mellom "ark". */
+.a4-ark {
+  background:
+    repeating-linear-gradient(
+      to bottom,
+      white 0px,
+      white 1123px,
+      #e5e7eb 1123px,
+      #e5e7eb 1125px,
+      transparent 1125px,
+      transparent 1139px
+    );
+  background-clip: padding-box;
+}
+
+/* Unngå at seksjoner og bilder deles mellom visuelle sider */
+.a4-ark .print-no-break,
+.a4-ark img,
+.a4-ark table {
+  break-inside: avoid;
+}
+
 @media print {
   /* A4-sideoppsett */
   @page {
@@ -41,7 +64,7 @@
     max-width: 100% !important;
   }
 
-  /* A4-ark i utskrift: ingen padding/margin (håndteres av @page) */
+  /* A4-ark i utskrift: ingen padding/margin/bakgrunn (håndteres av @page) */
   .a4-ark {
     width: 100% !important;
     max-width: 100% !important;
@@ -50,6 +73,7 @@
     min-height: 0 !important;
     box-shadow: none !important;
     border-radius: 0 !important;
+    background: white !important;
   }
 
   /* Vis print-header */
