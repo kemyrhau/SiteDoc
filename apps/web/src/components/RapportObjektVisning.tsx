@@ -98,11 +98,14 @@ export function RapportObjektVisning({
   verdi,
   nestingNivå = 0,
   data,
+  prosjektAdresse,
 }: {
   objekt: TreObjekt;
   verdi: unknown;
   nestingNivå?: number;
   data?: Record<string, { verdi?: unknown }>;
+  /** Prosjektadresse — brukes for location-felt som ikke lagres i data */
+  prosjektAdresse?: string | null;
 }) {
   const marginKlasse =
     nestingNivå === 1
@@ -115,7 +118,7 @@ export function RapportObjektVisning({
 
   return (
     <div className={marginKlasse}>
-      <ObjektInnhold objekt={objekt} verdi={verdi} data={data} />
+      <ObjektInnhold objekt={objekt} verdi={verdi} data={data} prosjektAdresse={prosjektAdresse} />
       {objekt.children.length > 0 && (
         <div className="mt-1">
           {objekt.children.map((barn) => {
@@ -127,6 +130,7 @@ export function RapportObjektVisning({
                 verdi={barnVerdi}
                 nestingNivå={nestingNivå + 1}
                 data={data}
+                prosjektAdresse={prosjektAdresse}
               />
             );
           })}
@@ -201,10 +205,12 @@ function ObjektInnhold({
   objekt,
   verdi,
   data,
+  prosjektAdresse,
 }: {
   objekt: TreObjekt;
   verdi: unknown;
   data?: Record<string, { verdi?: unknown }>;
+  prosjektAdresse?: string | null;
 }) {
   const { type, label } = objekt;
 
@@ -417,7 +423,7 @@ function ObjektInnhold({
     }
 
     case "location": {
-      const tekst = typeof verdi === "string" ? verdi : "";
+      const tekst = typeof verdi === "string" && verdi ? verdi : (prosjektAdresse ?? "");
       return (
         <FeltRad label={label} tom={!tekst}>
           <p className="text-sm text-gray-900">{tekst}</p>
@@ -464,6 +470,7 @@ function ObjektInnhold({
                         verdi={barnVerdi}
                         nestingNivå={0}
                         data={data}
+                        prosjektAdresse={prosjektAdresse}
                       />
                       <RepeaterBarnVedlegg vedlegg={barnVedlegg} kommentar={barnKommentar} />
                     </div>

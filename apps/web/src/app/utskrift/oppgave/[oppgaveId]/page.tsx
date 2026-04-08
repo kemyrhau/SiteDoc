@@ -301,6 +301,7 @@ export default function UtskriftOppgaveSide() {
                   verdi={feltData?.verdi ?? null}
                   nestingNivå={0}
                   data={data}
+                  prosjektAdresse={prosjekt?.address}
                 />
                 <FeltVedlegg vedlegg={feltData?.vedlegg} kommentar={feltData?.kommentar} />
               </div>

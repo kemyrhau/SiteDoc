@@ -256,6 +256,7 @@ export default function UtskriftSjekklisteSide() {
                   verdi={feltData?.verdi ?? null}
                   nestingNivå={0}
                   data={data}
+                  prosjektAdresse={prosjekt?.address}
                 />
                 {/* Vedlegg under hvert felt */}
                 <FeltVedlegg vedlegg={feltData?.vedlegg} kommentar={feltData?.kommentar} />
