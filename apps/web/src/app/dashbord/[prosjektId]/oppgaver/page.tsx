@@ -357,6 +357,7 @@ export default function OppgaverSide() {
       utforerEnterpriseId: svarerEntrepriseId,
       title: mal?.name ?? "Ny oppgave",
       priority: "medium",
+      dokumentflytId: matchDf?.id,
     });
   }
 

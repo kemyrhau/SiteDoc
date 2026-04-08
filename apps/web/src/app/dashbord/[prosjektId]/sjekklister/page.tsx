@@ -292,6 +292,7 @@ export default function SjekklisteSide() {
       templateId: malId,
       bestillerEnterpriseId: oppretter.id,
       utforerEnterpriseId: svarer?.enterprise?.id ?? oppretter.id,
+      dokumentflytId: matchDf?.id,
     });
   }
 
