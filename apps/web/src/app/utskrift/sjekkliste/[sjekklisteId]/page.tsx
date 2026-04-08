@@ -82,6 +82,7 @@ export default function UtskriftSjekklisteSide() {
     positionX?: number | null;
     positionY?: number | null;
     drawing?: { id: string; name: string; drawingNumber: string | null } | null;
+    createdAt?: string;
   } | undefined;
 
   const { data: prosjekt } = trpc.prosjekt.hentMedId.useQuery(
@@ -124,11 +125,12 @@ export default function UtskriftSjekklisteSide() {
     return deler.length > 0 ? deler.join(", ") : null;
   }, [sjekkliste?.template?.objects, data]);
 
-  const dato = new Date().toLocaleDateString("nb-NO", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
+  const dato = sjekkliste?.createdAt
+    ? new Date(sjekkliste.createdAt).toLocaleDateString("nb-NO", { day: "2-digit", month: "2-digit", year: "numeric" })
+    : new Date().toLocaleDateString("nb-NO", { day: "2-digit", month: "2-digit", year: "numeric" });
+  const klokkeslett = sjekkliste?.createdAt
+    ? new Date(sjekkliste.createdAt).toLocaleTimeString("nb-NO", { hour: "2-digit", minute: "2-digit" })
+    : "";
 
   if (isLoading) {
     return (
@@ -178,10 +180,22 @@ export default function UtskriftSjekklisteSide() {
         {/* Header — styrt av utskriftsinnstillinger */}
         {(() => {
           const ui = (prosjekt as unknown as { utskriftsinnstillinger?: Record<string, boolean> | null })?.utskriftsinnstillinger;
-          const vis = (felt: string) => ui?.[felt] ?? true; // Default: vis alt
+          const vis = (felt: string) => ui?.[felt] ?? true;
+          const prosjektnummer = vis("eksternProsjektnummer") && prosjekt?.externalProjectNumber
+            ? prosjekt.externalProjectNumber
+            : (prosjekt as { showInternalProjectNumber?: boolean } | undefined)?.showInternalProjectNumber !== false
+              ? prosjekt?.projectNumber
+              : null;
+          const lokTegn: string[] = [];
+          if (vis("lokasjon") && sjekkliste.byggeplass?.name) lokTegn.push(sjekkliste.byggeplass.name);
+          if (vis("tegningsnummer") && sjekkliste.drawing) {
+            lokTegn.push(sjekkliste.drawing.drawingNumber
+              ? `${sjekkliste.drawing.drawingNumber} ${sjekkliste.drawing.name}`
+              : sjekkliste.drawing.name);
+          }
           return (
             <div className="mb-6 border border-gray-300 print-no-break">
-              {/* Rad 1: Prosjekt med logo */}
+              {/* Rad 1: Logo + prosjektnummer + lokasjon + dato */}
               <div className="flex items-start justify-between border-b border-gray-300 px-4 py-2">
                 <div className="flex items-start gap-4">
                   {vis("logo") && prosjekt?.logoUrl && (
@@ -195,62 +209,39 @@ export default function UtskriftSjekklisteSide() {
                     {vis("prosjektnavn") && (
                       <p className="text-base font-bold text-gray-900">{prosjekt?.name ?? ""}</p>
                     )}
-                    <p className="text-xs text-gray-600">
-                      {vis("eksternProsjektnummer") && prosjekt?.externalProjectNumber ? (
-                        <>Prosjektnr: {prosjekt.externalProjectNumber}</>
-                      ) : (
-                        (prosjekt as { showInternalProjectNumber?: boolean } | undefined)?.showInternalProjectNumber !== false && (
-                          <>Prosjektnr: {prosjekt?.projectNumber ?? ""}</>
-                        )
-                      )}
-                    </p>
-                    {prosjekt?.address && (
-                      <p className="text-xs text-gray-500">Adresse: {prosjekt.address}</p>
+                    {prosjektnummer && (
+                      <p className="text-sm font-medium text-gray-700">{prosjektnummer}</p>
                     )}
-                    {(vis("lokasjon") || vis("tegningsnummer")) && (sjekkliste.byggeplass || sjekkliste.drawing) && (
-                      <p className="text-xs text-gray-500">
-                        {vis("lokasjon") && sjekkliste.byggeplass && <>Lokasjon: {sjekkliste.byggeplass.name}</>}
-                        {vis("lokasjon") && sjekkliste.byggeplass && vis("tegningsnummer") && sjekkliste.drawing && <> &middot; </>}
-                        {vis("tegningsnummer") && sjekkliste.drawing && (
-                          <>Tegning: {sjekkliste.drawing.drawingNumber ? `${sjekkliste.drawing.drawingNumber} ` : ""}{sjekkliste.drawing.name}</>
-                        )}
-                      </p>
+                    {lokTegn.length > 0 && (
+                      <p className="text-xs text-gray-500">{lokTegn.join(" · ")}</p>
                     )}
                   </div>
                 </div>
-                <p className="whitespace-nowrap text-xs text-gray-600">Dato: {dato}</p>
+                <p className="whitespace-nowrap text-xs text-gray-600">{dato}{klokkeslett && ` ${klokkeslett}`}</p>
               </div>
 
-              {/* Rad 2: Sjekkliste */}
+              {/* Rad 2: Dokumenttittel + Fra→Til + nummer */}
               <div className="flex items-center justify-between border-b border-gray-300 px-4 py-2">
                 <div>
-                  <p className="text-sm font-semibold text-gray-900">
-                    Sjekkliste: {sjekkliste.title}
-                  </p>
-                  {vis("fraTil") && (
+                  <p className="text-sm font-semibold text-gray-900">{sjekkliste.title}</p>
+                  {vis("fraTil") && sjekkliste.bestillerEnterprise && (
                     <p className="text-xs text-gray-600">
-                      {sjekkliste.bestillerEnterprise && (
-                        <>
-                          Oppretter: {sjekkliste.bestillerEnterprise.name}
-                          {sjekkliste.bestiller?.name && ` (${sjekkliste.bestiller.name})`}
-                        </>
-                      )}
-                      {sjekkliste.bestillerEnterprise && sjekkliste.utforerEnterprise && <> &middot; </>}
-                      {sjekkliste.utforerEnterprise && (
-                        <>Svarer: {sjekkliste.utforerEnterprise.name}</>
-                      )}
+                      {sjekkliste.bestiller?.name
+                        ? `${sjekkliste.bestiller.name} (${sjekkliste.bestillerEnterprise.name})`
+                        : sjekkliste.bestillerEnterprise.name}
+                      {sjekkliste.utforerEnterprise && ` → ${sjekkliste.utforerEnterprise.name}`}
                     </p>
                   )}
                 </div>
                 {sjekklisteNummer && (
-                  <p className="text-sm font-medium text-gray-700">Nr: {sjekklisteNummer}</p>
+                  <p className="text-sm font-medium text-gray-700">{sjekklisteNummer}</p>
                 )}
               </div>
 
               {/* Rad 3: Vær */}
               {vis("vaer") && vaerTekst && (
-                <div className="px-4 py-2">
-                  <p className="text-xs text-gray-600">Vær: {vaerTekst}</p>
+                <div className="px-4 py-1.5">
+                  <p className="text-xs text-gray-600">{vaerTekst}</p>
                 </div>
               )}
             </div>

@@ -90,6 +90,7 @@ export default function UtskriftOppgaveSide() {
     drawing?: { id: string; name: string; drawingNumber: string | null; fileUrl?: string | null; byggeplass?: { id: string; name: string } | null } | null;
     positionX?: number | null;
     positionY?: number | null;
+    createdAt?: string;
   } | undefined;
 
   const { data: prosjekt } = trpc.prosjekt.hentMedId.useQuery(
@@ -112,11 +113,12 @@ export default function UtskriftOppgaveSide() {
     return prefix ? `${prefix}-${nummerPad}` : nummerPad;
   }, [oppgave?.number, oppgave?.template?.prefix]);
 
-  const dato = new Date().toLocaleDateString("nb-NO", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
+  const dato = oppgave?.createdAt
+    ? new Date(oppgave.createdAt).toLocaleDateString("nb-NO", { day: "2-digit", month: "2-digit", year: "numeric" })
+    : new Date().toLocaleDateString("nb-NO", { day: "2-digit", month: "2-digit", year: "numeric" });
+  const klokkeslett = oppgave?.createdAt
+    ? new Date(oppgave.createdAt).toLocaleTimeString("nb-NO", { hour: "2-digit", minute: "2-digit" })
+    : "";
 
   if (isLoading) {
     return (
@@ -167,9 +169,21 @@ export default function UtskriftOppgaveSide() {
         {(() => {
           const ui = (prosjekt as unknown as { utskriftsinnstillinger?: Record<string, boolean> | null })?.utskriftsinnstillinger;
           const vis = (felt: string) => ui?.[felt] ?? true;
+          const prosjektnummer = vis("eksternProsjektnummer") && prosjekt?.externalProjectNumber
+            ? prosjekt.externalProjectNumber
+            : (prosjekt as { showInternalProjectNumber?: boolean } | undefined)?.showInternalProjectNumber !== false
+              ? prosjekt?.projectNumber
+              : null;
+          const lokTegn: string[] = [];
+          if (vis("lokasjon") && oppgave.drawing?.byggeplass?.name) lokTegn.push(oppgave.drawing.byggeplass.name);
+          if (vis("tegningsnummer") && oppgave.drawing) {
+            lokTegn.push(oppgave.drawing.drawingNumber
+              ? `${oppgave.drawing.drawingNumber} ${oppgave.drawing.name}`
+              : oppgave.drawing.name);
+          }
           return (
             <div className="mb-6 border border-gray-300 print-no-break">
-              {/* Rad 1: Prosjekt */}
+              {/* Rad 1: Logo + prosjektnummer + lokasjon + dato */}
               <div className="flex items-start justify-between border-b border-gray-300 px-4 py-2">
                 <div className="flex items-start gap-4">
                   {vis("logo") && prosjekt?.logoUrl && (
@@ -183,67 +197,44 @@ export default function UtskriftOppgaveSide() {
                     {vis("prosjektnavn") && (
                       <p className="text-base font-bold text-gray-900">{prosjekt?.name ?? ""}</p>
                     )}
-                    <p className="text-xs text-gray-600">
-                      {vis("eksternProsjektnummer") && prosjekt?.externalProjectNumber ? (
-                        <>Prosjektnr: {prosjekt.externalProjectNumber}</>
-                      ) : (
-                        (prosjekt as { showInternalProjectNumber?: boolean } | undefined)?.showInternalProjectNumber !== false && (
-                          <>Prosjektnr: {prosjekt?.projectNumber ?? ""}</>
-                        )
-                      )}
-                    </p>
-                    {prosjekt?.address && (
-                      <p className="text-xs text-gray-500">Adresse: {prosjekt.address}</p>
+                    {prosjektnummer && (
+                      <p className="text-sm font-medium text-gray-700">{prosjektnummer}</p>
                     )}
-                    {(vis("lokasjon") || vis("tegningsnummer")) && oppgave.drawing && (
-                      <p className="text-xs text-gray-500">
-                        {vis("lokasjon") && oppgave.drawing.byggeplass && <>Lokasjon: {oppgave.drawing.byggeplass.name}</>}
-                        {vis("lokasjon") && oppgave.drawing.byggeplass && vis("tegningsnummer") && <> &middot; </>}
-                        {vis("tegningsnummer") && (
-                          <>Tegning: {oppgave.drawing.drawingNumber ? `${oppgave.drawing.drawingNumber} ` : ""}{oppgave.drawing.name}</>
-                        )}
-                      </p>
+                    {lokTegn.length > 0 && (
+                      <p className="text-xs text-gray-500">{lokTegn.join(" · ")}</p>
                     )}
                   </div>
                 </div>
-                <p className="whitespace-nowrap text-xs text-gray-600">Dato: {dato}</p>
+                <p className="whitespace-nowrap text-xs text-gray-600">{dato}{klokkeslett && ` ${klokkeslett}`}</p>
               </div>
 
-              {/* Rad 2: Oppgave */}
+              {/* Rad 2: Dokumenttittel + Fra→Til + nummer */}
               <div className="flex items-center justify-between border-b border-gray-300 px-4 py-2">
                 <div>
-                  <p className="text-sm font-semibold text-gray-900">
-                    Oppgave: {oppgave.title}
-                  </p>
-                  {vis("fraTil") && (
+                  <p className="text-sm font-semibold text-gray-900">{oppgave.title}</p>
+                  {vis("fraTil") && oppgave.bestillerEnterprise && (
                     <p className="text-xs text-gray-600">
-                      {oppgave.bestillerEnterprise && (
-                        <>
-                          Bestiller: {oppgave.bestillerEnterprise.name}
-                          {oppgave.bestiller?.name && ` (${oppgave.bestiller.name})`}
-                        </>
-                      )}
-                      {oppgave.bestillerEnterprise && oppgave.utforerEnterprise && <> &middot; </>}
-                      {oppgave.utforerEnterprise && (
-                        <>Utfører: {oppgave.utforerEnterprise.name}</>
-                      )}
+                      {oppgave.bestiller?.name
+                        ? `${oppgave.bestiller.name} (${oppgave.bestillerEnterprise.name})`
+                        : oppgave.bestillerEnterprise.name}
+                      {oppgave.utforerEnterprise && ` → ${oppgave.utforerEnterprise.name}`}
                     </p>
                   )}
                 </div>
                 <div className="text-right">
                   {oppgaveNummer && (
-                    <p className="text-sm font-medium text-gray-700">Nr: {oppgaveNummer}</p>
+                    <p className="text-sm font-medium text-gray-700">{oppgaveNummer}</p>
                   )}
                   {oppgave.template?.showPriority !== false && oppgave.priority && (
-                    <p className="text-xs text-gray-500">Prioritet: {PRIORITETS_TEKST[oppgave.priority] ?? oppgave.priority}</p>
+                    <p className="text-xs text-gray-500">{PRIORITETS_TEKST[oppgave.priority] ?? oppgave.priority}</p>
                   )}
                 </div>
               </div>
 
               {/* Rad 3: Beskrivelse */}
               {oppgave.description && (
-                <div className="px-4 py-2">
-                  <p className="text-xs text-gray-600">Beskrivelse: {oppgave.description}</p>
+                <div className="px-4 py-1.5">
+                  <p className="text-xs text-gray-600">{oppgave.description}</p>
                 </div>
               )}
             </div>
