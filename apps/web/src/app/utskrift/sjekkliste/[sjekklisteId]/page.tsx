@@ -40,18 +40,14 @@ interface TreNode extends RapportObjektRå {
 /* ------------------------------------------------------------------ */
 
 function logoSrc(url: string): string {
-  if (url.startsWith("/uploads/")) {
-    const relativ = `/api/uploads${url.replace("/uploads", "")}`;
-    // Absolutt URL for print-kontekst (nettlesere kan strippe relative bilder i print)
-    if (typeof window !== "undefined") return `${window.location.origin}${relativ}`;
-    return relativ;
-  }
+  // /uploads/uuid.png → /api/uploads/uuid.png (Next.js rewrite til API)
+  if (url.startsWith("/uploads/")) return `/api${url}`;
   return url;
 }
 
 function vedleggSrc(url: string): string {
   if (url.startsWith("http") || url.startsWith("data:") || url.startsWith("blob:")) return url;
-  if (url.startsWith("/uploads/")) return `/api/uploads${url.replace("/uploads", "")}`;
+  if (url.startsWith("/uploads/")) return `/api${url}`;
   return url;
 }
 
