@@ -177,7 +177,7 @@ export default function UtskriftSjekklisteSide() {
       </div>
 
       {/* A4-ark — 210mm bredde, 15mm padding matcher @page margin */}
-      <div className="a4-ark mx-auto mt-8 min-h-[297mm] w-[794px] rounded bg-white px-[15mm] py-[15mm] shadow-lg print:mt-0 print:min-h-0 print:w-auto print:max-w-none print:rounded-none print:px-0 print:py-0 print:shadow-none">
+      <div className="a4-ark mx-auto mt-8 w-[794px] rounded bg-white px-[15mm] py-[15mm] shadow-lg print:mt-0 print:w-auto print:max-w-none print:rounded-none print:px-0 print:py-0 print:shadow-none">
         {/* Header — styrt av utskriftsinnstillinger */}
         {(() => {
           const ui = (prosjekt as unknown as { utskriftsinnstillinger?: Record<string, boolean> | null })?.utskriftsinnstillinger;
