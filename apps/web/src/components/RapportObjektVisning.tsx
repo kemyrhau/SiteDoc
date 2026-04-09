@@ -77,14 +77,11 @@ function FeltRad({
   children: React.ReactNode;
   tom?: boolean;
 }) {
+  if (tom) return null;
   return (
     <div className="print-no-break py-2">
       <p className="text-xs font-medium text-gray-500">{label}</p>
-      {tom ? (
-        <p className="mt-0.5 text-sm italic text-gray-300">Ikke utfylt</p>
-      ) : (
-        <div className="mt-0.5">{children}</div>
-      )}
+      <div className="mt-0.5">{children}</div>
     </div>
   );
 }
