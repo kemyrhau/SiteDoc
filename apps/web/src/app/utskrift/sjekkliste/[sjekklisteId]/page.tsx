@@ -199,7 +199,7 @@ export default function UtskriftSjekklisteSide() {
           // eslint-disable-next-line no-console
           console.log("[Utskrift] prosjekt.logoUrl:", prosjekt?.logoUrl, "→ logoUrl:", logoUrl);
           return (
-            <div className="mb-6 border border-gray-300 print-no-break">
+            <div className="mb-6 border border-gray-300 print-no-break print-gjentakende-header">
               {/* Rad 1: Logo + prosjektnummer + lokasjon + dato */}
               <div className="flex items-start justify-between border-b border-gray-300 px-4 py-2">
                 <div className="flex items-start gap-4">
@@ -252,6 +252,7 @@ export default function UtskriftSjekklisteSide() {
           );
         })()}
 
+        <div className="print-innhold-med-header">
         {/* Lokasjonstegning med posisjon */}
         {sjekkliste.drawingId && sjekkliste.positionX != null && sjekkliste.positionY != null && (
           <div className="mb-3">
@@ -283,6 +284,7 @@ export default function UtskriftSjekklisteSide() {
             );
           })}
         </div>
+        </div>{/* /print-innhold-med-header */}
       </div>
     </div>
   );

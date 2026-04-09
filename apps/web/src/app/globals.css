@@ -118,6 +118,22 @@
     display: none !important;
   }
 
+  /* Gjentakende header på hver utskriftsside */
+  .print-gjentakende-header {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    padding: 10mm 15mm 0 15mm !important;
+    background: white !important;
+    z-index: 100;
+  }
+
+  /* Plass til gjentakende header over innholdet */
+  .print-innhold-med-header {
+    padding-top: 35mm !important;
+  }
+
   /* Vis print-header */
   .print-header {
     display: block !important;

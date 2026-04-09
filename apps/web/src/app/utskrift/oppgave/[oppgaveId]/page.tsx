@@ -185,7 +185,7 @@ export default function UtskriftOppgaveSide() {
           // eslint-disable-next-line no-console
           console.log("[Utskrift] prosjekt.logoUrl:", prosjekt?.logoUrl, "→ logoUrl:", logoUrl);
           return (
-            <div className="mb-6 border border-gray-300 print-no-break">
+            <div className="mb-6 border border-gray-300 print-no-break print-gjentakende-header">
               {/* Rad 1: Logo + prosjektnummer + lokasjon + dato */}
               <div className="flex items-start justify-between border-b border-gray-300 px-4 py-2">
                 <div className="flex items-start gap-4">
@@ -243,6 +243,7 @@ export default function UtskriftOppgaveSide() {
           );
         })()}
 
+        <div className="print-innhold-med-header">
         {/* Tegningsutsnitt */}
         {oppgave.drawing?.fileUrl && (
           <div className="mb-3 flex gap-3 rounded border border-gray-200 p-2">
@@ -325,6 +326,7 @@ export default function UtskriftOppgaveSide() {
             );
           })}
         </div>
+        </div>{/* /print-innhold-med-header */}
       </div>
     </div>
   );
