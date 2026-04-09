@@ -77,14 +77,13 @@ export default function UtskriftOppgaveSide() {
     description?: string | null;
     number?: number | null;
     data?: unknown;
-    projectId: string;
     template: {
       name: string;
       prefix?: string | null;
       objects: RapportObjektRå[];
       showPriority?: boolean;
     };
-    bestillerEnterprise?: { name: string } | null;
+    bestillerEnterprise?: { name: string; projectId: string } | null;
     utforerEnterprise?: { name: string } | null;
     bestiller?: { name?: string | null } | null;
     drawing?: { id: string; name: string; drawingNumber: string | null; fileUrl?: string | null; byggeplass?: { id: string; name: string } | null } | null;
@@ -93,9 +92,10 @@ export default function UtskriftOppgaveSide() {
     createdAt?: string;
   } | undefined;
 
+  const prosjektId = oppgave?.bestillerEnterprise?.projectId;
   const { data: prosjekt, isLoading: prosjektLaster } = trpc.prosjekt.hentMedId.useQuery(
-    { id: oppgave?.projectId ?? "" },
-    { enabled: !!oppgave?.projectId },
+    { id: prosjektId ?? "" },
+    { enabled: !!prosjektId },
   );
 
   const data = (oppgave?.data ?? {}) as OppgaveData;
@@ -151,9 +151,9 @@ export default function UtskriftOppgaveSide() {
             <Printer className="h-4 w-4" />
             Skriv ut / Lagre PDF
           </button>
-          {oppgave.projectId && (
+          {prosjektId && (
             <a
-              href={`/dashbord/${oppgave.projectId}/oppgaver/${oppgave.id}`}
+              href={`/dashbord/${prosjektId}/oppgaver/${oppgave.id}`}
               className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-600 hover:bg-gray-50"
             >
               <ExternalLink className="h-4 w-4" />

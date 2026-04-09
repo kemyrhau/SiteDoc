@@ -69,10 +69,10 @@ export default function UtskriftSjekklisteSide() {
     status: string;
     number?: number | null;
     data?: unknown;
-    projectId: string;
     template: {
       name: string;
       prefix?: string | null;
+      projectId: string;
       objects: RapportObjektRå[];
     };
     bestillerEnterprise?: { name: string } | null;
@@ -86,9 +86,10 @@ export default function UtskriftSjekklisteSide() {
     createdAt?: string;
   } | undefined;
 
+  const prosjektId = sjekkliste?.template?.projectId;
   const { data: prosjekt, isLoading: prosjektLaster } = trpc.prosjekt.hentMedId.useQuery(
-    { id: sjekkliste?.projectId ?? "" },
-    { enabled: !!sjekkliste?.projectId },
+    { id: prosjektId ?? "" },
+    { enabled: !!prosjektId },
   );
 
   const data = (sjekkliste?.data ?? {}) as SjekklisteData;
@@ -164,9 +165,9 @@ export default function UtskriftSjekklisteSide() {
             <Printer className="h-4 w-4" />
             Skriv ut / Lagre PDF
           </button>
-          {sjekkliste.projectId && (
+          {prosjektId && (
             <a
-              href={`/dashbord/${sjekkliste.projectId}/sjekklister/${sjekkliste.id}`}
+              href={`/dashbord/${prosjektId}/sjekklister/${sjekkliste.id}`}
               className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-600 hover:bg-gray-50"
             >
               <ExternalLink className="h-4 w-4" />
