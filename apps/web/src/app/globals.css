@@ -76,10 +76,15 @@
     -webkit-print-color-adjust: exact;
   }
 
-  /* Fjern min-height som tvinger ekstra sider */
-  html, body {
+  /* Fjern min-height, padding og margin som tvinger ekstra sider */
+  html, body, #__next, body > div,
+  .min-h-screen {
     min-height: 0 !important;
     height: auto !important;
+    padding-bottom: 0 !important;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+    background: white !important;
   }
 
   /* Skjul navigasjon og chrome */
