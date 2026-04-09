@@ -185,14 +185,17 @@ export default function UtskriftOppgaveSide() {
               ? `${oppgave.drawing.drawingNumber} ${oppgave.drawing.name}`
               : oppgave.drawing.name);
           }
+          const logoUrl = vis("logo") && prosjekt?.logoUrl ? logoSrc(prosjekt.logoUrl) : null;
+          // eslint-disable-next-line no-console
+          console.log("[Utskrift] prosjekt.logoUrl:", prosjekt?.logoUrl, "→ logoUrl:", logoUrl);
           return (
             <div className="mb-6 border border-gray-300 print-no-break">
               {/* Rad 1: Logo + prosjektnummer + lokasjon + dato */}
               <div className="flex items-start justify-between border-b border-gray-300 px-4 py-2">
                 <div className="flex items-start gap-4">
-                  {vis("logo") && prosjekt?.logoUrl && (
+                  {logoUrl && (
                     <img
-                      src={logoSrc(prosjekt.logoUrl)}
+                      src={logoUrl}
                       alt="Firmalogo"
                       className="h-[50px] w-auto shrink-0 object-contain"
                     />
@@ -355,22 +358,24 @@ function FeltVedlegg({
         <p className="text-xs italic text-gray-500">{kommentar}</p>
       )}
       {bilder.length > 0 && (
-        <div className="mt-1 grid grid-cols-2 gap-3">
-          {bilder.map((bilde) => (
-            <div key={bilde.id}>
-              <img
-                src={vedleggSrc(bilde.url)}
-                alt={bilde.filnavn}
-                className="w-full rounded border border-gray-200 object-cover"
-                style={{ aspectRatio: "5/4" }}
-              />
-              {bilde.opprettet && (
-                <p className="mt-0.5 text-[10px] text-gray-400">
-                  {new Date(bilde.opprettet).toLocaleString("nb-NO")}
-                </p>
-              )}
-            </div>
-          ))}
+        <div className="mt-1" style={{ breakInside: "avoid", pageBreakInside: "avoid", display: "block" }}>
+          <div className="grid grid-cols-2 gap-3">
+            {bilder.map((bilde) => (
+              <div key={bilde.id} style={{ breakInside: "avoid", pageBreakInside: "avoid" }}>
+                <img
+                  src={vedleggSrc(bilde.url)}
+                  alt={bilde.filnavn}
+                  className="w-full rounded border border-gray-200 object-cover"
+                  style={{ aspectRatio: "5/4", display: "block" }}
+                />
+                {bilde.opprettet && (
+                  <p className="mt-0.5 text-[10px] text-gray-400">
+                    {new Date(bilde.opprettet).toLocaleString("nb-NO")}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       )}
       {filer.length > 0 && (
