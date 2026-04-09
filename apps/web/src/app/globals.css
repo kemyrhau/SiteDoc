@@ -39,7 +39,6 @@
 
 /* Unngå at seksjoner og bilder deles mellom visuelle sider */
 .a4-ark .print-no-break,
-.a4-ark img,
 .a4-ark table {
   break-inside: avoid;
 }
