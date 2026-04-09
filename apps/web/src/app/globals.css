@@ -76,6 +76,12 @@
     -webkit-print-color-adjust: exact;
   }
 
+  /* Fjern min-height som tvinger ekstra sider */
+  html, body {
+    min-height: 0 !important;
+    height: auto !important;
+  }
+
   /* Skjul navigasjon og chrome */
   header,
   aside,
