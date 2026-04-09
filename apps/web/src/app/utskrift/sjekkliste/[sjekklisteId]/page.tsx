@@ -40,7 +40,12 @@ interface TreNode extends RapportObjektRå {
 /* ------------------------------------------------------------------ */
 
 function logoSrc(url: string): string {
-  if (url.startsWith("/uploads/")) return `/api/uploads${url.replace("/uploads", "")}`;
+  if (url.startsWith("/uploads/")) {
+    const relativ = `/api/uploads${url.replace("/uploads", "")}`;
+    // Absolutt URL for print-kontekst (nettlesere kan strippe relative bilder i print)
+    if (typeof window !== "undefined") return `${window.location.origin}${relativ}`;
+    return relativ;
+  }
   return url;
 }
 
@@ -85,7 +90,7 @@ export default function UtskriftSjekklisteSide() {
     createdAt?: string;
   } | undefined;
 
-  const { data: prosjekt } = trpc.prosjekt.hentMedId.useQuery(
+  const { data: prosjekt, isLoading: prosjektLaster } = trpc.prosjekt.hentMedId.useQuery(
     { id: sjekkliste?.projectId ?? "" },
     { enabled: !!sjekkliste?.projectId },
   );
@@ -132,7 +137,7 @@ export default function UtskriftSjekklisteSide() {
     ? new Date(sjekkliste.createdAt).toLocaleTimeString("nb-NO", { hour: "2-digit", minute: "2-digit" })
     : "";
 
-  if (isLoading) {
+  if (isLoading || prosjektLaster) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Spinner size="lg" />
