@@ -604,7 +604,7 @@ export function TegningPosisjonPrint({ pos }: { pos: TegningPosisjonVerdi }) {
   }
 
   return (
-    <div className="print-no-break">
+    <div>
       <p className="mb-2 text-sm font-medium text-gray-700">{visNavn}</p>
 
       <div className="grid grid-cols-2 gap-3">

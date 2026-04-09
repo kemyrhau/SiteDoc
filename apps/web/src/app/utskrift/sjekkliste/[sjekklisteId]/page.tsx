@@ -253,7 +253,7 @@ export default function UtskriftSjekklisteSide() {
 
         {/* Lokasjonstegning med posisjon */}
         {sjekkliste.drawingId && sjekkliste.positionX != null && sjekkliste.positionY != null && (
-          <div className="mb-3 print-no-break">
+          <div className="mb-3">
             <TegningPosisjonPrint pos={{
               drawingId: sjekkliste.drawingId,
               positionX: sjekkliste.positionX,
@@ -306,7 +306,7 @@ function FeltVedlegg({
   const filer = vedlegg?.filter((v) => !bilder.includes(v)) ?? [];
 
   return (
-    <div className="ml-0 mt-1 border-t border-gray-100 pt-1 print-no-break">
+    <div className="ml-0 mt-1 border-t border-gray-100 pt-1">
       {harKommentar && (
         <p className="text-xs italic text-gray-500">{kommentar}</p>
       )}
