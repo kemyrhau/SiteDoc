@@ -310,32 +310,24 @@ function FeltVedlegg({
       {harKommentar && (
         <p className="text-xs italic text-gray-500">{kommentar}</p>
       )}
-      {bilder.length > 0 && (() => {
-        // Grupper bilder i par (2 per rad) — hvert par er en ubrytbar enhet
-        const par: typeof bilder[] = [];
-        for (let i = 0; i < bilder.length; i += 2) {
-          par.push(bilder.slice(i, i + 2));
-        }
-        return par.map((gruppe, gi) => (
-          <div key={gi} className="mt-1" style={{ breakInside: "avoid", pageBreakInside: "avoid", display: "block", overflow: "hidden" }}>
-            {gruppe.map((bilde) => (
-              <div key={bilde.id} style={{ display: "inline-block", width: "calc(50% - 6px)", marginRight: "12px", verticalAlign: "top", breakInside: "avoid", pageBreakInside: "avoid" }}>
-                <img
-                  src={vedleggSrc(bilde.url)}
-                  alt={bilde.filnavn}
-                  className="rounded border border-gray-200"
-                  style={{ width: "100%", height: "auto", aspectRatio: "5/4", objectFit: "cover", display: "block" }}
-                />
-                {bilde.opprettet && (
-                  <p className="mt-0.5 text-[10px] text-gray-400">
-                    {new Date(bilde.opprettet).toLocaleString("nb-NO")}
-                  </p>
-                )}
-              </div>
-            ))}
-          </div>
-        ));
-      })()}
+      {bilder.length > 0 && (
+        <div className="bilde-grid mt-1">
+          {bilder.map((bilde) => (
+            <div key={bilde.id} className="bilde-celle">
+              <img
+                src={vedleggSrc(bilde.url)}
+                alt={bilde.filnavn}
+                className="rounded border border-gray-200"
+              />
+              {bilde.opprettet && (
+                <p className="mt-0.5 text-[10px] text-gray-400">
+                  {new Date(bilde.opprettet).toLocaleString("nb-NO")}
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
       {filer.length > 0 && (
         <p className="mt-1 text-xs text-gray-600">
           Filer: {filer.map((f) => f.filnavn).join(", ")}
