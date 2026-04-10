@@ -150,6 +150,61 @@ export default function UtskriftSjekklisteSide() {
     );
   }
 
+  // Bygg header-innhold basert på utskriftsinnstillinger
+  const ui = (prosjekt as unknown as { utskriftsinnstillinger?: Record<string, boolean> | null })?.utskriftsinnstillinger;
+  const vis = (felt: string) => ui?.[felt] ?? true;
+  const prosjektnummer = vis("eksternProsjektnummer") && prosjekt?.externalProjectNumber
+    ? prosjekt.externalProjectNumber
+    : (prosjekt as { showInternalProjectNumber?: boolean } | undefined)?.showInternalProjectNumber !== false
+      ? prosjekt?.projectNumber
+      : null;
+  const lokTegn: string[] = [];
+  if (vis("lokasjon") && sjekkliste.byggeplass?.name) lokTegn.push(sjekkliste.byggeplass.name);
+  if (vis("tegningsnummer") && sjekkliste.drawing) {
+    lokTegn.push(sjekkliste.drawing.drawingNumber
+      ? `${sjekkliste.drawing.drawingNumber} ${sjekkliste.drawing.name}`
+      : sjekkliste.drawing.name);
+  }
+  const logoUrl = vis("logo") && prosjekt?.logoUrl ? logoSrc(prosjekt.logoUrl) : null;
+
+  const headerInnhold = (
+    <div className="border border-gray-300 mb-4">
+      <div className="flex items-start justify-between border-b border-gray-300 px-4 py-2">
+        <div className="flex items-start gap-4">
+          {logoUrl && <img src={logoUrl} alt="Firmalogo" className="h-[50px] w-auto shrink-0 object-contain" />}
+          <div>
+            {(prosjektnummer || vis("prosjektnavn")) && (
+              <p className="text-base font-bold text-gray-900">
+                {prosjektnummer}{prosjektnummer && vis("prosjektnavn") && " · "}{vis("prosjektnavn") && (prosjekt?.name ?? "")}
+              </p>
+            )}
+            {lokTegn.length > 0 && <p className="text-xs text-gray-500">{lokTegn.join(" · ")}</p>}
+          </div>
+        </div>
+        <p className="whitespace-nowrap text-xs text-gray-600">{dato}{klokkeslett && ` ${klokkeslett}`}</p>
+      </div>
+      <div className="flex items-center justify-between border-b border-gray-300 px-4 py-2">
+        <div>
+          <p className="text-sm font-semibold text-gray-900">{sjekkliste.title}</p>
+          {vis("fraTil") && sjekkliste.bestillerEnterprise && (
+            <p className="text-xs text-gray-600">
+              {sjekkliste.bestiller?.name
+                ? `${sjekkliste.bestiller.name} (${sjekkliste.bestillerEnterprise.name})`
+                : sjekkliste.bestillerEnterprise.name}
+              {sjekkliste.utforerEnterprise && ` → ${sjekkliste.utforerEnterprise.name}`}
+            </p>
+          )}
+        </div>
+        {sjekklisteNummer && <p className="text-sm font-medium text-gray-700">{sjekklisteNummer}</p>}
+      </div>
+      {vis("vaer") && vaerTekst && (
+        <div className="px-4 py-1.5">
+          <p className="text-xs text-gray-600">{vaerTekst}</p>
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-gray-100 pb-16 print:min-h-0 print:bg-white print:pb-0">
       {/* Flytende verktøylinje */}
@@ -177,112 +232,53 @@ export default function UtskriftSjekklisteSide() {
         </div>
       </div>
 
-      {/* A4-ark — 210mm bredde, 15mm padding matcher @page margin */}
-      <div className="a4-ark mx-auto mt-8 w-[794px] rounded bg-white px-[15mm] py-[15mm] shadow-lg print:mt-0 print:w-auto print:max-w-none print:rounded-none print:px-0 print:py-0 print:shadow-none">
-        {/* Header — styrt av utskriftsinnstillinger */}
-        {(() => {
-          const ui = (prosjekt as unknown as { utskriftsinnstillinger?: Record<string, boolean> | null })?.utskriftsinnstillinger;
-          const vis = (felt: string) => ui?.[felt] ?? true;
-          const prosjektnummer = vis("eksternProsjektnummer") && prosjekt?.externalProjectNumber
-            ? prosjekt.externalProjectNumber
-            : (prosjekt as { showInternalProjectNumber?: boolean } | undefined)?.showInternalProjectNumber !== false
-              ? prosjekt?.projectNumber
-              : null;
-          const lokTegn: string[] = [];
-          if (vis("lokasjon") && sjekkliste.byggeplass?.name) lokTegn.push(sjekkliste.byggeplass.name);
-          if (vis("tegningsnummer") && sjekkliste.drawing) {
-            lokTegn.push(sjekkliste.drawing.drawingNumber
-              ? `${sjekkliste.drawing.drawingNumber} ${sjekkliste.drawing.name}`
-              : sjekkliste.drawing.name);
-          }
-          const logoUrl = vis("logo") && prosjekt?.logoUrl ? logoSrc(prosjekt.logoUrl) : null;
-          return (
-            <div className="mb-6 border border-gray-300 print-no-break print-gjentakende-header">
-              {/* Rad 1: Logo + prosjektnummer + lokasjon + dato */}
-              <div className="flex items-start justify-between border-b border-gray-300 px-4 py-2">
-                <div className="flex items-start gap-4">
-                  {logoUrl && (
-                    <img
-                      src={logoUrl}
-                      alt="Firmalogo"
-                      className="h-[50px] w-auto shrink-0 object-contain"
+      {/* A4-ark med table-layout for gjentakende header/footer i print */}
+      <div className="a4-ark mx-auto mt-8 w-[794px] rounded bg-white px-[15mm] py-[15mm] shadow-lg print:mt-0 print:w-auto print:max-w-none print:rounded-none print:shadow-none">
+        <table className="print-tabell w-full">
+          {/* thead gjentas på hver side i print */}
+          <thead><tr><td>
+            {headerInnhold}
+          </td></tr></thead>
+
+          {/* tfoot gjentas i bunnen av hver side — sidenummer via CSS counter */}
+          <tfoot><tr><td>
+            <div className="print-footer" />
+          </td></tr></tfoot>
+
+          {/* tbody = innholdet */}
+          <tbody><tr><td>
+            {/* Lokasjonstegning med posisjon */}
+            {sjekkliste.drawingId && sjekkliste.positionX != null && sjekkliste.positionY != null && (
+              <div className="mb-3">
+                <TegningPosisjonPrint pos={{
+                  drawingId: sjekkliste.drawingId,
+                  positionX: sjekkliste.positionX,
+                  positionY: sjekkliste.positionY,
+                  drawingName: sjekkliste.drawing?.name,
+                }} />
+              </div>
+            )}
+
+            {/* Rapportobjekter */}
+            <div className="flex flex-col gap-1">
+              {treObjekter.map((objekt) => {
+                const feltData = data[objekt.id];
+                return (
+                  <div key={objekt.id} className="print-no-break">
+                    <RapportObjektVisning
+                      objekt={objekt}
+                      verdi={feltData?.verdi ?? null}
+                      nestingNivå={0}
+                      data={data}
+                      prosjektAdresse={prosjekt?.address}
                     />
-                  )}
-                  <div>
-                    {(prosjektnummer || vis("prosjektnavn")) && (
-                      <p className="text-base font-bold text-gray-900">
-                        {prosjektnummer}{prosjektnummer && vis("prosjektnavn") && " · "}{vis("prosjektnavn") && (prosjekt?.name ?? "")}
-                      </p>
-                    )}
-                    {lokTegn.length > 0 && (
-                      <p className="text-xs text-gray-500">{lokTegn.join(" · ")}</p>
-                    )}
+                    <FeltVedlegg vedlegg={feltData?.vedlegg} kommentar={feltData?.kommentar} />
                   </div>
-                </div>
-                <p className="whitespace-nowrap text-xs text-gray-600">{dato}{klokkeslett && ` ${klokkeslett}`}</p>
-              </div>
-
-              {/* Rad 2: Dokumenttittel + Fra→Til + nummer */}
-              <div className="flex items-center justify-between border-b border-gray-300 px-4 py-2">
-                <div>
-                  <p className="text-sm font-semibold text-gray-900">{sjekkliste.title}</p>
-                  {vis("fraTil") && sjekkliste.bestillerEnterprise && (
-                    <p className="text-xs text-gray-600">
-                      {sjekkliste.bestiller?.name
-                        ? `${sjekkliste.bestiller.name} (${sjekkliste.bestillerEnterprise.name})`
-                        : sjekkliste.bestillerEnterprise.name}
-                      {sjekkliste.utforerEnterprise && ` → ${sjekkliste.utforerEnterprise.name}`}
-                    </p>
-                  )}
-                </div>
-                {sjekklisteNummer && (
-                  <p className="text-sm font-medium text-gray-700">{sjekklisteNummer}</p>
-                )}
-              </div>
-
-              {/* Rad 3: Vær */}
-              {vis("vaer") && vaerTekst && (
-                <div className="px-4 py-1.5">
-                  <p className="text-xs text-gray-600">{vaerTekst}</p>
-                </div>
-              )}
+                );
+              })}
             </div>
-          );
-        })()}
-
-        <div className="print-innhold-med-header">
-        {/* Lokasjonstegning med posisjon */}
-        {sjekkliste.drawingId && sjekkliste.positionX != null && sjekkliste.positionY != null && (
-          <div className="mb-3">
-            <TegningPosisjonPrint pos={{
-              drawingId: sjekkliste.drawingId,
-              positionX: sjekkliste.positionX,
-              positionY: sjekkliste.positionY,
-              drawingName: sjekkliste.drawing?.name,
-            }} />
-          </div>
-        )}
-
-        {/* Rapportobjekter */}
-        <div className="flex flex-col gap-1">
-          {treObjekter.map((objekt) => {
-            const feltData = data[objekt.id];
-            return (
-              <div key={objekt.id} className="print-no-break">
-                <RapportObjektVisning
-                  objekt={objekt}
-                  verdi={feltData?.verdi ?? null}
-                  nestingNivå={0}
-                  data={data}
-                  prosjektAdresse={prosjekt?.address}
-                />
-                {/* Vedlegg under hvert felt */}
-                <FeltVedlegg vedlegg={feltData?.vedlegg} kommentar={feltData?.kommentar} />
-              </div>
-            );
-          })}
-        </div>
-        </div>{/* /print-innhold-med-header */}
+          </td></tr></tbody>
+        </table>
       </div>
     </div>
   );

@@ -64,9 +64,9 @@
 }
 
 @media print {
-  /* A4-sideoppsett */
+  /* A4-sideoppsett — margin: 0 fjerner nettleserens URL/dato */
   @page {
-    margin: 10mm 15mm;
+    margin: 0;
     size: A4;
   }
 
@@ -103,11 +103,11 @@
     max-width: 100% !important;
   }
 
-  /* A4-ark i utskrift: @page håndterer margin */
+  /* A4-ark i utskrift */
   .a4-ark {
     width: 100% !important;
     max-width: 100% !important;
-    padding: 0 !important;
+    padding: 10mm 15mm !important;
     margin: 0 !important;
     box-shadow: none !important;
     border-radius: 0 !important;
@@ -118,13 +118,28 @@
     display: none !important;
   }
 
-  /* Gjentakende header — deaktivert, skapte overlapp */
-  .print-gjentakende-header {
-    /* position: fixed fjernet — overlappet innholdet */
+  /* Table-layout: thead/tfoot gjentas på hver side */
+  .print-tabell {
+    border-collapse: collapse;
+  }
+  .print-tabell td {
+    padding: 0;
+    vertical-align: top;
   }
 
-  .print-innhold-med-header {
-    /* padding-top fjernet — ikke nødvendig uten fixed header */
+  /* Footer med sidenummer via CSS counter */
+  .print-footer {
+    height: 10mm;
+    text-align: right;
+    font-size: 10px;
+    color: #6b7280;
+    padding-top: 4mm;
+    border-top: 1px solid #e5e7eb;
+    margin-top: 4mm;
+  }
+  .print-footer::after {
+    counter-increment: page;
+    content: "Side " counter(page);
   }
 
   /* Vis print-header */
