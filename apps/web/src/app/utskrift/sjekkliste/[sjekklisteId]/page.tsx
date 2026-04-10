@@ -266,6 +266,8 @@ export default function UtskriftSjekklisteSide() {
         )}
 
         {/* Rapportobjekter */}
+        {/* eslint-disable-next-line no-console */}
+        {(() => { console.log("[Utskrift] treObjekter:", treObjekter.length, treObjekter.map(o => `${o.type}:${o.label}`)); return null; })()}
         <div className="flex flex-col gap-1">
           {treObjekter.map((objekt) => {
             const feltData = data[objekt.id];
