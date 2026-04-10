@@ -2,8 +2,9 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { useState, useMemo, useCallback } from "react";
-import { Spinner, StatusBadge, Card, Badge } from "@sitedoc/ui";
+import { Spinner, StatusBadge, Card } from "@sitedoc/ui";
 import { Check, AlertCircle, Loader2, Send, Printer, Pencil } from "lucide-react";
+import { FlytIndikator } from "@/components/FlytIndikator";
 import { trpc } from "@/lib/trpc";
 import { useOppgaveSkjema } from "@/hooks/useOppgaveSkjema";
 import { DokumentHandlingsmeny } from "@/components/DokumentHandlingsmeny";
@@ -48,24 +49,6 @@ function LagreIndikator({ status }: { status: "idle" | "lagrer" | "lagret" | "fe
     </span>
   );
 }
-
-/* ------------------------------------------------------------------ */
-/*  Prioritet-badge                                                    */
-/* ------------------------------------------------------------------ */
-
-const PRIORITETS_TEKST: Record<string, string> = {
-  low: "Lav",
-  medium: "Medium",
-  high: "Høy",
-  critical: "Kritisk",
-};
-
-const PRIORITETS_VARIANT: Record<string, "default" | "primary" | "warning" | "danger"> = {
-  low: "default",
-  medium: "primary",
-  high: "warning",
-  critical: "danger",
-};
 
 /* ------------------------------------------------------------------ */
 /*  Dialog-seksjon                                                     */
@@ -223,10 +206,6 @@ export default function OppgaveDetaljSide() {
   );
 
   // Entreprise-valg for mottaker — utleder mottaker fra dokumentflyt + mal-match
-  const { data: mineEntrepriser } = trpc.medlem.hentMineEntrepriser.useQuery(
-    { projectId: params.prosjektId },
-    { enabled: !!params.prosjektId },
-  );
   const { data: alleEntrepriserRå } = trpc.entreprise.hentForProsjekt.useQuery(
     { projectId: params.prosjektId },
     { enabled: !!params.prosjektId },
@@ -257,6 +236,27 @@ export default function OppgaveDetaljSide() {
       { bestillerEnterpriseId: op.bestillerEnterprise?.id ?? "", utforerEnterpriseId: op.utforerEnterprise?.id ?? "" },
     );
   }, [minFlytInfo, oppgave, dokumentflyter]);
+
+  // Flytmedlemmer for FlytIndikator og DokumentHandlingsmeny
+  // Bruker dokumentflyterRå (ucastet) for å beholde steg + enterprise-objekter
+  const flytMedlemmer = useMemo(() => {
+    const op = oppgave as unknown as { dokumentflytId?: string | null };
+    if (!op?.dokumentflytId || !dokumentflyterRå) return [];
+    const rå = dokumentflyterRå as unknown as Array<{
+      id: string;
+      medlemmer: Array<{
+        id: string;
+        rolle: string;
+        steg: number;
+        enterprise: { id: string; name: string } | null;
+        projectMember: { user: { id: string; name: string | null } } | null;
+        group: { id: string; name: string } | null;
+      }>;
+    }>;
+    const flyt = rå.find((df) => df.id === op.dokumentflytId);
+    if (!flyt) return [];
+    return flyt.medlemmer;
+  }, [oppgave, dokumentflyterRå]);
 
   const oppdaterMutasjon = trpc.oppgave.oppdater.useMutation({
     onSuccess: () => {
@@ -354,19 +354,40 @@ export default function OppgaveDetaljSide() {
   return (
     <div className="mx-auto max-w-3xl pb-12">
       {/* Skjerm-header: sticky ved scrolling */}
-      <div className="print-skjul sticky top-0 z-10 bg-white border-b border-gray-100 -mx-6 px-6 py-4 mb-3">
-        <div className="flex items-center gap-3">
-          <h3 className="text-xl font-bold">{oppgave.title}</h3>
-          <StatusBadge status={oppgave.status} />
-          <Badge variant={PRIORITETS_VARIANT[oppgave.priority] ?? "default"}>
-            {t(`prioritet.${oppgave.priority}`, PRIORITETS_TEKST[oppgave.priority] ?? oppgave.priority)}
-          </Badge>
+      <div className="print-skjul sticky top-0 z-10 bg-white border-b border-gray-100 -mx-6 px-6 py-3 mb-3">
+        {/* Rad 1: Nummer + Tittel + Dato + Status */}
+        <div className="flex items-center gap-2">
+          {oppgaveNummer && (
+            <span className="text-sm font-bold text-gray-500">{oppgaveNummer}</span>
+          )}
+          <h3 className="text-lg font-bold truncate">{oppgave.title}</h3>
           <LagreIndikator status={lagreStatus} />
           {andreRedaktorer.length > 0 && (
-            <div className="flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-sm text-amber-700">
-              <Pencil className="h-3.5 w-3.5 animate-pulse" />
+            <div className="flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-0.5 text-xs text-amber-700">
+              <Pencil className="h-3 w-3 animate-pulse" />
               {andreRedaktorer.map((u) => u.navn).join(", ")} {t("presence.redigerer")}
             </div>
+          )}
+          <div className="ml-auto flex items-center gap-2">
+            {(fullOppgaveRå as { createdAt?: string })?.createdAt && (
+              <span className="text-xs text-gray-400">
+                {new Date((fullOppgaveRå as { createdAt: string }).createdAt).toLocaleDateString("nb-NO", { day: "2-digit", month: "2-digit", year: "numeric" })}
+              </span>
+            )}
+            <StatusBadge status={oppgave.status} />
+          </div>
+        </div>
+
+        {/* Rad 2: FlytIndikator + Handlingsknapper + Skriv ut */}
+        <div className="mt-2 flex items-center gap-3">
+          {flytMedlemmer.length > 0 && (
+            <FlytIndikator
+              medlemmer={flytMedlemmer}
+              recipientUserId={(fullOppgaveRå as { recipientUserId?: string | null })?.recipientUserId}
+              recipientGroupId={(fullOppgaveRå as { recipientGroupId?: string | null })?.recipientGroupId}
+              status={oppgave.status}
+              bestillerUserId={(fullOppgaveRå as { bestillerUserId?: string })?.bestillerUserId}
+            />
           )}
           <div className="ml-auto flex items-center gap-2">
             <DokumentHandlingsmeny
@@ -388,61 +409,28 @@ export default function OppgaveDetaljSide() {
               templateId={(oppgave as unknown as { templateId?: string }).templateId ?? oppgave.template?.id}
               standardEntrepriseId={oppgave.utforerEnterprise?.id}
               minRolle={minRolle}
+              flytMedlemmer={flytMedlemmer}
+              recipientUserId={(fullOppgaveRå as { recipientUserId?: string | null })?.recipientUserId}
+              recipientGroupId={(fullOppgaveRå as { recipientGroupId?: string | null })?.recipientGroupId}
+              bestillerUserId={(fullOppgaveRå as { bestillerUserId?: string })?.bestillerUserId}
             />
             <button
               onClick={() => window.open(`/utskrift/oppgave/${params.oppgaveId}?print=true`, "_blank")}
-              className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
+              className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
+              title={t("handling.skrivUtEnkel")}
             >
               <Printer className="h-4 w-4" />
-              {t("handling.skrivUtEnkel")}
             </button>
           </div>
         </div>
-        <div className="flex items-center gap-1 text-sm text-gray-500">
-          {oppgave.template && <span>{t("tabell.mal")}: {oppgave.template.name}</span>}
-          {oppgave.status === "draft" ? (
-            <>
-              <span>&middot; {t("tabell.bestiller")}:</span>
-              <select
-                value={oppgave.bestillerEnterprise?.id ?? ""}
-                onChange={(e) => oppdaterMutasjon.mutate({ id: params.oppgaveId, bestillerEnterpriseId: e.target.value })}
-                className="rounded border border-gray-200 bg-white px-1.5 py-0.5 text-sm text-gray-700"
-              >
-                {(mineEntrepriser ?? []).map((ent: { id: string; name: string }) => (
-                  <option key={ent.id} value={ent.id}>{ent.name}</option>
-                ))}
-              </select>
-              <span>&middot; {t("tabell.utforer")}:</span>
-              <select
-                value={oppgave.utforerEnterprise?.id ?? ""}
-                onChange={(e) => oppdaterMutasjon.mutate({ id: params.oppgaveId, utforerEnterpriseId: e.target.value })}
-                className="rounded border border-gray-200 bg-white px-1.5 py-0.5 text-sm text-gray-700"
-              >
-                {(alleEntrepriser ?? []).map((ent: { id: string; name: string }) => (
-                  <option key={ent.id} value={ent.id}>{ent.name}</option>
-                ))}
-              </select>
-            </>
-          ) : (
-            <>
-              {oppgave.bestillerEnterprise && (
-                <span>&middot; {t("tabell.bestiller")}: {oppgave.bestillerEnterprise.name}</span>
-              )}
-              {oppgave.utforerEnterprise && (
-                <span>&middot; {t("tabell.utforer")}: {oppgave.utforerEnterprise.name}</span>
-              )}
-            </>
-          )}
-        </div>
-        {oppgaveNummer && (
-          <p className="mt-1 text-xs text-gray-400">{t("tabell.nr")}: {oppgaveNummer}</p>
-        )}
+
+        {/* Beskrivelse (kun hvis finnes) */}
         {oppgave.description && (
           <p className="mt-2 text-sm text-gray-600">{oppgave.description}</p>
         )}
 
         {/* Lokasjon */}
-        <div className="mt-3 max-w-md print-skjul">
+        <div className="mt-2 max-w-md print-skjul">
           <LokasjonVelger
             prosjektId={params.prosjektId}
             tegningId={(oppgave as unknown as { drawingId?: string | null }).drawingId}
@@ -462,7 +450,6 @@ export default function OppgaveDetaljSide() {
             leseModus={["closed", "approved"].includes(oppgave.status)}
           />
         </div>
-
       </div>
 
       {/* Rapportobjekter */}
