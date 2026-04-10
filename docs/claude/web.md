@@ -277,13 +277,25 @@ Mobilappen bruker `hentStatusHandlinger()` direkte — skal migreres til `hentRo
 
 ## Print-til-PDF
 
-**Print-header** (`PrintHeader`): logo, prosjektnavn, nr, adresse, dato, sjekkliste-tittel, bestiller/utfører, vær.
+**Table-layout for gjentakende header/footer:** Utskriftsidene bruker `<table>` med `<thead>` (header gjentas på hver side) og `<tfoot>` (sidenummer via CSS counter). `@page { margin: 0; size: A4; }` fjerner nettleserens URL/dato.
 
-**Tegningsutsnitt** i oppgave-utskrift: oversiktsbilde (venstre) med rød prikk + zoomet utsnitt (høyre). Vises kun for oppgaver med tegning + posisjon.
+**Header** (styrt av utskriftsinnstillinger): logo, prosjektnummer · prosjektnavn, lokasjon · tegning, dato med klokkeslett, dokumenttittel, fra→til, vær. Alle felt kan skjules via prosjektoppsett (`Project.utskriftsinnstillinger` JSON).
 
-**Print CSS** (`globals.css`): `@page { margin: 15mm; size: A4; }`, `.print-header`, `.print-skjul`, `.print-vedlegg-fullvisning`.
+**Utskriftsinnstillinger** (`/dashbord/oppsett/prosjektoppsett`): 7 avkrysninger — logo, eksternProsjektnummer, prosjektnavn, fraTil, lokasjon, tegningsnummer, vaer. Lagres på Project-modellen. Default: alle synlige.
 
-**PDF-forhåndsvisning** (`/utskrift/sjekkliste/[sjekklisteId]`, `/utskrift/oppgave/[oppgaveId]`): A4-visning utenfor dashbord-layout, `RapportObjektVisning` + `FeltVedlegg`.
+**Tegningsutsnitt** (`TegningPosisjonPrint`): oversikt med rød markør + zoomet detalj. Bruker `bilde-grid` CSS med 260px høyde, samme som fotobilder. Eksportert fra `RapportObjektVisning.tsx`.
+
+**Bildegrid** (`.bilde-grid`): 2 kolonner, `object-fit: contain`, `max-height: 260px`. Bilder beskjæres ikke. Grid brytes fritt over sider. Individuelle `.bilde-celle` har `break-inside: avoid`.
+
+**Feltvisning** (`FeltRad`): Tomme felt (`tom=true`) returnerer `null` — kun utfylte felt vises i utskrift.
+
+**Layout-prinsipp:** Feltlabel+verdi i `print-no-break` (ubrytbar). Vedlegg (`FeltVedlegg`) utenfor `print-no-break` — bildegrid kan brytes naturlig over sider.
+
+**PDF-forhåndsvisning** (`/utskrift/sjekkliste/[sjekklisteId]`, `/utskrift/oppgave/[oppgaveId]`): A4-bredde (794px), visuell sidekant via `::after` gradient. `RapportObjektVisning` + `FeltVedlegg`.
+
+**ProsjektId-oppslag:** Sjekkliste bruker `template.projectId`, oppgave bruker `bestillerEnterprise.projectId`.
+
+**Fil-URL-mønster:** `logoSrc`/`vedleggSrc` konverterer `/uploads/x` → `/api/uploads/x` (Next.js rewrite). Opplasting via `POST /api/upload`.
 
 **Data-attributter:** `data-panel="sekundaert"`, `data-toolbar`.
 
