@@ -1,7 +1,7 @@
 "use client";
 
-import { useParams } from "next/navigation";
-import { useMemo } from "react";
+import { useParams, useSearchParams } from "next/navigation";
+import { useMemo, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { Spinner } from "@sitedoc/ui";
 import { Printer, ExternalLink } from "lucide-react";
@@ -57,6 +57,8 @@ function vedleggSrc(url: string): string {
 
 export default function UtskriftSjekklisteSide() {
   const params = useParams<{ sjekklisteId: string }>();
+  const søk = useSearchParams();
+  const autoPrint = søk.get("print") === "true";
 
   const { data: sjekklisteRå, isLoading } = trpc.sjekkliste.hentMedId.useQuery(
     { id: params.sjekklisteId },
@@ -133,6 +135,14 @@ export default function UtskriftSjekklisteSide() {
   const klokkeslett = sjekkliste?.createdAt
     ? new Date(sjekkliste.createdAt).toLocaleTimeString("nb-NO", { hour: "2-digit", minute: "2-digit" })
     : "";
+
+  // Auto-print når ?print=true og alt er lastet
+  useEffect(() => {
+    if (autoPrint && !isLoading && !prosjektLaster && sjekkliste) {
+      const timer = setTimeout(() => window.print(), 500);
+      return () => clearTimeout(timer);
+    }
+  }, [autoPrint, isLoading, prosjektLaster, sjekkliste]);
 
   if (isLoading || prosjektLaster) {
     return (

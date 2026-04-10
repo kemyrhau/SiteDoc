@@ -1,7 +1,7 @@
 "use client";
 
-import { useParams } from "next/navigation";
-import { useMemo } from "react";
+import { useParams, useSearchParams } from "next/navigation";
+import { useMemo, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { Spinner } from "@sitedoc/ui";
 import { Printer, ExternalLink } from "lucide-react";
@@ -63,6 +63,8 @@ const PRIORITETS_TEKST: Record<string, string> = {
 
 export default function UtskriftOppgaveSide() {
   const params = useParams<{ oppgaveId: string }>();
+  const søk = useSearchParams();
+  const autoPrint = søk.get("print") === "true";
 
   const { data: oppgaveRå, isLoading } = trpc.oppgave.hentMedId.useQuery(
     { id: params.oppgaveId },
@@ -119,6 +121,14 @@ export default function UtskriftOppgaveSide() {
   const klokkeslett = oppgave?.createdAt
     ? new Date(oppgave.createdAt).toLocaleTimeString("nb-NO", { hour: "2-digit", minute: "2-digit" })
     : "";
+
+  // Auto-print når ?print=true og alt er lastet
+  useEffect(() => {
+    if (autoPrint && !isLoading && !prosjektLaster && oppgave) {
+      const timer = setTimeout(() => window.print(), 500);
+      return () => clearTimeout(timer);
+    }
+  }, [autoPrint, isLoading, prosjektLaster, oppgave]);
 
   if (isLoading || prosjektLaster) {
     return (

@@ -397,7 +397,7 @@ export default function OppgaveDetaljSide() {
               {t("handling.visPdf")}
             </button>
             <button
-              onClick={() => window.print()}
+              onClick={() => window.open(`/utskrift/oppgave/${params.oppgaveId}?print=true`, "_blank")}
               className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
             >
               <Printer className="h-4 w-4" />
