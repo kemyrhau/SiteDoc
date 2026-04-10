@@ -196,8 +196,6 @@ export default function UtskriftSjekklisteSide() {
               : sjekkliste.drawing.name);
           }
           const logoUrl = vis("logo") && prosjekt?.logoUrl ? logoSrc(prosjekt.logoUrl) : null;
-          // eslint-disable-next-line no-console
-          console.log("[Utskrift] prosjekt.logoUrl:", prosjekt?.logoUrl, "→ logoUrl:", logoUrl);
           return (
             <div className="mb-6 border border-gray-300 print-no-break print-gjentakende-header">
               {/* Rad 1: Logo + prosjektnummer + lokasjon + dato */}
@@ -266,8 +264,6 @@ export default function UtskriftSjekklisteSide() {
         )}
 
         {/* Rapportobjekter */}
-        {/* eslint-disable-next-line no-console */}
-        {(() => { console.log("[Utskrift] treObjekter:", treObjekter.length, treObjekter.map(o => `${o.type}:${o.label}`)); return null; })()}
         <div className="flex flex-col gap-1">
           {treObjekter.map((objekt) => {
             const feltData = data[objekt.id];

@@ -182,8 +182,6 @@ export default function UtskriftOppgaveSide() {
               : oppgave.drawing.name);
           }
           const logoUrl = vis("logo") && prosjekt?.logoUrl ? logoSrc(prosjekt.logoUrl) : null;
-          // eslint-disable-next-line no-console
-          console.log("[Utskrift] prosjekt.logoUrl:", prosjekt?.logoUrl, "→ logoUrl:", logoUrl);
           return (
             <div className="mb-6 border border-gray-300 print-no-break print-gjentakende-header">
               {/* Rad 1: Logo + prosjektnummer + lokasjon + dato */}
