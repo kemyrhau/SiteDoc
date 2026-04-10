@@ -125,8 +125,10 @@ export default function UtskriftOppgaveSide() {
   // Auto-print når ?print=true og alt er lastet
   useEffect(() => {
     if (autoPrint && !isLoading && !prosjektLaster && oppgave) {
+      const lukk = () => window.close();
+      window.addEventListener("afterprint", lukk);
       const timer = setTimeout(() => window.print(), 500);
-      return () => clearTimeout(timer);
+      return () => { clearTimeout(timer); window.removeEventListener("afterprint", lukk); };
     }
   }, [autoPrint, isLoading, prosjektLaster, oppgave]);
 

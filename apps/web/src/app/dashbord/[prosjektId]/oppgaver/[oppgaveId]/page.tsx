@@ -390,7 +390,7 @@ export default function OppgaveDetaljSide() {
               minRolle={minRolle}
             />
             <button
-              onClick={() => window.open(`/utskrift/oppgave/${params.oppgaveId}`, "_blank")}
+              onClick={() => window.open(`/utskrift/oppgave/${params.oppgaveId}?print=true`, "_blank")}
               className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
             >
               <FileText className="h-4 w-4" />

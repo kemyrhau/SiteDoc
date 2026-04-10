@@ -136,11 +136,13 @@ export default function UtskriftSjekklisteSide() {
     ? new Date(sjekkliste.createdAt).toLocaleTimeString("nb-NO", { hour: "2-digit", minute: "2-digit" })
     : "";
 
-  // Auto-print når ?print=true og alt er lastet
+  // Auto-print når ?print=true og alt er lastet, lukk fanen etterpå
   useEffect(() => {
     if (autoPrint && !isLoading && !prosjektLaster && sjekkliste) {
+      const lukk = () => window.close();
+      window.addEventListener("afterprint", lukk);
       const timer = setTimeout(() => window.print(), 500);
-      return () => clearTimeout(timer);
+      return () => { clearTimeout(timer); window.removeEventListener("afterprint", lukk); };
     }
   }, [autoPrint, isLoading, prosjektLaster, sjekkliste]);
 
