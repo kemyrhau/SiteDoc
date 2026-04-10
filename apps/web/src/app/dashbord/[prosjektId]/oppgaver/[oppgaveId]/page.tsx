@@ -3,7 +3,7 @@
 import { useParams, useRouter } from "next/navigation";
 import { useState, useMemo, useCallback } from "react";
 import { Spinner, StatusBadge, Card, Badge } from "@sitedoc/ui";
-import { Check, AlertCircle, Loader2, Send, FileText, Printer, Pencil } from "lucide-react";
+import { Check, AlertCircle, Loader2, Send, Printer, Pencil } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useOppgaveSkjema } from "@/hooks/useOppgaveSkjema";
 import { DokumentHandlingsmeny } from "@/components/DokumentHandlingsmeny";
