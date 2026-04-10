@@ -1,12 +1,14 @@
 "use client";
 
 /**
- * Kompakt flytindikator for dokumentlisten.
+ * Kompakt flytindikator for dokumentlisten og detaljsider.
  * Viser alle ledd i flyten med ● på nåværende mottaker.
  *
- * Aktiv boks: ● HE-Leder (Elektro)
- * Inaktiv boks: [Tømrer]
+ * Desktop: [Elektro] →●→ [BH] → [Tømrer]
+ * Mobil (kompakt): [Elektro] →●→ [BH]  (tap for full flyt)
  */
+
+import { useState } from "react";
 
 interface FlytMedlem {
   id: string;
@@ -23,6 +25,8 @@ interface FlytIndikatorProps {
   recipientGroupId?: string | null;
   status: string;
   bestillerUserId?: string;
+  /** Kompakt modus: vis kun aktiv boks + naboer, ekspandér ved tap */
+  kompakt?: boolean;
 }
 
 interface Ledd {
@@ -101,7 +105,24 @@ function forkort(tekst: string, maks: number): string {
   return tekst.length > maks ? tekst.slice(0, maks - 1) + "…" : tekst;
 }
 
-export function FlytIndikator({ medlemmer, recipientUserId, recipientGroupId, status, bestillerUserId }: FlytIndikatorProps) {
+/** Hent flyt-tekst for filtrering/sortering i tabeller */
+export function hentFlytLedd(
+  medlemmer: FlytMedlem[],
+  recipientUserId?: string | null,
+  recipientGroupId?: string | null,
+  status?: string,
+  bestillerUserId?: string,
+): string {
+  const ledd = byggLedd(medlemmer);
+  if (ledd.length === 0) return "";
+  const aktivtIndex = finnAktivtIndex(ledd, status ?? "", recipientUserId, recipientGroupId, bestillerUserId);
+  if (aktivtIndex === -1) return "";
+  return ledd[aktivtIndex]?.aktivNavn ?? "";
+}
+
+export function FlytIndikator({ medlemmer, recipientUserId, recipientGroupId, status, bestillerUserId, kompakt }: FlytIndikatorProps) {
+  const [ekspandert, setEkspandert] = useState(false);
+
   if (!medlemmer || medlemmer.length === 0) {
     return <span className="text-gray-300">—</span>;
   }
@@ -111,14 +132,25 @@ export function FlytIndikator({ medlemmer, recipientUserId, recipientGroupId, st
 
   const aktivtIndex = finnAktivtIndex(ledd, status, recipientUserId, recipientGroupId, bestillerUserId);
 
+  // Kompakt modus: vis kun aktiv boks + én nabo på hver side
+  const visbareLedd = (kompakt && !ekspandert && ledd.length > 3)
+    ? filtrerNaboer(ledd, aktivtIndex)
+    : ledd.map((l, i) => ({ ledd: l, originalIndex: i }));
+
+  const harMer = kompakt && !ekspandert && ledd.length > 3;
+
   return (
-    <div className="flex items-center gap-0.5 text-[11px] leading-none whitespace-nowrap overflow-hidden">
-      {ledd.map((l, i) => {
-        const erAktiv = i === aktivtIndex;
-        const visningstekst = erAktiv ? l.aktivNavn : l.navn;
+    <div
+      className="flex items-center gap-0.5 text-[11px] leading-none whitespace-nowrap overflow-hidden cursor-default"
+      onClick={kompakt ? () => setEkspandert(!ekspandert) : undefined}
+      title={kompakt && !ekspandert ? "Vis hele flyten" : undefined}
+    >
+      {visbareLedd.map((item, visIdx) => {
+        const erAktiv = item.originalIndex === aktivtIndex;
+        const visningstekst = erAktiv ? item.ledd.aktivNavn : item.ledd.navn;
         return (
-          <span key={i} className="flex items-center gap-0.5">
-            {i > 0 && (
+          <span key={item.originalIndex} className="flex items-center gap-0.5">
+            {visIdx > 0 && (
               <span className={erAktiv ? "text-blue-400" : "text-gray-300"}>→</span>
             )}
             <span
@@ -135,6 +167,33 @@ export function FlytIndikator({ medlemmer, recipientUserId, recipientGroupId, st
           </span>
         );
       })}
+      {harMer && (
+        <span className="ml-0.5 rounded px-1 py-0.5 text-[10px] text-gray-400 hover:text-gray-600">
+          +{ledd.length - visbareLedd.length}
+        </span>
+      )}
     </div>
   );
+}
+
+/** Filtrer til aktiv boks + én nabo på hver side */
+function filtrerNaboer(
+  ledd: Ledd[],
+  aktivtIndex: number,
+): Array<{ ledd: Ledd; originalIndex: number }> {
+  const resultat: Array<{ ledd: Ledd; originalIndex: number }> = [];
+  const start = Math.max(0, aktivtIndex - 1);
+  const slutt = Math.min(ledd.length - 1, aktivtIndex + 1);
+
+  for (let i = start; i <= slutt; i++) {
+    const l = ledd[i];
+    if (l) resultat.push({ ledd: l, originalIndex: i });
+  }
+
+  // Hvis aktivtIndex er -1 (lukket/godkjent), vis de to siste
+  if (aktivtIndex === -1) {
+    return ledd.slice(-2).map((l, i) => ({ ledd: l, originalIndex: ledd.length - 2 + i }));
+  }
+
+  return resultat;
 }

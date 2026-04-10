@@ -354,23 +354,24 @@ export default function OppgaveDetaljSide() {
   return (
     <div className="mx-auto max-w-3xl pb-12">
       {/* Skjerm-header: sticky ved scrolling */}
-      <div className="print-skjul sticky top-0 z-10 bg-white border-b border-gray-100 -mx-6 px-6 py-3 mb-3">
+      <div className="print-skjul sticky top-0 z-10 bg-white border-b border-gray-100 -mx-6 px-4 sm:px-6 py-3 mb-3">
         {/* Rad 1: Nummer + Tittel + Dato + Status */}
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
           {oppgaveNummer && (
             <span className="text-sm font-bold text-gray-500">{oppgaveNummer}</span>
           )}
-          <h3 className="text-lg font-bold truncate">{oppgave.title}</h3>
+          <h3 className="text-base sm:text-lg font-bold truncate max-w-[60vw] sm:max-w-none">{oppgave.title}</h3>
           <LagreIndikator status={lagreStatus} />
           {andreRedaktorer.length > 0 && (
             <div className="flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-0.5 text-xs text-amber-700">
               <Pencil className="h-3 w-3 animate-pulse" />
-              {andreRedaktorer.map((u) => u.navn).join(", ")} {t("presence.redigerer")}
+              <span className="hidden sm:inline">{andreRedaktorer.map((u) => u.navn).join(", ")} {t("presence.redigerer")}</span>
+              <span className="sm:hidden">{andreRedaktorer.length}</span>
             </div>
           )}
           <div className="ml-auto flex items-center gap-2">
             {(fullOppgaveRå as { createdAt?: string })?.createdAt && (
-              <span className="text-xs text-gray-400">
+              <span className="hidden sm:inline text-xs text-gray-400">
                 {new Date((fullOppgaveRå as { createdAt: string }).createdAt).toLocaleDateString("nb-NO", { day: "2-digit", month: "2-digit", year: "numeric" })}
               </span>
             )}
@@ -378,55 +379,71 @@ export default function OppgaveDetaljSide() {
           </div>
         </div>
 
-        {/* Rad 2: FlytIndikator + Handlingsknapper + Skriv ut */}
-        <div className="mt-2 flex items-center gap-3">
-          {flytMedlemmer.length > 0 && (
-            <FlytIndikator
-              medlemmer={flytMedlemmer}
-              recipientUserId={(fullOppgaveRå as { recipientUserId?: string | null })?.recipientUserId}
-              recipientGroupId={(fullOppgaveRå as { recipientGroupId?: string | null })?.recipientGroupId}
-              status={oppgave.status}
-              bestillerUserId={(fullOppgaveRå as { bestillerUserId?: string })?.bestillerUserId}
-            />
-          )}
-          <div className="ml-auto flex items-center gap-2">
-            <DokumentHandlingsmeny
-              status={oppgave.status}
-              erLaster={endreStatusMutasjon.isPending}
-              onEndreStatus={(nyStatus, kommentar, mottaker) => {
-                endreStatusMutasjon.mutate({
-                  id: params.oppgaveId,
-                  nyStatus: nyStatus as "draft" | "sent" | "received" | "in_progress" | "responded" | "approved" | "rejected" | "closed" | "cancelled",
-                  senderId: oppgave.id,
-                  kommentar,
-                  recipientUserId: mottaker?.userId,
-                  recipientGroupId: mottaker?.groupId,
-                  dokumentflytId: mottaker?.dokumentflytId,
-                });
-              }}
-              alleEntrepriser={alleEntrepriser}
-              dokumentflyter={dokumentflyter}
-              templateId={(oppgave as unknown as { templateId?: string }).templateId ?? oppgave.template?.id}
-              standardEntrepriseId={oppgave.utforerEnterprise?.id}
-              minRolle={minRolle}
-              flytMedlemmer={flytMedlemmer}
-              recipientUserId={(fullOppgaveRå as { recipientUserId?: string | null })?.recipientUserId}
-              recipientGroupId={(fullOppgaveRå as { recipientGroupId?: string | null })?.recipientGroupId}
-              bestillerUserId={(fullOppgaveRå as { bestillerUserId?: string })?.bestillerUserId}
-            />
-            <button
-              onClick={() => window.open(`/utskrift/oppgave/${params.oppgaveId}?print=true`, "_blank")}
-              className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
-              title={t("handling.skrivUtEnkel")}
-            >
-              <Printer className="h-4 w-4" />
-            </button>
+        {/* Rad 2: FlytIndikator (full bredde på mobil) */}
+        {flytMedlemmer.length > 0 && (
+          <div className="mt-2">
+            {/* Desktop: full flyt */}
+            <div className="hidden sm:block">
+              <FlytIndikator
+                medlemmer={flytMedlemmer}
+                recipientUserId={(fullOppgaveRå as { recipientUserId?: string | null })?.recipientUserId}
+                recipientGroupId={(fullOppgaveRå as { recipientGroupId?: string | null })?.recipientGroupId}
+                status={oppgave.status}
+                bestillerUserId={(fullOppgaveRå as { bestillerUserId?: string })?.bestillerUserId}
+              />
+            </div>
+            {/* Mobil: kompakt flyt med tap-for-expand */}
+            <div className="sm:hidden">
+              <FlytIndikator
+                medlemmer={flytMedlemmer}
+                recipientUserId={(fullOppgaveRå as { recipientUserId?: string | null })?.recipientUserId}
+                recipientGroupId={(fullOppgaveRå as { recipientGroupId?: string | null })?.recipientGroupId}
+                status={oppgave.status}
+                bestillerUserId={(fullOppgaveRå as { bestillerUserId?: string })?.bestillerUserId}
+                kompakt
+              />
+            </div>
           </div>
+        )}
+
+        {/* Rad 3: Handlingsknapper (full bredde på mobil) */}
+        <div className="mt-2 flex items-center gap-2">
+          <DokumentHandlingsmeny
+            status={oppgave.status}
+            erLaster={endreStatusMutasjon.isPending}
+            onEndreStatus={(nyStatus, kommentar, mottaker) => {
+              endreStatusMutasjon.mutate({
+                id: params.oppgaveId,
+                nyStatus: nyStatus as "draft" | "sent" | "received" | "in_progress" | "responded" | "approved" | "rejected" | "closed" | "cancelled",
+                senderId: oppgave.id,
+                kommentar,
+                recipientUserId: mottaker?.userId,
+                recipientGroupId: mottaker?.groupId,
+                dokumentflytId: mottaker?.dokumentflytId,
+              });
+            }}
+            alleEntrepriser={alleEntrepriser}
+            dokumentflyter={dokumentflyter}
+            templateId={(oppgave as unknown as { templateId?: string }).templateId ?? oppgave.template?.id}
+            standardEntrepriseId={oppgave.utforerEnterprise?.id}
+            minRolle={minRolle}
+            flytMedlemmer={flytMedlemmer}
+            recipientUserId={(fullOppgaveRå as { recipientUserId?: string | null })?.recipientUserId}
+            recipientGroupId={(fullOppgaveRå as { recipientGroupId?: string | null })?.recipientGroupId}
+            bestillerUserId={(fullOppgaveRå as { bestillerUserId?: string })?.bestillerUserId}
+          />
+          <button
+            onClick={() => window.open(`/utskrift/oppgave/${params.oppgaveId}?print=true`, "_blank")}
+            className="ml-auto flex items-center gap-1.5 rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
+            title={t("handling.skrivUtEnkel")}
+          >
+            <Printer className="h-4 w-4" />
+          </button>
         </div>
 
         {/* Beskrivelse (kun hvis finnes) */}
         {oppgave.description && (
-          <p className="mt-2 text-sm text-gray-600">{oppgave.description}</p>
+          <p className="mt-2 text-sm text-gray-600 line-clamp-2 sm:line-clamp-none">{oppgave.description}</p>
         )}
 
         {/* Lokasjon */}

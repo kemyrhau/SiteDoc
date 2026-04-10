@@ -442,11 +442,11 @@ export function DokumentHandlingsmeny({
     return null;
   }
 
-  // Bekreftelse-modus
+  // Bekreftelse-modus — responsiv: stacker vertikalt på mobil
   if (bekreftHandling) {
     return (
-      <div className="flex items-center gap-2">
-        <span className="text-sm text-gray-500">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full">
+        <span className="text-sm text-gray-500 shrink-0">
           {t("statushandling.bekreftHandling", { handling: bekreftHandling.label || bekreftHandling.nyStatus })}
         </span>
 
@@ -456,23 +456,25 @@ export function DokumentHandlingsmeny({
           onChange={(e) => setKommentar(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") utførHandling(bekreftHandling.nyStatus, bekreftHandling.mottaker); }}
           placeholder={t("statushandling.valgfriKommentar")}
-          className="rounded-lg border border-gray-200 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none w-48"
+          className="rounded-lg border border-gray-200 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none w-full sm:w-48"
           autoFocus
         />
 
-        <button
-          onClick={() => utførHandling(bekreftHandling.nyStatus, bekreftHandling.mottaker)}
-          disabled={erLaster}
-          className="rounded-lg bg-sitedoc-primary px-3 py-1 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-        >
-          {erLaster ? t("statushandling.endrer") : t("handling.bekreft")}
-        </button>
-        <button
-          onClick={avbrytBekreft}
-          className="rounded-lg border border-gray-300 px-2 py-1 text-sm text-gray-600 hover:bg-gray-50"
-        >
-          {t("handling.avbryt")}
-        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={() => utførHandling(bekreftHandling.nyStatus, bekreftHandling.mottaker)}
+            disabled={erLaster}
+            className="rounded-lg bg-sitedoc-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+          >
+            {erLaster ? t("statushandling.endrer") : t("handling.bekreft")}
+          </button>
+          <button
+            onClick={avbrytBekreft}
+            className="rounded-lg border border-gray-300 px-2 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
+          >
+            {t("handling.avbryt")}
+          </button>
+        </div>
       </div>
     );
   }
