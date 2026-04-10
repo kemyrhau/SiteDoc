@@ -264,14 +264,17 @@ export default function UtskriftSjekklisteSide() {
               {treObjekter.map((objekt) => {
                 const feltData = data[objekt.id];
                 return (
-                  <div key={objekt.id} className="print-no-break">
-                    <RapportObjektVisning
-                      objekt={objekt}
-                      verdi={feltData?.verdi ?? null}
-                      nestingNivå={0}
-                      data={data}
-                      prosjektAdresse={prosjekt?.address}
-                    />
+                  <div key={objekt.id}>
+                    <div className="print-no-break">
+                      <RapportObjektVisning
+                        objekt={objekt}
+                        verdi={feltData?.verdi ?? null}
+                        nestingNivå={0}
+                        data={data}
+                        prosjektAdresse={prosjekt?.address}
+                      />
+                    </div>
+                    {/* Vedlegg utenfor print-no-break — bilder kan brytes over sider */}
                     <FeltVedlegg vedlegg={feltData?.vedlegg} kommentar={feltData?.kommentar} />
                   </div>
                 );

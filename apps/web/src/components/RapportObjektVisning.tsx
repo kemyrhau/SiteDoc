@@ -607,13 +607,13 @@ export function TegningPosisjonPrint({ pos }: { pos: TegningPosisjonVerdi }) {
     <div>
       <p className="mb-2 text-sm font-medium text-gray-700">{visNavn}</p>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="bilde-grid">
         {/* Oversiktsbilde med markør */}
-        <div className="relative overflow-hidden rounded border border-gray-200" style={{ aspectRatio: "5/4" }}>
+        <div className="bilde-celle relative rounded border border-gray-200 bg-gray-50" style={{ height: "260px" }}>
           <img
             src={bildeSrc}
             alt={drawingName}
-            className="absolute inset-0 h-full w-full object-contain"
+            className="h-full w-full object-contain"
           />
           {/* Rød markør */}
           <div
@@ -633,11 +633,11 @@ export function TegningPosisjonPrint({ pos }: { pos: TegningPosisjonVerdi }) {
         </div>
 
         {/* Detaljutsnitt */}
-        <div className="relative overflow-hidden rounded border border-gray-200" style={{ aspectRatio: "5/4" }}>
+        <div className="bilde-celle relative rounded border border-gray-200" style={{ height: "260px", overflow: "hidden" }}>
           <img
             src={bildeSrc}
             alt={`Detalj: ${drawingName}`}
-            className="absolute inset-0 h-full w-full object-cover"
+            className="h-full w-full object-cover"
             style={{
               transformOrigin: `${x}% ${y}%`,
               transform: `scale(${DETALJ_ZOOM})`,
