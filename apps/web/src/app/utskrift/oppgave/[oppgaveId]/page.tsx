@@ -149,34 +149,43 @@ export default function UtskriftOppgaveSide() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 pb-16 print:min-h-0 print:bg-white print:pb-0">
-      {/* Flytende verktøylinje */}
-      <div className="print-skjul sticky top-0 z-10 border-b border-gray-200 bg-white px-4 py-3 shadow-sm">
-        <div className="mx-auto flex max-w-4xl items-center gap-3">
-          <h1 className="mr-auto text-sm font-medium text-gray-700">
-            Forhåndsvisning — {oppgave.title}
-          </h1>
-          <button
-            onClick={() => window.print()}
-            className="flex items-center gap-1.5 rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800"
-          >
-            <Printer className="h-4 w-4" />
-            Skriv ut / Lagre PDF
-          </button>
-          {prosjektId && (
-            <a
-              href={`/dashbord/${prosjektId}/oppgaver/${oppgave.id}`}
-              className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-600 hover:bg-gray-50"
-            >
-              <ExternalLink className="h-4 w-4" />
-              Åpne oppgave
-            </a>
-          )}
+    <div className={autoPrint ? "min-h-screen bg-white" : "min-h-screen bg-gray-100 pb-16"}>
+      {autoPrint && (
+        <div className="flex min-h-screen items-center justify-center print:hidden">
+          <div className="text-center">
+            <Spinner size="lg" />
+            <p className="mt-3 text-sm text-gray-500">Forbereder utskrift…</p>
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* A4-ark — 210mm bredde, 15mm padding matcher @page margin */}
-      <div className="a4-ark mx-auto mt-8 w-[794px] rounded bg-white px-[15mm] py-[15mm] shadow-lg print:mt-0 print:w-auto print:max-w-none print:rounded-none print:px-0 print:py-0 print:shadow-none">
+      {!autoPrint && (
+        <div className="print-skjul sticky top-0 z-10 border-b border-gray-200 bg-white px-4 py-3 shadow-sm">
+          <div className="mx-auto flex max-w-4xl items-center gap-3">
+            <h1 className="mr-auto text-sm font-medium text-gray-700">
+              Forhåndsvisning — {oppgave.title}
+            </h1>
+            <button
+              onClick={() => window.print()}
+              className="flex items-center gap-1.5 rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800"
+            >
+              <Printer className="h-4 w-4" />
+              Skriv ut / Lagre PDF
+            </button>
+            {prosjektId && (
+              <a
+                href={`/dashbord/${prosjektId}/oppgaver/${oppgave.id}`}
+                className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-600 hover:bg-gray-50"
+              >
+                <ExternalLink className="h-4 w-4" />
+                Åpne oppgave
+              </a>
+            )}
+          </div>
+        </div>
+      )}
+
+      <div className={`a4-ark mx-auto w-[794px] rounded bg-white px-[15mm] py-[15mm] shadow-lg print:mt-0 print:w-auto print:max-w-none print:rounded-none print:shadow-none ${autoPrint ? "hidden print:block" : "mt-8"}`}>
         {/* Header — styrt av utskriftsinnstillinger */}
         {(() => {
           const ui = (prosjekt as unknown as { utskriftsinnstillinger?: Record<string, boolean> | null })?.utskriftsinnstillinger;
