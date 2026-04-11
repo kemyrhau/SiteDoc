@@ -87,6 +87,7 @@ Hjelpemodul i `apps/api/src/trpc/tilgangskontroll.ts`:
 | `verifiserDokumentTilgang(userId, projectId, bestillerId, utforerId, domain?)` | Entreprise + fagområde-tilgang |
 | `hentBrukerTillatelser(userId, projectId)` | `Permission`-set fra grupper. Admin har alle |
 | `verifiserTillatelse(userId, projectId, permission)` | FORBIDDEN hvis mangler |
+| `verifiserFlytRolle(...)` | Sjekker flytrolle for statusovergang (403 ved mismatch) |
 
 **Tilgangslogikk for dokumentvisning:**
 - Admin ser alltid alt
@@ -96,8 +97,16 @@ Hjelpemodul i `apps/api/src/trpc/tilgangskontroll.ts`:
   - Gruppe med entrepriser → entreprise-begrenset: kun matchende domain OG entreprise
 - Samlet: union av gruppers tilganger + direkte MemberEnterprise-tilgang
 
+**Rettighetsbasert redigering (per dokument):**
+- `utledDokumentRettighet()` i `@sitedoc/shared` → `"admin"` / `"redigerer"` / `"leser"`
+- Admin/registrator → alltid admin. Terminal status → alltid leser.
+- Har ballen + `DokumentflytMedlem.kanRedigere = true` + edit-tillatelse → redigerer
+- `kanRedigere` settes per flytmedlem i dokumentflyt-oppsettet (toggle i UI)
+- Fallback: brukere uten grupper (`tillatelser.size === 0`) får redigering hvis de har ballen
+
 **UI-tilgangskontroll (web):**
 - `gruppe.hentMineTillatelser` eksponerer tillatelser til klienten
+- `gruppe.hentMinFlytInfo` returnerer `userId`, `projectMemberId`, `entrepriseIder`, `gruppeIder`, `erAdmin`
 - `HovedSidebar` — Maler-ikonet skjules uten `manage_field`
 - `OppsettLayout` — Produksjon-seksjonen skjules uten `manage_field`
 - Mønster: `tillatelse?: Permission` på nav-element-interfaces

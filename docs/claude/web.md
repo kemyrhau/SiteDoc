@@ -286,10 +286,31 @@ Handlingsknapper basert på brukerens **posisjon i flyten** (`apps/web/src/compo
 **Nøkkelbegreper:**
 - `null`-rolle = lesevisning (ingen knapper)
 - "Trekk tilbake" = `sent → cancelled` (ikke "Avbryt" som er UI-avbryt)
-- **API:** `gruppe.hentMinFlytInfo` returnerer `projectMemberId`, `entrepriseIder`, `gruppeIder`, `erAdmin`
+- **API:** `gruppe.hentMinFlytInfo` returnerer `userId`, `projectMemberId`, `entrepriseIder`, `gruppeIder`, `erAdmin`
 - **API-validering:** `verifiserFlytRolle()` sjekker rolle før statusendring (403 ved mismatch)
 - **Videresend med flytbytte:** Oppdaterer `dokumentflytId` + `utforerEnterpriseId` automatisk
 - `cancelled → draft` er gyldig overgang (gjenåpning)
+
+### Rettighetsbasert UI (leser/redigerer/admin)
+
+`utledDokumentRettighet()` i `@sitedoc/shared/utils/flytRolle.ts` bestemmer hva brukeren kan gjøre:
+
+| Steg | Sjekk | Resultat |
+|------|-------|----------|
+| 1 | Admin / registrator | `"admin"` (alltid full tilgang) |
+| 2 | Terminal status (closed/approved/cancelled) | `"leser"` |
+| 3 | Kladd + edit-tillatelse | `"redigerer"` / `"leser"` |
+| 4 | Har ikke ballen | `"leser"` |
+| 5 | `DokumentflytMedlem.kanRedigere = false` | `"leser"` |
+| 6 | Gruppetillatelse (`checklist_edit`/`task_edit`) | `"redigerer"` / `"leser"` |
+
+**Fallback:** Brukere uten gruppemedlemskap (`tillatelser.size === 0`) får redigering hvis de har ballen — forhindrer blokkering av eksisterende flyter.
+
+**harBallen:** `recipientUserId === userId` eller `recipientGroupId in gruppeIder`. I kladd: `bestillerUserId === userId`.
+
+**Hooks:** `useOppgaveSkjema(id, rettighetInput?)` og `useSjekklisteSkjema(id, rettighetInput?)`. Valgfri `rettighetInput` — uten den faller hooken tilbake til gammel status-basert logikk (bakoverkompatibilitet for mobil).
+
+**kanRedigere-toggle:** I dokumentflyt-oppsettet (kontaktsiden) vises en toggle per flytmedlem: "Redigerer" (default, grå) / "Leser" (amber). Settes via `dokumentflyt.settKanRedigere` mutation. Gjelder per flytledd — en gruppe kan være redigerer i én flyt og leser i en annen.
 
 ### Responsiv tilpasning (mobil)
 - Tittel: `text-base` + truncate 60vw (desktop: `text-lg`)

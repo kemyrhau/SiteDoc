@@ -145,9 +145,14 @@ Kun én mottaker → send direkte uten dropdown.
 **Admin-seksjon i dropdown:**
 Registrator/admin ser alltid en egen seksjon med alle flytbokser og manuelle statusendringer.
 
+**Implementert: kanRedigere per flytledd**
+- `DokumentflytMedlem.kanRedigere` (boolean, default `true`) styrer om et flytmedlem kan redigere dokumenter
+- Toggle i dokumentflyt-oppsettet: "Redigerer" (default) / "Leser" (amber badge)
+- `utledDokumentRettighet()` sjekker `kanRedigere` — `false` → bruker får kun lesevisning selv med ballen
+- Admin/registrator upåvirket (alltid full tilgang)
+
 **Fremtidig:**
-- Per-medlem rettighet i entreprise (kun se, ikke endre)
-- Datamodellen må være klar for dette fra start
+- Per-person overstyring innad i en gruppe (nå gjelder hele gruppen)
 
 ---
 
@@ -210,8 +215,8 @@ Systemet skal advare brukeren når dokumentflyt-oppsett er ugyldig:
 
 ## 7. Fremtidige utvidelser
 
-- **Per-ledd låsbarhet** — fullt konfigurerbart i flytmal-oppsett for alle dokumenttyper
-- **Per-medlem rettighet i entreprise** — kun se, ikke endre
+- **Per-ledd låsbarhet** — `låsesEtterPasseringer` finnes i schema, ikke implementert ennå
+- **Per-person rettighet innad i gruppe** — overstyring av kanRedigere per gruppeperson (nå gjelder hele gruppen)
 - **Lenking mellom dokumenter** — referanser/vedlegg på tvers av flyter uten at dokumentet reiser
 - **Tildeling til person** — leder tildeler dokument til spesifikk ansatt innen entreprisen
 - **Varsling** — tildelt person varsles når de får ballen
