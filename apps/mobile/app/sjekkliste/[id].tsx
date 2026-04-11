@@ -32,7 +32,7 @@ import { trpc } from "../../src/lib/trpc";
 import { useProsjekt } from "../../src/kontekst/ProsjektKontekst";
 import { hentDatabase } from "../../src/db/database";
 import { sjekklisteFeltdata, opplastingsKo } from "../../src/db/schema";
-import { byggSjekklisteHtml } from "../../src/utils/sjekklistePdf";
+import { byggSjekklisteHtml } from "@sitedoc/pdf";
 import { PdfForhandsvisning } from "../../src/components/PdfForhandsvisning";
 import { AUTH_CONFIG } from "../../src/config/auth";
 import * as Print from "expo-print";
@@ -306,17 +306,28 @@ export default function SjekklisteUtfylling() {
       updatedAt: detalj?.updatedAt as Date | string | undefined,
       changeLog: (detalj?.changeLog ?? []) as Array<{ createdAt: Date | string; user: { name: string | null } }>,
     };
+    const prosjektForPdf = prosjektData ? {
+      name: prosjektData.name,
+      projectNumber: prosjektData.projectNumber,
+      externalProjectNumber: (prosjektData as Record<string, unknown>).externalProjectNumber as string | null | undefined,
+      address: prosjektData.address,
+      logoUrl: (prosjektData as Record<string, unknown>).logoUrl as string | null | undefined,
+    } : null;
+    const ui = (prosjektData as Record<string, unknown> | undefined)?.utskriftsinnstillinger as Record<string, boolean> | null | undefined;
     return byggSjekklisteHtml(
       sjekklisteMedDetaljer,
       feltVerdierForPdf(),
-      prosjektData ? {
-        name: prosjektData.name,
-        projectNumber: prosjektData.projectNumber,
-        externalProjectNumber: (prosjektData as Record<string, unknown>).externalProjectNumber as string | null | undefined,
-        address: prosjektData.address,
-        logoUrl: (prosjektData as Record<string, unknown>).logoUrl as string | null | undefined,
+      prosjektForPdf,
+      ui ? {
+        logo: ui.logo,
+        eksternProsjektnummer: ui.eksternProsjektnummer,
+        prosjektnavn: ui.prosjektnavn,
+        fraTil: ui.fraTil,
+        lokasjon: ui.lokasjon,
+        tegningsnummer: ui.tegningsnummer,
+        vaer: ui.vaer,
       } : null,
-      AUTH_CONFIG.apiUrl,
+      { bildeBaseUrl: AUTH_CONFIG.apiUrl, maksbildeHoyde: 200 },
     );
   }, [sjekkliste, prosjektData, detaljQuery.data as unknown]);
 

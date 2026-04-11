@@ -19,6 +19,7 @@
     "@gorhom/bottom-sheet": "^5.2.8",
     "@react-native-community/datetimepicker": "^8.4.4",
     "@react-native-community/netinfo": "^11.4.1",
+    "@sitedoc/pdf": "workspace:*",
     "@sitedoc/shared": "workspace:*",
     "@tanstack/react-query": "^5.90.21",
     "@trpc/client": "^11.10.0",
