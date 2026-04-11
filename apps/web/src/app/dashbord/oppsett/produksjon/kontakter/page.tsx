@@ -61,6 +61,7 @@ interface DokumentflytMedlem {
   rolle: string;
   erHovedansvarlig: boolean;
   hovedansvarligPersonId?: string | null;
+  kanRedigere: boolean;
   steg: number;
   projectMember?: { id: string; user: { id: string; name: string | null } } | null;
   group?: { id: string; name: string } | null;
@@ -640,6 +641,12 @@ function FlytBoks({
     },
   });
 
+  const settKanRedigereMutation = trpc.dokumentflyt.settKanRedigere.useMutation({
+    onSuccess: () => {
+      utils.dokumentflyt.hentForProsjekt.invalidate({ projectId: prosjektId });
+    },
+  });
+
   // Del medlemmer i grupper og enkeltpersoner
   const gruppeMedlemmer = medlemmer.filter((m) => !!m.group);
   const enkeltpersoner = medlemmer.filter((m) => !m.group && !!m.projectMember);
@@ -675,6 +682,29 @@ function FlytBoks({
         }`}
         title={m.erHovedansvarlig ? t("kontakter.fjernHovedansvarlig") : t("kontakter.settHovedansvarlig")}
       />
+    );
+  }
+
+  function renderKanRedigereToggle(m: DokumentflytMedlem) {
+    return (
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          settKanRedigereMutation.mutate({
+            id: m.id,
+            projectId: prosjektId,
+            kanRedigere: !m.kanRedigere,
+          });
+        }}
+        className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium transition-all ${
+          m.kanRedigere
+            ? "text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+            : "bg-amber-100 text-amber-700"
+        }`}
+        title={m.kanRedigere ? t("kontakter.settLeser") : t("kontakter.settRedigerer")}
+      >
+        {m.kanRedigere ? t("kontakter.redigerer") : t("kontakter.leserRettighet")}
+      </button>
     );
   }
 
@@ -750,6 +780,7 @@ function FlytBoks({
                   <span className="text-xs text-gray-400">({medlemNavn.length})</span>
                 )}
               </button>
+              {renderKanRedigereToggle(m)}
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -812,6 +843,7 @@ function FlytBoks({
                 · {grupperNavn.join(", ")}
               </span>
             )}
+            {renderKanRedigereToggle(m)}
             <button
               onClick={(e) => {
                 e.stopPropagation();

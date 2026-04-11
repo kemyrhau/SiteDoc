@@ -249,4 +249,21 @@ export const dokumentflytRouter = router({
         where: { id: input.id },
       });
     }),
+
+  // Sett kanRedigere for et flytmedlem
+  settKanRedigere: protectedProcedure
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        projectId: z.string().uuid(),
+        kanRedigere: z.boolean(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      return ctx.prisma.dokumentflytMedlem.update({
+        where: { id: input.id },
+        data: { kanRedigere: input.kanRedigere },
+      });
+    }),
 });
