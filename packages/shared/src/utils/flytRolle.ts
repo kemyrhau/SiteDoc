@@ -96,3 +96,60 @@ export function utledMinRolle(
 
   return besteRolle;
 }
+
+/* ------------------------------------------------------------------ */
+/*  Dokumentrettighet — leser / redigerer / admin                      */
+/* ------------------------------------------------------------------ */
+
+export type DokumentRettighet = "admin" | "redigerer" | "leser";
+
+export interface DokumentRettighetInput {
+  /** Prosjektadmin eller sitedoc_admin (fra hentMinFlytInfo.erAdmin) */
+  erAdmin: boolean;
+  /** Brukerens rolle i dokumentflyten (fra utledMinRolle) */
+  minRolle: DokumentflytRolle | null | undefined;
+  /** Brukerens group-baserte tillatelser (fra hentBrukerTillatelser / hentMineTillatelser) */
+  tillatelser: Set<string>;
+  /** Dokumentets nåværende status */
+  status: string;
+  /** Dokumenttype */
+  dokumentType: "sjekkliste" | "oppgave";
+  /** Har brukeren ballen akkurat nå? */
+  harBallen: boolean;
+}
+
+/**
+ * Utled brukerens rettighet for et dokument.
+ *
+ * - "admin": full tilgang, kan overstyre alt (prosjektadmin / registrator)
+ * - "redigerer": kan fylle ut felter (har ballen + edit-tillatelse)
+ * - "leser": kun forhåndsvisning
+ *
+ * For oppgaver: "redigerer" betyr append-only — erFeltLåst() i hook håndhever dette.
+ */
+export function utledDokumentRettighet(input: DokumentRettighetInput): DokumentRettighet {
+  const { erAdmin, minRolle, tillatelser, status, dokumentType, harBallen } = input;
+
+  // 1. Prosjektadmin eller flytregistrator → alltid admin
+  if (erAdmin || minRolle === "registrator") return "admin";
+
+  // 2. Terminale statuser → alltid leser
+  if (["closed", "approved", "cancelled"].includes(status)) return "leser";
+
+  // 3. Kladd → sjekk edit-tillatelse (med fallback)
+  if (status === "draft") {
+    if (tillatelser.size === 0) return "redigerer"; // Ingen grupper konfigurert → tillat
+    const editPerm = dokumentType === "sjekkliste" ? "checklist_edit" : "task_edit";
+    return tillatelser.has(editPerm) ? "redigerer" : "leser";
+  }
+
+  // 4. Har ikke ballen → leser
+  if (!harBallen) return "leser";
+
+  // 5. Har ballen — sjekk tillatelse (med fallback for brukere uten grupper)
+  if (tillatelser.size === 0) return "redigerer"; // Ingen grupper konfigurert → tillat
+  const editPerm = dokumentType === "sjekkliste" ? "checklist_edit" : "task_edit";
+  if (!tillatelser.has(editPerm)) return "leser";
+
+  return "redigerer";
+}

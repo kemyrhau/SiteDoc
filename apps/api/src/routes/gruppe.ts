@@ -29,7 +29,7 @@ export const gruppeRouter = router({
         select: { role: true },
       });
       if (bruker?.role === "sitedoc_admin") {
-        return { projectMemberId: "", entrepriseIder: [], gruppeIder: [], erAdmin: true };
+        return { userId: ctx.userId, projectMemberId: "", entrepriseIder: [], gruppeIder: [], erAdmin: true };
       }
 
       const medlem = await ctx.prisma.projectMember.findUnique({
@@ -45,6 +45,7 @@ export const gruppeRouter = router({
       }
 
       return {
+        userId: ctx.userId,
         projectMemberId: medlem.id,
         entrepriseIder: medlem.enterprises.map((e) => e.enterpriseId),
         gruppeIder: medlem.groupMemberships.map((gm) => gm.groupId),

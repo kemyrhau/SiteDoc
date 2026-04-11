@@ -4,11 +4,22 @@ import { useState, useCallback, useRef, useMemo, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import type { FeltVerdi, Vedlegg, RapportObjekt } from "@/components/rapportobjekter/typer";
 import { TOM_FELTVERDI } from "@/components/rapportobjekter/typer";
+import { utledDokumentRettighet } from "@sitedoc/shared";
+import type { DokumentRettighet, DokumentflytRolle } from "@sitedoc/shared";
 
 type LagreStatus = "idle" | "lagrer" | "lagret" | "feil";
 
 const DISPLAY_TYPER = new Set(["heading", "subtitle"]);
+// Fallback for bakoverkompatibilitet (brukes når rettighetInput ikke er gitt)
 const REDIGERBARE_STATUSER = new Set(["draft", "received", "in_progress"]);
+
+/** Rettighetsinfo fra detaljsiden — valgfri for bakoverkompatibilitet */
+export interface RettighetInput {
+  erAdmin: boolean;
+  minRolle: DokumentflytRolle | null | undefined;
+  tillatelser: Set<string>;
+  harBallen: boolean;
+}
 
 export interface UseOppgaveSkjemaResultat {
   oppgave: {
@@ -42,10 +53,12 @@ export interface UseOppgaveSkjemaResultat {
   valider: () => boolean;
   lagre: () => Promise<void>;
   erRedigerbar: boolean;
+  /** Detaljert rettighet: admin / redigerer / leser */
+  rettighet: DokumentRettighet;
   lagreStatus: LagreStatus;
 }
 
-export function useOppgaveSkjema(oppgaveId: string): UseOppgaveSkjemaResultat {
+export function useOppgaveSkjema(oppgaveId: string, rettighetInput?: RettighetInput): UseOppgaveSkjemaResultat {
   const [feltVerdier, settFeltVerdier] = useState<Record<string, FeltVerdi>>({});
   const [valideringsfeil, settValideringsfeil] = useState<Record<string, string>>({});
   const [erInitialisert, settErInitialisert] = useState(false);
@@ -280,7 +293,24 @@ export function useOppgaveSkjema(oppgaveId: string): UseOppgaveSkjemaResultat {
     return Object.keys(feil).length === 0;
   }, [alleObjekter, erSynlig, hentFeltVerdi]);
 
-  const erRedigerbar = oppgave ? REDIGERBARE_STATUSER.has(oppgave.status) : false;
+  // Rettighet: bruker ny funksjon hvis rettighetInput er gitt, ellers fallback til status-basert
+  const rettighet: DokumentRettighet = useMemo(() => {
+    if (!oppgave) return "leser";
+    if (!rettighetInput) {
+      // Fallback: gammel status-basert logikk (for bakoverkompatibilitet / mobil)
+      return REDIGERBARE_STATUSER.has(oppgave.status) ? "redigerer" : "leser";
+    }
+    return utledDokumentRettighet({
+      erAdmin: rettighetInput.erAdmin,
+      minRolle: rettighetInput.minRolle,
+      tillatelser: rettighetInput.tillatelser,
+      status: oppgave.status,
+      dokumentType: "oppgave",
+      harBallen: rettighetInput.harBallen,
+    });
+  }, [oppgave, rettighetInput]);
+
+  const erRedigerbar = rettighet !== "leser";
 
   return {
     oppgave: oppgave
@@ -310,6 +340,7 @@ export function useOppgaveSkjema(oppgaveId: string): UseOppgaveSkjemaResultat {
     valider,
     lagre,
     erRedigerbar,
+    rettighet,
     lagreStatus,
   };
 }

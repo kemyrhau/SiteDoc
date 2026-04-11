@@ -72,6 +72,82 @@ export default function SjekklisteDetaljSide() {
   const [opprettOppgaveFeltId, setOpprettOppgaveFeltId] = useState<string | null>(null);
   const [opprettOppgaveFeltLabel, setOpprettOppgaveFeltLabel] = useState("");
 
+  // --- Hent brukerinfo og prosjektdata FØR skjema-hook ---
+
+  const { data: minFlytInfo } = trpc.gruppe.hentMinFlytInfo.useQuery(
+    { projectId: params.prosjektId },
+    { enabled: !!params.prosjektId },
+  );
+
+  const { data: mineTillatelserRå } = trpc.gruppe.hentMineTillatelser.useQuery(
+    { projectId: params.prosjektId },
+    { enabled: !!params.prosjektId },
+  );
+  const mineTillatelser = useMemo(
+    () => new Set<string>(mineTillatelserRå ?? []),
+    [mineTillatelserRå],
+  );
+
+  const { data: alleEntrepriserRå } = trpc.entreprise.hentForProsjekt.useQuery(
+    { projectId: params.prosjektId },
+    { enabled: !!params.prosjektId },
+  );
+  const { data: dokumentflyterRå } = trpc.dokumentflyt.hentForProsjekt.useQuery(
+    { projectId: params.prosjektId },
+    { enabled: !!params.prosjektId },
+  );
+  const alleEntrepriser = (alleEntrepriserRå ?? []) as Array<{ id: string; name: string; color: string | null }>;
+  const dokumentflyter = (dokumentflyterRå ?? []) as unknown as import("@/components/StatusHandlinger").DokumentflytData[];
+
+  // Hent full sjekklistedata for tidslinje/recipient/creator
+  const { data: fullSjekklisteRå } = trpc.sjekkliste.hentMedId.useQuery(
+    { id: params.sjekklisteId },
+    { enabled: !!params.sjekklisteId },
+  );
+
+  // harBallen
+  const harBallen = useMemo(() => {
+    if (!fullSjekklisteRå || !minFlytInfo) return false;
+    const fs = fullSjekklisteRå as { status?: string; recipientUserId?: string | null; recipientGroupId?: string | null; bestillerUserId?: string };
+    if (fs.status === "draft") return fs.bestillerUserId === (minFlytInfo as { userId?: string }).userId;
+    if (fs.recipientUserId && fs.recipientUserId === (minFlytInfo as { userId?: string }).userId) return true;
+    if (fs.recipientGroupId && minFlytInfo.gruppeIder.includes(fs.recipientGroupId)) return true;
+    return false;
+  }, [fullSjekklisteRå, minFlytInfo]);
+
+  // Utled brukerens rolle i dokumentflyten
+  const minRolle = useMemo(() => {
+    if (!minFlytInfo || !fullSjekklisteRå) return undefined;
+    const sj = fullSjekklisteRå as unknown as { dokumentflytId?: string | null; bestillerEnterprise?: { id: string }; utforerEnterprise?: { id: string } };
+    if (!sj.dokumentflytId) return undefined;
+    const flyt = dokumentflyter.find((df) => df.id === sj.dokumentflytId);
+    if (!flyt) return null;
+    const medlemmer = flyt.medlemmer.map((m): FlytMedlemInfo => ({
+      rolle: m.rolle,
+      enterpriseId: m.enterpriseId ?? null,
+      projectMemberId: m.projectMemberId ?? null,
+      groupId: m.groupId ?? null,
+    }));
+    return utledMinRolle(
+      { ...minFlytInfo, userId: "", erAdmin: minFlytInfo.erAdmin },
+      medlemmer,
+      { bestillerEnterpriseId: sj.bestillerEnterprise?.id ?? "", utforerEnterpriseId: sj.utforerEnterprise?.id ?? "" },
+    );
+  }, [minFlytInfo, fullSjekklisteRå, dokumentflyter]);
+
+  // Bygg rettighetInput for skjema-hook
+  const rettighetInput = useMemo(() => {
+    if (!minFlytInfo) return undefined;
+    return {
+      erAdmin: minFlytInfo.erAdmin,
+      minRolle,
+      tillatelser: mineTillatelser,
+      harBallen,
+    };
+  }, [minFlytInfo, minRolle, mineTillatelser, harBallen]);
+
+  // --- Skjema-hook med rettighetsinfo ---
+
   const {
     sjekkliste,
     erLaster,
@@ -84,7 +160,7 @@ export default function SjekklisteDetaljSide() {
     valideringsfeil,
     erRedigerbar,
     lagreStatus,
-  } = useSjekklisteSkjema(params.sjekklisteId);
+  } = useSjekklisteSkjema(params.sjekklisteId, rettighetInput);
 
   const { standardTegning } = useByggeplass();
   const { andreRedaktorer } = usePresence(params.sjekklisteId, "sjekkliste");
@@ -108,44 +184,6 @@ export default function SjekklisteDetaljSide() {
       utils.sjekkliste.hentMedId.invalidate({ id: params.sjekklisteId });
     },
   });
-
-  // Hent brukerens flyt-info for rollebaserte knapper
-  const { data: minFlytInfo } = trpc.gruppe.hentMinFlytInfo.useQuery(
-    { projectId: params.prosjektId },
-    { enabled: !!params.prosjektId },
-  );
-
-  // Hent entrepriser og dokumentflyter for videresend-logikk
-  const { data: alleEntrepriserRå } = trpc.entreprise.hentForProsjekt.useQuery(
-    { projectId: params.prosjektId },
-    { enabled: !!params.prosjektId },
-  );
-  const { data: dokumentflyterRå } = trpc.dokumentflyt.hentForProsjekt.useQuery(
-    { projectId: params.prosjektId },
-    { enabled: !!params.prosjektId },
-  );
-  const alleEntrepriser = (alleEntrepriserRå ?? []) as Array<{ id: string; name: string; color: string | null }>;
-  const dokumentflyter = (dokumentflyterRå ?? []) as unknown as import("@/components/StatusHandlinger").DokumentflytData[];
-
-  // Utled brukerens rolle i dokumentflyten
-  const minRolle = useMemo(() => {
-    if (!minFlytInfo || !sjekkliste) return undefined; // Venter på data
-    const sj = sjekkliste as unknown as { dokumentflytId?: string | null; bestillerEnterprise?: { id: string }; utforerEnterprise?: { id: string } };
-    if (!sj.dokumentflytId) return undefined; // Ingen flyt → ufiltrerte handlinger
-    const flyt = dokumentflyter.find((df) => df.id === sj.dokumentflytId);
-    if (!flyt) return null;
-    const medlemmer = flyt.medlemmer.map((m): FlytMedlemInfo => ({
-      rolle: m.rolle,
-      enterpriseId: m.enterpriseId ?? null,
-      projectMemberId: m.projectMemberId ?? null,
-      groupId: m.groupId ?? null,
-    }));
-    return utledMinRolle(
-      { ...minFlytInfo, userId: "", erAdmin: minFlytInfo.erAdmin },
-      medlemmer,
-      { bestillerEnterpriseId: sj.bestillerEnterprise?.id ?? "", utforerEnterpriseId: sj.utforerEnterprise?.id ?? "" },
-    );
-  }, [minFlytInfo, sjekkliste, dokumentflyter]);
 
   // Flytmedlemmer for FlytIndikator og DokumentHandlingsmeny
   const flytMedlemmer = useMemo(() => {
@@ -173,11 +211,7 @@ export default function SjekklisteDetaljSide() {
     { enabled: !!params.prosjektId },
   );
 
-  // Hent full sjekklistedata for nummer/oppretter-bruker (cast for TS2589)
-  const { data: fullSjekklisteRå } = trpc.sjekkliste.hentMedId.useQuery(
-    { id: params.sjekklisteId },
-    { enabled: !!params.sjekklisteId },
-  );
+  // fullSjekklisteRå hentet ovenfor — cast for typesikkerhet
   const fullSjekkliste = fullSjekklisteRå as {
     number?: number | null;
     bestiller?: { name?: string | null };

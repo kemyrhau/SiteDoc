@@ -153,6 +153,83 @@ export default function OppgaveDetaljSide() {
   const params = useParams<{ prosjektId: string; oppgaveId: string }>();
   const router = useRouter();
   const { t } = useTranslation();
+  const utils = trpc.useUtils();
+
+  // --- Hent brukerinfo og prosjektdata FØR skjema-hook ---
+
+  const { data: minFlytInfo } = trpc.gruppe.hentMinFlytInfo.useQuery(
+    { projectId: params.prosjektId },
+    { enabled: !!params.prosjektId },
+  );
+
+  const { data: mineTillatelserRå } = trpc.gruppe.hentMineTillatelser.useQuery(
+    { projectId: params.prosjektId },
+    { enabled: !!params.prosjektId },
+  );
+  const mineTillatelser = useMemo(
+    () => new Set<string>(mineTillatelserRå ?? []),
+    [mineTillatelserRå],
+  );
+
+  const { data: alleEntrepriserRå } = trpc.entreprise.hentForProsjekt.useQuery(
+    { projectId: params.prosjektId },
+    { enabled: !!params.prosjektId },
+  );
+  const { data: dokumentflyterRå } = trpc.dokumentflyt.hentForProsjekt.useQuery(
+    { projectId: params.prosjektId },
+    { enabled: !!params.prosjektId },
+  );
+  const alleEntrepriser = (alleEntrepriserRå ?? []) as Array<{ id: string; name: string; color: string | null }>;
+  const dokumentflyter = (dokumentflyterRå ?? []) as unknown as import("@/components/StatusHandlinger").DokumentflytData[];
+
+  // Hent full oppgavedata for tidslinje/recipient/creator (cast for TS2589)
+  const { data: fullOppgaveRå } = trpc.oppgave.hentMedId.useQuery(
+    { id: params.oppgaveId },
+    { enabled: !!params.oppgaveId },
+  );
+
+  // harBallen: sjekk om brukerens userId/gruppeIder matcher recipientUserId/GroupId
+  const harBallen = useMemo(() => {
+    if (!fullOppgaveRå || !minFlytInfo) return false;
+    const fo = fullOppgaveRå as { status?: string; recipientUserId?: string | null; recipientGroupId?: string | null; bestillerUserId?: string };
+    if (fo.status === "draft") return fo.bestillerUserId === (minFlytInfo as { userId?: string }).userId;
+    if (fo.recipientUserId && fo.recipientUserId === (minFlytInfo as { userId?: string }).userId) return true;
+    if (fo.recipientGroupId && minFlytInfo.gruppeIder.includes(fo.recipientGroupId)) return true;
+    return false;
+  }, [fullOppgaveRå, minFlytInfo]);
+
+  // Utled brukerens rolle i dokumentflyten — trengs for rettighetInput + handlingsknapper
+  const minRolle = useMemo(() => {
+    if (!minFlytInfo || !fullOppgaveRå) return undefined;
+    const op = fullOppgaveRå as unknown as { dokumentflytId?: string | null; bestillerEnterprise?: { id: string }; utforerEnterprise?: { id: string } };
+    if (!op.dokumentflytId) return undefined;
+    const flyt = dokumentflyter.find((df) => df.id === op.dokumentflytId);
+    if (!flyt) return null;
+    const medlemmer = flyt.medlemmer.map((m): FlytMedlemInfo => ({
+      rolle: m.rolle,
+      enterpriseId: m.enterpriseId ?? null,
+      projectMemberId: m.projectMemberId ?? null,
+      groupId: m.groupId ?? null,
+    }));
+    return utledMinRolle(
+      { ...minFlytInfo, userId: "", erAdmin: minFlytInfo.erAdmin },
+      medlemmer,
+      { bestillerEnterpriseId: op.bestillerEnterprise?.id ?? "", utforerEnterpriseId: op.utforerEnterprise?.id ?? "" },
+    );
+  }, [minFlytInfo, fullOppgaveRå, dokumentflyter]);
+
+  // Bygg rettighetInput for skjema-hook
+  const rettighetInput = useMemo(() => {
+    if (!minFlytInfo) return undefined;
+    return {
+      erAdmin: minFlytInfo.erAdmin,
+      minRolle,
+      tillatelser: mineTillatelser,
+      harBallen,
+    };
+  }, [minFlytInfo, minRolle, mineTillatelser, harBallen]);
+
+  // --- Skjema-hook med rettighetsinfo ---
 
   const {
     oppgave,
@@ -167,7 +244,7 @@ export default function OppgaveDetaljSide() {
     valideringsfeil,
     erRedigerbar,
     lagreStatus,
-  } = useOppgaveSkjema(params.oppgaveId);
+  } = useOppgaveSkjema(params.oppgaveId, rettighetInput);
 
   const { andreRedaktorer } = usePresence(params.oppgaveId, "oppgave");
 
@@ -184,58 +261,12 @@ export default function OppgaveDetaljSide() {
     (oppgave?.template?.objects ?? []) as { id: string; label: string; config: Record<string, unknown> }[],
   );
 
-  // Hent full oppgavedata for tidslinje/creator (cast for TS2589)
-  const { data: fullOppgaveRå } = trpc.oppgave.hentMedId.useQuery(
-    { id: params.oppgaveId },
-    { enabled: !!params.oppgaveId },
-  );
-
-  const utils = trpc.useUtils();
-
   const endreStatusMutasjon = trpc.oppgave.endreStatus.useMutation({
     onSuccess: () => {
       utils.oppgave.hentForProsjekt.invalidate();
       utils.oppgave.hentMedId.invalidate({ id: params.oppgaveId });
     },
   });
-
-  // Hent brukerens flyt-info for rollebaserte knapper
-  const { data: minFlytInfo } = trpc.gruppe.hentMinFlytInfo.useQuery(
-    { projectId: params.prosjektId },
-    { enabled: !!params.prosjektId },
-  );
-
-  // Entreprise-valg for mottaker — utleder mottaker fra dokumentflyt + mal-match
-  const { data: alleEntrepriserRå } = trpc.entreprise.hentForProsjekt.useQuery(
-    { projectId: params.prosjektId },
-    { enabled: !!params.prosjektId },
-  );
-  const { data: dokumentflyterRå } = trpc.dokumentflyt.hentForProsjekt.useQuery(
-    { projectId: params.prosjektId },
-    { enabled: !!params.prosjektId },
-  );
-  const alleEntrepriser = (alleEntrepriserRå ?? []) as Array<{ id: string; name: string; color: string | null }>;
-  const dokumentflyter = (dokumentflyterRå ?? []) as unknown as import("@/components/StatusHandlinger").DokumentflytData[];
-
-  // Utled brukerens rolle i dokumentflyten
-  const minRolle = useMemo(() => {
-    if (!minFlytInfo || !oppgave) return undefined;
-    const op = oppgave as unknown as { dokumentflytId?: string | null; bestillerEnterprise?: { id: string }; utforerEnterprise?: { id: string } };
-    if (!op.dokumentflytId) return undefined; // Ingen flyt → ufiltrerte handlinger
-    const flyt = dokumentflyter.find((df) => df.id === op.dokumentflytId);
-    if (!flyt) return null;
-    const medlemmer = flyt.medlemmer.map((m): FlytMedlemInfo => ({
-      rolle: m.rolle,
-      enterpriseId: m.enterpriseId ?? null,
-      projectMemberId: m.projectMemberId ?? null,
-      groupId: m.groupId ?? null,
-    }));
-    return utledMinRolle(
-      { ...minFlytInfo, userId: "", erAdmin: minFlytInfo.erAdmin },
-      medlemmer,
-      { bestillerEnterpriseId: op.bestillerEnterprise?.id ?? "", utforerEnterpriseId: op.utforerEnterprise?.id ?? "" },
-    );
-  }, [minFlytInfo, oppgave, dokumentflyter]);
 
   // Flytmedlemmer for FlytIndikator og DokumentHandlingsmeny
   // Bruker dokumentflyterRå (ucastet) for å beholde steg + enterprise-objekter

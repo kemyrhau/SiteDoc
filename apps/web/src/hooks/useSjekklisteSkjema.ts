@@ -4,12 +4,16 @@ import { useState, useCallback, useRef, useMemo, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import type { FeltVerdi, Vedlegg, RapportObjekt } from "@/components/rapportobjekter/typer";
 import { TOM_FELTVERDI } from "@/components/rapportobjekter/typer";
+import { utledDokumentRettighet } from "@sitedoc/shared";
+import type { DokumentRettighet } from "@sitedoc/shared";
+import type { RettighetInput } from "./useOppgaveSkjema";
 
 type LagreStatus = "idle" | "lagrer" | "lagret" | "feil";
 
 // Display-only typer som ikke har utfyllbar verdi
 const DISPLAY_TYPER = new Set(["heading", "subtitle"]);
 
+// Fallback for bakoverkompatibilitet
 const REDIGERBARE_STATUSER = new Set(["draft", "received", "in_progress"]);
 
 export interface UseSjekklisteSkjemaResultat {
@@ -37,10 +41,11 @@ export interface UseSjekklisteSkjemaResultat {
   valider: () => boolean;
   lagre: () => Promise<void>;
   erRedigerbar: boolean;
+  rettighet: DokumentRettighet;
   lagreStatus: LagreStatus;
 }
 
-export function useSjekklisteSkjema(sjekklisteId: string): UseSjekklisteSkjemaResultat {
+export function useSjekklisteSkjema(sjekklisteId: string, rettighetInput?: RettighetInput): UseSjekklisteSkjemaResultat {
   const [feltVerdier, settFeltVerdier] = useState<Record<string, FeltVerdi>>({});
   const [valideringsfeil, settValideringsfeil] = useState<Record<string, string>>({});
   const [erInitialisert, settErInitialisert] = useState(false);
@@ -269,7 +274,22 @@ export function useSjekklisteSkjema(sjekklisteId: string): UseSjekklisteSkjemaRe
     return Object.keys(feil).length === 0;
   }, [alleObjekter, erSynlig, hentFeltVerdi]);
 
-  const erRedigerbar = sjekkliste ? REDIGERBARE_STATUSER.has(sjekkliste.status) : false;
+  const rettighet: DokumentRettighet = useMemo(() => {
+    if (!sjekkliste) return "leser";
+    if (!rettighetInput) {
+      return REDIGERBARE_STATUSER.has(sjekkliste.status) ? "redigerer" : "leser";
+    }
+    return utledDokumentRettighet({
+      erAdmin: rettighetInput.erAdmin,
+      minRolle: rettighetInput.minRolle,
+      tillatelser: rettighetInput.tillatelser,
+      status: sjekkliste.status,
+      dokumentType: "sjekkliste",
+      harBallen: rettighetInput.harBallen,
+    });
+  }, [sjekkliste, rettighetInput]);
+
+  const erRedigerbar = rettighet !== "leser";
 
   // Fullt sjekkliste-objekt med alle felt (inkl. drawingId, byggeplass etc.)
   const fullSjekkliste = sjekklisteQuery.data as Record<string, unknown> | undefined;
@@ -311,6 +331,7 @@ export function useSjekklisteSkjema(sjekklisteId: string): UseSjekklisteSkjemaRe
     valider,
     lagre,
     erRedigerbar,
+    rettighet,
     lagreStatus,
   };
 }
