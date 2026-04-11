@@ -29,10 +29,12 @@ import {
   MessageCircle,
   Send,
 } from "lucide-react-native";
-import { harBetingelse, harForelderObjekt } from "@sitedoc/shared";
-import { hentStatusHandlinger } from "@sitedoc/shared";
-import type { StatusHandling } from "@sitedoc/shared";
+import { harBetingelse, harForelderObjekt, utledMinRolle } from "@sitedoc/shared";
+import type { FlytMedlemInfo } from "@sitedoc/shared";
 import { useTranslation } from "react-i18next";
+import { FlytIndikator } from "../../src/components/FlytIndikator";
+import type { FlytMedlem } from "../../src/components/FlytIndikator";
+import { DokumentHandlingsmeny } from "../../src/components/DokumentHandlingsmeny";
 import { useOppgaveSkjema } from "../../src/hooks/useOppgaveSkjema";
 import { useAutoVaer } from "../../src/hooks/useAutoVaer";
 import { useOversettelse } from "../../src/hooks/useOversettelse";
@@ -125,6 +127,51 @@ export default function OppgaveDetalj() {
     { enabled: !!valgtProsjektId },
   );
 
+  // Flytdata for ny handlingsmeny
+  const { data: minFlytInfo } = trpc.gruppe.hentMinFlytInfo.useQuery(
+    { projectId: valgtProsjektId! },
+    { enabled: !!valgtProsjektId },
+  );
+  const { data: dokumentflyterRå } = trpc.dokumentflyt.hentForProsjekt.useQuery(
+    { projectId: valgtProsjektId! },
+    { enabled: !!valgtProsjektId },
+  );
+
+  // Utled flytmedlemmer og rolle
+  const flytMedlemmer = useMemo((): FlytMedlem[] => {
+    const op = oppgaveDetalj as unknown as { dokumentflytId?: string | null };
+    if (!op?.dokumentflytId || !dokumentflyterRå) return [];
+    const rå = dokumentflyterRå as unknown as Array<{
+      id: string;
+      medlemmer: FlytMedlem[];
+    }>;
+    const flyt = rå.find((df) => df.id === op.dokumentflytId);
+    return flyt?.medlemmer ?? [];
+  }, [oppgaveDetalj, dokumentflyterRå]);
+
+  const minRolle = useMemo(() => {
+    if (!minFlytInfo || !oppgaveDetalj) return undefined;
+    const op = oppgaveDetalj as unknown as { dokumentflytId?: string | null; bestillerEnterprise?: { id: string }; utforerEnterprise?: { id: string } };
+    if (!op.dokumentflytId) return undefined;
+    const dokumentflyter = (dokumentflyterRå ?? []) as unknown as Array<{
+      id: string;
+      medlemmer: Array<{ rolle: string; enterpriseId?: string | null; projectMemberId?: string | null; groupId?: string | null }>;
+    }>;
+    const flyt = dokumentflyter.find((df) => df.id === op.dokumentflytId);
+    if (!flyt) return null;
+    const medlemmer = flyt.medlemmer.map((m): FlytMedlemInfo => ({
+      rolle: m.rolle,
+      enterpriseId: m.enterpriseId ?? null,
+      projectMemberId: m.projectMemberId ?? null,
+      groupId: m.groupId ?? null,
+    }));
+    return utledMinRolle(
+      { ...minFlytInfo, userId: "", erAdmin: minFlytInfo.erAdmin },
+      medlemmer,
+      { bestillerEnterpriseId: op.bestillerEnterprise?.id ?? "", utforerEnterpriseId: op.utforerEnterprise?.id ?? "" },
+    );
+  }, [minFlytInfo, oppgaveDetalj, dokumentflyterRå]);
+
   const endreStatusMutasjon = trpc.oppgave.endreStatus.useMutation({
     onSuccess: () => {
       utils.oppgave.hentMedId.invalidate({ id: id! });
@@ -198,40 +245,6 @@ export default function OppgaveDetalj() {
       ],
     );
   }, [id, slettMutasjon]);
-
-  const håndterStatusEndring = useCallback(
-    (handling: StatusHandling) => {
-      if (!bruker?.id) return;
-
-      const oversattTekst = t(handling.tekstNoekkel);
-      const bekreftTekst = handling.nyStatus === "cancelled" ? t("bekreft.jaAvbrytOppgaven") : oversattTekst;
-      const erDestruktiv = handling.nyStatus === "rejected" || handling.nyStatus === "cancelled";
-
-      Alert.alert(
-        t("bekreft.statusendring"),
-        t("bekreft.endreStatusTil", { status: oversattTekst.toLowerCase() }),
-        [
-          { text: t("bekreft.ikkeNaa"), style: "cancel" },
-          {
-            text: bekreftTekst,
-            style: erDestruktiv ? "destructive" : "default",
-            onPress: async () => {
-              try {
-                await endreStatusMutasjon.mutateAsync({
-                  id: id!,
-                  nyStatus: handling.nyStatus,
-                  senderId: bruker.id,
-                });
-              } catch {
-                Alert.alert(t("feil.tittel"), t("feil.kunneIkkeEndreStatus"));
-              }
-            },
-          },
-        ],
-      );
-    },
-    [bruker?.id, id, endreStatusMutasjon, t],
-  );
 
   const {
     oppgave,
@@ -370,48 +383,48 @@ export default function OppgaveDetalj() {
   return (
     <SafeAreaView className="flex-1 bg-gray-100" edges={["top"]}>
       {/* Header */}
-      <View className="flex-row items-center justify-between bg-sitedoc-blue px-4 py-3">
-        <Pressable onPress={håndterTilbake} hitSlop={12} className="flex-row items-center gap-2">
-          <ArrowLeft size={22} color="#ffffff" />
-        </Pressable>
-        <Text className="flex-1 px-3 text-center text-base font-semibold text-white" numberOfLines={1}>
-          {nummer ? `${nummer} ` : ""}{t("oppgave.tittel")}
-        </Text>
-        {erRedigerbar ? (
-          <View className="flex-row items-center gap-2">
-            {/* Opplastingskø-fremdrift */}
-            {ventende > 0 && (
-              <View className="flex-row items-center gap-1">
-                <ActivityIndicator size="small" color="#fbbf24" />
-                <Text className="text-[10px] text-yellow-200">{ventende}</Text>
-              </View>
+      <View className="bg-sitedoc-blue">
+        <View className="flex-row items-center px-4 py-3">
+          <Pressable onPress={håndterTilbake} hitSlop={12}>
+            <ArrowLeft size={22} color="#ffffff" />
+          </Pressable>
+          <View className="flex-1 flex-row items-center gap-2 px-3">
+            {nummer && (
+              <Text className="text-xs font-bold text-white/70">{nummer}</Text>
             )}
-            {/* Synkroniseringsstatus */}
-            {synkStatus === "synkroniserer" && (
-              <ActivityIndicator size="small" color="#93c5fd" />
-            )}
-            {synkStatus === "lokalt_lagret" && ventende === 0 && (
-              <CloudOff size={16} color="#fbbf24" />
-            )}
-            {synkStatus === "synkronisert" && ventende === 0 && lagreStatus !== "lagret" && lagreStatus !== "lagrer" && (
-              <Cloud size={16} color="#86efac" />
-            )}
-            {/* Lagrestatus */}
-            {lagreStatus === "lagrer" && (
-              <ActivityIndicator size="small" color="#93c5fd" />
-            )}
-            {lagreStatus === "lagret" && (
-              <Check size={18} color="#86efac" />
-            )}
-            {lagreStatus === "feil" && (
-              <AlertTriangle size={18} color="#fca5a5" />
-            )}
-            <Pressable onPress={håndterLagre} hitSlop={12} disabled={erLagrer}>
-              <Save size={22} color={erLagrer ? "#93c5fd" : "#ffffff"} />
-            </Pressable>
+            <Text className="flex-1 text-sm font-semibold text-white" numberOfLines={1}>
+              {oppgave.title}
+            </Text>
           </View>
-        ) : (
-          <View style={{ width: 22 }} />
+          <View className="flex-row items-center gap-1.5">
+            {erRedigerbar && (
+              <>
+                {ventende > 0 && (
+                  <View className="flex-row items-center gap-1">
+                    <ActivityIndicator size="small" color="#fbbf24" />
+                    <Text className="text-[10px] text-yellow-200">{ventende}</Text>
+                  </View>
+                )}
+                {synkStatus === "synkroniserer" && <ActivityIndicator size="small" color="#93c5fd" />}
+                {synkStatus === "lokalt_lagret" && ventende === 0 && <CloudOff size={14} color="#fbbf24" />}
+                {synkStatus === "synkronisert" && ventende === 0 && lagreStatus === "idle" && <Cloud size={14} color="#86efac" />}
+                {lagreStatus === "lagrer" && <ActivityIndicator size="small" color="#93c5fd" />}
+                {lagreStatus === "lagret" && <Check size={16} color="#86efac" />}
+                {lagreStatus === "feil" && <AlertTriangle size={16} color="#fca5a5" />}
+              </>
+            )}
+            <StatusMerkelapp status={oppgave.status} />
+          </View>
+        </View>
+        {/* FlytIndikator */}
+        {flytMedlemmer.length > 0 && (
+          <FlytIndikator
+            medlemmer={flytMedlemmer}
+            recipientUserId={(oppgaveDetalj as { recipientUserId?: string | null } | undefined)?.recipientUserId}
+            recipientGroupId={(oppgaveDetalj as { recipientGroupId?: string | null } | undefined)?.recipientGroupId}
+            status={oppgave.status}
+            bestillerUserId={(oppgaveDetalj as { bestillerUserId?: string } | undefined)?.bestillerUserId}
+          />
         )}
       </View>
 
@@ -421,19 +434,11 @@ export default function OppgaveDetalj() {
         keyboardVerticalOffset={0}
       >
 
-      {/* Metadata-bar */}
-      <View className="flex-row items-center justify-between border-b border-gray-200 bg-white px-4 py-2">
-        <View className="flex-row items-center gap-2">
-          {oppgave.template?.prefix && (
-            <Text className="text-xs font-medium text-gray-500">
-              {oppgave.template.prefix}
-            </Text>
-          )}
-          <Text className="text-sm text-gray-700" numberOfLines={1}>
-            {oppgave.template?.name}
-          </Text>
-        </View>
-        <StatusMerkelapp status={oppgave.status} />
+      {/* Mal-navn (kompakt) */}
+      <View className="border-b border-gray-200 bg-white px-4 py-1.5">
+        <Text className="text-xs text-gray-400" numberOfLines={1}>
+          {oppgave.template?.name}
+        </Text>
       </View>
 
       {/* Entrepriser */}
@@ -798,32 +803,33 @@ export default function OppgaveDetalj() {
         )}
       </ScrollView>
 
-      {/* Statusknapper + lagre-knapp i bunn */}
-      <View className="border-t border-gray-200 bg-white px-4 py-3">
-        {/* Statushandlinger (filtrer ut deleted/forwarded — krever spesialbehandling) */}
-        {oppgave && (() => {
-          const handlinger = hentStatusHandlinger(oppgave.status)
-            .filter((h) => h.nyStatus !== "deleted" && h.nyStatus !== "forwarded");
-          if (handlinger.length === 0) return null;
-          return (
-            <View className={`mb-2 ${handlinger.length > 1 ? "flex-row gap-2" : ""}`}>
-              {handlinger.map((handling) => (
-                <Pressable
-                  key={handling.nyStatus}
-                  onPress={() => håndterStatusEndring(handling)}
-                  disabled={endreStatusMutasjon.isPending}
-                  className={`items-center rounded-lg py-3 ${handlinger.length > 1 ? "flex-1" : ""} ${endreStatusMutasjon.isPending ? handling.aktivFarge : handling.farge}`}
-                >
-                  {endreStatusMutasjon.isPending ? (
-                    <ActivityIndicator size="small" color="#ffffff" />
-                  ) : (
-                    <Text className="font-medium text-white">{t(handling.tekstNoekkel)}</Text>
-                  )}
-                </Pressable>
-              ))}
-            </View>
-          );
-        })()}
+      {/* Handlingsmeny + lagre-knapp i bunn */}
+      <View className="border-t border-gray-200 bg-white px-4 py-3 gap-2">
+        <DokumentHandlingsmeny
+          status={oppgave.status}
+          erLaster={endreStatusMutasjon.isPending}
+          onEndreStatus={(nyStatus, kommentarTekst, mottaker) => {
+            endreStatusMutasjon.mutate({
+              id: id!,
+              nyStatus: nyStatus as "draft" | "sent" | "received" | "in_progress" | "responded" | "approved" | "rejected" | "closed" | "cancelled",
+              senderId: bruker?.id ?? "",
+              kommentar: kommentarTekst,
+              recipientUserId: mottaker?.userId,
+              recipientGroupId: mottaker?.groupId,
+              dokumentflytId: mottaker?.dokumentflytId,
+            });
+          }}
+          onSlett={["draft", "cancelled"].includes(oppgave.status) ? håndterSlett : undefined}
+          alleEntrepriser={(alleEntrepriser ?? []) as Array<{ id: string; name: string; color: string | null }>}
+          dokumentflyter={(dokumentflyterRå ?? []) as unknown as Parameters<typeof DokumentHandlingsmeny>[0]["dokumentflyter"]}
+          templateId={oppgave.template?.id}
+          standardEntrepriseId={oppgave.utforerEnterprise?.id}
+          minRolle={minRolle}
+          flytMedlemmer={flytMedlemmer}
+          recipientUserId={(oppgaveDetalj as { recipientUserId?: string | null } | undefined)?.recipientUserId}
+          recipientGroupId={(oppgaveDetalj as { recipientGroupId?: string | null } | undefined)?.recipientGroupId}
+          bestillerUserId={(oppgaveDetalj as { bestillerUserId?: string } | undefined)?.bestillerUserId}
+        />
 
         {/* Lagre-knapp */}
         {erRedigerbar && (
@@ -834,20 +840,6 @@ export default function OppgaveDetalj() {
           >
             <Text className="font-medium text-white">
               {erLagrer ? t("handling.lagrer") : t("dokument.lagreUtfylling")}
-            </Text>
-          </Pressable>
-        )}
-
-        {/* Slett-knapp (utkast og avbrutte) */}
-        {(oppgave?.status === "draft" || oppgave?.status === "cancelled") && (
-          <Pressable
-            onPress={håndterSlett}
-            disabled={slettMutasjon.isPending}
-            className="mt-2 flex-row items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 py-3"
-          >
-            <Trash2 size={16} color="#dc2626" />
-            <Text className="font-medium text-red-600">
-              {slettMutasjon.isPending ? t("handling.sletter") : t("oppgave.slettOppgave")}
             </Text>
           </Pressable>
         )}

@@ -12,10 +12,12 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ArrowLeft, Save, Check, AlertTriangle, Clock, CloudOff, Cloud, Trash2, ChevronDown, Share2 } from "lucide-react-native";
-import { harBetingelse, harForelderObjekt } from "@sitedoc/shared";
-import { hentStatusHandlinger } from "@sitedoc/shared";
-import type { StatusHandling } from "@sitedoc/shared";
+import { harBetingelse, harForelderObjekt, utledMinRolle } from "@sitedoc/shared";
+import type { FlytMedlemInfo } from "@sitedoc/shared";
 import { useTranslation } from "react-i18next";
+import { FlytIndikator } from "../../src/components/FlytIndikator";
+import type { FlytMedlem } from "../../src/components/FlytIndikator";
+import { DokumentHandlingsmeny } from "../../src/components/DokumentHandlingsmeny";
 import { useSjekklisteSkjema } from "../../src/hooks/useSjekklisteSkjema";
 import { useAutoVaer } from "../../src/hooks/useAutoVaer";
 import { useOversettelse } from "../../src/hooks/useOversettelse";
@@ -159,6 +161,45 @@ export default function SjekklisteUtfylling() {
     { enabled: !!valgtProsjektId },
   );
 
+  // Flytdata for ny handlingsmeny
+  const { data: minFlytInfo } = trpc.gruppe.hentMinFlytInfo.useQuery(
+    { projectId: valgtProsjektId! },
+    { enabled: !!valgtProsjektId },
+  );
+  const { data: dokumentflyterRå } = trpc.dokumentflyt.hentForProsjekt.useQuery(
+    { projectId: valgtProsjektId! },
+    { enabled: !!valgtProsjektId },
+  );
+
+  const flytMedlemmer = useMemo((): FlytMedlem[] => {
+    const sj = sjekklisteDetalj as unknown as { dokumentflytId?: string | null };
+    if (!sj?.dokumentflytId || !dokumentflyterRå) return [];
+    const rå = dokumentflyterRå as unknown as Array<{ id: string; medlemmer: FlytMedlem[] }>;
+    const flyt = rå.find((df) => df.id === sj.dokumentflytId);
+    return flyt?.medlemmer ?? [];
+  }, [sjekklisteDetalj, dokumentflyterRå]);
+
+  const minRolle = useMemo(() => {
+    if (!minFlytInfo || !sjekklisteDetalj) return undefined;
+    const sj = sjekklisteDetalj as unknown as { dokumentflytId?: string | null; bestillerEnterprise?: { id: string }; utforerEnterprise?: { id: string } };
+    if (!sj.dokumentflytId) return undefined;
+    const dokumentflyter = (dokumentflyterRå ?? []) as unknown as Array<{
+      id: string;
+      medlemmer: Array<{ rolle: string; enterpriseId?: string | null; projectMemberId?: string | null; groupId?: string | null }>;
+    }>;
+    const flyt = dokumentflyter.find((df) => df.id === sj.dokumentflytId);
+    if (!flyt) return null;
+    const medlemmer = flyt.medlemmer.map((m): FlytMedlemInfo => ({
+      rolle: m.rolle, enterpriseId: m.enterpriseId ?? null,
+      projectMemberId: m.projectMemberId ?? null, groupId: m.groupId ?? null,
+    }));
+    return utledMinRolle(
+      { ...minFlytInfo, userId: "", erAdmin: minFlytInfo.erAdmin },
+      medlemmer,
+      { bestillerEnterpriseId: sj.bestillerEnterprise?.id ?? "", utforerEnterpriseId: sj.utforerEnterprise?.id ?? "" },
+    );
+  }, [minFlytInfo, sjekklisteDetalj, dokumentflyterRå]);
+
   const oppdaterMutasjon = trpc.sjekkliste.oppdater.useMutation({
     onSuccess: () => {
       utils.sjekkliste.hentMedId.invalidate({ id: id! });
@@ -207,39 +248,7 @@ export default function SjekklisteUtfylling() {
     );
   }, [id, slettMutasjon]);
 
-  const håndterStatusEndring = useCallback(
-    (handling: StatusHandling) => {
-      if (!bruker?.id) return;
 
-      const oversattTekst = t(handling.tekstNoekkel);
-      const bekreftTekst = handling.nyStatus === "cancelled" ? t("bekreft.jaAvbrytSjekklisten") : oversattTekst;
-      const erDestruktiv = handling.nyStatus === "rejected" || handling.nyStatus === "cancelled";
-
-      Alert.alert(
-        t("bekreft.statusendring"),
-        t("bekreft.endreStatusTil", { status: oversattTekst.toLowerCase() }),
-        [
-          { text: t("bekreft.ikkeNaa"), style: "cancel" },
-          {
-            text: bekreftTekst,
-            style: erDestruktiv ? "destructive" : "default",
-            onPress: async () => {
-              try {
-                await endreStatusMutasjon.mutateAsync({
-                  id: id!,
-                  nyStatus: handling.nyStatus,
-                  senderId: bruker.id,
-                });
-              } catch {
-                Alert.alert(t("feil.tittel"), t("feil.kunneIkkeEndreStatus"));
-              }
-            },
-          },
-        ],
-      );
-    },
-    [bruker?.id, id, endreStatusMutasjon],
-  );
 
   const {
     sjekkliste,
@@ -416,54 +425,50 @@ export default function SjekklisteUtfylling() {
   return (
     <SafeAreaView className="flex-1 bg-gray-100" edges={["top"]}>
       {/* Header */}
-      <View className="flex-row items-center justify-between bg-sitedoc-blue px-4 py-3">
-        <Pressable onPress={håndterTilbake} hitSlop={12} className="flex-row items-center gap-2">
-          <ArrowLeft size={22} color="#ffffff" />
-        </Pressable>
-        <Text className="flex-1 px-3 text-center text-base font-semibold text-white" numberOfLines={1}>
-          {sjekkliste.title}
-        </Text>
-        {erRedigerbar && (
-          <View className="flex-row items-center gap-2">
-            {/* Opplastingskø-fremdrift */}
-            {ventende > 0 && (
-              <View className="flex-row items-center gap-1">
-                <ActivityIndicator size="small" color="#fbbf24" />
-                <Text className="text-[10px] text-yellow-200">{ventende}</Text>
-              </View>
-            )}
-            {/* Synkroniseringsstatus */}
-            {synkStatus === "synkroniserer" && (
-              <ActivityIndicator size="small" color="#93c5fd" />
-            )}
-            {synkStatus === "lokalt_lagret" && ventende === 0 && (
-              <CloudOff size={16} color="#fbbf24" />
-            )}
-            {synkStatus === "synkronisert" && ventende === 0 && lagreStatus !== "lagret" && lagreStatus !== "lagrer" && (
-              <Cloud size={16} color="#86efac" />
-            )}
-            {/* Lagrestatus */}
-            {lagreStatus === "lagrer" && (
-              <ActivityIndicator size="small" color="#93c5fd" />
-            )}
-            {lagreStatus === "lagret" && (
-              <Check size={18} color="#86efac" />
-            )}
-            {lagreStatus === "feil" && (
-              <AlertTriangle size={18} color="#fca5a5" />
-            )}
-            <Pressable onPress={håndterLagre} hitSlop={12} disabled={erLagrer}>
-              <Save size={22} color={erLagrer ? "#93c5fd" : "#ffffff"} />
-            </Pressable>
-            <Pressable onPress={håndterVisPdf} hitSlop={12}>
-              <Share2 size={20} color="#ffffff" />
-            </Pressable>
-          </View>
-        )}
-        {!erRedigerbar && (
-          <Pressable onPress={håndterDelPdf} hitSlop={12}>
-            <Share2 size={20} color="#ffffff" />
+      <View className="bg-sitedoc-blue">
+        <View className="flex-row items-center px-4 py-3">
+          <Pressable onPress={håndterTilbake} hitSlop={12}>
+            <ArrowLeft size={22} color="#ffffff" />
           </Pressable>
+          <View className="flex-1 flex-row items-center gap-2 px-3">
+            {sjekkliste.template?.prefix && sjekklisteNummer != null && (
+              <Text className="text-xs font-bold text-white/70">{sjekkliste.template.prefix}{sjekklisteNummer}</Text>
+            )}
+            <Text className="flex-1 text-sm font-semibold text-white" numberOfLines={1}>
+              {sjekkliste.title}
+            </Text>
+          </View>
+          <View className="flex-row items-center gap-1.5">
+            {erRedigerbar && (
+              <>
+                {ventende > 0 && (
+                  <View className="flex-row items-center gap-1">
+                    <ActivityIndicator size="small" color="#fbbf24" />
+                    <Text className="text-[10px] text-yellow-200">{ventende}</Text>
+                  </View>
+                )}
+                {synkStatus === "synkroniserer" && <ActivityIndicator size="small" color="#93c5fd" />}
+                {synkStatus === "lokalt_lagret" && ventende === 0 && <CloudOff size={14} color="#fbbf24" />}
+                {synkStatus === "synkronisert" && ventende === 0 && lagreStatus === "idle" && <Cloud size={14} color="#86efac" />}
+                {lagreStatus === "lagrer" && <ActivityIndicator size="small" color="#93c5fd" />}
+                {lagreStatus === "lagret" && <Check size={16} color="#86efac" />}
+                {lagreStatus === "feil" && <AlertTriangle size={16} color="#fca5a5" />}
+              </>
+            )}
+            <Pressable onPress={erRedigerbar ? håndterVisPdf : håndterDelPdf} hitSlop={12}>
+              <Share2 size={18} color="#ffffff" />
+            </Pressable>
+            <StatusMerkelapp status={sjekkliste.status} />
+          </View>
+        </View>
+        {flytMedlemmer.length > 0 && (
+          <FlytIndikator
+            medlemmer={flytMedlemmer}
+            recipientUserId={(sjekklisteDetalj as { recipientUserId?: string | null } | undefined)?.recipientUserId}
+            recipientGroupId={(sjekklisteDetalj as { recipientGroupId?: string | null } | undefined)?.recipientGroupId}
+            status={sjekkliste.status}
+            bestillerUserId={(sjekklisteDetalj as { bestillerUserId?: string } | undefined)?.bestillerUserId}
+          />
         )}
       </View>
 
@@ -755,34 +760,34 @@ export default function SjekklisteUtfylling() {
         )}
       </ScrollView>
 
-      {/* Statusknapper + lagre-knapp i bunn */}
-      <View className="border-t border-gray-200 bg-white px-4 py-3">
-        {/* Statushandlinger (filtrer ut deleted/forwarded — krever spesialbehandling) */}
-        {sjekkliste && (() => {
-          const handlinger = hentStatusHandlinger(sjekkliste.status)
-            .filter((h) => h.nyStatus !== "deleted" && h.nyStatus !== "forwarded");
-          if (handlinger.length === 0) return null;
-          return (
-            <View className={`mb-2 ${handlinger.length > 1 ? "flex-row gap-2" : ""}`}>
-              {handlinger.map((handling) => (
-                <Pressable
-                  key={handling.nyStatus}
-                  onPress={() => håndterStatusEndring(handling)}
-                  disabled={endreStatusMutasjon.isPending}
-                  className={`items-center rounded-lg py-3 ${handlinger.length > 1 ? "flex-1" : ""} ${endreStatusMutasjon.isPending ? handling.aktivFarge : handling.farge}`}
-                >
-                  {endreStatusMutasjon.isPending ? (
-                    <ActivityIndicator size="small" color="#ffffff" />
-                  ) : (
-                    <Text className="font-medium text-white">{t(handling.tekstNoekkel)}</Text>
-                  )}
-                </Pressable>
-              ))}
-            </View>
-          );
-        })()}
+      {/* Handlingsmeny + lagre-knapp i bunn */}
+      <View className="border-t border-gray-200 bg-white px-4 py-3 gap-2">
+        <DokumentHandlingsmeny
+          status={sjekkliste.status}
+          erLaster={endreStatusMutasjon.isPending}
+          onEndreStatus={(nyStatus, kommentarTekst, mottaker) => {
+            endreStatusMutasjon.mutate({
+              id: id!,
+              nyStatus: nyStatus as "draft" | "sent" | "received" | "in_progress" | "responded" | "approved" | "rejected" | "closed" | "cancelled",
+              senderId: bruker?.id ?? "",
+              kommentar: kommentarTekst,
+              recipientUserId: mottaker?.userId,
+              recipientGroupId: mottaker?.groupId,
+              dokumentflytId: mottaker?.dokumentflytId,
+            });
+          }}
+          onSlett={["draft", "cancelled"].includes(sjekkliste.status) ? håndterSlett : undefined}
+          alleEntrepriser={(alleEntrepriser ?? []) as Array<{ id: string; name: string; color: string | null }>}
+          dokumentflyter={(dokumentflyterRå ?? []) as unknown as Parameters<typeof DokumentHandlingsmeny>[0]["dokumentflyter"]}
+          templateId={sjekkliste.template?.id}
+          standardEntrepriseId={sjekkliste.utforerEnterprise?.id}
+          minRolle={minRolle}
+          flytMedlemmer={flytMedlemmer}
+          recipientUserId={(sjekklisteDetalj as { recipientUserId?: string | null } | undefined)?.recipientUserId}
+          recipientGroupId={(sjekklisteDetalj as { recipientGroupId?: string | null } | undefined)?.recipientGroupId}
+          bestillerUserId={(sjekklisteDetalj as { bestillerUserId?: string } | undefined)?.bestillerUserId}
+        />
 
-        {/* Lagre-knapp */}
         {erRedigerbar && (
           <Pressable
             onPress={håndterLagre}
@@ -791,20 +796,6 @@ export default function SjekklisteUtfylling() {
           >
             <Text className="font-medium text-white">
               {erLagrer ? t("handling.lagrer") : t("dokument.lagreUtfylling")}
-            </Text>
-          </Pressable>
-        )}
-
-        {/* Slett-knapp (utkast og avbrutte) */}
-        {(sjekkliste?.status === "draft" || sjekkliste?.status === "cancelled") && (
-          <Pressable
-            onPress={håndterSlett}
-            disabled={slettMutasjon.isPending}
-            className="mt-2 flex-row items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 py-3"
-          >
-            <Trash2 size={16} color="#dc2626" />
-            <Text className="font-medium text-red-600">
-              {slettMutasjon.isPending ? t("handling.sletter") : t("sjekkliste.slettSjekkliste")}
             </Text>
           </Pressable>
         )}
