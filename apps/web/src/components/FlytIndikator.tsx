@@ -62,12 +62,12 @@ function byggLedd(medlemmer: FlytMedlem[]): Ledd[] {
           ? gruppe.group!.name
           : person?.projectMember?.user?.name ?? "?";
 
-      // Detaljert navn for aktiv boks: person/gruppe (entreprise)
+      // Detaljert navn for aktiv boks: entreprise · person/gruppe
       let aktivNavn = navn;
       const personEllerGruppe = gruppe?.group?.name ?? person?.projectMember?.user?.name;
       const entrepriseNavn = entreprise?.enterprise?.name;
-      if (personEllerGruppe && entrepriseNavn && personEllerGruppe !== entrepriseNavn) {
-        aktivNavn = `${personEllerGruppe} (${entrepriseNavn})`;
+      if (entrepriseNavn && personEllerGruppe && personEllerGruppe !== entrepriseNavn) {
+        aktivNavn = `${entrepriseNavn} · ${personEllerGruppe}`;
       }
 
       return {

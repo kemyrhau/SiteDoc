@@ -56,8 +56,8 @@ function byggLedd(medlemmer: FlytMedlem[]): Ledd[] {
       let aktivNavn = navn;
       const personEllerGruppe = gruppe?.group?.name ?? person?.projectMember?.user?.name;
       const entrepriseNavn = entreprise?.enterprise?.name;
-      if (personEllerGruppe && entrepriseNavn && personEllerGruppe !== entrepriseNavn) {
-        aktivNavn = `${personEllerGruppe} (${entrepriseNavn})`;
+      if (entrepriseNavn && personEllerGruppe && personEllerGruppe !== entrepriseNavn) {
+        aktivNavn = `${entrepriseNavn} · ${personEllerGruppe}`;
       }
 
       return {
