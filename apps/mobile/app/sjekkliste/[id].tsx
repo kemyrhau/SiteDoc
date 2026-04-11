@@ -34,7 +34,7 @@ import { hentDatabase } from "../../src/db/database";
 import { sjekklisteFeltdata, opplastingsKo } from "../../src/db/schema";
 import { byggSjekklisteHtml } from "@sitedoc/pdf";
 import { PdfForhandsvisning } from "../../src/components/PdfForhandsvisning";
-import { AUTH_CONFIG } from "../../src/config/auth";
+import { AUTH_CONFIG, hentWebUrl } from "../../src/config/auth";
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
 import { eq } from "drizzle-orm";
@@ -127,6 +127,14 @@ export default function SjekklisteUtfylling() {
     transfers?: Transfer[];
     template?: { enableChangeLog?: boolean };
     changeLog?: EndringsloggRad[];
+    drawing?: { id: string; name: string; drawingNumber?: string | null; fileUrl?: string | null } | null;
+    drawingId?: string | null;
+    positionX?: number | null;
+    positionY?: number | null;
+    byggeplass?: { id: string; name: string } | null;
+    bestiller?: { name?: string | null } | null;
+    creator?: { name?: string | null } | null;
+    createdAt?: string;
   } | undefined;
   const overforinger = sjekklisteDetalj?.transfers;
   const sjekklisteNummer = sjekklisteDetalj?.number;
@@ -301,10 +309,19 @@ export default function SjekklisteUtfylling() {
   const genererPdfHtml = useCallback(() => {
     if (!sjekkliste) return "";
     const detalj = detaljQuery.data as Record<string, unknown> | undefined;
+    const webBaseUrl = hentWebUrl();
+    const bildeBase = `${webBaseUrl}/api`;
     const sjekklisteMedDetaljer = {
       ...(sjekkliste as Parameters<typeof byggSjekklisteHtml>[0]),
       updatedAt: detalj?.updatedAt as Date | string | undefined,
       changeLog: (detalj?.changeLog ?? []) as Array<{ createdAt: Date | string; user: { name: string | null } }>,
+      drawing: sjekklisteDetalj?.drawing ?? null,
+      drawingId: sjekklisteDetalj?.drawingId ?? null,
+      positionX: sjekklisteDetalj?.positionX ?? null,
+      positionY: sjekklisteDetalj?.positionY ?? null,
+      building: sjekklisteDetalj?.byggeplass ?? null,
+      creator: sjekklisteDetalj?.creator ?? null,
+      createdAt: sjekklisteDetalj?.createdAt,
     };
     const prosjektForPdf = prosjektData ? {
       name: prosjektData.name,
@@ -314,6 +331,10 @@ export default function SjekklisteUtfylling() {
       logoUrl: (prosjektData as Record<string, unknown>).logoUrl as string | null | undefined,
     } : null;
     const ui = (prosjektData as Record<string, unknown> | undefined)?.utskriftsinnstillinger as Record<string, boolean> | null | undefined;
+    // Tegningsbilde-URL (PNG/bilde-tegninger fungerer direkte, PDF-tegninger ikke)
+    const tegningUrl = sjekklisteDetalj?.drawing?.fileUrl
+      ? `${bildeBase}${sjekklisteDetalj.drawing.fileUrl}`
+      : null;
     return byggSjekklisteHtml(
       sjekklisteMedDetaljer,
       feltVerdierForPdf(),
@@ -327,9 +348,15 @@ export default function SjekklisteUtfylling() {
         tegningsnummer: ui.tegningsnummer,
         vaer: ui.vaer,
       } : null,
-      { bildeBaseUrl: AUTH_CONFIG.apiUrl, maksbildeHoyde: 200 },
+      {
+        bildeBaseUrl: bildeBase,
+        maksbildeHoyde: 200,
+        gjentakendeHeader: true,
+        visSidenummer: true,
+        tegningBildeUrl: tegningUrl,
+      },
     );
-  }, [sjekkliste, prosjektData, detaljQuery.data as unknown]);
+  }, [sjekkliste, prosjektData, detaljQuery.data as unknown, sjekklisteDetalj]);
 
   // Vis forhåndsvisning
   const håndterVisPdf = useCallback(() => {

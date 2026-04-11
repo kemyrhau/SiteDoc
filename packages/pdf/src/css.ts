@@ -238,8 +238,18 @@ export function hentCss(config?: Partial<PdfConfig>): string {
     color: #6b7280;
   }
 
+  /* Table-layout for gjentakende header/footer på hver side */
+  .print-tabell {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .print-tabell td {
+    padding: 0;
+    vertical-align: top;
+  }
+
 ${visSidenummer ? `
-  /* Sidenummer — kun for nettleser-print via CSS counter */
+  /* Sidenummer via CSS counter — fungerer i WKWebView og nettleser-print */
   .print-footer {
     height: 10mm;
     text-align: right;
@@ -253,6 +263,8 @@ ${visSidenummer ? `
     counter-increment: page;
     content: "Side " counter(page);
   }
-` : ""}
+` : `
+  .print-footer { display: none; }
+`}
 `;
 }

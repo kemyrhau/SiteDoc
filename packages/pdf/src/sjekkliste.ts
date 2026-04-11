@@ -164,6 +164,26 @@ export function byggSjekklisteHtml(
   // Felter
   const feltHtml = renderAllefelter(treObjekter, feltVerdier, cfg);
 
+  // Innhold (metadata + tegning + felter)
+  const innholdHtml = `
+${metadataHtml}
+${tegningHtml}
+<div class="felter">
+${feltHtml}
+</div>`;
+
+  // Med gjentakende header: bruk <table><thead>/<tfoot> som gjentas på hver side
+  const bodyHtml = cfg.gjentakendeHeader
+    ? `
+<table class="print-tabell"><thead><tr><td>
+${headerHtml}
+</td></tr></thead>
+<tfoot><tr><td><div class="print-footer"></div></td></tr></tfoot>
+<tbody><tr><td>
+${innholdHtml}
+</td></tr></tbody></table>`
+    : `${headerHtml}${innholdHtml}`;
+
   return `<!DOCTYPE html>
 <html lang="nb">
 <head>
@@ -172,15 +192,7 @@ export function byggSjekklisteHtml(
 <style>${css}</style>
 </head>
 <body>
-
-${headerHtml}
-${metadataHtml}
-${tegningHtml}
-
-<div class="felter">
-${feltHtml}
-</div>
-
+${bodyHtml}
 </body>
 </html>`;
 }
