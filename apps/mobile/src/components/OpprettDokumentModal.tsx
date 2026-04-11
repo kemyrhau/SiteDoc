@@ -62,13 +62,17 @@ interface MalData {
   subjects?: string[];
 }
 
-interface ArbeidsforlopData {
+interface DokumentflytData {
   id: string;
   name: string;
-  enterpriseId: string;
-  utforerEnterpriseId: string | null;
-  utforerEnterprise: { id: string; name: string } | null;
-  templates: Array<{
+  enterpriseId: string | null;
+  medlemmer: Array<{
+    id: string;
+    steg: number;
+    rolle: string;
+    enterprise: { id: string; name: string } | null;
+  }>;
+  maler: Array<{
     templateId: string;
     template: { id: string; name: string; category: string };
   }>;
@@ -135,7 +139,9 @@ export function OpprettDokumentModal({
   const [oppretterEntrepriseId, setOppretterEntrepriseId] = useState<string | null>(null);
   const [valgtBygningId, setValgtBygningId] = useState<string | null>(null);
   const [valgtTegningId, setValgtTegningId] = useState<string | null>(null);
+  const [valgtDokumentflytId, setValgtDokumentflytId] = useState<string | null>(null);
   const [visOppretterListe, setVisOppretterListe] = useState(false);
+  const [visDokumentflytListe, setVisDokumentflytListe] = useState(false);
   const [visBygningListe, setVisBygningListe] = useState(false);
   const [visTegningListe, setVisTegningListe] = useState(false);
   const [visEmneListe, setVisEmneListe] = useState(false);
@@ -189,41 +195,80 @@ export function OpprettDokumentModal({
   );
   const entrepriser = (entrepriseQuery.data ?? []) as EntrepriseData[];
 
-  // Auto-velg hvis brukeren har kun én entreprise
-  useEffect(() => {
-    if (mineEntrepriser.length === 1 && !oppretterEntrepriseId) {
-      setOppretterEntrepriseId(mineEntrepriser[0].id);
-    }
-  }, [mineEntrepriser, oppretterEntrepriseId]);
+  // (Auto-velg entreprise gjøres i entrepriserMedFlyt-effekten ovenfor)
 
-  // Hent arbeidsforløp for prosjektet
-  const arbeidsforlopQuery = trpc.arbeidsforlop.hentForProsjekt.useQuery(
+  // Hent dokumentflyter for prosjektet
+  const dokumentflytQuery = trpc.dokumentflyt.hentForProsjekt.useQuery(
     { projectId: valgtProsjektId! },
     { enabled: !!valgtProsjektId && synlig },
   );
-  const alleArbeidsforlop = (arbeidsforlopQuery.data ?? []) as ArbeidsforlopData[];
+  const alleDokumentflyter = (dokumentflytQuery.data ?? []) as DokumentflytData[];
 
-  // Auto-utled arbeidsforløp fra valgt entreprise + mal (uten eget valg)
-  const matchendeArbeidsforlop = useMemo(() => {
-    if (!oppretterEntrepriseId) return null;
-    const treff = alleArbeidsforlop.filter(
-      (af) =>
-        af.enterpriseId === oppretterEntrepriseId &&
-        af.templates.some((t) => t.templateId === mal.id),
+  // Filtrer entrepriser: vis kun de som har minst én dokumentflyt for valgt mal
+  const entrepriserMedFlyt = useMemo(() => {
+    // Finn alle dokumentflyter som har denne malen
+    const flyterForMal = alleDokumentflyter.filter(
+      (df) => df.maler.some((m) => m.templateId === mal.id),
     );
-    // Bruk første treff — entreprisen skal være satt opp korrekt
-    return treff[0] ?? null;
-  }, [alleArbeidsforlop, oppretterEntrepriseId, mal.id]);
+    // Hent alle entreprise-IDer fra steg 1 (bestiller) i disse flytene
+    const iderMedFlyt = new Set<string>();
+    for (const df of flyterForMal) {
+      // Bestiller = entreprise-ID på dokumentflyten, eller første steg
+      if (df.enterpriseId) {
+        iderMedFlyt.add(df.enterpriseId);
+      }
+      // Også inkluder entrepriser fra første steg
+      const førsteSteg = df.medlemmer.filter((m) => m.steg === 1);
+      for (const m of førsteSteg) {
+        if (m.enterprise?.id) iderMedFlyt.add(m.enterprise.id);
+      }
+    }
+    return mineEntrepriser.filter((e) => iderMedFlyt.has(e.id));
+  }, [alleDokumentflyter, mineEntrepriser, mal.id]);
 
-  // Svarer-entreprise utledes fra arbeidsforløpet
-  const autoSvarerEntrepriseId = matchendeArbeidsforlop
-    ? matchendeArbeidsforlop.utforerEnterpriseId ?? matchendeArbeidsforlop.enterpriseId
-    : null;
-  const autoSvarerNavn = matchendeArbeidsforlop
-    ? matchendeArbeidsforlop.utforerEnterprise?.name ??
-      entrepriser.find((e) => e.id === matchendeArbeidsforlop.enterpriseId)?.name ??
-      ""
-    : "";
+  // Auto-velg entreprise hvis kun én har flyt for malen
+  useEffect(() => {
+    if (entrepriserMedFlyt.length === 1 && !oppretterEntrepriseId) {
+      setOppretterEntrepriseId(entrepriserMedFlyt[0].id);
+    }
+  }, [entrepriserMedFlyt, oppretterEntrepriseId]);
+
+  // Dokumentflyter som matcher valgt entreprise + mal
+  const matchendeDokumentflyter = useMemo(() => {
+    if (!oppretterEntrepriseId) return [];
+    return alleDokumentflyter.filter((df) => {
+      const harMal = df.maler.some((m) => m.templateId === mal.id);
+      if (!harMal) return false;
+      // Sjekk at entreprisen er bestiller (enterpriseId eller steg 1)
+      if (df.enterpriseId === oppretterEntrepriseId) return true;
+      return df.medlemmer.some(
+        (m) => m.steg === 1 && m.enterprise?.id === oppretterEntrepriseId,
+      );
+    });
+  }, [alleDokumentflyter, oppretterEntrepriseId, mal.id]);
+
+  // Auto-velg dokumentflyt: kun én → koble automatisk
+  useEffect(() => {
+    if (matchendeDokumentflyter.length === 1) {
+      setValgtDokumentflytId(matchendeDokumentflyter[0].id);
+    } else if (matchendeDokumentflyter.length === 0) {
+      setValgtDokumentflytId(null);
+    }
+  }, [matchendeDokumentflyter]);
+
+  const valgtDokumentflyt = matchendeDokumentflyter.find((df) => df.id === valgtDokumentflytId) ?? null;
+
+  // Svarer-entreprise utledes fra valgt dokumentflyt (steg 2, eller steg 1 hvis intern)
+  const { autoSvarerEntrepriseId, autoSvarerNavn } = useMemo(() => {
+    if (!valgtDokumentflyt) return { autoSvarerEntrepriseId: null, autoSvarerNavn: "" };
+    // Finn mottaker (steg 2), fallback til steg 1 (intern flyt)
+    const steg2 = valgtDokumentflyt.medlemmer.find((m) => m.steg === 2);
+    const mottaker = steg2 ?? valgtDokumentflyt.medlemmer.find((m) => m.steg === 1);
+    const eId = mottaker?.enterprise?.id ?? valgtDokumentflyt.enterpriseId ?? null;
+    const eNavn = mottaker?.enterprise?.name ??
+      entrepriser.find((e) => e.id === eId)?.name ?? "";
+    return { autoSvarerEntrepriseId: eId, autoSvarerNavn: eNavn };
+  }, [valgtDokumentflyt, entrepriser]);
 
   // Hent bygninger for prosjektet
   const bygningQuery = trpc.bygning.hentForProsjekt.useQuery(
@@ -269,8 +314,9 @@ export function OpprettDokumentModal({
     setEmne("");
     setPrioritet("medium");
     setOppretterEntrepriseId(null);
-    // Beholder valgtBygningId og valgtTegningId — de lastes fra lagring neste gang
+    setValgtDokumentflytId(null);
     setVisOppretterListe(false);
+    setVisDokumentflytListe(false);
     setVisBygningListe(false);
     setVisTegningListe(false);
     setVisEmneListe(false);
@@ -286,10 +332,10 @@ export function OpprettDokumentModal({
       Alert.alert(t("opprettModal.manglerOppretter"), t("opprettModal.velgOppretterEntreprise"));
       return;
     }
-    if (!matchendeArbeidsforlop || !autoSvarerEntrepriseId) {
+    if (!valgtDokumentflyt || !autoSvarerEntrepriseId) {
       Alert.alert(
-        t("opprettModal.manglerArbeidsforlop"),
-        t("opprettModal.manglerArbeidsforlopBeskrivelse"),
+        t("opprettModal.manglerDokumentflyt"),
+        t("opprettModal.manglerDokumentflytBeskrivelse"),
       );
       return;
     }
@@ -319,7 +365,7 @@ export function OpprettDokumentModal({
     }
   }, [
     oppretterEntrepriseId,
-    matchendeArbeidsforlop,
+    valgtDokumentflyt,
     autoSvarerEntrepriseId,
     kategori,
     mal.id,
@@ -337,7 +383,7 @@ export function OpprettDokumentModal({
     feltLabel,
   ]);
 
-  const kanOpprett = !!oppretterEntrepriseId && !!matchendeArbeidsforlop && !erPending;
+  const kanOpprett = !!oppretterEntrepriseId && !!valgtDokumentflyt && !erPending;
 
   // Auto-opprett deaktivert — modal-animasjon + navigering kolliderer på iOS
   // Brukeren trykker "Opprett" manuelt
@@ -345,12 +391,13 @@ export function OpprettDokumentModal({
   // Lukk alle åpne dropdowns
   const lukkAlleDropdowns = () => {
     setVisOppretterListe(false);
+    setVisDokumentflytListe(false);
     setVisBygningListe(false);
     setVisTegningListe(false);
     setVisEmneListe(false);
   };
 
-  const valgtOppretter = mineEntrepriser.find((e) => e.id === oppretterEntrepriseId);
+  const valgtOppretter = entrepriserMedFlyt.find((e) => e.id === oppretterEntrepriseId);
   const valgtBygning = bygninger.find((b) => b.id === valgtBygningId);
   const valgtTegning = tegninger.find((t) => t.id === valgtTegningId);
 
@@ -478,15 +525,21 @@ export function OpprettDokumentModal({
 
           {/* 4. Prioritet — skjult i forenklet oppgaveflyt (redigeres i detaljskjerm) */}
 
-          {/* 5. Oppretter-entreprise (kun brukerens entrepriser) */}
+          {/* 5. Bestiller-entreprise (kun entrepriser med dokumentflyt for malen) */}
           <View className="border-b border-gray-100 px-4 py-3">
             <Text className="mb-1 text-xs font-medium text-gray-500">
               {t("opprettModal.oppretterEntreprise")} *
             </Text>
-            {mineEntrepriser.length === 1 ? (
-              /* Auto-valgt — vises som read-only */
+            {entrepriserMedFlyt.length === 0 && dokumentflytQuery.isLoading ? (
+              <View className="flex-row items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5">
+                <ActivityIndicator size="small" color="#1e40af" />
+                <Text className="text-sm text-gray-500">{t("opprettModal.henterDokumentflyt")}</Text>
+              </View>
+            ) : entrepriserMedFlyt.length === 0 ? (
+              <Text className="text-sm text-amber-600">{t("opprettModal.ingenDokumentflyt")}</Text>
+            ) : entrepriserMedFlyt.length === 1 ? (
               <View className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5">
-                <Text className="text-sm text-gray-800">{mineEntrepriser[0].name}</Text>
+                <Text className="text-sm text-gray-800">{entrepriserMedFlyt[0].name}</Text>
               </View>
             ) : (
               <>
@@ -506,11 +559,12 @@ export function OpprettDokumentModal({
                 </Pressable>
                 {visOppretterListe && (
                   <View className="mt-1 rounded-lg border border-gray-200 bg-white">
-                    {mineEntrepriser.map((e) => (
+                    {entrepriserMedFlyt.map((e) => (
                       <Pressable
                         key={e.id}
                         onPress={() => {
                           setOppretterEntrepriseId(e.id);
+                          setValgtDokumentflytId(null);
                           setVisOppretterListe(false);
                         }}
                         className={`border-b border-gray-50 px-3 py-2.5 ${oppretterEntrepriseId === e.id ? "bg-blue-50" : ""}`}
@@ -528,26 +582,67 @@ export function OpprettDokumentModal({
             )}
           </View>
 
-          {/* 6. Svarer-entreprise (read-only, auto-utledet fra arbeidsforløp) */}
+          {/* 6. Dokumentflyt — auto-koblet hvis kun én, ellers dropdown */}
           {oppretterEntrepriseId && (
             <View className="border-b border-gray-100 bg-gray-50 px-4 py-3">
               <Text className="text-xs font-medium text-gray-500">{t("opprettModal.svarerEntreprise")}</Text>
-              {arbeidsforlopQuery.isLoading ? (
+              {dokumentflytQuery.isLoading ? (
                 <View className="mt-1 flex-row items-center gap-2">
                   <ActivityIndicator size="small" color="#1e40af" />
-                  <Text className="text-sm text-gray-500">{t("opprettModal.henterArbeidsforlop")}</Text>
+                  <Text className="text-sm text-gray-500">{t("opprettModal.henterDokumentflyt")}</Text>
                 </View>
-              ) : matchendeArbeidsforlop ? (
+              ) : matchendeDokumentflyter.length === 0 ? (
+                <Text className="mt-1 text-sm text-amber-600">
+                  {t("opprettModal.ingenDokumentflyt")}
+                </Text>
+              ) : matchendeDokumentflyter.length === 1 ? (
+                /* Én flyt — auto-koblet, vis read-only */
                 <View className="mt-1 flex-row items-center gap-2">
                   <Text className="text-sm text-gray-800">{autoSvarerNavn}</Text>
-                  {!matchendeArbeidsforlop.utforerEnterpriseId && (
+                  {valgtDokumentflyt && !valgtDokumentflyt.medlemmer.some((m) => m.steg === 2) && (
                     <Text className="text-xs text-gray-400">({t("opprettModal.internFlyt")})</Text>
                   )}
                 </View>
               ) : (
-                <Text className="mt-1 text-sm text-amber-600">
-                  {t("opprettModal.ingenArbeidsforlop")}
-                </Text>
+                /* Flere flyter — vis dropdown */
+                <>
+                  <Pressable
+                    onPress={() => {
+                      lukkAlleDropdowns();
+                      setVisDokumentflytListe(!visDokumentflytListe);
+                    }}
+                    className="mt-1 flex-row items-center justify-between rounded-lg border border-gray-200 bg-white px-3 py-2.5"
+                  >
+                    <Text className={`text-sm ${valgtDokumentflyt ? "text-gray-800" : "text-gray-400"}`}>
+                      {valgtDokumentflyt
+                        ? `${valgtDokumentflyt.name} → ${autoSvarerNavn}`
+                        : t("opprettModal.velgDokumentflyt")}
+                    </Text>
+                    <ChevronDown size={16} color="#9ca3af" />
+                  </Pressable>
+                  {visDokumentflytListe && (
+                    <View className="mt-1 rounded-lg border border-gray-200 bg-white">
+                      {matchendeDokumentflyter.map((df) => (
+                        <Pressable
+                          key={df.id}
+                          onPress={() => {
+                            setValgtDokumentflytId(df.id);
+                            setVisDokumentflytListe(false);
+                          }}
+                          className={`border-b border-gray-50 px-3 py-2.5 ${valgtDokumentflytId === df.id ? "bg-blue-50" : ""}`}
+                        >
+                          <Text className={`text-sm ${valgtDokumentflytId === df.id ? "font-medium text-blue-700" : "text-gray-700"}`}>
+                            {df.name}
+                          </Text>
+                          <Text className="text-xs text-gray-400">
+                            → {df.medlemmer.find((m) => m.steg === 2)?.enterprise?.name ??
+                               df.medlemmer.find((m) => m.steg === 1)?.enterprise?.name ?? ""}
+                          </Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  )}
+                </>
               )}
             </View>
           )}
