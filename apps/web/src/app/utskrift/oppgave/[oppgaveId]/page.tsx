@@ -7,7 +7,8 @@ import { Spinner } from "@sitedoc/ui";
 import { Printer, ExternalLink } from "lucide-react";
 import { RapportObjektVisning, TegningPosisjonPrint } from "@/components/RapportObjektVisning";
 import { byggObjektTre } from "@sitedoc/shared/types";
-import type { Vedlegg } from "@/components/rapportobjekter/typer";
+import { fullBildeUrl, formaterNummer, PRIORITETS_TEKST } from "@sitedoc/pdf";
+import type { Vedlegg, RapportObjekt } from "@sitedoc/pdf";
 
 /* ------------------------------------------------------------------ */
 /*  Typer                                                              */
@@ -21,17 +22,7 @@ interface OppgaveData {
   };
 }
 
-interface RapportObjektRå {
-  id: string;
-  type: string;
-  label: string;
-  required: boolean;
-  sortOrder: number;
-  config: Record<string, unknown>;
-  parentId: string | null;
-}
-
-interface TreNode extends RapportObjektRå {
+interface TreNode extends RapportObjekt {
   children: TreNode[];
 }
 
@@ -39,23 +30,11 @@ interface TreNode extends RapportObjektRå {
 /*  Hjelpefunksjoner                                                   */
 /* ------------------------------------------------------------------ */
 
-function logoSrc(url: string): string {
-  if (url.startsWith("/uploads/")) return `/api${url}`;
-  return url;
-}
-
+/** Web bilde-URL: håndterer blob: i tillegg til fullBildeUrl */
 function vedleggSrc(url: string): string {
-  if (url.startsWith("http") || url.startsWith("data:") || url.startsWith("blob:")) return url;
-  if (url.startsWith("/uploads/")) return `/api${url}`;
-  return url;
+  if (url.startsWith("blob:")) return url;
+  return fullBildeUrl(url, "/api");
 }
-
-const PRIORITETS_TEKST: Record<string, string> = {
-  low: "Lav",
-  medium: "Medium",
-  high: "Høy",
-  critical: "Kritisk",
-};
 
 /* ------------------------------------------------------------------ */
 /*  Hovedside                                                          */
@@ -82,7 +61,7 @@ export default function UtskriftOppgaveSide() {
     template: {
       name: string;
       prefix?: string | null;
-      objects: RapportObjektRå[];
+      objects: RapportObjekt[];
       showPriority?: boolean;
     };
     bestillerEnterprise?: { name: string; projectId: string } | null;
@@ -107,13 +86,10 @@ export default function UtskriftOppgaveSide() {
     return byggObjektTre(objekter) as TreNode[];
   }, [oppgave?.template?.objects]);
 
-  const oppgaveNummer = useMemo(() => {
-    const nummer = oppgave?.number;
-    const prefix = oppgave?.template?.prefix;
-    if (nummer == null) return null;
-    const nummerPad = String(nummer).padStart(3, "0");
-    return prefix ? `${prefix}-${nummerPad}` : nummerPad;
-  }, [oppgave?.number, oppgave?.template?.prefix]);
+  const oppgaveNummer = useMemo(
+    () => formaterNummer(oppgave?.number, oppgave?.template?.prefix),
+    [oppgave?.number, oppgave?.template?.prefix],
+  );
 
   const dato = oppgave?.createdAt
     ? new Date(oppgave.createdAt).toLocaleDateString("nb-NO", { day: "2-digit", month: "2-digit", year: "numeric" })
@@ -202,7 +178,7 @@ export default function UtskriftOppgaveSide() {
               ? `${oppgave.drawing.drawingNumber} ${oppgave.drawing.name}`
               : oppgave.drawing.name);
           }
-          const logoUrl = vis("logo") && prosjekt?.logoUrl ? logoSrc(prosjekt.logoUrl) : null;
+          const logoUrl = vis("logo") && prosjekt?.logoUrl ? fullBildeUrl(prosjekt.logoUrl, "/api") : null;
           return (
             <div className="mb-6 border border-gray-300 print-no-break print-gjentakende-header">
               {/* Rad 1: Logo + prosjektnummer + lokasjon + dato */}

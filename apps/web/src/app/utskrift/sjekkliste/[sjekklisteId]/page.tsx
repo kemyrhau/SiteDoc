@@ -7,7 +7,8 @@ import { Spinner } from "@sitedoc/ui";
 import { Printer, ExternalLink } from "lucide-react";
 import { RapportObjektVisning, TegningPosisjonPrint } from "@/components/RapportObjektVisning";
 import { byggObjektTre } from "@sitedoc/shared/types";
-import type { Vedlegg } from "@/components/rapportobjekter/typer";
+import { fullBildeUrl, formaterNummer } from "@sitedoc/pdf";
+import type { Vedlegg, RapportObjekt } from "@sitedoc/pdf";
 
 /* ------------------------------------------------------------------ */
 /*  Typer                                                              */
@@ -21,34 +22,14 @@ interface SjekklisteData {
   };
 }
 
-interface RapportObjektRå {
-  id: string;
-  type: string;
-  label: string;
-  required: boolean;
-  sortOrder: number;
-  config: Record<string, unknown>;
-  parentId: string | null;
-}
-
-interface TreNode extends RapportObjektRå {
+interface TreNode extends RapportObjekt {
   children: TreNode[];
 }
 
-/* ------------------------------------------------------------------ */
-/*  Logo-URL-hjelper                                                   */
-/* ------------------------------------------------------------------ */
-
-function logoSrc(url: string): string {
-  // /uploads/uuid.png → /api/uploads/uuid.png (Next.js rewrite til API)
-  if (url.startsWith("/uploads/")) return `/api${url}`;
-  return url;
-}
-
+/** Web bilde-URL: håndterer blob: i tillegg til fullBildeUrl */
 function vedleggSrc(url: string): string {
-  if (url.startsWith("http") || url.startsWith("data:") || url.startsWith("blob:")) return url;
-  if (url.startsWith("/uploads/")) return `/api${url}`;
-  return url;
+  if (url.startsWith("blob:")) return url;
+  return fullBildeUrl(url, "/api");
 }
 
 /* ------------------------------------------------------------------ */
@@ -75,7 +56,7 @@ export default function UtskriftSjekklisteSide() {
       name: string;
       prefix?: string | null;
       projectId: string;
-      objects: RapportObjektRå[];
+      objects: RapportObjekt[];
     };
     bestillerEnterprise?: { name: string } | null;
     utforerEnterprise?: { name: string } | null;
@@ -101,14 +82,10 @@ export default function UtskriftSjekklisteSide() {
     return byggObjektTre(objekter) as TreNode[];
   }, [sjekkliste?.template?.objects]);
 
-  // Sjekkliste-nummer med prefiks
-  const sjekklisteNummer = useMemo(() => {
-    const nummer = sjekkliste?.number;
-    const prefix = sjekkliste?.template?.prefix;
-    if (nummer == null) return null;
-    const nummerPad = String(nummer).padStart(3, "0");
-    return prefix ? `${prefix}-${nummerPad}` : nummerPad;
-  }, [sjekkliste?.number, sjekkliste?.template?.prefix]);
+  const sjekklisteNummer = useMemo(
+    () => formaterNummer(sjekkliste?.number, sjekkliste?.template?.prefix),
+    [sjekkliste?.number, sjekkliste?.template?.prefix],
+  );
 
   // Vær-tekst
   const vaerTekst = useMemo(() => {
@@ -177,7 +154,7 @@ export default function UtskriftSjekklisteSide() {
       ? `${sjekkliste.drawing.drawingNumber} ${sjekkliste.drawing.name}`
       : sjekkliste.drawing.name);
   }
-  const logoUrl = vis("logo") && prosjekt?.logoUrl ? logoSrc(prosjekt.logoUrl) : null;
+  const logoUrl = vis("logo") && prosjekt?.logoUrl ? fullBildeUrl(prosjekt.logoUrl, "/api") : null;
 
   const headerInnhold = (
     <div className="border border-gray-300 mb-4">

@@ -4,8 +4,10 @@ import { useEffect, useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { normaliserOpsjon } from "./rapportobjekter/typer";
 import type { RapportObjekt } from "./rapportobjekter/typer";
+import { formaterDato, formaterDatoTid } from "@sitedoc/pdf";
+import type { VaerVerdi } from "@sitedoc/pdf";
 
-// Trafikklys-farge → label + CSS-klasse
+// Trafikklys-farge → label + CSS-klasse (web bruker Tailwind-klasser, ikke hex)
 const TRAFIKKLYS: Record<string, { label: string; klasse: string }> = {
   green: { label: "Godkjent", klasse: "bg-green-500" },
   yellow: { label: "Anmerkning", klasse: "bg-yellow-400" },
@@ -17,51 +19,11 @@ interface TreObjekt extends RapportObjekt {
   children: TreObjekt[];
 }
 
-interface VaerVerdi {
-  temp?: string;
-  conditions?: string;
-  wind?: string;
-  precipitation?: string;
-  kilde?: "manuell" | "automatisk";
-}
-
 export interface TegningPosisjonVerdi {
   drawingId?: string;
   positionX?: number;
   positionY?: number;
   drawingName?: string;
-}
-
-/* ------------------------------------------------------------------ */
-/*  Hjelpefunksjoner                                                   */
-/* ------------------------------------------------------------------ */
-
-function formaterDato(verdi: unknown): string {
-  if (typeof verdi !== "string") return "";
-  try {
-    return new Date(verdi).toLocaleDateString("nb-NO", {
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    });
-  } catch {
-    return String(verdi);
-  }
-}
-
-function formaterDatoTid(verdi: unknown): string {
-  if (typeof verdi !== "string") return "";
-  try {
-    return new Date(verdi).toLocaleString("nb-NO", {
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  } catch {
-    return String(verdi);
-  }
 }
 
 /* ------------------------------------------------------------------ */

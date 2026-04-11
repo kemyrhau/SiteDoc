@@ -290,6 +290,9 @@ importers:
       '@sitedoc/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@sitedoc/pdf':
+        specifier: workspace:*
+        version: link:../../packages/pdf
       '@sitedoc/shared':
         specifier: workspace:*
         version: link:../../packages/shared
