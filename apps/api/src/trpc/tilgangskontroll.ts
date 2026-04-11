@@ -460,7 +460,7 @@ export async function hentBrukerTillatelser(
     include: {
       groupMemberships: {
         include: {
-          group: { select: { permissions: true } },
+          group: { select: { permissions: true, defaultRettighet: true } },
         },
       },
     },
@@ -478,11 +478,22 @@ export async function hentBrukerTillatelser(
     return new Set([...PERMISSIONS] as Permission[]);
   }
 
-  // Samle alle tillatelser fra grupper og utvid gamle til nye
+  // Samle alle tillatelser fra grupper, filtrer basert på rettighet
   const raTillatelser: string[] = [];
   for (const gm of medlem.groupMemberships) {
     const perms = gm.group.permissions as string[];
-    raTillatelser.push(...perms);
+    const gruppeRettighet = gm.group.defaultRettighet ?? "redigerer";
+    const effektivRettighet = gm.rettighetOverstyring ?? gruppeRettighet;
+
+    if (effektivRettighet === "leser") {
+      // Leser: kun view-tillatelser, filtrer bort edit/manage/create
+      const leserPerms = perms.filter((p) =>
+        p.endsWith("_view") || p === "view_field",
+      );
+      raTillatelser.push(...leserPerms);
+    } else {
+      raTillatelser.push(...perms);
+    }
   }
 
   return utvidTillatelser(raTillatelser);
