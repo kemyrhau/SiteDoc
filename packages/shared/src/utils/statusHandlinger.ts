@@ -22,7 +22,7 @@ export function hentStatusHandlinger(status: string): StatusHandling[] {
       { tekstNoekkel: "handling.slett", nyStatus: "deleted", farge: "bg-red-600", aktivFarge: "bg-red-400" },
     ],
     sent: [
-      { tekstNoekkel: "handling.avvis", nyStatus: "cancelled", farge: "bg-red-600", aktivFarge: "bg-red-400", erPrimaer: true },
+      { tekstNoekkel: "statushandling.trekkTilbake", nyStatus: "cancelled", farge: "bg-red-600", aktivFarge: "bg-red-400", erPrimaer: true },
     ],
     received: [
       { tekstNoekkel: "statushandling.besvar", nyStatus: "responded", farge: "bg-purple-600", aktivFarge: "bg-purple-400", erPrimaer: true },
