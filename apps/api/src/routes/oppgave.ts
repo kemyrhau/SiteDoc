@@ -127,7 +127,7 @@ export const oppgaveRouter = router({
               template: { select: { prefix: true, name: true } },
             },
           },
-          images: true,
+          images: { orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }] },
           transfers: {
             include: {
               sender: { select: { id: true, name: true } },

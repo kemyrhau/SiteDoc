@@ -83,7 +83,7 @@ export const sjekklisteRouter = router({
           bestiller: true,
           byggeplass: { select: { id: true, name: true } },
           drawing: { select: { id: true, name: true, drawingNumber: true } },
-          images: true,
+          images: { orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }] },
           transfers: {
             include: {
               sender: { select: { id: true, name: true } },

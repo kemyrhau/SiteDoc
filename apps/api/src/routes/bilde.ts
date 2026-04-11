@@ -55,7 +55,7 @@ export const bildeRouter = router({
             },
           },
         },
-        orderBy: { createdAt: "desc" },
+        orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
       });
 
       // Hent bilder via oppgaver
@@ -99,7 +99,7 @@ export const bildeRouter = router({
             },
           },
         },
-        orderBy: { createdAt: "desc" },
+        orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
       });
 
       return { sjekklisteBilder, oppgaveBilder };
@@ -170,6 +170,24 @@ export const bildeRouter = router({
           gpsEnabled: input.gpsEnabled,
         },
       });
+    }),
+
+  // Oppdater bilderekkefølge (batch)
+  oppdaterRekkefolge: protectedProcedure
+    .input(
+      z.object({
+        projectId: z.string().uuid(),
+        bilder: z.array(z.object({ id: z.string().uuid(), sortOrder: z.number().int() })),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      await ctx.prisma.$transaction(
+        input.bilder.map((b) =>
+          ctx.prisma.image.update({ where: { id: b.id }, data: { sortOrder: b.sortOrder } }),
+        ),
+      );
+      return { oppdatert: input.bilder.length };
     }),
 
   // Slett bilde(r) basert på fil-URL
