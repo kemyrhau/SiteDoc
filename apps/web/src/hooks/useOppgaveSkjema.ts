@@ -19,6 +19,8 @@ export interface RettighetInput {
   minRolle: DokumentflytRolle | null | undefined;
   tillatelser: Set<string>;
   harBallen: boolean;
+  /** Fra DokumentflytMedlem.kanRedigere for brukerens aktive flytledd */
+  flytRettighet?: "redigerer" | "leser";
 }
 
 export interface UseOppgaveSkjemaResultat {
@@ -307,6 +309,7 @@ export function useOppgaveSkjema(oppgaveId: string, rettighetInput?: RettighetIn
       status: oppgave.status,
       dokumentType: "oppgave",
       harBallen: rettighetInput.harBallen,
+      flytRettighet: rettighetInput.flytRettighet,
     });
   }, [oppgave, rettighetInput]);
 

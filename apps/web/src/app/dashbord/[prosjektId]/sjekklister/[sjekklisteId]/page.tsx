@@ -136,6 +136,30 @@ export default function SjekklisteDetaljSide() {
   }, [minFlytInfo, fullSjekklisteRå, dokumentflyter]);
 
   // Bygg rettighetInput for skjema-hook
+  // Utled flytRettighet fra DokumentflytMedlem.kanRedigere
+  const flytRettighet = useMemo((): "redigerer" | "leser" | undefined => {
+    if (!minFlytInfo || !fullSjekklisteRå || !dokumentflyterRå) return undefined;
+    const sj = fullSjekklisteRå as unknown as { dokumentflytId?: string | null };
+    if (!sj.dokumentflytId) return undefined;
+    const rå = dokumentflyterRå as unknown as Array<{
+      id: string;
+      medlemmer: Array<{
+        kanRedigere: boolean;
+        enterpriseId?: string | null;
+        projectMemberId?: string | null;
+        groupId?: string | null;
+      }>;
+    }>;
+    const flyt = rå.find((df) => df.id === sj.dokumentflytId);
+    if (!flyt) return undefined;
+    const fi = minFlytInfo as { projectMemberId: string; gruppeIder: string[] };
+    for (const m of flyt.medlemmer) {
+      if (m.projectMemberId && m.projectMemberId === fi.projectMemberId) return m.kanRedigere ? "redigerer" : "leser";
+      if (m.groupId && fi.gruppeIder.includes(m.groupId)) return m.kanRedigere ? "redigerer" : "leser";
+    }
+    return undefined;
+  }, [minFlytInfo, fullSjekklisteRå, dokumentflyterRå]);
+
   const rettighetInput = useMemo(() => {
     if (!minFlytInfo) return undefined;
     return {
@@ -143,8 +167,9 @@ export default function SjekklisteDetaljSide() {
       minRolle,
       tillatelser: mineTillatelser,
       harBallen,
+      flytRettighet,
     };
-  }, [minFlytInfo, minRolle, mineTillatelser, harBallen]);
+  }, [minFlytInfo, minRolle, mineTillatelser, harBallen, flytRettighet]);
 
   // --- Skjema-hook med rettighetsinfo ---
 

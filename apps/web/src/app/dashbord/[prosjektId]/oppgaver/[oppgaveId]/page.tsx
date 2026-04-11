@@ -218,6 +218,31 @@ export default function OppgaveDetaljSide() {
     );
   }, [minFlytInfo, fullOppgaveRå, dokumentflyter]);
 
+  // Utled flytRettighet fra DokumentflytMedlem.kanRedigere for brukerens aktive flytledd
+  const flytRettighet = useMemo((): "redigerer" | "leser" | undefined => {
+    if (!minFlytInfo || !fullOppgaveRå || !dokumentflyterRå) return undefined;
+    const op = fullOppgaveRå as unknown as { dokumentflytId?: string | null };
+    if (!op.dokumentflytId) return undefined;
+    const rå = dokumentflyterRå as unknown as Array<{
+      id: string;
+      medlemmer: Array<{
+        kanRedigere: boolean;
+        enterpriseId?: string | null;
+        projectMemberId?: string | null;
+        groupId?: string | null;
+      }>;
+    }>;
+    const flyt = rå.find((df) => df.id === op.dokumentflytId);
+    if (!flyt) return undefined;
+    // Finn brukerens matchende flytmedlem (samme logikk som utledMinRolle)
+    const fi = minFlytInfo as { userId?: string; projectMemberId: string; entrepriseIder: string[]; gruppeIder: string[] };
+    for (const m of flyt.medlemmer) {
+      if (m.projectMemberId && m.projectMemberId === fi.projectMemberId) return m.kanRedigere ? "redigerer" : "leser";
+      if (m.groupId && fi.gruppeIder.includes(m.groupId)) return m.kanRedigere ? "redigerer" : "leser";
+    }
+    return undefined;
+  }, [minFlytInfo, fullOppgaveRå, dokumentflyterRå]);
+
   // Bygg rettighetInput for skjema-hook
   const rettighetInput = useMemo(() => {
     if (!minFlytInfo) return undefined;
@@ -226,8 +251,9 @@ export default function OppgaveDetaljSide() {
       minRolle,
       tillatelser: mineTillatelser,
       harBallen,
+      flytRettighet,
     };
-  }, [minFlytInfo, minRolle, mineTillatelser, harBallen]);
+  }, [minFlytInfo, minRolle, mineTillatelser, harBallen, flytRettighet]);
 
   // --- Skjema-hook med rettighetsinfo ---
 

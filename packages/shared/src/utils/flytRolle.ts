@@ -116,6 +116,8 @@ export interface DokumentRettighetInput {
   dokumentType: "sjekkliste" | "oppgave";
   /** Har brukeren ballen akkurat nå? */
   harBallen: boolean;
+  /** Rettighet fra DokumentflytMedlem.kanRedigere for brukerens aktive flytledd */
+  flytRettighet?: "redigerer" | "leser";
 }
 
 /**
@@ -128,7 +130,7 @@ export interface DokumentRettighetInput {
  * For oppgaver: "redigerer" betyr append-only — erFeltLåst() i hook håndhever dette.
  */
 export function utledDokumentRettighet(input: DokumentRettighetInput): DokumentRettighet {
-  const { erAdmin, minRolle, tillatelser, status, dokumentType, harBallen } = input;
+  const { erAdmin, minRolle, tillatelser, status, dokumentType, harBallen, flytRettighet } = input;
 
   // 1. Prosjektadmin eller flytregistrator → alltid admin
   if (erAdmin || minRolle === "registrator") return "admin";
@@ -146,7 +148,10 @@ export function utledDokumentRettighet(input: DokumentRettighetInput): DokumentR
   // 4. Har ikke ballen → leser
   if (!harBallen) return "leser";
 
-  // 5. Har ballen — sjekk tillatelse (med fallback for brukere uten grupper)
+  // 5. Har ballen — sjekk flytledd-rettighet (DokumentflytMedlem.kanRedigere)
+  if (flytRettighet === "leser") return "leser";
+
+  // 6. Har ballen — sjekk gruppetillatelse (med fallback for brukere uten grupper)
   if (tillatelser.size === 0) return "redigerer"; // Ingen grupper konfigurert → tillat
   const editPerm = dokumentType === "sjekkliste" ? "checklist_edit" : "task_edit";
   if (!tillatelser.has(editPerm)) return "leser";

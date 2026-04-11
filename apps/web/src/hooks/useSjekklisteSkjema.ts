@@ -286,6 +286,7 @@ export function useSjekklisteSkjema(sjekklisteId: string, rettighetInput?: Retti
       status: sjekkliste.status,
       dokumentType: "sjekkliste",
       harBallen: rettighetInput.harBallen,
+      flytRettighet: rettighetInput.flytRettighet,
     });
   }, [sjekkliste, rettighetInput]);
 
