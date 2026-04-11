@@ -160,32 +160,46 @@ function Roller() {
 function Dokumentflyt() {
   const { t } = useTranslation();
 
-  const bokser = [
-    { rolle: t("hjelp.flyt.bestiller"), eksempel: "HE-Leder (3)", farge: "bg-blue-50 border-blue-200 text-blue-700" },
-    { rolle: t("hjelp.flyt.utforer"), eksempel: "Byggherre (4)", farge: "bg-purple-50 border-purple-200 text-purple-700" },
-    { rolle: t("hjelp.flyt.godkjenner"), eksempel: "Byggherre (4)", farge: "bg-green-50 border-green-200 text-green-700" },
-  ];
-
   return (
     <div className="space-y-4">
       <p className="text-sm text-gray-600">{t("hjelp.flytBeskrivelse")}</p>
 
-      {/* Visuell flyt */}
+      {/* Visuell eksempel */}
       <div className="flex items-center justify-center gap-2 py-4">
-        {bokser.map((b, i) => (
-          <div key={b.rolle} className="flex items-center gap-2">
-            <div className={`rounded-lg border px-4 py-3 text-center ${b.farge}`}>
-              <div className="text-xs font-semibold uppercase tracking-wide">{b.rolle}</div>
-              <div className="mt-1 text-xs opacity-70">{b.eksempel}</div>
-            </div>
-            {i < bokser.length - 1 && <ArrowRight className="h-4 w-4 text-gray-400 flex-shrink-0" />}
+        <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-center">
+          <div className="text-xs font-semibold text-blue-700">Elektro</div>
+          <div className="mt-1 text-xs text-blue-500">3 personer</div>
+        </div>
+        <ArrowRight className="h-4 w-4 text-gray-400 flex-shrink-0" />
+        <div className="rounded-lg border border-purple-200 bg-purple-50 px-4 py-3 text-center">
+          <div className="flex items-center justify-center gap-1 text-xs font-semibold text-purple-700">
+            <span className="h-2 w-2 rounded-full bg-purple-500" />
+            Byggherre
           </div>
-        ))}
+          <div className="mt-1 text-xs text-purple-500">4 personer</div>
+        </div>
+        <ArrowRight className="h-4 w-4 text-gray-400 flex-shrink-0" />
+        <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-center">
+          <div className="text-xs font-semibold text-green-700">Tømrer</div>
+          <div className="mt-1 text-xs text-green-500">2 personer</div>
+        </div>
       </div>
 
-      <div className="space-y-2 text-sm text-gray-600">
-        <p>{t("hjelp.flytForklaring1")}</p>
-        <p>{t("hjelp.flytForklaring2")}</p>
+      <div className="space-y-3">
+        <div className="rounded-lg border border-gray-200 px-4 py-3">
+          <div className="flex items-center gap-2">
+            <span className="h-2.5 w-2.5 rounded-full bg-blue-500" />
+            <span className="text-sm font-semibold text-gray-900">{t("hjelp.flytBlåPrikk")}</span>
+          </div>
+          <p className="mt-1 text-sm text-gray-600">{t("hjelp.flytForklaring1")}</p>
+        </div>
+        <div className="rounded-lg border border-gray-200 px-4 py-3">
+          <div className="flex items-center gap-2">
+            <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">Leser</span>
+            <span className="text-sm font-semibold text-gray-900">{t("hjelp.flytRettighet")}</span>
+          </div>
+          <p className="mt-1 text-sm text-gray-600">{t("hjelp.flytForklaring2")}</p>
+        </div>
       </div>
     </div>
   );
