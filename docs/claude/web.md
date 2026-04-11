@@ -251,10 +251,10 @@ Detaljsider (sjekkliste/oppgave) har sticky header med tre rader:
 Layout: `<main>` har `px-6 pb-6` (IKKE pt) slik at `sticky top-0` fester seg helt øverst. Listesidene har `pt-6` på rot-div.
 
 ### FlytIndikator
-Kompakt flytvisning (`apps/web/src/components/FlytIndikator.tsx`). Viser alle ledd med ● på aktiv boks.
-- **Desktop:** `[Elektro] →●→ [BH] → [Tømrer]` — full flyt
-- **Mobil (`kompakt` prop):** `[Elektro] →●→ [BH] +1` — kun aktiv boks + naboer, tap for full flyt
-- Brukes i både listevisning (tabellkolonne) og detaljside-header
+Kompakt flytvisning. Viser alle ledd med ● på aktiv boks. Aktiv boks-format: `● Elektro · HE-Leder` (entreprise først, deretter person/gruppe med · separator).
+- **Web:** `apps/web/src/components/FlytIndikator.tsx` — desktop (full) + mobil (`kompakt` prop, aktiv + naboer, tap for full)
+- **Mobil (React Native):** `apps/mobile/src/components/FlytIndikator.tsx` — native View, kompakt, blå bar
+- Brukes i listevisning (tabellkolonne), web detaljside-header, og mobil detaljside-header
 - `hentFlytLedd()` eksportert for filtrering/sortering i tabeller
 - Data: `dokumentflyt.medlemmer` med `steg`, `rolle`, `enterprise`, `projectMember`, `group`
 

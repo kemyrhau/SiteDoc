@@ -26,34 +26,47 @@
 
 ## Statusendring
 
-Sjekkliste-/oppgave-detaljskjermen har kontekstuelle statusknapper i bunnpanelet:
+Sjekkliste-/oppgave-detaljskjermen har posisjon-basert handlingsmeny i bunnpanelet:
 
-| Status | Knapp(er) | Neste status | Farge |
-|--------|-----------|--------------|-------|
-| `draft` | "Send" | `sent` | Blå |
-| `sent` | "Motta" | `received` | Blå |
-| `received` | "Start arbeid" | `in_progress` | Amber |
-| `in_progress` | "Besvar" | `responded` | Lilla |
-| `responded` | "Godkjenn" + "Avvis" | `approved` / `rejected` | Grønn + Rød |
-| `rejected` | "Start arbeid igjen" | `in_progress` | Amber |
-| `approved` | "Lukk" | `closed` | Grå |
-| `closed` | (ingen) | — | — |
+### Header (blå bar)
+```
+← BEF-002  Befaring betong  [☁][Mottatt]
+   [Elektro] →●→ [BH · Byggeleder] +1
+```
+- Rad 1: Tilbake · Prefix+nummer · Tittel · Synk-ikoner · StatusBadge
+- Rad 2: FlytIndikator (`apps/mobile/src/components/FlytIndikator.tsx`) — native View, kompakt
 
-- "Avbryt"-knapp (rød) for draft→in_progress
-- Bekreftelsesdialog før statusendring
-- `hentStatusHandlinger()` hjelpefunksjon
+### Bunnpanel (DokumentHandlingsmeny)
+`apps/mobile/src/components/DokumentHandlingsmeny.tsx` — ActionSheet (iOS) / Alert (Android).
+
+| Status | Knapper |
+|--------|---------|
+| draft | `[Send ▾]` + `[Slett]` |
+| sent | `[Trekk tilbake]` |
+| received/in_progress/rejected | `[Send ▾]` (ActionSheet med entrepriser) |
+| responded | `[Godkjenn]` + `[Avvis]` + `[Send ▾]` |
+| approved | `[Lukk]` + `[Videresend ▾]` |
+| cancelled | `[Gjenåpne]` + `[Slett]` |
+
+- Send-dropdown: primærmottaker, Send tilbake (boks 2+), videresend til andre entrepriser
+- Admin-seksjon (registrator/admin/siste boks): Godkjenn, Lukk, Trekk tilbake, Gjenåpne
+- Kommentar-modal (bottom sheet) med tastaturhåndtering etter ActionSheet-valg
+- Lagre-knapp beholdt under handlingsmeny (offline-first)
+
+### Rettighetsbasert UI
+`useOppgaveSkjema(id, rettighetInput?)` og `useSjekklisteSkjema(id, rettighetInput?)` — valgfri `rettighetInput` med `utledDokumentRettighet()`. Uten param → gammel status-basert logikk.
 
 ## Oppgave-utfylling
 
 `useOppgaveSkjema`-hook i `apps/mobile/src/hooks/useOppgaveSkjema.ts`. Identisk med sjekkliste-utfylling:
 
 ```
-[Header] [Metadata-bar] [Entrepriser]
+[Blå header med FlytIndikator]
 ─── ScrollView ───
   [Tittel] [Prioritet] [Beskrivelse]
   [Koblinger] [Malobjekter] [Historikk]
 ─── Bunnpanel ───
-  [Statusknapper + Lagre]
+  [DokumentHandlingsmeny + Lagre]
 ```
 
 **Auto-fill:** date→i dag, date_time→nå, person→bruker, company→entreprise, drawing_position→fra oppgavens tegning.
