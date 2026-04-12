@@ -5,7 +5,7 @@
  * Brukes for pixel-perfekt tegningsvisning i PDF.
  */
 
-import { useRef, useState, useCallback, useEffect } from "react";
+import { useRef, useCallback } from "react";
 import { View, StyleSheet } from "react-native";
 import { WebView } from "react-native-webview";
 import type { WebViewMessageEvent } from "react-native-webview";
@@ -31,46 +31,52 @@ export function TegningsCapture({
   const viewShotRef = useRef<ViewShot>(null);
   const harCaptured = useRef(false);
 
-  console.log("[TegningsCapture] 1. Komponenten monteres", { tegningUrl: tegningUrl.substring(0, 80), positionX, positionY });
+  console.log("[TegningsCapture] 1. Montert", { url: tegningUrl.substring(0, 60), positionX, positionY });
+
+  // Valider at posisjon finnes
+  if (positionX <= 0 && positionY <= 0) {
+    console.log("[TegningsCapture] Skipper — posisjon er 0,0");
+    return null;
+  }
 
   const capture = useCallback(async () => {
-    console.log("[TegningsCapture] 3. capture() kalles, harCaptured:", harCaptured.current, "viewShotRef:", !!viewShotRef.current);
-    if (harCaptured.current || !viewShotRef.current) return;
+    console.log("[TegningsCapture] 3. capture() kalles");
+    if (harCaptured.current || !viewShotRef.current) {
+      console.log("[TegningsCapture] Avbrutt — harCaptured:", harCaptured.current, "ref:", !!viewShotRef.current);
+      return;
+    }
     harCaptured.current = true;
-
-    await new Promise((r) => setTimeout(r, 3000));
 
     try {
       console.log("[TegningsCapture] 4. Kaller ViewShot.capture()...");
       const uri = await (viewShotRef.current as unknown as { capture: () => Promise<string> }).capture();
-      console.log("[TegningsCapture] 4. ViewShot URI:", uri);
+      console.log("[TegningsCapture] 4. URI:", uri);
 
-      console.log("[TegningsCapture] 5. Leser base64...");
       const base64 = await readAsStringAsync(uri, { encoding: "base64" });
-      console.log("[TegningsCapture] 5. Base64 lengde:", base64.length, "| Første 100:", base64.substring(0, 100));
+      console.log("[TegningsCapture] 5. Base64:", base64.length, "tegn |", base64.substring(0, 80));
 
       if (base64.length < 1000) {
-        console.warn("[TegningsCapture] Base64 er for kort — tomt bilde?");
+        console.warn("[TegningsCapture] For kort base64 — tomt bilde");
         return;
       }
 
-      console.log("[TegningsCapture] 6. Kaller onCapture med", base64.length, "tegn");
+      console.log("[TegningsCapture] 6. Leverer til onCapture");
       onCapture(`data:image/png;base64,${base64}`);
     } catch (e) {
-      console.warn("[TegningsCapture] Capture feilet:", e);
+      console.warn("[TegningsCapture] Feilet:", e);
     }
   }, [onCapture]);
 
   const håndterMelding = useCallback((e: WebViewMessageEvent) => {
-    console.log("[TegningsCapture] Melding fra WebView:", e.nativeEvent.data);
-    if (e.nativeEvent.data === "klar") {
-      capture();
+    const msg = e.nativeEvent.data;
+    console.log("[TegningsCapture] 2. WebView melding:", msg);
+    if (msg === "klar") {
+      // Vent 300ms etter img.onload slik at prikken rendres ferdig
+      setTimeout(() => capture(), 300);
+    } else if (msg === "feil") {
+      console.warn("[TegningsCapture] Bildet feilet å laste");
     }
   }, [capture]);
-
-  const håndterLoadEnd = useCallback(() => {
-    console.log("[TegningsCapture] 2. WebView onLoadEnd fires");
-  }, []);
 
   const html = `<!DOCTYPE html>
 <html><head><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
@@ -82,7 +88,7 @@ export function TegningsCapture({
   .pin{position:absolute;width:16px;height:16px;border-radius:50%;background:#ef4444;border:2px solid #fff;transform:translate(-50%,-50%);box-shadow:0 1px 3px rgba(0,0,0,0.3)}
 </style></head><body>
 <div id="c">
-  <img src="${tegningUrl}" onload="document.getElementById('p').style.display='block';window.ReactNativeWebView.postMessage('klar');" onerror="window.ReactNativeWebView.postMessage('feil');" />
+  <img src="${tegningUrl}" onload="document.getElementById('p').style.display='block';setTimeout(function(){window.ReactNativeWebView.postMessage('klar')},200);" onerror="window.ReactNativeWebView.postMessage('feil');" />
   <div id="p" class="pin" style="display:none;left:${positionX}%;top:${positionY}%"></div>
 </div>
 </body></html>`;
@@ -97,7 +103,6 @@ export function TegningsCapture({
         <WebView
           source={{ html, baseUrl: tegningUrl.substring(0, tegningUrl.lastIndexOf("/") + 1) }}
           style={stiler.webview}
-          onLoadEnd={håndterLoadEnd}
           onMessage={håndterMelding}
           javaScriptEnabled
           scrollEnabled={false}
