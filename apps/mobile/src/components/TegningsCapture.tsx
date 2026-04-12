@@ -97,24 +97,28 @@ export function TegningsCapture({
 
       var oversiktData = c1.toDataURL('image/png');
 
-      // --- Detalj ---
-      var ds = ${DETALJ_SIZE};
+      // --- Detalj — same aspect ratio som originalbilde ---
+      var imgRatio = ow / oh;
+      var dw = ${DETALJ_SIZE};
+      var dh = Math.round(dw / imgRatio);
       var c2 = document.getElementById('detalj');
-      c2.width = ds; c2.height = ds;
+      c2.width = dw; c2.height = dh;
       var ctx2 = c2.getContext('2d');
 
-      // Beregn kilde-rektangel fra originalbilde (ikke skalert)
+      // Kilde-rektangel med bildets aspect ratio
       var srcW = ow * utsSnitt;
       var srcH = oh * utsSnitt;
-      var srcX = Math.max(0, Math.min(ow - srcW, ${positionX}/100*ow - srcW/2));
-      var srcY = Math.max(0, Math.min(oh - srcH, ${positionY}/100*oh - srcH/2));
+      var srcCx = ${positionX}/100*ow;
+      var srcCy = ${positionY}/100*oh;
+      var srcX = Math.max(0, Math.min(ow - srcW, srcCx - srcW/2));
+      var srcY = Math.max(0, Math.min(oh - srcH, srcCy - srcH/2));
 
-      ctx2.drawImage(img, srcX, srcY, srcW, srcH, 0, 0, ds, ds);
+      ctx2.drawImage(img, srcX, srcY, srcW, srcH, 0, 0, dw, dh);
 
-      // Prikk i detalj (sentrum av utsnittet)
-      var dpx = (${positionX}/100*ow - srcX) / srcW * ds;
-      var dpy = (${positionY}/100*oh - srcY) / srcH * ds;
-      var dr = Math.max(8, ds / 60);
+      // Prikk i detalj
+      var dpx = (srcCx - srcX) / srcW * dw;
+      var dpy = (srcCy - srcY) / srcH * dh;
+      var dr = Math.max(8, dw / 60);
       ctx2.beginPath(); ctx2.arc(dpx, dpy, dr + 3, 0, Math.PI*2); ctx2.fillStyle='#fff'; ctx2.fill();
       ctx2.beginPath(); ctx2.arc(dpx, dpy, dr, 0, Math.PI*2); ctx2.fillStyle='#ef4444'; ctx2.fill();
 
