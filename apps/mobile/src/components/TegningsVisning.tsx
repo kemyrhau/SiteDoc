@@ -246,14 +246,14 @@ export function TegningsVisning({
 
   return (
     <View className="flex-1 bg-black">
-      <View className="flex-row items-center justify-between bg-black/80 px-4 py-3">
-        <Pressable onPress={onLukk} hitSlop={12} className="rounded-full bg-white/20 p-2">
-          <X size={20} color="#ffffff" />
+      <View className="flex-row items-center justify-between bg-black/80 px-5 py-4">
+        <Pressable onPress={onLukk} hitSlop={16} className="rounded-full bg-white/20 p-2.5">
+          <X size={22} color="#ffffff" />
         </Pressable>
-        <Text className="flex-1 px-3 text-center text-sm font-medium text-white" numberOfLines={1}>
+        <Text className="flex-1 px-4 text-center text-sm font-medium text-white" numberOfLines={1}>
           {tegningNavn}
         </Text>
-        <View style={{ width: 36 }} />
+        <View style={{ width: 42 }} />
       </View>
 
       {feil ? (

@@ -927,11 +927,12 @@ export default function SjekklisteUtfylling() {
                   markører={markører}
                 />
                 {/* Bunnbar: Bytt tegning + Lagre */}
-                <View className="flex-row items-center justify-between border-t border-gray-200 bg-white px-4 py-3">
-                  <Pressable onPress={() => setVisLokByttTegning(true)}>
-                    <Text className="text-sm text-blue-600">Bytt tegning</Text>
+                <View className="flex-row items-center justify-between border-t border-gray-200 bg-white px-5 py-4">
+                  <Pressable onPress={() => setVisLokByttTegning(true)} hitSlop={12} className="rounded-lg px-3 py-2">
+                    <Text className="text-sm font-medium text-blue-600">Bytt tegning</Text>
                   </Pressable>
                   <Pressable
+                    hitSlop={8}
                     onPress={() => {
                       oppdaterMutasjon.mutate({
                         id: id!,
@@ -948,7 +949,7 @@ export default function SjekklisteUtfylling() {
                       }
                       setVisLokasjonModal(false);
                     }}
-                    className="rounded-lg bg-blue-700 px-5 py-2"
+                    className="rounded-lg bg-blue-700 px-6 py-2.5"
                   >
                     <Text className="text-sm font-medium text-white">Lagre</Text>
                   </Pressable>
