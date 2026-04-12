@@ -571,11 +571,11 @@ export function TegningPosisjonPrint({ pos }: { pos: TegningPosisjonVerdi }) {
 
       <div className="bilde-grid">
         {/* Oversiktsbilde med markør */}
-        <div className="bilde-celle relative rounded border border-gray-200 bg-gray-50" style={{ height: "260px" }}>
+        <div className="bilde-celle relative rounded border border-gray-200 bg-gray-50">
           <img
             src={bildeSrc}
             alt={drawingName}
-            className="h-full w-full object-contain"
+            className="block w-full"
           />
           {/* Rød markør */}
           <div

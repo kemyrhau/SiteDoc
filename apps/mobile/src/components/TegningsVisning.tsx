@@ -41,8 +41,8 @@ interface TegningsVisningProps {
 
 /**
  * Bygg HTML som rendrer tegningen + alle markører i SAMME koordinatsystem.
- * CSS-prosentposisjonering sikrer at markørene alltid er korrekt plassert
- * uavhengig av OS, skjermstørrelse eller skalering.
+ * Markører posisjoneres med CSS-prosent (identisk med web UI og PDF).
+ * visualViewport.scale brukes for å holde markørene visuelt like store ved zoom.
  */
 function byggHtml(
   tegningUrl: string,
@@ -50,7 +50,6 @@ function byggHtml(
   gpsMarkør: GpsMarkør | null,
   kanTrykke: boolean,
 ): string {
-  // Markør- og GPS-data som JSON for JavaScript-posisjonering
   const markørData = JSON.stringify(markører.map((m) => ({
     id: m.id, x: m.x, y: m.y, farge: m.farge || "#ef4444", label: m.label || "",
   })));
@@ -64,9 +63,9 @@ function byggHtml(
   #container { position:relative; }
   #tegning { display:block; width:100%; height:auto; }
   .pin { position:absolute; z-index:10; pointer-events:auto; }
-  .pin-dot { width:16px;height:16px;border-radius:50%;border:2px solid #fff;transform:translate(-50%,-50%); }
+  .pin-dot { width:16px;height:16px;border-radius:50%;border:2px solid #fff;transform:translate(-50%,-50%);transform-origin:center; }
   .pin-label {
-    position:absolute; top:10px; left:50%; transform:translateX(-50%);
+    position:absolute; top:10px; left:50%; transform:translateX(-50%);transform-origin:center top;
     font:700 8px sans-serif; color:#1f2937;
     background:rgba(255,255,255,0.85); border-radius:3px;
     padding:1px 3px; white-space:nowrap;
@@ -76,7 +75,7 @@ function byggHtml(
     width:24px;height:24px;border-radius:50%;
     background:rgba(59,130,246,0.25);
     display:flex;align-items:center;justify-content:center;
-    transform:translate(-50%,-50%);
+    transform:translate(-50%,-50%);transform-origin:center;
     animation:pulse 2s ease-in-out infinite;
   }
   .gps-inner { width:14px;height:14px;border-radius:50%;background:#3b82f6;border:2.5px solid #fff;box-shadow:0 0 6px rgba(59,130,246,0.5); }
@@ -90,31 +89,49 @@ function byggHtml(
 <script>
 var markører = ${markørData};
 var gpsPos = ${gpsData};
+var currentZoom = 1;
+
+// Hold markører visuelt like store ved pinch-zoom
+function oppdaterZoom() {
+  var z = window.visualViewport ? window.visualViewport.scale : 1;
+  if (Math.abs(z - currentZoom) < 0.01) return;
+  currentZoom = z;
+  var inv = 1 / z;
+  document.querySelectorAll('.pin-dot').forEach(function(el) {
+    el.style.transform = 'translate(-50%,-50%) scale(' + inv + ')';
+  });
+  document.querySelectorAll('.pin-label').forEach(function(el) {
+    el.style.transform = 'translateX(-50%) scale(' + inv + ')';
+  });
+  document.querySelectorAll('.gps-outer').forEach(function(el) {
+    el.style.transform = 'translate(-50%,-50%) scale(' + inv + ')';
+    el.style.animation = 'none';
+  });
+}
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('scroll', oppdaterZoom);
+  window.visualViewport.addEventListener('resize', oppdaterZoom);
+}
 
 function plasser() {
   var img = document.getElementById('tegning');
-  var w = img.naturalWidth;
-  var h = img.naturalHeight;
   var dispW = img.clientWidth;
   var dispH = img.clientHeight;
-
   if (dispW <= 0 || dispH <= 0) return;
 
   document.getElementById('debug').textContent =
-    'Bilde: ' + w + 'x' + h + ' → ' + dispW + 'x' + dispH +
-    (gpsPos ? ' | GPS: ' + gpsPos.x.toFixed(1) + '%, ' + gpsPos.y.toFixed(1) + '%' +
-     ' → ' + Math.round(gpsPos.x/100*dispW) + 'px, ' + Math.round(gpsPos.y/100*dispH) + 'px' : '');
+    'Bilde: ' + img.naturalWidth + 'x' + img.naturalHeight +
+    ' | Zoom: ' + currentZoom.toFixed(1) + 'x';
 
-  // Fjern gamle markører
   document.querySelectorAll('.pin,.gps').forEach(function(e){e.remove()});
   var container = document.getElementById('container');
 
-  // Plasser oppgavemarkører med pikselverdier
+  // Plasser med CSS-prosent — identisk med web UI og PDF
   markører.forEach(function(m) {
     var div = document.createElement('div');
     div.className = 'pin';
-    div.style.left = (m.x / 100 * dispW) + 'px';
-    div.style.top = (m.y / 100 * dispH) + 'px';
+    div.style.left = m.x + '%';
+    div.style.top = m.y + '%';
     div.innerHTML = '<div class="pin-dot" style="background:' + m.farge + '"></div>' +
       (m.label ? '<div class="pin-label">' + m.label + '</div>' : '');
     div.onclick = function(e) {
@@ -124,18 +141,18 @@ function plasser() {
     container.appendChild(div);
   });
 
-  // Plasser GPS-markør med pikselverdier
   if (gpsPos) {
     var gps = document.createElement('div');
     gps.className = 'gps';
-    gps.style.left = (gpsPos.x / 100 * dispW) + 'px';
-    gps.style.top = (gpsPos.y / 100 * dispH) + 'px';
+    gps.style.left = gpsPos.x + '%';
+    gps.style.top = gpsPos.y + '%';
     gps.innerHTML = '<div class="gps-outer"><div class="gps-inner"></div></div>';
     container.appendChild(gps);
   }
+
+  oppdaterZoom();
 }
 
-// Vent på at bildet lastes, deretter plasser
 var img = document.getElementById('tegning');
 img.onload = function() { plasser(); };
 if (img.complete) plasser();
@@ -169,13 +186,11 @@ export function TegningsVisning({
   const webViewRef = useRef<WebView>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Reset ved URL-endring
   useEffect(() => {
     setLaster(true);
     setFeil(false);
   }, [tegningUrl]);
 
-  // Timeout
   useEffect(() => {
     if (laster && !feil) {
       timeoutRef.current = setTimeout(() => {
@@ -188,7 +203,7 @@ export function TegningsVisning({
     };
   }, [laster, feil]);
 
-  // Oppdater GPS-markør via pikselverdier
+  // Oppdater GPS-markør med CSS-prosent
   useEffect(() => {
     if (!webViewRef.current || laster) return;
     if (gpsMarkør) {
@@ -196,19 +211,15 @@ export function TegningsVisning({
         (function() {
           var old = document.querySelector('.gps');
           if (old) old.remove();
-          var img = document.getElementById('tegning');
           var c = document.getElementById('container');
-          if (!c || !img || img.clientWidth <= 0) return;
-          var px = ${gpsMarkør.x} / 100 * img.clientWidth;
-          var py = ${gpsMarkør.y} / 100 * img.clientHeight;
+          if (!c) return;
           var div = document.createElement('div');
           div.className = 'gps';
-          div.style.left = px + 'px';
-          div.style.top = py + 'px';
+          div.style.left = '${gpsMarkør.x}%';
+          div.style.top = '${gpsMarkør.y}%';
           div.innerHTML = '<div class="gps-outer"><div class="gps-inner"></div></div>';
           c.appendChild(div);
-          document.getElementById('debug').textContent =
-            'GPS oppdatert: ${gpsMarkør.x.toFixed(1)}%, ${gpsMarkør.y.toFixed(1)}% → ' + Math.round(px) + 'px, ' + Math.round(py) + 'px';
+          oppdaterZoom();
         })();
         true;
       `);
@@ -235,7 +246,6 @@ export function TegningsVisning({
 
   return (
     <View className="flex-1 bg-black">
-      {/* Header */}
       <View className="flex-row items-center justify-between bg-black/80 px-4 py-3">
         <Pressable onPress={onLukk} hitSlop={12} className="rounded-full bg-white/20 p-2">
           <X size={20} color="#ffffff" />
@@ -246,7 +256,6 @@ export function TegningsVisning({
         <View style={{ width: 36 }} />
       </View>
 
-      {/* Feilvisning */}
       {feil ? (
         <View style={stiler.feilContainer}>
           <AlertTriangle size={48} color="#f59e0b" />

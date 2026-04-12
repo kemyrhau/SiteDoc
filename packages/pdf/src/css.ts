@@ -179,12 +179,11 @@ export function hentCss(config?: Partial<PdfConfig>): string {
     border: 1px solid #e5e7eb;
     border-radius: 4px;
     overflow: hidden;
-    height: 260px;
   }
   .tegning-celle img {
+    display: block;
     width: 100%;
-    height: 100%;
-    object-fit: contain;
+    height: auto;
   }
   .tegning-markør {
     position: absolute;

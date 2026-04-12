@@ -41,7 +41,7 @@ ${tegningNavn ? `<div style="font-size:10px;font-weight:500;color:#374151;margin
   </div>
 
   <!-- Detalj-utsnitt -->
-  <div class="tegning-celle" style="overflow:hidden;">
+  <div class="tegning-celle" style="overflow:hidden;height:260px;">
     <img src="${esc(tegningBildeUrl)}" alt="Detalj" style="width:100%;height:100%;object-fit:cover;transform-origin:${x}% ${y}%;transform:scale(${DETALJ_ZOOM});" />
     <div class="tegning-markør" style="left:50%;top:50%;"></div>
     <div class="tegning-etikett">Detalj</div>
