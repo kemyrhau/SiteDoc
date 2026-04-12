@@ -33,8 +33,8 @@ export function byggTegningPosisjon(data: TegningPosisjonData): string {
 ${tegningNavn ? `<div style="font-size:10px;font-weight:500;color:#374151;margin-bottom:6px;">${esc(tegningNavn)}</div>` : ""}
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;">
   <!-- Oversiktsbilde med markør — inline styles for expo-print kompatibilitet -->
-  <div style="position:relative;border:1px solid #e5e7eb;border-radius:4px;overflow:hidden;height:260px;">
-    <img src="${esc(tegningBildeUrl)}" alt="${esc(tegningNavn ?? "Tegning")}" style="width:100%;height:100%;object-fit:contain;" />
+  <div style="position:relative;border:1px solid #e5e7eb;border-radius:4px;overflow:hidden;width:100%;">
+    <img src="${esc(tegningBildeUrl)}" alt="${esc(tegningNavn ?? "Tegning")}" style="display:block;width:100%;height:auto;" />
     <div style="position:absolute;left:${x}%;top:${y}%;width:12px;height:12px;border-radius:50%;background:#ef4444;border:2px solid white;transform:translate(-50%,-50%);z-index:2;"></div>
     <div style="position:absolute;border:2px solid #f87171;left:${rammeX}%;top:${rammeY}%;width:${rammeStørrelse}%;height:${rammeStørrelse}%;z-index:1;"></div>
     <div style="position:absolute;bottom:4px;left:4px;background:rgba(255,255,255,0.8);padding:1px 6px;border-radius:3px;font-size:9px;font-weight:500;color:#6b7280;">Oversikt</div>
