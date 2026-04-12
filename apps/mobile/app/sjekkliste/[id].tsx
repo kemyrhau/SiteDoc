@@ -8,6 +8,7 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Modal,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -34,6 +35,8 @@ import { hentDatabase } from "../../src/db/database";
 import { sjekklisteFeltdata, opplastingsKo } from "../../src/db/schema";
 import { byggSjekklisteHtml } from "@sitedoc/pdf";
 import { PdfForhandsvisning } from "../../src/components/PdfForhandsvisning";
+import { TegningsVisning } from "../../src/components/TegningsVisning";
+import type { Markør } from "../../src/components/TegningsVisning";
 import { AUTH_CONFIG, hentWebUrl } from "../../src/config/auth";
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
@@ -110,8 +113,12 @@ export default function SjekklisteUtfylling() {
 
   const [visEntrepriseListe, settVisEntrepriseListe] = useState<"oppretter" | "svarer" | null>(null);
   const [pdfHtml, settPdfHtml] = useState<string | null>(null);
-  const [visLokasjonValg, setVisLokasjonValg] = useState(false);
-  const [ekspandertBygningId, setEkspandertBygningId] = useState<string | null>(null);
+  const [visLokasjonModal, setVisLokasjonModal] = useState(false);
+  const [visLokByttTegning, setVisLokByttTegning] = useState(false);
+  const [lokTempPosX, setLokTempPosX] = useState<number | null>(null);
+  const [lokTempPosY, setLokTempPosY] = useState<number | null>(null);
+  const [lokTempTegningId, setLokTempTegningId] = useState<string | null>(null);
+  const [lokTempBygningId, setLokTempBygningId] = useState<string | null>(null);
 
   // State for oppgave-fra-felt
   const [opprettOppgaveKategori, setOpprettOppgaveKategori] = useState<"oppgave" | null>(null);
@@ -174,6 +181,7 @@ export default function SjekklisteUtfylling() {
   );
   const alleTegninger = (alleTegningerQuery.data ?? []) as unknown as Array<{
     id: string; name: string; drawingNumber: string | null;
+    fileUrl: string; fileType: string;
     byggeplassId: string | null; byggeplass: { id: string; name: string } | null;
   }>;
 
@@ -557,9 +565,17 @@ export default function SjekklisteUtfylling() {
         contentContainerClassName="gap-2 p-3 pb-8"
         keyboardShouldPersistTaps="handled"
       >
-        {/* Lokasjonsvelger — over feltene */}
+        {/* Lokasjonsvelger — trykk for å åpne tegningsvisning */}
         <Pressable
-          onPress={() => !leseModus && setVisLokasjonValg(!visLokasjonValg)}
+          onPress={() => {
+            if (leseModus) return;
+            // Initialiser temp-state fra nåværende lokasjon
+            setLokTempTegningId(sjekklisteDetalj?.drawingId ?? null);
+            setLokTempBygningId(sjekklisteDetalj?.byggeplass?.id ?? null);
+            setLokTempPosX(sjekklisteDetalj?.positionX ?? null);
+            setLokTempPosY(sjekklisteDetalj?.positionY ?? null);
+            setVisLokasjonModal(true);
+          }}
           className="rounded-lg bg-white px-4 py-3"
         >
           <View className="flex-row items-center gap-2">
@@ -570,68 +586,6 @@ export default function SjekklisteUtfylling() {
             {!leseModus && <ChevronDown size={14} color="#9ca3af" />}
           </View>
         </Pressable>
-
-        {/* Bygning → tegning dropdown */}
-        {visLokasjonValg && !leseModus && (
-          <View className="rounded-lg border border-gray-200 bg-white">
-            {bygninger.map((b) => {
-              const bTegninger = alleTegninger.filter((t) => (t.byggeplassId ?? t.byggeplass?.id) === b.id);
-              const erEkspandert = ekspandertBygningId === b.id;
-              return (
-                <View key={b.id}>
-                  <Pressable
-                    onPress={() => {
-                      setEkspandertBygningId(erEkspandert ? null : b.id);
-                      // Velg bygning uten tegning
-                      oppdaterMutasjon.mutate({ id: id!, byggeplassId: b.id, drawingId: null, positionX: null, positionY: null });
-                    }}
-                    className={`flex-row items-center justify-between border-b border-gray-50 px-3 py-2.5 ${sjekklisteDetalj?.byggeplass?.id === b.id ? "bg-blue-50" : ""}`}
-                  >
-                    <Text className={`text-sm font-medium ${sjekklisteDetalj?.byggeplass?.id === b.id ? "text-blue-700" : "text-gray-700"}`}>
-                      {b.name}
-                    </Text>
-                    {bTegninger.length > 0 && <ChevronDown size={12} color="#9ca3af" style={erEkspandert ? { transform: [{ rotate: "180deg" }] } : undefined} />}
-                  </Pressable>
-                  {erEkspandert && bTegninger.map((t) => (
-                    <Pressable
-                      key={t.id}
-                      onPress={() => {
-                        oppdaterMutasjon.mutate({ id: id!, byggeplassId: b.id, drawingId: t.id, positionX: null, positionY: null });
-                        setVisLokasjonValg(false);
-                        setEkspandertBygningId(null);
-                        // Lagre sist brukt
-                        if (valgtProsjektId) {
-                          import("expo-secure-store").then((ss) => {
-                            ss.setItemAsync(`sitedoc_sist_bygning_${valgtProsjektId}`, b.id);
-                            ss.setItemAsync(`sitedoc_sist_tegning_${valgtProsjektId}`, t.id);
-                          });
-                        }
-                      }}
-                      className={`border-b border-gray-100 bg-gray-50 px-6 py-2 ${sjekklisteDetalj?.drawingId === t.id ? "bg-blue-50" : ""}`}
-                    >
-                      <Text className={`text-sm ${sjekklisteDetalj?.drawingId === t.id ? "font-medium text-blue-700" : "text-gray-600"}`}>
-                        {t.drawingNumber ? `${t.drawingNumber} ${t.name}` : t.name}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
-              );
-            })}
-            {/* Fjern lokasjon */}
-            {(sjekklisteDetalj?.byggeplass || sjekklisteDetalj?.drawing) && (
-              <Pressable
-                onPress={() => {
-                  oppdaterMutasjon.mutate({ id: id!, byggeplassId: null, drawingId: null, positionX: null, positionY: null });
-                  setVisLokasjonValg(false);
-                  setEkspandertBygningId(null);
-                }}
-                className="px-3 py-2.5"
-              >
-                <Text className="text-sm italic text-gray-400">Fjern lokasjon</Text>
-              </Pressable>
-            )}
-          </View>
-        )}
 
         {objekter.map((objekt) => {
           // Skip barn av repeatere — rendres inne i RepeaterObjekt
@@ -865,6 +819,124 @@ export default function SjekklisteUtfylling() {
         onDel={håndterDelPdf}
         onLukk={() => settPdfHtml(null)}
       />
+
+      {/* Lokasjonsmodal — tegningsvisning med posisjonsprikk */}
+      <Modal visible={visLokasjonModal} animationType="slide" onRequestClose={() => setVisLokasjonModal(false)}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: "#ffffff" }} edges={["top"]}>
+          {(() => {
+            const aktivTegning = lokTempTegningId
+              ? alleTegninger.find((t) => t.id === lokTempTegningId)
+              : null;
+            const tegningUrl = aktivTegning?.fileUrl
+              ? (aktivTegning.fileUrl.startsWith("http")
+                ? aktivTegning.fileUrl
+                : `${hentWebUrl()}/api${aktivTegning.fileUrl}`)
+              : null;
+
+            // Bytt tegning-liste
+            if (visLokByttTegning || !tegningUrl) {
+              return (
+                <View className="flex-1">
+                  <View className="flex-row items-center justify-between bg-sitedoc-blue px-4 py-3">
+                    <Pressable onPress={() => {
+                      if (tegningUrl) { setVisLokByttTegning(false); }
+                      else { setVisLokasjonModal(false); }
+                    }} hitSlop={8}>
+                      <Text className="text-sm font-medium text-white">
+                        {tegningUrl ? "Tilbake" : "Avbryt"}
+                      </Text>
+                    </Pressable>
+                    <Text className="text-sm font-semibold text-white">Velg tegning</Text>
+                    <View style={{ width: 50 }} />
+                  </View>
+                  <ScrollView className="flex-1" contentContainerClassName="p-3 gap-1">
+                    {bygninger.map((b) => {
+                      const bTegninger = alleTegninger.filter(
+                        (t) => (t.byggeplassId ?? t.byggeplass?.id) === b.id && t.fileUrl,
+                      );
+                      if (bTegninger.length === 0) return null;
+                      return (
+                        <View key={b.id} className="mb-2">
+                          <Text className="text-xs font-semibold uppercase tracking-wider text-gray-400 px-1 mb-1">
+                            {b.name}
+                          </Text>
+                          {bTegninger.map((t) => (
+                            <Pressable
+                              key={t.id}
+                              onPress={() => {
+                                setLokTempTegningId(t.id);
+                                setLokTempBygningId(t.byggeplassId ?? t.byggeplass?.id ?? null);
+                                setLokTempPosX(null);
+                                setLokTempPosY(null);
+                                setVisLokByttTegning(false);
+                              }}
+                              className={`rounded-lg px-3 py-2.5 ${lokTempTegningId === t.id ? "bg-blue-50" : "bg-white"}`}
+                            >
+                              <Text className={`text-sm ${lokTempTegningId === t.id ? "font-medium text-blue-700" : "text-gray-700"}`}>
+                                {t.drawingNumber ? `${t.drawingNumber} ${t.name}` : t.name}
+                              </Text>
+                            </Pressable>
+                          ))}
+                        </View>
+                      );
+                    })}
+                  </ScrollView>
+                </View>
+              );
+            }
+
+            // Tegningsvisning med posisjonsprikk
+            const markører: Markør[] = lokTempPosX != null && lokTempPosY != null
+              ? [{ id: "pos", x: lokTempPosX, y: lokTempPosY, farge: "#ef4444" }]
+              : [];
+
+            return (
+              <View className="flex-1">
+                <TegningsVisning
+                  tegningUrl={tegningUrl}
+                  tegningNavn={aktivTegning?.drawingNumber
+                    ? `${aktivTegning.drawingNumber} ${aktivTegning.name}`
+                    : aktivTegning?.name ?? ""}
+                  onLukk={() => setVisLokasjonModal(false)}
+                  onTrykk={(posX, posY) => {
+                    setLokTempPosX(posX);
+                    setLokTempPosY(posY);
+                  }}
+                  markører={markører}
+                />
+                {/* Bunnbar: Bytt tegning + Lagre */}
+                <View className="flex-row items-center justify-between border-t border-gray-200 bg-white px-4 py-3">
+                  <Pressable onPress={() => setVisLokByttTegning(true)}>
+                    <Text className="text-sm text-blue-600">Bytt tegning</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => {
+                      oppdaterMutasjon.mutate({
+                        id: id!,
+                        byggeplassId: lokTempBygningId,
+                        drawingId: lokTempTegningId,
+                        positionX: lokTempPosX,
+                        positionY: lokTempPosY,
+                      });
+                      // Lagre sist brukt
+                      if (valgtProsjektId && lokTempBygningId && lokTempTegningId) {
+                        import("expo-secure-store").then((ss) => {
+                          ss.setItemAsync(`sitedoc_sist_bygning_${valgtProsjektId}`, lokTempBygningId!);
+                          ss.setItemAsync(`sitedoc_sist_tegning_${valgtProsjektId}`, lokTempTegningId!);
+                        });
+                      }
+                      setVisLokasjonModal(false);
+                    }}
+                    className="rounded-lg bg-blue-700 px-5 py-2"
+                  >
+                    <Text className="text-sm font-medium text-white">Lagre</Text>
+                  </Pressable>
+                </View>
+              </View>
+            );
+          })()}
+        </SafeAreaView>
+      </Modal>
 
       {/* Malvelger for oppgave fra felt */}
       <MalVelger
