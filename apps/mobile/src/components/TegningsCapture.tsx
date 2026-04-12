@@ -5,7 +5,7 @@
  * Brukes for pixel-perfekt tegningsvisning i PDF.
  */
 
-import { useRef, useState, useCallback } from "react";
+import { useRef, useState, useCallback, useEffect } from "react";
 import { View, StyleSheet } from "react-native";
 import { WebView } from "react-native-webview";
 import type { WebViewMessageEvent } from "react-native-webview";
@@ -22,10 +22,6 @@ interface TegningsCaptureProps {
   onCapture: (base64DataUrl: string) => void;
 }
 
-/**
- * Rendrer en offscreen WebView med tegning + prikk, tar screenshot når bildet er lastet.
- * Trigger: <img onload> sender postMessage("klar") → capture etter 3s forsinkelse.
- */
 export function TegningsCapture({
   tegningUrl,
   positionX,
@@ -34,44 +30,47 @@ export function TegningsCapture({
 }: TegningsCaptureProps) {
   const viewShotRef = useRef<ViewShot>(null);
   const harCaptured = useRef(false);
-  const [_klar, setKlar] = useState(false);
+
+  console.log("[TegningsCapture] 1. Komponenten monteres", { tegningUrl: tegningUrl.substring(0, 80), positionX, positionY });
 
   const capture = useCallback(async () => {
+    console.log("[TegningsCapture] 3. capture() kalles, harCaptured:", harCaptured.current, "viewShotRef:", !!viewShotRef.current);
     if (harCaptured.current || !viewShotRef.current) return;
     harCaptured.current = true;
 
-    console.log("[TegningsCapture] Bildet er lastet, venter 3s før capture…");
-
-    // Vent for å sikre at WebView har rendret bildet fullstendig
     await new Promise((r) => setTimeout(r, 3000));
 
     try {
+      console.log("[TegningsCapture] 4. Kaller ViewShot.capture()...");
       const uri = await (viewShotRef.current as unknown as { capture: () => Promise<string> }).capture();
-      console.log("[TegningsCapture] Screenshot URI:", uri);
+      console.log("[TegningsCapture] 4. ViewShot URI:", uri);
 
+      console.log("[TegningsCapture] 5. Leser base64...");
       const base64 = await readAsStringAsync(uri, { encoding: "base64" });
-      console.log("[TegningsCapture] Base64 lengde:", base64.length, "| Første 100 tegn:", base64.substring(0, 100));
+      console.log("[TegningsCapture] 5. Base64 lengde:", base64.length, "| Første 100:", base64.substring(0, 100));
 
       if (base64.length < 1000) {
-        console.warn("[TegningsCapture] Base64 er for kort — sannsynligvis hvitt/tomt bilde");
+        console.warn("[TegningsCapture] Base64 er for kort — tomt bilde?");
         return;
       }
 
+      console.log("[TegningsCapture] 6. Kaller onCapture med", base64.length, "tegn");
       onCapture(`data:image/png;base64,${base64}`);
-      console.log("[TegningsCapture] Capture levert til onCapture");
     } catch (e) {
       console.warn("[TegningsCapture] Capture feilet:", e);
     }
   }, [onCapture]);
 
   const håndterMelding = useCallback((e: WebViewMessageEvent) => {
-    const data = e.nativeEvent.data;
-    console.log("[TegningsCapture] Melding fra WebView:", data);
-    if (data === "klar") {
-      setKlar(true);
+    console.log("[TegningsCapture] Melding fra WebView:", e.nativeEvent.data);
+    if (e.nativeEvent.data === "klar") {
       capture();
     }
   }, [capture]);
+
+  const håndterLoadEnd = useCallback(() => {
+    console.log("[TegningsCapture] 2. WebView onLoadEnd fires");
+  }, []);
 
   const html = `<!DOCTYPE html>
 <html><head><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
@@ -83,7 +82,7 @@ export function TegningsCapture({
   .pin{position:absolute;width:16px;height:16px;border-radius:50%;background:#ef4444;border:2px solid #fff;transform:translate(-50%,-50%);box-shadow:0 1px 3px rgba(0,0,0,0.3)}
 </style></head><body>
 <div id="c">
-  <img src="${tegningUrl}" onload="document.getElementById('p').style.display='block';window.ReactNativeWebView.postMessage('klar');" />
+  <img src="${tegningUrl}" onload="document.getElementById('p').style.display='block';window.ReactNativeWebView.postMessage('klar');" onerror="window.ReactNativeWebView.postMessage('feil');" />
   <div id="p" class="pin" style="display:none;left:${positionX}%;top:${positionY}%"></div>
 </div>
 </body></html>`;
@@ -98,6 +97,7 @@ export function TegningsCapture({
         <WebView
           source={{ html, baseUrl: tegningUrl.substring(0, tegningUrl.lastIndexOf("/") + 1) }}
           style={stiler.webview}
+          onLoadEnd={håndterLoadEnd}
           onMessage={håndterMelding}
           javaScriptEnabled
           scrollEnabled={false}
@@ -109,7 +109,6 @@ export function TegningsCapture({
 }
 
 const stiler = StyleSheet.create({
-  // Offscreen — ingen opacity:0 (WKWebView rendrer ikke usynlige views)
   offscreen: {
     position: "absolute",
     left: -9999,
