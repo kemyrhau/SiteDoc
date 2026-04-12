@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { ArrowLeft, Save, Check, AlertTriangle, Clock, CloudOff, Cloud, Trash2, ChevronDown, Share2 } from "lucide-react-native";
+import { ArrowLeft, Save, Check, AlertTriangle, Clock, CloudOff, Cloud, Trash2, ChevronDown, Share2, MapPin } from "lucide-react-native";
 import { harBetingelse, harForelderObjekt, utledMinRolle } from "@sitedoc/shared";
 import type { FlytMedlemInfo } from "@sitedoc/shared";
 import { useTranslation } from "react-i18next";
@@ -110,6 +110,8 @@ export default function SjekklisteUtfylling() {
 
   const [visEntrepriseListe, settVisEntrepriseListe] = useState<"oppretter" | "svarer" | null>(null);
   const [pdfHtml, settPdfHtml] = useState<string | null>(null);
+  const [visLokasjonValg, setVisLokasjonValg] = useState(false);
+  const [ekspandertBygningId, setEkspandertBygningId] = useState<string | null>(null);
 
   // State for oppgave-fra-felt
   const [opprettOppgaveKategori, setOpprettOppgaveKategori] = useState<"oppgave" | null>(null);
@@ -158,6 +160,31 @@ export default function SjekklisteUtfylling() {
   }, [sjekklisteOppgaver]);
 
   const { ventende, erAktiv } = useOpplastingsKo();
+
+  // Bygninger og tegninger for lokasjonsvelger
+  const bygningerQuery = trpc.bygning.hentForProsjekt.useQuery(
+    { projectId: valgtProsjektId! },
+    { enabled: !!valgtProsjektId },
+  );
+  const bygninger = (bygningerQuery.data ?? []) as Array<{ id: string; name: string }>;
+
+  const alleTegningerQuery = trpc.tegning.hentForProsjekt.useQuery(
+    { projectId: valgtProsjektId! },
+    { enabled: !!valgtProsjektId },
+  );
+  const alleTegninger = (alleTegningerQuery.data ?? []) as unknown as Array<{
+    id: string; name: string; drawingNumber: string | null;
+    byggeplassId: string | null; byggeplass: { id: string; name: string } | null;
+  }>;
+
+  // Lokasjonsinformasjon fra sjekklisteDetalj
+  const lokBygningNavn = sjekklisteDetalj?.byggeplass?.name;
+  const lokTegningNavn = sjekklisteDetalj?.drawing
+    ? (sjekklisteDetalj.drawing.drawingNumber
+      ? `${sjekklisteDetalj.drawing.drawingNumber} ${sjekklisteDetalj.drawing.name}`
+      : sjekklisteDetalj.drawing.name)
+    : null;
+  const lokasjonTekst = [lokBygningNavn, lokTegningNavn].filter(Boolean).join(" · ") || null;
 
   // Hent entrepriser for redigering
   const { data: mineEntrepriser } = trpc.medlem.hentMineEntrepriser.useQuery(
@@ -530,11 +557,89 @@ export default function SjekklisteUtfylling() {
         contentContainerClassName="gap-2 p-3 pb-8"
         keyboardShouldPersistTaps="handled"
       >
+        {/* Lokasjonsvelger — over feltene */}
+        <Pressable
+          onPress={() => !leseModus && setVisLokasjonValg(!visLokasjonValg)}
+          className="rounded-lg bg-white px-4 py-3"
+        >
+          <View className="flex-row items-center gap-2">
+            <MapPin size={14} color={lokasjonTekst ? "#1e40af" : "#9ca3af"} />
+            <Text className={`flex-1 text-sm ${lokasjonTekst ? "text-gray-800" : "text-gray-400"}`} numberOfLines={1}>
+              {lokasjonTekst ?? "Velg lokasjon…"}
+            </Text>
+            {!leseModus && <ChevronDown size={14} color="#9ca3af" />}
+          </View>
+        </Pressable>
+
+        {/* Bygning → tegning dropdown */}
+        {visLokasjonValg && !leseModus && (
+          <View className="rounded-lg border border-gray-200 bg-white">
+            {bygninger.map((b) => {
+              const bTegninger = alleTegninger.filter((t) => (t.byggeplassId ?? t.byggeplass?.id) === b.id);
+              const erEkspandert = ekspandertBygningId === b.id;
+              return (
+                <View key={b.id}>
+                  <Pressable
+                    onPress={() => {
+                      setEkspandertBygningId(erEkspandert ? null : b.id);
+                      // Velg bygning uten tegning
+                      oppdaterMutasjon.mutate({ id: id!, byggeplassId: b.id, drawingId: null, positionX: null, positionY: null });
+                    }}
+                    className={`flex-row items-center justify-between border-b border-gray-50 px-3 py-2.5 ${sjekklisteDetalj?.byggeplass?.id === b.id ? "bg-blue-50" : ""}`}
+                  >
+                    <Text className={`text-sm font-medium ${sjekklisteDetalj?.byggeplass?.id === b.id ? "text-blue-700" : "text-gray-700"}`}>
+                      {b.name}
+                    </Text>
+                    {bTegninger.length > 0 && <ChevronDown size={12} color="#9ca3af" style={erEkspandert ? { transform: [{ rotate: "180deg" }] } : undefined} />}
+                  </Pressable>
+                  {erEkspandert && bTegninger.map((t) => (
+                    <Pressable
+                      key={t.id}
+                      onPress={() => {
+                        oppdaterMutasjon.mutate({ id: id!, byggeplassId: b.id, drawingId: t.id, positionX: null, positionY: null });
+                        setVisLokasjonValg(false);
+                        setEkspandertBygningId(null);
+                        // Lagre sist brukt
+                        if (valgtProsjektId) {
+                          import("expo-secure-store").then((ss) => {
+                            ss.setItemAsync(`sitedoc_sist_bygning_${valgtProsjektId}`, b.id);
+                            ss.setItemAsync(`sitedoc_sist_tegning_${valgtProsjektId}`, t.id);
+                          });
+                        }
+                      }}
+                      className={`border-b border-gray-100 bg-gray-50 px-6 py-2 ${sjekklisteDetalj?.drawingId === t.id ? "bg-blue-50" : ""}`}
+                    >
+                      <Text className={`text-sm ${sjekklisteDetalj?.drawingId === t.id ? "font-medium text-blue-700" : "text-gray-600"}`}>
+                        {t.drawingNumber ? `${t.drawingNumber} ${t.name}` : t.name}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              );
+            })}
+            {/* Fjern lokasjon */}
+            {(sjekklisteDetalj?.byggeplass || sjekklisteDetalj?.drawing) && (
+              <Pressable
+                onPress={() => {
+                  oppdaterMutasjon.mutate({ id: id!, byggeplassId: null, drawingId: null, positionX: null, positionY: null });
+                  setVisLokasjonValg(false);
+                  setEkspandertBygningId(null);
+                }}
+                className="px-3 py-2.5"
+              >
+                <Text className="text-sm italic text-gray-400">Fjern lokasjon</Text>
+              </Pressable>
+            )}
+          </View>
+        )}
+
         {objekter.map((objekt) => {
           // Skip barn av repeatere — rendres inne i RepeaterObjekt
           if (repeaterBarnIder.has(objekt.id)) return null;
           // Sjekk synlighet (betinget felt)
           if (!erSynlig(objekt)) return null;
+          // Skip location — rendres som lokasjonsvelger ovenfor
+          if (objekt.type === "location") return null;
 
           const erDisplay = DISPLAY_TYPER.has(objekt.type);
           // Bruk parentId fra DB (ny) med fallback til config (gammel)
