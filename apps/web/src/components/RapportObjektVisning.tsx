@@ -570,16 +570,22 @@ function useDetaljCanvas(bildeSrc: string | null, posX: number, posY: number): {
         const srcX = Math.max(0, Math.min(ow - srcW, srcCx - srcW / 2));
         const srcY = Math.max(0, Math.min(oh - srcH, srcCy - srcH / 2));
 
+        console.log("[useDetaljCanvas] drawImage params:", { srcX: Math.round(srcX), srcY: Math.round(srcY), srcW: Math.round(srcW), srcH: Math.round(srcH), dw, dh, ow, oh });
         ctx.drawImage(img, srcX, srcY, srcW, srcH, 0, 0, dw, dh);
 
+        // Prikk i sentrum av utsnittet
         const dpx = ((srcCx - srcX) / srcW) * dw;
         const dpy = ((srcCy - srcY) / srcH) * dh;
-        const r = Math.max(8, dw / 60);
-        ctx.beginPath(); ctx.arc(dpx, dpy, r + 3, 0, Math.PI * 2); ctx.fillStyle = "#ffffff"; ctx.fill();
-        ctx.beginPath(); ctx.arc(dpx, dpy, r, 0, Math.PI * 2); ctx.fillStyle = "#ef4444"; ctx.fill();
+        console.log("[useDetaljCanvas] Prikk:", { dpx: Math.round(dpx), dpy: Math.round(dpy) });
+        ctx.beginPath(); ctx.arc(dpx, dpy, 13, 0, Math.PI * 2); ctx.fillStyle = "#ffffff"; ctx.fill();
+        ctx.beginPath(); ctx.arc(dpx, dpy, 10, 0, Math.PI * 2); ctx.fillStyle = "#ef4444"; ctx.fill();
+
+        // Visuell kontroll: blå ramme rundt hele canvaset
+        ctx.strokeStyle = "#3b82f6"; ctx.lineWidth = 4;
+        ctx.strokeRect(2, 2, dw - 4, dh - 4);
 
         const resultat = canvas.toDataURL("image/png");
-        console.log("[useDetaljCanvas] Generert OK, lengde:", resultat.length);
+        console.log("[useDetaljCanvas] Generert OK, lengde:", resultat.length, "starter med:", resultat.substring(0, 40));
         if (!avbrutt) { setDetaljUrl(resultat); setKlar(true); }
       } catch (e) {
         console.warn("[useDetaljCanvas] Canvas feilet:", e);
@@ -682,11 +688,19 @@ export function TegningPosisjonPrint({ pos }: { pos: TegningPosisjonVerdi }) {
 
         {/* Detaljutsnitt — canvas-generert bilde, fallback til oversikt */}
         <div className="bilde-celle rounded border border-gray-200" style={{ height: "260px" }}>
-          <img
-            src={detaljSrc ?? bildeSrc}
-            alt={`Detalj: ${drawingName}`}
-            className="h-full w-full object-contain"
-          />
+          {(() => {
+            const src = detaljSrc ?? bildeSrc;
+            const erDetalj = !!detaljSrc;
+            console.log("[TegningPosisjonPrint] Render detalj:", erDetalj ? "CANVAS" : "FALLBACK", "src lengde:", src?.length);
+            return (
+              <img
+                key={erDetalj ? "detalj" : "fallback"}
+                src={src}
+                alt={erDetalj ? `Detalj: ${drawingName}` : drawingName}
+                className="h-full w-full object-contain"
+              />
+            );
+          })()}
         </div>
       </div>
     </div>
