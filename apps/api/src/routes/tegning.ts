@@ -691,6 +691,9 @@ export const tegningRouter = router({
       const w = meta.width ?? 800;
       const h = meta.height ?? 600;
 
+      console.log(`[cropScreenshot] Input: positionX=${positionX}, positionY=${positionY}, zoomFaktor=${zoomFaktor}`);
+      console.log(`[cropScreenshot] Bilde: ${w}x${h} (${meta.format})`);
+
       // Beregn crop-rektangel sentrert rundt posisjon
       const cropW = Math.round(w / zoomFaktor);
       const cropH = Math.round(h / zoomFaktor);
@@ -698,6 +701,9 @@ export const tegningRouter = router({
       const cy = Math.round(positionY / 100 * h);
       const left = Math.max(0, Math.min(w - cropW, cx - Math.round(cropW / 2)));
       const top = Math.max(0, Math.min(h - cropH, cy - Math.round(cropH / 2)));
+
+      console.log(`[cropScreenshot] Senter: cx=${cx}px, cy=${cy}px`);
+      console.log(`[cropScreenshot] Crop: left=${left}, top=${top}, width=${cropW}, height=${cropH}`);
 
       const cropBuffer = await sharpLib(buffer)
         .extract({ left, top, width: cropW, height: cropH })
