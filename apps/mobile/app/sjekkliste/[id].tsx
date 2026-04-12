@@ -567,10 +567,12 @@ export default function SjekklisteUtfylling() {
       {/* Debug: tegning-screenshot status */}
       <View className="bg-yellow-100 px-3 py-1">
         <Text className="text-[10px] text-yellow-800">
-          screenshot: {tegningScreenshot ? `${Math.round(tegningScreenshot.length / 1024)}KB` : "null"}
-          {" | "}detalj: {tegningDetaljScreenshot ? `${Math.round(tegningDetaljScreenshot.length / 1024)}KB` : "null"}
-          {" | "}drawing: {sjekklisteDetalj?.drawing?.fileUrl ? "ja" : "nei"}
-          {" | "}pos: {sjekklisteDetalj?.positionX != null ? `${sjekklisteDetalj.positionX.toFixed(1)},${sjekklisteDetalj.positionY?.toFixed(1)}` : "null"}
+          ss: {tegningScreenshot ? `${Math.round(tegningScreenshot.length / 1024)}KB` : "null"}
+          {" | "}det: {tegningDetaljScreenshot ? `${Math.round(tegningDetaljScreenshot.length / 1024)}KB` : "null"}
+          {" | "}url: {sjekklisteDetalj?.drawing?.fileUrl ? sjekklisteDetalj.drawing.fileUrl.substring(0, 20) : "null"}
+          {" | "}posX: {sjekklisteDetalj?.positionX ?? "null"}
+          {" | "}posY: {sjekklisteDetalj?.positionY ?? "null"}
+          {" | "}mount: {(!!sjekklisteDetalj?.drawing?.fileUrl && sjekklisteDetalj?.positionX != null && sjekklisteDetalj?.positionY != null && !tegningScreenshot) ? "JA" : "NEI"}
         </Text>
       </View>
 
