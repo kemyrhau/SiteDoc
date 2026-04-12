@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Modal,
+  Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -564,16 +565,25 @@ export default function SjekklisteUtfylling() {
         keyboardVerticalOffset={0}
       >
 
-      {/* Debug: tegning-screenshot status */}
+      {/* Debug: tegning-screenshot status + forhåndsvisning */}
       <View className="bg-yellow-100 px-3 py-1">
         <Text className="text-[10px] text-yellow-800">
           ss: {tegningScreenshot ? `${Math.round(tegningScreenshot.length / 1024)}KB` : "null"}
           {" | "}det: {tegningDetaljScreenshot ? `${Math.round(tegningDetaljScreenshot.length / 1024)}KB` : "null"}
-          {" | "}url: {sjekklisteDetalj?.drawing?.fileUrl ? sjekklisteDetalj.drawing.fileUrl.substring(0, 20) : "null"}
-          {" | "}posX: {sjekklisteDetalj?.positionX ?? "null"}
-          {" | "}posY: {sjekklisteDetalj?.positionY ?? "null"}
-          {" | "}mount: {(!!sjekklisteDetalj?.drawing?.fileUrl && sjekklisteDetalj?.positionX != null && sjekklisteDetalj?.positionY != null && !tegningScreenshot) ? "JA" : "NEI"}
+          {" | "}pos: {sjekklisteDetalj?.positionX?.toFixed(1) ?? "null"},{sjekklisteDetalj?.positionY?.toFixed(1) ?? "null"}
         </Text>
+        {tegningScreenshot && (
+          <View className="mt-1 flex-row gap-1">
+            <View className="flex-1 rounded border border-yellow-300 overflow-hidden" style={{ height: 80 }}>
+              <Image source={{ uri: tegningScreenshot }} style={{ width: "100%" as unknown as number, height: 80 }} resizeMode="contain" />
+            </View>
+            {tegningDetaljScreenshot && (
+              <View className="flex-1 rounded border border-yellow-300 overflow-hidden" style={{ height: 80 }}>
+                <Image source={{ uri: tegningDetaljScreenshot }} style={{ width: "100%" as unknown as number, height: 80 }} resizeMode="contain" />
+              </View>
+            )}
+          </View>
+        )}
       </View>
 
       {/* Felter */}
