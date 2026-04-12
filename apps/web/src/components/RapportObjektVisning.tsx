@@ -528,40 +528,44 @@ function useDetaljCanvas(bildeSrc: string | null, posX: number, posY: number): s
     let avbrutt = false;
 
     const img = new Image();
+    img.crossOrigin = "anonymous";
     img.onload = () => {
       if (avbrutt) return;
-      const ow = img.naturalWidth;
-      const oh = img.naturalHeight;
-      const ratio = ow / oh;
+      try {
+        const ow = img.naturalWidth;
+        const oh = img.naturalHeight;
+        if (ow === 0 || oh === 0) return;
+        const ratio = ow / oh;
 
-      // Canvas med bildets aspect ratio
-      const dw = 800;
-      const dh = Math.round(dw / ratio);
+        const dw = 800;
+        const dh = Math.round(dw / ratio);
 
-      const canvas = document.createElement("canvas");
-      canvas.width = dw;
-      canvas.height = dh;
-      const ctx = canvas.getContext("2d")!;
+        const canvas = document.createElement("canvas");
+        canvas.width = dw;
+        canvas.height = dh;
+        const ctx = canvas.getContext("2d")!;
 
-      // Kilde-rektangel fra originalbilde
-      const srcW = ow * DETALJ_UTSNITT;
-      const srcH = oh * DETALJ_UTSNITT;
-      const srcCx = (posX / 100) * ow;
-      const srcCy = (posY / 100) * oh;
-      const srcX = Math.max(0, Math.min(ow - srcW, srcCx - srcW / 2));
-      const srcY = Math.max(0, Math.min(oh - srcH, srcCy - srcH / 2));
+        const srcW = ow * DETALJ_UTSNITT;
+        const srcH = oh * DETALJ_UTSNITT;
+        const srcCx = (posX / 100) * ow;
+        const srcCy = (posY / 100) * oh;
+        const srcX = Math.max(0, Math.min(ow - srcW, srcCx - srcW / 2));
+        const srcY = Math.max(0, Math.min(oh - srcH, srcCy - srcH / 2));
 
-      ctx.drawImage(img, srcX, srcY, srcW, srcH, 0, 0, dw, dh);
+        ctx.drawImage(img, srcX, srcY, srcW, srcH, 0, 0, dw, dh);
 
-      // Prikk
-      const dpx = ((srcCx - srcX) / srcW) * dw;
-      const dpy = ((srcCy - srcY) / srcH) * dh;
-      const r = Math.max(8, dw / 60);
-      ctx.beginPath(); ctx.arc(dpx, dpy, r + 3, 0, Math.PI * 2); ctx.fillStyle = "#ffffff"; ctx.fill();
-      ctx.beginPath(); ctx.arc(dpx, dpy, r, 0, Math.PI * 2); ctx.fillStyle = "#ef4444"; ctx.fill();
+        const dpx = ((srcCx - srcX) / srcW) * dw;
+        const dpy = ((srcCy - srcY) / srcH) * dh;
+        const r = Math.max(8, dw / 60);
+        ctx.beginPath(); ctx.arc(dpx, dpy, r + 3, 0, Math.PI * 2); ctx.fillStyle = "#ffffff"; ctx.fill();
+        ctx.beginPath(); ctx.arc(dpx, dpy, r, 0, Math.PI * 2); ctx.fillStyle = "#ef4444"; ctx.fill();
 
-      if (!avbrutt) setDetaljUrl(canvas.toDataURL("image/png"));
+        if (!avbrutt) setDetaljUrl(canvas.toDataURL("image/png"));
+      } catch (e) {
+        console.warn("useDetaljCanvas feilet:", e);
+      }
     };
+    img.onerror = () => { /* Stille feilhåndtering — fallback til uten detalj */ };
     img.src = bildeSrc;
 
     return () => { avbrutt = true; };
@@ -592,6 +596,9 @@ export function TegningPosisjonPrint({ pos }: { pos: TegningPosisjonVerdi }) {
   // Rendre tegning til data-URL (PDF via pdfjs-dist, bilder via canvas)
   const bildeSrc = useTegningSomBilde(fileUrl, erPdf);
 
+  // Canvas-generert detalj-utsnitt (hook må kalles ALLTID, før tidlige returns)
+  const detaljSrc = useDetaljCanvas(bildeSrc, x, y);
+
   const tegningNummer = (tegning as { drawingNumber?: string | null } | undefined)?.drawingNumber;
   const visNavn = tegningNummer ?? drawingName;
 
@@ -607,9 +614,6 @@ export function TegningPosisjonPrint({ pos }: { pos: TegningPosisjonVerdi }) {
       </div>
     );
   }
-
-  // Canvas-generert detalj-utsnitt
-  const detaljSrc = useDetaljCanvas(bildeSrc, x, y);
 
   if (bildeSrc?.startsWith("error")) {
     return (
