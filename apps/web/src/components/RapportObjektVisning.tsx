@@ -686,21 +686,17 @@ export function TegningPosisjonPrint({ pos }: { pos: TegningPosisjonVerdi }) {
           />
         </div>
 
-        {/* Detaljutsnitt — canvas-generert bilde, fallback til oversikt */}
+        {/* Detaljutsnitt — canvas-generert bilde */}
         <div className="bilde-celle rounded border border-gray-200" style={{ height: "260px" }}>
-          {(() => {
-            const src = detaljSrc ?? bildeSrc;
-            const erDetalj = !!detaljSrc;
-            console.log("[TegningPosisjonPrint] Render detalj:", erDetalj ? "CANVAS" : "FALLBACK", "src lengde:", src?.length);
-            return (
-              <img
-                key={erDetalj ? "detalj" : "fallback"}
-                src={src}
-                alt={erDetalj ? `Detalj: ${drawingName}` : drawingName}
-                className="h-full w-full object-contain"
-              />
-            );
-          })()}
+          {detaljSrc ? (
+            <img src={detaljSrc} alt={`Detalj: ${drawingName}`} className="h-full w-full object-contain" />
+          ) : (
+            <div className="flex h-full flex-col items-center justify-center gap-1 bg-red-50 text-xs text-red-500">
+              <p>Canvas detalj: {detaljKlar ? "FEILET" : "Laster..."}</p>
+              <p>bildeSrc: {bildeSrc ? (bildeSrc.startsWith("data:") ? "data-URL" : "URL") : "null"}</p>
+              <p>lengde: {bildeSrc?.length ?? 0}</p>
+            </div>
+          )}
         </div>
       </div>
     </div>
