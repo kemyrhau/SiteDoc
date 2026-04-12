@@ -12,8 +12,9 @@ import {
   KeyboardAvoidingView,
 } from "react-native";
 import { SafeAreaView } from "react-native";
-import { ChevronDown } from "lucide-react-native";
+import { ChevronDown, MapPin } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
+import * as Location from "expo-location";
 import { trpc } from "../lib/trpc";
 import { useProsjekt } from "../kontekst/ProsjektKontekst";
 
@@ -45,6 +46,19 @@ async function slettVerdi(key: string): Promise<void> {
     const SecureStore = await import("expo-secure-store");
     await SecureStore.deleteItemAsync(key);
   }
+}
+
+/** Sjekk om GPS-koordinat er innenfor tegningens georeferanse-bounds */
+function erInnenforBounds(
+  lat: number,
+  lng: number,
+  geo: { point1: { gps: { lat: number; lng: number } }; point2: { gps: { lat: number; lng: number } } },
+): boolean {
+  const minLat = Math.min(geo.point1.gps.lat, geo.point2.gps.lat);
+  const maxLat = Math.max(geo.point1.gps.lat, geo.point2.gps.lat);
+  const minLng = Math.min(geo.point1.gps.lng, geo.point2.gps.lng);
+  const maxLng = Math.max(geo.point1.gps.lng, geo.point2.gps.lng);
+  return lat >= minLat && lat <= maxLat && lng >= minLng && lng <= maxLng;
 }
 
 type Prioritet = "low" | "medium" | "high" | "critical";
@@ -83,10 +97,18 @@ interface BygningData {
   name: string;
 }
 
+interface GeoReferanse {
+  point1: { gps: { lat: number; lng: number }; pixel: { x: number; y: number } };
+  point2: { gps: { lat: number; lng: number }; pixel: { x: number; y: number } };
+}
+
 interface TegningData {
   id: string;
   name: string;
   drawingNumber: string | null;
+  geoReference?: GeoReferanse | null;
+  byggeplassId?: string | null;
+  byggeplass?: { id: string; name: string } | null;
 }
 
 interface OpprettDokumentModalProps {
@@ -140,31 +162,72 @@ export function OpprettDokumentModal({
   const [valgtBygningId, setValgtBygningId] = useState<string | null>(null);
   const [valgtTegningId, setValgtTegningId] = useState<string | null>(null);
   const [valgtDokumentflytId, setValgtDokumentflytId] = useState<string | null>(null);
+  const [lokasjonKilde, setLokasjonKilde] = useState<"gps" | "lagret" | "manuell" | null>(null);
+  const [visLokasjonListe, setVisLokasjonListe] = useState(false);
   const [visOppretterListe, setVisOppretterListe] = useState(false);
   const [visDokumentflytListe, setVisDokumentflytListe] = useState(false);
   const [visBygningListe, setVisBygningListe] = useState(false);
   const [visTegningListe, setVisTegningListe] = useState(false);
   const [visEmneListe, setVisEmneListe] = useState(false);
 
-  // Last sist brukte bygning/tegning fra lagring ved åpning
-  const harLastetLagret = useRef(false);
+  // Hent ALLE tegninger for prosjektet (for GPS-matching, ufiltrert)
+  const alleTegningerQuery = trpc.tegning.hentForProsjekt.useQuery(
+    { projectId: valgtProsjektId! },
+    { enabled: !!valgtProsjektId && synlig },
+  );
+  const alleTegninger = (alleTegningerQuery.data ?? []) as unknown as TegningData[];
+
+  // GPS + sist brukt lokasjon ved modalåpning
+  const harKjørtLokasjon = useRef(false);
   useEffect(() => {
-    if (!synlig || !valgtProsjektId || harLastetLagret.current) return;
-    harLastetLagret.current = true;
+    if (!synlig || !valgtProsjektId || harKjørtLokasjon.current || alleTegninger.length === 0) return;
+    harKjørtLokasjon.current = true;
 
     (async () => {
-      const lagretBygning = await hentVerdi(`${BYGNING_KEY_PREFIX}${valgtProsjektId}`);
-      if (lagretBygning) {
-        setValgtBygningId(lagretBygning);
-        const lagretTegning = await hentVerdi(`${TEGNING_KEY_PREFIX}${valgtProsjektId}`);
-        if (lagretTegning) setValgtTegningId(lagretTegning);
+      // Hent sist brukte fra lagring
+      const lagretBygningId = await hentVerdi(`${BYGNING_KEY_PREFIX}${valgtProsjektId}`);
+      const lagretTegningId = await hentVerdi(`${TEGNING_KEY_PREFIX}${valgtProsjektId}`);
+
+      // Forsøk GPS
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === "granted") {
+          const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+          const { latitude, longitude } = pos.coords;
+
+          // Finn tegninger der GPS er innenfor bounds
+          const treff = alleTegninger.filter((t) => {
+            const geo = t.geoReference as GeoReferanse | null;
+            if (!geo) return false;
+            return erInnenforBounds(latitude, longitude, geo);
+          });
+
+          if (treff.length > 0) {
+            // Prioriter sist brukte blant GPS-treff
+            const sistBrukt = lagretTegningId ? treff.find((t) => t.id === lagretTegningId) : null;
+            const valgt = sistBrukt ?? treff[0];
+            setValgtTegningId(valgt.id);
+            setValgtBygningId(valgt.byggeplassId ?? valgt.byggeplass?.id ?? null);
+            setLokasjonKilde("gps");
+            return;
+          }
+        }
+      } catch {
+        // GPS feilet stille — fall gjennom til sist brukte
+      }
+
+      // Fallback: sist brukte tegning
+      if (lagretBygningId) {
+        setValgtBygningId(lagretBygningId);
+        if (lagretTegningId) setValgtTegningId(lagretTegningId);
+        setLokasjonKilde("lagret");
       }
     })();
-  }, [synlig, valgtProsjektId]);
+  }, [synlig, valgtProsjektId, alleTegninger.length]);
 
   // Nullstill ref når modal lukkes
   useEffect(() => {
-    if (!synlig) harLastetLagret.current = false;
+    if (!synlig) harKjørtLokasjon.current = false;
   }, [synlig]);
 
   // Forhåndsdefinerte emner fra malen
@@ -277,12 +340,25 @@ export function OpprettDokumentModal({
   );
   const bygninger = (bygningQuery.data ?? []) as BygningData[];
 
-  // Hent tegninger — filtrert etter bygning
-  const tegningQuery = trpc.tegning.hentForProsjekt.useQuery(
-    { projectId: valgtProsjektId!, byggeplassId: valgtBygningId ?? undefined },
-    { enabled: !!valgtProsjektId && !!valgtBygningId && synlig },
-  );
-  const tegninger = (tegningQuery.data ?? []) as TegningData[];
+  // Tegninger filtrert etter valgt bygning (for manuell dropdown)
+  const bygningTegninger = useMemo(() => {
+    if (!valgtBygningId) return [];
+    return alleTegninger.filter((t) => (t.byggeplassId ?? t.byggeplass?.id) === valgtBygningId);
+  }, [alleTegninger, valgtBygningId]);
+
+  // Lokasjonsvisning
+  const valgtTegning = alleTegninger.find((t) => t.id === valgtTegningId);
+  const valgtBygning = valgtTegning?.byggeplass ?? bygninger.find((b) => b.id === valgtBygningId);
+  const lokasjonTekst = useMemo(() => {
+    const deler: string[] = [];
+    if (valgtBygning?.name) deler.push(valgtBygning.name);
+    if (valgtTegning) {
+      deler.push(valgtTegning.drawingNumber
+        ? `${valgtTegning.drawingNumber} ${valgtTegning.name}`
+        : valgtTegning.name);
+    }
+    return deler.join(" · ") || null;
+  }, [valgtBygning, valgtTegning]);
 
   // eslint-disable-next-line
   const opprettSjekkliste = trpc.sjekkliste.opprett.useMutation({
@@ -315,6 +391,10 @@ export function OpprettDokumentModal({
     setPrioritet("medium");
     setOppretterEntrepriseId(null);
     setValgtDokumentflytId(null);
+    setValgtBygningId(null);
+    setValgtTegningId(null);
+    setLokasjonKilde(null);
+    setVisLokasjonListe(false);
     setVisOppretterListe(false);
     setVisDokumentflytListe(false);
     setVisBygningListe(false);
@@ -340,12 +420,20 @@ export function OpprettDokumentModal({
       return;
     }
 
+    // Lagre sist brukte bygning/tegning
+    if (valgtProsjektId) {
+      if (valgtBygningId) lagreVerdi(`${BYGNING_KEY_PREFIX}${valgtProsjektId}`, valgtBygningId);
+      if (valgtTegningId) lagreVerdi(`${TEGNING_KEY_PREFIX}${valgtProsjektId}`, valgtTegningId);
+    }
+
     if (kategori === "sjekkliste") {
       opprettSjekkliste.mutate({
         templateId: mal.id,
         bestillerEnterpriseId: oppretterEntrepriseId,
         utforerEnterpriseId: autoSvarerEntrepriseId,
         subject: emne.trim() || undefined,
+        byggeplassId: valgtBygningId ?? undefined,
+        drawingId: valgtTegningId ?? undefined,
       });
     } else {
       // Oppgave-tittel: fra sjekkliste eller prosjektnavn
@@ -392,14 +480,13 @@ export function OpprettDokumentModal({
   const lukkAlleDropdowns = () => {
     setVisOppretterListe(false);
     setVisDokumentflytListe(false);
+    setVisLokasjonListe(false);
     setVisBygningListe(false);
     setVisTegningListe(false);
     setVisEmneListe(false);
   };
 
   const valgtOppretter = entrepriserMedFlyt.find((e) => e.id === oppretterEntrepriseId);
-  const valgtBygning = bygninger.find((b) => b.id === valgtBygningId);
-  const valgtTegning = tegninger.find((t) => t.id === valgtTegningId);
 
   return (
     <Modal visible={synlig} animationType="slide" onRequestClose={onLukk}>
@@ -647,7 +734,110 @@ export function OpprettDokumentModal({
             </View>
           )}
 
-          {/* Lokasjon settes fra tegning (ved klikk) eller etterpå — ikke i opprettelsesmodal */}
+          {/* 7. Lokasjon — auto-valgt fra GPS eller sist brukt, kan byttes manuelt */}
+          <View className="border-b border-gray-100 px-4 py-3">
+            <Text className="mb-1 text-xs font-medium text-gray-500">Lokasjon</Text>
+            {lokasjonTekst ? (
+              <Pressable
+                onPress={() => {
+                  lukkAlleDropdowns();
+                  setVisLokasjonListe(!visLokasjonListe);
+                }}
+                className="flex-row items-center gap-2"
+              >
+                <MapPin size={14} color="#6b7280" />
+                <View className="flex-1">
+                  <Text className="text-sm text-gray-800">{lokasjonTekst}</Text>
+                  {lokasjonKilde === "gps" && (
+                    <Text className="text-[10px] text-green-600">Auto: GPS-posisjon</Text>
+                  )}
+                  {lokasjonKilde === "lagret" && (
+                    <Text className="text-[10px] text-gray-400">Sist brukte</Text>
+                  )}
+                </View>
+                <ChevronDown size={14} color="#9ca3af" />
+              </Pressable>
+            ) : alleTegningerQuery.isLoading ? (
+              <View className="flex-row items-center gap-2">
+                <ActivityIndicator size="small" color="#6b7280" />
+                <Text className="text-sm text-gray-400">Henter lokasjon…</Text>
+              </View>
+            ) : (
+              <Pressable
+                onPress={() => {
+                  lukkAlleDropdowns();
+                  setVisLokasjonListe(!visLokasjonListe);
+                }}
+                className="flex-row items-center gap-2"
+              >
+                <MapPin size={14} color="#9ca3af" />
+                <Text className="text-sm text-gray-400">Velg lokasjon…</Text>
+                <ChevronDown size={14} color="#9ca3af" />
+              </Pressable>
+            )}
+
+            {/* Manuell lokasjonsliste: bygning → tegning */}
+            {visLokasjonListe && (
+              <View className="mt-2 rounded-lg border border-gray-200 bg-white">
+                {/* Bygningsvalg */}
+                {bygninger.map((b) => (
+                  <View key={b.id}>
+                    <Pressable
+                      onPress={() => {
+                        if (valgtBygningId === b.id) {
+                          setValgtBygningId(null);
+                          setValgtTegningId(null);
+                        } else {
+                          setValgtBygningId(b.id);
+                          setValgtTegningId(null);
+                        }
+                        setLokasjonKilde("manuell");
+                      }}
+                      className={`border-b border-gray-50 px-3 py-2.5 ${valgtBygningId === b.id ? "bg-blue-50" : ""}`}
+                    >
+                      <Text className={`text-sm font-medium ${valgtBygningId === b.id ? "text-blue-700" : "text-gray-700"}`}>
+                        {b.name}
+                      </Text>
+                    </Pressable>
+                    {/* Tegninger under valgt bygning */}
+                    {valgtBygningId === b.id && bygningTegninger.length > 0 && (
+                      <View className="bg-gray-50">
+                        {bygningTegninger.map((t) => (
+                          <Pressable
+                            key={t.id}
+                            onPress={() => {
+                              setValgtTegningId(t.id);
+                              setLokasjonKilde("manuell");
+                              setVisLokasjonListe(false);
+                            }}
+                            className={`border-b border-gray-100 px-6 py-2 ${valgtTegningId === t.id ? "bg-blue-50" : ""}`}
+                          >
+                            <Text className={`text-sm ${valgtTegningId === t.id ? "font-medium text-blue-700" : "text-gray-600"}`}>
+                              {t.drawingNumber ? `${t.drawingNumber} ${t.name}` : t.name}
+                            </Text>
+                          </Pressable>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                ))}
+                {/* Fjern lokasjon */}
+                {(valgtBygningId || valgtTegningId) && (
+                  <Pressable
+                    onPress={() => {
+                      setValgtBygningId(null);
+                      setValgtTegningId(null);
+                      setLokasjonKilde(null);
+                      setVisLokasjonListe(false);
+                    }}
+                    className="px-3 py-2.5"
+                  >
+                    <Text className="text-sm italic text-gray-400">Fjern lokasjon</Text>
+                  </Pressable>
+                )}
+              </View>
+            )}
+          </View>
         </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
