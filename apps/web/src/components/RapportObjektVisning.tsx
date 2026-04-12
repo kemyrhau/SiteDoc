@@ -517,6 +517,59 @@ function useTegningSomBilde(url: string | null, erPdf: boolean): string | null {
   return bildeUrl;
 }
 
+const DETALJ_UTSNITT = 0.125; // 12.5% av bildet
+
+/** Generer detalj-utsnitt via canvas — ingen CSS-zoom */
+function useDetaljCanvas(bildeSrc: string | null, posX: number, posY: number): string | null {
+  const [detaljUrl, setDetaljUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!bildeSrc || bildeSrc.startsWith("error")) return;
+    let avbrutt = false;
+
+    const img = new Image();
+    img.onload = () => {
+      if (avbrutt) return;
+      const ow = img.naturalWidth;
+      const oh = img.naturalHeight;
+      const ratio = ow / oh;
+
+      // Canvas med bildets aspect ratio
+      const dw = 800;
+      const dh = Math.round(dw / ratio);
+
+      const canvas = document.createElement("canvas");
+      canvas.width = dw;
+      canvas.height = dh;
+      const ctx = canvas.getContext("2d")!;
+
+      // Kilde-rektangel fra originalbilde
+      const srcW = ow * DETALJ_UTSNITT;
+      const srcH = oh * DETALJ_UTSNITT;
+      const srcCx = (posX / 100) * ow;
+      const srcCy = (posY / 100) * oh;
+      const srcX = Math.max(0, Math.min(ow - srcW, srcCx - srcW / 2));
+      const srcY = Math.max(0, Math.min(oh - srcH, srcCy - srcH / 2));
+
+      ctx.drawImage(img, srcX, srcY, srcW, srcH, 0, 0, dw, dh);
+
+      // Prikk
+      const dpx = ((srcCx - srcX) / srcW) * dw;
+      const dpy = ((srcCy - srcY) / srcH) * dh;
+      const r = Math.max(8, dw / 60);
+      ctx.beginPath(); ctx.arc(dpx, dpy, r + 3, 0, Math.PI * 2); ctx.fillStyle = "#ffffff"; ctx.fill();
+      ctx.beginPath(); ctx.arc(dpx, dpy, r, 0, Math.PI * 2); ctx.fillStyle = "#ef4444"; ctx.fill();
+
+      if (!avbrutt) setDetaljUrl(canvas.toDataURL("image/png"));
+    };
+    img.src = bildeSrc;
+
+    return () => { avbrutt = true; };
+  }, [bildeSrc, posX, posY]);
+
+  return detaljUrl;
+}
+
 export function TegningPosisjonPrint({ pos }: { pos: TegningPosisjonVerdi }) {
   const { data: tegning } = trpc.tegning.hentMedId.useQuery(
     { id: pos.drawingId! },
@@ -554,6 +607,9 @@ export function TegningPosisjonPrint({ pos }: { pos: TegningPosisjonVerdi }) {
       </div>
     );
   }
+
+  // Canvas-generert detalj-utsnitt
+  const detaljSrc = useDetaljCanvas(bildeSrc, x, y);
 
   if (bildeSrc?.startsWith("error")) {
     return (
@@ -594,19 +650,19 @@ export function TegningPosisjonPrint({ pos }: { pos: TegningPosisjonVerdi }) {
           />
         </div>
 
-        {/* Detaljutsnitt */}
-        <div className="bilde-celle relative rounded border border-gray-200" style={{ height: "260px", overflow: "hidden" }}>
-          <img
-            src={bildeSrc}
-            alt={`Detalj: ${drawingName}`}
-            className="h-full w-full object-cover"
-            style={{
-              transformOrigin: `${x}% ${y}%`,
-              transform: `scale(${DETALJ_ZOOM})`,
-            }}
-          />
-          {/* Rød markør i senter */}
-          <div className="absolute left-1/2 top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-red-500 shadow-md" />
+        {/* Detaljutsnitt — canvas-generert bilde */}
+        <div className="bilde-celle rounded border border-gray-200" style={{ height: "260px" }}>
+          {detaljSrc ? (
+            <img
+              src={detaljSrc}
+              alt={`Detalj: ${drawingName}`}
+              className="h-full w-full object-contain"
+            />
+          ) : (
+            <div className="flex h-full items-center justify-center text-xs text-gray-400">
+              Genererer detalj…
+            </div>
+          )}
         </div>
       </div>
     </div>
