@@ -470,8 +470,8 @@ function useTegningSomBilde(url: string | null, erPdf: boolean): string | null {
 
     if (!erPdf) {
       // Bilde — last inn og konverter til data-URL for pålitelighet
+      // Ingen crossOrigin — bildene lastes fra same-origin (/api/uploads/)
       const img = new Image();
-      img.crossOrigin = "anonymous";
       img.onload = () => {
         if (avbrutt) return;
         const canvas = document.createElement("canvas");
@@ -546,7 +546,7 @@ function useDetaljCanvas(bildeSrc: string | null, posX: number, posY: number): {
     }, DETALJ_TIMEOUT);
 
     const img = new Image();
-    if (bildeSrc.startsWith("http")) img.crossOrigin = "anonymous";
+    // bildeSrc er data-URL fra useTegningSomBilde — ingen crossOrigin nødvendig
 
     img.onload = () => {
       if (avbrutt) return;
