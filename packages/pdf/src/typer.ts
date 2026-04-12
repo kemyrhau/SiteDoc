@@ -141,4 +141,6 @@ export interface PdfConfig {
   tegningBildeUrl?: string | null;
   /** Screenshot av tegning med prikk (base64 data-URL, brukes i stedet for posisjon) */
   tegningScreenshot?: string | null;
+  /** Pre-croppet detalj-utsnitt (base64 data-URL, generert av cropScreenshot) */
+  tegningDetaljScreenshot?: string | null;
 }

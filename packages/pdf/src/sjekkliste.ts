@@ -147,9 +147,8 @@ export function byggSjekklisteHtml(
   if (BRUK_SCREENSHOT_TEGNING && cfg.tegningScreenshot) {
     tegningHtml = genererTegningMedScreenshot({
       screenshotBase64: cfg.tegningScreenshot,
+      detaljBase64: cfg.tegningDetaljScreenshot,
       tegningNavn: tegningNavn ?? undefined,
-      positionX: sjekkliste.positionX ?? undefined,
-      positionY: sjekkliste.positionY ?? undefined,
     });
   } else if (cfg.tegningBildeUrl && sjekkliste.positionX != null && sjekkliste.positionY != null) {
     tegningHtml = byggTegningPosisjon({

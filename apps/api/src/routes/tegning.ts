@@ -670,4 +670,40 @@ export const tegningRouter = router({
       }
       return { oppdatert, totalt: tegninger.length };
     }),
+
+  // Crop screenshot-bilde rundt en posisjon for detalj-utsnitt i PDF
+  cropScreenshot: protectedProcedure
+    .input(z.object({
+      imageBase64: z.string(),
+      positionX: z.number().min(0).max(100),
+      positionY: z.number().min(0).max(100),
+      zoomFaktor: z.number().min(1).max(10).default(4),
+    }))
+    .mutation(async ({ input }) => {
+      const { imageBase64, positionX, positionY, zoomFaktor } = input;
+
+      // Fjern data:image/png;base64, prefix
+      const ren64 = imageBase64.replace(/^data:image\/\w+;base64,/, "");
+      const buffer = Buffer.from(ren64, "base64");
+
+      const { default: sharpLib } = await import("sharp");
+      const meta = await sharpLib(buffer).metadata();
+      const w = meta.width ?? 800;
+      const h = meta.height ?? 600;
+
+      // Beregn crop-rektangel sentrert rundt posisjon
+      const cropW = Math.round(w / zoomFaktor);
+      const cropH = Math.round(h / zoomFaktor);
+      const cx = Math.round(positionX / 100 * w);
+      const cy = Math.round(positionY / 100 * h);
+      const left = Math.max(0, Math.min(w - cropW, cx - Math.round(cropW / 2)));
+      const top = Math.max(0, Math.min(h - cropH, cy - Math.round(cropH / 2)));
+
+      const cropBuffer = await sharpLib(buffer)
+        .extract({ left, top, width: cropW, height: cropH })
+        .png()
+        .toBuffer();
+
+      return { croppedBase64: `data:image/png;base64,${cropBuffer.toString("base64")}` };
+    }),
 });

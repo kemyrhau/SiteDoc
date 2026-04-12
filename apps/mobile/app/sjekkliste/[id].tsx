@@ -121,6 +121,7 @@ export default function SjekklisteUtfylling() {
   const [lokTempTegningId, setLokTempTegningId] = useState<string | null>(null);
   const [lokTempBygningId, setLokTempBygningId] = useState<string | null>(null);
   const [tegningScreenshot, setTegningScreenshot] = useState<string | null>(null);
+  const [tegningDetaljScreenshot, setTegningDetaljScreenshot] = useState<string | null>(null);
 
   // State for oppgave-fra-felt
   const [opprettOppgaveKategori, setOpprettOppgaveKategori] = useState<"oppgave" | null>(null);
@@ -393,9 +394,10 @@ export default function SjekklisteUtfylling() {
         visSidenummer: true,
         tegningBildeUrl: tegningUrl,
         tegningScreenshot,
+        tegningDetaljScreenshot,
       },
     );
-  }, [sjekkliste, prosjektData, detaljQuery.data as unknown, sjekklisteDetalj, tegningScreenshot]);
+  }, [sjekkliste, prosjektData, detaljQuery.data as unknown, sjekklisteDetalj, tegningScreenshot, tegningDetaljScreenshot]);
 
   // Vis forhåndsvisning
   const håndterVisPdf = useCallback(() => {
@@ -824,7 +826,22 @@ export default function SjekklisteUtfylling() {
           }
           positionX={sjekklisteDetalj.positionX}
           positionY={sjekklisteDetalj.positionY}
-          onCapture={setTegningScreenshot}
+          onCapture={async (base64) => {
+            setTegningScreenshot(base64);
+            // Crop detalj-utsnitt via API
+            try {
+              const resultat = await utils.client.tegning.cropScreenshot.mutate({
+                imageBase64: base64,
+                positionX: sjekklisteDetalj.positionX!,
+                positionY: sjekklisteDetalj.positionY!,
+                zoomFaktor: 4,
+              });
+              setTegningDetaljScreenshot(resultat.croppedBase64);
+              console.log("[TegningsCapture] Detalj-crop mottatt, lengde:", resultat.croppedBase64.length);
+            } catch (e) {
+              console.warn("[TegningsCapture] Crop feilet:", e);
+            }
+          }}
         />
       )}
 
