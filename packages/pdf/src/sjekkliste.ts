@@ -97,6 +97,8 @@ export function byggSjekklisteHtml(
     gjentakendeHeader: config?.gjentakendeHeader ?? false,
     visSidenummer: config?.visSidenummer ?? false,
     tegningBildeUrl: config?.tegningBildeUrl ?? null,
+    tegningScreenshot: config?.tegningScreenshot ?? null,
+    tegningDetaljScreenshot: config?.tegningDetaljScreenshot ?? null,
   };
 
   const css = hentCss(cfg);
