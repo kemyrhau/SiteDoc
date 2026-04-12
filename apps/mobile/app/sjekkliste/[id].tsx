@@ -320,6 +320,7 @@ export default function SjekklisteUtfylling() {
       positionX: sjekklisteDetalj?.positionX ?? null,
       positionY: sjekklisteDetalj?.positionY ?? null,
       building: sjekklisteDetalj?.byggeplass ?? null,
+      bestiller: sjekklisteDetalj?.bestiller ?? null,
       creator: sjekklisteDetalj?.creator ?? null,
       createdAt: sjekklisteDetalj?.createdAt,
     };
@@ -468,13 +469,20 @@ export default function SjekklisteUtfylling() {
           <Pressable onPress={håndterTilbake} hitSlop={12}>
             <ArrowLeft size={22} color="#ffffff" />
           </Pressable>
-          <View className="flex-1 flex-row items-center gap-2 px-3">
-            {sjekkliste.template?.prefix && sjekklisteNummer != null && (
-              <Text className="text-xs font-bold text-white/70">{sjekkliste.template.prefix}{sjekklisteNummer}</Text>
+          <View className="flex-1 px-3">
+            <View className="flex-row items-center gap-2">
+              {sjekkliste.template?.prefix && sjekklisteNummer != null && (
+                <Text className="text-xs font-bold text-white/70">{sjekkliste.template.prefix}{sjekklisteNummer}</Text>
+              )}
+              <Text className="flex-1 text-sm font-semibold text-white" numberOfLines={1}>
+                {sjekkliste.title}
+              </Text>
+            </View>
+            {sjekklisteDetalj?.createdAt && (
+              <Text className="text-[10px] text-white/50">
+                {new Date(sjekklisteDetalj.createdAt).toLocaleDateString("nb-NO", { day: "2-digit", month: "2-digit", year: "numeric" })}
+              </Text>
             )}
-            <Text className="flex-1 text-sm font-semibold text-white" numberOfLines={1}>
-              {sjekkliste.title}
-            </Text>
           </View>
           <View className="flex-row items-center gap-1.5">
             {erRedigerbar && (

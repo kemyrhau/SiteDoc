@@ -138,18 +138,6 @@ export function byggSjekklisteHtml(
     cfg,
   );
 
-  // Metadata-rutenett (for mobil-layout)
-  const metadataHtml = byggMetadataRutenett({
-    prosjektNavn: prosjekt?.name,
-    prosjektNr: prosjekt?.projectNumber ?? "",
-    bygningNavn: sjekkliste.building?.name ?? "",
-    opprettetAv: sjekkliste.creator?.name ?? "",
-    opprettetDatoTid,
-    endretAv,
-    endretDatoTid,
-    status: sjekkliste.status,
-  });
-
   // Tegningsposisjon
   let tegningHtml = "";
   if (cfg.tegningBildeUrl && sjekkliste.positionX != null && sjekkliste.positionY != null) {
@@ -166,7 +154,6 @@ export function byggSjekklisteHtml(
 
   // Innhold (metadata + tegning + felter)
   const innholdHtml = `
-${metadataHtml}
 ${tegningHtml}
 <div class="felter">
 ${feltHtml}

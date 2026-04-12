@@ -108,18 +108,6 @@ export function byggOppgaveHtml(
     cfg,
   );
 
-  // Metadata-rutenett
-  const metadataHtml = byggMetadataRutenett({
-    prosjektNavn: prosjekt?.name,
-    prosjektNr: prosjekt?.projectNumber ?? "",
-    bygningNavn: byggeplassNavn ?? "",
-    opprettetAv: oppgave.creator?.name ?? "",
-    opprettetDatoTid,
-    endretAv,
-    endretDatoTid,
-    status: oppgave.status,
-  });
-
   // Tegningsposisjon
   let tegningHtml = "";
   if (cfg.tegningBildeUrl && oppgave.positionX != null && oppgave.positionY != null) {
@@ -135,7 +123,6 @@ export function byggOppgaveHtml(
   const feltHtml = renderAllefelter(treObjekter, feltVerdier, cfg);
 
   const innholdHtml = `
-${metadataHtml}
 ${tegningHtml}
 <div class="felter">
 ${feltHtml}
