@@ -124,22 +124,17 @@ export function byggOppgaveHtml(
   // Felter
   const feltHtml = renderAllefelter(treObjekter, feltVerdier, cfg);
 
-  const innholdHtml = `
-${tegningHtml}
+  const tegningMedSkift = tegningHtml
+    ? `${tegningHtml}<div class="tegning-sideskift"></div>`
+    : "";
+
+  const bodyHtml = `
+${headerHtml}
+${tegningMedSkift}
 <div class="felter">
 ${feltHtml}
-</div>`;
-
-  const bodyHtml = cfg.gjentakendeHeader
-    ? `
-<table class="print-tabell"><thead><tr><td>
-${headerHtml}
-</td></tr></thead>
-<tfoot><tr><td><div class="print-footer"></div></td></tr></tfoot>
-<tbody><tr><td>
-${innholdHtml}
-</td></tr></tbody></table>`
-    : `${headerHtml}${innholdHtml}`;
+</div>
+<div class="print-footer"></div>`;
 
   return `<!DOCTYPE html>
 <html lang="nb">

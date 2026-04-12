@@ -13,6 +13,7 @@ export function hentCss(config?: Partial<PdfConfig>): string {
   @page { margin: 12mm; }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body {
+    display: block !important;
     height: auto !important;
     min-height: 0 !important;
     overflow: visible !important;
@@ -74,9 +75,14 @@ export function hentCss(config?: Partial<PdfConfig>): string {
   }
 
   /* Felt-blokker */
+  .felter {
+    display: block;
+  }
   .felt-blokk {
     border-bottom: 1px solid #e5e7eb;
     padding: 8px 0;
+    page-break-inside: avoid;
+    break-inside: avoid;
   }
   .felt-label {
     font-size: 10px;
@@ -98,6 +104,8 @@ export function hentCss(config?: Partial<PdfConfig>): string {
     color: #111827;
     border-bottom: 2px solid #d1d5db;
     margin-top: 6px;
+    page-break-after: avoid;
+    break-after: avoid;
   }
   .subtitle {
     font-size: 10px;
@@ -106,6 +114,8 @@ export function hentCss(config?: Partial<PdfConfig>): string {
     padding: 5px 8px;
     background: #f9fafb;
     border-bottom: 1px solid #e5e7eb;
+    page-break-after: avoid;
+    break-after: avoid;
   }
 
   .tom { color: #d1d5db; font-style: italic; }
@@ -125,8 +135,8 @@ export function hentCss(config?: Partial<PdfConfig>): string {
 
   /* Bilde-rutenett — 2 kolonner med nummerering */
   .bilde-rutenett {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
+    display: flex;
+    flex-wrap: wrap;
     gap: 6px;
     margin: 6px 0;
   }
@@ -135,6 +145,9 @@ export function hentCss(config?: Partial<PdfConfig>): string {
     border: 1px solid #e5e7eb;
     border-radius: 4px;
     overflow: hidden;
+    width: calc(50% - 3px);
+    page-break-inside: avoid;
+    break-inside: avoid;
   }
   .bilde-img {
     width: 100%;
@@ -170,14 +183,14 @@ export function hentCss(config?: Partial<PdfConfig>): string {
     margin-bottom: 2px;
   }
 
-  /* Tegningsposisjon */
+  /* Tegningsposisjon (SVG-fallback) */
   .tegning-container {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
+    display: flex;
     gap: 6px;
     margin-bottom: 10px;
   }
   .tegning-celle {
+    flex: 1;
     position: relative;
     border: 1px solid #e5e7eb;
     border-radius: 4px;
@@ -210,7 +223,7 @@ export function hentCss(config?: Partial<PdfConfig>): string {
     color: #6b7280;
   }
 
-  /* Header-ramme (for mobil — enkel div) */
+  /* Header-ramme */
   .header-ramme {
     border: 1px solid #d1d5db;
     margin-bottom: 14px;
@@ -241,25 +254,14 @@ export function hentCss(config?: Partial<PdfConfig>): string {
     color: #6b7280;
   }
 
-  /* Sideskift-regler */
-  .felt-blokk {
-    page-break-inside: avoid;
-    break-inside: avoid;
-  }
-  .bilde-kort {
-    page-break-inside: avoid;
-    break-inside: avoid;
-  }
-  .heading {
-    page-break-after: avoid;
-    break-after: avoid;
-  }
-  .subtitle {
-    page-break-after: avoid;
-    break-after: avoid;
+  /* Sideskift etter tegning */
+  .tegning-sideskift {
+    page-break-after: always;
+    break-after: always;
+    height: 0;
   }
 
-  /* Table-layout for gjentakende header/footer på hver side */
+  /* Table-layout for gjentakende header/footer (kun nettleser) */
   .print-tabell {
     width: 100%;
     border-collapse: collapse;
@@ -270,7 +272,6 @@ export function hentCss(config?: Partial<PdfConfig>): string {
   }
 
 ${visSidenummer ? `
-  /* Sidenummer via CSS counter — fungerer i WKWebView og nettleser-print */
   .print-footer {
     height: 10mm;
     text-align: right;

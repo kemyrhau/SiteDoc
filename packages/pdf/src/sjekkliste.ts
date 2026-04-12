@@ -166,24 +166,19 @@ export function byggSjekklisteHtml(
   // Felter
   const feltHtml = renderAllefelter(treObjekter, feltVerdier, cfg);
 
-  // Innhold (metadata + tegning + felter)
-  const innholdHtml = `
-${tegningHtml}
+  // Sideskift etter tegning hvis den finnes
+  const tegningMedSkift = tegningHtml
+    ? `${tegningHtml}<div class="tegning-sideskift"></div>`
+    : "";
+
+  // Innhold — ren block-layout for pålitelig sideskift i expo-print
+  const bodyHtml = `
+${headerHtml}
+${tegningMedSkift}
 <div class="felter">
 ${feltHtml}
-</div>`;
-
-  // Med gjentakende header: bruk <table><thead>/<tfoot> som gjentas på hver side
-  const bodyHtml = cfg.gjentakendeHeader
-    ? `
-<table class="print-tabell"><thead><tr><td>
-${headerHtml}
-</td></tr></thead>
-<tfoot><tr><td><div class="print-footer"></div></td></tr></tfoot>
-<tbody><tr><td>
-${innholdHtml}
-</td></tr></tbody></table>`
-    : `${headerHtml}${innholdHtml}`;
+</div>
+<div class="print-footer"></div>`;
 
   return `<!DOCTYPE html>
 <html lang="nb">
