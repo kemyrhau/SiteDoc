@@ -519,29 +519,45 @@ function useTegningSomBilde(url: string | null, erPdf: boolean): string | null {
 }
 
 const DETALJ_UTSNITT = 0.125; // 12.5% av bildet
+const DETALJ_TIMEOUT = 3000; // Fallback etter 3s
 
-/** Generer detalj-utsnitt via canvas — ingen CSS-zoom */
-function useDetaljCanvas(bildeSrc: string | null, posX: number, posY: number): string | null {
+/** Generer detalj-utsnitt via canvas — med fallback til oversiktsbilde */
+function useDetaljCanvas(bildeSrc: string | null, posX: number, posY: number): { url: string | null; klar: boolean } {
   const [detaljUrl, setDetaljUrl] = useState<string | null>(null);
+  const [klar, setKlar] = useState(false);
 
   useEffect(() => {
-    if (!bildeSrc || bildeSrc.startsWith("error")) return;
+    if (!bildeSrc || bildeSrc.startsWith("error")) {
+      setKlar(true);
+      return;
+    }
     let avbrutt = false;
+    setDetaljUrl(null);
+    setKlar(false);
+
+    console.log("[useDetaljCanvas] Starter for bildeSrc lengde:", bildeSrc.length, "posX:", posX, "posY:", posY);
+
+    // Fallback-timer: etter 3s markér som klar uten detalj
+    const fallbackTimer = setTimeout(() => {
+      if (!avbrutt && !klar) {
+        console.warn("[useDetaljCanvas] Timeout — bruker fallback");
+        setKlar(true);
+      }
+    }, DETALJ_TIMEOUT);
 
     const img = new Image();
-    // crossOrigin kun for http-URLer, ikke data-URLer
     if (bildeSrc.startsWith("http")) img.crossOrigin = "anonymous";
+
     img.onload = () => {
       if (avbrutt) return;
+      console.log("[useDetaljCanvas] Bilde lastet:", img.naturalWidth, "x", img.naturalHeight);
       try {
         const ow = img.naturalWidth;
         const oh = img.naturalHeight;
-        if (ow === 0 || oh === 0) return;
-        const ratio = ow / oh;
+        if (ow === 0 || oh === 0) { setKlar(true); return; }
 
         const dw = 800;
-        const dh = Math.round(dw / ratio);
-
+        const dh = Math.round(dw / (ow / oh));
         const canvas = document.createElement("canvas");
         canvas.width = dw;
         canvas.height = dh;
@@ -563,19 +579,25 @@ function useDetaljCanvas(bildeSrc: string | null, posX: number, posY: number): s
         ctx.beginPath(); ctx.arc(dpx, dpy, r, 0, Math.PI * 2); ctx.fillStyle = "#ef4444"; ctx.fill();
 
         const resultat = canvas.toDataURL("image/png");
-        console.log("Detalj-bilde generert, lengde:", resultat.length);
-        if (!avbrutt) setDetaljUrl(resultat);
+        console.log("[useDetaljCanvas] Generert OK, lengde:", resultat.length);
+        if (!avbrutt) { setDetaljUrl(resultat); setKlar(true); }
       } catch (e) {
-        console.warn("useDetaljCanvas feilet:", e);
+        console.warn("[useDetaljCanvas] Canvas feilet:", e);
+        if (!avbrutt) setKlar(true);
       }
     };
-    img.onerror = (e) => { console.warn("useDetaljCanvas img.onerror:", e); };
+
+    img.onerror = (e) => {
+      console.warn("[useDetaljCanvas] img.onerror:", e);
+      if (!avbrutt) setKlar(true);
+    };
+
     img.src = bildeSrc;
 
-    return () => { avbrutt = true; };
+    return () => { avbrutt = true; clearTimeout(fallbackTimer); };
   }, [bildeSrc, posX, posY]);
 
-  return detaljUrl;
+  return { url: detaljUrl, klar };
 }
 
 export function TegningPosisjonPrint({ pos }: { pos: TegningPosisjonVerdi }) {
@@ -601,7 +623,7 @@ export function TegningPosisjonPrint({ pos }: { pos: TegningPosisjonVerdi }) {
   const bildeSrc = useTegningSomBilde(fileUrl, erPdf);
 
   // Canvas-generert detalj-utsnitt (hook må kalles ALLTID, før tidlige returns)
-  const detaljSrc = useDetaljCanvas(bildeSrc, x, y);
+  const { url: detaljSrc, klar: detaljKlar } = useDetaljCanvas(bildeSrc, x, y);
 
   const tegningNummer = (tegning as { drawingNumber?: string | null } | undefined)?.drawingNumber;
   const visNavn = tegningNummer ?? drawingName;
@@ -658,19 +680,13 @@ export function TegningPosisjonPrint({ pos }: { pos: TegningPosisjonVerdi }) {
           />
         </div>
 
-        {/* Detaljutsnitt — canvas-generert bilde */}
+        {/* Detaljutsnitt — canvas-generert bilde, fallback til oversikt */}
         <div className="bilde-celle rounded border border-gray-200" style={{ height: "260px" }}>
-          {detaljSrc ? (
-            <img
-              src={detaljSrc}
-              alt={`Detalj: ${drawingName}`}
-              className="h-full w-full object-contain"
-            />
-          ) : (
-            <div className="flex h-full items-center justify-center text-xs text-gray-400">
-              Genererer detalj…
-            </div>
-          )}
+          <img
+            src={detaljSrc ?? bildeSrc}
+            alt={`Detalj: ${drawingName}`}
+            className="h-full w-full object-contain"
+          />
         </div>
       </div>
     </div>
