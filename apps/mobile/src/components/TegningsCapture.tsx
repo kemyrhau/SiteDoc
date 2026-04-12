@@ -1,13 +1,9 @@
 /**
- * TegningsCapture — genererer base64-PNG av tegning med posisjonsprikk
- * via canvas inne i WebView. Ingen native snapshot — alt skjer i WebView.
+ * TegningsCapture — genererer to base64-PNG av tegning:
+ * 1. Oversikt: hele tegningen med posisjonsprikk
+ * 2. Detalj: innzoomet utsnitt rundt prikken (800x800px)
  *
- * Flyten:
- * 1. WebView rendrer HTML med <canvas>
- * 2. JavaScript laster bildet, tegner det + prikk på canvas
- * 3. canvas.toDataURL() → base64-PNG
- * 4. postMessage sender base64 tilbake til React Native
- * 5. onCapture callback leverer resultatet
+ * Alt skjer i WebView via canvas — ingen native snapshot.
  */
 
 import { useRef, useCallback } from "react";
@@ -21,11 +17,13 @@ interface TegningsCaptureProps {
   /** Posisjon i prosent (0–100) */
   positionX: number;
   positionY: number;
-  /** Callback med base64 data-URL når capture er klar */
-  onCapture: (base64DataUrl: string) => void;
+  /** Callback med oversikt + detalj base64 */
+  onCapture: (oversikt: string, detalj: string) => void;
 }
 
 const MAX_BREDDE = 2400;
+const DETALJ_SIZE = 800;
+const DETALJ_UTSNITT = 0.125; // 12.5% av bildet vises i detalj
 
 export function TegningsCapture({
   tegningUrl,
@@ -35,32 +33,32 @@ export function TegningsCapture({
 }: TegningsCaptureProps) {
   const harLevert = useRef(false);
 
-  console.log("[TegningsCapture] Montert", { url: tegningUrl.substring(0, 60), positionX, positionY });
-
-  if (positionX <= 0 && positionY <= 0) {
-    console.log("[TegningsCapture] Skipper — posisjon er 0,0");
-    return null;
-  }
+  if (positionX <= 0 && positionY <= 0) return null;
 
   const håndterMelding = useCallback((e: WebViewMessageEvent) => {
     if (harLevert.current) return;
-    const msg = e.nativeEvent.data;
 
-    if (msg.startsWith("data:image/")) {
-      harLevert.current = true;
-      console.log("[TegningsCapture] Base64 mottatt:", msg.length, "tegn");
-      onCapture(msg);
-    } else if (msg === "feil") {
-      console.warn("[TegningsCapture] Bildet kunne ikke lastes (CORS/nettfeil)");
-    } else {
-      console.log("[TegningsCapture] Melding:", msg);
+    try {
+      const data = JSON.parse(e.nativeEvent.data);
+      if (data.type === "resultat" && data.oversikt && data.detalj) {
+        harLevert.current = true;
+        console.log("[TegningsCapture] Mottatt — oversikt:", data.oversikt.length, "detalj:", data.detalj.length);
+        onCapture(data.oversikt, data.detalj);
+      } else if (data.type === "feil") {
+        console.warn("[TegningsCapture] Feil:", data.melding);
+      }
+    } catch {
+      // Ikke JSON — ignorer
+      const msg = e.nativeEvent.data;
+      if (msg === "feil") console.warn("[TegningsCapture] Bildet kunne ikke lastes");
     }
   }, [onCapture]);
 
   const html = `<!DOCTYPE html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="margin:0;background:#fff;">
-<canvas id="c"></canvas>
+<canvas id="oversikt"></canvas>
+<canvas id="detalj"></canvas>
 <script>
 (function() {
   var img = new Image();
@@ -68,46 +66,65 @@ export function TegningsCapture({
 
   img.onload = function() {
     try {
-      // Skalér ned store bilder
-      var w = img.naturalWidth;
-      var h = img.naturalHeight;
+      var ow = img.naturalWidth;
+      var oh = img.naturalHeight;
       var maxW = ${MAX_BREDDE};
-      if (w > maxW) {
-        var ratio = maxW / w;
-        w = maxW;
-        h = Math.round(h * ratio);
-      }
+      var w = ow, h = oh;
+      if (w > maxW) { var r = maxW / w; w = maxW; h = Math.round(h * r); }
 
-      var canvas = document.getElementById('c');
-      canvas.width = w;
-      canvas.height = h;
-      var ctx = canvas.getContext('2d');
+      // --- Oversikt ---
+      var c1 = document.getElementById('oversikt');
+      c1.width = w; c1.height = h;
+      var ctx1 = c1.getContext('2d');
+      ctx1.drawImage(img, 0, 0, w, h);
 
-      // Tegn bildet
-      ctx.drawImage(img, 0, 0, w, h);
-
-      // Tegn rød prikk
       var px = ${positionX} / 100 * w;
       var py = ${positionY} / 100 * h;
-      var r = Math.max(6, w / 120);
+      var pr = Math.max(6, w / 120);
 
-      // Hvit kant
-      ctx.beginPath();
-      ctx.arc(px, py, r + 2, 0, Math.PI * 2);
-      ctx.fillStyle = '#ffffff';
-      ctx.fill();
+      // Prikk på oversikt
+      ctx1.beginPath(); ctx1.arc(px, py, pr + 2, 0, Math.PI*2); ctx1.fillStyle='#fff'; ctx1.fill();
+      ctx1.beginPath(); ctx1.arc(px, py, pr, 0, Math.PI*2); ctx1.fillStyle='#ef4444'; ctx1.fill();
 
-      // Rød fylling
-      ctx.beginPath();
-      ctx.arc(px, py, r, 0, Math.PI * 2);
-      ctx.fillStyle = '#ef4444';
-      ctx.fill();
+      // Detalj-ramme på oversikt
+      var utsSnitt = ${DETALJ_UTSNITT};
+      var rw = w * utsSnitt;
+      var rh = h * utsSnitt;
+      var rx = Math.max(0, Math.min(w - rw, px - rw/2));
+      var ry = Math.max(0, Math.min(h - rh, py - rh/2));
+      ctx1.strokeStyle = '#f87171'; ctx1.lineWidth = 2;
+      ctx1.strokeRect(rx, ry, rw, rh);
 
-      // Konverter til base64
-      var dataUrl = canvas.toDataURL('image/png');
-      window.ReactNativeWebView.postMessage(dataUrl);
+      var oversiktData = c1.toDataURL('image/png');
+
+      // --- Detalj ---
+      var ds = ${DETALJ_SIZE};
+      var c2 = document.getElementById('detalj');
+      c2.width = ds; c2.height = ds;
+      var ctx2 = c2.getContext('2d');
+
+      // Beregn kilde-rektangel fra originalbilde (ikke skalert)
+      var srcW = ow * utsSnitt;
+      var srcH = oh * utsSnitt;
+      var srcX = Math.max(0, Math.min(ow - srcW, ${positionX}/100*ow - srcW/2));
+      var srcY = Math.max(0, Math.min(oh - srcH, ${positionY}/100*oh - srcH/2));
+
+      ctx2.drawImage(img, srcX, srcY, srcW, srcH, 0, 0, ds, ds);
+
+      // Prikk i detalj (sentrum av utsnittet)
+      var dpx = (${positionX}/100*ow - srcX) / srcW * ds;
+      var dpy = (${positionY}/100*oh - srcY) / srcH * ds;
+      var dr = Math.max(8, ds / 60);
+      ctx2.beginPath(); ctx2.arc(dpx, dpy, dr + 3, 0, Math.PI*2); ctx2.fillStyle='#fff'; ctx2.fill();
+      ctx2.beginPath(); ctx2.arc(dpx, dpy, dr, 0, Math.PI*2); ctx2.fillStyle='#ef4444'; ctx2.fill();
+
+      var detaljData = c2.toDataURL('image/png');
+
+      window.ReactNativeWebView.postMessage(JSON.stringify({
+        type: 'resultat', oversikt: oversiktData, detalj: detaljData
+      }));
     } catch (e) {
-      window.ReactNativeWebView.postMessage('feil');
+      window.ReactNativeWebView.postMessage(JSON.stringify({ type:'feil', melding: e.message }));
     }
   };
 

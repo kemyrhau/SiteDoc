@@ -848,21 +848,9 @@ export default function SjekklisteUtfylling() {
           }
           positionX={sjekklisteDetalj.positionX}
           positionY={sjekklisteDetalj.positionY}
-          onCapture={async (base64) => {
-            setTegningScreenshot(base64);
-            // Crop detalj-utsnitt via API
-            try {
-              const resultat = await utils.client.tegning.cropScreenshot.mutate({
-                imageBase64: base64,
-                positionX: sjekklisteDetalj.positionX!,
-                positionY: sjekklisteDetalj.positionY!,
-                zoomFaktor: 4,
-              });
-              setTegningDetaljScreenshot(resultat.croppedBase64);
-              console.log("[TegningsCapture] Detalj-crop mottatt, lengde:", resultat.croppedBase64.length);
-            } catch (e) {
-              console.warn("[TegningsCapture] Crop feilet:", e);
-            }
+          onCapture={(oversikt, detalj) => {
+            setTegningScreenshot(oversikt);
+            setTegningDetaljScreenshot(detalj);
           }}
         />
       )}
