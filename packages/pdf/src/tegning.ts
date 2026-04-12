@@ -33,7 +33,7 @@ export function byggTegningPosisjon(data: TegningPosisjonData): string {
 ${tegningNavn ? `<div style="font-size:10px;font-weight:500;color:#374151;margin-bottom:6px;">${esc(tegningNavn)}</div>` : ""}
 <div class="tegning-container">
   <!-- Oversiktsbilde med markør -->
-  <div class="tegning-celle">
+  <div class="tegning-oversikt">
     <img src="${esc(tegningBildeUrl)}" alt="${esc(tegningNavn ?? "Tegning")}" />
     <div class="tegning-markør" style="left:${x}%;top:${y}%;"></div>
     <div style="position:absolute;border:2px solid #f87171;left:${rammeX}%;top:${rammeY}%;width:${rammeStørrelse}%;height:${rammeStørrelse}%;"></div>

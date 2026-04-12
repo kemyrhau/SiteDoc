@@ -174,6 +174,17 @@ export function hentCss(config?: Partial<PdfConfig>): string {
     gap: 6px;
     margin-bottom: 10px;
   }
+  .tegning-oversikt {
+    position: relative;
+    border: 1px solid #e5e7eb;
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .tegning-oversikt img {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
   .tegning-celle {
     position: relative;
     border: 1px solid #e5e7eb;
