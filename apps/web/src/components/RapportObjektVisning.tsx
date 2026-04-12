@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { trpc } from "@/lib/trpc";
 import { normaliserOpsjon } from "./rapportobjekter/typer";
 import type { RapportObjekt } from "./rapportobjekter/typer";
@@ -565,50 +565,71 @@ export function TegningPosisjonPrint({ pos }: { pos: TegningPosisjonVerdi }) {
     );
   }
 
+  // Capture oversikt + detalj med html2canvas og erstatt med <img> for print
+  const oversiktRef = useRef<HTMLDivElement>(null);
+  const detaljRef = useRef<HTMLDivElement>(null);
+  const [oversiktCapture, setOversiktCapture] = useState<string | null>(null);
+  const [detaljCapture, setDetaljCapture] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!bildeSrc || bildeSrc.startsWith("error")) return;
+    let avbrutt = false;
+
+    // Vent litt for at DOM-elementene rendres
+    const timer = setTimeout(async () => {
+      try {
+        const html2canvas = (await import("html2canvas")).default;
+
+        if (oversiktRef.current && !avbrutt) {
+          const canvas = await html2canvas(oversiktRef.current, { useCORS: true, scale: 2, backgroundColor: "#f9fafb" });
+          if (!avbrutt) setOversiktCapture(canvas.toDataURL("image/png"));
+        }
+        if (detaljRef.current && !avbrutt) {
+          const canvas = await html2canvas(detaljRef.current, { useCORS: true, scale: 2, backgroundColor: "#ffffff" });
+          if (!avbrutt) setDetaljCapture(canvas.toDataURL("image/png"));
+        }
+      } catch (e) {
+        console.warn("html2canvas feilet:", e);
+      }
+    }, 500);
+
+    return () => { avbrutt = true; clearTimeout(timer); };
+  }, [bildeSrc]);
+
   return (
     <div>
       <p className="mb-2 text-sm font-medium text-gray-700">{visNavn}</p>
 
-      <div className="bilde-grid">
-        {/* Oversiktsbilde med markør */}
-        <div className="bilde-celle relative rounded border border-gray-200 bg-gray-50" style={{ height: "260px" }}>
-          <img
-            src={bildeSrc}
-            alt={drawingName}
-            className="h-full w-full object-contain"
-          />
-          {/* Rød markør */}
-          <div
-            className="absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-red-500 shadow-md"
-            style={{ left: `${x}%`, top: `${y}%` }}
-          />
-          {/* Detalj-ramme */}
-          <div
-            className="absolute border-2 border-red-400"
-            style={{
-              width: `${100 / DETALJ_ZOOM}%`,
-              height: `${100 / DETALJ_ZOOM}%`,
-              left: `${Math.max(0, Math.min(100 - 100 / DETALJ_ZOOM, x - 100 / DETALJ_ZOOM / 2))}%`,
-              top: `${Math.max(0, Math.min(100 - 100 / DETALJ_ZOOM, y - 100 / DETALJ_ZOOM / 2))}%`,
-            }}
-          />
-        </div>
-
-        {/* Detaljutsnitt */}
-        <div className="bilde-celle relative rounded border border-gray-200" style={{ height: "260px", overflow: "hidden" }}>
-          <img
-            src={bildeSrc}
-            alt={`Detalj: ${drawingName}`}
-            className="h-full w-full object-cover"
-            style={{
-              transformOrigin: `${x}% ${y}%`,
-              transform: `scale(${DETALJ_ZOOM})`,
-            }}
-          />
-          {/* Rød markør i senter */}
-          <div className="absolute left-1/2 top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-red-500 shadow-md" />
+      {/* Skjerm-rendering (skjules i print, brukes av html2canvas) */}
+      <div className={oversiktCapture ? "print:hidden" : ""}>
+        <div className="bilde-grid">
+          <div ref={oversiktRef} className="bilde-celle relative rounded border border-gray-200 bg-gray-50" style={{ height: "260px" }}>
+            <img src={bildeSrc} alt={drawingName} className="h-full w-full object-contain" />
+            <div className="absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-red-500 shadow-md" style={{ left: `${x}%`, top: `${y}%` }} />
+            <div className="absolute border-2 border-red-400" style={{ width: `${100 / DETALJ_ZOOM}%`, height: `${100 / DETALJ_ZOOM}%`, left: `${Math.max(0, Math.min(100 - 100 / DETALJ_ZOOM, x - 100 / DETALJ_ZOOM / 2))}%`, top: `${Math.max(0, Math.min(100 - 100 / DETALJ_ZOOM, y - 100 / DETALJ_ZOOM / 2))}%` }} />
+          </div>
+          <div ref={detaljRef} className="bilde-celle relative rounded border border-gray-200" style={{ height: "260px", overflow: "hidden" }}>
+            <img src={bildeSrc} alt={`Detalj: ${drawingName}`} className="h-full w-full object-cover" style={{ transformOrigin: `${x}% ${y}%`, transform: `scale(${DETALJ_ZOOM})` }} />
+            <div className="absolute left-1/2 top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-red-500 shadow-md" />
+          </div>
         </div>
       </div>
+
+      {/* Print-rendering: flatede bilder fra html2canvas */}
+      {oversiktCapture && (
+        <div className="hidden print:block">
+          <div className="bilde-grid">
+            <div className="bilde-celle rounded border border-gray-200">
+              <img src={oversiktCapture} alt={drawingName} className="w-full" />
+            </div>
+            {detaljCapture && (
+              <div className="bilde-celle rounded border border-gray-200">
+                <img src={detaljCapture} alt={`Detalj: ${drawingName}`} className="w-full" />
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

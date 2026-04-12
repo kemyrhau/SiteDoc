@@ -564,6 +564,16 @@ export default function SjekklisteUtfylling() {
         keyboardVerticalOffset={0}
       >
 
+      {/* Debug: tegning-screenshot status */}
+      <View className="bg-yellow-100 px-3 py-1">
+        <Text className="text-[10px] text-yellow-800">
+          screenshot: {tegningScreenshot ? `${Math.round(tegningScreenshot.length / 1024)}KB` : "null"}
+          {" | "}detalj: {tegningDetaljScreenshot ? `${Math.round(tegningDetaljScreenshot.length / 1024)}KB` : "null"}
+          {" | "}drawing: {sjekklisteDetalj?.drawing?.fileUrl ? "ja" : "nei"}
+          {" | "}pos: {sjekklisteDetalj?.positionX != null ? `${sjekklisteDetalj.positionX.toFixed(1)},${sjekklisteDetalj.positionY?.toFixed(1)}` : "null"}
+        </Text>
+      </View>
+
       {/* Felter */}
       <ScrollView
         className="flex-1"
