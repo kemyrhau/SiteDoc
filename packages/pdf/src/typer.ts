@@ -64,7 +64,7 @@ export interface SjekklisteForPdf {
   utforerEnterprise?: { name: string } | null;
   bestiller?: { name?: string | null } | null;
   building?: { name: string } | null;
-  drawing?: { name: string; drawingNumber?: string | null } | null;
+  drawing?: { name: string; drawingNumber?: string | null; imageWidth?: number | null; imageHeight?: number | null } | null;
   drawingId?: string | null;
   positionX?: number | null;
   positionY?: number | null;

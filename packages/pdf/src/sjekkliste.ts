@@ -146,6 +146,8 @@ export function byggSjekklisteHtml(
       tegningNavn: tegningNavn ?? undefined,
       positionX: sjekkliste.positionX,
       positionY: sjekkliste.positionY,
+      imageWidth: sjekkliste.drawing?.imageWidth,
+      imageHeight: sjekkliste.drawing?.imageHeight,
     });
   }
 

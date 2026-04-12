@@ -316,6 +316,8 @@ model Drawing {
   fileUrl          String    @map("file_url")
   fileType         String    @map("file_type") // PDF, DWG, DXF, IFC
   fileSize         Int?      @map("file_size") // Filstørrelse i bytes
+  imageWidth       Int?      @map("image_width") // Bildets bredde i piksler (for tegningsposisjon i PDF)
+  imageHeight      Int?      @map("image_height") // Bildets høyde i piksler
   originalFileUrl  String?   @map("original_file_url") // Original DWG-fil (før konvertering)
   coordinateSystem String?   @map("coordinate_system") // Detektert koordinatsystem (utm33, ntm6, etc.)
   conversionStatus String?   @map("conversion_status") // pending, converting, done, failed

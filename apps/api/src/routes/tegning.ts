@@ -16,6 +16,15 @@ import {
 import { verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
 import { konverterDwg } from "../services/dwgKonvertering";
 import { trekUtIfcMetadata } from "../services/ifcMetadata";
+/** Hent bildedimensjoner fra fil (PNG/SVG/JPG) via sharp (dynamisk import) */
+async function hentBildeDimensjoner(filsti: string): Promise<{ width: number; height: number } | null> {
+  try {
+    const { default: sharp } = await import("sharp");
+    const meta = await sharp(filsti).metadata();
+    if (meta.width && meta.height) return { width: meta.width, height: meta.height };
+    return null;
+  } catch { return null; }
+}
 
 // Absolutt sti til uploads — env-variabel for pålitelighet på tvers av web/api-prosesser
 const UPLOADS_DIR = process.env.UPLOADS_DIR || join(process.cwd(), "uploads");
@@ -116,9 +125,19 @@ export const tegningRouter = router({
       const erIfc = input.fileType.toLowerCase() === "ifc";
       const erPdf = input.fileType.toLowerCase() === "pdf";
 
+      // Hent bildedimensjoner for bildetype-filer (PNG, JPG, SVG)
+      let imageWidth: number | undefined;
+      let imageHeight: number | undefined;
+      if (!erDwg && !erIfc && !erPdf) {
+        const dim = await hentBildeDimensjoner(join(UPLOADS_DIR, input.fileUrl.replace("/uploads/", "")));
+        if (dim) { imageWidth = dim.width; imageHeight = dim.height; }
+      }
+
       const tegning = await ctx.prisma.drawing.create({
         data: {
           ...input,
+          imageWidth,
+          imageHeight,
           ...((erDwg || erPdf) ? {
             originalFileUrl: input.fileUrl,
             conversionStatus: erDwg ? "pending" : "converting",
@@ -147,6 +166,9 @@ export const tegningRouter = router({
             if (resultat.visningUrl) {
               oppdatering.fileUrl = resultat.visningUrl;
               oppdatering.fileType = resultat.visningFilType;
+              // Hent dimensjoner fra konvertert fil
+              const dim = await hentBildeDimensjoner(join(UPLOADS_DIR, resultat.visningUrl.replace("/uploads/", "")));
+              if (dim) { oppdatering.imageWidth = dim.width; oppdatering.imageHeight = dim.height; }
             }
 
             await ctx.prisma.drawing.update({
@@ -236,11 +258,16 @@ export const tegningRouter = router({
             const ms = Date.now() - start;
             console.log(`[PDF] Konvertering fullført på ${ms}ms: ${pngFilnavn}`);
 
+            // Hent dimensjoner fra konvertert PNG
+            const dim = await hentBildeDimensjoner(join(UPLOADS_DIR, pngFilnavn));
+
             await ctx.prisma.drawing.update({
               where: { id: tegning.id },
               data: {
                 fileUrl: `/uploads/${pngFilnavn}`,
                 fileType: "png",
+                imageWidth: dim?.width ?? null,
+                imageHeight: dim?.height ?? null,
                 conversionStatus: "done",
               },
             });
@@ -612,5 +639,35 @@ export const tegningRouter = router({
       }
 
       return { startet: pdfTegninger.length, melding: `Startet konvertering av ${pdfTegninger.length} PDF-tegning(er)` };
+    }),
+
+  // Backfill: hent bildedimensjoner for tegninger som mangler imageWidth/imageHeight
+  backfillDimensjoner: protectedProcedure
+    .input(z.object({ projectId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      const tegninger = await ctx.prisma.drawing.findMany({
+        where: {
+          projectId: input.projectId,
+          imageWidth: null,
+          fileType: { in: ["png", "jpg", "jpeg", "svg"] },
+        },
+        select: { id: true, fileUrl: true, name: true },
+      });
+
+      let oppdatert = 0;
+      for (const t of tegninger) {
+        const filsti = join(UPLOADS_DIR, t.fileUrl.replace("/uploads/", ""));
+        const dim = await hentBildeDimensjoner(filsti);
+        if (dim) {
+          await ctx.prisma.drawing.update({
+            where: { id: t.id },
+            data: { imageWidth: dim.width, imageHeight: dim.height },
+          });
+          oppdatert++;
+          console.log(`[Backfill] ${t.name}: ${dim.width}x${dim.height}`);
+        }
+      }
+      return { oppdatert, totalt: tegninger.length };
     }),
 });

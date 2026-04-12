@@ -136,7 +136,7 @@ export default function SjekklisteUtfylling() {
     transfers?: Transfer[];
     template?: { enableChangeLog?: boolean };
     changeLog?: EndringsloggRad[];
-    drawing?: { id: string; name: string; drawingNumber?: string | null; fileUrl?: string | null } | null;
+    drawing?: { id: string; name: string; drawingNumber?: string | null; fileUrl?: string | null; imageWidth?: number | null; imageHeight?: number | null } | null;
     drawingId?: string | null;
     positionX?: number | null;
     positionY?: number | null;
