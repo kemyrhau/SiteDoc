@@ -148,6 +148,8 @@ export function byggSjekklisteHtml(
     tegningHtml = genererTegningMedScreenshot({
       screenshotBase64: cfg.tegningScreenshot,
       tegningNavn: tegningNavn ?? undefined,
+      positionX: sjekkliste.positionX ?? undefined,
+      positionY: sjekkliste.positionY ?? undefined,
     });
   } else if (cfg.tegningBildeUrl && sjekkliste.positionX != null && sjekkliste.positionY != null) {
     tegningHtml = byggTegningPosisjon({
