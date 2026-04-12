@@ -32,12 +32,14 @@ export function byggTegningPosisjon(data: TegningPosisjonData): string {
   return `
 ${tegningNavn ? `<div style="font-size:10px;font-weight:500;color:#374151;margin-bottom:6px;">${esc(tegningNavn)}</div>` : ""}
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;">
-  <!-- Oversiktsbilde med markør — inline styles for expo-print kompatibilitet -->
-  <div style="position:relative;border:1px solid #e5e7eb;border-radius:4px;overflow:hidden;width:100%;">
-    <img src="${esc(tegningBildeUrl)}" alt="${esc(tegningNavn ?? "Tegning")}" style="display:block;width:100%;height:auto;" />
-    <div style="position:absolute;left:${x}%;top:${y}%;width:12px;height:12px;border-radius:50%;background:#ef4444;border:2px solid white;transform:translate(-50%,-50%);z-index:2;"></div>
-    <div style="position:absolute;border:2px solid #f87171;left:${rammeX}%;top:${rammeY}%;width:${rammeStørrelse}%;height:${rammeStørrelse}%;z-index:1;"></div>
-    <div style="position:absolute;bottom:4px;left:4px;background:rgba(255,255,255,0.8);padding:1px 6px;border-radius:3px;font-size:9px;font-weight:500;color:#6b7280;">Oversikt</div>
+  <!-- Oversiktsbilde med markør — SVG for expo-print kompatibilitet -->
+  <div style="border:1px solid #e5e7eb;border-radius:4px;overflow:hidden;width:100%;">
+    <svg width="100%" viewBox="0 0 100 100" preserveAspectRatio="none" style="display:block;">
+      <image href="${esc(tegningBildeUrl)}" x="0" y="0" width="100" height="100" preserveAspectRatio="xMidYMid meet"/>
+      <circle cx="${x}" cy="${y}" r="2" fill="#ef4444" stroke="white" stroke-width="0.5"/>
+      <rect x="${rammeX}" y="${rammeY}" width="${rammeStørrelse}" height="${rammeStørrelse}" fill="none" stroke="#f87171" stroke-width="0.5"/>
+    </svg>
+    <div style="font-size:9px;color:#6b7280;padding:2px 4px;">Oversikt</div>
   </div>
 
   <!-- Detalj-utsnitt -->
