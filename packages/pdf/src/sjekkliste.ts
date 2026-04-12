@@ -16,7 +16,11 @@ import { hentCss } from "./css";
 import { byggSjekklisteHeader, byggMetadataRutenett } from "./header";
 import { renderAllefelter } from "./felt";
 import { byggTegningPosisjon } from "./tegning";
+import { genererTegningMedScreenshot } from "./tegning-screenshot";
 import { formaterDatoTidKort, formaterNummer } from "./hjelpere";
+
+/** Feature-flag: bruk screenshot-bilde i stedet for SVG-posisjon i PDF */
+const BRUK_SCREENSHOT_TEGNING = true;
 
 // ---------------------------------------------------------------------------
 //  Bygg objekt-tre (lokal implementasjon — unngår avhengighet til shared)
@@ -138,9 +142,14 @@ export function byggSjekklisteHtml(
     cfg,
   );
 
-  // Tegningsposisjon
+  // Tegningsposisjon — screenshot eller SVG
   let tegningHtml = "";
-  if (cfg.tegningBildeUrl && sjekkliste.positionX != null && sjekkliste.positionY != null) {
+  if (BRUK_SCREENSHOT_TEGNING && cfg.tegningScreenshot) {
+    tegningHtml = genererTegningMedScreenshot({
+      screenshotBase64: cfg.tegningScreenshot,
+      tegningNavn: tegningNavn ?? undefined,
+    });
+  } else if (cfg.tegningBildeUrl && sjekkliste.positionX != null && sjekkliste.positionY != null) {
     tegningHtml = byggTegningPosisjon({
       tegningBildeUrl: cfg.tegningBildeUrl,
       tegningNavn: tegningNavn ?? undefined,

@@ -62,6 +62,10 @@ export { renderFelt, renderAllefelter } from "./felt";
 export { byggTegningPosisjon } from "./tegning";
 export type { TegningPosisjonData } from "./tegning";
 
+// Tegning via screenshot (alternativ uten koordinatberegning)
+export { genererTegningMedScreenshot } from "./tegning-screenshot";
+export type { TegningScreenshotData } from "./tegning-screenshot";
+
 // Komplett HTML-generatorer
 export { byggSjekklisteHtml } from "./sjekkliste";
 export { byggOppgaveHtml } from "./oppgave";

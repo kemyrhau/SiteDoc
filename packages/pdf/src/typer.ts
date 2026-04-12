@@ -139,4 +139,6 @@ export interface PdfConfig {
   visSidenummer?: boolean;
   /** Tegningsbilde-URL for posisjon (pre-rendret, valgfri) */
   tegningBildeUrl?: string | null;
+  /** Screenshot av tegning med prikk (base64 data-URL, brukes i stedet for posisjon) */
+  tegningScreenshot?: string | null;
 }

@@ -37,6 +37,7 @@ import { byggSjekklisteHtml } from "@sitedoc/pdf";
 import { PdfForhandsvisning } from "../../src/components/PdfForhandsvisning";
 import { TegningsVisning } from "../../src/components/TegningsVisning";
 import type { Markør } from "../../src/components/TegningsVisning";
+import { TegningsCapture } from "../../src/components/TegningsCapture";
 import { AUTH_CONFIG, hentWebUrl } from "../../src/config/auth";
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
@@ -119,6 +120,7 @@ export default function SjekklisteUtfylling() {
   const [lokTempPosY, setLokTempPosY] = useState<number | null>(null);
   const [lokTempTegningId, setLokTempTegningId] = useState<string | null>(null);
   const [lokTempBygningId, setLokTempBygningId] = useState<string | null>(null);
+  const [tegningScreenshot, setTegningScreenshot] = useState<string | null>(null);
 
   // State for oppgave-fra-felt
   const [opprettOppgaveKategori, setOpprettOppgaveKategori] = useState<"oppgave" | null>(null);
@@ -390,9 +392,10 @@ export default function SjekklisteUtfylling() {
         gjentakendeHeader: true,
         visSidenummer: true,
         tegningBildeUrl: tegningUrl,
+        tegningScreenshot,
       },
     );
-  }, [sjekkliste, prosjektData, detaljQuery.data as unknown, sjekklisteDetalj]);
+  }, [sjekkliste, prosjektData, detaljQuery.data as unknown, sjekklisteDetalj, tegningScreenshot]);
 
   // Vis forhåndsvisning
   const håndterVisPdf = useCallback(() => {
@@ -810,6 +813,20 @@ export default function SjekklisteUtfylling() {
       </View>
 
       </KeyboardAvoidingView>
+
+      {/* Tegnings-screenshot for PDF (offscreen capture) */}
+      {sjekklisteDetalj?.drawing?.fileUrl && sjekklisteDetalj.positionX != null && sjekklisteDetalj.positionY != null && !tegningScreenshot && (
+        <TegningsCapture
+          tegningUrl={
+            sjekklisteDetalj.drawing.fileUrl.startsWith("http")
+              ? sjekklisteDetalj.drawing.fileUrl
+              : `${hentWebUrl()}/api${sjekklisteDetalj.drawing.fileUrl}`
+          }
+          positionX={sjekklisteDetalj.positionX}
+          positionY={sjekklisteDetalj.positionY}
+          onCapture={setTegningScreenshot}
+        />
+      )}
 
       {/* PDF-forhåndsvisning */}
       <PdfForhandsvisning
