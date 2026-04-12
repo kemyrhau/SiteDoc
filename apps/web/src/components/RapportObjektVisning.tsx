@@ -474,11 +474,19 @@ function useTegningSomBilde(url: string | null, erPdf: boolean): string | null {
       const img = new Image();
       img.onload = () => {
         if (avbrutt) return;
+        // Skaler ned store bilder for å holde data-URL håndterbar
+        const MAX_W = 2400;
+        let w = img.naturalWidth;
+        let h = img.naturalHeight;
+        if (w > MAX_W) {
+          h = Math.round(h * (MAX_W / w));
+          w = MAX_W;
+        }
         const canvas = document.createElement("canvas");
-        canvas.width = img.naturalWidth;
-        canvas.height = img.naturalHeight;
+        canvas.width = w;
+        canvas.height = h;
         const ctx = canvas.getContext("2d")!;
-        ctx.drawImage(img, 0, 0);
+        ctx.drawImage(img, 0, 0, w, h);
         setBildeUrl(canvas.toDataURL("image/png"));
       };
       img.onerror = () => {
