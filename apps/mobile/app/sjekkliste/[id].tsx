@@ -833,20 +833,15 @@ export default function SjekklisteUtfylling() {
                 : `${hentWebUrl()}/api${aktivTegning.fileUrl}`)
               : null;
 
-            // Bytt tegning-liste
-            if (visLokByttTegning || !tegningUrl) {
+            // «Bytt tegning»-liste — kun når bruker eksplisitt trykker «Bytt tegning»
+            if (visLokByttTegning) {
               return (
                 <View className="flex-1">
                   <View className="flex-row items-center justify-between bg-sitedoc-blue px-4 py-3">
-                    <Pressable onPress={() => {
-                      if (tegningUrl) { setVisLokByttTegning(false); }
-                      else { setVisLokasjonModal(false); }
-                    }} hitSlop={8}>
-                      <Text className="text-sm font-medium text-white">
-                        {tegningUrl ? "Tilbake" : "Avbryt"}
-                      </Text>
+                    <Pressable onPress={() => setVisLokByttTegning(false)} hitSlop={8}>
+                      <Text className="text-sm font-medium text-white">Tilbake</Text>
                     </Pressable>
-                    <Text className="text-sm font-semibold text-white">Velg tegning</Text>
+                    <Text className="text-sm font-semibold text-white">Bytt tegning</Text>
                     <View style={{ width: 50 }} />
                   </View>
                   <ScrollView className="flex-1" contentContainerClassName="p-3 gap-1">
@@ -885,6 +880,33 @@ export default function SjekklisteUtfylling() {
               );
             }
 
+            // Ingen tegning valgt — vis tom tilstand med «Velg tegning»-knapp
+            if (!tegningUrl) {
+              return (
+                <View className="flex-1">
+                  <View className="flex-row items-center justify-between bg-sitedoc-blue px-4 py-3">
+                    <Pressable onPress={() => setVisLokasjonModal(false)} hitSlop={8}>
+                      <Text className="text-sm font-medium text-white">Avbryt</Text>
+                    </Pressable>
+                    <Text className="text-sm font-semibold text-white">Lokasjon</Text>
+                    <View style={{ width: 50 }} />
+                  </View>
+                  <View className="flex-1 items-center justify-center gap-3 px-8">
+                    <MapPin size={32} color="#9ca3af" />
+                    <Text className="text-center text-sm text-gray-500">
+                      Ingen tegning valgt. Velg en tegning for å markere posisjon.
+                    </Text>
+                    <Pressable
+                      onPress={() => setVisLokByttTegning(true)}
+                      className="mt-2 rounded-lg bg-blue-700 px-6 py-2.5"
+                    >
+                      <Text className="text-sm font-medium text-white">Velg tegning</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              );
+            }
+
             // Tegningsvisning med posisjonsprikk
             const markører: Markør[] = lokTempPosX != null && lokTempPosY != null
               ? [{ id: "pos", x: lokTempPosX, y: lokTempPosY, farge: "#ef4444" }]
@@ -918,7 +940,6 @@ export default function SjekklisteUtfylling() {
                         positionX: lokTempPosX,
                         positionY: lokTempPosY,
                       });
-                      // Lagre sist brukt
                       if (valgtProsjektId && lokTempBygningId && lokTempTegningId) {
                         import("expo-secure-store").then((ss) => {
                           ss.setItemAsync(`sitedoc_sist_bygning_${valgtProsjektId}`, lokTempBygningId!);
