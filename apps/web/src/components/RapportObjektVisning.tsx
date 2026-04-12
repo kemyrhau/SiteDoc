@@ -471,6 +471,7 @@ function useTegningSomBilde(url: string | null, erPdf: boolean): string | null {
     if (!erPdf) {
       // Bilde — last inn og konverter til data-URL for pålitelighet
       const img = new Image();
+      img.crossOrigin = "anonymous";
       img.onload = () => {
         if (avbrutt) return;
         const canvas = document.createElement("canvas");
@@ -528,7 +529,8 @@ function useDetaljCanvas(bildeSrc: string | null, posX: number, posY: number): s
     let avbrutt = false;
 
     const img = new Image();
-    img.crossOrigin = "anonymous";
+    // crossOrigin kun for http-URLer, ikke data-URLer
+    if (bildeSrc.startsWith("http")) img.crossOrigin = "anonymous";
     img.onload = () => {
       if (avbrutt) return;
       try {
@@ -560,12 +562,14 @@ function useDetaljCanvas(bildeSrc: string | null, posX: number, posY: number): s
         ctx.beginPath(); ctx.arc(dpx, dpy, r + 3, 0, Math.PI * 2); ctx.fillStyle = "#ffffff"; ctx.fill();
         ctx.beginPath(); ctx.arc(dpx, dpy, r, 0, Math.PI * 2); ctx.fillStyle = "#ef4444"; ctx.fill();
 
-        if (!avbrutt) setDetaljUrl(canvas.toDataURL("image/png"));
+        const resultat = canvas.toDataURL("image/png");
+        console.log("Detalj-bilde generert, lengde:", resultat.length);
+        if (!avbrutt) setDetaljUrl(resultat);
       } catch (e) {
         console.warn("useDetaljCanvas feilet:", e);
       }
     };
-    img.onerror = () => { /* Stille feilhåndtering — fallback til uten detalj */ };
+    img.onerror = (e) => { console.warn("useDetaljCanvas img.onerror:", e); };
     img.src = bildeSrc;
 
     return () => { avbrutt = true; };
