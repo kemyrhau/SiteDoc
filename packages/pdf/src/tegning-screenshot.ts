@@ -28,22 +28,22 @@ export function genererTegningMedScreenshot(data: TegningScreenshotData): string
     return `
 ${tegningNavn ? `<div style="font-size:10px;font-weight:500;color:#374151;margin-bottom:6px;">${esc(tegningNavn)}</div>` : ""}
 <div style="border:1px solid #e5e7eb;border-radius:4px;overflow:hidden;width:100%;margin-bottom:10px;">
-  <img src="${screenshotBase64}" alt="${esc(tegningNavn ?? "Tegning")}" style="display:block;width:100%;height:auto;" />
+  <img src="${screenshotBase64}" alt="${esc(tegningNavn ?? "Tegning")}" style="display:block;width:100%;height:auto;max-height:400px;object-fit:contain;" />
 </div>`;
   }
 
   // Med detalj — oversikt + detalj side om side
   return `
 ${tegningNavn ? `<div style="font-size:10px;font-weight:500;color:#374151;margin-bottom:6px;">${esc(tegningNavn)}</div>` : ""}
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;">
+<div style="display:flex;gap:6px;margin-bottom:10px;">
   <!-- Oversikt -->
-  <div style="border:1px solid #e5e7eb;border-radius:4px;overflow:hidden;">
-    <img src="${screenshotBase64}" alt="${esc(tegningNavn ?? "Tegning")}" style="display:block;width:100%;height:auto;" />
+  <div style="flex:1;border:1px solid #e5e7eb;border-radius:4px;overflow:hidden;">
+    <img src="${screenshotBase64}" alt="${esc(tegningNavn ?? "Tegning")}" style="display:block;width:100%;height:auto;max-height:300px;object-fit:contain;" />
     <div style="font-size:9px;color:#6b7280;padding:2px 4px;">Oversikt</div>
   </div>
-  <!-- Detalj — pre-croppet av server -->
-  <div style="border:1px solid #e5e7eb;border-radius:4px;overflow:hidden;">
-    <img src="${detaljBase64}" alt="Detalj" style="display:block;width:100%;height:auto;" />
+  <!-- Detalj -->
+  <div style="flex:1;border:1px solid #e5e7eb;border-radius:4px;overflow:hidden;">
+    <img src="${detaljBase64}" alt="Detalj" style="display:block;width:100%;height:auto;max-height:300px;object-fit:contain;" />
     <div style="font-size:9px;color:#6b7280;padding:2px 4px;">Detalj</div>
   </div>
 </div>`;

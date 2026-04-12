@@ -12,7 +12,10 @@ export function hentCss(config?: Partial<PdfConfig>): string {
   return `
   @page { margin: 12mm; }
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body {
+  html, body {
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
     font-family: -apple-system, "Helvetica Neue", Helvetica, Arial, sans-serif;
     font-size: 10px;
     color: #1a1a1a;
@@ -236,6 +239,24 @@ export function hentCss(config?: Partial<PdfConfig>): string {
   .prioritet {
     font-size: 9px;
     color: #6b7280;
+  }
+
+  /* Sideskift-regler */
+  .felt-blokk {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  .bilde-kort {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  .heading {
+    page-break-after: avoid;
+    break-after: avoid;
+  }
+  .subtitle {
+    page-break-after: avoid;
+    break-after: avoid;
   }
 
   /* Table-layout for gjentakende header/footer på hver side */
