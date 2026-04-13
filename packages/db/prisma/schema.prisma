@@ -793,8 +793,9 @@ model FtdDocument {
   folder    Folder?              @relation(fields: [folderId], references: [id], onDelete: SetNull)
   kontrakt  FtdKontrakt?         @relation(fields: [kontraktId], references: [id], onDelete: SetNull)
   chunks    FtdDocumentChunk[]
-  specPosts FtdSpecPost[]
-  pages     FtdDocumentPage[]
+  specPosts    FtdSpecPost[]
+  pages        FtdDocumentPage[]
+  notaPerioder FtdNotaPeriod[]
 
   @@unique([projectId, filename])
   @@index([folderId])
@@ -816,9 +817,10 @@ model FtdKontrakt {
 
   project    Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
   byggeplass Byggeplass? @relation(fields: [byggeplassId], references: [id], onDelete: SetNull)
-  entrepriser Enterprise[]
-  dokumenter  FtdDocument[]
-  mapper      Folder[]
+  entrepriser  Enterprise[]
+  dokumenter   FtdDocument[]
+  mapper       Folder[]
+  notaPerioder FtdNotaPeriod[]
 
   @@index([projectId])
   @@map("ftd_kontrakter")
@@ -940,6 +942,7 @@ model FtdSpecPost {
   fullNsTekst   String?  @map("full_ns_tekst")
   eksternNotat  String?  @map("ekstern_notat")
   importNotat   String?  @map("import_notat")
+  ikkeIBudsjett Boolean  @default(false) @map("ikke_i_budsjett")
 
   project     Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
   document    FtdDocument?     @relation(fields: [documentId], references: [id], onDelete: SetNull)
@@ -954,11 +957,15 @@ model FtdSpecPost {
 model FtdNotaPeriod {
   id               String    @id @default(cuid())
   projectId        String    @map("project_id")
+  kontraktId       String    @map("kontrakt_id")
+  documentId       String    @map("document_id")
   enterpriseId     String?   @map("enterprise_id")
   periodeNr        Int       @map("periode_nr")
   periodeStart     DateTime? @map("periode_start")
   periodeSlutt     DateTime? @map("periode_slutt")
   type             String    @default("a_nota") // "a_nota" | "t_nota"
+  erSluttnota      Boolean   @default(false) @map("er_sluttnota")
+  gapFlagg         Boolean   @default(false) @map("gap_flagg")
   kildeFilnavn     String?   @map("kilde_filnavn")
   totalMengdeDenne Decimal?  @map("total_mengde_denne") @db.Decimal(18, 2)
   totalVerdiDenne  Decimal?  @map("total_verdi_denne") @db.Decimal(18, 2)
@@ -968,11 +975,15 @@ model FtdNotaPeriod {
   createdAt        DateTime  @default(now()) @map("created_at")
 
   project     Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  kontrakt    FtdKontrakt      @relation(fields: [kontraktId], references: [id])
+  document    FtdDocument      @relation(fields: [documentId], references: [id], onDelete: Cascade)
   enterprise  Enterprise?      @relation(fields: [enterpriseId], references: [id], onDelete: SetNull)
   poster      FtdNotaPost[]
   kommentarer FtdNotaComment[]
 
+  @@unique([kontraktId, periodeNr], name: "ftd_nota_period_kontrakt_nr")
   @@index([projectId])
+  @@index([kontraktId])
   @@index([enterpriseId])
   @@map("ftd_nota_periods")
 }
