@@ -116,6 +116,7 @@ export const mengdeRouter = router({
           },
         });
 
+        // Cast til same type som gammel vei for konsistent tRPC-inferens
         return notaPoster.map((np) => ({
           id: np.specPost.id,
           postnr: np.specPost.postnr,
@@ -131,12 +132,13 @@ export const mengdeRouter = router({
           sumAnbud: np.sumAnbud,
           mengdeDenne: np.mengdeDenne,
           mengdeTotal: np.mengdeTotal,
-          mengdeForrige: np.mengdeForrige,
+          mengdeForrige: np.mengdeForrige ?? null,
           verdiDenne: np.verdiDenne,
           verdiTotal: np.verdiTotal,
-          verdiForrige: np.verdiForrige,
+          verdiForrige: np.verdiForrige ?? null,
           prosentFerdig: np.prosentFerdig,
-        }));
+          document: null as null,
+        })) as any;
       }
 
       // ─── GAMMEL VEI: dokumentId/kontraktId → hent fra FtdSpecPost ───
