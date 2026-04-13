@@ -105,19 +105,6 @@ export default function OkonomiSide() {
   );
   const dokumenter = dokumenterQuery.data;
 
-  // Hent perioder for å matche documentId → periodId
-  const { data: perioder } = trpc.mengde.hentPerioder.useQuery(
-    { projectId: prosjektId },
-    { enabled: !!prosjektId },
-  );
-  const periodMap = useMemo(() => {
-    const map = new Map<string, string>();
-    if (perioder) {
-      for (const p of perioder) map.set(p.documentId, p.id);
-    }
-    return map;
-  }, [perioder]);
-
   // Finn dokumenter for valgt kontrakt, gruppert
   const kontraktDokumenter = useMemo(() => {
     if (!dokumenter || !kontraktId) return { budsjett: null, notas: [] };
@@ -142,9 +129,6 @@ export default function OkonomiSide() {
     [kontraktDokumenter.notas, valgtNotaNr],
   );
 
-  // Bestem om nota har periode (ny) eller kun dokument (gammel)
-  const valgtPeriodId = valgtNotaDok ? periodMap.get(valgtNotaDok.id) ?? null : null;
-
   // Budsjett-poster (anbudsgrunnlag for valgt kontrakt)
   const budsjettDokId = kontraktDokumenter.budsjett?.id;
   const { data: budsjettPoster } = trpc.mengde.hentSpecPoster.useQuery(
@@ -152,19 +136,11 @@ export default function OkonomiSide() {
     { enabled: !!prosjektId && !!budsjettDokId },
   );
 
-  // Nota-poster via ny prosedyre (FtdNotaPost)
-  const { data: notaPosterNy } = trpc.mengde.hentNotaPoster.useQuery(
-    { projectId: prosjektId, periodId: valgtPeriodId! },
-    { enabled: !!prosjektId && !!valgtPeriodId },
-  );
-
-  // Nota-poster via gammel prosedyre (FtdSpecPost)
-  const { data: notaPosterGammel } = trpc.mengde.hentSpecPoster.useQuery(
+  // Nota-poster (for sammenligning)
+  const { data: notaPoster } = trpc.mengde.hentSpecPoster.useQuery(
     { projectId: prosjektId, dokumentId: valgtNotaDok?.id },
-    { enabled: !!prosjektId && !!valgtNotaDok && !valgtPeriodId },
+    { enabled: !!prosjektId && !!valgtNotaDok },
   );
-
-  const notaPoster = valgtPeriodId ? notaPosterNy : notaPosterGammel;
 
   // Fallback: vis alle poster for kontrakten hvis ingen budsjett-dok finnes
   const { data: allePoster } = trpc.mengde.hentSpecPoster.useQuery(
@@ -266,7 +242,6 @@ export default function OkonomiSide() {
           {kontraktDokumenter.notas.map((d) => (
             <option key={d.id} value={d.notaNr!}>
               {d.notaType === "Sluttnota" ? t("okonomi.sluttnota") : d.notaNr}
-              {periodMap.has(d.id) ? " ✓" : ""}
             </option>
           ))}
         </select>
@@ -322,11 +297,6 @@ export default function OkonomiSide() {
               kontraktId={kontraktId}
             />
           </div>
-
-          {/* Oppsummeringslinje — Proadm-format */}
-          {valgtNotaDok?.utfortTotalt != null && (
-            <NotaOppsummering dok={valgtNotaDok} />
-          )}
 
           {/* Detaljpanel — alltid synlig i bunn */}
           <div className="shrink-0 border-t px-4 py-3">
@@ -1069,46 +1039,6 @@ function RapportPanel({
           </table>
         </div>
       )}
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Oppsummeringslinje (Proadm-format)
-// ---------------------------------------------------------------------------
-
-function formaterKr(v: unknown): string {
-  if (v == null) return "—";
-  const n = Number(v);
-  if (isNaN(n)) return "—";
-  return n.toLocaleString("nb-NO", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-
-function OppsumRad({ label, verdi, prefix, uthevet }: { label: string; verdi: unknown; prefix?: string; uthevet?: boolean }) {
-  return (
-    <div className={`flex justify-between gap-4 ${uthevet ? "font-semibold" : ""}`}>
-      <span className="text-gray-600">{prefix ? `${prefix} ` : ""}{label}</span>
-      <span className="tabular-nums">{formaterKr(verdi)}</span>
-    </div>
-  );
-}
-
-function NotaOppsummering({ dok }: { dok: { utfortTotalt?: unknown; utfortForrige?: unknown; utfortDenne?: unknown; innestaaende?: unknown; innestaaendeForrige?: unknown; innestaaendeDenne?: unknown; nettoDenne?: unknown; mva?: unknown; sumInkMva?: unknown } }) {
-  return (
-    <div className="shrink-0 border-t bg-gray-50 px-4 py-2">
-      <div className="mx-auto max-w-sm space-y-0.5 text-xs">
-        <OppsumRad label="Utført totalt:" verdi={dok.utfortTotalt} />
-        <OppsumRad label="Utført forrige:" verdi={dok.utfortForrige} prefix="-" />
-        <OppsumRad label="Denne periode:" verdi={dok.utfortDenne} prefix="=" uthevet />
-        <div className="my-1 border-t border-gray-300" />
-        <OppsumRad label="Innestående:" verdi={dok.innestaaende} />
-        <OppsumRad label="Innestående forrige:" verdi={dok.innestaaendeForrige} prefix="-" />
-        <OppsumRad label="Innestående denne:" verdi={dok.innestaaendeDenne} prefix="=" uthevet />
-        <div className="my-1 border-t border-gray-300" />
-        <OppsumRad label="Netto denne periode:" verdi={dok.nettoDenne} uthevet />
-        <OppsumRad label="Mva:" verdi={dok.mva} prefix="+" />
-        <OppsumRad label="Sum inkl. mva:" verdi={dok.sumInkMva} prefix="=" uthevet />
-      </div>
     </div>
   );
 }

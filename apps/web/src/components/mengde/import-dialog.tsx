@@ -115,7 +115,6 @@ export function ImportDialog({ projectId, open, onClose }: ImportDialogProps) {
     return result;
   }, [mapper]);
 
-  // @ts-ignore TS2589 — tRPC deep type fra hentSpecPoster periodId-gren
   const registrer = trpc.mengde.registrerDokument.useMutation({
     onSuccess: () => {
       utils.mengde.hentDokumenter.invalidate({ projectId });

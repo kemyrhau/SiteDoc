@@ -147,35 +147,6 @@ const GRUPPE_TEKST: Record<Gruppe, string> = {
 };
 
 // ---------------------------------------------------------------------------
-// Kolonne-persistering (localStorage)
-// ---------------------------------------------------------------------------
-
-interface KolonneConfig {
-  rekkefølge: string[];
-  synlige: string[];
-}
-
-const ALLE_KOLONNE_IDER = ALLE_KOLONNER.map((k) => k.id);
-
-function lesKolonneConfig(nøkkel: string): KolonneConfig | null {
-  try {
-    if (typeof window === "undefined") return null;
-    const lagret = localStorage.getItem(nøkkel);
-    if (!lagret) return null;
-    return JSON.parse(lagret) as KolonneConfig;
-  } catch {
-    return null;
-  }
-}
-
-function lagreKolonneConfig(nøkkel: string, config: KolonneConfig) {
-  try {
-    if (typeof window === "undefined") return;
-    localStorage.setItem(nøkkel, JSON.stringify(config));
-  } catch { /* SSR / quota */ }
-}
-
-// ---------------------------------------------------------------------------
 // Seksjonsoverskrift-deteksjon
 // ---------------------------------------------------------------------------
 
@@ -218,85 +189,18 @@ export function SpecPostTabell({
   kontraktId,
 }: SpecPostTabellProps) {
   const harSammenligning = !!sammenligningPoster && sammenligningPoster.length > 0;
-  const lsNøkkel = "ftd-kolonne-orden";
 
-  // Kolonne-state med localStorage-persistering
-  const [kolonneRekkefølge, setKolonneRekkefølge] = useState<string[]>(() => {
-    const config = lesKolonneConfig(lsNøkkel);
-    if (config) {
-      const gyldige = config.rekkefølge.filter((id) => ALLE_KOLONNE_IDER.includes(id));
-      const nye = ALLE_KOLONNE_IDER.filter((id) => !gyldige.includes(id));
-      return [...gyldige, ...nye];
-    }
-    return [...ALLE_KOLONNE_IDER];
-  });
+  // Kolonne-state
+  const [kolonneRekkefølge, setKolonneRekkefølge] = useState<string[]>(() =>
+    ALLE_KOLONNER.map((k) => k.id),
+  );
   const [synligeKolonner, setSynligeKolonner] = useState<Set<string>>(() => {
-    const config = lesKolonneConfig(lsNøkkel);
-    if (config) return new Set(config.synlige.filter((id) => ALLE_KOLONNE_IDER.includes(id)));
     const s = new Set<string>();
     for (const k of ALLE_KOLONNER) {
       if (k.alltidSynlig || k.synligDefault) s.add(k.id);
     }
     return s;
   });
-
-  // Persist ved endring
-  useEffect(() => {
-    lagreKolonneConfig(lsNøkkel, {
-      rekkefølge: kolonneRekkefølge,
-      synlige: Array.from(synligeKolonner),
-    });
-  }, [kolonneRekkefølge, synligeKolonner, lsNøkkel]);
-
-  // Oppdater fra localStorage når userId endres (f.eks. etter innlogging)
-  useEffect(() => {
-    const config = lesKolonneConfig(lsNøkkel);
-    if (config) {
-      const gyldige = config.rekkefølge.filter((id) => ALLE_KOLONNE_IDER.includes(id));
-      const nye = ALLE_KOLONNE_IDER.filter((id) => !gyldige.includes(id));
-      setKolonneRekkefølge([...gyldige, ...nye]);
-      setSynligeKolonner(new Set(config.synlige.filter((id) => ALLE_KOLONNE_IDER.includes(id))));
-    }
-  }, [lsNøkkel]);
-
-  // Drag-and-drop kolonneorder
-  const [dragKolId, setDragKolId] = useState<string | null>(null);
-  const [dragOverKolId, setDragOverKolId] = useState<string | null>(null);
-
-  const handleKolonneDragStart = useCallback((e: React.DragEvent, kolId: string) => {
-    setDragKolId(kolId);
-    e.dataTransfer.effectAllowed = "move";
-    e.dataTransfer.setData("text/plain", kolId);
-  }, []);
-
-  const handleKolonneDragOver = useCallback((e: React.DragEvent, kolId: string) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
-    setDragOverKolId(kolId);
-  }, []);
-
-  const handleKolonneDrop = useCallback((e: React.DragEvent, målKolId: string) => {
-    e.preventDefault();
-    setDragOverKolId(null);
-    const kildeId = dragKolId;
-    setDragKolId(null);
-    if (!kildeId || kildeId === målKolId) return;
-
-    setKolonneRekkefølge((prev) => {
-      const ny = [...prev];
-      const fraIdx = ny.indexOf(kildeId);
-      const tilIdx = ny.indexOf(målKolId);
-      if (fraIdx === -1 || tilIdx === -1) return prev;
-      ny.splice(fraIdx, 1);
-      ny.splice(tilIdx, 0, kildeId);
-      return ny;
-    });
-  }, [dragKolId]);
-
-  const handleKolonneDragEnd = useCallback(() => {
-    setDragKolId(null);
-    setDragOverKolId(null);
-  }, []);
 
   // Sortering
   const [sorterKolId, setSorterKolId] = useState("postnr");
@@ -610,18 +514,10 @@ export function SpecPostTabell({
               {aktiveKolonner.map((kol) => (
                 <th
                   key={kol.id}
-                  draggable
-                  onDragStart={(e) => handleKolonneDragStart(e, kol.id)}
-                  onDragOver={(e) => handleKolonneDragOver(e, kol.id)}
-                  onDrop={(e) => handleKolonneDrop(e, kol.id)}
-                  onDragEnd={handleKolonneDragEnd}
-                  className={`relative px-2 py-1.5 ${kol.bredde ?? ""} ${kol.type === "tall" ? "text-right" : ""} ${
-                    dragOverKolId === kol.id ? "bg-blue-50" : ""
-                  } ${dragKolId === kol.id ? "opacity-50" : ""} cursor-grab active:cursor-grabbing`}
+                  className={`relative px-2 py-1.5 ${kol.bredde ?? ""} ${kol.type === "tall" ? "text-right" : ""}`}
                 >
                   <div className="flex items-center gap-0.5">
                     {kol.type === "tall" && <span className="flex-1" />}
-                    <span className="inline-block h-3 w-3 shrink-0 text-gray-300">⋮</span>
                     <button
                       onClick={() => toggleSortering(kol.id)}
                       className={`inline-flex items-center gap-0.5 text-[11px] font-medium uppercase hover:text-gray-700 ${

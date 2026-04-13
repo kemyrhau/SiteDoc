@@ -24,6 +24,7 @@ import { kontraktRouter } from "../routes/kontrakt";
 import { aiSokRouter } from "../routes/aiSok";
 import { brukerRouter } from "../routes/bruker";
 import { psiRouter } from "../routes/psi";
+import { notaImportRouter } from "../routes/nota-import-router";
 import { debugTilgangRouter } from "../routes/debug-tilgang"; // MIDLERTIDIG — fjernes etter testing
 
 export const appRouter = router({
@@ -47,6 +48,7 @@ export const appRouter = router({
   admin: adminRouter,
   punktsky: punktskyRouter,
   mengde: mengdeRouter,
+  notaImport: notaImportRouter,
   ftdSok: ftdSokRouter,
   kontrakt: kontraktRouter,
   aiSok: aiSokRouter,
