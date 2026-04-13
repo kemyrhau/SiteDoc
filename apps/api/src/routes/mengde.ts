@@ -118,20 +118,23 @@ export const mengdeRouter = router({
 
       const dokument = await ctx.prisma.ftdDocument.findUnique({
         where: { id: input.dokumentId },
-        select: { notaNr: true, kontraktId: true },
+        select: { notaNr: true, notaType: true, kontraktId: true },
       });
       if (!dokument?.kontraktId) return poster;
-      // Ingen forrige å finne hvis notaNr mangler og det ikke er sluttnota
-      if (!dokument.notaNr && dokument.notaNr !== null) return poster;
+
+      const erSluttnota = dokument.notaType === "Sluttnota" || dokument.notaNr === null;
 
       // Finn forrige nota: høyeste notaNr < gjeldende, eller høyeste A-nota for sluttnota
       const forrigeNota = await ctx.prisma.ftdDocument.findFirst({
         where: {
           kontraktId: dokument.kontraktId,
           docType: "a_nota",
-          ...(dokument.notaNr
-            ? { notaNr: { lt: dokument.notaNr } }
-            : { notaNr: { not: null } }),
+          notaType: { not: "Sluttnota" },
+          ...(erSluttnota
+            ? { notaNr: { not: null } }
+            : dokument.notaNr
+              ? { notaNr: { lt: dokument.notaNr } }
+              : {}),
         },
         orderBy: { notaNr: "desc" },
         select: { id: true, notaNr: true },
