@@ -134,11 +134,20 @@ Sluttnota: `erSluttnota = true`, `notaNr = null`. Korrigert sluttnota: to dokume
 - Vises kun når utfortTotalt != null
 - A-nota 18 og 24 importert — alle 8 perioder komplett (18, 24, 25, 26, 27, 28, 29, Sluttnota)
 
+**Drag-and-drop kolonneorder (ferdig):**
+- Native HTML drag events på kolonne-headers med GripVertical-ikon
+- localStorage-persistering med nøkkel `ftd-kolonne-orden-{userId}`
+- SSR-safe med try-catch, nye kolonner legges til på slutten
+- Synlige kolonner persisteres sammen med rekkefølge
+
+**Mva (ferdig — header-nivå):**
+- Parseren leser mva fra PDF/Excel header-seksjon og lagrer på FtdDocument
+- Vises i NotaOppsummering (+ Mva: / = Sum inkl. mva:)
+- Per-post mva finnes ikke i Proadm-kildedata — FtdNotaPost.mvaDenne/sumDenne er tomme
+
 ### Fase 2 — gjenstår
 
-1. **Retroaktiv revalidering** — automatisk revalidering fremover når nota importeres midt i kjeden
-2. **Mva** — parser + skjemaendring
-3. **Drag-and-drop kolonneorder** — med localStorage-persistering
+1. **Retroaktiv revalidering** — automatisk revalidering fremover når nota importeres midt i kjeden (utsatt til behovet oppstår)
 
 ## Auth-nivåer
 
