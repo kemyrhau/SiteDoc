@@ -58,7 +58,59 @@ Alle routere i `apps/api/src/routes/`:
 
 **Dokumentsøk:** Tilgjengelig for alle prosjekter (ingen modulkrav). Tilgangskontroll via `hentTilgjengeligeMappeIder()`. Dedup per dokument (DISTINCT ON document_id). NS 3420-standarddokumentasjon søkbar via `nsStandardSok` (ILIKE i NS 3420-chunks). Gul prikk (●) i økonomi-tabell der split-dokumentasjon finnes (sjekker undermapper "Post {kode}").
 
-**Neste steg (økonomi):** A-nota nummer = periodenummer. Kontrakt + periode-velger → vis og sammenlign perioder i Oversikt. Anbudsgrunnlag = anbud (fane), A-nota 4/5/6/7 = perioder under samme kontrakt. Sluttnota støttes som nota-type.
+## Økonomi — A-nota importlogikk
+
+### Datamodell
+
+- **FtdSpecPost** = master-post per postnr per kontrakt (fra budsjett/anbudsgrunnlag). Felter: postnr, beskrivelse, enhet, mengdeAnbud, enhetspris, sumAnbud, nsKode, etc.
+- **FtdNotaPeriod** = én importert A-nota/Sluttnota. Felter: periodeNr, periodeSlutt, type, erSluttnota (boolean), gapFlagg, kildeFilnavn, totaler.
+- **FtdNotaPost** = per-post per-periode verdier, koblet til FtdSpecPost. Felter: mengdeDenne/Total/Forrige, verdiDenne/Total/Forrige, prosentFerdig, enhetspris.
+
+Sluttnota: `erSluttnota = true`, `notaNr = null`. Korrigert sluttnota: to dokumenter kan ha flagget, siste importdato vinner.
+
+### Duplikat-beskyttelse
+
+- **Unique constraint** `(documentId, postnr)` (partial index, WHERE NOT NULL) på FtdSpecPost
+- **`lagreSpecPoster()`** — in-memory deduplisering + `createMany({ skipDuplicates: true })`
+- **Concurrency guard** — `prosesserDokument()` bruker `updateMany({ where: { processingState: { not: "processing" } } })` for å avvise parallelle kjøringer
+- **Atomisk sletting** — eksisterende poster slettes i `prosesserDokument`, ikke i kalleren
+
+### Importscenarioer
+
+**Scenario 1 — Første A-nota (ingen tidligere data):** Alle verdier importeres som-er. Aksepter selv om tidligere notas mangler.
+
+**Scenario 2 — Påfølgende A-nota:** Match via postnr. Akkumuleringsberegning per post: `forventet verdiTotal = forrige.verdiTotal + ny.verdiDenne`. Toleranse ±2 øre = stille aksept. Avvik utenfor toleranse → rapport med tre valg: A) Bruk kildeverdi, B) Bruk beregnet, C) Avbryt. Beregnet enhetspris (`verdiDenne / antallDenne`) sammenlignes mot forrige — avvik er varselsignal.
+
+**Scenario 3 — Gap i rekkefølge:** Varsle bruker, ikke blokker. Importer som scenario 1. Lagre gap-flagg.
+
+**Scenario 4 — Retroaktiv import (fase 2):** Overskriv + revalidering av alle påfølgende notas. Samlet avviksrapport.
+
+### Import-dialog (sekvensielt modal)
+
+**Fase 1:** Bruker velger filer fra mapper eller laster opp. Klikker "Importer N filer".
+
+**Fase 2:** Viser én fil om gangen med auto-detekterte verdier (type, nr, kontrakt, dato fra filnavn). Statusliste viser alle filer med ✓/✗/— status. Inline sjekker per fil:
+- **Gap-advarsel** — når nota N importeres og N-1 mangler for kontrakten
+- **Duplikat-sjekk** — notaNr + kontraktId finnes allerede i DB → bekreftelse på reimport
+- **Dato-deteksjon** — `A-nota 26_31.05.25.pdf` → periodeSlutt = 2025-05-31
+
+**Fase 3:** Oppsummering med akkumuleringsresultat per fil (ingen avvik / N poster med avvik).
+
+### Kolonnevisning (Oversikt-tabell)
+
+Rekkefølge: Postnr | Beskrivelse | **Mengder:** Anbudet, Enh, Tot.tom.forrige per., Utført denne per., Utført totalt | Enhetspris | **Verdi:** Anbudet, Tot.tom.forrige per., Utført denne per., Mva denne per., Utført totalt, Utført %
+
+- Dynamisk kolonnevalg: bruker kan vise/skjule kolonner via +-knapp i header
+- Filterrad under header for filtrering per kolonne
+- Drag-and-drop rekkefølge (valgfritt, fase 2)
+- Seksjonsoverskrifter (poster uten enhet som har barn med sum ≈ egen verdi) ekskluderes fra totalrad
+- Poster uten enhet men uten barn beholdes og markeres visuelt
+
+### Prioritert rekkefølge
+
+1. **Økonomi-visning** — fiks kolonne-logikk, seksjonsoverskrifter, totalrad, dynamiske kolonner
+2. **Ny importlogikk** — FtdNotaPeriod/FtdNotaPost med akkumulering og avviksrapport
+3. **Import-dialog** — sekvensielt modal med auto-deteksjon, gap-advarsel, duplikat-sjekk
 
 ## Auth-nivåer
 
