@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
-import { ChevronUp, ChevronDown, X, Settings, FileSearch, Loader2, Search, Filter, Plus, GripVertical } from "lucide-react";
-import { useSession } from "next-auth/react";
+import { ChevronUp, ChevronDown, X, Settings, FileSearch, Loader2, Search, Filter, Plus } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 
 interface SpecPost {
@@ -219,9 +218,7 @@ export function SpecPostTabell({
   kontraktId,
 }: SpecPostTabellProps) {
   const harSammenligning = !!sammenligningPoster && sammenligningPoster.length > 0;
-  const { data: session } = useSession();
-  const userId = session?.user?.id ?? "anon";
-  const lsNøkkel = `ftd-kolonne-orden-${userId}`;
+  const lsNøkkel = "ftd-kolonne-orden";
 
   // Kolonne-state med localStorage-persistering
   const [kolonneRekkefølge, setKolonneRekkefølge] = useState<string[]>(() => {
@@ -624,7 +621,7 @@ export function SpecPostTabell({
                 >
                   <div className="flex items-center gap-0.5">
                     {kol.type === "tall" && <span className="flex-1" />}
-                    <GripVertical className="h-3 w-3 shrink-0 text-gray-300" />
+                    <span className="inline-block h-3 w-3 shrink-0 text-gray-300">⋮</span>
                     <button
                       onClick={() => toggleSortering(kol.id)}
                       className={`inline-flex items-center gap-0.5 text-[11px] font-medium uppercase hover:text-gray-700 ${
