@@ -2363,6 +2363,9 @@ function ekstraherNotaPosterFraPdf(
       continue;
     }
 
+    // Gjentatt header-linje på nye sider — hopp over (preventiv)
+    if (/Postnr/i.test(linje) && /Beskrivelse/i.test(linje)) continue;
+
     if (!linje || erSkipLinje(linje)) continue;
 
     // Parse post-linje
