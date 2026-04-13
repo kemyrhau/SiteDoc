@@ -142,13 +142,8 @@ export default function OkonomiSide() {
     [kontraktDokumenter.notas, valgtNotaNr],
   );
 
-  // Bestem om vi bruker periodId (ny struktur) eller dokumentId (gammel)
-  const notaQueryParam = useMemo(() => {
-    if (!valgtNotaDok) return null;
-    const pId = periodMap.get(valgtNotaDok.id);
-    if (pId) return { periodId: pId };
-    return { dokumentId: valgtNotaDok.id };
-  }, [valgtNotaDok, periodMap]);
+  // Bestem om nota har periode (ny) eller kun dokument (gammel)
+  const valgtPeriodId = valgtNotaDok ? periodMap.get(valgtNotaDok.id) ?? null : null;
 
   // Budsjett-poster (anbudsgrunnlag for valgt kontrakt)
   const budsjettDokId = kontraktDokumenter.budsjett?.id;
@@ -157,11 +152,19 @@ export default function OkonomiSide() {
     { enabled: !!prosjektId && !!budsjettDokId },
   );
 
-  // Nota-poster (for sammenligning) — bruker periodId (ny) eller dokumentId (gammel)
-  const { data: notaPoster } = trpc.mengde.hentSpecPoster.useQuery(
-    { projectId: prosjektId, ...notaQueryParam },
-    { enabled: !!prosjektId && !!notaQueryParam },
+  // Nota-poster via ny prosedyre (FtdNotaPost)
+  const { data: notaPosterNy } = trpc.mengde.hentNotaPoster.useQuery(
+    { projectId: prosjektId, periodId: valgtPeriodId! },
+    { enabled: !!prosjektId && !!valgtPeriodId },
   );
+
+  // Nota-poster via gammel prosedyre (FtdSpecPost)
+  const { data: notaPosterGammel } = trpc.mengde.hentSpecPoster.useQuery(
+    { projectId: prosjektId, dokumentId: valgtNotaDok?.id },
+    { enabled: !!prosjektId && !!valgtNotaDok && !valgtPeriodId },
+  );
+
+  const notaPoster = valgtPeriodId ? notaPosterNy : notaPosterGammel;
 
   // Fallback: vis alle poster for kontrakten hvis ingen budsjett-dok finnes
   const { data: allePoster } = trpc.mengde.hentSpecPoster.useQuery(
@@ -173,11 +176,11 @@ export default function OkonomiSide() {
   );
 
   const poster = budsjettPoster ?? allePoster;
-  const valgtPost = poster?.find((p: { id: string }) => p.id === valgtPostId) ?? null;
+  const valgtPost = poster?.find((p) => p.id === valgtPostId) ?? null;
 
   const handleVelgPost = useCallback((postId: string) => {
     if (notatRef.current?.erIReferanseModus && poster) {
-      const post = poster.find((p: { id: string }) => p.id === postId);
+      const post = poster.find((p) => p.id === postId);
       if (post) notatRef.current.leggTilReferanse(post);
     } else {
       setValgtPostId(postId);
@@ -388,7 +391,6 @@ export default function OkonomiSide() {
 
       <ImportDialog
         projectId={prosjektId}
-        kontraktIdFraToppen={kontraktId}
         open={importOpen}
         onClose={() => {
           setImportOpen(false);

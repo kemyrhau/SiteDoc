@@ -81,59 +81,64 @@ export const mengdeRouter = router({
       });
     }),
 
+  hentNotaPoster: protectedProcedure
+    .input(
+      z.object({
+        projectId: z.string().uuid(),
+        periodId: z.string(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      await verifiserProsjektmedlem(ctx.userId, input.projectId);
+
+      const notaPoster = await ctx.prisma.ftdNotaPost.findMany({
+        where: { periodId: input.periodId },
+        include: {
+          specPost: {
+            select: {
+              id: true, postnr: true, beskrivelse: true, enhet: true,
+              nsKode: true, nsTittel: true, fullNsTekst: true,
+              eksternNotat: true, importNotat: true, ikkeIBudsjett: true,
+            },
+          },
+        },
+      });
+
+      return notaPoster.map((np) => ({
+        id: np.specPost.id,
+        postnr: np.specPost.postnr,
+        beskrivelse: np.specPost.beskrivelse,
+        enhet: np.specPost.enhet,
+        nsKode: np.specPost.nsKode,
+        nsTittel: np.specPost.nsTittel,
+        fullNsTekst: np.specPost.fullNsTekst,
+        eksternNotat: np.specPost.eksternNotat,
+        importNotat: np.specPost.importNotat,
+        mengdeAnbud: np.mengdeAnbud,
+        enhetspris: np.enhetspris,
+        sumAnbud: np.sumAnbud,
+        mengdeDenne: np.mengdeDenne,
+        mengdeTotal: np.mengdeTotal,
+        mengdeForrige: np.mengdeForrige ?? null,
+        verdiDenne: np.verdiDenne,
+        verdiTotal: np.verdiTotal,
+        verdiForrige: np.verdiForrige ?? null,
+        prosentFerdig: np.prosentFerdig,
+      }));
+    }),
+
   hentSpecPoster: protectedProcedure
     .input(
       z.object({
         projectId: z.string().uuid(),
         kontraktId: z.string().optional(),
         dokumentId: z.string().optional(),
-        periodId: z.string().optional(),
       }),
     )
     .query(async ({ ctx, input }) => {
       await verifiserProsjektmedlem(ctx.userId, input.projectId);
 
-      // ─── NY VEI: periodId → hent fra FtdNotaPost ───
-      if (input.periodId) {
-        const notaPoster = await ctx.prisma.ftdNotaPost.findMany({
-          where: { periodId: input.periodId },
-          include: {
-            specPost: {
-              select: {
-                id: true, postnr: true, beskrivelse: true, enhet: true,
-                nsKode: true, nsTittel: true, fullNsTekst: true,
-                eksternNotat: true, importNotat: true, ikkeIBudsjett: true,
-              },
-            },
-          },
-        });
-
-        // Cast til same type som gammel vei for konsistent tRPC-inferens
-        return notaPoster.map((np) => ({
-          id: np.specPost.id,
-          postnr: np.specPost.postnr,
-          beskrivelse: np.specPost.beskrivelse,
-          enhet: np.specPost.enhet,
-          nsKode: np.specPost.nsKode,
-          nsTittel: np.specPost.nsTittel,
-          fullNsTekst: np.specPost.fullNsTekst,
-          eksternNotat: np.specPost.eksternNotat,
-          importNotat: np.specPost.importNotat,
-          mengdeAnbud: np.mengdeAnbud,
-          enhetspris: np.enhetspris,
-          sumAnbud: np.sumAnbud,
-          mengdeDenne: np.mengdeDenne,
-          mengdeTotal: np.mengdeTotal,
-          mengdeForrige: np.mengdeForrige ?? null,
-          verdiDenne: np.verdiDenne,
-          verdiTotal: np.verdiTotal,
-          verdiForrige: np.verdiForrige ?? null,
-          prosentFerdig: np.prosentFerdig,
-          document: null as null,
-        })) as any;
-      }
-
-      // ─── GAMMEL VEI: dokumentId/kontraktId → hent fra FtdSpecPost ───
+      // ─── Hent fra FtdSpecPost ───
       const where: { projectId: string; documentId?: string; document?: { kontraktId: string } } = {
         projectId: input.projectId,
       };
