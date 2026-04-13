@@ -127,13 +127,18 @@ Sluttnota: `erSluttnota = true`, `notaNr = null`. Korrigert sluttnota: to dokume
 
 **Retroaktiv import:** Returnerer `påfølgendeNr[]` — frontend viser informasjonsmelding. Ingen automatisk revalidering i fase 1.
 
+**Innestående / oppsummering (ferdig):**
+- Oppsummeringslinje under tabellen i Proadm-format: utført, innestående, netto, mva, sum inkl. mva
+- Verdier leses direkte fra FtdDocument-felter via eksisterende relasjon — ingen duplisering, ingen ekstra API-kall
+- NULL vises som "—", negativ innestaaendeDenne vises med minus
+- Vises kun når utfortTotalt != null
+- A-nota 18 og 24 importert — alle 8 perioder komplett (18, 24, 25, 26, 27, 28, 29, Sluttnota)
+
 ### Fase 2 — gjenstår
 
-1. **Innestående** — egne felter på FtdNotaPeriod (innestående, inneståendeForrige, inneståendeDenne)
-2. **Retroaktiv revalidering** — automatisk revalidering fremover når nota importeres midt i kjeden
-3. **Mva** — parser + skjemaendring
-4. **Drag-and-drop kolonneorder** — med localStorage-persistering
-5. **A-nota 18 og 24** — mangler FtdNotaPeriod, reimporter når klar
+1. **Retroaktiv revalidering** — automatisk revalidering fremover når nota importeres midt i kjeden
+2. **Mva** — parser + skjemaendring
+3. **Drag-and-drop kolonneorder** — med localStorage-persistering
 
 ## Auth-nivåer
 
