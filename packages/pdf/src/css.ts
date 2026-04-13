@@ -81,8 +81,6 @@ export function hentCss(config?: Partial<PdfConfig>): string {
   .felt-blokk {
     border-bottom: 1px solid #e5e7eb;
     padding: 8px 0;
-    page-break-inside: avoid;
-    break-inside: avoid;
   }
   .felt-label {
     font-size: 10px;

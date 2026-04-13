@@ -39,6 +39,7 @@ import { TegningsVisning } from "../../src/components/TegningsVisning";
 import type { Markør } from "../../src/components/TegningsVisning";
 import { TegningsCapture } from "../../src/components/TegningsCapture";
 import { AUTH_CONFIG, hentWebUrl } from "../../src/config/auth";
+import { hentSessionToken } from "../../src/services/auth";
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
 import { eq } from "drizzle-orm";
@@ -114,6 +115,7 @@ export default function SjekklisteUtfylling() {
 
   const [visEntrepriseListe, settVisEntrepriseListe] = useState<"oppretter" | "svarer" | null>(null);
   const [pdfHtml, settPdfHtml] = useState<string | null>(null);
+  const [pdfLaster, settPdfLaster] = useState(false);
   const [visLokasjonModal, setVisLokasjonModal] = useState(false);
   const [visLokByttTegning, setVisLokByttTegning] = useState(false);
   const [lokTempPosX, setLokTempPosX] = useState<number | null>(null);
@@ -344,7 +346,7 @@ export default function SjekklisteUtfylling() {
     { enabled: !!valgtProsjektId },
   );
 
-  const genererPdfHtml = useCallback(() => {
+  const genererPdfHtml = useCallback(async () => {
     if (!sjekkliste) return "";
     const detalj = detaljQuery.data as Record<string, unknown> | undefined;
     const webBaseUrl = hentWebUrl();
@@ -374,9 +376,11 @@ export default function SjekklisteUtfylling() {
     const tegningUrl = sjekklisteDetalj?.drawing?.fileUrl
       ? `${bildeBase}${sjekklisteDetalj.drawing.fileUrl}`
       : null;
+    // Konverter vedleggsbilder til base64 (expo-print har ikke auth-cookies)
+    const feltVerdierMedBase64 = await feltVerdierForPdf();
     return byggSjekklisteHtml(
       sjekklisteMedDetaljer,
-      feltVerdierForPdf(),
+      feltVerdierMedBase64,
       prosjektForPdf,
       ui ? {
         logo: ui.logo,
@@ -400,16 +404,24 @@ export default function SjekklisteUtfylling() {
   }, [sjekkliste, prosjektData, detaljQuery.data as unknown, sjekklisteDetalj, tegningScreenshot, tegningDetaljScreenshot]);
 
   // Vis forhåndsvisning
-  const håndterVisPdf = useCallback(() => {
-    const html = genererPdfHtml();
-    if (html) settPdfHtml(html);
+  const håndterVisPdf = useCallback(async () => {
+    settPdfLaster(true);
+    try {
+      const html = await genererPdfHtml();
+      if (html) settPdfHtml(html);
+    } finally {
+      settPdfLaster(false);
+    }
   }, [genererPdfHtml]);
 
-  // Del PDF fra forhåndsvisning
+  // Del PDF direkte (uten forhåndsvisning)
   const håndterDelPdf = useCallback(async () => {
-    if (!sjekkliste || !pdfHtml) return;
+    if (!sjekkliste) return;
+    settPdfLaster(true);
     try {
-      const { uri } = await Print.printToFileAsync({ html: pdfHtml });
+      const html = pdfHtml ?? await genererPdfHtml();
+      if (!html) return;
+      const { uri } = await Print.printToFileAsync({ html });
       await Sharing.shareAsync(uri, {
         mimeType: "application/pdf",
         dialogTitle: `Del ${sjekkliste.title}`,
@@ -417,20 +429,72 @@ export default function SjekklisteUtfylling() {
       });
     } catch (feil) {
       console.warn("PDF-deling feilet:", feil);
+    } finally {
+      settPdfLaster(false);
     }
-  }, [sjekkliste, pdfHtml]);
+  }, [sjekkliste, pdfHtml, genererPdfHtml]);
 
-  // Hjelpefunksjon for å hente feltVerdier som PDF-format
-  function feltVerdierForPdf() {
-    const resultat: Record<string, { verdi: unknown; kommentar: string; vedlegg: Array<{ id: string; type: string; url: string; filnavn: string }> }> = {};
+  // Hjelpefunksjon for å hente feltVerdier som PDF-format, med vedleggsbilder som base64
+  async function feltVerdierForPdf() {
+    type VedleggPdf = { id: string; type: string; url: string; filnavn: string };
+    const resultat: Record<string, { verdi: unknown; kommentar: string; vedlegg: VedleggPdf[] }> = {};
+    const webBaseUrl = hentWebUrl();
+    const bildeBase = `${webBaseUrl}/api`;
+    const token = await hentSessionToken();
+
+    // Samle alle vedleggsbilder som trenger konvertering
+    const konverteringsJobb: Array<{ objektId: string; idx: number; url: string }> = [];
+
     for (const objekt of sjekkliste?.template?.objects ?? []) {
       const fv = hentFeltVerdi(objekt.id);
-      resultat[objekt.id] = {
-        verdi: fv.verdi,
-        kommentar: fv.kommentar,
-        vedlegg: fv.vedlegg as Array<{ id: string; type: string; url: string; filnavn: string }>,
-      };
+      const vedlegg = (fv.vedlegg as VedleggPdf[]) ?? [];
+      resultat[objekt.id] = { verdi: fv.verdi, kommentar: fv.kommentar, vedlegg: [...vedlegg] };
+
+      vedlegg.forEach((v, idx) => {
+        const erBilde = v.type === "bilde" || /\.(png|jpg|jpeg|gif|webp)$/i.test(v.filnavn);
+        if (!erBilde) return;
+        if (v.url.startsWith("data:")) return; // Allerede base64
+
+        // Bygg full URL for nedlasting
+        let fullUrl = v.url;
+        if (fullUrl.startsWith("/uploads/")) fullUrl = `${bildeBase}${fullUrl}`;
+        else if (fullUrl.startsWith("/")) fullUrl = `${bildeBase}${fullUrl}`;
+
+        konverteringsJobb.push({ objektId: objekt.id, idx, url: fullUrl });
+      });
     }
+
+    // Last ned og konverter parallelt (maks 6 samtidige)
+    const BATCH_SIZE = 6;
+    for (let i = 0; i < konverteringsJobb.length; i += BATCH_SIZE) {
+      const batch = konverteringsJobb.slice(i, i + BATCH_SIZE);
+      const resultater = await Promise.allSettled(
+        batch.map(async (jobb) => {
+          const headers: Record<string, string> = {};
+          if (token) headers["Authorization"] = `Bearer ${token}`;
+          const resp = await fetch(jobb.url, { headers });
+          if (!resp.ok) return null;
+          const blob = await resp.blob();
+          return new Promise<string | null>((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.onerror = () => resolve(null);
+            reader.readAsDataURL(blob);
+          });
+        }),
+      );
+
+      resultater.forEach((r, bIdx) => {
+        if (r.status === "fulfilled" && r.value) {
+          const jobb = batch[bIdx];
+          resultat[jobb.objektId].vedlegg[jobb.idx] = {
+            ...resultat[jobb.objektId].vedlegg[jobb.idx],
+            url: r.value,
+          };
+        }
+      });
+    }
+
     return resultat;
   }
 
@@ -541,8 +605,8 @@ export default function SjekklisteUtfylling() {
                 {lagreStatus === "feil" && <AlertTriangle size={16} color="#fca5a5" />}
               </>
             )}
-            <Pressable onPress={erRedigerbar ? håndterVisPdf : håndterDelPdf} hitSlop={12}>
-              <Share2 size={18} color="#ffffff" />
+            <Pressable onPress={erRedigerbar ? håndterVisPdf : håndterDelPdf} hitSlop={12} disabled={pdfLaster}>
+              {pdfLaster ? <ActivityIndicator size="small" color="#ffffff" /> : <Share2 size={18} color="#ffffff" />}
             </Pressable>
             <StatusMerkelapp status={sjekkliste.status} />
           </View>
