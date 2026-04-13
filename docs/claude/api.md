@@ -68,14 +68,31 @@ Alle routere i `apps/api/src/routes/`:
 
 Sluttnota: `erSluttnota = true`, `notaNr = null`. Korrigert sluttnota: to dokumenter kan ha flagget, siste importdato vinner.
 
-### Duplikat-beskyttelse
+### Ferdig implementert (2026-04-13)
 
-- **Unique constraint** `(documentId, postnr)` (partial index, WHERE NOT NULL) på FtdSpecPost
-- **`lagreSpecPoster()`** — in-memory deduplisering + `createMany({ skipDuplicates: true })`
-- **Concurrency guard** — `prosesserDokument()` bruker `updateMany({ where: { processingState: { not: "processing" } } })` for å avvise parallelle kjøringer
-- **Atomisk sletting** — eksisterende poster slettes i `prosesserDokument`, ikke i kalleren
+**Duplikat-beskyttelse:**
+- Unique constraint `(documentId, postnr)` (partial index, WHERE NOT NULL)
+- `lagreSpecPoster()` — in-memory deduplisering + `createMany({ skipDuplicates: true })`
+- Concurrency guard — `prosesserDokument()` avviser parallelle kjøringer via `updateMany`
+- Atomisk sletting i `prosesserDokument`, ikke i kalleren
+- PDF header-reset — gjentatte header-linjer hoppes over preventivt
 
-### Importscenarioer
+**Økonomi-visning (Oversikt-tabell):**
+- Kolonnerekkefølge Proadm-format: Postnr | Beskrivelse | Mengder (Anbudet, Enh, Tot.forrige, Denne, Totalt) | Enhetspris | Verdi (Anbudet, Tot.forrige, Denne, Totalt, %)
+- Gruppe-header med fargestrek (blå=Mengder, grønn=Verdi)
+- Globalt søkefelt (postnr + beskrivelse)
+- Per-kolonne filter (▽): tekst=søk, tall=>/</ min-maks, enhet=verdiliste
+- Sortering per kolonne (klikk header)
+- +-knapp for vis/skjul kolonnegrupper
+- Seksjonsoverskrifter: kursiv/grå, "—" i verdi-kolonner, ekskludert fra totalrad
+- "Tot. tom. forrige" hentes fra forrige notas verdiTotal per postnr via server-join
+- Sluttnota finner høyeste A-nota som forrige (via notaType-sjekk)
+
+**Parser-fikser:**
+- Excel: enhetspris-deteksjon bruker første forekomst (merged cells-fix)
+- Alle Excel-dokumenter reprosessert og verifisert mot kontrolltall
+
+### Importscenarioer (planlagt)
 
 **Scenario 1 — Første A-nota (ingen tidligere data):** Alle verdier importeres som-er. Aksepter selv om tidligere notas mangler.
 
@@ -85,32 +102,23 @@ Sluttnota: `erSluttnota = true`, `notaNr = null`. Korrigert sluttnota: to dokume
 
 **Scenario 4 — Retroaktiv import (fase 2):** Overskriv + revalidering av alle påfølgende notas. Samlet avviksrapport.
 
-### Import-dialog (sekvensielt modal)
+### Import-dialog (planlagt)
 
 **Fase 1:** Bruker velger filer fra mapper eller laster opp. Klikker "Importer N filer".
 
-**Fase 2:** Viser én fil om gangen med auto-detekterte verdier (type, nr, kontrakt, dato fra filnavn). Statusliste viser alle filer med ✓/✗/— status. Inline sjekker per fil:
-- **Gap-advarsel** — når nota N importeres og N-1 mangler for kontrakten
-- **Duplikat-sjekk** — notaNr + kontraktId finnes allerede i DB → bekreftelse på reimport
-- **Dato-deteksjon** — `A-nota 26_31.05.25.pdf` → periodeSlutt = 2025-05-31
+**Fase 2:** Viser én fil om gangen med auto-detekterte verdier (type, nr, kontrakt, dato fra filnavn). Statusliste med ✓/✗/— status. Inline sjekker:
+- Gap-advarsel — nota N importeres og N-1 mangler for kontrakten
+- Duplikat-sjekk — notaNr + kontraktId finnes allerede → bekreftelse
+- Dato-deteksjon — `A-nota 26_31.05.25.pdf` → periodeSlutt = 2025-05-31
 
-**Fase 3:** Oppsummering med akkumuleringsresultat per fil (ingen avvik / N poster med avvik).
+**Fase 3:** Oppsummering med akkumuleringsresultat per fil.
 
-### Kolonnevisning (Oversikt-tabell)
+### Neste steg (prioritert)
 
-Rekkefølge: Postnr | Beskrivelse | **Mengder:** Anbudet, Enh, Tot.tom.forrige per., Utført denne per., Utført totalt | Enhetspris | **Verdi:** Anbudet, Tot.tom.forrige per., Utført denne per., Mva denne per., Utført totalt, Utført %
-
-- Dynamisk kolonnevalg: bruker kan vise/skjule kolonner via +-knapp i header
-- Filterrad under header for filtrering per kolonne
-- Drag-and-drop rekkefølge (valgfritt, fase 2)
-- Seksjonsoverskrifter (poster uten enhet som har barn med sum ≈ egen verdi) ekskluderes fra totalrad
-- Poster uten enhet men uten barn beholdes og markeres visuelt
-
-### Prioritert rekkefølge
-
-1. **Økonomi-visning** — fiks kolonne-logikk, seksjonsoverskrifter, totalrad, dynamiske kolonner
-2. **Ny importlogikk** — FtdNotaPeriod/FtdNotaPost med akkumulering og avviksrapport
-3. **Import-dialog** — sekvensielt modal med auto-deteksjon, gap-advarsel, duplikat-sjekk
+1. **Ny importlogikk** — FtdNotaPeriod/FtdNotaPost med akkumulering og avviksrapport
+2. **Import-dialog** — sekvensielt modal med auto-deteksjon, gap-advarsel, duplikat-sjekk
+3. **Mva** — parser + skjemaendring (egen oppgave, ikke prioritert nå)
+4. **Drag-and-drop kolonneorder** — med localStorage-persistering (`ftd-kolonne-orden-{userId}`)
 
 ## Auth-nivåer
 
