@@ -129,6 +129,15 @@ export default function OkonomiSide() {
     [kontraktDokumenter.notas, valgtNotaNr],
   );
 
+  // Bestem om vi bruker periodId (ny struktur) eller dokumentId (gammel)
+  const notaQueryParam = useMemo(() => {
+    if (!valgtNotaDok) return null;
+    if (valgtNotaDok.harPeriode && valgtNotaDok.periodId) {
+      return { periodId: valgtNotaDok.periodId };
+    }
+    return { dokumentId: valgtNotaDok.id };
+  }, [valgtNotaDok]);
+
   // Budsjett-poster (anbudsgrunnlag for valgt kontrakt)
   const budsjettDokId = kontraktDokumenter.budsjett?.id;
   const { data: budsjettPoster } = trpc.mengde.hentSpecPoster.useQuery(
@@ -136,10 +145,10 @@ export default function OkonomiSide() {
     { enabled: !!prosjektId && !!budsjettDokId },
   );
 
-  // Nota-poster (for sammenligning)
+  // Nota-poster (for sammenligning) — bruker periodId (ny) eller dokumentId (gammel)
   const { data: notaPoster } = trpc.mengde.hentSpecPoster.useQuery(
-    { projectId: prosjektId, dokumentId: valgtNotaDok?.id },
-    { enabled: !!prosjektId && !!valgtNotaDok },
+    { projectId: prosjektId, ...notaQueryParam },
+    { enabled: !!prosjektId && !!notaQueryParam },
   );
 
   // Fallback: vis alle poster for kontrakten hvis ingen budsjett-dok finnes
@@ -242,6 +251,7 @@ export default function OkonomiSide() {
           {kontraktDokumenter.notas.map((d) => (
             <option key={d.id} value={d.notaNr!}>
               {d.notaType === "Sluttnota" ? t("okonomi.sluttnota") : d.notaNr}
+              {d.harPeriode ? " ✓" : ""}
             </option>
           ))}
         </select>

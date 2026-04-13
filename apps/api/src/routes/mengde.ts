@@ -44,7 +44,7 @@ export const mengdeRouter = router({
         ctx.userId,
         input.projectId,
       );
-      return ctx.prisma.ftdDocument.findMany({
+      const docs = await ctx.prisma.ftdDocument.findMany({
         where: {
           projectId: input.projectId,
           isActive: true,
@@ -53,8 +53,16 @@ export const mengdeRouter = router({
           ...(input.docType ? { docType: input.docType } : {}),
           ...byggMappeTilgangsFilter(mappeIder),
         },
-        include: { folder: { select: { id: true, name: true } } },
+        include: {
+          folder: { select: { id: true, name: true } },
+          notaPerioder: { select: { id: true }, take: 1 },
+        },
         orderBy: [{ notaNr: "asc" }, { uploadedAt: "desc" }],
+      });
+
+      return docs.map((d) => {
+        const { notaPerioder, ...rest } = d;
+        return { ...rest, harPeriode: notaPerioder.length > 0, periodId: notaPerioder[0]?.id ?? null };
       });
     }),
 
@@ -93,6 +101,45 @@ export const mengdeRouter = router({
     .query(async ({ ctx, input }) => {
       await verifiserProsjektmedlem(ctx.userId, input.projectId);
 
+      // ─── NY VEI: periodId → hent fra FtdNotaPost ───
+      if (input.periodId) {
+        const notaPoster = await ctx.prisma.ftdNotaPost.findMany({
+          where: { periodId: input.periodId },
+          include: {
+            specPost: {
+              select: {
+                id: true, postnr: true, beskrivelse: true, enhet: true,
+                nsKode: true, nsTittel: true, fullNsTekst: true,
+                eksternNotat: true, importNotat: true, ikkeIBudsjett: true,
+              },
+            },
+          },
+        });
+
+        return notaPoster.map((np) => ({
+          id: np.specPost.id,
+          postnr: np.specPost.postnr,
+          beskrivelse: np.specPost.beskrivelse,
+          enhet: np.specPost.enhet,
+          nsKode: np.specPost.nsKode,
+          nsTittel: np.specPost.nsTittel,
+          fullNsTekst: np.specPost.fullNsTekst,
+          eksternNotat: np.specPost.eksternNotat,
+          importNotat: np.specPost.importNotat,
+          mengdeAnbud: np.mengdeAnbud,
+          enhetspris: np.enhetspris,
+          sumAnbud: np.sumAnbud,
+          mengdeDenne: np.mengdeDenne,
+          mengdeTotal: np.mengdeTotal,
+          mengdeForrige: np.mengdeForrige,
+          verdiDenne: np.verdiDenne,
+          verdiTotal: np.verdiTotal,
+          verdiForrige: np.verdiForrige,
+          prosentFerdig: np.prosentFerdig,
+        }));
+      }
+
+      // ─── GAMMEL VEI: dokumentId/kontraktId → hent fra FtdSpecPost ───
       const where: { projectId: string; documentId?: string; document?: { kontraktId: string } } = {
         projectId: input.projectId,
       };
@@ -107,9 +154,6 @@ export const mengdeRouter = router({
         where,
         include: {
           document: { select: { id: true, docType: true, notaNr: true, kontraktId: true, kontraktNavn: true } },
-          notaPoster: input.periodId
-            ? { where: { periodId: input.periodId } }
-            : false,
         },
         orderBy: { postnr: "asc" },
       });
