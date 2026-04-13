@@ -145,9 +145,15 @@ Sluttnota: `erSluttnota = true`, `notaNr = null`. Korrigert sluttnota: to dokume
 - Vises i NotaOppsummering (+ Mva: / = Sum inkl. mva:)
 - Per-post mva finnes ikke i Proadm-kildedata — FtdNotaPost.mvaDenne/sumDenne er tomme
 
-### Fase 2 — gjenstår
+### Fase 2 — komplett (2026-04-13)
 
-1. **Retroaktiv revalidering** — automatisk revalidering fremover når nota importeres midt i kjeden (utsatt til behovet oppstår)
+Alle planlagte fase 2-oppgaver er ferdigstilt eller bevisst utsatt.
+
+### Fase 3 — ved behov
+
+1. **Retroaktiv revalidering** — automatisk revalidering fremover når nota importeres midt i kjeden. Løsning beskrevet: oppdater mengdeForrige/verdiForrige på påfølgende FtdNotaPost-rader, kjør kontrollerAkkumulering() på nytt. Implementeres når reelt behov oppstår.
+2. **Mva per post** — krever parser-utvidelse og skjemaendring. Proadm-kildedata har kun mva i header, ikke per rad. Egen oppgave.
+3. **Avviksanalyse-fane** — rapport over enhetsprisendringer og akkumuleringsavvik på tvers av perioder.
 
 ## Auth-nivåer
 
