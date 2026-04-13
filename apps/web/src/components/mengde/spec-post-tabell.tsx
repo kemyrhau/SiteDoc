@@ -14,8 +14,10 @@ interface SpecPost {
   sumAnbud: unknown;
   mengdeDenne?: unknown;
   mengdeTotal?: unknown;
+  mengdeForrige?: unknown;
   verdiDenne?: unknown;
   verdiTotal?: unknown;
+  verdiForrige?: unknown;
   prosentFerdig?: unknown;
   nsKode: string | null;
   nsTittel: string | null;
@@ -113,16 +115,15 @@ const ALLE_KOLONNER: KolonneDef[] = [
   // Mengder (blå)
   { id: "m_anbudet", label: "Anbudet", gruppe: "mengder", type: "tall", bredde: "min-w-[80px]", alltidSynlig: true, synligDefault: true, hentVerdi: (r) => r.mengdeAnbud },
   { id: "m_enh", label: "Enh", gruppe: "mengder", type: "enhet", bredde: "min-w-[45px]", alltidSynlig: true, synligDefault: true, hentVerdi: (r) => r.budsjett.enhet },
-  { id: "m_forrige", label: "Tot. forrige", gruppe: "mengder", type: "tall", bredde: "min-w-[80px]", synligDefault: true, hentVerdi: (r) => r.mengdeForrige },
+  { id: "m_forrige", label: "Tot. forrige", gruppe: "mengder", type: "tall", bredde: "min-w-[80px]", synligDefault: true, hentVerdi: (r) => r.mengdeForrige ?? null },
   { id: "m_denne", label: "Denne per.", gruppe: "mengder", type: "tall", bredde: "min-w-[80px]", synligDefault: true, hentVerdi: (r) => r.mengdeDenne },
   { id: "m_totalt", label: "Totalt", gruppe: "mengder", type: "tall", bredde: "min-w-[80px]", synligDefault: true, hentVerdi: (r) => r.mengdeTotal },
   // Enhetspris (mellom grupper)
   { id: "enhetspris", label: "Enhetspris", gruppe: "fast", type: "tall", bredde: "min-w-[90px]", alltidSynlig: true, synligDefault: true, hentVerdi: (r) => r.enhetspris },
   // Verdi (grønn)
   { id: "v_anbudet", label: "Anbudet", gruppe: "verdi", type: "tall", bredde: "min-w-[90px]", alltidSynlig: true, synligDefault: true, hentVerdi: (r) => r.sumAnbud },
-  { id: "v_forrige", label: "Tot. forrige", gruppe: "verdi", type: "tall", bredde: "min-w-[90px]", synligDefault: true, hentVerdi: (r) => r.verdiForrige },
+  { id: "v_forrige", label: "Tot. forrige", gruppe: "verdi", type: "tall", bredde: "min-w-[90px]", synligDefault: true, hentVerdi: (r) => r.verdiForrige ?? null },
   { id: "v_denne", label: "Denne per.", gruppe: "verdi", type: "tall", bredde: "min-w-[90px]", synligDefault: true, hentVerdi: (r) => r.verdiDenne },
-  { id: "v_mva", label: "Mva denne", gruppe: "verdi", type: "tall", bredde: "min-w-[80px]", synligDefault: false, hentVerdi: () => null },
   { id: "v_totalt", label: "Totalt", gruppe: "verdi", type: "tall", bredde: "min-w-[90px]", synligDefault: true, hentVerdi: (r) => r.verdiTotal },
   { id: "v_prosent", label: "%", gruppe: "verdi", type: "tall", bredde: "min-w-[50px]", synligDefault: true, hentVerdi: (r) => r.prosentFerdig },
 ];
@@ -273,12 +274,12 @@ export function SpecPostTabell({
       const mengdeAnbud = Number(budsjett.mengdeAnbud ?? 0);
       const mengdeDenne = nota ? Number(nota.mengdeDenne ?? 0) : 0;
       const mengdeTotal = nota ? Number(nota.mengdeTotal ?? 0) : 0;
-      const mengdeForrige = mengdeTotal - mengdeDenne;
+      const mengdeForrige = nota && nota.mengdeForrige != null ? Number(nota.mengdeForrige) : mengdeTotal - mengdeDenne;
       const enhetspris = Number(budsjett.enhetspris ?? 0);
       const sumAnbud = Number(budsjett.sumAnbud ?? 0);
       const verdiDenne = nota ? Number(nota.verdiDenne ?? 0) : 0;
       const verdiTotal = nota ? Number(nota.verdiTotal ?? 0) : 0;
-      const verdiForrige = verdiTotal - verdiDenne;
+      const verdiForrige = nota && nota.verdiForrige != null ? Number(nota.verdiForrige) : verdiTotal - verdiDenne;
       const prosentFerdig = nota ? Number(nota.prosentFerdig ?? 0) : 0;
       const erSeksjon = !!budsjett.postnr && seksjonsSet.has(budsjett.postnr);
 

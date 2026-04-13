@@ -102,7 +102,7 @@ export const mengdeRouter = router({
         where.document = { kontraktId: input.kontraktId };
       }
 
-      return ctx.prisma.ftdSpecPost.findMany({
+      const poster = await ctx.prisma.ftdSpecPost.findMany({
         where,
         include: {
           document: { select: { id: true, docType: true, notaNr: true, kontraktId: true, kontraktNavn: true } },
@@ -111,6 +111,57 @@ export const mengdeRouter = router({
             : false,
         },
         orderBy: { postnr: "asc" },
+      });
+
+      // Finn forrige notas verdier per postnr (kun ved nota-sammenligning)
+      if (!input.dokumentId) return poster;
+
+      const dokument = await ctx.prisma.ftdDocument.findUnique({
+        where: { id: input.dokumentId },
+        select: { notaNr: true, kontraktId: true },
+      });
+      if (!dokument?.kontraktId) return poster;
+      // Ingen forrige å finne hvis notaNr mangler og det ikke er sluttnota
+      if (!dokument.notaNr && dokument.notaNr !== null) return poster;
+
+      // Finn forrige nota: høyeste notaNr < gjeldende, eller høyeste A-nota for sluttnota
+      const forrigeNota = await ctx.prisma.ftdDocument.findFirst({
+        where: {
+          kontraktId: dokument.kontraktId,
+          docType: "a_nota",
+          ...(dokument.notaNr
+            ? { notaNr: { lt: dokument.notaNr } }
+            : { notaNr: { not: null } }),
+        },
+        orderBy: { notaNr: "desc" },
+        select: { id: true, notaNr: true },
+      });
+
+      if (!forrigeNota) return poster;
+
+      // Hent forrige notas poster og bygg postnr → verdier map
+      const forrigePoster = await ctx.prisma.ftdSpecPost.findMany({
+        where: { documentId: forrigeNota.id },
+        select: { postnr: true, mengdeTotal: true, verdiTotal: true },
+      });
+
+      const forrigeMap = new Map<string, { mengdeForrige: number; verdiForrige: number }>();
+      for (const fp of forrigePoster) {
+        if (fp.postnr) {
+          forrigeMap.set(fp.postnr, {
+            mengdeForrige: Number(fp.mengdeTotal ?? 0),
+            verdiForrige: Number(fp.verdiTotal ?? 0),
+          });
+        }
+      }
+
+      return poster.map((p) => {
+        const forrige = p.postnr ? forrigeMap.get(p.postnr) : undefined;
+        return {
+          ...p,
+          mengdeForrige: forrige?.mengdeForrige ?? null,
+          verdiForrige: forrige?.verdiForrige ?? null,
+        };
       });
     }),
 
