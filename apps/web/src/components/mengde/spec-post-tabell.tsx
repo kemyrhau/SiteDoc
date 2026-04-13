@@ -160,6 +160,7 @@ const ALLE_KOLONNE_IDER = ALLE_KOLONNER.map((k) => k.id);
 
 function lesKolonneConfig(nøkkel: string): KolonneConfig | null {
   try {
+    if (typeof window === "undefined") return null;
     const lagret = localStorage.getItem(nøkkel);
     if (!lagret) return null;
     return JSON.parse(lagret) as KolonneConfig;
@@ -170,6 +171,7 @@ function lesKolonneConfig(nøkkel: string): KolonneConfig | null {
 
 function lagreKolonneConfig(nøkkel: string, config: KolonneConfig) {
   try {
+    if (typeof window === "undefined") return;
     localStorage.setItem(nøkkel, JSON.stringify(config));
   } catch { /* SSR / quota */ }
 }
