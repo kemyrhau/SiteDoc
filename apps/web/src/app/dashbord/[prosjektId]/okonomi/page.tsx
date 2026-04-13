@@ -308,6 +308,11 @@ export default function OkonomiSide() {
             />
           </div>
 
+          {/* Oppsummeringslinje — Proadm-format */}
+          {valgtNotaDok?.utfortTotalt != null && (
+            <NotaOppsummering dok={valgtNotaDok} />
+          )}
+
           {/* Detaljpanel — alltid synlig i bunn */}
           <div className="shrink-0 border-t px-4 py-3">
             <div className="grid grid-cols-2 gap-4">
@@ -1050,6 +1055,46 @@ function RapportPanel({
           </table>
         </div>
       )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Oppsummeringslinje (Proadm-format)
+// ---------------------------------------------------------------------------
+
+function formaterKr(v: unknown): string {
+  if (v == null) return "—";
+  const n = Number(v);
+  if (isNaN(n)) return "—";
+  return n.toLocaleString("nb-NO", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function OppsumRad({ label, verdi, prefix, uthevet }: { label: string; verdi: unknown; prefix?: string; uthevet?: boolean }) {
+  return (
+    <div className={`flex justify-between gap-4 ${uthevet ? "font-semibold" : ""}`}>
+      <span className="text-gray-600">{prefix ? `${prefix} ` : ""}{label}</span>
+      <span className="tabular-nums">{formaterKr(verdi)}</span>
+    </div>
+  );
+}
+
+function NotaOppsummering({ dok }: { dok: { utfortTotalt?: unknown; utfortForrige?: unknown; utfortDenne?: unknown; innestaaende?: unknown; innestaaendeForrige?: unknown; innestaaendeDenne?: unknown; nettoDenne?: unknown; mva?: unknown; sumInkMva?: unknown } }) {
+  return (
+    <div className="shrink-0 border-t bg-gray-50 px-4 py-2">
+      <div className="mx-auto max-w-sm space-y-0.5 text-xs">
+        <OppsumRad label="Utført totalt:" verdi={dok.utfortTotalt} />
+        <OppsumRad label="Utført forrige:" verdi={dok.utfortForrige} prefix="-" />
+        <OppsumRad label="Denne periode:" verdi={dok.utfortDenne} prefix="=" uthevet />
+        <div className="my-1 border-t border-gray-300" />
+        <OppsumRad label="Innestående:" verdi={dok.innestaaende} />
+        <OppsumRad label="Innestående forrige:" verdi={dok.innestaaendeForrige} prefix="-" />
+        <OppsumRad label="Innestående denne:" verdi={dok.innestaaendeDenne} prefix="=" uthevet />
+        <div className="my-1 border-t border-gray-300" />
+        <OppsumRad label="Netto denne periode:" verdi={dok.nettoDenne} uthevet />
+        <OppsumRad label="Mva:" verdi={dok.mva} prefix="+" />
+        <OppsumRad label="Sum inkl. mva:" verdi={dok.sumInkMva} prefix="=" uthevet />
+      </div>
     </div>
   );
 }
