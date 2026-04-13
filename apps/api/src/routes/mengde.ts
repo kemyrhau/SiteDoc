@@ -257,9 +257,7 @@ export const mengdeRouter = router({
             processingError: null,
           },
         });
-        // Slett gamle chunks og spec-poster
-        await ctx.prisma.ftdDocumentChunk.deleteMany({ where: { documentId: doc.id } });
-        await ctx.prisma.ftdSpecPost.deleteMany({ where: { documentId: doc.id } });
+        // Sletting av gamle data skjer i prosesserDokument (atomisk)
       } else {
         doc = await ctx.prisma.ftdDocument.create({
           data: {
@@ -291,15 +289,7 @@ export const mengdeRouter = router({
       });
       await verifiserProsjektmedlem(ctx.userId, doc.projectId);
 
-      // Slett eksisterende chunks og spec-poster fra dette dokumentet
-      await ctx.prisma.ftdDocumentChunk.deleteMany({
-        where: { documentId: input.documentId },
-      });
-      await ctx.prisma.ftdSpecPost.deleteMany({
-        where: { documentId: input.documentId },
-      });
-
-      // Nullstill og kjør på nytt
+      // Nullstill status — sletting av poster skjer i prosesserDokument (atomisk)
       await ctx.prisma.ftdDocument.update({
         where: { id: input.documentId },
         data: { processingState: "pending", processingError: null },

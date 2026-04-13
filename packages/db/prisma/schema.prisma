@@ -946,6 +946,7 @@ model FtdSpecPost {
   notaPoster  FtdNotaPost[]
   kommentarer FtdNotaComment[]
 
+  @@unique([documentId, postnr], name: "ftd_spec_post_doc_postnr")
   @@index([projectId])
   @@map("ftd_spec_posts")
 }

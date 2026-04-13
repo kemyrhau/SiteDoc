@@ -57,6 +57,32 @@ function erOcrSøppel(tekst: string): boolean {
 const OVERSKRIFT_REGEX = /^(\d+(?:\.\d+)*)\s+(.+)/;
 
 // --------------------------------------------------------------------------
+// Sikkerhetsventil: dedupliser og lagre spec-poster
+// --------------------------------------------------------------------------
+
+/** Lagre spec-poster med in-memory deduplisering + skipDuplicates (DB-constraint) */
+async function lagreSpecPoster(
+  prisma: PrismaClient,
+  poster: Array<Record<string, unknown>>,
+): Promise<void> {
+  if (poster.length === 0) return;
+
+  // Dedupliser i minnet — behold siste forekomst per (documentId, postnr)
+  const unikeMap = new Map<string, Record<string, unknown>>();
+  for (const p of poster) {
+    const nøkkel = `${p.documentId}:${p.postnr ?? "NULL"}`;
+    unikeMap.set(nøkkel, p);
+  }
+  const unikePoster = Array.from(unikeMap.values());
+
+  await prisma.ftdSpecPost.createMany({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    data: unikePoster as any,
+    skipDuplicates: true,
+  });
+}
+
+// --------------------------------------------------------------------------
 // Hovedinngang
 // --------------------------------------------------------------------------
 
@@ -65,10 +91,26 @@ export async function prosesserDokument(
   documentId: string,
 ): Promise<void> {
   try {
-    // Sett status til "processing"
-    const dok = await prisma.ftdDocument.update({
-      where: { id: documentId },
+    // Concurrency guard: sett status til "processing" KUN hvis ikke allerede pågår
+    const oppdatert = await prisma.ftdDocument.updateMany({
+      where: {
+        id: documentId,
+        processingState: { not: "processing" },
+      },
       data: { processingState: "processing", processingError: null },
+    });
+
+    if (oppdatert.count === 0) {
+      console.log(`FTD: Prosessering allerede pågår for ${documentId}, avbryter`);
+      return;
+    }
+
+    // Atomisk sletting av eksisterende data før ny prosessering
+    await prisma.ftdSpecPost.deleteMany({ where: { documentId } });
+    await prisma.ftdDocumentChunk.deleteMany({ where: { documentId } });
+
+    const dok = await prisma.ftdDocument.findUniqueOrThrow({
+      where: { id: documentId },
     });
 
     if (!dok.fileUrl) {
@@ -393,18 +435,14 @@ async function prosesserPdf(
   if (docType === "anbudsgrunnlag" || docType === "budsjett" || docType === "mengdebeskrivelse") {
     const tabellTekst = await ekstraherPdfMedPosisjoner(buffer);
     const poster = ekstraherBudsjettPosterFraPdf(tabellTekst, projectId, documentId);
-    if (poster.length > 0) {
-      await prisma.ftdSpecPost.createMany({ data: poster });
-    }
+    await lagreSpecPoster(prisma, poster);
   }
 
   // Ekstraher spec-poster fra A-nota/T-nota PDF (Proadm-format) via pdfjs-dist
   if (docType === "a_nota" || docType === "t_nota") {
     const tabellTekst = await ekstraherPdfMedPosisjoner(buffer);
     const { poster, header } = ekstraherNotaPosterFraPdf(tabellTekst, projectId, documentId);
-    if (poster.length > 0) {
-      await prisma.ftdSpecPost.createMany({ data: poster });
-    }
+    await lagreSpecPoster(prisma, poster);
     // Lagre header-verdier (innestående, utført, netto etc.) på dokumentet
     await prisma.ftdDocument.update({
       where: { id: documentId },
@@ -895,9 +933,7 @@ async function ekstraherSpecPoster(
     });
   });
 
-  if (poster.length > 0) {
-    await prisma.ftdSpecPost.createMany({ data: poster });
-  }
+  await lagreSpecPoster(prisma, poster);
 }
 
 /**
@@ -1072,9 +1108,7 @@ async function ekstraherNotaPoster(
     });
   });
 
-  if (poster.length > 0) {
-    await prisma.ftdSpecPost.createMany({ data: poster });
-  }
+  await lagreSpecPoster(prisma, poster);
 }
 
 /**
@@ -1340,9 +1374,7 @@ async function prosesserGab(
   }
 
   // Lagre spec-poster
-  if (poster.length > 0) {
-    await prisma.ftdSpecPost.createMany({ data: poster });
-  }
+  await lagreSpecPoster(prisma, poster);
 }
 
 async function prosesserXml(
@@ -1370,9 +1402,7 @@ async function prosesserXml(
 
   // Forsøk å ekstrahere poster fra NS3459-struktur
   const poster = ekstraherNs3459Poster(resultat, projectId, documentId);
-  if (poster.length > 0) {
-    await prisma.ftdSpecPost.createMany({ data: poster });
-  }
+  await lagreSpecPoster(prisma, poster);
 }
 
 function ekstraherNs3459Poster(
