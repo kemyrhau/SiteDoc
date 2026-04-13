@@ -42,15 +42,10 @@ export function TegningsCapture({
       const data = JSON.parse(e.nativeEvent.data);
       if (data.type === "resultat" && data.oversikt && data.detalj) {
         harLevert.current = true;
-        console.log("[TegningsCapture] Mottatt — oversikt:", data.oversikt.length, "detalj:", data.detalj.length);
         onCapture(data.oversikt, data.detalj);
-      } else if (data.type === "feil") {
-        console.warn("[TegningsCapture] Feil:", data.melding);
       }
     } catch {
       // Ikke JSON — ignorer
-      const msg = e.nativeEvent.data;
-      if (msg === "feil") console.warn("[TegningsCapture] Bildet kunne ikke lastes");
     }
   }, [onCapture]);
 

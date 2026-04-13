@@ -543,12 +543,9 @@ function useDetaljCanvas(bildeSrc: string | null, posX: number, posY: number): {
     setDetaljUrl(null);
     setKlar(false);
 
-    console.log("[useDetaljCanvas] Starter for bildeSrc lengde:", bildeSrc.length, "posX:", posX, "posY:", posY);
-
     // Fallback-timer: etter 3s markér som klar uten detalj
     const fallbackTimer = setTimeout(() => {
       if (!avbrutt && !klar) {
-        console.warn("[useDetaljCanvas] Timeout — bruker fallback");
         setKlar(true);
       }
     }, DETALJ_TIMEOUT);
@@ -558,7 +555,6 @@ function useDetaljCanvas(bildeSrc: string | null, posX: number, posY: number): {
 
     img.onload = () => {
       if (avbrutt) return;
-      console.log("[useDetaljCanvas] Bilde lastet:", img.naturalWidth, "x", img.naturalHeight);
       try {
         const ow = img.naturalWidth;
         const oh = img.naturalHeight;
@@ -578,31 +574,24 @@ function useDetaljCanvas(bildeSrc: string | null, posX: number, posY: number): {
         const srcX = Math.max(0, Math.min(ow - srcW, srcCx - srcW / 2));
         const srcY = Math.max(0, Math.min(oh - srcH, srcCy - srcH / 2));
 
-        console.log("[useDetaljCanvas] drawImage params:", { srcX: Math.round(srcX), srcY: Math.round(srcY), srcW: Math.round(srcW), srcH: Math.round(srcH), dw, dh, ow, oh });
         ctx.drawImage(img, srcX, srcY, srcW, srcH, 0, 0, dw, dh);
 
         // Prikk i sentrum av utsnittet
         const dpx = ((srcCx - srcX) / srcW) * dw;
         const dpy = ((srcCy - srcY) / srcH) * dh;
-        console.log("[useDetaljCanvas] Prikk:", { dpx: Math.round(dpx), dpy: Math.round(dpy) });
         ctx.beginPath(); ctx.arc(dpx, dpy, 13, 0, Math.PI * 2); ctx.fillStyle = "#ffffff"; ctx.fill();
         ctx.beginPath(); ctx.arc(dpx, dpy, 10, 0, Math.PI * 2); ctx.fillStyle = "#ef4444"; ctx.fill();
 
-        // Visuell kontroll: blå ramme rundt hele canvaset
-        ctx.strokeStyle = "#3b82f6"; ctx.lineWidth = 4;
-        ctx.strokeRect(2, 2, dw - 4, dh - 4);
-
         const resultat = canvas.toDataURL("image/png");
-        console.log("[useDetaljCanvas] Generert OK, lengde:", resultat.length, "starter med:", resultat.substring(0, 40));
         if (!avbrutt) { setDetaljUrl(resultat); setKlar(true); }
       } catch (e) {
-        console.warn("[useDetaljCanvas] Canvas feilet:", e);
+        // Canvas feilet — faller tilbake til oversiktsbilde
         if (!avbrutt) setKlar(true);
       }
     };
 
     img.onerror = (e) => {
-      console.warn("[useDetaljCanvas] img.onerror:", e);
+      // Bilde kunne ikke lastes — faller tilbake
       if (!avbrutt) setKlar(true);
     };
 
@@ -699,10 +688,8 @@ export function TegningPosisjonPrint({ pos }: { pos: TegningPosisjonVerdi }) {
           {detaljSrc ? (
             <img src={detaljSrc} alt={`Detalj: ${drawingName}`} className="h-full w-full object-contain" />
           ) : (
-            <div className="flex h-full flex-col items-center justify-center gap-1 bg-red-50 text-xs text-red-500">
-              <p>Canvas detalj: {detaljKlar ? "FEILET" : "Laster..."}</p>
-              <p>bildeSrc: {bildeSrc ? (bildeSrc.startsWith("data:") ? "data-URL" : "URL") : "null"}</p>
-              <p>lengde: {bildeSrc?.length ?? 0}</p>
+            <div className="flex h-full items-center justify-center bg-gray-50 text-xs text-gray-400">
+              {detaljKlar ? "Detalj utilgjengelig" : "Laster detalj…"}
             </div>
           )}
         </div>
