@@ -161,11 +161,11 @@ export default function OkonomiSide() {
   );
 
   const poster = budsjettPoster ?? allePoster;
-  const valgtPost = poster?.find((p) => p.id === valgtPostId) ?? null;
+  const valgtPost = poster?.find((p: { id: string }) => p.id === valgtPostId) ?? null;
 
   const handleVelgPost = useCallback((postId: string) => {
     if (notatRef.current?.erIReferanseModus && poster) {
-      const post = poster.find((p) => p.id === postId);
+      const post = poster.find((p: { id: string }) => p.id === postId);
       if (post) notatRef.current.leggTilReferanse(post);
     } else {
       setValgtPostId(postId);
