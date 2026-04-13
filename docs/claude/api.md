@@ -24,7 +24,7 @@ Alle routere i `apps/api/src/routes/`:
 | `mobilAuth` | byttToken (public, OAuth→sesjon), verifiser (m/tokenrotasjon), loggUt (sletter sesjon) |
 | `bilde` | hentForProsjekt (alle bilder via sjekklister + oppgaver, m/tilgangsfilter, inkl. parent+tegningsdata), opprettForSjekkliste |
 | `admin` | erAdmin, hentAlleProsjekter (m/sjekkliste-/oppgavetellere), hentAlleOrganisasjoner, opprettOrganisasjon, oppdaterOrganisasjon, settBrukerOrganisasjon, tilknyttProsjekt, fjernProsjektTilknytning, opprettProsjekt, hentProsjektStatistikk, slettProsjekt, slettUtlopteProsjekter, hentAlleBrukere |
-| `mengde` | hentDokumenter (m/mappetilgangsfilter, docType != null), hentPerioder, hentSpecPoster (m/sortering, sammenligningPoster), hentAvviksanalyse, lagreNotat, registrerDokument (m/kontraktId, notaType, notaNr, auto-detect docType fra filnavn), oppdaterDokument (inline type/nota/kontrakt), reprosesser, fjernFraOkonomi (nullstiller type, beholder i mapper), slettPeriode, hentNotaRapport (deduplisert per notaNr, header-verdier), hentDokumentasjonForPost (side→postnr fra FtdDocumentPage, scopet til kontraktens mapper) |
+| `mengde` | hentDokumenter (m/mappetilgangsfilter, docType != null, inkl. harPeriode+periodId), hentPerioder, hentSpecPoster (m/periodId→FtdNotaPost ELLER dokumentId→FtdSpecPost, sammenligningPoster), hentAvviksanalyse, lagreNotat, importerTilPeriode (mutation→nota-import service), registrerDokument (m/kontraktId, notaType, notaNr), oppdaterDokument (inline type/nota/kontrakt), reprosesser, fjernFraOkonomi (nullstiller type, beholder i mapper), slettPeriode, hentNotaRapport (deduplisert per notaNr, header-verdier), hentDokumentasjonForPost (side→postnr fra FtdDocumentPage, scopet til kontraktens mapper) |
 | `ftdSok` | sokDokumenter (tsvector m/norsk stemming + ILIKE fallback, mappetilgangsfilter), hentDokumentChunks, nsKoder, nsChunks |
 | `bruker` | hentSpraak (brukerens valgte språk), oppdaterSpraak (lagre språkvalg i DB) |
 | `kontrakt` | hentForProsjekt (m/building, _count), opprett (navn, type 8405/8406/8407, byggherre, entreprenor, buildingId), oppdater (alle felter inkl. bygning), slett (fjerner kobling fra entrepriser og dokumenter, m/bekreftelsesmodal) |
@@ -68,7 +68,7 @@ Alle routere i `apps/api/src/routes/`:
 
 Sluttnota: `erSluttnota = true`, `notaNr = null`. Korrigert sluttnota: to dokumenter kan ha flagget, siste importdato vinner.
 
-### Ferdig implementert (2026-04-13)
+### Fase 1 — komplett (2026-04-13)
 
 **Duplikat-beskyttelse:**
 - Unique constraint `(documentId, postnr)` (partial index, WHERE NOT NULL)
@@ -97,31 +97,43 @@ Sluttnota: `erSluttnota = true`, `notaNr = null`. Korrigert sluttnota: to dokume
 - FtdSpecPost: ikkeIBudsjett boolean for poster som kun finnes i nota
 - `importerNotaTilPeriode()` — hovedfunksjon med batch createMany, scenario-bestemmelse, akkumuleringskontroll
 - `bestemScenario()` — scenario 1/2/3 + retroaktiv med påfølgendeNr-varsling
-- `kontrollerAkkumulering()` — per-post kontroll med ±2 øre toleranse for mengde/verdi, enhetspris-endring som varselsignal
-- Testet: A-nota 25 (scenario 1, 1093 poster, 230 nye) og A-nota 26 (scenario 2, 3 enhetspris-avvik, 0 verdi-avvik)
+- `kontrollerAkkumulering()` — ±2 øre toleranse for mengde/verdi, ±2 kr for enhetspris
+- `mengde.importerTilPeriode` mutation — kobler service til frontend
+- Alle notas importert og verifisert: A-nota 25–29 + Sluttnota, 0 avvik, alle matcher kontrolltabell
 - Service: `apps/api/src/services/nota-import.ts`
+
+**Datakilde-valg (harPeriode):**
+- `hentDokumenter` returnerer `harPeriode` og `periodId` per dokument
+- `hentSpecPoster` med `periodId` → ny gren som leser verdier direkte fra FtdNotaPost (ingen beregning)
+- `hentSpecPoster` med `dokumentId` → gammel gren via FtdSpecPost med forrige-nota lookup
+- Frontend sender `periodId` for importerte notas, `dokumentId` for eldre
+- Nota-dropdown viser "✓" etter nummeret for notas med FtdNotaPeriod
+
+**Sekvensielt import-dialog (3 faser):**
+- Fase 1: Filvalg — drag-drop eller fra-mappe, flere filer, klikk "Importer N filer"
+- Fase 2: Per-fil konfigurasjon — auto-deteksjon (gjettDokType, gjettNotaNr, gjettDato), kontrakt arvet, korrigerbar
+- Fase 3: Oppsummering — status per fil (importert/hoppet/duplikat/feil), avvikstall
+- Duplikat-sjekk: advarsel med valg "Hopp over" (standard) eller "Reimporter"
+- Gap-advarsel inline: viser manglende notas, blokkerer ikke import
+- Hjelpefunksjoner med 20 enhetstester (`__tests__/import-hjelpere.test.ts`)
 
 ### Importscenarioer (implementert)
 
 **Scenario 1 — Første A-nota:** Alle verdier importeres som-er. Ingen akkumuleringskontroll.
 
-**Scenario 2 — Påfølgende A-nota:** Match via postnr mot forrige FtdNotaPost. Akkumuleringsberegning per post. Toleranse ±2 øre. Avviksrapport med enhetspris-endring som varselsignal.
+**Scenario 2 — Påfølgende A-nota:** Match via postnr mot forrige FtdNotaPost. Akkumuleringsberegning per post. Toleranse ±2 øre mengde/verdi, ±2 kr enhetspris. Avviksrapport.
 
 **Scenario 3 — Gap i rekkefølge:** Returnerer `kreverGapGodkjenning` med manglendeNr[]. Etter godkjenning: importeres som scenario 1 med gapFlagg.
 
 **Retroaktiv import:** Returnerer `påfølgendeNr[]` — frontend viser informasjonsmelding. Ingen automatisk revalidering i fase 1.
 
-### Neste steg (prioritert)
+### Fase 2 — gjenstår
 
-1. **Juster enhetspris-toleranse** — ±2 kr for å filtrere avrundingsstøy
-2. **API-endepunkt** — `mengde.importerTilPeriode` mutation som kobler service til frontend
-3. **Importer A-nota 27–29 + Sluttnota** via ny service, verifiser mot kontrolltabell
-4. **Oppdater visning** — bruk FtdNotaPost i stedet for FtdSpecPost-verdier
-5. **Import-dialog** — sekvensielt modal med auto-deteksjon, gap-advarsel, duplikat-sjekk
-6. **Mva** — parser + skjemaendring (egen oppgave)
-7. **Drag-and-drop kolonneorder** — med localStorage-persistering
-3. **Mva** — parser + skjemaendring (egen oppgave, ikke prioritert nå)
-4. **Drag-and-drop kolonneorder** — med localStorage-persistering (`ftd-kolonne-orden-{userId}`)
+1. **Innestående** — egne felter på FtdNotaPeriod (innestående, inneståendeForrige, inneståendeDenne)
+2. **Retroaktiv revalidering** — automatisk revalidering fremover når nota importeres midt i kjeden
+3. **Mva** — parser + skjemaendring
+4. **Drag-and-drop kolonneorder** — med localStorage-persistering
+5. **A-nota 18 og 24** — mangler FtdNotaPeriod, reimporter når klar
 
 ## Auth-nivåer
 
