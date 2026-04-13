@@ -92,31 +92,34 @@ Sluttnota: `erSluttnota = true`, `notaNr = null`. Korrigert sluttnota: to dokume
 - Excel: enhetspris-deteksjon bruker første forekomst (merged cells-fix)
 - Alle Excel-dokumenter reprosessert og verifisert mot kontrolltall
 
-### Importscenarioer (planlagt)
+**Importlogikk (FtdNotaPeriod / FtdNotaPost):**
+- FtdNotaPeriod migrert: kontraktId, documentId (obligatoriske), erSluttnota, gapFlagg, unique [kontraktId, periodeNr]
+- FtdSpecPost: ikkeIBudsjett boolean for poster som kun finnes i nota
+- `importerNotaTilPeriode()` — hovedfunksjon med batch createMany, scenario-bestemmelse, akkumuleringskontroll
+- `bestemScenario()` — scenario 1/2/3 + retroaktiv med påfølgendeNr-varsling
+- `kontrollerAkkumulering()` — per-post kontroll med ±2 øre toleranse for mengde/verdi, enhetspris-endring som varselsignal
+- Testet: A-nota 25 (scenario 1, 1093 poster, 230 nye) og A-nota 26 (scenario 2, 3 enhetspris-avvik, 0 verdi-avvik)
+- Service: `apps/api/src/services/nota-import.ts`
 
-**Scenario 1 — Første A-nota (ingen tidligere data):** Alle verdier importeres som-er. Aksepter selv om tidligere notas mangler.
+### Importscenarioer (implementert)
 
-**Scenario 2 — Påfølgende A-nota:** Match via postnr. Akkumuleringsberegning per post: `forventet verdiTotal = forrige.verdiTotal + ny.verdiDenne`. Toleranse ±2 øre = stille aksept. Avvik utenfor toleranse → rapport med tre valg: A) Bruk kildeverdi, B) Bruk beregnet, C) Avbryt. Beregnet enhetspris (`verdiDenne / antallDenne`) sammenlignes mot forrige — avvik er varselsignal.
+**Scenario 1 — Første A-nota:** Alle verdier importeres som-er. Ingen akkumuleringskontroll.
 
-**Scenario 3 — Gap i rekkefølge:** Varsle bruker, ikke blokker. Importer som scenario 1. Lagre gap-flagg.
+**Scenario 2 — Påfølgende A-nota:** Match via postnr mot forrige FtdNotaPost. Akkumuleringsberegning per post. Toleranse ±2 øre. Avviksrapport med enhetspris-endring som varselsignal.
 
-**Scenario 4 — Retroaktiv import (fase 2):** Overskriv + revalidering av alle påfølgende notas. Samlet avviksrapport.
+**Scenario 3 — Gap i rekkefølge:** Returnerer `kreverGapGodkjenning` med manglendeNr[]. Etter godkjenning: importeres som scenario 1 med gapFlagg.
 
-### Import-dialog (planlagt)
-
-**Fase 1:** Bruker velger filer fra mapper eller laster opp. Klikker "Importer N filer".
-
-**Fase 2:** Viser én fil om gangen med auto-detekterte verdier (type, nr, kontrakt, dato fra filnavn). Statusliste med ✓/✗/— status. Inline sjekker:
-- Gap-advarsel — nota N importeres og N-1 mangler for kontrakten
-- Duplikat-sjekk — notaNr + kontraktId finnes allerede → bekreftelse
-- Dato-deteksjon — `A-nota 26_31.05.25.pdf` → periodeSlutt = 2025-05-31
-
-**Fase 3:** Oppsummering med akkumuleringsresultat per fil.
+**Retroaktiv import:** Returnerer `påfølgendeNr[]` — frontend viser informasjonsmelding. Ingen automatisk revalidering i fase 1.
 
 ### Neste steg (prioritert)
 
-1. **Ny importlogikk** — FtdNotaPeriod/FtdNotaPost med akkumulering og avviksrapport
-2. **Import-dialog** — sekvensielt modal med auto-deteksjon, gap-advarsel, duplikat-sjekk
+1. **Juster enhetspris-toleranse** — ±2 kr for å filtrere avrundingsstøy
+2. **API-endepunkt** — `mengde.importerTilPeriode` mutation som kobler service til frontend
+3. **Importer A-nota 27–29 + Sluttnota** via ny service, verifiser mot kontrolltabell
+4. **Oppdater visning** — bruk FtdNotaPost i stedet for FtdSpecPost-verdier
+5. **Import-dialog** — sekvensielt modal med auto-deteksjon, gap-advarsel, duplikat-sjekk
+6. **Mva** — parser + skjemaendring (egen oppgave)
+7. **Drag-and-drop kolonneorder** — med localStorage-persistering
 3. **Mva** — parser + skjemaendring (egen oppgave, ikke prioritert nå)
 4. **Drag-and-drop kolonneorder** — med localStorage-persistering (`ftd-kolonne-orden-{userId}`)
 
