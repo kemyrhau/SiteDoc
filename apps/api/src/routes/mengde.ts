@@ -5,6 +5,7 @@ import {
   hentTilgjengeligeMappeIder,
   byggMappeTilgangsFilter,
 } from "../services/folder-tilgang";
+import { importerNotaTilPeriode } from "../services/nota-import";
 // Prosessering kjøres på API-serveren (ren Node) — ikke i Next.js
 const API_INTERN_URL = `http://localhost:${process.env.API_PORT ?? process.env.PORT ?? "3001"}`;
 
@@ -261,6 +262,26 @@ export const mengdeRouter = router({
     .mutation(async ({ ctx, input }) => {
       return ctx.prisma.ftdNotaPeriod.delete({
         where: { id: input.periodId },
+      });
+    }),
+
+  importerTilPeriode: protectedProcedure
+    .input(
+      z.object({
+        projectId: z.string().uuid(),
+        kontraktId: z.string(),
+        documentId: z.string(),
+        periodeNr: z.number().int().min(1),
+        erSluttnota: z.boolean().default(false),
+        gapGodkjent: z.boolean().default(false),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await verifiserProsjektmedlem(ctx.userId, input.projectId);
+
+      return importerNotaTilPeriode(ctx.prisma, {
+        ...input,
+        userId: ctx.userId,
       });
     }),
 

@@ -182,7 +182,7 @@ function kontrollerAkkumulering(
   if (notaPost.mengdeDenne > 0 && forrigePost.mengdeDenne > 0) {
     const prisNy = notaPost.verdiDenne / notaPost.mengdeDenne;
     const prisForrige = forrigePost.verdiDenne / forrigePost.mengdeDenne;
-    if (Math.abs(prisNy - prisForrige) > 0.01 && prisForrige > 0) {
+    if (Math.abs(prisNy - prisForrige) > 2 && prisForrige > 0) {
       avvik.push({
         postnr: notaPost.postnr,
         felt: "enhetspris",
