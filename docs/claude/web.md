@@ -359,9 +359,11 @@ Logo, prosjektnummer · prosjektnavn, lokasjon · tegning, dato med klokkeslett,
 **Utskriftsinnstillinger** (`/dashbord/oppsett/prosjektoppsett`): 7 avkrysninger — logo, eksternProsjektnummer, prosjektnavn, fraTil, lokasjon, tegningsnummer, vaer. Lagres på Project-modellen. Default: alle synlige.
 
 ### Tegningsutsnitt og bilder
-**TegningPosisjonPrint** (eksportert fra `RapportObjektVisning.tsx`): oversikt med rød markør + zoomet detalj (4x zoom). Bruker `useTegningSomBilde()` hook (PDF→canvas→PNG via pdfjs-dist v4).
-
-**Oppgave-tegningsvisning:** Viser 2 bilder side om side — oversikt (med markør) + utsnitt (3x zoom sentrert på posisjon).
+**TegningPosisjonPrint** (eksportert fra `RapportObjektVisning.tsx`): oversikt med rød markør + canvas-generert detalj-utsnitt.
+- `useTegningSomBilde()`: laster tegning, skalerer til maks 2400px, konverterer til data-URL via canvas (PDF→pdfjs-dist→canvas)
+- `useDetaljCanvas()`: tar data-URL, klipper 12.5%-utsnitt rundt posisjon, tegner prikk, returnerer data-URL
+- 3s fallback-timer: viser oversiktsbilde hvis canvas feiler
+- Bildedimensjoner (`Drawing.imageWidth/imageHeight`) brukes for korrekt aspect ratio
 
 **Bildegrid** (`.bilde-grid`): 2 kolonner, `object-fit: contain`, `max-height: 260px`. Bilder beskjæres ikke. Grid brytes fritt over sider. Individuelle `.bilde-celle` har `break-inside: avoid`.
 

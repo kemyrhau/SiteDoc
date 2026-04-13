@@ -373,17 +373,43 @@ Georeferansepunkter (P1, P2, P3) vises som oransje markører for visuell verifis
 
 ## PDF-utskrift og deling
 
-**PDF-bygger:** `apps/mobile/src/utils/sjekklistePdf.ts` — genererer HTML for expo-print.
+**PDF-bygger:** `@sitedoc/pdf` (packages/pdf/) — delt pakke for web og mobil. Genererer komplett HTML-strenger.
+
+**Arkitektur:**
+- `byggSjekklisteHtml()` / `byggOppgaveHtml()` tar data-objekter + config → returnerer HTML
+- Null runtime-avhengigheter — kun TypeScript-strenger
+- `PdfConfig`: bildeBaseUrl, maksbildeHoyde, gjentakendeHeader, visSidenummer, tegningScreenshot, tegningDetaljScreenshot
 
 **Layout:**
-1. Tittel (stor, fet) med logo til venstre
-2. 4×2 metadata-rutenett: Prosjekt, Prosjekt nr, Byggeplass, Opprettet av, Opprettet, Endret av, Endret, Status
-3. Feltblokker: label øverst → bilder i 2-kolonners rutenett med nummerering → tekstverdi → kommentar
+1. Header-ramme: logo, prosjektnummer · navn, fra→til, status, vær (styrt av utskriftsinnstillinger)
+2. Tegningsposisjon: oversikt + detalj side om side (canvas-screenshot)
+3. Feltblokker: label → bilder (2-kolonners flex) → verdi → kommentar
 
-**Bildevisning i PDF:** Vedlegg-bilder embedderes som `<img>` med full URL (`apiUrl + /uploads/...`). Nummerering per felt (1, 2, 3...).
+**Tegningsposisjon i PDF:**
+- `TegningsCapture.tsx`: offscreen WebView med `<canvas>` som tegner bilde + prikk
+- Genererer to bilder: oversikt (maks 2400px) og detalj (800px utsnitt, 12.5% av bildet)
+- Canvas `toDataURL()` → base64-PNG → `postMessage` → React Native
+- Ingen native snapshot (ViewShot) — alt i WebView canvas
+- Feature-flag: `BRUK_SCREENSHOT_TEGNING = true` i sjekkliste.ts
 
-**Forhåndsvisning:** `PdfForhandsvisning`-komponent — WebView med HTML-preview i et hvitt kort med luft til skjermkantene. Del-knapp genererer PDF via `expo-print` → `expo-sharing`.
+**Bilde-URLer:** `hentWebUrl() + "/api"` som bildeBaseUrl — alle bilder via Next.js proxy
 
-**Flyt:** Share-ikon → forhåndsvisning → Del-knapp → PDF → iOS delearket (e-post, AirDrop, etc.)
+**Forhåndsvisning:** `PdfForhandsvisning`-komponent — WebView med HTML-preview. Del-knapp genererer PDF via `expo-print` → `expo-sharing`.
 
-**Støttede felttyper:** text_field, list_single/multi (normalisert), traffic_light, integer/decimal/calculation (med enhet), date, date_time, person, persons, company, weather, signature (base64), repeater (med barnefelt), bim/zone/room_property.
+**Flyt:** Share-ikon → forhåndsvisning → Del-knapp → PDF → iOS delearket
+
+**Sider:** Ren block-layout (ingen `<table>` wrapping). `page-break-inside: avoid` på feltblokker. `page-break-after: always` etter tegning.
+
+**Støttede felttyper:** text_field, list_single/multi, traffic_light, integer/decimal/calculation (med enhet), date, date_time, person, persons, company, weather, signature (base64), repeater (med barnefelt), bim/zone/room_property, attachments.
+
+**Lokasjonsvelger:**
+- Vises øverst i felter-listen (over rapportobjektene)
+- Trykk → fullskjerm tegningsvisning (TegningsVisning) med posisjonsprikk
+- Trykk på tegning for å sette/flytte prikk
+- «Bytt tegning»-knapp i bunnbar
+- GPS-auto-valg ved opprettelse (erInnenforBounds, sist brukt fallback)
+
+**Opprett-modal:**
+- Dokumentflyt-filtrering: kun entrepriser med flyt for valgt mal
+- Auto-kobling: én flyt → auto-velg, flere → dropdown
+- GPS-lokasjon sendes med ved opprettelse (byggeplassId + drawingId)
