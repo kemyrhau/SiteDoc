@@ -371,6 +371,7 @@ export default function OkonomiSide() {
 
       <ImportDialog
         projectId={prosjektId}
+        kontraktIdFraToppen={kontraktId}
         open={importOpen}
         onClose={() => {
           setImportOpen(false);
