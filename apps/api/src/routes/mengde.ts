@@ -86,12 +86,12 @@ export const mengdeRouter = router({
         projectId: z.string().uuid(),
         kontraktId: z.string().optional(),
         dokumentId: z.string().optional(),
+        periodId: z.string().optional(),
       }),
     )
     .query(async ({ ctx, input }) => {
       await verifiserProsjektmedlem(ctx.userId, input.projectId);
 
-      // ─── Hent fra FtdSpecPost ───
       const where: { projectId: string; documentId?: string; document?: { kontraktId: string } } = {
         projectId: input.projectId,
       };
@@ -106,6 +106,9 @@ export const mengdeRouter = router({
         where,
         include: {
           document: { select: { id: true, docType: true, notaNr: true, kontraktId: true, kontraktNavn: true } },
+          notaPoster: input.periodId
+            ? { where: { periodId: input.periodId } }
+            : false,
         },
         orderBy: { postnr: "asc" },
       });
