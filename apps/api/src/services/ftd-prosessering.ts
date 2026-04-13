@@ -983,7 +983,7 @@ async function ekstraherNotaPoster(
     if (h.tekst === "postnr" && !kolonner.postnr) kolonner.postnr = h.col;
     else if (h.tekst.includes("beskrivelse") && !kolonner.beskrivelse) kolonner.beskrivelse = h.col;
     else if (h.tekst === "enh" || h.tekst === "enhet") kolonner.enhet = h.col;
-    else if (h.tekst === "enhetspris") kolonner.enhetspris = h.col;
+    else if (h.tekst === "enhetspris" && !kolonner.enhetspris) kolonner.enhetspris = h.col;
     else if (h.tekst.includes("utført") && h.tekst.includes("%")) kolonner.prosentFerdig = h.col;
   }
 
