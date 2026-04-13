@@ -150,8 +150,17 @@ export function ImportDialog({ projectId, kontraktIdFraToppen, open, onClose }: 
   const dokumenter = dokumenterQuery.data as Array<{
     id: string; filename: string; kontraktId: string | null;
     notaNr: number | null; notaType: string | null; docType: string | null;
-    harPeriode: boolean; periodId: string | null;
   }> | undefined;
+
+  const { data: perioder } = trpc.mengde.hentPerioder.useQuery(
+    { projectId },
+    { enabled: !!projectId && open },
+  );
+  // Set av documentId-er som har FtdNotaPeriod
+  const importerteDokIds = useMemo(() => {
+    if (!perioder) return new Set<string>();
+    return new Set(perioder.map((p) => p.documentId));
+  }, [perioder]);
 
   const { data: mapper } = trpc.mappe.hentForProsjekt.useQuery(
     { projectId },
@@ -210,7 +219,7 @@ export function ImportDialog({ projectId, kontraktIdFraToppen, open, onClose }: 
     // Sjekk om det finnes en FtdNotaPeriod for dette notaNr + kontraktId
     const match = dokumenter.find((d) =>
       d.kontraktId === gjeldende.kontraktId &&
-      d.harPeriode &&
+      importerteDokIds.has(d.id) &&
       (gjeldende.notaType === "Sluttnota"
         ? d.notaType === "Sluttnota"
         : d.notaNr === nr),
@@ -230,7 +239,7 @@ export function ImportDialog({ projectId, kontraktIdFraToppen, open, onClose }: 
 
     // Finn alle importerte perioder for kontrakten
     const importerte = dokumenter
-      .filter((d) => d.kontraktId === gjeldende.kontraktId && d.harPeriode && d.notaType !== "Sluttnota" && d.notaNr !== null)
+      .filter((d) => d.kontraktId === gjeldende.kontraktId && importerteDokIds.has(d.id) && d.notaType !== "Sluttnota" && d.notaNr !== null)
       .map((d) => d.notaNr!)
       .sort((a, b) => a - b);
 

@@ -44,7 +44,7 @@ export const mengdeRouter = router({
         ctx.userId,
         input.projectId,
       );
-      const docs = await ctx.prisma.ftdDocument.findMany({
+      return ctx.prisma.ftdDocument.findMany({
         where: {
           projectId: input.projectId,
           isActive: true,
@@ -53,16 +53,8 @@ export const mengdeRouter = router({
           ...(input.docType ? { docType: input.docType } : {}),
           ...byggMappeTilgangsFilter(mappeIder),
         },
-        include: {
-          folder: { select: { id: true, name: true } },
-          notaPerioder: { select: { id: true }, take: 1 },
-        },
+        include: { folder: { select: { id: true, name: true } } },
         orderBy: [{ notaNr: "asc" }, { uploadedAt: "desc" }],
-      });
-
-      return docs.map((d) => {
-        const { notaPerioder, ...rest } = d;
-        return { ...rest, harPeriode: notaPerioder.length > 0, periodId: notaPerioder[0]?.id ?? null };
       });
     }),
 
