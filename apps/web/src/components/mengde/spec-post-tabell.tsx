@@ -482,35 +482,189 @@ export function SpecPostTabell({
   const totalVerdiDenne = totalRader.reduce((s, r) => s + r.verdiDenne, 0);
   const totalVerdiTotal = totalRader.reduce((s, r) => s + r.verdiTotal, 0);
 
-  // DEBUG: Komplett tabell med sikker rendering — alle verdier via String()
   return (
     <div className="flex h-full flex-col rounded border overflow-hidden">
-      <div className="border-b bg-gray-50 px-3 py-1.5 text-xs text-gray-500">
-        {sorterteRader.length} poster | {aktiveKolonner.length} kolonner
+      {/* Globalt søk + innstillinger */}
+      <div className="flex items-center gap-2 border-b bg-gray-50 px-3 py-1.5">
+        <div className="relative flex-1 max-w-xs">
+          <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            value={globaltSøk}
+            onChange={(e) => setGlobaltSøk(e.target.value)}
+            placeholder="Søk postnr / beskrivelse..."
+            className="w-full rounded border border-gray-300 bg-white py-1 pl-7 pr-2 text-xs focus:border-sitedoc-primary focus:outline-none"
+          />
+          {globaltSøk && (
+            <button onClick={() => setGlobaltSøk("")} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+              <X className="h-3 w-3" />
+            </button>
+          )}
+        </div>
+        <div className="flex items-center gap-1 text-xs text-gray-500">
+          {filtrerteRader.length !== rader.length && (
+            <span className="text-blue-600">{filtrerteRader.length} av {rader.length}</span>
+          )}
+        </div>
       </div>
+
       <div className="flex-1 overflow-auto">
         <table className="w-full text-left text-xs">
           <thead className="sticky top-0 z-10 bg-gray-50">
+            {/* Gruppe-header */}
             <tr className="border-b">
-              <th className="px-1 py-1 text-[10px]">#</th>
-              {aktiveKolonner.map(k => <th key={k.id} className="px-2 py-1 text-[10px] font-medium">{k.label}</th>)}
+              <th className="w-[36px] px-1 py-1" />
+              {gruppeSpan.map((g, i) => (
+                <th key={i} colSpan={g.antall} className={`px-2 py-1 text-center text-[10px] font-semibold uppercase tracking-wider ${GRUPPE_TEKST[g.gruppe]} ${GRUPPE_FARGE[g.gruppe]}`}>
+                  {GRUPPE_LABEL[g.gruppe]}
+                </th>
+              ))}
+            </tr>
+            {/* Kolonne-headers med sortering */}
+            <tr className="border-b">
+              <th className="w-[36px] px-1 py-1.5 text-[10px] text-gray-400">#</th>
+              {aktiveKolonner.map((kol) => (
+                <th key={kol.id} className={`px-2 py-1.5 ${kol.bredde ?? ""} ${kol.type === "tall" ? "text-right" : ""}`}>
+                  <button
+                    onClick={() => toggleSortering(kol.id)}
+                    className={`inline-flex items-center gap-0.5 text-[11px] font-medium uppercase hover:text-gray-700 ${
+                      sorterKolId === kol.id ? "text-sitedoc-primary" : "text-gray-500"
+                    }`}
+                  >
+                    {kol.type === "tall" && <span className="flex-1" />}
+                    {kol.label}
+                    {sorterKolId === kol.id ? (
+                      sorterRetning === "asc" ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />
+                    ) : null}
+                  </button>
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
-            {sorterteRader.map((rad, idx) => (
-              <tr key={rad.budsjett.id} className="border-b hover:bg-gray-50 cursor-pointer" onClick={() => onVelgPost(rad.budsjett.id)}>
-                <td className="px-1 py-0.5 text-[10px] text-gray-400">{idx + 1}</td>
-                {aktiveKolonner.map(kol => {
-                  const v = kol.hentVerdi(rad);
-                  return <td key={kol.id} className={`px-2 py-0.5 ${kol.type === "tall" ? "text-right font-mono" : ""}`}>
-                    {v === null || v === undefined ? "—" : String(v)}
-                  </td>;
-                })}
-              </tr>
-            ))}
+            {sorterteRader.map((rad, idx) => {
+              const p = rad.budsjett;
+              const erSeksjon = rad.erSeksjon;
+              return (
+                <tr
+                  key={p.id}
+                  ref={valgtPostId === p.id ? valgtRadRef : undefined}
+                  onClick={() => onVelgPost(p.id)}
+                  onDoubleClick={() => setDetaljPost(p.id)}
+                  className={`cursor-pointer border-b transition-colors ${
+                    valgtPostId === p.id
+                      ? "bg-blue-100 border-l-2 border-l-sitedoc-primary"
+                      : erSeksjon ? "bg-gray-50/50" : "hover:bg-gray-50"
+                  }`}
+                >
+                  <td className="px-1 py-1 text-[10px] text-gray-400">{idx + 1}</td>
+                  {aktiveKolonner.map((kol) => {
+                    const verdi = kol.hentVerdi(rad);
+
+                    if (kol.id === "postnr") {
+                      return (
+                        <td key={kol.id} className={`px-2 py-1 font-mono whitespace-nowrap ${erSeksjon ? "italic text-gray-400" : ""}`}>
+                          {String(p.postnr ?? "—")}
+                        </td>
+                      );
+                    }
+
+                    if (kol.id === "beskrivelse") {
+                      return (
+                        <td key={kol.id} className={`max-w-xs truncate px-2 py-1 ${erSeksjon ? "italic text-gray-400" : ""}`}>
+                          {String(p.beskrivelse ?? "—")}
+                        </td>
+                      );
+                    }
+
+                    if (kol.type === "enhet") {
+                      return (
+                        <td key={kol.id} className={`px-2 py-1 ${erSeksjon ? "text-gray-400" : ""}`}>
+                          {verdi ? String(verdi) : "—"}
+                        </td>
+                      );
+                    }
+
+                    // Tallkolonner
+                    const erNotaKol = !kol.alltidSynlig;
+                    const harNotaData = !!rad.nota;
+                    const visStrek = erSeksjon || (erNotaKol && !harNotaData);
+                    const numVerdi = Number(verdi ?? 0);
+
+                    return (
+                      <td key={kol.id} className={`px-2 py-1 text-right font-mono ${
+                        visStrek ? "text-gray-300" : erNotaKol ? "text-blue-700" : ""
+                      }`}>
+                        {visStrek ? "—" : fmt(numVerdi)}
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
           </tbody>
+          <tfoot className="sticky bottom-0 bg-gray-50 border-t-2">
+            <tr className="font-semibold text-xs">
+              <td className="px-1 py-2" />
+              {aktiveKolonner.map((kol) => {
+                if (kol.id === "postnr") return <td key={kol.id} className="px-2 py-2" />;
+                if (kol.id === "beskrivelse") return <td key={kol.id} className="px-2 py-2">Totalt ({totalRader.length} poster)</td>;
+                if (kol.type !== "tall") return <td key={kol.id} className="px-2 py-2" />;
+                if (kol.id === "v_anbudet") return <td key={kol.id} className="px-2 py-2 text-right font-mono">{fmt(totalBudsjett)}</td>;
+                return <td key={kol.id} className="px-2 py-2" />;
+              })}
+            </tr>
+          </tfoot>
         </table>
       </div>
+
+      {/* Detaljmodal */}
+      {detaljPost && (() => {
+        const rad = sorterteRader.find((r) => r.budsjett.id === detaljPost);
+        if (!rad) return null;
+        const p = rad.budsjett;
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setDetaljPost(null)}>
+            <div className="w-full max-w-2xl rounded-lg bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between border-b px-5 py-3">
+                <h2 className="text-base font-semibold">Post {String(p.postnr)}</h2>
+                <button onClick={() => setDetaljPost(null)} className="rounded p-1 text-gray-400 hover:bg-gray-100"><X className="h-4 w-4" /></button>
+              </div>
+              <div className="max-h-[70vh] overflow-auto p-5 space-y-4">
+                <div>
+                  <div className="mb-1 text-xs font-medium text-gray-500">Beskrivelse</div>
+                  <div className="text-sm text-gray-800 whitespace-pre-wrap">{String(p.beskrivelse ?? "—")}</div>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <Kort label="Mengde" verdi={fmt(p.mengdeAnbud)} />
+                  <Kort label="Enhet" verdi={String(p.enhet ?? "—")} mono={false} />
+                  <Kort label="Enhetspris" verdi={fmt(p.enhetspris)} />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <Kort label="Sum anbud" verdi={fmt(p.sumAnbud)} bg="bg-blue-50" />
+                </div>
+                {harSammenligning && rad.nota && (
+                  <div className="rounded border border-blue-200 bg-blue-50/50 p-3">
+                    <div className="mb-2 text-xs font-medium text-blue-600">{sammenligningLabel}</div>
+                    <div className="grid grid-cols-2 gap-3 text-xs">
+                      <Kort label="Mengde denne" verdi={fmt(rad.mengdeDenne)} compact />
+                      <Kort label="Verdi denne" verdi={fmt(rad.verdiDenne)} compact />
+                      <Kort label="Mengde totalt" verdi={fmt(rad.mengdeTotal)} compact />
+                      <Kort label="Verdi totalt" verdi={fmt(rad.verdiTotal)} compact />
+                    </div>
+                  </div>
+                )}
+                {p.eksternNotat && (
+                  <div>
+                    <div className="mb-1 text-xs font-medium text-gray-500">Ekstern merknad</div>
+                    <div className="text-sm text-gray-700">{String(p.eksternNotat)}</div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
