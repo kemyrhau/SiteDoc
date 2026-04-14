@@ -223,7 +223,7 @@ export function SpecPostTabell({
     importNotat: p.importNotat,
   });
   const renePoster = poster.map(sanitiserPost);
-  const reneSammenligningPoster = sammenligningPoster?.map(sanitiserPost);
+  const reneSammenligningPoster = sammenligningPoster ? sammenligningPoster.map(sanitiserPost) : undefined;
 
   const harSammenligning = !!reneSammenligningPoster && reneSammenligningPoster.length > 0;
 
@@ -287,13 +287,13 @@ export function SpecPostTabell({
 
   // Nota-map
   const notaMap = useMemo(() => {
-    if (!sammenligningPoster) return new Map<string, SpecPost>();
+    if (!reneSammenligningPoster) return new Map<string, SpecPost>();
     const map = new Map<string, SpecPost>();
-    for (const p of sammenligningPoster) {
+    for (const p of reneSammenligningPoster) {
       if (p.postnr) map.set(p.postnr, p);
     }
     return map;
-  }, [sammenligningPoster]);
+  }, [reneSammenligningPoster]);
 
   // Enheter for filter-dropdown
   const enheter = useMemo(() => {
