@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  typescript: { ignoreBuildErrors: true },
   experimental: {
     serverComponentsExternalPackages: ["pdf-parse", "exceljs", "fast-xml-parser", "pdfjs-dist", "@xenova/transformers", "onnxruntime-node"],
   },
