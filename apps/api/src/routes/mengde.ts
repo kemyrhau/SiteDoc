@@ -109,8 +109,8 @@ export const mengdeRouter = router({
         orderBy: { postnr: "asc" },
       });
 
-      // Konverter Prisma Decimal til Number for å unngå React #310
-      const poster = posterRaw.map((p) => ({
+      // Konverter Prisma Decimal til Number og fjern document-subobjekt
+      const poster = posterRaw.map(({ document: _doc, ...p }) => ({
         ...p,
         mengdeAnbud: p.mengdeAnbud !== null ? Number(p.mengdeAnbud) : null,
         enhetspris: p.enhetspris !== null ? Number(p.enhetspris) : null,

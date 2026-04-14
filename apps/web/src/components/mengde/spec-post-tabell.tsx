@@ -426,18 +426,6 @@ export function SpecPostTabell({
     });
   }
 
-  // DEBUG: Sjekk alle poster for objekt-verdier som kan krasje React
-  useEffect(() => {
-    if (!poster.length) return;
-    for (const p of poster) {
-      for (const [key, val] of Object.entries(p)) {
-        if (val !== null && typeof val === "object" && !Array.isArray(val)) {
-          console.error(`[DEBUG] Post ${p.postnr} har objekt i felt "${key}":`, JSON.stringify(val).substring(0, 200));
-        }
-      }
-    }
-  }, [poster]);
-
   if (poster.length === 0) {
     return (
       <div className="flex items-center justify-center py-8 text-sm text-gray-400">
