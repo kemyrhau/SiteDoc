@@ -308,6 +308,24 @@ export default function OkonomiSide() {
         <>
           {/* Tabell — fyller midten, scroller internt */}
           <div className="min-h-0 flex-1 px-4 pt-4">
+            {/* DEBUG: Vis rå post-data for inspeksjon */}
+            {poster && poster.length > 0 && (() => {
+              const p = poster[0]!;
+              const objFields = Object.entries(p).filter(([, v]) => v !== null && typeof v === "object");
+              if (objFields.length > 0) {
+                return (
+                  <div className="mb-2 rounded border border-orange-300 bg-orange-50 p-2 text-xs">
+                    <strong>DEBUG objekt-felter i post[0] ({p.postnr}):</strong>
+                    {objFields.map(([k, v]) => (
+                      <div key={k} className="font-mono text-orange-700">
+                        {k}: {JSON.stringify(v).substring(0, 150)}
+                      </div>
+                    ))}
+                  </div>
+                );
+              }
+              return null;
+            })()}
             <DebugErrorBoundary>
               <SpecPostTabell
                 poster={poster ?? []}
