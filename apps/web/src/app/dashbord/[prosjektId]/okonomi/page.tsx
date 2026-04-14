@@ -281,11 +281,11 @@ export default function OkonomiSide() {
         {/* Høyre: Nota-oppsummering + vis forside */}
         <div className="flex items-start gap-2">
           <NotaOppsummering dok={valgtNotaDok} />
-          {valgtNotaDok?.fileUrl && /\.pdf$/i.test(valgtNotaDok.filename) && (
+          {valgtNotaDok?.fileUrl && (
             <button
               onClick={() => setVisNotaForside(true)}
               className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-sitedoc-primary"
-              title="Vis nota-forside"
+              title={t("okonomi.visForside")}
             >
               <FileText className="h-4 w-4" />
             </button>
@@ -296,19 +296,23 @@ export default function OkonomiSide() {
       {/* Nota-forside modal */}
       {visNotaForside && valgtNotaDok?.fileUrl && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setVisNotaForside(false)}>
-          <div className="h-[85vh] w-full max-w-3xl rounded-lg bg-white shadow-xl flex flex-col" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between border-b px-5 py-3">
-              <h2 className="text-sm font-semibold">{valgtNotaDok.filename}</h2>
-              <button onClick={() => setVisNotaForside(false)} className="rounded p-1 text-gray-400 hover:bg-gray-100">
-                <X className="h-4 w-4" />
-              </button>
+          {/\.pdf$/i.test(valgtNotaDok.filename) ? (
+            <div className="h-[85vh] w-full max-w-3xl rounded-lg bg-white shadow-xl flex flex-col" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between border-b px-5 py-3">
+                <h2 className="text-sm font-semibold">{valgtNotaDok.filename}</h2>
+                <button onClick={() => setVisNotaForside(false)} className="rounded p-1 text-gray-400 hover:bg-gray-100">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <iframe
+                src={`/api${valgtNotaDok.fileUrl}#page=1`}
+                className="flex-1 w-full"
+                title={t("okonomi.visForside")}
+              />
             </div>
-            <iframe
-              src={`/api${valgtNotaDok.fileUrl}#page=1`}
-              className="flex-1 w-full"
-              title="Nota-forside"
-            />
-          </div>
+          ) : (
+            <NotaForsideOppsummering dok={{ ...valgtNotaDok, fileUrl: valgtNotaDok.fileUrl! }} onLukk={() => setVisNotaForside(false)} />
+          )}
         </div>
       )}
 
@@ -1160,6 +1164,141 @@ function NotaOppsummering({ dok }: { dok: { utfortTotalt?: unknown; utfortDenne?
         <V label="Netto" verdi={dok?.nettoDenne} uthevet />
         <V label="Mva" verdi={dok?.mva} />
         <V label="Sum inkl." verdi={dok?.sumInkMva} uthevet />
+      </div>
+    </div>
+  );
+}
+
+function NotaForsideOppsummering({
+  dok,
+  onLukk,
+}: {
+  dok: {
+    filename: string;
+    fileUrl: string;
+    notaType?: string | null;
+    notaNr?: number | null;
+    kontraktNavn?: string | null;
+    entreprenor?: string | null;
+    uploadedAt?: string | Date | null;
+    utfortPr?: string | Date | null;
+    utfortTotalt?: unknown;
+    utfortForrige?: unknown;
+    utfortDenne?: unknown;
+    innestaaende?: unknown;
+    innestaaendeForrige?: unknown;
+    innestaaendeDenne?: unknown;
+    nettoDenne?: unknown;
+    mva?: unknown;
+    sumInkMva?: unknown;
+  };
+  onLukk: () => void;
+}) {
+  const { t } = useTranslation();
+  const fmt = (v: unknown) => {
+    if (v === null || v === undefined) return "—";
+    const n = Number(v);
+    if (isNaN(n)) return "—";
+    return n.toLocaleString("nb-NO", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+  const fmtDato = (v: unknown) => {
+    if (!v) return "—";
+    const d = new Date(v as string);
+    if (isNaN(d.getTime())) return "—";
+    return d.toLocaleDateString("nb-NO", { day: "2-digit", month: "2-digit", year: "numeric" });
+  };
+
+  const tittel = dok.notaType === "Sluttnota"
+    ? t("okonomi.sluttnota")
+    : `${dok.notaType ?? "A-Nota"} ${dok.notaNr ?? ""}`;
+
+  const rader: { label: string; forrige: unknown; denne: unknown; totalt: unknown }[] = [
+    { label: t("okonomi.utfort"), forrige: dok.utfortForrige, denne: dok.utfortDenne, totalt: dok.utfortTotalt },
+    { label: t("okonomi.innestaaende"), forrige: dok.innestaaendeForrige, denne: dok.innestaaendeDenne, totalt: dok.innestaaende },
+  ];
+
+  return (
+    <div className="w-full max-w-lg rounded-lg bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
+      {/* Header */}
+      <div className="flex items-center justify-between border-b px-5 py-3">
+        <h2 className="text-sm font-semibold">{tittel}</h2>
+        <button onClick={onLukk} className="rounded p-1 text-gray-400 hover:bg-gray-100">
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+
+      <div className="px-5 py-4 space-y-4">
+        {/* Metadata */}
+        <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm">
+          <div className="text-gray-500">{t("okonomi.fil")}</div>
+          <div className="font-medium truncate" title={dok.filename}>{dok.filename}</div>
+          {dok.kontraktNavn && (
+            <>
+              <div className="text-gray-500">{t("okonomi.kontrakt")}</div>
+              <div className="font-medium">{dok.kontraktNavn}</div>
+            </>
+          )}
+          {dok.entreprenor && (
+            <>
+              <div className="text-gray-500">{t("okonomi.entreprenoer")}</div>
+              <div className="font-medium">{dok.entreprenor}</div>
+            </>
+          )}
+          <div className="text-gray-500">{t("okonomi.utfortPr")}</div>
+          <div className="font-medium">{fmtDato(dok.utfortPr)}</div>
+          <div className="text-gray-500">{t("okonomi.opplastet")}</div>
+          <div className="font-medium">{fmtDato(dok.uploadedAt)}</div>
+        </div>
+
+        {/* Beløpstabell */}
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b text-left text-gray-500">
+              <th className="py-1.5 font-medium"></th>
+              <th className="py-1.5 font-medium text-right">{t("okonomi.forrige")}</th>
+              <th className="py-1.5 font-medium text-right">{t("okonomi.dennePeriode")}</th>
+              <th className="py-1.5 font-medium text-right">{t("okonomi.totalt")}</th>
+            </tr>
+          </thead>
+          <tbody className="font-mono">
+            {rader.map((r) => (
+              <tr key={r.label} className="border-b border-gray-100">
+                <td className="py-1.5 text-gray-600">{r.label}</td>
+                <td className="py-1.5 text-right text-gray-500">{fmt(r.forrige)}</td>
+                <td className="py-1.5 text-right">{fmt(r.denne)}</td>
+                <td className="py-1.5 text-right font-medium">{fmt(r.totalt)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        {/* Oppsummeringslinje */}
+        <div className="grid grid-cols-3 gap-4 rounded bg-gray-50 px-3 py-2.5 text-sm">
+          <div>
+            <div className="text-gray-500">{t("okonomi.netto")}</div>
+            <div className="font-mono font-semibold">{fmt(dok.nettoDenne)}</div>
+          </div>
+          <div>
+            <div className="text-gray-500">{t("okonomi.mva")}</div>
+            <div className="font-mono font-semibold">{fmt(dok.mva)}</div>
+          </div>
+          <div>
+            <div className="text-gray-500">{t("okonomi.sumInkl")}</div>
+            <div className="font-mono font-semibold text-sitedoc-primary">{fmt(dok.sumInkMva)}</div>
+          </div>
+        </div>
+
+        {/* Last ned */}
+        <div className="flex justify-end">
+          <a
+            href={`/api${dok.fileUrl}`}
+            download
+            className="inline-flex items-center gap-1.5 rounded border px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
+          >
+            <FileText className="h-3.5 w-3.5" />
+            {t("okonomi.lastNed")}
+          </a>
+        </div>
       </div>
     </div>
   );

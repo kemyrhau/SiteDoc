@@ -63,6 +63,7 @@ export const mengdeRouter = router({
           kontraktNavn: true,
           entreprenor: true,
           uploadedAt: true,
+          utfortPr: true,
           processingState: true,
           processingError: true,
           utfortTotalt: true,
