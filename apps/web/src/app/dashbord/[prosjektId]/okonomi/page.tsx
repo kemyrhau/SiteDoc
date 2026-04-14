@@ -1210,86 +1210,61 @@ function NotaForsideOppsummering({
 
   const tittel = dok.notaType === "Sluttnota"
     ? t("okonomi.sluttnota")
-    : `${dok.notaType ?? "A-Nota"} ${dok.notaNr ?? ""}`;
+    : `${dok.notaType === "T-Nota" ? t("okonomi.tNota") : t("okonomi.aNota")} ${dok.notaNr ?? ""}`;
 
-  const rader: { label: string; forrige: unknown; denne: unknown; totalt: unknown }[] = [
-    { label: t("okonomi.utfort"), forrige: dok.utfortForrige, denne: dok.utfortDenne, totalt: dok.utfortTotalt },
-    { label: t("okonomi.innestaaende"), forrige: dok.innestaaendeForrige, denne: dok.innestaaendeDenne, totalt: dok.innestaaende },
-  ];
+  const Rad = ({ label, verdi, prefiks, uthevet, dobbel }: { label: string; verdi: unknown; prefiks?: string; uthevet?: boolean; dobbel?: boolean }) => (
+    <div className={`flex items-baseline justify-between py-1 ${dobbel ? "border-b-[3px] border-double border-gray-900" : ""}`}>
+      <span className={`${prefiks ? "text-gray-500" : ""} ${uthevet ? "font-semibold" : ""}`}>
+        {prefiks && <span className="mr-1 text-gray-400">{prefiks}</span>}
+        {label}
+      </span>
+      <span className={`font-mono tabular-nums ${uthevet ? "font-semibold" : ""}`}>{fmt(verdi)}</span>
+    </div>
+  );
 
   return (
-    <div className="w-full max-w-lg rounded-lg bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
+    <div className="w-full max-w-md rounded-lg bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
       {/* Header */}
-      <div className="flex items-center justify-between border-b px-5 py-3">
-        <h2 className="text-sm font-semibold">{tittel}</h2>
+      <div className="flex items-center justify-between px-6 py-4">
+        <h2 className="text-base font-bold">{tittel}</h2>
         <button onClick={onLukk} className="rounded p-1 text-gray-400 hover:bg-gray-100">
           <X className="h-4 w-4" />
         </button>
       </div>
 
-      <div className="px-5 py-4 space-y-4">
-        {/* Metadata */}
-        <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm">
-          <div className="text-gray-500">{t("okonomi.fil")}</div>
-          <div className="font-medium truncate" title={dok.filename}>{dok.filename}</div>
-          {dok.kontraktNavn && (
-            <>
-              <div className="text-gray-500">{t("okonomi.kontrakt")}</div>
-              <div className="font-medium">{dok.kontraktNavn}</div>
-            </>
-          )}
-          {dok.entreprenor && (
-            <>
-              <div className="text-gray-500">{t("okonomi.entreprenoer")}</div>
-              <div className="font-medium">{dok.entreprenor}</div>
-            </>
-          )}
-          <div className="text-gray-500">{t("okonomi.utfortPr")}</div>
-          <div className="font-medium">{fmtDato(dok.utfortPr)}</div>
-          <div className="text-gray-500">{t("okonomi.opplastet")}</div>
-          <div className="font-medium">{fmtDato(dok.uploadedAt)}</div>
+      <div className="px-6 pb-5 text-sm space-y-1">
+        {/* Utført pr */}
+        <div className="pb-2">
+          <span className="text-gray-600">{t("okonomi.utfortPr")}: </span>
+          <span className="font-medium">{fmtDato(dok.utfortPr)}</span>
         </div>
 
-        {/* Beløpstabell */}
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b text-left text-gray-500">
-              <th className="py-1.5 font-medium"></th>
-              <th className="py-1.5 font-medium text-right">{t("okonomi.forrige")}</th>
-              <th className="py-1.5 font-medium text-right">{t("okonomi.dennePeriode")}</th>
-              <th className="py-1.5 font-medium text-right">{t("okonomi.totalt")}</th>
-            </tr>
-          </thead>
-          <tbody className="font-mono">
-            {rader.map((r) => (
-              <tr key={r.label} className="border-b border-gray-100">
-                <td className="py-1.5 text-gray-600">{r.label}</td>
-                <td className="py-1.5 text-right text-gray-500">{fmt(r.forrige)}</td>
-                <td className="py-1.5 text-right">{fmt(r.denne)}</td>
-                <td className="py-1.5 text-right font-medium">{fmt(r.totalt)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        {/* Utført-seksjon */}
+        <Rad label={t("okonomi.utfortTotalt")} verdi={dok.utfortTotalt} />
+        <Rad label={t("okonomi.utfortForrige")} verdi={dok.utfortForrige} prefiks="−" />
+        <Rad label={`=${t("okonomi.utfortDenne")}`} verdi={dok.utfortDenne} uthevet dobbel />
 
-        {/* Oppsummeringslinje */}
-        <div className="grid grid-cols-3 gap-4 rounded bg-gray-50 px-3 py-2.5 text-sm">
-          <div>
-            <div className="text-gray-500">{t("okonomi.netto")}</div>
-            <div className="font-mono font-semibold">{fmt(dok.nettoDenne)}</div>
-          </div>
-          <div>
-            <div className="text-gray-500">{t("okonomi.mva")}</div>
-            <div className="font-mono font-semibold">{fmt(dok.mva)}</div>
-          </div>
-          <div>
-            <div className="text-gray-500">{t("okonomi.sumInkl")}</div>
-            <div className="font-mono font-semibold text-sitedoc-primary">{fmt(dok.sumInkMva)}</div>
-          </div>
-        </div>
+        <div className="h-3" />
+
+        {/* Innestående-seksjon */}
+        <div className="text-gray-600 py-1">{t("okonomi.innestaaende")}</div>
+        <Rad label={t("okonomi.innestaaende")} verdi={dok.innestaaende} />
+        <Rad label={t("okonomi.innestForrige")} verdi={dok.innestaaendeForrige} prefiks="−" />
+        <Rad label={`=${t("okonomi.innestDenne")}`} verdi={dok.innestaaendeDenne} uthevet dobbel />
+
+        <div className="h-3" />
+
+        {/* Netto + MVA */}
+        <Rad label={t("okonomi.nettoDenne")} verdi={dok.nettoDenne} />
+        <Rad label={`+${t("okonomi.mva")}`} verdi={dok.mva} dobbel />
+
+        <div className="h-2" />
+
+        {/* Sum inkl. */}
+        <Rad label={t("okonomi.sumInklMva")} verdi={dok.sumInkMva} uthevet dobbel />
 
         {/* Last ned */}
-        <div className="flex justify-end">
+        <div className="flex justify-end pt-4">
           <a
             href={`/api${dok.fileUrl}`}
             download
