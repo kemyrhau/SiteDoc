@@ -472,6 +472,13 @@ export function ViewerCanvas({
             const fm = model as { object: InstanceType<typeof THREE.Object3D>; useCamera: (c: unknown) => void; box: InstanceType<typeof THREE.Box3> };
             scene.add(fm.object);
             fm.useCamera(threeCamera);
+            // DEBUG: Logg modell-posisjon for å sjekke world vs local offset
+            console.log(`[3D-DEBUG] Modell "${tegning.name}" position:`, {
+              pos: { x: fm.object.position.x, y: fm.object.position.y, z: fm.object.position.z },
+              rotation: { x: fm.object.rotation.x, y: fm.object.rotation.y, z: fm.object.rotation.z },
+              scale: { x: fm.object.scale.x, y: fm.object.scale.y, z: fm.object.scale.z },
+              matrixWorld: fm.object.matrixWorld.elements.slice(),
+            });
             modellMap.set(tegning.id, model);
             const fragModelId = (model as { modelId: string }).modelId;
             ifcDataMap.set(fragModelId, data);
@@ -639,6 +646,9 @@ export function ViewerCanvas({
             const { localId, fragments: hitModel } = hitResult;
             placeMarker(hitResult.point);
             sisteKlikkPunkt3D = { x: hitResult.point.x, y: hitResult.point.y, z: hitResult.point.z };
+            // DEBUG: Logg raycast-punkt vs kameraposisjon
+            console.log(`[3D-DEBUG] Raycast hitResult.point:`, { x: hitResult.point.x, y: hitResult.point.y, z: hitResult.point.z });
+            console.log(`[3D-DEBUG] Kamera ved klikk:`, { x: threeCamera.position.x, y: threeCamera.position.y, z: threeCamera.position.z });
             try {
               await hitModel.highlight([localId], highlightMaterial);
               currentHighlight = { modelId: hitModel.modelId, localIds: [localId] };
@@ -1120,11 +1130,23 @@ export function ViewerCanvas({
             const dx = senter.x - x;
             const dz = senter.z - z;
             const len = Math.sqrt(dx * dx + dz * dz) || 1;
+            // DEBUG: Logg flyTil input og beregninger
+            console.log(`[3D-DEBUG] flyTil input:`, { x, z, gulvY, erMm });
+            console.log(`[3D-DEBUG] flyTil setLookAt pos:`, { x, kameraY, z });
+            console.log(`[3D-DEBUG] flyTil setLookAt target:`, { x: x + (dx / len) * fremover, y: kameraY, z: z + (dz / len) * fremover });
             world.camera.controls?.setLookAt(
               x, kameraY, z,
               x + (dx / len) * fremover, kameraY, z + (dz / len) * fremover,
               true,
             );
+            // DEBUG: Logg faktisk kameraposisjon etter animasjon (700ms)
+            setTimeout(() => {
+              const cam = world.camera.three;
+              if (cam) {
+                console.log(`[3D-DEBUG] flyTil → kamera ETTER 700ms:`, { x: cam.position.x, y: cam.position.y, z: cam.position.z });
+                console.log(`[3D-DEBUG] flyTil → AVVIK:`, { dx: cam.position.x - x, dz: cam.position.z - z });
+              }
+            }, 700);
           },
           sisteKlikkPunkt: () => sisteKlikkPunkt3D,
           hentKameraPosisjon: () => {

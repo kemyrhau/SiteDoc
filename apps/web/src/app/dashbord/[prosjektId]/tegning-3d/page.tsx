@@ -164,7 +164,9 @@ export default function Tegning3DSide() {
   const tegningTil3D = useCallback((pkt: { x: number; y: number }): { x: number; z: number } | null => {
     if (!kalibTransform) return null;
     const { a, b, tx, tz } = kalibTransform;
-    return { x: a * pkt.x + b * pkt.y + tx, z: -b * pkt.x + a * pkt.y + tz };
+    const resultat = { x: a * pkt.x + b * pkt.y + tx, z: -b * pkt.x + a * pkt.y + tz };
+    console.log(`[3D-DEBUG] tegningTil3D: tegning(${pkt.x.toFixed(2)}, ${pkt.y.toFixed(2)}) → 3D(${resultat.x.toFixed(2)}, ${resultat.z.toFixed(2)})`);
+    return resultat;
   }, [kalibTransform]);
 
   /** 3D xz → tegning pixel% (invers transform) */
@@ -174,7 +176,9 @@ export default function Tegning3DSide() {
     const det = a * a + b * b;
     if (det < 1e-10) return null;
     const dx = punkt.x - tx, dz = punkt.z - tz;
-    return { x: (a * dx - b * dz) / det, y: (b * dx + a * dz) / det };
+    const resultat = { x: (a * dx - b * dz) / det, y: (b * dx + a * dz) / det };
+    console.log(`[3D-DEBUG] treDTilTegning: 3D(${punkt.x.toFixed(2)}, ${punkt.z.toFixed(2)}) → tegning(${resultat.x.toFixed(2)}, ${resultat.y.toFixed(2)})`);
+    return resultat;
   }, [kalibTransform]);
 
   /** 3D-delta → tegning%-delta (kun lineærdelen av transformen, ingen offset) */
@@ -468,6 +472,19 @@ export default function Tegning3DSide() {
         const tx = xA - a * pxA - b * pyA;
         const tz = zA + b * pxA - a * pyA;
 
+        // DEBUG: Logg kalibreringsdata og verifiser roundtrip
+        console.log(`[3D-DEBUG] KALIBRERING steg 4:`);
+        console.log(`  Punkt A: tegning(${pxA.toFixed(2)}, ${pyA.toFixed(2)}) → 3D(${xA.toFixed(2)}, ${zA.toFixed(2)})`);
+        console.log(`  Punkt B: tegning(${pxB.toFixed(2)}, ${pyB.toFixed(2)}) → 3D(${xB.toFixed(2)}, ${zB.toFixed(2)})`);
+        console.log(`  Transform: a=${a.toFixed(6)}, b=${b.toFixed(6)}, tx=${tx.toFixed(2)}, tz=${tz.toFixed(2)}`);
+        // Roundtrip-test: A tegning → 3D → tegning
+        const testFwd = { x: a * pxA + b * pyA + tx, z: -b * pxA + a * pyA + tz };
+        const testDet = a * a + b * b;
+        const testDx = testFwd.x - tx, testDz = testFwd.z - tz;
+        const testInv = { x: (a * testDx - b * testDz) / testDet, y: (b * testDx + a * testDz) / testDet };
+        console.log(`  Roundtrip A: tegning(${pxA.toFixed(2)}, ${pyA.toFixed(2)}) → 3D(${testFwd.x.toFixed(2)}, ${testFwd.z.toFixed(2)}) → tegning(${testInv.x.toFixed(2)}, ${testInv.y.toFixed(2)})`);
+        console.log(`  Roundtrip-feil: dx=${(testInv.x - pxA).toFixed(6)}, dy=${(testInv.y - pyA).toFixed(6)}`);
+
         // GPS-opprinnelse fra tegningens sentrum (for kompatibilitet)
         const senterGps = transformasjon ? tegningTilGps({ x: 50, y: 50 }, transformasjon) : ifcOpprinnelse;
 
@@ -606,12 +623,31 @@ export default function Tegning3DSide() {
       } else return;
 
       setTegningMarkør({ ...pxProsent });
+      // DEBUG: Logg tegning-klikk → flyTil → inverstest
+      console.log(`[3D-DEBUG] Tegning-klikk: pxProsent(${pxProsent.x.toFixed(2)}, ${pxProsent.y.toFixed(2)}) → flyTil(${flyX.toFixed(2)}, ${flyZ.toFixed(2)})`);
       // Pause delta-tracking under flyTil-animasjon (600ms)
       // Uten dette tolkes animasjonen som brukerbevegelse → prikken drifter
       pauseDeltaRef.current = true;
       forrigeKamPosRef.current = null;
       viewerRef.current?.flyTil(flyX, 0, flyZ, gulvY ?? undefined);
-      setTimeout(() => { pauseDeltaRef.current = false; forrigeKamPosRef.current = null; }, 600);
+      // DEBUG: Les kameraposisjon etter animasjon og test inverst
+      setTimeout(() => {
+        const kam = viewerRef.current?.hentKameraPosisjon();
+        if (kam && kalibTransform) {
+          console.log(`[3D-DEBUG] Etter flyTil — kamera ved:`, { x: kam.pos.x.toFixed(2), z: kam.pos.z.toFixed(2) });
+          console.log(`[3D-DEBUG] Forespurt flyTil:`, { x: flyX.toFixed(2), z: flyZ.toFixed(2) });
+          console.log(`[3D-DEBUG] Posisjon-avvik:`, { dx: (kam.pos.x - flyX).toFixed(4), dz: (kam.pos.z - flyZ).toFixed(4) });
+          // Test invers med faktisk kameraposisjon
+          const { a, b, tx, tz } = kalibTransform;
+          const det = a * a + b * b;
+          const dxK = kam.pos.x - tx, dzK = kam.pos.z - tz;
+          const invFraKam = { x: (a * dxK - b * dzK) / det, y: (b * dxK + a * dzK) / det };
+          console.log(`[3D-DEBUG] Invers fra kamera-pos → tegning:`, invFraKam);
+          console.log(`[3D-DEBUG] Forventet tegning:`, pxProsent);
+          console.log(`[3D-DEBUG] Invers-avvik:`, { dx: (invFraKam.x - pxProsent.x).toFixed(4), dy: (invFraKam.y - pxProsent.y).toFixed(4) });
+        }
+        pauseDeltaRef.current = false; forrigeKamPosRef.current = null;
+      }, 700);
     },
     [synkAktiv, transformasjon, ifcOpprinnelse, coordSystem, viewerRef, klikkKalibSteg, finjusterSteg],
   );
