@@ -109,10 +109,9 @@ export default function OkonomiSide() {
   const kontraktDokumenter = useMemo(() => {
     if (!dokumenter || !kontraktId) return { budsjett: null, notas: [] };
     const filtrert = dokumenter.filter((d) => d.kontraktId === kontraktId);
-    // Prioriter GAB/GA1 over PDF/Excel — GAB har strukturerte NS-koder
+    // Prioriter anbudsgrunnlag med flest poster — GAB har NS-koder men ufullstendige verdier
     const anbudsgrunnlag = filtrert.filter((d) => d.docType === "anbudsgrunnlag");
-    const budsjett = anbudsgrunnlag.find((d) => /\.(gab|ga1)$/i.test(d.filename))
-      ?? anbudsgrunnlag[0] ?? null;
+    const budsjett = anbudsgrunnlag[0] ?? null;
     const alleNotas = filtrert
       .filter((d) => d.docType === dokType && d.notaNr !== null)
       .sort((a, b) => (a.notaNr ?? 0) - (b.notaNr ?? 0));
