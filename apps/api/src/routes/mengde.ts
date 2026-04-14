@@ -86,7 +86,6 @@ export const mengdeRouter = router({
         projectId: z.string().uuid(),
         kontraktId: z.string().optional(),
         dokumentId: z.string().optional(),
-        periodId: z.string().optional(),
       }),
     )
     .query(async ({ ctx, input }) => {
@@ -106,9 +105,6 @@ export const mengdeRouter = router({
         where,
         include: {
           document: { select: { id: true, docType: true, notaNr: true, kontraktId: true, kontraktNavn: true } },
-          notaPoster: input.periodId
-            ? { where: { periodId: input.periodId } }
-            : false,
         },
         orderBy: { postnr: "asc" },
       });
