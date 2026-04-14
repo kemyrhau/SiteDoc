@@ -283,9 +283,17 @@ export default function OkonomiSide() {
       {/* Innhold */}
       {aktivFane === "oversikt" ? (
         <>
-          {/* Tabell — fyller midten, scroller internt */}
+          {/* DEBUG: Midlertidig — vis poster-info i stedet for tabell */}
           <div className="min-h-0 flex-1 px-4 pt-4">
-            <SpecPostTabell
+            <div className="p-4 text-sm">
+              <p>Poster: {poster?.length ?? 0}</p>
+              {poster && poster.length > 0 && (
+                <pre className="mt-2 max-h-40 overflow-auto rounded bg-gray-100 p-2 text-xs">
+                  {JSON.stringify(Object.entries(poster[0]!).map(([k, v]) => [k, typeof v, v === null ? "null" : typeof v === "object" ? v?.constructor?.name : String(v).slice(0, 30)]), null, 2)}
+                </pre>
+              )}
+            </div>
+            {false && <SpecPostTabell
               poster={poster ?? []}
               sammenligningPoster={valgtNotaNr !== null ? (notaPoster ?? []) : undefined}
               sammenligningLabel={valgtNotaNr !== null
@@ -295,7 +303,7 @@ export default function OkonomiSide() {
               valgtPostId={valgtPostId}
               prosjektId={prosjektId}
               kontraktId={kontraktId}
-            />
+            />}
           </div>
 
           {/* Detaljpanel — alltid synlig i bunn */}
