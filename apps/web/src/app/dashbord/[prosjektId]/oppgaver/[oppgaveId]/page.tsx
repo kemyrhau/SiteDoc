@@ -196,6 +196,7 @@ export default function OppgaveDetaljSide() {
     if (fo.recipientUserId && fo.recipientUserId === (minFlytInfo as { userId?: string }).userId) return true;
     if (fo.recipientGroupId && minFlytInfo.gruppeIder.includes(fo.recipientGroupId)) return true;
     return false;
+  // @ts-ignore TS2589
   }, [fullOppgaveRå, minFlytInfo]);
 
   // Utled brukerens rolle i dokumentflyten — trengs for rettighetInput + handlingsknapper
