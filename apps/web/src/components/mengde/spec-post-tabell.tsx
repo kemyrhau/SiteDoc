@@ -188,6 +188,31 @@ export function SpecPostTabell({
   prosjektId,
   kontraktId,
 }: SpecPostTabellProps) {
+  // Sanitiser poster — fjern eventuelle sub-objekter og konverter Decimal til Number
+  const sanitiserPost = (p: SpecPost): SpecPost => ({
+    id: p.id,
+    postnr: p.postnr,
+    beskrivelse: p.beskrivelse,
+    enhet: p.enhet,
+    mengdeAnbud: p.mengdeAnbud != null ? Number(p.mengdeAnbud) : null,
+    enhetspris: p.enhetspris != null ? Number(p.enhetspris) : null,
+    sumAnbud: p.sumAnbud != null ? Number(p.sumAnbud) : null,
+    mengdeDenne: p.mengdeDenne != null ? Number(p.mengdeDenne) : null,
+    mengdeTotal: p.mengdeTotal != null ? Number(p.mengdeTotal) : null,
+    mengdeForrige: p.mengdeForrige != null ? Number(p.mengdeForrige) : null,
+    verdiDenne: p.verdiDenne != null ? Number(p.verdiDenne) : null,
+    verdiTotal: p.verdiTotal != null ? Number(p.verdiTotal) : null,
+    verdiForrige: p.verdiForrige != null ? Number(p.verdiForrige) : null,
+    prosentFerdig: p.prosentFerdig != null ? Number(p.prosentFerdig) : null,
+    nsKode: p.nsKode,
+    nsTittel: p.nsTittel,
+    fullNsTekst: p.fullNsTekst,
+    eksternNotat: p.eksternNotat,
+    importNotat: p.importNotat,
+  });
+  poster = poster.map(sanitiserPost);
+  if (sammenligningPoster) sammenligningPoster = sammenligningPoster.map(sanitiserPost);
+
   const harSammenligning = !!sammenligningPoster && sammenligningPoster.length > 0;
 
   // Kolonne-state
