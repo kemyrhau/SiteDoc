@@ -462,6 +462,32 @@ export function SpecPostTabell({
     );
   }
 
+  // DEBUG: Alle hooks har kjørt uten feil. Test om JSX-renderingen krasjer.
+  return (
+    <div className="p-4 text-sm space-y-1">
+      <div className="font-bold">DEBUG — Alle hooks OK!</div>
+      <div>Poster: {renePoster.length} | Rader: {rader.length} | Sortert: {sorterteRader.length}</div>
+      <div>Aktive kolonner: {aktiveKolonner.map(k => k.id).join(", ")}</div>
+      <div>NS-koder: {alleNsKoder.length} | Enheter: {enheter.length}</div>
+      <div>Har sammenligning: {String(harSammenligning)}</div>
+      <table className="mt-2 text-xs border">
+        <thead><tr>{aktiveKolonner.map(k => <th key={k.id} className="border px-1">{k.label}</th>)}</tr></thead>
+        <tbody>
+          {sorterteRader.slice(0, 5).map((rad, i) => (
+            <tr key={i}>
+              {aktiveKolonner.map(kol => {
+                const v = kol.hentVerdi(rad);
+                return <td key={kol.id} className={`border px-1 ${typeof v === "object" && v !== null ? "bg-red-200" : ""}`}>
+                  {v === null || v === undefined ? "—" : typeof v === "object" ? `[OBJ:${JSON.stringify(v).substring(0,50)}]` : String(v)}
+                </td>;
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+
   // Totaler (ekskluder seksjonsoverskrifter)
   const totalRader = sorterteRader.filter((r) => !r.erSeksjon);
   const totalBudsjett = totalRader.reduce((s, r) => s + r.sumAnbud, 0);
