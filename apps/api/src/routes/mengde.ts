@@ -320,7 +320,7 @@ export const mengdeRouter = router({
         filename: z.string(),
         fileUrl: z.string(),
         filetype: z.string().optional(),
-        docType: z.enum(["anbudsgrunnlag", "budsjett", "a_nota", "t_nota", "mengdebeskrivelse", "annet"]).default("annet"),
+        docType: z.enum(["anbudsgrunnlag", "a_nota", "t_nota", "mengdebeskrivelse", "varsel", "varsel_om_endring", "endringsmelding", "regningsarbeid", "annet"]).default("annet"),
         kontraktId: z.string().optional(),
         kontraktNavn: z.string().optional(),
         notaType: z.enum(["A-Nota", "T-Nota", "Sluttnota"]).optional(),
@@ -406,7 +406,7 @@ export const mengdeRouter = router({
     .input(
       z.object({
         documentId: z.string(),
-        docType: z.enum(["anbudsgrunnlag", "a_nota", "t_nota", "mengdebeskrivelse", "annet"]).optional(),
+        docType: z.enum(["anbudsgrunnlag", "a_nota", "t_nota", "mengdebeskrivelse", "varsel", "varsel_om_endring", "endringsmelding", "regningsarbeid", "annet"]).optional(),
         notaType: z.enum(["A-Nota", "T-Nota", "Sluttnota"]).nullable().optional(),
         notaNr: z.number().int().nullable().optional(),
         kontraktId: z.string().nullable().optional(),

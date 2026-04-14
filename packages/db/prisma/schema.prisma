@@ -151,6 +151,7 @@ model Project {
   ftdSpecPosts         FtdSpecPost[]
   ftdNotaPeriods       FtdNotaPeriod[]
   ftdKontrakter        FtdKontrakt[]
+  changeEvents         FtdChangeEvent[]
   psiEr                Psi[]
 
   @@map("projects")
@@ -796,6 +797,8 @@ model FtdDocument {
   specPosts    FtdSpecPost[]
   pages        FtdDocumentPage[]
   notaPerioder FtdNotaPeriod[]
+  changeEvents FtdChangeEvent[]
+  tnotaLinks   FtdTnotaChangeLink[]
 
   @@unique([projectId, filename])
   @@index([folderId])
@@ -821,9 +824,42 @@ model FtdKontrakt {
   dokumenter   FtdDocument[]
   mapper       Folder[]
   notaPerioder FtdNotaPeriod[]
+  changeEvents FtdChangeEvent[]
 
   @@index([projectId])
   @@map("ftd_kontrakter")
+}
+
+model FtdChangeEvent {
+  id            String   @id @default(cuid())
+  projectId     String   @map("project_id")
+  kontraktId    String?  @map("kontrakt_id")
+  eventType     String   @map("event_type") // varsel | varsel_om_endring | endringsmelding | regningsarbeid
+  eventNumber   String?  @map("event_number")
+  description   String?
+  sentToBhAt    DateTime? @map("sent_to_bh_at")
+  documentId    String?  @map("document_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  project   Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  kontrakt  FtdKontrakt? @relation(fields: [kontraktId], references: [id], onDelete: SetNull)
+  document  FtdDocument? @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  tnotaLinks FtdTnotaChangeLink[]
+
+  @@index([projectId])
+  @@map("ftd_change_events")
+}
+
+model FtdTnotaChangeLink {
+  id              String @id @default(cuid())
+  tnotaDocumentId String @map("tnota_document_id")
+  changeEventId   String @map("change_event_id")
+
+  tnotaDocument FtdDocument    @relation(fields: [tnotaDocumentId], references: [id], onDelete: Cascade)
+  changeEvent   FtdChangeEvent @relation(fields: [changeEventId], references: [id], onDelete: Cascade)
+
+  @@unique([tnotaDocumentId, changeEventId])
+  @@map("ftd_tnota_change_links")
 }
 
 model FtdDocumentChunk {

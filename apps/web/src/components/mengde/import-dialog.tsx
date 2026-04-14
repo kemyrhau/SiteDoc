@@ -21,20 +21,28 @@ interface ImportDialogProps {
 }
 
 const DOC_TYPES = [
-  { value: "anbudsgrunnlag", label: "Anbudsgrunnlag (PDF/Excel/GAB/XML)" },
-  { value: "a_nota", label: "A-nota / Sluttnota (PDF/Excel)" },
-  { value: "t_nota", label: "T-nota (PDF/Excel)" },
-  { value: "mengdebeskrivelse", label: "Mengdebeskrivelse (PDF/Word)" },
-  { value: "annet", label: "Annet dokument" },
+  { value: "mengdebeskrivelse", label: "Mengdebeskrivelse" },
+  { value: "anbudsgrunnlag", label: "Anbudsgrunnlag" },
+  { value: "a_nota", label: "A-nota" },
+  { value: "t_nota", label: "T-nota" },
+  { value: "varsel", label: "Varsel" },
+  { value: "varsel_om_endring", label: "Varsel om endring" },
+  { value: "endringsmelding", label: "Endringsmelding" },
+  { value: "regningsarbeid", label: "Regningsarbeid" },
+  { value: "annet", label: "Annet" },
 ] as const;
 
 /** Gjett dokumenttype basert på filnavn */
 function gjettDokType(filnavn: string): string {
   const lavt = filnavn.toLowerCase();
   if (lavt.endsWith(".gab") || lavt.endsWith(".ga1")) return "anbudsgrunnlag";
-  if (lavt.endsWith(".xml")) return "anbudsgrunnlag"; // NS 3459
+  if (lavt.endsWith(".xml")) return "anbudsgrunnlag";
   if (/sluttnota|a.?nota|avdragsnota/i.test(lavt)) return "a_nota";
   if (/t.?nota/i.test(lavt)) return "t_nota";
+  if (/varsel.?om.?endring/i.test(lavt)) return "varsel_om_endring";
+  if (/endringsmelding/i.test(lavt)) return "endringsmelding";
+  if (/regningsarbeid/i.test(lavt)) return "regningsarbeid";
+  if (/varsel/i.test(lavt)) return "varsel";
   if (/mengde/i.test(lavt)) return "mengdebeskrivelse";
   if (/anbud|priset|tilbud/i.test(lavt)) return "anbudsgrunnlag";
   return "anbudsgrunnlag";
@@ -182,10 +190,14 @@ export function ImportDialog({ projectId, open, onClose }: ImportDialogProps) {
           fileUrl,
           filetype: fileType ?? fil.type,
           docType: docType as
-            | "budsjett"
+            | "anbudsgrunnlag"
             | "a_nota"
             | "t_nota"
             | "mengdebeskrivelse"
+            | "varsel"
+            | "varsel_om_endring"
+            | "endringsmelding"
+            | "regningsarbeid"
             | "annet",
           ...(notaType ? { notaType: notaType as "A-Nota" | "T-Nota" | "Sluttnota" } : {}),
           ...(notaNr ? { notaNr: parseInt(notaNr, 10) } : {}),
@@ -227,10 +239,14 @@ export function ImportDialog({ projectId, open, onClose }: ImportDialogProps) {
           fileUrl: dok.fileUrl ?? "",
           filetype: dok.filetype ?? undefined,
           docType: docType as
-            | "budsjett"
+            | "anbudsgrunnlag"
             | "a_nota"
             | "t_nota"
             | "mengdebeskrivelse"
+            | "varsel"
+            | "varsel_om_endring"
+            | "endringsmelding"
+            | "regningsarbeid"
             | "annet",
           ...(notaType ? { notaType: notaType as "A-Nota" | "T-Nota" | "Sluttnota" } : {}),
           ...(notaNr ? { notaNr: parseInt(notaNr, 10) } : {}),
