@@ -43,23 +43,25 @@ export default function ProsjektLayout({
     );
   }
 
-  return (
-    <TreDViewerProvider>
-      <div className="flex flex-1 flex-col overflow-hidden">
-        <Verktoylinje />
-        <div className="relative flex flex-1 overflow-hidden">
-          {/* Persistent 3D-viewer — rendres kun på 3D-sider for å unngå at IFC-feil krasjer andre sider */}
-          {er3DVisning && (
-            <div className="absolute inset-0 z-0">
-              <ViewerCanvas erSynlig={er3DVisning} />
-            </div>
-          )}
-          {/* Sidenes innhold — over vieweren ved 3D, alene ellers */}
-          <div className={er3DVisning ? "relative z-10 flex flex-1 overflow-hidden pointer-events-none" : "flex flex-1 overflow-hidden"}>
-            {children}
+  const innhold = (
+    <div className="flex flex-1 flex-col overflow-hidden">
+      <Verktoylinje />
+      <div className="relative flex flex-1 overflow-hidden">
+        {er3DVisning && (
+          <div className="absolute inset-0 z-0">
+            <ViewerCanvas erSynlig />
           </div>
+        )}
+        <div className={er3DVisning ? "relative z-10 flex flex-1 overflow-hidden pointer-events-none" : "flex flex-1 overflow-hidden"}>
+          {children}
         </div>
       </div>
-    </TreDViewerProvider>
+    </div>
   );
+
+  // TreDViewerProvider lastes kun på 3D-sider for å unngå at IFC-data krasjer andre sider
+  if (er3DVisning) {
+    return <TreDViewerProvider>{innhold}</TreDViewerProvider>;
+  }
+  return innhold;
 }
