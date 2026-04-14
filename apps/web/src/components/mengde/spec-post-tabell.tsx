@@ -454,22 +454,7 @@ export function SpecPostTabell({
     });
   }
 
-  if (renePoster.length === 0) {
-    return (
-      <div className="flex items-center justify-center py-8 text-sm text-gray-400">
-        Ingen poster funnet. Importer anbudsgrunnlag for å komme i gang.
-      </div>
-    );
-  }
-
-
-  // Totaler (ekskluder seksjonsoverskrifter)
-  const totalRader = sorterteRader.filter((r) => !r.erSeksjon);
-  const totalBudsjett = totalRader.reduce((s, r) => s + r.sumAnbud, 0);
-  const totalVerdiDenne = totalRader.reduce((s, r) => s + r.verdiDenne, 0);
-  const totalVerdiTotal = totalRader.reduce((s, r) => s + r.verdiTotal, 0);
-
-  // Grupperte headers for topp-rad
+  // Grupperte headers for topp-rad (MÅ være før early return for å unngå hooks-order-feil)
   const gruppeSpan = useMemo(() => {
     const spans: Array<{ gruppe: Gruppe; antall: number }> = [];
     for (const kol of aktiveKolonner) {
@@ -482,6 +467,20 @@ export function SpecPostTabell({
     }
     return spans;
   }, [aktiveKolonner]);
+
+  if (renePoster.length === 0) {
+    return (
+      <div className="flex items-center justify-center py-8 text-sm text-gray-400">
+        Ingen poster funnet. Importer anbudsgrunnlag for å komme i gang.
+      </div>
+    );
+  }
+
+  // Totaler (ekskluder seksjonsoverskrifter)
+  const totalRader = sorterteRader.filter((r) => !r.erSeksjon);
+  const totalBudsjett = totalRader.reduce((s, r) => s + r.sumAnbud, 0);
+  const totalVerdiDenne = totalRader.reduce((s, r) => s + r.verdiDenne, 0);
+  const totalVerdiTotal = totalRader.reduce((s, r) => s + r.verdiTotal, 0);
 
   // DEBUG: Komplett tabell med sikker rendering — alle verdier via String()
   return (
