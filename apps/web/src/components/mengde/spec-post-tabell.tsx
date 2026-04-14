@@ -226,6 +226,7 @@ export function SpecPostTabell({
   // @ts-ignore TS2589
   const reneSammenligningPoster: SpecPost[] | undefined = sammenligningPoster ? sammenligningPoster.map(sanitiserPost) : undefined;
 
+  // @ts-ignore
   const harSammenligning = !!reneSammenligningPoster && reneSammenligningPoster.length > 0;
 
   // Kolonne-state
@@ -288,6 +289,7 @@ export function SpecPostTabell({
 
   // Nota-map
   const notaMap = useMemo(() => {
+    // @ts-ignore
     if (!reneSammenligningPoster) return new Map<string, SpecPost>();
     const map = new Map<string, SpecPost>();
     for (const p of reneSammenligningPoster) {
