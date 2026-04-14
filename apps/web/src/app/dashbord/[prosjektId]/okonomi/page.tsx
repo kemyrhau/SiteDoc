@@ -137,27 +137,10 @@ export default function OkonomiSide() {
   );
 
   // Nota-poster (for sammenligning)
-  const { data: notaPosterRaw } = trpc.mengde.hentSpecPoster.useQuery(
+  const { data: notaPoster } = trpc.mengde.hentSpecPoster.useQuery(
     { projectId: prosjektId, dokumentId: valgtNotaDok?.id },
     { enabled: !!prosjektId && !!valgtNotaDok },
   );
-  const notaPoster = useMemo(() => {
-    if (!notaPosterRaw) return undefined;
-    const d = (v: unknown) => v != null ? Number(v) : null;
-    return notaPosterRaw.map((p: any) => ({
-      ...p,
-      mengdeAnbud: d(p.mengdeAnbud),
-      enhetspris: d(p.enhetspris),
-      sumAnbud: d(p.sumAnbud),
-      mengdeDenne: d(p.mengdeDenne),
-      mengdeTotal: d(p.mengdeTotal),
-      mengdeForrige: d(p.mengdeForrige),
-      verdiDenne: d(p.verdiDenne),
-      verdiTotal: d(p.verdiTotal),
-      verdiForrige: d(p.verdiForrige),
-      prosentFerdig: d(p.prosentFerdig),
-    }));
-  }, [notaPosterRaw]);
 
   // Fallback: vis alle poster for kontrakten hvis ingen budsjett-dok finnes
   const { data: allePoster } = trpc.mengde.hentSpecPoster.useQuery(
@@ -168,25 +151,7 @@ export default function OkonomiSide() {
     { enabled: !!prosjektId && !!kontraktId && !budsjettDokId },
   );
 
-  // Konverter Prisma Decimal-objekter til number (superjson deserialiserer Decimal som plain object)
-  const poster = useMemo(() => {
-    const rådata = budsjettPoster ?? allePoster;
-    if (!rådata) return undefined;
-    const d = (v: unknown) => v != null ? Number(v) : null;
-    return rådata.map((p: any) => ({
-      ...p,
-      mengdeAnbud: d(p.mengdeAnbud),
-      enhetspris: d(p.enhetspris),
-      sumAnbud: d(p.sumAnbud),
-      mengdeDenne: d(p.mengdeDenne),
-      mengdeTotal: d(p.mengdeTotal),
-      mengdeForrige: d(p.mengdeForrige),
-      verdiDenne: d(p.verdiDenne),
-      verdiTotal: d(p.verdiTotal),
-      verdiForrige: d(p.verdiForrige),
-      prosentFerdig: d(p.prosentFerdig),
-    }));
-  }, [budsjettPoster, allePoster]);
+  const poster = budsjettPoster ?? allePoster;
   const valgtPost = poster?.find((p) => p.id === valgtPostId) ?? null;
 
   const handleVelgPost = useCallback((postId: string) => {
