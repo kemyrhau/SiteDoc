@@ -36,6 +36,7 @@ export interface ImportResultat {
   scenario: Scenario;
   antallPoster: number;
   antallNyePoster: number;
+  antallOppdaterteBudsjett: number;
   avvik: AvvikRad[];
   totalVerdiDenne: number;
   totalVerdiTotal: number;
@@ -419,6 +420,53 @@ export async function importerNotaTilPeriode(
     await prisma.ftdNotaPost.createMany({ data: notaPostData });
   }
 
+  // ─── STEG 7b: Oppdater budsjett-poster med nota-verdier ───
+  // Nota (Excel) har korrekte verdier — oppdater budsjettpost hvis den
+  // mangler eller har avvikende mengde/enhetspris/sum.
+  let antallOppdaterteBudsjett = 0;
+  for (const np of notaPoster) {
+    if (!np.postnr) continue;
+    const bp = budsjettMap.get(np.postnr);
+    if (!bp) continue;
+
+    const notaMengde = np.mengdeAnbud != null ? Number(np.mengdeAnbud) : null;
+    const notaPris = np.enhetspris != null ? Number(np.enhetspris) : null;
+    const notaSum = np.sumAnbud != null ? Number(np.sumAnbud) : null;
+
+    // Hopp over hvis nota ikke har verdier
+    if (notaMengde == null && notaPris == null && notaSum == null) continue;
+
+    const bpMengde = bp.mengdeAnbud != null ? Number(bp.mengdeAnbud) : null;
+    const bpPris = bp.enhetspris != null ? Number(bp.enhetspris) : null;
+    const bpSum = bp.sumAnbud != null ? Number(bp.sumAnbud) : null;
+
+    // Oppdater hvis budsjett mangler verdier eller har vesentlig avvik
+    const manglerMengde = bpMengde == null || bpMengde === 0;
+    const manglerPris = bpPris == null || bpPris === 0;
+    const manglerSum = bpSum == null || bpSum === 0;
+    const prisAvvik = notaPris != null && bpPris != null && bpPris !== 0
+      ? Math.abs(bpPris - notaPris) / notaPris
+      : 0;
+
+    if (manglerMengde || manglerPris || manglerSum || prisAvvik > 0.5) {
+      const oppdatering: Record<string, number> = {};
+      if (notaMengde != null && (manglerMengde || prisAvvik > 0.5)) oppdatering.mengdeAnbud = notaMengde;
+      if (notaPris != null && (manglerPris || prisAvvik > 0.5)) oppdatering.enhetspris = notaPris;
+      if (notaSum != null && (manglerSum || prisAvvik > 0.5)) oppdatering.sumAnbud = notaSum;
+
+      if (Object.keys(oppdatering).length > 0) {
+        await prisma.ftdSpecPost.update({
+          where: { id: bp.id },
+          data: oppdatering,
+        });
+        antallOppdaterteBudsjett++;
+      }
+    }
+  }
+  if (antallOppdaterteBudsjett > 0) {
+    console.log(`[nota-import] Oppdaterte ${antallOppdaterteBudsjett} budsjett-poster med nota-verdier for kontrakt ${kontraktId}`);
+  }
+
   // ─── STEG 8: Oppdater periode-totaler ───
   const totalVerdiDenne = notaPostData.reduce((s, p) => s + Number(p.verdiDenne ?? 0), 0);
   const totalVerdiTotal = notaPostData.reduce((s, p) => s + Number(p.verdiTotal ?? 0), 0);
@@ -437,6 +485,7 @@ export async function importerNotaTilPeriode(
     scenario: scenarioResultat.scenario,
     antallPoster: notaPostData.length,
     antallNyePoster,
+    antallOppdaterteBudsjett,
     avvik: alleAvvik,
     totalVerdiDenne,
     totalVerdiTotal,
