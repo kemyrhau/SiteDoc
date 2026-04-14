@@ -43,11 +43,11 @@ export const mengdeRouter = router({
         ctx.userId,
         input.projectId,
       );
-      return ctx.prisma.ftdDocument.findMany({
+      const rå = await ctx.prisma.ftdDocument.findMany({
         where: {
           projectId: input.projectId,
           isActive: true,
-          docType: { not: null }, // Kun dokumenter importert til økonomi
+          docType: { not: null },
           ...(input.kontraktId ? { kontraktId: input.kontraktId } : {}),
           ...(input.docType ? { docType: input.docType } : {}),
           ...byggMappeTilgangsFilter(mappeIder),
@@ -77,6 +77,19 @@ export const mengdeRouter = router({
         },
         orderBy: [{ notaNr: "asc" }, { uploadedAt: "desc" }],
       });
+      // Konverter Prisma Decimal til Number
+      return rå.map((d) => ({
+        ...d,
+        utfortTotalt: d.utfortTotalt !== null ? Number(d.utfortTotalt) : null,
+        utfortForrige: d.utfortForrige !== null ? Number(d.utfortForrige) : null,
+        utfortDenne: d.utfortDenne !== null ? Number(d.utfortDenne) : null,
+        innestaaende: d.innestaaende !== null ? Number(d.innestaaende) : null,
+        innestaaendeForrige: d.innestaaendeForrige !== null ? Number(d.innestaaendeForrige) : null,
+        innestaaendeDenne: d.innestaaendeDenne !== null ? Number(d.innestaaendeDenne) : null,
+        nettoDenne: d.nettoDenne !== null ? Number(d.nettoDenne) : null,
+        mva: d.mva !== null ? Number(d.mva) : null,
+        sumInkMva: d.sumInkMva !== null ? Number(d.sumInkMva) : null,
+      }));
     }),
 
   hentPerioder: protectedProcedure
