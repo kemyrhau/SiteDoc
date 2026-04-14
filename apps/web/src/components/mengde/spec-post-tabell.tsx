@@ -222,10 +222,10 @@ export function SpecPostTabell({
     eksternNotat: p.eksternNotat,
     importNotat: p.importNotat,
   });
-  poster = poster.map(sanitiserPost);
-  if (sammenligningPoster) sammenligningPoster = sammenligningPoster.map(sanitiserPost);
+  const renePoster = poster.map(sanitiserPost);
+  const reneSammenligningPoster = sammenligningPoster?.map(sanitiserPost);
 
-  const harSammenligning = !!sammenligningPoster && sammenligningPoster.length > 0;
+  const harSammenligning = !!reneSammenligningPoster && reneSammenligningPoster.length > 0;
 
   // Kolonne-state
   const [kolonneRekkefølge, setKolonneRekkefølge] = useState<string[]>(() =>
