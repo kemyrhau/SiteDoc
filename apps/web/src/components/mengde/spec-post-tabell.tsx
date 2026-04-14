@@ -223,7 +223,8 @@ export function SpecPostTabell({
     importNotat: p.importNotat,
   });
   const renePoster = poster.map(sanitiserPost);
-  const reneSammenligningPoster = sammenligningPoster ? sammenligningPoster.map(sanitiserPost) : undefined;
+  // @ts-ignore TS2589
+  const reneSammenligningPoster: SpecPost[] | undefined = sammenligningPoster ? sammenligningPoster.map(sanitiserPost) : undefined;
 
   const harSammenligning = !!reneSammenligningPoster && reneSammenligningPoster.length > 0;
 
