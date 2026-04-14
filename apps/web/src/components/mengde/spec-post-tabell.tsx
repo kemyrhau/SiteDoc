@@ -1,7 +1,10 @@
 "use client";
 
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
-import { ChevronUp, ChevronDown, X, Settings, FileSearch, Loader2, Search, Filter, Plus } from "lucide-react";
+import { ChevronUp, ChevronDown, X, Settings, FileSearch, Loader2, Search, Filter, Plus, GripVertical } from "lucide-react";
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
+import { SortableContext, horizontalListSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { trpc } from "@/lib/trpc";
 
 interface SpecPost {
@@ -126,6 +129,7 @@ const ALLE_KOLONNER: KolonneDef[] = [
   { id: "v_denne", label: "Denne per.", gruppe: "verdi", type: "tall", bredde: "min-w-[90px]", synligDefault: true, hentVerdi: (r) => r.verdiDenne },
   { id: "v_totalt", label: "Totalt", gruppe: "verdi", type: "tall", bredde: "min-w-[90px]", synligDefault: true, hentVerdi: (r) => r.verdiTotal },
   { id: "v_prosent", label: "%", gruppe: "verdi", type: "tall", bredde: "min-w-[50px]", synligDefault: true, hentVerdi: (r) => r.prosentFerdig },
+  { id: "v_mva_denne", label: "Mva denne per.", gruppe: "verdi", type: "tall", bredde: "min-w-[90px]", synligDefault: false, hentVerdi: (_r) => null },
 ];
 
 const GRUPPE_FARGE: Record<Gruppe, string> = {
@@ -217,20 +221,55 @@ export function SpecPostTabell({
   // @ts-ignore
   const harSammenligning = !!reneSammenligningPoster && reneSammenligningPoster.length > 0;
 
-  // Kolonne-state
-  const [kolonneRekkefølge, setKolonneRekkefølge] = useState<string[]>(() =>
-    ALLE_KOLONNER.map((k) => k.id),
-  );
-  const [synligeKolonner, setSynligeKolonner] = useState<Set<string>>(() => {
-    const s = new Set<string>();
-    for (const k of ALLE_KOLONNER) {
-      if (k.alltidSynlig || k.synligDefault) s.add(k.id);
+  // localStorage-nøkler
+  const lsOrdenKey = "ftd-kolonne-orden";
+  const lsSynligKey = "ftd-kolonne-synlig";
+
+  // Kolonne-state med localStorage-persistering
+  const [kolonneRekkefølge, setKolonneRekkefølgeState] = useState<string[]>(() => {
+    if (typeof window === "undefined") return ALLE_KOLONNER.map((k) => k.id);
+    try {
+      const lagret = localStorage.getItem(lsOrdenKey);
+      if (lagret) {
+        const parsed = JSON.parse(lagret) as string[];
+        // Inkluder nye kolonner som ikke var lagret
+        const eksisterende = new Set(parsed);
+        const alle = ALLE_KOLONNER.map((k) => k.id);
+        const manglende = alle.filter((id) => !eksisterende.has(id));
+        return [...parsed.filter((id) => alle.includes(id)), ...manglende];
+      }
+    } catch { /* ignorer */ }
+    return ALLE_KOLONNER.map((k) => k.id);
+  });
+  const [synligeKolonner, setSynligeKolonnerState] = useState<Set<string>>(() => {
+    if (typeof window === "undefined") {
+      const s = new Set<string>();
+      for (const k of ALLE_KOLONNER) { if (k.alltidSynlig || k.synligDefault) s.add(k.id); }
+      return s;
     }
+    try {
+      const lagret = localStorage.getItem(lsSynligKey);
+      if (lagret) return new Set(JSON.parse(lagret) as string[]);
+    } catch { /* ignorer */ }
+    const s = new Set<string>();
+    for (const k of ALLE_KOLONNER) { if (k.alltidSynlig || k.synligDefault) s.add(k.id); }
     return s;
   });
 
-  // Sortering
-  const [sorterKolId, setSorterKolId] = useState("postnr");
+  const setKolonneRekkefølge = useCallback((orden: string[]) => {
+    setKolonneRekkefølgeState(orden);
+    try { localStorage.setItem(lsOrdenKey, JSON.stringify(orden)); } catch { /* ignorer */ }
+  }, []);
+  const setSynligeKolonner = useCallback((updater: Set<string> | ((prev: Set<string>) => Set<string>)) => {
+    setSynligeKolonnerState((prev) => {
+      const ny = typeof updater === "function" ? updater(prev) : updater;
+      try { localStorage.setItem(lsSynligKey, JSON.stringify([...ny])); } catch { /* ignorer */ }
+      return ny;
+    });
+  }, []);
+
+  // Sortering (treveis: asc → desc → ingen)
+  const [sorterKolId, setSorterKolId] = useState<string | null>("postnr");
   const [sorterRetning, setSorterRetning] = useState<"asc" | "desc">("asc");
 
   // Søk og filter
@@ -393,6 +432,7 @@ export function SpecPostTabell({
 
   // Sortering
   const sorterteRader = useMemo(() => {
+    if (!sorterKolId) return filtrerteRader;
     const kol = ALLE_KOLONNER.find((k) => k.id === sorterKolId);
     if (!kol) return filtrerteRader;
 
@@ -437,8 +477,13 @@ export function SpecPostTabell({
   }, [valgtPostId]);
 
   function toggleSortering(kolId: string) {
-    if (sorterKolId === kolId) setSorterRetning((r) => (r === "asc" ? "desc" : "asc"));
-    else { setSorterKolId(kolId); setSorterRetning("asc"); }
+    if (sorterKolId === kolId) {
+      if (sorterRetning === "asc") setSorterRetning("desc");
+      else { setSorterKolId(null); setSorterRetning("asc"); }
+    } else {
+      setSorterKolId(kolId);
+      setSorterRetning("asc");
+    }
   }
 
   function settFilter(kolId: string, verdi: string) {
@@ -467,6 +512,48 @@ export function SpecPostTabell({
     }
     return spans;
   }, [aktiveKolonner]);
+
+  // Drag-and-drop
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor),
+  );
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const fasteIder = ALLE_KOLONNER.filter((k) => k.gruppe === "fast" && k.id !== "enhetspris").map((k) => k.id);
+    if (fasteIder.includes(String(active.id)) || fasteIder.includes(String(over.id))) return;
+    const oldIndex = kolonneRekkefølge.indexOf(String(active.id));
+    const newIndex = kolonneRekkefølge.indexOf(String(over.id));
+    if (oldIndex !== -1 && newIndex !== -1) {
+      setKolonneRekkefølge(arrayMove(kolonneRekkefølge, oldIndex, newIndex));
+    }
+  }, [kolonneRekkefølge, setKolonneRekkefølge]);
+
+  // Kolonnegrupper for vis/skjul-dropdown
+  const kolonneGrupper = useMemo(() => {
+    const grupper: { mengder: KolonneDef[]; verdi: KolonneDef[] } = { mengder: [], verdi: [] };
+    for (const k of ALLE_KOLONNER) {
+      if (k.gruppe === "fast" && k.id !== "enhetspris") continue;
+      if (k.gruppe === "mengder") grupper.mengder.push(k);
+      else if (k.gruppe === "verdi") grupper.verdi.push(k);
+      else if (k.id === "enhetspris") grupper.mengder.push(k);
+    }
+    return grupper;
+  }, []);
+
+  const kolonneVelgerRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    function handleKlikk(e: MouseEvent) {
+      if (kolonneVelgerRef.current && !kolonneVelgerRef.current.contains(e.target as Node)) {
+        setVisKolonneVelger(false);
+      }
+    }
+    if (visKolonneVelger) {
+      document.addEventListener("mousedown", handleKlikk);
+      return () => document.removeEventListener("mousedown", handleKlikk);
+    }
+  }, [visKolonneVelger]);
 
   if (renePoster.length === 0) {
     return (
@@ -519,27 +606,63 @@ export function SpecPostTabell({
                   {GRUPPE_LABEL[g.gruppe]}
                 </th>
               ))}
+              <th className="w-[32px] px-1 py-1" />
             </tr>
-            {/* Kolonne-headers med sortering */}
-            <tr className="border-b">
-              <th className="w-[36px] px-1 py-1.5 text-[10px] text-gray-400">#</th>
-              {aktiveKolonner.map((kol) => (
-                <th key={kol.id} className={`px-2 py-1.5 ${kol.bredde ?? ""} ${kol.type === "tall" ? "text-right" : ""}`}>
+            {/* Kolonne-headers med sortering + drag-and-drop */}
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              <tr className="border-b">
+                <th className="w-[36px] px-1 py-1.5 text-[10px] text-gray-400">#</th>
+                <SortableContext items={aktiveKolonner.map((k) => k.id)} strategy={horizontalListSortingStrategy}>
+                  {aktiveKolonner.map((kol) => {
+                    const erFast = kol.gruppe === "fast" && kol.id !== "enhetspris";
+                    return (
+                      <SortableHeader
+                        key={kol.id}
+                        kol={kol}
+                        erFast={erFast}
+                        erAktiv={sorterKolId === kol.id}
+                        sorterRetning={sorterRetning}
+                        onSort={() => toggleSortering(kol.id)}
+                      />
+                    );
+                  })}
+                </SortableContext>
+                {/* Kolonnevalg +-knapp */}
+                <th className="w-[32px] px-0 py-1.5 relative">
                   <button
-                    onClick={() => toggleSortering(kol.id)}
-                    className={`inline-flex items-center gap-0.5 text-[11px] font-medium uppercase hover:text-gray-700 ${
-                      sorterKolId === kol.id ? "text-sitedoc-primary" : "text-gray-500"
-                    }`}
+                    onClick={() => setVisKolonneVelger((v) => !v)}
+                    className="flex h-5 w-5 items-center justify-center rounded text-gray-400 hover:bg-gray-200 hover:text-gray-600"
+                    title="Vis/skjul kolonner"
                   >
-                    {kol.type === "tall" && <span className="flex-1" />}
-                    {kol.label}
-                    {sorterKolId === kol.id ? (
-                      sorterRetning === "asc" ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />
-                    ) : null}
+                    <Plus className="h-3.5 w-3.5" />
                   </button>
+                  {visKolonneVelger && (
+                    <div ref={kolonneVelgerRef} className="absolute right-0 top-full z-20 mt-1 w-48 rounded-lg border bg-white shadow-lg">
+                      <div className="p-2 space-y-2">
+                        {Object.entries(kolonneGrupper).map(([gruppe, kolonner]) => (
+                          <div key={gruppe}>
+                            <div className={`text-[10px] font-semibold uppercase tracking-wider mb-1 ${GRUPPE_TEKST[gruppe as Gruppe]}`}>
+                              {GRUPPE_LABEL[gruppe as Gruppe]}
+                            </div>
+                            {kolonner.map((k) => (
+                              <label key={k.id} className="flex items-center gap-2 py-0.5 text-xs cursor-pointer hover:bg-gray-50 rounded px-1">
+                                <input
+                                  type="checkbox"
+                                  checked={synligeKolonner.has(k.id)}
+                                  onChange={() => toggleKolonne(k.id)}
+                                  className="h-3 w-3 rounded border-gray-300"
+                                />
+                                {k.label}
+                              </label>
+                            ))}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </th>
-              ))}
-            </tr>
+              </tr>
+            </DndContext>
           </thead>
           <tbody>
             {sorterteRader.map((rad, idx) => {
@@ -599,6 +722,7 @@ export function SpecPostTabell({
                       </td>
                     );
                   })}
+                  <td className="w-[32px]" />
                 </tr>
               );
             })}
@@ -621,6 +745,7 @@ export function SpecPostTabell({
                   </td>
                 );
               })}
+              <td className="w-[32px]" />
             </tr>
           </tfoot>
         </table>
@@ -780,6 +905,63 @@ function DokumentasjonSeksjon({
         </div>
       )}
     </div>
+  );
+}
+
+function SortableHeader({
+  kol,
+  erFast,
+  erAktiv,
+  sorterRetning,
+  onSort,
+}: {
+  kol: KolonneDef;
+  erFast: boolean;
+  erAktiv: boolean;
+  sorterRetning: "asc" | "desc";
+  onSort: () => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: kol.id,
+    disabled: erFast,
+  });
+
+  const style = {
+    transform: CSS.Translate.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <th
+      ref={setNodeRef}
+      style={style}
+      className={`px-2 py-1.5 ${kol.bredde ?? ""} ${kol.type === "tall" ? "text-right" : ""}`}
+    >
+      <div className="inline-flex items-center gap-0.5">
+        {!erFast && (
+          <span
+            {...attributes}
+            {...listeners}
+            className="cursor-grab text-gray-300 hover:text-gray-500"
+          >
+            <GripVertical className="h-3 w-3" />
+          </span>
+        )}
+        <button
+          onClick={onSort}
+          className={`inline-flex items-center gap-0.5 text-[11px] font-medium uppercase hover:text-gray-700 ${
+            erAktiv ? "text-sitedoc-primary" : "text-gray-500"
+          }`}
+        >
+          {kol.type === "tall" && <span className="flex-1" />}
+          {kol.label}
+          {erAktiv ? (
+            sorterRetning === "asc" ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />
+          ) : null}
+        </button>
+      </div>
+    </th>
   );
 }
 
