@@ -24,9 +24,35 @@ export default function OkonomiSide() {
   const prosjektId = params.prosjektId;
   const { data: session } = useSession();
 
-  const [kontraktId, setKontraktId] = useState<string | null>(null);
-  const [dokType, setDokType] = useState<DokType>("a_nota");
-  const [valgtNotaNr, setValgtNotaNr] = useState<number | null>(null);
+  // Persist kontrakt/type/nr i localStorage
+  const [kontraktId, setKontraktIdState] = useState<string | null>(null);
+  const [dokType, setDokTypeState] = useState<DokType>("a_nota");
+  const [valgtNotaNr, setValgtNotaNrState] = useState<number | null>(null);
+
+  // Les fra localStorage ved mount
+  useEffect(() => {
+    const k = localStorage.getItem(`ftd-kontrakt-${prosjektId}`);
+    const t = localStorage.getItem(`ftd-type-${prosjektId}`) as DokType | null;
+    const n = localStorage.getItem(`ftd-nr-${prosjektId}`);
+    if (k) setKontraktIdState(k);
+    if (t) setDokTypeState(t);
+    if (n) setValgtNotaNrState(parseInt(n, 10));
+  }, [prosjektId]);
+
+  const setKontraktId = (id: string | null) => {
+    setKontraktIdState(id);
+    if (id) localStorage.setItem(`ftd-kontrakt-${prosjektId}`, id);
+    else localStorage.removeItem(`ftd-kontrakt-${prosjektId}`);
+  };
+  const setDokType = (t: DokType) => {
+    setDokTypeState(t);
+    localStorage.setItem(`ftd-type-${prosjektId}`, t);
+  };
+  const setValgtNotaNr = (n: number | null) => {
+    setValgtNotaNrState(n);
+    if (n !== null) localStorage.setItem(`ftd-nr-${prosjektId}`, String(n));
+    else localStorage.removeItem(`ftd-nr-${prosjektId}`);
+  };
   const [aktivFane, setAktivFane] = useState<Fane>("oversikt");
   const [valgtPostId, setValgtPostId] = useState<string | null>(null);
   const notatRef = useRef<NotatEditorRef>(null);

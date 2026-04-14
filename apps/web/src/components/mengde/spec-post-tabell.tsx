@@ -329,7 +329,7 @@ export function SpecPostTabell({
       .filter((k) => k && synligeKolonner.has(k.id))
       .filter((k) => {
         // Skjul nota-kolonner hvis ingen sammenligning
-        if (!harSammenligning && !k.alltidSynlig) return false;
+        // Vis alle kolonner alltid — bruk "—" for tomme verdier
         return true;
       });
   }, [kolonneRekkefølge, synligeKolonner, harSammenligning]);
