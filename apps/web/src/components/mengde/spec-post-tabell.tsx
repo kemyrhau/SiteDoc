@@ -667,61 +667,20 @@ export function SpecPostTabell({
           <tbody>
             {sorterteRader.map((rad, idx) => {
               const p = rad.budsjett;
-              const erSeksjon = rad.erSeksjon;
               return (
-                <tr
-                  key={p.id}
-                  ref={valgtPostId === p.id ? valgtRadRef : undefined}
-                  onClick={() => onVelgPost(p.id)}
-                  onDoubleClick={() => setDetaljPost(p.id)}
-                  className={`cursor-pointer border-b transition-colors ${
-                    valgtPostId === p.id
-                      ? "bg-blue-100 border-l-2 border-l-sitedoc-primary"
-                      : erSeksjon
-                        ? "bg-gray-50/50"
-                        : harSammenligning && rad.nota && rad.prosentFerdig > overskridelseTerskel
-                          ? "bg-red-50 hover:bg-red-100"
-                          : "hover:bg-gray-50"
-                  }`}
-                >
+                <tr key={p.id} className="border-b hover:bg-gray-50" onClick={() => onVelgPost(p.id)}>
                   <td className="px-1 py-1 text-[10px] text-gray-400">{idx + 1}</td>
                   {aktiveKolonner.map((kol) => {
                     const verdi = kol.hentVerdi(rad);
+                    // DEBUG: Sikker rendering — alle verdier til String
+                    if (verdi === null || verdi === undefined) return <td key={kol.id} className="px-2 py-1 text-gray-300">{"—"}</td>;
+                    if (typeof verdi === "object") return <td key={kol.id} className="px-2 py-1 text-red-500">{`[obj:${Object.keys(verdi as Record<string, unknown>).join(",")}]`}</td>;
+                    return <td key={kol.id} className="px-2 py-1 text-xs">{String(verdi)}</td>;
 
-                    // Postnr — spesialformatering med NS-kode prikk og importnotat
-                    if (kol.id === "postnr") {
-                      const nsInfo = finnNsKode(p, renePoster);
-                      return (
-                        <td key={kol.id} className={`px-2 py-1 font-mono whitespace-nowrap ${erSeksjon ? "italic text-gray-400" : ""}`}>
-                          {p.importNotat && <span className="mr-1 text-amber-500" title={p.importNotat}>*</span>}
-                          {nsInfo && nsDocSet.has(nsInfo.nsKode) && <span className="mr-1 text-amber-400" title={`NS 3420: ${nsInfo.nsKode}`}>●</span>}
-                          {p.postnr ?? "—"}
-                        </td>
-                      );
-                    }
-
-                    // Beskrivelse — truncate
-                    if (kol.id === "beskrivelse") {
-                      return (
-                        <td key={kol.id} className={`max-w-xs truncate px-2 py-1 ${erSeksjon ? "italic text-gray-400" : ""}`}>
-                          {p.beskrivelse ?? "—"}
-                        </td>
-                      );
-                    }
-
-                    // Enhet
-                    if (kol.type === "enhet") {
-                      return (
-                        <td key={kol.id} className={`px-2 py-1 ${erSeksjon ? "text-gray-400" : ""}`}>
-                          {verdi ? String(verdi) : "—"}
-                        </td>
-                      );
-                    }
-
-                    // Tallkolonner — seksjonsoverskrifter viser "—"
+                    /* ORIGINAL KODE — midlertidig kommentert ut for debugging
                     const erNotaKol = !kol.alltidSynlig;
                     const harNotaData = !!rad.nota;
-                    const visStrek = erSeksjon || (erNotaKol && !harNotaData);
+                    const visStrek = rad.erSeksjon || (erNotaKol && !harNotaData);
                     const numVerdi = Number(verdi ?? 0);
 
                     // Prosent — spesiell formatering
@@ -744,6 +703,7 @@ export function SpecPostTabell({
                         {visStrek ? "—" : fmt(numVerdi)}
                       </td>
                     );
+                    SLUTT PÅ ORIGINAL KODE */
                   })}
                   <td className="w-[28px]" />
                 </tr>
