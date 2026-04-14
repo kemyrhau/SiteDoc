@@ -4,7 +4,7 @@ import { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { BarChart3, Upload, FileText, Trash2, Loader2, CheckCircle, AlertCircle, RefreshCw, Plus, Pencil, FileSearch } from "lucide-react";
+import { BarChart3, Upload, FileText, Trash2, Loader2, CheckCircle, AlertCircle, RefreshCw, Plus, Pencil, FileSearch, X } from "lucide-react";
 import { SpecPostTabell } from "@/components/mengde/spec-post-tabell";
 import { Avviksanalyse } from "@/components/mengde/avviksanalyse";
 import { NotatEditor, type NotatEditorRef } from "@/components/mengde/notat-editor";
