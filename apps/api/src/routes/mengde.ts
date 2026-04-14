@@ -79,6 +79,8 @@ export const mengdeRouter = router({
         },
         orderBy: [{ notaNr: "asc" }, { uploadedAt: "desc" }],
       });
+      // DEBUG — fjern etter feilsøking
+      console.log("[MENGDE-DEBUG] mappeIder=" + mappeIder + " antall=" + rå.length + " a_notas=" + rå.filter((d) => d.docType === "a_nota").map((d) => d.notaNr).join(","));
       // Konverter Prisma Decimal til Number
       return rå.map((d) => ({
         ...d,
