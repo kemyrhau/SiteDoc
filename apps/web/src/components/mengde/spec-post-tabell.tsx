@@ -610,8 +610,16 @@ export function SpecPostTabell({
                 if (kol.id === "postnr") return <td key={kol.id} className="px-2 py-2" />;
                 if (kol.id === "beskrivelse") return <td key={kol.id} className="px-2 py-2">Totalt ({totalRader.length} poster)</td>;
                 if (kol.type !== "tall") return <td key={kol.id} className="px-2 py-2" />;
-                if (kol.id === "v_anbudet") return <td key={kol.id} className="px-2 py-2 text-right font-mono">{fmt(totalBudsjett)}</td>;
-                return <td key={kol.id} className="px-2 py-2" />;
+                // Enhetspris og prosent summeres ikke
+                if (kol.id === "enhetspris" || kol.id === "v_prosent") return <td key={kol.id} className="px-2 py-2" />;
+                // Summer alle andre tallkolonner
+                const sum = totalRader.reduce((s, r) => s + Number(kol.hentVerdi(r) ?? 0), 0);
+                const erNotaKol = !kol.alltidSynlig;
+                return (
+                  <td key={kol.id} className={`px-2 py-2 text-right font-mono ${erNotaKol ? "text-blue-700" : ""}`}>
+                    {sum ? fmt(sum) : ""}
+                  </td>
+                );
               })}
             </tr>
           </tfoot>

@@ -248,6 +248,25 @@ export default function OkonomiSide() {
             </option>
           ))}
         </select>
+
+        {/* Kompakt nota-oppsummering i header */}
+        {valgtNotaDok && valgtNotaDok.utfortTotalt != null && (() => {
+          const f = (v: unknown) => {
+            if (v === null || v === undefined) return "—";
+            const n = Number(v);
+            if (isNaN(n)) return "—";
+            return n.toLocaleString("nb-NO", { maximumFractionDigits: 0 });
+          };
+          return (
+            <div className="ml-auto flex items-center gap-3 rounded bg-blue-50 px-3 py-1 text-xs">
+              <span className="text-gray-500">Utført: <span className="font-medium text-gray-700">{f(valgtNotaDok.utfortTotalt)}</span></span>
+              <span className="text-gray-400">|</span>
+              <span className="text-gray-500">Denne: <span className="font-semibold text-blue-700">{f(valgtNotaDok.utfortDenne)}</span></span>
+              <span className="text-gray-400">|</span>
+              <span className="text-gray-500">Netto: <span className="font-semibold text-gray-900">{f(valgtNotaDok.nettoDenne)}</span></span>
+            </div>
+          );
+        })()}
       </div>
 
       {/* Faner */}
