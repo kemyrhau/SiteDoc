@@ -52,7 +52,19 @@ export const mengdeRouter = router({
           ...(input.docType ? { docType: input.docType } : {}),
           ...byggMappeTilgangsFilter(mappeIder),
         },
-        include: { folder: { select: { id: true, name: true } } },
+        select: {
+          id: true,
+          filename: true,
+          docType: true,
+          notaType: true,
+          notaNr: true,
+          kontraktId: true,
+          kontraktNavn: true,
+          uploadedAt: true,
+          processingState: true,
+          processingError: true,
+          folder: { select: { id: true, name: true } },
+        },
         orderBy: [{ notaNr: "asc" }, { uploadedAt: "desc" }],
       });
     }),
@@ -103,14 +115,11 @@ export const mengdeRouter = router({
 
       const posterRaw = await ctx.prisma.ftdSpecPost.findMany({
         where,
-        include: {
-          document: { select: { id: true, docType: true, notaNr: true, kontraktId: true, kontraktNavn: true } },
-        },
         orderBy: { postnr: "asc" },
       });
 
-      // Konverter Prisma Decimal til Number og fjern document-subobjekt
-      const poster = posterRaw.map(({ document: _doc, ...p }) => ({
+      // Konverter Prisma Decimal til Number
+      const poster = posterRaw.map((p) => ({
         ...p,
         mengdeAnbud: p.mengdeAnbud !== null ? Number(p.mengdeAnbud) : null,
         enhetspris: p.enhetspris !== null ? Number(p.enhetspris) : null,
@@ -452,7 +461,20 @@ export const mengdeRouter = router({
           }
         }
       }
-      const resultat = Array.from(perNr.values());
+      // Konverter Prisma Decimal til Number
+      const resultat = Array.from(perNr.values()).map((d) => ({
+        ...d,
+        utfortPr: d.utfortPr !== null ? Number(d.utfortPr) : null,
+        utfortTotalt: d.utfortTotalt !== null ? Number(d.utfortTotalt) : null,
+        utfortForrige: d.utfortForrige !== null ? Number(d.utfortForrige) : null,
+        utfortDenne: d.utfortDenne !== null ? Number(d.utfortDenne) : null,
+        innestaaende: d.innestaaende !== null ? Number(d.innestaaende) : null,
+        innestaaendeForrige: d.innestaaendeForrige !== null ? Number(d.innestaaendeForrige) : null,
+        innestaaendeDenne: d.innestaaendeDenne !== null ? Number(d.innestaaendeDenne) : null,
+        nettoDenne: d.nettoDenne !== null ? Number(d.nettoDenne) : null,
+        mva: d.mva !== null ? Number(d.mva) : null,
+        sumInkMva: d.sumInkMva !== null ? Number(d.sumInkMva) : null,
+      }));
       return resultat;
     }),
 
