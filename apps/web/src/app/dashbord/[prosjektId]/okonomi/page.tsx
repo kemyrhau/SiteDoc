@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useRef, useCallback, useEffect, Component, type ErrorInfo, type ReactNode } from "react";
+import { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -13,31 +13,7 @@ import { MerknadEksport } from "@/components/mengde/merknad-eksport";
 import { ImportSammenligning } from "@/components/mengde/import-sammenligning";
 import { ImportDialog } from "@/components/mengde/import-dialog";
 import { trpc } from "@/lib/trpc";
-
-// ErrorBoundary som fanger React #310 og viser detaljer
-class OkonomiErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null; info: string }> {
-  state: { error: Error | null; info: string } = { error: null, info: "" };
-  static getDerivedStateFromError(error: Error) { return { error }; }
-  componentDidCatch(error: Error, info: ErrorInfo) {
-    this.setState({ info: info.componentStack ?? "" });
-  }
-  render() {
-    if (this.state.error) {
-      return (
-        <div className="m-4 rounded border-2 border-red-400 bg-red-50 p-4 text-xs">
-          <div className="font-bold text-red-700 text-sm">React-feil:</div>
-          <pre className="mt-1 whitespace-pre-wrap text-red-600">{this.state.error.message}</pre>
-          <details className="mt-2">
-            <summary className="cursor-pointer text-gray-500">Stack</summary>
-            <pre className="mt-1 max-h-60 overflow-auto whitespace-pre-wrap text-[10px] text-gray-400">{this.state.info}</pre>
-          </details>
-          <button onClick={() => this.setState({ error: null, info: "" })} className="mt-2 rounded bg-red-600 px-3 py-1 text-white">Prøv igjen</button>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
+import { DebugErrorBoundary } from "@/components/error-boundary";
 
 type Fane = "oversikt" | "avviksanalyse" | "rapport" | "dokumenter";
 type DokType = "a_nota" | "t_nota";
@@ -189,7 +165,7 @@ export default function OkonomiSide() {
   }, [poster]);
 
   return (
-    <OkonomiErrorBoundary>
+    <DebugErrorBoundary>
       <div className="flex h-full flex-col">
       {/* Toppseksjon */}
       <div className="flex items-center justify-between border-b px-4 py-3">
@@ -1066,7 +1042,7 @@ function RapportPanel({
         </div>
       )}
     </div>
-    </OkonomiErrorBoundary>
+    </DebugErrorBoundary>
   );
 }
 
