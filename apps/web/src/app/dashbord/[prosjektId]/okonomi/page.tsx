@@ -164,7 +164,9 @@ export default function OkonomiSide() {
     }
   }, [poster]);
 
-  return (<DebugErrorBoundary>
+  return (
+    <>
+    <DebugErrorBoundary>
     <div className="flex h-full flex-col">
       {/* Toppseksjon */}
       <div className="flex items-center justify-between border-b px-4 py-3">
@@ -1041,7 +1043,9 @@ function RapportPanel({
         </div>
       )}
     </div>
-  </DebugErrorBoundary>);
+    </DebugErrorBoundary>
+    </>
+  );
 }
 
 function FaneKnapp({
