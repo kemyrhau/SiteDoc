@@ -188,18 +188,6 @@ export function SpecPostTabell({
   prosjektId,
   kontraktId,
 }: SpecPostTabellProps) {
-  // DEBUG: Minimal rendering for å isolere krasj
-  return (
-    <div className="p-4 text-sm">
-      <div>Poster: {poster.length}</div>
-      <div>Sammenligning: {sammenligningPoster?.length ?? "ingen"}</div>
-      {poster.length > 0 && (
-        <div className="mt-2 text-xs text-gray-500">
-          Første post: {String(poster[0]?.postnr)} — {String(poster[0]?.beskrivelse?.substring(0, 50))}
-        </div>
-      )}
-    </div>
-  );
   // Sanitiser poster — fjern eventuelle sub-objekter og konverter Decimal til Number
   const sanitiserPost = (p: SpecPost): SpecPost => ({
     id: p.id,
@@ -271,12 +259,12 @@ export function SpecPostTabell({
   // NS 3420 dokumentasjon
   const alleNsKoder = useMemo(() => {
     const koder = new Set<string>();
-    for (const p of poster) {
-      const info = finnNsKode(p, poster);
+    for (const p of renePoster) {
+      const info = finnNsKode(p, renePoster);
       if (info) koder.add(info.nsKode);
     }
     return Array.from(koder);
-  }, [poster]);
+  }, [renePoster]);
 
   const { data: nsKoderMedDok } = trpc.ftdSok.nsKoderMedDok.useQuery(
     { projectId: prosjektId!, nsKoder: alleNsKoder },
@@ -285,7 +273,7 @@ export function SpecPostTabell({
   const nsDocSet = useMemo(() => new Set(nsKoderMedDok ?? []), [nsKoderMedDok]);
 
   // Seksjonsoverskrifter
-  const seksjonsSet = useMemo(() => byggSeksjonsSet(poster), [poster]);
+  const seksjonsSet = useMemo(() => byggSeksjonsSet(renePoster), [renePoster]);
 
   // Nota-map
   const notaMap = useMemo(() => {
@@ -301,15 +289,15 @@ export function SpecPostTabell({
   // Enheter for filter-dropdown
   const enheter = useMemo(() => {
     const s = new Set<string>();
-    for (const p of poster) {
+    for (const p of renePoster) {
       if (p.enhet?.trim()) s.add(p.enhet.trim());
     }
     return Array.from(s).sort();
-  }, [poster]);
+  }, [renePoster]);
 
   // Bygg rader
   const rader: SammenlignetRad[] = useMemo(() => {
-    return poster.map((budsjett) => {
+    return renePoster.map((budsjett) => {
       const nota = budsjett.postnr ? (notaMap.get(budsjett.postnr) ?? null) : null;
       const mengdeAnbud = Number(budsjett.mengdeAnbud ?? 0);
       const mengdeDenne = nota ? Number(nota.mengdeDenne ?? 0) : 0;
@@ -332,7 +320,7 @@ export function SpecPostTabell({
         sumAvvik: verdiTotal - sumAnbud,
       };
     });
-  }, [poster, notaMap, seksjonsSet]);
+  }, [renePoster, notaMap, seksjonsSet]);
 
   // Aktive kolonner i riktig rekkefølge
   const aktiveKolonner = useMemo(() => {
@@ -466,7 +454,7 @@ export function SpecPostTabell({
     });
   }
 
-  if (poster.length === 0) {
+  if (renePoster.length === 0) {
     return (
       <div className="flex items-center justify-center py-8 text-sm text-gray-400">
         Ingen poster funnet. Importer anbudsgrunnlag for å komme i gang.
@@ -702,7 +690,7 @@ export function SpecPostTabell({
 
                     // Postnr — spesialformatering med NS-kode prikk og importnotat
                     if (kol.id === "postnr") {
-                      const nsInfo = finnNsKode(p, poster);
+                      const nsInfo = finnNsKode(p, renePoster);
                       return (
                         <td key={kol.id} className={`px-2 py-1 font-mono whitespace-nowrap ${erSeksjon ? "italic text-gray-400" : ""}`}>
                           {p.importNotat && <span className="mr-1 text-amber-500" title={p.importNotat}>*</span>}
@@ -817,7 +805,7 @@ export function SpecPostTabell({
                 <div className="grid grid-cols-2 gap-3">
                   <Kort label="Sum anbud" verdi={fmt(p.sumAnbud)} bg="bg-blue-50" />
                   {(() => {
-                    const nsInfo = finnNsKode(p, poster);
+                    const nsInfo = finnNsKode(p, renePoster);
                     if (!nsInfo) return null;
                     return <Kort
                       label="NS-kode"
@@ -861,7 +849,7 @@ export function SpecPostTabell({
                   </div>
                 )}
                 {p.postnr && prosjektId && (() => {
-                  const nsInfo = finnNsKode(p, poster);
+                  const nsInfo = finnNsKode(p, renePoster);
                   return (
                     <DokumentasjonSeksjon
                       prosjektId={prosjektId}
