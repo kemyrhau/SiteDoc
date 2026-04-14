@@ -462,10 +462,9 @@ export const mengdeRouter = router({
           }
         }
       }
-      // Konverter Prisma Decimal til Number
+      // Konverter Prisma Decimal til Number (utfortPr er DateTime, ikke Decimal)
       const resultat = Array.from(perNr.values()).map((d) => ({
         ...d,
-        utfortPr: d.utfortPr !== null ? Number(d.utfortPr) : null,
         utfortTotalt: d.utfortTotalt !== null ? Number(d.utfortTotalt) : null,
         utfortForrige: d.utfortForrige !== null ? Number(d.utfortForrige) : null,
         utfortDenne: d.utfortDenne !== null ? Number(d.utfortDenne) : null,
