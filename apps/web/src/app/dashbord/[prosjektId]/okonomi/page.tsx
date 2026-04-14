@@ -12,6 +12,7 @@ import { NsKodePanel } from "@/components/mengde/ns-kode-panel";
 import { MerknadEksport } from "@/components/mengde/merknad-eksport";
 import { ImportSammenligning } from "@/components/mengde/import-sammenligning";
 import { ImportDialog } from "@/components/mengde/import-dialog";
+import { DebugErrorBoundary } from "@/components/error-boundary";
 import { trpc } from "@/lib/trpc";
 
 type Fane = "oversikt" | "avviksanalyse" | "rapport" | "dokumenter";
@@ -311,17 +312,19 @@ export default function OkonomiSide() {
         <>
           {/* Tabell — fyller midten, scroller internt */}
           <div className="min-h-0 flex-1 px-4 pt-4">
-            <SpecPostTabell
-                poster={poster ?? []}
-                sammenligningPoster={valgtNotaNr !== null ? (notaPoster ?? []) : undefined}
-                sammenligningLabel={valgtNotaNr !== null
-                  ? (valgtNotaDok?.notaType === "Sluttnota" ? t("okonomi.sluttnota") : `${dokType === "a_nota" ? t("okonomi.aNota") : t("okonomi.tNota")} ${valgtNotaNr}`)
-                  : undefined}
-                onVelgPost={handleVelgPost}
-                valgtPostId={valgtPostId}
-                prosjektId={prosjektId}
-                kontraktId={kontraktId}
-              />
+            <DebugErrorBoundary>
+              <SpecPostTabell
+                  poster={poster ?? []}
+                  sammenligningPoster={valgtNotaNr !== null ? (notaPoster ?? []) : undefined}
+                  sammenligningLabel={valgtNotaNr !== null
+                    ? (valgtNotaDok?.notaType === "Sluttnota" ? t("okonomi.sluttnota") : `${dokType === "a_nota" ? t("okonomi.aNota") : t("okonomi.tNota")} ${valgtNotaNr}`)
+                    : undefined}
+                  onVelgPost={handleVelgPost}
+                  valgtPostId={valgtPostId}
+                  prosjektId={prosjektId}
+                  kontraktId={kontraktId}
+                />
+            </DebugErrorBoundary>
           </div>
 
           {/* Nota-oppsummering — vises når A-nota er valgt */}
