@@ -116,12 +116,35 @@ export const mengdeRouter = router({
 
       const posterRaw = await ctx.prisma.ftdSpecPost.findMany({
         where,
+        select: {
+          id: true,
+          postnr: true,
+          beskrivelse: true,
+          enhet: true,
+          mengdeAnbud: true,
+          enhetspris: true,
+          sumAnbud: true,
+          mengdeDenne: true,
+          mengdeTotal: true,
+          verdiDenne: true,
+          verdiTotal: true,
+          prosentFerdig: true,
+          nsKode: true,
+          nsTittel: true,
+          fullNsTekst: true,
+          eksternNotat: true,
+          importNotat: true,
+          ikkeIBudsjett: true,
+        },
         orderBy: { postnr: "asc" },
       });
 
       // Konverter Prisma Decimal til Number
       const poster = posterRaw.map((p) => ({
-        ...p,
+        id: p.id,
+        postnr: p.postnr,
+        beskrivelse: p.beskrivelse,
+        enhet: p.enhet,
         mengdeAnbud: p.mengdeAnbud !== null ? Number(p.mengdeAnbud) : null,
         enhetspris: p.enhetspris !== null ? Number(p.enhetspris) : null,
         sumAnbud: p.sumAnbud !== null ? Number(p.sumAnbud) : null,
@@ -130,6 +153,12 @@ export const mengdeRouter = router({
         verdiDenne: p.verdiDenne !== null ? Number(p.verdiDenne) : null,
         verdiTotal: p.verdiTotal !== null ? Number(p.verdiTotal) : null,
         prosentFerdig: p.prosentFerdig !== null ? Number(p.prosentFerdig) : null,
+        nsKode: p.nsKode,
+        nsTittel: p.nsTittel,
+        fullNsTekst: p.fullNsTekst,
+        eksternNotat: p.eksternNotat,
+        importNotat: p.importNotat,
+        ikkeIBudsjett: p.ikkeIBudsjett,
       }));
 
       // Finn forrige notas verdier per postnr (kun ved nota-sammenligning)

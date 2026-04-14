@@ -581,14 +581,22 @@ Sammenlign to overflatemodeller med rød/blå visualisering og volumberegning.
 ### Navigasjon
 Erstatter separate `/punktskyer` og `/modeller`-ruter. Gamle URLer redirectes via `next.config.js`. Sidebar viser én "3D"-knapp i stedet for to.
 
-### Persistent 3D-viewer (Fase 1 — implementert)
+### 3D-viewer isolering (viktig arkitekturbeslutning)
 
-`ViewerCanvas` lever i prosjekt-layouten (`/dashbord/[prosjektId]/layout.tsx`), ikke i page.tsx. Three.js-scene, WebGL-kontekst og lastede IFC-modeller overlever navigasjon mellom ruter.
+`TreDViewerProvider` og `ViewerCanvas` rendres **kun på 3D-sider** (`/3d-visning` og `/tegning-3d`), IKKE i prosjekt-layouten for alle sider.
 
-- **Layout:** ViewerCanvas rendres permanent i layout med `absolute inset-0`. Vis/skjul med CSS basert på `usePathname().endsWith("/3d-visning")`
-- **Children:** Page-innhold (sidepanel, verktøylinje, filter-bar) rendres over vieweren med `pointer-events-none` på wrapper, `pointer-events-auto` på interaktive elementer
-- **Bakgrunnslasting:** IFC-modeller begynner lasting så snart prosjektet åpnes, uavhengig av aktiv rute. Når bruker navigerer til 3D-visning er modellene ofte allerede lastet
-- **Verktøylinje og filter-bar:** Flyttet fra ViewerCanvas til page.tsx (`Fane3DModell`-komponenten)
+**Bakgrunn:** Tidligere levde `TreDViewerProvider` i prosjekt-layouten (`/dashbord/[prosjektId]/layout.tsx`) for å gjøre 3D-scenen persistent mellom ruter. Dette forårsaket:
+1. **129 MB IFC-lasting** på alle prosjektsider (økonomi, sjekklister, etc.)
+2. **React #310 krasjt** — IFC fragment-worker feil ("Model not found") propagerte som ugyldige React children på andre sider
+3. **680+ console errors** fra 3D-debug og IFC-feil på ikke-3D-sider
+
+**Nåværende arkitektur:**
+- `layout.tsx` sjekker `er3DVisning` (pathname slutter med `/3d-visning` eller `/tegning-3d`)
+- `TreDViewerProvider` + `ViewerCanvas` wraps kun innholdet når `er3DVisning === true`
+- Andre sider (økonomi, sjekklister, etc.) får ren layout uten 3D-overhead
+- **Konsekvens:** 3D-scenen re-initialiseres ved navigasjon til/fra 3D-sider (IFC-modeller caches i `ifcFilCache` for rask re-lasting)
+
+**ALDRI** flytt `TreDViewerProvider` tilbake til å wrappe alle sider — det krasjer økonomi og andre sider.
 
 ## Dokumenttidslinje
 
