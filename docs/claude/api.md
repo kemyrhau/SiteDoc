@@ -149,6 +149,14 @@ Sluttnota: `erSluttnota = true`, `notaNr = null`. Korrigert sluttnota: to dokume
 
 Alle planlagte fase 2-oppgaver er ferdigstilt eller bevisst utsatt.
 
+### BLOKKERENDE BUG: React #310 i SpecPostTabell
+
+**Status:** Økonomi-siden krasjer med "Objects are not valid as a React child" når kontrakt velges. Feilen er i SpecPostTabell-rendering. Rotårsak: Prisma Decimal-objekter deserialiseres som plain objects via tRPC/superjson. API-side Number()-konvertering er implementert i hentSpecPoster men feilen vedvarer — kan være i et annet felt eller komponent.
+
+**Neste steg:** Kjør lokalt i dev mode for full uminifisert feilmelding. Se memory `project_okonomi_react310_bug.md`.
+
+**DB-note:** Header-verdier (utfortTotalt, mva etc.) er NULLSTILT på ftd_documents for prosjekt 2bd15f09. Må gjenopprettes med reprosessering etter fiks.
+
 ### Fase 3 — ved behov
 
 1. **Retroaktiv revalidering** — automatisk revalidering fremover når nota importeres midt i kjeden. Løsning beskrevet: oppdater mengdeForrige/verdiForrige på påfølgende FtdNotaPost-rader, kjør kontrollerAkkumulering() på nytt. Implementeres når reelt behov oppstår.
