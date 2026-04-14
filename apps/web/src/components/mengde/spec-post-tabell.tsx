@@ -713,35 +713,15 @@ export function SpecPostTabell({
           <tfoot className="sticky bottom-0 bg-gray-50 border-t-2">
             <tr className="font-semibold text-xs">
               <td className="px-1 py-2" />
-              {aktiveKolonner.map((kol) => {
-                if (kol.id === "postnr") return <td key={kol.id} className="px-2 py-2" />;
-                if (kol.id === "beskrivelse") return <td key={kol.id} className="px-2 py-2">Totalt ({totalRader.length} poster)</td>;
-                if (kol.type !== "tall") return <td key={kol.id} className="px-2 py-2" />;
-
-                // Summer
-                if (kol.id === "v_anbudet") return <td key={kol.id} className="px-2 py-2 text-right font-mono">{fmt(totalBudsjett)}</td>;
-                if (kol.id === "v_denne") return <td key={kol.id} className="px-2 py-2 text-right font-mono text-blue-700">{harSammenligning ? fmt(totalVerdiDenne) : ""}</td>;
-                if (kol.id === "v_totalt") return <td key={kol.id} className="px-2 py-2 text-right font-mono text-blue-700">{harSammenligning ? fmt(totalVerdiTotal) : ""}</td>;
-                if (kol.id === "v_forrige") return <td key={kol.id} className="px-2 py-2 text-right font-mono text-blue-700">{harSammenligning ? fmt(totalVerdiTotal - totalVerdiDenne) : ""}</td>;
-
-                // Mengde-totaler
-                const mengdeSumIds = ["m_anbudet", "m_denne", "m_totalt", "m_forrige"];
-                if (mengdeSumIds.includes(kol.id)) {
-                  const sum = totalRader.reduce((s, r) => s + Number(kol.hentVerdi(r) ?? 0), 0);
-                  const erNota = !kol.alltidSynlig;
-                  return <td key={kol.id} className={`px-2 py-2 text-right font-mono ${erNota ? "text-blue-700" : ""}`}>{sum ? fmt(sum) : ""}</td>;
-                }
-
-                return <td key={kol.id} className="px-2 py-2" />;
-              })}
+              <td className="px-2 py-2" colSpan={aktiveKolonner.length}>Totalt: {totalRader.length} poster</td>
               <td className="w-[28px]" />
             </tr>
           </tfoot>
         </table>
       </div>
 
-      {/* Detaljmodal */}
-      {detaljPost && (() => {
+      {/* Detaljmodal — midlertidig fjernet for debugging */}
+      {false && detaljPost && (() => {
         const rad = sorterteRader.find((r) => r.budsjett.id === detaljPost);
         if (!rad) return null;
         const p = rad.budsjett;
