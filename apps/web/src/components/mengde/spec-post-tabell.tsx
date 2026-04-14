@@ -338,13 +338,13 @@ export function SpecPostTabell({
   const rader: SammenlignetRad[] = useMemo(() => {
     return renePoster.map((budsjett) => {
       const nota = budsjett.postnr ? (notaMap.get(budsjett.postnr) ?? null) : null;
-      // Fallback: bruk nota-verdier hvis budsjett mangler mengde/enhetspris
-      const mengdeAnbud = Number(budsjett.mengdeAnbud ?? 0) || (nota ? Number(nota.mengdeAnbud ?? 0) : 0);
+      // Nota har prioritet for mengde/enhetspris/sum — PDF-parser kan gi feil verdier
+      const mengdeAnbud = (nota && nota.mengdeAnbud != null) ? Number(nota.mengdeAnbud) : Number(budsjett.mengdeAnbud ?? 0);
       const mengdeDenne = nota ? Number(nota.mengdeDenne ?? 0) : 0;
       const mengdeTotal = nota ? Number(nota.mengdeTotal ?? 0) : 0;
       const mengdeForrige = nota && nota.mengdeForrige != null ? Number(nota.mengdeForrige) : mengdeTotal - mengdeDenne;
-      const enhetspris = Number(budsjett.enhetspris ?? 0) || (nota ? Number(nota.enhetspris ?? 0) : 0);
-      const sumAnbud = Number(budsjett.sumAnbud ?? 0) || (nota ? Number(nota.sumAnbud ?? 0) : 0);
+      const enhetspris = (nota && nota.enhetspris != null) ? Number(nota.enhetspris) : Number(budsjett.enhetspris ?? 0);
+      const sumAnbud = (nota && nota.sumAnbud != null) ? Number(nota.sumAnbud) : Number(budsjett.sumAnbud ?? 0);
       const verdiDenne = nota ? Number(nota.verdiDenne ?? 0) : 0;
       const verdiTotal = nota ? Number(nota.verdiTotal ?? 0) : 0;
       const verdiForrige = nota && nota.verdiForrige != null ? Number(nota.verdiForrige) : verdiTotal - verdiDenne;
