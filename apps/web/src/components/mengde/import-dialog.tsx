@@ -280,7 +280,7 @@ export function ImportDialog({ projectId, open, onClose }: ImportDialogProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="w-full max-w-lg rounded-lg bg-white shadow-xl">
+      <div className="w-full max-w-2xl rounded-lg bg-white shadow-xl">
         {/* Header */}
         <div className="flex items-center justify-between border-b px-5 py-3">
           <h2 className="text-base font-semibold">Importer dokument</h2>
