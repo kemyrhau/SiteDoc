@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useRef, useCallback, useEffect } from "react";
+import { useState, useMemo, useRef, useCallback, useEffect, Component, type ErrorInfo, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -13,6 +13,29 @@ import { MerknadEksport } from "@/components/mengde/merknad-eksport";
 import { ImportSammenligning } from "@/components/mengde/import-sammenligning";
 import { ImportDialog } from "@/components/mengde/import-dialog";
 import { trpc } from "@/lib/trpc";
+
+// Debug ErrorBoundary for å fange React #310
+class DebugErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null; info: string }> {
+  state: { error: Error | null; info: string } = { error: null, info: "" };
+  static getDerivedStateFromError(error: Error) { return { error }; }
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    this.setState({ info: info.componentStack ?? "" });
+    console.error("DebugErrorBoundary fanget:", error.message, info.componentStack);
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="m-4 rounded border-2 border-red-400 bg-red-50 p-4">
+          <div className="font-bold text-red-700">React-feil fanget:</div>
+          <pre className="mt-2 whitespace-pre-wrap text-xs text-red-600">{this.state.error.message}</pre>
+          <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap text-[10px] text-gray-500">{this.state.info}</pre>
+          <button onClick={() => this.setState({ error: null, info: "" })} className="mt-2 rounded bg-red-600 px-3 py-1 text-xs text-white">Prøv igjen</button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 type Fane = "oversikt" | "avviksanalyse" | "rapport" | "dokumenter";
 type DokType = "a_nota" | "t_nota";
@@ -285,17 +308,19 @@ export default function OkonomiSide() {
         <>
           {/* Tabell — fyller midten, scroller internt */}
           <div className="min-h-0 flex-1 px-4 pt-4">
-            <SpecPostTabell
-              poster={poster ?? []}
-              sammenligningPoster={valgtNotaNr !== null ? (notaPoster ?? []) : undefined}
-              sammenligningLabel={valgtNotaNr !== null
-                ? (valgtNotaDok?.notaType === "Sluttnota" ? t("okonomi.sluttnota") : `${dokType === "a_nota" ? t("okonomi.aNota") : t("okonomi.tNota")} ${valgtNotaNr}`)
-                : undefined}
-              onVelgPost={handleVelgPost}
-              valgtPostId={valgtPostId}
-              prosjektId={prosjektId}
-              kontraktId={kontraktId}
-            />
+            <DebugErrorBoundary>
+              <SpecPostTabell
+                poster={poster ?? []}
+                sammenligningPoster={valgtNotaNr !== null ? (notaPoster ?? []) : undefined}
+                sammenligningLabel={valgtNotaNr !== null
+                  ? (valgtNotaDok?.notaType === "Sluttnota" ? t("okonomi.sluttnota") : `${dokType === "a_nota" ? t("okonomi.aNota") : t("okonomi.tNota")} ${valgtNotaNr}`)
+                  : undefined}
+                onVelgPost={handleVelgPost}
+                valgtPostId={valgtPostId}
+                prosjektId={prosjektId}
+                kontraktId={kontraktId}
+              />
+            </DebugErrorBoundary>
           </div>
 
           {/* Detaljpanel — alltid synlig i bunn */}
