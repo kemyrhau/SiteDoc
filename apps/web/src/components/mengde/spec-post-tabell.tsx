@@ -188,18 +188,6 @@ export function SpecPostTabell({
   prosjektId,
   kontraktId,
 }: SpecPostTabellProps) {
-  // DEBUG: Log alle poster for å finne objekt-felter som krasjer React
-  useEffect(() => {
-    if (poster.length > 0) {
-      const p = poster[0]!;
-      for (const [key, val] of Object.entries(p)) {
-        if (val !== null && typeof val === "object" && !(val instanceof Date)) {
-          console.error(`[DEBUG] Post felt '${key}' er et objekt:`, val?.constructor?.name, val);
-        }
-      }
-    }
-  }, [poster]);
-
   const harSammenligning = !!sammenligningPoster && sammenligningPoster.length > 0;
 
   // Kolonne-state

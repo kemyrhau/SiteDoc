@@ -137,10 +137,27 @@ export default function OkonomiSide() {
   );
 
   // Nota-poster (for sammenligning)
-  const { data: notaPoster } = trpc.mengde.hentSpecPoster.useQuery(
+  const { data: notaPosterRaw } = trpc.mengde.hentSpecPoster.useQuery(
     { projectId: prosjektId, dokumentId: valgtNotaDok?.id },
     { enabled: !!prosjektId && !!valgtNotaDok },
   );
+  const notaPoster = useMemo(() => {
+    if (!notaPosterRaw) return undefined;
+    const d = (v: unknown) => v != null ? Number(v) : null;
+    return notaPosterRaw.map((p: any) => ({
+      ...p,
+      mengdeAnbud: d(p.mengdeAnbud),
+      enhetspris: d(p.enhetspris),
+      sumAnbud: d(p.sumAnbud),
+      mengdeDenne: d(p.mengdeDenne),
+      mengdeTotal: d(p.mengdeTotal),
+      mengdeForrige: d(p.mengdeForrige),
+      verdiDenne: d(p.verdiDenne),
+      verdiTotal: d(p.verdiTotal),
+      verdiForrige: d(p.verdiForrige),
+      prosentFerdig: d(p.prosentFerdig),
+    }));
+  }, [notaPosterRaw]);
 
   // Fallback: vis alle poster for kontrakten hvis ingen budsjett-dok finnes
   const { data: allePoster } = trpc.mengde.hentSpecPoster.useQuery(
@@ -151,7 +168,25 @@ export default function OkonomiSide() {
     { enabled: !!prosjektId && !!kontraktId && !budsjettDokId },
   );
 
-  const poster = budsjettPoster ?? allePoster;
+  // Konverter Prisma Decimal-objekter til number (superjson deserialiserer Decimal som plain object)
+  const poster = useMemo(() => {
+    const rådata = budsjettPoster ?? allePoster;
+    if (!rådata) return undefined;
+    const d = (v: unknown) => v != null ? Number(v) : null;
+    return rådata.map((p: any) => ({
+      ...p,
+      mengdeAnbud: d(p.mengdeAnbud),
+      enhetspris: d(p.enhetspris),
+      sumAnbud: d(p.sumAnbud),
+      mengdeDenne: d(p.mengdeDenne),
+      mengdeTotal: d(p.mengdeTotal),
+      mengdeForrige: d(p.mengdeForrige),
+      verdiDenne: d(p.verdiDenne),
+      verdiTotal: d(p.verdiTotal),
+      verdiForrige: d(p.verdiForrige),
+      prosentFerdig: d(p.prosentFerdig),
+    }));
+  }, [budsjettPoster, allePoster]);
   const valgtPost = poster?.find((p) => p.id === valgtPostId) ?? null;
 
   const handleVelgPost = useCallback((postId: string) => {
@@ -283,17 +318,9 @@ export default function OkonomiSide() {
       {/* Innhold */}
       {aktivFane === "oversikt" ? (
         <>
-          {/* DEBUG: Midlertidig — vis poster-info i stedet for tabell */}
+          {/* Tabell — fyller midten, scroller internt */}
           <div className="min-h-0 flex-1 px-4 pt-4">
-            <div className="p-4 text-sm">
-              <p>Poster: {poster?.length ?? 0}</p>
-              {poster && poster.length > 0 && (
-                <pre className="mt-2 max-h-40 overflow-auto rounded bg-gray-100 p-2 text-xs">
-                  {JSON.stringify(Object.entries(poster[0]!).map(([k, v]) => [k, typeof v, v === null ? "null" : typeof v === "object" ? v?.constructor?.name : String(v).slice(0, 30)]), null, 2)}
-                </pre>
-              )}
-            </div>
-            {false && <SpecPostTabell
+            <SpecPostTabell
               poster={poster ?? []}
               sammenligningPoster={valgtNotaNr !== null ? (notaPoster ?? []) : undefined}
               sammenligningLabel={valgtNotaNr !== null
@@ -303,7 +330,7 @@ export default function OkonomiSide() {
               valgtPostId={valgtPostId}
               prosjektId={prosjektId}
               kontraktId={kontraktId}
-            />}
+            />
           </div>
 
           {/* Detaljpanel — alltid synlig i bunn */}
