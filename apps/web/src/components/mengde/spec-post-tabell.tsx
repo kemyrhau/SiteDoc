@@ -515,8 +515,8 @@ export function SpecPostTabell({
     </div>
   );
 
-  /* ORIGINAL RETURN — midlertidig kommentert ut
-  return (
+  /* eslint-disable */
+  if (false) return (
     <div className="flex h-full flex-col rounded border overflow-hidden">
       {ORIGINAL_SØKBAR}
       <div className="flex items-center gap-2 border-b bg-gray-50 px-3 py-1.5">
@@ -737,7 +737,7 @@ export function SpecPostTabell({
                         {visStrek ? "—" : fmt(numVerdi)}
                       </td>
                     );
-                    SLUTT PÅ ORIGINAL KODE */
+                    // eslint-disable-line
                   })}
                   <td className="w-[28px]" />
                 </tr>
@@ -840,7 +840,7 @@ export function SpecPostTabell({
       })()}
     </div>
   );
-  SLUTT PÅ ORIGINAL RETURN */
+  /* eslint-enable */
 }
 
 // ---------------------------------------------------------------------------
