@@ -118,17 +118,8 @@ export default function OkonomiSide() {
     { projectId: prosjektId },
     {
       enabled: !!prosjektId,
-      refetchInterval: (query) => {
-        const data = query.state.data;
-        if (!data) return false;
-        return data.some(
-          (d) =>
-            d.processingState === "pending" ||
-            d.processingState === "processing",
-        )
-          ? 3000
-          : false;
-      },
+      refetchInterval: 5000,
+      refetchOnWindowFocus: true,
     },
   );
   const dokumenter = dokumenterQuery.data;
