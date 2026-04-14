@@ -13,7 +13,6 @@ import { MerknadEksport } from "@/components/mengde/merknad-eksport";
 import { ImportSammenligning } from "@/components/mengde/import-sammenligning";
 import { ImportDialog } from "@/components/mengde/import-dialog";
 import { trpc } from "@/lib/trpc";
-import { DebugErrorBoundary } from "@/components/error-boundary";
 
 type Fane = "oversikt" | "avviksanalyse" | "rapport" | "dokumenter";
 type DokType = "a_nota" | "t_nota";
@@ -165,8 +164,6 @@ export default function OkonomiSide() {
   }, [poster]);
 
   return (
-    <>
-    <DebugErrorBoundary>
     <div className="flex h-full flex-col">
       {/* Toppseksjon */}
       <div className="flex items-center justify-between border-b px-4 py-3">
@@ -1043,8 +1040,6 @@ function RapportPanel({
         </div>
       )}
     </div>
-    </DebugErrorBoundary>
-    </>
   );
 }
 
