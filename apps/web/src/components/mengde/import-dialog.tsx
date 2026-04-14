@@ -271,7 +271,23 @@ export function ImportDialog({ projectId, open, onClose }: ImportDialogProps) {
     setValgteDokumenter((prev) => {
       const neste = new Set(prev);
       if (neste.has(id)) neste.delete(id);
-      else neste.add(id);
+      else {
+        neste.add(id);
+        // Gjett type fra filnavn ved første valg
+        if (neste.size === 1) {
+          const dok = (mappeDokumenter ?? []).find((d) => d.id === id);
+          if (dok) {
+            const gt = gjettDokType(dok.filename);
+            setGjettetType(gt);
+            setDocType(gt);
+            setNotaNr(gjettNotaNr(dok.filename));
+            if (/sluttnota/i.test(dok.filename)) setNotaType("Sluttnota");
+            else if (gt === "a_nota") setNotaType("A-Nota");
+            else if (gt === "t_nota") setNotaType("T-Nota");
+            else setNotaType("");
+          }
+        }
+      }
       return neste;
     });
   }
@@ -648,7 +664,7 @@ export function ImportDialog({ projectId, open, onClose }: ImportDialogProps) {
             {/* Advarsler */}
             <div className="mb-3 space-y-2">
               {/* Typemismatch */}
-              {kilde === "last-opp" && fil && gjettetType !== docType && (
+              {gjettetType && gjettetType !== docType && (
                 <div className="flex items-start gap-2 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
                   <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-500" />
                   <span>
