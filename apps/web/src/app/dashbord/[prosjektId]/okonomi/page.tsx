@@ -183,8 +183,9 @@ export default function OkonomiSide() {
         </button>
       </div>
 
-      {/* Velgere */}
-      <div className="flex items-center gap-3 border-b px-4 py-2">
+      {/* Velgere + Nota-oppsummering */}
+      <div className="flex items-start justify-between border-b px-4 py-2">
+        <div className="flex items-center gap-3">
         <label className="text-xs text-gray-500">{t("okonomi.kontrakt")}</label>
         <div className="flex items-center gap-1">
           <select
@@ -248,13 +249,11 @@ export default function OkonomiSide() {
             </option>
           ))}
         </select>
+        </div>
 
-      </div>
-
-      {/* Nota-oppsummering — egen linje under kontroller */}
-      {valgtNotaDok && valgtNotaDok.utfortTotalt != null && (
+        {/* Høyre: Nota-oppsummering */}
         <NotaOppsummering dok={valgtNotaDok} />
-      )}
+      </div>
 
       {/* Faner */}
       <div className="flex gap-1 border-b px-4">
@@ -1078,7 +1077,7 @@ function RapportPanel({
   );
 }
 
-function NotaOppsummering({ dok }: { dok: { utfortTotalt?: unknown; utfortForrige?: unknown; utfortDenne?: unknown; innestaaende?: unknown; innestaaendeForrige?: unknown; innestaaendeDenne?: unknown; nettoDenne?: unknown; mva?: unknown; sumInkMva?: unknown } }) {
+function NotaOppsummering({ dok }: { dok: { utfortTotalt?: unknown; utfortDenne?: unknown; innestaaende?: unknown; nettoDenne?: unknown; mva?: unknown; sumInkMva?: unknown } | null }) {
   const f = (v: unknown) => {
     if (v === null || v === undefined) return "—";
     const n = Number(v);
@@ -1086,27 +1085,24 @@ function NotaOppsummering({ dok }: { dok: { utfortTotalt?: unknown; utfortForrig
     return n.toLocaleString("nb-NO", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
-  const Rad = ({ label, verdi, prefix, uthevet }: { label: string; verdi: unknown; prefix?: string; uthevet?: boolean }) => (
-    <div className={`flex justify-between py-0.5 ${uthevet ? "font-semibold" : ""}`}>
-      <span className="text-gray-500">{prefix ? `${prefix} ` : ""}{label}</span>
-      <span className={`font-mono ${uthevet ? "text-gray-900" : "text-gray-700"}`}>{f(verdi)}</span>
+  const V = ({ label, verdi, uthevet }: { label: string; verdi: unknown; uthevet?: boolean }) => (
+    <div className="flex items-baseline gap-1.5">
+      <span className="text-gray-400 whitespace-nowrap">{label}</span>
+      <span className={`font-mono whitespace-nowrap ${uthevet ? "font-semibold text-gray-900" : "text-gray-600"}`}>{f(dok ? verdi : null)}</span>
     </div>
   );
 
   return (
-    <div className="shrink-0 border-t bg-gray-50 px-4 py-2">
-      <div className="mx-auto max-w-md text-xs">
-        <Rad label="Utført totalt" verdi={dok.utfortTotalt} />
-        <Rad label="Utført forrige" verdi={dok.utfortForrige} prefix="−" />
-        <Rad label="Denne periode" verdi={dok.utfortDenne} prefix="=" uthevet />
-        <div className="my-1 border-t border-gray-300" />
-        <Rad label="Innestående" verdi={dok.innestaaende} />
-        <Rad label="Innestående forrige" verdi={dok.innestaaendeForrige} prefix="−" />
-        <Rad label="Innestående denne" verdi={dok.innestaaendeDenne} prefix="=" uthevet />
-        <div className="my-1 border-t border-gray-300" />
-        <Rad label="Netto denne periode" verdi={dok.nettoDenne} uthevet />
-        <Rad label="Mva" verdi={dok.mva} prefix="+" />
-        <Rad label="Sum inkl. mva" verdi={dok.sumInkMva} prefix="=" uthevet />
+    <div className="text-[11px] leading-tight">
+      <div className="flex gap-4">
+        <V label="Utført totalt" verdi={dok?.utfortTotalt} />
+        <V label="Denne" verdi={dok?.utfortDenne} uthevet />
+        <V label="Innestående" verdi={dok?.innestaaende} />
+      </div>
+      <div className="flex gap-4 mt-0.5">
+        <V label="Netto" verdi={dok?.nettoDenne} uthevet />
+        <V label="Mva" verdi={dok?.mva} />
+        <V label="Sum inkl." verdi={dok?.sumInkMva} uthevet />
       </div>
     </div>
   );
