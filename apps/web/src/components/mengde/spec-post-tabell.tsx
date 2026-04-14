@@ -188,6 +188,18 @@ export function SpecPostTabell({
   prosjektId,
   kontraktId,
 }: SpecPostTabellProps) {
+  // DEBUG: Minimal rendering for å isolere krasj
+  return (
+    <div className="p-4 text-sm">
+      <div>Poster: {poster.length}</div>
+      <div>Sammenligning: {sammenligningPoster?.length ?? "ingen"}</div>
+      {poster.length > 0 && (
+        <div className="mt-2 text-xs text-gray-500">
+          Første post: {String(poster[0]?.postnr)} — {String(poster[0]?.beskrivelse?.substring(0, 50))}
+        </div>
+      )}
+    </div>
+  );
   // Sanitiser poster — fjern eventuelle sub-objekter og konverter Decimal til Number
   const sanitiserPost = (p: SpecPost): SpecPost => ({
     id: p.id,
