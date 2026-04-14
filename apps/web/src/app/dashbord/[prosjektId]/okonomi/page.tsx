@@ -118,8 +118,19 @@ export default function OkonomiSide() {
     { projectId: prosjektId },
     {
       enabled: !!prosjektId,
-      refetchInterval: 5000,
+      staleTime: 10_000,
       refetchOnWindowFocus: true,
+      refetchInterval: (query) => {
+        const data = query.state.data;
+        if (!data) return 3000; // Rask polling under initial lasting
+        return data.some(
+          (d) =>
+            d.processingState === "pending" ||
+            d.processingState === "processing",
+        )
+          ? 3000
+          : false;
+      },
     },
   );
   const dokumenter = dokumenterQuery.data;
@@ -154,13 +165,13 @@ export default function OkonomiSide() {
   const budsjettDokId = kontraktDokumenter.budsjett?.id;
   const { data: budsjettPoster } = trpc.mengde.hentSpecPoster.useQuery(
     { projectId: prosjektId, dokumentId: budsjettDokId },
-    { enabled: !!prosjektId && !!budsjettDokId },
+    { enabled: !!prosjektId && !!budsjettDokId, staleTime: 30_000 },
   );
 
   // Nota-poster (for sammenligning)
   const { data: notaPoster } = trpc.mengde.hentSpecPoster.useQuery(
     { projectId: prosjektId, dokumentId: valgtNotaDok?.id },
-    { enabled: !!prosjektId && !!valgtNotaDok },
+    { enabled: !!prosjektId && !!valgtNotaDok, staleTime: 30_000 },
   );
 
   // Fallback: vis alle poster for kontrakten hvis ingen budsjett-dok finnes
@@ -169,7 +180,7 @@ export default function OkonomiSide() {
       projectId: prosjektId,
       kontraktId: kontraktId ?? undefined,
     },
-    { enabled: !!prosjektId && !!kontraktId && !budsjettDokId },
+    { enabled: !!prosjektId && !!kontraktId && !budsjettDokId, staleTime: 30_000 },
   );
 
   const poster = budsjettPoster ?? allePoster;
