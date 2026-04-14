@@ -283,6 +283,30 @@ export default function OkonomiSide() {
         </FaneKnapp>
       </div>
 
+      {/* Prosesseringsindikator */}
+      {dokumenter && dokumenter.some((d) => d.processingState === "pending" || d.processingState === "processing") && (
+        <div className="flex items-center gap-2 border-b bg-blue-50 px-4 py-2 text-xs text-blue-700">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          <span>
+            {(() => {
+              const ventende = dokumenter.filter((d) => d.processingState === "pending" || d.processingState === "processing");
+              return `Prosesserer ${ventende.length} ${ventende.length === 1 ? "dokument" : "dokumenter"}: ${ventende.map((d) => d.filename).join(", ")}`;
+            })()}
+          </span>
+        </div>
+      )}
+      {dokumenter && dokumenter.some((d) => d.processingState === "failed") && (
+        <div className="flex items-center gap-2 border-b bg-red-50 px-4 py-2 text-xs text-red-600">
+          <AlertCircle className="h-3.5 w-3.5" />
+          <span>
+            {(() => {
+              const feilet = dokumenter.filter((d) => d.processingState === "failed");
+              return `${feilet.length} ${feilet.length === 1 ? "dokument" : "dokumenter"} feilet: ${feilet.map((d) => `${d.filename}${d.processingError ? ` (${d.processingError})` : ""}`).join(", ")}`;
+            })()}
+          </span>
+        </div>
+      )}
+
       {/* Innhold */}
       {aktivFane === "oversikt" ? (
         <>
