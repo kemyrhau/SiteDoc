@@ -514,9 +514,11 @@ export function SpecPostTabell({
       </div>
     </div>
   );
+}
 
-  /* eslint-disable */
-  if (false) return (
+// Gammel kode fjernet midlertidig for debugging
+// @ts-ignore
+function _gammelKode_FJERNET() { if (false) return (
     <div className="flex h-full flex-col rounded border overflow-hidden">
       {ORIGINAL_SØKBAR}
       <div className="flex items-center gap-2 border-b bg-gray-50 px-3 py-1.5">
@@ -840,8 +842,7 @@ export function SpecPostTabell({
       })()}
     </div>
   );
-  /* eslint-enable */
-}
+  null); }
 
 // ---------------------------------------------------------------------------
 // Hjelpefunksjoner
