@@ -73,6 +73,7 @@ export function ProsjektProvider({ children }: { children: ReactNode }) {
   return (
     <ProsjektKontekst.Provider
       value={{
+        // @ts-ignore TS2589 — tRPC type inference for nested Prisma includes
         valgtProsjekt: valgtProsjekt ?? null,
         prosjekter: prosjekter ?? [],
         isLoading: lasterProsjekter || lasterValgt,
