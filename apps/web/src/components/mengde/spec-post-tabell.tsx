@@ -462,31 +462,6 @@ export function SpecPostTabell({
     );
   }
 
-  // DEBUG: Alle hooks har kjørt uten feil. Test om JSX-renderingen krasjer.
-  return (
-    <div className="p-4 text-sm space-y-1">
-      <div className="font-bold">DEBUG — Alle hooks OK!</div>
-      <div>Poster: {renePoster.length} | Rader: {rader.length} | Sortert: {sorterteRader.length}</div>
-      <div>Aktive kolonner: {aktiveKolonner.map(k => k.id).join(", ")}</div>
-      <div>NS-koder: {alleNsKoder.length} | Enheter: {enheter.length}</div>
-      <div>Har sammenligning: {String(harSammenligning)}</div>
-      <table className="mt-2 text-xs border">
-        <thead><tr>{aktiveKolonner.map(k => <th key={k.id} className="border px-1">{k.label}</th>)}</tr></thead>
-        <tbody>
-          {sorterteRader.slice(0, 5).map((rad, i) => (
-            <tr key={i}>
-              {aktiveKolonner.map(kol => {
-                const v = kol.hentVerdi(rad);
-                return <td key={kol.id} className={`border px-1 ${typeof v === "object" && v !== null ? "bg-red-200" : ""}`}>
-                  {v === null || v === undefined ? "—" : typeof v === "object" ? `[OBJ:${JSON.stringify(v).substring(0,50)}]` : String(v)}
-                </td>;
-              })}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
 
   // Totaler (ekskluder seksjonsoverskrifter)
   const totalRader = sorterteRader.filter((r) => !r.erSeksjon);
@@ -508,9 +483,42 @@ export function SpecPostTabell({
     return spans;
   }, [aktiveKolonner]);
 
+  // DEBUG: Komplett tabell med sikker rendering — alle verdier via String()
   return (
     <div className="flex h-full flex-col rounded border overflow-hidden">
-      {/* Globalt søk + innstillinger */}
+      <div className="border-b bg-gray-50 px-3 py-1.5 text-xs text-gray-500">
+        {sorterteRader.length} poster | {aktiveKolonner.length} kolonner
+      </div>
+      <div className="flex-1 overflow-auto">
+        <table className="w-full text-left text-xs">
+          <thead className="sticky top-0 z-10 bg-gray-50">
+            <tr className="border-b">
+              <th className="px-1 py-1 text-[10px]">#</th>
+              {aktiveKolonner.map(k => <th key={k.id} className="px-2 py-1 text-[10px] font-medium">{k.label}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {sorterteRader.map((rad, idx) => (
+              <tr key={rad.budsjett.id} className="border-b hover:bg-gray-50 cursor-pointer" onClick={() => onVelgPost(rad.budsjett.id)}>
+                <td className="px-1 py-0.5 text-[10px] text-gray-400">{idx + 1}</td>
+                {aktiveKolonner.map(kol => {
+                  const v = kol.hentVerdi(rad);
+                  return <td key={kol.id} className={`px-2 py-0.5 ${kol.type === "tall" ? "text-right font-mono" : ""}`}>
+                    {v === null || v === undefined ? "—" : String(v)}
+                  </td>;
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+
+  /* ORIGINAL RETURN — midlertidig kommentert ut
+  return (
+    <div className="flex h-full flex-col rounded border overflow-hidden">
+      {ORIGINAL_SØKBAR}
       <div className="flex items-center gap-2 border-b bg-gray-50 px-3 py-1.5">
         <div className="relative flex-1 max-w-xs">
           <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
@@ -832,6 +840,7 @@ export function SpecPostTabell({
       })()}
     </div>
   );
+  SLUTT PÅ ORIGINAL RETURN */
 }
 
 // ---------------------------------------------------------------------------
