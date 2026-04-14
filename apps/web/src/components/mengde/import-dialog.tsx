@@ -8,6 +8,8 @@ import {
   Loader2,
   FolderOpen,
   Check,
+  AlertTriangle,
+  AlertCircle,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { EntrepriseVelger } from "./entreprise-velger";
@@ -44,6 +46,11 @@ function gjettNotaNr(filnavn: string): string {
   return m ? m[1]! : "";
 }
 
+/** Hent lesbart navn for dokumenttype */
+function dokTypeLabel(type: string): string {
+  return DOC_TYPES.find((t) => t.value === type)?.label ?? type;
+}
+
 type Kilde = "last-opp" | "fra-mappe";
 
 export function ImportDialog({ projectId, open, onClose }: ImportDialogProps) {
@@ -58,6 +65,8 @@ export function ImportDialog({ projectId, open, onClose }: ImportDialogProps) {
   const [lasterOpp, setLasterOpp] = useState(false);
   const [feil, setFeil] = useState<string | null>(null);
   const [dragAktiv, setDragAktiv] = useState(false);
+  const [visBekreftelse, setVisBekreftelse] = useState(false);
+  const [gjettetType, setGjettetType] = useState<string>("anbudsgrunnlag");
 
   // Fra-mappe state
   const [velgtMappeId, setVelgtMappeId] = useState<string | null>(null);
@@ -134,6 +143,7 @@ export function ImportDialog({ projectId, open, onClose }: ImportDialogProps) {
       setFil(droppedFile);
       const dt = gjettDokType(droppedFile.name);
       setDocType(dt);
+      setGjettetType(dt);
       setNotaNr(gjettNotaNr(droppedFile.name));
       if (/sluttnota/i.test(droppedFile.name)) setNotaType("Sluttnota");
       else if (dt === "a_nota") setNotaType("A-Nota");
@@ -438,6 +448,7 @@ export function ImportDialog({ projectId, open, onClose }: ImportDialogProps) {
                               setFil(f);
                               const dt = gjettDokType(f.name);
                               setDocType(dt);
+                              setGjettetType(dt);
                               setNotaNr(gjettNotaNr(f.name));
                               if (/sluttnota/i.test(f.name)) setNotaType("Sluttnota");
                               else if (dt === "a_nota") setNotaType("A-Nota");
@@ -570,37 +581,144 @@ export function ImportDialog({ projectId, open, onClose }: ImportDialogProps) {
           )}
         </div>
 
-        {/* Footer */}
-        <div className="flex justify-end gap-2 border-t px-5 py-3">
-          <button
-            onClick={onClose}
-            className="rounded px-4 py-1.5 text-sm text-gray-600 hover:bg-gray-100"
-          >
-            Avbryt
-          </button>
-          <button
-            onClick={
-              kilde === "last-opp" ? handleLastOpp : handleImporterFraMapper
-            }
-            disabled={
-              lasterOpp ||
-              (kilde === "last-opp" ? !fil : valgteDokumenter.size === 0)
-            }
-            className="flex items-center gap-2 rounded bg-sitedoc-primary px-4 py-1.5 text-sm text-white hover:bg-sitedoc-secondary disabled:opacity-50"
-          >
-            {lasterOpp ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Importerer...
-              </>
-            ) : (
-              <>
-                <Upload className="h-4 w-4" />
-                Importer
-              </>
+        {/* Bekreftelsespanel */}
+        {visBekreftelse && (
+          <div className="border-t bg-gray-50 px-5 py-4">
+            <div className="mb-3 text-sm font-semibold text-gray-700">Bekreft import</div>
+
+            {/* Oppsummering */}
+            <div className="mb-3 space-y-1.5 rounded border bg-white px-3 py-2.5 text-sm">
+              {/* Filnavn */}
+              {kilde === "last-opp" && fil && (
+                <div className="flex items-start gap-2">
+                  <span className="w-28 shrink-0 text-xs text-gray-500">Fil</span>
+                  <span className="truncate font-medium text-gray-800">{fil.name}</span>
+                </div>
+              )}
+              {kilde === "fra-mappe" && valgteDokumenter.size > 0 && (
+                <div className="flex items-start gap-2">
+                  <span className="w-28 shrink-0 text-xs text-gray-500">Filer</span>
+                  <span className="font-medium text-gray-800">
+                    {valgteDokumenter.size} dokument{valgteDokumenter.size > 1 ? "er" : ""}
+                  </span>
+                </div>
+              )}
+
+              {/* Dokumenttype */}
+              <div className="flex items-start gap-2">
+                <span className="w-28 shrink-0 text-xs text-gray-500">Dokumenttype</span>
+                <span className="font-medium text-gray-800">{dokTypeLabel(docType)}</span>
+              </div>
+
+              {/* Kontrakt */}
+              <div className="flex items-start gap-2">
+                <span className="w-28 shrink-0 text-xs text-gray-500">Kontrakt</span>
+                <span className="font-medium text-gray-800">
+                  {valgtKontrakt ? valgtKontrakt.navn : <span className="text-gray-400">Ingen</span>}
+                </span>
+              </div>
+
+              {/* Nota-nummer */}
+              {(docType === "a_nota" || docType === "t_nota") && (
+                <div className="flex items-start gap-2">
+                  <span className="w-28 shrink-0 text-xs text-gray-500">Nota-nummer</span>
+                  <span className="font-medium text-gray-800">
+                    {notaNr ? `${notaType || docType} nr. ${notaNr}` : <span className="text-gray-400">Ikke angitt</span>}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Advarsler */}
+            <div className="mb-3 space-y-2">
+              {/* Typemismatch */}
+              {kilde === "last-opp" && fil && gjettetType !== docType && (
+                <div className="flex items-start gap-2 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                  <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-500" />
+                  <span>
+                    Filnavnet tyder på <strong>{dokTypeLabel(gjettetType)}</strong>, men du har valgt{" "}
+                    <strong>{dokTypeLabel(docType)}</strong>. Er du sikker?
+                  </span>
+                </div>
+              )}
+
+              {/* Manglende nota-nummer */}
+              {(docType === "a_nota" || docType === "t_nota") && !notaNr && (
+                <div className="flex items-start gap-2 rounded border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                  <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-red-500" />
+                  <span>Nota-nummer mangler. Dokumentet vil ikke kobles til korrekt nota.</span>
+                </div>
+              )}
+
+              {/* Ingen kontrakt */}
+              {!kontraktId && (
+                <div className="flex items-start gap-2 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                  <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-500" />
+                  <span>Ingen kontrakt valgt — dokumentet vil ikke kobles til økonomi.</span>
+                </div>
+              )}
+            </div>
+
+            {/* Feilmelding */}
+            {feil && (
+              <div className="mb-3 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
+                {feil}
+              </div>
             )}
-          </button>
-        </div>
+
+            {/* Handlingsknapper */}
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => {
+                  setVisBekreftelse(false);
+                  setFeil(null);
+                }}
+                className="rounded px-4 py-1.5 text-sm text-gray-600 hover:bg-gray-200"
+              >
+                Tilbake
+              </button>
+              <button
+                onClick={kilde === "last-opp" ? handleLastOpp : handleImporterFraMapper}
+                disabled={lasterOpp}
+                className="flex items-center gap-2 rounded bg-sitedoc-primary px-4 py-1.5 text-sm text-white hover:bg-sitedoc-secondary disabled:opacity-50"
+              >
+                {lasterOpp ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Importerer...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="h-4 w-4" />
+                    Bekreft import
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Footer */}
+        {!visBekreftelse && (
+          <div className="flex justify-end gap-2 border-t px-5 py-3">
+            <button
+              onClick={onClose}
+              className="rounded px-4 py-1.5 text-sm text-gray-600 hover:bg-gray-100"
+            >
+              Avbryt
+            </button>
+            <button
+              onClick={() => setVisBekreftelse(true)}
+              disabled={
+                kilde === "last-opp" ? !fil : valgteDokumenter.size === 0
+              }
+              className="flex items-center gap-2 rounded bg-sitedoc-primary px-4 py-1.5 text-sm text-white hover:bg-sitedoc-secondary disabled:opacity-50"
+            >
+              <Upload className="h-4 w-4" />
+              Importer
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
