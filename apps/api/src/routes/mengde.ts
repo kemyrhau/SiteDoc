@@ -55,6 +55,7 @@ export const mengdeRouter = router({
         select: {
           id: true,
           filename: true,
+          fileUrl: true,
           docType: true,
           notaType: true,
           notaNr: true,

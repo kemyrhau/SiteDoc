@@ -57,6 +57,7 @@ export default function OkonomiSide() {
   const [valgtPostId, setValgtPostId] = useState<string | null>(null);
   const notatRef = useRef<NotatEditorRef>(null);
   const [importOpen, setImportOpen] = useState(false);
+  const [visNotaForside, setVisNotaForside] = useState(false);
   const [visNyKontrakt, setVisNyKontrakt] = useState(false);
   const [visRedigerKontrakt, setVisRedigerKontrakt] = useState(false);
   const [nyKontraktNavn, setNyKontraktNavn] = useState("");
@@ -277,9 +278,39 @@ export default function OkonomiSide() {
         </select>
         </div>
 
-        {/* Høyre: Nota-oppsummering */}
-        <NotaOppsummering dok={valgtNotaDok} />
+        {/* Høyre: Nota-oppsummering + vis forside */}
+        <div className="flex items-start gap-2">
+          <NotaOppsummering dok={valgtNotaDok} />
+          {valgtNotaDok?.fileUrl && /\.pdf$/i.test(valgtNotaDok.filename) && (
+            <button
+              onClick={() => setVisNotaForside(true)}
+              className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-sitedoc-primary"
+              title="Vis nota-forside"
+            >
+              <FileText className="h-4 w-4" />
+            </button>
+          )}
+        </div>
       </div>
+
+      {/* Nota-forside modal */}
+      {visNotaForside && valgtNotaDok?.fileUrl && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setVisNotaForside(false)}>
+          <div className="h-[85vh] w-full max-w-3xl rounded-lg bg-white shadow-xl flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b px-5 py-3">
+              <h2 className="text-sm font-semibold">{valgtNotaDok.filename}</h2>
+              <button onClick={() => setVisNotaForside(false)} className="rounded p-1 text-gray-400 hover:bg-gray-100">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <iframe
+              src={`/api${valgtNotaDok.fileUrl}#page=1`}
+              className="flex-1 w-full"
+              title="Nota-forside"
+            />
+          </div>
+        </div>
+      )}
 
       {/* Faner */}
       <div className="flex gap-1 border-b px-4">
