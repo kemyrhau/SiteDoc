@@ -143,7 +143,31 @@ Stegvis flyt — hvert steg er en seksjon på skjermen:
 
 ## Eksport til lønnssystem
 
-Separate kolonner per lønnsart — aldri slått sammen. Hver dagsseddel eksporteres som én rad med:
+Støtter flere systemer via adapter-mønster (samme prinsipp som `BilagsKilde` i økonomi-modulen):
+
+| System | Status | Beskrivelse |
+|--------|--------|-------------|
+| **Tripletex** | Primær | Eksisterende integrasjon via OrganizationIntegration |
+| **Visma** | Planlagt | Visma.net Payroll API |
+| **Unit4** | Planlagt | Unit4 Business World |
+| **SAP** | Planlagt | SAP SuccessFactors / HCM |
+| **CSV/Excel** | Fallback | Alltid tilgjengelig, universell eksport |
+
+### Adapter-interface
+
+```typescript
+interface LonnssystemAdapter {
+  eksporter(dagssedler: Dagsseddel[]): Promise<EksportResultat>;
+  eksporterUtlegg(utlegg: Utlegg[]): Promise<EksportResultat>;
+  valider(): Promise<boolean>; // sjekk API-tilkobling
+}
+```
+
+Konkret implementasjon per leverandør. Konfigureres via `OrganizationIntegration` (type: `"tripletex"` / `"visma"` / `"unit4"` / `"sap"`).
+
+### Timer-eksport — kolonner
+
+Separate kolonner per lønnsart — aldri slått sammen. Hver dagsseddel eksporteres som én rad:
 
 | Kolonne | Kilde |
 |---------|-------|
@@ -158,7 +182,9 @@ Separate kolonner per lønnsart — aldri slått sammen. Hver dagsseddel eksport
 | Nattillegg | `nattillegg` → sats |
 | Helgetillegg | `helgetillegg` → sats |
 
-**Utlegg eksporteres separat fra timer** — aldri blandet i lønnsrader:
+### Utlegg-eksport — separat fra timer
+
+Aldri blandet i lønnsrader. Tripletex: utlegg som reiseregning/bilag, ikke som lønn.
 
 | Kolonne | Kilde |
 |---------|-------|
@@ -168,8 +194,6 @@ Separate kolonner per lønnsart — aldri slått sammen. Hver dagsseddel eksport
 | Beløp | `sheet_expenses.belop` |
 | Notat | `sheet_expenses.notat` |
 | Kvittering | `sheet_expenses.bildeUrl` (lenke) |
-
-**Tripletex-eksport:** Timer som lønnsbilag, utlegg som reiseregning/bilag. Følger eksisterende `BilagsKilde`-adapter-mønster fra økonomi-modulen. Adapter-interface slik at andre lønnssystemer (Visma, CSV) kan legges til uten kodeendring.
 
 ## Utleggsregistrering
 

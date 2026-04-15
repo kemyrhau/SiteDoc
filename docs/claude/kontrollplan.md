@@ -448,9 +448,43 @@ npx tsx prisma/seed-bibliotek.ts
 - **Kun gyldige ReportObject-typer** i malInnhold (se felttype-regler over)
 - `traffic_light` har innebygd vedlegg — aldri lag separate vedlegg-felt
 
+## Kontrollplan — stedsbasert kvalitetskontroll (fase 4)
+
+### Formål
+
+Kobler sjekklister til fysiske steder (BIM-soner, rom, lokasjoner) med tidsfrist og ansvarlig. Gir sporbarhet, varsling og fremdriftstracking.
+
+### Kjerneflyt
+
+```
+Malbygger (BIM/Sone/Rom-egenskaper) + Tegninger + Soner/Rom
+  → Kontrollplan (sjekkliste + sted + tid + ansvarlig + varsling)
+  → Utførelse (mobil, foto, signering)
+  → Rapport (PDF, status per sone)
+```
+
+### Modeller (planlagt)
+
+| Modell | Beskrivelse |
+|--------|-------------|
+| `KontrollplanMal` | Mal med sjekkliste-referanse, sonetype, frekvens, ansvarlig-rolle |
+| `Kontrollplan` | Instans per prosjekt — kobler mal til spesifikk sone/rom/lokasjon |
+| `KontrollpunktUtførelse` | Svar per kontrollpunkt: data, foto, signatur, tidsstempel, GPS |
+
+### Avhengighet
+
+Kontrollplan er avhengig av **malbyggeren** — kan ikke starte implementering før malbygger er ferdig. Malbyggeren må støtte BIM-egenskap (`bim_property`), soneegenskap (`zone_property`) og romegenskap (`room_property`) felttyper.
+
+### Varsling
+
+- Push-varsling til ansvarlig når kontrollpunkt forfaller
+- SMS-varsling (valgfritt, konfigurerbart)
+- Frist-eskalering til leder ved manglende utførelse
+
 ## Status
 
 - **Kontrollplan-siden:** 404 — ikke bygget ennå (`/oppsett/produksjon/kontrollplaner`)
 - **Prisma-modeller:** Ikke migrert ennå
 - **Seed-data:** Ikke opprettet ennå
 - **NS 3420-K maler:** Utkast, trenger forbedring
+- **Avhengighet:** Malbygger (MALBYGGER.md) må ferdigstilles først
