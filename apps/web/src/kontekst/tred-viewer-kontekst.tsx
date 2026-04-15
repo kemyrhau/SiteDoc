@@ -1120,33 +1120,37 @@ export function ViewerCanvas({
               if (model && ids.length > 0) await model.setVisible(ids, true);
             }
           },
-          flyTil: (x: number, _y: number, z: number, gulvY?: number) => {
+          flyTil: (x: number, _y: number, z: number, gulvY?: number): Promise<void> => {
+            const ctrl = world.camera.controls;
+            if (!ctrl) return Promise.resolve();
             const erMm = Math.max(...totalBbox.getSize(new THREE.Vector3()).toArray()) > 1000;
             const øye = erMm ? 1600 : 1.6;
             const fremover = erMm ? 5000 : 5;
             const kameraY = (gulvY != null ? gulvY : totalBbox.getCenter(new THREE.Vector3()).y) + øye;
-            // Kamera PÅ klikk-punktet, ser mot byggets sentrum
             const senter = totalBbox.getCenter(new THREE.Vector3());
             const dx = senter.x - x;
             const dz = senter.z - z;
             const len = Math.sqrt(dx * dx + dz * dz) || 1;
-            // DEBUG: Logg flyTil input og beregninger
-            console.log(`[3D-DEBUG] flyTil input:`, { x, z, gulvY, erMm });
-            console.log(`[3D-DEBUG] flyTil setLookAt pos:`, { x, kameraY, z });
-            console.log(`[3D-DEBUG] flyTil setLookAt target:`, { x: x + (dx / len) * fremover, y: kameraY, z: z + (dz / len) * fremover });
-            world.camera.controls?.setLookAt(
+            ctrl.setLookAt(
               x, kameraY, z,
               x + (dx / len) * fremover, kameraY, z + (dz / len) * fremover,
               true,
             );
-            // DEBUG: Logg faktisk kameraposisjon etter animasjon (700ms)
-            setTimeout(() => {
-              const cam = world.camera.three;
-              if (cam) {
-                console.log(`[3D-DEBUG] flyTil → kamera ETTER 700ms:`, { x: cam.position.x, y: cam.position.y, z: cam.position.z });
-                console.log(`[3D-DEBUG] flyTil → AVVIK:`, { dx: cam.position.x - x, dz: cam.position.z - z });
+            // Vent til camera-controls har stoppet animasjonen ('rest' event)
+            return new Promise<void>((resolve) => {
+              let timeout: ReturnType<typeof setTimeout>;
+              function onRest() {
+                clearTimeout(timeout);
+                ctrl.removeEventListener("rest", onRest);
+                resolve();
               }
-            }, 700);
+              ctrl.addEventListener("rest", onRest);
+              // Fallback: resolve etter 3s selv om rest aldri fyrer
+              timeout = setTimeout(() => {
+                ctrl.removeEventListener("rest", onRest);
+                resolve();
+              }, 3000);
+            });
           },
           sisteKlikkPunkt: () => sisteKlikkPunkt3D,
           hentKameraPosisjon: () => {

@@ -634,31 +634,14 @@ export default function Tegning3DSide() {
       } else return;
 
       setTegningMarkør({ ...pxProsent });
-      // DEBUG: Logg tegning-klikk → flyTil → inverstest
-      console.log(`[3D-DEBUG] Tegning-klikk: pxProsent(${pxProsent.x.toFixed(2)}, ${pxProsent.y.toFixed(2)}) → flyTil(${flyX.toFixed(2)}, ${flyZ.toFixed(2)})`);
-      // Pause delta-tracking under flyTil-animasjon (600ms)
-      // Uten dette tolkes animasjonen som brukerbevegelse → prikken drifter
+      // Pause delta-tracking under flyTil-animasjon
       pauseDeltaRef.current = true;
       forrigeKamPosRef.current = null;
-      viewerRef.current?.flyTil(flyX, 0, flyZ, gulvY ?? undefined);
-      // DEBUG: Les kameraposisjon etter animasjon og test inverst
-      setTimeout(() => {
-        const kam = viewerRef.current?.hentKameraPosisjon();
-        if (kam && kalibTransform) {
-          console.log(`[3D-DEBUG] Etter flyTil — kamera ved:`, { x: kam.pos.x.toFixed(2), z: kam.pos.z.toFixed(2) });
-          console.log(`[3D-DEBUG] Forespurt flyTil:`, { x: flyX.toFixed(2), z: flyZ.toFixed(2) });
-          console.log(`[3D-DEBUG] Posisjon-avvik:`, { dx: (kam.pos.x - flyX).toFixed(4), dz: (kam.pos.z - flyZ).toFixed(4) });
-          // Test invers med faktisk kameraposisjon
-          const { a, b, tx, tz } = kalibTransform;
-          const det = a * a + b * b;
-          const dxK = kam.pos.x - tx, dzK = kam.pos.z - tz;
-          const invFraKam = { x: (a * dxK - b * dzK) / det, y: (b * dxK + a * dzK) / det };
-          console.log(`[3D-DEBUG] Invers fra kamera-pos → tegning:`, invFraKam);
-          console.log(`[3D-DEBUG] Forventet tegning:`, pxProsent);
-          console.log(`[3D-DEBUG] Invers-avvik:`, { dx: (invFraKam.x - pxProsent.x).toFixed(4), dy: (invFraKam.y - pxProsent.y).toFixed(4) });
-        }
-        pauseDeltaRef.current = false; forrigeKamPosRef.current = null;
-      }, 700);
+      // flyTil returnerer Promise som resolves ved camera-controls 'rest' event
+      viewerRef.current?.flyTil(flyX, 0, flyZ, gulvY ?? undefined).then(() => {
+        pauseDeltaRef.current = false;
+        forrigeKamPosRef.current = null;
+      });
     },
     [synkAktiv, transformasjon, ifcOpprinnelse, coordSystem, viewerRef, klikkKalibSteg, finjusterSteg],
   );
