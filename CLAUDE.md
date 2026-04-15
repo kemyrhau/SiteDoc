@@ -295,8 +295,12 @@ Hver side i SiteDoc skal ha en hjelpetekst tilgjengelig via hjelp-ikonet (?) øv
 
 **Sider med hjelpetekst:**
 
-| Side | URL | Status |
-|------|-----|--------|
-| Kontakter/Brukere | /oppsett/brukere | ✅ Ferdig — trenger oppdatering: "Entreprise" → "Dokumentflyt" |
-| Kontakter (Dokumentflyt) | /oppsett/produksjon/kontakter | ⚠️ Mangler |
-| Admin/Firmaer | /admin/firmaer | ⚠️ Mangler |
+| Side | URL | Status | Trenger oppdatering |
+|------|-----|--------|---------------------|
+| Brukere/Kontakter | /oppsett/brukere | ✅ Har ?-ikon | Ja — "entreprise" → "dokumentflyt" |
+| Lokasjoner | /oppsett/lokasjoner | ❌ Mangler | Ny |
+| Dokumentflyt | /oppsett/produksjon/kontakter | ❌ Mangler | Ny |
+| Oppgavemaler | /oppsett/produksjon/oppgavemaler | ❌ Mangler | Ny |
+| Sjekklistemaler | /oppsett/produksjon/sjekklistemaler | ❌ Mangler | Ny |
+| PSI | /oppsett/produksjon/psi | ❌ Mangler | Ny |
+| Admin/Firmaer | /admin/firmaer | ❌ Mangler | Ny |
