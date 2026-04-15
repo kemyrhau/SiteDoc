@@ -293,14 +293,18 @@ Hver side i SiteDoc skal ha en hjelpetekst tilgjengelig via hjelp-ikonet (?) øv
 - "Prosjektrolle" — rollen i prosjektet (Byggherre, Tømrer)
 - "Organisasjon" — kundefirmaet som eier SiteDoc-kontoen
 
-**Sider med hjelpetekst:**
+**Sidestatus ?-ikon:**
 
-| Side | URL | Status | Trenger oppdatering |
-|------|-----|--------|---------------------|
-| Brukere/Kontakter | /oppsett/brukere | ✅ Har ?-ikon | Ja — "entreprise" → "dokumentflyt" |
-| Lokasjoner | /oppsett/lokasjoner | ❌ Mangler | Ny |
-| Dokumentflyt | /oppsett/produksjon/kontakter | ❌ Mangler | Ny |
-| Oppgavemaler | /oppsett/produksjon/oppgavemaler | ❌ Mangler | Ny |
-| Sjekklistemaler | /oppsett/produksjon/sjekklistemaler | ❌ Mangler | Ny |
-| PSI | /oppsett/produksjon/psi | ❌ Mangler | Ny |
-| Admin/Firmaer | /admin/firmaer | ❌ Mangler | Ny |
+| Side | URL | Har ? | Prioritet |
+|------|-----|-------|-----------|
+| Brukere | /oppsett/brukere | ✅ | Oppdater: "entreprise" → "dokumentflyt" |
+| Mappeoppsett | /oppsett/produksjon/box | ✅ | Sjekk konsistens |
+| Lokasjoner | /oppsett/lokasjoner | ❌ | Legg til |
+| Dokumentflyt | /oppsett/produksjon/kontakter | ❌ | Legg til |
+| Oppgavemaler | /oppsett/produksjon/oppgavemaler | ❌ | Legg til |
+| Sjekklistemaler | /oppsett/produksjon/sjekklistemaler | ❌ | Legg til |
+| Moduler | /oppsett/produksjon/moduler | ❌ | Legg til |
+| PSI | /oppsett/produksjon/psi | ❌ | Legg til |
+| AI-søk | /oppsett/ai-sok | ❌ | Legg til |
+| Admin/Firmaer | /admin/firmaer | ❌ | Legg til |
+| Kontrollplan | /oppsett/produksjon/kontrollplaner | — | 404 — ikke bygget ennå |
