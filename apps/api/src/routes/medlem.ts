@@ -25,8 +25,8 @@ export const medlemRouter = router({
               organization: { select: { id: true, name: true } },
             },
           },
-          enterprises: {
-            include: { enterprise: { select: { id: true, name: true, color: true } } },
+          dokumentflytKoblinger: {
+            include: { dokumentflytPart: { select: { id: true, name: true, color: true } } },
           },
         },
         orderBy: { createdAt: "asc" },
@@ -47,8 +47,8 @@ export const medlemRouter = router({
           },
         },
         include: {
-          enterprises: {
-            include: { enterprise: true },
+          dokumentflytKoblinger: {
+            include: { dokumentflytPart: true },
           },
         },
       });
@@ -59,14 +59,14 @@ export const medlemRouter = router({
       const tillatelser = await hentBrukerTillatelser(ctx.userId, input.projectId);
       const erRegistrator = tillatelser.has("create_checklists") || tillatelser.has("create_tasks");
       if (erRegistrator || medlem.role === "admin") {
-        const alle = await ctx.prisma.enterprise.findMany({
+        const alle = await ctx.prisma.dokumentflytPart.findMany({
           where: { projectId: input.projectId },
           orderBy: { name: "asc" },
         });
         return alle;
       }
 
-      return medlem.enterprises.map((me) => me.enterprise);
+      return medlem.dokumentflytKoblinger.map((me) => me.dokumentflytPart);
     }),
 
   // Hent mine tillatelser i et prosjekt
@@ -126,7 +126,7 @@ export const medlemRouter = router({
         // Legg til nye entreprise-tilknytninger
         if (input.enterpriseIds.length > 0) {
           for (const entId of input.enterpriseIds) {
-            await ctx.prisma.memberEnterprise.upsert({
+            await ctx.prisma.dokumentflytKobling.upsert({
               where: {
                 projectMemberId_enterpriseId: {
                   projectMemberId: eksisterende.id,
@@ -145,7 +145,7 @@ export const medlemRouter = router({
           where: { id: eksisterende.id },
           include: {
             user: true,
-            enterprises: { include: { enterprise: true } },
+            dokumentflytKoblinger: { include: { dokumentflytPart: true } },
           },
         });
       }
@@ -155,7 +155,7 @@ export const medlemRouter = router({
           userId: user.id,
           projectId: input.projectId,
           role: input.role,
-          enterprises: {
+          dokumentflytKoblinger: {
             create: input.enterpriseIds.map((entId) => ({
               enterpriseId: entId,
             })),
@@ -163,7 +163,7 @@ export const medlemRouter = router({
         },
         include: {
           user: true,
-          enterprises: { include: { enterprise: true } },
+          dokumentflytKoblinger: { include: { dokumentflytPart: true } },
         },
       });
 
@@ -243,7 +243,7 @@ export const medlemRouter = router({
         data: { role: input.role },
         include: {
           user: true,
-          enterprises: { include: { enterprise: true } },
+          dokumentflytKoblinger: { include: { dokumentflytPart: true } },
         },
       });
     }),
@@ -306,7 +306,7 @@ export const medlemRouter = router({
         where: { id: input.id },
         include: {
           user: true,
-          enterprises: { include: { enterprise: true } },
+          dokumentflytKoblinger: { include: { dokumentflytPart: true } },
         },
       });
     }),
@@ -323,7 +323,7 @@ export const medlemRouter = router({
     .mutation(async ({ ctx, input }) => {
       await verifiserAdmin(ctx.userId, input.projectId);
 
-      return ctx.prisma.memberEnterprise.upsert({
+      return ctx.prisma.dokumentflytKobling.upsert({
         where: {
           projectMemberId_enterpriseId: {
             projectMemberId: input.projectMemberId,
@@ -350,7 +350,7 @@ export const medlemRouter = router({
     .mutation(async ({ ctx, input }) => {
       await verifiserAdmin(ctx.userId, input.projectId);
 
-      return ctx.prisma.memberEnterprise.delete({
+      return ctx.prisma.dokumentflytKobling.delete({
         where: {
           projectMemberId_enterpriseId: {
             projectMemberId: input.projectMemberId,

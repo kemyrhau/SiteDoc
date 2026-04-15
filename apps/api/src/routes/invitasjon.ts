@@ -20,7 +20,7 @@ export const invitasjonRouter = router({
         where: { projectId: input.projectId },
         include: {
           invitedBy: { select: { id: true, name: true, email: true } },
-          enterprise: { select: { id: true, name: true } },
+          dokumentflytPart: { select: { id: true, name: true } },
           group: { select: { id: true, name: true } },
         },
         orderBy: { createdAt: "desc" },

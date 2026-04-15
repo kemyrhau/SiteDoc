@@ -37,7 +37,7 @@ export const adminRouter = router({
     const prosjekter = await ctx.prisma.project.findMany({
       include: {
         members: { select: { id: true, user: { select: { name: true, email: true } } } },
-        enterprises: { select: { id: true } },
+        dokumentflytParts: { select: { id: true } },
         organizationProjects: {
           include: { organization: { select: { id: true, name: true } } },
         },
@@ -63,7 +63,7 @@ export const adminRouter = router({
     // Bygg enterprise→prosjekt-mapping
     const enterpriseProsjektMap = new Map<string, string>();
     for (const p of prosjekter) {
-      for (const e of p.enterprises) {
+      for (const e of p.dokumentflytParts) {
         enterpriseProsjektMap.set(e.id, p.id);
       }
     }
@@ -241,7 +241,7 @@ export const adminRouter = router({
         ctx.prisma.checklist.count({ where: entFilter }),
         ctx.prisma.task.count({ where: entFilter }),
         ctx.prisma.reportTemplate.count({ where: { projectId: input.projectId } }),
-        ctx.prisma.enterprise.count({ where: { projectId: input.projectId } }),
+        ctx.prisma.dokumentflytPart.count({ where: { projectId: input.projectId } }),
         ctx.prisma.projectMember.count({ where: { projectId: input.projectId } }),
         ctx.prisma.drawing.count({ where: { projectId: input.projectId } }),
         ctx.prisma.folder.count({ where: { projectId: input.projectId } }),
@@ -382,15 +382,14 @@ export const adminRouter = router({
   hentStandaloneEnterprises: protectedProcedure.query(async ({ ctx }) => {
     await verifiserSiteDocAdmin(ctx.prisma, ctx.userId);
 
-    return ctx.prisma.enterprise.findMany({
-      where: { organizationId: null },
+    return ctx.prisma.dokumentflytPart.findMany({
       select: {
         id: true,
         name: true,
         companyName: true,
         enterpriseNumber: true,
         project: { select: { id: true, name: true, projectNumber: true } },
-        memberEnterprises: { select: { id: true } },
+        dokumentflytKoblinger: { select: { id: true } },
       },
       orderBy: { name: "asc" },
     });

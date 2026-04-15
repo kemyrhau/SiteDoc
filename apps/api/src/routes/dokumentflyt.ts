@@ -151,7 +151,7 @@ export const dokumentflytRouter = router({
       return ctx.prisma.dokumentflytMedlem.create({
         data,
         include: {
-          enterprise: { select: { id: true, name: true, color: true } },
+          dokumentflytPart: { select: { id: true, name: true, color: true } },
           projectMember: {
             include: {
               user: { select: { id: true, name: true, email: true } },

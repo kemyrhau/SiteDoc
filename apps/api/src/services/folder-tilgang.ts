@@ -19,7 +19,7 @@ export async function hentTilgjengeligeMappeIder(
   const medlem = await prisma.projectMember.findUnique({
     where: { userId_projectId: { userId, projectId } },
     include: {
-      enterprises: { select: { enterpriseId: true } },
+      dokumentflytKoblinger: { select: { enterpriseId: true } },
       groupMemberships: {
         include: {
           group: { select: { id: true, slug: true } },
@@ -40,7 +40,7 @@ export async function hentTilgjengeligeMappeIder(
 
   // 4. Finn mapper via FolderAccess (direkte + gruppe + entreprise)
   const gruppeIder = medlem.groupMemberships.map((gm) => gm.group.id);
-  const entrepriseIder = medlem.enterprises.map((e) => e.enterpriseId);
+  const entrepriseIder = medlem.dokumentflytKoblinger.map((e) => e.enterpriseId);
 
   // Hent alle mapper i prosjektet med accessEntries
   const mapper = await prisma.folder.findMany({

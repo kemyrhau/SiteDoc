@@ -38,8 +38,8 @@ export const debugTilgangRouter = router({
       const targetMedlem = await ctx.prisma.projectMember.findUnique({
         where: { userId_projectId: { userId: input.targetUserId, projectId: input.projectId } },
         include: {
-          enterprises: {
-            include: { enterprise: { select: { id: true, name: true } } },
+          dokumentflytKoblinger: {
+            include: { dokumentflytPart: { select: { id: true, name: true } } },
           },
           groupMemberships: {
             include: {
@@ -48,7 +48,7 @@ export const debugTilgangRouter = router({
                   id: true,
                   name: true,
                   domains: true,
-                  groupEnterprises: { include: { enterprise: { select: { id: true, name: true } } } },
+                  groupDokumentflytParts: { include: { dokumentflytPart: { select: { id: true, name: true } } } },
                 },
               },
             },
@@ -72,7 +72,7 @@ export const debugTilgangRouter = router({
           },
           include: {
             user: { select: { name: true } },
-            enterprises: { include: { enterprise: { select: { id: true, name: true } } } },
+            dokumentflytKoblinger: { include: { dokumentflytPart: { select: { id: true, name: true } } } },
             groupMemberships: { select: { groupId: true } },
           },
         });
@@ -83,9 +83,9 @@ export const debugTilgangRouter = router({
         const entreIder = new Set<string>();
         const entreNavn = new Map<string, string>();
         for (const fm of firmamedlemmer) {
-          for (const e of fm.enterprises) {
-            entreIder.add(e.enterprise.id);
-            entreNavn.set(e.enterprise.id, e.enterprise.name);
+          for (const e of fm.dokumentflytKoblinger) {
+            entreIder.add(e.dokumentflytPart.id);
+            entreNavn.set(e.dokumentflytPart.id, e.dokumentflytPart.name);
           }
         }
 
@@ -105,14 +105,14 @@ export const debugTilgangRouter = router({
           },
           include: {
             dokumentflyt: {
-              include: { enterprise: { select: { id: true, name: true } } },
+              include: { dokumentflytPart: { select: { id: true, name: true } } },
             },
           },
         });
         for (const dm of dfMedlemmer) {
-          if (dm.dokumentflyt.enterprise) {
-            entreIder.add(dm.dokumentflyt.enterprise.id);
-            entreNavn.set(dm.dokumentflyt.enterprise.id, dm.dokumentflyt.enterprise.name);
+          if (dm.dokumentflyt.dokumentflytPart) {
+            entreIder.add(dm.dokumentflyt.dokumentflytPart.id);
+            entreNavn.set(dm.dokumentflyt.dokumentflytPart.id, dm.dokumentflyt.dokumentflytPart.name);
           }
         }
 
@@ -127,11 +127,11 @@ export const debugTilgangRouter = router({
           rolle: targetMedlem.role,
           erFirmaansvarlig: targetMedlem.erFirmaansvarlig,
         },
-        direkteEntrepriser: targetMedlem.enterprises.map((e) => e.enterprise.name),
-        grupper: targetMedlem.groupMemberships.map((gm) => ({
+        direkteEntrepriser: targetMedlem.dokumentflytKoblinger.map((e: { dokumentflytPart: { name: string } }) => e.dokumentflytPart.name),
+        grupper: targetMedlem.groupMemberships.map((gm: { group: { name: string; domains: unknown; groupDokumentflytParts: { dokumentflytPart: { name: string } }[] } }) => ({
           navn: gm.group.name,
           domener: gm.group.domains,
-          entrepriser: gm.group.groupEnterprises.map((ge) => ge.enterprise.name),
+          entrepriser: gm.group.groupDokumentflytParts.map((ge: { dokumentflytPart: { name: string } }) => ge.dokumentflytPart.name),
         })),
         firmaansvarlig: targetMedlem.erFirmaansvarlig ? {
           firmaNavn: targetUser?.organization?.name,

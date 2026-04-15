@@ -59,8 +59,8 @@ export async function byggTransferSnapshot(input: SnapshotInput): Promise<Transf
 
   // Hent entreprise-navn
   const [bestillerEnt, utforerEnt] = await Promise.all([
-    prisma.enterprise.findUnique({ where: { id: input.bestillerEnterpriseId }, select: { name: true } }),
-    prisma.enterprise.findUnique({ where: { id: input.utforerEnterpriseId }, select: { name: true } }),
+    prisma.dokumentflytPart.findUnique({ where: { id: input.bestillerEnterpriseId }, select: { name: true } }),
+    prisma.dokumentflytPart.findUnique({ where: { id: input.utforerEnterpriseId }, select: { name: true } }),
   ]);
 
   // Senderens entreprise basert på rolle

@@ -17,7 +17,7 @@ export const prosjektRouter = router({
       where: erSitedocAdmin ? {} : { members: { some: { userId: ctx.userId } } },
       orderBy: { updatedAt: "desc" },
       include: {
-        enterprises: true,
+        dokumentflytParts: true,
         _count: { select: { members: true } },
       },
     });
@@ -31,7 +31,7 @@ export const prosjektRouter = router({
       where: erSitedocAdmin ? {} : { members: { some: { userId: ctx.userId } } },
       orderBy: { createdAt: "desc" },
       include: {
-        enterprises: true,
+        dokumentflytParts: true,
         _count: { select: { members: true } },
       },
     });
@@ -46,11 +46,11 @@ export const prosjektRouter = router({
       return ctx.prisma.project.findUniqueOrThrow({
         where: { id: input.id },
         include: {
-          enterprises: true,
+          dokumentflytParts: true,
           members: {
             include: {
               user: true,
-              enterprises: { include: { enterprise: true } },
+              dokumentflytKoblinger: { include: { dokumentflytPart: true } },
             },
           },
           templates: true,
@@ -192,7 +192,7 @@ export const prosjektRouter = router({
         // Opprett standard entrepriser
         const entrepriseIder: string[] = [];
         for (const entDef of STANDARD_ENTREPRISER) {
-          const ent = await tx.enterprise.create({
+          const ent = await tx.dokumentflytPart.create({
             data: {
               projectId: prosjekt.id,
               name: entDef.navn,
@@ -209,7 +209,7 @@ export const prosjektRouter = router({
           where: { projectId: prosjekt.id, userId: ctx.userId },
         });
         if (medlem && entrepriseIder.length > 0) {
-          await tx.memberEnterprise.create({
+          await tx.dokumentflytKobling.create({
             data: {
               projectMemberId: medlem.id,
               enterpriseId: entrepriseIder[0]!,

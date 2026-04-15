@@ -112,7 +112,7 @@ export const mengdeRouter = router({
             : {}),
         },
         include: {
-          enterprise: { select: { id: true, name: true, color: true } },
+          dokumentflytPart: { select: { id: true, name: true, color: true } },
         },
         orderBy: { periodeNr: "asc" },
       });

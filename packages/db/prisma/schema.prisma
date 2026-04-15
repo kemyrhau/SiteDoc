@@ -38,7 +38,7 @@ model User {
   folderAccess         FolderAccess[]
   taskComments         TaskComment[]
   checklistChangeLogs  ChecklistChangeLog[]
-  ansvarligEntrepriser Enterprise[]         @relation("EnterpriseAnsvarlig")
+  ansvarligDokumentflytParts DokumentflytPart[] @relation("DokumentflytPartAnsvarlig")
   psiSignaturer        PsiSignatur[]
 
   @@index([organizationId])
@@ -58,7 +58,6 @@ model Organization {
 
   users        User[]
   projects     OrganizationProject[]
-  enterprises  Enterprise[]
   integrations OrganizationIntegration[]
 
   @@map("organizations")
@@ -154,7 +153,7 @@ model Project {
   updatedAt                 DateTime @updatedAt @map("updated_at")
 
   members              ProjectMember[]
-  enterprises          Enterprise[]
+  dokumentflytParts    DokumentflytPart[]
   drawings             Drawing[]
   pointClouds          PointCloud[]
   byggeplasser         Byggeplass[]
@@ -185,7 +184,7 @@ model ProjectMember {
 
   user                   User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   project                Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  enterprises            MemberEnterprise[]
+  dokumentflytKoblinger  DokumentflytKobling[]
   groupMemberships       ProjectGroupMember[]
   dokumentflytMedlemskap           DokumentflytMedlem[]
   hovedansvarligIDokumentflyter    DokumentflytMedlem[] @relation("HovedansvarligPerson")
@@ -194,17 +193,17 @@ model ProjectMember {
   @@map("project_members")
 }
 
-model MemberEnterprise {
+model DokumentflytKobling {
   id              String   @id @default(uuid())
   projectMemberId String   @map("project_member_id")
   enterpriseId    String   @map("enterprise_id")
   createdAt       DateTime @default(now()) @map("created_at")
 
-  projectMember ProjectMember @relation(fields: [projectMemberId], references: [id], onDelete: Cascade)
-  enterprise    Enterprise    @relation(fields: [enterpriseId], references: [id], onDelete: Cascade)
+  projectMember ProjectMember  @relation(fields: [projectMemberId], references: [id], onDelete: Cascade)
+  dokumentflytPart DokumentflytPart @relation(fields: [enterpriseId], references: [id], onDelete: Cascade)
 
   @@unique([projectMemberId, enterpriseId])
-  @@map("member_enterprises")
+  @@map("dokumentflyt_koblinger")
 }
 
 model ProjectGroup {
@@ -225,7 +224,7 @@ model ProjectGroup {
   members               ProjectGroupMember[]
   invitations           ProjectInvitation[]
   folderAccess          FolderAccess[]
-  groupEnterprises      GroupEnterprise[]
+  groupDokumentflytParts GroupDokumentflytPart[]
   dokumentflytMedlemmer DokumentflytMedlem[]
   recipientTransfers    DocumentTransfer[]   @relation("TransferRecipientGroup")
   recipientChecklists   Checklist[]          @relation("ChecklistRecipientGroup")
@@ -249,14 +248,14 @@ model ProjectGroupMember {
   @@map("project_group_members")
 }
 
-model GroupEnterprise {
+model GroupDokumentflytPart {
   id           String   @id @default(uuid())
   groupId      String   @map("group_id")
   enterpriseId String   @map("enterprise_id")
   createdAt    DateTime @default(now()) @map("created_at")
 
-  group      ProjectGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  enterprise Enterprise   @relation(fields: [enterpriseId], references: [id], onDelete: Cascade)
+  group            ProjectGroup   @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  dokumentflytPart DokumentflytPart @relation(fields: [enterpriseId], references: [id], onDelete: Cascade)
 
   @@unique([groupId, enterpriseId])
   @@map("group_enterprises")
@@ -277,19 +276,18 @@ model ProjectInvitation {
   createdAt       DateTime  @default(now()) @map("created_at")
 
   project    Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  enterprise Enterprise?   @relation(fields: [enterpriseId], references: [id], onDelete: SetNull)
-  group      ProjectGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
-  invitedBy  User          @relation("InvitationSender", fields: [invitedByUserId], references: [id])
+  dokumentflytPart DokumentflytPart? @relation(fields: [enterpriseId], references: [id], onDelete: SetNull)
+  group            ProjectGroup?     @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  invitedBy        User              @relation("InvitationSender", fields: [invitedByUserId], references: [id])
 
   @@index([email])
   @@map("project_invitations")
 }
 
-model Enterprise {
+model DokumentflytPart {
   id                 String   @id @default(uuid())
   projectId          String   @map("project_id")
   kontraktId         String?  @map("kontrakt_id")
-  organizationId     String?  @map("organization_id")
   name               String
   enterpriseNumber   String?  @map("enterprise_number")
   organizationNumber String?  @map("organization_number")
@@ -302,21 +300,20 @@ model Enterprise {
 
   project                Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
   kontrakt               FtdKontrakt?         @relation(fields: [kontraktId], references: [id], onDelete: SetNull)
-  organization           Organization?        @relation(fields: [organizationId], references: [id], onDelete: SetNull)
-  ansvarlig              User?                @relation("EnterpriseAnsvarlig", fields: [ansvarligId], references: [id], onDelete: SetNull)
-  memberEnterprises      MemberEnterprise[]
-  bestillerChecklists    Checklist[]          @relation("ChecklistCreatorEnterprise")
-  utforerChecklists      Checklist[]          @relation("ChecklistResponderEnterprise")
-  bestillerTasks         Task[]               @relation("TaskCreatorEnterprise")
-  utforerTasks           Task[]               @relation("TaskResponderEnterprise")
+  ansvarlig              User?                @relation("DokumentflytPartAnsvarlig", fields: [ansvarligId], references: [id], onDelete: SetNull)
+  dokumentflytKoblinger  DokumentflytKobling[]
+  bestillerChecklists    Checklist[]          @relation("ChecklistCreatorDokumentflytPart")
+  utforerChecklists      Checklist[]          @relation("ChecklistResponderDokumentflytPart")
+  bestillerTasks         Task[]               @relation("TaskCreatorDokumentflytPart")
+  utforerTasks           Task[]               @relation("TaskResponderDokumentflytPart")
   dokumentflytMedlemskap DokumentflytMedlem[]
-  dokumentflyter         Dokumentflyt[]       @relation("dokumentflytEnterprise")
+  dokumentflyter         Dokumentflyt[]       @relation("dokumentflytDokumentflytPart")
   invitations            ProjectInvitation[]
   folderAccess           FolderAccess[]
-  groupEnterprises       GroupEnterprise[]
+  groupDokumentflytParts GroupDokumentflytPart[]
   ftdNotaPeriods         FtdNotaPeriod[]
 
-  @@map("enterprises")
+  @@map("dokumentflyt_parts")
 }
 
 model Drawing {
@@ -501,8 +498,8 @@ model Checklist {
 
   template              ReportTemplate       @relation(fields: [templateId], references: [id])
   bestiller             User                 @relation("ChecklistCreator", fields: [bestillerUserId], references: [id])
-  bestillerEnterprise   Enterprise           @relation("ChecklistCreatorEnterprise", fields: [bestillerEnterpriseId], references: [id])
-  utforerEnterprise     Enterprise           @relation("ChecklistResponderEnterprise", fields: [utforerEnterpriseId], references: [id])
+  bestillerEnterprise   DokumentflytPart     @relation("ChecklistCreatorDokumentflytPart", fields: [bestillerEnterpriseId], references: [id])
+  utforerEnterprise     DokumentflytPart     @relation("ChecklistResponderDokumentflytPart", fields: [utforerEnterpriseId], references: [id])
   eier                  User?                @relation("ChecklistOwner", fields: [eierUserId], references: [id], onDelete: SetNull)
   dokumentflyt          Dokumentflyt?        @relation(fields: [dokumentflytId], references: [id], onDelete: SetNull)
   byggeplass            Byggeplass?          @relation(fields: [byggeplassId], references: [id], onDelete: SetNull)
@@ -548,8 +545,8 @@ model Task {
 
   template              ReportTemplate?    @relation(fields: [templateId], references: [id])
   bestiller             User               @relation("TaskCreator", fields: [bestillerUserId], references: [id])
-  bestillerEnterprise   Enterprise         @relation("TaskCreatorEnterprise", fields: [bestillerEnterpriseId], references: [id])
-  utforerEnterprise     Enterprise         @relation("TaskResponderEnterprise", fields: [utforerEnterpriseId], references: [id])
+  bestillerEnterprise   DokumentflytPart   @relation("TaskCreatorDokumentflytPart", fields: [bestillerEnterpriseId], references: [id])
+  utforerEnterprise     DokumentflytPart   @relation("TaskResponderDokumentflytPart", fields: [utforerEnterpriseId], references: [id])
   eier                  User?              @relation("TaskOwner", fields: [eierUserId], references: [id], onDelete: SetNull)
   drawing               Drawing?           @relation(fields: [drawingId], references: [id])
   dokumentflyt          Dokumentflyt?      @relation(fields: [dokumentflytId], references: [id], onDelete: SetNull)
@@ -646,9 +643,9 @@ model FolderAccess {
   userId       String?  @map("user_id")
   createdAt    DateTime @default(now()) @map("created_at")
 
-  folder     Folder        @relation(fields: [folderId], references: [id], onDelete: Cascade)
-  enterprise Enterprise?   @relation(fields: [enterpriseId], references: [id], onDelete: Cascade)
-  group      ProjectGroup? @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  folder           Folder            @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  dokumentflytPart DokumentflytPart? @relation(fields: [enterpriseId], references: [id], onDelete: Cascade)
+  group            ProjectGroup?     @relation(fields: [groupId], references: [id], onDelete: Cascade)
   user       User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([folderId, accessType, enterpriseId, groupId, userId])
@@ -667,7 +664,7 @@ model Dokumentflyt {
   updatedAt    DateTime @updatedAt @map("updated_at")
 
   project    Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  enterprise Enterprise?          @relation("dokumentflytEnterprise", fields: [enterpriseId], references: [id], onDelete: SetNull)
+  dokumentflytPart DokumentflytPart? @relation("dokumentflytDokumentflytPart", fields: [enterpriseId], references: [id], onDelete: SetNull)
   medlemmer  DokumentflytMedlem[]
   maler      DokumentflytMal[]
   checklists Checklist[]
@@ -691,7 +688,7 @@ model DokumentflytMedlem {
   createdAt               DateTime @default(now()) @map("created_at")
 
   dokumentflyt          Dokumentflyt   @relation(fields: [dokumentflytId], references: [id], onDelete: Cascade)
-  enterprise            Enterprise?    @relation(fields: [enterpriseId], references: [id], onDelete: Cascade)
+  dokumentflytPart      DokumentflytPart? @relation(fields: [enterpriseId], references: [id], onDelete: Cascade)
   projectMember         ProjectMember? @relation(fields: [projectMemberId], references: [id], onDelete: Cascade)
   group                 ProjectGroup?  @relation(fields: [groupId], references: [id], onDelete: Cascade)
   hovedansvarligPerson  ProjectMember? @relation("HovedansvarligPerson", fields: [hovedansvarligPersonId], references: [id], onDelete: SetNull)
@@ -840,7 +837,7 @@ model FtdKontrakt {
 
   project    Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
   byggeplass Byggeplass? @relation(fields: [byggeplassId], references: [id], onDelete: SetNull)
-  entrepriser  Enterprise[]
+  dokumentflytParts DokumentflytPart[]
   dokumenter   FtdDocument[]
   mapper       Folder[]
   notaPerioder FtdNotaPeriod[]
@@ -1033,7 +1030,7 @@ model FtdNotaPeriod {
   project     Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
   kontrakt    FtdKontrakt      @relation(fields: [kontraktId], references: [id])
   document    FtdDocument      @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  enterprise  Enterprise?      @relation(fields: [enterpriseId], references: [id], onDelete: SetNull)
+  dokumentflytPart DokumentflytPart? @relation(fields: [enterpriseId], references: [id], onDelete: SetNull)
   poster      FtdNotaPost[]
   kommentarer FtdNotaComment[]
 

@@ -10,11 +10,11 @@ export const entrepriseRouter = router({
     .input(z.object({ projectId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       await verifiserProsjektmedlem(ctx.userId, input.projectId);
-      return ctx.prisma.enterprise.findMany({
+      return ctx.prisma.dokumentflytPart.findMany({
         where: { projectId: input.projectId },
         include: {
           ansvarlig: { select: { id: true, name: true, email: true } },
-          memberEnterprises: {
+          dokumentflytKoblinger: {
             include: {
               projectMember: {
                 include: { user: true },
@@ -38,16 +38,16 @@ export const entrepriseRouter = router({
   hentMedId: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
-      const entreprise = await ctx.prisma.enterprise.findUniqueOrThrow({
+      const entreprise = await ctx.prisma.dokumentflytPart.findUniqueOrThrow({
         where: { id: input.id },
         select: { projectId: true },
       });
       await verifiserProsjektmedlem(ctx.userId, entreprise.projectId);
-      return ctx.prisma.enterprise.findUniqueOrThrow({
+      return ctx.prisma.dokumentflytPart.findUniqueOrThrow({
         where: { id: input.id },
         include: {
           project: true,
-          memberEnterprises: {
+          dokumentflytKoblinger: {
             include: {
               projectMember: {
                 include: { user: true },
@@ -65,9 +65,9 @@ export const entrepriseRouter = router({
       await verifiserProsjektmedlem(ctx.userId, input.projectId);
       const { memberIds, ...data } = input;
       return ctx.prisma.$transaction(async (tx) => {
-        const entreprise = await tx.enterprise.create({ data });
+        const entreprise = await tx.dokumentflytPart.create({ data });
         if (memberIds.length > 0) {
-          await tx.memberEnterprise.createMany({
+          await tx.dokumentflytKobling.createMany({
             data: memberIds.map((memberId) => ({
               projectMemberId: memberId,
               enterpriseId: entreprise.id,
@@ -94,13 +94,13 @@ export const entrepriseRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const entreprise = await ctx.prisma.enterprise.findUniqueOrThrow({
+      const entreprise = await ctx.prisma.dokumentflytPart.findUniqueOrThrow({
         where: { id: input.id },
         select: { projectId: true },
       });
       await verifiserProsjektmedlem(ctx.userId, entreprise.projectId);
       const { id, ...data } = input;
-      return ctx.prisma.enterprise.update({ where: { id }, data });
+      return ctx.prisma.dokumentflytPart.update({ where: { id }, data });
     }),
 
   // Kopier entreprise fra et prosjekt til et annet (eller samme)
@@ -108,12 +108,12 @@ export const entrepriseRouter = router({
     .input(copyEnterpriseSchema)
     .mutation(async ({ ctx, input }) => {
       await verifiserProsjektmedlem(ctx.userId, input.targetProjectId);
-      const kilde = await ctx.prisma.enterprise.findUniqueOrThrow({
+      const kilde = await ctx.prisma.dokumentflytPart.findUniqueOrThrow({
         where: { id: input.sourceEnterpriseId },
       });
 
       return ctx.prisma.$transaction(async (tx) => {
-        const nyEntreprise = await tx.enterprise.create({
+        const nyEntreprise = await tx.dokumentflytPart.create({
           data: {
             projectId: input.targetProjectId,
             name: input.name ?? kilde.name,
@@ -126,7 +126,7 @@ export const entrepriseRouter = router({
         });
 
         if (input.memberIds.length > 0) {
-          await tx.memberEnterprise.createMany({
+          await tx.dokumentflytKobling.createMany({
             data: input.memberIds.map((memberId) => ({
               projectMemberId: memberId,
               enterpriseId: nyEntreprise.id,
@@ -148,12 +148,12 @@ export const entrepriseRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const entreprise = await ctx.prisma.enterprise.findUniqueOrThrow({
+      const entreprise = await ctx.prisma.dokumentflytPart.findUniqueOrThrow({
         where: { id: input.enterpriseId },
         select: { projectId: true },
       });
       await verifiserProsjektmedlem(ctx.userId, entreprise.projectId);
-      return ctx.prisma.enterprise.update({
+      return ctx.prisma.dokumentflytPart.update({
         where: { id: input.enterpriseId },
         data: { ansvarligId: input.userId },
       });
@@ -163,7 +163,7 @@ export const entrepriseRouter = router({
   slett: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
-      const entreprise = await ctx.prisma.enterprise.findUniqueOrThrow({
+      const entreprise = await ctx.prisma.dokumentflytPart.findUniqueOrThrow({
         where: { id: input.id },
         select: { projectId: true, name: true },
       });
@@ -199,6 +199,6 @@ export const entrepriseRouter = router({
         });
       }
 
-      return ctx.prisma.enterprise.delete({ where: { id: input.id } });
+      return ctx.prisma.dokumentflytPart.delete({ where: { id: input.id } });
     }),
 });

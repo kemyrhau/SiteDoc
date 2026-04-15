@@ -55,7 +55,7 @@ export const oppgaveRouter = router({
                   id: true,
                   rolle: true,
                   steg: true,
-                  enterprise: { select: { id: true, name: true } },
+                  dokumentflytPart: { select: { id: true, name: true } },
                   projectMember: { include: { user: { select: { id: true, name: true } } } },
                   group: { select: { id: true, name: true } },
                 },
@@ -283,7 +283,7 @@ export const oppgaveRouter = router({
         select: { role: true },
       });
       if (bruker.role !== "sitedoc_admin") {
-        const entreprise = await ctx.prisma.enterprise.findUniqueOrThrow({
+        const entreprise = await ctx.prisma.dokumentflytPart.findUniqueOrThrow({
           where: { id: input.bestillerEnterpriseId },
           select: { projectId: true },
         });
@@ -706,7 +706,7 @@ export const oppgaveRouter = router({
         if (input.dokumentflytId && input.dokumentflytId !== oppgave.dokumentflytId) {
           const nyFlyt = await ctx.prisma.dokumentflyt.findUniqueOrThrow({
             where: { id: input.dokumentflytId },
-            include: { enterprise: { select: { id: true, name: true } } },
+            include: { dokumentflytPart: { select: { id: true, name: true } } },
           });
           if (!nyFlyt.enterpriseId) {
             throw new TRPCError({ code: "BAD_REQUEST", message: "Dokumentflyten mangler entreprise" });
@@ -714,7 +714,7 @@ export const oppgaveRouter = router({
           flytBytteData = {
             dokumentflytId: input.dokumentflytId,
             utforerEnterpriseId: nyFlyt.enterpriseId,
-            nyEntrepriseNavn: nyFlyt.enterprise?.name ?? "Ukjent",
+            nyEntrepriseNavn: nyFlyt.dokumentflytPart?.name ?? "Ukjent",
             nyFlytNavn: nyFlyt.name,
           };
 
@@ -946,7 +946,7 @@ export const oppgaveRouter = router({
         where: {
           userId: input.nyEierUserId,
           projectId,
-          enterprises: { some: { enterpriseId: oppgave.bestillerEnterpriseId } },
+          dokumentflytKoblinger: { some: { enterpriseId: oppgave.bestillerEnterpriseId } },
         },
       });
 
@@ -1010,7 +1010,7 @@ export const oppgaveRouter = router({
       // Hent ny dokumentflyt
       const nyFlyt = await ctx.prisma.dokumentflyt.findUniqueOrThrow({
         where: { id: input.nyDokumentflytId },
-        include: { enterprise: { select: { id: true, name: true } } },
+        include: { dokumentflytPart: { select: { id: true, name: true } } },
       });
 
       if (!nyFlyt.enterpriseId) {
@@ -1018,7 +1018,7 @@ export const oppgaveRouter = router({
       }
 
       const gammelEntrepriseNavn = oppgave.utforerEnterprise?.name ?? "Ukjent";
-      const nyEntrepriseNavn = nyFlyt.enterprise?.name ?? "Ukjent";
+      const nyEntrepriseNavn = nyFlyt.dokumentflytPart?.name ?? "Ukjent";
       const brukerNavn = bruker?.name ?? "Ukjent";
 
       return ctx.prisma.$transaction(async (tx) => {

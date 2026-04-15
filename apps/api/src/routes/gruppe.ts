@@ -35,7 +35,7 @@ export const gruppeRouter = router({
       const medlem = await ctx.prisma.projectMember.findUnique({
         where: { userId_projectId: { userId: ctx.userId, projectId: input.projectId } },
         include: {
-          enterprises: { select: { enterpriseId: true } },
+          dokumentflytKoblinger: { select: { enterpriseId: true } },
           groupMemberships: { select: { groupId: true } },
         },
       });
@@ -47,7 +47,7 @@ export const gruppeRouter = router({
       return {
         userId: ctx.userId,
         projectMemberId: medlem.id,
-        entrepriseIder: medlem.enterprises.map((e) => e.enterpriseId),
+        entrepriseIder: medlem.dokumentflytKoblinger.map((e) => e.enterpriseId),
         gruppeIder: medlem.groupMemberships.map((gm) => gm.groupId),
         erAdmin: medlem.role === "admin",
       };
@@ -126,13 +126,13 @@ export const gruppeRouter = router({
               projectMember: {
                 include: {
                   user: true,
-                  enterprises: { include: { enterprise: true } },
+                  dokumentflytKoblinger: { include: { dokumentflytPart: true } },
                 },
               },
             },
           },
-          groupEnterprises: {
-            include: { enterprise: true },
+          groupDokumentflytParts: {
+            include: { dokumentflytPart: true },
           },
         },
         orderBy: { createdAt: "asc" },
@@ -204,7 +204,7 @@ export const gruppeRouter = router({
               projectMember: {
                 include: {
                   user: true,
-                  enterprises: { include: { enterprise: true } },
+                  dokumentflytKoblinger: { include: { dokumentflytPart: true } },
                 },
               },
             },
@@ -313,7 +313,7 @@ export const gruppeRouter = router({
           projectMember: {
             include: {
               user: true,
-              enterprises: { include: { enterprise: true } },
+              dokumentflytKoblinger: { include: { dokumentflytPart: true } },
             },
           },
         },
@@ -402,12 +402,12 @@ export const gruppeRouter = router({
       await verifiserAdmin(ctx.userId, input.projectId);
 
       // Slett eksisterende, opprett nye
-      await ctx.prisma.groupEnterprise.deleteMany({
+      await ctx.prisma.groupDokumentflytPart.deleteMany({
         where: { groupId: input.groupId },
       });
 
       if (input.enterpriseIds.length > 0) {
-        await ctx.prisma.groupEnterprise.createMany({
+        await ctx.prisma.groupDokumentflytPart.createMany({
           data: input.enterpriseIds.map((enterpriseId) => ({
             groupId: input.groupId,
             enterpriseId,
@@ -418,7 +418,7 @@ export const gruppeRouter = router({
       return ctx.prisma.projectGroup.findUniqueOrThrow({
         where: { id: input.groupId },
         include: {
-          groupEnterprises: { include: { enterprise: true } },
+          groupDokumentflytParts: { include: { dokumentflytPart: true } },
         },
       });
     }),
