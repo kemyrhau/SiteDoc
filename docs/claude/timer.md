@@ -49,11 +49,41 @@ Eksempel: 10t totalt → normaltid 7,5t, 50% 2,5t. Bruker justerer til 8t + 2t.
 | NATT | Nattillegg | Avhuking | Fast sats, manuell avhuking |
 | HELG | Helgetillegg | Avhuking | Fast sats, manuell avhuking |
 
-**Reisetid:** Registreres separat. 1t reisetid + 8t arbeid = 8t normalarbeid + 1t reisetid betalt separat. Reisetiden påvirker ikke når overtid utløses.
+**Reisetid:** Registreres alltid separat — aldri automatisk. Type: timer (ikke avhuking). Teller ikke i arbeidstidsberegning. 1t reisetid + 8t arbeid = 8t normalarbeid + 1t reisetid betalt separat.
 
-**Overtidsmat:** Beløp defineres av admin per enterprise (tariffavtale). Avhukingen utløses automatisk men kan overstyres.
+**Overtidsmat:** Beløp defineres av admin per enterprise (tariffavtale). Avhukingen foreslås automatisk men kan overstyres.
 
-### UX-flyt — dagsseddel (mobil)
+### Tilleggsregler (automatisering)
+
+Admin setter opp regler per enterprise/prosjekt. Reglene genererer **forslag** — brukeren kan alltid overstyre.
+
+| Regel | Utløser | Effekt | Konfigurasjon |
+|-------|---------|--------|---------------|
+| **Overtidsmat** | Arbeidstimer > terskel (default 9t) | Foreslår avhuking av overtidsmat | `enterprise_settings.overtidsmatTerskel` |
+| **Nattillegg (100%)** | Arbeid registrert mellom kl 21–06 | Foreslår 100% tillegg automatisk | Klokkeslett-sjekk mot `startAt`/`endAt` hvis registrert |
+| **Reisetid** | — | Aldri automatisk, alltid manuelt | Eget felt (timer) |
+| **Helgetillegg** | Dato er lørdag/søndag | Foreslår avhuking av helgetillegg | Kalender-sjekk |
+
+### Dagsseddel-flyt (mobil)
+
+Stegvis flyt — hvert steg er en seksjon på skjermen:
+
+```
+1. Dato               → normaldag hentes fra arbeidstidskalender
+2. Arbeidstimer       → totalt antall timer
+3. Reisetid           → eget felt (timer) — valgfritt
+4. Overtid            → systemet foreslår basert på arbeidstimer vs normaldag
+5. Tillegg            → automatiske forslag fra regler + manuelle avhukinger
+   ☑ Overtidsmat      (auto-foreslått: arbeidstimer > 9t)
+   ☐ Nattillegg
+   ☐ Helgetillegg
+6. Maskiner           → fra maskinregister, timer + valgfri mengde
+7. Materialer         → fritekst + mengde + enhet
+8. Beskrivelse        → valgfri tekst
+9. [Lagre]
+```
+
+### UX-visning — dagsseddel (mobil)
 
 ```
 ┌─────────────────────────────────────────────┐
@@ -62,7 +92,7 @@ Eksempel: 10t totalt → normaltid 7,5t, 50% 2,5t. Bruker justerer til 8t + 2t.
 ├─────────────────────────────────────────────┤
 │                                             │
 │  Arbeidstimer:    [10.0]                    │
-│    Normaltid      [8.0]  ← auto-beregnet   │
+│    Normaltid      [8.0]  ← auto fra dagsnorm│
 │    50%            [2.0]  ← auto-beregnet   │
 │    100%           [0.0]                     │
 │                                             │
@@ -81,7 +111,7 @@ Eksempel: 10t totalt → normaltid 7,5t, 50% 2,5t. Bruker justerer til 8t + 2t.
 │  │ + Legg til maskin                      │ │
 │  └───────────────────┴────────┴───────────┘ │
 │                                             │
-│  MATERIALER (valgfritt)                     │
+│  MATERIALER                                 │
 │  ┌───────────────────┬────────┬───────────┐ │
 │  │ Grus              │ [10] │ m3 ▾      │ │
 │  │ + Legg til materiale                   │ │
@@ -94,12 +124,31 @@ Eksempel: 10t totalt → normaltid 7,5t, 50% 2,5t. Bruker justerer til 8t + 2t.
 
 **Smarte valg som minimerer inntasting:**
 
-1. **Totaltimer øverst** — brukeren taster inn totaltimer, systemet fordeler automatisk på normaltid/50%/100%
-2. **Maskiner** — nedtrekk fra maskinregisteret (kun maskiner tilordnet prosjektet). Sist brukte øverst
-3. **Enhet** — auto-foreslått fra maskintype (kantsteinsetter → m, lastebil → m3). Kan overstyres
-4. **Tillegg** — avhukinger, ikke tallfelt. Overtidsmat auto-utløst
-5. **Kopiér forrige dag** — én knapp som dupliserer gårsdagens seddel
+1. **Totaltimer øverst** — brukeren taster inn totaltimer, systemet fordeler automatisk på normaltid/50%/100% basert på dagsnorm
+2. **Tilleggsregler** — automatiske forslag fra konfigurasjon, brukeren bekrefter eller overstyrer
+3. **Maskiner** — nedtrekk fra maskinregisteret (kun maskiner tilordnet prosjektet). Sist brukte øverst
+4. **Enhet** — auto-foreslått fra maskintype (kantsteinsetter → m, lastebil → m3). Kan overstyres
+5. **Kopiér forrige dag** — én knapp som dupliserer gårsdagens seddel (vanlig at arbeidet ligner)
 6. **Materialer** — fritekst + mengde + enhet-dropdown (m3/m2/tonn/kg/m)
+
+## Eksport til lønnssystem
+
+Separate kolonner per lønnsart — aldri slått sammen. Hver dagsseddel eksporteres som én rad med:
+
+| Kolonne | Kilde |
+|---------|-------|
+| Dato | `daily_sheets.dato` |
+| Ansatt | `userId` → `users.name` |
+| Prosjekt | `projectId` → `projects.name` |
+| Normaltid | `normaltid` |
+| Overtid 50% | `overtid50` |
+| Overtid 100% | `overtid100` |
+| Reisetid | `reisetid` |
+| Overtidsmat | `overtidsmat` → sats fra `enterprise_settings` |
+| Nattillegg | `nattillegg` → sats |
+| Helgetillegg | `helgetillegg` → sats |
+
+**Tripletex-eksport:** Følger eksisterende `BilagsKilde`-adapter-mønster fra økonomi-modulen. Adapter-interface slik at andre lønnssystemer (Visma, CSV) kan legges til uten kodeendring.
 
 ## Database — `packages/db-timer`
 
@@ -223,6 +272,7 @@ Delt auth via eksisterende `next-auth` sessions-tabell i `packages/db`. Timer-AP
 
 ## Ikke avklart
 
-- Eksport-format (Excel, CSV, lønnssystem-integrasjon — Visma, Tripletex?)
 - GPS-validering — skal posisjonen ved registrering logges for å verifisere at arbeideren var på byggeplassen?
 - Akkord — trenger modulen støtte for akkordlønn i tillegg til timepris?
+- Arbeidstidskalender — helligdager, feriedager, kortdager — import eller manuelt oppsett?
+- Godkjenningsflyt detaljer — batch-godkjenning (uke), enkelt-godkjenning (dag), eller begge?
