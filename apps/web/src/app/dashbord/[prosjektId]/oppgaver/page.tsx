@@ -26,8 +26,8 @@ interface OppgaveRad {
   data: Record<string, unknown> | null;
   template: { id: string; prefix: string | null; name: string; objects: MalObjekt[] } | null;
   bestiller: { name: string | null } | null;
-  bestillerEnterprise: { name: string };
-  utforerEnterprise: { name: string };
+  bestillerEnterprise: { name: string } | null;
+  utforerEnterprise: { name: string } | null;
   drawing: { name: string; floor: string | null; byggeplass: { id: string; name: string } | null } | null;
   recipientUser: { id: string; name: string | null } | null;
   recipientGroup: { id: string; name: string } | null;
@@ -135,7 +135,7 @@ function formaterLopenummer(rad: OppgaveRad): string {
 function formaterAnsvarlig(rad: OppgaveRad): string {
   if (rad.recipientUser?.name) return rad.recipientUser.name;
   if (rad.recipientGroup?.name) return rad.recipientGroup.name;
-  return rad.utforerEnterprise.name;
+  return rad.utforerEnterprise?.name ?? "";
 }
 
 function formaterDato(dato: string | null): string {
@@ -427,8 +427,8 @@ export default function OppgaverSide() {
     }
     for (const rad of oppgaver ?? []) {
       if (rad.bestiller?.name) map.set((rad as unknown as { bestillerUserId: string }).bestillerUserId ?? "", rad.bestiller.name);
-      if (rad.bestillerEnterprise) map.set((rad as unknown as { bestillerEnterpriseId: string }).bestillerEnterpriseId ?? "", rad.bestillerEnterprise.name);
-      if (rad.utforerEnterprise) map.set((rad as unknown as { utforerEnterpriseId: string }).utforerEnterpriseId ?? "", rad.utforerEnterprise.name);
+      if (rad.bestillerEnterprise) map.set((rad as unknown as { bestillerEnterpriseId: string }).bestillerEnterpriseId ?? "", rad.bestillerEnterprise?.name ?? "");
+      if (rad.utforerEnterprise) map.set((rad as unknown as { utforerEnterpriseId: string }).utforerEnterpriseId ?? "", rad.utforerEnterprise?.name ?? "");
     }
     return map;
   }, [dokumentflyter, oppgaver]);
@@ -462,8 +462,8 @@ export default function OppgaverSide() {
       emne: bygg(oppgaver.map((o) => o.subject)),
       ansvarlig: bygg(oppgaver.map((o) => formaterAnsvarlig(o))),
       opprettetAv: bygg(oppgaver.map((o) => o.bestiller?.name)),
-      bestillerEntreprise: bygg(oppgaver.map((o) => o.bestillerEnterprise.name)),
-      utforerEntreprise: bygg(oppgaver.map((o) => o.utforerEnterprise.name)),
+      bestillerEntreprise: bygg(oppgaver.map((o) => o.bestillerEnterprise?.name ?? "")),
+      utforerEntreprise: bygg(oppgaver.map((o) => o.utforerEnterprise?.name ?? "")),
       flyt: bygg(oppgaver.map((o) => hentFlytLedd(o))),
       mal: bygg(oppgaver.map((o) => o.template?.name)),
       bygning: bygg(oppgaver.map((o) => o.drawing?.byggeplass?.name)),
@@ -508,8 +508,8 @@ export default function OppgaverSide() {
           case "prioritet": return o.priority === verdi;
           case "ansvarlig": return formaterAnsvarlig(o) === verdi;
           case "opprettetAv": return o.bestiller?.name === verdi;
-          case "bestillerEntreprise": return o.bestillerEnterprise.name === verdi;
-          case "utforerEntreprise": return o.utforerEnterprise.name === verdi;
+          case "bestillerEntreprise": return o.bestillerEnterprise?.name ?? "" === verdi;
+          case "utforerEntreprise": return o.utforerEnterprise?.name ?? "" === verdi;
           case "mal": return o.template?.name === verdi;
           case "bygning": return o.drawing?.byggeplass?.name === verdi;
           case "etasje": return o.drawing?.floor === verdi;
@@ -589,14 +589,14 @@ export default function OppgaverSide() {
       },
       bestillerEntreprise: {
         id: "bestillerEntreprise", header: t("tabell.bestillerEntreprise"),
-        celle: (rad) => <span className="text-xs text-gray-500">{rad.bestillerEnterprise.name}</span>,
-        sorterbar: true, sorterVerdi: (rad) => rad.bestillerEnterprise.name,
+        celle: (rad) => <span className="text-xs text-gray-500">{rad.bestillerEnterprise?.name ?? ""}</span>,
+        sorterbar: true, sorterVerdi: (rad) => rad.bestillerEnterprise?.name ?? "",
         filtrerbar: true, filterAlternativer: dynamiskFilter.bestillerEntreprise ?? [],
       },
       utforerEntreprise: {
         id: "utforerEntreprise", header: t("tabell.utforerEntreprise"),
-        celle: (rad) => <span className="text-xs text-gray-500">{rad.utforerEnterprise.name}</span>,
-        sorterbar: true, sorterVerdi: (rad) => rad.utforerEnterprise.name,
+        celle: (rad) => <span className="text-xs text-gray-500">{rad.utforerEnterprise?.name ?? ""}</span>,
+        sorterbar: true, sorterVerdi: (rad) => rad.utforerEnterprise?.name ?? "",
         filtrerbar: true, filterAlternativer: dynamiskFilter.utforerEntreprise ?? [],
       },
       mal: {

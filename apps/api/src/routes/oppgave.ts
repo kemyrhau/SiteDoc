@@ -43,7 +43,10 @@ export const oppgaveRouter = router({
 
       return ctx.prisma.task.findMany({
         where: {
-          bestillerEnterprise: { projectId: input.projectId },
+          OR: [
+            { bestillerEnterprise: { projectId: input.projectId } },
+            { template: { projectId: input.projectId }, bestillerEnterpriseId: null },
+          ],
           ...(input.status ? { status: input.status } : {}),
           ...(input.byggeplassId ? { OR: [{ drawing: { byggeplassId: input.byggeplassId } }, { drawingId: null }] } : {}),
           ...(tilgangsFilter ?? {}),
