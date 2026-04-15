@@ -11,9 +11,9 @@
 | `sessions` | Database-sesjoner for Auth.js |
 | `verification_tokens` | E-postverifiseringstokens |
 | `projects` | Prosjekter med prosjektnummer (SD-YYYYMMDD-XXXX), status, valgfri lokasjon (`latitude`, `longitude`), valgfritt eksternt prosjektnummer (`external_project_number`), valgfri firmalogo (`logo_url`), `show_internal_project_number` (Boolean, default true) |
-| `project_members` | Prosjektmedlemmer med rolle (member/admin), `erFirmaansvarlig` (Boolean, per prosjekt), entrepriser via `member_enterprises` |
-| `member_enterprises` | Mange-til-mange join-tabell mellom `project_members` og `enterprises` |
-| `enterprises` | Entrepriser med `enterprise_number` (format: "04 Tømrer, Econor"), bransje, firma, farge |
+| `project_members` | Prosjektmedlemmer med rolle (member/admin), `erFirmaansvarlig` (Boolean, per prosjekt), faggrupper via `dokumentflyt_koblinger` |
+| `dokumentflyt_koblinger` | Mange-til-mange join-tabell mellom `project_members` og `dokumentflyt_parts` (tidl. `member_enterprises`) |
+| `dokumentflyt_parts` | Faggrupper i prosjektet (tidl. `enterprises`): Byggherre, Tømrer, Elektro. Med `enterprise_number`, bransje, firma, farge |
 | `byggeplasser` | Lokasjoner med `number` (auto-generert per prosjekt), `type` (deprecated, default `"bygg"`), status (unpublished/published) |
 | `drawings` | Tegninger med metadata: tegningsnummer, fagdisiplin, revisjon, status, etasje, målestokk, opphav, valgfri `geoReference` (JSON), `ifcMetadata` (JSON — prosjekt, org, GPS, etasjer, programvare), `gpsOverride` (JSON — manuell GPS/kalibrering for IFC med valgfri similarity-transform), DWG-konvertering (`conversionStatus`, `coordinateSystem`) |
 | `point_clouds` | Punktskyer med `potreeUrl` (konvertert octree), `hasClassification`, `hasRgb`, `classifications` (JSON), `boundingBox` (JSON), asynkron konvertering via CloudCompare+PotreeConverter |
@@ -30,18 +30,19 @@
 | `workflows` | (Deprecated — erstattet av Dokumentflyt) Gammel arbeidsforløp-tabell, beholdt for bakoverkompatibilitet |
 | `workflow_templates` | (Deprecated) Kobling mellom arbeidsforløp og maler |
 | `workflow_step_members` | (Deprecated) Personbaserte steg-medlemmer i arbeidsforløp |
-| `dokumentflyter` | Dokumentflyt per prosjekt. `enterpriseId`, `roller` (JSONB — tilpassbare labels per rolle: `{ registrator?: { label }, bestiller?: { label }, utforer?: { label }, godkjenner?: { label } }`) |
-| `dokumentflyt_medlemmer` | Medlemmer i dokumentflyt-steg. `rolle`, `steg`, `enterpriseId`/`projectMemberId`/`groupId`, `erHovedansvarlig` (Boolean), `hovedansvarligPersonId` (valgfri referanse til `ProjectMember` — utpeker hovedansvarlig person innenfor en gruppe) |
+| `dokumentflyter` | Dokumentflyt per prosjekt. `enterpriseId` (peker til `dokumentflyt_parts`), `roller` (JSONB — tilpassbare labels per rolle: `{ registrator?: { label }, bestiller?: { label }, utforer?: { label }, godkjenner?: { label } }`) |
+| `dokumentflyt_medlemmer` | Medlemmer i dokumentflyt-steg. `rolle`, `steg`, `enterpriseId` (peker til `dokumentflyt_parts`)/`projectMemberId`/`groupId`, `erHovedansvarlig` (Boolean), `hovedansvarligPersonId` |
 | `dokumentflyt_maler` | Maltilknytning per dokumentflyt |
 | `task_comments` | Kommentarer/dialog på oppgaver |
 | `checklist_change_log` | Automatisk endringslogg for sjekklister |
 | `project_invitations` | E-postinvitasjoner med token, status, utløpsdato |
-| `group_enterprises` | Mange-til-mange mellom `project_groups` og `enterprises` |
+| `group_enterprises` | Mange-til-mange mellom `project_groups` og `dokumentflyt_parts` (tabellnavn uendret) |
 | `project_modules` | Aktiverte moduler per prosjekt |
 | `psi` | Prosjektspesifikk Sikkerhetsinstruks. Én per prosjekt+bygning (buildingId valgfri). Peker til ReportTemplate, versjonering for ny signering, `guestMessage` (HTML-tekst vist til gjester ved QR-tilgang), soft delete via `deactivatedAt`. category = "psi" (ikke "sjekkliste"). API: 15 endepunkter inkl. deaktiver/reaktiver, kopier (deep copy mal til annen bygning), hentForProsjektPublic, oppdaterGjesteBeskjed |
 | `psi_signaturer` | Personlig PSI-gjennomføring. Innlogget bruker (userId) ELLER gjest (guestName/guestCompany/guestPhone). Progresjon, quiz-data, signatur (base64), completedAt, `hmsKortNr` (String? — HMS-kortnummer), `harIkkeHmsKort` (Boolean, default false — avkrysning "Har ikke HMS-kort"). Unique: (psiId, userId) |
 | `organizations` | Firmaer/organisasjoner med navn, org.nr, fakturaadresse, logo |
 | `organization_projects` | Mange-til-mange mellom organisasjoner og prosjekter |
+| `organization_integrations` | Integrasjoner per organisasjon: type (proadm/hr/gps/smartdoc), url, apiKey (kryptert), config (JSON), aktiv. Unik per (orgId, type) |
 | `ftd_kontrakter` | Overliggende kontrakt: Byggherre → Entreprenør. Felter: navn, kontraktType (8405/8406/8407), byggherre, entreprenor, byggeplassId (valgfri), hmsSamordningsgruppe. Entrepriser og dokumenter kobles via kontraktId |
 | `ftd_documents` | Eneste dokumentmodell. Filinfo, docType, processingState, kontraktId, notaType, notaNr. Header-verdier fra A-nota: utfortPr, utfortTotalt, utfortForrige, utfortDenne, innestaaende, innestaaendeForrige, innestaaendeDenne, nettoDenne, mva, sumInkMva. Mapper → auto scanning. Økonomi → manuell import |
 | `ftd_document_pages` | Side→postnr mapping for dokumentasjon per post. Regex: POST XX.YY.ZZ. Arv fra forrige side. Unique constraint (documentId, pageNumber) |
@@ -57,9 +58,9 @@
 
 ## Viktige relasjoner
 
-- `member_enterprises` er mange-til-mange: en bruker kan tilhøre flere entrepriser i samme prosjekt via `MemberEnterprise(projectMemberId, enterpriseId)`
-- Sjekklister og oppgaver har ALLTID `creator_enterprise_id` (bestiller) og `responder_enterprise_id` (utfører)
-- `document_transfers` logger all sending mellom entrepriser med full sporbarhet
+- `dokumentflyt_koblinger` er mange-til-mange: en bruker kan tilhøre flere faggrupper i samme prosjekt via `DokumentflytKobling(projectMemberId, enterpriseId)`
+- Sjekklister og oppgaver har ALLTID `bestiller_enterprise_id` (bestiller) og `utforer_enterprise_id` (utfører) — kolonnenavn beholdt for bakoverkompatibilitet
+- `document_transfers` logger all sending mellom faggrupper med full sporbarhet
 - Bilder har valgfri GPS-data (`gps_lat`, `gps_lng`, `gps_enabled`)
 - Oppgaver kan kobles til tegning med posisjon (`drawing_id`, `position_x`, `position_y`)
 - `workflows` (deprecated) — erstattet av Dokumentflyt. Tabellen beholdes for bakoverkompatibilitet
@@ -68,9 +69,9 @@
 - `byggeplasser` tilhører prosjekt, tegninger koblet via `building_id`. `type`-feltet er deprecated
 - `drawings` har full metadata med `drawing_revisions` for historikk. Valgfri `geoReference` (JSON) med 2 referansepunkter
 - `folders` bruker selvrefererande relasjon for mappetreet. `accessMode`: `"inherit"` eller `"custom"`
-- `folder_access` kobler mapper til entrepriser/grupper/brukere via `accessType`
+- `folder_access` kobler mapper til faggrupper/grupper/brukere via `accessType`
 - `projects` har valgfri `latitude`/`longitude` for kartvisning og værhenting
-- `project_groups` har `domains` (JSON-array) og `groupEnterprises` for entreprise-begrenset tilgang
+- `project_groups` har `domains` (JSON-array) og `groupDokumentflytParts` for faggruppe-begrenset tilgang
 - `group_enterprises` er mange-til-mange med unikt constraint `[groupId, enterpriseId]`
 
 ## Tilgangskontroll
@@ -82,20 +83,22 @@ Hjelpemodul i `apps/api/src/trpc/tilgangskontroll.ts`:
 | `hentBrukerEntrepriseIder(userId, projectId)` | Returnerer `string[]` eller `null` (admin) |
 | `byggTilgangsFilter(userId, projectId)` | Prisma WHERE-filter, `null` for admin |
 | `verifiserEntrepriseTilhorighet(userId, enterpriseId)` | FORBIDDEN hvis ikke tilhører (admin-bypass) |
-| `verifiserAdmin(userId, projectId)` | FORBIDDEN hvis ikke admin |
-| `verifiserProsjektmedlem(userId, projectId)` | FORBIDDEN hvis ikke medlem |
-| `verifiserDokumentTilgang(userId, projectId, bestillerId, utforerId, domain?)` | Entreprise + fagområde-tilgang |
+| `verifiserAdmin(userId, projectId)` | FORBIDDEN hvis ikke admin. company_admin med riktig org arver admin uten ProjectMember-rad |
+| `verifiserProsjektmedlem(userId, projectId)` | FORBIDDEN hvis ikke medlem. company_admin med riktig org arver tilgang uten ProjectMember-rad |
+| `verifiserOrganisasjonTilgang(userId, organisationId)` | FORBIDDEN hvis bruker ikke tilhører organisasjonen. company_admin uten organizationId = ugyldig |
+| `verifiserDokumentTilgang(userId, projectId, bestillerId, utforerId, domain?)` | Faggruppe + fagområde-tilgang |
 | `hentBrukerTillatelser(userId, projectId)` | `Permission`-set fra grupper. Admin har alle |
 | `verifiserTillatelse(userId, projectId, permission)` | FORBIDDEN hvis mangler |
 | `verifiserFlytRolle(...)` | Sjekker flytrolle for statusovergang (403 ved mismatch) |
 
 **Tilgangslogikk for dokumentvisning:**
 - Admin ser alltid alt
-- Direkte entreprise-tilgang: bruker ser dokumenter der egen entreprise er bestiller/utfører
+- company_admin ser alt i alle prosjekter tilknyttet sin organisasjon (uten ProjectMember-rad)
+- Direkte faggruppe-tilgang: bruker ser dokumenter der egen faggruppe er bestiller/utfører
 - Fagområde-tilgang via grupper:
-  - Gruppe uten entrepriser → tverrgående: ser ALLE dokumenter med matchende domain
-  - Gruppe med entrepriser → entreprise-begrenset: kun matchende domain OG entreprise
-- Samlet: union av gruppers tilganger + direkte MemberEnterprise-tilgang
+  - Gruppe uten faggrupper → tverrgående: ser ALLE dokumenter med matchende domain
+  - Gruppe med faggrupper → faggruppe-begrenset: kun matchende domain OG faggruppe
+- Samlet: union av gruppers tilganger + direkte DokumentflytKobling-tilgang
 
 **Rettighetsbasert redigering (per dokument):**
 - `utledDokumentRettighet()` i `@sitedoc/shared` → `"admin"` / `"redigerer"` / `"leser"`
