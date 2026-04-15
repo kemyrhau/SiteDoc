@@ -697,11 +697,12 @@ Draggbar skillelinje.
 - Auto-fit PDF til container ved oppstart
 - Full scroll-zoom og panorering
 
-**Live kamera-tracking (blå prikk):**
-- Blå prikk på tegningen viser kameraposisjon
-- **Inkrementell delta-tracking:** Startposisjon fra klikk (presis), bevegelse via `treDDeltaTilTegning` (lineærdel av similarity-transform, ingen absolutt offset)
-- Absolutt `treDTilTegning` har kjent offset — brukes IKKE for posisjon
-- `flyTil`-animasjon pauses i 600ms for å unngå at animasjonsframes tolkes som brukerbevegelse
+**Live kamera-tracking (blå prikk med retningsindikator):**
+- Blå prikk med trekant-pil viser kameraposisjon og blikkretning på tegningen
+- **Retningsberegning:** 3D `cam.getWorldDirection()` → `treDDeltaTilTegning(dir.x, dir.z)` → `atan2` → CSS `rotate()`. Oppdateres i RAF-loopen, også ved ren rotasjon
+- **Inkrementell delta-tracking:** Startposisjon fra klikk (presis), bevegelse via `treDDeltaTilTegning` (lineærdel av similarity-transform)
+- **Markør-posisjonering:** Prosent-basert (`left: X%, top: Y%`) inne i transform-div med eksplisitt `width/height = naturalWidth/Height`. `scale(1/zoom)` holder markørstørrelse konstant
+- `flyTil` returnerer `Promise<void>` som resolves ved camera-controls `rest` event (kamera har stoppet). Fallback: 3s timeout
 - Hint "Klikk på tegningen for å plassere kamera" vises uten markør
 
 **IFC GPS-kalibrering** (`gpsOverride` JSON-felt på Drawing):
@@ -730,8 +731,8 @@ Draggbar skillelinje.
 - `gpsTil3D(gps, ifcOrigin, system, hoyde)` — GPS → Three.js
 - `tredjeTilGps(punkt3d, ifcOrigin, system)` — Three.js → GPS
 - `wgs84TilUtm/wgs84TilNtm` — WGS84 → UTM/NTM projeksjon
-- `tegningTil3D` / `treDTilTegning` — direkte similarity-transform (forward=presis, invers=har offset)
-- `treDDeltaTilTegning` — lineærdel for inkrementell tracking (presis)
+- `tegningTil3D` / `treDTilTegning` — direkte similarity-transform (matematisk korrekt begge veier)
+- `treDDeltaTilTegning` — lineærdel for inkrementell tracking og retningsberegning
 
 **Georeferanse:**
 - Georeferanse-redigering skjer KUN i Lokasjoner-siden (`/dashbord/oppsett/lokasjoner`)
