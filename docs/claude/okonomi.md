@@ -248,7 +248,7 @@ Asynkron oversettelsesoppgave per dokument+språk.
 - **Chunk-deduplisering**: In-memory Map + `skipDuplicates: true`
 - **NS-kode-deteksjon**: Regex `\b\d{2}\.\d{3}(?:\.\d+)*\b` + eksplisitt `nsCode`-felt
 - **Søk-fallback**: tsvector fulltekst → ILIKE substring
-- **Prosjektisolering**: Alle queries filtrerer på `projectId`
+- **Prosjektisolering**: Alle queries filtrerer på `projectId`. `oppdaterDokument` verifiserer at kontraktId tilhører samme prosjekt som dokumentet (defense-in-depth)
 - **Flerspråklig embedding**: E5-vektorer (768-dim) for alle språk
 - **Oversettelsescache**: SHA-256 hash → unngår re-oversettelse
 - **Budsjettoppdatering fra nota**: Ved prosessering av A-nota/T-nota oppdateres anbudsgrunnlagets poster automatisk med nota-verdier hvis de mangler eller avviker >50% (`oppdaterBudsjettFraNota` i ftd-prosessering.ts)

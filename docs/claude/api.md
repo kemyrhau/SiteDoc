@@ -174,6 +174,9 @@ Alle routere som opererer på prosjektdata har `verifiserProsjektmedlem`-sjekk. 
 - `prosjekt.oppdater`: `verifiserAdmin`
 - `endreStatus`: bruker `ctx.userId` som `senderId` (ikke bruker-input)
 - `medlem.sokBrukere`: krever `projectId` + prosjektmedlemskap
+- `mengde.oppdaterDokument`: `verifiserProsjektmedlem` + kontraktisolering (kontraktId må tilhøre samme prosjekt)
+- `admin.*integrasjon*`: `verifiserSiteDocAdmin` (kun superadmin, aldri company_admin). API-nøkler returneres aldri — kun `harNøkkel: boolean`
+- `company_admin`-fallback i `verifiserProsjektmedlem`/`verifiserAdmin`: sjekker `OrganizationProject`-kobling, hindrer kryssorg-tilgang
 
 ## Filopplasting
 
