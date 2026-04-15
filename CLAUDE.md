@@ -17,10 +17,10 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 | [docs/claude/ai-sok.md](docs/claude/ai-sok.md) | AI-søk plan: embedding, hybrid søk, RAG, settings UI, testing UI |
 | [docs/claude/dokumentflyt.md](docs/claude/dokumentflyt.md) | Dokumentflyt-spesifikasjon: eier, mottaker, dokumenttyper, flytregler, redigerbarhet |
 | [docs/claude/okonomi.md](docs/claude/okonomi.md) | Økonomi-modul: kontrakter, notaer, avvik, parsere, prosessering, dokumentsøk |
-| [docs/claude/bibliotek.md](docs/claude/bibliotek.md) | Sjekklistebibliotek: NS 3420-maler, import, regler, felttyper, admin-side |
+| [docs/claude/bibliotek.md](docs/claude/bibliotek.md) | → Peker til kontrollplan.md (konsolidert) |
 | [docs/claude/timer.md](docs/claude/timer.md) | Timeregistrering: dagsseddel, lønnsarter, tillegg, utlegg, offline-sync |
 | [docs/claude/maskin.md](docs/claude/maskin.md) | Maskinregister: GPS-sporing, Vegvesen-API, servicehistorikk, adapter-mønster |
-| [docs/claude/kontrollplan.md](docs/claude/kontrollplan.md) | Kontrollplan: sjekklistebibliotek, NS 3420-K maler, import-flyt, Prisma-modell, API, UI |
+| [docs/claude/kontrollplan.md](docs/claude/kontrollplan.md) | Kontrollplan + Sjekklistebibliotek: NS 3420-K, felttype-regler, import, Prisma, API, UI |
 | [docs/claude/infrastruktur-moduler.md](docs/claude/infrastruktur-moduler.md) | Isolert deploy: mappestruktur, turbo-pipeline, PM2, porter, auth-deling |
 | [MALBYGGER.md](MALBYGGER.md) | Felles malbygger: dokumenttyper, felttyper, beslutninger, migreringsstrategi |
 
