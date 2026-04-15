@@ -17,6 +17,7 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 | [docs/claude/ai-sok.md](docs/claude/ai-sok.md) | AI-søk plan: embedding, hybrid søk, RAG, settings UI, testing UI |
 | [docs/claude/dokumentflyt.md](docs/claude/dokumentflyt.md) | Dokumentflyt-spesifikasjon: eier, mottaker, dokumenttyper, flytregler, redigerbarhet |
 | [docs/claude/okonomi.md](docs/claude/okonomi.md) | Økonomi-modul: kontrakter, notaer, avvik, parsere, prosessering, dokumentsøk |
+| [docs/claude/bibliotek.md](docs/claude/bibliotek.md) | Sjekklistebibliotek: NS 3420-maler, import, regler, felttyper, admin-side |
 
 **Ved "oppdater CLAUDE.md"**: oppdater den relevante detalj-filen i `docs/claude/`, ikke denne hovedfilen (med mindre det gjelder tech stack, struktur, kommandoer, kodestil eller regler).
 
