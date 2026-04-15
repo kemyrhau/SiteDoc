@@ -378,6 +378,24 @@ export const adminRouter = router({
     });
   }),
 
+  // Hent Enterprise uten organisasjon (standalone)
+  hentStandaloneEnterprises: protectedProcedure.query(async ({ ctx }) => {
+    await verifiserSiteDocAdmin(ctx.prisma, ctx.userId);
+
+    return ctx.prisma.enterprise.findMany({
+      where: { organizationId: null },
+      select: {
+        id: true,
+        name: true,
+        companyName: true,
+        enterpriseNumber: true,
+        project: { select: { id: true, name: true, projectNumber: true } },
+        memberEnterprises: { select: { id: true } },
+      },
+      orderBy: { name: "asc" },
+    });
+  }),
+
   // --------------------------------------------------------------------------
   // OrganizationIntegration CRUD (kun sitedoc_admin)
   // --------------------------------------------------------------------------
