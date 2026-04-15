@@ -171,6 +171,30 @@ Separate kolonner per lønnsart — aldri slått sammen. Hver dagsseddel eksport
 
 **Tripletex-eksport:** Timer som lønnsbilag, utlegg som reiseregning/bilag. Følger eksisterende `BilagsKilde`-adapter-mønster fra økonomi-modulen. Adapter-interface slik at andre lønnssystemer (Visma, CSV) kan legges til uten kodeendring.
 
+## Utleggsregistrering
+
+Del av dagsseddelen. Ansatt tar bilde av kvittering direkte i mobilappen.
+
+### Feltstruktur
+
+- `kategori`: string — Drivstoff, Parkering, Diett, Verktøy, Annet (konfigurerbar per enterprise)
+- `belop`: decimal (NOK)
+- `kvitteringsBilde`: string (URL til lagret bilde)
+- `notat`: string? (valgfritt)
+- `dagsseddelId`: FK → `daily_sheets`
+
+### Teknisk
+
+- Bilde tas med React Native ImagePicker
+- Komprimeres til maks 800px, JPEG 80% før opplasting
+- Lagres lokalt som base64 i SQLite → synkes som multipart/form-data til S3
+- Eksporteres separat fra timer — som reiseregning/bilag i Tripletex
+
+### Godkjenning
+
+- Leder ser kvitteringsbilde i godkjenningsvisningen
+- Godkjennes samtidig med dagsseddelen — ikke egen godkjenningsflyt
+
 ## Database — `packages/db-timer`
 
 ### Hovedtabell: `daily_sheets` (dagsseddel)
