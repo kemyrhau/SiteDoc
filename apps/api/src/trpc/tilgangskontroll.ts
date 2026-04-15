@@ -158,6 +158,32 @@ export async function verifiserProsjektmedlem(
 }
 
 /**
+ * Verifiser at bruker tilhører den angitte organisasjonen.
+ * Brukes for org-admin-sider (/org/innstillinger).
+ * company_admin uten organizationId er en ugyldig tilstand.
+ */
+export async function verifiserOrganisasjonTilgang(
+  userId: string,
+  organisationId: string,
+): Promise<void> {
+  const bruker = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { organizationId: true },
+  });
+
+  if (!bruker?.organizationId) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Bruker tilhører ingen organisasjon",
+    });
+  }
+
+  if (bruker.organizationId !== organisationId) {
+    throw new TRPCError({ code: "FORBIDDEN" });
+  }
+}
+
+/**
  * Verifiser at bruker har tilgang til et dokument (sjekkliste/oppgave).
  * Admin ser alt. Vanlige brukere ser kun dokumenter der egen entreprise er oppretter/svarer,
  * eller via fagområde-tilgang fra brukergrupper.

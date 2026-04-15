@@ -33,7 +33,7 @@ vi.mock("@sitedoc/db", () => ({
   },
 }));
 
-import { verifiserProsjektmedlem, verifiserAdmin } from "./tilgangskontroll";
+import { verifiserProsjektmedlem, verifiserAdmin, verifiserOrganisasjonTilgang } from "./tilgangskontroll";
 
 const mockPrisma = {
   user: { findUnique: mockFns.userFindUnique },
@@ -211,5 +211,49 @@ describe("verifiserAdmin", () => {
     ).resolves.toBeUndefined();
 
     expect(mockPrisma.projectMember.findUnique).not.toHaveBeenCalled();
+  });
+});
+
+// --------------------------------------------------------------------------
+// verifiserOrganisasjonTilgang
+// --------------------------------------------------------------------------
+
+describe("verifiserOrganisasjonTilgang", () => {
+  it("1. Bruker med riktig org → tilgang", async () => {
+    mockPrisma.user.findUnique.mockResolvedValue({
+      organizationId: ORG_ID,
+    });
+
+    await expect(
+      verifiserOrganisasjonTilgang(USER_ID, ORG_ID),
+    ).resolves.toBeUndefined();
+  });
+
+  it("2. Bruker med feil org → 403", async () => {
+    mockPrisma.user.findUnique.mockResolvedValue({
+      organizationId: "org-annen",
+    });
+
+    await expect(
+      verifiserOrganisasjonTilgang(USER_ID, ORG_ID),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
+
+  it("3. Bruker uten organizationId → 403", async () => {
+    mockPrisma.user.findUnique.mockResolvedValue({
+      organizationId: null,
+    });
+
+    await expect(
+      verifiserOrganisasjonTilgang(USER_ID, ORG_ID),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
+
+  it("4. Bruker finnes ikke → 403", async () => {
+    mockPrisma.user.findUnique.mockResolvedValue(null);
+
+    await expect(
+      verifiserOrganisasjonTilgang(USER_ID, ORG_ID),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 });
