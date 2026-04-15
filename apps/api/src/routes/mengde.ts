@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
 import {
@@ -438,10 +439,21 @@ export const mengdeRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const { documentId, ...data } = input;
+      const { documentId, kontraktId, ...data } = input;
+      const doc = await ctx.prisma.ftdDocument.findUniqueOrThrow({ where: { id: documentId } });
+      await verifiserProsjektmedlem(ctx.userId, doc.projectId);
+
+      // Verifiser at kontrakten tilhører samme prosjekt
+      if (kontraktId) {
+        const kontrakt = await ctx.prisma.ftdKontrakt.findUniqueOrThrow({ where: { id: kontraktId } });
+        if (kontrakt.projectId !== doc.projectId) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Kontrakt tilhører annet prosjekt" });
+        }
+      }
+
       return ctx.prisma.ftdDocument.update({
         where: { id: documentId },
-        data,
+        data: { ...data, kontraktId },
       });
     }),
 
