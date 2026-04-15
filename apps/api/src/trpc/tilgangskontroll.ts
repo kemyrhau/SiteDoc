@@ -95,48 +95,66 @@ export async function verifiserEntrepriseTilhorighet(
 
 /**
  * Verifiser at bruker er admin i prosjektet.
+ * company_admin med riktig org arver admin-rettigheter uten ProjectMember-rad.
  */
 export async function verifiserAdmin(
   userId: string,
   projectId: string,
 ): Promise<void> {
   // sitedoc_admin har alltid tilgang
-  const bruker = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
+  const bruker = await prisma.user.findUnique({ where: { id: userId }, select: { role: true, organizationId: true } });
   if (bruker?.role === "sitedoc_admin") return;
 
   const medlem = await prisma.projectMember.findUnique({
     where: { userId_projectId: { userId, projectId } },
   });
 
-  if (!medlem || medlem.role !== "admin") {
-    throw new TRPCError({
-      code: "FORBIDDEN",
-      message: "Kun administratorer kan utføre denne handlingen",
+  if (medlem?.role === "admin") return;
+
+  // company_admin-fallback: sjekk om prosjektet tilhører brukerens org
+  if (bruker?.role === "company_admin" && bruker.organizationId) {
+    const orgProsjekt = await prisma.organizationProject.findFirst({
+      where: { organizationId: bruker.organizationId, projectId },
     });
+    if (orgProsjekt) return;
   }
+
+  throw new TRPCError({
+    code: "FORBIDDEN",
+    message: "Kun administratorer kan utføre denne handlingen",
+  });
 }
 
 /**
  * Verifiser at bruker er medlem av prosjektet.
+ * company_admin med riktig org arver tilgang uten ProjectMember-rad.
  */
 export async function verifiserProsjektmedlem(
   userId: string,
   projectId: string,
 ): Promise<void> {
   // sitedoc_admin har alltid tilgang
-  const bruker = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
+  const bruker = await prisma.user.findUnique({ where: { id: userId }, select: { role: true, organizationId: true } });
   if (bruker?.role === "sitedoc_admin") return;
 
   const medlem = await prisma.projectMember.findUnique({
     where: { userId_projectId: { userId, projectId } },
   });
 
-  if (!medlem) {
-    throw new TRPCError({
-      code: "FORBIDDEN",
-      message: "Du er ikke medlem av dette prosjektet",
+  if (medlem) return;
+
+  // company_admin-fallback: sjekk om prosjektet tilhører brukerens org
+  if (bruker?.role === "company_admin" && bruker.organizationId) {
+    const orgProsjekt = await prisma.organizationProject.findFirst({
+      where: { organizationId: bruker.organizationId, projectId },
     });
+    if (orgProsjekt) return;
   }
+
+  throw new TRPCError({
+    code: "FORBIDDEN",
+    message: "Du er ikke medlem av dette prosjektet",
+  });
 }
 
 /**
