@@ -232,6 +232,8 @@ export function ImportDialog({ projectId, open, onClose }: ImportDialogProps) {
 
     for (const dok of docs) {
       try {
+        // Auto-detekter nota-nummer per fil ved batch-import
+        const filNotaNr = docs.length > 1 ? gjettNotaNr(dok.filename) : notaNr;
         await registrer.mutateAsync({
           projectId,
           folderId: velgtMappeId ?? undefined,
@@ -249,7 +251,7 @@ export function ImportDialog({ projectId, open, onClose }: ImportDialogProps) {
             | "regningsarbeid"
             | "annet",
           ...(notaType ? { notaType: notaType as "A-Nota" | "T-Nota" | "Sluttnota" } : {}),
-          ...(notaNr ? { notaNr: parseInt(notaNr, 10) } : {}),
+          ...(filNotaNr ? { notaNr: parseInt(filNotaNr, 10) } : {}),
           ...(kontraktId ? { kontraktId, kontraktNavn: valgtKontrakt?.navn ?? undefined } : {}),
         });
         importert++;
