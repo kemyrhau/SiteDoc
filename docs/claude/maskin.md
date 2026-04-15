@@ -160,11 +160,50 @@ Lagres i `vehicles.vegvesenData` som rå JSON. Parsede felt kopieres til egne ko
 | `maskin.hentServicehistorikk` | Servicehistorikk for maskin |
 | `maskin.gpsWebhook` | Motta GPS-events fra leverandør |
 
+## Arkitektur-oversikt
+
+```
+┌──────────────────┐
+│  GPS-leverandør  │──┐
+│  Webfleet/Transpoco │
+├──────────────────┤  │
+│  Statens vegvesen│──┼──→  apps/api (tRPC)  ──→  packages/db-maskin
+│  Kjøretøyregister│  │    Auth + org-isolasjon    vehicles, gpsEvents
+├──────────────────┤  │    OrganizationIntegration serviceRecords
+│  Manuell input   │──┘           │
+│  Service, skader │              │
+└──────────────────┘              ↓
+                          ┌───────────────┐     ┌──────────────┐
+                          │ apps/maskin    │     │ apps/mobile  │
+                          │ maskin.sitedoc │     │ Posisjon     │
+                          │ Kart, liste,  │     │ Feltarbeider │
+                          │ service       │     └──────────────┘
+                          └───────────────┘
+
+Sanntids GPS-polling:
+  Cron-jobb / webhook fra GPS-leverandør → gpsEvents-tabell
+  → SSE/WebSocket til klient (avhengig av leverandør-API)
+
+db-maskin:
+  vehicles (regnr, enterpriseId, Vegvesen-data)
+  gpsEvents (lat, lon, ts, speed)
+  serviceRecords (type, dato, km, utførtAv)
+  vehicles.enterpriseId — aldri på tvers av organisasjoner
+```
+
+## Mobil-visning
+
+Feltarbeidere ser maskinposisjon og status i `apps/mobile`. Viser:
+- Posisjon på kart (nærmeste maskiner)
+- Maskin-status (aktiv, vedlikehold, ute av drift)
+- Enkel tilordning (meld inn at du bruker maskin)
+
+Mobil leser data via API — ingen lokal maskin-database.
+
 ## Ikke avklart
 
 - Hvilken GPS-leverandør (Webfleet vs Transpoco) — adapter-interface gjør valget utsettbart
 - Geofencing — varsling når maskin forlater byggeplass
 - Drivstofforbruk — sporing via GPS-leverandør eller manuell registrering?
 - Kobling til timer-modulen — maskinbruk = arbeidstimer?
-- Mobil-app — egen maskin-modul i mobil, eller web-only?
 - Kostnadsrapportering — maskinleie, drivstoff, service som økonomi-data

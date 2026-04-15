@@ -20,6 +20,7 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 | [docs/claude/bibliotek.md](docs/claude/bibliotek.md) | Sjekklistebibliotek: NS 3420-maler, import, regler, felttyper, admin-side |
 | [docs/claude/timer.md](docs/claude/timer.md) | Timeregistrering: dagsseddel, lønnsarter, tillegg, utlegg, offline-sync |
 | [docs/claude/maskin.md](docs/claude/maskin.md) | Maskinregister: GPS-sporing, Vegvesen-API, servicehistorikk, adapter-mønster |
+| [docs/claude/kontrollplan.md](docs/claude/kontrollplan.md) | Kontrollplan: malbygger, tegninger, soner/rom, sjekklister, varsling, rapport |
 | [docs/claude/infrastruktur-moduler.md](docs/claude/infrastruktur-moduler.md) | Isolert deploy: mappestruktur, turbo-pipeline, PM2, porter, auth-deling |
 | [MALBYGGER.md](MALBYGGER.md) | Felles malbygger: dokumenttyper, felttyper, beslutninger, migreringsstrategi |
 

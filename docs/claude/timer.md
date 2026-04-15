@@ -288,6 +288,42 @@ Del av dagsseddelen. Ansatt tar bilde av kvittering direkte i mobilappen.
 
 ## Sync-strategi — offline-first
 
+### Arkitektur-oversikt
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│ MOBILENHET                                │ SERVER                  │
+│                                           │                         │
+│  Bruker registrerer timer                 │                         │
+│  (start/stopp, prosjekt, beskrivelse)     │                         │
+│       ↓                                   │                         │
+│  SQLite lokalt                            │                         │
+│  (timeEntries, syncStatus, uuid)          │                         │
+│       ↓                                   │                         │
+│  Nettverksstatus?                         │                         │
+│   │                                       │                         │
+│   ├─ Offline → Lagres lokalt              │                         │
+│   │            syncStatus = "pending"     │                         │
+│   │            ... (venter)               │                         │
+│   │            Tilkobling gjenopptatt     │                         │
+│   │            Sender pending-poster ────────→ apps/api (tRPC)     │
+│   │                                       │   Auth + enterpriseId   │
+│   └─ Online ─→ Sync-motor ──────────────────→       ↓              │
+│                Batch pending → API        │   packages/db-timer     │
+│                                           │   PostgreSQL, eget skjema│
+│                                           │         ↓               │
+│                                           │   Konfliktløsning       │
+│                                           │   Server-wins +         │
+│                                           │   client uuid —         │
+│                                           │   idempotent upsert     │
+└─────────────────────────────────────────────────────────────────────┘
+
+db-timer nøkkelfelter:
+  id (uuid), userId, enterpriseId, projectId, startAt, endAt,
+  beskrivelse, syncedAt, clientUuid
+  syncStatus: "pending" | "synced" | "conflict" — slettes aldri, kun markeres
+```
+
 ### Mobil → Server
 
 1. **Lokal lagring:** SQLite via Drizzle (samme mønster som resten av mobil-appen)

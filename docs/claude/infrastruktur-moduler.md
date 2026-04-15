@@ -1,5 +1,32 @@
 # Infrastruktur — Timer og Maskin (isolerte moduler)
 
+## Monorepo-oversikt
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ Eksisterende                                                    │
+│  apps/web         apps/api       apps/mobile    packages/db     │
+│  sitedoc.no       tRPC/Node.js   React Native   Prisma/PG      │
+├─────────────────────────────────────────────────────────────────┤
+│ Nye moduler (fase 3)                                            │
+│  apps/timer       apps/maskin    Mobile timer-modul             │
+│  timer.sitedoc.no maskin.sitedoc Isolert i apps/mobile          │
+│  Next.js          Next.js        SQLite offline-first           │
+├─────────────────────────────────────────────────────────────────┤
+│ Nye Prisma-pakker (samme PostgreSQL-instans)                    │
+│  packages/db-timer  packages/db-maskin   PostgreSQL             │
+│  Timer-tabeller     GPS, kjøretøy        Én felles instans     │
+├─────────────────────────────────────────────────────────────────┤
+│ Delt infrastruktur                                              │
+│  next-auth sessions  apps/api validering   nginx                │
+│  Felles auth-tabell  Timer/Maskin → API    Subdomener + SSL     │
+├─────────────────────────────────────────────────────────────────┤
+│ Eksterne integrasjoner                                          │
+│  GPS-leverandør    Statens vegvesen  HR-system   OrgIntegration │
+│  Webfleet/Transpoco Kjøretøyregister Visma/Unit4 Proadm/SmartDoc│
+└─────────────────────────────────────────────────────────────────┘
+```
+
 ## Mappestruktur
 
 ### apps/timer
