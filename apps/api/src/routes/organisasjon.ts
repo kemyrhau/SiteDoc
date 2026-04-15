@@ -231,4 +231,51 @@ export const organisasjonRouter = router({
       createdAt: i.createdAt,
     }));
   }),
+
+  // Endre rolle for en bruker i organisasjonen (kun firmaadmin)
+  endreRolle: protectedProcedure
+    .input(
+      z.object({
+        userId: z.string(),
+        rolle: z.enum(["user", "company_admin"]),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const orgId = await verifiserFirmaAdmin(ctx.prisma, ctx.userId);
+
+      // Verifiser at målbrukeren tilhører samme organisasjon
+      const målbruker = await ctx.prisma.user.findUnique({
+        where: { id: input.userId },
+        select: { organizationId: true, role: true },
+      });
+
+      if (!målbruker || målbruker.organizationId !== orgId) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Brukeren tilhører ikke din organisasjon",
+        });
+      }
+
+      // Kan ikke endre sitedoc_admin
+      if (målbruker.role === "sitedoc_admin") {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Kan ikke endre rolle for systemadministrator",
+        });
+      }
+
+      // Kan ikke degradere seg selv
+      if (input.userId === ctx.userId && input.rolle !== "company_admin") {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Du kan ikke fjerne din egen admin-rolle",
+        });
+      }
+
+      return ctx.prisma.user.update({
+        where: { id: input.userId },
+        data: { role: input.rolle },
+        select: { id: true, role: true },
+      });
+    }),
 });
