@@ -288,9 +288,9 @@ Hver side i SiteDoc skal ha en hjelpetekst tilgjengelig via hjelp-ikonet (?) øv
 3. Hvis siden rename-es: hjelpeteksten rename-es samtidig
 
 **Konsistente begreper:**
-- "Dokumentflyt" — ikke "Entreprise" eller "Enterprise" i brukervendt tekst
+- "Faggruppe" — en deltaker i dokumentflyten på et prosjekt (Byggherre, Tømrer, Elektro). Ikke "Entreprise". Ikke "Enterprise". Ikke "Part". Engelsk: "Trade group"
+- "Dokumentflyt" — flyten mellom faggrupper (bestiller → utfører → godkjenner)
 - "Firma" — det faktiske selskapet (Hansen Tømrer AS)
-- "Prosjektrolle" — rollen i prosjektet (Byggherre, Tømrer)
 - "Organisasjon" — kundefirmaet som eier SiteDoc-kontoen
 
 **Sidestatus ?-ikon:**
