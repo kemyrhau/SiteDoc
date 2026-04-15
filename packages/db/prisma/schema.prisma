@@ -1130,3 +1130,63 @@ model PsiSignatur {
   @@index([psiId])
   @@map("psi_signaturer")
 }
+
+// ---------------------------------------------------------------------------
+// Sjekklistebibliotek — globalt arkiv med NS 3420-maler
+// ---------------------------------------------------------------------------
+
+model BibliotekStandard {
+  id        String              @id @default(cuid())
+  kode      String              @unique
+  navn      String
+  aktiv     Boolean             @default(true)
+  sortering Int                 @default(0)
+  opprettet DateTime            @default(now()) @map("opprettet")
+  kapitler  BibliotekKapittel[]
+
+  @@map("bibliotek_standarder")
+}
+
+model BibliotekKapittel {
+  id         String            @id @default(cuid())
+  kode       String
+  navn       String
+  sortering  Int
+  standardId String            @map("standard_id")
+  standard   BibliotekStandard @relation(fields: [standardId], references: [id], onDelete: Cascade)
+  maler      BibliotekMal[]
+
+  @@index([standardId])
+  @@map("bibliotek_kapitler")
+}
+
+model BibliotekMal {
+  id          String                  @id @default(cuid())
+  kapittelId  String                  @map("kapittel_id")
+  kapittel    BibliotekKapittel       @relation(fields: [kapittelId], references: [id], onDelete: Cascade)
+  navn        String
+  referanse   String
+  beskrivelse String?
+  versjon     String                  @default("1.0")
+  aktiv       Boolean                 @default(true)
+  opprettet   DateTime                @default(now()) @map("opprettet")
+  malInnhold  Json                    @map("mal_innhold")
+  prosjektValg ProsjektBibliotekValg[]
+
+  @@index([kapittelId])
+  @@map("bibliotek_maler")
+}
+
+model ProsjektBibliotekValg {
+  id              String       @id @default(cuid())
+  prosjektId      String       @map("prosjekt_id")
+  bibliotekMalId  String       @map("bibliotek_mal_id")
+  bibliotekMal    BibliotekMal @relation(fields: [bibliotekMalId], references: [id], onDelete: Cascade)
+  sjekklisteMalId String?      @map("sjekkliste_mal_id")
+  aktivertAv      String       @map("aktivert_av")
+  aktivertDato    DateTime     @default(now()) @map("aktivert_dato")
+
+  @@unique([prosjektId, bibliotekMalId])
+  @@index([prosjektId])
+  @@map("prosjekt_bibliotek_valg")
+}

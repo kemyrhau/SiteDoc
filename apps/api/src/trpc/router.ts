@@ -24,6 +24,7 @@ import { kontraktRouter } from "../routes/kontrakt";
 import { aiSokRouter } from "../routes/aiSok";
 import { brukerRouter } from "../routes/bruker";
 import { psiRouter } from "../routes/psi";
+import { bibliotekRouter } from "../routes/bibliotek";
 import { debugTilgangRouter } from "../routes/debug-tilgang"; // MIDLERTIDIG — fjernes etter testing
 
 export const appRouter = router({
@@ -52,6 +53,7 @@ export const appRouter = router({
   aiSok: aiSokRouter,
   bruker: brukerRouter,
   psi: psiRouter,
+  bibliotek: bibliotekRouter,
   debugTilgang: debugTilgangRouter, // MIDLERTIDIG — fjernes etter testing
 });
 

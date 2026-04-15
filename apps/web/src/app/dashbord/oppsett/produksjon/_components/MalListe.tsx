@@ -6,8 +6,9 @@ import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { trpc } from "@/lib/trpc";
 import { Button, Input, Textarea, Modal, Spinner, EmptyState, SearchInput } from "@sitedoc/ui";
 import { useTranslation } from "react-i18next";
-import { Plus, Pencil, Trash2, MoreVertical, ChevronDown, Lock, Building2 } from "lucide-react";
+import { Plus, Pencil, Trash2, MoreVertical, ChevronDown, Lock, Building2, Library } from "lucide-react";
 import { EntrepriseTilknytningModal } from "./EntrepriseTilknytningModal";
+import { BibliotekPanel } from "@/components/bibliotek/BibliotekPanel";
 
 type MalKategori = "oppgave" | "sjekkliste";
 
@@ -112,6 +113,7 @@ export function MalListe({
   const [visOpprettModal, setVisOpprettModal] = useState(false);
   const [visRedigerModal, setVisRedigerModal] = useState(false);
   const [visSlettBekreftelse, setVisSlettBekreftelse] = useState(false);
+  const [visBibliotek, setVisBibliotek] = useState(false);
 
   // Opprett-felter
   const [navn, setNavn] = useState("");
@@ -260,6 +262,11 @@ export function MalListe({
           <DropdownItem onClick={() => setVisOpprettModal(true)}>
             {t("maler.opprettNy")}
           </DropdownItem>
+          {kategori === "sjekkliste" && (
+            <DropdownItem onClick={() => setVisBibliotek(true)}>
+              <span className="flex items-center gap-1.5"><Library className="h-3.5 w-3.5" />{t("bibliotek.hentFraBibliotek")}</span>
+            </DropdownItem>
+          )}
           <DropdownItem disabled>{t("maler.importerFraProsjekt")}</DropdownItem>
           <DropdownItem disabled>{t("maler.importerFraFirma")}</DropdownItem>
           <DropdownItem disabled>{t("maler.opprettFraPdf")}</DropdownItem>
@@ -660,6 +667,16 @@ export function MalListe({
           </div>
         </div>
       </Modal>
+
+      {/* Bibliotek-panel */}
+      {kategori === "sjekkliste" && prosjektId && (
+        <BibliotekPanel
+          projectId={prosjektId}
+          open={visBibliotek}
+          onClose={() => setVisBibliotek(false)}
+          onImportert={() => utils.mal.hentForProsjekt.invalidate({ projectId: prosjektId })}
+        />
+      )}
     </div>
   );
 }
