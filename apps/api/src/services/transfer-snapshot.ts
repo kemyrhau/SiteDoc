@@ -20,8 +20,8 @@ interface SnapshotInput {
   senderId: string;
   projektId: string;
   dokumentStatus: string;
-  bestillerEnterpriseId: string;
-  utforerEnterpriseId: string;
+  bestillerEnterpriseId: string | null;
+  utforerEnterpriseId: string | null;
   dokumentflytId: string | null;
 }
 
@@ -59,8 +59,8 @@ export async function byggTransferSnapshot(input: SnapshotInput): Promise<Transf
 
   // Hent entreprise-navn
   const [bestillerEnt, utforerEnt] = await Promise.all([
-    prisma.dokumentflytPart.findUnique({ where: { id: input.bestillerEnterpriseId }, select: { name: true } }),
-    prisma.dokumentflytPart.findUnique({ where: { id: input.utforerEnterpriseId }, select: { name: true } }),
+    input.bestillerEnterpriseId ? prisma.dokumentflytPart.findUnique({ where: { id: input.bestillerEnterpriseId }, select: { name: true } }) : null,
+    input.utforerEnterpriseId ? prisma.dokumentflytPart.findUnique({ where: { id: input.utforerEnterpriseId }, select: { name: true } }) : null,
   ]);
 
   // Senderens entreprise basert på rolle

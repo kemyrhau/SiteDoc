@@ -76,7 +76,7 @@ export const adminRouter = router({
       if (pid) sjekklistePerProsjekt.set(pid, (sjekklistePerProsjekt.get(pid) ?? 0) + s._count);
     }
     for (const o of oppgaveTellere) {
-      const pid = enterpriseProsjektMap.get(o.bestillerEnterpriseId);
+      const pid = o.bestillerEnterpriseId ? enterpriseProsjektMap.get(o.bestillerEnterpriseId) : undefined;
       if (pid) oppgavePerProsjekt.set(pid, (oppgavePerProsjekt.get(pid) ?? 0) + o._count);
     }
 

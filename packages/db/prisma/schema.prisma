@@ -522,8 +522,8 @@ model Task {
   id                    String    @id @default(uuid())
   templateId              String?   @map("template_id")
   bestillerUserId         String    @map("bestiller_user_id")
-  bestillerEnterpriseId   String    @map("bestiller_enterprise_id")
-  utforerEnterpriseId     String    @map("utforer_enterprise_id")
+  bestillerEnterpriseId   String?   @map("bestiller_enterprise_id")
+  utforerEnterpriseId     String?   @map("utforer_enterprise_id")
   eierUserId              String?   @map("eier_user_id")
   status                  String    @default("draft")
   title                   String
@@ -547,8 +547,8 @@ model Task {
 
   template              ReportTemplate?    @relation(fields: [templateId], references: [id])
   bestiller             User               @relation("TaskCreator", fields: [bestillerUserId], references: [id])
-  bestillerEnterprise   DokumentflytPart   @relation("TaskCreatorDokumentflytPart", fields: [bestillerEnterpriseId], references: [id])
-  utforerEnterprise     DokumentflytPart   @relation("TaskResponderDokumentflytPart", fields: [utforerEnterpriseId], references: [id])
+  bestillerEnterprise   DokumentflytPart?  @relation("TaskCreatorDokumentflytPart", fields: [bestillerEnterpriseId], references: [id])
+  utforerEnterprise     DokumentflytPart?  @relation("TaskResponderDokumentflytPart", fields: [utforerEnterpriseId], references: [id])
   eier                  User?              @relation("TaskOwner", fields: [eierUserId], references: [id], onDelete: SetNull)
   drawing               Drawing?           @relation(fields: [drawingId], references: [id])
   dokumentflyt          Dokumentflyt?      @relation(fields: [dokumentflytId], references: [id], onDelete: SetNull)

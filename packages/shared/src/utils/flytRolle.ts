@@ -28,8 +28,8 @@ export interface FlytMedlemInfo {
  * Dokument-kontekst for å vite hvem som er bestiller/utfører.
  */
 export interface DokumentKontekst {
-  bestillerEnterpriseId: string;
-  utforerEnterpriseId: string;
+  bestillerEnterpriseId: string | null;
+  utforerEnterpriseId: string | null;
 }
 
 /** Rolle-prioritet: høyere tall = høyere prioritet */

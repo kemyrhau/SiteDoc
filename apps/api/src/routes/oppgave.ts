@@ -13,6 +13,16 @@ import {
   hentBrukerTillatelser,
 } from "../trpc/tilgangskontroll";
 import { sendDokumentVarsling, hentMottakerEposter } from "../services/epost";
+
+/** Hent projectId fra enterprise (standard) eller template (HMS uten enterprise) */
+function hentProjectId(oppgave: {
+  bestillerEnterprise?: { projectId: string } | null;
+  template?: { projectId?: string } | null;
+}): string {
+  const pid = oppgave.bestillerEnterprise?.projectId ?? oppgave.template?.projectId;
+  if (!pid) throw new TRPCError({ code: "BAD_REQUEST", message: "Kan ikke utlede prosjekt-ID" });
+  return pid;
+}
 import { oversettFritekst } from "../services/oversettelse-service";
 import { byggTransferSnapshot } from "../services/transfer-snapshot";
 
@@ -146,7 +156,7 @@ export const oppgaveRouter = router({
       // Tilgangssjekk via oppretter-entreprisens prosjekt
       await verifiserDokumentTilgang(
         ctx.userId,
-        oppgave.bestillerEnterprise.projectId,
+        hentProjectId(oppgave),
         oppgave.bestillerEnterpriseId,
         oppgave.utforerEnterpriseId,
         oppgave.template?.domain,
@@ -178,12 +188,12 @@ export const oppgaveRouter = router({
         where: { id: input.taskId },
         include: {
           bestillerEnterprise: { select: { projectId: true } },
-          template: { select: { domain: true } },
+          template: { select: { domain: true, projectId: true } },
         },
       });
       await verifiserDokumentTilgang(
         ctx.userId,
-        oppgave.bestillerEnterprise.projectId,
+        hentProjectId(oppgave),
         oppgave.bestillerEnterpriseId,
         oppgave.utforerEnterpriseId,
         oppgave.template?.domain,
@@ -211,12 +221,12 @@ export const oppgaveRouter = router({
         where: { id: input.taskId },
         include: {
           bestillerEnterprise: { select: { projectId: true } },
-          template: { select: { domain: true } },
+          template: { select: { domain: true, projectId: true } },
         },
       });
       await verifiserDokumentTilgang(
         ctx.userId,
-        oppgave.bestillerEnterprise.projectId,
+        hentProjectId(oppgave),
         oppgave.bestillerEnterpriseId,
         oppgave.utforerEnterpriseId,
         oppgave.template?.domain,
@@ -271,8 +281,8 @@ export const oppgaveRouter = router({
   opprett: protectedProcedure
     .input(
       z.object({
-        bestillerEnterpriseId: z.string().uuid(),
-        utforerEnterpriseId: z.string().uuid(),
+        bestillerEnterpriseId: z.string().uuid().optional(),
+        utforerEnterpriseId: z.string().uuid().optional(),
         title: z.string().min(1).max(255),
         description: z.string().optional(),
         priority: z.enum(["low", "medium", "high", "critical"]).default("medium"),
@@ -287,8 +297,46 @@ export const oppgaveRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      // Verifiser at bruker tilhører oppretter-entreprisen
-      await verifiserEntrepriseTilhorighet(ctx.userId, input.bestillerEnterpriseId);
+      // Hent malen for å sjekke domain (HMS vs standard)
+      const mal = await ctx.prisma.reportTemplate.findUniqueOrThrow({
+        where: { id: input.templateId },
+        select: { prefix: true, domain: true, projectId: true },
+      });
+
+      const erHms = mal.domain === "hms";
+
+      // HMS-oppgaver: auto-rut til HMS-gruppen, ingen entreprise
+      let recipientGroupId: string | undefined;
+      if (erHms) {
+        await verifiserProsjektmedlem(ctx.userId, mal.projectId);
+
+        // Finn HMS-gruppen i prosjektet
+        const hmsGruppe = await ctx.prisma.projectGroup.findFirst({
+          where: {
+            projectId: mal.projectId,
+            domains: { array_contains: ["hms"] },
+          },
+          select: { id: true },
+        });
+
+        if (!hmsGruppe) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "HMS-gruppe ikke konfigurert i dette prosjektet. Opprett en gruppe med HMS-domene under Oppsett → Brukere.",
+          });
+        }
+
+        recipientGroupId = hmsGruppe.id;
+      } else {
+        // Standard: entrepriser påkrevd
+        if (!input.bestillerEnterpriseId || !input.utforerEnterpriseId) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Bestiller- og utfører-entreprise er påkrevd for denne oppgavetypen",
+          });
+        }
+        await verifiserEntrepriseTilhorighet(ctx.userId, input.bestillerEnterpriseId);
+      }
 
       // Sjekk grense for gratisbrukere (10 oppgaver per prosjekt)
       const bruker = await ctx.prisma.user.findUniqueOrThrow({
@@ -296,12 +344,8 @@ export const oppgaveRouter = router({
         select: { role: true },
       });
       if (bruker.role !== "sitedoc_admin") {
-        const entreprise = await ctx.prisma.dokumentflytPart.findUniqueOrThrow({
-          where: { id: input.bestillerEnterpriseId },
-          select: { projectId: true },
-        });
         const antall = await ctx.prisma.task.count({
-          where: { bestillerEnterprise: { projectId: entreprise.projectId } },
+          where: { template: { projectId: mal.projectId } },
         });
         if (antall >= 10) {
           throw new TRPCError({
@@ -314,12 +358,6 @@ export const oppgaveRouter = router({
       return ctx.prisma.$transaction(async (tx) => {
         let nummer: number | undefined;
 
-        // Finn malens prefix for autonummerering
-        const mal = await tx.reportTemplate.findUniqueOrThrow({
-          where: { id: input.templateId },
-          select: { prefix: true },
-        });
-
         if (mal.prefix) {
           const maks = await tx.task.aggregate({
             where: {
@@ -331,10 +369,9 @@ export const oppgaveRouter = router({
           nummer = (maks._max.number ?? 0) + 1;
         }
 
-        // Finn hovedansvarlig fra dokumentflyt (utfører med erHovedansvarlig)
+        // Finn hovedansvarlig fra dokumentflyt (standard flyt)
         let recipientUserId: string | undefined;
-        let recipientGroupId: string | undefined;
-        if (input.dokumentflytId) {
+        if (!erHms && input.dokumentflytId) {
           const hovedansvarlig = await tx.dokumentflytMedlem.findFirst({
             where: {
               dokumentflytId: input.dokumentflytId,
@@ -357,8 +394,8 @@ export const oppgaveRouter = router({
             templateId: input.templateId,
             bestillerUserId: ctx.userId,
             eierUserId: ctx.userId,
-            bestillerEnterpriseId: input.bestillerEnterpriseId,
-            utforerEnterpriseId: input.utforerEnterpriseId,
+            bestillerEnterpriseId: input.bestillerEnterpriseId ?? null,
+            utforerEnterpriseId: input.utforerEnterpriseId ?? null,
             title: input.title,
             description: input.description,
             priority: input.priority,
@@ -400,12 +437,12 @@ export const oppgaveRouter = router({
         where: { id: input.id },
         include: {
           bestillerEnterprise: { select: { projectId: true } },
-          template: { select: { domain: true } },
+          template: { select: { domain: true, projectId: true } },
         },
       });
       await verifiserDokumentTilgang(
         ctx.userId,
-        oppgave.bestillerEnterprise.projectId,
+        hentProjectId(oppgave),
         oppgave.bestillerEnterpriseId,
         oppgave.utforerEnterpriseId,
         oppgave.template?.domain,
@@ -456,7 +493,7 @@ export const oppgaveRouter = router({
       });
       await verifiserDokumentTilgang(
         ctx.userId,
-        oppgave.bestillerEnterprise.projectId,
+        hentProjectId(oppgave),
         oppgave.bestillerEnterpriseId,
         oppgave.utforerEnterpriseId,
         oppgave.template?.domain,
@@ -465,7 +502,7 @@ export const oppgaveRouter = router({
       );
 
       // Fritekst-oversettelse Lag 3
-      const projectId = oppgave.template?.projectId ?? oppgave.bestillerEnterprise.projectId;
+      const projectId = hentProjectId(oppgave);
       const prosjekt = await ctx.prisma.project.findUnique({
         where: { id: projectId },
         select: { sourceLanguage: true },
@@ -554,7 +591,7 @@ export const oppgaveRouter = router({
           template: { select: { domain: true, projectId: true } },
         },
       });
-      const projectId = oppgave.template?.projectId ?? oppgave.bestillerEnterprise.projectId;
+      const projectId = hentProjectId(oppgave);
       await verifiserDokumentTilgang(
         ctx.userId, projectId,
         oppgave.bestillerEnterpriseId, oppgave.utforerEnterpriseId,
@@ -622,12 +659,12 @@ export const oppgaveRouter = router({
         where: { id: input.id },
         include: {
           bestillerEnterprise: { select: { projectId: true, project: { select: { name: true } } } },
-          template: { select: { domain: true, prefix: true } },
+          template: { select: { domain: true, prefix: true, projectId: true, project: { select: { name: true } } } },
           utforerEnterprise: { select: { name: true } },
         },
       });
 
-      const projectId = oppgave.bestillerEnterprise.projectId;
+      const projectId = hentProjectId(oppgave);
 
       // Tilgangssjekk
       await verifiserDokumentTilgang(
@@ -669,7 +706,7 @@ export const oppgaveRouter = router({
           dokumentType: "oppgave",
           dokumentTittel: oppgave.title ?? "Uten tittel",
           dokumentNummer: nummer,
-          prosjektNavn: oppgave.bestillerEnterprise.project.name,
+          prosjektNavn: oppgave.bestillerEnterprise?.project?.name ?? oppgave.template?.project?.name ?? "",
           prosjektId: projectId,
           dokumentId: oppgave.id,
           avsenderNavn: avsender?.name ?? "Ukjent",
@@ -890,13 +927,13 @@ export const oppgaveRouter = router({
         where: { id: input.id },
         include: {
           bestillerEnterprise: { select: { projectId: true } },
-          template: { select: { domain: true } },
+          template: { select: { domain: true, projectId: true } },
         },
       });
 
       await verifiserDokumentTilgang(
         ctx.userId,
-        oppgave.bestillerEnterprise.projectId,
+        hentProjectId(oppgave),
         oppgave.bestillerEnterpriseId,
         oppgave.utforerEnterpriseId,
         oppgave.template?.domain,
@@ -935,7 +972,7 @@ export const oppgaveRouter = router({
         },
       });
 
-      const projectId = oppgave.bestillerEnterprise.projectId;
+      const projectId = hentProjectId(oppgave);
 
       // Sjekk at bruker er admin eller registrator
       const bruker = await ctx.prisma.user.findUniqueOrThrow({
@@ -959,7 +996,7 @@ export const oppgaveRouter = router({
         where: {
           userId: input.nyEierUserId,
           projectId,
-          dokumentflytKoblinger: { some: { enterpriseId: oppgave.bestillerEnterpriseId } },
+          ...(oppgave.bestillerEnterpriseId ? { dokumentflytKoblinger: { some: { enterpriseId: oppgave.bestillerEnterpriseId } } } : {}),
         },
       });
 

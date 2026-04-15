@@ -322,7 +322,7 @@ export default function OppgaverSide() {
   const isLoading = oppgaveQuery.isLoading;
 
   const { data: maler } = trpc.mal.hentForProsjekt.useQuery({ projectId: params.prosjektId });
-  const oppgaveMaler = ((maler ?? []) as Array<{ id: string; name: string; prefix?: string | null; category: string }>).filter((m) => m.category === "oppgave");
+  const oppgaveMaler = ((maler ?? []) as Array<{ id: string; name: string; prefix?: string | null; category: string; domain?: string | null }>).filter((m) => m.category === "oppgave");
   const { data: mineEntrepriser } = trpc.medlem.hentMineEntrepriser.useQuery(
     { projectId: params.prosjektId },
   );
@@ -350,6 +350,18 @@ export default function OppgaverSide() {
   ]);
 
   function handleOpprettFraMal(malId: string) {
+    const mal = oppgaveMaler.find((m) => m.id === malId) as { id: string; name: string; domain?: string | null } | undefined;
+
+    // HMS-oppgaver: ingen entreprise, auto-rutes til HMS-gruppen av API
+    if (mal?.domain === "hms") {
+      opprettMutation.mutate({
+        templateId: malId,
+        title: mal.name ?? "HMS-avvik",
+        priority: "medium",
+      });
+      return;
+    }
+
     const oppretter = mineEntrepriser?.[0];
     if (!oppretter) return;
 
@@ -367,7 +379,6 @@ export default function OppgaverSide() {
     const svarer = matchDf?.medlemmer.find((m) => m.rolle === "svarer");
     const svarerEntrepriseId = svarer?.enterprise?.id ?? oppretter.id;
 
-    const mal = oppgaveMaler.find((m) => m.id === malId);
     opprettMutation.mutate({
       templateId: malId,
       bestillerEnterpriseId: oppretter.id,

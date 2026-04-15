@@ -353,8 +353,8 @@ export async function verifiserFlytRolle(
   userId: string,
   projectId: string,
   dokumentflytId: string | null | undefined,
-  bestillerEnterpriseId: string,
-  utforerEnterpriseId: string,
+  bestillerEnterpriseId: string | null,
+  utforerEnterpriseId: string | null,
   gjeldendStatus: string,
   nyStatus: string,
 ): Promise<void> {
