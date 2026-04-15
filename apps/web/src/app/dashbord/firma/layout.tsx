@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, FolderKanban, Users, CreditCard } from "lucide-react";
+import { LayoutDashboard, FolderKanban, Users, CreditCard, Settings } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { Spinner } from "@sitedoc/ui";
 
@@ -26,6 +26,11 @@ const navigasjon = [
     label: "Fakturering",
     href: "/dashbord/firma/fakturering",
     ikon: <CreditCard className="h-4 w-4" />,
+  },
+  {
+    label: "Innstillinger",
+    href: "/dashbord/firma/innstillinger",
+    ikon: <Settings className="h-4 w-4" />,
   },
 ];
 

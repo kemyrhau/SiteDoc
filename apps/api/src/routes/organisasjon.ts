@@ -208,4 +208,27 @@ export const organisasjonRouter = router({
         },
       });
     }),
+
+  // Hent integrasjonsstatus for organisasjonen (kun firmaadmin)
+  hentIntegrasjonerStatus: protectedProcedure.query(async ({ ctx }) => {
+    const orgId = await verifiserFirmaAdmin(ctx.prisma, ctx.userId);
+
+    const integrasjoner = await ctx.prisma.organizationIntegration.findMany({
+      where: { organizationId: orgId },
+      select: {
+        type: true,
+        aktiv: true,
+        url: true,
+        createdAt: true,
+      },
+    });
+
+    return integrasjoner.map((i) => ({
+      type: i.type,
+      aktiv: i.aktiv,
+      url: i.url,
+      harNøkkel: true, // Hvis raden finnes, har den en nøkkel — aldri send apiKey til klient
+      createdAt: i.createdAt,
+    }));
+  }),
 });
