@@ -56,7 +56,7 @@ export function FeltDokumentasjon({
     formData.append("file", fil);
 
     try {
-      const respons = await fetch("/api/trpc/../../../upload", {
+      const respons = await fetch("/api/upload", {
         method: "POST",
         body: formData,
       });

@@ -164,7 +164,9 @@ export default function Tegning3DSide() {
   const tegningTil3D = useCallback((pkt: { x: number; y: number }): { x: number; z: number } | null => {
     if (!kalibTransform) return null;
     const { a, b, tx, tz } = kalibTransform;
-    return { x: a * pkt.x + b * pkt.y + tx, z: -b * pkt.x + a * pkt.y + tz };
+    const resultat = { x: a * pkt.x + b * pkt.y + tx, z: -b * pkt.x + a * pkt.y + tz };
+    console.log(`[3D-DEBUG] tegningTil3D: tegning(${pkt.x.toFixed(2)}, ${pkt.y.toFixed(2)}) → 3D(${resultat.x.toFixed(2)}, ${resultat.z.toFixed(2)})`);
+    return resultat;
   }, [kalibTransform]);
 
   /** 3D xz → tegning pixel% (invers transform) */
@@ -174,7 +176,9 @@ export default function Tegning3DSide() {
     const det = a * a + b * b;
     if (det < 1e-10) return null;
     const dx = punkt.x - tx, dz = punkt.z - tz;
-    return { x: (a * dx - b * dz) / det, y: (b * dx + a * dz) / det };
+    const resultat = { x: (a * dx - b * dz) / det, y: (b * dx + a * dz) / det };
+    console.log(`[3D-DEBUG] treDTilTegning: 3D(${punkt.x.toFixed(2)}, ${punkt.z.toFixed(2)}) → tegning(${resultat.x.toFixed(2)}, ${resultat.y.toFixed(2)})`);
+    return resultat;
   }, [kalibTransform]);
 
   /** 3D-delta → tegning%-delta (kun lineærdelen av transformen, ingen offset) */
@@ -468,6 +472,19 @@ export default function Tegning3DSide() {
         const tx = xA - a * pxA - b * pyA;
         const tz = zA + b * pxA - a * pyA;
 
+        // DEBUG: Logg kalibreringsdata og verifiser roundtrip
+        console.log(`[3D-DEBUG] KALIBRERING steg 4:`);
+        console.log(`  Punkt A: tegning(${pxA.toFixed(2)}, ${pyA.toFixed(2)}) → 3D(${xA.toFixed(2)}, ${zA.toFixed(2)})`);
+        console.log(`  Punkt B: tegning(${pxB.toFixed(2)}, ${pyB.toFixed(2)}) → 3D(${xB.toFixed(2)}, ${zB.toFixed(2)})`);
+        console.log(`  Transform: a=${a.toFixed(6)}, b=${b.toFixed(6)}, tx=${tx.toFixed(2)}, tz=${tz.toFixed(2)}`);
+        // Roundtrip-test: A tegning → 3D → tegning
+        const testFwd = { x: a * pxA + b * pyA + tx, z: -b * pxA + a * pyA + tz };
+        const testDet = a * a + b * b;
+        const testDx = testFwd.x - tx, testDz = testFwd.z - tz;
+        const testInv = { x: (a * testDx - b * testDz) / testDet, y: (b * testDx + a * testDz) / testDet };
+        console.log(`  Roundtrip A: tegning(${pxA.toFixed(2)}, ${pyA.toFixed(2)}) → 3D(${testFwd.x.toFixed(2)}, ${testFwd.z.toFixed(2)}) → tegning(${testInv.x.toFixed(2)}, ${testInv.y.toFixed(2)})`);
+        console.log(`  Roundtrip-feil: dx=${(testInv.x - pxA).toFixed(6)}, dy=${(testInv.y - pyA).toFixed(6)}`);
+
         // GPS-opprinnelse fra tegningens sentrum (for kompatibilitet)
         const senterGps = transformasjon ? tegningTilGps({ x: 50, y: 50 }, transformasjon) : ifcOpprinnelse;
 
@@ -514,8 +531,16 @@ export default function Tegning3DSide() {
       const kam = viewerRef.current?.hentKameraPosisjon();
       if (kam) {
         const nåPos = { x: kam.pos.x, z: kam.pos.z };
+        // Beregn retningsvinkel på tegningen fra 3D-kameraretning
+        const retDelta = treDDeltaTilTegning(kam.retning.x, kam.retning.z);
+        const vinkel = retDelta ? Math.atan2(retDelta.dx, -retDelta.dy) * (180 / Math.PI) : undefined;
+
         if (!forrigeKamPosRef.current) {
           forrigeKamPosRef.current = nåPos;
+          // Oppdater vinkel selv uten posisjonsbevegelse
+          if (vinkel !== undefined) {
+            setTegningMarkør((prev) => prev ? { ...prev, vinkel } : prev);
+          }
         } else {
           const dx3d = nåPos.x - forrigeKamPosRef.current.x;
           const dz3d = nåPos.z - forrigeKamPosRef.current.z;
@@ -523,9 +548,12 @@ export default function Tegning3DSide() {
           if (Math.abs(dx3d) > 1 || Math.abs(dz3d) > 1) {
             const delta = treDDeltaTilTegning(dx3d, dz3d);
             if (delta) {
-              setTegningMarkør((prev) => prev ? { x: prev.x + delta.dx, y: prev.y + delta.dy } : prev);
+              setTegningMarkør((prev) => prev ? { x: prev.x + delta.dx, y: prev.y + delta.dy, vinkel } : prev);
             }
             forrigeKamPosRef.current = nåPos;
+          } else if (vinkel !== undefined) {
+            // Posisjon uendret, men retning kan ha endret seg (rotasjon på stedet)
+            setTegningMarkør((prev) => prev && prev.vinkel !== vinkel ? { ...prev, vinkel } : prev);
           }
         }
       }
@@ -606,21 +634,17 @@ export default function Tegning3DSide() {
       } else return;
 
       setTegningMarkør({ ...pxProsent });
-      // Pause delta-tracking under flyTil-animasjon (600ms)
-      // Uten dette tolkes animasjonen som brukerbevegelse → prikken drifter
+      // Pause delta-tracking under flyTil-animasjon
       pauseDeltaRef.current = true;
       forrigeKamPosRef.current = null;
-      viewerRef.current?.flyTil(flyX, 0, flyZ, gulvY ?? undefined);
-      setTimeout(() => { pauseDeltaRef.current = false; forrigeKamPosRef.current = null; }, 600);
+      // flyTil returnerer Promise som resolves ved camera-controls 'rest' event
+      viewerRef.current?.flyTil(flyX, 0, flyZ, gulvY ?? undefined).then(() => {
+        pauseDeltaRef.current = false;
+        forrigeKamPosRef.current = null;
+      });
     },
     [synkAktiv, transformasjon, ifcOpprinnelse, coordSystem, viewerRef, klikkKalibSteg, finjusterSteg],
   );
-
-  // Beregn pikselposisjon for markør (utenfor transform-div)
-  const pktTilPx = useCallback((pkt: { x: number; y: number }) => ({
-    x: pan.x + (pkt.x / 100) * innholdStr.w * zoom,
-    y: pan.y + (pkt.y / 100) * innholdStr.h * zoom,
-  }), [pan, zoom, innholdStr]);
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
@@ -788,6 +812,8 @@ export default function Tegning3DSide() {
               <div
                 className="relative origin-top-left"
                 style={{
+                  width: innholdStr.w || undefined,
+                  height: innholdStr.h || undefined,
                   transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
                   cursor: panStartRef.current ? "grabbing" : "default",
                 }}
@@ -822,40 +848,62 @@ export default function Tegning3DSide() {
                     draggable={false}
                   />
                 )}
+                {/* Markører — inne i transform-div, prosent-posisjonert relativt til bildet */}
+                {/* Kamera-posisjon og retning */}
+                {innholdStr.w > 0 && tegningMarkør && klikkKalibSteg === 0 && (() => {
+                  const harVinkel = tegningMarkør.vinkel != null;
+                  const inversSkalering = 1 / zoom;
+                  return (
+                    <div
+                      className="pointer-events-none absolute z-20"
+                      style={{
+                        left: `${tegningMarkør.x}%`,
+                        top: `${tegningMarkør.y}%`,
+                        transform: `translate(-50%, -50%) scale(${inversSkalering})${harVinkel ? ` rotate(${tegningMarkør.vinkel}deg)` : ""}`,
+                      }}
+                    >
+                      <div className="relative flex items-center justify-center">
+                        {harVinkel && (
+                          <div
+                            className="absolute w-0 h-0"
+                            style={{
+                              top: -10,
+                              borderLeft: "5px solid transparent",
+                              borderRight: "5px solid transparent",
+                              borderBottom: "8px solid #3b82f6",
+                            }}
+                          />
+                        )}
+                        <div className="h-4 w-4 rounded-full bg-blue-500 ring-2 ring-white" />
+                      </div>
+                    </div>
+                  );
+                })()}
+                {/* Kalibrerings-markører A og B */}
+                {innholdStr.w > 0 && kalibMarkørA && (
+                  <div
+                    className="pointer-events-none absolute z-20"
+                    style={{ left: `${kalibMarkørA.x}%`, top: `${kalibMarkørA.y}%`, transform: `translate(-50%, -50%) scale(${1 / zoom})` }}
+                  >
+                    <div className="h-5 w-5 rounded-full border-2 border-white bg-purple-500 text-center text-[10px] font-bold leading-[18px] text-white">A</div>
+                  </div>
+                )}
+                {innholdStr.w > 0 && kalibMarkørB && (
+                  <div
+                    className="pointer-events-none absolute z-20"
+                    style={{ left: `${kalibMarkørB.x}%`, top: `${kalibMarkørB.y}%`, transform: `translate(-50%, -50%) scale(${1 / zoom})` }}
+                  >
+                    <div className="h-5 w-5 rounded-full border-2 border-white bg-orange-500 text-center text-[10px] font-bold leading-[18px] text-white">B</div>
+                  </div>
+                )}
               </div>
             </div>
-            {/* Markør-overlay utenfor transform (faste pikselposisjoner) */}
-            {/* Kamera-posisjon (blå prikk — presis fra klikk, oppdatert inkrementelt) */}
-            {innholdStr.w > 0 && tegningMarkør && klikkKalibSteg === 0 && (() => {
-              const p = pktTilPx(tegningMarkør);
-              return (
-                <div className="pointer-events-none absolute z-20 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-500 ring-2 ring-white" style={{ left: p.x, top: p.y }} />
-              );
-            })()}
             {/* Hint: klikk for å starte tracking */}
             {synkAktiv && kalibTransform && !tegningMarkør && (
               <div className="pointer-events-none absolute bottom-3 left-3 z-20 rounded bg-blue-600/80 px-2.5 py-1 text-xs text-white">
                 Klikk på tegningen for å plassere kamera
               </div>
             )}
-            {/* Kalibrerings-markører A og B */}
-            {innholdStr.w > 0 && kalibMarkørA && (() => {
-              const p = pktTilPx(kalibMarkørA);
-              return (
-                <div className="pointer-events-none absolute z-20" style={{ left: p.x, top: p.y }}>
-                  <div className="h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-purple-500 text-center text-[10px] font-bold leading-[18px] text-white">A</div>
-                </div>
-              );
-            })()}
-            {innholdStr.w > 0 && kalibMarkørB && (() => {
-              const p = pktTilPx(kalibMarkørB);
-              return (
-                <div className="pointer-events-none absolute z-20" style={{ left: p.x, top: p.y }}>
-                  <div className="h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-orange-500 text-center text-[10px] font-bold leading-[18px] text-white">B</div>
-                </div>
-              );
-            })()}
-            {/* Fjernet: FOV-trekant — retningsberegning trenger mer arbeid */}
             </>
           ) : (
             <div className="flex h-full items-center justify-center">

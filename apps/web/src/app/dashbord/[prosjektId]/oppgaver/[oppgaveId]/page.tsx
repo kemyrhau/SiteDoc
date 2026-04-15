@@ -2,11 +2,14 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { useState, useMemo, useCallback } from "react";
-import { Spinner, StatusBadge, Card, Badge } from "@sitedoc/ui";
-import { Check, AlertCircle, Loader2, Send, FileText, Printer, Pencil } from "lucide-react";
+import { Spinner, StatusBadge, Card } from "@sitedoc/ui";
+import { Check, AlertCircle, Loader2, Send, Printer, Pencil } from "lucide-react";
+import { FlytIndikator } from "@/components/FlytIndikator";
 import { trpc } from "@/lib/trpc";
 import { useOppgaveSkjema } from "@/hooks/useOppgaveSkjema";
-import { StatusHandlinger } from "@/components/StatusHandlinger";
+import { DokumentHandlingsmeny } from "@/components/DokumentHandlingsmeny";
+import { utledMinRolle } from "@sitedoc/shared";
+import type { FlytMedlemInfo } from "@sitedoc/shared";
 import { LokasjonVelger } from "@/components/LokasjonVelger";
 import { RapportObjektRenderer, DISPLAY_TYPER, SKJULT_I_UTFYLLING } from "@/components/rapportobjekter/RapportObjektRenderer";
 import { FeltWrapper } from "@/components/rapportobjekter/FeltWrapper";
@@ -46,24 +49,6 @@ function LagreIndikator({ status }: { status: "idle" | "lagrer" | "lagret" | "fe
     </span>
   );
 }
-
-/* ------------------------------------------------------------------ */
-/*  Prioritet-badge                                                    */
-/* ------------------------------------------------------------------ */
-
-const PRIORITETS_TEKST: Record<string, string> = {
-  low: "Lav",
-  medium: "Medium",
-  high: "Høy",
-  critical: "Kritisk",
-};
-
-const PRIORITETS_VARIANT: Record<string, "default" | "primary" | "warning" | "danger"> = {
-  low: "default",
-  medium: "primary",
-  high: "warning",
-  critical: "danger",
-};
 
 /* ------------------------------------------------------------------ */
 /*  Dialog-seksjon                                                     */
@@ -168,6 +153,110 @@ export default function OppgaveDetaljSide() {
   const params = useParams<{ prosjektId: string; oppgaveId: string }>();
   const router = useRouter();
   const { t } = useTranslation();
+  const utils = trpc.useUtils();
+
+  // --- Hent brukerinfo og prosjektdata FØR skjema-hook ---
+
+  const { data: minFlytInfo } = trpc.gruppe.hentMinFlytInfo.useQuery(
+    { projectId: params.prosjektId },
+    { enabled: !!params.prosjektId },
+  );
+
+  const { data: mineTillatelserRå } = trpc.gruppe.hentMineTillatelser.useQuery(
+    { projectId: params.prosjektId },
+    { enabled: !!params.prosjektId },
+  );
+  const mineTillatelser = useMemo(
+    () => new Set<string>(mineTillatelserRå ?? []),
+    [mineTillatelserRå],
+  );
+
+  const { data: alleEntrepriserRå } = trpc.entreprise.hentForProsjekt.useQuery(
+    { projectId: params.prosjektId },
+    { enabled: !!params.prosjektId },
+  );
+  const { data: dokumentflyterRå } = trpc.dokumentflyt.hentForProsjekt.useQuery(
+    { projectId: params.prosjektId },
+    { enabled: !!params.prosjektId },
+  );
+  const alleEntrepriser = (alleEntrepriserRå ?? []) as Array<{ id: string; name: string; color: string | null }>;
+  const dokumentflyter = (dokumentflyterRå ?? []) as unknown as import("@/components/StatusHandlinger").DokumentflytData[];
+
+  // Hent full oppgavedata for tidslinje/recipient/creator (cast for TS2589)
+  const { data: fullOppgaveRå } = trpc.oppgave.hentMedId.useQuery(
+    { id: params.oppgaveId },
+    { enabled: !!params.oppgaveId },
+  );
+
+  // harBallen: sjekk om brukerens userId/gruppeIder matcher recipientUserId/GroupId
+  const harBallen = useMemo(() => {
+    if (!fullOppgaveRå || !minFlytInfo) return false;
+    const fo = fullOppgaveRå as { status?: string; recipientUserId?: string | null; recipientGroupId?: string | null; bestillerUserId?: string };
+    if (fo.status === "draft") return fo.bestillerUserId === (minFlytInfo as { userId?: string }).userId;
+    if (fo.recipientUserId && fo.recipientUserId === (minFlytInfo as { userId?: string }).userId) return true;
+    if (fo.recipientGroupId && minFlytInfo.gruppeIder.includes(fo.recipientGroupId)) return true;
+    return false;
+  // @ts-ignore TS2589
+  }, [fullOppgaveRå, minFlytInfo]);
+
+  // Utled brukerens rolle i dokumentflyten — trengs for rettighetInput + handlingsknapper
+  const minRolle = useMemo(() => {
+    if (!minFlytInfo || !fullOppgaveRå) return undefined;
+    const op = fullOppgaveRå as unknown as { dokumentflytId?: string | null; bestillerEnterprise?: { id: string }; utforerEnterprise?: { id: string } };
+    if (!op.dokumentflytId) return undefined;
+    const flyt = dokumentflyter.find((df) => df.id === op.dokumentflytId);
+    if (!flyt) return null;
+    const medlemmer = flyt.medlemmer.map((m): FlytMedlemInfo => ({
+      rolle: m.rolle,
+      enterpriseId: m.enterpriseId ?? null,
+      projectMemberId: m.projectMemberId ?? null,
+      groupId: m.groupId ?? null,
+    }));
+    return utledMinRolle(
+      { ...minFlytInfo, userId: "", erAdmin: minFlytInfo.erAdmin },
+      medlemmer,
+      { bestillerEnterpriseId: op.bestillerEnterprise?.id ?? "", utforerEnterpriseId: op.utforerEnterprise?.id ?? "" },
+    );
+  }, [minFlytInfo, fullOppgaveRå, dokumentflyter]);
+
+  // Utled flytRettighet fra DokumentflytMedlem.kanRedigere for brukerens aktive flytledd
+  const flytRettighet = useMemo((): "redigerer" | "leser" | undefined => {
+    if (!minFlytInfo || !fullOppgaveRå || !dokumentflyterRå) return undefined;
+    const op = fullOppgaveRå as unknown as { dokumentflytId?: string | null };
+    if (!op.dokumentflytId) return undefined;
+    const rå = dokumentflyterRå as unknown as Array<{
+      id: string;
+      medlemmer: Array<{
+        kanRedigere: boolean;
+        enterpriseId?: string | null;
+        projectMemberId?: string | null;
+        groupId?: string | null;
+      }>;
+    }>;
+    const flyt = rå.find((df) => df.id === op.dokumentflytId);
+    if (!flyt) return undefined;
+    // Finn brukerens matchende flytmedlem (samme logikk som utledMinRolle)
+    const fi = minFlytInfo as { userId?: string; projectMemberId: string; entrepriseIder: string[]; gruppeIder: string[] };
+    for (const m of flyt.medlemmer) {
+      if (m.projectMemberId && m.projectMemberId === fi.projectMemberId) return m.kanRedigere ? "redigerer" : "leser";
+      if (m.groupId && fi.gruppeIder.includes(m.groupId)) return m.kanRedigere ? "redigerer" : "leser";
+    }
+    return undefined;
+  }, [minFlytInfo, fullOppgaveRå, dokumentflyterRå]);
+
+  // Bygg rettighetInput for skjema-hook
+  const rettighetInput = useMemo(() => {
+    if (!minFlytInfo) return undefined;
+    return {
+      erAdmin: minFlytInfo.erAdmin,
+      minRolle,
+      tillatelser: mineTillatelser,
+      harBallen,
+      flytRettighet,
+    };
+  }, [minFlytInfo, minRolle, mineTillatelser, harBallen, flytRettighet]);
+
+  // --- Skjema-hook med rettighetsinfo ---
 
   const {
     oppgave,
@@ -182,7 +271,7 @@ export default function OppgaveDetaljSide() {
     valideringsfeil,
     erRedigerbar,
     lagreStatus,
-  } = useOppgaveSkjema(params.oppgaveId);
+  } = useOppgaveSkjema(params.oppgaveId, rettighetInput);
 
   const { andreRedaktorer } = usePresence(params.oppgaveId, "oppgave");
 
@@ -199,74 +288,33 @@ export default function OppgaveDetaljSide() {
     (oppgave?.template?.objects ?? []) as { id: string; label: string; config: Record<string, unknown> }[],
   );
 
-  // Hent full oppgavedata for tidslinje/creator (cast for TS2589)
-  const { data: fullOppgaveRå } = trpc.oppgave.hentMedId.useQuery(
-    { id: params.oppgaveId },
-    { enabled: !!params.oppgaveId },
-  );
-
-  const utils = trpc.useUtils();
-
   const endreStatusMutasjon = trpc.oppgave.endreStatus.useMutation({
     onSuccess: () => {
       utils.oppgave.hentForProsjekt.invalidate();
-      router.push(`/dashbord/${params.prosjektId}/oppgaver`);
+      utils.oppgave.hentMedId.invalidate({ id: params.oppgaveId });
     },
   });
 
-  // Hent tillatelser for å sjekke registrator-status
-  const { data: mineTillatelser } = trpc.medlem.hentMineTillatelser.useQuery(
-    { projectId: params.prosjektId },
-    { enabled: !!params.prosjektId },
-  );
-  const erRegistrator = mineTillatelser?.includes("create_checklists") || mineTillatelser?.includes("create_tasks") || false;
-
-  // Entreprise-valg for mottaker — utleder mottaker fra dokumentflyt
-  const { data: mineEntrepriser } = trpc.medlem.hentMineEntrepriser.useQuery(
-    { projectId: params.prosjektId },
-    { enabled: !!params.prosjektId },
-  );
-  const { data: alleEntrepriser } = trpc.entreprise.hentForProsjekt.useQuery(
-    { projectId: params.prosjektId },
-    { enabled: !!params.prosjektId },
-  );
-  const { data: _dokumentflyter } = trpc.dokumentflyt.hentForProsjekt.useQuery(
-    { projectId: params.prosjektId },
-    { enabled: !!params.prosjektId },
-  );
-
-  const entrepriseValg = useMemo(() => {
-    const alleEntrepriserRå = (alleEntrepriser ?? []) as Array<{ id: string; name: string; color: string | null }>;
-    const dokumentflyterRå = (_dokumentflyter ?? []) as Array<{
+  // Flytmedlemmer for FlytIndikator og DokumentHandlingsmeny
+  // Bruker dokumentflyterRå (ucastet) for å beholde steg + enterprise-objekter
+  const flytMedlemmer = useMemo(() => {
+    const op = oppgave as unknown as { dokumentflytId?: string | null };
+    if (!op?.dokumentflytId || !dokumentflyterRå) return [];
+    const rå = dokumentflyterRå as unknown as Array<{
       id: string;
-      enterpriseId: string | null;
       medlemmer: Array<{
+        id: string;
         rolle: string;
-        erHovedansvarlig: boolean;
-        projectMember?: { user: { id: string; name: string | null } } | null;
-        group?: { id: string; name: string } | null;
+        steg: number;
+        enterprise: { id: string; name: string } | null;
+        projectMember: { user: { id: string; name: string | null } } | null;
+        group: { id: string; name: string } | null;
       }>;
     }>;
-
-    return alleEntrepriserRå.map((e) => {
-      const df = dokumentflyterRå.find((d) => d.enterpriseId === e.id);
-      let mottaker: { userId?: string; groupId?: string } | undefined;
-
-      if (df) {
-        const svarere = df.medlemmer.filter((m) => m.rolle === "svarer");
-        const hovedansvarlig = svarere.find((m) => m.erHovedansvarlig);
-        const valgtSvarer = hovedansvarlig ?? svarere[0];
-
-        if (valgtSvarer?.group) {
-          mottaker = { groupId: valgtSvarer.group.id };
-        } else if (valgtSvarer?.projectMember?.user) {
-          mottaker = { userId: valgtSvarer.projectMember.user.id };
-        }
-      }
-
-      return { id: e.id, navn: e.name, farge: e.color, mottaker };
-    });
-  }, [alleEntrepriser, _dokumentflyter]);
+    const flyt = rå.find((df) => df.id === op.dokumentflytId);
+    if (!flyt) return [];
+    return flyt.medlemmer;
+  }, [oppgave, dokumentflyterRå]);
 
   const oppdaterMutasjon = trpc.oppgave.oppdater.useMutation({
     onSuccess: () => {
@@ -363,83 +411,105 @@ export default function OppgaveDetaljSide() {
 
   return (
     <div className="mx-auto max-w-3xl pb-12">
-      {/* Header */}
-      <div className="print-skjul mb-6">
-        <div className="flex items-center gap-3">
-          <h3 className="text-xl font-bold">{oppgave.title}</h3>
-          <StatusBadge status={oppgave.status} />
-          <Badge variant={PRIORITETS_VARIANT[oppgave.priority] ?? "default"}>
-            {t(`prioritet.${oppgave.priority}`, PRIORITETS_TEKST[oppgave.priority] ?? oppgave.priority)}
-          </Badge>
+      {/* Skjerm-header: sticky ved scrolling */}
+      <div className="print-skjul sticky top-0 z-10 bg-white border-b border-gray-100 -mx-6 px-4 sm:px-6 py-3 mb-3">
+        {/* Rad 1: Nummer + Tittel + Dato + Status */}
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          {oppgaveNummer && (
+            <span className="text-sm font-bold text-gray-500">{oppgaveNummer}</span>
+          )}
+          <h3 className="text-base sm:text-lg font-bold truncate max-w-[60vw] sm:max-w-none">{oppgave.title}</h3>
           <LagreIndikator status={lagreStatus} />
           {andreRedaktorer.length > 0 && (
-            <div className="flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-sm text-amber-700">
-              <Pencil className="h-3.5 w-3.5 animate-pulse" />
-              {andreRedaktorer.map((u) => u.navn).join(", ")} {t("presence.redigerer")}
+            <div className="flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-0.5 text-xs text-amber-700">
+              <Pencil className="h-3 w-3 animate-pulse" />
+              <span className="hidden sm:inline">{andreRedaktorer.map((u) => u.navn).join(", ")} {t("presence.redigerer")}</span>
+              <span className="sm:hidden">{andreRedaktorer.length}</span>
             </div>
           )}
           <div className="ml-auto flex items-center gap-2">
-            <button
-              onClick={() => window.open(`/utskrift/oppgave/${params.oppgaveId}`, "_blank")}
-              className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
-            >
-              <FileText className="h-4 w-4" />
-              {t("handling.visPdf")}
-            </button>
-            <button
-              onClick={() => window.print()}
-              className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
-            >
-              <Printer className="h-4 w-4" />
-              {t("handling.skrivUtEnkel")}
-            </button>
+            {(fullOppgaveRå as { createdAt?: string })?.createdAt && (
+              <span className="hidden sm:inline text-xs text-gray-400">
+                {new Date((fullOppgaveRå as { createdAt: string }).createdAt).toLocaleDateString("nb-NO", { day: "2-digit", month: "2-digit", year: "numeric" })}
+              </span>
+            )}
+            <StatusBadge
+              status={oppgave.status}
+              lestAvMottakerVed={(fullOppgaveRå as { lestAvMottakerVed?: string | null })?.lestAvMottakerVed}
+            />
           </div>
         </div>
-        <div className="flex items-center gap-1 text-sm text-gray-500">
-          {oppgave.template && <span>{t("tabell.mal")}: {oppgave.template.name}</span>}
-          {oppgave.status === "draft" ? (
-            <>
-              <span>&middot; {t("tabell.bestiller")}:</span>
-              <select
-                value={oppgave.bestillerEnterprise?.id ?? ""}
-                onChange={(e) => oppdaterMutasjon.mutate({ id: params.oppgaveId, bestillerEnterpriseId: e.target.value })}
-                className="rounded border border-gray-200 bg-white px-1.5 py-0.5 text-sm text-gray-700"
-              >
-                {(mineEntrepriser ?? []).map((ent: { id: string; name: string }) => (
-                  <option key={ent.id} value={ent.id}>{ent.name}</option>
-                ))}
-              </select>
-              <span>&middot; {t("tabell.utforer")}:</span>
-              <select
-                value={oppgave.utforerEnterprise?.id ?? ""}
-                onChange={(e) => oppdaterMutasjon.mutate({ id: params.oppgaveId, utforerEnterpriseId: e.target.value })}
-                className="rounded border border-gray-200 bg-white px-1.5 py-0.5 text-sm text-gray-700"
-              >
-                {(alleEntrepriser ?? []).map((ent: { id: string; name: string }) => (
-                  <option key={ent.id} value={ent.id}>{ent.name}</option>
-                ))}
-              </select>
-            </>
-          ) : (
-            <>
-              {oppgave.bestillerEnterprise && (
-                <span>&middot; {t("tabell.bestiller")}: {oppgave.bestillerEnterprise.name}</span>
-              )}
-              {oppgave.utforerEnterprise && (
-                <span>&middot; {t("tabell.utforer")}: {oppgave.utforerEnterprise.name}</span>
-              )}
-            </>
-          )}
-        </div>
-        {oppgaveNummer && (
-          <p className="mt-1 text-xs text-gray-400">{t("tabell.nr")}: {oppgaveNummer}</p>
+
+        {/* Rad 2: FlytIndikator (full bredde på mobil) */}
+        {flytMedlemmer.length > 0 && (
+          <div className="mt-2">
+            {/* Desktop: full flyt */}
+            <div className="hidden sm:block">
+              <FlytIndikator
+                medlemmer={flytMedlemmer}
+                recipientUserId={(fullOppgaveRå as { recipientUserId?: string | null })?.recipientUserId}
+                recipientGroupId={(fullOppgaveRå as { recipientGroupId?: string | null })?.recipientGroupId}
+                status={oppgave.status}
+                bestillerUserId={(fullOppgaveRå as { bestillerUserId?: string })?.bestillerUserId}
+              />
+            </div>
+            {/* Mobil: kompakt flyt med tap-for-expand */}
+            <div className="sm:hidden">
+              <FlytIndikator
+                medlemmer={flytMedlemmer}
+                recipientUserId={(fullOppgaveRå as { recipientUserId?: string | null })?.recipientUserId}
+                recipientGroupId={(fullOppgaveRå as { recipientGroupId?: string | null })?.recipientGroupId}
+                status={oppgave.status}
+                bestillerUserId={(fullOppgaveRå as { bestillerUserId?: string })?.bestillerUserId}
+                kompakt
+              />
+            </div>
+          </div>
         )}
+
+        {/* Rad 3: Handlingsknapper (full bredde på mobil) */}
+        <div className="mt-2 flex items-center gap-2">
+          <DokumentHandlingsmeny
+            status={oppgave.status}
+            erLaster={endreStatusMutasjon.isPending}
+            onEndreStatus={(nyStatus, kommentar, mottaker) => {
+              endreStatusMutasjon.mutate({
+                id: params.oppgaveId,
+                nyStatus: nyStatus as "draft" | "sent" | "received" | "in_progress" | "responded" | "approved" | "rejected" | "closed" | "cancelled",
+                senderId: oppgave.id,
+                kommentar,
+                recipientUserId: mottaker?.userId,
+                recipientGroupId: mottaker?.groupId,
+                dokumentflytId: mottaker?.dokumentflytId,
+              });
+            }}
+            alleEntrepriser={alleEntrepriser}
+            dokumentflyter={dokumentflyter}
+            templateId={(oppgave as unknown as { templateId?: string }).templateId ?? oppgave.template?.id}
+            standardEntrepriseId={oppgave.utforerEnterprise?.id}
+            minRolle={minRolle}
+            flytMedlemmer={flytMedlemmer}
+            recipientUserId={(fullOppgaveRå as { recipientUserId?: string | null })?.recipientUserId}
+            recipientGroupId={(fullOppgaveRå as { recipientGroupId?: string | null })?.recipientGroupId}
+            bestillerUserId={(fullOppgaveRå as { bestillerUserId?: string })?.bestillerUserId}
+            lestAvMottakerVed={(fullOppgaveRå as { lestAvMottakerVed?: string | null })?.lestAvMottakerVed}
+          />
+          <button
+            onClick={() => window.open(`/utskrift/oppgave/${params.oppgaveId}?print=true`, "_blank")}
+            className="ml-auto flex items-center gap-1.5 rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
+            title={t("handling.skrivUtEnkel")}
+          >
+            <Printer className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* Beskrivelse (kun hvis finnes) */}
         {oppgave.description && (
-          <p className="mt-2 text-sm text-gray-600">{oppgave.description}</p>
+          <p className="mt-2 text-sm text-gray-600 line-clamp-2 sm:line-clamp-none">{oppgave.description}</p>
         )}
 
         {/* Lokasjon */}
-        <div className="mt-3 max-w-md print-skjul">
+        <div className="mt-2 max-w-md print-skjul">
           <LokasjonVelger
             prosjektId={params.prosjektId}
             tegningId={(oppgave as unknown as { drawingId?: string | null }).drawingId}
@@ -456,29 +526,7 @@ export default function OppgaveDetaljSide() {
                 positionY: data.positionY ?? null,
               });
             }}
-            leseModus={!erRedigerbar}
-          />
-        </div>
-
-        {/* Statushandlinger */}
-        <div className="mt-3 print-skjul">
-          <StatusHandlinger
-            status={oppgave.status}
-            erLaster={endreStatusMutasjon.isPending}
-            onEndreStatus={(nyStatus, kommentar, mottaker) => {
-              endreStatusMutasjon.mutate({
-                id: params.oppgaveId,
-                nyStatus: nyStatus as "draft" | "sent" | "received" | "in_progress" | "responded" | "approved" | "rejected" | "closed" | "cancelled",
-                senderId: oppgave.id,
-                kommentar,
-                recipientUserId: mottaker?.userId,
-                recipientGroupId: mottaker?.groupId,
-              });
-            }}
-            entrepriseValg={entrepriseValg}
-            standardEntrepriseId={oppgave.utforerEnterprise?.id}
-            mineEntrepriseIder={mineEntrepriser ? (mineEntrepriser as Array<{ id: string }>).map((e) => e.id) : undefined}
-            erRegistrator={erRegistrator}
+            leseModus={["closed", "approved"].includes(oppgave.status)}
           />
         </div>
       </div>
@@ -565,6 +613,7 @@ export default function OppgaveDetaljSide() {
           opprettetDato={(fullOppgaveRå as { createdAt?: string }).createdAt ?? null}
         />
       )}
+
     </div>
   );
 }

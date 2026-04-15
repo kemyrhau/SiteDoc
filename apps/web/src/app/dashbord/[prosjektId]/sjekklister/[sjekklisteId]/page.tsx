@@ -3,7 +3,7 @@
 import { useParams, useRouter } from "next/navigation";
 import { useState, useMemo, useCallback } from "react";
 import { Spinner, StatusBadge, Card } from "@sitedoc/ui";
-import { Check, AlertCircle, Loader2, Printer, FileText, Trash2, Pencil } from "lucide-react";
+import { Check, AlertCircle, Loader2, Printer, Pencil } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useSjekklisteSkjema } from "@/hooks/useSjekklisteSkjema";
 import { useAutoVaer } from "@/hooks/useAutoVaer";
@@ -11,7 +11,10 @@ import { RapportObjektRenderer, DISPLAY_TYPER, SKJULT_I_UTFYLLING } from "@/comp
 import { FeltWrapper } from "@/components/rapportobjekter/FeltWrapper";
 import { PrintHeader } from "@/components/PrintHeader";
 import { OpprettOppgaveModal } from "@/components/OpprettOppgaveModal";
-import { StatusHandlinger } from "@/components/StatusHandlinger";
+import { DokumentHandlingsmeny } from "@/components/DokumentHandlingsmeny";
+import { FlytIndikator } from "@/components/FlytIndikator";
+import { utledMinRolle } from "@sitedoc/shared";
+import type { FlytMedlemInfo } from "@sitedoc/shared";
 import { LokasjonVelger } from "@/components/LokasjonVelger";
 import type { RapportObjekt } from "@/components/rapportobjekter/typer";
 import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
@@ -69,6 +72,107 @@ export default function SjekklisteDetaljSide() {
   const [opprettOppgaveFeltId, setOpprettOppgaveFeltId] = useState<string | null>(null);
   const [opprettOppgaveFeltLabel, setOpprettOppgaveFeltLabel] = useState("");
 
+  // --- Hent brukerinfo og prosjektdata FØR skjema-hook ---
+
+  const { data: minFlytInfo } = trpc.gruppe.hentMinFlytInfo.useQuery(
+    { projectId: params.prosjektId },
+    { enabled: !!params.prosjektId },
+  );
+
+  const { data: mineTillatelserRå } = trpc.gruppe.hentMineTillatelser.useQuery(
+    { projectId: params.prosjektId },
+    { enabled: !!params.prosjektId },
+  );
+  const mineTillatelser = useMemo(
+    () => new Set<string>(mineTillatelserRå ?? []),
+    [mineTillatelserRå],
+  );
+
+  const { data: alleEntrepriserRå } = trpc.entreprise.hentForProsjekt.useQuery(
+    { projectId: params.prosjektId },
+    { enabled: !!params.prosjektId },
+  );
+  const { data: dokumentflyterRå } = trpc.dokumentflyt.hentForProsjekt.useQuery(
+    { projectId: params.prosjektId },
+    { enabled: !!params.prosjektId },
+  );
+  const alleEntrepriser = (alleEntrepriserRå ?? []) as Array<{ id: string; name: string; color: string | null }>;
+  const dokumentflyter = (dokumentflyterRå ?? []) as unknown as import("@/components/StatusHandlinger").DokumentflytData[];
+
+  // Hent full sjekklistedata for tidslinje/recipient/creator
+  const { data: fullSjekklisteRå } = trpc.sjekkliste.hentMedId.useQuery(
+    { id: params.sjekklisteId },
+    { enabled: !!params.sjekklisteId },
+  );
+
+  // harBallen
+  const harBallen = useMemo(() => {
+    if (!fullSjekklisteRå || !minFlytInfo) return false;
+    const fs = fullSjekklisteRå as { status?: string; recipientUserId?: string | null; recipientGroupId?: string | null; bestillerUserId?: string };
+    if (fs.status === "draft") return fs.bestillerUserId === (minFlytInfo as { userId?: string }).userId;
+    if (fs.recipientUserId && fs.recipientUserId === (minFlytInfo as { userId?: string }).userId) return true;
+    if (fs.recipientGroupId && minFlytInfo.gruppeIder.includes(fs.recipientGroupId)) return true;
+    return false;
+  }, [fullSjekklisteRå, minFlytInfo]);
+
+  // Utled brukerens rolle i dokumentflyten
+  const minRolle = useMemo(() => {
+    if (!minFlytInfo || !fullSjekklisteRå) return undefined;
+    const sj = fullSjekklisteRå as unknown as { dokumentflytId?: string | null; bestillerEnterprise?: { id: string }; utforerEnterprise?: { id: string } };
+    if (!sj.dokumentflytId) return undefined;
+    const flyt = dokumentflyter.find((df) => df.id === sj.dokumentflytId);
+    if (!flyt) return null;
+    const medlemmer = flyt.medlemmer.map((m): FlytMedlemInfo => ({
+      rolle: m.rolle,
+      enterpriseId: m.enterpriseId ?? null,
+      projectMemberId: m.projectMemberId ?? null,
+      groupId: m.groupId ?? null,
+    }));
+    return utledMinRolle(
+      { ...minFlytInfo, userId: "", erAdmin: minFlytInfo.erAdmin },
+      medlemmer,
+      { bestillerEnterpriseId: sj.bestillerEnterprise?.id ?? "", utforerEnterpriseId: sj.utforerEnterprise?.id ?? "" },
+    );
+  }, [minFlytInfo, fullSjekklisteRå, dokumentflyter]);
+
+  // Bygg rettighetInput for skjema-hook
+  // Utled flytRettighet fra DokumentflytMedlem.kanRedigere
+  const flytRettighet = useMemo((): "redigerer" | "leser" | undefined => {
+    if (!minFlytInfo || !fullSjekklisteRå || !dokumentflyterRå) return undefined;
+    const sj = fullSjekklisteRå as unknown as { dokumentflytId?: string | null };
+    if (!sj.dokumentflytId) return undefined;
+    const rå = dokumentflyterRå as unknown as Array<{
+      id: string;
+      medlemmer: Array<{
+        kanRedigere: boolean;
+        enterpriseId?: string | null;
+        projectMemberId?: string | null;
+        groupId?: string | null;
+      }>;
+    }>;
+    const flyt = rå.find((df) => df.id === sj.dokumentflytId);
+    if (!flyt) return undefined;
+    const fi = minFlytInfo as { projectMemberId: string; gruppeIder: string[] };
+    for (const m of flyt.medlemmer) {
+      if (m.projectMemberId && m.projectMemberId === fi.projectMemberId) return m.kanRedigere ? "redigerer" : "leser";
+      if (m.groupId && fi.gruppeIder.includes(m.groupId)) return m.kanRedigere ? "redigerer" : "leser";
+    }
+    return undefined;
+  }, [minFlytInfo, fullSjekklisteRå, dokumentflyterRå]);
+
+  const rettighetInput = useMemo(() => {
+    if (!minFlytInfo) return undefined;
+    return {
+      erAdmin: minFlytInfo.erAdmin,
+      minRolle,
+      tillatelser: mineTillatelser,
+      harBallen,
+      flytRettighet,
+    };
+  }, [minFlytInfo, minRolle, mineTillatelser, harBallen, flytRettighet]);
+
+  // --- Skjema-hook med rettighetsinfo ---
+
   const {
     sjekkliste,
     erLaster,
@@ -81,7 +185,7 @@ export default function SjekklisteDetaljSide() {
     valideringsfeil,
     erRedigerbar,
     lagreStatus,
-  } = useSjekklisteSkjema(params.sjekklisteId);
+  } = useSjekklisteSkjema(params.sjekklisteId, rettighetInput);
 
   const { standardTegning } = useByggeplass();
   const { andreRedaktorer } = usePresence(params.sjekklisteId, "sjekkliste");
@@ -102,66 +206,29 @@ export default function SjekklisteDetaljSide() {
   const endreStatusMutasjon = trpc.sjekkliste.endreStatus.useMutation({
     onSuccess: () => {
       utils.sjekkliste.hentForProsjekt.invalidate();
-      router.push(`/dashbord/${params.prosjektId}/sjekklister`);
+      utils.sjekkliste.hentMedId.invalidate({ id: params.sjekklisteId });
     },
   });
 
-  // Hent tillatelser for å sjekke registrator-status
-  const { data: mineTillatelser } = trpc.medlem.hentMineTillatelser.useQuery(
-    { projectId: params.prosjektId },
-    { enabled: !!params.prosjektId },
-  );
-  const erRegistrator = mineTillatelser?.includes("create_checklists") || mineTillatelser?.includes("create_tasks") || false;
-
-  // Hent entrepriser og dokumentflyter
-  const { data: mineEntrepriser } = trpc.medlem.hentMineEntrepriser.useQuery(
-    { projectId: params.prosjektId },
-    { enabled: !!params.prosjektId },
-  );
-  const { data: alleEntrepriser } = trpc.entreprise.hentForProsjekt.useQuery(
-    { projectId: params.prosjektId },
-    { enabled: !!params.prosjektId },
-  );
-  const { data: _dokumentflyter } = trpc.dokumentflyt.hentForProsjekt.useQuery(
-    { projectId: params.prosjektId },
-    { enabled: !!params.prosjektId },
-  );
-
-  // Entreprise-valg for mottaker — utleder mottaker fra dokumentflyt
-  const entrepriseValg = useMemo(() => {
-    const alleEntrepriserRå = (alleEntrepriser ?? []) as Array<{ id: string; name: string; color: string | null }>;
-    const dokumentflyterRå = (_dokumentflyter ?? []) as Array<{
+  // Flytmedlemmer for FlytIndikator og DokumentHandlingsmeny
+  const flytMedlemmer = useMemo(() => {
+    const sj = sjekkliste as unknown as { dokumentflytId?: string | null };
+    if (!sj?.dokumentflytId || !dokumentflyterRå) return [];
+    const rå = dokumentflyterRå as unknown as Array<{
       id: string;
-      enterpriseId: string | null;
       medlemmer: Array<{
+        id: string;
         rolle: string;
-        erHovedansvarlig: boolean;
-        projectMember?: { user: { id: string; name: string | null } } | null;
-        group?: { id: string; name: string } | null;
+        steg: number;
+        enterprise: { id: string; name: string } | null;
+        projectMember: { user: { id: string; name: string | null } } | null;
+        group: { id: string; name: string } | null;
       }>;
     }>;
-
-    return alleEntrepriserRå.map((e) => {
-      // Finn dokumentflyt for denne entreprisen
-      const df = dokumentflyterRå.find((d) => d.enterpriseId === e.id);
-      let mottaker: { userId?: string; groupId?: string } | undefined;
-
-      if (df) {
-        // Finn hovedansvarlig svarer, eller første svarer
-        const svarere = df.medlemmer.filter((m) => m.rolle === "svarer");
-        const hovedansvarlig = svarere.find((m) => m.erHovedansvarlig);
-        const valgtSvarer = hovedansvarlig ?? svarere[0];
-
-        if (valgtSvarer?.group) {
-          mottaker = { groupId: valgtSvarer.group.id };
-        } else if (valgtSvarer?.projectMember?.user) {
-          mottaker = { userId: valgtSvarer.projectMember.user.id };
-        }
-      }
-
-      return { id: e.id, navn: e.name, farge: e.color, mottaker };
-    });
-  }, [alleEntrepriser, _dokumentflyter]);
+    const flyt = rå.find((df) => df.id === sj.dokumentflytId);
+    if (!flyt) return [];
+    return flyt.medlemmer;
+  }, [sjekkliste, dokumentflyterRå]);
 
   // Hent prosjektdata for print-header
   const { data: prosjekt } = trpc.prosjekt.hentMedId.useQuery(
@@ -169,14 +236,15 @@ export default function SjekklisteDetaljSide() {
     { enabled: !!params.prosjektId },
   );
 
-  // Hent full sjekklistedata for nummer/oppretter-bruker (cast for TS2589)
-  const { data: fullSjekklisteRå } = trpc.sjekkliste.hentMedId.useQuery(
-    { id: params.sjekklisteId },
-    { enabled: !!params.sjekklisteId },
-  );
+  // fullSjekklisteRå hentet ovenfor — cast for typesikkerhet
   const fullSjekkliste = fullSjekklisteRå as {
     number?: number | null;
     bestiller?: { name?: string | null };
+    bestillerUserId?: string;
+    recipientUserId?: string | null;
+    recipientGroupId?: string | null;
+    createdAt?: string;
+    lestAvMottakerVed?: string | null;
     byggeplass?: { id: string; name: string } | null;
     drawing?: { id: string; name: string; drawingNumber: string | null } | null;
   } | undefined;
@@ -356,110 +424,63 @@ export default function SjekklisteDetaljSide() {
         visInterntNummer={(prosjekt as { showInternalProjectNumber?: boolean } | undefined)?.showInternalProjectNumber !== false}
       />
 
-      {/* Skjerm-header: synlig på skjerm, skjult ved print */}
-      <div className="print-skjul mb-6">
-        <div className="flex items-center gap-3">
-          <h3 className="text-xl font-bold">{sjekkliste.title}</h3>
-          <StatusBadge status={sjekkliste.status} />
+      {/* Skjerm-header: sticky ved scrolling */}
+      <div className="print-skjul sticky top-0 z-10 bg-white border-b border-gray-100 -mx-6 px-4 sm:px-6 py-3 mb-3">
+        {/* Rad 1: Nummer + Tittel + Dato + Status */}
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          {sjekklisteNummer && (
+            <span className="text-sm font-bold text-gray-500">{sjekklisteNummer}</span>
+          )}
+          <h3 className="text-base sm:text-lg font-bold truncate max-w-[60vw] sm:max-w-none">{sjekkliste.title}</h3>
           <LagreIndikator status={lagreStatus} />
           {andreRedaktorer.length > 0 && (
-            <div className="flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-sm text-amber-700">
-              <Pencil className="h-3.5 w-3.5 animate-pulse" />
-              {andreRedaktorer.map((u) => u.navn).join(", ")} redigerer
+            <div className="flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-0.5 text-xs text-amber-700">
+              <Pencil className="h-3 w-3 animate-pulse" />
+              <span className="hidden sm:inline">{andreRedaktorer.map((u) => u.navn).join(", ")} redigerer</span>
+              <span className="sm:hidden">{andreRedaktorer.length}</span>
             </div>
           )}
           <div className="ml-auto flex items-center gap-2">
-            <button
-              onClick={() => window.open(`/utskrift/sjekkliste/${params.sjekklisteId}`, "_blank")}
-              className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
-            >
-              <FileText className="h-4 w-4" />
-              Vis PDF
-            </button>
-            <button
-              onClick={() => window.print()}
-              className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
-            >
-              <Printer className="h-4 w-4" />
-              Skriv ut
-            </button>
-            {sjekkliste.status === "draft" && (
-              <button
-                onClick={() => {
-                  if (confirm("Er du sikker på at du vil slette denne sjekklisten? Dette kan ikke angres.")) {
-                    slettMutasjon.mutate({ id: params.sjekklisteId });
-                  }
-                }}
-                disabled={slettMutasjon.isPending}
-                className="flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 disabled:opacity-50"
-              >
-                <Trash2 className="h-4 w-4" />
-                {slettMutasjon.isPending ? "Sletter..." : "Slett"}
-              </button>
+            {fullSjekkliste?.createdAt && (
+              <span className="hidden sm:inline text-xs text-gray-400">
+                {new Date(fullSjekkliste.createdAt).toLocaleDateString("nb-NO", { day: "2-digit", month: "2-digit", year: "numeric" })}
+              </span>
             )}
+            <StatusBadge
+              status={sjekkliste.status}
+              lestAvMottakerVed={fullSjekkliste?.lestAvMottakerVed}
+            />
           </div>
         </div>
-        <div className="flex items-center gap-1 text-sm text-gray-500">
-          <span>Mal: {sjekkliste.template.name}</span>
-          {sjekkliste.status === "draft" ? (
-            <>
-              <span>&middot; Bestiller:</span>
-              <select
-                value={sjekkliste.bestillerEnterprise?.id ?? ""}
-                onChange={(e) => oppdaterMutasjon.mutate({ id: params.sjekklisteId, bestillerEnterpriseId: e.target.value })}
-                className="rounded border border-gray-200 bg-white px-1.5 py-0.5 text-sm text-gray-700"
-              >
-                {(mineEntrepriser ?? []).map((ent: { id: string; name: string }) => (
-                  <option key={ent.id} value={ent.id}>{ent.name}</option>
-                ))}
-              </select>
-              <span>&middot; Utfører:</span>
-              <select
-                value={sjekkliste.utforerEnterprise?.id ?? ""}
-                onChange={(e) => oppdaterMutasjon.mutate({ id: params.sjekklisteId, utforerEnterpriseId: e.target.value })}
-                className="rounded border border-gray-200 bg-white px-1.5 py-0.5 text-sm text-gray-700"
-              >
-                {(alleEntrepriser ?? []).map((ent: { id: string; name: string }) => (
-                  <option key={ent.id} value={ent.id}>{ent.name}</option>
-                ))}
-              </select>
-            </>
-          ) : (
-            <>
-              {sjekkliste.bestillerEnterprise && (
-                <span>&middot; Bestiller: {sjekkliste.bestillerEnterprise.name}</span>
-              )}
-              {sjekkliste.utforerEnterprise && (
-                <span>&middot; Utfører: {sjekkliste.utforerEnterprise.name}</span>
-              )}
-            </>
-          )}
-        </div>
-        {sjekklisteNummer && (
-          <p className="mt-1 text-xs text-gray-400">Nr: {sjekklisteNummer}</p>
+
+        {/* Rad 2: FlytIndikator (full bredde på mobil) */}
+        {flytMedlemmer.length > 0 && (
+          <div className="mt-2">
+            <div className="hidden sm:block">
+              <FlytIndikator
+                medlemmer={flytMedlemmer}
+                recipientUserId={fullSjekkliste?.recipientUserId}
+                recipientGroupId={fullSjekkliste?.recipientGroupId}
+                status={sjekkliste.status}
+                bestillerUserId={fullSjekkliste?.bestillerUserId}
+              />
+            </div>
+            <div className="sm:hidden">
+              <FlytIndikator
+                medlemmer={flytMedlemmer}
+                recipientUserId={fullSjekkliste?.recipientUserId}
+                recipientGroupId={fullSjekkliste?.recipientGroupId}
+                status={sjekkliste.status}
+                bestillerUserId={fullSjekkliste?.bestillerUserId}
+                kompakt
+              />
+            </div>
+          </div>
         )}
 
-        {/* Lokasjon */}
-        <div className="mt-3 max-w-md print-skjul">
-          <LokasjonVelger
-            prosjektId={params.prosjektId}
-            tegningId={(sjekkliste as unknown as { drawingId?: string | null }).drawingId}
-            tegningNavn={(sjekkliste as unknown as { drawing?: { name?: string } | null }).drawing?.name}
-            bygningNavn={(sjekkliste as unknown as { byggeplass?: { name?: string } | null }).byggeplass?.name}
-            onLagre={(data) => {
-              oppdaterMutasjon.mutate({
-                id: params.sjekklisteId,
-                drawingId: data.drawingId,
-                byggeplassId: data.byggeplassId ?? undefined,
-              });
-            }}
-            leseModus={!erRedigerbar}
-          />
-        </div>
-
-        {/* Statushandlinger */}
-        <div className="mt-3 print-skjul">
-          <StatusHandlinger
+        {/* Rad 3: Handlingsknapper (full bredde på mobil) */}
+        <div className="mt-2 flex items-center gap-2">
+          <DokumentHandlingsmeny
             status={sjekkliste.status}
             erLaster={endreStatusMutasjon.isPending || slettMutasjon.isPending}
             onEndreStatus={(nyStatus, kommentar, mottaker) => {
@@ -470,13 +491,50 @@ export default function SjekklisteDetaljSide() {
                 kommentar,
                 recipientUserId: mottaker?.userId,
                 recipientGroupId: mottaker?.groupId,
+                dokumentflytId: mottaker?.dokumentflytId,
               });
             }}
             onSlett={() => slettMutasjon.mutate({ id: params.sjekklisteId })}
-            entrepriseValg={entrepriseValg}
+            alleEntrepriser={alleEntrepriser}
+            dokumentflyter={dokumentflyter}
+            templateId={sjekkliste.template?.id ?? (sjekkliste as unknown as { templateId?: string }).templateId}
             standardEntrepriseId={sjekkliste.utforerEnterprise?.id}
-            mineEntrepriseIder={mineEntrepriser ? (mineEntrepriser as Array<{ id: string }>).map((e) => e.id) : undefined}
-            erRegistrator={erRegistrator}
+            minRolle={minRolle}
+            flytMedlemmer={flytMedlemmer}
+            recipientUserId={fullSjekkliste?.recipientUserId}
+            recipientGroupId={fullSjekkliste?.recipientGroupId}
+            bestillerUserId={fullSjekkliste?.bestillerUserId}
+            lestAvMottakerVed={fullSjekkliste?.lestAvMottakerVed}
+          />
+          <button
+            onClick={() => window.open(`/utskrift/sjekkliste/${params.sjekklisteId}?print=true`, "_blank")}
+            className="ml-auto flex items-center gap-1.5 rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
+            title="Skriv ut"
+          >
+            <Printer className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* Lokasjon */}
+        <div className="mt-2 max-w-md print-skjul">
+          <LokasjonVelger
+            prosjektId={params.prosjektId}
+            tegningId={(sjekkliste as unknown as { drawingId?: string | null }).drawingId}
+            tegningNavn={(sjekkliste as unknown as { drawing?: { name?: string } | null }).drawing?.name}
+            bygningNavn={(sjekkliste as unknown as { byggeplass?: { name?: string } | null }).byggeplass?.name}
+            positionX={(sjekkliste as unknown as { positionX?: number | null }).positionX}
+            positionY={(sjekkliste as unknown as { positionY?: number | null }).positionY}
+            visPosisjon
+            onLagre={(data) => {
+              oppdaterMutasjon.mutate({
+                id: params.sjekklisteId,
+                drawingId: data.drawingId,
+                byggeplassId: data.byggeplassId ?? undefined,
+                positionX: data.positionX ?? null,
+                positionY: data.positionY ?? null,
+              });
+            }}
+            leseModus={["closed", "approved"].includes(sjekkliste.status)}
           />
         </div>
       </div>
@@ -592,6 +650,7 @@ export default function SjekklisteDetaljSide() {
         sjekklisteNummer={sjekklisteNummer}
         feltLabel={opprettOppgaveFeltLabel}
       />
+
     </div>
   );
 }

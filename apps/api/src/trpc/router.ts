@@ -24,6 +24,8 @@ import { kontraktRouter } from "../routes/kontrakt";
 import { aiSokRouter } from "../routes/aiSok";
 import { brukerRouter } from "../routes/bruker";
 import { psiRouter } from "../routes/psi";
+import { bibliotekRouter } from "../routes/bibliotek";
+
 
 export const appRouter = router({
   prosjekt: prosjektRouter,
@@ -51,6 +53,8 @@ export const appRouter = router({
   aiSok: aiSokRouter,
   bruker: brukerRouter,
   psi: psiRouter,
+  bibliotek: bibliotekRouter,
+
 });
 
 export type AppRouter = typeof appRouter;

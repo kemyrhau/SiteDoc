@@ -1,3 +1,6 @@
+export { utledMinRolle, utledDokumentRettighet } from "./flytRolle";
+export type { FlytBrukerInfo, FlytMedlemInfo, DokumentKontekst, DokumentRettighet, DokumentRettighetInput } from "./flytRolle";
+export { hentRolleFiltrertHandlinger, erTillattForRolle } from "./statusHandlinger";
 export { vaerkodeTilTekst } from "./vaer";
 export { beregnSynligeMapper } from "./mappeTilgang";
 export type { MappeTilgangInput, BrukerTilgangInfo, SynligeMapperResultat } from "./mappeTilgang";
@@ -31,8 +34,8 @@ export function isValidStatusTransition(
   const validTransitions: Record<string, string[]> = {
     draft: ["sent", "cancelled"],
     sent: ["received", "cancelled"],
-    received: ["in_progress", "cancelled"],
-    in_progress: ["responded", "cancelled"],
+    received: ["in_progress", "responded", "cancelled"],
+    in_progress: ["responded", "sent", "cancelled"],
     responded: ["approved", "rejected"],
     approved: ["closed"],
     rejected: ["in_progress", "closed"],

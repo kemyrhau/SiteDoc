@@ -36,6 +36,24 @@ async function erSiteDocAdmin(userId: string): Promise<boolean> {
 }
 
 export const organisasjonRouter = router({
+  // Hent alle organisasjoner (for firma-dropdown i admin)
+  hentAlle: protectedProcedure.query(async ({ ctx }) => {
+    return ctx.prisma.organization.findMany({
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    });
+  }),
+
+  // Opprett ny organisasjon
+  opprett: protectedProcedure
+    .input(z.object({ name: z.string().min(1).max(255) }))
+    .mutation(async ({ ctx, input }) => {
+      return ctx.prisma.organization.create({
+        data: { name: input.name },
+        select: { id: true, name: true },
+      });
+    }),
+
   // Hent innlogget brukers organisasjon (null hvis ingen)
   hentMin: protectedProcedure.query(async ({ ctx }) => {
     const bruker = await ctx.prisma.user.findUniqueOrThrow({
@@ -85,7 +103,7 @@ export const organisasjonRouter = router({
         project: {
           include: {
             members: { select: { id: true } },
-            enterprises: { select: { id: true } },
+            dokumentflytParts: { select: { id: true } },
           },
         },
       },
@@ -98,7 +116,7 @@ export const organisasjonRouter = router({
       name: op.project.name,
       status: op.project.status,
       antallMedlemmer: op.project.members.length,
-      antallEntrepriser: op.project.enterprises.length,
+      antallEntrepriser: op.project.dokumentflytParts.length,
       createdAt: op.project.createdAt,
     }));
   }),
@@ -188,6 +206,76 @@ export const organisasjonRouter = router({
             projectId: input.projectId,
           },
         },
+      });
+    }),
+
+  // Hent integrasjonsstatus for organisasjonen (kun firmaadmin)
+  hentIntegrasjonerStatus: protectedProcedure.query(async ({ ctx }) => {
+    const orgId = await verifiserFirmaAdmin(ctx.prisma, ctx.userId);
+
+    const integrasjoner = await ctx.prisma.organizationIntegration.findMany({
+      where: { organizationId: orgId },
+      select: {
+        type: true,
+        aktiv: true,
+        url: true,
+        createdAt: true,
+      },
+    });
+
+    return integrasjoner.map((i) => ({
+      type: i.type,
+      aktiv: i.aktiv,
+      url: i.url,
+      harNøkkel: true, // Hvis raden finnes, har den en nøkkel — aldri send apiKey til klient
+      createdAt: i.createdAt,
+    }));
+  }),
+
+  // Endre rolle for en bruker i organisasjonen (kun firmaadmin)
+  endreRolle: protectedProcedure
+    .input(
+      z.object({
+        userId: z.string(),
+        rolle: z.enum(["user", "company_admin"]),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const orgId = await verifiserFirmaAdmin(ctx.prisma, ctx.userId);
+
+      // Verifiser at målbrukeren tilhører samme organisasjon
+      const målbruker = await ctx.prisma.user.findUnique({
+        where: { id: input.userId },
+        select: { organizationId: true, role: true },
+      });
+
+      if (!målbruker || målbruker.organizationId !== orgId) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Brukeren tilhører ikke din organisasjon",
+        });
+      }
+
+      // Kan ikke endre sitedoc_admin
+      if (målbruker.role === "sitedoc_admin") {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Kan ikke endre rolle for systemadministrator",
+        });
+      }
+
+      // Kan ikke degradere seg selv
+      if (input.userId === ctx.userId && input.rolle !== "company_admin") {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Du kan ikke fjerne din egen admin-rolle",
+        });
+      }
+
+      return ctx.prisma.user.update({
+        where: { id: input.userId },
+        data: { role: input.rolle },
+        select: { id: true, role: true },
       });
     }),
 });

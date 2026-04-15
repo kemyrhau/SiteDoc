@@ -84,7 +84,7 @@ export function OpprettOppgaveModal({
 
   // Filtrer maler (samme logikk som tegninger-siden)
   const filtrerMaler = useMemo(() => {
-    if (!valgtBestiller) return [];
+    if (!valgtBestiller && !alleMaler) return [];
     const alleMalerTypet = (alleMaler ?? []) as Array<{
       id: string;
       name: string;
@@ -142,18 +142,30 @@ export function OpprettOppgaveModal({
     },
   });
 
+  // Sjekk om valgt mal er HMS
+  const erHms = useMemo(() => {
+    if (!valgtMal || !alleMaler) return false;
+    const mal = (alleMaler as Array<{ id: string; domain: string | null }>).find((m) => m.id === valgtMal);
+    return mal?.domain === "hms";
+  }, [valgtMal, alleMaler]);
+
   function handleOpprett(e: React.FormEvent) {
     e.preventDefault();
-    if (!valgtMal || !valgtBestiller) return;
+    if (!valgtMal) return;
+    if (!erHms && !valgtBestiller) return;
 
     opprettMutation.mutate({
       templateId: valgtMal,
-      bestillerEnterpriseId: valgtBestiller,
-      utforerEnterpriseId: utledetUtforer,
+      ...(erHms
+        ? {}
+        : {
+            bestillerEnterpriseId: valgtBestiller,
+            utforerEnterpriseId: utledetUtforer,
+          }),
       title: tittel,
       checklistId: sjekklisteId,
       checklistFieldId: sjekklisteFeltId,
-      dokumentflytId: matchendeArbeidsforlop?.id,
+      dokumentflytId: erHms ? undefined : matchendeArbeidsforlop?.id,
     });
   }
 
@@ -165,16 +177,18 @@ export function OpprettOppgaveModal({
   return (
     <Modal open={open} onClose={onClose} title="Opprett oppgave fra felt">
       <form onSubmit={handleOpprett} className="flex flex-col gap-4">
-        <Select
-          label="Bestiller-entreprise"
-          value={valgtBestiller}
-          onChange={(e) => {
-            setValgtOppretter(e.target.value);
-            setValgtMal("");
-          }}
-          options={bestillerAlternativer}
-          placeholder="Velg entreprise"
-        />
+        {!erHms && (
+          <Select
+            label="Bestiller-entreprise"
+            value={valgtBestiller}
+            onChange={(e) => {
+              setValgtOppretter(e.target.value);
+              setValgtMal("");
+            }}
+            options={bestillerAlternativer}
+            placeholder="Velg entreprise"
+          />
+        )}
 
         <Select
           label="Oppgavemal"
@@ -190,7 +204,7 @@ export function OpprettOppgaveModal({
 
         <Button
           type="submit"
-          disabled={!valgtMal || !valgtBestiller}
+          disabled={!valgtMal || (!erHms && !valgtBestiller)}
           loading={opprettMutation.isPending}
         >
           Opprett oppgave

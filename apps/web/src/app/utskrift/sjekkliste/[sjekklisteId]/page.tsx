@@ -1,13 +1,14 @@
 "use client";
 
-import { useParams } from "next/navigation";
-import { useMemo } from "react";
+import { useParams, useSearchParams } from "next/navigation";
+import { useMemo, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { Spinner } from "@sitedoc/ui";
 import { Printer, ExternalLink } from "lucide-react";
-import { RapportObjektVisning } from "@/components/RapportObjektVisning";
+import { RapportObjektVisning, TegningPosisjonPrint } from "@/components/RapportObjektVisning";
 import { byggObjektTre } from "@sitedoc/shared/types";
-import type { Vedlegg } from "@/components/rapportobjekter/typer";
+import { fullBildeUrl, formaterNummer } from "@sitedoc/pdf";
+import type { Vedlegg, RapportObjekt } from "@sitedoc/pdf";
 
 /* ------------------------------------------------------------------ */
 /*  Typer                                                              */
@@ -21,33 +22,14 @@ interface SjekklisteData {
   };
 }
 
-interface RapportObjektRå {
-  id: string;
-  type: string;
-  label: string;
-  required: boolean;
-  sortOrder: number;
-  config: Record<string, unknown>;
-  parentId: string | null;
-}
-
-interface TreNode extends RapportObjektRå {
+interface TreNode extends RapportObjekt {
   children: TreNode[];
 }
 
-/* ------------------------------------------------------------------ */
-/*  Logo-URL-hjelper                                                   */
-/* ------------------------------------------------------------------ */
-
-function logoSrc(url: string): string {
-  if (url.startsWith("/uploads/")) return `/api/uploads${url.replace("/uploads", "")}`;
-  return url;
-}
-
+/** Web bilde-URL: håndterer blob: i tillegg til fullBildeUrl */
 function vedleggSrc(url: string): string {
-  if (url.startsWith("http") || url.startsWith("data:") || url.startsWith("blob:")) return url;
-  if (url.startsWith("/uploads/")) return `/api/uploads${url.replace("/uploads", "")}`;
-  return url;
+  if (url.startsWith("blob:")) return url;
+  return fullBildeUrl(url, "/api");
 }
 
 /* ------------------------------------------------------------------ */
@@ -56,6 +38,8 @@ function vedleggSrc(url: string): string {
 
 export default function UtskriftSjekklisteSide() {
   const params = useParams<{ sjekklisteId: string }>();
+  const søk = useSearchParams();
+  const autoPrint = søk.get("print") === "true";
 
   const { data: sjekklisteRå, isLoading } = trpc.sjekkliste.hentMedId.useQuery(
     { id: params.sjekklisteId },
@@ -68,22 +52,27 @@ export default function UtskriftSjekklisteSide() {
     status: string;
     number?: number | null;
     data?: unknown;
-    projectId: string;
     template: {
       name: string;
       prefix?: string | null;
-      objects: RapportObjektRå[];
+      projectId: string;
+      objects: RapportObjekt[];
     };
     bestillerEnterprise?: { name: string } | null;
     utforerEnterprise?: { name: string } | null;
     bestiller?: { name?: string | null } | null;
     byggeplass?: { id: string; name: string } | null;
+    drawingId?: string | null;
+    positionX?: number | null;
+    positionY?: number | null;
     drawing?: { id: string; name: string; drawingNumber: string | null } | null;
+    createdAt?: string;
   } | undefined;
 
-  const { data: prosjekt } = trpc.prosjekt.hentMedId.useQuery(
-    { id: sjekkliste?.projectId ?? "" },
-    { enabled: !!sjekkliste?.projectId },
+  const prosjektId = sjekkliste?.template?.projectId;
+  const { data: prosjekt, isLoading: prosjektLaster } = trpc.prosjekt.hentMedId.useQuery(
+    { id: prosjektId ?? "" },
+    { enabled: !!prosjektId },
   );
 
   const data = (sjekkliste?.data ?? {}) as SjekklisteData;
@@ -93,14 +82,10 @@ export default function UtskriftSjekklisteSide() {
     return byggObjektTre(objekter) as TreNode[];
   }, [sjekkliste?.template?.objects]);
 
-  // Sjekkliste-nummer med prefiks
-  const sjekklisteNummer = useMemo(() => {
-    const nummer = sjekkliste?.number;
-    const prefix = sjekkliste?.template?.prefix;
-    if (nummer == null) return null;
-    const nummerPad = String(nummer).padStart(3, "0");
-    return prefix ? `${prefix}-${nummerPad}` : nummerPad;
-  }, [sjekkliste?.number, sjekkliste?.template?.prefix]);
+  const sjekklisteNummer = useMemo(
+    () => formaterNummer(sjekkliste?.number, sjekkliste?.template?.prefix),
+    [sjekkliste?.number, sjekkliste?.template?.prefix],
+  );
 
   // Vær-tekst
   const vaerTekst = useMemo(() => {
@@ -121,13 +106,24 @@ export default function UtskriftSjekklisteSide() {
     return deler.length > 0 ? deler.join(", ") : null;
   }, [sjekkliste?.template?.objects, data]);
 
-  const dato = new Date().toLocaleDateString("nb-NO", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
+  const dato = sjekkliste?.createdAt
+    ? new Date(sjekkliste.createdAt).toLocaleDateString("nb-NO", { day: "2-digit", month: "2-digit", year: "numeric" })
+    : new Date().toLocaleDateString("nb-NO", { day: "2-digit", month: "2-digit", year: "numeric" });
+  const klokkeslett = sjekkliste?.createdAt
+    ? new Date(sjekkliste.createdAt).toLocaleTimeString("nb-NO", { hour: "2-digit", minute: "2-digit" })
+    : "";
 
-  if (isLoading) {
+  // Auto-print når ?print=true og alt er lastet, lukk fanen etterpå
+  useEffect(() => {
+    if (autoPrint && !isLoading && !prosjektLaster && sjekkliste) {
+      const lukk = () => window.close();
+      window.addEventListener("afterprint", lukk);
+      const timer = setTimeout(() => window.print(), 500);
+      return () => { clearTimeout(timer); window.removeEventListener("afterprint", lukk); };
+    }
+  }, [autoPrint, isLoading, prosjektLaster, sjekkliste]);
+
+  if (isLoading || prosjektLaster) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Spinner size="lg" />
@@ -143,126 +139,150 @@ export default function UtskriftSjekklisteSide() {
     );
   }
 
-  return (
-    <div className="min-h-screen bg-gray-100 pb-16">
-      {/* Flytende verktøylinje */}
-      <div className="print-skjul sticky top-0 z-10 border-b border-gray-200 bg-white px-4 py-3 shadow-sm">
-        <div className="mx-auto flex max-w-4xl items-center gap-3">
-          <h1 className="mr-auto text-sm font-medium text-gray-700">
-            Forhåndsvisning — {sjekkliste.title}
-          </h1>
-          <button
-            onClick={() => window.print()}
-            className="flex items-center gap-1.5 rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800"
-          >
-            <Printer className="h-4 w-4" />
-            Skriv ut / Lagre PDF
-          </button>
-          {sjekkliste.projectId && (
-            <a
-              href={`/dashbord/${sjekkliste.projectId}/sjekklister/${sjekkliste.id}`}
-              className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-600 hover:bg-gray-50"
-            >
-              <ExternalLink className="h-4 w-4" />
-              Åpne sjekkliste
-            </a>
+  // Bygg header-innhold basert på utskriftsinnstillinger
+  const ui = (prosjekt as unknown as { utskriftsinnstillinger?: Record<string, boolean> | null })?.utskriftsinnstillinger;
+  const vis = (felt: string) => ui?.[felt] ?? true;
+  const prosjektnummer = vis("eksternProsjektnummer") && prosjekt?.externalProjectNumber
+    ? prosjekt.externalProjectNumber
+    : (prosjekt as { showInternalProjectNumber?: boolean } | undefined)?.showInternalProjectNumber !== false
+      ? prosjekt?.projectNumber
+      : null;
+  const lokTegn: string[] = [];
+  if (vis("lokasjon") && sjekkliste.byggeplass?.name) lokTegn.push(sjekkliste.byggeplass.name);
+  if (vis("tegningsnummer") && sjekkliste.drawing) {
+    lokTegn.push(sjekkliste.drawing.drawingNumber
+      ? `${sjekkliste.drawing.drawingNumber} ${sjekkliste.drawing.name}`
+      : sjekkliste.drawing.name);
+  }
+  const logoUrl = vis("logo") && prosjekt?.logoUrl ? fullBildeUrl(prosjekt.logoUrl, "/api") : null;
+
+  const headerInnhold = (
+    <div className="border border-gray-300 mb-4">
+      <div className="flex items-start justify-between border-b border-gray-300 px-4 py-2">
+        <div className="flex items-start gap-4">
+          {logoUrl && <img src={logoUrl} alt="Firmalogo" className="h-[50px] w-auto shrink-0 object-contain" />}
+          <div>
+            {(prosjektnummer || vis("prosjektnavn")) && (
+              <p className="text-base font-bold text-gray-900">
+                {prosjektnummer}{prosjektnummer && vis("prosjektnavn") && " · "}{vis("prosjektnavn") && (prosjekt?.name ?? "")}
+              </p>
+            )}
+            {lokTegn.length > 0 && <p className="text-xs text-gray-500">{lokTegn.join(" · ")}</p>}
+          </div>
+        </div>
+        <p className="whitespace-nowrap text-xs text-gray-600">{dato}{klokkeslett && ` ${klokkeslett}`}</p>
+      </div>
+      <div className="flex items-center justify-between border-b border-gray-300 px-4 py-2">
+        <div>
+          <p className="text-sm font-semibold text-gray-900">{sjekkliste.title}</p>
+          {vis("fraTil") && sjekkliste.bestillerEnterprise && (
+            <p className="text-xs text-gray-600">
+              {sjekkliste.bestiller?.name
+                ? `${sjekkliste.bestiller.name} (${sjekkliste.bestillerEnterprise.name})`
+                : sjekkliste.bestillerEnterprise.name}
+              {sjekkliste.utforerEnterprise && ` → ${sjekkliste.utforerEnterprise.name}`}
+            </p>
           )}
         </div>
+        {sjekklisteNummer && <p className="text-sm font-medium text-gray-700">{sjekklisteNummer}</p>}
       </div>
+      {vis("vaer") && vaerTekst && (
+        <div className="px-4 py-1.5">
+          <p className="text-xs text-gray-600">{vaerTekst}</p>
+        </div>
+      )}
+    </div>
+  );
 
-      {/* A4-ark — 210×297mm proporsjoner */}
-      <div className="mx-auto mt-8 min-h-[297mm] w-[210mm] rounded bg-white px-[15mm] py-[15mm] shadow-lg print:mt-0 print:min-h-0 print:w-auto print:max-w-none print:rounded-none print:px-0 print:py-0 print:shadow-none">
-        {/* Header (alltid synlig — ikke .print-header) */}
-        <div className="mb-6 border border-gray-300">
-          {/* Rad 1: Prosjekt med logo */}
-          <div className="flex items-start justify-between border-b border-gray-300 px-4 py-2">
-            <div className="flex items-start gap-4">
-              {prosjekt?.logoUrl && (
-                <img
-                  src={logoSrc(prosjekt.logoUrl)}
-                  alt="Firmalogo"
-                  className="max-h-[60px] max-w-[120px] object-contain"
-                />
-              )}
-              <div>
-                <p className="text-base font-bold text-gray-900">{prosjekt?.name ?? ""}</p>
-                <p className="text-xs text-gray-600">
-                  {(prosjekt as { showInternalProjectNumber?: boolean } | undefined)?.showInternalProjectNumber !== false && (
-                    <>Prosjektnr: {prosjekt?.projectNumber ?? ""}</>
-                  )}
-                  {(prosjekt as { showInternalProjectNumber?: boolean } | undefined)?.showInternalProjectNumber !== false &&
-                    prosjekt?.externalProjectNumber && <> &middot; </>}
-                  {prosjekt?.externalProjectNumber && (
-                    <>Ekst: {prosjekt.externalProjectNumber}</>
-                  )}
-                </p>
-                {prosjekt?.address && (
-                  <p className="text-xs text-gray-500">Adresse: {prosjekt.address}</p>
-                )}
-                {(sjekkliste.byggeplass || sjekkliste.drawing) && (
-                  <p className="text-xs text-gray-500">
-                    {sjekkliste.byggeplass && <>Lokasjon: {sjekkliste.byggeplass.name}</>}
-                    {sjekkliste.byggeplass && sjekkliste.drawing && <> &middot; </>}
-                    {sjekkliste.drawing && (
-                      <>Tegning: {sjekkliste.drawing.drawingNumber ? `${sjekkliste.drawing.drawingNumber} ` : ""}{sjekkliste.drawing.name}</>
-                    )}
-                  </p>
-                )}
-              </div>
-            </div>
-            <p className="whitespace-nowrap text-xs text-gray-600">Dato: {dato}</p>
+  return (
+    <div className={autoPrint ? "min-h-screen bg-white" : "min-h-screen bg-gray-100 pb-16"} style={autoPrint ? { } : {}}>
+      {/* Spinner synlig på skjerm mens print forberedes */}
+      {autoPrint && (
+        <div className="flex min-h-screen items-center justify-center print:hidden">
+          <div className="text-center">
+            <Spinner size="lg" />
+            <p className="mt-3 text-sm text-gray-500">Forbereder utskrift…</p>
           </div>
+        </div>
+      )}
 
-          {/* Rad 2: Sjekkliste */}
-          <div className="flex items-center justify-between border-b border-gray-300 px-4 py-2">
-            <div>
-              <p className="text-sm font-semibold text-gray-900">
-                Sjekkliste: {sjekkliste.title}
-              </p>
-              <p className="text-xs text-gray-600">
-                {sjekkliste.bestillerEnterprise && (
-                  <>
-                    Oppretter: {sjekkliste.bestillerEnterprise.name}
-                    {sjekkliste.bestiller?.name && ` (${sjekkliste.bestiller.name})`}
-                  </>
-                )}
-                {sjekkliste.bestillerEnterprise && sjekkliste.utforerEnterprise && <> &middot; </>}
-                {sjekkliste.utforerEnterprise && (
-                  <>Svarer: {sjekkliste.utforerEnterprise.name}</>
-                )}
-              </p>
-            </div>
-            {sjekklisteNummer && (
-              <p className="text-sm font-medium text-gray-700">Nr: {sjekklisteNummer}</p>
+      {/* Toolbar — kun i forhåndsvisning (ikke autoPrint) */}
+      {!autoPrint && (
+        <div className="print-skjul sticky top-0 z-10 border-b border-gray-200 bg-white px-4 py-3 shadow-sm">
+          <div className="mx-auto flex max-w-4xl items-center gap-3">
+            <h1 className="mr-auto text-sm font-medium text-gray-700">
+              Forhåndsvisning — {sjekkliste.title}
+            </h1>
+            <button
+              onClick={() => window.print()}
+              className="flex items-center gap-1.5 rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800"
+            >
+              <Printer className="h-4 w-4" />
+              Skriv ut / Lagre PDF
+            </button>
+            {prosjektId && (
+              <a
+                href={`/dashbord/${prosjektId}/sjekklister/${sjekkliste.id}`}
+                className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-600 hover:bg-gray-50"
+              >
+                <ExternalLink className="h-4 w-4" />
+                Åpne sjekkliste
+              </a>
             )}
           </div>
-
-          {/* Rad 3: Vær */}
-          {vaerTekst && (
-            <div className="px-4 py-2">
-              <p className="text-xs text-gray-600">Vær: {vaerTekst}</p>
-            </div>
-          )}
         </div>
+      )}
 
-        {/* Rapportobjekter */}
-        <div className="flex flex-col gap-1">
-          {treObjekter.map((objekt) => {
-            const feltData = data[objekt.id];
-            return (
-              <div key={objekt.id} className="print-no-break">
-                <RapportObjektVisning
-                  objekt={objekt}
-                  verdi={feltData?.verdi ?? null}
-                  nestingNivå={0}
-                  data={data}
-                />
-                {/* Vedlegg under hvert felt */}
-                <FeltVedlegg vedlegg={feltData?.vedlegg} kommentar={feltData?.kommentar} />
+      {/* A4-ark — skjult på skjerm ved autoPrint, synlig i print */}
+      <div className={`a4-ark mx-auto w-[794px] rounded bg-white px-[15mm] py-[15mm] shadow-lg print:mt-0 print:w-auto print:max-w-none print:rounded-none print:shadow-none ${autoPrint ? "hidden print:block" : "mt-8"}`}>
+        <table className="print-tabell w-full">
+          {/* thead gjentas på hver side i print */}
+          <thead><tr><td>
+            {headerInnhold}
+          </td></tr></thead>
+
+          {/* tfoot gjentas i bunnen av hver side — sidenummer via CSS counter */}
+          <tfoot><tr><td>
+            <div className="print-footer" />
+          </td></tr></tfoot>
+
+          {/* tbody = innholdet */}
+          <tbody><tr><td>
+            {/* Lokasjonstegning med posisjon */}
+            {sjekkliste.drawingId && sjekkliste.positionX != null && sjekkliste.positionY != null && (
+              <div className="mb-3">
+                <TegningPosisjonPrint pos={{
+                  drawingId: sjekkliste.drawingId,
+                  positionX: sjekkliste.positionX,
+                  positionY: sjekkliste.positionY,
+                  drawingName: sjekkliste.drawing?.name,
+                }} />
               </div>
-            );
-          })}
-        </div>
+            )}
+
+            {/* Rapportobjekter */}
+            <div className="flex flex-col gap-1">
+              {treObjekter.map((objekt) => {
+                const feltData = data[objekt.id];
+                return (
+                  <div key={objekt.id}>
+                    <div className="print-no-break">
+                      <RapportObjektVisning
+                        objekt={objekt}
+                        verdi={feltData?.verdi ?? null}
+                        nestingNivå={0}
+                        data={data}
+                        prosjektAdresse={prosjekt?.address}
+                      />
+                    </div>
+                    {/* Vedlegg utenfor print-no-break — bilder kan brytes over sider */}
+                    <FeltVedlegg vedlegg={feltData?.vedlegg} kommentar={feltData?.kommentar} />
+                  </div>
+                );
+              })}
+            </div>
+          </td></tr></tbody>
+        </table>
       </div>
     </div>
   );
@@ -292,14 +312,13 @@ function FeltVedlegg({
         <p className="text-xs italic text-gray-500">{kommentar}</p>
       )}
       {bilder.length > 0 && (
-        <div className="mt-1 grid grid-cols-2 gap-3">
+        <div className="bilde-grid mt-1">
           {bilder.map((bilde) => (
-            <div key={bilde.id}>
+            <div key={bilde.id} className="bilde-celle">
               <img
                 src={vedleggSrc(bilde.url)}
                 alt={bilde.filnavn}
-                className="w-full rounded border border-gray-200 object-cover"
-                style={{ aspectRatio: "5/4" }}
+                className="rounded border border-gray-200"
               />
               {bilde.opprettet && (
                 <p className="mt-0.5 text-[10px] text-gray-400">

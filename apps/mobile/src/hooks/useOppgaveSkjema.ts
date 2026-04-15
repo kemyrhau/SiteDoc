@@ -7,10 +7,21 @@ import { oppgaveFeltdata } from "../db/schema";
 import { useNettverk } from "../providers/NettverkProvider";
 import { useOpplastingsKo } from "../providers/OpplastingsKoProvider";
 import { useAuth } from "../providers/AuthProvider";
+import { utledDokumentRettighet } from "@sitedoc/shared";
+import type { DokumentRettighet, DokumentflytRolle } from "@sitedoc/shared";
 import type { Vedlegg, FeltVerdi } from "./useSjekklisteSkjema";
 
 type LagreStatus = "idle" | "lagrer" | "lagret" | "feil";
 type SynkStatus = "synkronisert" | "lokalt_lagret" | "synkroniserer";
+
+/** Rettighetsinfo — valgfri for bakoverkompatibilitet */
+export interface RettighetInput {
+  erAdmin: boolean;
+  minRolle: DokumentflytRolle | null | undefined;
+  tillatelser: Set<string>;
+  harBallen: boolean;
+  flytRettighet?: "redigerer" | "leser";
+}
 
 interface RapportObjekt {
   id: string;
@@ -63,6 +74,7 @@ export interface UseOppgaveSkjemaResultat {
   erLagrer: boolean;
   harEndringer: boolean;
   erRedigerbar: boolean;
+  rettighet: DokumentRettighet;
   lagreStatus: LagreStatus;
   synkStatus: SynkStatus;
 }
@@ -145,7 +157,7 @@ function skrivTilSQLite(
   }
 }
 
-export function useOppgaveSkjema(oppgaveId: string): UseOppgaveSkjemaResultat {
+export function useOppgaveSkjema(oppgaveId: string, rettighetInput?: RettighetInput): UseOppgaveSkjemaResultat {
   const [feltVerdier, settFeltVerdier] = useState<Record<string, FeltVerdi>>({});
   const [valideringsfeil, settValideringsfeil] = useState<Record<string, string>>({});
   const [harEndringer, settHarEndringer] = useState(false);
@@ -560,7 +572,23 @@ export function useOppgaveSkjema(oppgaveId: string): UseOppgaveSkjemaResultat {
     return Object.keys(feil).length === 0;
   }, [alleObjekter, erSynlig, hentFeltVerdi]);
 
-  const erRedigerbar = oppgave ? REDIGERBARE_STATUSER.has(oppgave.status) : false;
+  const rettighet: DokumentRettighet = useMemo(() => {
+    if (!oppgave) return "leser";
+    if (!rettighetInput) {
+      return REDIGERBARE_STATUSER.has(oppgave.status) ? "redigerer" : "leser";
+    }
+    return utledDokumentRettighet({
+      erAdmin: rettighetInput.erAdmin,
+      minRolle: rettighetInput.minRolle,
+      tillatelser: rettighetInput.tillatelser,
+      status: oppgave.status,
+      dokumentType: "oppgave",
+      harBallen: rettighetInput.harBallen,
+      flytRettighet: rettighetInput.flytRettighet,
+    });
+  }, [oppgave, rettighetInput]);
+
+  const erRedigerbar = rettighet !== "leser";
 
   return {
     oppgave: oppgave
@@ -593,6 +621,7 @@ export function useOppgaveSkjema(oppgaveId: string): UseOppgaveSkjemaResultat {
     erLagrer: oppdaterDataMutasjon.isPending,
     harEndringer,
     erRedigerbar,
+    rettighet,
     lagreStatus,
     synkStatus,
   };

@@ -8,6 +8,8 @@ import { Button, Modal, Spinner, EmptyState, StatusBadge, Badge, Table } from "@
 import { useVerktoylinje } from "@/hooks/useVerktoylinje";
 import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
 import { Plus, Search, ChevronDown, ChevronRight } from "lucide-react";
+import { FlytIndikator } from "@/components/FlytIndikator";
+import { useTabelloppsett } from "@/hooks/useTabelloppsett";
 
 // --- Typer ---
 
@@ -24,11 +26,24 @@ interface OppgaveRad {
   data: Record<string, unknown> | null;
   template: { id: string; prefix: string | null; name: string; objects: MalObjekt[] } | null;
   bestiller: { name: string | null } | null;
-  bestillerEnterprise: { name: string };
-  utforerEnterprise: { name: string };
+  bestillerEnterprise: { name: string } | null;
+  utforerEnterprise: { name: string } | null;
   drawing: { name: string; floor: string | null; byggeplass: { id: string; name: string } | null } | null;
-  recipientUser: { name: string | null } | null;
-  recipientGroup: { name: string } | null;
+  recipientUser: { id: string; name: string | null } | null;
+  recipientGroup: { id: string; name: string } | null;
+  bestillerUserId?: string;
+  dokumentflyt: {
+    id: string;
+    name: string;
+    medlemmer: {
+      id: string;
+      rolle: string;
+      steg: number;
+      enterprise: { id: string; name: string } | null;
+      projectMember: { user: { id: string; name: string | null } } | null;
+      group: { id: string; name: string } | null;
+    }[];
+  } | null;
 }
 
 interface MalObjekt {
@@ -69,8 +84,9 @@ const prioritetFarge: Record<string, "default" | "primary" | "warning" | "danger
 // Felttyper som kan filtreres/vises som kolonner
 const FILTRERBARE_TYPER = new Set([
   "list_single", "list_multi", "traffic_light",
-  "text_field", "integer", "decimal",
-  "date", "date_time", "person", "company",
+  "text_field", "integer", "decimal", "calculation",
+  "date", "date_time", "person", "persons", "company",
+  "signature",
 ]);
 
 // --- Kolonnegrupper (Dalux-stil) ---
@@ -84,9 +100,10 @@ interface KolonneParam {
 }
 
 const SYSTEM_KOLONNER: KolonneParam[] = [
+  { id: "prefix", navn: "Prefix", navnKey: "tabell.prefix", gruppe: "kolonner", fast: true },
   { id: "nr", navn: "Nr", navnKey: "tabell.nr", gruppe: "kolonner", fast: true },
-  { id: "tittel", navn: "Tittel", navnKey: "tabell.tittel", gruppe: "kolonner", fast: true },
   { id: "status", navn: "Status", navnKey: "tabell.status", gruppe: "kolonner", fast: true },
+  { id: "tittel", navn: "Tittel", navnKey: "tabell.tittel", gruppe: "kolonner" },
   { id: "emne", navn: "Emne", navnKey: "tabell.emne", gruppe: "kolonner" },
   { id: "prioritet", navn: "Prioritet", navnKey: "tabell.prioritet", gruppe: "kolonner" },
   { id: "ansvarlig", navn: "Ansvarlig", navnKey: "tabell.ansvarlig", gruppe: "kolonner" },
@@ -98,6 +115,7 @@ const SYSTEM_KOLONNER: KolonneParam[] = [
   { id: "opprettet", navn: "Opprettelsesdato", navnKey: "tabell.opprettelsesdato", gruppe: "kolonner" },
   { id: "endret", navn: "Endringsdato", navnKey: "tabell.endringsdato", gruppe: "kolonner" },
   { id: "frist", navn: "Tidsfrist", navnKey: "tabell.tidsfrist", gruppe: "kolonner" },
+  { id: "flyt", navn: "Flyt", navnKey: "tabell.flyt", gruppe: "kolonner" },
 ];
 
 const POSISJON_KOLONNER: KolonneParam[] = [
@@ -106,37 +124,18 @@ const POSISJON_KOLONNER: KolonneParam[] = [
   { id: "tegning", navn: "Tegning", navnKey: "tabell.tegning", gruppe: "posisjon" },
 ];
 
-const STANDARD_AKTIVE = new Set(["nr", "tittel", "emne", "status", "ansvarlig", "bygning", "frist"]);
-const STORAGE_KEY = "sitedoc-oppgave-kolonner-v3";
-
-function hentLagredeKolonner(): Set<string> {
-  if (typeof window === "undefined") return STANDARD_AKTIVE;
-  try {
-    const lagret = localStorage.getItem(STORAGE_KEY);
-    if (lagret) return new Set(JSON.parse(lagret) as string[]);
-  } catch { /* ignorer */ }
-  return STANDARD_AKTIVE;
-}
-
-function lagreKolonner(kolonner: Set<string>) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify([...kolonner]));
-  } catch { /* ignorer */ }
-}
+const STANDARD_AKTIVE = new Set(["prefix", "nr", "emne", "status", "ansvarlig", "flyt", "bygning", "frist"]);
 
 // --- Hjelpefunksjoner ---
 
-function formaterNummer(rad: OppgaveRad): string {
-  if (rad.template?.prefix && rad.number) {
-    return `${rad.template.prefix}-${String(rad.number).padStart(3, "0")}`;
-  }
-  return rad.number ? String(rad.number) : "—";
+function formaterLopenummer(rad: OppgaveRad): string {
+  return rad.number ? String(rad.number).padStart(3, "0") : "—";
 }
 
 function formaterAnsvarlig(rad: OppgaveRad): string {
   if (rad.recipientUser?.name) return rad.recipientUser.name;
   if (rad.recipientGroup?.name) return rad.recipientGroup.name;
-  return rad.utforerEnterprise.name;
+  return rad.utforerEnterprise?.name ?? "";
 }
 
 function formaterDato(dato: string | null): string {
@@ -144,10 +143,38 @@ function formaterDato(dato: string | null): string {
   return new Date(dato).toLocaleDateString("nb-NO", { day: "numeric", month: "short", year: "numeric" });
 }
 
-function hentFeltVerdi(rad: OppgaveRad, objektId: string): string {
+function hentFeltVerdi(
+  rad: OppgaveRad,
+  objektId: string,
+  objektType?: string,
+  navneLookup?: Map<string, string>,
+): string {
   if (!rad.data) return "—";
   const verdi = rad.data[objektId];
   if (verdi == null || verdi === "") return "—";
+
+  if (objektType === "signature") return verdi ? "✓" : "—";
+
+  if (objektType === "date" && typeof verdi === "string") {
+    try { return new Date(verdi).toLocaleDateString("nb-NO", { day: "numeric", month: "short", year: "numeric" }); } catch { return String(verdi); }
+  }
+  if (objektType === "date_time" && typeof verdi === "string") {
+    try { return new Date(verdi).toLocaleDateString("nb-NO", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }); } catch { return String(verdi); }
+  }
+
+  if (objektType === "traffic_light" && typeof verdi === "string") {
+    const TRAFIKKLYS: Record<string, string> = { green: "🟢", yellow: "🟡", red: "🔴", gray: "⚪" };
+    return TRAFIKKLYS[verdi] ?? verdi;
+  }
+
+  if ((objektType === "person" || objektType === "company") && typeof verdi === "string" && navneLookup) {
+    return navneLookup.get(verdi) ?? verdi;
+  }
+
+  if (objektType === "persons" && Array.isArray(verdi) && navneLookup) {
+    return verdi.map((id) => navneLookup.get(String(id)) ?? String(id)).join(", ");
+  }
+
   if (typeof verdi === "string") return verdi;
   if (typeof verdi === "number") return String(verdi);
   if (typeof verdi === "boolean") return verdi ? "Ja" : "Nei";
@@ -251,9 +278,6 @@ function KolonneVelger({
       <div className="flex items-center justify-between border-t border-gray-100 px-3 py-2">
         <button
           onClick={() => {
-            const ny = new Set(STANDARD_AKTIVE);
-            lagreKolonner(ny);
-            // Reset via parent
             onToggle("__reset__");
           }}
           className="text-xs text-gray-500 hover:text-gray-700"
@@ -279,7 +303,15 @@ export default function OppgaverSide() {
   const utils = trpc.useUtils();
   const [visModal, setVisModal] = useState(false);
   const [visKolonneVelger, setVisKolonneVelger] = useState(false);
-  const [aktiveKolonner, setAktiveKolonner] = useState<Set<string>>(hentLagredeKolonner);
+  const {
+    aktiveKolonner, kolonneBredder,
+    handleToggleKolonne, handleBreddeEndring,
+  } = useTabelloppsett({
+    liste: "oppgaver",
+    standardKolonner: STANDARD_AKTIVE,
+    migrerNokkel: "sitedoc-oppgave-kolonner-v5",
+    migrerBreddeNokkel: "sitedoc-oppgave-bredder-v1",
+  });
   const [filterVerdier, setFilterVerdier] = useState<Record<string, string>>({});
   const { aktivByggeplass } = useByggeplass();
 
@@ -290,7 +322,7 @@ export default function OppgaverSide() {
   const isLoading = oppgaveQuery.isLoading;
 
   const { data: maler } = trpc.mal.hentForProsjekt.useQuery({ projectId: params.prosjektId });
-  const oppgaveMaler = ((maler ?? []) as Array<{ id: string; name: string; prefix?: string | null; category: string }>).filter((m) => m.category === "oppgave");
+  const oppgaveMaler = ((maler ?? []) as Array<{ id: string; name: string; prefix?: string | null; category: string; domain?: string | null }>).filter((m) => m.category === "oppgave");
   const { data: mineEntrepriser } = trpc.medlem.hentMineEntrepriser.useQuery(
     { projectId: params.prosjektId },
   );
@@ -305,6 +337,10 @@ export default function OppgaverSide() {
       setVisModal(false);
       router.push(`/dashbord/${params.prosjektId}/oppgaver/${resultat.id}`);
     },
+    onError: (err) => {
+      setVisModal(false);
+      alert(`Feil ved opprettelse: ${err.message}`);
+    },
   });
 
   useVerktoylinje([
@@ -318,6 +354,20 @@ export default function OppgaverSide() {
   ]);
 
   function handleOpprettFraMal(malId: string) {
+    // Hent malen med domain fra API-data (ikke fra type-castet oppgaveMaler)
+    const alleMalerTypet = (maler ?? []) as Array<{ id: string; name: string; domain?: string | null; category: string }>;
+    const malMedDomain = alleMalerTypet.find((m) => m.id === malId);
+
+    // HMS-oppgaver: ingen entreprise, auto-rutes til HMS-gruppen av API
+    if (malMedDomain?.domain === "hms") {
+      opprettMutation.mutate({
+        templateId: malId,
+        title: malMedDomain.name ?? "HMS-avvik",
+        priority: "medium",
+      });
+      return;
+    }
+
     const oppretter = mineEntrepriser?.[0];
     if (!oppretter) return;
 
@@ -335,13 +385,13 @@ export default function OppgaverSide() {
     const svarer = matchDf?.medlemmer.find((m) => m.rolle === "svarer");
     const svarerEntrepriseId = svarer?.enterprise?.id ?? oppretter.id;
 
-    const mal = oppgaveMaler.find((m) => m.id === malId);
     opprettMutation.mutate({
       templateId: malId,
       bestillerEnterpriseId: oppretter.id,
       utforerEnterpriseId: svarerEntrepriseId,
-      title: mal?.name ?? "Ny oppgave",
+      title: malMedDomain?.name ?? "Ny oppgave",
       priority: "medium",
+      dokumentflytId: matchDf?.id,
     });
   }
 
@@ -361,7 +411,51 @@ export default function OppgaverSide() {
   }, [oppgaver]);
 
   // Alle tilgjengelige kolonner
+  // Map objektId → type for spesialformatering
+  const objektTyper = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const rad of oppgaver ?? []) {
+      for (const obj of rad.template?.objects ?? []) {
+        if (!map.has(obj.id)) map.set(obj.id, obj.type);
+      }
+    }
+    return map;
+  }, [oppgaver]);
+
+  // Navne-lookup for person/firma-IDer
+  const navneLookup = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const df of dokumentflyter ?? []) {
+      for (const m of (df as { medlemmer?: { projectMember?: { user?: { id: string; name: string | null } } | null; enterprise?: { id: string; name: string } | null }[] }).medlemmer ?? []) {
+        if (m.projectMember?.user?.id && m.projectMember.user.name) map.set(m.projectMember.user.id, m.projectMember.user.name);
+        if (m.enterprise?.id && m.enterprise.name) map.set(m.enterprise.id, m.enterprise.name);
+      }
+    }
+    for (const rad of oppgaver ?? []) {
+      if (rad.bestiller?.name) map.set((rad as unknown as { bestillerUserId: string }).bestillerUserId ?? "", rad.bestiller.name);
+      if (rad.bestillerEnterprise) map.set((rad as unknown as { bestillerEnterpriseId: string }).bestillerEnterpriseId ?? "", rad.bestillerEnterprise?.name ?? "");
+      if (rad.utforerEnterprise) map.set((rad as unknown as { utforerEnterpriseId: string }).utforerEnterpriseId ?? "", rad.utforerEnterprise?.name ?? "");
+    }
+    return map;
+  }, [dokumentflyter, oppgaver]);
+
   const alleKolonner = useMemo(() => [...SYSTEM_KOLONNER, ...POSISJON_KOLONNER, ...verdiFelter], [verdiFelter]);
+
+  // Utled aktivt flyt-ledd for en rad (for filter/sortering)
+  const hentFlytLedd = useCallback((rad: OppgaveRad): string => {
+    const medl = rad.dokumentflyt?.medlemmer;
+    if (!medl || medl.length === 0) return "";
+    if (rad.status === "closed" || rad.status === "approved") return "";
+    const recipientGroupId = rad.recipientGroup?.id;
+    const recipientUserId = rad.recipientUser?.id;
+    for (const m of medl) {
+      if (recipientGroupId && m.group?.id === recipientGroupId) return m.group.name;
+      if (recipientUserId && m.projectMember?.user?.id === recipientUserId) return m.projectMember.user.name ?? "";
+    }
+    const ent = medl.find((m) => m.enterprise);
+    if (ent?.enterprise) return ent.enterprise.name;
+    return "";
+  }, []);
 
   // Dynamiske filteralternativer
   const dynamiskFilter = useMemo(() => {
@@ -370,11 +464,13 @@ export default function OppgaverSide() {
       [...new Set(felter.filter(Boolean) as string[])].sort().map((v) => ({ value: v, label: v }));
 
     const filter: Record<string, { value: string; label: string }[]> = {
+      prefix: bygg(oppgaver.map((o) => o.template?.prefix)),
       emne: bygg(oppgaver.map((o) => o.subject)),
       ansvarlig: bygg(oppgaver.map((o) => formaterAnsvarlig(o))),
       opprettetAv: bygg(oppgaver.map((o) => o.bestiller?.name)),
-      bestillerEntreprise: bygg(oppgaver.map((o) => o.bestillerEnterprise.name)),
-      utforerEntreprise: bygg(oppgaver.map((o) => o.utforerEnterprise.name)),
+      bestillerEntreprise: bygg(oppgaver.map((o) => o.bestillerEnterprise?.name ?? "")),
+      utforerEntreprise: bygg(oppgaver.map((o) => o.utforerEnterprise?.name ?? "")),
+      flyt: bygg(oppgaver.map((o) => hentFlytLedd(o))),
       mal: bygg(oppgaver.map((o) => o.template?.name)),
       bygning: bygg(oppgaver.map((o) => o.drawing?.byggeplass?.name)),
       etasje: bygg(oppgaver.map((o) => o.drawing?.floor)),
@@ -386,14 +482,15 @@ export default function OppgaverSide() {
     // Verdier fra data-JSON
     for (const felt of verdiFelter) {
       const objektId = felt.id.replace("felt:", "");
+      const type = objektTyper.get(objektId);
       filter[felt.id] = bygg(oppgaver.map((o) => {
-        const v = hentFeltVerdi(o, objektId);
+        const v = hentFeltVerdi(o, objektId, type, navneLookup);
         return v === "—" ? null : v;
       }));
     }
 
     return filter;
-  }, [oppgaver, verdiFelter, t]);
+  }, [oppgaver, verdiFelter, t, objektTyper, navneLookup]);
 
   // Filtrer data
   const filtrerte = useMemo(() => {
@@ -407,20 +504,23 @@ export default function OppgaverSide() {
       if (!verdi) continue;
       resultat = resultat.filter((o) => {
         if (kolId.startsWith("felt:")) {
-          return hentFeltVerdi(o, kolId.replace("felt:", "")) === verdi;
+          const oid = kolId.replace("felt:", "");
+          return hentFeltVerdi(o, oid, objektTyper.get(oid), navneLookup) === verdi;
         }
         switch (kolId) {
+          case "prefix": return o.template?.prefix === verdi;
           case "status": return o.status === verdi;
           case "emne": return o.subject === verdi;
           case "prioritet": return o.priority === verdi;
           case "ansvarlig": return formaterAnsvarlig(o) === verdi;
           case "opprettetAv": return o.bestiller?.name === verdi;
-          case "bestillerEntreprise": return o.bestillerEnterprise.name === verdi;
-          case "utforerEntreprise": return o.utforerEnterprise.name === verdi;
+          case "bestillerEntreprise": return o.bestillerEnterprise?.name ?? "" === verdi;
+          case "utforerEntreprise": return o.utforerEnterprise?.name ?? "" === verdi;
           case "mal": return o.template?.name === verdi;
           case "bygning": return o.drawing?.byggeplass?.name === verdi;
           case "etasje": return o.drawing?.floor === verdi;
           case "tegning": return o.drawing?.name === verdi;
+          case "flyt": return hentFlytLedd(o) === verdi;
           default: return true;
         }
       });
@@ -432,28 +532,22 @@ export default function OppgaverSide() {
     setFilterVerdier((prev) => ({ ...prev, [kolonneId]: verdi }));
   }, []);
 
-  const handleToggleKolonne = useCallback((id: string) => {
-    if (id === "__reset__") {
-      setAktiveKolonner(new Set(STANDARD_AKTIVE));
-      lagreKolonner(new Set(STANDARD_AKTIVE));
-      return;
-    }
-    setAktiveKolonner((prev) => {
-      const ny = new Set(prev);
-      ny.has(id) ? ny.delete(id) : ny.add(id);
-      lagreKolonner(ny);
-      return ny;
-    });
-  }, []);
-
   // Bygg kolonnedefinisjoner
   const kolonneDefinisjoner = useMemo(() => {
     type KolDef = Parameters<typeof Table<OppgaveRad>>[0]["kolonner"][number];
     const defs: Record<string, KolDef> = {
+      prefix: {
+        id: "prefix", header: t("tabell.prefix"),
+        celle: (rad) => rad.template?.prefix
+          ? <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs font-medium text-gray-600">{rad.template.prefix}</span>
+          : <span className="text-gray-300">—</span>,
+        bredde: "70px", sorterbar: true, sorterVerdi: (rad) => rad.template?.prefix ?? "",
+        filtrerbar: true, filterAlternativer: dynamiskFilter.prefix ?? [],
+      },
       nr: {
         id: "nr", header: t("tabell.nr"),
-        celle: (rad) => <span className="text-xs font-medium text-gray-500 whitespace-nowrap">{formaterNummer(rad)}</span>,
-        bredde: "90px", sorterbar: true, sorterVerdi: (rad) => rad.number ?? 0,
+        celle: (rad) => <span className="text-xs font-medium text-gray-500 whitespace-nowrap">{formaterLopenummer(rad)}</span>,
+        bredde: "60px", sorterbar: true, sorterVerdi: (rad) => rad.number ?? 0,
       },
       tittel: {
         id: "tittel", header: t("tabell.tittel"),
@@ -501,14 +595,14 @@ export default function OppgaverSide() {
       },
       bestillerEntreprise: {
         id: "bestillerEntreprise", header: t("tabell.bestillerEntreprise"),
-        celle: (rad) => <span className="text-xs text-gray-500">{rad.bestillerEnterprise.name}</span>,
-        sorterbar: true, sorterVerdi: (rad) => rad.bestillerEnterprise.name,
+        celle: (rad) => <span className="text-xs text-gray-500">{rad.bestillerEnterprise?.name ?? ""}</span>,
+        sorterbar: true, sorterVerdi: (rad) => rad.bestillerEnterprise?.name ?? "",
         filtrerbar: true, filterAlternativer: dynamiskFilter.bestillerEntreprise ?? [],
       },
       utforerEntreprise: {
         id: "utforerEntreprise", header: t("tabell.utforerEntreprise"),
-        celle: (rad) => <span className="text-xs text-gray-500">{rad.utforerEnterprise.name}</span>,
-        sorterbar: true, sorterVerdi: (rad) => rad.utforerEnterprise.name,
+        celle: (rad) => <span className="text-xs text-gray-500">{rad.utforerEnterprise?.name ?? ""}</span>,
+        sorterbar: true, sorterVerdi: (rad) => rad.utforerEnterprise?.name ?? "",
         filtrerbar: true, filterAlternativer: dynamiskFilter.utforerEntreprise ?? [],
       },
       mal: {
@@ -540,6 +634,18 @@ export default function OppgaverSide() {
           : <span className="text-gray-300">—</span>,
         bredde: "120px", sorterbar: true, sorterVerdi: (rad) => rad.dueDate ? new Date(rad.dueDate).getTime() : null,
       },
+      flyt: {
+        id: "flyt", header: t("tabell.flyt"),
+        celle: (rad) => <FlytIndikator
+          medlemmer={rad.dokumentflyt?.medlemmer ?? []}
+          recipientUserId={rad.recipientUser?.id}
+          recipientGroupId={rad.recipientGroup?.id}
+          status={rad.status}
+          bestillerUserId={rad.bestillerUserId}
+        />,
+        bredde: "200px", sorterbar: true, sorterVerdi: (rad) => hentFlytLedd(rad),
+        filtrerbar: true, filterAlternativer: dynamiskFilter.flyt ?? [],
+      },
       bygning: {
         id: "bygning", header: t("tabell.bygning"),
         celle: (rad) => rad.drawing?.byggeplass?.name
@@ -569,15 +675,16 @@ export default function OppgaverSide() {
     // Dynamiske verdier-kolonner
     for (const felt of verdiFelter) {
       const objektId = felt.id.replace("felt:", "");
+      const type = objektTyper.get(objektId);
       defs[felt.id] = {
         id: felt.id, header: felt.navn,
         celle: (rad) => {
-          const v = hentFeltVerdi(rad, objektId);
+          const v = hentFeltVerdi(rad, objektId, type, navneLookup);
           return v !== "—"
             ? <span className="text-xs text-gray-600">{v}</span>
             : <span className="text-gray-300">—</span>;
         },
-        sorterbar: true, sorterVerdi: (rad) => hentFeltVerdi(rad, objektId),
+        sorterbar: true, sorterVerdi: (rad) => hentFeltVerdi(rad, objektId, type, navneLookup),
         filtrerbar: (dynamiskFilter[felt.id]?.length ?? 0) > 0,
         filterAlternativer: dynamiskFilter[felt.id] ?? [],
       };
@@ -605,7 +712,7 @@ export default function OppgaverSide() {
   }
 
   return (
-    <div>
+    <div className="pt-6">
       {/* Filterbar */}
       {(oppgaver?.length ?? 0) > 0 && (
         <div className="mb-3 flex items-center gap-2">
@@ -675,6 +782,8 @@ export default function OppgaverSide() {
           tomMelding={t("oppgaver.ingenMatcherFilter")}
           filterVerdier={filterVerdier}
           onFilterEndring={handleFilterEndring}
+          kolonneBredder={kolonneBredder}
+          onKolonneBreddeEndring={handleBreddeEndring}
         />
       )}
 

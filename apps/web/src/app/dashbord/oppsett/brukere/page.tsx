@@ -1,38 +1,21 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { trpc } from "@/lib/trpc";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
-import { Button, Input, Modal, SearchInput } from "@sitedoc/ui";
+import { Spinner } from "@sitedoc/ui";
 import { useTranslation } from "react-i18next";
 import {
   Plus,
-  Search,
-  LayoutGrid,
-  LayoutList,
   Users,
-  Shield,
-  Key,
-  Settings,
-  Eye,
-  AlertTriangle,
-  Building2,
-  UserPlus,
   X,
   Pencil,
   Trash2,
-  MoreHorizontal,
-  Lock,
-  Info,
-  Mail,
-  RefreshCw,
-  ClipboardCheck,
-  ListTodo,
-  Map,
-  Box,
   ChevronRight,
   ChevronDown,
+  Shield,
 } from "lucide-react";
+import { HjelpKnapp } from "@/components/hjelp/HjelpModal";
 
 /* ------------------------------------------------------------------ */
 /*  KompaktBadgeListe — viser første verdi + "+N" utvidbar             */
@@ -104,1258 +87,13 @@ function KompaktBadgeListe({
 }
 
 /* ------------------------------------------------------------------ */
-/*  Typer                                                              */
-/* ------------------------------------------------------------------ */
-
-interface BrukerGruppeMedlem {
-  id: string;
-  projectMemberId?: string;
-  navn: string;
-  epost?: string;
-  telefon?: string;
-  firma?: string;
-  rolle?: string;
-  erAdmin?: boolean;
-  ventendeInvitasjon?: { id: string };
-}
-
-interface BrukerGruppe {
-  id: string;
-  navn: string;
-  kategori: "generelt" | "field" | "brukergrupper";
-  medlemmer: BrukerGruppeMedlem[];
-  moduler?: string[];
-  ikon?: React.ReactNode;
-}
-
-/* ------------------------------------------------------------------ */
-/*  DB-gruppetype (for å unngå TS2589 med tRPC-inferens)              */
-/* ------------------------------------------------------------------ */
-
-interface DbGruppe {
-  id: string;
-  name: string;
-  slug: string;
-  category: string;
-  isDefault?: boolean;
-  domains?: unknown;
-  groupEnterprises?: {
-    id: string;
-    enterprise: { id: string; name: string };
-  }[];
-  members: {
-    id: string;
-    isAdmin: boolean;
-    projectMember: {
-      id: string;
-      user: { name: string | null; email: string; phone?: string | null };
-      enterprises: { enterprise: { name: string } }[];
-    };
-  }[];
-}
-
-/* ------------------------------------------------------------------ */
-/*  Ikon-mapping for DB-grupper (slug → ikon)                         */
-/* ------------------------------------------------------------------ */
-
-const SLUG_IKON: Record<string, React.ReactNode> = {
-  "field-admin": <Key className="h-4 w-4" />,
-  "oppgave-sjekkliste-koord": <Settings className="h-4 w-4" />,
-  "field-observatorer": <Eye className="h-4 w-4" />,
-  "hms-ledere": <AlertTriangle className="h-4 w-4" />,
-};
-
-/* ------------------------------------------------------------------ */
-/*  RedigerGruppeModal                                                 */
-/* ------------------------------------------------------------------ */
-
-function RedigerGruppeModal({
-  open,
-  onClose,
-  gruppe,
-  prosjektId,
-  dbGruppe,
-  alleEntrepriser,
-}: {
-  open: boolean;
-  onClose: () => void;
-  gruppe: BrukerGruppe;
-  prosjektId: string;
-  dbGruppe?: DbGruppe | null;
-  alleEntrepriser?: { id: string; name: string }[];
-}) {
-  const [sok, setSok] = useState("");
-  const [valgtMedlemId, setValgtMedlemId] = useState<string | null>(null);
-  const [visLeggTil, setVisLeggTil] = useState(false);
-  const [nyEpost, setNyEpost] = useState("");
-  const [leggTilSteg, setLeggTilSteg] = useState<1 | 2>(1);
-  const [nyFornavn, setNyFornavn] = useState("");
-  const [nyEtternavn, setNyEtternavn] = useState("");
-  const [nyTelefon, setNyTelefon] = useState("");
-  const [nyMelding, setNyMelding] = useState("");
-  const [leggerTil, setLeggerTil] = useState(false);
-  const [feilmelding, setFeilmelding] = useState("");
-  const [redigererNavn, setRedigererNavn] = useState(false);
-  const [nyttGruppeNavn, setNyttGruppeNavn] = useState(gruppe.navn);
-  const [redigererMedlem, setRedigererMedlem] = useState(false);
-  const { t } = useTranslation();
-  const [redigerNavn, setRedigerNavn] = useState("");
-  const [redigerEpost, setRedigerEpost] = useState("");
-  const [redigerTelefon, setRedigerTelefon] = useState("");
-  const [redigerRolle, setRedigerRolle] = useState<"member" | "admin">("member");
-
-  // Er dette en DB-gruppe (UUID)?
-  const erDbGruppe =
-    !gruppe.id.startsWith("ent-") && gruppe.id !== "prosjektadmin";
-  const erEntrepriseGruppe = gruppe.id.startsWith("ent-");
-
-  // Hent alle prosjektmedlemmer for hurtigvalg
-  const { data: alleMedlemmer } = trpc.medlem.hentForProsjekt.useQuery(
-    { projectId: prosjektId },
-    { enabled: !!prosjektId },
-  );
-
-  // Filtrer ut medlemmer som allerede er i gruppen
-  const eksisterendeMedlemEposter = new Set(
-    gruppe.medlemmer.map((m) => m.epost?.toLowerCase()).filter(Boolean),
-  );
-  const tilgjengeligeMedlemmer = (alleMedlemmer as Array<{
-    id: string;
-    user: { name: string | null; email: string };
-  }> | undefined)?.filter(
-    (m) => !eksisterendeMedlemEposter.has(m.user.email.toLowerCase()),
-  ) ?? [];
-
-  const utils = trpc.useUtils();
-
-  const leggTilMedlem = trpc.medlem.leggTil.useMutation({
-    onSuccess: () => {
-      resetLeggTilSkjema();
-      utils.prosjekt.hentMedId.invalidate({ id: prosjektId });
-      utils.entreprise.hentForProsjekt.invalidate({ projectId: prosjektId });
-      utils.medlem.hentForProsjekt.invalidate({ projectId: prosjektId });
-      utils.invitasjon.hentForProsjekt.invalidate({ projectId: prosjektId });
-    },
-    onError: (error) => {
-      setFeilmelding(error.message);
-    },
-    onSettled: () => {
-      setLeggerTil(false);
-    },
-  });
-
-  const leggTilGruppeMedlem = trpc.gruppe.leggTilMedlem.useMutation({
-    onSuccess: () => {
-      resetLeggTilSkjema();
-      utils.gruppe.hentForProsjekt.invalidate({ projectId: prosjektId });
-      utils.invitasjon.hentForProsjekt.invalidate({ projectId: prosjektId });
-    },
-    onError: (error) => {
-      setFeilmelding(error.message);
-    },
-    onSettled: () => {
-      setLeggerTil(false);
-    },
-  });
-
-  const fjernMedlem = trpc.medlem.fjern.useMutation({
-    onSuccess: () => {
-      setValgtMedlemId(null);
-      utils.prosjekt.hentMedId.invalidate({ id: prosjektId });
-      utils.entreprise.hentForProsjekt.invalidate({ projectId: prosjektId });
-      utils.medlem.hentForProsjekt.invalidate({ projectId: prosjektId });
-    },
-  });
-
-  const fjernFraEntreprise = trpc.medlem.fjernFraEntreprise.useMutation({
-    onSuccess: () => {
-      setValgtMedlemId(null);
-      utils.entreprise.hentForProsjekt.invalidate({ projectId: prosjektId });
-      utils.medlem.hentForProsjekt.invalidate({ projectId: prosjektId });
-    },
-  });
-
-  const fjernGruppeMedlem = trpc.gruppe.fjernMedlem.useMutation({
-    onSuccess: () => {
-      setValgtMedlemId(null);
-      utils.gruppe.hentForProsjekt.invalidate({ projectId: prosjektId });
-    },
-  });
-
-  const oppdaterGruppe = trpc.gruppe.oppdater.useMutation({
-    onSuccess: () => {
-      utils.gruppe.hentForProsjekt.invalidate({ projectId: prosjektId });
-    },
-  });
-
-  const oppdaterDomener = trpc.gruppe.oppdaterDomener.useMutation({
-    onSuccess: () => {
-      utils.gruppe.hentForProsjekt.invalidate({ projectId: prosjektId });
-    },
-  });
-
-  const oppdaterEntrepriser = trpc.gruppe.oppdaterEntrepriser.useMutation({
-    onSuccess: () => {
-      utils.gruppe.hentForProsjekt.invalidate({ projectId: prosjektId });
-    },
-  });
-
-  const oppdaterModuler = trpc.gruppe.oppdaterModuler.useMutation({
-    onSuccess: () => {
-      utils.gruppe.hentForProsjekt.invalidate({ projectId: prosjektId });
-    },
-  });
-
-  const oppdaterBygninger = trpc.gruppe.oppdaterByggeplasser.useMutation({
-    onSuccess: () => {
-      utils.gruppe.hentForProsjekt.invalidate({ projectId: prosjektId });
-    },
-  });
-  const settGruppeAdmin = trpc.gruppe.settGruppeAdmin.useMutation({
-    onSuccess: () => {
-      utils.gruppe.hentForProsjekt.invalidate({ projectId: prosjektId });
-    },
-  });
-
-  // Hent bygninger for bygningsvelger
-  const { data: _alleBygninger } = trpc.bygning.hentForProsjekt.useQuery(
-    { projectId: prosjektId },
-    { enabled: !!prosjektId },
-  );
-  const alleBygninger = (_alleBygninger ?? []) as Array<{ id: string; name: string }>;
-
-  const oppdaterMedlem = trpc.medlem.oppdater.useMutation({
-    onSuccess: () => {
-      setRedigererMedlem(false);
-      setValgtMedlemId(null);
-      setFeilmelding("");
-      utils.prosjekt.hentMedId.invalidate({ id: prosjektId });
-      utils.medlem.hentForProsjekt.invalidate({ projectId: prosjektId });
-      utils.gruppe.hentForProsjekt.invalidate({ projectId: prosjektId });
-      utils.entreprise.hentForProsjekt.invalidate({ projectId: prosjektId });
-    },
-    onError: (error) => {
-      setFeilmelding(error.message);
-    },
-  });
-
-  const trekkTilbake = trpc.invitasjon.trekkTilbake.useMutation({
-    onSuccess: () => {
-      utils.invitasjon.hentForProsjekt.invalidate({ projectId: prosjektId });
-    },
-  });
-
-  const [bekreftSlett, setBekreftSlett] = useState(false);
-
-  const slettGruppe = trpc.gruppe.slett.useMutation({
-    onSuccess: () => {
-      utils.gruppe.hentForProsjekt.invalidate({ projectId: prosjektId });
-      onClose();
-    },
-  });
-
-  const [ettersendId, setEttersendId] = useState<string | null>(null);
-  const [ettersendMelding, setEttersendMelding] = useState("");
-
-  const sendPaNytt = trpc.invitasjon.sendPaNytt.useMutation({
-    onSuccess: () => {
-      utils.invitasjon.hentForProsjekt.invalidate({ projectId: prosjektId });
-      setEttersendId(null);
-      setEttersendMelding("");
-    },
-  });
-
-  function resetLeggTilSkjema() {
-    setNyEpost("");
-    setNyFornavn("");
-    setNyEtternavn("");
-    setNyTelefon("");
-    setNyMelding("");
-    setLeggTilSteg(1);
-    setVisLeggTil(false);
-    setFeilmelding("");
-  }
-
-  // Filtrer medlemmer basert på søk
-  const filtrerteMedlemmer = sok
-    ? gruppe.medlemmer.filter(
-        (m) =>
-          m.navn.toLowerCase().includes(sok.toLowerCase()) ||
-          m.firma?.toLowerCase().includes(sok.toLowerCase()) ||
-          m.epost?.toLowerCase().includes(sok.toLowerCase()),
-      )
-    : gruppe.medlemmer;
-
-  function handleEpostNeste(e: React.FormEvent) {
-    e.preventDefault();
-    if (!nyEpost.trim()) return;
-    const epostRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!epostRegex.test(nyEpost.trim())) {
-      setFeilmelding(t("feil.ugyldigEpost"));
-      return;
-    }
-    setFeilmelding("");
-    setLeggTilSteg(2);
-  }
-
-  function handleLeggTil(e: React.FormEvent) {
-    e.preventDefault();
-    if (!nyFornavn.trim() || !nyEtternavn.trim()) {
-      setFeilmelding(t("feil.navnPaakrevd"));
-      return;
-    }
-    setLeggerTil(true);
-    setFeilmelding("");
-
-    if (gruppe.id.startsWith("ent-")) {
-      // Entreprise-gruppe
-      leggTilMedlem.mutate({
-        projectId: prosjektId,
-        email: nyEpost.trim(),
-        firstName: nyFornavn.trim(),
-        lastName: nyEtternavn.trim(),
-        phone: nyTelefon.trim() || undefined,
-        role: "member",
-        enterpriseIds: [gruppe.id.replace("ent-", "")],
-        melding: nyMelding.trim() || undefined,
-      });
-    } else if (gruppe.id === "prosjektadmin") {
-      // Prosjektadministrator-gruppe
-      leggTilMedlem.mutate({
-        projectId: prosjektId,
-        email: nyEpost.trim(),
-        firstName: nyFornavn.trim(),
-        lastName: nyEtternavn.trim(),
-        phone: nyTelefon.trim() || undefined,
-        role: "admin",
-        melding: nyMelding.trim() || undefined,
-      });
-    } else {
-      // DB-gruppe (UUID)
-      leggTilGruppeMedlem.mutate({
-        groupId: gruppe.id,
-        projectId: prosjektId,
-        email: nyEpost.trim(),
-        firstName: nyFornavn.trim(),
-        lastName: nyEtternavn.trim(),
-        phone: nyTelefon.trim() || undefined,
-        melding: nyMelding.trim() || undefined,
-      });
-    }
-  }
-
-  function handleFjern(medlemId?: string) {
-    const id = medlemId ?? valgtMedlemId;
-    if (!id) return;
-    if (erDbGruppe) {
-      // DB-gruppe: fjern kun gruppemedlemskap (ProjectGroupMember)
-      fjernGruppeMedlem.mutate({ id, projectId: prosjektId });
-    } else if (erEntrepriseGruppe) {
-      // Entreprise-gruppe: fjern kun entreprisetilknytning, IKKE prosjektmedlemskap
-      fjernFraEntreprise.mutate({
-        projectMemberId: id,
-        enterpriseId: gruppe.id.replace("ent-", ""),
-        projectId: prosjektId,
-      });
-    } else {
-      // Prosjektadmin: fjern fra prosjektet
-      fjernMedlem.mutate({ id, projectId: prosjektId });
-    }
-  }
-
-  function handleNavnLagre() {
-    setRedigererNavn(false);
-    if (erDbGruppe && nyttGruppeNavn !== gruppe.navn && nyttGruppeNavn.trim()) {
-      oppdaterGruppe.mutate({ id: gruppe.id, name: nyttGruppeNavn.trim(), projectId: prosjektId });
-    }
-  }
-
-  return (
-    <Modal
-      open={open}
-      onClose={onClose}
-      title={t("brukere.redigerBrukergrupper")}
-      className="max-w-2xl"
-    >
-      <div className="flex flex-col gap-4">
-        {/* Gruppenavn (dobbeltklikk for å redigere) */}
-        <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-4 py-2.5">
-          {redigererNavn ? (
-            <input
-              value={nyttGruppeNavn}
-              onChange={(e) => setNyttGruppeNavn(e.target.value)}
-              onBlur={handleNavnLagre}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleNavnLagre();
-                if (e.key === "Escape") {
-                  setNyttGruppeNavn(gruppe.navn);
-                  setRedigererNavn(false);
-                }
-              }}
-              autoFocus
-              className="flex-1 border-b border-sitedoc-primary bg-transparent text-sm font-medium outline-none"
-            />
-          ) : (
-            <span
-              onDoubleClick={() => {
-                if (erDbGruppe) {
-                  setRedigererNavn(true);
-                  setNyttGruppeNavn(nyttGruppeNavn || gruppe.navn);
-                }
-              }}
-              className={`flex-1 text-sm font-medium text-gray-900 ${erDbGruppe ? "cursor-text" : ""}`}
-            >
-              {nyttGruppeNavn || gruppe.navn}
-            </span>
-          )}
-          <Info className="h-4 w-4 text-gray-400" />
-        </div>
-
-        {/* Verktøylinje */}
-        <div className="flex items-center justify-between border-b border-gray-200 pb-2">
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => {
-                setVisLeggTil(true);
-                setFeilmelding("");
-              }}
-              className="flex items-center gap-1.5 rounded px-2.5 py-1.5 text-sm text-gray-600 hover:bg-gray-100"
-            >
-              <Plus className="h-4 w-4" />
-              {t("handling.leggTil")}
-            </button>
-            <button
-              onClick={() => {
-                if (valgtMedlemId) {
-                  const medlem = gruppe.medlemmer.find((m) => m.id === valgtMedlemId);
-                  if (medlem) {
-                    setRedigerNavn(medlem.navn);
-                    setRedigerEpost(medlem.epost ?? "");
-                    setRedigerTelefon(medlem.telefon ?? "");
-                    setRedigerRolle(
-                      medlem.rolle === t("label.kontakt") || gruppe.id === "prosjektadmin"
-                        ? "admin"
-                        : "member",
-                    );
-                    setFeilmelding("");
-                    setRedigererMedlem(true);
-                  }
-                }
-              }}
-              disabled={!valgtMedlemId}
-              className={`flex items-center gap-1.5 rounded px-2.5 py-1.5 text-sm ${
-                valgtMedlemId
-                  ? "text-gray-600 hover:bg-gray-100"
-                  : "text-gray-400"
-              }`}
-            >
-              <Pencil className="h-4 w-4" />
-              {t("handling.rediger")}
-            </button>
-            <button
-              onClick={() => handleFjern()}
-              disabled={
-                !valgtMedlemId ||
-                fjernMedlem.isPending ||
-                fjernGruppeMedlem.isPending ||
-                fjernFraEntreprise.isPending
-              }
-              className={`flex items-center gap-1.5 rounded px-2.5 py-1.5 text-sm ${
-                valgtMedlemId
-                  ? "text-red-600 hover:bg-red-50"
-                  : "text-gray-400"
-              }`}
-            >
-              <Trash2 className="h-4 w-4" />
-              {t("handling.fjern")}
-            </button>
-            <button
-              className="flex items-center gap-1.5 rounded px-2.5 py-1.5 text-sm text-gray-400"
-              disabled
-            >
-              <MoreHorizontal className="h-4 w-4" />
-              {t("handling.mer")}
-            </button>
-          </div>
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
-            <input
-              type="text"
-              placeholder={t("brukere.sokPlaceholder")}
-              value={sok}
-              onChange={(e) => setSok(e.target.value)}
-              className="rounded border border-gray-200 py-1.5 pl-8 pr-3 text-sm focus:border-sitedoc-primary focus:outline-none focus:ring-1 focus:ring-sitedoc-primary"
-            />
-          </div>
-        </div>
-
-        {/* Medlemstabell */}
-        <div className="min-h-[200px] overflow-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-gray-200 text-left">
-                <th className="pb-2 text-xs font-medium uppercase tracking-wider text-gray-500">
-                  {t("tabell.navn")}
-                </th>
-                <th className="pb-2 text-xs font-medium uppercase tracking-wider text-gray-500">
-                  {t("tabell.firma")}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtrerteMedlemmer.map((medlem) => (
-                <tr
-                  key={medlem.id}
-                  onClick={() =>
-                    setValgtMedlemId(
-                      valgtMedlemId === medlem.id ? null : medlem.id,
-                    )
-                  }
-                  className={`group/row cursor-pointer border-b border-gray-100 transition-colors ${
-                    valgtMedlemId === medlem.id
-                      ? "bg-blue-50"
-                      : "hover:bg-gray-50"
-                  }`}
-                >
-                  <td className="py-2.5">
-                    <div className="flex items-center gap-2.5">
-                      <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gray-600 text-xs font-medium text-white">
-                        {medlem.navn
-                          .split(" ")
-                          .map((n) => n[0])
-                          .join("")
-                          .toUpperCase()
-                          .slice(0, 2)}
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-sm text-gray-900">
-                          {medlem.navn}
-                        </span>
-                        {medlem.epost && (
-                          <span className="text-xs text-gray-400">{medlem.epost}</span>
-                        )}
-                      </div>
-                      {medlem.rolle && (
-                        <span className="rounded bg-gray-200 px-1.5 py-0.5 text-xs text-gray-600">
-                          {medlem.rolle}
-                        </span>
-                      )}
-                      {erDbGruppe && medlem.erAdmin && (
-                        <span className="rounded bg-blue-100 px-1.5 py-0.5 text-xs text-blue-700">
-                          {t("brukere.gruppeadmin")}
-                        </span>
-                      )}
-                      {medlem.ventendeInvitasjon && (
-                        <span className="flex items-center gap-1 rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-700">
-                          <Mail className="h-3 w-3" />
-                          {t("brukere.invitasjonSendt")}
-                        </span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="py-2.5 text-sm text-gray-600">
-                    <div className="flex items-center gap-2">
-                      <span className="flex-1">{medlem.firma ?? "—"}</span>
-                      {medlem.ventendeInvitasjon && (
-                        <>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setEttersendId(medlem.ventendeInvitasjon!.id);
-                              setEttersendMelding("");
-                            }}
-                            className="flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-sitedoc-primary hover:bg-blue-50"
-                            title={t("brukere.ettersendInvitasjon")}
-                          >
-                            <RefreshCw className="h-3 w-3" />
-                            {t("brukere.ettersend")}
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              trekkTilbake.mutate({ id: medlem.ventendeInvitasjon!.id });
-                            }}
-                            disabled={trekkTilbake.isPending}
-                            className="flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-red-600 hover:bg-red-50"
-                            title={t("brukere.deaktiverInvitasjon")}
-                          >
-                            <X className="h-3 w-3" />
-                            {t("brukere.deaktiver")}
-                          </button>
-                        </>
-                      )}
-                      {!medlem.ventendeInvitasjon && erDbGruppe && medlem.projectMemberId && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            settGruppeAdmin.mutate({
-                              groupId: gruppe.id,
-                              projectId: prosjektId,
-                              projectMemberId: medlem.projectMemberId!,
-                              isAdmin: !medlem.erAdmin,
-                            });
-                          }}
-                          disabled={settGruppeAdmin.isPending}
-                          className={`flex items-center gap-1 rounded px-1.5 py-0.5 text-xs opacity-0 group-hover/row:opacity-100 ${
-                            medlem.erAdmin ? "text-blue-600 hover:bg-blue-50" : "text-gray-500 hover:bg-gray-100"
-                          }`}
-                          title={medlem.erAdmin ? t("brukere.fjernAdmin") : t("brukere.gjorTilAdmin")}
-                        >
-                          <Shield className="h-3 w-3" />
-                          {medlem.erAdmin ? t("brukere.fjernAdmin") : t("brukere.gruppeadmin")}
-                        </button>
-                      )}
-                      {!medlem.ventendeInvitasjon && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleFjern(medlem.id);
-                          }}
-                          disabled={fjernMedlem.isPending || fjernGruppeMedlem.isPending || fjernFraEntreprise.isPending}
-                          className="flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-red-600 opacity-0 group-hover/row:opacity-100 hover:bg-red-50"
-                          title={t("brukere.fjernMedlem")}
-                        >
-                          <Trash2 className="h-3 w-3" />
-                          {t("handling.fjern")}
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {filtrerteMedlemmer.length === 0 && !visLeggTil && (
-                <tr>
-                  <td
-                    colSpan={2}
-                    className="py-8 text-center text-sm text-gray-400"
-                  >
-                    {t("brukere.ingenMedlemmer")}
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-
-          {/* Inline rediger medlem */}
-          {redigererMedlem && valgtMedlemId && (() => {
-            const valgtMedlem = gruppe.medlemmer.find((m) => m.id === valgtMedlemId);
-            if (!valgtMedlem) return null;
-            const pmId = valgtMedlem.projectMemberId ?? valgtMedlem.id;
-            return (
-              <div className="mt-2 rounded border border-blue-200 bg-blue-50 p-3">
-                <div className="mb-2 flex items-center justify-between">
-                  <span className="text-sm font-medium text-gray-900">
-                    Rediger {valgtMedlem.navn}
-                  </span>
-                  <button
-                    onClick={() => { setRedigererMedlem(false); setFeilmelding(""); }}
-                    className="rounded p-1 text-gray-400 hover:text-gray-600"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
-                <div className="flex flex-col gap-2">
-                  <div>
-                    <label className="mb-1 block text-xs text-gray-500">{t("tabell.navn")}</label>
-                    <input
-                      type="text"
-                      value={redigerNavn}
-                      onChange={(e) => setRedigerNavn(e.target.value)}
-                      className="w-full rounded border border-gray-300 px-3 py-1.5 text-sm focus:border-sitedoc-primary focus:outline-none focus:ring-1 focus:ring-sitedoc-primary"
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-xs text-gray-500">{t("label.epost")}</label>
-                    <input
-                      type="email"
-                      value={redigerEpost}
-                      onChange={(e) => setRedigerEpost(e.target.value)}
-                      className="w-full rounded border border-gray-300 px-3 py-1.5 text-sm focus:border-sitedoc-primary focus:outline-none focus:ring-1 focus:ring-sitedoc-primary"
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-xs text-gray-500">{t("label.telefon")}</label>
-                    <input
-                      type="tel"
-                      value={redigerTelefon}
-                      onChange={(e) => setRedigerTelefon(e.target.value)}
-                      placeholder={t("label.valgfritt")}
-                      className="w-full rounded border border-gray-300 px-3 py-1.5 text-sm focus:border-sitedoc-primary focus:outline-none focus:ring-1 focus:ring-sitedoc-primary"
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-xs text-gray-500">{t("label.rolle")}</label>
-                    <select
-                      value={redigerRolle}
-                      onChange={(e) => setRedigerRolle(e.target.value as "member" | "admin")}
-                      className="w-full rounded border border-gray-300 px-3 py-1.5 text-sm focus:border-sitedoc-primary focus:outline-none focus:ring-1 focus:ring-sitedoc-primary"
-                    >
-                      <option value="member">{t("brukere.medlem")}</option>
-                      <option value="admin">{t("brukere.administrator")}</option>
-                    </select>
-                  </div>
-                  <div className="flex justify-end pt-1">
-                    <Button
-                      size="sm"
-                      onClick={() => {
-                        oppdaterMedlem.mutate({
-                          id: pmId,
-                          projectId: prosjektId,
-                          name: redigerNavn.trim() || undefined,
-                          email: redigerEpost.trim() || undefined,
-                          phone: redigerTelefon.trim(),
-                          role: redigerRolle,
-                        });
-                      }}
-                      disabled={oppdaterMedlem.isPending || !redigerNavn.trim()}
-                    >
-                      {oppdaterMedlem.isPending ? t("handling.lagrer") : t("handling.lagre")}
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            );
-          })()}
-
-          {/* Inline legg til — samlet visning av gruppemedlemmer og tilgjengelige */}
-          {visLeggTil && (
-            <div className="mt-2 rounded border border-gray-200 bg-gray-50 p-3">
-              <div className="mb-2 flex items-center justify-between">
-                <p className="text-xs font-medium text-gray-500">{t("brukere.prosjektmedlemmer")}</p>
-                <button
-                  type="button"
-                  onClick={() => resetLeggTilSkjema()}
-                  className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-
-              {/* Samlet medlemsliste: allerede i gruppen + tilgjengelige */}
-              {(gruppe.medlemmer.length > 0 || tilgjengeligeMedlemmer.length > 0) && (
-                <div className="mb-3 max-h-52 space-y-0.5 overflow-y-auto rounded border border-gray-200 bg-white p-1.5">
-                  {/* Eksisterende gruppemedlemmer (med hake) */}
-                  {gruppe.medlemmer.map((m) => (
-                    <div
-                      key={m.id}
-                      className="flex items-center gap-2 rounded px-2 py-1.5 text-sm text-gray-400"
-                    >
-                      <div className="flex h-5 w-5 items-center justify-center rounded bg-green-100">
-                        <svg className="h-3 w-3 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                        </svg>
-                      </div>
-                      <span className="font-medium text-gray-500">{m.navn}</span>
-                      {m.epost && <span className="text-xs text-gray-300">{m.epost}</span>}
-                      <span className="ml-auto text-xs text-green-600">I gruppen</span>
-                    </div>
-                  ))}
-
-                  {/* Tilgjengelige prosjektmedlemmer (klikkbare for å legge til) */}
-                  {tilgjengeligeMedlemmer.map((m) => (
-                    <button
-                      key={m.id}
-                      type="button"
-                      disabled={leggerTil}
-                      onClick={() => {
-                        setFeilmelding("");
-                        setLeggerTil(true);
-                        if (erDbGruppe) {
-                          leggTilGruppeMedlem.mutate({
-                            groupId: gruppe.id,
-                            projectId: prosjektId,
-                            email: m.user.email,
-                            firstName: m.user.name?.split(" ")[0] ?? "",
-                            lastName: m.user.name?.split(" ").slice(1).join(" ") ?? "",
-                          });
-                        } else if (gruppe.id.startsWith("ent-")) {
-                          leggTilMedlem.mutate({
-                            projectId: prosjektId,
-                            email: m.user.email,
-                            firstName: m.user.name?.split(" ")[0] ?? "",
-                            lastName: m.user.name?.split(" ").slice(1).join(" ") ?? "",
-                            role: "member",
-                            enterpriseIds: [gruppe.id.replace("ent-", "")],
-                          });
-                        } else if (gruppe.id === "prosjektadmin") {
-                          leggTilMedlem.mutate({
-                            projectId: prosjektId,
-                            email: m.user.email,
-                            firstName: m.user.name?.split(" ")[0] ?? "",
-                            lastName: m.user.name?.split(" ").slice(1).join(" ") ?? "",
-                            role: "admin",
-                          });
-                        }
-                      }}
-                      className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-blue-50 disabled:opacity-50"
-                    >
-                      <div className="flex h-5 w-5 items-center justify-center rounded border border-gray-300 bg-white">
-                        <Plus className="h-3 w-3 text-gray-400" />
-                      </div>
-                      <span className="font-medium text-gray-900">{m.user.name ?? m.user.email}</span>
-                      <span className="text-xs text-gray-400">{m.user.email}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              {/* Ny bruker via e-post */}
-              <p className="mb-1.5 text-xs font-medium text-gray-500">
-                Inviter ny bruker
-              </p>
-              <form
-                onSubmit={leggTilSteg === 1 ? handleEpostNeste : handleLeggTil}
-                className="flex flex-col gap-3"
-              >
-                <div className="flex items-center gap-2">
-                  <input
-                    type="email"
-                    placeholder="E-postadresse..."
-                    value={nyEpost}
-                    onChange={(e) => {
-                      setNyEpost(e.target.value);
-                      setFeilmelding("");
-                    }}
-                    disabled={leggTilSteg === 2}
-                    autoFocus={leggTilSteg === 1}
-                    className="flex-1 rounded border border-gray-300 px-3 py-2 text-sm focus:border-sitedoc-primary focus:outline-none focus:ring-1 focus:ring-sitedoc-primary disabled:bg-gray-100 disabled:text-gray-500"
-                  />
-                  {leggTilSteg === 2 && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setLeggTilSteg(1);
-                        setNyFornavn("");
-                        setNyEtternavn("");
-                        setNyTelefon("");
-                        setNyMelding("");
-                      }}
-                      className="rounded p-1 text-gray-400 hover:text-gray-600"
-                      title={t("brukere.endreEpost")}
-                    >
-                      <Pencil className="h-3.5 w-3.5" />
-                    </button>
-                  )}
-                </div>
-
-                {leggTilSteg === 2 && (
-                  <div className="flex flex-col gap-2">
-                    <div className="grid grid-cols-2 gap-2">
-                      <input
-                        type="text"
-                        placeholder="Fornavn *"
-                        value={nyFornavn}
-                        onChange={(e) => {
-                          setNyFornavn(e.target.value);
-                          setFeilmelding("");
-                        }}
-                        autoFocus
-                        className="rounded border border-gray-300 px-3 py-2 text-sm focus:border-sitedoc-primary focus:outline-none focus:ring-1 focus:ring-sitedoc-primary"
-                      />
-                      <input
-                        type="text"
-                        placeholder="Etternavn *"
-                        value={nyEtternavn}
-                        onChange={(e) => {
-                          setNyEtternavn(e.target.value);
-                          setFeilmelding("");
-                        }}
-                        className="rounded border border-gray-300 px-3 py-2 text-sm focus:border-sitedoc-primary focus:outline-none focus:ring-1 focus:ring-sitedoc-primary"
-                      />
-                    </div>
-                    <input
-                      type="tel"
-                      placeholder="Telefonnummer (valgfritt)"
-                      value={nyTelefon}
-                      onChange={(e) => setNyTelefon(e.target.value)}
-                      className="rounded border border-gray-300 px-3 py-2 text-sm focus:border-sitedoc-primary focus:outline-none focus:ring-1 focus:ring-sitedoc-primary"
-                    />
-                    <textarea
-                      placeholder="Personlig melding (valgfritt)"
-                      value={nyMelding}
-                      onChange={(e) => setNyMelding(e.target.value)}
-                      rows={2}
-                      maxLength={500}
-                      className="rounded border border-gray-300 px-3 py-2 text-sm focus:border-sitedoc-primary focus:outline-none focus:ring-1 focus:ring-sitedoc-primary"
-                    />
-                  </div>
-                )}
-
-                <div className="flex items-center gap-2">
-                  {leggTilSteg === 1 ? (
-                    <Button
-                      type="submit"
-                      size="sm"
-                      disabled={!nyEpost.trim()}
-                    >
-                      Neste
-                    </Button>
-                  ) : (
-                    <Button
-                      type="submit"
-                      size="sm"
-                      disabled={leggerTil || !nyFornavn.trim() || !nyEtternavn.trim()}
-                    >
-                      {leggerTil ? t("handling.laster") : t("handling.leggTil")}
-                    </Button>
-                  )}
-                </div>
-              </form>
-            </div>
-          )}
-          {feilmelding && (
-            <p className="mt-1 text-sm text-red-600">{feilmelding}</p>
-          )}
-        </div>
-
-        {/* Moduler — produksjons-admin kan slå av/på */}
-        {erDbGruppe && dbGruppe && (
-          <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-            <h4 className="mb-3 text-sm font-semibold text-gray-900">{t("brukere.moduler")}</h4>
-            <p className="mb-2 text-xs text-gray-500">{t("brukere.modulerBeskrivelse")}</p>
-            <div className="flex flex-col gap-2">
-              {([
-                { id: "sjekklister", labelKey: "brukere.sjekklister", ikon: <ClipboardCheck className="h-4 w-4" /> },
-                { id: "oppgaver", labelKey: "brukere.oppgaver", ikon: <ListTodo className="h-4 w-4" /> },
-                { id: "tegninger", labelKey: "brukere.tegninger", ikon: <Map className="h-4 w-4" /> },
-                { id: "3d", labelKey: "brukere.3dModeller", ikon: <Box className="h-4 w-4" /> },
-              ] as const).map((modul) => {
-                const aktiveModuler = ((dbGruppe as unknown as { modules?: string[] }).modules ?? ["sjekklister", "oppgaver", "tegninger", "3d"]);
-                const erAktiv = aktiveModuler.includes(modul.id);
-                return (
-                  <label key={modul.id} className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={erAktiv}
-                      onChange={() => {
-                        const nyeModuler = erAktiv
-                          ? aktiveModuler.filter((m: string) => m !== modul.id)
-                          : [...aktiveModuler, modul.id];
-                        oppdaterModuler.mutate({
-                          groupId: dbGruppe.id,
-                          projectId: prosjektId,
-                          modules: nyeModuler as ("sjekklister" | "oppgaver" | "tegninger" | "3d")[],
-                        });
-                      }}
-                      className="h-4 w-4 rounded border-gray-300 text-sitedoc-primary focus:ring-sitedoc-primary"
-                    />
-                    <span className="flex items-center gap-1.5 text-sm text-gray-700">
-                      {modul.ikon} {t(modul.labelKey)}
-                    </span>
-                  </label>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Byggeplasser — velg hvilke byggeplasser gruppen ser */}
-        {erDbGruppe && dbGruppe && alleBygninger && alleBygninger.length > 0 && (
-          <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-            <h4 className="mb-3 text-sm font-semibold text-gray-900">{t("brukere.byggeplasser")}</h4>
-            <p className="mb-2 text-xs text-gray-500">{t("brukere.byggeplasserBeskrivelse")}</p>
-            <div className="flex flex-col gap-2">
-              {alleBygninger.map((b) => {
-                const bygningIder = ((dbGruppe as unknown as { byggeplassIder?: string[] | null }).byggeplassIder) ?? null;
-                const alleValgt = bygningIder === null;
-                const erValgt = alleValgt || (bygningIder?.includes(b.id) ?? false);
-                return (
-                  <label key={b.id} className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={erValgt}
-                      onChange={() => {
-                        let nye: string[] | null;
-                        if (alleValgt) {
-                          // Gå fra alle → kun denne fjernes
-                          nye = alleBygninger.filter((x) => x.id !== b.id).map((x) => x.id);
-                        } else {
-                          if (erValgt) {
-                            nye = bygningIder!.filter((id: string) => id !== b.id);
-                            if (nye.length === 0) nye = null; // Ingen = alle
-                          } else {
-                            nye = [...(bygningIder ?? []), b.id];
-                            if (nye.length === alleBygninger.length) nye = null; // Alle = null
-                          }
-                        }
-                        oppdaterBygninger.mutate({
-                          groupId: dbGruppe.id,
-                          projectId: prosjektId,
-                          byggeplassIder: nye,
-                        });
-                      }}
-                      className="h-4 w-4 rounded border-gray-300 text-sitedoc-primary focus:ring-sitedoc-primary"
-                    />
-                    <span className="text-sm text-gray-700">{b.name}</span>
-                  </label>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Slett gruppe */}
-        {erDbGruppe && !dbGruppe?.isDefault && (
-          <div className="border-t border-gray-200 pt-4">
-            {bekreftSlett ? (
-              <div className="flex items-center gap-3">
-                <span className="text-sm text-gray-600">
-                  Er du sikker? Alle medlemmer fjernes fra gruppen.
-                </span>
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onClick={() => setBekreftSlett(false)}
-                >
-                  Avbryt
-                </Button>
-                <Button
-                  size="sm"
-                  className="bg-red-600 text-white hover:bg-red-700"
-                  disabled={slettGruppe.isPending}
-                  onClick={() => slettGruppe.mutate({ id: gruppe.id, projectId: prosjektId })}
-                >
-                  {slettGruppe.isPending ? t("handling.sletter") : t("brukere.bekreftSletting")}
-                </Button>
-              </div>
-            ) : (
-              <button
-                onClick={() => setBekreftSlett(true)}
-                className="flex items-center gap-1.5 text-sm text-red-600 hover:text-red-700"
-              >
-                <Trash2 className="h-4 w-4" />
-                Slett gruppe
-              </button>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Ettersend-modal med personlig melding */}
-      <Modal
-        open={ettersendId !== null}
-        onClose={() => { setEttersendId(null); setEttersendMelding(""); }}
-        title={t("brukere.ettersendInvitasjon")}
-      >
-        <div className="flex flex-col gap-4">
-          <p className="text-sm text-gray-600">
-            {t("brukere.ettersendBeskrivelse")}
-          </p>
-          <textarea
-            placeholder={t("brukere.personligMelding")}
-            value={ettersendMelding}
-            onChange={(e) => setEttersendMelding(e.target.value)}
-            rows={3}
-            maxLength={500}
-            className="rounded border border-gray-300 px-3 py-2 text-sm focus:border-sitedoc-primary focus:outline-none focus:ring-1 focus:ring-sitedoc-primary"
-          />
-          <div className="flex justify-end gap-2">
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => { setEttersendId(null); setEttersendMelding(""); }}
-            >
-              {t("handling.avbryt")}
-            </Button>
-            <Button
-              size="sm"
-              disabled={sendPaNytt.isPending}
-              onClick={() => {
-                if (!ettersendId) return;
-                sendPaNytt.mutate({
-                  id: ettersendId,
-                  melding: ettersendMelding.trim() || undefined,
-                });
-              }}
-            >
-              {sendPaNytt.isPending ? t("handling.sender") : t("brukere.sendInvitasjon")}
-            </Button>
-          </div>
-        </div>
-      </Modal>
-    </Modal>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/*  GruppeKort-komponent                                               */
-/* ------------------------------------------------------------------ */
-
-const MAKS_SYNLIGE = 4;
-
-function GruppeKort({
-  gruppe,
-  onLeggTilMedlem,
-  onDoubleClick,
-}: {
-  gruppe: BrukerGruppe;
-  onLeggTilMedlem?: (gruppeId: string) => void;
-  onDoubleClick?: () => void;
-}) {
-  const { t } = useTranslation();
-  const [visAlle, setVisAlle] = useState(false);
-  const harMedlemmer = gruppe.medlemmer.length > 0;
-  const synlige = visAlle
-    ? gruppe.medlemmer
-    : gruppe.medlemmer.slice(0, MAKS_SYNLIGE);
-  const skjulte = gruppe.medlemmer.length - MAKS_SYNLIGE;
-
-  return (
-    <div
-      onDoubleClick={onDoubleClick}
-      className="group flex min-h-[160px] cursor-pointer flex-col rounded-lg border border-gray-200 bg-white transition-shadow hover:shadow-md"
-    >
-      {/* Header med modulikoner */}
-      <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
-        <h4 className="truncate text-sm font-semibold text-gray-900">
-          {gruppe.navn}
-        </h4>
-        <div className="flex gap-1.5">
-          {(gruppe.moduler ?? ["sjekklister", "oppgaver", "tegninger", "3d"]).map((modul) => {
-            const info: Record<string, { ikon: JSX.Element; tekst: string }> = {
-              sjekklister: { ikon: <ClipboardCheck className="h-3.5 w-3.5" />, tekst: t("brukere.sjekklister") },
-              oppgaver: { ikon: <ListTodo className="h-3.5 w-3.5" />, tekst: t("brukere.oppgaver") },
-              tegninger: { ikon: <Map className="h-3.5 w-3.5" />, tekst: t("brukere.tegninger") },
-              "3d": { ikon: <Box className="h-3.5 w-3.5" />, tekst: t("brukere.3dModeller") },
-            };
-            const m = info[modul];
-            if (!m) return null;
-            return (
-              <div key={modul} title={m.tekst} className="relative cursor-help text-sitedoc-primary group/tip">
-                {m.ikon}
-                <div className="pointer-events-none absolute -bottom-7 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-0.5 text-[10px] text-white opacity-0 transition-opacity group-hover/tip:opacity-100">
-                  {m.tekst}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Innhold */}
-      <div className="flex flex-1 flex-col px-4 py-3">
-        {harMedlemmer ? (
-          <div className="flex flex-col gap-1.5">
-            {synlige.map((medlem) => (
-              <div key={medlem.id} className="flex items-center gap-2">
-                <span
-                  className={`inline-flex items-center rounded px-2 py-0.5 text-sm ${
-                    medlem.rolle
-                      ? "bg-gray-700 text-white"
-                      : "text-gray-700"
-                  }`}
-                >
-                  {medlem.navn}
-                </span>
-                {medlem.epost && (
-                  <span className="text-xs text-gray-400">{medlem.epost}</span>
-                )}
-                {medlem.rolle && (
-                  <span className="text-xs text-gray-400">{medlem.rolle}</span>
-                )}
-                {medlem.ventendeInvitasjon && (
-                  <span className="flex items-center gap-0.5 text-xs text-amber-600">
-                    <Mail className="h-3 w-3" />
-                    {t("brukere.invitasjonSendt")}
-                  </span>
-                )}
-              </div>
-            ))}
-            {!visAlle && skjulte > 0 && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setVisAlle(true);
-                }}
-                className="mt-1 self-start text-xs text-gray-400 hover:text-gray-600"
-              >
-                + {skjulte} {t("handling.mer")}
-              </button>
-            )}
-          </div>
-        ) : (
-          <div className="flex flex-1 items-center justify-center">
-            <span className="text-sm text-gray-300">{t("brukere.tomGruppe")}</span>
-          </div>
-        )}
-      </div>
-
-      {/* Hover-handling */}
-      {onLeggTilMedlem && (
-        <div className="border-t border-gray-100 px-4 py-2 opacity-0 transition-opacity group-hover:opacity-100">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onLeggTilMedlem(gruppe.id);
-            }}
-            className="flex items-center gap-1.5 text-xs text-sitedoc-primary hover:underline"
-          >
-            <UserPlus className="h-3.5 w-3.5" />
-            {t("brukere.leggTilMedlem")}
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/*  Seksjon-komponent                                                  */
-/* ------------------------------------------------------------------ */
-
-function GruppeSeksjon({
-  tittel,
-  grupper,
-  onLeggTilMedlem,
-  onDoubleClickGruppe,
-  onOpprett,
-}: {
-  tittel: string;
-  grupper: BrukerGruppe[];
-  onLeggTilMedlem?: (gruppeId: string) => void;
-  onDoubleClickGruppe?: (gruppe: BrukerGruppe) => void;
-  onOpprett?: () => void;
-}) {
-  const { t } = useTranslation();
-  if (grupper.length === 0 && !onOpprett) return null;
-  return (
-    <div className="mb-8">
-      <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-lg font-bold text-gray-900">{tittel}</h3>
-        {onOpprett && (
-          <button
-            onClick={onOpprett}
-            className="flex items-center gap-1 rounded-lg bg-sitedoc-primary px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-800"
-          >
-            {t("brukere.nyGruppe")}
-          </button>
-        )}
-      </div>
-      {grupper.length > 0 ? (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          {grupper.map((gruppe) => (
-            <GruppeKort
-              key={gruppe.id}
-              gruppe={gruppe}
-              onLeggTilMedlem={onLeggTilMedlem}
-              onDoubleClick={() => onDoubleClickGruppe?.(gruppe)}
-            />
-          ))}
-        </div>
-      ) : (
-        <p className="text-sm text-gray-400">{t("brukere.ingenGrupper")}</p>
-      )}
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
 /*  KontaktTabell                                                      */
 /* ------------------------------------------------------------------ */
 
 interface KontaktMedlem {
   id: string;
   role: string;
+  erFirmaansvarlig: boolean;
   user: {
     id: string;
     name: string | null;
@@ -1363,20 +101,54 @@ interface KontaktMedlem {
     phone: string | null;
     organization?: { id: string; name: string } | null;
   };
-  enterprises: Array<{
-    enterprise: { id: string; name: string; color: string | null };
+  dokumentflytKoblinger: Array<{
+    dokumentflytPart: { id: string; name: string; color: string | null };
   }>;
 }
 
 function KontaktTabell({ prosjektId }: { prosjektId: string }) {
   const { t } = useTranslation();
   const utils = trpc.useUtils();
-  const [leggTilEntrepriseForMedlem, setLeggTilEntrepriseForMedlem] = useState<string | null>(null);
   const [kollapserteGrupper, setKollapserteGrupper] = useState<Set<string>>(new Set());
+  const harInitialisertKollaps = useRef(false);
+  const [redigerMedlemId, setRedigerMedlemId] = useState<string | null>(null);
+  const [redigerData, setRedigerData] = useState({ name: "", email: "", phone: "", role: "", organizationId: "" });
   const [filterNavn, setFilterNavn] = useState("");
   const [filterRolle, setFilterRolle] = useState("");
   const [filterEntreprise, setFilterEntreprise] = useState("");
   const [filterGruppe, setFilterGruppe] = useState("");
+  const [redigerGruppeNavn, setRedigerGruppeNavn] = useState<string | null>(null);
+  const [nyGruppeNavnVerdi, setNyGruppeNavnVerdi] = useState("");
+  const [leggTilMedlemIGruppe, setLeggTilMedlemIGruppe] = useState<string | null>(null);
+  const [nyGruppeInput, setNyGruppeInput] = useState(false);
+  const [nyGruppeNavn, setNyGruppeNavn] = useState("");
+  const [inviterOpen, setInviterOpen] = useState(false);
+  const [inviterData, setInviterData] = useState({ fornavn: "", etternavn: "", epost: "", telefon: "", organizationId: "" });
+  const [visNyttFirmaInput, setVisNyttFirmaInput] = useState(false);
+  const [nyttFirmaNavn, setNyttFirmaNavn] = useState("");
+
+  const settFirmaansvarligMutation = trpc.medlem.settFirmaansvarlig.useMutation({
+    onSuccess: () => {
+      utils.medlem.hentForProsjekt.invalidate({ projectId: prosjektId });
+    },
+  });
+
+  const opprettOrgMutation = trpc.organisasjon.opprett.useMutation({
+    onSuccess: (nyOrg) => {
+      utils.organisasjon.hentAlle.invalidate();
+      setInviterData((p) => ({ ...p, organizationId: (nyOrg as { id: string }).id }));
+      setNyttFirmaNavn("");
+      setVisNyttFirmaInput(false);
+    },
+  });
+
+  const inviterMutation = trpc.medlem.leggTil.useMutation({
+    onSuccess: () => {
+      utils.medlem.hentForProsjekt.invalidate({ projectId: prosjektId });
+      setInviterOpen(false);
+      setInviterData({ fornavn: "", etternavn: "", epost: "", telefon: "", organizationId: "" });
+    },
+  });
 
   const { data: medlemmer } = trpc.medlem.hentForProsjekt.useQuery(
     { projectId: prosjektId },
@@ -1388,23 +160,102 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
     { enabled: !!prosjektId },
   );
 
+  // Hent alle organisasjoner for firma-dropdown (redigering + invitasjon)
+  const { data: alleOrganisasjoner } = trpc.organisasjon.hentAlle.useQuery();
+
   const { data: dbGrupper } = trpc.gruppe.hentForProsjekt.useQuery(
     { projectId: prosjektId },
     { enabled: !!prosjektId },
   );
-
-  const tilknyttMutation = trpc.medlem.tilknyttEntreprise.useMutation({
-    onSuccess: () => {
-      utils.medlem.hentForProsjekt.invalidate({ projectId: prosjektId });
-      setLeggTilEntrepriseForMedlem(null);
-    },
-  });
 
   const fjernMutation = trpc.medlem.fjernFraEntreprise.useMutation({
     onSuccess: () => {
       utils.medlem.hentForProsjekt.invalidate({ projectId: prosjektId });
     },
   });
+
+  const oppdaterGruppeMutation = trpc.gruppe.oppdater.useMutation({
+    onSuccess: () => {
+      utils.gruppe.hentForProsjekt.invalidate({ projectId: prosjektId });
+      setRedigerGruppeNavn(null);
+      setNyGruppeNavnVerdi("");
+    },
+  });
+
+  const slettGruppeMutation = trpc.gruppe.slett.useMutation({
+    onSuccess: () => {
+      utils.gruppe.hentForProsjekt.invalidate({ projectId: prosjektId });
+      utils.medlem.hentForProsjekt.invalidate({ projectId: prosjektId });
+    },
+  });
+
+  const leggTilMedlemMutation = trpc.gruppe.leggTilMedlem.useMutation({
+    onSuccess: () => {
+      utils.gruppe.hentForProsjekt.invalidate({ projectId: prosjektId });
+      utils.medlem.hentForProsjekt.invalidate({ projectId: prosjektId });
+      setLeggTilMedlemIGruppe(null);
+    },
+  });
+
+  const fjernMedlemMutation = trpc.gruppe.fjernMedlem.useMutation({
+    onSuccess: () => {
+      utils.gruppe.hentForProsjekt.invalidate({ projectId: prosjektId });
+      utils.medlem.hentForProsjekt.invalidate({ projectId: prosjektId });
+    },
+  });
+
+  const oppdaterModulerMutation = trpc.gruppe.oppdaterModuler.useMutation({
+    onSuccess: () => {
+      utils.gruppe.hentForProsjekt.invalidate({ projectId: prosjektId });
+    },
+  });
+
+  const opprettGruppeMutation = trpc.gruppe.opprett.useMutation({
+    onSuccess: () => {
+      utils.gruppe.hentForProsjekt.invalidate({ projectId: prosjektId });
+      setNyGruppeInput(false);
+      setNyGruppeNavn("");
+    },
+  });
+
+  // Default kollaps: lukk alle grupper ved første lasting
+  useEffect(() => {
+    if (harInitialisertKollaps.current || !dbGrupper) return;
+    const alleNavn = (dbGrupper as Array<{ name: string }>).map((g) => g.name);
+    alleNavn.push(t("brukere.utenGruppe"));
+    setKollapserteGrupper(new Set(alleNavn));
+    harInitialisertKollaps.current = true;
+  }, [dbGrupper, t]);
+
+  const oppdaterMedlemMutation = trpc.medlem.oppdater.useMutation({
+    onSuccess: () => {
+      utils.medlem.hentForProsjekt.invalidate({ projectId: prosjektId });
+      setRedigerMedlemId(null);
+    },
+  });
+
+  const startRediger = (m: KontaktMedlem) => {
+    setRedigerMedlemId(m.id);
+    setRedigerData({
+      name: m.user.name ?? "",
+      email: m.user.email,
+      phone: m.user.phone ?? "",
+      role: m.role,
+      organizationId: (m.user as KontaktMedlem["user"]).organization?.id ?? "",
+    });
+  };
+
+  const lagreRediger = (medlemId: string) => {
+    oppdaterMedlemMutation.mutate({
+      id: medlemId,
+      projectId: prosjektId,
+      name: redigerData.name.trim() || undefined,
+      email: redigerData.email.trim() || undefined,
+      phone: redigerData.phone.trim() || undefined,
+      role: (redigerData.role as "member" | "admin") || undefined,
+      organizationId: redigerData.organizationId || null,
+    });
+  };
 
   // Bygg gruppe-map: userId → gruppenavn[]
   const gruppeMap: Record<string, string[]> = {};
@@ -1417,6 +268,56 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
       }
     }
   }
+
+  // Bygg gruppeNavn → gruppeId map og gruppeId → userId → gruppeMedlemId map
+  const gruppeNavnTilId = useMemo((): Record<string, string> => {
+    const map: Record<string, string> = {};
+    if (dbGrupper) {
+      for (const g of dbGrupper as Array<{ id: string; name: string }>) {
+        map[g.name] = g.id;
+      }
+    }
+    return map;
+  }, [dbGrupper]);
+
+  // Bygg gruppeId → modules map
+  const gruppeModuler = useMemo((): Record<string, string[]> => {
+    const map: Record<string, string[]> = {};
+    if (dbGrupper) {
+      for (const g of dbGrupper as Array<{ id: string; modules: unknown }>) {
+        map[g.id] = (g.modules as string[] | null) ?? [];
+      }
+    }
+    return map;
+  }, [dbGrupper]);
+
+  const gruppeMedlemIdMap = useMemo((): Record<string, Record<string, string>> => {
+    // gruppeId → userId → gruppeMedlemId
+    const map: Record<string, Record<string, string>> = {};
+    if (dbGrupper) {
+      for (const g of dbGrupper as Array<{ id: string; members: Array<{ id: string; projectMember: { user: { id: string } } | null }> }>) {
+        const innerMap: Record<string, string> = {};
+        for (const m of g.members) {
+          if (m.projectMember?.user?.id) {
+            innerMap[m.projectMember.user.id] = m.id;
+          }
+        }
+        map[g.id] = innerMap;
+      }
+    }
+    return map;
+  }, [dbGrupper]);
+
+  // Bygg map fra userId → brukerinfo for leggTilMedlem
+  const medlemTilPmId = useMemo((): Record<string, { id: string; email: string; name: string | null; phone: string | null }> => {
+    const map: Record<string, { id: string; email: string; name: string | null; phone: string | null }> = {};
+    if (medlemmer) {
+      for (const m of medlemmer as KontaktMedlem[]) {
+        map[m.user.id] = { id: m.id, email: m.user.email, name: m.user.name, phone: m.user.phone };
+      }
+    }
+    return map;
+  }, [medlemmer]);
 
   const kontakterRå = (medlemmer ?? []) as KontaktMedlem[];
 
@@ -1432,11 +333,15 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
       );
     }
     if (filterRolle) {
-      resultat = resultat.filter((m) => m.role === filterRolle);
+      if (filterRolle === "firmaansvarlig") {
+        resultat = resultat.filter((m) => m.erFirmaansvarlig);
+      } else {
+        resultat = resultat.filter((m) => m.role === filterRolle);
+      }
     }
     if (filterEntreprise) {
       resultat = resultat.filter((m) =>
-        m.enterprises.some((e) => e.enterprise.id === filterEntreprise),
+        m.dokumentflytKoblinger.some((e) => e.dokumentflytPart.id === filterEntreprise),
       );
     }
     if (filterGruppe) {
@@ -1451,10 +356,11 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
     return resultat;
   }, [kontakterRå, filterNavn, filterRolle, filterEntreprise, filterGruppe, dbGrupper]);
 
-  // Grupper kontakter etter brukergruppe med overskrifter (deduplisert)
+  // Grupper kontakter etter brukergruppe med overskrifter
+  // Medlemmer vises under HVER gruppe de tilhører (ingen deduplisering mellom grupper)
   const gruppertKontakter = useMemo(() => {
     const rader: Array<{ type: "header"; gruppeNavn: string; antall: number } | { type: "medlem"; medlem: KontaktMedlem; gruppeNavn: string }> = [];
-    const brukteMedlemIder = new Set<string>();
+    const medlemmerMedGruppe = new Set<string>();
 
     const brukerGrupperListe = dbGrupper
       ? (dbGrupper as Array<{ id: string; name: string; category: string; members: Array<{ projectMember: { user: { id: string } } | null }> }>)
@@ -1462,19 +368,17 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
       : [];
 
     for (const g of brukerGrupperListe) {
-      // Filtrer bort allerede viste medlemmer (deduplisering)
       const gruppeKontakter = kontakter.filter((m) =>
-        !brukteMedlemIder.has(m.id) &&
         g.members.some((gm) => gm.projectMember?.user?.id === m.user.id),
       );
       rader.push({ type: "header", gruppeNavn: g.name, antall: gruppeKontakter.length });
       for (const m of gruppeKontakter) {
         rader.push({ type: "medlem", medlem: m, gruppeNavn: g.name });
-        brukteMedlemIder.add(m.id);
+        medlemmerMedGruppe.add(m.id);
       }
     }
 
-    const utenGruppe = kontakter.filter((m) => !brukteMedlemIder.has(m.id));
+    const utenGruppe = kontakter.filter((m) => !medlemmerMedGruppe.has(m.id));
     if (utenGruppe.length > 0) {
       const utenGruppeNavn = t("brukere.utenGruppe");
       rader.push({ type: "header", gruppeNavn: utenGruppeNavn, antall: utenGruppe.length });
@@ -1487,11 +391,192 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
   }, [kontakter, dbGrupper, t]);
 
   return (
-    <div className="mb-6">
-      <h2 className="mb-4 text-xl font-bold text-gray-900">{t("brukere.kontakter")}</h2>
-      <div className="overflow-x-auto rounded-lg border border-gray-200">
+    <div className="-mx-6 -mt-6">
+      <div className="sticky top-0 z-30 bg-gray-50 px-6 pt-6 pb-3 border-b border-gray-200">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-bold text-gray-900">{t("brukere.kontakter")}</h2>
+          <div className="flex items-center gap-2">
+            {nyGruppeInput ? (
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="text"
+                  value={nyGruppeNavn}
+                  onChange={(e) => setNyGruppeNavn(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && nyGruppeNavn.trim()) {
+                      opprettGruppeMutation.mutate({ projectId: prosjektId, name: nyGruppeNavn.trim(), category: "brukergrupper" });
+                    } else if (e.key === "Escape") {
+                      setNyGruppeInput(false);
+                      setNyGruppeNavn("");
+                    }
+                  }}
+                  autoFocus
+                  placeholder={t("brukere.gruppenavn")}
+                  className="rounded-lg border border-blue-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
+                />
+                <button
+                  onClick={() => { setNyGruppeInput(false); setNyGruppeNavn(""); }}
+                  className="rounded p-1 text-gray-400 hover:text-gray-600"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setNyGruppeInput(true)}
+                className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100"
+              >
+                <Plus className="h-4 w-4" />
+                {t("brukere.nyGruppe")}
+              </button>
+            )}
+            <button
+              onClick={() => setInviterOpen((p) => !p)}
+              className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100"
+            >
+              <Plus className="h-4 w-4" />
+              {t("brukere.inviterNy")}
+            </button>
+            <HjelpKnapp />
+          </div>
+        </div>
+        {/* Inviter ny bruker — inline form */}
+        {inviterOpen && (
+          <div className="flex items-end gap-2 px-6 pt-2 pb-1">
+            <div>
+              <label className="block text-[10px] font-medium text-gray-500 mb-0.5">{t("label.fornavn")}</label>
+              <input
+                type="text"
+                value={inviterData.fornavn}
+                onChange={(e) => setInviterData((p) => ({ ...p, fornavn: e.target.value }))}
+                className="rounded border border-gray-300 px-2 py-1 text-sm w-28 focus:border-blue-400 focus:outline-none"
+                autoFocus
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-medium text-gray-500 mb-0.5">{t("label.etternavn")}</label>
+              <input
+                type="text"
+                value={inviterData.etternavn}
+                onChange={(e) => setInviterData((p) => ({ ...p, etternavn: e.target.value }))}
+                className="rounded border border-gray-300 px-2 py-1 text-sm w-28 focus:border-blue-400 focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-medium text-gray-500 mb-0.5">{t("label.epost")}</label>
+              <input
+                type="email"
+                value={inviterData.epost}
+                onChange={(e) => setInviterData((p) => ({ ...p, epost: e.target.value }))}
+                className="rounded border border-gray-300 px-2 py-1 text-sm w-48 focus:border-blue-400 focus:outline-none"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && inviterData.fornavn.trim() && inviterData.etternavn.trim() && inviterData.epost.trim() && inviterData.organizationId) {
+                    inviterMutation.mutate({
+                      projectId: prosjektId,
+                      firstName: inviterData.fornavn.trim(),
+                      lastName: inviterData.etternavn.trim(),
+                      email: inviterData.epost.trim(),
+                      phone: inviterData.telefon.trim() || undefined,
+                      organizationId: inviterData.organizationId,
+                    });
+                  }
+                }}
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-medium text-gray-500 mb-0.5">{t("label.telefon")}</label>
+              <input
+                type="text"
+                value={inviterData.telefon}
+                onChange={(e) => setInviterData((p) => ({ ...p, telefon: e.target.value }))}
+                className="rounded border border-gray-300 px-2 py-1 text-sm w-28 focus:border-blue-400 focus:outline-none"
+                placeholder={t("label.valgfritt")}
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-medium text-gray-500 mb-0.5">{t("tabell.firma")} *</label>
+              {visNyttFirmaInput ? (
+                <div className="flex items-center gap-1">
+                  <input
+                    type="text"
+                    value={nyttFirmaNavn}
+                    onChange={(e) => setNyttFirmaNavn(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && nyttFirmaNavn.trim()) {
+                        opprettOrgMutation.mutate({ name: nyttFirmaNavn.trim() });
+                      } else if (e.key === "Escape") {
+                        setVisNyttFirmaInput(false);
+                        setNyttFirmaNavn("");
+                      }
+                    }}
+                    autoFocus
+                    placeholder="Firmanavn..."
+                    className="rounded border border-blue-300 px-2 py-1 text-sm w-36 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                  />
+                  <button
+                    onClick={() => { if (nyttFirmaNavn.trim()) opprettOrgMutation.mutate({ name: nyttFirmaNavn.trim() }); }}
+                    disabled={!nyttFirmaNavn.trim() || opprettOrgMutation.isPending}
+                    className="rounded bg-blue-600 px-2 py-1 text-xs text-white hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    OK
+                  </button>
+                  <button
+                    onClick={() => { setVisNyttFirmaInput(false); setNyttFirmaNavn(""); }}
+                    className="rounded p-0.5 text-gray-400 hover:text-gray-600"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <select
+                  value={inviterData.organizationId}
+                  onChange={(e) => {
+                    if (e.target.value === "__ny__") {
+                      setVisNyttFirmaInput(true);
+                    } else {
+                      setInviterData((p) => ({ ...p, organizationId: e.target.value }));
+                    }
+                  }}
+                  className="rounded border border-gray-300 px-2 py-1 text-sm w-40 focus:border-blue-400 focus:outline-none"
+                >
+                  <option value="">{t("handling.velg")}...</option>
+                  {(alleOrganisasjoner as Array<{ id: string; name: string }> ?? []).map((org) => (
+                    <option key={org.id} value={org.id}>{org.name}</option>
+                  ))}
+                  <option value="__ny__">+ Nytt firma</option>
+                </select>
+              )}
+            </div>
+            <button
+              onClick={() => {
+                if (inviterData.fornavn.trim() && inviterData.etternavn.trim() && inviterData.epost.trim()) {
+                  inviterMutation.mutate({
+                    projectId: prosjektId,
+                    firstName: inviterData.fornavn.trim(),
+                    lastName: inviterData.etternavn.trim(),
+                    email: inviterData.epost.trim(),
+                    phone: inviterData.telefon.trim() || undefined,
+                  });
+                }
+              }}
+              disabled={!inviterData.fornavn.trim() || !inviterData.etternavn.trim() || !inviterData.epost.trim() || !inviterData.organizationId || inviterMutation.isPending}
+              className="rounded-lg bg-blue-600 px-3 py-1 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+            >
+              {inviterMutation.isPending ? t("handling.sender") : t("brukere.sendInvitasjon")}
+            </button>
+            <button
+              onClick={() => { setInviterOpen(false); setInviterData({ fornavn: "", etternavn: "", epost: "", telefon: "", organizationId: "" }); }}
+              className="rounded p-1 text-gray-400 hover:text-gray-600"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+      </div>
+      <div className="px-6 pt-3 pb-6">
+      <div className="rounded-lg border border-gray-200">
         <table className="w-full text-left text-sm">
-          <thead className="border-b border-gray-200 bg-gray-50 text-xs font-medium uppercase tracking-wide text-gray-500">
+          <thead className="sticky top-[69px] z-20 border-b border-gray-200 bg-gray-50 text-xs font-medium uppercase tracking-wide text-gray-500 shadow-sm">
             <tr>
               <th className="px-4 py-2.5">{t("tabell.navn")}</th>
               <th className="px-4 py-2.5">{t("kontakter.epost")}</th>
@@ -1502,7 +587,7 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
               <th className="px-4 py-2.5">{t("kontakter.grupper")}</th>
             </tr>
             {/* Filterrad */}
-            <tr className="border-b border-gray-200 bg-gray-50/50">
+            <tr className="border-b border-gray-200 bg-gray-50">
               <th colSpan={3} className="px-4 py-1.5">
                 <input
                   type="text"
@@ -1521,6 +606,7 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
                 >
                   <option value="">{t("status.alle")}</option>
                   <option value="admin">Admin</option>
+                  <option value="firmaansvarlig">{t("brukere.firmaansvarlig")}</option>
                   <option value="member">{t("kontakter.medlem")}</option>
                 </select>
               </th>
@@ -1557,28 +643,207 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
             {gruppertKontakter.map((rad, idx) => {
               if (rad.type === "header") {
                 const erKollapset = kollapserteGrupper.has(rad.gruppeNavn);
+                const gruppeId = gruppeNavnTilId[rad.gruppeNavn];
+                const erUtenGruppe = !gruppeId;
+                const toggleKollaps = () => {
+                  setKollapserteGrupper((prev) => {
+                    const ny = new Set(prev);
+                    ny.has(rad.gruppeNavn) ? ny.delete(rad.gruppeNavn) : ny.add(rad.gruppeNavn);
+                    return ny;
+                  });
+                };
+
+                // Medlemmer som ikke allerede er i denne gruppen (for legg-til-dropdown)
+                const medlemmerIkkeIGruppe = gruppeId
+                  ? kontakterRå.filter((k) => !gruppeMedlemIdMap[gruppeId]?.[k.user.id])
+                  : [];
+
                 return (
                   <tr
                     key={`header-${idx}`}
-                    className="bg-gray-50/80 cursor-pointer hover:bg-gray-100/80"
-                    onClick={() => {
-                      setKollapserteGrupper((prev) => {
-                        const ny = new Set(prev);
-                        ny.has(rad.gruppeNavn) ? ny.delete(rad.gruppeNavn) : ny.add(rad.gruppeNavn);
-                        return ny;
-                      });
-                    }}
+                    className="group/gheader bg-gray-100 border-t-2 border-gray-200 cursor-pointer hover:bg-gray-200/80"
                   >
-                    <td colSpan={7} className="px-4 py-2">
-                      <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                        {erKollapset
-                          ? <ChevronRight className="h-3.5 w-3.5" />
-                          : <ChevronDown className="h-3.5 w-3.5" />
-                        }
-                        <Users className="h-3.5 w-3.5" />
-                        {rad.gruppeNavn}
-                        <span className="font-normal text-gray-400">({rad.antall})</span>
+                    <td colSpan={7} className="px-4 py-2.5">
+                      <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-gray-600">
+                        <span onClick={toggleKollaps} className="flex items-center gap-2">
+                          {erKollapset
+                            ? <ChevronRight className="h-3.5 w-3.5" />
+                            : <ChevronDown className="h-3.5 w-3.5" />
+                          }
+                          <Users className="h-3.5 w-3.5" />
+                        </span>
+
+                        {/* Inline rename or group name */}
+                        {redigerGruppeNavn === rad.gruppeNavn && gruppeId ? (
+                          <input
+                            type="text"
+                            value={nyGruppeNavnVerdi}
+                            onChange={(e) => setNyGruppeNavnVerdi(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" && nyGruppeNavnVerdi.trim()) {
+                                oppdaterGruppeMutation.mutate({
+                                  id: gruppeId,
+                                  name: nyGruppeNavnVerdi.trim(),
+                                  projectId: prosjektId,
+                                });
+                              } else if (e.key === "Escape") {
+                                setRedigerGruppeNavn(null);
+                                setNyGruppeNavnVerdi("");
+                              }
+                            }}
+                            onBlur={() => {
+                              if (nyGruppeNavnVerdi.trim() && nyGruppeNavnVerdi.trim() !== rad.gruppeNavn) {
+                                oppdaterGruppeMutation.mutate({
+                                  id: gruppeId,
+                                  name: nyGruppeNavnVerdi.trim(),
+                                  projectId: prosjektId,
+                                });
+                              } else {
+                                setRedigerGruppeNavn(null);
+                                setNyGruppeNavnVerdi("");
+                              }
+                            }}
+                            autoFocus
+                            className="rounded border border-blue-300 bg-white px-2 py-0.5 text-xs font-semibold uppercase text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        ) : (
+                          <span onClick={toggleKollaps}>{rad.gruppeNavn}</span>
+                        )}
+
+                        <span className="font-normal text-gray-400" onClick={toggleKollaps}>({rad.antall})</span>
+
+                        {/* Modul-badges — alltid klikkbare for toggle */}
+                        {!erUtenGruppe && gruppeId && (() => {
+                          const moduler = gruppeModuler[gruppeId] ?? [];
+                          const MODUL_LABELS: Record<string, { label: string; aktivBg: string; inaktivBg: string }> = {
+                            sjekklister: { label: t("nav.sjekklister"), aktivBg: "bg-green-100 text-green-700", inaktivBg: "bg-gray-100 text-gray-400 line-through" },
+                            oppgaver: { label: t("nav.oppgaver"), aktivBg: "bg-blue-100 text-blue-700", inaktivBg: "bg-gray-100 text-gray-400 line-through" },
+                            tegninger: { label: t("nav.tegninger"), aktivBg: "bg-amber-100 text-amber-700", inaktivBg: "bg-gray-100 text-gray-400 line-through" },
+                            "3d": { label: "3D", aktivBg: "bg-purple-100 text-purple-700", inaktivBg: "bg-gray-100 text-gray-400 line-through" },
+                          };
+                          const alleModulNavn: Array<"sjekklister" | "oppgaver" | "tegninger" | "3d"> = ["sjekklister", "oppgaver", "tegninger", "3d"];
+
+                          return (
+                            <div className="ml-2 flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                              {alleModulNavn.map((mod) => {
+                                const info = MODUL_LABELS[mod]!;
+                                const erAktiv = moduler.includes(mod);
+                                return (
+                                  <button
+                                    key={mod}
+                                    type="button"
+                                    onClick={() => {
+                                      const nyeModuler = erAktiv
+                                        ? moduler.filter((m) => m !== mod) as typeof alleModulNavn
+                                        : [...moduler, mod] as typeof alleModulNavn;
+                                      oppdaterModulerMutation.mutate({
+                                        groupId: gruppeId,
+                                        projectId: prosjektId,
+                                        modules: nyeModuler,
+                                      });
+                                    }}
+                                    className={`rounded px-1.5 py-0.5 text-[10px] font-medium normal-case tracking-normal transition-colors cursor-pointer hover:opacity-80 ${
+                                      erAktiv ? info.aktivBg : info.inaktivBg
+                                    }`}
+                                    title={erAktiv ? `${info.label}: aktiv — klikk for å deaktivere` : `${info.label}: inaktiv — klikk for å aktivere`}
+                                  >
+                                    {info.label}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          );
+                        })()}
+
+                        {/* Action buttons - visible on hover, only for real groups */}
+                        {!erUtenGruppe && (
+                          <div className="ml-auto flex items-center gap-1 opacity-0 group-hover/gheader:opacity-100 transition-opacity">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setRedigerGruppeNavn(rad.gruppeNavn);
+                                setNyGruppeNavnVerdi(rad.gruppeNavn);
+                              }}
+                              className="rounded p-1 text-gray-400 hover:bg-gray-200 hover:text-gray-600"
+                              title={t("handling.rediger")}
+                            >
+                              <Pencil className="h-3 w-3" />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setLeggTilMedlemIGruppe((prev) => prev === gruppeId ? null : gruppeId!);
+                              }}
+                              className="rounded p-1 text-gray-400 hover:bg-gray-200 hover:text-gray-600"
+                              title={t("brukere.leggTilMedlem")}
+                            >
+                              <Plus className="h-3 w-3" />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (confirm(t("brukere.slettGruppeBekreftelse"))) {
+                                  slettGruppeMutation.mutate({ id: gruppeId!, projectId: prosjektId });
+                                }
+                              }}
+                              className="rounded p-1 text-gray-400 hover:bg-red-100 hover:text-red-600"
+                              title={t("brukere.slettGruppe")}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </button>
+                          </div>
+                        )}
                       </div>
+
+                      {/* Legg til medlem — custom dropdown */}
+                      {leggTilMedlemIGruppe === gruppeId && gruppeId && (
+                        <div className="mt-2" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-[10px] font-medium text-gray-500">{t("brukere.leggTilMedlem")}</span>
+                            <button
+                              onClick={() => setLeggTilMedlemIGruppe(null)}
+                              className="rounded p-0.5 text-gray-400 hover:text-gray-600"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </div>
+                          <div className="max-h-48 overflow-y-auto rounded border border-gray-200 bg-white">
+                            {medlemmerIkkeIGruppe.length === 0 ? (
+                              <div className="px-3 py-2 text-xs text-gray-400 italic">{t("brukere.ingenMedlemmer")}</div>
+                            ) : (
+                              medlemmerIkkeIGruppe.map((k) => {
+                                const entrepriseNavn = k.dokumentflytKoblinger.map((e) => e.dokumentflytPart.name).join(", ");
+                                return (
+                                  <button
+                                    key={k.user.id}
+                                    onClick={() => {
+                                      const info = medlemTilPmId[k.user.id];
+                                      if (info) {
+                                        const nameParts = (info.name ?? "").split(" ");
+                                        const firstName = nameParts[0] || info.email;
+                                        const lastName = nameParts.slice(1).join(" ") || "-";
+                                        leggTilMedlemMutation.mutate({
+                                          groupId: gruppeId,
+                                          projectId: prosjektId,
+                                          email: info.email,
+                                          firstName,
+                                          lastName,
+                                          phone: info.phone ?? undefined,
+                                        });
+                                      }
+                                    }}
+                                    className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-blue-50 transition-colors"
+                                  >
+                                    <span className="font-medium text-gray-700">{k.user.name ?? k.user.email}</span>
+                                    {entrepriseNavn && <span className="text-gray-400">· {entrepriseNavn}</span>}
+                                  </button>
+                                );
+                              })
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 );
@@ -1588,90 +853,240 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
 
               const m = rad.medlem;
               const brukerGrupper = gruppeMap[m.user.id] ?? [];
-              const entrepriseIder = new Set(m.enterprises.map((e) => e.enterprise.id));
+              const entrepriseIder = new Set(m.dokumentflytKoblinger.map((e) => e.dokumentflytPart.id));
               const tilgjengeligeEntrepriser = (alleEntrepriser ?? []).filter(
                 (e: { id: string }) => !entrepriseIder.has(e.id),
               );
+              const radGruppeId = gruppeNavnTilId[rad.gruppeNavn];
+              const gruppeMedlemId = radGruppeId
+                ? gruppeMedlemIdMap[radGruppeId]?.[m.user.id]
+                : undefined;
+
+              const erRedigering = redigerMedlemId === m.id;
 
               return (
-                <tr key={m.id} className="hover:bg-gray-50">
+                <tr key={`${m.id}-${rad.gruppeNavn}`} className="group/mrow hover:bg-gray-50">
                   {/* Navn */}
                   <td className="whitespace-nowrap px-4 py-2.5 font-medium text-gray-900">
-                    {m.user.name ?? "—"}
+                    <div className="flex items-center gap-1.5">
+                      {erRedigering ? (
+                        <input
+                          value={redigerData.name}
+                          onChange={(e) => setRedigerData((p) => ({ ...p, name: e.target.value }))}
+                          className="w-full rounded border border-blue-300 px-1.5 py-0.5 text-sm font-medium focus:outline-none focus:ring-1 focus:ring-blue-400"
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") lagreRediger(m.id);
+                            if (e.key === "Escape") setRedigerMedlemId(null);
+                          }}
+                          autoFocus
+                        />
+                      ) : (
+                        <>
+                          {m.role === "admin" && (
+                            <span title="Admin"><Shield className="h-3.5 w-3.5 text-blue-600 shrink-0" /></span>
+                          )}
+                          {m.erFirmaansvarlig && m.role !== "admin" && (
+                            <span title={t("brukere.firmaansvarlig")}><Shield className="h-3.5 w-3.5 text-amber-500 shrink-0" /></span>
+                          )}
+                          <span
+                            className="cursor-pointer hover:text-blue-600"
+                            onClick={() => startRediger(m)}
+                            title={t("handling.rediger")}
+                          >
+                            {m.user.name ?? "—"}
+                          </span>
+                          {radGruppeId && gruppeMedlemId && (
+                            <button
+                              onClick={() => fjernMedlemMutation.mutate({ id: gruppeMedlemId, projectId: prosjektId })}
+                              className="rounded p-0.5 text-gray-300 opacity-0 group-hover/mrow:opacity-100 hover:bg-red-50 hover:text-red-500 transition-opacity"
+                              title={t("brukere.fjernMedlem")}
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          )}
+                        </>
+                      )}
+                    </div>
                   </td>
 
                   {/* E-post */}
                   <td className="whitespace-nowrap px-4 py-2.5 text-gray-600">
-                    {m.user.email}
+                    {erRedigering ? (
+                      <input
+                        value={redigerData.email}
+                        onChange={(e) => setRedigerData((p) => ({ ...p, email: e.target.value }))}
+                        className="w-full rounded border border-blue-300 px-1.5 py-0.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") lagreRediger(m.id);
+                          if (e.key === "Escape") setRedigerMedlemId(null);
+                        }}
+                      />
+                    ) : (
+                      m.user.email
+                    )}
                   </td>
 
                   {/* Telefon */}
                   <td className="whitespace-nowrap px-4 py-2.5 text-gray-600">
-                    {m.user.phone ?? "—"}
+                    {erRedigering ? (
+                      <input
+                        value={redigerData.phone}
+                        onChange={(e) => setRedigerData((p) => ({ ...p, phone: e.target.value }))}
+                        className="w-full rounded border border-blue-300 px-1.5 py-0.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") lagreRediger(m.id);
+                          if (e.key === "Escape") setRedigerMedlemId(null);
+                        }}
+                      />
+                    ) : (
+                      m.user.phone ?? "—"
+                    )}
                   </td>
 
                   {/* Firma */}
                   <td className="whitespace-nowrap px-4 py-2.5 text-gray-600">
-                    {(m.user as KontaktMedlem["user"]).organization?.name ?? "—"}
+                    {erRedigering ? (
+                      <select
+                        value={redigerData.organizationId}
+                        onChange={(e) => setRedigerData((p) => ({ ...p, organizationId: e.target.value }))}
+                        className="rounded border border-blue-300 px-1.5 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
+                        title="Endrer firma på brukernivå — påvirker alle prosjekter"
+                      >
+                        <option value="">— Ingen —</option>
+                        {(alleOrganisasjoner as Array<{ id: string; name: string }> ?? []).map((org) => (
+                          <option key={org.id} value={org.id}>{org.name}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      (m.user as KontaktMedlem["user"]).organization?.name ?? "—"
+                    )}
                   </td>
 
                   {/* Rolle */}
                   <td className="whitespace-nowrap px-4 py-2.5">
-                    <span className={`inline-flex rounded px-1.5 py-0.5 text-xs font-medium ${
-                      m.role === "admin"
-                        ? "bg-blue-50 text-blue-700"
-                        : "bg-gray-100 text-gray-600"
-                    }`}>
-                      {m.role === "admin" ? "Admin" : t("kontakter.medlem")}
-                    </span>
+                    {erRedigering ? (
+                      <select
+                        value={m.erFirmaansvarlig && m.role !== "admin" ? "firmaansvarlig" : redigerData.role}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (val === "firmaansvarlig") {
+                            // Sett role=member + erFirmaansvarlig=true
+                            setRedigerData((p) => ({ ...p, role: "member" }));
+                            settFirmaansvarligMutation.mutate({ id: m.id, projectId: prosjektId, erFirmaansvarlig: true });
+                          } else if (val === "admin") {
+                            // Sett role=admin + erFirmaansvarlig=false
+                            setRedigerData((p) => ({ ...p, role: "admin" }));
+                            if (m.erFirmaansvarlig) {
+                              settFirmaansvarligMutation.mutate({ id: m.id, projectId: prosjektId, erFirmaansvarlig: false });
+                            }
+                          } else {
+                            // Medlem: role=member + erFirmaansvarlig=false
+                            setRedigerData((p) => ({ ...p, role: "member" }));
+                            if (m.erFirmaansvarlig) {
+                              settFirmaansvarligMutation.mutate({ id: m.id, projectId: prosjektId, erFirmaansvarlig: false });
+                            }
+                          }
+                        }}
+                        className="rounded border border-blue-300 px-1.5 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
+                      >
+                        <option value="member">{t("kontakter.medlem")}</option>
+                        <option value="firmaansvarlig">{t("brukere.firmaansvarlig")}</option>
+                        <option value="admin">Admin</option>
+                      </select>
+                    ) : (
+                      <span className={`inline-flex rounded px-1.5 py-0.5 text-xs font-medium ${
+                        m.role === "admin"
+                          ? "bg-blue-50 text-blue-700"
+                          : m.erFirmaansvarlig
+                            ? "bg-amber-50 text-amber-700"
+                            : "bg-gray-100 text-gray-600"
+                      }`}>
+                        {m.role === "admin" ? "Admin" : m.erFirmaansvarlig ? t("brukere.firmaansvarlig") : t("kontakter.medlem")}
+                      </span>
+                    )}
                   </td>
 
-                  {/* Entrepriser (kompakt) */}
+                  {/* Entrepriser (read-only) */}
                   <td className="px-4 py-2.5">
                     <KompaktBadgeListe
-                      verdier={m.enterprises.map((me) => me.enterprise.name)}
+                      verdier={m.dokumentflytKoblinger.map((me) => me.dokumentflytPart.name)}
                       bgKlasse="bg-gray-100 text-gray-700"
-                      leggTilKnapp={
-                        leggTilEntrepriseForMedlem === m.id ? (
-                          <select
-                            className="rounded border border-gray-300 bg-white px-1.5 py-0.5 text-xs"
-                            onChange={(e) => {
-                              if (e.target.value) {
-                                tilknyttMutation.mutate({
-                                  projectMemberId: m.id,
-                                  enterpriseId: e.target.value,
-                                  projectId: prosjektId,
-                                });
-                              }
-                            }}
-                            onBlur={() => setLeggTilEntrepriseForMedlem(null)}
-                            autoFocus
-                            defaultValue=""
-                          >
-                            <option value="" disabled>{t("kontakter.velgEntreprise")}</option>
-                            {tilgjengeligeEntrepriser.map((e: { id: string; name: string }) => (
-                              <option key={e.id} value={e.id}>{e.name}</option>
-                            ))}
-                          </select>
-                        ) : (
-                          <button
-                            onClick={() => setLeggTilEntrepriseForMedlem(m.id)}
-                            className="rounded px-1 py-0.5 text-xs text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-                            title={t("kontakter.leggTilEntreprise")}
-                          >
-                            <Plus className="h-3 w-3" />
-                          </button>
-                        )
-                      }
                     />
                   </td>
 
-                  {/* Grupper (kompakt) */}
+                  {/* Grupper */}
                   <td className="px-4 py-2.5">
-                    <KompaktBadgeListe
-                      verdier={brukerGrupper}
-                      bgKlasse="bg-blue-50 text-blue-700"
-                    />
+                    {erRedigering ? (
+                      <div className="space-y-1">
+                        {/* Nåværende grupper med fjern-knapp */}
+                        <div className="flex flex-wrap gap-1">
+                          {brukerGrupper.map((gNavn) => {
+                            const gId = gruppeNavnTilId[gNavn];
+                            const gmId = gId ? gruppeMedlemIdMap[gId]?.[m.user.id] : undefined;
+                            return (
+                              <span key={gNavn} className="inline-flex items-center gap-0.5 rounded bg-blue-50 px-1.5 py-0.5 text-xs text-blue-700">
+                                {gNavn}
+                                {gmId && (
+                                  <button
+                                    onClick={() => fjernMedlemMutation.mutate({ id: gmId, projectId: prosjektId })}
+                                    className="ml-0.5 rounded-full hover:bg-blue-200 p-0.5"
+                                    title={t("handling.fjern")}
+                                  >
+                                    <X className="h-2.5 w-2.5" />
+                                  </button>
+                                )}
+                              </span>
+                            );
+                          })}
+                        </div>
+                        {/* Legg til i gruppe */}
+                        <select
+                          className="rounded border border-gray-300 bg-white px-1.5 py-0.5 text-xs w-full"
+                          onChange={(e) => {
+                            if (e.target.value) {
+                              const nameParts = (m.user.name ?? "").split(" ");
+                              leggTilMedlemMutation.mutate({
+                                groupId: e.target.value,
+                                projectId: prosjektId,
+                                email: m.user.email,
+                                firstName: nameParts[0] || m.user.email,
+                                lastName: nameParts.slice(1).join(" ") || "-",
+                              });
+                              e.target.value = "";
+                            }
+                          }}
+                          defaultValue=""
+                        >
+                          <option value="">{t("brukere.leggTilGruppe")}</option>
+                          {(dbGrupper as Array<{ id: string; name: string; category: string }> ?? [])
+                            .filter((g) => g.category === "brukergrupper" && !brukerGrupper.includes(g.name))
+                            .map((g) => (
+                              <option key={g.id} value={g.id}>{g.name}</option>
+                            ))
+                          }
+                        </select>
+                        {/* Lagre/Avbryt */}
+                        <div className="flex items-center gap-1 mt-1">
+                          <button
+                            onClick={() => lagreRediger(m.id)}
+                            className="rounded bg-blue-600 px-2 py-0.5 text-xs text-white hover:bg-blue-700"
+                          >
+                            {t("handling.lagre")}
+                          </button>
+                          <button
+                            onClick={() => setRedigerMedlemId(null)}
+                            className="rounded px-2 py-0.5 text-xs text-gray-500 hover:bg-gray-100"
+                          >
+                            {t("handling.avbryt")}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <KompaktBadgeListe
+                        verdier={brukerGrupper}
+                        bgKlasse="bg-blue-50 text-blue-700"
+                      />
+                    )}
                   </td>
                 </tr>
               );
@@ -1679,9 +1094,11 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
           </tbody>
         </table>
       </div>
+      </div>
     </div>
   );
 }
+
 
 /* ------------------------------------------------------------------ */
 /*  Hovudside                                                          */
@@ -1689,337 +1106,6 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
 
 export default function BrukereSide() {
   const { prosjektId } = useProsjekt();
-  const { t } = useTranslation();
-  const [sok, setSok] = useState("");
-  const [visNyGruppeModal, setVisNyGruppeModal] = useState(false);
-  const [nyGruppeNavn, setNyGruppeNavn] = useState("");
-  const [nyGruppeKategori, setNyGruppeKategori] = useState<
-    "generelt" | "field" | "brukergrupper"
-  >("brukergrupper");
-  const [visningsModus, setVisningsModus] = useState<"grid" | "liste">("grid");
-  const [visKontakter, setVisKontakter] = useState(false);
-  const [redigerGruppeId, setRedigerGruppeId] = useState<string | null>(null);
-
-  const utils = trpc.useUtils();
-
-  // Hent prosjektmedlemmer og entrepriser for å populere grupper
-  const { data: prosjekt } = trpc.prosjekt.hentMedId.useQuery(
-    { id: prosjektId! },
-    { enabled: !!prosjektId },
-  );
-
-  const { data: entrepriser } = trpc.entreprise.hentForProsjekt.useQuery(
-    { projectId: prosjektId! },
-    { enabled: !!prosjektId },
-  );
-
-  // Hent DB-grupper
-  const { data: dbGrupper } = trpc.gruppe.hentForProsjekt.useQuery(
-    { projectId: prosjektId! },
-    { enabled: !!prosjektId },
-  );
-
-  // Hent ventende invitasjoner
-  const { data: invitasjoner } = trpc.invitasjon.hentForProsjekt.useQuery(
-    { projectId: prosjektId! },
-    { enabled: !!prosjektId },
-  );
-
-  // Bygg map: "gruppeNøkkel:e-post" → invitasjon
-  // Nøkkel-format: groupId, "ent-enterpriseId", eller "prosjektadmin"
-  const ventendeInvitasjonerMap: Record<string, { id: string }> = {};
-  if (invitasjoner) {
-    for (const inv of invitasjoner) {
-      if (inv.status !== "pending") continue;
-      const epost = inv.email.toLowerCase();
-      if (inv.group?.id) {
-        ventendeInvitasjonerMap[`${inv.group.id}:${epost}`] = { id: inv.id };
-      } else if (inv.enterprise?.id) {
-        ventendeInvitasjonerMap[`ent-${inv.enterprise.id}:${epost}`] = { id: inv.id };
-      } else if (inv.role === "admin") {
-        ventendeInvitasjonerMap[`prosjektadmin:${epost}`] = { id: inv.id };
-      }
-      if (!ventendeInvitasjonerMap[`global:${epost}`]) {
-        ventendeInvitasjonerMap[`global:${epost}`] = { id: inv.id };
-      }
-    }
-  }
-
-  function finnInvitasjon(gruppeId: string, epost?: string): { id: string } | undefined {
-    if (!epost) return undefined;
-    const e = epost.toLowerCase();
-    return ventendeInvitasjonerMap[`${gruppeId}:${e}`] ?? ventendeInvitasjonerMap[`global:${e}`];
-  }
-
-  // Lazy opprettelse av standardgrupper
-  const opprettStandardgrupper = trpc.gruppe.opprettStandardgrupper.useMutation({
-    onSuccess: () => {
-      utils.gruppe.hentForProsjekt.invalidate({ projectId: prosjektId! });
-    },
-  });
-
-  useEffect(() => {
-    if (prosjektId && dbGrupper && dbGrupper.length === 0 && !opprettStandardgrupper.isPending) {
-      opprettStandardgrupper.mutate({ projectId: prosjektId });
-    }
-  }, [prosjektId, dbGrupper]); // eslint-disable-line
-
-  // Opprett ny gruppe
-  const opprettGruppe = trpc.gruppe.opprett.useMutation({
-    onSuccess: () => {
-      setVisNyGruppeModal(false);
-      setNyGruppeNavn("");
-      utils.gruppe.hentForProsjekt.invalidate({ projectId: prosjektId! });
-    },
-  });
-
-  // Bygg Field-grupper fra DB-data
-  // Ekskluder prosjektadmin-grupper (vises allerede som virtuell gruppe under Generelt)
-  // Mapping fra slug til i18n-nøkkel for systemgrupper
-  const SLUG_I18N: Record<string, string> = {
-    "prosjekt-admin": "brukere.gruppe.prosjektAdmin",
-    "field-admin": "brukere.gruppe.fieldAdmin",
-    "oppgave-sjekkliste-koord": "brukere.gruppe.oppgaveSjekklisteKoord",
-    "field-observatorer": "brukere.gruppe.fieldObservatorer",
-    "hms-ledere": "brukere.gruppe.hmsLedere",
-    "brukergruppe": "brukere.gruppe.brukergruppe",
-  };
-
-  const fieldGrupper: BrukerGruppe[] = ((dbGrupper ?? []) as DbGruppe[]).filter((g) => g.slug !== "prosjekt-admin").map((g) => ({
-    id: g.id,
-    navn: SLUG_I18N[g.slug] ? t(SLUG_I18N[g.slug] as string) : g.name,
-    kategori: g.category as "generelt" | "field" | "brukergrupper",
-    moduler: (g as unknown as { modules?: string[] }).modules ?? ["sjekklister", "oppgaver", "tegninger", "3d"],
-    ikon: SLUG_IKON[g.slug] ?? <Users className="h-4 w-4" />,
-    medlemmer: g.members.map((m) => ({
-      id: m.id,
-      projectMemberId: m.projectMember.id,
-      navn: m.projectMember.user.name ?? m.projectMember.user.email ?? t("brukere.ukjent"),
-      epost: m.projectMember.user.email ?? undefined,
-      telefon: m.projectMember.user.phone ?? undefined,
-      firma: m.projectMember.enterprises?.[0]?.enterprise?.name ?? undefined,
-      ventendeInvitasjon: finnInvitasjon(g.id, m.projectMember.user.email),
-      erAdmin: m.isAdmin,
-    })),
-  }));
-
-  // Bygg grupper fra data
-  const grupper: BrukerGruppe[] = [
-    // Generelt — prosjektadministratorer fra ProjectMember.role
-    {
-      id: "prosjektadmin",
-      navn: t("brukere.prosjektadministratorer"),
-      kategori: "generelt",
-      ikon: <Shield className="h-4 w-4" />,
-      medlemmer: prosjekt?.members
-        ?.filter((m) => m.role === "admin" || m.role === "owner")
-        .map((m) => ({
-          id: m.id,
-          navn: m.user.name ?? m.user.email ?? t("brukere.ukjent"),
-          epost: m.user.email ?? undefined,
-          telefon: (m.user as { phone?: string | null }).phone ?? undefined,
-          rolle: m.role === "owner" ? t("label.kontakt") : undefined,
-          ventendeInvitasjon: finnInvitasjon("prosjektadmin", m.user.email),
-        })) ?? [],
-    },
-    // Field-grupper og brukergrupper fra DB
-    ...fieldGrupper,
-  ];
-
-  // Filtrering
-  const filtrert = sok
-    ? grupper.filter(
-        (g) =>
-          g.navn.toLowerCase().includes(sok.toLowerCase()) ||
-          g.medlemmer.some((m) =>
-            m.navn.toLowerCase().includes(sok.toLowerCase()),
-          ),
-      )
-    : grupper;
-
-  const generelt = filtrert.filter((g) => g.kategori === "generelt");
-  const field = filtrert.filter((g) => g.kategori === "field");
-  const brukergrupper = filtrert.filter((g) => g.kategori === "brukergrupper");
-
-  // Utled redigerGruppe fra live data (ikke snapshot)
-  const redigerGruppe = redigerGruppeId
-    ? grupper.find((g) => g.id === redigerGruppeId) ?? null
-    : null;
-
-  function handleLeggTilMedlem(gruppeId: string) {
-    setRedigerGruppeId(gruppeId);
-  }
-
-  function handleOpprettGruppe(e: React.FormEvent) {
-    e.preventDefault();
-    if (!prosjektId || !nyGruppeNavn.trim()) return;
-    opprettGruppe.mutate({
-      projectId: prosjektId,
-      name: nyGruppeNavn.trim(),
-      category: nyGruppeKategori,
-    });
-  }
-
-  return (
-    <div>
-      {/* Verktøylinje */}
-      <div className="mb-6 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Button size="sm" onClick={() => setVisNyGruppeModal(true)}>
-            <Plus className="mr-1.5 h-4 w-4" />
-            {t("brukere.leggTilGruppe")}
-          </Button>
-          <Button
-            variant={visKontakter ? "primary" : "ghost"}
-            size="sm"
-            onClick={() => setVisKontakter(!visKontakter)}
-          >
-            <Users className="mr-1.5 h-4 w-4" />
-            {t("brukere.kontakter")}
-          </Button>
-        </div>
-      </div>
-
-      {/* Kontakttabell */}
-      {visKontakter && prosjektId && (
-        <KontaktTabell prosjektId={prosjektId} />
-      )}
-
-      {/* Tittel + søk */}
-      {!visKontakter && <><div className="mb-4 flex items-center justify-between">
-        <h2 className="text-xl font-bold text-gray-900">{t("brukere.tittel")}</h2>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setVisningsModus("liste")}
-            className={`rounded p-1.5 ${
-              visningsModus === "liste"
-                ? "bg-gray-200 text-gray-700"
-                : "text-gray-400 hover:text-gray-600"
-            }`}
-            aria-label={t("brukere.listevisning")}
-          >
-            <LayoutList className="h-5 w-5" />
-          </button>
-          <button
-            onClick={() => setVisningsModus("grid")}
-            className={`rounded p-1.5 ${
-              visningsModus === "grid"
-                ? "bg-gray-200 text-gray-700"
-                : "text-gray-400 hover:text-gray-600"
-            }`}
-            aria-label={t("brukere.rutenettvisning")}
-          >
-            <LayoutGrid className="h-5 w-5" />
-          </button>
-        </div>
-      </div>
-
-      {/* Søk og filter */}
-      <div className="mb-6 flex items-center gap-3">
-        <SearchInput
-          verdi={sok}
-          onChange={setSok}
-          placeholder={t("brukere.sokPlaceholder")}
-          className="w-64"
-        />
-        <button className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700">
-          <Plus className="h-3.5 w-3.5" />
-          {t("brukere.tilfoeyFilter")}
-        </button>
-      </div>
-
-      {/* Gruppevisning */}
-      <GruppeSeksjon
-        tittel={t("brukere.generelt")}
-        grupper={generelt}
-        onLeggTilMedlem={handleLeggTilMedlem}
-        onDoubleClickGruppe={(g) => setRedigerGruppeId(g.id)}
-      />
-      <GruppeSeksjon
-        tittel={t("brukere.produksjon")}
-        grupper={field}
-        onLeggTilMedlem={handleLeggTilMedlem}
-        onDoubleClickGruppe={(g) => setRedigerGruppeId(g.id)}
-      />
-      <GruppeSeksjon
-        tittel={t("brukere.brukergrupper")}
-        grupper={brukergrupper}
-        onLeggTilMedlem={handleLeggTilMedlem}
-        onDoubleClickGruppe={(g) => setRedigerGruppeId(g.id)}
-        onOpprett={() => {
-          setNyGruppeKategori("brukergrupper");
-          setVisNyGruppeModal(true);
-        }}
-      />
-
-      {filtrert.length === 0 && (
-        <div className="py-12 text-center text-sm text-gray-400">
-          {t("brukere.ingenGrupperMatcher")}
-        </div>
-      )}
-      </>}
-
-      {/* Rediger gruppe modal */}
-      {redigerGruppe && prosjektId && (
-        <RedigerGruppeModal
-          open={!!redigerGruppe}
-          onClose={() => setRedigerGruppeId(null)}
-          gruppe={redigerGruppe}
-          prosjektId={prosjektId}
-          dbGruppe={(dbGrupper as DbGruppe[] | undefined)?.find((g) => g.id === redigerGruppe.id)}
-          alleEntrepriser={(entrepriser as { id: string; name: string }[] | undefined) ?? []}
-        />
-      )}
-
-      {/* Ny gruppe modal */}
-      <Modal
-        open={visNyGruppeModal}
-        onClose={() => setVisNyGruppeModal(false)}
-        title={t("brukere.leggTilGruppe")}
-      >
-        <form
-          onSubmit={handleOpprettGruppe}
-          className="flex flex-col gap-4"
-        >
-          <Input
-            label={t("brukere.gruppenavn")}
-            placeholder="F.eks. HMS-ledere"
-            value={nyGruppeNavn}
-            onChange={(e) => setNyGruppeNavn(e.target.value)}
-            required
-          />
-          <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium text-gray-700">
-              {t("brukere.kategori")}
-            </label>
-            <select
-              className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-sitedoc-primary focus:outline-none focus:ring-1 focus:ring-sitedoc-primary"
-              value={nyGruppeKategori}
-              onChange={(e) =>
-                setNyGruppeKategori(
-                  e.target.value as "generelt" | "field" | "brukergrupper",
-                )
-              }
-            >
-              <option value="generelt">{t("brukere.generelt")}</option>
-              <option value="field">{t("brukere.produksjon")}</option>
-              <option value="brukergrupper">{t("brukere.brukergrupper")}</option>
-            </select>
-          </div>
-          <div className="flex gap-3 pt-2">
-            <Button type="submit" disabled={opprettGruppe.isPending}>
-              {opprettGruppe.isPending ? t("handling.oppretter") : t("handling.opprett")}
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => setVisNyGruppeModal(false)}
-            >
-              {t("handling.avbryt")}
-            </Button>
-          </div>
-        </form>
-      </Modal>
-    </div>
-  );
+  if (!prosjektId) return <div className="flex justify-center py-12"><Spinner size="lg" /></div>;
+  return <KontaktTabell prosjektId={prosjektId} />;
 }

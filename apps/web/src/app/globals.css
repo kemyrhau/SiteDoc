@@ -12,10 +12,60 @@
   display: none;
 }
 
+/* A4-forhåndsvisning: visuell sidekant */
+/* 1123px = 297mm ved 96dpi */
+.a4-ark {
+  position: relative;
+}
+
+/* Horisontale linjer som markerer sidekanter */
+.a4-ark::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10;
+  background:
+    repeating-linear-gradient(
+      to bottom,
+      transparent 0px,
+      transparent 1121px,
+      #94a3b8 1121px,
+      #94a3b8 1123px,
+      transparent 1123px,
+      transparent 1139px
+    );
+}
+
+/* Unngå at seksjoner deles mellom visuelle sider */
+.a4-ark .print-no-break {
+  break-inside: avoid;
+}
+
+/* Bildegrid: 2 kolonner, bilder beholder aspect ratio */
+.bilde-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.bilde-celle {
+  overflow: hidden;
+}
+
+.bilde-celle img {
+  width: 100%;
+  max-height: 260px;
+  object-fit: contain;
+  display: block;
+  background: #f9fafb;
+  border-radius: 4px;
+}
+
 @media print {
-  /* A4-sideoppsett */
+  /* A4-sideoppsett — margin: 0 fjerner nettleserens URL/dato */
   @page {
-    margin: 15mm;
+    margin: 0;
     size: A4;
   }
 
@@ -23,6 +73,17 @@
   * {
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
+  }
+
+  /* Fjern min-height, padding og margin som tvinger ekstra sider */
+  html, body, #__next, body > div,
+  .min-h-screen {
+    min-height: 0 !important;
+    height: auto !important;
+    padding-bottom: 0 !important;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+    background: white !important;
   }
 
   /* Skjul navigasjon og chrome */
@@ -33,12 +94,51 @@
     display: none !important;
   }
 
-  /* Hovedinnhold: fullbredde uten margin */
-  main {
+  /* Hovedinnhold: fullbredde uten margin (unntatt utskriftsider) */
+  main:not(:has(.a4-ark)) {
     margin: 0 !important;
     padding: 20px !important;
     width: 100% !important;
     max-width: 100% !important;
+  }
+
+  /* A4-ark i utskrift */
+  .a4-ark {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 10mm 15mm !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    background: white !important;
+  }
+
+  .a4-ark::after {
+    display: none !important;
+  }
+
+  /* Table-layout: thead/tfoot gjentas på hver side */
+  .print-tabell {
+    border-collapse: collapse;
+  }
+  .print-tabell td {
+    padding: 0;
+    vertical-align: top;
+  }
+
+  /* Footer med sidenummer via CSS counter */
+  .print-footer {
+    height: 10mm;
+    text-align: right;
+    font-size: 10px;
+    color: #6b7280;
+    padding-top: 4mm;
+    border-top: 1px solid #e5e7eb;
+    margin-top: 4mm;
+  }
+  .print-footer::after {
+    counter-increment: page;
+    content: "Side " counter(page);
   }
 
   /* Vis print-header */
@@ -58,7 +158,14 @@
 
   /* Unngå sideskift inni felter */
   .print-no-break {
-    page-break-inside: avoid;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* Hvert bildepar i bildegridet er en ubrytbar enhet */
+  .bilde-celle {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
   }
 
   /* Sideskift mellom sjekklister */

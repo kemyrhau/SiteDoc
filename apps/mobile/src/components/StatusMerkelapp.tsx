@@ -15,10 +15,23 @@ const STATUS_MAP: Record<string, { noekkel: string; bg: string; tekstFarge: stri
 
 interface StatusMerkelappProps {
   status: string;
+  lestAvMottakerVed?: Date | string | null;
 }
 
-export function StatusMerkelapp({ status }: StatusMerkelappProps) {
+export function StatusMerkelapp({ status, lestAvMottakerVed }: StatusMerkelappProps) {
   const { t } = useTranslation();
+
+  // «sent» + mottaker har lest → vis «Lest»
+  if (status === "sent" && lestAvMottakerVed != null) {
+    return (
+      <View className="rounded-full px-2.5 py-0.5 bg-blue-100">
+        <Text className="text-xs font-medium text-blue-700">
+          {t("status.lest")}
+        </Text>
+      </View>
+    );
+  }
+
   const info = STATUS_MAP[status];
 
   return (

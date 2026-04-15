@@ -8,16 +8,10 @@ import {
   Plus,
   Building2,
   X,
-  FileText,
   User,
   Users,
-  Mail,
   UserPlus,
-  ChevronDown,
-  ChevronRight,
-  Pencil,
 } from "lucide-react";
-import { hentFargeForEntreprise } from "./entreprise-farger";
 
 /* ------------------------------------------------------------------ */
 /*  Typer                                                              */
@@ -60,120 +54,6 @@ export interface ProsjektMedlemItem {
 }
 
 /* ------------------------------------------------------------------ */
-/*  MedlemListe                                                        */
-/* ------------------------------------------------------------------ */
-
-export function MedlemListe({
-  medlemmer,
-  entrepriser,
-  onFjern,
-  onSettHovedansvarlig,
-}: {
-  medlemmer: DokumentflytMedlemData[];
-  entrepriser: EntrepriseItem[];
-  onFjern: (id: string) => void;
-  onSettHovedansvarlig?: (id: string, erHovedansvarlig: boolean) => void;
-}) {
-  if (medlemmer.length === 0) return null;
-
-  return (
-    <div className="space-y-1">
-      {medlemmer.map((m) => {
-        const erHovedansvarlig = m.erHovedansvarlig === true;
-        const kanVaereHovedansvarlig = onSettHovedansvarlig && (m.projectMember || m.group);
-
-        const hovedansvarligKnapp = kanVaereHovedansvarlig ? (
-          <button
-            onClick={(e) => { e.stopPropagation(); onSettHovedansvarlig(m.id, !erHovedansvarlig); }}
-            className={`shrink-0 rounded-full transition-colors ${
-              erHovedansvarlig
-                ? "h-2.5 w-2.5 bg-blue-500 ring-2 ring-blue-200"
-                : "h-2.5 w-2.5 bg-gray-300 opacity-0 group-hover:opacity-100 hover:bg-blue-400"
-            }`}
-            title={erHovedansvarlig ? "Fjern som hovedansvarlig" : "Sett som hovedansvarlig"}
-          />
-        ) : null;
-
-        if (m.enterprise) {
-          const ent = entrepriser.find((e) => e.id === m.enterprise!.id);
-          const fargeIdx = ent ? entrepriser.indexOf(ent) : 0;
-          const farge = hentFargeForEntreprise(m.enterprise.color, fargeIdx);
-          return (
-            <div
-              key={m.id}
-              className={`group flex items-center gap-1.5 rounded px-1.5 py-1 ${farge.bg}`}
-            >
-              <Building2 className={`h-3.5 w-3.5 ${farge.tekst}`} />
-              <span className={`flex-1 text-[13px] font-medium ${farge.tekst}`}>
-                {m.enterprise.name}
-              </span>
-              <button
-                onClick={() => onFjern(m.id)}
-                className="rounded p-0.5 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-white/50"
-                title="Fjern"
-              >
-                <X className="h-3 w-3 text-gray-500" />
-              </button>
-            </div>
-          );
-        }
-        if (m.group) {
-          return (
-            <div
-              key={m.id}
-              className="group flex items-center gap-1.5 rounded bg-blue-50 px-1.5 py-1"
-            >
-              {hovedansvarligKnapp}
-              <Users className="h-3.5 w-3.5 text-blue-600" />
-              <span className="flex-1 text-[13px] font-medium text-blue-700">
-                {m.group.name}
-              </span>
-              <button
-                onClick={() => onFjern(m.id)}
-                className="rounded p-0.5 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-white/50"
-                title="Fjern"
-              >
-                <X className="h-3 w-3 text-gray-500" />
-              </button>
-            </div>
-          );
-        }
-        if (m.projectMember) {
-          return (
-            <div
-              key={m.id}
-              className="group flex items-center gap-1.5 rounded px-1.5 py-1 hover:bg-gray-50"
-            >
-              {hovedansvarligKnapp}
-              <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gray-200 text-[10px] font-medium text-gray-600">
-                {(m.projectMember.user.name ?? m.projectMember.user.email).charAt(0).toUpperCase()}
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="truncate text-[13px] leading-tight text-gray-700">
-                  {m.projectMember.user.name ?? m.projectMember.user.email}
-                </div>
-                <div className="flex items-center gap-1 truncate text-[11px] leading-tight text-gray-400">
-                  <Mail className="h-2.5 w-2.5 shrink-0" />
-                  {m.projectMember.user.email}
-                </div>
-              </div>
-              <button
-                onClick={() => onFjern(m.id)}
-                className="rounded p-0.5 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-gray-100"
-                title="Fjern"
-              >
-                <X className="h-3 w-3 text-gray-500" />
-              </button>
-            </div>
-          );
-        }
-        return null;
-      })}
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
 /*  LeggTilMedlemDropdown                                               */
 /* ------------------------------------------------------------------ */
 
@@ -191,7 +71,7 @@ export function LeggTilMedlemDropdown({
 }: {
   dokumentflytId: string;
   prosjektId: string;
-  rolle: "bestiller" | "utforer";
+  rolle: string;
   steg: number;
   entrepriser: EntrepriseItem[];
   medlemmer: ProsjektMedlemItem[];
@@ -234,16 +114,18 @@ export function LeggTilMedlemDropdown({
   const tilgjengeligeMedlemmer = medlemmer.filter((m) => !eksisterendeMedlemIder.has(m.id));
   const tilgjengeligeGrupper = (grupper ?? []).filter((g) => !eksisterendeGruppeIder.has(g.id));
 
+  const typedRolle = rolle as "registrator" | "bestiller" | "utforer" | "godkjenner";
+
   function leggTilEntreprise(enterpriseId: string) {
-    leggTilMutation.mutate({ dokumentflytId, projectId: prosjektId, enterpriseId, rolle, steg });
+    leggTilMutation.mutate({ dokumentflytId, projectId: prosjektId, enterpriseId, rolle: typedRolle, steg });
   }
 
   function leggTilPerson(projectMemberId: string) {
-    leggTilMutation.mutate({ dokumentflytId, projectId: prosjektId, projectMemberId, rolle, steg });
+    leggTilMutation.mutate({ dokumentflytId, projectId: prosjektId, projectMemberId, rolle: typedRolle, steg });
   }
 
   function leggTilGruppe(groupId: string) {
-    leggTilMutation.mutate({ dokumentflytId, projectId: prosjektId, groupId, rolle, steg });
+    leggTilMutation.mutate({ dokumentflytId, projectId: prosjektId, groupId, rolle: typedRolle, steg });
   }
 
   return (
@@ -362,7 +244,7 @@ export function InviterNyMedlemModal({
   onClose: () => void;
   prosjektId: string;
   dokumentflytId: string;
-  rolle: "bestiller" | "utforer";
+  rolle: string;
   steg: number;
   onFerdig: () => void;
 }) {
@@ -406,7 +288,7 @@ export function InviterNyMedlemModal({
           dokumentflytId,
           projectId: prosjektId,
           projectMemberId: nyttMedlem.id,
-          rolle,
+          rolle: rolle as "registrator" | "bestiller" | "utforer" | "godkjenner",
           steg,
         });
       }
@@ -477,242 +359,5 @@ export function InviterNyMedlemModal({
         </div>
       </form>
     </Modal>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/*  Helpers for compact member display                                 */
-/* ------------------------------------------------------------------ */
-
-function MedlemmerKompakt({ medlemmer }: { medlemmer: DokumentflytMedlemData[] }) {
-  if (medlemmer.length === 0) return <span className="text-gray-300">—</span>;
-
-  return (
-    <span className="text-[12px] text-gray-600">
-      {medlemmer.map((m, i) => {
-        const navn = m.enterprise?.name ?? m.group?.name ?? m.projectMember?.user.name ?? m.projectMember?.user.email ?? "?";
-        return (
-          <span key={m.id}>
-            {i > 0 && ", "}
-            {(m.enterprise || m.group) ? (
-              <span className="font-medium">{navn}</span>
-            ) : (
-              <span>{navn}</span>
-            )}
-          </span>
-        );
-      })}
-    </span>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/*  DokumentflytInlineKort — kompakt rad, ekspanderer ved klikk        */
-/* ------------------------------------------------------------------ */
-
-export function DokumentflytInlineKort({
-  dokumentflyt,
-  prosjektId,
-  entrepriser,
-  medlemmer,
-  grupper,
-  onRediger,
-  onSlett,
-  onOppdatert,
-  onInviterNy,
-}: {
-  dokumentflyt: DokumentflytData;
-  prosjektId: string;
-  entrepriser: EntrepriseItem[];
-  medlemmer: ProsjektMedlemItem[];
-  grupper?: Array<{ id: string; name: string }>;
-  onRediger: () => void;
-  onSlett: () => void;
-  onOppdatert: () => void;
-  onInviterNy: (dokumentflytId: string, rolle: "bestiller" | "utforer", steg: number) => void;
-}) {
-  const { t } = useTranslation();
-  const [ekspandert, setEkspandert] = useState(false);
-
-  const fjernMedlemMutation = trpc.dokumentflyt.fjernMedlem.useMutation({
-    onSuccess: () => onOppdatert(),
-  });
-
-  const settHovedansvarligMutation = trpc.dokumentflyt.settHovedansvarlig.useMutation({
-    onSuccess: () => onOppdatert(),
-  });
-
-  const opprettere = dokumentflyt.medlemmer.filter((m) => m.rolle === "bestiller");
-  const svarere = dokumentflyt.medlemmer.filter((m) => m.rolle === "utforer");
-
-  const stegMap = new Map<number, DokumentflytMedlemData[]>();
-  for (const s of svarere) {
-    const liste = stegMap.get(s.steg) ?? [];
-    liste.push(s);
-    stegMap.set(s.steg, liste);
-  }
-  const sorterteSteg = Array.from(stegMap.entries()).sort(([a], [b]) => a - b);
-
-  const malAntall = dokumentflyt.maler.length;
-
-  function fjernMedlem(id: string) {
-    fjernMedlemMutation.mutate({ id, projectId: prosjektId });
-  }
-
-  function settHovedansvarlig(id: string, erHovedansvarlig: boolean) {
-    settHovedansvarligMutation.mutate({ id, projectId: prosjektId, erHovedansvarlig });
-  }
-
-  return (
-    <div className="rounded border border-gray-200 bg-white">
-      {/* Kompakt rad */}
-      <div
-        className="flex cursor-pointer items-center gap-3 px-3 py-1.5 hover:bg-gray-50"
-        onClick={() => setEkspandert(!ekspandert)}
-      >
-        {ekspandert ? (
-          <ChevronDown className="h-3 w-3 shrink-0 text-gray-400" />
-        ) : (
-          <ChevronRight className="h-3 w-3 shrink-0 text-gray-400" />
-        )}
-
-        <span className="min-w-0 shrink-0 text-[13px] font-medium text-gray-700">
-          {dokumentflyt.name}
-        </span>
-
-        <div className="flex min-w-0 flex-1 items-center gap-1 text-[11px] text-gray-400">
-          <span className="shrink-0">{t("dokumentflyt.opprettSend")}:</span>
-          <MedlemmerKompakt medlemmer={opprettere} />
-          <span className="mx-1 shrink-0">→</span>
-          <span className="shrink-0">{t("dokumentflyt.mottaker")}:</span>
-          <MedlemmerKompakt medlemmer={svarere} />
-        </div>
-
-        {malAntall > 0 && (
-          <span className="shrink-0 text-[11px] text-gray-400">
-            {malAntall} mal{malAntall !== 1 ? "er" : ""}
-          </span>
-        )}
-
-        <div className="flex shrink-0 items-center gap-0.5" onClick={(e) => e.stopPropagation()}>
-          <button
-            onClick={onRediger}
-            className="rounded p-1 text-gray-400 hover:bg-gray-200 hover:text-gray-600"
-            title="Rediger"
-          >
-            <Pencil className="h-3 w-3" />
-          </button>
-          <button
-            onClick={onSlett}
-            className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-500"
-            title="Slett"
-          >
-            <X className="h-3 w-3" />
-          </button>
-        </div>
-      </div>
-
-      {/* Ekspandert: full redigering */}
-      {ekspandert && (
-        <div className="border-t border-gray-100">
-          <div className="flex divide-x divide-gray-100">
-            {/* Opprett/send */}
-            <div className="flex-1 p-2.5">
-              <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
-                {t("dokumentflyt.opprettSend")}
-              </div>
-              <MedlemListe
-                medlemmer={opprettere}
-                entrepriser={entrepriser}
-                onFjern={fjernMedlem}
-              />
-              <div className="mt-1">
-                <LeggTilMedlemDropdown
-                  dokumentflytId={dokumentflyt.id}
-                  prosjektId={prosjektId}
-                  rolle="bestiller"
-                  steg={1}
-                  entrepriser={[]}
-                  medlemmer={medlemmer}
-                  grupper={grupper}
-                  eksisterende={opprettere}
-                  onLagtTil={onOppdatert}
-                  onInviterNy={() => onInviterNy(dokumentflyt.id, "bestiller", 1)}
-                />
-              </div>
-            </div>
-
-            {/* Mottaker */}
-            {sorterteSteg.length > 0 ? (
-              sorterteSteg.map(([steg, stegMedlemmer]) => (
-                <div key={steg} className="flex-1 p-2.5">
-                  <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
-                    {t("dokumentflyt.mottaker")}{steg > 1 ? ` ${steg}` : ""}
-                  </div>
-                  <MedlemListe
-                    medlemmer={stegMedlemmer}
-                    entrepriser={entrepriser}
-                    onFjern={fjernMedlem}
-                    onSettHovedansvarlig={settHovedansvarlig}
-                  />
-                  <div className="mt-1">
-                    <LeggTilMedlemDropdown
-                      dokumentflytId={dokumentflyt.id}
-                      prosjektId={prosjektId}
-                      rolle="utforer"
-                      steg={steg}
-                      entrepriser={[]}
-                      medlemmer={medlemmer}
-                      grupper={grupper}
-                      eksisterende={stegMedlemmer}
-                      onLagtTil={onOppdatert}
-                      onInviterNy={() => onInviterNy(dokumentflyt.id, "utforer", steg)}
-                    />
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="flex-1 p-2.5">
-                <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
-                  {t("dokumentflyt.mottaker")}
-                </div>
-                <span className="text-xs text-gray-300">{t("dokumentflyt.ikkeKonfigurert")}</span>
-                <div className="mt-1">
-                  <LeggTilMedlemDropdown
-                    dokumentflytId={dokumentflyt.id}
-                    prosjektId={prosjektId}
-                    rolle="utforer"
-                    steg={1}
-                    entrepriser={[]}
-                    medlemmer={medlemmer}
-                    grupper={grupper}
-                    eksisterende={[]}
-                    onLagtTil={onOppdatert}
-                    onInviterNy={() => onInviterNy(dokumentflyt.id, "utforer", 1)}
-                  />
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Maler */}
-          {dokumentflyt.maler.length > 0 && (
-            <div className="border-t border-gray-100 px-3 py-1.5">
-              <div className="flex flex-wrap gap-1">
-                {dokumentflyt.maler.map((m) => (
-                  <span
-                    key={m.template.id}
-                    className="inline-flex items-center gap-1 rounded bg-gray-50 px-1.5 py-0.5 text-[11px] text-gray-500"
-                  >
-                    <FileText className="h-2.5 w-2.5" />
-                    {m.template.name}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
   );
 }

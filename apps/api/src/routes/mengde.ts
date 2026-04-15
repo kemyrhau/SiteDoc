@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
 import {
@@ -43,18 +44,55 @@ export const mengdeRouter = router({
         ctx.userId,
         input.projectId,
       );
-      return ctx.prisma.ftdDocument.findMany({
+      const rå = await ctx.prisma.ftdDocument.findMany({
         where: {
           projectId: input.projectId,
           isActive: true,
-          docType: { not: null }, // Kun dokumenter importert til økonomi
+          docType: { not: null },
           ...(input.kontraktId ? { kontraktId: input.kontraktId } : {}),
           ...(input.docType ? { docType: input.docType } : {}),
           ...byggMappeTilgangsFilter(mappeIder),
         },
-        include: { folder: { select: { id: true, name: true } } },
+        select: {
+          id: true,
+          filename: true,
+          fileUrl: true,
+          docType: true,
+          notaType: true,
+          notaNr: true,
+          kontraktId: true,
+          kontraktNavn: true,
+          entreprenor: true,
+          uploadedAt: true,
+          utfortPr: true,
+          processingState: true,
+          processingError: true,
+          utfortTotalt: true,
+          utfortForrige: true,
+          utfortDenne: true,
+          innestaaende: true,
+          innestaaendeForrige: true,
+          innestaaendeDenne: true,
+          nettoDenne: true,
+          mva: true,
+          sumInkMva: true,
+          folder: { select: { id: true, name: true } },
+        },
         orderBy: [{ notaNr: "asc" }, { uploadedAt: "desc" }],
       });
+      // Konverter Prisma Decimal til Number
+      return rå.map((d) => ({
+        ...d,
+        utfortTotalt: d.utfortTotalt !== null ? Number(d.utfortTotalt) : null,
+        utfortForrige: d.utfortForrige !== null ? Number(d.utfortForrige) : null,
+        utfortDenne: d.utfortDenne !== null ? Number(d.utfortDenne) : null,
+        innestaaende: d.innestaaende !== null ? Number(d.innestaaende) : null,
+        innestaaendeForrige: d.innestaaendeForrige !== null ? Number(d.innestaaendeForrige) : null,
+        innestaaendeDenne: d.innestaaendeDenne !== null ? Number(d.innestaaendeDenne) : null,
+        nettoDenne: d.nettoDenne !== null ? Number(d.nettoDenne) : null,
+        mva: d.mva !== null ? Number(d.mva) : null,
+        sumInkMva: d.sumInkMva !== null ? Number(d.sumInkMva) : null,
+      }));
     }),
 
   hentPerioder: protectedProcedure
@@ -74,7 +112,7 @@ export const mengdeRouter = router({
             : {}),
         },
         include: {
-          enterprise: { select: { id: true, name: true, color: true } },
+          dokumentflytPart: { select: { id: true, name: true, color: true } },
         },
         orderBy: { periodeNr: "asc" },
       });
@@ -86,7 +124,6 @@ export const mengdeRouter = router({
         projectId: z.string().uuid(),
         kontraktId: z.string().optional(),
         dokumentId: z.string().optional(),
-        periodId: z.string().optional(),
       }),
     )
     .query(async ({ ctx, input }) => {
@@ -102,15 +139,105 @@ export const mengdeRouter = router({
         where.document = { kontraktId: input.kontraktId };
       }
 
-      return ctx.prisma.ftdSpecPost.findMany({
+      const posterRaw = await ctx.prisma.ftdSpecPost.findMany({
         where,
-        include: {
-          document: { select: { id: true, docType: true, notaNr: true, kontraktId: true, kontraktNavn: true } },
-          notaPoster: input.periodId
-            ? { where: { periodId: input.periodId } }
-            : false,
+        select: {
+          id: true,
+          postnr: true,
+          beskrivelse: true,
+          enhet: true,
+          mengdeAnbud: true,
+          enhetspris: true,
+          sumAnbud: true,
+          mengdeDenne: true,
+          mengdeTotal: true,
+          verdiDenne: true,
+          verdiTotal: true,
+          prosentFerdig: true,
+          nsKode: true,
+          nsTittel: true,
+          fullNsTekst: true,
+          eksternNotat: true,
+          importNotat: true,
+          ikkeIBudsjett: true,
         },
         orderBy: { postnr: "asc" },
+      });
+
+      // Konverter Prisma Decimal til Number
+      const poster = posterRaw.map((p) => ({
+        id: p.id,
+        postnr: p.postnr,
+        beskrivelse: p.beskrivelse,
+        enhet: p.enhet,
+        mengdeAnbud: p.mengdeAnbud !== null ? Number(p.mengdeAnbud) : null,
+        enhetspris: p.enhetspris !== null ? Number(p.enhetspris) : null,
+        sumAnbud: p.sumAnbud !== null ? Number(p.sumAnbud) : null,
+        mengdeDenne: p.mengdeDenne !== null ? Number(p.mengdeDenne) : null,
+        mengdeTotal: p.mengdeTotal !== null ? Number(p.mengdeTotal) : null,
+        verdiDenne: p.verdiDenne !== null ? Number(p.verdiDenne) : null,
+        verdiTotal: p.verdiTotal !== null ? Number(p.verdiTotal) : null,
+        prosentFerdig: p.prosentFerdig !== null ? Number(p.prosentFerdig) : null,
+        nsKode: p.nsKode,
+        nsTittel: p.nsTittel,
+        fullNsTekst: p.fullNsTekst,
+        eksternNotat: p.eksternNotat,
+        importNotat: p.importNotat,
+        ikkeIBudsjett: p.ikkeIBudsjett,
+      }));
+
+      // Finn forrige notas verdier per postnr (kun ved nota-sammenligning)
+      if (!input.dokumentId) return poster;
+
+      const dokument = await ctx.prisma.ftdDocument.findUnique({
+        where: { id: input.dokumentId },
+        select: { notaNr: true, notaType: true, kontraktId: true },
+      });
+      if (!dokument?.kontraktId) return poster;
+
+      const erSluttnota = dokument.notaType === "Sluttnota" || dokument.notaNr === null;
+
+      // Finn forrige nota: høyeste notaNr < gjeldende, eller høyeste A-nota for sluttnota
+      const forrigeNota = await ctx.prisma.ftdDocument.findFirst({
+        where: {
+          kontraktId: dokument.kontraktId,
+          docType: "a_nota",
+          notaType: { not: "Sluttnota" },
+          ...(erSluttnota
+            ? { notaNr: { not: null } }
+            : dokument.notaNr
+              ? { notaNr: { lt: dokument.notaNr } }
+              : {}),
+        },
+        orderBy: { notaNr: "desc" },
+        select: { id: true, notaNr: true },
+      });
+
+      if (!forrigeNota) return poster;
+
+      // Hent forrige notas poster og bygg postnr → verdier map
+      const forrigePoster = await ctx.prisma.ftdSpecPost.findMany({
+        where: { documentId: forrigeNota.id },
+        select: { postnr: true, mengdeTotal: true, verdiTotal: true },
+      });
+
+      const forrigeMap = new Map<string, { mengdeForrige: number; verdiForrige: number }>();
+      for (const fp of forrigePoster) {
+        if (fp.postnr) {
+          forrigeMap.set(fp.postnr, {
+            mengdeForrige: Number(fp.mengdeTotal ?? 0),
+            verdiForrige: Number(fp.verdiTotal ?? 0),
+          });
+        }
+      }
+
+      return poster.map((p) => {
+        const forrige = p.postnr ? forrigeMap.get(p.postnr) : undefined;
+        return {
+          ...p,
+          mengdeForrige: forrige?.mengdeForrige ?? null,
+          verdiForrige: forrige?.verdiForrige ?? null,
+        };
       });
     }),
 
@@ -218,7 +345,7 @@ export const mengdeRouter = router({
         filename: z.string(),
         fileUrl: z.string(),
         filetype: z.string().optional(),
-        docType: z.enum(["anbudsgrunnlag", "budsjett", "a_nota", "t_nota", "mengdebeskrivelse", "annet"]).default("annet"),
+        docType: z.enum(["anbudsgrunnlag", "a_nota", "t_nota", "mengdebeskrivelse", "varsel", "varsel_om_endring", "endringsmelding", "regningsarbeid", "annet"]).default("annet"),
         kontraktId: z.string().optional(),
         kontraktNavn: z.string().optional(),
         notaType: z.enum(["A-Nota", "T-Nota", "Sluttnota"]).optional(),
@@ -257,9 +384,7 @@ export const mengdeRouter = router({
             processingError: null,
           },
         });
-        // Slett gamle chunks og spec-poster
-        await ctx.prisma.ftdDocumentChunk.deleteMany({ where: { documentId: doc.id } });
-        await ctx.prisma.ftdSpecPost.deleteMany({ where: { documentId: doc.id } });
+        // Sletting av gamle data skjer i prosesserDokument (atomisk)
       } else {
         doc = await ctx.prisma.ftdDocument.create({
           data: {
@@ -291,15 +416,7 @@ export const mengdeRouter = router({
       });
       await verifiserProsjektmedlem(ctx.userId, doc.projectId);
 
-      // Slett eksisterende chunks og spec-poster fra dette dokumentet
-      await ctx.prisma.ftdDocumentChunk.deleteMany({
-        where: { documentId: input.documentId },
-      });
-      await ctx.prisma.ftdSpecPost.deleteMany({
-        where: { documentId: input.documentId },
-      });
-
-      // Nullstill og kjør på nytt
+      // Nullstill status — sletting av poster skjer i prosesserDokument (atomisk)
       await ctx.prisma.ftdDocument.update({
         where: { id: input.documentId },
         data: { processingState: "pending", processingError: null },
@@ -314,7 +431,7 @@ export const mengdeRouter = router({
     .input(
       z.object({
         documentId: z.string(),
-        docType: z.enum(["anbudsgrunnlag", "a_nota", "t_nota", "mengdebeskrivelse", "annet"]).optional(),
+        docType: z.enum(["anbudsgrunnlag", "a_nota", "t_nota", "mengdebeskrivelse", "varsel", "varsel_om_endring", "endringsmelding", "regningsarbeid", "annet"]).optional(),
         notaType: z.enum(["A-Nota", "T-Nota", "Sluttnota"]).nullable().optional(),
         notaNr: z.number().int().nullable().optional(),
         kontraktId: z.string().nullable().optional(),
@@ -322,10 +439,21 @@ export const mengdeRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const { documentId, ...data } = input;
+      const { documentId, kontraktId, ...data } = input;
+      const doc = await ctx.prisma.ftdDocument.findUniqueOrThrow({ where: { id: documentId } });
+      await verifiserProsjektmedlem(ctx.userId, doc.projectId);
+
+      // Verifiser at kontrakten tilhører samme prosjekt
+      if (kontraktId) {
+        const kontrakt = await ctx.prisma.ftdKontrakt.findUniqueOrThrow({ where: { id: kontraktId } });
+        if (kontrakt.projectId !== doc.projectId) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Kontrakt tilhører annet prosjekt" });
+        }
+      }
+
       return ctx.prisma.ftdDocument.update({
         where: { id: documentId },
-        data,
+        data: { ...data, kontraktId },
       });
     }),
 
@@ -399,7 +527,19 @@ export const mengdeRouter = router({
           }
         }
       }
-      const resultat = Array.from(perNr.values());
+      // Konverter Prisma Decimal til Number (utfortPr er DateTime, ikke Decimal)
+      const resultat = Array.from(perNr.values()).map((d) => ({
+        ...d,
+        utfortTotalt: d.utfortTotalt !== null ? Number(d.utfortTotalt) : null,
+        utfortForrige: d.utfortForrige !== null ? Number(d.utfortForrige) : null,
+        utfortDenne: d.utfortDenne !== null ? Number(d.utfortDenne) : null,
+        innestaaende: d.innestaaende !== null ? Number(d.innestaaende) : null,
+        innestaaendeForrige: d.innestaaendeForrige !== null ? Number(d.innestaaendeForrige) : null,
+        innestaaendeDenne: d.innestaaendeDenne !== null ? Number(d.innestaaendeDenne) : null,
+        nettoDenne: d.nettoDenne !== null ? Number(d.nettoDenne) : null,
+        mva: d.mva !== null ? Number(d.mva) : null,
+        sumInkMva: d.sumInkMva !== null ? Number(d.sumInkMva) : null,
+      }));
       return resultat;
     }),
 

@@ -33,6 +33,7 @@ interface SidebarElement {
   tillatelse?: Permission;
   kreverIfc?: boolean;
   kreverModul?: string;
+  kreverGruppemodul?: string;
 }
 
 const hovedelementer: SidebarElement[] = [
@@ -47,12 +48,14 @@ const hovedelementer: SidebarElement[] = [
     labelKey: "nav.sjekklister",
     ikon: <ClipboardCheck className="h-5 w-5" />,
     kreverProsjekt: true,
+    kreverGruppemodul: "sjekklister",
   },
   {
     id: "oppgaver",
     labelKey: "nav.oppgaver",
     ikon: <ListTodo className="h-5 w-5" />,
     kreverProsjekt: true,
+    kreverGruppemodul: "oppgaver",
   },
   // Maler er tilgjengelig via Innstillinger → Oppgavemaler / Sjekklistemaler
   {
@@ -60,6 +63,7 @@ const hovedelementer: SidebarElement[] = [
     labelKey: "nav.tegninger",
     ikon: <Map className="h-5 w-5" />,
     kreverProsjekt: true,
+    kreverGruppemodul: "tegninger",
   },
   {
     id: "3d-visning",
@@ -67,6 +71,7 @@ const hovedelementer: SidebarElement[] = [
     ikon: <Box className="h-5 w-5" />,
     kreverProsjekt: true,
     kreverIfc: true,
+    kreverGruppemodul: "3d",
   },
   {
     id: "tegning-3d",
@@ -135,6 +140,11 @@ export function HovedSidebar() {
     { enabled: !!prosjektId },
   );
 
+  const { data: minFlytInfo } = trpc.gruppe.hentMinFlytInfo.useQuery(
+    { projectId: prosjektId! },
+    { enabled: !!prosjektId },
+  );
+
   // Hent bygninger med tegninger for å sjekke IFC-tilgjengelighet
   const { data: _bygninger } = trpc.bygning.hentForProsjekt.useQuery(
     { projectId: prosjektId! },
@@ -147,12 +157,17 @@ export function HovedSidebar() {
     return bygning?.drawings?.some((d) => d.fileType?.toLowerCase() === "ifc") ?? false;
   })();
 
+  const mineModuler = (minFlytInfo as { moduler?: string[] } | undefined)?.moduler;
+  const erAdmin = (minFlytInfo as { erAdmin?: boolean } | undefined)?.erAdmin ?? false;
+
   const filtrertHovedelementer = hovedelementer.filter((element) => {
     if (element.tillatelse && (!tillatelser || !tillatelser.includes(element.tillatelse))) return false;
     if (element.kreverIfc && !harIfc) return false;
     if (element.kreverModul && (!aktiveModuler || !aktiveModuler.some(
       (m) => m.moduleSlug === element.kreverModul && m.active,
     ))) return false;
+    // Gruppemodulsjekk — admin/registrator ser alt
+    if (element.kreverGruppemodul && !erAdmin && mineModuler && !mineModuler.includes(element.kreverGruppemodul)) return false;
     return true;
   });
 

@@ -16,6 +16,15 @@ import {
 import { verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
 import { konverterDwg } from "../services/dwgKonvertering";
 import { trekUtIfcMetadata } from "../services/ifcMetadata";
+/** Hent bildedimensjoner fra fil (PNG/SVG/JPG) via sharp (dynamisk import) */
+async function hentBildeDimensjoner(filsti: string): Promise<{ width: number; height: number } | null> {
+  try {
+    const { default: sharp } = await import("sharp");
+    const meta = await sharp(filsti).metadata();
+    if (meta.width && meta.height) return { width: meta.width, height: meta.height };
+    return null;
+  } catch { return null; }
+}
 
 // Absolutt sti til uploads — env-variabel for pålitelighet på tvers av web/api-prosesser
 const UPLOADS_DIR = process.env.UPLOADS_DIR || join(process.cwd(), "uploads");
@@ -116,9 +125,19 @@ export const tegningRouter = router({
       const erIfc = input.fileType.toLowerCase() === "ifc";
       const erPdf = input.fileType.toLowerCase() === "pdf";
 
+      // Hent bildedimensjoner for bildetype-filer (PNG, JPG, SVG)
+      let imageWidth: number | undefined;
+      let imageHeight: number | undefined;
+      if (!erDwg && !erIfc && !erPdf) {
+        const dim = await hentBildeDimensjoner(join(UPLOADS_DIR, input.fileUrl.replace("/uploads/", "")));
+        if (dim) { imageWidth = dim.width; imageHeight = dim.height; }
+      }
+
       const tegning = await ctx.prisma.drawing.create({
         data: {
           ...input,
+          imageWidth,
+          imageHeight,
           ...((erDwg || erPdf) ? {
             originalFileUrl: input.fileUrl,
             conversionStatus: erDwg ? "pending" : "converting",
@@ -147,6 +166,9 @@ export const tegningRouter = router({
             if (resultat.visningUrl) {
               oppdatering.fileUrl = resultat.visningUrl;
               oppdatering.fileType = resultat.visningFilType;
+              // Hent dimensjoner fra konvertert fil
+              const dim = await hentBildeDimensjoner(join(UPLOADS_DIR, resultat.visningUrl.replace("/uploads/", "")));
+              if (dim) { oppdatering.imageWidth = dim.width; oppdatering.imageHeight = dim.height; }
             }
 
             await ctx.prisma.drawing.update({
@@ -236,11 +258,16 @@ export const tegningRouter = router({
             const ms = Date.now() - start;
             console.log(`[PDF] Konvertering fullført på ${ms}ms: ${pngFilnavn}`);
 
+            // Hent dimensjoner fra konvertert PNG
+            const dim = await hentBildeDimensjoner(join(UPLOADS_DIR, pngFilnavn));
+
             await ctx.prisma.drawing.update({
               where: { id: tegning.id },
               data: {
                 fileUrl: `/uploads/${pngFilnavn}`,
                 fileType: "png",
+                imageWidth: dim?.width ?? null,
+                imageHeight: dim?.height ?? null,
                 conversionStatus: "done",
               },
             });
@@ -534,5 +561,155 @@ export const tegningRouter = router({
       const tegning = await ctx.prisma.drawing.findUniqueOrThrow({ where: { id: input.id }, select: { projectId: true } });
       await verifiserProsjektmedlem(ctx.userId, tegning.projectId);
       return ctx.prisma.drawing.delete({ where: { id: input.id } });
+    }),
+
+  // Batch re-konverter PDF-tegninger som mangler konvertering
+  rekonverterPdf: protectedProcedure
+    .input(z.object({ projectId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      // Kun sitedoc_admin eller prosjektadmin
+      const bruker = await ctx.prisma.user.findUnique({ where: { id: ctx.userId }, select: { role: true } });
+      if (bruker?.role !== "sitedoc_admin") {
+        const medlem = await ctx.prisma.projectMember.findUnique({
+          where: { userId_projectId: { userId: ctx.userId, projectId: input.projectId } },
+        });
+        if (medlem?.role !== "admin") {
+          return { startet: 0, melding: "Kun admin kan starte re-konvertering" };
+        }
+      }
+
+      // Finn PDF-tegninger uten konvertering (eller feilet)
+      const pdfTegninger = await ctx.prisma.drawing.findMany({
+        where: {
+          projectId: input.projectId,
+          fileType: "pdf",
+          OR: [
+            { conversionStatus: null },
+            { conversionStatus: "failed" },
+          ],
+        },
+        select: { id: true, fileUrl: true, name: true },
+      });
+
+      if (pdfTegninger.length === 0) {
+        return { startet: 0, melding: "Ingen PDF-tegninger å konvertere" };
+      }
+
+      // Sett alle til "converting" og start asynkront
+      for (const tegning of pdfTegninger) {
+        await ctx.prisma.drawing.update({
+          where: { id: tegning.id },
+          data: { conversionStatus: "converting" },
+        });
+
+        const pdfFilSti = join(UPLOADS_DIR, tegning.fileUrl.replace("/uploads/", ""));
+        const pngFilnavn = `${randomUUID()}.png`;
+        const pngUtSti = join(UPLOADS_DIR, pngFilnavn.replace(".png", ""));
+
+        // Fire-and-forget — konverter hver tegning asynkront
+        (async () => {
+          try {
+            console.log(`[PDF-batch] Konverterer: ${tegning.name} (${tegning.id})...`);
+            await execFileAsync("pdftoppm", [
+              "-png", "-r", "200", "-singlefile",
+              pdfFilSti, pngUtSti,
+            ], { timeout: 60000 });
+
+            await ctx.prisma.drawing.update({
+              where: { id: tegning.id },
+              data: {
+                fileUrl: `/uploads/${pngFilnavn}`,
+                fileType: "png",
+                conversionStatus: "done",
+              },
+            });
+            console.log(`[PDF-batch] Ferdig: ${tegning.name}`);
+          } catch (err) {
+            const melding = err instanceof Error ? err.message : "Ukjent feil";
+            console.error(`[PDF-batch] Feilet: ${tegning.name}: ${melding}`);
+            await ctx.prisma.drawing.update({
+              where: { id: tegning.id },
+              data: {
+                conversionStatus: "failed",
+                conversionError: `PDF→PNG batch-feil: ${melding}`,
+              },
+            });
+          }
+        })();
+      }
+
+      return { startet: pdfTegninger.length, melding: `Startet konvertering av ${pdfTegninger.length} PDF-tegning(er)` };
+    }),
+
+  // Backfill: hent bildedimensjoner for tegninger som mangler imageWidth/imageHeight
+  backfillDimensjoner: protectedProcedure
+    .input(z.object({ projectId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      const tegninger = await ctx.prisma.drawing.findMany({
+        where: {
+          projectId: input.projectId,
+          imageWidth: null,
+          fileType: { in: ["png", "jpg", "jpeg", "svg"] },
+        },
+        select: { id: true, fileUrl: true, name: true },
+      });
+
+      let oppdatert = 0;
+      for (const t of tegninger) {
+        const filsti = join(UPLOADS_DIR, t.fileUrl.replace("/uploads/", ""));
+        const dim = await hentBildeDimensjoner(filsti);
+        if (dim) {
+          await ctx.prisma.drawing.update({
+            where: { id: t.id },
+            data: { imageWidth: dim.width, imageHeight: dim.height },
+          });
+          oppdatert++;
+          console.log(`[Backfill] ${t.name}: ${dim.width}x${dim.height}`);
+        }
+      }
+      return { oppdatert, totalt: tegninger.length };
+    }),
+
+  // Crop screenshot-bilde rundt en posisjon for detalj-utsnitt i PDF
+  cropScreenshot: protectedProcedure
+    .input(z.object({
+      imageBase64: z.string(),
+      positionX: z.number().min(0).max(100),
+      positionY: z.number().min(0).max(100),
+      zoomFaktor: z.number().min(1).max(10).default(4),
+    }))
+    .mutation(async ({ input }) => {
+      const { imageBase64, positionX, positionY, zoomFaktor } = input;
+
+      // Fjern data:image/png;base64, prefix
+      const ren64 = imageBase64.replace(/^data:image\/\w+;base64,/, "");
+      const buffer = Buffer.from(ren64, "base64");
+
+      const { default: sharpLib } = await import("sharp");
+      const meta = await sharpLib(buffer).metadata();
+      const w = meta.width ?? 800;
+      const h = meta.height ?? 600;
+
+      console.log(`[cropScreenshot] Input: positionX=${positionX}, positionY=${positionY}, zoomFaktor=${zoomFaktor}`);
+      console.log(`[cropScreenshot] Bilde: ${w}x${h} (${meta.format})`);
+
+      // Beregn crop-rektangel sentrert rundt posisjon
+      const cropW = Math.round(w / zoomFaktor);
+      const cropH = Math.round(h / zoomFaktor);
+      const cx = Math.round(positionX / 100 * w);
+      const cy = Math.round(positionY / 100 * h);
+      const left = Math.max(0, Math.min(w - cropW, cx - Math.round(cropW / 2)));
+      const top = Math.max(0, Math.min(h - cropH, cy - Math.round(cropH / 2)));
+
+      console.log(`[cropScreenshot] Senter: cx=${cx}px, cy=${cy}px`);
+      console.log(`[cropScreenshot] Crop: left=${left}, top=${top}, width=${cropW}, height=${cropH}`);
+
+      const cropBuffer = await sharpLib(buffer)
+        .extract({ left, top, width: cropW, height: cropH })
+        .png()
+        .toBuffer();
+
+      return { croppedBase64: `data:image/png;base64,${cropBuffer.toString("base64")}` };
     }),
 });

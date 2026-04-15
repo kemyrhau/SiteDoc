@@ -4,7 +4,7 @@ import { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { BarChart3, Upload, FileText, Trash2, Loader2, CheckCircle, AlertCircle, RefreshCw, Plus, Pencil, FileSearch } from "lucide-react";
+import { BarChart3, Upload, FileText, Trash2, Loader2, CheckCircle, AlertCircle, RefreshCw, Plus, Pencil, FileSearch, X } from "lucide-react";
 import { SpecPostTabell } from "@/components/mengde/spec-post-tabell";
 import { Avviksanalyse } from "@/components/mengde/avviksanalyse";
 import { NotatEditor, type NotatEditorRef } from "@/components/mengde/notat-editor";
@@ -12,6 +12,7 @@ import { NsKodePanel } from "@/components/mengde/ns-kode-panel";
 import { MerknadEksport } from "@/components/mengde/merknad-eksport";
 import { ImportSammenligning } from "@/components/mengde/import-sammenligning";
 import { ImportDialog } from "@/components/mengde/import-dialog";
+import { DebugErrorBoundary } from "@/components/error-boundary";
 import { trpc } from "@/lib/trpc";
 
 type Fane = "oversikt" | "avviksanalyse" | "rapport" | "dokumenter";
@@ -23,13 +24,40 @@ export default function OkonomiSide() {
   const prosjektId = params.prosjektId;
   const { data: session } = useSession();
 
-  const [kontraktId, setKontraktId] = useState<string | null>(null);
-  const [dokType, setDokType] = useState<DokType>("a_nota");
-  const [valgtNotaNr, setValgtNotaNr] = useState<number | null>(null);
+  // Persist kontrakt/type/nr i localStorage
+  const [kontraktId, setKontraktIdState] = useState<string | null>(null);
+  const [dokType, setDokTypeState] = useState<DokType>("a_nota");
+  const [valgtNotaNr, setValgtNotaNrState] = useState<number | null>(null);
+
+  // Les fra localStorage ved mount
+  useEffect(() => {
+    const k = localStorage.getItem(`ftd-kontrakt-${prosjektId}`);
+    const t = localStorage.getItem(`ftd-type-${prosjektId}`) as DokType | null;
+    const n = localStorage.getItem(`ftd-nr-${prosjektId}`);
+    if (k) setKontraktIdState(k);
+    if (t) setDokTypeState(t);
+    if (n) setValgtNotaNrState(parseInt(n, 10));
+  }, [prosjektId]);
+
+  const setKontraktId = (id: string | null) => {
+    setKontraktIdState(id);
+    if (id) localStorage.setItem(`ftd-kontrakt-${prosjektId}`, id);
+    else localStorage.removeItem(`ftd-kontrakt-${prosjektId}`);
+  };
+  const setDokType = (t: DokType) => {
+    setDokTypeState(t);
+    localStorage.setItem(`ftd-type-${prosjektId}`, t);
+  };
+  const setValgtNotaNr = (n: number | null) => {
+    setValgtNotaNrState(n);
+    if (n !== null) localStorage.setItem(`ftd-nr-${prosjektId}`, String(n));
+    else localStorage.removeItem(`ftd-nr-${prosjektId}`);
+  };
   const [aktivFane, setAktivFane] = useState<Fane>("oversikt");
   const [valgtPostId, setValgtPostId] = useState<string | null>(null);
   const notatRef = useRef<NotatEditorRef>(null);
   const [importOpen, setImportOpen] = useState(false);
+  const [visNotaForside, setVisNotaForside] = useState(false);
   const [visNyKontrakt, setVisNyKontrakt] = useState(false);
   const [visRedigerKontrakt, setVisRedigerKontrakt] = useState(false);
   const [nyKontraktNavn, setNyKontraktNavn] = useState("");
@@ -85,14 +113,16 @@ export default function OkonomiSide() {
     },
   });
 
-  // @ts-expect-error — Prisma Json-type (splitSources) trigger TS2589 i tRPC
+  // @ts-ignore — Prisma Json-type (splitSources) trigger TS2589 i tRPC
   const dokumenterQuery = trpc.mengde.hentDokumenter.useQuery(
     { projectId: prosjektId },
     {
       enabled: !!prosjektId,
+      staleTime: 10_000,
+      refetchOnWindowFocus: true,
       refetchInterval: (query) => {
         const data = query.state.data;
-        if (!data) return false;
+        if (!data) return 3000; // Rask polling under initial lasting
         return data.some(
           (d) =>
             d.processingState === "pending" ||
@@ -109,7 +139,9 @@ export default function OkonomiSide() {
   const kontraktDokumenter = useMemo(() => {
     if (!dokumenter || !kontraktId) return { budsjett: null, notas: [] };
     const filtrert = dokumenter.filter((d) => d.kontraktId === kontraktId);
-    const budsjett = filtrert.find((d) => d.docType === "anbudsgrunnlag") ?? null;
+    // Prioriter anbudsgrunnlag med flest poster — GAB har NS-koder men ufullstendige verdier
+    const anbudsgrunnlag = filtrert.filter((d) => d.docType === "anbudsgrunnlag");
+    const budsjett = anbudsgrunnlag[0] ?? null;
     const alleNotas = filtrert
       .filter((d) => d.docType === dokType && d.notaNr !== null)
       .sort((a, b) => (a.notaNr ?? 0) - (b.notaNr ?? 0));
@@ -133,13 +165,13 @@ export default function OkonomiSide() {
   const budsjettDokId = kontraktDokumenter.budsjett?.id;
   const { data: budsjettPoster } = trpc.mengde.hentSpecPoster.useQuery(
     { projectId: prosjektId, dokumentId: budsjettDokId },
-    { enabled: !!prosjektId && !!budsjettDokId },
+    { enabled: !!prosjektId && !!budsjettDokId, staleTime: 30_000 },
   );
 
   // Nota-poster (for sammenligning)
   const { data: notaPoster } = trpc.mengde.hentSpecPoster.useQuery(
     { projectId: prosjektId, dokumentId: valgtNotaDok?.id },
-    { enabled: !!prosjektId && !!valgtNotaDok },
+    { enabled: !!prosjektId && !!valgtNotaDok, staleTime: 30_000 },
   );
 
   // Fallback: vis alle poster for kontrakten hvis ingen budsjett-dok finnes
@@ -148,7 +180,7 @@ export default function OkonomiSide() {
       projectId: prosjektId,
       kontraktId: kontraktId ?? undefined,
     },
-    { enabled: !!prosjektId && !!kontraktId && !budsjettDokId },
+    { enabled: !!prosjektId && !!kontraktId && !budsjettDokId, staleTime: 30_000 },
   );
 
   const poster = budsjettPoster ?? allePoster;
@@ -180,8 +212,9 @@ export default function OkonomiSide() {
         </button>
       </div>
 
-      {/* Velgere */}
-      <div className="flex items-center gap-3 border-b px-4 py-2">
+      {/* Velgere + Nota-oppsummering */}
+      <div className="flex items-start justify-between border-b px-4 py-2">
+        <div className="flex items-center gap-3">
         <label className="text-xs text-gray-500">{t("okonomi.kontrakt")}</label>
         <div className="flex items-center gap-1">
           <select
@@ -245,7 +278,37 @@ export default function OkonomiSide() {
             </option>
           ))}
         </select>
+        </div>
+
+        {/* Høyre: Nota-oppsummering + vis forside */}
+        <div className="flex items-start gap-2">
+          <NotaOppsummering dok={valgtNotaDok} />
+          {valgtNotaDok?.fileUrl && (
+            <button
+              onClick={() => setVisNotaForside(true)}
+              className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-sitedoc-primary"
+              title={t("okonomi.visForside")}
+            >
+              <FileText className="h-4 w-4" />
+            </button>
+          )}
+        </div>
       </div>
+
+      {/* Nota-forside modal (flyttbar) */}
+      {visNotaForside && valgtNotaDok?.fileUrl && (
+        <DraggableModal onLukk={() => setVisNotaForside(false)} tittel={/\.pdf$/i.test(valgtNotaDok.filename) ? valgtNotaDok.filename : undefined}>
+          {/\.pdf$/i.test(valgtNotaDok.filename) ? (
+            <iframe
+              src={`/api${valgtNotaDok.fileUrl}#page=1`}
+              className="flex-1 w-full"
+              title={t("okonomi.visForside")}
+            />
+          ) : (
+            <NotaForsideOppsummering dok={{ ...valgtNotaDok, fileUrl: valgtNotaDok.fileUrl! }} onLukk={() => setVisNotaForside(false)} />
+          )}
+        </DraggableModal>
+      )}
 
       {/* Faner */}
       <div className="flex gap-1 border-b px-4">
@@ -280,22 +343,48 @@ export default function OkonomiSide() {
         </FaneKnapp>
       </div>
 
+      {/* Prosesseringsindikator */}
+      {dokumenter && dokumenter.some((d) => d.processingState === "pending" || d.processingState === "processing") && (
+        <div className="flex items-center gap-2 border-b bg-blue-50 px-4 py-2 text-xs text-blue-700">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          <span>
+            {(() => {
+              const ventende = dokumenter.filter((d) => d.processingState === "pending" || d.processingState === "processing");
+              return `Prosesserer ${ventende.length} ${ventende.length === 1 ? "dokument" : "dokumenter"}: ${ventende.map((d) => d.filename).join(", ")}`;
+            })()}
+          </span>
+        </div>
+      )}
+      {dokumenter && dokumenter.some((d) => d.processingState === "failed") && (
+        <div className="flex items-center gap-2 border-b bg-red-50 px-4 py-2 text-xs text-red-600">
+          <AlertCircle className="h-3.5 w-3.5" />
+          <span>
+            {(() => {
+              const feilet = dokumenter.filter((d) => d.processingState === "failed");
+              return `${feilet.length} ${feilet.length === 1 ? "dokument" : "dokumenter"} feilet: ${feilet.map((d) => `${d.filename}${d.processingError ? ` (${d.processingError})` : ""}`).join(", ")}`;
+            })()}
+          </span>
+        </div>
+      )}
+
       {/* Innhold */}
       {aktivFane === "oversikt" ? (
         <>
           {/* Tabell — fyller midten, scroller internt */}
           <div className="min-h-0 flex-1 px-4 pt-4">
-            <SpecPostTabell
-              poster={poster ?? []}
-              sammenligningPoster={valgtNotaNr !== null ? (notaPoster ?? []) : undefined}
-              sammenligningLabel={valgtNotaNr !== null
-                ? (valgtNotaDok?.notaType === "Sluttnota" ? t("okonomi.sluttnota") : `${dokType === "a_nota" ? t("okonomi.aNota") : t("okonomi.tNota")} ${valgtNotaNr}`)
-                : undefined}
-              onVelgPost={handleVelgPost}
-              valgtPostId={valgtPostId}
-              prosjektId={prosjektId}
-              kontraktId={kontraktId}
-            />
+            <DebugErrorBoundary>
+              <SpecPostTabell
+                  poster={poster ?? []}
+                  sammenligningPoster={valgtNotaNr !== null ? (notaPoster ?? []) : undefined}
+                  sammenligningLabel={valgtNotaNr !== null
+                    ? (valgtNotaDok?.notaType === "Sluttnota" ? t("okonomi.sluttnota") : `${dokType === "a_nota" ? t("okonomi.aNota") : t("okonomi.tNota")} ${valgtNotaNr}`)
+                    : undefined}
+                  onVelgPost={handleVelgPost}
+                  valgtPostId={valgtPostId}
+                  prosjektId={prosjektId}
+                  kontraktId={kontraktId}
+                />
+            </DebugErrorBoundary>
           </div>
 
           {/* Detaljpanel — alltid synlig i bunn */}
@@ -1039,6 +1128,191 @@ function RapportPanel({
           </table>
         </div>
       )}
+    </div>
+  );
+}
+
+function NotaOppsummering({ dok }: { dok: { utfortTotalt?: unknown; utfortDenne?: unknown; innestaaende?: unknown; nettoDenne?: unknown; mva?: unknown; sumInkMva?: unknown } | null }) {
+  const f = (v: unknown) => {
+    if (v === null || v === undefined) return "—";
+    const n = Number(v);
+    if (isNaN(n)) return "—";
+    return n.toLocaleString("nb-NO", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+
+  const V = ({ label, verdi, uthevet }: { label: string; verdi: unknown; uthevet?: boolean }) => (
+    <div className="flex items-baseline gap-1.5">
+      <span className="text-gray-400 whitespace-nowrap">{label}</span>
+      <span className={`font-mono whitespace-nowrap ${uthevet ? "font-semibold text-gray-900" : "text-gray-600"}`}>{f(dok ? verdi : null)}</span>
+    </div>
+  );
+
+  return (
+    <div className="text-[11px] leading-tight">
+      <div className="flex gap-4">
+        <V label="Utført totalt" verdi={dok?.utfortTotalt} />
+        <V label="Denne" verdi={dok?.utfortDenne} uthevet />
+        <V label="Innestående" verdi={dok?.innestaaende} />
+      </div>
+      <div className="flex gap-4 mt-0.5">
+        <V label="Netto" verdi={dok?.nettoDenne} uthevet />
+        <V label="Mva" verdi={dok?.mva} />
+        <V label="Sum inkl." verdi={dok?.sumInkMva} uthevet />
+      </div>
+    </div>
+  );
+}
+
+function DraggableModal({ children, onLukk, tittel }: { children: React.ReactNode; onLukk: () => void; tittel?: string }) {
+  const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
+  const dragRef = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleMove(e: MouseEvent) {
+      if (!dragRef.current) return;
+      setPos({ x: dragRef.current.origX + (e.clientX - dragRef.current.startX), y: dragRef.current.origY + (e.clientY - dragRef.current.startY) });
+    }
+    function handleUp() { dragRef.current = null; }
+    window.addEventListener("mousemove", handleMove);
+    window.addEventListener("mouseup", handleUp);
+    return () => { window.removeEventListener("mousemove", handleMove); window.removeEventListener("mouseup", handleUp); };
+  }, []);
+
+  const startDrag = (e: React.MouseEvent) => {
+    if ((e.target as HTMLElement).closest("button")) return;
+    const rect = modalRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    dragRef.current = { startX: e.clientX, startY: e.clientY, origX: pos?.x ?? rect.left, origY: pos?.y ?? rect.top };
+    if (!pos) setPos({ x: rect.left, y: rect.top });
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/50" onClick={onLukk}>
+      <div
+        ref={modalRef}
+        className="absolute h-[85vh] w-full max-w-3xl rounded-lg bg-white shadow-xl flex flex-col"
+        style={pos ? { left: pos.x, top: pos.y } : { left: "50%", top: "50%", transform: "translate(-50%, -50%)" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {tittel && (
+          <div className="flex items-center justify-between border-b px-5 py-3 cursor-grab active:cursor-grabbing select-none" onMouseDown={startDrag}>
+            <h2 className="text-sm font-semibold">{tittel}</h2>
+            <button onClick={onLukk} className="rounded p-1 text-gray-400 hover:bg-gray-100"><X className="h-4 w-4" /></button>
+          </div>
+        )}
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function NotaForsideOppsummering({
+  dok,
+  onLukk,
+}: {
+  dok: {
+    filename: string;
+    fileUrl: string;
+    notaType?: string | null;
+    notaNr?: number | null;
+    kontraktNavn?: string | null;
+    entreprenor?: string | null;
+    uploadedAt?: string | Date | null;
+    utfortPr?: string | Date | null;
+    utfortTotalt?: unknown;
+    utfortForrige?: unknown;
+    utfortDenne?: unknown;
+    innestaaende?: unknown;
+    innestaaendeForrige?: unknown;
+    innestaaendeDenne?: unknown;
+    nettoDenne?: unknown;
+    mva?: unknown;
+    sumInkMva?: unknown;
+  };
+  onLukk: () => void;
+}) {
+  const { t } = useTranslation();
+  const fmt = (v: unknown) => {
+    if (v === null || v === undefined) return "—";
+    const n = Number(v);
+    if (isNaN(n)) return "—";
+    return n.toLocaleString("nb-NO", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+  const fmtDato = (v: unknown) => {
+    if (!v) return "—";
+    const d = new Date(v as string);
+    if (isNaN(d.getTime())) return "—";
+    return d.toLocaleDateString("nb-NO", { day: "2-digit", month: "2-digit", year: "numeric" });
+  };
+
+  const tittel = dok.notaType === "Sluttnota"
+    ? t("okonomi.sluttnota")
+    : `${dok.notaType === "T-Nota" ? t("okonomi.tNota") : t("okonomi.aNota")} ${dok.notaNr ?? ""}`;
+
+  const Rad = ({ label, verdi, prefiks, uthevet, dobbel }: { label: string; verdi: unknown; prefiks?: string; uthevet?: boolean; dobbel?: boolean }) => (
+    <div className={`flex items-baseline justify-between py-1 ${dobbel ? "border-b-[3px] border-double border-gray-900" : ""}`}>
+      <span className={`${prefiks ? "text-gray-500" : ""} ${uthevet ? "font-semibold" : ""}`}>
+        {prefiks && <span className="mr-1 text-gray-400">{prefiks}</span>}
+        {label}
+      </span>
+      <span className={`font-mono tabular-nums ${uthevet ? "font-semibold" : ""}`}>{fmt(verdi)}</span>
+    </div>
+  );
+
+  return (
+    <div className="w-full max-w-md rounded-lg bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
+      {/* Header */}
+      <div className="flex items-center justify-between px-6 py-4">
+        <h2 className="text-base font-bold">{tittel}</h2>
+        <button onClick={onLukk} className="rounded p-1 text-gray-400 hover:bg-gray-100">
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+
+      <div className="px-6 pb-5 text-sm space-y-1">
+        {/* Utført pr */}
+        <div className="pb-2">
+          <span className="text-gray-600">{t("okonomi.utfortPr")}: </span>
+          <span className="font-medium">{fmtDato(dok.utfortPr)}</span>
+        </div>
+
+        {/* Utført-seksjon */}
+        <Rad label={t("okonomi.utfortTotalt")} verdi={dok.utfortTotalt} />
+        <Rad label={t("okonomi.utfortForrige")} verdi={dok.utfortForrige} prefiks="−" />
+        <Rad label={`=${t("okonomi.utfortDenne")}`} verdi={dok.utfortDenne} uthevet dobbel />
+
+        <div className="h-3" />
+
+        {/* Innestående-seksjon */}
+        <div className="text-gray-600 py-1">{t("okonomi.innestaaende")}</div>
+        <Rad label={t("okonomi.innestaaende")} verdi={dok.innestaaende} />
+        <Rad label={t("okonomi.innestForrige")} verdi={dok.innestaaendeForrige} prefiks="−" />
+        <Rad label={`=${t("okonomi.innestDenne")}`} verdi={dok.innestaaendeDenne} uthevet dobbel />
+
+        <div className="h-3" />
+
+        {/* Netto + MVA */}
+        <Rad label={t("okonomi.nettoDenne")} verdi={dok.nettoDenne} />
+        <Rad label={`+${t("okonomi.mva")}`} verdi={dok.mva} dobbel />
+
+        <div className="h-2" />
+
+        {/* Sum inkl. */}
+        <Rad label={t("okonomi.sumInklMva")} verdi={dok.sumInkMva} uthevet dobbel />
+
+        {/* Last ned */}
+        <div className="flex justify-end pt-4">
+          <a
+            href={`/api${dok.fileUrl}`}
+            download
+            className="inline-flex items-center gap-1.5 rounded border px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
+          >
+            <FileText className="h-3.5 w-3.5" />
+            {t("okonomi.lastNed")}
+          </a>
+        </div>
+      </div>
     </div>
   );
 }

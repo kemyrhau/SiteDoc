@@ -52,7 +52,7 @@ export function EntrepriserPanel() {
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium">{ent.name}</p>
                   <p className="text-xs text-gray-400">
-                    {ent.memberEnterprises.length} medlemmer
+                    {ent.dokumentflytKoblinger.length} medlemmer
                     {ansvarlig && (
                       <span className="ml-1.5 inline-flex items-center gap-0.5">
                         <Star className="inline h-3 w-3 fill-amber-400 text-amber-400" />

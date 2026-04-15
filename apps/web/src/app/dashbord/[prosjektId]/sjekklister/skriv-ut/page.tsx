@@ -8,6 +8,7 @@ import { Printer, ArrowLeft } from "lucide-react";
 import { PrintHeader } from "@/components/PrintHeader";
 import { RapportObjektVisning } from "@/components/RapportObjektVisning";
 import { byggObjektTre } from "@sitedoc/shared/types";
+import type { RapportObjekt } from "@sitedoc/pdf";
 
 interface SjekklisteData {
   [objektId: string]: {
@@ -17,17 +18,7 @@ interface SjekklisteData {
   };
 }
 
-interface RapportObjektRå {
-  id: string;
-  type: string;
-  label: string;
-  required: boolean;
-  sortOrder: number;
-  config: Record<string, unknown>;
-  parentId: string | null;
-}
-
-interface TreNode extends RapportObjektRå {
+interface TreNode extends RapportObjekt {
   children: TreNode[];
 }
 
@@ -40,7 +31,7 @@ interface SjekklistePrintData {
   template: {
     name: string;
     prefix?: string | null;
-    objects: RapportObjektRå[];
+    objects: RapportObjekt[];
   };
   bestillerEnterprise?: { name: string } | null;
   utforerEnterprise?: { name: string } | null;

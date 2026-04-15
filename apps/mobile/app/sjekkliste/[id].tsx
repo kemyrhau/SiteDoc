@@ -8,14 +8,17 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Modal,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { ArrowLeft, Save, Check, AlertTriangle, Clock, CloudOff, Cloud, Trash2, ChevronDown, Share2 } from "lucide-react-native";
-import { harBetingelse, harForelderObjekt } from "@sitedoc/shared";
-import { hentStatusHandlinger } from "@sitedoc/shared";
-import type { StatusHandling } from "@sitedoc/shared";
+import { ArrowLeft, Save, Check, AlertTriangle, Clock, CloudOff, Cloud, Trash2, ChevronDown, Share2, MapPin } from "lucide-react-native";
+import { harBetingelse, harForelderObjekt, utledMinRolle } from "@sitedoc/shared";
+import type { FlytMedlemInfo } from "@sitedoc/shared";
 import { useTranslation } from "react-i18next";
+import { FlytIndikator } from "../../src/components/FlytIndikator";
+import type { FlytMedlem } from "../../src/components/FlytIndikator";
+import { DokumentHandlingsmeny } from "../../src/components/DokumentHandlingsmeny";
 import { useSjekklisteSkjema } from "../../src/hooks/useSjekklisteSkjema";
 import { useAutoVaer } from "../../src/hooks/useAutoVaer";
 import { useOversettelse } from "../../src/hooks/useOversettelse";
@@ -30,9 +33,13 @@ import { trpc } from "../../src/lib/trpc";
 import { useProsjekt } from "../../src/kontekst/ProsjektKontekst";
 import { hentDatabase } from "../../src/db/database";
 import { sjekklisteFeltdata, opplastingsKo } from "../../src/db/schema";
-import { byggSjekklisteHtml } from "../../src/utils/sjekklistePdf";
+import { byggSjekklisteHtml } from "@sitedoc/pdf";
 import { PdfForhandsvisning } from "../../src/components/PdfForhandsvisning";
-import { AUTH_CONFIG } from "../../src/config/auth";
+import { TegningsVisning } from "../../src/components/TegningsVisning";
+import type { Markør } from "../../src/components/TegningsVisning";
+import { TegningsCapture } from "../../src/components/TegningsCapture";
+import { AUTH_CONFIG, hentWebUrl } from "../../src/config/auth";
+import { hentSessionToken } from "../../src/services/auth";
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
 import { eq } from "drizzle-orm";
@@ -108,6 +115,15 @@ export default function SjekklisteUtfylling() {
 
   const [visEntrepriseListe, settVisEntrepriseListe] = useState<"oppretter" | "svarer" | null>(null);
   const [pdfHtml, settPdfHtml] = useState<string | null>(null);
+  const [pdfLaster, settPdfLaster] = useState(false);
+  const [visLokasjonModal, setVisLokasjonModal] = useState(false);
+  const [visLokByttTegning, setVisLokByttTegning] = useState(false);
+  const [lokTempPosX, setLokTempPosX] = useState<number | null>(null);
+  const [lokTempPosY, setLokTempPosY] = useState<number | null>(null);
+  const [lokTempTegningId, setLokTempTegningId] = useState<string | null>(null);
+  const [lokTempBygningId, setLokTempBygningId] = useState<string | null>(null);
+  const [tegningScreenshot, setTegningScreenshot] = useState<string | null>(null);
+  const [tegningDetaljScreenshot, setTegningDetaljScreenshot] = useState<string | null>(null);
 
   // State for oppgave-fra-felt
   const [opprettOppgaveKategori, setOpprettOppgaveKategori] = useState<"oppgave" | null>(null);
@@ -125,6 +141,14 @@ export default function SjekklisteUtfylling() {
     transfers?: Transfer[];
     template?: { enableChangeLog?: boolean };
     changeLog?: EndringsloggRad[];
+    drawing?: { id: string; name: string; drawingNumber?: string | null; fileUrl?: string | null; imageWidth?: number | null; imageHeight?: number | null } | null;
+    drawingId?: string | null;
+    positionX?: number | null;
+    positionY?: number | null;
+    byggeplass?: { id: string; name: string } | null;
+    bestiller?: { name?: string | null } | null;
+    creator?: { name?: string | null } | null;
+    createdAt?: string;
   } | undefined;
   const overforinger = sjekklisteDetalj?.transfers;
   const sjekklisteNummer = sjekklisteDetalj?.number;
@@ -149,6 +173,32 @@ export default function SjekklisteUtfylling() {
 
   const { ventende, erAktiv } = useOpplastingsKo();
 
+  // Bygninger og tegninger for lokasjonsvelger
+  const bygningerQuery = trpc.bygning.hentForProsjekt.useQuery(
+    { projectId: valgtProsjektId! },
+    { enabled: !!valgtProsjektId },
+  );
+  const bygninger = (bygningerQuery.data ?? []) as Array<{ id: string; name: string }>;
+
+  const alleTegningerQuery = trpc.tegning.hentForProsjekt.useQuery(
+    { projectId: valgtProsjektId! },
+    { enabled: !!valgtProsjektId },
+  );
+  const alleTegninger = (alleTegningerQuery.data ?? []) as unknown as Array<{
+    id: string; name: string; drawingNumber: string | null;
+    fileUrl: string; fileType: string;
+    byggeplassId: string | null; byggeplass: { id: string; name: string } | null;
+  }>;
+
+  // Lokasjonsinformasjon fra sjekklisteDetalj
+  const lokBygningNavn = sjekklisteDetalj?.byggeplass?.name;
+  const lokTegningNavn = sjekklisteDetalj?.drawing
+    ? (sjekklisteDetalj.drawing.drawingNumber
+      ? `${sjekklisteDetalj.drawing.drawingNumber} ${sjekklisteDetalj.drawing.name}`
+      : sjekklisteDetalj.drawing.name)
+    : null;
+  const lokasjonTekst = [lokBygningNavn, lokTegningNavn].filter(Boolean).join(" · ") || null;
+
   // Hent entrepriser for redigering
   const { data: mineEntrepriser } = trpc.medlem.hentMineEntrepriser.useQuery(
     { projectId: valgtProsjektId! },
@@ -158,6 +208,45 @@ export default function SjekklisteUtfylling() {
     { projectId: valgtProsjektId! },
     { enabled: !!valgtProsjektId },
   );
+
+  // Flytdata for ny handlingsmeny
+  const { data: minFlytInfo } = trpc.gruppe.hentMinFlytInfo.useQuery(
+    { projectId: valgtProsjektId! },
+    { enabled: !!valgtProsjektId },
+  );
+  const { data: dokumentflyterRå } = trpc.dokumentflyt.hentForProsjekt.useQuery(
+    { projectId: valgtProsjektId! },
+    { enabled: !!valgtProsjektId },
+  );
+
+  const flytMedlemmer = useMemo((): FlytMedlem[] => {
+    const sj = sjekklisteDetalj as unknown as { dokumentflytId?: string | null };
+    if (!sj?.dokumentflytId || !dokumentflyterRå) return [];
+    const rå = dokumentflyterRå as unknown as Array<{ id: string; medlemmer: FlytMedlem[] }>;
+    const flyt = rå.find((df) => df.id === sj.dokumentflytId);
+    return flyt?.medlemmer ?? [];
+  }, [sjekklisteDetalj, dokumentflyterRå]);
+
+  const minRolle = useMemo(() => {
+    if (!minFlytInfo || !sjekklisteDetalj) return undefined;
+    const sj = sjekklisteDetalj as unknown as { dokumentflytId?: string | null; bestillerEnterprise?: { id: string }; utforerEnterprise?: { id: string } };
+    if (!sj.dokumentflytId) return undefined;
+    const dokumentflyter = (dokumentflyterRå ?? []) as unknown as Array<{
+      id: string;
+      medlemmer: Array<{ rolle: string; enterpriseId?: string | null; projectMemberId?: string | null; groupId?: string | null }>;
+    }>;
+    const flyt = dokumentflyter.find((df) => df.id === sj.dokumentflytId);
+    if (!flyt) return null;
+    const medlemmer = flyt.medlemmer.map((m): FlytMedlemInfo => ({
+      rolle: m.rolle, enterpriseId: m.enterpriseId ?? null,
+      projectMemberId: m.projectMemberId ?? null, groupId: m.groupId ?? null,
+    }));
+    return utledMinRolle(
+      { ...minFlytInfo, userId: "", erAdmin: minFlytInfo.erAdmin },
+      medlemmer,
+      { bestillerEnterpriseId: sj.bestillerEnterprise?.id ?? "", utforerEnterpriseId: sj.utforerEnterprise?.id ?? "" },
+    );
+  }, [minFlytInfo, sjekklisteDetalj, dokumentflyterRå]);
 
   const oppdaterMutasjon = trpc.sjekkliste.oppdater.useMutation({
     onSuccess: () => {
@@ -207,39 +296,7 @@ export default function SjekklisteUtfylling() {
     );
   }, [id, slettMutasjon]);
 
-  const håndterStatusEndring = useCallback(
-    (handling: StatusHandling) => {
-      if (!bruker?.id) return;
 
-      const oversattTekst = t(handling.tekstNoekkel);
-      const bekreftTekst = handling.nyStatus === "cancelled" ? t("bekreft.jaAvbrytSjekklisten") : oversattTekst;
-      const erDestruktiv = handling.nyStatus === "rejected" || handling.nyStatus === "cancelled";
-
-      Alert.alert(
-        t("bekreft.statusendring"),
-        t("bekreft.endreStatusTil", { status: oversattTekst.toLowerCase() }),
-        [
-          { text: t("bekreft.ikkeNaa"), style: "cancel" },
-          {
-            text: bekreftTekst,
-            style: erDestruktiv ? "destructive" : "default",
-            onPress: async () => {
-              try {
-                await endreStatusMutasjon.mutateAsync({
-                  id: id!,
-                  nyStatus: handling.nyStatus,
-                  senderId: bruker.id,
-                });
-              } catch {
-                Alert.alert(t("feil.tittel"), t("feil.kunneIkkeEndreStatus"));
-              }
-            },
-          },
-        ],
-      );
-    },
-    [bruker?.id, id, endreStatusMutasjon],
-  );
 
   const {
     sjekkliste,
@@ -289,39 +346,82 @@ export default function SjekklisteUtfylling() {
     { enabled: !!valgtProsjektId },
   );
 
-  const genererPdfHtml = useCallback(() => {
+  const genererPdfHtml = useCallback(async () => {
     if (!sjekkliste) return "";
     const detalj = detaljQuery.data as Record<string, unknown> | undefined;
+    const webBaseUrl = hentWebUrl();
+    const bildeBase = `${webBaseUrl}/api`;
     const sjekklisteMedDetaljer = {
       ...(sjekkliste as Parameters<typeof byggSjekklisteHtml>[0]),
       updatedAt: detalj?.updatedAt as Date | string | undefined,
       changeLog: (detalj?.changeLog ?? []) as Array<{ createdAt: Date | string; user: { name: string | null } }>,
+      drawing: sjekklisteDetalj?.drawing ?? null,
+      drawingId: sjekklisteDetalj?.drawingId ?? null,
+      positionX: sjekklisteDetalj?.positionX ?? null,
+      positionY: sjekklisteDetalj?.positionY ?? null,
+      building: sjekklisteDetalj?.byggeplass ?? null,
+      bestiller: sjekklisteDetalj?.bestiller ?? null,
+      creator: sjekklisteDetalj?.creator ?? null,
+      createdAt: sjekklisteDetalj?.createdAt,
     };
+    const prosjektForPdf = prosjektData ? {
+      name: prosjektData.name,
+      projectNumber: prosjektData.projectNumber,
+      externalProjectNumber: (prosjektData as Record<string, unknown>).externalProjectNumber as string | null | undefined,
+      address: prosjektData.address,
+      logoUrl: (prosjektData as Record<string, unknown>).logoUrl as string | null | undefined,
+    } : null;
+    const ui = (prosjektData as Record<string, unknown> | undefined)?.utskriftsinnstillinger as Record<string, boolean> | null | undefined;
+    // Tegningsbilde-URL (PNG/bilde-tegninger fungerer direkte, PDF-tegninger ikke)
+    const tegningUrl = sjekklisteDetalj?.drawing?.fileUrl
+      ? `${bildeBase}${sjekklisteDetalj.drawing.fileUrl}`
+      : null;
+    // Konverter vedleggsbilder til base64 (expo-print har ikke auth-cookies)
+    const feltVerdierMedBase64 = await feltVerdierForPdf();
     return byggSjekklisteHtml(
       sjekklisteMedDetaljer,
-      feltVerdierForPdf(),
-      prosjektData ? {
-        name: prosjektData.name,
-        projectNumber: prosjektData.projectNumber,
-        externalProjectNumber: (prosjektData as Record<string, unknown>).externalProjectNumber as string | null | undefined,
-        address: prosjektData.address,
-        logoUrl: (prosjektData as Record<string, unknown>).logoUrl as string | null | undefined,
+      feltVerdierMedBase64,
+      prosjektForPdf,
+      ui ? {
+        logo: ui.logo,
+        eksternProsjektnummer: ui.eksternProsjektnummer,
+        prosjektnavn: ui.prosjektnavn,
+        fraTil: ui.fraTil,
+        lokasjon: ui.lokasjon,
+        tegningsnummer: ui.tegningsnummer,
+        vaer: ui.vaer,
       } : null,
-      AUTH_CONFIG.apiUrl,
+      {
+        bildeBaseUrl: bildeBase,
+        maksbildeHoyde: 200,
+        gjentakendeHeader: true,
+        visSidenummer: true,
+        tegningBildeUrl: tegningUrl,
+        tegningScreenshot,
+        tegningDetaljScreenshot,
+      },
     );
-  }, [sjekkliste, prosjektData, detaljQuery.data as unknown]);
+  }, [sjekkliste, prosjektData, detaljQuery.data as unknown, sjekklisteDetalj, tegningScreenshot, tegningDetaljScreenshot]);
 
   // Vis forhåndsvisning
-  const håndterVisPdf = useCallback(() => {
-    const html = genererPdfHtml();
-    if (html) settPdfHtml(html);
+  const håndterVisPdf = useCallback(async () => {
+    settPdfLaster(true);
+    try {
+      const html = await genererPdfHtml();
+      if (html) settPdfHtml(html);
+    } finally {
+      settPdfLaster(false);
+    }
   }, [genererPdfHtml]);
 
-  // Del PDF fra forhåndsvisning
+  // Del PDF direkte (uten forhåndsvisning)
   const håndterDelPdf = useCallback(async () => {
-    if (!sjekkliste || !pdfHtml) return;
+    if (!sjekkliste) return;
+    settPdfLaster(true);
     try {
-      const { uri } = await Print.printToFileAsync({ html: pdfHtml });
+      const html = pdfHtml ?? await genererPdfHtml();
+      if (!html) return;
+      const { uri } = await Print.printToFileAsync({ html });
       await Sharing.shareAsync(uri, {
         mimeType: "application/pdf",
         dialogTitle: `Del ${sjekkliste.title}`,
@@ -329,20 +429,72 @@ export default function SjekklisteUtfylling() {
       });
     } catch (feil) {
       console.warn("PDF-deling feilet:", feil);
+    } finally {
+      settPdfLaster(false);
     }
-  }, [sjekkliste, pdfHtml]);
+  }, [sjekkliste, pdfHtml, genererPdfHtml]);
 
-  // Hjelpefunksjon for å hente feltVerdier som PDF-format
-  function feltVerdierForPdf() {
-    const resultat: Record<string, { verdi: unknown; kommentar: string; vedlegg: Array<{ id: string; type: string; url: string; filnavn: string }> }> = {};
+  // Hjelpefunksjon for å hente feltVerdier som PDF-format, med vedleggsbilder som base64
+  async function feltVerdierForPdf() {
+    type VedleggPdf = { id: string; type: string; url: string; filnavn: string };
+    const resultat: Record<string, { verdi: unknown; kommentar: string; vedlegg: VedleggPdf[] }> = {};
+    const webBaseUrl = hentWebUrl();
+    const bildeBase = `${webBaseUrl}/api`;
+    const token = await hentSessionToken();
+
+    // Samle alle vedleggsbilder som trenger konvertering
+    const konverteringsJobb: Array<{ objektId: string; idx: number; url: string }> = [];
+
     for (const objekt of sjekkliste?.template?.objects ?? []) {
       const fv = hentFeltVerdi(objekt.id);
-      resultat[objekt.id] = {
-        verdi: fv.verdi,
-        kommentar: fv.kommentar,
-        vedlegg: fv.vedlegg as Array<{ id: string; type: string; url: string; filnavn: string }>,
-      };
+      const vedlegg = (fv.vedlegg as VedleggPdf[]) ?? [];
+      resultat[objekt.id] = { verdi: fv.verdi, kommentar: fv.kommentar, vedlegg: [...vedlegg] };
+
+      vedlegg.forEach((v, idx) => {
+        const erBilde = v.type === "bilde" || /\.(png|jpg|jpeg|gif|webp)$/i.test(v.filnavn);
+        if (!erBilde) return;
+        if (v.url.startsWith("data:")) return; // Allerede base64
+
+        // Bygg full URL for nedlasting
+        let fullUrl = v.url;
+        if (fullUrl.startsWith("/uploads/")) fullUrl = `${bildeBase}${fullUrl}`;
+        else if (fullUrl.startsWith("/")) fullUrl = `${bildeBase}${fullUrl}`;
+
+        konverteringsJobb.push({ objektId: objekt.id, idx, url: fullUrl });
+      });
     }
+
+    // Last ned og konverter parallelt (maks 6 samtidige)
+    const BATCH_SIZE = 6;
+    for (let i = 0; i < konverteringsJobb.length; i += BATCH_SIZE) {
+      const batch = konverteringsJobb.slice(i, i + BATCH_SIZE);
+      const resultater = await Promise.allSettled(
+        batch.map(async (jobb) => {
+          const headers: Record<string, string> = {};
+          if (token) headers["Authorization"] = `Bearer ${token}`;
+          const resp = await fetch(jobb.url, { headers });
+          if (!resp.ok) return null;
+          const blob = await resp.blob();
+          return new Promise<string | null>((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.onerror = () => resolve(null);
+            reader.readAsDataURL(blob);
+          });
+        }),
+      );
+
+      resultater.forEach((r, bIdx) => {
+        if (r.status === "fulfilled" && r.value) {
+          const jobb = batch[bIdx];
+          resultat[jobb.objektId].vedlegg[jobb.idx] = {
+            ...resultat[jobb.objektId].vedlegg[jobb.idx],
+            url: r.value,
+          };
+        }
+      });
+    }
+
     return resultat;
   }
 
@@ -416,54 +568,57 @@ export default function SjekklisteUtfylling() {
   return (
     <SafeAreaView className="flex-1 bg-gray-100" edges={["top"]}>
       {/* Header */}
-      <View className="flex-row items-center justify-between bg-sitedoc-blue px-4 py-3">
-        <Pressable onPress={håndterTilbake} hitSlop={12} className="flex-row items-center gap-2">
-          <ArrowLeft size={22} color="#ffffff" />
-        </Pressable>
-        <Text className="flex-1 px-3 text-center text-base font-semibold text-white" numberOfLines={1}>
-          {sjekkliste.title}
-        </Text>
-        {erRedigerbar && (
-          <View className="flex-row items-center gap-2">
-            {/* Opplastingskø-fremdrift */}
-            {ventende > 0 && (
-              <View className="flex-row items-center gap-1">
-                <ActivityIndicator size="small" color="#fbbf24" />
-                <Text className="text-[10px] text-yellow-200">{ventende}</Text>
-              </View>
-            )}
-            {/* Synkroniseringsstatus */}
-            {synkStatus === "synkroniserer" && (
-              <ActivityIndicator size="small" color="#93c5fd" />
-            )}
-            {synkStatus === "lokalt_lagret" && ventende === 0 && (
-              <CloudOff size={16} color="#fbbf24" />
-            )}
-            {synkStatus === "synkronisert" && ventende === 0 && lagreStatus !== "lagret" && lagreStatus !== "lagrer" && (
-              <Cloud size={16} color="#86efac" />
-            )}
-            {/* Lagrestatus */}
-            {lagreStatus === "lagrer" && (
-              <ActivityIndicator size="small" color="#93c5fd" />
-            )}
-            {lagreStatus === "lagret" && (
-              <Check size={18} color="#86efac" />
-            )}
-            {lagreStatus === "feil" && (
-              <AlertTriangle size={18} color="#fca5a5" />
-            )}
-            <Pressable onPress={håndterLagre} hitSlop={12} disabled={erLagrer}>
-              <Save size={22} color={erLagrer ? "#93c5fd" : "#ffffff"} />
-            </Pressable>
-            <Pressable onPress={håndterVisPdf} hitSlop={12}>
-              <Share2 size={20} color="#ffffff" />
-            </Pressable>
-          </View>
-        )}
-        {!erRedigerbar && (
-          <Pressable onPress={håndterDelPdf} hitSlop={12}>
-            <Share2 size={20} color="#ffffff" />
+      <View className="bg-sitedoc-blue">
+        <View className="flex-row items-center px-4 py-3">
+          <Pressable onPress={håndterTilbake} hitSlop={12}>
+            <ArrowLeft size={22} color="#ffffff" />
           </Pressable>
+          <View className="flex-1 px-3">
+            <View className="flex-row items-center gap-2">
+              {sjekkliste.template?.prefix && sjekklisteNummer != null && (
+                <Text className="text-xs font-bold text-white/70">{sjekkliste.template.prefix}{sjekklisteNummer}</Text>
+              )}
+              <Text className="flex-1 text-sm font-semibold text-white" numberOfLines={1}>
+                {sjekkliste.title}
+              </Text>
+            </View>
+            {sjekklisteDetalj?.createdAt && (
+              <Text className="text-[10px] text-white/50">
+                {new Date(sjekklisteDetalj.createdAt).toLocaleDateString("nb-NO", { day: "2-digit", month: "2-digit", year: "numeric" })}
+              </Text>
+            )}
+          </View>
+          <View className="flex-row items-center gap-1.5">
+            {erRedigerbar && (
+              <>
+                {ventende > 0 && (
+                  <View className="flex-row items-center gap-1">
+                    <ActivityIndicator size="small" color="#fbbf24" />
+                    <Text className="text-[10px] text-yellow-200">{ventende}</Text>
+                  </View>
+                )}
+                {synkStatus === "synkroniserer" && <ActivityIndicator size="small" color="#93c5fd" />}
+                {synkStatus === "lokalt_lagret" && ventende === 0 && <CloudOff size={14} color="#fbbf24" />}
+                {synkStatus === "synkronisert" && ventende === 0 && lagreStatus === "idle" && <Cloud size={14} color="#86efac" />}
+                {lagreStatus === "lagrer" && <ActivityIndicator size="small" color="#93c5fd" />}
+                {lagreStatus === "lagret" && <Check size={16} color="#86efac" />}
+                {lagreStatus === "feil" && <AlertTriangle size={16} color="#fca5a5" />}
+              </>
+            )}
+            <Pressable onPress={erRedigerbar ? håndterVisPdf : håndterDelPdf} hitSlop={12} disabled={pdfLaster}>
+              {pdfLaster ? <ActivityIndicator size="small" color="#ffffff" /> : <Share2 size={18} color="#ffffff" />}
+            </Pressable>
+            <StatusMerkelapp status={sjekkliste.status} />
+          </View>
+        </View>
+        {flytMedlemmer.length > 0 && (
+          <FlytIndikator
+            medlemmer={flytMedlemmer}
+            recipientUserId={(sjekklisteDetalj as { recipientUserId?: string | null } | undefined)?.recipientUserId}
+            recipientGroupId={(sjekklisteDetalj as { recipientGroupId?: string | null } | undefined)?.recipientGroupId}
+            status={sjekkliste.status}
+            bestillerUserId={(sjekklisteDetalj as { bestillerUserId?: string } | undefined)?.bestillerUserId}
+          />
         )}
       </View>
 
@@ -473,114 +628,41 @@ export default function SjekklisteUtfylling() {
         keyboardVerticalOffset={0}
       >
 
-      {/* Metadata-bar */}
-      <View className="flex-row items-center justify-between border-b border-gray-200 bg-white px-4 py-2">
-        <View className="flex-row items-center gap-2">
-          {sjekkliste.template.prefix && (
-            <Text className="text-xs font-medium text-gray-500">
-              {sjekkliste.template.prefix}
-            </Text>
-          )}
-          <Text className="text-sm text-gray-700" numberOfLines={1}>
-            {sjekkliste.template.name}
-          </Text>
-        </View>
-        <StatusMerkelapp status={sjekkliste.status} />
-      </View>
-
-      {/* Entrepriser */}
-      {sjekkliste.status === "draft" ? (
-        <View className="border-b border-gray-200 bg-white px-4 py-2">
-          <View className="flex-row items-center gap-2">
-            <Pressable
-              className="flex-1"
-              onPress={() => settVisEntrepriseListe(visEntrepriseListe === "oppretter" ? null : "oppretter")}
-            >
-              <Text className="text-[10px] text-gray-400">{t("dokument.fra")}</Text>
-              <View className="flex-row items-center justify-between">
-                <Text className="text-xs font-medium text-gray-700">
-                  {sjekkliste.bestillerEnterprise?.name ?? t("dokument.velgEntreprise")}
-                </Text>
-                <ChevronDown size={12} color="#9ca3af" />
-              </View>
-            </Pressable>
-            <Text className="text-xs text-gray-300">→</Text>
-            <Pressable
-              className="flex-1"
-              onPress={() => settVisEntrepriseListe(visEntrepriseListe === "svarer" ? null : "svarer")}
-            >
-              <Text className="text-right text-[10px] text-gray-400">{t("dokument.til")}</Text>
-              <View className="flex-row items-center justify-between">
-                <Text className="text-xs font-medium text-gray-700">
-                  {sjekkliste.utforerEnterprise?.name ?? t("dokument.velgEntreprise")}
-                </Text>
-                <ChevronDown size={12} color="#9ca3af" />
-              </View>
-            </Pressable>
-          </View>
-          {visEntrepriseListe === "oppretter" && (
-            <View className="mt-1 rounded-lg border border-gray-200 bg-white">
-              {(mineEntrepriser ?? []).map((e: { id: string; name: string }) => (
-                <Pressable
-                  key={e.id}
-                  onPress={() => {
-                    oppdaterMutasjon.mutate({ id: id!, bestillerEnterpriseId: e.id });
-                    settVisEntrepriseListe(null);
-                  }}
-                  className={`border-b border-gray-50 px-3 py-2 ${e.id === sjekkliste.bestillerEnterprise?.id ? "bg-blue-50" : ""}`}
-                >
-                  <Text className={`text-xs ${e.id === sjekkliste.bestillerEnterprise?.id ? "font-medium text-blue-700" : "text-gray-700"}`}>
-                    {e.name}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          )}
-          {visEntrepriseListe === "svarer" && (
-            <View className="mt-1 rounded-lg border border-gray-200 bg-white">
-              {(alleEntrepriser ?? []).map((e: { id: string; name: string }) => (
-                <Pressable
-                  key={e.id}
-                  onPress={() => {
-                    oppdaterMutasjon.mutate({ id: id!, utforerEnterpriseId: e.id });
-                    settVisEntrepriseListe(null);
-                  }}
-                  className={`border-b border-gray-50 px-3 py-2 ${e.id === sjekkliste.utforerEnterprise?.id ? "bg-blue-50" : ""}`}
-                >
-                  <Text className={`text-xs ${e.id === sjekkliste.utforerEnterprise?.id ? "font-medium text-blue-700" : "text-gray-700"}`}>
-                    {e.name}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          )}
-        </View>
-      ) : (
-        <View className="flex-row border-b border-gray-200 bg-white px-4 py-1.5">
-          {sjekkliste.bestillerEnterprise && (
-            <Text className="flex-1 text-xs text-gray-500">
-              {t("dokument.oppretter", { navn: sjekkliste.bestillerEnterprise.name })}
-            </Text>
-          )}
-          {sjekkliste.utforerEnterprise && (
-            <Text className="flex-1 text-right text-xs text-gray-500">
-              {t("dokument.svarer", { navn: sjekkliste.utforerEnterprise.name })}
-            </Text>
-          )}
-        </View>
-      )}
-
       {/* Felter */}
       <ScrollView
         className="flex-1"
         contentContainerClassName="gap-2 p-3 pb-8"
         keyboardShouldPersistTaps="handled"
       >
+        {/* Lokasjonsvelger — trykk for å åpne tegningsvisning */}
+        <Pressable
+          onPress={() => {
+            if (leseModus) return;
+            // Initialiser temp-state fra nåværende lokasjon
+            setLokTempTegningId(sjekklisteDetalj?.drawingId ?? null);
+            setLokTempBygningId(sjekklisteDetalj?.byggeplass?.id ?? null);
+            setLokTempPosX(sjekklisteDetalj?.positionX ?? null);
+            setLokTempPosY(sjekklisteDetalj?.positionY ?? null);
+            setVisLokasjonModal(true);
+          }}
+          className="rounded-lg bg-white px-4 py-3"
+        >
+          <View className="flex-row items-center gap-2">
+            <MapPin size={14} color={lokasjonTekst ? "#1e40af" : "#9ca3af"} />
+            <Text className={`flex-1 text-sm ${lokasjonTekst ? "text-gray-800" : "text-gray-400"}`} numberOfLines={1}>
+              {lokasjonTekst ?? "Velg lokasjon…"}
+            </Text>
+            {!leseModus && <ChevronDown size={14} color="#9ca3af" />}
+          </View>
+        </Pressable>
+
         {objekter.map((objekt) => {
           // Skip barn av repeatere — rendres inne i RepeaterObjekt
           if (repeaterBarnIder.has(objekt.id)) return null;
           // Sjekk synlighet (betinget felt)
           if (!erSynlig(objekt)) return null;
+          // Skip location — rendres som lokasjonsvelger ovenfor
+          if (objekt.type === "location") return null;
 
           const erDisplay = DISPLAY_TYPER.has(objekt.type);
           // Bruk parentId fra DB (ny) med fallback til config (gammel)
@@ -755,34 +837,34 @@ export default function SjekklisteUtfylling() {
         )}
       </ScrollView>
 
-      {/* Statusknapper + lagre-knapp i bunn */}
-      <View className="border-t border-gray-200 bg-white px-4 py-3">
-        {/* Statushandlinger (filtrer ut deleted/forwarded — krever spesialbehandling) */}
-        {sjekkliste && (() => {
-          const handlinger = hentStatusHandlinger(sjekkliste.status)
-            .filter((h) => h.nyStatus !== "deleted" && h.nyStatus !== "forwarded");
-          if (handlinger.length === 0) return null;
-          return (
-            <View className={`mb-2 ${handlinger.length > 1 ? "flex-row gap-2" : ""}`}>
-              {handlinger.map((handling) => (
-                <Pressable
-                  key={handling.nyStatus}
-                  onPress={() => håndterStatusEndring(handling)}
-                  disabled={endreStatusMutasjon.isPending}
-                  className={`items-center rounded-lg py-3 ${handlinger.length > 1 ? "flex-1" : ""} ${endreStatusMutasjon.isPending ? handling.aktivFarge : handling.farge}`}
-                >
-                  {endreStatusMutasjon.isPending ? (
-                    <ActivityIndicator size="small" color="#ffffff" />
-                  ) : (
-                    <Text className="font-medium text-white">{t(handling.tekstNoekkel)}</Text>
-                  )}
-                </Pressable>
-              ))}
-            </View>
-          );
-        })()}
+      {/* Handlingsmeny + lagre-knapp i bunn */}
+      <View className="border-t border-gray-200 bg-white px-4 py-3 gap-2">
+        <DokumentHandlingsmeny
+          status={sjekkliste.status}
+          erLaster={endreStatusMutasjon.isPending}
+          onEndreStatus={(nyStatus, kommentarTekst, mottaker) => {
+            endreStatusMutasjon.mutate({
+              id: id!,
+              nyStatus: nyStatus as "draft" | "sent" | "received" | "in_progress" | "responded" | "approved" | "rejected" | "closed" | "cancelled",
+              senderId: bruker?.id ?? "",
+              kommentar: kommentarTekst,
+              recipientUserId: mottaker?.userId,
+              recipientGroupId: mottaker?.groupId,
+              dokumentflytId: mottaker?.dokumentflytId,
+            });
+          }}
+          onSlett={["draft", "cancelled"].includes(sjekkliste.status) ? håndterSlett : undefined}
+          alleEntrepriser={(alleEntrepriser ?? []) as Array<{ id: string; name: string; color: string | null }>}
+          dokumentflyter={(dokumentflyterRå ?? []) as unknown as Parameters<typeof DokumentHandlingsmeny>[0]["dokumentflyter"]}
+          templateId={sjekkliste.template?.id}
+          standardEntrepriseId={sjekkliste.utforerEnterprise?.id}
+          minRolle={minRolle}
+          flytMedlemmer={flytMedlemmer}
+          recipientUserId={(sjekklisteDetalj as { recipientUserId?: string | null } | undefined)?.recipientUserId}
+          recipientGroupId={(sjekklisteDetalj as { recipientGroupId?: string | null } | undefined)?.recipientGroupId}
+          bestillerUserId={(sjekklisteDetalj as { bestillerUserId?: string } | undefined)?.bestillerUserId}
+        />
 
-        {/* Lagre-knapp */}
         {erRedigerbar && (
           <Pressable
             onPress={håndterLagre}
@@ -794,23 +876,26 @@ export default function SjekklisteUtfylling() {
             </Text>
           </Pressable>
         )}
-
-        {/* Slett-knapp (utkast og avbrutte) */}
-        {(sjekkliste?.status === "draft" || sjekkliste?.status === "cancelled") && (
-          <Pressable
-            onPress={håndterSlett}
-            disabled={slettMutasjon.isPending}
-            className="mt-2 flex-row items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 py-3"
-          >
-            <Trash2 size={16} color="#dc2626" />
-            <Text className="font-medium text-red-600">
-              {slettMutasjon.isPending ? t("handling.sletter") : t("sjekkliste.slettSjekkliste")}
-            </Text>
-          </Pressable>
-        )}
       </View>
 
       </KeyboardAvoidingView>
+
+      {/* Tegnings-screenshot for PDF (offscreen capture) */}
+      {sjekklisteDetalj?.drawing?.fileUrl && sjekklisteDetalj.positionX != null && sjekklisteDetalj.positionY != null && !tegningScreenshot && (
+        <TegningsCapture
+          tegningUrl={
+            sjekklisteDetalj.drawing.fileUrl.startsWith("http")
+              ? sjekklisteDetalj.drawing.fileUrl
+              : `${hentWebUrl()}/api${sjekklisteDetalj.drawing.fileUrl}`
+          }
+          positionX={sjekklisteDetalj.positionX}
+          positionY={sjekklisteDetalj.positionY}
+          onCapture={(oversikt, detalj) => {
+            setTegningScreenshot(oversikt);
+            setTegningDetaljScreenshot(detalj);
+          }}
+        />
+      )}
 
       {/* PDF-forhåndsvisning */}
       <PdfForhandsvisning
@@ -820,6 +905,146 @@ export default function SjekklisteUtfylling() {
         onDel={håndterDelPdf}
         onLukk={() => settPdfHtml(null)}
       />
+
+      {/* Lokasjonsmodal — tegningsvisning med posisjonsprikk */}
+      <Modal visible={visLokasjonModal} animationType="slide" onRequestClose={() => setVisLokasjonModal(false)}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: "#ffffff" }} edges={["top"]}>
+          {(() => {
+            const aktivTegning = lokTempTegningId
+              ? alleTegninger.find((t) => t.id === lokTempTegningId)
+              : null;
+            const tegningUrl = aktivTegning?.fileUrl
+              ? (aktivTegning.fileUrl.startsWith("http")
+                ? aktivTegning.fileUrl
+                : `${hentWebUrl()}/api${aktivTegning.fileUrl}`)
+              : null;
+
+            // «Bytt tegning»-liste — kun når bruker eksplisitt trykker «Bytt tegning»
+            if (visLokByttTegning) {
+              return (
+                <View className="flex-1">
+                  <View className="flex-row items-center justify-between bg-sitedoc-blue px-4 py-3">
+                    <Pressable onPress={() => setVisLokByttTegning(false)} hitSlop={8}>
+                      <Text className="text-sm font-medium text-white">Tilbake</Text>
+                    </Pressable>
+                    <Text className="text-sm font-semibold text-white">Bytt tegning</Text>
+                    <View style={{ width: 50 }} />
+                  </View>
+                  <ScrollView className="flex-1" contentContainerClassName="p-3 gap-1">
+                    {bygninger.map((b) => {
+                      const bTegninger = alleTegninger.filter(
+                        (t) => (t.byggeplassId ?? t.byggeplass?.id) === b.id && t.fileUrl,
+                      );
+                      if (bTegninger.length === 0) return null;
+                      return (
+                        <View key={b.id} className="mb-2">
+                          <Text className="text-xs font-semibold uppercase tracking-wider text-gray-400 px-1 mb-1">
+                            {b.name}
+                          </Text>
+                          {bTegninger.map((t) => (
+                            <Pressable
+                              key={t.id}
+                              onPress={() => {
+                                setLokTempTegningId(t.id);
+                                setLokTempBygningId(t.byggeplassId ?? t.byggeplass?.id ?? null);
+                                setLokTempPosX(null);
+                                setLokTempPosY(null);
+                                setVisLokByttTegning(false);
+                              }}
+                              className={`rounded-lg px-3 py-2.5 ${lokTempTegningId === t.id ? "bg-blue-50" : "bg-white"}`}
+                            >
+                              <Text className={`text-sm ${lokTempTegningId === t.id ? "font-medium text-blue-700" : "text-gray-700"}`}>
+                                {t.drawingNumber ? `${t.drawingNumber} ${t.name}` : t.name}
+                              </Text>
+                            </Pressable>
+                          ))}
+                        </View>
+                      );
+                    })}
+                  </ScrollView>
+                </View>
+              );
+            }
+
+            // Ingen tegning valgt — vis tom tilstand med «Velg tegning»-knapp
+            if (!tegningUrl) {
+              return (
+                <View className="flex-1">
+                  <View className="flex-row items-center justify-between bg-sitedoc-blue px-4 py-3">
+                    <Pressable onPress={() => setVisLokasjonModal(false)} hitSlop={8}>
+                      <Text className="text-sm font-medium text-white">Avbryt</Text>
+                    </Pressable>
+                    <Text className="text-sm font-semibold text-white">Lokasjon</Text>
+                    <View style={{ width: 50 }} />
+                  </View>
+                  <View className="flex-1 items-center justify-center gap-3 px-8">
+                    <MapPin size={32} color="#9ca3af" />
+                    <Text className="text-center text-sm text-gray-500">
+                      Ingen tegning valgt. Velg en tegning for å markere posisjon.
+                    </Text>
+                    <Pressable
+                      onPress={() => setVisLokByttTegning(true)}
+                      className="mt-2 rounded-lg bg-blue-700 px-6 py-2.5"
+                    >
+                      <Text className="text-sm font-medium text-white">Velg tegning</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              );
+            }
+
+            // Tegningsvisning med posisjonsprikk
+            const markører: Markør[] = lokTempPosX != null && lokTempPosY != null
+              ? [{ id: "pos", x: lokTempPosX, y: lokTempPosY, farge: "#ef4444" }]
+              : [];
+
+            return (
+              <View className="flex-1">
+                <TegningsVisning
+                  tegningUrl={tegningUrl}
+                  tegningNavn={aktivTegning?.drawingNumber
+                    ? `${aktivTegning.drawingNumber} ${aktivTegning.name}`
+                    : aktivTegning?.name ?? ""}
+                  onLukk={() => setVisLokasjonModal(false)}
+                  onTrykk={(posX, posY) => {
+                    setLokTempPosX(posX);
+                    setLokTempPosY(posY);
+                  }}
+                  markører={markører}
+                />
+                {/* Bunnbar: Bytt tegning + Lagre */}
+                <View className="flex-row items-center justify-between border-t border-gray-200 bg-white px-5 py-4">
+                  <Pressable onPress={() => setVisLokByttTegning(true)} hitSlop={12} className="rounded-lg px-3 py-2">
+                    <Text className="text-sm font-medium text-blue-600">Bytt tegning</Text>
+                  </Pressable>
+                  <Pressable
+                    hitSlop={8}
+                    onPress={() => {
+                      oppdaterMutasjon.mutate({
+                        id: id!,
+                        byggeplassId: lokTempBygningId,
+                        drawingId: lokTempTegningId,
+                        positionX: lokTempPosX,
+                        positionY: lokTempPosY,
+                      });
+                      if (valgtProsjektId && lokTempBygningId && lokTempTegningId) {
+                        import("expo-secure-store").then((ss) => {
+                          ss.setItemAsync(`sitedoc_sist_bygning_${valgtProsjektId}`, lokTempBygningId!);
+                          ss.setItemAsync(`sitedoc_sist_tegning_${valgtProsjektId}`, lokTempTegningId!);
+                        });
+                      }
+                      setVisLokasjonModal(false);
+                    }}
+                    className="rounded-lg bg-blue-700 px-6 py-2.5"
+                  >
+                    <Text className="text-sm font-medium text-white">Lagre</Text>
+                  </Pressable>
+                </View>
+              </View>
+            );
+          })()}
+        </SafeAreaView>
+      </Modal>
 
       {/* Malvelger for oppgave fra felt */}
       <MalVelger

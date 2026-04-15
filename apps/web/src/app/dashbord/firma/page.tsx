@@ -2,7 +2,7 @@
 
 import { trpc } from "@/lib/trpc";
 import { Spinner } from "@sitedoc/ui";
-import { FolderKanban, Users, Building2 } from "lucide-react";
+import { FolderKanban, Users, Building2, Plug, Check, XCircle } from "lucide-react";
 import Link from "next/link";
 
 export default function FirmaOversikt() {
@@ -14,6 +14,10 @@ export default function FirmaOversikt() {
     });
   const { data: brukere, isLoading: brukLaster } =
     trpc.organisasjon.hentBrukere.useQuery(undefined, {
+      enabled: !!organisasjon,
+    });
+  const { data: integrasjoner } =
+    trpc.organisasjon.hentIntegrasjonerStatus.useQuery(undefined, {
       enabled: !!organisasjon,
     });
 
@@ -106,6 +110,59 @@ export default function FirmaOversikt() {
           </div>
         </dl>
       </div>
+
+      {/* Integrasjoner */}
+      {integrasjoner && (
+        <div className="mt-6 rounded-lg border border-gray-200 bg-white p-5">
+          <div className="mb-3 flex items-center gap-2">
+            <Plug className="h-4 w-4 text-gray-500" />
+            <h2 className="text-sm font-semibold text-gray-700">Integrasjoner</h2>
+          </div>
+          {integrasjoner.length === 0 ? (
+            <p className="text-sm text-gray-500">
+              Ingen integrasjoner konfigurert. Kontakt systemadministrator for oppsett.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {integrasjoner.map((i) => (
+                <div
+                  key={i.type}
+                  className="flex items-center justify-between rounded-md border border-gray-100 px-4 py-2.5"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm font-medium text-gray-900 capitalize">
+                      {i.type}
+                    </span>
+                    {i.url && (
+                      <span className="text-xs text-gray-400 truncate max-w-[200px]">
+                        {i.url}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {i.harNøkkel && (
+                      <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-500">
+                        API-nøkkel konfigurert
+                      </span>
+                    )}
+                    {i.aktiv ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700">
+                        <Check className="h-3 w-3" />
+                        Aktiv
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-500">
+                        <XCircle className="h-3 w-3" />
+                        Inaktiv
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

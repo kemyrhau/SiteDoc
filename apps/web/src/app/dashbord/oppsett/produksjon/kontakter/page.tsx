@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, Fragment } from "react";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { trpc } from "@/lib/trpc";
 import { Spinner, Button } from "@sitedoc/ui";
@@ -26,7 +26,8 @@ import {
   LeggTilMedlemDropdown,
   InviterNyMedlemModal,
 } from "../_components/dokumentflyt-komponenter";
-import { nesteAutoFarge } from "../_components/entreprise-farger";
+import { HjelpKnapp } from "@/components/hjelp/HjelpModal";
+import { nesteAutoFarge, FARGE_MAP as ENTREPRISE_FARGER } from "../_components/entreprise-farger";
 import type { DokumentflytMedlemData } from "../_components/dokumentflyt-komponenter";
 
 /* ------------------------------------------------------------------ */
@@ -50,8 +51,8 @@ interface ProsjektMedlem {
     email: string;
     phone: string | null;
   };
-  enterprises: Array<{
-    enterprise: { id: string; name: string };
+  dokumentflytKoblinger: Array<{
+    dokumentflytPart: { id: string; name: string };
   }>;
 }
 
@@ -59,15 +60,26 @@ interface DokumentflytMedlem {
   id: string;
   rolle: string;
   erHovedansvarlig: boolean;
+  hovedansvarligPersonId?: string | null;
+  kanRedigere: boolean;
   steg: number;
   projectMember?: { id: string; user: { id: string; name: string | null } } | null;
   group?: { id: string; name: string } | null;
+  hovedansvarligPerson?: { id: string; user: { id: string; name: string | null } } | null;
+}
+
+type DokumentflytRolle = "registrator" | "bestiller" | "utforer" | "godkjenner";
+
+interface RolleKonfig {
+  rolle: DokumentflytRolle;
+  label?: string | null;
 }
 
 interface Dokumentflyt {
   id: string;
   name: string;
   enterpriseId: string | null;
+  roller: RolleKonfig[];
   medlemmer: DokumentflytMedlem[];
   maler: Array<{ template: { id: string; name: string; category: string } }>;
 }
@@ -157,24 +169,35 @@ function NyDokumentflytKnapp({ entrepriseId: enterpriseId, prosjektId }: { entre
 /*  DokumentflytKort — tittel med redigering/sletting + flytbokser     */
 /* ------------------------------------------------------------------ */
 
+interface MalInfo {
+  id: string;
+  name: string;
+  category: string;
+  prefix: string | null;
+}
+
 function DokumentflytKort({
-  df, opprettere, svarere, prosjektId,
+  df, prosjektId,
   alleEntrepriser, alleMedlemmer, alleGrupper, gruppeOppslag, gruppeMedlemNavn,
+  alleMaler, alleDokumentflyter,
 }: {
   df: Dokumentflyt;
-  opprettere: DokumentflytMedlem[];
-  svarere: DokumentflytMedlem[];
   prosjektId: string;
   alleEntrepriser: Entreprise[];
   alleMedlemmer: ProsjektMedlem[];
   alleGrupper: Array<{ id: string; name: string }>;
   gruppeOppslag: Map<string, Set<string>>;
   gruppeMedlemNavn: Map<string, Array<{ navn: string; projectMemberId: string; gruppeMedlemId: string; erAdmin: boolean }>>;
+  alleMaler: MalInfo[];
+  alleDokumentflyter: Dokumentflyt[];
 }) {
   const { t } = useTranslation();
   const utils = trpc.useUtils();
   const [erRedigering, setErRedigering] = useState(false);
   const [navn, setNavn] = useState(df.name);
+
+  const [visMalVelger, setVisMalVelger] = useState(false);
+  const [malAdvarsel, setMalAdvarsel] = useState<{ malId: string; flytNavn: string } | null>(null);
 
   const oppdaterMutation = trpc.dokumentflyt.oppdater.useMutation({
     onSuccess: () => {
@@ -188,6 +211,38 @@ function DokumentflytKort({
       utils.dokumentflyt.hentForProsjekt.invalidate({ projectId: prosjektId });
     },
   });
+
+  const tilknyttedeMalIder = new Set(df.maler.map((m) => m.template.id));
+
+  const utforToggleMal = (malId: string) => {
+    const nyeIds = tilknyttedeMalIder.has(malId)
+      ? [...tilknyttedeMalIder].filter((id) => id !== malId)
+      : [...tilknyttedeMalIder, malId];
+    oppdaterMutation.mutate({ id: df.id, projectId: prosjektId, templateIds: nyeIds });
+    setMalAdvarsel(null);
+  };
+
+  const toggleMal = (malId: string) => {
+    // Kun sjekk ved tillegg, ikke fjerning
+    if (tilknyttedeMalIder.has(malId)) {
+      utforToggleMal(malId);
+      return;
+    }
+    // Sjekk om malen allerede finnes i en annen dokumentflyt for samme entreprise
+    if (df.enterpriseId) {
+      const duplikatFlyt = alleDokumentflyter.find(
+        (annen) =>
+          annen.id !== df.id &&
+          annen.enterpriseId === df.enterpriseId &&
+          annen.maler.some((m) => m.template.id === malId),
+      );
+      if (duplikatFlyt) {
+        setMalAdvarsel({ malId, flytNavn: duplikatFlyt.name });
+        return;
+      }
+    }
+    utforToggleMal(malId);
+  };
 
   return (
     <div className="rounded-lg border border-gray-200 bg-white p-3">
@@ -235,71 +290,105 @@ function DokumentflytKort({
         )}
       </div>
 
-      {/* Visuell flyt: Bestiller → Utfører → Godkjenner */}
-      <div className="flex items-stretch gap-0">
-        <FlytBoks
-          tittel={t("kontakter.bestiller")}
-          ikon={<Send className="h-3 w-3" />}
-          farge="blue"
-          avrunding="rounded-l-lg"
-          dokumentflytId={df.id}
-          rolle="bestiller"
-          medlemmer={opprettere}
-          prosjektId={prosjektId}
-          entrepriser={alleEntrepriser}
-          alleMedlemmer={alleMedlemmer}
-          alleGrupper={alleGrupper}
-          gruppeOppslag={gruppeOppslag}
-          gruppeMedlemNavn={gruppeMedlemNavn}
-        />
-        <div className="flex items-center px-2">
-          <ArrowRight className="h-5 w-5 text-gray-300" />
-        </div>
-        <FlytBoks
-          tittel={t("kontakter.utforer")}
-          ikon={<ClipboardCheck className="h-3 w-3" />}
-          farge="purple"
-          avrunding=""
-          dokumentflytId={df.id}
-          rolle="utforer"
-          medlemmer={svarere}
-          prosjektId={prosjektId}
-          entrepriser={alleEntrepriser}
-          alleMedlemmer={alleMedlemmer}
-          alleGrupper={alleGrupper}
-          gruppeOppslag={gruppeOppslag}
-          gruppeMedlemNavn={gruppeMedlemNavn}
-        />
-        <div className="flex items-center px-2">
-          <ArrowRight className="h-5 w-5 text-gray-300" />
-        </div>
-        <FlytBoks
-          tittel={t("kontakter.godkjenner")}
-          ikon={<CheckCircle2 className="h-3 w-3" />}
-          farge="green"
-          avrunding="rounded-r-lg"
-          dokumentflytId={df.id}
-          rolle="bestiller"
-          medlemmer={opprettere}
-          prosjektId={prosjektId}
-          entrepriser={alleEntrepriser}
-          alleMedlemmer={alleMedlemmer}
-          alleGrupper={alleGrupper}
-          gruppeOppslag={gruppeOppslag}
-          gruppeMedlemNavn={gruppeMedlemNavn}
-        />
-      </div>
+      {/* Visuell flyt — dynamiske bokser basert på konfigurerte roller */}
+      <DynamiskFlyt
+        df={df}
+        prosjektId={prosjektId}
+        alleEntrepriser={alleEntrepriser}
+        alleMedlemmer={alleMedlemmer}
+        alleGrupper={alleGrupper}
+        gruppeOppslag={gruppeOppslag}
+        gruppeMedlemNavn={gruppeMedlemNavn}
+      />
 
       {/* Maler */}
-      {df.maler.length > 0 && (
-        <div className="mt-3 flex flex-wrap gap-1.5">
-          {df.maler.map((m) => (
-            <span key={m.template.id} className="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-500">
-              {m.template.name}
-            </span>
-          ))}
+      <div className="mt-3 flex flex-wrap items-center gap-1.5">
+        {df.maler.map((m) => (
+          <button
+            key={m.template.id}
+            onClick={() => toggleMal(m.template.id)}
+            className="group/mal inline-flex items-center gap-1 rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-500 hover:bg-red-50 hover:text-red-500"
+            title={t("handling.fjern")}
+          >
+            {m.template.name}
+            <X className="h-3 w-3 opacity-0 group-hover/mal:opacity-100" />
+          </button>
+        ))}
+        <div className="relative">
+          <button
+            onClick={() => setVisMalVelger(!visMalVelger)}
+            className="inline-flex items-center gap-1 rounded border border-dashed border-gray-300 px-2 py-0.5 text-xs text-gray-400 hover:border-gray-400 hover:text-gray-600"
+          >
+            <Plus className="h-3 w-3" />
+            {t("kontakter.leggTilMal")}
+          </button>
+          {visMalVelger && (
+            <div className="absolute left-0 top-full z-10 mt-1 max-h-60 w-64 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg">
+              {alleMaler.length === 0 ? (
+                <div className="px-3 py-2 text-xs text-gray-400">{t("kontakter.ingenMaler")}</div>
+              ) : (
+                <>
+                  {["sjekkliste", "oppgave"].map((kat) => {
+                    const malerIKat = alleMaler.filter((m) => m.category === kat);
+                    if (malerIKat.length === 0) return null;
+                    return (
+                      <div key={kat}>
+                        <div className="sticky top-0 bg-gray-50 px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+                          {kat === "sjekkliste" ? t("nav.sjekklister") : t("nav.oppgaver")}
+                        </div>
+                        {malerIKat.map((mal) => {
+                          const erTilknyttet = tilknyttedeMalIder.has(mal.id);
+                          return (
+                            <button
+                              key={mal.id}
+                              onClick={() => toggleMal(mal.id)}
+                              className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-gray-50 ${erTilknyttet ? "text-blue-600 font-medium" : "text-gray-600"}`}
+                            >
+                              <span className={`h-3.5 w-3.5 shrink-0 rounded border flex items-center justify-center ${erTilknyttet ? "border-blue-500 bg-blue-500 text-white" : "border-gray-300"}`}>
+                                {erTilknyttet && <span className="text-[10px]">✓</span>}
+                              </span>
+                              <span className="flex-1">{mal.name}</span>
+                              {mal.prefix && <span className="text-gray-400">{mal.prefix}</span>}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    );
+                  })}
+                </>
+              )}
+              <div className="border-t border-gray-100 px-3 py-1.5">
+                <button onClick={() => setVisMalVelger(false)} className="text-xs text-gray-400 hover:text-gray-600">
+                  {t("handling.lukk")}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
-      )}
+
+        {/* Advarsel: mal allerede tilknyttet en annen flyt */}
+        {malAdvarsel && (
+          <div className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2">
+            <p className="text-xs text-amber-800">
+              {t("kontakter.malDuplikatAdvarsel", { flytNavn: malAdvarsel.flytNavn })}
+            </p>
+            <div className="mt-1.5 flex gap-2">
+              <button
+                onClick={() => utforToggleMal(malAdvarsel.malId)}
+                className="rounded bg-amber-600 px-2 py-0.5 text-xs font-medium text-white hover:bg-amber-700"
+              >
+                {t("kontakter.malDuplikatFortsett")}
+              </button>
+              <button
+                onClick={() => setMalAdvarsel(null)}
+                className="rounded bg-white px-2 py-0.5 text-xs text-gray-600 border border-gray-200 hover:bg-gray-50"
+              >
+                {t("handling.avbryt")}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -309,10 +398,181 @@ function DokumentflytKort({
 /* ------------------------------------------------------------------ */
 
 const FLYT_FARGER: Record<string, { border: string; bg: string; tittel: string; tekst: string; ikon: string; prikkBg: string; prikkRing: string }> = {
+  gray: { border: "border-gray-200", bg: "bg-gray-50/50", tittel: "text-gray-600", tekst: "text-gray-500", ikon: "text-gray-400", prikkBg: "bg-gray-500", prikkRing: "ring-gray-200" },
   blue: { border: "border-blue-200", bg: "bg-blue-50/50", tittel: "text-blue-600", tekst: "text-blue-500", ikon: "text-blue-400", prikkBg: "bg-blue-500", prikkRing: "ring-blue-200" },
   purple: { border: "border-purple-200", bg: "bg-purple-50/50", tittel: "text-purple-600", tekst: "text-purple-500", ikon: "text-purple-400", prikkBg: "bg-purple-500", prikkRing: "ring-purple-200" },
   green: { border: "border-green-200", bg: "bg-green-50/50", tittel: "text-green-600", tekst: "text-green-500", ikon: "text-green-400", prikkBg: "bg-green-500", prikkRing: "ring-green-200" },
 };
+
+const ROLLE_KONFIG: Record<string, { farge: string; ikonNavn: string; tittelNoekkel: string; rekkefølge: number }> = {
+  registrator: { farge: "gray", ikonNavn: "FileEdit", tittelNoekkel: "kontakter.registrator", rekkefølge: 0 },
+  bestiller: { farge: "blue", ikonNavn: "Send", tittelNoekkel: "kontakter.bestiller", rekkefølge: 1 },
+  utforer: { farge: "purple", ikonNavn: "ClipboardCheck", tittelNoekkel: "kontakter.utforer", rekkefølge: 2 },
+  godkjenner: { farge: "green", ikonNavn: "CheckCircle2", tittelNoekkel: "kontakter.godkjenner", rekkefølge: 3 },
+};
+
+function RolleIkon({ rolle }: { rolle: string }) {
+  switch (rolle) {
+    case "registrator": return <Pencil className="h-3 w-3" />;
+    case "bestiller": return <Send className="h-3 w-3" />;
+    case "utforer": return <ClipboardCheck className="h-3 w-3" />;
+    case "godkjenner": return <CheckCircle2 className="h-3 w-3" />;
+    default: return <FileText className="h-3 w-3" />;
+  }
+}
+
+function DynamiskFlyt({
+  df, prosjektId, alleEntrepriser, alleMedlemmer, alleGrupper, gruppeOppslag, gruppeMedlemNavn,
+}: {
+  df: Dokumentflyt;
+  prosjektId: string;
+  alleEntrepriser: Entreprise[];
+  alleMedlemmer: ProsjektMedlem[];
+  alleGrupper: Array<{ id: string; name: string }>;
+  gruppeOppslag: Map<string, Set<string>>;
+  gruppeMedlemNavn: Map<string, Array<{ navn: string; projectMemberId: string; gruppeMedlemId: string; erAdmin: boolean }>>;
+}) {
+  const { t } = useTranslation();
+  const utils = trpc.useUtils();
+  const [visLeggTilRolle, setVisLeggTilRolle] = useState(false);
+  const [redigerLabel, setRedigerLabel] = useState<string | null>(null);
+  const [labelVerdi, setLabelVerdi] = useState("");
+
+  const oppdaterRollerMutation = trpc.dokumentflyt.oppdaterRoller.useMutation({
+    onSuccess: () => {
+      utils.dokumentflyt.hentForProsjekt.invalidate({ projectId: prosjektId });
+    },
+  });
+
+  // Roller fra df.roller (stabile, persistert i DB)
+  const konfigRoller = (df.roller ?? []) as RolleKonfig[];
+
+  // Grupper medlemmer per rolle
+  const rollerMedMedlemmer = new Map<string, DokumentflytMedlem[]>();
+  for (const m of df.medlemmer) {
+    const liste = rollerMedMedlemmer.get(m.rolle) ?? [];
+    liste.push(m);
+    rollerMedMedlemmer.set(m.rolle, liste);
+  }
+
+  // Roller som kan legges til (ikke allerede konfigurert)
+  const rolleRekkefølge: DokumentflytRolle[] = ["registrator", "bestiller", "utforer", "godkjenner"];
+  const eksisterendeRoller = new Set(konfigRoller.map((r) => r.rolle));
+  const tilgjengeligeRoller = rolleRekkefølge.filter((r) => !eksisterendeRoller.has(r));
+
+  const leggTilRolle = (rolle: DokumentflytRolle) => {
+    const nyeRoller: RolleKonfig[] = [...konfigRoller, { rolle, label: null }];
+    nyeRoller.sort((a, b) => (ROLLE_KONFIG[a.rolle]?.rekkefølge ?? 99) - (ROLLE_KONFIG[b.rolle]?.rekkefølge ?? 99));
+    oppdaterRollerMutation.mutate({ id: df.id, projectId: prosjektId, roller: nyeRoller });
+    setVisLeggTilRolle(false);
+  };
+
+  const fjernRolle = (rolle: string) => {
+    const harMedlemmer = (rollerMedMedlemmer.get(rolle) ?? []).length > 0;
+    if (harMedlemmer && !confirm(t("kontakter.bekreftFjernRolle"))) return;
+    const nyeRoller = konfigRoller.filter((r) => r.rolle !== rolle);
+    oppdaterRollerMutation.mutate({ id: df.id, projectId: prosjektId, roller: nyeRoller });
+  };
+
+  const lagreLabel = (rolle: string, label: string) => {
+    const nyeRoller = konfigRoller.map((r) =>
+      r.rolle === rolle ? { ...r, label: label.trim() || null } : r
+    );
+    oppdaterRollerMutation.mutate({ id: df.id, projectId: prosjektId, roller: nyeRoller });
+    setRedigerLabel(null);
+  };
+
+  return (
+    <div className="flex items-stretch gap-0 flex-wrap">
+      {konfigRoller.map((rk, idx) => {
+        const konfig = ROLLE_KONFIG[rk.rolle];
+        if (!konfig) return null;
+        const medlemmer = rollerMedMedlemmer.get(rk.rolle) ?? [];
+        const erFørst = idx === 0;
+        const erSist = idx === konfigRoller.length - 1 && tilgjengeligeRoller.length === 0;
+        const visTittel = rk.label ?? t(konfig.tittelNoekkel);
+
+        return (
+          <Fragment key={rk.rolle}>
+            {idx > 0 && (
+              <div className="flex items-center px-2">
+                <ArrowRight className="h-5 w-5 text-gray-300" />
+              </div>
+            )}
+            <FlytBoks
+              tittel={visTittel}
+              ikon={<RolleIkon rolle={rk.rolle} />}
+              farge={konfig.farge}
+              avrunding={erFørst && erSist ? "rounded-lg" : erFørst ? "rounded-l-lg" : erSist ? "rounded-r-lg" : ""}
+              dokumentflytId={df.id}
+              rolle={rk.rolle}
+              medlemmer={medlemmer}
+              prosjektId={prosjektId}
+              entrepriser={alleEntrepriser}
+              alleMedlemmer={alleMedlemmer}
+              alleGrupper={alleGrupper}
+              gruppeOppslag={gruppeOppslag}
+              gruppeMedlemNavn={gruppeMedlemNavn}
+              onFjernRolle={() => fjernRolle(rk.rolle)}
+              redigerLabel={redigerLabel === rk.rolle}
+              labelVerdi={labelVerdi}
+              onStartRedigerLabel={() => { setRedigerLabel(rk.rolle); setLabelVerdi(rk.label ?? ""); }}
+              onLabelEndring={setLabelVerdi}
+              onLagreLabel={() => lagreLabel(rk.rolle, labelVerdi)}
+              onAvbrytLabel={() => setRedigerLabel(null)}
+            />
+          </Fragment>
+        );
+      })}
+
+      {/* Melding ved tom flyt */}
+      {konfigRoller.length === 0 && tilgjengeligeRoller.length > 0 && !visLeggTilRolle && (
+        <span className="text-xs text-gray-400 italic self-center mr-2">{t("kontakter.ingenRoller")}</span>
+      )}
+
+      {/* + Legg til rolle */}
+      {tilgjengeligeRoller.length > 0 && (
+        <>
+          {konfigRoller.length > 0 && (
+            <div className="flex items-center px-2">
+              <ArrowRight className="h-5 w-5 text-gray-300" />
+            </div>
+          )}
+          {visLeggTilRolle ? (
+            <div className="flex flex-col items-start gap-1 rounded-lg border border-dashed border-gray-300 bg-gray-50/50 px-3 py-2">
+              <span className="text-xs font-semibold uppercase tracking-wide text-gray-400">{t("kontakter.velgRolle")}</span>
+              {tilgjengeligeRoller.map((rolle) => {
+                const konfig = ROLLE_KONFIG[rolle];
+                if (!konfig) return null;
+                return (
+                  <button
+                    key={rolle}
+                    onClick={() => leggTilRolle(rolle)}
+                    className={`flex items-center gap-1.5 rounded px-2 py-1 text-xs hover:bg-gray-100 ${FLYT_FARGER[konfig.farge]?.tittel ?? "text-gray-500"}`}
+                  >
+                    <RolleIkon rolle={rolle} />
+                    {t(konfig.tittelNoekkel)}
+                  </button>
+                );
+              })}
+              <button onClick={() => setVisLeggTilRolle(false)} className="text-xs text-gray-400 hover:text-gray-600 mt-1">
+                {t("handling.avbryt")}
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setVisLeggTilRolle(true)}
+              className="flex items-center gap-1.5 rounded-lg border border-dashed border-gray-300 px-3 py-2 text-xs text-gray-400 hover:border-gray-400 hover:text-gray-600 self-stretch"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              {t("kontakter.leggTilRolle")}
+            </button>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
 
 function FlytBoks({
   tittel,
@@ -328,20 +588,34 @@ function FlytBoks({
   alleGrupper,
   gruppeOppslag,
   gruppeMedlemNavn,
+  onFjernRolle,
+  redigerLabel = false,
+  labelVerdi = "",
+  onStartRedigerLabel,
+  onLabelEndring,
+  onLagreLabel,
+  onAvbrytLabel,
 }: {
   tittel: string;
-  ikon: React.ReactNode;
-  farge: "blue" | "purple" | "green";
+  ikon: JSX.Element;
+  farge: string;
   avrunding: string;
   dokumentflytId: string;
-  rolle: "bestiller" | "utforer";
+  rolle: string;
   medlemmer: DokumentflytMedlem[];
   prosjektId: string;
   entrepriser: Entreprise[];
   alleMedlemmer: ProsjektMedlem[];
   alleGrupper: Array<{ id: string; name: string }>;
-  gruppeOppslag: Map<string, Set<string>>; // gruppeId → Set<projectMemberId>
-  gruppeMedlemNavn: Map<string, Array<{ navn: string; projectMemberId: string; gruppeMedlemId: string; erAdmin: boolean }>>; // gruppeId → info[]
+  gruppeOppslag: Map<string, Set<string>>;
+  gruppeMedlemNavn: Map<string, Array<{ navn: string; projectMemberId: string; gruppeMedlemId: string; erAdmin: boolean }>>;
+  onFjernRolle?: () => void;
+  redigerLabel?: boolean;
+  labelVerdi?: string;
+  onStartRedigerLabel?: () => void;
+  onLabelEndring?: (v: string) => void;
+  onLagreLabel?: () => void;
+  onAvbrytLabel?: () => void;
 }) {
   const { t } = useTranslation();
   const utils = trpc.useUtils();
@@ -361,15 +635,15 @@ function FlytBoks({
     },
   });
 
-  const fjernGruppeMedlemMutation = trpc.gruppe.fjernMedlem.useMutation({
+  const settGruppeHovedansvarligMutation = trpc.dokumentflyt.settGruppeHovedansvarlig.useMutation({
     onSuccess: () => {
-      utils.gruppe.hentForProsjekt.invalidate({ projectId: prosjektId });
+      utils.dokumentflyt.hentForProsjekt.invalidate({ projectId: prosjektId });
     },
   });
 
-  const settGruppeAdminMutation = trpc.gruppe.settGruppeAdmin.useMutation({
+  const settKanRedigereMutation = trpc.dokumentflyt.settKanRedigere.useMutation({
     onSuccess: () => {
-      utils.gruppe.hentForProsjekt.invalidate({ projectId: prosjektId });
+      utils.dokumentflyt.hentForProsjekt.invalidate({ projectId: prosjektId });
     },
   });
 
@@ -404,10 +678,33 @@ function FlytBoks({
         className={`shrink-0 rounded-full transition-all ${
           m.erHovedansvarlig
             ? `h-2.5 w-2.5 ${f.prikkBg} ring-2 ${f.prikkRing}`
-            : "h-2.5 w-2.5 bg-gray-300 opacity-0 group-hover/medlem:opacity-100 hover:bg-gray-400"
+            : "h-2.5 w-2.5 border border-gray-300 hover:bg-gray-400 hover:border-gray-400"
         }`}
         title={m.erHovedansvarlig ? t("kontakter.fjernHovedansvarlig") : t("kontakter.settHovedansvarlig")}
       />
+    );
+  }
+
+  function renderKanRedigereToggle(m: DokumentflytMedlem) {
+    return (
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          settKanRedigereMutation.mutate({
+            id: m.id,
+            projectId: prosjektId,
+            kanRedigere: !m.kanRedigere,
+          });
+        }}
+        className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium transition-all ${
+          m.kanRedigere
+            ? "text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+            : "bg-amber-100 text-amber-700"
+        }`}
+        title={m.kanRedigere ? t("kontakter.settLeser") : t("kontakter.settRedigerer")}
+      >
+        {m.kanRedigere ? t("kontakter.redigerer") : t("kontakter.leserRettighet")}
+      </button>
     );
   }
 
@@ -419,10 +716,41 @@ function FlytBoks({
   };
 
   return (
-    <div className={`flex-1 ${avrunding} border ${f.border} ${f.bg} px-3 py-2`}>
+    <div className={`group/boks flex-1 ${avrunding} border ${f.border} ${f.bg} px-3 py-2`}>
       <div className={`mb-1 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide ${f.tittel}`}>
         {ikon}
-        {tittel}
+        {redigerLabel ? (
+          <input
+            type="text"
+            value={labelVerdi}
+            onChange={(e) => onLabelEndring?.(e.target.value)}
+            placeholder={tittel}
+            className="flex-1 rounded border border-gray-300 px-1.5 py-0.5 text-xs font-semibold uppercase focus:border-blue-400 focus:outline-none"
+            autoFocus
+            onKeyDown={(e) => {
+              if (e.key === "Enter") onLagreLabel?.();
+              if (e.key === "Escape") onAvbrytLabel?.();
+            }}
+            onBlur={() => onLagreLabel?.()}
+          />
+        ) : (
+          <button
+            onClick={() => onStartRedigerLabel?.()}
+            className="hover:underline"
+            title={t("kontakter.redigerRollenavn")}
+          >
+            {tittel}
+          </button>
+        )}
+        {onFjernRolle && (
+          <button
+            onClick={onFjernRolle}
+            className="ml-auto rounded p-0.5 text-gray-300 opacity-0 group-hover/boks:opacity-100 hover:bg-red-100 hover:text-red-500 transition-opacity"
+            title={t("kontakter.fjernRolle")}
+          >
+            <X className="h-3 w-3" />
+          </button>
+        )}
       </div>
 
       {/* Grupper — klikkbar for å se medlemmer */}
@@ -452,6 +780,7 @@ function FlytBoks({
                   <span className="text-xs text-gray-400">({medlemNavn.length})</span>
                 )}
               </button>
+              {renderKanRedigereToggle(m)}
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -465,34 +794,31 @@ function FlytBoks({
             </div>
             {erUtvidet && medlemNavn.length > 0 && (
               <div className="ml-5 mt-0.5 mb-1 space-y-0.5">
-                {medlemNavn.map((gm) => (
-                  <div key={gm.gruppeMedlemId} className="flex items-center gap-1.5 text-xs text-gray-500">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        settGruppeAdminMutation.mutate({ groupId: gruppeId!, projectMemberId: gm.projectMemberId, projectId: prosjektId, isAdmin: !gm.erAdmin });
-                      }}
-                      className={`shrink-0 rounded-full transition-all ${
-                        gm.erAdmin
-                          ? "h-2 w-2 bg-blue-500 ring-2 ring-blue-200"
-                          : "h-2 w-2 bg-gray-300 hover:bg-blue-400"
-                      }`}
-                      title={gm.erAdmin ? t("brukere.fjernGruppeadmin") : t("brukere.settGruppeadmin")}
-                    />
-                    <User className="h-3 w-3 text-gray-300 shrink-0" />
-                    {gm.navn}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        fjernGruppeMedlemMutation.mutate({ id: gm.gruppeMedlemId, projectId: prosjektId });
-                      }}
-                      className="ml-0.5 rounded p-0.5 text-gray-300 hover:bg-red-100 hover:text-red-600"
-                      title={t("handling.fjern")}
-                    >
-                      <X className="h-2.5 w-2.5" />
-                    </button>
-                  </div>
-                ))}
+                {medlemNavn.map((gm) => {
+                  const erHA = m.hovedansvarligPersonId === gm.projectMemberId;
+                  return (
+                    <div key={gm.gruppeMedlemId} className="flex items-center gap-1.5 text-xs text-gray-600">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          settGruppeHovedansvarligMutation.mutate({
+                            id: m.id,
+                            projectId: prosjektId,
+                            hovedansvarligPersonId: erHA ? null : gm.projectMemberId,
+                          });
+                        }}
+                        className={`shrink-0 rounded-full transition-all ${
+                          erHA
+                            ? `h-2 w-2 ${f.prikkBg} ring-2 ${f.prikkRing}`
+                            : "h-2 w-2 border border-gray-300 hover:bg-gray-400 hover:border-gray-400"
+                        }`}
+                        title={erHA ? t("kontakter.fjernHovedansvarlig") : t("kontakter.settHovedansvarlig")}
+                      />
+                      <User className={`h-3 w-3 ${f.ikon} shrink-0`} />
+                      {gm.navn}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -517,6 +843,7 @@ function FlytBoks({
                 · {grupperNavn.join(", ")}
               </span>
             )}
+            {renderKanRedigereToggle(m)}
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -571,6 +898,10 @@ export default function KontakterSide() {
   const [utvidetEntreprise, setUtvidetEntreprise] = useState<Set<string>>(new Set());
   const [nyEntrepriseNavn, setNyEntrepriseNavn] = useState("");
   const [visNyEntreprise, setVisNyEntreprise] = useState(false);
+  const [redigerEntreprise, setRedigerEntreprise] = useState<string | null>(null);
+  const [redigerEntNavn, setRedigerEntNavn] = useState("");
+  const [redigerEntFarge, setRedigerEntFarge] = useState<string | null>(null);
+  const [visFargeVelger, setVisFargeVelger] = useState(false);
 
   // Hent data
   const { data: entrepriser, isLoading: e1 } = trpc.entreprise.hentForProsjekt.useQuery(
@@ -589,8 +920,12 @@ export default function KontakterSide() {
     { projectId: prosjektId! },
     { enabled: !!prosjektId },
   );
+  const { data: maler, isLoading: e5 } = trpc.mal.hentForProsjekt.useQuery(
+    { projectId: prosjektId! },
+    { enabled: !!prosjektId },
+  );
 
-  const erLaster = e1 || e2 || e3 || e4;
+  const erLaster = e1 || e2 || e3 || e4 || e5;
   const utils = trpc.useUtils();
 
   const opprettEntrepriseMutation = trpc.entreprise.opprett.useMutation({
@@ -598,6 +933,14 @@ export default function KontakterSide() {
       utils.entreprise.hentForProsjekt.invalidate();
       setNyEntrepriseNavn("");
       setVisNyEntreprise(false);
+    },
+  });
+
+  const oppdaterEntrepriseMutation = trpc.entreprise.oppdater.useMutation({
+    onSuccess: () => {
+      utils.entreprise.hentForProsjekt.invalidate();
+      setRedigerEntreprise(null);
+      setVisFargeVelger(false);
     },
   });
 
@@ -615,10 +958,10 @@ export default function KontakterSide() {
     if (!medlemmer) return map;
     const alle = medlemmer as ProsjektMedlem[];
     for (const m of alle) {
-      for (const me of m.enterprises) {
-        const liste = map.get(me.enterprise.id) ?? [];
+      for (const me of m.dokumentflytKoblinger) {
+        const liste = map.get(me.dokumentflytPart.id) ?? [];
         liste.push(m);
-        map.set(me.enterprise.id, liste);
+        map.set(me.dokumentflytPart.id, liste);
       }
     }
     return map;
@@ -677,19 +1020,30 @@ export default function KontakterSide() {
       .map((g) => ({ id: g.id, name: g.name }));
   }, [grupper]);
 
+  // Alle maler som enkel liste
+  const alleMaler: MalInfo[] = useMemo(() => {
+    if (!maler) return [];
+    return (maler as Array<{ id: string; name: string; category: string; prefix: string | null }>)
+      .map((m) => ({ id: m.id, name: m.name, category: m.category, prefix: m.prefix }));
+  }, [maler]);
+
+  // Flat liste over alle dokumentflyter (brukt for duplikatsjekk av maler)
+  const alleDokumentflyter = useMemo(() => {
+    if (!dokumentflyter) return [] as Dokumentflyt[];
+    return dokumentflyter as unknown as Dokumentflyt[];
+  }, [dokumentflyter]);
+
   // Bygg oppslag: entrepriseId → dokumentflyter
   const entrepriseDokumentflyter = useMemo(() => {
     const map = new Map<string, Dokumentflyt[]>();
-    if (!dokumentflyter) return map;
-    const alle = dokumentflyter as Dokumentflyt[];
-    for (const df of alle) {
+    for (const df of alleDokumentflyter) {
       if (!df.enterpriseId) continue;
       const liste = map.get(df.enterpriseId) ?? [];
       liste.push(df);
       map.set(df.enterpriseId, liste);
     }
     return map;
-  }, [dokumentflyter]);
+  }, [alleDokumentflyter]);
 
   const toggleUtvidet = (id: string) => {
     setUtvidetEntreprise((prev) => {
@@ -712,8 +1066,13 @@ export default function KontakterSide() {
   return (
     <div>
       <div className="mb-4">
-        <h2 className="text-lg font-semibold text-gray-900">{t("kontakter.tittel")}</h2>
-        <p className="text-sm text-gray-500">{t("kontakter.beskrivelse")}</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">{t("kontakter.tittel")}</h2>
+            <p className="text-sm text-gray-500">{t("kontakter.beskrivelse")}</p>
+          </div>
+          <HjelpKnapp />
+        </div>
       </div>
 
       {/* Tabell-header */}
@@ -745,33 +1104,129 @@ export default function KontakterSide() {
                       ? <ChevronDown className="h-4 w-4 text-gray-400 shrink-0" />
                       : <ChevronRight className="h-4 w-4 text-gray-400 shrink-0" />
                     }
-                    <EntrepriseFargePrikk farge={ent.color} />
-                    <span className="font-medium text-blue-700">{ent.name}</span>
+                    {redigerEntreprise === ent.id ? (
+                      <div className="flex items-center gap-2 flex-1" onClick={(e) => e.stopPropagation()}>
+                        <div className="relative">
+                          <button
+                            onClick={() => setVisFargeVelger(!visFargeVelger)}
+                            title={t("entrepriser.velgFarge")}
+                          >
+                            <EntrepriseFargePrikk farge={redigerEntFarge} />
+                          </button>
+                          {visFargeVelger && (
+                            <div className="absolute left-0 top-full z-10 mt-1 grid grid-cols-6 gap-1 rounded-lg border border-gray-200 bg-white p-2 shadow-lg">
+                              {Object.keys(ENTREPRISE_FARGER).map((farge) => (
+                                <button
+                                  key={farge}
+                                  onClick={() => {
+                                    setRedigerEntFarge(farge);
+                                    setVisFargeVelger(false);
+                                  }}
+                                  className={`h-5 w-5 rounded-full ${FARGE_MAP[farge] ?? "bg-gray-400"} ${redigerEntFarge === farge ? "ring-2 ring-blue-500 ring-offset-1" : ""}`}
+                                />
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        <input
+                          type="text"
+                          value={redigerEntNavn}
+                          onChange={(e) => setRedigerEntNavn(e.target.value)}
+                          className="flex-1 rounded border border-gray-300 px-2 py-0.5 text-sm font-medium text-gray-700 focus:border-blue-400 focus:outline-none"
+                          autoFocus
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" && redigerEntNavn.trim()) {
+                              oppdaterEntrepriseMutation.mutate({
+                                id: ent.id,
+                                name: redigerEntNavn.trim(),
+                                color: redigerEntFarge ?? undefined,
+                              });
+                            }
+                            if (e.key === "Escape") {
+                              setRedigerEntreprise(null);
+                              setVisFargeVelger(false);
+                            }
+                          }}
+                        />
+                        <button
+                          onClick={() => {
+                            if (redigerEntNavn.trim()) {
+                              oppdaterEntrepriseMutation.mutate({
+                                id: ent.id,
+                                name: redigerEntNavn.trim(),
+                                color: redigerEntFarge ?? undefined,
+                              });
+                            }
+                          }}
+                          className="rounded bg-blue-600 px-2 py-0.5 text-xs text-white hover:bg-blue-700"
+                        >
+                          {t("handling.lagre")}
+                        </button>
+                        <button
+                          onClick={() => { setRedigerEntreprise(null); setVisFargeVelger(false); }}
+                          className="rounded p-0.5 text-gray-400 hover:text-gray-600"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <EntrepriseFargePrikk farge={ent.color} />
+                        <span className="font-medium text-blue-700">{ent.name}</span>
+                      </>
+                    )}
                   </div>
-                  <div className="col-span-5 flex flex-wrap gap-1.5">
+                  <div className="col-span-5 flex flex-col gap-1">
                     {dflyter.length === 0
                       ? <span className="text-xs text-gray-300">{t("kontakter.ingenFlyter")}</span>
-                      : dflyter.map((df) => (
-                          <span key={df.id} className="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-500">
-                            {df.name}
-                          </span>
-                        ))
+                      : dflyter.map((df) => {
+                          const rolleNavn = ((df.roller ?? []) as RolleKonfig[])
+                            .map((r) => {
+                              const konfig = ROLLE_KONFIG[r.rolle];
+                              return r.label ?? (konfig ? t(konfig.tittelNoekkel) : r.rolle);
+                            });
+                          return (
+                            <div key={df.id} className="flex items-center gap-1.5 text-xs">
+                              <span className="font-medium text-gray-600">{df.name}</span>
+                              {rolleNavn.length > 0 && (
+                                <span className="text-gray-400">
+                                  ({rolleNavn.join(" → ")})
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })
                     }
                   </div>
                   <div className="col-span-3 flex items-center justify-between text-sm text-gray-400">
                     <span>{kontakter.length > 0 ? `${kontakter.length} ${t("kontakter.personerSuffix")}` : "—"}</span>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (confirm(t("entrepriser.bekreftSlettEntreprise"))) {
-                          slettEntrepriseMutation.mutate({ id: ent.id });
-                        }
-                      }}
-                      className="rounded p-1 text-gray-300 hover:bg-red-100 hover:text-red-600 opacity-0 group-hover/rad:opacity-100 transition-opacity"
-                      title={t("entrepriser.slettEntreprise")}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
+                    <div className="flex items-center gap-0.5 opacity-0 group-hover/rad:opacity-100 transition-opacity">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setRedigerEntreprise(ent.id);
+                          setRedigerEntNavn(ent.name);
+                          setRedigerEntFarge(ent.color);
+                          setVisFargeVelger(false);
+                        }}
+                        className="rounded p-1 text-gray-300 hover:bg-gray-200 hover:text-gray-600"
+                        title={t("handling.rediger")}
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (confirm(t("entrepriser.bekreftSlettEntreprise"))) {
+                            slettEntrepriseMutation.mutate({ id: ent.id });
+                          }
+                        }}
+                        className="rounded p-1 text-gray-300 hover:bg-red-100 hover:text-red-600"
+                        title={t("entrepriser.slettEntreprise")}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               </button>
@@ -781,25 +1236,20 @@ export default function KontakterSide() {
                 <div className="border-t border-gray-100 bg-gray-50/50 px-4 py-4 space-y-4">
 
                   {/* Dokumentflyter — visuell flyt */}
-                  {dflyter.map((df) => {
-                    const opprettere = df.medlemmer.filter((m) => m.rolle === "bestiller");
-                    const svarere = df.medlemmer.filter((m) => m.rolle === "utforer");
-
-                    return (
+                  {dflyter.map((df) => (
                       <DokumentflytKort
                         key={df.id}
                         df={df}
-                        opprettere={opprettere}
-                        svarere={svarere}
                         prosjektId={prosjektId!}
                         alleEntrepriser={alleEntrepriser}
                         alleMedlemmer={alleMedlemmer}
                         alleGrupper={alleGrupper}
                         gruppeOppslag={gruppeOppslag}
                         gruppeMedlemNavn={gruppeMedlemNavn}
+                        alleMaler={alleMaler}
+                        alleDokumentflyter={alleDokumentflyter}
                       />
-                    );
-                  })}
+                  ))}
 
                   {dflyter.length === 0 && (
                     <p className="text-xs text-gray-400 italic">{t("kontakter.ingenFlyter")}</p>

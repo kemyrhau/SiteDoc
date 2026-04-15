@@ -8,7 +8,8 @@ export const documentStatusSchema = z.enum(DOCUMENT_STATUSES);
 export const reportObjectTypeSchema = z.enum(REPORT_OBJECT_TYPES);
 
 // Entrepriserolle-validering
-export const enterpriseRoleSchema = z.enum(["bestiller", "utforer"]);
+export const dokumentflytRolleSchema = z.enum(["registrator", "bestiller", "utforer", "godkjenner"]);
+export const enterpriseRoleSchema = dokumentflytRolleSchema;
 
 // Malsone-validering
 export const templateZoneSchema = z.enum(TEMPLATE_ZONES);
@@ -137,6 +138,7 @@ export const addMemberSchema = z.object({
   phone: z.string().optional(),
   role: z.enum(["member", "admin"]).default("member"),
   enterpriseIds: z.array(z.string().uuid()).default([]),
+  organizationId: z.string().uuid().optional(),
   melding: z.string().max(500).optional(),
 });
 
@@ -223,17 +225,30 @@ export const removeWorkflowStepMemberSchema = z.object({
   step: z.number().int().min(2).max(3),
 });
 
+// Rolle-konfigurasjon for dokumentflyt
+export const rolleKonfigSchema = z.object({
+  rolle: dokumentflytRolleSchema,
+  label: z.string().max(100).nullish(),
+});
+
+export const oppdaterRollerSchema = z.object({
+  id: z.string().uuid(),
+  projectId: z.string().uuid(),
+  roller: z.array(rolleKonfigSchema),
+});
+
 // Dokumentflyt-validering (ny modell)
 export const createDokumentflytSchema = z.object({
   projectId: z.string().uuid(),
   enterpriseId: z.string().uuid().optional(),
   name: z.string().min(1).max(255),
+  roller: z.array(rolleKonfigSchema).default([]),
   templateIds: z.array(z.string().uuid()).default([]),
   medlemmer: z.array(z.object({
     enterpriseId: z.string().uuid().optional(),
     projectMemberId: z.string().uuid().optional(),
     groupId: z.string().uuid().optional(),
-    rolle: z.enum(["bestiller", "utforer"]),
+    rolle: dokumentflytRolleSchema,
     steg: z.number().int().min(1).default(1),
   })).default([]),
 });
@@ -251,8 +266,10 @@ export const addDokumentflytMedlemSchema = z.object({
   enterpriseId: z.string().uuid().optional(),
   projectMemberId: z.string().uuid().optional(),
   groupId: z.string().uuid().optional(),
-  rolle: z.enum(["bestiller", "utforer"]),
+  rolle: dokumentflytRolleSchema,
   steg: z.number().int().min(1).default(1),
+  kanRedigere: z.boolean().default(true),
+  låsesEtterPasseringer: z.number().int().min(1).nullable().optional(),
 });
 
 export const removeDokumentflytMedlemSchema = z.object({

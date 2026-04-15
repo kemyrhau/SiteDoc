@@ -24,7 +24,7 @@ Alle routere i `apps/api/src/routes/`:
 | `mobilAuth` | byttToken (public, OAuth→sesjon), verifiser (m/tokenrotasjon), loggUt (sletter sesjon) |
 | `bilde` | hentForProsjekt (alle bilder via sjekklister + oppgaver, m/tilgangsfilter, inkl. parent+tegningsdata), opprettForSjekkliste |
 | `admin` | erAdmin, hentAlleProsjekter (m/sjekkliste-/oppgavetellere), hentAlleOrganisasjoner, opprettOrganisasjon, oppdaterOrganisasjon, settBrukerOrganisasjon, tilknyttProsjekt, fjernProsjektTilknytning, opprettProsjekt, hentProsjektStatistikk, slettProsjekt, slettUtlopteProsjekter, hentAlleBrukere |
-| `mengde` | hentDokumenter (m/mappetilgangsfilter, docType != null), hentPerioder, hentSpecPoster (m/sortering, sammenligningPoster), hentAvviksanalyse, lagreNotat, registrerDokument (m/kontraktId, notaType, notaNr, auto-detect docType fra filnavn), oppdaterDokument (inline type/nota/kontrakt), reprosesser, fjernFraOkonomi (nullstiller type, beholder i mapper), slettPeriode, hentNotaRapport (deduplisert per notaNr, header-verdier), hentDokumentasjonForPost (side→postnr fra FtdDocumentPage, scopet til kontraktens mapper) |
+| `mengde` | hentDokumenter (m/mappetilgangsfilter, docType != null, inkl. harPeriode+periodId), hentPerioder, hentSpecPoster (m/periodId→FtdNotaPost ELLER dokumentId→FtdSpecPost, sammenligningPoster), hentAvviksanalyse, lagreNotat, importerTilPeriode (mutation→nota-import service), registrerDokument (m/kontraktId, notaType, notaNr), oppdaterDokument (inline type/nota/kontrakt), reprosesser, fjernFraOkonomi (nullstiller type, beholder i mapper), slettPeriode, hentNotaRapport (deduplisert per notaNr, header-verdier), hentDokumentasjonForPost (side→postnr fra FtdDocumentPage, scopet til kontraktens mapper) |
 | `ftdSok` | sokDokumenter (tsvector m/norsk stemming + ILIKE fallback, mappetilgangsfilter), hentDokumentChunks, nsKoder, nsChunks |
 | `bruker` | hentSpraak (brukerens valgte språk), oppdaterSpraak (lagre språkvalg i DB) |
 | `kontrakt` | hentForProsjekt (m/building, _count), opprett (navn, type 8405/8406/8407, byggherre, entreprenor, buildingId), oppdater (alle felter inkl. bygning), slett (fjerner kobling fra entrepriser og dokumenter, m/bekreftelsesmodal) |
@@ -58,7 +58,110 @@ Alle routere i `apps/api/src/routes/`:
 
 **Dokumentsøk:** Tilgjengelig for alle prosjekter (ingen modulkrav). Tilgangskontroll via `hentTilgjengeligeMappeIder()`. Dedup per dokument (DISTINCT ON document_id). NS 3420-standarddokumentasjon søkbar via `nsStandardSok` (ILIKE i NS 3420-chunks). Gul prikk (●) i økonomi-tabell der split-dokumentasjon finnes (sjekker undermapper "Post {kode}").
 
-**Neste steg (økonomi):** A-nota nummer = periodenummer. Kontrakt + periode-velger → vis og sammenlign perioder i Oversikt. Anbudsgrunnlag = anbud (fane), A-nota 4/5/6/7 = perioder under samme kontrakt. Sluttnota støttes som nota-type.
+## Økonomi — A-nota importlogikk
+
+### Datamodell
+
+- **FtdSpecPost** = master-post per postnr per kontrakt (fra budsjett/anbudsgrunnlag). Felter: postnr, beskrivelse, enhet, mengdeAnbud, enhetspris, sumAnbud, nsKode, etc.
+- **FtdNotaPeriod** = én importert A-nota/Sluttnota. Felter: periodeNr, periodeSlutt, type, erSluttnota (boolean), gapFlagg, kildeFilnavn, totaler.
+- **FtdNotaPost** = per-post per-periode verdier, koblet til FtdSpecPost. Felter: mengdeDenne/Total/Forrige, verdiDenne/Total/Forrige, prosentFerdig, enhetspris.
+
+Sluttnota: `erSluttnota = true`, `notaNr = null`. Korrigert sluttnota: to dokumenter kan ha flagget, siste importdato vinner.
+
+### Fase 1 — komplett (2026-04-13)
+
+**Duplikat-beskyttelse:**
+- Unique constraint `(documentId, postnr)` (partial index, WHERE NOT NULL)
+- `lagreSpecPoster()` — in-memory deduplisering + `createMany({ skipDuplicates: true })`
+- Concurrency guard — `prosesserDokument()` avviser parallelle kjøringer via `updateMany`
+- Atomisk sletting i `prosesserDokument`, ikke i kalleren
+- PDF header-reset — gjentatte header-linjer hoppes over preventivt
+
+**Økonomi-visning (Oversikt-tabell):**
+- Kolonnerekkefølge Proadm-format: Postnr | Beskrivelse | Mengder (Anbudet, Enh, Tot.forrige, Denne, Totalt) | Enhetspris | Verdi (Anbudet, Tot.forrige, Denne, Totalt, %)
+- Gruppe-header med fargestrek (blå=Mengder, grønn=Verdi)
+- Globalt søkefelt (postnr + beskrivelse)
+- Per-kolonne filter (▽): tekst=søk, tall=>/</ min-maks, enhet=verdiliste
+- Sortering per kolonne (klikk header)
+- +-knapp for vis/skjul kolonnegrupper
+- Seksjonsoverskrifter: kursiv/grå, "—" i verdi-kolonner, ekskludert fra totalrad
+- "Tot. tom. forrige" hentes fra forrige notas verdiTotal per postnr via server-join
+- Sluttnota finner høyeste A-nota som forrige (via notaType-sjekk)
+
+**Parser-fikser:**
+- Excel: enhetspris-deteksjon bruker første forekomst (merged cells-fix)
+- Alle Excel-dokumenter reprosessert og verifisert mot kontrolltall
+
+**Importlogikk (FtdNotaPeriod / FtdNotaPost):**
+- FtdNotaPeriod migrert: kontraktId, documentId (obligatoriske), erSluttnota, gapFlagg, unique [kontraktId, periodeNr]
+- FtdSpecPost: ikkeIBudsjett boolean for poster som kun finnes i nota
+- `importerNotaTilPeriode()` — hovedfunksjon med batch createMany, scenario-bestemmelse, akkumuleringskontroll
+- `bestemScenario()` — scenario 1/2/3 + retroaktiv med påfølgendeNr-varsling
+- `kontrollerAkkumulering()` — ±2 øre toleranse for mengde/verdi, ±2 kr for enhetspris
+- `mengde.importerTilPeriode` mutation — kobler service til frontend
+- Alle notas importert og verifisert: A-nota 25–29 + Sluttnota, 0 avvik, alle matcher kontrolltabell
+- Service: `apps/api/src/services/nota-import.ts`
+
+**Datakilde-valg (harPeriode):**
+- `hentDokumenter` returnerer `harPeriode` og `periodId` per dokument
+- `hentSpecPoster` med `periodId` → ny gren som leser verdier direkte fra FtdNotaPost (ingen beregning)
+- `hentSpecPoster` med `dokumentId` → gammel gren via FtdSpecPost med forrige-nota lookup
+- Frontend sender `periodId` for importerte notas, `dokumentId` for eldre
+- Nota-dropdown viser "✓" etter nummeret for notas med FtdNotaPeriod
+
+**Sekvensielt import-dialog (3 faser):**
+- Fase 1: Filvalg — drag-drop eller fra-mappe, flere filer, klikk "Importer N filer"
+- Fase 2: Per-fil konfigurasjon — auto-deteksjon (gjettDokType, gjettNotaNr, gjettDato), kontrakt arvet, korrigerbar
+- Fase 3: Oppsummering — status per fil (importert/hoppet/duplikat/feil), avvikstall
+- Duplikat-sjekk: advarsel med valg "Hopp over" (standard) eller "Reimporter"
+- Gap-advarsel inline: viser manglende notas, blokkerer ikke import
+- Hjelpefunksjoner med 20 enhetstester (`__tests__/import-hjelpere.test.ts`)
+
+### Importscenarioer (implementert)
+
+**Scenario 1 — Første A-nota:** Alle verdier importeres som-er. Ingen akkumuleringskontroll.
+
+**Scenario 2 — Påfølgende A-nota:** Match via postnr mot forrige FtdNotaPost. Akkumuleringsberegning per post. Toleranse ±2 øre mengde/verdi, ±2 kr enhetspris. Avviksrapport.
+
+**Scenario 3 — Gap i rekkefølge:** Returnerer `kreverGapGodkjenning` med manglendeNr[]. Etter godkjenning: importeres som scenario 1 med gapFlagg.
+
+**Retroaktiv import:** Returnerer `påfølgendeNr[]` — frontend viser informasjonsmelding. Ingen automatisk revalidering i fase 1.
+
+**Innestående / oppsummering (ferdig):**
+- Oppsummeringslinje under tabellen i Proadm-format: utført, innestående, netto, mva, sum inkl. mva
+- Verdier leses direkte fra FtdDocument-felter via eksisterende relasjon — ingen duplisering, ingen ekstra API-kall
+- NULL vises som "—", negativ innestaaendeDenne vises med minus
+- Vises kun når utfortTotalt != null
+- A-nota 18 og 24 importert — alle 8 perioder komplett (18, 24, 25, 26, 27, 28, 29, Sluttnota)
+
+**Drag-and-drop kolonneorder (ferdig):**
+- Native HTML drag events på kolonne-headers med GripVertical-ikon
+- localStorage-persistering med nøkkel `ftd-kolonne-orden-{userId}`
+- SSR-safe med try-catch, nye kolonner legges til på slutten
+- Synlige kolonner persisteres sammen med rekkefølge
+
+**Mva (ferdig — header-nivå):**
+- Parseren leser mva fra PDF/Excel header-seksjon og lagrer på FtdDocument
+- Vises i NotaOppsummering (+ Mva: / = Sum inkl. mva:)
+- Per-post mva finnes ikke i Proadm-kildedata — FtdNotaPost.mvaDenne/sumDenne er tomme
+
+### Fase 2 — komplett (2026-04-13)
+
+Alle planlagte fase 2-oppgaver er ferdigstilt eller bevisst utsatt.
+
+### BLOKKERENDE BUG: React #310 i SpecPostTabell
+
+**Status:** Økonomi-siden krasjer med "Objects are not valid as a React child" når kontrakt velges. Feilen er i SpecPostTabell-rendering. Rotårsak: Prisma Decimal-objekter deserialiseres som plain objects via tRPC/superjson. API-side Number()-konvertering er implementert i hentSpecPoster men feilen vedvarer — kan være i et annet felt eller komponent.
+
+**Neste steg:** Kjør lokalt i dev mode for full uminifisert feilmelding. Se memory `project_okonomi_react310_bug.md`.
+
+**DB-note:** Header-verdier (utfortTotalt, mva etc.) er NULLSTILT på ftd_documents for prosjekt 2bd15f09. Må gjenopprettes med reprosessering etter fiks.
+
+### Fase 3 — ved behov
+
+1. **Retroaktiv revalidering** — automatisk revalidering fremover når nota importeres midt i kjeden. Løsning beskrevet: oppdater mengdeForrige/verdiForrige på påfølgende FtdNotaPost-rader, kjør kontrollerAkkumulering() på nytt. Implementeres når reelt behov oppstår.
+2. **Mva per post** — krever parser-utvidelse og skjemaendring. Proadm-kildedata har kun mva i header, ikke per rad. Egen oppgave.
+3. **Avviksanalyse-fane** — rapport over enhetsprisendringer og akkumuleringsavvik på tvers av perioder.
 
 ## Auth-nivåer
 
@@ -71,6 +174,9 @@ Alle routere som opererer på prosjektdata har `verifiserProsjektmedlem`-sjekk. 
 - `prosjekt.oppdater`: `verifiserAdmin`
 - `endreStatus`: bruker `ctx.userId` som `senderId` (ikke bruker-input)
 - `medlem.sokBrukere`: krever `projectId` + prosjektmedlemskap
+- `mengde.oppdaterDokument`: `verifiserProsjektmedlem` + kontraktisolering (kontraktId må tilhøre samme prosjekt)
+- `admin.*integrasjon*`: `verifiserSiteDocAdmin` (kun superadmin, aldri company_admin). API-nøkler returneres aldri — kun `harNøkkel: boolean`
+- `company_admin`-fallback i `verifiserProsjektmedlem`/`verifiserAdmin`: sjekker `OrganizationProject`-kobling, hindrer kryssorg-tilgang
 
 ## Filopplasting
 

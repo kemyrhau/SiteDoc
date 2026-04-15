@@ -5,6 +5,9 @@ import { useTranslation } from "react-i18next";
 import type { Vedlegg } from "../../hooks/useSjekklisteSkjema";
 import { FeltDokumentasjon } from "./FeltDokumentasjon";
 
+/** Felttyper som ikke skal ha vedlegg/kommentar eller oppgave-badge */
+const SKJUL_VEDLEGG_TYPER = new Set(["date", "date_time", "weather"]);
+
 interface FeltWrapperProps {
   objekt: {
     id: string;
@@ -142,8 +145,8 @@ export function FeltWrapper({
         <Text className="mt-1 text-xs text-red-500">{valideringsfeil}</Text>
       )}
 
-      {/* Dokumentasjon (kommentar + vedlegg) — skjul for dato/tid-felter */}
-      {objekt.type !== "date_time" && (
+      {/* Dokumentasjon (kommentar + vedlegg) — skjul for dato, dato/tid og vær */}
+      {!SKJUL_VEDLEGG_TYPER.has(objekt.type) && (
         <FeltDokumentasjon
           kommentar={kommentar}
           vedlegg={vedlegg}
@@ -160,8 +163,8 @@ export function FeltWrapper({
         />
       )}
 
-      {/* Oppgave-badge og opprett-knapp (skjul for dato/tid og når vi er i en oppgave) */}
-      {objekt.type === "date_time" ? null : !oppgaveIdForKo && oppgaveNummer && oppgaveId ? (
+      {/* Oppgave-badge og opprett-knapp (skjul for dato/vær og når vi er i en oppgave) */}
+      {SKJUL_VEDLEGG_TYPER.has(objekt.type) ? null : !oppgaveIdForKo && oppgaveNummer && oppgaveId ? (
         <Pressable
           onPress={() => onNavigerTilOppgave?.(oppgaveId)}
           className="mt-2 self-start rounded-full bg-blue-100 px-3 py-1"

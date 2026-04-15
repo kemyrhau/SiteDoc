@@ -74,8 +74,8 @@ export default function MapperSide() {
     if (!brukerMedlem) return false;
     if (brukerMedlem.role === "admin") return false;
 
-    const entrepriseIder = brukerMedlem.enterprises.map(
-      (me) => me.enterprise.id,
+    const entrepriseIder = brukerMedlem.dokumentflytKoblinger.map(
+      (me) => me.dokumentflytPart.id,
     );
 
     const gruppeIder = (grupper ?? [])
@@ -99,7 +99,7 @@ export default function MapperSide() {
       accessMode: m.accessMode,
       accessEntries: m.accessEntries.map((e) => ({
         accessType: e.accessType,
-        enterpriseId: e.enterprise?.id ?? null,
+        enterpriseId: e.dokumentflytPart?.id ?? null,
         groupId: e.group?.id ?? null,
         userId: e.user?.id ?? null,
       })),
@@ -111,6 +111,7 @@ export default function MapperSide() {
 
   const [lasterOpp, setLasterOpp] = useState(false);
   const [opplastingStatus, setOpplastingStatus] = useState<{ filnavn: string; nr: number; totalt: number; prosent: number } | null>(null);
+  const [opplastingFeil, setOpplastingFeil] = useState<string[]>([]);
   const filInputRef = useRef<HTMLInputElement>(null);
   const utils = trpc.useUtils();
 
@@ -141,6 +142,8 @@ export default function MapperSide() {
     if (!filer || filer.length === 0 || !valgtMappeId) return;
     const filListe = Array.from(filer);
     setLasterOpp(true);
+    setOpplastingFeil([]);
+    const feil: string[] = [];
 
     for (let i = 0; i < filListe.length; i++) {
       const fil = filListe[i]!;
@@ -159,7 +162,12 @@ export default function MapperSide() {
             if (xhr.status >= 200 && xhr.status < 300) {
               resolve(JSON.parse(xhr.responseText));
             } else {
-              reject(new Error(`Upload feilet: ${xhr.status}`));
+              try {
+                const body = JSON.parse(xhr.responseText);
+                reject(new Error(body.error ?? `Feil ${xhr.status}`));
+              } catch {
+                reject(new Error(`Feil ${xhr.status}`));
+              }
             }
           };
           xhr.onerror = () => reject(new Error("Nettverksfeil"));
@@ -176,11 +184,13 @@ export default function MapperSide() {
           fileType: fileUrl.fileType ?? fil.type,
           fileSize: fil.size,
         });
-      } catch {
-        // Fortsett med neste fil
+      } catch (err) {
+        const melding = err instanceof Error ? err.message : "Ukjent feil";
+        feil.push(`${fil.name}: ${melding}`);
       }
     }
 
+    if (feil.length > 0) setOpplastingFeil(feil);
     setLasterOpp(false);
     setOpplastingStatus(null);
     utils.mappe.hentDokumenter.invalidate({ folderId: valgtMappeId! });
@@ -299,6 +309,25 @@ export default function MapperSide() {
               style={{ width: `${opplastingStatus.prosent}%` }}
             />
           </div>
+        </div>
+      )}
+
+      {opplastingFeil.length > 0 && (
+        <div className="mb-2 rounded border border-red-200 bg-red-50 px-3 py-2">
+          <div className="mb-1 flex items-center justify-between">
+            <span className="text-xs font-medium text-red-700">
+              {opplastingFeil.length} {opplastingFeil.length === 1 ? "fil" : "filer"} feilet
+            </span>
+            <button
+              onClick={() => setOpplastingFeil([])}
+              className="text-xs text-red-400 hover:text-red-600"
+            >
+              ✕
+            </button>
+          </div>
+          {opplastingFeil.map((f, i) => (
+            <div key={i} className="text-xs text-red-600">{f}</div>
+          ))}
         </div>
       )}
 

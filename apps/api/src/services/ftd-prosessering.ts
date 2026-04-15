@@ -57,6 +57,32 @@ function erOcrSøppel(tekst: string): boolean {
 const OVERSKRIFT_REGEX = /^(\d+(?:\.\d+)*)\s+(.+)/;
 
 // --------------------------------------------------------------------------
+// Sikkerhetsventil: dedupliser og lagre spec-poster
+// --------------------------------------------------------------------------
+
+/** Lagre spec-poster med in-memory deduplisering + skipDuplicates (DB-constraint) */
+async function lagreSpecPoster(
+  prisma: PrismaClient,
+  poster: Array<Record<string, unknown>>,
+): Promise<void> {
+  if (poster.length === 0) return;
+
+  // Dedupliser i minnet — behold siste forekomst per (documentId, postnr)
+  const unikeMap = new Map<string, Record<string, unknown>>();
+  for (const p of poster) {
+    const nøkkel = `${p.documentId}:${p.postnr ?? "NULL"}`;
+    unikeMap.set(nøkkel, p);
+  }
+  const unikePoster = Array.from(unikeMap.values());
+
+  await prisma.ftdSpecPost.createMany({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    data: unikePoster as any,
+    skipDuplicates: true,
+  });
+}
+
+// --------------------------------------------------------------------------
 // Hovedinngang
 // --------------------------------------------------------------------------
 
@@ -65,10 +91,26 @@ export async function prosesserDokument(
   documentId: string,
 ): Promise<void> {
   try {
-    // Sett status til "processing"
-    const dok = await prisma.ftdDocument.update({
-      where: { id: documentId },
+    // Concurrency guard: sett status til "processing" KUN hvis ikke allerede pågår
+    const oppdatert = await prisma.ftdDocument.updateMany({
+      where: {
+        id: documentId,
+        processingState: { not: "processing" },
+      },
       data: { processingState: "processing", processingError: null },
+    });
+
+    if (oppdatert.count === 0) {
+      console.log(`FTD: Prosessering allerede pågår for ${documentId}, avbryter`);
+      return;
+    }
+
+    // Atomisk sletting av eksisterende data før ny prosessering
+    await prisma.ftdSpecPost.deleteMany({ where: { documentId } });
+    await prisma.ftdDocumentChunk.deleteMany({ where: { documentId } });
+
+    const dok = await prisma.ftdDocument.findUniqueOrThrow({
+      where: { id: documentId },
     });
 
     if (!dok.fileUrl) {
@@ -122,6 +164,11 @@ export async function prosesserDokument(
       where: { id: documentId },
       data: { processingState: "completed" },
     });
+
+    // Oppdater budsjett-poster fra nota-verdier (A-nota/T-nota)
+    if (dok.kontraktId && (dok.docType === "a_nota" || dok.docType === "t_nota")) {
+      await oppdaterBudsjettFraNota(prisma, dok.kontraktId, documentId);
+    }
 
     // Automatisk embedding av nye chunks (fire-and-forget)
     embeddNyeChunks(prisma, documentId).catch((err) => {
@@ -393,18 +440,14 @@ async function prosesserPdf(
   if (docType === "anbudsgrunnlag" || docType === "budsjett" || docType === "mengdebeskrivelse") {
     const tabellTekst = await ekstraherPdfMedPosisjoner(buffer);
     const poster = ekstraherBudsjettPosterFraPdf(tabellTekst, projectId, documentId);
-    if (poster.length > 0) {
-      await prisma.ftdSpecPost.createMany({ data: poster });
-    }
+    await lagreSpecPoster(prisma, poster);
   }
 
   // Ekstraher spec-poster fra A-nota/T-nota PDF (Proadm-format) via pdfjs-dist
   if (docType === "a_nota" || docType === "t_nota") {
     const tabellTekst = await ekstraherPdfMedPosisjoner(buffer);
     const { poster, header } = ekstraherNotaPosterFraPdf(tabellTekst, projectId, documentId);
-    if (poster.length > 0) {
-      await prisma.ftdSpecPost.createMany({ data: poster });
-    }
+    await lagreSpecPoster(prisma, poster);
     // Lagre header-verdier (innestående, utført, netto etc.) på dokumentet
     await prisma.ftdDocument.update({
       where: { id: documentId },
@@ -895,9 +938,7 @@ async function ekstraherSpecPoster(
     });
   });
 
-  if (poster.length > 0) {
-    await prisma.ftdSpecPost.createMany({ data: poster });
-  }
+  await lagreSpecPoster(prisma, poster);
 }
 
 /**
@@ -947,7 +988,7 @@ async function ekstraherNotaPoster(
     if (h.tekst === "postnr" && !kolonner.postnr) kolonner.postnr = h.col;
     else if (h.tekst.includes("beskrivelse") && !kolonner.beskrivelse) kolonner.beskrivelse = h.col;
     else if (h.tekst === "enh" || h.tekst === "enhet") kolonner.enhet = h.col;
-    else if (h.tekst === "enhetspris") kolonner.enhetspris = h.col;
+    else if (h.tekst === "enhetspris" && !kolonner.enhetspris) kolonner.enhetspris = h.col;
     else if (h.tekst.includes("utført") && h.tekst.includes("%")) kolonner.prosentFerdig = h.col;
   }
 
@@ -1072,9 +1113,7 @@ async function ekstraherNotaPoster(
     });
   });
 
-  if (poster.length > 0) {
-    await prisma.ftdSpecPost.createMany({ data: poster });
-  }
+  await lagreSpecPoster(prisma, poster);
 }
 
 /**
@@ -1340,9 +1379,7 @@ async function prosesserGab(
   }
 
   // Lagre spec-poster
-  if (poster.length > 0) {
-    await prisma.ftdSpecPost.createMany({ data: poster });
-  }
+  await lagreSpecPoster(prisma, poster);
 }
 
 async function prosesserXml(
@@ -1370,9 +1407,7 @@ async function prosesserXml(
 
   // Forsøk å ekstrahere poster fra NS3459-struktur
   const poster = ekstraherNs3459Poster(resultat, projectId, documentId);
-  if (poster.length > 0) {
-    await prisma.ftdSpecPost.createMany({ data: poster });
-  }
+  await lagreSpecPoster(prisma, poster);
 }
 
 function ekstraherNs3459Poster(
@@ -2333,6 +2368,9 @@ function ekstraherNotaPosterFraPdf(
       continue;
     }
 
+    // Gjentatt header-linje på nye sider — hopp over (preventiv)
+    if (/Postnr/i.test(linje) && /Beskrivelse/i.test(linje)) continue;
+
     if (!linje || erSkipLinje(linje)) continue;
 
     // Parse post-linje
@@ -2729,5 +2767,76 @@ async function embeddNyeChunks(
       where: { id: documentId },
       data: { processingError: `Embedding: ${melding}` },
     }).catch(() => {});
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Oppdater budsjett-poster med nota-verdier
+// ---------------------------------------------------------------------------
+
+async function oppdaterBudsjettFraNota(
+  prisma: PrismaClient,
+  kontraktId: string,
+  notaDokumentId: string,
+): Promise<void> {
+  // Finn budsjett-dokumentet (anbudsgrunnlag) for kontrakten
+  const budsjettDok = await prisma.ftdDocument.findFirst({
+    where: { kontraktId, docType: "anbudsgrunnlag", isActive: true },
+    orderBy: { uploadedAt: "desc" },
+    select: { id: true },
+  });
+  if (!budsjettDok) return;
+
+  // Hent budsjett-poster
+  const budsjettPoster = await prisma.ftdSpecPost.findMany({
+    where: { documentId: budsjettDok.id },
+    select: { id: true, postnr: true, mengdeAnbud: true, enhetspris: true, sumAnbud: true },
+  });
+  const budsjettMap = new Map<string, (typeof budsjettPoster)[number]>();
+  for (const bp of budsjettPoster) {
+    if (bp.postnr) budsjettMap.set(bp.postnr, bp);
+  }
+
+  // Hent nota-poster med verdier
+  const notaPoster = await prisma.ftdSpecPost.findMany({
+    where: { documentId: notaDokumentId, enhetspris: { not: null } },
+    select: { postnr: true, mengdeAnbud: true, enhetspris: true, sumAnbud: true },
+  });
+
+  let oppdatert = 0;
+  for (const np of notaPoster) {
+    if (!np.postnr || !np.enhetspris) continue;
+    const bp = budsjettMap.get(np.postnr);
+    if (!bp) continue;
+
+    const notaPris = Number(np.enhetspris);
+    if (notaPris === 0) continue;
+
+    const bpPris = bp.enhetspris != null ? Number(bp.enhetspris) : null;
+    const bpMengde = bp.mengdeAnbud != null ? Number(bp.mengdeAnbud) : null;
+    const bpSum = bp.sumAnbud != null ? Number(bp.sumAnbud) : null;
+
+    const manglerPris = bpPris == null || bpPris === 0;
+    const manglerMengde = bpMengde == null || bpMengde === 0;
+    const manglerSum = bpSum == null || bpSum === 0;
+    const prisAvvik = bpPris != null && bpPris !== 0
+      ? Math.abs(bpPris - notaPris) / notaPris
+      : 0;
+
+    if (manglerPris || manglerMengde || manglerSum || prisAvvik > 0.5) {
+      const data: Record<string, number> = {};
+      if (np.enhetspris != null && (manglerPris || prisAvvik > 0.5)) data.enhetspris = Number(np.enhetspris);
+      if (np.mengdeAnbud != null && (manglerMengde || prisAvvik > 0.5)) data.mengdeAnbud = Number(np.mengdeAnbud);
+      if (np.sumAnbud != null && (manglerSum || prisAvvik > 0.5)) data.sumAnbud = Number(np.sumAnbud);
+
+      if (Object.keys(data).length > 0) {
+        await prisma.ftdSpecPost.update({ where: { id: bp.id }, data });
+        oppdatert++;
+      }
+    }
+  }
+
+  if (oppdatert > 0) {
+    console.log(`[FTD] Oppdaterte ${oppdatert} budsjett-poster med nota-verdier (kontrakt ${kontraktId})`);
   }
 }

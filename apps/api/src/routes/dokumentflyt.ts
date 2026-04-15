@@ -5,6 +5,7 @@ import {
   updateDokumentflytSchema,
   addDokumentflytMedlemSchema,
   removeDokumentflytMedlemSchema,
+  oppdaterRollerSchema,
 } from "@sitedoc/shared";
 import { verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
 
@@ -18,6 +19,11 @@ const dokumentflytInclude = {
         },
       },
       group: { select: { id: true, name: true } },
+      hovedansvarligPerson: {
+        include: {
+          user: { select: { id: true, name: true } },
+        },
+      },
     },
     orderBy: { steg: "asc" as const },
   },
@@ -44,10 +50,11 @@ export const dokumentflytRouter = router({
     .input(createDokumentflytSchema)
     .mutation(async ({ ctx, input }) => {
       await verifiserProsjektmedlem(ctx.userId, input.projectId);
-      const { templateIds, medlemmer, ...data } = input;
+      const { templateIds, medlemmer, roller, ...data } = input;
       return ctx.prisma.dokumentflyt.create({
         data: {
           ...data,
+          roller: roller ?? [],
           maler: {
             create: templateIds.map((templateId) => ({ templateId })),
           },
@@ -92,6 +99,41 @@ export const dokumentflytRouter = router({
       });
     }),
 
+  // Oppdater roller-konfigurasjon (legg til/fjern roller, endre labels)
+  oppdaterRoller: protectedProcedure
+    .input(oppdaterRollerSchema)
+    .mutation(async ({ ctx, input }) => {
+      await verifiserProsjektmedlem(ctx.userId, input.projectId);
+
+      const eksisterende = await ctx.prisma.dokumentflyt.findUniqueOrThrow({
+        where: { id: input.id },
+        select: { roller: true },
+      });
+
+      // Finn roller som ble fjernet
+      const nyeRolleNavn: Set<string> = new Set(input.roller.map((r) => r.rolle));
+      const gamleRoller = (eksisterende.roller as Array<{ rolle: string }>) ?? [];
+      const fjernedeRoller = gamleRoller
+        .map((r) => r.rolle)
+        .filter((rolle) => !nyeRolleNavn.has(rolle));
+
+      // Slett DokumentflytMedlem for fjernede roller
+      if (fjernedeRoller.length > 0) {
+        await ctx.prisma.dokumentflytMedlem.deleteMany({
+          where: {
+            dokumentflytId: input.id,
+            rolle: { in: fjernedeRoller },
+          },
+        });
+      }
+
+      return ctx.prisma.dokumentflyt.update({
+        where: { id: input.id },
+        data: { roller: input.roller },
+        include: dokumentflytInclude,
+      });
+    }),
+
   // Slett dokumentflyt
   slett: protectedProcedure
     .input(z.object({ id: z.string().uuid(), projectId: z.string().uuid() }))
@@ -109,7 +151,7 @@ export const dokumentflytRouter = router({
       return ctx.prisma.dokumentflytMedlem.create({
         data,
         include: {
-          enterprise: { select: { id: true, name: true, color: true } },
+          dokumentflytPart: { select: { id: true, name: true, color: true } },
           projectMember: {
             include: {
               user: { select: { id: true, name: true, email: true } },
@@ -160,6 +202,68 @@ export const dokumentflytRouter = router({
       return ctx.prisma.dokumentflytMedlem.update({
         where: { id: input.id },
         data: { erHovedansvarlig: input.erHovedansvarlig },
+      });
+    }),
+
+  // Sett hovedansvarlig person innenfor en gruppe (uten å opprette nye rader)
+  settGruppeHovedansvarlig: protectedProcedure
+    .input(
+      z.object({
+        id: z.string().uuid(), // DokumentflytMedlem-id (gruppe-raden)
+        projectId: z.string().uuid(),
+        hovedansvarligPersonId: z.string().uuid().nullable(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await verifiserProsjektmedlem(ctx.userId, input.projectId);
+
+      const medlem = await ctx.prisma.dokumentflytMedlem.findUniqueOrThrow({
+        where: { id: input.id },
+      });
+
+      // Fjern hovedansvarlig fra alle andre i samme dokumentflyt + rolle
+      await ctx.prisma.dokumentflytMedlem.updateMany({
+        where: {
+          dokumentflytId: medlem.dokumentflytId,
+          rolle: medlem.rolle,
+          steg: medlem.steg,
+        },
+        data: {
+          erHovedansvarlig: false,
+          hovedansvarligPersonId: null,
+        },
+      });
+
+      // Sett ny hovedansvarlig på denne gruppe-raden
+      if (input.hovedansvarligPersonId) {
+        return ctx.prisma.dokumentflytMedlem.update({
+          where: { id: input.id },
+          data: {
+            erHovedansvarlig: true,
+            hovedansvarligPersonId: input.hovedansvarligPersonId,
+          },
+        });
+      }
+
+      return ctx.prisma.dokumentflytMedlem.findUniqueOrThrow({
+        where: { id: input.id },
+      });
+    }),
+
+  // Sett kanRedigere for et flytmedlem
+  settKanRedigere: protectedProcedure
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        projectId: z.string().uuid(),
+        kanRedigere: z.boolean(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      return ctx.prisma.dokumentflytMedlem.update({
+        where: { id: input.id },
+        data: { kanRedigere: input.kanRedigere },
       });
     }),
 });

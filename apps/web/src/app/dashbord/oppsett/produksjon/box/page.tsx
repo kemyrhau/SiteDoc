@@ -151,16 +151,16 @@ function TilgangModal({
     setOppforinger(
       tilgang.accessEntries.map((e) => ({
         accessType: e.accessType as "enterprise" | "group" | "user",
-        enterpriseId: e.enterprise?.id,
+        enterpriseId: e.dokumentflytPart?.id,
         groupId: e.group?.id,
         userId: e.user?.id,
         navn:
-          e.enterprise?.name ??
+          e.dokumentflytPart?.name ??
           e.group?.name ??
           e.user?.name ??
           e.user?.email ??
           "Ukjent",
-        farge: e.enterprise?.color ?? null,
+        farge: e.dokumentflytPart?.color ?? null,
       })),
     );
     setInitialisert(true);

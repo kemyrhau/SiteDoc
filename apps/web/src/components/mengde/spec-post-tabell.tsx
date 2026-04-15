@@ -1,7 +1,10 @@
 "use client";
 
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
-import { ChevronUp, ChevronDown, X, Settings, FileSearch, Loader2 } from "lucide-react";
+import { ChevronUp, ChevronDown, X, Settings, FileSearch, Loader2, Search, Filter, Plus, GripVertical } from "lucide-react";
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
+import { SortableContext, horizontalListSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { trpc } from "@/lib/trpc";
 
 interface SpecPost {
@@ -14,8 +17,10 @@ interface SpecPost {
   sumAnbud: unknown;
   mengdeDenne?: unknown;
   mengdeTotal?: unknown;
+  mengdeForrige?: unknown;
   verdiDenne?: unknown;
   verdiTotal?: unknown;
+  verdiForrige?: unknown;
   prosentFerdig?: unknown;
   nsKode: string | null;
   nsTittel: string | null;
@@ -35,44 +40,33 @@ interface SpecPostTabellProps {
 }
 
 // NS 3420-koder: bokstaver + tall/punktum (FH2.21, AM3.861A) eller korte koder (AZA)
-// Ekskluder enheter (RS) og vanlige ord
 const NS_KODE_PAT = /^([A-Z]{1,3}\d[\w.]*[A-Z]?|[A-Z]{2,3})\s/;
 const NS_KODE_EKSKLUDER = new Set(["RS", "RG", "RD", "RE", "RF", "IF", "OR", "OK", "NY", "SE", "ER", "EN", "ET", "EL", "DE"]);
 
-/** Finn NS-kode for en post: egen, fra beskrivelse, eller arvet fra forelder */
 function finnNsKode(
   post: SpecPost,
   poster: SpecPost[],
 ): { nsKode: string; kilde: "egen" | "beskrivelse" | "arvet"; postnr?: string; sub?: string | null } | null {
-  // 1. Egen nsKode-felt
-  if (post.nsKode) {
-    return { nsKode: post.nsKode, kilde: "egen", sub: post.nsTittel };
-  }
-  // 2. NS-kode i starten av beskrivelsen (f.eks. "AZA Etablering...")
+  if (post.nsKode) return { nsKode: post.nsKode, kilde: "egen", sub: post.nsTittel };
   const egenMatch = post.beskrivelse ? NS_KODE_PAT.exec(post.beskrivelse) : null;
   if (egenMatch && egenMatch[1]!.length <= 15 && !NS_KODE_EKSKLUDER.has(egenMatch[1]!)) {
     return { nsKode: egenMatch[1]!, kilde: "beskrivelse", sub: null };
   }
-  // 3. Arv fra forelder
   const arvet = finnArvetNsKode(post.postnr, poster);
   return arvet ? { nsKode: arvet.nsKode, kilde: "arvet", postnr: arvet.postnr } : null;
 }
 
-/** Finn NS-kode fra nærmeste overordnet post i hierarkiet */
 function finnArvetNsKode(
   postnr: string | null,
   poster: SpecPost[],
 ): { nsKode: string; postnr: string } | null {
   if (!postnr) return null;
-  // Gå oppover: 01.03.21.2 → 01.03.21 → 01.03
   const deler = postnr.split(".");
   for (let i = deler.length - 1; i >= 2; i--) {
     const parentPostnr = deler.slice(0, i).join(".");
     const forelder = poster.find((p) => p.postnr === parentPostnr);
     if (!forelder) continue;
-    if (forelder.nsKode) {
-      return { nsKode: forelder.nsKode, postnr: forelder.postnr! };
-    }
+    if (forelder.nsKode) return { nsKode: forelder.nsKode, postnr: forelder.postnr! };
     const m = forelder.beskrivelse ? NS_KODE_PAT.exec(forelder.beskrivelse) : null;
     if (m && m[1]!.length <= 15 && !NS_KODE_EKSKLUDER.has(m[1]!)) {
       return { nsKode: m[1]!, postnr: forelder.postnr! };
@@ -81,25 +75,113 @@ function finnArvetNsKode(
   return null;
 }
 
-type SorterFelt =
-  | "postnr"
-  | "beskrivelse"
-  | "enhet"
-  | "mengdeAnbud"
-  | "enhetspris"
-  | "sumAnbud";
-type SorterRetning = "asc" | "desc";
+// ---------------------------------------------------------------------------
+// Kolonnedefinisjon
+// ---------------------------------------------------------------------------
+
+type Gruppe = "fast" | "mengder" | "verdi";
+type KolType = "tekst" | "tall" | "enhet";
+
+interface KolonneDef {
+  id: string;
+  label: string;
+  gruppe: Gruppe;
+  type: KolType;
+  bredde?: string;
+  hentVerdi: (rad: SammenlignetRad) => unknown;
+  /** Tilgjengelig selv uten nota-sammenligning */
+  alltidSynlig?: boolean;
+  synligDefault?: boolean;
+}
 
 interface SammenlignetRad {
   budsjett: SpecPost;
   nota: SpecPost | null;
+  erSeksjon: boolean;
+  mengdeAnbud: number;
+  mengdeForrige: number;
   mengdeDenne: number;
   mengdeTotal: number;
+  enhetspris: number;
+  sumAnbud: number;
+  verdiForrige: number;
   verdiDenne: number;
   verdiTotal: number;
   prosentFerdig: number;
   sumAvvik: number;
 }
+
+const ALLE_KOLONNER: KolonneDef[] = [
+  // Fast
+  { id: "postnr", label: "Postnr", gruppe: "fast", type: "tekst", bredde: "min-w-[100px]", alltidSynlig: true, synligDefault: true, hentVerdi: (r) => r.budsjett.postnr },
+  { id: "beskrivelse", label: "Beskrivelse", gruppe: "fast", type: "tekst", bredde: "min-w-[200px]", alltidSynlig: true, synligDefault: true, hentVerdi: (r) => r.budsjett.beskrivelse },
+  // Mengder (blå)
+  { id: "m_anbudet", label: "Anbudet", gruppe: "mengder", type: "tall", bredde: "min-w-[80px]", alltidSynlig: true, synligDefault: true, hentVerdi: (r) => r.mengdeAnbud },
+  { id: "m_enh", label: "Enh", gruppe: "mengder", type: "enhet", bredde: "min-w-[45px]", alltidSynlig: true, synligDefault: true, hentVerdi: (r) => r.budsjett.enhet },
+  { id: "m_forrige", label: "Tot. forrige", gruppe: "mengder", type: "tall", bredde: "min-w-[80px]", synligDefault: true, hentVerdi: (r) => r.mengdeForrige ?? null },
+  { id: "m_denne", label: "Denne per.", gruppe: "mengder", type: "tall", bredde: "min-w-[80px]", synligDefault: true, hentVerdi: (r) => r.mengdeDenne },
+  { id: "m_totalt", label: "Totalt", gruppe: "mengder", type: "tall", bredde: "min-w-[80px]", synligDefault: true, hentVerdi: (r) => r.mengdeTotal },
+  // Enhetspris (mellom grupper)
+  { id: "enhetspris", label: "Enhetspris", gruppe: "fast", type: "tall", bredde: "min-w-[90px]", alltidSynlig: true, synligDefault: true, hentVerdi: (r) => r.enhetspris },
+  // Verdi (grønn)
+  { id: "v_anbudet", label: "Anbudet", gruppe: "verdi", type: "tall", bredde: "min-w-[90px]", alltidSynlig: true, synligDefault: true, hentVerdi: (r) => r.sumAnbud },
+  { id: "v_forrige", label: "Tot. forrige", gruppe: "verdi", type: "tall", bredde: "min-w-[90px]", synligDefault: true, hentVerdi: (r) => r.verdiForrige ?? null },
+  { id: "v_denne", label: "Denne per.", gruppe: "verdi", type: "tall", bredde: "min-w-[90px]", synligDefault: true, hentVerdi: (r) => r.verdiDenne },
+  { id: "v_totalt", label: "Totalt", gruppe: "verdi", type: "tall", bredde: "min-w-[90px]", synligDefault: true, hentVerdi: (r) => r.verdiTotal },
+  { id: "v_prosent", label: "%", gruppe: "verdi", type: "tall", bredde: "min-w-[50px]", synligDefault: true, hentVerdi: (r) => r.prosentFerdig },
+  { id: "v_mva_denne", label: "Mva denne per.", gruppe: "verdi", type: "tall", bredde: "min-w-[90px]", synligDefault: false, hentVerdi: (_r) => null },
+];
+
+const GRUPPE_FARGE: Record<Gruppe, string> = {
+  fast: "",
+  mengder: "border-t-2 border-t-blue-400",
+  verdi: "border-t-2 border-t-emerald-400",
+};
+
+const GRUPPE_LABEL: Record<Gruppe, string> = {
+  fast: "",
+  mengder: "Mengder",
+  verdi: "Verdi",
+};
+
+const GRUPPE_TEKST: Record<Gruppe, string> = {
+  fast: "",
+  mengder: "text-blue-600",
+  verdi: "text-emerald-600",
+};
+
+// ---------------------------------------------------------------------------
+// Seksjonsoverskrift-deteksjon
+// ---------------------------------------------------------------------------
+
+function byggSeksjonsSet(poster: SpecPost[]): Set<string> {
+  const sett = new Set<string>();
+  const postnrSet = new Set(poster.map((p) => p.postnr).filter(Boolean) as string[]);
+
+  for (const p of poster) {
+    if (!p.postnr) continue;
+    // Har enhet → er en ekte post
+    if (p.enhet && p.enhet.trim()) continue;
+    // Har ingen verdi → seksjon
+    const harVerdi = Number(p.mengdeAnbud ?? 0) !== 0 || Number(p.sumAnbud ?? 0) !== 0;
+    // Sjekk om minst 2 barn finnes
+    let barnMedVerdi = 0;
+    for (const q of poster) {
+      if (q.postnr && q.postnr !== p.postnr && q.postnr.startsWith(p.postnr + ".")) {
+        barnMedVerdi++;
+        if (barnMedVerdi >= 2) break;
+      }
+    }
+    if (barnMedVerdi >= 2 && !harVerdi) {
+      sett.add(p.postnr);
+    }
+  }
+  return sett;
+}
+
+// ---------------------------------------------------------------------------
+// Hovedkomponent
+// ---------------------------------------------------------------------------
 
 export function SpecPostTabell({
   poster,
@@ -110,68 +192,265 @@ export function SpecPostTabell({
   prosjektId,
   kontraktId,
 }: SpecPostTabellProps) {
-  const [sorterFelt, setSorterFelt] = useState<SorterFelt>("postnr");
-  const [sorterRetning, setSorterRetning] = useState<SorterRetning>("asc");
+  // Sanitiser poster — fjern eventuelle sub-objekter og konverter Decimal til Number
+  const sanitiserPost = (p: SpecPost): SpecPost => ({
+    id: p.id,
+    postnr: p.postnr,
+    beskrivelse: p.beskrivelse,
+    enhet: p.enhet,
+    mengdeAnbud: p.mengdeAnbud != null ? Number(p.mengdeAnbud) : null,
+    enhetspris: p.enhetspris != null ? Number(p.enhetspris) : null,
+    sumAnbud: p.sumAnbud != null ? Number(p.sumAnbud) : null,
+    mengdeDenne: p.mengdeDenne != null ? Number(p.mengdeDenne) : null,
+    mengdeTotal: p.mengdeTotal != null ? Number(p.mengdeTotal) : null,
+    mengdeForrige: p.mengdeForrige != null ? Number(p.mengdeForrige) : null,
+    verdiDenne: p.verdiDenne != null ? Number(p.verdiDenne) : null,
+    verdiTotal: p.verdiTotal != null ? Number(p.verdiTotal) : null,
+    verdiForrige: p.verdiForrige != null ? Number(p.verdiForrige) : null,
+    prosentFerdig: p.prosentFerdig != null ? Number(p.prosentFerdig) : null,
+    nsKode: p.nsKode,
+    nsTittel: p.nsTittel,
+    fullNsTekst: p.fullNsTekst,
+    eksternNotat: p.eksternNotat,
+    importNotat: p.importNotat,
+  });
+  const renePoster = poster.map(sanitiserPost);
+  // @ts-ignore TS2589
+  const reneSammenligningPoster: SpecPost[] | undefined = sammenligningPoster ? sammenligningPoster.map(sanitiserPost) : undefined;
+
+  // @ts-ignore
+  const harSammenligning = !!reneSammenligningPoster && reneSammenligningPoster.length > 0;
+
+  // localStorage-nøkler
+  const lsOrdenKey = "ftd-kolonne-orden";
+  const lsSynligKey = "ftd-kolonne-synlig";
+
+  // Kolonne-state med localStorage-persistering
+  const [kolonneRekkefølge, setKolonneRekkefølgeState] = useState<string[]>(() => {
+    if (typeof window === "undefined") return ALLE_KOLONNER.map((k) => k.id);
+    try {
+      const lagret = localStorage.getItem(lsOrdenKey);
+      if (lagret) {
+        const parsed = JSON.parse(lagret) as string[];
+        // Inkluder nye kolonner som ikke var lagret
+        const eksisterende = new Set(parsed);
+        const alle = ALLE_KOLONNER.map((k) => k.id);
+        const manglende = alle.filter((id) => !eksisterende.has(id));
+        return [...parsed.filter((id) => alle.includes(id)), ...manglende];
+      }
+    } catch { /* ignorer */ }
+    return ALLE_KOLONNER.map((k) => k.id);
+  });
+  const [synligeKolonner, setSynligeKolonnerState] = useState<Set<string>>(() => {
+    if (typeof window === "undefined") {
+      const s = new Set<string>();
+      for (const k of ALLE_KOLONNER) { if (k.alltidSynlig || k.synligDefault) s.add(k.id); }
+      return s;
+    }
+    try {
+      const lagret = localStorage.getItem(lsSynligKey);
+      if (lagret) return new Set(JSON.parse(lagret) as string[]);
+    } catch { /* ignorer */ }
+    const s = new Set<string>();
+    for (const k of ALLE_KOLONNER) { if (k.alltidSynlig || k.synligDefault) s.add(k.id); }
+    return s;
+  });
+
+  const setKolonneRekkefølge = useCallback((orden: string[]) => {
+    setKolonneRekkefølgeState(orden);
+    try { localStorage.setItem(lsOrdenKey, JSON.stringify(orden)); } catch { /* ignorer */ }
+  }, []);
+  const setSynligeKolonner = useCallback((updater: Set<string> | ((prev: Set<string>) => Set<string>)) => {
+    setSynligeKolonnerState((prev) => {
+      const ny = typeof updater === "function" ? updater(prev) : updater;
+      try { localStorage.setItem(lsSynligKey, JSON.stringify([...ny])); } catch { /* ignorer */ }
+      return ny;
+    });
+  }, []);
+
+  // Sortering (treveis: asc → desc → ingen)
+  const [sorterKolId, setSorterKolId] = useState<string | null>("postnr");
+  const [sorterRetning, setSorterRetning] = useState<"asc" | "desc">("asc");
+
+  // Søk og filter
+  const [globaltSøk, setGlobaltSøk] = useState("");
+  const [kolonneFiltre, setKolonneFiltre] = useState<Record<string, string>>({});
+  const [aktivtFilter, setAktivtFilter] = useState<string | null>(null);
+
+  // UI
   const [detaljPost, setDetaljPost] = useState<string | null>(null);
+  const [visKolonneVelger, setVisKolonneVelger] = useState(false);
   const [overskridelseTerskel, setOverskridelseTerskel] = useState(120);
-  const [visInnstillinger, setVisInnstillinger] = useState(false);
-
   const valgtRadRef = useRef<HTMLTableRowElement>(null);
+  const filterRef = useRef<HTMLDivElement>(null);
 
-  const harSammenligning = !!sammenligningPoster && sammenligningPoster.length > 0;
+  // Lukk filter-dropdown ved klikk utenfor
+  useEffect(() => {
+    function handleKlikk(e: MouseEvent) {
+      if (filterRef.current && !filterRef.current.contains(e.target as Node)) {
+        setAktivtFilter(null);
+      }
+    }
+    document.addEventListener("mousedown", handleKlikk);
+    return () => document.removeEventListener("mousedown", handleKlikk);
+  }, []);
 
-  // Samle alle unike NS-koder for batch-sjekk (NS 3420 + split-dokumentasjon)
+  // NS 3420 dokumentasjon
   const alleNsKoder = useMemo(() => {
     const koder = new Set<string>();
-    for (const p of poster) {
-      const info = finnNsKode(p, poster);
+    for (const p of renePoster) {
+      const info = finnNsKode(p, renePoster);
       if (info) koder.add(info.nsKode);
     }
     return Array.from(koder);
-  }, [poster]);
+  }, [renePoster]);
 
-  // NS 3420 standard-dokumentasjon
   const { data: nsKoderMedDok } = trpc.ftdSok.nsKoderMedDok.useQuery(
     { projectId: prosjektId!, nsKoder: alleNsKoder },
     { enabled: !!prosjektId && alleNsKoder.length > 0 },
   );
   const nsDocSet = useMemo(() => new Set(nsKoderMedDok ?? []), [nsKoderMedDok]);
 
+  // Seksjonsoverskrifter
+  const seksjonsSet = useMemo(() => byggSeksjonsSet(renePoster), [renePoster]);
+
+  // Nota-map
   const notaMap = useMemo(() => {
-    if (!sammenligningPoster) return new Map<string, SpecPost>();
+    // @ts-ignore
+    if (!reneSammenligningPoster) return new Map<string, SpecPost>();
     const map = new Map<string, SpecPost>();
-    for (const p of sammenligningPoster) {
+    for (const p of reneSammenligningPoster) {
       if (p.postnr) map.set(p.postnr, p);
     }
     return map;
-  }, [sammenligningPoster]);
+  }, [reneSammenligningPoster]);
 
+  // Enheter for filter-dropdown
+  const enheter = useMemo(() => {
+    const s = new Set<string>();
+    for (const p of renePoster) {
+      if (p.enhet?.trim()) s.add(p.enhet.trim());
+    }
+    return Array.from(s).sort();
+  }, [renePoster]);
+
+  // Bygg rader
   const rader: SammenlignetRad[] = useMemo(() => {
-    return poster.map((budsjett) => {
+    return renePoster.map((budsjett) => {
       const nota = budsjett.postnr ? (notaMap.get(budsjett.postnr) ?? null) : null;
-      const sumBudsjett = Number(budsjett.sumAnbud ?? 0);
+      // Nota har prioritet for mengde/enhetspris/sum — PDF-parser kan gi feil verdier
+      const mengdeAnbud = (nota && nota.mengdeAnbud != null) ? Number(nota.mengdeAnbud) : Number(budsjett.mengdeAnbud ?? 0);
       const mengdeDenne = nota ? Number(nota.mengdeDenne ?? 0) : 0;
       const mengdeTotal = nota ? Number(nota.mengdeTotal ?? 0) : 0;
+      const mengdeForrige = nota && nota.mengdeForrige != null ? Number(nota.mengdeForrige) : mengdeTotal - mengdeDenne;
+      const enhetspris = (nota && nota.enhetspris != null) ? Number(nota.enhetspris) : Number(budsjett.enhetspris ?? 0);
+      const sumAnbud = (nota && nota.sumAnbud != null) ? Number(nota.sumAnbud) : Number(budsjett.sumAnbud ?? 0);
       const verdiDenne = nota ? Number(nota.verdiDenne ?? 0) : 0;
       const verdiTotal = nota ? Number(nota.verdiTotal ?? 0) : 0;
+      const verdiForrige = nota && nota.verdiForrige != null ? Number(nota.verdiForrige) : verdiTotal - verdiDenne;
       const prosentFerdig = nota ? Number(nota.prosentFerdig ?? 0) : 0;
-      return { budsjett, nota, mengdeDenne, mengdeTotal, verdiDenne, verdiTotal, prosentFerdig, sumAvvik: verdiTotal - sumBudsjett };
-    });
-  }, [poster, notaMap]);
+      const erSeksjon = !!budsjett.postnr && seksjonsSet.has(budsjett.postnr);
 
+      return {
+        budsjett, nota, erSeksjon,
+        mengdeAnbud, mengdeForrige, mengdeDenne, mengdeTotal,
+        enhetspris, sumAnbud,
+        verdiForrige, verdiDenne, verdiTotal,
+        prosentFerdig,
+        sumAvvik: verdiTotal - sumAnbud,
+      };
+    });
+  }, [renePoster, notaMap, seksjonsSet]);
+
+  // Aktive kolonner i riktig rekkefølge
+  const aktiveKolonner = useMemo(() => {
+    return kolonneRekkefølge
+      .map((id) => ALLE_KOLONNER.find((k) => k.id === id)!)
+      .filter((k) => k && synligeKolonner.has(k.id))
+      .filter((k) => {
+        // Skjul nota-kolonner hvis ingen sammenligning
+        // Vis alle kolonner alltid — bruk "—" for tomme verdier
+        return true;
+      });
+  }, [kolonneRekkefølge, synligeKolonner, harSammenligning]);
+
+  // Filtrering
+  const filtrerteRader = useMemo(() => {
+    let resultat = rader;
+
+    // Globalt søk
+    if (globaltSøk.trim()) {
+      const søk = globaltSøk.toLowerCase();
+      resultat = resultat.filter((r) => {
+        const postnr = (r.budsjett.postnr ?? "").toLowerCase();
+        const besk = (r.budsjett.beskrivelse ?? "").toLowerCase();
+        return postnr.includes(søk) || besk.includes(søk);
+      });
+    }
+
+    // Per-kolonne filter
+    for (const [kolId, filterVerdi] of Object.entries(kolonneFiltre)) {
+      if (!filterVerdi.trim()) continue;
+      const kol = ALLE_KOLONNER.find((k) => k.id === kolId);
+      if (!kol) continue;
+
+      if (kol.type === "enhet") {
+        resultat = resultat.filter((r) => {
+          const v = String(kol.hentVerdi(r) ?? "");
+          return v === filterVerdi;
+        });
+      } else if (kol.type === "tekst") {
+        const søk = filterVerdi.toLowerCase();
+        resultat = resultat.filter((r) => {
+          const v = String(kol.hentVerdi(r) ?? "").toLowerCase();
+          return v.includes(søk);
+        });
+      } else {
+        // Tall: støtt ">" "<" "min-maks"
+        const v = filterVerdi.trim();
+        if (v.startsWith(">")) {
+          const grense = parseFloat(v.slice(1).replace(",", "."));
+          if (!isNaN(grense)) resultat = resultat.filter((r) => Number(kol.hentVerdi(r) ?? 0) > grense);
+        } else if (v.startsWith("<")) {
+          const grense = parseFloat(v.slice(1).replace(",", "."));
+          if (!isNaN(grense)) resultat = resultat.filter((r) => Number(kol.hentVerdi(r) ?? 0) < grense);
+        } else if (v.includes("-") && !v.startsWith("-")) {
+          const [minS, maksS] = v.split("-");
+          const min = parseFloat((minS ?? "").replace(",", "."));
+          const maks = parseFloat((maksS ?? "").replace(",", "."));
+          if (!isNaN(min) && !isNaN(maks)) {
+            resultat = resultat.filter((r) => {
+              const n = Number(kol.hentVerdi(r) ?? 0);
+              return n >= min && n <= maks;
+            });
+          }
+        }
+      }
+    }
+
+    return resultat;
+  }, [rader, globaltSøk, kolonneFiltre]);
+
+  // Sortering
   const sorterteRader = useMemo(() => {
-    return [...rader].sort((a, b) => {
-      const aVal = a.budsjett[sorterFelt];
-      const bVal = b.budsjett[sorterFelt];
-      if (aVal === null || aVal === undefined) return 1;
-      if (bVal === null || bVal === undefined) return -1;
-      if (sorterFelt === "mengdeAnbud" || sorterFelt === "enhetspris" || sorterFelt === "sumAnbud") {
-        return sorterRetning === "asc" ? Number(aVal) - Number(bVal) : Number(bVal) - Number(aVal);
+    if (!sorterKolId) return filtrerteRader;
+    const kol = ALLE_KOLONNER.find((k) => k.id === sorterKolId);
+    if (!kol) return filtrerteRader;
+
+    return [...filtrerteRader].sort((a, b) => {
+      const aVal = kol.hentVerdi(a);
+      const bVal = kol.hentVerdi(b);
+      if (aVal === null || aVal === undefined || aVal === "") return 1;
+      if (bVal === null || bVal === undefined || bVal === "") return -1;
+
+      if (kol.type === "tall") {
+        const diff = Number(aVal) - Number(bVal);
+        return sorterRetning === "asc" ? diff : -diff;
       }
       const cmp = String(aVal).localeCompare(String(bVal), "nb-NO", { numeric: true });
       return sorterRetning === "asc" ? cmp : -cmp;
     });
-  }, [rader, sorterFelt, sorterRetning]);
+  }, [filtrerteRader, sorterKolId, sorterRetning]);
 
   // Piltast-navigering
   const navigerRad = useCallback(
@@ -194,17 +473,90 @@ export function SpecPostTabell({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [navigerRad]);
 
-  // Scroll valgt rad inn i synsfeltet
   useEffect(() => {
     valgtRadRef.current?.scrollIntoView({ block: "nearest" });
   }, [valgtPostId]);
 
-  function toggleSortering(felt: SorterFelt) {
-    if (sorterFelt === felt) setSorterRetning((r) => (r === "asc" ? "desc" : "asc"));
-    else { setSorterFelt(felt); setSorterRetning("asc"); }
+  function toggleSortering(kolId: string) {
+    if (sorterKolId === kolId) {
+      if (sorterRetning === "asc") setSorterRetning("desc");
+      else { setSorterKolId(null); setSorterRetning("asc"); }
+    } else {
+      setSorterKolId(kolId);
+      setSorterRetning("asc");
+    }
   }
 
-  if (poster.length === 0) {
+  function settFilter(kolId: string, verdi: string) {
+    setKolonneFiltre((prev) => ({ ...prev, [kolId]: verdi }));
+  }
+
+  function toggleKolonne(kolId: string) {
+    setSynligeKolonner((prev) => {
+      const ny = new Set(prev);
+      if (ny.has(kolId)) ny.delete(kolId);
+      else ny.add(kolId);
+      return ny;
+    });
+  }
+
+  // Grupperte headers for topp-rad (MÅ være før early return for å unngå hooks-order-feil)
+  const gruppeSpan = useMemo(() => {
+    const spans: Array<{ gruppe: Gruppe; antall: number }> = [];
+    for (const kol of aktiveKolonner) {
+      const siste = spans[spans.length - 1];
+      if (siste && siste.gruppe === kol.gruppe) {
+        siste.antall++;
+      } else {
+        spans.push({ gruppe: kol.gruppe, antall: 1 });
+      }
+    }
+    return spans;
+  }, [aktiveKolonner]);
+
+  // Drag-and-drop
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor),
+  );
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const fasteIder = ALLE_KOLONNER.filter((k) => k.gruppe === "fast" && k.id !== "enhetspris").map((k) => k.id);
+    if (fasteIder.includes(String(active.id)) || fasteIder.includes(String(over.id))) return;
+    const oldIndex = kolonneRekkefølge.indexOf(String(active.id));
+    const newIndex = kolonneRekkefølge.indexOf(String(over.id));
+    if (oldIndex !== -1 && newIndex !== -1) {
+      setKolonneRekkefølge(arrayMove(kolonneRekkefølge, oldIndex, newIndex));
+    }
+  }, [kolonneRekkefølge, setKolonneRekkefølge]);
+
+  // Kolonnegrupper for vis/skjul-dropdown
+  const kolonneGrupper = useMemo(() => {
+    const grupper: { mengder: KolonneDef[]; verdi: KolonneDef[] } = { mengder: [], verdi: [] };
+    for (const k of ALLE_KOLONNER) {
+      if (k.gruppe === "fast" && k.id !== "enhetspris") continue;
+      if (k.gruppe === "mengder") grupper.mengder.push(k);
+      else if (k.gruppe === "verdi") grupper.verdi.push(k);
+      else if (k.id === "enhetspris") grupper.mengder.push(k);
+    }
+    return grupper;
+  }, []);
+
+  const kolonneVelgerRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    function handleKlikk(e: MouseEvent) {
+      if (kolonneVelgerRef.current && !kolonneVelgerRef.current.contains(e.target as Node)) {
+        setVisKolonneVelger(false);
+      }
+    }
+    if (visKolonneVelger) {
+      document.addEventListener("mousedown", handleKlikk);
+      return () => document.removeEventListener("mousedown", handleKlikk);
+    }
+  }, [visKolonneVelger]);
+
+  if (renePoster.length === 0) {
     return (
       <div className="flex items-center justify-center py-8 text-sm text-gray-400">
         Ingen poster funnet. Importer anbudsgrunnlag for å komme i gang.
@@ -212,92 +564,111 @@ export function SpecPostTabell({
     );
   }
 
-  const totalBudsjett = rader.reduce((s, r) => s + Number(r.budsjett.sumAnbud ?? 0), 0);
-  // Bruk sammenligningPoster direkte for totaler — inkluderer poster som ikke matcher budsjett
-  const totalVerdiDenne = harSammenligning ? sammenligningPoster!.reduce((s, p) => s + Number(p.verdiDenne ?? 0), 0) : 0;
-  const totalVerdiTotal = harSammenligning ? sammenligningPoster!.reduce((s, p) => s + Number(p.verdiTotal ?? 0), 0) : 0;
-
-  // Kolonnerekkefølge matcher Proadm Excel:
-  // Postnr | Beskrivelse | [Mengder: Anbudet | Enh | Tot.forrige | Denne per. | Totalt] | Enhetspris | [Verdi: Anbudet | Tot.forrige | Denne per. | Totalt] | Utført %
+  // Totaler (ekskluder seksjonsoverskrifter)
+  const totalRader = sorterteRader.filter((r) => !r.erSeksjon);
+  const totalBudsjett = totalRader.reduce((s, r) => s + r.sumAnbud, 0);
+  const totalVerdiDenne = totalRader.reduce((s, r) => s + r.verdiDenne, 0);
+  const totalVerdiTotal = totalRader.reduce((s, r) => s + r.verdiTotal, 0);
 
   return (
     <div className="flex h-full flex-col rounded border overflow-hidden">
-      {/* Innstillinger */}
-      {harSammenligning && (
-        <div className="flex items-center gap-2 border-b bg-gray-50 px-3 py-1.5 text-xs">
-          <button
-            onClick={() => setVisInnstillinger(!visInnstillinger)}
-            className="flex items-center gap-1 rounded px-1.5 py-0.5 text-gray-500 hover:bg-gray-200"
-          >
-            <Settings className="h-3.5 w-3.5" />
-          </button>
-          {visInnstillinger && (
-            <div className="flex items-center gap-2 text-gray-600">
-              <span>Markér overskridelse over</span>
-              <input
-                type="number"
-                value={overskridelseTerskel}
-                onChange={(e) => setOverskridelseTerskel(Number(e.target.value) || 100)}
-                className="w-14 rounded border px-1.5 py-0.5 text-center text-xs"
-                min={100}
-                max={500}
-                step={10}
-              />
-              <span>%</span>
-            </div>
-          )}
-          {!visInnstillinger && overskridelseTerskel !== 100 && (
-            <span className="text-gray-400">Overskridelse: {overskridelseTerskel}%</span>
+      {/* Globalt søk + innstillinger */}
+      <div className="flex items-center gap-2 border-b bg-gray-50 px-3 py-1.5">
+        <div className="relative flex-1 max-w-xs">
+          <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            value={globaltSøk}
+            onChange={(e) => setGlobaltSøk(e.target.value)}
+            placeholder="Søk postnr / beskrivelse..."
+            className="w-full rounded border border-gray-300 bg-white py-1 pl-7 pr-2 text-xs focus:border-sitedoc-primary focus:outline-none"
+          />
+          {globaltSøk && (
+            <button onClick={() => setGlobaltSøk("")} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+              <X className="h-3 w-3" />
+            </button>
           )}
         </div>
-      )}
+        <div className="flex items-center gap-1 text-xs text-gray-500">
+          {filtrerteRader.length !== rader.length && (
+            <span className="text-blue-600">{filtrerteRader.length} av {rader.length}</span>
+          )}
+        </div>
+      </div>
+
       <div className="flex-1 overflow-auto">
-        <table className="w-full text-left text-sm">
+        <table className="w-full text-left text-xs">
           <thead className="sticky top-0 z-10 bg-gray-50">
-            {harSammenligning && (
-              <tr className="border-b text-[10px] font-medium uppercase text-gray-400">
-                <th className="min-w-[36px] px-2 py-1" />
-                <th className="min-w-[110px] px-2 py-1" />
-                <th className="px-2 py-1" />
-                <th className="min-w-[80px] px-2 py-1 text-right" colSpan={2}>Mengder</th>
-                <th className="w-[2px] bg-gray-200 px-0" />
-                <th className="min-w-[80px] px-2 py-1 text-right text-blue-500" colSpan={3}>Mengder</th>
-                <th className="min-w-[80px] px-2 py-1 text-right" />
-                <th className="min-w-[90px] px-2 py-1 text-right" colSpan={1}>Verdi</th>
-                <th className="w-[2px] bg-gray-200 px-0" />
-                <th className="min-w-[80px] px-2 py-1 text-right text-blue-500" colSpan={2}>Verdi</th>
-                <th className="min-w-[50px] px-2 py-1" />
-              </tr>
-            )}
-            <tr className="border-b text-xs font-medium uppercase text-gray-500">
-              <th className="min-w-[36px] px-2 py-2 text-gray-400">#</th>
-              <SH felt="postnr" label="Postnr" aktiv={sorterFelt} retning={sorterRetning} onClick={toggleSortering} cls="min-w-[110px]" />
-              <SH felt="beskrivelse" label="Beskrivelse" aktiv={sorterFelt} retning={sorterRetning} onClick={toggleSortering} />
-              <SH felt="mengdeAnbud" label="Anbudet" aktiv={sorterFelt} retning={sorterRetning} onClick={toggleSortering} right cls="min-w-[80px]" />
-              <SH felt="enhet" label="Enh" aktiv={sorterFelt} retning={sorterRetning} onClick={toggleSortering} cls="min-w-[40px]" />
-              {harSammenligning && (
-                <>
-                  <th className="w-[2px] bg-gray-300 px-0" />
-                  <th className="min-w-[80px] px-2 py-2 text-right text-blue-600">Denne per.</th>
-                  <th className="min-w-[80px] px-2 py-2 text-right text-blue-600">Totalt</th>
-                  <th className="min-w-[80px] px-2 py-2 text-right text-blue-600">Tot. forrige</th>
-                </>
-              )}
-              <SH felt="enhetspris" label="Enhetspris" aktiv={sorterFelt} retning={sorterRetning} onClick={toggleSortering} right cls="min-w-[90px]" />
-              <SH felt="sumAnbud" label="Anbudet" aktiv={sorterFelt} retning={sorterRetning} onClick={toggleSortering} right cls="min-w-[90px]" />
-              {harSammenligning && (
-                <>
-                  <th className="w-[2px] bg-gray-300 px-0" />
-                  <th className="min-w-[90px] px-2 py-2 text-right text-blue-600">Denne per.</th>
-                  <th className="min-w-[90px] px-2 py-2 text-right text-blue-600">Totalt</th>
-                  <th className="min-w-[50px] px-2 py-2 text-right text-blue-600">%</th>
-                </>
-              )}
+            {/* Gruppe-header */}
+            <tr className="border-b">
+              <th className="w-[36px] px-1 py-1" />
+              {gruppeSpan.map((g, i) => (
+                <th key={i} colSpan={g.antall} className={`px-2 py-1 text-center text-[10px] font-semibold uppercase tracking-wider ${GRUPPE_TEKST[g.gruppe]} ${GRUPPE_FARGE[g.gruppe]}`}>
+                  {GRUPPE_LABEL[g.gruppe]}
+                </th>
+              ))}
+              <th className="w-[32px] px-1 py-1" />
             </tr>
+            {/* Kolonne-headers med sortering + drag-and-drop */}
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              <tr className="border-b">
+                <th className="w-[36px] px-1 py-1.5 text-[10px] text-gray-400">#</th>
+                <SortableContext items={aktiveKolonner.map((k) => k.id)} strategy={horizontalListSortingStrategy}>
+                  {aktiveKolonner.map((kol) => {
+                    const erFast = kol.gruppe === "fast" && kol.id !== "enhetspris";
+                    return (
+                      <SortableHeader
+                        key={kol.id}
+                        kol={kol}
+                        erFast={erFast}
+                        erAktiv={sorterKolId === kol.id}
+                        sorterRetning={sorterRetning}
+                        onSort={() => toggleSortering(kol.id)}
+                      />
+                    );
+                  })}
+                </SortableContext>
+                {/* Kolonnevalg +-knapp */}
+                <th className="w-[32px] px-0 py-1.5 relative">
+                  <button
+                    onClick={() => setVisKolonneVelger((v) => !v)}
+                    className="flex h-5 w-5 items-center justify-center rounded text-gray-400 hover:bg-gray-200 hover:text-gray-600"
+                    title="Vis/skjul kolonner"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                  </button>
+                  {visKolonneVelger && (
+                    <div ref={kolonneVelgerRef} className="absolute right-0 top-full z-20 mt-1 w-48 rounded-lg border bg-white shadow-lg">
+                      <div className="p-2 space-y-2">
+                        {Object.entries(kolonneGrupper).map(([gruppe, kolonner]) => (
+                          <div key={gruppe}>
+                            <div className={`text-[10px] font-semibold uppercase tracking-wider mb-1 ${GRUPPE_TEKST[gruppe as Gruppe]}`}>
+                              {GRUPPE_LABEL[gruppe as Gruppe]}
+                            </div>
+                            {kolonner.map((k) => (
+                              <label key={k.id} className="flex items-center gap-2 py-0.5 text-xs cursor-pointer hover:bg-gray-50 rounded px-1">
+                                <input
+                                  type="checkbox"
+                                  checked={synligeKolonner.has(k.id)}
+                                  onChange={() => toggleKolonne(k.id)}
+                                  className="h-3 w-3 rounded border-gray-300"
+                                />
+                                {k.label}
+                              </label>
+                            ))}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </th>
+              </tr>
+            </DndContext>
           </thead>
           <tbody>
             {sorterteRader.map((rad, idx) => {
               const p = rad.budsjett;
+              const erSeksjon = rad.erSeksjon;
               return (
                 <tr
                   key={p.id}
@@ -307,72 +678,75 @@ export function SpecPostTabell({
                   className={`cursor-pointer border-b transition-colors ${
                     valgtPostId === p.id
                       ? "bg-blue-100 border-l-2 border-l-sitedoc-primary"
-                      : harSammenligning && rad.nota && rad.prosentFerdig > overskridelseTerskel
-                        ? "bg-red-50 hover:bg-red-100"
-                        : "hover:bg-gray-50"
+                      : erSeksjon ? "bg-gray-50/50" : "hover:bg-gray-50"
                   }`}
                 >
-                  <td className="px-2 py-1.5 text-xs text-gray-400">{idx + 1}</td>
-                  <td className="px-2 py-1.5 font-mono text-xs whitespace-nowrap">
-                    {p.importNotat && <span className="mr-1 text-amber-500" title={p.importNotat}>*</span>}
-                    {(() => {
-                      const nsInfo = finnNsKode(p, poster);
-                      return nsInfo && nsDocSet.has(nsInfo.nsKode)
-                        ? <span className="mr-1 text-amber-400" title={`NS 3420: ${nsInfo.nsKode}`}>●</span>
-                        : null;
-                    })()}
-                    {p.postnr ?? "—"}
-                  </td>
-                  <td className="max-w-xs truncate px-2 py-1.5">{p.beskrivelse ?? "—"}</td>
-                  <td className="px-2 py-1.5 text-right font-mono">{fmt(p.mengdeAnbud)}</td>
-                  <td className="px-2 py-1.5">{p.enhet ?? "—"}</td>
-                  {harSammenligning && (
-                    <>
-                      <td className="w-[2px] bg-gray-200 px-0" />
-                      <td className="px-2 py-1.5 text-right font-mono text-blue-700">{rad.nota ? fmt(rad.mengdeDenne) : "—"}</td>
-                      <td className="px-2 py-1.5 text-right font-mono text-blue-700">{rad.nota ? fmt(rad.mengdeTotal) : "—"}</td>
-                      <td className="px-2 py-1.5 text-right font-mono text-gray-400">{rad.nota ? fmt(Number(rad.mengdeTotal) - Number(rad.mengdeDenne)) : "—"}</td>
-                    </>
-                  )}
-                  <td className="px-2 py-1.5 text-right font-mono">{fmt(p.enhetspris)}</td>
-                  <td className="px-2 py-1.5 text-right font-mono">{fmt(p.sumAnbud)}</td>
-                  {harSammenligning && (
-                    <>
-                      <td className="w-[2px] bg-gray-200 px-0" />
-                      <td className="px-2 py-1.5 text-right font-mono text-blue-700">{rad.nota ? fmt(rad.verdiDenne) : "—"}</td>
-                      <td className="px-2 py-1.5 text-right font-mono text-blue-700">{rad.nota ? fmt(rad.verdiTotal) : "—"}</td>
-                      <td className={`px-2 py-1.5 text-right font-mono ${rad.nota && rad.prosentFerdig > overskridelseTerskel ? "text-red-600 font-semibold" : "text-blue-700"}`}>{rad.nota ? fmt(rad.prosentFerdig, 0) : "—"}</td>
-                    </>
-                  )}
+                  <td className="px-1 py-1 text-[10px] text-gray-400">{idx + 1}</td>
+                  {aktiveKolonner.map((kol) => {
+                    const verdi = kol.hentVerdi(rad);
+
+                    if (kol.id === "postnr") {
+                      return (
+                        <td key={kol.id} className={`px-2 py-1 font-mono whitespace-nowrap ${erSeksjon ? "italic text-gray-400" : ""}`}>
+                          {String(p.postnr ?? "—")}
+                        </td>
+                      );
+                    }
+
+                    if (kol.id === "beskrivelse") {
+                      return (
+                        <td key={kol.id} className={`max-w-xs truncate px-2 py-1 ${erSeksjon ? "italic text-gray-400" : ""}`}>
+                          {String(p.beskrivelse ?? "—")}
+                        </td>
+                      );
+                    }
+
+                    if (kol.type === "enhet") {
+                      return (
+                        <td key={kol.id} className={`px-2 py-1 ${erSeksjon ? "text-gray-400" : ""}`}>
+                          {verdi ? String(verdi) : "—"}
+                        </td>
+                      );
+                    }
+
+                    // Tallkolonner
+                    const erNotaKol = !kol.alltidSynlig;
+                    const harNotaData = !!rad.nota;
+                    const visStrek = erSeksjon || (erNotaKol && !harNotaData);
+                    const numVerdi = Number(verdi ?? 0);
+
+                    return (
+                      <td key={kol.id} className={`px-2 py-1 text-right font-mono ${
+                        visStrek ? "text-gray-300" : erNotaKol ? "text-blue-700" : ""
+                      }`}>
+                        {visStrek ? "—" : fmt(numVerdi)}
+                      </td>
+                    );
+                  })}
+                  <td className="w-[32px]" />
                 </tr>
               );
             })}
           </tbody>
           <tfoot className="sticky bottom-0 bg-gray-50 border-t-2">
             <tr className="font-semibold text-xs">
-              <td className="px-2 py-2" />
-              <td className="px-2 py-2" />
-              <td className="px-2 py-2">Totalt ({poster.length} poster)</td>
-              <td className="px-2 py-2" />
-              <td className="px-2 py-2" />
-              {harSammenligning && (
-                <>
-                  <td className="px-0" />
-                  <td className="px-2 py-2" />
-                  <td className="px-2 py-2" />
-                  <td className="px-2 py-2" />
-                </>
-              )}
-              <td className="px-2 py-2" />
-              <td className="px-2 py-2 text-right font-mono">{fmt(totalBudsjett)}</td>
-              {harSammenligning && (
-                <>
-                  <td className="px-0" />
-                  <td className="px-2 py-2 text-right font-mono text-blue-700">{fmt(totalVerdiDenne)}</td>
-                  <td className="px-2 py-2 text-right font-mono text-blue-700">{fmt(totalVerdiTotal)}</td>
-                  <td className="px-2 py-2" />
-                </>
-              )}
+              <td className="px-1 py-2" />
+              {aktiveKolonner.map((kol) => {
+                if (kol.id === "postnr") return <td key={kol.id} className="px-2 py-2" />;
+                if (kol.id === "beskrivelse") return <td key={kol.id} className="px-2 py-2">Totalt ({totalRader.length} poster)</td>;
+                if (kol.type !== "tall") return <td key={kol.id} className="px-2 py-2" />;
+                // Mengdekolonner, enhetspris og prosent summeres ikke
+                if (kol.gruppe === "mengder" || kol.id === "enhetspris" || kol.id === "v_prosent") return <td key={kol.id} className="px-2 py-2" />;
+                // Summer verdi-kolonner
+                const sum = totalRader.reduce((s, r) => s + Number(kol.hentVerdi(r) ?? 0), 0);
+                const erNotaKol = !kol.alltidSynlig;
+                return (
+                  <td key={kol.id} className={`px-2 py-2 text-right font-mono ${erNotaKol ? "text-blue-700" : ""}`}>
+                    {sum ? fmt(sum) : ""}
+                  </td>
+                );
+              })}
+              <td className="w-[32px]" />
             </tr>
           </tfoot>
         </table>
@@ -387,32 +761,21 @@ export function SpecPostTabell({
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setDetaljPost(null)}>
             <div className="w-full max-w-2xl rounded-lg bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between border-b px-5 py-3">
-                <h2 className="text-base font-semibold">Post {p.postnr}</h2>
+                <h2 className="text-base font-semibold">Post {String(p.postnr)}</h2>
                 <button onClick={() => setDetaljPost(null)} className="rounded p-1 text-gray-400 hover:bg-gray-100"><X className="h-4 w-4" /></button>
               </div>
               <div className="max-h-[70vh] overflow-auto p-5 space-y-4">
                 <div>
                   <div className="mb-1 text-xs font-medium text-gray-500">Beskrivelse</div>
-                  <div className="text-sm text-gray-800">{p.beskrivelse ?? "—"}</div>
+                  <div className="text-sm text-gray-800 whitespace-pre-wrap">{String(p.beskrivelse ?? "—")}</div>
                 </div>
                 <div className="grid grid-cols-3 gap-3">
                   <Kort label="Mengde" verdi={fmt(p.mengdeAnbud)} />
-                  <Kort label="Enhet" verdi={p.enhet ?? "—"} mono={false} />
+                  <Kort label="Enhet" verdi={String(p.enhet ?? "—")} mono={false} />
                   <Kort label="Enhetspris" verdi={fmt(p.enhetspris)} />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <Kort label="Sum anbud" verdi={fmt(p.sumAnbud)} bg="bg-blue-50" />
-                  {(() => {
-                    const nsInfo = finnNsKode(p, poster);
-                    if (!nsInfo) return null;
-                    return <Kort
-                      label="NS-kode"
-                      verdi={nsInfo.nsKode}
-                      sub={nsInfo.kilde === "arvet" ? `Videreført fra post ${nsInfo.postnr}` : nsInfo.sub}
-                      bg={nsInfo.kilde === "arvet" ? "bg-amber-50/50" : "bg-amber-50"}
-                      mono={false}
-                    />;
-                  })()}
                 </div>
                 {harSammenligning && rad.nota && (
                   <div className="rounded border border-blue-200 bg-blue-50/50 p-3">
@@ -423,40 +786,14 @@ export function SpecPostTabell({
                       <Kort label="Mengde totalt" verdi={fmt(rad.mengdeTotal)} compact />
                       <Kort label="Verdi totalt" verdi={fmt(rad.verdiTotal)} compact />
                     </div>
-                    <div className={`mt-2 text-xs font-mono ${rad.sumAvvik > 0 ? "text-red-600" : rad.sumAvvik < 0 ? "text-green-600" : "text-gray-500"}`}>
-                      Avvik: {fmt(rad.sumAvvik)} ({fmt(rad.prosentFerdig, 0)}% ferdig)
-                    </div>
-                  </div>
-                )}
-                {p.fullNsTekst && (
-                  <div>
-                    <div className="mb-1 text-xs font-medium text-gray-500">NS-spesifikasjon</div>
-                    <div className="whitespace-pre-wrap rounded border bg-gray-50 p-3 text-xs leading-relaxed text-gray-700">{p.fullNsTekst}</div>
-                  </div>
-                )}
-                {p.importNotat && (
-                  <div className="rounded border border-amber-200 bg-amber-50 px-3 py-2">
-                    <div className="text-xs font-medium text-amber-700">Korrigert ved import</div>
-                    <div className="text-xs text-amber-600">{p.importNotat}</div>
                   </div>
                 )}
                 {p.eksternNotat && (
                   <div>
                     <div className="mb-1 text-xs font-medium text-gray-500">Ekstern merknad</div>
-                    <div className="text-sm text-gray-700">{p.eksternNotat}</div>
+                    <div className="text-sm text-gray-700">{String(p.eksternNotat)}</div>
                   </div>
                 )}
-                {p.postnr && prosjektId && (() => {
-                  const nsInfo = finnNsKode(p, poster);
-                  return (
-                    <DokumentasjonSeksjon
-                      prosjektId={prosjektId}
-                      kontraktId={kontraktId ?? null}
-                      postnr={p.postnr}
-                      nsKode={nsInfo?.nsKode ?? null}
-                    />
-                  );
-                })()}
               </div>
             </div>
           </div>
@@ -466,20 +803,10 @@ export function SpecPostTabell({
   );
 }
 
-function SH({ felt, label, aktiv, retning, onClick, right, cls }: {
-  felt: SorterFelt; label: string; aktiv: SorterFelt; retning: SorterRetning;
-  onClick: (f: SorterFelt) => void; right?: boolean; cls?: string;
-}) {
-  const er = aktiv === felt;
-  return (
-    <th className={`cursor-pointer select-none px-2 py-2 hover:text-gray-700 ${right ? "text-right" : ""} ${er ? "text-sitedoc-primary" : ""} ${cls ?? ""}`} onClick={() => onClick(felt)}>
-      <span className="inline-flex items-center gap-0.5">
-        {label}
-        {er ? (retning === "asc" ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />) : <span className="h-3 w-3" />}
-      </span>
-    </th>
-  );
-}
+
+// ---------------------------------------------------------------------------
+// Hjelpefunksjoner
+// ---------------------------------------------------------------------------
 
 function Kort({ label, verdi, sub, bg, mono = true, compact }: {
   label: string; verdi: string; sub?: string | null; bg?: string; mono?: boolean; compact?: boolean;
@@ -511,7 +838,6 @@ function DokumentasjonSeksjon({
   postnr: string;
   nsKode: string | null;
 }) {
-  // Hent split-dokumentasjon basert på NS-kode
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: splitDok, isLoading } = (trpc.mengde.hentSplitDokumentasjon as any).useQuery(
     { projectId: prosjektId, kontraktId: kontraktId ?? undefined, nsKode: nsKode! },
@@ -527,13 +853,11 @@ function DokumentasjonSeksjon({
     window.open(url, "_blank");
   };
 
-  /** Formater siderange: [1,2,3,5,6] → "s.1-3, s.5-6" */
   function fmtRange(start: number, antall: number): string {
     if (antall === 1) return `s.${start}`;
     return `s.${start}-${start + antall - 1}`;
   }
 
-  /** Ekstraher A-nota nummer fra filnavn */
   function fmtKilde(filnavn: string): string {
     const m = /(\d+)\s*[Mm]ålebrev/i.exec(filnavn) || /a-nota\s*(\d+)/i.exec(filnavn);
     return m ? `A-nota ${m[1]}` : filnavn.replace(/\.pdf$/i, "");
@@ -556,7 +880,6 @@ function DokumentasjonSeksjon({
         </div>
       ) : (
         <div className="space-y-2">
-          {/* Åpne hele split-PDFen */}
           <button
             onClick={() => apnePdf(splitDok.fileUrl)}
             className="flex items-center gap-1.5 rounded bg-sitedoc-primary/10 px-2 py-1.5 text-xs font-medium text-sitedoc-primary hover:bg-sitedoc-primary/20 transition-colors"
@@ -564,8 +887,6 @@ function DokumentasjonSeksjon({
             <FileSearch className="h-3.5 w-3.5" />
             Åpne dokumentasjon ({splitDok.pageCount} sider)
           </button>
-
-          {/* Kilder per A-nota */}
           {kilder.length > 0 && (
             <div className="space-y-1">
               {kilder.map((k, i) => (
@@ -576,20 +897,72 @@ function DokumentasjonSeksjon({
                   title={`Åpne side ${k.startSide}`}
                 >
                   <span className="font-medium text-gray-700">{fmtKilde(k.filnavn)}</span>
-                  <span className="font-mono text-gray-500">
-                    {fmtRange(k.startSide, k.kildeSider.length)}
-                  </span>
+                  <span className="font-mono text-gray-500">{fmtRange(k.startSide, k.kildeSider.length)}</span>
                 </button>
               ))}
             </div>
           )}
-
-          <div className="text-[10px] text-gray-400">
-            {splitDok.pageCount} sider fra {kilder.length} målebrev
-          </div>
+          <div className="text-[10px] text-gray-400">{splitDok.pageCount} sider fra {kilder.length} målebrev</div>
         </div>
       )}
     </div>
+  );
+}
+
+function SortableHeader({
+  kol,
+  erFast,
+  erAktiv,
+  sorterRetning,
+  onSort,
+}: {
+  kol: KolonneDef;
+  erFast: boolean;
+  erAktiv: boolean;
+  sorterRetning: "asc" | "desc";
+  onSort: () => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: kol.id,
+    disabled: erFast,
+  });
+
+  const style = {
+    transform: CSS.Translate.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <th
+      ref={setNodeRef}
+      style={style}
+      className={`px-2 py-1.5 ${kol.bredde ?? ""} ${kol.type === "tall" ? "text-right" : ""}`}
+    >
+      <div className="inline-flex items-center gap-0.5">
+        {!erFast && (
+          <span
+            {...attributes}
+            {...listeners}
+            className="cursor-grab text-gray-300 hover:text-gray-500"
+          >
+            <GripVertical className="h-3 w-3" />
+          </span>
+        )}
+        <button
+          onClick={onSort}
+          className={`inline-flex items-center gap-0.5 text-[11px] font-medium uppercase hover:text-gray-700 ${
+            erAktiv ? "text-sitedoc-primary" : "text-gray-500"
+          }`}
+        >
+          {kol.type === "tall" && <span className="flex-1" />}
+          {kol.label}
+          {erAktiv ? (
+            sorterRetning === "asc" ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />
+          ) : null}
+        </button>
+      </div>
+    </th>
   );
 }
 

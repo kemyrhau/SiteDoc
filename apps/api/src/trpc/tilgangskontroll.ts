@@ -1,6 +1,7 @@
 import { TRPCError } from "@trpc/server";
 import { prisma } from "@sitedoc/db";
-import { type Permission, PERMISSIONS, utvidTillatelser } from "@sitedoc/shared";
+import { type Permission, PERMISSIONS, utvidTillatelser, utledMinRolle, erTillattForRolle } from "@sitedoc/shared";
+import type { FlytMedlemInfo } from "@sitedoc/shared";
 
 /**
  * Hent brukerens entreprise-IDer i et prosjekt.
@@ -17,7 +18,7 @@ export async function hentBrukerEntrepriseIder(
   const medlem = await prisma.projectMember.findUnique({
     where: { userId_projectId: { userId, projectId } },
     include: {
-      enterprises: { select: { enterpriseId: true } },
+      dokumentflytKoblinger: { select: { enterpriseId: true } },
     },
   });
 
@@ -31,7 +32,7 @@ export async function hentBrukerEntrepriseIder(
   // Prosjektadmin ser alt
   if (medlem.role === "admin") return null;
 
-  return medlem.enterprises.map((e) => e.enterpriseId);
+  return medlem.dokumentflytKoblinger.map((e) => e.enterpriseId);
 }
 
 /**
@@ -60,7 +61,7 @@ export async function verifiserEntrepriseTilhorighet(
   const bruker = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
   if (bruker?.role === "sitedoc_admin") return;
 
-  const kobling = await prisma.memberEnterprise.findFirst({
+  const kobling = await prisma.dokumentflytKobling.findFirst({
     where: {
       enterpriseId,
       projectMember: { userId },
@@ -69,7 +70,7 @@ export async function verifiserEntrepriseTilhorighet(
 
   if (!kobling) {
     // Sjekk om bruker er admin (admin kan opprette for alle entrepriser)
-    const enterprise = await prisma.enterprise.findUnique({
+    const enterprise = await prisma.dokumentflytPart.findUnique({
       where: { id: enterpriseId },
       select: { projectId: true },
     });
@@ -94,48 +95,130 @@ export async function verifiserEntrepriseTilhorighet(
 
 /**
  * Verifiser at bruker er admin i prosjektet.
+ * company_admin med riktig org arver admin-rettigheter uten ProjectMember-rad.
  */
 export async function verifiserAdmin(
   userId: string,
   projectId: string,
 ): Promise<void> {
   // sitedoc_admin har alltid tilgang
-  const bruker = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
+  const bruker = await prisma.user.findUnique({ where: { id: userId }, select: { role: true, organizationId: true } });
   if (bruker?.role === "sitedoc_admin") return;
 
   const medlem = await prisma.projectMember.findUnique({
     where: { userId_projectId: { userId, projectId } },
   });
 
-  if (!medlem || medlem.role !== "admin") {
-    throw new TRPCError({
-      code: "FORBIDDEN",
-      message: "Kun administratorer kan utføre denne handlingen",
+  if (medlem?.role === "admin") return;
+
+  // company_admin-fallback: sjekk om prosjektet tilhører brukerens org
+  if (bruker?.role === "company_admin" && bruker.organizationId) {
+    const orgProsjekt = await prisma.organizationProject.findFirst({
+      where: { organizationId: bruker.organizationId, projectId },
     });
+    if (orgProsjekt) return;
   }
+
+  throw new TRPCError({
+    code: "FORBIDDEN",
+    message: "Kun administratorer kan utføre denne handlingen",
+  });
 }
 
 /**
  * Verifiser at bruker er medlem av prosjektet.
+ * company_admin med riktig org arver tilgang uten ProjectMember-rad.
  */
 export async function verifiserProsjektmedlem(
   userId: string,
   projectId: string,
 ): Promise<void> {
   // sitedoc_admin har alltid tilgang
-  const bruker = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
+  const bruker = await prisma.user.findUnique({ where: { id: userId }, select: { role: true, organizationId: true } });
   if (bruker?.role === "sitedoc_admin") return;
 
   const medlem = await prisma.projectMember.findUnique({
     where: { userId_projectId: { userId, projectId } },
   });
 
-  if (!medlem) {
+  if (medlem) return;
+
+  // company_admin-fallback: sjekk om prosjektet tilhører brukerens org
+  if (bruker?.role === "company_admin" && bruker.organizationId) {
+    const orgProsjekt = await prisma.organizationProject.findFirst({
+      where: { organizationId: bruker.organizationId, projectId },
+    });
+    if (orgProsjekt) return;
+  }
+
+  throw new TRPCError({
+    code: "FORBIDDEN",
+    message: "Du er ikke medlem av dette prosjektet",
+  });
+}
+
+/**
+ * Verifiser at bruker tilhører den angitte organisasjonen.
+ * Brukes for org-admin-sider (/org/innstillinger).
+ * company_admin uten organizationId er en ugyldig tilstand.
+ */
+export async function verifiserOrganisasjonTilgang(
+  userId: string,
+  organisationId: string,
+): Promise<void> {
+  const bruker = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { organizationId: true },
+  });
+
+  if (!bruker?.organizationId) {
     throw new TRPCError({
       code: "FORBIDDEN",
-      message: "Du er ikke medlem av dette prosjektet",
+      message: "Bruker tilhører ingen organisasjon",
     });
   }
+
+  if (bruker.organizationId !== organisationId) {
+    throw new TRPCError({ code: "FORBIDDEN" });
+  }
+}
+
+/**
+ * Verifiser at bruker er admin ELLER firmaansvarlig i prosjektet.
+ * Returnerer { erAdmin: true } for admin-brukere, { erAdmin: false } for firmaansvarlige.
+ * Kaster FORBIDDEN for vanlige medlemmer.
+ */
+export async function verifiserAdminEllerFirmaansvarlig(
+  userId: string,
+  projectId: string,
+): Promise<{ erAdmin: boolean }> {
+  const bruker = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { role: true, organizationId: true },
+  });
+
+  if (bruker?.role === "sitedoc_admin") return { erAdmin: true };
+
+  const medlem = await prisma.projectMember.findUnique({
+    where: { userId_projectId: { userId, projectId } },
+  });
+
+  if (medlem?.role === "admin") return { erAdmin: true };
+
+  // company_admin med riktig org → admin
+  if (bruker?.role === "company_admin" && bruker.organizationId) {
+    const orgProsjekt = await prisma.organizationProject.findFirst({
+      where: { organizationId: bruker.organizationId, projectId },
+    });
+    if (orgProsjekt) return { erAdmin: true };
+  }
+
+  if (medlem?.erFirmaansvarlig) return { erAdmin: false };
+
+  throw new TRPCError({
+    code: "FORBIDDEN",
+    message: "Krever administrator- eller firmaansvarlig-rettighet",
+  });
 }
 
 /**
@@ -149,6 +232,8 @@ export async function verifiserDokumentTilgang(
   bestillerEnterpriseId: string | null,
   utforerEnterpriseId: string | null,
   templateDomain?: string | null,
+  dokumentId?: string,
+  dokumentType?: "task" | "checklist",
 ): Promise<void> {
   // sitedoc_admin ser alt
   const bruker = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
@@ -157,12 +242,12 @@ export async function verifiserDokumentTilgang(
   const medlem = await prisma.projectMember.findUnique({
     where: { userId_projectId: { userId, projectId } },
     include: {
-      enterprises: { select: { enterpriseId: true } },
+      dokumentflytKoblinger: { select: { enterpriseId: true } },
       groupMemberships: {
         include: {
           group: {
             include: {
-              groupEnterprises: { select: { enterpriseId: true } },
+              groupDokumentflytParts: { select: { enterpriseId: true } },
             },
           },
         },
@@ -180,8 +265,55 @@ export async function verifiserDokumentTilgang(
   // Prosjektadmin ser alt
   if (medlem.role === "admin") return;
 
+  // Firmaansvarlig: ser dokumenter der firmamedlemmer er direkte involvert
+  if (medlem.erFirmaansvarlig && dokumentId && dokumentType) {
+    const brukerOrg = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { organizationId: true },
+    });
+    if (brukerOrg?.organizationId) {
+      const firmaUserIder = (await prisma.user.findMany({
+        where: { organizationId: brukerOrg.organizationId },
+        select: { id: true },
+      })).map((u) => u.id);
+
+      // Sjekk bestillerUserId og recipientUserId
+      const dokument = dokumentType === "task"
+        ? await prisma.task.findUnique({
+            where: { id: dokumentId },
+            select: { bestillerUserId: true, recipientUserId: true },
+          })
+        : await prisma.checklist.findUnique({
+            where: { id: dokumentId },
+            select: { bestillerUserId: true, recipientUserId: true },
+          });
+
+      if (dokument) {
+        const involverteUserIder = new Set(firmaUserIder);
+        if (
+          (dokument.bestillerUserId && involverteUserIder.has(dokument.bestillerUserId)) ||
+          (dokument.recipientUserId && involverteUserIder.has(dokument.recipientUserId))
+        ) {
+          return;
+        }
+      }
+
+      // Sjekk DocumentTransfer.senderId
+      const transferMatch = await prisma.documentTransfer.findFirst({
+        where: {
+          senderId: { in: firmaUserIder },
+          ...(dokumentType === "task"
+            ? { taskId: dokumentId }
+            : { checklistId: dokumentId }),
+        },
+        select: { id: true },
+      });
+      if (transferMatch) return;
+    }
+  }
+
   // Direkte entreprise-tilgang
-  const direkteEntreIder = medlem.enterprises.map((e) => e.enterpriseId);
+  const direkteEntreIder = medlem.dokumentflytKoblinger.map((e) => e.enterpriseId);
   const harDirekteTilgang =
     (bestillerEnterpriseId && direkteEntreIder.includes(bestillerEnterpriseId)) ||
     (utforerEnterpriseId && direkteEntreIder.includes(utforerEnterpriseId));
@@ -195,10 +327,10 @@ export async function verifiserDokumentTilgang(
       if (!gruppeDomener.includes(templateDomain)) continue;
 
       // Tverrgående tilgang: gruppe uten entrepriser
-      if (gm.group.groupEnterprises.length === 0) return;
+      if (gm.group.groupDokumentflytParts.length === 0) return;
 
       // Entreprise-begrenset: sjekk om dokumentets entrepriser matcher gruppens
-      const gruppeEntreIder = gm.group.groupEnterprises.map((ge) => ge.enterpriseId);
+      const gruppeEntreIder = gm.group.groupDokumentflytParts.map((ge) => ge.enterpriseId);
       const matcherEntreprise =
         (bestillerEnterpriseId && gruppeEntreIder.includes(bestillerEnterpriseId)) ||
         (utforerEnterpriseId && gruppeEntreIder.includes(utforerEnterpriseId));
@@ -210,6 +342,75 @@ export async function verifiserDokumentTilgang(
     code: "FORBIDDEN",
     message: "Du har ikke tilgang til dette dokumentet",
   });
+}
+
+/**
+ * Verifiser at bruker har riktig rolle i dokumentflyten for å utføre statusendringen.
+ * Dokumenter uten dokumentflytId slipper gjennom (bakoverkompatibilitet).
+ * Admin/registrator har alltid lov.
+ */
+export async function verifiserFlytRolle(
+  userId: string,
+  projectId: string,
+  dokumentflytId: string | null | undefined,
+  bestillerEnterpriseId: string | null,
+  utforerEnterpriseId: string | null,
+  gjeldendStatus: string,
+  nyStatus: string,
+): Promise<void> {
+  // Dokumenter uten dokumentflyt — bakoverkompatibilitet
+  if (!dokumentflytId) return;
+
+  // Hent brukerens info
+  const bruker = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { role: true },
+  });
+  if (bruker?.role === "sitedoc_admin") return;
+
+  const medlem = await prisma.projectMember.findUnique({
+    where: { userId_projectId: { userId, projectId } },
+    include: {
+      dokumentflytKoblinger: { select: { enterpriseId: true } },
+      groupMemberships: { select: { groupId: true } },
+    },
+  });
+  if (!medlem) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Ikke medlem av prosjektet" });
+  }
+
+  // Hent flytens medlemmer
+  const flytMedlemmer = await prisma.dokumentflytMedlem.findMany({
+    where: { dokumentflytId },
+    select: { rolle: true, enterpriseId: true, projectMemberId: true, groupId: true },
+  });
+
+  const medlemmerInfo: FlytMedlemInfo[] = flytMedlemmer.map((m) => ({
+    rolle: m.rolle,
+    enterpriseId: m.enterpriseId,
+    projectMemberId: m.projectMemberId,
+    groupId: m.groupId,
+  }));
+
+  const rolle = utledMinRolle(
+    {
+      userId,
+      projectMemberId: medlem.id,
+      entrepriseIder: medlem.dokumentflytKoblinger.map((e) => e.enterpriseId),
+      gruppeIder: medlem.groupMemberships.map((gm) => gm.groupId),
+      erAdmin: medlem.role === "admin",
+    },
+    medlemmerInfo,
+    { bestillerEnterpriseId, utforerEnterpriseId },
+  );
+
+  if (!erTillattForRolle(rolle, gjeldendStatus, nyStatus)) {
+    const rolleNavn = rolle ?? "ingen";
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: `Du har rollen «${rolleNavn}» i denne dokumentflyten og kan ikke utføre overgangen ${gjeldendStatus} → ${nyStatus}`,
+    });
+  }
 }
 
 /**
@@ -227,12 +428,12 @@ export async function byggTilgangsFilter(
   const medlem = await prisma.projectMember.findUnique({
     where: { userId_projectId: { userId, projectId } },
     include: {
-      enterprises: { select: { enterpriseId: true } },
+      dokumentflytKoblinger: { select: { enterpriseId: true } },
       groupMemberships: {
         include: {
           group: {
             include: {
-              groupEnterprises: { select: { enterpriseId: true } },
+              groupDokumentflytParts: { select: { enterpriseId: true } },
             },
           },
         },
@@ -253,8 +454,33 @@ export async function byggTilgangsFilter(
   // Samle alle OR-betingelser
   const orBetingelser: Record<string, unknown>[] = [];
 
+  // Firmaansvarlig: ser dokumenter der firmamedlemmer er direkte involvert
+  if (medlem.erFirmaansvarlig) {
+    const brukerOrg = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { organizationId: true },
+    });
+    if (brukerOrg?.organizationId) {
+      const firmaUserIder = (await prisma.user.findMany({
+        where: { organizationId: brukerOrg.organizationId },
+        select: { id: true },
+      })).map((u) => u.id);
+
+      if (firmaUserIder.length > 0) {
+        // Dokumenter opprettet av firmamedlem
+        orBetingelser.push({ bestillerUserId: { in: firmaUserIder } });
+        // Dokumenter der firmamedlem er mottaker
+        orBetingelser.push({ recipientUserId: { in: firmaUserIder } });
+        // Dokumenter der firmamedlem har sendt/videresendt
+        orBetingelser.push({
+          transfers: { some: { senderId: { in: firmaUserIder } } },
+        });
+      }
+    }
+  }
+
   // Direkte entreprise-tilgang (alle domener)
-  const direkteEntreIder = medlem.enterprises.map((e) => e.enterpriseId);
+  const direkteEntreIder = medlem.dokumentflytKoblinger.map((e) => e.enterpriseId);
   if (direkteEntreIder.length > 0) {
     orBetingelser.push({ bestillerEnterpriseId: { in: direkteEntreIder } });
     orBetingelser.push({ utforerEnterpriseId: { in: direkteEntreIder } });
@@ -265,14 +491,14 @@ export async function byggTilgangsFilter(
     const gruppeDomener = gm.group.domains as string[];
     if (gruppeDomener.length === 0) continue;
 
-    if (gm.group.groupEnterprises.length === 0) {
+    if (gm.group.groupDokumentflytParts.length === 0) {
       // Tverrgående tilgang: alle dokumenter med matchende domain
       orBetingelser.push({
         template: { domain: { in: gruppeDomener } },
       });
     } else {
       // Entreprise-begrenset: kun dokumenter med matchende domain OG entreprise
-      const gruppeEntreIder = gm.group.groupEnterprises.map((ge) => ge.enterpriseId);
+      const gruppeEntreIder = gm.group.groupDokumentflytParts.map((ge) => ge.enterpriseId);
       for (const domain of gruppeDomener) {
         orBetingelser.push({
           AND: [

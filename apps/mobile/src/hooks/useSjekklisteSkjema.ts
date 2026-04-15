@@ -6,6 +6,9 @@ import { hentDatabase } from "../db/database";
 import { sjekklisteFeltdata } from "../db/schema";
 import { useNettverk } from "../providers/NettverkProvider";
 import { useOpplastingsKo } from "../providers/OpplastingsKoProvider";
+import { utledDokumentRettighet } from "@sitedoc/shared";
+import type { DokumentRettighet } from "@sitedoc/shared";
+import type { RettighetInput } from "./useOppgaveSkjema";
 
 type LagreStatus = "idle" | "lagrer" | "lagret" | "feil";
 type SynkStatus = "synkronisert" | "lokalt_lagret" | "synkroniserer";
@@ -70,6 +73,7 @@ export interface UseSjekklisteSkjemaResultat {
   erLagrer: boolean;
   harEndringer: boolean;
   erRedigerbar: boolean;
+  rettighet: DokumentRettighet;
   lagreStatus: LagreStatus;
   synkStatus: SynkStatus;
 }
@@ -152,7 +156,7 @@ function skrivTilSQLite(
   }
 }
 
-export function useSjekklisteSkjema(sjekklisteId: string): UseSjekklisteSkjemaResultat {
+export function useSjekklisteSkjema(sjekklisteId: string, rettighetInput?: RettighetInput): UseSjekklisteSkjemaResultat {
   const [feltVerdier, settFeltVerdier] = useState<Record<string, FeltVerdi>>({});
   const [valideringsfeil, settValideringsfeil] = useState<Record<string, string>>({});
   const [harEndringer, settHarEndringer] = useState(false);
@@ -552,7 +556,23 @@ export function useSjekklisteSkjema(sjekklisteId: string): UseSjekklisteSkjemaRe
     return Object.keys(feil).length === 0;
   }, [alleObjekter, erSynlig, hentFeltVerdi]);
 
-  const erRedigerbar = sjekkliste ? REDIGERBARE_STATUSER.has(sjekkliste.status) : false;
+  const rettighet: DokumentRettighet = useMemo(() => {
+    if (!sjekkliste) return "leser";
+    if (!rettighetInput) {
+      return REDIGERBARE_STATUSER.has(sjekkliste.status) ? "redigerer" : "leser";
+    }
+    return utledDokumentRettighet({
+      erAdmin: rettighetInput.erAdmin,
+      minRolle: rettighetInput.minRolle,
+      tillatelser: rettighetInput.tillatelser,
+      status: sjekkliste.status,
+      dokumentType: "sjekkliste",
+      harBallen: rettighetInput.harBallen,
+      flytRettighet: rettighetInput.flytRettighet,
+    });
+  }, [sjekkliste, rettighetInput]);
+
+  const erRedigerbar = rettighet !== "leser";
 
   return {
     sjekkliste: sjekkliste
@@ -580,6 +600,7 @@ export function useSjekklisteSkjema(sjekklisteId: string): UseSjekklisteSkjemaRe
     erLagrer: oppdaterDataMutasjon.isPending,
     harEndringer,
     erRedigerbar,
+    rettighet,
     lagreStatus,
     synkStatus,
   };

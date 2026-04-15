@@ -19,6 +19,67 @@ import {
 } from "../trpc/tilgangskontroll";
 
 export const gruppeRouter = router({
+  // Hent innlogget brukers flyt-info (for utledMinRolle)
+  hentMinFlytInfo: protectedProcedure
+    .input(z.object({ projectId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const alleGruppeModuler = ["sjekklister", "oppgaver", "tegninger", "3d"];
+
+      // sitedoc_admin
+      const bruker = await ctx.prisma.user.findUnique({
+        where: { id: ctx.userId },
+        select: { role: true, organizationId: true },
+      });
+      if (bruker?.role === "sitedoc_admin") {
+        return { userId: ctx.userId, projectMemberId: "", entrepriseIder: [], gruppeIder: [], erAdmin: true, moduler: alleGruppeModuler };
+      }
+
+      const medlem = await ctx.prisma.projectMember.findUnique({
+        where: { userId_projectId: { userId: ctx.userId, projectId: input.projectId } },
+        include: {
+          dokumentflytKoblinger: { select: { enterpriseId: true } },
+          groupMemberships: {
+            select: {
+              groupId: true,
+              group: { select: { modules: true } },
+            },
+          },
+        },
+      });
+
+      if (!medlem) {
+        // company_admin uten ProjectMember-rad — se alt
+        if (bruker?.role === "company_admin" && bruker.organizationId) {
+          const orgProsjekt = await ctx.prisma.organizationProject.findFirst({
+            where: { organizationId: bruker.organizationId, projectId: input.projectId },
+          });
+          if (orgProsjekt) {
+            return { userId: ctx.userId, projectMemberId: "", entrepriseIder: [], gruppeIder: [], erAdmin: true, moduler: alleGruppeModuler };
+          }
+        }
+        throw new TRPCError({ code: "FORBIDDEN", message: "Ikke medlem" });
+      }
+
+      // Admin ser alt
+      const erAdmin = medlem.role === "admin";
+
+      // Aggreger moduler fra alle grupper
+      const moduler = erAdmin
+        ? alleGruppeModuler
+        : [...new Set(
+            medlem.groupMemberships.flatMap((gm) => (gm.group.modules as string[]) ?? []),
+          )];
+
+      return {
+        userId: ctx.userId,
+        projectMemberId: medlem.id,
+        entrepriseIder: medlem.dokumentflytKoblinger.map((e) => e.enterpriseId),
+        gruppeIder: medlem.groupMemberships.map((gm) => gm.groupId),
+        erAdmin,
+        moduler,
+      };
+    }),
+
   // Hent innlogget brukers tillatelser i et prosjekt
   hentMineTillatelser: protectedProcedure
     .input(z.object({ projectId: z.string().uuid() }))
@@ -92,13 +153,13 @@ export const gruppeRouter = router({
               projectMember: {
                 include: {
                   user: true,
-                  enterprises: { include: { enterprise: true } },
+                  dokumentflytKoblinger: { include: { dokumentflytPart: true } },
                 },
               },
             },
           },
-          groupEnterprises: {
-            include: { enterprise: true },
+          groupDokumentflytParts: {
+            include: { dokumentflytPart: true },
           },
         },
         orderBy: { createdAt: "asc" },
@@ -170,7 +231,7 @@ export const gruppeRouter = router({
               projectMember: {
                 include: {
                   user: true,
-                  enterprises: { include: { enterprise: true } },
+                  dokumentflytKoblinger: { include: { dokumentflytPart: true } },
                 },
               },
             },
@@ -279,7 +340,7 @@ export const gruppeRouter = router({
           projectMember: {
             include: {
               user: true,
-              enterprises: { include: { enterprise: true } },
+              dokumentflytKoblinger: { include: { dokumentflytPart: true } },
             },
           },
         },
@@ -368,12 +429,12 @@ export const gruppeRouter = router({
       await verifiserAdmin(ctx.userId, input.projectId);
 
       // Slett eksisterende, opprett nye
-      await ctx.prisma.groupEnterprise.deleteMany({
+      await ctx.prisma.groupDokumentflytPart.deleteMany({
         where: { groupId: input.groupId },
       });
 
       if (input.enterpriseIds.length > 0) {
-        await ctx.prisma.groupEnterprise.createMany({
+        await ctx.prisma.groupDokumentflytPart.createMany({
           data: input.enterpriseIds.map((enterpriseId) => ({
             groupId: input.groupId,
             enterpriseId,
@@ -384,7 +445,7 @@ export const gruppeRouter = router({
       return ctx.prisma.projectGroup.findUniqueOrThrow({
         where: { id: input.groupId },
         include: {
-          groupEnterprises: { include: { enterprise: true } },
+          groupDokumentflytParts: { include: { dokumentflytPart: true } },
         },
       });
     }),

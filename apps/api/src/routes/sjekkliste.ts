@@ -8,9 +8,12 @@ import {
   byggTilgangsFilter,
   verifiserEntrepriseTilhorighet,
   verifiserDokumentTilgang,
+  verifiserFlytRolle,
+  hentBrukerTillatelser,
 } from "../trpc/tilgangskontroll";
 import { sendDokumentVarsling, hentMottakerEposter } from "../services/epost";
 import { oversettFritekst } from "../services/oversettelse-service";
+import { byggTransferSnapshot } from "../services/transfer-snapshot";
 
 // Felttyper der verdi er fritekst som skal oversettes
 const FRITEKST_TYPER = new Set(["text_field"]);
@@ -44,6 +47,23 @@ export const sjekklisteRouter = router({
           drawing: { select: { id: true, name: true, floor: true } },
           recipientUser: { select: { id: true, name: true } },
           recipientGroup: { select: { id: true, name: true } },
+          dokumentflyt: {
+            select: {
+              id: true,
+              name: true,
+              medlemmer: {
+                select: {
+                  id: true,
+                  rolle: true,
+                  steg: true,
+                  dokumentflytPart: { select: { id: true, name: true } },
+                  projectMember: { include: { user: { select: { id: true, name: true } } } },
+                  group: { select: { id: true, name: true } },
+                },
+                orderBy: { steg: "asc" },
+              },
+            },
+          },
           _count: { select: { images: true, transfers: true } },
         },
         orderBy: { updatedAt: "desc" },
@@ -62,8 +82,8 @@ export const sjekklisteRouter = router({
           utforerEnterprise: true,
           bestiller: true,
           byggeplass: { select: { id: true, name: true } },
-          drawing: { select: { id: true, name: true, drawingNumber: true } },
-          images: true,
+          drawing: { select: { id: true, name: true, drawingNumber: true, fileUrl: true, imageWidth: true, imageHeight: true } },
+          images: { orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }] },
           transfers: {
             include: {
               sender: { select: { id: true, name: true } },
@@ -86,7 +106,22 @@ export const sjekklisteRouter = router({
         sjekkliste.bestillerEnterpriseId,
         sjekkliste.utforerEnterpriseId,
         sjekkliste.template.domain,
+        sjekkliste.id,
+        "checklist",
       );
+
+      // Sett lestAvMottakerVed når mottaker åpner mens status er «sent»
+      if (
+        sjekkliste.status === "sent" &&
+        sjekkliste.recipientUserId === ctx.userId &&
+        !sjekkliste.lestAvMottakerVed
+      ) {
+        await ctx.prisma.checklist.update({
+          where: { id: sjekkliste.id },
+          data: { lestAvMottakerVed: new Date() },
+        });
+        sjekkliste.lestAvMottakerVed = new Date();
+      }
 
       return sjekkliste;
     }),
@@ -116,7 +151,7 @@ export const sjekklisteRouter = router({
         select: { role: true },
       });
       if (bruker.role !== "sitedoc_admin") {
-        const entreprise = await ctx.prisma.enterprise.findUniqueOrThrow({
+        const entreprise = await ctx.prisma.dokumentflytPart.findUniqueOrThrow({
           where: { id: input.bestillerEnterpriseId },
           select: { projectId: true },
         });
@@ -161,7 +196,7 @@ export const sjekklisteRouter = router({
           const hovedansvarlig = await tx.dokumentflytMedlem.findFirst({
             where: {
               dokumentflytId: input.dokumentflytId,
-              rolle: "utfører",
+              rolle: "utforer",
               erHovedansvarlig: true,
             },
             include: {
@@ -182,6 +217,7 @@ export const sjekklisteRouter = router({
             utforerEnterpriseId: input.utforerEnterpriseId,
             title: tittel,
             bestillerUserId: ctx.userId,
+            eierUserId: ctx.userId,
             number: nummer,
             dokumentflytId: input.dokumentflytId,
             subject: input.subject,
@@ -206,6 +242,8 @@ export const sjekklisteRouter = router({
         utforerEnterpriseId: z.string().uuid().optional(),
         drawingId: z.string().uuid().nullable().optional(),
         byggeplassId: z.string().uuid().nullable().optional(),
+        positionX: z.number().min(0).max(100).nullable().optional(),
+        positionY: z.number().min(0).max(100).nullable().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -219,6 +257,8 @@ export const sjekklisteRouter = router({
         sjekkliste.bestillerEnterpriseId,
         sjekkliste.utforerEnterpriseId,
         sjekkliste.template.domain,
+        sjekkliste.id,
+        "checklist",
       );
 
       // Entreprise-endring kun tillatt i utkast-status
@@ -265,6 +305,8 @@ export const sjekklisteRouter = router({
         sjekkliste.bestillerEnterpriseId,
         sjekkliste.utforerEnterpriseId,
         sjekkliste.template.domain,
+        sjekkliste.id,
+        "checklist",
       );
 
       // Generer endringslogg hvis aktivert på malen
@@ -418,6 +460,8 @@ export const sjekklisteRouter = router({
         ctx.userId, sjekkliste.template.projectId,
         sjekkliste.bestillerEnterpriseId, sjekkliste.utforerEnterpriseId,
         sjekkliste.template.domain,
+        sjekkliste.id,
+        "checklist",
       );
 
       const data = (sjekkliste.data ?? {}) as Record<string, Record<string, unknown>>;
@@ -472,6 +516,8 @@ export const sjekklisteRouter = router({
         kommentar: z.string().optional(),
         recipientUserId: z.string().uuid().optional(),
         recipientGroupId: z.string().uuid().optional(),
+        /** Ny dokumentflyt-ID ved videresending til annen entreprise */
+        dokumentflytId: z.string().uuid().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -486,6 +532,7 @@ export const sjekklisteRouter = router({
               project: { select: { name: true } },
             },
           },
+          utforerEnterprise: { select: { name: true } },
         },
       });
 
@@ -498,6 +545,19 @@ export const sjekklisteRouter = router({
         sjekkliste.bestillerEnterpriseId,
         sjekkliste.utforerEnterpriseId,
         sjekkliste.template.domain,
+        sjekkliste.id,
+        "checklist",
+      );
+
+      // Rollevalidering: sjekk at bruker har riktig rolle i dokumentflyten
+      await verifiserFlytRolle(
+        ctx.userId,
+        projectId,
+        sjekkliste.dokumentflytId,
+        sjekkliste.bestillerEnterpriseId,
+        sjekkliste.utforerEnterpriseId,
+        sjekkliste.status,
+        input.nyStatus,
       );
 
       // Hjelpefunksjon for varsling (bruker input-mottaker eller besvar-mottaker)
@@ -527,28 +587,114 @@ export const sjekklisteRouter = router({
         });
       };
 
-      // Videresending: bytt mottaker uten å endre status
+      // Bygg snapshot for tidslinje-kontekst
+      const snapshot = await byggTransferSnapshot({
+        senderId: ctx.userId,
+        projektId: projectId,
+        dokumentStatus: sjekkliste.status,
+        bestillerEnterpriseId: sjekkliste.bestillerEnterpriseId,
+        utforerEnterpriseId: sjekkliste.utforerEnterpriseId,
+        dokumentflytId: sjekkliste.dokumentflytId,
+      });
+
+      // Utled ny eier basert på mottaker:
+      // Person → personen. Gruppe → gruppens hovedansvarlig. Fallback: beholder gjeldende.
+      const utledNyEier = async (recipientUserId?: string | null, recipientGroupId?: string | null): Promise<string | undefined> => {
+        if (recipientUserId) return recipientUserId;
+        if (recipientGroupId && sjekkliste.dokumentflytId) {
+          const gruppemedlem = await ctx.prisma.dokumentflytMedlem.findFirst({
+            where: {
+              dokumentflytId: sjekkliste.dokumentflytId,
+              groupId: recipientGroupId,
+              erHovedansvarlig: true,
+            },
+            include: { hovedansvarligPerson: { select: { userId: true } } },
+          });
+          if (gruppemedlem?.hovedansvarligPerson?.userId) {
+            return gruppemedlem.hovedansvarligPerson.userId;
+          }
+        }
+        return undefined; // Beholder gjeldende eier
+      };
+
+      // Videresending: bytt mottaker, evt. bytt dokumentflyt + entreprise
       if (input.nyStatus === "forwarded") {
         if (!input.recipientUserId && !input.recipientGroupId) {
           throw new TRPCError({ code: "BAD_REQUEST", message: "Videresending krever en mottaker" });
         }
+
+        // Sjekk om dokumentflyt/entreprise endres
+        let flytBytteData: { dokumentflytId: string; utforerEnterpriseId: string; nyEntrepriseNavn: string; nyFlytNavn: string } | null = null;
+        if (input.dokumentflytId && input.dokumentflytId !== sjekkliste.dokumentflytId) {
+          const nyFlyt = await ctx.prisma.dokumentflyt.findUniqueOrThrow({
+            where: { id: input.dokumentflytId },
+            include: { dokumentflytPart: { select: { id: true, name: true } } },
+          });
+          if (!nyFlyt.enterpriseId) {
+            throw new TRPCError({ code: "BAD_REQUEST", message: "Dokumentflyten mangler entreprise" });
+          }
+          flytBytteData = {
+            dokumentflytId: input.dokumentflytId,
+            utforerEnterpriseId: nyFlyt.enterpriseId,
+            nyEntrepriseNavn: nyFlyt.dokumentflytPart?.name ?? "Ukjent",
+            nyFlytNavn: nyFlyt.name,
+          };
+
+          // Kryssentreprise-validering: kun prosjekteier/registrator/admin kan sende på tvers
+          const bruker = await ctx.prisma.user.findUnique({ where: { id: ctx.userId }, select: { role: true } });
+          if (bruker?.role !== "sitedoc_admin") {
+            const medlem = await ctx.prisma.projectMember.findUnique({
+              where: { userId_projectId: { userId: ctx.userId, projectId } },
+            });
+            if (medlem?.role !== "admin") {
+              const tillatelser = await hentBrukerTillatelser(ctx.userId, projectId);
+              const erRegistrator = tillatelser.has("create_checklists") || tillatelser.has("create_tasks");
+              if (!erRegistrator) {
+                throw new TRPCError({
+                  code: "FORBIDDEN",
+                  message: "Kun prosjekteier eller registrator kan sende på tvers av entrepriser",
+                });
+              }
+            }
+          }
+        }
+
+        const gammelEntrepriseNavn = sjekkliste.utforerEnterprise?.name ?? "Ukjent";
+
+        const nyEier = await utledNyEier(input.recipientUserId, input.recipientGroupId);
+
         const resultat = await ctx.prisma.$transaction(async (tx) => {
           const oppdatert = await tx.checklist.update({
             where: { id: input.id },
             data: {
               recipientUserId: input.recipientUserId ?? null,
               recipientGroupId: input.recipientGroupId ?? null,
+              ...(nyEier ? { eierUserId: nyEier } : {}),
+              ...(flytBytteData ? {
+                dokumentflytId: flytBytteData.dokumentflytId,
+                utforerEnterpriseId: flytBytteData.utforerEnterpriseId,
+              } : {}),
             },
           });
+
+          const kommentar = flytBytteData
+            ? (input.kommentar ? `Videresendt til ${flytBytteData.nyEntrepriseNavn}: ${input.kommentar}` : `Videresendt fra ${gammelEntrepriseNavn} til ${flytBytteData.nyEntrepriseNavn}`)
+            : (input.kommentar ? `Videresendt: ${input.kommentar}` : "Videresendt");
+
           await tx.documentTransfer.create({
             data: {
               checklistId: input.id,
               senderId: ctx.userId,
               fromStatus: sjekkliste.status,
               toStatus: sjekkliste.status,
-              comment: input.kommentar ? `Videresendt: ${input.kommentar}` : "Videresendt",
+              comment: kommentar,
               recipientUserId: input.recipientUserId,
               recipientGroupId: input.recipientGroupId,
+              ...snapshot,
+              ...(flytBytteData ? {
+                recipientEnterpriseName: flytBytteData.nyEntrepriseNavn,
+                dokumentflytName: flytBytteData.nyFlytNavn,
+              } : {}),
             },
           });
           return oppdatert;
@@ -580,11 +726,21 @@ export const sjekklisteRouter = router({
         }
       }
 
+      // Utled ny eier ved sending eller besvar
+      let eierOppdatering: { eierUserId: string } | Record<string, never> = {};
+      if (input.nyStatus === "sent") {
+        const nyEier = await utledNyEier(input.recipientUserId, input.recipientGroupId);
+        if (nyEier) eierOppdatering = { eierUserId: nyEier };
+      } else if (input.nyStatus === "responded" && besvarMottaker.recipientUserId) {
+        eierOppdatering = { eierUserId: besvarMottaker.recipientUserId };
+      }
+
       const resultat = await ctx.prisma.$transaction(async (tx) => {
         const oppdatert = await tx.checklist.update({
           where: { id: input.id },
           data: {
             status: effektivStatus,
+            ...eierOppdatering,
             ...(input.nyStatus === "sent" ? {
               recipientUserId: input.recipientUserId ?? null,
               recipientGroupId: input.recipientGroupId ?? null,
@@ -607,6 +763,7 @@ export const sjekklisteRouter = router({
             ...(input.nyStatus === "responded" && besvarMottaker.recipientUserId ? {
               recipientUserId: besvarMottaker.recipientUserId,
             } : {}),
+            ...snapshot,
           },
         });
 
@@ -617,6 +774,7 @@ export const sjekklisteRouter = router({
               senderId: ctx.userId,
               fromStatus: "sent",
               toStatus: "received",
+              ...snapshot,
             },
           });
         }
@@ -652,6 +810,8 @@ export const sjekklisteRouter = router({
         sjekkliste.bestillerEnterpriseId,
         sjekkliste.utforerEnterpriseId,
         sjekkliste.template.domain,
+        sjekkliste.id,
+        "checklist",
       );
 
       if (sjekkliste.status !== "draft" && sjekkliste.status !== "cancelled") {
@@ -672,6 +832,149 @@ export const sjekklisteRouter = router({
         await tx.documentTransfer.deleteMany({ where: { checklistId: input.id } });
         await tx.image.deleteMany({ where: { checklistId: input.id } });
         await tx.checklist.delete({ where: { id: input.id } });
+        return { success: true };
+      });
+    }),
+
+  // Bytt eier av sjekkliste — kun prosjekteier eller registrator/admin
+  byttEier: protectedProcedure
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        nyEierUserId: z.string().uuid(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const sjekkliste = await ctx.prisma.checklist.findUniqueOrThrow({
+        where: { id: input.id },
+        include: {
+          template: { select: { projectId: true } },
+        },
+      });
+
+      const projectId = sjekkliste.template.projectId;
+
+      // Sjekk at bruker er admin eller registrator
+      const bruker = await ctx.prisma.user.findUniqueOrThrow({
+        where: { id: ctx.userId },
+        select: { role: true },
+      });
+      const medlem = await ctx.prisma.projectMember.findUnique({
+        where: { userId_projectId: { userId: ctx.userId, projectId } },
+      });
+      const erAdmin = bruker.role === "sitedoc_admin" || medlem?.role === "admin";
+
+      if (!erAdmin) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Kun prosjekteier eller admin kan bytte eier",
+        });
+      }
+
+      // Valider at ny eier tilhører samme entreprise
+      const nyEierMedlem = await ctx.prisma.projectMember.findFirst({
+        where: {
+          userId: input.nyEierUserId,
+          projectId,
+          dokumentflytKoblinger: { some: { enterpriseId: sjekkliste.bestillerEnterpriseId } },
+        },
+      });
+
+      if (!nyEierMedlem) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Ny eier må tilhøre samme entreprise som dokumentet",
+        });
+      }
+
+      return ctx.prisma.checklist.update({
+        where: { id: input.id },
+        data: { eierUserId: input.nyEierUserId },
+      });
+    }),
+
+  // Flytt sjekkliste til en annen dokumentflyt (Sentralbord)
+  // @deprecated — Bruk endreStatus med nyStatus="forwarded" + dokumentflytId i stedet. Beholdes for bakoverkompatibilitet
+  flytt: protectedProcedure
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        projectId: z.string().uuid(),
+        nyDokumentflytId: z.string().uuid(),
+        /** Ny mottaker utledet fra ny dokumentflyt */
+        recipientUserId: z.string().uuid().optional(),
+        recipientGroupId: z.string().uuid().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Verifiser admin eller registrator
+      const tillatelser = await hentBrukerTillatelser(ctx.userId, input.projectId);
+      const erRegistrator = tillatelser.has("create_checklists") || tillatelser.has("create_tasks");
+
+      const bruker = await ctx.prisma.user.findUnique({ where: { id: ctx.userId }, select: { role: true, name: true } });
+      const medlem = await ctx.prisma.projectMember.findUnique({
+        where: { userId_projectId: { userId: ctx.userId, projectId: input.projectId } },
+      });
+      const erProjektAdmin = bruker?.role === "sitedoc_admin" || medlem?.role === "admin";
+
+      if (!erProjektAdmin && !erRegistrator) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Kun admin og registratorer kan flytte dokumenter" });
+      }
+
+      // Hent sjekklisten
+      const sjekkliste = await ctx.prisma.checklist.findUniqueOrThrow({
+        where: { id: input.id },
+        include: {
+          utforerEnterprise: { select: { name: true } },
+        },
+      });
+
+      // Verifiser status
+      const tillattStatus = ["draft", "sent", "received", "in_progress"];
+      if (!tillattStatus.includes(sjekkliste.status)) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Kan ikke flytte dokumenter med status: " + sjekkliste.status });
+      }
+
+      // Hent ny dokumentflyt
+      const nyFlyt = await ctx.prisma.dokumentflyt.findUniqueOrThrow({
+        where: { id: input.nyDokumentflytId },
+        include: { dokumentflytPart: { select: { id: true, name: true } } },
+      });
+
+      if (!nyFlyt.enterpriseId) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Dokumentflyten mangler entreprise" });
+      }
+
+      const gammelEntrepriseNavn = sjekkliste.utforerEnterprise?.name ?? "Ukjent";
+      const nyEntrepriseNavn = nyFlyt.dokumentflytPart?.name ?? "Ukjent";
+      const brukerNavn = bruker?.name ?? "Ukjent";
+
+      return ctx.prisma.$transaction(async (tx) => {
+        await tx.checklist.update({
+          where: { id: input.id },
+          data: {
+            dokumentflytId: input.nyDokumentflytId,
+            utforerEnterpriseId: nyFlyt.enterpriseId!,
+            recipientUserId: input.recipientUserId ?? null,
+          },
+        });
+
+        await tx.documentTransfer.create({
+          data: {
+            checklistId: input.id,
+            senderId: ctx.userId,
+            recipientUserId: input.recipientUserId,
+            recipientGroupId: input.recipientGroupId,
+            fromStatus: sjekkliste.status,
+            toStatus: sjekkliste.status,
+            comment: `Flyttet av ${brukerNavn} fra ${gammelEntrepriseNavn} til ${nyEntrepriseNavn}`,
+            senderEnterpriseName: gammelEntrepriseNavn,
+            recipientEnterpriseName: nyEntrepriseNavn,
+            dokumentflytName: nyFlyt.name,
+            senderRolle: "registrator",
+          },
+        });
+
         return { success: true };
       });
     }),

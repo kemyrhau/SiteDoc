@@ -33,7 +33,7 @@ export function PeriodeVelger({
       {perioder?.map((p) => (
         <option key={p.id} value={p.id}>
           {p.type === "a_nota" ? "A-nota" : "T-nota"} #{p.periodeNr}
-          {p.enterprise ? ` — ${p.enterprise.name}` : ""}
+          {p.dokumentflytPart ? ` — ${p.dokumentflytPart.name}` : ""}
         </option>
       ))}
     </select>

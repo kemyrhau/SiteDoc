@@ -244,8 +244,9 @@ export const REPORT_OBJECT_TYPE_META: Record<ReportObjectType, ReportObjectTypeM
 export const TEMPLATE_ZONES = ["topptekst", "datafelter"] as const;
 export type TemplateZone = (typeof TEMPLATE_ZONES)[number];
 
-// Entreprisevelger-roller
-export type EnterpriseRole = "bestiller" | "utforer";
+// Dokumentflyt-roller
+export type DokumentflytRolle = "registrator" | "bestiller" | "utforer" | "godkjenner";
+export type EnterpriseRole = DokumentflytRolle;
 
 // Tillatelser — granulære tillatelser for prosjektgrupper
 export const PERMISSIONS = [

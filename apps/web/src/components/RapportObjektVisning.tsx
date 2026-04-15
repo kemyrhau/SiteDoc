@@ -4,8 +4,10 @@ import { useEffect, useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { normaliserOpsjon } from "./rapportobjekter/typer";
 import type { RapportObjekt } from "./rapportobjekter/typer";
+import { formaterDato, formaterDatoTid } from "@sitedoc/pdf";
+import type { VaerVerdi } from "@sitedoc/pdf";
 
-// Trafikklys-farge → label + CSS-klasse
+// Trafikklys-farge → label + CSS-klasse (web bruker Tailwind-klasser, ikke hex)
 const TRAFIKKLYS: Record<string, { label: string; klasse: string }> = {
   green: { label: "Godkjent", klasse: "bg-green-500" },
   yellow: { label: "Anmerkning", klasse: "bg-yellow-400" },
@@ -17,51 +19,11 @@ interface TreObjekt extends RapportObjekt {
   children: TreObjekt[];
 }
 
-interface VaerVerdi {
-  temp?: string;
-  conditions?: string;
-  wind?: string;
-  precipitation?: string;
-  kilde?: "manuell" | "automatisk";
-}
-
-interface TegningPosisjonVerdi {
+export interface TegningPosisjonVerdi {
   drawingId?: string;
   positionX?: number;
   positionY?: number;
   drawingName?: string;
-}
-
-/* ------------------------------------------------------------------ */
-/*  Hjelpefunksjoner                                                   */
-/* ------------------------------------------------------------------ */
-
-function formaterDato(verdi: unknown): string {
-  if (typeof verdi !== "string") return "";
-  try {
-    return new Date(verdi).toLocaleDateString("nb-NO", {
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    });
-  } catch {
-    return String(verdi);
-  }
-}
-
-function formaterDatoTid(verdi: unknown): string {
-  if (typeof verdi !== "string") return "";
-  try {
-    return new Date(verdi).toLocaleString("nb-NO", {
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  } catch {
-    return String(verdi);
-  }
 }
 
 /* ------------------------------------------------------------------ */
@@ -77,14 +39,11 @@ function FeltRad({
   children: React.ReactNode;
   tom?: boolean;
 }) {
+  if (tom) return null;
   return (
     <div className="print-no-break py-2">
       <p className="text-xs font-medium text-gray-500">{label}</p>
-      {tom ? (
-        <p className="mt-0.5 text-sm italic text-gray-300">Ikke utfylt</p>
-      ) : (
-        <div className="mt-0.5">{children}</div>
-      )}
+      <div className="mt-0.5">{children}</div>
     </div>
   );
 }
@@ -98,11 +57,14 @@ export function RapportObjektVisning({
   verdi,
   nestingNivå = 0,
   data,
+  prosjektAdresse,
 }: {
   objekt: TreObjekt;
   verdi: unknown;
   nestingNivå?: number;
   data?: Record<string, { verdi?: unknown }>;
+  /** Prosjektadresse — brukes for location-felt som ikke lagres i data */
+  prosjektAdresse?: string | null;
 }) {
   const marginKlasse =
     nestingNivå === 1
@@ -115,7 +77,7 @@ export function RapportObjektVisning({
 
   return (
     <div className={marginKlasse}>
-      <ObjektInnhold objekt={objekt} verdi={verdi} data={data} />
+      <ObjektInnhold objekt={objekt} verdi={verdi} data={data} prosjektAdresse={prosjektAdresse} />
       {objekt.children.length > 0 && (
         <div className="mt-1">
           {objekt.children.map((barn) => {
@@ -127,6 +89,7 @@ export function RapportObjektVisning({
                 verdi={barnVerdi}
                 nestingNivå={nestingNivå + 1}
                 data={data}
+                prosjektAdresse={prosjektAdresse}
               />
             );
           })}
@@ -201,10 +164,12 @@ function ObjektInnhold({
   objekt,
   verdi,
   data,
+  prosjektAdresse,
 }: {
   objekt: TreObjekt;
   verdi: unknown;
   data?: Record<string, { verdi?: unknown }>;
+  prosjektAdresse?: string | null;
 }) {
   const { type, label } = objekt;
 
@@ -417,7 +382,7 @@ function ObjektInnhold({
     }
 
     case "location": {
-      const tekst = typeof verdi === "string" ? verdi : "";
+      const tekst = typeof verdi === "string" && verdi ? verdi : (prosjektAdresse ?? "");
       return (
         <FeltRad label={label} tom={!tekst}>
           <p className="text-sm text-gray-900">{tekst}</p>
@@ -464,6 +429,7 @@ function ObjektInnhold({
                         verdi={barnVerdi}
                         nestingNivå={0}
                         data={data}
+                        prosjektAdresse={prosjektAdresse}
                       />
                       <RepeaterBarnVedlegg vedlegg={barnVedlegg} kommentar={barnKommentar} />
                     </div>
@@ -504,14 +470,23 @@ function useTegningSomBilde(url: string | null, erPdf: boolean): string | null {
 
     if (!erPdf) {
       // Bilde — last inn og konverter til data-URL for pålitelighet
+      // Ingen crossOrigin — bildene lastes fra same-origin (/api/uploads/)
       const img = new Image();
       img.onload = () => {
         if (avbrutt) return;
+        // Skaler ned store bilder for å holde data-URL håndterbar
+        const MAX_W = 2400;
+        let w = img.naturalWidth;
+        let h = img.naturalHeight;
+        if (w > MAX_W) {
+          h = Math.round(h * (MAX_W / w));
+          w = MAX_W;
+        }
         const canvas = document.createElement("canvas");
-        canvas.width = img.naturalWidth;
-        canvas.height = img.naturalHeight;
+        canvas.width = w;
+        canvas.height = h;
         const ctx = canvas.getContext("2d")!;
-        ctx.drawImage(img, 0, 0);
+        ctx.drawImage(img, 0, 0, w, h);
         setBildeUrl(canvas.toDataURL("image/png"));
       };
       img.onerror = () => {
@@ -551,7 +526,84 @@ function useTegningSomBilde(url: string | null, erPdf: boolean): string | null {
   return bildeUrl;
 }
 
-function TegningPosisjonPrint({ pos }: { pos: TegningPosisjonVerdi }) {
+const DETALJ_UTSNITT = 0.125; // 12.5% av bildet
+const DETALJ_TIMEOUT = 3000; // Fallback etter 3s
+
+/** Generer detalj-utsnitt via canvas — med fallback til oversiktsbilde */
+function useDetaljCanvas(bildeSrc: string | null, posX: number, posY: number): { url: string | null; klar: boolean } {
+  const [detaljUrl, setDetaljUrl] = useState<string | null>(null);
+  const [klar, setKlar] = useState(false);
+
+  useEffect(() => {
+    if (!bildeSrc || bildeSrc.startsWith("error")) {
+      setKlar(true);
+      return;
+    }
+    let avbrutt = false;
+    setDetaljUrl(null);
+    setKlar(false);
+
+    // Fallback-timer: etter 3s markér som klar uten detalj
+    const fallbackTimer = setTimeout(() => {
+      if (!avbrutt && !klar) {
+        setKlar(true);
+      }
+    }, DETALJ_TIMEOUT);
+
+    const img = new Image();
+    // bildeSrc er data-URL fra useTegningSomBilde — ingen crossOrigin nødvendig
+
+    img.onload = () => {
+      if (avbrutt) return;
+      try {
+        const ow = img.naturalWidth;
+        const oh = img.naturalHeight;
+        if (ow === 0 || oh === 0) { setKlar(true); return; }
+
+        const dw = 800;
+        const dh = Math.round(dw / (ow / oh));
+        const canvas = document.createElement("canvas");
+        canvas.width = dw;
+        canvas.height = dh;
+        const ctx = canvas.getContext("2d")!;
+
+        const srcW = ow * DETALJ_UTSNITT;
+        const srcH = oh * DETALJ_UTSNITT;
+        const srcCx = (posX / 100) * ow;
+        const srcCy = (posY / 100) * oh;
+        const srcX = Math.max(0, Math.min(ow - srcW, srcCx - srcW / 2));
+        const srcY = Math.max(0, Math.min(oh - srcH, srcCy - srcH / 2));
+
+        ctx.drawImage(img, srcX, srcY, srcW, srcH, 0, 0, dw, dh);
+
+        // Prikk i sentrum av utsnittet
+        const dpx = ((srcCx - srcX) / srcW) * dw;
+        const dpy = ((srcCy - srcY) / srcH) * dh;
+        ctx.beginPath(); ctx.arc(dpx, dpy, 13, 0, Math.PI * 2); ctx.fillStyle = "#ffffff"; ctx.fill();
+        ctx.beginPath(); ctx.arc(dpx, dpy, 10, 0, Math.PI * 2); ctx.fillStyle = "#ef4444"; ctx.fill();
+
+        const resultat = canvas.toDataURL("image/png");
+        if (!avbrutt) { setDetaljUrl(resultat); setKlar(true); }
+      } catch (e) {
+        // Canvas feilet — faller tilbake til oversiktsbilde
+        if (!avbrutt) setKlar(true);
+      }
+    };
+
+    img.onerror = (e) => {
+      // Bilde kunne ikke lastes — faller tilbake
+      if (!avbrutt) setKlar(true);
+    };
+
+    img.src = bildeSrc;
+
+    return () => { avbrutt = true; clearTimeout(fallbackTimer); };
+  }, [bildeSrc, posX, posY]);
+
+  return { url: detaljUrl, klar };
+}
+
+export function TegningPosisjonPrint({ pos }: { pos: TegningPosisjonVerdi }) {
   const { data: tegning } = trpc.tegning.hentMedId.useQuery(
     { id: pos.drawingId! },
     { enabled: !!pos.drawingId },
@@ -572,6 +624,9 @@ function TegningPosisjonPrint({ pos }: { pos: TegningPosisjonVerdi }) {
 
   // Rendre tegning til data-URL (PDF via pdfjs-dist, bilder via canvas)
   const bildeSrc = useTegningSomBilde(fileUrl, erPdf);
+
+  // Canvas-generert detalj-utsnitt (hook må kalles ALLTID, før tidlige returns)
+  const { url: detaljSrc, klar: detaljKlar } = useDetaljCanvas(bildeSrc, x, y);
 
   const tegningNummer = (tegning as { drawingNumber?: string | null } | undefined)?.drawingNumber;
   const visNavn = tegningNummer ?? drawingName;
@@ -600,16 +655,16 @@ function TegningPosisjonPrint({ pos }: { pos: TegningPosisjonVerdi }) {
   }
 
   return (
-    <div className="print-no-break">
+    <div>
       <p className="mb-2 text-sm font-medium text-gray-700">{visNavn}</p>
 
-      <div className="flex gap-3">
-        {/* Oversiktsbilde med markør — kvadrat */}
-        <div className="relative w-1/2 overflow-hidden rounded border border-gray-200" style={{ aspectRatio: "1/1" }}>
+      <div className="bilde-grid">
+        {/* Oversiktsbilde med markør */}
+        <div className="bilde-celle relative rounded border border-gray-200 bg-gray-50" style={{ height: "260px" }}>
           <img
             src={bildeSrc}
             alt={drawingName}
-            className="absolute inset-0 h-full w-full object-contain"
+            className="h-full w-full object-contain"
           />
           {/* Rød markør */}
           <div
@@ -628,19 +683,15 @@ function TegningPosisjonPrint({ pos }: { pos: TegningPosisjonVerdi }) {
           />
         </div>
 
-        {/* Detaljutsnitt — kvadrat */}
-        <div className="relative w-1/2 overflow-hidden rounded border border-gray-200" style={{ aspectRatio: "1/1" }}>
-          <img
-            src={bildeSrc}
-            alt={`Detalj: ${drawingName}`}
-            className="absolute inset-0 h-full w-full object-cover"
-            style={{
-              transformOrigin: `${x}% ${y}%`,
-              transform: `scale(${DETALJ_ZOOM})`,
-            }}
-          />
-          {/* Rød markør i senter */}
-          <div className="absolute left-1/2 top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-red-500 shadow-md" />
+        {/* Detaljutsnitt — canvas-generert bilde */}
+        <div className="bilde-celle rounded border border-gray-200" style={{ height: "260px" }}>
+          {detaljSrc ? (
+            <img src={detaljSrc} alt={`Detalj: ${drawingName}`} className="h-full w-full object-contain" />
+          ) : (
+            <div className="flex h-full items-center justify-center bg-gray-50 text-xs text-gray-400">
+              {detaljKlar ? "Detalj utilgjengelig" : "Laster detalj…"}
+            </div>
+          )}
         </div>
       </div>
     </div>

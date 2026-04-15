@@ -29,7 +29,8 @@ Tre-kolonne layout (skjules på mobil < 768px, hamburger-meny i Toppbar):
 /logg-inn                                     -> OAuth (klient-side signIn())
 /aksepter-invitasjon?token=...                -> Aksepter invitasjon (Server Component)
 /personvern                                   -> Personvernerklæring (GDPR)
-/utskrift/sjekkliste/[sjekklisteId]           -> PDF-forhåndsvisning (A4)
+/utskrift/sjekkliste/[sjekklisteId]           -> PDF-forhåndsvisning sjekkliste (A4, ?print=true auto-print)
+/utskrift/oppgave/[oppgaveId]                 -> PDF-forhåndsvisning oppgave (A4, ?print=true auto-print)
 /dashbord                                     -> Prosjektliste (→ kom-i-gang hvis ingen prosjekter)
 /dashbord/kom-i-gang                          -> Velkomstside for nye brukere
 /dashbord/nytt-prosjekt                       -> Opprett prosjekt
@@ -55,12 +56,12 @@ Tre-kolonne layout (skjules på mobil < 768px, hamburger-meny i Toppbar):
 /dashbord/[prosjektId]/dokumentleser         -> Dokumentleser med mappenavigering: venstre panel (mappetreet + dokumentliste med flagg), høyre panel (inline Reader View)
 /dashbord/oppsett/ai-sok                     -> AI-søk innstillinger: embedding-status, generer/stopp, NorBERT/OpenAI modellvalg, LLM-konfig, recall/precision/latency sliders
 /dashbord/oppsett                             -> Innstillinger
-/dashbord/oppsett/brukere                     -> Brukergrupper, roller + Kontakter-tabell (toggle-knapp). Kontakttabell viser alle prosjektmedlemmer med Navn, E-post, Telefon, Firma, Rolle, Entrepriser (redigerbare via +/x), Grupper
+/dashbord/oppsett/brukere                     -> Kontakttabell med grupper (default kollapsert). Sticky header: «+ Ny gruppe» + «Inviter ny» (inline form med fornavn/etternavn/e-post/telefon/firma). Modul-badges direkte klikkbare for toggle (sjekklister/oppgaver/tegninger/3D). Firma-dropdown i redigeringsvisning (endrer organizationId på brukernivå, inkl. «+ Nytt firma»). Firmaansvarlig via rolle-dropdown. Skjold: blått=Admin, gult=Firmaansvarlig. Legg til person i gruppe via custom dropdown (ikke native select). HjelpKnapp øverst til høyre
 /dashbord/oppsett/brukere/tillatelser         -> Tillatelsesmatrise (read-only)
 /dashbord/oppsett/lokasjoner                  -> Lokasjonsliste med georeferanse
 /dashbord/oppsett/produksjon                   -> Produksjon-oversikt (tidligere field/)
-/dashbord/oppsett/produksjon/dokumentflyt      -> Dokumentflyt (roller, maler, medlemmer)
-/dashbord/oppsett/produksjon/entrepriser       -> Entrepriser med dokumentflyt. Hovedansvarlig markeres med blå prikk (erHovedansvarlig). Dropdown i dokumentflyt viser kun personer og brukergrupper (ikke entrepriser/systemgrupper). Feilmelding ved sletting med tilknyttede dokumenter
+/dashbord/oppsett/produksjon/dokumentflyt      -> Dokumentflyt (roller med tilpassbare labels, maler per flyt, medlemmer). Sidebar viser Dokumentflyt (ikke Kontakter) under Produksjon
+/dashbord/oppsett/produksjon/entrepriser       -> Entrepriser med dokumentflyt. Hovedansvarlig markeres med blå prikk (erHovedansvarlig). hovedansvarligPersonId for person innenfor gruppe. Dropdown i dokumentflyt viser kun personer og brukergrupper (ikke entrepriser/systemgrupper). Feilmelding ved sletting med tilknyttede dokumenter
 /dashbord/oppsett/produksjon/oppgavemaler      -> Oppgavemaler
 /dashbord/oppsett/produksjon/sjekklistemaler   -> Sjekklistemaler
 /dashbord/oppsett/produksjon/moduler           -> Forhåndsdefinerte mal-pakker
@@ -76,10 +77,11 @@ Tre-kolonne layout (skjules på mobil < 768px, hamburger-meny i Toppbar):
 /dashbord/admin/prosjekter                    -> Alle prosjekter (m/prøveperiode-kolonner)
 /dashbord/admin/testsider                     -> Testsider (prøveprosjekter uten firma, aktive/deaktiverte)
 /dashbord/admin/tillatelser                   -> Global tillatelsesmatrise
-/dashbord/firma                               -> Firma-admin
+/dashbord/firma                               -> Firma-admin (oversikt + integrasjonsstatus)
 /dashbord/firma/prosjekter                    -> Firmaets prosjekter
-/dashbord/firma/brukere                       -> Firmaets brukere
+/dashbord/firma/brukere                       -> Firmaets brukere (rolleskifte user↔company_admin)
 /dashbord/firma/fakturering                   -> Fakturering (placeholder)
+/dashbord/firma/innstillinger                 -> Innstillinger (redigerbar firmainformasjon + ?-hjelp)
 ```
 
 ## Kontekster og hooks
@@ -107,7 +109,7 @@ Tre-kolonne layout (skjules på mobil < 768px, hamburger-meny i Toppbar):
 - `bruker.hentSpraak` / `bruker.oppdaterSpraak` — tRPC-endepunkter
 - `User.language` felt i Prisma (default "nb")
 - Lazy-loading: kun nb og en er statisk importert, andre lastes on-demand
-- `StatusBadge` i `packages/ui` bruker `useTranslation()` direkte
+- `StatusBadge` i `packages/ui` bruker `useTranslation()` direkte. Tar valgfri `lestAvMottakerVed`-prop — viser «Lest» med dato-tooltip når status er `sent` og mottaker har åpnet dokumentet
 
 **Konvensjoner:**
 - Nøkkelstruktur: `seksjon.nøkkel` (f.eks. `nav.dashbord`, `status.utkast`, `handling.lagre`)
@@ -214,17 +216,22 @@ Etter opprettelse navigeres brukeren direkte til detaljsiden for å begynne regi
 Oppgave- og sjekkliste-lister bruker konfigurerbar tabellvisning med:
 
 **Velg parameter** — modal med søkefelt og tre grupper:
-- **Kolonner**: Nr, Tittel, Status, Emne, Ansvarlig, Opprettet av, Entrepriser, Mal, Datoer
+- **Kolonner**: Prefix, Løpenummer, Tittel, Status, Flyt, Emne, Ansvarlig, Opprettet av, Entrepriser, Mal, Datoer
 - **Posisjon**: Byggeplass, Etasje, Tegning (separate kolonner)
-- **Verdier**: Dynamiske felt fra malenes `ReportObject`-er (`list_single`, `traffic_light`, `integer`, `decimal`, `text_field`, `person`, etc.)
+- **Verdier**: Dynamiske felt fra malenes `ReportObject`-er (`list_single`, `traffic_light`, `integer`, `decimal`, `text_field`, `person`, `signature`, `calculation`, etc.)
+- **Spesialformatering**: Trafikklys 🟢🟡🔴, dato nb-NO format, signatur ✓/—, person/firma-navn (ikke ID)
+
+**Flyt-kolonnen**: `FlytIndikator`-komponent per rad. Filtrering/sortering via `hentFlytLedd()`.
 
 **Ansvarlig** = hvem som har dokumentet nå: `recipientUser` → `recipientGroup` → fallback `responderEnterprise`. Oppdateres ved videresending.
+
+**Resizable kolonner**: Dra-håndtak i header. Header-styling: `bg-gray-100`, `border-b-2`, `text-[11px] font-semibold tracking-wider`. `table-layout: fixed`.
 
 **Filtrering**: Dropdown per kolonne (filter-ikon i header). Verdier bygges dynamisk fra data. Filter-tags vises over tabellen med × og nullstill.
 
 **Sortering**: Klikk header for å sortere opp/ned.
 
-**Lagring**: Aktive kolonner lagres i `localStorage` per side (v3-nøkkel). Nullstill-knapp i modalen.
+**Lagring**: `useTabelloppsett` hook — aktive kolonner og bredder lagres i database per bruker (`User.tabelloppsett` JSON). Debounced saving (800ms). Migrering fra localStorage automatisk.
 
 ## Standardemner (EMNE_KATEGORIER)
 
@@ -234,17 +241,89 @@ Forhåndsdefinerte emnekategorier i `@sitedoc/shared`: HMS (14), Kvalitet (15), 
 
 Ved sending og videresending av oppgaver/sjekklister sendes e-post til mottaker (person eller alle i gruppe) via Resend. Inneholder dokumentinfo, avsendernavn, kommentar og direktelenke. Fire-and-forget — blokkerer ikke statusendring.
 
-## Statushandlinger
+## Dokumentheader og handlingsknapper
 
-- **Utkast**: `Send` + `Slett` (sletter helt med bekreftelse)
-- **Sendt**: `Avbryt`
-- **Mottatt/Under arbeid**: Statusknapper + `Videresend` + `Avbryt`
-- **Besvart**: `Godkjenn` + `Avvis` + `Videresend`
-- **Avvist**: `Start arbeid igjen` + `Videresend`
-- **Godkjent**: `Lukk` + `Videresend`
-- **Avbrutt**: `Gjenåpne` (→ draft) + `Slett`
-- Videresend krever mottakervalg (person/gruppe). Mobil filtrerer ut `forwarded`/`deleted` (krever spesialbehandling)
+### Header-layout (sticky)
+Detaljsider (sjekkliste/oppgave) har sticky header med tre rader:
+- **Rad 1:** Prefix+nummer (bold grå) · Tittel (truncate) · LagreIndikator · Dato (skjult på mobil) · StatusBadge
+- **Rad 2:** FlytIndikator (kompakt på mobil, full på desktop)
+- **Rad 3:** Handlingsknapper (DokumentHandlingsmeny) · Skriv ut-ikon
+
+Layout: `<main>` har `px-6 pb-6` (IKKE pt) slik at `sticky top-0` fester seg helt øverst. Listesidene har `pt-6` på rot-div.
+
+### FlytIndikator
+Kompakt flytvisning. Viser alle ledd med ● på aktiv boks. Aktiv boks-format: `● Elektro · HE-Leder` (entreprise først, deretter person/gruppe med · separator).
+- **Web:** `apps/web/src/components/FlytIndikator.tsx` — desktop (full) + mobil (`kompakt` prop, aktiv + naboer, tap for full)
+- **Mobil (React Native):** `apps/mobile/src/components/FlytIndikator.tsx` — native View, kompakt, blå bar
+- Brukes i listevisning (tabellkolonne), web detaljside-header, og mobil detaljside-header
+- `hentFlytLedd()` eksportert for filtrering/sortering i tabeller
+- Data: `dokumentflyt.medlemmer` med `steg`, `rolle`, `enterprise`, `projectMember`, `group`
+
+### DokumentHandlingsmeny — Posisjon-basert logikk
+Handlingsknapper basert på brukerens **posisjon i flyten** (`apps/web/src/components/DokumentHandlingsmeny.tsx`).
+
+**Knapper per status:**
+
+| Status | Første/midtre boks | Siste boks (godkjenner) |
+|--------|-------------------|------------------------|
+| draft | `[Send ▾]` + `[Slett]` | — |
+| sent | `[Trekk tilbake]` | — |
+| received/in_progress | `[Send ▾]` (entrepriser + send tilbake) | `[Send ▾]` (svar avsender + videresend) |
+| responded | — | `[Godkjenn]` + `[Avvis]` + `[Send ▾]` |
+| approved | `[Lukk]` + `[Videresend ▾]` | — |
+| cancelled | `[Gjenåpne]` + `[Slett]` | — |
+
+**Send-dropdown innhold:**
+- Primærmottaker (entreprisenavn fra `byggVideresendValg()`)
+- Separator + "Send tilbake" (kun midtre boks, `in_progress`)
+- Separator + andre entrepriser (videresend)
+
+**Admin-seksjon:** Registrator/admin ser "Admin"-header i dropdown med:
+- Alle flytbokser (kan sende til hvilken som helst)
+- Manuelle statusendringer (Godkjenn, Lukk, Trekk tilbake, Gjenåpne)
+
+**Bekreftelse-modus:** Klikk på handling → kommentarfelt + Bekreft/Avbryt. Responsiv: stacker vertikalt på mobil.
+
+**Nøkkelbegreper:**
+- `null`-rolle = lesevisning (ingen knapper)
+- "Trekk tilbake" = `sent → cancelled` (ikke "Avbryt" som er UI-avbryt)
+- **API:** `gruppe.hentMinFlytInfo` returnerer `userId`, `projectMemberId`, `entrepriseIder`, `gruppeIder`, `erAdmin`
+- **API-validering:** `verifiserFlytRolle()` sjekker rolle før statusendring (403 ved mismatch)
+- **Videresend med flytbytte:** Oppdaterer `dokumentflytId` + `utforerEnterpriseId` automatisk
 - `cancelled → draft` er gyldig overgang (gjenåpning)
+
+### Rettighetsbasert UI (leser/redigerer/admin)
+
+`utledDokumentRettighet()` i `@sitedoc/shared/utils/flytRolle.ts` bestemmer hva brukeren kan gjøre:
+
+| Steg | Sjekk | Resultat |
+|------|-------|----------|
+| 1 | Admin / registrator | `"admin"` (alltid full tilgang) |
+| 2 | Terminal status (closed/approved/cancelled) | `"leser"` |
+| 3 | Kladd + edit-tillatelse | `"redigerer"` / `"leser"` |
+| 4 | Har ikke ballen | `"leser"` |
+| 5 | `DokumentflytMedlem.kanRedigere = false` | `"leser"` |
+| 6 | Gruppetillatelse (`checklist_edit`/`task_edit`) | `"redigerer"` / `"leser"` |
+
+**Fallback:** Brukere uten gruppemedlemskap (`tillatelser.size === 0`) får redigering hvis de har ballen — forhindrer blokkering av eksisterende flyter.
+
+**harBallen:** `recipientUserId === userId` eller `recipientGroupId in gruppeIder`. I kladd: `bestillerUserId === userId`.
+
+**Hooks:** `useOppgaveSkjema(id, rettighetInput?)` og `useSjekklisteSkjema(id, rettighetInput?)`. Valgfri `rettighetInput` — uten den faller hooken tilbake til gammel status-basert logikk (bakoverkompatibilitet for mobil).
+
+**kanRedigere-toggle:** I dokumentflyt-oppsettet (kontaktsiden) vises en toggle per flytmedlem: "Redigerer" (default, grå) / "Leser" (amber). Settes via `dokumentflyt.settKanRedigere` mutation. Gjelder per flytledd — en gruppe kan være redigerer i én flyt og leser i en annen.
+
+### Responsiv tilpasning (mobil)
+- Tittel: `text-base` + truncate 60vw (desktop: `text-lg`)
+- Dato: skjult på mobil (`hidden sm:inline`)
+- Redaktør-indikator: viser kun antall på mobil, fullt navn på desktop
+- FlytIndikator: kompakt modus (aktiv + naboer), desktop: full
+- Knapper på egen rad (ikke inline med FlytIndikator)
+- Bekreftelse: vertikal stack, kommentarfelt full bredde
+- Beskrivelse: `line-clamp-2` på mobil
+
+### TODO: Mobilapp
+Mobilappen bruker `hentStatusHandlinger()` direkte — skal migreres til posisjon-basert logikk med `utledMinRolle()`.
 
 ## Bildevedlegg
 
@@ -254,13 +333,53 @@ Ved sending og videresending av oppgaver/sjekklister sendes e-post til mottaker 
 
 ## Print-til-PDF
 
-**Print-header** (`PrintHeader`): logo, prosjektnavn, nr, adresse, dato, sjekkliste-tittel, bestiller/utfører, vær.
+### Arkitektur
+Dedikerte utskriftssider: `/utskrift/sjekkliste/[sjekklisteId]` og `/utskrift/oppgave/[oppgaveId]`. Åpnes via `window.open(url + "?print=true", "_blank")` fra detaljsider.
 
-**Tegningsutsnitt** i oppgave-utskrift: oversiktsbilde (venstre) med rød prikk + zoomet utsnitt (høyre). Vises kun for oppgaver med tegning + posisjon.
+**Auto-print (`?print=true`):** Viser spinner ("Forbereder utskrift…") på skjerm, A4-innhold `hidden print:block`. Triggerer `window.print()` etter 500ms. Lukker fanen automatisk via `afterprint`-event.
 
-**Print CSS** (`globals.css`): `@page { margin: 15mm; size: A4; }`, `.print-header`, `.print-skjul`, `.print-vedlegg-fullvisning`.
+**Manuell forhåndsvisning (uten `?print=true`):** Verktøylinje med "Skriv ut / Lagre PDF"-knapp + "Åpne sjekkliste/oppgave"-lenke.
 
-**PDF-forhåndsvisning** (`/utskrift/sjekkliste/[sjekklisteId]`, `/utskrift/oppgave/[oppgaveId]`): A4-visning utenfor dashbord-layout, `RapportObjektVisning` + `FeltVedlegg`.
+### Table-layout for gjentakende header/footer
+Utskriftsidene bruker `<table>` med `<thead>` (header gjentas på hver side) og `<tfoot>` (sidenummer via CSS counter). `@page { margin: 0; size: A4; }` fjerner nettleserens URL/dato.
+
+**CSS-klasser:**
+- `.print-tabell` — wrapper for table-layout
+- `.print-footer` — footer med CSS counter: `content: "Side " counter(page)`
+- `.print-no-break` — `break-inside: avoid` for felt
+- `.print-skjul` — `display: none !important` i print
+- `.print-sideskift` — `page-break-after: always` (batch-utskrift)
+- `.a4-ark` — 794px bredde, 15mm padding, visuell sidekant via `::after`
+- `print-color-adjust: exact` — bevarer farger i print
+
+**Layout-reset i print:** `html, body, #__next, .min-h-screen { min-height: 0 !important }`. Sidebar, toolbar og header skjules.
+
+### Header (styrt av utskriftsinnstillinger)
+Logo, prosjektnummer · prosjektnavn, lokasjon · tegning, dato med klokkeslett, dokumenttittel, fra→til, vær. Alle felt kan skjules via prosjektoppsett (`Project.utskriftsinnstillinger` JSON).
+
+**Utskriftsinnstillinger** (`/dashbord/oppsett/prosjektoppsett`): 7 avkrysninger — logo, eksternProsjektnummer, prosjektnavn, fraTil, lokasjon, tegningsnummer, vaer. Lagres på Project-modellen. Default: alle synlige.
+
+### Tegningsutsnitt og bilder
+**TegningPosisjonPrint** (eksportert fra `RapportObjektVisning.tsx`): oversikt med rød markør + canvas-generert detalj-utsnitt.
+- `useTegningSomBilde()`: laster tegning, skalerer til maks 2400px, konverterer til data-URL via canvas (PDF→pdfjs-dist→canvas)
+- `useDetaljCanvas()`: tar data-URL, klipper 12.5%-utsnitt rundt posisjon, tegner prikk, returnerer data-URL
+- 3s fallback-timer: viser oversiktsbilde hvis canvas feiler
+- Bildedimensjoner (`Drawing.imageWidth/imageHeight`) brukes for korrekt aspect ratio
+
+**Bildegrid** (`.bilde-grid`): 2 kolonner, `object-fit: contain`, `max-height: 260px`. Bilder beskjæres ikke. Grid brytes fritt over sider. Individuelle `.bilde-celle` har `break-inside: avoid`.
+
+### Feltvisning
+**FeltRad:** Tomme felt (`tom=true`) returnerer `null` — kun utfylte felt vises i utskrift.
+
+**Layout-prinsipp:** Feltlabel+verdi i `print-no-break` (ubrytbar). Vedlegg (`FeltVedlegg`) utenfor `print-no-break` — bildegrid kan brytes naturlig over sider.
+
+### Batch-utskrift
+`/dashbord/[prosjektId]/sjekklister/skriv-ut?ider=id1,id2,...` — flere sjekklister på én utskrift med `print-sideskift` mellom. Maks 10 parallelle queries. Bruker `PrintHeader`-komponent (ikke inline header).
+
+### Tekniske detaljer
+- **ProsjektId-oppslag:** Sjekkliste bruker `template.projectId`, oppgave bruker `bestillerEnterprise.projectId`
+- **Fil-URL-mønster:** `logoSrc`/`vedleggSrc` konverterer `/uploads/x` → `/api/uploads/x` (Next.js rewrite). Opplasting via `POST /api/upload`
+- **Sjekkliste vs oppgave:** Sjekkliste har vær-felt i header. Oppgave har prioritet-felt og oversikt+utsnitt-tegning
 
 **Data-attributter:** `data-panel="sekundaert"`, `data-toolbar`.
 
@@ -463,14 +582,22 @@ Sammenlign to overflatemodeller med rød/blå visualisering og volumberegning.
 ### Navigasjon
 Erstatter separate `/punktskyer` og `/modeller`-ruter. Gamle URLer redirectes via `next.config.js`. Sidebar viser én "3D"-knapp i stedet for to.
 
-### Persistent 3D-viewer (Fase 1 — implementert)
+### 3D-viewer isolering (viktig arkitekturbeslutning)
 
-`ViewerCanvas` lever i prosjekt-layouten (`/dashbord/[prosjektId]/layout.tsx`), ikke i page.tsx. Three.js-scene, WebGL-kontekst og lastede IFC-modeller overlever navigasjon mellom ruter.
+`TreDViewerProvider` og `ViewerCanvas` rendres **kun på 3D-sider** (`/3d-visning` og `/tegning-3d`), IKKE i prosjekt-layouten for alle sider.
 
-- **Layout:** ViewerCanvas rendres permanent i layout med `absolute inset-0`. Vis/skjul med CSS basert på `usePathname().endsWith("/3d-visning")`
-- **Children:** Page-innhold (sidepanel, verktøylinje, filter-bar) rendres over vieweren med `pointer-events-none` på wrapper, `pointer-events-auto` på interaktive elementer
-- **Bakgrunnslasting:** IFC-modeller begynner lasting så snart prosjektet åpnes, uavhengig av aktiv rute. Når bruker navigerer til 3D-visning er modellene ofte allerede lastet
-- **Verktøylinje og filter-bar:** Flyttet fra ViewerCanvas til page.tsx (`Fane3DModell`-komponenten)
+**Bakgrunn:** Tidligere levde `TreDViewerProvider` i prosjekt-layouten (`/dashbord/[prosjektId]/layout.tsx`) for å gjøre 3D-scenen persistent mellom ruter. Dette forårsaket:
+1. **129 MB IFC-lasting** på alle prosjektsider (økonomi, sjekklister, etc.)
+2. **React #310 krasjt** — IFC fragment-worker feil ("Model not found") propagerte som ugyldige React children på andre sider
+3. **680+ console errors** fra 3D-debug og IFC-feil på ikke-3D-sider
+
+**Nåværende arkitektur:**
+- `layout.tsx` sjekker `er3DVisning` (pathname slutter med `/3d-visning` eller `/tegning-3d`)
+- `TreDViewerProvider` + `ViewerCanvas` wraps kun innholdet når `er3DVisning === true`
+- Andre sider (økonomi, sjekklister, etc.) får ren layout uten 3D-overhead
+- **Konsekvens:** 3D-scenen re-initialiseres ved navigasjon til/fra 3D-sider (IFC-modeller caches i `ifcFilCache` for rask re-lasting)
+
+**ALDRI** flytt `TreDViewerProvider` tilbake til å wrappe alle sider — det krasjer økonomi og andre sider.
 
 ## Dokumenttidslinje
 
@@ -571,11 +698,12 @@ Draggbar skillelinje.
 - Auto-fit PDF til container ved oppstart
 - Full scroll-zoom og panorering
 
-**Live kamera-tracking (blå prikk):**
-- Blå prikk på tegningen viser kameraposisjon
-- **Inkrementell delta-tracking:** Startposisjon fra klikk (presis), bevegelse via `treDDeltaTilTegning` (lineærdel av similarity-transform, ingen absolutt offset)
-- Absolutt `treDTilTegning` har kjent offset — brukes IKKE for posisjon
-- `flyTil`-animasjon pauses i 600ms for å unngå at animasjonsframes tolkes som brukerbevegelse
+**Live kamera-tracking (blå prikk med retningsindikator):**
+- Blå prikk med trekant-pil viser kameraposisjon og blikkretning på tegningen
+- **Retningsberegning:** 3D `cam.getWorldDirection()` → `treDDeltaTilTegning(dir.x, dir.z)` → `atan2` → CSS `rotate()`. Oppdateres i RAF-loopen, også ved ren rotasjon
+- **Inkrementell delta-tracking:** Startposisjon fra klikk (presis), bevegelse via `treDDeltaTilTegning` (lineærdel av similarity-transform)
+- **Markør-posisjonering:** Prosent-basert (`left: X%, top: Y%`) inne i transform-div med eksplisitt `width/height = naturalWidth/Height`. `scale(1/zoom)` holder markørstørrelse konstant
+- `flyTil` returnerer `Promise<void>` som resolves ved camera-controls `rest` event (kamera har stoppet). Fallback: 3s timeout
 - Hint "Klikk på tegningen for å plassere kamera" vises uten markør
 
 **IFC GPS-kalibrering** (`gpsOverride` JSON-felt på Drawing):
@@ -604,8 +732,8 @@ Draggbar skillelinje.
 - `gpsTil3D(gps, ifcOrigin, system, hoyde)` — GPS → Three.js
 - `tredjeTilGps(punkt3d, ifcOrigin, system)` — Three.js → GPS
 - `wgs84TilUtm/wgs84TilNtm` — WGS84 → UTM/NTM projeksjon
-- `tegningTil3D` / `treDTilTegning` — direkte similarity-transform (forward=presis, invers=har offset)
-- `treDDeltaTilTegning` — lineærdel for inkrementell tracking (presis)
+- `tegningTil3D` / `treDTilTegning` — direkte similarity-transform (matematisk korrekt begge veier)
+- `treDDeltaTilTegning` — lineærdel for inkrementell tracking og retningsberegning
 
 **Georeferanse:**
 - Georeferanse-redigering skjer KUN i Lokasjoner-siden (`/dashbord/oppsett/lokasjoner`)

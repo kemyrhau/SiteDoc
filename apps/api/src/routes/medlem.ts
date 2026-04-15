@@ -6,6 +6,7 @@ import { TRPCError } from "@trpc/server";
 import { sendInvitasjonsEpost } from "../services/epost";
 import {
   verifiserAdmin,
+  verifiserAdminEllerFirmaansvarlig,
   verifiserProsjektmedlem,
   hentBrukerTillatelser,
 } from "../trpc/tilgangskontroll";
@@ -25,8 +26,8 @@ export const medlemRouter = router({
               organization: { select: { id: true, name: true } },
             },
           },
-          enterprises: {
-            include: { enterprise: { select: { id: true, name: true, color: true } } },
+          dokumentflytKoblinger: {
+            include: { dokumentflytPart: { select: { id: true, name: true, color: true } } },
           },
         },
         orderBy: { createdAt: "asc" },
@@ -47,8 +48,8 @@ export const medlemRouter = router({
           },
         },
         include: {
-          enterprises: {
-            include: { enterprise: true },
+          dokumentflytKoblinger: {
+            include: { dokumentflytPart: true },
           },
         },
       });
@@ -59,14 +60,14 @@ export const medlemRouter = router({
       const tillatelser = await hentBrukerTillatelser(ctx.userId, input.projectId);
       const erRegistrator = tillatelser.has("create_checklists") || tillatelser.has("create_tasks");
       if (erRegistrator || medlem.role === "admin") {
-        const alle = await ctx.prisma.enterprise.findMany({
+        const alle = await ctx.prisma.dokumentflytPart.findMany({
           where: { projectId: input.projectId },
           orderBy: { name: "asc" },
         });
         return alle;
       }
 
-      return medlem.enterprises.map((me) => me.enterprise);
+      return medlem.dokumentflytKoblinger.map((me) => me.dokumentflytPart);
     }),
 
   // Hent mine tillatelser i et prosjekt
@@ -78,11 +79,57 @@ export const medlemRouter = router({
       return [...tillatelser];
     }),
 
-  // Legg til medlem i prosjekt (krever admin)
+  // Legg til medlem i prosjekt (krever admin eller firmaansvarlig)
   leggTil: protectedProcedure
     .input(addMemberSchema)
     .mutation(async ({ ctx, input }) => {
-      await verifiserAdmin(ctx.userId, input.projectId);
+      const { erAdmin } = await verifiserAdminEllerFirmaansvarlig(ctx.userId, input.projectId);
+
+      // Firmaansvarlig: kun invitere brukere med samme organizationId
+      if (!erAdmin) {
+        const inviterende = await ctx.prisma.user.findUniqueOrThrow({
+          where: { id: ctx.userId },
+          select: { organizationId: true },
+        });
+
+        if (!inviterende.organizationId) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Du tilhører ingen organisasjon",
+          });
+        }
+
+        // Sjekk at organizationId matcher
+        if (input.organizationId && input.organizationId !== inviterende.organizationId) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Du kan kun invitere brukere til ditt eget firma",
+          });
+        }
+
+        // Tving organizationId til eget firma
+        input.organizationId = inviterende.organizationId;
+
+        // Firmaansvarlig kan ikke opprette admins
+        if (input.role === "admin") {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Kun administratorer kan opprette admin-brukere",
+          });
+        }
+
+        // Sjekk at eksisterende bruker tilhører samme firma
+        const eksisterendeBruker = await ctx.prisma.user.findUnique({
+          where: { email: input.email },
+          select: { organizationId: true },
+        });
+        if (eksisterendeBruker && eksisterendeBruker.organizationId && eksisterendeBruker.organizationId !== inviterende.organizationId) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Brukeren tilhører et annet firma",
+          });
+        }
+      }
 
       // Slå opp bruker på e-post, opprett hvis ikke finnes
       let user = await ctx.prisma.user.findUnique({
@@ -95,16 +142,21 @@ export const medlemRouter = router({
             email: input.email,
             name: `${input.firstName} ${input.lastName}`,
             phone: input.phone,
+            organizationId: input.organizationId,
           },
         });
-      } else if (!user.name) {
-        user = await ctx.prisma.user.update({
-          where: { id: user.id },
-          data: {
-            name: `${input.firstName} ${input.lastName}`,
-            phone: input.phone ?? user.phone,
-          },
-        });
+      } else {
+        // Oppdater manglende felter (navn, telefon, firma)
+        const oppdatering: { name?: string; phone?: string; organizationId?: string } = {};
+        if (!user.name) oppdatering.name = `${input.firstName} ${input.lastName}`;
+        if (input.phone && !user.phone) oppdatering.phone = input.phone;
+        if (input.organizationId && !user.organizationId) oppdatering.organizationId = input.organizationId;
+        if (Object.keys(oppdatering).length > 0) {
+          user = await ctx.prisma.user.update({
+            where: { id: user.id },
+            data: oppdatering,
+          });
+        }
       }
 
       // Sjekk om medlemskap allerede finnes
@@ -121,7 +173,7 @@ export const medlemRouter = router({
         // Legg til nye entreprise-tilknytninger
         if (input.enterpriseIds.length > 0) {
           for (const entId of input.enterpriseIds) {
-            await ctx.prisma.memberEnterprise.upsert({
+            await ctx.prisma.dokumentflytKobling.upsert({
               where: {
                 projectMemberId_enterpriseId: {
                   projectMemberId: eksisterende.id,
@@ -140,7 +192,7 @@ export const medlemRouter = router({
           where: { id: eksisterende.id },
           include: {
             user: true,
-            enterprises: { include: { enterprise: true } },
+            dokumentflytKoblinger: { include: { dokumentflytPart: true } },
           },
         });
       }
@@ -150,7 +202,7 @@ export const medlemRouter = router({
           userId: user.id,
           projectId: input.projectId,
           role: input.role,
-          enterprises: {
+          dokumentflytKoblinger: {
             create: input.enterpriseIds.map((entId) => ({
               enterpriseId: entId,
             })),
@@ -158,7 +210,7 @@ export const medlemRouter = router({
         },
         include: {
           user: true,
-          enterprises: { include: { enterprise: true } },
+          dokumentflytKoblinger: { include: { dokumentflytPart: true } },
         },
       });
 
@@ -238,7 +290,7 @@ export const medlemRouter = router({
         data: { role: input.role },
         include: {
           user: true,
-          enterprises: { include: { enterprise: true } },
+          dokumentflytKoblinger: { include: { dokumentflytPart: true } },
         },
       });
     }),
@@ -253,6 +305,7 @@ export const medlemRouter = router({
         email: z.string().email().optional(),
         phone: z.string().optional(),
         role: z.enum(["member", "admin"]).optional(),
+        organizationId: z.string().uuid().nullable().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -264,9 +317,10 @@ export const medlemRouter = router({
       });
 
       // Oppdater User-felter
-      const brukerOppdatering: { name?: string; email?: string; phone?: string | null } = {};
+      const brukerOppdatering: { name?: string; email?: string; phone?: string | null; organizationId?: string | null } = {};
       if (input.name !== undefined) brukerOppdatering.name = input.name;
       if (input.phone !== undefined) brukerOppdatering.phone = input.phone || null;
+      if (input.organizationId !== undefined) brukerOppdatering.organizationId = input.organizationId;
       if (input.email !== undefined && input.email !== medlem.user.email) {
         const eksisterende = await ctx.prisma.user.findUnique({
           where: { email: input.email },
@@ -299,7 +353,7 @@ export const medlemRouter = router({
         where: { id: input.id },
         include: {
           user: true,
-          enterprises: { include: { enterprise: true } },
+          dokumentflytKoblinger: { include: { dokumentflytPart: true } },
         },
       });
     }),
@@ -316,7 +370,7 @@ export const medlemRouter = router({
     .mutation(async ({ ctx, input }) => {
       await verifiserAdmin(ctx.userId, input.projectId);
 
-      return ctx.prisma.memberEnterprise.upsert({
+      return ctx.prisma.dokumentflytKobling.upsert({
         where: {
           projectMemberId_enterpriseId: {
             projectMemberId: input.projectMemberId,
@@ -343,7 +397,7 @@ export const medlemRouter = router({
     .mutation(async ({ ctx, input }) => {
       await verifiserAdmin(ctx.userId, input.projectId);
 
-      return ctx.prisma.memberEnterprise.delete({
+      return ctx.prisma.dokumentflytKobling.delete({
         where: {
           projectMemberId_enterpriseId: {
             projectMemberId: input.projectMemberId,
@@ -365,6 +419,23 @@ export const medlemRouter = router({
         },
         take: 10,
         select: { id: true, name: true, email: true, image: true },
+      });
+    }),
+
+  // Toggle firmaansvarlig-status for et prosjektmedlem
+  settFirmaansvarlig: protectedProcedure
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        projectId: z.string().uuid(),
+        erFirmaansvarlig: z.boolean(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await verifiserAdmin(ctx.userId, input.projectId);
+      return ctx.prisma.projectMember.update({
+        where: { id: input.id },
+        data: { erFirmaansvarlig: input.erFirmaansvarlig },
       });
     }),
 });

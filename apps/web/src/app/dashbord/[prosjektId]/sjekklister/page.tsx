@@ -9,6 +9,8 @@ import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
 import type { VerktoylinjeHandling } from "@/kontekst/navigasjon-kontekst";
 import { Plus, Printer, Trash2, Search, ChevronDown, ChevronRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { FlytIndikator } from "@/components/FlytIndikator";
+import { useTabelloppsett } from "@/hooks/useTabelloppsett";
 
 // --- Typer ---
 
@@ -35,8 +37,21 @@ interface SjekklisteRad {
   utforerEnterprise: { name: string };
   byggeplass: { id: string; name: string } | null;
   drawing: { name: string; floor: string | null } | null;
-  recipientUser: { name: string | null } | null;
-  recipientGroup: { name: string } | null;
+  recipientUser: { id: string; name: string | null } | null;
+  recipientGroup: { id: string; name: string } | null;
+  bestillerUserId?: string;
+  dokumentflyt: {
+    id: string;
+    name: string;
+    medlemmer: {
+      id: string;
+      rolle: string;
+      steg: number;
+      enterprise: { id: string; name: string } | null;
+      projectMember: { user: { id: string; name: string | null } } | null;
+      group: { id: string; name: string } | null;
+    }[];
+  } | null;
 }
 
 // --- Konstanter ---
@@ -55,8 +70,9 @@ const STATUS_ALTERNATIVER = [
 
 const FILTRERBARE_TYPER = new Set([
   "list_single", "list_multi", "traffic_light",
-  "text_field", "integer", "decimal",
-  "date", "date_time", "person", "company",
+  "text_field", "integer", "decimal", "calculation",
+  "date", "date_time", "person", "persons", "company",
+  "signature",
 ]);
 
 interface KolonneParam {
@@ -68,9 +84,10 @@ interface KolonneParam {
 }
 
 const SYSTEM_KOLONNER: KolonneParam[] = [
+  { id: "prefix", navnKey: "tabell.prefix", gruppe: "kolonner", fast: true },
   { id: "nr", navnKey: "tabell.nr", gruppe: "kolonner", fast: true },
-  { id: "tittel", navnKey: "tabell.tittel", gruppe: "kolonner", fast: true },
   { id: "status", navnKey: "tabell.status", gruppe: "kolonner", fast: true },
+  { id: "tittel", navnKey: "tabell.tittel", gruppe: "kolonner" },
   { id: "emne", navnKey: "tabell.emne", gruppe: "kolonner" },
   { id: "ansvarlig", navnKey: "tabell.ansvarlig", gruppe: "kolonner" },
   { id: "opprettetAv", navnKey: "tabell.opprettetAv", gruppe: "kolonner" },
@@ -80,6 +97,7 @@ const SYSTEM_KOLONNER: KolonneParam[] = [
   { id: "opprettet", navnKey: "tabell.opprettelsesdato", gruppe: "kolonner" },
   { id: "endret", navnKey: "tabell.endringsdato", gruppe: "kolonner" },
   { id: "frist", navnKey: "tabell.tidsfrist", gruppe: "kolonner" },
+  { id: "flyt", navnKey: "tabell.flyt", gruppe: "kolonner" },
 ];
 
 const POSISJON_KOLONNER: KolonneParam[] = [
@@ -88,31 +106,12 @@ const POSISJON_KOLONNER: KolonneParam[] = [
   { id: "tegning", navnKey: "tabell.tegning", gruppe: "posisjon" },
 ];
 
-const STANDARD_AKTIVE = new Set(["nr", "tittel", "emne", "mal", "status", "ansvarlig", "bygning", "frist"]);
-const STORAGE_KEY = "sitedoc-sjekkliste-kolonner-v3";
-
-function hentLagredeKolonner(): Set<string> {
-  if (typeof window === "undefined") return STANDARD_AKTIVE;
-  try {
-    const lagret = localStorage.getItem(STORAGE_KEY);
-    if (lagret) return new Set(JSON.parse(lagret) as string[]);
-  } catch { /* ignorer */ }
-  return STANDARD_AKTIVE;
-}
-
-function lagreKolonner(kolonner: Set<string>) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify([...kolonner]));
-  } catch { /* ignorer */ }
-}
+const STANDARD_AKTIVE = new Set(["prefix", "nr", "emne", "status", "ansvarlig", "flyt", "bygning", "frist"]);
 
 // --- Hjelpefunksjoner ---
 
-function formaterNummer(rad: SjekklisteRad): string {
-  if (rad.template?.prefix && rad.number) {
-    return `${rad.template.prefix}-${String(rad.number).padStart(3, "0")}`;
-  }
-  return rad.number ? String(rad.number) : "—";
+function formaterLopenummer(rad: SjekklisteRad): string {
+  return rad.number ? String(rad.number).padStart(3, "0") : "—";
 }
 
 function formaterAnsvarlig(rad: SjekklisteRad): string {
@@ -126,10 +125,43 @@ function formaterDato(dato: string | null): string {
   return new Date(dato).toLocaleDateString("nb-NO", { day: "numeric", month: "short", year: "numeric" });
 }
 
-function hentFeltVerdi(rad: SjekklisteRad, objektId: string): string {
+function hentFeltVerdi(
+  rad: SjekklisteRad,
+  objektId: string,
+  objektType?: string,
+  navneLookup?: Map<string, string>,
+): string {
   if (!rad.data) return "—";
   const verdi = rad.data[objektId];
   if (verdi == null || verdi === "") return "—";
+
+  // Signatur: vis ✓ eller —
+  if (objektType === "signature") return verdi ? "✓" : "—";
+
+  // Dato: norsk format
+  if (objektType === "date" && typeof verdi === "string") {
+    try { return new Date(verdi).toLocaleDateString("nb-NO", { day: "numeric", month: "short", year: "numeric" }); } catch { return String(verdi); }
+  }
+  if (objektType === "date_time" && typeof verdi === "string") {
+    try { return new Date(verdi).toLocaleDateString("nb-NO", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }); } catch { return String(verdi); }
+  }
+
+  // Trafikklys: norsk tekst
+  if (objektType === "traffic_light" && typeof verdi === "string") {
+    const TRAFIKKLYS: Record<string, string> = { green: "🟢", yellow: "🟡", red: "🔴", gray: "⚪" };
+    return TRAFIKKLYS[verdi] ?? verdi;
+  }
+
+  // Person/firma: oppslag i navne-map
+  if ((objektType === "person" || objektType === "company") && typeof verdi === "string" && navneLookup) {
+    return navneLookup.get(verdi) ?? verdi;
+  }
+
+  // Flere personer: oppslag for hver
+  if (objektType === "persons" && Array.isArray(verdi) && navneLookup) {
+    return verdi.map((id) => navneLookup.get(String(id)) ?? String(id)).join(", ");
+  }
+
   if (typeof verdi === "string") return verdi;
   if (typeof verdi === "number") return String(verdi);
   if (typeof verdi === "boolean") return verdi ? "Ja" : "Nei";
@@ -222,7 +254,15 @@ export default function SjekklisteSide() {
   const [visSlettModal, setVisSlettModal] = useState(false);
   const [slettFeil, setSlettFeil] = useState<string | null>(null);
   const [visKolonneVelger, setVisKolonneVelger] = useState(false);
-  const [aktiveKolonner, setAktiveKolonner] = useState<Set<string>>(hentLagredeKolonner);
+  const {
+    aktiveKolonner, kolonneBredder,
+    handleToggleKolonne, handleBreddeEndring,
+  } = useTabelloppsett({
+    liste: "sjekklister",
+    standardKolonner: STANDARD_AKTIVE,
+    migrerNokkel: "sitedoc-sjekkliste-kolonner-v5",
+    migrerBreddeNokkel: "sitedoc-sjekkliste-bredder-v1",
+  });
   const [filterVerdier, setFilterVerdier] = useState<Record<string, string>>({});
 
   const sjekklisteQuery = trpc.sjekkliste.hentForProsjekt.useQuery(
@@ -277,6 +317,7 @@ export default function SjekklisteSide() {
       templateId: malId,
       bestillerEnterpriseId: oppretter.id,
       utforerEnterpriseId: svarer?.enterprise?.id ?? oppretter.id,
+      dokumentflytId: matchDf?.id,
     });
   }
 
@@ -311,7 +352,61 @@ export default function SjekklisteSide() {
     return [...sett.values()].sort((a, b) => (a.navn ?? "").localeCompare(b.navn ?? "", "nb-NO"));
   }, [sjekklister]);
 
+  // Map objektId → type for spesialformatering
+  const objektTyper = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const rad of sjekklister ?? []) {
+      for (const obj of rad.template?.objects ?? []) {
+        if (!map.has(obj.id)) map.set(obj.id, obj.type);
+      }
+    }
+    return map;
+  }, [sjekklister]);
+
+  // Navne-lookup for person/firma-IDer (fra dokumentflyt-medlemmer + entrepriser)
+  const navneLookup = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const df of dokumentflyter ?? []) {
+      for (const m of (df as { medlemmer?: { projectMember?: { user?: { id: string; name: string | null } } | null; enterprise?: { id: string; name: string } | null }[] }).medlemmer ?? []) {
+        if (m.projectMember?.user?.id && m.projectMember.user.name) {
+          map.set(m.projectMember.user.id, m.projectMember.user.name);
+        }
+        if (m.enterprise?.id && m.enterprise.name) {
+          map.set(m.enterprise.id, m.enterprise.name);
+        }
+      }
+    }
+    // Legg til fra sjekkliste-data (bestiller, entrepriser)
+    for (const rad of sjekklister ?? []) {
+      if (rad.bestiller?.name) map.set((rad as unknown as { bestillerUserId: string }).bestillerUserId ?? "", rad.bestiller.name);
+      if (rad.bestillerEnterprise) map.set((rad as unknown as { bestillerEnterpriseId: string }).bestillerEnterpriseId ?? "", rad.bestillerEnterprise.name);
+      if (rad.utforerEnterprise) map.set((rad as unknown as { utforerEnterpriseId: string }).utforerEnterpriseId ?? "", rad.utforerEnterprise.name);
+    }
+    return map;
+  }, [dokumentflyter, sjekklister]);
+
   const alleKolonner = useMemo(() => [...SYSTEM_KOLONNER, ...POSISJON_KOLONNER, ...verdiFelter], [verdiFelter]);
+
+  // Utled aktivt flyt-ledd for en rad (for filter/sortering)
+  const hentFlytLedd = useCallback((rad: SjekklisteRad): string => {
+    const medl = rad.dokumentflyt?.medlemmer;
+    if (!medl || medl.length === 0) return "";
+    // Finn mottaker-ledd
+    const recipientGroupId = rad.recipientGroup?.id;
+    const recipientUserId = rad.recipientUser?.id;
+    if (rad.status === "closed" || rad.status === "approved") return "";
+    for (const m of medl) {
+      if (recipientGroupId && m.group?.id === recipientGroupId) return m.group.name;
+      if (recipientUserId && m.projectMember?.user?.id === recipientUserId) return m.projectMember.user.name ?? "";
+    }
+    // Fallback: entreprise-match
+    if (recipientUserId || recipientGroupId) {
+      // Bruk første entreprise-medlem som fallback
+      const ent = medl.find((m) => m.enterprise);
+      if (ent?.enterprise) return ent.enterprise.name;
+    }
+    return "";
+  }, []);
 
   // Dynamiske filteralternativer
   const dynamiskFilter = useMemo(() => {
@@ -319,6 +414,7 @@ export default function SjekklisteSide() {
     const bygg = (felter: (string | null | undefined)[]) =>
       [...new Set(felter.filter(Boolean) as string[])].sort().map((v) => ({ value: v, label: v }));
     const filter: Record<string, { value: string; label: string }[]> = {
+      prefix: bygg(data.map((s) => s.template?.prefix)),
       emne: bygg(data.map((s) => s.subject)),
       ansvarlig: bygg(data.map((s) => formaterAnsvarlig(s))),
       opprettetAv: bygg(data.map((s) => s.bestiller?.name)),
@@ -328,14 +424,16 @@ export default function SjekklisteSide() {
       bygning: bygg(data.map((s) => s.byggeplass?.name)),
       etasje: bygg(data.map((s) => s.drawing?.floor)),
       tegning: bygg(data.map((s) => s.drawing?.name)),
+      flyt: bygg(data.map((s) => hentFlytLedd(s))),
       status: STATUS_ALTERNATIVER.map((s) => ({ value: s.value, label: t(s.labelKey) })),
     };
     for (const felt of verdiFelter) {
       const objektId = felt.id.replace("felt:", "");
-      filter[felt.id] = bygg(data.map((s) => { const v = hentFeltVerdi(s, objektId); return v === "—" ? null : v; }));
+      const type = objektTyper.get(objektId);
+      filter[felt.id] = bygg(data.map((s) => { const v = hentFeltVerdi(s, objektId, type, navneLookup); return v === "—" ? null : v; }));
     }
     return filter;
-  }, [sjekklister, verdiFelter, t]);
+  }, [sjekklister, verdiFelter, t, objektTyper, navneLookup]);
 
   // Filtrer
   const filtrerte = useMemo(() => {
@@ -348,8 +446,12 @@ export default function SjekklisteSide() {
     for (const [kolId, verdi] of Object.entries(filterVerdier)) {
       if (!verdi) continue;
       resultat = resultat.filter((s) => {
-        if (kolId.startsWith("felt:")) return hentFeltVerdi(s, kolId.replace("felt:", "")) === verdi;
+        if (kolId.startsWith("felt:")) {
+          const oid = kolId.replace("felt:", "");
+          return hentFeltVerdi(s, oid, objektTyper.get(oid), navneLookup) === verdi;
+        }
         switch (kolId) {
+          case "prefix": return s.template?.prefix === verdi;
           case "status": return s.status === verdi;
           case "emne": return s.subject === verdi;
           case "ansvarlig": return formaterAnsvarlig(s) === verdi;
@@ -360,6 +462,7 @@ export default function SjekklisteSide() {
           case "bygning": return s.byggeplass?.name === verdi;
           case "etasje": return s.drawing?.floor === verdi;
           case "tegning": return s.drawing?.name === verdi;
+          case "flyt": return hentFlytLedd(s) === verdi;
           default: return true;
         }
       });
@@ -371,10 +474,6 @@ export default function SjekklisteSide() {
     setFilterVerdier((prev) => ({ ...prev, [kolonneId]: verdi }));
   }, []);
 
-  const handleToggleKolonne = useCallback((id: string) => {
-    if (id === "__reset__") { setAktiveKolonner(new Set(STANDARD_AKTIVE)); lagreKolonner(new Set(STANDARD_AKTIVE)); return; }
-    setAktiveKolonner((prev) => { const ny = new Set(prev); ny.has(id) ? ny.delete(id) : ny.add(id); lagreKolonner(ny); return ny; });
-  }, []);
 
   // Kolonnedefinisjoner
   const kolonneDefinisjoner = useMemo(() => {
@@ -384,8 +483,15 @@ export default function SjekklisteSide() {
       filtrerbar?: boolean; filterAlternativer?: { value: string; label: string }[];
     }
     const defs: Record<string, KolDef> = {
-      nr: { id: "nr", header: t("tabell.nr"), celle: (rad) => <span className="text-xs font-medium text-gray-500 whitespace-nowrap">{formaterNummer(rad)}</span>,
-        bredde: "90px", sorterbar: true, sorterVerdi: (rad) => rad.number ?? 0 },
+      prefix: { id: "prefix", header: t("tabell.prefix"),
+        celle: (rad) => rad.template?.prefix
+          ? <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs font-medium text-gray-600">{rad.template.prefix}</span>
+          : <span className="text-gray-300">—</span>,
+        bredde: "70px", sorterbar: true, sorterVerdi: (rad) => rad.template?.prefix ?? "",
+        filtrerbar: true, filterAlternativer: dynamiskFilter.prefix ?? [] },
+      nr: { id: "nr", header: t("tabell.nr"),
+        celle: (rad) => <span className="text-xs font-medium text-gray-500 whitespace-nowrap">{formaterLopenummer(rad)}</span>,
+        bredde: "60px", sorterbar: true, sorterVerdi: (rad) => rad.number ?? 0 },
       tittel: { id: "tittel", header: t("tabell.tittel"), celle: (rad) => <span className="font-medium text-gray-900">{rad.title}</span>,
         sorterbar: true, sorterVerdi: (rad) => rad.title },
       emne: { id: "emne", header: t("tabell.emne"), celle: (rad) => rad.subject
@@ -414,6 +520,16 @@ export default function SjekklisteSide() {
       frist: { id: "frist", header: t("tabell.tidsfrist"), celle: (rad) => rad.dueDate
         ? <span className="text-xs text-gray-500">{formaterDato(rad.dueDate)}</span> : <span className="text-gray-300">—</span>,
         bredde: "120px", sorterbar: true, sorterVerdi: (rad) => rad.dueDate ? new Date(rad.dueDate).getTime() : null },
+      flyt: { id: "flyt", header: t("tabell.flyt"),
+        celle: (rad) => <FlytIndikator
+          medlemmer={rad.dokumentflyt?.medlemmer ?? []}
+          recipientUserId={rad.recipientUser?.id}
+          recipientGroupId={rad.recipientGroup?.id}
+          status={rad.status}
+          bestillerUserId={rad.bestillerUserId}
+        />,
+        bredde: "200px", sorterbar: true, sorterVerdi: (rad) => hentFlytLedd(rad),
+        filtrerbar: true, filterAlternativer: dynamiskFilter.flyt ?? [] },
       bygning: { id: "bygning", header: t("tabell.bygning"), celle: (rad) => rad.byggeplass?.name
         ? <span className="text-xs text-gray-600">{rad.byggeplass.name}</span> : <span className="text-gray-300">—</span>,
         sorterbar: true, sorterVerdi: (rad) => rad.byggeplass?.name ?? "", filtrerbar: true, filterAlternativer: dynamiskFilter.bygning ?? [] },
@@ -427,10 +543,11 @@ export default function SjekklisteSide() {
     // Dynamiske verdier
     for (const felt of verdiFelter) {
       const objektId = felt.id.replace("felt:", "");
+      const type = objektTyper.get(objektId);
       defs[felt.id] = {
         id: felt.id, header: felt.navn ?? felt.id,
-        celle: (rad) => { const v = hentFeltVerdi(rad, objektId); return v !== "—" ? <span className="text-xs text-gray-600">{v}</span> : <span className="text-gray-300">—</span>; },
-        sorterbar: true, sorterVerdi: (rad) => hentFeltVerdi(rad, objektId),
+        celle: (rad) => { const v = hentFeltVerdi(rad, objektId, type, navneLookup); return v !== "—" ? <span className="text-xs text-gray-600">{v}</span> : <span className="text-gray-300">—</span>; },
+        sorterbar: true, sorterVerdi: (rad) => hentFeltVerdi(rad, objektId, type, navneLookup),
         filtrerbar: (dynamiskFilter[felt.id]?.length ?? 0) > 0, filterAlternativer: dynamiskFilter[felt.id] ?? [],
       };
     }
@@ -445,7 +562,7 @@ export default function SjekklisteSide() {
   if (isLoading) return <div className="flex justify-center py-12"><Spinner size="lg" /></div>;
 
   return (
-    <div>
+    <div className="pt-6">
       {(sjekklister?.length ?? 0) > 0 && (
         <div className="mb-3 flex items-center gap-2">
           <div className="relative">
@@ -481,7 +598,8 @@ export default function SjekklisteSide() {
           kolonner={kolonneDefinisjoner} data={filtrerte} radNokkel={(rad) => rad.id}
           onRadKlikk={(rad) => router.push(`/dashbord/${params.prosjektId}/sjekklister/${rad.id}`)}
           tomMelding={t("sjekklister.ingenMatcherFilter")} velgbar valgteRader={valgte} onValgEndring={setValgte}
-          filterVerdier={filterVerdier} onFilterEndring={handleFilterEndring} />
+          filterVerdier={filterVerdier} onFilterEndring={handleFilterEndring}
+          kolonneBredder={kolonneBredder} onKolonneBreddeEndring={handleBreddeEndring} />
       )}
 
       <Modal open={visSlettModal} onClose={() => setVisSlettModal(false)} title={t("sjekklister.slettTittel")}>
