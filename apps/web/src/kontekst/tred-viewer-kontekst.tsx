@@ -1121,7 +1121,7 @@ export function ViewerCanvas({
             }
           },
           flyTil: (x: number, _y: number, z: number, gulvY?: number): Promise<void> => {
-            const ctrl = world.camera.controls;
+            const ctrl = world.camera.controls!;
             if (!ctrl) return Promise.resolve();
             const erMm = Math.max(...totalBbox.getSize(new THREE.Vector3()).toArray()) > 1000;
             const øye = erMm ? 1600 : 1.6;
