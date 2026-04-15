@@ -531,8 +531,16 @@ export default function Tegning3DSide() {
       const kam = viewerRef.current?.hentKameraPosisjon();
       if (kam) {
         const nåPos = { x: kam.pos.x, z: kam.pos.z };
+        // Beregn retningsvinkel på tegningen fra 3D-kameraretning
+        const retDelta = treDDeltaTilTegning(kam.retning.x, kam.retning.z);
+        const vinkel = retDelta ? Math.atan2(retDelta.dx, -retDelta.dy) * (180 / Math.PI) : undefined;
+
         if (!forrigeKamPosRef.current) {
           forrigeKamPosRef.current = nåPos;
+          // Oppdater vinkel selv uten posisjonsbevegelse
+          if (vinkel !== undefined) {
+            setTegningMarkør((prev) => prev ? { ...prev, vinkel } : prev);
+          }
         } else {
           const dx3d = nåPos.x - forrigeKamPosRef.current.x;
           const dz3d = nåPos.z - forrigeKamPosRef.current.z;
@@ -540,9 +548,12 @@ export default function Tegning3DSide() {
           if (Math.abs(dx3d) > 1 || Math.abs(dz3d) > 1) {
             const delta = treDDeltaTilTegning(dx3d, dz3d);
             if (delta) {
-              setTegningMarkør((prev) => prev ? { x: prev.x + delta.dx, y: prev.y + delta.dy } : prev);
+              setTegningMarkør((prev) => prev ? { x: prev.x + delta.dx, y: prev.y + delta.dy, vinkel } : prev);
             }
             forrigeKamPosRef.current = nåPos;
+          } else if (vinkel !== undefined) {
+            // Posisjon uendret, men retning kan ha endret seg (rotasjon på stedet)
+            setTegningMarkør((prev) => prev && prev.vinkel !== vinkel ? { ...prev, vinkel } : prev);
           }
         }
       }
@@ -861,11 +872,32 @@ export default function Tegning3DSide() {
               </div>
             </div>
             {/* Markør-overlay utenfor transform (faste pikselposisjoner) */}
-            {/* Kamera-posisjon (blå prikk — presis fra klikk, oppdatert inkrementelt) */}
+            {/* Kamera-posisjon og retning */}
             {innholdStr.w > 0 && tegningMarkør && klikkKalibSteg === 0 && (() => {
               const p = pktTilPx(tegningMarkør);
+              const harVinkel = tegningMarkør.vinkel != null;
               return (
-                <div className="pointer-events-none absolute z-20 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-500 ring-2 ring-white" style={{ left: p.x, top: p.y }} />
+                <div
+                  className="pointer-events-none absolute z-20"
+                  style={{ left: p.x, top: p.y, transform: `translate(-50%, -50%)${harVinkel ? ` rotate(${tegningMarkør.vinkel}deg)` : ""}` }}
+                >
+                  <div className="relative flex items-center justify-center">
+                    {/* Blikkretning-pil (over sirkelen) */}
+                    {harVinkel && (
+                      <div
+                        className="absolute w-0 h-0"
+                        style={{
+                          top: -10,
+                          borderLeft: "5px solid transparent",
+                          borderRight: "5px solid transparent",
+                          borderBottom: "8px solid #3b82f6",
+                        }}
+                      />
+                    )}
+                    {/* Kamera-sirkel */}
+                    <div className="h-4 w-4 rounded-full bg-blue-500 ring-2 ring-white" />
+                  </div>
+                </div>
               );
             })()}
             {/* Hint: klikk for å starte tracking */}
