@@ -454,6 +454,46 @@ npx tsx prisma/seed-bibliotek.ts
 
 Kobler sjekklister til fysiske steder (BIM-soner, rom, lokasjoner) med tidsfrist og ansvarlig. Gir sporbarhet, varsling og fremdriftstracking.
 
+### Modul-registrering
+
+Kontrollplan er en **modul** i `PROSJEKT_MODULER` — aktiveres/deaktiveres per prosjekt, samme mønster som `hms-avvik`, `godkjenning`, `befaringsrapport`.
+
+```typescript
+// packages/shared/src/types/index.ts — PROSJEKT_MODULER
+{
+  slug: "kontrollplan",
+  navn: "Kontrollplan",
+  beskrivelse: "Stedsbasert kvalitetskontroll med sjekklister koblet til BIM-soner, rom og lokasjoner",
+  kategori: "funksjon",
+  ikon: "ClipboardList",
+  maler: [], // ingen auto-opprettede maler — bruker eksisterende sjekklister fra biblioteket
+}
+```
+
+Sidebar viser kontrollplan-lenken kun når modulen er aktivert (`kreverModul: "kontrollplan"`).
+
+### Mappestruktur
+
+```
+apps/web/src/app/dashbord/[prosjektId]/kontrollplan/   ← sider (liste, detalj, oppsett)
+apps/web/src/components/kontrollplan/                   ← UI-komponenter
+apps/api/src/routes/kontrollplan.ts                     ← API-ruter (tRPC)
+```
+
+### Database — i `packages/db`
+
+Kontrollplan-tabeller ligger i `packages/db` (IKKE isolert pakke) fordi de trenger FK-relasjoner til:
+- `report_templates` — sjekklisten som skal utføres
+- `byggeplasser` — lokasjon/sone/rom
+- `project_members` — ansvarlig person
+- `projects` — prosjektisolering
+
+| Tabell | Beskrivelse |
+|--------|-------------|
+| `kontrollplan_maler` | Mal: sjekkliste-referanse, sonetype, frekvens, ansvarlig-rolle |
+| `kontrollplaner` | Instans per prosjekt — kobler mal til spesifikk sone/rom/lokasjon |
+| `kontrollpunkt_utforelser` | Svar per kontrollpunkt: data, foto, signatur, tidsstempel, GPS |
+
 ### Kjerneflyt
 
 ```
@@ -463,28 +503,24 @@ Malbygger (BIM/Sone/Rom-egenskaper) + Tegninger + Soner/Rom
   → Rapport (PDF, status per sone)
 ```
 
-### Modeller (planlagt)
-
-| Modell | Beskrivelse |
-|--------|-------------|
-| `KontrollplanMal` | Mal med sjekkliste-referanse, sonetype, frekvens, ansvarlig-rolle |
-| `Kontrollplan` | Instans per prosjekt — kobler mal til spesifikk sone/rom/lokasjon |
-| `KontrollpunktUtførelse` | Svar per kontrollpunkt: data, foto, signatur, tidsstempel, GPS |
-
-### Avhengighet
-
-Kontrollplan er avhengig av **malbyggeren** — kan ikke starte implementering før malbygger er ferdig. Malbyggeren må støtte BIM-egenskap (`bim_property`), soneegenskap (`zone_property`) og romegenskap (`room_property`) felttyper.
-
 ### Varsling
 
 - Push-varsling til ansvarlig når kontrollpunkt forfaller
 - SMS-varsling (valgfritt, konfigurerbart)
 - Frist-eskalering til leder ved manglende utførelse
 
+### Avhengighet — BLOKKERT
+
+Kontrollplan kan **ikke ferdigstilles** før malbygger er ferdig:
+- Malbyggeren må støtte BIM-egenskap (`bim_property`), soneegenskap (`zone_property`) og romegenskap (`room_property`) felttyper
+- Kontrollplan bruker sjekklister fra biblioteket — disse opprettes via malbyggeren
+- Rekkefølge: **Malbygger → Kontrollplan**
+
 ## Status
 
 - **Kontrollplan-siden:** 404 — ikke bygget ennå (`/oppsett/produksjon/kontrollplaner`)
+- **Modul-registrering:** Ikke lagt til i `PROSJEKT_MODULER` ennå
 - **Prisma-modeller:** Ikke migrert ennå
 - **Seed-data:** Ikke opprettet ennå
 - **NS 3420-K maler:** Utkast, trenger forbedring
-- **Avhengighet:** Malbygger (MALBYGGER.md) må ferdigstilles først
+- **Blokkert av:** Malbygger (MALBYGGER.md)
