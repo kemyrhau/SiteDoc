@@ -389,7 +389,7 @@ export default function OppgaverSide() {
       templateId: malId,
       bestillerEnterpriseId: oppretter.id,
       utforerEnterpriseId: svarerEntrepriseId,
-      title: mal?.name ?? "Ny oppgave",
+      title: malMedDomain?.name ?? "Ny oppgave",
       priority: "medium",
       dokumentflytId: matchDf?.id,
     });
