@@ -646,12 +646,6 @@ export default function Tegning3DSide() {
     [synkAktiv, transformasjon, ifcOpprinnelse, coordSystem, viewerRef, klikkKalibSteg, finjusterSteg],
   );
 
-  // Beregn pikselposisjon for markør (utenfor transform-div)
-  const pktTilPx = useCallback((pkt: { x: number; y: number }) => ({
-    x: pan.x + (pkt.x / 100) * innholdStr.w * zoom,
-    y: pan.y + (pkt.y / 100) * innholdStr.h * zoom,
-  }), [pan, zoom, innholdStr]);
-
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
       {/* Toolbar */}
@@ -852,61 +846,62 @@ export default function Tegning3DSide() {
                     draggable={false}
                   />
                 )}
+                {/* Markører — inne i transform-div, prosent-posisjonert relativt til bildet */}
+                {/* Kamera-posisjon og retning */}
+                {innholdStr.w > 0 && tegningMarkør && klikkKalibSteg === 0 && (() => {
+                  const harVinkel = tegningMarkør.vinkel != null;
+                  const inversSkalering = 1 / zoom;
+                  return (
+                    <div
+                      className="pointer-events-none absolute z-20"
+                      style={{
+                        left: `${tegningMarkør.x}%`,
+                        top: `${tegningMarkør.y}%`,
+                        transform: `translate(-50%, -50%) scale(${inversSkalering})${harVinkel ? ` rotate(${tegningMarkør.vinkel}deg)` : ""}`,
+                      }}
+                    >
+                      <div className="relative flex items-center justify-center">
+                        {harVinkel && (
+                          <div
+                            className="absolute w-0 h-0"
+                            style={{
+                              top: -10,
+                              borderLeft: "5px solid transparent",
+                              borderRight: "5px solid transparent",
+                              borderBottom: "8px solid #3b82f6",
+                            }}
+                          />
+                        )}
+                        <div className="h-4 w-4 rounded-full bg-blue-500 ring-2 ring-white" />
+                      </div>
+                    </div>
+                  );
+                })()}
+                {/* Kalibrerings-markører A og B */}
+                {innholdStr.w > 0 && kalibMarkørA && (
+                  <div
+                    className="pointer-events-none absolute z-20"
+                    style={{ left: `${kalibMarkørA.x}%`, top: `${kalibMarkørA.y}%`, transform: `translate(-50%, -50%) scale(${1 / zoom})` }}
+                  >
+                    <div className="h-5 w-5 rounded-full border-2 border-white bg-purple-500 text-center text-[10px] font-bold leading-[18px] text-white">A</div>
+                  </div>
+                )}
+                {innholdStr.w > 0 && kalibMarkørB && (
+                  <div
+                    className="pointer-events-none absolute z-20"
+                    style={{ left: `${kalibMarkørB.x}%`, top: `${kalibMarkørB.y}%`, transform: `translate(-50%, -50%) scale(${1 / zoom})` }}
+                  >
+                    <div className="h-5 w-5 rounded-full border-2 border-white bg-orange-500 text-center text-[10px] font-bold leading-[18px] text-white">B</div>
+                  </div>
+                )}
               </div>
             </div>
-            {/* Markør-overlay utenfor transform (faste pikselposisjoner) */}
-            {/* Kamera-posisjon og retning */}
-            {innholdStr.w > 0 && tegningMarkør && klikkKalibSteg === 0 && (() => {
-              const p = pktTilPx(tegningMarkør);
-              const harVinkel = tegningMarkør.vinkel != null;
-              return (
-                <div
-                  className="pointer-events-none absolute z-20"
-                  style={{ left: p.x, top: p.y, transform: `translate(-50%, -50%)${harVinkel ? ` rotate(${tegningMarkør.vinkel}deg)` : ""}` }}
-                >
-                  <div className="relative flex items-center justify-center">
-                    {/* Blikkretning-pil (over sirkelen) */}
-                    {harVinkel && (
-                      <div
-                        className="absolute w-0 h-0"
-                        style={{
-                          top: -10,
-                          borderLeft: "5px solid transparent",
-                          borderRight: "5px solid transparent",
-                          borderBottom: "8px solid #3b82f6",
-                        }}
-                      />
-                    )}
-                    {/* Kamera-sirkel */}
-                    <div className="h-4 w-4 rounded-full bg-blue-500 ring-2 ring-white" />
-                  </div>
-                </div>
-              );
-            })()}
             {/* Hint: klikk for å starte tracking */}
             {synkAktiv && kalibTransform && !tegningMarkør && (
               <div className="pointer-events-none absolute bottom-3 left-3 z-20 rounded bg-blue-600/80 px-2.5 py-1 text-xs text-white">
                 Klikk på tegningen for å plassere kamera
               </div>
             )}
-            {/* Kalibrerings-markører A og B */}
-            {innholdStr.w > 0 && kalibMarkørA && (() => {
-              const p = pktTilPx(kalibMarkørA);
-              return (
-                <div className="pointer-events-none absolute z-20" style={{ left: p.x, top: p.y }}>
-                  <div className="h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-purple-500 text-center text-[10px] font-bold leading-[18px] text-white">A</div>
-                </div>
-              );
-            })()}
-            {innholdStr.w > 0 && kalibMarkørB && (() => {
-              const p = pktTilPx(kalibMarkørB);
-              return (
-                <div className="pointer-events-none absolute z-20" style={{ left: p.x, top: p.y }}>
-                  <div className="h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-orange-500 text-center text-[10px] font-bold leading-[18px] text-white">B</div>
-                </div>
-              );
-            })()}
-            {/* Fjernet: FOV-trekant — retningsberegning trenger mer arbeid */}
             </>
           ) : (
             <div className="flex h-full items-center justify-center">
