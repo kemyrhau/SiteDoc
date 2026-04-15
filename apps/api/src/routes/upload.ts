@@ -9,28 +9,14 @@ import { sjekkRateLimit } from "../utils/rateLimiter";
 
 const UPLOADS_DIR = join(process.cwd(), "uploads");
 
-const TILLATTE_TYPER = new Set([
-  ".pdf",
-  ".dwg",
-  ".dxf",
-  ".ifc",
-  ".png",
-  ".jpg",
-  ".jpeg",
-  ".las",
-  ".laz",
-  ".e57",
-  ".ply",
-  // FTD-modul: dokumentimport
-  ".xlsx",
-  ".xls",
-  ".xml",
-  ".csv",
-  ".docx",
-  ".doc",
-  // ISY Beskrivelse/Linker
-  ".gab",
-  ".ga1",
+// Blokkerte filtyper — potensielt farlige kjørbare filer
+const BLOKKERTE_TYPER = new Set([
+  ".exe", ".bat", ".cmd", ".com", ".msi", ".scr", ".pif",
+  ".sh", ".bash", ".csh", ".ksh",
+  ".vbs", ".vbe", ".js", ".jse", ".ws", ".wsf", ".wsc", ".wsh",
+  ".ps1", ".psm1", ".psd1",
+  ".reg", ".inf", ".lnk",
+  ".dll", ".sys", ".drv",
 ]);
 
 export async function uploadRoute(server: FastifyInstance) {
@@ -73,9 +59,9 @@ export async function uploadRoute(server: FastifyInstance) {
     }
 
     const ext = extname(data.filename).toLowerCase();
-    if (!TILLATTE_TYPER.has(ext)) {
+    if (!ext || BLOKKERTE_TYPER.has(ext)) {
       return reply.status(400).send({
-        error: `Ugyldig filtype: ${ext}. Tillatte typer: ${[...TILLATTE_TYPER].join(", ")}`,
+        error: `Ugyldig filtype: ${ext || "(ingen)"}. Kjørbare filer er ikke tillatt.`,
       });
     }
 
