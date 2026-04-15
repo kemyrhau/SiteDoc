@@ -262,3 +262,41 @@ To DB-kolonner styrer tilgang: `User.role` (`sitedoc_admin` | `company_admin` | 
   - **Filtrer output:** Bruk `| tail -n`, `| head -n`, `| grep` for å begrense output fra verbose kommandoer (build-logger, PM2-lister, psql-resultater)
   - **Unngå gjentatte lesinger:** Les en fil én gang, ikke les samme fil flere ganger i samme sesjon
   - **Bruk subagenter** for utforskning som krever mange søk/fillesinger
+
+## Hjelpetekster per side
+
+Hver side i SiteDoc skal ha en hjelpetekst tilgjengelig via hjelp-ikonet (?) øverst til høyre. Hjelpeteksten bygges når siden bygges, og oppdateres når siden endres.
+
+**Referanseimplementasjon:** Kontakter-siden (`/oppsett/brukere`) med tre faner.
+
+```tsx
+<HjelpKnapp>
+  <HjelpFane tittel="Hva er dette?">
+    <p>Forklaring av siden...</p>
+  </HjelpFane>
+</HjelpKnapp>
+```
+
+**Når en ny side bygges:**
+1. Lag hjelpetekst i samme PR — ikke i en separat oppgave
+2. Minimum: hva siden er til for (én setning), hvem som kan bruke den (rolle-krav), viktigste handlinger
+3. Bruk eksempler med norske navn (Ola, Trude, Per) — ikke abstrakte beskrivelser
+
+**Når en eksisterende side endres:**
+1. Oppdater hjelpeteksten i samme PR
+2. Sjekk at begreper stemmer med nye navn
+3. Hvis siden rename-es: hjelpeteksten rename-es samtidig
+
+**Konsistente begreper:**
+- "Dokumentflyt" — ikke "Entreprise" eller "Enterprise" i brukervendt tekst
+- "Firma" — det faktiske selskapet (Hansen Tømrer AS)
+- "Prosjektrolle" — rollen i prosjektet (Byggherre, Tømrer)
+- "Organisasjon" — kundefirmaet som eier SiteDoc-kontoen
+
+**Sider med hjelpetekst:**
+
+| Side | URL | Status |
+|------|-----|--------|
+| Kontakter/Brukere | /oppsett/brukere | ✅ Ferdig — trenger oppdatering: "Entreprise" → "Dokumentflyt" |
+| Kontakter (Dokumentflyt) | /oppsett/produksjon/kontakter | ⚠️ Mangler |
+| Admin/Firmaer | /admin/firmaer | ⚠️ Mangler |
