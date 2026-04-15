@@ -79,8 +79,9 @@ Stegvis flyt — hvert steg er en seksjon på skjermen:
    ☐ Helgetillegg
 6. Maskiner           → fra maskinregister, timer + valgfri mengde
 7. Materialer         → fritekst + mengde + enhet
-8. Beskrivelse        → valgfri tekst
-9. [Lagre]
+8. Utlegg             → kategori + beløp + valgfritt kvitteringsbilde
+9. Beskrivelse        → valgfri tekst
+10. [Lagre]
 ```
 
 ### UX-visning — dagsseddel (mobil)
@@ -117,6 +118,15 @@ Stegvis flyt — hvert steg er en seksjon på skjermen:
 │  │ + Legg til materiale                   │ │
 │  └───────────────────┴────────┴───────────┘ │
 │                                             │
+│  UTLEGG                                     │
+│  ┌─────────────────────────────────────────┐ │
+│  │ Kategori: [Drivstoff ▾]                │ │
+│  │ Beløp:    [450] kr                     │ │
+│  │ Bilde:    [📷 Ta bilde / Last opp]     │ │
+│  │ Notat:    [Shell Tromsø]               │ │
+│  │ + Legg til utlegg                      │ │
+│  └─────────────────────────────────────────┘ │
+│                                             │
 │  Beskrivelse: [Graving + kantstein langs...]│
 │                                     [Lagre] │
 └─────────────────────────────────────────────┘
@@ -148,7 +158,18 @@ Separate kolonner per lønnsart — aldri slått sammen. Hver dagsseddel eksport
 | Nattillegg | `nattillegg` → sats |
 | Helgetillegg | `helgetillegg` → sats |
 
-**Tripletex-eksport:** Følger eksisterende `BilagsKilde`-adapter-mønster fra økonomi-modulen. Adapter-interface slik at andre lønnssystemer (Visma, CSV) kan legges til uten kodeendring.
+**Utlegg eksporteres separat fra timer** — aldri blandet i lønnsrader:
+
+| Kolonne | Kilde |
+|---------|-------|
+| Dato | `daily_sheets.dato` |
+| Ansatt | `userId` → `users.name` |
+| Kategori | `sheet_expenses.kategori` |
+| Beløp | `sheet_expenses.belop` |
+| Notat | `sheet_expenses.notat` |
+| Kvittering | `sheet_expenses.bildeUrl` (lenke) |
+
+**Tripletex-eksport:** Timer som lønnsbilag, utlegg som reiseregning/bilag. Følger eksisterende `BilagsKilde`-adapter-mønster fra økonomi-modulen. Adapter-interface slik at andre lønnssystemer (Visma, CSV) kan legges til uten kodeendring.
 
 ## Database — `packages/db-timer`
 
@@ -199,6 +220,35 @@ Separate kolonner per lønnsart — aldri slått sammen. Hver dagsseddel eksport
 | `navn` | `text` | Materialnavn (fritekst) |
 | `mengde` | `decimal` | Antall |
 | `enhet` | `text` | m3, m2, tonn, kg, m |
+
+### `sheet_expenses` (utlegg per dagsseddel)
+
+| Felt | Type | Beskrivelse |
+|------|------|-------------|
+| `id` | `uuid` PK | |
+| `sheetId` | `uuid` FK → `daily_sheets` | |
+| `kategori` | `text` | Konfigurerbar per enterprise (se `expense_categories`) |
+| `belop` | `decimal` | Beløp i NOK |
+| `notat` | `text?` | Fritekst (f.eks. «Shell Tromsø») |
+| `bildeUrl` | `text?` | Kvitteringsbilde — S3-URL etter opplasting |
+| `bildeSyncStatus` | `text` default `pending` | `pending` \| `synced` — bilde synkes separat |
+
+**Kvitteringsbilde:**
+- Tas med mobilkamera direkte i appen (Expo ImagePicker / Camera)
+- Komprimeres før opplasting: maks 800px bredde, JPEG 80%
+- Lagres lokalt som filsti i SQLite → synkes til S3 ved tilkobling
+- Valgfritt men anbefalt — leder ser bildet i godkjenningsvisningen
+
+### `expense_categories` (utleggskategorier per enterprise)
+
+| Felt | Type | Beskrivelse |
+|------|------|-------------|
+| `id` | `uuid` PK | |
+| `enterpriseId` | `uuid` FK → `dokumentflyt_parts` | |
+| `navn` | `text` | Kategorinavn |
+| `aktiv` | `boolean` default true | Kan deaktiveres uten å slette |
+
+**Standardkategorier** (opprettes automatisk): Drivstoff, Parkering, Diett, Verktøy, Annet
 
 ### `enterprise_settings` (tilleggskonfigurasjon per enterprise)
 
@@ -253,7 +303,7 @@ Delt auth via eksisterende `next-auth` sessions-tabell i `packages/db`. Timer-AP
 | **Prosjektisolering** | `projectId` filtrerer alltid. Ingen data lekker mellom prosjekter |
 | **Ledervisning** | Firmaansvarlig ser ansattes dagssedler i sin faggruppe |
 | **Admin** | Prosjektadmin ser alle dagssedler i prosjektet |
-| **Godkjenning** | Leder godkjenner dagssedler → `godkjentAv` + `godkjentVed` |
+| **Godkjenning** | Leder godkjenner dagssedler → `godkjentAv` + `godkjentVed`. Utlegg godkjennes samtidig — leder ser kvitteringsbilder i godkjenningsvisningen |
 
 ## API-ruter (planlagt)
 
