@@ -20,8 +20,8 @@
 | `drawing_revisions` | Revisjonshistorikk for tegninger med fil, status og hvem som lastet opp |
 | `report_templates` | Maler med category (oppgave/sjekkliste), prefix, versjon, `domain` (bygg/hms/kvalitet, default "bygg"), `subjects` (JSON-array), `enable_change_log` (Boolean, default false) |
 | `report_objects` | Rapportobjekter i maler (27 typer inkl. PSI: info_text, info_image, video, quiz), rekursiv nesting via `parent_id` |
-| `checklists` | Sjekklister med bestiller/utfører-entreprise, status, data (JSON) |
-| `tasks` | Oppgaver med påkrevd mal (`template_id`), prefiks+løpenummer (`number`), prioritet, frist, bestiller/utfører, utfylt data (`data` JSON), valgfri tegningsposisjon og sjekkliste-kobling |
+| `checklists` | Sjekklister med bestiller/utfører-entreprise, status, data (JSON), `lest_av_mottaker_ved` (DateTime, settes når mottaker åpner) |
+| `tasks` | Oppgaver med påkrevd mal (`template_id`), prefiks+løpenummer (`number`), prioritet, frist, bestiller/utfører (nullable for HMS), utfylt data (`data` JSON), valgfri tegningsposisjon og sjekkliste-kobling, `lest_av_mottaker_ved` (DateTime, settes når mottaker åpner) |
 | `document_transfers` | Sporbarhet: all sending mellom entrepriser |
 | `images` | Bilder med valgfri GPS-data |
 | `folders` | Rekursiv mappestruktur med parent_id, `access_mode` (inherit/custom), valgfri `kontrakt_id` (kobler mappe til økonomi-kontrakt → blått ikon) |
@@ -84,9 +84,10 @@ Hjelpemodul i `apps/api/src/trpc/tilgangskontroll.ts`:
 | `byggTilgangsFilter(userId, projectId)` | Prisma WHERE-filter, `null` for admin |
 | `verifiserEntrepriseTilhorighet(userId, enterpriseId)` | FORBIDDEN hvis ikke tilhører (admin-bypass) |
 | `verifiserAdmin(userId, projectId)` | FORBIDDEN hvis ikke admin. company_admin med riktig org arver admin uten ProjectMember-rad |
+| `verifiserAdminEllerFirmaansvarlig(userId, projectId)` | Returnerer `{ erAdmin: boolean }`. Admin → true, firmaansvarlig → false. Vanlig member → FORBIDDEN. Brukes for invitasjoner |
 | `verifiserProsjektmedlem(userId, projectId)` | FORBIDDEN hvis ikke medlem. company_admin med riktig org arver tilgang uten ProjectMember-rad |
 | `verifiserOrganisasjonTilgang(userId, organisationId)` | FORBIDDEN hvis bruker ikke tilhører organisasjonen. company_admin uten organizationId = ugyldig |
-| `verifiserDokumentTilgang(userId, projectId, bestillerId, utforerId, domain?)` | Faggruppe + fagområde-tilgang |
+| `verifiserDokumentTilgang(userId, projectId, bestillerId, utforerId, domain?)` | Faggruppe + fagområde-tilgang. bestillerId/utforerId nullable for HMS |
 | `hentBrukerTillatelser(userId, projectId)` | `Permission`-set fra grupper. Admin har alle |
 | `verifiserTillatelse(userId, projectId, permission)` | FORBIDDEN hvis mangler |
 | `verifiserFlytRolle(...)` | Sjekker flytrolle for statusovergang (403 ved mismatch) |

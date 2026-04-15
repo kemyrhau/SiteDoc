@@ -77,10 +77,11 @@ Tre-kolonne layout (skjules på mobil < 768px, hamburger-meny i Toppbar):
 /dashbord/admin/prosjekter                    -> Alle prosjekter (m/prøveperiode-kolonner)
 /dashbord/admin/testsider                     -> Testsider (prøveprosjekter uten firma, aktive/deaktiverte)
 /dashbord/admin/tillatelser                   -> Global tillatelsesmatrise
-/dashbord/firma                               -> Firma-admin
+/dashbord/firma                               -> Firma-admin (oversikt + integrasjonsstatus)
 /dashbord/firma/prosjekter                    -> Firmaets prosjekter
-/dashbord/firma/brukere                       -> Firmaets brukere
+/dashbord/firma/brukere                       -> Firmaets brukere (rolleskifte user↔company_admin)
 /dashbord/firma/fakturering                   -> Fakturering (placeholder)
+/dashbord/firma/innstillinger                 -> Innstillinger (redigerbar firmainformasjon + ?-hjelp)
 ```
 
 ## Kontekster og hooks
@@ -108,7 +109,7 @@ Tre-kolonne layout (skjules på mobil < 768px, hamburger-meny i Toppbar):
 - `bruker.hentSpraak` / `bruker.oppdaterSpraak` — tRPC-endepunkter
 - `User.language` felt i Prisma (default "nb")
 - Lazy-loading: kun nb og en er statisk importert, andre lastes on-demand
-- `StatusBadge` i `packages/ui` bruker `useTranslation()` direkte
+- `StatusBadge` i `packages/ui` bruker `useTranslation()` direkte. Tar valgfri `lestAvMottakerVed`-prop — viser «Lest» med dato-tooltip når status er `sent` og mottaker har åpnet dokumentet
 
 **Konvensjoner:**
 - Nøkkelstruktur: `seksjon.nøkkel` (f.eks. `nav.dashbord`, `status.utkast`, `handling.lagre`)

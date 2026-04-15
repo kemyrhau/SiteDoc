@@ -25,6 +25,20 @@ En bruker kan tilhøre flere entrepriser via `MemberEnterprise`. Admin uten tilk
 
 `ProjectMember.erFirmaansvarlig` (Boolean, per prosjekt) — markerer prosjektmedlemmet som firmaansvarlig. Skjold-ikoner i UI: blått = Admin, gult = Firmaansvarlig. Settes via rolle-dropdown i kontakttabellen (Brukere-siden).
 
+**Invitasjonsrettighet:** Firmaansvarlig kan invitere nye brukere via `medlem.leggTil` — kun fra eget firma (`organizationId` må matche), kan ikke opprette admin-brukere. Invitasjonsliste: admin ser alt, firmaansvarlig kun egne, andre → 403. Guard: `verifiserAdminEllerFirmaansvarlig()`.
+
+## Gruppemodulere
+
+`ProjectGroup.modules` (JSON, default `["sjekklister","oppgaver","tegninger","3d"]`) — begrenser hvilke moduler en brukergruppe ser i sidebar. `gruppe.hentMinFlytInfo` returnerer aggregerte `moduler` fra alle brukerens grupper. Admin/registrator/company_admin ser alt. Kun soft enforcement (sidebar) — ingen API 403-sjekk.
+
+## HMS-avvik (gruppebasert flyt)
+
+HMS-oppgaver (maler med `domain: "hms"`) opprettes **uten entreprise** — `bestillerEnterpriseId` og `utforerEnterpriseId` er nullable på Task. Alle prosjektmedlemmer kan rapportere. Auto-rutes til HMS-gruppen (`ProjectGroup` med `domains` inkl. `"hms"`). Maks én HMS-gruppe per prosjekt. Tilgangskontroll via domain-sjekk i lag 3 (`verifiserDokumentTilgang`). Guard: `verifiserProsjektmedlem` (ikke `verifiserEntrepriseTilhorighet`).
+
+## lestAvMottakerVed
+
+`DateTime?` på Task og Checklist. Settes når mottaker (`recipientUserId === ctx.userId`) åpner dokumentet mens status er `sent`. StatusBadge viser «Lest» (i stedet for «Sendt») med tidsstempel-tooltip. Ved «Trekk tilbake» vises advarsel: «Mottaker har allerede lest dette dokumentet».
+
 ## Dokumentflyt (erstatter Arbeidsforløp)
 
 Prosjektomfattende dokumentflyt under Innstillinger > Produksjon > Dokumentflyt:
@@ -50,7 +64,8 @@ Prosjektomfattende dokumentflyt under Innstillinger > Produksjon > Dokumentflyt:
 - **Mal-velger per dokumentflyt:** Dokumentflyt har tilknyttede maler via `DokumentflytMal`. Ved opprettelse av oppgave/sjekkliste vises kun maler som tilhører valgt dokumentflyt
 - **Videresend-dropdown:** Matcher entreprise + dokumentets mal via `DokumentflytMal`. Én flyt → auto-velg. Flere flyter → flytnavn i parentes (f.eks. «Tømrer (HE → Tømrer - Avvik)»). Mottaker utledes fra utfører-rolle, fallback bestiller → godkjenner
 - **Tidslinje-snapshot:** `DocumentTransfer` har snapshot-felt: `senderEnterpriseName`, `recipientEnterpriseName`, `dokumentflytName`, `senderRolle`. Populeres ved statusendring/videresending/flytt. Viser kontekst i tidslinje: «Kenneth (Byggherre) → HE-Leder (Elektro) · Flyt: Elektro–HE · Bestiller»
-- **Planlagt:** HMS-avvik som egen dokumentflyt, intern godkjenning (ansatt → fagleder → TE)
+- **Implementert:** HMS-avvik gruppebasert flyt (se HMS-avvik seksjonen over)
+- **Planlagt:** Intern godkjenning (ansatt → fagleder → TE)
 
 ### Bakoverkompatibilitet
 - Gammel `arbeidsforlop`-router beholdt som alias i tRPC

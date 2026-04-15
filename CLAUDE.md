@@ -18,6 +18,7 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 | [docs/claude/dokumentflyt.md](docs/claude/dokumentflyt.md) | Dokumentflyt-spesifikasjon: eier, mottaker, dokumenttyper, flytregler, redigerbarhet |
 | [docs/claude/okonomi.md](docs/claude/okonomi.md) | Økonomi-modul: kontrakter, notaer, avvik, parsere, prosessering, dokumentsøk |
 | [docs/claude/bibliotek.md](docs/claude/bibliotek.md) | Sjekklistebibliotek: NS 3420-maler, import, regler, felttyper, admin-side |
+| [MALBYGGER.md](MALBYGGER.md) | Felles malbygger: dokumenttyper, felttyper, beslutninger, migreringsstrategi |
 
 **Ved "oppdater CLAUDE.md"**: oppdater den relevante detalj-filen i `docs/claude/`, ikke denne hovedfilen (med mindre det gjelder tech stack, struktur, kommandoer, kodestil eller regler).
 
