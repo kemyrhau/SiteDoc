@@ -110,6 +110,19 @@ export const sjekklisteRouter = router({
         "checklist",
       );
 
+      // Sett lestAvMottakerVed når mottaker åpner mens status er «sent»
+      if (
+        sjekkliste.status === "sent" &&
+        sjekkliste.recipientUserId === ctx.userId &&
+        !sjekkliste.lestAvMottakerVed
+      ) {
+        await ctx.prisma.checklist.update({
+          where: { id: sjekkliste.id },
+          data: { lestAvMottakerVed: new Date() },
+        });
+        sjekkliste.lestAvMottakerVed = new Date();
+      }
+
       return sjekkliste;
     }),
 

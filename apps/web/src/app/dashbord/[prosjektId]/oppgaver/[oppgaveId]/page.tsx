@@ -434,6 +434,14 @@ export default function OppgaveDetaljSide() {
               </span>
             )}
             <StatusBadge status={oppgave.status} />
+            {(fullOppgaveRå as { lestAvMottakerVed?: string | null })?.lestAvMottakerVed &&
+              (fullOppgaveRå as { bestillerUserId?: string })?.bestillerUserId === (minFlytInfo as { userId?: string })?.userId && (
+              <span className="hidden sm:inline text-[11px] text-gray-400">
+                {t("dokument.lestAvMottaker", {
+                  dato: new Date((fullOppgaveRå as { lestAvMottakerVed: string }).lestAvMottakerVed).toLocaleDateString("nb-NO", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }),
+                })}
+              </span>
+            )}
           </div>
         </div>
 
@@ -489,6 +497,7 @@ export default function OppgaveDetaljSide() {
             recipientUserId={(fullOppgaveRå as { recipientUserId?: string | null })?.recipientUserId}
             recipientGroupId={(fullOppgaveRå as { recipientGroupId?: string | null })?.recipientGroupId}
             bestillerUserId={(fullOppgaveRå as { bestillerUserId?: string })?.bestillerUserId}
+            lestAvMottakerVed={(fullOppgaveRå as { lestAvMottakerVed?: string | null })?.lestAvMottakerVed}
           />
           <button
             onClick={() => window.open(`/utskrift/oppgave/${params.oppgaveId}?print=true`, "_blank")}

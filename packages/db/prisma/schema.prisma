@@ -493,6 +493,7 @@ model Checklist {
   positionY             Float?    @map("position_y")
   recipientUserId       String?   @map("recipient_user_id")
   recipientGroupId      String?   @map("recipient_group_id")
+  lestAvMottakerVed     DateTime? @map("lest_av_mottaker_ved")
   createdAt             DateTime  @default(now()) @map("created_at")
   updatedAt             DateTime  @updatedAt @map("updated_at")
 
@@ -540,6 +541,7 @@ model Task {
   data                  Json?
   recipientUserId       String?   @map("recipient_user_id")
   recipientGroupId      String?   @map("recipient_group_id")
+  lestAvMottakerVed     DateTime? @map("lest_av_mottaker_ved")
   createdAt             DateTime  @default(now()) @map("created_at")
   updatedAt             DateTime  @updatedAt @map("updated_at")
 

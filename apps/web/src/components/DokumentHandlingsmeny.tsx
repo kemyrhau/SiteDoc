@@ -42,6 +42,8 @@ interface DokumentHandlingsmenyProps {
   recipientGroupId?: string | null;
   /** Bestiller (oppretters bruker-ID) */
   bestillerUserId?: string;
+  /** Tidspunkt da mottaker åpnet dokumentet */
+  lestAvMottakerVed?: Date | string | null;
 }
 
 /* ------------------------------------------------------------------ */
@@ -172,6 +174,7 @@ export function DokumentHandlingsmeny({
   recipientUserId,
   recipientGroupId,
   bestillerUserId,
+  lestAvMottakerVed,
 }: DokumentHandlingsmenyProps) {
   const { t } = useTranslation();
   const [åpenMeny, setÅpenMeny] = useState(false);
@@ -444,8 +447,16 @@ export function DokumentHandlingsmeny({
 
   // Bekreftelse-modus — responsiv: stacker vertikalt på mobil
   if (bekreftHandling) {
+    const erTilbaketrekking = bekreftHandling.nyStatus === "cancelled";
+    const mottakerHarLest = erTilbaketrekking && lestAvMottakerVed != null;
+
     return (
       <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full">
+        {mottakerHarLest && (
+          <span className="text-xs text-amber-600 font-medium shrink-0">
+            {t("statushandling.mottakerHarLest")}
+          </span>
+        )}
         <span className="text-sm text-gray-500 shrink-0">
           {t("statushandling.bekreftHandling", { handling: bekreftHandling.label || bekreftHandling.nyStatus })}
         </span>

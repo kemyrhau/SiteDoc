@@ -154,6 +154,19 @@ export const oppgaveRouter = router({
         "task",
       );
 
+      // Sett lestAvMottakerVed når mottaker åpner mens status er «sent»
+      if (
+        oppgave.status === "sent" &&
+        oppgave.recipientUserId === ctx.userId &&
+        !oppgave.lestAvMottakerVed
+      ) {
+        await ctx.prisma.task.update({
+          where: { id: oppgave.id },
+          data: { lestAvMottakerVed: new Date() },
+        });
+        oppgave.lestAvMottakerVed = new Date();
+      }
+
       return oppgave;
     }),
 

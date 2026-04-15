@@ -244,6 +244,7 @@ export default function SjekklisteDetaljSide() {
     recipientUserId?: string | null;
     recipientGroupId?: string | null;
     createdAt?: string;
+    lestAvMottakerVed?: string | null;
     byggeplass?: { id: string; name: string } | null;
     drawing?: { id: string; name: string; drawingNumber: string | null } | null;
   } | undefined;
@@ -446,6 +447,12 @@ export default function SjekklisteDetaljSide() {
               </span>
             )}
             <StatusBadge status={sjekkliste.status} />
+            {fullSjekkliste?.lestAvMottakerVed &&
+              fullSjekkliste?.bestillerUserId === (minFlytInfo as { userId?: string })?.userId && (
+              <span className="hidden sm:inline text-[11px] text-gray-400">
+                Lest av mottaker {new Date(fullSjekkliste.lestAvMottakerVed).toLocaleDateString("nb-NO", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+              </span>
+            )}
           </div>
         </div>
 
@@ -500,6 +507,7 @@ export default function SjekklisteDetaljSide() {
             recipientUserId={fullSjekkliste?.recipientUserId}
             recipientGroupId={fullSjekkliste?.recipientGroupId}
             bestillerUserId={fullSjekkliste?.bestillerUserId}
+            lestAvMottakerVed={fullSjekkliste?.lestAvMottakerVed}
           />
           <button
             onClick={() => window.open(`/utskrift/sjekkliste/${params.sjekklisteId}?print=true`, "_blank")}
