@@ -812,6 +812,8 @@ export default function Tegning3DSide() {
               <div
                 className="relative origin-top-left"
                 style={{
+                  width: innholdStr.w || undefined,
+                  height: innholdStr.h || undefined,
                   transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
                   cursor: panStartRef.current ? "grabbing" : "default",
                 }}
