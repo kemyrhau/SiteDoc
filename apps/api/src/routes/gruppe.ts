@@ -23,33 +23,60 @@ export const gruppeRouter = router({
   hentMinFlytInfo: protectedProcedure
     .input(z.object({ projectId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
+      const alleGruppeModuler = ["sjekklister", "oppgaver", "tegninger", "3d"];
+
       // sitedoc_admin
       const bruker = await ctx.prisma.user.findUnique({
         where: { id: ctx.userId },
-        select: { role: true },
+        select: { role: true, organizationId: true },
       });
       if (bruker?.role === "sitedoc_admin") {
-        return { userId: ctx.userId, projectMemberId: "", entrepriseIder: [], gruppeIder: [], erAdmin: true };
+        return { userId: ctx.userId, projectMemberId: "", entrepriseIder: [], gruppeIder: [], erAdmin: true, moduler: alleGruppeModuler };
       }
 
       const medlem = await ctx.prisma.projectMember.findUnique({
         where: { userId_projectId: { userId: ctx.userId, projectId: input.projectId } },
         include: {
           dokumentflytKoblinger: { select: { enterpriseId: true } },
-          groupMemberships: { select: { groupId: true } },
+          groupMemberships: {
+            select: {
+              groupId: true,
+              group: { select: { modules: true } },
+            },
+          },
         },
       });
 
       if (!medlem) {
+        // company_admin uten ProjectMember-rad — se alt
+        if (bruker?.role === "company_admin" && bruker.organizationId) {
+          const orgProsjekt = await ctx.prisma.organizationProject.findFirst({
+            where: { organizationId: bruker.organizationId, projectId: input.projectId },
+          });
+          if (orgProsjekt) {
+            return { userId: ctx.userId, projectMemberId: "", entrepriseIder: [], gruppeIder: [], erAdmin: true, moduler: alleGruppeModuler };
+          }
+        }
         throw new TRPCError({ code: "FORBIDDEN", message: "Ikke medlem" });
       }
+
+      // Admin ser alt
+      const erAdmin = medlem.role === "admin";
+
+      // Aggreger moduler fra alle grupper
+      const moduler = erAdmin
+        ? alleGruppeModuler
+        : [...new Set(
+            medlem.groupMemberships.flatMap((gm) => (gm.group.modules as string[]) ?? []),
+          )];
 
       return {
         userId: ctx.userId,
         projectMemberId: medlem.id,
         entrepriseIder: medlem.dokumentflytKoblinger.map((e) => e.enterpriseId),
         gruppeIder: medlem.groupMemberships.map((gm) => gm.groupId),
-        erAdmin: medlem.role === "admin",
+        erAdmin,
+        moduler,
       };
     }),
 
@@ -442,7 +469,6 @@ export const gruppeRouter = router({
     }),
 
   // Oppdater moduler for en gruppe
-  // TODO: Håndhev gruppemodulere i sidebar og API-endepunkter
   oppdaterModuler: protectedProcedure
     .input(
       z.object({
