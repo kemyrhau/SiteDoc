@@ -433,15 +433,10 @@ export default function OppgaveDetaljSide() {
                 {new Date((fullOppgaveRå as { createdAt: string }).createdAt).toLocaleDateString("nb-NO", { day: "2-digit", month: "2-digit", year: "numeric" })}
               </span>
             )}
-            <StatusBadge status={oppgave.status} />
-            {(fullOppgaveRå as { lestAvMottakerVed?: string | null })?.lestAvMottakerVed &&
-              (fullOppgaveRå as { bestillerUserId?: string })?.bestillerUserId === (minFlytInfo as { userId?: string })?.userId && (
-              <span className="hidden sm:inline text-[11px] text-gray-400">
-                {t("dokument.lestAvMottaker", {
-                  dato: new Date((fullOppgaveRå as { lestAvMottakerVed: string }).lestAvMottakerVed).toLocaleDateString("nb-NO", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }),
-                })}
-              </span>
-            )}
+            <StatusBadge
+              status={oppgave.status}
+              lestAvMottakerVed={(fullOppgaveRå as { lestAvMottakerVed?: string | null })?.lestAvMottakerVed}
+            />
           </div>
         </div>
 

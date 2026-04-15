@@ -34,10 +34,27 @@ const statusVariant: Record<string, "default" | "primary" | "success" | "warning
 interface StatusBadgeProps {
   status: string;
   className?: string;
+  lestAvMottakerVed?: Date | string | null;
 }
 
-export function StatusBadge({ status, className }: StatusBadgeProps) {
+export function StatusBadge({ status, className, lestAvMottakerVed }: StatusBadgeProps) {
   const { t } = useTranslation();
+
+  // «sent» + mottaker har lest → vis «Lest» med tooltip
+  if (status === "sent" && lestAvMottakerVed != null) {
+    const dato = new Date(lestAvMottakerVed).toLocaleDateString("nb-NO", {
+      day: "numeric",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+    return (
+      <Badge variant="primary" className={className} title={dato}>
+        {t("status.lest")}
+      </Badge>
+    );
+  }
+
   const variant = statusVariant[status] ?? "default";
   const i18nKey = STATUS_I18N[status];
   const label = i18nKey ? t(i18nKey) : status;

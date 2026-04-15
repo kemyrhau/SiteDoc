@@ -446,13 +446,10 @@ export default function SjekklisteDetaljSide() {
                 {new Date(fullSjekkliste.createdAt).toLocaleDateString("nb-NO", { day: "2-digit", month: "2-digit", year: "numeric" })}
               </span>
             )}
-            <StatusBadge status={sjekkliste.status} />
-            {fullSjekkliste?.lestAvMottakerVed &&
-              fullSjekkliste?.bestillerUserId === (minFlytInfo as { userId?: string })?.userId && (
-              <span className="hidden sm:inline text-[11px] text-gray-400">
-                Lest av mottaker {new Date(fullSjekkliste.lestAvMottakerVed).toLocaleDateString("nb-NO", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
-              </span>
-            )}
+            <StatusBadge
+              status={sjekkliste.status}
+              lestAvMottakerVed={fullSjekkliste?.lestAvMottakerVed}
+            />
           </div>
         </div>
 
