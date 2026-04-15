@@ -25,7 +25,7 @@ apps/web/src/
 ├── app/dashbord/[prosjektId]/okonomi/
 │   └── page.tsx                          # Hovedside (~1400 linjer)
 ├── components/mengde/
-│   ├── spec-post-tabell.tsx              # Budsjettpost-tabell med sortering, søk, gruppeheaders
+│   ├── spec-post-tabell.tsx              # Budsjettpost-tabell: sortering, søk, drag-and-drop kolonner, vis/skjul
 │   ├── avviksanalyse.tsx                 # Avviksanalyse: budsjett vs kontrakt
 │   ├── import-dialog.tsx                 # Import-dialog: filopplasting, type-gjetting, bekreftelse
 │   ├── import-sammenligning.tsx          # Side-ved-side dokumentsammenligning
@@ -43,7 +43,7 @@ apps/api/src/
 │   ├── nota-import-router.ts             # Nota-import (2 prosedyrer)
 │   └── kontrakt.ts                       # Kontrakt-CRUD (4 prosedyrer)
 ├── services/
-│   ├── ftd-prosessering.ts               # Hovedprosessor: PDF, Excel, GAB, XML, CSV (~2700 linjer)
+│   ├── ftd-prosessering.ts               # Hovedprosessor: PDF, Excel, GAB, XML, CSV + budsjettoppdatering (~2800 linjer)
 │   ├── nota-import.ts                    # Scenariodeteksjon + akkumuleringsvalidering (~500 linjer)
 │   ├── pdf-splitting.ts                  # Splitt målebrev-PDF per NS-kode (~180 linjer)
 │   ├── blokk-prosessering.ts             # Flerspråklige blokker + bildeutrekking
@@ -179,6 +179,9 @@ Asynkron oversettelsesoppgave per dokument+språk.
    - **XML**: NS 3459-format → spec-poster
    - **CSV**: Standard CSV-parsing
 5. Resultat: FtdDocument (completed) + FtdDocumentChunks + FtdSpecPosts
+6. **Budsjettoppdatering**: Ved A-nota/T-nota oppdateres anbudsgrunnlagets spec-poster
+   automatisk med nota-verdier (`oppdaterBudsjettFraNota`) hvis de mangler mengde/enhetspris/sum
+   eller har >50% avvik (indikerer feilparsing i PDF)
 
 ### Nota-import (A-nota / T-nota)
 1. Bruker velger importert dokument + kontrakt + periodeNr
@@ -218,11 +221,22 @@ Asynkron oversettelsesoppgave per dokument+språk.
 ### Kontrollrad
 - Kontraktvelger, type-velger (A-Nota/T-Nota), periodenummer
 - NotaOppsummering: 2×3 grid med utført, innestående, MVA etc.
-- localStorage-persistering per prosjekt
+- Nota-forside knapp (📄): åpner PDF i iframe eller strukturert oppsummering for Excel
+- Nota-forside modal er **flyttbar** — dra i header-baren (DraggableModal)
+- localStorage-persistering per prosjekt (`ftd-kontrakt-{prosjektId}`, `ftd-type-{prosjektId}`, `ftd-nr-{prosjektId}`)
+
+### SpecPostTabell-funksjoner
+- **Treveis sortering**: klikk header → asc → desc → ingen
+- **Vis/skjul kolonner**: +-knapp i header med gruppert dropdown (Mengder/Verdi), checkbox per kolonne
+- **Drag-and-drop kolonneorder**: dnd-kit, GripVertical-ikon, faste kolonner (Postnr/Beskrivelse) ikke draggbare
+- **Kolonne-persistering**: `ftd-kolonne-orden` og `ftd-kolonne-synlig` i localStorage
+- **Mva denne per.**: kolonne skjult som default (data mangler per post foreløpig)
+- **Nota-prioritet for verdier**: mengde/enhetspris/sum hentes fra nota når den finnes, faller tilbake til budsjett
 
 ### Import-dialog
 - 9 dokumenttyper: anbudsgrunnlag, mengdebeskrivelse, a_nota, t_nota, varsel, varsel_om_endring, endringsmelding, regningsarbeid, annet
 - Auto-gjetting av type fra filnavn (inkl. mappevalg)
+- **Batch-import**: flere filer samtidig, nota-nummer auto-detekteres per fil fra filnavn
 - Bekreftelsesdialog med advarsler (type-mismatch, manglende kontrakt/nr)
 - Prosesseringsindikator (blå spinner ved prossessering, rød ved feil)
 
@@ -237,3 +251,6 @@ Asynkron oversettelsesoppgave per dokument+språk.
 - **Prosjektisolering**: Alle queries filtrerer på `projectId`
 - **Flerspråklig embedding**: E5-vektorer (768-dim) for alle språk
 - **Oversettelsescache**: SHA-256 hash → unngår re-oversettelse
+- **Budsjettoppdatering fra nota**: Ved prosessering av A-nota/T-nota oppdateres anbudsgrunnlagets poster automatisk med nota-verdier hvis de mangler eller avviker >50% (`oppdaterBudsjettFraNota` i ftd-prosessering.ts)
+- **Polling-strategi**: `hentDokumenter` poller 3s kun under prosessering, ellers `staleTime: 10s` + `refetchOnWindowFocus`. Spec-poster har `staleTime: 30s`
+- **tRPC i Next.js**: API-kall kjører direkte i Next.js-prosessen via `appRouter` i route handler (`/api/trpc/[...trpc]`), IKKE som proxy til separat API-server
