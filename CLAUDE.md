@@ -50,15 +50,22 @@ sitedoc/
 ├── apps/
 │   ├── web/              # Next.js — src/app/, src/components/, src/kontekst/, src/hooks/, src/lib/
 │   ├── mobile/           # Expo — src/db/, src/providers/, src/services/, app/
-│   └── api/              # Fastify — src/routes/, src/services/, src/trpc/
+│   ├── api/              # Fastify — src/routes/, src/services/, src/trpc/
+│   ├── timer/            # (planlagt) Next.js — timer.sitedoc.no
+│   └── maskin/           # (planlagt) Next.js — maskin.sitedoc.no
 ├── packages/
 │   ├── shared/           # Delte typer, Zod-schemaer, utils
 │   ├── db/               # Prisma schema, migreringer, seed
-│   └── ui/               # 14 delte UI-komponenter
-├── docs/claude/          # Detaljert Claude-dokumentasjon (7 filer)
+│   ├── ui/               # 14 delte UI-komponenter
+│   ├── pdf/              # Delt PDF-generering (HTML-strenger, null avhengigheter)
+│   ├── db-timer/         # (planlagt) Egne Prisma-tabeller for timer
+│   └── db-maskin/        # (planlagt) Egne Prisma-tabeller for maskin
+├── docs/claude/          # Detaljert Claude-dokumentasjon
 ├── CLAUDE.md             # Denne filen
 └── turbo.json
 ```
+
+Nye moduler (timer, maskin) bruker samme PostgreSQL-instans men separate Prisma-skjemaer. Delt auth via eksisterende next-auth sessions-tabell. Nye modulers tabeller skal ALDRI inn i `packages/db`.
 
 ## Kommandoer
 
@@ -199,6 +206,33 @@ Etter endringer, oppgi alltid hvilken reload-metode som trengs:
   4. Nøkkelformat: `seksjon.noekkel` (f.eks. `oppgaver.tittel`, `handling.lagre`)
   5. Gjenbruk eksisterende nøkler der mulig (`handling.lagre`, `handling.avbryt`, `tabell.navn` etc.)
   6. For data utenfor komponenter (arrays, configs): bruk `labelKey` i stedet for `label`, kall `t()` ved rendering
+
+## Admin-arkitektur og roller
+
+Fire admin-nivåer med strengt separerte rettigheter:
+
+| Nivå | Rolle i DB | URL | Beskyttelse |
+|------|-----------|-----|-------------|
+| **Superadmin** (Kenneth) | `sitedoc_admin` | `/admin` | `verifiserSiteDocAdmin()` |
+| **Org-admin** (kundens admin) | `company_admin` | `/org/innstillinger` | `verifiserOrganisasjonTilgang()` |
+| **Firmaadmin** | `enterprise_admin` | TBD | Enterprise-scoped |
+| **Prosjektbrukere** | `project_manager` / `worker` / `field_user` | Prosjekt-dashboard | Prosjekt-scoped |
+
+**Kritiske regler:**
+- Org-admin ser **KUN** sin egen organisasjons data — absolutt umulig å se andre orgs
+- Org-grense-sjekk ligger **ALLTID** i server-laget (tRPC), aldri kun i frontend
+- API-nøkler sendes **ALDRI** til klienten — returner kun `harNøkkel: boolean`
+- Enterprise-overføring (standalone → org) er **permanent** — krever superadmin + firmaadmin-godkjenning
+
+**Organisasjonsmodellen — to spor:**
+- **Standalone** (`organizationId = null`) — gyldig permanent tilstand, ikke en mangel
+- **Under Organization** — org-admin har innsyn, integrasjoner tilgjengelig
+
+**Kryssorg-deling:**
+- Deaktivert som standard (`eksternDeling = false` på Project)
+- Kun push, aldri pull — sender initierer
+- Varsling ≠ deling — RUH gir varsel med metadata, ikke dokumentet
+- Ingen duplikater — dokument bor alltid hos eier-org
 
 ## Viktige regler
 
