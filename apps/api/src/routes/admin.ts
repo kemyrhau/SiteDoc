@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { TRPCError } from "@trpc/server";
+import { Prisma } from "@sitedoc/db";
 
 /**
  * Verifiser at bruker er SiteDoc-administrator.
@@ -376,4 +377,130 @@ export const adminRouter = router({
       orderBy: { createdAt: "desc" },
     });
   }),
+
+  // --------------------------------------------------------------------------
+  // OrganizationIntegration CRUD (kun sitedoc_admin)
+  // --------------------------------------------------------------------------
+
+  hentIntegrasjonerForOrg: protectedProcedure
+    .input(z.object({ organizationId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      await verifiserSiteDocAdmin(ctx.prisma, ctx.userId);
+
+      const integrasjoner = await ctx.prisma.organizationIntegration.findMany({
+        where: { organizationId: input.organizationId },
+        orderBy: { createdAt: "asc" },
+      });
+
+      return integrasjoner.map((i) => ({
+        id: i.id,
+        type: i.type,
+        url: i.url,
+        harNøkkel: !!i.apiKey,
+        config: i.config,
+        aktiv: i.aktiv,
+        createdAt: i.createdAt,
+      }));
+    }),
+
+  opprettIntegrasjon: protectedProcedure
+    .input(z.object({
+      organizationId: z.string(),
+      type: z.enum(["proadm", "hr", "gps", "smartdoc"]),
+      url: z.string().url().optional(),
+      apiKey: z.string().optional(),
+      config: z.record(z.unknown()).optional(),
+      aktiv: z.boolean().default(true),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      await verifiserSiteDocAdmin(ctx.prisma, ctx.userId);
+
+      const integrasjon = await ctx.prisma.organizationIntegration.create({
+        data: {
+          organizationId: input.organizationId,
+          type: input.type,
+          url: input.url ?? null,
+          apiKey: input.apiKey ?? null,
+          config: input.config ? (input.config as Prisma.InputJsonValue) : Prisma.JsonNull,
+          aktiv: input.aktiv,
+        },
+      });
+
+      return {
+        id: integrasjon.id,
+        type: integrasjon.type,
+        url: integrasjon.url,
+        harNøkkel: !!integrasjon.apiKey,
+        config: integrasjon.config,
+        aktiv: integrasjon.aktiv,
+        createdAt: integrasjon.createdAt,
+      };
+    }),
+
+  oppdaterIntegrasjon: protectedProcedure
+    .input(z.object({
+      id: z.string(),
+      url: z.string().url().nullable().optional(),
+      apiKey: z.string().optional(),
+      config: z.record(z.unknown()).nullable().optional(),
+      aktiv: z.boolean().optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      await verifiserSiteDocAdmin(ctx.prisma, ctx.userId);
+
+      // Verifiser at integrasjonen eksisterer
+      const eksisterende = await ctx.prisma.organizationIntegration.findUnique({
+        where: { id: input.id },
+      });
+      if (!eksisterende) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Integrasjon ikke funnet" });
+      }
+
+      // apiKey-logikk: undefined = behold, "" = slett, ny verdi = erstatt
+      const oppdatertApiKey = input.apiKey === undefined
+        ? undefined // behold eksisterende
+        : input.apiKey === ""
+          ? null // slett nøkkelen
+          : input.apiKey; // ny verdi
+
+      const integrasjon = await ctx.prisma.organizationIntegration.update({
+        where: { id: input.id },
+        data: {
+          url: input.url !== undefined ? input.url : undefined,
+          apiKey: oppdatertApiKey !== undefined ? oppdatertApiKey : undefined,
+          config: input.config !== undefined ? (input.config ? (input.config as Prisma.InputJsonValue) : Prisma.JsonNull) : undefined,
+          aktiv: input.aktiv !== undefined ? input.aktiv : undefined,
+        },
+      });
+
+      return {
+        id: integrasjon.id,
+        type: integrasjon.type,
+        url: integrasjon.url,
+        harNøkkel: !!integrasjon.apiKey,
+        config: integrasjon.config,
+        aktiv: integrasjon.aktiv,
+        createdAt: integrasjon.createdAt,
+      };
+    }),
+
+  slettIntegrasjon: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      await verifiserSiteDocAdmin(ctx.prisma, ctx.userId);
+
+      // Verifiser at integrasjonen eksisterer
+      const eksisterende = await ctx.prisma.organizationIntegration.findUnique({
+        where: { id: input.id },
+      });
+      if (!eksisterende) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Integrasjon ikke funnet" });
+      }
+
+      await ctx.prisma.organizationIntegration.delete({
+        where: { id: input.id },
+      });
+
+      return { slettet: true };
+    }),
 });
