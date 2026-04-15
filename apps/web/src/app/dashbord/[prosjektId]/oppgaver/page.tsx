@@ -337,6 +337,10 @@ export default function OppgaverSide() {
       setVisModal(false);
       router.push(`/dashbord/${params.prosjektId}/oppgaver/${resultat.id}`);
     },
+    onError: (err) => {
+      setVisModal(false);
+      alert(`Feil ved opprettelse: ${err.message}`);
+    },
   });
 
   useVerktoylinje([
@@ -350,13 +354,15 @@ export default function OppgaverSide() {
   ]);
 
   function handleOpprettFraMal(malId: string) {
-    const mal = oppgaveMaler.find((m) => m.id === malId) as { id: string; name: string; domain?: string | null } | undefined;
+    // Hent malen med domain fra API-data (ikke fra type-castet oppgaveMaler)
+    const alleMalerTypet = (maler ?? []) as Array<{ id: string; name: string; domain?: string | null; category: string }>;
+    const malMedDomain = alleMalerTypet.find((m) => m.id === malId);
 
     // HMS-oppgaver: ingen entreprise, auto-rutes til HMS-gruppen av API
-    if (mal?.domain === "hms") {
+    if (malMedDomain?.domain === "hms") {
       opprettMutation.mutate({
         templateId: malId,
-        title: mal.name ?? "HMS-avvik",
+        title: malMedDomain.name ?? "HMS-avvik",
         priority: "medium",
       });
       return;
