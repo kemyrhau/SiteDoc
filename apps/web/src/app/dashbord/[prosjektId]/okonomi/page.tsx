@@ -295,27 +295,19 @@ export default function OkonomiSide() {
         </div>
       </div>
 
-      {/* Nota-forside modal */}
+      {/* Nota-forside modal (flyttbar) */}
       {visNotaForside && valgtNotaDok?.fileUrl && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setVisNotaForside(false)}>
+        <DraggableModal onLukk={() => setVisNotaForside(false)} tittel={/\.pdf$/i.test(valgtNotaDok.filename) ? valgtNotaDok.filename : undefined}>
           {/\.pdf$/i.test(valgtNotaDok.filename) ? (
-            <div className="h-[85vh] w-full max-w-3xl rounded-lg bg-white shadow-xl flex flex-col" onClick={(e) => e.stopPropagation()}>
-              <div className="flex items-center justify-between border-b px-5 py-3">
-                <h2 className="text-sm font-semibold">{valgtNotaDok.filename}</h2>
-                <button onClick={() => setVisNotaForside(false)} className="rounded p-1 text-gray-400 hover:bg-gray-100">
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-              <iframe
-                src={`/api${valgtNotaDok.fileUrl}#page=1`}
-                className="flex-1 w-full"
-                title={t("okonomi.visForside")}
-              />
-            </div>
+            <iframe
+              src={`/api${valgtNotaDok.fileUrl}#page=1`}
+              className="flex-1 w-full"
+              title={t("okonomi.visForside")}
+            />
           ) : (
             <NotaForsideOppsummering dok={{ ...valgtNotaDok, fileUrl: valgtNotaDok.fileUrl! }} onLukk={() => setVisNotaForside(false)} />
           )}
-        </div>
+        </DraggableModal>
       )}
 
       {/* Faner */}
@@ -1166,6 +1158,50 @@ function NotaOppsummering({ dok }: { dok: { utfortTotalt?: unknown; utfortDenne?
         <V label="Netto" verdi={dok?.nettoDenne} uthevet />
         <V label="Mva" verdi={dok?.mva} />
         <V label="Sum inkl." verdi={dok?.sumInkMva} uthevet />
+      </div>
+    </div>
+  );
+}
+
+function DraggableModal({ children, onLukk, tittel }: { children: React.ReactNode; onLukk: () => void; tittel?: string }) {
+  const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
+  const dragRef = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleMove(e: MouseEvent) {
+      if (!dragRef.current) return;
+      setPos({ x: dragRef.current.origX + (e.clientX - dragRef.current.startX), y: dragRef.current.origY + (e.clientY - dragRef.current.startY) });
+    }
+    function handleUp() { dragRef.current = null; }
+    window.addEventListener("mousemove", handleMove);
+    window.addEventListener("mouseup", handleUp);
+    return () => { window.removeEventListener("mousemove", handleMove); window.removeEventListener("mouseup", handleUp); };
+  }, []);
+
+  const startDrag = (e: React.MouseEvent) => {
+    if ((e.target as HTMLElement).closest("button")) return;
+    const rect = modalRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    dragRef.current = { startX: e.clientX, startY: e.clientY, origX: pos?.x ?? rect.left, origY: pos?.y ?? rect.top };
+    if (!pos) setPos({ x: rect.left, y: rect.top });
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/50" onClick={onLukk}>
+      <div
+        ref={modalRef}
+        className="absolute h-[85vh] w-full max-w-3xl rounded-lg bg-white shadow-xl flex flex-col"
+        style={pos ? { left: pos.x, top: pos.y } : { left: "50%", top: "50%", transform: "translate(-50%, -50%)" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {tittel && (
+          <div className="flex items-center justify-between border-b px-5 py-3 cursor-grab active:cursor-grabbing select-none" onMouseDown={startDrag}>
+            <h2 className="text-sm font-semibold">{tittel}</h2>
+            <button onClick={onLukk} className="rounded p-1 text-gray-400 hover:bg-gray-100"><X className="h-4 w-4" /></button>
+          </div>
+        )}
+        {children}
       </div>
     </div>
   );
