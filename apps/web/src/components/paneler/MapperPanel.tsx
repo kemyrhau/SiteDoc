@@ -162,8 +162,8 @@ export function MapperPanel() {
     const erAdmin = brukerMedlem.role === "admin";
 
     // Finn brukerens entreprise-IDer
-    const entrepriseIder = brukerMedlem.enterprises.map(
-      (me) => me.enterprise.id,
+    const entrepriseIder = brukerMedlem.dokumentflytKoblinger.map(
+      (me) => me.dokumentflytPart.id,
     );
 
     // Finn brukerens gruppe-IDer
@@ -189,7 +189,7 @@ export function MapperPanel() {
       accessMode: m.accessMode,
       accessEntries: m.accessEntries.map((e) => ({
         accessType: e.accessType,
-        enterpriseId: e.enterprise?.id ?? null,
+        enterpriseId: e.dokumentflytPart?.id ?? null,
         groupId: e.group?.id ?? null,
         userId: e.user?.id ?? null,
       })),

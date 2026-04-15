@@ -522,7 +522,7 @@ export default function ProsjektoppsettSide() {
               <div>
                 <p className="text-xs text-gray-500">Entrepriser</p>
                 <p className="text-sm font-medium text-gray-900">
-                  {prosjekt.enterprises?.length ?? 0} entrepriser
+                  {prosjekt.dokumentflytParts?.length ?? 0} entrepriser
                 </p>
               </div>
             </div>

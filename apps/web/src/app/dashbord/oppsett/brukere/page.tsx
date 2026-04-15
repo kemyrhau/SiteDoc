@@ -101,8 +101,8 @@ interface KontaktMedlem {
     phone: string | null;
     organization?: { id: string; name: string } | null;
   };
-  enterprises: Array<{
-    enterprise: { id: string; name: string; color: string | null };
+  dokumentflytKoblinger: Array<{
+    dokumentflytPart: { id: string; name: string; color: string | null };
   }>;
 }
 
@@ -341,7 +341,7 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
     }
     if (filterEntreprise) {
       resultat = resultat.filter((m) =>
-        m.enterprises.some((e) => e.enterprise.id === filterEntreprise),
+        m.dokumentflytKoblinger.some((e) => e.dokumentflytPart.id === filterEntreprise),
       );
     }
     if (filterGruppe) {
@@ -813,7 +813,7 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
                               <div className="px-3 py-2 text-xs text-gray-400 italic">{t("brukere.ingenMedlemmer")}</div>
                             ) : (
                               medlemmerIkkeIGruppe.map((k) => {
-                                const entrepriseNavn = k.enterprises.map((e) => e.enterprise.name).join(", ");
+                                const entrepriseNavn = k.dokumentflytKoblinger.map((e) => e.dokumentflytPart.name).join(", ");
                                 return (
                                   <button
                                     key={k.user.id}
@@ -853,7 +853,7 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
 
               const m = rad.medlem;
               const brukerGrupper = gruppeMap[m.user.id] ?? [];
-              const entrepriseIder = new Set(m.enterprises.map((e) => e.enterprise.id));
+              const entrepriseIder = new Set(m.dokumentflytKoblinger.map((e) => e.dokumentflytPart.id));
               const tilgjengeligeEntrepriser = (alleEntrepriser ?? []).filter(
                 (e: { id: string }) => !entrepriseIder.has(e.id),
               );
@@ -1009,7 +1009,7 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
                   {/* Entrepriser (read-only) */}
                   <td className="px-4 py-2.5">
                     <KompaktBadgeListe
-                      verdier={m.enterprises.map((me) => me.enterprise.name)}
+                      verdier={m.dokumentflytKoblinger.map((me) => me.dokumentflytPart.name)}
                       bgKlasse="bg-gray-100 text-gray-700"
                     />
                   </td>

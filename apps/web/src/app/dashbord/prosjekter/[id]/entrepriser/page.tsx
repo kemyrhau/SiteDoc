@@ -66,7 +66,7 @@ export default function EntrepriserSide() {
                 <p className="text-xs text-gray-400">Org.nr: {ent.organizationNumber}</p>
               )}
               <div className="mt-3 flex gap-2">
-                <Badge variant="default">{ent.memberEnterprises.length} medlemmer</Badge>
+                <Badge variant="default">{ent.dokumentflytKoblinger.length} medlemmer</Badge>
                 <Badge variant="primary">{ent._count.bestillerChecklists} sjekklister</Badge>
                 <Badge variant="warning">{ent._count.bestillerTasks} oppgaver</Badge>
               </div>

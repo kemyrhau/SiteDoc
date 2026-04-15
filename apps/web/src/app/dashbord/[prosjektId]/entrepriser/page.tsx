@@ -23,7 +23,7 @@ export default function EntrepriserSide() {
     id: string;
     name: string;
     organizationNumber: string | null;
-    memberEnterprises: Array<{ id: string }>;
+    dokumentflytKoblinger: Array<{ id: string }>;
     _count: { bestillerChecklists: number; bestillerTasks: number };
   };
 
@@ -55,7 +55,7 @@ export default function EntrepriserSide() {
               id: "members",
               header: "Medlemmer",
               celle: (rad) => (
-                <Badge variant="default">{rad.memberEnterprises.length}</Badge>
+                <Badge variant="default">{rad.dokumentflytKoblinger.length}</Badge>
               ),
               bredde: "100px",
             },

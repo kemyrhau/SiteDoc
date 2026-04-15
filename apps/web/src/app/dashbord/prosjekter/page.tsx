@@ -55,7 +55,7 @@ export default function ProsjekterSide() {
                   <p className="text-xs text-gray-400">{prosjekt.address}</p>
                 )}
                 <div className="mt-3 flex gap-4 border-t border-gray-100 pt-3 text-xs text-gray-500">
-                  <span>{prosjekt.enterprises.length} entrepriser</span>
+                  <span>{prosjekt.dokumentflytParts.length} entrepriser</span>
                   <span>{prosjekt._count.members} medlemmer</span>
                 </div>
               </Card>

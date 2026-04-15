@@ -51,8 +51,8 @@ interface ProsjektMedlem {
     email: string;
     phone: string | null;
   };
-  enterprises: Array<{
-    enterprise: { id: string; name: string };
+  dokumentflytKoblinger: Array<{
+    dokumentflytPart: { id: string; name: string };
   }>;
 }
 
@@ -958,10 +958,10 @@ export default function KontakterSide() {
     if (!medlemmer) return map;
     const alle = medlemmer as ProsjektMedlem[];
     for (const m of alle) {
-      for (const me of m.enterprises) {
-        const liste = map.get(me.enterprise.id) ?? [];
+      for (const me of m.dokumentflytKoblinger) {
+        const liste = map.get(me.dokumentflytPart.id) ?? [];
         liste.push(m);
-        map.set(me.enterprise.id, liste);
+        map.set(me.dokumentflytPart.id, liste);
       }
     }
     return map;

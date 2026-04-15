@@ -74,8 +74,8 @@ export default function MapperSide() {
     if (!brukerMedlem) return false;
     if (brukerMedlem.role === "admin") return false;
 
-    const entrepriseIder = brukerMedlem.enterprises.map(
-      (me) => me.enterprise.id,
+    const entrepriseIder = brukerMedlem.dokumentflytKoblinger.map(
+      (me) => me.dokumentflytPart.id,
     );
 
     const gruppeIder = (grupper ?? [])
@@ -99,7 +99,7 @@ export default function MapperSide() {
       accessMode: m.accessMode,
       accessEntries: m.accessEntries.map((e) => ({
         accessType: e.accessType,
-        enterpriseId: e.enterprise?.id ?? null,
+        enterpriseId: e.dokumentflytPart?.id ?? null,
         groupId: e.group?.id ?? null,
         userId: e.user?.id ?? null,
       })),

@@ -19,8 +19,9 @@ export default function AdminFirmaer() {
   const utils = trpc.useUtils();
   const { data: organisasjoner, isLoading } =
     trpc.admin.hentAlleOrganisasjoner.useQuery();
-  const { data: alleProsjekter } =
+  const { data: _alleProsjekter } =
     trpc.admin.hentAlleProsjekter.useQuery();
+  const alleProsjekter = _alleProsjekter as { id: string; name: string; projectNumber: string }[] | undefined;
   const { data: standaloneEnterprises } =
     trpc.admin.hentStandaloneEnterprises.useQuery();
 
@@ -186,7 +187,7 @@ export default function AdminFirmaer() {
                   </div>
                   <div className="flex items-center gap-3 text-xs text-gray-500">
                     <span>{ent.project.name}</span>
-                    <span>{ent.memberEnterprises.length} medl.</span>
+                    <span>{ent.dokumentflytKoblinger.length} medl.</span>
                   </div>
                 </div>
               ))}
@@ -406,10 +407,11 @@ function OrgKort({
   onRedigerIntegrasjon: (int: IntegrasjonData) => void;
   onSlettIntegrasjon: (intId: string) => void;
 }) {
-  const { data: integrasjoner } = trpc.admin.hentIntegrasjonerForOrg.useQuery(
+  const { data: _integrasjoner } = trpc.admin.hentIntegrasjonerForOrg.useQuery(
     { organizationId: org.id },
     { enabled: erUtvidet },
   );
+  const integrasjoner = _integrasjoner as IntegrasjonData[] | undefined;
 
   // Finn typer som ikke er brukt ennå
   const brukteTyper = new Set(integrasjoner?.map((i) => i.type) ?? []);
@@ -530,7 +532,7 @@ function OrgKort({
 
         {erUtvidet && (
           <div className="mt-2 space-y-1.5">
-            {integrasjoner?.map((int) => (
+            {(integrasjoner ?? []).map((int) => (
               <div key={int.id} className="flex items-center justify-between rounded bg-gray-50 px-3 py-1.5 text-xs">
                 <div className="flex items-center gap-3">
                   <span className="rounded bg-gray-200 px-1.5 py-0.5 font-mono text-[10px] font-medium text-gray-700">
