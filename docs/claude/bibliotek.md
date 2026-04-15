@@ -141,3 +141,22 @@ NS 3420-K:2024 Anleggsgartnerarbeider med 4 kapitler og 6 maler:
 | KB | KB6 – Planting | 8 | NS 4400, rothalsen over jord (KB6.1 c1) |
 | KC | KC3.1 – Oppstøtting | 4 | Støttetype, bindmateriale, 1-sesong kontroll |
 | KD | KD1 – Utendørsbelegg | 7 | Tabell K11 fall, Tabell K12 planhet ±3 mm |
+
+## NS 3420-standarder i databasen (oppslag)
+
+Følgende NS 3420-dokumenter er lastet opp og indeksert i FTD-dokumentdatabasen. Disse kan brukes som kilde for krav, toleranser og referanser når nye bibliotek-maler opprettes. Søk i chunks via `ftdSok.nsStandardSok` eller `ftdSok.sokDokumenter`.
+
+| Fil | Del | Innhold |
+|-----|-----|---------|
+| ns-3420-1_2024 | Del 1 | Fellesbestemmelser |
+| ns-3420-a_2024 | Del A | Rigg, drift og nedrigging |
+| ns-3420-cd_2024 | Del CD | Betongarbeider, stål og aluminium |
+| ns-3420-d_2024 | Del D | Stålkonstruksjoner |
+| ns-3420-f_2024 | Del F | Grunnarbeider, graving, sprengning |
+| ns-3420-gu_2024 | Del GU | Murarbeider, puss, flislegging |
+| ns-3420-j_2024 | Del J | Tømrerarbeider |
+| ns-3420-k_2024 | Del K | Anleggsgartnerarbeider |
+| ns-3420-l_2024 | Del L | Malerarbeider, belegg, tapet |
+| ns-3420-z_2024 | Del Z | Drift og vedlikehold |
+
+**Bruk ved malutvikling:** Søk etter spesifikke krav (f.eks. "Tabell K4", "toleranse", "planhet") i chunked dokumentdata for å finne presise toleranser og kontrollkrav til hjelpetekstene.
