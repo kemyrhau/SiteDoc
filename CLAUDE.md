@@ -209,16 +209,20 @@ Etter endringer, oppgi alltid hvilken reload-metode som trengs:
 
 ## Admin-arkitektur og roller
 
-Kun to DB-kolonner styrer tilgang: `User.role` og `ProjectMember.role`.
+To DB-kolonner styrer tilgang: `User.role` (`sitedoc_admin` | `company_admin` | `user`) og `ProjectMember.role` (`admin` | `project_manager` | `worker` | `field_user`).
 
 | Nivå | DB-verdi | Arver | Beskyttelse |
 |------|----------|-------|-------------|
 | **Superadmin** (Kenneth) | `User.role = "sitedoc_admin"` | Alt | `verifiserSiteDocAdmin()` |
-| **Org-admin** (kundens admin) | `User.role = "company_admin"` | Admin i alle org-prosjekter | `verifiserOrganisasjonTilgang()` |
-| **Prosjektadmin** | `ProjectMember.role = "admin"` | — | Prosjekt-scoped |
-| **Medlem** | `ProjectMember.role = "member"` | — | Prosjekt-scoped |
+| **Org-admin** (kundens admin) | `User.role = "company_admin"` | Admin i alle org-prosjekter, UTEN ProjectMember-rad | `verifiserOrganisasjonTilgang()` |
+| **Prosjektadmin** | `ProjectMember.role = "admin"` | — | `harProsjektTilgang()` |
+| **Prosjektleder** | `ProjectMember.role = "project_manager"` | — | `harProsjektTilgang()` |
+| **Arbeider** | `ProjectMember.role = "worker"` | — | `harProsjektTilgang()` |
+| **Feltbruker** | `ProjectMember.role = "field_user"` | — | `harProsjektTilgang()` |
 
-`company_admin` uten `organizationId` er ugyldig — fanget i `verifiserOrganisasjonTilgang()`. Prosjektadmin (eller høyere) godkjenner enterprise-invitasjoner.
+**`harProsjektTilgang(userId, projectId)`**: Sjekker ProjectMember-rad ELLER company_admin med riktig org. Alle prosjekt-ruter bruker denne — aldri inline-sjekk. Ligger i `tilgangskontroll.ts`.
+
+`company_admin` uten `organizationId` er ugyldig — fanget i `verifiserOrganisasjonTilgang()`. Standalone Enterprise (`organizationId = null`) er gyldig permanent tilstand.
 
 **Kritiske regler:**
 - Org-admin ser **KUN** sin egen organisasjons data — absolutt umulig å se andre orgs
