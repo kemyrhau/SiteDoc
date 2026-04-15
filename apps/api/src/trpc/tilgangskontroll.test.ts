@@ -33,7 +33,7 @@ vi.mock("@sitedoc/db", () => ({
   },
 }));
 
-import { verifiserProsjektmedlem, verifiserAdmin, verifiserOrganisasjonTilgang } from "./tilgangskontroll";
+import { verifiserProsjektmedlem, verifiserAdmin, verifiserOrganisasjonTilgang, verifiserAdminEllerFirmaansvarlig } from "./tilgangskontroll";
 
 const mockPrisma = {
   user: { findUnique: mockFns.userFindUnique },
@@ -211,6 +211,82 @@ describe("verifiserAdmin", () => {
     ).resolves.toBeUndefined();
 
     expect(mockPrisma.projectMember.findUnique).not.toHaveBeenCalled();
+  });
+});
+
+// --------------------------------------------------------------------------
+// verifiserAdminEllerFirmaansvarlig
+// --------------------------------------------------------------------------
+
+describe("verifiserAdminEllerFirmaansvarlig", () => {
+  it("1. Firmaansvarlig med riktig prosjektmedlemskap → tillatt, erAdmin: false", async () => {
+    mockPrisma.user.findUnique.mockResolvedValue({ role: "user", organizationId: ORG_ID });
+    mockPrisma.projectMember.findUnique.mockResolvedValue({
+      id: "pm-1",
+      role: "member",
+      erFirmaansvarlig: true,
+    });
+
+    const resultat = await verifiserAdminEllerFirmaansvarlig(USER_ID, PROJECT_ID);
+    expect(resultat).toEqual({ erAdmin: false });
+  });
+
+  it("2. Firmaansvarlig uten prosjektmedlemskap → 403", async () => {
+    mockPrisma.user.findUnique.mockResolvedValue({ role: "user", organizationId: ORG_ID });
+    mockPrisma.projectMember.findUnique.mockResolvedValue(null);
+
+    await expect(
+      verifiserAdminEllerFirmaansvarlig(USER_ID, PROJECT_ID),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
+
+  it("3. Prosjektadmin → tillatt, erAdmin: true", async () => {
+    mockPrisma.user.findUnique.mockResolvedValue({ role: "user", organizationId: ORG_ID });
+    mockPrisma.projectMember.findUnique.mockResolvedValue({
+      id: "pm-1",
+      role: "admin",
+      erFirmaansvarlig: false,
+    });
+
+    const resultat = await verifiserAdminEllerFirmaansvarlig(USER_ID, PROJECT_ID);
+    expect(resultat).toEqual({ erAdmin: true });
+  });
+
+  it("4. Vanlig member (ikke firmaansvarlig, ikke admin) → 403", async () => {
+    mockPrisma.user.findUnique.mockResolvedValue({ role: "user", organizationId: ORG_ID });
+    mockPrisma.projectMember.findUnique.mockResolvedValue({
+      id: "pm-1",
+      role: "member",
+      erFirmaansvarlig: false,
+    });
+
+    await expect(
+      verifiserAdminEllerFirmaansvarlig(USER_ID, PROJECT_ID),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
+
+  it("5. sitedoc_admin → tillatt, erAdmin: true", async () => {
+    mockPrisma.user.findUnique.mockResolvedValue({ role: "sitedoc_admin" });
+
+    const resultat = await verifiserAdminEllerFirmaansvarlig(USER_ID, PROJECT_ID);
+    expect(resultat).toEqual({ erAdmin: true });
+    expect(mockPrisma.projectMember.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("6. company_admin med riktig org → tillatt, erAdmin: true", async () => {
+    mockPrisma.user.findUnique.mockResolvedValue({
+      role: "company_admin",
+      organizationId: ORG_ID,
+    });
+    mockPrisma.projectMember.findUnique.mockResolvedValue(null);
+    mockPrisma.organizationProject.findFirst.mockResolvedValue({
+      id: "op-1",
+      organizationId: ORG_ID,
+      projectId: PROJECT_ID,
+    });
+
+    const resultat = await verifiserAdminEllerFirmaansvarlig(USER_ID, PROJECT_ID);
+    expect(resultat).toEqual({ erAdmin: true });
   });
 });
 

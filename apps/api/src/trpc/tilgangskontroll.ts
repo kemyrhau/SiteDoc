@@ -184,6 +184,44 @@ export async function verifiserOrganisasjonTilgang(
 }
 
 /**
+ * Verifiser at bruker er admin ELLER firmaansvarlig i prosjektet.
+ * Returnerer { erAdmin: true } for admin-brukere, { erAdmin: false } for firmaansvarlige.
+ * Kaster FORBIDDEN for vanlige medlemmer.
+ */
+export async function verifiserAdminEllerFirmaansvarlig(
+  userId: string,
+  projectId: string,
+): Promise<{ erAdmin: boolean }> {
+  const bruker = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { role: true, organizationId: true },
+  });
+
+  if (bruker?.role === "sitedoc_admin") return { erAdmin: true };
+
+  const medlem = await prisma.projectMember.findUnique({
+    where: { userId_projectId: { userId, projectId } },
+  });
+
+  if (medlem?.role === "admin") return { erAdmin: true };
+
+  // company_admin med riktig org → admin
+  if (bruker?.role === "company_admin" && bruker.organizationId) {
+    const orgProsjekt = await prisma.organizationProject.findFirst({
+      where: { organizationId: bruker.organizationId, projectId },
+    });
+    if (orgProsjekt) return { erAdmin: true };
+  }
+
+  if (medlem?.erFirmaansvarlig) return { erAdmin: false };
+
+  throw new TRPCError({
+    code: "FORBIDDEN",
+    message: "Krever administrator- eller firmaansvarlig-rettighet",
+  });
+}
+
+/**
  * Verifiser at bruker har tilgang til et dokument (sjekkliste/oppgave).
  * Admin ser alt. Vanlige brukere ser kun dokumenter der egen entreprise er oppretter/svarer,
  * eller via fagområde-tilgang fra brukergrupper.

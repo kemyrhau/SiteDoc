@@ -6,6 +6,7 @@ import { TRPCError } from "@trpc/server";
 import { sendInvitasjonsEpost } from "../services/epost";
 import {
   verifiserAdmin,
+  verifiserAdminEllerFirmaansvarlig,
   verifiserProsjektmedlem,
   hentBrukerTillatelser,
 } from "../trpc/tilgangskontroll";
@@ -78,11 +79,57 @@ export const medlemRouter = router({
       return [...tillatelser];
     }),
 
-  // Legg til medlem i prosjekt (krever admin)
+  // Legg til medlem i prosjekt (krever admin eller firmaansvarlig)
   leggTil: protectedProcedure
     .input(addMemberSchema)
     .mutation(async ({ ctx, input }) => {
-      await verifiserAdmin(ctx.userId, input.projectId);
+      const { erAdmin } = await verifiserAdminEllerFirmaansvarlig(ctx.userId, input.projectId);
+
+      // Firmaansvarlig: kun invitere brukere med samme organizationId
+      if (!erAdmin) {
+        const inviterende = await ctx.prisma.user.findUniqueOrThrow({
+          where: { id: ctx.userId },
+          select: { organizationId: true },
+        });
+
+        if (!inviterende.organizationId) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Du tilhører ingen organisasjon",
+          });
+        }
+
+        // Sjekk at organizationId matcher
+        if (input.organizationId && input.organizationId !== inviterende.organizationId) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Du kan kun invitere brukere til ditt eget firma",
+          });
+        }
+
+        // Tving organizationId til eget firma
+        input.organizationId = inviterende.organizationId;
+
+        // Firmaansvarlig kan ikke opprette admins
+        if (input.role === "admin") {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Kun administratorer kan opprette admin-brukere",
+          });
+        }
+
+        // Sjekk at eksisterende bruker tilhører samme firma
+        const eksisterendeBruker = await ctx.prisma.user.findUnique({
+          where: { email: input.email },
+          select: { organizationId: true },
+        });
+        if (eksisterendeBruker && eksisterendeBruker.organizationId && eksisterendeBruker.organizationId !== inviterende.organizationId) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Brukeren tilhører et annet firma",
+          });
+        }
+      }
 
       // Slå opp bruker på e-post, opprett hvis ikke finnes
       let user = await ctx.prisma.user.findUnique({
