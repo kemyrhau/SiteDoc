@@ -56,10 +56,28 @@ model Organization {
   createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @updatedAt @map("updated_at")
 
-  users    User[]
-  projects OrganizationProject[]
+  users        User[]
+  projects     OrganizationProject[]
+  enterprises  Enterprise[]
+  integrations OrganizationIntegration[]
 
   @@map("organizations")
+}
+
+model OrganizationIntegration {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  type           String   // "proadm" | "hr" | "gps" | "smartdoc"
+  url            String?
+  apiKey         String?  @map("api_key") // kryptert i produksjon
+  config         Json?    // fleksibelt for leverandør-spesifikke felt
+  aktiv          Boolean  @default(true)
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, type])
+  @@map("organization_integrations")
 }
 
 model OrganizationProject {
@@ -271,6 +289,7 @@ model Enterprise {
   id                 String   @id @default(uuid())
   projectId          String   @map("project_id")
   kontraktId         String?  @map("kontrakt_id")
+  organizationId     String?  @map("organization_id")
   name               String
   enterpriseNumber   String?  @map("enterprise_number")
   organizationNumber String?  @map("organization_number")
@@ -283,6 +302,7 @@ model Enterprise {
 
   project                Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
   kontrakt               FtdKontrakt?         @relation(fields: [kontraktId], references: [id], onDelete: SetNull)
+  organization           Organization?        @relation(fields: [organizationId], references: [id], onDelete: SetNull)
   ansvarlig              User?                @relation("EnterpriseAnsvarlig", fields: [ansvarligId], references: [id], onDelete: SetNull)
   memberEnterprises      MemberEnterprise[]
   bestillerChecklists    Checklist[]          @relation("ChecklistCreatorEnterprise")
