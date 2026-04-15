@@ -209,14 +209,16 @@ Etter endringer, oppgi alltid hvilken reload-metode som trengs:
 
 ## Admin-arkitektur og roller
 
-Fire admin-nivåer med strengt separerte rettigheter:
+Kun to DB-kolonner styrer tilgang: `User.role` og `ProjectMember.role`.
 
-| Nivå | Rolle i DB | URL | Beskyttelse |
-|------|-----------|-----|-------------|
-| **Superadmin** (Kenneth) | `sitedoc_admin` | `/admin` | `verifiserSiteDocAdmin()` |
-| **Org-admin** (kundens admin) | `company_admin` | `/org/innstillinger` | `verifiserOrganisasjonTilgang()` |
-| **Firmaadmin** | `enterprise_admin` | TBD | Enterprise-scoped |
-| **Prosjektbrukere** | `project_manager` / `worker` / `field_user` | Prosjekt-dashboard | Prosjekt-scoped |
+| Nivå | DB-verdi | Arver | Beskyttelse |
+|------|----------|-------|-------------|
+| **Superadmin** (Kenneth) | `User.role = "sitedoc_admin"` | Alt | `verifiserSiteDocAdmin()` |
+| **Org-admin** (kundens admin) | `User.role = "company_admin"` | Admin i alle org-prosjekter | `verifiserOrganisasjonTilgang()` |
+| **Prosjektadmin** | `ProjectMember.role = "admin"` | — | Prosjekt-scoped |
+| **Medlem** | `ProjectMember.role = "member"` | — | Prosjekt-scoped |
+
+`company_admin` uten `organizationId` er ugyldig — fanget i `verifiserOrganisasjonTilgang()`. Prosjektadmin (eller høyere) godkjenner enterprise-invitasjoner.
 
 **Kritiske regler:**
 - Org-admin ser **KUN** sin egen organisasjons data — absolutt umulig å se andre orgs
