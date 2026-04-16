@@ -248,7 +248,7 @@ function TimerHjelpModal({ onLukk }: { onLukk: () => void }) {
 
 export default function TimerSide() {
   const { t } = useTranslation();
-  const [visning, setVisning] = useState<"oversikt" | "skjema">("oversikt");
+  const [visning, setVisning] = useState<"oversikt" | "skjema" | "rapporter">("oversikt");
   const [sedler, setSedler] = useState<Dagsseddel[]>(DEMO_SEDLER);
   const [redigerSeddel, setRedigerSeddel] = useState<Dagsseddel | null>(null);
 
@@ -282,25 +282,27 @@ export default function TimerSide() {
       </div>
 
       <div className="flex border-b border-gray-200 px-6">
-        {(["oversikt", "skjema"] as const).map((v) => (
+        {(["oversikt", "skjema", "rapporter"] as const).map((v) => (
           <button key={v} onClick={() => { if (v === "oversikt") setRedigerSeddel(null); setVisning(v); }} className={`px-4 py-2.5 text-sm font-medium transition-colors ${visning === v ? "border-b-2 border-sitedoc-primary text-sitedoc-primary" : "text-gray-500 hover:text-gray-700"}`}>
-            {v === "oversikt" ? t("timer.oversikt") : t("timer.dagsseddel")}
+            {v === "oversikt" ? t("timer.oversikt") : v === "skjema" ? t("timer.dagsseddel") : "Rapporter"}
           </button>
         ))}
       </div>
 
-      {/* To-kolonner: innhold + statistikk — statistikk fyller tilgjengelig plass */}
+      {/* To-kolonner: innhold + statistikk */}
       <div className="flex flex-1 overflow-hidden">
-        <div className={`${visning === "oversikt" ? "flex-1" : "w-full md:w-[460px] md:shrink-0"} min-w-0 overflow-y-auto`}>
-          {visning === "oversikt" ? (
-            <OversiktTabell sedler={sedler} t={t} onRediger={åpneRediger} onSlett={slettSeddel} />
-          ) : (
-            <DagsseddelSkjema t={t} onTilbake={() => setVisning("oversikt")} redigerData={redigerSeddel} />
-          )}
+        {/* Venstre: hovedinnhold */}
+        <div className="flex-1 min-w-0 overflow-y-auto">
+          {visning === "oversikt" && <OversiktTabell sedler={sedler} t={t} onRediger={åpneRediger} onSlett={slettSeddel} />}
+          {visning === "skjema" && <DagsseddelSkjema t={t} onTilbake={() => setVisning("oversikt")} redigerData={redigerSeddel} />}
+          {visning === "rapporter" && <RapporterSide t={t} />}
         </div>
-        <div className="hidden md:block flex-1 min-w-[280px] max-w-[500px] shrink-0 border-l border-gray-200 bg-gray-50/70 p-5 overflow-y-auto">
-          <StatistikkPanel t={t} />
-        </div>
+        {/* Høyre: statistikkpanel — fast bredde, responsiv */}
+        {visning !== "rapporter" && (
+          <div className="hidden lg:block w-[340px] xl:w-[420px] 2xl:w-[500px] shrink-0 border-l border-gray-200 bg-gray-50/70 p-5 overflow-y-auto">
+            <StatistikkPanel t={t} />
+          </div>
+        )}
       </div>
     </div>
   );
@@ -354,7 +356,7 @@ function KolonneHeader({ label, kolonne, sort, setSort, åpentFilter, setÅpentF
         {children && (
           <button
             onClick={(e) => { e.stopPropagation(); setÅpentFilter(åpentFilter === kolonne ? null : kolonne); }}
-            className="rounded p-0.5 text-gray-300 opacity-0 group-hover:opacity-100 hover:text-gray-600 transition-opacity"
+            className="rounded p-0.5 text-gray-300 hover:text-gray-600 transition-colors"
           >
             <Filter className="h-3 w-3" />
           </button>
@@ -443,6 +445,39 @@ function OversiktTabell({ sedler, t, onRediger, onSlett }: { sedler: Dagsseddel[
 
   return (
     <div className="p-6">
+      {/* Hurtigfiltre — alltid synlig */}
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <input
+          type="text"
+          placeholder="Søk ansatt..."
+          value={filter.ansatt ?? ""}
+          onChange={(e) => setFilter((f) => ({ ...f, ansatt: e.target.value || undefined }))}
+          className="w-44 rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-sitedoc-primary focus:outline-none focus:ring-1 focus:ring-sitedoc-primary"
+        />
+        <select
+          value={filter.prosjekter?.[0] ?? ""}
+          onChange={(e) => setFilter((f) => ({ ...f, prosjekter: e.target.value ? [e.target.value] : undefined }))}
+          className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-sitedoc-primary focus:outline-none focus:ring-1 focus:ring-sitedoc-primary"
+        >
+          <option value="">Alle prosjekter</option>
+          {DEMO_PROSJEKTER.map((p) => <option key={p} value={p}>{p}</option>)}
+        </select>
+        <div className="flex items-center gap-1.5 text-sm text-gray-500">
+          <span>Fra</span>
+          <input type="date" value={filter.datoFra ?? ""} onChange={(e) => setFilter((f) => ({ ...f, datoFra: e.target.value || undefined }))} className="rounded-lg border border-gray-300 px-2 py-1.5 text-sm focus:border-sitedoc-primary focus:outline-none focus:ring-1 focus:ring-sitedoc-primary" />
+          <span>til</span>
+          <input type="date" value={filter.datoTil ?? ""} onChange={(e) => setFilter((f) => ({ ...f, datoTil: e.target.value || undefined }))} className="rounded-lg border border-gray-300 px-2 py-1.5 text-sm focus:border-sitedoc-primary focus:outline-none focus:ring-1 focus:ring-sitedoc-primary" />
+        </div>
+        <select
+          value={filter.statuser?.[0] ?? ""}
+          onChange={(e) => setFilter((f) => ({ ...f, statuser: e.target.value ? [e.target.value] : undefined }))}
+          className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-sitedoc-primary focus:outline-none focus:ring-1 focus:ring-sitedoc-primary"
+        >
+          <option value="">Alle statuser</option>
+          {(["utkast", "ventende", "godkjent", "avvist"] as const).map((st) => <option key={st} value={st}>{t(`status.${st}`)}</option>)}
+        </select>
+      </div>
+
       {/* Filter-chips */}
       {chips.length > 0 && (
         <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -773,6 +808,86 @@ function DagsseddelSkjema({ t, onTilbake, redigerData }: { t: (k: string) => str
           <button className="inline-flex items-center gap-1.5 rounded-lg bg-sitedoc-primary px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors">{t("handling.lagre")}</button>
         </div>
       </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Sammenleggbar seksjon                                              */
+/* ------------------------------------------------------------------ */
+
+/* ------------------------------------------------------------------ */
+/*  Rapporter-side                                                     */
+/* ------------------------------------------------------------------ */
+
+const RAPPORT_TYPER = [
+  { id: "prosjekt", navn: "Prosjektrapport", beskrivelse: "Alle ansatte, timer fordelt på lønnsarter, maskinbruk og utlegg" },
+  { id: "ansatt-mnd", navn: "Månedsrapport per ansatt", beskrivelse: "Alle prosjekter, dagssedler, timer, tillegg og utlegg" },
+  { id: "prosjekt-mnd", navn: "Månedsrapport per prosjekt", beskrivelse: "Alle ansatte, timer, tilleggsarbeid og maskinbruk" },
+  { id: "tilleggsarbeid", navn: "Tilleggsarbeid-rapport", beskrivelse: "Timer ført mot spesifikt tilleggsarbeid med endringsnummer" },
+  { id: "maskin", navn: "Maskinrapport", beskrivelse: "Timer og mengde per maskin, fordelt på prosjekter" },
+  { id: "utlegg", navn: "Utleggsrapport", beskrivelse: "Kategori, beløp og kvitteringsbilder per ansatt eller prosjekt" },
+  { id: "eksport", navn: "Eksportrapport", beskrivelse: "Oversikt over hva som er sendt til lønnssystem, tidspunkt og status" },
+];
+
+function RapporterSide({ t }: { t: (k: string) => string }) {
+  const [valgtRapport, setValgtRapport] = useState<string | null>(null);
+
+  return (
+    <div className="p-6">
+      <h2 className="mb-1 text-base font-semibold text-gray-900">Rapporter</h2>
+      <p className="mb-6 text-sm text-gray-500">Velg rapporttype, filtrer på dato og prosjekt, og eksporter til PDF eller utskrift.</p>
+
+      {!valgtRapport ? (
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {RAPPORT_TYPER.map((r) => (
+            <button
+              key={r.id}
+              onClick={() => setValgtRapport(r.id)}
+              className="rounded-lg border border-gray-200 p-4 text-left hover:border-sitedoc-primary hover:bg-blue-50/30 transition-colors"
+            >
+              <div className="text-sm font-semibold text-gray-900">{r.navn}</div>
+              <p className="mt-1 text-xs text-gray-500">{r.beskrivelse}</p>
+            </button>
+          ))}
+        </div>
+      ) : (
+        <div>
+          <button onClick={() => setValgtRapport(null)} className="mb-4 text-sm text-sitedoc-secondary hover:text-sitedoc-primary">← Tilbake til rapporter</button>
+          <div className="rounded-lg border border-gray-200 p-6">
+            <h3 className="mb-4 text-sm font-semibold text-gray-900">{RAPPORT_TYPER.find((r) => r.id === valgtRapport)?.navn}</h3>
+            <div className="mb-4 flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-1.5 text-sm text-gray-500">
+                <span>Fra</span>
+                <input type="date" defaultValue="2026-04-01" className="rounded-lg border border-gray-300 px-2 py-1.5 text-sm" />
+                <span>til</span>
+                <input type="date" defaultValue="2026-04-30" className="rounded-lg border border-gray-300 px-2 py-1.5 text-sm" />
+              </div>
+              <select className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm">
+                <option>Alle prosjekter</option>
+                {DEMO_PROSJEKTER.map((p) => <option key={p}>{p}</option>)}
+              </select>
+              <select className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm">
+                <option>Alle ansatte</option>
+                <option>Florian Aschwanden - A. Markussen AS</option>
+                <option>Kenneth Myrhaug</option>
+              </select>
+            </div>
+            <div className="flex gap-2">
+              <button className="inline-flex items-center gap-1.5 rounded-lg bg-sitedoc-primary px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors">
+                Generer rapport
+              </button>
+              <button className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 transition-colors">
+                Eksporter PDF
+              </button>
+            </div>
+            <div className="mt-6 rounded-lg border border-dashed border-gray-300 bg-gray-50 p-8 text-center">
+              <p className="text-sm text-gray-400">Rapportvisning vises her etter generering</p>
+              <p className="mt-1 text-xs text-gray-300">(Demo — ingen data genereres)</p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
