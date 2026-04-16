@@ -18,6 +18,7 @@ export type Seksjon =
   | "okonomi"
   | "sok"
   | "psi"
+  | "timer"
   | "oppsett";
 
 export interface VerktoylinjeHandling {

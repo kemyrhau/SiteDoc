@@ -91,6 +91,24 @@ Nye moduler (timer, maskin) bruker samme PostgreSQL-instans men separate Prisma-
 - **`develop`** — aktiv utvikling. All ny kode commites hit.
 - **`main`** — produksjon. Kun oppdatert via merge fra `develop` etter testing.
 
+### Branching-regler (obligatorisk)
+
+Alle større operasjoner startes på en feature-branch — aldri direkte på develop.
+
+**Workflow:**
+1. `git checkout develop && git pull origin develop`
+2. `git checkout -b feature/beskrivende-navn`
+3. Bygg og test på feature-branch
+4. Deploy feature-branch til test.sitedoc.no og verifiser
+5. Merge til develop via `git merge --no-ff`
+6. Deploy develop til produksjon
+
+**Gjelder alltid for:**
+- DB-migrasjoner
+- Rename/refaktorering (>10 filer)
+- Nye moduler
+- Tilgangskontroll-endringer
+
 ### Miljøer
 
 | | Test | Produksjon |
