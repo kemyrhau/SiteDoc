@@ -440,6 +440,49 @@ Den opprinnelige planen om `apps/timer` som egen Next.js-app er **ikke forkastet
 - Ingen offline-sync
 - Ingen auth-sjekk utover eksisterende prosjekttilgang
 
+## Proadm-integrasjon
+
+### Dataflyt
+
+- **Henting:** 1x per døgn fra Proadm (batch-API)
+- **Sending:** 1x per døgn til Proadm (batch-API)
+- **Mellom-løsning:** SmartDok brukes i dag av kunden — SiteDoc erstatter denne rollen
+
+### Hva SiteDoc henter fra Proadm
+
+- **Endringsmeldinger:** nummer, navn, beskrivende tekst, status
+- **Godkjenninger:** nummer, navn, beskrivende tekst, status
+
+### "Send til timeregistrering" — egen funksjon
+
+Separat handling på en endring/godkjenning i SiteDoc. Påvirker IKKE godkjenningsforløpet i Proadm. Flagget gjør endringen tilgjengelig som valgbar referanse ved timeregistrering.
+
+### Hva arbeider ser
+
+- Prosjektnummer og prosjektnavn
+- Endringsnummer og endringsnavn
+- Beskrivende tekst som medfølger arbeidet
+- Egne timer ført mot dette
+- **ALDRI:** kronebeløp, kontraktsum, budsjett eller økonomidata
+
+### Hva SiteDoc sender tilbake til Proadm
+
+To separate strømmer:
+1. **Ordinære prosjekttimer** — alle timer uten tilleggskobling
+2. **Tilleggsarbeid-timer** — timer knyttet til spesifikk endring/godkjenning, med endringsnummer som referanse
+
+### Tilgangsstyring økonomi
+
+| Rolle | Ser |
+|-------|-----|
+| **Arbeider** | Kun arbeidsbeskrivelse og egne timer |
+| **Leder** | Timer + kostnad (timer × timesats) |
+| **Økonomi/admin** | Full kobling mot Proadm-data |
+
+### Validering
+
+SiteDoc validerer og godkjenner timer — ikke Proadm. Leder godkjenner i SiteDoc → data sendes i neste batch til Proadm.
+
 ## Ikke avklart
 
 - GPS-validering — skal posisjonen ved registrering logges for å verifisere at arbeideren var på byggeplassen?
