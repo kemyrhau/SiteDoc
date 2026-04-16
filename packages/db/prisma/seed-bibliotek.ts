@@ -101,13 +101,12 @@ async function main() {
           "Tabell K4: Velg planteformål — lagtykkelse bestemmes automatisk. Vekstjordlag over 50 cm deles i to lag (moldholdig øverst, moldfattig under)."),
         valg("Underlag", "FØR",
           [
-            "Stedlig egnet undergrunnsjord",
-            "Steinfylling / berg / tett leire – krever mineraljordlag",
+            "Stedlig jord – godkjent og drenert",
+            "Stedlig jord – krever løsgjøring/utbedring",
+            "Steinfylling/berg – mineraljordlag påført",
+            "Steinfylling/berg – krever mineraljordlag",
           ],
-          "Tabell K4: Oppbyggingen avhenger av om det er stedlig undergrunnsjord eller steinfylling/berg under."),
-        valg("Underlagskontroll", "FØR",
-          ["Godkjent – jevnt og drenert", "Godkjent med merknad", "Ikke godkjent – krever utbedring"],
-          "KB2 c2: Hardpakket undergrunnsjord skal løses. Undergrunn skal ikke komprimeres under utlegging."),
+          "Tabell K4: Oppbyggingen avhenger av undergrunn. KB2 c2: Hardpakket jord skal løses. Undergrunn skal ikke komprimeres under utlegging."),
         trafikklys("Leveringsdokument kontrollert", "FØR",
           "Jord skal tilfredsstille Tabell K2 og Figur K3. Kontroller dokumentasjon fra leverandør."),
 

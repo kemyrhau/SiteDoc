@@ -223,7 +223,7 @@ Standard: **NS 3420-K:2024 – Anleggsgartnerarbeider** — 4 kapitler, 6 maler:
 | Kapittel | Mal | Felt | Nøkkelkrav |
 |----------|-----|------|------------|
 | KA | KA7 – Gjenbruk | 4 | Sortering, dokumentasjon, rengjøring |
-| KB | KB2 – Jordarbeider | 10 | Tabell K4 lagtykkelser, steinstørrelse, komprimering |
+| KB | KB2 – Jordarbeider | 9 | Tabell K4 lagtykkelser, steinstørrelse, komprimering |
 | KB | KB4 – Grasdekke | 7 | Markdekningsgrad ≥95 %, fall ≥2 % |
 | KB | KB6 – Planting | 8 | NS 4400, rothalsen over jord (KB6.1 c1) |
 | KC | KC3.1 – Oppstøtting | 4 | Støttetype, bindmateriale, 1-sesong kontroll |
@@ -400,14 +400,147 @@ På `src/app/dashbord/oppsett/produksjon/sjekklistemaler/page.tsx`:
 - **"Sjekklistebibliotek"** (aktiv): BibliotekPanel-innholdet som fullside
 - **"Kontrollplan"** (placeholder): "Kommer snart"
 
-### 4. Admin-side (planlagt)
+### 4. Admin-side — Bibliotekredigering
 
-`/admin/bibliotek` — kun sitedoc_admin:
-- Venstre: trestruktur med standarder → kapitler → maler
-- Høyre: malredigering med feltliste
-- Per felt: type (dropdown), etikett, hjelpetekst, fase, config
-- CRUD for standarder, kapitler, maler
-- Drag-and-drop rekkefølge
+`/admin/bibliotek` — kun sitedoc_admin.
+
+#### Layout — to-panel
+
+```
+┌─────────────────────────┬──────────────────────────────────┐
+│  Trestruktur (venstre)  │  Malredigering (høyre)           │
+│                         │                                  │
+│  ▸ NS 3420-K            │  KB2 – Jordarbeider              │
+│    ▸ KA – Innledende    │  Ref: KB2  Beskrivelse: [___]    │
+│    ▾ KB – Jord og veg.  │                                  │
+│      • KA7 – Gjenbruk   │  ┌─ FØR ──────────────────────┐ │
+│      ● KB2 – Jordarb.   │  │ 1. Formål/planteformål  ▾  │ │
+│      • KB4 – Grasdekke  │  │ 2. Underlag             ▾  │ │
+│      • KB6 – Planting   │  │ 3. Leveringsdok.        ▾  │ │
+│    ▸ KC – Vanning       │  └────────────────────────────┘ │
+│    ▸ KD – Belegg        │  ┌─ UNDER ─────────────────────┐ │
+│                         │  │ 4. Lagtykkelse vekstjord ▾  │ │
+│  [+ Standard]           │  │ 5. Maks steinstørrelse   ▾  │ │
+│  [+ Kapittel]           │  │ 6. Jord ikke komprimert  ▾  │ │
+│  [+ Mal]                │  └────────────────────────────┘ │
+│                         │  ┌─ ETTER ─────────────────────┐ │
+│                         │  │ 7. Planhet – avvik        ▾ │ │
+│                         │  │ 8. Fall (%)               ▾ │ │
+│                         │  │ 9. Overflate jevn         ▾ │ │
+│                         │  └────────────────────────────┘ │
+│                         │                                  │
+│                         │  [+ Legg til felt]    [Lagre]    │
+└─────────────────────────┴──────────────────────────────────┘
+```
+
+#### Felt-redigering (klikk på felt → ekspander)
+
+Per felt vises:
+- **Etikett** — fritekst
+- **Type** — dropdown: `traffic_light`, `list_single`, `decimal`, `text_field`
+- **Fase** — dropdown: FØR, UNDER, ETTER
+- **Hjelpetekst** — NS-referanser, krav, toleranser
+- **Config** — avhengig av type:
+  - `list_single`: valgalternativer (legg til, fjern, endre rekkefølge)
+  - `decimal`: enhet, min, maks, toleranse
+  - `traffic_light`: kun hjelpetekst (vedlegg er innebygd)
+
+#### Rekkefølge og fase
+
+Drag-and-drop for sortering innenfor fase. Fasebytte via dropdown — ikke dra mellom faser.
+
+#### Kopieringsmodell
+
+Bibliotek-malen er **kilden**. Endringer i biblioteket påvirker kun **fremtidige importer**. Prosjekter som allerede har importert malen eier sin kopi og endrer den i prosjektets malbygger. Ingen synkronisering tilbake.
+
+Konsekvenser:
+- Ingen versjonsnummer nødvendig
+- Ingen "oppdater prosjektkopier"-logikk
+- Slett = `aktiv: false` (prosjektkopier påvirkes ikke)
+- Admin kan fritt eksperimentere uten risiko
+
+#### CRUD-operasjoner
+
+| Objekt | Opprett | Rediger | Slett |
+|--------|---------|---------|-------|
+| Standard | Ny standard (f.eks. NS 3420-F) | Navn, kode | `aktiv: false` |
+| Kapittel | Nytt kapittel i standard | Navn, kode, sortering | Kun hvis ingen maler |
+| Mal | Ny mal i kapittel | Felter, navn, ref, beskrivelse | `aktiv: false` |
+| Felt | Legg til i mal | Alle felt-egenskaper | Fjern fra malInnhold |
+
+#### API-ruter
+
+| Rute | Type | Auth | Beskrivelse |
+|------|------|------|-------------|
+| `bibliotek.opprettStandard` | mutation | sitedoc_admin | Ny standard |
+| `bibliotek.opprettKapittel` | mutation | sitedoc_admin | Nytt kapittel i standard |
+| `bibliotek.opprettMal` | mutation | sitedoc_admin | Ny mal i kapittel |
+| `bibliotek.oppdaterMal` | mutation | sitedoc_admin | Endre navn, beskrivelse, felter |
+| `bibliotek.deaktiverMal` | mutation | sitedoc_admin | `aktiv: false` |
+| `bibliotek.oppdaterFeltrekkefølge` | mutation | sitedoc_admin | Sortering innenfor fase |
+
+## Retningslinjer for effektive maler
+
+### Prinsipp: Færre felt, mer informasjon per felt
+
+En god bibliotek-mal har **6–10 felt**. Hver felt må rettferdiggjøre sin plass. Husk at brukeren fyller ut dette i felt med hansker og regn — hvert ekstra felt koster tid.
+
+### Slå sammen overlappende felt
+
+Hvis to felt spør om ulike sider av **samme kontrollpunkt**, kombiner dem til én `list_single` med informative valg.
+
+**Før (2 felt):**
+```
+Underlag type        → list_single: [Stedlig jord, Steinfylling]
+Underlagskontroll    → list_single: [Godkjent, Med merknad, Ikke godkjent]
+```
+
+**Etter (1 felt):**
+```
+Underlag             → list_single: [
+  "Stedlig jord – godkjent og drenert",
+  "Stedlig jord – krever løsgjøring/utbedring",
+  "Steinfylling/berg – mineraljordlag påført",
+  "Steinfylling/berg – krever mineraljordlag"
+]
+```
+
+### Nedtrekksmenyer fremfor trafikklys
+
+Bruk `list_single` i stedet for `traffic_light` når:
+- Det finnes **mer enn to utfall** (ikke bare OK/avvik)
+- Valget inneholder **spesifikk informasjon** (materialtype, dimensjon, metode)
+- Du ville trengt **flere trafikklys** for å dekke samme kontrollpunkt
+
+Bruk `traffic_light` kun for enkle bekreftelser: "Er X utført?" — ja/nei med vedlegg.
+
+### Hjelpetekst erstatter informasjonsfelt
+
+Aldri lag et eget felt for å forklare kravet. Legg kravet i `helpText` på selve kontrollfeltet:
+- Referer til NS-paragraf/tabell (f.eks. "Tabell K4", "KB2.2 c1")
+- Oppgi konkrete tall og toleranser
+- Én til to setninger — ikke avsnitt
+
+### Inkluder kravet i valgteksten
+
+Når brukeren velger fra en nedtrekksmeny, skal de se kravet direkte — ikke måtte huske det:
+
+**Dårlig:** `"Grasplen"` (brukeren må huske at grasplen krever 15 cm)
+**Bra:** `"Grasplen (15 cm vekstjord)"` (kravet er synlig i valget)
+
+**Dårlig:** `"Under 20 mm"` (ukjent hva det gjelder)
+**Bra:** `"OK – under 20 mm (gras/blomstereng)"` (kontekst + krav i ett)
+
+### Sjekkliste for nye maler
+
+Før en mal publiseres i biblioteket:
+
+1. **Under 10 felt?** Hvis over — finn felt som kan slås sammen
+2. **Overlappende felt?** To felt om samme ting → kombiner til én `list_single`
+3. **Trafikklys med bare OK/avvik?** Vurder om `list_single` med spesifikke utfall er bedre
+4. **Hjelpetekst på alle felt?** NS-referanse + konkret krav
+5. **Krav synlig i valgtekst?** Tall, toleranser, dimensjoner bakt inn
+6. **Tre faser?** FØR/UNDER/ETTER — hvert felt i riktig fase
 
 ## Eksisterende UI-elementer (observert)
 
