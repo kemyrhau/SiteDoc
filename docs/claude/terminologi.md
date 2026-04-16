@@ -1,9 +1,11 @@
 # Terminologi
 
-- **Entreprise:** Kontrakt/arbeidspakke i et prosjekt. Dalux-format: `NUMMER Navn, Firma`. Felter: `enterpriseNumber`, `name`, `industry`, `companyName`, `color`
-- **Bestiller (creator):** Entreprisen som initierer en sjekkliste/oppgave (tidligere «Oppretter»)
-- **Utfører (responder):** Entreprisen som mottar og besvarer (tidligere «Svarer»)
+- **Firma:** Selskapet som eier SiteDoc-kontoen. DB: `Organization`. Eksempel: A.Markussen AS, Veidekke. Eier prosjekter og firmamoduler (timer, maskin, HR, planlegging)
+- **Faggruppe:** Deltaker i dokumentflyt innenfor ett prosjekt. DB: `DokumentflytPart`. Eksempel: Byggherre, Tømrer, Elektro. Felter: `name`, `color`, `industry`, `companyName`
+- **Bestiller (creator):** Faggruppen som initierer en sjekkliste/oppgave (tidligere «Oppretter»)
+- **Utfører (responder):** Faggruppen som mottar og besvarer (tidligere «Svarer»)
 - **UE:** Underentreprenør
+- **⚠️ "Entreprise"/"Enterprise":** Brukes IKKE i koden. ~1200 eksisterende forekomster refererer feilaktig til faggrupper og skal renames. Se `docs/claude/entreprise-faggruppe-rapport.md`
 - **Sjekkliste:** Strukturert dokument med rapportobjekter som fylles ut
 - **Oppgave:** Arbeidsoppgave med ansvarlig og frist, påkrevd mal
 - **Tegning:** Prosjekttegning (PDF/DWG) med versjonering
@@ -20,13 +22,13 @@
 - **Similaritetstransformasjon:** 2D-mapping mellom tegningskoordinater og GPS
 - **Prosjektnummer:** `SD-YYYYMMDD-XXXX` (autogenerert)
 - **Prefiks:** Kort kode for mal (BHO, S-BET, KBO)
-- **Organisasjon:** Firma med navn, org.nr, fakturaadresse, logo. Kobling via `OrganizationProject`
-- **Firmaadmin:** `company_admin` — administrerer firmaets prosjekter/brukere
+- **Firma (Organization):** Selskapet med navn, org.nr, fakturaadresse, logo. Kobling til prosjekter via `OrganizationProject`. Firmamoduler (timer, maskin, HR) lever på dette nivået
+- **Firmaadmin:** `company_admin` — administrerer firmaets prosjekter, brukere og firmamoduler
 - **Invitasjon:** E-post med token (7 dagers utløp), status pending/accepted/expired
-- **Prosjektgruppe:** Kategori + tillatelser + fagområder + valgfri entreprise-tilknytning
+- **Prosjektgruppe:** Kategori + tillatelser + fagområder + valgfri faggruppe-tilknytning
 - **Fagområde (domain):** `"bygg"` / `"hms"` / `"kvalitet"` — styrer dokumentsynlighet
-- **Tverrgående tilgang:** Gruppe uten entrepriser ser alle dokumenter med matchende fagområde
-- **GroupEnterprise:** Begrenser gruppes tilgang til spesifikke entreprisers dokumenter
+- **Tverrgående tilgang:** Gruppe uten faggruppe-tilknytning ser alle dokumenter med matchende fagområde
+- **GroupDokumentflytPart:** Begrenser gruppes tilgang til spesifikke faggruppers dokumenter
 - **Tillatelse (Permission):** Gamle: manage_field, create_tasks/checklists, view_field. Nye: granulære per funksjon
 - **Tegningsmarkør:** Posisjon (0–100% X/Y) på tegning for oppgave
 - **Enkeltvalg (`list_single`):** Én verdi. Web: `<select>`. Mobil: radioknapper. Kan være kontainer
@@ -34,7 +36,7 @@
 - **Kontainer:** Felt som kan inneholde barnefelt (list_single/list_multi/repeater)
 - **Betingelse:** Logikk som styrer synlighet av barnefelt basert på forelderens verdi
 - **Repeater:** Kontainer med dupliserbare rader
-- **Flerforetagsbruker:** Tilhører flere entrepriser via `MemberEnterprise`
+- **Flerforetagsbruker:** Tilhører flere faggrupper via `DokumentflytKobling`
 - **Prosjektlokasjon:** Valgfri GPS for kartvisning og værhenting
 - **Automatisk værhenting:** Open-Meteo basert på koordinater + dato
 - **WMO-værkode:** Standard for værforhold som tall → norsk tekst
