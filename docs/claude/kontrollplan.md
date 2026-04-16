@@ -719,73 +719,261 @@ npx tsx prisma/seed-bibliotek.ts
 - **Kun gyldige ReportObject-typer** i malInnhold (se felttype-regler over)
 - `traffic_light` har innebygd vedlegg — aldri lag separate vedlegg-felt
 
-## Kontrollplan — stedsbasert kvalitetskontroll (fase 4)
+## Kontrollplan — stedsbasert kvalitetskontroll
+
+### Lovgrunnlag
+
+Kontrollplanen skal oppfylle kravene i norsk bygningslovgivning:
+
+| Lov/forskrift | Paragraf | Krav | SiteDoc-funksjon |
+|---------------|----------|------|------------------|
+| PBL Kap. 24 | §24-1, §24-2 | Kvalitetssikring og uavhengig kontroll | Sjekklister med sporbarhet |
+| SAK10 | §10-1 | Skriftlige KS-rutiner, sjekklister, avviksbehandling | Sjekklistebibliotek + kontrollplan |
+| SAK10 | §14-2 | Obligatorisk uavhengig kontroll: fukt, luft, brann, konstruksjon, geo | Kontrollområde-tagging på maler |
+| SAK10 | §14-7 | Sluttrapport + kontrollerklæring: hva er kontrollert, avvik, lukking | PDF-eksport per kontrollområde |
+| Byggherreforskriften | §7, §8 | SHA-plan med risikovurdering og avviksrapportering | SHA som kontrollområde |
+| TEK17 | Diverse | Tekniske krav (fukt §13-5, energi §14-2, brann kap. 11) | NS/TEK-referanser i hjelpetekst |
 
 ### Formål
 
-Kobler sjekklister til fysiske steder (BIM-soner, rom, lokasjoner) med tidsfrist og ansvarlig. Gir sporbarhet, varsling og fremdriftstracking.
+Kobler sjekklister til fysiske soner/rom markert på tegning, med frist, ansvarlig faggruppe og dokumentflyt-godkjenning. Gir sporbarhet, fremdriftstracking og sluttrapport for kommunal kontroll.
+
+### Kjerneflyt
+
+```
+Oppsett (prosjektleder):
+  1. Tegn soner på tegning (polygon-verktøy)
+  2. Åpne kontrollplan → velg sone → tilknytt sjekklistemal → sett frist + faggruppe
+  3. Gjenta for alle soner — matrisevisning gir oversikt
+
+Utførelse (feltarbeider):
+  4. Åpne sjekklister → filtrert på min faggruppe + sone
+  5. Start sjekkliste → KontrollplanPunkt.status = pågår
+  6. Fyll ut → send via dokumentflyt
+
+Godkjenning (dokumentflyt):
+  7. Godkjenner mottar via eksisterende dokumentflyt
+  8. Godkjent → KontrollplanPunkt.status = godkjent
+
+Sluttrapport (SAK10 §14-7):
+  9. Eksporter per kontrollområde: kontrollert, avvik, lukking, signatur
+```
+
+### Datamodell
+
+```
+Sone (ny tabell)
+  ├── id, navn, type (sone | rom | etasje)
+  ├── byggeplassId       → tilhører en byggeplass
+  ├── tegningId          → tegningen den er markert på
+  ├── polygon            → Json [{x, y}, {x, y}, ...] i prosent av tegning
+  └── farge              → hex-farge for visning
+
+KontrollplanPunkt (ny tabell)
+  ├── id, projectId
+  ├── soneId             → hvilken sone
+  ├── sjekklisteMalId    → hvilken mal (ReportTemplate)
+  ├── faggruppeId        → ansvarlig faggruppe (DokumentflytPart)
+  ├── frist              → DateTime
+  ├── status             → planlagt | pågår | utført | godkjent
+  └── sjekklisteId?      → null → fylles når sjekkliste opprettes fra mal
+
+Kontrollområde på mal:
+  ReportTemplate.kontrollomrade → fukt | brann | konstruksjon | geo | grunnarbeid | sha | null
+```
+
+#### Prisma-skjema
+
+```prisma
+model Sone {
+  id            String   @id @default(cuid())
+  projectId     String   @map("project_id")
+  byggeplassId  String   @map("byggeplass_id")
+  tegningId     String?  @map("tegning_id")
+  navn          String
+  type          String   @default("sone")   // sone | rom | etasje
+  polygon       Json                         // [{x: number, y: number}, ...]
+  farge         String   @default("#3b82f6")
+  sortering     Int      @default(0)
+  opprettet     DateTime @default(now())
+
+  project       Project    @relation(fields: [projectId], references: [id])
+  byggeplass    Byggeplass @relation(fields: [byggeplassId], references: [id])
+  tegning       Drawing?   @relation(fields: [tegningId], references: [id])
+  kontrollpunkter KontrollplanPunkt[]
+
+  @@index([projectId])
+  @@index([byggeplassId])
+  @@index([tegningId])
+  @@map("soner")
+}
+
+model KontrollplanPunkt {
+  id              String    @id @default(cuid())
+  projectId       String    @map("project_id")
+  soneId          String    @map("sone_id")
+  sjekklisteMalId String    @map("sjekkliste_mal_id")
+  faggruppeId     String    @map("faggruppe_id")
+  frist           DateTime?
+  status          String    @default("planlagt")  // planlagt | pågår | utført | godkjent
+  sjekklisteId    String?   @map("sjekkliste_id")
+  opprettet       DateTime  @default(now())
+
+  project        Project          @relation(fields: [projectId], references: [id])
+  sone           Sone             @relation(fields: [soneId], references: [id])
+  sjekklisteMal  ReportTemplate   @relation(fields: [sjekklisteMalId], references: [id])
+  faggruppe      Faggruppe        @relation(fields: [faggruppeId], references: [id])
+  sjekkliste     Checklist?       @relation(fields: [sjekklisteId], references: [id])
+
+  @@unique([soneId, sjekklisteMalId])  // én mal per sone
+  @@index([projectId])
+  @@index([soneId])
+  @@map("kontrollplan_punkter")
+}
+```
+
+### Tegningsvisning — to lag
+
+**Lag 1: Soner (polygoner)**
+Fargekode etter aggregert status for alle kontrollplanpunkter i sonen:
+
+| Farge | Betydning |
+|-------|-----------|
+| Grå | Ingen sjekklister planlagt |
+| Blå | Planlagt — ikke startet |
+| Gul | Pågår — minst én sjekkliste under arbeid |
+| Grønn | Alle godkjent |
+| Rød | Avvik eller frist overskredet |
+
+Klikk på sone → vis kontrollplanpunkter for sonen (liste med maler, status, frist).
+
+**Lag 2: Sjekkliste-markører (punkter)**
+Eksisterende markør-system utvides fra kun oppgaver til også sjekklister. Vises innenfor sonene. Klikk → åpne sjekkliste.
+
+### Matrisevisning (kontrollplan-siden)
+
+```
+                    FB2 Graving   FD2 Fylling   FE1 Grøft    Frist neste
+Sone A (kjeller)    ✅ godkjent    🟡 pågår      ⬜ planlagt   20. mai
+Sone B (1. etg)     🟡 pågår      ⬜ planlagt    ⬜ planlagt   18. mai
+Sone C (2. etg)     ⬜ planlagt    ⬜ planlagt    ⬜ planlagt   22. mai
+────────────────────────────────────────────────────────────────────────
+Fremdrift:          1/3 (33%)     0/3 (0%)      0/3 (0%)
+```
+
+Filtrering:
+- Per kontrollområde (fukt, brann, konstruksjon, geo)
+- Per faggruppe
+- Per byggeplass / etasje
+- Per status (planlagt, pågår, godkjent, avvik)
+
+### Kontrollområde
+
+Kontrollområde er en egenskap på **sjekklistemalen** (ReportTemplate), ikke på kontrollplanpunktet. Én mal har alltid samme kontrollområde.
+
+| Kontrollområde | SAK10-referanse | Typiske maler |
+|----------------|-----------------|---------------|
+| `fukt` | §14-2: Fuktsikring | Våtrom, dampsperre, membran |
+| `brann` | §14-2: Brannsikkerhet | Brannceller, rømningsveier, sprinkler |
+| `konstruksjon` | §14-2: Konstruksjonssikkerhet | Betong, stål, treverk, bæring |
+| `geo` | §14-2: Geoteknikk | Graving, peling, fylling |
+| `grunnarbeid` | NS 3420-F | FB2, FD2, FE1, FC1, FB4, FD3 |
+| `sha` | Byggherreforskriften | Vernerunder, risikovurdering |
+| `null` | Ingen spesifikk | Generelle sjekklister |
+
+### Sluttrapport (SAK10 §14-7)
+
+PDF-eksport per kontrollområde med:
+
+```
+SLUTTRAPPORT — Kontrollområde: Fuktsikring
+Prosjekt: NRK Bjørvika  |  Dato: 2026-06-15
+
+1. Oppsummering
+   Kontrollert: 12 sjekklister i 4 soner
+   Godkjent: 11  |  Avvik lukket: 3  |  Åpne avvik: 0
+
+2. Kontrollerte soner
+   ┌──────────────────┬──────────────┬──────────┬──────────┐
+   │ Sone             │ Sjekkliste   │ Status   │ Dato     │
+   ├──────────────────┼──────────────┼──────────┼──────────┤
+   │ Bad 2. etg sør   │ Membran      │ Godkjent │ 12. jun  │
+   │ Bad 2. etg nord  │ Membran      │ Godkjent │ 13. jun  │
+   │ ...              │              │          │          │
+   └──────────────────┴──────────────┴──────────┴──────────┘
+
+3. Avvik og lukking
+   A-001: Membran ikke tilstrekkelig overlapp (Bad 2. etg sør)
+          Lukket 14. jun — utbedret og re-kontrollert
+
+4. Kontrollerklæring
+   Kontrollområde fuktsikring er gjennomført i henhold til SAK10 §14-7.
+   Alle avvik er lukket.
+
+   Signatur: ________________  Dato: ________
+```
+
+### Gjenbruk av eksisterende systemer
+
+| Behov | Eksisterende løsning |
+|-------|---------------------|
+| Godkjenning | Dokumentflyt (bestiller → utfører → godkjenner) |
+| Ansvarlig | Faggrupper (DokumentflytPart) |
+| Maler | Sjekklistemaler + sjekklistebibliotek |
+| Tegningsvisning | Tegningsviewer med zoom/pan/markører |
+| Punkt-markører | Eksisterende positionX/Y på Checklist/Task |
+| Filtrering | Sjekklisteliste med dynamiske filtre |
+| Kontrollområde | Nytt felt på ReportTemplate |
+
+Nye komponenter:
+- Polygon-tegneverktøy for soner på tegning
+- Matrisevisning (kontrollplan-siden)
+- Sluttrapport PDF-eksport
 
 ### Modul-registrering
-
-Kontrollplan er en **modul** i `PROSJEKT_MODULER` — aktiveres/deaktiveres per prosjekt, samme mønster som `hms-avvik`, `godkjenning`, `befaringsrapport`.
 
 ```typescript
 // packages/shared/src/types/index.ts — PROSJEKT_MODULER
 {
   slug: "kontrollplan",
   navn: "Kontrollplan",
-  beskrivelse: "Stedsbasert kvalitetskontroll med sjekklister koblet til BIM-soner, rom og lokasjoner",
+  beskrivelse: "Stedsbasert kvalitetskontroll med sjekklister koblet til soner på tegning",
   kategori: "funksjon",
   ikon: "ClipboardList",
-  maler: [], // ingen auto-opprettede maler — bruker eksisterende sjekklister fra biblioteket
+  maler: [],
 }
 ```
-
-Sidebar viser kontrollplan-lenken kun når modulen er aktivert (`kreverModul: "kontrollplan"`).
 
 ### Mappestruktur
 
 ```
-apps/web/src/app/dashbord/[prosjektId]/kontrollplan/   ← sider (liste, detalj, oppsett)
-apps/web/src/components/kontrollplan/                   ← UI-komponenter
-apps/api/src/routes/kontrollplan.ts                     ← API-ruter (tRPC)
+apps/web/src/app/dashbord/[prosjektId]/kontrollplan/   ← matrise, sone-oversikt
+apps/web/src/components/kontrollplan/                   ← matrisevisning, sone-editor
+apps/web/src/components/tegning/SoneOverlay.tsx         ← polygon-rendering på tegning
+apps/web/src/components/tegning/SoneTegneverktoy.tsx    ← polygon-oppretting
+apps/api/src/routes/kontrollplan.ts                     ← KontrollplanPunkt CRUD
+apps/api/src/routes/sone.ts                             ← Sone CRUD + polygon
 ```
 
 ### Database — i `packages/db`
 
-Kontrollplan-tabeller ligger i `packages/db` (IKKE isolert pakke) fordi de trenger FK-relasjoner til:
-- `report_templates` — sjekklisten som skal utføres
-- `byggeplasser` — lokasjon/sone/rom
-- `project_members` — ansvarlig person
-- `projects` — prosjektisolering
+Kontrollplan-tabeller ligger i `packages/db` (IKKE isolert pakke) fordi de trenger FK-relasjoner til `report_templates`, `byggeplasser`, `dokumentflyt_parts` og `projects`.
 
-| Tabell | Beskrivelse |
-|--------|-------------|
-| `kontrollplan_maler` | Mal: sjekkliste-referanse, sonetype, frekvens, ansvarlig-rolle |
-| `kontrollplaner` | Instans per prosjekt — kobler mal til spesifikk sone/rom/lokasjon |
-| `kontrollpunkt_utforelser` | Svar per kontrollpunkt: data, foto, signatur, tidsstempel, GPS |
+### Implementeringsrekkefølge
 
-### Kjerneflyt
+1. **Sone-modell + polygon på tegning** — DB, API, tegn/vis soner
+2. **KontrollplanPunkt + matrisevisning** — koble mal til sone, vis matrise
+3. **Sjekkliste-markører på tegning** — utvid eksisterende markør-system
+4. **Kontrollområde på maler** — nytt felt, filter i matrise
+5. **Sluttrapport PDF** — eksport per kontrollområde
+6. **Varsling** — push ved frist, eskalering til leder
 
-```
-Malbygger (BIM/Sone/Rom-egenskaper) + Tegninger + Soner/Rom
-  → Kontrollplan (sjekkliste + sted + tid + ansvarlig + varsling)
-  → Utførelse (mobil, foto, signering)
-  → Rapport (PDF, status per sone)
-```
+### Avhengigheter
 
-### Varsling
-
-- Push-varsling til ansvarlig når kontrollpunkt forfaller
-- SMS-varsling (valgfritt, konfigurerbart)
-- Frist-eskalering til leder ved manglende utførelse
-
-### Avhengighet — BLOKKERT
-
-Kontrollplan kan **ikke ferdigstilles** før malbygger er ferdig:
-- Malbyggeren må støtte BIM-egenskap (`bim_property`), soneegenskap (`zone_property`) og romegenskap (`room_property`) felttyper
-- Kontrollplan bruker sjekklister fra biblioteket — disse opprettes via malbyggeren
-- Rekkefølge: **Malbygger → Kontrollplan**
+- Steg 1–3 kan bygges uavhengig av malbygger
+- Steg 4 krever felt på ReportTemplate (enkel migrasjon)
+- Steg 5 bygger på eksisterende PDF-pakke
+- Steg 6 bygger på eksisterende push-varsling
 
 ## Fremtidig utvidelse av biblioteket
 
@@ -819,9 +1007,10 @@ På sikt kan biblioteket utvides med maler fra andre kilder:
 
 ## Status
 
-- **Sjekklistebibliotek:** 2 standarder, 12 maler, 74 felt — fungerer i produksjon
+- **Sjekklistebibliotek:** ✅ 2 standarder, 12 maler, 74 felt — fungerer i produksjon
 - **Admin-redigering:** Planlagt (`/admin/bibliotek`) — ikke bygget ennå
-- **Kontrollplan-siden:** 404 — ikke bygget ennå (`/oppsett/produksjon/kontrollplaner`)
+- **Kontrollplan design:** ✅ Fullstendig spesifikasjon (soner, matrise, lovkrav, sluttrapport)
+- **Kontrollplan-siden:** Ikke bygget ennå
+- **Sone-modell:** Ikke migrert ennå
 - **Modul-registrering:** Ikke lagt til i `PROSJEKT_MODULER` ennå
-- **Prisma-modeller (kontrollplan):** Ikke migrert ennå
-- **Blokkert av:** Malbygger (MALBYGGER.md)
+- **Ikke blokkert av malbygger** — steg 1–3 kan bygges uavhengig
