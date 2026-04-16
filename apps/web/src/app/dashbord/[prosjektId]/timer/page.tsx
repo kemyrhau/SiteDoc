@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import {
   Clock, Plus, Trash2, Camera, Copy, Check, XCircle,
   ChevronDown, ChevronUp, HelpCircle, X,
-  ArrowUp, ArrowDown, Filter,
+  ArrowUp, ArrowDown, Filter, Pencil,
 } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
@@ -249,7 +249,22 @@ function TimerHjelpModal({ onLukk }: { onLukk: () => void }) {
 export default function TimerSide() {
   const { t } = useTranslation();
   const [visning, setVisning] = useState<"oversikt" | "skjema">("oversikt");
-  const [sedler] = useState<Dagsseddel[]>(DEMO_SEDLER);
+  const [sedler, setSedler] = useState<Dagsseddel[]>(DEMO_SEDLER);
+  const [redigerSeddel, setRedigerSeddel] = useState<Dagsseddel | null>(null);
+
+  function åpneRediger(seddel: Dagsseddel) {
+    setRedigerSeddel(seddel);
+    setVisning("skjema");
+  }
+
+  function slettSeddel(id: string) {
+    setSedler((s) => s.filter((d) => d.id !== id));
+  }
+
+  function nyDagsseddel() {
+    setRedigerSeddel(null);
+    setVisning("skjema");
+  }
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
@@ -259,7 +274,7 @@ export default function TimerSide() {
           <h1 className="text-lg font-semibold text-gray-900">{t("timer.tittel")}</h1>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => setVisning("skjema")} className="inline-flex items-center gap-1.5 rounded-lg bg-sitedoc-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 transition-colors">
+          <button onClick={nyDagsseddel} className="inline-flex items-center gap-1.5 rounded-lg bg-sitedoc-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 transition-colors">
             <Plus className="h-4 w-4" />{t("timer.nyDagsseddel")}
           </button>
           <TimerHjelpKnapp />
@@ -268,18 +283,22 @@ export default function TimerSide() {
 
       <div className="flex border-b border-gray-200 px-6">
         {(["oversikt", "skjema"] as const).map((v) => (
-          <button key={v} onClick={() => setVisning(v)} className={`px-4 py-2.5 text-sm font-medium transition-colors ${visning === v ? "border-b-2 border-sitedoc-primary text-sitedoc-primary" : "text-gray-500 hover:text-gray-700"}`}>
+          <button key={v} onClick={() => { if (v === "oversikt") setRedigerSeddel(null); setVisning(v); }} className={`px-4 py-2.5 text-sm font-medium transition-colors ${visning === v ? "border-b-2 border-sitedoc-primary text-sitedoc-primary" : "text-gray-500 hover:text-gray-700"}`}>
             {v === "oversikt" ? t("timer.oversikt") : t("timer.dagsseddel")}
           </button>
         ))}
       </div>
 
-      {/* To-kolonner: innhold + statistikk */}
+      {/* To-kolonner: innhold + statistikk — statistikk fyller tilgjengelig plass */}
       <div className="flex flex-1 overflow-hidden">
-        <div className="flex-1 min-w-0 overflow-y-auto">
-          {visning === "oversikt" ? <OversiktTabell sedler={sedler} t={t} /> : <DagsseddelSkjema t={t} onTilbake={() => setVisning("oversikt")} />}
+        <div className={`${visning === "oversikt" ? "flex-1" : "w-full md:w-[460px] md:shrink-0"} min-w-0 overflow-y-auto`}>
+          {visning === "oversikt" ? (
+            <OversiktTabell sedler={sedler} t={t} onRediger={åpneRediger} onSlett={slettSeddel} />
+          ) : (
+            <DagsseddelSkjema t={t} onTilbake={() => setVisning("oversikt")} redigerData={redigerSeddel} />
+          )}
         </div>
-        <div className="hidden md:block w-80 lg:w-96 xl:w-[440px] shrink-0 border-l border-gray-200 bg-gray-50/70 p-5 overflow-y-auto">
+        <div className="hidden md:block flex-1 min-w-[280px] max-w-[500px] shrink-0 border-l border-gray-200 bg-gray-50/70 p-5 overflow-y-auto">
           <StatistikkPanel t={t} />
         </div>
       </div>
@@ -352,10 +371,11 @@ function KolonneHeader({ label, kolonne, sort, setSort, åpentFilter, setÅpentF
 /*  Oversiktstabell med filter og sortering                            */
 /* ------------------------------------------------------------------ */
 
-function OversiktTabell({ sedler, t }: { sedler: Dagsseddel[]; t: (k: string) => string }) {
+function OversiktTabell({ sedler, t, onRediger, onSlett }: { sedler: Dagsseddel[]; t: (k: string) => string; onRediger: (s: Dagsseddel) => void; onSlett: (id: string) => void }) {
   const [sort, setSort] = useState<{ kolonne: SortKolonne; retning: SortRetning } | null>(null);
   const [åpentFilter, setÅpentFilter] = useState<SortKolonne | null>(null);
   const [filter, setFilter] = useState<KolonneFilter>({});
+  const [valgtId, setValgtId] = useState<string | null>(null);
 
   // Filtrer
   const filtrert = useMemo(() => {
@@ -516,7 +536,12 @@ function OversiktTabell({ sedler, t }: { sedler: Dagsseddel[]; t: (k: string) =>
           </thead>
           <tbody>
             {sortert.map((s) => (
-              <tr key={s.id} className="border-b border-gray-100 hover:bg-gray-50">
+              <tr
+                key={s.id}
+                onClick={() => setValgtId(valgtId === s.id ? null : s.id)}
+                onDoubleClick={() => onRediger(s)}
+                className={`border-b border-gray-100 cursor-pointer transition-colors ${valgtId === s.id ? "bg-blue-50 hover:bg-blue-100" : "hover:bg-gray-50"}`}
+              >
                 <td className="py-3 pr-3 font-medium text-gray-900 whitespace-nowrap">{new Date(s.dato).toLocaleDateString("nb-NO", { day: "numeric", month: "short" })}</td>
                 <td className="py-3 pr-3 text-gray-700 whitespace-nowrap">{s.ansatt}</td>
                 <td className="py-3 pr-3 text-gray-500 text-xs whitespace-nowrap">{s.prosjekt}</td>
@@ -539,13 +564,17 @@ function OversiktTabell({ sedler, t }: { sedler: Dagsseddel[]; t: (k: string) =>
                 <td className="py-3 pr-3">
                   <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${statusFarge[s.status]}`}>{t(`status.${s.status}`)}</span>
                 </td>
-                <td className="py-3">
-                  {s.status === "ventende" && (
-                    <div className="flex gap-1">
-                      <button className="rounded p-1 text-green-500 hover:bg-green-50" title={t("timer.godkjenn")}><Check className="h-4 w-4" /></button>
-                      <button className="rounded p-1 text-red-400 hover:bg-red-50" title={t("timer.avvis")}><XCircle className="h-4 w-4" /></button>
-                    </div>
-                  )}
+                <td className="py-3" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex gap-1">
+                    {s.status === "ventende" && (
+                      <>
+                        <button className="rounded p-1 text-green-500 hover:bg-green-50" title={t("timer.godkjenn")}><Check className="h-4 w-4" /></button>
+                        <button className="rounded p-1 text-red-400 hover:bg-red-50" title={t("timer.avvis")}><XCircle className="h-4 w-4" /></button>
+                      </>
+                    )}
+                    <button onClick={() => onRediger(s)} className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600" title={t("handling.rediger")}><Pencil className="h-4 w-4" /></button>
+                    <button onClick={() => { if (confirm(`Slett dagsseddel ${new Date(s.dato).toLocaleDateString("nb-NO")}?`)) onSlett(s.id); }} className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-500" title={t("handling.slett")}><Trash2 className="h-4 w-4" /></button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -572,15 +601,15 @@ function OversiktTabell({ sedler, t }: { sedler: Dagsseddel[]; t: (k: string) =>
 /*  Dagsseddel-skjema                                                  */
 /* ------------------------------------------------------------------ */
 
-function DagsseddelSkjema({ t, onTilbake }: { t: (k: string) => string; onTilbake: () => void }) {
-  const [dato, setDato] = useState("2026-04-16");
-  const [prosjekt, setProsjekt] = useState(DEMO_PROSJEKTER[0]!);
-  const [tilleggsarbeid, setTilleggsarbeid] = useState("");
-  const [totaltimer, setTotaltimer] = useState(8);
-  const [reisetid, setReisetid] = useState(0);
-  const [overtidsmat, setOvertidsmat] = useState(false);
-  const [nattillegg, setNattillegg] = useState(false);
-  const [helgetillegg, setHelgetillegg] = useState(false);
+function DagsseddelSkjema({ t, onTilbake, redigerData }: { t: (k: string) => string; onTilbake: () => void; redigerData: Dagsseddel | null }) {
+  const [dato, setDato] = useState(redigerData?.dato ?? "2026-04-16");
+  const [prosjekt, setProsjekt] = useState(redigerData?.prosjekt ?? DEMO_PROSJEKTER[0]!);
+  const [tilleggsarbeid, setTilleggsarbeid] = useState(redigerData?.tilleggsarbeid ?? "");
+  const [totaltimer, setTotaltimer] = useState(redigerData?.totaltimer ?? 8);
+  const [reisetid, setReisetid] = useState(redigerData?.reisetid ?? 0);
+  const [overtidsmat, setOvertidsmat] = useState(redigerData?.overtidsmat ?? false);
+  const [nattillegg, setNattillegg] = useState(redigerData?.nattillegg ?? false);
+  const [helgetillegg, setHelgetillegg] = useState(redigerData?.helgetillegg ?? false);
   const [beskrivelse, setBeskrivelse] = useState("");
   const [maskiner, setMaskiner] = useState<Maskinrad[]>([]);
   const [materialer, setMaterialer] = useState<Materialrad[]>([]);
@@ -601,6 +630,12 @@ function DagsseddelSkjema({ t, onTilbake }: { t: (k: string) => string; onTilbak
 
   return (
     <div className="max-w-[420px] p-6">
+      {redigerData && (
+        <div className="mb-4 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+          <Pencil className="h-4 w-4 text-amber-600" />
+          <span className="text-sm font-medium text-amber-700">{t("handling.rediger")}: {new Date(redigerData.dato).toLocaleDateString("nb-NO")} — {redigerData.ansatt}</span>
+        </div>
+      )}
       <div className="mb-4 flex justify-end">
         <button className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 transition-colors">
           <Copy className="h-3.5 w-3.5" />{t("timer.kopierForrige")}
