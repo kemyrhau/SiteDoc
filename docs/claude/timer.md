@@ -483,6 +483,37 @@ To separate strømmer:
 
 SiteDoc validerer og godkjenner timer — ikke Proadm. Leder godkjenner i SiteDoc → data sendes i neste batch til Proadm.
 
+## Rapportmodul (planlagt)
+
+Timer-modulen skal støtte utskrift og PDF-generering av diverse rapporter. Alle rapporter har fra-til datofilter.
+
+### Rapporttyper
+
+| Rapport | Gruppering | Innhold |
+|---------|------------|---------|
+| **Prosjektrapport** | Per prosjekt, fra–til dato | Alle ansatte, timer fordelt på lønnsarter, maskinbruk, utlegg |
+| **Månedsrapport per ansatt** | Per ansatt, per måned | Alle prosjekter, dagssedler, timer, tillegg, utlegg |
+| **Månedsrapport per prosjekt** | Per prosjekt, per måned | Alle ansatte, timer, tilleggsarbeid, maskinbruk |
+| **Tilleggsarbeid-rapport** | Per endring/godkjenning | Timer ført mot spesifikt tilleggsarbeid, med endringsnummer |
+| **Maskinrapport** | Per maskin | Timer, mengde, prosjekter maskinen er brukt på |
+| **Utleggsrapport** | Per ansatt eller prosjekt | Kategori, beløp, kvitteringsbilder |
+| **Eksportrapport** | Per lønnssystem-batch | Hva som ble sendt, tidspunkt, status |
+
+### Felles for alle rapporter
+
+- Fra–til datospenn
+- Prosjektfilter (velg ett eller flere)
+- Ansattfilter (velg én eller flere)
+- PDF-eksport og utskrift
+- Vises som tabell med sumrader
+
+### Ikke avklart (rapporter)
+
+- Layout/design for PDF-rapporter — bruke packages/pdf eller ny løsning?
+- Hvilke rapporter er viktigst for kunden?
+- Skal rapporter kunne deles/sendes som e-post?
+- Faste rapportmaler vs. ad-hoc rapportbygger?
+
 ## Ikke avklart
 
 - GPS-validering — skal posisjonen ved registrering logges for å verifisere at arbeideren var på byggeplassen?
