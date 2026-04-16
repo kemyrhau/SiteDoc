@@ -15,12 +15,12 @@ const FUNKSJONER = [
   {
     ikon: ClipboardCheck,
     tittel: "Sjekklister og oppgaver",
-    beskrivelse: "Strukturerte maler med 23 felttyper og entrepriseflyt",
+    beskrivelse: "Strukturerte maler med 23 felttyper og dokumentflyt",
   },
   {
     ikon: Users,
     tittel: "Samarbeid",
-    beskrivelse: "Inviter brukere, tildel roller og styr tilgang per entreprise",
+    beskrivelse: "Inviter brukere, tildel roller og styr tilgang per faggruppe",
   },
 ];
 

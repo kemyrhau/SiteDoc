@@ -7,7 +7,7 @@ import { trpc } from "@/lib/trpc";
 import { Button, Input, Textarea, Modal, Spinner, EmptyState, SearchInput } from "@sitedoc/ui";
 import { useTranslation } from "react-i18next";
 import { Plus, Pencil, Trash2, MoreVertical, ChevronDown, Lock, Building2, Library } from "lucide-react";
-import { EntrepriseTilknytningModal } from "./EntrepriseTilknytningModal";
+import { FaggruppeTilknytningModal } from "./FaggruppeTilknytningModal";
 import { BibliotekPanel } from "@/components/bibliotek/BibliotekPanel";
 
 type MalKategori = "oppgave" | "sjekkliste";
@@ -122,7 +122,7 @@ export function MalListe({
   const [prefiksFeil, setPrefiksFeil] = useState<string | null>(null);
   const [domain, setDomain] = useState<"bygg" | "hms" | "kvalitet">("bygg");
   const [valgteWorkflowIds, setValgteWorkflowIds] = useState<Set<string>>(new Set());
-  const [visEntrepriseTilknytning, setVisEntrepriseTilknytning] = useState(false);
+  const [visFaggruppeTilknytning, setVisFaggruppeTilknytning] = useState(false);
   const [aktiverOppretting, _setAktiverOppretting] = useState(true);
 
   // Rediger-felter
@@ -441,20 +441,20 @@ export function MalListe({
             error={prefiksFeil ?? undefined}
           />
 
-          {/* Entreprisetilknytning */}
+          {/* Faggruppetilknytning */}
           <div className="flex flex-col gap-1">
             <label className="text-sm font-medium text-gray-700">
-              {t("tabell.entreprise")}
+              {t("tabell.faggruppe")}
             </label>
             <div className="flex items-center gap-3">
               <span className="text-sm text-gray-500">
                 {valgteWorkflowIds.size === 0
-                  ? t("maler.ingenEntrepriserValgt")
+                  ? t("maler.ingenFaggrupperValgt")
                   : `${valgteWorkflowIds.size} ${t("maler.arbeidsforlopValgt")}`}
               </span>
               <button
                 type="button"
-                onClick={() => setVisEntrepriseTilknytning(true)}
+                onClick={() => setVisFaggruppeTilknytning(true)}
                 className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
               >
                 <Building2 className="h-3.5 w-3.5" />
@@ -516,17 +516,17 @@ export function MalListe({
         </form>
       </Modal>
 
-      {/* Entreprisetilknytning-modal (sekundær, z-60) */}
+      {/* Faggruppetilknytning-modal (sekundær, z-60) */}
       {prosjektId && (
-        <EntrepriseTilknytningModal
-          open={visEntrepriseTilknytning}
-          onClose={() => setVisEntrepriseTilknytning(false)}
+        <FaggruppeTilknytningModal
+          open={visFaggruppeTilknytning}
+          onClose={() => setVisFaggruppeTilknytning(false)}
           prosjektId={prosjektId}
           kategori={kategori}
           valgteWorkflowIds={valgteWorkflowIds}
           onBekreft={(ids) => {
             setValgteWorkflowIds(ids);
-            setVisEntrepriseTilknytning(false);
+            setVisFaggruppeTilknytning(false);
           }}
         />
       )}

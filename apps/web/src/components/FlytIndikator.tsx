@@ -14,7 +14,7 @@ interface FlytMedlem {
   id: string;
   rolle: string;
   steg: number;
-  enterprise: { id: string; name: string } | null;
+  faggruppe: { id: string; name: string } | null;
   projectMember: { user: { id: string; name: string | null } } | null;
   group: { id: string; name: string } | null;
 }
@@ -30,13 +30,13 @@ interface FlytIndikatorProps {
 }
 
 interface Ledd {
-  /** Kort visningsnavn (entreprise eller gruppe) */
+  /** Kort visningsnavn (faggruppe eller gruppe) */
   navn: string;
-  /** Detaljert aktiv-visning: person/gruppe + entreprise i parentes */
+  /** Detaljert aktiv-visning: person/gruppe + faggruppe i parentes */
   aktivNavn: string;
   gruppeIder: Set<string>;
   brukerIder: Set<string>;
-  entrepriseIder: Set<string>;
+  faggruppeIder: Set<string>;
 }
 
 /** Grupper medlemmer per steg og bygg visningsinfo */
@@ -51,23 +51,23 @@ function byggLedd(medlemmer: FlytMedlem[]): Ledd[] {
   return [...stegMap.entries()]
     .sort(([a], [b]) => a - b)
     .map(([_steg, medl]) => {
-      const entreprise = medl.find((m) => m.enterprise);
+      const faggruppe = medl.find((m) => m.faggruppe);
       const gruppe = medl.find((m) => m.group);
       const person = medl.find((m) => m.projectMember?.user?.name);
 
       // Kort navn for inaktive bokser
-      const navn = entreprise
-        ? entreprise.enterprise!.name
+      const navn = faggruppe
+        ? faggruppe.faggruppe!.name
         : gruppe
           ? gruppe.group!.name
           : person?.projectMember?.user?.name ?? "?";
 
-      // Detaljert navn for aktiv boks: entreprise · person/gruppe
+      // Detaljert navn for aktiv boks: faggruppe · person/gruppe
       let aktivNavn = navn;
       const personEllerGruppe = gruppe?.group?.name ?? person?.projectMember?.user?.name;
-      const entrepriseNavn = entreprise?.enterprise?.name;
-      if (entrepriseNavn && personEllerGruppe && personEllerGruppe !== entrepriseNavn) {
-        aktivNavn = `${entrepriseNavn} · ${personEllerGruppe}`;
+      const faggruppeNavn = faggruppe?.faggruppe?.name;
+      if (faggruppeNavn && personEllerGruppe && personEllerGruppe !== faggruppeNavn) {
+        aktivNavn = `${faggruppeNavn} · ${personEllerGruppe}`;
       }
 
       return {
@@ -75,7 +75,7 @@ function byggLedd(medlemmer: FlytMedlem[]): Ledd[] {
         aktivNavn,
         gruppeIder: new Set(medl.filter((m) => m.group).map((m) => m.group!.id)),
         brukerIder: new Set(medl.filter((m) => m.projectMember).map((m) => m.projectMember!.user.id)),
-        entrepriseIder: new Set(medl.filter((m) => m.enterprise).map((m) => m.enterprise!.id)),
+        faggruppeIder: new Set(medl.filter((m) => m.faggruppe).map((m) => m.faggruppe!.id)),
       };
     });
 }

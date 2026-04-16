@@ -4,7 +4,7 @@ import type { RapportObjektProps } from "./typer";
 export function FirmaObjekt({ verdi, onEndreVerdi, leseModus, prosjektId }: RapportObjektProps) {
   const valgtId = typeof verdi === "string" ? verdi : "";
 
-  const { data: entrepriser } = trpc.entreprise.hentForProsjekt.useQuery(
+  const { data: faggrupper } = trpc.faggruppe.hentForProsjekt.useQuery(
     { projectId: prosjektId! },
     { enabled: !!prosjektId },
   );
@@ -19,9 +19,9 @@ export function FirmaObjekt({ verdi, onEndreVerdi, leseModus, prosjektId }: Rapp
       }`}
     >
       <option value="">Velg firma...</option>
-      {entrepriser?.map((e) => (
+      {faggrupper?.map((e) => (
         <option key={e.id} value={e.id}>
-          {e.enterpriseNumber ? `${e.enterpriseNumber} ` : ""}{e.name}
+          {e.faggruppeNumber ? `${e.faggruppeNumber} ` : ""}{e.name}
           {e.companyName ? `, ${e.companyName}` : ""}
         </option>
       ))}

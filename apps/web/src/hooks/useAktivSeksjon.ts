@@ -14,7 +14,7 @@ const seksjonMap: Record<string, Seksjon> = {
   "3d-visning": "3d-visning",
   "tegning-3d": "tegning-3d",
   bilder: "bilder",
-  entrepriser: "entrepriser",
+  faggrupper: "faggrupper",
   mapper: "mapper",
   okonomi: "okonomi",
   sok: "sok",

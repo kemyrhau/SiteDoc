@@ -33,8 +33,8 @@ interface SjekklistePrintData {
     prefix?: string | null;
     objects: RapportObjekt[];
   };
-  bestillerEnterprise?: { name: string } | null;
-  utforerEnterprise?: { name: string } | null;
+  bestillerFaggruppe?: { name: string } | null;
+  utforerFaggruppe?: { name: string } | null;
   bestiller?: { name?: string | null } | null;
 }
 
@@ -189,9 +189,9 @@ function SjekklistePrint({
           eksterntNummer={prosjekt?.externalProjectNumber}
           sjekklisteTittel={sjekkliste.title}
           sjekklisteNummer={sjekklisteNummer}
-          bestiller={sjekkliste.bestillerEnterprise?.name}
+          bestiller={sjekkliste.bestillerFaggruppe?.name}
           bestillerBruker={sjekkliste.bestiller?.name ?? null}
-          utforer={sjekkliste.utforerEnterprise?.name}
+          utforer={sjekkliste.utforerFaggruppe?.name}
           vaerTekst={vaerTekst}
           logoUrl={prosjekt?.logoUrl}
           prosjektAdresse={prosjekt?.address}
@@ -203,11 +203,11 @@ function SjekklistePrint({
           <h3 className="text-lg font-bold text-gray-900">{sjekkliste.title}</h3>
           <p className="text-sm text-gray-500">
             Mal: {sjekkliste.template.name}
-            {sjekkliste.bestillerEnterprise && (
-              <> &middot; Bestiller: {sjekkliste.bestillerEnterprise.name}</>
+            {sjekkliste.bestillerFaggruppe && (
+              <> &middot; Bestiller: {sjekkliste.bestillerFaggruppe.name}</>
             )}
-            {sjekkliste.utforerEnterprise && (
-              <> &middot; Utfører: {sjekkliste.utforerEnterprise.name}</>
+            {sjekkliste.utforerFaggruppe && (
+              <> &middot; Utfører: {sjekkliste.utforerFaggruppe.name}</>
             )}
           </p>
         </div>

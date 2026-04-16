@@ -2,18 +2,18 @@
 
 import { trpc } from "@/lib/trpc";
 
-interface EntrepriseVelgerProps {
+interface FaggruppeVelgerProps {
   projectId: string;
   value: string | null;
   onChange: (id: string | null) => void;
 }
 
-export function EntrepriseVelger({
+export function FaggruppeVelger({
   projectId,
   value,
   onChange,
-}: EntrepriseVelgerProps) {
-  const { data: entrepriser } = trpc.entreprise.hentForProsjekt.useQuery(
+}: FaggruppeVelgerProps) {
+  const { data: faggrupper } = trpc.faggruppe.hentForProsjekt.useQuery(
     { projectId },
     { enabled: !!projectId },
   );
@@ -24,10 +24,10 @@ export function EntrepriseVelger({
       value={value ?? ""}
       onChange={(e) => onChange(e.target.value || null)}
     >
-      <option value="">Alle entrepriser</option>
-      {entrepriser?.map((e) => (
+      <option value="">Alle faggrupper</option>
+      {faggrupper?.map((e) => (
         <option key={e.id} value={e.id}>
-          {e.enterpriseNumber ? `${e.enterpriseNumber} ` : ""}
+          {e.faggruppeNummer ? `${e.faggruppeNummer} ` : ""}
           {e.name}
         </option>
       ))}

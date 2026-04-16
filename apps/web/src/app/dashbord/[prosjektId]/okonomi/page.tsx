@@ -567,7 +567,7 @@ export default function OkonomiSide() {
             bygninger={bygninger ?? []}
             onLagre={(data) => oppdaterKontrakt.mutate({ id: kontraktId, ...data })}
             onSlett={() => {
-              if (confirm(`Slett kontrakt «${k.navn}»? Dokumenter og entrepriser mister kontraktkoblingen.`)) {
+              if (confirm(`Slett kontrakt «${k.navn}»? Dokumenter og faggrupper mister kontraktkoblingen.`)) {
                 slettKontrakt.mutate({ id: kontraktId });
               }
             }}

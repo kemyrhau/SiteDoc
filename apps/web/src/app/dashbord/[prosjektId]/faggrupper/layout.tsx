@@ -1,17 +1,17 @@
 "use client";
 
 import { SekundaertPanel } from "@/components/layout/SekundaertPanel";
-import { EntrepriserPanel } from "@/components/paneler/EntrepriserPanel";
+import { FaggrupperPanel } from "@/components/paneler/FaggrupperPanel";
 
-export default function EntrepriserLayout({
+export default function FaggrupperLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
     <>
-      <SekundaertPanel tittel="Entrepriser">
-        <EntrepriserPanel />
+      <SekundaertPanel tittel="Faggrupper">
+        <FaggrupperPanel />
       </SekundaertPanel>
       <main className="flex-1 overflow-auto bg-gray-50 p-6">
         {children}

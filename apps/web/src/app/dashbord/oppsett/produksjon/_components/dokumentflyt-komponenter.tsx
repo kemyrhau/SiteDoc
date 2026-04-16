@@ -22,7 +22,7 @@ export interface DokumentflytMedlemData {
   rolle: string;
   steg: number;
   erHovedansvarlig?: boolean;
-  enterprise: { id: string; name: string; color: string | null } | null;
+  faggruppe: { id: string; name: string; color: string | null } | null;
   projectMember: {
     id: string;
     user: { id: string; name: string | null; email: string };
@@ -37,12 +37,12 @@ export interface DokumentflytMalData {
 export interface DokumentflytData {
   id: string;
   name: string;
-  enterpriseId: string | null;
+  faggruppeId: string | null;
   medlemmer: DokumentflytMedlemData[];
   maler: DokumentflytMalData[];
 }
 
-export interface EntrepriseItem {
+export interface FaggruppeItem {
   id: string;
   name: string;
   color: string | null;
@@ -62,7 +62,7 @@ export function LeggTilMedlemDropdown({
   prosjektId,
   rolle,
   steg,
-  entrepriser,
+  faggrupper,
   medlemmer,
   grupper,
   eksisterende,
@@ -73,7 +73,7 @@ export function LeggTilMedlemDropdown({
   prosjektId: string;
   rolle: string;
   steg: number;
-  entrepriser: EntrepriseItem[];
+  faggrupper: FaggruppeItem[];
   medlemmer: ProsjektMedlemItem[];
   grupper?: Array<{ id: string; name: string }>;
   eksisterende: DokumentflytMedlemData[];
@@ -100,8 +100,8 @@ export function LeggTilMedlemDropdown({
     return () => document.removeEventListener("mousedown", handleClick);
   }, [open]);
 
-  const eksisterendeEntrepriseIder = new Set(
-    eksisterende.filter((m) => m.enterprise).map((m) => m.enterprise!.id),
+  const eksisterendeFaggruppeIder = new Set(
+    eksisterende.filter((m) => m.faggruppe).map((m) => m.faggruppe!.id),
   );
   const eksisterendeMedlemIder = new Set(
     eksisterende.filter((m) => m.projectMember).map((m) => m.projectMember!.id),
@@ -110,14 +110,14 @@ export function LeggTilMedlemDropdown({
     eksisterende.filter((m) => m.group).map((m) => m.group!.id),
   );
 
-  const tilgjengeligeEntrepriser = entrepriser.filter((e) => !eksisterendeEntrepriseIder.has(e.id));
+  const tilgjengeligeFaggrupper = faggrupper.filter((e) => !eksisterendeFaggruppeIder.has(e.id));
   const tilgjengeligeMedlemmer = medlemmer.filter((m) => !eksisterendeMedlemIder.has(m.id));
   const tilgjengeligeGrupper = (grupper ?? []).filter((g) => !eksisterendeGruppeIder.has(g.id));
 
   const typedRolle = rolle as "registrator" | "bestiller" | "utforer" | "godkjenner";
 
-  function leggTilEntreprise(enterpriseId: string) {
-    leggTilMutation.mutate({ dokumentflytId, projectId: prosjektId, enterpriseId, rolle: typedRolle, steg });
+  function leggTilFaggruppe(faggruppeId: string) {
+    leggTilMutation.mutate({ dokumentflytId, projectId: prosjektId, faggruppeId, rolle: typedRolle, steg });
   }
 
   function leggTilPerson(projectMemberId: string) {
@@ -141,18 +141,18 @@ export function LeggTilMedlemDropdown({
 
       {open && (
         <div className="absolute left-0 top-full z-20 mt-1 w-56 rounded-lg border border-gray-200 bg-white shadow-lg">
-          {tilgjengeligeEntrepriser.length > 0 && (
+          {tilgjengeligeFaggrupper.length > 0 && (
             <div className="border-b border-gray-100 px-3 py-1.5">
               <div className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
-                {t("kontakter.entrepriser")}
+                {t("kontakter.faggrupper")}
               </div>
             </div>
           )}
           <div className="max-h-48 overflow-y-auto">
-            {tilgjengeligeEntrepriser.map((ent) => (
+            {tilgjengeligeFaggrupper.map((ent) => (
               <button
                 key={ent.id}
-                onClick={() => leggTilEntreprise(ent.id)}
+                onClick={() => leggTilFaggruppe(ent.id)}
                 disabled={leggTilMutation.isPending}
                 className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm hover:bg-gray-50 disabled:opacity-50"
               >
@@ -280,7 +280,7 @@ export function InviterNyMedlemModal({
         lastName: etternavn.trim(),
         phone: telefon.trim() || undefined,
         role: "member",
-        enterpriseIds: [],
+        faggruppeIds: [],
       });
 
       if (nyttMedlem) {

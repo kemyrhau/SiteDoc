@@ -4,10 +4,10 @@ import { useParams } from "next/navigation";
 import { trpc } from "@/lib/trpc";
 import { Spinner, EmptyState, Badge, Table } from "@sitedoc/ui";
 
-export default function EntrepriserSide() {
+export default function FaggrupperSide() {
   const params = useParams<{ prosjektId: string }>();
 
-  const { data: entrepriser, isLoading } = trpc.entreprise.hentForProsjekt.useQuery(
+  const { data: faggrupper, isLoading } = trpc.faggruppe.hentForProsjekt.useQuery(
     { projectId: params.prosjektId },
   );
 
@@ -19,7 +19,7 @@ export default function EntrepriserSide() {
     );
   }
 
-  type EntrepriseRad = {
+  type FaggruppeRad = {
     id: string;
     name: string;
     organizationNumber: string | null;
@@ -29,13 +29,13 @@ export default function EntrepriserSide() {
 
   return (
     <div>
-      {!entrepriser?.length ? (
+      {!faggrupper?.length ? (
         <EmptyState
-          title="Ingen entrepriser"
-          description="Entrepriser administreres under Innstillinger > Feltarbeid > Entrepriser."
+          title="Ingen faggrupper"
+          description="Faggrupper administreres under Innstillinger > Feltarbeid > Faggrupper."
         />
       ) : (
-        <Table<EntrepriseRad>
+        <Table<FaggruppeRad>
           kolonner={[
             {
               id: "name",
@@ -76,7 +76,7 @@ export default function EntrepriserSide() {
               bredde: "100px",
             },
           ]}
-          data={(entrepriser ?? []) as EntrepriseRad[]}
+          data={(faggrupper ?? []) as FaggruppeRad[]}
           radNokkel={(rad) => rad.id}
         />
       )}

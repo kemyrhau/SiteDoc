@@ -5,20 +5,20 @@ import { useParams } from "next/navigation";
 import { trpc } from "@/lib/trpc";
 import { Card, Button, Input, Modal, Spinner, EmptyState, Badge } from "@sitedoc/ui";
 
-export default function EntrepriserSide() {
+export default function FaggrupperSide() {
   const params = useParams<{ id: string }>();
   const utils = trpc.useUtils();
   const [visModal, setVisModal] = useState(false);
   const [navn, setNavn] = useState("");
   const [orgNr, setOrgNr] = useState("");
 
-  const { data: entrepriser, isLoading } = trpc.entreprise.hentForProsjekt.useQuery(
+  const { data: faggrupper, isLoading } = trpc.faggruppe.hentForProsjekt.useQuery(
     { projectId: params.id },
   );
 
-  const opprettMutation = trpc.entreprise.opprett.useMutation({
+  const opprettMutation = trpc.faggruppe.opprett.useMutation({
     onSuccess: () => {
-      utils.entreprise.hentForProsjekt.invalidate({ projectId: params.id });
+      utils.faggruppe.hentForProsjekt.invalidate({ projectId: params.id });
       utils.prosjekt.hentMedId.invalidate({ id: params.id });
       setVisModal(false);
       setNavn("");
@@ -47,26 +47,26 @@ export default function EntrepriserSide() {
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
-        <h3 className="text-lg font-semibold">Entrepriser</h3>
-        <Button onClick={() => setVisModal(true)}>Ny entreprise</Button>
+        <h3 className="text-lg font-semibold">Faggrupper</h3>
+        <Button onClick={() => setVisModal(true)}>Ny faggruppe</Button>
       </div>
 
-      {!entrepriser?.length ? (
+      {!faggrupper?.length ? (
         <EmptyState
-          title="Ingen entrepriser"
-          description="Legg til entrepriser for å administrere arbeidsgrupper i prosjektet."
-          action={<Button onClick={() => setVisModal(true)}>Legg til entreprise</Button>}
+          title="Ingen faggrupper"
+          description="Legg til faggrupper for å administrere arbeidsgrupper i prosjektet."
+          action={<Button onClick={() => setVisModal(true)}>Legg til faggruppe</Button>}
         />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">
-          {entrepriser.map((ent) => (
+          {faggrupper.map((ent) => (
             <Card key={ent.id}>
               <h4 className="font-semibold">{ent.name}</h4>
               {ent.organizationNumber && (
                 <p className="text-xs text-gray-400">Org.nr: {ent.organizationNumber}</p>
               )}
               <div className="mt-3 flex gap-2">
-                <Badge variant="default">{ent.dokumentflytKoblinger.length} medlemmer</Badge>
+                <Badge variant="default">{ent.faggruppeKoblinger.length} medlemmer</Badge>
                 <Badge variant="primary">{ent._count.bestillerChecklists} sjekklister</Badge>
                 <Badge variant="warning">{ent._count.bestillerTasks} oppgaver</Badge>
               </div>
@@ -75,7 +75,7 @@ export default function EntrepriserSide() {
         </div>
       )}
 
-      <Modal open={visModal} onClose={() => setVisModal(false)} title="Ny entreprise">
+      <Modal open={visModal} onClose={() => setVisModal(false)} title="Ny faggruppe">
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <Input
             label="Firmanavn"
