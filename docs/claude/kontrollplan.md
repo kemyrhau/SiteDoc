@@ -216,9 +216,9 @@ Flat array med feltdefinisjoner som konverteres til ReportObjects ved import:
 | Valg mellom flere utfall | `list_single` | Informative valgtekster |
 | Fritekstkommentar | `text_field` | Brukes sparsomt |
 
-## NS 3420-K:2024 — seed-data
+## NS 3420 — seed-data
 
-Standard: **NS 3420-K:2024 – Anleggsgartnerarbeider** — 4 kapitler, 6 maler:
+### NS 3420-K:2024 – Anleggsgartnerarbeider (4 kapitler, 6 maler)
 
 | Kapittel | Mal | Felt | Nøkkelkrav |
 |----------|-----|------|------------|
@@ -292,6 +292,77 @@ Standard: **NS 3420-K:2024 – Anleggsgartnerarbeider** — 4 kapitler, 6 maler:
 - Planhet over 3 m målelengde `[decimal, enhet: mm, toleranse: ±3]` — Tabell K12 – belegningsstein betong/heller gangarealer
 - Vertikalt sprang ved fuger `[decimal, enhet: mm, maks: 2]` — Tabell K12 – gangarealer betong/heller
 - Steiner rengjort for fugemateriale `[traffic_light]` — KD1 c7 – etter fuging
+
+### NS 3420-F:2024 – Grunnarbeider (4 kapitler, 4 maler)
+
+| Kapittel | Mal | Felt | Nøkkelkrav |
+|----------|-----|------|------------|
+| FB | FB2 – Graving | 8 | Graveskråning (§21-4), vannhåndtering, kabelpåvisning, profilkontroll |
+| FC | FC1 – Sprengning | 7 | Salveplan, rystelsesmåling (NS 8141), profilkontroll, skadekontroll |
+| FD | FD2 – Fylling og komprimering | 7 | Lagtykkelse, Proctor-komprimering, planhet ±10–30 mm |
+| FE | FE1 – Ledningsgrøfter | 8 | VA-norm, trykkprøve (NS-EN 1610), ledningsfall, varselbånd |
+
+#### FB2 – Graving (ref: FB2)
+
+**FØR:**
+- Kabelpåvisning og grunnforhold `[list_single]` — Påvist/merket + grunnforhold vs rapport
+- Graveprofil kontrollert `[traffic_light]` — Tegning med dybde, bredde, skråningsvinkel
+
+**UNDER:**
+- Graveskråning og sikring `[list_single]` — **Sikkerhetskritisk.** §21-4: >2 m krever avstiving/skråning. Valg per jordart med STOPP-alternativ
+- Vannhåndtering i grøft `[list_single]` — **Sikkerhetskritisk.** Vann graver ut skråningsfot. STOPP ved ustabil fot
+- Gravebunn `[list_single]` — Kote, jevnhet, overgraving
+- Avvik fra prosjektert profil `[decimal, enhet: mm]` — Typisk ±50 mm
+
+**ETTER:**
+- Gravebunn godkjent for neste operasjon `[traffic_light]` — Fotodokumentasjon
+- Grøft sikret `[traffic_light]` — Sperring, skilting, overvannssikring
+
+#### FC1 – Sprengning (ref: FC1)
+
+**FØR:**
+- Salveplan og varsling `[list_single]` — Godkjent av bergsprenger + varsling utført
+- Rystelsesmåler plassert `[traffic_light]` — Nærmeste bygning, avstand, grenseverdi
+
+**UNDER:**
+- Maks rystelsesnivå `[decimal, enhet: mm/s]` — NS 8141: 20 mm/s bolig, 35 industri, 70 fjell
+- Sprengningsresultat `[list_single]` — Profil vs tegning: ren kontur / overberg / underberg
+
+**ETTER:**
+- Rensk utført og dokumentert `[traffic_light]` — All løs stein fjernet, fotodokumentert
+- Profilkontroll – avvik `[decimal, enhet: mm]` — ±100 mm byggegrop, ±150 mm vegskjæring
+- Skader på omgivelser `[list_single]` — Ingen / kosmetisk / konstruktiv (→ stopp)
+
+#### FD2 – Fylling og komprimering (ref: FD2)
+
+**FØR:**
+- Massetype `[list_single]` — Sprengstein / grus / knust fjell / lette masser + vareseddel
+- Underlag klargjort `[traffic_light]` — Fritt for snø, is, organisk, stående vann
+
+**UNDER:**
+- Lagtykkelse `[decimal, enhet: cm]` — Maks: sprengstein 60, grus 30, lette masser 50 cm
+- Komprimering `[list_single]` — Iht. instruks / krever flere overfarter / ikke kontrollert
+- Komprimeringsgrad `[decimal, enhet: %]` — ≥95 % bærelag, ≥97 % forsterkningslag
+
+**ETTER:**
+- Planhet – avvik `[decimal, enhet: mm]` — ±30 fylling, ±20 planum, ±10 bærelag
+- Overflate og drenering `[list_single]` — Fall mot sluk, ingen vannlommer
+
+#### FE1 – Ledningsgrøfter (ref: FE1)
+
+**FØR:**
+- Eksisterende ledninger påvist `[traffic_light]` — Kabelpåvisning, merking, forsiktig graving <1 m
+- Grøfteprofil og fundament `[list_single]` — Dybde og bredde iht. VA-norm
+
+**UNDER:**
+- Fundament og sidefylling `[list_single]` — Jevnt fundament, riktig masse (0–8 mm)
+- Ledningsfall `[decimal, enhet: ‰]` — Spillvann 10 ‰ (DN≤150), overvann 5 ‰
+- Gjenfylling lagvis `[traffic_light]` — Lag à 30 cm, beskyttelsesmasse 15 cm over rør
+
+**ETTER:**
+- Tetthetsprøve / trykkprøve `[list_single]` — NS-EN 1610, 1,5× driftstrykk i 30 min
+- Innmåling utført `[traffic_light]` — Topp rør, bunn grøft, knekkpunkt (SOSI/GML)
+- Varselbånd og merking `[traffic_light]` — 30 cm over ledning: blå=vann, brun=spill, grønn=dren, rød=el
 
 ## NS 3420-standarder i databasen (oppslag)
 
