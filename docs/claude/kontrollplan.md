@@ -813,7 +813,7 @@ Kontrollplan kan **ikke ferdigstilles** før malbygger er ferdig:
 
 På sikt kan biblioteket utvides med maler fra andre kilder:
 - **TEK17** — energikrav, brannsikring, universell utforming
-- **VA-norm** — kommunale krav til vann og avløp (varierer per kommune)
+- **VA/Miljø-blad** (Norsk Vann) — nasjonale anbefalinger for vann og avløp. Kommunale VA-normer varierer, men VA-bladene er den felles referansen
 - **Byggherreforskriften** — SHA-kontrollpunkter
 - **Firmaspesifikke** — admin kan lage egne maler i `/admin/bibliotek`
 
