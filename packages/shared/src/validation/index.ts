@@ -10,8 +10,6 @@ export const reportObjectTypeSchema = z.enum(REPORT_OBJECT_TYPES);
 // Faggrupperolle-validering
 export const dokumentflytRolleSchema = z.enum(["registrator", "bestiller", "utforer", "godkjenner"]);
 export const faggruppeRolleSchema = dokumentflytRolleSchema;
-/** @deprecated Bruk faggruppeRolleSchema */
-export const enterpriseRoleSchema = dokumentflytRolleSchema;
 
 // Malsone-validering
 export const templateZoneSchema = z.enum(TEMPLATE_ZONES);
@@ -44,8 +42,6 @@ export const createFaggruppeSchema = z.object({
   companyName: z.string().max(255).optional(),
   memberIds: z.array(z.string().uuid()).default([]),
 });
-/** @deprecated Bruk createFaggruppeSchema */
-export const createEnterpriseSchema = createFaggruppeSchema;
 
 // Kopier faggruppe
 export const copyFaggruppeSchema = z.object({
@@ -55,13 +51,10 @@ export const copyFaggruppeSchema = z.object({
   color: z.string().max(50).optional(),
   memberIds: z.array(z.string().uuid()).default([]),
 });
-/** @deprecated Bruk copyFaggruppeSchema */
-export const copyEnterpriseSchema = copyFaggruppeSchema;
 
 // Byggeplasstype-validering
 export const byggeplassTypeSchema = z.enum(BYGGEPLASS_TYPER);
-/** @deprecated Bruk byggeplassTypeSchema */
-export const buildingTypeSchema = byggeplassTypeSchema;
+
 
 // Georeferanse-validering
 const geoReferansePunktSchema = z.object({
@@ -89,8 +82,7 @@ export const createByggeplassSchema = z.object({
   address: z.string().optional(),
   type: byggeplassTypeSchema.default("bygg"),
 });
-/** @deprecated Bruk createByggeplassSchema */
-export const createBuildingSchema = createByggeplassSchema;
+
 
 // Malkategori-validering
 export const templateCategorySchema = z.enum(["oppgave", "sjekkliste"]);

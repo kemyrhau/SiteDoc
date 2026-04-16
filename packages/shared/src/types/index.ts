@@ -247,8 +247,6 @@ export type TemplateZone = (typeof TEMPLATE_ZONES)[number];
 // Dokumentflyt-roller
 export type DokumentflytRolle = "registrator" | "bestiller" | "utforer" | "godkjenner";
 export type FaggruppeRolle = DokumentflytRolle;
-/** @deprecated Bruk FaggruppeRolle */
-export type EnterpriseRole = DokumentflytRolle;
 
 // Tillatelser — granulære tillatelser for prosjektgrupper
 export const PERMISSIONS = [
@@ -575,10 +573,6 @@ export const FAGGRUPPE_BRANSJER = [
   "Prosjektledelse", "Byggherre", "Annet",
 ] as const;
 export type FaggruppeBransje = (typeof FAGGRUPPE_BRANSJER)[number];
-/** @deprecated Bruk FAGGRUPPE_BRANSJER */
-export const ENTERPRISE_INDUSTRIES = FAGGRUPPE_BRANSJER;
-/** @deprecated Bruk FaggruppeBransje */
-export type EnterpriseIndustry = FaggruppeBransje;
 
 // Faggruppefarger — 32 distinkte farger for visuell differensiering
 export const FAGGRUPPE_FARGER = [
@@ -589,10 +583,6 @@ export const FAGGRUPPE_FARGER = [
   "cyan-800", "lime-700", "fuchsia-800", "sky-800",
 ] as const;
 export type FaggruppeFarge = (typeof FAGGRUPPE_FARGER)[number];
-/** @deprecated Bruk FAGGRUPPE_FARGER */
-export const ENTERPRISE_COLORS = FAGGRUPPE_FARGER;
-/** @deprecated Bruk FaggruppeFarge */
-export type EnterpriseColor = FaggruppeFarge;
 
 // Standard faggrupper for malprosjekt
 export interface StandardFaggruppe {
@@ -609,10 +599,6 @@ export const STANDARD_FAGGRUPPER: StandardFaggruppe[] = [
   { navn: "VVS", bransje: "VVS", farge: "purple", faggruppeNummer: "K03" },
   { navn: "Ventilasjon", bransje: "Ventilasjon", farge: "teal", faggruppeNummer: "K04" },
 ];
-/** @deprecated Bruk STANDARD_FAGGRUPPER */
-export const STANDARD_ENTREPRISER = STANDARD_FAGGRUPPER;
-/** @deprecated Bruk StandardFaggruppe */
-export type StandardEntreprise = StandardFaggruppe;
 
 // Standard dokumentflyter for malprosjekt
 // Refererer til faggrupper og maler via indeks (løst opp under opprettelse)
@@ -791,10 +777,6 @@ export interface VaerVerdi {
 export const BYGGEPLASS_TYPER = ["bygg", "anlegg"] as const;
 export type ByggeplassType = (typeof BYGGEPLASS_TYPER)[number];
 
-/** @deprecated Bruk BYGGEPLASS_TYPER */
-export const BUILDING_TYPES = BYGGEPLASS_TYPER;
-/** @deprecated Bruk ByggeplassType */
-export type BuildingType = ByggeplassType;
 
 // Georeferanse for tegninger (2+ referansepunkter)
 export interface GeoReferansePunkt {
