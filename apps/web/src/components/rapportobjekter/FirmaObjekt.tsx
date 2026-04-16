@@ -21,7 +21,7 @@ export function FirmaObjekt({ verdi, onEndreVerdi, leseModus, prosjektId }: Rapp
       <option value="">Velg firma...</option>
       {faggrupper?.map((e) => (
         <option key={e.id} value={e.id}>
-          {e.faggruppeNumber ? `${e.faggruppeNumber} ` : ""}{e.name}
+          {e.faggruppeNummer ? `${e.faggruppeNummer} ` : ""}{e.name}
           {e.companyName ? `, ${e.companyName}` : ""}
         </option>
       ))}

@@ -70,7 +70,7 @@ export default function AdminOversikt() {
         <h2 className="mb-3 text-sm font-semibold text-gray-700">Siste prosjekter</h2>
         {prosjekter && prosjekter.length > 0 ? (
           <div className="space-y-2">
-            {prosjekter.slice(0, 5).map((p: { id: string; name: string; projectNumber: string; members: { id: string }[]; dokumentflytParts: { id: string }[]; organizationProjects: { organization: { name: string } }[] }) => (
+            {prosjekter.slice(0, 5).map((p: { id: string; name: string; projectNumber: string; members: { id: string }[]; faggrupper: { id: string }[]; organizationProjects: { organization: { name: string } }[] }) => (
               <div key={p.id} className="flex items-center justify-between text-sm">
                 <div>
                   <span className="font-medium text-gray-900">{p.name}</span>
@@ -78,7 +78,7 @@ export default function AdminOversikt() {
                 </div>
                 <div className="flex items-center gap-3 text-xs text-gray-500">
                   <span>{p.members.length} medl.</span>
-                  <span>{p.dokumentflytParts.length} entr.</span>
+                  <span>{p.faggrupper.length} faggrupper</span>
                   {p.organizationProjects[0] && (
                     <span className="rounded bg-purple-50 px-1.5 py-0.5 text-purple-600">
                       {p.organizationProjects[0].organization.name}

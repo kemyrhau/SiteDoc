@@ -280,7 +280,7 @@ export function InviterNyMedlemModal({
         lastName: etternavn.trim(),
         phone: telefon.trim() || undefined,
         role: "member",
-        faggruppeIds: [],
+        faggruppeIder: [],
       });
 
       if (nyttMedlem) {

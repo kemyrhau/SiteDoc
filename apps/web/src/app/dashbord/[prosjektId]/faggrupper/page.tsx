@@ -22,8 +22,9 @@ export default function FaggrupperSide() {
   type FaggruppeRad = {
     id: string;
     name: string;
+    faggruppeNummer: string | null;
     organizationNumber: string | null;
-    dokumentflytKoblinger: Array<{ id: string }>;
+    faggruppeKoblinger: Array<{ id: string }>;
     _count: { bestillerChecklists: number; bestillerTasks: number };
   };
 
@@ -55,7 +56,7 @@ export default function FaggrupperSide() {
               id: "members",
               header: "Medlemmer",
               celle: (rad) => (
-                <Badge variant="default">{rad.dokumentflytKoblinger.length}</Badge>
+                <Badge variant="default">{rad.faggruppeKoblinger.length}</Badge>
               ),
               bredde: "100px",
             },

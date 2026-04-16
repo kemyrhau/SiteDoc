@@ -51,7 +51,7 @@ interface ProsjektMedlem {
     email: string;
     phone: string | null;
   };
-  dokumentflytKoblinger: Array<{
+  faggruppeKoblinger: Array<{
     faggruppe: { id: string; name: string };
   }>;
 }
@@ -958,7 +958,7 @@ export default function KontakterSide() {
     if (!medlemmer) return map;
     const alle = medlemmer as ProsjektMedlem[];
     for (const m of alle) {
-      for (const me of m.dokumentflytKoblinger) {
+      for (const me of m.faggruppeKoblinger) {
         const liste = map.get(me.faggruppe.id) ?? [];
         liste.push(m);
         map.set(me.faggruppe.id, liste);
@@ -1131,7 +1131,7 @@ export default function KontakterSide() {
                         <input
                           type="text"
                           value={redigerFgNavn}
-                          onChange={(e) => setRedigerEntNavn(e.target.value)}
+                          onChange={(e) => setRedigerFgNavn(e.target.value)}
                           className="flex-1 rounded border border-gray-300 px-2 py-0.5 text-sm font-medium text-gray-700 focus:border-blue-400 focus:outline-none"
                           autoFocus
                           onKeyDown={(e) => {
@@ -1139,7 +1139,7 @@ export default function KontakterSide() {
                               oppdaterFaggruppeMutation.mutate({
                                 id: ent.id,
                                 name: redigerFgNavn.trim(),
-                                color: redigerEntFarge ?? undefined,
+                                color: redigerFgFarge ?? undefined,
                               });
                             }
                             if (e.key === "Escape") {
@@ -1154,7 +1154,7 @@ export default function KontakterSide() {
                               oppdaterFaggruppeMutation.mutate({
                                 id: ent.id,
                                 name: redigerFgNavn.trim(),
-                                color: redigerEntFarge ?? undefined,
+                                color: redigerFgFarge ?? undefined,
                               });
                             }
                           }}

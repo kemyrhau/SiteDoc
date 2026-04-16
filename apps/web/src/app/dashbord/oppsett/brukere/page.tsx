@@ -101,7 +101,7 @@ interface KontaktMedlem {
     phone: string | null;
     organization?: { id: string; name: string } | null;
   };
-  dokumentflytKoblinger: Array<{
+  faggruppeKoblinger: Array<{
     faggruppe: { id: string; name: string; color: string | null };
   }>;
 }
@@ -341,7 +341,7 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
     }
     if (filterFaggruppe) {
       resultat = resultat.filter((m) =>
-        m.dokumentflytKoblinger.some((e) => e.faggruppe.id === filterFaggruppe),
+        m.faggruppeKoblinger.some((e) => e.faggruppe.id === filterFaggruppe),
       );
     }
     if (filterGruppe) {
@@ -813,7 +813,7 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
                               <div className="px-3 py-2 text-xs text-gray-400 italic">{t("brukere.ingenMedlemmer")}</div>
                             ) : (
                               medlemmerIkkeIGruppe.map((k) => {
-                                const faggruppeNavn = k.dokumentflytKoblinger.map((e) => e.faggruppe.name).join(", ");
+                                const faggruppeNavn = k.faggruppeKoblinger.map((e) => e.faggruppe.name).join(", ");
                                 return (
                                   <button
                                     key={k.user.id}
@@ -853,7 +853,7 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
 
               const m = rad.medlem;
               const brukerGrupper = gruppeMap[m.user.id] ?? [];
-              const faggruppeIder = new Set(m.dokumentflytKoblinger.map((e) => e.faggruppe.id));
+              const faggruppeIder = new Set(m.faggruppeKoblinger.map((e) => e.faggruppe.id));
               const tilgjengeligeFaggrupper = (alleFaggrupper ?? []).filter(
                 (e: { id: string }) => !faggruppeIder.has(e.id),
               );
@@ -1009,7 +1009,7 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
                   {/* Faggrupper (read-only) */}
                   <td className="px-4 py-2.5">
                     <KompaktBadgeListe
-                      verdier={m.dokumentflytKoblinger.map((me) => me.faggruppe.name)}
+                      verdier={m.faggruppeKoblinger.map((me) => me.faggruppe.name)}
                       bgKlasse="bg-gray-100 text-gray-700"
                     />
                   </td>
