@@ -14,8 +14,9 @@ import {
   ChevronRight,
   ChevronDown,
   Shield,
+  ArrowRight,
 } from "lucide-react";
-import { HjelpKnapp } from "@/components/hjelp/HjelpModal";
+import { HjelpKnapp, HjelpFane } from "@/components/hjelp/HjelpModal";
 
 /* ------------------------------------------------------------------ */
 /*  KompaktBadgeListe — viser første verdi + "+N" utvidbar             */
@@ -437,7 +438,82 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
               <Plus className="h-4 w-4" />
               {t("brukere.inviterNy")}
             </button>
-            <HjelpKnapp />
+            <HjelpKnapp>
+              <HjelpFane tittel={t("hjelp.faneFirma")}>
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-900">{t("hjelp.firmaOverskrift")}</h3>
+                    <p className="mt-1 text-sm text-gray-600">{t("hjelp.firmaBeskrivelse")}</p>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-900">{t("hjelp.faggruppeOverskrift")}</h3>
+                    <p className="mt-1 text-sm text-gray-600">{t("hjelp.faggruppeBeskrivelse")}</p>
+                  </div>
+                  <div className="rounded-lg border border-blue-100 bg-blue-50/50 px-4 py-3">
+                    <p className="text-sm font-medium text-blue-800">{t("hjelp.firmaEksempelTittel")}</p>
+                    <p className="mt-1 text-sm text-blue-700">{t("hjelp.firmaEksempel")}</p>
+                  </div>
+                </div>
+              </HjelpFane>
+              <HjelpFane tittel={t("hjelp.faneRoller")}>
+                <div className="space-y-3">
+                  {[
+                    { rolleKey: "admin", person: "Ola Nordmann", skjoldFarge: "text-blue-500" },
+                    { rolleKey: "firmaansvarlig", person: "Trude Tømrer", skjoldFarge: "text-amber-500" },
+                    { rolleKey: "registrator", person: "Kari Hansen" },
+                    { rolleKey: "medlem", person: "Per Arbeider" },
+                  ].map((r) => (
+                    <div key={r.rolleKey} className="rounded-lg border border-gray-200 px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        {r.skjoldFarge && <Shield className={`h-4 w-4 ${r.skjoldFarge}`} />}
+                        <span className="text-sm font-semibold text-gray-900">
+                          {t(`hjelp.rolle.${r.rolleKey}.navn`)}
+                        </span>
+                        <span className="text-xs text-gray-400">({r.person})</span>
+                      </div>
+                      <p className="mt-1 text-sm text-gray-600">{t(`hjelp.rolle.${r.rolleKey}.beskrivelse`)}</p>
+                    </div>
+                  ))}
+                </div>
+              </HjelpFane>
+              <HjelpFane tittel={t("hjelp.faneDokumentflyt")}>
+                <div className="space-y-4">
+                  <p className="text-sm text-gray-600">{t("hjelp.flytBeskrivelse")}</p>
+                  <div className="flex items-center justify-center gap-2 py-4">
+                    <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-center">
+                      <div className="text-xs font-semibold text-blue-700">Elektro</div>
+                      <div className="mt-1 text-xs text-blue-500">3 personer</div>
+                    </div>
+                    <ArrowRight className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                    <div className="rounded-lg border border-purple-200 bg-purple-50 px-4 py-3 text-center">
+                      <div className="text-xs font-semibold text-purple-700">Byggherre</div>
+                      <div className="mt-1 text-xs text-purple-500">4 personer</div>
+                    </div>
+                    <ArrowRight className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                    <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-center">
+                      <div className="text-xs font-semibold text-green-700">Tømrer</div>
+                      <div className="mt-1 text-xs text-green-500">2 personer</div>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="rounded-lg border border-gray-200 px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <span className="h-2.5 w-2.5 rounded-full bg-blue-500" />
+                        <span className="text-sm font-semibold text-gray-900">{t("hjelp.flytBlåPrikk")}</span>
+                      </div>
+                      <p className="mt-1 text-sm text-gray-600">{t("hjelp.flytForklaring1")}</p>
+                    </div>
+                    <div className="rounded-lg border border-gray-200 px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">Leser</span>
+                        <span className="text-sm font-semibold text-gray-900">{t("hjelp.flytRettighet")}</span>
+                      </div>
+                      <p className="mt-1 text-sm text-gray-600">{t("hjelp.flytForklaring2")}</p>
+                    </div>
+                  </div>
+                </div>
+              </HjelpFane>
+            </HjelpKnapp>
           </div>
         </div>
         {/* Inviter ny bruker — inline form */}

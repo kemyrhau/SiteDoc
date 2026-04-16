@@ -20,6 +20,7 @@ import {
   Settings,
 } from "lucide-react";
 import { useState } from "react";
+import { HjelpKnapp, HjelpFane } from "@/components/hjelp/HjelpModal";
 
 /* Ikon-mapping fra strengnavn til komponent */
 const IKON_MAP: Record<string, React.ReactNode> = {
@@ -84,16 +85,29 @@ export default function ModulerSide() {
   return (
     <div>
       <div className="mb-6">
-        <div className="flex items-center gap-3">
-          <div className="rounded-lg bg-sitedoc-primary/10 p-2">
-            <Package className="h-5 w-5 text-sitedoc-primary" />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="rounded-lg bg-sitedoc-primary/10 p-2">
+              <Package className="h-5 w-5 text-sitedoc-primary" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">{t("oppsett.moduler")}</h2>
+              <p className="text-sm text-gray-500">
+                {t("moduler.beskrivelse")}
+              </p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900">{t("oppsett.moduler")}</h2>
-            <p className="text-sm text-gray-500">
-              {t("moduler.beskrivelse")}
-            </p>
-          </div>
+          <HjelpKnapp>
+            <HjelpFane tittel={t("hjelp.moduler.hvaTittel")}>
+              <div className="space-y-4">
+                <p className="text-sm text-gray-600">{t("hjelp.moduler.hva")}</p>
+                <div className="rounded-lg border border-blue-100 bg-blue-50/50 px-4 py-3">
+                  <p className="text-sm font-medium text-blue-800">{t("hjelp.moduler.tipsTittel")}</p>
+                  <p className="mt-1 text-sm text-blue-700">{t("hjelp.moduler.tips")}</p>
+                </div>
+              </div>
+            </HjelpFane>
+          </HjelpKnapp>
         </div>
       </div>
 

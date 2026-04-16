@@ -16,6 +16,7 @@ import {
   AlertCircle,
   Info,
 } from "lucide-react";
+import { HjelpKnapp, HjelpFane } from "@/components/hjelp/HjelpModal";
 
 export default function AiSokSide() {
   const { prosjektId } = useProsjekt();
@@ -109,16 +110,35 @@ export default function AiSokSide() {
     <div className="max-w-3xl">
       {/* Header */}
       <div className="mb-6">
-        <div className="flex items-center gap-3">
-          <div className="rounded-lg bg-sitedoc-primary/10 p-2">
-            <Brain className="h-5 w-5 text-sitedoc-primary" />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="rounded-lg bg-sitedoc-primary/10 p-2">
+              <Brain className="h-5 w-5 text-sitedoc-primary" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">{t("oppsett.aiSok")}</h2>
+              <p className="text-sm text-gray-500">
+                {t("aiSok.beskrivelse")}
+              </p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900">{t("oppsett.aiSok")}</h2>
-            <p className="text-sm text-gray-500">
-              {t("aiSok.beskrivelse")}
-            </p>
-          </div>
+          <HjelpKnapp>
+            <HjelpFane tittel={t("hjelp.aiSok.hvaTittel")}>
+              <div className="space-y-4">
+                <p className="text-sm text-gray-600">{t("hjelp.aiSok.hva")}</p>
+                <div className="space-y-3">
+                  <div className="rounded-lg border border-gray-200 px-4 py-3">
+                    <h4 className="text-sm font-semibold text-gray-900">{t("hjelp.aiSok.embeddingTittel")}</h4>
+                    <p className="mt-1 text-sm text-gray-600">{t("hjelp.aiSok.embeddingBeskrivelse")}</p>
+                  </div>
+                  <div className="rounded-lg border border-gray-200 px-4 py-3">
+                    <h4 className="text-sm font-semibold text-gray-900">{t("hjelp.aiSok.vekterTittel")}</h4>
+                    <p className="mt-1 text-sm text-gray-600">{t("hjelp.aiSok.vekterBeskrivelse")}</p>
+                  </div>
+                </div>
+              </div>
+            </HjelpFane>
+          </HjelpKnapp>
         </div>
       </div>
 

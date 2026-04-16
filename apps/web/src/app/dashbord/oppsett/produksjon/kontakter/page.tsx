@@ -26,7 +26,7 @@ import {
   LeggTilMedlemDropdown,
   InviterNyMedlemModal,
 } from "../_components/dokumentflyt-komponenter";
-import { HjelpKnapp } from "@/components/hjelp/HjelpModal";
+import { HjelpKnapp, HjelpFane } from "@/components/hjelp/HjelpModal";
 import { nesteAutoFarge, FARGE_MAP as FAGGRUPPE_FARGER } from "../_components/faggruppe-farger";
 import type { DokumentflytMedlemData } from "../_components/dokumentflyt-komponenter";
 
@@ -1071,7 +1071,34 @@ export default function KontakterSide() {
             <h2 className="text-lg font-semibold text-gray-900">{t("kontakter.tittel")}</h2>
             <p className="text-sm text-gray-500">{t("kontakter.beskrivelse")}</p>
           </div>
-          <HjelpKnapp />
+          <HjelpKnapp>
+            <HjelpFane tittel={t("hjelp.dokumentflytOppsett.hvaTittel")}>
+              <div className="space-y-4">
+                <p className="text-sm text-gray-600">{t("hjelp.dokumentflytOppsett.hva")}</p>
+                <div className="rounded-lg border border-blue-100 bg-blue-50/50 px-4 py-3">
+                  <p className="text-sm font-medium text-blue-800">{t("hjelp.dokumentflytOppsett.eksempelTittel")}</p>
+                  <p className="mt-1 text-sm text-blue-700">{t("hjelp.dokumentflytOppsett.eksempel")}</p>
+                </div>
+              </div>
+            </HjelpFane>
+            <HjelpFane tittel={t("hjelp.dokumentflytOppsett.oppbyggingTittel")}>
+              <div className="space-y-3">
+                <p className="text-sm text-gray-600">{t("hjelp.dokumentflytOppsett.oppbygging")}</p>
+                <div className="rounded-lg border border-gray-200 px-4 py-3">
+                  <h4 className="text-sm font-semibold text-gray-900">{t("hjelp.dokumentflytOppsett.faggruppeTittel")}</h4>
+                  <p className="mt-1 text-sm text-gray-600">{t("hjelp.dokumentflytOppsett.faggruppeBeskrivelse")}</p>
+                </div>
+                <div className="rounded-lg border border-gray-200 px-4 py-3">
+                  <h4 className="text-sm font-semibold text-gray-900">{t("hjelp.dokumentflytOppsett.dokumentflytTittel")}</h4>
+                  <p className="mt-1 text-sm text-gray-600">{t("hjelp.dokumentflytOppsett.dokumentflytBeskrivelse")}</p>
+                </div>
+                <div className="rounded-lg border border-gray-200 px-4 py-3">
+                  <h4 className="text-sm font-semibold text-gray-900">{t("hjelp.dokumentflytOppsett.medlemmerTittel")}</h4>
+                  <p className="mt-1 text-sm text-gray-600">{t("hjelp.dokumentflytOppsett.medlemmerBeskrivelse")}</p>
+                </div>
+              </div>
+            </HjelpFane>
+          </HjelpKnapp>
         </div>
       </div>
 
