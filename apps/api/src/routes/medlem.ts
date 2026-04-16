@@ -60,7 +60,7 @@ export const medlemRouter = router({
       const tillatelser = await hentBrukerTillatelser(ctx.userId, input.projectId);
       const erRegistrator = tillatelser.has("create_checklists") || tillatelser.has("create_tasks");
       if (erRegistrator || medlem.role === "admin") {
-        const alle = await ctx.prisma.dokumentflytPart.findMany({
+        const alle = await ctx.prisma.faggruppe.findMany({
           where: { projectId: input.projectId },
           orderBy: { name: "asc" },
         });
