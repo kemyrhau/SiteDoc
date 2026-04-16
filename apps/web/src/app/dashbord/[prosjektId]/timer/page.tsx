@@ -52,11 +52,11 @@ const DEMO_ENDRINGER = [
 ];
 
 const DEMO_SEDLER: Dagsseddel[] = [
-  { id: "1", dato: "2026-04-15", ansatt: "Florian Aschwanden", prosjekt: "E6 Kvænangsfjellet", totaltimer: 10, normaltid: 7.5, overtid50: 2.5, overtid100: 0, reisetid: 1, overtidsmat: true, nattillegg: false, helgetillegg: false, tilleggsarbeid: "E-042", maskiner: 2, utlegg: 450, status: "ventende" },
-  { id: "2", dato: "2026-04-14", ansatt: "Florian Aschwanden", prosjekt: "998 Innstifjordbotn", totaltimer: 7.5, normaltid: 7.5, overtid50: 0, overtid100: 0, reisetid: 1, overtidsmat: false, nattillegg: false, helgetillegg: false, tilleggsarbeid: null, maskiner: 1, utlegg: 0, status: "godkjent" },
-  { id: "3", dato: "2026-04-13", ansatt: "Erik Johansen", prosjekt: "998 Innstifjordbotn", totaltimer: 7.5, normaltid: 7.5, overtid50: 0, overtid100: 0, reisetid: 0.5, overtidsmat: false, nattillegg: false, helgetillegg: false, tilleggsarbeid: null, maskiner: 0, utlegg: 120, status: "godkjent" },
-  { id: "4", dato: "2026-04-12", ansatt: "Erik Johansen", prosjekt: "998 Innstifjordbotn", totaltimer: 9.5, normaltid: 7.5, overtid50: 2, overtid100: 0, reisetid: 1, overtidsmat: true, nattillegg: false, helgetillegg: true, tilleggsarbeid: "E-038", maskiner: 3, utlegg: 0, status: "ventende" },
-  { id: "5", dato: "2026-04-11", ansatt: "Morten Berg", prosjekt: "E6 Kvænangsfjellet", totaltimer: 8, normaltid: 7.5, overtid50: 0.5, overtid100: 0, reisetid: 0, overtidsmat: false, nattillegg: false, helgetillegg: false, tilleggsarbeid: null, maskiner: 1, utlegg: 89, status: "utkast" },
+  { id: "1", dato: "2026-04-15", ansatt: "Florian Aschwanden - A. Markussen AS", prosjekt: "E6 Kvænangsfjellet", totaltimer: 10, normaltid: 7.5, overtid50: 2.5, overtid100: 0, reisetid: 1, overtidsmat: true, nattillegg: false, helgetillegg: false, tilleggsarbeid: "E-042", maskiner: 2, utlegg: 450, status: "ventende" },
+  { id: "2", dato: "2026-04-14", ansatt: "Florian Aschwanden - A. Markussen AS", prosjekt: "998 Innstifjordbotn", totaltimer: 7.5, normaltid: 7.5, overtid50: 0, overtid100: 0, reisetid: 1, overtidsmat: false, nattillegg: false, helgetillegg: false, tilleggsarbeid: null, maskiner: 1, utlegg: 0, status: "godkjent" },
+  { id: "3", dato: "2026-04-13", ansatt: "Kenneth Myrhaug", prosjekt: "998 Innstifjordbotn", totaltimer: 7.5, normaltid: 7.5, overtid50: 0, overtid100: 0, reisetid: 0.5, overtidsmat: false, nattillegg: false, helgetillegg: false, tilleggsarbeid: null, maskiner: 0, utlegg: 120, status: "godkjent" },
+  { id: "4", dato: "2026-04-12", ansatt: "Kenneth Myrhaug", prosjekt: "998 Innstifjordbotn", totaltimer: 9.5, normaltid: 7.5, overtid50: 2, overtid100: 0, reisetid: 1, overtidsmat: true, nattillegg: false, helgetillegg: true, tilleggsarbeid: "E-038", maskiner: 3, utlegg: 0, status: "ventende" },
+  { id: "5", dato: "2026-04-11", ansatt: "Florian Aschwanden - A. Markussen AS", prosjekt: "E6 Kvænangsfjellet", totaltimer: 8, normaltid: 7.5, overtid50: 0.5, overtid100: 0, reisetid: 0, overtidsmat: false, nattillegg: false, helgetillegg: false, tilleggsarbeid: null, maskiner: 1, utlegg: 89, status: "utkast" },
 ];
 
 const DEMO_UKE: { dag: string; dato: string; prosjekt: string | null; timer: number | null }[] = [
