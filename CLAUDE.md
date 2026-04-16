@@ -1,6 +1,6 @@
 # SiteDoc
 
-Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobil, nettbrett) med offline-støtte, bildekomprimering, GPS-tagging og entreprisearbeidsflyt.
+Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobil, nettbrett) med offline-støtte, bildekomprimering, GPS-tagging og dokumentflyt mellom faggrupper.
 
 ## Detaljert dokumentasjon
 
@@ -10,7 +10,9 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 | [docs/claude/api.md](docs/claude/api.md) | API-routere, prosedyrer, gratis-grenser, prøveperiode |
 | [docs/claude/web.md](docs/claude/web.md) | Web UI, ruter, kontekster, malbygger, print, tegningsvisning |
 | [docs/claude/mobil.md](docs/claude/mobil.md) | React Native, offline-first, kamera, bilde, statusendring |
-| [docs/claude/forretningslogikk.md](docs/claude/forretningslogikk.md) | Entrepriseflyt, arbeidsforløp, grupper, moduler, admin, TODO |
+| [docs/claude/forretningslogikk.md](docs/claude/forretningslogikk.md) | Dokumentflyt, arbeidsforløp, grupper, moduler, admin, TODO |
+| [docs/claude/entreprise-faggruppe-rapport.md](docs/claude/entreprise-faggruppe-rapport.md) | Opprydding: entreprise→faggruppe rename-rapport, ~1200 forekomster |
+| [docs/claude/faggruppe-rename-plan.md](docs/claude/faggruppe-rename-plan.md) | Rename-plan: 8 faser, DB-kolonner, Prisma, API, web, mobil, i18n |
 | [docs/claude/shared-pakker.md](docs/claude/shared-pakker.md) | @sitedoc/shared typer + validering + utils, @sitedoc/ui komponenter |
 | [docs/claude/infrastruktur.md](docs/claude/infrastruktur.md) | Deploy, server, env-filer, EAS Build, TestFlight, OAuth |
 | [docs/claude/terminologi.md](docs/claude/terminologi.md) | Alle termer og definisjoner |
@@ -22,6 +24,7 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 | [docs/claude/maskin.md](docs/claude/maskin.md) | Maskinregister: GPS-sporing, Vegvesen-API, servicehistorikk, adapter-mønster |
 | [docs/claude/kontrollplan.md](docs/claude/kontrollplan.md) | Kontrollplan + Sjekklistebibliotek: NS 3420-K, felttype-regler, import, Prisma, API, UI |
 | [docs/claude/infrastruktur-moduler.md](docs/claude/infrastruktur-moduler.md) | Isolert deploy: mappestruktur, turbo-pipeline, PM2, porter, auth-deling |
+| [docs/claude/planlegger.md](docs/claude/planlegger.md) | Fremdriftsplanlegger: ressursplanlegging, kompetanse, bemanning, forslag-motor |
 | [MALBYGGER.md](MALBYGGER.md) | Felles malbygger: dokumenttyper, felttyper, beslutninger, migreringsstrategi |
 
 **Ved "oppdater CLAUDE.md"**: oppdater den relevante detalj-filen i `docs/claude/`, ikke denne hovedfilen (med mindre det gjelder tech stack, struktur, kommandoer, kodestil eller regler).
@@ -246,6 +249,62 @@ Etter endringer, oppgi alltid hvilken reload-metode som trengs:
   5. Gjenbruk eksisterende nøkler der mulig (`handling.lagre`, `handling.avbryt`, `tabell.navn` etc.)
   6. For data utenfor komponenter (arrays, configs): bruk `labelKey` i stedet for `label`, kall `t()` ved rendering
 
+## Terminologi og hierarki
+
+### Tre nivåer
+
+```
+Firma (Organization)                  ← Selskapet (A.Markussen AS, Veidekke)
+├── Firmaadministrasjon               ← Modulvalg, prosjektmalverk
+│   ├── Firmamoduler (tverrgående):   ← Slås av/på for hele firmaet
+│   │   ├── Timeregistrering
+│   │   ├── Maskinregistrering
+│   │   ├── HR/Mannskap
+│   │   └── Fremdriftsplanlegging
+│   └── Prosjektmalverk               ← Standardoppsett for nye prosjekter
+│
+└── Prosjekter
+    └── Prosjekt: NRK
+        ├── Faggrupper + Dokumentflyt  ← Prosjektspesifikk dokumentflyt
+        └── Prosjektmoduler:           ← Slås av/på per prosjekt
+            ├── Sjekklister, Oppgaver, Tegninger, Mapper
+            ├── Kontrollplan, Økonomi (FTD), PSI
+            ├── 3D-visning, AI-søk, HMS-avvik
+            └── ...
+```
+
+### Begreper — endelig definisjon
+
+| Begrep | DB-modell | Beskrivelse | Eksempel |
+|--------|-----------|-------------|---------|
+| **Firma** | `Organization` | Selskapet som eier SiteDoc-kontoen | A.Markussen AS |
+| **Faggruppe** | `DokumentflytPart` | Deltaker i dokumentflyt innenfor ett prosjekt | Byggherre, Tømrer, Elektro |
+| **Dokumentflyt** | `Dokumentflyt` | Rute mellom to faggrupper | BH → TE, TE → BH |
+| **Dokumentflytmedlem** | `DokumentflytMedlem` | Person/gruppe koblet til en rolle i en dokumentflyt | Ola som bestiller i "BH → TE" |
+| **Prosjektmodul** | `ProjectModule` | Modul som slås av/på per prosjekt | Sjekklister, 3D-visning |
+| **Firmamodul** | (planlagt) | Modul som slås av/på for hele firmaet, deler data på tvers av prosjekter | Timer, Maskin, HR, Planlegging |
+
+### ⚠️ KRITISK: "Entreprise" brukes IKKE
+
+Ordet "entreprise"/"enterprise" skal **ALDRI** brukes i ny kode, nye UI-strenger eller ny dokumentasjon. Bakgrunn:
+- Eksisterende kodebase har ~1200 forekomster av "enterprise"/"entreprise" som **feilaktig** refererer til faggrupper
+- Oppryddingen er planlagt men ikke gjennomført (se `docs/claude/entreprise-faggruppe-rapport.md`)
+- I ny kode: bruk **faggruppe** (UI) / **dokumentflytPart** (Prisma) / **faggruppeId** (variabelnavn)
+- Eksisterende kode med `enterpriseId`, `entrepriseRouter` osv. refererer til faggrupper — ikke firmaer
+
+### Modulsystem — to nivåer
+
+**Prosjektmoduler** (eksisterende, `ProjectModule`):
+- Slås av/på **per prosjekt** i Innstillinger > Produksjon > Moduler
+- Hvert prosjekt kan ha ulik konfigurasjon
+- Eksempler: Sjekklister, Oppgaver, Tegninger, Kontrollplan, Økonomi, PSI, 3D, AI-søk, HMS
+
+**Firmamoduler** (planlagt):
+- Slås av/på **én gang for hele firmaet** i Firmaadministrasjon
+- Deler data på tvers av alle firmaets prosjekter
+- Eksempler: Timeregistrering, Maskinregistrering, HR/Mannskap, Fremdriftsplanlegging
+- Egne apper (`apps/timer/`, `apps/maskin/`) med egne DB-skjemaer (`packages/db-timer/` osv.)
+
 ## Admin-arkitektur og roller
 
 To DB-kolonner styrer tilgang: `User.role` (`sitedoc_admin` | `company_admin` | `user`) og `ProjectMember.role` (`admin` | `project_manager` | `worker` | `field_user`).
@@ -261,17 +320,17 @@ To DB-kolonner styrer tilgang: `User.role` (`sitedoc_admin` | `company_admin` | 
 
 **`harProsjektTilgang(userId, projectId)`**: Sjekker ProjectMember-rad ELLER company_admin med riktig org. Alle prosjekt-ruter bruker denne — aldri inline-sjekk. Ligger i `tilgangskontroll.ts`.
 
-`company_admin` uten `organizationId` er ugyldig — fanget i `verifiserOrganisasjonTilgang()`. Standalone Enterprise (`organizationId = null`) er gyldig permanent tilstand.
+`company_admin` uten `organizationId` er ugyldig — fanget i `verifiserOrganisasjonTilgang()`. Standalone prosjekt (`organizationId = null`) er gyldig permanent tilstand.
 
 **Kritiske regler:**
-- Org-admin ser **KUN** sin egen organisasjons data — absolutt umulig å se andre orgs
-- Org-grense-sjekk ligger **ALLTID** i server-laget (tRPC), aldri kun i frontend
+- Firma-admin ser **KUN** sitt eget firmas data — absolutt umulig å se andre firmaer
+- Firma-grense-sjekk ligger **ALLTID** i server-laget (tRPC), aldri kun i frontend
 - API-nøkler sendes **ALDRI** til klienten — returner kun `harNøkkel: boolean`
-- Enterprise-overføring (standalone → org) er **permanent** — krever superadmin + firmaadmin-godkjenning
+- Firmaoverføring (standalone → Organization) er **permanent** — krever superadmin + firmaadmin-godkjenning
 
 **Organisasjonsmodellen — to spor:**
 - **Standalone** (`organizationId = null`) — gyldig permanent tilstand, ikke en mangel
-- **Under Organization** — org-admin har innsyn, integrasjoner tilgjengelig
+- **Under Organization (firma)** — firma-admin har innsyn, integrasjoner og firmamoduler tilgjengelig
 
 **Kryssorg-deling:**
 - Deaktivert som standard (`eksternDeling = false` på Project)
@@ -282,6 +341,7 @@ To DB-kolonner styrer tilgang: `User.role` (`sitedoc_admin` | `company_admin` | 
 ## Viktige regler
 
 - **Beskriv løsningen først:** Før kodeendringer, beskriv den logiske løsningen med ord og be om brukerens godkjenning. Ikke anta — still kontrollspørsmål ved tvil
+- **ALDRI bruk "entreprise"/"enterprise"** i ny kode, UI-strenger eller dokumentasjon. Bruk **faggruppe** (UI/variabelnavn) eller **dokumentflytPart** (Prisma). Se "Terminologi og hierarki"-seksjonen
 - ALDRI commit `.env`-filer
 - Bilder komprimeres til 300–400 KB før opplasting
 - Alle database-endringer via Prisma-migreringer
@@ -327,10 +387,10 @@ Hver side i SiteDoc skal ha en hjelpetekst tilgjengelig via hjelp-ikonet (?) øv
 3. Hvis siden rename-es: hjelpeteksten rename-es samtidig
 
 **Konsistente begreper:**
-- "Faggruppe" — en deltaker i dokumentflyten på et prosjekt (Byggherre, Tømrer, Elektro). Ikke "Entreprise". Ikke "Enterprise". Ikke "Part". Engelsk: "Trade group"
-- "Dokumentflyt" — flyten mellom faggrupper (bestiller → utfører → godkjenner)
-- "Firma" — det faktiske selskapet (Hansen Tømrer AS)
-- "Organisasjon" — kundefirmaet som eier SiteDoc-kontoen
+- "Faggruppe" — en deltaker i dokumentflyten på et prosjekt (Byggherre, Tømrer, Elektro). ALDRI "Entreprise"/"Enterprise"/"Part". Engelsk: "Trade group". DB: `DokumentflytPart`
+- "Dokumentflyt" — rute mellom to faggrupper (bestiller → utfører → godkjenner). DB: `Dokumentflyt`
+- "Firma" — selskapet som eier SiteDoc-kontoen (A.Markussen AS). DB: `Organization`
+- "Firmamodul" — modul som gjelder hele firmaet på tvers av prosjekter (Timer, Maskin, HR, Planlegging)
 
 **Sidestatus ?-ikon:**
 
