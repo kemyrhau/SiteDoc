@@ -12,6 +12,7 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 | [docs/claude/mobil.md](docs/claude/mobil.md) | React Native, offline-first, kamera, bilde, statusendring |
 | [docs/claude/forretningslogikk.md](docs/claude/forretningslogikk.md) | Dokumentflyt, arbeidsforløp, grupper, moduler, admin, TODO |
 | [docs/claude/entreprise-faggruppe-rapport.md](docs/claude/entreprise-faggruppe-rapport.md) | Opprydding: entreprise→faggruppe rename-rapport, ~1200 forekomster |
+| [docs/claude/faggruppe-rename-plan.md](docs/claude/faggruppe-rename-plan.md) | Rename-plan: 8 faser, DB-kolonner, Prisma, API, web, mobil, i18n |
 | [docs/claude/shared-pakker.md](docs/claude/shared-pakker.md) | @sitedoc/shared typer + validering + utils, @sitedoc/ui komponenter |
 | [docs/claude/infrastruktur.md](docs/claude/infrastruktur.md) | Deploy, server, env-filer, EAS Build, TestFlight, OAuth |
 | [docs/claude/terminologi.md](docs/claude/terminologi.md) | Alle termer og definisjoner |
