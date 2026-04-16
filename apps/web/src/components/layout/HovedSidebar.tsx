@@ -15,6 +15,7 @@ import {
   BarChart3,
   FileSearch,
   ShieldCheck,
+  Clock,
 } from "lucide-react";
 import { SidebarIkon } from "@sitedoc/ui";
 import { useTranslation } from "react-i18next";
@@ -111,6 +112,12 @@ const hovedelementer: SidebarElement[] = [
     ikon: <ShieldCheck className="h-5 w-5" />,
     kreverProsjekt: true,
     kreverModul: "psi",
+  },
+  {
+    id: "timer",
+    labelKey: "nav.timer",
+    ikon: <Clock className="h-5 w-5" />,
+    kreverProsjekt: true,
   },
 ];
 

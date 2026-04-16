@@ -404,9 +404,89 @@ Delt auth via eksisterende `next-auth` sessions-tabell i `packages/db`. Timer-AP
 | `timer.hentInnstillinger` | Query | Enterprise-innstillinger (dagsnorm, satser) |
 | `timer.oppdaterInnstillinger` | Mutation | Endre enterprise-innstillinger (admin) |
 
+## Prototype — kundevisning (pågår)
+
+Interaktiv UI-prototype for kundedialog. Ingen backend, ingen migrering — kun hardkodet demodata og lokal state. Formål: vise kunden at funksjonaliteten er gjennomtenkt, og få tilbakemelding.
+
+### Midlertidig plan: modul i prosjektet
+
+For prototypen bygges timer som **en modul inne i prosjektet** (ikke separat app). Grunnen:
+
+- **Mobil:** Feltarbeideren åpner prosjektet sitt og finner timer der — samme mønster som sjekklister, oppgaver, tegninger
+- **Web:** Timer-ikon i prosjektets sidebar, åpner timer-visning i prosjektkontekst
+- **Konsistent:** Samme navigasjon på web og mobil
+
+Den opprinnelige planen om `apps/timer` som egen Next.js-app er **ikke forkastet** — dette er en midlertidig tilnærming for å teste UI og få kundetilbakemelding. Endelig arkitektur bestemmes etter kundedialog.
+
+### Prototype-rute
+
+`/dashbord/[prosjektId]/timer` — tilgjengelig via sidebar-ikon i prosjektet.
+
+### Prototype-innhold
+
+1. **Dagsseddel-skjema** — alle felter (dato, arbeidstimer med auto-fordeling, reisetid, tillegg med auto-forslag, maskiner, materialer, utlegg med kvitteringsbilde-placeholder, beskrivelse)
+2. **Oversiktstabell** — liste over dagssedler med demodata
+3. **Auto-beregninger fungerer** — endre totaltimer → overtid beregnes live, tillegg foreslås
+
+### Demodata
+
+- Prosjekt: 998 Innstifjordbotn (Florian Aschwanden, A. Markussen AS)
+- Fiktive ansatte og dagssedler for realistisk visning
+
+### Hva prototypen IKKE gjør
+
+- Ingen nye Prisma-modeller eller migreringer
+- Ingen API-kall — alt er lokal state / hardkodet
+- Ingen offline-sync
+- Ingen auth-sjekk utover eksisterende prosjekttilgang
+
+## Proadm-integrasjon
+
+### Dataflyt
+
+- **Henting:** 1x per døgn fra Proadm (batch-API)
+- **Sending:** 1x per døgn til Proadm (batch-API)
+- **Mellom-løsning:** SmartDok brukes i dag av kunden — SiteDoc erstatter denne rollen
+
+### Hva SiteDoc henter fra Proadm
+
+- **Endringsmeldinger:** nummer, navn, beskrivende tekst, status
+- **Godkjenninger:** nummer, navn, beskrivende tekst, status
+
+### "Send til timeregistrering" — egen funksjon
+
+Separat handling på en endring/godkjenning i SiteDoc. Påvirker IKKE godkjenningsforløpet i Proadm. Flagget gjør endringen tilgjengelig som valgbar referanse ved timeregistrering.
+
+### Hva arbeider ser
+
+- Prosjektnummer og prosjektnavn
+- Endringsnummer og endringsnavn
+- Beskrivende tekst som medfølger arbeidet
+- Egne timer ført mot dette
+- **ALDRI:** kronebeløp, kontraktsum, budsjett eller økonomidata
+
+### Hva SiteDoc sender tilbake til Proadm
+
+To separate strømmer:
+1. **Ordinære prosjekttimer** — alle timer uten tilleggskobling
+2. **Tilleggsarbeid-timer** — timer knyttet til spesifikk endring/godkjenning, med endringsnummer som referanse
+
+### Tilgangsstyring økonomi
+
+| Rolle | Ser |
+|-------|-----|
+| **Arbeider** | Kun arbeidsbeskrivelse og egne timer |
+| **Leder** | Timer + kostnad (timer × timesats) |
+| **Økonomi/admin** | Full kobling mot Proadm-data |
+
+### Validering
+
+SiteDoc validerer og godkjenner timer — ikke Proadm. Leder godkjenner i SiteDoc → data sendes i neste batch til Proadm.
+
 ## Ikke avklart
 
 - GPS-validering — skal posisjonen ved registrering logges for å verifisere at arbeideren var på byggeplassen?
 - Akkord — trenger modulen støtte for akkordlønn i tillegg til timepris?
 - Arbeidstidskalender — helligdager, feriedager, kortdager — import eller manuelt oppsett?
 - Godkjenningsflyt detaljer — batch-godkjenning (uke), enkelt-godkjenning (dag), eller begge?
+- `apps/timer` som separat app vs modul-i-prosjektet — avgjøres etter kundedialog med prototypen
