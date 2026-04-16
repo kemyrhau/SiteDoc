@@ -3,7 +3,7 @@
  *
  * Logikk:
  * - Admin ser alt
- * - accessMode "custom" → sjekk om bruker matcher en oppføring (entreprise, gruppe, bruker-ID)
+ * - accessMode "custom" → sjekk om bruker matcher en oppføring (faggruppe, gruppe, bruker-ID)
  * - accessMode "inherit" → gå oppover i foreldrekjeden til første "custom"-mappe
  * - Rotmappe med "inherit" uten forelder = åpen for alle
  * - Foreldre-mapper til synlige barn inkluderes alltid (for å bevare treet), men markeres som "kun sti"
@@ -14,8 +14,8 @@ export interface MappeTilgangInput {
   parentId: string | null;
   accessMode: string; // "inherit" | "custom"
   accessEntries: Array<{
-    accessType: string; // "enterprise" | "group" | "user"
-    enterpriseId: string | null;
+    accessType: string; // "faggruppe" | "group" | "user"
+    faggruppeId: string | null;
     groupId: string | null;
     userId: string | null;
   }>;
@@ -24,7 +24,7 @@ export interface MappeTilgangInput {
 export interface BrukerTilgangInfo {
   userId: string;
   erAdmin: boolean;
-  entrepriseIder: string[];
+  faggruppeIder: string[];
   gruppeIder: string[];
 }
 
@@ -69,8 +69,8 @@ export function beregnSynligeMapper(
     if (mappe.accessMode === "custom") {
       // Sjekk om bruker matcher noen oppføring
       resultat = mappe.accessEntries.some((entry) => {
-        if (entry.accessType === "enterprise" && entry.enterpriseId) {
-          return bruker.entrepriseIder.includes(entry.enterpriseId);
+        if (entry.accessType === "faggruppe" && entry.faggruppeId) {
+          return bruker.faggruppeIder.includes(entry.faggruppeId);
         }
         if (entry.accessType === "group" && entry.groupId) {
           return bruker.gruppeIder.includes(entry.groupId);
@@ -81,7 +81,7 @@ export function beregnSynligeMapper(
         return false;
       });
     } else {
-      // inherit — gå oppover til nærmeste custom-forelder
+      // inherit → gå oppover
       if (mappe.parentId) {
         resultat = harTilgang(mappe.parentId);
       } else {
@@ -94,29 +94,24 @@ export function beregnSynligeMapper(
     return resultat;
   }
 
-  // Beregn tilgang for alle mapper
   const synlige = new Set<string>();
+  const kunSti = new Set<string>();
+
   for (const mappe of mapper) {
     if (harTilgang(mappe.id)) {
       synlige.add(mappe.id);
     }
   }
 
-  // Legg til foreldre-mapper til synlige barn (for å bevare treet)
-  const kunSti = new Set<string>();
-  for (const mappeId of synlige) {
-    let gjeldende = mappeMap.get(mappeId);
-    while (gjeldende?.parentId) {
-      if (!synlige.has(gjeldende.parentId)) {
-        kunSti.add(gjeldende.parentId);
-      }
-      gjeldende = mappeMap.get(gjeldende.parentId);
+  // Legg til foreldremapper som sti (for å bevare trestrukturen)
+  for (const id of synlige) {
+    let current = mappeMap.get(id);
+    while (current?.parentId) {
+      if (synlige.has(current.parentId)) break; // Allerede synlig
+      if (kunSti.has(current.parentId)) break; // Allerede markert
+      kunSti.add(current.parentId);
+      current = mappeMap.get(current.parentId);
     }
-  }
-
-  // Inkluder sti-mapper i synlige
-  for (const stiId of kunSti) {
-    synlige.add(stiId);
   }
 
   return { synlige, kunSti };

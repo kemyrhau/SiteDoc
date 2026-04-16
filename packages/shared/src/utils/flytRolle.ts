@@ -6,8 +6,8 @@ import type { DokumentflytRolle } from "../types";
 export interface FlytBrukerInfo {
   userId: string;
   projectMemberId: string;
-  /** Brukerens MemberEnterprise-IDer (entrepriser brukeren tilhører) */
-  entrepriseIder: string[];
+  /** Brukerens faggruppe-IDer (faggrupper brukeren tilhører) */
+  faggruppeIder: string[];
   /** Brukerens ProjectGroup-IDer */
   gruppeIder: string[];
   /** Prosjektadmin eller sitedoc_admin */
@@ -19,7 +19,7 @@ export interface FlytBrukerInfo {
  */
 export interface FlytMedlemInfo {
   rolle: string;
-  enterpriseId: string | null;
+  faggruppeId: string | null;
   projectMemberId: string | null;
   groupId: string | null;
 }
@@ -28,8 +28,8 @@ export interface FlytMedlemInfo {
  * Dokument-kontekst for å vite hvem som er bestiller/utfører.
  */
 export interface DokumentKontekst {
-  bestillerEnterpriseId: string | null;
-  utforerEnterpriseId: string | null;
+  bestillerFaggruppeId: string | null;
+  utforerFaggruppeId: string | null;
 }
 
 /** Rolle-prioritet: høyere tall = høyere prioritet */
@@ -46,7 +46,7 @@ const ROLLE_PRIORITET: Record<string, number> = {
  * Matching-rekkefølge per flytmedlem:
  * 1. Direkte person-match (projectMemberId)
  * 2. Gruppe-match (groupId)
- * 3. Entreprise-match (enterpriseId) — kun hvis entreprisen er bestiller ELLER utfører på dokumentet
+ * 3. Faggruppe-match (faggruppeId) — kun hvis faggruppen er bestiller ELLER utfører på dokumentet
  *
  * Ved flertreff returneres rollen med høyest prioritet:
  * registrator > godkjenner > utforer > bestiller
@@ -61,9 +61,9 @@ export function utledMinRolle(
   // Admin har alltid registrator-rolle
   if (bruker.erAdmin) return "registrator";
 
-  const dokumentEntrepriser = new Set([
-    dokument.bestillerEnterpriseId,
-    dokument.utforerEnterpriseId,
+  const dokumentFaggrupper = new Set([
+    dokument.bestillerFaggruppeId,
+    dokument.utforerFaggruppeId,
   ]);
 
   let besteRolle: DokumentflytRolle | null = null;
@@ -81,10 +81,10 @@ export function utledMinRolle(
       (m.projectMemberId !== null && m.projectMemberId === bruker.projectMemberId) ||
       // 2. Gruppe-match
       (m.groupId !== null && bruker.gruppeIder.includes(m.groupId)) ||
-      // 3. Entreprise-match — kun relevant hvis entreprisen er part i dokumentet
-      (m.enterpriseId !== null &&
-        bruker.entrepriseIder.includes(m.enterpriseId) &&
-        dokumentEntrepriser.has(m.enterpriseId));
+      // 3. Faggruppe-match — kun relevant hvis faggruppen er part i dokumentet
+      (m.faggruppeId !== null &&
+        bruker.faggruppeIder.includes(m.faggruppeId) &&
+        dokumentFaggrupper.has(m.faggruppeId));
 
     if (erMatch) {
       besteRolle = rolle;
