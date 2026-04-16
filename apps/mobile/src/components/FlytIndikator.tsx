@@ -12,7 +12,7 @@ interface FlytMedlem {
   id: string;
   rolle: string;
   steg: number;
-  enterprise: { id: string; name: string } | null;
+  faggruppe: { id: string; name: string } | null;
   projectMember: { user: { id: string; name: string | null } } | null;
   group: { id: string; name: string } | null;
 }
@@ -43,21 +43,21 @@ function byggLedd(medlemmer: FlytMedlem[]): Ledd[] {
   return [...stegMap.entries()]
     .sort(([a], [b]) => a - b)
     .map(([_steg, medl]) => {
-      const entreprise = medl.find((m) => m.enterprise);
+      const faggruppeM = medl.find((m) => m.faggruppe);
       const gruppe = medl.find((m) => m.group);
       const person = medl.find((m) => m.projectMember?.user?.name);
 
-      const navn = entreprise
-        ? entreprise.enterprise!.name
+      const navn = faggruppeM
+        ? faggruppeM.faggruppe!.name
         : gruppe
           ? gruppe.group!.name
           : person?.projectMember?.user?.name ?? "?";
 
       let aktivNavn = navn;
       const personEllerGruppe = gruppe?.group?.name ?? person?.projectMember?.user?.name;
-      const entrepriseNavn = entreprise?.enterprise?.name;
-      if (entrepriseNavn && personEllerGruppe && personEllerGruppe !== entrepriseNavn) {
-        aktivNavn = `${entrepriseNavn} · ${personEllerGruppe}`;
+      const faggruppeNavn = faggruppeM?.faggruppe?.name;
+      if (faggruppeNavn && personEllerGruppe && personEllerGruppe !== faggruppeNavn) {
+        aktivNavn = `${faggruppeNavn} · ${personEllerGruppe}`;
       }
 
       return {

@@ -77,7 +77,7 @@ RapportObjektRenderer (dispatcher)
 |-----------|------|-------|-------------|
 | `PersonObjekt` | `person` | `string` (userId) | Modal med prosjektmedlemmer (FlatList) |
 | `FlerePersonerObjekt` | `persons` | `string[]` | Modal med avkrysning, "N valgt"-teller |
-| `FirmaObjekt` | `company` | `string` (enterpriseId) | Modal med entrepriseliste |
+| `FirmaObjekt` | `company` | `string` (faggruppeId) | Modal med faggruppeliste |
 
 ### Spesial
 

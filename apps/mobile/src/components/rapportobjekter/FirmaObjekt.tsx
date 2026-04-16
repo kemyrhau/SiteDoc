@@ -5,7 +5,7 @@ import { trpc } from "../../lib/trpc";
 import { useProsjekt } from "../../kontekst/ProsjektKontekst";
 import type { RapportObjektProps } from "./typer";
 
-interface Entreprise {
+interface Faggruppe {
   id: string;
   name: string;
 }
@@ -15,13 +15,13 @@ export function FirmaObjekt({ verdi, onEndreVerdi, leseModus }: RapportObjektPro
   const { valgtProsjektId } = useProsjekt();
   const valgtId = typeof verdi === "string" ? verdi : null;
 
-  const entrepriseQuery = trpc.entreprise.hentForProsjekt.useQuery(
+  const faggruppeQuery = trpc.faggruppe.hentForProsjekt.useQuery(
     { projectId: valgtProsjektId! },
     { enabled: !!valgtProsjektId && visModal },
   );
 
-  const entrepriser = (entrepriseQuery.data ?? []) as Entreprise[];
-  const valgtEntreprise = entrepriser.find((e) => e.id === valgtId);
+  const faggrupper = (faggruppeQuery.data ?? []) as Faggruppe[];
+  const valgtFaggruppe = faggrupper.find((e) => e.id === valgtId);
 
   return (
     <View>
@@ -32,8 +32,8 @@ export function FirmaObjekt({ verdi, onEndreVerdi, leseModus }: RapportObjektPro
         }`}
       >
         <Building2 size={18} color="#6b7280" />
-        <Text className={`flex-1 text-sm ${valgtEntreprise ? "text-gray-900" : "text-gray-400"}`}>
-          {valgtEntreprise ? valgtEntreprise.name : "Velg firma..."}
+        <Text className={`flex-1 text-sm ${valgtFaggruppe ? "text-gray-900" : "text-gray-400"}`}>
+          {valgtFaggruppe ? valgtFaggruppe.name : "Velg firma..."}
         </Text>
       </Pressable>
 
@@ -46,7 +46,7 @@ export function FirmaObjekt({ verdi, onEndreVerdi, leseModus }: RapportObjektPro
             </Pressable>
           </View>
           <FlatList
-            data={entrepriser}
+            data={faggrupper}
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => {
               const erValgt = item.id === valgtId;
