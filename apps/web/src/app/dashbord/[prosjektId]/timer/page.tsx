@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useRef, useEffect, Fragment } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Clock, Plus, Trash2, Camera, Copy, Check, XCircle,
@@ -121,40 +121,46 @@ function StatistikkPanel({ t }: { t: (k: string) => string }) {
     <div className="space-y-5">
       <div>
         <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500">Uke 16 — 14.–18. apr</h3>
-        <div className="flex items-center gap-0 px-1 pb-1 text-[10px] font-medium uppercase tracking-wider text-gray-400">
-          <span className="flex-1"></span>
-          {UKEDAGER.map((d) => <span key={d.dag} className="w-9 text-right">{d.dag}</span>)}
-          <span className="w-11 text-right">Sum</span>
-        </div>
-        <div className="space-y-0">
-          {DEMO_UKE_PROSJEKTER.map((p) => {
-            const prosjektSum = p.timer.reduce<number>((s, v) => s + (v ?? 0), 0);
-            return (
-              <div key={p.prosjekt} className="border-t border-gray-100">
-                <div className="flex items-center gap-0 px-1 py-1.5">
-                  <span className="flex-1 truncate text-xs font-semibold text-gray-800">{p.prosjekt}</span>
-                  {p.timer.map((v, i) => <span key={i} className={`w-9 text-right text-xs tabular-nums ${v ? "font-semibold text-gray-700" : "text-gray-300"}`}>{v ? `${v}` : "—"}</span>)}
-                  <span className="w-11 text-right text-xs tabular-nums font-semibold text-gray-900">{prosjektSum}t</span>
-                </div>
-                {p.underrader.map((u) => {
-                  const underSum = u.timer.reduce<number>((s, v) => s + (v ?? 0), 0);
-                  return (
-                    <div key={u.label} className="flex items-center gap-0 px-1 py-0.5">
-                      <span className="flex-1 truncate text-[11px] italic text-gray-400 pl-2">· {u.label}</span>
-                      {u.timer.map((v, i) => <span key={i} className={`w-9 text-right text-[11px] tabular-nums ${v ? "text-gray-400" : "text-gray-200"}`}>{v ? `${v}` : "—"}</span>)}
-                      <span className="w-11 text-right text-[11px] tabular-nums text-gray-400">{underSum}t</span>
-                    </div>
-                  );
-                })}
-              </div>
-            );
-          })}
-        </div>
-        <div className="flex items-center gap-0 border-t-2 border-gray-300 px-1 pt-1.5">
-          <span className="flex-1 text-xs font-semibold text-gray-900">Sum</span>
-          {dagsSummer.map((v, i) => <span key={i} className={`w-9 text-right text-xs tabular-nums font-semibold ${v > 0 ? "text-gray-900" : "text-gray-300"}`}>{v > 0 ? `${v}` : "—"}</span>)}
-          <span className="w-11 text-right text-xs tabular-nums font-bold text-gray-900">{ukeSum}t</span>
-        </div>
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="text-[10px] font-medium uppercase tracking-wider text-gray-400">
+              <th className="pb-1 text-left"></th>
+              {UKEDAGER.map((d) => <th key={d.dag} className="pb-1 text-right w-[40px]">{d.dag}<br/><span className="font-normal">{d.dato}</span></th>)}
+              <th className="pb-1 text-right w-[44px]">Sum</th>
+            </tr>
+          </thead>
+          <tbody>
+            {DEMO_UKE_PROSJEKTER.map((p) => {
+              const prosjektSum = p.timer.reduce<number>((s, v) => s + (v ?? 0), 0);
+              return (
+                <Fragment key={p.prosjekt}>
+                  <tr className="border-t border-gray-100">
+                    <td className="py-1.5 pr-2 font-semibold text-gray-800">{p.prosjekt}</td>
+                    {p.timer.map((v, i) => <td key={i} className={`py-1.5 text-right tabular-nums ${v ? "font-semibold text-gray-700" : "text-gray-300"}`}>{v ?? "—"}</td>)}
+                    <td className="py-1.5 text-right tabular-nums font-semibold text-gray-900">{prosjektSum}t</td>
+                  </tr>
+                  {p.underrader.map((u) => {
+                    const underSum = u.timer.reduce<number>((s, v) => s + (v ?? 0), 0);
+                    return (
+                      <tr key={u.label}>
+                        <td className="py-0.5 pr-2 pl-2 text-[11px] italic text-gray-400">· {u.label}</td>
+                        {u.timer.map((v, i) => <td key={i} className={`py-0.5 text-right text-[11px] tabular-nums ${v ? "text-gray-400" : "text-gray-200"}`}>{v ?? "—"}</td>)}
+                        <td className="py-0.5 text-right text-[11px] tabular-nums text-gray-400">{underSum}t</td>
+                      </tr>
+                    );
+                  })}
+                </Fragment>
+              );
+            })}
+          </tbody>
+          <tfoot>
+            <tr className="border-t-2 border-gray-300">
+              <td className="pt-1.5 pr-2 font-semibold text-gray-900">Sum</td>
+              {dagsSummer.map((v, i) => <td key={i} className={`pt-1.5 text-right tabular-nums font-semibold ${v > 0 ? "text-gray-900" : "text-gray-300"}`}>{v > 0 ? v : "—"}</td>)}
+              <td className="pt-1.5 text-right tabular-nums font-bold text-gray-900">{ukeSum}t</td>
+            </tr>
+          </tfoot>
+        </table>
       </div>
 
       <div>
@@ -273,7 +279,7 @@ export default function TimerSide() {
         <div className="flex-1 min-w-0 overflow-y-auto">
           {visning === "oversikt" ? <OversiktTabell sedler={sedler} t={t} /> : <DagsseddelSkjema t={t} onTilbake={() => setVisning("oversikt")} />}
         </div>
-        <div className="hidden md:block w-72 lg:w-80 shrink-0 border-l border-gray-200 bg-gray-50/70 p-5 overflow-y-auto">
+        <div className="hidden md:block w-80 lg:w-96 xl:w-[440px] shrink-0 border-l border-gray-200 bg-gray-50/70 p-5 overflow-y-auto">
           <StatistikkPanel t={t} />
         </div>
       </div>
