@@ -787,11 +787,41 @@ Kontrollplan kan **ikke ferdigstilles** før malbygger er ferdig:
 - Kontrollplan bruker sjekklister fra biblioteket — disse opprettes via malbyggeren
 - Rekkefølge: **Malbygger → Kontrollplan**
 
+## Fremtidig utvidelse av biblioteket
+
+### Neste NS 3420-standarder (prioritert)
+
+| Standard | Del | Innhold | Typiske maler | Kommentar |
+|----------|-----|---------|---------------|-----------|
+| NS 3420-CD | CD | Betongarbeider | Forskaling, armering, støp, herding, etterbehandling | Stor standard — mange kontrollpunkter. Start med betongstøp og armeringskontroll |
+| NS 3420-J | J | Tømrerarbeider | Bindingsverk, isolasjon, dampsperre, kledning | Relevant for de fleste bolig- og næringsbygg |
+| NS 3420-GU | GU | Murarbeider, puss, flis | Flislegging, puss, murverk | Våtromskontroll er høy etterspørsel |
+| NS 3420-L | L | Malerarbeider, belegg | Overflatebehandling, gulvbelegg | Ofte siste kontroll før overtakelse |
+| NS 3420-D | D | Stålkonstruksjoner | Sveisekontroll, boltekontroll, korrosjon | Spesialist — færre brukere |
+| NS 3420-A | A | Rigg, drift, nedrigging | SHA-plan, vernerunder, avfallshåndtering | Tverrgående — relevant for HMS-modulen |
+
+### Tips ved utvidelse
+
+- **Start med de hyppigste kontrollpunktene** — ikke dekk hele standarden. Én mal med 8 gode felt slår tre maler med 30 halvgode felt
+- **Bruk FTD-dokumentsøket** for å finne krav: `ftdSok.nsStandardSok({ projectId, nsKode: "CD" })` søker i de indekserte NS-dokumentene
+- **Følg mønsteret**: nedtrekksmeny = kontrollresultat, hjelpetekst = NS-kravet, desimal = kun der det måles
+- **Test med en fagarbeider** — be noen som faktisk utfører arbeidet om å gå gjennom malen. De finner overlapp og mangler som ikke synes fra skrivebordet
+- **Prioritet:** Grunnpakke (1) for det alle trenger, utvidet (2) for spesifikke disipliner, spesialist (3) for komplekse prosjekter
+- **Sikkerhetskritiske felt** skal ha et tydelig "STOPP"-alternativ i nedtrekksmenyen — ikke bare "avvik"
+
+### Bransjespesifikke maler (utenfor NS 3420)
+
+På sikt kan biblioteket utvides med maler fra andre kilder:
+- **TEK17** — energikrav, brannsikring, universell utforming
+- **VA-norm** — kommunale krav til vann og avløp (varierer per kommune)
+- **Byggherreforskriften** — SHA-kontrollpunkter
+- **Firmaspesifikke** — admin kan lage egne maler i `/admin/bibliotek`
+
 ## Status
 
+- **Sjekklistebibliotek:** 2 standarder, 12 maler, 74 felt — fungerer i produksjon
+- **Admin-redigering:** Planlagt (`/admin/bibliotek`) — ikke bygget ennå
 - **Kontrollplan-siden:** 404 — ikke bygget ennå (`/oppsett/produksjon/kontrollplaner`)
 - **Modul-registrering:** Ikke lagt til i `PROSJEKT_MODULER` ennå
-- **Prisma-modeller:** Ikke migrert ennå
-- **Seed-data:** Ikke opprettet ennå
-- **NS 3420-K maler:** Utkast, trenger forbedring
+- **Prisma-modeller (kontrollplan):** Ikke migrert ennå
 - **Blokkert av:** Malbygger (MALBYGGER.md)
