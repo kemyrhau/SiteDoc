@@ -11,8 +11,8 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 | [docs/claude/web.md](docs/claude/web.md) | Web UI, ruter, kontekster, malbygger, print, tegningsvisning |
 | [docs/claude/mobil.md](docs/claude/mobil.md) | React Native, offline-first, kamera, bilde, statusendring |
 | [docs/claude/forretningslogikk.md](docs/claude/forretningslogikk.md) | Dokumentflyt, arbeidsforløp, grupper, moduler, admin, TODO |
-| [docs/claude/entreprise-faggruppe-rapport.md](docs/claude/entreprise-faggruppe-rapport.md) | Opprydding: entreprise→faggruppe rename-rapport, ~1200 forekomster |
-| [docs/claude/faggruppe-rename-plan.md](docs/claude/faggruppe-rename-plan.md) | Rename-plan: 8 faser, DB-kolonner, Prisma, API, web, mobil, i18n |
+| [docs/claude/entreprise-faggruppe-rapport.md](docs/claude/entreprise-faggruppe-rapport.md) | Historikk: entreprise→faggruppe rename (gjennomført april 2026) |
+| [docs/claude/faggruppe-rename-plan.md](docs/claude/faggruppe-rename-plan.md) | Historikk: rename-plan som ble fulgt (gjennomført) |
 | [docs/claude/shared-pakker.md](docs/claude/shared-pakker.md) | @sitedoc/shared typer + validering + utils, @sitedoc/ui komponenter |
 | [docs/claude/infrastruktur.md](docs/claude/infrastruktur.md) | Deploy, server, env-filer, EAS Build, TestFlight, OAuth |
 | [docs/claude/terminologi.md](docs/claude/terminologi.md) | Alle termer og definisjoner |
@@ -275,22 +275,29 @@ Firma (Organization)                  ← Selskapet (A.Markussen AS, Veidekke)
 
 ### Begreper — endelig definisjon
 
-| Begrep | DB-modell | Beskrivelse | Eksempel |
-|--------|-----------|-------------|---------|
-| **Firma** | `Organization` | Selskapet som eier SiteDoc-kontoen | A.Markussen AS |
-| **Faggruppe** | `DokumentflytPart` | Deltaker i dokumentflyt innenfor ett prosjekt | Byggherre, Tømrer, Elektro |
-| **Dokumentflyt** | `Dokumentflyt` | Rute mellom to faggrupper | BH → TE, TE → BH |
-| **Dokumentflytmedlem** | `DokumentflytMedlem` | Person/gruppe koblet til en rolle i en dokumentflyt | Ola som bestiller i "BH → TE" |
-| **Prosjektmodul** | `ProjectModule` | Modul som slås av/på per prosjekt | Sjekklister, 3D-visning |
-| **Firmamodul** | (planlagt) | Modul som slås av/på for hele firmaet, deler data på tvers av prosjekter | Timer, Maskin, HR, Planlegging |
+| Begrep | DB-modell | DB-tabell | Variabelnavn | Beskrivelse |
+|--------|-----------|-----------|-------------|-------------|
+| **Firma** | `Organization` | `organizations` | `organization` | Selskapet som eier SiteDoc-kontoen |
+| **Faggruppe** | `Faggruppe` | `dokumentflyt_parts` | `faggruppe`, `faggruppeId` | Deltaker i dokumentflyt innenfor ett prosjekt |
+| **Faggruppe-kobling** | `FaggruppeKobling` | `dokumentflyt_koblinger` | `faggruppeKoblinger` | Kobling mellom bruker og faggruppe |
+| **Gruppefaggruppe** | `GroupFaggruppe` | `group_faggrupper` | `groupFaggrupper` | Begrenser gruppes tilgang til spesifikke faggrupper |
+| **Dokumentflyt** | `Dokumentflyt` | `dokumentflyter` | `dokumentflyt` | Rute mellom to faggrupper (BH → TE) |
+| **Dokumentflytmedlem** | `DokumentflytMedlem` | `dokumentflyt_medlemmer` | — | Person/gruppe koblet til rolle i dokumentflyt |
+| **Bestiller-faggruppe** | — | `bestiller_faggruppe_id` | `bestillerFaggruppeId` | Faggruppen som initierer sjekkliste/oppgave |
+| **Utfører-faggruppe** | — | `utforer_faggruppe_id` | `utforerFaggruppeId` | Faggruppen som mottar og besvarer |
+| **Prosjektmodul** | `ProjectModule` | `project_modules` | — | Modul av/på per prosjekt |
+| **Firmamodul** | (planlagt) | — | — | Modul av/på for hele firmaet, tverrgående |
 
-### ⚠️ KRITISK: "Entreprise" brukes IKKE
+### ⚠️ "Entreprise" brukes IKKE i koden
 
-Ordet "entreprise"/"enterprise" skal **ALDRI** brukes i ny kode, nye UI-strenger eller ny dokumentasjon. Bakgrunn:
-- Eksisterende kodebase har ~1200 forekomster av "enterprise"/"entreprise" som **feilaktig** refererer til faggrupper
-- Oppryddingen er planlagt men ikke gjennomført (se `docs/claude/entreprise-faggruppe-rapport.md`)
-- I ny kode: bruk **faggruppe** (UI) / **dokumentflytPart** (Prisma) / **faggruppeId** (variabelnavn)
-- Eksisterende kode med `enterpriseId`, `entrepriseRouter` osv. refererer til faggrupper — ikke firmaer
+Rename gjennomført april 2026 (112 filer, feature/faggruppe-rename). Regler:
+- **ALDRI** bruk "entreprise"/"enterprise" i ny kode, UI-strenger eller dokumentasjon
+- Prisma-modell: `Faggruppe` (ikke DokumentflytPart, ikke Enterprise)
+- Variabelnavn: `faggruppe`, `faggruppeId`, `faggruppeIder`
+- tRPC-router: `trpc.faggruppe.*` (alias `trpc.entreprise.*` beholdt midlertidig for mobil)
+- Tillatelse: `"faggruppe_manage"` (ikke "enterprise_manage")
+- Mappeadgang: `accessType = "faggruppe"` (ikke "enterprise")
+- 26 tilsiktede gjenværende "enterprise"-refs: deprecated aliaser, DB snapshot-felt, NS standardnavn
 
 ### Modulsystem — to nivåer
 
@@ -341,7 +348,7 @@ To DB-kolonner styrer tilgang: `User.role` (`sitedoc_admin` | `company_admin` | 
 ## Viktige regler
 
 - **Beskriv løsningen først:** Før kodeendringer, beskriv den logiske løsningen med ord og be om brukerens godkjenning. Ikke anta — still kontrollspørsmål ved tvil
-- **ALDRI bruk "entreprise"/"enterprise"** i ny kode, UI-strenger eller dokumentasjon. Bruk **faggruppe** (UI/variabelnavn) eller **dokumentflytPart** (Prisma). Se "Terminologi og hierarki"-seksjonen
+- **ALDRI bruk "entreprise"/"enterprise"** i ny kode, UI-strenger eller dokumentasjon. Bruk **faggruppe** (UI/variabelnavn) eller **Faggruppe** (Prisma-modell). Se "Terminologi og hierarki"-seksjonen
 - ALDRI commit `.env`-filer
 - Bilder komprimeres til 300–400 KB før opplasting
 - Alle database-endringer via Prisma-migreringer
@@ -387,7 +394,7 @@ Hver side i SiteDoc skal ha en hjelpetekst tilgjengelig via hjelp-ikonet (?) øv
 3. Hvis siden rename-es: hjelpeteksten rename-es samtidig
 
 **Konsistente begreper:**
-- "Faggruppe" — en deltaker i dokumentflyten på et prosjekt (Byggherre, Tømrer, Elektro). ALDRI "Entreprise"/"Enterprise"/"Part". Engelsk: "Trade group". DB: `DokumentflytPart`
+- "Faggruppe" — en deltaker i dokumentflyten på et prosjekt (Byggherre, Tømrer, Elektro). ALDRI "Entreprise"/"Enterprise"/"Part". Engelsk: "Trade group". Prisma: `Faggruppe`, DB: `dokumentflyt_parts`
 - "Dokumentflyt" — rute mellom to faggrupper (bestiller → utfører → godkjenner). DB: `Dokumentflyt`
 - "Firma" — selskapet som eier SiteDoc-kontoen (A.Markussen AS). DB: `Organization`
 - "Firmamodul" — modul som gjelder hele firmaet på tvers av prosjekter (Timer, Maskin, HR, Planlegging)
@@ -396,7 +403,7 @@ Hver side i SiteDoc skal ha en hjelpetekst tilgjengelig via hjelp-ikonet (?) øv
 
 | Side | URL | Har ? | Prioritet |
 |------|-----|-------|-----------|
-| Brukere | /oppsett/brukere | ✅ | Oppdater: "entreprise" → "dokumentflyt" |
+| Brukere | /oppsett/brukere | ✅ | OK — oppdatert til faggruppe-terminologi |
 | Mappeoppsett | /oppsett/produksjon/box | ✅ | Sjekk konsistens |
 | Lokasjoner | /oppsett/lokasjoner | ❌ | Legg til |
 | Dokumentflyt | /oppsett/produksjon/kontakter | ❌ | Legg til |
