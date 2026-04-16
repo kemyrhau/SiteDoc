@@ -119,7 +119,7 @@ function genId() { return `tmp-${++_id}`; }
 function StatistikkPanel({ t }: { t: (k: string) => string }) {
   // Beregn dagssum og ukesum
   const dagsSummer = UKEDAGER.map((_, i) =>
-    DEMO_UKE_PROSJEKTER.reduce((s, p) => s + (p.timer[i] ?? 0), 0)
+    DEMO_UKE_PROSJEKTER.reduce<number>((s, p) => s + (p.timer[i] ?? 0), 0)
   );
   const ukeSum = dagsSummer.reduce((s, v) => s + v, 0);
 
@@ -141,7 +141,7 @@ function StatistikkPanel({ t }: { t: (k: string) => string }) {
         {/* Prosjekt-rader */}
         <div className="space-y-0">
           {DEMO_UKE_PROSJEKTER.map((p) => {
-            const prosjektSum = p.timer.reduce((s, v) => s + (v ?? 0), 0);
+            const prosjektSum = p.timer.reduce<number>((s, v) => s + (v ?? 0), 0);
             return (
               <div key={p.prosjekt} className="border-t border-gray-100">
                 {/* Hovedrad */}
@@ -156,7 +156,7 @@ function StatistikkPanel({ t }: { t: (k: string) => string }) {
                 </div>
                 {/* Underrader */}
                 {p.underrader.map((u) => {
-                  const underSum = u.timer.reduce((s, v) => s + (v ?? 0), 0);
+                  const underSum = u.timer.reduce<number>((s, v) => s + (v ?? 0), 0);
                   return (
                     <div key={u.label} className="flex items-center gap-0 px-1 py-0.5">
                       <span className="flex-1 truncate text-[11px] italic text-gray-400 pl-2">· {u.label}</span>
