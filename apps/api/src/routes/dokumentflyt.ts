@@ -12,7 +12,7 @@ import { verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
 const dokumentflytInclude = {
   medlemmer: {
     include: {
-      enterprise: { select: { id: true, name: true, color: true } },
+      dokumentflytPart: { select: { id: true, name: true, color: true } },
       projectMember: {
         include: {
           user: { select: { id: true, name: true, email: true } },
