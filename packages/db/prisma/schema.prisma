@@ -1171,6 +1171,7 @@ model BibliotekMal {
   beskrivelse String?
   versjon     String                  @default("1.0")
   aktiv       Boolean                 @default(true)
+  prioritet   Int                     @default(1)   // 1=grunnpakke, 2=utvidet, 3=spesialist
   opprettet   DateTime                @default(now()) @map("opprettet")
   malInnhold  Json                    @map("mal_innhold")
   prosjektValg ProsjektBibliotekValg[]

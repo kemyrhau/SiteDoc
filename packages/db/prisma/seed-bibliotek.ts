@@ -56,19 +56,22 @@ async function main() {
     kap[k.kode] = o.id;
   }
 
-  const maler: Array<{
+  interface MalDef {
     kapittelKode: string;
     navn: string;
     referanse: string;
     beskrivelse?: string;
+    prioritet?: number; // 1=grunnpakke, 2=utvidet, 3=spesialist
     felter: FeltDef[];
-  }> = [
+  }
+
+  const maler: MalDef[] = [
     // ── KA7 ──
     {
       kapittelKode: "KA",
       navn: "KA7 – Gjenbruk av materialer",
       referanse: "KA7",
-      beskrivelse: "Kontroll ved gjenbruk av materialer",
+      beskrivelse: "Kontroll ved gjenbruk av materialer (AI-utkast)",
       felter: [
         valg("Materialstatus", "FØR",
           ["Sortert og godkjent", "Delvis sortert", "Ikke sortert", "Uegnet"],
@@ -84,7 +87,7 @@ async function main() {
       kapittelKode: "KB",
       navn: "KB2 – Jordarbeider",
       referanse: "KB2",
-      beskrivelse: "Utlegging av vekstjord — kontroll iht. Tabell K4",
+      beskrivelse: "Utlegging av vekstjord — kontroll iht. Tabell K4 (AI-utkast)",
       felter: [
         // FØR
         valg("Formål / planteformål", "FØR",
@@ -139,7 +142,7 @@ async function main() {
       kapittelKode: "KB",
       navn: "KB4 – Grasdekke",
       referanse: "KB4",
-      beskrivelse: "Etablering, vedlikehold, overtakelse",
+      beskrivelse: "Etablering, vedlikehold, overtakelse (AI-utkast)",
       felter: [
         valg("Type etablering", "FØR",
           ["Såing – dokumentert frøblanding", "Rullegress", "Ferdigplen"],
@@ -161,7 +164,7 @@ async function main() {
       kapittelKode: "KB",
       navn: "KB6 – Planting",
       referanse: "KB6",
-      beskrivelse: "Trær, busker, stauder – kontroll iht. NS 4400",
+      beskrivelse: "Trær, busker, stauder – kontroll iht. NS 4400 (AI-utkast)",
       felter: [
         valg("Plantekvalitet", "FØR",
           ["Iht. NS 4400 – godkjent", "Avvik – dokumentert", "Underkjent – returneres"],
@@ -184,7 +187,7 @@ async function main() {
       kapittelKode: "KC",
       navn: "KC3.1 – Oppstøtting av trær",
       referanse: "KC3.1",
-      beskrivelse: "Oppstøtting og oppbinding",
+      beskrivelse: "Oppstøtting og oppbinding (AI-utkast)",
       felter: [
         valg("Støttetype", "FØR",
           ["Trestøtte 1-punkt", "Trestøtte 2-punkt", "Wirestøtte", "Jordanker", "Annet"],
@@ -201,7 +204,7 @@ async function main() {
       kapittelKode: "KD",
       navn: "KD1 – Utendørsbelegg",
       referanse: "KD1",
-      beskrivelse: "Legging og kontroll – Tabell K11/K12",
+      beskrivelse: "Legging og kontroll – Tabell K11/K12 (AI-utkast)",
       felter: [
         valg("Underlag", "FØR",
           ["Komprimert og godkjent", "Komprimert med merknad", "Ikke tilstrekkelig – avvik"],
@@ -242,13 +245,14 @@ async function main() {
     kapF[k.kode] = o.id;
   }
 
-  const malerF: typeof maler = [
+  const malerF: MalDef[] = [
     // ── FB2 – Graving ──
     {
       kapittelKode: "FB",
       navn: "FB2 – Graving",
       referanse: "FB2",
-      beskrivelse: "Graving av byggegrop og grøft — sikring, profil, bunn",
+      beskrivelse: "Graving av byggegrop og grøft — sikring, profil, bunn (AI-utkast)",
+      prioritet: 1,
       felter: [
         // FØR
         valg("Kabelpåvisning og grunnforhold", "FØR",
@@ -304,7 +308,8 @@ async function main() {
       kapittelKode: "FC",
       navn: "FC1 – Sprengning",
       referanse: "FC1",
-      beskrivelse: "Bergsprengning — salveplan, rystelser, profil",
+      beskrivelse: "Bergsprengning — salveplan, rystelser, profil (AI-utkast)",
+      prioritet: 2,
       felter: [
         // FØR
         valg("Salveplan og varsling", "FØR",
@@ -349,7 +354,8 @@ async function main() {
       kapittelKode: "FD",
       navn: "FD2 – Fylling og komprimering",
       referanse: "FD2",
-      beskrivelse: "Masseutlegging, lagvis komprimering, bæreevne",
+      beskrivelse: "Masseutlegging, lagvis komprimering, bæreevne (AI-utkast)",
+      prioritet: 1,
       felter: [
         // FØR
         valg("Massetype", "FØR",
@@ -395,7 +401,8 @@ async function main() {
       kapittelKode: "FE",
       navn: "FE1 – Ledningsgrøfter",
       referanse: "FE1",
-      beskrivelse: "Grøfter for VA og kabel — profil, fundament, tetthet",
+      beskrivelse: "Grøfter for VA og kabel — profil, fundament, tetthet (AI-utkast)",
+      prioritet: 1,
       felter: [
         // FØR
         trafikklys("Eksisterende ledninger påvist", "FØR",
@@ -435,6 +442,96 @@ async function main() {
           "FE1 c6: Legg varselbånd 30 cm over ledning. Farge: blå=vann, brun=spillvann, grønn=drenering, rød=el, gul=gass."),
       ],
     },
+
+    // ── FB4 – Spunting og avstiving ──
+    {
+      kapittelKode: "FB",
+      navn: "FB4 – Spunting og avstiving",
+      referanse: "FB4",
+      beskrivelse: "Spuntvegg, avstiving, setningskontroll (AI-utkast)",
+      prioritet: 2,
+      felter: [
+        // FØR
+        valg("Spunt levert iht. spesifikasjon", "FØR",
+          [
+            "Riktig type og dimensjon – godkjent",
+            "Riktig type – feil dimensjon",
+            "Feil type – stopp og avklar",
+          ],
+          "FB4 b1: Kontroller spuntprofil, stålkvalitet og lengde mot prosjektert løsning. Vanlige typer: stålspunt (U/Z-profil), sekantpeler, berlinervegg."),
+        trafikklys("Nabokontroll utført", "FØR",
+          "FB4 b2: Tilstandsregistrering av bygninger og konstruksjoner innenfor influensområdet. Foto + rapport før oppstart."),
+
+        // UNDER
+        desimal("Vertikalitet – avvik (mm/m)", "UNDER", { enhet: "mm/m" },
+          "FB4 c1: Mål avvik fra lodd etter hvert element. Krav typisk ≤1 % av lengde. Korrigering vanskelig etter nedramming."),
+        valg("Tetthet mellom elementer", "UNDER",
+          [
+            "Tett – ingen synlig lekkasje",
+            "Mindre lekkasje – akseptabelt",
+            "Lekkasje – krever tetting",
+            "Gjennombrudd – STOPP",
+          ],
+          "FB4 c2: Kontroller låser/skjøter etter ramming. Vannlekkasje indikerer manglende sammenlåsing eller skadet profil."),
+        desimal("Stagkraft (kN)", "UNDER", { enhet: "kN" },
+          "FB4 c3: Mål stagkraft ved forspenning. Sammenlign med prosjektert verdi. Avvik >10 % → varsle geotekniker/prosjekterende."),
+
+        // ETTER
+        valg("Setningskontroll nabolag", "ETTER",
+          [
+            "Innenfor toleranse",
+            "Overvåkes – tiltaksgrense nærmer seg",
+            "Tiltak nødvendig – varsle prosjekterende",
+          ],
+          "FB4 c4: Sammenlign innmåling med nullmåling. Tiltaksgrense typisk 10–20 mm avhengig av konstruksjon."),
+        trafikklys("Spuntvegg stabil", "ETTER",
+          "FB4 c5: Visuell kontroll av deformasjon, lekkasje og erosjon bak spunt. Fotodokumenter."),
+      ],
+    },
+
+    // ── FD3 – Grunnforsterkning ──
+    {
+      kapittelKode: "FD",
+      navn: "FD3 – Grunnforsterkning",
+      referanse: "FD3",
+      beskrivelse: "KC-peler, jetinjeksjon, masseutskifting — kontroll (AI-utkast)",
+      prioritet: 2,
+      felter: [
+        // FØR
+        valg("Metode iht. prosjektering", "FØR",
+          [
+            "Iht. spesifikasjon – godkjent",
+            "Avvik fra spesifikasjon – avklar med geotekniker",
+          ],
+          "FD3 b1: Kontroller at utførelsesmetode stemmer med geoteknisk rapport. Vanlige metoder: KC-peler, jetinjeksjon, masseutskifting, forbelastning med vertikaldren."),
+        trafikklys("Grunnundersøkelse verifisert", "FØR",
+          "FD3 b2: Kontroller at geoteknisk rapport dekker aktuelt område. Sjekk at antatt jordart og lagfølge stemmer med observert."),
+
+        // UNDER
+        desimal("Dybde (m)", "UNDER", { enhet: "m" },
+          "FD3 c1: Mål pelehull/injeksjonsdybde mot prosjektert. KC-peler: til antatt fast grunn eller angitt dybde. Avvik >0,5 m → varsle geotekniker."),
+        valg("Bindemiddelmengde", "UNDER",
+          [
+            "Iht. resept – dokumentert",
+            "Avvik <10 % – justert",
+            "Avvik >10 % – stopp og varsle",
+          ],
+          "FD3 c2: Bindemiddelforbruk (kg/m) skal logges per pel/punkt. Resept fra geotekniker angir type (kalk, sement, KC) og mengde."),
+
+        // ETTER
+        valg("Prøvebelastning", "ETTER",
+          [
+            "Bestått – bæreevne OK",
+            "Marginal – tilleggskontroll",
+            "Ikke bestått – tiltak nødvendig",
+          ],
+          "FD3 c3: Statisk eller dynamisk prøvebelastning iht. geoteknikers anvisning. Dokumenter last-setningskurve."),
+        desimal("Setning (mm)", "ETTER", { enhet: "mm" },
+          "FD3 c4: Mål setning etter belastning. Sammenlign med beregnet. Typisk krav <25 mm totalsetning, <10 mm differansesetning."),
+        trafikklys("Bæreevne dokumentert", "ETTER",
+          "FD3 c5: Geotekniker har signert at bæreevne er tilstrekkelig for planlagt konstruksjon."),
+      ],
+    },
   ];
 
   for (const mal of [...maler, ...malerF]) {
@@ -442,7 +539,7 @@ async function main() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const malInnhold = mal.felter.map((f, i) => ({ ...f, sortOrder: i + 1 })) as any;
     await prisma.bibliotekMal.create({
-      data: { kapittelId, navn: mal.navn, referanse: mal.referanse, beskrivelse: mal.beskrivelse ?? null, malInnhold },
+      data: { kapittelId, navn: mal.navn, referanse: mal.referanse, beskrivelse: mal.beskrivelse ?? null, prioritet: mal.prioritet ?? 1, malInnhold },
     });
     console.log(`  ✓ ${mal.navn}`);
   }

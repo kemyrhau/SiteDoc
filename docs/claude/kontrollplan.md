@@ -293,14 +293,16 @@ Flat array med feltdefinisjoner som konverteres til ReportObjects ved import:
 - Vertikalt sprang ved fuger `[decimal, enhet: mm, maks: 2]` — Tabell K12 – gangarealer betong/heller
 - Steiner rengjort for fugemateriale `[traffic_light]` — KD1 c7 – etter fuging
 
-### NS 3420-F:2024 – Grunnarbeider (4 kapitler, 4 maler)
+### NS 3420-F:2024 – Grunnarbeider (4 kapitler, 6 maler)
 
-| Kapittel | Mal | Felt | Nøkkelkrav |
-|----------|-----|------|------------|
-| FB | FB2 – Graving | 8 | Graveskråning (§21-4), vannhåndtering, kabelpåvisning, profilkontroll |
-| FC | FC1 – Sprengning | 7 | Salveplan, rystelsesmåling (NS 8141), profilkontroll, skadekontroll |
-| FD | FD2 – Fylling og komprimering | 7 | Lagtykkelse, Proctor-komprimering, planhet ±10–30 mm |
-| FE | FE1 – Ledningsgrøfter | 8 | VA-norm, trykkprøve (NS-EN 1610), ledningsfall, varselbånd |
+| Kapittel | Mal | Felt | Prioritet | Nøkkelkrav |
+|----------|-----|------|-----------|------------|
+| FB | FB2 – Graving | 8 | ★ Grunnpakke | Graveskråning (§21-4), vannhåndtering, kabelpåvisning, profilkontroll |
+| FB | FB4 – Spunting og avstiving | 7 | Utvidet | Spuntprofil, vertikalitet, tetthet, stagkraft, setningskontroll |
+| FC | FC1 – Sprengning | 7 | Utvidet | Salveplan, rystelsesmåling (NS 8141), profilkontroll, skadekontroll |
+| FD | FD2 – Fylling og komprimering | 7 | ★ Grunnpakke | Lagtykkelse, Proctor-komprimering, planhet ±10–30 mm |
+| FD | FD3 – Grunnforsterkning | 7 | Utvidet | KC-peler/jetinjeksjon, bindemiddel, prøvebelastning, setning |
+| FE | FE1 – Ledningsgrøfter | 8 | ★ Grunnpakke | VA-norm, trykkprøve (NS-EN 1610), ledningsfall, varselbånd |
 
 #### FB2 – Graving (ref: FB2)
 
@@ -363,6 +365,36 @@ Flat array med feltdefinisjoner som konverteres til ReportObjects ved import:
 - Tetthetsprøve / trykkprøve `[list_single]` — NS-EN 1610, 1,5× driftstrykk i 30 min
 - Innmåling utført `[traffic_light]` — Topp rør, bunn grøft, knekkpunkt (SOSI/GML)
 - Varselbånd og merking `[traffic_light]` — 30 cm over ledning: blå=vann, brun=spill, grønn=dren, rød=el
+
+#### FB4 – Spunting og avstiving (ref: FB4) — utvidet
+
+**FØR:**
+- Spunt levert iht. spesifikasjon `[list_single]` — Riktig type+dimensjon / feil dimensjon / feil type (→ stopp)
+- Nabokontroll utført `[traffic_light]` — Tilstandsregistrering av bygninger i influensområdet
+
+**UNDER:**
+- Vertikalitet – avvik `[decimal, enhet: mm/m]` — Krav ≤1 % av lengde, korrigering vanskelig etter ramming
+- Tetthet mellom elementer `[list_single]` — Tett / mindre lekkasje / lekkasje / gjennombrudd (→ STOPP)
+- Stagkraft `[decimal, enhet: kN]` — Avvik >10 % → varsle geotekniker
+
+**ETTER:**
+- Setningskontroll nabolag `[list_single]` — Innenfor toleranse / overvåkes / tiltak nødvendig
+- Spuntvegg stabil `[traffic_light]` — Visuell kontroll deformasjon, lekkasje, erosjon
+
+#### FD3 – Grunnforsterkning (ref: FD3) — utvidet
+
+**FØR:**
+- Metode iht. prosjektering `[list_single]` — Iht. spesifikasjon / avvik (→ avklar med geotekniker)
+- Grunnundersøkelse verifisert `[traffic_light]` — Geoteknisk rapport dekker aktuelt område
+
+**UNDER:**
+- Dybde `[decimal, enhet: m]` — Avvik >0,5 m → varsle geotekniker
+- Bindemiddelmengde `[list_single]` — Iht. resept / avvik <10 % / avvik >10 % (→ stopp)
+
+**ETTER:**
+- Prøvebelastning `[list_single]` — Bestått / marginal / ikke bestått (→ tiltak)
+- Setning `[decimal, enhet: mm]` — Krav <25 mm total, <10 mm differanse
+- Bæreevne dokumentert `[traffic_light]` — Geotekniker har signert
 
 ## NS 3420-standarder i databasen (oppslag)
 
@@ -585,12 +617,21 @@ Bruk `list_single` i stedet for `traffic_light` når:
 
 Bruk `traffic_light` kun for enkle bekreftelser: "Er X utført?" — ja/nei med vedlegg.
 
-### Hjelpetekst erstatter informasjonsfelt
+### Hjelpetekst = NS-kravet til koden
 
-Aldri lag et eget felt for å forklare kravet. Legg kravet i `helpText` på selve kontrollfeltet:
-- Referer til NS-paragraf/tabell (f.eks. "Tabell K4", "KB2.2 c1")
-- Oppgi konkrete tall og toleranser
-- Én til to setninger — ikke avsnitt
+Hjelpeteksten er **ikke en generell forklaring** — den er den konkrete NS-referansen som forteller brukeren hva kravet er. Mønster:
+
+1. **NS-paragraf** — "FB4 c2:", "Tabell K4:", "KB2.2 b3:"
+2. **Konkret krav** — tall, toleranser, grenseverdier
+3. **Hva brukeren skal gjøre** — målemetode, antall punkter, verktøy
+
+**Eksempel:**
+```
+Hjelpetekst: "FB4 c1: Mål avvik fra lodd etter hvert element. 
+Krav typisk ���1 % av lengde. Korrigering vanskelig etter nedramming."
+```
+
+Nedtrekksmenyen gir **resultatet av kontrollen** (godkjent/avvik/stopp). Hjelpeteksten forklarer **kravet som kontrolleres**. Aldri lag et eget felt for å forklare kravet.
 
 ### Inkluder kravet i valgteksten
 
@@ -602,6 +643,32 @@ Når brukeren velger fra en nedtrekksmeny, skal de se kravet direkte — ikke m�
 **Dårlig:** `"Under 20 mm"` (ukjent hva det gjelder)
 **Bra:** `"OK – under 20 mm (gras/blomstereng)"` (kontekst + krav i ett)
 
+### Prioritetsnivåer
+
+Maler grupperes i nivåer for å hjelpe brukeren velge riktig omfang:
+
+| Nivå | Visning | Beskrivelse |
+|------|---------|-------------|
+| 1 – Grunnpakke | ★ markert, øverst | Relevant for nesten alle prosjekter innen standarden |
+| 2 – Utvidet | Normal visning | Relevant når prosjektet har spesifikke disipliner |
+| 3 – Spesialist | Kollapset | Store/komplekse prosjekter, sjelden brukt |
+
+Lagres som `prioritet: Int @default(1)` på `BibliotekMal`. UI grupperer og sorterer etter prioritet.
+
+### Ansvarsfraskrivelse — AI-genererte maler
+
+Alle maler i sjekklistebiblioteket er **AI-genererte utkast** basert på NS 3420-standarder. De er ment som utgangspunkt — ikke som ferdig kvalitetssikrede kontrollplaner.
+
+**Krav til visning i UI:**
+- Ved import fra biblioteket vises en advarsel i bekreftelsesdialogen:
+  > *"Malene i biblioteket er generert med AI-assistanse og er ment som utgangspunkt. Hvert firma er ansvarlig for å kontrollere at feltene er dekkende for sitt virke og sine prosjekter. Tilpass malen etter import."*
+- Advarselen vises **ved hver enkeltimport**. Ved fellesimport (flere maler samtidig) vises den **én gang** i bekreftelsesdialogen
+- Importerte maler er fullt redigerbare — brukeren oppfordres til å tilpasse
+
+**Krav til seed-data:**
+- Beskrivelse på hver mal skal inneholde "(AI-utkast)" som suffix
+- Hjelpetekster skal referere til faktiske NS-paragrafer der mulig, men er ikke juridisk verifisert
+
 ### Sjekkliste for nye maler
 
 Før en mal publiseres i biblioteket:
@@ -609,7 +676,7 @@ Før en mal publiseres i biblioteket:
 1. **Under 10 felt?** Hvis over — finn felt som kan slås sammen
 2. **Overlappende felt?** To felt om samme ting → kombiner til én `list_single`
 3. **Trafikklys med bare OK/avvik?** Vurder om `list_single` med spesifikke utfall er bedre
-4. **Hjelpetekst på alle felt?** NS-referanse + konkret krav
+4. **Hjelpetekst = NS-krav?** Paragrafhenvisning + konkret krav + målemetode
 5. **Krav synlig i valgtekst?** Tall, toleranser, dimensjoner bakt inn
 6. **Tre faser?** FØR/UNDER/ETTER — hvert felt i riktig fase
 
