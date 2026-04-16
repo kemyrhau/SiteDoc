@@ -10,7 +10,7 @@ interface DokumentflytMal {
 
 interface DokumentflytRad {
   id: string;
-  enterpriseId: string | null;
+  faggruppeId: string | null;
   maler: DokumentflytMal[];
 }
 
@@ -38,7 +38,7 @@ export function OpprettOppgaveModal({
   const [valgtMal, setValgtMal] = useState("");
   const [valgtBestiller, setValgtOppretter] = useState("");
 
-  const { data: mineEntrepriser } = trpc.medlem.hentMineEntrepriser.useQuery(
+  const { data: mineFaggrupper } = trpc.medlem.hentMineFaggrupper.useQuery(
     { projectId: prosjektId },
     { enabled: open },
   );
@@ -55,14 +55,14 @@ export function OpprettOppgaveModal({
     { enabled: open },
   );
 
-  // Auto-velg bestiller-entreprise
+  // Auto-velg bestiller-faggruppe
   useEffect(() => {
     if (!open || valgtBestiller) return;
-    if (mineEntrepriser && mineEntrepriser.length > 0) {
-      const forste = mineEntrepriser[0];
+    if (mineFaggrupper && mineFaggrupper.length > 0) {
+      const forste = mineFaggrupper[0];
       if (forste) setValgtOppretter(forste.id);
     }
-  }, [mineEntrepriser, open, valgtBestiller]);
+  }, [mineFaggrupper, open, valgtBestiller]);
 
   // Reset state ved lukking
   useEffect(() => {
@@ -77,7 +77,7 @@ export function OpprettOppgaveModal({
   // Finn matchende dokumentflyt for utfører-utledning
   const matchendeArbeidsforlop = alleArbeidsforlop.find(
     (af) =>
-      af.enterpriseId === valgtBestiller &&
+      af.faggruppeId === valgtBestiller &&
       af.maler.some((wt) => wt.template.id === valgtMal),
   );
   const utledetUtforer = valgtBestiller;
@@ -100,7 +100,7 @@ export function OpprettOppgaveModal({
     const synligeMalIder = new Set<string>();
 
     for (const af of alleArbeidsforlop) {
-      if (af.enterpriseId !== valgtBestiller) continue;
+      if (af.faggruppeId !== valgtBestiller) continue;
       for (const wt of af.maler) {
         if (wt.template.category === "oppgave") {
           synligeMalIder.add(wt.template.id);
@@ -159,8 +159,8 @@ export function OpprettOppgaveModal({
       ...(erHms
         ? {}
         : {
-            bestillerEnterpriseId: valgtBestiller,
-            utforerEnterpriseId: utledetUtforer,
+            bestillerFaggruppeId: valgtBestiller,
+            utforerFaggruppeId: utledetUtforer,
           }),
       title: tittel,
       checklistId: sjekklisteId,
@@ -169,7 +169,7 @@ export function OpprettOppgaveModal({
     });
   }
 
-  const bestillerAlternativer = (mineEntrepriser ?? []).map((e) => ({
+  const bestillerAlternativer = (mineFaggrupper ?? []).map((e) => ({
     value: e.id,
     label: e.name,
   }));
@@ -179,14 +179,14 @@ export function OpprettOppgaveModal({
       <form onSubmit={handleOpprett} className="flex flex-col gap-4">
         {!erHms && (
           <Select
-            label="Bestiller-entreprise"
+            label="Bestiller-faggruppe"
             value={valgtBestiller}
             onChange={(e) => {
               setValgtOppretter(e.target.value);
               setValgtMal("");
             }}
             options={bestillerAlternativer}
-            placeholder="Velg entreprise"
+            placeholder="Velg faggruppe"
           />
         )}
 

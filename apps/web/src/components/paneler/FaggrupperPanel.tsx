@@ -6,17 +6,17 @@ import { SearchInput, Spinner } from "@sitedoc/ui";
 import { useState } from "react";
 import { Building2, Star } from "lucide-react";
 
-export function EntrepriserPanel() {
+export function FaggrupperPanel() {
   const params = useParams<{ prosjektId: string }>();
   const [sok, setSok] = useState("");
 
-  const { data: entrepriser, isLoading } =
-    trpc.entreprise.hentForProsjekt.useQuery(
+  const { data: faggrupper, isLoading } =
+    trpc.faggruppe.hentForProsjekt.useQuery(
       { projectId: params.prosjektId },
       { enabled: !!params.prosjektId },
     );
 
-  const filtrerte = (entrepriser ?? []).filter((e) =>
+  const filtrerte = (faggrupper ?? []).filter((e) =>
     e.name.toLowerCase().includes(sok.toLowerCase()),
   );
 
@@ -33,12 +33,12 @@ export function EntrepriserPanel() {
       <SearchInput
         verdi={sok}
         onChange={setSok}
-        placeholder="Søk entrepriser..."
+        placeholder="Søk faggrupper..."
       />
       <div className="flex flex-col gap-0.5">
         {filtrerte.length === 0 ? (
           <p className="px-2 py-2 text-sm text-gray-400">
-            Ingen entrepriser funnet
+            Ingen faggrupper funnet
           </p>
         ) : (
           filtrerte.map((ent) => {
@@ -52,7 +52,7 @@ export function EntrepriserPanel() {
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium">{ent.name}</p>
                   <p className="text-xs text-gray-400">
-                    {ent.dokumentflytKoblinger.length} medlemmer
+                    {ent.faggruppeKoblinger.length} medlemmer
                     {ansvarlig && (
                       <span className="ml-1.5 inline-flex items-center gap-0.5">
                         <Star className="inline h-3 w-3 fill-amber-400 text-amber-400" />

@@ -4,10 +4,10 @@ import { type Permission, PERMISSIONS, utvidTillatelser, utledMinRolle, erTillat
 import type { FlytMedlemInfo } from "@sitedoc/shared";
 
 /**
- * Hent brukerens entreprise-IDer i et prosjekt.
+ * Hent brukerens faggruppe-IDer i et prosjekt.
  * Returnerer null for admin (ser alt), string[] for vanlige brukere.
  */
-export async function hentBrukerEntrepriseIder(
+export async function hentBrukerFaggruppeIder(
   userId: string,
   projectId: string,
 ): Promise<string[] | null> {
@@ -18,7 +18,7 @@ export async function hentBrukerEntrepriseIder(
   const medlem = await prisma.projectMember.findUnique({
     where: { userId_projectId: { userId, projectId } },
     include: {
-      dokumentflytKoblinger: { select: { enterpriseId: true } },
+      faggruppeKoblinger: { select: { faggruppeId: true } },
     },
   });
 
@@ -32,54 +32,54 @@ export async function hentBrukerEntrepriseIder(
   // Prosjektadmin ser alt
   if (medlem.role === "admin") return null;
 
-  return medlem.dokumentflytKoblinger.map((e) => e.enterpriseId);
+  return medlem.faggruppeKoblinger.map((e) => e.faggruppeId);
 }
 
 /**
- * Bygg Prisma WHERE-filter for entreprise-basert tilgang.
+ * Bygg Prisma WHERE-filter for faggruppe-basert tilgang.
  * Returnerer null for admin (ingen filtrering nødvendig).
  */
-export function byggEntrepriseFilter(entreIder: string[] | null) {
-  if (entreIder === null) return null;
+export function byggFaggruppeFilter(faggruppeIder: string[] | null) {
+  if (faggruppeIder === null) return null;
 
   return {
     OR: [
-      { bestillerEnterpriseId: { in: entreIder } },
-      { utforerEnterpriseId: { in: entreIder } },
+      { bestillerFaggruppeId: { in: faggruppeIder } },
+      { utforerFaggruppeId: { in: faggruppeIder } },
     ],
   };
 }
 
 /**
- * Verifiser at bruker tilhører den angitte entreprisen.
+ * Verifiser at bruker tilhører den angitte faggruppen.
  */
-export async function verifiserEntrepriseTilhorighet(
+export async function verifiserFaggruppeTilhorighet(
   userId: string,
-  enterpriseId: string,
+  faggruppeId: string,
 ): Promise<void> {
   // sitedoc_admin har alltid tilgang
   const bruker = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
   if (bruker?.role === "sitedoc_admin") return;
 
-  const kobling = await prisma.dokumentflytKobling.findFirst({
+  const kobling = await prisma.faggruppeKobling.findFirst({
     where: {
-      enterpriseId,
+      faggruppeId,
       projectMember: { userId },
     },
   });
 
   if (!kobling) {
-    // Sjekk om bruker er admin (admin kan opprette for alle entrepriser)
-    const enterprise = await prisma.dokumentflytPart.findUnique({
-      where: { id: enterpriseId },
+    // Sjekk om bruker er admin (admin kan opprette for alle faggrupper)
+    const faggruppe = await prisma.faggruppe.findUnique({
+      where: { id: faggruppeId },
       select: { projectId: true },
     });
-    if (enterprise) {
+    if (faggruppe) {
       const medlem = await prisma.projectMember.findUnique({
         where: {
           userId_projectId: {
             userId,
-            projectId: enterprise.projectId,
+            projectId: faggruppe.projectId,
           },
         },
       });
@@ -88,7 +88,7 @@ export async function verifiserEntrepriseTilhorighet(
 
     throw new TRPCError({
       code: "FORBIDDEN",
-      message: "Du tilhører ikke denne entreprisen",
+      message: "Du tilhører ikke denne faggruppen",
     });
   }
 }
@@ -223,14 +223,14 @@ export async function verifiserAdminEllerFirmaansvarlig(
 
 /**
  * Verifiser at bruker har tilgang til et dokument (sjekkliste/oppgave).
- * Admin ser alt. Vanlige brukere ser kun dokumenter der egen entreprise er oppretter/svarer,
+ * Admin ser alt. Vanlige brukere ser kun dokumenter der egen faggruppe er oppretter/svarer,
  * eller via fagområde-tilgang fra brukergrupper.
  */
 export async function verifiserDokumentTilgang(
   userId: string,
   projectId: string,
-  bestillerEnterpriseId: string | null,
-  utforerEnterpriseId: string | null,
+  bestillerFaggruppeId: string | null,
+  utforerFaggruppeId: string | null,
   templateDomain?: string | null,
   dokumentId?: string,
   dokumentType?: "task" | "checklist",
@@ -242,12 +242,12 @@ export async function verifiserDokumentTilgang(
   const medlem = await prisma.projectMember.findUnique({
     where: { userId_projectId: { userId, projectId } },
     include: {
-      dokumentflytKoblinger: { select: { enterpriseId: true } },
+      faggruppeKoblinger: { select: { faggruppeId: true } },
       groupMemberships: {
         include: {
           group: {
             include: {
-              groupDokumentflytParts: { select: { enterpriseId: true } },
+              groupFaggrupper: { select: { faggruppeId: true } },
             },
           },
         },
@@ -312,11 +312,11 @@ export async function verifiserDokumentTilgang(
     }
   }
 
-  // Direkte entreprise-tilgang
-  const direkteEntreIder = medlem.dokumentflytKoblinger.map((e) => e.enterpriseId);
+  // Direkte faggruppe-tilgang
+  const direkteFaggruppeIder = medlem.faggruppeKoblinger.map((e) => e.faggruppeId);
   const harDirekteTilgang =
-    (bestillerEnterpriseId && direkteEntreIder.includes(bestillerEnterpriseId)) ||
-    (utforerEnterpriseId && direkteEntreIder.includes(utforerEnterpriseId));
+    (bestillerFaggruppeId && direkteFaggruppeIder.includes(bestillerFaggruppeId)) ||
+    (utforerFaggruppeId && direkteFaggruppeIder.includes(utforerFaggruppeId));
 
   if (harDirekteTilgang) return;
 
@@ -326,15 +326,15 @@ export async function verifiserDokumentTilgang(
       const gruppeDomener = gm.group.domains as string[];
       if (!gruppeDomener.includes(templateDomain)) continue;
 
-      // Tverrgående tilgang: gruppe uten entrepriser
-      if (gm.group.groupDokumentflytParts.length === 0) return;
+      // Tverrgående tilgang: gruppe uten faggrupper
+      if (gm.group.groupFaggrupper.length === 0) return;
 
-      // Entreprise-begrenset: sjekk om dokumentets entrepriser matcher gruppens
-      const gruppeEntreIder = gm.group.groupDokumentflytParts.map((ge) => ge.enterpriseId);
-      const matcherEntreprise =
-        (bestillerEnterpriseId && gruppeEntreIder.includes(bestillerEnterpriseId)) ||
-        (utforerEnterpriseId && gruppeEntreIder.includes(utforerEnterpriseId));
-      if (matcherEntreprise) return;
+      // Faggruppe-begrenset: sjekk om dokumentets faggrupper matcher gruppens
+      const gruppeFaggruppeIder = gm.group.groupFaggrupper.map((ge) => ge.faggruppeId);
+      const matcherFaggruppe =
+        (bestillerFaggruppeId && gruppeFaggruppeIder.includes(bestillerFaggruppeId)) ||
+        (utforerFaggruppeId && gruppeFaggruppeIder.includes(utforerFaggruppeId));
+      if (matcherFaggruppe) return;
     }
   }
 
@@ -353,8 +353,8 @@ export async function verifiserFlytRolle(
   userId: string,
   projectId: string,
   dokumentflytId: string | null | undefined,
-  bestillerEnterpriseId: string | null,
-  utforerEnterpriseId: string | null,
+  bestillerFaggruppeId: string | null,
+  utforerFaggruppeId: string | null,
   gjeldendStatus: string,
   nyStatus: string,
 ): Promise<void> {
@@ -371,7 +371,7 @@ export async function verifiserFlytRolle(
   const medlem = await prisma.projectMember.findUnique({
     where: { userId_projectId: { userId, projectId } },
     include: {
-      dokumentflytKoblinger: { select: { enterpriseId: true } },
+      faggruppeKoblinger: { select: { faggruppeId: true } },
       groupMemberships: { select: { groupId: true } },
     },
   });
@@ -382,12 +382,12 @@ export async function verifiserFlytRolle(
   // Hent flytens medlemmer
   const flytMedlemmer = await prisma.dokumentflytMedlem.findMany({
     where: { dokumentflytId },
-    select: { rolle: true, enterpriseId: true, projectMemberId: true, groupId: true },
+    select: { rolle: true, faggruppeId: true, projectMemberId: true, groupId: true },
   });
 
   const medlemmerInfo: FlytMedlemInfo[] = flytMedlemmer.map((m) => ({
     rolle: m.rolle,
-    enterpriseId: m.enterpriseId,
+    faggruppeId: m.faggruppeId,
     projectMemberId: m.projectMemberId,
     groupId: m.groupId,
   }));
@@ -396,12 +396,12 @@ export async function verifiserFlytRolle(
     {
       userId,
       projectMemberId: medlem.id,
-      entrepriseIder: medlem.dokumentflytKoblinger.map((e) => e.enterpriseId),
+      faggruppeIder: medlem.faggruppeKoblinger.map((e) => e.faggruppeId),
       gruppeIder: medlem.groupMemberships.map((gm) => gm.groupId),
       erAdmin: medlem.role === "admin",
     },
     medlemmerInfo,
-    { bestillerEnterpriseId, utforerEnterpriseId },
+    { bestillerFaggruppeId, utforerFaggruppeId },
   );
 
   if (!erTillattForRolle(rolle, gjeldendStatus, nyStatus)) {
@@ -414,7 +414,7 @@ export async function verifiserFlytRolle(
 }
 
 /**
- * Bygg Prisma WHERE-filter som kombinerer entreprise-tilgang og fagområde-tilgang.
+ * Bygg Prisma WHERE-filter som kombinerer faggruppe-tilgang og fagområde-tilgang.
  * Returnerer null for admin (ingen filtrering nødvendig).
  */
 export async function byggTilgangsFilter(
@@ -428,12 +428,12 @@ export async function byggTilgangsFilter(
   const medlem = await prisma.projectMember.findUnique({
     where: { userId_projectId: { userId, projectId } },
     include: {
-      dokumentflytKoblinger: { select: { enterpriseId: true } },
+      faggruppeKoblinger: { select: { faggruppeId: true } },
       groupMemberships: {
         include: {
           group: {
             include: {
-              groupDokumentflytParts: { select: { enterpriseId: true } },
+              groupFaggrupper: { select: { faggruppeId: true } },
             },
           },
         },
@@ -479,11 +479,11 @@ export async function byggTilgangsFilter(
     }
   }
 
-  // Direkte entreprise-tilgang (alle domener)
-  const direkteEntreIder = medlem.dokumentflytKoblinger.map((e) => e.enterpriseId);
-  if (direkteEntreIder.length > 0) {
-    orBetingelser.push({ bestillerEnterpriseId: { in: direkteEntreIder } });
-    orBetingelser.push({ utforerEnterpriseId: { in: direkteEntreIder } });
+  // Direkte faggruppe-tilgang (alle domener)
+  const direkteFaggruppeIder = medlem.faggruppeKoblinger.map((e) => e.faggruppeId);
+  if (direkteFaggruppeIder.length > 0) {
+    orBetingelser.push({ bestillerFaggruppeId: { in: direkteFaggruppeIder } });
+    orBetingelser.push({ utforerFaggruppeId: { in: direkteFaggruppeIder } });
   }
 
   // Fagområde-tilgang via grupper
@@ -491,22 +491,22 @@ export async function byggTilgangsFilter(
     const gruppeDomener = gm.group.domains as string[];
     if (gruppeDomener.length === 0) continue;
 
-    if (gm.group.groupDokumentflytParts.length === 0) {
+    if (gm.group.groupFaggrupper.length === 0) {
       // Tverrgående tilgang: alle dokumenter med matchende domain
       orBetingelser.push({
         template: { domain: { in: gruppeDomener } },
       });
     } else {
-      // Entreprise-begrenset: kun dokumenter med matchende domain OG entreprise
-      const gruppeEntreIder = gm.group.groupDokumentflytParts.map((ge) => ge.enterpriseId);
+      // Faggruppe-begrenset: kun dokumenter med matchende domain OG faggruppe
+      const gruppeFaggruppeIder = gm.group.groupFaggrupper.map((ge) => ge.faggruppeId);
       for (const domain of gruppeDomener) {
         orBetingelser.push({
           AND: [
             { template: { domain } },
             {
               OR: [
-                { bestillerEnterpriseId: { in: gruppeEntreIder } },
-                { utforerEnterpriseId: { in: gruppeEntreIder } },
+                { bestillerFaggruppeId: { in: gruppeFaggruppeIder } },
+                { utforerFaggruppeId: { in: gruppeFaggruppeIder } },
               ],
             },
           ],

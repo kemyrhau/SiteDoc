@@ -22,7 +22,7 @@ Bruker endrer felt
 1. Les SQLite først (<10ms)
 2. Hvis usynkronisert lokal data → **bruk den** (prioritert over server)
 3. Hvis synkronisert → hent fra server, oppdater lokal kopi
-4. Auto-fill for nye dokumenter (date→i dag, person→bruker, company→entreprise)
+4. Auto-fill for nye dokumenter (date→i dag, person→bruker, company→faggruppe)
 
 ### Rekursiv synlighet
 

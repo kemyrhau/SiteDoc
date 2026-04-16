@@ -113,7 +113,7 @@ export default function SjekklisteUtfylling() {
   const { valgtProsjektId } = useProsjekt();
   const utils = trpc.useUtils();
 
-  const [visEntrepriseListe, settVisEntrepriseListe] = useState<"oppretter" | "svarer" | null>(null);
+  const [visFaggruppeListe, settVisFaggruppeListe] = useState<"oppretter" | "svarer" | null>(null);
   const [pdfHtml, settPdfHtml] = useState<string | null>(null);
   const [pdfLaster, settPdfLaster] = useState(false);
   const [visLokasjonModal, setVisLokasjonModal] = useState(false);
@@ -199,12 +199,12 @@ export default function SjekklisteUtfylling() {
     : null;
   const lokasjonTekst = [lokBygningNavn, lokTegningNavn].filter(Boolean).join(" · ") || null;
 
-  // Hent entrepriser for redigering
-  const { data: mineEntrepriser } = trpc.medlem.hentMineEntrepriser.useQuery(
+  // Hent faggrupper for redigering
+  const { data: mineFaggrupper } = trpc.medlem.hentMineFaggrupper.useQuery(
     { projectId: valgtProsjektId! },
     { enabled: !!valgtProsjektId },
   );
-  const { data: alleEntrepriser } = trpc.entreprise.hentForProsjekt.useQuery(
+  const { data: alleFaggrupper } = trpc.faggruppe.hentForProsjekt.useQuery(
     { projectId: valgtProsjektId! },
     { enabled: !!valgtProsjektId },
   );
@@ -229,22 +229,22 @@ export default function SjekklisteUtfylling() {
 
   const minRolle = useMemo(() => {
     if (!minFlytInfo || !sjekklisteDetalj) return undefined;
-    const sj = sjekklisteDetalj as unknown as { dokumentflytId?: string | null; bestillerEnterprise?: { id: string }; utforerEnterprise?: { id: string } };
+    const sj = sjekklisteDetalj as unknown as { dokumentflytId?: string | null; bestillerFaggruppe?: { id: string }; utforerFaggruppe?: { id: string } };
     if (!sj.dokumentflytId) return undefined;
     const dokumentflyter = (dokumentflyterRå ?? []) as unknown as Array<{
       id: string;
-      medlemmer: Array<{ rolle: string; enterpriseId?: string | null; projectMemberId?: string | null; groupId?: string | null }>;
+      medlemmer: Array<{ rolle: string; faggruppeId?: string | null; projectMemberId?: string | null; groupId?: string | null }>;
     }>;
     const flyt = dokumentflyter.find((df) => df.id === sj.dokumentflytId);
     if (!flyt) return null;
     const medlemmer = flyt.medlemmer.map((m): FlytMedlemInfo => ({
-      rolle: m.rolle, enterpriseId: m.enterpriseId ?? null,
+      rolle: m.rolle, faggruppeId: m.faggruppeId ?? null,
       projectMemberId: m.projectMemberId ?? null, groupId: m.groupId ?? null,
     }));
     return utledMinRolle(
       { ...minFlytInfo, userId: "", erAdmin: minFlytInfo.erAdmin },
       medlemmer,
-      { bestillerEnterpriseId: sj.bestillerEnterprise?.id ?? "", utforerEnterpriseId: sj.utforerEnterprise?.id ?? "" },
+      { bestillerFaggruppeId: sj.bestillerFaggruppe?.id ?? "", utforerFaggruppeId: sj.utforerFaggruppe?.id ?? "" },
     );
   }, [minFlytInfo, sjekklisteDetalj, dokumentflyterRå]);
 
@@ -854,10 +854,10 @@ export default function SjekklisteUtfylling() {
             });
           }}
           onSlett={["draft", "cancelled"].includes(sjekkliste.status) ? håndterSlett : undefined}
-          alleEntrepriser={(alleEntrepriser ?? []) as Array<{ id: string; name: string; color: string | null }>}
+          alleFaggrupper={(alleFaggrupper ?? []) as Array<{ id: string; name: string; color: string | null }>}
           dokumentflyter={(dokumentflyterRå ?? []) as unknown as Parameters<typeof DokumentHandlingsmeny>[0]["dokumentflyter"]}
           templateId={sjekkliste.template?.id}
-          standardEntrepriseId={sjekkliste.utforerEnterprise?.id}
+          standardFaggruppeId={sjekkliste.utforerFaggruppe?.id}
           minRolle={minRolle}
           flytMedlemmer={flytMedlemmer}
           recipientUserId={(sjekklisteDetalj as { recipientUserId?: string | null } | undefined)?.recipientUserId}

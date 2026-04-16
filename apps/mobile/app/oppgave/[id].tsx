@@ -101,7 +101,7 @@ export default function OppgaveDetalj() {
   const [tittelUtkast, settTittelUtkast] = useState("");
   const [beskrivelseUtkast, settBeskrivelseUtkast] = useState("");
   const [dialogTekst, settDialogTekst] = useState("");
-  const [visEntrepriseListe, settVisEntrepriseListe] = useState<"oppretter" | "svarer" | null>(null);
+  const [visFaggruppeListe, settVisFaggruppeListe] = useState<"oppretter" | "svarer" | null>(null);
 
   const { ventende } = useOpplastingsKo();
 
@@ -117,12 +117,12 @@ export default function OppgaveDetalj() {
   } | undefined;
   const overforinger = oppgaveDetalj?.transfers;
 
-  // Hent entrepriser for redigering
-  const { data: mineEntrepriser } = trpc.medlem.hentMineEntrepriser.useQuery(
+  // Hent faggrupper for redigering
+  const { data: mineFaggrupper } = trpc.medlem.hentMineFaggrupper.useQuery(
     { projectId: valgtProsjektId! },
     { enabled: !!valgtProsjektId },
   );
-  const { data: alleEntrepriser } = trpc.entreprise.hentForProsjekt.useQuery(
+  const { data: alleFaggrupper } = trpc.faggruppe.hentForProsjekt.useQuery(
     { projectId: valgtProsjektId! },
     { enabled: !!valgtProsjektId },
   );
@@ -151,24 +151,24 @@ export default function OppgaveDetalj() {
 
   const minRolle = useMemo(() => {
     if (!minFlytInfo || !oppgaveDetalj) return undefined;
-    const op = oppgaveDetalj as unknown as { dokumentflytId?: string | null; bestillerEnterprise?: { id: string }; utforerEnterprise?: { id: string } };
+    const op = oppgaveDetalj as unknown as { dokumentflytId?: string | null; bestillerFaggruppe?: { id: string }; utforerFaggruppe?: { id: string } };
     if (!op.dokumentflytId) return undefined;
     const dokumentflyter = (dokumentflyterRå ?? []) as unknown as Array<{
       id: string;
-      medlemmer: Array<{ rolle: string; enterpriseId?: string | null; projectMemberId?: string | null; groupId?: string | null }>;
+      medlemmer: Array<{ rolle: string; faggruppeId?: string | null; projectMemberId?: string | null; groupId?: string | null }>;
     }>;
     const flyt = dokumentflyter.find((df) => df.id === op.dokumentflytId);
     if (!flyt) return null;
     const medlemmer = flyt.medlemmer.map((m): FlytMedlemInfo => ({
       rolle: m.rolle,
-      enterpriseId: m.enterpriseId ?? null,
+      faggruppeId: m.faggruppeId ?? null,
       projectMemberId: m.projectMemberId ?? null,
       groupId: m.groupId ?? null,
     }));
     return utledMinRolle(
       { ...minFlytInfo, userId: "", erAdmin: minFlytInfo.erAdmin },
       medlemmer,
-      { bestillerEnterpriseId: op.bestillerEnterprise?.id ?? "", utforerEnterpriseId: op.utforerEnterprise?.id ?? "" },
+      { bestillerFaggruppeId: op.bestillerFaggruppe?.id ?? "", utforerFaggruppeId: op.utforerFaggruppe?.id ?? "" },
     );
   }, [minFlytInfo, oppgaveDetalj, dokumentflyterRå]);
 
@@ -727,10 +727,10 @@ export default function OppgaveDetalj() {
             });
           }}
           onSlett={["draft", "cancelled"].includes(oppgave.status) ? håndterSlett : undefined}
-          alleEntrepriser={(alleEntrepriser ?? []) as Array<{ id: string; name: string; color: string | null }>}
+          alleFaggrupper={(alleFaggrupper ?? []) as Array<{ id: string; name: string; color: string | null }>}
           dokumentflyter={(dokumentflyterRå ?? []) as unknown as Parameters<typeof DokumentHandlingsmeny>[0]["dokumentflyter"]}
           templateId={oppgave.template?.id}
-          standardEntrepriseId={oppgave.utforerEnterprise?.id}
+          standardFaggruppeId={oppgave.utforerFaggruppe?.id}
           minRolle={minRolle}
           flytMedlemmer={flytMedlemmer}
           recipientUserId={(oppgaveDetalj as { recipientUserId?: string | null } | undefined)?.recipientUserId}

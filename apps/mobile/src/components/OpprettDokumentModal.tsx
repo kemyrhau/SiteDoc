@@ -63,7 +63,7 @@ function erInnenforBounds(
 
 type Prioritet = "low" | "medium" | "high" | "critical";
 
-interface EntrepriseData {
+interface FaggruppeData {
   id: string;
   name: string;
 }
@@ -79,12 +79,12 @@ interface MalData {
 interface DokumentflytData {
   id: string;
   name: string;
-  enterpriseId: string | null;
+  faggruppeId: string | null;
   medlemmer: Array<{
     id: string;
     steg: number;
     rolle: string;
-    enterprise: { id: string; name: string } | null;
+    faggruppe: { id: string; name: string } | null;
   }>;
   maler: Array<{
     templateId: string;
@@ -158,7 +158,7 @@ export function OpprettDokumentModal({
 
   const [emne, setEmne] = useState("");
   const [prioritet, setPrioritet] = useState<Prioritet>("medium");
-  const [oppretterEntrepriseId, setOppretterEntrepriseId] = useState<string | null>(null);
+  const [oppretterFaggruppeId, setOppretterFaggruppeId] = useState<string | null>(null);
   const [valgtBygningId, setValgtBygningId] = useState<string | null>(null);
   const [valgtTegningId, setValgtTegningId] = useState<string | null>(null);
   const [valgtDokumentflytId, setValgtDokumentflytId] = useState<string | null>(null);
@@ -244,21 +244,21 @@ export function OpprettDokumentModal({
   const valgtProsjekt = prosjekter.find((p: { id: string }) => p.id === valgtProsjektId);
   const prosjektNavn = valgtProsjekt?.name ?? "";
 
-  // Hent brukerens entrepriser (filtrert til mine)
-  const mineEntrepriserQuery = trpc.medlem.hentMineEntrepriser.useQuery(
+  // Hent brukerens faggrupper (filtrert til mine)
+  const mineFaggrupperQuery = trpc.medlem.hentMineFaggrupper.useQuery(
     { projectId: valgtProsjektId! },
     { enabled: !!valgtProsjektId && synlig },
   );
-  const mineEntrepriser = (mineEntrepriserQuery.data ?? []) as EntrepriseData[];
+  const mineFaggrupper = (mineFaggrupperQuery.data ?? []) as FaggruppeData[];
 
-  // Fallback: hent alle entrepriser for svarer-visning
-  const entrepriseQuery = trpc.entreprise.hentForProsjekt.useQuery(
+  // Fallback: hent alle faggrupper for svarer-visning
+  const faggruppeQuery = trpc.faggruppe.hentForProsjekt.useQuery(
     { projectId: valgtProsjektId! },
     { enabled: !!valgtProsjektId && synlig },
   );
-  const entrepriser = (entrepriseQuery.data ?? []) as EntrepriseData[];
+  const faggrupper = (faggruppeQuery.data ?? []) as FaggruppeData[];
 
-  // (Auto-velg entreprise gjøres i entrepriserMedFlyt-effekten ovenfor)
+  // (Auto-velg faggruppe gjøres i faggrupperMedFlyt-effekten ovenfor)
 
   // Hent dokumentflyter for prosjektet
   const dokumentflytQuery = trpc.dokumentflyt.hentForProsjekt.useQuery(
@@ -267,48 +267,48 @@ export function OpprettDokumentModal({
   );
   const alleDokumentflyter = (dokumentflytQuery.data ?? []) as DokumentflytData[];
 
-  // Filtrer entrepriser: vis kun de som har minst én dokumentflyt for valgt mal
-  const entrepriserMedFlyt = useMemo(() => {
+  // Filtrer faggrupper: vis kun de som har minst én dokumentflyt for valgt mal
+  const faggrupperMedFlyt = useMemo(() => {
     // Finn alle dokumentflyter som har denne malen
     const flyterForMal = alleDokumentflyter.filter(
       (df) => df.maler.some((m) => m.templateId === mal.id),
     );
-    // Hent alle entreprise-IDer fra steg 1 (bestiller) i disse flytene
+    // Hent alle faggruppe-IDer fra steg 1 (bestiller) i disse flytene
     const iderMedFlyt = new Set<string>();
     for (const df of flyterForMal) {
-      // Bestiller = entreprise-ID på dokumentflyten, eller første steg
-      if (df.enterpriseId) {
-        iderMedFlyt.add(df.enterpriseId);
+      // Bestiller = faggruppe-ID på dokumentflyten, eller første steg
+      if (df.faggruppeId) {
+        iderMedFlyt.add(df.faggruppeId);
       }
-      // Også inkluder entrepriser fra første steg
+      // Også inkluder faggrupper fra første steg
       const førsteSteg = df.medlemmer.filter((m) => m.steg === 1);
       for (const m of førsteSteg) {
-        if (m.enterprise?.id) iderMedFlyt.add(m.enterprise.id);
+        if (m.faggruppe?.id) iderMedFlyt.add(m.faggruppe.id);
       }
     }
-    return mineEntrepriser.filter((e) => iderMedFlyt.has(e.id));
-  }, [alleDokumentflyter, mineEntrepriser, mal.id]);
+    return mineFaggrupper.filter((e) => iderMedFlyt.has(e.id));
+  }, [alleDokumentflyter, mineFaggrupper, mal.id]);
 
-  // Auto-velg entreprise hvis kun én har flyt for malen
+  // Auto-velg faggruppe hvis kun én har flyt for malen
   useEffect(() => {
-    if (entrepriserMedFlyt.length === 1 && !oppretterEntrepriseId) {
-      setOppretterEntrepriseId(entrepriserMedFlyt[0].id);
+    if (faggrupperMedFlyt.length === 1 && !oppretterFaggruppeId) {
+      setOppretterFaggruppeId(faggrupperMedFlyt[0].id);
     }
-  }, [entrepriserMedFlyt, oppretterEntrepriseId]);
+  }, [faggrupperMedFlyt, oppretterFaggruppeId]);
 
-  // Dokumentflyter som matcher valgt entreprise + mal
+  // Dokumentflyter som matcher valgt faggruppe + mal
   const matchendeDokumentflyter = useMemo(() => {
-    if (!oppretterEntrepriseId) return [];
+    if (!oppretterFaggruppeId) return [];
     return alleDokumentflyter.filter((df) => {
       const harMal = df.maler.some((m) => m.templateId === mal.id);
       if (!harMal) return false;
-      // Sjekk at entreprisen er bestiller (enterpriseId eller steg 1)
-      if (df.enterpriseId === oppretterEntrepriseId) return true;
+      // Sjekk at faggruppen er bestiller (faggruppeId eller steg 1)
+      if (df.faggruppeId === oppretterFaggruppeId) return true;
       return df.medlemmer.some(
-        (m) => m.steg === 1 && m.enterprise?.id === oppretterEntrepriseId,
+        (m) => m.steg === 1 && m.faggruppe?.id === oppretterFaggruppeId,
       );
     });
-  }, [alleDokumentflyter, oppretterEntrepriseId, mal.id]);
+  }, [alleDokumentflyter, oppretterFaggruppeId, mal.id]);
 
   // Auto-velg dokumentflyt: kun én → koble automatisk
   useEffect(() => {
@@ -321,17 +321,17 @@ export function OpprettDokumentModal({
 
   const valgtDokumentflyt = matchendeDokumentflyter.find((df) => df.id === valgtDokumentflytId) ?? null;
 
-  // Svarer-entreprise utledes fra valgt dokumentflyt (steg 2, eller steg 1 hvis intern)
-  const { autoSvarerEntrepriseId, autoSvarerNavn } = useMemo(() => {
-    if (!valgtDokumentflyt) return { autoSvarerEntrepriseId: null, autoSvarerNavn: "" };
+  // Svarer-faggruppe utledes fra valgt dokumentflyt (steg 2, eller steg 1 hvis intern)
+  const { autoSvarerFaggruppeId, autoSvarerNavn } = useMemo(() => {
+    if (!valgtDokumentflyt) return { autoSvarerFaggruppeId: null, autoSvarerNavn: "" };
     // Finn mottaker (steg 2), fallback til steg 1 (intern flyt)
     const steg2 = valgtDokumentflyt.medlemmer.find((m) => m.steg === 2);
     const mottaker = steg2 ?? valgtDokumentflyt.medlemmer.find((m) => m.steg === 1);
-    const eId = mottaker?.enterprise?.id ?? valgtDokumentflyt.enterpriseId ?? null;
-    const eNavn = mottaker?.enterprise?.name ??
-      entrepriser.find((e) => e.id === eId)?.name ?? "";
-    return { autoSvarerEntrepriseId: eId, autoSvarerNavn: eNavn };
-  }, [valgtDokumentflyt, entrepriser]);
+    const fgId = mottaker?.faggruppe?.id ?? valgtDokumentflyt.faggruppeId ?? null;
+    const fgNavn = mottaker?.faggruppe?.name ??
+      faggrupper.find((e) => e.id === fgId)?.name ?? "";
+    return { autoSvarerFaggruppeId: fgId, autoSvarerNavn: fgNavn };
+  }, [valgtDokumentflyt, faggrupper]);
 
   // Hent bygninger for prosjektet
   const bygningQuery = trpc.bygning.hentForProsjekt.useQuery(
@@ -389,7 +389,7 @@ export function OpprettDokumentModal({
   const nullstillSkjema = useCallback(() => {
     setEmne("");
     setPrioritet("medium");
-    setOppretterEntrepriseId(null);
+    setOppretterFaggruppeId(null);
     setValgtDokumentflytId(null);
     setValgtBygningId(null);
     setValgtTegningId(null);
@@ -408,11 +408,11 @@ export function OpprettDokumentModal({
   }, [nullstillSkjema, onLukk]);
 
   const håndterOpprett = useCallback(() => {
-    if (!oppretterEntrepriseId) {
-      Alert.alert(t("opprettModal.manglerOppretter"), t("opprettModal.velgOppretterEntreprise"));
+    if (!oppretterFaggruppeId) {
+      Alert.alert(t("opprettModal.manglerOppretter"), t("opprettModal.velgOppretterFaggruppe"));
       return;
     }
-    if (!valgtDokumentflyt || !autoSvarerEntrepriseId) {
+    if (!valgtDokumentflyt || !autoSvarerFaggruppeId) {
       Alert.alert(
         t("opprettModal.manglerDokumentflyt"),
         t("opprettModal.manglerDokumentflytBeskrivelse"),
@@ -429,8 +429,8 @@ export function OpprettDokumentModal({
     if (kategori === "sjekkliste") {
       opprettSjekkliste.mutate({
         templateId: mal.id,
-        bestillerEnterpriseId: oppretterEntrepriseId,
-        utforerEnterpriseId: autoSvarerEntrepriseId,
+        bestillerFaggruppeId: oppretterFaggruppeId,
+        utforerFaggruppeId: autoSvarerFaggruppeId,
         subject: emne.trim() || undefined,
         byggeplassId: valgtBygningId ?? undefined,
         drawingId: valgtTegningId ?? undefined,
@@ -443,8 +443,8 @@ export function OpprettDokumentModal({
 
       opprettOppgave.mutate({
         templateId: mal.id,
-        bestillerEnterpriseId: oppretterEntrepriseId,
-        utforerEnterpriseId: autoSvarerEntrepriseId,
+        bestillerFaggruppeId: oppretterFaggruppeId,
+        utforerFaggruppeId: autoSvarerFaggruppeId,
         title: oppgaveTittel,
         priority: prioritet,
         checklistId: sjekklisteId || undefined,
@@ -452,9 +452,9 @@ export function OpprettDokumentModal({
       });
     }
   }, [
-    oppretterEntrepriseId,
+    oppretterFaggruppeId,
     valgtDokumentflyt,
-    autoSvarerEntrepriseId,
+    autoSvarerFaggruppeId,
     kategori,
     mal.id,
     prosjektNavn,
@@ -471,7 +471,7 @@ export function OpprettDokumentModal({
     feltLabel,
   ]);
 
-  const kanOpprett = !!oppretterEntrepriseId && !!valgtDokumentflyt && !erPending;
+  const kanOpprett = !!oppretterFaggruppeId && !!valgtDokumentflyt && !erPending;
 
   // Auto-opprett deaktivert — modal-animasjon + navigering kolliderer på iOS
   // Brukeren trykker "Opprett" manuelt
@@ -486,7 +486,7 @@ export function OpprettDokumentModal({
     setVisEmneListe(false);
   };
 
-  const valgtOppretter = entrepriserMedFlyt.find((e) => e.id === oppretterEntrepriseId);
+  const valgtOppretter = faggrupperMedFlyt.find((e) => e.id === oppretterFaggruppeId);
 
   return (
     <Modal visible={synlig} animationType="slide" onRequestClose={onLukk}>
@@ -612,21 +612,21 @@ export function OpprettDokumentModal({
 
           {/* 4. Prioritet — skjult i forenklet oppgaveflyt (redigeres i detaljskjerm) */}
 
-          {/* 5. Bestiller-entreprise (kun entrepriser med dokumentflyt for malen) */}
+          {/* 5. Bestiller-faggruppe (kun faggrupper med dokumentflyt for malen) */}
           <View className="border-b border-gray-100 px-4 py-3">
             <Text className="mb-1 text-xs font-medium text-gray-500">
-              {t("opprettModal.oppretterEntreprise")} *
+              {t("opprettModal.oppretterFaggruppe")} *
             </Text>
-            {entrepriserMedFlyt.length === 0 && dokumentflytQuery.isLoading ? (
+            {faggrupperMedFlyt.length === 0 && dokumentflytQuery.isLoading ? (
               <View className="flex-row items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5">
                 <ActivityIndicator size="small" color="#1e40af" />
                 <Text className="text-sm text-gray-500">{t("opprettModal.henterDokumentflyt")}</Text>
               </View>
-            ) : entrepriserMedFlyt.length === 0 ? (
+            ) : faggrupperMedFlyt.length === 0 ? (
               <Text className="text-sm text-amber-600">{t("opprettModal.ingenDokumentflyt")}</Text>
-            ) : entrepriserMedFlyt.length === 1 ? (
+            ) : faggrupperMedFlyt.length === 1 ? (
               <View className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5">
-                <Text className="text-sm text-gray-800">{entrepriserMedFlyt[0].name}</Text>
+                <Text className="text-sm text-gray-800">{faggrupperMedFlyt[0].name}</Text>
               </View>
             ) : (
               <>
@@ -640,24 +640,24 @@ export function OpprettDokumentModal({
                   <Text
                     className={`text-sm ${valgtOppretter ? "text-gray-800" : "text-gray-400"}`}
                   >
-                    {valgtOppretter?.name ?? t("opprettModal.velgEntreprise")}
+                    {valgtOppretter?.name ?? t("opprettModal.velgFaggruppe")}
                   </Text>
                   <ChevronDown size={16} color="#9ca3af" />
                 </Pressable>
                 {visOppretterListe && (
                   <View className="mt-1 rounded-lg border border-gray-200 bg-white">
-                    {entrepriserMedFlyt.map((e) => (
+                    {faggrupperMedFlyt.map((e) => (
                       <Pressable
                         key={e.id}
                         onPress={() => {
-                          setOppretterEntrepriseId(e.id);
+                          setOppretterFaggruppeId(e.id);
                           setValgtDokumentflytId(null);
                           setVisOppretterListe(false);
                         }}
-                        className={`border-b border-gray-50 px-3 py-2.5 ${oppretterEntrepriseId === e.id ? "bg-blue-50" : ""}`}
+                        className={`border-b border-gray-50 px-3 py-2.5 ${oppretterFaggruppeId === e.id ? "bg-blue-50" : ""}`}
                       >
                         <Text
-                          className={`text-sm ${oppretterEntrepriseId === e.id ? "font-medium text-blue-700" : "text-gray-700"}`}
+                          className={`text-sm ${oppretterFaggruppeId === e.id ? "font-medium text-blue-700" : "text-gray-700"}`}
                         >
                           {e.name}
                         </Text>
@@ -670,9 +670,9 @@ export function OpprettDokumentModal({
           </View>
 
           {/* 6. Dokumentflyt — auto-koblet hvis kun én, ellers dropdown */}
-          {oppretterEntrepriseId && (
+          {oppretterFaggruppeId && (
             <View className="border-b border-gray-100 bg-gray-50 px-4 py-3">
-              <Text className="text-xs font-medium text-gray-500">{t("opprettModal.svarerEntreprise")}</Text>
+              <Text className="text-xs font-medium text-gray-500">{t("opprettModal.svarerFaggruppe")}</Text>
               {dokumentflytQuery.isLoading ? (
                 <View className="mt-1 flex-row items-center gap-2">
                   <ActivityIndicator size="small" color="#1e40af" />
@@ -722,8 +722,8 @@ export function OpprettDokumentModal({
                             {df.name}
                           </Text>
                           <Text className="text-xs text-gray-400">
-                            → {df.medlemmer.find((m) => m.steg === 2)?.enterprise?.name ??
-                               df.medlemmer.find((m) => m.steg === 1)?.enterprise?.name ?? ""}
+                            → {df.medlemmer.find((m) => m.steg === 2)?.faggruppe?.name ??
+                               df.medlemmer.find((m) => m.steg === 1)?.faggruppe?.name ?? ""}
                           </Text>
                         </Pressable>
                       ))}

@@ -27,8 +27,8 @@ export interface UseSjekklisteSkjemaResultat {
       prefix: string | null;
       objects: RapportObjekt[];
     };
-    bestillerEnterprise: { id: string; name: string } | null;
-    utforerEnterprise: { id: string; name: string } | null;
+    bestillerFaggruppe: { id: string; name: string } | null;
+    utforerFaggruppe: { id: string; name: string } | null;
   } | undefined;
   erLaster: boolean;
   hentFeltVerdi: (objektId: string) => FeltVerdi;
@@ -302,8 +302,8 @@ export function useSjekklisteSkjema(sjekklisteId: string, rettighetInput?: Retti
           title: sjekkliste.title,
           status: sjekkliste.status,
           template: sjekkliste.template,
-          bestillerEnterprise: sjekkliste.bestillerEnterprise,
-          utforerEnterprise: sjekkliste.utforerEnterprise,
+          bestillerFaggruppe: sjekkliste.bestillerFaggruppe,
+          utforerFaggruppe: sjekkliste.utforerFaggruppe,
           // Lokasjon + ekstra felt fra full query-data
           ...(fullSjekkliste && {
             drawingId: fullSjekkliste.drawingId,

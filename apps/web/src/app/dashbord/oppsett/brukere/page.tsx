@@ -101,8 +101,8 @@ interface KontaktMedlem {
     phone: string | null;
     organization?: { id: string; name: string } | null;
   };
-  dokumentflytKoblinger: Array<{
-    dokumentflytPart: { id: string; name: string; color: string | null };
+  faggruppeKoblinger: Array<{
+    faggruppe: { id: string; name: string; color: string | null };
   }>;
 }
 
@@ -115,7 +115,7 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
   const [redigerData, setRedigerData] = useState({ name: "", email: "", phone: "", role: "", organizationId: "" });
   const [filterNavn, setFilterNavn] = useState("");
   const [filterRolle, setFilterRolle] = useState("");
-  const [filterEntreprise, setFilterEntreprise] = useState("");
+  const [filterFaggruppe, setFilterFaggruppe] = useState("");
   const [filterGruppe, setFilterGruppe] = useState("");
   const [redigerGruppeNavn, setRedigerGruppeNavn] = useState<string | null>(null);
   const [nyGruppeNavnVerdi, setNyGruppeNavnVerdi] = useState("");
@@ -155,7 +155,7 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
     { enabled: !!prosjektId },
   );
 
-  const { data: alleEntrepriser } = trpc.entreprise.hentForProsjekt.useQuery(
+  const { data: alleFaggrupper } = trpc.faggruppe.hentForProsjekt.useQuery(
     { projectId: prosjektId },
     { enabled: !!prosjektId },
   );
@@ -168,7 +168,7 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
     { enabled: !!prosjektId },
   );
 
-  const fjernMutation = trpc.medlem.fjernFraEntreprise.useMutation({
+  const fjernMutation = trpc.medlem.fjernFraFaggruppe.useMutation({
     onSuccess: () => {
       utils.medlem.hentForProsjekt.invalidate({ projectId: prosjektId });
     },
@@ -339,9 +339,9 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
         resultat = resultat.filter((m) => m.role === filterRolle);
       }
     }
-    if (filterEntreprise) {
+    if (filterFaggruppe) {
       resultat = resultat.filter((m) =>
-        m.dokumentflytKoblinger.some((e) => e.dokumentflytPart.id === filterEntreprise),
+        m.faggruppeKoblinger.some((e) => e.faggruppe.id === filterFaggruppe),
       );
     }
     if (filterGruppe) {
@@ -354,7 +354,7 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
       resultat = resultat.filter((m) => gUserIder.has(m.user.id));
     }
     return resultat;
-  }, [kontakterRå, filterNavn, filterRolle, filterEntreprise, filterGruppe, dbGrupper]);
+  }, [kontakterRå, filterNavn, filterRolle, filterFaggruppe, filterGruppe, dbGrupper]);
 
   // Grupper kontakter etter brukergruppe med overskrifter
   // Medlemmer vises under HVER gruppe de tilhører (ingen deduplisering mellom grupper)
@@ -583,7 +583,7 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
               <th className="px-4 py-2.5">{t("kontakter.telefon")}</th>
               <th className="px-4 py-2.5">{t("kontakter.firma")}</th>
               <th className="px-4 py-2.5">{t("kontakter.rolle")}</th>
-              <th className="px-4 py-2.5">{t("kontakter.entrepriser")}</th>
+              <th className="px-4 py-2.5">{t("kontakter.faggrupper")}</th>
               <th className="px-4 py-2.5">{t("kontakter.grupper")}</th>
             </tr>
             {/* Filterrad */}
@@ -612,12 +612,12 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
               </th>
               <th className="px-4 py-1.5">
                 <select
-                  value={filterEntreprise}
-                  onChange={(e) => setFilterEntreprise(e.target.value)}
+                  value={filterFaggruppe}
+                  onChange={(e) => setFilterFaggruppe(e.target.value)}
                   className="w-full rounded border border-gray-200 bg-white px-2 py-1 text-xs font-normal text-gray-700 focus:border-blue-400 focus:outline-none"
                 >
                   <option value="">{t("status.alle")}</option>
-                  {(alleEntrepriser as Array<{ id: string; name: string }> ?? []).map((e) => (
+                  {(alleFaggrupper as Array<{ id: string; name: string }> ?? []).map((e) => (
                     <option key={e.id} value={e.id}>{e.name}</option>
                   ))}
                 </select>
@@ -813,7 +813,7 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
                               <div className="px-3 py-2 text-xs text-gray-400 italic">{t("brukere.ingenMedlemmer")}</div>
                             ) : (
                               medlemmerIkkeIGruppe.map((k) => {
-                                const entrepriseNavn = k.dokumentflytKoblinger.map((e) => e.dokumentflytPart.name).join(", ");
+                                const faggruppeNavn = k.faggruppeKoblinger.map((e) => e.faggruppe.name).join(", ");
                                 return (
                                   <button
                                     key={k.user.id}
@@ -836,7 +836,7 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
                                     className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-blue-50 transition-colors"
                                   >
                                     <span className="font-medium text-gray-700">{k.user.name ?? k.user.email}</span>
-                                    {entrepriseNavn && <span className="text-gray-400">· {entrepriseNavn}</span>}
+                                    {faggruppeNavn && <span className="text-gray-400">· {faggruppeNavn}</span>}
                                   </button>
                                 );
                               })
@@ -853,9 +853,9 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
 
               const m = rad.medlem;
               const brukerGrupper = gruppeMap[m.user.id] ?? [];
-              const entrepriseIder = new Set(m.dokumentflytKoblinger.map((e) => e.dokumentflytPart.id));
-              const tilgjengeligeEntrepriser = (alleEntrepriser ?? []).filter(
-                (e: { id: string }) => !entrepriseIder.has(e.id),
+              const faggruppeIder = new Set(m.faggruppeKoblinger.map((e) => e.faggruppe.id));
+              const tilgjengeligeFaggrupper = (alleFaggrupper ?? []).filter(
+                (e: { id: string }) => !faggruppeIder.has(e.id),
               );
               const radGruppeId = gruppeNavnTilId[rad.gruppeNavn];
               const gruppeMedlemId = radGruppeId
@@ -1006,10 +1006,10 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
                     )}
                   </td>
 
-                  {/* Entrepriser (read-only) */}
+                  {/* Faggrupper (read-only) */}
                   <td className="px-4 py-2.5">
                     <KompaktBadgeListe
-                      verdier={m.dokumentflytKoblinger.map((me) => me.dokumentflytPart.name)}
+                      verdier={m.faggruppeKoblinger.map((me) => me.faggruppe.name)}
                       bgKlasse="bg-gray-100 text-gray-700"
                     />
                   </td>

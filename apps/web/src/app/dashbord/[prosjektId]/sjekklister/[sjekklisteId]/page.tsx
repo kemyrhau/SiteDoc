@@ -88,7 +88,7 @@ export default function SjekklisteDetaljSide() {
     [mineTillatelserRå],
   );
 
-  const { data: alleEntrepriserRå } = trpc.entreprise.hentForProsjekt.useQuery(
+  const { data: alleFaggrupperRå } = trpc.faggruppe.hentForProsjekt.useQuery(
     { projectId: params.prosjektId },
     { enabled: !!params.prosjektId },
   );
@@ -96,7 +96,7 @@ export default function SjekklisteDetaljSide() {
     { projectId: params.prosjektId },
     { enabled: !!params.prosjektId },
   );
-  const alleEntrepriser = (alleEntrepriserRå ?? []) as Array<{ id: string; name: string; color: string | null }>;
+  const alleFaggrupper = (alleFaggrupperRå ?? []) as Array<{ id: string; name: string; color: string | null }>;
   const dokumentflyter = (dokumentflyterRå ?? []) as unknown as import("@/components/StatusHandlinger").DokumentflytData[];
 
   // Hent full sjekklistedata for tidslinje/recipient/creator
@@ -118,20 +118,20 @@ export default function SjekklisteDetaljSide() {
   // Utled brukerens rolle i dokumentflyten
   const minRolle = useMemo(() => {
     if (!minFlytInfo || !fullSjekklisteRå) return undefined;
-    const sj = fullSjekklisteRå as unknown as { dokumentflytId?: string | null; bestillerEnterprise?: { id: string }; utforerEnterprise?: { id: string } };
+    const sj = fullSjekklisteRå as unknown as { dokumentflytId?: string | null; bestillerFaggruppe?: { id: string }; utforerFaggruppe?: { id: string } };
     if (!sj.dokumentflytId) return undefined;
     const flyt = dokumentflyter.find((df) => df.id === sj.dokumentflytId);
     if (!flyt) return null;
     const medlemmer = flyt.medlemmer.map((m): FlytMedlemInfo => ({
       rolle: m.rolle,
-      enterpriseId: m.enterpriseId ?? null,
+      faggruppeId: m.faggruppeId ?? null,
       projectMemberId: m.projectMemberId ?? null,
       groupId: m.groupId ?? null,
     }));
     return utledMinRolle(
       { ...minFlytInfo, userId: "", erAdmin: minFlytInfo.erAdmin },
       medlemmer,
-      { bestillerEnterpriseId: sj.bestillerEnterprise?.id ?? "", utforerEnterpriseId: sj.utforerEnterprise?.id ?? "" },
+      { bestillerFaggruppeId: sj.bestillerFaggruppe?.id ?? "", utforerFaggruppeId: sj.utforerFaggruppe?.id ?? "" },
     );
   }, [minFlytInfo, fullSjekklisteRå, dokumentflyter]);
 
@@ -145,7 +145,7 @@ export default function SjekklisteDetaljSide() {
       id: string;
       medlemmer: Array<{
         kanRedigere: boolean;
-        enterpriseId?: string | null;
+        faggruppeId?: string | null;
         projectMemberId?: string | null;
         groupId?: string | null;
       }>;
@@ -220,7 +220,7 @@ export default function SjekklisteDetaljSide() {
         id: string;
         rolle: string;
         steg: number;
-        enterprise: { id: string; name: string } | null;
+        faggruppe: { id: string; name: string } | null;
         projectMember: { user: { id: string; name: string | null } } | null;
         group: { id: string; name: string } | null;
       }>;
@@ -410,9 +410,9 @@ export default function SjekklisteDetaljSide() {
         eksterntNummer={prosjekt?.externalProjectNumber}
         sjekklisteTittel={sjekkliste.title}
         sjekklisteNummer={sjekklisteNummer}
-        bestiller={sjekkliste.bestillerEnterprise?.name}
+        bestiller={sjekkliste.bestillerFaggruppe?.name}
         bestillerBruker={oppretterBruker ?? null}
-        utforer={sjekkliste.utforerEnterprise?.name}
+        utforer={sjekkliste.utforerFaggruppe?.name}
         vaerTekst={vaerTekst}
         logoUrl={prosjekt?.logoUrl}
         prosjektAdresse={prosjekt?.address}
@@ -495,10 +495,10 @@ export default function SjekklisteDetaljSide() {
               });
             }}
             onSlett={() => slettMutasjon.mutate({ id: params.sjekklisteId })}
-            alleEntrepriser={alleEntrepriser}
+            alleFaggrupper={alleFaggrupper}
             dokumentflyter={dokumentflyter}
             templateId={sjekkliste.template?.id ?? (sjekkliste as unknown as { templateId?: string }).templateId}
-            standardEntrepriseId={sjekkliste.utforerEnterprise?.id}
+            standardFaggruppeId={sjekkliste.utforerFaggruppe?.id}
             minRolle={minRolle}
             flytMedlemmer={flytMedlemmer}
             recipientUserId={fullSjekkliste?.recipientUserId}

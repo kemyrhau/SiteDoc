@@ -64,8 +64,8 @@ export default function UtskriftOppgaveSide() {
       objects: RapportObjekt[];
       showPriority?: boolean;
     };
-    bestillerEnterprise?: { name: string; projectId: string } | null;
-    utforerEnterprise?: { name: string } | null;
+    bestillerFaggruppe?: { name: string; projectId: string } | null;
+    utforerFaggruppe?: { name: string } | null;
     bestiller?: { name?: string | null } | null;
     drawing?: { id: string; name: string; drawingNumber: string | null; fileUrl?: string | null; byggeplass?: { id: string; name: string } | null } | null;
     positionX?: number | null;
@@ -73,7 +73,7 @@ export default function UtskriftOppgaveSide() {
     createdAt?: string;
   } | undefined;
 
-  const prosjektId = oppgave?.bestillerEnterprise?.projectId;
+  const prosjektId = oppgave?.bestillerFaggruppe?.projectId;
   const { data: prosjekt, isLoading: prosjektLaster } = trpc.prosjekt.hentMedId.useQuery(
     { id: prosjektId ?? "" },
     { enabled: !!prosjektId },
@@ -209,12 +209,12 @@ export default function UtskriftOppgaveSide() {
               <div className="flex items-center justify-between border-b border-gray-300 px-4 py-2">
                 <div>
                   <p className="text-sm font-semibold text-gray-900">{oppgave.title}</p>
-                  {vis("fraTil") && oppgave.bestillerEnterprise && (
+                  {vis("fraTil") && oppgave.bestillerFaggruppe && (
                     <p className="text-xs text-gray-600">
                       {oppgave.bestiller?.name
-                        ? `${oppgave.bestiller.name} (${oppgave.bestillerEnterprise.name})`
-                        : oppgave.bestillerEnterprise.name}
-                      {oppgave.utforerEnterprise && ` → ${oppgave.utforerEnterprise.name}`}
+                        ? `${oppgave.bestiller.name} (${oppgave.bestillerFaggruppe.name})`
+                        : oppgave.bestillerFaggruppe.name}
+                      {oppgave.utforerFaggruppe && ` → ${oppgave.utforerFaggruppe.name}`}
                     </p>
                   )}
                 </div>

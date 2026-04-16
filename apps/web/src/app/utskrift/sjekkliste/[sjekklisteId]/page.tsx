@@ -58,8 +58,8 @@ export default function UtskriftSjekklisteSide() {
       projectId: string;
       objects: RapportObjekt[];
     };
-    bestillerEnterprise?: { name: string } | null;
-    utforerEnterprise?: { name: string } | null;
+    bestillerFaggruppe?: { name: string } | null;
+    utforerFaggruppe?: { name: string } | null;
     bestiller?: { name?: string | null } | null;
     byggeplass?: { id: string; name: string } | null;
     drawingId?: string | null;
@@ -175,12 +175,12 @@ export default function UtskriftSjekklisteSide() {
       <div className="flex items-center justify-between border-b border-gray-300 px-4 py-2">
         <div>
           <p className="text-sm font-semibold text-gray-900">{sjekkliste.title}</p>
-          {vis("fraTil") && sjekkliste.bestillerEnterprise && (
+          {vis("fraTil") && sjekkliste.bestillerFaggruppe && (
             <p className="text-xs text-gray-600">
               {sjekkliste.bestiller?.name
-                ? `${sjekkliste.bestiller.name} (${sjekkliste.bestillerEnterprise.name})`
-                : sjekkliste.bestillerEnterprise.name}
-              {sjekkliste.utforerEnterprise && ` → ${sjekkliste.utforerEnterprise.name}`}
+                ? `${sjekkliste.bestiller.name} (${sjekkliste.bestillerFaggruppe.name})`
+                : sjekkliste.bestillerFaggruppe.name}
+              {sjekkliste.utforerFaggruppe && ` → ${sjekkliste.utforerFaggruppe.name}`}
             </p>
           )}
         </div>

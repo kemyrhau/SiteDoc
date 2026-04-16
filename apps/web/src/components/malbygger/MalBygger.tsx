@@ -51,7 +51,7 @@ interface MalData {
   category?: string;
   subjects?: unknown;
   showSubject?: boolean;
-  showEnterprise?: boolean;
+  showFaggruppe?: boolean;
   showLocation?: boolean;
   showPriority?: boolean;
   objects: Array<{
@@ -846,21 +846,21 @@ export function MalBygger({ mal }: MalByggerProps) {
                 )}
               </div>
               )}
-              {/* Oppretter-entreprise — skjules i PSI-modus */}
+              {/* Oppretter-faggruppe — skjules i PSI-modus */}
               {!psiModus && (
               <div className="flex items-center gap-2 rounded-md border border-dashed border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-500">
                 <Building2 className="h-4 w-4 shrink-0 text-gray-400" />
-                <span className={mal.showEnterprise === false ? "line-through text-gray-300" : ""}>{t("malbygger.bestillerEntreprise")}</span>
+                <span className={mal.showFaggruppe === false ? "line-through text-gray-300" : ""}>{t("malbygger.bestillerFaggruppe")}</span>
                 <span className="text-xs text-gray-400">
-                  {mal.showEnterprise === false ? t("malbygger.skjultSettesAuto") : t("malbygger.velgesVedOpprettelse")}
+                  {mal.showFaggruppe === false ? t("malbygger.skjultSettesAuto") : t("malbygger.velgesVedOpprettelse")}
                 </span>
                 <button
                   type="button"
-                  onClick={() => oppdaterMalMutation.mutate({ id: mal.id, showEnterprise: !(mal.showEnterprise !== false) })}
+                  onClick={() => oppdaterMalMutation.mutate({ id: mal.id, showFaggruppe: !(mal.showFaggruppe !== false) })}
                   className="ml-auto rounded p-1 hover:bg-gray-200"
-                  title={mal.showEnterprise === false ? t("malbygger.visEntrepriseFelt") : t("malbygger.skjulEntrepriseFelt")}
+                  title={mal.showFaggruppe === false ? t("malbygger.visFaggruppeFelt") : t("malbygger.skjulFaggruppeFelt")}
                 >
-                  {mal.showEnterprise === false
+                  {mal.showFaggruppe === false
                     ? <EyeOff className="h-3.5 w-3.5 text-gray-400" />
                     : <Eye className="h-3.5 w-3.5 text-gray-400" />
                   }

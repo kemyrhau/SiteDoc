@@ -18,7 +18,7 @@ interface DokumentflytMalRad {
 
 interface DokumentflytRad {
   id: string;
-  enterpriseId: string | null;
+  faggruppeId: string | null;
   maler: DokumentflytMalRad[];
 }
 import { Map, FileText, MapPin, Plus, ZoomIn, ZoomOut, ArrowLeft, Crosshair, Loader2, AlertTriangle, Info } from "lucide-react";
@@ -160,7 +160,7 @@ export default function TegningerSide() {
     { enabled: !!aktivTegning?.id },
   );
 
-  const { data: mineEntrepriser } = trpc.medlem.hentMineEntrepriser.useQuery(
+  const { data: mineFaggrupper } = trpc.medlem.hentMineFaggrupper.useQuery(
     { projectId: params.prosjektId },
     { enabled: visOpprettModal },
   );
@@ -177,14 +177,14 @@ export default function TegningerSide() {
     { enabled: visOpprettModal },
   );
 
-  // Auto-velg oppretter-entreprise når data lastes
+  // Auto-velg oppretter-faggruppe når data lastes
   useEffect(() => {
     if (!visOpprettModal || valgtOppretter) return;
-    if (mineEntrepriser && mineEntrepriser.length > 0) {
-      const forste = mineEntrepriser[0];
+    if (mineFaggrupper && mineFaggrupper.length > 0) {
+      const forste = mineFaggrupper[0];
       if (forste) setValgtOppretter(forste.id);
     }
-  }, [mineEntrepriser, visOpprettModal, valgtOppretter]);
+  }, [mineFaggrupper, visOpprettModal, valgtOppretter]);
 
   const opprettOppgaveMutation = trpc.oppgave.opprett.useMutation({
     onSuccess: (_data: unknown, _vars: { title: string }) => {
@@ -436,7 +436,7 @@ export default function TegningerSide() {
   // Finn matchende arbeidsforløp for valgt oppretter + mal
   const alleArbeidsforlop = (arbeidsforlop ?? []) as unknown as DokumentflytRad[];
   const matchendeArbeidsforlop = alleArbeidsforlop.find((af) =>
-    af.enterpriseId === valgtOppretter &&
+    af.faggruppeId === valgtOppretter &&
     af.maler.some((wt) => wt.template.id === valgtMal),
   );
   const utledetSvarer = valgtOppretter;
@@ -448,8 +448,8 @@ export default function TegningerSide() {
     if (opprettType === "oppgave") {
       opprettOppgaveMutation.mutate({
         templateId: valgtMal,
-        bestillerEnterpriseId: valgtOppretter,
-        utforerEnterpriseId: utledetSvarer,
+        bestillerFaggruppeId: valgtOppretter,
+        utforerFaggruppeId: utledetSvarer,
         title: "Ny oppgave",
         drawingId: aktivTegning?.id,
         positionX: nyMarkør?.x,
@@ -458,8 +458,8 @@ export default function TegningerSide() {
     } else {
       opprettSjekklisteMutation.mutate({
         templateId: valgtMal,
-        bestillerEnterpriseId: valgtOppretter,
-        utforerEnterpriseId: utledetSvarer,
+        bestillerFaggruppeId: valgtOppretter,
+        utforerFaggruppeId: utledetSvarer,
         byggeplassId: aktivByggeplass?.id,
         drawingId: aktivTegning?.id,
       });
@@ -495,7 +495,7 @@ export default function TegningerSide() {
 
   // Filtrerte maler basert på tilgang:
   // 1. Admin / manage_field → alle maler
-  // 2. Enterprise-arbeidsforløp → maler knyttet via dokumentflyt + HMS (alle kan opprette HMS)
+  // 2. Faggruppe-arbeidsforløp → maler knyttet via dokumentflyt + HMS (alle kan opprette HMS)
   // 3. Domene-grupper (HMS, Bygg) → maler med matchende domain
   const filtrerMaler = (() => {
     if (!valgtOppretter) return [];
@@ -509,9 +509,9 @@ export default function TegningerSide() {
 
     const synligeMalIder = new Set<string>();
 
-    // Entreprise-arbeidsforløp: maler knyttet til valgt oppretter via dokumentflyt
+    // Faggruppe-arbeidsforløp: maler knyttet til valgt oppretter via dokumentflyt
     for (const af of alleArbeidsforlop) {
-      if (af.enterpriseId !== valgtOppretter) continue;
+      if (af.faggruppeId !== valgtOppretter) continue;
       for (const wt of af.maler) {
         if (wt.template.category === opprettType) {
           synligeMalIder.add(wt.template.id);
@@ -519,7 +519,7 @@ export default function TegningerSide() {
       }
     }
 
-    // HMS-maler er alltid tilgjengelige for entreprise-medlemmer
+    // HMS-maler er alltid tilgjengelige for faggruppe-medlemmer
     for (const mal of kategoriMaler) {
       if (mal.domain === "hms") {
         synligeMalIder.add(mal.id);
@@ -540,7 +540,7 @@ export default function TegningerSide() {
       .map((m) => ({ id: m.id, name: m.name }));
   })();
 
-  const oppretterAlternativer = (mineEntrepriser ?? []).map((e) => ({ value: e.id, label: e.name }));
+  const oppretterAlternativer = (mineFaggrupper ?? []).map((e) => ({ value: e.id, label: e.name }));
 
   // Ingen tegning valgt
   if (!aktivTegning) {
@@ -934,11 +934,11 @@ export default function TegningerSide() {
 
           {oppretterAlternativer.length > 1 && (
             <Select
-              label="Entreprise"
+              label="Faggruppe"
               options={oppretterAlternativer}
               value={valgtOppretter}
               onChange={(e) => { setValgtOppretter(e.target.value); setValgtMal(""); }}
-              placeholder="Velg entreprise..."
+              placeholder="Velg faggruppe..."
             />
           )}
 

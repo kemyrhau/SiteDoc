@@ -1,6 +1,6 @@
 export * from "./ftd";
 
-// Statusflyt for entreprisedokumenter
+// Statusflyt for dokumenter
 export const DOCUMENT_STATUSES = [
   "draft",
   "sent",
@@ -246,6 +246,8 @@ export type TemplateZone = (typeof TEMPLATE_ZONES)[number];
 
 // Dokumentflyt-roller
 export type DokumentflytRolle = "registrator" | "bestiller" | "utforer" | "godkjenner";
+export type FaggruppeRolle = DokumentflytRolle;
+/** @deprecated Bruk FaggruppeRolle */
 export type EnterpriseRole = DokumentflytRolle;
 
 // Tillatelser — granulære tillatelser for prosjektgrupper
@@ -265,7 +267,7 @@ export const PERMISSIONS = [
   "drawing_view",
   "folder_manage",
   "folder_view",
-  "enterprise_manage",
+  "faggruppe_manage",
   "member_manage",
 ] as const;
 export type Permission = (typeof PERMISSIONS)[number];
@@ -285,7 +287,7 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   drawing_view: "Se tegninger",
   folder_manage: "Administrer mapper",
   folder_view: "Se mapper",
-  enterprise_manage: "Administrer entrepriser",
+  faggruppe_manage: "Administrer faggrupper",
   member_manage: "Administrer medlemmer",
 };
 
@@ -296,13 +298,13 @@ export const PERMISSION_GROUPS: { label: string; permissions: Permission[] }[] =
   { label: "Maler", permissions: ["template_manage"] },
   { label: "Tegninger", permissions: ["drawing_manage", "drawing_view"] },
   { label: "Mapper", permissions: ["folder_manage", "folder_view"] },
-  { label: "Entrepriser", permissions: ["enterprise_manage"] },
+  { label: "Faggrupper", permissions: ["faggruppe_manage"] },
   { label: "Medlemmer", permissions: ["member_manage"] },
 ];
 
 // Mapping fra gamle til nye tillatelser (bakoverkompatibilitet)
 export const LEGACY_PERMISSION_MAP: Record<string, Permission[]> = {
-  manage_field: ["checklist_edit", "checklist_view", "task_edit", "task_view", "template_manage", "drawing_manage", "drawing_view", "folder_manage", "folder_view", "enterprise_manage", "member_manage"],
+  manage_field: ["checklist_edit", "checklist_view", "task_edit", "task_view", "template_manage", "drawing_manage", "drawing_view", "folder_manage", "folder_view", "faggruppe_manage", "member_manage"],
   create_tasks: ["task_edit", "task_view"],
   create_checklists: ["checklist_edit", "checklist_view"],
   view_field: ["checklist_view", "task_view", "drawing_view", "folder_view"],
@@ -350,7 +352,7 @@ export const STANDARD_PROJECT_GROUPS: StandardProjectGroup[] = [
     slug: "prosjekt-admin",
     name: "Prosjektadministratorer",
     category: "generelt",
-    permissions: ["manage_field", "create_tasks", "create_checklists", "checklist_edit", "checklist_view", "task_edit", "task_view", "template_manage", "drawing_manage", "drawing_view", "folder_manage", "folder_view", "enterprise_manage", "member_manage"],
+    permissions: ["manage_field", "create_tasks", "create_checklists", "checklist_edit", "checklist_view", "task_edit", "task_view", "template_manage", "drawing_manage", "drawing_view", "folder_manage", "folder_view", "faggruppe_manage", "member_manage"],
     domains: ["bygg", "hms", "kvalitet"],
   },
   // Produksjon
@@ -358,7 +360,7 @@ export const STANDARD_PROJECT_GROUPS: StandardProjectGroup[] = [
     slug: "field-admin",
     name: "Produksjonsadministratorer",
     category: "field",
-    permissions: ["manage_field", "create_tasks", "create_checklists", "checklist_edit", "checklist_view", "task_edit", "task_view", "template_manage", "drawing_manage", "drawing_view", "folder_manage", "folder_view", "enterprise_manage", "member_manage"],
+    permissions: ["manage_field", "create_tasks", "create_checklists", "checklist_edit", "checklist_view", "task_edit", "task_view", "template_manage", "drawing_manage", "drawing_view", "folder_manage", "folder_view", "faggruppe_manage", "member_manage"],
     domains: ["bygg"],
   },
   {
@@ -435,7 +437,7 @@ export const PROSJEKT_MODULER: ModulDefinisjon[] = [
   {
     slug: "godkjenning",
     navn: "Godkjenning",
-    beskrivelse: "Endringsmelding, varsel om krav og økonomiske godkjenninger mellom entrepriser",
+    beskrivelse: "Endringsmelding, varsel om krav og økonomiske godkjenninger mellom faggrupper",
     kategori: "oppgave",
     ikon: "FileCheck",
     maler: [
@@ -450,7 +452,7 @@ export const PROSJEKT_MODULER: ModulDefinisjon[] = [
           { type: "location", label: "Lokasjon", sortOrder: 0, config: { zone: "topptekst" } },
           { type: "date", label: "Dato", sortOrder: 1, required: true, config: { zone: "topptekst" } },
           { type: "person", label: "Ansvarlig", sortOrder: 2, required: true, config: { zone: "topptekst" } },
-          { type: "company", label: "Oppretter-entreprise", sortOrder: 3, required: true, config: { role: "creator", zone: "topptekst" } },
+          { type: "company", label: "Oppretter-faggruppe", sortOrder: 3, required: true, config: { role: "creator", zone: "topptekst" } },
           { type: "heading", label: "Beskrivelse", sortOrder: 10, config: { zone: "datafelter" } },
           { type: "text_field", label: "Beskrivelse av endring/krav", sortOrder: 11, required: true, config: { multiline: true, zone: "datafelter" } },
           { type: "text_field", label: "Begrunnelse", sortOrder: 12, config: { multiline: true, zone: "datafelter" } },
@@ -566,47 +568,59 @@ export const PROSJEKT_MODULER: ModulDefinisjon[] = [
   },
 ];
 
-// Entreprisebransjer
-export const ENTERPRISE_INDUSTRIES = [
+// Faggruppebransjer
+export const FAGGRUPPE_BRANSJER = [
   "Bygg", "Elektro", "VVS", "Rør", "Ventilasjon", "Tele/data",
   "Heis", "Maler", "Gulv", "Tømrer", "Murer", "Grunnarbeid",
   "Prosjektledelse", "Byggherre", "Annet",
 ] as const;
-export type EnterpriseIndustry = (typeof ENTERPRISE_INDUSTRIES)[number];
+export type FaggruppeBransje = (typeof FAGGRUPPE_BRANSJER)[number];
+/** @deprecated Bruk FAGGRUPPE_BRANSJER */
+export const ENTERPRISE_INDUSTRIES = FAGGRUPPE_BRANSJER;
+/** @deprecated Bruk FaggruppeBransje */
+export type EnterpriseIndustry = FaggruppeBransje;
 
-// Entreprisefarger — 32 distinkte farger for visuell differensiering
-export const ENTERPRISE_COLORS = [
+// Faggruppefarger — 32 distinkte farger for visuell differensiering
+export const FAGGRUPPE_FARGER = [
   "blue", "emerald", "purple", "amber", "rose", "teal", "indigo", "orange",
   "cyan", "lime", "fuchsia", "sky", "violet", "red", "green", "yellow",
   "pink", "slate", "zinc", "stone",
   "blue-800", "emerald-800", "purple-800", "amber-700", "rose-800", "teal-800", "indigo-800", "orange-700",
   "cyan-800", "lime-700", "fuchsia-800", "sky-800",
 ] as const;
-export type EnterpriseColor = (typeof ENTERPRISE_COLORS)[number];
+export type FaggruppeFarge = (typeof FAGGRUPPE_FARGER)[number];
+/** @deprecated Bruk FAGGRUPPE_FARGER */
+export const ENTERPRISE_COLORS = FAGGRUPPE_FARGER;
+/** @deprecated Bruk FaggruppeFarge */
+export type EnterpriseColor = FaggruppeFarge;
 
-// Standard entrepriser for malprosjekt
-export interface StandardEntreprise {
+// Standard faggrupper for malprosjekt
+export interface StandardFaggruppe {
   navn: string;
   bransje: string;
   farge: string;
-  entreprisenummer?: string;
+  faggruppeNummer?: string;
 }
 
-export const STANDARD_ENTREPRISER: StandardEntreprise[] = [
-  { navn: "Byggherre", bransje: "Byggherre", farge: "blue", entreprisenummer: "K00" },
-  { navn: "Bygg", bransje: "Bygg", farge: "emerald", entreprisenummer: "K01" },
-  { navn: "Elektro", bransje: "Elektro", farge: "amber", entreprisenummer: "K02" },
-  { navn: "VVS", bransje: "VVS", farge: "purple", entreprisenummer: "K03" },
-  { navn: "Ventilasjon", bransje: "Ventilasjon", farge: "teal", entreprisenummer: "K04" },
+export const STANDARD_FAGGRUPPER: StandardFaggruppe[] = [
+  { navn: "Byggherre", bransje: "Byggherre", farge: "blue", faggruppeNummer: "K00" },
+  { navn: "Bygg", bransje: "Bygg", farge: "emerald", faggruppeNummer: "K01" },
+  { navn: "Elektro", bransje: "Elektro", farge: "amber", faggruppeNummer: "K02" },
+  { navn: "VVS", bransje: "VVS", farge: "purple", faggruppeNummer: "K03" },
+  { navn: "Ventilasjon", bransje: "Ventilasjon", farge: "teal", faggruppeNummer: "K04" },
 ];
+/** @deprecated Bruk STANDARD_FAGGRUPPER */
+export const STANDARD_ENTREPRISER = STANDARD_FAGGRUPPER;
+/** @deprecated Bruk StandardFaggruppe */
+export type StandardEntreprise = StandardFaggruppe;
 
 // Standard dokumentflyter for malprosjekt
-// Refererer til entrepriser og maler via indeks (løst opp under opprettelse)
+// Refererer til faggrupper og maler via indeks (løst opp under opprettelse)
 export interface StandardDokumentflyt {
   navn: string;
-  /** Indekser inn i STANDARD_ENTREPRISER for bestiller-rolle */
+  /** Indekser inn i STANDARD_FAGGRUPPER for bestiller-rolle */
   oppretter: number[];
-  /** Indekser inn i STANDARD_ENTREPRISER for utfører-rolle */
+  /** Indekser inn i STANDARD_FAGGRUPPER for utfører-rolle */
   svarer: number[];
   /** Mal-slugger fra PROSJEKT_MODULER som skal tilknyttes */
   malPrefixer: string[];
@@ -668,7 +682,7 @@ export const STANDARD_DOKUMENTFLYTER: StandardDokumentflyt[] = [
   // --- HMS-avvik: alle kan opprette, byggherre mottar ---
   {
     navn: "HMS-avvik",
-    oppretter: [0, 1, 2, 3, 4], // Alle entrepriser
+    oppretter: [0, 1, 2, 3, 4], // Alle faggrupper
     svarer: [0],                  // Byggherre
     malPrefixer: ["HMS"],
   },
@@ -797,7 +811,7 @@ export interface GeoReferanse {
 // Mappeadgangskontroll
 export const FOLDER_ACCESS_MODES = ["inherit", "custom"] as const;
 export type FolderAccessMode = (typeof FOLDER_ACCESS_MODES)[number];
-export const FOLDER_ACCESS_TYPES = ["enterprise", "group", "user"] as const;
+export const FOLDER_ACCESS_TYPES = ["faggruppe", "group", "user"] as const;
 export type FolderAccessType = (typeof FOLDER_ACCESS_TYPES)[number];
 
 // Grunnleggende entitetsgrensesnitt

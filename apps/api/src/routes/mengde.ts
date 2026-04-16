@@ -99,7 +99,7 @@ export const mengdeRouter = router({
     .input(
       z.object({
         projectId: z.string().uuid(),
-        enterpriseId: z.string().uuid().optional(),
+        faggruppeId: z.string().uuid().optional(),
       }),
     )
     .query(async ({ ctx, input }) => {
@@ -107,12 +107,12 @@ export const mengdeRouter = router({
       return ctx.prisma.ftdNotaPeriod.findMany({
         where: {
           projectId: input.projectId,
-          ...(input.enterpriseId
-            ? { enterpriseId: input.enterpriseId }
+          ...(input.faggruppeId
+            ? { faggruppeId: input.faggruppeId }
             : {}),
         },
         include: {
-          dokumentflytPart: { select: { id: true, name: true, color: true } },
+          faggruppe: { select: { id: true, name: true, color: true } },
         },
         orderBy: { periodeNr: "asc" },
       });

@@ -234,7 +234,7 @@ export default function HjemSkjerm() {
     sjekklisteQuery.isRefetching || oppgaveQuery.isRefetching;
 
   const onRefresh = useCallback(() => {
-    // Invalidér alle queries — sikrer at arbeidsforløp, maler, entrepriser osv. også oppdateres
+    // Invalidér alle queries — sikrer at arbeidsforløp, maler, faggrupper osv. også oppdateres
     queryClient.invalidateQueries();
   }, [queryClient]);
 

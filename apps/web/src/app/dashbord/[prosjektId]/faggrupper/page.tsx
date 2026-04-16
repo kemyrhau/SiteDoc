@@ -4,10 +4,10 @@ import { useParams } from "next/navigation";
 import { trpc } from "@/lib/trpc";
 import { Spinner, EmptyState, Badge, Table } from "@sitedoc/ui";
 
-export default function EntrepriserSide() {
+export default function FaggrupperSide() {
   const params = useParams<{ prosjektId: string }>();
 
-  const { data: entrepriser, isLoading } = trpc.entreprise.hentForProsjekt.useQuery(
+  const { data: faggrupper, isLoading } = trpc.faggruppe.hentForProsjekt.useQuery(
     { projectId: params.prosjektId },
   );
 
@@ -19,23 +19,24 @@ export default function EntrepriserSide() {
     );
   }
 
-  type EntrepriseRad = {
+  type FaggruppeRad = {
     id: string;
     name: string;
+    faggruppeNummer: string | null;
     organizationNumber: string | null;
-    dokumentflytKoblinger: Array<{ id: string }>;
+    faggruppeKoblinger: Array<{ id: string }>;
     _count: { bestillerChecklists: number; bestillerTasks: number };
   };
 
   return (
     <div>
-      {!entrepriser?.length ? (
+      {!faggrupper?.length ? (
         <EmptyState
-          title="Ingen entrepriser"
-          description="Entrepriser administreres under Innstillinger > Feltarbeid > Entrepriser."
+          title="Ingen faggrupper"
+          description="Faggrupper administreres under Innstillinger > Feltarbeid > Faggrupper."
         />
       ) : (
-        <Table<EntrepriseRad>
+        <Table<FaggruppeRad>
           kolonner={[
             {
               id: "name",
@@ -55,7 +56,7 @@ export default function EntrepriserSide() {
               id: "members",
               header: "Medlemmer",
               celle: (rad) => (
-                <Badge variant="default">{rad.dokumentflytKoblinger.length}</Badge>
+                <Badge variant="default">{rad.faggruppeKoblinger.length}</Badge>
               ),
               bredde: "100px",
             },
@@ -76,7 +77,7 @@ export default function EntrepriserSide() {
               bredde: "100px",
             },
           ]}
-          data={(entrepriser ?? []) as EntrepriseRad[]}
+          data={(faggrupper ?? []) as FaggruppeRad[]}
           radNokkel={(rad) => rad.id}
         />
       )}

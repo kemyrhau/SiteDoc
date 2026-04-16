@@ -7,8 +7,10 @@ export const documentStatusSchema = z.enum(DOCUMENT_STATUSES);
 // Rapportobjekttype-validering
 export const reportObjectTypeSchema = z.enum(REPORT_OBJECT_TYPES);
 
-// Entrepriserolle-validering
+// Faggrupperolle-validering
 export const dokumentflytRolleSchema = z.enum(["registrator", "bestiller", "utforer", "godkjenner"]);
+export const faggruppeRolleSchema = dokumentflytRolleSchema;
+/** @deprecated Bruk faggruppeRolleSchema */
 export const enterpriseRoleSchema = dokumentflytRolleSchema;
 
 // Malsone-validering
@@ -31,26 +33,30 @@ export const createProjectSchema = z.object({
   externalProjectNumber: z.string().max(100).optional(),
 });
 
-// Entreprisevalidering
-export const createEnterpriseSchema = z.object({
+// Faggruppevalidering
+export const createFaggruppeSchema = z.object({
   name: z.string().min(1).max(255),
   projectId: z.string().uuid(),
-  enterpriseNumber: z.string().max(20).optional(),
+  faggruppeNummer: z.string().max(20).optional(),
   organizationNumber: z.string().optional(),
   color: z.string().max(50).optional(),
   industry: z.string().max(100).optional(),
   companyName: z.string().max(255).optional(),
   memberIds: z.array(z.string().uuid()).default([]),
 });
+/** @deprecated Bruk createFaggruppeSchema */
+export const createEnterpriseSchema = createFaggruppeSchema;
 
-// Kopier entreprise
-export const copyEnterpriseSchema = z.object({
-  sourceEnterpriseId: z.string().uuid(),
+// Kopier faggruppe
+export const copyFaggruppeSchema = z.object({
+  sourceFaggruppeId: z.string().uuid(),
   targetProjectId: z.string().uuid(),
   name: z.string().min(1).max(255).optional(),
   color: z.string().max(50).optional(),
   memberIds: z.array(z.string().uuid()).default([]),
 });
+/** @deprecated Bruk copyFaggruppeSchema */
+export const copyEnterpriseSchema = copyFaggruppeSchema;
 
 // Byggeplasstype-validering
 export const byggeplassTypeSchema = z.enum(BYGGEPLASS_TYPER);
@@ -112,19 +118,19 @@ export const createTemplateSchema = z.object({
 
 // Arbeidsforløpvalidering (deprecated — bruk dokumentflyt)
 export const createWorkflowSchema = z.object({
-  enterpriseId: z.string().uuid(),
-  utforerEnterpriseId: z.string().uuid().nullable().optional(),
-  utforerEnterprise2Id: z.string().uuid().nullable().optional(),
-  utforerEnterprise3Id: z.string().uuid().nullable().optional(),
+  faggruppeId: z.string().uuid(),
+  utforerFaggruppeId: z.string().uuid().nullable().optional(),
+  utforerFaggruppe2Id: z.string().uuid().nullable().optional(),
+  utforerFaggruppe3Id: z.string().uuid().nullable().optional(),
   name: z.string().min(1).max(255),
   templateIds: z.array(z.string().uuid()).default([]),
 });
 
 export const updateWorkflowSchema = z.object({
   id: z.string().uuid(),
-  utforerEnterpriseId: z.string().uuid().nullable().optional(),
-  utforerEnterprise2Id: z.string().uuid().nullable().optional(),
-  utforerEnterprise3Id: z.string().uuid().nullable().optional(),
+  utforerFaggruppeId: z.string().uuid().nullable().optional(),
+  utforerFaggruppe2Id: z.string().uuid().nullable().optional(),
+  utforerFaggruppe3Id: z.string().uuid().nullable().optional(),
   name: z.string().min(1).max(255).optional(),
   templateIds: z.array(z.string().uuid()).optional(),
 });
@@ -137,7 +143,7 @@ export const addMemberSchema = z.object({
   lastName: z.string().min(1, "Etternavn er påkrevd"),
   phone: z.string().optional(),
   role: z.enum(["member", "admin"]).default("member"),
-  enterpriseIds: z.array(z.string().uuid()).default([]),
+  faggruppeIder: z.array(z.string().uuid()).default([]),
   organizationId: z.string().uuid().optional(),
   melding: z.string().max(500).optional(),
 });
@@ -206,7 +212,7 @@ export const settMappeTilgangSchema = z.object({
   accessMode: folderAccessModeSchema,
   entries: z.array(z.object({
     accessType: folderAccessTypeSchema,
-    enterpriseId: z.string().uuid().optional(),
+    faggruppeId: z.string().uuid().optional(),
     groupId: z.string().uuid().optional(),
     userId: z.string().uuid().optional(),
   })).default([]),
@@ -240,12 +246,12 @@ export const oppdaterRollerSchema = z.object({
 // Dokumentflyt-validering (ny modell)
 export const createDokumentflytSchema = z.object({
   projectId: z.string().uuid(),
-  enterpriseId: z.string().uuid().optional(),
+  faggruppeId: z.string().uuid().optional(),
   name: z.string().min(1).max(255),
   roller: z.array(rolleKonfigSchema).default([]),
   templateIds: z.array(z.string().uuid()).default([]),
   medlemmer: z.array(z.object({
-    enterpriseId: z.string().uuid().optional(),
+    faggruppeId: z.string().uuid().optional(),
     projectMemberId: z.string().uuid().optional(),
     groupId: z.string().uuid().optional(),
     rolle: dokumentflytRolleSchema,
@@ -263,7 +269,7 @@ export const updateDokumentflytSchema = z.object({
 export const addDokumentflytMedlemSchema = z.object({
   dokumentflytId: z.string().uuid(),
   projectId: z.string().uuid(),
-  enterpriseId: z.string().uuid().optional(),
+  faggruppeId: z.string().uuid().optional(),
   projectMemberId: z.string().uuid().optional(),
   groupId: z.string().uuid().optional(),
   rolle: dokumentflytRolleSchema,

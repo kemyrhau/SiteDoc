@@ -24,7 +24,7 @@ import type { FlytMedlem } from "./FlytIndikator";
 /*  Typer                                                              */
 /* ------------------------------------------------------------------ */
 
-interface EntrepriseData {
+interface FaggruppeData {
   id: string;
   name: string;
   color: string | null;
@@ -33,12 +33,12 @@ interface EntrepriseData {
 interface DokumentflytData {
   id: string;
   name: string;
-  enterpriseId: string | null;
+  faggruppeId: string | null;
   maler: Array<{ template: { id: string } }>;
   medlemmer: Array<{
     rolle: string;
     erHovedansvarlig: boolean;
-    enterpriseId?: string | null;
+    faggruppeId?: string | null;
     projectMemberId?: string | null;
     groupId?: string | null;
     hovedansvarligPerson?: { user: { id: string; name: string | null } } | null;
@@ -49,7 +49,7 @@ interface DokumentflytData {
 
 interface VideresendValg {
   key: string;
-  entrepriseNavn: string;
+  faggruppeNavn: string;
   dokumentflytId: string;
   visningsnavn: string;
   mottaker?: { userId?: string; groupId?: string };
@@ -66,10 +66,10 @@ interface Props {
   erLaster: boolean;
   onEndreStatus: (nyStatus: string, kommentar?: string, mottaker?: Mottaker) => void;
   onSlett?: () => void;
-  alleEntrepriser?: EntrepriseData[];
+  alleFaggrupper?: FaggruppeData[];
   dokumentflyter?: DokumentflytData[];
   templateId?: string | null;
-  standardEntrepriseId?: string;
+  standardFaggruppeId?: string;
   minRolle?: DokumentflytRolle | null;
   flytMedlemmer?: FlytMedlem[];
   recipientUserId?: string | null;
@@ -84,7 +84,7 @@ interface Props {
 interface Ledd {
   gruppeIder: Set<string>;
   brukerIder: Set<string>;
-  entrepriseIder: Set<string>;
+  faggruppeIder: Set<string>;
 }
 
 function byggLedd(medlemmer: FlytMedlem[]): Ledd[] {
@@ -99,7 +99,7 @@ function byggLedd(medlemmer: FlytMedlem[]): Ledd[] {
     .map(([_steg, medl]) => ({
       gruppeIder: new Set(medl.filter((m) => m.group).map((m) => m.group!.id)),
       brukerIder: new Set(medl.filter((m) => m.projectMember).map((m) => m.projectMember!.user.id)),
-      entrepriseIder: new Set(medl.filter((m) => m.enterprise).map((m) => m.enterprise!.id)),
+      faggruppeIder: new Set(medl.filter((m) => m.faggruppe).map((m) => m.faggruppe!.id)),
     }));
 }
 
@@ -128,24 +128,24 @@ function finnAktivtIndex(ledd: Ledd[], status: string, recipientUserId?: string 
 /* ------------------------------------------------------------------ */
 
 function byggValg(
-  alleEntrepriser: EntrepriseData[],
+  alleFaggrupper: FaggruppeData[],
   dokumentflyter: DokumentflytData[],
   templateId: string | null | undefined,
 ): VideresendValg[] {
   const valg: VideresendValg[] = [];
-  for (const ent of alleEntrepriser) {
+  for (const fg of alleFaggrupper) {
     const flyter = dokumentflyter.filter((df) => {
-      if (df.enterpriseId !== ent.id) return false;
+      if (df.faggruppeId !== fg.id) return false;
       if (!templateId) return true;
       return df.maler.some((m) => m.template.id === templateId);
     });
     for (const df of flyter) {
       const mottaker = finnMottaker(df);
       valg.push({
-        key: flyter.length > 1 ? `${ent.id}__${df.id}` : ent.id,
-        entrepriseNavn: ent.name,
+        key: flyter.length > 1 ? `${fg.id}__${df.id}` : fg.id,
+        faggruppeNavn: fg.name,
         dokumentflytId: df.id,
-        visningsnavn: flyter.length > 1 ? `${ent.name} (${df.name})` : ent.name,
+        visningsnavn: flyter.length > 1 ? `${fg.name} (${df.name})` : fg.name,
         mottaker,
       });
     }
@@ -174,10 +174,10 @@ export function DokumentHandlingsmeny({
   erLaster,
   onEndreStatus,
   onSlett,
-  alleEntrepriser,
+  alleFaggrupper,
   dokumentflyter,
   templateId,
-  standardEntrepriseId,
+  standardFaggruppeId,
   minRolle,
   flytMedlemmer,
   recipientUserId,
@@ -189,8 +189,8 @@ export function DokumentHandlingsmeny({
   const [kommentar, setKommentar] = useState("");
 
   const videresendValg = useMemo(
-    () => byggValg(alleEntrepriser ?? [], dokumentflyter ?? [], templateId),
-    [alleEntrepriser, dokumentflyter, templateId],
+    () => byggValg(alleFaggrupper ?? [], dokumentflyter ?? [], templateId),
+    [alleFaggrupper, dokumentflyter, templateId],
   );
 
   const ledd = useMemo(() => byggLedd(flytMedlemmer ?? []), [flytMedlemmer]);
@@ -221,7 +221,7 @@ export function DokumentHandlingsmeny({
       if (erSisteBoks) {
         el.push({ label: t("statushandling.svarAvsender"), nyStatus: "responded" });
       } else {
-        const primær = standardEntrepriseId ? videresendValg.find((v) => v.entrepriseNavn && v.key.startsWith(standardEntrepriseId)) : undefined;
+        const primær = standardFaggruppeId ? videresendValg.find((v) => v.faggruppeNavn && v.key.startsWith(standardFaggruppeId)) : undefined;
         if (primær) {
           el.push({ label: primær.visningsnavn, nyStatus: "responded", mottaker: primær.mottaker ? { ...primær.mottaker, dokumentflytId: primær.dokumentflytId } : undefined });
         }
@@ -229,7 +229,7 @@ export function DokumentHandlingsmeny({
         if (!erFørsteBoks) {
           el.push({ label: t("statushandling.sendTilbake"), nyStatus: "sent" });
         }
-        // Andre entrepriser
+        // Andre faggrupper
         const andre = videresendValg.filter((v) => !primær || v.key !== primær.key);
         for (const v of andre) {
           el.push({ label: v.visningsnavn, nyStatus: "forwarded", mottaker: v.mottaker ? { ...v.mottaker, dokumentflytId: v.dokumentflytId } : undefined });
@@ -261,7 +261,7 @@ export function DokumentHandlingsmeny({
     }
 
     return el;
-  }, [status, erSisteBoks, erFørsteBoks, erAdmin, videresendValg, standardEntrepriseId, t]);
+  }, [status, erSisteBoks, erFørsteBoks, erAdmin, videresendValg, standardFaggruppeId, t]);
 
   const arkValg = useMemo(byggArkValg, [byggArkValg]);
 

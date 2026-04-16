@@ -4,21 +4,21 @@ import { trpc } from "@/lib/trpc";
 
 interface PeriodeVelgerProps {
   projectId: string;
-  enterpriseId: string | null;
+  faggruppeId: string | null;
   value: string | null;
   onChange: (id: string | null) => void;
 }
 
 export function PeriodeVelger({
   projectId,
-  enterpriseId,
+  faggruppeId,
   value,
   onChange,
 }: PeriodeVelgerProps) {
   const { data: perioder } = trpc.mengde.hentPerioder.useQuery(
     {
       projectId,
-      enterpriseId: enterpriseId ?? undefined,
+      faggruppeId: faggruppeId ?? undefined,
     },
     { enabled: !!projectId },
   );
@@ -33,7 +33,7 @@ export function PeriodeVelger({
       {perioder?.map((p) => (
         <option key={p.id} value={p.id}>
           {p.type === "a_nota" ? "A-nota" : "T-nota"} #{p.periodeNr}
-          {p.dokumentflytPart ? ` — ${p.dokumentflytPart.name}` : ""}
+          {p.faggruppe ? ` — ${p.faggruppe.name}` : ""}
         </option>
       ))}
     </select>

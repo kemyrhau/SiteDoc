@@ -20,7 +20,7 @@ export default function SjekklisteSide() {
 
   const { data: malerRå } = trpc.mal.hentForProsjekt.useQuery({ projectId: params.id });
   const maler = malerRå as Array<{ id: string; name: string; subjects?: string[] }> | undefined;
-  const { data: entrepriser } = trpc.entreprise.hentForProsjekt.useQuery({ projectId: params.id });
+  const { data: faggrupper } = trpc.faggruppe.hentForProsjekt.useQuery({ projectId: params.id });
 
   const opprettMutation = trpc.sjekkliste.opprett.useMutation({
     onSuccess: () => {
@@ -36,14 +36,14 @@ export default function SjekklisteSide() {
     e.preventDefault();
     if (!valgtMal || !valgtSvarer) return;
 
-    // Bruker første entreprise som oppretter (forenklet — forbedres med sesjonskontekst)
-    const oppretterEntreprise = entrepriser?.[0];
-    if (!oppretterEntreprise) return;
+    // Bruker første faggruppe som oppretter (forenklet — forbedres med sesjonskontekst)
+    const oppretterFaggruppe = faggrupper?.[0];
+    if (!oppretterFaggruppe) return;
 
     opprettMutation.mutate({
       templateId: valgtMal,
-      bestillerEnterpriseId: oppretterEntreprise.id,
-      utforerEnterpriseId: valgtSvarer,
+      bestillerFaggruppeId: oppretterFaggruppe.id,
+      utforerFaggruppeId: valgtSvarer,
       subject: valgtEmne || undefined,
     });
   }
@@ -71,7 +71,7 @@ export default function SjekklisteSide() {
         />
       ) : (
         <div className="flex flex-col gap-3">
-          {(sjekklister as Array<{ id: string; title: string; status: string; dueDate: string | null; template: { name: string }; utforerEnterprise: { name: string } }>).map((sjekk) => (
+          {(sjekklister as Array<{ id: string; title: string; status: string; dueDate: string | null; template: { name: string }; utforerFaggruppe: { name: string } }>).map((sjekk) => (
             <Link
               key={sjekk.id}
               href={`/dashbord/prosjekter/${params.id}/sjekklister/${sjekk.id}`}
@@ -80,7 +80,7 @@ export default function SjekklisteSide() {
                 <div>
                   <p className="font-medium">{sjekk.title}</p>
                   <p className="text-xs text-gray-400">
-                    {sjekk.template.name} &middot; Svarer: {sjekk.utforerEnterprise.name}
+                    {sjekk.template.name} &middot; Svarer: {sjekk.utforerFaggruppe.name}
                   </p>
                 </div>
                 <div className="flex items-center gap-3">
@@ -125,11 +125,11 @@ export default function SjekklisteSide() {
             ) : null;
           })()}
           <Select
-            label="Ansvarlig entreprise (svarer)"
-            options={entrepriser?.map((e) => ({ value: e.id, label: e.name })) ?? []}
+            label="Ansvarlig faggruppe (svarer)"
+            options={faggrupper?.map((e) => ({ value: e.id, label: e.name })) ?? []}
             value={valgtSvarer}
             onChange={(e) => setValgtSvarer(e.target.value)}
-            placeholder="Velg entreprise..."
+            placeholder="Velg faggruppe..."
           />
           <div className="flex gap-3 pt-2">
             <Button type="submit" loading={opprettMutation.isPending}>

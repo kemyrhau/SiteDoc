@@ -4,9 +4,9 @@ import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { Button, Modal, Spinner } from "@sitedoc/ui";
 import { ChevronDown, ChevronRight, Workflow as WorkflowIcon } from "lucide-react";
-import { hentFarge } from "./entreprise-farger";
+import { hentFarge } from "./faggruppe-farger";
 
-interface EntrepriseTilknytningModalProps {
+interface FaggruppeTilknytningModalProps {
   open: boolean;
   onClose: () => void;
   prosjektId: string;
@@ -15,14 +15,14 @@ interface EntrepriseTilknytningModalProps {
   onBekreft: (ids: Set<string>) => void;
 }
 
-export function EntrepriseTilknytningModal({
+export function FaggruppeTilknytningModal({
   open,
   onClose,
   prosjektId,
   kategori,
   valgteWorkflowIds,
   onBekreft,
-}: EntrepriseTilknytningModalProps) {
+}: FaggruppeTilknytningModalProps) {
   const [lokaleValg, setLokaleValg] = useState<Set<string>>(new Set());
 
   // Synkroniser fra props ved åpning
@@ -32,8 +32,8 @@ export function EntrepriseTilknytningModal({
   }
   if (open !== forrigeOpen) setForrigeOpen(open);
 
-  const { data: entrepriser, isLoading: lasterEntrepriser } =
-    trpc.entreprise.hentForProsjekt.useQuery(
+  const { data: faggrupper, isLoading: lasterFaggrupper } =
+    trpc.faggruppe.hentForProsjekt.useQuery(
       { projectId: prosjektId },
       { enabled: !!prosjektId && open },
     );
@@ -44,9 +44,9 @@ export function EntrepriseTilknytningModal({
       { enabled: !!prosjektId && open },
     );
 
-  const laster = lasterEntrepriser || lasterAf;
+  const laster = lasterFaggrupper || lasterAf;
 
-  // Bygg map: entrepriseId -> dokumentflyter[]
+  // Bygg map: faggruppeId -> dokumentflyter[]
   const arbeidsforlopMap = new Map<
     string,
     Array<{
@@ -56,10 +56,10 @@ export function EntrepriseTilknytningModal({
   >();
   if (alleArbeidsforlop) {
     for (const af of alleArbeidsforlop) {
-      if (!af.enterpriseId) continue;
-      const liste = arbeidsforlopMap.get(af.enterpriseId) ?? [];
+      if (!af.faggruppeId) continue;
+      const liste = arbeidsforlopMap.get(af.faggruppeId) ?? [];
       liste.push(af);
-      arbeidsforlopMap.set(af.enterpriseId, liste);
+      arbeidsforlopMap.set(af.faggruppeId, liste);
     }
   }
 
@@ -77,8 +77,8 @@ export function EntrepriseTilknytningModal({
 
   const tittel =
     kategori === "sjekkliste"
-      ? "Sjekkliste for entreprisetilknytning"
-      : "Oppgave for entreprisetilknytning";
+      ? "Sjekkliste for faggruppetilknytning"
+      : "Oppgave for faggruppetilknytning";
 
   return (
     <Modal open={open} onClose={onClose} title={tittel} className="z-[60]">
@@ -86,9 +86,9 @@ export function EntrepriseTilknytningModal({
         <div className="flex justify-center py-8">
           <Spinner size="lg" />
         </div>
-      ) : !entrepriser || entrepriser.length === 0 ? (
+      ) : !faggrupper || faggrupper.length === 0 ? (
         <div className="py-8 text-center text-sm text-gray-500">
-          Ingen entrepriser i prosjektet
+          Ingen faggrupper i prosjektet
         </div>
       ) : (
         <div className="flex flex-col gap-2">
@@ -97,10 +97,10 @@ export function EntrepriseTilknytningModal({
           </p>
 
           <div className="max-h-[400px] overflow-y-auto space-y-1">
-            {entrepriser.map((ent, idx) => {
+            {faggrupper.map((ent, idx) => {
               const afs = arbeidsforlopMap.get(ent.id) ?? [];
               return (
-                <EntrepriseGruppe
+                <FaggruppeGruppe
                   key={ent.id}
                   navn={ent.name}
                   fargeIndeks={idx}
@@ -124,7 +124,7 @@ export function EntrepriseTilknytningModal({
   );
 }
 
-function EntrepriseGruppe({
+function FaggruppeGruppe({
   navn,
   fargeIndeks,
   arbeidsforloper,
@@ -147,7 +147,7 @@ function EntrepriseGruppe({
 
   return (
     <div className="rounded-lg border border-gray-200 overflow-hidden">
-      {/* Entreprise-header */}
+      {/* Faggruppe-header */}
       <button
         onClick={() => setEkspandert(!ekspandert)}
         className={`flex w-full items-center gap-2 px-3 py-2 text-left ${farge.bg}`}

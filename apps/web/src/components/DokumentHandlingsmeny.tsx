@@ -9,7 +9,7 @@ import { useTranslation } from "react-i18next";
 import { ChevronDown } from "lucide-react";
 import type { DokumentflytRolle } from "@sitedoc/shared";
 import { byggVideresendValg } from "./StatusHandlinger";
-import type { DokumentflytData, EntrepriseData, VideresendValg } from "./StatusHandlinger";
+import type { DokumentflytData, FaggruppeData, VideresendValg } from "./StatusHandlinger";
 
 /* ------------------------------------------------------------------ */
 /*  Typer                                                              */
@@ -19,7 +19,7 @@ interface FlytMedlem {
   id: string;
   rolle: string;
   steg: number;
-  enterprise: { id: string; name: string } | null;
+  faggruppe: { id: string; name: string } | null;
   projectMember: { user: { id: string; name: string | null } } | null;
   group: { id: string; name: string } | null;
 }
@@ -29,10 +29,10 @@ interface DokumentHandlingsmenyProps {
   erLaster: boolean;
   onEndreStatus: (nyStatus: string, kommentar?: string, mottaker?: { userId?: string; groupId?: string; dokumentflytId?: string }) => void;
   onSlett?: () => void;
-  alleEntrepriser?: EntrepriseData[];
+  alleFaggrupper?: FaggruppeData[];
   dokumentflyter?: DokumentflytData[];
   templateId?: string | null;
-  standardEntrepriseId?: string;
+  standardFaggruppeId?: string;
   minRolle?: DokumentflytRolle | null;
   /** Dokumentflyt-medlemmer for posisjon-utledning */
   flytMedlemmer?: FlytMedlem[];
@@ -54,7 +54,7 @@ interface Ledd {
   navn: string;
   gruppeIder: Set<string>;
   brukerIder: Set<string>;
-  entrepriseIder: Set<string>;
+  faggruppeIder: Set<string>;
   steg: number;
 }
 
@@ -69,12 +69,12 @@ function byggLedd(medlemmer: FlytMedlem[]): Ledd[] {
   return [...stegMap.entries()]
     .sort(([a], [b]) => a - b)
     .map(([steg, medl]) => {
-      const entreprise = medl.find((m) => m.enterprise);
+      const faggruppe = medl.find((m) => m.faggruppe);
       const gruppe = medl.find((m) => m.group);
       const person = medl.find((m) => m.projectMember?.user?.name);
 
-      const navn = entreprise
-        ? entreprise.enterprise!.name
+      const navn = faggruppe
+        ? faggruppe.faggruppe!.name
         : gruppe
           ? gruppe.group!.name
           : person?.projectMember?.user?.name ?? "?";
@@ -84,7 +84,7 @@ function byggLedd(medlemmer: FlytMedlem[]): Ledd[] {
         steg,
         gruppeIder: new Set(medl.filter((m) => m.group).map((m) => m.group!.id)),
         brukerIder: new Set(medl.filter((m) => m.projectMember).map((m) => m.projectMember!.user.id)),
-        entrepriseIder: new Set(medl.filter((m) => m.enterprise).map((m) => m.enterprise!.id)),
+        faggruppeIder: new Set(medl.filter((m) => m.faggruppe).map((m) => m.faggruppe!.id)),
       };
     });
 }
@@ -92,7 +92,7 @@ function byggLedd(medlemmer: FlytMedlem[]): Ledd[] {
 /** Finn index for brukerens posisjon i flyten basert på flytinfo */
 function finnBrukerBoksIndex(
   ledd: Ledd[],
-  brukerEntrepriseIder: string[],
+  brukerFaggruppeIder: string[],
   brukerGruppeIder: string[],
   brukerUserId?: string,
 ): number {
@@ -106,9 +106,9 @@ function finnBrukerBoksIndex(
     const idx = ledd.findIndex((l) => l.gruppeIder.has(gid));
     if (idx !== -1) return idx;
   }
-  // Prøv entreprise-match
-  for (const eid of brukerEntrepriseIder) {
-    const idx = ledd.findIndex((l) => l.entrepriseIder.has(eid));
+  // Prøv faggruppe-match
+  for (const eid of brukerFaggruppeIder) {
+    const idx = ledd.findIndex((l) => l.faggruppeIder.has(eid));
     if (idx !== -1) return idx;
   }
   return -1;
@@ -165,10 +165,10 @@ export function DokumentHandlingsmeny({
   erLaster,
   onEndreStatus,
   onSlett,
-  alleEntrepriser,
+  alleFaggrupper,
   dokumentflyter,
   templateId,
-  standardEntrepriseId,
+  standardFaggruppeId,
   minRolle,
   flytMedlemmer,
   recipientUserId,
@@ -196,8 +196,8 @@ export function DokumentHandlingsmeny({
 
   // Videresend-valg fra byggVideresendValg
   const videresendValg = useMemo(
-    () => byggVideresendValg(alleEntrepriser ?? [], dokumentflyter ?? [], templateId),
-    [alleEntrepriser, dokumentflyter, templateId],
+    () => byggVideresendValg(alleFaggrupper ?? [], dokumentflyter ?? [], templateId),
+    [alleFaggrupper, dokumentflyter, templateId],
   );
 
   // Bygg flytledd
@@ -228,7 +228,7 @@ export function DokumentHandlingsmeny({
     const elementer: MenyElement[] = [];
 
     if (status === "draft") {
-      // Kladd: vis alle entrepriser som mottaker
+      // Kladd: vis alle faggrupper som mottaker
       for (const v of videresendValg) {
         elementer.push({
           key: v.key,
@@ -242,7 +242,7 @@ export function DokumentHandlingsmeny({
 
     if (["received", "in_progress", "rejected"].includes(status)) {
       if (erSisteBoks) {
-        // Siste boks — "Svar avsender" + andre entrepriser
+        // Siste boks — "Svar avsender" + andre faggrupper
         elementer.push({
           key: "svar-avsender",
           label: t("statushandling.svarAvsender"),
@@ -261,9 +261,9 @@ export function DokumentHandlingsmeny({
         }
       } else {
         // Første/midtre boks — besvar (send til bestiller) + "Send tilbake" + videresend
-        // Primærmottaker: standardEntreprise (utfører/bestiller)
-        const primærValg = standardEntrepriseId
-          ? videresendValg.find((v) => v.entrepriseId === standardEntrepriseId)
+        // Primærmottaker: standardFaggruppe (utfører/bestiller)
+        const primærValg = standardFaggruppeId
+          ? videresendValg.find((v) => v.faggruppeId === standardFaggruppeId)
           : undefined;
 
         if (primærValg) {
@@ -285,7 +285,7 @@ export function DokumentHandlingsmeny({
           });
         }
 
-        // Videresend til andre entrepriser
+        // Videresend til andre faggrupper
         const andreValg = videresendValg.filter((v) => !primærValg || v.key !== primærValg.key);
         if (andreValg.length > 0) {
           elementer.push({ key: "sep-videresend", label: "", nyStatus: "", erSeparator: true });
@@ -340,16 +340,16 @@ export function DokumentHandlingsmeny({
       for (const l of ledd) {
         // Hopp over bokser som allerede er i standard-listen
         const alleredeVist = elementer.some((e) =>
-          !e.erSeparator && !e.erAdmin && e.mottaker && [...l.entrepriseIder].some((eid) => {
-            const v = videresendValg.find((vv) => vv.entrepriseId === eid);
+          !e.erSeparator && !e.erAdmin && e.mottaker && [...l.faggruppeIder].some((eid) => {
+            const v = videresendValg.find((vv) => vv.faggruppeId === eid);
             return v && e.key.includes(v.key);
           }),
         );
         if (alleredeVist) continue;
 
         // Finn mottaker for denne boksen
-        const entrepriseId = [...l.entrepriseIder][0];
-        const matchValg = videresendValg.find((v) => v.entrepriseId === entrepriseId);
+        const faggruppeId = [...l.faggruppeIder][0];
+        const matchValg = videresendValg.find((v) => v.faggruppeId === faggruppeId);
         if (matchValg) {
           adminValg.push({
             key: `admin-${matchValg.key}`,
@@ -394,7 +394,7 @@ export function DokumentHandlingsmeny({
 
   const sendElementer = useMemo(byggSendDropdown, [
     status, erSisteBoks, erFørsteBoks, erAdmin, videresendValg,
-    standardEntrepriseId, ledd, t,
+    standardFaggruppeId, ledd, t,
   ]);
 
   /* ------------------------------------------------------------------ */

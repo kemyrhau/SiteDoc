@@ -15,13 +15,13 @@ const FARGE_MAP: Record<string, { bg: string; hover: string }> = {
 };
 
 export interface VideresendValg {
-  /** Unik nøkkel: entrepriseId eller entrepriseId__dokumentflytId ved flere flyter */
+  /** Unik nøkkel: faggruppeId eller faggruppeId__dokumentflytId ved flere flyter */
   key: string;
-  entrepriseId: string;
-  entrepriseNavn: string;
+  faggruppeId: string;
+  faggruppeNavn: string;
   dokumentflytId: string;
   dokumentflytNavn: string;
-  /** Visningsnavn i dropdown. Entreprisenavn alene hvis 1 flyt, med flytnavn i parentes hvis flere */
+  /** Visningsnavn i dropdown. Faggruppenavn alene hvis 1 flyt, med flytnavn i parentes hvis flere */
   visningsnavn: string;
   farge?: string | null;
   mottaker?: { userId?: string; groupId?: string };
@@ -30,13 +30,13 @@ export interface VideresendValg {
 export interface DokumentflytData {
   id: string;
   name: string;
-  enterpriseId: string | null;
+  faggruppeId: string | null;
   roller: Array<{ rolle: string; label?: string | null }>;
   maler: Array<{ template: { id: string } }>;
   medlemmer: Array<{
     rolle: string;
     erHovedansvarlig: boolean;
-    enterpriseId?: string | null;
+    faggruppeId?: string | null;
     projectMemberId?: string | null;
     groupId?: string | null;
     hovedansvarligPerson?: { user: { id: string; name: string | null } } | null;
@@ -45,62 +45,65 @@ export interface DokumentflytData {
   }>;
 }
 
-export interface EntrepriseData {
+export interface FaggruppeData {
   id: string;
   name: string;
   color: string | null;
 }
 
+/** @deprecated Bruk FaggruppeData */
+export type EntrepriseData = FaggruppeData;
+
 /**
- * Bygg videresend-valg basert på entreprise + mal-match.
- * For hver entreprise, finn dokumentflyter som har:
- * 1. enterpriseId === entrepriseId
+ * Bygg videresend-valg basert på faggruppe + mal-match.
+ * For hver faggruppe, finn dokumentflyter som har:
+ * 1. faggruppeId === faggruppeId
  * 2. dokumentets templateId i maler-listen
  * Utled mottaker fra utfører-rollen (fallback: bestiller → godkjenner).
  */
 export function byggVideresendValg(
-  alleEntrepriser: EntrepriseData[],
+  alleFaggrupper: FaggruppeData[],
   dokumentflyter: DokumentflytData[],
   templateId: string | null | undefined,
 ): VideresendValg[] {
   const valg: VideresendValg[] = [];
 
-  // Tell antall matchende flyter per entreprise for å avgjøre visningsnavn
-  const flyterPerEntreprise = new Map<string, DokumentflytData[]>();
+  // Tell antall matchende flyter per faggruppe for å avgjøre visningsnavn
+  const flyterPerFaggruppe = new Map<string, DokumentflytData[]>();
 
-  for (const ent of alleEntrepriser) {
+  for (const fg of alleFaggrupper) {
     const matchendeFlyter = dokumentflyter.filter((df) => {
-      if (df.enterpriseId !== ent.id) return false;
-      if (!templateId) return true; // Ingen mal → vis alle flyter for entreprisen
+      if (df.faggruppeId !== fg.id) return false;
+      if (!templateId) return true; // Ingen mal → vis alle flyter for faggruppen
       return df.maler.some((m) => m.template.id === templateId);
     });
     if (matchendeFlyter.length > 0) {
-      flyterPerEntreprise.set(ent.id, matchendeFlyter);
+      flyterPerFaggruppe.set(fg.id, matchendeFlyter);
     }
   }
 
-  for (const ent of alleEntrepriser) {
-    const flyter = flyterPerEntreprise.get(ent.id);
+  for (const fg of alleFaggrupper) {
+    const flyter = flyterPerFaggruppe.get(fg.id);
     if (!flyter) continue;
 
-    const flereFlyterForEntreprise = flyter.length > 1;
+    const flereFlyterForFaggruppe = flyter.length > 1;
 
     for (const df of flyter) {
       // Utled mottaker: prioriter utfører → bestiller → godkjenner
       const mottaker = finnMottaker(df);
 
-      const visningsnavn = flereFlyterForEntreprise
-        ? `${ent.name} (${df.name})`
-        : ent.name;
+      const visningsnavn = flereFlyterForFaggruppe
+        ? `${fg.name} (${df.name})`
+        : fg.name;
 
       valg.push({
-        key: flereFlyterForEntreprise ? `${ent.id}__${df.id}` : ent.id,
-        entrepriseId: ent.id,
-        entrepriseNavn: ent.name,
+        key: flereFlyterForFaggruppe ? `${fg.id}__${df.id}` : fg.id,
+        faggruppeId: fg.id,
+        faggruppeNavn: fg.name,
         dokumentflytId: df.id,
         dokumentflytNavn: df.name,
         visningsnavn,
-        farge: ent.color,
+        farge: fg.color,
         mottaker,
       });
     }
@@ -131,19 +134,19 @@ interface StatusHandlingerProps {
   erLaster: boolean;
   onEndreStatus: (nyStatus: string, kommentar?: string, mottaker?: { userId?: string; groupId?: string; dokumentflytId?: string }) => void;
   onSlett?: () => void;
-  /** Alle entrepriser i prosjektet */
-  alleEntrepriser?: EntrepriseData[];
+  /** Alle faggrupper i prosjektet */
+  alleFaggrupper?: FaggruppeData[];
   /** Alle dokumentflyter i prosjektet (med maler og medlemmer) */
   dokumentflyter?: DokumentflytData[];
   /** Dokumentets mal-ID for å filtrere relevante dokumentflyter */
   templateId?: string | null;
-  /** ID til standard-entreprise (utfører) */
-  standardEntrepriseId?: string;
+  /** ID til standard-faggruppe (utfører) */
+  standardFaggruppeId?: string;
   /** Brukerens rolle i dokumentflyten (fra utledMinRolle) */
   minRolle?: DokumentflytRolle | null;
 }
 
-export function StatusHandlinger({ status, erLaster, onEndreStatus, onSlett, alleEntrepriser, dokumentflyter, templateId, standardEntrepriseId, minRolle }: StatusHandlingerProps) {
+export function StatusHandlinger({ status, erLaster, onEndreStatus, onSlett, alleFaggrupper, dokumentflyter, templateId, standardFaggruppeId, minRolle }: StatusHandlingerProps) {
   const { t } = useTranslation();
   const [bekreftHandling, setBekreftHandling] = useState<string | null>(null);
   const [kommentar, setKommentar] = useState("");
@@ -154,18 +157,18 @@ export function StatusHandlinger({ status, erLaster, onEndreStatus, onSlett, all
     ? hentRolleFiltrertHandlinger(status, minRolle)
     : hentStatusHandlinger(status);
 
-  // Bygg videresend-valg med entreprise + mal-matching
+  // Bygg videresend-valg med faggruppe + mal-matching
   const videresendValg = useMemo(
-    () => byggVideresendValg(alleEntrepriser ?? [], dokumentflyter ?? [], templateId),
-    [alleEntrepriser, dokumentflyter, templateId],
+    () => byggVideresendValg(alleFaggrupper ?? [], dokumentflyter ?? [], templateId),
+    [alleFaggrupper, dokumentflyter, templateId],
   );
 
-  // Standard-valg: finn key for standard-entreprise
+  // Standard-valg: finn key for standard-faggruppe
   const standardKey = useMemo(() => {
-    if (!standardEntrepriseId) return "";
-    const match = videresendValg.find((v) => v.entrepriseId === standardEntrepriseId);
+    if (!standardFaggruppeId) return "";
+    const match = videresendValg.find((v) => v.faggruppeId === standardFaggruppeId);
     return match?.key ?? "";
-  }, [videresendValg, standardEntrepriseId]);
+  }, [videresendValg, standardFaggruppeId]);
 
   if (handlinger.length === 0) return null;
 
@@ -188,9 +191,9 @@ export function StatusHandlinger({ status, erLaster, onEndreStatus, onSlett, all
         const valgt = videresendValg.find((v) => v.key === aktivKey);
         mottaker = valgt?.mottaker ? { ...valgt.mottaker, dokumentflytId: valgt.dokumentflytId } : undefined;
         if (!mottaker) return;
-      } else if (standardEntrepriseId) {
-        // Normal overgang: utled mottaker fra standard-entreprisens flyt
-        const standard = videresendValg.find((v) => v.entrepriseId === standardEntrepriseId);
+      } else if (standardFaggruppeId) {
+        // Normal overgang: utled mottaker fra standard-faggruppens flyt
+        const standard = videresendValg.find((v) => v.faggruppeId === standardFaggruppeId);
         mottaker = standard?.mottaker;
       }
 
@@ -211,7 +214,7 @@ export function StatusHandlinger({ status, erLaster, onEndreStatus, onSlett, all
     setValgtKey("");
   };
 
-  const visEntrepriseVelger = bekreftHandling === "forwarded" && videresendValg.length > 1;
+  const visFaggruppeVelger = bekreftHandling === "forwarded" && videresendValg.length > 1;
 
   return (
     <div className="flex flex-col gap-2">
@@ -244,7 +247,7 @@ export function StatusHandlinger({ status, erLaster, onEndreStatus, onSlett, all
       </div>
       {bekreftHandling && (
         <div className="flex max-w-lg flex-col gap-2">
-          {visEntrepriseVelger && (
+          {visFaggruppeVelger && (
             <select
               value={valgtKey || standardKey}
               onChange={(e) => setValgtKey(e.target.value)}
@@ -266,7 +269,7 @@ export function StatusHandlinger({ status, erLaster, onEndreStatus, onSlett, all
             }}
             placeholder={t("statushandling.valgfriKommentar")}
             className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
-            autoFocus={!visEntrepriseVelger}
+            autoFocus={!visFaggruppeVelger}
           />
         </div>
       )}

@@ -105,7 +105,7 @@ export default function FieldSide() {
         { label: t("oppsett.oppgavemaler"), href: "/dashbord/oppsett/produksjon/oppgavemaler" },
         { label: t("produksjon.hurtigOverskrifter"), href: "/dashbord/oppsett/produksjon/hurtig-overskrifter" },
         { label: t("produksjon.bransjekartlegging"), href: "/dashbord/oppsett/produksjon/bransjekartlegging" },
-        { label: t("produksjon.entreprisetilknytning"), href: "/dashbord/oppsett/produksjon/entrepriser" },
+        { label: t("produksjon.faggruppetilknytning"), href: "/dashbord/oppsett/produksjon/faggrupper" },
         { label: t("produksjon.malerOppgavenotifikasjon"), href: "/dashbord/oppsett/produksjon/oppgavenotifikasjon" },
       ],
     },
@@ -117,7 +117,7 @@ export default function FieldSide() {
         { label: t("oppsett.sjekklistemaler"), href: "/dashbord/oppsett/produksjon/sjekklistemaler" },
         { label: t("produksjon.sjekklisteHoldepunkt"), href: "/dashbord/oppsett/produksjon/sjekklistemaler-holdepunkt" },
         { label: t("produksjon.slettedeSjekklister"), href: "/dashbord/oppsett/produksjon/slettede-sjekklister" },
-        { label: t("produksjon.entreprisetilknytning"), href: "/dashbord/oppsett/produksjon/sjekkliste-entrepriser" },
+        { label: t("produksjon.faggruppetilknytning"), href: "/dashbord/oppsett/produksjon/sjekkliste-faggrupper" },
       ],
     },
     {

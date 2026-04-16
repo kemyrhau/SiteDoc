@@ -154,7 +154,7 @@ export function LandingInnhold() {
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {[
               { ikon: <CheckSquare className="h-5 w-5" />, tittel: t("landing.oppgaver"), beskrivelse: t("landing.oppgaverBeskrivelse") },
-              { ikon: <Users className="h-5 w-5" />, tittel: t("landing.entrepriseflyt"), beskrivelse: t("landing.entrepriseflytBeskrivelse") },
+              { ikon: <Users className="h-5 w-5" />, tittel: t("landing.dokumentflyt"), beskrivelse: t("landing.dokumentflytBeskrivelse") },
               { ikon: <Globe className="h-5 w-5" />, tittel: t("landing.spraak"), beskrivelse: t("landing.spraakBeskrivelse") },
               { ikon: <BarChart3 className="h-5 w-5" />, tittel: t("landing.okonomi"), beskrivelse: t("landing.okonomiBeskrivelse") },
               { ikon: <Camera className="h-5 w-5" />, tittel: t("landing.bilder"), beskrivelse: t("landing.bilderBeskrivelse") },

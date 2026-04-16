@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { router, protectedProcedure } from "../trpc/trpc";
-import { createProjectSchema, STANDARD_PROJECT_GROUPS, PROSJEKT_MODULER, STANDARD_ENTREPRISER, STANDARD_DOKUMENTFLYTER } from "@sitedoc/shared";
+import { createProjectSchema, STANDARD_PROJECT_GROUPS, PROSJEKT_MODULER, STANDARD_FAGGRUPPER, STANDARD_DOKUMENTFLYTER } from "@sitedoc/shared";
 import { generateProjectNumber } from "@sitedoc/shared";
 import type { Prisma } from "@sitedoc/db";
 import {
@@ -17,7 +17,7 @@ export const prosjektRouter = router({
       where: erSitedocAdmin ? {} : { members: { some: { userId: ctx.userId } } },
       orderBy: { updatedAt: "desc" },
       include: {
-        dokumentflytParts: true,
+        faggrupper: true,
         _count: { select: { members: true } },
       },
     });
@@ -31,7 +31,7 @@ export const prosjektRouter = router({
       where: erSitedocAdmin ? {} : { members: { some: { userId: ctx.userId } } },
       orderBy: { createdAt: "desc" },
       include: {
-        dokumentflytParts: true,
+        faggrupper: true,
         _count: { select: { members: true } },
       },
     });
@@ -46,11 +46,11 @@ export const prosjektRouter = router({
       return ctx.prisma.project.findUniqueOrThrow({
         where: { id: input.id },
         include: {
-          dokumentflytParts: true,
+          faggrupper: true,
           members: {
             include: {
               user: true,
-              dokumentflytKoblinger: { include: { dokumentflytPart: true } },
+              faggruppeKoblinger: { include: { faggruppe: true } },
             },
           },
           templates: true,
@@ -189,30 +189,30 @@ export const prosjektRouter = router({
           }
         }
 
-        // Opprett standard entrepriser
-        const entrepriseIder: string[] = [];
-        for (const entDef of STANDARD_ENTREPRISER) {
-          const ent = await tx.dokumentflytPart.create({
+        // Opprett standard faggrupper
+        const faggruppeIder: string[] = [];
+        for (const fgDef of STANDARD_FAGGRUPPER) {
+          const fg = await tx.faggruppe.create({
             data: {
               projectId: prosjekt.id,
-              name: entDef.navn,
-              industry: entDef.bransje,
-              color: entDef.farge,
-              enterpriseNumber: entDef.entreprisenummer,
+              name: fgDef.navn,
+              industry: fgDef.bransje,
+              color: fgDef.farge,
+              faggruppeNummer: fgDef.faggruppeNummer,
             },
           });
-          entrepriseIder.push(ent.id);
+          faggruppeIder.push(fg.id);
         }
 
-        // Koble bruker til Byggherre-entreprisen (første)
+        // Koble bruker til Byggherre-faggruppen (første)
         const medlem = await tx.projectMember.findFirst({
           where: { projectId: prosjekt.id, userId: ctx.userId },
         });
-        if (medlem && entrepriseIder.length > 0) {
-          await tx.dokumentflytKobling.create({
+        if (medlem && faggruppeIder.length > 0) {
+          await tx.faggruppeKobling.create({
             data: {
               projectMemberId: medlem.id,
-              enterpriseId: entrepriseIder[0]!,
+              faggruppeId: faggruppeIder[0]!,
             },
           });
         }
@@ -231,11 +231,11 @@ export const prosjektRouter = router({
 
           // Legg til oppretter-medlemmer
           for (const idx of flytDef.oppretter) {
-            if (idx < entrepriseIder.length) {
+            if (idx < faggruppeIder.length) {
               await tx.dokumentflytMedlem.create({
                 data: {
                   dokumentflytId: flyt.id,
-                  enterpriseId: entrepriseIder[idx],
+                  faggruppeId: faggruppeIder[idx],
                   rolle: "bestiller",
                   steg: 1,
                 },
@@ -245,11 +245,11 @@ export const prosjektRouter = router({
 
           // Legg til svarer-medlemmer
           for (const idx of flytDef.svarer) {
-            if (idx < entrepriseIder.length) {
+            if (idx < faggruppeIder.length) {
               await tx.dokumentflytMedlem.create({
                 data: {
                   dokumentflytId: flyt.id,
-                  enterpriseId: entrepriseIder[idx],
+                  faggruppeId: faggruppeIder[idx],
                   rolle: "utforer",
                   steg: 1,
                 },

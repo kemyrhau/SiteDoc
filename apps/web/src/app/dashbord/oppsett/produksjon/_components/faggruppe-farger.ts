@@ -1,4 +1,4 @@
-export interface EntrepriseFarge {
+export interface FaggruppeFarge {
   bg: string;
   border: string;
   tekst: string;
@@ -7,7 +7,7 @@ export interface EntrepriseFarge {
   lyseTekst: string;
 }
 
-export const FARGE_MAP: Record<string, EntrepriseFarge> = {
+export const FARGE_MAP: Record<string, FaggruppeFarge> = {
   blue: { bg: "bg-blue-600", border: "border-blue-700", tekst: "text-white", lyseBg: "bg-blue-50", lyseBorder: "border-blue-200", lyseTekst: "text-blue-700" },
   emerald: { bg: "bg-emerald-600", border: "border-emerald-700", tekst: "text-white", lyseBg: "bg-emerald-50", lyseBorder: "border-emerald-200", lyseTekst: "text-emerald-700" },
   purple: { bg: "bg-purple-600", border: "border-purple-700", tekst: "text-white", lyseBg: "bg-purple-50", lyseBorder: "border-purple-200", lyseTekst: "text-purple-700" },
@@ -42,21 +42,21 @@ export const FARGE_MAP: Record<string, EntrepriseFarge> = {
   "sky-800": { bg: "bg-sky-800", border: "border-sky-900", tekst: "text-white", lyseBg: "bg-sky-100", lyseBorder: "border-sky-300", lyseTekst: "text-sky-800" },
 };
 
-const FALLBACK_FARGE: EntrepriseFarge = FARGE_MAP["blue"]!;
+const FALLBACK_FARGE: FaggruppeFarge = FARGE_MAP["blue"]!;
 const FARGE_NOKLER = Object.keys(FARGE_MAP);
 
-export function hentFarge(indeks: number): EntrepriseFarge {
+export function hentFarge(indeks: number): FaggruppeFarge {
   return FARGE_MAP[FARGE_NOKLER[indeks % FARGE_NOKLER.length]!] ?? FALLBACK_FARGE;
 }
 
-export function hentFargeForEntreprise(color: string | null | undefined, fallbackIndeks: number): EntrepriseFarge {
+export function hentFargeForFaggruppe(color: string | null | undefined, fallbackIndeks: number): FaggruppeFarge {
   if (color && FARGE_MAP[color]) return FARGE_MAP[color];
   // Fallback: bruk indeks for å plukke en farge fra rekkefølgen
   const fargeNokler = Object.keys(FARGE_MAP);
   return FARGE_MAP[fargeNokler[fallbackIndeks % fargeNokler.length]!] ?? FALLBACK_FARGE;
 }
 
-/** Velg neste ledige farge basert på eksisterende entrepriser */
+/** Velg neste ledige farge basert på eksisterende faggrupper */
 export function nesteAutoFarge(eksisterendeFarger: (string | null | undefined)[]): string {
   const brukteFarger = new Set(eksisterendeFarger.filter(Boolean));
   const fargeNokler = Object.keys(FARGE_MAP);
