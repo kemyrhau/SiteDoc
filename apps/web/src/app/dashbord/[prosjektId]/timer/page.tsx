@@ -59,12 +59,40 @@ const DEMO_SEDLER: Dagsseddel[] = [
   { id: "5", dato: "2026-04-11", ansatt: "Florian Aschwanden - A. Markussen AS", prosjekt: "E6 Kvænangsfjellet", totaltimer: 8, normaltid: 7.5, overtid50: 0.5, overtid100: 0, reisetid: 0, overtidsmat: false, nattillegg: false, helgetillegg: false, tilleggsarbeid: null, maskiner: 1, utlegg: 89, status: "utkast" },
 ];
 
-const DEMO_UKE: { dag: string; dato: string; prosjekt: string | null; timer: number | null }[] = [
-  { dag: "Man", dato: "14. apr", prosjekt: "998 Innstifjordbotn", timer: 7.5 },
-  { dag: "Tir", dato: "15. apr", prosjekt: "E6 Kvænangsfjellet", timer: 10 },
-  { dag: "Ons", dato: "16. apr", prosjekt: null, timer: null },
-  { dag: "Tor", dato: "17. apr", prosjekt: null, timer: null },
-  { dag: "Fre", dato: "18. apr", prosjekt: null, timer: null },
+// Ukedager — kolonne-headers
+const UKEDAGER = [
+  { dag: "Man", dato: "14." },
+  { dag: "Tir", dato: "15." },
+  { dag: "Ons", dato: "16." },
+  { dag: "Tor", dato: "17." },
+  { dag: "Fre", dato: "18." },
+];
+
+// Prosjekt-rader med tilleggsarbeid-underrader
+interface UkeProsjekt {
+  prosjekt: string;
+  timer: (number | null)[]; // index 0=man, 1=tir, ...
+  underrader: { label: string; timer: (number | null)[] }[];
+}
+
+const DEMO_UKE_PROSJEKTER: UkeProsjekt[] = [
+  {
+    prosjekt: "998 Innstifjordbotn",
+    timer: [7.5, null, null, 8.0, 7.5],
+    underrader: [
+      { label: "ordinære", timer: [7.5, null, null, 1.0, 7.5] },
+      { label: "E-042 Kabelgrøft", timer: [null, null, null, 5.0, null] },
+      { label: "E-038 Armering", timer: [null, null, null, 2.0, null] },
+    ],
+  },
+  {
+    prosjekt: "E6 Kvænangsfjellet",
+    timer: [null, 10.0, 7.5, null, null],
+    underrader: [
+      { label: "ordinære", timer: [null, 6.0, 7.5, null, null] },
+      { label: "E-051 Drenering", timer: [null, 4.0, null, null, null] },
+    ],
+  },
 ];
 
 /* ------------------------------------------------------------------ */
@@ -89,25 +117,72 @@ function genId() { return `tmp-${++_id}`; }
 /* ------------------------------------------------------------------ */
 
 function StatistikkPanel({ t }: { t: (k: string) => string }) {
-  const ukeSum = DEMO_UKE.reduce((s, d) => s + (d.timer ?? 0), 0);
+  // Beregn dagssum og ukesum
+  const dagsSummer = UKEDAGER.map((_, i) =>
+    DEMO_UKE_PROSJEKTER.reduce((s, p) => s + (p.timer[i] ?? 0), 0)
+  );
+  const ukeSum = dagsSummer.reduce((s, v) => s + v, 0);
 
   return (
     <div className="space-y-5">
       {/* Denne uken */}
       <div>
         <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500">Uke 16 — 14.–18. apr</h3>
-        <div className="space-y-1">
-          {DEMO_UKE.map((d) => (
-            <div key={d.dag} className={`flex items-center justify-between rounded px-2 py-1.5 text-sm ${d.timer ? "text-gray-700" : "text-gray-300"}`}>
-              <span className="w-12 font-medium">{d.dag}</span>
-              <span className="flex-1 truncate px-2 text-xs">{d.prosjekt ?? "—"}</span>
-              <span className="tabular-nums font-medium">{d.timer ? `${d.timer}t` : "—"}</span>
-            </div>
+
+        {/* Kolonne-header */}
+        <div className="flex items-center gap-0 px-1 pb-1 text-[10px] font-medium uppercase tracking-wider text-gray-400">
+          <span className="flex-1"></span>
+          {UKEDAGER.map((d) => (
+            <span key={d.dag} className="w-9 text-right">{d.dag}</span>
           ))}
-          <div className="mt-1 flex items-center justify-between border-t border-gray-200 px-2 pt-2 text-sm font-semibold text-gray-900">
-            <span>Sum</span>
-            <span className="tabular-nums">{ukeSum}t</span>
-          </div>
+          <span className="w-11 text-right">Sum</span>
+        </div>
+
+        {/* Prosjekt-rader */}
+        <div className="space-y-0">
+          {DEMO_UKE_PROSJEKTER.map((p) => {
+            const prosjektSum = p.timer.reduce((s, v) => s + (v ?? 0), 0);
+            return (
+              <div key={p.prosjekt} className="border-t border-gray-100">
+                {/* Hovedrad */}
+                <div className="flex items-center gap-0 px-1 py-1.5">
+                  <span className="flex-1 truncate text-xs font-semibold text-gray-800">{p.prosjekt}</span>
+                  {p.timer.map((v, i) => (
+                    <span key={i} className={`w-9 text-right text-xs tabular-nums ${v ? "font-semibold text-gray-700" : "text-gray-300"}`}>
+                      {v ? `${v}` : "—"}
+                    </span>
+                  ))}
+                  <span className="w-11 text-right text-xs tabular-nums font-semibold text-gray-900">{prosjektSum}t</span>
+                </div>
+                {/* Underrader */}
+                {p.underrader.map((u) => {
+                  const underSum = u.timer.reduce((s, v) => s + (v ?? 0), 0);
+                  return (
+                    <div key={u.label} className="flex items-center gap-0 px-1 py-0.5">
+                      <span className="flex-1 truncate text-[11px] italic text-gray-400 pl-2">· {u.label}</span>
+                      {u.timer.map((v, i) => (
+                        <span key={i} className={`w-9 text-right text-[11px] tabular-nums ${v ? "text-gray-400" : "text-gray-200"}`}>
+                          {v ? `${v}` : "—"}
+                        </span>
+                      ))}
+                      <span className="w-11 text-right text-[11px] tabular-nums text-gray-400">{underSum}t</span>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Sumrad */}
+        <div className="flex items-center gap-0 border-t-2 border-gray-300 px-1 pt-1.5">
+          <span className="flex-1 text-xs font-semibold text-gray-900">Sum</span>
+          {dagsSummer.map((v, i) => (
+            <span key={i} className={`w-9 text-right text-xs tabular-nums font-semibold ${v > 0 ? "text-gray-900" : "text-gray-300"}`}>
+              {v > 0 ? `${v}` : "—"}
+            </span>
+          ))}
+          <span className="w-11 text-right text-xs tabular-nums font-bold text-gray-900">{ukeSum}t</span>
         </div>
       </div>
 
