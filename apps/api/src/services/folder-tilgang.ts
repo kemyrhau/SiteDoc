@@ -19,7 +19,7 @@ export async function hentTilgjengeligeMappeIder(
   const medlem = await prisma.projectMember.findUnique({
     where: { userId_projectId: { userId, projectId } },
     include: {
-      dokumentflytKoblinger: { select: { enterpriseId: true } },
+      faggruppeKoblinger: { select: { faggruppeId: true } },
       groupMemberships: {
         include: {
           group: { select: { id: true, slug: true } },
@@ -38,9 +38,9 @@ export async function hentTilgjengeligeMappeIder(
   );
   if (erFeltarbeidAdmin) return null;
 
-  // 4. Finn mapper via FolderAccess (direkte + gruppe + entreprise)
+  // 4. Finn mapper via FolderAccess (direkte + gruppe + faggruppe)
   const gruppeIder = medlem.groupMemberships.map((gm) => gm.group.id);
-  const entrepriseIder = medlem.dokumentflytKoblinger.map((e) => e.enterpriseId);
+  const faggruppeIder = medlem.faggruppeKoblinger.map((e) => e.faggruppeId);
 
   // Hent alle mapper i prosjektet med accessEntries
   const mapper = await prisma.folder.findMany({
@@ -68,7 +68,7 @@ export async function hentTilgjengeligeMappeIder(
           mapper,
           userId,
           gruppeIder,
-          entrepriseIder,
+          faggruppeIder,
         )
       ) {
         tilgjengelige.add(mappe.id);
@@ -80,7 +80,7 @@ export async function hentTilgjengeligeMappeIder(
           mappe.accessEntries,
           userId,
           gruppeIder,
-          entrepriseIder,
+          faggruppeIder,
         )
       ) {
         tilgjengelige.add(mappe.id);
@@ -97,7 +97,7 @@ interface MappeEntry {
   accessMode: string;
   accessEntries: {
     accessType: string;
-    enterpriseId: string | null;
+    faggruppeId: string | null;
     groupId: string | null;
     userId: string | null;
   }[];
@@ -117,7 +117,7 @@ function harTilgangViaAncestor(
   mapper: MappeEntry[],
   userId: string,
   gruppeIder: string[],
-  entrepriseIder: string[],
+  faggruppeIder: string[],
 ): boolean {
   const mappe = mapper.find((m) => m.id === mappeId);
   if (!mappe || !mappe.parentId) return true; // Root med inherit → åpen
@@ -128,7 +128,7 @@ function harTilgangViaAncestor(
       forelder.accessEntries,
       userId,
       gruppeIder,
-      entrepriseIder,
+      faggruppeIder,
     );
   }
   return harTilgangViaAncestor(
@@ -136,7 +136,7 @@ function harTilgangViaAncestor(
     mapper,
     userId,
     gruppeIder,
-    entrepriseIder,
+    faggruppeIder,
   );
 }
 
@@ -144,7 +144,7 @@ function harDirekteTilgang(
   entries: MappeEntry["accessEntries"],
   userId: string,
   gruppeIder: string[],
-  entrepriseIder: string[],
+  faggruppeIder: string[],
 ): boolean {
   return entries.some((entry) => {
     if (entry.accessType === "user" && entry.userId === userId) return true;
@@ -155,9 +155,9 @@ function harDirekteTilgang(
     )
       return true;
     if (
-      entry.accessType === "enterprise" &&
-      entry.enterpriseId &&
-      entrepriseIder.includes(entry.enterpriseId)
+      entry.accessType === "faggruppe" &&
+      entry.faggruppeId &&
+      faggruppeIder.includes(entry.faggruppeId)
     )
       return true;
     return false;

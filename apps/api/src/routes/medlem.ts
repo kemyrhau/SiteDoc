@@ -26,16 +26,16 @@ export const medlemRouter = router({
               organization: { select: { id: true, name: true } },
             },
           },
-          dokumentflytKoblinger: {
-            include: { dokumentflytPart: { select: { id: true, name: true, color: true } } },
+          faggruppeKoblinger: {
+            include: { faggruppe: { select: { id: true, name: true, color: true } } },
           },
         },
         orderBy: { createdAt: "asc" },
       });
     }),
 
-  // Hent mine entrepriser i et prosjekt (for innlogget bruker)
-  hentMineEntrepriser: protectedProcedure
+  // Hent mine faggrupper i et prosjekt (for innlogget bruker)
+  hentMineFaggrupper: protectedProcedure
     .input(z.object({ projectId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       await verifiserProsjektmedlem(ctx.userId, input.projectId);
@@ -48,15 +48,15 @@ export const medlemRouter = router({
           },
         },
         include: {
-          dokumentflytKoblinger: {
-            include: { dokumentflytPart: true },
+          faggruppeKoblinger: {
+            include: { faggruppe: true },
           },
         },
       });
 
       if (!medlem) return [];
 
-      // Registratorer (create_checklists/create_tasks) eller admin → se alle entrepriser
+      // Registratorer (create_checklists/create_tasks) eller admin → se alle faggrupper
       const tillatelser = await hentBrukerTillatelser(ctx.userId, input.projectId);
       const erRegistrator = tillatelser.has("create_checklists") || tillatelser.has("create_tasks");
       if (erRegistrator || medlem.role === "admin") {
@@ -67,7 +67,7 @@ export const medlemRouter = router({
         return alle;
       }
 
-      return medlem.dokumentflytKoblinger.map((me) => me.dokumentflytPart);
+      return medlem.faggruppeKoblinger.map((me) => me.faggruppe);
     }),
 
   // Hent mine tillatelser i et prosjekt
@@ -170,19 +170,19 @@ export const medlemRouter = router({
       });
 
       if (eksisterende) {
-        // Legg til nye entreprise-tilknytninger
-        if (input.enterpriseIds.length > 0) {
-          for (const entId of input.enterpriseIds) {
-            await ctx.prisma.dokumentflytKobling.upsert({
+        // Legg til nye faggruppe-tilknytninger
+        if (input.faggruppeIder.length > 0) {
+          for (const entId of input.faggruppeIder) {
+            await ctx.prisma.faggruppeKobling.upsert({
               where: {
-                projectMemberId_enterpriseId: {
+                projectMemberId_faggruppeId: {
                   projectMemberId: eksisterende.id,
-                  enterpriseId: entId,
+                  faggruppeId: entId,
                 },
               },
               create: {
                 projectMemberId: eksisterende.id,
-                enterpriseId: entId,
+                faggruppeId: entId,
               },
               update: {},
             });
@@ -192,7 +192,7 @@ export const medlemRouter = router({
           where: { id: eksisterende.id },
           include: {
             user: true,
-            dokumentflytKoblinger: { include: { dokumentflytPart: true } },
+            faggruppeKoblinger: { include: { faggruppe: true } },
           },
         });
       }
@@ -202,15 +202,15 @@ export const medlemRouter = router({
           userId: user.id,
           projectId: input.projectId,
           role: input.role,
-          dokumentflytKoblinger: {
-            create: input.enterpriseIds.map((entId) => ({
-              enterpriseId: entId,
+          faggruppeKoblinger: {
+            create: input.faggruppeIder.map((entId) => ({
+              faggruppeId: entId,
             })),
           },
         },
         include: {
           user: true,
-          dokumentflytKoblinger: { include: { dokumentflytPart: true } },
+          faggruppeKoblinger: { include: { faggruppe: true } },
         },
       });
 
@@ -241,7 +241,7 @@ export const medlemRouter = router({
               token,
               projectId: input.projectId,
               role: input.role,
-              enterpriseId: input.enterpriseIds[0] ?? undefined,
+              faggruppeId: input.faggruppeIder[0] ?? undefined,
               invitedByUserId: ctx.userId,
               expiresAt: utloper,
             },
@@ -290,7 +290,7 @@ export const medlemRouter = router({
         data: { role: input.role },
         include: {
           user: true,
-          dokumentflytKoblinger: { include: { dokumentflytPart: true } },
+          faggruppeKoblinger: { include: { faggruppe: true } },
         },
       });
     }),
@@ -353,55 +353,55 @@ export const medlemRouter = router({
         where: { id: input.id },
         include: {
           user: true,
-          dokumentflytKoblinger: { include: { dokumentflytPart: true } },
+          faggruppeKoblinger: { include: { faggruppe: true } },
         },
       });
     }),
 
-  // Tilknytt et eksisterende prosjektmedlem til en entreprise
-  tilknyttEntreprise: protectedProcedure
+  // Tilknytt et eksisterende prosjektmedlem til en faggruppe
+  tilknyttFaggruppe: protectedProcedure
     .input(
       z.object({
         projectMemberId: z.string().uuid(),
-        enterpriseId: z.string().uuid(),
+        faggruppeId: z.string().uuid(),
         projectId: z.string().uuid(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
       await verifiserAdmin(ctx.userId, input.projectId);
 
-      return ctx.prisma.dokumentflytKobling.upsert({
+      return ctx.prisma.faggruppeKobling.upsert({
         where: {
-          projectMemberId_enterpriseId: {
+          projectMemberId_faggruppeId: {
             projectMemberId: input.projectMemberId,
-            enterpriseId: input.enterpriseId,
+            faggruppeId: input.faggruppeId,
           },
         },
         create: {
           projectMemberId: input.projectMemberId,
-          enterpriseId: input.enterpriseId,
+          faggruppeId: input.faggruppeId,
         },
         update: {},
       });
     }),
 
-  // Fjern et prosjektmedlem fra en entreprise (fjerner MemberEnterprise-kobling)
-  fjernFraEntreprise: protectedProcedure
+  // Fjern et prosjektmedlem fra en faggruppe (fjerner FaggruppeKobling)
+  fjernFraFaggruppe: protectedProcedure
     .input(
       z.object({
         projectMemberId: z.string().uuid(),
-        enterpriseId: z.string().uuid(),
+        faggruppeId: z.string().uuid(),
         projectId: z.string().uuid(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
       await verifiserAdmin(ctx.userId, input.projectId);
 
-      return ctx.prisma.dokumentflytKobling.delete({
+      return ctx.prisma.faggruppeKobling.delete({
         where: {
-          projectMemberId_enterpriseId: {
+          projectMemberId_faggruppeId: {
             projectMemberId: input.projectMemberId,
-            enterpriseId: input.enterpriseId,
+            faggruppeId: input.faggruppeId,
           },
         },
       });

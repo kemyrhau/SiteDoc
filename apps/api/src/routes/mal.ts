@@ -63,7 +63,7 @@ export const malRouter = router({
         domain: z.enum(["bygg", "hms", "kvalitet"]).optional(),
         subjects: z.array(z.string().max(255)).optional(),
         showSubject: z.boolean().optional(),
-        showEnterprise: z.boolean().optional(),
+        showFaggruppe: z.boolean().optional(),
         showLocation: z.boolean().optional(),
         showPriority: z.boolean().optional(),
         enableChangeLog: z.boolean().optional(),

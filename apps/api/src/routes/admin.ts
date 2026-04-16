@@ -37,7 +37,7 @@ export const adminRouter = router({
     const prosjekter = await ctx.prisma.project.findMany({
       include: {
         members: { select: { id: true, user: { select: { name: true, email: true } } } },
-        dokumentflytParts: { select: { id: true } },
+        faggrupper: { select: { id: true } },
         organizationProjects: {
           include: { organization: { select: { id: true, name: true } } },
         },
@@ -49,22 +49,22 @@ export const adminRouter = router({
     const prosjektIder = prosjekter.map((p) => p.id);
     const [sjekklisteTellere, oppgaveTellere] = await Promise.all([
       ctx.prisma.checklist.groupBy({
-        by: ["bestillerEnterpriseId"],
+        by: ["bestillerFaggruppeId"],
         _count: true,
-        where: { bestillerEnterprise: { projectId: { in: prosjektIder } } },
+        where: { bestillerFaggruppe: { projectId: { in: prosjektIder } } },
       }),
       ctx.prisma.task.groupBy({
-        by: ["bestillerEnterpriseId"],
+        by: ["bestillerFaggruppeId"],
         _count: true,
-        where: { bestillerEnterprise: { projectId: { in: prosjektIder } } },
+        where: { bestillerFaggruppe: { projectId: { in: prosjektIder } } },
       }),
     ]);
 
-    // Bygg enterprise→prosjekt-mapping
-    const enterpriseProsjektMap = new Map<string, string>();
+    // Bygg faggruppe→prosjekt-mapping
+    const faggruppeProsjektMap = new Map<string, string>();
     for (const p of prosjekter) {
-      for (const e of p.dokumentflytParts) {
-        enterpriseProsjektMap.set(e.id, p.id);
+      for (const e of p.faggrupper) {
+        faggruppeProsjektMap.set(e.id, p.id);
       }
     }
 
@@ -72,11 +72,11 @@ export const adminRouter = router({
     const sjekklistePerProsjekt = new Map<string, number>();
     const oppgavePerProsjekt = new Map<string, number>();
     for (const s of sjekklisteTellere) {
-      const pid = enterpriseProsjektMap.get(s.bestillerEnterpriseId);
+      const pid = faggruppeProsjektMap.get(s.bestillerFaggruppeId);
       if (pid) sjekklistePerProsjekt.set(pid, (sjekklistePerProsjekt.get(pid) ?? 0) + s._count);
     }
     for (const o of oppgaveTellere) {
-      const pid = o.bestillerEnterpriseId ? enterpriseProsjektMap.get(o.bestillerEnterpriseId) : undefined;
+      const pid = o.bestillerFaggruppeId ? faggruppeProsjektMap.get(o.bestillerFaggruppeId) : undefined;
       if (pid) oppgavePerProsjekt.set(pid, (oppgavePerProsjekt.get(pid) ?? 0) + o._count);
     }
 
@@ -236,18 +236,18 @@ export const adminRouter = router({
     .query(async ({ ctx, input }) => {
       await verifiserSiteDocAdmin(ctx.prisma, ctx.userId);
 
-      const entFilter = { bestillerEnterprise: { projectId: input.projectId } };
-      const [sjekklister, oppgaver, maler, entrepriser, medlemmer, tegninger, mapper] = await Promise.all([
-        ctx.prisma.checklist.count({ where: entFilter }),
-        ctx.prisma.task.count({ where: entFilter }),
+      const fgFilter = { bestillerFaggruppe: { projectId: input.projectId } };
+      const [sjekklister, oppgaver, maler, faggrupper, medlemmer, tegninger, mapper] = await Promise.all([
+        ctx.prisma.checklist.count({ where: fgFilter }),
+        ctx.prisma.task.count({ where: fgFilter }),
         ctx.prisma.reportTemplate.count({ where: { projectId: input.projectId } }),
-        ctx.prisma.dokumentflytPart.count({ where: { projectId: input.projectId } }),
+        ctx.prisma.faggruppe.count({ where: { projectId: input.projectId } }),
         ctx.prisma.projectMember.count({ where: { projectId: input.projectId } }),
         ctx.prisma.drawing.count({ where: { projectId: input.projectId } }),
         ctx.prisma.folder.count({ where: { projectId: input.projectId } }),
       ]);
 
-      return { sjekklister, oppgaver, maler, entrepriser, medlemmer, tegninger, mapper };
+      return { sjekklister, oppgaver, maler, faggrupper, medlemmer, tegninger, mapper };
     }),
 
   // Slett prosjekt med all data (kun sitedoc_admin)
@@ -378,18 +378,18 @@ export const adminRouter = router({
     });
   }),
 
-  // Hent Enterprise uten organisasjon (standalone)
-  hentStandaloneEnterprises: protectedProcedure.query(async ({ ctx }) => {
+  // Hent faggrupper uten organisasjon (standalone)
+  hentStandaloneFaggrupper: protectedProcedure.query(async ({ ctx }) => {
     await verifiserSiteDocAdmin(ctx.prisma, ctx.userId);
 
-    return ctx.prisma.dokumentflytPart.findMany({
+    return ctx.prisma.faggruppe.findMany({
       select: {
         id: true,
         name: true,
         companyName: true,
-        enterpriseNumber: true,
+        faggruppeNummer: true,
         project: { select: { id: true, name: true, projectNumber: true } },
-        dokumentflytKoblinger: { select: { id: true } },
+        faggruppeKoblinger: { select: { id: true } },
       },
       orderBy: { name: "asc" },
     });

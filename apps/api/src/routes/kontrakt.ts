@@ -11,7 +11,7 @@ export const kontraktRouter = router({
         where: { projectId: input.projectId },
         include: {
           byggeplass: { select: { id: true, name: true, number: true } },
-          _count: { select: { dokumentflytParts: true, dokumenter: true } },
+          _count: { select: { faggrupper: true, dokumenter: true } },
         },
         orderBy: { createdAt: "asc" },
       });
@@ -67,8 +67,8 @@ export const kontraktRouter = router({
   slett: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      // Fjern kontrakt-kobling fra entrepriser og dokumenter først
-      await ctx.prisma.dokumentflytPart.updateMany({
+      // Fjern kontrakt-kobling fra faggrupper og dokumenter først
+      await ctx.prisma.faggruppe.updateMany({
         where: { kontraktId: input.id },
         data: { kontraktId: null },
       });
