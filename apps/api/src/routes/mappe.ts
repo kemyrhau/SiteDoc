@@ -33,7 +33,7 @@ export const mappeRouter = router({
           kontrakt: { select: { id: true, navn: true } },
           accessEntries: {
             include: {
-              dokumentflytPart: { select: { id: true, name: true, color: true } },
+              faggruppe: { select: { id: true, name: true, color: true } },
               group: { select: { id: true, name: true } },
               user: { select: { id: true, name: true, email: true } },
             },
@@ -478,7 +478,7 @@ export const mappeRouter = router({
           accessMode: true,
           accessEntries: {
             include: {
-              dokumentflytPart: { select: { id: true, name: true, color: true } },
+              faggruppe: { select: { id: true, name: true, color: true } },
               group: { select: { id: true, name: true } },
               user: { select: { id: true, name: true, email: true } },
             },
@@ -512,7 +512,7 @@ export const mappeRouter = router({
             data: input.entries.map((entry) => ({
               folderId: input.folderId,
               accessType: entry.accessType,
-              enterpriseId: entry.enterpriseId ?? null,
+              faggruppeId: entry.faggruppeId ?? null,
               groupId: entry.groupId ?? null,
               userId: entry.userId ?? null,
             })),
@@ -524,7 +524,7 @@ export const mappeRouter = router({
           include: {
             accessEntries: {
               include: {
-                dokumentflytPart: { select: { id: true, name: true, color: true } },
+                faggruppe: { select: { id: true, name: true, color: true } },
                 group: { select: { id: true, name: true } },
                 user: { select: { id: true, name: true, email: true } },
               },

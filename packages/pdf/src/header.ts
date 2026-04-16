@@ -16,8 +16,8 @@ export interface SjekklisteHeaderData {
   nummer: string | null;
   status: string;
   bestillerNavn?: string | null;
-  bestillerEnterprise?: string | null;
-  utforerEnterprise?: string | null;
+  bestillerFaggruppe?: string | null;
+  utforerFaggruppe?: string | null;
   byggeplassNavn?: string | null;
   tegningNavn?: string | null;
   opprettetDatoTid?: string;
@@ -54,11 +54,11 @@ export function byggSjekklisteHeader(
 
   // Fra → til
   let fraFilHtml = "";
-  if (vis("fraTil") && data.bestillerEnterprise) {
+  if (vis("fraTil") && data.bestillerFaggruppe) {
     const fra = data.bestillerNavn
-      ? `${esc(data.bestillerNavn)} (${esc(data.bestillerEnterprise)})`
-      : esc(data.bestillerEnterprise);
-    const til = data.utforerEnterprise ? ` → ${esc(data.utforerEnterprise)}` : "";
+      ? `${esc(data.bestillerNavn)} (${esc(data.bestillerFaggruppe)})`
+      : esc(data.bestillerFaggruppe);
+    const til = data.utforerFaggruppe ? ` → ${esc(data.utforerFaggruppe)}` : "";
     fraFilHtml = `<div style="font-size:10px;color:#4b5563;">${fra}${til}</div>`;
   }
 
@@ -105,8 +105,8 @@ export interface OppgaveHeaderData {
   visPrioritet?: boolean;
   beskrivelse?: string | null;
   bestillerNavn?: string | null;
-  bestillerEnterprise?: string | null;
-  utforerEnterprise?: string | null;
+  bestillerFaggruppe?: string | null;
+  utforerFaggruppe?: string | null;
   byggeplassNavn?: string | null;
   tegningNavn?: string | null;
   opprettetDatoTid?: string;
@@ -136,11 +136,11 @@ export function byggOppgaveHeader(
   if (vis("tegningsnummer") && data.tegningNavn) lokTegn.push(data.tegningNavn);
 
   let fraFilHtml = "";
-  if (vis("fraTil") && data.bestillerEnterprise) {
+  if (vis("fraTil") && data.bestillerFaggruppe) {
     const fra = data.bestillerNavn
-      ? `${esc(data.bestillerNavn)} (${esc(data.bestillerEnterprise)})`
-      : esc(data.bestillerEnterprise);
-    const til = data.utforerEnterprise ? ` → ${esc(data.utforerEnterprise)}` : "";
+      ? `${esc(data.bestillerNavn)} (${esc(data.bestillerFaggruppe)})`
+      : esc(data.bestillerFaggruppe);
+    const til = data.utforerFaggruppe ? ` → ${esc(data.utforerFaggruppe)}` : "";
     fraFilHtml = `<div style="font-size:10px;color:#4b5563;">${fra}${til}</div>`;
   }
 

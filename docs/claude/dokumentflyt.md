@@ -6,7 +6,7 @@
 Den som opprettet dokumentet. Endres aldri.
 
 ### Eier
-Den som har overordnet ansvar for at dokumentet blir ferdig. Tilhører alltid entreprisen dokumentet ble opprettet i. Kan byttes av en med rett rettighet (se Rettigheter).
+Den som har overordnet ansvar for at dokumentet blir ferdig. Tilhører alltid faggruppen dokumentet ble opprettet i. Kan byttes av en med rett rettighet (se Rettigheter).
 
 Eier settes automatisk ved mottak:
 - Ballen sendes til en person → den personen blir eier
@@ -15,8 +15,8 @@ Eier settes automatisk ved mottak:
 ### Nåværende mottaker
 Den som har ballen akkurat nå. Endres for hvert steg i flyten.
 
-### Entreprise
-Kontraktsforholdet mellom prosjekteier og et fag (Elektro, Tømrer, Rør osv.). Definerer hvilke parter som kan motta et dokument innen denne flyten.
+### Faggruppe
+Prosjektdeltaker innen et fag (Elektro, Tømrer, Rør osv.). Definerer hvilke parter som kan motta et dokument innen denne flyten.
 
 ### Prosjekteier
 HE-Leder eller BH. Avhenger av hvem som eier prosjektet.
@@ -25,7 +25,7 @@ HE-Leder eller BH. Avhenger av hvem som eier prosjektet.
 Uavhengig av hvem som eier eller har ballen akkurat nå. Settes manuelt av nåværende mottaker.
 
 ### Flytboks
-Representerer nåværende mottaker visuelt. Er dynamisk — viser dokumentets bevegelse gjennom flyten. Trenger ikke navn, ettersom entreprisenavnet er selve boksen. Leder i gruppen markeres med blå prikk og mottar ballen automatisk når dokumentet sendes til gruppen.
+Representerer nåværende mottaker visuelt. Er dynamisk — viser dokumentets bevegelse gjennom flyten. Trenger ikke navn, ettersom faggruppenavnet er selve boksen. Leder i gruppen markeres med blå prikk og mottar ballen automatisk når dokumentet sendes til gruppen.
 
 ---
 
@@ -40,7 +40,7 @@ Representerer nåværende mottaker visuelt. Er dynamisk — viser dokumentets be
 | Sletting | Kun i kladd av bruker, alltid av admin/registrator |
 | Låses | Etter godkjenning — kan gjenåpnes |
 | Flyt | Toveis |
-| Kryssentreprise | Kun admin/registrator/prosjekteier |
+| På tvers av faggrupper | Kun admin/registrator/prosjekteier |
 | Fremtidig | Per-ledd konfigurasjon, per-medlem rettighet |
 
 ### Oppgave
@@ -53,7 +53,7 @@ Representerer nåværende mottaker visuelt. Er dynamisk — viser dokumentets be
 | Sletting | Kun i kladd av bruker |
 | Godkjenning/lukk | Admin/registrator i alle flyter, ellers → Ferdig |
 | Flyt | Toveis |
-| Kryssentreprise | Kun admin/registrator/prosjekteier |
+| På tvers av faggrupper | Kun admin/registrator/prosjekteier |
 | Fremtidig | Per-ledd konfigurasjon, per-medlem rettighet |
 
 Oppgave skilles fra sjekkliste ved opprettelse — de to konverteres ikke til hverandre.
@@ -83,11 +83,11 @@ Retursteget til innsender ved godkjenning er automatisk — ikke en manuell send
 | Synlighet | Kun de i flyten |
 | Redigerbar | Per-ledd konfigurasjon (se seksjon 5) |
 | Sletting | Kun i kladd av oppretter |
-| Kryssentreprise | Aldri |
+| På tvers av faggrupper | Aldri |
 | Fremtidig | Full per-ledd låsbarhet, konfigurerbare godkjenningsregler per mal |
 
 Godkjenning kan aldri:
-- Flyttes til en annen entreprise
+- Flyttes til en annen faggruppe
 - Flyttes til en sjekklisteflyt eller oppgaveflyt
 - Slås sammen med en annen godkjenningsflyt
 
@@ -108,7 +108,7 @@ Dokumenter kan refereres som vedlegg på tvers (f.eks. en ferdig Teknisk avklari
 | HMS | Forhåndsvisning | Opprett + fyll ut | Lese alltid |
 | Godkjenning | Forhåndsvisning (hvis i flyten) | Per-ledd | Per-ledd + overstyr |
 
-### Hvem kan sende på tvers av entrepriser
+### Hvem kan sende på tvers av faggrupper
 
 | Rolle | Sjekkliste/Oppgave | Godkjenning | HMS |
 |---|---|---|---|
@@ -129,9 +129,9 @@ Dokumenter kan refereres som vedlegg på tvers (f.eks. en ferdig Teknisk avklari
 **Første/midtre flytboks:**
 ```
 [Send ▾]
-  → Entreprise A (neste i flyten)
+  → Faggruppe A (neste i flyten)
   → Send tilbake (hvis ikke første boks)
-  → Andre entrepriser (hvis tilgang)
+  → Andre faggrupper (hvis tilgang)
 ```
 Kun én mottaker → send direkte uten dropdown.
 
@@ -139,7 +139,7 @@ Kun én mottaker → send direkte uten dropdown.
 ```
 [Godkjenn]  [Avvis]  [Send ▾]
                        → Svar avsender
-                       → Andre entrepriser (hvis tilgang)
+                       → Andre faggrupper (hvis tilgang)
 ```
 
 **Admin-seksjon i dropdown:**
@@ -159,21 +159,21 @@ Registrator/admin ser alltid en egen seksjon med alle flytbokser og manuelle sta
 ## 4. Flytregler
 
 ### Grunnprinsipp
-Ett dokument reiser mellom mennesker. Én eier av gangen. Prosjekteier/admin er koblingspunktet når et dokument må involvere flere entrepriser (kun for sjekklister/oppgaver).
+Ett dokument reiser mellom mennesker. Én eier av gangen. Prosjekteier/admin er koblingspunktet når et dokument må involvere flere faggrupper (kun for sjekklister/oppgaver).
 
 ### Send-modal
-Viser kun entreprisenavn — ikke roller eller tekniske termer. Kun entrepriser brukeren har tilgang til vises. Systemet vet selv at lederen (blå prikk) hos den valgte entreprisen mottar dokumentet.
+Viser kun faggruppenavn — ikke roller eller tekniske termer. Kun faggrupper brukeren har tilgang til vises. Systemet vet selv at lederen (blå prikk) hos den valgte faggruppen mottar dokumentet.
 
-### Eksempel — dokument på tvers av entrepriser
+### Eksempel — dokument på tvers av faggrupper
 
 ```
-Entreprise 1 (HE ↔ Elektro):
+Faggruppe 1 (HE ↔ Elektro):
 [Elektro] → [HE-Leder]
 
-Entreprise 2 (HE ↔ Tømrer):
+Faggruppe 2 (HE ↔ Tømrer):
 [HE-Leder] → [Tømrer] → [HE-Leder]
 
-Entreprise 1 (fortsetter):
+Faggruppe 1 (fortsetter):
 [HE-Leder] → [Elektro] → [HE-Leder] → lukkes
 ```
 
@@ -203,13 +203,13 @@ Flytmal-strukturen må støtte per-ledd-konfigurasjon fra start for alle dokumen
 
 ---
 
-## 6. Validering ved opprettelse av entrepriser
+## 6. Validering ved opprettelse av faggrupper
 
 Systemet skal advare brukeren når dokumentflyt-oppsett er ugyldig:
 - Ingen leder (blå prikk) definert i en gruppe
 - Samme gruppe på begge sider av flyten
 - Flyt uten mottaker
-- Godkjenningsflyt som går på tvers av entrepriser
+- Godkjenningsflyt som går på tvers av faggrupper
 
 ---
 
@@ -218,7 +218,7 @@ Systemet skal advare brukeren når dokumentflyt-oppsett er ugyldig:
 - **Per-ledd låsbarhet** — `låsesEtterPasseringer` finnes i schema, ikke implementert ennå
 - **Per-person rettighet innad i gruppe** — overstyring av kanRedigere per gruppeperson (nå gjelder hele gruppen)
 - **Lenking mellom dokumenter** — referanser/vedlegg på tvers av flyter uten at dokumentet reiser
-- **Tildeling til person** — leder tildeler dokument til spesifikk ansatt innen entreprisen
+- **Tildeling til person** — leder tildeler dokument til spesifikk ansatt innen faggruppen
 - **Varsling** — tildelt person varsles når de får ballen
 - **Flytvisualisering i dokumentlisten** — kompakt visuell indikator per rad: `[Elektro] →●→ [HE] → [Tømrer]`
 - **Konfigurerbare godkjenningsregler per mal** — avvis, send tilbake, antall nivåer

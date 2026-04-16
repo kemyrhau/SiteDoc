@@ -171,7 +171,7 @@ export default function OppgaveDetaljSide() {
     [mineTillatelserRå],
   );
 
-  const { data: alleEntrepriserRå } = trpc.entreprise.hentForProsjekt.useQuery(
+  const { data: alleFaggrupperRå } = trpc.faggruppe.hentForProsjekt.useQuery(
     { projectId: params.prosjektId },
     { enabled: !!params.prosjektId },
   );
@@ -179,7 +179,7 @@ export default function OppgaveDetaljSide() {
     { projectId: params.prosjektId },
     { enabled: !!params.prosjektId },
   );
-  const alleEntrepriser = (alleEntrepriserRå ?? []) as Array<{ id: string; name: string; color: string | null }>;
+  const alleFaggrupper = (alleFaggrupperRå ?? []) as Array<{ id: string; name: string; color: string | null }>;
   const dokumentflyter = (dokumentflyterRå ?? []) as unknown as import("@/components/StatusHandlinger").DokumentflytData[];
 
   // Hent full oppgavedata for tidslinje/recipient/creator (cast for TS2589)
@@ -202,20 +202,20 @@ export default function OppgaveDetaljSide() {
   // Utled brukerens rolle i dokumentflyten — trengs for rettighetInput + handlingsknapper
   const minRolle = useMemo(() => {
     if (!minFlytInfo || !fullOppgaveRå) return undefined;
-    const op = fullOppgaveRå as unknown as { dokumentflytId?: string | null; bestillerEnterprise?: { id: string }; utforerEnterprise?: { id: string } };
+    const op = fullOppgaveRå as unknown as { dokumentflytId?: string | null; bestillerFaggruppe?: { id: string }; utforerFaggruppe?: { id: string } };
     if (!op.dokumentflytId) return undefined;
     const flyt = dokumentflyter.find((df) => df.id === op.dokumentflytId);
     if (!flyt) return null;
     const medlemmer = flyt.medlemmer.map((m): FlytMedlemInfo => ({
       rolle: m.rolle,
-      enterpriseId: m.enterpriseId ?? null,
+      faggruppeId: m.faggruppeId ?? null,
       projectMemberId: m.projectMemberId ?? null,
       groupId: m.groupId ?? null,
     }));
     return utledMinRolle(
       { ...minFlytInfo, userId: "", erAdmin: minFlytInfo.erAdmin },
       medlemmer,
-      { bestillerEnterpriseId: op.bestillerEnterprise?.id ?? "", utforerEnterpriseId: op.utforerEnterprise?.id ?? "" },
+      { bestillerFaggruppeId: op.bestillerFaggruppe?.id ?? "", utforerFaggruppeId: op.utforerFaggruppe?.id ?? "" },
     );
   }, [minFlytInfo, fullOppgaveRå, dokumentflyter]);
 
@@ -228,7 +228,7 @@ export default function OppgaveDetaljSide() {
       id: string;
       medlemmer: Array<{
         kanRedigere: boolean;
-        enterpriseId?: string | null;
+        faggruppeId?: string | null;
         projectMemberId?: string | null;
         groupId?: string | null;
       }>;
@@ -236,7 +236,7 @@ export default function OppgaveDetaljSide() {
     const flyt = rå.find((df) => df.id === op.dokumentflytId);
     if (!flyt) return undefined;
     // Finn brukerens matchende flytmedlem (samme logikk som utledMinRolle)
-    const fi = minFlytInfo as { userId?: string; projectMemberId: string; entrepriseIder: string[]; gruppeIder: string[] };
+    const fi = minFlytInfo as { userId?: string; projectMemberId: string; faggruppeIder: string[]; gruppeIder: string[] };
     for (const m of flyt.medlemmer) {
       if (m.projectMemberId && m.projectMemberId === fi.projectMemberId) return m.kanRedigere ? "redigerer" : "leser";
       if (m.groupId && fi.gruppeIder.includes(m.groupId)) return m.kanRedigere ? "redigerer" : "leser";
@@ -296,7 +296,7 @@ export default function OppgaveDetaljSide() {
   });
 
   // Flytmedlemmer for FlytIndikator og DokumentHandlingsmeny
-  // Bruker dokumentflyterRå (ucastet) for å beholde steg + enterprise-objekter
+  // Bruker dokumentflyterRå (ucastet) for å beholde steg + faggruppe-objekter
   const flytMedlemmer = useMemo(() => {
     const op = oppgave as unknown as { dokumentflytId?: string | null };
     if (!op?.dokumentflytId || !dokumentflyterRå) return [];
@@ -306,7 +306,7 @@ export default function OppgaveDetaljSide() {
         id: string;
         rolle: string;
         steg: number;
-        enterprise: { id: string; name: string } | null;
+        faggruppe: { id: string; name: string } | null;
         projectMember: { user: { id: string; name: string | null } } | null;
         group: { id: string; name: string } | null;
       }>;
@@ -483,10 +483,10 @@ export default function OppgaveDetaljSide() {
                 dokumentflytId: mottaker?.dokumentflytId,
               });
             }}
-            alleEntrepriser={alleEntrepriser}
+            alleFaggrupper={alleFaggrupper}
             dokumentflyter={dokumentflyter}
             templateId={(oppgave as unknown as { templateId?: string }).templateId ?? oppgave.template?.id}
-            standardEntrepriseId={oppgave.utforerEnterprise?.id}
+            standardFaggruppeId={oppgave.utforerFaggruppe?.id}
             minRolle={minRolle}
             flytMedlemmer={flytMedlemmer}
             recipientUserId={(fullOppgaveRå as { recipientUserId?: string | null })?.recipientUserId}

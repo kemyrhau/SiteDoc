@@ -60,8 +60,8 @@ export interface SjekklisteForPdf {
     objects: RapportObjekt[];
   };
   creator?: { name?: string | null } | null;
-  bestillerEnterprise?: { name: string } | null;
-  utforerEnterprise?: { name: string } | null;
+  bestillerFaggruppe?: { name: string } | null;
+  utforerFaggruppe?: { name: string } | null;
   bestiller?: { name?: string | null } | null;
   building?: { name: string } | null;
   drawing?: { name: string; drawingNumber?: string | null; imageWidth?: number | null; imageHeight?: number | null } | null;
@@ -87,8 +87,8 @@ export interface OppgaveForPdf {
     showPriority?: boolean;
   };
   creator?: { name?: string | null } | null;
-  bestillerEnterprise?: { name: string } | null;
-  utforerEnterprise?: { name: string } | null;
+  bestillerFaggruppe?: { name: string } | null;
+  utforerFaggruppe?: { name: string } | null;
   bestiller?: { name?: string | null } | null;
   drawing?: {
     name: string;

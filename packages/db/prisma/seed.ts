@@ -55,16 +55,16 @@ async function seed() {
 
   console.log("  Prosjekter opprettet");
 
-  // Opprett entrepriser
-  const hovedentreprise = await prisma.enterprise.create({
+  // Opprett faggrupper
+  const hovedfaggruppe = await prisma.faggruppe.create({
     data: {
       projectId: prosjekt.id,
-      name: "Hovedentreprise - Bygg AS",
+      name: "Hovedfaggruppe - Bygg AS",
       organizationNumber: "912345678",
     },
   });
 
-  const elEntreprise = await prisma.enterprise.create({
+  const elFaggruppe = await prisma.faggruppe.create({
     data: {
       projectId: prosjekt.id,
       name: "UE Elektro - Strøm & Lys AS",
@@ -72,7 +72,7 @@ async function seed() {
     },
   });
 
-  const rørEntreprise = await prisma.enterprise.create({
+  const rørFaggruppe = await prisma.faggruppe.create({
     data: {
       projectId: prosjekt.id,
       name: "UE Rør - VVS Partner AS",
@@ -80,7 +80,7 @@ async function seed() {
     },
   });
 
-  console.log("  Entrepriser opprettet");
+  console.log("  Faggrupper opprettet");
 
   // Koble brukere til prosjektet
   const medlem1 = await prisma.projectMember.create({
@@ -107,12 +107,12 @@ async function seed() {
     },
   });
 
-  // Koble medlemmer til entrepriser via MemberEnterprise
-  await prisma.memberEnterprise.createMany({
+  // Koble medlemmer til faggrupper via FaggruppeKobling
+  await prisma.faggruppeKobling.createMany({
     data: [
-      { projectMemberId: medlem1.id, enterpriseId: hovedentreprise.id },
-      { projectMemberId: medlem2.id, enterpriseId: hovedentreprise.id },
-      { projectMemberId: medlem3.id, enterpriseId: elEntreprise.id },
+      { projectMemberId: medlem1.id, faggruppeId: hovedfaggruppe.id },
+      { projectMemberId: medlem2.id, faggruppeId: hovedfaggruppe.id },
+      { projectMemberId: medlem3.id, faggruppeId: elFaggruppe.id },
     ],
   });
 
@@ -140,7 +140,7 @@ async function seed() {
       {
         templateId: mal.id,
         type: "company",
-        label: "Utførende entreprise",
+        label: "Utførende faggruppe",
         sortOrder: 2,
         required: true,
         config: { role: "responder", zone: "topptekst" },
@@ -233,8 +233,8 @@ async function seed() {
     data: {
       templateId: mal.id,
       creatorUserId: bruker1.id,
-      creatorEnterpriseId: hovedentreprise.id,
-      responderEnterpriseId: elEntreprise.id,
+      bestillerFaggruppeId: hovedfaggruppe.id,
+      utforerFaggruppeId: elFaggruppe.id,
       status: "sent",
       title: "Kontroll elektro - 3. etasje",
       dueDate: new Date("2026-03-15"),
@@ -258,8 +258,8 @@ async function seed() {
   await prisma.task.create({
     data: {
       creatorUserId: bruker1.id,
-      creatorEnterpriseId: hovedentreprise.id,
-      responderEnterpriseId: rørEntreprise.id,
+      bestillerFaggruppeId: hovedfaggruppe.id,
+      utforerFaggruppeId: rørFaggruppe.id,
       status: "draft",
       title: "Monter brannventiler i 5. etasje",
       description: "Monter brannventiler i henhold til tegning VVS-501. Frist: 20. mars.",

@@ -12,7 +12,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
-import { EntrepriseVelger } from "./entreprise-velger";
+import { FaggruppeVelger } from "./faggruppe-velger";
 
 interface ImportDialogProps {
   projectId: string;
@@ -65,7 +65,7 @@ export function ImportDialog({ projectId, open, onClose }: ImportDialogProps) {
   const [kilde, setKilde] = useState<Kilde>("last-opp");
   const [fil, setFil] = useState<File | null>(null);
   const [docType, setDocType] = useState<string>("anbudsgrunnlag");
-  const [enterpriseId, setEnterpriseId] = useState<string | null>(null);
+  const [faggruppeId, setFaggruppeId] = useState<string | null>(null);
   const [folderId, setFolderId] = useState<string | null>(null);
   const [kontraktId, setKontraktId] = useState<string>("");
   const [notaType, setNotaType] = useState<string>("");

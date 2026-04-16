@@ -55,8 +55,8 @@ export interface UseOppgaveSkjemaResultat {
       prefix: string | null;
       objects: RapportObjekt[];
     };
-    bestillerEnterprise: { id: string; name: string } | null;
-    utforerEnterprise: { id: string; name: string } | null;
+    bestillerFaggruppe: { id: string; name: string } | null;
+    utforerFaggruppe: { id: string; name: string } | null;
     drawing?: { id: string; name: string; drawingNumber?: string | null } | null;
     checklist?: { id: string; number?: number | null; title: string; template?: { prefix?: string | null; name?: string | null } | null } | null;
   } | undefined;
@@ -190,7 +190,7 @@ export function useOppgaveSkjema(oppgaveId: string, rettighetInput?: RettighetIn
     drawingId?: string | null;
     positionX?: number | null;
     positionY?: number | null;
-    bestillerEnterpriseId?: string;
+    bestillerFaggruppeId?: string;
   } | undefined;
 
   const alleObjekter = useMemo(
@@ -246,7 +246,7 @@ export function useOppgaveSkjema(oppgaveId: string, rettighetInput?: RettighetIn
               autoVerdi = bruker?.id ?? null;
               break;
             case "company":
-              autoVerdi = oppgave.bestillerEnterpriseId ?? null;
+              autoVerdi = oppgave.bestillerFaggruppeId ?? null;
               break;
             case "drawing_position":
               if (oppgave.drawingId && oppgave.positionX != null && oppgave.positionY != null) {
@@ -600,8 +600,8 @@ export function useOppgaveSkjema(oppgaveId: string, rettighetInput?: RettighetIn
           description: oppgave.description,
           number: oppgave.number,
           template: oppgave.template,
-          bestillerEnterprise: oppgave.bestillerEnterprise,
-          utforerEnterprise: oppgave.utforerEnterprise,
+          bestillerFaggruppe: oppgave.bestillerFaggruppe,
+          utforerFaggruppe: oppgave.utforerFaggruppe,
           drawing: oppgave.drawing,
           checklist: oppgave.checklist,
         }

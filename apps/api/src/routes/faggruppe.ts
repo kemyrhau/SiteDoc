@@ -1,20 +1,20 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../trpc/trpc";
-import { createEnterpriseSchema, copyEnterpriseSchema } from "@sitedoc/shared";
+import { createFaggruppeSchema, copyFaggruppeSchema } from "@sitedoc/shared";
 import { verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
 
-export const entrepriseRouter = router({
-  // Hent alle entrepriser for et prosjekt
+export const faggruppeRouter = router({
+  // Hent alle faggrupper for et prosjekt
   hentForProsjekt: protectedProcedure
     .input(z.object({ projectId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       await verifiserProsjektmedlem(ctx.userId, input.projectId);
-      return ctx.prisma.dokumentflytPart.findMany({
+      return ctx.prisma.faggruppe.findMany({
         where: { projectId: input.projectId },
         include: {
           ansvarlig: { select: { id: true, name: true, email: true } },
-          dokumentflytKoblinger: {
+          faggruppeKoblinger: {
             include: {
               projectMember: {
                 include: { user: true },
@@ -34,20 +34,20 @@ export const entrepriseRouter = router({
       });
     }),
 
-  // Hent én entreprise med ID
+  // Hent én faggruppe med ID
   hentMedId: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
-      const entreprise = await ctx.prisma.dokumentflytPart.findUniqueOrThrow({
+      const faggruppe = await ctx.prisma.faggruppe.findUniqueOrThrow({
         where: { id: input.id },
         select: { projectId: true },
       });
-      await verifiserProsjektmedlem(ctx.userId, entreprise.projectId);
-      return ctx.prisma.dokumentflytPart.findUniqueOrThrow({
+      await verifiserProsjektmedlem(ctx.userId, faggruppe.projectId);
+      return ctx.prisma.faggruppe.findUniqueOrThrow({
         where: { id: input.id },
         include: {
           project: true,
-          dokumentflytKoblinger: {
+          faggruppeKoblinger: {
             include: {
               projectMember: {
                 include: { user: true },
@@ -58,34 +58,34 @@ export const entrepriseRouter = router({
       });
     }),
 
-  // Opprett ny entreprise
+  // Opprett ny faggruppe
   opprett: protectedProcedure
-    .input(createEnterpriseSchema)
+    .input(createFaggruppeSchema)
     .mutation(async ({ ctx, input }) => {
       await verifiserProsjektmedlem(ctx.userId, input.projectId);
       const { memberIds, ...data } = input;
       return ctx.prisma.$transaction(async (tx) => {
-        const entreprise = await tx.dokumentflytPart.create({ data });
+        const faggruppe = await tx.faggruppe.create({ data });
         if (memberIds.length > 0) {
-          await tx.dokumentflytKobling.createMany({
+          await tx.faggruppeKobling.createMany({
             data: memberIds.map((memberId) => ({
               projectMemberId: memberId,
-              enterpriseId: entreprise.id,
+              faggruppeId: faggruppe.id,
             })),
             skipDuplicates: true,
           });
         }
-        return entreprise;
+        return faggruppe;
       });
     }),
 
-  // Oppdater entreprise
+  // Oppdater faggruppe
   oppdater: protectedProcedure
     .input(
       z.object({
         id: z.string().uuid(),
         name: z.string().min(1).max(255).optional(),
-        enterpriseNumber: z.string().max(20).optional(),
+        faggruppeNummer: z.string().max(20).optional(),
         organizationNumber: z.string().optional(),
         color: z.string().max(50).optional(),
         industry: z.string().max(100).optional(),
@@ -94,30 +94,30 @@ export const entrepriseRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const entreprise = await ctx.prisma.dokumentflytPart.findUniqueOrThrow({
+      const faggruppe = await ctx.prisma.faggruppe.findUniqueOrThrow({
         where: { id: input.id },
         select: { projectId: true },
       });
-      await verifiserProsjektmedlem(ctx.userId, entreprise.projectId);
+      await verifiserProsjektmedlem(ctx.userId, faggruppe.projectId);
       const { id, ...data } = input;
-      return ctx.prisma.dokumentflytPart.update({ where: { id }, data });
+      return ctx.prisma.faggruppe.update({ where: { id }, data });
     }),
 
-  // Kopier entreprise fra et prosjekt til et annet (eller samme)
+  // Kopier faggruppe fra et prosjekt til et annet (eller samme)
   kopier: protectedProcedure
-    .input(copyEnterpriseSchema)
+    .input(copyFaggruppeSchema)
     .mutation(async ({ ctx, input }) => {
       await verifiserProsjektmedlem(ctx.userId, input.targetProjectId);
-      const kilde = await ctx.prisma.dokumentflytPart.findUniqueOrThrow({
-        where: { id: input.sourceEnterpriseId },
+      const kilde = await ctx.prisma.faggruppe.findUniqueOrThrow({
+        where: { id: input.sourceFaggruppeId },
       });
 
       return ctx.prisma.$transaction(async (tx) => {
-        const nyEntreprise = await tx.dokumentflytPart.create({
+        const nyFaggruppe = await tx.faggruppe.create({
           data: {
             projectId: input.targetProjectId,
             name: input.name ?? kilde.name,
-            enterpriseNumber: kilde.enterpriseNumber,
+            faggruppeNummer: kilde.faggruppeNummer,
             organizationNumber: kilde.organizationNumber,
             color: input.color ?? kilde.color,
             industry: kilde.industry,
@@ -126,64 +126,64 @@ export const entrepriseRouter = router({
         });
 
         if (input.memberIds.length > 0) {
-          await tx.dokumentflytKobling.createMany({
+          await tx.faggruppeKobling.createMany({
             data: input.memberIds.map((memberId) => ({
               projectMemberId: memberId,
-              enterpriseId: nyEntreprise.id,
+              faggruppeId: nyFaggruppe.id,
             })),
             skipDuplicates: true,
           });
         }
 
-        return nyEntreprise;
+        return nyFaggruppe;
       });
     }),
 
-  // Sett ansvarlig for entreprise
+  // Sett ansvarlig for faggruppe
   settAnsvarlig: protectedProcedure
     .input(
       z.object({
-        enterpriseId: z.string().uuid(),
+        faggruppeId: z.string().uuid(),
         userId: z.string().uuid().nullable(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const entreprise = await ctx.prisma.dokumentflytPart.findUniqueOrThrow({
-        where: { id: input.enterpriseId },
+      const faggruppe = await ctx.prisma.faggruppe.findUniqueOrThrow({
+        where: { id: input.faggruppeId },
         select: { projectId: true },
       });
-      await verifiserProsjektmedlem(ctx.userId, entreprise.projectId);
-      return ctx.prisma.dokumentflytPart.update({
-        where: { id: input.enterpriseId },
+      await verifiserProsjektmedlem(ctx.userId, faggruppe.projectId);
+      return ctx.prisma.faggruppe.update({
+        where: { id: input.faggruppeId },
         data: { ansvarligId: input.userId },
       });
     }),
 
-  // Slett entreprise
+  // Slett faggruppe
   slett: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
-      const entreprise = await ctx.prisma.dokumentflytPart.findUniqueOrThrow({
+      const faggruppe = await ctx.prisma.faggruppe.findUniqueOrThrow({
         where: { id: input.id },
         select: { projectId: true, name: true },
       });
-      await verifiserProsjektmedlem(ctx.userId, entreprise.projectId);
+      await verifiserProsjektmedlem(ctx.userId, faggruppe.projectId);
 
-      // Sjekk om entreprisen har tilknyttede sjekklister eller oppgaver
+      // Sjekk om faggruppen har tilknyttede sjekklister eller oppgaver
       const [sjekklisteAntall, oppgaveAntall] = await Promise.all([
         ctx.prisma.checklist.count({
           where: {
             OR: [
-              { bestillerEnterpriseId: input.id },
-              { utforerEnterpriseId: input.id },
+              { bestillerFaggruppeId: input.id },
+              { utforerFaggruppeId: input.id },
             ],
           },
         }),
         ctx.prisma.task.count({
           where: {
             OR: [
-              { bestillerEnterpriseId: input.id },
-              { utforerEnterpriseId: input.id },
+              { bestillerFaggruppeId: input.id },
+              { utforerFaggruppeId: input.id },
             ],
           },
         }),
@@ -195,10 +195,10 @@ export const entrepriseRouter = router({
         if (oppgaveAntall > 0) detaljer.push(`${oppgaveAntall} oppgave${oppgaveAntall !== 1 ? "r" : ""}`);
         throw new TRPCError({
           code: "PRECONDITION_FAILED",
-          message: `Kan ikke slette «${entreprise.name}» fordi den har ${detaljer.join(" og ")} tilknyttet. Flytt eller slett disse først.`,
+          message: `Kan ikke slette «${faggruppe.name}» fordi den har ${detaljer.join(" og ")} tilknyttet. Flytt eller slett disse først.`,
         });
       }
 
-      return ctx.prisma.dokumentflytPart.delete({ where: { id: input.id } });
+      return ctx.prisma.faggruppe.delete({ where: { id: input.id } });
     }),
 });

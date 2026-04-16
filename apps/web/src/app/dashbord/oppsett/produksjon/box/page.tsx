@@ -35,8 +35,8 @@ import { STOETTEDE_SPRAAK } from "@sitedoc/shared";
 /* ------------------------------------------------------------------ */
 
 interface TilgangEntry {
-  accessType: "enterprise" | "group" | "user";
-  enterpriseId?: string;
+  accessType: "faggruppe" | "group" | "user";
+  faggruppeId?: string;
   groupId?: string;
   userId?: string;
   // Visningsdata
@@ -122,8 +122,8 @@ function TilgangModal({
     { folderId: mappeId },
   );
 
-  // Hent tilgjengelige entrepriser, grupper og medlemmer
-  const { data: entrepriser } = trpc.entreprise.hentForProsjekt.useQuery(
+  // Hent tilgjengelige faggrupper, grupper og medlemmer
+  const { data: faggrupper } = trpc.faggruppe.hentForProsjekt.useQuery(
     { projectId: prosjektId },
     { enabled: !!prosjektId },
   );
@@ -142,7 +142,7 @@ function TilgangModal({
   const [initialisert, setInitialisert] = useState(false);
 
   // Ny oppføring-state
-  const [nyType, setNyType] = useState<"enterprise" | "group" | "user">("enterprise");
+  const [nyType, setNyType] = useState<"faggruppe" | "group" | "user">("faggruppe");
   const [nyId, setNyId] = useState("");
 
   // Initialiser fra server-data
@@ -150,17 +150,17 @@ function TilgangModal({
     setModus(tilgang.accessMode as "inherit" | "custom");
     setOppforinger(
       tilgang.accessEntries.map((e) => ({
-        accessType: e.accessType as "enterprise" | "group" | "user",
-        enterpriseId: e.dokumentflytPart?.id,
+        accessType: e.accessType as "faggruppe" | "group" | "user",
+        faggruppeId: e.faggruppe?.id,
         groupId: e.group?.id,
         userId: e.user?.id,
         navn:
-          e.dokumentflytPart?.name ??
+          e.faggruppe?.name ??
           e.group?.name ??
           e.user?.name ??
           e.user?.email ??
           "Ukjent",
-        farge: e.dokumentflytPart?.color ?? null,
+        farge: e.faggruppe?.color ?? null,
       })),
     );
     setInitialisert(true);
@@ -176,9 +176,9 @@ function TilgangModal({
 
   // Tilgjengelige alternativer for dropdown (filtrer ut allerede lagt til)
   const tilgjengeligeAlternativer = useMemo(() => {
-    if (nyType === "enterprise") {
-      return (entrepriser ?? [] as Array<{ id: string; name: string }>)
-        .filter((e: { id: string }) => !oppforinger.some((o) => o.enterpriseId === e.id))
+    if (nyType === "faggruppe") {
+      return (faggrupper ?? [] as Array<{ id: string; name: string }>)
+        .filter((e: { id: string }) => !oppforinger.some((o) => o.faggruppeId === e.id))
         .map((e: { id: string; name: string }) => ({ value: e.id, label: e.name }));
     }
     if (nyType === "group") {
@@ -193,7 +193,7 @@ function TilgangModal({
         value: m.user.id,
         label: m.user.name ?? m.user.email,
       }));
-  }, [nyType, entrepriser, grupper, medlemmer, oppforinger]);
+  }, [nyType, faggrupper, grupper, medlemmer, oppforinger]);
 
   function leggTil() {
     if (!nyId) return;
@@ -201,8 +201,8 @@ function TilgangModal({
     let navn = "";
     let farge: string | null = null;
 
-    if (nyType === "enterprise") {
-      const e = (entrepriser as Array<{ id: string; name: string; color?: string | null }> | undefined)?.find((e) => e.id === nyId);
+    if (nyType === "faggruppe") {
+      const e = (faggrupper as Array<{ id: string; name: string; color?: string | null }> | undefined)?.find((e) => e.id === nyId);
       navn = e?.name ?? "";
       farge = e?.color ?? null;
     } else if (nyType === "group") {
@@ -217,7 +217,7 @@ function TilgangModal({
       ...oppforinger,
       {
         accessType: nyType,
-        enterpriseId: nyType === "enterprise" ? nyId : undefined,
+        faggruppeId: nyType === "faggruppe" ? nyId : undefined,
         groupId: nyType === "group" ? nyId : undefined,
         userId: nyType === "user" ? nyId : undefined,
         navn,
@@ -237,7 +237,7 @@ function TilgangModal({
       accessMode: modus,
       entries: oppforinger.map((o) => ({
         accessType: o.accessType,
-        enterpriseId: o.enterpriseId,
+        faggruppeId: o.faggruppeId,
         groupId: o.groupId,
         userId: o.userId,
       })),
@@ -245,19 +245,19 @@ function TilgangModal({
   }
 
   const typeBadgeFarge: Record<string, string> = {
-    enterprise: "bg-amber-100 text-amber-700",
+    faggruppe: "bg-amber-100 text-amber-700",
     group: "bg-blue-100 text-blue-700",
     user: "bg-emerald-100 text-emerald-700",
   };
 
   const typeIkon: Record<string, JSX.Element> = {
-    enterprise: <Building2 className="h-3 w-3" />,
+    faggruppe: <Building2 className="h-3 w-3" />,
     group: <Users className="h-3 w-3" />,
     user: <User className="h-3 w-3" />,
   };
 
   const typeLabel: Record<string, string> = {
-    enterprise: "Entreprise",
+    faggruppe: "Faggruppe",
     group: "Gruppe",
     user: "Bruker",
   };
@@ -306,13 +306,13 @@ function TilgangModal({
 
           {oppforinger.length === 0 ? (
             <p className="mb-3 text-sm text-gray-400">
-              Ingen har tilgang ennå. Legg til entrepriser, grupper eller brukere.
+              Ingen har tilgang ennå. Legg til faggrupper, grupper eller brukere.
             </p>
           ) : (
             <div className="mb-3 flex flex-col gap-1.5">
               {oppforinger.map((o, i) => (
                 <div
-                  key={`${o.accessType}-${o.enterpriseId ?? o.groupId ?? o.userId}`}
+                  key={`${o.accessType}-${o.faggruppeId ?? o.groupId ?? o.userId}`}
                   className="flex items-center gap-2 rounded-md border border-gray-200 bg-gray-50 px-3 py-2"
                 >
                   <span
@@ -346,11 +346,11 @@ function TilgangModal({
                   label="Type"
                   value={nyType}
                   onChange={(e) => {
-                    setNyType(e.target.value as "enterprise" | "group" | "user");
+                    setNyType(e.target.value as "faggruppe" | "group" | "user");
                     setNyId("");
                   }}
                   options={[
-                    { value: "enterprise", label: "Entreprise" },
+                    { value: "faggruppe", label: "Faggruppe" },
                     { value: "group", label: "Gruppe" },
                     { value: "user", label: "Bruker" },
                   ]}

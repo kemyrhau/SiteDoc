@@ -26,8 +26,8 @@ interface OppgaveRad {
   data: Record<string, unknown> | null;
   template: { id: string; prefix: string | null; name: string; objects: MalObjekt[] } | null;
   bestiller: { name: string | null } | null;
-  bestillerEnterprise: { name: string } | null;
-  utforerEnterprise: { name: string } | null;
+  bestillerFaggruppe: { name: string } | null;
+  utforerFaggruppe: { name: string } | null;
   drawing: { name: string; floor: string | null; byggeplass: { id: string; name: string } | null } | null;
   recipientUser: { id: string; name: string | null } | null;
   recipientGroup: { id: string; name: string } | null;
@@ -39,7 +39,7 @@ interface OppgaveRad {
       id: string;
       rolle: string;
       steg: number;
-      enterprise: { id: string; name: string } | null;
+      faggruppe: { id: string; name: string } | null;
       projectMember: { user: { id: string; name: string | null } } | null;
       group: { id: string; name: string } | null;
     }[];
@@ -108,8 +108,8 @@ const SYSTEM_KOLONNER: KolonneParam[] = [
   { id: "prioritet", navn: "Prioritet", navnKey: "tabell.prioritet", gruppe: "kolonner" },
   { id: "ansvarlig", navn: "Ansvarlig", navnKey: "tabell.ansvarlig", gruppe: "kolonner" },
   { id: "opprettetAv", navn: "Opprettet av", navnKey: "tabell.opprettetAv", gruppe: "kolonner" },
-  { id: "bestillerEntreprise", navn: "Bestiller-entreprise", navnKey: "tabell.bestillerEntreprise", gruppe: "kolonner" },
-  { id: "utforerEntreprise", navn: "Utfører-entreprise", navnKey: "tabell.utforerEntreprise", gruppe: "kolonner" },
+  { id: "bestillerFaggruppe", navn: "Bestiller-faggruppe", navnKey: "tabell.bestillerFaggruppe", gruppe: "kolonner" },
+  { id: "utforerFaggruppe", navn: "Utfører-faggruppe", navnKey: "tabell.utforerFaggruppe", gruppe: "kolonner" },
   { id: "dokumentflyt", navn: "Dokumentflyt", navnKey: "tabell.dokumentflyt", gruppe: "kolonner" },
   { id: "mal", navn: "Mal", navnKey: "tabell.mal", gruppe: "kolonner" },
   { id: "opprettet", navn: "Opprettelsesdato", navnKey: "tabell.opprettelsesdato", gruppe: "kolonner" },
@@ -135,7 +135,7 @@ function formaterLopenummer(rad: OppgaveRad): string {
 function formaterAnsvarlig(rad: OppgaveRad): string {
   if (rad.recipientUser?.name) return rad.recipientUser.name;
   if (rad.recipientGroup?.name) return rad.recipientGroup.name;
-  return rad.utforerEnterprise?.name ?? "";
+  return rad.utforerFaggruppe?.name ?? "";
 }
 
 function formaterDato(dato: string | null): string {
@@ -323,7 +323,7 @@ export default function OppgaverSide() {
 
   const { data: maler } = trpc.mal.hentForProsjekt.useQuery({ projectId: params.prosjektId });
   const oppgaveMaler = ((maler ?? []) as Array<{ id: string; name: string; prefix?: string | null; category: string; domain?: string | null }>).filter((m) => m.category === "oppgave");
-  const { data: mineEntrepriser } = trpc.medlem.hentMineEntrepriser.useQuery(
+  const { data: mineFaggrupper } = trpc.medlem.hentMineFaggrupper.useQuery(
     { projectId: params.prosjektId },
   );
   const { data: dokumentflyter } = trpc.dokumentflyt.hentForProsjekt.useQuery(
@@ -358,7 +358,7 @@ export default function OppgaverSide() {
     const alleMalerTypet = (maler ?? []) as Array<{ id: string; name: string; domain?: string | null; category: string }>;
     const malMedDomain = alleMalerTypet.find((m) => m.id === malId);
 
-    // HMS-oppgaver: ingen entreprise, auto-rutes til HMS-gruppen av API
+    // HMS-oppgaver: ingen faggruppe, auto-rutes til HMS-gruppen av API
     if (malMedDomain?.domain === "hms") {
       opprettMutation.mutate({
         templateId: malId,
@@ -368,27 +368,27 @@ export default function OppgaverSide() {
       return;
     }
 
-    const oppretter = mineEntrepriser?.[0];
+    const oppretter = mineFaggrupper?.[0];
     if (!oppretter) return;
 
     const alleDf = (dokumentflyter ?? []) as Array<{
       id: string;
-      medlemmer: Array<{ enterprise?: { id: string } | null; group?: { id: string } | null; projectMember?: { id: string } | null; rolle: string }>;
+      medlemmer: Array<{ faggruppe?: { id: string } | null; group?: { id: string } | null; projectMember?: { id: string } | null; rolle: string }>;
       maler: Array<{ template: { id: string } }>;
     }>;
     const matchDf = alleDf.find((df) =>
       df.maler.some((m) => m.template.id === malId) &&
       df.medlemmer.some((m) =>
-        m.rolle === "oppretter" && (m.enterprise?.id === oppretter.id || m.group || m.projectMember),
+        m.rolle === "oppretter" && (m.faggruppe?.id === oppretter.id || m.group || m.projectMember),
       ),
     );
     const svarer = matchDf?.medlemmer.find((m) => m.rolle === "svarer");
-    const svarerEntrepriseId = svarer?.enterprise?.id ?? oppretter.id;
+    const svarerFaggruppeId = svarer?.faggruppe?.id ?? oppretter.id;
 
     opprettMutation.mutate({
       templateId: malId,
-      bestillerEnterpriseId: oppretter.id,
-      utforerEnterpriseId: svarerEntrepriseId,
+      bestillerFaggruppeId: oppretter.id,
+      utforerFaggruppeId: svarerFaggruppeId,
       title: malMedDomain?.name ?? "Ny oppgave",
       priority: "medium",
       dokumentflytId: matchDf?.id,
@@ -426,15 +426,15 @@ export default function OppgaverSide() {
   const navneLookup = useMemo(() => {
     const map = new Map<string, string>();
     for (const df of dokumentflyter ?? []) {
-      for (const m of (df as { medlemmer?: { projectMember?: { user?: { id: string; name: string | null } } | null; enterprise?: { id: string; name: string } | null }[] }).medlemmer ?? []) {
+      for (const m of (df as { medlemmer?: { projectMember?: { user?: { id: string; name: string | null } } | null; faggruppe?: { id: string; name: string } | null }[] }).medlemmer ?? []) {
         if (m.projectMember?.user?.id && m.projectMember.user.name) map.set(m.projectMember.user.id, m.projectMember.user.name);
-        if (m.enterprise?.id && m.enterprise.name) map.set(m.enterprise.id, m.enterprise.name);
+        if (m.faggruppe?.id && m.faggruppe.name) map.set(m.faggruppe.id, m.faggruppe.name);
       }
     }
     for (const rad of oppgaver ?? []) {
       if (rad.bestiller?.name) map.set((rad as unknown as { bestillerUserId: string }).bestillerUserId ?? "", rad.bestiller.name);
-      if (rad.bestillerEnterprise) map.set((rad as unknown as { bestillerEnterpriseId: string }).bestillerEnterpriseId ?? "", rad.bestillerEnterprise?.name ?? "");
-      if (rad.utforerEnterprise) map.set((rad as unknown as { utforerEnterpriseId: string }).utforerEnterpriseId ?? "", rad.utforerEnterprise?.name ?? "");
+      if (rad.bestillerFaggruppe) map.set((rad as unknown as { bestillerFaggruppeId: string }).bestillerFaggruppeId ?? "", rad.bestillerFaggruppe?.name ?? "");
+      if (rad.utforerFaggruppe) map.set((rad as unknown as { utforerFaggruppeId: string }).utforerFaggruppeId ?? "", rad.utforerFaggruppe?.name ?? "");
     }
     return map;
   }, [dokumentflyter, oppgaver]);
@@ -452,8 +452,8 @@ export default function OppgaverSide() {
       if (recipientGroupId && m.group?.id === recipientGroupId) return m.group.name;
       if (recipientUserId && m.projectMember?.user?.id === recipientUserId) return m.projectMember.user.name ?? "";
     }
-    const ent = medl.find((m) => m.enterprise);
-    if (ent?.enterprise) return ent.enterprise.name;
+    const ent = medl.find((m) => m.faggruppe);
+    if (ent?.faggruppe) return ent.faggruppe.name;
     return "";
   }, []);
 
@@ -468,8 +468,8 @@ export default function OppgaverSide() {
       emne: bygg(oppgaver.map((o) => o.subject)),
       ansvarlig: bygg(oppgaver.map((o) => formaterAnsvarlig(o))),
       opprettetAv: bygg(oppgaver.map((o) => o.bestiller?.name)),
-      bestillerEntreprise: bygg(oppgaver.map((o) => o.bestillerEnterprise?.name ?? "")),
-      utforerEntreprise: bygg(oppgaver.map((o) => o.utforerEnterprise?.name ?? "")),
+      bestillerFaggruppe: bygg(oppgaver.map((o) => o.bestillerFaggruppe?.name ?? "")),
+      utforerFaggruppe: bygg(oppgaver.map((o) => o.utforerFaggruppe?.name ?? "")),
       flyt: bygg(oppgaver.map((o) => hentFlytLedd(o))),
       mal: bygg(oppgaver.map((o) => o.template?.name)),
       bygning: bygg(oppgaver.map((o) => o.drawing?.byggeplass?.name)),
@@ -514,8 +514,8 @@ export default function OppgaverSide() {
           case "prioritet": return o.priority === verdi;
           case "ansvarlig": return formaterAnsvarlig(o) === verdi;
           case "opprettetAv": return o.bestiller?.name === verdi;
-          case "bestillerEntreprise": return o.bestillerEnterprise?.name ?? "" === verdi;
-          case "utforerEntreprise": return o.utforerEnterprise?.name ?? "" === verdi;
+          case "bestillerFaggruppe": return o.bestillerFaggruppe?.name ?? "" === verdi;
+          case "utforerFaggruppe": return o.utforerFaggruppe?.name ?? "" === verdi;
           case "mal": return o.template?.name === verdi;
           case "bygning": return o.drawing?.byggeplass?.name === verdi;
           case "etasje": return o.drawing?.floor === verdi;
@@ -593,17 +593,17 @@ export default function OppgaverSide() {
         sorterbar: true, sorterVerdi: (rad) => rad.bestiller?.name ?? "",
         filtrerbar: true, filterAlternativer: dynamiskFilter.opprettetAv ?? [],
       },
-      bestillerEntreprise: {
-        id: "bestillerEntreprise", header: t("tabell.bestillerEntreprise"),
-        celle: (rad) => <span className="text-xs text-gray-500">{rad.bestillerEnterprise?.name ?? ""}</span>,
-        sorterbar: true, sorterVerdi: (rad) => rad.bestillerEnterprise?.name ?? "",
-        filtrerbar: true, filterAlternativer: dynamiskFilter.bestillerEntreprise ?? [],
+      bestillerFaggruppe: {
+        id: "bestillerFaggruppe", header: t("tabell.bestillerFaggruppe"),
+        celle: (rad) => <span className="text-xs text-gray-500">{rad.bestillerFaggruppe?.name ?? ""}</span>,
+        sorterbar: true, sorterVerdi: (rad) => rad.bestillerFaggruppe?.name ?? "",
+        filtrerbar: true, filterAlternativer: dynamiskFilter.bestillerFaggruppe ?? [],
       },
-      utforerEntreprise: {
-        id: "utforerEntreprise", header: t("tabell.utforerEntreprise"),
-        celle: (rad) => <span className="text-xs text-gray-500">{rad.utforerEnterprise?.name ?? ""}</span>,
-        sorterbar: true, sorterVerdi: (rad) => rad.utforerEnterprise?.name ?? "",
-        filtrerbar: true, filterAlternativer: dynamiskFilter.utforerEntreprise ?? [],
+      utforerFaggruppe: {
+        id: "utforerFaggruppe", header: t("tabell.utforerFaggruppe"),
+        celle: (rad) => <span className="text-xs text-gray-500">{rad.utforerFaggruppe?.name ?? ""}</span>,
+        sorterbar: true, sorterVerdi: (rad) => rad.utforerFaggruppe?.name ?? "",
+        filtrerbar: true, filterAlternativer: dynamiskFilter.utforerFaggruppe ?? [],
       },
       mal: {
         id: "mal", header: t("tabell.mal"),

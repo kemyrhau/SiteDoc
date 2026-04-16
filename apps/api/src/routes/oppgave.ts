@@ -6,7 +6,7 @@ import { isValidStatusTransition } from "@sitedoc/shared";
 import { TRPCError } from "@trpc/server";
 import {
   byggTilgangsFilter,
-  verifiserEntrepriseTilhorighet,
+  verifiserFaggruppeTilhorighet,
   verifiserDokumentTilgang,
   verifiserFlytRolle,
   verifiserProsjektmedlem,
@@ -14,12 +14,12 @@ import {
 } from "../trpc/tilgangskontroll";
 import { sendDokumentVarsling, hentMottakerEposter } from "../services/epost";
 
-/** Hent projectId fra enterprise (standard) eller template (HMS uten enterprise) */
+/** Hent projectId fra faggruppe (standard) eller template (HMS uten faggruppe) */
 function hentProjectId(oppgave: {
-  bestillerEnterprise?: { projectId: string } | null;
+  bestillerFaggruppe?: { projectId: string } | null;
   template?: { projectId?: string } | null;
 }): string {
-  const pid = oppgave.bestillerEnterprise?.projectId ?? oppgave.template?.projectId;
+  const pid = oppgave.bestillerFaggruppe?.projectId ?? oppgave.template?.projectId;
   if (!pid) throw new TRPCError({ code: "BAD_REQUEST", message: "Kan ikke utlede prosjekt-ID" });
   return pid;
 }
@@ -44,8 +44,8 @@ export const oppgaveRouter = router({
       return ctx.prisma.task.findMany({
         where: {
           OR: [
-            { bestillerEnterprise: { projectId: input.projectId } },
-            { template: { projectId: input.projectId }, bestillerEnterpriseId: null },
+            { bestillerFaggruppe: { projectId: input.projectId } },
+            { template: { projectId: input.projectId }, bestillerFaggruppeId: null },
           ],
           ...(input.status ? { status: input.status } : {}),
           ...(input.byggeplassId ? { OR: [{ drawing: { byggeplassId: input.byggeplassId } }, { drawingId: null }] } : {}),
@@ -54,8 +54,8 @@ export const oppgaveRouter = router({
         include: {
           template: { include: { objects: { select: { id: true, label: true, type: true, config: true } } } },
           bestiller: true,
-          bestillerEnterprise: true,
-          utforerEnterprise: true,
+          bestillerFaggruppe: true,
+          utforerFaggruppe: true,
           drawing: { select: { id: true, name: true, floor: true, byggeplass: { select: { id: true, name: true } } } },
           recipientUser: { select: { id: true, name: true } },
           recipientGroup: { select: { id: true, name: true } },
@@ -68,7 +68,7 @@ export const oppgaveRouter = router({
                   id: true,
                   rolle: true,
                   steg: true,
-                  dokumentflytPart: { select: { id: true, name: true } },
+                  faggruppe: { select: { id: true, name: true } },
                   projectMember: { include: { user: { select: { id: true, name: true } } } },
                   group: { select: { id: true, name: true } },
                 },
@@ -128,8 +128,8 @@ export const oppgaveRouter = router({
             },
           },
           bestiller: true,
-          bestillerEnterprise: true,
-          utforerEnterprise: true,
+          bestillerFaggruppe: true,
+          utforerFaggruppe: true,
           drawing: {
             include: {
               byggeplass: { select: { id: true, name: true } },
@@ -156,12 +156,12 @@ export const oppgaveRouter = router({
         },
       });
 
-      // Tilgangssjekk via oppretter-entreprisens prosjekt
+      // Tilgangssjekk via oppretter-faggruppens prosjekt
       await verifiserDokumentTilgang(
         ctx.userId,
         hentProjectId(oppgave),
-        oppgave.bestillerEnterpriseId,
-        oppgave.utforerEnterpriseId,
+        oppgave.bestillerFaggruppeId,
+        oppgave.utforerFaggruppeId,
         oppgave.template?.domain,
         oppgave.id,
         "task",
@@ -190,15 +190,15 @@ export const oppgaveRouter = router({
       const oppgave = await ctx.prisma.task.findUniqueOrThrow({
         where: { id: input.taskId },
         include: {
-          bestillerEnterprise: { select: { projectId: true } },
+          bestillerFaggruppe: { select: { projectId: true } },
           template: { select: { domain: true, projectId: true } },
         },
       });
       await verifiserDokumentTilgang(
         ctx.userId,
         hentProjectId(oppgave),
-        oppgave.bestillerEnterpriseId,
-        oppgave.utforerEnterpriseId,
+        oppgave.bestillerFaggruppeId,
+        oppgave.utforerFaggruppeId,
         oppgave.template?.domain,
         oppgave.id,
         "task",
@@ -223,15 +223,15 @@ export const oppgaveRouter = router({
       const oppgave = await ctx.prisma.task.findUniqueOrThrow({
         where: { id: input.taskId },
         include: {
-          bestillerEnterprise: { select: { projectId: true } },
+          bestillerFaggruppe: { select: { projectId: true } },
           template: { select: { domain: true, projectId: true } },
         },
       });
       await verifiserDokumentTilgang(
         ctx.userId,
         hentProjectId(oppgave),
-        oppgave.bestillerEnterpriseId,
-        oppgave.utforerEnterpriseId,
+        oppgave.bestillerFaggruppeId,
+        oppgave.utforerFaggruppeId,
         oppgave.template?.domain,
         oppgave.id,
         "task",
@@ -259,8 +259,8 @@ export const oppgaveRouter = router({
       await verifiserDokumentTilgang(
         ctx.userId,
         sjekkliste.template.projectId,
-        sjekkliste.bestillerEnterpriseId,
-        sjekkliste.utforerEnterpriseId,
+        sjekkliste.bestillerFaggruppeId,
+        sjekkliste.utforerFaggruppeId,
         undefined,
         sjekkliste.id,
         "checklist",
@@ -284,8 +284,8 @@ export const oppgaveRouter = router({
   opprett: protectedProcedure
     .input(
       z.object({
-        bestillerEnterpriseId: z.string().uuid().optional(),
-        utforerEnterpriseId: z.string().uuid().optional(),
+        bestillerFaggruppeId: z.string().uuid().optional(),
+        utforerFaggruppeId: z.string().uuid().optional(),
         title: z.string().min(1).max(255),
         description: z.string().optional(),
         priority: z.enum(["low", "medium", "high", "critical"]).default("medium"),
@@ -308,7 +308,7 @@ export const oppgaveRouter = router({
 
       const erHms = mal.domain === "hms";
 
-      // HMS-oppgaver: auto-rut til HMS-gruppen, ingen entreprise
+      // HMS-oppgaver: auto-rut til HMS-gruppen, ingen faggruppe
       let recipientGroupId: string | undefined;
       if (erHms) {
         await verifiserProsjektmedlem(ctx.userId, mal.projectId);
@@ -331,14 +331,14 @@ export const oppgaveRouter = router({
 
         recipientGroupId = hmsGruppe.id;
       } else {
-        // Standard: entrepriser påkrevd
-        if (!input.bestillerEnterpriseId || !input.utforerEnterpriseId) {
+        // Standard: faggrupper påkrevd
+        if (!input.bestillerFaggruppeId || !input.utforerFaggruppeId) {
           throw new TRPCError({
             code: "BAD_REQUEST",
-            message: "Bestiller- og utfører-entreprise er påkrevd for denne oppgavetypen",
+            message: "Bestiller- og utfører-faggruppe er påkrevd for denne oppgavetypen",
           });
         }
-        await verifiserEntrepriseTilhorighet(ctx.userId, input.bestillerEnterpriseId);
+        await verifiserFaggruppeTilhorighet(ctx.userId, input.bestillerFaggruppeId);
       }
 
       // Sjekk grense for gratisbrukere (10 oppgaver per prosjekt)
@@ -397,8 +397,8 @@ export const oppgaveRouter = router({
             templateId: input.templateId,
             bestillerUserId: ctx.userId,
             eierUserId: ctx.userId,
-            bestillerEnterpriseId: input.bestillerEnterpriseId ?? null,
-            utforerEnterpriseId: input.utforerEnterpriseId ?? null,
+            bestillerFaggruppeId: input.bestillerFaggruppeId ?? null,
+            utforerFaggruppeId: input.utforerFaggruppeId ?? null,
             title: input.title,
             description: input.description,
             priority: input.priority,
@@ -427,8 +427,8 @@ export const oppgaveRouter = router({
         description: z.string().optional(),
         priority: z.enum(["low", "medium", "high", "critical"]).optional(),
         dueDate: z.string().datetime().optional(),
-        bestillerEnterpriseId: z.string().uuid().optional(),
-        utforerEnterpriseId: z.string().uuid().optional(),
+        bestillerFaggruppeId: z.string().uuid().optional(),
+        utforerFaggruppeId: z.string().uuid().optional(),
         drawingId: z.string().uuid().nullable().optional(),
         positionX: z.number().min(0).max(100).nullable().optional(),
         positionY: z.number().min(0).max(100).nullable().optional(),
@@ -439,15 +439,15 @@ export const oppgaveRouter = router({
       const oppgave = await ctx.prisma.task.findUniqueOrThrow({
         where: { id: input.id },
         include: {
-          bestillerEnterprise: { select: { projectId: true } },
+          bestillerFaggruppe: { select: { projectId: true } },
           template: { select: { domain: true, projectId: true } },
         },
       });
       await verifiserDokumentTilgang(
         ctx.userId,
         hentProjectId(oppgave),
-        oppgave.bestillerEnterpriseId,
-        oppgave.utforerEnterpriseId,
+        oppgave.bestillerFaggruppeId,
+        oppgave.utforerFaggruppeId,
         oppgave.template?.domain,
         oppgave.id,
         "task",
@@ -484,7 +484,7 @@ export const oppgaveRouter = router({
       const oppgave = await ctx.prisma.task.findUniqueOrThrow({
         where: { id: input.id },
         include: {
-          bestillerEnterprise: { select: { projectId: true } },
+          bestillerFaggruppe: { select: { projectId: true } },
           template: {
             select: {
               domain: true,
@@ -497,8 +497,8 @@ export const oppgaveRouter = router({
       await verifiserDokumentTilgang(
         ctx.userId,
         hentProjectId(oppgave),
-        oppgave.bestillerEnterpriseId,
-        oppgave.utforerEnterpriseId,
+        oppgave.bestillerFaggruppeId,
+        oppgave.utforerFaggruppeId,
         oppgave.template?.domain,
         oppgave.id,
         "task",
@@ -590,14 +590,14 @@ export const oppgaveRouter = router({
       const oppgave = await ctx.prisma.task.findUniqueOrThrow({
         where: { id: input.id },
         include: {
-          bestillerEnterprise: { select: { projectId: true } },
+          bestillerFaggruppe: { select: { projectId: true } },
           template: { select: { domain: true, projectId: true } },
         },
       });
       const projectId = hentProjectId(oppgave);
       await verifiserDokumentTilgang(
         ctx.userId, projectId,
-        oppgave.bestillerEnterpriseId, oppgave.utforerEnterpriseId,
+        oppgave.bestillerFaggruppeId, oppgave.utforerFaggruppeId,
         oppgave.template?.domain,
         oppgave.id,
         "task",
@@ -653,7 +653,7 @@ export const oppgaveRouter = router({
         kommentar: z.string().optional(),
         recipientUserId: z.string().uuid().optional(),
         recipientGroupId: z.string().uuid().optional(),
-        /** Ny dokumentflyt-ID ved videresending til annen entreprise */
+        /** Ny dokumentflyt-ID ved videresending til annen faggruppe */
         dokumentflytId: z.string().uuid().optional(),
       }),
     )
@@ -661,9 +661,9 @@ export const oppgaveRouter = router({
       const oppgave = await ctx.prisma.task.findUniqueOrThrow({
         where: { id: input.id },
         include: {
-          bestillerEnterprise: { select: { projectId: true, project: { select: { name: true } } } },
+          bestillerFaggruppe: { select: { projectId: true, project: { select: { name: true } } } },
           template: { select: { domain: true, prefix: true, projectId: true, project: { select: { name: true } } } },
-          utforerEnterprise: { select: { name: true } },
+          utforerFaggruppe: { select: { name: true } },
         },
       });
 
@@ -673,8 +673,8 @@ export const oppgaveRouter = router({
       await verifiserDokumentTilgang(
         ctx.userId,
         projectId,
-        oppgave.bestillerEnterpriseId,
-        oppgave.utforerEnterpriseId,
+        oppgave.bestillerFaggruppeId,
+        oppgave.utforerFaggruppeId,
         oppgave.template?.domain,
         oppgave.id,
         "task",
@@ -685,8 +685,8 @@ export const oppgaveRouter = router({
         ctx.userId,
         projectId,
         oppgave.dokumentflytId,
-        oppgave.bestillerEnterpriseId,
-        oppgave.utforerEnterpriseId,
+        oppgave.bestillerFaggruppeId,
+        oppgave.utforerFaggruppeId,
         oppgave.status,
         input.nyStatus,
       );
@@ -709,7 +709,7 @@ export const oppgaveRouter = router({
           dokumentType: "oppgave",
           dokumentTittel: oppgave.title ?? "Uten tittel",
           dokumentNummer: nummer,
-          prosjektNavn: oppgave.bestillerEnterprise?.project?.name ?? oppgave.template?.project?.name ?? "",
+          prosjektNavn: oppgave.bestillerFaggruppe?.project?.name ?? oppgave.template?.project?.name ?? "",
           prosjektId: projectId,
           dokumentId: oppgave.id,
           avsenderNavn: avsender?.name ?? "Ukjent",
@@ -723,8 +723,8 @@ export const oppgaveRouter = router({
         senderId: ctx.userId,
         projektId: projectId,
         dokumentStatus: oppgave.status,
-        bestillerEnterpriseId: oppgave.bestillerEnterpriseId,
-        utforerEnterpriseId: oppgave.utforerEnterpriseId,
+        bestillerFaggruppeId: oppgave.bestillerFaggruppeId,
+        utforerFaggruppeId: oppgave.utforerFaggruppeId,
         dokumentflytId: oppgave.dokumentflytId,
       });
 
@@ -748,30 +748,30 @@ export const oppgaveRouter = router({
         return undefined; // Beholder gjeldende eier
       };
 
-      // Videresending: bytt mottaker, evt. bytt dokumentflyt + entreprise
+      // Videresending: bytt mottaker, evt. bytt dokumentflyt + faggruppe
       if (input.nyStatus === "forwarded") {
         if (!input.recipientUserId && !input.recipientGroupId) {
           throw new TRPCError({ code: "BAD_REQUEST", message: "Videresending krever en mottaker" });
         }
 
-        // Sjekk om dokumentflyt/entreprise endres
-        let flytBytteData: { dokumentflytId: string; utforerEnterpriseId: string; nyEntrepriseNavn: string; nyFlytNavn: string } | null = null;
+        // Sjekk om dokumentflyt/faggruppe endres
+        let flytBytteData: { dokumentflytId: string; utforerFaggruppeId: string; nyFaggruppeNavn: string; nyFlytNavn: string } | null = null;
         if (input.dokumentflytId && input.dokumentflytId !== oppgave.dokumentflytId) {
           const nyFlyt = await ctx.prisma.dokumentflyt.findUniqueOrThrow({
             where: { id: input.dokumentflytId },
-            include: { dokumentflytPart: { select: { id: true, name: true } } },
+            include: { faggruppe: { select: { id: true, name: true } } },
           });
-          if (!nyFlyt.enterpriseId) {
-            throw new TRPCError({ code: "BAD_REQUEST", message: "Dokumentflyten mangler entreprise" });
+          if (!nyFlyt.faggruppeId) {
+            throw new TRPCError({ code: "BAD_REQUEST", message: "Dokumentflyten mangler faggruppe" });
           }
           flytBytteData = {
             dokumentflytId: input.dokumentflytId,
-            utforerEnterpriseId: nyFlyt.enterpriseId,
-            nyEntrepriseNavn: nyFlyt.dokumentflytPart?.name ?? "Ukjent",
+            utforerFaggruppeId: nyFlyt.faggruppeId,
+            nyFaggruppeNavn: nyFlyt.faggruppe?.name ?? "Ukjent",
             nyFlytNavn: nyFlyt.name,
           };
 
-          // Kryssentreprise-validering: kun prosjekteier/registrator/admin kan sende på tvers
+          // Kryssfaggruppe-validering: kun prosjekteier/registrator/admin kan sende på tvers
           const bruker = await ctx.prisma.user.findUnique({ where: { id: ctx.userId }, select: { role: true } });
           if (bruker?.role !== "sitedoc_admin") {
             const medlem = await ctx.prisma.projectMember.findUnique({
@@ -783,14 +783,14 @@ export const oppgaveRouter = router({
               if (!erRegistrator) {
                 throw new TRPCError({
                   code: "FORBIDDEN",
-                  message: "Kun prosjekteier eller registrator kan sende på tvers av entrepriser",
+                  message: "Kun prosjekteier eller registrator kan sende på tvers av faggrupper",
                 });
               }
             }
           }
         }
 
-        const gammelEntrepriseNavn = oppgave.utforerEnterprise?.name ?? "Ukjent";
+        const gammelFaggruppeNavn = oppgave.utforerFaggruppe?.name ?? "Ukjent";
         const nyEier = await utledNyEier(input.recipientUserId, input.recipientGroupId);
 
         const resultat = await ctx.prisma.$transaction(async (tx) => {
@@ -802,13 +802,13 @@ export const oppgaveRouter = router({
               ...(nyEier ? { eierUserId: nyEier } : {}),
               ...(flytBytteData ? {
                 dokumentflytId: flytBytteData.dokumentflytId,
-                utforerEnterpriseId: flytBytteData.utforerEnterpriseId,
+                utforerFaggruppeId: flytBytteData.utforerFaggruppeId,
               } : {}),
             },
           });
 
           const kommentar = flytBytteData
-            ? (input.kommentar ? `Videresendt til ${flytBytteData.nyEntrepriseNavn}: ${input.kommentar}` : `Videresendt fra ${gammelEntrepriseNavn} til ${flytBytteData.nyEntrepriseNavn}`)
+            ? (input.kommentar ? `Videresendt til ${flytBytteData.nyFaggruppeNavn}: ${input.kommentar}` : `Videresendt fra ${gammelFaggruppeNavn} til ${flytBytteData.nyFaggruppeNavn}`)
             : (input.kommentar ? `Videresendt: ${input.kommentar}` : "Videresendt");
 
           await tx.documentTransfer.create({
@@ -822,7 +822,7 @@ export const oppgaveRouter = router({
               recipientGroupId: input.recipientGroupId,
               ...snapshot,
               ...(flytBytteData ? {
-                recipientEnterpriseName: flytBytteData.nyEntrepriseNavn,
+                recipientEnterpriseName: flytBytteData.nyFaggruppeNavn,
                 dokumentflytName: flytBytteData.nyFlytNavn,
               } : {}),
             },
@@ -929,7 +929,7 @@ export const oppgaveRouter = router({
       const oppgave = await ctx.prisma.task.findUniqueOrThrow({
         where: { id: input.id },
         include: {
-          bestillerEnterprise: { select: { projectId: true } },
+          bestillerFaggruppe: { select: { projectId: true } },
           template: { select: { domain: true, projectId: true } },
         },
       });
@@ -937,8 +937,8 @@ export const oppgaveRouter = router({
       await verifiserDokumentTilgang(
         ctx.userId,
         hentProjectId(oppgave),
-        oppgave.bestillerEnterpriseId,
-        oppgave.utforerEnterpriseId,
+        oppgave.bestillerFaggruppeId,
+        oppgave.utforerFaggruppeId,
         oppgave.template?.domain,
         oppgave.id,
         "task",
@@ -971,7 +971,7 @@ export const oppgaveRouter = router({
       const oppgave = await ctx.prisma.task.findUniqueOrThrow({
         where: { id: input.id },
         include: {
-          bestillerEnterprise: { select: { projectId: true } },
+          bestillerFaggruppe: { select: { projectId: true } },
         },
       });
 
@@ -994,19 +994,19 @@ export const oppgaveRouter = router({
         });
       }
 
-      // Valider at ny eier tilhører samme entreprise
+      // Valider at ny eier tilhører samme faggruppe
       const nyEierMedlem = await ctx.prisma.projectMember.findFirst({
         where: {
           userId: input.nyEierUserId,
           projectId,
-          ...(oppgave.bestillerEnterpriseId ? { dokumentflytKoblinger: { some: { enterpriseId: oppgave.bestillerEnterpriseId } } } : {}),
+          ...(oppgave.bestillerFaggruppeId ? { faggruppeKoblinger: { some: { faggruppeId: oppgave.bestillerFaggruppeId } } } : {}),
         },
       });
 
       if (!nyEierMedlem) {
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: "Ny eier må tilhøre samme entreprise som dokumentet",
+          message: "Ny eier må tilhøre samme faggruppe som dokumentet",
         });
       }
 
@@ -1050,7 +1050,7 @@ export const oppgaveRouter = router({
       const oppgave = await ctx.prisma.task.findUniqueOrThrow({
         where: { id: input.id },
         include: {
-          utforerEnterprise: { select: { name: true } },
+          utforerFaggruppe: { select: { name: true } },
         },
       });
 
@@ -1063,15 +1063,15 @@ export const oppgaveRouter = router({
       // Hent ny dokumentflyt
       const nyFlyt = await ctx.prisma.dokumentflyt.findUniqueOrThrow({
         where: { id: input.nyDokumentflytId },
-        include: { dokumentflytPart: { select: { id: true, name: true } } },
+        include: { faggruppe: { select: { id: true, name: true } } },
       });
 
-      if (!nyFlyt.enterpriseId) {
-        throw new TRPCError({ code: "BAD_REQUEST", message: "Dokumentflyten mangler entreprise" });
+      if (!nyFlyt.faggruppeId) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Dokumentflyten mangler faggruppe" });
       }
 
-      const gammelEntrepriseNavn = oppgave.utforerEnterprise?.name ?? "Ukjent";
-      const nyEntrepriseNavn = nyFlyt.dokumentflytPart?.name ?? "Ukjent";
+      const gammelFaggruppeNavn = oppgave.utforerFaggruppe?.name ?? "Ukjent";
+      const nyFaggruppeNavn = nyFlyt.faggruppe?.name ?? "Ukjent";
       const brukerNavn = bruker?.name ?? "Ukjent";
 
       return ctx.prisma.$transaction(async (tx) => {
@@ -1080,7 +1080,7 @@ export const oppgaveRouter = router({
           where: { id: input.id },
           data: {
             dokumentflytId: input.nyDokumentflytId,
-            utforerEnterpriseId: nyFlyt.enterpriseId!,
+            utforerFaggruppeId: nyFlyt.faggruppeId!,
             recipientUserId: input.recipientUserId ?? null,
           },
         });
@@ -1094,9 +1094,9 @@ export const oppgaveRouter = router({
             recipientGroupId: input.recipientGroupId,
             fromStatus: oppgave.status,
             toStatus: oppgave.status,
-            comment: `Flyttet av ${brukerNavn} fra ${gammelEntrepriseNavn} til ${nyEntrepriseNavn}`,
-            senderEnterpriseName: gammelEntrepriseNavn,
-            recipientEnterpriseName: nyEntrepriseNavn,
+            comment: `Flyttet av ${brukerNavn} fra ${gammelFaggruppeNavn} til ${nyFaggruppeNavn}`,
+            senderEnterpriseName: gammelFaggruppeNavn,
+            recipientEnterpriseName: nyFaggruppeNavn,
             dokumentflytName: nyFlyt.name,
             senderRolle: "registrator",
           },

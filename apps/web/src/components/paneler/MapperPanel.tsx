@@ -133,7 +133,7 @@ export function MapperPanel() {
     { enabled: !!params.prosjektId },
   );
 
-  // Hent brukerens entrepriser og grupper for tilgangsfiltrering
+  // Hent brukerens faggrupper og grupper for tilgangsfiltrering
   const { data: medlemmer } = trpc.medlem.hentForProsjekt.useQuery(
     { projectId: params.prosjektId },
     { enabled: !!params.prosjektId },
@@ -161,9 +161,9 @@ export function MapperPanel() {
 
     const erAdmin = brukerMedlem.role === "admin";
 
-    // Finn brukerens entreprise-IDer
-    const entrepriseIder = brukerMedlem.dokumentflytKoblinger.map(
-      (me) => me.dokumentflytPart.id,
+    // Finn brukerens faggruppe-IDer
+    const faggruppeIder = brukerMedlem.faggruppeKoblinger.map(
+      (me) => me.faggruppe.id,
     );
 
     // Finn brukerens gruppe-IDer
@@ -179,7 +179,7 @@ export function MapperPanel() {
     const brukerInfo: BrukerTilgangInfo = {
       userId: brukerMedlem.user.id,
       erAdmin,
-      entrepriseIder,
+      faggruppeIder,
       gruppeIder,
     };
 
@@ -189,7 +189,7 @@ export function MapperPanel() {
       accessMode: m.accessMode,
       accessEntries: m.accessEntries.map((e) => ({
         accessType: e.accessType,
-        enterpriseId: e.dokumentflytPart?.id ?? null,
+        faggruppeId: e.faggruppe?.id ?? null,
         groupId: e.group?.id ?? null,
         userId: e.user?.id ?? null,
       })),

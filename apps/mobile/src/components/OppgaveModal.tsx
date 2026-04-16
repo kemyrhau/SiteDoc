@@ -16,7 +16,7 @@ import { useProsjekt } from "../kontekst/ProsjektKontekst";
 
 type Prioritet = "low" | "medium" | "high" | "critical";
 
-interface EntrepriseData {
+interface FaggruppeData {
   id: string;
   name: string;
 }
@@ -24,9 +24,9 @@ interface EntrepriseData {
 interface ArbeidsforlopData {
   id: string;
   name: string;
-  enterpriseId: string;
-  utforerEnterpriseId: string | null;
-  utforerEnterprise: { id: string; name: string } | null;
+  faggruppeId: string;
+  utforerFaggruppeId: string | null;
+  utforerFaggruppe: { id: string; name: string } | null;
   templates: Array<{
     templateId: string;
     template: { id: string; name: string; category: string };
@@ -74,23 +74,23 @@ export function OppgaveModal({
   const { valgtProsjektId } = useProsjekt();
 
   const [prioritet, setPrioritet] = useState<Prioritet>("medium");
-  const [oppretterEntrepriseId, setOppretterEntrepriseId] = useState<string | null>(null);
-  const [svarerEntrepriseId, setSvarerEntrepriseId] = useState<string | null>(null);
+  const [oppretterFaggruppeId, setOppretterFaggruppeId] = useState<string | null>(null);
+  const [svarerFaggruppeId, setSvarerFaggruppeId] = useState<string | null>(null);
   const [visSvarerListe, setVisSvarerListe] = useState(false);
 
-  // Hent brukerens entrepriser
-  const mineEntrepriserQuery = trpc.medlem.hentMineEntrepriser.useQuery(
+  // Hent brukerens faggrupper
+  const mineFaggrupperQuery = trpc.medlem.hentMineFaggrupper.useQuery(
     { projectId: valgtProsjektId! },
     { enabled: !!valgtProsjektId && synlig },
   );
-  const mineEntrepriser = (mineEntrepriserQuery.data ?? []) as EntrepriseData[];
+  const mineFaggrupper = (mineFaggrupperQuery.data ?? []) as FaggruppeData[];
 
-  // Hent alle entrepriser for svarer-valg
-  const entrepriseQuery = trpc.entreprise.hentForProsjekt.useQuery(
+  // Hent alle faggrupper for svarer-valg
+  const faggruppeQuery = trpc.faggruppe.hentForProsjekt.useQuery(
     { projectId: valgtProsjektId! },
     { enabled: !!valgtProsjektId && synlig },
   );
-  const entrepriser = (entrepriseQuery.data ?? []) as EntrepriseData[];
+  const faggrupper = (faggruppeQuery.data ?? []) as FaggruppeData[];
 
   // Hent arbeidsforløp for auto-utledning av svarer
   const arbeidsforlopQuery = trpc.arbeidsforlop.hentForProsjekt.useQuery(
@@ -99,42 +99,42 @@ export function OppgaveModal({
   );
   const alleArbeidsforlop = (arbeidsforlopQuery.data ?? []) as ArbeidsforlopData[];
 
-  // Auto-velg oppretter: brukerens første entreprise
+  // Auto-velg oppretter: brukerens første faggruppe
   useEffect(() => {
-    if (mineEntrepriser.length > 0 && !oppretterEntrepriseId) {
-      setOppretterEntrepriseId(mineEntrepriser[0].id);
+    if (mineFaggrupper.length > 0 && !oppretterFaggruppeId) {
+      setOppretterFaggruppeId(mineFaggrupper[0].id);
     }
-  }, [mineEntrepriser, oppretterEntrepriseId]);
+  }, [mineFaggrupper, oppretterFaggruppeId]);
 
   // Auto-utled svarer fra arbeidsforløp
   const matchendeArbeidsforlop = useMemo(() => {
-    if (!oppretterEntrepriseId) return null;
+    if (!oppretterFaggruppeId) return null;
     const treff = alleArbeidsforlop.filter(
       (af) =>
-        af.enterpriseId === oppretterEntrepriseId &&
+        af.faggruppeId === oppretterFaggruppeId &&
         af.templates.some((t) => t.templateId === templateId),
     );
     return treff[0] ?? null;
-  }, [alleArbeidsforlop, oppretterEntrepriseId, templateId]);
+  }, [alleArbeidsforlop, oppretterFaggruppeId, templateId]);
 
   // Svarer: fra arbeidsforløp, eller samme som oppretter (standard)
-  const autoSvarerEntrepriseId = matchendeArbeidsforlop
-    ? matchendeArbeidsforlop.utforerEnterpriseId ?? matchendeArbeidsforlop.enterpriseId
-    : oppretterEntrepriseId;
+  const autoSvarerFaggruppeId = matchendeArbeidsforlop
+    ? matchendeArbeidsforlop.utforerFaggruppeId ?? matchendeArbeidsforlop.faggruppeId
+    : oppretterFaggruppeId;
 
   // Sett svarer automatisk når oppretter endres
   useEffect(() => {
-    if (autoSvarerEntrepriseId && !svarerEntrepriseId) {
-      setSvarerEntrepriseId(autoSvarerEntrepriseId);
+    if (autoSvarerFaggruppeId && !svarerFaggruppeId) {
+      setSvarerFaggruppeId(autoSvarerFaggruppeId);
     }
-  }, [autoSvarerEntrepriseId, svarerEntrepriseId]);
+  }, [autoSvarerFaggruppeId, svarerFaggruppeId]);
 
   // Oppdater svarer når oppretter endres
   useEffect(() => {
-    if (oppretterEntrepriseId) {
-      setSvarerEntrepriseId(autoSvarerEntrepriseId);
+    if (oppretterFaggruppeId) {
+      setSvarerFaggruppeId(autoSvarerFaggruppeId);
     }
-  }, [oppretterEntrepriseId, autoSvarerEntrepriseId]);
+  }, [oppretterFaggruppeId, autoSvarerFaggruppeId]);
 
   const opprettMutasjon = trpc.oppgave.opprett.useMutation({
     onSuccess: (_data: unknown, _variabler: { title: string }) => {
@@ -148,8 +148,8 @@ export function OppgaveModal({
 
   const nullstillSkjema = useCallback(() => {
     setPrioritet("medium");
-    setOppretterEntrepriseId(null);
-    setSvarerEntrepriseId(null);
+    setOppretterFaggruppeId(null);
+    setSvarerFaggruppeId(null);
     setVisSvarerListe(false);
   }, []);
 
@@ -159,16 +159,16 @@ export function OppgaveModal({
   }, [nullstillSkjema, onLukk]);
 
   const håndterOpprett = useCallback(async () => {
-    if (!oppretterEntrepriseId) {
-      Alert.alert("Mangler oppretter", "Velg en oppretter-entreprise");
+    if (!oppretterFaggruppeId) {
+      Alert.alert("Mangler oppretter", "Velg en oppretter-faggruppe");
       return;
     }
 
-    const effektivSvarer = svarerEntrepriseId ?? oppretterEntrepriseId;
+    const effektivSvarer = svarerFaggruppeId ?? oppretterFaggruppeId;
 
     opprettMutasjon.mutate({
-      bestillerEnterpriseId: oppretterEntrepriseId,
-      utforerEnterpriseId: effektivSvarer,
+      bestillerFaggruppeId: oppretterFaggruppeId,
+      utforerFaggruppeId: effektivSvarer,
       title: `Oppgave — ${tegningNavn}`,
       priority: prioritet,
       templateId,
@@ -178,8 +178,8 @@ export function OppgaveModal({
 
     });
   }, [
-    oppretterEntrepriseId,
-    svarerEntrepriseId,
+    oppretterFaggruppeId,
+    svarerFaggruppeId,
     prioritet,
     templateId,
     tegningId,
@@ -190,10 +190,10 @@ export function OppgaveModal({
     opprettMutasjon,
   ]);
 
-  const valgtOppretter = entrepriser.find((e) => e.id === oppretterEntrepriseId);
-  const valgtSvarer = entrepriser.find((e) => e.id === svarerEntrepriseId);
+  const valgtOppretter = faggrupper.find((e) => e.id === oppretterFaggruppeId);
+  const valgtSvarer = faggrupper.find((e) => e.id === svarerFaggruppeId);
 
-  const kanOpprett = !!oppretterEntrepriseId && !opprettMutasjon.isPending;
+  const kanOpprett = !!oppretterFaggruppeId && !opprettMutasjon.isPending;
 
   return (
     <Modal visible={synlig} animationType="slide" presentationStyle="pageSheet">
@@ -242,32 +242,32 @@ export function OppgaveModal({
             </View>
           </View>
 
-          {/* Entreprise-flyt: Oppretter → Svarer */}
+          {/* Faggruppe-flyt: Oppretter → Svarer */}
           <View className="border-b border-gray-100 px-4 py-3">
             <Text className="mb-2 text-xs font-medium text-gray-500">
-              Entreprise
+              Faggruppe
             </Text>
 
             {/* Oppretter — auto-valgt, vises som tekst (valgbar hvis flere) */}
-            {mineEntrepriser.length > 1 ? (
+            {mineFaggrupper.length > 1 ? (
               <View className="mb-2">
                 <Text className="mb-1 text-xs text-gray-400">Fra</Text>
-                {mineEntrepriser.map((e) => (
+                {mineFaggrupper.map((e) => (
                   <Pressable
                     key={e.id}
                     onPress={() => {
-                      setOppretterEntrepriseId(e.id);
-                      setSvarerEntrepriseId(null);
+                      setOppretterFaggruppeId(e.id);
+                      setSvarerFaggruppeId(null);
                     }}
                     className={`mb-1 rounded-lg border px-3 py-2 ${
-                      oppretterEntrepriseId === e.id
+                      oppretterFaggruppeId === e.id
                         ? "border-blue-300 bg-blue-50"
                         : "border-gray-200 bg-gray-50"
                     }`}
                   >
                     <Text
                       className={`text-sm ${
-                        oppretterEntrepriseId === e.id
+                        oppretterFaggruppeId === e.id
                           ? "font-medium text-blue-700"
                           : "text-gray-700"
                       }`}
@@ -309,20 +309,20 @@ export function OppgaveModal({
               </Pressable>
               {visSvarerListe && (
                 <View className="mt-1 rounded-lg border border-gray-200 bg-white">
-                  {entrepriser.map((e) => (
+                  {faggrupper.map((e) => (
                     <Pressable
                       key={e.id}
                       onPress={() => {
-                        setSvarerEntrepriseId(e.id);
+                        setSvarerFaggruppeId(e.id);
                         setVisSvarerListe(false);
                       }}
                       className={`border-b border-gray-50 px-3 py-2.5 ${
-                        svarerEntrepriseId === e.id ? "bg-blue-50" : ""
+                        svarerFaggruppeId === e.id ? "bg-blue-50" : ""
                       }`}
                     >
                       <Text
                         className={`text-sm ${
-                          svarerEntrepriseId === e.id ? "font-medium text-blue-700" : "text-gray-700"
+                          svarerFaggruppeId === e.id ? "font-medium text-blue-700" : "text-gray-700"
                         }`}
                       >
                         {e.name}

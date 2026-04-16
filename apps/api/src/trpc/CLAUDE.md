@@ -8,28 +8,28 @@
 
 ```
 Lag 1: Admin-bypass → ser ALT, null-filter
-Lag 2: Direkte entreprise → MemberEnterprise → bestiller/utfører (alle domener)
-Lag 3: Gruppe-tilgang → domain-match + valgfri entreprise-begrensning
+Lag 2: Direkte faggruppe → FaggruppeKobling → bestiller/utfører (alle domener)
+Lag 3: Gruppe-tilgang → domain-match + valgfri faggruppe-begrensning
 ```
 
 ### Lag 3 detalj: Gruppe-tilgang
 
 | Gruppe-type | Oppførsel |
 |-------------|-----------|
-| Uten entrepriser | **Tverrgående:** ser ALLE dokumenter med matchende domain |
-| Med entrepriser | **Begrenset:** kun dokumenter med matchende domain OG entreprise |
+| Uten faggrupper | **Tverrgående:** ser ALLE dokumenter med matchende domain |
+| Med faggrupper | **Begrenset:** kun dokumenter med matchende domain OG faggruppe |
 
-Eksempel: HMS-gruppen (domains=["hms"], ingen entrepriser) → ser alle HMS-sjekklister i prosjektet.
+Eksempel: HMS-gruppen (domains=["hms"], ingen faggrupper) → ser alle HMS-sjekklister i prosjektet.
 
 ## Nøkkelfunksjoner
 
 ```typescript
-hentBrukerEntrepriseIder(userId, projectId)
-  → null (admin) | string[] (brukerens entreprise-IDer)
+hentBrukerFaggruppeIder(userId, projectId)
+  → null (admin) | string[] (brukerens faggruppe-IDer)
 
 byggTilgangsFilter(userId, projectId)
   → null (admin) | Prisma WHERE { OR: [...] }
-  // Kombinerer entreprise-tilgang + gruppe-domain-tilgang
+  // Kombinerer faggruppe-tilgang + gruppe-domain-tilgang
 
 verifiserDokumentTilgang(userId, projectId, bestillerId, utforerId, domain?)
   // Kaster FORBIDDEN hvis bruker ikke har tilgang
@@ -51,8 +51,8 @@ return prisma.checklist.findMany({ where: { ...filter } });
 // Enkelt-dokument (verifikasjon)
 await verifiserDokumentTilgang(ctx.userId, projectId, bestillerId, utforerId, domain);
 
-// Opprettelse (entreprise-tilhørighet)
-await verifiserEntrepriseTilhorighet(ctx.userId, input.bestillerEnterpriseId);
+// Opprettelse (faggruppe-tilhørighet)
+await verifiserFaggruppeTilhorighet(ctx.userId, input.bestillerFaggruppeId);
 
 // Tillatelsessjekk
 await verifiserTillatelse(ctx.userId, projectId, "manage_field");
@@ -62,6 +62,6 @@ await verifiserTillatelse(ctx.userId, projectId, "manage_field");
 
 - `null`-retur fra `byggTilgangsFilter` betyr admin — IKKE tomt filter
 - Domain-sjekk er kun aktiv når malen har domain-felt — uten domain ser alle
-- Gruppe uten entrepriser gir BREDERE tilgang enn med entrepriser
-- `verifiserEntrepriseTilhorighet` har admin-bypass — admin kan opprette for alle
+- Gruppe uten faggrupper gir BREDERE tilgang enn med faggrupper
+- `verifiserFaggruppeTilhorighet` har admin-bypass — admin kan opprette for alle
 - Tillatelser aggregeres fra ALLE grupper — en bruker med manage_field i én gruppe har det globalt

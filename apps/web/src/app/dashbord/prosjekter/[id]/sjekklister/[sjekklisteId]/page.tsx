@@ -31,7 +31,7 @@ export default function SjekklisteDetaljSide() {
           <StatusBadge status={sjekkliste.status} />
         </div>
         <p className="text-sm text-gray-500">
-          Mal: {sjekkliste.template.name} &middot; Svarer: {sjekkliste.utforerEnterprise.name}
+          Mal: {sjekkliste.template.name} &middot; Svarer: {sjekkliste.utforerFaggruppe.name}
         </p>
         {sjekkliste.dueDate && (
           <p className="text-sm text-gray-400">

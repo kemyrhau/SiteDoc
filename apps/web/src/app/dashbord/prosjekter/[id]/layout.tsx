@@ -7,7 +7,7 @@ import { Spinner, StatusBadge } from "@sitedoc/ui";
 
 const faner = [
   { href: "", label: "Oversikt" },
-  { href: "/entrepriser", label: "Entrepriser" },
+  { href: "/faggrupper", label: "Faggrupper" },
   { href: "/maler", label: "Maler" },
   { href: "/sjekklister", label: "Sjekklister" },
   { href: "/oppgaver", label: "Oppgaver" },

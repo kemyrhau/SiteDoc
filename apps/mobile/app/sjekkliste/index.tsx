@@ -33,8 +33,8 @@ interface SjekklisteRad {
   updatedAt: Date | string;
   createdAt: Date | string;
   template?: { name: string; prefix?: string | null } | null;
-  bestillerEnterprise?: { name: string } | null;
-  utforerEnterprise?: { name: string } | null;
+  bestillerFaggruppe?: { name: string } | null;
+  utforerFaggruppe?: { name: string } | null;
   creator?: { name: string | null } | null;
   byggeplass?: { name: string } | null;
 }
@@ -69,7 +69,7 @@ export default function SjekklisteListe() {
       const undertekst = [
         item.template?.name,
         item.byggeplass?.name,
-        item.utforerEnterprise?.name,
+        item.utforerFaggruppe?.name,
       ]
         .filter(Boolean)
         .join(" · ");

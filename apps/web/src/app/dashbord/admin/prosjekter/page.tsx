@@ -372,7 +372,7 @@ export default function AdminProsjekter() {
                     {statistikk.maler > 0 && <li>{statistikk.maler} mal{statistikk.maler !== 1 && "er"}</li>}
                     {statistikk.tegninger > 0 && <li>{statistikk.tegninger} tegning{statistikk.tegninger !== 1 && "er"}</li>}
                     {statistikk.mapper > 0 && <li>{statistikk.mapper} mappe{statistikk.mapper !== 1 && "r"}</li>}
-                    {statistikk.entrepriser > 0 && <li>{statistikk.entrepriser} entreprise{statistikk.entrepriser !== 1 && "r"}</li>}
+                    {statistikk.faggrupper > 0 && <li>{statistikk.faggrupper} faggruppe{statistikk.faggrupper !== 1 && "r"}</li>}
                     {statistikk.medlemmer > 0 && <li>{statistikk.medlemmer} medlem{statistikk.medlemmer !== 1 && "mer"}</li>}
                   </ul>
                 </div>

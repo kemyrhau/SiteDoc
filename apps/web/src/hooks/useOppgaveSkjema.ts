@@ -30,16 +30,16 @@ export interface UseOppgaveSkjemaResultat {
     status: string;
     description: string | null;
     priority: string;
-    bestillerEnterpriseId: string;
-    utforerEnterpriseId: string;
+    bestillerFaggruppeId: string;
+    utforerFaggruppeId: string;
     template: {
       id: string;
       name: string;
       prefix: string | null;
       objects: RapportObjekt[];
     } | null;
-    bestillerEnterprise: { id: string; name: string } | null;
-    utforerEnterprise: { id: string; name: string } | null;
+    bestillerFaggruppe: { id: string; name: string } | null;
+    utforerFaggruppe: { id: string; name: string } | null;
     number: number | null;
   } | undefined;
   erLaster: boolean;
@@ -235,7 +235,7 @@ export function useOppgaveSkjema(oppgaveId: string, rettighetInput?: RettighetIn
       planleggLagring();
 
       // Slett fra images-tabellen i bakgrunnen
-      if (vedlegg?.url && oppgave?.bestillerEnterpriseId) {
+      if (vedlegg?.url && oppgave?.bestillerFaggruppeId) {
         const projectId = (oppgave as unknown as { template?: { projectId?: string } })?.template?.projectId;
         if (projectId) {
           slettBildeMutation.mutate({ fileUrl: vedlegg.url, projectId });
@@ -323,11 +323,11 @@ export function useOppgaveSkjema(oppgaveId: string, rettighetInput?: RettighetIn
           status: oppgave.status,
           description: oppgave.description,
           priority: oppgave.priority,
-          bestillerEnterpriseId: oppgave.bestillerEnterpriseId,
-          utforerEnterpriseId: oppgave.utforerEnterpriseId,
+          bestillerFaggruppeId: oppgave.bestillerFaggruppeId,
+          utforerFaggruppeId: oppgave.utforerFaggruppeId,
           template: oppgave.template,
-          bestillerEnterprise: oppgave.bestillerEnterprise,
-          utforerEnterprise: oppgave.utforerEnterprise,
+          bestillerFaggruppe: oppgave.bestillerFaggruppe,
+          utforerFaggruppe: oppgave.utforerFaggruppe,
           number: oppgave.number,
         }
       : undefined,

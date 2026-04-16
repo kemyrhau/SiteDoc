@@ -82,7 +82,7 @@ function HjelpModal({ onLukk }: { onLukk: () => void }) {
 
         {/* Innhold */}
         <div className="px-6 py-5 max-h-[60vh] overflow-y-auto">
-          {aktivFane === "firma" && <FirmaVsEntreprise />}
+          {aktivFane === "firma" && <FirmaVsFaggruppe />}
           {aktivFane === "roller" && <Roller />}
           {aktivFane === "dokumentflyt" && <Dokumentflyt />}
         </div>
@@ -92,10 +92,10 @@ function HjelpModal({ onLukk }: { onLukk: () => void }) {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Fane 1: Firma vs entreprise                                        */
+/*  Fane 1: Firma vs faggruppe                                          */
 /* ------------------------------------------------------------------ */
 
-function FirmaVsEntreprise() {
+function FirmaVsFaggruppe() {
   const { t } = useTranslation();
 
   return (
@@ -105,8 +105,8 @@ function FirmaVsEntreprise() {
         <p className="mt-1 text-sm text-gray-600">{t("hjelp.firmaBeskrivelse")}</p>
       </div>
       <div>
-        <h3 className="text-sm font-semibold text-gray-900">{t("hjelp.entrepriseOverskrift")}</h3>
-        <p className="mt-1 text-sm text-gray-600">{t("hjelp.entrepriseBeskrivelse")}</p>
+        <h3 className="text-sm font-semibold text-gray-900">{t("hjelp.faggruppeOverskrift")}</h3>
+        <p className="mt-1 text-sm text-gray-600">{t("hjelp.faggruppeBeskrivelse")}</p>
       </div>
       <div className="rounded-lg border border-blue-100 bg-blue-50/50 px-4 py-3">
         <p className="text-sm font-medium text-blue-800">{t("hjelp.firmaEksempelTittel")}</p>

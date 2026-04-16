@@ -13,7 +13,7 @@ export type Seksjon =
   | "3d-visning"
   | "tegning-3d"
   | "bilder"
-  | "entrepriser"
+  | "faggrupper"
   | "mapper"
   | "okonomi"
   | "sok"

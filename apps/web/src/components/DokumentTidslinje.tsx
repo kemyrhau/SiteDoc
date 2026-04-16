@@ -18,8 +18,8 @@ interface Overfoering {
   recipientUser?: { id: string; name: string | null } | null;
   recipientGroup?: { id: string; name: string | null } | null;
   // Snapshot-felt for kontekst
-  senderEnterpriseName?: string | null;
-  recipientEnterpriseName?: string | null;
+  senderFaggruppeName?: string | null;
+  recipientFaggruppeName?: string | null;
   dokumentflytName?: string | null;
   senderRolle?: string | null;
 }
@@ -92,7 +92,7 @@ export function DokumentTidslinje({ overforinger, opprettetAv, opprettetDato }: 
             // Snapshot-kontekst
             const senderNavn = ovf.sender?.name ?? "Ukjent";
             const mottakerNavn = ovf.recipientUser?.name ?? ovf.recipientGroup?.name;
-            const harSnapshot = !!ovf.senderEnterpriseName || !!ovf.dokumentflytName;
+            const harSnapshot = !!ovf.senderFaggruppeName || !!ovf.dokumentflytName;
 
             return (
               <TidslinjeRad
@@ -117,14 +117,14 @@ export function DokumentTidslinje({ overforinger, opprettetAv, opprettetDato }: 
                     )}
                   </div>
 
-                  {/* Avsender (entreprise) → Mottaker (entreprise) */}
+                  {/* Avsender (faggruppe) → Mottaker (faggruppe) */}
                   <div className="flex items-center gap-1.5 text-xs text-gray-500">
                     <span className="flex items-center gap-1">
                       <User size={12} className="shrink-0" />
                       <span>
                         {senderNavn}
-                        {ovf.senderEnterpriseName && (
-                          <span className="text-gray-400"> ({ovf.senderEnterpriseName})</span>
+                        {ovf.senderFaggruppeName && (
+                          <span className="text-gray-400"> ({ovf.senderFaggruppeName})</span>
                         )}
                       </span>
                     </span>
@@ -139,8 +139,8 @@ export function DokumentTidslinje({ overforinger, opprettetAv, opprettetDato }: 
                           )}
                           <span>
                             {mottakerNavn}
-                            {ovf.recipientEnterpriseName && (
-                              <span className="text-gray-400"> ({ovf.recipientEnterpriseName})</span>
+                            {ovf.recipientFaggruppeName && (
+                              <span className="text-gray-400"> ({ovf.recipientFaggruppeName})</span>
                             )}
                           </span>
                         </span>

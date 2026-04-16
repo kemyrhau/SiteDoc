@@ -6,7 +6,7 @@ import { isValidStatusTransition } from "@sitedoc/shared";
 import { TRPCError } from "@trpc/server";
 import {
   byggTilgangsFilter,
-  verifiserEntrepriseTilhorighet,
+  verifiserFaggruppeTilhorighet,
   verifiserDokumentTilgang,
   verifiserFlytRolle,
   hentBrukerTillatelser,
@@ -40,8 +40,8 @@ export const sjekklisteRouter = router({
         },
         include: {
           template: { include: { objects: { select: { id: true, label: true, type: true, config: true } } } },
-          bestillerEnterprise: true,
-          utforerEnterprise: true,
+          bestillerFaggruppe: true,
+          utforerFaggruppe: true,
           bestiller: true,
           byggeplass: { select: { id: true, name: true, number: true } },
           drawing: { select: { id: true, name: true, floor: true } },
@@ -56,7 +56,7 @@ export const sjekklisteRouter = router({
                   id: true,
                   rolle: true,
                   steg: true,
-                  dokumentflytPart: { select: { id: true, name: true } },
+                  faggruppe: { select: { id: true, name: true } },
                   projectMember: { include: { user: { select: { id: true, name: true } } } },
                   group: { select: { id: true, name: true } },
                 },
@@ -78,8 +78,8 @@ export const sjekklisteRouter = router({
         where: { id: input.id },
         include: {
           template: { include: { objects: { orderBy: { sortOrder: "asc" } }, project: { select: { sourceLanguage: true } } } },
-          bestillerEnterprise: true,
-          utforerEnterprise: true,
+          bestillerFaggruppe: true,
+          utforerFaggruppe: true,
           bestiller: true,
           byggeplass: { select: { id: true, name: true } },
           drawing: { select: { id: true, name: true, drawingNumber: true, fileUrl: true, imageWidth: true, imageHeight: true } },
@@ -103,8 +103,8 @@ export const sjekklisteRouter = router({
       await verifiserDokumentTilgang(
         ctx.userId,
         sjekkliste.template.projectId,
-        sjekkliste.bestillerEnterpriseId,
-        sjekkliste.utforerEnterpriseId,
+        sjekkliste.bestillerFaggruppeId,
+        sjekkliste.utforerFaggruppeId,
         sjekkliste.template.domain,
         sjekkliste.id,
         "checklist",
@@ -131,8 +131,8 @@ export const sjekklisteRouter = router({
     .input(
       z.object({
         templateId: z.string().uuid(),
-        bestillerEnterpriseId: z.string().uuid(),
-        utforerEnterpriseId: z.string().uuid(),
+        bestillerFaggruppeId: z.string().uuid(),
+        utforerFaggruppeId: z.string().uuid(),
         title: z.string().max(255).optional(),
         dokumentflytId: z.string().uuid().optional(),
         subject: z.string().max(500).optional(),
@@ -142,8 +142,8 @@ export const sjekklisteRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      // Verifiser at bruker tilhører oppretter-entreprisen
-      await verifiserEntrepriseTilhorighet(ctx.userId, input.bestillerEnterpriseId);
+      // Verifiser at bruker tilhører oppretter-faggruppen
+      await verifiserFaggruppeTilhorighet(ctx.userId, input.bestillerFaggruppeId);
 
       // Sjekk grense for gratisbrukere (10 sjekklister per prosjekt)
       const bruker = await ctx.prisma.user.findUniqueOrThrow({
@@ -151,12 +151,12 @@ export const sjekklisteRouter = router({
         select: { role: true },
       });
       if (bruker.role !== "sitedoc_admin") {
-        const entreprise = await ctx.prisma.dokumentflytPart.findUniqueOrThrow({
-          where: { id: input.bestillerEnterpriseId },
+        const faggruppe = await ctx.prisma.faggruppe.findUniqueOrThrow({
+          where: { id: input.bestillerFaggruppeId },
           select: { projectId: true },
         });
         const antall = await ctx.prisma.checklist.count({
-          where: { bestillerEnterprise: { projectId: entreprise.projectId } },
+          where: { bestillerFaggruppe: { projectId: faggruppe.projectId } },
         });
         if (antall >= 10) {
           throw new TRPCError({
@@ -213,8 +213,8 @@ export const sjekklisteRouter = router({
         return tx.checklist.create({
           data: {
             templateId: input.templateId,
-            bestillerEnterpriseId: input.bestillerEnterpriseId,
-            utforerEnterpriseId: input.utforerEnterpriseId,
+            bestillerFaggruppeId: input.bestillerFaggruppeId,
+            utforerFaggruppeId: input.utforerFaggruppeId,
             title: tittel,
             bestillerUserId: ctx.userId,
             eierUserId: ctx.userId,
@@ -232,14 +232,14 @@ export const sjekklisteRouter = router({
       });
     }),
 
-  // Oppdater sjekkliste-metadata (entrepriser, tittel etc.)
+  // Oppdater sjekkliste-metadata (faggrupper, tittel etc.)
   oppdater: protectedProcedure
     .input(
       z.object({
         id: z.string().uuid(),
         title: z.string().max(255).optional(),
-        bestillerEnterpriseId: z.string().uuid().optional(),
-        utforerEnterpriseId: z.string().uuid().optional(),
+        bestillerFaggruppeId: z.string().uuid().optional(),
+        utforerFaggruppeId: z.string().uuid().optional(),
         drawingId: z.string().uuid().nullable().optional(),
         byggeplassId: z.string().uuid().nullable().optional(),
         positionX: z.number().min(0).max(100).nullable().optional(),
@@ -254,18 +254,18 @@ export const sjekklisteRouter = router({
       await verifiserDokumentTilgang(
         ctx.userId,
         sjekkliste.template.projectId,
-        sjekkliste.bestillerEnterpriseId,
-        sjekkliste.utforerEnterpriseId,
+        sjekkliste.bestillerFaggruppeId,
+        sjekkliste.utforerFaggruppeId,
         sjekkliste.template.domain,
         sjekkliste.id,
         "checklist",
       );
 
-      // Entreprise-endring kun tillatt i utkast-status
-      if ((input.bestillerEnterpriseId || input.utforerEnterpriseId) && sjekkliste.status !== "draft") {
+      // Faggruppe-endring kun tillatt i utkast-status
+      if ((input.bestillerFaggruppeId || input.utforerFaggruppeId) && sjekkliste.status !== "draft") {
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: "Entrepriser kan kun endres i utkast-status",
+          message: "Faggrupper kan kun endres i utkast-status",
         });
       }
 
@@ -302,8 +302,8 @@ export const sjekklisteRouter = router({
       await verifiserDokumentTilgang(
         ctx.userId,
         sjekkliste.template.projectId,
-        sjekkliste.bestillerEnterpriseId,
-        sjekkliste.utforerEnterpriseId,
+        sjekkliste.bestillerFaggruppeId,
+        sjekkliste.utforerFaggruppeId,
         sjekkliste.template.domain,
         sjekkliste.id,
         "checklist",
@@ -458,7 +458,7 @@ export const sjekklisteRouter = router({
       });
       await verifiserDokumentTilgang(
         ctx.userId, sjekkliste.template.projectId,
-        sjekkliste.bestillerEnterpriseId, sjekkliste.utforerEnterpriseId,
+        sjekkliste.bestillerFaggruppeId, sjekkliste.utforerFaggruppeId,
         sjekkliste.template.domain,
         sjekkliste.id,
         "checklist",
@@ -516,7 +516,7 @@ export const sjekklisteRouter = router({
         kommentar: z.string().optional(),
         recipientUserId: z.string().uuid().optional(),
         recipientGroupId: z.string().uuid().optional(),
-        /** Ny dokumentflyt-ID ved videresending til annen entreprise */
+        /** Ny dokumentflyt-ID ved videresending til annen faggruppe */
         dokumentflytId: z.string().uuid().optional(),
       }),
     )
@@ -532,7 +532,7 @@ export const sjekklisteRouter = router({
               project: { select: { name: true } },
             },
           },
-          utforerEnterprise: { select: { name: true } },
+          utforerFaggruppe: { select: { name: true } },
         },
       });
 
@@ -542,8 +542,8 @@ export const sjekklisteRouter = router({
       await verifiserDokumentTilgang(
         ctx.userId,
         projectId,
-        sjekkliste.bestillerEnterpriseId,
-        sjekkliste.utforerEnterpriseId,
+        sjekkliste.bestillerFaggruppeId,
+        sjekkliste.utforerFaggruppeId,
         sjekkliste.template.domain,
         sjekkliste.id,
         "checklist",
@@ -554,8 +554,8 @@ export const sjekklisteRouter = router({
         ctx.userId,
         projectId,
         sjekkliste.dokumentflytId,
-        sjekkliste.bestillerEnterpriseId,
-        sjekkliste.utforerEnterpriseId,
+        sjekkliste.bestillerFaggruppeId,
+        sjekkliste.utforerFaggruppeId,
         sjekkliste.status,
         input.nyStatus,
       );
@@ -592,8 +592,8 @@ export const sjekklisteRouter = router({
         senderId: ctx.userId,
         projektId: projectId,
         dokumentStatus: sjekkliste.status,
-        bestillerEnterpriseId: sjekkliste.bestillerEnterpriseId,
-        utforerEnterpriseId: sjekkliste.utforerEnterpriseId,
+        bestillerFaggruppeId: sjekkliste.bestillerFaggruppeId,
+        utforerFaggruppeId: sjekkliste.utforerFaggruppeId,
         dokumentflytId: sjekkliste.dokumentflytId,
       });
 
@@ -617,30 +617,30 @@ export const sjekklisteRouter = router({
         return undefined; // Beholder gjeldende eier
       };
 
-      // Videresending: bytt mottaker, evt. bytt dokumentflyt + entreprise
+      // Videresending: bytt mottaker, evt. bytt dokumentflyt + faggruppe
       if (input.nyStatus === "forwarded") {
         if (!input.recipientUserId && !input.recipientGroupId) {
           throw new TRPCError({ code: "BAD_REQUEST", message: "Videresending krever en mottaker" });
         }
 
-        // Sjekk om dokumentflyt/entreprise endres
-        let flytBytteData: { dokumentflytId: string; utforerEnterpriseId: string; nyEntrepriseNavn: string; nyFlytNavn: string } | null = null;
+        // Sjekk om dokumentflyt/faggruppe endres
+        let flytBytteData: { dokumentflytId: string; utforerFaggruppeId: string; nyFaggruppeNavn: string; nyFlytNavn: string } | null = null;
         if (input.dokumentflytId && input.dokumentflytId !== sjekkliste.dokumentflytId) {
           const nyFlyt = await ctx.prisma.dokumentflyt.findUniqueOrThrow({
             where: { id: input.dokumentflytId },
-            include: { dokumentflytPart: { select: { id: true, name: true } } },
+            include: { faggruppe: { select: { id: true, name: true } } },
           });
-          if (!nyFlyt.enterpriseId) {
-            throw new TRPCError({ code: "BAD_REQUEST", message: "Dokumentflyten mangler entreprise" });
+          if (!nyFlyt.faggruppeId) {
+            throw new TRPCError({ code: "BAD_REQUEST", message: "Dokumentflyten mangler faggruppe" });
           }
           flytBytteData = {
             dokumentflytId: input.dokumentflytId,
-            utforerEnterpriseId: nyFlyt.enterpriseId,
-            nyEntrepriseNavn: nyFlyt.dokumentflytPart?.name ?? "Ukjent",
+            utforerFaggruppeId: nyFlyt.faggruppeId,
+            nyFaggruppeNavn: nyFlyt.faggruppe?.name ?? "Ukjent",
             nyFlytNavn: nyFlyt.name,
           };
 
-          // Kryssentreprise-validering: kun prosjekteier/registrator/admin kan sende på tvers
+          // Kryssfaggruppe-validering: kun prosjekteier/registrator/admin kan sende på tvers
           const bruker = await ctx.prisma.user.findUnique({ where: { id: ctx.userId }, select: { role: true } });
           if (bruker?.role !== "sitedoc_admin") {
             const medlem = await ctx.prisma.projectMember.findUnique({
@@ -652,14 +652,14 @@ export const sjekklisteRouter = router({
               if (!erRegistrator) {
                 throw new TRPCError({
                   code: "FORBIDDEN",
-                  message: "Kun prosjekteier eller registrator kan sende på tvers av entrepriser",
+                  message: "Kun prosjekteier eller registrator kan sende på tvers av faggrupper",
                 });
               }
             }
           }
         }
 
-        const gammelEntrepriseNavn = sjekkliste.utforerEnterprise?.name ?? "Ukjent";
+        const gammelFaggruppeNavn = sjekkliste.utforerFaggruppe?.name ?? "Ukjent";
 
         const nyEier = await utledNyEier(input.recipientUserId, input.recipientGroupId);
 
@@ -672,13 +672,13 @@ export const sjekklisteRouter = router({
               ...(nyEier ? { eierUserId: nyEier } : {}),
               ...(flytBytteData ? {
                 dokumentflytId: flytBytteData.dokumentflytId,
-                utforerEnterpriseId: flytBytteData.utforerEnterpriseId,
+                utforerFaggruppeId: flytBytteData.utforerFaggruppeId,
               } : {}),
             },
           });
 
           const kommentar = flytBytteData
-            ? (input.kommentar ? `Videresendt til ${flytBytteData.nyEntrepriseNavn}: ${input.kommentar}` : `Videresendt fra ${gammelEntrepriseNavn} til ${flytBytteData.nyEntrepriseNavn}`)
+            ? (input.kommentar ? `Videresendt til ${flytBytteData.nyFaggruppeNavn}: ${input.kommentar}` : `Videresendt fra ${gammelFaggruppeNavn} til ${flytBytteData.nyFaggruppeNavn}`)
             : (input.kommentar ? `Videresendt: ${input.kommentar}` : "Videresendt");
 
           await tx.documentTransfer.create({
@@ -692,7 +692,7 @@ export const sjekklisteRouter = router({
               recipientGroupId: input.recipientGroupId,
               ...snapshot,
               ...(flytBytteData ? {
-                recipientEnterpriseName: flytBytteData.nyEntrepriseNavn,
+                recipientEnterpriseName: flytBytteData.nyFaggruppeNavn,
                 dokumentflytName: flytBytteData.nyFlytNavn,
               } : {}),
             },
@@ -807,8 +807,8 @@ export const sjekklisteRouter = router({
       await verifiserDokumentTilgang(
         ctx.userId,
         sjekkliste.template.projectId,
-        sjekkliste.bestillerEnterpriseId,
-        sjekkliste.utforerEnterpriseId,
+        sjekkliste.bestillerFaggruppeId,
+        sjekkliste.utforerFaggruppeId,
         sjekkliste.template.domain,
         sjekkliste.id,
         "checklist",
@@ -871,19 +871,19 @@ export const sjekklisteRouter = router({
         });
       }
 
-      // Valider at ny eier tilhører samme entreprise
+      // Valider at ny eier tilhører samme faggruppe
       const nyEierMedlem = await ctx.prisma.projectMember.findFirst({
         where: {
           userId: input.nyEierUserId,
           projectId,
-          dokumentflytKoblinger: { some: { enterpriseId: sjekkliste.bestillerEnterpriseId } },
+          faggruppeKoblinger: { some: { faggruppeId: sjekkliste.bestillerFaggruppeId } },
         },
       });
 
       if (!nyEierMedlem) {
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: "Ny eier må tilhøre samme entreprise som dokumentet",
+          message: "Ny eier må tilhøre samme faggruppe som dokumentet",
         });
       }
 
@@ -925,7 +925,7 @@ export const sjekklisteRouter = router({
       const sjekkliste = await ctx.prisma.checklist.findUniqueOrThrow({
         where: { id: input.id },
         include: {
-          utforerEnterprise: { select: { name: true } },
+          utforerFaggruppe: { select: { name: true } },
         },
       });
 
@@ -938,15 +938,15 @@ export const sjekklisteRouter = router({
       // Hent ny dokumentflyt
       const nyFlyt = await ctx.prisma.dokumentflyt.findUniqueOrThrow({
         where: { id: input.nyDokumentflytId },
-        include: { dokumentflytPart: { select: { id: true, name: true } } },
+        include: { faggruppe: { select: { id: true, name: true } } },
       });
 
-      if (!nyFlyt.enterpriseId) {
-        throw new TRPCError({ code: "BAD_REQUEST", message: "Dokumentflyten mangler entreprise" });
+      if (!nyFlyt.faggruppeId) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Dokumentflyten mangler faggruppe" });
       }
 
-      const gammelEntrepriseNavn = sjekkliste.utforerEnterprise?.name ?? "Ukjent";
-      const nyEntrepriseNavn = nyFlyt.dokumentflytPart?.name ?? "Ukjent";
+      const gammelFaggruppeNavn = sjekkliste.utforerFaggruppe?.name ?? "Ukjent";
+      const nyFaggruppeNavn = nyFlyt.faggruppe?.name ?? "Ukjent";
       const brukerNavn = bruker?.name ?? "Ukjent";
 
       return ctx.prisma.$transaction(async (tx) => {
@@ -954,7 +954,7 @@ export const sjekklisteRouter = router({
           where: { id: input.id },
           data: {
             dokumentflytId: input.nyDokumentflytId,
-            utforerEnterpriseId: nyFlyt.enterpriseId!,
+            utforerFaggruppeId: nyFlyt.faggruppeId!,
             recipientUserId: input.recipientUserId ?? null,
           },
         });
@@ -967,9 +967,9 @@ export const sjekklisteRouter = router({
             recipientGroupId: input.recipientGroupId,
             fromStatus: sjekkliste.status,
             toStatus: sjekkliste.status,
-            comment: `Flyttet av ${brukerNavn} fra ${gammelEntrepriseNavn} til ${nyEntrepriseNavn}`,
-            senderEnterpriseName: gammelEntrepriseNavn,
-            recipientEnterpriseName: nyEntrepriseNavn,
+            comment: `Flyttet av ${brukerNavn} fra ${gammelFaggruppeNavn} til ${nyFaggruppeNavn}`,
+            senderEnterpriseName: gammelFaggruppeNavn,
+            recipientEnterpriseName: nyFaggruppeNavn,
             dokumentflytName: nyFlyt.name,
             senderRolle: "registrator",
           },

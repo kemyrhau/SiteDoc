@@ -68,9 +68,9 @@ export default function ProsjektOversikt() {
 
   const kort = [
     {
-      label: t("dashbord.entrepriser"),
-      verdi: prosjekt.dokumentflytParts.length,
-      href: `${basePath}/entrepriser`,
+      label: t("dashbord.faggrupper"),
+      verdi: prosjekt.faggrupper.length,
+      href: `${basePath}/faggrupper`,
     },
     {
       label: t("dashbord.maler"),
@@ -190,7 +190,7 @@ export default function ProsjektOversikt() {
                 <div key={m.id} className="flex items-center justify-between py-2">
                   <div>
                     <p className="text-sm font-medium">{m.user.name ?? m.user.email}</p>
-                    <p className="text-xs text-gray-400">{m.dokumentflytKoblinger?.map((me: { dokumentflytPart: { name: string } }) => me.dokumentflytPart.name).join(", ")}</p>
+                    <p className="text-xs text-gray-400">{m.faggruppeKoblinger?.map((me: { faggruppe: { name: string } }) => me.faggruppe.name).join(", ")}</p>
                   </div>
                   <span className="text-xs text-gray-500">{m.role}</span>
                 </div>

@@ -520,9 +520,9 @@ export default function ProsjektoppsettSide() {
             <div className="flex items-center gap-3 rounded-lg bg-gray-50 px-4 py-3">
               <FileText className="h-4 w-4 text-gray-400" />
               <div>
-                <p className="text-xs text-gray-500">Entrepriser</p>
+                <p className="text-xs text-gray-500">Faggrupper</p>
                 <p className="text-sm font-medium text-gray-900">
-                  {prosjekt.dokumentflytParts?.length ?? 0} entrepriser
+                  {prosjekt.faggrupper?.length ?? 0} faggrupper
                 </p>
               </div>
             </div>

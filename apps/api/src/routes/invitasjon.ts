@@ -26,7 +26,7 @@ export const invitasjonRouter = router({
         },
         include: {
           invitedBy: { select: { id: true, name: true, email: true } },
-          dokumentflytPart: { select: { id: true, name: true } },
+          faggruppe: { select: { id: true, name: true } },
           group: { select: { id: true, name: true } },
         },
         orderBy: { createdAt: "desc" },

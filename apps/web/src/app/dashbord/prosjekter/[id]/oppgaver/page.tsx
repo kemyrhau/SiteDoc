@@ -33,7 +33,7 @@ export default function OppgaverSide() {
     { projectId: params.id },
   );
 
-  const { data: entrepriser } = trpc.entreprise.hentForProsjekt.useQuery({ projectId: params.id });
+  const { data: faggrupper } = trpc.faggruppe.hentForProsjekt.useQuery({ projectId: params.id });
   const { data: maler } = trpc.mal.hentForProsjekt.useQuery({ projectId: params.id });
   const oppgaveMaler = (maler ?? []).filter((m: { category: string }) => m.category === "oppgave");
 
@@ -53,13 +53,13 @@ export default function OppgaverSide() {
     e.preventDefault();
     if (!tittel.trim() || !valgtSvarer || !valgtMalId) return;
 
-    const oppretterEntreprise = entrepriser?.[0];
-    if (!oppretterEntreprise) return;
+    const oppretterFaggruppe = faggrupper?.[0];
+    if (!oppretterFaggruppe) return;
 
     opprettMutation.mutate({
       templateId: valgtMalId,
-      bestillerEnterpriseId: oppretterEntreprise.id,
-      utforerEnterpriseId: valgtSvarer,
+      bestillerFaggruppeId: oppretterFaggruppe.id,
+      utforerFaggruppeId: valgtSvarer,
       title: tittel.trim(),
       description: beskrivelse.trim() || undefined,
       priority: prioritet,
@@ -84,12 +84,12 @@ export default function OppgaverSide() {
       {!oppgaver?.length ? (
         <EmptyState
           title="Ingen oppgaver"
-          description="Opprett oppgaver for å tildele arbeid til entrepriser."
+          description="Opprett oppgaver for å tildele arbeid til faggrupper."
           action={<Button onClick={() => setVisModal(true)}>Opprett oppgave</Button>}
         />
       ) : (
         <div className="flex flex-col gap-3">
-          {(oppgaver as Array<{ id: string; title: string; description: string | null; priority: string; status: string; dueDate: string | null; utforerEnterprise: { name: string } }>).map((oppgave) => (
+          {(oppgaver as Array<{ id: string; title: string; description: string | null; priority: string; status: string; dueDate: string | null; utforerFaggruppe: { name: string } }>).map((oppgave) => (
             <Card key={oppgave.id} className="flex items-center justify-between">
               <div>
                 <div className="flex items-center gap-2">
@@ -99,7 +99,7 @@ export default function OppgaverSide() {
                   </Badge>
                 </div>
                 <p className="text-xs text-gray-400">
-                  Svarer: {oppgave.utforerEnterprise.name}
+                  Svarer: {oppgave.utforerFaggruppe.name}
                   {oppgave.description && ` · ${oppgave.description.slice(0, 60)}...`}
                 </p>
               </div>
@@ -145,11 +145,11 @@ export default function OppgaverSide() {
             onChange={(e) => setPrioritet(e.target.value as "low" | "medium" | "high" | "critical")}
           />
           <Select
-            label="Ansvarlig entreprise"
-            options={entrepriser?.map((ent) => ({ value: ent.id, label: ent.name })) ?? []}
+            label="Ansvarlig faggruppe"
+            options={faggrupper?.map((ent) => ({ value: ent.id, label: ent.name })) ?? []}
             value={valgtSvarer}
             onChange={(e) => setValgtSvarer(e.target.value)}
-            placeholder="Velg entreprise..."
+            placeholder="Velg faggruppe..."
           />
           <div className="flex gap-3 pt-2">
             <Button type="submit" loading={opprettMutation.isPending}>

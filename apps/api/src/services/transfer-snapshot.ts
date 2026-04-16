@@ -20,21 +20,23 @@ interface SnapshotInput {
   senderId: string;
   projektId: string;
   dokumentStatus: string;
-  bestillerEnterpriseId: string | null;
-  utforerEnterpriseId: string | null;
+  bestillerFaggruppeId: string | null;
+  utforerFaggruppeId: string | null;
   dokumentflytId: string | null;
 }
 
 export interface TransferSnapshot {
-  senderEnterpriseName: string | null;
-  recipientEnterpriseName: string | null;
+  /** Mappes til DB-kolonne senderEnterpriseName (historisk snapshot) */
+  senderFaggruppeNavn: string | null;
+  /** Mappes til DB-kolonne recipientEnterpriseName (historisk snapshot) */
+  mottakerFaggruppeNavn: string | null;
   dokumentflytName: string | null;
   senderRolle: string;
 }
 
 /**
  * Bygg snapshot-data for DocumentTransfer.
- * Henter entreprise-navn og dokumentflyt-navn fra DB.
+ * Henter faggruppe-navn og dokumentflyt-navn fra DB.
  */
 export async function byggTransferSnapshot(input: SnapshotInput): Promise<TransferSnapshot> {
   // Sjekk om sender er registrator
@@ -57,19 +59,19 @@ export async function byggTransferSnapshot(input: SnapshotInput): Promise<Transf
 
   const senderRolle = utledSenderRolle(input.dokumentStatus, erRegistrator && !erAdmin);
 
-  // Hent entreprise-navn
-  const [bestillerEnt, utforerEnt] = await Promise.all([
-    input.bestillerEnterpriseId ? prisma.dokumentflytPart.findUnique({ where: { id: input.bestillerEnterpriseId }, select: { name: true } }) : null,
-    input.utforerEnterpriseId ? prisma.dokumentflytPart.findUnique({ where: { id: input.utforerEnterpriseId }, select: { name: true } }) : null,
+  // Hent faggruppe-navn
+  const [bestillerFaggruppe, utforerFaggruppe] = await Promise.all([
+    input.bestillerFaggruppeId ? prisma.faggruppe.findUnique({ where: { id: input.bestillerFaggruppeId }, select: { name: true } }) : null,
+    input.utforerFaggruppeId ? prisma.faggruppe.findUnique({ where: { id: input.utforerFaggruppeId }, select: { name: true } }) : null,
   ]);
 
-  // Senderens entreprise basert på rolle
-  const senderEnterpriseName = (senderRolle === "bestiller" || senderRolle === "godkjenner" || senderRolle === "registrator")
-    ? bestillerEnt?.name ?? null
-    : utforerEnt?.name ?? null;
+  // Senderens faggruppe basert på rolle
+  const senderFaggruppeNavn = (senderRolle === "bestiller" || senderRolle === "godkjenner" || senderRolle === "registrator")
+    ? bestillerFaggruppe?.name ?? null
+    : utforerFaggruppe?.name ?? null;
 
-  // Mottaker-entreprise = dokumentets utfører-entreprise
-  const recipientEnterpriseName = utforerEnt?.name ?? null;
+  // Mottaker-faggruppe = dokumentets utfører-faggruppe
+  const mottakerFaggruppeNavn = utforerFaggruppe?.name ?? null;
 
   // Dokumentflyt-navn
   let dokumentflytName: string | null = null;
@@ -82,8 +84,8 @@ export async function byggTransferSnapshot(input: SnapshotInput): Promise<Transf
   }
 
   return {
-    senderEnterpriseName,
-    recipientEnterpriseName,
+    senderFaggruppeNavn,
+    mottakerFaggruppeNavn,
     dokumentflytName,
     senderRolle,
   };

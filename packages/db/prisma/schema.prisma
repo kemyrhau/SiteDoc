@@ -38,7 +38,7 @@ model User {
   folderAccess         FolderAccess[]
   taskComments         TaskComment[]
   checklistChangeLogs  ChecklistChangeLog[]
-  ansvarligDokumentflytParts DokumentflytPart[] @relation("DokumentflytPartAnsvarlig")
+  ansvarligFaggrupper Faggruppe[] @relation("FaggruppeAnsvarlig")
   psiSignaturer        PsiSignatur[]
 
   @@index([organizationId])
@@ -153,7 +153,7 @@ model Project {
   updatedAt                 DateTime @updatedAt @map("updated_at")
 
   members              ProjectMember[]
-  dokumentflytParts    DokumentflytPart[]
+  faggrupper           Faggruppe[]
   drawings             Drawing[]
   pointClouds          PointCloud[]
   byggeplasser         Byggeplass[]
@@ -184,7 +184,7 @@ model ProjectMember {
 
   user                   User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   project                Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  dokumentflytKoblinger  DokumentflytKobling[]
+  faggruppeKoblinger     FaggruppeKobling[]
   groupMemberships       ProjectGroupMember[]
   dokumentflytMedlemskap           DokumentflytMedlem[]
   hovedansvarligIDokumentflyter    DokumentflytMedlem[] @relation("HovedansvarligPerson")
@@ -193,16 +193,16 @@ model ProjectMember {
   @@map("project_members")
 }
 
-model DokumentflytKobling {
+model FaggruppeKobling {
   id              String   @id @default(uuid())
   projectMemberId String   @map("project_member_id")
-  enterpriseId    String   @map("enterprise_id")
+  faggruppeId     String   @map("faggruppe_id")
   createdAt       DateTime @default(now()) @map("created_at")
 
   projectMember ProjectMember  @relation(fields: [projectMemberId], references: [id], onDelete: Cascade)
-  dokumentflytPart DokumentflytPart @relation(fields: [enterpriseId], references: [id], onDelete: Cascade)
+  faggruppe     Faggruppe      @relation(fields: [faggruppeId], references: [id], onDelete: Cascade)
 
-  @@unique([projectMemberId, enterpriseId])
+  @@unique([projectMemberId, faggruppeId])
   @@map("dokumentflyt_koblinger")
 }
 
@@ -224,7 +224,7 @@ model ProjectGroup {
   members               ProjectGroupMember[]
   invitations           ProjectInvitation[]
   folderAccess          FolderAccess[]
-  groupDokumentflytParts GroupDokumentflytPart[]
+  groupFaggrupper       GroupFaggruppe[]
   dokumentflytMedlemmer DokumentflytMedlem[]
   recipientTransfers    DocumentTransfer[]   @relation("TransferRecipientGroup")
   recipientChecklists   Checklist[]          @relation("ChecklistRecipientGroup")
@@ -248,17 +248,17 @@ model ProjectGroupMember {
   @@map("project_group_members")
 }
 
-model GroupDokumentflytPart {
+model GroupFaggruppe {
   id           String   @id @default(uuid())
   groupId      String   @map("group_id")
-  enterpriseId String   @map("enterprise_id")
+  faggruppeId  String   @map("faggruppe_id")
   createdAt    DateTime @default(now()) @map("created_at")
 
-  group            ProjectGroup   @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  dokumentflytPart DokumentflytPart @relation(fields: [enterpriseId], references: [id], onDelete: Cascade)
+  group      ProjectGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  faggruppe  Faggruppe    @relation(fields: [faggruppeId], references: [id], onDelete: Cascade)
 
-  @@unique([groupId, enterpriseId])
-  @@map("group_enterprises")
+  @@unique([groupId, faggruppeId])
+  @@map("group_faggrupper")
 }
 
 model ProjectInvitation {
@@ -267,7 +267,7 @@ model ProjectInvitation {
   token           String    @unique
   projectId       String    @map("project_id")
   role            String    @default("member")
-  enterpriseId    String?   @map("enterprise_id")
+  faggruppeId     String?   @map("faggruppe_id")
   groupId         String?   @map("group_id")
   invitedByUserId String    @map("invited_by_user_id")
   status          String    @default("pending") // pending | accepted | expired
@@ -276,7 +276,7 @@ model ProjectInvitation {
   createdAt       DateTime  @default(now()) @map("created_at")
 
   project    Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  dokumentflytPart DokumentflytPart? @relation(fields: [enterpriseId], references: [id], onDelete: SetNull)
+  faggruppe  Faggruppe?    @relation(fields: [faggruppeId], references: [id], onDelete: SetNull)
   group            ProjectGroup?     @relation(fields: [groupId], references: [id], onDelete: SetNull)
   invitedBy        User              @relation("InvitationSender", fields: [invitedByUserId], references: [id])
 
@@ -284,12 +284,12 @@ model ProjectInvitation {
   @@map("project_invitations")
 }
 
-model DokumentflytPart {
+model Faggruppe {
   id                 String   @id @default(uuid())
   projectId          String   @map("project_id")
   kontraktId         String?  @map("kontrakt_id")
   name               String
-  enterpriseNumber   String?  @map("enterprise_number")
+  faggruppeNummer    String?  @map("faggruppe_nummer")
   organizationNumber String?  @map("organization_number")
   color              String?
   industry           String?
@@ -300,17 +300,17 @@ model DokumentflytPart {
 
   project                Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
   kontrakt               FtdKontrakt?         @relation(fields: [kontraktId], references: [id], onDelete: SetNull)
-  ansvarlig              User?                @relation("DokumentflytPartAnsvarlig", fields: [ansvarligId], references: [id], onDelete: SetNull)
-  dokumentflytKoblinger  DokumentflytKobling[]
-  bestillerChecklists    Checklist[]          @relation("ChecklistCreatorDokumentflytPart")
-  utforerChecklists      Checklist[]          @relation("ChecklistResponderDokumentflytPart")
-  bestillerTasks         Task[]               @relation("TaskCreatorDokumentflytPart")
-  utforerTasks           Task[]               @relation("TaskResponderDokumentflytPart")
+  ansvarlig              User?                @relation("FaggruppeAnsvarlig", fields: [ansvarligId], references: [id], onDelete: SetNull)
+  faggruppeKoblinger     FaggruppeKobling[]
+  bestillerChecklists    Checklist[]          @relation("ChecklistBestillerFaggruppe")
+  utforerChecklists      Checklist[]          @relation("ChecklistUtforerFaggruppe")
+  bestillerTasks         Task[]               @relation("TaskBestillerFaggruppe")
+  utforerTasks           Task[]               @relation("TaskUtforerFaggruppe")
   dokumentflytMedlemskap DokumentflytMedlem[]
-  dokumentflyter         Dokumentflyt[]       @relation("dokumentflytDokumentflytPart")
+  dokumentflyter         Dokumentflyt[]       @relation("dokumentflytFaggruppe")
   invitations            ProjectInvitation[]
   folderAccess           FolderAccess[]
-  groupDokumentflytParts GroupDokumentflytPart[]
+  groupFaggrupper        GroupFaggruppe[]
   ftdNotaPeriods         FtdNotaPeriod[]
 
   @@map("dokumentflyt_parts")
@@ -434,7 +434,7 @@ model ReportTemplate {
   domain          String   @default("bygg") // "bygg" | "hms" | "kvalitet"
   subjects        Json?    @default("[]") // Forhåndsdefinerte emnetekster ["3. etasje", "Kjeller", ...]
   showSubject     Boolean  @default(true) @map("show_subject")
-  showEnterprise  Boolean  @default(true) @map("show_enterprise")
+  showFaggruppe   Boolean  @default(true) @map("show_faggruppe")
   showLocation    Boolean  @default(true) @map("show_location")
   showPriority    Boolean  @default(true) @map("show_priority")
   version         Int      @default(1)
@@ -477,8 +477,8 @@ model Checklist {
   id                    String    @id @default(uuid())
   templateId              String    @map("template_id")
   bestillerUserId         String    @map("bestiller_user_id")
-  bestillerEnterpriseId   String    @map("bestiller_enterprise_id")
-  utforerEnterpriseId     String    @map("utforer_enterprise_id")
+  bestillerFaggruppeId    String    @map("bestiller_faggruppe_id")
+  utforerFaggruppeId      String    @map("utforer_faggruppe_id")
   eierUserId              String?   @map("eier_user_id")
   status                  String    @default("draft")
   title                   String
@@ -499,8 +499,8 @@ model Checklist {
 
   template              ReportTemplate       @relation(fields: [templateId], references: [id])
   bestiller             User                 @relation("ChecklistCreator", fields: [bestillerUserId], references: [id])
-  bestillerEnterprise   DokumentflytPart     @relation("ChecklistCreatorDokumentflytPart", fields: [bestillerEnterpriseId], references: [id])
-  utforerEnterprise     DokumentflytPart     @relation("ChecklistResponderDokumentflytPart", fields: [utforerEnterpriseId], references: [id])
+  bestillerFaggruppe    Faggruppe            @relation("ChecklistBestillerFaggruppe", fields: [bestillerFaggruppeId], references: [id])
+  utforerFaggruppe      Faggruppe            @relation("ChecklistUtforerFaggruppe", fields: [utforerFaggruppeId], references: [id])
   eier                  User?                @relation("ChecklistOwner", fields: [eierUserId], references: [id], onDelete: SetNull)
   dokumentflyt          Dokumentflyt?        @relation(fields: [dokumentflytId], references: [id], onDelete: SetNull)
   byggeplass            Byggeplass?          @relation(fields: [byggeplassId], references: [id], onDelete: SetNull)
@@ -522,8 +522,8 @@ model Task {
   id                    String    @id @default(uuid())
   templateId              String?   @map("template_id")
   bestillerUserId         String    @map("bestiller_user_id")
-  bestillerEnterpriseId   String?   @map("bestiller_enterprise_id")
-  utforerEnterpriseId     String?   @map("utforer_enterprise_id")
+  bestillerFaggruppeId    String?   @map("bestiller_faggruppe_id")
+  utforerFaggruppeId      String?   @map("utforer_faggruppe_id")
   eierUserId              String?   @map("eier_user_id")
   status                  String    @default("draft")
   title                   String
@@ -547,8 +547,8 @@ model Task {
 
   template              ReportTemplate?    @relation(fields: [templateId], references: [id])
   bestiller             User               @relation("TaskCreator", fields: [bestillerUserId], references: [id])
-  bestillerEnterprise   DokumentflytPart?  @relation("TaskCreatorDokumentflytPart", fields: [bestillerEnterpriseId], references: [id])
-  utforerEnterprise     DokumentflytPart?  @relation("TaskResponderDokumentflytPart", fields: [utforerEnterpriseId], references: [id])
+  bestillerFaggruppe    Faggruppe?         @relation("TaskBestillerFaggruppe", fields: [bestillerFaggruppeId], references: [id])
+  utforerFaggruppe      Faggruppe?         @relation("TaskUtforerFaggruppe", fields: [utforerFaggruppeId], references: [id])
   eier                  User?              @relation("TaskOwner", fields: [eierUserId], references: [id], onDelete: SetNull)
   drawing               Drawing?           @relation(fields: [drawingId], references: [id])
   dokumentflyt          Dokumentflyt?      @relation(fields: [dokumentflytId], references: [id], onDelete: SetNull)
@@ -639,18 +639,18 @@ model Folder {
 model FolderAccess {
   id           String   @id @default(uuid())
   folderId     String   @map("folder_id")
-  accessType   String   @map("access_type") // "enterprise" | "group" | "user"
-  enterpriseId String?  @map("enterprise_id")
+  accessType   String   @map("access_type") // "faggruppe" | "group" | "user"
+  faggruppeId  String?  @map("faggruppe_id")
   groupId      String?  @map("group_id")
   userId       String?  @map("user_id")
   createdAt    DateTime @default(now()) @map("created_at")
 
-  folder           Folder            @relation(fields: [folderId], references: [id], onDelete: Cascade)
-  dokumentflytPart DokumentflytPart? @relation(fields: [enterpriseId], references: [id], onDelete: Cascade)
-  group            ProjectGroup?     @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  folder     Folder        @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  faggruppe  Faggruppe?    @relation(fields: [faggruppeId], references: [id], onDelete: Cascade)
+  group      ProjectGroup? @relation(fields: [groupId], references: [id], onDelete: Cascade)
   user       User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([folderId, accessType, enterpriseId, groupId, userId])
+  @@unique([folderId, accessType, faggruppeId, groupId, userId])
   @@map("folder_access")
 }
 
@@ -659,14 +659,14 @@ model FolderAccess {
 model Dokumentflyt {
   id           String   @id @default(uuid())
   projectId    String   @map("project_id")
-  enterpriseId String?  @map("enterprise_id")
+  faggruppeId  String?  @map("faggruppe_id")
   name         String
   roller       Json     @default("[]") // Array<{ rolle: string, label?: string | null }>
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
   project    Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  dokumentflytPart DokumentflytPart? @relation("dokumentflytDokumentflytPart", fields: [enterpriseId], references: [id], onDelete: SetNull)
+  faggruppe  Faggruppe?           @relation("dokumentflytFaggruppe", fields: [faggruppeId], references: [id], onDelete: SetNull)
   medlemmer  DokumentflytMedlem[]
   maler      DokumentflytMal[]
   checklists Checklist[]
@@ -678,7 +678,7 @@ model Dokumentflyt {
 model DokumentflytMedlem {
   id                      String   @id @default(uuid())
   dokumentflytId          String   @map("dokumentflyt_id")
-  enterpriseId            String?  @map("enterprise_id")
+  faggruppeId             String?  @map("faggruppe_id")
   projectMemberId         String?  @map("project_member_id")
   groupId                 String?  @map("group_id")
   hovedansvarligPersonId  String?  @map("hovedansvarlig_person_id") // Spesifikk person i gruppen som er hovedansvarlig
@@ -690,12 +690,12 @@ model DokumentflytMedlem {
   createdAt               DateTime @default(now()) @map("created_at")
 
   dokumentflyt          Dokumentflyt   @relation(fields: [dokumentflytId], references: [id], onDelete: Cascade)
-  dokumentflytPart      DokumentflytPart? @relation(fields: [enterpriseId], references: [id], onDelete: Cascade)
+  faggruppe             Faggruppe?     @relation(fields: [faggruppeId], references: [id], onDelete: Cascade)
   projectMember         ProjectMember? @relation(fields: [projectMemberId], references: [id], onDelete: Cascade)
   group                 ProjectGroup?  @relation(fields: [groupId], references: [id], onDelete: Cascade)
   hovedansvarligPerson  ProjectMember? @relation("HovedansvarligPerson", fields: [hovedansvarligPersonId], references: [id], onDelete: SetNull)
 
-  @@unique([dokumentflytId, enterpriseId, rolle, steg])
+  @@unique([dokumentflytId, faggruppeId, rolle, steg])
   @@unique([dokumentflytId, projectMemberId, rolle, steg])
   @@unique([dokumentflytId, groupId, rolle, steg])
   @@map("dokumentflyt_medlemmer")
@@ -839,7 +839,7 @@ model FtdKontrakt {
 
   project    Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
   byggeplass Byggeplass? @relation(fields: [byggeplassId], references: [id], onDelete: SetNull)
-  dokumentflytParts DokumentflytPart[]
+  faggrupper   Faggruppe[]
   dokumenter   FtdDocument[]
   mapper       Folder[]
   notaPerioder FtdNotaPeriod[]
@@ -1014,7 +1014,7 @@ model FtdNotaPeriod {
   projectId        String    @map("project_id")
   kontraktId       String    @map("kontrakt_id")
   documentId       String    @map("document_id")
-  enterpriseId     String?   @map("enterprise_id")
+  faggruppeId      String?   @map("faggruppe_id")
   periodeNr        Int       @map("periode_nr")
   periodeStart     DateTime? @map("periode_start")
   periodeSlutt     DateTime? @map("periode_slutt")
@@ -1032,14 +1032,14 @@ model FtdNotaPeriod {
   project     Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
   kontrakt    FtdKontrakt      @relation(fields: [kontraktId], references: [id])
   document    FtdDocument      @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  dokumentflytPart DokumentflytPart? @relation(fields: [enterpriseId], references: [id], onDelete: SetNull)
-  poster      FtdNotaPost[]
-  kommentarer FtdNotaComment[]
+  faggruppe    Faggruppe?    @relation(fields: [faggruppeId], references: [id], onDelete: SetNull)
+  poster       FtdNotaPost[]
+  kommentarer  FtdNotaComment[]
 
   @@unique([kontraktId, periodeNr], name: "ftd_nota_period_kontrakt_nr")
   @@index([projectId])
   @@index([kontraktId])
-  @@index([enterpriseId])
+  @@index([faggruppeId])
   @@map("ftd_nota_periods")
 }
 

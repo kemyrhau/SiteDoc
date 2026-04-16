@@ -27,14 +27,14 @@ import {
   InviterNyMedlemModal,
 } from "../_components/dokumentflyt-komponenter";
 import { HjelpKnapp } from "@/components/hjelp/HjelpModal";
-import { nesteAutoFarge, FARGE_MAP as ENTREPRISE_FARGER } from "../_components/entreprise-farger";
+import { nesteAutoFarge, FARGE_MAP as FAGGRUPPE_FARGER } from "../_components/faggruppe-farger";
 import type { DokumentflytMedlemData } from "../_components/dokumentflyt-komponenter";
 
 /* ------------------------------------------------------------------ */
 /*  Typer                                                              */
 /* ------------------------------------------------------------------ */
 
-interface Entreprise {
+interface Faggruppe {
   id: string;
   name: string;
   color: string | null;
@@ -51,8 +51,8 @@ interface ProsjektMedlem {
     email: string;
     phone: string | null;
   };
-  dokumentflytKoblinger: Array<{
-    dokumentflytPart: { id: string; name: string };
+  faggruppeKoblinger: Array<{
+    faggruppe: { id: string; name: string };
   }>;
 }
 
@@ -78,7 +78,7 @@ interface RolleKonfig {
 interface Dokumentflyt {
   id: string;
   name: string;
-  enterpriseId: string | null;
+  faggruppeId: string | null;
   roller: RolleKonfig[];
   medlemmer: DokumentflytMedlem[];
   maler: Array<{ template: { id: string; name: string; category: string } }>;
@@ -97,7 +97,7 @@ const FARGE_MAP: Record<string, string> = {
   "pink": "bg-pink-500", "rose": "bg-rose-500", "slate": "bg-slate-500",
 };
 
-function EntrepriseFargePrikk({ farge }: { farge: string | null }) {
+function FaggruppeFargePrikk({ farge }: { farge: string | null }) {
   const bg = farge ? FARGE_MAP[farge] ?? "bg-gray-400" : "bg-gray-400";
   return <span className={`inline-block h-3 w-3 rounded-full ${bg} shrink-0`} />;
 }
@@ -106,7 +106,7 @@ function EntrepriseFargePrikk({ farge }: { farge: string | null }) {
 /*  NyDokumentflytKnapp                                                */
 /* ------------------------------------------------------------------ */
 
-function NyDokumentflytKnapp({ entrepriseId: enterpriseId, prosjektId }: { entrepriseId: string; prosjektId: string }) {
+function NyDokumentflytKnapp({ faggruppeId, prosjektId }: { faggruppeId: string; prosjektId: string }) {
   const { t } = useTranslation();
   const utils = trpc.useUtils();
   const [visInput, setVisInput] = useState(false);
@@ -143,7 +143,7 @@ function NyDokumentflytKnapp({ entrepriseId: enterpriseId, prosjektId }: { entre
         autoFocus
         onKeyDown={(e) => {
           if (e.key === "Enter" && navn.trim()) {
-            opprettMutation.mutate({ projectId: prosjektId, enterpriseId, name: navn.trim() });
+            opprettMutation.mutate({ projectId: prosjektId, faggruppeId, name: navn.trim() });
           }
           if (e.key === "Escape") { setVisInput(false); setNavn(""); }
         }}
@@ -151,7 +151,7 @@ function NyDokumentflytKnapp({ entrepriseId: enterpriseId, prosjektId }: { entre
       <Button
         size="sm"
         onClick={() => {
-          if (navn.trim()) opprettMutation.mutate({ projectId: prosjektId, enterpriseId, name: navn.trim() });
+          if (navn.trim()) opprettMutation.mutate({ projectId: prosjektId, faggruppeId, name: navn.trim() });
         }}
         disabled={!navn.trim() || opprettMutation.isPending}
         loading={opprettMutation.isPending}
@@ -178,12 +178,12 @@ interface MalInfo {
 
 function DokumentflytKort({
   df, prosjektId,
-  alleEntrepriser, alleMedlemmer, alleGrupper, gruppeOppslag, gruppeMedlemNavn,
+  alleFaggrupper, alleMedlemmer, alleGrupper, gruppeOppslag, gruppeMedlemNavn,
   alleMaler, alleDokumentflyter,
 }: {
   df: Dokumentflyt;
   prosjektId: string;
-  alleEntrepriser: Entreprise[];
+  alleFaggrupper: Faggruppe[];
   alleMedlemmer: ProsjektMedlem[];
   alleGrupper: Array<{ id: string; name: string }>;
   gruppeOppslag: Map<string, Set<string>>;
@@ -228,12 +228,12 @@ function DokumentflytKort({
       utforToggleMal(malId);
       return;
     }
-    // Sjekk om malen allerede finnes i en annen dokumentflyt for samme entreprise
-    if (df.enterpriseId) {
+    // Sjekk om malen allerede finnes i en annen dokumentflyt for samme faggruppe
+    if (df.faggruppeId) {
       const duplikatFlyt = alleDokumentflyter.find(
         (annen) =>
           annen.id !== df.id &&
-          annen.enterpriseId === df.enterpriseId &&
+          annen.faggruppeId === df.faggruppeId &&
           annen.maler.some((m) => m.template.id === malId),
       );
       if (duplikatFlyt) {
@@ -294,7 +294,7 @@ function DokumentflytKort({
       <DynamiskFlyt
         df={df}
         prosjektId={prosjektId}
-        alleEntrepriser={alleEntrepriser}
+        alleFaggrupper={alleFaggrupper}
         alleMedlemmer={alleMedlemmer}
         alleGrupper={alleGrupper}
         gruppeOppslag={gruppeOppslag}
@@ -422,11 +422,11 @@ function RolleIkon({ rolle }: { rolle: string }) {
 }
 
 function DynamiskFlyt({
-  df, prosjektId, alleEntrepriser, alleMedlemmer, alleGrupper, gruppeOppslag, gruppeMedlemNavn,
+  df, prosjektId, alleFaggrupper, alleMedlemmer, alleGrupper, gruppeOppslag, gruppeMedlemNavn,
 }: {
   df: Dokumentflyt;
   prosjektId: string;
-  alleEntrepriser: Entreprise[];
+  alleFaggrupper: Faggruppe[];
   alleMedlemmer: ProsjektMedlem[];
   alleGrupper: Array<{ id: string; name: string }>;
   gruppeOppslag: Map<string, Set<string>>;
@@ -508,7 +508,7 @@ function DynamiskFlyt({
               rolle={rk.rolle}
               medlemmer={medlemmer}
               prosjektId={prosjektId}
-              entrepriser={alleEntrepriser}
+              faggrupper={alleFaggrupper}
               alleMedlemmer={alleMedlemmer}
               alleGrupper={alleGrupper}
               gruppeOppslag={gruppeOppslag}
@@ -583,7 +583,7 @@ function FlytBoks({
   rolle,
   medlemmer,
   prosjektId,
-  entrepriser,
+  faggrupper,
   alleMedlemmer,
   alleGrupper,
   gruppeOppslag,
@@ -604,7 +604,7 @@ function FlytBoks({
   rolle: string;
   medlemmer: DokumentflytMedlem[];
   prosjektId: string;
-  entrepriser: Entreprise[];
+  faggrupper: Faggruppe[];
   alleMedlemmer: ProsjektMedlem[];
   alleGrupper: Array<{ id: string; name: string }>;
   gruppeOppslag: Map<string, Set<string>>;
@@ -865,7 +865,7 @@ function FlytBoks({
           prosjektId={prosjektId}
           rolle={rolle}
           steg={1}
-          entrepriser={[]}
+          faggrupper={[]}
           medlemmer={alleMedlemmer.map((m) => ({ id: m.id, user: { name: m.user.name, email: m.user.email } }))}
           grupper={alleGrupper}
           eksisterende={eksisterende}
@@ -895,16 +895,16 @@ function FlytBoks({
 export default function KontakterSide() {
   const { prosjektId } = useProsjekt();
   const { t } = useTranslation();
-  const [utvidetEntreprise, setUtvidetEntreprise] = useState<Set<string>>(new Set());
-  const [nyEntrepriseNavn, setNyEntrepriseNavn] = useState("");
-  const [visNyEntreprise, setVisNyEntreprise] = useState(false);
-  const [redigerEntreprise, setRedigerEntreprise] = useState<string | null>(null);
-  const [redigerEntNavn, setRedigerEntNavn] = useState("");
-  const [redigerEntFarge, setRedigerEntFarge] = useState<string | null>(null);
+  const [utvidetFaggruppe, setUtvidetFaggruppe] = useState<Set<string>>(new Set());
+  const [nyFaggruppeNavn, setNyFaggruppeNavn] = useState("");
+  const [visNyFaggruppe, setVisNyFaggruppe] = useState(false);
+  const [redigerFaggruppe, setRedigerFaggruppe] = useState<string | null>(null);
+  const [redigerFgNavn, setRedigerFgNavn] = useState("");
+  const [redigerFgFarge, setRedigerFgFarge] = useState<string | null>(null);
   const [visFargeVelger, setVisFargeVelger] = useState(false);
 
   // Hent data
-  const { data: entrepriser, isLoading: e1 } = trpc.entreprise.hentForProsjekt.useQuery(
+  const { data: faggrupper, isLoading: e1 } = trpc.faggruppe.hentForProsjekt.useQuery(
     { projectId: prosjektId! },
     { enabled: !!prosjektId },
   );
@@ -928,40 +928,40 @@ export default function KontakterSide() {
   const erLaster = e1 || e2 || e3 || e4 || e5;
   const utils = trpc.useUtils();
 
-  const opprettEntrepriseMutation = trpc.entreprise.opprett.useMutation({
+  const opprettFaggruppeMutation = trpc.faggruppe.opprett.useMutation({
     onSuccess: () => {
-      utils.entreprise.hentForProsjekt.invalidate();
-      setNyEntrepriseNavn("");
-      setVisNyEntreprise(false);
+      utils.faggruppe.hentForProsjekt.invalidate();
+      setNyFaggruppeNavn("");
+      setVisNyFaggruppe(false);
     },
   });
 
-  const oppdaterEntrepriseMutation = trpc.entreprise.oppdater.useMutation({
+  const oppdaterFaggruppeMutation = trpc.faggruppe.oppdater.useMutation({
     onSuccess: () => {
-      utils.entreprise.hentForProsjekt.invalidate();
-      setRedigerEntreprise(null);
+      utils.faggruppe.hentForProsjekt.invalidate();
+      setRedigerFaggruppe(null);
       setVisFargeVelger(false);
     },
   });
 
-  const slettEntrepriseMutation = trpc.entreprise.slett.useMutation({
+  const slettFaggruppeMutation = trpc.faggruppe.slett.useMutation({
     onSuccess: () => {
-      utils.entreprise.hentForProsjekt.invalidate();
+      utils.faggruppe.hentForProsjekt.invalidate();
       utils.dokumentflyt.hentForProsjekt.invalidate();
     },
   });
 
 
-  // Bygg oppslag: entrepriseId → kontakter
-  const entrepriseKontakter = useMemo(() => {
+  // Bygg oppslag: faggruppeId → kontakter
+  const faggruppeKontakter = useMemo(() => {
     const map = new Map<string, ProsjektMedlem[]>();
     if (!medlemmer) return map;
     const alle = medlemmer as ProsjektMedlem[];
     for (const m of alle) {
-      for (const me of m.dokumentflytKoblinger) {
-        const liste = map.get(me.dokumentflytPart.id) ?? [];
+      for (const me of m.faggruppeKoblinger) {
+        const liste = map.get(me.faggruppe.id) ?? [];
         liste.push(m);
-        map.set(me.dokumentflytPart.id, liste);
+        map.set(me.faggruppe.id, liste);
       }
     }
     return map;
@@ -1033,20 +1033,20 @@ export default function KontakterSide() {
     return dokumentflyter as unknown as Dokumentflyt[];
   }, [dokumentflyter]);
 
-  // Bygg oppslag: entrepriseId → dokumentflyter
-  const entrepriseDokumentflyter = useMemo(() => {
+  // Bygg oppslag: faggruppeId → dokumentflyter
+  const faggruppeDokumentflyter = useMemo(() => {
     const map = new Map<string, Dokumentflyt[]>();
     for (const df of alleDokumentflyter) {
-      if (!df.enterpriseId) continue;
-      const liste = map.get(df.enterpriseId) ?? [];
+      if (!df.faggruppeId) continue;
+      const liste = map.get(df.faggruppeId) ?? [];
       liste.push(df);
-      map.set(df.enterpriseId, liste);
+      map.set(df.faggruppeId, liste);
     }
     return map;
   }, [alleDokumentflyter]);
 
   const toggleUtvidet = (id: string) => {
-    setUtvidetEntreprise((prev) => {
+    setUtvidetFaggruppe((prev) => {
       const ny = new Set(prev);
       ny.has(id) ? ny.delete(id) : ny.add(id);
       return ny;
@@ -1061,7 +1061,7 @@ export default function KontakterSide() {
     );
   }
 
-  const alleEntrepriser = (entrepriser ?? []) as Entreprise[];
+  const alleFaggrupper = (faggrupper ?? []) as Faggruppe[];
   const alleMedlemmer = (medlemmer ?? []) as ProsjektMedlem[];
   return (
     <div>
@@ -1078,18 +1078,18 @@ export default function KontakterSide() {
       {/* Tabell-header */}
       <div className="rounded-t-lg border border-gray-200 bg-gray-50 px-4 py-2">
         <div className="grid grid-cols-12 gap-2 text-xs font-medium uppercase tracking-wide text-gray-500">
-          <div className="col-span-4">{t("tabell.entreprise")}</div>
+          <div className="col-span-4">{t("tabell.faggruppe")}</div>
           <div className="col-span-5">{t("kontakter.dokumentflyter")}</div>
           <div className="col-span-3">{t("kontakter.kontakter")}</div>
         </div>
       </div>
 
-      {/* Entreprise-rader */}
+      {/* Faggruppe-rader */}
       <div className="divide-y divide-gray-200 rounded-b-lg border-x border-b border-gray-200">
-        {alleEntrepriser.map((ent) => {
-          const erUtvidet = utvidetEntreprise.has(ent.id);
-          const kontakter = entrepriseKontakter.get(ent.id) ?? [];
-          const dflyter = entrepriseDokumentflyter.get(ent.id) ?? [];
+        {alleFaggrupper.map((ent) => {
+          const erUtvidet = utvidetFaggruppe.has(ent.id);
+          const kontakter = faggruppeKontakter.get(ent.id) ?? [];
+          const dflyter = faggruppeDokumentflyter.get(ent.id) ?? [];
 
           return (
             <div key={ent.id}>
@@ -1104,25 +1104,25 @@ export default function KontakterSide() {
                       ? <ChevronDown className="h-4 w-4 text-gray-400 shrink-0" />
                       : <ChevronRight className="h-4 w-4 text-gray-400 shrink-0" />
                     }
-                    {redigerEntreprise === ent.id ? (
+                    {redigerFaggruppe === ent.id ? (
                       <div className="flex items-center gap-2 flex-1" onClick={(e) => e.stopPropagation()}>
                         <div className="relative">
                           <button
                             onClick={() => setVisFargeVelger(!visFargeVelger)}
-                            title={t("entrepriser.velgFarge")}
+                            title={t("faggrupper.velgFarge")}
                           >
-                            <EntrepriseFargePrikk farge={redigerEntFarge} />
+                            <FaggruppeFargePrikk farge={redigerFgFarge} />
                           </button>
                           {visFargeVelger && (
                             <div className="absolute left-0 top-full z-10 mt-1 grid grid-cols-6 gap-1 rounded-lg border border-gray-200 bg-white p-2 shadow-lg">
-                              {Object.keys(ENTREPRISE_FARGER).map((farge) => (
+                              {Object.keys(FAGGRUPPE_FARGER).map((farge) => (
                                 <button
                                   key={farge}
                                   onClick={() => {
-                                    setRedigerEntFarge(farge);
+                                    setRedigerFgFarge(farge);
                                     setVisFargeVelger(false);
                                   }}
-                                  className={`h-5 w-5 rounded-full ${FARGE_MAP[farge] ?? "bg-gray-400"} ${redigerEntFarge === farge ? "ring-2 ring-blue-500 ring-offset-1" : ""}`}
+                                  className={`h-5 w-5 rounded-full ${FARGE_MAP[farge] ?? "bg-gray-400"} ${redigerFgFarge === farge ? "ring-2 ring-blue-500 ring-offset-1" : ""}`}
                                 />
                               ))}
                             </div>
@@ -1130,31 +1130,31 @@ export default function KontakterSide() {
                         </div>
                         <input
                           type="text"
-                          value={redigerEntNavn}
-                          onChange={(e) => setRedigerEntNavn(e.target.value)}
+                          value={redigerFgNavn}
+                          onChange={(e) => setRedigerFgNavn(e.target.value)}
                           className="flex-1 rounded border border-gray-300 px-2 py-0.5 text-sm font-medium text-gray-700 focus:border-blue-400 focus:outline-none"
                           autoFocus
                           onKeyDown={(e) => {
-                            if (e.key === "Enter" && redigerEntNavn.trim()) {
-                              oppdaterEntrepriseMutation.mutate({
+                            if (e.key === "Enter" && redigerFgNavn.trim()) {
+                              oppdaterFaggruppeMutation.mutate({
                                 id: ent.id,
-                                name: redigerEntNavn.trim(),
-                                color: redigerEntFarge ?? undefined,
+                                name: redigerFgNavn.trim(),
+                                color: redigerFgFarge ?? undefined,
                               });
                             }
                             if (e.key === "Escape") {
-                              setRedigerEntreprise(null);
+                              setRedigerFaggruppe(null);
                               setVisFargeVelger(false);
                             }
                           }}
                         />
                         <button
                           onClick={() => {
-                            if (redigerEntNavn.trim()) {
-                              oppdaterEntrepriseMutation.mutate({
+                            if (redigerFgNavn.trim()) {
+                              oppdaterFaggruppeMutation.mutate({
                                 id: ent.id,
-                                name: redigerEntNavn.trim(),
-                                color: redigerEntFarge ?? undefined,
+                                name: redigerFgNavn.trim(),
+                                color: redigerFgFarge ?? undefined,
                               });
                             }
                           }}
@@ -1163,7 +1163,7 @@ export default function KontakterSide() {
                           {t("handling.lagre")}
                         </button>
                         <button
-                          onClick={() => { setRedigerEntreprise(null); setVisFargeVelger(false); }}
+                          onClick={() => { setRedigerFaggruppe(null); setVisFargeVelger(false); }}
                           className="rounded p-0.5 text-gray-400 hover:text-gray-600"
                         >
                           <X className="h-3.5 w-3.5" />
@@ -1171,7 +1171,7 @@ export default function KontakterSide() {
                       </div>
                     ) : (
                       <>
-                        <EntrepriseFargePrikk farge={ent.color} />
+                        <FaggruppeFargePrikk farge={ent.color} />
                         <span className="font-medium text-blue-700">{ent.name}</span>
                       </>
                     )}
@@ -1204,9 +1204,9 @@ export default function KontakterSide() {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          setRedigerEntreprise(ent.id);
-                          setRedigerEntNavn(ent.name);
-                          setRedigerEntFarge(ent.color);
+                          setRedigerFaggruppe(ent.id);
+                          setRedigerFgNavn(ent.name);
+                          setRedigerFgFarge(ent.color);
                           setVisFargeVelger(false);
                         }}
                         className="rounded p-1 text-gray-300 hover:bg-gray-200 hover:text-gray-600"
@@ -1217,12 +1217,12 @@ export default function KontakterSide() {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          if (confirm(t("entrepriser.bekreftSlettEntreprise"))) {
-                            slettEntrepriseMutation.mutate({ id: ent.id });
+                          if (confirm(t("faggrupper.bekreftSlettFaggruppe"))) {
+                            slettFaggruppeMutation.mutate({ id: ent.id });
                           }
                         }}
                         className="rounded p-1 text-gray-300 hover:bg-red-100 hover:text-red-600"
-                        title={t("entrepriser.slettEntreprise")}
+                        title={t("faggrupper.slettFaggruppe")}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
@@ -1241,7 +1241,7 @@ export default function KontakterSide() {
                         key={df.id}
                         df={df}
                         prosjektId={prosjektId!}
-                        alleEntrepriser={alleEntrepriser}
+                        alleFaggrupper={alleFaggrupper}
                         alleMedlemmer={alleMedlemmer}
                         alleGrupper={alleGrupper}
                         gruppeOppslag={gruppeOppslag}
@@ -1256,7 +1256,7 @@ export default function KontakterSide() {
                   )}
 
                   {/* Ny dokumentflyt */}
-                  <NyDokumentflytKnapp entrepriseId={ent.id} prosjektId={prosjektId!} />
+                  <NyDokumentflytKnapp faggruppeId={ent.id} prosjektId={prosjektId!} />
                 </div>
               )}
             </div>
@@ -1264,46 +1264,46 @@ export default function KontakterSide() {
         })}
       </div>
 
-      {/* Legg til entreprise */}
-      {visNyEntreprise ? (
+      {/* Legg til faggruppe */}
+      {visNyFaggruppe ? (
         <div className="mt-3 flex items-center gap-2">
           <input
             type="text"
-            value={nyEntrepriseNavn}
-            onChange={(e) => setNyEntrepriseNavn(e.target.value)}
-            placeholder={t("entrepriser.navnPaaNy")}
+            value={nyFaggruppeNavn}
+            onChange={(e) => setNyFaggruppeNavn(e.target.value)}
+            placeholder={t("faggrupper.navnPaaNy")}
             className="rounded border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-400 focus:outline-none"
             autoFocus
             onKeyDown={(e) => {
-              if (e.key === "Enter" && nyEntrepriseNavn.trim()) {
-                opprettEntrepriseMutation.mutate({
-                  name: nyEntrepriseNavn.trim(),
+              if (e.key === "Enter" && nyFaggruppeNavn.trim()) {
+                opprettFaggruppeMutation.mutate({
+                  name: nyFaggruppeNavn.trim(),
                   projectId: prosjektId!,
-                  color: nesteAutoFarge(alleEntrepriser.map((e) => e.color)),
+                  color: nesteAutoFarge(alleFaggrupper.map((e) => e.color)),
                   memberIds: [],
                 });
               }
-              if (e.key === "Escape") { setVisNyEntreprise(false); setNyEntrepriseNavn(""); }
+              if (e.key === "Escape") { setVisNyFaggruppe(false); setNyFaggruppeNavn(""); }
             }}
           />
           <button
             onClick={() => {
-              if (nyEntrepriseNavn.trim()) {
-                opprettEntrepriseMutation.mutate({
-                  name: nyEntrepriseNavn.trim(),
+              if (nyFaggruppeNavn.trim()) {
+                opprettFaggruppeMutation.mutate({
+                  name: nyFaggruppeNavn.trim(),
                   projectId: prosjektId!,
-                  color: nesteAutoFarge(alleEntrepriser.map((e) => e.color)),
+                  color: nesteAutoFarge(alleFaggrupper.map((e) => e.color)),
                   memberIds: [],
                 });
               }
             }}
-            disabled={!nyEntrepriseNavn.trim()}
+            disabled={!nyFaggruppeNavn.trim()}
             className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700 disabled:opacity-50"
           >
             {t("handling.lagre")}
           </button>
           <button
-            onClick={() => { setVisNyEntreprise(false); setNyEntrepriseNavn(""); }}
+            onClick={() => { setVisNyFaggruppe(false); setNyFaggruppeNavn(""); }}
             className="rounded px-3 py-1.5 text-sm text-gray-500 hover:bg-gray-100"
           >
             {t("handling.avbryt")}
@@ -1311,11 +1311,11 @@ export default function KontakterSide() {
         </div>
       ) : (
         <button
-          onClick={() => setVisNyEntreprise(true)}
+          onClick={() => setVisNyFaggruppe(true)}
           className="mt-3 flex items-center gap-1.5 rounded-md border border-dashed border-gray-300 px-3 py-2 text-xs text-gray-400 hover:border-gray-400 hover:text-gray-600"
         >
           <Plus className="h-3.5 w-3.5" />
-          {t("entrepriser.leggTilEntreprise")}
+          {t("faggrupper.leggTilFaggruppe")}
         </button>
       )}
 

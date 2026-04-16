@@ -1,15 +1,15 @@
 # Forretningslogikk
 
-## Entrepriseflyt
+## Dokumentflyt mellom faggrupper
 
-Dokumenter (sjekklister/oppgaver) flyter mellom entrepriser:
-- Bestiller-entreprise initierer og godkjenner/avviser
-- Utfører-entreprise mottar, fyller ut og besvarer
+Dokumenter (sjekklister/oppgaver) flyter mellom faggrupper:
+- Bestiller-faggruppe initierer og godkjenner/avviser
+- Utfører-faggruppe mottar, fyller ut og besvarer
 - Alle overganger logges i `document_transfers`
-- **I draft-status:** entrepriser kan endres via dropdown. Etter draft → låst
+- **I draft-status:** faggrupper kan endres via dropdown. Etter draft → låst
 - **Lokasjon:** Alltid redigerbar (drawingId, positionX/Y) unntatt i `closed`/`approved`-status
-- **Sentralbord (Flytt dokument):** API-rutene `sjekkliste.flytt` og `oppgave.flytt` beholdes som deprecated. Videresending håndterer nå alt (dokumentflyt-bytte + entreprise-bytte + mottaker)
-- **Automatisk fargevalg:** Neste ledige fra `ENTERPRISE_COLORS` (32 farger). Fargevelger kun i redigeringsmodal
+- **Sentralbord (Flytt dokument):** API-rutene `sjekkliste.flytt` og `oppgave.flytt` beholdes som deprecated. Videresending håndterer nå alt (dokumentflyt-bytte + faggruppe-bytte + mottaker)
+- **Automatisk fargevalg:** Neste ledige fra `FAGGRUPPE_FARGER` (32 farger). Fargevelger kun i redigeringsmodal
 
 **Sletting:**
 - Kun `draft`-status. Sjekkliste-sletting blokkeres ved tilknyttede oppgaver
@@ -19,7 +19,7 @@ Dokumenter (sjekklister/oppgaver) flyter mellom entrepriser:
 
 ## Flerforetagsbrukere
 
-En bruker kan tilhøre flere entrepriser via `MemberEnterprise`. Admin uten tilknytning ser alle.
+En bruker kan tilhøre flere faggrupper via `FaggruppeKobling`. Admin uten tilknytning ser alle.
 
 ## Firmaansvarlig
 
@@ -33,7 +33,7 @@ En bruker kan tilhøre flere entrepriser via `MemberEnterprise`. Admin uten tilk
 
 ## HMS-avvik (gruppebasert flyt)
 
-HMS-oppgaver (maler med `domain: "hms"`) opprettes **uten entreprise** — `bestillerEnterpriseId` og `utforerEnterpriseId` er nullable på Task. Alle prosjektmedlemmer kan rapportere. Auto-rutes til HMS-gruppen (`ProjectGroup` med `domains` inkl. `"hms"`). Maks én HMS-gruppe per prosjekt. Tilgangskontroll via domain-sjekk i lag 3 (`verifiserDokumentTilgang`). Guard: `verifiserProsjektmedlem` (ikke `verifiserEntrepriseTilhorighet`).
+HMS-oppgaver (maler med `domain: "hms"`) opprettes **uten faggruppe** — `bestillerFaggruppeId` og `utforerFaggruppeId` er nullable på Task. Alle prosjektmedlemmer kan rapportere. Auto-rutes til HMS-gruppen (`ProjectGroup` med `domains` inkl. `"hms"`). Maks én HMS-gruppe per prosjekt. Tilgangskontroll via domain-sjekk i lag 3 (`verifiserDokumentTilgang`). Guard: `verifiserProsjektmedlem` (ikke `verifiserFaggruppeTilhorighet`).
 
 ## lestAvMottakerVed
 
@@ -42,28 +42,28 @@ HMS-oppgaver (maler med `domain: "hms"`) opprettes **uten entreprise** — `best
 ## Dokumentflyt (erstatter Arbeidsforløp)
 
 Prosjektomfattende dokumentflyt under Innstillinger > Produksjon > Dokumentflyt:
-- **Entreprise-tilhørighet:** Dokumentflyt har `enterpriseId` som bestemmer hvilken entreprise den vises under i UI. Settes ved opprettelse via `forvalgtEntrepriseId`
-- **4 roller:** `registrator`, `bestiller`, `utforer`, `godkjenner` — valgfrie byggeklosser per flyt. Medlemmer kan være brukergrupper (`groupId` → `ProjectGroup`) eller enkeltpersoner (`projectMemberId`). Dropdown viser kun personer og brukergrupper (ikke entrepriser eller systemgrupper)
+- **Faggruppe-tilhørighet:** Dokumentflyt har `faggruppeId` som bestemmer hvilken faggruppe den vises under i UI. Settes ved opprettelse via `forvalgtFaggruppeId`
+- **4 roller:** `registrator`, `bestiller`, `utforer`, `godkjenner` — valgfrie byggeklosser per flyt. Medlemmer kan være brukergrupper (`groupId` → `ProjectGroup`) eller enkeltpersoner (`projectMemberId`). Dropdown viser kun personer og brukergrupper (ikke faggrupper eller systemgrupper)
 - **Tilpassbare rollenavn:** Hvert rolle-steg kan ha egendefinert `label` (f.eks. "Spørsmål" i stedet for "Registrator"). Lagres i `Dokumentflyt.roller` JSONB-felt (format: `{ registrator?: { label }, bestiller?: { label }, utforer?: { label }, godkjenner?: { label } }`)
 - **Tre-lags prinsipp:** Kontaktliste (mennesker) → Grupper (rettigheter) → Dokumentflyt (logikk). Dokumentflyt PEKER PÅ grupper/personer, eier dem aldri. FlytBoks er read-only for gruppeinnhold
 - **Hovedansvarlig:** `DokumentflytMedlem.erHovedansvarlig` (Boolean) — blå prikk i oppsett-UI. Maks én per steg. Valgfritt. Ved opprettelse av sjekkliste/oppgave auto-settes `recipientUserId`/`recipientGroupId` fra hovedansvarlig. Vises i Ansvarlig-kolonnen i tabellvisning
 - **Hovedansvarlig per person i gruppe:** `DokumentflytMedlem.hovedansvarligPersonId` (valgfri referanse til `ProjectMember`) — utpeker en spesifikk person som hovedansvarlig innenfor en gruppe-medlem. Brukes for auto-utledning av mottaker ved opprettelse
 - **Grupper vs brukere:** I opprett-modalen velger man «Bruker» (enkeltperson) eller «Gruppe» (brukergruppe/ProjectGroup). Grupper gir lik tilgang til alle gruppemedlemmer
-- **Modell:** `Dokumentflyt` (+ `roller` JSON) → `DokumentflytMedlem` (rolle + steg + enterpriseId/projectMemberId/groupId) + `DokumentflytMal` (maltilknytning)
+- **Modell:** `Dokumentflyt` (+ `roller` JSON) → `DokumentflytMedlem` (rolle + steg + faggruppeId/projectMemberId/groupId) + `DokumentflytMal` (maltilknytning)
 - Sjekklister/oppgaver knyttes via `dokumentflytId` (og bakoverkompatibelt `workflowId`)
 - Emne: malen har `subjects`-array → nedtrekksmeny. Uten → fritekst/skjult
-- **Mottaker ved «Send»:** Auto-utledes fra dokumentflytens utfører (hovedansvarlig først). Ved videresending kan registratorer (create_checklists/create_tasks) velge entreprise — mottaker utledes fra valgt entreprises dokumentflyt. Lagres i `recipientUserId`/`recipientGroupId` på dokument + `DocumentTransfer`
+- **Mottaker ved «Send»:** Auto-utledes fra dokumentflytens utfører (hovedansvarlig først). Ved videresending kan registratorer (create_checklists/create_tasks) velge faggruppe — mottaker utledes fra valgt faggruppes dokumentflyt. Lagres i `recipientUserId`/`recipientGroupId` på dokument + `DocumentTransfer`
 - **Auto-mottatt:** `sent` → `received` skjer automatisk (ingen manuell "Motta"-klikk). Mottaker ser dokumentet som arbeidsordre umiddelbart
-- **Videresending:** Dokumenter i received/in_progress/responded/rejected/approved kan videresendes. Status endres ikke, kun mottaker oppdateres. `toStatus` i transfer = nåværende status. Ved videresending til annen entreprise oppdateres `dokumentflytId` + `utforerEnterpriseId` automatisk (erstatter FlyttDokument-komponenten)
+- **Videresending:** Dokumenter i received/in_progress/responded/rejected/approved kan videresendes. Status endres ikke, kun mottaker oppdateres. `toStatus` i transfer = nåværende status. Ved videresending til annen faggruppe oppdateres `dokumentflytId` + `utforerFaggruppeId` automatisk (erstatter FlyttDokument-komponenten)
 - **Besvar (responded):** Kjede-bevisst — sender automatisk tilbake til forrige avsender via siste `DocumentTransfer.senderId`. Muliggjør kjeder: HE → UE → Arbeider → UE → HE
 - **E-postvarsling:** Sendes ved `sent`, `responded`, `approved`, `rejected` og `forwarded` (ikke bare send)
-- **Rollebaserte handlingsknapper:** `utledMinRolle()` i `@sitedoc/shared` mapper innlogget bruker → rolle i dokumentflyten. `hentRolleFiltrertHandlinger()` viser kun relevante knapper per rolle. Bestiller: Send/Avbryt/Lukk. Utfører: Besvar/Send tilbake/Videresend. Godkjenner: Godkjenn/Send tilbake/Videresend. Registrator: alle. `null` = lesevisning. API: `gruppe.hentMinFlytInfo` returnerer `projectMemberId`, `entrepriseIder`, `gruppeIder`, `erAdmin`
+- **Rollebaserte handlingsknapper:** `utledMinRolle()` i `@sitedoc/shared` mapper innlogget bruker → rolle i dokumentflyten. `hentRolleFiltrertHandlinger()` viser kun relevante knapper per rolle. Bestiller: Send/Avbryt/Lukk. Utfører: Besvar/Send tilbake/Videresend. Godkjenner: Godkjenn/Send tilbake/Videresend. Registrator: alle. `null` = lesevisning. API: `gruppe.hentMinFlytInfo` returnerer `projectMemberId`, `faggruppeIder`, `gruppeIder`, `erAdmin`
 - **Send tilbake:** Ny statusovergang `in_progress → sent` — utfører sender tilbake til bestiller (auto-mottatt som `received`). `responded → rejected` — godkjenner sender tilbake til utfører
 - **Gruppevisning i dropdown:** Bruker-dropdown i dokumentflyt-oppsett viser gruppemedlemskap: «Kenneth Myrhaug · Byggherre, Tømrer»
-- **Person-basert tilgangssjekk (Valg B):** Firmamedlemmer ser dokumenter der en person fra firmaet er `bestillerUserId`, `recipientUserId` eller `senderId` (i DocumentTransfer). Erstatter entreprise-basert filtrering for firmaansvarlige
+- **Person-basert tilgangssjekk (Valg B):** Firmamedlemmer ser dokumenter der en person fra firmaet er `bestillerUserId`, `recipientUserId` eller `senderId` (i DocumentTransfer). Erstatter faggruppe-basert filtrering for firmaansvarlige
 - **Mal-velger per dokumentflyt:** Dokumentflyt har tilknyttede maler via `DokumentflytMal`. Ved opprettelse av oppgave/sjekkliste vises kun maler som tilhører valgt dokumentflyt
-- **Videresend-dropdown:** Matcher entreprise + dokumentets mal via `DokumentflytMal`. Én flyt → auto-velg. Flere flyter → flytnavn i parentes (f.eks. «Tømrer (HE → Tømrer - Avvik)»). Mottaker utledes fra utfører-rolle, fallback bestiller → godkjenner
-- **Tidslinje-snapshot:** `DocumentTransfer` har snapshot-felt: `senderEnterpriseName`, `recipientEnterpriseName`, `dokumentflytName`, `senderRolle`. Populeres ved statusendring/videresending/flytt. Viser kontekst i tidslinje: «Kenneth (Byggherre) → HE-Leder (Elektro) · Flyt: Elektro–HE · Bestiller»
+- **Videresend-dropdown:** Matcher faggruppe + dokumentets mal via `DokumentflytMal`. Én flyt → auto-velg. Flere flyter → flytnavn i parentes (f.eks. «Tømrer (HE → Tømrer - Avvik)»). Mottaker utledes fra utfører-rolle, fallback bestiller → godkjenner
+- **Tidslinje-snapshot:** `DocumentTransfer` har snapshot-felt: `senderFaggruppeNavn`, `recipientFaggruppeNavn`, `dokumentflytName`, `senderRolle`. Populeres ved statusendring/videresending/flytt. Viser kontekst i tidslinje: «Kenneth (Byggherre) → HE-Leder (Elektro) · Flyt: Elektro–HE · Bestiller»
 - **Implementert:** HMS-avvik gruppebasert flyt (se HMS-avvik seksjonen over)
 - **Planlagt:** Intern godkjenning (ansatt → fagleder → TE)
 
@@ -75,13 +75,13 @@ Prosjektomfattende dokumentflyt under Innstillinger > Produksjon > Dokumentflyt:
 
 ## Dokumenttyper — lik struktur, ulik redigering
 
-Sjekklister og oppgaver har **identisk** UI-struktur (sidebar, tabellvisning, detaljside, statusflyt, entreprise-velger, tidslinje). Forskjellen er kun:
+Sjekklister og oppgaver har **identisk** UI-struktur (sidebar, tabellvisning, detaljside, statusflyt, faggruppe-velger, tidslinje). Forskjellen er kun:
 
 | | Sjekkliste | Oppgave | Godkjenning (planlagt) | SHA-avvik (planlagt) |
 |---|---|---|---|---|
 | **Redigering** | Ja (endre eksisterende) | Kun tilføye (kommentar, vedlegg, nye verdier) | TBD | TBD |
 | **Sletting** | Kun draft | Aldri (unike løpenumre) | TBD | TBD |
-| **Flyt** | Entreprise/dokumentflyt | Entreprise/dokumentflyt | Hierarkisk | Gruppebasert |
+| **Flyt** | Faggruppe/dokumentflyt | Faggruppe/dokumentflyt | Hierarkisk | Gruppebasert |
 
 ## Invitasjonsflyt
 
@@ -101,7 +101,7 @@ Sjekklister og oppgaver har **identisk** UI-struktur (sidebar, tabellvisning, de
 
 - Innlogget bruker blir auto-admin. Firma kobles via `organizationId`
 - Ny bruker uten prosjekter → `/dashbord/kom-i-gang`
-- Entreprise-siden: veiledningsbanner (inviter → maler → entrepriser)
+- Faggruppe-siden: veiledningsbanner (inviter → maler → faggrupper)
 - **Bransje:** Fritekst med `<datalist>` (ikke låst dropdown)
 
 ## Prosjektgrupper
@@ -152,7 +152,7 @@ Revisjonshistorikk via `drawing_revisions`. Georeferanse med 2+ punkter: 2 punkt
 
 - **Brukere** — Grupper, roller, medlemmer. Kontakttabell er eneste visning (ingen toggle). Sticky header med filter. Modul-badges i gruppeoverskrifter. Firmaansvarlig settes via rolle-dropdown. Skjold-ikoner: blått=Admin, gult=Firmaansvarlig
 - **Lokasjoner** — Samlet lokasjonsliste med redigering/georeferanse
-- **Produksjon** — Dokumentflyt, Entrepriser, Oppgavemaler, Sjekklistemaler, Kontrollplan, Mapper, Moduler (tidligere «Field»/«Feltarbeid»). Gammel entreprise-side og gruppevisning fjernet. Dokumentflyt (ikke Kontakter) i sidebar
+- **Produksjon** — Dokumentflyt, Faggrupper, Oppgavemaler, Sjekklistemaler, Kontrollplan, Mapper, Moduler (tidligere «Field»/«Feltarbeid»). Gammel faggruppe-side og gruppevisning fjernet. Dokumentflyt (ikke Kontakter) i sidebar
 - **Prosjekteiers innstillinger** — Prosjektoppsett
 - **Firmainnstillinger** — Firmainformasjon (synlig med tilknyttet firma)
 
@@ -197,14 +197,14 @@ HE → Godkjenn/Avvis
 
 Innstillinger > Produksjon > Kontakter — komplett administrasjon av dokumentflyter og kontakter:
 
-- **Utvidbar tabell:** Entreprise → dokumentflyter med visuell flyt (Bestiller → Utfører → Godkjenner)
+- **Utvidbar tabell:** Faggruppe → dokumentflyter med visuell flyt (Bestiller → Utfører → Godkjenner)
 - **LeggTilMedlemDropdown:** Legg til grupper eller enkeltpersoner i FlytBoks. Gjenbruker dokumentflyt-komponent
 - **Klikkbar ansvarlig-prikk (●):** Per DokumentflytMedlem, setter `erHovedansvarlig`
 - **Gruppeansvarlig (blå prikk):** Per gruppemedlem i utvidet gruppe, toggle `isAdmin`
 - **Visuelt skille:** Grupper øverst, stiplet linje, enkeltpersoner under med gruppetag (· Byggherre)
 - **Fjern:** X på gruppemedlemmer (fjerner fra gruppe), X på grupper (fjerner fra flyt), X på enkeltpersoner (fjerner fra flyt)
 - **Rediger dokumentflyt:** Klikk tittel → inline redigering + slett-knapp i redigeringsmodus
-- **Ny dokumentflyt:** Stiplet knapp per entreprise
+- **Ny dokumentflyt:** Stiplet knapp per faggruppe
 - **Kontraktsform-uavhengig:** Samme system for NS 8405/8406/8407
 
 ### Brukersiden — kontakttabell
@@ -212,8 +212,8 @@ Innstillinger > Produksjon > Kontakter — komplett administrasjon av dokumentfl
 - **Eneste visning** under Brukere (ingen toggle mellom grupper og kontakter)
 - **Gruppert etter brukergruppe** med klikkbare overskrifter (expand/collapse) og modul-badges
 - **Sticky header** med filter
-- **Kolonnefiltre:** Søk + dropdown for rolle, entreprise, gruppe
-- **Kompakt badge-visning:** Første verdi + "+N" for entrepriser og grupper
+- **Kolonnefiltre:** Søk + dropdown for rolle, faggruppe, gruppe
+- **Kompakt badge-visning:** Første verdi + "+N" for faggrupper og grupper
 - **Firmaansvarlig:** Settes via rolle-dropdown (Admin/Firmaansvarlig/Medlem)
 - **Skjold-ikoner:** Blått = Admin, gult = Firmaansvarlig
 

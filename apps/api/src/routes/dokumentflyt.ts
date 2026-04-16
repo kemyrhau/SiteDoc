@@ -12,7 +12,7 @@ import { verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
 const dokumentflytInclude = {
   medlemmer: {
     include: {
-      dokumentflytPart: { select: { id: true, name: true, color: true } },
+      faggruppe: { select: { id: true, name: true, color: true } },
       projectMember: {
         include: {
           user: { select: { id: true, name: true, email: true } },
@@ -60,7 +60,7 @@ export const dokumentflytRouter = router({
           },
           medlemmer: {
             create: medlemmer.map((m) => ({
-              enterpriseId: m.enterpriseId,
+              faggruppeId: m.faggruppeId,
               projectMemberId: m.projectMemberId,
               groupId: m.groupId,
               rolle: m.rolle,
@@ -142,7 +142,7 @@ export const dokumentflytRouter = router({
       return ctx.prisma.dokumentflyt.delete({ where: { id: input.id } });
     }),
 
-  // Legg til medlem (entreprise eller person) i dokumentflyt
+  // Legg til medlem (faggruppe eller person) i dokumentflyt
   leggTilMedlem: protectedProcedure
     .input(addDokumentflytMedlemSchema)
     .mutation(async ({ ctx, input }) => {
@@ -151,7 +151,7 @@ export const dokumentflytRouter = router({
       return ctx.prisma.dokumentflytMedlem.create({
         data,
         include: {
-          dokumentflytPart: { select: { id: true, name: true, color: true } },
+          faggruppe: { select: { id: true, name: true, color: true } },
           projectMember: {
             include: {
               user: { select: { id: true, name: true, email: true } },

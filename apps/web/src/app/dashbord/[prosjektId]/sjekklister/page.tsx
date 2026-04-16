@@ -33,8 +33,8 @@ interface SjekklisteRad {
   data: Record<string, unknown>;
   template: { id: string; prefix: string | null; name: string; objects: MalObjekt[] };
   bestiller: { name: string | null } | null;
-  bestillerEnterprise: { name: string };
-  utforerEnterprise: { name: string };
+  bestillerFaggruppe: { name: string };
+  utforerFaggruppe: { name: string };
   byggeplass: { id: string; name: string } | null;
   drawing: { name: string; floor: string | null } | null;
   recipientUser: { id: string; name: string | null } | null;
@@ -47,7 +47,7 @@ interface SjekklisteRad {
       id: string;
       rolle: string;
       steg: number;
-      enterprise: { id: string; name: string } | null;
+      faggruppe: { id: string; name: string } | null;
       projectMember: { user: { id: string; name: string | null } } | null;
       group: { id: string; name: string } | null;
     }[];
@@ -91,8 +91,8 @@ const SYSTEM_KOLONNER: KolonneParam[] = [
   { id: "emne", navnKey: "tabell.emne", gruppe: "kolonner" },
   { id: "ansvarlig", navnKey: "tabell.ansvarlig", gruppe: "kolonner" },
   { id: "opprettetAv", navnKey: "tabell.opprettetAv", gruppe: "kolonner" },
-  { id: "bestillerEntreprise", navnKey: "tabell.bestillerEntreprise", gruppe: "kolonner" },
-  { id: "utforerEntreprise", navnKey: "tabell.utforerEntreprise", gruppe: "kolonner" },
+  { id: "bestillerFaggruppe", navnKey: "tabell.bestillerFaggruppe", gruppe: "kolonner" },
+  { id: "utforerFaggruppe", navnKey: "tabell.utforerFaggruppe", gruppe: "kolonner" },
   { id: "mal", navnKey: "tabell.mal", gruppe: "kolonner" },
   { id: "opprettet", navnKey: "tabell.opprettelsesdato", gruppe: "kolonner" },
   { id: "endret", navnKey: "tabell.endringsdato", gruppe: "kolonner" },
@@ -117,7 +117,7 @@ function formaterLopenummer(rad: SjekklisteRad): string {
 function formaterAnsvarlig(rad: SjekklisteRad): string {
   if (rad.recipientUser?.name) return rad.recipientUser.name;
   if (rad.recipientGroup?.name) return rad.recipientGroup.name;
-  return rad.utforerEnterprise.name;
+  return rad.utforerFaggruppe.name;
 }
 
 function formaterDato(dato: string | null): string {
@@ -274,7 +274,7 @@ export default function SjekklisteSide() {
 
   const { data: maler } = trpc.mal.hentForProsjekt.useQuery({ projectId: params.prosjektId });
   const sjekklisteMaler = ((maler ?? []) as Array<{ id: string; name: string; prefix?: string; category: string }>).filter((m) => m.category === "sjekkliste");
-  const { data: mineEntrepriser } = trpc.medlem.hentMineEntrepriser.useQuery({ projectId: params.prosjektId });
+  const { data: mineFaggrupper } = trpc.medlem.hentMineFaggrupper.useQuery({ projectId: params.prosjektId });
   const { data: dokumentflyter } = trpc.dokumentflyt.hentForProsjekt.useQuery({ projectId: params.prosjektId });
 
   const slettMutation = trpc.sjekkliste.slett.useMutation({
@@ -301,22 +301,22 @@ export default function SjekklisteSide() {
   });
 
   function handleOpprettFraMal(malId: string) {
-    const oppretter = mineEntrepriser?.[0];
+    const oppretter = mineFaggrupper?.[0];
     if (!oppretter) return;
     const alleDf = (dokumentflyter ?? []) as Array<{
       id: string;
-      medlemmer: Array<{ enterprise?: { id: string } | null; group?: { id: string } | null; projectMember?: { id: string } | null; rolle: string }>;
+      medlemmer: Array<{ faggruppe?: { id: string } | null; group?: { id: string } | null; projectMember?: { id: string } | null; rolle: string }>;
       maler: Array<{ template: { id: string } }>;
     }>;
     const matchDf = alleDf.find((df) =>
       df.maler.some((m) => m.template.id === malId) &&
-      df.medlemmer.some((m) => m.rolle === "oppretter" && (m.enterprise?.id === oppretter.id || m.group || m.projectMember)),
+      df.medlemmer.some((m) => m.rolle === "oppretter" && (m.faggruppe?.id === oppretter.id || m.group || m.projectMember)),
     );
     const svarer = matchDf?.medlemmer.find((m) => m.rolle === "svarer");
     opprettMutation.mutate({
       templateId: malId,
-      bestillerEnterpriseId: oppretter.id,
-      utforerEnterpriseId: svarer?.enterprise?.id ?? oppretter.id,
+      bestillerFaggruppeId: oppretter.id,
+      utforerFaggruppeId: svarer?.faggruppe?.id ?? oppretter.id,
       dokumentflytId: matchDf?.id,
     });
   }
@@ -363,24 +363,24 @@ export default function SjekklisteSide() {
     return map;
   }, [sjekklister]);
 
-  // Navne-lookup for person/firma-IDer (fra dokumentflyt-medlemmer + entrepriser)
+  // Navne-lookup for person/firma-IDer (fra dokumentflyt-medlemmer + faggrupper)
   const navneLookup = useMemo(() => {
     const map = new Map<string, string>();
     for (const df of dokumentflyter ?? []) {
-      for (const m of (df as { medlemmer?: { projectMember?: { user?: { id: string; name: string | null } } | null; enterprise?: { id: string; name: string } | null }[] }).medlemmer ?? []) {
+      for (const m of (df as { medlemmer?: { projectMember?: { user?: { id: string; name: string | null } } | null; faggruppe?: { id: string; name: string } | null }[] }).medlemmer ?? []) {
         if (m.projectMember?.user?.id && m.projectMember.user.name) {
           map.set(m.projectMember.user.id, m.projectMember.user.name);
         }
-        if (m.enterprise?.id && m.enterprise.name) {
-          map.set(m.enterprise.id, m.enterprise.name);
+        if (m.faggruppe?.id && m.faggruppe.name) {
+          map.set(m.faggruppe.id, m.faggruppe.name);
         }
       }
     }
-    // Legg til fra sjekkliste-data (bestiller, entrepriser)
+    // Legg til fra sjekkliste-data (bestiller, faggrupper)
     for (const rad of sjekklister ?? []) {
       if (rad.bestiller?.name) map.set((rad as unknown as { bestillerUserId: string }).bestillerUserId ?? "", rad.bestiller.name);
-      if (rad.bestillerEnterprise) map.set((rad as unknown as { bestillerEnterpriseId: string }).bestillerEnterpriseId ?? "", rad.bestillerEnterprise.name);
-      if (rad.utforerEnterprise) map.set((rad as unknown as { utforerEnterpriseId: string }).utforerEnterpriseId ?? "", rad.utforerEnterprise.name);
+      if (rad.bestillerFaggruppe) map.set((rad as unknown as { bestillerFaggruppeId: string }).bestillerFaggruppeId ?? "", rad.bestillerFaggruppe.name);
+      if (rad.utforerFaggruppe) map.set((rad as unknown as { utforerFaggruppeId: string }).utforerFaggruppeId ?? "", rad.utforerFaggruppe.name);
     }
     return map;
   }, [dokumentflyter, sjekklister]);
@@ -399,11 +399,11 @@ export default function SjekklisteSide() {
       if (recipientGroupId && m.group?.id === recipientGroupId) return m.group.name;
       if (recipientUserId && m.projectMember?.user?.id === recipientUserId) return m.projectMember.user.name ?? "";
     }
-    // Fallback: entreprise-match
+    // Fallback: faggruppe-match
     if (recipientUserId || recipientGroupId) {
-      // Bruk første entreprise-medlem som fallback
-      const ent = medl.find((m) => m.enterprise);
-      if (ent?.enterprise) return ent.enterprise.name;
+      // Bruk første faggruppe-medlem som fallback
+      const ent = medl.find((m) => m.faggruppe);
+      if (ent?.faggruppe) return ent.faggruppe.name;
     }
     return "";
   }, []);
@@ -418,8 +418,8 @@ export default function SjekklisteSide() {
       emne: bygg(data.map((s) => s.subject)),
       ansvarlig: bygg(data.map((s) => formaterAnsvarlig(s))),
       opprettetAv: bygg(data.map((s) => s.bestiller?.name)),
-      bestillerEntreprise: bygg(data.map((s) => s.bestillerEnterprise.name)),
-      utforerEntreprise: bygg(data.map((s) => s.utforerEnterprise.name)),
+      bestillerFaggruppe: bygg(data.map((s) => s.bestillerFaggruppe.name)),
+      utforerFaggruppe: bygg(data.map((s) => s.utforerFaggruppe.name)),
       mal: bygg(data.map((s) => s.template.name)),
       bygning: bygg(data.map((s) => s.byggeplass?.name)),
       etasje: bygg(data.map((s) => s.drawing?.floor)),
@@ -456,8 +456,8 @@ export default function SjekklisteSide() {
           case "emne": return s.subject === verdi;
           case "ansvarlig": return formaterAnsvarlig(s) === verdi;
           case "opprettetAv": return s.bestiller?.name === verdi;
-          case "bestillerEntreprise": return s.bestillerEnterprise.name === verdi;
-          case "utforerEntreprise": return s.utforerEnterprise.name === verdi;
+          case "bestillerFaggruppe": return s.bestillerFaggruppe.name === verdi;
+          case "utforerFaggruppe": return s.utforerFaggruppe.name === verdi;
           case "mal": return s.template.name === verdi;
           case "bygning": return s.byggeplass?.name === verdi;
           case "etasje": return s.drawing?.floor === verdi;
@@ -505,12 +505,12 @@ export default function SjekklisteSide() {
       opprettetAv: { id: "opprettetAv", header: t("tabell.opprettetAv"), celle: (rad) => rad.bestiller?.name
         ? <span className="text-gray-600">{rad.bestiller.name}</span> : <span className="text-gray-300">—</span>,
         sorterbar: true, sorterVerdi: (rad) => rad.bestiller?.name ?? "", filtrerbar: true, filterAlternativer: dynamiskFilter.opprettetAv ?? [] },
-      bestillerEntreprise: { id: "bestillerEntreprise", header: t("tabell.bestillerEntreprise"),
-        celle: (rad) => <span className="text-xs text-gray-500">{rad.bestillerEnterprise.name}</span>,
-        sorterbar: true, sorterVerdi: (rad) => rad.bestillerEnterprise.name, filtrerbar: true, filterAlternativer: dynamiskFilter.bestillerEntreprise ?? [] },
-      utforerEntreprise: { id: "utforerEntreprise", header: t("tabell.utforerEntreprise"),
-        celle: (rad) => <span className="text-xs text-gray-500">{rad.utforerEnterprise.name}</span>,
-        sorterbar: true, sorterVerdi: (rad) => rad.utforerEnterprise.name, filtrerbar: true, filterAlternativer: dynamiskFilter.utforerEntreprise ?? [] },
+      bestillerFaggruppe: { id: "bestillerFaggruppe", header: t("tabell.bestillerFaggruppe"),
+        celle: (rad) => <span className="text-xs text-gray-500">{rad.bestillerFaggruppe.name}</span>,
+        sorterbar: true, sorterVerdi: (rad) => rad.bestillerFaggruppe.name, filtrerbar: true, filterAlternativer: dynamiskFilter.bestillerFaggruppe ?? [] },
+      utforerFaggruppe: { id: "utforerFaggruppe", header: t("tabell.utforerFaggruppe"),
+        celle: (rad) => <span className="text-xs text-gray-500">{rad.utforerFaggruppe.name}</span>,
+        sorterbar: true, sorterVerdi: (rad) => rad.utforerFaggruppe.name, filtrerbar: true, filterAlternativer: dynamiskFilter.utforerFaggruppe ?? [] },
       mal: { id: "mal", header: t("tabell.mal"), celle: (rad) => <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-500">{rad.template.name}</span>,
         sorterbar: true, sorterVerdi: (rad) => rad.template.name, filtrerbar: true, filterAlternativer: dynamiskFilter.mal ?? [] },
       opprettet: { id: "opprettet", header: t("tabell.opprettelsesdato"), celle: (rad) => <span className="text-xs text-gray-500">{formaterDato(rad.createdAt)}</span>,

@@ -47,7 +47,7 @@ export default function FirmaProsjekter() {
                 Medlemmer
               </th>
               <th className="px-4 py-3 text-center font-medium text-gray-600">
-                Entrepriser
+                Faggrupper
               </th>
               <th className="px-4 py-3 text-left font-medium text-gray-600">
                 Status
@@ -78,7 +78,7 @@ export default function FirmaProsjekter() {
                   {p.antallMedlemmer}
                 </td>
                 <td className="px-4 py-3 text-center text-gray-500">
-                  {p.antallEntrepriser}
+                  {p.antallFaggrupper}
                 </td>
                 <td className="px-4 py-3">
                   <span

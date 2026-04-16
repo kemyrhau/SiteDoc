@@ -31,13 +31,13 @@ export const gruppeRouter = router({
         select: { role: true, organizationId: true },
       });
       if (bruker?.role === "sitedoc_admin") {
-        return { userId: ctx.userId, projectMemberId: "", entrepriseIder: [], gruppeIder: [], erAdmin: true, moduler: alleGruppeModuler };
+        return { userId: ctx.userId, projectMemberId: "", faggruppeIder: [], gruppeIder: [], erAdmin: true, moduler: alleGruppeModuler };
       }
 
       const medlem = await ctx.prisma.projectMember.findUnique({
         where: { userId_projectId: { userId: ctx.userId, projectId: input.projectId } },
         include: {
-          dokumentflytKoblinger: { select: { enterpriseId: true } },
+          faggruppeKoblinger: { select: { faggruppeId: true } },
           groupMemberships: {
             select: {
               groupId: true,
@@ -54,7 +54,7 @@ export const gruppeRouter = router({
             where: { organizationId: bruker.organizationId, projectId: input.projectId },
           });
           if (orgProsjekt) {
-            return { userId: ctx.userId, projectMemberId: "", entrepriseIder: [], gruppeIder: [], erAdmin: true, moduler: alleGruppeModuler };
+            return { userId: ctx.userId, projectMemberId: "", faggruppeIder: [], gruppeIder: [], erAdmin: true, moduler: alleGruppeModuler };
           }
         }
         throw new TRPCError({ code: "FORBIDDEN", message: "Ikke medlem" });
@@ -73,7 +73,7 @@ export const gruppeRouter = router({
       return {
         userId: ctx.userId,
         projectMemberId: medlem.id,
-        entrepriseIder: medlem.dokumentflytKoblinger.map((e) => e.enterpriseId),
+        faggruppeIder: medlem.faggruppeKoblinger.map((e) => e.faggruppeId),
         gruppeIder: medlem.groupMemberships.map((gm) => gm.groupId),
         erAdmin,
         moduler,
@@ -153,13 +153,13 @@ export const gruppeRouter = router({
               projectMember: {
                 include: {
                   user: true,
-                  dokumentflytKoblinger: { include: { dokumentflytPart: true } },
+                  faggruppeKoblinger: { include: { faggruppe: true } },
                 },
               },
             },
           },
-          groupDokumentflytParts: {
-            include: { dokumentflytPart: true },
+          groupFaggrupper: {
+            include: { faggruppe: true },
           },
         },
         orderBy: { createdAt: "asc" },
@@ -231,7 +231,7 @@ export const gruppeRouter = router({
               projectMember: {
                 include: {
                   user: true,
-                  dokumentflytKoblinger: { include: { dokumentflytPart: true } },
+                  faggruppeKoblinger: { include: { faggruppe: true } },
                 },
               },
             },
@@ -340,7 +340,7 @@ export const gruppeRouter = router({
           projectMember: {
             include: {
               user: true,
-              dokumentflytKoblinger: { include: { dokumentflytPart: true } },
+              faggruppeKoblinger: { include: { faggruppe: true } },
             },
           },
         },
@@ -416,28 +416,28 @@ export const gruppeRouter = router({
       });
     }),
 
-  // Oppdater gruppens tilknyttede entrepriser (krever admin)
-  oppdaterEntrepriser: protectedProcedure
+  // Oppdater gruppens tilknyttede faggrupper (krever admin)
+  oppdaterFaggrupper: protectedProcedure
     .input(
       z.object({
         groupId: z.string().uuid(),
         projectId: z.string().uuid(),
-        enterpriseIds: z.array(z.string().uuid()),
+        faggruppeIder: z.array(z.string().uuid()),
       }),
     )
     .mutation(async ({ ctx, input }) => {
       await verifiserAdmin(ctx.userId, input.projectId);
 
       // Slett eksisterende, opprett nye
-      await ctx.prisma.groupDokumentflytPart.deleteMany({
+      await ctx.prisma.groupFaggruppe.deleteMany({
         where: { groupId: input.groupId },
       });
 
-      if (input.enterpriseIds.length > 0) {
-        await ctx.prisma.groupDokumentflytPart.createMany({
-          data: input.enterpriseIds.map((enterpriseId) => ({
+      if (input.faggruppeIder.length > 0) {
+        await ctx.prisma.groupFaggruppe.createMany({
+          data: input.faggruppeIder.map((faggruppeId) => ({
             groupId: input.groupId,
-            enterpriseId,
+            faggruppeId,
           })),
         });
       }
@@ -445,7 +445,7 @@ export const gruppeRouter = router({
       return ctx.prisma.projectGroup.findUniqueOrThrow({
         where: { id: input.groupId },
         include: {
-          groupDokumentflytParts: { include: { dokumentflytPart: true } },
+          groupFaggrupper: { include: { faggruppe: true } },
         },
       });
     }),

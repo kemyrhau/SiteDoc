@@ -103,7 +103,7 @@ export const organisasjonRouter = router({
         project: {
           include: {
             members: { select: { id: true } },
-            dokumentflytParts: { select: { id: true } },
+            faggrupper: { select: { id: true } },
           },
         },
       },
@@ -116,7 +116,7 @@ export const organisasjonRouter = router({
       name: op.project.name,
       status: op.project.status,
       antallMedlemmer: op.project.members.length,
-      antallEntrepriser: op.project.dokumentflytParts.length,
+      antallFaggrupper: op.project.faggrupper.length,
       createdAt: op.project.createdAt,
     }));
   }),

@@ -1,6 +1,6 @@
 import { router } from "./trpc";
 import { prosjektRouter } from "../routes/prosjekt";
-import { entrepriseRouter } from "../routes/entreprise";
+import { faggruppeRouter } from "../routes/faggruppe";
 import { sjekklisteRouter } from "../routes/sjekkliste";
 import { oppgaveRouter } from "../routes/oppgave";
 import { malRouter } from "../routes/mal";
@@ -29,7 +29,8 @@ import { bibliotekRouter } from "../routes/bibliotek";
 
 export const appRouter = router({
   prosjekt: prosjektRouter,
-  entreprise: entrepriseRouter,
+  faggruppe: faggruppeRouter,
+  entreprise: faggruppeRouter, // bakoverkompatibel alias (mobil)
   sjekkliste: sjekklisteRouter,
   oppgave: oppgaveRouter,
   mal: malRouter,

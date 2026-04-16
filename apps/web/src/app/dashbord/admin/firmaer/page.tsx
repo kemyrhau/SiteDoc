@@ -22,8 +22,8 @@ export default function AdminFirmaer() {
   const { data: _alleProsjekter } =
     trpc.admin.hentAlleProsjekter.useQuery();
   const alleProsjekter = _alleProsjekter as { id: string; name: string; projectNumber: string }[] | undefined;
-  const { data: standaloneEnterprises } =
-    trpc.admin.hentStandaloneEnterprises.useQuery();
+  const { data: standaloneFaggrupper } =
+    trpc.admin.hentStandaloneFaggrupper.useQuery();
 
   const [visOpprett, setVisOpprett] = useState(false);
   const [nyttNavn, setNyttNavn] = useState("");
@@ -53,7 +53,7 @@ export default function AdminFirmaer() {
   const invalidateAll = () => {
     utils.admin.hentAlleOrganisasjoner.invalidate();
     utils.admin.hentAlleProsjekter.invalidate();
-    utils.admin.hentStandaloneEnterprises.invalidate();
+    utils.admin.hentStandaloneFaggrupper.invalidate();
   };
 
   const invalidateIntegrasjon = (orgId: string) => {
@@ -171,13 +171,13 @@ export default function AdminFirmaer() {
         </div>
       )}
 
-      {/* Standalone Enterprise */}
-      {standaloneEnterprises && standaloneEnterprises.length > 0 && (
+      {/* Standalone faggrupper */}
+      {standaloneFaggrupper && standaloneFaggrupper.length > 0 && (
         <div className="mt-8">
-          <h2 className="mb-3 text-sm font-semibold text-gray-500 uppercase tracking-wide">Standalone Enterprise (uten firma)</h2>
+          <h2 className="mb-3 text-sm font-semibold text-gray-500 uppercase tracking-wide">Standalone faggrupper (uten firma)</h2>
           <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-4">
             <div className="space-y-2">
-              {standaloneEnterprises.map((ent) => (
+              {standaloneFaggrupper.map((ent) => (
                 <div key={ent.id} className="flex items-center justify-between rounded bg-white px-3 py-2 text-sm">
                   <div>
                     <span className="font-medium text-gray-900">{ent.name}</span>
@@ -187,7 +187,7 @@ export default function AdminFirmaer() {
                   </div>
                   <div className="flex items-center gap-3 text-xs text-gray-500">
                     <span>{ent.project.name}</span>
-                    <span>{ent.dokumentflytKoblinger.length} medl.</span>
+                    <span>{ent.faggruppeKoblinger.length} medl.</span>
                   </div>
                 </div>
               ))}
