@@ -100,7 +100,8 @@ model MannskapsInnsjekk {
   byggeplassId    String    @map("byggeplass_id")
   innsjekkTid     DateTime  @default(now()) @map("innsjekk_tid")
   utsjekkTid      DateTime? @map("utsjekk_tid")      // Null = fortsatt på plassen
-  kilde           String    @default("app")           // app | qr | manuell
+  kilde           String    @default("app")           // app | qr | manuell | geofence
+  autoUtlogget    Boolean   @default(false) @map("auto_utlogget") // True = 12t auto-utsjekk
   opprettet       DateTime  @default(now())
 
   medlem          Mannskapsmedlem @relation(fields: [medlemId], references: [id])
@@ -126,48 +127,120 @@ PsiSignatur (eksisterende)
   └── hmsKortNr ← kobles til Mannskapsmedlem.hmsKortNr
 ```
 
-## Innsjekk-flyt
+## Komplett flyt — PSI → Mannskap → Innsjekk
 
-### Førstegangregistrering
+### Steg 1: PSI-gjennomføring (forutsetning)
+
+PSI kan gjennomføres i SiteDoc eller i et eksternt system. Prosjektleder konfigurerer dette per byggeplass i PSI-innstillingene:
+
+```
+PSI-innstillinger for [Blokk A]:
+  ○ PSI gjennomføres i SiteDoc (standard)
+  ● PSI gjennomføres i eksternt system
+    Systemnavn: [HMSREG                    ]
+```
+
+Når eksternt system er valgt:
+- PSI-gjennomføring i SiteDoc kreves **ikke** for innsjekk
+- Mannskapsregistrering fungerer fortsatt (§15-listen føres i SiteDoc)
+- I mannskap-oversikten vises: "PSI: HMSREG" i stedet for grønn hake
+- Ansvaret for PSI-dokumentasjon ligger hos det eksterne systemet
+
+**Prisma-felt på Psi-modellen:**
+```prisma
+// Legg til på eksisterende Psi-modell:
+  eksternSystem     String?   @map("ekstern_system")  // null = SiteDoc, "HMSREG", "Infobric" etc.
+```
+
+### Steg 2: Mannskapsregistrering (én gang per prosjekt)
+
+Etter godkjent PSI (i SiteDoc eller eksternt) registrerer personen seg i mannskapslisten:
 
 ```
 Person ankommer byggeplass for første gang:
   1. Scanner QR-kode ved porten (samme URL som PSI: /psi/[prosjektId])
-  2. System: "Velkommen. Registrer deg for tilgang til byggeplassen."
-  3. Fyller ut:
+  2. System sjekker: PSI gjennomført?
+     → SiteDoc-PSI: sjekk PsiSignatur
+     → Eksternt system: hopp over (ansvar ligger hos eksternt system)
+     → Ikke gjennomført: "Gjennomfør PSI først" → PSI-flyten
+  3. System: "Registrer deg for tilgang til byggeplassen."
+  4. Fyller ut:
      - Navn, fødselsdato
      - HMS-kortnummer (eller "har ikke HMS-kort")
      - Firma/arbeidsgiver
      - Telefon, e-post (valgfritt)
-  4. System sjekker: Har du gjennomført PSI for denne byggeplassen?
-     → Nei: Gjennomfør PSI nå (eksisterende flyt)
-     → Ja: Gå til innsjekk
   5. Mannskapsmedlem opprettet + innsjekket på byggeplass
 ```
 
-### Daglig innsjekk (etter førstegang)
+### Steg 3: Daglig innsjekk — geofence + bekreftelse
+
+Etter førstegangsregistrering skjer daglig innsjekk automatisk via geofence:
 
 ```
-Person ankommer byggeplass:
-  1. Scanner QR / åpner app / taster HMS-kortnr
-  2. System gjenkjenner personen
-  3. Sjekk:
-     - PSI gyldig? (ikke utløpt versjon)
-     - HMS-kort registrert?
-  4. Innsjekket → synlig i mannskap-oversikt
+Appen kjører i bakgrunnen:
+  → GPS oppdager at bruker er innenfor byggeplassens område
+  → Push-varsel / modal:
 
-Person forlater:
-  5. Sjekker ut (manuelt) ELLER auto-utsjekk ved midnatt
+  ┌──────────────────────────────────┐
+  │  📍 Du er ved Blokk A            │
+  │                                  │
+  │  Logg inn på byggeplassen?       │
+  │                                  │
+  │  [Logg inn]          [Ikke nå]   │
+  └──────────────────────────────────┘
+
+  → Bruker bekrefter → innsjekket (kilde: "geofence")
+  → Synlig i mannskap-oversikt
 ```
+
+**Utsjekk — tre mekanismer:**
+
+```
+1. Geofence: Bruker forlater området
+   ┌──────────────────────────────────┐
+   │  📍 Du har forlatt Blokk A       │
+   │                                  │
+   │  Logg ut fra byggeplassen?       │
+   │                                  │
+   │  [Logg ut]           [Ikke nå]   │
+   └──────────────────────────────────┘
+
+2. Manuell: Bruker trykker "Logg ut" i appen
+
+3. Automatisk etter 12 timer:
+   → Innsjekk 07:12, ingen utsjekk → 19:12 auto-utsjekk
+   → Push-varsel: "Du ble automatisk logget ut fra Blokk A etter 12 timer"
+   → MannskapsInnsjekk.autoUtlogget = true
+   → Synlig i historikken som auto-utlogget (prosjektleder kan se hvem som glemte)
+```
+
+**Aldri** automatisk innsjekk uten bekreftelse — GPS foreslår, brukeren bestemmer.
 
 ### Innsjekk-metoder
 
-| Metode | Beskrivelse | Hvem |
-|--------|-------------|------|
-| **QR-scan** | Scanner QR-plakat ved porten → identifiserer seg | Gjester, UE-ansatte |
-| **App** | Trykker "Sjekk inn" i SiteDoc-appen | SiteDoc-brukere |
-| **HMS-kortnr** | Taster kortnummer på terminal/nettbrett | Alle |
-| **Manuell** | Prosjektleder registrerer person | Nødsituasjon, besøkende |
+| Metode | Beskrivelse | Hvem | Kilde |
+|--------|-------------|------|-------|
+| **Geofence** | App oppdager posisjon → bruker bekrefter | SiteDoc-brukere med app | `geofence` |
+| **QR-scan** | Scanner QR-plakat ved porten | Gjester, UE-ansatte | `qr` |
+| **App** | Trykker "Logg inn" manuelt i appen | SiteDoc-brukere | `app` |
+| **HMS-kortnr** | Taster kortnummer på terminal/nettbrett | Alle | `qr` |
+| **Manuell** | Prosjektleder registrerer person | Nødsituasjon, besøkende | `manuell` |
+
+### Geofence — teknisk
+
+Byggeplassens geofence-område utledes fra:
+1. **Georefererte tegninger** — tegningens bounding box i lat/lon (beste presisjon)
+2. **Byggeplass-adresse** — geocodet til lat/lon + radius (fallback, grovere)
+
+Appen bruker `expo-location` med geofence-monitoring (bakgrunnsposisjon). Batteribruk holdes lav ved å bruke `significantLocationChanges` i stedet for kontinuerlig GPS.
+
+```typescript
+// Forenklet — expo-location geofence
+Location.startGeofencingAsync("BYGGEPLASS_GEOFENCE", [
+  { latitude: 59.907, longitude: 10.757, radius: 200 }, // Blokk A
+  { latitude: 59.912, longitude: 10.760, radius: 150 }, // Blokk B
+]);
+```
 
 ## Mannskap-oversikt (UI)
 
@@ -257,13 +330,7 @@ Person forlater:
 
 ### PSI (eksisterende)
 
-PSI-gjennomføring er **forutsetning** for første innsjekk. Flyten:
-1. Person registrerer seg (mannskap) → Mannskapsmedlem opprettes
-2. System sjekker PsiSignatur for denne personen + byggeplass
-3. Ingen signatur → "Gjennomfør PSI først" → PSI-flyten
-4. Signatur finnes → innsjekk tillatt
-
-HMS-kortnummer synkroniseres: registrert i mannskap → kopieres til PsiSignatur (eller omvendt, avhengig av hva som skjer først).
+Se "Komplett flyt" over. PSI-gjennomføring (i SiteDoc eller eksternt system) er forutsetning for mannskapsregistrering. HMS-kortnummer synkroniseres mellom PsiSignatur og Mannskapsmedlem.
 
 ### Timer (fremtidig)
 
@@ -328,16 +395,18 @@ packages/pdf/src/mannskap.ts                          ← §15-liste PDF
 
 ## Implementeringsrekkefølge
 
-1. **DB-tabeller + modul-registrering** — Mannskapsmedlem, MannskapsInnsjekk + slug i PROSJEKT_MODULER
-2. **Registrering + mannskap-oversikt** — liste over registrerte, HMS-kort-status
-3. **Innsjekk/ut** — daglig registrering med sanntidsoversikt
-4. **QR-innsjekk for gjester** — utvid PSI-QR til også dekke innsjekk
-5. **§15-liste eksport** — PDF/Excel i lovpålagt format
-6. **Historikk** — ukesvisning, persondager, statistikk
-7. **Kobling til PSI** — forutsetning-sjekk ved innsjekk
-8. **Auto-sletting** — cron-jobb: slett data 6 mnd etter prosjektslutt
-9. **Kobling til timer** — foreslå arbeidstid basert på innsjekk
-10. **Kobling til maskin** — fører + maskin innsjekk
+1. **PSI: ekstern system-felt** — `eksternSystem` på Psi-modellen, UI i PSI-innstillinger
+2. **DB-tabeller + modul-registrering** — Mannskapsmedlem, MannskapsInnsjekk + slug i PROSJEKT_MODULER
+3. **Registrering + mannskap-oversikt** — liste over registrerte, HMS-kort-status, sanntid
+4. **PSI-kobling** — forutsetning-sjekk ved registrering (SiteDoc eller eksternt)
+5. **Innsjekk/ut via app og QR** — manuell innsjekk + gjest-innsjekk via QR
+6. **Geofence-innsjekk** — expo-location bakgrunnsposisjon, push-forslag, brukerbekreftelse
+7. **Auto-utsjekk 12 timer** — cron/timer, push-varsel, flagg i historikk
+8. **§15-liste eksport** — PDF/Excel i lovpålagt format
+9. **Historikk** — ukesvisning, persondager, statistikk
+10. **Auto-sletting GDPR** — cron-jobb: anonymiser data 6 mnd etter prosjektslutt
+11. **Kobling til timer** — foreslå arbeidstid basert på innsjekk
+12. **Kobling til maskin** — fører + maskin innsjekk
 
 ## Automatisk sletting (GDPR)
 
@@ -355,7 +424,9 @@ Anonymisering i stedet for full sletting — beholder aggregerte tall (antall pe
 ## Ikke avklart
 
 - **NFC-støtte for HMS-kort** — fysisk scanning av kortet (krever NFC-hardware på terminal)
-- **Integrasjon mot Infobric/HMSREG** — eksisterende mannskapsliste-systemer i bransjen
+- **Integrasjon mot Infobric/HMSREG** — import/eksport av mannskapslister, synkronisering
 - **Automatisk varsel ved utløpt HMS-kort** — push til prosjektleder
 - **Besøkende uten HMS-kort** — egen gjestekategori med tidsbegrensning?
 - **Mønstringsøvelse-modus** — varsle alle innsjekkede, bekreft at alle er gjort rede for
+- **Geofence-presisjon** — radius per byggeplass (konfigurerbart?) vs fast 200m
+- **Batteribruk** — bakgrunnsposisjon tapper batteri, balanser frekvens vs presisjon
