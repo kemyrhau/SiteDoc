@@ -40,6 +40,8 @@ model User {
   checklistChangeLogs  ChecklistChangeLog[]
   ansvarligFaggrupper Faggruppe[] @relation("FaggruppeAnsvarlig")
   psiSignaturer        PsiSignatur[]
+  godkjenteKontrollplaner Kontrollplan[] @relation("KontrollplanGodkjenner")
+  kontrollplanHistorikk   KontrollplanHistorikk[]
 
   @@index([organizationId])
   @@map("users")
@@ -171,6 +173,7 @@ model Project {
   ftdKontrakter        FtdKontrakt[]
   changeEvents         FtdChangeEvent[]
   psiEr                Psi[]
+  kontrollplaner       Kontrollplan[]
 
   @@map("projects")
 }
@@ -313,6 +316,7 @@ model Faggruppe {
   folderAccess           FolderAccess[]
   groupFaggrupper        GroupFaggruppe[]
   ftdNotaPeriods         FtdNotaPeriod[]
+  kontrollplanPunkter    KontrollplanPunkt[]
 
   @@map("dokumentflyt_parts")
 }
@@ -423,6 +427,7 @@ model Byggeplass {
   ftdKontrakter FtdKontrakt[]
   psiEr         Psi[]
   omrader       Omrade[]
+  kontrollplaner Kontrollplan[]
 
   @@map("byggeplasser")
 }
@@ -442,6 +447,7 @@ model Omrade {
   project    Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
   byggeplass Byggeplass @relation(fields: [byggeplassId], references: [id], onDelete: Cascade)
   tegning    Drawing?   @relation(fields: [tegningId], references: [id], onDelete: SetNull)
+  kontrollplanPunkter KontrollplanPunkt[]
 
   @@index([projectId])
   @@index([byggeplassId])
@@ -467,12 +473,15 @@ model ReportTemplate {
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 
+  kontrollomrade    String?            @map("kontrollomrade") // fukt | brann | konstruksjon | geo | grunnarbeid | sha | null
+
   project           Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
   objects           ReportObject[]
   checklists        Checklist[]
   tasks             Task[]
   dokumentflytMaler DokumentflytMal[]
   psi               Psi[]
+  kontrollplanPunkter KontrollplanPunkt[]
 
   @@map("report_templates")
 }
@@ -536,6 +545,7 @@ model Checklist {
   images              Image[]
   tasks               Task[]
   changeLog           ChecklistChangeLog[]
+  kontrollplanPunkt   KontrollplanPunkt?
 
   @@index([templateId])
   @@index([bestillerUserId])
@@ -1217,4 +1227,94 @@ model ProsjektBibliotekValg {
   @@unique([prosjektId, bibliotekMalId])
   @@index([prosjektId])
   @@map("prosjekt_bibliotek_valg")
+}
+
+// ---------------------------------------------------------------------------
+// Kontrollplan — stedsbasert kvalitetskontroll (SAK10 §14-7)
+// ---------------------------------------------------------------------------
+
+model Kontrollplan {
+  id            String    @id @default(cuid())
+  projectId     String    @map("project_id")
+  byggeplassId  String    @map("byggeplass_id")
+  navn          String    // "Kontrollplan — Blokk A"
+  status        String    @default("utkast") // utkast | aktiv | godkjent | arkivert
+  godkjentDato  DateTime? @map("godkjent_dato")
+  godkjentAvId  String?   @map("godkjent_av_id")
+  opprettet     DateTime  @default(now())
+  oppdatert     DateTime  @updatedAt
+
+  project    Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  byggeplass Byggeplass @relation(fields: [byggeplassId], references: [id], onDelete: Cascade)
+  godkjentAv User?      @relation("KontrollplanGodkjenner", fields: [godkjentAvId], references: [id], onDelete: SetNull)
+  milepeler  Milepel[]
+  punkter    KontrollplanPunkt[]
+
+  @@unique([projectId, byggeplassId])
+  @@index([projectId])
+  @@map("kontrollplaner")
+}
+
+model Milepel {
+  id             String @id @default(cuid())
+  kontrollplanId String @map("kontrollplan_id")
+  navn           String // "2. etasje bad ferdig"
+  maalUke        Int    @map("maal_uke")  // Ukenummer (1-53)
+  maalAar        Int    @map("maal_aar")  // År (2026)
+  sortering      Int    @default(0)
+
+  kontrollplan Kontrollplan        @relation(fields: [kontrollplanId], references: [id], onDelete: Cascade)
+  punkter      KontrollplanPunkt[]
+
+  @@index([kontrollplanId])
+  @@map("milepeler")
+}
+
+model KontrollplanPunkt {
+  id              String    @id @default(cuid())
+  kontrollplanId  String    @map("kontrollplan_id")
+  milepelId       String?   @map("milepel_id")
+  omradeId        String?   @map("omrade_id")          // Nullable — lite prosjekt trenger ikke områder
+  sjekklisteMalId String    @map("sjekkliste_mal_id")
+  faggruppeId     String    @map("faggruppe_id")
+  fristUke        Int?      @map("frist_uke")           // Ukenummer (1-53)
+  fristAar        Int?      @map("frist_aar")           // År (2026)
+  varselUkerFor   Int       @default(1) @map("varsel_uker_for")
+  status          String    @default("planlagt")        // planlagt | pagar | utfort | godkjent
+  sjekklisteId    String?   @unique @map("sjekkliste_id")
+  avhengerAvId    String?   @map("avhenger_av_id")
+  opprettet       DateTime  @default(now())
+
+  kontrollplan  Kontrollplan      @relation(fields: [kontrollplanId], references: [id], onDelete: Cascade)
+  milepel       Milepel?          @relation(fields: [milepelId], references: [id], onDelete: SetNull)
+  omrade        Omrade?           @relation(fields: [omradeId], references: [id], onDelete: SetNull)
+  sjekklisteMal ReportTemplate    @relation(fields: [sjekklisteMalId], references: [id])
+  faggruppe     Faggruppe         @relation(fields: [faggruppeId], references: [id])
+  sjekkliste    Checklist?        @relation(fields: [sjekklisteId], references: [id], onDelete: SetNull)
+  avhengerAv    KontrollplanPunkt?  @relation("PunktAvhengighet", fields: [avhengerAvId], references: [id], onDelete: SetNull)
+  blokkerer     KontrollplanPunkt[] @relation("PunktAvhengighet")
+  historikk     KontrollplanHistorikk[]
+
+  @@unique([kontrollplanId, omradeId, sjekklisteMalId])
+  @@index([kontrollplanId])
+  @@index([milepelId])
+  @@index([omradeId])
+  @@index([faggruppeId])
+  @@index([status])
+  @@map("kontrollplan_punkter")
+}
+
+model KontrollplanHistorikk {
+  id        String   @id @default(cuid())
+  punktId   String   @map("punkt_id")
+  brukerId  String   @map("bruker_id")
+  handling  String   // opprettet | startet | utfort | godkjent | avvist | endret
+  kommentar String?
+  tidspunkt DateTime @default(now())
+
+  punkt  KontrollplanPunkt @relation(fields: [punktId], references: [id], onDelete: Cascade)
+  bruker User              @relation(fields: [brukerId], references: [id])
+
+  @@index([punktId])
+  @@map("kontrollplan_historikk")
 }
