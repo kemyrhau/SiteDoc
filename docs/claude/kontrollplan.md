@@ -734,9 +734,18 @@ Kontrollplanen skal oppfylle kravene i norsk bygningslovgivning:
 | Byggherreforskriften | §7, §8 | SHA-plan med risikovurdering og avviksrapportering | SHA som kontrollområde |
 | TEK17 | Diverse | Tekniske krav (fukt §13-5, energi §14-2, brann kap. 11) | NS/TEK-referanser i hjelpetekst |
 
+### Målgruppe
+
+Kontrollplanen er designet for **store prosjekter**: industribygg, boligblokker, infrastruktur. Typisk:
+- Tiltaksklasse 2 eller 3 — obligatorisk uavhengig kontroll er standard
+- 10–20 faggrupper med egne kontrollområder
+- 50+ soner (hvert bad i en blokk, hver branncelle i et industribygg)
+- 1–3 års byggetid med rullende kontroll
+- Strenge avhengigheter mellom fag (grunnarbeid → betong → stål → tømrer → VVS → elektro)
+
 ### Formål
 
-Kobler sjekklister til fysiske soner/rom markert på tegning, med frist, ansvarlig faggruppe og dokumentflyt-godkjenning. Gir sporbarhet, fremdriftstracking og sluttrapport for kommunal kontroll.
+Kobler sjekklister til fysiske soner/rom markert på tegning, med frist, ansvarlig faggruppe og dokumentflyt-godkjenning. Gir sporbarhet, fremdriftstracking og sluttrapport for kommunal kontroll (SAK10 §14-7).
 
 ### Kjerneflyt
 
@@ -762,21 +771,31 @@ Sluttrapport (SAK10 §14-7):
 ### Datamodell
 
 ```
-Sone (ny tabell)
+Kontrollplan (ny — overordnet enhet)
+  ├── id, projectId, navn, status (utkast | aktiv | godkjent | arkivert)
+  ├── godkjentDato, godkjentAvId
+  └── punkter[]
+
+Sone (ny — polygon på tegning)
   ├── id, navn, type (sone | rom | etasje)
   ├── byggeplassId       → tilhører en byggeplass
   ├── tegningId          → tegningen den er markert på
-  ├── polygon            → Json [{x, y}, {x, y}, ...] i prosent av tegning
+  ├── polygon            → Json [{x, y}, ...] i prosent av tegning
   └── farge              → hex-farge for visning
 
-KontrollplanPunkt (ny tabell)
-  ├── id, projectId
+KontrollplanPunkt (ny — kobling mal × sone)
+  ├── id, kontrollplanId → tilhører en kontrollplan
   ├── soneId             → hvilken sone
   ├── sjekklisteMalId    → hvilken mal (ReportTemplate)
-  ├── faggruppeId        → ansvarlig faggruppe (DokumentflytPart)
-  ├── frist              → DateTime
+  ├── faggruppeId        → ansvarlig faggruppe
+  ├── frist, varselDagerFør
   ├── status             → planlagt | pågår | utført | godkjent
-  └── sjekklisteId?      → null → fylles når sjekkliste opprettes fra mal
+  ├── avhengerAvId?      → punkt som må fullføres først
+  ├── sjekklisteId?      → null → fylles når sjekkliste opprettes
+  └── historikk[]        → sporbarhet (SAK10)
+
+KontrollplanHistorikk (ny — audit trail)
+  ├── punktId, brukerId, handling, kommentar, tidspunkt
 
 Kontrollområde på mal:
   ReportTemplate.kontrollomrade → fukt | brann | konstruksjon | geo | grunnarbeid | sha | null
@@ -785,14 +804,32 @@ Kontrollområde på mal:
 #### Prisma-skjema
 
 ```prisma
+model Kontrollplan {
+  id            String    @id @default(cuid())
+  projectId     String    @map("project_id")
+  navn          String                          // "Kontrollplan - Bjørvika Blokk A"
+  status        String    @default("utkast")    // utkast | aktiv | godkjent | arkivert
+  godkjentDato  DateTime? @map("godkjent_dato")
+  godkjentAvId  String?   @map("godkjent_av_id")
+  opprettet     DateTime  @default(now())
+  oppdatert     DateTime  @updatedAt
+
+  project       Project   @relation(fields: [projectId], references: [id])
+  godkjentAv    User?     @relation(fields: [godkjentAvId], references: [id])
+  punkter       KontrollplanPunkt[]
+
+  @@index([projectId])
+  @@map("kontrollplaner")
+}
+
 model Sone {
   id            String   @id @default(cuid())
   projectId     String   @map("project_id")
   byggeplassId  String   @map("byggeplass_id")
   tegningId     String?  @map("tegning_id")
   navn          String
-  type          String   @default("sone")   // sone | rom | etasje
-  polygon       Json                         // [{x: number, y: number}, ...]
+  type          String   @default("sone")     // sone | rom | etasje
+  polygon       Json                           // [{x: number, y: number}, ...]
   farge         String   @default("#3b82f6")
   sortering     Int      @default(0)
   opprettet     DateTime @default(now())
@@ -810,27 +847,58 @@ model Sone {
 
 model KontrollplanPunkt {
   id              String    @id @default(cuid())
-  projectId       String    @map("project_id")
+  kontrollplanId  String    @map("kontrollplan_id")
   soneId          String    @map("sone_id")
   sjekklisteMalId String    @map("sjekkliste_mal_id")
   faggruppeId     String    @map("faggruppe_id")
   frist           DateTime?
+  varselDagerFør  Int       @default(7) @map("varsel_dager_for")
   status          String    @default("planlagt")  // planlagt | pågår | utført | godkjent
   sjekklisteId    String?   @map("sjekkliste_id")
+  avhengerAvId    String?   @map("avhenger_av_id")
   opprettet       DateTime  @default(now())
 
-  project        Project          @relation(fields: [projectId], references: [id])
+  kontrollplan   Kontrollplan     @relation(fields: [kontrollplanId], references: [id])
   sone           Sone             @relation(fields: [soneId], references: [id])
   sjekklisteMal  ReportTemplate   @relation(fields: [sjekklisteMalId], references: [id])
   faggruppe      Faggruppe        @relation(fields: [faggruppeId], references: [id])
   sjekkliste     Checklist?       @relation(fields: [sjekklisteId], references: [id])
+  avhengerAv     KontrollplanPunkt? @relation("PunktAvhengighet", fields: [avhengerAvId], references: [id])
+  blokkerer      KontrollplanPunkt[] @relation("PunktAvhengighet")
+  historikk      KontrollplanHistorikk[]
 
   @@unique([soneId, sjekklisteMalId])  // én mal per sone
-  @@index([projectId])
+  @@index([kontrollplanId])
   @@index([soneId])
+  @@index([faggruppeId])
+  @@index([status])
   @@map("kontrollplan_punkter")
 }
+
+model KontrollplanHistorikk {
+  id          String   @id @default(cuid())
+  punktId     String   @map("punkt_id")
+  brukerId    String   @map("bruker_id")
+  handling    String                         // opprettet | startet | utført | godkjent | avvist | endret
+  kommentar   String?
+  tidspunkt   DateTime @default(now())
+
+  punkt       KontrollplanPunkt @relation(fields: [punktId], references: [id], onDelete: Cascade)
+
+  @@index([punktId])
+  @@map("kontrollplan_historikk")
+}
 ```
+
+#### Avhengigheter mellom punkter
+
+`avhengerAvId` blokkerer oppstart inntil forrige punkt er godkjent. Typisk rekkefølge:
+
+```
+FB2 Graving → FD2 Fylling → betongfundament → armering → støp
+```
+
+UI viser blokkerte punkter som låste (grå, ikke klikkbare). Når forrige punkt godkjennes → neste punkt blir klart → varsling sendes til ansvarlig faggruppe.
 
 ### Tegningsvisning — to lag
 
@@ -863,9 +931,23 @@ Fremdrift:          1/3 (33%)     0/3 (0%)      0/3 (0%)
 
 Filtrering:
 - Per kontrollområde (fukt, brann, konstruksjon, geo)
-- Per faggruppe
-- Per byggeplass / etasje
+- Per faggruppe — betongentreprenøren ser kun sine 30 punkter, ikke alle 200
+- Per byggeplass / etasje / fløy
 - Per status (planlagt, pågår, godkjent, avvik)
+- Per avhengighet (vis kun klare punkter)
+
+### Bulk-operasjoner (viktig for store prosjekter)
+
+Et industribygg med 50 soner og 10 maler = 500 kontrollplanpunkter. Disse kan ikke opprettes én og én.
+
+**Legg til mal på flere soner:**
+Velg mal (f.eks. "Membran våtrom") → velg soner (alle bad i 3. etg) → sett frist + faggruppe → opprett 12 punkter i ett klikk.
+
+**Kopier kontrollplan mellom etasjer:**
+"3. etasje" har 8 soner med 6 maler hver = 48 punkter. "4. etasje" er identisk planløsning. Kopier → juster frister → ferdig.
+
+**Bulk fristendring:**
+Forsinkelse i grunnarbeid → velg alle berørte punkter → flytt frist +2 uker.
 
 ### Kontrollområde
 
@@ -881,36 +963,70 @@ Kontrollområde er en egenskap på **sjekklistemalen** (ReportTemplate), ikke p�
 | `sha` | Byggherreforskriften | Vernerunder, risikovurdering |
 | `null` | Ingen spesifikk | Generelle sjekklister |
 
+### Kontrollplan-godkjenning
+
+Kontrollplanen har sin egen livssyklus uavhengig av enkeltpunktene:
+
+| Status | Betydning | Handling |
+|--------|-----------|----------|
+| `utkast` | Under planlegging — soner og punkter legges til | Prosjektleder redigerer fritt |
+| `aktiv` | Godkjent for bruk — feltarbeid kan starte | Nye punkter kan legges til, eksisterende kan ikke slettes |
+| `godkjent` | Alle punkter godkjent, sluttrapport generert | Låst — kun arkivering mulig |
+| `arkivert` | Ferdig — tilgjengelig som historikk | Skrivebeskyttet |
+
+### Historikk og sporbarhet (SAK10 §10-1)
+
+Alle endringer på kontrollplanpunkter logges i `KontrollplanHistorikk`:
+
+```
+KP-042: Membran bad 3B
+  2026-03-15 09:12  Ola Hansen     opprettet    Planlagt frist: 2026-05-01
+  2026-04-28 14:30  Trude Berg     startet      Faggruppe: VVS-Rør AS
+  2026-04-29 08:15  Trude Berg     utført       Sjekkliste utfylt, sendt til godkjenning
+  2026-04-29 10:45  Per Nilsen     avvist       Kommentar: Mangler foto av hjørnedetalj
+  2026-04-30 07:00  Trude Berg     utført       Re-kontrollert med foto
+  2026-04-30 11:20  Per Nilsen     godkjent
+```
+
+Historikken er grunnlaget for sluttrapporten og kan etterspørres ved kommunalt tilsyn.
+
 ### Sluttrapport (SAK10 §14-7)
 
-PDF-eksport per kontrollområde med:
+PDF-eksport per kontrollområde. Knyttes til `Kontrollplan`-entiteten.
 
 ```
 SLUTTRAPPORT — Kontrollområde: Fuktsikring
-Prosjekt: NRK Bjørvika  |  Dato: 2026-06-15
+Kontrollplan: Bjørvika Blokk A  |  Dato: 2026-06-15
 
 1. Oppsummering
-   Kontrollert: 12 sjekklister i 4 soner
-   Godkjent: 11  |  Avvik lukket: 3  |  Åpne avvik: 0
+   Kontrollert: 48 sjekklister i 12 soner
+   Godkjent: 48  |  Avvik totalt: 5  |  Avvik lukket: 5  |  Åpne: 0
 
 2. Kontrollerte soner
-   ┌──────────────────┬──────────────┬──────────┬──────────┐
-   │ Sone             │ Sjekkliste   │ Status   │ Dato     │
-   ├──────────────────┼──────────────┼──────────┼──────────┤
-   │ Bad 2. etg sør   │ Membran      │ Godkjent │ 12. jun  │
-   │ Bad 2. etg nord  │ Membran      │ Godkjent │ 13. jun  │
-   │ ...              │              │          │          │
-   └──────────────────┴──────────────┴──────────┴──────────┘
+   ┌──────────────────┬──────────────┬──────────┬──────────┬──────────────┐
+   │ Sone             │ Sjekkliste   │ Status   │ Dato     │ Faggruppe    │
+   ├──────────────────┼──────────────┼──────────┼──────────┼──────────────┤
+   │ Bad 201          │ Membran      │ Godkjent │ 12. jun  │ VVS-Rør AS   │
+   │ Bad 202          │ Membran      │ Godkjent │ 12. jun  │ VVS-Rør AS   │
+   │ Bad 301          │ Membran      │ Godkjent │ 15. jun  │ VVS-Rør AS   │
+   │ ... (48 rader)   │              │          │          │              │
+   └──────────────────┴──────────────┴──────────┴──────────┴──────────────┘
 
 3. Avvik og lukking
-   A-001: Membran ikke tilstrekkelig overlapp (Bad 2. etg sør)
-          Lukket 14. jun — utbedret og re-kontrollert
+   A-001: Membran utilstrekkelig overlapp (Bad 301) — Lukket 16. jun
+   A-002: Manglende foto av hjørnedetalj (Bad 302) — Lukket 17. jun
+   ... (5 avvik, alle lukket)
 
-4. Kontrollerklæring
-   Kontrollområde fuktsikring er gjennomført i henhold til SAK10 §14-7.
-   Alle avvik er lukket.
+4. Historikk-sammendrag
+   Gjennomsnittlig behandlingstid: 2,3 dager per punkt
+   Avvist og re-kontrollert: 5 av 48 (10,4 %)
 
-   Signatur: ________________  Dato: ________
+5. Kontrollerklæring
+   Kontrollområde fuktsikring er gjennomført iht. SAK10 §14-7.
+   Alle avvik er dokumentert og lukket.
+
+   Ansvarlig kontrollerende: ________________  Dato: ________
+   Prosjektleder:           ________________  Dato: ________
 ```
 
 ### Gjenbruk av eksisterende systemer
@@ -928,7 +1044,10 @@ Prosjekt: NRK Bjørvika  |  Dato: 2026-06-15
 Nye komponenter:
 - Polygon-tegneverktøy for soner på tegning
 - Matrisevisning (kontrollplan-siden)
-- Sluttrapport PDF-eksport
+- Bulk-operasjoner (legg til mal på flere soner, kopier mellom etasjer)
+- Avhengighetsvisning (blokkerte punkter, rekkefølge)
+- Historikk-logg per punkt (SAK10 sporbarhet)
+- Sluttrapport PDF-eksport per kontrollområde
 
 ### Modul-registrering
 
@@ -961,19 +1080,23 @@ Kontrollplan-tabeller ligger i `packages/db` (IKKE isolert pakke) fordi de treng
 
 ### Implementeringsrekkefølge
 
-1. **Sone-modell + polygon på tegning** — DB, API, tegn/vis soner
-2. **KontrollplanPunkt + matrisevisning** — koble mal til sone, vis matrise
-3. **Sjekkliste-markører på tegning** — utvid eksisterende markør-system
-4. **Kontrollområde på maler** — nytt felt, filter i matrise
-5. **Sluttrapport PDF** — eksport per kontrollområde
-6. **Varsling** — push ved frist, eskalering til leder
+1. **Sone-modell + polygon på tegning** — DB, API, tegn/vis/rediger soner
+2. **Kontrollplan + KontrollplanPunkt** — overordnet plan, koble mal til sone, avhengigheter
+3. **Matrisevisning** — kontrollplan-siden med status, filtrering, fremdrift
+4. **Bulk-operasjoner** — legg til mal på flere soner, kopier mellom etasjer, bulk fristendring
+5. **Sjekkliste-markører på tegning** — utvid eksisterende markør-system til sjekklister
+6. **Kontrollområde på maler** — nytt felt på ReportTemplate, filter i matrise
+7. **Historikk + sporbarhet** — KontrollplanHistorikk, audit trail per punkt
+8. **Sluttrapport PDF** — eksport per kontrollområde, kontrollerklæring
+9. **Varsling** — konfigurerbar varselDagerFør, push ved frist, eskalering
 
 ### Avhengigheter
 
-- Steg 1–3 kan bygges uavhengig av malbygger
-- Steg 4 krever felt på ReportTemplate (enkel migrasjon)
-- Steg 5 bygger på eksisterende PDF-pakke
-- Steg 6 bygger på eksisterende push-varsling
+- Steg 1–5 kan bygges uavhengig av malbygger
+- Steg 6 krever felt på ReportTemplate (enkel migrasjon)
+- Steg 7 er ren backend — kan bygges parallelt med UI
+- Steg 8 bygger på eksisterende PDF-pakke
+- Steg 9 bygger på eksisterende push-varsling
 
 ## Fremtidig utvidelse av biblioteket
 
@@ -1009,8 +1132,9 @@ På sikt kan biblioteket utvides med maler fra andre kilder:
 
 - **Sjekklistebibliotek:** ✅ 2 standarder, 12 maler, 74 felt — fungerer i produksjon
 - **Admin-redigering:** Planlagt (`/admin/bibliotek`) — ikke bygget ennå
-- **Kontrollplan design:** ✅ Fullstendig spesifikasjon (soner, matrise, lovkrav, sluttrapport)
+- **Kontrollplan design:** ✅ Fullstendig spesifikasjon med lovkrav, datamodell, bulk-ops, sporbarhet, sluttrapport
 - **Kontrollplan-siden:** Ikke bygget ennå
 - **Sone-modell:** Ikke migrert ennå
 - **Modul-registrering:** Ikke lagt til i `PROSJEKT_MODULER` ennå
-- **Ikke blokkert av malbygger** — steg 1–3 kan bygges uavhengig
+- **Ikke blokkert av malbygger** — steg 1–5 kan bygges uavhengig
+- **Målgruppe:** Industribygg, boligblokker, infrastruktur (tiltaksklasse 2/3)
