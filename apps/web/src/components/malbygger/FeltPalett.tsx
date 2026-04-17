@@ -33,6 +33,9 @@ const kategoriRekkefølge: ReportObjectCategory[] = [
 // PSI-modus: kun innholdsrelevante typer
 const PSI_TYPER = new Set(["heading", "subtitle", "info_text", "info_image", "video", "quiz", "signature"]);
 
+// Skjult fra paletten — område/rom håndteres via kontrollplan, ikke som felt i malen
+const SKJULTE_TYPER = new Set(["zone_property", "room_property"]);
+
 export function FeltPalett({ psiModus }: { psiModus?: boolean }) {
   const { t } = useTranslation();
   const gruppert = kategoriRekkefølge
@@ -40,6 +43,7 @@ export function FeltPalett({ psiModus }: { psiModus?: boolean }) {
       kategori,
       label: t(kategoriLabelKeys[kategori]),
       typer: REPORT_OBJECT_TYPES.filter((type) => {
+        if (SKJULTE_TYPER.has(type)) return false;
         if (psiModus && !PSI_TYPER.has(type)) return false;
         return REPORT_OBJECT_TYPE_META[type].category === kategori;
       }),
