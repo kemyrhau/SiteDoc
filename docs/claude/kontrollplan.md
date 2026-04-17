@@ -747,26 +747,36 @@ Kontrollplanen er designet for **store prosjekter**: industribygg, boligblokker,
 
 Kobler sjekklister til fysiske områder/rom markert på tegning, med frist, ansvarlig faggruppe og dokumentflyt-godkjenning. Gir sporbarhet, fremdriftstracking og sluttrapport for kommunal kontroll (SAK10 §14-7).
 
-### Kjerneflyt
+### Kjerneflyt — områder opprettes som del av kontrollplanen
+
+Områder er **ikke et separat oppsettssteg**. De opprettes inline når prosjektleder bygger kontrollplanen. Ingen navigering til en egen område-admin side.
 
 ```
-Oppsett (prosjektleder):
-  1. Tegn områder på tegning (polygon-verktøy)
-  2. Åpne kontrollplan → velg område → tilknytt sjekklistemal → sett frist + faggruppe
-  3. Gjenta for alle områder — matrisevisning gir oversikt
+Planlegging (prosjektleder, kontrollplan-siden):
+  1. Velg sjekklistemal (fra bibliotek eller prosjektets maler)
+  2. System spør: "Hvor skal denne sjekklisten utføres?"
+     → [Velg eksisterende område ▾]  eller  [+ Opprett område]
+  3. Ved [+ Opprett område]:
+     → Navn, type (sone/rom/etasje), byggeplass
+     → Valgfritt: marker polygon på tegning
+     → Område opprettes og velges automatisk
+  4. Sett frist (uke) og ansvarlig faggruppe
+  5. Kontrollplanpunkt opprettet — vises i matrisen
 
 Utførelse (feltarbeider):
-  4. Åpne sjekklister → filtrert på min faggruppe + område
-  5. Start sjekkliste → KontrollplanPunkt.status = pågår
-  6. Fyll ut → send via dokumentflyt
+  6. Åpne sjekklister → filtrert på min faggruppe + område
+  7. Start sjekkliste → KontrollplanPunkt.status = pågår
+  8. Fyll ut → send via dokumentflyt
 
 Godkjenning (dokumentflyt):
-  7. Godkjenner mottar via eksisterende dokumentflyt
-  8. Godkjent → KontrollplanPunkt.status = godkjent
+  9. Godkjenner mottar via eksisterende dokumentflyt
+  10. Godkjent → KontrollplanPunkt.status = godkjent
 
 Sluttrapport (SAK10 §14-7):
-  9. Eksporter per kontrollområde: kontrollert, avvik, lukking, signatur
+  11. Eksporter per kontrollområde: kontrollert, avvik, lukking, signatur
 ```
+
+Områder vokser organisk etter hvert som kontrollplanen bygges ut. Prosjektleder trenger aldri å forlate kontrollplan-siden for å administrere områder.
 
 ### Datamodell
 
@@ -1134,8 +1144,9 @@ Kontrollplan: Bjørvika Blokk A  |  Dato: 2026-06-15
 | Kontrollområde | Nytt felt på ReportTemplate |
 
 Nye komponenter:
-- Polygon-tegneverktøy for områder på tegning
-- Matrisevisning (kontrollplan-siden)
+- Kontrollplan-siden med inline område-opprettelse
+- Matrisevisning med status, frister, fremdrift
+- Polygon-tegneverktøy for områder på tegning (valgfritt steg)
 - Bulk-operasjoner (legg til mal på flere områder, kopier mellom etasjer)
 - Avhengighetsvisning (blokkerte punkter, rekkefølge)
 - Historikk-logg per punkt (SAK10 sporbarhet)
@@ -1172,23 +1183,27 @@ Kontrollplan-tabeller ligger i `packages/db` (IKKE isolert pakke) fordi de treng
 
 ### Implementeringsrekkefølge
 
-1. **Område-modell + polygon på tegning** — DB, API, tegn/vis/rediger områder
-2. **Kontrollplan + KontrollplanPunkt** — overordnet plan, koble mal til område, avhengigheter
-3. **Matrisevisning** — kontrollplan-siden med status, filtrering, fremdrift
-4. **Bulk-operasjoner** — legg til mal på flere områder, kopier mellom etasjer, bulk fristendring
-5. **Sjekkliste-markører på tegning** — utvid eksisterende markør-system til sjekklister
-6. **Kontrollområde på maler** — nytt felt på ReportTemplate, filter i matrise
-7. **Historikk + sporbarhet** — KontrollplanHistorikk, audit trail per punkt
-8. **Sluttrapport PDF** — eksport per kontrollområde, kontrollerklæring
-9. **Varsling** — konfigurerbar varselDagerFør, push ved frist, eskalering
+1. ✅ **Område-modell + API** — DB (`omrader`-tabell), tRPC CRUD, Prisma-relasjonene
+2. ✅ **Område-velger og rom-velger** — zone_property og room_property oppgradert fra fritekst til nedtrekksmenyer (web + mobil)
+3. **Kontrollplan-side med inline område-opprettelse** — side, Kontrollplan + KontrollplanPunkt DB-tabeller, "Velg område eller [+ Opprett]"-flyt
+4. **Matrisevisning** — områder × maler, status, ukefrister, fremdrift
+5. **Polygon-tegneverktøy** — valgfritt: marker områder som polygoner på tegning
+6. **Bulk-operasjoner** — legg til mal på flere områder, kopier mellom etasjer, bulk fristendring
+7. **Sjekkliste-markører på tegning** — utvid eksisterende markør-system til sjekklister
+8. **Kontrollområde på maler** — nytt felt på ReportTemplate, filter i matrise
+9. **Historikk + sporbarhet** — KontrollplanHistorikk, audit trail per punkt
+10. **Sluttrapport PDF** — eksport per kontrollområde, kontrollerklæring
+11. **Varsling** — konfigurerbar varselUkerFør, push ved frist, eskalering
 
 ### Avhengigheter
 
-- Steg 1–5 kan bygges uavhengig av malbygger
-- Steg 6 krever felt på ReportTemplate (enkel migrasjon)
-- Steg 7 er ren backend — kan bygges parallelt med UI
-- Steg 8 bygger på eksisterende PDF-pakke
-- Steg 9 bygger på eksisterende push-varsling
+- Steg 1–2: ✅ Ferdig implementert og deployet
+- Steg 3–4: Kan bygges nå — ingen blokkere
+- Steg 5: Uavhengig av kontrollplan — kan bygges parallelt
+- Steg 6–7: Kan bygges etter steg 3–4
+- Steg 8: Krever felt på ReportTemplate (enkel migrasjon)
+- Steg 9: Ren backend — kan bygges parallelt
+- Steg 10–11: Bygger på eksisterende PDF-pakke og push-varsling
 
 ## Fremtidig utvidelse av biblioteket
 
@@ -1225,8 +1240,9 @@ På sikt kan biblioteket utvides med maler fra andre kilder:
 - **Sjekklistebibliotek:** ✅ 2 standarder, 12 maler, 74 felt — fungerer i produksjon
 - **Admin-redigering:** Planlagt (`/admin/bibliotek`) — ikke bygget ennå
 - **Kontrollplan design:** ✅ Fullstendig spesifikasjon med lovkrav, datamodell, bulk-ops, sporbarhet, sluttrapport
-- **Kontrollplan-siden:** Ikke bygget ennå
-- **Område-modell:** Ikke migrert ennå
+- **Område-modell:** ✅ Implementert — `omrader`-tabell, API CRUD, velger-komponenter (web + mobil)
+- **Område-/rom-velger i sjekklister:** ✅ zone_property → nedtrekksmeny, room_property → filtrert nedtrekksmeny
+- **Kontrollplan-siden:** Ikke bygget ennå — neste steg (steg 3)
 - **Modul-registrering:** Ikke lagt til i `PROSJEKT_MODULER` ennå
-- **Ikke blokkert av malbygger** — steg 1–5 kan bygges uavhengig
+- **Polygon på tegning:** Ikke bygget ennå (steg 5)
 - **Målgruppe:** Industribygg, boligblokker, infrastruktur (tiltaksklasse 2/3)
