@@ -1,8 +1,59 @@
-# Maskinregister — Fase 3
+# Maskin- og utstyrsregister — Fase 3
 
 ## Formål
 
-Maskinregister med GPS-sporing, servicehistorikk og vedlikeholdsplan for byggeprosjekter. Holde oversikt over hvor maskinene er, hvem som bruker dem, når de trenger service, og når EU-kontroll utløper.
+Maskin- og utstyrsregister med vedlikeholdsplan, EU-kontroll-varsling og GPS-sporing for byggeprosjekter. Dekker alt fra registreringspliktige kjøretøy til anleggsmaskiner til småutstyr og verktøy — firmaet bestemmer selv hva de vil registrere.
+
+## Tre kategorier
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  1. KJØRETØY (registreringspliktig)                              │
+│     Volvo V70, Toyota Hilux, Volvo FH16, Mercedes Sprinter       │
+│     → Vegvesen-oppslag, EU-kontroll, reg.nr, km-stand            │
+│                                                                  │
+│  2. ANLEGGSMASKINER (store, med serienummer)                     │
+│     CAT 320, Komatsu PC210, Volvo EC220E, Liebherr LTM 1100     │
+│     → Driftstimer, telematikk, skuffekapasitet, løftekapasitet   │
+│                                                                  │
+│  3. SMÅUTSTYR OG VERKTØY                                        │
+│     Boremaskin, komprimator, steinsag, laser, GPS-utstyr,        │
+│     aggregat, sveiseapparat, kompressor, stillasdeler             │
+│     → Internummer, plassering, kalibrering, antall, utlån        │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+Alle tre deler: **merke, modell, serienummer/internummer, plassering, ansvarlig, status, vedlikehold**. Kategori-felt styrer hvilke felter som er relevante i UI.
+
+### Maskintyper per kategori
+
+| Kategori | Type | Eksempler |
+|----------|------|-----------|
+| **Kjøretøy** | `personbil` | Volvo V70, Toyota Corolla |
+| | `varebil` | Toyota Hilux, VW Crafter, Mercedes Sprinter |
+| | `lastebil` | Volvo FH16, Scania R500 |
+| | `tilhenger` | Brenderup, Ifor Williams |
+| **Anleggsmaskin** | `gravemaskin` | CAT 320, Volvo EC220E, Komatsu PC210 |
+| | `hjullaster` | Volvo L90, CAT 950M |
+| | `dumper` | Volvo A30G, CAT 730 |
+| | `kran` | Liebherr LTM 1100, Grove GMK |
+| | `komprimator_stor` | Bomag BW213, Dynapac CA2500 |
+| | `dozer` | CAT D6, Komatsu D65 |
+| | `grader` | CAT 140M, Volvo G946 |
+| | `asfaltlegger` | Vögele Super 1800, Volvo P6820 |
+| | `materialhåndterer` | Fuchs MHL350, Liebherr LH 22 |
+| | `boremaskin_stor` | Atlas Copco FlexiROC, Sandvik |
+| **Småutstyr** | `komprimator` | Hoppetusse (vibrasjonsplate/-stampe) |
+| | `aggregat` | Honda EU22i, Atlas Copco QAS |
+| | `kompressor` | Atlas Copco XAS, Kaeser M27 |
+| | `boremaskin` | Hilti TE 70, Bosch GBH |
+| | `steinsag` | Stihl TS 420, Husqvarna K770 |
+| | `sveiseapparat` | Lincoln, ESAB |
+| | `laser` | Leica, Topcon, Trimble |
+| | `gps_utstyr` | Trimble, Leica iCON |
+| | `stillas` | Haki, Layher |
+| | `pumpe` | Grindex, Flygt |
+| | `annet` | Fritekst — bruker beskriver |
 
 ## Appstruktur
 
@@ -96,33 +147,54 @@ Kjøretøy uten registreringsnummer (anleggsmaskiner, gravemaskiner) registreres
 
 ## Database — `packages/db-maskin`
 
-### `vehicles` — kjøretøy/maskin
+### `equipment` — alt utstyr (kjøretøy, maskiner, verktøy)
+
+Én tabell for alle tre kategorier. `kategori`-felt styrer hvilke felter som er relevante.
+
+#### Felles felt (alle kategorier)
+
+| Felt | Type | Beskrivelse |
+|------|------|-------------|
+| `id` | `uuid` PK | |
+| `organizationId` | `uuid` FK → `organizations` | Eier-firma (isolerer data) |
+| `kategori` | `text` | `kjoretoy`, `anleggsmaskin`, `smautstyr` |
+| `type` | `text` | Se maskintype-tabell over |
+| `merke` | `text` | Volvo, CAT, Hilti, Trimble |
+| `modell` | `text` | V70, EC220E, TE 70, S9 |
+| `internNavn` | `text?` | Kallenavn ("Stor-Volvo", "Graver 3", "Laser 2") |
+| `internNummer` | `text?` | Firmaets eget inventarnummer |
+| `serienummer` | `text?` | Produsent-serienummer / PIN |
+| `aarsmodell` | `int?` | Produksjonsår |
+| `farge` | `text?` | |
+| `drivstoff` | `text?` | Diesel, Bensin, Elektrisk, Hybrid, Batteri, Ingen |
+| `bilde` | `text?` | Filreferanse til bilde |
+| `status` | `text` | `aktiv`, `vedlikehold`, `utlånt`, `avregistrert`, `kassert` |
+| `notat` | `text?` | Fritekst |
+| `antall` | `int` @default(1) | For småutstyr: "10 stk vibrasjonsplater" |
+| `createdAt` | `timestamptz` | |
+| `updatedAt` | `timestamptz` | |
+
+#### Kjøretøy-felt (kategori = `kjoretoy`)
 
 | Felt | Type | Kilde | Beskrivelse |
 |------|------|-------|-------------|
-| `id` | `uuid` PK | | |
-| `organizationId` | `uuid` FK → `organizations` | Manuell | Eier-firma (isolerer data) |
-| `registreringsnummer` | `text?` UNIQUE | Vegvesen | ZH 44186 (null for anleggsmaskiner) |
+| `registreringsnummer` | `text?` UNIQUE | Vegvesen | ZH 44186 |
 | `vin` | `text?` | Vegvesen | Understellsnummer |
-| `merke` | `text` | Vegvesen | Volvo, CAT, Liebherr |
-| `modell` | `text` | Vegvesen | V70, EC220E, 950M |
-| `kjoretoygruppe` | `text?` | Vegvesen | M1, N1, N2, N3, T (kjøretøygruppe-kode) |
-| `kjoretoygruppeNavn` | `text?` | Vegvesen | Personbil, Varebil, Lastebil, Traktor |
-| `karosseritype` | `text?` | Vegvesen | Stasjonsvogn (AC), Lukket kasse, etc. |
-| `farge` | `text?` | Vegvesen | Blå |
-| `antallSeter` | `int?` | Vegvesen | Maks antall ansatte i kjøretøy |
-| `forstegangsRegistrert` | `date?` | Vegvesen | 2015-05-12 |
-| `registrertPaEier` | `date?` | Vegvesen | 2018-04-24 |
-| `drivstoff` | `text?` | Vegvesen | Diesel, Bensin, Elektrisk, Hybrid |
-| `slagvolum` | `int?` | Vegvesen | cm³ (1560) |
-| `effektKw` | `decimal?` | Vegvesen | kW (84) |
+| `kjoretoygruppe` | `text?` | Vegvesen | M1, N1, N2, N3, T |
+| `kjoretoygruppeNavn` | `text?` | Vegvesen | Personbil, Varebil, Lastebil |
+| `karosseritype` | `text?` | Vegvesen | Stasjonsvogn, Lukket kasse |
+| `antallSeter` | `int?` | Vegvesen | Maks ansatte i kjøretøy |
+| `forstegangsRegistrert` | `date?` | Vegvesen | |
+| `registrertPaEier` | `date?` | Vegvesen | |
+| `slagvolum` | `int?` | Vegvesen | cm³ |
+| `effektKw` | `decimal?` | Vegvesen | kW |
 | `motorKode` | `text?` | Vegvesen | D4162T |
-| `antallSylindre` | `int?` | Vegvesen | 4 |
+| `antallSylindre` | `int?` | Vegvesen | |
 | `girkasse` | `text?` | Vegvesen | Automat, Manuell |
 | `hybrid` | `text?` | Vegvesen | Ingen, Hybrid, Plugin-hybrid |
-| `forbrukLiterPer10km` | `decimal?` | Vegvesen | 4.2 |
-| `co2GramPerKm` | `decimal?` | Vegvesen | 111 |
-| `euroKlasse` | `text?` | Vegvesen | Euro 5L, Euro 6 |
+| `forbrukLiterPer10km` | `decimal?` | Vegvesen | |
+| `co2GramPerKm` | `decimal?` | Vegvesen | |
+| `euroKlasse` | `text?` | Vegvesen | Euro 5L, Euro 6, Stage V |
 | `egenvekt` | `int?` | Vegvesen | kg |
 | `totalvekt` | `int?` | Vegvesen | kg |
 | `nyttelast` | `int?` | Vegvesen | kg |
@@ -132,26 +204,51 @@ Kjøretøy uten registreringsnummer (anleggsmaskiner, gravemaskiner) registreres
 | `taklast` | `int?` | Vegvesen | kg |
 | `lengdeCm` | `int?` | Vegvesen | cm |
 | `breddeCm` | `int?` | Vegvesen | cm |
-| `euKontrollSistGodkjent` | `date?` | Vegvesen | 2025-07-16 |
-| `euKontrollFrist` | `date?` | Vegvesen | 2027-07-16 |
+| `euKontrollSistGodkjent` | `date?` | Vegvesen | |
+| `euKontrollFrist` | `date?` | Vegvesen | |
+| `kilometerstand` | `int?` | Manuell/GPS | Sist registrerte km |
 | `vegvesenData` | `JSON?` | Vegvesen | Komplett rå JSON |
-| `vegvesenOppdatert` | `timestamptz?` | System | Sist hentet fra Vegvesen |
-| `type` | `text` | Manuell | personbil, varebil, lastebil, gravemaskin, hjullaster, dumper, kran, annet |
-| `internNavn` | `text?` | Manuell | Internt kallenavn ("Stor-Volvo", "Graver 3") |
-| `gpsDeviceId` | `text?` | Manuell | ID hos GPS-leverandør |
-| `status` | `text` | System | aktiv, vedlikehold, avregistrert |
-| `notat` | `text?` | Manuell | Fritekst |
-| `createdAt` | `timestamptz` | | |
-| `updatedAt` | `timestamptz` | | |
+| `vegvesenOppdatert` | `timestamptz?` | System | Sist hentet |
 
-**Indekser:** `(organizationId)`, `(registreringsnummer)` UNIQUE, `(gpsDeviceId)`, `(euKontrollFrist)`
+#### Anleggsmaskin-felt (kategori = `anleggsmaskin`)
+
+| Felt | Type | Beskrivelse |
+|------|------|-------------|
+| `motorSerienummer` | `text?` | Eget serienummer for motor |
+| `effektKw` | `decimal?` | Motoreffekt kW |
+| `slagvolum` | `int?` | cm³ |
+| `euroKlasse` | `text?` | Stage V, Tier 4 |
+| `operasjonsvekt` | `int?` | Driftsvekt med fører (kg) |
+| `loftekapasitet` | `int?` | Maks løftekapasitet (kg) |
+| `skuffekapasitet` | `decimal?` | m³ (gravemaskin/laster) |
+| `lastekapasitet` | `int?` | tonn (dumper) |
+| `rekkevidde` | `decimal?` | Maks graveradius/løftehøyde (m) |
+| `storrelsesklasse` | `text?` | mini, mellom, stor, ekstra_stor |
+| `driftstimer` | `int?` | Sist registrerte driftstimer |
+| `tomgangstimer` | `int?` | Kumulativ tomgangstid |
+| `totalForbrukLiter` | `decimal?` | Totalt drivstofforbruk siden ny |
+| `telematikkId` | `text?` | KOMTRAX/Product Link/ActiveCare ID |
+| `telematikkLeverandor` | `text?` | Komatsu, CAT, Volvo |
+
+#### Småutstyr-felt (kategori = `smautstyr`)
+
+| Felt | Type | Beskrivelse |
+|------|------|-------------|
+| `kalibreringsDato` | `date?` | Sist kalibrert (laser, GPS) |
+| `kalibreringsFrist` | `date?` | Neste kalibrering |
+| `sertifiseringsDato` | `date?` | Sist sertifisert (løfteutstyr, sveis) |
+| `sertifiseringsFrist` | `date?` | Neste sertifisering |
+| `effektW` | `int?` | Watt (aggregat, kompressor) |
+| `vekt` | `int?` | kg |
+
+**Indekser:** `(organizationId)`, `(registreringsnummer)` UNIQUE WHERE NOT NULL, `(kategori)`, `(type)`, `(status)`, `(euKontrollFrist)`, `(internNummer)`
 
 ### `service_records` — servicehistorikk
 
 | Felt | Type | Beskrivelse |
 |------|------|-------------|
 | `id` | `uuid` PK | |
-| `vehicleId` | `uuid` FK → `vehicles` | |
+| `equipmentId` | `uuid` FK → `equipment` | |
 | `type` | `text` | `service`, `repair`, `inspection`, `eu_kontroll`, `dekk`, `olje` |
 | `dato` | `date` | Utført dato |
 | `km` | `int?` | Kilometerstand |
@@ -170,7 +267,7 @@ Kjøretøy uten registreringsnummer (anleggsmaskiner, gravemaskiner) registreres
 | Felt | Type | Beskrivelse |
 |------|------|-------------|
 | `id` | `uuid` PK | |
-| `vehicleId` | `uuid` FK → `vehicles` | |
+| `equipmentId` | `uuid` FK → `equipment` | |
 | `latitude` | `float` | |
 | `longitude` | `float` | |
 | `altitude` | `float?` | Meter over havet |
@@ -186,12 +283,12 @@ Kjøretøy uten registreringsnummer (anleggsmaskiner, gravemaskiner) registreres
 
 **Retensjon:** GPS-events eldre enn 12 måneder aggregeres til daglig oppsummering og slettes.
 
-### `vehicle_assignments` — maskin-tilordning
+### `equipment_assignments` — utstyr-tilordning
 
 | Felt | Type | Beskrivelse |
 |------|------|-------------|
 | `id` | `uuid` PK | |
-| `vehicleId` | `uuid` FK → `vehicles` | |
+| `equipmentId` | `uuid` FK → `equipment` | |
 | `projectId` | `uuid` FK → `projects` | Tilordnet prosjekt |
 | `byggeplassId` | `uuid?` FK → `byggeplasser` | Tilordnet byggeplass (via innsjekk) |
 | `userId` | `uuid?` FK → `users` | Ansvarlig fører |
@@ -398,7 +495,7 @@ Maskinens posisjon på kart vises fra GPS-data — geofence-inn/ut styres av fø
 
 | Prinsipp | Implementasjon |
 |----------|---------------|
-| **Organisasjons-isolering** | `vehicles.organizationId` isolerer alltid data per firma |
+| **Organisasjons-isolering** | `equipment.organizationId` isolerer alltid data per firma |
 | **Prosjektfiltrering** | `vehicle_assignments.projectId` viser kun maskiner tilordnet prosjektet |
 | **Ledervisning** | Firmaansvarlig ser alle maskiner i sin organisasjon |
 | **Admin** | Prosjektadmin ser alle tilordnede maskiner |
@@ -408,19 +505,20 @@ Maskinens posisjon på kart vises fra GPS-data — geofence-inn/ut styres av fø
 
 | Rute | Beskrivelse |
 |------|-------------|
-| `maskin.registrer` | Nytt kjøretøy + Vegvesen-oppslag |
-| `maskin.oppdater` | Endre kjøretøydata |
+| `maskin.registrer` | Nytt utstyr — alle kategorier |
+| `maskin.registrerMedVegvesen` | Nytt kjøretøy + Vegvesen-oppslag |
+| `maskin.oppdater` | Endre utstyrsdata |
 | `maskin.vegvesenOppslag` | Slå opp reg.nr mot Vegvesen API |
-| `maskin.oppdaterFraVegvesen` | Oppdater eksisterende kjøretøy med ferskt Vegvesen-data |
-| `maskin.hentForOrganisasjon` | Alle maskiner i firmaet |
-| `maskin.hentForProsjekt` | Tilordnede maskiner i prosjekt |
-| `maskin.tilordne` | Tilordne maskin til prosjekt/fører |
-| `maskin.hentPosisjon` | Siste GPS-posisjon |
+| `maskin.oppdaterFraVegvesen` | Oppdater kjøretøy med ferskt Vegvesen-data |
+| `maskin.hentForOrganisasjon` | Alt utstyr i firmaet (filter: kategori, type, status) |
+| `maskin.hentForProsjekt` | Tilordnet utstyr i prosjekt |
+| `maskin.tilordne` | Tilordne utstyr til prosjekt/byggeplass/person |
+| `maskin.hentPosisjon` | Siste GPS-posisjon (kjøretøy/anleggsmaskin) |
 | `maskin.hentSpor` | GPS-spor for tidsperiode |
 | `maskin.registrerService` | Ny servicepost |
-| `maskin.hentServicehistorikk` | Servicehistorikk for maskin |
-| `maskin.oppdaterKilometerstand` | Oppdater km/timer |
-| `maskin.hentVarsler` | EU-kontroll + service-varsler |
+| `maskin.hentServicehistorikk` | Servicehistorikk for utstyr |
+| `maskin.oppdaterKmEllerTimer` | Oppdater km-stand eller driftstimer |
+| `maskin.hentVarsler` | EU-kontroll + service + kalibrering-varsler |
 | `maskin.gpsWebhook` | Motta GPS-events fra leverandør |
 
 ## Arkitektur-oversikt
@@ -444,10 +542,10 @@ Maskinens posisjon på kart vises fra GPS-data — geofence-inn/ut styres av fø
                           └───────────────┘     └──────────────┘
 
 db-maskin:
-  vehicles (regnr, organizationId, Vegvesen-data, EU-frist, motor, vekt)
+  equipment (3 kategorier: kjøretøy, anleggsmaskin, småutstyr)
   gpsEvents (lat, lon, ts, speed)
   serviceRecords (type, dato, km/timer, neste)
-  vehicleAssignments (prosjekt, byggeplass, fører)
+  equipmentAssignments (prosjekt, byggeplass, ansvarlig)
 ```
 
 ## Mobil-visning
@@ -462,22 +560,28 @@ Mobil leser data via API — ingen lokal maskin-database.
 
 ## Implementeringsrekkefølge
 
-1. **DB-skjema** — `packages/db-maskin` med vehicles, service_records, vehicle_assignments
-2. **Vegvesen-integrasjon** — API-oppslag, datamapping, registreringsflyt
-3. **Kjøretøyoversikt** — liste med filter, kjøretøykort, søk
-4. **EU-kontroll-varsling** — automatisk varsling basert på frist fra Vegvesen
-5. **Vedlikeholdsplan** — service-intervaller (km/timer/dato), varsling
-6. **Servicehistorikk** — CRUD for service-poster, vedlegg
-7. **Tilordning** — maskin til prosjekt/byggeplass/fører
-8. **GPS-integrasjon** — adapter, webhook, kart-visning
-9. **Kobling til mannskap** — fører + maskin innsjekk via mannskap-modulen
-10. **Kilometerstand-tracking** — manuell + GPS-beregnet
+1. **DB-skjema** — `packages/db-maskin` med equipment, service_records, equipment_assignments
+2. **Registrering — alle kategorier** — opprett utstyr med kategori-valg, type-velger
+3. **Vegvesen-integrasjon** — API-oppslag for kjøretøy, auto-utfylling
+4. **Utstyrsoversikt** — liste med filter (kategori, type, status), detaljvisning
+5. **EU-kontroll-varsling** — automatisk varsling basert på frist fra Vegvesen
+6. **Vedlikeholdsplan** — service-intervaller (km/timer/dato), varsling
+7. **Kalibrering/sertifisering** — varsling for småutstyr (laser, løfteutstyr)
+8. **Servicehistorikk** — CRUD for service-poster, vedlegg
+9. **Tilordning** — utstyr til prosjekt/byggeplass/ansvarlig
+10. **GPS-integrasjon** — adapter, webhook, kart-visning (kjøretøy + anleggsmaskin)
+11. **Telematikk** — ISO 15143-3 / AEMP 2.0 for anleggsmaskiner
+12. **Kobling til mannskap** — fører + maskin innsjekk
 
 ## Ikke avklart
 
 - Hvilken GPS-leverandør (Webfleet vs Transpoco) — adapter-interface gjør valget utsettbart
-- Drivstofforbruk-tracking — beregnet fra GPS-distanse + forbruk fra Vegvesen? Eller manuell registrering?
+- Telematikk-integrasjon — Komatsu KOMTRAX, CAT Product Link, Volvo ActiveCare direkte eller via ISO 15143-3?
+- Drivstofforbruk-tracking — beregnet fra GPS-distanse + forbruk, eller manuell?
 - Kostnadsrapportering — maskinleie, drivstoff, service som økonomi-data (kobling til FTD)
-- Kobling til timer-modulen — maskinbruk som rad i dagsseddel (sheet_machines)
+- Kobling til timer-modulen — maskinbruk som rad i dagsseddel (sheet_machines.equipmentId)
 - Forsikring — registrere forsikringsinfo og varsel ved forfall?
-- Dekkhotell — sporing av dekksett (sommer/vinter) og slitasje?
+- Dekkhotell — sporing av dekksett (sommer/vinter)?
+- Utlån mellom prosjekter — sporing og fakturering av intern maskinleie?
+- QR-kode per utstyr — klistre på maskin/verktøy, scan for å se info/melde skade?
+- Strekkode/RFID — for masseregistrering av småutstyr?
