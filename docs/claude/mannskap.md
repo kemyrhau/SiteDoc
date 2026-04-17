@@ -332,12 +332,14 @@ Location.startGeofencingAsync("BYGGEPLASS_GEOFENCE", [
 
 Se "Komplett flyt" over. PSI-gjennomføring (i SiteDoc eller eksternt system) er forutsetning for mannskapsregistrering. HMS-kortnummer synkroniseres mellom PsiSignatur og Mannskapsmedlem.
 
-### Timer (fremtidig)
+### Timer (separat — ingen automatisk kobling)
 
-Innsjekk-tidspunkt kan brukes som **forslag** til arbeidsstart i dagsseddelen:
-- Innsjekket 07:12 → dagsseddel foreslår start 07:00
-- Utsjekket 15:30 → dagsseddel foreslår slutt 15:30
-- Ikke en erstatning for timer — kun et forslag
+Innsjekk-tidspunkt skal **ikke** brukes som forslag til arbeidstid. Tilstedeværelse på byggeplass ≠ arbeidstid:
+- Reisetid fra oppmøtested til byggeplass er ikke arbeidstid (men kan være betalt reisetid)
+- Pauser inne i geofence er ikke arbeidstid
+- Arbeidstidsordninger varierer mellom firmaer og prosjekter
+
+Timer-modulen står på egne ben. Mannskapsregistrering er HMS/§15, ikke tidsregistrering.
 
 ### Maskin (fremtidig)
 
@@ -405,8 +407,7 @@ packages/pdf/src/mannskap.ts                          ← §15-liste PDF
 8. **§15-liste eksport** — PDF/Excel i lovpålagt format
 9. **Historikk** — ukesvisning, persondager, statistikk
 10. **Auto-sletting GDPR** — cron-jobb: anonymiser data 6 mnd etter prosjektslutt
-11. **Kobling til timer** — foreslå arbeidstid basert på innsjekk
-12. **Kobling til maskin** — fører + maskin innsjekk
+11. **Kobling til maskin** — fører + maskin innsjekk
 
 ## Automatisk sletting (GDPR)
 
