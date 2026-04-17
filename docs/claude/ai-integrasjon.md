@@ -173,6 +173,21 @@ Steg 1 bygges én gang — steg 2-4 er tynne lag oppå.
 | Sluttrapport | Fotnote: "Kontrollplan oppsatt med AI-assistanse. Verifisert av [prosjektleder]" |
 | Sjekklister | Ingen merking — sjekklisten utfylles av mennesker uansett |
 
+## Skjult veileder (system-prompt)
+
+Når API-laget bygges, lages en kontekstfil som AI-en får med seg ved tilkobling. Brukeren ser den ikke — den styrer AI-ens oppførsel.
+
+Innhold:
+- **Regler** — aldri godkjenn sjekklister, alltid forhåndsvisning, bruk ukenummer, merk med "(AI-forslag)"
+- **Terminologi** — SiteDoc-begreper (område, faggruppe, kontrollplan, milepæl)
+- **Domene-kunnskap** — NS 3420-standarder, SAK10 kontrollområder, TEK17-referanser
+- **Tilgjengelige handlinger** — hvilke API-endepunkter AI-en kan kalle, med parameterbeskrivelser
+- **Prosjektkontekst** — dynamisk injisert: prosjektets maler, faggrupper, områder, kontrollplan-status
+
+Samme fil brukes for MCP (Claude), Copilot Studio og innebygd assistent. Oppdateres når nye handlinger legges til.
+
+Lages når REST API-laget (`/api/v1/ai/`) implementeres.
+
 ## Relasjon til eksisterende AI-funksjonalitet
 
 SiteDoc har allerede:
