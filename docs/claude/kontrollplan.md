@@ -734,49 +734,83 @@ Kontrollplanen skal oppfylle kravene i norsk bygningslovgivning:
 | Byggherreforskriften | §7, §8 | SHA-plan med risikovurdering og avviksrapportering | SHA som kontrollområde |
 | TEK17 | Diverse | Tekniske krav (fukt §13-5, energi §14-2, brann kap. 11) | NS/TEK-referanser i hjelpetekst |
 
-### Målgruppe
+### Målgruppe og skalering
 
-Kontrollplanen er designet for **store prosjekter**: industribygg, boligblokker, infrastruktur. Typisk:
-- Tiltaksklasse 2 eller 3 — obligatorisk uavhengig kontroll er standard
-- 10–20 faggrupper med egne kontrollområder
-- 50+ områder (hvert bad i en blokk, hver branncelle i et industribygg)
-- 1–3 års byggetid med rullende kontroll
-- Strenge avhengigheter mellom fag (grunnarbeid → betong → stål → tømrer → VVS → elektro)
+Kontrollplanen fungerer på **to skalaer**:
+
+**Stort prosjekt** (industribygg, boligblokker, infrastruktur):
+- Tiltaksklasse 2/3 — obligatorisk uavhengig kontroll
+- 10–20 faggrupper, 50+ områder markert på tegning
+- Matrisevisning (områder × maler) med fargekoder og fremdrift
+- Avhengigheter, milepæler, kaskade-fristflytting
+
+**Lite prosjekt** (enebolig, rehabilitering):
+- Ingen tegninger, ingen områder
+- Flat listevisning med sjekklister + frister + faggrupper
+- Like nyttig — bare enklere
+
+UI velger visning automatisk basert på om punkter har områder.
+
+### Kontrollplan per byggeplass
+
+Kontrollplanen opprettes **per byggeplass**, ikke per prosjekt. Byggeplassen er den naturlige enheten:
+- Tegninger tilhører en byggeplass
+- Områder tilhører en byggeplass
+- Ferdigattest utstedes per byggeplass (SAK10 §14-7)
+- Hvert bygg har sin egen fremdrift, sine faggrupper, sine frister
+
+Et prosjekt med 3 byggeplasser får 3 separate kontrollplaner.
 
 ### Formål
 
-Kobler sjekklister til fysiske områder/rom markert på tegning, med frist, ansvarlig faggruppe og dokumentflyt-godkjenning. Gir sporbarhet, fremdriftstracking og sluttrapport for kommunal kontroll (SAK10 §14-7).
+Kobler sjekklister til fysiske områder/rom (valgfritt), med frist, ansvarlig faggruppe og dokumentflyt-godkjenning. Gir sporbarhet, fremdriftstracking og sluttrapport for kommunal kontroll (SAK10 §14-7).
 
-### Kjerneflyt — områder opprettes som del av kontrollplanen
+### Prosjektmodul
 
-Områder er **ikke et separat oppsettssteg**. De opprettes inline når prosjektleder bygger kontrollplanen. Ingen navigering til en egen område-admin side.
+Kontrollplan er en **prosjektmodul** (`slug: "kontrollplan"`, kategori: `"funksjon"`). Vises kun når modulen er aktivert i Innstillinger > Produksjon > Moduler. Anbefalt oppsett: tegninger → georeferering → områder → kontrollplan.
+
+### Område-opprettelse — primært via tegning
+
+Områder opprettes primært som **polygoner i tegningsviseren** — ikke inline i kontrollplanen. Anbefalt flyt:
+
+```
+1. Last opp tegninger for byggeplass
+2. Marker områder som polygoner i tegningsviseren
+   → Gi navn, type (sone/rom/etasje), farge
+   → Området lagres med polygon + tegningsreferanse
+3. Åpne kontrollplan for byggeplassen
+   → System henter alle områder fra byggeplassens tegninger
+   → Foreslår dem automatisk ved opprettelse av punkt
+```
+
+Hvis tegninger mangler markerte områder, viser kontrollplanen en anbefaling:
+> "Denne byggeplassen har 3 tegninger uten markerte områder. Marker områder i tegningsviseren for bedre kontrollplan."
+
+For lite prosjekt uten tegninger: områder er valgfrie — kontrollplanen fungerer som flat liste.
+
+### Kjerneflyt
 
 ```
 Planlegging (prosjektleder, kontrollplan-siden):
   1. Velg sjekklistemal (fra bibliotek eller prosjektets maler)
-  2. System spør: "Hvor skal denne sjekklisten utføres?"
-     → [Velg eksisterende område ▾]  eller  [+ Opprett område]
-  3. Ved [+ Opprett område]:
-     → Navn, type (sone/rom/etasje), byggeplass
-     → Valgfritt: marker polygon på tegning
-     → Område opprettes og velges automatisk
-  4. Sett frist (uke) og ansvarlig faggruppe
-  5. Kontrollplanpunkt opprettet — vises i matrisen
+  2. Velg område(r) fra byggeplassens tegninger (valgfritt)
+     → Flervalg for bulk: "Alle bad i 3. etg"
+     → Uten områder: punkt opprettes uten stedskobling
+  3. Sett frist (uke) og ansvarlig faggruppe
+  4. Kontrollplanpunkt(er) opprettet — vises i matrise/liste
 
 Utførelse (feltarbeider):
-  6. Åpne sjekklister → filtrert på min faggruppe + område
-  7. Start sjekkliste → KontrollplanPunkt.status = pågår
-  8. Fyll ut → send via dokumentflyt
+  5. Åpne sjekklister → filtrert på min faggruppe + område
+  6. Start sjekkliste → KontrollplanPunkt.status = pågår
+  7. Fyll ut → send via dokumentflyt
 
 Godkjenning (dokumentflyt):
-  9. Godkjenner mottar via eksisterende dokumentflyt
-  10. Godkjent → KontrollplanPunkt.status = godkjent
+  8. Godkjenner mottar via eksisterende dokumentflyt
+  9. Godkjent → KontrollplanPunkt.status = godkjent
 
 Sluttrapport (SAK10 §14-7):
-  11. Eksporter per kontrollområde: kontrollert, avvik, lukking, signatur
+  10. Eksporter per kontrollområde: kontrollert, avvik, lukking, signatur
 ```
-
-Områder vokser organisk etter hvert som kontrollplanen bygges ut. Prosjektleder trenger aldri å forlate kontrollplan-siden for å administrere områder.
 
 ### Datamodell
 
@@ -817,18 +851,21 @@ Kontrollområde på mal:
 model Kontrollplan {
   id            String    @id @default(cuid())
   projectId     String    @map("project_id")
-  navn          String                          // "Kontrollplan - Bjørvika Blokk A"
+  byggeplassId  String    @map("byggeplass_id")  // Kontrollplan per byggeplass
+  navn          String                          // "Kontrollplan - Blokk A"
   status        String    @default("utkast")    // utkast | aktiv | godkjent | arkivert
   godkjentDato  DateTime? @map("godkjent_dato")
   godkjentAvId  String?   @map("godkjent_av_id")
   opprettet     DateTime  @default(now())
   oppdatert     DateTime  @updatedAt
 
-  project       Project   @relation(fields: [projectId], references: [id])
-  godkjentAv    User?     @relation(fields: [godkjentAvId], references: [id])
+  project       Project    @relation(fields: [projectId], references: [id])
+  byggeplass    Byggeplass @relation(fields: [byggeplassId], references: [id])
+  godkjentAv    User?      @relation(fields: [godkjentAvId], references: [id])
   milepeler     Milepel[]
   punkter       KontrollplanPunkt[]
 
+  @@unique([byggeplassId])  // Én kontrollplan per byggeplass
   @@index([projectId])
   @@map("kontrollplaner")
 }
@@ -875,7 +912,7 @@ model KontrollplanPunkt {
   id              String    @id @default(cuid())
   kontrollplanId  String    @map("kontrollplan_id")
   milepelId       String?   @map("milepel_id")
-  omradeId        String    @map("omrade_id")
+  omradeId        String?   @map("omrade_id")     // Nullable — lite prosjekt trenger ikke områder
   sjekklisteMalId String    @map("sjekkliste_mal_id")
   faggruppeId     String    @map("faggruppe_id")
   fristUke        Int?      @map("frist_uke")       // Ukenummer (1-52)
@@ -888,7 +925,7 @@ model KontrollplanPunkt {
 
   kontrollplan   Kontrollplan     @relation(fields: [kontrollplanId], references: [id])
   milepel        Milepel?         @relation(fields: [milepelId], references: [id])
-  område         Område           @relation(fields: [omradeId], references: [id])
+  område         Område?          @relation(fields: [omradeId], references: [id])
   sjekklisteMal  ReportTemplate   @relation(fields: [sjekklisteMalId], references: [id])
   faggruppe      Faggruppe        @relation(fields: [faggruppeId], references: [id])
   sjekkliste     Checklist?       @relation(fields: [sjekklisteId], references: [id])
@@ -896,7 +933,7 @@ model KontrollplanPunkt {
   blokkerer      KontrollplanPunkt[] @relation("PunktAvhengighet")
   historikk      KontrollplanHistorikk[]
 
-  @@unique([omradeId, sjekklisteMalId])  // én mal per område
+  @@unique([kontrollplanId, omradeId, sjekklisteMalId])  // én mal per område per kontrollplan
   @@index([kontrollplanId])
   @@index([milepelId])
   @@index([omradeId])
@@ -1051,6 +1088,75 @@ Velg mal (f.eks. "Membran våtrom") → velg områder (alle bad i 3. etg) → se
 **Bulk fristendring:**
 Forsinkelse i grunnarbeid → velg alle berørte punkter → flytt frist +2 uker.
 
+### Fristflytting — tre nivåer
+
+Forsinkelser er hverdagen i byggeprosjekter. Fristflytting må være raskere enn å ringe prosjektleder.
+
+#### Nivå 1: Enkelt punkt (klikk i matrise)
+Klikk på cellen → endre uke direkte. Logges i historikk med gammel/ny verdi.
+
+#### Nivå 2: Skyv et område (hele raden i matrisen)
+Forsinkelser rammer typisk et sted — "Kjeller A er forsinket 2 uker". Velg område → "+N uker" → alle punkter for det området forskyves.
+
+```
+Skyv: Kjeller A  +2 uker
+
+Berørte punkter:
+  • FB2 Graving  (uke 16 → uke 18)
+  • FD2 Fylling  (uke 18 → uke 20)
+  • FE1 Grøft   (uke 20 → uke 22)
+
+  [Skyv 3 punkter]  [Avbryt]
+```
+
+Kan også skyve per milepæl, per faggruppe, eller manuelt merke flere punkter.
+
+#### Nivå 3: Kaskade-flytt (viktigst)
+Flytt ett punkt → systemet identifiserer alle nedstrøms avhengigheter (også i andre områder) → tilbyr å skyve dem med.
+
+```
+Kjeller A × FB2 Graving: uke 16 → uke 18 (+2 uker)
+
+⚠ 4 punkter avhenger av dette (direkte og indirekte):
+  Kjeller A:
+  • FD2 Fylling (uke 18 → uke 20)  — direkte avhengighet
+  • FE1 Grøft  (uke 20 → uke 22)  — indirekte (via FD2)
+  Kjeller B:
+  • FD2 Fylling (uke 20 → uke 22)  — delt avhengighet
+  • FE1 Grøft  (uke 22 → uke 24)  — indirekte
+
+  [Skyv alle nedstrøms +2 uker]  [Kun dette punktet]
+```
+
+Kaskade-flytten traverserer hele avhengighetsgrafen rekursivt — også på tvers av områder. Alle berørte punkter vises i forhåndsvisningen. Historikk logges for hvert punkt som flyttes, med årsak: "Kaskade fra [punkt]".
+
+#### Kombinasjon: Område + kaskade
+Skyv et helt område → systemet sjekker om punkter i *andre* områder avhenger av punkter i dette området → tilbyr kaskade-flytt. Vanlig scenario: grunnarbeid i kjeller forsinkes → alt som bygger på kjelleren i øvrige etasjer må også skyves.
+
+**Milepæl-varsling:** Hvis en fristflytting gjør at punkter havner etter milepælens mål-uke, vises advarsel: "⚠ 3 punkter vil ha frist etter milepælen «Grunnarbeid ferdig» (uke 22)".
+
+### MS Project som datakilde (fremtidig)
+
+MS Project (.mpp/.xml) inneholder WBS, Gantt-frister, ressurser og avhengigheter — nøyaktig det kontrollplanen trenger.
+
+**Via AI-integrasjon (MCP/Copilot/innebygd assistent):**
+```
+Bruker: "Importer fremdriftsplan" → laster opp .mpp/.xml
+Agent:  Parser WBS-struktur → foreslår kontrollplanpunkter:
+        - Aktivitet "Membran 3. etg" → mal: Membran, område: Bad 301-312
+        - Gantt-frist → uke 18/2026
+        - Ressurs "VVS-Rør AS" → faggruppe
+        - FS-avhengighet → avhengerAv
+Bruker: [Godkjenn] / [Juster] / [Avbryt]
+```
+
+**Via manuell import (enklere):**
+- Last opp MS Project XML → parser → foreslå punkter med forhåndsvisning
+- Bruker mapper kolonner: aktivitet → mal, ressurs → faggruppe
+- Importerer frister og avhengigheter automatisk
+
+Implementeres når AI-integrasjonen (REST API-lag) er på plass — samme endepunkter brukes.
+
 ### Kontrollområde
 
 Kontrollområde er en egenskap på **sjekklistemalen** (ReportTemplate), ikke på kontrollplanpunktet. Én mal har alltid samme kontrollområde.
@@ -1144,13 +1250,15 @@ Kontrollplan: Bjørvika Blokk A  |  Dato: 2026-06-15
 | Kontrollområde | Nytt felt på ReportTemplate |
 
 Nye komponenter:
-- Kontrollplan-siden med inline område-opprettelse
-- Matrisevisning med status, frister, fremdrift
-- Polygon-tegneverktøy for områder på tegning (valgfritt steg)
-- Bulk-operasjoner (legg til mal på flere områder, kopier mellom etasjer)
-- Avhengighetsvisning (blokkerte punkter, rekkefølge)
+- Kontrollplan-siden med byggeplass-velger og auto-deteksjon av visningstype
+- Matrisevisning (med områder) / listevisning (uten) — auto-switch
+- Fristflytting: enkelt punkt, skyv område, kaskade (3 nivåer)
+- Polygon-tegneverktøy for områder på tegning
+- Bulk-operasjoner (flervalg av områder, kopier mellom etasjer)
+- Avhengighetsvisning (blokkerte punkter, kaskade-forhåndsvisning)
 - Historikk-logg per punkt (SAK10 sporbarhet)
 - Sluttrapport PDF-eksport per kontrollområde
+- MS Project-import (fremtidig, via AI-integrasjon)
 
 ### Modul-registrering
 
@@ -1185,25 +1293,27 @@ Kontrollplan-tabeller ligger i `packages/db` (IKKE isolert pakke) fordi de treng
 
 1. ✅ **Område-modell + API** — DB (`omrader`-tabell), tRPC CRUD, Prisma-relasjonene
 2. ✅ **Område-velger og rom-velger** — zone_property og room_property oppgradert fra fritekst til nedtrekksmenyer (web + mobil)
-3. **Kontrollplan-side med inline område-opprettelse** — side, Kontrollplan + KontrollplanPunkt DB-tabeller, "Velg område eller [+ Opprett]"-flyt
-4. **Matrisevisning** — områder × maler, status, ukefrister, fremdrift
-5. **Polygon-tegneverktøy** — valgfritt: marker områder som polygoner på tegning
-6. **Bulk-operasjoner** — legg til mal på flere områder, kopier mellom etasjer, bulk fristendring
-7. **Sjekkliste-markører på tegning** — utvid eksisterende markør-system til sjekklister
-8. **Kontrollområde på maler** — nytt felt på ReportTemplate, filter i matrise
-9. **Historikk + sporbarhet** — KontrollplanHistorikk, audit trail per punkt
-10. **Sluttrapport PDF** — eksport per kontrollområde, kontrollerklæring
-11. **Varsling** — konfigurerbar varselUkerFør, push ved frist, eskalering
+3. **DB-tabeller + modul-registrering** — Kontrollplan, KontrollplanPunkt, Milepel, KontrollplanHistorikk + `slug: "kontrollplan"` i PROSJEKT_MODULER
+4. **Kontrollplan-side med listevisning** — `/dashbord/[prosjektId]/kontrollplan/`, byggeplass-velger, opprett punkt (mal + faggruppe + frist), enkel liste
+5. **Matrisevisning** — auto-switch til matrise når punkter har områder, status-fargekoder, fremdrift
+6. **Fristflytting** — 3 nivåer: enkelt punkt, skyv område, kaskade-flytt med avhengigheter
+7. **Polygon-tegneverktøy** — tegn områder på tegning, kontrollplan henter dem automatisk
+8. **Bulk-operasjoner** — flervalg av områder, kopier mellom etasjer
+9. **Kontrollområde på maler** — nytt felt på ReportTemplate, filter i matrise/liste
+10. **Historikk + sporbarhet** — KontrollplanHistorikk, audit trail per punkt
+11. **Sluttrapport PDF** — eksport per kontrollområde, kontrollerklæring (SAK10 §14-7)
+12. **Varsling** — varselUkerFør, push ved frist, eskalering
+13. **MS Project import** — parser .mpp/.xml → foreslå kontrollplanpunkter (via AI-integrasjon)
 
 ### Avhengigheter
 
 - Steg 1–2: ✅ Ferdig implementert og deployet
-- Steg 3–4: Kan bygges nå — ingen blokkere
-- Steg 5: Uavhengig av kontrollplan — kan bygges parallelt
-- Steg 6–7: Kan bygges etter steg 3–4
-- Steg 8: Krever felt på ReportTemplate (enkel migrasjon)
-- Steg 9: Ren backend — kan bygges parallelt
-- Steg 10–11: Bygger på eksisterende PDF-pakke og push-varsling
+- Steg 3–4: Kan bygges nå — ingen blokkere (neste steg)
+- Steg 5: Bygger på steg 4 (liste) + krever områder
+- Steg 6: Bygger på steg 4 (punkter med frister og avhengigheter)
+- Steg 7: Uavhengig — kan bygges parallelt med steg 4–6
+- Steg 8–12: Kan bygges etter steg 4
+- Steg 13: Krever AI-integrasjon (REST API-lag)
 
 ## Fremtidig utvidelse av biblioteket
 
