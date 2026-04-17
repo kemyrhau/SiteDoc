@@ -157,6 +157,7 @@ model Project {
   drawings             Drawing[]
   pointClouds          PointCloud[]
   byggeplasser         Byggeplass[]
+  omrader              Omrade[]
   templates            ReportTemplate[]
   folders              Folder[]
   groups               ProjectGroup[]
@@ -352,6 +353,7 @@ model Drawing {
   revisions  DrawingRevision[]
   tasks      Task[]
   checklists Checklist[]
+  omrader    Omrade[]
 
   @@map("drawings")
 }
@@ -420,8 +422,31 @@ model Byggeplass {
   checklists    Checklist[]
   ftdKontrakter FtdKontrakt[]
   psiEr         Psi[]
+  omrader       Omrade[]
 
   @@map("byggeplasser")
+}
+
+model Omrade {
+  id            String   @id @default(cuid())
+  projectId     String   @map("project_id")
+  byggeplassId  String   @map("byggeplass_id")
+  tegningId     String?  @map("tegning_id")
+  navn          String
+  type          String   @default("sone")     // sone | rom | etasje
+  polygon       Json     @default("[]")       // [{x: number, y: number}, ...]
+  farge         String   @default("#3b82f6")
+  sortering     Int      @default(0)
+  opprettet     DateTime @default(now())
+
+  project    Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  byggeplass Byggeplass @relation(fields: [byggeplassId], references: [id], onDelete: Cascade)
+  tegning    Drawing?   @relation(fields: [tegningId], references: [id], onDelete: SetNull)
+
+  @@index([projectId])
+  @@index([byggeplassId])
+  @@index([tegningId])
+  @@map("omrader")
 }
 
 model ReportTemplate {

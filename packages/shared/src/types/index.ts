@@ -173,16 +173,16 @@ export const REPORT_OBJECT_TYPE_META: Record<ReportObjectType, ReportObjectTypeM
     defaultConfig: { propertyName: "" },
   },
   zone_property: {
-    label: "Soneegenskap",
+    label: "Område",
     icon: "Map",
     category: "spesial",
-    defaultConfig: { propertyName: "" },
+    defaultConfig: {},
   },
   room_property: {
-    label: "Romegenskap",
+    label: "Rom",
     icon: "DoorOpen",
     category: "spesial",
-    defaultConfig: { propertyName: "" },
+    defaultConfig: {},
   },
   weather: {
     label: "Vær",

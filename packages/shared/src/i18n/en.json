@@ -643,6 +643,8 @@
   "malbygger.bimEgenskap": "BIM property",
   "malbygger.soneEgenskap": "Zone property",
   "malbygger.romEgenskap": "Room property",
+  "malbygger.omrade": "Area",
+  "malbygger.rom": "Room",
   "malbygger.vaer": "Weather",
   "malbygger.signatur": "Signature",
   "malbygger.repeater": "Repeater",
