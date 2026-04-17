@@ -25,6 +25,7 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 | [docs/claude/kontrollplan.md](docs/claude/kontrollplan.md) | Kontrollplan + Sjekklistebibliotek: NS 3420-K/F, Område-modell, lovkrav, matrise, sluttrapport, AI-utkast |
 | [docs/claude/infrastruktur-moduler.md](docs/claude/infrastruktur-moduler.md) | Isolert deploy: mappestruktur, turbo-pipeline, PM2, porter, auth-deling |
 | [docs/claude/planlegger.md](docs/claude/planlegger.md) | Fremdriftsplanlegger: ressursplanlegging, kompetanse, bemanning, forslag-motor |
+| [docs/claude/mannskap.md](docs/claude/mannskap.md) | Mannskapsregistrering: §15-liste, HMS-kort, innsjekk, PSI-kobling, GDPR, mønstring |
 | [docs/claude/ai-integrasjon.md](docs/claude/ai-integrasjon.md) | AI-integrasjon: Copilot plugin, MCP server, innebygd assistent, risikoer, API-lag |
 | [MALBYGGER.md](MALBYGGER.md) | Felles malbygger: dokumenttyper, felttyper, beslutninger, migreringsstrategi |
 
