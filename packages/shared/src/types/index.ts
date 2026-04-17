@@ -564,6 +564,14 @@ export const PROSJEKT_MODULER: ModulDefinisjon[] = [
     ikon: "ShieldCheck",
     maler: [],
   },
+  {
+    slug: "kontrollplan",
+    navn: "Kontrollplan",
+    beskrivelse: "Stedsbasert kvalitetskontroll med sjekklister koblet til områder, frister og ansvarlige faggrupper. Sporbarhet iht. SAK10.",
+    kategori: "funksjon",
+    ikon: "ClipboardList",
+    maler: [],
+  },
 ];
 
 // Faggruppebransjer
