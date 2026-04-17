@@ -816,6 +816,7 @@ model Kontrollplan {
 
   project       Project   @relation(fields: [projectId], references: [id])
   godkjentAv    User?     @relation(fields: [godkjentAvId], references: [id])
+  milepeler     Milepel[]
   punkter       KontrollplanPunkt[]
 
   @@index([projectId])
@@ -845,20 +846,38 @@ model Sone {
   @@map("soner")
 }
 
+model Milepel {
+  id              String   @id @default(cuid())
+  kontrollplanId  String   @map("kontrollplan_id")
+  navn            String                          // "2. etasje bad ferdig"
+  maalUke         Int      @map("maal_uke")       // Ukenummer (1-52)
+  maalAar         Int      @map("maal_aar")       // År (2026)
+  sortering       Int      @default(0)
+
+  kontrollplan    Kontrollplan @relation(...)
+  punkter         KontrollplanPunkt[]
+
+  @@index([kontrollplanId])
+  @@map("milepeler")
+}
+
 model KontrollplanPunkt {
   id              String    @id @default(cuid())
   kontrollplanId  String    @map("kontrollplan_id")
+  milepelId       String?   @map("milepel_id")
   soneId          String    @map("sone_id")
   sjekklisteMalId String    @map("sjekkliste_mal_id")
   faggruppeId     String    @map("faggruppe_id")
-  frist           DateTime?
-  varselDagerFør  Int       @default(7) @map("varsel_dager_for")
-  status          String    @default("planlagt")  // planlagt | pågår | utført | godkjent
+  fristUke        Int?      @map("frist_uke")       // Ukenummer (1-52)
+  fristAar        Int?      @map("frist_aar")       // År (2026)
+  varselUkerFør   Int       @default(1) @map("varsel_uker_for")
+  status          String    @default("planlagt")    // planlagt | pågår | utført | godkjent
   sjekklisteId    String?   @map("sjekkliste_id")
   avhengerAvId    String?   @map("avhenger_av_id")
   opprettet       DateTime  @default(now())
 
   kontrollplan   Kontrollplan     @relation(fields: [kontrollplanId], references: [id])
+  milepel        Milepel?         @relation(fields: [milepelId], references: [id])
   sone           Sone             @relation(fields: [soneId], references: [id])
   sjekklisteMal  ReportTemplate   @relation(fields: [sjekklisteMalId], references: [id])
   faggruppe      Faggruppe        @relation(fields: [faggruppeId], references: [id])
@@ -869,6 +888,7 @@ model KontrollplanPunkt {
 
   @@unique([soneId, sjekklisteMalId])  // én mal per sone
   @@index([kontrollplanId])
+  @@index([milepelId])
   @@index([soneId])
   @@index([faggruppeId])
   @@index([status])
@@ -890,6 +910,42 @@ model KontrollplanHistorikk {
 }
 ```
 
+#### Frister på ukenivå
+
+Byggeprosjekter planlegges i uker, ikke dager. Frist er `fristUke` (1–52) + `fristAar`.
+
+```prisma
+// På KontrollplanPunkt:
+  fristUke      Int?      @map("frist_uke")    // 1-52
+  fristAar      Int?      @map("frist_aar")    // 2026
+
+// På Milepel:
+  maalUke       Int       @map("maal_uke")
+  maalAar       Int       @map("maal_aar")
+```
+
+Varsling trigges ved starten av fristuken (mandag).
+
+#### Stadier — dokumentasjonsprogresjon
+
+Noen sjekklister krever dokumentasjon i **flere faser** av samme arbeid. Stadiene er ikke planleggingsenheter — de er en progressindikator for "har du dokumentert alle fasene?"
+
+```prisma
+model SjekklisteMalStadium {
+  id          String   @id @default(cuid())
+  templateId  String   @map("template_id")
+  navn        String                         // "Fundament", "Bunnseksjon"
+  sortering   Int
+
+  template    ReportTemplate @relation(...)
+
+  @@unique([templateId, sortering])
+  @@map("sjekkliste_mal_stadier")
+}
+```
+
+Maler uten stadier har én befaring og én godkjenning. Maler med stadier viser progresjon (3/6) i matrisen.
+
 #### Avhengigheter mellom punkter
 
 `avhengerAvId` blokkerer oppstart inntil forrige punkt er godkjent. Typisk rekkefølge:
@@ -898,7 +954,26 @@ model KontrollplanHistorikk {
 FB2 Graving → FD2 Fylling → betongfundament → armering → støp
 ```
 
-UI viser blokkerte punkter som låste (grå, ikke klikkbare). Når forrige punkt godkjennes → neste punkt blir klart → varsling sendes til ansvarlig faggruppe.
+UI viser blokkerte punkter som låste (🔒, ikke klikkbare). Når forrige punkt godkjennes → neste punkt blir klart → varsling sendes til ansvarlig faggruppe.
+
+#### Hjelpetekster i kontrollplanbyggeren
+
+Hjelpeteksten i UI forklarer brukeren hvordan de skal planlegge. Eksempler:
+
+**Ved fristsetting:**
+> *Planlegg i uker. En VA-kum etableres på én dag — sett frist til uken arbeidet skal utføres. Et bad tar 2 måneder med ulike fag — sett separate frister per sjekkliste (membran uke 18, flis uke 22, sluttkontroll uke 24).*
+
+**Ved stadier:**
+> *Stadier brukes når samme arbeid må dokumenteres i flere faser. Eksempel: VA-kum har 6 stadier (fundament → bunnseksjon → ferdig bygget → omfylling → ferdig omfylt → asfaltert) — hvert lag dekkes til og kan aldri ses igjen. Feltarbeideren dokumenterer fortløpende.*
+
+**Ved avhengigheter:**
+> *Sett avhengighet når neste steg ikke kan starte før forrige er godkjent. Eksempel: Flislegging kan ikke starte før membran er godkjent. Armering kan ikke støpes før den er kontrollert.*
+
+**Ved milepæler:**
+> *Milepæler grupperer kontrollpunkter med en felles målsetning. Eksempel: «2. etasje bad ferdig — uke 24» samler alle bad-sjekklister for 2. etasje. Fremdrift vises som prosent av godkjente punkter.*
+
+**Ved bulk-operasjoner:**
+> *For like soner (f.eks. 12 identiske bad i en blokk): legg til sjekkliste på alle soner samtidig. For like etasjer: kopier kontrollplan fra én etasje til neste og juster ukenummer.*
 
 ### Tegningsvisning — to lag
 
@@ -921,12 +996,29 @@ Eksisterende markør-system utvides fra kun oppgaver til også sjekklister. Vise
 ### Matrisevisning (kontrollplan-siden)
 
 ```
-                    FB2 Graving   FD2 Fylling   FE1 Grøft    Frist neste
-Sone A (kjeller)    ✅ godkjent    🟡 pågår      ⬜ planlagt   20. mai
-Sone B (1. etg)     🟡 pågår      ⬜ planlagt    ⬜ planlagt   18. mai
-Sone C (2. etg)     ⬜ planlagt    ⬜ planlagt    ⬜ planlagt   22. mai
-────────────────────────────────────────────────────────────────────────
+═══ Milepæl: Grunnarbeid ferdig (mål: uke 22) ═════════════════
+
+                    FB2 Graving   FD2 Fylling   FE1 Grøft
+Sone A (kjeller)    ✅ uke 16      🟡 uke 18      ⬜ uke 20
+Sone B (1. etg)     🟡 uke 18      ⬜ uke 20      🔒 uke 22
+Sone C (2. etg)     ⬜ uke 20      🔒 uke 22      🔒 uke 24 ⚠️
+─────────────────────────────────────────────────────────────
 Fremdrift:          1/3 (33%)     0/3 (0%)      0/3 (0%)
+⚠️ = frist etter milepælens mål
+
+═══ Milepæl: 2. etg bad ferdig (mål: uke 30) ══════════════════
+
+                    Membran       Flis          Sluttkontroll
+Bad 301             ⬜ uke 24      🔒 uke 27      🔒 uke 30
+Bad 302             ⬜ uke 24      🔒 uke 27      🔒 uke 30
+Bad 303             ⬜ uke 25      🔒 uke 28      🔒 uke 30
+
+═══ VA-kummer (mål: uke 26) ════════════════════════════════════
+
+                    VA-kum
+Kum K12             🟡 3/6 (uke 20)     ← stadier som progresjon
+Kum K13             ✅ 6/6
+Kum K14             ⬜ 0/6 (uke 21)
 ```
 
 Filtrering:
