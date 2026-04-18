@@ -42,10 +42,11 @@ export function OpprettPunktDialog({
   const { t } = useTranslation();
   const utils = trpc.useUtils();
 
-  // Hent maler og områder
+  // Hent maler, områder, faggrupper og bibliotek-koblinger
   const { data: maler } = trpc.mal.hentForProsjekt.useQuery({ projectId });
   const { data: omrader } = trpc.omrade.hentForByggeplass.useQuery({ byggeplassId });
   const { data: faggrupper } = trpc.faggruppe.hentForProsjekt.useQuery({ projectId });
+  const { data: bibliotekValg } = trpc.bibliotek.hentProsjektValg.useQuery({ projectId });
 
   // Formstate
   const [valgtMalId, setValgtMalId] = useState<string>("");
@@ -87,15 +88,70 @@ export function OpprettPunktDialog({
     },
   });
 
-  // Filtrerte maler (kun sjekklister)
-  const filteredMaler = useMemo(() => {
-    if (!maler) return [];
-    return maler
-      .filter((m: { category: string; name: string }) =>
-        m.category === "sjekkliste" &&
-        (malSok === "" || m.name.toLowerCase().includes(malSok.toLowerCase()))
-      );
-  }, [maler, malSok]);
+  // Bygg trestruktur: Standard → Kapittel → Mal + "Prosjektmaler"
+  interface MalNode { id: string; name: string; prefix: string | null }
+  interface KapittelNode { kode: string; navn: string; maler: MalNode[] }
+  interface StandardNode { kode: string; navn: string; kapitler: KapittelNode[] }
+
+  const malTre = useMemo(() => {
+    if (!maler) return { standarder: [] as StandardNode[], prosjektmaler: [] as MalNode[] };
+
+    const sjekklister = maler.filter((m: { category: string }) => m.category === "sjekkliste");
+    const sok = malSok.toLowerCase();
+
+    // Bygg map: sjekklisteMalId → bibliotek-info
+    const bibMap = new Map<string, { kapittelKode: string; kapittelNavn: string; standardKode: string; standardNavn: string }>();
+    if (bibliotekValg) {
+      for (const v of bibliotekValg) {
+        if (v.sjekklisteMalId && v.bibliotekMal) {
+          bibMap.set(v.sjekklisteMalId, {
+            kapittelKode: v.bibliotekMal.kapittel.kode,
+            kapittelNavn: v.bibliotekMal.kapittel.navn,
+            standardKode: v.bibliotekMal.kapittel.standard.kode,
+            standardNavn: v.bibliotekMal.kapittel.standard.navn,
+          });
+        }
+      }
+    }
+
+    const standardMap = new Map<string, { kode: string; navn: string; kapitler: Map<string, { kode: string; navn: string; maler: MalNode[] }> }>();
+    const prosjektmaler: MalNode[] = [];
+
+    for (const m of sjekklister) {
+      const mal = m as { id: string; name: string; prefix: string | null };
+      // Søkefilter
+      if (sok && !mal.name.toLowerCase().includes(sok) && !(mal.prefix ?? "").toLowerCase().includes(sok)) continue;
+
+      const bib = bibMap.get(mal.id);
+      if (bib) {
+        if (!standardMap.has(bib.standardKode)) {
+          standardMap.set(bib.standardKode, { kode: bib.standardKode, navn: bib.standardNavn, kapitler: new Map() });
+        }
+        const std = standardMap.get(bib.standardKode)!;
+        if (!std.kapitler.has(bib.kapittelKode)) {
+          std.kapitler.set(bib.kapittelKode, { kode: bib.kapittelKode, navn: bib.kapittelNavn, maler: [] });
+        }
+        std.kapitler.get(bib.kapittelKode)!.maler.push(mal);
+      } else {
+        prosjektmaler.push(mal);
+      }
+    }
+
+    const standarder: StandardNode[] = [...standardMap.values()].map((s) => ({
+      kode: s.kode,
+      navn: s.navn,
+      kapitler: [...s.kapitler.values()],
+    }));
+
+    return { standarder, prosjektmaler };
+  }, [maler, bibliotekValg, malSok]);
+
+  // Valgt mal-navn for visning i søkefeltet
+  const valgtMalNavn = useMemo(() => {
+    if (!valgtMalId || !maler) return "";
+    const m = maler.find((m: { id: string }) => m.id === valgtMalId) as { prefix: string | null; name: string } | undefined;
+    return m ? `${m.prefix ? m.prefix + " — " : ""}${m.name}` : "";
+  }, [valgtMalId, maler]);
 
   // Bygg forhåndsvisning
   const forhåndsvisning = useMemo(() => {
@@ -178,29 +234,40 @@ export function OpprettPunktDialog({
         </div>
 
         <div className="p-4 space-y-4">
-          {/* 1. Sjekkliste-mal */}
+          {/* 1. Sjekkliste-mal — trestruktur */}
           <div>
             <label className="text-xs font-medium text-gray-600 mb-1 block">{t("kontrollplan.sjekklisteMal")}</label>
             <input
               type="text"
-              value={malSok}
-              onChange={(e) => setMalSok(e.target.value)}
+              value={valgtMalId ? valgtMalNavn : malSok}
+              onChange={(e) => { setMalSok(e.target.value); if (valgtMalId) setValgtMalId(""); }}
+              onFocus={() => { if (valgtMalId) { setMalSok(""); setValgtMalId(""); } }}
               placeholder={`${t("kontrollplan.sjekklisteMal")}...`}
               className="w-full border rounded px-2 py-1.5 text-sm mb-1"
             />
-            <select
-              value={valgtMalId}
-              onChange={(e) => setValgtMalId(e.target.value)}
-              className="w-full border rounded px-2 py-1.5 text-sm"
-              size={Math.min(filteredMaler.length + 1, 6)}
-            >
-              <option value="">—</option>
-              {filteredMaler.map((m: { id: string; prefix: string | null; name: string }) => (
-                <option key={m.id} value={m.id}>
-                  {m.prefix ? `${m.prefix} — ` : ""}{m.name}
-                </option>
+            <div className="border rounded max-h-48 overflow-y-auto text-sm">
+              {/* Standarder → Kapitler → Maler */}
+              {malTre.standarder.map((std) => (
+                <MalTreStandard
+                  key={std.kode}
+                  standard={std}
+                  valgtMalId={valgtMalId}
+                  onVelg={(id) => { setValgtMalId(id); setMalSok(""); }}
+                />
               ))}
-            </select>
+              {/* Prosjektmaler */}
+              {malTre.prosjektmaler.length > 0 && (
+                <MalTreGruppe
+                  tittel="Prosjektmaler"
+                  maler={malTre.prosjektmaler}
+                  valgtMalId={valgtMalId}
+                  onVelg={(id) => { setValgtMalId(id); setMalSok(""); }}
+                />
+              )}
+              {malTre.standarder.length === 0 && malTre.prosjektmaler.length === 0 && (
+                <div className="px-3 py-2 text-xs text-gray-400">Ingen maler funnet</div>
+              )}
+            </div>
           </div>
 
           {/* 2. Områder (flervalg) */}
@@ -392,6 +459,120 @@ export function OpprettPunktDialog({
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Trestruktur-komponenter for mal-velger                             */
+/* ------------------------------------------------------------------ */
+
+function MalTreStandard({
+  standard,
+  valgtMalId,
+  onVelg,
+}: {
+  standard: { kode: string; navn: string; kapitler: { kode: string; navn: string; maler: { id: string; name: string; prefix: string | null }[] }[] };
+  valgtMalId: string;
+  onVelg: (id: string) => void;
+}) {
+  const [aapen, setAapen] = useState(true);
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setAapen(!aapen)}
+        className="w-full flex items-center gap-1.5 px-2 py-1.5 text-xs font-semibold text-gray-700 bg-gray-50 hover:bg-gray-100 border-b"
+      >
+        <ChevronRight className={`h-3 w-3 transition-transform ${aapen ? "rotate-90" : ""}`} />
+        {standard.kode} — {standard.navn}
+      </button>
+      {aapen && standard.kapitler.map((kap) => (
+        <MalTreKapittel key={kap.kode} kapittel={kap} valgtMalId={valgtMalId} onVelg={onVelg} />
+      ))}
+    </div>
+  );
+}
+
+function MalTreKapittel({
+  kapittel,
+  valgtMalId,
+  onVelg,
+}: {
+  kapittel: { kode: string; navn: string; maler: { id: string; name: string; prefix: string | null }[] };
+  valgtMalId: string;
+  onVelg: (id: string) => void;
+}) {
+  const [aapen, setAapen] = useState(false);
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setAapen(!aapen)}
+        className="w-full flex items-center gap-1.5 px-4 py-1 text-xs text-gray-600 hover:bg-gray-50 border-b border-gray-100"
+      >
+        <ChevronRight className={`h-3 w-3 transition-transform ${aapen ? "rotate-90" : ""}`} />
+        <span className="font-medium">{kapittel.kode}</span>
+        <span className="text-gray-400">— {kapittel.navn}</span>
+        <span className="ml-auto text-[10px] text-gray-300">{kapittel.maler.length}</span>
+      </button>
+      {aapen && kapittel.maler.map((mal) => (
+        <button
+          key={mal.id}
+          type="button"
+          onClick={() => onVelg(mal.id)}
+          className={`w-full text-left px-8 py-1 text-xs border-b border-gray-50 ${
+            valgtMalId === mal.id
+              ? "bg-sitedoc-primary/10 text-sitedoc-primary font-medium"
+              : "text-gray-700 hover:bg-blue-50"
+          }`}
+        >
+          {mal.prefix ? <span className="text-gray-400 mr-1">{mal.prefix}</span> : null}
+          {mal.name}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function MalTreGruppe({
+  tittel,
+  maler,
+  valgtMalId,
+  onVelg,
+}: {
+  tittel: string;
+  maler: { id: string; name: string; prefix: string | null }[];
+  valgtMalId: string;
+  onVelg: (id: string) => void;
+}) {
+  const [aapen, setAapen] = useState(true);
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setAapen(!aapen)}
+        className="w-full flex items-center gap-1.5 px-2 py-1.5 text-xs font-semibold text-gray-700 bg-gray-50 hover:bg-gray-100 border-b"
+      >
+        <ChevronRight className={`h-3 w-3 transition-transform ${aapen ? "rotate-90" : ""}`} />
+        {tittel}
+        <span className="ml-auto text-[10px] text-gray-300">{maler.length}</span>
+      </button>
+      {aapen && maler.map((mal) => (
+        <button
+          key={mal.id}
+          type="button"
+          onClick={() => onVelg(mal.id)}
+          className={`w-full text-left px-6 py-1 text-xs border-b border-gray-50 ${
+            valgtMalId === mal.id
+              ? "bg-sitedoc-primary/10 text-sitedoc-primary font-medium"
+              : "text-gray-700 hover:bg-blue-50"
+          }`}
+        >
+          {mal.prefix ? <span className="text-gray-400 mr-1">{mal.prefix}</span> : null}
+          {mal.name}
+        </button>
+      ))}
     </div>
   );
 }
