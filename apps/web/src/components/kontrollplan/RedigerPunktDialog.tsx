@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
 import { useTranslation } from "react-i18next";
 import { X, Trash2 } from "lucide-react";
+import { UkeVelger } from "./UkeVelger";
 
 interface Punkt {
   id: string;
@@ -150,26 +151,11 @@ export function RedigerPunktDialog({ punkt, allePunkter, onLukk, onOppdatert }: 
             <label className="text-xs font-medium text-gray-600 mb-1 block">{t("kontrollplan.frist")}</label>
             <div className="flex items-center gap-2">
               <div className="flex-1">
-                <label className="text-[10px] text-gray-400">{t("kontrollplan.fristUke")}</label>
-                <input
-                  type="number"
-                  value={fristUke ?? ""}
-                  onChange={(e) => setFristUke(e.target.value ? Number(e.target.value) : null)}
-                  min={1}
-                  max={53}
-                  className="w-full border rounded px-2 py-1 text-sm"
-                  placeholder="—"
-                />
-              </div>
-              <div className="flex-1">
-                <label className="text-[10px] text-gray-400">{t("kontrollplan.fristAar")}</label>
-                <input
-                  type="number"
-                  value={fristAar ?? ""}
-                  onChange={(e) => setFristAar(e.target.value ? Number(e.target.value) : null)}
-                  min={2024}
-                  max={2100}
-                  className="w-full border rounded px-2 py-1 text-sm"
+                <UkeVelger
+                  uke={fristUke}
+                  aar={fristAar}
+                  onChange={(u, a) => { setFristUke(u || null); setFristAar(a || null); }}
+                  placeholder={t("kontrollplan.frist") + "..."}
                 />
               </div>
               <button

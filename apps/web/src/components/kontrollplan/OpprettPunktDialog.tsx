@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
 import { useTranslation } from "react-i18next";
 import { X, Plus, ChevronDown, ChevronRight } from "lucide-react";
+import { UkeVelger } from "./UkeVelger";
 
 interface Milepel {
   id: string;
@@ -60,8 +61,8 @@ export function OpprettPunktDialog({
   const [nyttOmradeType, setNyttOmradeType] = useState<"sone" | "rom" | "etasje">("sone");
   const [visNyMilepel, setVisNyMilepel] = useState(false);
   const [nyMilepelNavn, setNyMilepelNavn] = useState("");
-  const [nyMilepelUke, setNyMilepelUke] = useState<number | "">("");
-  const [nyMilepelAar, setNyMilepelAar] = useState<number | "">(naaAar);
+  const [nyMilepelUke, setNyMilepelUke] = useState<number | null>(null);
+  const [nyMilepelAar, setNyMilepelAar] = useState<number | null>(null);
 
   // Mutations
   const opprettPunkter = trpc.kontrollplan.opprettPunkter.useMutation({
@@ -313,21 +314,20 @@ export function OpprettPunktDialog({
                   placeholder={t("kontrollplan.navn")}
                   className="w-full border rounded px-2 py-1 text-sm"
                 />
-                <div className="flex gap-2">
-                  <div className="flex-1">
-                    <label className="text-[10px] text-gray-400">{t("kontrollplan.fristUke")}</label>
-                    <input type="number" value={nyMilepelUke} onChange={(e) => setNyMilepelUke(e.target.value ? Number(e.target.value) : "")} min={1} max={53} placeholder="1–53" className="w-full border rounded px-2 py-1 text-sm" />
-                  </div>
-                  <div className="flex-1">
-                    <label className="text-[10px] text-gray-400">{t("kontrollplan.fristAar")}</label>
-                    <input type="number" value={nyMilepelAar} onChange={(e) => setNyMilepelAar(e.target.value ? Number(e.target.value) : "")} min={2024} max={2100} className="w-full border rounded px-2 py-1 text-sm" />
-                  </div>
+                <div>
+                  <label className="text-[10px] text-gray-400">{t("kontrollplan.frist")}</label>
+                  <UkeVelger
+                    uke={nyMilepelUke}
+                    aar={nyMilepelAar}
+                    onChange={(u, a) => { setNyMilepelUke(u || null); setNyMilepelAar(a || null); }}
+                    placeholder={t("kontrollplan.frist") + "..."}
+                  />
                 </div>
                 <div className="flex gap-2">
                   <button
                     onClick={() => {
-                      if (nyMilepelNavn) {
-                        opprettMilepel.mutate({ kontrollplanId, navn: nyMilepelNavn, maalUke: Number(nyMilepelUke), maalAar: Number(nyMilepelAar) || naaAar });
+                      if (nyMilepelNavn && nyMilepelUke && nyMilepelAar) {
+                        opprettMilepel.mutate({ kontrollplanId, navn: nyMilepelNavn, maalUke: nyMilepelUke, maalAar: nyMilepelAar });
                       }
                     }}
                     disabled={!nyMilepelNavn || !nyMilepelUke || opprettMilepel.isPending}
@@ -351,44 +351,26 @@ export function OpprettPunktDialog({
                 {forhåndsvisning.map((fv, idx) => (
                   <div key={fv.omradeId ?? idx} className="flex items-center gap-2 text-xs">
                     <span className="text-gray-400">•</span>
-                    <span className="font-medium">{fv.omradeNavn}</span>
+                    <span className="font-medium truncate max-w-[80px]">{fv.omradeNavn}</span>
                     <span className="text-gray-400">×</span>
-                    <span>{fv.malNavn}</span>
+                    <span className="truncate max-w-[100px]">{fv.malNavn}</span>
                     <span className="text-gray-400">→</span>
-                    <span className="text-gray-500">{fv.fgNavn}</span>
-                    <span className="text-gray-400 ml-auto">{t("kontrollplan.fristUke")}:</span>
-                    <input
-                      type="number"
-                      value={punktFrister.find((f) => f.omradeId === fv.omradeId)?.fristUke ?? ""}
-                      onChange={(e) => {
-                        const v = e.target.value ? Number(e.target.value) : null;
-                        if (fv.omradeId) {
-                          oppdaterFrist(fv.omradeId, "fristUke", v);
-                        } else {
-                          setPunktFrister([{ omradeId: null, omradeNavn: "—", fristUke: v, fristAar: naaAar }]);
-                        }
-                      }}
-                      min={1}
-                      max={53}
-                      className="w-14 border rounded px-1 py-0.5 text-xs"
-                      placeholder="—"
-                    />
-                    <span className="text-gray-400">/</span>
-                    <input
-                      type="number"
-                      value={punktFrister.find((f) => f.omradeId === fv.omradeId)?.fristAar ?? naaAar}
-                      onChange={(e) => {
-                        const v = Number(e.target.value);
-                        if (fv.omradeId) {
-                          oppdaterFrist(fv.omradeId, "fristAar", v);
-                        } else {
-                          setPunktFrister([{ omradeId: null, omradeNavn: "—", fristUke: punktFrister[0]?.fristUke ?? null, fristAar: v }]);
-                        }
-                      }}
-                      min={2024}
-                      max={2100}
-                      className="w-16 border rounded px-1 py-0.5 text-xs"
-                    />
+                    <span className="text-gray-500 truncate max-w-[80px]">{fv.fgNavn}</span>
+                    <div className="ml-auto w-[130px] flex-shrink-0">
+                      <UkeVelger
+                        uke={punktFrister.find((f) => f.omradeId === fv.omradeId)?.fristUke ?? null}
+                        aar={punktFrister.find((f) => f.omradeId === fv.omradeId)?.fristAar ?? null}
+                        onChange={(u, a) => {
+                          if (fv.omradeId) {
+                            oppdaterFrist(fv.omradeId, "fristUke", u || null);
+                            oppdaterFrist(fv.omradeId, "fristAar", a || null);
+                          } else {
+                            setPunktFrister([{ omradeId: null, omradeNavn: "—", fristUke: u || null, fristAar: a || null }]);
+                          }
+                        }}
+                        placeholder={t("kontrollplan.frist") + "..."}
+                      />
+                    </div>
                   </div>
                 ))}
               </div>
