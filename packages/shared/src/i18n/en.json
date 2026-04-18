@@ -1281,6 +1281,12 @@
   "kontrollplan.navn": "Name",
   "kontrollplan.rediger": "Edit point",
   "kontrollplan.ingenAvhengighet": "No dependency",
+  "kontrollplan.filterStatus": "Status — All",
+  "kontrollplan.filterFaggruppe": "Trade group — All",
+  "kontrollplan.skyvOmrade": "Shift deadlines for area",
+  "kontrollplan.skyvUker": "Number of weeks",
+  "kontrollplan.skyvBekreft": "Shift {{antall}} point(s)",
+  "kontrollplan.byttMal": "Change checklist template",
 
   "hjelp.kontrollplan.tittel": "What is a control plan?",
   "hjelp.kontrollplan.beskrivelse": "The control plan links checklists to specific areas, deadlines and responsible trade groups. Each cell represents a control point that a trade group must complete by the deadline.",

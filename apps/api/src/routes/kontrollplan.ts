@@ -116,6 +116,7 @@ export const kontrollplanRouter = router({
   oppdaterPunkt: protectedProcedure
     .input(z.object({
       punktId: z.string(),
+      sjekklisteMalId: z.string().uuid().optional(),
       faggruppeId: z.string().uuid().optional(),
       fristUke: z.number().int().min(1).max(53).nullish(),
       fristAar: z.number().int().min(2024).max(2100).nullish(),
@@ -277,6 +278,55 @@ export const kontrollplanRouter = router({
           ...(input.status === "godkjent" ? { godkjentDato: new Date(), godkjentAvId: ctx.userId } : {}),
         },
       });
+    }),
+
+  // Skyv frister for et område +/- N uker
+  skyvOmrade: protectedProcedure
+    .input(z.object({
+      kontrollplanId: z.string(),
+      omradeId: z.string(),
+      antallUker: z.number().int(), // positiv = fremover, negativ = bakover
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const kontrollplan = await ctx.prisma.kontrollplan.findUniqueOrThrow({
+        where: { id: input.kontrollplanId },
+        select: { projectId: true },
+      });
+      await verifiserProsjektmedlem(ctx.userId, kontrollplan.projectId);
+
+      // Hent alle punkter for dette området i denne kontrollplanen
+      const punkter = await ctx.prisma.kontrollplanPunkt.findMany({
+        where: { kontrollplanId: input.kontrollplanId, omradeId: input.omradeId },
+      });
+
+      // Skyv frist for hvert punkt
+      const oppdateringer = punkter
+        .filter((p) => p.fristUke !== null && p.fristAar !== null)
+        .map((p) => {
+          let nyUke = (p.fristUke ?? 0) + input.antallUker;
+          let nyAar = p.fristAar ?? new Date().getFullYear();
+          // Håndter uke-overflyt
+          while (nyUke > 52) { nyUke -= 52; nyAar++; }
+          while (nyUke < 1) { nyUke += 52; nyAar--; }
+          return ctx.prisma.kontrollplanPunkt.update({
+            where: { id: p.id },
+            data: { fristUke: nyUke, fristAar: nyAar },
+          });
+        });
+
+      await ctx.prisma.$transaction(oppdateringer);
+
+      // Logg historikk
+      await ctx.prisma.kontrollplanHistorikk.createMany({
+        data: punkter.map((p) => ({
+          punktId: p.id,
+          brukerId: ctx.userId,
+          handling: "endret",
+          kommentar: `Frist forskjøvet ${input.antallUker > 0 ? "+" : ""}${input.antallUker} uker (område-skyv)`,
+        })),
+      });
+
+      return { antallOppdatert: oppdateringer.length };
     }),
 
   // Hent kontrollplan-status for alle byggeplasser (modul-kort)

@@ -50,6 +50,9 @@ export function RedigerPunktDialog({ punkt, allePunkter, onLukk, onOppdatert }: 
   const [fristUke, setFristUke] = useState(punkt.fristUke);
   const [fristAar, setFristAar] = useState(punkt.fristAar);
   const [avhengerAvId, setAvhengerAvId] = useState(punkt.avhengerAvId ?? "");
+  const [visSkyvOmrade, setVisSkyvOmrade] = useState(false);
+  const [skyvUker, setSkyvUker] = useState(1);
+  const [visByttMal, setVisByttMal] = useState(false);
 
   const oppdaterPunkt = trpc.kontrollplan.oppdaterPunkt.useMutation({
     onSuccess: () => {
@@ -64,6 +67,19 @@ export function RedigerPunktDialog({ punkt, allePunkter, onLukk, onOppdatert }: 
       onLukk();
     },
   });
+
+  const skyvOmrade = trpc.kontrollplan.skyvOmrade.useMutation({
+    onSuccess: () => {
+      onOppdatert();
+      onLukk();
+    },
+  });
+
+  // Antall punkter i samme område (for skyv-forhåndsvisning)
+  const punkterISammeOmrade = useMemo(() => {
+    if (!punkt.omradeId) return 0;
+    return allePunkter.filter((p) => p.omradeId === punkt.omradeId).length;
+  }, [allePunkter, punkt.omradeId]);
 
   // Avhengighets-kandidater: alle andre punkter, gruppert etter område
   const avhengighetsKandidater = useMemo(() => {
@@ -198,6 +214,48 @@ export function RedigerPunktDialog({ punkt, allePunkter, onLukk, onOppdatert }: 
               </button>
             )}
           </div>
+
+          {/* Skyv område */}
+          {punkt.omradeId && (
+            <div>
+              {!visSkyvOmrade ? (
+                <button
+                  type="button"
+                  onClick={() => setVisSkyvOmrade(true)}
+                  className="text-xs text-sitedoc-secondary hover:underline"
+                >
+                  {t("kontrollplan.skyvOmrade")} ({punkt.omrade?.navn})
+                </button>
+              ) : (
+                <div className="border rounded p-2 bg-gray-50 space-y-2">
+                  <label className="text-xs font-medium text-gray-600 block">
+                    {t("kontrollplan.skyvOmrade")}: {punkt.omrade?.navn}
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      value={skyvUker}
+                      onChange={(e) => setSkyvUker(Number(e.target.value))}
+                      className="w-20 border rounded px-2 py-1 text-sm"
+                    />
+                    <span className="text-xs text-gray-500">{t("kontrollplan.skyvUker")}</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => skyvOmrade.mutate({ kontrollplanId: punkt.kontrollplanId, omradeId: punkt.omradeId!, antallUker: skyvUker })}
+                      disabled={skyvUker === 0 || skyvOmrade.isPending}
+                      className="text-xs px-2 py-1 bg-sitedoc-primary text-white rounded disabled:opacity-50"
+                    >
+                      {t("kontrollplan.skyvBekreft", { antall: punkterISammeOmrade })}
+                    </button>
+                    <button onClick={() => setVisSkyvOmrade(false)} className="text-xs px-2 py-1 text-gray-500 hover:bg-gray-100 rounded">
+                      {t("handling.avbryt")}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Footer */}

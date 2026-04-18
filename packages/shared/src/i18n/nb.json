@@ -1278,6 +1278,12 @@
   "kontrollplan.navn": "Navn",
   "kontrollplan.rediger": "Rediger punkt",
   "kontrollplan.ingenAvhengighet": "Ingen avhengighet",
+  "kontrollplan.filterStatus": "Status — Alle",
+  "kontrollplan.filterFaggruppe": "Faggruppe — Alle",
+  "kontrollplan.skyvOmrade": "Skyv frister for område",
+  "kontrollplan.skyvUker": "Antall uker",
+  "kontrollplan.skyvBekreft": "Skyv {{antall}} punkt(er)",
+  "kontrollplan.byttMal": "Bytt sjekkliste-mal",
 
   "hjelp.kontrollplan.tittel": "Hva er kontrollplan?",
   "hjelp.kontrollplan.beskrivelse": "Kontrollplanen kobler sjekklister til konkrete områder, frister og ansvarlige faggrupper. Hver celle representerer et kontrollpunkt som en faggruppe skal utføre innen fristen.",
