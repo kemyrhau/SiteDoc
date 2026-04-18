@@ -299,9 +299,9 @@ export const kontrollplanRouter = router({
         where: { kontrollplanId: input.kontrollplanId, omradeId: input.omradeId },
       });
 
-      // Skyv frist for hvert punkt
+      // Skyv frist kun for planlagte og pågående punkter (ikke utført/godkjent)
       const oppdateringer = punkter
-        .filter((p) => p.fristUke !== null && p.fristAar !== null)
+        .filter((p) => p.fristUke !== null && p.fristAar !== null && (p.status === "planlagt" || p.status === "pagar"))
         .map((p) => {
           let nyUke = (p.fristUke ?? 0) + input.antallUker;
           let nyAar = p.fristAar ?? new Date().getFullYear();
