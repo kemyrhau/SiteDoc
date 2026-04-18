@@ -183,7 +183,7 @@ export function MatriseVisning({ punkter, milepeler, onPunktKlikk }: MatriseVisn
                     </th>
                     {seksjon.maler.map((mal) => (
                       <th key={mal.id} className="text-left py-1.5 px-2 text-xs font-medium text-gray-500 min-w-[120px]">
-                        {mal.prefix ? `${mal.prefix} ` : ""}{mal.name}
+                        {mal.name}
                       </th>
                     ))}
                   </tr>

@@ -182,7 +182,7 @@ export default function KontrollplanSide() {
           onChange={(e) => setStatusFilter(e.target.value)}
           className="text-xs border rounded px-2 py-1.5 text-gray-600 bg-white"
         >
-          <option value="">{t("kontrollplan.status")} — {t("tabell.alle")}</option>
+          <option value="">{t("kontrollplan.status")} — {t("status.alle")}</option>
           <option value="planlagt">{t("kontrollplan.statusPlanlagt")}</option>
           <option value="pagar">{t("kontrollplan.statusPagar")}</option>
           <option value="utfort">{t("kontrollplan.statusUtfort")}</option>
@@ -193,7 +193,7 @@ export default function KontrollplanSide() {
           onChange={(e) => setFaggruppeFilter(e.target.value)}
           className="text-xs border rounded px-2 py-1.5 text-gray-600 bg-white"
         >
-          <option value="">{t("kontrollplan.faggruppe")} — {t("tabell.alle")}</option>
+          <option value="">{t("kontrollplan.faggruppe")} — {t("status.alle")}</option>
           {faggrupper?.map((fg: { id: string; name: string }) => (
             <option key={fg.id} value={fg.id}>{fg.name}</option>
           ))}
