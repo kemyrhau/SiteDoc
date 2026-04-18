@@ -60,8 +60,8 @@ export function OpprettPunktDialog({
   const [nyttOmradeType, setNyttOmradeType] = useState<"sone" | "rom" | "etasje">("sone");
   const [visNyMilepel, setVisNyMilepel] = useState(false);
   const [nyMilepelNavn, setNyMilepelNavn] = useState("");
-  const [nyMilepelUke, setNyMilepelUke] = useState<number>(1);
-  const [nyMilepelAar, setNyMilepelAar] = useState<number>(naaAar);
+  const [nyMilepelUke, setNyMilepelUke] = useState<number | "">("");
+  const [nyMilepelAar, setNyMilepelAar] = useState<number | "">(naaAar);
 
   // Mutations
   const opprettPunkter = trpc.kontrollplan.opprettPunkter.useMutation({
@@ -316,21 +316,21 @@ export function OpprettPunktDialog({
                 <div className="flex gap-2">
                   <div className="flex-1">
                     <label className="text-[10px] text-gray-400">{t("kontrollplan.fristUke")}</label>
-                    <input type="number" value={nyMilepelUke} onChange={(e) => setNyMilepelUke(Number(e.target.value))} min={1} max={53} className="w-full border rounded px-2 py-1 text-sm" />
+                    <input type="number" value={nyMilepelUke} onChange={(e) => setNyMilepelUke(e.target.value ? Number(e.target.value) : "")} min={1} max={53} placeholder="1–53" className="w-full border rounded px-2 py-1 text-sm" />
                   </div>
                   <div className="flex-1">
                     <label className="text-[10px] text-gray-400">{t("kontrollplan.fristAar")}</label>
-                    <input type="number" value={nyMilepelAar} onChange={(e) => setNyMilepelAar(Number(e.target.value))} min={2024} max={2100} className="w-full border rounded px-2 py-1 text-sm" />
+                    <input type="number" value={nyMilepelAar} onChange={(e) => setNyMilepelAar(e.target.value ? Number(e.target.value) : "")} min={2024} max={2100} className="w-full border rounded px-2 py-1 text-sm" />
                   </div>
                 </div>
                 <div className="flex gap-2">
                   <button
                     onClick={() => {
                       if (nyMilepelNavn) {
-                        opprettMilepel.mutate({ kontrollplanId, navn: nyMilepelNavn, maalUke: nyMilepelUke, maalAar: nyMilepelAar });
+                        opprettMilepel.mutate({ kontrollplanId, navn: nyMilepelNavn, maalUke: Number(nyMilepelUke), maalAar: Number(nyMilepelAar) || naaAar });
                       }
                     }}
-                    disabled={!nyMilepelNavn || opprettMilepel.isPending}
+                    disabled={!nyMilepelNavn || !nyMilepelUke || opprettMilepel.isPending}
                     className="text-xs px-2 py-1 bg-sitedoc-primary text-white rounded disabled:opacity-50"
                   >
                     {t("kontrollplan.opprettMilepel")}
