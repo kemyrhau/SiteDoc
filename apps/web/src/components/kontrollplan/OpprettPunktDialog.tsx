@@ -55,6 +55,7 @@ export function OpprettPunktDialog({
   const [valgteOmradeIder, setValgteOmradeIder] = useState<Set<string>>(new Set());
   const [punktFrister, setPunktFrister] = useState<PunktFrist[]>([]);
   const [malSok, setMalSok] = useState("");
+  const [visHjelpetekst, setVisHjelpetekst] = useState(false);
 
   // Inline opprettelse
   const [visNyttOmrade, setVisNyttOmrade] = useState(false);
@@ -246,12 +247,14 @@ export function OpprettPunktDialog({
               className="w-full border rounded px-2 py-1.5 text-sm mb-1"
             />
             <div className="border rounded max-h-48 overflow-y-auto text-sm">
-              {/* Standarder → Kapitler → Maler */}
+              {/* Standarder → Maler (med valgfrie underkapittel-headere) */}
               {malTre.standarder.map((std) => (
                 <MalTreStandard
                   key={std.kode}
                   standard={std}
                   valgtMalId={valgtMalId}
+                  visHjelpetekst={visHjelpetekst}
+                  onVisHjelpetekstEndre={setVisHjelpetekst}
                   onVelg={(id) => { setValgtMalId(id); setMalSok(""); }}
                 />
               ))}
@@ -471,42 +474,53 @@ export function OpprettPunktDialog({
 function MalTreStandard({
   standard,
   valgtMalId,
+  visHjelpetekst,
+  onVisHjelpetekstEndre,
   onVelg,
 }: {
   standard: { kode: string; navn: string; kapitler: { kode: string; navn: string; maler: { id: string; name: string; prefix: string | null }[] }[] };
   valgtMalId: string;
+  visHjelpetekst: boolean;
+  onVisHjelpetekstEndre: (v: boolean) => void;
   onVelg: (id: string) => void;
 }) {
   const [aapen, setAapen] = useState(true);
-  // Sorter kapitler etter kode (A, B, C, D...)
+  // Sorter kapitler etter kode (KA, KB, KC...)
   const sorterteKapitler = [...standard.kapitler].sort((a, b) => a.kode.localeCompare(b.kode));
-  // Hent kapittel-bokstav: KB→B, FC→C, KA→A
-  const kapittelBokstav = (kode: string) => {
-    // Fjern standard-prefix: for K-standard er koden KA/KB, for F er den FB/FC
-    // Returner siste bokstav(er) etter standard-bokstaven
-    const stdBokstav = standard.kode.replace("NS3420-", "");
-    if (kode.startsWith(stdBokstav)) return kode.slice(stdBokstav.length);
-    return kode;
-  };
 
   return (
     <div>
-      <button
-        type="button"
-        onClick={() => setAapen(!aapen)}
-        className="w-full flex items-center gap-1.5 px-2 py-1.5 text-xs font-semibold text-gray-700 bg-gray-50 hover:bg-gray-100 border-b sticky top-0"
-      >
-        <ChevronRight className={`h-3 w-3 transition-transform ${aapen ? "rotate-90" : ""}`} />
-        {standard.navn}
-      </button>
+      <div className="flex items-center bg-gray-50 border-b sticky top-0 z-10">
+        <button
+          type="button"
+          onClick={() => setAapen(!aapen)}
+          className="flex-1 flex items-center gap-1.5 px-2 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-100"
+        >
+          <ChevronRight className={`h-3 w-3 transition-transform ${aapen ? "rotate-90" : ""}`} />
+          {standard.navn}
+        </button>
+        {aapen && (
+          <label className="flex items-center gap-1 pr-2 text-[10px] text-gray-400 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={visHjelpetekst}
+              onChange={(e) => onVisHjelpetekstEndre(e.target.checked)}
+              className="rounded text-sitedoc-primary h-3 w-3"
+            />
+            Vis kapitler
+          </label>
+        )}
+      </div>
       {aapen && sorterteKapitler.map((kap) => (
         <div key={kap.kode}>
-          {/* Kapittel-header — visuell gruppering, ikke klikkbar */}
-          <div className="px-3 py-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wide bg-gray-50/50 border-b border-gray-100">
-            {kapittelBokstav(kap.kode)} — {kap.navn}
-          </div>
-          {/* Maler — direkte klikkbare */}
-          {kap.maler.map((mal) => (
+          {/* Underkapittel-header — kun synlig med hjelpetekst */}
+          {visHjelpetekst && (
+            <div className="px-3 py-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wide bg-gray-50/50 border-b border-gray-100">
+              {kap.kode} — {kap.navn}
+            </div>
+          )}
+          {/* Maler — direkte klikkbare, sortert etter prefix */}
+          {[...kap.maler].sort((a, b) => (a.prefix ?? "").localeCompare(b.prefix ?? "")).map((mal) => (
             <button
               key={mal.id}
               type="button"
