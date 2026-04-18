@@ -465,6 +465,7 @@ export function OpprettPunktDialog({
 
 /* ------------------------------------------------------------------ */
 /*  Trestruktur-komponenter for mal-velger                             */
+/*  Standard (accordion) → kapittel-header (visuell) → maler (klikk)  */
 /* ------------------------------------------------------------------ */
 
 function MalTreStandard({
@@ -477,59 +478,49 @@ function MalTreStandard({
   onVelg: (id: string) => void;
 }) {
   const [aapen, setAapen] = useState(true);
-  return (
-    <div>
-      <button
-        type="button"
-        onClick={() => setAapen(!aapen)}
-        className="w-full flex items-center gap-1.5 px-2 py-1.5 text-xs font-semibold text-gray-700 bg-gray-50 hover:bg-gray-100 border-b"
-      >
-        <ChevronRight className={`h-3 w-3 transition-transform ${aapen ? "rotate-90" : ""}`} />
-        {standard.kode} — {standard.navn}
-      </button>
-      {aapen && standard.kapitler.map((kap) => (
-        <MalTreKapittel key={kap.kode} kapittel={kap} valgtMalId={valgtMalId} onVelg={onVelg} />
-      ))}
-    </div>
-  );
-}
+  // Sorter kapitler etter kode (A, B, C, D...)
+  const sorterteKapitler = [...standard.kapitler].sort((a, b) => a.kode.localeCompare(b.kode));
+  // Hent kapittel-bokstav: KB→B, FC→C, KA→A
+  const kapittelBokstav = (kode: string) => {
+    // Fjern standard-prefix: for K-standard er koden KA/KB, for F er den FB/FC
+    // Returner siste bokstav(er) etter standard-bokstaven
+    const stdBokstav = standard.kode.replace("NS3420-", "");
+    if (kode.startsWith(stdBokstav)) return kode.slice(stdBokstav.length);
+    return kode;
+  };
 
-function MalTreKapittel({
-  kapittel,
-  valgtMalId,
-  onVelg,
-}: {
-  kapittel: { kode: string; navn: string; maler: { id: string; name: string; prefix: string | null }[] };
-  valgtMalId: string;
-  onVelg: (id: string) => void;
-}) {
-  const [aapen, setAapen] = useState(false);
   return (
     <div>
       <button
         type="button"
         onClick={() => setAapen(!aapen)}
-        className="w-full flex items-center gap-1.5 px-4 py-1 text-xs text-gray-600 hover:bg-gray-50 border-b border-gray-100"
+        className="w-full flex items-center gap-1.5 px-2 py-1.5 text-xs font-semibold text-gray-700 bg-gray-50 hover:bg-gray-100 border-b sticky top-0"
       >
         <ChevronRight className={`h-3 w-3 transition-transform ${aapen ? "rotate-90" : ""}`} />
-        <span className="font-medium">{kapittel.kode}</span>
-        <span className="text-gray-400">— {kapittel.navn}</span>
-        <span className="ml-auto text-[10px] text-gray-300">{kapittel.maler.length}</span>
+        {standard.navn}
       </button>
-      {aapen && kapittel.maler.map((mal) => (
-        <button
-          key={mal.id}
-          type="button"
-          onClick={() => onVelg(mal.id)}
-          className={`w-full text-left px-8 py-1 text-xs border-b border-gray-50 ${
-            valgtMalId === mal.id
-              ? "bg-sitedoc-primary/10 text-sitedoc-primary font-medium"
-              : "text-gray-700 hover:bg-blue-50"
-          }`}
-        >
-          {mal.prefix ? <span className="text-gray-400 mr-1">{mal.prefix}</span> : null}
-          {mal.name}
-        </button>
+      {aapen && sorterteKapitler.map((kap) => (
+        <div key={kap.kode}>
+          {/* Kapittel-header — visuell gruppering, ikke klikkbar */}
+          <div className="px-3 py-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wide bg-gray-50/50 border-b border-gray-100">
+            {kapittelBokstav(kap.kode)} — {kap.navn}
+          </div>
+          {/* Maler — direkte klikkbare */}
+          {kap.maler.map((mal) => (
+            <button
+              key={mal.id}
+              type="button"
+              onClick={() => onVelg(mal.id)}
+              className={`w-full text-left px-4 py-1.5 text-xs border-b border-gray-50 ${
+                valgtMalId === mal.id
+                  ? "bg-sitedoc-primary/10 text-sitedoc-primary font-medium"
+                  : "text-gray-700 hover:bg-blue-50"
+              }`}
+            >
+              {mal.name}
+            </button>
+          ))}
+        </div>
       ))}
     </div>
   );
@@ -552,18 +543,17 @@ function MalTreGruppe({
       <button
         type="button"
         onClick={() => setAapen(!aapen)}
-        className="w-full flex items-center gap-1.5 px-2 py-1.5 text-xs font-semibold text-gray-700 bg-gray-50 hover:bg-gray-100 border-b"
+        className="w-full flex items-center gap-1.5 px-2 py-1.5 text-xs font-semibold text-gray-700 bg-gray-50 hover:bg-gray-100 border-b sticky top-0"
       >
         <ChevronRight className={`h-3 w-3 transition-transform ${aapen ? "rotate-90" : ""}`} />
         {tittel}
-        <span className="ml-auto text-[10px] text-gray-300">{maler.length}</span>
       </button>
       {aapen && maler.map((mal) => (
         <button
           key={mal.id}
           type="button"
           onClick={() => onVelg(mal.id)}
-          className={`w-full text-left px-6 py-1 text-xs border-b border-gray-50 ${
+          className={`w-full text-left px-4 py-1.5 text-xs border-b border-gray-50 ${
             valgtMalId === mal.id
               ? "bg-sitedoc-primary/10 text-sitedoc-primary font-medium"
               : "text-gray-700 hover:bg-blue-50"
