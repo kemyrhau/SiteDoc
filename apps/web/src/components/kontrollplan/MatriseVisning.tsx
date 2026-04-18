@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
+import { Pencil } from "lucide-react";
 
 interface Punkt {
   id: string;
@@ -32,6 +33,7 @@ interface MatriseVisningProps {
   punkter: Punkt[];
   milepeler: Milepel[];
   onPunktKlikk: (punkt: Punkt) => void;
+  onMilepelRediger?: (milepelId: string, navn: string, maalUke: number, maalAar: number) => void;
 }
 
 // Sjekk om punkt er blokkert av avhengighet
@@ -91,7 +93,7 @@ function StatusCelle({ punkt, onClick }: { punkt: Punkt; onClick: () => void }) 
   );
 }
 
-export function MatriseVisning({ punkter, milepeler, onPunktKlikk }: MatriseVisningProps) {
+export function MatriseVisning({ punkter, milepeler, onPunktKlikk, onMilepelRediger }: MatriseVisningProps) {
   const { t } = useTranslation();
 
   // Bygg matrise-data: grupper etter milepæl, finn unike områder og maler
@@ -164,11 +166,16 @@ export function MatriseVisning({ punkter, milepeler, onPunktKlikk }: MatriseVisn
             {/* Seksjon-header */}
             <div className="flex items-center gap-3 mb-2 px-1">
               <div className="h-px flex-1 bg-gray-300" />
-              <span className="text-sm font-semibold text-gray-700">
-                {seksjon.milepel
-                  ? `${seksjon.milepel.navn} (${t("kontrollplan.maalUke", { uke: seksjon.milepel.maalUke })})`
-                  : t("kontrollplan.utenMilepel")}
-              </span>
+              {seksjon.milepel ? (
+                <MilepelHeader
+                  milepel={seksjon.milepel}
+                  onRediger={onMilepelRediger}
+                />
+              ) : (
+                <span className="text-sm font-semibold text-gray-700">
+                  {t("kontrollplan.utenMilepel")}
+                </span>
+              )}
               <span className="text-xs text-gray-500">{prosent}%</span>
               <div className="h-px flex-1 bg-gray-300" />
             </div>
@@ -239,5 +246,56 @@ export function MatriseVisning({ punkter, milepeler, onPunktKlikk }: MatriseVisn
         <span>🔴 {t("kontrollplan.statusForfalt")}</span>
       </div>
     </div>
+  );
+}
+
+/* Inline-redigerbar milepæl-overskrift */
+function MilepelHeader({
+  milepel,
+  onRediger,
+}: {
+  milepel: Milepel;
+  onRediger?: (id: string, navn: string, maalUke: number, maalAar: number) => void;
+}) {
+  const { t } = useTranslation();
+  const [redigerer, setRedigerer] = useState(false);
+  const [navn, setNavn] = useState(milepel.navn);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (redigerer) inputRef.current?.focus();
+  }, [redigerer]);
+
+  function lagre() {
+    if (navn.trim() && onRediger) {
+      onRediger(milepel.id, navn.trim(), milepel.maalUke, milepel.maalAar);
+    }
+    setRedigerer(false);
+  }
+
+  if (redigerer) {
+    return (
+      <input
+        ref={inputRef}
+        type="text"
+        value={navn}
+        onChange={(e) => setNavn(e.target.value)}
+        onBlur={lagre}
+        onKeyDown={(e) => { if (e.key === "Enter") lagre(); if (e.key === "Escape") { setNavn(milepel.navn); setRedigerer(false); } }}
+        className="text-sm font-semibold text-gray-700 border-b-2 border-sitedoc-primary bg-transparent outline-none px-1"
+      />
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => setRedigerer(true)}
+      className="text-sm font-semibold text-gray-700 hover:text-sitedoc-primary group flex items-center gap-1"
+      title={t("kontrollplan.rediger")}
+    >
+      {milepel.navn} ({t("kontrollplan.maalUke", { uke: milepel.maalUke })})
+      <Pencil className="h-3 w-3 opacity-0 group-hover:opacity-50 transition-opacity" />
+    </button>
   );
 }

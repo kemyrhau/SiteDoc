@@ -110,6 +110,14 @@ export default function KontrollplanSide() {
     }
   }, [aktivByggeplass?.id, utils]);
 
+  const oppdaterMilepel = trpc.kontrollplan.oppdaterMilepel.useMutation({
+    onSuccess: handleRefresh,
+  });
+
+  const handleMilepelRediger = useCallback((milepelId: string, navn: string, maalUke: number, maalAar: number) => {
+    oppdaterMilepel.mutate({ milepelId, navn, maalUke, maalAar });
+  }, [oppdaterMilepel]);
+
   if (!aktivByggeplass) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -211,6 +219,7 @@ export default function KontrollplanSide() {
           punkter={filteredPunkter}
           milepeler={kontrollplan?.milepeler ?? []}
           onPunktKlikk={handlePunktKlikk}
+          onMilepelRediger={handleMilepelRediger}
         />
       ) : (
         <ListeVisning
