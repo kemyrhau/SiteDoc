@@ -154,6 +154,11 @@ export function OpprettPunktDialog({
     return m ? `${m.prefix ? m.prefix + " — " : ""}${m.name}` : "";
   }, [valgtMalId, maler]);
 
+  // Hent valgt milepæls frist som default for nye punkter
+  const valgtMilepel = milepeler.find((m) => m.id === valgtMilepelId);
+  const defaultFristUke = valgtMilepel?.maalUke ?? null;
+  const defaultFristAar = valgtMilepel?.maalAar ?? naaAar;
+
   // Bygg forhåndsvisning
   const forhåndsvisning = useMemo(() => {
     if (!valgtMalId || !valgtFaggruppeId) return [];
@@ -163,7 +168,8 @@ export function OpprettPunktDialog({
 
     if (valgteOmradeIder.size === 0) {
       // Ingen områder → ett punkt uten område
-      return [{ omradeId: null, omradeNavn: "—", malNavn: mal.name, fgNavn: fg.name, fristUke: null, fristAar: naaAar }];
+      const frist = punktFrister.find((f) => f.omradeId === null);
+      return [{ omradeId: null, omradeNavn: "—", malNavn: mal.name, fgNavn: fg.name, fristUke: frist?.fristUke ?? defaultFristUke, fristAar: frist?.fristAar ?? defaultFristAar }];
     }
 
     return [...valgteOmradeIder].map((oid) => {
@@ -174,11 +180,11 @@ export function OpprettPunktDialog({
         omradeNavn: omr?.navn ?? "?",
         malNavn: mal.name,
         fgNavn: fg.name,
-        fristUke: eksisterendeFrist?.fristUke ?? null,
-        fristAar: eksisterendeFrist?.fristAar ?? naaAar,
+        fristUke: eksisterendeFrist?.fristUke ?? defaultFristUke,
+        fristAar: eksisterendeFrist?.fristAar ?? defaultFristAar,
       };
     });
-  }, [valgtMalId, valgtFaggruppeId, valgteOmradeIder, maler, faggrupper, omrader, punktFrister]);
+  }, [valgtMalId, valgtFaggruppeId, valgteOmradeIder, maler, faggrupper, omrader, punktFrister, defaultFristUke, defaultFristAar]);
 
   // Toggle område-valg
   function toggleOmrade(omradeId: string) {
@@ -189,7 +195,7 @@ export function OpprettPunktDialog({
     } else {
       ny.add(omradeId);
       const omr = omrader?.find((o: { id: string }) => o.id === omradeId);
-      setPunktFrister((prev) => [...prev, { omradeId, omradeNavn: omr?.navn ?? "", fristUke: null, fristAar: naaAar }]);
+      setPunktFrister((prev) => [...prev, { omradeId, omradeNavn: omr?.navn ?? "", fristUke: defaultFristUke, fristAar: defaultFristAar }]);
     }
     setValgteOmradeIder(ny);
   }
