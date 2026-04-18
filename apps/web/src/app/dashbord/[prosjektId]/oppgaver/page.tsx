@@ -471,6 +471,11 @@ export default function OppgaverSide() {
       bestillerFaggruppe: bygg(oppgaver.map((o) => o.bestillerFaggruppe?.name ?? "")),
       utforerFaggruppe: bygg(oppgaver.map((o) => o.utforerFaggruppe?.name ?? "")),
       flyt: bygg(oppgaver.map((o) => hentFlytLedd(o))),
+      frist: [
+        { value: "har_frist", label: t("kontrollplan.frist") },
+        { value: "ingen_frist", label: "—" },
+        { value: "forfalt", label: t("kontrollplan.statusForfalt") },
+      ],
       mal: bygg(oppgaver.map((o) => o.template?.name)),
       bygning: bygg(oppgaver.map((o) => o.drawing?.byggeplass?.name)),
       etasje: bygg(oppgaver.map((o) => o.drawing?.floor)),
@@ -523,6 +528,15 @@ export default function OppgaverSide() {
           case "etasje": return valgteSet.has(o.drawing?.floor ?? "");
           case "tegning": return valgteSet.has(o.drawing?.name ?? "");
           case "flyt": return valgteSet.has(hentFlytLedd(o));
+          case "frist": {
+            const harFrist = !!o.dueDate;
+            const forfalt = harFrist && new Date(o.dueDate!) < new Date() && o.status !== "approved" && o.status !== "closed";
+            if (valgteSet.has("forfalt")) return forfalt;
+            if (valgteSet.has("har_frist") && valgteSet.has("ingen_frist")) return true;
+            if (valgteSet.has("har_frist")) return harFrist;
+            if (valgteSet.has("ingen_frist")) return !harFrist;
+            return true;
+          }
           default: return true;
         }
       });
@@ -635,6 +649,7 @@ export default function OppgaverSide() {
           ? <span className="text-xs text-gray-500">{formaterDato(rad.dueDate)}</span>
           : <span className="text-gray-300">—</span>,
         bredde: "120px", sorterbar: true, sorterVerdi: (rad) => rad.dueDate ? new Date(rad.dueDate).getTime() : null,
+        filtrerbar: true, filterAlternativer: dynamiskFilter.frist,
       },
       flyt: {
         id: "flyt", header: t("tabell.flyt"),

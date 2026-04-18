@@ -425,6 +425,11 @@ export default function SjekklisteSide() {
       etasje: bygg(data.map((s) => s.drawing?.floor)),
       tegning: bygg(data.map((s) => s.drawing?.name)),
       flyt: bygg(data.map((s) => hentFlytLedd(s))),
+      frist: [
+        { value: "har_frist", label: t("kontrollplan.frist") },
+        { value: "ingen_frist", label: "—" },
+        { value: "forfalt", label: t("kontrollplan.statusForfalt") },
+      ],
       status: STATUS_ALTERNATIVER.map((s) => ({ value: s.value, label: t(s.labelKey) })),
     };
     for (const felt of verdiFelter) {
@@ -465,6 +470,15 @@ export default function SjekklisteSide() {
           case "etasje": return valgteSet.has(s.drawing?.floor ?? "");
           case "tegning": return valgteSet.has(s.drawing?.name ?? "");
           case "flyt": return valgteSet.has(hentFlytLedd(s));
+          case "frist": {
+            const harFrist = !!s.dueDate;
+            const forfalt = harFrist && new Date(s.dueDate!) < new Date() && s.status !== "approved" && s.status !== "closed";
+            if (valgteSet.has("forfalt")) return forfalt;
+            if (valgteSet.has("har_frist") && valgteSet.has("ingen_frist")) return true;
+            if (valgteSet.has("har_frist")) return harFrist;
+            if (valgteSet.has("ingen_frist")) return !harFrist;
+            return true;
+          }
           default: return true;
         }
       });
@@ -521,7 +535,8 @@ export default function SjekklisteSide() {
         bredde: "120px", sorterbar: true, sorterVerdi: (rad) => new Date(rad.updatedAt).getTime() },
       frist: { id: "frist", header: t("tabell.tidsfrist"), celle: (rad) => rad.dueDate
         ? <span className="text-xs text-gray-500">{formaterDato(rad.dueDate)}</span> : <span className="text-gray-300">—</span>,
-        bredde: "120px", sorterbar: true, sorterVerdi: (rad) => rad.dueDate ? new Date(rad.dueDate).getTime() : null },
+        bredde: "120px", sorterbar: true, sorterVerdi: (rad) => rad.dueDate ? new Date(rad.dueDate).getTime() : null,
+        filtrerbar: true, filterAlternativer: dynamiskFilter.frist },
       flyt: { id: "flyt", header: t("tabell.flyt"),
         celle: (rad) => <FlytIndikator
           medlemmer={rad.dokumentflyt?.medlemmer ?? []}
