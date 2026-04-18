@@ -224,6 +224,7 @@ export default function KontrollplanSide() {
       ) : (
         <ListeVisning
           punkter={filteredPunkter}
+          milepeler={kontrollplan?.milepeler ?? []}
           onPunktKlikk={handlePunktKlikk}
         />
       )}
