@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronUp, ChevronDown } from "lucide-react";
+import { ChevronUp, ChevronDown, Filter } from "lucide-react";
 
 interface Punkt {
   id: string;
@@ -66,13 +66,36 @@ export function ListeVisning({ punkter, milepeler, onPunktKlikk }: ListeVisningP
   const [sorterFelt, setSorterFelt] = useState<SorterFelt>("frist");
   const [sorterRetning, setSorterRetning] = useState<SorterRetning>("asc");
 
-  // Milepæl-map for oppslag
+  // Filtre (flervalg med checkboxer)
+  const [statusFilter, setStatusFilter] = useState<Set<string>>(new Set());
+  const [faggruppeFilter, setFaggruppeFilter] = useState<Set<string>>(new Set());
+  const [omradeFilter, setOmradeFilter] = useState<Set<string>>(new Set());
+
+  // Milepæl-map
   const milepelMap = useMemo(() => new Map(milepeler.map((m) => [m.id, m])), [milepeler]);
 
-  // Sorterte punkter
-  const sortertePunkter = useMemo(() => {
+  // Unike verdier for filtre
+  const unikeStatuser = useMemo(() => [...new Set(punkter.map((p) => p.status))].sort(), [punkter]);
+  const unikeFaggrupper = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const p of punkter) map.set(p.faggruppeId, p.faggruppe.name);
+    return [...map.entries()].sort((a, b) => a[1].localeCompare(b[1]));
+  }, [punkter]);
+  const unikeOmrader = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const p of punkter) if (p.omrade) map.set(p.omradeId!, p.omrade.navn);
+    return [...map.entries()].sort((a, b) => a[1].localeCompare(b[1]));
+  }, [punkter]);
+
+  // Filtrerte + sorterte punkter
+  const visbarePunkter = useMemo(() => {
+    let resultat = punkter;
+    if (statusFilter.size > 0) resultat = resultat.filter((p) => statusFilter.has(p.status));
+    if (faggruppeFilter.size > 0) resultat = resultat.filter((p) => faggruppeFilter.has(p.faggruppeId));
+    if (omradeFilter.size > 0) resultat = resultat.filter((p) => p.omradeId && omradeFilter.has(p.omradeId));
+
     const r = sorterRetning === "asc" ? 1 : -1;
-    return [...punkter].sort((a, b) => {
+    return [...resultat].sort((a, b) => {
       switch (sorterFelt) {
         case "mal": return r * a.sjekklisteMal.name.localeCompare(b.sjekklisteMal.name);
         case "omrade": return r * (a.omrade?.navn ?? "").localeCompare(b.omrade?.navn ?? "");
@@ -92,7 +115,7 @@ export function ListeVisning({ punkter, milepeler, onPunktKlikk }: ListeVisningP
         default: return 0;
       }
     });
-  }, [punkter, sorterFelt, sorterRetning, milepelMap]);
+  }, [punkter, statusFilter, faggruppeFilter, omradeFilter, sorterFelt, sorterRetning, milepelMap]);
 
   function toggleSort(felt: SorterFelt) {
     if (sorterFelt === felt) {
@@ -103,21 +126,6 @@ export function ListeVisning({ punkter, milepeler, onPunktKlikk }: ListeVisningP
     }
   }
 
-  function SortHeader({ felt, children }: { felt: SorterFelt; children: React.ReactNode }) {
-    const aktiv = sorterFelt === felt;
-    return (
-      <th
-        onClick={() => toggleSort(felt)}
-        className="text-left py-2 px-3 text-xs font-medium text-gray-500 cursor-pointer hover:text-gray-700 select-none"
-      >
-        <span className="flex items-center gap-1">
-          {children}
-          {aktiv && (sorterRetning === "asc" ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />)}
-        </span>
-      </th>
-    );
-  }
-
   if (punkter.length === 0) return null;
 
   return (
@@ -125,17 +133,68 @@ export function ListeVisning({ punkter, milepeler, onPunktKlikk }: ListeVisningP
       <table className="w-full border-collapse text-sm">
         <thead>
           <tr className="border-b bg-gray-50/50">
-            <SortHeader felt="mal">{t("kontrollplan.sjekklisteMal")}</SortHeader>
-            <SortHeader felt="omrade">{t("kontrollplan.omrade")}</SortHeader>
-            <SortHeader felt="faggruppe">{t("kontrollplan.faggruppe")}</SortHeader>
-            <SortHeader felt="milepel">{t("kontrollplan.milepel")}</SortHeader>
-            <SortHeader felt="frist">{t("kontrollplan.frist")}</SortHeader>
-            <SortHeader felt="kontrollomrade">{t("kontrollplan.omrade")}</SortHeader>
-            <SortHeader felt="status">Status</SortHeader>
+            <SortFilterHeader
+              label={t("kontrollplan.sjekklisteMal")}
+              felt="mal"
+              sorterFelt={sorterFelt}
+              sorterRetning={sorterRetning}
+              onSort={toggleSort}
+            />
+            <SortFilterHeader
+              label={t("kontrollplan.omrade")}
+              felt="omrade"
+              sorterFelt={sorterFelt}
+              sorterRetning={sorterRetning}
+              onSort={toggleSort}
+              filterVerdier={unikeOmrader.map(([id, navn]) => ({ id, label: navn }))}
+              aktiveFilter={omradeFilter}
+              onFilter={setOmradeFilter}
+            />
+            <SortFilterHeader
+              label={t("kontrollplan.faggruppe")}
+              felt="faggruppe"
+              sorterFelt={sorterFelt}
+              sorterRetning={sorterRetning}
+              onSort={toggleSort}
+              filterVerdier={unikeFaggrupper.map(([id, navn]) => ({ id, label: navn }))}
+              aktiveFilter={faggruppeFilter}
+              onFilter={setFaggruppeFilter}
+            />
+            <SortFilterHeader
+              label={t("kontrollplan.milepel")}
+              felt="milepel"
+              sorterFelt={sorterFelt}
+              sorterRetning={sorterRetning}
+              onSort={toggleSort}
+            />
+            <SortFilterHeader
+              label={t("kontrollplan.frist")}
+              felt="frist"
+              sorterFelt={sorterFelt}
+              sorterRetning={sorterRetning}
+              onSort={toggleSort}
+            />
+            <SortFilterHeader
+              label="Kontrollomr."
+              felt="kontrollomrade"
+              sorterFelt={sorterFelt}
+              sorterRetning={sorterRetning}
+              onSort={toggleSort}
+            />
+            <SortFilterHeader
+              label="Status"
+              felt="status"
+              sorterFelt={sorterFelt}
+              sorterRetning={sorterRetning}
+              onSort={toggleSort}
+              filterVerdier={unikeStatuser.map((s) => ({ id: s, label: t(statusNokler[s] ?? s) }))}
+              aktiveFilter={statusFilter}
+              onFilter={setStatusFilter}
+            />
           </tr>
         </thead>
         <tbody>
-          {sortertePunkter.map((punkt) => {
+          {visbarePunkter.map((punkt) => {
             const milepel = punkt.milepelId ? milepelMap.get(punkt.milepelId) : null;
             return (
               <tr
@@ -143,12 +202,8 @@ export function ListeVisning({ punkter, milepeler, onPunktKlikk }: ListeVisningP
                 onClick={() => onPunktKlikk(punkt)}
                 className="border-b border-gray-100 hover:bg-gray-50 cursor-pointer"
               >
-                <td className="py-2 px-3 text-sm">
-                  {punkt.sjekklisteMal.name}
-                </td>
-                <td className="py-2 px-3 text-sm text-gray-600">
-                  {punkt.omrade?.navn ?? "—"}
-                </td>
+                <td className="py-2 px-3 text-sm">{punkt.sjekklisteMal.name}</td>
+                <td className="py-2 px-3 text-sm text-gray-600">{punkt.omrade?.navn ?? "—"}</td>
                 <td className="py-2 px-3 text-sm">
                   <span className="flex items-center gap-1.5">
                     {punkt.faggruppe.color && (
@@ -157,9 +212,7 @@ export function ListeVisning({ punkter, milepeler, onPunktKlikk }: ListeVisningP
                     {punkt.faggruppe.name}
                   </span>
                 </td>
-                <td className="py-2 px-3 text-xs text-gray-500">
-                  {milepel ? milepel.navn : "—"}
-                </td>
+                <td className="py-2 px-3 text-xs text-gray-500">{milepel?.navn ?? "—"}</td>
                 <td className="py-2 px-3 text-sm text-gray-600">
                   {punkt.fristUke ? `U${punkt.fristUke}/${punkt.fristAar}` : "—"}
                 </td>
@@ -179,5 +232,92 @@ export function ListeVisning({ punkter, milepeler, onPunktKlikk }: ListeVisningP
         </tbody>
       </table>
     </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Kolonne-header med sortering + filter-dropdown                     */
+/* ------------------------------------------------------------------ */
+
+function SortFilterHeader({
+  label,
+  felt,
+  sorterFelt,
+  sorterRetning,
+  onSort,
+  filterVerdier,
+  aktiveFilter,
+  onFilter,
+}: {
+  label: string;
+  felt: SorterFelt;
+  sorterFelt: SorterFelt;
+  sorterRetning: SorterRetning;
+  onSort: (felt: SorterFelt) => void;
+  filterVerdier?: { id: string; label: string }[];
+  aktiveFilter?: Set<string>;
+  onFilter?: (filter: Set<string>) => void;
+}) {
+  const [filterAapen, setFilterAapen] = useState(false);
+  const ref = useRef<HTMLTableHeaderCellElement>(null);
+  const aktiv = sorterFelt === felt;
+  const harFilter = aktiveFilter && aktiveFilter.size > 0;
+
+  useEffect(() => {
+    function lukk(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setFilterAapen(false);
+    }
+    if (filterAapen) document.addEventListener("mousedown", lukk);
+    return () => document.removeEventListener("mousedown", lukk);
+  }, [filterAapen]);
+
+  function toggleFilter(id: string) {
+    if (!onFilter || !aktiveFilter) return;
+    const ny = new Set(aktiveFilter);
+    if (ny.has(id)) ny.delete(id); else ny.add(id);
+    onFilter(ny);
+  }
+
+  return (
+    <th className="text-left py-2 px-3 text-xs font-medium text-gray-500 relative" ref={ref}>
+      <span className="flex items-center gap-1">
+        <button type="button" onClick={() => onSort(felt)} className="hover:text-gray-700 select-none flex items-center gap-1">
+          {label}
+          {aktiv && (sorterRetning === "asc" ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />)}
+        </button>
+        {filterVerdier && (
+          <button
+            type="button"
+            onClick={() => setFilterAapen(!filterAapen)}
+            className={`p-0.5 rounded hover:bg-gray-200 ${harFilter ? "text-sitedoc-primary" : "text-gray-400"}`}
+          >
+            <Filter className="h-3 w-3" />
+          </button>
+        )}
+      </span>
+
+      {filterAapen && filterVerdier && (
+        <div className="absolute top-full left-0 mt-1 bg-white border rounded-lg shadow-lg py-1 z-50 min-w-[150px]">
+          <button
+            type="button"
+            onClick={() => { onFilter?.(new Set()); setFilterAapen(false); }}
+            className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-50 ${!harFilter ? "text-sitedoc-primary font-medium" : "text-gray-600"}`}
+          >
+            Alle
+          </button>
+          {filterVerdier.map((v) => (
+            <label key={v.id} className="flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-gray-50 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={aktiveFilter?.has(v.id) ?? false}
+                onChange={() => toggleFilter(v.id)}
+                className="rounded text-sitedoc-primary h-3 w-3"
+              />
+              {v.label}
+            </label>
+          ))}
+        </div>
+      )}
+    </th>
   );
 }
