@@ -445,24 +445,26 @@ export default function SjekklisteSide() {
     }
     for (const [kolId, verdi] of Object.entries(filterVerdier)) {
       if (!verdi) continue;
+      const valgteSet = new Set(verdi.split(","));
       resultat = resultat.filter((s) => {
         if (kolId.startsWith("felt:")) {
           const oid = kolId.replace("felt:", "");
-          return hentFeltVerdi(s, oid, objektTyper.get(oid), navneLookup) === verdi;
+          const feltVerdi = hentFeltVerdi(s, oid, objektTyper.get(oid), navneLookup);
+          return valgteSet.has(feltVerdi);
         }
         switch (kolId) {
-          case "prefix": return s.template?.prefix === verdi;
-          case "status": return s.status === verdi;
-          case "emne": return s.subject === verdi;
-          case "ansvarlig": return formaterAnsvarlig(s) === verdi;
-          case "opprettetAv": return s.bestiller?.name === verdi;
-          case "bestillerFaggruppe": return s.bestillerFaggruppe.name === verdi;
-          case "utforerFaggruppe": return s.utforerFaggruppe.name === verdi;
-          case "mal": return s.template.name === verdi;
-          case "bygning": return s.byggeplass?.name === verdi;
-          case "etasje": return s.drawing?.floor === verdi;
-          case "tegning": return s.drawing?.name === verdi;
-          case "flyt": return hentFlytLedd(s) === verdi;
+          case "prefix": return valgteSet.has(s.template?.prefix ?? "");
+          case "status": return valgteSet.has(s.status);
+          case "emne": return valgteSet.has(s.subject ?? "");
+          case "ansvarlig": return valgteSet.has(formaterAnsvarlig(s));
+          case "opprettetAv": return valgteSet.has(s.bestiller?.name ?? "");
+          case "bestillerFaggruppe": return valgteSet.has(s.bestillerFaggruppe.name);
+          case "utforerFaggruppe": return valgteSet.has(s.utforerFaggruppe.name);
+          case "mal": return valgteSet.has(s.template.name);
+          case "bygning": return valgteSet.has(s.byggeplass?.name ?? "");
+          case "etasje": return valgteSet.has(s.drawing?.floor ?? "");
+          case "tegning": return valgteSet.has(s.drawing?.name ?? "");
+          case "flyt": return valgteSet.has(hentFlytLedd(s));
           default: return true;
         }
       });
