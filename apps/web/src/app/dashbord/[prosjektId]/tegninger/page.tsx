@@ -21,7 +21,9 @@ interface DokumentflytRad {
   faggruppeId: string | null;
   maler: DokumentflytMalRad[];
 }
-import { Map, FileText, MapPin, Plus, ZoomIn, ZoomOut, ArrowLeft, Crosshair, Loader2, AlertTriangle, Info } from "lucide-react";
+import { Map, FileText, MapPin, Plus, ZoomIn, ZoomOut, ArrowLeft, Crosshair, Loader2, AlertTriangle, Info, Pentagon } from "lucide-react";
+import { OmradeOverlay } from "@/components/tegning/OmradeOverlay";
+import { OmradeTegneverktoy } from "@/components/tegning/OmradeTegneverktoy";
 
 interface Markør {
   id: string;
@@ -112,7 +114,8 @@ export default function TegningerSide() {
   const [zoom, setZoom] = useState(STANDARD_ZOOM);
 
   // Klikkemodus: inspeksjon (vis DWG-egenskaper) eller plassering (opprett oppgave)
-  const [klikkModus, setKlikkModus] = useState<"inspeksjon" | "plassering">("plassering");
+  const [klikkModus, setKlikkModus] = useState<"inspeksjon" | "plassering" | "omrade">("plassering");
+  const [visOmrader, setVisOmrader] = useState(true);
 
   // DWG-elementinfo ved klikk
   const [valgtElement, setValgtElement] = useState<{ lag: string; type: string; tekst: string; x: number; y: number } | null>(null);
@@ -159,6 +162,19 @@ export default function TegningerSide() {
     { drawingId: aktivTegning?.id ?? "" },
     { enabled: !!aktivTegning?.id },
   );
+
+  // Områder (polygoner) for aktiv tegning
+  const { data: tegningOmrader } = trpc.omrade.hentForTegning.useQuery(
+    { tegningId: aktivTegning?.id ?? "" },
+    { enabled: !!aktivTegning?.id },
+  );
+
+  const opprettOmradeMutation = trpc.omrade.opprett.useMutation({
+    onSuccess: () => {
+      utils.omrade.hentForTegning.invalidate({ tegningId: aktivTegning?.id ?? "" });
+      setKlikkModus("plassering");
+    },
+  });
 
   const { data: mineFaggrupper } = trpc.medlem.hentMineFaggrupper.useQuery(
     { projectId: params.prosjektId },
@@ -680,6 +696,16 @@ export default function TegningerSide() {
                 <Info className="h-3 w-3" />
                 Inspeksjon
               </button>
+              <button
+                onClick={() => { setKlikkModus("omrade"); setNyMarkør(null); setValgtElement(null); }}
+                className={`flex items-center gap-1 rounded-r px-2 py-1 text-xs ${
+                  klikkModus === "omrade" ? "bg-sitedoc-primary text-white" : "text-gray-600 hover:bg-gray-100"
+                }`}
+                title="Tegn nytt område (polygon)"
+              >
+                <Pentagon className="h-3 w-3" />
+                Område
+              </button>
             </div>
           </>
         )}
@@ -765,6 +791,33 @@ export default function TegningerSide() {
                   className="block w-full"
                   crossOrigin="anonymous"
                   draggable={false}
+                />
+              )}
+
+              {/* Område-polygoner */}
+              <OmradeOverlay
+                omrader={(tegningOmrader ?? []).map((o: { id: string; navn: string; type: string; polygon: unknown; farge: string }) => ({
+                  ...o,
+                  polygon: (Array.isArray(o.polygon) ? o.polygon : []) as { x: number; y: number }[],
+                }))}
+                synlig={visOmrader && klikkModus !== "omrade"}
+              />
+
+              {/* Område-tegneverktøy */}
+              {klikkModus === "omrade" && aktivTegning && aktivByggeplass && (
+                <OmradeTegneverktoy
+                  onFerdig={(polygon, navn, type, farge) => {
+                    opprettOmradeMutation.mutate({
+                      projectId: params.prosjektId,
+                      byggeplassId: aktivByggeplass.id,
+                      tegningId: aktivTegning.id,
+                      navn,
+                      type: type as "sone" | "rom" | "etasje",
+                      polygon,
+                      farge,
+                    });
+                  }}
+                  onAvbryt={() => setKlikkModus("plassering")}
                 />
               )}
 
