@@ -6,7 +6,7 @@ import { trpc } from "@/lib/trpc";
 import { Spinner, EmptyState } from "@sitedoc/ui";
 import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
 import { useTranslation } from "react-i18next";
-import { Plus, LayoutGrid, List } from "lucide-react";
+import { Plus, LayoutGrid, List, Copy } from "lucide-react";
 import { HjelpKnapp, HjelpFane } from "@/components/hjelp/HjelpModal";
 import { MatriseVisning } from "@/components/kontrollplan/MatriseVisning";
 import { ListeVisning } from "@/components/kontrollplan/ListeVisning";
@@ -37,9 +37,11 @@ export default function KontrollplanSide() {
   const { aktivByggeplass } = useByggeplass();
   const [matriseVisning, setMatriseVisning] = useState(true);
   const [visOpprettDialog, setVisOpprettDialog] = useState(false);
+  const [visKopierDialog, setVisKopierDialog] = useState(false);
   const [valgtPunkt, setValgtPunkt] = useState<PunktType | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [faggruppeFilter, setFaggruppeFilter] = useState<string>("");
+  const [kontrollomradeFilter, setKontrollomradeFilter] = useState<string>("");
 
   const utils = trpc.useUtils();
 
@@ -80,6 +82,7 @@ export default function KontrollplanSide() {
     return kontrollplan.punkter.filter((p) => {
       if (statusFilter && p.status !== statusFilter) return false;
       if (faggruppeFilter && p.faggruppeId !== faggruppeFilter) return false;
+      if (kontrollomradeFilter && (p.sjekklisteMal.kontrollomrade ?? "") !== kontrollomradeFilter) return false;
       return true;
     });
   }, [kontrollplan?.punkter, statusFilter, faggruppeFilter]);
@@ -173,6 +176,15 @@ export default function KontrollplanSide() {
               <List className="h-4 w-4" />
             </button>
           </div>
+          {kontrollplan && kontrollplan.punkter.length > 0 && (
+            <button
+              onClick={() => setVisKopierDialog(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 border text-gray-600 text-sm rounded hover:bg-gray-50 transition"
+            >
+              <Copy className="h-4 w-4" />
+              Kopier
+            </button>
+          )}
           <button
             onClick={() => setVisOpprettDialog(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-sitedoc-primary text-white text-sm rounded hover:bg-sitedoc-primary/90 transition"
@@ -205,6 +217,19 @@ export default function KontrollplanSide() {
           {faggrupper?.map((fg: { id: string; name: string }) => (
             <option key={fg.id} value={fg.id}>{fg.name}</option>
           ))}
+        </select>
+        <select
+          value={kontrollomradeFilter}
+          onChange={(e) => setKontrollomradeFilter(e.target.value)}
+          className="text-xs border rounded px-2 py-1.5 text-gray-600 bg-white"
+        >
+          <option value="">Kontrollomr. — {t("status.alle")}</option>
+          <option value="fukt">Fukt</option>
+          <option value="brann">Brann</option>
+          <option value="konstruksjon">Konstruksjon</option>
+          <option value="geo">Geoteknikk</option>
+          <option value="grunnarbeid">Grunnarbeid</option>
+          <option value="sha">SHA</option>
         </select>
       </div>
 
@@ -246,10 +271,111 @@ export default function KontrollplanSide() {
         <RedigerPunktDialog
           punkt={valgtPunkt}
           allePunkter={kontrollplan.punkter}
+          projectId={params.prosjektId}
           onLukk={() => setValgtPunkt(null)}
           onOppdatert={handleRefresh}
         />
       )}
+
+      {/* Kopier mellom områder */}
+      {visKopierDialog && kontrollplan && aktivByggeplass && (
+        <KopierDialog
+          kontrollplanId={kontrollplan.id}
+          byggeplassId={aktivByggeplass.id}
+          onLukk={() => setVisKopierDialog(false)}
+          onKopiert={handleRefresh}
+        />
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  KopierDialog — kopier punkter fra kilde-områder til mål-områder    */
+/* ------------------------------------------------------------------ */
+
+function KopierDialog({
+  kontrollplanId,
+  byggeplassId,
+  onLukk,
+  onKopiert,
+}: {
+  kontrollplanId: string;
+  byggeplassId: string;
+  onLukk: () => void;
+  onKopiert: () => void;
+}) {
+  const { t } = useTranslation();
+  const { data: omrader } = trpc.omrade.hentForByggeplass.useQuery({ byggeplassId });
+  const [kildeIder, setKildeIder] = useState<Set<string>>(new Set());
+  const [maalIder, setMaalIder] = useState<Set<string>>(new Set());
+  const [fristForskyvning, setFristForskyvning] = useState(0);
+
+  const utils = trpc.useUtils();
+  const kopier = trpc.kontrollplan.kopierPunkter.useMutation({
+    onSuccess: (data) => {
+      utils.kontrollplan.hentForByggeplass.invalidate({ byggeplassId });
+      onKopiert();
+      onLukk();
+    },
+  });
+
+  const toggle = (set: Set<string>, setFn: (s: Set<string>) => void, id: string) => {
+    const ny = new Set(set);
+    if (ny.has(id)) ny.delete(id); else ny.add(id);
+    setFn(ny);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/30 z-50 flex items-start justify-center pt-[10vh]">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+        <div className="flex items-center justify-between px-4 py-3 border-b">
+          <h2 className="text-sm font-semibold">Kopier kontrollpunkter</h2>
+          <button onClick={onLukk} className="p-1 hover:bg-gray-100 rounded text-gray-400">✕</button>
+        </div>
+        <div className="p-4 space-y-4">
+          {/* Kilde */}
+          <div>
+            <label className="text-xs font-medium text-gray-600 mb-1 block">Kopier fra:</label>
+            <div className="border rounded max-h-28 overflow-y-auto p-2 space-y-1">
+              {omrader?.map((o: { id: string; navn: string }) => (
+                <label key={o.id} className="flex items-center gap-2 text-xs cursor-pointer">
+                  <input type="checkbox" checked={kildeIder.has(o.id)} onChange={() => toggle(kildeIder, setKildeIder, o.id)} className="rounded h-3 w-3" />
+                  {o.navn}
+                </label>
+              ))}
+            </div>
+          </div>
+          {/* Mål */}
+          <div>
+            <label className="text-xs font-medium text-gray-600 mb-1 block">Kopier til:</label>
+            <div className="border rounded max-h-28 overflow-y-auto p-2 space-y-1">
+              {omrader?.filter((o: { id: string }) => !kildeIder.has(o.id)).map((o: { id: string; navn: string }) => (
+                <label key={o.id} className="flex items-center gap-2 text-xs cursor-pointer">
+                  <input type="checkbox" checked={maalIder.has(o.id)} onChange={() => toggle(maalIder, setMaalIder, o.id)} className="rounded h-3 w-3" />
+                  {o.navn}
+                </label>
+              ))}
+            </div>
+          </div>
+          {/* Frist-forskyvning */}
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-gray-600">Forskyv frister:</label>
+            <input type="number" value={fristForskyvning} onChange={(e) => setFristForskyvning(Number(e.target.value))} className="w-16 border rounded px-2 py-1 text-xs" />
+            <span className="text-xs text-gray-500">{t("kontrollplan.skyvUker")}</span>
+          </div>
+        </div>
+        <div className="flex items-center justify-end gap-2 px-4 py-3 border-t">
+          <button onClick={onLukk} className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded">{t("handling.avbryt")}</button>
+          <button
+            onClick={() => kopier.mutate({ kontrollplanId, kildeOmradeIder: [...kildeIder], maalOmradeIder: [...maalIder], fristForskyvningUker: fristForskyvning })}
+            disabled={kildeIder.size === 0 || maalIder.size === 0 || kopier.isPending}
+            className="px-3 py-1.5 text-sm bg-sitedoc-primary text-white rounded disabled:opacity-50"
+          >
+            Kopier
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

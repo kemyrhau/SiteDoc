@@ -329,6 +329,182 @@ export const kontrollplanRouter = router({
       return { antallOppdatert: oppdateringer.length };
     }),
 
+  // Kopier punkter fra ett sett områder til et annet (f.eks. etasje 3 → etasje 4)
+  kopierPunkter: protectedProcedure
+    .input(z.object({
+      kontrollplanId: z.string(),
+      kildeOmradeIder: z.array(z.string()).min(1),
+      maalOmradeIder: z.array(z.string()).min(1),
+      fristForskyvningUker: z.number().int().default(0), // skyv frister +N uker
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const kontrollplan = await ctx.prisma.kontrollplan.findUniqueOrThrow({
+        where: { id: input.kontrollplanId },
+        select: { projectId: true },
+      });
+      await verifiserProsjektmedlem(ctx.userId, kontrollplan.projectId);
+
+      // Hent alle punkter fra kilde-områdene
+      const kildePunkter = await ctx.prisma.kontrollplanPunkt.findMany({
+        where: { kontrollplanId: input.kontrollplanId, omradeId: { in: input.kildeOmradeIder } },
+      });
+
+      // Opprett kopier for hvert mål-område
+      const nyePunkter = [];
+      for (const maalOmradeId of input.maalOmradeIder) {
+        for (const kilde of kildePunkter) {
+          let fristUke = kilde.fristUke;
+          let fristAar = kilde.fristAar;
+          if (fristUke !== null && fristAar !== null && input.fristForskyvningUker !== 0) {
+            fristUke += input.fristForskyvningUker;
+            while (fristUke > 52) { fristUke -= 52; fristAar++; }
+            while (fristUke < 1) { fristUke += 52; fristAar--; }
+          }
+          nyePunkter.push({
+            kontrollplanId: input.kontrollplanId,
+            sjekklisteMalId: kilde.sjekklisteMalId,
+            faggruppeId: kilde.faggruppeId,
+            milepelId: kilde.milepelId,
+            omradeId: maalOmradeId,
+            fristUke,
+            fristAar,
+            varselUkerFor: kilde.varselUkerFor,
+          });
+        }
+      }
+
+      // Filtrer ut duplikater (eksisterende kontrollplan_id+omrade_id+mal_id)
+      const eksisterende = await ctx.prisma.kontrollplanPunkt.findMany({
+        where: { kontrollplanId: input.kontrollplanId, omradeId: { in: input.maalOmradeIder } },
+        select: { omradeId: true, sjekklisteMalId: true },
+      });
+      const eksisterendeSet = new Set(eksisterende.map((e) => `${e.omradeId}:${e.sjekklisteMalId}`));
+      const unikePunkter = nyePunkter.filter((p) => !eksisterendeSet.has(`${p.omradeId}:${p.sjekklisteMalId}`));
+
+      if (unikePunkter.length === 0) return { antallOpprettet: 0 };
+
+      await ctx.prisma.kontrollplanPunkt.createMany({ data: unikePunkter });
+
+      return { antallOpprettet: unikePunkter.length };
+    }),
+
+  // Kaskade-fristflytting — finn og skyv alle nedstrøms avhengigheter
+  skyvKaskade: protectedProcedure
+    .input(z.object({
+      punktId: z.string(),
+      antallUker: z.number().int(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const startPunkt = await ctx.prisma.kontrollplanPunkt.findUniqueOrThrow({
+        where: { id: input.punktId },
+        include: { kontrollplan: { select: { projectId: true, id: true } } },
+      });
+      await verifiserProsjektmedlem(ctx.userId, startPunkt.kontrollplan.projectId);
+
+      // Finn alle punkter i kontrollplanen
+      const allePunkter = await ctx.prisma.kontrollplanPunkt.findMany({
+        where: { kontrollplanId: startPunkt.kontrollplan.id },
+      });
+
+      // Traverser avhengighetsgrafen rekursivt for å finne alle nedstrøms punkter
+      const berort = new Set<string>();
+      function finnNedstroms(punktId: string) {
+        for (const p of allePunkter) {
+          if (p.avhengerAvId === punktId && !berort.has(p.id)) {
+            berort.add(p.id);
+            finnNedstroms(p.id);
+          }
+        }
+      }
+      berort.add(input.punktId);
+      finnNedstroms(input.punktId);
+
+      // Skyv frist for alle berørte punkter (kun planlagt/pågår)
+      const oppdateringer = allePunkter
+        .filter((p) => berort.has(p.id) && p.fristUke !== null && p.fristAar !== null && (p.status === "planlagt" || p.status === "pagar"))
+        .map((p) => {
+          let nyUke = (p.fristUke ?? 0) + input.antallUker;
+          let nyAar = p.fristAar ?? new Date().getFullYear();
+          while (nyUke > 52) { nyUke -= 52; nyAar++; }
+          while (nyUke < 1) { nyUke += 52; nyAar--; }
+          return ctx.prisma.kontrollplanPunkt.update({
+            where: { id: p.id },
+            data: { fristUke: nyUke, fristAar: nyAar },
+          });
+        });
+
+      await ctx.prisma.$transaction(oppdateringer);
+
+      // Logg historikk
+      await ctx.prisma.kontrollplanHistorikk.createMany({
+        data: [...berort].map((pid) => ({
+          punktId: pid,
+          brukerId: ctx.userId,
+          handling: "endret",
+          kommentar: `Kaskade-flytt ${input.antallUker > 0 ? "+" : ""}${input.antallUker} uker fra punkt ${input.punktId}`,
+        })),
+      });
+
+      return { antallBerort: berort.size, antallOppdatert: oppdateringer.length };
+    }),
+
+  // Forhåndsvisning kaskade — finn berørte punkter uten å endre
+  hentKaskadeBerort: protectedProcedure
+    .input(z.object({ punktId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const startPunkt = await ctx.prisma.kontrollplanPunkt.findUniqueOrThrow({
+        where: { id: input.punktId },
+        include: { kontrollplan: { select: { projectId: true, id: true } } },
+      });
+      await verifiserProsjektmedlem(ctx.userId, startPunkt.kontrollplan.projectId);
+
+      const allePunkter = await ctx.prisma.kontrollplanPunkt.findMany({
+        where: { kontrollplanId: startPunkt.kontrollplan.id },
+        include: {
+          sjekklisteMal: { select: { name: true } },
+          omrade: { select: { navn: true } },
+        },
+      });
+
+      const berort: string[] = [];
+      function finnNedstroms(punktId: string) {
+        for (const p of allePunkter) {
+          if (p.avhengerAvId === punktId && !berort.includes(p.id)) {
+            berort.push(p.id);
+            finnNedstroms(p.id);
+          }
+        }
+      }
+      finnNedstroms(input.punktId);
+
+      return allePunkter
+        .filter((p) => berort.includes(p.id))
+        .map((p) => ({
+          id: p.id,
+          malNavn: p.sjekklisteMal.name,
+          omradeNavn: p.omrade?.navn ?? "—",
+          fristUke: p.fristUke,
+          fristAar: p.fristAar,
+          status: p.status,
+        }));
+    }),
+
+  // Hent historikk for et punkt
+  hentHistorikk: protectedProcedure
+    .input(z.object({ punktId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const punkt = await ctx.prisma.kontrollplanPunkt.findUniqueOrThrow({
+        where: { id: input.punktId },
+        include: { kontrollplan: { select: { projectId: true } } },
+      });
+      await verifiserProsjektmedlem(ctx.userId, punkt.kontrollplan.projectId);
+      return ctx.prisma.kontrollplanHistorikk.findMany({
+        where: { punktId: input.punktId },
+        include: { bruker: { select: { name: true } } },
+        orderBy: { tidspunkt: "desc" },
+      });
+    }),
+
   // Hent kontrollplan-status for alle byggeplasser (modul-kort)
   hentStatusForProsjekt: protectedProcedure
     .input(z.object({ projectId: z.string().uuid() }))

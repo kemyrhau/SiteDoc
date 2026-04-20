@@ -45,7 +45,7 @@ const gyldigeOverganger: Record<string, string[]> = {
   godkjent: [],
 };
 
-export function RedigerPunktDialog({ punkt, allePunkter, onLukk, onOppdatert }: RedigerPunktDialogProps) {
+export function RedigerPunktDialog({ punkt, allePunkter, onLukk, onOppdatert, projectId }: RedigerPunktDialogProps & { projectId: string }) {
   const { t } = useTranslation();
   const [fristUke, setFristUke] = useState(punkt.fristUke);
   const [fristAar, setFristAar] = useState(punkt.fristAar);
@@ -53,6 +53,15 @@ export function RedigerPunktDialog({ punkt, allePunkter, onLukk, onOppdatert }: 
   const [visSkyvOmrade, setVisSkyvOmrade] = useState(false);
   const [skyvUker, setSkyvUker] = useState(1);
   const [visByttMal, setVisByttMal] = useState(false);
+  const [nyMalId, setNyMalId] = useState("");
+  const [visKaskade, setVisKaskade] = useState(false);
+  const [kaskadeUker, setKaskadeUker] = useState(1);
+
+  // Hent maler for bytt-mal
+  const { data: maler } = trpc.mal.hentForProsjekt.useQuery(
+    { projectId },
+    { enabled: visByttMal },
+  );
 
   const oppdaterPunkt = trpc.kontrollplan.oppdaterPunkt.useMutation({
     onSuccess: () => {
@@ -74,6 +83,19 @@ export function RedigerPunktDialog({ punkt, allePunkter, onLukk, onOppdatert }: 
       onLukk();
     },
   });
+
+  const skyvKaskade = trpc.kontrollplan.skyvKaskade.useMutation({
+    onSuccess: () => {
+      onOppdatert();
+      onLukk();
+    },
+  });
+
+  // Hent berørte punkter for kaskade (lazy)
+  const { data: kaskadeBerort } = trpc.kontrollplan.hentKaskadeBerort.useQuery(
+    { punktId: punkt.id },
+    { enabled: visKaskade },
+  );
 
   // Antall punkter i samme område (for skyv-forhåndsvisning)
   const punkterISammeOmrade = useMemo(() => {
@@ -133,6 +155,35 @@ export function RedigerPunktDialog({ punkt, allePunkter, onLukk, onOppdatert }: 
             <div className="text-gray-500 text-xs mt-0.5">
               {punkt.omrade?.navn ?? "—"} · {punkt.faggruppe.name}
             </div>
+            {/* Bytt mal */}
+            {punkt.status === "planlagt" && (
+              !visByttMal ? (
+                <button type="button" onClick={() => setVisByttMal(true)} className="text-[10px] text-sitedoc-secondary hover:underline mt-1">
+                  {t("kontrollplan.byttMal")}
+                </button>
+              ) : (
+                <div className="mt-2 flex items-center gap-2">
+                  <select
+                    value={nyMalId}
+                    onChange={(e) => setNyMalId(e.target.value)}
+                    className="flex-1 border rounded px-2 py-1 text-xs"
+                  >
+                    <option value="">—</option>
+                    {maler?.filter((m: { category: string; id: string }) => m.category === "sjekkliste" && m.id !== punkt.sjekklisteMalId)
+                      .map((m: { id: string; name: string }) => (
+                        <option key={m.id} value={m.id}>{m.name}</option>
+                      ))}
+                  </select>
+                  <button
+                    onClick={() => { if (nyMalId) oppdaterPunkt.mutate({ punktId: punkt.id, sjekklisteMalId: nyMalId }); }}
+                    disabled={!nyMalId || oppdaterPunkt.isPending}
+                    className="text-xs px-2 py-1 bg-sitedoc-primary text-white rounded disabled:opacity-50"
+                  >
+                    {t("handling.lagre")}
+                  </button>
+                </div>
+              )
+            )}
           </div>
 
           {/* Status */}
@@ -182,6 +233,46 @@ export function RedigerPunktDialog({ punkt, allePunkter, onLukk, onOppdatert }: 
                 {t("handling.lagre")}
               </button>
             </div>
+            {/* Kaskade-fristflytting */}
+            {!visKaskade ? (
+              <button type="button" onClick={() => setVisKaskade(true)} className="text-[10px] text-sitedoc-secondary hover:underline mt-1">
+                Skyv med avhengigheter (kaskade)
+              </button>
+            ) : (
+              <div className="mt-2 border rounded p-2 bg-gray-50 space-y-2">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    value={kaskadeUker}
+                    onChange={(e) => setKaskadeUker(Number(e.target.value))}
+                    className="w-16 border rounded px-2 py-1 text-xs"
+                  />
+                  <span className="text-xs text-gray-500">{t("kontrollplan.skyvUker")}</span>
+                </div>
+                {kaskadeBerort && kaskadeBerort.length > 0 ? (
+                  <div className="text-[10px] text-gray-500 space-y-0.5">
+                    <p className="font-medium">Berørte punkter ({kaskadeBerort.length}):</p>
+                    {kaskadeBerort.map((b) => (
+                      <div key={b.id}>• {b.omradeNavn} × {b.malNavn} {b.fristUke ? `U${b.fristUke} → U${b.fristUke + kaskadeUker}` : ""}</div>
+                    ))}
+                  </div>
+                ) : kaskadeBerort ? (
+                  <p className="text-[10px] text-gray-400">Ingen nedstrøms avhengigheter</p>
+                ) : null}
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => skyvKaskade.mutate({ punktId: punkt.id, antallUker: kaskadeUker })}
+                    disabled={kaskadeUker === 0 || skyvKaskade.isPending}
+                    className="text-xs px-2 py-1 bg-sitedoc-primary text-white rounded disabled:opacity-50"
+                  >
+                    {t("kontrollplan.skyvBekreft", { antall: (kaskadeBerort?.length ?? 0) + 1 })}
+                  </button>
+                  <button onClick={() => setVisKaskade(false)} className="text-xs px-2 py-1 text-gray-500 hover:bg-gray-100 rounded">
+                    {t("handling.avbryt")}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Avhengighet */}
@@ -256,6 +347,8 @@ export function RedigerPunktDialog({ punkt, allePunkter, onLukk, onOppdatert }: 
               )}
             </div>
           )}
+          {/* Historikk */}
+          <HistorikkSeksjon punktId={punkt.id} />
         </div>
 
         {/* Footer */}
@@ -277,6 +370,56 @@ export function RedigerPunktDialog({ punkt, allePunkter, onLukk, onOppdatert }: 
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+/* Historikk-seksjon med lazy loading */
+function HistorikkSeksjon({ punktId }: { punktId: string }) {
+  const { t } = useTranslation();
+  const [aapen, setAapen] = useState(false);
+  const { data: historikk } = trpc.kontrollplan.hentHistorikk.useQuery(
+    { punktId },
+    { enabled: aapen },
+  );
+
+  const handlingLabel: Record<string, string> = {
+    opprettet: "Opprettet",
+    startet: "Startet",
+    utfort: "Utført",
+    godkjent: "Godkjent",
+    avvist: "Avvist",
+    endret: "Endret",
+  };
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setAapen(!aapen)}
+        className="text-xs text-gray-400 hover:text-gray-600"
+      >
+        {aapen ? "▾" : "▸"} Historikk
+      </button>
+      {aapen && historikk && (
+        <div className="mt-1 space-y-1 max-h-32 overflow-y-auto">
+          {historikk.length === 0 && (
+            <p className="text-[10px] text-gray-400">Ingen historikk</p>
+          )}
+          {historikk.map((h) => (
+            <div key={h.id} className="flex items-baseline gap-2 text-[10px] text-gray-500">
+              <span className="text-gray-400 flex-shrink-0">
+                {new Date(h.tidspunkt).toLocaleDateString("nb-NO", { day: "2-digit", month: "2-digit" })}
+                {" "}
+                {new Date(h.tidspunkt).toLocaleTimeString("nb-NO", { hour: "2-digit", minute: "2-digit" })}
+              </span>
+              <span className="font-medium text-gray-600">{h.bruker.name ?? "—"}</span>
+              <span>{handlingLabel[h.handling] ?? h.handling}</span>
+              {h.kommentar && <span className="text-gray-400 truncate">— {h.kommentar}</span>}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
