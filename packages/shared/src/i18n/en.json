@@ -1310,6 +1310,12 @@
   "kontrollplan.importTilbake": "Back",
   "kontrollplan.importFrister": "Deadlines week {{fra}}–{{til}}",
   "kontrollplan.importEkskludert": "{{antall}} activities without template — excluded",
+  "kontrollplan.importSteg2Beskrivelse": "The schedule contains resources (companies/people). Map each resource to a trade group in SiteDoc so the checkpoints get the correct responsible party.",
+  "kontrollplan.importIngenRessurser": "No resources found in the file. Select a default trade group for all activities, or assign per group in the next step.",
+  "kontrollplan.importStandardFaggruppe": "Default trade group",
+  "kontrollplan.importStandardFaggruppeHjelp": "Used for all activities without a resource",
+  "kontrollplan.importAktiviteterLiten": "activities",
+  "kontrollplan.importVelgFaggruppe": "Select trade group...",
   "kontrollplan.prosjektmaler": "Project templates",
   "kontrollplan.ingenMaler": "No templates found",
 

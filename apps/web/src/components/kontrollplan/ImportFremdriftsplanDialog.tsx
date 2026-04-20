@@ -58,8 +58,12 @@ export function ImportFremdriftsplanDialog({
   // Steg 2: Ressurs → faggruppe
   const [ressursFaggruppeMap, setRessursFaggruppeMap] = useState<Map<string, string | null>>(new Map());
 
-  // Steg 3: Oppgave → mal
+  // Steg 2: Standard-faggruppe (for aktiviteter uten ressurs)
+  const [standardFaggruppeId, setStandardFaggruppeId] = useState<string | null>(null);
+
+  // Steg 3: Oppgave → mal + faggruppe-override per gruppe
   const [oppgaveMalMap, setOppgaveMalMap] = useState<Map<number, string>>(new Map());
+  const [gruppeFaggruppeMap, setGruppeFaggruppeMap] = useState<Map<string, string>>(new Map());
   const [malSok, setMalSok] = useState("");
   const [aapenMalDropdown, setAapenMalDropdown] = useState<number | null>(null);
 
@@ -248,11 +252,11 @@ export function ImportFremdriftsplanDialog({
   );
 
   // Grupperte oppgaver for steg 3
+  type Faggruppe = { id: string; name: string; color: string | null };
   const grupperteOppgaver = useMemo(() => {
     if (!parsedData || !faggrupper) return [];
 
-    type Faggruppe = { id: string; name: string; color: string | null };
-    const grupper = new Map<string, { faggruppe: Faggruppe | null; oppgaver: MSProjectTask[] }>();
+    const grupper = new Map<string, { key: string; faggruppe: Faggruppe | null; oppgaver: MSProjectTask[] }>();
 
     const valgteOppgaver = parsedData.flatTasks.filter((t) => selectedUIDs.has(t.uid));
 
@@ -269,7 +273,7 @@ export function ImportFremdriftsplanDialog({
         const fg = faggruppeId
           ? (faggrupper as Faggruppe[]).find((f) => f.id === faggruppeId) ?? null
           : null;
-        grupper.set(key, { faggruppe: fg, oppgaver: [] });
+        grupper.set(key, { key, faggruppe: fg, oppgaver: [] });
       }
       grupper.get(key)!.oppgaver.push(oppgave);
     }
@@ -296,15 +300,25 @@ export function ImportFremdriftsplanDialog({
       .filter((t) => selectedUIDs.has(t.uid) && oppgaveMalMap.has(t.uid))
       .map((t) => {
         const malId = oppgaveMalMap.get(t.uid)!;
+        // Finn faggruppe: ressurs-mapping → gruppe-override → standard-faggruppe
         let faggruppeId: string | null = null;
         for (const rNavn of t.resourceNames) {
           const mapped = ressursFaggruppeMap.get(rNavn);
           if (mapped) { faggruppeId = mapped; break; }
         }
+        const gruppeKey = faggruppeId ?? "__uten_faggruppe__";
+        // Sjekk gruppe-override fra steg 3
+        if (!faggruppeId && gruppeFaggruppeMap.has(gruppeKey)) {
+          faggruppeId = gruppeFaggruppeMap.get(gruppeKey)!;
+        }
+        // Fallback til standard-faggruppe fra steg 2
+        if (!faggruppeId && standardFaggruppeId) {
+          faggruppeId = standardFaggruppeId;
+        }
         const frist = t.finish ? datoTilUkeAar(t.finish) : null;
         return { taskUid: t.uid, name: t.name, malId, faggruppeId, frist };
       });
-  }, [parsedData, selectedUIDs, oppgaveMalMap, ressursFaggruppeMap]);
+  }, [parsedData, selectedUIDs, oppgaveMalMap, ressursFaggruppeMap, gruppeFaggruppeMap, standardFaggruppeId]);
 
   const ekskludertAntall = useMemo(() => {
     if (!parsedData) return 0;
@@ -669,13 +683,38 @@ export function ImportFremdriftsplanDialog({
           {/* ═══ STEG 2: Ressurser → Faggrupper ═══ */}
           {steg === 2 && (
             <div>
-              <h3 className="text-sm font-medium text-gray-700 mb-3">
+              <h3 className="text-sm font-medium text-gray-700 mb-1">
                 {t("kontrollplan.importSteg2Tittel")}
               </h3>
+              <p className="text-xs text-gray-400 mb-4">
+                {t("kontrollplan.importSteg2Beskrivelse")}
+              </p>
 
               {valgteRessurser.length === 0 ? (
-                <div className="text-sm text-gray-400 py-8 text-center">
-                  {t("kontrollplan.importIkkeTilordnet")}
+                <div className="space-y-4">
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-700">
+                    {t("kontrollplan.importIngenRessurser")}
+                  </div>
+                  <div className="flex items-center gap-3 py-2 px-3 border rounded-lg">
+                    <div className="flex-1">
+                      <div className="text-sm text-gray-900">{t("kontrollplan.importStandardFaggruppe")}</div>
+                      <div className="text-xs text-gray-400">
+                        {t("kontrollplan.importStandardFaggruppeHjelp")}
+                      </div>
+                    </div>
+                    <select
+                      value={standardFaggruppeId ?? ""}
+                      onChange={(e) => setStandardFaggruppeId(e.target.value || null)}
+                      className="text-xs border rounded px-2 py-1.5 w-48"
+                    >
+                      <option value="">{t("kontrollplan.importIkkeTilordnet")}</option>
+                      {faggrupper?.map((fg: { id: string; name: string; color: string | null }) => (
+                        <option key={fg.id} value={fg.id}>
+                          {fg.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
               ) : (
                 <div className="space-y-2">
@@ -684,9 +723,10 @@ export function ImportFremdriftsplanDialog({
                       <div className="flex-1">
                         <div className="text-sm text-gray-900">{r.name}</div>
                         <div className="text-xs text-gray-400">
-                          {t("kontrollplan.importRessurs", { navn: r.name, antall: r.taskCount })}
+                          {r.taskCount} {t("kontrollplan.importAktiviteterLiten")}
                         </div>
                       </div>
+                      <span className="text-gray-300">→</span>
                       <select
                         value={ressursFaggruppeMap.get(r.name) ?? ""}
                         onChange={(e) => {
@@ -719,22 +759,51 @@ export function ImportFremdriftsplanDialog({
                 {t("kontrollplan.importSteg3Tittel")}
               </h3>
 
-              {grupperteOppgaver.map((gruppe, gi) => (
+              {grupperteOppgaver.map((gruppe, gi) => {
+                const overrideFgId = gruppeFaggruppeMap.get(gruppe.key);
+                const overrideFg = overrideFgId
+                  ? (faggrupper as Faggruppe[])?.find((f) => f.id === overrideFgId) ?? null
+                  : null;
+                const visFg = gruppe.faggruppe ?? overrideFg;
+
+                return (
                 <div key={gi} className="mb-4">
                   {/* Gruppehode */}
                   <div className="flex items-center gap-2 mb-1.5 pb-1 border-b">
-                    {gruppe.faggruppe ? (
+                    {visFg ? (
                       <>
                         <span
                           className="w-2.5 h-2.5 rounded-full"
-                          style={{ backgroundColor: gruppe.faggruppe.color ?? "#6b7280" }}
+                          style={{ backgroundColor: visFg.color ?? "#6b7280" }}
                         />
-                        <span className="text-xs font-medium text-gray-700">{gruppe.faggruppe.name}</span>
+                        <span className="text-xs font-medium text-gray-700">{visFg.name}</span>
                       </>
                     ) : (
                       <span className="text-xs font-medium text-gray-400">{t("kontrollplan.importIkkeTilordnet")}</span>
                     )}
                     <span className="text-xs text-gray-400">({gruppe.oppgaver.length})</span>
+
+                    {/* Faggruppe-velger for grupper uten faggruppe */}
+                    {!gruppe.faggruppe && (
+                      <select
+                        value={overrideFgId ?? ""}
+                        onChange={(e) => {
+                          setGruppeFaggruppeMap((prev) => {
+                            const next = new Map(prev);
+                            if (e.target.value) next.set(gruppe.key, e.target.value);
+                            else next.delete(gruppe.key);
+                            return next;
+                          });
+                        }}
+                        className="text-[10px] border rounded px-1.5 py-0.5 ml-1"
+                      >
+                        <option value="">{t("kontrollplan.importVelgFaggruppe")}</option>
+                        {faggrupper?.map((fg: { id: string; name: string }) => (
+                          <option key={fg.id} value={fg.id}>{fg.name}</option>
+                        ))}
+                      </select>
+                    )}
+
                     {/* Bruk for alle */}
                     {gruppe.oppgaver.length > 1 && oppgaveMalMap.has(gruppe.oppgaver[0]!.uid) && (
                       <button
@@ -767,7 +836,8 @@ export function ImportFremdriftsplanDialog({
                     })}
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
 

@@ -1307,6 +1307,12 @@
   "kontrollplan.importTilbake": "Tilbake",
   "kontrollplan.importFrister": "Frister uke {{fra}}–{{til}}",
   "kontrollplan.importEkskludert": "{{antall}} aktiviteter uten mal — ekskluderes",
+  "kontrollplan.importSteg2Beskrivelse": "Fremdriftsplanen inneholder ressurser (firmaer/personer). Koble hver ressurs til en faggruppe i SiteDoc, slik at kontrollpunktene får riktig ansvarlig.",
+  "kontrollplan.importIngenRessurser": "Ingen ressurser funnet i filen. Velg en standard-faggruppe for alle aktiviteter, eller tilordne faggruppe per gruppe i neste steg.",
+  "kontrollplan.importStandardFaggruppe": "Standard faggruppe",
+  "kontrollplan.importStandardFaggruppeHjelp": "Brukes for alle aktiviteter som ikke har en ressurs",
+  "kontrollplan.importAktiviteterLiten": "aktiviteter",
+  "kontrollplan.importVelgFaggruppe": "Velg faggruppe...",
   "kontrollplan.prosjektmaler": "Prosjektmaler",
   "kontrollplan.ingenMaler": "Ingen maler funnet",
 
