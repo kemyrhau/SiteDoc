@@ -1307,11 +1307,10 @@ Kontrollplan-tabeller ligger i `packages/db` (IKKE isolert pakke) fordi de treng
 
 ### Avhengigheter
 
-- Steg 1–2: ✅ Ferdig implementert og deployet
-- Steg 3–4: Kan bygges nå — ingen blokkere (neste steg)
-- Steg 5: Bygger på steg 4 (liste) + krever områder
-- Steg 6: Bygger på steg 4 (punkter med frister og avhengigheter)
-- Steg 7: Uavhengig — kan bygges parallelt med steg 4–6
+- Steg 1–4: ✅ Ferdig implementert og deployet (april 2026)
+- Steg 5: ✅ Matrisevisning implementert
+- Steg 6: Delvis — skyv område implementert, kaskade-flytt gjenstår
+- Steg 7: Polygon-tegneverktøy — uavhengig, kan bygges når som helst
 - Steg 8–12: Kan bygges etter steg 4
 - Steg 13: Krever AI-integrasjon (REST API-lag)
 
@@ -1352,7 +1351,23 @@ På sikt kan biblioteket utvides med maler fra andre kilder:
 - **Kontrollplan design:** ✅ Fullstendig spesifikasjon med lovkrav, datamodell, bulk-ops, sporbarhet, sluttrapport
 - **Område-modell:** ✅ Implementert — `omrader`-tabell, API CRUD, velger-komponenter (web + mobil)
 - **Område-/rom-velger i sjekklister:** ✅ zone_property → nedtrekksmeny, room_property → filtrert nedtrekksmeny
-- **Kontrollplan-siden:** Ikke bygget ennå — neste steg (steg 3)
-- **Modul-registrering:** Ikke lagt til i `PROSJEKT_MODULER` ennå
-- **Polygon på tegning:** Ikke bygget ennå (steg 5)
+- **Modul-registrering:** ✅ `slug: "kontrollplan"` i PROSJEKT_MODULER
+- **DB-tabeller:** ✅ Kontrollplan, Milepel, KontrollplanPunkt, KontrollplanHistorikk + kontrollomrade på ReportTemplate
+- **tRPC-router:** ✅ 11 prosedyrer (CRUD, bulk-opprett, skyv område, statusoverganger)
+- **Kontrollplan-siden:** ✅ Matrisevisning + listevisning med toggle
+  - Matrisevisning: områder × maler, gruppert etter milepæl med fremdriftsprosent
+  - Listevisning: sorterbare kolonner med inline filter (checkboxer i header)
+  - Mal-velger: trestruktur Standard → Kapittel → Mal med avhuking «Vis kapitler»
+  - UkeVelger: kalender med ukenummer og datoer
+  - Opprett punkt: flervalg områder, inline område/milepæl-opprettelse, editerbare frister
+  - Rediger punkt: status, frist (UkeVelger), avhengighetsvelger, skyv område +/- N uker
+  - Milepæl: inline redigering av overskrift
+  - Modul-kort: viser byggeplass-status etter aktivering
+- **Polygon på tegning:** Ikke bygget ennå (steg 7)
+- **Fristflytting nivå 3 (kaskade):** Ikke bygget ennå (steg 6)
+- **Sluttrapport PDF:** Ikke bygget ennå (steg 11)
 - **Målgruppe:** Industribygg, boligblokker, infrastruktur (tiltaksklasse 2/3)
+
+## Flervalg-filter (delt komponent)
+
+FilterDropdown i `packages/ui/src/table.tsx` er oppgradert til flervalg med checkboxer (april 2026). Påvirker sjekklister, oppgaver og kontrollplan. Frist-kolonnen har filter: «Har frist», «Ingen frist», «Forfalt».

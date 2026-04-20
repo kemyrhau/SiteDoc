@@ -415,4 +415,4 @@ Hver side i SiteDoc skal ha en hjelpetekst tilgjengelig via hjelp-ikonet (?) øv
 | PSI | /oppsett/produksjon/psi | ❌ | Legg til |
 | AI-søk | /oppsett/ai-sok | ❌ | Legg til |
 | Admin/Firmaer | /admin/firmaer | ❌ | Legg til |
-| Kontrollplan | /oppsett/produksjon/kontrollplaner | — | 404 — ikke bygget ennå |
+| Kontrollplan | /dashbord/[prosjektId]/kontrollplan | ✅ | OK — matrisevisning + listevisning, aktiveres via modul |
