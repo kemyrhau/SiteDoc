@@ -58,8 +58,7 @@ export function genererSluttrapportHtml(data: SluttrapportData): string {
   const pagar = data.punkter.filter((p) => p.status === "pagar").length;
   const utfort = data.punkter.filter((p) => p.status === "utfort").length;
   const planlagt = data.punkter.filter((p) => p.status === "planlagt").length;
-  const avvikTotalt = data.punkter.reduce((s, p) => s + p.avvikKommentarer.length, 0);
-  const aapneAvvik = data.punkter.filter((p) => p.status !== "godkjent" && p.avvikKommentarer.length > 0).length;
+  const returnert = data.punkter.filter((p) => p.avvikKommentarer.length > 0).length;
 
   const erFerdig = godkjent === total && total > 0;
 
@@ -128,8 +127,7 @@ export function genererSluttrapportHtml(data: SluttrapportData): string {
     ${planlagt > 0 ? `<div><div class="tall">${planlagt}</div><div class="label">Planlagt</div></div>` : ""}
     ${pagar > 0 ? `<div><div class="tall">${pagar}</div><div class="label">Pågår</div></div>` : ""}
     ${utfort > 0 ? `<div><div class="tall">${utfort}</div><div class="label">Utført</div></div>` : ""}
-    <div><div class="tall">${avvikTotalt}</div><div class="label">Avvik totalt</div></div>
-    <div><div class="tall">${aapneAvvik}</div><div class="label">Åpne avvik</div></div>
+    ${returnert > 0 ? `<div><div class="tall">${returnert}</div><div class="label">Returnert</div></div>` : ""}
   </div>
 
   <h2>2. Kontrollerte områder</h2>
@@ -155,8 +153,8 @@ export function genererSluttrapportHtml(data: SluttrapportData): string {
     </tbody>
   </table>
 
-  ${avvikTotalt > 0 ? `
-  <h2>3. Avvik og lukking</h2>
+  ${returnert > 0 ? `
+  <h2>3. Returnerte sjekklister</h2>
   ${[...omrader.entries()]
     .filter(([_, pp]) => pp.some((p) => p.avvikKommentarer.length > 0))
     .map(([omr, pp]) => `
@@ -164,14 +162,14 @@ export function genererSluttrapportHtml(data: SluttrapportData): string {
     ${pp.filter((p) => p.avvikKommentarer.length > 0).map((p) => `
     <div style="margin: 4px 0 4px 8px; font-size: 10px;">
       <strong>${esc(p.malNavn)}</strong> — ${p.avvikKommentarer.map((k) => esc(k)).join("; ")}
-      ${p.status === "godkjent" ? '<span class="badge badge-godkjent">Lukket</span>' : '<span class="badge badge-pagar">Åpen</span>'}
+      ${p.status === "godkjent" ? '<span class="badge badge-godkjent">Godkjent</span>' : '<span class="badge badge-pagar">Ubehandlet</span>'}
     </div>`).join("")}`).join("")}
   ` : ""}
 
-  <h2>${avvikTotalt > 0 ? "4" : "3"}. Kontrollerklæring</h2>
+  <h2>${returnert > 0 ? "4" : "3"}. Kontrollerklæring</h2>
   <p>Kontrollområde <strong>${esc(omradeNavn)}</strong> ${erFerdig ? "er gjennomført" : "er under gjennomføring"} iht. SAK10 §14-7.</p>
   <p>${godkjent} av ${total} kontrollpunkter er godkjent.${total - godkjent > 0 ? ` ${total - godkjent} gjenstår.` : ""}</p>
-  ${avvikTotalt > 0 ? `<p>Totalt ${avvikTotalt} avvik er registrert. ${aapneAvvik === 0 ? "Alle avvik er dokumentert og lukket." : `${aapneAvvik} avvik er fortsatt åpne.`}</p>` : ""}
+  ${returnert > 0 ? `<p>${returnert} sjekkliste${returnert > 1 ? "r" : ""} ble returnert under gjennomføringen.${returnert === data.punkter.filter((p) => p.status === "godkjent" && p.avvikKommentarer.length > 0).length ? " Alle er nå godkjent." : ""}</p>` : ""}
 
   <div class="signatur">
     <div class="signatur-felt">Ansvarlig kontrollerende<br><br>Dato: ____________</div>
