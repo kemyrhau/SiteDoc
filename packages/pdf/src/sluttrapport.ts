@@ -2,7 +2,6 @@
  * Sluttrapport PDF — kontrollplan per kontrollområde (SAK10 §14-7)
  */
 
-import { hentCss } from "./css";
 import { esc } from "./hjelpere";
 
 export interface SluttrapportPunkt {
@@ -40,6 +39,15 @@ const STATUS_TEKST: Record<string, string> = {
   godkjent: "Godkjent",
 };
 
+function formaterDato(iso: string): string {
+  try {
+    const d = new Date(iso);
+    return d.toLocaleDateString("nb-NO", { day: "2-digit", month: "2-digit", year: "numeric" });
+  } catch {
+    return iso;
+  }
+}
+
 export function genererSluttrapportHtml(data: SluttrapportData): string {
   const omradeNavn = data.kontrollomrade
     ? KONTROLLOMRADE_NAVN[data.kontrollomrade] ?? data.kontrollomrade
@@ -47,8 +55,13 @@ export function genererSluttrapportHtml(data: SluttrapportData): string {
 
   const total = data.punkter.length;
   const godkjent = data.punkter.filter((p) => p.status === "godkjent").length;
+  const pagar = data.punkter.filter((p) => p.status === "pagar").length;
+  const utfort = data.punkter.filter((p) => p.status === "utfort").length;
+  const planlagt = data.punkter.filter((p) => p.status === "planlagt").length;
   const avvikTotalt = data.punkter.reduce((s, p) => s + p.avvikKommentarer.length, 0);
   const aapneAvvik = data.punkter.filter((p) => p.status !== "godkjent" && p.avvikKommentarer.length > 0).length;
+
+  const erFerdig = godkjent === total && total > 0;
 
   // Grupper etter område
   const omrader = new Map<string, SluttrapportPunkt[]>();
@@ -62,9 +75,10 @@ export function genererSluttrapportHtml(data: SluttrapportData): string {
 <head>
   <meta charset="UTF-8">
   <title>Sluttrapport — ${esc(omradeNavn)}</title>
-  ${hentCss({})}
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 11px; color: #1f2937; margin: 0; padding: 20px; }
+    @page { margin: 12mm; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 11px; color: #1f2937; padding: 20px; }
     h1 { font-size: 18px; margin: 0 0 4px; }
     h2 { font-size: 14px; margin: 24px 0 8px; border-bottom: 1px solid #d1d5db; padding-bottom: 4px; }
     h3 { font-size: 12px; margin: 16px 0 4px; color: #4b5563; }
@@ -84,6 +98,8 @@ export function genererSluttrapportHtml(data: SluttrapportData): string {
     .flex { display: flex; gap: 24px; }
     .signatur { margin-top: 40px; display: flex; gap: 40px; }
     .signatur-felt { flex: 1; border-top: 1px solid #1f2937; padding-top: 4px; font-size: 10px; color: #6b7280; }
+    .punkt-liste { margin: 8px 0 0; font-size: 10px; }
+    .punkt-liste div { padding: 3px 0; border-bottom: 1px solid #f3f4f6; display: flex; justify-content: space-between; }
     @media print { body { padding: 0; } }
   </style>
 </head>
@@ -97,10 +113,21 @@ export function genererSluttrapportHtml(data: SluttrapportData): string {
     <span>Dato: ${esc(data.dato)}</span>
   </div>
 
+  <div class="punkt-liste">
+    ${data.punkter.map((p) => `
+    <div>
+      <span>${esc(p.omradeNavn)} — ${esc(p.malNavn)}</span>
+      <span class="badge badge-${p.status}">${STATUS_TEKST[p.status] ?? p.status}</span>
+    </div>`).join("")}
+  </div>
+
   <h2>1. Oppsummering</h2>
   <div class="oppsummering flex">
-    <div><div class="tall">${total}</div><div class="label">Kontrollert</div></div>
+    <div><div class="tall">${total}</div><div class="label">Totalt</div></div>
     <div><div class="tall">${godkjent}</div><div class="label">Godkjent</div></div>
+    ${planlagt > 0 ? `<div><div class="tall">${planlagt}</div><div class="label">Planlagt</div></div>` : ""}
+    ${pagar > 0 ? `<div><div class="tall">${pagar}</div><div class="label">Pågår</div></div>` : ""}
+    ${utfort > 0 ? `<div><div class="tall">${utfort}</div><div class="label">Utført</div></div>` : ""}
     <div><div class="tall">${avvikTotalt}</div><div class="label">Avvik totalt</div></div>
     <div><div class="tall">${aapneAvvik}</div><div class="label">Åpne avvik</div></div>
   </div>
@@ -122,7 +149,7 @@ export function genererSluttrapportHtml(data: SluttrapportData): string {
         <td>${esc(p.omradeNavn)}</td>
         <td>${esc(p.malNavn)}</td>
         <td><span class="badge badge-${p.status}">${STATUS_TEKST[p.status] ?? p.status}</span></td>
-        <td>${p.godkjentDato ? esc(p.godkjentDato) : "—"}</td>
+        <td>${p.godkjentDato ? formaterDato(p.godkjentDato) : "—"}</td>
         <td>${esc(p.faggruppe)}</td>
       </tr>`).join("")}
     </tbody>
@@ -142,8 +169,8 @@ export function genererSluttrapportHtml(data: SluttrapportData): string {
   ` : ""}
 
   <h2>${avvikTotalt > 0 ? "4" : "3"}. Kontrollerklæring</h2>
-  <p>Kontrollområde <strong>${esc(omradeNavn)}</strong> er gjennomført iht. SAK10 §14-7.</p>
-  <p>${godkjent === total ? "Alle kontrollpunkter er godkjent." : `${godkjent} av ${total} kontrollpunkter er godkjent. ${total - godkjent} gjenstår.`}</p>
+  <p>Kontrollområde <strong>${esc(omradeNavn)}</strong> ${erFerdig ? "er gjennomført" : "er under gjennomføring"} iht. SAK10 §14-7.</p>
+  <p>${godkjent} av ${total} kontrollpunkter er godkjent.${total - godkjent > 0 ? ` ${total - godkjent} gjenstår.` : ""}</p>
   ${avvikTotalt > 0 ? `<p>Totalt ${avvikTotalt} avvik er registrert. ${aapneAvvik === 0 ? "Alle avvik er dokumentert og lukket." : `${aapneAvvik} avvik er fortsatt åpne.`}</p>` : ""}
 
   <div class="signatur">
