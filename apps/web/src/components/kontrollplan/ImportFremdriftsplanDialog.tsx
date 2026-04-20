@@ -453,7 +453,7 @@ export function ImportFremdriftsplanDialog({
         </button>
 
         {erAapen && (
-          <div className="absolute z-50 mt-1 w-72 max-h-64 overflow-y-auto bg-white border rounded-lg shadow-lg">
+          <div className="absolute right-0 z-50 mt-1 w-80 max-h-72 overflow-y-auto bg-white border rounded-lg shadow-lg">
             <div className="sticky top-0 bg-white p-2 border-b">
               <input
                 type="text"
@@ -465,34 +465,37 @@ export function ImportFremdriftsplanDialog({
               />
             </div>
             <div className="p-1">
-              {/* Standarder → Kapitler → Maler */}
-              {malTre.standarder.map((std) => (
-                <div key={std.kode} className="mb-1">
-                  <div className="text-[10px] font-semibold text-gray-400 uppercase px-2 py-0.5">
-                    {std.kode} — {std.navn}
-                  </div>
-                  {std.kapitler.map((kap) => (
-                    <div key={kap.kode}>
-                      <div className="text-[10px] text-gray-400 px-2">{kap.kode} {kap.navn}</div>
-                      {kap.maler.map((mal) => (
-                        <button
-                          key={mal.id}
-                          onClick={() => {
-                            setOppgaveMalMap((prev) => new Map(prev).set(taskUid, mal.id));
-                            setAapenMalDropdown(null);
-                            setMalSok("");
-                          }}
-                          className={`w-full text-left text-xs px-3 py-1 hover:bg-blue-50 rounded ${
-                            valgtId === mal.id ? "bg-blue-50 text-sitedoc-primary" : "text-gray-700"
-                          }`}
-                        >
-                          {mal.prefix ? `${mal.prefix} — ` : ""}{mal.name}
-                        </button>
-                      ))}
+              {/* Standarder → maler (flat, sortert etter kapittelkode) */}
+              {malTre.standarder.map((std) => {
+                // Flat liste av alle maler under standarden, sortert etter kapittelkode
+                const flatMaler = std.kapitler.flatMap((kap) =>
+                  kap.maler.map((mal) => ({ ...mal, kapittelKode: kap.kode }))
+                ).sort((a, b) => a.kapittelKode.localeCompare(b.kapittelKode));
+
+                if (flatMaler.length === 0) return null;
+                return (
+                  <div key={std.kode} className="mb-1">
+                    <div className="text-[10px] font-semibold text-gray-400 uppercase px-2 py-0.5">
+                      {std.kode} — {std.navn}
                     </div>
-                  ))}
-                </div>
-              ))}
+                    {flatMaler.map((mal) => (
+                      <button
+                        key={mal.id}
+                        onClick={() => {
+                          setOppgaveMalMap((prev) => new Map(prev).set(taskUid, mal.id));
+                          setAapenMalDropdown(null);
+                          setMalSok("");
+                        }}
+                        className={`w-full text-left text-xs px-3 py-1 hover:bg-blue-50 rounded ${
+                          valgtId === mal.id ? "bg-blue-50 text-sitedoc-primary" : "text-gray-700"
+                        }`}
+                      >
+                        {mal.prefix ? `${mal.prefix} — ` : ""}{mal.name}
+                      </button>
+                    ))}
+                  </div>
+                );
+              })}
               {/* Prosjektmaler */}
               {malTre.prosjektmaler.length > 0 && (
                 <div className="mb-1">
@@ -544,7 +547,7 @@ export function ImportFremdriftsplanDialog({
 
   return (
     <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[85vh] flex flex-col">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[85vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3 border-b">
           <div className="flex items-center gap-3">
@@ -870,19 +873,45 @@ export function ImportFremdriftsplanDialog({
                 )}
               </div>
 
-              {/* Liste */}
+              {/* Gruppert liste: mal × faggruppe */}
               <div className="border rounded-lg max-h-[40vh] overflow-y-auto">
-                {importPunkter.filter((p) => p.faggruppeId).map((p) => (
-                  <div key={p.taskUid} className="flex items-center gap-2 py-1.5 px-3 text-xs border-b last:border-b-0">
-                    <span className="flex-1 truncate text-gray-700">{p.name}</span>
-                    <span className="text-gray-400 truncate max-w-[150px]">{hentMalNavn(p.malId)}</span>
-                    {p.frist && (
-                      <span className="text-gray-400 whitespace-nowrap">
-                        uke {p.frist.uke}/{p.frist.aar}
-                      </span>
-                    )}
-                  </div>
-                ))}
+                {(() => {
+                  // Grupper etter mal+faggruppe
+                  const grupper = new Map<string, { malNavn: string; fgNavn: string; aktiviteter: string[]; frister: { uke: number; aar: number }[] }>();
+                  for (const p of importPunkter.filter((p) => p.faggruppeId)) {
+                    const key = `${p.malId}__${p.faggruppeId}`;
+                    if (!grupper.has(key)) {
+                      const fg = (faggrupper as Faggruppe[])?.find((f) => f.id === p.faggruppeId);
+                      grupper.set(key, { malNavn: hentMalNavn(p.malId), fgNavn: fg?.name ?? "", aktiviteter: [], frister: [] });
+                    }
+                    const g = grupper.get(key)!;
+                    g.aktiviteter.push(p.name);
+                    if (p.frist) g.frister.push(p.frist);
+                  }
+                  return [...grupper.values()].map((g, i) => {
+                    const minUke = g.frister.length > 0 ? Math.min(...g.frister.map((f) => f.uke)) : null;
+                    const maxUke = g.frister.length > 0 ? Math.max(...g.frister.map((f) => f.uke)) : null;
+                    return (
+                      <div key={i} className="py-2 px-3 border-b last:border-b-0">
+                        <div className="flex items-center gap-2 text-xs">
+                          <span className="font-medium text-gray-900 flex-1">{g.malNavn}</span>
+                          <span className="text-gray-400">{g.fgNavn}</span>
+                          <span className="text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">{g.aktiviteter.length}x</span>
+                          {minUke !== null && (
+                            <span className="text-gray-400 whitespace-nowrap">
+                              uke {minUke === maxUke ? minUke : `${minUke}–${maxUke}`}
+                            </span>
+                          )}
+                        </div>
+                        {g.aktiviteter.length > 1 && (
+                          <div className="text-[10px] text-gray-400 mt-0.5">
+                            {g.aktiviteter.join(", ")}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  });
+                })()}
               </div>
 
               {/* Status */}
