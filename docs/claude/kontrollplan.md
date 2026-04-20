@@ -1307,12 +1307,14 @@ Kontrollplan-tabeller ligger i `packages/db` (IKKE isolert pakke) fordi de treng
 
 ### Avhengigheter
 
-- Steg 1–4: ✅ Ferdig implementert og deployet (april 2026)
-- Steg 5: ✅ Matrisevisning implementert
-- Steg 6: Delvis — skyv område implementert, kaskade-flytt gjenstår
+- Steg 1–6: ✅ Ferdig implementert og deployet (april 2026)
 - Steg 7: Polygon-tegneverktøy — uavhengig, kan bygges når som helst
-- Steg 8–12: Kan bygges etter steg 4
-- Steg 13: Krever AI-integrasjon (REST API-lag)
+- Steg 8: ✅ Kopier mellom områder
+- Steg 9: ✅ Kontrollområde-filter
+- Steg 10: ✅ Historikk-visning
+- Steg 11: ✅ Sluttrapport PDF
+- Steg 12: Varsling — krever push-infrastruktur
+- Steg 13: MS Project import — krever AI-integrasjon (REST API-lag)
 
 ## Fremtidig utvidelse av biblioteket
 
@@ -1353,19 +1355,24 @@ På sikt kan biblioteket utvides med maler fra andre kilder:
 - **Område-/rom-velger i sjekklister:** ✅ zone_property → nedtrekksmeny, room_property → filtrert nedtrekksmeny
 - **Modul-registrering:** ✅ `slug: "kontrollplan"` i PROSJEKT_MODULER
 - **DB-tabeller:** ✅ Kontrollplan, Milepel, KontrollplanPunkt, KontrollplanHistorikk + kontrollomrade på ReportTemplate
-- **tRPC-router:** ✅ 11 prosedyrer (CRUD, bulk-opprett, skyv område, statusoverganger)
+- **tRPC-router:** ✅ 16 prosedyrer (CRUD, bulk-opprett, skyv område/kaskade, kopier, historikk, sluttrapport)
 - **Kontrollplan-siden:** ✅ Matrisevisning + listevisning med toggle
   - Matrisevisning: områder × maler, gruppert etter milepæl med fremdriftsprosent
-  - Listevisning: sorterbare kolonner med inline filter (checkboxer i header)
+  - Listevisning: 7 sorterbare kolonner med inline filter (checkboxer i header)
   - Mal-velger: trestruktur Standard → Kapittel → Mal med avhuking «Vis kapitler»
   - UkeVelger: kalender med ukenummer og datoer
   - Opprett punkt: flervalg områder, inline område/milepæl-opprettelse, editerbare frister
-  - Rediger punkt: status, frist (UkeVelger), avhengighetsvelger, skyv område +/- N uker
+  - Rediger punkt: status, frist (UkeVelger), avhengighetsvelger, bytt mal, skyv område
+  - Kaskade-fristflytting: traverserer avhengighetsgrafen, forhåndsvisning, logger historikk
+  - Kopier mellom områder: kilde→mål med frist-forskyvning
   - Milepæl: inline redigering av overskrift
   - Modul-kort: viser byggeplass-status etter aktivering
+  - Kontrollområde-filter: fukt/brann/konstruksjon/geo/sha
+  - Historikk-visning: ekspanderbar audit trail per punkt
+- **Sluttrapport PDF:** ✅ SAK10 §14-7 — oppsummering, kontrollerte områder, avvik, kontrollerklæring, signatur
 - **Polygon på tegning:** Ikke bygget ennå (steg 7)
-- **Fristflytting nivå 3 (kaskade):** Ikke bygget ennå (steg 6)
-- **Sluttrapport PDF:** Ikke bygget ennå (steg 11)
+- **Varsling:** Ikke bygget ennå (steg 12)
+- **MS Project import:** Ikke bygget ennå (steg 13, krever AI-integrasjon)
 - **Målgruppe:** Industribygg, boligblokker, infrastruktur (tiltaksklasse 2/3)
 
 ## Flervalg-filter (delt komponent)
