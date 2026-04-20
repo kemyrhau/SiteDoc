@@ -299,6 +299,8 @@ Kjøretøy uten registreringsnummer (anleggsmaskiner, gravemaskiner) registreres
 
 ## EU-kontroll — varsling
 
+> **Merk:** Varsling for EU-kontroll, service og sertifisering leveres av det tverrgående varslingssystemet (se `docs/claude/varsling.md`). Maskin-modulen leverer data, varslingssystemet håndterer regler, mottakere og kanaler.
+
 ### Kjøretøygrupper og intervaller
 
 | Gruppe | Kode | Beskrivelse | EU-intervall |

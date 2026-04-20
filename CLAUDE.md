@@ -26,6 +26,7 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 | [docs/claude/infrastruktur-moduler.md](docs/claude/infrastruktur-moduler.md) | Isolert deploy: mappestruktur, turbo-pipeline, PM2, porter, auth-deling |
 | [docs/claude/planlegger.md](docs/claude/planlegger.md) | Fremdriftsplanlegger: ressursplanlegging, kompetanse, bemanning, forslag-motor |
 | [docs/claude/mannskap.md](docs/claude/mannskap.md) | Mannskapsregistrering: §15-liste, HMS-kort, geofence-innsjekk, PSI-kobling, GDPR, 12t auto-utlogging |
+| [docs/claude/varsling.md](docs/claude/varsling.md) | Tverrgående varsling: firmanivå, kontrollplan-frister, EU-kontroll, service, sertifisering, in-app klokke |
 | [docs/claude/ai-integrasjon.md](docs/claude/ai-integrasjon.md) | AI-integrasjon: Copilot plugin, MCP server, innebygd assistent, risikoer, API-lag |
 | [MALBYGGER.md](MALBYGGER.md) | Felles malbygger: dokumenttyper, felttyper, beslutninger, migreringsstrategi |
 

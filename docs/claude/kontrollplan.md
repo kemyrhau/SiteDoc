@@ -1302,7 +1302,7 @@ Kontrollplan-tabeller ligger i `packages/db` (IKKE isolert pakke) fordi de treng
 9. **Kontrollområde på maler** — nytt felt på ReportTemplate, filter i matrise/liste
 10. **Historikk + sporbarhet** — KontrollplanHistorikk, audit trail per punkt
 11. **Sluttrapport PDF** — eksport per kontrollområde, kontrollerklæring (SAK10 §14-7)
-12. **Varsling** — varselUkerFør, push ved frist, eskalering
+12. **Varsling** — tverrgående varslingssystem på firmanivå (se `docs/claude/varsling.md`). Bygges etter maskin/utstyr-modulen
 13. **MS Project import** — parser .mpp/.xml → foreslå kontrollplanpunkter (via AI-integrasjon)
 
 ### Avhengigheter
