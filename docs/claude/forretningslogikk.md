@@ -264,3 +264,5 @@ Se `docs/MIGRERING-FIL-TIL-DATABASE.md` for detaljer.
 
 **Rekkefølge:** Maskin/utstyr → Varsling → Timer → Mannskap → Planlegger.
 Varsling bygges etter maskin/utstyr fordi den trenger EU-kontroll/service-data.
+
+**Viktig:** Hver modul krever en egen planleggingsrunde med brukeren før implementering starter. Dokumentasjonen i `docs/claude/` er utgangspunkt, men design-beslutninger, UI-skjemaer og prioriteringer må drøftes og godkjennes per modul — slik det ble gjort for kontrollplan (skjema-gjennomgang → plan → iterativ utvikling med bruker-feedback).
