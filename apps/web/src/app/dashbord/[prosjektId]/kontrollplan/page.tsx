@@ -6,7 +6,8 @@ import { trpc } from "@/lib/trpc";
 import { Spinner, EmptyState } from "@sitedoc/ui";
 import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
 import { useTranslation } from "react-i18next";
-import { Plus, LayoutGrid, List, Copy } from "lucide-react";
+import { Plus, LayoutGrid, List, Copy, FileText } from "lucide-react";
+import { genererSluttrapportHtml } from "@sitedoc/pdf";
 import { HjelpKnapp, HjelpFane } from "@/components/hjelp/HjelpModal";
 import { MatriseVisning } from "@/components/kontrollplan/MatriseVisning";
 import { ListeVisning } from "@/components/kontrollplan/ListeVisning";
@@ -121,6 +122,28 @@ export default function KontrollplanSide() {
     oppdaterMilepel.mutate({ milepelId, navn, maalUke, maalAar });
   }, [oppdaterMilepel]);
 
+  const handleSluttrapport = useCallback(async () => {
+    if (!kontrollplan) return;
+    try {
+      const data = await utils.client.kontrollplan.hentSluttrapportData.query({
+        kontrollplanId: kontrollplan.id,
+        kontrollomrade: kontrollomradeFilter || null,
+      });
+      const html = genererSluttrapportHtml({
+        ...data,
+        dato: new Date().toLocaleDateString("nb-NO"),
+      });
+      const w = window.open("", "_blank");
+      if (w) {
+        w.document.write(html);
+        w.document.close();
+        setTimeout(() => w.print(), 500);
+      }
+    } catch (_e) {
+      // Feil håndteres av tRPC
+    }
+  }, [kontrollplan, kontrollomradeFilter, utils]);
+
   if (!aktivByggeplass) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -177,13 +200,22 @@ export default function KontrollplanSide() {
             </button>
           </div>
           {kontrollplan && kontrollplan.punkter.length > 0 && (
-            <button
-              onClick={() => setVisKopierDialog(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 border text-gray-600 text-sm rounded hover:bg-gray-50 transition"
-            >
-              <Copy className="h-4 w-4" />
-              Kopier
-            </button>
+            <>
+              <button
+                onClick={() => setVisKopierDialog(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 border text-gray-600 text-sm rounded hover:bg-gray-50 transition"
+              >
+                <Copy className="h-4 w-4" />
+                Kopier
+              </button>
+              <button
+                onClick={() => handleSluttrapport()}
+                className="flex items-center gap-1.5 px-3 py-1.5 border text-gray-600 text-sm rounded hover:bg-gray-50 transition"
+              >
+                <FileText className="h-4 w-4" />
+                Sluttrapport
+              </button>
+            </>
           )}
           <button
             onClick={() => setVisOpprettDialog(true)}

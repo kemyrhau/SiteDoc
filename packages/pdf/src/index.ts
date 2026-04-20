@@ -69,3 +69,7 @@ export type { TegningScreenshotData } from "./tegning-screenshot";
 // Komplett HTML-generatorer
 export { byggSjekklisteHtml } from "./sjekkliste";
 export { byggOppgaveHtml } from "./oppgave";
+
+// Sluttrapport (kontrollplan SAK10 §14-7)
+export { genererSluttrapportHtml } from "./sluttrapport";
+export type { SluttrapportData, SluttrapportPunkt } from "./sluttrapport";

@@ -505,6 +505,56 @@ export const kontrollplanRouter = router({
       });
     }),
 
+  // Hent sluttrapport-data (SAK10 §14-7)
+  hentSluttrapportData: protectedProcedure
+    .input(z.object({
+      kontrollplanId: z.string(),
+      kontrollomrade: z.string().nullable(),
+    }))
+    .query(async ({ ctx, input }) => {
+      const kontrollplan = await ctx.prisma.kontrollplan.findUniqueOrThrow({
+        where: { id: input.kontrollplanId },
+        include: {
+          project: { select: { name: true, projectNumber: true } },
+          byggeplass: { select: { name: true } },
+          punkter: {
+            include: {
+              sjekklisteMal: { select: { name: true, kontrollomrade: true } },
+              faggruppe: { select: { name: true } },
+              omrade: { select: { navn: true } },
+              historikk: {
+                where: { handling: { in: ["avvist", "godkjent"] } },
+                select: { handling: true, kommentar: true, tidspunkt: true },
+                orderBy: { tidspunkt: "desc" },
+              },
+            },
+            orderBy: { opprettet: "asc" },
+          },
+        },
+      });
+      await verifiserProsjektmedlem(ctx.userId, kontrollplan.projectId);
+
+      const punkter = input.kontrollomrade
+        ? kontrollplan.punkter.filter((p) => p.sjekklisteMal.kontrollomrade === input.kontrollomrade)
+        : kontrollplan.punkter;
+
+      return {
+        kontrollplanNavn: kontrollplan.navn,
+        byggeplassNavn: kontrollplan.byggeplass.name,
+        kontrollomrade: input.kontrollomrade,
+        prosjektNavn: kontrollplan.project.name,
+        prosjektNummer: kontrollplan.project.projectNumber,
+        punkter: punkter.map((p) => ({
+          omradeNavn: p.omrade?.navn ?? "—",
+          malNavn: p.sjekklisteMal.name,
+          status: p.status,
+          faggruppe: p.faggruppe.name,
+          godkjentDato: p.historikk.find((h) => h.handling === "godkjent")?.tidspunkt?.toISOString() ?? null,
+          avvikKommentarer: p.historikk.filter((h) => h.handling === "avvist" && h.kommentar).map((h) => h.kommentar!),
+        })),
+      };
+    }),
+
   // Hent kontrollplan-status for alle byggeplasser (modul-kort)
   hentStatusForProsjekt: protectedProcedure
     .input(z.object({ projectId: z.string().uuid() }))
