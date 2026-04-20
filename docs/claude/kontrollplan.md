@@ -1135,27 +1135,38 @@ Skyv et helt område → systemet sjekker om punkter i *andre* områder avhenger
 
 **Milepæl-varsling:** Hvis en fristflytting gjør at punkter havner etter milepælens mål-uke, vises advarsel: "⚠ 3 punkter vil ha frist etter milepælen «Grunnarbeid ferdig» (uke 22)".
 
-### MS Project som datakilde (fremtidig)
+### MS Project XML-import (implementert)
 
-MS Project (.mpp/.xml) inneholder WBS, Gantt-frister, ressurser og avhengigheter — nøyaktig det kontrollplanen trenger.
+MS Project (.xml) inneholder WBS, Gantt-frister, ressurser og avhengigheter. Importert via 3-stegs veiviser:
 
-**Via AI-integrasjon (MCP/Copilot/innebygd assistent):**
-```
-Bruker: "Importer fremdriftsplan" → laster opp .mpp/.xml
-Agent:  Parser WBS-struktur → foreslår kontrollplanpunkter:
-        - Aktivitet "Membran 3. etg" → mal: Membran, område: Bad 301-312
-        - Gantt-frist → uke 18/2026
-        - Ressurs "VVS-Rør AS" → faggruppe
-        - FS-avhengighet → avhengerAv
-Bruker: [Godkjenn] / [Juster] / [Avbryt]
-```
+**Steg 1: Last opp og velg aktiviteter**
+- Dra-og-slipp XML-fil → parser klient-side med `fast-xml-parser`
+- Bygger oppgave-tre fra `OutlineLevel`-hierarki
+- Sammendragsoppgaver som utvid/kollaps-grupper med avhuking
+- Viser datoer og ressursnavn per aktivitet
 
-**Via manuell import (enklere):**
-- Last opp MS Project XML → parser → foreslå punkter med forhåndsvisning
-- Bruker mapper kolonner: aktivitet → mal, ressurs → faggruppe
-- Importerer frister og avhengigheter automatisk
+**Steg 2: Koble ressurser til faggrupper**
+- Unike ressurser fra valgte oppgaver (via Assignments)
+- Dropdown til prosjektets faggrupper
+- Auto-match: substring-matching mellom ressursnavn og faggruppenavn
 
-Implementeres når AI-integrasjonen (REST API-lag) er på plass — samme endepunkter brukes.
+**Steg 3: Tilordne sjekkliste-maler**
+- Aktiviteter gruppert etter faggruppe
+- Mal-velger med trestruktur (Standard → Kapittel → Mal + Prosjektmaler)
+- «Bruk for alle i gruppen» for hurtig-tilordning
+- Frister auto-konvertert fra Finish-dato → uke/år
+
+**Opprettelse:**
+- Grupperer etter (sjekklisteMalId, faggruppeId) → kaller `opprettPunkter` per gruppe
+- Punkter opprettes **uten område** — bruker tilordner i kontrollplan-UI etterpå
+- Avhengigheter importeres **ikke** — for rigide til å overføre direkte
+
+**Filer:**
+- `apps/web/src/lib/ms-project-parser.ts` — parser, trebygging, datokonvertering
+- `apps/web/src/components/kontrollplan/ImportFremdriftsplanDialog.tsx` — veiviseren
+
+**Fremtidig utvidelse (AI-integrasjon):**
+Når REST API-laget (`/api/v1/ai/`) er på plass, kan AI-assistenten kalle samme `opprettPunkter`-prosedyre med automatisk mal-gjenkjenning basert på aktivitetsnavn og NS 3420-standarder.
 
 ### Kontrollområde
 
@@ -1303,7 +1314,7 @@ Kontrollplan-tabeller ligger i `packages/db` (IKKE isolert pakke) fordi de treng
 10. **Historikk + sporbarhet** — KontrollplanHistorikk, audit trail per punkt
 11. **Sluttrapport PDF** — eksport per kontrollområde, kontrollerklæring (SAK10 §14-7)
 12. **Varsling** — tverrgående varslingssystem på firmanivå (se `docs/claude/varsling.md`). Bygges etter maskin/utstyr-modulen
-13. **MS Project import** — parser .mpp/.xml → foreslå kontrollplanpunkter (via AI-integrasjon)
+13. **MS Project XML-import** — ✅ 3-stegs veiviser: velg aktiviteter → koble ressurser → tilordne maler. Klient-side XML-parsing med fast-xml-parser
 
 ### Avhengigheter
 
@@ -1314,7 +1325,7 @@ Kontrollplan-tabeller ligger i `packages/db` (IKKE isolert pakke) fordi de treng
 - Steg 10: ✅ Historikk-visning
 - Steg 11: ✅ Sluttrapport PDF
 - Steg 12: Varsling — krever push-infrastruktur
-- Steg 13: MS Project import — krever AI-integrasjon (REST API-lag)
+- Steg 13: ✅ MS Project XML-import (manuell veiviser)
 
 ## Fremtidig utvidelse av biblioteket
 
@@ -1372,7 +1383,7 @@ På sikt kan biblioteket utvides med maler fra andre kilder:
 - **Sluttrapport PDF:** ✅ SAK10 §14-7 — oppsummering, kontrollerte områder, avvik, kontrollerklæring, signatur
 - **Polygon på tegning:** ✅ OmradeOverlay (visning) + OmradeTegneverktoy (klikk-for-klikk tegning) i tegningsviseren
 - **Varsling:** Ikke bygget ennå (steg 12, krever push-infrastruktur)
-- **MS Project import:** Ikke bygget ennå (steg 13, krever AI-integrasjon)
+- **MS Project import:** ✅ 3-stegs veiviser (XML-parsing, ressurs-mapping, mal-tilordning)
 - **Målgruppe:** Industribygg, boligblokker, infrastruktur (tiltaksklasse 2/3)
 
 ## Flervalg-filter (delt komponent)
