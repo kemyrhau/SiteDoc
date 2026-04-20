@@ -575,15 +575,71 @@ Mobil leser data via API — ingen lokal maskin-database.
 11. **Telematikk** — ISO 15143-3 / AEMP 2.0 for anleggsmaskiner
 12. **Kobling til mannskap** — fører + maskin innsjekk
 
-## Ikke avklart
+## Åpne spørsmål — krever planleggingsrunde
+
+### Småutstyr (mangler fullstendig design)
+
+Kjøretøy og anleggsmaskiner er godt dekket. Småutstyr har kun en skisse. Følgende må avklares med brukeren:
+
+**Utstyrstyper og omfang:**
+- Fullstendig liste over småutstyr firmaet vil registrere
+- Grense: hva er "for smått" til å registrere? Skrutrekker vs. laser
+- Forbruksvarer vs. inventar — registreres forbruksvarer (bor, sagblad)?
+
+**Sporingsnivå:**
+- Per serienummer (hver enkelt enhet) eller per type (3 stk boremaskiner)?
+- Beholdning: antall tilgjengelig vs. utlånt vs. på service vs. destruert
+- Lokasjon: på lager, på prosjekt, hos person, på verksted?
+
+**Kalibrering:**
+- Hvilke utstyr krever kalibrering? (laser, nivelleringsinstrument, GPS)
+- Hvem kalibrerer? Internt eller eksternt sertifiseringsorgan?
+- Dokumentasjon: sertifikat-fil, kalibreringsnummer, gyldighetsperiode
+- Varsling: intervall per utstyrstype, hvem varsles?
+
+**Sertifisering / lovpålagt kontroll:**
+- Løfteutstyr (kraner, taljer, stropper) — årlig kontroll (maskinforskriften §13-2)
+- Stiger og trapper — visuell kontroll + merking
+- Sveiseutstyr — sertifisering av operatør, ikke bare utstyr
+- Fallsikring (seler, line) — kontroll og utrangeringsfrister
+- Trykktanker (kompressor) — trykkontroll ihht. regelverk
+- Hvilke av disse er relevante for brukeren?
+
+**Kontroll før bruk (daglig sjekk):**
+- Lovpålagt for noe utstyr (løfteutstyr, stiger, stillaser)
+- Digital sjekkliste? Eller bare "sjekket av" med initialer?
+- Blokkere bruk hvis kontroll mangler?
+
+**Livsløp og utrangering:**
+- Status-verdier: bestilt → mottatt → i bruk → på service → solgt → destruert → tapt
+- Utrangeringsgrunn: slitasje, skadet, utdatert, solgt, tapt
+- Beholde historikk etter utrangering (for revisjon/forsikring)?
+
+**Utlån og tildeling:**
+- Utlån til person vs. prosjekt vs. byggeplass
+- Retur-prosess: varsling ved forsinket retur?
+- Intern utleie mellom prosjekter — sporing og fakturering?
+- Reservasjon: kan noen reservere utstyr for en periode?
+
+**Kobling til andre moduler:**
+- Mannskap-innsjekk: "fører sjekker inn seg + maskin" — gjelder dette også håndverktøy?
+- Timer: maskinbruk som rad i dagsseddel (maskintime per prosjekt)?
+- Økonomi: maskinleie, service-kostnader som FTD-data?
+- Kontrollplan: sjekkliste knyttet til utstyrskontroll?
+
+### Kjøretøy og anleggsmaskiner (mindre åpne)
 
 - Hvilken GPS-leverandør (Webfleet vs Transpoco) — adapter-interface gjør valget utsettbart
 - Telematikk-integrasjon — Komatsu KOMTRAX, CAT Product Link, Volvo ActiveCare direkte eller via ISO 15143-3?
 - Drivstofforbruk-tracking — beregnet fra GPS-distanse + forbruk, eller manuell?
 - Kostnadsrapportering — maskinleie, drivstoff, service som økonomi-data (kobling til FTD)
-- Kobling til timer-modulen — maskinbruk som rad i dagsseddel (sheet_machines.equipmentId)
 - Forsikring — registrere forsikringsinfo og varsel ved forfall?
 - Dekkhotell — sporing av dekksett (sommer/vinter)?
-- Utlån mellom prosjekter — sporing og fakturering av intern maskinleie?
 - QR-kode per utstyr — klistre på maskin/verktøy, scan for å se info/melde skade?
 - Strekkode/RFID — for masseregistrering av småutstyr?
+
+### Tverrgående spørsmål
+
+- **Firmamodul vs. prosjektmodul:** Maskin/utstyr er designet som firmamodul (`apps/maskin/`). Er det riktig? Eller bør det være en prosjektmodul med deling på tvers?
+- **Isolert app:** Plan sier `apps/maskin/` med `packages/db-maskin/`. Er dette fortsatt ønsket, eller kan det ligge i hovedappen?
+- **MVP:** Hva er minimumsversjonen? Registrering + EU-kontroll + vedlikeholdsplan? Eller trenger vi utlån/kalibrering fra start?
