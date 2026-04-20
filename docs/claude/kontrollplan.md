@@ -1308,7 +1308,7 @@ Kontrollplan-tabeller ligger i `packages/db` (IKKE isolert pakke) fordi de treng
 ### Avhengigheter
 
 - Steg 1–6: ✅ Ferdig implementert og deployet (april 2026)
-- Steg 7: Polygon-tegneverktøy — uavhengig, kan bygges når som helst
+- Steg 7: ✅ Polygon-tegneverktøy på tegning
 - Steg 8: ✅ Kopier mellom områder
 - Steg 9: ✅ Kontrollområde-filter
 - Steg 10: ✅ Historikk-visning
@@ -1370,8 +1370,8 @@ På sikt kan biblioteket utvides med maler fra andre kilder:
   - Kontrollområde-filter: fukt/brann/konstruksjon/geo/sha
   - Historikk-visning: ekspanderbar audit trail per punkt
 - **Sluttrapport PDF:** ✅ SAK10 §14-7 — oppsummering, kontrollerte områder, avvik, kontrollerklæring, signatur
-- **Polygon på tegning:** Ikke bygget ennå (steg 7)
-- **Varsling:** Ikke bygget ennå (steg 12)
+- **Polygon på tegning:** ✅ OmradeOverlay (visning) + OmradeTegneverktoy (klikk-for-klikk tegning) i tegningsviseren
+- **Varsling:** Ikke bygget ennå (steg 12, krever push-infrastruktur)
 - **MS Project import:** Ikke bygget ennå (steg 13, krever AI-integrasjon)
 - **Målgruppe:** Industribygg, boligblokker, infrastruktur (tiltaksklasse 2/3)
 
