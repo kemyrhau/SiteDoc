@@ -6,13 +6,14 @@ import { trpc } from "@/lib/trpc";
 import { Spinner, EmptyState } from "@sitedoc/ui";
 import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
 import { useTranslation } from "react-i18next";
-import { Plus, LayoutGrid, List, Copy, FileText } from "lucide-react";
+import { Plus, LayoutGrid, List, Copy, FileText, Upload } from "lucide-react";
 import { genererSluttrapportHtml } from "@sitedoc/pdf";
 import { HjelpKnapp, HjelpFane } from "@/components/hjelp/HjelpModal";
 import { MatriseVisning } from "@/components/kontrollplan/MatriseVisning";
 import { ListeVisning } from "@/components/kontrollplan/ListeVisning";
 import { OpprettPunktDialog } from "@/components/kontrollplan/OpprettPunktDialog";
 import { RedigerPunktDialog } from "@/components/kontrollplan/RedigerPunktDialog";
+import { ImportFremdriftsplanDialog } from "@/components/kontrollplan/ImportFremdriftsplanDialog";
 
 interface PunktType {
   id: string;
@@ -38,6 +39,7 @@ export default function KontrollplanSide() {
   const { aktivByggeplass } = useByggeplass();
   const [matriseVisning, setMatriseVisning] = useState(true);
   const [visOpprettDialog, setVisOpprettDialog] = useState(false);
+  const [visImportDialog, setVisImportDialog] = useState(false);
   const [visKopierDialog, setVisKopierDialog] = useState(false);
   const [valgtPunkt, setValgtPunkt] = useState<PunktType | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("");
@@ -199,6 +201,15 @@ export default function KontrollplanSide() {
               <List className="h-4 w-4" />
             </button>
           </div>
+          {kontrollplan && (
+            <button
+              onClick={() => setVisImportDialog(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 border text-gray-600 text-sm rounded hover:bg-gray-50 transition"
+            >
+              <Upload className="h-4 w-4" />
+              {t("kontrollplan.importFremdriftsplan")}
+            </button>
+          )}
           {kontrollplan && kontrollplan.punkter.length > 0 && (
             <>
               <button
@@ -306,6 +317,17 @@ export default function KontrollplanSide() {
           projectId={params.prosjektId}
           onLukk={() => setValgtPunkt(null)}
           onOppdatert={handleRefresh}
+        />
+      )}
+
+      {/* Importer fremdriftsplan */}
+      {visImportDialog && kontrollplan && (
+        <ImportFremdriftsplanDialog
+          kontrollplanId={kontrollplan.id}
+          projectId={params.prosjektId}
+          byggeplassId={aktivByggeplass.id}
+          onLukk={() => setVisImportDialog(false)}
+          onImportert={handleRefresh}
         />
       )}
 
