@@ -4,6 +4,93 @@
 
 Maskin- og utstyrsregister med vedlikeholdsplan, EU-kontroll-varsling og GPS-sporing for byggeprosjekter. Dekker alt fra registreringspliktige kjøretøy til anleggsmaskiner til småutstyr og verktøy — firmaet bestemmer selv hva de vil registrere.
 
+## Designbeslutninger — låst 2026-04-23
+
+Tre planleggingsrunder gjennomført med brukeren. Alle avklaringer under er bindende — ikke endre uten ny runde.
+
+### Kjernehandlinger (MVP-scope)
+
+1. Registrer utstyret
+2. Meld fra om feil
+3. Meld fra når vedlikehold utføres
+4. Meld fra om neste service
+
+Alt annet (GPS, telematikk, QR, daglig kontroll, timer/økonomi-kobling) er utenfor MVP.
+
+### Arkitektur
+
+- **Firmamodul**: isolert app `apps/maskin/` → `maskin.sitedoc.no`, egen `packages/db-maskin/`
+- **Tre kategorier** i én `equipment`-tabell: `kjoretoy`, `anleggsmaskin`, `smautstyr`. Kategori-feltet styrer hvilke kolonner/UI-felter som er relevante
+- **Sporingsnivå**: per enkeltenhet (én rad per fysisk stk med eget internummer) — også for 3 identiske borhammere
+- **Forbruksvarer registreres ikke** (bor, sagblad, slipeskiver). Grense for inkludering: ≥2 000 kr nypris eller lovpålagt kontroll/kalibrering
+
+### Vegvesen-integrasjon (50/t per IP-ratelimit)
+
+- **Kö-basert arkitektur**: alle Vegvesen-kall går via `vegvesen_ko`-tabell. Worker plukker fra kø med buffer mot 50/t-taket (mål: 48/t)
+- **Tre triggere** med prioritet: nyregistrering (0) > manuell «Oppdater»-knapp (50) > auto-oppdatering (100)
+- **Fase 1**: kun nyregistrering og manuell oppdatering er aktive
+- **Fase 2**: auto-oppdatering av kjøretøy med EU-frist ≤60 dager skrus på
+- **Manuell «Oppdater fra Vegvesen»-knapp er kun for admin** (unngår quota-sløsing)
+- **God margin** i nåværende kundevolum — IP-rotasjon utsettes til volumet krever det
+- Ved 429: worker pauser 15 min
+
+### Status-livssyklus (alle kategorier)
+
+```
+bestilt → mottatt → tilgjengelig → utlaant → paa_service → pensjonert
+                                   ↑           ↓
+                                   └───────────┘
+```
+
+Pensjonert beholdes permanent i DB (revisjon/forsikring/reklamasjon) med `pensjonertGrunn` (solgt, destruert, tapt, stjålet, slitt). Standardlister filtrerer vekk pensjonerte med mulighet for å vise dem.
+
+### Utlån/tildeling
+
+- `equipment_assignments`-rad har **én** FK (person, prosjekt eller byggeplass — ikke alle samtidig)
+- Retur setter `returnertDato` og gjør ny tildeling mulig
+- `forventetRetur` (valgfri): push-varsling til utlåner ved overskridelse
+- Reservering er ikke i MVP
+- GDPR: slettet bruker → `[slettet bruker]` i historiske assignments (ikke hard-delete)
+
+### Feilmelding-flyt
+
+- Mobilapp: utstyr-velger → «Meld feil»-knapp
+- **Ingen fritekst som hovedfelt.** Nedtrekk med 5–7 faste feilkategorier: «Virker ikke / Lyd/rystelse / Skade på kabinett / Lekkasje / Batteri / Annet». Valgfri kommentar og foto er tilleggsfelt etter at hovedstatus er valgt
+- Utstyret får status `paa_service` (eller flagg «åpen feilmelding» som overlay)
+- Push til `ansvarligId` + utstyrsadmin
+- Feil lukkes automatisk ved neste service-rapport (kobling via `feilmeldingId` i `service_records`)
+
+### Kalibrering og sertifisering (Fase 2)
+
+Separate felter med samme varslingsmønster som EU-kontroll (60/30/7 dager før utløp, trafikklys-logikk):
+
+| Type | Gjelder | Utfører |
+|------|---------|---------|
+| Kalibrering | Laser, nivelleringsinstrument, GPS, teodolit | Internt eller eksternt firma |
+| Sertifisering | Løfteutstyr (taljer, stropper, kraner), fallsikring, sveiseutstyr | Eksternt sertifiseringsorgan |
+
+Mottakere: `ansvarligId` + utstyrsadmin-rolle.
+
+### Daglig kontroll før bruk (Fase 2)
+
+- Flagg `krevDagligKontroll: boolean` per utstyrstype
+- Lovpålagt for løfteutstyr, stiger, stillaser, fallsikring (maskinforskriften §13-1/§13-2)
+- Gjenbruker **eksisterende sjekklistemal-infrastruktur** (ikke ny)
+- Felttyper begrenset til: «OK / Ikke OK»-knapper, nedtrekk (3-5 faste svar), sjekkbokser. Fritekst kun som valgfritt tilleggsfelt
+- Ved manglende sjekk på kontroll-kritisk utstyr: blokker utlevering i mobilapp
+
+### Kobling til andre moduler
+
+- **Timer** (senere): `timer_entries.equipmentId` FK-klart i datamodellen, men UI eies av timer-modulen når den bygges
+- **Økonomi (FTD)**: passiv readonly-visning — maskin-kortet viser servicekostnader + manuelle FTD-poster + drivstoff. Maskin-modulen skriver ikke til FTD
+- **Kontrollplan**: ingen direkte kobling i MVP
+- **Mannskap**: geofencing via eksisterende innsjekk (ikke ny infrastruktur)
+
+### QR/RFID (Fase 3)
+
+- QR-kode per utstyr: ja, men ikke MVP. Genereres fra `equipmentId`, printbar etikett, mobilapp-skanning åpner kortet
+- RFID: utsettes til reelt behov oppstår
+
 ## Tre kategorier
 
 ```
@@ -562,84 +649,33 @@ Mobil leser data via API — ingen lokal maskin-database.
 
 ## Implementeringsrekkefølge
 
-1. **DB-skjema** — `packages/db-maskin` med equipment, service_records, equipment_assignments
-2. **Registrering — alle kategorier** — opprett utstyr med kategori-valg, type-velger
-3. **Vegvesen-integrasjon** — API-oppslag for kjøretøy, auto-utfylling
-4. **Utstyrsoversikt** — liste med filter (kategori, type, status), detaljvisning
-5. **EU-kontroll-varsling** — automatisk varsling basert på frist fra Vegvesen
-6. **Vedlikeholdsplan** — service-intervaller (km/timer/dato), varsling
-7. **Kalibrering/sertifisering** — varsling for småutstyr (laser, løfteutstyr)
-8. **Servicehistorikk** — CRUD for service-poster, vedlegg
-9. **Tilordning** — utstyr til prosjekt/byggeplass/ansvarlig
-10. **GPS-integrasjon** — adapter, webhook, kart-visning (kjøretøy + anleggsmaskin)
-11. **Telematikk** — ISO 15143-3 / AEMP 2.0 for anleggsmaskiner
-12. **Kobling til mannskap** — fører + maskin innsjekk
+### Fase 1 — MVP (bygges nå)
 
-## Åpne spørsmål — krever planleggingsrunde
+1. **DB-skjema** — `packages/db-maskin` med `equipment`, `equipment_assignments`, `service_records`, `feilmeldinger`, `vegvesen_ko`. Alle tre kategorier i én tabell så migrering senere unngås
+2. **Registreringsflyt** — enkel form (småutstyr først); Vegvesen-oppslag som «Hent fra Vegvesen»-knapp for kjøretøy
+3. **Utstyrsoversikt** — liste + filter på kategori, status, ansvarlig
+4. **Tildeling** — enkel «Tildel til person/prosjekt/byggeplass»
+5. **Feilmelding-flyt** (web + mobil) — nedtrekk med faste kategorier
+6. **Vegvesen-kö og worker** — kö-tabell, cron-worker, retry/backoff, ratelimit-overvåkning. Kun nyregistrering og manuell «Oppdater»-trigger er aktive
+7. **Service-registrering** — rad i `service_records` med `nesteServiceDato/km/timer`-felt; lukker åpen feilmelding ved innsending
+8. **Varsling «neste service»** — 30/7 dager før, push + e-post til ansvarlig
 
-### Småutstyr (mangler fullstendig design)
+### Fase 2
 
-Kjøretøy og anleggsmaskiner er godt dekket. Småutstyr har kun en skisse. Følgende må avklares med brukeren:
+- EU-kontroll-varsling for kjøretøy (krever auto-oppdatering av Vegvesen-data — skru på auto-trigger i køen)
+- Kalibrering/sertifisering for småutstyr (løfteutstyr, laser, fallsikring) med samme varslingsmønster
+- Daglig kontroll-sjekklister (gjenbruk sjekklistemal-infrastruktur)
 
-**Utstyrstyper og omfang:**
-- Fullstendig liste over småutstyr firmaet vil registrere
-- Grense: hva er "for smått" til å registrere? Skrutrekker vs. laser
-- Forbruksvarer vs. inventar — registreres forbruksvarer (bor, sagblad)?
+### Fase 3
 
-**Sporingsnivå:**
-- Per serienummer (hver enkelt enhet) eller per type (3 stk boremaskiner)?
-- Beholdning: antall tilgjengelig vs. utlånt vs. på service vs. destruert
-- Lokasjon: på lager, på prosjekt, hos person, på verksted?
+- GPS-integrasjon (adapter, webhook, kart)
+- Telematikk (ISO 15143-3/AEMP 2.0) for anleggsmaskiner
+- QR-kode per utstyr (generere + skanne)
+- Kobling til mannskap-innsjekk (fører + maskin)
+- Timer-modul aktiv bruk (maskintime i dagsseddel)
+- Økonomi readonly-visning
 
-**Kalibrering:**
-- Hvilke utstyr krever kalibrering? (laser, nivelleringsinstrument, GPS)
-- Hvem kalibrerer? Internt eller eksternt sertifiseringsorgan?
-- Dokumentasjon: sertifikat-fil, kalibreringsnummer, gyldighetsperiode
-- Varsling: intervall per utstyrstype, hvem varsles?
+## Tidligere planleggingsspørsmål
 
-**Sertifisering / lovpålagt kontroll:**
-- Løfteutstyr (kraner, taljer, stropper) — årlig kontroll (maskinforskriften §13-2)
-- Stiger og trapper — visuell kontroll + merking
-- Sveiseutstyr — sertifisering av operatør, ikke bare utstyr
-- Fallsikring (seler, line) — kontroll og utrangeringsfrister
-- Trykktanker (kompressor) — trykkontroll ihht. regelverk
-- Hvilke av disse er relevante for brukeren?
+Se «Designbeslutninger — låst 2026-04-23» øverst i dokumentet for alle lukkede beslutninger fra runde 1–3.
 
-**Kontroll før bruk (daglig sjekk):**
-- Lovpålagt for noe utstyr (løfteutstyr, stiger, stillaser)
-- Digital sjekkliste? Eller bare "sjekket av" med initialer?
-- Blokkere bruk hvis kontroll mangler?
-
-**Livsløp og utrangering:**
-- Status-verdier: bestilt → mottatt → i bruk → på service → solgt → destruert → tapt
-- Utrangeringsgrunn: slitasje, skadet, utdatert, solgt, tapt
-- Beholde historikk etter utrangering (for revisjon/forsikring)?
-
-**Utlån og tildeling:**
-- Utlån til person vs. prosjekt vs. byggeplass
-- Retur-prosess: varsling ved forsinket retur?
-- Intern utleie mellom prosjekter — sporing og fakturering?
-- Reservasjon: kan noen reservere utstyr for en periode?
-
-**Kobling til andre moduler:**
-- Mannskap-innsjekk: "fører sjekker inn seg + maskin" — gjelder dette også håndverktøy?
-- Timer: maskinbruk som rad i dagsseddel (maskintime per prosjekt)?
-- Økonomi: maskinleie, service-kostnader som FTD-data?
-- Kontrollplan: sjekkliste knyttet til utstyrskontroll?
-
-### Kjøretøy og anleggsmaskiner (mindre åpne)
-
-- Hvilken GPS-leverandør (Webfleet vs Transpoco) — adapter-interface gjør valget utsettbart
-- Telematikk-integrasjon — Komatsu KOMTRAX, CAT Product Link, Volvo ActiveCare direkte eller via ISO 15143-3?
-- Drivstofforbruk-tracking — beregnet fra GPS-distanse + forbruk, eller manuell?
-- Kostnadsrapportering — maskinleie, drivstoff, service som økonomi-data (kobling til FTD)
-- Forsikring — registrere forsikringsinfo og varsel ved forfall?
-- Dekkhotell — sporing av dekksett (sommer/vinter)?
-- QR-kode per utstyr — klistre på maskin/verktøy, scan for å se info/melde skade?
-- Strekkode/RFID — for masseregistrering av småutstyr?
-
-### Tverrgående spørsmål
-
-- **Firmamodul vs. prosjektmodul:** Maskin/utstyr er designet som firmamodul (`apps/maskin/`). Er det riktig? Eller bør det være en prosjektmodul med deling på tvers?
-- **Isolert app:** Plan sier `apps/maskin/` med `packages/db-maskin/`. Er dette fortsatt ønsket, eller kan det ligge i hovedappen?
-- **MVP:** Hva er minimumsversjonen? Registrering + EU-kontroll + vedlikeholdsplan? Eller trenger vi utlån/kalibrering fra start?
