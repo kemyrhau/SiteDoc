@@ -296,6 +296,9 @@ importers:
       '@sitedoc/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@sitedoc/db-maskin':
+        specifier: workspace:*
+        version: link:../../packages/db-maskin
       '@sitedoc/pdf':
         specifier: workspace:*
         version: link:../../packages/pdf
