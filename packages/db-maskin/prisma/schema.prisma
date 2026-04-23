@@ -1,0 +1,203 @@
+// Maskin- og utstyrsregister — Fase 3
+// Isolert datalag: eget postgres-schema "maskin", egen Prisma-klient.
+// Samme PostgreSQL-instans som packages/db, ingen FK-relasjoner på tvers.
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "./generated/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["maskin"]
+}
+
+// ==========================================================================
+//  Equipment — hovedtabell for alle tre kategorier
+// ==========================================================================
+
+model Equipment {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  kategori       String // "kjoretoy" | "anleggsmaskin" | "smautstyr"
+  type           String // se maskintyper i docs/claude/maskin.md
+  merke          String?
+  modell         String?
+  internNummer   String?  @map("intern_nummer")
+  ansvarligUserId String? @map("ansvarlig_user_id") // FK-referanse til User.id (håndheves i app-lag)
+  lokasjon       String?
+  anskaffelsesDato DateTime? @map("anskaffelses_dato") @db.Date
+  nypris         Decimal? @db.Decimal(12, 2)
+  notater        String?  @db.Text
+  bilder         Json? // [{url, caption, uploadedAt}]
+  status         String   @default("tilgjengelig") // bestilt, mottatt, tilgjengelig, utlaant, paa_service, pensjonert
+  pensjonertDato DateTime? @map("pensjonert_dato") @db.Date
+  pensjonertGrunn String?  @map("pensjonert_grunn") // solgt, destruert, tapt, stjaalet, slitt
+  krevDagligKontroll Boolean @default(false) @map("krev_daglig_kontroll")
+
+  // Kjøretøy-felt (kategori = "kjoretoy")
+  registreringsnummer   String?   @map("registreringsnummer")
+  kmStand               Int?      @map("km_stand")
+  euKontrollSist        DateTime? @map("eu_kontroll_sist") @db.Date
+  euKontrollFrist       DateTime? @map("eu_kontroll_frist") @db.Date
+  motor                 String?
+  drivstoff             String? // bensin, diesel, elektrisk, hybrid
+  forsteRegistrering    DateTime? @map("forste_registrering") @db.Date
+  egenvekt              Int? // kg
+  totalvekt             Int? // kg
+  farge                 String?
+  vegvesenData          Json?     @map("vegvesen_data")
+  vegvesenDataOppdatert DateTime? @map("vegvesen_data_oppdatert")
+  vegvesenDataStatus    String?   @map("vegvesen_data_status") // frisk, gammel, feilet
+
+  // Anleggsmaskin-felt (kategori = "anleggsmaskin")
+  serienummer      String?
+  driftstimer      Int?     @map("driftstimer")
+  skuffeKapasitet  Decimal? @map("skuffe_kapasitet") @db.Decimal(6, 2) // m3
+  loftKapasitet    Decimal? @map("loft_kapasitet") @db.Decimal(6, 2) // tonn
+  maksVekt         Int?     @map("maks_vekt") // kg
+
+  // Småutstyr-felt (kategori = "smautstyr")
+  kalibreringsDato    DateTime? @map("kalibrerings_dato") @db.Date
+  kalibreringsFrist   DateTime? @map("kalibrerings_frist") @db.Date
+  sertifiseringsDato  DateTime? @map("sertifiserings_dato") @db.Date
+  sertifiseringsFrist DateTime? @map("sertifiserings_frist") @db.Date
+  effektW             Int?      @map("effekt_w")
+  vekt                Int? // kg
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  assignments    EquipmentAssignment[]
+  serviceRecords ServiceRecord[]
+  feilmeldinger  Feilmelding[]
+  vegvesenKo     VegvesenKo[]
+
+  @@unique([organizationId, internNummer], name: "uq_equipment_intern_nummer_per_org")
+  @@unique([registreringsnummer], name: "uq_equipment_regnummer", map: "uq_equipment_regnummer")
+  @@index([organizationId])
+  @@index([kategori])
+  @@index([type])
+  @@index([status])
+  @@index([ansvarligUserId])
+  @@index([euKontrollFrist])
+  @@index([kalibreringsFrist])
+  @@index([sertifiseringsFrist])
+  @@map("equipment")
+  @@schema("maskin")
+}
+
+// ==========================================================================
+//  EquipmentAssignment — tildeling (én FK per rad: person, prosjekt eller byggeplass)
+// ==========================================================================
+
+model EquipmentAssignment {
+  id               String    @id @default(uuid())
+  equipmentId      String    @map("equipment_id")
+  tildeltTil       String    @map("tildelt_til") // "person" | "prosjekt" | "byggeplass"
+  userId           String?   @map("user_id")
+  projectId        String?   @map("project_id")
+  byggeplassId     String?   @map("byggeplass_id")
+  utlevertDato     DateTime  @default(now()) @map("utlevert_dato")
+  forventetRetur   DateTime? @map("forventet_retur") @db.Date
+  returnertDato    DateTime? @map("returnert_dato")
+  utlevertAvUserId String?   @map("utlevert_av_user_id")
+  kommentar        String?   @db.Text
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  equipment Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+
+  @@index([equipmentId])
+  @@index([userId])
+  @@index([projectId])
+  @@index([byggeplassId])
+  @@index([returnertDato]) // NULL = aktiv tildeling
+  @@map("equipment_assignments")
+  @@schema("maskin")
+}
+
+// ==========================================================================
+//  ServiceRecord — servicehistorikk og «neste service»
+// ==========================================================================
+
+model ServiceRecord {
+  id                String    @id @default(uuid())
+  equipmentId       String    @map("equipment_id")
+  type              String // service, repair, inspection, eu_kontroll, dekk, olje
+  dato              DateTime  @db.Date
+  km                Int?
+  timer             Int?
+  utfortAv          String?   @map("utfort_av") @db.Text
+  beskrivelse       String    @db.Text
+  kostnad           Decimal?  @db.Decimal(12, 2)
+  nesteServiceDato  DateTime? @map("neste_service_dato") @db.Date
+  nesteServiceKm    Int?      @map("neste_service_km")
+  nesteServiceTimer Int?      @map("neste_service_timer")
+  vedlegg           Json? // [{url, filename, uploadedAt}]
+  feilmeldingId     String?   @map("feilmelding_id") // lukker åpen feilmelding hvis satt
+  registrertAvUserId String?  @map("registrert_av_user_id")
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  equipment   Equipment   @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+  feilmelding Feilmelding? @relation(fields: [feilmeldingId], references: [id], onDelete: SetNull)
+
+  @@index([equipmentId, dato])
+  @@index([type])
+  @@index([nesteServiceDato])
+  @@map("service_records")
+  @@schema("maskin")
+}
+
+// ==========================================================================
+//  Feilmelding — åpne feil per utstyr
+// ==========================================================================
+
+model Feilmelding {
+  id                    String    @id @default(uuid())
+  equipmentId           String    @map("equipment_id")
+  kategori              String // virker_ikke, lyd_rystelse, skade_kabinett, lekkasje, batteri, annet
+  kommentar             String?   @db.Text
+  bilder                Json? // [{url, caption, uploadedAt}]
+  meldtAvUserId         String?   @map("meldt_av_user_id")
+  status                String    @default("aapen") // "aapen" | "lukket"
+  lukketAv              String?   @map("lukket_av") // "service_record" | "manual"
+  lukketDato            DateTime? @map("lukket_dato")
+  lukketAvUserId        String?   @map("lukket_av_user_id")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  equipment      Equipment       @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+  serviceRecords ServiceRecord[]
+
+  @@index([equipmentId, status])
+  @@index([status])
+  @@index([createdAt])
+  @@map("feilmeldinger")
+  @@schema("maskin")
+}
+
+// ==========================================================================
+//  VegvesenKo — kö for Vegvesen API-kall (ratelimit 50/t per IP, worker 48/t)
+// ==========================================================================
+
+model VegvesenKo {
+  id                  String    @id @default(uuid())
+  equipmentId         String    @map("equipment_id")
+  registreringsnummer String    @map("registreringsnummer")
+  prioritet           Int       @default(100) // 0=nyregistrering, 50=manuell, 100=auto
+  status              String    @default("ventende") // ventende, prosesserer, fullfort, feilet
+  forsokAntall        Int       @default(0) @map("forsok_antall")
+  sistForsok          DateTime? @map("sist_forsok")
+  feilmelding         String?   @db.Text
+  opprettet           DateTime  @default(now())
+  fullfort            DateTime?
+
+  equipment Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+
+  @@index([status, prioritet, opprettet]) // worker plukker WHERE status='ventende' ORDER BY prioritet, opprettet
+  @@index([equipmentId])
+  @@map("vegvesen_ko")
+  @@schema("maskin")
+}
