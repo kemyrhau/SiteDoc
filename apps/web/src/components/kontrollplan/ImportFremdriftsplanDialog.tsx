@@ -99,20 +99,23 @@ export function ImportFremdriftsplanDialog({
     "#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6",
     "#ec4899", "#14b8a6", "#f97316", "#6366f1", "#84cc16",
   ];
-  const nesteFarge = useCallback(() => {
-    const brukte = new Set((faggrupper ?? []).map((fg: { color: string | null }) => fg.color ?? ""));
+  const nesteFarge = useCallback((ekstraBrukte: Set<string> = new Set()) => {
+    const brukte = new Set<string>([
+      ...(faggrupper ?? []).map((fg: { color: string | null }) => fg.color ?? ""),
+      ...ekstraBrukte,
+    ]);
     const ledig = FARGE_PALETT.find((f) => !brukte.has(f));
     return ledig ?? FARGE_PALETT[Math.floor(Math.random() * FARGE_PALETT.length)]!;
   }, [faggrupper]);
 
-  const opprettFaggruppeForRessurs = useCallback(async (ressursNavn: string) => {
+  const opprettFaggruppeForRessurs = useCallback(async (ressursNavn: string, forhandstildeltFarge?: string) => {
     if (opprettende.has(ressursNavn)) return;
     setOpprettende((prev) => new Set(prev).add(ressursNavn));
     try {
       const ny = await opprettFaggruppe.mutateAsync({
         name: ressursNavn,
         projectId,
-        color: nesteFarge(),
+        color: forhandstildeltFarge ?? nesteFarge(),
       });
       await utils.faggruppe.hentForProsjekt.invalidate({ projectId });
       setRessursFaggruppeMap((prev) => {
@@ -228,10 +231,13 @@ export function ImportFremdriftsplanDialog({
   }, [valgteRessurser, ressursFaggruppeMap]);
 
   const opprettAlleManglende = useCallback(async () => {
+    const brukteIBatch = new Set<string>();
     for (const r of manglendeRessurser) {
-      await opprettFaggruppeForRessurs(r.name);
+      const farge = nesteFarge(brukteIBatch);
+      brukteIBatch.add(farge);
+      await opprettFaggruppeForRessurs(r.name, farge);
     }
-  }, [manglendeRessurser, opprettFaggruppeForRessurs]);
+  }, [manglendeRessurser, opprettFaggruppeForRessurs, nesteFarge]);
 
   // ──────── Steg 3: Mal-tre ────────
 
