@@ -1,4 +1,4 @@
-import { PrismaClient } from "../prisma/generated/client";
+import { PrismaClient } from ".prisma/maskin-client";
 
 const globalForPrismaMaskin = globalThis as unknown as {
   prismaMaskin: PrismaClient | undefined;
@@ -10,5 +10,5 @@ if (process.env.NODE_ENV !== "production") {
   globalForPrismaMaskin.prismaMaskin = prismaMaskin;
 }
 
-export { PrismaClient, Prisma } from "../prisma/generated/client";
-export type * from "../prisma/generated/client";
+export { PrismaClient, Prisma } from ".prisma/maskin-client";
+export type * from ".prisma/maskin-client";

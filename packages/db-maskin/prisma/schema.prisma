@@ -4,7 +4,7 @@
 
 generator client {
   provider = "prisma-client-js"
-  output   = "./generated/client"
+  output   = "../../../node_modules/.prisma/maskin-client"
 }
 
 datasource db {

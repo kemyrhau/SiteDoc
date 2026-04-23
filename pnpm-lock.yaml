@@ -33,6 +33,9 @@ importers:
       '@sitedoc/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@sitedoc/db-maskin':
+        specifier: workspace:*
+        version: link:../../packages/db-maskin
       '@sitedoc/shared':
         specifier: workspace:*
         version: link:../../packages/shared
