@@ -88,15 +88,15 @@
   <Resources>
     <Resource>
       <UID>1</UID>
-      <Name>Tømrermester Hansen AS</Name>
+      <Name>Mur AS</Name>
     </Resource>
     <Resource>
       <UID>2</UID>
-      <Name>Elektro Sør AS</Name>
+      <Name>Maler AS</Name>
     </Resource>
     <Resource>
       <UID>3</UID>
-      <Name>Rørlegger Nord</Name>
+      <Name>Taktekker AS</Name>
     </Resource>
   </Resources>
 

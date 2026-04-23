@@ -512,7 +512,7 @@ export function ImportFremdriftsplanDialog({
                 type="text"
                 value={malSok}
                 onChange={(e) => setMalSok(e.target.value)}
-                placeholder={t("handling.sok") + "..."}
+                placeholder={t("handling.soek") + "..."}
                 className="w-full text-xs border rounded px-2 py-1"
                 autoFocus
               />
@@ -705,7 +705,7 @@ export function ImportFremdriftsplanDialog({
                         onClick={() => { setFil(null); setParsedData(null); setSelectedUIDs(new Set()); }}
                         className="text-xs text-gray-400 hover:text-gray-600"
                       >
-                        {t("handling.endre") || "Endre"}
+                        {t("handling.rediger")}
                       </button>
                     </div>
                     <div className="flex items-center gap-2">
@@ -896,7 +896,7 @@ export function ImportFremdriftsplanDialog({
                       <>
                         <span
                           className="w-2.5 h-2.5 rounded-full"
-                          style={{ backgroundColor: visFg.color ?? "#6b7280" }}
+                          style={{ backgroundColor: visFg.color || "#6b7280" }}
                         />
                         <span className="text-xs font-medium text-gray-700">{visFg.name}</span>
                       </>

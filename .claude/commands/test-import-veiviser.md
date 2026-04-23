@@ -17,7 +17,7 @@ Du skal bruke `chrome-devtools`-MCP-verktøyene til å verifisere at MS Project-
 - **Prosjektnavn:** "SiteDoc Test - Leilighetskompleks B201"
 - **2 sammendragsoppgaver** (Bad 201 - Fuktsikring, Elektrisk installasjon B201)
 - **5 aktiviteter** (Forberedelse av membran, Legging av membran, Tetthetstest bad, Trekking av kabler, Montering av kontakter og brytere)
-- **3 ressurser** (Tømrermester Hansen AS, Elektro Sør AS, Rørlegger Nord) — ingen matcher standard faggrupper
+- **3 ressurser** (Mur AS, Maler AS, Taktekker AS) — valgt for å ikke matche standard faggrupper via fuzzy substring-matching. Hvis prosjektet ditt har Mur-/Maler-/Taktekker-faggrupper fra før, bytt ut navnene i testfilen
 
 ## Testprotokoll
 
@@ -47,16 +47,16 @@ Gå gjennom stegene under. Rapporter HVER sjekk som ✅/❌ med kort kommentar. 
 3. Klikk "Neste"
 4. Når steg 2 lastes, ta snapshot. Verifiser i denne rekkefølgen:
    - ✅ **Info-boks** (blå bakgrunn) er synlig med teksten «Eksempel: ressurs «Tømrer AS»...»
-   - ✅ **Bulk-advarsel** (gul bakgrunn) viser «3 ressurs(er) mangler matchende faggruppe» og lister navnene (Tømrermester Hansen AS, Elektro Sør AS, Rørlegger Nord)
+   - ✅ **Bulk-advarsel** (gul bakgrunn) viser «3 ressurs(er) mangler matchende faggruppe» og lister navnene (Mur AS, Maler AS, Taktekker AS). NB: hvis prosjektet har faggrupper som inneholder «Mur», «Maler» eller «Taktekker», vil fuzzy-match fange dem og færre enn 3 vises her
    - ✅ **Bulk-knapp** «Opprett 3 manglende som faggrupper» er synlig
    - ✅ 3 rader vises — én per ressurs — med aktivitetsantall (1 eller 2)
    - ✅ Hver rad har dropdown (viser "Ikke tilordnet") OG en blå «+ Opprett som faggruppe»-knapp
    - ✅ **Standard-faggruppe-seksjon** er synlig nederst (grå bakgrunn, "Standard faggruppe" + dropdown)
    - ✅ **Lenke** «Administrer faggrupper ↗» er synlig nederst til høyre
 
-5. **Test 1: Inline opprettelse** — Klikk «+ Opprett som faggruppe» på raden for "Tømrermester Hansen AS". Verifiser:
+5. **Test 1: Inline opprettelse** — Klikk «+ Opprett som faggruppe» på raden for "Mur AS". Verifiser:
    - ✅ Knappen viser loading-spinner kort
-   - ✅ Etter fullføring: dropdown for raden viser "Tømrermester Hansen AS" som valgt verdi
+   - ✅ Etter fullføring: dropdown for raden viser "Mur AS" som valgt verdi
    - ✅ «+ Opprett»-knappen forsvinner fra denne raden
    - ✅ Bulk-advarselen viser nå 2 manglende (ikke 3)
 
