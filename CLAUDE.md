@@ -63,8 +63,7 @@ sitedoc/
 │   ├── web/              # Next.js — src/app/, src/components/, src/kontekst/, src/hooks/, src/lib/
 │   ├── mobile/           # Expo — src/db/, src/providers/, src/services/, app/
 │   ├── api/              # Fastify — src/routes/, src/services/, src/trpc/
-│   ├── timer/            # (planlagt) Next.js — timer.sitedoc.no
-│   └── maskin/           # (planlagt) Next.js — maskin.sitedoc.no
+│   └── timer/            # (planlagt) Next.js — timer.sitedoc.no
 ├── packages/
 │   ├── shared/           # Delte typer, Zod-schemaer, utils
 │   ├── db/               # Prisma schema, migreringer, seed
@@ -78,6 +77,10 @@ sitedoc/
 ```
 
 Nye moduler (timer, maskin) bruker samme PostgreSQL-instans men separate Prisma-skjemaer. Delt auth via eksisterende next-auth sessions-tabell. Nye modulers tabeller skal ALDRI inn i `packages/db`.
+
+**Modul-plassering — to varianter:**
+- **Integrert i web-appen** (enklest): `apps/web/src/app/<modul>/` + `packages/db-<modul>/`. Ingen egen DNS, port eller deploy. Maskin bruker dette mønsteret.
+- **Isolert app** (når modulen trenger separat skalering, tilgang eller deploy): `apps/<modul>/` + `packages/db-<modul>/` + egen DNS/PM2. Timer planlegges som dette.
 
 ## Kommandoer
 
@@ -315,7 +318,8 @@ Rename gjennomført april 2026 (112 filer, feature/faggruppe-rename). Regler:
 - Slås av/på **én gang for hele firmaet** i Firmaadministrasjon
 - Deler data på tvers av alle firmaets prosjekter
 - Eksempler: Timeregistrering, Maskinregistrering, HR/Mannskap, Fremdriftsplanlegging
-- Egne apper (`apps/timer/`, `apps/maskin/`) med egne DB-skjemaer (`packages/db-timer/` osv.)
+- Datalag-isolasjon via egne DB-skjemaer (`packages/db-timer/`, `packages/db-maskin/` osv.)
+- App-plassering valgfri: integrert i `apps/web/src/app/<modul>/` (default, enklest) eller isolert `apps/<modul>/` (for separat skalering/deploy)
 
 ## Admin-arkitektur og roller
 

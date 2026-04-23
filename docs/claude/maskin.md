@@ -19,7 +19,8 @@ Alt annet (GPS, telematikk, QR, daglig kontroll, timer/økonomi-kobling) er uten
 
 ### Arkitektur
 
-- **Firmamodul**: isolert app `apps/maskin/` → `maskin.sitedoc.no`, egen `packages/db-maskin/`
+- **Firmamodul som undermappe i web-appen**: `apps/web/src/app/maskin/` (rute `/maskin`), tRPC-ruter i `apps/api/src/routes/maskin/`, egen `packages/db-maskin/` med separat Prisma-klient. Ingen ny DNS, port eller deploy-entry
+- **Isolasjon i datalaget, ikke på app-nivå**: `packages/db-maskin` har ingen FK-relasjoner til `packages/db`. Brukes via egen `prismaMaskin`-klient mot samme PostgreSQL-instans
 - **Tre kategorier** i én `equipment`-tabell: `kjoretoy`, `anleggsmaskin`, `smautstyr`. Kategori-feltet styrer hvilke kolonner/UI-felter som er relevante
 - **Sporingsnivå**: per enkeltenhet (én rad per fysisk stk med eget internummer) — også for 3 identiske borhammere
 - **Forbruksvarer registreres ikke** (bor, sagblad, slipeskiver). Grense for inkludering: ≥2 000 kr nypris eller lovpålagt kontroll/kalibrering
@@ -146,10 +147,13 @@ Alle tre deler: **merke, modell, serienummer/internummer, plassering, ansvarlig,
 
 | Komponent | Plassering | Beskrivelse |
 |-----------|------------|-------------|
-| **Web** | `apps/maskin` | Next.js, `maskin.sitedoc.no` |
-| **Database** | `packages/db-maskin` | Eget Prisma-skjema, aldri inn i `packages/db` |
+| **Web** | `apps/web/src/app/maskin/` | Undermappe i hovedappen, rute `/maskin`. Ingen egen DNS, port eller PM2-prosess |
+| **API-ruter** | `apps/api/src/routes/maskin/` | Egen tRPC-subrouter `trpc.maskin.*` |
+| **Database** | `packages/db-maskin` | Eget Prisma-skjema, egen klient. Aldri inn i `packages/db` |
 
-Deler PostgreSQL-instans med SiteDoc, men helt separate tabeller. Delt auth via eksisterende `sessions`-tabell.
+Modulen kjører i samme Next.js-prosess som resten av web-appen — enkleste infra, ingen deploy-endring. **Isolasjonen ligger i datalaget, ikke på app-nivå**: `packages/db-maskin` har sitt eget Prisma-skjema og -klient, uten FK-relasjoner til `packages/db`. Begge Prisma-klientene peker mot samme PostgreSQL-instans. Delt auth via eksisterende `sessions`-tabell.
+
+**Hvorfor integrert, ikke isolert app:** MVP-krav er enkelt vedlikehold. Isolert app (`apps/maskin/` med egen DNS) er fortsatt mulig senere hvis modulen får behov for separat skalering, tilgangsstyring eller deploy-kadens. Se `docs/claude/infrastruktur-moduler.md` for det mønsteret.
 
 ## Statens vegvesen — kjøretøyoppslag
 
