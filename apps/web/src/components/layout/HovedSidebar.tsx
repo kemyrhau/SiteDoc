@@ -17,6 +17,7 @@ import {
   FileSearch,
   ShieldCheck,
   Clock,
+  Truck,
 } from "lucide-react";
 import { SidebarIkon } from "@sitedoc/ui";
 import { useTranslation } from "react-i18next";
@@ -131,6 +132,12 @@ const hovedelementer: SidebarElement[] = [
 
 const bunnelementer: SidebarElement[] = [
   {
+    id: "maskin",
+    labelKey: "nav.maskin",
+    ikon: <Truck className="h-5 w-5" />,
+    kreverProsjekt: false,
+  },
+  {
     id: "oppsett",
     labelKey: "nav.oppsett",
     ikon: <Settings className="h-5 w-5" />,
@@ -191,6 +198,8 @@ export function HovedSidebar() {
       router.push(prosjektId ? `/dashbord/${prosjektId}` : "/dashbord");
     } else if (element.id === "oppsett") {
       router.push("/dashbord/oppsett");
+    } else if (element.id === "maskin") {
+      router.push("/dashbord/maskin");
     } else if (prosjektId) {
       router.push(`/dashbord/${prosjektId}/${element.id}`);
     }

@@ -36,6 +36,12 @@ export function useAktivSeksjon(): Seksjon {
       return;
     }
 
+    // Firmamodul på toppnivå: /dashbord/maskin/...
+    if (deler[1] === "maskin") {
+      setAktivSeksjon("maskin");
+      return;
+    }
+
     // Finn seksjon etter prosjektId (indeks 2 i pathen)
     const seksjonDel = deler[2];
     const seksjon = seksjonDel ? seksjonMap[seksjonDel] : undefined;
