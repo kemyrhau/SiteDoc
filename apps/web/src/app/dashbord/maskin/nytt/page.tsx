@@ -52,10 +52,10 @@ export default function NyttUtstyrPage() {
   const [feil, setFeil] = useState<string | null>(null);
 
   const opprett = trpc.maskin.equipment.opprett.useMutation({
-    onSuccess: () => {
+    onSuccess: (_data: unknown) => {
       router.push("/dashbord/maskin");
     },
-    onError: (e) => {
+    onError: (e: { message: string }) => {
       setFeil(e.message);
     },
   });
