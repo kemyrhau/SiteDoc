@@ -27,6 +27,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { GeoReferanseEditor } from "@/components/GeoReferanseEditor";
+import { HjelpKnapp, HjelpFane } from "@/components/hjelp/HjelpModal";
 
 /* ------------------------------------------------------------------ */
 /*  Typer                                                               */
@@ -932,6 +933,19 @@ export default function LokasjonerSide() {
               </div>
             </>
           )}
+        </div>
+        <div className="ml-auto">
+          <HjelpKnapp>
+            <HjelpFane tittel={t("hjelp.lokasjoner.hvaTittel")}>
+              <div className="space-y-4">
+                <p className="text-sm text-gray-600">{t("hjelp.lokasjoner.hva")}</p>
+                <div className="rounded-lg border border-blue-100 bg-blue-50/50 px-4 py-3">
+                  <p className="text-sm font-medium text-blue-800">{t("hjelp.lokasjoner.tipsTittel")}</p>
+                  <p className="mt-1 text-sm text-blue-700">{t("hjelp.lokasjoner.tips")}</p>
+                </div>
+              </div>
+            </HjelpFane>
+          </HjelpKnapp>
         </div>
       </div>
 

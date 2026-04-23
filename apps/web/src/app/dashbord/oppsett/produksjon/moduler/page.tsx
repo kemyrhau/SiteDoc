@@ -18,8 +18,11 @@ import {
   FileSearch,
   Globe,
   Settings,
+  ShieldCheck,
+  ExternalLink,
 } from "lucide-react";
 import { useState } from "react";
+import { HjelpKnapp, HjelpFane } from "@/components/hjelp/HjelpModal";
 
 /* Ikon-mapping fra strengnavn til komponent */
 const IKON_MAP: Record<string, React.ReactNode> = {
@@ -30,6 +33,7 @@ const IKON_MAP: Record<string, React.ReactNode> = {
   BarChart3: <BarChart3 className="h-6 w-6" />,
   FileSearch: <FileSearch className="h-6 w-6" />,
   Globe: <Globe className="h-6 w-6" />,
+  ShieldCheck: <ShieldCheck className="h-6 w-6" />,
 };
 
 const MOTOR_INFO: Record<string, { navn: string; beskrivelse: string; betalt: boolean }> = {
@@ -84,16 +88,29 @@ export default function ModulerSide() {
   return (
     <div>
       <div className="mb-6">
-        <div className="flex items-center gap-3">
-          <div className="rounded-lg bg-sitedoc-primary/10 p-2">
-            <Package className="h-5 w-5 text-sitedoc-primary" />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="rounded-lg bg-sitedoc-primary/10 p-2">
+              <Package className="h-5 w-5 text-sitedoc-primary" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">{t("oppsett.moduler")}</h2>
+              <p className="text-sm text-gray-500">
+                {t("moduler.beskrivelse")}
+              </p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900">{t("oppsett.moduler")}</h2>
-            <p className="text-sm text-gray-500">
-              {t("moduler.beskrivelse")}
-            </p>
-          </div>
+          <HjelpKnapp>
+            <HjelpFane tittel={t("hjelp.moduler.hvaTittel")}>
+              <div className="space-y-4">
+                <p className="text-sm text-gray-600">{t("hjelp.moduler.hva")}</p>
+                <div className="rounded-lg border border-blue-100 bg-blue-50/50 px-4 py-3">
+                  <p className="text-sm font-medium text-blue-800">{t("hjelp.moduler.tipsTittel")}</p>
+                  <p className="mt-1 text-sm text-blue-700">{t("hjelp.moduler.tips")}</p>
+                </div>
+              </div>
+            </HjelpFane>
+          </HjelpKnapp>
         </div>
       </div>
 
@@ -188,6 +205,13 @@ export default function ModulerSide() {
               {erAktiv && modul.slug === "oversettelse" && prosjektId && (
                 <div className="mb-4">
                   <OversettelsesInnstillinger prosjektId={prosjektId} />
+                </div>
+              )}
+
+              {/* Kontrollplan-status — inline i kortet */}
+              {erAktiv && modul.slug === "kontrollplan" && prosjektId && (
+                <div className="mb-4">
+                  <KontrollplanStatus prosjektId={prosjektId} />
                 </div>
               )}
 
@@ -328,6 +352,52 @@ function OversettelsesInnstillinger({ prosjektId }: { prosjektId: string }) {
           </span>
         )}
       </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  KontrollplanStatus — viser status per byggeplass i modulkortet     */
+/* ------------------------------------------------------------------ */
+
+function KontrollplanStatus({ prosjektId }: { prosjektId: string }) {
+  const { t } = useTranslation();
+  const { data } = trpc.kontrollplan.hentStatusForProsjekt.useQuery(
+    { projectId: prosjektId },
+    { enabled: !!prosjektId },
+  );
+
+  if (!data || data.length === 0) return null;
+
+  const statusTekst: Record<string, string> = {
+    utkast: t("kontrollplan.statusUtkast"),
+    aktiv: t("kontrollplan.statusAktiv"),
+    godkjent: t("kontrollplan.statusGodkjent"),
+    arkivert: t("kontrollplan.statusArkivert"),
+  };
+
+  return (
+    <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 space-y-1.5">
+      {data.map((b) => (
+        <div key={b.id} className="flex items-center justify-between text-xs">
+          <span className="text-gray-700 font-medium">{b.name}</span>
+          {b.kontrollplan ? (
+            <span className="text-gray-500">
+              {statusTekst[b.kontrollplan.status] ?? b.kontrollplan.status}
+              {" "}({t("kontrollplan.antallPunkter", { antall: b.kontrollplan._count.punkter })})
+            </span>
+          ) : (
+            <span className="text-gray-400">{t("kontrollplan.ikkeOpprettet")}</span>
+          )}
+        </div>
+      ))}
+      <a
+        href={`/dashbord/${prosjektId}/kontrollplan`}
+        className="mt-2 flex items-center gap-1 text-xs text-sitedoc-secondary hover:underline"
+      >
+        <ExternalLink className="h-3 w-3" />
+        {t("kontrollplan.aapne")}
+      </a>
     </div>
   );
 }

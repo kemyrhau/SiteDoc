@@ -249,3 +249,20 @@ Felles lag: OCR-tjeneste (fallback), søkemotor (felles `SearchIndex` med `tsvec
 Tre søke-scopes: Prosjekt (medlemmer), Firma (organisasjonen), SiteDoc (felles innhold).
 
 Se `docs/MIGRERING-FIL-TIL-DATABASE.md` for detaljer.
+
+## Overordnet byggeplan (april 2026)
+
+| Fase | Modul | Status | Beskrivelse |
+|------|-------|--------|-------------|
+| 1 | Kontrollplan | ✅ 11/13 steg | Stedsbasert kvalitetskontroll, matrise, sluttrapport |
+| 2 | Maskin/utstyr | Dokumentert | 3 kategorier, Vegvesen API, EU-kontroll, vedlikehold |
+| 3 | Timer | Dokumentert | Dagsseddel, lønnsarter, offline-sync |
+| 4 | Mannskap | Dokumentert | §15-liste, HMS-kort, geofence-innsjekk |
+| 5 | Varsling | Dokumentert | Tverrgående: firmanivå, kontrollplan + maskin + timer |
+| 6 | Planlegger | Dokumentert | Ressursplanlegging, kompetanse, bemanning |
+| — | AI-integrasjon | Dokumentert | MCP + Copilot + innebygd assistent (MS Project import) |
+
+**Rekkefølge:** Maskin/utstyr → Varsling → Timer → Mannskap → Planlegger.
+Varsling bygges etter maskin/utstyr fordi den trenger EU-kontroll/service-data.
+
+**Viktig:** Hver modul krever en egen planleggingsrunde med brukeren før implementering starter. Dokumentasjonen i `docs/claude/` er utgangspunkt, men design-beslutninger, UI-skjemaer og prioriteringer må drøftes og godkjennes per modul — slik det ble gjort for kontrollplan (skjema-gjennomgang → plan → iterativ utvikling med bruker-feedback).

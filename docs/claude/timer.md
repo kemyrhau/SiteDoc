@@ -422,16 +422,50 @@ Den opprinnelige planen om `apps/timer` som egen Next.js-app er **ikke forkastet
 
 `/dashbord/[prosjektId]/timer` — tilgjengelig via sidebar-ikon i prosjektet.
 
-### Prototype-innhold
+### Prototype-innhold (bygget)
 
-1. **Dagsseddel-skjema** — alle felter (dato, arbeidstimer med auto-fordeling, reisetid, tillegg med auto-forslag, maskiner, materialer, utlegg med kvitteringsbilde-placeholder, beskrivelse)
-2. **Oversiktstabell** — liste over dagssedler med demodata
-3. **Auto-beregninger fungerer** — endre totaltimer → overtid beregnes live, tillegg foreslås
+**Tre faner:**
+
+1. **Oversikt** — tabell med alle dagssedler
+   - Hurtigfiltre alltid synlig: ansatt-søk, prosjekt-dropdown, dato fra-til, status-filter
+   - Sortering ved klikk på kolonneoverskrift (pil opp/ned)
+   - Filter-ikon på kolonner: dato-spenn, fritekst, checkbox-lister, tallintervall
+   - Aktive filter som chips med × og "Fjern alle"
+   - Tilleggsarbeid-kolonne med badges (E-042, E-038)
+   - Sumrad nederst
+   - Klikk markerer rad (blå), dobbeltklikk åpner redigering
+   - Rediger-knapp (blyant) og slett-knapp (søppelbøtte) per rad
+
+2. **Dagsseddel** — skjema med alle felter
+   - Prosjektvalg, tilleggsarbeid-dropdown med endringsbeskrivelse
+   - Arbeidstimer med auto-fordeling (normaltid/OT50/OT100)
+   - Reisetid, tillegg med auto-forslag (overtidsmat >9t, helg)
+   - Sammenleggbare seksjoner: maskiner, materialer, utlegg
+   - Kopiér forrige dag-knapp
+   - Redigeringsmodus: gult banner med dato og ansattnavn
+
+3. **Rapporter** — 7 rapporttyper som klikkbare kort
+   - Prosjektrapport, månedsrapport per ansatt/prosjekt, tilleggsarbeid, maskin, utlegg, eksport
+   - Dato-, prosjekt- og ansatt-filter + generer/eksporter PDF
+   - Rapporter-fanen bruker full bredde (statistikkpanel skjules)
+
+**Statistikkpanel (høyre kolonne, skjult på mobil):**
+- Ukeoversikt med prosjekter nedover, dager bortover
+- Underrader for tilleggsarbeid per prosjekt
+- Månedstotaler (normaltid, OT, reisetid)
+- Årstotaler + utlegg
+
+**Layout:**
+- To-kolonner på PC: innhold (venstre) + statistikk (høyre, responsiv bredde)
+- Statistikkpanel: `w-[340px] lg → w-[420px] xl → w-[500px] 2xl`
+- Mobil: kun venstre kolonne
 
 ### Demodata
 
-- Prosjekt: 998 Innstifjordbotn (Florian Aschwanden, A. Markussen AS)
-- Fiktive ansatte og dagssedler for realistisk visning
+- Prosjekter: 998 Innstifjordbotn, E6 Kvænangsfjellet
+- Ansatte: Florian Aschwanden - A. Markussen AS, Kenneth Myrhaug
+- Tilleggsarbeid: E-042, E-038, E-035, G-012, E-051
+- 5 dagssedler med variert data (ulike statuser, tillegg, utlegg)
 
 ### Hva prototypen IKKE gjør
 
@@ -439,6 +473,7 @@ Den opprinnelige planen om `apps/timer` som egen Next.js-app er **ikke forkastet
 - Ingen API-kall — alt er lokal state / hardkodet
 - Ingen offline-sync
 - Ingen auth-sjekk utover eksisterende prosjekttilgang
+- Rapporter genereres ikke — kun filter-UI og placeholder
 
 ## Proadm-integrasjon
 

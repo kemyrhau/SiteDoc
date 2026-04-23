@@ -20,6 +20,7 @@ import {
   Globe,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
+import { HjelpKnapp, HjelpFane } from "@/components/hjelp/HjelpModal";
 
 export default function PsiOppsettSide() {
   const { t } = useTranslation();
@@ -114,6 +115,25 @@ export default function PsiOppsettSide() {
       <div className="mb-6 flex items-center gap-3">
         <ShieldCheck className="h-7 w-7 text-sitedoc-primary" />
         <h1 className="text-xl font-bold text-gray-900">{t("psi.tittel")}</h1>
+        <div className="ml-auto">
+          <HjelpKnapp>
+            <HjelpFane tittel={t("hjelp.psi.hvaTittel")}>
+              <div className="space-y-4">
+                <p className="text-sm text-gray-600">{t("hjelp.psi.hva")}</p>
+                <div className="space-y-3">
+                  <div className="rounded-lg border border-gray-200 px-4 py-3">
+                    <h4 className="text-sm font-semibold text-gray-900">{t("hjelp.psi.qrTittel")}</h4>
+                    <p className="mt-1 text-sm text-gray-600">{t("hjelp.psi.qrBeskrivelse")}</p>
+                  </div>
+                  <div className="rounded-lg border border-gray-200 px-4 py-3">
+                    <h4 className="text-sm font-semibold text-gray-900">{t("hjelp.psi.versjonTittel")}</h4>
+                    <p className="mt-1 text-sm text-gray-600">{t("hjelp.psi.versjonBeskrivelse")}</p>
+                  </div>
+                </div>
+              </div>
+            </HjelpFane>
+          </HjelpKnapp>
+        </div>
       </div>
 
       {/* Veiledning */}

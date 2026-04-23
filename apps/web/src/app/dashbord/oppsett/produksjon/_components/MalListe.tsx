@@ -18,6 +18,7 @@ interface MalListeProps {
   opprettTekst: string;
   tomTittel: string;
   tomBeskrivelse: string;
+  hjelpInnhold?: React.ReactNode;
 }
 
 type MalRad = {
@@ -102,6 +103,7 @@ export function MalListe({
   opprettTekst,
   tomTittel,
   tomBeskrivelse,
+  hjelpInnhold,
 }: MalListeProps) {
   const { prosjektId } = useProsjekt();
   const { t } = useTranslation();
@@ -315,13 +317,14 @@ export function MalListe({
         </Dropdown>
 
         {/* Søk */}
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-2">
           <SearchInput
             verdi={sok}
             onChange={setSok}
             placeholder={t("handling.soek") + "..."}
             className="w-48"
           />
+          {hjelpInnhold}
         </div>
       </div>
 

@@ -43,6 +43,19 @@ export const bibliotekRouter = router({
           bibliotekMalId: true,
           sjekklisteMalId: true,
           aktivertDato: true,
+          bibliotekMal: {
+            select: {
+              navn: true,
+              referanse: true,
+              kapittel: {
+                select: {
+                  kode: true,
+                  navn: true,
+                  standard: { select: { kode: true, navn: true } },
+                },
+              },
+            },
+          },
         },
       });
     }),

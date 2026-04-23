@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { router, protectedProcedure } from "../trpc/trpc";
-import { createBuildingSchema } from "@sitedoc/shared";
+import { createByggeplassSchema } from "@sitedoc/shared";
 import { verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
 
 export const byggeplassRouter = router({
@@ -57,7 +57,7 @@ export const byggeplassRouter = router({
 
   // Opprett ny byggeplass
   opprett: protectedProcedure
-    .input(createBuildingSchema)
+    .input(createByggeplassSchema)
     .mutation(async ({ ctx, input }) => {
       await verifiserProsjektmedlem(ctx.userId, input.projectId);
       // Auto-generer nummer per prosjekt

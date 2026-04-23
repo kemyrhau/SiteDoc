@@ -48,6 +48,7 @@ Tre-kolonne layout (skjules på mobil < 768px, hamburger-meny i Toppbar):
 /dashbord/[prosjektId]/tegning-3d            -> Split-view tegning + 3D-modell med koordinatsynk og georeferanse
 /dashbord/[prosjektId]/punktskyer            -> Redirect → /3d-visning
 /dashbord/[prosjektId]/modeller              -> Redirect → /3d-visning
+/dashbord/[prosjektId]/kontrollplan            -> Kontrollplan: matrisevisning (områder × maler gruppert etter milepæl) + listevisning (toggle). UkeVelger-kalender, flervalg-opprettelse, inline milepæl/område, fristflytting
 /dashbord/[prosjektId]/bilder                 -> Bildegalleri (liste + tegningsvisning)
 /dashbord/[prosjektId]/okonomi               -> Økonomi: 4 faner (Oversikt, Avviksanalyse, Rapport, Dokumenter). Kontrakt påkrevd (auto-velg hvis kun én). Oversikt: spec-poster med piltast-nav, sammenligning, overskridelsesmarkering, NS-kode arv, gul prikk (●) ved postnr der split-dokumentasjon finnes. Dobbeltklikk rad → detaljmodal med dokumentasjon-seksjon ("Åpne dokumentasjon (X sider)" + kildeliste "A-nota 4: s.1-3"), NS-kode panel med NS 3420-oppslag. Rapport-fane: Innestående-tabell. Dokumenter-fane: Nr-kolonne, inline type-editor
 /dashbord/[prosjektId]/sok                   -> Dokumentsøk: AI-søk (NorBERT hybrid vektor+leksikalsk+re-ranking) med fallback til tekstsøk. Modusveksler, NS-dokumentfilter (dropdown med enkeltdokumenter), dedup per dokument, søkeord-highlighting, dobbelt-klikk åpner original. Tilgangskontrollert via hentTilgjengeligeMappeIder

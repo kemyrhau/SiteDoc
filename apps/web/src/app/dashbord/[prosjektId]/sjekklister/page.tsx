@@ -425,6 +425,11 @@ export default function SjekklisteSide() {
       etasje: bygg(data.map((s) => s.drawing?.floor)),
       tegning: bygg(data.map((s) => s.drawing?.name)),
       flyt: bygg(data.map((s) => hentFlytLedd(s))),
+      frist: [
+        { value: "har_frist", label: t("kontrollplan.frist") },
+        { value: "ingen_frist", label: "—" },
+        { value: "forfalt", label: t("kontrollplan.statusForfalt") },
+      ],
       status: STATUS_ALTERNATIVER.map((s) => ({ value: s.value, label: t(s.labelKey) })),
     };
     for (const felt of verdiFelter) {
@@ -445,24 +450,35 @@ export default function SjekklisteSide() {
     }
     for (const [kolId, verdi] of Object.entries(filterVerdier)) {
       if (!verdi) continue;
+      const valgteSet = new Set(verdi.split(","));
       resultat = resultat.filter((s) => {
         if (kolId.startsWith("felt:")) {
           const oid = kolId.replace("felt:", "");
-          return hentFeltVerdi(s, oid, objektTyper.get(oid), navneLookup) === verdi;
+          const feltVerdi = hentFeltVerdi(s, oid, objektTyper.get(oid), navneLookup);
+          return valgteSet.has(feltVerdi);
         }
         switch (kolId) {
-          case "prefix": return s.template?.prefix === verdi;
-          case "status": return s.status === verdi;
-          case "emne": return s.subject === verdi;
-          case "ansvarlig": return formaterAnsvarlig(s) === verdi;
-          case "opprettetAv": return s.bestiller?.name === verdi;
-          case "bestillerFaggruppe": return s.bestillerFaggruppe.name === verdi;
-          case "utforerFaggruppe": return s.utforerFaggruppe.name === verdi;
-          case "mal": return s.template.name === verdi;
-          case "bygning": return s.byggeplass?.name === verdi;
-          case "etasje": return s.drawing?.floor === verdi;
-          case "tegning": return s.drawing?.name === verdi;
-          case "flyt": return hentFlytLedd(s) === verdi;
+          case "prefix": return valgteSet.has(s.template?.prefix ?? "");
+          case "status": return valgteSet.has(s.status);
+          case "emne": return valgteSet.has(s.subject ?? "");
+          case "ansvarlig": return valgteSet.has(formaterAnsvarlig(s));
+          case "opprettetAv": return valgteSet.has(s.bestiller?.name ?? "");
+          case "bestillerFaggruppe": return valgteSet.has(s.bestillerFaggruppe.name);
+          case "utforerFaggruppe": return valgteSet.has(s.utforerFaggruppe.name);
+          case "mal": return valgteSet.has(s.template.name);
+          case "bygning": return valgteSet.has(s.byggeplass?.name ?? "");
+          case "etasje": return valgteSet.has(s.drawing?.floor ?? "");
+          case "tegning": return valgteSet.has(s.drawing?.name ?? "");
+          case "flyt": return valgteSet.has(hentFlytLedd(s));
+          case "frist": {
+            const harFrist = !!s.dueDate;
+            const forfalt = harFrist && new Date(s.dueDate!) < new Date() && s.status !== "approved" && s.status !== "closed";
+            if (valgteSet.has("forfalt")) return forfalt;
+            if (valgteSet.has("har_frist") && valgteSet.has("ingen_frist")) return true;
+            if (valgteSet.has("har_frist")) return harFrist;
+            if (valgteSet.has("ingen_frist")) return !harFrist;
+            return true;
+          }
           default: return true;
         }
       });
@@ -519,7 +535,8 @@ export default function SjekklisteSide() {
         bredde: "120px", sorterbar: true, sorterVerdi: (rad) => new Date(rad.updatedAt).getTime() },
       frist: { id: "frist", header: t("tabell.tidsfrist"), celle: (rad) => rad.dueDate
         ? <span className="text-xs text-gray-500">{formaterDato(rad.dueDate)}</span> : <span className="text-gray-300">—</span>,
-        bredde: "120px", sorterbar: true, sorterVerdi: (rad) => rad.dueDate ? new Date(rad.dueDate).getTime() : null },
+        bredde: "120px", sorterbar: true, sorterVerdi: (rad) => rad.dueDate ? new Date(rad.dueDate).getTime() : null,
+        filtrerbar: true, filterAlternativer: dynamiskFilter.frist },
       flyt: { id: "flyt", header: t("tabell.flyt"),
         celle: (rad) => <FlytIndikator
           medlemmer={rad.dokumentflyt?.medlemmer ?? []}

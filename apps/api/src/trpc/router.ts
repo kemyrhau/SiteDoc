@@ -25,6 +25,8 @@ import { aiSokRouter } from "../routes/aiSok";
 import { brukerRouter } from "../routes/bruker";
 import { psiRouter } from "../routes/psi";
 import { bibliotekRouter } from "../routes/bibliotek";
+import { omradeRouter } from "../routes/omrade";
+import { kontrollplanRouter } from "../routes/kontrollplan";
 
 
 export const appRouter = router({
@@ -55,6 +57,8 @@ export const appRouter = router({
   bruker: brukerRouter,
   psi: psiRouter,
   bibliotek: bibliotekRouter,
+  omrade: omradeRouter,
+  kontrollplan: kontrollplanRouter,
 
 });
 

@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   ClipboardCheck,
+  ClipboardList,
   ListTodo,
   FileText,
   Map,
@@ -92,6 +93,13 @@ const hovedelementer: SidebarElement[] = [
     labelKey: "nav.mapper",
     ikon: <FolderOpen className="h-5 w-5" />,
     kreverProsjekt: true,
+  },
+  {
+    id: "kontrollplan",
+    labelKey: "nav.kontrollplan",
+    ikon: <ClipboardList className="h-5 w-5" />,
+    kreverProsjekt: true,
+    kreverModul: "kontrollplan",
   },
   {
     id: "okonomi",

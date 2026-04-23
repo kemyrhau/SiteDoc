@@ -471,6 +471,11 @@ export default function OppgaverSide() {
       bestillerFaggruppe: bygg(oppgaver.map((o) => o.bestillerFaggruppe?.name ?? "")),
       utforerFaggruppe: bygg(oppgaver.map((o) => o.utforerFaggruppe?.name ?? "")),
       flyt: bygg(oppgaver.map((o) => hentFlytLedd(o))),
+      frist: [
+        { value: "har_frist", label: t("kontrollplan.frist") },
+        { value: "ingen_frist", label: "—" },
+        { value: "forfalt", label: t("kontrollplan.statusForfalt") },
+      ],
       mal: bygg(oppgaver.map((o) => o.template?.name)),
       bygning: bygg(oppgaver.map((o) => o.drawing?.byggeplass?.name)),
       etasje: bygg(oppgaver.map((o) => o.drawing?.floor)),
@@ -502,25 +507,36 @@ export default function OppgaverSide() {
     }
     for (const [kolId, verdi] of Object.entries(filterVerdier)) {
       if (!verdi) continue;
+      const valgteSet = new Set(verdi.split(","));
       resultat = resultat.filter((o) => {
         if (kolId.startsWith("felt:")) {
           const oid = kolId.replace("felt:", "");
-          return hentFeltVerdi(o, oid, objektTyper.get(oid), navneLookup) === verdi;
+          const feltVerdi = hentFeltVerdi(o, oid, objektTyper.get(oid), navneLookup);
+          return valgteSet.has(feltVerdi);
         }
         switch (kolId) {
-          case "prefix": return o.template?.prefix === verdi;
-          case "status": return o.status === verdi;
-          case "emne": return o.subject === verdi;
-          case "prioritet": return o.priority === verdi;
-          case "ansvarlig": return formaterAnsvarlig(o) === verdi;
-          case "opprettetAv": return o.bestiller?.name === verdi;
-          case "bestillerFaggruppe": return o.bestillerFaggruppe?.name ?? "" === verdi;
-          case "utforerFaggruppe": return o.utforerFaggruppe?.name ?? "" === verdi;
-          case "mal": return o.template?.name === verdi;
-          case "bygning": return o.drawing?.byggeplass?.name === verdi;
-          case "etasje": return o.drawing?.floor === verdi;
-          case "tegning": return o.drawing?.name === verdi;
-          case "flyt": return hentFlytLedd(o) === verdi;
+          case "prefix": return valgteSet.has(o.template?.prefix ?? "");
+          case "status": return valgteSet.has(o.status);
+          case "emne": return valgteSet.has(o.subject ?? "");
+          case "prioritet": return valgteSet.has(o.priority ?? "");
+          case "ansvarlig": return valgteSet.has(formaterAnsvarlig(o));
+          case "opprettetAv": return valgteSet.has(o.bestiller?.name ?? "");
+          case "bestillerFaggruppe": return valgteSet.has(o.bestillerFaggruppe?.name ?? "");
+          case "utforerFaggruppe": return valgteSet.has(o.utforerFaggruppe?.name ?? "");
+          case "mal": return valgteSet.has(o.template?.name ?? "");
+          case "bygning": return valgteSet.has(o.drawing?.byggeplass?.name ?? "");
+          case "etasje": return valgteSet.has(o.drawing?.floor ?? "");
+          case "tegning": return valgteSet.has(o.drawing?.name ?? "");
+          case "flyt": return valgteSet.has(hentFlytLedd(o));
+          case "frist": {
+            const harFrist = !!o.dueDate;
+            const forfalt = harFrist && new Date(o.dueDate!) < new Date() && o.status !== "approved" && o.status !== "closed";
+            if (valgteSet.has("forfalt")) return forfalt;
+            if (valgteSet.has("har_frist") && valgteSet.has("ingen_frist")) return true;
+            if (valgteSet.has("har_frist")) return harFrist;
+            if (valgteSet.has("ingen_frist")) return !harFrist;
+            return true;
+          }
           default: return true;
         }
       });
@@ -633,6 +649,7 @@ export default function OppgaverSide() {
           ? <span className="text-xs text-gray-500">{formaterDato(rad.dueDate)}</span>
           : <span className="text-gray-300">—</span>,
         bredde: "120px", sorterbar: true, sorterVerdi: (rad) => rad.dueDate ? new Date(rad.dueDate).getTime() : null,
+        filtrerbar: true, filterAlternativer: dynamiskFilter.frist,
       },
       flyt: {
         id: "flyt", header: t("tabell.flyt"),

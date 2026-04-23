@@ -96,6 +96,18 @@ function FilterDropdown({
   const [apen, setApen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
+  // Parse komma-separert verdi til Set
+  const valgteVerdier = useMemo(() => {
+    if (!verdi) return new Set<string>();
+    return new Set(verdi.split(","));
+  }, [verdi]);
+
+  function toggleVerdi(v: string) {
+    const ny = new Set(valgteVerdier);
+    if (ny.has(v)) ny.delete(v); else ny.add(v);
+    onChange(ny.size > 0 ? [...ny].join(",") : "");
+  }
+
   useEffect(() => {
     function handleKlikk(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) {
@@ -106,6 +118,8 @@ function FilterDropdown({
     return () => document.removeEventListener("mousedown", handleKlikk);
   }, [apen]);
 
+  const harFilter = valgteVerdier.size > 0;
+
   return (
     <div ref={ref} className="relative inline-block">
       <button
@@ -114,38 +128,41 @@ function FilterDropdown({
           setApen(!apen);
         }}
         className={`ml-1 inline-flex items-center rounded p-0.5 hover:bg-gray-200 ${
-          verdi ? "text-blue-600" : "text-gray-400"
+          harFilter ? "text-blue-600" : "text-gray-400"
         }`}
         title="Filtrer"
       >
         <FilterIkon />
       </button>
       {apen && (
-        <div className="absolute left-0 top-full z-50 mt-1 min-w-[160px] rounded-md border border-gray-200 bg-white py-1 shadow-lg">
+        <div className="absolute left-0 top-full z-50 mt-1 min-w-[160px] rounded-md border border-gray-200 bg-white py-1 shadow-lg max-h-[300px] overflow-y-auto">
           <button
             onClick={() => {
               onChange("");
               setApen(false);
             }}
             className={`block w-full px-3 py-1.5 text-left text-xs hover:bg-gray-50 ${
-              !verdi ? "font-semibold text-blue-600" : "text-gray-600"
+              !harFilter ? "font-semibold text-blue-600" : "text-gray-600"
             }`}
           >
             Alle
           </button>
           {alternativer.map((alt) => (
-            <button
+            <label
               key={alt.value}
-              onClick={() => {
-                onChange(alt.value);
-                setApen(false);
-              }}
-              className={`block w-full px-3 py-1.5 text-left text-xs hover:bg-gray-50 ${
-                verdi === alt.value ? "font-semibold text-blue-600" : "text-gray-600"
-              }`}
+              className="flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-gray-50 cursor-pointer"
+              onClick={(e) => e.stopPropagation()}
             >
-              {alt.label}
-            </button>
+              <input
+                type="checkbox"
+                checked={valgteVerdier.has(alt.value)}
+                onChange={() => toggleVerdi(alt.value)}
+                className="rounded text-blue-600 h-3 w-3"
+              />
+              <span className={valgteVerdier.has(alt.value) ? "font-medium text-blue-600" : "text-gray-600"}>
+                {alt.label}
+              </span>
+            </label>
           ))}
         </div>
       )}

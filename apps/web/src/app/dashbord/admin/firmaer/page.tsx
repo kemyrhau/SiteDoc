@@ -4,6 +4,8 @@ import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { Spinner, EmptyState, Button, Input, Modal } from "@sitedoc/ui";
 import { Building2, Plus, Users, FolderKanban, X, Pencil, Plug, Trash2, ChevronDown, ChevronRight } from "lucide-react";
+import { HjelpKnapp, HjelpFane } from "@/components/hjelp/HjelpModal";
+import { useTranslation } from "react-i18next";
 
 const INTEGRASJON_TYPER = ["proadm", "hr", "gps", "smartdoc"] as const;
 type IntegrasjonsType = (typeof INTEGRASJON_TYPER)[number];
@@ -16,6 +18,7 @@ const TYPE_LABEL: Record<IntegrasjonsType, string> = {
 };
 
 export default function AdminFirmaer() {
+  const { t } = useTranslation();
   const utils = trpc.useUtils();
   const { data: organisasjoner, isLoading } =
     trpc.admin.hentAlleOrganisasjoner.useQuery();
@@ -127,10 +130,29 @@ export default function AdminFirmaer() {
     <div>
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-lg font-semibold text-gray-900">Firmaer</h1>
-        <Button onClick={() => setVisOpprett(true)}>
-          <Plus className="mr-1.5 h-4 w-4" />
-          Opprett firma
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button onClick={() => setVisOpprett(true)}>
+            <Plus className="mr-1.5 h-4 w-4" />
+            Opprett firma
+          </Button>
+          <HjelpKnapp>
+            <HjelpFane tittel={t("hjelp.firmaer.hvaTittel")}>
+              <div className="space-y-4">
+                <p className="text-sm text-gray-600">{t("hjelp.firmaer.hva")}</p>
+                <div className="space-y-3">
+                  <div className="rounded-lg border border-gray-200 px-4 py-3">
+                    <h4 className="text-sm font-semibold text-gray-900">{t("hjelp.firmaer.prosjekterTittel")}</h4>
+                    <p className="mt-1 text-sm text-gray-600">{t("hjelp.firmaer.prosjekterBeskrivelse")}</p>
+                  </div>
+                  <div className="rounded-lg border border-gray-200 px-4 py-3">
+                    <h4 className="text-sm font-semibold text-gray-900">{t("hjelp.firmaer.integrasjonerTittel")}</h4>
+                    <p className="mt-1 text-sm text-gray-600">{t("hjelp.firmaer.integrasjonerBeskrivelse")}</p>
+                  </div>
+                </div>
+              </div>
+            </HjelpFane>
+          </HjelpKnapp>
+        </div>
       </div>
 
       {!organisasjoner || organisasjoner.length === 0 ? (
