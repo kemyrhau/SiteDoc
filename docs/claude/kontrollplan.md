@@ -1137,7 +1137,7 @@ Skyv et helt område → systemet sjekker om punkter i *andre* områder avhenger
 
 ### MS Project XML-import (implementert)
 
-MS Project (.xml) inneholder WBS, Gantt-frister, ressurser og avhengigheter. Importert via 3-stegs veiviser:
+MS Project (.xml) inneholder WBS, Gantt-frister, ressurser og avhengigheter. Importert via 3-stegs veiviser (bred modal, max-w-5xl):
 
 **Steg 1: Last opp og velg aktiviteter**
 - Dra-og-slipp XML-fil → parser klient-side med `fast-xml-parser`
@@ -1147,19 +1147,36 @@ MS Project (.xml) inneholder WBS, Gantt-frister, ressurser og avhengigheter. Imp
 
 **Steg 2: Koble ressurser til faggrupper**
 - Unike ressurser fra valgte oppgaver (via Assignments)
-- Dropdown til prosjektets faggrupper
+- Info-boks øverst med eksempel på kobling
 - Auto-match: substring-matching mellom ressursnavn og faggruppenavn
+- **Inline opprettelse** av manglende faggrupper:
+  - Per rad: «+ Opprett som faggruppe»-knapp ved siden av dropdown — oppretter med ressursnavnet som navn og auto-valgt farge fra palett
+  - Bulk-knapp når ≥2 mangler: «Opprett N manglende som faggrupper» (lister navnene)
+  - Bruker `trpc.faggruppe.opprett`, invaliderer `hentForProsjekt`-query
+- **Standard-faggruppe** alltid synlig nederst (ikke bare når listen er tom) — fallback for umatchet/uten ressurs
+- Lenke til `/dashbord/[prosjektId]/faggrupper` (ny fane) for detaljert oppsett
 
 **Steg 3: Tilordne sjekkliste-maler**
-- Aktiviteter gruppert etter faggruppe
-- Mal-velger med trestruktur (Standard → Kapittel → Mal + Prosjektmaler)
+- Aktiviteter gruppert etter faggruppe (inkludert gruppe «Ikke tilordnet»)
+- Per gruppe uten faggruppe: override-velger + standard-faggruppe fra steg 2 som siste fallback
+- Mal-velger: flat liste under hver standard, sortert etter kapittelkode (ikke nestet)
 - «Bruk for alle i gruppen» for hurtig-tilordning
 - Frister auto-konvertert fra Finish-dato → uke/år
+
+**Oppsummering:**
+- Gruppert visning per (mal × faggruppe) med antall aktiviteter og uke-spenn
+- Advarsler: X punkter uten mal (ekskludert), Y punkter uten faggruppe (hoppet over)
 
 **Opprettelse:**
 - Grupperer etter (sjekklisteMalId, faggruppeId) → kaller `opprettPunkter` per gruppe
 - Punkter opprettes **uten område** — bruker tilordner i kontrollplan-UI etterpå
 - Avhengigheter importeres **ikke** — for rigide til å overføre direkte
+
+**Faggruppe-fallback-kjede** (i rekkefølge):
+1. Ressurs-mapping fra steg 2
+2. Gruppe-override fra steg 3 (hvis gruppen ikke har faggruppe)
+3. Standard-faggruppe fra steg 2 (global fallback)
+4. Hvis ingen — punktet hoppes over med advarsel
 
 **Filer:**
 - `apps/web/src/lib/ms-project-parser.ts` — parser, trebygging, datokonvertering
@@ -1217,36 +1234,42 @@ PDF-eksport per kontrollområde. Knyttes til `Kontrollplan`-entiteten.
 SLUTTRAPPORT — Kontrollområde: Fuktsikring
 Kontrollplan: Bjørvika Blokk A  |  Dato: 2026-06-15
 
+[Punkt-liste — én linje per sjekkliste med status-badge]
+
 1. Oppsummering
-   Kontrollert: 48 sjekklister i 12 områder
-   Godkjent: 48  |  Avvik totalt: 5  |  Avvik lukket: 5  |  Åpne: 0
+   Totalt: 48  |  Godkjent: 48  |  Returnert: 5
+   (Planlagt/Pågår/Utført vises kun når > 0)
 
 2. Kontrollerte områder
-   ┌──────────────────┬──────────────┬──────────┬──────────┬──────────────┐
-   │ Område           │ Sjekkliste   │ Status   │ Dato     │ Faggruppe    │
-   ├──────────────────┼──────────────┼──────────┼──────────┼──────────────┤
-   │ Bad 201          │ Membran      │ Godkjent │ 12. jun  │ VVS-Rør AS   │
-   │ Bad 202          │ Membran      │ Godkjent │ 12. jun  │ VVS-Rør AS   │
-   │ Bad 301          │ Membran      │ Godkjent │ 15. jun  │ VVS-Rør AS   │
-   │ ... (48 rader)   │              │          │          │              │
-   └──────────────────┴──────────────┴──────────┴──────────┴──────────────┘
+   ┌──────────────────┬──────────────┬──────────┬──────────────┬──────────────┐
+   │ Område           │ Sjekkliste   │ Status   │ Godkjent     │ Faggruppe    │
+   ├──────────────────┼──────────────┼──────────┼──────────────┼──────────────┤
+   │ Bad 201          │ Membran      │ Godkjent │ 12.06.2026   │ VVS-Rør AS   │
+   │ Bad 202          │ Membran      │ Godkjent │ 12.06.2026   │ VVS-Rør AS   │
+   │ Bad 301          │ Membran      │ Godkjent │ 15.06.2026   │ VVS-Rør AS   │
+   │ ... (48 rader)   │              │          │              │              │
+   └──────────────────┴──────────────┴──────────┴──────────────┴──────────────┘
 
-3. Avvik og lukking
-   A-001: Membran utilstrekkelig overlapp (Bad 301) — Lukket 16. jun
-   A-002: Manglende foto av hjørnedetalj (Bad 302) — Lukket 17. jun
-   ... (5 avvik, alle lukket)
+3. Returnerte sjekklister  (kun når returnert > 0)
+   Membran bad 301 — Utilstrekkelig overlapp [Godkjent]
+   Membran bad 302 — Manglende foto av hjørnedetalj [Godkjent]
+   ... (5 returnerte, alle nå godkjent)
 
-4. Historikk-sammendrag
-   Gjennomsnittlig behandlingstid: 2,3 dager per punkt
-   Avvist og re-kontrollert: 5 av 48 (10,4 %)
-
-5. Kontrollerklæring
+4. Kontrollerklæring
    Kontrollområde fuktsikring er gjennomført iht. SAK10 §14-7.
-   Alle avvik er dokumentert og lukket.
+   48 av 48 kontrollpunkter er godkjent.
+   5 sjekklister ble returnert under gjennomføringen. Alle er nå godkjent.
 
    Ansvarlig kontrollerende: ________________  Dato: ________
    Prosjektleder:           ________________  Dato: ________
 ```
+
+**Terminologi:** «Avvik» brukes IKKE i sluttrapporten — det er forbeholdt KS-avvik og HMS-avvik/RUH. I kontrollplan-konteksten heter det «Returnert» når en sjekkliste avvises og sendes tilbake i dokumentflyten.
+
+**Kontrollerklæring dynamisk:** «er gjennomført» kun når alle punkter er godkjent, ellers «er under gjennomføring».
+
+**Filer:**
+- `packages/pdf/src/sluttrapport.ts` — HTML-generering (self-contained CSS, ingen delt `hentCss()`)
 
 ### Gjenbruk av eksisterende systemer
 
