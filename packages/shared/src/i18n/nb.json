@@ -1313,6 +1313,12 @@
   "kontrollplan.importStandardFaggruppeHjelp": "Brukes for alle aktiviteter som ikke har en ressurs",
   "kontrollplan.importAktiviteterLiten": "aktiviteter",
   "kontrollplan.importVelgFaggruppe": "Velg faggruppe...",
+  "kontrollplan.importForklaring": "Eksempel: ressurs «Tømrer AS» i MS Project kobles til faggruppe «Tømrer» i SiteDoc. Finner du ikke faggruppen? Opprett den direkte herfra.",
+  "kontrollplan.importOpprettSomFaggruppe": "Opprett som faggruppe",
+  "kontrollplan.importOpprettAlleManglende": "Opprett {{antall}} manglende som faggrupper",
+  "kontrollplan.importManglerFaggruppe": "{{antall}} ressurs(er) mangler matchende faggruppe",
+  "kontrollplan.importAdministrerFaggrupper": "Administrer faggrupper",
+  "kontrollplan.importOppretterFaggruppe": "Oppretter...",
   "kontrollplan.prosjektmaler": "Prosjektmaler",
   "kontrollplan.ingenMaler": "Ingen maler funnet",
 

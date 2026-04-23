@@ -13,6 +13,9 @@ import {
   ArrowLeft,
   ArrowRight,
   Loader2,
+  Plus,
+  ExternalLink,
+  Info,
 } from "lucide-react";
 import {
   parseMSProjectXML,
@@ -86,6 +89,45 @@ export function ImportFremdriftsplanDialog({
   );
 
   const opprettPunkter = trpc.kontrollplan.opprettPunkter.useMutation();
+  const opprettFaggruppe = trpc.faggruppe.opprett.useMutation();
+
+  // Opprettelsesstatus per ressursnavn
+  const [opprettende, setOpprettende] = useState<Set<string>>(new Set());
+
+  // Fargepalett for auto-genererte faggrupper
+  const FARGE_PALETT = [
+    "#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6",
+    "#ec4899", "#14b8a6", "#f97316", "#6366f1", "#84cc16",
+  ];
+  const nesteFarge = useCallback(() => {
+    const brukte = new Set((faggrupper ?? []).map((fg: { color: string | null }) => fg.color ?? ""));
+    const ledig = FARGE_PALETT.find((f) => !brukte.has(f));
+    return ledig ?? FARGE_PALETT[Math.floor(Math.random() * FARGE_PALETT.length)]!;
+  }, [faggrupper]);
+
+  const opprettFaggruppeForRessurs = useCallback(async (ressursNavn: string) => {
+    if (opprettende.has(ressursNavn)) return;
+    setOpprettende((prev) => new Set(prev).add(ressursNavn));
+    try {
+      const ny = await opprettFaggruppe.mutateAsync({
+        name: ressursNavn,
+        projectId,
+        color: nesteFarge(),
+      });
+      await utils.faggruppe.hentForProsjekt.invalidate({ projectId });
+      setRessursFaggruppeMap((prev) => {
+        const next = new Map(prev);
+        next.set(ressursNavn, ny.id);
+        return next;
+      });
+    } finally {
+      setOpprettende((prev) => {
+        const next = new Set(prev);
+        next.delete(ressursNavn);
+        return next;
+      });
+    }
+  }, [opprettFaggruppe, projectId, utils, opprettende, nesteFarge]);
 
   // ──────── Steg 1: Fil-håndtering ────────
 
@@ -179,6 +221,17 @@ export function ImportFremdriftsplanDialog({
     }
     setRessursFaggruppeMap(map);
   }, [faggrupper, valgteRessurser]);
+
+  // Ressurser uten matching faggruppe
+  const manglendeRessurser = useMemo(() => {
+    return valgteRessurser.filter((r) => !ressursFaggruppeMap.get(r.name));
+  }, [valgteRessurser, ressursFaggruppeMap]);
+
+  const opprettAlleManglende = useCallback(async () => {
+    for (const r of manglendeRessurser) {
+      await opprettFaggruppeForRessurs(r.name);
+    }
+  }, [manglendeRessurser, opprettFaggruppeForRessurs]);
 
   // ──────── Steg 3: Mal-tre ────────
 
@@ -689,69 +742,135 @@ export function ImportFremdriftsplanDialog({
               <h3 className="text-sm font-medium text-gray-700 mb-1">
                 {t("kontrollplan.importSteg2Tittel")}
               </h3>
-              <p className="text-xs text-gray-400 mb-4">
+              <p className="text-xs text-gray-400 mb-3">
                 {t("kontrollplan.importSteg2Beskrivelse")}
               </p>
 
-              {valgteRessurser.length === 0 ? (
-                <div className="space-y-4">
-                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-700">
-                    {t("kontrollplan.importIngenRessurser")}
-                  </div>
-                  <div className="flex items-center gap-3 py-2 px-3 border rounded-lg">
-                    <div className="flex-1">
-                      <div className="text-sm text-gray-900">{t("kontrollplan.importStandardFaggruppe")}</div>
-                      <div className="text-xs text-gray-400">
-                        {t("kontrollplan.importStandardFaggruppeHjelp")}
-                      </div>
-                    </div>
-                    <select
-                      value={standardFaggruppeId ?? ""}
-                      onChange={(e) => setStandardFaggruppeId(e.target.value || null)}
-                      className="text-xs border rounded px-2 py-1.5 w-48"
-                    >
-                      <option value="">{t("kontrollplan.importIkkeTilordnet")}</option>
-                      {faggrupper?.map((fg: { id: string; name: string; color: string | null }) => (
-                        <option key={fg.id} value={fg.id}>
-                          {fg.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+              {/* Forklaring-boks */}
+              <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 mb-3 flex gap-2">
+                <Info className="h-4 w-4 text-blue-500 flex-shrink-0 mt-0.5" />
+                <div className="text-xs text-blue-900">
+                  {t("kontrollplan.importForklaring")}
                 </div>
-              ) : (
-                <div className="space-y-2">
-                  {valgteRessurser.map((r) => (
-                    <div key={r.name} className="flex items-center gap-3 py-2 px-3 border rounded-lg">
-                      <div className="flex-1">
-                        <div className="text-sm text-gray-900">{r.name}</div>
-                        <div className="text-xs text-gray-400">
-                          {r.taskCount} {t("kontrollplan.importAktiviteterLiten")}
-                        </div>
-                      </div>
-                      <span className="text-gray-300">→</span>
-                      <select
-                        value={ressursFaggruppeMap.get(r.name) ?? ""}
-                        onChange={(e) => {
-                          setRessursFaggruppeMap((prev) => {
-                            const next = new Map(prev);
-                            next.set(r.name, e.target.value || null);
-                            return next;
-                          });
-                        }}
-                        className="text-xs border rounded px-2 py-1.5 w-48"
-                      >
-                        <option value="">{t("kontrollplan.importIkkeTilordnet")}</option>
-                        {faggrupper?.map((fg: { id: string; name: string; color: string | null }) => (
-                          <option key={fg.id} value={fg.id}>
-                            {fg.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  ))}
+              </div>
+
+              {/* Bulk-opprett — kun når ≥2 mangler */}
+              {valgteRessurser.length > 0 && manglendeRessurser.length >= 2 && (
+                <div className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-lg p-3 mb-3">
+                  <div className="text-xs text-amber-800">
+                    {t("kontrollplan.importManglerFaggruppe", { antall: manglendeRessurser.length })}
+                    <span className="text-amber-600 ml-1">
+                      ({manglendeRessurser.map((r) => r.name).join(", ")})
+                    </span>
+                  </div>
+                  <button
+                    onClick={opprettAlleManglende}
+                    disabled={opprettende.size > 0}
+                    className="flex items-center gap-1 text-xs text-amber-900 bg-white border border-amber-300 rounded px-2 py-1 hover:bg-amber-100 disabled:opacity-50 whitespace-nowrap"
+                  >
+                    {opprettende.size > 0 ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <Plus className="h-3 w-3" />
+                    )}
+                    {t("kontrollplan.importOpprettAlleManglende", { antall: manglendeRessurser.length })}
+                  </button>
                 </div>
               )}
+
+              {valgteRessurser.length === 0 ? (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-700 mb-3">
+                  {t("kontrollplan.importIngenRessurser")}
+                </div>
+              ) : (
+                <div className="space-y-2 mb-4">
+                  {valgteRessurser.map((r) => {
+                    const valgtFg = ressursFaggruppeMap.get(r.name);
+                    const oppretter = opprettende.has(r.name);
+                    return (
+                      <div key={r.name} className="flex items-center gap-3 py-2 px-3 border rounded-lg">
+                        <div className="flex-1">
+                          <div className="text-sm text-gray-900">{r.name}</div>
+                          <div className="text-xs text-gray-400">
+                            {r.taskCount} {t("kontrollplan.importAktiviteterLiten")}
+                          </div>
+                        </div>
+                        <span className="text-gray-300">→</span>
+                        <select
+                          value={valgtFg ?? ""}
+                          onChange={(e) => {
+                            setRessursFaggruppeMap((prev) => {
+                              const next = new Map(prev);
+                              next.set(r.name, e.target.value || null);
+                              return next;
+                            });
+                          }}
+                          className="text-xs border rounded px-2 py-1.5 w-48"
+                        >
+                          <option value="">{t("kontrollplan.importIkkeTilordnet")}</option>
+                          {faggrupper?.map((fg: { id: string; name: string; color: string | null }) => (
+                            <option key={fg.id} value={fg.id}>
+                              {fg.name}
+                            </option>
+                          ))}
+                        </select>
+                        {!valgtFg && (
+                          <button
+                            onClick={() => opprettFaggruppeForRessurs(r.name)}
+                            disabled={oppretter}
+                            className="flex items-center gap-1 text-xs text-sitedoc-primary border border-sitedoc-primary/30 rounded px-2 py-1 hover:bg-blue-50 disabled:opacity-50 whitespace-nowrap"
+                            title={t("kontrollplan.importOpprettSomFaggruppe")}
+                          >
+                            {oppretter ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <Plus className="h-3 w-3" />
+                            )}
+                            {oppretter
+                              ? t("kontrollplan.importOppretterFaggruppe")
+                              : t("kontrollplan.importOpprettSomFaggruppe")}
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Standard-faggruppe — alltid synlig */}
+              <div className="flex items-center gap-3 py-2 px-3 border rounded-lg bg-gray-50">
+                <div className="flex-1">
+                  <div className="text-sm text-gray-900">{t("kontrollplan.importStandardFaggruppe")}</div>
+                  <div className="text-xs text-gray-400">
+                    {t("kontrollplan.importStandardFaggruppeHjelp")}
+                  </div>
+                </div>
+                <select
+                  value={standardFaggruppeId ?? ""}
+                  onChange={(e) => setStandardFaggruppeId(e.target.value || null)}
+                  className="text-xs border rounded px-2 py-1.5 w-48"
+                >
+                  <option value="">{t("kontrollplan.importIkkeTilordnet")}</option>
+                  {faggrupper?.map((fg: { id: string; name: string; color: string | null }) => (
+                    <option key={fg.id} value={fg.id}>
+                      {fg.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Lenke til faggruppe-admin */}
+              <div className="mt-3 text-right">
+                <a
+                  href={`/dashbord/${projectId}/faggrupper`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-sitedoc-primary"
+                >
+                  {t("kontrollplan.importAdministrerFaggrupper")}
+                  <ExternalLink className="h-3 w-3" />
+                </a>
+              </div>
             </div>
           )}
 

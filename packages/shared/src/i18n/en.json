@@ -1316,6 +1316,12 @@
   "kontrollplan.importStandardFaggruppeHjelp": "Used for all activities without a resource",
   "kontrollplan.importAktiviteterLiten": "activities",
   "kontrollplan.importVelgFaggruppe": "Select trade group...",
+  "kontrollplan.importForklaring": "Example: an MS Project resource \"Carpenter AS\" is linked to the \"Carpenter\" trade group in SiteDoc. Can't find a trade group? Create it directly from here.",
+  "kontrollplan.importOpprettSomFaggruppe": "Create as trade group",
+  "kontrollplan.importOpprettAlleManglende": "Create {{antall}} missing as trade groups",
+  "kontrollplan.importManglerFaggruppe": "{{antall}} resource(s) without a matching trade group",
+  "kontrollplan.importAdministrerFaggrupper": "Manage trade groups",
+  "kontrollplan.importOppretterFaggruppe": "Creating...",
   "kontrollplan.prosjektmaler": "Project templates",
   "kontrollplan.ingenMaler": "No templates found",
 
