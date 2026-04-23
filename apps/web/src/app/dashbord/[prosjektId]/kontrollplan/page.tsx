@@ -131,9 +131,13 @@ export default function KontrollplanSide() {
         kontrollplanId: kontrollplan.id,
         kontrollomrade: kontrollomradeFilter || null,
       });
+      const naa = new Date();
+      const dd = String(naa.getDate()).padStart(2, "0");
+      const mm = String(naa.getMonth() + 1).padStart(2, "0");
+      const yyyy = naa.getFullYear();
       const html = genererSluttrapportHtml({
         ...data,
-        dato: new Date().toLocaleDateString("nb-NO"),
+        dato: `${dd}.${mm}.${yyyy}`,
       });
       const w = window.open("", "_blank");
       if (w) {
