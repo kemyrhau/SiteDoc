@@ -167,9 +167,11 @@ Ingen av rename-migreringene berører denne. Kolonnen heter fortsatt `building_i
 
 19 relevante FK på test/prod heter fortsatt `*_enterprise_id_fkey`, `*_building_id_fkey` osv., selv om kolonnene de er på heter `faggruppe_id`/`byggeplass_id`. Eksempler: `checklists_creator_enterprise_id_fkey` på `bestiller_faggruppe_id`. Funksjonelt OK, kun lesbarhet i feilmeldinger og psql-output. Skal de renames?
 
-### U.3 `fiks_rolle_utforer` failed-rad på test
+### U.3 `fiks_rolle_utforer` på test — ✅ Avklart 2026-04-25
 
-Migrering `20260406020000_fiks_rolle_utforer` har en FAILED-rad i `_prisma_migrations` på test, mens senere migreringer er applied OK. Sannsynlig artifakt fra `prisma migrate resolve --applied`. Bør verifiseres at sluttstaten er korrekt og deretter ryddes.
+Ikke et problem — er rolled-back-historikk fra normal `prisma migrate resolve --rolled-back` + ny `migrate deploy`. Begge versjoner av samme migration_name er bevart som audit-trail. DB-tilstanden er verifisert ren på begge servere (kun `bestiller`/`utforer`/`godkjenner`/`registrator` som rolle-verdier, ingen `utfører` med ø, ingen `oppretter`).
+
+Samme pattern gjelder `psi_building`. Begge er feilklassifisert som "FAILED" i forrige versjon av audit-rapporten — se [db-naming-audit-2026-04-25.md § 4.2 og § 4.12](db-naming-audit-2026-04-25.md).
 
 ### U.4 `20260424001754_init` på test — ✅ Avklart 2026-04-25
 

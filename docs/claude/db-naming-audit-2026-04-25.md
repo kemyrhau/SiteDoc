@@ -27,7 +27,8 @@
 | `navnegjennomgang` applied? | NEI (failed) | **JA** (2026-04-05) | **JA** (2026-04-06) |
 | `enterprise`-kolonner gjenstår | 17 (alle gamle) | **2** (snapshot-felt — utenfor scope) | **2** (snapshot-felt — utenfor scope) |
 | pgvector-extension | NEI | JA v0.6.0 | JA v0.6.0 |
-| Failed/pending migreringer | 6 | 2 (artifakter — se §3) | 0 |
+| Reelle failed migreringer | 6 | **0** | 0 |
+| Rolled-back-rader (legitim historikk) | 0 | 2 | 0 |
 
 **Konsekvens:**
 - DB-naming-opprydningen er allerede gjennomført på test og prod for ~10 dager siden.
@@ -227,31 +228,41 @@ Tre migreringer i kjede:
 
 **Database:** `sitedoc_test` på sitedoc-server (PostgreSQL 16.13).
 
-### 4.1 _prisma_migrations — status
+### 4.1 _prisma_migrations — status (korrigert 2026-04-25)
 
 | Status | Antall rader |
 |---|---|
 | APPLIED | 110 |
-| FAILED/PENDING | 2 |
+| ROLLED BACK (legitim historikk) | 2 |
+| FAILED (reell failure) | **0** |
 | **Totalt** | **112** |
 
 (Kildekoden har 109 unike migreringer. Test har 3 ekstra rader — se §4.7.)
 
-### 4.2 Failed migreringer (begge er artifakter — ufarlig)
+> **Korreksjon:** Forrige versjon av denne tabellen klassifiserte de 2 rolled-back-radene som FAILED/PENDING. Det skyldtes feil CASE-rekkefølge i query-en (sjekket `finished_at IS NULL` før `rolled_back_at IS NOT NULL`). Riktig pattern dokumentert i § 4.12.
 
-| # | Migrering | Status |
+### 4.2 Rolled-back-rader (legitim historikk, ikke faktisk failure)
+
+| # | Migrering | Tolkning |
 |---|---|---|
-| 1 | `20260403120000_psi_building` | **DOBBEL RAD:** én FAILED + én OK (2026-04-05). Den FAILED-raden er en artefakt fra første forsøk; senere `prisma migrate resolve --applied` har lagt til en OK-rad. Det er den OK-raden som teller |
-| 2 | `20260406020000_fiks_rolle_utforer` | FAILED uten OK-motpart. Likevel er ALLE senere migreringer applied OK (inkl. faggruppe_rename, kontrollplan), så Prisma har på et tidspunkt blitt fortalt å hoppe over. Bør verifiseres at sluttstaten er korrekt |
+| 1 | `20260403120000_psi_building` | **DOBBEL RAD:** RECORD 1 startet 2026-04-05 01:42:19, feilet, **rolled back manuelt** 01:42:29.842 (10 sekunder senere). RECORD 2 (samme migration_name, ny SQL) kjørt OK 4 ms etter rollback. Begge bevart som audit-trail |
+| 2 | `20260406020000_fiks_rolle_utforer` | **DOBBEL RAD:** RECORD 1 startet 2026-04-06 03:19:44 med checksum `b0b69ba1...`, feilet på unique constraint, **rolled back manuelt** 03:21:21. RECORD 2 (ny SQL, checksum `621b37c0...`) kjørt OK 1.5 sek senere. SQL-fiks: utvidet DELETE-logikk for å rydde duplikater før UPDATE renamer `utfører`→`utforer` |
 
-**Tolkning:** Verken hindrer videre fremdrift. Bør likevel ryddes (Prisma vil fortsatt klage hver gang `prisma migrate deploy` kjøres).
+**Verifikasjon av sluttstate (test):**
+```
+SELECT rolle, COUNT(*) FROM dokumentflyt_medlemmer GROUP BY rolle:
+  bestiller(5), godkjenner(7), registrator(4), utforer(5)
+```
+Ingen `utfører` (med ø). Ingen `oppretter`. Sluttstaten er korrekt.
+
+**Tolkning:** Ingen handling kreves. `prisma migrate deploy` klager IKKE på rolled-back-rader. De er Prisma sin egen audit-trail og skal beholdes som historikk.
 
 ### 4.3 Rename-relaterte migreringer — ALLE APPLIED OK
 
 | Migrering | Applied | Status |
 |---|---|---|
 | `20260309074947_dokumentflyt_ny_modell` | 2026-03-16 | OK |
-| `20260403120000_psi_building` | 2026-04-05 | OK (med dobbel rad) |
+| `20260403120000_psi_building` | 2026-04-05 | OK (RECORD 2; RECORD 1 rolled back — se § 4.2) |
 | `20260404200000_hovedansvarlig_dokumentflyt` | 2026-04-04 | OK |
 | `20260405180000_navnegjennomgang` | **2026-04-05** | **OK** ← `workflows*` slettet, `buildings` → `byggeplasser` |
 | `20260406120000_dokumentflyt_roller` | 2026-04-06 | OK |
@@ -329,6 +340,26 @@ Initial mistenksomhet skyldes at jeg kun sjekket `packages/db/prisma/migrations/
 
 Fremtidige modul-skjemaer (`packages/db-timer`, `packages/db-mannskap`) vil tilføre flere. **Ved fremtidig audit av applied vs. kildekoden: sjekk ALLE migrations-kataloger i monorepoet, ikke bare `packages/db`.**
 
+### 4.12 Metode-merknad: CASE-rekkefølge for migrasjons-status
+
+`_prisma_migrations` har tre kolonner som styrer status: `finished_at`, `rolled_back_at`, `applied_steps_count`. En rolled-back-rad har BÅDE `finished_at IS NULL` OG `rolled_back_at IS NOT NULL`. Sjekk `rolled_back_at` FØRST i CASE-uttrykk, ellers blir rolled-back feilklassifisert som FAILED.
+
+**Riktig pattern:**
+```sql
+CASE WHEN rolled_back_at IS NOT NULL THEN 'ROLLED BACK'
+     WHEN finished_at IS NULL THEN 'FAILED/PENDING'
+     ELSE 'APPLIED' END
+```
+
+**Feil pattern (det jeg brukte i § 4.1 første versjon):**
+```sql
+CASE WHEN finished_at IS NULL THEN 'FAILED/PENDING'  -- fanger også rolled-back
+     WHEN rolled_back_at IS NOT NULL THEN 'ROLLED BACK'  -- aldri nås
+     ELSE 'APPLIED' END
+```
+
+**Rolled-back-rader er Prisma sin audit-trail og skal IKKE fjernes** — de er legitim historikk fra `prisma migrate resolve --rolled-back` etterfulgt av en ny `migrate deploy`. `migrate deploy` klager ikke på dem.
+
 ---
 
 ## 5. Prod (`sitedoc` på server)
@@ -340,7 +371,8 @@ Fremtidige modul-skjemaer (`packages/db-timer`, `packages/db-mannskap`) vil tilf
 | Status | Antall rader |
 |---|---|
 | APPLIED | 109 |
-| FAILED/PENDING | **0** |
+| ROLLED BACK | 0 |
+| FAILED | **0** |
 | **Totalt** | **109** |
 
 **Helt rent.** Matcher antall unike migreringer i kildekoden (109).
@@ -428,11 +460,10 @@ Modellene `Faggruppe`, `FaggruppeKobling`, `GroupFaggruppe`, `Byggeplass` har fo
 
 **Korrigerer min tidligere antagelse:** `@@map` kan IKKE fjernes, fordi tabellnavnene er på snake_case norsk mens Prisma-modellnavnene er PascalCase. Det er konvensjonen i dette prosjektet (samme som `Project` → `projects`, `User` → `users`). Selve scope-spørsmålet faller bort her.
 
-**C. Avklar 3 utestående detaljer (ned fra 4 — U.4 avklart, se § 4.10):**
+**C. Avklar 2 utestående detaljer (ned fra 4 — U.3 og U.4 avklart):**
 
 1. **`project_groups.building_ids` (jsonb)** — IKKE renamed på noen miljø. Skal den renames til `byggeplass_ids`? Eller bevisst beholdt fordi det er et JSON-felt (rename krever data-omskriving som er forskjellig fra tabell/kolonne-rename)?
 2. **FK-constraint-navn** — fortsatt navngitt som `*_enterprise_id_fkey` etc. på begge servere. Funksjonelt OK, men inkonsistent. Ren navngivning. Skal de renames?
-3. **`fiks_rolle_utforer` failed-rad på test** — bør ryddes med `prisma migrate resolve` eller bekreftes som artefakt
 
 ### 6.3 Det opprinnelige problemet (slik det er beskrevet i CLAUDE.md og db-opprydning.md) er foreldet
 
