@@ -2,7 +2,7 @@
 
 Forarbeid før ny chat for DB-opprydning. Faktabasert oversikt over hva som foreligger i kode i dag og hva som er planlagt. Ingen designforslag.
 
-**Kilder:** `packages/db/prisma/schema.prisma`, `packages/db-maskin/prisma/schema.prisma`, `docs/claude/datamodell-arkitektur.md`, `docs/claude/audit-data-2026-04-25.md`, `docs/claude/db-opprydning.md`, `docs/claude/migrering-reporttemplate.md`, `CLAUDE.md`, faktisk dev-DB (`sitedoc` på localhost), kodestruktur i `apps/api`, `apps/web`, `apps/mobile`.
+**Kilder:** `packages/db/prisma/schema.prisma`, `packages/db-maskin/prisma/schema.prisma`, `docs/claude/datamodell-arkitektur.md`, `docs/claude/audit-data-2026-04-25.md`, `docs/claude/db-opprydning.md`, `docs/claude/migrering-reporttemplate.md`, `CLAUDE.md`, faktisk lokal sitedoc (`sitedoc` på localhost), kodestruktur i `apps/api`, `apps/web`, `apps/mobile`.
 
 **Merknad:** `docs/claude/timer-input-katalog.md` (referert fra CLAUDE.md sin «Pauset arbeid»-seksjon) finnes IKKE som fil. Listet som «nevnt i diskusjon, ikke spesifisert» i del 3.
 
@@ -18,7 +18,7 @@ Forarbeid før ny chat for DB-opprydning. Faktabasert oversikt over hva som fore
 
 **Avvik mellom Prisma-modellnavn og fysisk tabellnavn (via @@map) — utvalg:**
 
-| Prisma-modell | Prisma `@@map`-verdi | Faktisk DB-tabell (lokal dev) |
+| Prisma-modell | Prisma `@@map`-verdi | Faktisk DB-tabell (lokal) |
 |---|---|---|
 | `Faggruppe` | `dokumentflyt_parts` | **`enterprises`** ⚠️ |
 | `FaggruppeKobling` | `dokumentflyt_koblinger` | **`member_enterprises`** ⚠️ |
@@ -28,14 +28,14 @@ Forarbeid før ny chat for DB-opprydning. Faktabasert oversikt over hva som fore
 | `ReportTemplate` | `report_templates` | `report_templates` ✅ |
 | `Byggeplass` | `byggeplasser` | `byggeplasser` ✅ |
 
-**Avvikene for Faggruppe/FaggruppeKobling/GroupFaggruppe er kritiske:** Prisma-skjemaet sier at tabellene HETER `dokumentflyt_parts` etc., men i fysisk dev-DB heter de fortsatt `enterprises` etc. Audit-rapporten 2026-04-25 sa «Prisma har @@map som dekker dette» — det stemmer ikke når @@map-verdiene ikke matcher fysiske tabellnavn (se del 3.3).
+**Avvikene for Faggruppe/FaggruppeKobling/GroupFaggruppe er kritiske:** Prisma-skjemaet sier at tabellene HETER `dokumentflyt_parts` etc., men i lokal sitedoc heter de fortsatt `enterprises` etc. Audit-rapporten 2026-04-25 sa «Prisma har @@map som dekker dette» — det stemmer ikke når @@map-verdiene ikke matcher fysiske tabellnavn (se del 3.3).
 
 **FK-relasjoner — overordnet:**
 - 23 modeller har `projectId` med `onDelete: Cascade` — konsistent
 - 3 modeller har `organizationId`: `User` (SetNull), `OrganizationIntegration` (Cascade), `OrganizationProject` (Cascade)
 - `db-maskin.Equipment.organizationId` har ingen DB-FK (Equipment er i eget Postgres-schema, FK håndheves i app-lag)
 
-**Antall rader i lokal dev-DB (fra audit):**
+**Antall rader i lokal sitedoc (fra audit):**
 
 | Tabell | Rader | Tabell | Rader |
 |---|---|---|---|
@@ -159,12 +159,12 @@ Ingen nye patterns planlagt. Eksisterende `*Member`, `*Assignment`, `*Valg`-patt
 ### 3.1 DB-naming
 
 **Bekreftet:**
-- Fysisk DB i lokal dev har fortsatt `enterprises`, `member_enterprises`, `group_enterprises`
+- Lokal sitedoc har fortsatt `enterprises`, `member_enterprises`, `group_enterprises`
 - Migreringsmapper finnes for rename: `20260415180000_enterprise_rename_dokumentflyt_part` og `20260416180000_faggruppe_rename`
-- I lokal dev-DB er ingen rename-migreringer applied (verifisert mot `_prisma_migrations`-tabellen — kun applied: `legg_til_enterprise_id_dokumentflyt`, `legg_til_show_enterprise`, `flerforetagsbrukere_member_enterprise`)
-- 89 av 110 migreringsmapper er applied i lokal dev. 6 har failed. Status for serverene (test, prod) er IKKE verifisert.
+- I lokal sitedoc er ingen rename-migreringer applied (verifisert mot `_prisma_migrations`-tabellen — kun applied: `legg_til_enterprise_id_dokumentflyt`, `legg_til_show_enterprise`, `flerforetagsbrukere_member_enterprise`)
+- 89 av 110 migreringsmapper er applied lokalt. 6 har failed. Status for test og prod er IKKE verifisert.
 
-**Konsekvens:** Prisma sier `@@map("dokumentflyt_parts")` — men dev-DB har `enterprises`. Dette er en uoverensstemmelse. Hvordan dev-koden fungerer mot lokal DB er **uavklart** (mulig at lokal dev ikke kjører appen mot denne DB-en, eller at det skjer noe i Prisma-laget jeg ikke har observert).
+**Konsekvens:** Prisma sier `@@map("dokumentflyt_parts")` — men lokal sitedoc har `enterprises`. Dette er en uoverensstemmelse. Hvordan koden fungerer mot lokal sitedoc er **uavklart** (mulig at lokal ikke kjører appen mot denne DB-en, eller at det skjer noe i Prisma-laget jeg ikke har observert).
 
 ### 3.2 Avhengigheter mellom planlagte arbeider
 
@@ -204,7 +204,7 @@ reporttemplate.md)    modul)              PsiTemplate, etc.)
 
 3. **Datamodell-arkitektur vs faktisk DB:**
    - Datamodell-arkitektur.md sier «`User` + `ProjectMember` (loan-pattern via medlemskap)» som ✅ Finnes
-   - Audit viser: 1 av 3 brukere har `organizationId` satt; eneste prosjekt er standalone (ingen rad i `organization_projects`). Strukturen finnes, bruken er minimal i dev-data.
+   - Audit viser: 1 av 3 brukere har `organizationId` satt; eneste prosjekt er standalone (ingen rad i `organization_projects`). Strukturen finnes, bruken er minimal i lokal data.
 
 4. **Migrering-reporttemplate vs db-opprydning:**
    - Migrering-reporttemplate.md beskriver `OrganizationTemplate` med relasjon til `ReportTemplate` (`promotedFromTemplateId`)
@@ -216,7 +216,7 @@ reporttemplate.md)    modul)              PsiTemplate, etc.)
    - Eksisterende prototype ligger i `apps/web/src/app/dashbord/[prosjektId]/timer/` (per CLAUDE.md «Timer-prototype — midlertidig plassering»)
    - Ikke motsigelse — er eksplisitt midlertidig plassering inntil flytting
 
-6. **Failed migreringer i lokal dev:** 6 av 95 migreringer har `finished_at IS NULL` (failed eller pågående). Innholdet i de feilede er ikke gjennomgått her. Kan være relatert til hvorfor rename-migreringene ikke har kjørt.
+6. **Failed migreringer lokalt:** 6 av 95 migreringer har `finished_at IS NULL` (failed eller pågående). Innholdet i de feilede er ikke gjennomgått her. Kan være relatert til hvorfor rename-migreringene ikke har kjørt.
 
 ---
 
@@ -224,8 +224,8 @@ reporttemplate.md)    modul)              PsiTemplate, etc.)
 
 Basert på `docs/claude/db-opprydning.md` § «Foreslått rekkefølge», justert for funn i del 3.
 
-1. **Verifiser DB-state på alle miljøer** — kjør `_prisma_migrations`-sjekk mot lokal dev, `sitedoc_test` (test-server), `sitedoc` (prod-server). Avklar om rename-migreringene er applied noen steder (krever SSH og eksplisitt godkjenning per CLAUDE.md task boundary-regel).
-2. **Avklar de 6 failed migreringene i lokal dev** — kan blokkere videre migreringer.
+1. **Verifiser DB-state på alle miljøer** — kjør `_prisma_migrations`-sjekk mot lokal, test (`sitedoc_test`) og prod (`sitedoc`). Avklar om rename-migreringene er applied noen steder (krever SSH og eksplisitt godkjenning per CLAUDE.md task boundary-regel).
+2. **Avklar de 6 failed migreringene lokalt** — kan blokkere videre migreringer.
 3. **Faggruppe-rename på fysisk DB-nivå** (db-opprydning 1.1) — lokal → test → prod. Bringer Prisma `@@map`-verdier i samsvar med fysiske tabellnavn.
 4. **CHECK constraint på `dokumentflyt_medlemmer`** (db-opprydning 1.2) — null risiko, klar nytte.
 5. **Designbeslutninger** (db-opprydning 2.1, 2.2, 2.3) — `ProjectGroup`-nivå, `FolderAccess`-prioritet, delt mal-bruk Kontrollplan+Dokumentflyt.
@@ -242,8 +242,8 @@ Etter steg 1–7 kan timer-modul gjenopptas på solid grunnlag.
 
 - **Dato for oppsummering:** 2026-04-25
 - **Antall Prisma-modeller:** 47 i `db` + 5 i `db-maskin` = 52 totalt
-- **Antall fysiske tabeller i lokal dev-DB:** 50
+- **Antall fysiske tabeller i lokal sitedoc:** 50
 - **Antall API-ruter (Fastify):** 33 toppnivå + maskin-undermappe
 - **Web-UI-sider per prosjekt:** 18 undermapper i `[prosjektId]/`
 - **Mobil-UI-tabs:** 4 (`hjem`, `boks`, `lokasjoner`, `mer`)
-- **Fail/applied-ratio i lokal dev `_prisma_migrations`:** 6 failed / 89 applied (av 110 migreringsmapper i kildekoden)
+- **Fail/applied-ratio lokalt i `_prisma_migrations`:** 6 failed / 89 applied (av 110 migreringsmapper i kildekoden)
