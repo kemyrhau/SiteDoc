@@ -31,6 +31,9 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 | [docs/claude/db-opprydning.md](docs/claude/db-opprydning.md) | **AKTIV:** Opprydningsplan for DB. Timer-modul på pause til prioritet 1+2 er gjort. Faggruppe-rename, CHECK constraints, design-beslutninger |
 | [docs/claude/audit-data-2026-04-25.md](docs/claude/audit-data-2026-04-25.md) | Read-only audit av dev-DB: schema-konsistens, orphans, multi-firma, mal-bruk, FolderAccess-konflikter |
 | [docs/claude/migrering-reporttemplate.md](docs/claude/migrering-reporttemplate.md) | Plan: ReportTemplate → OrganizationTemplate (firma-mal-bibliotek). Ikke implementert |
+| [docs/claude/arkitektur-syntese.md](docs/claude/arkitektur-syntese.md) | **ANKER:** Helhetlig produktarkitektur — prosjekthotell + tilleggsmoduler, to-nivå-modell, loan-pattern, mal-arkitektur, Fase 0–7 |
+| [docs/claude/fase-0-beslutninger.md](docs/claude/fase-0-beslutninger.md) | **AKTIV:** 7 mikrobeslutninger låst, klart for Fase 0-koding i ny chat |
+| [docs/claude/arkitektur-qa-runde-2-2026-04-25.md](docs/claude/arkitektur-qa-runde-2-2026-04-25.md) | Opus QA-runde 2: verifisering mot kodebase, BibliotekMal=Malverk-funn, 7 svakheter, go/no-go for Fase 0 |
 | [docs/claude/byggeplass-strategi.md](docs/claude/byggeplass-strategi.md) | **PLANLAGT FASE:** byggeplass-relasjon på tvers av moduler. Modul-tabell (utkast, krever bekreftelse), tre åpne arkitektur-prinsipper, avhengigheter |
 | [docs/claude/db-naming-audit-2026-04-25.md](docs/claude/db-naming-audit-2026-04-25.md) | Audit lokal/test/prod: faggruppe-rename gjennomført på test og prod, lokal er bak. Metode-merknader om Prisma-skjemaer og CASE-rekkefølge |
 | [docs/claude/smartdok-undersokelse.md](docs/claude/smartdok-undersokelse.md) | SmartDok API-kartlegging, mapping til SiteDoc, funksjonsgap, migreringsstrategi for A.Markussen |
@@ -41,13 +44,20 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 
 ## Pågående arbeid
 
-**Ingen aktive datamodell-faser per 2026-04-25.** DB-opprydning er parket; neste runde avventer Opus' cross-modell-analyse av Kenneths arkitektur-syntese.
+**Fase 0-koding klar for ny chat.** Arkitektur-syntese og 7 mikrobeslutninger låst etter Opus' QA-runde 1+2 (2026-04-25).
 
-**DB-naming-opprydning — ferdig:**
+**Anker for ny chat:**
+- [arkitektur-syntese.md](docs/claude/arkitektur-syntese.md) — helhetlig produktarkitektur (kontekst)
+- [fase-0-beslutninger.md](docs/claude/fase-0-beslutninger.md) — 7 låste beslutninger (handlingsplan)
+- [arkitektur-qa-runde-2-2026-04-25.md](docs/claude/arkitektur-qa-runde-2-2026-04-25.md) — Opus' verifisering mot kodebase
+
+**Maskin-modul (`feature/maskin-db`):** under bygging. **Må gates med `modulProcedure('maskin')` før prod-deploy** — i dag bruker maskin-rutene `protectedProcedure` uten modul-sjekk, så alle firma vil se maskin-siden hvis den deployes som er.
+
+**DB-naming-opprydning — ferdig (parkert):**
 - Faggruppe-rename gjennomført på test (2026-04-15/16) og prod (2026-04-16) via tre migreringer (`navnegjennomgang`, `enterprise_rename_dokumentflyt_part`, `faggruppe_rename`). Verifisert i [db-naming-audit-2026-04-25.md](docs/claude/db-naming-audit-2026-04-25.md)
-- U.1 (`project_groups.building_ids` jsonb) utsatt til [byggeplass-strategi-fase](docs/claude/byggeplass-strategi.md) — drop koordineres med m2m-koblingstabell
-- U.2 (FK-constraint-navn fortsatt på engelsk) parkert som kosmetisk — tas naturlig ved neste større migrering
-- Lokal-DB er bevisst ikke vedlikeholdt; re-seedes fra test ved behov per CLAUDE.md § «Primærmiljø»
+- U.1 (`project_groups.building_ids` jsonb) utsatt til Fase 0.5 — drop koordineres med m2m-koblingstabell
+- U.2 (FK-constraint-navn fortsatt på engelsk) parkert som lavt-prioritert kosmetikk — tas naturlig ved neste større migrering
+- Lokal-DB er bevisst ikke vedlikeholdt; re-seedes fra test ved behov per § «Primærmiljø»
 
 Status og detaljer: [db-opprydning.md](docs/claude/db-opprydning.md).
 
@@ -57,12 +67,44 @@ Status og detaljer: [db-opprydning.md](docs/claude/db-opprydning.md).
 
 ## Planlagte faser
 
-**Byggeplass-strategi** — koordinert designrunde for byggeplass-relasjon på tvers av moduler (brukergrupper, timer, oppgaver, planlegger m.fl.). Detaljer og modul-tabell i [docs/claude/byggeplass-strategi.md](docs/claude/byggeplass-strategi.md). Forutsetter avklaring av tre arkitektur-prinsipper (NULL-betydning, prosjekt uten byggeplasser, datamodell-valg). `project_groups.building_ids` (jsonb) dropps som del av denne fasen.
+Detaljert plan: [arkitektur-syntese.md §5](docs/claude/arkitektur-syntese.md). Beslutningsgrunnlag: [fase-0-beslutninger.md](docs/claude/fase-0-beslutninger.md).
+
+**Fase 0 — Firma-fundament + tilgangsinfrastruktur:**
+- Datamodell: `OrganizationModule`, `OrganizationSetting`, `OrganizationPartner`, `Avdeling`-flagg, `OrganizationTemplate`, `Project.primaryOrganizationId String?` (nullable), `Psi.organizationId` (required) + `projectId` blir nullable + `kontekstType String`, `BibliotekMal`-utvidelse (kategori/domene/kobletTilModul/verifisert), `ProjectMember.periodeSlutt`
+- Infrastruktur: `prosjektProcedure`, `modulProcedure(slug)` i tRPC
+- Refaktor: 9 funksjoner i `tilgangskontroll.ts` for ProjectMember-periode
+
+**Fase 0.5 — Byggeplass-fundament:**
+- Tre åpne arkitektur-prinsipper besluttes (NULL-betydning, default-byggeplass, FK vs jsonb) per [byggeplass-strategi.md](docs/claude/byggeplass-strategi.md)
+- `ByggeplassMedlemskap` (loan-pattern: User → Byggeplass over tid)
+- Drop `building_ids` jsonb fra `project_groups`
+
+**Fase 1 — Maskin med modul-gateway** (allerede under bygging på `feature/maskin-db` — gates før prod):
+- Refaktor maskin-rutene til `modulProcedure('maskin')`
+- `EquipmentChecklist` + `EquipmentChecklistTemplate` i `db-maskin`
+- Manuell trigger fra maskinregister
+
+**Fase 2 — Mal-promotering:**
+- `OrganizationTemplate` + `ReportTemplate.organizationTemplateId`
+- UI for «Send til firmabibliotek»
+
+**Fase 3 — Timer-modul** (inkl. Kompetanseregister):
+- Lønnsarter, arbeidstidskalender, dagsseddel med byggeplassId fra dag 1
+- Underprosjekt (Proadm-import eller SiteDoc Godkjenning)
+
+**Fase 4 — Mannskap/PSI-modul.**
+
+**Fase 5 — Varelager-modul.**
+
+**Fase 6 — Avansert:** DO-kobling, AI-ukeplan.
+
+**Fase 7 — Prosjekthotell-utvidelser (parallelt spor):** Møtemal, Månedsrapport, HMS-statistikk firma-nivå, Street View, auto-trigger maskin-sjekkliste fra service-varsel.
 
 **Commits på `feature/maskin-db`** venter på merge til develop:
 - `a4d7771` — Proadm-detaljer i timer.md
 - `89e102c` — Proadm-regel i CLAUDE.md
 - DB-opprydning-relaterte audit/doc-commits (2026-04-25)
+- Arkitektur-dokumentasjon (2026-04-25/26)
 
 ## Task boundary
 
