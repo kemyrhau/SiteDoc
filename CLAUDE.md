@@ -197,7 +197,11 @@ Regler frem til da:
 
 **KRITISK:** Databasene er SEPARATE. `psql -d sitedoc_test` for test, `psql -d sitedoc` for prod. ALDRI kjør testdata mot prod-databasen.
 
-**Primærmiljø:** Test er primærmiljø for utvikling og verifisering. Lokal-DB brukes ikke som sannhet. Hvis utvikling mot lokal-DB er nødvendig, må lokal re-seedes fra test først (komplett dump). Ikke kjør implementering mot lokal som er bak test.
+**Primærmiljø:** Test er primærmiljø for utvikling, verifisering og audit. Lokal-DB er typisk bak test og kan inneholde gamle skjema, manglende migreringer eller utdaterte data.
+
+- **Som referanse for "hva er state nå":** bruk alltid test. Spørringer mot lokal kan gi feil svar uten varsel.
+- **Som arbeidsmiljø for vanlig utvikling:** ikke standardvalg. Vanlige kodeendringer (UI, business-logikk uten DB-endringer, små refaktorer) kan gå rett til test via feature-branch.
+- **Som sandkasse for risiko-implementasjoner:** bruk lokal når en endring kan gå galt og trenger mellomtest før test/prod — DDL-migreringer, masse-UPDATE/DELETE, refaktor som rører mange tabeller, eksperimentell kode. Re-seede lokal fra test først (komplett dump) for å ha realistisk utgangspunkt. Verifiser mot lokal → så test → så prod.
 
 ### Arbeidsflyt
 
