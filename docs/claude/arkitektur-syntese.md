@@ -447,5 +447,5 @@ Følgende memorier skal opprettes/oppdateres når implementeringen i ny chat beg
 
 ---
 
-*Sist oppdatert: 2026-04-25 sent på kveld*
-*Status: Klart for Fase 0-koding. Ingen åpne arkitektur-spørsmål som blokkerer.*
+*Sist oppdatert: 2026-04-26*
+*Status: Beslutninger låst, men venter på timer-modul-planlegging før Fase 0-koding kan starte. Timer kan medføre justeringer av Fase 0-beslutninger — se [fase-0-beslutninger.md](fase-0-beslutninger.md) § «Forutsetning før koding starter».*

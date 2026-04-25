@@ -44,12 +44,16 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 
 ## Pågående arbeid
 
-**Fase 0-koding klar for ny chat.** Arkitektur-syntese og 7 mikrobeslutninger låst etter Opus' QA-runde 1+2 (2026-04-25).
+**Timer-modul-planlegging er neste steg — FØR Fase 0-koding starter.** Arkitektur-syntese og 7 mikrobeslutninger er låst etter Opus' QA-runde 1+2 (2026-04-25), men timer-modulen kan påvirke arkitektur-modellen og medføre justeringer av Fase 0-beslutninger.
 
-**Anker for ny chat:**
-- [arkitektur-syntese.md](docs/claude/arkitektur-syntese.md) — helhetlig produktarkitektur (kontekst)
-- [fase-0-beslutninger.md](docs/claude/fase-0-beslutninger.md) — 7 låste beslutninger (handlingsplan)
-- [arkitektur-qa-runde-2-2026-04-25.md](docs/claude/arkitektur-qa-runde-2-2026-04-25.md) — Opus' verifisering mot kodebase
+⚠️ **Code skal IKKE starte Fase 0-koding ennå** — selv om beslutninger ser komplette ut. Vent på timer-planlegging + Kenneths grønne lys. Se [fase-0-beslutninger.md](docs/claude/fase-0-beslutninger.md) § «Forutsetning før koding starter».
+
+**Anker for ny chat (timer-planlegging først):**
+- [timer.md](docs/claude/timer.md) — timer-modul-spesifikasjon (planleggings-grunnlag)
+- [timer-input-katalog.md](docs/claude/timer-input-katalog.md) — input-katalog (plassholder per 2026-04-25)
+- [arkitektur-syntese.md](docs/claude/arkitektur-syntese.md) — helhetlig produktarkitektur (kontekst, særlig §3.3 loan-pattern og §1.2 Timer-modul)
+- [fase-0-beslutninger.md](docs/claude/fase-0-beslutninger.md) — låste beslutninger som potensielt revideres etter timer-planlegging
+- [smartdok-undersokelse.md](docs/claude/smartdok-undersokelse.md) — A.Markussen-referanse (lønnsarter, kompetanse, vareforbruk)
 
 **Maskin-modul (`feature/maskin-db`):** under bygging. **Må gates med `modulProcedure('maskin')` før prod-deploy** — i dag bruker maskin-rutene `protectedProcedure` uten modul-sjekk, så alle firma vil se maskin-siden hvis den deployes som er.
 
@@ -63,7 +67,9 @@ Status og detaljer: [db-opprydning.md](docs/claude/db-opprydning.md).
 
 ## Pauset arbeid
 
-**Timer-modul-planlegging** er pauset til DB-naming-opprydning er ferdig. Planleggings-grunnlag i [docs/claude/timer-input-katalog.md](docs/claude/timer-input-katalog.md) (plassholder etablert 2026-04-25, detaljinnhold lim inn senere).
+**Fase 0-koding** er pauset til timer-modul-planlegging er fullført. Beslutninger ligger i [docs/claude/fase-0-beslutninger.md](docs/claude/fase-0-beslutninger.md) og kan justeres basert på timer-funn.
+
+(Timer-modul-planlegging var tidligere pauset her — er nå løftet til Pågående arbeid som neste steg.)
 
 ## Planlagte faser
 

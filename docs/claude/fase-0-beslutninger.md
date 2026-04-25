@@ -1,14 +1,17 @@
 # Fase 0 — beslutninger og anker for ny chat
 
 **Dato:** 2026-04-25
-**Status:** ✅ **Klart for Fase 0-koding i ny chat.**
+**Status:** 🟡 **Beslutninger låst, men IKKE klart for koding ennå.** Timer-modul-planlegging må fullføres først — den kan påvirke arkitektur-modellen og medføre justeringer av beslutningene under.
 **Forutsetninger:** Opus QA runde 1 + revisjon + Opus QA runde 2 ferdig.
+
+> ⚠️ **Til neste Code-instans:** IKKE start Fase 0-koding selv om alt ser klart ut. Timer-planlegging tas opp først i ny chat. Vent på Kenneth's grønne lys etter timer-planlegging er fullført og eventuelle justeringer av disse beslutningene er dokumentert. Se § «Forutsetning før koding starter» nederst.
 
 **Lesing før koding starter:**
 1. Denne filen (beslutningene)
 2. [arkitektur-syntese.md](arkitektur-syntese.md) — helhetlig produktarkitektur
 3. [arkitektur-qa-runde-2-2026-04-25.md](arkitektur-qa-runde-2-2026-04-25.md) — Opus' QA-rapport runde 2
 4. [datamodell-arkitektur.md](datamodell-arkitektur.md) — to-nivå-modell og loan-pattern
+5. **Timer-planlegging-resultat** (kommer fra ny chat, lenkes inn her når ferdig)
 
 ---
 
@@ -211,6 +214,11 @@ Når ny chat starter, kjør i denne rekkefølgen:
 - ✅ `feature/maskin-db` parkert (commits backupert til origin)
 - ✅ Opus QA runde 1 + 2 (denne)
 - ✅ Beslutninger i denne filen
+- ⏳ **Timer-modul-planlegging** — neste steg i ny chat. Kan påvirke arkitekturen og medføre justeringer av beslutningene over (særlig rundt firma-eide ressurser, Kompetanseregister, lønnsarter, OrganizationModule-aktivering for Timer)
+- ⏳ **Eventuelle justeringer av beslutningene** etter timer-planlegging — dokumenteres her som tillegg/endringer
+- ⏳ **Kenneths grønne lys** — eksplisitt klarsignal om at koding kan starte
+
+**Inntil disse fire er ferdige skal Code IKKE starte Fase 0-koding.** Selv om beslutningene under ser komplette ut, er de subjekt til revidering basert på timer-funn.
 
 ## Hva som skjer rett etter Fase 0
 
