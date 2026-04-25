@@ -171,9 +171,9 @@ Ingen av rename-migreringene berører denne. Kolonnen heter fortsatt `building_i
 
 Migrering `20260406020000_fiks_rolle_utforer` har en FAILED-rad i `_prisma_migrations` på test, mens senere migreringer er applied OK. Sannsynlig artifakt fra `prisma migrate resolve --applied`. Bør verifiseres at sluttstaten er korrekt og deretter ryddes.
 
-### U.4 `20260424001754_init` på test — finnes ikke i kildekoden
+### U.4 `20260424001754_init` på test — ✅ Avklart 2026-04-25
 
-Test har en applied-rad for migrering som ikke finnes i `packages/db/prisma/migrations/`. Må avklares: hvor kom den fra, og skal den slettes fra `_prisma_migrations` eller dokumenteres i kildekoden? **Behandles separat — egen oppgave.**
+Ikke et problem — er maskin-modulens egen init-migrering (`packages/db-maskin/prisma/migrations/20260424001754_init/migration.sql`). Vil applies på prod via normal merge til main. Detaljer i [db-naming-audit-2026-04-25.md § 4.10](db-naming-audit-2026-04-25.md).
 
 ## Foreslått rekkefølge — utdatert
 

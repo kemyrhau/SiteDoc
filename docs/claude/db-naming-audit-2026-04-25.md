@@ -315,14 +315,19 @@ Constraint-navn påvirker ikke funksjonalitet, kun lesbarhet i feilmeldinger og 
 - **Triggere:** 1 (`ftd_chunk_search_trigger` på `ftd_document_chunks` — pgvector-relatert, ikke rename)
 - **Rutiner:** 38 (alle pgvector-funksjoner + 1 search-funksjon — ikke rename)
 
-### 4.10 Mistenkelig: `20260424001754_init` — finnes ikke i kildekoden
+### 4.10 Avklart: `20260424001754_init` — er `db-maskin` Fase 1-init
 
-Test har en applied-rad for `20260424001754_init` (2026-04-24). Denne migreringsmappen finnes IKKE i `packages/db/prisma/migrations/`. Sannsynlige forklaringer:
-- Manuell `prisma migrate resolve` eller `prisma db push` har lagt til denne raden
-- Test-DB har blitt re-seedet med en lokal init-migrering som ikke ble committet
-- Eksperimentell migrering kjørt direkte mot test
+Test har en applied-rad for `20260424001754_init` (2026-04-24 00:19:50). **Migreringen er legitim.** Den finnes i `packages/db-maskin/prisma/migrations/20260424001754_init/migration.sql` (211 linjer SQL: `CREATE SCHEMA "maskin"` + 5 tabeller). Den ble kjørt automatisk på test 2026-04-24 etter commit `a5667eb` («Maskin: opprett packages/db-maskin med Fase 1-skjema»), via `prisma migrate deploy`. Vil applies på prod ved neste merge til main.
 
-**Bør avklares.** Hvis det er en spook-rad bør den fjernes; hvis det er en reell migrering må den dokumenteres i kildekoden.
+Initial mistenksomhet skyldes at jeg kun sjekket `packages/db/prisma/migrations/` i forrige iterasjon. Se «Metode-merknad» nedenfor.
+
+### 4.11 Metode-merknad: sjekk alle Prisma-skjemaer
+
+`_prisma_migrations`-tabellen aggregerer migreringer fra **alle Prisma-skjemaer som peker på samme database**. SiteDoc har i dag to:
+- `packages/db/prisma/migrations/` (hoved-skjema, 109 migreringer)
+- `packages/db-maskin/prisma/migrations/` (maskin-modul, 1 migrering)
+
+Fremtidige modul-skjemaer (`packages/db-timer`, `packages/db-mannskap`) vil tilføre flere. **Ved fremtidig audit av applied vs. kildekoden: sjekk ALLE migrations-kataloger i monorepoet, ikke bare `packages/db`.**
 
 ---
 
@@ -423,12 +428,11 @@ Modellene `Faggruppe`, `FaggruppeKobling`, `GroupFaggruppe`, `Byggeplass` har fo
 
 **Korrigerer min tidligere antagelse:** `@@map` kan IKKE fjernes, fordi tabellnavnene er på snake_case norsk mens Prisma-modellnavnene er PascalCase. Det er konvensjonen i dette prosjektet (samme som `Project` → `projects`, `User` → `users`). Selve scope-spørsmålet faller bort her.
 
-**C. Avklar 4 utestående detaljer:**
+**C. Avklar 3 utestående detaljer (ned fra 4 — U.4 avklart, se § 4.10):**
 
 1. **`project_groups.building_ids` (jsonb)** — IKKE renamed på noen miljø. Skal den renames til `byggeplass_ids`? Eller bevisst beholdt fordi det er et JSON-felt (rename krever data-omskriving som er forskjellig fra tabell/kolonne-rename)?
 2. **FK-constraint-navn** — fortsatt navngitt som `*_enterprise_id_fkey` etc. på begge servere. Funksjonelt OK, men inkonsistent. Ren navngivning. Skal de renames?
 3. **`fiks_rolle_utforer` failed-rad på test** — bør ryddes med `prisma migrate resolve` eller bekreftes som artefakt
-4. **`20260424001754_init` på test** — finnes ikke i kildekoden. Bør avklares hvor den kommer fra og om den skal slettes
 
 ### 6.3 Det opprinnelige problemet (slik det er beskrevet i CLAUDE.md og db-opprydning.md) er foreldet
 
@@ -447,8 +451,7 @@ Modellene `Faggruppe`, `FaggruppeKobling`, `GroupFaggruppe`, `Byggeplass` har fo
 1. Skal lokal DB re-seedes fra test-dump, eller forblir lokal urørt? (Påvirker om vi trenger å installere pgvector lokalt og fikse migreringskjeden.)
 2. Skal `project_groups.building_ids` renames? Hvis ja: i hvilken migrering?
 3. Skal FK-constraint-navnene renames for konsistens?
-4. Hva er `20260424001754_init` på test, og skal den ryddes?
-5. Skal `CLAUDE.md` og `db-opprydning.md` oppdateres for å reflektere at hovedjobben er gjort, eller er det andre punkter i `db-opprydning.md` som fortsatt er aktuelle (CHECK constraint på `dokumentflyt_medlemmer` — Prioritet 1.2)?
+4. Skal `CLAUDE.md` og `db-opprydning.md` oppdateres for å reflektere at hovedjobben er gjort, eller er det andre punkter i `db-opprydning.md` som fortsatt er aktuelle (CHECK constraint på `dokumentflyt_medlemmer` — Prioritet 1.2)?
 
 **Avgrensningen i [db-opprydning.md](db-opprydning.md) gjelder fortsatt:** Snapshot-felt og tRPC-alias forblir uendret i denne fasen.
 
