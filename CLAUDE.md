@@ -31,6 +31,8 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 | [docs/claude/db-opprydning.md](docs/claude/db-opprydning.md) | **AKTIV:** Opprydningsplan for DB. Timer-modul på pause til prioritet 1+2 er gjort. Faggruppe-rename, CHECK constraints, design-beslutninger |
 | [docs/claude/audit-data-2026-04-25.md](docs/claude/audit-data-2026-04-25.md) | Read-only audit av dev-DB: schema-konsistens, orphans, multi-firma, mal-bruk, FolderAccess-konflikter |
 | [docs/claude/migrering-reporttemplate.md](docs/claude/migrering-reporttemplate.md) | Plan: ReportTemplate → OrganizationTemplate (firma-mal-bibliotek). Ikke implementert |
+| [docs/claude/byggeplass-strategi.md](docs/claude/byggeplass-strategi.md) | **PLANLAGT FASE:** byggeplass-relasjon på tvers av moduler. Modul-tabell (utkast, krever bekreftelse), tre åpne arkitektur-prinsipper, avhengigheter |
+| [docs/claude/db-naming-audit-2026-04-25.md](docs/claude/db-naming-audit-2026-04-25.md) | Audit lokal/test/prod: faggruppe-rename gjennomført på test og prod, lokal er bak. Metode-merknader om Prisma-skjemaer og CASE-rekkefølge |
 | [docs/claude/smartdok-undersokelse.md](docs/claude/smartdok-undersokelse.md) | SmartDok API-kartlegging, mapping til SiteDoc, funksjonsgap, migreringsstrategi for A.Markussen |
 | [docs/claude/ai-integrasjon.md](docs/claude/ai-integrasjon.md) | AI-integrasjon: Copilot plugin, MCP server, innebygd assistent, risikoer, API-lag |
 | [MALBYGGER.md](MALBYGGER.md) | Felles malbygger: dokumenttyper, felttyper, beslutninger, migreringsstrategi |
@@ -58,7 +60,11 @@ Detaljert plan: [docs/claude/db-opprydning.md](docs/claude/db-opprydning.md). Au
 
 ## Pauset arbeid
 
-**Timer-modul-planlegging** er pauset til DB-naming-opprydning er ferdig. Planleggings-grunnlag i [docs/claude/timer-input-katalog.md](docs/claude/timer-input-katalog.md).
+**Timer-modul-planlegging** er pauset til DB-naming-opprydning er ferdig. Planleggings-grunnlag i [docs/claude/timer-input-katalog.md](docs/claude/timer-input-katalog.md) (plassholder etablert 2026-04-25, detaljinnhold lim inn senere).
+
+## Planlagte faser
+
+**Byggeplass-strategi** — koordinert designrunde for byggeplass-relasjon på tvers av moduler (brukergrupper, timer, oppgaver, planlegger m.fl.). Detaljer og modul-tabell i [docs/claude/byggeplass-strategi.md](docs/claude/byggeplass-strategi.md). Forutsetter avklaring av tre arkitektur-prinsipper (NULL-betydning, prosjekt uten byggeplasser, datamodell-valg). `project_groups.building_ids` (jsonb) dropps som del av denne fasen.
 
 **Lokale uncommittede commits på `feature/maskin-db`** — ikke pushet, venter på etter DB-opprydning:
 - `a4d7771` — Proadm-detaljer i timer.md

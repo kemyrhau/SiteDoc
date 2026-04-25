@@ -159,9 +159,17 @@ Følgende mangler helt og må bygges (ikke opprydning, men oppfølging av ny ark
 
 Oppdaget under [db-naming-audit-2026-04-25.md](db-naming-audit-2026-04-25.md). Alle er små og krever beslutning, ikke umiddelbar handling.
 
-### U.1 `project_groups.building_ids` (jsonb) — ikke renamed
+### U.1 `project_groups.building_ids` (jsonb) — ⏸️ Utsatt — flyttet til byggeplass-strategi-fase
 
-Ingen av rename-migreringene berører denne. Kolonnen heter fortsatt `building_ids` på alle tre miljøer. JSON-data inni er en array av byggeplass-ID-er. Skal den renames til `byggeplass_ids`? Krever både kolonne-rename og evt. data-omskriving hvis JSON-nøklene også er på engelsk (må verifiseres).
+**Status:** Utsatt 2026-04-25. Skal ikke håndteres som isolert rename-oppgave.
+
+**Beslutning:** Drop kolonnen og erstatt med FK + koblingstabell som del av byggeplass-strategi-fasen.
+
+**Begrunnelse:** jsonb-array er feil tilnærming for m2m-relasjon mellom brukergruppe og byggeplasser — gir ingen referanseintegritet, ingen FK-cascading ved sletting av byggeplass, ingen indekser eller JOINs. Behovet for byggeplass-relasjon på brukergrupper og andre entiteter er reelt, men skal modelleres riktig som del av en koordinert byggeplass-fase, ikke fragmentert som en rename-detalj.
+
+**Faktisk bruksgrad:** Skrives via mutation i `apps/api/src/routes/gruppe.ts`, men leses **aldri** i kodebasen. Test har 1 rad med data, prod har 0. Ingen funksjonell konsekvens av drop.
+
+Detaljer i [byggeplass-strategi.md](byggeplass-strategi.md). Drop håndteres samtidig med koblingstabell-opprettelse — én koordinert migrering.
 
 ### U.2 FK-constraint-navn er fortsatt på engelsk
 
