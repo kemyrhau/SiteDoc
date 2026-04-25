@@ -2,9 +2,24 @@
 
 Aktiv arbeidsstrøm. Timer-modul er satt på pause til DB er ryddet opp. Identifisert via datamodell-audit 2026-04-25 og diskusjon rundt firma-eid vs. prosjekt-eid arkitektur.
 
-**Bakgrunn:** [audit-data-2026-04-25.md](audit-data-2026-04-25.md) + [datamodell-arkitektur.md](datamodell-arkitektur.md)
+**Bakgrunn:** [audit-data-2026-04-25.md](audit-data-2026-04-25.md) + [datamodell-arkitektur.md](datamodell-arkitektur.md) + [db-naming-audit-2026-04-25.md](db-naming-audit-2026-04-25.md)
 
-**Status:** Planlegging. Ingen migreringer kjørt.
+**Status (per 2026-04-25):** Faggruppe-rename er **allerede gjennomført på test (2026-04-15/16) og prod (2026-04-16)**. Lokal-DB er ikke vedlikeholdt og brukes ikke som sannhet. Det opprinnelige scope (Prioritet 1.1) er derfor lukket. 4 mindre detaljer gjenstår som diskusjonspunkter.
+
+## Status per 2026-04-25 — etter ny audit
+
+Audit mot alle tre miljøer ([db-naming-audit-2026-04-25.md](db-naming-audit-2026-04-25.md)) bekreftet:
+
+| Område | Test | Prod | Lokal |
+|---|---|---|---|
+| `enterprises`, `member_enterprises`, `group_enterprises`, `workflows*`, `buildings` | borte (renamed) | borte (renamed) | finnes (utdatert) |
+| `dokumentflyt_parts`, `dokumentflyt_koblinger`, `group_faggrupper`, `byggeplasser` | finnes | finnes | mangler |
+| Faggruppe-rename-migreringer applied | ✅ 2026-04-15/16 | ✅ 2026-04-16 | ❌ uforsøkt |
+
+**Konsekvens:**
+- Prioritet 1.1 er **GJENNOMFØRT** på de miljøene som teller (test og prod).
+- Lokal-DB er erklært "ikke vedlikeholdt" — re-seedes fra test ved behov per `CLAUDE.md` § «Primærmiljø».
+- Det som faktisk gjenstår er flyttet til [§ Utestående diskusjonspunkter](#utestående-diskusjonspunkter-etter-2026-04-25).
 
 ## Avgrensning av denne fasen
 
@@ -34,23 +49,18 @@ Beslutning utsettes — inkluderes i en senere fase sammen med mobil-versjonsstr
 
 ## Prioritet 1 — Lavhengende frukt (lav risiko, klar nytte)
 
-### 1.1 Faggruppe-rename på fysisk DB-nivå
+### 1.1 Faggruppe-rename på fysisk DB-nivå — ✅ GJENNOMFØRT
 
-**Problem:** Prisma-modellene er renamed til `Faggruppe`, `FaggruppeKobling`, `GroupFaggruppe` via `@@map`, men fysiske DB-tabeller heter fortsatt:
-- `enterprises` (skal være `dokumentflyt_parts` eller `faggrupper`)
-- `member_enterprises` (skal være `dokumentflyt_koblinger`)
-- `group_enterprises` (skal være `group_faggrupper`)
-- `enterprise_id`-kolonner (skal være `faggruppe_id`)
+**Status:** Applied på test (2026-04-15/16) og prod (2026-04-16) via tre migreringer:
+- `20260405180000_navnegjennomgang` (slettet `workflows*`, renamet `buildings` → `byggeplasser`, `creator_*` → `bestiller_*`)
+- `20260415180000_enterprise_rename_dokumentflyt_part` (renamet `enterprises`/`member_enterprises`)
+- `20260416180000_faggruppe_rename` (renamet alle `enterprise_*`-kolonner til `faggruppe_*`, samt `group_enterprises` → `group_faggrupper`)
 
-**Konsekvens:** Direkte SQL-tilgang, dump/restore, og rapportering blir forvirrende. Påvirker ikke kode (Prisma håndterer mapping), men er teknisk gjeld.
+Verifisert i [db-naming-audit-2026-04-25.md](db-naming-audit-2026-04-25.md) — gamle tabellnavn er fysisk borte på test og prod, kun snapshot-felt på `document_transfers` gjenstår med "enterprise" i navnet (utenfor scope per neste seksjon).
 
-**Plan:**
-1. Lag Prisma-migrering med `RENAME TABLE` + `RENAME COLUMN` — bevarer all data
-2. Fjern `@@map`-direktiver fra Prisma-modeller etter migrering
-3. Test på `sitedoc_test` først, deretter prod
-4. Deprecated alias-router i tRPC (`trpc.entreprise.*`) kan beholdes til mobil-app er oppdatert
+**Lokal-DB er ikke renamed** — den er 26 migreringer bak kildekoden. Per `CLAUDE.md` § «Primærmiljø» er lokal ikke sannhet og blir re-seedet fra test ved behov. **Ingen handling kreves.**
 
-**Risiko:** Lav. Pure rename, ingen data-endring. Krever koordinering med mobil-app for tRPC-router-aliaser.
+**`@@map` kan IKKE fjernes** fra Prisma-modellene: konvensjonen er PascalCase modellnavn (`Faggruppe`) og snake_case norsk tabellnavn (`dokumentflyt_parts`) — `@@map` er nødvendig på samme måte som for `Project` → `projects`. Tidligere antagelse om at `@@map` skulle fjernes er forkastet.
 
 ### 1.2 CHECK constraint på `dokumentflyt_medlemmer`
 
@@ -145,10 +155,32 @@ Følgende mangler helt og må bygges (ikke opprydning, men oppfølging av ny ark
 
 **Disse bygges når relevant modul aktiveres.** Ikke del av opprydning per se, men listet for oversikt.
 
-## Foreslått rekkefølge
+## Utestående diskusjonspunkter (etter 2026-04-25)
 
-1. **Faggruppe-rename på fysisk nivå** (1.1) — lav risiko, betaler ned teknisk gjeld
-2. **CHECK constraint på dokumentflyt_medlemmer** (1.2) — null risiko
+Oppdaget under [db-naming-audit-2026-04-25.md](db-naming-audit-2026-04-25.md). Alle er små og krever beslutning, ikke umiddelbar handling.
+
+### U.1 `project_groups.building_ids` (jsonb) — ikke renamed
+
+Ingen av rename-migreringene berører denne. Kolonnen heter fortsatt `building_ids` på alle tre miljøer. JSON-data inni er en array av byggeplass-ID-er. Skal den renames til `byggeplass_ids`? Krever både kolonne-rename og evt. data-omskriving hvis JSON-nøklene også er på engelsk (må verifiseres).
+
+### U.2 FK-constraint-navn er fortsatt på engelsk
+
+19 relevante FK på test/prod heter fortsatt `*_enterprise_id_fkey`, `*_building_id_fkey` osv., selv om kolonnene de er på heter `faggruppe_id`/`byggeplass_id`. Eksempler: `checklists_creator_enterprise_id_fkey` på `bestiller_faggruppe_id`. Funksjonelt OK, kun lesbarhet i feilmeldinger og psql-output. Skal de renames?
+
+### U.3 `fiks_rolle_utforer` failed-rad på test
+
+Migrering `20260406020000_fiks_rolle_utforer` har en FAILED-rad i `_prisma_migrations` på test, mens senere migreringer er applied OK. Sannsynlig artifakt fra `prisma migrate resolve --applied`. Bør verifiseres at sluttstaten er korrekt og deretter ryddes.
+
+### U.4 `20260424001754_init` på test — finnes ikke i kildekoden
+
+Test har en applied-rad for migrering som ikke finnes i `packages/db/prisma/migrations/`. Må avklares: hvor kom den fra, og skal den slettes fra `_prisma_migrations` eller dokumenteres i kildekoden? **Behandles separat — egen oppgave.**
+
+## Foreslått rekkefølge — utdatert
+
+> **Merknad 2026-04-25:** Den opprinnelige rekkefølgen er ikke lenger gyldig. Steg 1 (faggruppe-rename) er gjennomført. Resten av rekkefølgen forblir veiledende, men 1.2 (CHECK constraint) og 2.x-beslutningene er fortsatt åpne.
+
+1. ~~Faggruppe-rename på fysisk nivå (1.1)~~ — ✅ GJENNOMFØRT på test og prod
+2. **CHECK constraint på dokumentflyt_medlemmer** (1.2) — fortsatt åpen, null risiko
 3. **Beslutning ProjectGroup-nivå** (2.1) — design-diskusjon, ingen kode
 4. **Beslutning FolderAccess-prioritet** (2.2) — design-diskusjon, ingen kode
 5. **Beslutning delt mal-bruk** (2.3) — design-diskusjon, ingen kode
@@ -156,7 +188,7 @@ Følgende mangler helt og må bygges (ikke opprydning, men oppfølging av ny ark
 7. **Bygg `OrganizationPartner`** (3.2) — gir grunnlag for `Faggruppe.partnerId`
 8. **Resterende firma-modeller** etter modul-prioritet
 
-Etter steg 1–7 kan timer-modul gjenopptas på solid grunnlag.
+Etter steg 2–7 kan timer-modul gjenopptas på solid grunnlag.
 
 ## Det som IKKE er en del av opprydning
 
