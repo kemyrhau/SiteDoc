@@ -41,22 +41,15 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 
 ## Pågående arbeid
 
-**DB-naming-opprydning er top-prioritet før mer datamodell-arbeid.**
+**Ingen aktive datamodell-faser per 2026-04-25.** DB-opprydning er parket; neste runde avventer Opus' cross-modell-analyse av Kenneths arkitektur-syntese.
 
-Tidligere Enterprise→Faggruppe-refactor (94 filer) var ufullstendig på fase A: fysiske DB-tabeller heter fortsatt `enterprises`, `member_enterprises`, `group_enterprises`, mens Prisma-modellene er renamet via `@@map`. Dette må ryddes opp.
+**DB-naming-opprydning — ferdig:**
+- Faggruppe-rename gjennomført på test (2026-04-15/16) og prod (2026-04-16) via tre migreringer (`navnegjennomgang`, `enterprise_rename_dokumentflyt_part`, `faggruppe_rename`). Verifisert i [db-naming-audit-2026-04-25.md](docs/claude/db-naming-audit-2026-04-25.md)
+- U.1 (`project_groups.building_ids` jsonb) utsatt til [byggeplass-strategi-fase](docs/claude/byggeplass-strategi.md) — drop koordineres med m2m-koblingstabell
+- U.2 (FK-constraint-navn fortsatt på engelsk) parkert som kosmetisk — tas naturlig ved neste større migrering
+- Lokal-DB er bevisst ikke vedlikeholdt; re-seedes fra test ved behov per CLAUDE.md § «Primærmiljø»
 
-**Eksekveringsrekkefølge:** lokal → test → prod.
-
-**Avgrensning:** Denne fasen omfatter KUN fysiske DB-tabell- og kolonne-renames. Verifisert som trygg for alle klienter (mobil og web har null kode-treff for «enterprise»). IKKE inkludert: `senderEnterpriseName`/`recipientEnterpriseName` snapshot-felt på `DocumentTransfer`, og tRPC-alias `entreprise: faggruppeRouter` — disse beholdes uendret. Se [db-opprydning.md «Avgrensning»](docs/claude/db-opprydning.md#avgrensning-av-denne-fasen).
-
-**Må håndteres samtidig med rename:**
-- Backup før hver migrering
-- FK-constraints (omdirigeres til nye tabellnavn)
-- Sequences (auto-increment-tellere)
-- `_prisma_migrations`-historikk
-- Eventuelle eksterne SQL-konsumenter (rapporter, integrasjoner, dump/restore-scripts)
-
-Detaljert plan: [docs/claude/db-opprydning.md](docs/claude/db-opprydning.md). Audit-grunnlag: [docs/claude/audit-data-2026-04-25.md](docs/claude/audit-data-2026-04-25.md).
+Status og detaljer: [db-opprydning.md](docs/claude/db-opprydning.md).
 
 ## Pauset arbeid
 
@@ -66,9 +59,10 @@ Detaljert plan: [docs/claude/db-opprydning.md](docs/claude/db-opprydning.md). Au
 
 **Byggeplass-strategi** — koordinert designrunde for byggeplass-relasjon på tvers av moduler (brukergrupper, timer, oppgaver, planlegger m.fl.). Detaljer og modul-tabell i [docs/claude/byggeplass-strategi.md](docs/claude/byggeplass-strategi.md). Forutsetter avklaring av tre arkitektur-prinsipper (NULL-betydning, prosjekt uten byggeplasser, datamodell-valg). `project_groups.building_ids` (jsonb) dropps som del av denne fasen.
 
-**Lokale uncommittede commits på `feature/maskin-db`** — ikke pushet, venter på etter DB-opprydning:
+**Commits på `feature/maskin-db`** venter på merge til develop:
 - `a4d7771` — Proadm-detaljer i timer.md
 - `89e102c` — Proadm-regel i CLAUDE.md
+- DB-opprydning-relaterte audit/doc-commits (2026-04-25)
 
 ## Task boundary
 
