@@ -368,6 +368,7 @@ To DB-kolonner styrer tilgang: `User.role` (`sitedoc_admin` | `company_admin` | 
 - Statusoverganger via `isValidStatusTransition()` på server og klient
 - E-postsending (Resend) er valgfri — API starter uten nøkkel
 - **Delt infrastruktur:** Brukeren har flere prosjekter som deler domene (sitedoc.no), OAuth-klienter, ngrok-konto og server. ALDRI endre `.env`-filer, DNS/tunnel-config eller OAuth-oppsett uten å spørre — endringer kan påvirke andre prosjekter
+- **Proadm-integrasjon:** all godkjenning skjer i SiteDoc. Proadm mottar kun ferdig godkjente timer/tillegg/utlegg — ingen godkjenningsflyt eller statusoppdateringer tilbake. Detaljer i [docs/claude/timer.md](docs/claude/timer.md)
 - **Auto-commit:** Commit og push til `develop` automatisk etter ferdig implementasjon
 - **Auto-deploy til test:** Etter push til `develop`, deploy til test.sitedoc.no automatisk
 - **ALDRI deploy til produksjon** uten eksplisitt forespørsel fra brukeren ("deploy til prod")
