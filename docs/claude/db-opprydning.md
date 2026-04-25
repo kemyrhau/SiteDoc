@@ -6,6 +6,32 @@ Aktiv arbeidsstrøm. Timer-modul er satt på pause til DB er ryddet opp. Identif
 
 **Status:** Planlegging. Ingen migreringer kjørt.
 
+## Avgrensning av denne fasen
+
+Denne fasen omfatter **kun fysiske DB-renames** (tabeller og kolonner). Disse er trygge for alle klienter — verifisert via bakoverkompatibilitet-kartlegging 2026-04-25:
+- Mobil-appen har null kode-treff for «enterprise» (verken TypeScript eller native iOS/Android-mapper)
+- Web-appen har null treff
+- Kun 4 filer i hele kodebasen berøres, alle i `apps/api/` og `packages/db/prisma/`
+
+### IKKE en del av denne fasen
+
+Følgende beholdes uendret i denne fasen, krever separat planlegging mot mobil-versjon:
+
+1. **`senderEnterpriseName` / `recipientEnterpriseName`** på `DocumentTransfer`-modellen — beholdes som «historisk snapshot»-felter (per eksisterende kommentar i `apps/api/src/services/transfer-snapshot.ts`). Disse eksponeres direkte i API-respons til klienter (ingen DTO-lag).
+
+2. **tRPC-alias `entreprise: faggruppeRouter`** i `apps/api/src/trpc/router.ts` — beskytter eldre TestFlight-builds som kan kalle `trpc.entreprise.*`. Beholdes inntil mobil-versjonsstøtte er avklart.
+
+3. **Andre felter eller signaturer som eksponeres i API-respons** og kan ha eldre mobil-konsumenter — krever DTO-lag før rename er trygt.
+
+### Åpent diskusjons-punkt
+
+**Snapshot-feltnavn — gamle eller konsistente?** `senderEnterpriseName` på `DocumentTransfer` er teknisk et historisk øyeblikksbilde (data lagret ved tidspunktet hendelsen skjedde). Argumenter:
+
+- **Behold gammelt navn** (`*EnterpriseName`): markerer at feltet er et øyeblikksbilde fra «entreprise»-tiden, ikke den nåværende terminologien. Sikrer at lesere ikke forveksler snapshot-data med live `Faggruppe.name`.
+- **Rename til konsistent** (`*FaggruppeName`): én terminologi i hele kodebasen. Snapshot-naturen kan markeres med kommentar/dokumentasjon i stedet.
+
+Beslutning utsettes — inkluderes i en senere fase sammen med mobil-versjonsstrategi.
+
 ## Prioritet 1 — Lavhengende frukt (lav risiko, klar nytte)
 
 ### 1.1 Faggruppe-rename på fysisk DB-nivå

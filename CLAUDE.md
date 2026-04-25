@@ -43,7 +43,9 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 
 Tidligere Enterprise→Faggruppe-refactor (94 filer) var ufullstendig på fase A: fysiske DB-tabeller heter fortsatt `enterprises`, `member_enterprises`, `group_enterprises`, mens Prisma-modellene er renamet via `@@map`. Dette må ryddes opp.
 
-**Eksekveringsrekkefølge:** lokal dev → `test.sitedoc.no` → `sitedoc.no`.
+**Eksekveringsrekkefølge:** lokal → test → prod.
+
+**Avgrensning:** Denne fasen omfatter KUN fysiske DB-tabell- og kolonne-renames. Verifisert som trygg for alle klienter (mobil og web har null kode-treff for «enterprise»). IKKE inkludert: `senderEnterpriseName`/`recipientEnterpriseName` snapshot-felt på `DocumentTransfer`, og tRPC-alias `entreprise: faggruppeRouter` — disse beholdes uendret. Se [db-opprydning.md «Avgrensning»](docs/claude/db-opprydning.md#avgrensning-av-denne-fasen).
 
 **Må håndteres samtidig med rename:**
 - Backup før hver migrering
