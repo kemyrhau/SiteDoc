@@ -219,6 +219,162 @@ Del av dagsseddelen. Ansatt tar bilde av kvittering direkte i mobilappen.
 - Leder ser kvitteringsbilde i godkjenningsvisningen
 - Godkjennes samtidig med dagsseddelen — ikke egen godkjenningsflyt
 
+## Hjelpetekster (?-ikonet) — alle timer-sider
+
+Per regelen i [CLAUDE.md](../../CLAUDE.md#hjelpetekster-per-side) skal hver side i SiteDoc ha hjelpetekst tilgjengelig via ?-ikonet øverst til høyre. For timer-modulen gjelder dette ALLE sider — bygges samtidig med siden, oppdateres når siden endres.
+
+**Konsepter som MÅ forklares i ?-hjelp på relevante sider:**
+
+| Side | Hjelpetekst skal dekke |
+|------|------------------------|
+| `/timer/min-tid` (dagsseddel) | Hva er en dagsseddel, lønnsart-valg, hvordan koble til Underprosjekt, signering |
+| `/timer/oppsett/underprosjekter` | Hva er Underprosjekt, forskjell mellom Proadm-importert vs. SiteDoc-avledet, åpen/lukket-status |
+| `/timer/oppsett/lonnsarter` | Hva er en lønnsart, kobling til Poweroffice-kode, fravær-flag |
+| `/timer/oppsett/tillegg` | Skifttillegg, beredskap, automatiske vs. manuelle tillegg |
+| `/timer/oppsett/godtgjorelser` | Diett, overtidsmat, kvitteringskrav |
+| `/timer/oppsett/eksport-config` | Proadm vs. SiteDoc Godkjenning som kilde, Poweroffice-oppsett |
+| `/timer/godkjenning` | Forenklet godkjenningsflyt (kun utførelse, ikke økonomi), signeringsregler |
+| `/timer/eksport` | Hva er eksportert, hvordan markere som eksportert, Poweroffice-format |
+| `/timer/rapporter/*` | Hva hver rapport viser, hvilke filtere, hvordan eksportere |
+| Godkjenning-dokument (eksisterende) | Når «Opprett underprosjekt»-knappen vises, betingelser (modul-aktivering), juridisk grunnlag for at knappen ikke krever økonomisk avklaring |
+
+**Spesielt viktig å forklare i hjelpetekst:**
+- **Underprosjekt vs. kontraktsbegreper** — at ansatte ser «Underprosjekt», kontraktsadmin ser tilleggsarbeid/endring/varsel
+- **Utførelse er frikoblet økonomi** — entreprenør kan/må føre timer selv om økonomi er uavklart (NS 8405/06/07)
+- **Kilde-systemer** — Proadm vs. SiteDoc Godkjenning, hvordan velge, hvordan skille i listen
+- **Forenklet godkjenning** — skiller seg fra eksisterende «Godkjenning»-dokumenttype ved at den IKKE inneholder økonomi
+
+Bruk eksempler med norske navn (Ola, Trude, Per) — ikke abstrakte beskrivelser. Når sider bygges, oppdater også «Sidestatus ?-ikon»-tabellen i [CLAUDE.md](../../CLAUDE.md#hjelpetekster-per-side).
+
+## Underprosjekt og forenklet godkjenning (planlagt)
+
+### Begrepsbruk
+
+- **I timer-modulens UI / mot ansatte:** «Underprosjekt»
+- **I kontraktssammenheng / dokumentflyt:** Tilleggsarbeid, varsel, endring, varsel om endring, regningsarbeid
+- Aldri bland disse to. Ansatte ser kun «Underprosjekt» — kontraktsbegreper er for kontraktsadministrasjon.
+
+### Underprosjekt-modell (planlagt, `packages/db-timer/`)
+
+```
+Underprosjekt {
+  id, navn, hovedprosjektId, status (åpen/lukket)
+
+  // Kilde — Underprosjekt opprettes ALLTID fra et eksisterende godkjenningsdokument:
+  kilde: "proadm" | "sitedoc_godkjenning"
+
+  // Hvis Proadm (importert):
+  proadmId, proadmNummer, proadmType
+    (tilleggsarbeid/varsel/endring/regningsarbeid)
+
+  // Hvis SiteDoc:
+  godkjenningId  // → ReportInstance med malens type "Godkjenning"
+}
+```
+
+### Avledning — Underprosjekt opprettes ikke selvstendig
+
+Underprosjekt er **alltid en avledning** av et formelt godkjenningsdokument. Det opprettes ikke direkte i timer-modulen.
+
+**To kilder — ulike flyter:**
+
+#### A) Proadm-import (automatisk)
+
+Når Proadm-integrasjonen er aktivert for prosjektet, importeres Underprosjekter automatisk fra Proadm. Proadm er kilden — vi henter, viser, kobler timer mot det. Endringer i godkjenningsstatus skjer i Proadm. Vi viser Proadm-status i Underprosjekt-listen, men endrer den ikke.
+
+**Krav:**
+- Timer-firmamodulen aktivert
+- Proadm-integrasjon konfigurert på firma/prosjekt
+- Ingen knapp på SiteDoc Godkjenning er relevant — Underprosjekt-listen befylles fra Proadm-sync
+
+**Sync-strategi:** Proadm-import kjører på fast intervall (eller manuell trigger). Nye endringer/varsel/regningsarbeider blir Underprosjekter med `kilde = "proadm"`. Ved slettet i Proadm: marker som lukket, ikke slett (bevar timer-historikk).
+
+#### B) SiteDoc Godkjenning-flyt (manuell knapp)
+
+Når SiteDoc-dokumentflyt brukes for endringshåndtering: leder klikker «Opprett underprosjekt for timeregistrering» på Godkjenning-dokumentet. Den formelle Godkjenningen beholder økonomi-diskusjonen — Underprosjektet er kun utførelses-speilbildet ansatte ser.
+
+**Krav:** Se «Avledning fra SiteDoc Godkjenning — manuell knapp» under.
+
+#### Konfigurasjon per firma + per prosjekt
+
+**Proadm er en valgfri integrasjon — ikke et krav.** Mange potensielle kunder bruker ikke Proadm. Timer-modulen må fungere uavhengig av om Proadm er konfigurert eller ikke.
+
+**Konfigurasjonsmatrise:**
+
+| Kundens oppsett | Underprosjekt-kilde | Konsekvens |
+|---|---|---|
+| Verken Proadm eller Godkjenning-modul | **Ingen** — Underprosjekt-feltet skjules i timeregistreringen | Timer føres direkte mot hovedprosjekt |
+| Godkjenning-modul aktivert (uten Proadm) | **SiteDoc Godkjenning** — manuell knapp på Godkjenning-dokument | Standard for kunder uten ERP |
+| Proadm aktivert | **Proadm** — automatisk import | A.Markussen-case |
+| Proadm + drømmescenario | **Proadm** + auto-opprett SiteDoc Godkjenning som kommunikasjonsverktøy | Se neste seksjon |
+
+**Eksklusivt valg når begge muligheter finnes:** Hvis et firma både har Proadm og Godkjenning-modulen aktivert, må de velge ÉN som kilde for Underprosjekt. Aldri begge som parallelle kilder — ville gitt konkurrerende sannheter og uklart eierskap.
+
+Ved bytte av kilde: eksisterende Underprosjekter beholdes med opprinnelig kilde markert. Kun nye følger ny konfigurasjon.
+
+#### Drømmescenario — Proadm → auto-opprett SiteDoc Godkjenning
+
+Kombinasjons-mulighet som bør utforskes: Proadm-import oppretter automatisk en SiteDoc Godkjenning-dokumentinstans, som så blir kilde for Underprosjekt via knappen.
+
+**Rollefordeling i dette scenarioet:**
+- **Proadm** = entreprenørens interne kontrakts-/økonomisystem (kontraktsstatus, beløp, regningsarbeid-vurdering)
+- **SiteDoc Godkjenning** = **kommunikasjonsverktøy mellom entreprenør og byggherre** — det er hele formålet med å auto-opprette den
+
+**Statusflyt — manuell sync (første versjon):**
+- Proadm → SiteDoc: auto-opprettelse ved import (envei)
+- Når byggherre godkjenner i SiteDoc: noen oppdaterer status manuelt i Proadm
+- Auto-sync SiteDoc → Proadm utsettes til senere — avklares når behov og teknisk grunnlag er klart
+
+**Fordeler:**
+- Byggherre kommuniserer i SiteDoc-flate (slipper Proadm-tilgang)
+- Entreprenør beholder Proadm som sin økonomi-master
+- Underprosjekt for timer kan avledes via SiteDoc Godkjenning-knappen
+- Ett konsistent UI (SiteDoc) for både utførelse, kommunikasjon og dokumentasjon
+
+**Åpne spørsmål:**
+- Mapping mellom Proadm-felt (proadmType, beløp, beskrivelse) → Godkjenning-malens felter
+- Hva skjer hvis SiteDoc Godkjenning endres manuelt etter auto-opprettelse — overskrives ved neste Proadm-sync, eller markeres som «konflikt»?
+- Er SiteDoc Godkjenning read-only på økonomi-felter når Proadm er kilde (kun kommunikasjon/status redigeres i SiteDoc)?
+- Når Proadm-endring importeres på nytt: oppdater eksisterende SiteDoc Godkjenning eller opprett ny versjon?
+
+Foreløpig status: **idé, ikke besluttet.** Bør utredes før timer-modulen bygges ferdig.
+
+### Forenklet godkjenningsflyt (mot ansatt)
+
+Egen forelder-objekt-type «Timeregistrering» i [malbyggeren](../../MALBYGGER.md) som lar timeregistrering kobles til underprosjekt og sendes til ansatt for bekreftelse.
+
+**Skal IKKE inneholde:**
+- Priser, satser, kostnader
+- Fakturering, beløp, kontraktssum
+- Diskusjon om økonomiske forhold
+
+**Skal KUN inneholde:**
+- Hva ble gjort (aktivitet, kommentar)
+- Antall timer, dato
+- Hvilken lønnsart
+- Eventuell signatur for bekreftelse av utførelse
+- Vedlegg/bilder fra utførelsen
+
+**Hvorfor:** Økonomi (priser, kontrakt, fakturering) håndteres i Proadm eller annet ERP. Ansatte skal kun forholde seg til utførelse — hva er gjort, hvor mange timer, har leder godkjent. Skiller dette tydelig fra den eksisterende «Godkjenning»-dokumenttypen som kan inkludere økonomi.
+
+**Flyt:** Leder oppretter timeregistrering basert på mal → sendes til ansatt → ansatt bekrefter (signerer) → tilbake til leder for endelig godkjenning → eksporteres til lønnssystem (Poweroffice).
+
+**Kobling til Underprosjekt:** Timeregistreringen knyttes til et Underprosjekt som allerede eksisterer (avledet fra Proadm eller fra SiteDoc Godkjenning-dokument — se «Underprosjekt-modell» over). Selve timeregistreringen oppretter ikke nytt Underprosjekt — den bruker et eksisterende.
+
+### Avledning fra SiteDoc Godkjenning — manuell knapp
+
+På et Godkjenning-dokument (uavhengig av status) finnes knappen **«Opprett underprosjekt for timeregistrering»**. Leder klikker når utførelsen skal starte.
+
+**Synlighetsbetingelser for knappen** — vises kun når begge er sanne:
+1. **Timeregistrerings-modulen er aktivert** (firmamodul, se [CLAUDE.md](../../CLAUDE.md#modulsystem--to-nivåer))
+2. **Godkjenning-modulen er aktivert på prosjektet** (prosjektmodul)
+
+Hvis én av disse er av, skjules knappen — ingen poeng å tilby Underprosjekt-opprettelse hvis ansatte ikke kan føre timer mot det, eller hvis Godkjenning ikke er en aktiv dokumenttype på prosjektet.
+
+**Aldri automatisk basert på godkjent-status.** Begrunnelse: i norsk entrepriserett (NS 8405/8406/8407) er entreprenøren kontraktspliktig til å utføre arbeid selv ved økonomisk uenighet. Hvis vi blokkerte Underprosjekt-opprettelse til Godkjenningen var økonomisk avklart, ville vi hindre lovpålagt utførelse. Utførelse-spor (timer) må alltid kunne starte uavhengig av økonomi-spor (pris/fakturering).
+
+Underprosjektets `kilde` settes til `sitedoc_godkjenning` og `godkjenningId` peker til kilde-dokumentet. Endringer i Godkjenningens økonomiske status påvirker ikke Underprosjektets åpen/lukket-status.
+
 ## Database — `packages/db-timer`
 
 ### Hovedtabell: `daily_sheets` (dagsseddel)
@@ -477,11 +633,39 @@ Den opprinnelige planen om `apps/timer` som egen Next.js-app er **ikke forkastet
 
 ## Proadm-integrasjon
 
-### Dataflyt
+### Status (april 2026)
 
-- **Henting:** 1x per døgn fra Proadm (batch-API)
-- **Sending:** 1x per døgn til Proadm (batch-API)
+Proadm har **ikke** et offentlig REST API. Eneste eksisterende synk-integrasjon for timer/tillegg er mot SmartDok. Proadm har bekreftet interesse for å utvikle et generelt API, og SiteDoc forfølger rollen som **designpartner/pilotkunde** for dette.
+
+Inntil REST API er på plass, utforskes tre kortsiktige spor (i prioritert rekkefølge):
+
+1. **Gjenbruk SmartDok-formatet** — SiteDoc emitterer samme datastruktur som SmartDok sender til Proadm. Krever ingen ny utvikling på Proadm-siden. Avhenger av at Proadm deler formatspesifikasjonen.
+2. **Fil-basert overføring** — daglig SFTP/CSV-drop i avtalt skjema.
+3. **Direkte SQL** — kun hvis ingen av de over fungerer; mer skjørt og kundespesifikt.
+
+### Premiss for integrasjon
+
+- **All godkjenning skjer i SiteDoc.** Proadm mottar kun ferdig godkjente timer, tillegg og utlegg. Ingen godkjenningsflyt eller statusoppdateringer tilbake fra Proadm — kun valideringsfeil.
+- Overføringen er i praksis **envei sendende**, og **enveis hentende** for masterdata (prosjekter, ansatte, lønnsarter, endringer).
+
+### Dataflyt (mål-arkitektur)
+
+- **Henting:** 1x per døgn fra Proadm (batch — masterdata)
+- **Sending:** 1x per døgn til Proadm (batch — godkjente timer/tillegg/utlegg)
 - **Mellom-løsning:** SmartDok brukes i dag av kunden — SiteDoc erstatter denne rollen
+
+### Foreslåtte REST-endepunkter (designpartner-utkast)
+
+| Retning | Endepunkt | Innhold |
+|---------|-----------|---------|
+| Hent | `GET /ansatte` | Aktive ansatte |
+| Hent | `GET /prosjekter` | Aktive prosjekter |
+| Hent | `GET /kontrakter` | Kontrakter per prosjekt |
+| Hent | `GET /lonnsarter` | Lønnsarter og satser |
+| Hent | `GET /endringsordrer` | Endringer/godkjenninger med status |
+| Send | `POST /timer` | Godkjente dagssedler |
+| Send | `POST /tillegg` | Tilleggsarbeid-timer med endringsreferanse |
+| Send | `POST /utlegg` | Godkjente utlegg med kvitteringsreferanse |
 
 ### Hva SiteDoc henter fra Proadm
 
@@ -516,7 +700,7 @@ To separate strømmer:
 
 ### Validering
 
-SiteDoc validerer og godkjenner timer — ikke Proadm. Leder godkjenner i SiteDoc → data sendes i neste batch til Proadm.
+SiteDoc validerer og godkjenner timer — ikke Proadm. Leder godkjenner i SiteDoc → data sendes i neste batch til Proadm. Proadm-siden gjør kun teknisk validering (feltformat, refererte ID-er) og rapporterer eventuelle avviste poster tilbake for korreksjon i SiteDoc.
 
 ## Rapportmodul (planlagt)
 

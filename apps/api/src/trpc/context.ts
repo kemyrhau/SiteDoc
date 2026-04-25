@@ -1,5 +1,6 @@
 import type { FastifyRequest, FastifyReply } from "fastify";
 import { prisma } from "@sitedoc/db";
+import { prismaMaskin } from "@sitedoc/db-maskin";
 
 export interface CreateContextOptions {
   req: FastifyRequest;
@@ -41,6 +42,7 @@ export async function createContext({ req, res }: CreateContextOptions) {
 
   return {
     prisma,
+    prismaMaskin,
     req,
     res,
     userId,

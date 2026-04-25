@@ -20,6 +20,7 @@ export type Seksjon =
   | "psi"
   | "kontrollplan"
   | "timer"
+  | "maskin"
   | "oppsett";
 
 export interface VerktoylinjeHandling {

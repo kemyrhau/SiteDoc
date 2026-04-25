@@ -1,6 +1,7 @@
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { appRouter } from "@sitedoc/api/src/trpc/router";
 import { prisma } from "@sitedoc/db";
+import { prismaMaskin } from "@sitedoc/db-maskin";
 import { auth } from "@/auth";
 
 /**
@@ -16,6 +17,7 @@ async function handler(req: Request) {
     router: appRouter,
     createContext: () => ({
       prisma,
+      prismaMaskin,
       req: {} as never,
       res: {} as never,
       userId: session?.user?.id ?? null,
