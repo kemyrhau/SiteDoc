@@ -6,11 +6,13 @@
 Den som opprettet dokumentet. Endres aldri.
 
 ### Eier
-Den som har overordnet ansvar for at dokumentet blir ferdig. Tilhører alltid faggruppen dokumentet ble opprettet i. Kan byttes av en med rett rettighet (se Rettigheter).
+Den som har overordnet ansvar for at dokumentet blir ferdig. Kan byttes av en med rett rettighet (se Rettigheter).
+
+**Teknisk:** Eier er en User-FK (`Checklist.eierUserId` / `Task.eierUserId`). Eier-feltet peker direkte til en User, ikke til en Faggruppe. Logikken sikrer at User tilhører riktig faggruppe ved mottak — eieren er ikke direkte koblet til faggruppe-tabellen.
 
 Eier settes automatisk ved mottak:
 - Ballen sendes til en person → den personen blir eier
-- Ballen sendes til en gruppe → gruppens leder (blå prikk) blir eier
+- Ballen sendes til en gruppe → gruppens leder (`ProjectMember.erFirmaansvarlig = true`, vises som blå prikk i UI) blir eier
 
 ### Nåværende mottaker
 Den som har ballen akkurat nå. Endres for hvert steg i flyten.
@@ -51,7 +53,7 @@ Representerer nåværende mottaker visuelt. Er dynamisk — viser dokumentets be
 | Redigerbar | Aldri — append-only fra opprettelse |
 | Legg til info | Den som har ballen + admin/registrator |
 | Sletting | Kun i kladd av bruker |
-| Godkjenning/lukk | Admin/registrator i alle flyter, ellers → Ferdig |
+| Godkjenning/lukk | Admin/registrator i alle flyter kan sette `closed`. Ikke-admin kan kun gå til `responded` (se § 6 Statusoverganger) |
 | Flyt | Toveis |
 | På tvers av faggrupper | Kun admin/registrator/prosjekteier |
 | Fremtidig | Per-ledd konfigurasjon, per-medlem rettighet |
@@ -203,7 +205,95 @@ Flytmal-strukturen må støtte per-ledd-konfigurasjon fra start for alle dokumen
 
 ---
 
-## 6. Validering ved opprettelse av faggrupper
+## 6. Statusoverganger og sporbarhet
+
+### Status-overgangstabell
+
+Validert via `isValidStatusTransition()` i `packages/shared/src/utils/index.ts`. Server (tRPC) og klient (knapp-visning) bruker samme funksjon — hold synkronisert.
+
+| Fra | Lovlige overganger til |
+|---|---|
+| `draft` | `sent`, `cancelled` |
+| `sent` | `received`, `cancelled` |
+| `received` | `in_progress`, `responded`, `cancelled` |
+| `in_progress` | `responded`, `sent`, `cancelled` |
+| `responded` | `approved`, `rejected` |
+| `approved` | `closed` |
+| `rejected` | `in_progress`, `closed` |
+| `closed` | (terminal — ingen overganger) |
+| `cancelled` | `draft` |
+
+**Note om `cancelled`:** Selv om kansellering historisk ble omtalt som «irreversibel», tillater koden `cancelled → draft`. Et kansellert dokument kan altså gjenåpnes som kladd hvis brukeren ombestemmer seg. Closed er den eneste virkelig terminale statusen.
+
+### Status-terminologi i UI
+
+UI-labels bruker norske ord uavhengig av dokumenttype. Verifisert 2026-04-27:
+
+| Status-verdi | UI-label (nb) | i18n-nøkkel |
+|---|---|---|
+| `draft` | Kladd | `status.kladd` |
+| `sent` | Sendt | `status.sendt` |
+| `received` | Mottatt | `status.mottatt` |
+| `in_progress` | Pågår | `status.paagaar` |
+| `responded` | **Besvart** | `status.besvart` |
+| `approved` | Godkjent | `status.godkjent` |
+| `rejected` | Avvist | `status.avvist` |
+| `closed` | Lukket | `status.lukket` |
+| `cancelled` | Avbrutt | `status.avbrutt` |
+
+**Status-label er felles for alle dokumenttyper** — sjekkliste, oppgave og godkjenning bruker samme label «Besvart» for `responded`. Eventuelle separate ord per type («utbedret» for sjekkliste, «besvart» for godkjenning) er ikke implementert i koden.
+
+### Snapshot-felter på `document_transfers`
+
+Hver overgang lagres som en rad i `document_transfers` med snapshot-felter som fanger kontekst på tidspunktet:
+
+| Felt | Type | Beskrivelse |
+|---|---|---|
+| `senderEnterpriseName` | `String?` | Navn på avsendende faggruppe ved overlevering |
+| `recipientEnterpriseName` | `String?` | Navn på mottakende faggruppe ved overlevering |
+| `dokumentflytName` | `String?` | Navn på dokumentflyten dokumentet var i |
+| `senderRolle` | `String?` | `bestiller` \| `utforer` \| `godkjenner` \| `registrator` |
+
+**Viktig:** Snapshot-feltene `senderEnterpriseName` og `recipientEnterpriseName` ble **bevisst ikke renamet** av faggruppe-rename-migrasjonen (2026-04-16). De representerer en historisk verdi på overleveringstidspunktet — renaming ville gi tap av historisk sannhet og bryte sporbarheten. Dette er den **eneste** plassen i koden hvor `enterprise`-navngivning fortsatt er gyldig og forbudt-regelen ikke gjelder.
+
+---
+
+## 7. Tekniske felter
+
+Sentrale modell-felter som styrer flyt-mekanikken. Full feltliste i [arkitektur.md](arkitektur.md).
+
+### `Dokumentflyt.roller` — JSONB-konfigurerbare labels
+
+Per dokumentflyt kan rolle-labels overstyres for prosjekt-spesifikk terminologi. Standard-rollene er fortsatt `registrator` / `bestiller` / `utforer` / `godkjenner`, men UI viser kunde-spesifikke labels:
+
+```json
+{
+  "registrator": { "label": "RUH-melder" },
+  "bestiller":   { "label": "Byggherre" },
+  "utforer":     { "label": "HMS-koordinator" },
+  "godkjenner":  { "label": "BHF-leder" }
+}
+```
+
+Alle fire rolle-noklene er valgfrie. Manglende nøkler bruker default-rolle-navnet.
+
+### `DokumentflytMedlem` — flytsteg-medlemskap
+
+| Felt | Type | Beskrivelse |
+|---|---|---|
+| `rolle` | `String` | `registrator` \| `bestiller` \| `utforer` \| `godkjenner` |
+| `steg` | `Int` | Hvilket steg i flyten (rekkefølge) |
+| `kanRedigere` | `Boolean default true` | Toggle i dokumentflyt-oppsett — false gir kun lesetilgang selv med ballen |
+| `låsesEtterPasseringer` | `Int?` | Per-ledd låsbarhet — feltet finnes, logikken er ikke implementert ennå |
+| `erHovedansvarlig` | `Boolean` | Markerer hovedansvarlig på flytsteget |
+| `hovedansvarligPersonId` | `String?` | FK til spesifikk User som hovedansvarlig |
+| `faggruppeId` / `projectMemberId` / `groupId` | `String?` | Ett av disse settes per medlem (faggruppe ELLER konkret person ELLER prosjektgruppe) |
+
+`kanRedigere`-toggelen sjekkes av `utledDokumentRettighet()` i `packages/shared/src/utils/flytRolle.ts`. Admin/registrator er upåvirket (alltid full tilgang).
+
+---
+
+## 8. Validering ved opprettelse av faggrupper
 
 Systemet skal advare brukeren når dokumentflyt-oppsett er ugyldig:
 - Ingen leder (blå prikk) definert i en gruppe
@@ -213,7 +303,7 @@ Systemet skal advare brukeren når dokumentflyt-oppsett er ugyldig:
 
 ---
 
-## 7. Fremtidige utvidelser
+## 9. Fremtidige utvidelser
 
 - **Per-ledd låsbarhet** — `låsesEtterPasseringer` finnes i schema, ikke implementert ennå
 - **Per-person rettighet innad i gruppe** — overstyring av kanRedigere per gruppeperson (nå gjelder hele gruppen)
@@ -224,3 +314,12 @@ Systemet skal advare brukeren når dokumentflyt-oppsett er ugyldig:
 - **Konfigurerbare godkjenningsregler per mal** — avvis, send tilbake, antall nivåer
 - **Flere HMS-grupper per prosjekt**
 - **Mobilapp handlingsmeny** — portering av ny Send-dropdown og flytindikator til React Native
+
+---
+
+## 10. Relaterte dokumenter
+
+- [terminologi.md](terminologi.md) — definisjoner av Faggruppe, Bestiller, Utfører, Snapshot-pattern og status-handlinger
+- [arkitektur.md](arkitektur.md) — full datamodell for `Dokumentflyt`, `DokumentflytMedlem`, `Checklist`, `Task`, `DocumentTransfer` og tilgangskontroll-funksjoner
+- [forretningslogikk.md](forretningslogikk.md) — handlingsknapper, rollefiltrering og operative regler
+- [fase-0-beslutninger.md](fase-0-beslutninger.md) — A.2 Godkjenning som utvidet dokumentflyt-type, A.7 hybrid logg + snapshot ved attestering
