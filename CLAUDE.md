@@ -36,7 +36,8 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 | [docs/claude/arkitektur-qa-runde-2-2026-04-25.md](docs/claude/arkitektur-qa-runde-2-2026-04-25.md) | Opus QA-runde 2: verifisering mot kodebase, BibliotekMal=Malverk-funn, 7 svakheter, go/no-go for Fase 0 |
 | [docs/claude/byggeplass-strategi.md](docs/claude/byggeplass-strategi.md) | **PLANLAGT FASE:** byggeplass-relasjon på tvers av moduler. Modul-tabell (utkast, krever bekreftelse), tre åpne arkitektur-prinsipper, avhengigheter |
 | [docs/claude/db-naming-audit-2026-04-25.md](docs/claude/db-naming-audit-2026-04-25.md) | Audit lokal/test/prod: faggruppe-rename gjennomført på test og prod, lokal er bak. Metode-merknader om Prisma-skjemaer og CASE-rekkefølge |
-| [docs/claude/smartdok-undersokelse.md](docs/claude/smartdok-undersokelse.md) | SmartDok API-kartlegging, mapping til SiteDoc, funksjonsgap, migreringsstrategi for A.Markussen |
+| [docs/claude/smartdok-undersokelse.md](docs/claude/smartdok-undersokelse.md) | **AKTIV (2026-04-26):** SmartDok UI-research + arkitektur-implikasjoner: dagsseddel-felter, lønnsarter (26), enhetstillegg, equipment-bredde (3 kategorier), underprosjekt-konflikt med FtdChangeEvent, ProAdm-eksport-spor, A.Markussens timer-policy |
+| [docs/claude/smartdok-undersokelse-2026-04-25.md](docs/claude/smartdok-undersokelse-2026-04-25.md) | **ARKIV (v1):** SmartDok API-kartlegging (OpenAPI 128 endepunkter), mapping-tabeller (User/Project/Wage/Machine/WorkHour), funksjonsgap, migreringsstrategi |
 | [docs/claude/ai-integrasjon.md](docs/claude/ai-integrasjon.md) | AI-integrasjon: Copilot plugin, MCP server, innebygd assistent, risikoer, API-lag |
 | [MALBYGGER.md](MALBYGGER.md) | Felles malbygger: dokumenttyper, felttyper, beslutninger, migreringsstrategi |
 
@@ -44,16 +45,23 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 
 ## Pågående arbeid
 
-**Timer-modul-planlegging er neste steg — FØR Fase 0-koding starter.** Arkitektur-syntese og 7 mikrobeslutninger er låst etter Opus' QA-runde 1+2 (2026-04-25), men timer-modulen kan påvirke arkitektur-modellen og medføre justeringer av Fase 0-beslutninger.
+**Status 2026-04-26:** Timer-modul-planlegging fullført. Tre runder Opus-stresstesting + Kenneth-justeringer har produsert 13 vedtatte Fase 0-beslutninger. **5 BLOKKERER-spørsmål gjenstår** før Fase 0-koding kan starte (se [fase-0-beslutninger.md § B](docs/claude/fase-0-beslutninger.md)).
 
-⚠️ **Code skal IKKE starte Fase 0-koding ennå** — selv om beslutninger ser komplette ut. Vent på timer-planlegging + Kenneths grønne lys. Se [fase-0-beslutninger.md](docs/claude/fase-0-beslutninger.md) § «Forutsetning før koding starter».
+⚠️ **Code skal IKKE starte Fase 0-koding ennå.** Kenneth tar en ny runde på de 5 åpne spørsmålene. Vent på grønt lys.
 
-**Anker for ny chat (timer-planlegging først):**
-- [timer.md](docs/claude/timer.md) — timer-modul-spesifikasjon (planleggings-grunnlag)
-- [timer-input-katalog.md](docs/claude/timer-input-katalog.md) — input-katalog (plassholder per 2026-04-25)
-- [arkitektur-syntese.md](docs/claude/arkitektur-syntese.md) — helhetlig produktarkitektur (kontekst, særlig §3.3 loan-pattern og §1.2 Timer-modul)
-- [fase-0-beslutninger.md](docs/claude/fase-0-beslutninger.md) — låste beslutninger som potensielt revideres etter timer-planlegging
-- [smartdok-undersokelse.md](docs/claude/smartdok-undersokelse.md) — A.Markussen-referanse (lønnsarter, kompetanse, vareforbruk)
+**Anker for ny Code-chat (Fase 0-koding når Kenneth har lukket B.1-B.5):**
+- [fase-0-beslutninger.md](docs/claude/fase-0-beslutninger.md) — **PRIMÆR ANKER** (13 beslutninger + 5 åpne + 9 anbefalte utvidelser + lovverk-vurderinger + migrerings-rekkefølge)
+- [smartdok-undersokelse.md](docs/claude/smartdok-undersokelse.md) — empirisk grunnlag fra A.Markussen (UI-research 2026-04-26)
+- [arkitektur-syntese.md](docs/claude/arkitektur-syntese.md) — helhetlig produktarkitektur (loan-pattern, modul-arkitektur)
+- [timer.md](docs/claude/timer.md) — krever refaktor (enterpriseId → organizationId, Underprosjekt-modell erstattet av ExternalCostObject)
+
+**Sentrale arkitektur-funn fra runde 3:**
+- `ProjectModule` eksisterer allerede (linje 752 i schema, brukt 30+ steder) — utvides med `organizationId`, ikke ny tabell
+- `Activity` (sentral audit-tabell) finnes ikke — bygges i Fase 0 som første steg
+- `OrganizationProject` finnes som blank m:n — renames til `ProjectOrganization` med `rolle`-felt
+- `date-fns-tz` er ikke installert — krevet for tidssone-håndtering
+- Cache-invalidation-mønster er ad-hoc (30 kall, ingen sentral policy)
+- Underprosjekt erstattes av `ExternalCostObject` (ren ProAdm-referanse, ingen GPS/HMS-ansvarlig)
 
 **Maskin-modul (`feature/maskin-db`):** under bygging. **Må gates med `modulProcedure('maskin')` før prod-deploy** — i dag bruker maskin-rutene `protectedProcedure` uten modul-sjekk, så alle firma vil se maskin-siden hvis den deployes som er.
 
@@ -463,6 +471,15 @@ To DB-kolonner styrer tilgang: `User.role` (`sitedoc_admin` | `company_admin` | 
 
 - **Beskriv løsningen først:** Før kodeendringer, beskriv den logiske løsningen med ord og be om brukerens godkjenning. Ikke anta — still kontrollspørsmål ved tvil
 - **ALDRI bruk "entreprise"/"enterprise"** i ny kode, UI-strenger eller dokumentasjon. Bruk **faggruppe** (UI/variabelnavn) eller **Faggruppe** (Prisma-modell). Se "Terminologi og hierarki"-seksjonen
+- **Attestering ≠ Godkjenning** (ufravikelig låst 2026-04-26):
+  - **Attestering** = arbeider får lønn for registrert tid → Timer-modul, mobil-UI, lønnseksport
+  - **Godkjenning** = entreprenør får byggherre til å godta kostnad → Dokumentflyt-modul
+  - Eksisterende inkonsistens i timer-prototype + 14 i18n-filer rettes når Timer-modulen bygges (Fase 3)
+  - `DokumentflytMedlem.rolle = "godkjenner"` er KORREKT bruk (dokumentflyt-rolle, ikke timer)
+- **To-stegs migrations-policy** (ufravikelig fra 2026-04-26):
+  1. Aldri slett kolonner i én migrering. Steg 1: legg til ny kolonne (nullable). Steg 2: migrer data. Steg 3: NEXT release setter NOT NULL eller dropper gammel
+  2. Migrasjoner ALDRI redigeres etter merge til `main` — sikrer reproduserbarhet
+  3. Cross-package-FK håndteres som svake String-felt uten Prisma `@relation` (etablert mønster i `db-maskin`)
 - ALDRI commit `.env`-filer
 - Bilder komprimeres til 300–400 KB før opplasting
 - Alle database-endringer via Prisma-migreringer
