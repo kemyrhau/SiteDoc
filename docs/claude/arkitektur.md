@@ -2,7 +2,7 @@
 
 ## Database (PostgreSQL)
 
-23+ tabeller. Kjernetabeller:
+56 Prisma-modeller. Kjernetabeller:
 
 | Tabell | Beskrivelse |
 |--------|-------------|
@@ -27,16 +27,13 @@
 | `folders` | Rekursiv mappestruktur med parent_id, `access_mode` (inherit/custom), valgfri `kontrakt_id` (kobler mappe til økonomi-kontrakt → blått ikon) |
 | `folder_access` | Tilgangsoppføringer per mappe: entreprise, gruppe eller bruker |
 | `documents` | Dokumenter i mapper med fil-URL og versjon |
-| `workflows` | (Deprecated — erstattet av Dokumentflyt) Gammel arbeidsforløp-tabell, beholdt for bakoverkompatibilitet |
-| `workflow_templates` | (Deprecated) Kobling mellom arbeidsforløp og maler |
-| `workflow_step_members` | (Deprecated) Personbaserte steg-medlemmer i arbeidsforløp |
-| `dokumentflyter` | Dokumentflyt per prosjekt. `enterpriseId` (peker til `dokumentflyt_parts`), `roller` (JSONB — tilpassbare labels per rolle: `{ registrator?: { label }, bestiller?: { label }, utforer?: { label }, godkjenner?: { label } }`) |
-| `dokumentflyt_medlemmer` | Medlemmer i dokumentflyt-steg. `rolle`, `steg`, `enterpriseId` (peker til `dokumentflyt_parts`)/`projectMemberId`/`groupId`, `erHovedansvarlig` (Boolean), `hovedansvarligPersonId` |
+| `dokumentflyter` | Dokumentflyt per prosjekt. `faggruppeId` (peker til `dokumentflyt_parts`), `roller` (JSONB — tilpassbare labels per rolle: `{ registrator?: { label }, bestiller?: { label }, utforer?: { label }, godkjenner?: { label } }`) |
+| `dokumentflyt_medlemmer` | Medlemmer i dokumentflyt-steg. `rolle`, `steg`, `faggruppeId` (peker til `dokumentflyt_parts`)/`projectMemberId`/`groupId`, `erHovedansvarlig` (Boolean), `hovedansvarligPersonId` |
 | `dokumentflyt_maler` | Maltilknytning per dokumentflyt |
 | `task_comments` | Kommentarer/dialog på oppgaver |
 | `checklist_change_log` | Automatisk endringslogg for sjekklister |
 | `project_invitations` | E-postinvitasjoner med token, status, utløpsdato |
-| `group_enterprises` | Mange-til-mange mellom `project_groups` og `dokumentflyt_parts` (tabellnavn uendret) |
+| `group_faggrupper` | Mange-til-mange mellom `project_groups` og `dokumentflyt_parts` (renamet fra `group_enterprises` 2026-04-16) |
 | `project_modules` | Aktiverte moduler per prosjekt |
 | `psi` | Prosjektspesifikk Sikkerhetsinstruks. Én per prosjekt+bygning (buildingId valgfri). Peker til ReportTemplate, versjonering for ny signering, `guestMessage` (HTML-tekst vist til gjester ved QR-tilgang), soft delete via `deactivatedAt`. category = "psi" (ikke "sjekkliste"). API: 15 endepunkter inkl. deaktiver/reaktiver, kopier (deep copy mal til annen bygning), hentForProsjektPublic, oppdaterGjesteBeskjed |
 | `psi_signaturer` | Personlig PSI-gjennomføring. Innlogget bruker (userId) ELLER gjest (guestName/guestCompany/guestPhone). Progresjon, quiz-data, signatur (base64), completedAt, `hmsKortNr` (String? — HMS-kortnummer), `harIkkeHmsKort` (Boolean, default false — avkrysning "Har ikke HMS-kort"). Unique: (psiId, userId) |
@@ -52,18 +49,28 @@
 | `translation_cache` | Translation memory — SHA-256 hash av kildetekst → oversatt tekst. Unngår re-oversettelse av identisk innhold. Unique: (contentHash, sourceLang, targetLang) |
 | `ai_sok_innstillinger` | AI-søk konfigurasjon per prosjekt: embedding_provider (local/openai), embedding_model, API-nøkler, LLM-provider, søkevekter (JSONB). Én rad per prosjekt |
 | `ftd_spec_posts` | NS 3420 budsjettlinjer fra PDF/Excel/XML/GAB. Postnr, beskrivelse, enhet, mengde, pris, sum, NS-kode, fullNsTekst, mengdeDenne, mengdeTotal, verdiDenne, verdiTotal, prosentFerdig (Decimal — sammenligningsfelter for A-nota/perioder), importNotat (String? — notat fra import, f.eks. mengde-avvik). Seksjonsoverskrifter lagres som poster (erOverskrift). Sub-postnr fra prislinjer, postnr-tail merging, auto-dedup. Migrering: `20260330180000_legg_til_import_notat` |
-| `ftd_nota_periods` | A-nota/T-nota perioder per entreprise |
-| `ftd_nota_posts` | Poster per periode med mengde/verdi denne, forrige, total |
-| `ftd_nota_comments` | Kommentarer på spesifikasjonsposter og perioder |
+| `ftd_nota_periods` | A-nota/T-nota perioder per faggruppe. Detaljer: [okonomi.md](okonomi.md) |
+| `ftd_nota_posts` | Poster per periode med mengde/verdi denne, forrige, total. Detaljer: [okonomi.md](okonomi.md) |
+| `ftd_nota_comments` | Kommentarer på spesifikasjonsposter og perioder. Detaljer: [okonomi.md](okonomi.md) |
+| `ftd_change_events` | T-nota endringshendelser (varsel/varsel om endring/endringsmelding/regningsarbeid). Detaljer: [okonomi.md](okonomi.md) |
+| `ftd_tnota_change_link` | Kobling mellom T-nota-poster og endringshendelser. Detaljer: [okonomi.md](okonomi.md) |
+| `omrader` | Kontrollområder på byggeplass for stedsbasert kontroll. Detaljer: [kontrollplan.md](kontrollplan.md) |
+| `kontrollplaner` | Kontrollplan per byggeplass — kobler sjekkliste, lokasjon, tid, ansvarlig. Detaljer: [kontrollplan.md](kontrollplan.md) |
+| `milepeler` | Frister på ukenivå for kontrollplaner. Detaljer: [kontrollplan.md](kontrollplan.md) |
+| `kontrollplan_punkter` | Enkeltpunkter i kontrollplan med stadier, frist, ansvarlig faggruppe. Detaljer: [kontrollplan.md](kontrollplan.md) |
+| `kontrollplan_historikk` | Historikk og sporbarhet for kontrollplan-endringer (SAK10 §10-1). Detaljer: [kontrollplan.md](kontrollplan.md) |
+| `bibliotek_standarder` | NS 3420-standarder i sentralarkivet (NS3420-K, NS3420-F, ...). Detaljer: [kontrollplan.md](kontrollplan.md) |
+| `bibliotek_kapitler` | Kapitler innenfor en standard (KA, KB, KC, KD, FB, FC, ...). Detaljer: [kontrollplan.md](kontrollplan.md) |
+| `bibliotek_maler` | Konkrete sjekklistemaler per kapittel med `malInnhold` JSON. Detaljer: [kontrollplan.md](kontrollplan.md) |
+| `prosjekt_bibliotek_valg` | Sporbarhet: hvilken `BibliotekMal` som er kopiert til prosjektets `ReportTemplate`. Detaljer: [kontrollplan.md](kontrollplan.md) |
 
 ## Viktige relasjoner
 
-- `dokumentflyt_koblinger` er mange-til-mange: en bruker kan tilhøre flere faggrupper i samme prosjekt via `DokumentflytKobling(projectMemberId, enterpriseId)`
-- Sjekklister og oppgaver har ALLTID `bestiller_enterprise_id` (bestiller) og `utforer_enterprise_id` (utfører) — kolonnenavn beholdt for bakoverkompatibilitet
+- `dokumentflyt_koblinger` er mange-til-mange: en bruker kan tilhøre flere faggrupper i samme prosjekt via `FaggruppeKobling(projectMemberId, faggruppeId)`
+- Sjekklister og oppgaver har ALLTID `bestiller_faggruppe_id` (bestiller) og `utforer_faggruppe_id` (utfører). DB-kolonner og Prisma-felt renamet 2026-04-16 (`enterprise_id` → `faggruppe_id`). Snapshot-felt i `document_transfers` beholder gamle `enterprise`-navn for historikk
 - `document_transfers` logger all sending mellom faggrupper med full sporbarhet
 - Bilder har valgfri GPS-data (`gps_lat`, `gps_lng`, `gps_enabled`)
 - Oppgaver kan kobles til tegning med posisjon (`drawing_id`, `position_x`, `position_y`)
-- `workflows` (deprecated) — erstattet av Dokumentflyt. Tabellen beholdes for bakoverkompatibilitet
 - `report_objects` bruker selvrefererande relasjon (`parent_id`) for rekursiv nesting — CASCADE-sletting av barn
 - `report_templates` har `category` (`oppgave` | `sjekkliste`), valgfritt `prefix` og valgfri `subjects` (forhåndsdefinerte emnetekster)
 - `byggeplasser` tilhører prosjekt, tegninger koblet via `building_id`. `type`-feltet er deprecated
@@ -72,7 +79,7 @@
 - `folder_access` kobler mapper til faggrupper/grupper/brukere via `accessType`
 - `projects` har valgfri `latitude`/`longitude` for kartvisning og værhenting
 - `project_groups` har `domains` (JSON-array) og `groupDokumentflytParts` for faggruppe-begrenset tilgang
-- `group_enterprises` er mange-til-mange med unikt constraint `[groupId, enterpriseId]`
+- `group_faggrupper` (renamet fra `group_enterprises` 2026-04-16) er mange-til-mange med unikt constraint `[groupId, faggruppeId]`
 
 ## Tilgangskontroll
 
@@ -80,9 +87,10 @@ Hjelpemodul i `apps/api/src/trpc/tilgangskontroll.ts`:
 
 | Funksjon | Beskrivelse |
 |----------|-------------|
-| `hentBrukerEntrepriseIder(userId, projectId)` | Returnerer `string[]` eller `null` (admin) |
+| `hentBrukerFaggruppeIder(userId, projectId)` | Returnerer `string[]` eller `null` (admin) |
+| `byggFaggruppeFilter(faggruppeIder)` | Prisma WHERE-filter for bestiller/utforer-faggrupper basert på id-liste |
 | `byggTilgangsFilter(userId, projectId)` | Prisma WHERE-filter, `null` for admin |
-| `verifiserEntrepriseTilhorighet(userId, enterpriseId)` | FORBIDDEN hvis ikke tilhører (admin-bypass) |
+| `verifiserFaggruppeTilhorighet(userId, faggruppeId)` | FORBIDDEN hvis ikke tilhører (admin-bypass) |
 | `verifiserAdmin(userId, projectId)` | FORBIDDEN hvis ikke admin. company_admin med riktig org arver admin uten ProjectMember-rad |
 | `verifiserAdminEllerFirmaansvarlig(userId, projectId)` | Returnerer `{ erAdmin: boolean }`. Admin → true, firmaansvarlig → false. Vanlig member → FORBIDDEN. Brukes for invitasjoner |
 | `verifiserProsjektmedlem(userId, projectId)` | FORBIDDEN hvis ikke medlem. company_admin med riktig org arver tilgang uten ProjectMember-rad |
@@ -134,7 +142,7 @@ draft → sent → received → in_progress → responded → approved | rejecte
 draft / sent / received / in_progress → cancelled (irreversibel)
 ```
 
-## Rapportobjekter (23 typer)
+## Rapportobjekter (27 typer)
 
 | Type | Kategori | Beskrivelse |
 |------|----------|-------------|
@@ -151,7 +159,7 @@ draft / sent / received / in_progress → cancelled (irreversibel)
 | `date_time` | dato | Dato og tid |
 | `person` | person | Enkeltperson |
 | `persons` | person | Flere personer |
-| `company` | person | Firma/entreprise |
+| `company` | person | Firma/faggruppe |
 | `attachments` | fil | Filvedlegg |
 | `bim_property` | spesial | BIM-egenskap |
 | `zone_property` | spesial | Sone-egenskap |
@@ -161,6 +169,10 @@ draft / sent / received / in_progress → cancelled (irreversibel)
 | `repeater` | spesial | Repeterende seksjon (dupliserbare rader) |
 | `location` | spesial | Lokasjon (read-only kart) |
 | `drawing_position` | spesial | Posisjon i tegning |
+| `info_text` | psi | Informasjonstekst (PSI) |
+| `info_image` | psi | Informasjonsbilde (PSI) |
+| `video` | psi | Video-element (PSI) |
+| `quiz` | psi | Quiz med spørsmål og svaralternativer (PSI) |
 
 Metadata i `REPORT_OBJECT_TYPE_META`. Konfigurasjon lagres som JSON i `report_objects.config`.
 
@@ -176,7 +188,7 @@ Metadata i `REPORT_OBJECT_TYPE_META`. Konfigurasjon lagres som JSON i `report_ob
 
 ## Ytelsesindekser
 
-8 dedikerte indekser for ytelse:
+Sentrale ytelsesindekser:
 - `checklists`: `(project_id, status)`, `(project_id, dokumentflyt_id)`
 - `tasks`: `(project_id, status)`, `(project_id, dokumentflyt_id)`
 - `document_transfers`: `(project_id, sender_id)`, `(project_id, recipient_user_id)`
