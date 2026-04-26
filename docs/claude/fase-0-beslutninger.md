@@ -1,6 +1,6 @@
 # Fase 0-beslutninger — komplett (oppdatert 2026-04-26)
 
-**Status:** 🟡 13 beslutninger vedtatt etter tre runder Opus-stresstesting + Kenneth-justeringer. Avventer Kenneth-svar på 5 blokkerende inkonsistenser før Fase 0-koding kan starte.
+**Status:** 🟡 24 beslutninger vedtatt (§A) + 5 åpne BLOKKERER (§B) etter tre runder Opus-stresstesting + Kenneth-justeringer. Avventer Kenneth-svar på 5 blokkerende inkonsistenser før Fase 0-koding kan starte.
 
 **Bruk:** Anker for ny Code-chat. Neste Code-instans skal lese denne filen + lenker under FØR koding.
 
@@ -15,7 +15,7 @@
 
 ---
 
-## A. Vedtatte beslutninger (13)
+## A. Vedtatte beslutninger (24)
 
 ### A.1 ExternalCostObject — felles kostnadsbærer-referanse
 
@@ -218,7 +218,7 @@ model EquipmentAnsvarlig {
 
 **Periode-felter** lagt til for konsistens med loan-pattern (B.1 fra opprinnelig Fase 0). Migrering bevarer historikk: `periodeStart = Equipment.createdAt`.
 
-### B.1 (planens nummer) Hybrid logg + snapshot ved attestering
+### A.7 Hybrid logg + snapshot ved attestering
 
 Ikke ren snapshot, ikke ren logg. Beste praksis fra regnskapssystemer:
 
@@ -262,7 +262,7 @@ export const AttestertSnapshotSchema = z.object({
 - `EquipmentAssignment.attestertSnapshot` (maskin-pris ved attestering)
 - `Vareforbruk.attestertSnapshot` (enhetspris ved attestering, Fase 5)
 
-### C.1 Attestering vs Godkjenning — ufravikelig terminologi
+### A.8 Attestering vs Godkjenning — ufravikelig terminologi
 
 Låst i CLAUDE.md som ufravikelig terminologi-regel.
 
@@ -282,7 +282,7 @@ Bransje-naturlig (A.Markussens timer-rutiner bruker "attestere"). Konsistent i k
 
 **Bekreftelse:** `DokumentflytMedlem.rolle = "godkjenner"` (linje 720) er KORREKT bruk av godkjenning (dokumentflyt-rolle). Ikke renames.
 
-### D.1 ProjectMember.role = "underentreprenor"
+### A.9 ProjectMember.role = "underentreprenor"
 
 UE-rolle som streng-verdi på ProjectMember.role. Ingen ny rolle-tabell. Ingen snapshot — én User per (person × firma).
 
@@ -296,7 +296,7 @@ UE-rolle som streng-verdi på ProjectMember.role. Ingen ny rolle-tabell. Ingen s
 
 > ⚠️ **Åpen B-spørsmål:** Dobbeltspor — UE kan identifiseres både via `User.organizationId !== prosjekt.primaryOrganizationId` OG via `ProjectMember.role = "underentreprenor"`. Risiko for drift. Se § B.5.
 
-### D.2 User.canLogin
+### A.10 User.canLogin
 
 Ny boolean på User for «ansatt uten innlogging».
 
@@ -313,9 +313,7 @@ model User {
 
 **Tilgangskontroll:** Kun org-admin (`User.role = "company_admin"`) eller sitedoc-admin kan opprette `canLogin = false`-bruker. Bør stå i tRPC-validering.
 
-### E. GDPR
-
-**Data-minimalisering på User:**
+### A.11 GDPR data-minimalisering
 
 SiteDoc registrerer kun:
 - Navn (fornavn, etternavn)
@@ -328,7 +326,7 @@ SiteDoc registrerer kun:
 
 Ingen andre PII-felter uten eksplisitt forretningsbehov.
 
-**Anonymizing-policy ved sletting:**
+### A.12 Anonymizing-policy ved sletting
 
 `anonymizeUser(userId)`-funksjon ryddes konsistent over alle tabeller med PII-snapshot:
 
@@ -342,15 +340,14 @@ Ingen andre PII-felter uten eksplisitt forretningsbehov.
 
 `anonymizeUser()` må eksistere fra Fase 0 hvis noen User-rad slettes.
 
-### F. Tidssone og dato
+### A.13 UTC i DB, Europe/Oslo i UI
 
-**UTC i DB, Europe/Oslo i UI:**
 - Alle tidsstempler lagres som UTC i DB (`@db.Timestamptz`)
 - UI viser i Europe/Oslo via `date-fns-tz`
 - Dato-felter (`@db.Date`) er tids-naive — ingen tidssone-konvertering
 - Aldri lokal manuell tidssone-aritmetikk
 
-**Firma-konfigurerbar tidssone for forretningsregler:**
+### A.14 Firma-konfigurerbar tidssone for forretningsregler
 
 `OrganizationSetting.timezone` (default `"Europe/Oslo"`). Brukes for «etter X dager»-regler (`timer_lock_after_days`). Bruk `startOfDayInZone(date, timezone)` for å unngå DST-feller.
 
@@ -359,15 +356,15 @@ Ingen andre PII-felter uten eksplisitt forretningsbehov.
 2. Implementer `startOfDayInZone`, `endOfDayInZone`, `addBusinessDaysInZone` i `packages/shared/src/utils/timezone.ts`
 3. Test mot DST-overgang (siste søndag i mars og oktober)
 
-### G. Eksport-arkitektur
-
-**Interface-kontrakt i Fase 0, implementering i Fase 3:**
+### A.15 Eksport interface-kontrakt i Fase 0
 
 Ingen `db-eksport`-pakke i Fase 0. Hver modul eksponerer `getExportableData(periode, projectId)` som returnerer normalisert struktur. Implementering bygges i Fase 3 sammen med Timer.
 
-**EksportertFlagg som sentral tabell (Fase 3):** Sentral `EksportertFlagg`-tabell med `(modul, kildeId, batchId)` som unique key. Forhindrer dobbel-eksport på tvers av moduler.
+### A.16 EksportertFlagg som sentral tabell
 
-**Eksport-modul-tilgang ved deaktivert modul:**
+Sentral `EksportertFlagg`-tabell med `(modul, kildeId, batchId)` som unique key. Forhindrer dobbel-eksport på tvers av moduler.
+
+### A.17 Eksport-tilgang ved deaktivert modul
 
 Tre nivåer av modul-tilstand (justert fra opprinnelig forslag):
 - `aktiv` — full bruk
@@ -376,33 +373,43 @@ Tre nivåer av modul-tilstand (justert fra opprinnelig forslag):
 
 Default deaktivering = `arkivert`. Slettet krever eksplisitt admin-handling. Dokumenteres som arkitektur-policy.
 
-### H. Migrerings- og kodepolicy
+### A.18 To-stegs migration-policy
 
-**To-stegs migration-policy:** Aldri slett kolonner i én migrering. Alltid:
+Aldri slett kolonner i én migrering. Alltid:
 1. Legg til ny kolonne (nullable)
 2. Migrer data
 3. Sett NOT NULL eller drop gammel kolonne i NESTE release etter at all kode er oppdatert
 
 Tillater rollback. Beskytter mot deploy-rekkefølge-feil. Låst i CLAUDE.md.
 
-**Migrasjoner aldri redigeres etter merge til main:** Sikrer reproduserbarhet. Eksisterende avvik (`20260406020000_fiks_rolle_utforer`) er allerede kjørt overalt — ingen aksjon, regelen gjelder fra nå.
+### A.19 Migrasjoner aldri redigeres etter merge til main
 
-**Cross-package-FK-mønster:** Cross-schema-FK håndteres som svake String-felt uten Prisma `@relation`. Etablert mønster i db-maskin. Krever orphan-deteksjons-cron (i backlog).
+Sikrer reproduserbarhet. Eksisterende avvik (`20260406020000_fiks_rolle_utforer`) er allerede kjørt overalt — ingen aksjon, regelen gjelder fra nå.
 
-**Cache-invalidation-mønster:** Definér `apps/web/src/lib/cache-invalidation.ts` med `invalidationMaps`-objekter som mapper mutation → liste over queries som invalideres. Hver mutation bruker `onSuccess: () => invalidationMaps.timerOpprett(utils, { projectId })`. Etableres når Timer-modul bygges (Fase 3) — eksisterende 30 invalidate-kall refaktoreres samtidig.
+### A.20 Cross-package-FK-mønster
 
-### I. Konfliktshåndtering
+Cross-schema-FK håndteres som svake String-felt uten Prisma `@relation`. Etablert mønster i db-maskin. Krever orphan-deteksjons-cron (i backlog).
 
-**ProAdm vinner med varsel:** Hvis ProAdm endrer kostnad etter at Godkjenning er sendt:
+### A.21 Cache-invalidation-mønster
+
+Definér `apps/web/src/lib/cache-invalidation.ts` med `invalidationMaps`-objekter som mapper mutation → liste over queries som invalideres. Hver mutation bruker `onSuccess: () => invalidationMaps.timerOpprett(utils, { projectId })`. Etableres når Timer-modul bygges (Fase 3) — eksisterende 30 invalidate-kall refaktoreres samtidig.
+
+### A.22 ProAdm vinner med varsel
+
+Hvis ProAdm endrer kostnad etter at Godkjenning er sendt:
 1. SiteDoc oppdager avvik fra `kostnadSnapshot` ved import
 2. Setter `endretEtterSending = true` på Godkjenning (krever felt — se B.3)
 3. Logger til Activity
 4. Varsler bestiller-faggruppen
 5. Krever ny signering før Godkjenning kan brukes til fakturering
 
-**Mobile/web sync-konflikt:** Server-wins (etablert i timer.md linje 517). Bedre policy beskrevet for Fase 3 (pending edits-modal).
+### A.23 Server-wins ved mobile/web sync-konflikt
 
-**Felt-opprettet ECO uten ProAdm-match:** Akseptabelt at felt-opprettet ECO blir orphan hvis ProAdm aldri matcher. Markeres som «venter på ProAdm-synkronisering». Detaljer for Fase 3.
+Server-wins (etablert i timer.md linje 517). Bedre policy beskrevet for Fase 3 (pending edits-modal).
+
+### A.24 Felt-opprettet ECO orphan uten ProAdm-match
+
+Akseptabelt at felt-opprettet ECO blir orphan hvis ProAdm aldri matcher. Markeres som «venter på ProAdm-synkronisering». Detaljer for Fase 3.
 
 ---
 
@@ -610,7 +617,7 @@ Kjøres etter hver merge til main. Rød test = arkitektur-feil, ikke kun kode-fe
 
 **Siste runde:** Opus-runde 3 ferdig 2026-04-26.
 
-**Lukket:** 13 beslutninger (A-I i § A).
+**Lukket:** 24 beslutninger (A.1-A.24 i § A).
 
 **Åpent:** 5 BLOKKERER-spørsmål (§ B.1-B.5).
 
