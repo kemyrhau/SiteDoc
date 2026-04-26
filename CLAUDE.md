@@ -50,7 +50,7 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 ⚠️ **Code skal IKKE starte Fase 0-koding ennå.** Kenneth tar en ny runde på de 5 åpne spørsmålene. Vent på grønt lys.
 
 **Anker for ny Code-chat (Fase 0-koding når Kenneth har lukket B.1-B.5):**
-- [fase-0-beslutninger.md](docs/claude/fase-0-beslutninger.md) — **PRIMÆR ANKER** (13 beslutninger + 5 åpne + 9 anbefalte utvidelser + lovverk-vurderinger + migrerings-rekkefølge)
+- [fase-0-beslutninger.md](docs/claude/fase-0-beslutninger.md) — **PRIMÆR ANKER** (24 beslutninger + 5 åpne + 9 anbefalte utvidelser + lovverk-vurderinger + migrerings-rekkefølge)
 - [smartdok-undersokelse.md](docs/claude/smartdok-undersokelse.md) — empirisk grunnlag fra A.Markussen (UI-research 2026-04-26)
 - [arkitektur-syntese.md](docs/claude/arkitektur-syntese.md) — helhetlig produktarkitektur (loan-pattern, modul-arkitektur)
 - [timer.md](docs/claude/timer.md) — krever refaktor (enterpriseId → organizationId, Underprosjekt-modell erstattet av ExternalCostObject)
