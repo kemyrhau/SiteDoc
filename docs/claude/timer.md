@@ -223,7 +223,7 @@ Stegvis flyt — hvert steg er en seksjon på skjermen:
 2. **Tilleggsregler** — automatiske forslag fra konfigurasjon, brukeren bekrefter eller overstyrer
 3. **Maskiner** — nedtrekk fra maskinregisteret (kun maskiner tilordnet prosjektet). Sist brukte øverst
 4. **Enhet** — auto-foreslått fra maskintype (kantsteinsetter → m, lastebil → m3). Kan overstyres
-5. **Kopiér forrige dag** — én knapp som dupliserer gårsdagens seddel (vanlig at arbeidet ligner)
+5. **Kopiér forrige dag** — én knapp som **foreslår** verdier fra gårsdagens seddel. Foreslåtte verdier vises med visuell indikator (lys grå bakgrunn + «auto-foreslått»-tag) og er redigerbare før lagring. Kopierer: prosjekt, underprosjekt, aktivitet, lønnsart-fordeling, avdeling. Kopierer IKKE: klokkeslett, maskinrader, materialer, utlegg, kommentar — disse er typisk dagsspesifikke. Brukeren ser tydelig hva som er foreslått vs hva som er ferskt — ingen skjult automatikk
 6. **Materialer** — fritekst + mengde + enhet-dropdown (m3/m2/tonn/kg/m)
 
 ## Eksport til lønnssystem
@@ -269,6 +269,8 @@ Eksport joiner `sheet_timer`/`sheet_tillegg` med katalog-tabellene for å hente 
 **Pris-snapshot:** Eksport bruker `attestertSnapshot.prisMotKunde` fra hver rad — ikke gjeldende pris i katalogen. Sikrer at attesterte timer beholder sin opprinnelige pris selv om katalog-prisen endres senere (Fase 0 A.7).
 
 **Eksport-kode-krav:** `lonnsarter.kode`/`tillegg.kode`/`aktiviteter.kode` er nullable. Eksport-modulen kaster tydelig feilmelding ved eksport-tid hvis kode mangler — gir kunden mulighet til å sette opp katalogen før første lønnssystem-eksport.
+
+**Eksport-kode ved migrering:** Eksisterende koder fra kundens nåværende system (f.eks. SmartDok) kopieres direkte ved migrering — ingen renumerering. Hvis A.Markussen har lønnsart `127 Fakturerbar tid` og enhetstillegg `157 Kloakk tillegg`, beholdes nøyaktig samme koder i SiteDocs `lonnsarter.kode`/`tillegg.kode`. Lønns- og økonomi-systemet (Visma, Hogia, ProAdm) matcher uten rekonfigurasjon. Migrerings-skript leser kundens eksisterende eksport-fil og kopierer kode-feltet 1:1.
 
 **Filtrering per eksport-spor** (per [smartdok-undersokelse.md § 9](smartdok-undersokelse.md)):
 - **Lønn:** Kun arbeidskraft (lønnsart + tillegg). Filtrer ut maskiner/materialer
@@ -536,6 +538,8 @@ Erstatter de tidligere faste boolean-kolonnene `overtidsmat/nattillegg/helgetill
 | `navn` | `text` | |
 | `prisMotKunde` | `decimal?` | Null = bruker prosjektkontrakt |
 | `internkostnad` | `decimal?` | |
+| `sats` | `decimal?` | Generell sats — brukes når lønnsart er en flat utbetaling (diett, kilometergodtgjørelse, nattillegg). Null for vanlige time-lønnsarter |
+| `satsEnhet` | `text?` | Enhet for `sats` — `per_dag`, `per_natt`, `per_km`, `per_time`. Null hvis `sats` er null |
 | `skalEksporteres` | `boolean` default true | |
 | `tvungenKommentar` | `boolean` default false | |
 | `rekkefolge` | `int` | Sortering i UI |
@@ -678,6 +682,17 @@ db-timer nøkkelfelter:
 3. **Batch-sync:** Når nettdekning er tilbake, sender alle `pending`-poster til API
 4. **Idempotent upsert:** API bruker `clientUuid` for å unngå duplikater — `ON CONFLICT (clientUuid) DO UPDATE`
 5. **Bekreftelse:** Server returnerer synkroniserte poster med `syncStatus: "synced"` og `syncedAt`
+
+### Equipment-cache lokalt på mobil
+
+Feltarbeider må kunne registrere maskinbruk på dagsseddel offline. Mobilen vedlikeholder en lokal `equipment_local`-tabell i SQLite (Drizzle, samme mønster som dagsseddel) som speiler firmaets aktive equipment-register.
+
+**Sync-mønster:**
+1. Ved login: full nedlasting av aktive equipment (typisk 100–500 rader, ~50 KB)
+2. Ved nettilkobling: delta-sync basert på `equipment.updatedAt`
+3. Ved offline registrering av `sheet_machines`: peker mot `equipment_local.id`
+
+**Identisk mønster som dagsseddel** — ingen REST-cache eller TanStack-cache. Lokal DB er sannhetskilde mens enheten er offline.
 
 ### Konfliktløsning
 

@@ -27,13 +27,15 @@ Alt annet (GPS, telematikk, QR, daglig kontroll, timer/økonomi-kobling) er uten
 
 ### Vegvesen-integrasjon (50/t per IP-ratelimit)
 
-- **Kö-basert arkitektur**: alle Vegvesen-kall går via `vegvesen_ko`-tabell. Worker plukker fra kø med buffer mot 50/t-taket (mål: 48/t)
+- **Kö-basert arkitektur**: alle Vegvesen-kall går via `vegvesen_ko`-tabell. Worker plukker fra kø med buffer mot 50/t-taket (mål: 48/t). Køen er nødvendig — 50/t er Statens Vegvesens harde grense per IP, ikke en intern policy
+- **Fase 1-implementasjon: enkelt mønster** — Postgres `LISTEN/NOTIFY` eller cron-job (kjører hvert 5. minutt og plukker eldste pending-rad). **Ikke Redis/BullMQ i Fase 1** — overengineering for dagens kundevolum
 - **Tre triggere** med prioritet: nyregistrering (0) > manuell «Oppdater»-knapp (50) > auto-oppdatering (100)
 - **Fase 1**: kun nyregistrering og manuell oppdatering er aktive
 - **Fase 2**: auto-oppdatering av kjøretøy med EU-frist ≤60 dager skrus på
 - **Manuell «Oppdater fra Vegvesen»-knapp er kun for admin** (unngår quota-sløsing)
 - **God margin** i nåværende kundevolum — IP-rotasjon utsettes til volumet krever det
 - Ved 429: worker pauser 15 min
+- **Migrering til Redis/BullMQ** når kö-volum overstiger ~30/t vedvarende, eller flere worker-instanser er nødvendig
 
 ### Status-livssyklus (alle kategorier)
 
@@ -86,6 +88,18 @@ Mottakere: `ansvarligId` + utstyrsadmin-rolle.
 - **Økonomi (FTD)**: passiv readonly-visning — maskin-kortet viser servicekostnader + manuelle FTD-poster + drivstoff. Maskin-modulen skriver ikke til FTD
 - **Kontrollplan**: ingen direkte kobling i MVP
 - **Mannskap**: geofencing via eksisterende innsjekk (ikke ny infrastruktur)
+
+### Ansvarlig per utstyr — UI-mønster
+
+Datamodell: `EquipmentAnsvarlig` m:n-tabell (besluttet i Fase 0 A.6) håndterer 1, 2 eller flere ansvarlige uten schema-endring.
+
+**UI-mønster i registrerings-/redigeringsskjema:**
+- Vis én ansvarlig-rad som standard
+- «+ Legg til ansvarlig»-knapp under for å legge til flere
+- Hver rad har × for å fjerne
+- Ingen forhåndsantakelse om «ansvarlig 1» / «ansvarlig 2» — alle er likeverdige
+
+A.Markussen bruker SmartDok med to faste ansvarlig-felt («Maskinansvarlig 1» og «Maskinansvarlig 2»). Vårt mønster håndterer både dette og firmaer som trenger flere ansvarlige (f.eks. kran med fører + sjekkansvarlig + verifikatør).
 
 ### QR/RFID (Fase 3)
 
@@ -260,6 +274,9 @@ Kjøretøy uten registreringsnummer (anleggsmaskiner, gravemaskiner) registreres
 | `drivstoff` | `text?` | Diesel, Bensin, Elektrisk, Hybrid, Batteri, Ingen |
 | `bilde` | `text?` | Filreferanse til bilde |
 | `status` | `text` | `aktiv`, `vedlikehold`, `utlånt`, `avregistrert`, `kassert` |
+| `eierskap` | `text` | `eid` \| `leid` \| `leasing` \| `lant`. Skiller eget utstyr fra leid/leasing (jf. A.Markussens 7XXX/9XXX-konvensjon) |
+| `harSporingsenhet` | `boolean` default false | True = posisjon hentes fra ekstern tracker-API (Webfleet/Transpoco). False = posisjon registreres manuelt eller utledes fra siste dagsseddel |
+| `eksportKode` | `text?` | Kode for kobling mot lønn/økonomi-system. Null inntil kunden setter eksport-kanal. Ved migrering fra eksisterende system: kopieres 1:1 fra kildens maskinkode-felt |
 | `notat` | `text?` | Fritekst |
 | `antall` | `int` @default(1) | For småutstyr: "10 stk vibrasjonsplater" |
 | `createdAt` | `timestamptz` | |

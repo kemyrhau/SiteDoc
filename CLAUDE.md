@@ -39,6 +39,7 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 | [docs/claude/smartdok-undersokelse.md](docs/claude/smartdok-undersokelse.md) | **AKTIV (2026-04-26):** SmartDok UI-research + arkitektur-implikasjoner: dagsseddel-felter, lønnsarter (26), enhetstillegg, equipment-bredde (3 kategorier), underprosjekt-konflikt med FtdChangeEvent, ProAdm-eksport-spor, A.Markussens timer-policy |
 | [docs/claude/smartdok-undersokelse-2026-04-25.md](docs/claude/smartdok-undersokelse-2026-04-25.md) | **ARKIV (v1):** SmartDok API-kartlegging (OpenAPI 128 endepunkter), mapping-tabeller (User/Project/Wage/Machine/WorkHour), funksjonsgap, migreringsstrategi |
 | [docs/claude/ai-integrasjon.md](docs/claude/ai-integrasjon.md) | AI-integrasjon: Copilot plugin, MCP server, innebygd assistent, risikoer, API-lag |
+| [docs/claude/adaptiv-sok-plan.md](docs/claude/adaptiv-sok-plan.md) | **🟡 SKAL DRØFTES:** Adaptivt søk for sjekklister/oppgaver/HMS/RUH. Tags-modell, delt FilterBar, useListFilter, useRecentlyUsed. Drøftes på tvers av db/ui/shared/dokumentflyt før koding |
 | [MALBYGGER.md](MALBYGGER.md) | Felles malbygger: dokumenttyper, felttyper, beslutninger, migreringsstrategi |
 
 **Ved "oppdater CLAUDE.md"**: oppdater den relevante detalj-filen i `docs/claude/`, ikke denne hovedfilen (med mindre det gjelder tech stack, struktur, kommandoer, kodestil eller regler).
@@ -350,6 +351,25 @@ Etter endringer, oppgi alltid hvilken reload-metode som trengs:
 - Unngå toasts, bannere, animasjoner uten tydelig behov
 - Foretrekk subtile signaler fremfor påtrengende meldinger
 - Dalux-stil: profesjonelt, kompakt, funksjonelt
+
+### Mobil-UI-regel: Adaptive nedtrekksmenyer for fritekst-felt
+
+For inputs der bruker registrerer fritt valgte verdier (material, kategori, etiketter, leverandør, etc.) — bruk adaptiv nedtrekk i stedet for å forhåndskonfigurere katalog eller la fritekst stå alene. Mobil-UI er hovedfokus (feltarbeideren skriver ikke gjerne i lange skjemaer), men mønsteret gjelder også web-skjemaer hvor relevant.
+
+1. **Første gang:** Ren tekstinput
+2. **Når en verdi er brukt 3+ ganger:** Tilgjengelig som forslag (dropdown) under tekstinput
+3. **Når listen passerer 7 elementer:** Legg til søkefelt øverst
+4. **Bruker kan skjule forslag** («ikke vis igjen») for å rydde
+
+Gjelder alle «lærende» inputs — materialer, kategorier, etiketter, taggegruppe-navn, leverandører, etc.
+
+Fordeler:
+- Ingen forhåndskonfigurering kreves
+- Lærer naturlig av faktisk bruk
+- Skalerer fra 1 til 100+ verdier uten redesign
+- Håndterer både små og store firma med samme kode
+
+Bruk dette mønsteret før du lager en eksplisitt katalog-tabell. Katalog-tabell er kun riktig når verdiene er regulert (lønnsart, lovpålagte koder) eller deles på tvers av firma.
 
 ## Fargepalett
 

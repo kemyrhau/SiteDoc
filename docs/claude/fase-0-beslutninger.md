@@ -53,6 +53,13 @@ model ExternalCostObject {
 - `proAdmId` vises i UI; UUID brukes i alle FK-er
 - Tre opprettelses-kilder: import fra ProAdm, manuell, felt-opprettet
 
+**Terminologi — bransje-naturlig i UI, presis i kode:**
+- **UI / dokumentasjon mot bruker:** «Underprosjekt» (anleggsbransjens etablerte begrep, brukt av A.Markussen og SmartDok)
+- **Prisma-modell / kode / DB-tabell:** `ExternalCostObject` / `external_cost_objects` (presist navn — beskriver teknisk rolle som ekstern kostnadsbærer-referanse)
+- **Variabelnavn i kode:** `externalCostObjectId`, `eco`, `externalCostObject`
+- **Dropdown-label i timer-skjema mobil:** «Underprosjekt» (ikke «ECO» eller «External cost object»)
+- Samme mønster som `proAdmId` (UI-vennlig referanse) vs UUID (FK-feltet)
+
 > ⚠️ **Åpen B-spørsmål:** `timerregistreringApen` default `false` er omdiskutert. Mangler også `lukketAvUserId` + soft-delete. Se § B.1, B.6, B.7.
 
 ### A.2 Godkjenning — utvidet dokumentflyt-type
@@ -321,10 +328,13 @@ SiteDoc registrerer kun:
 - Telefon
 - Fødselsdato
 - HMS-kort-nummer
+- **HMS-kort utløpsdato** (`User.hmsKortUtloper date?`) — utløpsdato fra HMS-kortet
 - **Nasjonalitet** (kreves for §15-liste, allmenngjort tariffavtale)
 - **Arbeidstillatelse-status + utløpsdato** (utenlandske arbeidere)
 
 Ingen andre PII-felter uten eksplisitt forretningsbehov.
+
+**Varsling for HMS-kort utløp:** Tverrgående varslingssystem (se [varsling.md](varsling.md)) sender varsel til brukeren selv + firmaadmin på 90/30/7 dager før utløp. SmartDok-research viser at A.Markussen aktivt bruker tilsvarende varsling (Anne Nordeng — varsel 2 mnd før utløp). Lovgrunnlag: byggherreforskriften § 15 + arbeidsmiljøloven krever gyldig HMS-kort på byggeplass. Utløpt HMS-kort blokkerer **ikke** innlogging eller timeregistrering — det er kun varsling. Innsjekk på byggeplass kan blokkeres separat (mannskap-modul, egen beslutning).
 
 ### A.12 Anonymizing-policy ved sletting
 
