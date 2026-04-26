@@ -1,6 +1,8 @@
-# Byggeplass-strategi
+# Byggeplass + Avdeling-strategi (Fase 0.5)
 
-**Status:** Planlagt fase, ikke startet. Etablert 2026-04-25 som anker for senere designarbeid.
+**Status:** Planlagt fase, ikke startet. Etablert 2026-04-25 (Byggeplass) og utvidet 2026-04-26 (Avdeling) som anker for senere designarbeid.
+
+Begge er tverrgående organisatoriske dimensjoner som påvirker flere moduler. Bygges som koordinert designrunde i Fase 0.5 — etter Fase 0-kjernen er ferdig, men før Fase 1 (Maskin) starter for prod.
 
 Byggeplass er førsteklasses begrep i SiteDoc. Mange moduler har eller burde ha valgfri eller obligatorisk byggeplass-relasjon. I dag er bevisstheten ujevnt implementert — noen modeller har eksplisitt `byggeplassId`, andre mangler felt, og noen bruker feil mekanisme (jsonb-array i stedet for FK + koblingstabell).
 
@@ -45,6 +47,52 @@ Basert på lesning av modul-dokumentasjon i `docs/claude/` per 2026-04-25. Hver 
 | Planlegger | Ikke implementert | Ja, obligatorisk | Skal designes | Påstand — bekreft. Bemanning per byggeplass er kjernen i ressursplanlegging |
 | Maskin (Equipment selv) | Ingen direkte FK — har `Assignment` | Nei på Equipment, ja på Assignment | OK | Påstand — bekreft. Equipment er firma-eid; byggeplass-tilordning skjer via `EquipmentAssignment` (loan-pattern) |
 
+## Avdeling — separat organisatorisk dimensjon
+
+### Prinsipp
+
+Avdeling er **firma-intern organisatorisk inndeling** (Tromsø, Narvik, Harstad, Transport, Vedlikehold, etc.). Skiller seg fundamentalt fra byggeplass:
+
+| Dimensjon | Hva | Skala | Eksempel |
+|---|---|---|---|
+| **Byggeplass** | Fysisk lokasjon innenfor et prosjekt | Per prosjekt | «Hovedplass», «Riggområde nord» |
+| **Avdeling** | Organisatorisk inndeling av firma | Per firma | «Tromsø», «Transport», «Svalbard» |
+
+### Hvor avdeling kobles inn
+
+| Modell | Felt | Påkrevd | Begrunnelse |
+|---|---|---|---|
+| `User` | `avdelingId` valgfri | Nei | Ansatt tilhører avdeling, men kan jobbe på prosjekt fra andre avdelinger |
+| `EquipmentAnsvarlig` | `avdelingId` valgfri | Nei | Maskinansvarlig kan tilhøre avdeling — for ansvarsfordeling |
+| `DailySheet` (timer) | `avdelingId` valgfri | Nei | Eksport-filtrering. Auto-foreslås fra `User.avdelingId` |
+| `Equipment` selv | — | — | **Ingen avdelings-FK** (Equipment har GPS-lokasjon for fysisk sporing, ikke avdelings-tilknytning) |
+| `Project` | — | — | **Ingen avdelings-FK** (prosjekt kan involvere flere avdelinger; bruk `User.avdelingId` for filtrering) |
+
+### Datamodell
+
+```prisma
+model Avdeling {
+  id              String   @id @default(uuid())
+  organizationId  String   @map("organization_id")
+  kode            String?  // intern kode (kan være null)
+  navn            String
+  aktiv           Boolean  @default(true)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@unique([organizationId, navn])
+  @@map("avdelinger")
+}
+```
+
+Lever i `packages/db` (kjernen). FK fra db-maskin og db-timer er svake String-felt uten Prisma `@relation` per cross-package-FK-mønster (Fase 0 A.20).
+
+### Etableringsmoment
+
+Avdelinger opprettes som del av firma-onboarding (Fase 0.5-feature). «Uten avdeling» er gyldig permanent tilstand (matcher mønster observert hos A.Markussen som har «Uten avdeling» som default).
+
+Seed-mekanisme (per Fase 0 § C.10): event-hook ved firma-opprettelse kan opsjonelt registrere standard-avdelinger basert på import-modus. I Fase 0.5: ingen seedere registrert — avdelinger opprettes manuelt av kunde.
+
 ## Tre åpne arkitektur-prinsipper å beslutte
 
 ### Prinsipp A — NULL-betydning
@@ -85,6 +133,9 @@ Identifiserte fra modul-dokumentasjonen:
 
 - **Mannskap-modul (`db-mannskap`)** — modellert med `Innsjekk.byggeplassId` ([mannskap.md](mannskap.md)). Må bygges på etablert byggeplass-strategi
 - **Timer-modul (`db-timer`)** — modellert uten byggeplass i dag. Dagsseddel-design avklares mot Prinsipp A og B før implementasjon. Se [timer-input-katalog.md](timer-input-katalog.md)
+- **Timer-modul + Avdeling** — `DailySheet.avdelingId` valgfri, auto-foreslås fra `User.avdelingId`. Eksport-filtrering bruker avdeling
+- **Maskin-modul + Avdeling** — `EquipmentAnsvarlig.avdelingId` valgfri. Equipment selv har ingen avdelings-FK (har GPS-lokasjon for fysisk sporing)
+- **User-utvidelse** — `User.avdelingId` valgfri legges til i Fase 0.5
 - **Dokumentflyt-utvidelser** — sjekkes om byggeplass-relasjon er nødvendig (utkast-tabell sier nei). Hvis ja: påvirker `Dokumentflyt`/`DokumentflytMedlem`
 - **Mobil-app** — innsjekk- og dagsseddel-flyt på mobil må reflektere byggeplass-valget. Mobil-versjonsstøtte må vurderes (TestFlight kan ikke oppdateres umiddelbart)
 - **Planlegger** — bygges først etter at timer + mannskap + maskin er på plass. Forutsetter byggeplass-strategi som rammeverk

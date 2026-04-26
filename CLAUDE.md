@@ -62,6 +62,9 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 - `date-fns-tz` er ikke installert — krevet for tidssone-håndtering
 - Cache-invalidation-mønster er ad-hoc (30 kall, ingen sentral policy)
 - Underprosjekt erstattes av `ExternalCostObject` (ren ProAdm-referanse, ingen GPS/HMS-ansvarlig)
+- **Lønnsart-katalog er datadrevet, tre-nivå** (16 norsk lovpålagte i Nivå 1 + 25 bransje-relevante i Nivå 2 for anlegg/bygg + kundens egendefinerte i Nivå 3) — ikke 3 hardkodede koder. Detaljer: [timer.md](docs/claude/timer.md)
+- **Avdeling-tabell** bygges i Fase 0.5 (sammen med Byggeplass), ikke Fase 3 — kobles til User/EquipmentAnsvarlig/DailySheet, IKKE til selve Equipment (som har GPS-lokasjon for fysisk sporing)
+- **Seed-mekanisme** (event-hook `onOrganizationCreated`) etableres tomt i Fase 0; lønnsart-Nivå 1 + standardkategorier registreres i Fase 3
 
 **Maskin-modul (`feature/maskin-db`):** under bygging. **Må gates med `modulProcedure('maskin')` før prod-deploy** — i dag bruker maskin-rutene `protectedProcedure` uten modul-sjekk, så alle firma vil se maskin-siden hvis den deployes som er.
 
@@ -86,10 +89,13 @@ Detaljert plan: [arkitektur-syntese.md §5](docs/claude/arkitektur-syntese.md). 
 - Infrastruktur: `prosjektProcedure`, `modulProcedure(slug)` i tRPC
 - Refaktor: 9 funksjoner i `tilgangskontroll.ts` for ProjectMember-periode
 
-**Fase 0.5 — Byggeplass-fundament:**
+**Fase 0.5 — Byggeplass + Avdeling-fundament:**
 - Tre åpne arkitektur-prinsipper besluttes (NULL-betydning, default-byggeplass, FK vs jsonb) per [byggeplass-strategi.md](docs/claude/byggeplass-strategi.md)
 - `ByggeplassMedlemskap` (loan-pattern: User → Byggeplass over tid)
 - Drop `building_ids` jsonb fra `project_groups`
+- `Avdeling`-tabell i `packages/db` (kjernen) — firma-intern organisatorisk inndeling, separat dimensjon fra byggeplass
+- `User.avdelingId` valgfri (ny kolonne)
+- Avklaring av seed-mekanismer som registreres her vs i Fase 3
 
 **Fase 1 — Maskin med modul-gateway** (allerede under bygging på `feature/maskin-db` — gates før prod):
 - Refaktor maskin-rutene til `modulProcedure('maskin')`

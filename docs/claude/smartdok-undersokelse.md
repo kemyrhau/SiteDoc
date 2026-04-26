@@ -20,6 +20,33 @@ første research-runde.
 
 ---
 
+## 0. Disclaimer — om bruk av dette dokumentet
+
+Empirisk grunnlag fra én norsk anleggsentreprenør (A.Markussen AS).
+Dokumentet er **research-grunnlag for funksjonell forståelse** av timer-,
+maskin- og mannskapsregistrering — ikke en mal SiteDoc distribuerer eller
+kopierer.
+
+A.Markussens 26 lønnsarter, 7 enhetstillegg og 5 aktiviteter er IKKE
+startpakke for nye SiteDoc-kunder. SiteDocs lønnsart-katalog bygges som
+tre nivåer (se [timer.md](timer.md)):
+
+- **Nivå 1: Norsk lovpålagt grunnpakke** (16 lønnsarter, auto-importert
+  ved firma-opprettelse)
+- **Nivå 2: Bransje-relevant tilleggspakke for anlegg/bygg** (25
+  lønnsarter, valgfri import som pakke)
+- **Nivå 3: Kundens egendefinerte** (opprettes av kunden ved behov;
+  SiteDoc leverer ingen mal)
+
+A.Markussens spesifikke lønnsart-koder (148 Brøyte-beredskap, 157 Kloakk
+tillegg, 153–155 Skifttillegg 30/40/50%, etc.) hører i Nivå 3 — de er
+firma-spesifikke avtaler, ikke en bransjestandard som kan distribueres.
+
+Se Appendiks A for analyse av A.Markussens katalog mot SiteDocs tre-
+nivå-modell.
+
+---
+
 ## 1. Sammendrag av hovedfunn
 
 1. **Underprosjekt-konseptet hos A.Markussen er ikke strukturelle delprosjekter** —
@@ -755,3 +782,71 @@ Disse er ikke arkitektur-blokker, men bør verifiseres før Timer-modul-koding:
 
 4. **Etter timer-planlegging er ferdig:** Oppdater `fase-0-beslutninger.md`
    hvis justeringer kreves, deretter starter Fase 0-koding.
+
+---
+
+## Appendiks A — A.Markussens katalog scoret mot SiteDocs tre-nivå-modell
+
+Analytisk speiling av A.Markussens lønnsart- og tillegg-katalog (datert
+2026-04-26) mot SiteDocs tre-nivå-modell. Brukes til å verifisere at
+tre-nivå-modellen dekker faktisk bruk uten å kopiere katalogen.
+
+### A.1 A.Markussens 11 ordinære lønnsarter
+
+| Kode | Navn | SiteDoc-nivå |
+|---|---|---|
+| 120 | Timer | Nivå 1 («Timelønn») |
+| 127 | Fakturerbar tid | Nivå 2 |
+| 128 | Praksistimer | Nivå 2 |
+| 129 | Timer innleid arbeidskraft | Nivå 2 |
+| 122 | Reise/transport til/fra prosjekter | Nivå 2 |
+| 170 | Overtid 50% | Nivå 1 |
+| 175 | Overtid 100% | Nivå 1 |
+| 172 | OT lærling 50% | Nivå 2 |
+| 177 | OT lærling 100% | Nivå 2 |
+| 142 | Skifttillegg lærling 30% | Nivå 3 (avvikende lærling-skift) |
+| 109 | Timer prosjektleder | Nivå 2 |
+
+### A.2 A.Markussens 15 fravær-typer
+
+| Kode | Navn | SiteDoc-nivå |
+|---|---|---|
+| 130 | Fravær m/lønn timelønn | Nivå 2 («Velferdspermisjon» — bedriftsavtale) |
+| 131 | Ferie m/lønn timelønn | Nivå 1 |
+| 132 | Ferie m/lønn fastlønn | Nivå 1 |
+| 134 | Ferie u/lønn | Nivå 1 |
+| 135 | Fravær u/lønn | Nivå 2 (velferdspermisjon-variant) |
+| 136 | Permittering u/lønn | Nivå 1 |
+| 137 | Permittering m/lønn | Nivå 1 |
+| 220 | Egenmelding 1–3 d fastlønn | Nivå 1 |
+| 221 | Sykemelding 1–16 d fastlønn | Nivå 1 |
+| 223 | Barns sykdom fastlønn | Nivå 1 |
+| 225 | Egenmelding 1–3 d timelønn | Nivå 1 |
+| 226 | Sykemelding 1–16 d timelønn | Nivå 1 |
+| 227 | Sykemelding fra 17. dag | Nivå 1 |
+| 228 | Barns sykdom timelønn | Nivå 1 |
+| 240 | Bevegelig helligdag timelønn | Nivå 1 |
+
+### A.3 A.Markussens 7 enhetstillegg
+
+| Kode | Navn | SiteDoc-nivå |
+|---|---|---|
+| 248 | Regulering Lønn | Nivå 3 (firma-spesifikk) |
+| 157 | Kloakk tillegg | Nivå 3 (kommunalt anlegg-spesifikt) |
+| 148 | Brøyte-beredskap | Nivå 3 (vintervaktordning) |
+| 149 | Overordnet vakt/beredskap | Nivå 3 (firma-spesifikk avtale) |
+| 153 | Skifttillegg 30% | Nivå 3 (avvikende sats) |
+| 154 | Skifttillegg 40% | Nivå 3 (avvikende sats) |
+| 155 | Skifttillegg 50% | Nivå 3 (avvikende sats) |
+
+### A.4 Konklusjon fra speilingen
+
+Av A.Markussens 33 poster (26 lønnsarter + 7 enhetstillegg):
+
+- **16 dekkes av Nivå 1** (auto-importert ved firma-opprettelse) — 3 ordinære lønnsarter (120 Timer, 170 Overtid 50%, 175 Overtid 100%) + 13 fravær-typer
+- **9 dekkes av Nivå 2** (bransje-pakke som A.Markussen kunne valgt) — 7 ordinære lønnsarter + 2 fravær-varianter (Velferdspermisjon)
+- **8 hører i Nivå 3** (firma-spesifikke — A.Markussen oppretter selv) — 1 ordinær lønnsart (142 Skifttillegg lærling 30%) + 7 enhetstillegg
+
+> **Merknad om tellingen:** Nivå 1 og 2 i SiteDocs grunnpakke har **16** og **25** lønnsarter som strukturell bredde (se [timer.md](timer.md)). Tallet **16 / 9 / 8** her er noe annet — det er scoring av hvordan A.Markussens **33 poster** fordeler seg over de tre nivåene (hvor mange A.Markussen-poster som matcher hvert nivå). De to tallsettene betyr ulike ting og må ikke forveksles.
+
+Speilingen verifiserer at tre-nivå-modellen dekker en reell katalog uten å kopiere den. Bekrefter også at firma-spesifikke avtaler (skiftsatser, vaktordninger, anleggs-spesifikke tillegg) ikke skal generaliseres til standardpakker.

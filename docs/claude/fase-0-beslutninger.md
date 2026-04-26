@@ -530,6 +530,55 @@ A.3 har inkonsistens med E.2 om GDPR-håndtering. Løsning: behold `actorUserId`
 
 A.6 mangler periode-felt. Strider mot loan-pattern. Allerede inkludert i revidert A.6-modell over.
 
+### C.10 Seed-mekanisme via event-hook i Fase 0
+
+Lønnsart-Nivå 1, standard `expense_categories` og andre datadrevne kataloger må seedes ved firma-opprettelse. Mekanismen må eksistere i Fase 0 selv om innholdet (lønnsart-katalogen) først kommer i Fase 3.
+
+**Begrunnelse:** Hvis vi venter til Fase 3 med å innføre event-hook, må alle eksisterende firmaer seedes retroaktivt ved Fase 3-deploy. Det er et migrerings-problem som unngås ved å ha hook-mekanismen klar fra start.
+
+**Tiltak (Fase 0):**
+1. Definér `apps/api/src/events/organization.ts` med `onOrganizationCreated(organizationId)`-hook
+2. Hooken kalles fra `organisasjon.opprett`-tRPC-mutation
+3. Tom implementasjon i Fase 0 (ingen seedere registrert)
+4. Fase 3 (Timer): registrer `seedLonnsartNivaa1`, `seedExpenseCategories`
+5. Fase 0.5 (Avdeling): vurder om standard-avdelinger seedes eller opprettes manuelt
+
+**Datamodell-konsekvens:** `Lonnsart`, `Tillegg` og `Aktivitet` har `seedNivaa Int?`-felt for å skille auto-seeded fra kunde-opprettet (se datamodell i [timer.md](timer.md)).
+
+### C.11 Avdeling-tabell i Fase 0.5 (sammen med Byggeplass)
+
+Tidligere Fase 0-design hadde `Avdeling`-flagg på `OrganizationSetting`. Ny analyse (2026-04-26 timer-runde 2) viser at Avdeling brukes på tvers av Maskin (ansvarlig per avdeling), Mannskap (avdeling per User) og Timer (eksport-filtrering, dagsseddel-tagging).
+
+**Tiltak:** Egen `Avdeling`-tabell i `packages/db` (kjernen) bygges i **Fase 0.5** (sammen med Byggeplass-strategi), ikke Fase 3. Hvis utsatt til Fase 3 må moduler som kommer før (Maskin Fase 1, Mannskap Fase 4) refaktoreres når avdeling til slutt opprettes.
+
+**Skille mot byggeplass:**
+- Byggeplass = fysisk lokasjon innenfor et prosjekt (per [byggeplass-strategi.md](byggeplass-strategi.md))
+- Avdeling = organisatorisk inndeling av firma (Tromsø, Narvik, etc.)
+- To ortogonale dimensjoner — passer å bygges samtidig som tverrgående organisatoriske konsepter
+
+**Equipment-presisering:**
+- `Equipment.lokasjon` er GPS-koordinat (sporing av hvor maskinen står fysisk), IKKE avdelings-tilknytning
+- Avdeling kobles til Equipment via `EquipmentAnsvarlig.avdelingId` eller `EquipmentEier.avdelingId` (firma-intern eier-relasjon, hvis aktuelt)
+- Selve Equipment-objektet har ingen `avdelingId`
+
+**Datamodell-skisse:**
+```prisma
+model Avdeling {
+  id              String   @id @default(uuid())
+  organizationId  String   @map("organization_id")
+  kode            String?  // intern kode (kan være null)
+  navn            String
+  aktiv           Boolean  @default(true)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@unique([organizationId, navn])
+  @@map("avdelinger")
+}
+```
+
+**Migrerings-rekkefølge:** Settes i Fase 0.5-plan, ikke i Fase 0-rekkefølgen (§ E). Fase 0.5 bygges etter Fase 0-koding er ferdig.
+
 ---
 
 ## D. Lovverk-svakheter som krever vurdering
@@ -621,7 +670,7 @@ Kjøres etter hver merge til main. Rød test = arkitektur-feil, ikke kun kode-fe
 
 **Åpent:** 5 BLOKKERER-spørsmål (§ B.1-B.5).
 
-**Anbefalte utvidelser:** 9 punkter (§ C).
+**Anbefalte utvidelser:** 11 punkter (§ C.1-C.11). Nye etter timer-runde 2: C.10 (seed-mekanisme i Fase 0), C.11 (Avdeling i Fase 0.5).
 
 **Lovverk-vurderinger:** 4 områder (§ D).
 

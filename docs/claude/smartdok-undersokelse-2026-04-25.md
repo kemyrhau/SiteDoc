@@ -11,6 +11,14 @@
 
 ---
 
+## 0. Disclaimer
+
+Empirisk grunnlag fra én norsk anleggsentreprenør. **Research-grunnlag for funksjonell forståelse** av API-struktur, ikke kilde til mal SiteDoc distribuerer eller kopierer.
+
+A.Markussens lønnsart-/kompetanse-/varekatalog er IKKE startpakke for nye SiteDoc-kunder. Se [smartdok-undersokelse.md § 0](smartdok-undersokelse.md) for SiteDocs tre-nivå-modell og [timer.md](timer.md) for konkret implementasjon.
+
+---
+
 ## API-info
 
 | | |
@@ -307,7 +315,7 @@ Dette matcher vår dagsseddel-prototype godt.
 - Vår mannskap-modul må støtte rikt kompetanseregister med utløpsdato + varsling
 - **«DO»-konseptet** (dokumentert opplæring på spesifikt utstyr) er en hybrid mellom kompetanse og maskin-kobling — interessant pattern: «Person X er sertifisert til å bruke maskin Y»
 - **Matrise-visning** (bruker × kompetanse) er nyttig admin-UI — markerer hvem mangler hva
-- A.Markussens kompetansetypeliste er **migrasjonsverdig** som standardbibliotek for nye SiteDoc-kunder i grunn-/anleggsbransjen
+- A.Markussens kompetansetypeliste er observasjonsdata fra én MEF-bedrift. Hvis SiteDoc senere utvikler eget standardbibliotek for kompetansetyper, kan listen brukes som inspirasjonsgrunnlag — ikke kopieres direkte
 - Kunde-spesifikke (Statkraft, STATNETT) bør være tagger eller egne typer — ulikt for ulike kunder
 
 ### Endring/tillegg — SmartDoks løsning er svakere enn vår Godkjenning
