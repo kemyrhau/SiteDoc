@@ -45,7 +45,7 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 
 ## Pågående arbeid
 
-**Status 2026-04-26:** Timer-modul-planlegging fullført. Tre runder Opus-stresstesting + Kenneth-justeringer har produsert 13 vedtatte Fase 0-beslutninger. **5 BLOKKERER-spørsmål gjenstår** før Fase 0-koding kan starte (se [fase-0-beslutninger.md § B](docs/claude/fase-0-beslutninger.md)).
+**Status 2026-04-26:** Timer-modul-planlegging fullført. Tre runder Opus-stresstesting + Kenneth-justeringer har produsert 24 vedtatte Fase 0-beslutninger. **5 BLOKKERER-spørsmål gjenstår** før Fase 0-koding kan starte (se [fase-0-beslutninger.md § B](docs/claude/fase-0-beslutninger.md)).
 
 ⚠️ **Code skal IKKE starte Fase 0-koding ennå.** Kenneth tar en ny runde på de 5 åpne spørsmålene. Vent på grønt lys.
 
@@ -75,9 +75,7 @@ Status og detaljer: [db-opprydning.md](docs/claude/db-opprydning.md).
 
 ## Pauset arbeid
 
-**Fase 0-koding** er pauset til timer-modul-planlegging er fullført. Beslutninger ligger i [docs/claude/fase-0-beslutninger.md](docs/claude/fase-0-beslutninger.md) og kan justeres basert på timer-funn.
-
-(Timer-modul-planlegging var tidligere pauset her — er nå løftet til Pågående arbeid som neste steg.)
+Fase 0-koding er pauset. Timer-modul-planlegging er gjennomført (commit fd2f57d, 81d445d). Neste steg er at Kenneth lukker B.1-B.5 i fase-0-beslutninger.md, deretter starter Fase 0-koding.
 
 ## Planlagte faser
 
