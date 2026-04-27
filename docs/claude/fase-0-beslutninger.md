@@ -1,6 +1,6 @@
 # Fase 0-beslutninger — komplett (oppdatert 2026-04-26)
 
-**Status:** 🟡 23 beslutninger vedtatt (§A) + 5 åpne BLOKKERER (§B; B.2 lukket etter at § E ble rettet) + 12 anbefalte utvidelser (§C; hvorav C.8 og C.9 lukket — innarbeidet i A.3/A.6, og ny C.12 lagt til 2026-04-27) etter tre runder Opus-stresstesting + Kenneth-justeringer + verifiseringsrunde 2026-04-27 (A.13 reklassifisert til B.6 etter kode-verifisering). Avventer Kenneth-svar på 5 blokkerende inkonsistenser før Fase 0-koding kan starte.
+**Status:** 🟡 23 beslutninger vedtatt (§A) + 4 åpne BLOKKERER (§B; B.2 og B.4 lukket — B.4 som interim-beslutning 2026-04-27) + 12 anbefalte utvidelser (§C; hvorav C.8 og C.9 lukket — innarbeidet i A.3/A.6, og ny C.12 lagt til 2026-04-27) etter tre runder Opus-stresstesting + Kenneth-justeringer + verifiseringsrunde 2026-04-27 (A.13 reklassifisert til B.6 etter kode-verifisering). Avventer Kenneth-svar på 4 gjenstående blokkerende inkonsistenser før Fase 0-koding kan starte.
 
 **Bruk:** Anker for ny Code-chat. Neste Code-instans skal lese denne filen + lenker under FØR koding.
 
@@ -11,7 +11,7 @@
 4. [datamodell-arkitektur.md](datamodell-arkitektur.md) — to-nivå-modell og loan-pattern
 5. [timer.md](timer.md) — timer-modul-spesifikasjon (krever refaktor jf. C.1 + organizationId-rename)
 
-> ⚠️ **Til neste Code-instans:** IKKE start Fase 0-koding før Kenneth har lukket de 5 åpne BLOKKERER-spørsmålene i § B (B.1, B.3, B.4, B.5, B.6). Hvis spørsmålene ser besluttet ut, sjekk denne filens commit-historikk for siste oppdatering.
+> ⚠️ **Til neste Code-instans:** IKKE start Fase 0-koding før Kenneth har lukket de 4 åpne BLOKKERER-spørsmålene i § B (B.1, B.3, B.5, B.6). Hvis spørsmålene ser besluttet ut, sjekk denne filens commit-historikk for siste oppdatering.
 
 ---
 
@@ -464,14 +464,28 @@ Disse er identifisert i Opus-runde 3 (2026-04-26) og blokkerer Fase 0-koding.
 
 **Krever Kenneth-beslutning.**
 
-### B.4 Standalone-prosjekt + ProjectModule.organizationId
+### B.4 Standalone-prosjekt + ProjectModule.organizationId — **BESLUTTET (interim) 2026-04-27**
 
 **Problem:** Standalone-prosjekt har `Project.primaryOrganizationId IS NULL`. Bakfyll i K.5 setter `ProjectModule.organization_id = NULL`. Plan-steg 2 «SET NOT NULL» bryter da migreringen.
 
 **Alternativ A:** Tillat NULL permanent for standalone. Bryter med planens steg 2.
 **Alternativ B:** Opprett seed «system-org» med UUID `00000000-0000-0000-0000-000000000000`. Standalone prosjekt får default organizationId = system-org.
 
-**Krever Kenneth-beslutning.** Min anbefaling: Alternativ A (NULL permanent — enklere, mer ærlig).
+**Status:** ✅ **BESLUTTET (interim)** — `Project.organizationId` og `ProjectModule.organizationId` forblir **nullable** i Fase 0. NOT NULL-håndhevelse innføres ikke nå.
+
+**Begrunnelse:** Endelig regel er at alle prosjekter skal tilhøre et firma med firmamaler, men:
+- Firmamal-struktur er ikke designet ennå
+- Designet forutsetter at timer + maskin + GPS-sporing er implementert først
+- Project-opprettelses-flyten er ikke ferdig
+
+**Oppfølgingspunkt (post-Fase 1):**
+- Designe firmamal-struktur (OrganizationTemplate, E-steg 7 i nåværende § E)
+- Migrere eksisterende Project uten organizationId (hvis noen)
+- Gjøre `Project.organizationId` NOT NULL
+- Gjøre `ProjectModule.organizationId` NOT NULL
+- Oppdatere oppretter-flyt til å kreve organizationId
+
+**Konsekvens for § E:** Steg 5 i Fase 0 setter ikke NOT NULL på ProjectModule.organizationId. NOT NULL-konvertering flyttes fra «Etter alle 13 er kjørt»-listen til post-Fase 1-arbeid.
 
 ### B.5 UE-identifikasjon — én sannhet
 
@@ -690,9 +704,15 @@ Krever nasjonalitet + arbeidstillatelse på User. Allerede inkludert i A.11 (dat
 | 13 | User-utvidelse (canLogin, HMS-kort, ansattnummer, nasjonalitet, arbeidstillatelse) | User (finnes) |
 
 **Etter alle 13 er kjørt (neste release):**
-- ProjectModule.organizationId — vurdér NOT NULL avhengig av B.4-beslutning
 - ProjectModule.status NOT NULL + drop active-kolonne (per A.4 steg 2)
 - Equipment.ansvarligUserId migreres til EquipmentAnsvarlig + droppes
+
+**Post-Fase 1 (utsatt arbeid per B.4 interim-beslutning):**
+- `Project.organizationId` NOT NULL
+- `ProjectModule.organizationId` NOT NULL
+- Migrere eksisterende standalone-prosjekt til firma-tilknytning
+- Oppdatere Project-opprettelses-flyt til å kreve organizationId
+- Krever at OrganizationTemplate (firmamal-struktur) er designet og bygget først
 
 **Note om B.6 (Timestamptz-migrasjon):** Ikke i denne rekkefølgen ennå. Avhengig av B.6-beslutning må den plasseres som steg 0 (pre-Fase 0, full migrasjon — alt a) eller integreres i Timer-relevante steg (selektiv migrasjon — alt b) eller utsettes til etter Timer-MVP (alt c). Avgjøres når B.6 lukkes.
 
@@ -734,7 +754,7 @@ Kjøres etter hver merge til main. Rød test = arkitektur-feil, ikke kun kode-fe
 
 **Lukket:** 23 beslutninger (A.1-A.24 minus A.13 som ble reklassifisert til B.6).
 
-**Åpent:** 5 BLOKKERER-spørsmål (§ B.1, B.3, B.4, B.5, B.6 — B.2 lukket etter at § E ble rettet).
+**Åpent:** 4 BLOKKERER-spørsmål (§ B.1, B.3, B.5, B.6 — B.2 lukket etter at § E ble rettet, B.4 lukket som interim-beslutning 2026-04-27).
 
 **Anbefalte utvidelser:** 12 punkter (§ C.1-C.12), hvorav 2 lukket (C.8, C.9 — innarbeidet i A.3/A.6). Nye etter Runde 2 (2026-04-27): C.12 (CI-pipeline før Fase 0-deploy).
 
@@ -742,7 +762,7 @@ Kjøres etter hver merge til main. Rød test = arkitektur-feil, ikke kun kode-fe
 
 **Migrerings-rekkefølge:** 13 steg i § E (var 15 — OrganizationModule fjernet per A.4, Avdeling utsatt til Fase 0.5 per C.11).
 
-**Neste handling:** Kenneth lukker B.1, B.3, B.4, B.5, B.6. Når lukket: oppdater denne filen, og start Fase 0-koding via migration-rekkefølge i § E.
+**Neste handling:** Kenneth lukker B.1, B.3, B.5, B.6. Når lukket: oppdater denne filen, og start Fase 0-koding via migration-rekkefølge i § E.
 
 **Anker for ny Code-chat:**
 - Denne filen + lenker øverst
