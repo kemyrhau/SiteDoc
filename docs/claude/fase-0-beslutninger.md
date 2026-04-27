@@ -1,6 +1,6 @@
 # Fase 0-beslutninger — komplett (oppdatert 2026-04-26)
 
-**Status:** 🟡 23 beslutninger vedtatt (§A) + 4 åpne BLOKKERER (§B; B.2 og B.4 lukket — B.4 som interim-beslutning 2026-04-27) + 12 anbefalte utvidelser (§C; hvorav C.8 og C.9 lukket — innarbeidet i A.3/A.6, og ny C.12 lagt til 2026-04-27) etter tre runder Opus-stresstesting + Kenneth-justeringer + verifiseringsrunde 2026-04-27 (A.13 reklassifisert til B.6 etter kode-verifisering). Avventer Kenneth-svar på 4 gjenstående blokkerende inkonsistenser før Fase 0-koding kan starte.
+**Status:** 🟢 23 beslutninger vedtatt (§A) + **0 åpne BLOKKERE (§B)** — alle 6 er nå lukket: B.2 (mekanisk via § E-retting), B.4 (interim NOT NULL utsatt til post-Fase 1), B.1/B.3/B.5/B.6 lukket av Kenneth 2026-04-27. § C: 12 anbefalte utvidelser, hvorav 3 lukket (C.8, C.9 innarbeidet i A.3/A.6; C.1 lukket implisitt av B.6). **Klart for Fase 0-koding** etter Timer/Maskin-revurdering.
 
 **Bruk:** Anker for ny Code-chat. Neste Code-instans skal lese denne filen + lenker under FØR koding.
 
@@ -11,7 +11,7 @@
 4. [datamodell-arkitektur.md](datamodell-arkitektur.md) — to-nivå-modell og loan-pattern
 5. [timer.md](timer.md) — timer-modul-spesifikasjon (krever refaktor jf. C.1 + organizationId-rename)
 
-> ⚠️ **Til neste Code-instans:** IKKE start Fase 0-koding før Kenneth har lukket de 4 åpne BLOKKERER-spørsmålene i § B (B.1, B.3, B.5, B.6). Hvis spørsmålene ser besluttet ut, sjekk denne filens commit-historikk for siste oppdatering.
+> ✅ **Til neste Code-instans:** Alle BLOKKERE er lukket (2026-04-27). Klart for Fase 0-koding etter at Timer/Maskin-revurderingen er ferdig. § B beholdes for historikk — alle 6 punkter har nå "LUKKET"-status.
 
 ---
 
@@ -35,7 +35,7 @@ model ExternalCostObject {
   kildeId               String?  @map("kilde_id")
 
   status                String   @default("aktiv")  // "aktiv" | "lukket"
-  timerregistreringApen Boolean  @default(false) @map("timerregistrering_apen")
+  timerregistreringApen Boolean  @default(true) @map("timerregistrering_apen")
 
   opprettetAvUserId     String   @map("opprettet_av_user_id")
   createdAt             DateTime @default(now()) @map("created_at")
@@ -60,7 +60,7 @@ model ExternalCostObject {
 - **Dropdown-label i timer-skjema mobil:** «Underprosjekt» (ikke «ECO» eller «External cost object»)
 - Samme mønster som `proAdmId` (UI-vennlig referanse) vs UUID (FK-feltet)
 
-> ⚠️ **Åpen B-spørsmål:** `timerregistreringApen` default `false` er omdiskutert. Mangler også `lukketAvUserId` + soft-delete. Se § B.1, B.6, B.7.
+> ⚠️ **Åpen B-spørsmål:** Default for `timerregistreringApen` er nå satt til `true` (B.1 lukket 2026-04-27). Mangler fortsatt `lukketAvUserId` + soft-delete (C.6, C.7).
 
 ### A.2 Godkjenning — utvidet dokumentflyt-type
 
@@ -83,11 +83,14 @@ model Godkjenning {
   byggherreRef          String?   @map("byggherre_ref")
   kortNavn              String    @map("kort_navn")
 
-  godkjentVed           DateTime? @map("godkjent_ved")
+  godkjentVed           DateTime? @db.Timestamptz @map("godkjent_ved")
   godkjentAvUserId      String?   @map("godkjent_av_user_id")
 
-  createdAt             DateTime  @default(now()) @map("created_at")
-  updatedAt             DateTime  @updatedAt @map("updated_at")
+  endretEtterSending    Boolean   @default(false) @map("endret_etter_sending")
+  sistEndretVed         DateTime? @db.Timestamptz @map("sist_endret_ved")
+
+  createdAt             DateTime  @default(now()) @db.Timestamptz @map("created_at")
+  updatedAt             DateTime  @updatedAt @db.Timestamptz @map("updated_at")
 
   @@unique([projectId, internRef])
   @@map("godkjenninger")
@@ -99,7 +102,7 @@ DocumentTransfer-mønsteret eksisterer (linje 603) og utvides med `kostnadSnapsh
 
 **DocumentTransfer må også utvides** med `godkjenningId String?` for å gjenbruke transfer-mekanismen for Godkjenning (i dag støtter den kun Checklist+Task).
 
-> ⚠️ **Åpen B-spørsmål:** `endretEtterSending`-felt er nevnt i I.1 men mangler i Prisma-modellen. Manglende «aktiv versjon»-pointer. Indeks-svakheter. Se § B.3, B.8, B.9.
+> ✅ **B.3 lukket 2026-04-27:** `endretEtterSending` + `sistEndretVed` er nå inkludert i modellen over. Manglende «aktiv versjon»-pointer og indeks-svakheter er fortsatt åpne (§ B.8, B.9 — utenfor BLOKKERER).
 
 ### A.3 Activity — sentral audit-tabell
 
@@ -297,19 +300,30 @@ Bransje-naturlig (A.Markussens timer-rutiner bruker "attestere"). Konsistent i k
 
 **Bekreftelse:** `DokumentflytMedlem.rolle = "godkjenner"` (linje 720) er KORREKT bruk av godkjenning (dokumentflyt-rolle). Ikke renames.
 
-### A.9 ProjectMember.role = "underentreprenor"
+### A.9 ProjectMember.role — gyldige verdier
 
-UE-rolle som streng-verdi på ProjectMember.role. Ingen ny rolle-tabell. Ingen snapshot — én User per (person × firma).
+Etter B.5-lukking 2026-04-27: **`"underentreprenor"` er IKKE en gyldig verdi** for `ProjectMember.role`.
+
+**Gyldige forslagsverdier på `ProjectMember.role`:**
+- `"admin"` — prosjektadmin (full tilgang til prosjektet)
+- `"member"` (default) — vanlig prosjektmedlem
+
+**Andre relevante role-verdier (på `User.role`, ikke ProjectMember):**
+- `"sitedoc_admin"` — superadmin (Kenneth)
+- `"company_admin"` — firmaadmin (arver admin-tilgang via Organization)
+- `"user"` (default) — vanlig bruker
+
+**UE-status utledes deterministisk** via `erUnderentreprenor(user, project)` — se § B.5 for utledning og edge cases. Lagres ALDRI som verdi på `ProjectMember.role`.
 
 **Policy:** Hvis Joakim bytter fra A.Markussen til Bravida:
-- A.Markussen-User får periodeSlutt
+- A.Markussen-User får `periodeSlutt`
 - Bravida oppretter ny User-rad
-- Gamle timer beholder gammel User.id — historikken intakt
+- Gamle timer beholder gammel `User.id` — historikken intakt
 - Ingen snapshot trengs fordi User-organisasjon ikke endres for samme rad
 
-**Konsekvens:** harProsjektTilgang() trenger ingen endring (verifisert: 9 forekomster av `medlem.role === "admin"`-bypass; andre roller behandles som vanlige medlemmer). Filtrering per rolle (UE ser bare egne timer) legges inn i Timer/Vareforbruk-routerene når de bygges.
+**Konsekvens:** `harProsjektTilgang()` trenger ingen endring (verifisert: 9 forekomster av `medlem.role === "admin"`-bypass; andre roller behandles som vanlige medlemmer). Filtrering per UE-status (UE ser bare egne timer) bygger på `erUnderentreprenor()`-utledning når Timer/Vareforbruk-rutene bygges.
 
-> ⚠️ **Åpen B-spørsmål:** Dobbeltspor — UE kan identifiseres både via `User.organizationId !== prosjekt.primaryOrganizationId` OG via `ProjectMember.role = "underentreprenor"`. Risiko for drift. Se § B.5.
+**Migrering:** Hvis `"underentreprenor"`-rader finnes i DB i dag (skal sjekkes ved migrasjon), behandles som legacy — ingen tilgangs-effekt. La radene stå, men avskaff fra fremtidige forslag.
 
 ### A.10 User.canLogin
 
@@ -440,13 +454,22 @@ Akseptabelt at felt-opprettet ECO blir orphan hvis ProAdm aldri matcher. Markere
 
 Disse er identifisert i Opus-runde 3 (2026-04-26) og blokkerer Fase 0-koding.
 
-### B.1 ECO timerregistreringApen default — true eller false?
+### B.1 ECO timerregistreringApen default — true eller false? — ✅ **LUKKET 2026-04-27**
 
 **Problem:** Default `false` betyr ALLE importerte ECO er låst for time-registrering ved import. Joakim ser tom dropdown. Hvis ProAdm-import ikke setter den til `true`, må prosjektleder manuelt åpne hver ECO.
 
 **Forslag:** Default `true`. Eksplisitt admin-handling lukker en ECO.
 
-**Krever Kenneth-beslutning.**
+**Status:** ✅ **BESLUTTET — Alternativ a (default true).** `ExternalCostObject.timerregistreringApen Boolean @default(true)`. Når ECO opprettes (manuell, ProAdm-import, felt-opprettet) er timeregistrering åpen umiddelbart. Prosjektleder lukker eksplisitt når ECO ikke skal brukes.
+
+**Risiko-mitigering (allerede vedtatt):**
+- C.6: `lukketAvUserId`/`lukketVed`/`lukketGrunn` på ECO
+- C.7: Soft-delete på ECO
+- Eksport-modulen kan vise advarsel hvis timer registreres mot ECO som burde vært lukket
+
+**Begrunnelse:** Matcher A.Markussens nåværende SmartDok-praksis (alle underprosjekter åpne by default). ProAdm er sannhetskilden — hvis underprosjekt eksisterer i ProAdm, skal det brukes.
+
+**Konsekvens for A.1:** Oppdater Prisma-blokken — `timerregistreringApen Boolean @default(true)` (var `false`).
 
 ### B.2 Bytt rekkefølge K.5 og K.6 i migrerings-rekkefølgen — **BESLUTTET 2026-04-27**
 
@@ -456,13 +479,40 @@ Disse er identifisert i Opus-runde 3 (2026-04-26) og blokkerer Fase 0-koding.
 
 **Status:** ✅ **LUKKET** — § E reflekterer beslutningen. Project.primaryOrganizationId (steg 4) kommer før ProjectModule-utvidelse (steg 5) i nåværende rekkefølge. Beholdt her for historikk.
 
-### B.3 Godkjenning.endretEtterSending — felt eller annen mekanisme?
+### B.3 Godkjenning.endretEtterSending — felt eller annen mekanisme? — ✅ **LUKKET 2026-04-27**
 
 **Problem:** I.1 referer eksplisitt til `endretEtterSending`-felt som mekanisme for ProAdm-konflikt-håndtering. Modellen i A.2 inneholder ikke feltet.
 
 **Forslag:** Legg til `endretEtterSending Boolean @default(false)` på Godkjenning, eller endre I.1 til å bruke avledet logikk (sjekk om siste DocumentTransfer.kostnadSnapshot avviker fra opprinnelig signering).
 
-**Krever Kenneth-beslutning.**
+**Status:** ✅ **BESLUTTET — Alternativ a (eksplisitt felt).**
+
+**Felter på Godkjenning (legges til i A.2-modellen):**
+- `endretEtterSending Boolean @default(false)`
+- `sistEndretVed DateTime?` (Timestamptz per B.6)
+
+**Trigger-logikk:**
+- Settes `true` når kostnad endres etter Godkjenning er sendt (status === `"sent"` eller senere)
+- Aktiveres på ProAdm-cost-update mot tilknyttet ECO
+- Aktiveres på FtdChangeEvent som påvirker tilknyttet ECO
+- Resettes til `false` ved status-overgang til `"sent"` (ny sending) eller `"approved"`
+
+**Sentral hjelpefunksjon:**
+- `markerEndretEtterSending(godkjenningId)` eksisterer som ETT sentralt punkt — alle kostnad-endringer kaller denne for å unngå glemte triggere
+- Dekkes av test for hver kjent kostnad-endrings-vei
+
+**Hva regnes som «kostnad-endring»:**
+- Alt som påvirker `kostnadSnapshot` på Godkjenning
+- Sannsynligvis: ny T-nota tilknyttet ECO, manuell ECO-kostnad-justering, ProAdm-resync som endrer kostnad
+- Presiseres når Godkjenning faktisk bygges
+
+**Activity-logging:** Kostnad-endring logges uansett (per A.3). Trigger-logikken kobler til samme hendelse — ikke duplisert.
+
+**UI-konsekvens:** Byggherrens flytboks viser rødt flagg eller «endret»-indikator når `endretEtterSending === true`. Etter ny sending: flagg fjernes.
+
+**Begrunnelse:** Performance i lister, klar UI-kode, sporbart i Activity, resettbar livssyklus. Avledet logikk er overengineering for ja/nei-spørsmål.
+
+**Konsekvens for A.2:** Oppdater Prisma-blokken — legg til `endretEtterSending Boolean @default(false)` og `sistEndretVed DateTime?`.
 
 ### B.4 Standalone-prosjekt + ProjectModule.organizationId — **BESLUTTET (interim) 2026-04-27**
 
@@ -487,7 +537,7 @@ Disse er identifisert i Opus-runde 3 (2026-04-26) og blokkerer Fase 0-koding.
 
 **Konsekvens for § E:** Steg 5 i Fase 0 setter ikke NOT NULL på ProjectModule.organizationId. NOT NULL-konvertering flyttes fra «Etter alle 13 er kjørt»-listen til post-Fase 1-arbeid.
 
-### B.5 UE-identifikasjon — én sannhet
+### B.5 UE-identifikasjon — én sannhet — ✅ **LUKKET 2026-04-27**
 
 **Problem:** UE kan identifiseres både via `User.organizationId !== prosjekt.primaryOrganizationId` OG via `ProjectMember.role = "underentreprenor"`. Risiko for drift.
 
@@ -495,26 +545,94 @@ Disse er identifisert i Opus-runde 3 (2026-04-26) og blokkerer Fase 0-koding.
 
 **Forslag:** Bruk `User.organizationId`-mismatch som primær. Rolle-feltet utledes som UI-tag, ikke lagres som egen verdi.
 
-**Krever Kenneth-beslutning.**
+**Status:** ✅ **BESLUTTET — Alternativ a (User.organizationId-mismatch er PRIMÆR).**
 
-### B.6 Timestamptz-migrasjon før Timer
+**Utledning** (i `packages/shared/src/utils/`, ny fil eller utvidelse av `flytRolle.ts`):
 
-**Problem:** Vedtak om UTC i DB krever schema-wide migrasjon av 100+ DateTime-kolonner til `@db.Timestamptz`. Verifisert 2026-04-27: **0 forekomster av `@db.Timestamptz`** i `schema.prisma` i dag — alle DateTime-felter bruker default Prisma `DateTime` (mapper til `timestamp(3)` uten tidssone). Tidligere markert som A.13 (vedtatt), men reklassifisert etter kode-verifisering — for stor beslutning til å være låst uten Kenneth-vurdering.
+```typescript
+function erUnderentreprenor(
+  user: { organizationId: string | null },
+  project: { organizationId: string | null }
+): boolean {
+  return user.organizationId !== null
+      && project.organizationId !== null
+      && user.organizationId !== project.organizationId;
+}
+```
+
+**Edge cases:**
+- `User.organizationId === null` → IKKE UE (standalone-bruker, ingen firma-kontekst)
+- `Project.organizationId === null` → IKKE UE (standalone-prosjekt per B.4 interim)
+- Bytter user firma midt i prosjekt → UE-status oppdateres automatisk ved neste sjekk. ProjectMember-historikk bevares
+- Frilanser uten firma → standalone-bruker, ikke UE. Tilgang via ProjectMember alene
+- **Intern UE-behandling** (egen ansatt skal behandles som UE på spesifikt prosjekt) → IKKE støttet i denne beslutningen. Hvis behov dukker opp senere, kan vi legge til `ProjectMember.behandleSomUE Boolean` (eksplisitt overstyring), men ikke nå
+
+**Konsekvens for tidligere vedtak:**
+- **A.9 KLARGJØRES** (se under): `ProjectMember.role`-verdier er `admin` / `member` / `sitedoc_admin` / `company_admin`. `"underentreprenor"` er **IKKE** en gyldig verdi for `ProjectMember.role`
+- Hvis `"underentreprenor"`-rader finnes i DB i dag (sannsynlig ikke, men skal sjekkes ved migrasjon), behandles de som legacy — ingen tilgangs-effekt. Migrering: la radene stå (skader ingen), men avskaff fra fremtidige forslag
+- D.1 (dataportabilitet) forblir uendret — utledning er primær, denne beslutningen bekrefter det
+
+**Konsekvenser for kode/UI/eksport:**
+
+UI:
+- «UE»-tag i prosjekt-medlem-liste utledes på frontend via `erUnderentreprenor()`-funksjonen
+- Ingen UI-element setter `ProjectMember.role = "underentreprenor"`
+- Eventuelle eksisterende «Sett som UE»-knapper fjernes eller omdøpes — dette er nå utledet, ikke valgt
+
+Eksport-filtrering:
+- Lønn-eksport bruker `erUnderentreprenor()` for å filtrere ut UE-timer (UE-arbeider lønnes av eget firma, ikke A.Markussen)
+- ProAdm-eksport inkluderer alle (UE og interne) for komplett prosjektkostnad
+
+Tilgangskontroll:
+- `byggFaggruppeFilter()` kan utvides til å vurdere UE-status hvis spesifikk filtrering kreves
+- Standard tilgangs-logikk er ProjectMember-basert — UE-flagg påvirker ikke tilgang per se, kun visning og eksport
+
+**Ingen schema-endring kreves:**
+- `User.organizationId` finnes allerede
+- `Project.organizationId` finnes allerede (nullable per B.4)
+- `ProjectMember.role` beholdes som er, kun forslagsverdiene klargjøres (se A.9)
+
+**Begrunnelse:** Én sannhet (kan ikke drifte). Skala-vennlig (50 Bravida-arbeidere får UE-status automatisk uten manuell rolle-setting). Naturlig mapping til faktisk virkelighet — UE er en jobb-relasjon, ikke en konfigurasjon.
+
+### B.6 Timestamptz-migrasjon før Timer — ✅ **LUKKET 2026-04-27**
+
+**Problem:** Vedtak om UTC i DB krever schema-wide migrasjon av 100+ DateTime-kolonner til `@db.Timestamptz`. Verifisert 2026-04-27: **0 forekomster av `@db.Timestamptz`** i `schema.prisma` i dag.
 
 **Tre alternativer:**
 
-a) **Full migrasjon i Fase 0** — riktig fundament, stor jobb (én migrasjon som rører hele schema)
-b) **Selektiv migrasjon** — kun Timer-relevante tabeller i Fase 0 (DailySheet, sheet_*, attestering-felter), resten gradvis. Mindre risiko, men midlertidig inkonsistens i schema
-c) **Utsett til etter Timer-MVP** — Timer.dato som date-only først (`@db.Date`), klokkeslett (startAt/endAt) lagres uten tidssone. Migrer til Timestamptz først ved første tidssone-bug eller før internasjonalisering
+a) **Full migrasjon i Fase 0** — riktig fundament, stor jobb
+b) **Selektiv migrasjon** — kun timer/audit-relevante tabeller, resten gradvis
+c) **Utsett til etter Timer-MVP**
 
-**Anbefaling:** Avgjør før Fase 0-koding starter — påvirker Timer-modul direkte. Alt b) er trolig riktig kompromiss for A.Markussen-case (norsk-only, men ren Timer-modul fra dag 1).
+**Status:** ✅ **BESLUTTET — Alternativ b (Selektiv migrasjon, Medium scope).**
+
+**Tabeller som migreres til `@db.Timestamptz`:**
+
+| Tabell | Felter |
+|---|---|
+| `daily_sheets` | `startAt`, `endAt`, `attestertVed`, `createdAt`, `updatedAt` (`dato` forblir `@db.Date` — hele-dag-konsept) |
+| `sheet_timer` | `createdAt`, `updatedAt` |
+| `sheet_tillegg` | `createdAt`, `updatedAt` |
+| `document_transfers` | `createdAt` + alle snapshot-tidsstempler |
+| `godkjenninger` | `sistEndretVed`, `godkjentVed`, `createdAt`, `updatedAt` (audit-relevant, samspiller med `document_transfers`) |
+| `activity_log` | `createdAt` |
+| `equipment_assignments` | `startAt`, `endAt` (vurderes per case ved db-maskin-bygging) |
+
+Resten av schema beholder `timestamp(3)` inntil dedikert behov.
+
+**Forutsetning:** `date-fns-tz` installeres (lukker C.1 implisitt — se C.1).
+
+**Migrerings-rekkefølge:**
+- Plasseres som dedikerte steg i § E der respektive tabeller bygges (ikke separat steg 0)
+- `activity_log` (§ E steg 1): tidsstempler er Timestamptz fra start
+- `godkjenninger` + `document_transfers`-snapshot-felt (§ E steg 12): Timestamptz fra start
+- `daily_sheets`, `sheet_timer`, `sheet_tillegg` (Timer-modul Fase 3): Timestamptz fra start når tabellene opprettes
+- `equipment_assignments` (db-maskin Fase 1, allerede under bygging): vurderes per case
 
 **Konsekvens for andre punkter:**
 - A.7 `attestertSnapshot` — lagrer ikke tidssone-data (er JSON), upåvirket
-- A.14 OrganizationSetting.timezone — krever Timestamptz-felter for å fungere riktig (DST-sensitive forretningsregler)
-- C.1 date-fns-tz-installasjon — fortsatt nødvendig uansett alternativ
-
-**Krever Kenneth-beslutning.**
+- A.14 `OrganizationSetting.timezone` — bruker selektivt-migrerte felter for forretningsregler — fungerer korrekt
+- C.1 `date-fns-tz`-installasjon — lukkes implisitt av denne beslutningen
 
 ---
 
@@ -522,7 +640,7 @@ c) **Utsett til etter Timer-MVP** — Timer.dato som date-only først (`@db.Date
 
 Disse er ikke blokkere, men bør være med i Fase 0 for å unngå arkitektur-gjeld.
 
-### C.1 Installer date-fns-tz og tidssone-utils
+### C.1 Installer date-fns-tz og tidssone-utils — ✅ **LUKKET 2026-04-27 (implisitt av B.6)**
 
 Verifisert: `date-fns-tz` ikke installert i dag. Krevet for A.14 (Firma-konfigurerbar tidssone) og B.6 (Timestamptz-migrasjon).
 
@@ -530,6 +648,8 @@ Verifisert: `date-fns-tz` ikke installert i dag. Krevet for A.14 (Firma-konfigur
 1. `pnpm add date-fns-tz --filter @sitedoc/shared`
 2. Implementer `startOfDayInZone`, `endOfDayInZone`, `addBusinessDaysInZone` i `packages/shared/src/utils/timezone.ts`
 3. Test mot DST-overgang
+
+**Status:** ✅ **LUKKET** — B.6-beslutningen (selektiv Timestamptz-migrasjon) krever `date-fns-tz`. Pakken installeres som forutsetning for Fase 0-koding. Tiltak-listen over står fortsatt som implementasjons-spec.
 
 ### C.2 aktivMedlemFilter for periode-sjekk
 
@@ -687,9 +807,11 @@ Krever nasjonalitet + arbeidstillatelse på User. Allerede inkludert i A.11 (dat
 
 ## E. Migrerings-rekkefølge for Fase 0 (13 steg)
 
+> **Timestamptz-håndtering per B.6 — selektiv migrasjon.** Kun timer-relevante + audit-relevante tabeller får `@db.Timestamptz` fra start: `daily_sheets`, `sheet_timer`, `sheet_tillegg`, `document_transfers`, `godkjenninger`, `activity_log`, `equipment_assignments`. Resten av schema uberørt (beholder `timestamp(3)`).
+
 | Steg | Migration | Avhengighet |
 |------|-----------|-------------|
-| 1 | Activity-tabell | Ingen |
+| 1 | Activity-tabell — `createdAt` som `@db.Timestamptz` per B.6 | Ingen |
 | 2 | OrganizationSetting | Organization (finnes) |
 | 3 | Rename OrganizationProject → ProjectOrganization + rolle | OrganizationProject (finnes) |
 | **4** | **Project.primaryOrganizationId nullable** | Project (finnes) |
@@ -700,7 +822,7 @@ Krever nasjonalitet + arbeidstillatelse på User. Allerede inkludert i A.11 (dat
 | 9 | Psi.organizationId + projectId nullable + kontekstType — **inkluder oppdatering av `@@unique([projectId, byggeplassId])`** når projectId blir nullable. Vurder ny unique: `@@unique([organizationId, projectId, byggeplassId])` eller separat håndtering for null-projectId-tilfeller. Sjekk byggeplassId-FK-konsistens også | Psi (finnes) |
 | 10 | ProjectMember.periodeSlutt + UE-rolle dokumentasjon | ProjectMember (finnes) |
 | 11 | ExternalCostObject | Organization, Project |
-| 12 | Godkjenning + DocumentTransfer.kostnadSnapshot + DocumentTransfer.godkjenningId | DocumentTransfer (finnes), ECO |
+| 12 | Godkjenning (m/`endretEtterSending`, `sistEndretVed`, alle tidsstempler som `@db.Timestamptz`) + DocumentTransfer.kostnadSnapshot + DocumentTransfer.godkjenningId + Timestamptz på snapshot-tidsstempler | DocumentTransfer (finnes), ECO |
 | 13 | User-utvidelse (canLogin, HMS-kort, ansattnummer, nasjonalitet, arbeidstillatelse) | User (finnes) |
 
 **Etter alle 13 er kjørt (neste release):**
@@ -713,8 +835,6 @@ Krever nasjonalitet + arbeidstillatelse på User. Allerede inkludert i A.11 (dat
 - Migrere eksisterende standalone-prosjekt til firma-tilknytning
 - Oppdatere Project-opprettelses-flyt til å kreve organizationId
 - Krever at OrganizationTemplate (firmamal-struktur) er designet og bygget først
-
-**Note om B.6 (Timestamptz-migrasjon):** Ikke i denne rekkefølgen ennå. Avhengig av B.6-beslutning må den plasseres som steg 0 (pre-Fase 0, full migrasjon — alt a) eller integreres i Timer-relevante steg (selektiv migrasjon — alt b) eller utsettes til etter Timer-MVP (alt c). Avgjøres når B.6 lukkes.
 
 **Note om utelatte steg:**
 - **Avdeling utsatt til Fase 0.5** per C.11 — ikke i Fase 0-rekkefølgen. Bygges sammen med Byggeplass-strategi
@@ -754,15 +874,15 @@ Kjøres etter hver merge til main. Rød test = arkitektur-feil, ikke kun kode-fe
 
 **Lukket:** 23 beslutninger (A.1-A.24 minus A.13 som ble reklassifisert til B.6).
 
-**Åpent:** 4 BLOKKERER-spørsmål (§ B.1, B.3, B.5, B.6 — B.2 lukket etter at § E ble rettet, B.4 lukket som interim-beslutning 2026-04-27).
+**Åpent:** 0 BLOKKERE — alle lukket 2026-04-27 (B.1 default true, B.2 § E-retting, B.3 eksplisitt felt, B.4 interim utsatt, B.5 organizationId-mismatch, B.6 selektiv Timestamptz).
 
-**Anbefalte utvidelser:** 12 punkter (§ C.1-C.12), hvorav 2 lukket (C.8, C.9 — innarbeidet i A.3/A.6). Nye etter Runde 2 (2026-04-27): C.12 (CI-pipeline før Fase 0-deploy).
+**Anbefalte utvidelser:** 12 punkter (§ C.1-C.12), hvorav 3 lukket: C.1 (implisitt av B.6), C.8 (innarbeidet i A.3), C.9 (innarbeidet i A.6). Aktive: 9.
 
 **Lovverk-vurderinger:** 4 områder (§ D).
 
 **Migrerings-rekkefølge:** 13 steg i § E (var 15 — OrganizationModule fjernet per A.4, Avdeling utsatt til Fase 0.5 per C.11).
 
-**Neste handling:** Kenneth lukker B.1, B.3, B.5, B.6. Når lukket: oppdater denne filen, og start Fase 0-koding via migration-rekkefølge i § E.
+**Neste handling:** Timer/Maskin-revurdering med rent fundament. Etter revurdering: start Fase 0-koding via migration-rekkefølge i § E.
 
 **Anker for ny Code-chat:**
 - Denne filen + lenker øverst
