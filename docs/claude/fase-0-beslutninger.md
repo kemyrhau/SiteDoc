@@ -338,6 +338,7 @@ model User {
 
 **Bruksområde 1 (original A.10): «Data-mottaker uten innloggings-tilgang»**
 - Eldre arbeidere uten smarttelefon, registreres av andre, logger ikke inn selv
+- Sesongarbeidere som ikke trenger digital tilgang
 - `canLogin = false` settes ved opprettelse, beholdes permanent
 
 **Bruksområde 2 (B.7-utvidelse): «Arkivert User-rad ved org-bytte»**
@@ -346,6 +347,8 @@ model User {
 - Bevarer historikk uten å slette rader
 
 Begge representerer samme tekniske tilstand (`canLogin = false`), men oppstår fra ulike forretningsbehov.
+
+**Identifikator-merknad (per B.7-utvidelse 2026-04-27):** Lederen kan registrere User-rader med kun `phone` (uten e-post) for sesongarbeidere/daglig felt-personell hvor telefon er mer naturlig identifikator enn e-post. `phone`-feltet er allerede etablert som identifikator i kode (`medlem.ts`, `gruppe.ts`, `brukere/page.tsx`). I Fase 0 forblir `email` NOT NULL — full tlf-only-bruker introduseres ved fremtidig multi-identifikator-auth-utvidelse.
 
 **Implementering:** Sjekk i NextAuth `signIn`-callback. Hvis `false`, returner `false` og blokker innlogging. Verifisert 2026-04-27: ingen eksisterende `canLogin`-sjekk i Auth-laget.
 
@@ -730,6 +733,60 @@ Ingen multi-org-tilfeller eksisterer — Modell A kan innføres uten data-konfli
 - **A.10 (User.canLogin):** Klargjøres med to bruksområder (se A.10).
 - **A.12 (anonymizeUser):** Klargjøres — virker per User-rad, ikke per person på tvers (se A.12).
 
+#### B.7 utvidelse — Multi-identifikator-støtte (forberedende, 2026-04-27)
+
+**Kontekst:**
+- Kunde har bekreftet at dagens login (OAuth + e-post) beholdes i Fase 0
+- Tlf+passord-login med 3-måneders rotasjon vurderes som fremtidig utvidelse (estimert 12 mnd, **IKKE ny BLOKKERE**)
+- `User.phone`-felt finnes allerede (verifisert 2026-04-27, `schema.prisma:16` — `String?` uten `@unique`, brukt i `medlem.ts`, `gruppe.ts`, `brukere/page.tsx`)
+- Kunden bekrefter at alle ansatte har e-post (lønnslipp sendes via e-post), men e-postene er ikke garantert knyttet til Google Workspace eller Microsoft 365 — dvs. OAuth fungerer ikke for alle
+- Bygg/anlegg-bransjen: telefon er universal identifikator, e-post varierer (privat: gmail.com, online.no, outlook.com osv.)
+
+**User-modell-status etter Fase 0 (steg 13 i § E):**
+- `email String` NOT NULL (uendret nullability)
+- `phone String?` (eksisterende, uendret type)
+- `@@unique([email, organizationId])` (NYTT — endret fra global `@unique` per B.7 Modell A)
+- `@@unique([phone, organizationId])` (NYTT — forberedende for fremtidig tlf-login)
+
+**Auth-modell i Fase 0 — UENDRET fra dagens praksis:**
+- OAuth + e-post per dagens implementering
+- `phone`-feltet eksisterer og brukes (medlem.ts, gruppe.ts, brukere/page.tsx) men IKKE til login
+- Lederen kan registrere phone på User-rader for `canLogin = false`-arbeidere (per A.10)
+
+**Fremtidig auth-utvidelse (estimert 12 mnd, IKKE ny BLOKKERE)** støtter tre login-metoder parallelt:
+
+1. **OAuth** (Google Workspace / Microsoft 365)
+   - Brukergruppe: faste ansatte i firmaer med firma-e-post på Google eller MS
+   - Dagens implementering, beholdes
+2. **E-post + passord**
+   - Brukergruppe: alle med e-post men uten OAuth-leverandør (online.no, gmail.com, outlook.com osv.)
+   - Argon2-hashing per User-rad
+3. **Telefon + passord**
+   - Brukergruppe: sesongarbeidere og daglig felt-personell hvor telefon er mer naturlig enn e-post
+   - Samme passord-mekanikk
+
+Alle tre kjører parallelt. Brukeren velger metode ved login. 3-måneders passord-rotasjon for metode 2 og 3.
+
+**Schema-endringer for fremtidig utvidelse (post-Fase 0):**
+- Legge til `password_hash`, `password_set_at`-kolonner (felles for metode 2 og 3)
+- Recovery-mekanismer (SMS for tlf-login, e-post for e-post-login)
+- `email` forblir NOT NULL inntil reelt behov for tlf-only-brukere oppstår
+- CHECK-constraint (`email OR phone`) utsettes til samme tidspunkt
+
+**Begrunnelse for å forberede composite unique på phone NÅ:**
+- `phone`-feltet eksisterer og er aktivt brukt i kode
+- 0 phone-duplikater i nåværende DB (verifisert i begge sitedoc_test og sitedoc 2026-04-27)
+- Composite unique kan innføres uten data-konflikt
+- Fremtidig tlf+passord-login krever det
+- Trivielt å legge til nå, dyrere senere
+
+**GDPR:**
+- `phone` er personopplysning (allerede behandlet i A.12)
+- Anonymisering: `phone` settes NULL ved `anonymizeUser()` per A.12
+- Retention som andre PII-felter
+
+**Status:** B.7 forblir **LUKKET**. Composite unique på `phone` legges til i steg 13 (User-utvidelse) som forberedende endring. Tlf+passord-login og e-post+passord-login er fremtidig utvidelse uten BLOKKERE.
+
 ---
 
 ## C. Anbefalte Fase 0-utvidelser
@@ -919,7 +976,7 @@ Krever nasjonalitet + arbeidstillatelse på User. Allerede inkludert i A.11 (dat
 | 10 | ProjectMember.periodeSlutt + UE-rolle dokumentasjon + **userId cascade-policy endres fra Cascade til SetNull (per B.7)** | ProjectMember (finnes) |
 | 11 | ExternalCostObject | Organization, Project |
 | 12 | Godkjenning (m/`endretEtterSending`, `sistEndretVed`, alle tidsstempler som `@db.Timestamptz`) + DocumentTransfer.kostnadSnapshot + DocumentTransfer.godkjenningId + Timestamptz på snapshot-tidsstempler | DocumentTransfer (finnes), ECO |
-| 13 | User-utvidelse (canLogin, HMS-kort, ansattnummer, nasjonalitet, arbeidstillatelse) + **email-unique drop og composite `@@unique([email, organizationId])` (per B.7)** + custom NextAuth-adapter eller signIn-tilpasning | User (finnes) |
+| 13 | User-utvidelse (canLogin, HMS-kort, ansattnummer, nasjonalitet, arbeidstillatelse) + **email-unique drop og composite `@@unique([email, organizationId])` (per B.7)** + **`@@unique([phone, organizationId])` (forberedende per B.7-utvidelse, multi-identifikator-auth)** + custom NextAuth-adapter eller signIn-tilpasning. **Email forblir NOT NULL i Fase 0** (alle har e-post per kunde-bekreftelse). **Ingen passord-felter eller CHECK-constraint i Fase 0** — utsettes til fremtidig multi-identifikator-auth-utvidelse | User (finnes) |
 
 **Etter alle 13 er kjørt (neste release):**
 - ProjectModule.status NOT NULL + drop active-kolonne (per A.4 steg 2)
