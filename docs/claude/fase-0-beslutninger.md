@@ -1,6 +1,6 @@
 # Fase 0-beslutninger — komplett (oppdatert 2026-04-26)
 
-**Status:** 🟡 24 beslutninger vedtatt (§A) + 5 åpne BLOKKERER (§B) etter tre runder Opus-stresstesting + Kenneth-justeringer. Avventer Kenneth-svar på 5 blokkerende inkonsistenser før Fase 0-koding kan starte.
+**Status:** 🟡 23 beslutninger vedtatt (§A) + 6 åpne BLOKKERER (§B) etter tre runder Opus-stresstesting + Kenneth-justeringer + verifiseringsrunde 2026-04-27 (A.13 reklassifisert til B.6 etter kode-verifisering). Avventer Kenneth-svar på 6 blokkerende inkonsistenser før Fase 0-koding kan starte.
 
 **Bruk:** Anker for ny Code-chat. Neste Code-instans skal lese denne filen + lenker under FØR koding.
 
@@ -11,11 +11,11 @@
 4. [datamodell-arkitektur.md](datamodell-arkitektur.md) — to-nivå-modell og loan-pattern
 5. [timer.md](timer.md) — timer-modul-spesifikasjon (krever refaktor jf. C.1 + organizationId-rename)
 
-> ⚠️ **Til neste Code-instans:** IKKE start Fase 0-koding før Kenneth har lukket de 5 BLOKKERER-spørsmålene i § B. Hvis spørsmålene ser besluttet ut, sjekk denne filens commit-historikk for siste oppdatering.
+> ⚠️ **Til neste Code-instans:** IKKE start Fase 0-koding før Kenneth har lukket de 6 BLOKKERER-spørsmålene i § B. Hvis spørsmålene ser besluttet ut, sjekk denne filens commit-historikk for siste oppdatering.
 
 ---
 
-## A. Vedtatte beslutninger (24)
+## A. Vedtatte beslutninger (23)
 
 ### A.1 ExternalCostObject — felles kostnadsbærer-referanse
 
@@ -146,20 +146,28 @@ model Activity {
 
 ### A.4 ProjectModule → utvidelse, ikke ny tabell
 
-`ProjectModule` eksisterer allerede (linje 752, brukt 30+ steder i kodebasen). Utvides med `organizationId` for å støtte cross-org-modul-aktivering.
+`ProjectModule` eksisterer allerede (linje 752, brukt 30+ steder i kodebasen). Utvides med `organizationId` for å støtte cross-org-modul-aktivering. **Samtidig: `active Boolean` deprecates til fordel for `status String` per A.17 (3-nivå: `aktiv`/`arkivert`/`slettet`).**
 
-**Steg 1 (uke 1) — bakfyll fra primary org:**
+**Steg 1 (uke 1) — bakfyll fra primary org + status-konvertering:**
 ```sql
 ALTER TABLE project_modules ADD COLUMN organization_id UUID NULL;
+ALTER TABLE project_modules ADD COLUMN status TEXT NULL DEFAULT 'aktiv';
+
+-- Bakfyll organizationId fra primary org
 UPDATE project_modules pm
 SET organization_id = p.primary_organization_id
 FROM projects p WHERE pm.project_id = p.id;
+
+-- Konverter active Boolean til status
+UPDATE project_modules SET status = CASE WHEN active = true THEN 'aktiv' ELSE 'arkivert' END;
 ```
 
 **Steg 2 (neste release etter all kode er oppdatert):**
 ```sql
 DROP INDEX project_modules_project_id_module_slug_key;
 CREATE UNIQUE INDEX ON project_modules (project_id, organization_id, module_slug);
+ALTER TABLE project_modules DROP COLUMN active;
+ALTER TABLE project_modules ALTER COLUMN status SET NOT NULL;
 -- ALTER TABLE project_modules ALTER COLUMN organization_id SET NOT NULL;
 -- ⚠️ NOT NULL avhenger av B.4: standalone-prosjekt-håndtering
 ```
@@ -184,7 +192,7 @@ grep -rn "projectId_moduleSlug" apps/ packages/ | wc -l  # må være 0
 
 ### A.5 OrganizationProject → ProjectOrganization med rolle
 
-Rename eksisterende `OrganizationProject` (linje 84, blank m:n) til `ProjectOrganization` og legg til rolle-felt.
+Rename eksisterende `OrganizationProject` (linje 84, eksisterende m:n med kun `id`/`organizationId`/`projectId`/`createdAt` og bidireksjonale relasjoner) til `ProjectOrganization` og utvid med `rolle`-felt.
 
 ```prisma
 model ProjectOrganization {
@@ -327,14 +335,22 @@ SiteDoc registrerer kun:
 - E-post
 - Telefon
 - Fødselsdato
-- HMS-kort-nummer
-- **HMS-kort utløpsdato** (`User.hmsKortUtloper date?`) — utløpsdato fra HMS-kortet
 - **Nasjonalitet** (kreves for §15-liste, allmenngjort tariffavtale)
 - **Arbeidstillatelse-status + utløpsdato** (utenlandske arbeidere)
 
 Ingen andre PII-felter uten eksplisitt forretningsbehov.
 
-**Varsling for HMS-kort utløp:** Tverrgående varslingssystem (se [varsling.md](varsling.md)) sender varsel til brukeren selv + firmaadmin på 90/30/7 dager før utløp. SmartDok-research viser at A.Markussen aktivt bruker tilsvarende varsling (Anne Nordeng — varsel 2 mnd før utløp). Lovgrunnlag: byggherreforskriften § 15 + arbeidsmiljøloven krever gyldig HMS-kort på byggeplass. Utløpt HMS-kort blokkerer **ikke** innlogging eller timeregistrering — det er kun varsling. Innsjekk på byggeplass kan blokkeres separat (mannskap-modul, egen beslutning).
+**HMS-kort lagres TO steder** (verifisert 2026-04-27 — `PsiSignatur.hmsKortNr` finnes allerede på `schema.prisma:1153`):
+
+- **`User.hmsKortNr` + `User.hmsKortUtloper`** — sannhetskilde for fast ansatte (legges til i Fase 0)
+- **`PsiSignatur.hmsKortNr`** — eksisterer i dag som snapshot ved signering (per A.7 snapshot-pattern)
+
+**Logikk:**
+- Når en User med `hmsKortNr` signerer en PSI: kortnummer kopieres til `PsiSignatur.hmsKortNr` som historisk snapshot
+- Ad-hoc-gjester uten User-rad registrerer kortnummer direkte på `PsiSignatur` uten User-kobling
+- Snapshot på PsiSignatur sikrer at endring av brukerens kortnummer (f.eks. fornyelse) ikke endrer historisk signering
+
+**Varsling for HMS-kort utløp:** Tverrgående varslingssystem (se [varsling.md](varsling.md)) sender varsel til brukeren selv + firmaadmin på 90/30/7 dager før utløp basert på `User.hmsKortUtloper`. SmartDok-research viser at A.Markussen aktivt bruker tilsvarende varsling (Anne Nordeng — varsel 2 mnd før utløp). Lovgrunnlag: byggherreforskriften § 15 + arbeidsmiljøloven krever gyldig HMS-kort på byggeplass. Utløpt HMS-kort blokkerer **ikke** innlogging eller timeregistrering — det er kun varsling. Innsjekk på byggeplass kan blokkeres separat (mannskap-modul, egen beslutning).
 
 ### A.12 Anonymizing-policy ved sletting
 
@@ -349,13 +365,6 @@ Ingen andre PII-felter uten eksplisitt forretningsbehov.
 | Signaturer | Beholdes (juridisk audit), navn anonymiseres i visning |
 
 `anonymizeUser()` må eksistere fra Fase 0 hvis noen User-rad slettes.
-
-### A.13 UTC i DB, Europe/Oslo i UI
-
-- Alle tidsstempler lagres som UTC i DB (`@db.Timestamptz`)
-- UI viser i Europe/Oslo via `date-fns-tz`
-- Dato-felter (`@db.Date`) er tids-naive — ingen tidssone-konvertering
-- Aldri lokal manuell tidssone-aritmetikk
 
 ### A.14 Firma-konfigurerbar tidssone for forretningsregler
 
@@ -383,6 +392,8 @@ Tre nivåer av modul-tilstand (justert fra opprinnelig forslag):
 
 Default deaktivering = `arkivert`. Slettet krever eksplisitt admin-handling. Dokumenteres som arkitektur-policy.
 
+**Implementering:** Konkret schema-endring (`active Boolean` → `status String`) skjer i samme migrasjon som A.4 sin `organizationId`-tillegg — se A.4 for SQL-detaljer og to-stegs migration.
+
 ### A.18 To-stegs migration-policy
 
 Aldri slett kolonner i én migrering. Alltid:
@@ -402,7 +413,9 @@ Cross-schema-FK håndteres som svake String-felt uten Prisma `@relation`. Etable
 
 ### A.21 Cache-invalidation-mønster
 
-Definér `apps/web/src/lib/cache-invalidation.ts` med `invalidationMaps`-objekter som mapper mutation → liste over queries som invalideres. Hver mutation bruker `onSuccess: () => invalidationMaps.timerOpprett(utils, { projectId })`. Etableres når Timer-modul bygges (Fase 3) — eksisterende 30 invalidate-kall refaktoreres samtidig.
+Definér `apps/web/src/lib/cache-invalidation.ts` med `invalidationMaps`-objekter som mapper mutation → liste over queries som invalideres. Hver mutation bruker `onSuccess: () => invalidationMaps.timerOpprett(utils, { projectId })`.
+
+**Mønsteret defineres i Fase 0** (tom skjelett-fil + dokumentert konvensjon — `cache-invalidation.ts` opprettes med JSDoc-eksempler men ingen konkrete maps). **Faktisk fylling skjer i Fase 3** sammen med Timer-modul-bygging — eksisterende 30 ad-hoc invalidate-kall refaktoreres samtidig som første Timer-mutations får sine maps.
 
 ### A.22 ProAdm vinner med varsel
 
@@ -470,6 +483,25 @@ Disse er identifisert i Opus-runde 3 (2026-04-26) og blokkerer Fase 0-koding.
 
 **Krever Kenneth-beslutning.**
 
+### B.6 Timestamptz-migrasjon før Timer
+
+**Problem:** Vedtak om UTC i DB krever schema-wide migrasjon av 100+ DateTime-kolonner til `@db.Timestamptz`. Verifisert 2026-04-27: **0 forekomster av `@db.Timestamptz`** i `schema.prisma` i dag — alle DateTime-felter bruker default Prisma `DateTime` (mapper til `timestamp(3)` uten tidssone). Tidligere markert som A.13 (vedtatt), men reklassifisert etter kode-verifisering — for stor beslutning til å være låst uten Kenneth-vurdering.
+
+**Tre alternativer:**
+
+a) **Full migrasjon i Fase 0** — riktig fundament, stor jobb (én migrasjon som rører hele schema)
+b) **Selektiv migrasjon** — kun Timer-relevante tabeller i Fase 0 (DailySheet, sheet_*, attestering-felter), resten gradvis. Mindre risiko, men midlertidig inkonsistens i schema
+c) **Utsett til etter Timer-MVP** — Timer.dato som date-only først (`@db.Date`), klokkeslett (startAt/endAt) lagres uten tidssone. Migrer til Timestamptz først ved første tidssone-bug eller før internasjonalisering
+
+**Anbefaling:** Avgjør før Fase 0-koding starter — påvirker Timer-modul direkte. Alt b) er trolig riktig kompromiss for A.Markussen-case (norsk-only, men ren Timer-modul fra dag 1).
+
+**Konsekvens for andre punkter:**
+- A.7 `attestertSnapshot` — lagrer ikke tidssone-data (er JSON), upåvirket
+- A.14 OrganizationSetting.timezone — krever Timestamptz-felter for å fungere riktig (DST-sensitive forretningsregler)
+- C.1 date-fns-tz-installasjon — fortsatt nødvendig uansett alternativ
+
+**Krever Kenneth-beslutning.**
+
 ---
 
 ## C. Anbefalte Fase 0-utvidelser
@@ -478,7 +510,7 @@ Disse er ikke blokkere, men bør være med i Fase 0 for å unngå arkitektur-gje
 
 ### C.1 Installer date-fns-tz og tidssone-utils
 
-Verifisert: `date-fns-tz` ikke installert i dag. Krevet for F.1/F.2.
+Verifisert: `date-fns-tz` ikke installert i dag. Krevet for A.14 (Firma-konfigurerbar tidssone) og B.6 (Timestamptz-migrasjon).
 
 **Tiltak:**
 1. `pnpm add date-fns-tz --filter @sitedoc/shared`
@@ -676,15 +708,15 @@ Kjøres etter hver merge til main. Rød test = arkitektur-feil, ikke kun kode-fe
 
 **Siste runde:** Opus-runde 3 ferdig 2026-04-26.
 
-**Lukket:** 24 beslutninger (A.1-A.24 i § A).
+**Lukket:** 23 beslutninger (A.1-A.24 minus A.13 som ble reklassifisert til B.6).
 
-**Åpent:** 5 BLOKKERER-spørsmål (§ B.1-B.5).
+**Åpent:** 6 BLOKKERER-spørsmål (§ B.1-B.6).
 
 **Anbefalte utvidelser:** 11 punkter (§ C.1-C.11). Nye etter timer-runde 2: C.10 (seed-mekanisme i Fase 0), C.11 (Avdeling i Fase 0.5).
 
 **Lovverk-vurderinger:** 4 områder (§ D).
 
-**Neste handling:** Kenneth lukker B.1-B.5. Når lukket: oppdater denne filen, og start Fase 0-koding via migration-rekkefølge i § E.
+**Neste handling:** Kenneth lukker B.1-B.6. Når lukket: oppdater denne filen, og start Fase 0-koding via migration-rekkefølge i § E.
 
 **Anker for ny Code-chat:**
 - Denne filen + lenker øverst
