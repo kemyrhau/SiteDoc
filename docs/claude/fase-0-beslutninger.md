@@ -1,6 +1,6 @@
 # Fase 0-beslutninger — komplett (oppdatert 2026-04-26)
 
-**Status:** 🟡 23 beslutninger vedtatt (§A) + 6 åpne BLOKKERER (§B) etter tre runder Opus-stresstesting + Kenneth-justeringer + verifiseringsrunde 2026-04-27 (A.13 reklassifisert til B.6 etter kode-verifisering). Avventer Kenneth-svar på 6 blokkerende inkonsistenser før Fase 0-koding kan starte.
+**Status:** 🟡 23 beslutninger vedtatt (§A) + 5 åpne BLOKKERER (§B; B.2 lukket etter at § E ble rettet) + 12 anbefalte utvidelser (§C; hvorav C.8 og C.9 lukket — innarbeidet i A.3/A.6, og ny C.12 lagt til 2026-04-27) etter tre runder Opus-stresstesting + Kenneth-justeringer + verifiseringsrunde 2026-04-27 (A.13 reklassifisert til B.6 etter kode-verifisering). Avventer Kenneth-svar på 5 blokkerende inkonsistenser før Fase 0-koding kan starte.
 
 **Bruk:** Anker for ny Code-chat. Neste Code-instans skal lese denne filen + lenker under FØR koding.
 
@@ -11,7 +11,7 @@
 4. [datamodell-arkitektur.md](datamodell-arkitektur.md) — to-nivå-modell og loan-pattern
 5. [timer.md](timer.md) — timer-modul-spesifikasjon (krever refaktor jf. C.1 + organizationId-rename)
 
-> ⚠️ **Til neste Code-instans:** IKKE start Fase 0-koding før Kenneth har lukket de 6 BLOKKERER-spørsmålene i § B. Hvis spørsmålene ser besluttet ut, sjekk denne filens commit-historikk for siste oppdatering.
+> ⚠️ **Til neste Code-instans:** IKKE start Fase 0-koding før Kenneth har lukket de 5 åpne BLOKKERER-spørsmålene i § B (B.1, B.3, B.4, B.5, B.6). Hvis spørsmålene ser besluttet ut, sjekk denne filens commit-historikk for siste oppdatering.
 
 ---
 
@@ -448,13 +448,13 @@ Disse er identifisert i Opus-runde 3 (2026-04-26) og blokkerer Fase 0-koding.
 
 **Krever Kenneth-beslutning.**
 
-### B.2 Bytt rekkefølge K.5 og K.6 i migrerings-rekkefølgen
+### B.2 Bytt rekkefølge K.5 og K.6 i migrerings-rekkefølgen — **BESLUTTET 2026-04-27**
 
 **Problem:** K.5 (`ProjectModule.organizationId`) bakfylles fra `Project.primary_organization_id`. K.6 (`Project.primaryOrganizationId`) må eksistere FØRST.
 
 **Forslag:** Endre planen til K.6 → K.5.
 
-**Krever Kenneth-beslutning** (mekanisk, men dokument må rettes).
+**Status:** ✅ **LUKKET** — § E reflekterer beslutningen. Project.primaryOrganizationId (steg 4) kommer før ProjectModule-utvidelse (steg 5) i nåværende rekkefølge. Beholdt her for historikk.
 
 ### B.3 Godkjenning.endretEtterSending — felt eller annen mekanisme?
 
@@ -540,7 +540,7 @@ D.2 spesifiserer feltet, men implementasjon mangler. Verifisert: ingen eksistere
 
 ### C.4 Definer Zod-schema for attestertSnapshot
 
-B.1 (planens nummer) refererer Json-felt uten validering. Risiko for inkonsistens.
+A.7 (Hybrid logg + snapshot ved attestering) refererer Json-felt uten validering. Risiko for inkonsistens.
 
 **Tiltak:** Definér Zod-schema med `snapshotVersjon`-felt i `packages/shared/src/audit-schemas/timer.ts`. Validering i app-lag før lagring.
 
@@ -554,6 +554,8 @@ grep -rn "projectId_moduleSlug" apps/ packages/ | wc -l  # må være 0
 ```
 Steg 2 deployes ikke før denne returnerer 0.
 
+**⚠️ Forutsetning:** Per 2026-04-27 finnes ingen `.github/workflows/` — ingen CI-pipeline overhodet. CI-etablering er separat prerequisite — se C.12.
+
 ### C.6 Legg til lukketAvUserId/lukketVed/lukketGrunn på ECO
 
 A.1 mangler audit på lukking. Activity dekker det generelt, men felter på selve ECO gir raskere oppslag.
@@ -564,13 +566,13 @@ A.1 mangler `slettetVed`. Hvis ECO opprettes ved feil (typo i ProAdm-ID), `statu
 
 **Tiltak:** Legg til `slettetVed DateTime?` + filter alle queries.
 
-### C.8 actorNavnSnapshot på Activity
+### C.8 actorNavnSnapshot på Activity — ✅ **LUKKET — innarbeidet i A.3**
 
-A.3 har inkonsistens med E.2 om GDPR-håndtering. Løsning: behold `actorUserId` + legg til `actorNavnSnapshot String?` som settes ved opprettelse. Allerede inkludert i revidert A.3-modell over.
+A.3 har inkonsistens med E.2 om GDPR-håndtering. Løsning: behold `actorUserId` + legg til `actorNavnSnapshot String?` som settes ved opprettelse. Allerede inkludert i revidert A.3-modell over (verifisert linje 112: `actorNavnSnapshot String?`). Beholdt her for historikk.
 
-### C.9 EquipmentAnsvarlig.periodeSlutt
+### C.9 EquipmentAnsvarlig.periodeSlutt — ✅ **LUKKET — innarbeidet i A.6**
 
-A.6 mangler periode-felt. Strider mot loan-pattern. Allerede inkludert i revidert A.6-modell over.
+A.6 mangler periode-felt. Strider mot loan-pattern. Allerede inkludert i revidert A.6-modell over (verifisert linje 217: `periodeSlutt DateTime?`). Beholdt her for historikk.
 
 ### C.10 Seed-mekanisme via event-hook i Fase 0
 
@@ -621,6 +623,23 @@ model Avdeling {
 
 **Migrerings-rekkefølge:** Settes i Fase 0.5-plan, ikke i Fase 0-rekkefølgen (§ E). Fase 0.5 bygges etter Fase 0-koding er ferdig.
 
+### C.12 Etabler CI-pipeline før Fase 0-deploy
+
+Verifisert 2026-04-27: ingen `.github/workflows/` finnes. Repoet har ingen automatisert CI-pipeline.
+
+**Hvorfor relevant for Fase 0:** Flere C-punkter (C.5 i tillegg til generell trygghet ved migrasjoner) forutsetter at CI kan kjøre kontroller. Uten CI er to-stegs migration-policy (A.18) håndhevd kun av menneske-disiplin — risiko for at steg 2 deployes før all kode er oppdatert.
+
+**Minimum CI-stack for Fase 0:**
+1. Type-check (`pnpm typecheck`)
+2. Lint (`pnpm lint`)
+3. Test-suite (`pnpm test`)
+4. Prisma-validering (`pnpm --filter @sitedoc/db exec prisma validate`)
+5. C.5 grep-sjekk (kan kjøres som test eller egen workflow-step)
+
+**Tiltak:** Opprett `.github/workflows/ci.yml` med stegene over. Trigger på pull-request mot `main` og `develop`. Eventuelt utvid til auto-deploy mot test-miljø.
+
+**Når:** Bør være ferdig før noen Fase 0-migrasjoner kjøres. Kan etableres parallelt med planlegging av andre Fase 0-arbeid.
+
 ---
 
 ## D. Lovverk-svakheter som krever vurdering
@@ -648,35 +667,40 @@ Planens E.2 sier «5 år for lønnsdata». Lovkrav er mer presist:
 
 ### D.4 §15-liste — utenlandske arbeidere
 
-Krever nasjonalitet + arbeidstillatelse på User. Allerede inkludert i revidert E (data-minimalisering).
+Krever nasjonalitet + arbeidstillatelse på User. Allerede inkludert i A.11 (data-minimalisering).
 
 ---
 
-## E. Migrerings-rekkefølge for Fase 0 (15 steg, korrigert)
+## E. Migrerings-rekkefølge for Fase 0 (13 steg)
 
 | Steg | Migration | Avhengighet |
 |------|-----------|-------------|
 | 1 | Activity-tabell | Ingen |
-| 2 | OrganizationModule | Organization (finnes) |
-| 3 | OrganizationSetting | Organization |
-| 4 | Rename OrganizationProject → ProjectOrganization + rolle | OrganizationProject (finnes) |
-| **5** | **Project.primaryOrganizationId nullable** (var K.6) | Project (finnes) |
-| **6** | **ProjectModule.organizationId nullable** (var K.5) | ProjectModule + Project.primaryOrganizationId |
-| 7 | OrganizationPartner | Organization |
-| 8 | OrganizationTemplate | Organization |
-| 9 | Avdeling (eller OrganizationSetting-flagg) | Organization |
-| 10 | BibliotekMal-utvidelse (4 felt) | BibliotekMal (finnes) |
-| 11 | Psi.organizationId + projectId nullable + kontekstType | Psi (finnes) |
-| 12 | ProjectMember.periodeSlutt + UE-rolle dokumentasjon | ProjectMember (finnes) |
-| 13 | ExternalCostObject | Organization, Project |
-| 14 | Godkjenning + DocumentTransfer.kostnadSnapshot + DocumentTransfer.godkjenningId | DocumentTransfer (finnes), ECO |
-| 15 | User-utvidelse (canLogin, HMS-kort, ansattnummer, nasjonalitet, arbeidstillatelse) | User (finnes) |
+| 2 | OrganizationSetting | Organization (finnes) |
+| 3 | Rename OrganizationProject → ProjectOrganization + rolle | OrganizationProject (finnes) |
+| **4** | **Project.primaryOrganizationId nullable** | Project (finnes) |
+| **5** | **ProjectModule-utvidelse (organizationId nullable + status String)** — se A.4/A.17 for SQL-detaljer (én atomisk migrasjon, ikke to separate steg) | ProjectModule + Project.primaryOrganizationId |
+| 6 | OrganizationPartner | Organization |
+| 7 | OrganizationTemplate | Organization |
+| 8 | BibliotekMal-utvidelse (4 felt: kategori/domene/kobletTilModul/verifisert) | BibliotekMal (finnes) |
+| 9 | Psi.organizationId + projectId nullable + kontekstType — **inkluder oppdatering av `@@unique([projectId, byggeplassId])`** når projectId blir nullable. Vurder ny unique: `@@unique([organizationId, projectId, byggeplassId])` eller separat håndtering for null-projectId-tilfeller. Sjekk byggeplassId-FK-konsistens også | Psi (finnes) |
+| 10 | ProjectMember.periodeSlutt + UE-rolle dokumentasjon | ProjectMember (finnes) |
+| 11 | ExternalCostObject | Organization, Project |
+| 12 | Godkjenning + DocumentTransfer.kostnadSnapshot + DocumentTransfer.godkjenningId | DocumentTransfer (finnes), ECO |
+| 13 | User-utvidelse (canLogin, HMS-kort, ansattnummer, nasjonalitet, arbeidstillatelse) | User (finnes) |
 
-**Etter alle 15 er kjørt (neste release):**
+**Etter alle 13 er kjørt (neste release):**
 - ProjectModule.organizationId — vurdér NOT NULL avhengig av B.4-beslutning
+- ProjectModule.status NOT NULL + drop active-kolonne (per A.4 steg 2)
 - Equipment.ansvarligUserId migreres til EquipmentAnsvarlig + droppes
 
-**Endring fra opprinnelig plan:** Steg 5 og 6 er byttet rekkefølge (K.6 før K.5). Identifisert i Opus-runde 3 — primaryOrganizationId må eksistere før ProjectModule kan bakfylles.
+**Note om B.6 (Timestamptz-migrasjon):** Ikke i denne rekkefølgen ennå. Avhengig av B.6-beslutning må den plasseres som steg 0 (pre-Fase 0, full migrasjon — alt a) eller integreres i Timer-relevante steg (selektiv migrasjon — alt b) eller utsettes til etter Timer-MVP (alt c). Avgjøres når B.6 lukkes.
+
+**Note om utelatte steg:**
+- **Avdeling utsatt til Fase 0.5** per C.11 — ikke i Fase 0-rekkefølgen. Bygges sammen med Byggeplass-strategi
+- **Tidligere E.2 «OrganizationModule»** fjernet — A.4 vedtok at ProjectModule utvides, ikke ny tabell. Utvidelsen skjer i nåværende steg 5
+
+**Endring fra opprinnelig plan:** Steg 4 og 5 er byttet rekkefølge (Project.primaryOrganizationId før ProjectModule-utvidelse). Identifisert i Opus-runde 3 — primaryOrganizationId må eksistere før ProjectModule kan bakfylles. Dette er den B.2 som nå er lukket.
 
 ---
 
@@ -710,13 +734,15 @@ Kjøres etter hver merge til main. Rød test = arkitektur-feil, ikke kun kode-fe
 
 **Lukket:** 23 beslutninger (A.1-A.24 minus A.13 som ble reklassifisert til B.6).
 
-**Åpent:** 6 BLOKKERER-spørsmål (§ B.1-B.6).
+**Åpent:** 5 BLOKKERER-spørsmål (§ B.1, B.3, B.4, B.5, B.6 — B.2 lukket etter at § E ble rettet).
 
-**Anbefalte utvidelser:** 11 punkter (§ C.1-C.11). Nye etter timer-runde 2: C.10 (seed-mekanisme i Fase 0), C.11 (Avdeling i Fase 0.5).
+**Anbefalte utvidelser:** 12 punkter (§ C.1-C.12), hvorav 2 lukket (C.8, C.9 — innarbeidet i A.3/A.6). Nye etter Runde 2 (2026-04-27): C.12 (CI-pipeline før Fase 0-deploy).
 
 **Lovverk-vurderinger:** 4 områder (§ D).
 
-**Neste handling:** Kenneth lukker B.1-B.6. Når lukket: oppdater denne filen, og start Fase 0-koding via migration-rekkefølge i § E.
+**Migrerings-rekkefølge:** 13 steg i § E (var 15 — OrganizationModule fjernet per A.4, Avdeling utsatt til Fase 0.5 per C.11).
+
+**Neste handling:** Kenneth lukker B.1, B.3, B.4, B.5, B.6. Når lukket: oppdater denne filen, og start Fase 0-koding via migration-rekkefølge i § E.
 
 **Anker for ny Code-chat:**
 - Denne filen + lenker øverst
