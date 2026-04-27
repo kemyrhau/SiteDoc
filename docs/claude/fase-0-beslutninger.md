@@ -1,6 +1,6 @@
 # Fase 0-beslutninger — komplett (oppdatert 2026-04-26)
 
-**Status:** 🟡 23 beslutninger vedtatt (§A) + **1 åpen BLOKKERE (§B.7 — org-bytte-mekanikk)** + 6 lukkede BLOKKERE (B.1, B.2, B.3, B.4, B.5, B.6 — alle lukket 2026-04-27). § C: 12 anbefalte utvidelser, hvorav 3 lukket (C.8, C.9 innarbeidet i A.3/A.6; C.1 lukket implisitt av B.6). B.7 åpnet 2026-04-27 etter kritisk gjennomgang — manglende avklaring rundt org-bytte-mekanikk identifisert som forutsetning for Timer-modul-koding. Avventer Kenneth-svar på B.7 før Fase 0-koding kan starte.
+**Status:** 🟢 23 beslutninger vedtatt (§A) + **0 åpne BLOKKERE (§B)** — alle 7 lukket 2026-04-27 (B.1 default true, B.2 § E-retting, B.3 eksplisitt felt, B.4 interim utsatt, B.5 organizationId-mismatch, B.6 selektiv Timestamptz, B.7 Modell A — én User per person×firma med reaktivering). § C: 12 anbefalte utvidelser, hvorav 3 lukket (C.8, C.9 innarbeidet i A.3/A.6; C.1 lukket implisitt av B.6). **Klart for Timer/Maskin-revurdering**, deretter Fase 0-koding via § E.
 
 **Bruk:** Anker for ny Code-chat. Neste Code-instans skal lese denne filen + lenker under FØR koding.
 
@@ -11,7 +11,7 @@
 4. [datamodell-arkitektur.md](datamodell-arkitektur.md) — to-nivå-modell og loan-pattern
 5. [timer.md](timer.md) — timer-modul-spesifikasjon (krever refaktor jf. C.1 + organizationId-rename)
 
-> ⚠️ **Til neste Code-instans:** IKKE start Fase 0-koding før Kenneth har lukket B.7 (org-bytte-mekanikk — åpnet 2026-04-27 etter kritisk gjennomgang av Timer-eksport-implikasjoner). B.1–B.6 er lukket. Hvis B.7 ser besluttet ut, sjekk denne filens commit-historikk for siste oppdatering.
+> ✅ **Til neste Code-instans:** Alle BLOKKERE er lukket (B.1–B.7, 2026-04-27). Klart for Fase 0-koding etter at Timer/Maskin-revurderingen er ferdig. § B beholdes for historikk — alle 7 punkter har nå "LUKKET"-status.
 
 ---
 
@@ -327,7 +327,7 @@ Etter B.5-lukking 2026-04-27: **`"underentreprenor"` er IKKE en gyldig verdi** f
 
 ### A.10 User.canLogin
 
-Ny boolean på User for «ansatt uten innlogging».
+Ny boolean på User med **to bruksområder** (utvidet 2026-04-27 etter B.7):
 
 ```prisma
 model User {
@@ -336,9 +336,18 @@ model User {
 }
 ```
 
-`canLogin = false` betyr brukeren har lønn/timer registrert av andre, men logger ikke inn selv. Ikke en ny rolle — bare en attributt.
+**Bruksområde 1 (original A.10): «Data-mottaker uten innloggings-tilgang»**
+- Eldre arbeidere uten smarttelefon, registreres av andre, logger ikke inn selv
+- `canLogin = false` settes ved opprettelse, beholdes permanent
 
-**Implementering:** Sjekk i NextAuth `signIn`-callback. Hvis `false`, returner `false` og blokker innlogging. Verifisert: ingen eksisterende `canLogin`-sjekk i Auth-laget.
+**Bruksområde 2 (B.7-utvidelse): «Arkivert User-rad ved org-bytte»**
+- Joakim slutter hos A.Markussen → A.Markussen-User-rad får `canLogin = false`
+- Joakim returnerer til A.Markussen senere → samme rad reaktiveres med `canLogin = true`
+- Bevarer historikk uten å slette rader
+
+Begge representerer samme tekniske tilstand (`canLogin = false`), men oppstår fra ulike forretningsbehov.
+
+**Implementering:** Sjekk i NextAuth `signIn`-callback. Hvis `false`, returner `false` og blokker innlogging. Verifisert 2026-04-27: ingen eksisterende `canLogin`-sjekk i Auth-laget.
 
 **Tilgangskontroll:** Kun org-admin (`User.role = "company_admin"`) eller sitedoc-admin kan opprette `canLogin = false`-bruker. Bør stå i tRPC-validering.
 
@@ -368,7 +377,11 @@ Ingen andre PII-felter uten eksplisitt forretningsbehov.
 
 ### A.12 Anonymizing-policy ved sletting
 
-`anonymizeUser(userId)`-funksjon ryddes konsistent over alle tabeller med PII-snapshot:
+`anonymizeUser(userId)`-funksjon ryddes konsistent over alle tabeller med PII-snapshot.
+
+**Per-User-rad-isolasjon (klargjort 2026-04-27 etter B.7):** `anonymizeUser(userId)` virker per User-rad — én rad om gangen. For å anonymisere «alle Joakim på tvers av firmaer» må funksjonen kjøres separat per User-rad. Identifikator på tvers: e-post (siden vi har composite `@@unique([email, organizationId])`, finner vi alle Joakim-rader via `WHERE email = $email`).
+
+**Per-firma-isolasjon — drivende forretningsregel:** A.Markussen kan slette sin User-rad uten å påvirke Bravidas. Forhindrer at GDPR-sletting fra firma 2 fjerner firma 1s lov-pålagte lønnsdata-historikk (skattelov § 5-12, bokføringsloven § 13).
 
 | Datatype | Strategi ved sletting |
 |----------|----------------------|
@@ -592,6 +605,8 @@ Tilgangskontroll:
 - `Project.primaryOrganizationId` legges til i § E steg 4 (nullable per B.4)
 - `ProjectMember.role` beholdes som er, kun forslagsverdiene klargjøres (se A.9)
 
+**Snapshot-pattern (avklart via B.7):** `User.id` ER snapshot — ingen `Timer.organizationIdAtRegistrering`-felt kreves. Per B.7 (Modell A) er `User.organizationId` stabil per User-rad, så Timer-rader peker via `userId` til riktig org-rad. Dette skiller seg fra A.7 (attestertSnapshot) som lagrer pris-data (mutable verdier) — User-org er nå immutable per rad.
+
 **Begrunnelse:** Én sannhet (kan ikke drifte). Skala-vennlig (50 Bravida-arbeidere får UE-status automatisk uten manuell rolle-setting). Naturlig mapping til faktisk virkelighet — UE er en jobb-relasjon, ikke en konfigurasjon.
 
 ### B.6 Timestamptz-migrasjon før Timer — ✅ **LUKKET 2026-04-27**
@@ -640,26 +655,80 @@ Resten av schema beholder `timestamp(3)` inntil dedikert behov.
 - A.14 `OrganizationSetting.timezone` — bruker selektivt-migrerte felter for forretningsregler — fungerer korrekt
 - C.1 `date-fns-tz`-installasjon — lukkes implisitt av denne beslutningen
 
-### B.7 Org-bytte-mekanikk — **NY ÅPEN BLOKKERE 2026-04-27**
+### B.7 Org-bytte-mekanikk — ✅ **LUKKET 2026-04-27**
 
 **Problem:** B.5 forutsetter «én User per (person × firma)» og at ny User-rad opprettes når en person bytter firma. Mekanikken er ikke spesifisert.
 
-**Spørsmål som må besvares:**
-- Hvilket UI/API-endepunkt oppretter ny User-rad ved org-bytte?
-- Hva skjer med eksisterende ProjectMember når User flyttes til annen org?
-- Hvilken policy gjelder for gamle Timer-rader (lønn-eksport per organisasjon)?
-- Trenger Timer-rader `organizationIdSnapshot` (per A.7-mønster) for å fryse hvem arbeideren jobbet for da timene ble registrert?
+**Status:** ✅ **BESLUTTET — Modell A (Én User per person × firma med reaktivering ved retur).**
 
-**Avgjørende for:**
-- **Timer-eksport** (lønn-filtrering per firma): hvis Joakim bytter fra A.Markussen til Bravida midt i mai, hvilke timer i mai går til hvilken lønn-eksport?
-- **UE-utledning** (B.5): kan gi feil etter org-bytte uten snapshot — `erUnderentreprenor()` returnerer status basert på *nåværende* org, ikke org ved registrerings-tidspunkt
-- **GDPR**: anonymisering må håndtere multi-org-User-rader konsistent
+**Kjernekonsept:**
+- Hver kombinasjon av (person × firma) er én User-rad
+- Person som bytter firma får ny User-rad
+- Person som returnerer til tidligere firma reaktiverer gammel User-rad (bevarer historikk)
+- Per-firma-isolasjon for GDPR, retention og databehandlingsansvar
 
-**Sannsynlig retning:** Snapshot-pattern på Timer-rader (`Timer.organizationIdAtRegistrering`). Dette er konsistent med A.7 (snapshot ved attestering) og løser eksport-filtrering deterministisk.
+**Drivende begrunnelse — GDPR/juridisk kollisjon:**
+- Hvis User er én person på tvers av firmaer, kan firma 2 utløse GDPR-sletting som fjerner firma 1s data
+- Firma 1 har juridisk plikt til å beholde lønnsdata (skattelov § 5-12, 5 år; bokføringsloven § 13, 10 år)
+- En slik kollisjon mellom GDPR-rettigheter og lov-pålagte retention-perioder må ikke kunne oppstå
+- Modell A løser dette: hvert firma eier sin User-rad, GDPR-sletting og retention håndteres uavhengig
 
-**Lukkes før Timer-modul-koding starter.** Uten avklaring kan vi ikke garantere riktig lønn-eksport eller UE-filtrering for arbeidere som bytter firma.
+**Schema-endringer:**
 
-**Krever Kenneth-beslutning.**
+1. **`User.email`** endres fra `@unique` til composite:
+   ```prisma
+   @@unique([email, organizationId])
+   ```
+   - Joakim kan ha én User per firma
+   - Joakim kan IKKE ha to User-rader i samme firma
+   - Migrasjon: krever drop av eksisterende `email_key`-index og ny composite-index
+
+2. **`User.canLogin`** — A.10 utvidet bruksområde (to scenarier):
+   - Original A.10: `canLogin = false` for «data-mottakere uten innloggings-tilgang» (eldre arbeidere)
+   - **B.7-utvidelse:** `canLogin = false` brukes også for **arkiverte User-rader** (Joakim sluttet hos A.Markussen)
+   - Reaktivering ved retur: `canLogin = true` igjen
+
+3. **`ProjectMember.userId`** — cascade-policy endres:
+   - **Før:** `onDelete: Cascade`
+   - **Etter:** `onDelete: SetNull`
+   - Begrunnelse: Bevarer ProjectMember-historikk når User-rad slettes (sjelden — vi arkiverer normalt med `canLogin = false`, ikke sletter)
+
+**Reaktiverings-policy:**
+- Ved onboarding/invitasjon: lookup på `(email, organizationId)` FØR oppretting av ny User-rad
+- Hvis match: reaktiver eksisterende rad (`canLogin = true`)
+- Hvis ingen match: opprett ny User-rad
+- Aldri opprett ny User-rad hvis match finnes
+- UI: «Vi fant tidligere konto for denne e-posten i dette firmaet — reaktiverer den.»
+
+**NextAuth-implikasjoner:**
+
+Dagens NextAuth-konfigurasjon forutsetter `email @unique`. Med composite unique trengs custom adapter eller modifisert `signIn`-logikk:
+
+1. Custom NextAuth-adapter eller `signIn`-callback må:
+   - Finne aktiv User-rad (`canLogin = true`) for gitt e-post
+   - Hvis flere aktive User-rader (deltidsstilling i to firmaer parallelt): org-velger ved login eller annen mekanikk
+   - Hvis bare én aktiv: log inn som den
+
+2. **Edge case — deltidsstilling i to firmaer:** Joakim har User-rad #1 (A.Markussen, `canLogin = true`) og User-rad #2 (Bravida, `canLogin = true`) parallelt. Krever org-velger ved login. Behandles som lavt prioritet edge case for MVP — antar at de fleste brukere har kun én aktiv User-rad om gangen.
+
+3. JWT/session må inkludere `userId` (ikke kun e-post) for å peke til riktig User-rad.
+
+**Implementeringsstatus:** Auth-implementeringsdetaljer dokumenteres som teknisk forutsetning for Fase 0-koding. Implementeres når User-modellen utvides (§ E steg 13).
+
+**Eksisterende DB-tilstand (verifisert 2026-04-27):**
+
+| DB | Multi-org-tilfeller (samme e-post, flere User-rader) | Standalone-brukere | Standalone-prosjekter |
+|---|---:|---:|---:|
+| sitedoc_test | 0 | 0 av 23 | 1 |
+| sitedoc (prod) | 0 | **13 av 13** (alle) | 6 |
+
+Ingen multi-org-tilfeller eksisterer — Modell A kan innføres uten data-konflikt. Prod har 13/13 standalone-brukere — disse må håndteres ved fremtidig firmamal-design (post-Fase 1 per B.4).
+
+**Konsekvenser for andre beslutninger:**
+
+- **B.5 (UE-utledning):** Forbedres. `User.organizationId` er nå stabil per User-rad (ingen org-bytte på samme rad). Timer-rader peker til riktig User-rad via `userId`. `erUnderentreprenor()` fungerer naturlig korrekt. **Ingen `Timer.organizationIdAtRegistrering`-snapshot kreves — User.id ER snapshot.**
+- **A.10 (User.canLogin):** Klargjøres med to bruksområder (se A.10).
+- **A.12 (anonymizeUser):** Klargjøres — virker per User-rad, ikke per person på tvers (se A.12).
 
 ---
 
@@ -847,10 +916,10 @@ Krever nasjonalitet + arbeidstillatelse på User. Allerede inkludert i A.11 (dat
 | 7 | OrganizationTemplate | Organization |
 | 8 | BibliotekMal-utvidelse (4 felt: kategori/domene/kobletTilModul/verifisert) | BibliotekMal (finnes) |
 | 9 | Psi.organizationId + projectId nullable + kontekstType — **inkluder oppdatering av `@@unique([projectId, byggeplassId])`** når projectId blir nullable. Vurder ny unique: `@@unique([organizationId, projectId, byggeplassId])` eller separat håndtering for null-projectId-tilfeller. Sjekk byggeplassId-FK-konsistens også | Psi (finnes) |
-| 10 | ProjectMember.periodeSlutt + UE-rolle dokumentasjon | ProjectMember (finnes) |
+| 10 | ProjectMember.periodeSlutt + UE-rolle dokumentasjon + **userId cascade-policy endres fra Cascade til SetNull (per B.7)** | ProjectMember (finnes) |
 | 11 | ExternalCostObject | Organization, Project |
 | 12 | Godkjenning (m/`endretEtterSending`, `sistEndretVed`, alle tidsstempler som `@db.Timestamptz`) + DocumentTransfer.kostnadSnapshot + DocumentTransfer.godkjenningId + Timestamptz på snapshot-tidsstempler | DocumentTransfer (finnes), ECO |
-| 13 | User-utvidelse (canLogin, HMS-kort, ansattnummer, nasjonalitet, arbeidstillatelse) | User (finnes) |
+| 13 | User-utvidelse (canLogin, HMS-kort, ansattnummer, nasjonalitet, arbeidstillatelse) + **email-unique drop og composite `@@unique([email, organizationId])` (per B.7)** + custom NextAuth-adapter eller signIn-tilpasning | User (finnes) |
 
 **Etter alle 13 er kjørt (neste release):**
 - ProjectModule.status NOT NULL + drop active-kolonne (per A.4 steg 2)
@@ -901,9 +970,9 @@ Kjøres etter hver merge til main. Rød test = arkitektur-feil, ikke kun kode-fe
 
 **Lukket:** 23 beslutninger (A.1-A.24 minus A.13 som ble reklassifisert til B.6).
 
-**Åpent:** 1 BLOKKERE — B.7 (org-bytte-mekanikk) åpnet 2026-04-27 etter kritisk gjennomgang. Manglende avklaring rundt hvordan ny User-rad opprettes ved org-bytte og om Timer-rader trenger `organizationIdSnapshot`-felt. Lukkes før Timer-modul-koding starter.
+**Åpent:** 0 BLOKKERE — alle 7 lukket 2026-04-27.
 
-**Lukkede BLOKKERE 2026-04-27:** B.1 default true, B.2 § E-retting, B.3 eksplisitt felt, B.4 interim utsatt, B.5 organizationId-mismatch, B.6 selektiv Timestamptz (utvidet 2026-04-27 med `psi_signaturer`/`checklists`/`tasks`/`project_invitations`/`equipment_assignments`).
+**Lukkede BLOKKERE 2026-04-27:** B.1 default true, B.2 § E-retting, B.3 eksplisitt felt, B.4 interim utsatt, B.5 organizationId-mismatch, B.6 selektiv Timestamptz (utvidet 2026-04-27 med `psi_signaturer`/`checklists`/`tasks`/`project_invitations`/`equipment_assignments`), B.7 Modell A (én User per person×firma med reaktivering, composite email-unique, ProjectMember cascade SetNull).
 
 **Anbefalte utvidelser:** 12 punkter (§ C.1-C.12), hvorav 3 lukket: C.1 (implisitt av B.6), C.8 (innarbeidet i A.3), C.9 (innarbeidet i A.6). Aktive: 9.
 
@@ -911,7 +980,7 @@ Kjøres etter hver merge til main. Rød test = arkitektur-feil, ikke kun kode-fe
 
 **Migrerings-rekkefølge:** 13 steg i § E (var 15 — OrganizationModule fjernet per A.4, Avdeling utsatt til Fase 0.5 per C.11).
 
-**Neste handling:** Kenneth lukker B.7 (org-bytte-mekanikk). Når lukket: Timer/Maskin-revurdering med rent fundament. Etter revurdering: start Fase 0-koding via migration-rekkefølge i § E.
+**Neste handling:** Timer/Maskin-revurdering med rent fundament. Etter revurdering: start Fase 0-koding via migration-rekkefølge i § E.
 
 **Anker for ny Code-chat:**
 - Denne filen + lenker øverst
