@@ -32,7 +32,7 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 | [docs/claude/audit-data-2026-04-25.md](docs/claude/audit-data-2026-04-25.md) | Read-only audit av dev-DB: schema-konsistens, orphans, multi-firma, mal-bruk, FolderAccess-konflikter |
 | [docs/claude/migrering-reporttemplate.md](docs/claude/migrering-reporttemplate.md) | Plan: ReportTemplate → OrganizationTemplate (firma-mal-bibliotek). Ikke implementert |
 | [docs/claude/arkitektur-syntese.md](docs/claude/arkitektur-syntese.md) | **ANKER:** Helhetlig produktarkitektur — prosjekthotell + tilleggsmoduler, to-nivå-modell, loan-pattern, mal-arkitektur, Fase 0–7 |
-| [docs/claude/fase-0-beslutninger.md](docs/claude/fase-0-beslutninger.md) | **AKTIV:** 7 mikrobeslutninger låst, klart for Fase 0-koding i ny chat |
+| [docs/claude/fase-0-beslutninger.md](docs/claude/fase-0-beslutninger.md) | **🟢 KOMPLETT 2026-04-27:** 23 vedtatte beslutninger (§A) + 7 lukkede BLOKKERE (§B.1–B.7) + 12 anbefalte utvidelser (§C, hvorav 3 lukket) + 13-stegs migrerings-rekkefølge (§E). Klart for Timer/Maskin-revurdering, deretter Fase 0-koding |
 | [docs/claude/arkitektur-qa-runde-2-2026-04-25.md](docs/claude/arkitektur-qa-runde-2-2026-04-25.md) | Opus QA-runde 2: verifisering mot kodebase, BibliotekMal=Malverk-funn, 7 svakheter, go/no-go for Fase 0 |
 | [docs/claude/byggeplass-strategi.md](docs/claude/byggeplass-strategi.md) | **PLANLAGT FASE:** byggeplass-relasjon på tvers av moduler. Modul-tabell (utkast, krever bekreftelse), tre åpne arkitektur-prinsipper, avhengigheter |
 | [docs/claude/db-naming-audit-2026-04-25.md](docs/claude/db-naming-audit-2026-04-25.md) | Audit lokal/test/prod: faggruppe-rename gjennomført på test og prod, lokal er bak. Metode-merknader om Prisma-skjemaer og CASE-rekkefølge |
@@ -46,26 +46,30 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 
 ## Pågående arbeid
 
-**Status 2026-04-26:** Timer-modul-planlegging fullført. Tre runder Opus-stresstesting + Kenneth-justeringer har produsert 24 vedtatte Fase 0-beslutninger. **5 BLOKKERER-spørsmål gjenstår** før Fase 0-koding kan starte (se [fase-0-beslutninger.md § B](docs/claude/fase-0-beslutninger.md)).
+**Status 2026-04-27:** Fase 0-fundament er **komplett verifisert**. Doc-verifiseringssesjon mot kodebasen rettet drift i 5 fundament-filer: arkitektur.md, terminologi.md, dokumentflyt.md, fase-0-beslutninger.md, adaptiv-sok-plan.md. Alle **7 BLOKKERE i fase-0-beslutninger lukket** (B.1–B.7) — siste var B.7 (org-bytte-mekanikk: Modell A — én User per person×firma med reaktivering).
 
-⚠️ **Code skal IKKE starte Fase 0-koding ennå.** Kenneth tar en ny runde på de 5 åpne spørsmålene. Vent på grønt lys.
+⚠️ **Neste steg: Timer/Maskin-revurdering med rent fundament**, deretter Fase 0-koding. Code skal IKKE starte Fase 0-koding før Timer/Maskin-revurdering er ferdig.
 
-**Anker for ny Code-chat (Fase 0-koding når Kenneth har lukket B.1-B.5):**
-- [fase-0-beslutninger.md](docs/claude/fase-0-beslutninger.md) — **PRIMÆR ANKER** (24 beslutninger + 5 åpne + 9 anbefalte utvidelser + lovverk-vurderinger + migrerings-rekkefølge)
+**Anker for ny Code-chat (Timer/Maskin-revurdering først, deretter Fase 0-koding):**
+- [fase-0-beslutninger.md](docs/claude/fase-0-beslutninger.md) — **PRIMÆR ANKER** (23 vedtatte + 0 åpne BLOKKERE + 12 anbefalte utvidelser + 13-stegs migrerings-rekkefølge + B.7-utvidelse for multi-identifikator-auth)
+- [arkitektur.md](docs/claude/arkitektur.md), [terminologi.md](docs/claude/terminologi.md), [dokumentflyt.md](docs/claude/dokumentflyt.md) — verifiserte fundament-filer (drift mot kode rettet 2026-04-27)
 - [smartdok-undersokelse.md](docs/claude/smartdok-undersokelse.md) — empirisk grunnlag fra A.Markussen (UI-research 2026-04-26)
 - [arkitektur-syntese.md](docs/claude/arkitektur-syntese.md) — helhetlig produktarkitektur (loan-pattern, modul-arkitektur)
-- [timer.md](docs/claude/timer.md) — krever refaktor (enterpriseId → organizationId, Underprosjekt-modell erstattet av ExternalCostObject)
+- [timer.md](docs/claude/timer.md) — krever refaktor (enterpriseId → organizationId, Underprosjekt-modell erstattet av ExternalCostObject). **Verifiseres i Timer-revurdering**
+- [maskin.md](docs/claude/maskin.md) — krever justering for fase-0-beslutninger (særlig EquipmentAnsvarlig). **Verifiseres i Maskin-revurdering**
 
-**Sentrale arkitektur-funn fra runde 3:**
-- `ProjectModule` eksisterer allerede (linje 752 i schema, brukt 30+ steder) — utvides med `organizationId`, ikke ny tabell
+**Sentrale arkitektur-funn (oppdatert 2026-04-27 etter komplett verifisering):**
+- `ProjectModule` eksisterer (linje 752 i schema, brukt 30+ steder) — utvides med `organizationId` + `status` (3-nivå per A.17), ikke ny tabell
 - `Activity` (sentral audit-tabell) finnes ikke — bygges i Fase 0 som første steg
-- `OrganizationProject` finnes som blank m:n — renames til `ProjectOrganization` med `rolle`-felt
-- `date-fns-tz` er ikke installert — krevet for tidssone-håndtering
-- Cache-invalidation-mønster er ad-hoc (30 kall, ingen sentral policy)
-- Underprosjekt erstattes av `ExternalCostObject` (ren ProAdm-referanse, ingen GPS/HMS-ansvarlig)
-- **Lønnsart-katalog er datadrevet, tre-nivå** (16 norsk lovpålagte i Nivå 1 + 25 bransje-relevante i Nivå 2 for anlegg/bygg + kundens egendefinerte i Nivå 3) — ikke 3 hardkodede koder. Detaljer: [timer.md](docs/claude/timer.md)
-- **Avdeling-tabell** bygges i Fase 0.5 (sammen med Byggeplass), ikke Fase 3 — kobles til User/EquipmentAnsvarlig/DailySheet, IKKE til selve Equipment (som har GPS-lokasjon for fysisk sporing)
-- **Seed-mekanisme** (event-hook `onOrganizationCreated`) etableres tomt i Fase 0; lønnsart-Nivå 1 + standardkategorier registreres i Fase 3
+- `OrganizationProject` har eksisterende felter (`id`/`organizationId`/`projectId`/`createdAt` + relasjoner) — renames til `ProjectOrganization` og utvides med `rolle`-felt (NOT blank m:n)
+- `date-fns-tz` er ikke installert — krevet for tidssone-håndtering (lukkes implisitt av B.6)
+- Cache-invalidation-mønster er ad-hoc (30 kall, ingen sentral policy) — definres i Fase 0, fylles i Fase 3
+- Underprosjekt = `ExternalCostObject` (UI-term «Underprosjekt», Prisma-modell `ExternalCostObject` per A.1)
+- **Lønnsart-katalog er datadrevet, tre-nivå** (16 lovpålagte + 25 bransje-relevante + kundens egne) — detaljer i [timer.md](docs/claude/timer.md)
+- **Avdeling-tabell** bygges i Fase 0.5 (sammen med Byggeplass), ikke Fase 0 (per C.11)
+- **Seed-mekanisme** (event-hook `onOrganizationCreated`) etableres tomt i Fase 0; innhold registreres i Fase 3
+- **B.7 — Org-bytte-mekanikk:** Modell A (én User per person×firma) vedtatt. `User` får composite `@@unique([email, organizationId])` + `@@unique([phone, organizationId])` (forberedende for fremtidig multi-identifikator-auth). `ProjectMember.userId` cascade endres `Cascade → SetNull`
+- **B.6 — Timestamptz-håndtering:** Selektiv migrasjon (medium scope) — 11 felter får `@db.Timestamptz` (timer/audit/godkjenning/PsiSignatur/frist-felter/Invitation), resten av schema beholder `timestamp(3)`
 
 **Maskin-modul (`feature/maskin-db`):** under bygging. **Må gates med `modulProcedure('maskin')` før prod-deploy** — i dag bruker maskin-rutene `protectedProcedure` uten modul-sjekk, så alle firma vil se maskin-siden hvis den deployes som er.
 
@@ -79,14 +83,15 @@ Status og detaljer: [db-opprydning.md](docs/claude/db-opprydning.md).
 
 ## Pauset arbeid
 
-Fase 0-koding er pauset. Timer-modul-planlegging er gjennomført (commit fd2f57d, 81d445d). Neste steg er at Kenneth lukker B.1-B.5 i fase-0-beslutninger.md, deretter starter Fase 0-koding.
+Fase 0-koding er pauset. Alle 7 BLOKKERE i fase-0-beslutninger.md er lukket (B.1–B.7, 2026-04-27). Neste steg er **Timer/Maskin-revurdering med rent fundament** — timer.md og maskin.md har drift mot fase-0-beslutninger og må justeres før Fase 0-koding starter.
 
 ## Planlagte faser
 
 Detaljert plan: [arkitektur-syntese.md §5](docs/claude/arkitektur-syntese.md). Beslutningsgrunnlag: [fase-0-beslutninger.md](docs/claude/fase-0-beslutninger.md).
 
 **Fase 0 — Firma-fundament + tilgangsinfrastruktur:**
-- Datamodell: `OrganizationModule`, `OrganizationSetting`, `OrganizationPartner`, `Avdeling`-flagg, `OrganizationTemplate`, `Project.primaryOrganizationId String?` (nullable), `Psi.organizationId` (required) + `projectId` blir nullable + `kontekstType String`, `BibliotekMal`-utvidelse (kategori/domene/kobletTilModul/verifisert), `ProjectMember.periodeSlutt`
+- Datamodell (13 migrasjons-steg per § E i fase-0-beslutninger): `Activity`, `OrganizationSetting`, `OrganizationPartner`, `OrganizationTemplate`, `ProjectOrganization` (rename av OrganizationProject + `rolle`), `Project.primaryOrganizationId String?` (nullable), `ProjectModule`-utvidelse (`organizationId` + `status` per A.4/A.17), `Psi.organizationId` + `projectId` nullable + `kontekstType`, `BibliotekMal`-utvidelse (kategori/domene/kobletTilModul/verifisert), `ProjectMember.periodeSlutt` + `userId` cascade SetNull (per B.7), `ExternalCostObject`, `Godkjenning` + `DocumentTransfer.kostnadSnapshot/godkjenningId`, `User`-utvidelse (canLogin, HMS-kort, ansattnummer, nasjonalitet, arbeidstillatelse + composite unique på email + phone per B.7)
+- Selektiv Timestamptz på 11 felter per B.6 (timer/audit/godkjenning/PsiSignatur/frist-felter/Invitation)
 - Infrastruktur: `prosjektProcedure`, `modulProcedure(slug)` i tRPC
 - Refaktor: 9 funksjoner i `tilgangskontroll.ts` for ProjectMember-periode
 
