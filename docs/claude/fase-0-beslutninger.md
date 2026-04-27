@@ -1,6 +1,6 @@
 # Fase 0-beslutninger — komplett (oppdatert 2026-04-26)
 
-**Status:** 🟢 23 beslutninger vedtatt (§A) + **0 åpne BLOKKERE (§B)** — alle 6 er nå lukket: B.2 (mekanisk via § E-retting), B.4 (interim NOT NULL utsatt til post-Fase 1), B.1/B.3/B.5/B.6 lukket av Kenneth 2026-04-27. § C: 12 anbefalte utvidelser, hvorav 3 lukket (C.8, C.9 innarbeidet i A.3/A.6; C.1 lukket implisitt av B.6). **Klart for Fase 0-koding** etter Timer/Maskin-revurdering.
+**Status:** 🟡 23 beslutninger vedtatt (§A) + **1 åpen BLOKKERE (§B.7 — org-bytte-mekanikk)** + 6 lukkede BLOKKERE (B.1, B.2, B.3, B.4, B.5, B.6 — alle lukket 2026-04-27). § C: 12 anbefalte utvidelser, hvorav 3 lukket (C.8, C.9 innarbeidet i A.3/A.6; C.1 lukket implisitt av B.6). B.7 åpnet 2026-04-27 etter kritisk gjennomgang — manglende avklaring rundt org-bytte-mekanikk identifisert som forutsetning for Timer-modul-koding. Avventer Kenneth-svar på B.7 før Fase 0-koding kan starte.
 
 **Bruk:** Anker for ny Code-chat. Neste Code-instans skal lese denne filen + lenker under FØR koding.
 
@@ -11,7 +11,7 @@
 4. [datamodell-arkitektur.md](datamodell-arkitektur.md) — to-nivå-modell og loan-pattern
 5. [timer.md](timer.md) — timer-modul-spesifikasjon (krever refaktor jf. C.1 + organizationId-rename)
 
-> ✅ **Til neste Code-instans:** Alle BLOKKERE er lukket (2026-04-27). Klart for Fase 0-koding etter at Timer/Maskin-revurderingen er ferdig. § B beholdes for historikk — alle 6 punkter har nå "LUKKET"-status.
+> ⚠️ **Til neste Code-instans:** IKKE start Fase 0-koding før Kenneth har lukket B.7 (org-bytte-mekanikk — åpnet 2026-04-27 etter kritisk gjennomgang av Timer-eksport-implikasjoner). B.1–B.6 er lukket. Hvis B.7 ser besluttet ut, sjekk denne filens commit-historikk for siste oppdatering.
 
 ---
 
@@ -521,7 +521,7 @@ Disse er identifisert i Opus-runde 3 (2026-04-26) og blokkerer Fase 0-koding.
 **Alternativ A:** Tillat NULL permanent for standalone. Bryter med planens steg 2.
 **Alternativ B:** Opprett seed «system-org» med UUID `00000000-0000-0000-0000-000000000000`. Standalone prosjekt får default organizationId = system-org.
 
-**Status:** ✅ **BESLUTTET (interim)** — `Project.organizationId` og `ProjectModule.organizationId` forblir **nullable** i Fase 0. NOT NULL-håndhevelse innføres ikke nå.
+**Status:** ✅ **BESLUTTET (interim)** — `Project.primaryOrganizationId` og `ProjectModule.organizationId` forblir **nullable** i Fase 0. NOT NULL-håndhevelse innføres ikke nå.
 
 **Begrunnelse:** Endelig regel er at alle prosjekter skal tilhøre et firma med firmamaler, men:
 - Firmamal-struktur er ikke designet ennå
@@ -530,8 +530,8 @@ Disse er identifisert i Opus-runde 3 (2026-04-26) og blokkerer Fase 0-koding.
 
 **Oppfølgingspunkt (post-Fase 1):**
 - Designe firmamal-struktur (OrganizationTemplate, E-steg 7 i nåværende § E)
-- Migrere eksisterende Project uten organizationId (hvis noen)
-- Gjøre `Project.organizationId` NOT NULL
+- Migrere eksisterende Project uten primaryOrganizationId (hvis noen)
+- Gjøre `Project.primaryOrganizationId` NOT NULL
 - Gjøre `ProjectModule.organizationId` NOT NULL
 - Oppdatere oppretter-flyt til å kreve organizationId
 
@@ -552,17 +552,17 @@ Disse er identifisert i Opus-runde 3 (2026-04-26) og blokkerer Fase 0-koding.
 ```typescript
 function erUnderentreprenor(
   user: { organizationId: string | null },
-  project: { organizationId: string | null }
+  project: { primaryOrganizationId: string | null }
 ): boolean {
   return user.organizationId !== null
-      && project.organizationId !== null
-      && user.organizationId !== project.organizationId;
+      && project.primaryOrganizationId !== null
+      && user.organizationId !== project.primaryOrganizationId;
 }
 ```
 
 **Edge cases:**
 - `User.organizationId === null` → IKKE UE (standalone-bruker, ingen firma-kontekst)
-- `Project.organizationId === null` → IKKE UE (standalone-prosjekt per B.4 interim)
+- `Project.primaryOrganizationId === null` → IKKE UE (standalone-prosjekt per B.4 interim)
 - Bytter user firma midt i prosjekt → UE-status oppdateres automatisk ved neste sjekk. ProjectMember-historikk bevares
 - Frilanser uten firma → standalone-bruker, ikke UE. Tilgang via ProjectMember alene
 - **Intern UE-behandling** (egen ansatt skal behandles som UE på spesifikt prosjekt) → IKKE støttet i denne beslutningen. Hvis behov dukker opp senere, kan vi legge til `ProjectMember.behandleSomUE Boolean` (eksplisitt overstyring), men ikke nå
@@ -587,9 +587,9 @@ Tilgangskontroll:
 - `byggFaggruppeFilter()` kan utvides til å vurdere UE-status hvis spesifikk filtrering kreves
 - Standard tilgangs-logikk er ProjectMember-basert — UE-flagg påvirker ikke tilgang per se, kun visning og eksport
 
-**Ingen schema-endring kreves:**
+**Schema-status:**
 - `User.organizationId` finnes allerede
-- `Project.organizationId` finnes allerede (nullable per B.4)
+- `Project.primaryOrganizationId` legges til i § E steg 4 (nullable per B.4)
 - `ProjectMember.role` beholdes som er, kun forslagsverdiene klargjøres (se A.9)
 
 **Begrunnelse:** Én sannhet (kan ikke drifte). Skala-vennlig (50 Bravida-arbeidere får UE-status automatisk uten manuell rolle-setting). Naturlig mapping til faktisk virkelighet — UE er en jobb-relasjon, ikke en konfigurasjon.
@@ -608,15 +608,19 @@ c) **Utsett til etter Timer-MVP**
 
 **Tabeller som migreres til `@db.Timestamptz`:**
 
-| Tabell | Felter |
-|---|---|
-| `daily_sheets` | `startAt`, `endAt`, `attestertVed`, `createdAt`, `updatedAt` (`dato` forblir `@db.Date` — hele-dag-konsept) |
-| `sheet_timer` | `createdAt`, `updatedAt` |
-| `sheet_tillegg` | `createdAt`, `updatedAt` |
-| `document_transfers` | `createdAt` + alle snapshot-tidsstempler |
-| `godkjenninger` | `sistEndretVed`, `godkjentVed`, `createdAt`, `updatedAt` (audit-relevant, samspiller med `document_transfers`) |
-| `activity_log` | `createdAt` |
-| `equipment_assignments` | `startAt`, `endAt` (vurderes per case ved db-maskin-bygging) |
+| Tabell | Felter | Begrunnelse |
+|---|---|---|
+| `daily_sheets` | `startAt`, `endAt`, `attestertVed`, `createdAt`, `updatedAt` (`dato` forblir `@db.Date` — hele-dag-konsept) | Timer-modul-fundament |
+| `sheet_timer` | `createdAt`, `updatedAt` | Timer-rader audit |
+| `sheet_tillegg` | `createdAt`, `updatedAt` | Tillegg-rader audit |
+| `document_transfers` | `createdAt` + alle snapshot-tidsstempler | Sporbarhet, samspill med Godkjenning |
+| `godkjenninger` | `sistEndretVed`, `godkjentVed`, `createdAt`, `updatedAt` | Audit-relevant, samspiller med `document_transfers` |
+| `activity_log` | `createdAt` | Sentral audit-tabell |
+| `equipment_assignments` | `startAt`, `endAt` | **BESLUTNING 2026-04-27 — utvidet:** Timestamptz fra start, samme som `daily_sheets` (sporing av maskinbruk på tvers av tidssoner) |
+| `psi_signaturer` | `completedAt` | **BESLUTNING 2026-04-27 — utvidet:** Juridisk relevant. Signaturer på byggeplass krever DST-presisjon (per A.12 anonymizing-policy: signaturer beholdes for juridisk audit) |
+| `checklists` | `frist` | **BESLUTNING 2026-04-27 — utvidet:** DST-bug-risiko ved mars/oktober — forfallsdatoer kan bli off-by-one-time uten Timestamptz |
+| `tasks` | `frist` | **BESLUTNING 2026-04-27 — utvidet:** Samme DST-risiko som `checklists.frist` |
+| `project_invitations` | `expiresAt` | **BESLUTNING 2026-04-27 — utvidet:** Sikkerhetskritisk — token-utløp må ikke kunne bli off-by-one ved DST |
 
 Resten av schema beholder `timestamp(3)` inntil dedikert behov.
 
@@ -626,13 +630,36 @@ Resten av schema beholder `timestamp(3)` inntil dedikert behov.
 - Plasseres som dedikerte steg i § E der respektive tabeller bygges (ikke separat steg 0)
 - `activity_log` (§ E steg 1): tidsstempler er Timestamptz fra start
 - `godkjenninger` + `document_transfers`-snapshot-felt (§ E steg 12): Timestamptz fra start
+- `checklists.frist`, `tasks.frist`, `project_invitations.expiresAt`: Timestamptz fra start (legges til i § E som utvidelse av eksisterende tabeller — bør koordineres i Fase 0)
 - `daily_sheets`, `sheet_timer`, `sheet_tillegg` (Timer-modul Fase 3): Timestamptz fra start når tabellene opprettes
-- `equipment_assignments` (db-maskin Fase 1, allerede under bygging): vurderes per case
+- `psi_signaturer.completedAt` (eksisterende tabell): Timestamptz som schema-utvidelse i Fase 0
+- `equipment_assignments` (db-maskin Fase 1, allerede under bygging): Timestamptz fra start
 
 **Konsekvens for andre punkter:**
 - A.7 `attestertSnapshot` — lagrer ikke tidssone-data (er JSON), upåvirket
 - A.14 `OrganizationSetting.timezone` — bruker selektivt-migrerte felter for forretningsregler — fungerer korrekt
 - C.1 `date-fns-tz`-installasjon — lukkes implisitt av denne beslutningen
+
+### B.7 Org-bytte-mekanikk — **NY ÅPEN BLOKKERE 2026-04-27**
+
+**Problem:** B.5 forutsetter «én User per (person × firma)» og at ny User-rad opprettes når en person bytter firma. Mekanikken er ikke spesifisert.
+
+**Spørsmål som må besvares:**
+- Hvilket UI/API-endepunkt oppretter ny User-rad ved org-bytte?
+- Hva skjer med eksisterende ProjectMember når User flyttes til annen org?
+- Hvilken policy gjelder for gamle Timer-rader (lønn-eksport per organisasjon)?
+- Trenger Timer-rader `organizationIdSnapshot` (per A.7-mønster) for å fryse hvem arbeideren jobbet for da timene ble registrert?
+
+**Avgjørende for:**
+- **Timer-eksport** (lønn-filtrering per firma): hvis Joakim bytter fra A.Markussen til Bravida midt i mai, hvilke timer i mai går til hvilken lønn-eksport?
+- **UE-utledning** (B.5): kan gi feil etter org-bytte uten snapshot — `erUnderentreprenor()` returnerer status basert på *nåværende* org, ikke org ved registrerings-tidspunkt
+- **GDPR**: anonymisering må håndtere multi-org-User-rader konsistent
+
+**Sannsynlig retning:** Snapshot-pattern på Timer-rader (`Timer.organizationIdAtRegistrering`). Dette er konsistent med A.7 (snapshot ved attestering) og løser eksport-filtrering deterministisk.
+
+**Lukkes før Timer-modul-koding starter.** Uten avklaring kan vi ikke garantere riktig lønn-eksport eller UE-filtrering for arbeidere som bytter firma.
+
+**Krever Kenneth-beslutning.**
 
 ---
 
@@ -807,7 +834,7 @@ Krever nasjonalitet + arbeidstillatelse på User. Allerede inkludert i A.11 (dat
 
 ## E. Migrerings-rekkefølge for Fase 0 (13 steg)
 
-> **Timestamptz-håndtering per B.6 — selektiv migrasjon.** Kun timer-relevante + audit-relevante tabeller får `@db.Timestamptz` fra start: `daily_sheets`, `sheet_timer`, `sheet_tillegg`, `document_transfers`, `godkjenninger`, `activity_log`, `equipment_assignments`. Resten av schema uberørt (beholder `timestamp(3)`).
+> **Timestamptz-håndtering per B.6 — selektiv migrasjon.** Tabeller som får `@db.Timestamptz` fra start: `daily_sheets`, `sheet_timer`, `sheet_tillegg`, `document_transfers`, `godkjenninger`, `activity_log`, `equipment_assignments`, `psi_signaturer.completedAt`, `checklists.frist`, `tasks.frist`, `project_invitations.expiresAt`. Resten av schema uberørt (beholder `timestamp(3)`).
 
 | Steg | Migration | Avhengighet |
 |------|-----------|-------------|
@@ -830,10 +857,10 @@ Krever nasjonalitet + arbeidstillatelse på User. Allerede inkludert i A.11 (dat
 - Equipment.ansvarligUserId migreres til EquipmentAnsvarlig + droppes
 
 **Post-Fase 1 (utsatt arbeid per B.4 interim-beslutning):**
-- `Project.organizationId` NOT NULL
+- `Project.primaryOrganizationId` NOT NULL
 - `ProjectModule.organizationId` NOT NULL
 - Migrere eksisterende standalone-prosjekt til firma-tilknytning
-- Oppdatere Project-opprettelses-flyt til å kreve organizationId
+- Oppdatere Project-opprettelses-flyt til å kreve primaryOrganizationId
 - Krever at OrganizationTemplate (firmamal-struktur) er designet og bygget først
 
 **Note om utelatte steg:**
@@ -874,7 +901,9 @@ Kjøres etter hver merge til main. Rød test = arkitektur-feil, ikke kun kode-fe
 
 **Lukket:** 23 beslutninger (A.1-A.24 minus A.13 som ble reklassifisert til B.6).
 
-**Åpent:** 0 BLOKKERE — alle lukket 2026-04-27 (B.1 default true, B.2 § E-retting, B.3 eksplisitt felt, B.4 interim utsatt, B.5 organizationId-mismatch, B.6 selektiv Timestamptz).
+**Åpent:** 1 BLOKKERE — B.7 (org-bytte-mekanikk) åpnet 2026-04-27 etter kritisk gjennomgang. Manglende avklaring rundt hvordan ny User-rad opprettes ved org-bytte og om Timer-rader trenger `organizationIdSnapshot`-felt. Lukkes før Timer-modul-koding starter.
+
+**Lukkede BLOKKERE 2026-04-27:** B.1 default true, B.2 § E-retting, B.3 eksplisitt felt, B.4 interim utsatt, B.5 organizationId-mismatch, B.6 selektiv Timestamptz (utvidet 2026-04-27 med `psi_signaturer`/`checklists`/`tasks`/`project_invitations`/`equipment_assignments`).
 
 **Anbefalte utvidelser:** 12 punkter (§ C.1-C.12), hvorav 3 lukket: C.1 (implisitt av B.6), C.8 (innarbeidet i A.3), C.9 (innarbeidet i A.6). Aktive: 9.
 
@@ -882,7 +911,7 @@ Kjøres etter hver merge til main. Rød test = arkitektur-feil, ikke kun kode-fe
 
 **Migrerings-rekkefølge:** 13 steg i § E (var 15 — OrganizationModule fjernet per A.4, Avdeling utsatt til Fase 0.5 per C.11).
 
-**Neste handling:** Timer/Maskin-revurdering med rent fundament. Etter revurdering: start Fase 0-koding via migration-rekkefølge i § E.
+**Neste handling:** Kenneth lukker B.7 (org-bytte-mekanikk). Når lukket: Timer/Maskin-revurdering med rent fundament. Etter revurdering: start Fase 0-koding via migration-rekkefølge i § E.
 
 **Anker for ny Code-chat:**
 - Denne filen + lenker øverst
