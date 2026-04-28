@@ -11,6 +11,7 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 | [docs/claude/web.md](docs/claude/web.md) | Web UI, ruter, kontekster, malbygger, print, tegningsvisning |
 | [docs/claude/mobil.md](docs/claude/mobil.md) | React Native, offline-first, kamera, bilde, statusendring |
 | [docs/claude/forretningslogikk.md](docs/claude/forretningslogikk.md) | Dokumentflyt, arbeidsforløp, grupper, moduler, admin, TODO |
+| [docs/claude/onboarding-veileder.md](docs/claude/onboarding-veileder.md) | **🟡 IDÉ-STADIUM:** Onboarding-veileder for firma. Sekvensiell logikk (tilgang → grupper → flyt → mal → byggeplass → tegninger), idempotens, pedagogisk lag. Planlagt ~1 måned frem (post-Fase 0) |
 | ~~docs/claude/entreprise-faggruppe-rapport.md~~ | **🟦 ARKIVERT 2026-04-28** → [docs/arkiv/entreprise-faggruppe-rapport.md](docs/arkiv/entreprise-faggruppe-rapport.md). Pre-rename-kartlegging fullt gjennomført, 0 drift i kode |
 | ~~docs/claude/faggruppe-rename-plan.md~~ | **🟦 ARKIVERT 2026-04-28** → [docs/arkiv/faggruppe-rename-plan.md](docs/arkiv/faggruppe-rename-plan.md). Plan gjennomført (Fase 1–7), kun Fase 8 alias-cleanup gjenstår etter mobil-deploy-syklus |
 | [docs/claude/shared-pakker.md](docs/claude/shared-pakker.md) | @sitedoc/shared typer + validering + utils, @sitedoc/ui komponenter |

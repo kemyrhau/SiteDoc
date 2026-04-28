@@ -519,6 +519,20 @@ sist_verifisert_mot_kode: 2026-04-28
 
 ---
 
+## Fremtidig arbeid (registrert under konsolidering)
+
+> Modul-planer som har dukket opp under konsolideringssesjonen 2026-04-28. Dokumentert nå (per sannhetskilde-prinsippet) for å bevare beslutningsgrunnlag. Implementasjon planlagt etter Fase 0.
+
+### [ ] Onboarding-veileder for firma
+- **Fil:** [onboarding-veileder.md](onboarding-veileder.md) (opprettet 2026-04-28)
+- **Status:** Idé-stadium, ikke startet
+- **Tidshorisont:** ~1 måned frem (post-Fase 0)
+- **Innhold:** Sekvensiell logikk (6 steg: tilgang → grupper → dokumentflyt → sjekkliste/oppgave → byggeplass → tegninger), idempotens-krav (kunne kjøres på nytt uten datatap), pedagogisk lag (forklaringer av hvorfor rekkefølge er kritisk)
+- **Avhengigheter:** ProjectGroup, Dokumentflyt, ReportTemplate (eksisterende); Byggeplass (Fase 0.5)
+- **Åpne spørsmål:** Wizard-state-strategi (DB vs UI-detection); delvis-fullført-håndtering; målgruppe (firma-admin vs sluttbrukere)
+
+---
+
 ## Utenfor scope (kun rapportering)
 
 > Disse er flagget i screening eller drøfting, men løses IKKE som del av denne planen.

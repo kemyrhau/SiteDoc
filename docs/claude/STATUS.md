@@ -3,7 +3,7 @@
 > **Vedlikeholdsregel:** STATUS.md oppdateres av Opus i samme commit som endrer fil-status. Aldri separat commit.
 
 **Sist oppdatert:** 2026-04-28
-**Antall filer dekket:** 34 (komplett oversikt)
+**Antall filer dekket:** 35 (komplett oversikt)
 
 ## Sammendrag
 
@@ -11,9 +11,9 @@
 |---|---:|
 | ✅ Verifisert mot kode | 4 |
 | ⚠️ Drift identifisert | 5 |
-| 🔄 Under arbeid | 2 |
+| 🔄 Under arbeid | 3 |
 | ❌ Ikke screenet | 23 |
-| **Totalt** | **34** |
+| **Totalt** | **35** |
 
 ---
 
@@ -40,6 +40,7 @@
 
 | Fil | Sist verifisert | Kommentar |
 |---|---|---|
+| onboarding-veileder.md | ikke aktuelt | Idé-stadium, planlagt ~1 måned frem (post-Fase 0). Etablert 2026-04-28 |
 | oppryddings-plan-2026-04-28.md | 2026-04-28 | Aktiv anker for oppryddings-arbeidet etter Bunke 3A.1 |
 | timer-funn-fra-screening-2026-04-27.md | 2026-04-28 | Midlertidig, slettes etter Timer/Maskin-revurdering |
 
