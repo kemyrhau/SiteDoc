@@ -40,6 +40,7 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 | [docs/claude/ai-integrasjon.md](docs/claude/ai-integrasjon.md) | AI-integrasjon: Copilot plugin, MCP server, innebygd assistent, risikoer, API-lag |
 | [docs/claude/adaptiv-sok-plan.md](docs/claude/adaptiv-sok-plan.md) | **🟡 SKAL DRØFTES:** Adaptivt søk for sjekklister/oppgaver/HMS/RUH. Tags-modell, delt FilterBar, useListFilter, useRecentlyUsed. Drøftes på tvers av db/ui/shared/dokumentflyt før koding |
 | [docs/claude/timer-funn-fra-screening-2026-04-27.md](docs/claude/timer-funn-fra-screening-2026-04-27.md) | **🟡 MIDLERTIDIG:** 6 timer-relevante drift-funn fra screening 2026-04-27/28 (Funn 1: db-timer mangler. Funn 2: OrganizationSetting-felter. Funn 3: maskin.md Vegvesen-mapping. Funn 4: SmartDok Underprosjekt egen identitet. Funn 5: stengning+attestering 4 hull. Funn 6: eksport-spor 4 schema-hull). Slettes etter Timer/Maskin-revurdering |
+| [docs/claude/oppryddings-plan-2026-04-28.md](docs/claude/oppryddings-plan-2026-04-28.md) | **🟡 AKTIV:** Strukturert TODO-liste etter Bunke 3A.1-screening 2026-04-28. Fem prioritets-nivåer (P1 anker-rensing først → P5 svakhet-reparering) + Parkert + Utenfor-scope + 3 TIMER-FUNN-kandidater. Slettes når alle punkter er kvitterte |
 | [MALBYGGER.md](MALBYGGER.md) | Felles malbygger: dokumenttyper, felttyper, beslutninger, migreringsstrategi |
 
 **Ved "oppdater CLAUDE.md"**: oppdater den relevante detalj-filen i `docs/claude/`, ikke denne hovedfilen (med mindre det gjelder tech stack, struktur, kommandoer, kodestil eller regler).
