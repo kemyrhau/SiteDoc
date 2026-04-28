@@ -24,6 +24,76 @@ Sannhetskilder: [fase-0-beslutninger.md](fase-0-beslutninger.md), [arkitektur.md
 
 ---
 
+## Dokument-samhandlings-lukking (Nivå 1-4)
+
+> **Mål:** Lukke dokument-samhandlings-konflikter avdekket i utvidet sammenligningsanalyse 2026-04-28 (arkitektur-syntese.md vs 5 modul-filer + kode). Bruker CLAUDE.md § «Tre nivåer» (linje 407-427) som arkitektur-anker — etablert som styrende sannhetskilde 2026-04-28. Strekker seg over 5-7 sesjoner med compact mellom.
+>
+> **Status-konvensjon:** `[ ]` = ikke startet, `[x]` = ferdig, `[~]` = pågående. Krysser av etter hver commit. Mellom nivåer: pause for Kenneth-vurdering.
+
+### Nivå 1 — Etabler anker (gjøres først)
+
+- [x] **1A. Formell flagging av CLAUDE.md § Tre nivåer som arkitektur-sannhetskilde** — note tilføyet i CLAUDE.md som peker på treet som styrende referanse for modul-nivåer. Krysshenvisning fra § Dokumentasjons-disiplin. *(Utført 2026-04-28)*
+- [ ] **1B. Verifiser anker mot kode** — sjekk at `ProjectModule` i kode (10 aktive moduler) matcher prosjektmoduler-listen i treet. Identifiser avvik (moduler i kode som ikke er i treet, eller motsatt). Rapport-leveranse, ingen handling før Kenneth har vurdert.
+
+### Nivå 2 — Reconciliation av motsigelser mot anker
+
+> Krever 1B fullført så vi vet anker er korrekt.
+
+- [ ] **2A. C-1: Mannskap-modul-nivå** — `mannskap.md` sier «prosjektmodul», CLAUDE.md-anker sier firmamodul (HR/Mannskap). Handling: rens `mannskap.md` til å matche anker.
+- [ ] **2B. C-2: PSI-arkitektur** — arkitektur-syntese § 3.4 sier PSI er firma-eid, CLAUDE.md-anker sier PSI er prosjektmodul. Handling: reconciliation — vurder om PSI har både firma- og prosjekt-aspekt, eller rett dokumentene mot anker. Kan kreve Kenneth-beslutning om PSI er hybrid.
+- [ ] **2C. C-3: Mannskap/PSI separasjon** — arkitektur-syntese § 1.2 sier «slått sammen», CLAUDE.md-anker skiller dem. Handling: rens arkitektur-syntese § 1.2. Kan bakes med 2A eller 2B.
+- [ ] **2D. C-4: Kompetanseregister-plassering** — `timer.md` mangler det, syntese sier det er del av Timer. Ikke nevnt i CLAUDE.md-anker. Handling: Kenneth-beslutning kreves (Timer-modul, egen modul, eller del av Mannskap?). Ingen commit nå — åpen beslutning.
+
+### Nivå 3 — Innholds-rens av arkitektur-syntese
+
+> Krever Nivå 1+2 fullført så syntesen kan utvides konsistent.
+
+- [ ] **3A. Løft 8 manglende prinsipper til arkitektur-syntese** (NY-5):
+  - § 3.8 Datadrevne kataloger og 3-nivå-onboarding
+  - § 3.9 Snapshot-pattern ved attestering/assignment
+  - § 3.10 Eksport-kode-policy (NULL → migrering 1:1)
+  - § 6.5 Rate-limit-kö-mønster
+  - § 7.4 Adapter-mønster (BilagsKilde, GPS, lønnssystem)
+  - Onboarding-modi (nytt firma vs migrerer)
+  - Cross-modul-konflikt-regler
+  - Områder/soner-modell
+
+  Verifiser hvert prinsipp mot kode før innskudd. Sannsynligvis 1-2 commits.
+- [ ] **3B. STATUS.md tag-utvidelse for arkitektur-syntese.md** — oppdater kommentar-tag basert på faktisk dekning etter 3A. Kan bakes med 3A.
+
+### Nivå 4 — Drift-rens (parallell, lav prioritet)
+
+- [ ] **4A. NY-7: `Psi.eksternSystem`-felt + Fase 0 § E** — `Psi.eksternSystem`-utvidelsen må inn i fase-0 § E migrerings-rekkefølge.
+- [ ] **4B. NY-8: Mannskap-modeller-status i fase-0 § E** — avklare når Mannskap-tabellene tas inn (Fase 4 eller delvis Fase 0?).
+
+### Tidligere på agenda — adresseres separat
+
+Følgende oppgaver er ikke del av Nivå 1-4-planen, men kan flettes inn i Nivå 3 hvor det gir mening:
+
+- P-KRITISK-1: Sentralbibliotek-seed prod
+- P-KRITISK-2: FtdChangeEvent-tabeller prod
+- P-KRITISK-3: BibliotekMal 4 felt
+- P1: anker-rensing arkitektur-syntese (5 inkonsistenser)
+- P2: web.md/mobil.md/okonomi.md drift-rens
+
+### Gjennomførings-mønster per nivå
+
+For hver oppgave:
+1. Beskriv handling med ord før utførelse
+2. Verifiser mot kode der relevant
+3. Vis FULL diff før commit
+4. Vent på Kenneth-bekreftelse
+5. Commit + push
+6. Rapporter commit-hash
+
+Mellom nivåer: pause for Kenneth-vurdering.
+
+### Compact-strategi
+
+Ved hver compact: bekreft hvor i listen vi er (sjekk `[~]`/`[x]`-merker), fortsett. Planen er lagret her i kodebasen som tilbakefall hvis samtale-historikk mistes.
+
+---
+
 ## P0 — Strukturelt grunnlag (gjøres FØR P1)
 
 > **Kjerneformål:** Vi trenger transparent status på hvilke `docs/claude/`-filer som er verifisert mot kode FØR Fase 0-koding starter. Avhengigheter mellom filer må være synlige slik at endring i fil X varsler om hvilke filer som er berørt. YAML-headeren leverer begge funksjoner distribuert. Sentralisert matrise-fil ble vurdert og forkastet 2026-04-28 — se § Utenfor scope.

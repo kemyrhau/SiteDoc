@@ -426,6 +426,8 @@ Firma (Organization)                  ← Selskapet (A.Markussen AS, Veidekke)
             └── ...
 ```
 
+> **🟢 ARKITEKTUR-ANKER (etablert 2026-04-28):** Treet over er **styrende sannhetskilde for modul-typologi**. Spørsmål om hvilke moduler er prosjekt- vs firmamodul, eller hvilket nivå funksjonalitet hører til, sjekkes mot dette treet først. Andre dokumenter (`arkitektur-syntese.md`, modul-filer i `docs/claude/`) skal reconcileres mot dette treet ved konflikt — ikke omvendt. Pågående reconciliations spores i [docs/claude/oppryddings-plan-2026-04-28.md § Dokument-samhandlings-lukking](docs/claude/oppryddings-plan-2026-04-28.md).
+
 ### Begreper — endelig definisjon
 
 | Begrep | DB-modell | DB-tabell | Variabelnavn | Beskrivelse |
@@ -509,6 +511,7 @@ Dokumentasjon skal speile faktisk tilstand. Beslutninger som ikke er skrevet inn
 - **Beslutninger skrives inn umiddelbart:** Beslutninger fra samtale eller commit overføres til riktig sannhetskilde med en gang, ikke etter at de er glemt. Riktig sannhetskilde er den aktive detalj-filen i `docs/claude/`, ikke CLAUDE.md hovedfil (med mindre regelen gjelder tech stack, struktur, kommandoer, kodestil eller overordnede regler).
 - **Verifisering mot kode FØR beslutning:** Beslutninger om ny kode tas etter at gjeldende kode er bekreftet — ikke ut fra antagelser om hva dokumentasjonen sier. Dokumentet kan ha drift; koden er fasit.
 - **Hjemløse beslutninger fanges før arkivering:** Når en `docs/claude/`-fil arkiveres eller slettes, sjekkes den først for unikt innhold som mangler i aktive filer. Drift og hjemløse beslutninger overføres til aktive sannhetskilder FØR fila flyttes.
+- **Arkitektur-anker først:** Spørsmål om modul-typologi (prosjekt- vs firmamodul, hvilket nivå funksjonalitet hører til) sjekkes mot [§ Tre nivåer](#tre-nivåer)-treet først. Andre dokumenter reconcileres mot anker, ikke omvendt.
 
 Reglene nedenfor — særlig **Auto-oppdater dokumentasjon**, **STATUS.md vedlikehold** og **YAML-header på docs/claude/-filer** — er konkrete uttrykk for dette prinsippet.
 
