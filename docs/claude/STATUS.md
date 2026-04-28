@@ -30,7 +30,7 @@
 
 | Fil | Sist verifisert | Drift-omfang |
 |---|---|---|
-| arkitektur-syntese.md | 2026-04-28 | 5 inkonsistenser mot fase-0 (OrganizationModule, Avdeling-flagg, Godkjenning-status, EquipmentChecklist, Fase 0.5 motsigelse) |
+| arkitektur-syntese.md | 2026-04-28 | 5 inkonsistenser mot fase-0 (OrganizationModule, Avdeling-flagg, Godkjenning-status, EquipmentChecklist, Fase 0.5 motsigelse) — P1-arbeid. K3.1 (firma-admin tabs-UI, ny § 1.5) konsolidert 2026-04-28 |
 | forretningslogikk.md | 2026-04-28 | Byggeplan-rekkefølge motsigelse mot arkitektur-syntese, Godkjenning-status, lestAv-mekanikk for gruppe-mottaker |
 | mobil.md | 2026-04-28 | 5 faggruppe-forekomster + 3 ulike Provider-tre-rekkefølger |
 | okonomi.md | 2026-04-28 | 4 faggruppe-forekomster + FtdNotaComment mangler i tabell + ECO/Godkjenning-kobling mangler |
@@ -58,7 +58,7 @@
 | bibliotek.md | — | Peker til kontrollplan.md (konsolidert) |
 | byggeplass-strategi.md | — | Planlagt fase (per CLAUDE.md). K2.3 (slette-policy) konsolidert 2026-04-28 |
 | db-naming-audit-2026-04-25.md | — | Datert audit 2026-04-25 |
-| db-opprydning.md | — | Markert AKTIV (per CLAUDE.md) |
+| db-opprydning.md | — | Markert AKTIV (per CLAUDE.md). K3.2 (åpne audit-spørsmål mot prod) konsolidert 2026-04-28 |
 | infrastruktur.md | — | — |
 | kontrollplan.md | — | — |
 | mannskap.md | — | — |

@@ -1,3 +1,17 @@
+---
+status: aktiv
+sist_verifisert_mot_kode: ukjent
+sist_endret: 2026-04-28
+gjelder_versjon: Fase 0 / 0.5
+avhenger_av:
+  - arkitektur.md
+  - fase-0-beslutninger.md
+påvirkes_av_beslutninger:
+  - A.5
+  - B.4
+  - C.11
+---
+
 # DB-opprydning — handlingsplan
 
 Aktiv arbeidsstrøm. Timer-modul er satt på pause til DB er ryddet opp. Identifisert via datamodell-audit 2026-04-25 og diskusjon rundt firma-eid vs. prosjekt-eid arkitektur.
@@ -199,6 +213,28 @@ Ikke et problem — er maskin-modulens egen init-migrering (`packages/db-maskin/
 8. **Resterende firma-modeller** etter modul-prioritet
 
 Etter steg 2–7 kan timer-modul gjenopptas på solid grunnlag.
+
+## Åpne audit-spørsmål mot prod (krever godkjenning)
+
+Tre spørsmål kan ikke besvares fra lokal-DB-audit (per audit-data-2026-04-25, linje 131-137). Krever read-only psql-tilgang til `sitedoc` (prod) og eksplisitt Kenneth-godkjenning før kjøring.
+
+**Spørsmål 1:** Vil hull 1 (ProjectGroup-nivå), hull 3 (delt mal-bruk Kontrollplan+Dokumentflyt) og hull 5 (FolderAccess prioritet) oppstå i produksjons-data?
+
+- Hull 1: SQL `SELECT COUNT(*) FROM project_groups GROUP BY organization_id` — vise distribusjon
+- Hull 3: SQL `SELECT report_template_id FROM kontrollplan_punkter INTERSECT SELECT report_template_id FROM dokumentflyt_maler`
+- Hull 5: SQL `SELECT * FROM folder_access WHERE user_id IS NOT NULL AND group_id IS NOT NULL` (samtidige rettigheter)
+
+**Spørsmål 2:** Hvor mange firmaer i prod har multi-prosjekt-brukere?
+
+- SQL: `SELECT user_id, COUNT(DISTINCT project_id) FROM project_members GROUP BY user_id HAVING COUNT(DISTINCT project_id) > 1` — gruppert per organization
+
+**Spørsmål 3:** Hvor mange ReportTemplates i prod brukes av både Kontrollplan og Dokumentflyt?
+
+- Samme SQL som hull 3 over
+
+**Status:** Ikke kjørt. Krever beslutning om read-only audit mot prod kan utføres som del av Fase 0-forberedelse, eller om spørsmålene parkeres til realistisk seed eksisterer.
+
+**Kilde:** Datamodell-audit 2026-04-25 — konsolidert hit 2026-04-28 (åpne spørsmål, ikke avhengig av audit-fila som arkiveres).
 
 ## Det som IKKE er en del av opprydning
 

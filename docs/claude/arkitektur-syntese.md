@@ -1,3 +1,20 @@
+---
+status: aktiv
+sist_verifisert_mot_kode: ukjent
+sist_endret: 2026-04-28
+gjelder_versjon: tverrgående
+avhenger_av:
+  - arkitektur.md
+  - terminologi.md
+  - fase-0-beslutninger.md
+påvirkes_av_beslutninger:
+  - A.4
+  - A.17
+  - B.4
+  - B.7
+  - C.11
+---
+
 # SiteDoc — Helhetlig produktarkitektur (syntese)
 
 Anker for Fase 0-koding. Resultat av iterative diskusjoner mellom Kenneth og Opus, kvalitetssikret i to QA-runder. Korreksjoner fra Opus' QA-runde 2 er integrert.
@@ -70,6 +87,21 @@ Lagres på `OrganizationSetting` som nøkkel-verdi-par.
 **Firma B (A.Markussen):** Timer, Maskin, Mannskap/PSI, Proadm-eksport. Senere Varelager, DO-kobling, AI-ukeplan. Erstatter SmartDok fullstendig.
 
 **Firma C — kun timer (edge case):** Timer + Tripletex-eksport. Mulig, men ikke prioritert kundesegment.
+
+### 1.5 Samlet maler-administrasjon (UI-prinsipp)
+
+To parallelle sjekkliste-systemer (per § 1.1) gir god domene-isolasjon på datamodell-nivå. Skarp kant: maler-administrasjon for firma-admin.
+
+**Prinsipp:** Firma-admin skal ha samlet UI-tilgang til alle mal-typer (prosjekt-maler, maskin-maler, eventuelle fremtidige typer) — selv om de lever i ulike Prisma-schemas. Datamodell-isolasjonen opprettholdes; UI-aggregeringen skjer i frontend-laget.
+
+**Implementeringsspec — IKKE besluttet:**
+- Eksakt rute (`/oppsett/firma/maler` vs annet sted)
+- Tabs-struktur eller annet UX-mønster
+- Hvordan aggregering skjer mot to schemas
+
+**Kontekst:** I dag finnes ikke firma-admin-mal-side. Når OrganizationTemplate bygges (Fase 2), må UI-strategi besluttes. Dette prinsippet er retningsgivende, ikke spec.
+
+**Kilde:** Identifisert i Opus QA-runde 2 (2026-04-25), §6.2 Q1 — konsolidert hit 2026-04-28 som prinsipp (implementeringsdetaljer utsatt).
 
 ---
 
