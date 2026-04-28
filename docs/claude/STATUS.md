@@ -23,7 +23,7 @@
 |---|---|---|
 | arkitektur.md | 2026-04-27 | Fundament |
 | dokumentflyt.md | 2026-04-27 | Fundament |
-| fase-0-beslutninger.md | 2026-04-27 | Anker for Fase 0-koding |
+| fase-0-beslutninger.md | 2026-04-27 | Anker for Fase 0-koding. C.13 + 2 § G-rader konsolidert 2026-04-28 fra QA-runde-2 |
 | terminologi.md | 2026-04-27 | Fundament |
 
 ## ⚠️ Drift identifisert (Bunke 3A.1, 2026-04-28)

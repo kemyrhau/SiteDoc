@@ -1,3 +1,14 @@
+---
+status: aktiv
+sist_verifisert_mot_kode: 2026-04-27
+sist_endret: 2026-04-28
+gjelder_versjon: Fase 0
+avhenger_av:
+  - arkitektur.md
+  - terminologi.md
+  - dokumentflyt.md
+---
+
 # Fase 0-beslutninger — komplett (oppdatert 2026-04-26)
 
 **Status:** 🟢 23 beslutninger vedtatt (§A) + **0 åpne BLOKKERE (§B)** — alle 7 lukket 2026-04-27 (B.1 default true, B.2 § E-retting, B.3 eksplisitt felt, B.4 interim utsatt, B.5 organizationId-mismatch, B.6 selektiv Timestamptz, B.7 Modell A — én User per person×firma med reaktivering). § C: 12 anbefalte utvidelser, hvorav 3 lukket (C.8, C.9 innarbeidet i A.3/A.6; C.1 lukket implisitt av B.6). **Klart for Timer/Maskin-revurdering**, deretter Fase 0-koding via § E.
@@ -819,6 +830,8 @@ export const aktivMedlemFilter = {
 ```
 Refaktorer ALLE 9 steder atomisk i én PR.
 
+**Utvidelse (per C.13):** `aktivMedlemFilter` brukes også på de 3 andre loan-pattern-tabellene (`ProjectGroupMember`, `FaggruppeKobling`, `DokumentflytMedlem`) når deres `periodeSlutt`-felter legges til. Filteret må fungere konsistent på alle 4 tabeller fra dag én.
+
 ### C.3 Implementer canLogin-sjekk i NextAuth signIn-callback
 
 D.2 spesifiserer feltet, men implementasjon mangler. Verifisert: ingen eksisterende `canLogin`-sjekk.
@@ -927,6 +940,26 @@ Verifisert 2026-04-27: ingen `.github/workflows/` finnes. Repoet har ingen autom
 
 **Når:** Bør være ferdig før noen Fase 0-migrasjoner kjøres. Kan etableres parallelt med planlegging av andre Fase 0-arbeid.
 
+### C.13 Periode på loan-pattern-modeller (3 modeller)
+
+Tre eksisterende koblingstabeller utover ProjectMember/EquipmentAssignment/ProsjektBibliotekValg mangler `periodeStart`/`periodeSlutt`-felter:
+
+- **`ProjectGroupMember`** — bruker → gruppe → prosjekt
+- **`FaggruppeKobling`** — bruker → faggruppe (dokumentflyt-rolle)
+- **`DokumentflytMedlem`** — faggruppe/bruker/gruppe → dokumentflyt
+
+**Begrunnelse for å gjøre i Fase 0:** Konsistens med `ProjectMember.periodeSlutt` (per B.7 + § E steg 10). Hvis kjerne-loan-modellen får periode mens disse tre ikke får det, har vi inkonsistens fra dag én. Refaktor senere blir vesentlig dyrere når historiske rader finnes.
+
+**Tiltak (Fase 0):**
+1. Legg til `periodeSlutt: DateTime?` på alle tre tabeller (samme mønster som `ProjectMember.periodeSlutt`)
+2. Default for eksisterende rader: `null` (= aktiv)
+3. Utvid `aktivMedlemFilter` (per C.2) til å virke konsistent på alle fire tabeller
+4. Oppdater alle queries som joiner mot disse tabellene til å bruke perioden-filteret
+
+**Konsekvens for § E:** Steg 10 (ProjectMember.periodeSlutt) utvides til også å dekke disse tre. Migrasjonen kan ligge i samme migrasjon som ProjectMember-utvidelsen.
+
+**Kilde:** Identifisert i Opus QA-runde 2 (2026-04-25), §6.2 Q4 — konsolidert hit 2026-04-28 før arkivering av QA-rapporten.
+
 ---
 
 ## D. Lovverk-svakheter som krever vurdering
@@ -973,7 +1006,7 @@ Krever nasjonalitet + arbeidstillatelse på User. Allerede inkludert i A.11 (dat
 | 7 | OrganizationTemplate | Organization |
 | 8 | BibliotekMal-utvidelse (4 felt: kategori/domene/kobletTilModul/verifisert) | BibliotekMal (finnes) |
 | 9 | Psi.organizationId + projectId nullable + kontekstType — **inkluder oppdatering av `@@unique([projectId, byggeplassId])`** når projectId blir nullable. Vurder ny unique: `@@unique([organizationId, projectId, byggeplassId])` eller separat håndtering for null-projectId-tilfeller. Sjekk byggeplassId-FK-konsistens også | Psi (finnes) |
-| 10 | ProjectMember.periodeSlutt + UE-rolle dokumentasjon + **userId cascade-policy endres fra Cascade til SetNull (per B.7)** | ProjectMember (finnes) |
+| 10 | ProjectMember.periodeSlutt + UE-rolle dokumentasjon + **userId cascade-policy endres fra Cascade til SetNull (per B.7)** + **ProjectGroupMember/FaggruppeKobling/DokumentflytMedlem.periodeSlutt (per C.13)** | ProjectMember + 3 loan-tabeller (alle finnes) |
 | 11 | ExternalCostObject | Organization, Project |
 | 12 | Godkjenning (m/`endretEtterSending`, `sistEndretVed`, alle tidsstempler som `@db.Timestamptz`) + DocumentTransfer.kostnadSnapshot + DocumentTransfer.godkjenningId + Timestamptz på snapshot-tidsstempler | DocumentTransfer (finnes), ECO |
 | 13 | User-utvidelse (canLogin, HMS-kort, ansattnummer, nasjonalitet, arbeidstillatelse) + **email-unique drop og composite `@@unique([email, organizationId])` (per B.7)** + **`@@unique([phone, organizationId])` (forberedende per B.7-utvidelse, multi-identifikator-auth)** + custom NextAuth-adapter eller signIn-tilpasning. **Email forblir NOT NULL i Fase 0** (alle har e-post per kunde-bekreftelse). **Ingen passord-felter eller CHECK-constraint i Fase 0** — utsettes til fremtidig multi-identifikator-auth-utvidelse | User (finnes) |
@@ -1018,6 +1051,8 @@ Kjøres etter hver merge til main. Rød test = arkitektur-feil, ikke kun kode-fe
 | Faggruppe.partnerOrganizationId | Fase 5+ | Cross-prosjekt firma-gjenkjenning, lavt-prioritert |
 | Sluttoppgjør-frist-varsling per NS 8407 | Fase 7 | Krever Varsling-modul |
 | GDPR consent-håndtering for GPS | Fase 4 (mannskap) | Designes inn nå (E.2) |
+| Modul-deaktivering UI (advarsel-dialog ved permanent sletting) | Fase 3+ | UI-detalj over modul-gateway-mekanikk; ikke Fase 0-blocker. Konsolidert fra Opus QA-runde 2 §6.3 Q1 (2026-04-28) |
+| Organization-sletting (firmakonkurs) | Når reell kunde har scenarioet | Krever transferProsjekter/transferUsers-flyt + sitedoc_admin-prosess. Ikke implementer i Fase 0. Manuelle inngrep dekker dagens behov. Konsolidert fra Opus QA-runde 2 §6.3 Q4 (2026-04-28) |
 
 ---
 
