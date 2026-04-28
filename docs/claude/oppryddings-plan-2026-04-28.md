@@ -33,7 +33,10 @@ Sannhetskilder: [fase-0-beslutninger.md](fase-0-beslutninger.md), [arkitektur.md
 ### Nivå 1 — Etabler anker (gjøres først)
 
 - [x] **1A. Formell flagging av CLAUDE.md § Tre nivåer som arkitektur-sannhetskilde** — note tilføyet i CLAUDE.md som peker på treet som styrende referanse for modul-nivåer. Krysshenvisning fra § Dokumentasjons-disiplin. *(Utført 2026-04-28)*
-- [ ] **1B. Verifiser anker mot kode** — sjekk at `ProjectModule` i kode (10 aktive moduler) matcher prosjektmoduler-listen i treet. Identifiser avvik (moduler i kode som ikke er i treet, eller motsatt). Rapport-leveranse, ingen handling før Kenneth har vurdert.
+- [x] **1B. Verifiser anker mot kode** *(Utført 2026-04-28)* — verifisert mot `PROSJEKT_MODULER` i `packages/shared/src/types/index.ts:426-575` (9 moduler, ikke 10) og DB. Funn: 4 avvik (moduler i kode som ikke var i opprinnelig anker: oversettelse, godkjenning, befaringsrapport, dokumentsok), 5 lister i opprinnelig anker som ikke er ProjectModule (Sjekklister, Oppgaver, Tegninger, Mapper er kjerne; AI-søk er feature). Resulterte i 1C.
+- [x] **1C. Presiser ankeret per Kenneths beslutninger 2026-04-28 (Alt-A struktur)** *(Utført 2026-04-28)* — CLAUDE.md § Tre nivåer-treet oppdatert: skiller kjerne fra prosjektmodul, samlet aktivering for to pakker (Sjekklister+Oppgaver+Godkjenning, Dokumentsøk+Oversettelse+AI-søk), Tegninger flyttet til kjerne, Mapper er egen modul, Befaringsrapport fjernet fra prosjektmodul-listen (parkert som kode-feilkategorisering — se PARKERT-4).
+
+> **✅ Nivå 1 ferdig 2026-04-28** — anker etablert (1A), verifisert mot kode (1B), presisert per Kenneths beslutninger (1C). Klar for Nivå 2-reconciliation av modul-filer mot presisert anker.
 
 ### Nivå 2 — Reconciliation av motsigelser mot anker
 
@@ -622,6 +625,14 @@ sist_verifisert_mot_kode: 2026-04-28
 - **Fil:** arkitektur-syntese.md § 7.1
 - **Begrunnelse:** ProAdm-integrasjon avventer designpartner-status. Detaljer avgjøres når faktisk integrasjon planlegges.
 - **Re-vurder når:** ProAdm-integrasjons-runde starter
+
+### [ ] PARKERT-4 — Befaringsrapport feilkategorisert som ProjectModule
+- **Fil:** `packages/shared/src/types/index.ts:504` (`PROSJEKT_MODULER`-array, slug `befaringsrapport`)
+- **Funn (Nivå 1B-verifisering 2026-04-28):** Befaringsrapport er en oppgave-mal, ikke en funksjon-modul. Kenneth bekreftet 2026-04-28: «IKKE en modul — det er en oppgave opprettet fra malbygger.» Skal fjernes fra ProjectModule-listen i kode.
+- **Faktisk bruk:** 5 prosjekter har aktivert modulen i prod, 5 i test. Hver aktivering oppretter 1 ReportTemplate (BEF-prefiks).
+- **Begrunnelse for parkering:** (1) aktivt i bruk i prod — krever migrering av eksisterende rader til standalone ReportTemplate; (2) ikke akutt; (3) Mal-promotering (Fase 2) endrer uansett mal-arkitekturen og er naturlig opprydnings-vindu.
+- **Handling når avparkert:** Migrer 10 rader (5 prod + 5 test) til standalone ReportTemplate uten ProjectModule-binding. Fjern slug fra `PROSJEKT_MODULER`-array. UI-rute for befaringsrapport beholdes som mal-basert oppgave-flyt.
+- **Re-vurder når:** Mal-promotering (Fase 2) bygges
 
 ---
 

@@ -418,12 +418,17 @@ Firma (Organization)                  ← Selskapet (A.Markussen AS, Veidekke)
 │
 └── Prosjekter
     └── Prosjekt: NRK
-        ├── Faggrupper + Dokumentflyt  ← Prosjektspesifikk dokumentflyt
-        └── Prosjektmoduler:           ← Slås av/på per prosjekt
-            ├── Sjekklister, Oppgaver, Tegninger, Mapper
-            ├── Kontrollplan, Økonomi (FTD), PSI
-            ├── 3D-visning, AI-søk, HMS-avvik
-            └── ...
+        ├── Faggrupper + Dokumentflyt              ← Alltid på (prosjektspesifikk dokumentflyt)
+        ├── Tegninger                              ← Alltid på (representerer byggeplass)
+        └── Prosjektmoduler:                       ← Slås av/på per prosjekt
+            ├── Sjekklister + Oppgaver + Godkjenning   ← Samlet aktivering (én pakke)
+            ├── Dokumentsøk + Oversettelse + AI-søk    ← Samlet aktivering (dokument-intelligens-pakke)
+            ├── Mapper
+            ├── HMS-avvik
+            ├── 3D-visning
+            ├── Økonomi (FTD)
+            ├── PSI
+            └── Kontrollplan
 ```
 
 > **🟢 ARKITEKTUR-ANKER (etablert 2026-04-28):** Treet over er **styrende sannhetskilde for modul-typologi**. Spørsmål om hvilke moduler er prosjekt- vs firmamodul, eller hvilket nivå funksjonalitet hører til, sjekkes mot dette treet først. Andre dokumenter (`arkitektur-syntese.md`, modul-filer i `docs/claude/`) skal reconcileres mot dette treet ved konflikt — ikke omvendt. Pågående reconciliations spores i [docs/claude/oppryddings-plan-2026-04-28.md § Dokument-samhandlings-lukking](docs/claude/oppryddings-plan-2026-04-28.md).
