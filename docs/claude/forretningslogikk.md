@@ -63,7 +63,7 @@ Prosjektomfattende dokumentflyt under Innstillinger > Produksjon > Dokumentflyt:
 - **Person-basert tilgangssjekk (Valg B):** Firmamedlemmer ser dokumenter der en person fra firmaet er `bestillerUserId`, `recipientUserId` eller `senderId` (i DocumentTransfer). Erstatter faggruppe-basert filtrering for firmaansvarlige
 - **Mal-velger per dokumentflyt:** Dokumentflyt har tilknyttede maler via `DokumentflytMal`. Ved opprettelse av oppgave/sjekkliste vises kun maler som tilhører valgt dokumentflyt
 - **Videresend-dropdown:** Matcher faggruppe + dokumentets mal via `DokumentflytMal`. Én flyt → auto-velg. Flere flyter → flytnavn i parentes (f.eks. «Tømrer (HE → Tømrer - Avvik)»). Mottaker utledes fra utfører-rolle, fallback bestiller → godkjenner
-- **Tidslinje-snapshot:** `DocumentTransfer` har snapshot-felt: `senderFaggruppeNavn`, `recipientFaggruppeNavn`, `dokumentflytName`, `senderRolle`. Populeres ved statusendring/videresending/flytt. Viser kontekst i tidslinje: «Kenneth (Byggherre) → HE-Leder (Elektro) · Flyt: Elektro–HE · Bestiller»
+- **Tidslinje-snapshot:** `DocumentTransfer` har snapshot-felt: `senderEnterpriseName`, `recipientEnterpriseName`, `dokumentflytName`, `senderRolle`. Populeres ved statusendring/videresending/flytt. Viser kontekst i tidslinje: «Kenneth (Byggherre) → HE-Leder (Elektro) · Flyt: Elektro–HE · Bestiller». Snapshot-feltnavn beholdt fra før Faggruppe-rename for historisk integritet — disse feltene fryser tilstand ved sending, og verdier i eksisterende rader skal ikke endres. Se [terminologi.md](terminologi.md) for detaljer om de 26 tilsiktede gjenværende `enterprise`-referansene.
 - **Implementert:** HMS-avvik gruppebasert flyt (se HMS-avvik seksjonen over)
 - **Planlagt:** Intern godkjenning (ansatt → fagleder → TE)
 

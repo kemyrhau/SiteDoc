@@ -150,4 +150,4 @@ Tre valg ved opprettelse:
 
 ## Status
 
-Planlagt — ikke implementert. Beskrevet i [datamodell-arkitektur.md](datamodell-arkitektur.md).
+Planlagt — ikke implementert. Beskrevet i [arkitektur.md § Datamodell-prinsipper](arkitektur.md#datamodell-prinsipper).

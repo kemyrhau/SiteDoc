@@ -18,4 +18,4 @@ Timer-modulen skal støtte valgfri `byggeplassId` på dagsseddel når byggeplass
 
 - [timer.md](timer.md) — modul-oversikt og overordnet design
 - [byggeplass-strategi.md](byggeplass-strategi.md) — byggeplass-relasjon (avhengighet)
-- [datamodell-arkitektur.md](datamodell-arkitektur.md) — overordnet ramme (firma-eid vs prosjekt-eid)
+- [arkitektur.md § Datamodell-prinsipper](arkitektur.md#datamodell-prinsipper) — overordnet ramme (firma-eid vs prosjekt-eid)

@@ -2,7 +2,7 @@
 
 Aktiv arbeidsstrøm. Timer-modul er satt på pause til DB er ryddet opp. Identifisert via datamodell-audit 2026-04-25 og diskusjon rundt firma-eid vs. prosjekt-eid arkitektur.
 
-**Bakgrunn:** [audit-data-2026-04-25.md](audit-data-2026-04-25.md) + [datamodell-arkitektur.md](datamodell-arkitektur.md) + [db-naming-audit-2026-04-25.md](db-naming-audit-2026-04-25.md)
+**Bakgrunn:** [audit-data-2026-04-25.md](audit-data-2026-04-25.md) + [arkitektur.md § Datamodell-prinsipper](arkitektur.md#datamodell-prinsipper) (tidligere datamodell-arkitektur.md, konsolidert 2026-04-27) + [db-naming-audit-2026-04-25.md](db-naming-audit-2026-04-25.md)
 
 **Status (per 2026-04-25):** Faggruppe-rename er **allerede gjennomført på test (2026-04-15/16) og prod (2026-04-16)**. Lokal-DB er ikke vedlikeholdt og brukes ikke som sannhet. Det opprinnelige scope (Prioritet 1.1) er derfor lukket. 4 mindre detaljer gjenstår som diskusjonspunkter.
 

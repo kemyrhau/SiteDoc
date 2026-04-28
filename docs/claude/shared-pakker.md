@@ -27,14 +27,14 @@ Fire eksportpunkter: `types`, `validation`, `utils`, `i18n`
 
 ### i18n (`packages/shared/src/i18n/`)
 
-- `nb.json` / `en.json` — ~500 oversettelsesnøkler (norsk kilde, engelsk manuell)
-- `index.ts` — `STOETTEDE_SPRAAK` (13 språk med flagg), `SpraakKode` type, `STANDARD_SPRAAK`
+- `nb.json` / `en.json` — ~1350 oversettelsesnøkler (norsk kilde, engelsk manuell)
+- `index.ts` — `STOETTEDE_SPRAAK` (14 språk med flagg: nb, en, sv, lt, pl, uk, ro, et, fi, cs, de, ru, lv, fr), `SpraakKode` type, `STANDARD_SPRAAK`
 - `generate.ts` — CLI-script for auto-oversettelse via Google Translate
 
 ### Typer (`packages/shared/src/types/`)
 
 - `DocumentStatus` — 9 statusverdier
-- `ReportObjectType` — 23 rapportobjekttyper
+- `ReportObjectType` — 27 rapportobjekttyper (inkl. PSI-typer info_text/info_image/video/quiz)
 - `ReportObjectCategory` — 7 kategorier
 - `REPORT_OBJECT_TYPE_META` — Komplett metadata for alle typer
 - `TegningPosisjonVerdi` — `{ drawingId, positionX, positionY, drawingName }`

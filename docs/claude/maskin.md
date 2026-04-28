@@ -167,7 +167,7 @@ Alle tre deler: **merke, modell, serienummer/internummer, plassering, ansvarlig,
 
 Modulen kjører i samme Next.js-prosess som resten av web-appen — enkleste infra, ingen deploy-endring. **Isolasjonen ligger i datalaget, ikke på app-nivå**: `packages/db-maskin` har sitt eget Prisma-skjema og -klient, uten FK-relasjoner til `packages/db`. Begge Prisma-klientene peker mot samme PostgreSQL-instans. Delt auth via eksisterende `sessions`-tabell.
 
-**Hvorfor integrert, ikke isolert app:** MVP-krav er enkelt vedlikehold. Isolert app (`apps/maskin/` med egen DNS) er fortsatt mulig senere hvis modulen får behov for separat skalering, tilgangsstyring eller deploy-kadens. Se `docs/claude/infrastruktur-moduler.md` for det mønsteret.
+**Hvorfor integrert, ikke isolert app:** MVP-krav er enkelt vedlikehold. Isolert app (`apps/maskin/` med egen DNS) ble vurdert og forkastet 2026-04-27 — det opprinnelige forslaget ligger i [docs/arkiv/infrastruktur-moduler.md](../arkiv/infrastruktur-moduler.md) som arkiv. Mønsteret kan tas opp på nytt hvis modulen senere får behov for separat skalering eller deploy-kadens.
 
 ## Statens vegvesen — kjøretøyoppslag
 
@@ -186,7 +186,9 @@ API-nøkkel er på plass og verifisert (2026-04-17).
 
 ### Datamapping — Vegvesen → SiteDoc
 
-Vegvesen returnerer et stort JSON-objekt. Følgende felt mappes til `vehicles`-tabellen:
+> ⚠️ **Drift-merknad (2026-04-27):** Tabellen under er tiltenkt mapping. Faktisk schema (`packages/db-maskin/prisma/schema.prisma`) har felles `equipment`-tabell (ikke `vehicles`) med kun en delmengde av disse feltene som egne kolonner — resten ligger i `vegvesenData` JSON-blob. Verifisering og prioritering av hvilke felt som skal materialiseres som egne kolonner gjøres i egen Maskin-revurdering. Se TIMER-FUNN-oppsummering 2026-04-27.
+
+Vegvesen returnerer et stort JSON-objekt. Følgende felt **er tiltenkt mappet** til `equipment`-tabellen (per planen, ikke nødvendigvis implementert):
 
 | Vegvesen JSON-sti | SiteDoc-felt | Eksempel |
 |---|---|---|

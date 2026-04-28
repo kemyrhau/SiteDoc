@@ -435,7 +435,7 @@ Følgende memorier skal opprettes/oppdateres når implementeringen i ny chat beg
 
 - [fase-0-beslutninger.md](fase-0-beslutninger.md) — Anker for koding-sesjon
 - [arkitektur-qa-runde-2-2026-04-25.md](arkitektur-qa-runde-2-2026-04-25.md) — Opus' QA-rapport
-- [datamodell-arkitektur.md](datamodell-arkitektur.md) — To-nivå-modell og loan-pattern (forløper)
+- [arkitektur.md § Datamodell-prinsipper](arkitektur.md#datamodell-prinsipper) — To-nivå-modell og loan-pattern (konsolidert 2026-04-27)
 - [byggeplass-strategi.md](byggeplass-strategi.md) — Fase 0.5-grunnlag
 - [db-naming-audit-2026-04-25.md](db-naming-audit-2026-04-25.md) — Lokal/test/prod-status
 - [maskin.md](maskin.md) — Maskin-modul-spesifikasjon

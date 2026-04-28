@@ -23,11 +23,10 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 | [docs/claude/timer.md](docs/claude/timer.md) | Timeregistrering: dagsseddel, lønnsarter, tillegg, utlegg, offline-sync |
 | [docs/claude/maskin.md](docs/claude/maskin.md) | Utstyrsregister: 3 kategorier (kjøretøy/anleggsmaskin/småutstyr), Vegvesen API, EU-kontroll, vedlikeholdsplan, GPS, telematikk |
 | [docs/claude/kontrollplan.md](docs/claude/kontrollplan.md) | Kontrollplan + Sjekklistebibliotek: NS 3420-K/F, Område-modell, lovkrav, matrise, sluttrapport, AI-utkast |
-| [docs/claude/infrastruktur-moduler.md](docs/claude/infrastruktur-moduler.md) | Isolert deploy: mappestruktur, turbo-pipeline, PM2, porter, auth-deling |
+| ~~docs/claude/infrastruktur-moduler.md~~ | **🟥 OBSOLETE** — flyttet til [docs/arkiv/infrastruktur-moduler.md](docs/arkiv/infrastruktur-moduler.md) (2026-04-27). Beskrev forkastet plan om isolert deploy. Faktisk arkitektur er integrerte moduler (samme mønster som Maskin) |
 | [docs/claude/planlegger.md](docs/claude/planlegger.md) | Fremdriftsplanlegger: ressursplanlegging, kompetanse, bemanning, forslag-motor |
 | [docs/claude/mannskap.md](docs/claude/mannskap.md) | Mannskapsregistrering: §15-liste, HMS-kort, geofence-innsjekk, PSI-kobling, GDPR, 12t auto-utlogging |
 | [docs/claude/varsling.md](docs/claude/varsling.md) | Tverrgående varsling: firmanivå, kontrollplan-frister, EU-kontroll, service, sertifisering, in-app klokke |
-| [docs/claude/datamodell-arkitektur.md](docs/claude/datamodell-arkitektur.md) | Firma-eid vs prosjekt-eid, loan-pattern, hva finnes vs må bygges, mal-promotering, Faggruppe ≠ Firma |
 | [docs/claude/db-opprydning.md](docs/claude/db-opprydning.md) | **AKTIV:** Opprydningsplan for DB. Timer-modul på pause til prioritet 1+2 er gjort. Faggruppe-rename, CHECK constraints, design-beslutninger |
 | [docs/claude/audit-data-2026-04-25.md](docs/claude/audit-data-2026-04-25.md) | Read-only audit av dev-DB: schema-konsistens, orphans, multi-firma, mal-bruk, FolderAccess-konflikter |
 | [docs/claude/migrering-reporttemplate.md](docs/claude/migrering-reporttemplate.md) | Plan: ReportTemplate → OrganizationTemplate (firma-mal-bibliotek). Ikke implementert |
@@ -40,6 +39,7 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 | [docs/claude/smartdok-undersokelse-2026-04-25.md](docs/claude/smartdok-undersokelse-2026-04-25.md) | **ARKIV (v1):** SmartDok API-kartlegging (OpenAPI 128 endepunkter), mapping-tabeller (User/Project/Wage/Machine/WorkHour), funksjonsgap, migreringsstrategi |
 | [docs/claude/ai-integrasjon.md](docs/claude/ai-integrasjon.md) | AI-integrasjon: Copilot plugin, MCP server, innebygd assistent, risikoer, API-lag |
 | [docs/claude/adaptiv-sok-plan.md](docs/claude/adaptiv-sok-plan.md) | **🟡 SKAL DRØFTES:** Adaptivt søk for sjekklister/oppgaver/HMS/RUH. Tags-modell, delt FilterBar, useListFilter, useRecentlyUsed. Drøftes på tvers av db/ui/shared/dokumentflyt før koding |
+| [docs/claude/timer-funn-fra-screening-2026-04-27.md](docs/claude/timer-funn-fra-screening-2026-04-27.md) | **🟡 MIDLERTIDIG:** 3 timer-relevante drift-funn fra screening 2026-04-27 (db-timer mangler, OrganizationSetting-felter må verifiseres, maskin.md Vegvesen-mapping har større drift enn forventet). Slettes etter Timer/Maskin-revurdering |
 | [MALBYGGER.md](MALBYGGER.md) | Felles malbygger: dokumenttyper, felttyper, beslutninger, migreringsstrategi |
 
 **Ved "oppdater CLAUDE.md"**: oppdater den relevante detalj-filen i `docs/claude/`, ikke denne hovedfilen (med mindre det gjelder tech stack, struktur, kommandoer, kodestil eller regler).

@@ -8,11 +8,14 @@ Timeregistrering for ansatte på byggeprosjekter. Offline-first — feltarbeider
 
 | Komponent | Plassering | Beskrivelse |
 |-----------|------------|-------------|
-| **Web** | `apps/timer` | Next.js, `timer.sitedoc.no` — administrasjon, rapporter, eksport |
-| **Mobil** | Isolert modul i `apps/mobile` | React Native, offline-first via SQLite — daglig registrering |
+| **Web** | Modul i `apps/web` | Next.js — administrasjon, rapporter, eksport. Tilgjengelig via prosjektets sidebar når Timer-firmamodulen er aktivert |
+| **Mobil** | Modul i `apps/mobile` | React Native, offline-first via SQLite — daglig registrering |
+| **API** | Modul i `apps/api` | tRPC-ruter for timer, gates med `modulProcedure('timer')` |
 | **Database** | `packages/db-timer` | Eget Prisma-skjema, aldri inn i `packages/db` |
 
-Deler PostgreSQL-instans med SiteDoc, men helt separate tabeller. Delt auth via eksisterende `sessions`-tabell.
+Timer er **ikke en egen app** med eget domene/port — den er integrert i eksisterende SiteDoc-struktur som en firmamodul (samme mønster som Maskin). Deler PostgreSQL-instans med SiteDoc, men helt separate tabeller. Delt auth via eksisterende `sessions`-tabell.
+
+**Begrunnelse:** Kunden bekrefter at arbeidere bruker SiteDoc-app på mobil — ikke en separat timer-app. Per fase-0-beslutninger kjører Maskin-modulen samme mønster (integrert), Timer skal følge samme arkitektur. `packages/db-timer` eksisterer ikke ennå (planlagt før Timer-koding starter — se TIMER-FUNN-oppsummering).
 
 ## Dagsseddel-modell
 
@@ -746,15 +749,16 @@ Delt auth via eksisterende `next-auth` sessions-tabell i `packages/db`. Timer-AP
 
 Interaktiv UI-prototype for kundedialog. Ingen backend, ingen migrering — kun hardkodet demodata og lokal state. Formål: vise kunden at funksjonaliteten er gjennomtenkt, og få tilbakemelding.
 
-### Midlertidig plan: modul i prosjektet
+### Plan: modul i prosjektet (vedtatt 2026-04-27)
 
-For prototypen bygges timer som **en modul inne i prosjektet** (ikke separat app). Grunnen:
+Timer bygges som **en modul inne i prosjektet** (ikke separat app). Grunnen:
 
 - **Mobil:** Feltarbeideren åpner prosjektet sitt og finner timer der — samme mønster som sjekklister, oppgaver, tegninger
 - **Web:** Timer-ikon i prosjektets sidebar, åpner timer-visning i prosjektkontekst
 - **Konsistent:** Samme navigasjon på web og mobil
+- **Samme deploy-syklus** som SiteDoc-kjernen, ingen ekstra subdomene/port
 
-Den opprinnelige planen om `apps/timer` som egen Next.js-app er **ikke forkastet** — dette er en midlertidig tilnærming for å teste UI og få kundetilbakemelding. Endelig arkitektur bestemmes etter kundedialog.
+Tidligere skisser med `apps/timer` som egen Next.js-app er **forkastet** etter kundedialog (2026-04-27). Maskin-modulen følger samme integrerte mønster.
 
 ### Prototype-rute
 
@@ -921,4 +925,3 @@ Timer-modulen skal støtte utskrift og PDF-generering av diverse rapporter. Alle
 - Akkord — trenger modulen støtte for akkordlønn i tillegg til timepris?
 - Arbeidstidskalender — helligdager, feriedager, kortdager — import eller manuelt oppsett?
 - Godkjenningsflyt detaljer — batch-godkjenning (uke), enkelt-godkjenning (dag), eller begge?
-- `apps/timer` som separat app vs modul-i-prosjektet — avgjøres etter kundedialog med prototypen

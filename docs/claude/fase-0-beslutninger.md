@@ -8,7 +8,7 @@
 1. Denne filen (beslutninger + åpne spørsmål)
 2. [arkitektur-syntese.md](arkitektur-syntese.md) — helhetlig produktarkitektur
 3. [smartdok-undersokelse.md](smartdok-undersokelse.md) — empirisk grunnlag fra A.Markussen
-4. [datamodell-arkitektur.md](datamodell-arkitektur.md) — to-nivå-modell og loan-pattern
+4. [arkitektur.md § Datamodell-prinsipper](arkitektur.md#datamodell-prinsipper) — to-nivå-modell og loan-pattern
 5. [timer.md](timer.md) — timer-modul-spesifikasjon (krever refaktor jf. C.1 + organizationId-rename)
 
 > ✅ **Til neste Code-instans:** Alle BLOKKERE er lukket (B.1–B.7, 2026-04-27). Klart for Fase 0-koding etter at Timer/Maskin-revurderingen er ferdig. § B beholdes for historikk — alle 7 punkter har nå "LUKKET"-status.

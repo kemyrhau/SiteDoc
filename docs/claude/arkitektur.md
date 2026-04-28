@@ -1,5 +1,41 @@
 # Arkitektur — Database og tilgangskontroll
 
+## Datamodell-prinsipper
+
+### To-nivå-modell og kjerneregler
+
+SiteDoc har to nivåer av eierskap:
+- **Firma-eide ressurser:** `User`, `Equipment`, `Goods`, `OrganizationTemplate` (delt på tvers av prosjekter via loan-pattern)
+- **Prosjekt-eide ressurser:** `Project`, `Byggeplass`, `Faggruppe`, `ExternalCostObject` (refererer firma-ressurser)
+
+5 kjerneregler:
+1. Eierskap er enten firma eller prosjekt — aldri begge
+2. Firma-eide ressurser deles via loan-pattern (`*Member`, `*Assignment`, `*Valg`)
+3. Prosjekt-eide ressurser refererer firma-ressurser via FK (ikke duplisering)
+4. Transaksjoner er bare data, ikke arkitekturlag (timer, dokumenter, signaturer)
+5. Faggruppe ≠ Firma — ett firma kan ha flere faggrupper på samme prosjekt (se [terminologi.md](terminologi.md))
+
+### Transaksjons-mønster
+
+Klart skille mellom "ressurser" og "transaksjoner":
+- **Ressurser:** Stabile entiteter (`User`, `Equipment`, `Project`, `Byggeplass`)
+- **Transaksjoner:** Hendelser med snapshot/historikk (`Dagsseddel`, `DocumentTransfer`, `PsiSignatur`, `EquipmentAssignment`)
+
+Transaksjoner kan ha snapshot-felter for å fryse tilstand ved hendelsen — se A.7 i [fase-0-beslutninger.md](fase-0-beslutninger.md).
+
+### Loan-pattern-konvensjoner
+
+Firma-eide ressurser deles til prosjekter via mellom-tabeller:
+- `*Member`-suffiks: `ProjectMember` (User → Project)
+- `*Assignment`-suffiks: `EquipmentAssignment` (Equipment → Project)
+- `*Valg`-suffiks: domene-spesifikke valg-tabeller (f.eks. `ProsjektBibliotekValg`)
+
+Disse mellom-tabellene har ofte:
+- `userId`/`equipmentId` (FK til firma-ressurs)
+- `projectId` (FK til prosjekt)
+- `startAt`/`endAt` (periodisering)
+- `rolle`/`status` (kontekst-spesifikt)
+
 ## Database (PostgreSQL)
 
 56 Prisma-modeller. Kjernetabeller:
