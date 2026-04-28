@@ -466,7 +466,7 @@ Følgende memorier skal opprettes/oppdateres når implementeringen i ny chat beg
 ## 11. Referanser
 
 - [fase-0-beslutninger.md](fase-0-beslutninger.md) — Anker for koding-sesjon
-- [arkitektur-qa-runde-2-2026-04-25.md](arkitektur-qa-runde-2-2026-04-25.md) — Opus' QA-rapport
+- [arkitektur-qa-runde-2-2026-04-25.md](../arkiv/arkitektur-qa-runde-2-2026-04-25.md) — Opus' QA-rapport (arkivert 2026-04-28)
 - [arkitektur.md § Datamodell-prinsipper](arkitektur.md#datamodell-prinsipper) — To-nivå-modell og loan-pattern (konsolidert 2026-04-27)
 - [byggeplass-strategi.md](byggeplass-strategi.md) — Fase 0.5-grunnlag
 - [db-naming-audit-2026-04-25.md](db-naming-audit-2026-04-25.md) — Lokal/test/prod-status
@@ -475,7 +475,7 @@ Følgende memorier skal opprettes/oppdateres når implementeringen i ny chat beg
 - [kontrollplan.md](kontrollplan.md) — Kontrollplan + Sjekklistebibliotek
 - [mannskap.md](mannskap.md) — Mannskap/PSI-spesifikasjon
 - [smartdok-undersokelse.md](smartdok-undersokelse.md) — A.Markussen-referanse
-- [arkitektur-oppsummering-2026-04-25.md](arkitektur-oppsummering-2026-04-25.md) — Faktabasert status
+- [arkitektur-oppsummering-2026-04-25.md](../arkiv/arkitektur-oppsummering-2026-04-25.md) — Faktabasert status (arkivert 2026-04-28)
 
 ---
 

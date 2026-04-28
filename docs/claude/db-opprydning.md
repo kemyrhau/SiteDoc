@@ -16,7 +16,7 @@ påvirkes_av_beslutninger:
 
 Aktiv arbeidsstrøm. Timer-modul er satt på pause til DB er ryddet opp. Identifisert via datamodell-audit 2026-04-25 og diskusjon rundt firma-eid vs. prosjekt-eid arkitektur.
 
-**Bakgrunn:** [audit-data-2026-04-25.md](audit-data-2026-04-25.md) + [arkitektur.md § Datamodell-prinsipper](arkitektur.md#datamodell-prinsipper) (tidligere datamodell-arkitektur.md, konsolidert 2026-04-27) + [db-naming-audit-2026-04-25.md](db-naming-audit-2026-04-25.md)
+**Bakgrunn:** [audit-data-2026-04-25.md](../arkiv/audit-data-2026-04-25.md) (arkivert 2026-04-28) + [arkitektur.md § Datamodell-prinsipper](arkitektur.md#datamodell-prinsipper) (tidligere datamodell-arkitektur.md, konsolidert 2026-04-27) + [db-naming-audit-2026-04-25.md](db-naming-audit-2026-04-25.md)
 
 **Status (per 2026-04-25):** Faggruppe-rename er **allerede gjennomført på test (2026-04-15/16) og prod (2026-04-16)**. Lokal-DB er ikke vedlikeholdt og brukes ikke som sannhet. Det opprinnelige scope (Prioritet 1.1) er derfor lukket. 4 mindre detaljer gjenstår som diskusjonspunkter.
 
@@ -226,7 +226,7 @@ Etter steg 2–7 kan timer-modul gjenopptas på solid grunnlag.
 
 ## Åpne audit-spørsmål mot prod (krever godkjenning)
 
-Tre spørsmål kan ikke besvares fra lokal-DB-audit (per audit-data-2026-04-25, linje 131-137). Krever read-only psql-tilgang til `sitedoc` (prod) og eksplisitt Kenneth-godkjenning før kjøring.
+Tre spørsmål kan ikke besvares fra lokal-DB-audit (per [audit-data-2026-04-25 § Hull-analyse](../arkiv/audit-data-2026-04-25.md), linje 131-137 — arkivert 2026-04-28). Krever read-only psql-tilgang til `sitedoc` (prod) og eksplisitt Kenneth-godkjenning før kjøring.
 
 **Spørsmål 1:** Vil hull 1 (ProjectGroup-nivå), hull 3 (delt mal-bruk Kontrollplan+Dokumentflyt) og hull 5 (FolderAccess prioritet) oppstå i produksjons-data?
 

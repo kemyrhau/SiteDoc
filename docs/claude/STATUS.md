@@ -21,8 +21,8 @@
 | ✅ Verifisert mot kode | 4 |
 | ⚠️ Drift identifisert | 5 |
 | 🔄 Under arbeid | 3 |
-| ❌ Ikke screenet | 23 |
-| 📦 Arkivert | 0 |
+| ❌ Ikke screenet | 20 |
+| 📦 Arkivert | 3 |
 | **Totalt** | **35** |
 
 ---
@@ -62,9 +62,6 @@
 | ai-integrasjon.md | — | — |
 | ai-sok.md | — | — |
 | api.md | — | — |
-| arkitektur-oppsummering-2026-04-25.md | — | Datert snapshot 2026-04-25 |
-| arkitektur-qa-runde-2-2026-04-25.md | — | Datert QA-rapport 2026-04-25 |
-| audit-data-2026-04-25.md | — | Datert read-only audit 2026-04-25 |
 | bibliotek.md | — | Peker til kontrollplan.md (konsolidert) |
 | byggeplass-strategi.md | — | Planlagt fase (per CLAUDE.md). K2.3 2026-04-28: slette-policy |
 | db-naming-audit-2026-04-25.md | — | Datert audit 2026-04-25 |
@@ -81,6 +78,14 @@
 | timer-input-katalog.md | — | — |
 | timer.md | — | Krever refaktor for fase-0 (per CLAUDE.md) — venter på Timer-revurdering |
 | varsling.md | — | — |
+
+## 📦 Arkivert
+
+| Fil | Arkivert | Kommentar |
+|---|---|---|
+| arkitektur-oppsummering-2026-04-25.md | 2026-04-28 | Datert arkitektur-snapshot 2026-04-25 → [docs/arkiv/](../arkiv/arkitektur-oppsummering-2026-04-25.md). Innhold dekt av arkitektur-syntese.md før arkivering |
+| arkitektur-qa-runde-2-2026-04-25.md | 2026-04-28 | Opus QA-runde 2 (2026-04-25) → [docs/arkiv/](../arkiv/arkitektur-qa-runde-2-2026-04-25.md). Beslutninger konsolidert til fase-0-beslutninger.md C.13 + § G-rader (K1) før arkivering |
+| audit-data-2026-04-25.md | 2026-04-28 | Read-only audit av dev-DB (2026-04-25) → [docs/arkiv/](../arkiv/audit-data-2026-04-25.md). Åpne audit-spørsmål konsolidert til db-opprydning.md (K3.2) før arkivering |
 
 ---
 
