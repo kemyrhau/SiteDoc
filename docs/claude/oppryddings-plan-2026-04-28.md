@@ -121,6 +121,42 @@ sist_verifisert_mot_kode: 2026-04-28
 
 ---
 
+## P-KRITISK — Prod-blokkere fra utvidet verifikasjon (gjøres FØR P1)
+
+> **Begrunnelse:** Utvidet verifikasjon av bibliotek.md og db-naming-audit-2026-04-25.md 2026-04-28 (per Sannhetskilde-prinsippets utvidelse «Verifisering betyr ikke bare at innhold samsvarer med kode, men også at koden er god») avdekket tre konkrete prod-blokkere. Disse er ikke doc-drift — de er empiriske kode/DB-state-feil med direkte produksjonskonsekvens. Ryddes FØR P1 anker-rensing.
+
+### [ ] P-KRITISK-1 — Sentralbiblioteket er ikke seedet i prod (B-1)
+- **Fil:** `packages/db/prisma/seed-bibliotek.ts` (12 maler i kildekoden) + bibliotek-tabellene i prod-DB
+- **Type:** Empirisk prod-state-feil (deploy-mismatch)
+- **Berører:** Prod-DB har 0 standarder, 0 kapitler, 0 maler. Test-DB har 6 av 12 maler (kun NS3420-K, ikke F). UI «Hent fra bibliotek» vil vise tomt panel for prod-brukere
+- **Fase-0-relevans:** Indirekte — sentralbibliotek må fungere før funksjonalitet bygger på `ProsjektBibliotekValg`
+- **TIMER-FUNN:** Ingen
+- **Kompleksitet:** Lav (re-kjør seed) — men krever sjekk for eksisterende `ProsjektBibliotekValg` først (cascade-tap)
+- **Åpne spørsmål:** Skal seed gjøres idempotent (upsert per `kode`/`referanse`) før re-kjøring? Anbefales for å unngå datatap ved fremtidige seed-kjøringer
+- **Kilde:** Utvidet verifikasjon bibliotek.md 2026-04-28, funn B-1
+
+### [ ] P-KRITISK-2 — FtdChangeEvent og FtdTnotaChangeLink-tabeller mangler i prod (B-8 / D-1)
+- **Fil:** `packages/db/prisma/schema.prisma` linje 887 (FtdChangeEvent) og linje 907 (FtdTnotaChangeLink) + manglende migrasjon
+- **Type:** Schema-migrasjon-mismatch
+- **Berører:** Schema.prisma definerer modellene, men **ingen migrasjon i kildekoden** lager tabellene `ftd_change_events` / `ftd_tnota_change_links`. Test-DB har dem (sannsynligvis fra `prisma db push` eller manuell SQL). Prod-DB har dem IKKE (verifisert 2026-04-28). Spørringer mot disse modellene i prod vil kaste P2021 Prisma-error
+- **Fase-0-relevans:** Ingen direkte (FTD-modul, ikke fase-0-fundament). Men **må ryddes før neste FTD-deploy til prod**
+- **TIMER-FUNN:** Ingen direkte
+- **Kompleksitet:** Medium — krever sammenligning av test-DDL vs prod-DDL for å bygge migration manuelt. Mistanke om at `prisma db push` ble brukt mot test og aldri formalisert
+- **Åpne spørsmål:** Hvordan ble tabellene opprettet på test? Krever sporing av PR/commit/deploy-historikk for å forstå hvor migrasjonen ble glemt
+- **Kilde:** Utvidet verifikasjon db-naming-audit 2026-04-28, funn B-8/D-1. Audit-fila § 5.3 flagget allerede avviket («bør verifiseres med ny query») — nå empirisk bekreftet
+
+### [ ] P-KRITISK-3 — BibliotekMal mangler 4 fase-0-besluttede felt i schema (B-2)
+- **Fil:** `packages/db/prisma/schema.prisma` linje 1200-1216 (BibliotekMal)
+- **Type:** Drift mellom plan og kode (planlagt arbeid, ikke utført)
+- **Berører:** Fase-0-beslutninger § E steg 8 lister `kategori`, `domene`, `kobletTilModul`, `verifisert` som planlagte felter. Verifisert 2026-04-28: feltene finnes IKKE i schema.prisma. Drift mellom plan og kode er reell. `bibliotek.ts importerMal` hardkoder `category: "sjekkliste"` / `domain: "kvalitet"` (linje 106-107) — vil bli erstattet av disse feltene
+- **Fase-0-relevans:** Direkte — § E steg 8
+- **TIMER-FUNN:** Ingen direkte
+- **Kompleksitet:** Lav (én Prisma-migrasjon med defaults siden eksisterende rader finnes i test)
+- **Åpne spørsmål:** Defaults for eksisterende rader — `kategori = "sjekkliste"`, `domene = "kvalitet"` (basert på dagens hardkoding), `kobletTilModul = null`, `verifisert = false`?
+- **Kilde:** Utvidet verifikasjon bibliotek.md 2026-04-28, funn B-2. Note tilføyd i fase-0-beslutninger § E steg 8 i samme commit
+
+---
+
 ## P1 — Anker-rensing (gjøres først)
 
 > **Begrunnelse:** arkitektur-syntese.md er anker for Fase 0-koding per CLAUDE.md. Drift her påvirker neste code-instans direkte. Rens denne FØR Timer/Maskin-revurdering går videre.

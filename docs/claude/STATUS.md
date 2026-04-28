@@ -23,7 +23,7 @@
 |---|---|---|
 | arkitektur.md | 2026-04-27 | Fundament |
 | dokumentflyt.md | 2026-04-27 | Fundament |
-| fase-0-beslutninger.md | 2026-04-27 | Anker for Fase 0-koding. C.13 + 2 § G-rader konsolidert 2026-04-28 fra QA-runde-2 |
+| fase-0-beslutninger.md | 2026-04-27 | Anker for Fase 0-koding. C.13 + 2 § G-rader konsolidert 2026-04-28 fra QA-runde-2. § E steg 8 B-2-note tilføyd 2026-04-28 (utvidet verifikasjon) |
 | terminologi.md | 2026-04-27 | Fundament |
 
 ## ⚠️ Drift identifisert (Bunke 3A.1, 2026-04-28)
@@ -41,7 +41,7 @@
 | Fil | Sist verifisert | Kommentar |
 |---|---|---|
 | onboarding-veileder.md | ikke aktuelt | Idé-stadium, planlagt ~1 måned frem (post-Fase 0). Etablert 2026-04-28 |
-| oppryddings-plan-2026-04-28.md | 2026-04-28 | Aktiv anker for oppryddings-arbeidet etter Bunke 3A.1 |
+| oppryddings-plan-2026-04-28.md | 2026-04-28 | Aktiv anker for oppryddings-arbeidet etter Bunke 3A.1. P-KRITISK-seksjon (3 prod-blokkere) tilføyd 2026-04-28 fra utvidet verifikasjon |
 | timer-funn-fra-screening-2026-04-27.md | 2026-04-28 | Midlertidig, slettes etter Timer/Maskin-revurdering |
 
 ## ❌ Ikke screenet
@@ -58,7 +58,7 @@
 | bibliotek.md | — | Peker til kontrollplan.md (konsolidert) |
 | byggeplass-strategi.md | — | Planlagt fase (per CLAUDE.md). K2.3 (slette-policy) konsolidert 2026-04-28 |
 | db-naming-audit-2026-04-25.md | — | Datert audit 2026-04-25 |
-| db-opprydning.md | — | Markert AKTIV (per CLAUDE.md). K3.2 (åpne audit-spørsmål mot prod) konsolidert 2026-04-28 |
+| db-opprydning.md | — | Markert AKTIV (per CLAUDE.md). K3.2 (åpne audit-spørsmål mot prod) konsolidert 2026-04-28. U.2 utvidet med D-6 (FK-naming-policy) 2026-04-28 fra utvidet verifikasjon |
 | infrastruktur.md | — | — |
 | kontrollplan.md | — | — |
 | mannskap.md | — | — |

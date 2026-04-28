@@ -189,6 +189,16 @@ Detaljer i [byggeplass-strategi.md](byggeplass-strategi.md). Drop håndteres sam
 
 19 relevante FK på test/prod heter fortsatt `*_enterprise_id_fkey`, `*_building_id_fkey` osv., selv om kolonnene de er på heter `faggruppe_id`/`byggeplass_id`. Eksempler: `checklists_creator_enterprise_id_fkey` på `bestiller_faggruppe_id`. Funksjonelt OK, kun lesbarhet i feilmeldinger og psql-output. Skal de renames?
 
+**Åpent policy-spørsmål (utvidet verifikasjon 2026-04-28 — D-6):** I tillegg til om eksisterende constraint-navn skal renames: hva er policyen for *fremtidige* migrasjoner? Tre alternativer:
+
+- **(a)** Behold Prisma-default-naming (`<table>_<column>_fkey`) — automatisk, men gir engelske constraint-navn på norsk-renamede tabeller
+- **(b)** Eksplisitt navngivning i hver migrasjon (`CONSTRAINT <norsk_navn> FOREIGN KEY ...`) — konsistent norsk, manuelt arbeid per migrasjon
+- **(c)** Hybridregel: behold default for nye tabeller, rename gamle som etterslep ved naturlige berøringspunkter
+
+Krever Kenneth-beslutning før neste større rename. **Inntil avklart: følg (a) som status quo** — ikke bremser nye migrasjoner. Når policy er valgt: rapport tilføyes her.
+
+**Kilde:** Utvidet verifikasjon db-naming-audit 2026-04-28, funn D-6.
+
 ### U.3 `fiks_rolle_utforer` på test — ✅ Avklart 2026-04-25
 
 Ikke et problem — er rolled-back-historikk fra normal `prisma migrate resolve --rolled-back` + ny `migrate deploy`. Begge versjoner av samme migration_name er bevart som audit-trail. DB-tilstanden er verifisert ren på begge servere (kun `bestiller`/`utforer`/`godkjenner`/`registrator` som rolle-verdier, ingen `utfører` med ø, ingen `oppretter`).
