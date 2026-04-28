@@ -28,7 +28,7 @@ implementert ennå.
 ## 3. Roller
 
 - **Bestiller (creator):** Faggruppen som initierer en sjekkliste/oppgave (renamet fra «Oppretter»). Dokumentflyt-rolle som angir hvem som har bestilt arbeidet
-- **Faggruppe:** Deltaker i dokumentflyt innenfor ett prosjekt. DB-modell: `Faggruppe`, tabellnavn `dokumentflyt_parts` (via @@map). Eksempel: Byggherre, Tømrer, Elektro. Felter: `name`, `color`, `industry`, `companyName`, `faggruppeNummer`. **Bruk faggruppe — entreprise/enterprise er forbudt i ny kode.** Historikk: [entreprise-faggruppe-rapport.md](entreprise-faggruppe-rapport.md)
+- **Faggruppe:** Deltaker i dokumentflyt innenfor ett prosjekt. DB-modell: `Faggruppe`, tabellnavn `dokumentflyt_parts` (via @@map). Eksempel: Byggherre, Tømrer, Elektro. Felter: `name`, `color`, `industry`, `companyName`, `faggruppeNummer`. **Bruk faggruppe — entreprise/enterprise er forbudt i ny kode.** Historikk: [docs/arkiv/entreprise-faggruppe-rapport.md](../arkiv/entreprise-faggruppe-rapport.md)
 - **Flerforetagsbruker:** Bruker som tilhører flere faggrupper i samme prosjekt via `FaggruppeKobling(projectMemberId, faggruppeId)`
 - **Godkjenner:** Dokumentflyt-rolle som tar endelig beslutning på et dokument. Brukes f.eks. for byggherre-godkjenning av endringsmelding
 - **Registrator:** Dokumentflyt-rolle som først registrerer hendelsen (typisk på vegne av andre). Beholder admin-rettigheter på dokumentet selv etter videresending
@@ -71,7 +71,7 @@ implementert ennå.
 - **Snapshot-pattern:** Felter som fryser data ved en hendelse for å unngå at endringer i kilden påvirker historikk. Eksempler: `document_transfers.senderEnterpriseName` (bevisst ikke renamet — historisk snapshot), `attestertSnapshot.prisMotKunde` på timer-rader, `actorNavnSnapshot` på Activity. Brukt overalt der historisk integritet er kritisk. **Snapshot-felter beholder gamle navn (f.eks. `enterprise_*`) bevisst — de representerer historiske verdier og skal ikke renames selv ved senere terminologi-endringer**
 - **Tillatelse (Permission):** Granulære nye: `checklist_edit/view`, `task_edit/view`, `template_manage`, `drawing_manage/view`, `folder_manage/view`, `faggruppe_manage`, `member_manage`. **Gamle aliaser fortsatt aktive** via lese-kompatibilitet i `utvidTillatelser()`: `manage_field`, `create_tasks`, `create_checklists`, `view_field` mappes til granulære i runtime — ikke død kode
 - **Tverrgående tilgang:** Gruppe uten faggruppe-tilknytning ser alle dokumenter med matchende fagområde
-- **Workflow (forlatt):** Tidligere arbeidsforløp-modell. Slettet april 2026, erstattet av Dokumentflyt. Historikk: [faggruppe-rename-plan.md](faggruppe-rename-plan.md)
+- **Workflow (forlatt):** Tidligere arbeidsforløp-modell. Slettet april 2026, erstattet av Dokumentflyt. Historikk: [docs/arkiv/faggruppe-rename-plan.md](../arkiv/faggruppe-rename-plan.md)
 
 ## 7. Status og handlinger
 

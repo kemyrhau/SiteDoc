@@ -1,10 +1,16 @@
+> 🟦 **ARKIVERT 2026-04-28** — Plan gjennomført. Fase 1–7 deployet på test (2026-04-15/16) og prod (2026-04-16). Kun Fase 8 (alias-cleanup — fjerne deprecated `entrepriseRouter` etter mobil-deploy-syklus) er utestående per CLAUDE.md.
+>
+> **Sjekklisten i denne filen ble aldri fylt ut underveis** — faktisk gjennomføring er dokumentert i [CLAUDE.md](../../CLAUDE.md) linje 77 + [db-naming-audit-2026-04-25.md](../claude/db-naming-audit-2026-04-25.md).
+>
+> Beholdes som historikk over framgangsmåten.
+
 # Faggruppe-rename: Komplett plan
 
 ## Bakgrunn
 
 Hele kodebasen bruker "enterprise"/"entreprise" for det som egentlig er **faggrupper** (DokumentflytPart). Besluttet 2026-04-16 å rydde opp fullstendig — fra DB-kolonner til UI-strenger.
 
-Se `docs/claude/entreprise-faggruppe-rapport.md` for kartlegging av alle ~1200 forekomster.
+Se `entreprise-faggruppe-rapport.md` (samme mappe etter arkivering) for kartlegging av alle ~1200 forekomster.
 
 ## Prinsipp
 

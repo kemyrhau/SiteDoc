@@ -11,8 +11,8 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 | [docs/claude/web.md](docs/claude/web.md) | Web UI, ruter, kontekster, malbygger, print, tegningsvisning |
 | [docs/claude/mobil.md](docs/claude/mobil.md) | React Native, offline-first, kamera, bilde, statusendring |
 | [docs/claude/forretningslogikk.md](docs/claude/forretningslogikk.md) | Dokumentflyt, arbeidsforløp, grupper, moduler, admin, TODO |
-| [docs/claude/entreprise-faggruppe-rapport.md](docs/claude/entreprise-faggruppe-rapport.md) | Historikk: entreprise→faggruppe rename (gjennomført april 2026) |
-| [docs/claude/faggruppe-rename-plan.md](docs/claude/faggruppe-rename-plan.md) | Historikk: rename-plan som ble fulgt (gjennomført) |
+| ~~docs/claude/entreprise-faggruppe-rapport.md~~ | **🟦 ARKIVERT 2026-04-28** → [docs/arkiv/entreprise-faggruppe-rapport.md](docs/arkiv/entreprise-faggruppe-rapport.md). Pre-rename-kartlegging fullt gjennomført, 0 drift i kode |
+| ~~docs/claude/faggruppe-rename-plan.md~~ | **🟦 ARKIVERT 2026-04-28** → [docs/arkiv/faggruppe-rename-plan.md](docs/arkiv/faggruppe-rename-plan.md). Plan gjennomført (Fase 1–7), kun Fase 8 alias-cleanup gjenstår etter mobil-deploy-syklus |
 | [docs/claude/shared-pakker.md](docs/claude/shared-pakker.md) | @sitedoc/shared typer + validering + utils, @sitedoc/ui komponenter |
 | [docs/claude/infrastruktur.md](docs/claude/infrastruktur.md) | Deploy, server, env-filer, EAS Build, TestFlight, OAuth |
 | [docs/claude/terminologi.md](docs/claude/terminologi.md) | Alle termer og definisjoner |
@@ -39,7 +39,7 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 | [docs/claude/smartdok-undersokelse-2026-04-25.md](docs/claude/smartdok-undersokelse-2026-04-25.md) | **ARKIV (v1):** SmartDok API-kartlegging (OpenAPI 128 endepunkter), mapping-tabeller (User/Project/Wage/Machine/WorkHour), funksjonsgap, migreringsstrategi |
 | [docs/claude/ai-integrasjon.md](docs/claude/ai-integrasjon.md) | AI-integrasjon: Copilot plugin, MCP server, innebygd assistent, risikoer, API-lag |
 | [docs/claude/adaptiv-sok-plan.md](docs/claude/adaptiv-sok-plan.md) | **🟡 SKAL DRØFTES:** Adaptivt søk for sjekklister/oppgaver/HMS/RUH. Tags-modell, delt FilterBar, useListFilter, useRecentlyUsed. Drøftes på tvers av db/ui/shared/dokumentflyt før koding |
-| [docs/claude/timer-funn-fra-screening-2026-04-27.md](docs/claude/timer-funn-fra-screening-2026-04-27.md) | **🟡 MIDLERTIDIG:** 3 timer-relevante drift-funn fra screening 2026-04-27 (db-timer mangler, OrganizationSetting-felter må verifiseres, maskin.md Vegvesen-mapping har større drift enn forventet). Slettes etter Timer/Maskin-revurdering |
+| [docs/claude/timer-funn-fra-screening-2026-04-27.md](docs/claude/timer-funn-fra-screening-2026-04-27.md) | **🟡 MIDLERTIDIG:** 6 timer-relevante drift-funn fra screening 2026-04-27/28 (Funn 1: db-timer mangler. Funn 2: OrganizationSetting-felter. Funn 3: maskin.md Vegvesen-mapping. Funn 4: SmartDok Underprosjekt egen identitet. Funn 5: stengning+attestering 4 hull. Funn 6: eksport-spor 4 schema-hull). Slettes etter Timer/Maskin-revurdering |
 | [MALBYGGER.md](MALBYGGER.md) | Felles malbygger: dokumenttyper, felttyper, beslutninger, migreringsstrategi |
 
 **Ved "oppdater CLAUDE.md"**: oppdater den relevante detalj-filen i `docs/claude/`, ikke denne hovedfilen (med mindre det gjelder tech stack, struktur, kommandoer, kodestil eller regler).

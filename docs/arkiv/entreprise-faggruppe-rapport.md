@@ -1,3 +1,9 @@
+> 🟦 **ARKIVERT 2026-04-28** — Pre-rename-kartlegging fullt gjennomført. Verifisert 2026-04-28: 0 drift i kode (8 Enterprise-treff i `apps/api` er alle tilsiktet snapshot-felt-bruk), DB-rename komplett på test+prod. Beholdes som historikk.
+>
+> **Sannhetskilder for nåværende status:**
+> - [docs/claude/terminologi.md](../claude/terminologi.md) — gjeldende begreps-definisjoner
+> - [docs/claude/db-naming-audit-2026-04-25.md](../claude/db-naming-audit-2026-04-25.md) — DB-rename-verifisering
+
 # Rapport: Entreprise vs Faggruppe vs DokumentflytPart
 
 ## Problemstilling
