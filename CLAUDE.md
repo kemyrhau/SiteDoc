@@ -499,6 +499,17 @@ To DB-kolonner styrer tilgang: `User.role` (`sitedoc_admin` | `company_admin` | 
 
 ## Viktige regler
 
+### Dokumentasjons-disiplin (sannhetskilde-prinsippet)
+
+Dokumentasjon skal speile faktisk tilstand. Beslutninger som ikke er skrevet inn er usynlige.
+
+- **Kode + docs i samme commit:** Når kode eller funksjonalitet bygges, oppdateres relevant fil i `docs/claude/` i SAMME commit. Aldri «docs senere».
+- **Beslutninger skrives inn umiddelbart:** Beslutninger fra samtale eller commit overføres til riktig sannhetskilde med en gang, ikke etter at de er glemt. Riktig sannhetskilde er den aktive detalj-filen i `docs/claude/`, ikke CLAUDE.md hovedfil (med mindre regelen gjelder tech stack, struktur, kommandoer, kodestil eller overordnede regler).
+- **Verifisering mot kode FØR beslutning:** Beslutninger om ny kode tas etter at gjeldende kode er bekreftet — ikke ut fra antagelser om hva dokumentasjonen sier. Dokumentet kan ha drift; koden er fasit.
+- **Hjemløse beslutninger fanges før arkivering:** Når en `docs/claude/`-fil arkiveres eller slettes, sjekkes den først for unikt innhold som mangler i aktive filer. Drift og hjemløse beslutninger overføres til aktive sannhetskilder FØR fila flyttes.
+
+Reglene nedenfor — særlig **Auto-oppdater dokumentasjon**, **STATUS.md vedlikehold** og **YAML-header på docs/claude/-filer** — er konkrete uttrykk for dette prinsippet.
+
 - **Beskriv løsningen først:** Før kodeendringer, beskriv den logiske løsningen med ord og be om brukerens godkjenning. Ikke anta — still kontrollspørsmål ved tvil
 - **ALDRI bruk "entreprise"/"enterprise"** i ny kode, UI-strenger eller dokumentasjon. Bruk **faggruppe** (UI/variabelnavn) eller **Faggruppe** (Prisma-modell). Se "Terminologi og hierarki"-seksjonen
 - **Attestering ≠ Godkjenning** (ufravikelig låst 2026-04-26):
