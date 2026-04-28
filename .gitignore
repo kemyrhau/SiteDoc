@@ -46,3 +46,8 @@ uploads/
 # Expo
 ios/
 android/
+
+# Apple-arbeidsdokumenter (binære, hører ikke i git)
+*.pages
+*.numbers
+*.key

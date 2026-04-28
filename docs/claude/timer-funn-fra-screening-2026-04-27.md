@@ -92,6 +92,8 @@ Volum hos A.Markussen: 1468 underprosjekter på tvers av alle prosjekter, 54 på
 
 **Forbehold:** A.Markussen er én kunde. Generaliserbarhet til andre SiteDoc-kunder må vurderes — kanskje deres modell er for spesialisert til å være SiteDoc-default.
 
+**Påvirker også:** [MALBYGGER.md](../../MALBYGGER.md) sin "Timeregistrering"-seksjon forutsetter dagens timer.md sin Underprosjekt-modell ("avledning fra ProAdm/Godkjenning"). Hvis Funn 4 løses ved at SiteDoc-Underprosjekt får egen identitet (SmartDok-stil), må MALBYGGER.md re-vurderes synkront.
+
 ## Funn 5 — Stengning + attestering: 4 hull i state-design
 
 **Status:** ÅPEN — krever beslutninger før Timer-modul-koding
