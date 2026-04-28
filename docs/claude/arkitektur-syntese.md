@@ -66,7 +66,7 @@ Norsk byggebransje har «prosjekthotell» som etablert produktkategori (Interaxo
 
 **Endringer fra tidligere skisser:**
 - Kompetanseregister flyttet til Timer-modul (var foreslått som egen modul)
-- Mannskap og PSI slått sammen (PSI valgfri innenfor)
+- Mannskap er vy i PSI-modulen, ikke separat modul. PSI utvides med innsjekk/utsjekk-mekanikk; mannskaps-vyen aggregerer tilstedeværelses-data per byggeplass (per CLAUDE.md § Tre nivåer-anker, korrigert 2026-04-28)
 - Maskin-modul inkluderer EquipmentChecklist (separat fra prosjekt-sjekkliste)
 
 ### 1.3 Firma-instillinger (ikke moduler) ✅
@@ -211,17 +211,11 @@ Etablert mønster i tre eksisterende implementasjoner. **Kanon: `EquipmentAssign
 
 **Sjekklister/Oppgaver/Godkjenning** beholder kun prosjekt-kontekst — krever required `bestillerFaggruppeId` + `utforerFaggruppeId`. Ingen endring.
 
-**HMS-rapport (Psi)** får firma-kontekst i Fase 0:
+**HMS-rapport (Psi)** beholder ren prosjekt-kontekst — `projectId` forblir required (per CLAUDE.md § Tre nivåer-anker, korrigert 2026-04-28). PSI er prosjektmodul. Tidligere foreslått firma-eid PSI-utvidelse (organizationId + projectId nullable + kontekstType) er **forkastet**.
 
-```
-Psi
-├── organizationId (required, NEW)         — alltid firma som eier
-├── projectId? (nullable, ENDRET fra required)
-├── byggeplassId? (uendret)
-├── kontekstType String @default("prosjekt") (NEW)
-│   // 'prosjekt' | 'byggeplass' | 'kontor' | 'verksted' | 'firmabil' | 'annet'
-└── eksisterende felter
-```
+**PSI-utvidelser i fremtidige faser:**
+- `eksternSystem`-felt (PSI gjennomført i SiteDoc eller eksternt system per byggeplass) — registrert som NY-7 / 4A i [oppryddings-plan-2026-04-28.md](oppryddings-plan-2026-04-28.md)
+- Innsjekk/utsjekk-mekanikk + mannskaps-vy — design utsettes til Fase 4 (PSI-modul-utvidelse). Se [mannskap.md](mannskap.md) for vy-beskrivelse
 
 **Maskin-vedlikeholds-sjekklister** lever som separat domene i `db-maskin` (se §3.6).
 
@@ -350,10 +344,12 @@ Detaljer i [fase-0-beslutninger.md](fase-0-beslutninger.md) §«Implementeringsr
 - Underprosjekt (Proadm-import eller SiteDoc Godkjenning)
 - Reset-status: prototype i `apps/web/src/app/dashbord/[prosjektId]/timer/` slettes når faktisk modul bygges (per CLAUDE.md)
 
-### Fase 4 — Mannskap/PSI-modul
+### Fase 4 — PSI-utvidelse (innsjekk/utsjekk + mannskaps-vy)
 
-- §15-liste, HMS-kort, geofence-innsjekk
-- PSI som valgfri per byggeplass
+- PSI utvides med innsjekk/utsjekk-mekanikk (datamodell-design Fase 4)
+- Mannskaps-vyen aggregerer PSI-tilstedeværelses-data per byggeplass
+- §15-liste-eksport, HMS-kort-validering, geofence-innsjekk
+- `eksternSystem`-felt på Psi (SiteDoc eller eksternt system per byggeplass)
 - 12t auto-utsjekk
 
 ### Fase 5 — Varelager-modul
@@ -473,7 +469,7 @@ Følgende memorier skal opprettes/oppdateres når implementeringen i ny chat beg
 - [maskin.md](maskin.md) — Maskin-modul-spesifikasjon
 - [timer.md](timer.md) — Timer-modul-spesifikasjon
 - [kontrollplan.md](kontrollplan.md) — Kontrollplan + Sjekklistebibliotek
-- [mannskap.md](mannskap.md) — Mannskap/PSI-spesifikasjon
+- [mannskap.md](mannskap.md) — Mannskaps-vy + PSI-utvidelser-spesifikasjon
 - [smartdok-undersokelse.md](smartdok-undersokelse.md) — A.Markussen-referanse
 - [arkitektur-oppsummering-2026-04-25.md](../arkiv/arkitektur-oppsummering-2026-04-25.md) — Faktabasert status (arkivert 2026-04-28)
 

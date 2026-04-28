@@ -20,8 +20,8 @@
 |---|---:|
 | ✅ Verifisert mot kode | 4 |
 | ⚠️ Drift identifisert | 5 |
-| 🔄 Under arbeid | 3 |
-| ❌ Ikke screenet | 20 |
+| 🔄 Under arbeid | 4 |
+| ❌ Ikke screenet | 19 |
 | 📦 Arkivert | 3 |
 | **Totalt** | **35** |
 
@@ -51,7 +51,8 @@
 | Fil | Sist verifisert | Kommentar |
 |---|---|---|
 | onboarding-veileder.md | ikke aktuelt | Idé-stadium, planlagt ~1 måned frem (post-Fase 0). Etablert 2026-04-28 |
-| oppryddings-plan-2026-04-28.md | 2026-04-28 | **Arbeidsanker:** Aktiv anker for oppryddings-arbeidet etter Bunke 3A.1. P-KRITISK-seksjon (3 prod-blokkere) tilføyd 2026-04-28 fra utvidet verifikasjon. Dokument-samhandlings-lukking Nivå 1-4 etablert 2026-04-28 (CLAUDE.md § Tre nivåer som arkitektur-anker). Mini-Nivå 1D 2026-04-28: anker korrigert etter Kenneth-presiseringer (HR-modul fjernet, Mannskap som vy, PSI ren prosjektmodul, lønnsart-grense ny regel) — Nivå 2 omformulert |
+| mannskap.md | 2026-04-28 | **Vy-beskrivelse i PSI-konteksten** etter 1D-presisering (N2.1-revidert). Datamodell forkastet (Mannskapsmedlem dupliserer User per memory). §15-felt-mapping bevart i tekstform. Endelig datamodell designes Fase 4 (PSI-utvidelse) |
+| oppryddings-plan-2026-04-28.md | 2026-04-28 | **Arbeidsanker:** Aktiv anker for oppryddings-arbeidet etter Bunke 3A.1. P-KRITISK-seksjon (3 prod-blokkere) tilføyd 2026-04-28 fra utvidet verifikasjon. Dokument-samhandlings-lukking Nivå 1-4 etablert 2026-04-28 (CLAUDE.md § Tre nivåer som arkitektur-anker). Mini-Nivå 1D 2026-04-28: anker korrigert. Bunke N2.1-revidert (strammet) 2026-04-28: 2A+2B+2C kvittert (mannskap.md restrukturert som vy, firma-eid PSI forkastet, syntese-terminologi rettet). Bunke N2.2 registrert som etter-funn (Varelager-fremskyndelse, DO-kobling-presisering, sakkyndig kontroll, ProAdm-rad) + A.Markussen-research-infeksjons-prinsipp |
 | timer-funn-fra-screening-2026-04-27.md | 2026-04-28 | **Arbeidsanker:** Midlertidig, slettes etter Timer/Maskin-revurdering |
 
 ## ❌ Ikke screenet
@@ -68,7 +69,6 @@
 | db-opprydning.md | — | **Arbeidsanker:** Markert AKTIV (per CLAUDE.md). K3.2 2026-04-28: åpne audit-spørsmål mot prod. U.2 D-6 2026-04-28 (utvidet verifikasjon) |
 | infrastruktur.md | — | — |
 | kontrollplan.md | — | — |
-| mannskap.md | — | — |
 | maskin.md | — | Krever justering for fase-0 (per CLAUDE.md). K2.4+K2.5 2026-04-28: jsonb-format + service-varsel-trigger |
 | migrering-reporttemplate.md | — | Ikke implementert (per CLAUDE.md). K2.1+K2.2 2026-04-28: mal-versjonering + delt mal-bruk-regel |
 | planlegger.md | — | Planlagt fase (per CLAUDE.md) |

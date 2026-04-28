@@ -26,7 +26,7 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 | [docs/claude/kontrollplan.md](docs/claude/kontrollplan.md) | Kontrollplan + Sjekklistebibliotek: NS 3420-K/F, Område-modell, lovkrav, matrise, sluttrapport, AI-utkast |
 | ~~docs/claude/infrastruktur-moduler.md~~ | **🟥 OBSOLETE** — flyttet til [docs/arkiv/infrastruktur-moduler.md](docs/arkiv/infrastruktur-moduler.md) (2026-04-27). Beskrev forkastet plan om isolert deploy. Faktisk arkitektur er integrerte moduler (samme mønster som Maskin) |
 | [docs/claude/planlegger.md](docs/claude/planlegger.md) | Fremdriftsplanlegger: ressursplanlegging, kompetanse, bemanning, forslag-motor |
-| [docs/claude/mannskap.md](docs/claude/mannskap.md) | Mannskapsregistrering: §15-liste, HMS-kort, geofence-innsjekk, PSI-kobling, GDPR, 12t auto-utlogging |
+| [docs/claude/mannskap.md](docs/claude/mannskap.md) | Mannskaps-vy i PSI-modulen (ikke separat modul). §15-liste, HMS-kort-validering, geofence-innsjekk, GDPR, 12t auto-utsjekk. Endelig datamodell designes Fase 4 |
 | [docs/claude/varsling.md](docs/claude/varsling.md) | Tverrgående varsling: firmanivå, kontrollplan-frister, EU-kontroll, service, sertifisering, in-app klokke |
 | [docs/claude/db-opprydning.md](docs/claude/db-opprydning.md) | **AKTIV:** Opprydningsplan for DB. Timer-modul på pause til prioritet 1+2 er gjort. Faggruppe-rename, CHECK constraints, design-beslutninger |
 | ~~docs/claude/audit-data-2026-04-25.md~~ | **🟦 ARKIVERT 2026-04-28** → [docs/arkiv/audit-data-2026-04-25.md](docs/arkiv/audit-data-2026-04-25.md). Read-only audit av dev-DB 2026-04-25. Åpne audit-spørsmål mot prod konsolidert til [db-opprydning.md § Åpne audit-spørsmål](docs/claude/db-opprydning.md) (K3.2) før arkivering |
