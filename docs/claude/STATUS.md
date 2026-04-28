@@ -51,7 +51,7 @@
 | Fil | Sist verifisert | Kommentar |
 |---|---|---|
 | onboarding-veileder.md | ikke aktuelt | Idé-stadium, planlagt ~1 måned frem (post-Fase 0). Etablert 2026-04-28 |
-| oppryddings-plan-2026-04-28.md | 2026-04-28 | **Arbeidsanker:** Aktiv anker for oppryddings-arbeidet etter Bunke 3A.1. P-KRITISK-seksjon (3 prod-blokkere) tilføyd 2026-04-28 fra utvidet verifikasjon. Dokument-samhandlings-lukking Nivå 1-4 etablert 2026-04-28 (CLAUDE.md § Tre nivåer som arkitektur-anker) |
+| oppryddings-plan-2026-04-28.md | 2026-04-28 | **Arbeidsanker:** Aktiv anker for oppryddings-arbeidet etter Bunke 3A.1. P-KRITISK-seksjon (3 prod-blokkere) tilføyd 2026-04-28 fra utvidet verifikasjon. Dokument-samhandlings-lukking Nivå 1-4 etablert 2026-04-28 (CLAUDE.md § Tre nivåer som arkitektur-anker). Mini-Nivå 1D 2026-04-28: anker korrigert etter Kenneth-presiseringer (HR-modul fjernet, Mannskap som vy, PSI ren prosjektmodul, lønnsart-grense ny regel) — Nivå 2 omformulert |
 | timer-funn-fra-screening-2026-04-27.md | 2026-04-28 | **Arbeidsanker:** Midlertidig, slettes etter Timer/Maskin-revurdering |
 
 ## ❌ Ikke screenet

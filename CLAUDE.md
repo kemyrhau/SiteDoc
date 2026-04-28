@@ -412,7 +412,6 @@ Firma (Organization)                  ← Selskapet (A.Markussen AS, Veidekke)
 │   ├── Firmamoduler (tverrgående):   ← Slås av/på for hele firmaet
 │   │   ├── Timeregistrering
 │   │   ├── Maskinregistrering
-│   │   ├── HR/Mannskap
 │   │   └── Fremdriftsplanlegging
 │   └── Prosjektmalverk               ← Standardoppsett for nye prosjekter
 │
@@ -427,11 +426,19 @@ Firma (Organization)                  ← Selskapet (A.Markussen AS, Veidekke)
             ├── HMS-avvik
             ├── 3D-visning
             ├── Økonomi (FTD)
-            ├── PSI
+            ├── PSI (med innsjekk/utsjekk + mannskaps-vy)
             └── Kontrollplan
 ```
 
 > **🟢 ARKITEKTUR-ANKER (etablert 2026-04-28):** Treet over er **styrende sannhetskilde for modul-typologi**. Spørsmål om hvilke moduler er prosjekt- vs firmamodul, eller hvilket nivå funksjonalitet hører til, sjekkes mot dette treet først. Andre dokumenter (`arkitektur-syntese.md`, modul-filer i `docs/claude/`) skal reconcileres mot dette treet ved konflikt — ikke omvendt. Pågående reconciliations spores i [docs/claude/oppryddings-plan-2026-04-28.md § Dokument-samhandlings-lukking](docs/claude/oppryddings-plan-2026-04-28.md).
+
+> **📌 Mini-Nivå 1D-presiseringer (2026-04-28):**
+>
+> **Ansatt-objekt og HR-import:** Ansatte importeres fra eksternt HR-system. En egen **Import-modul** (planlagt fremtidig arbeid — ikke implementert) tar imot ansatt-data og mater Timer-modulen med ansattnummer, hmsKortNr og øvrige ansatt-felter. Import-modulen er datainfrastruktur (forutsetning for Timer-onboarding), ikke firmamodul i seg selv. Ansatt-objektet eies av `User` i kjernen (`packages/db`); ingen separat ansatt-tabell.
+>
+> **Mannskapsliste = vy i PSI-modulen:** Mannskaps-listen er ikke separat modul. PSI utvides med innsjekk/utsjekk-mekanikk; mannskaps-listen er den vyen som aggregerer PSI-tilstedeværelses-data per byggeplass. Tidligere skisser («Mannskap som firmamodul», «Mannskap som separat prosjektmodul», «Mannskap/PSI slått sammen») er forkastet.
+>
+> **Kompetansematrise = del av Timer-modulen** (på ansatt-objektet). Detaljert datamodell venter på HR-API-design (planlagt sammen med Import-modulen). Ikke Timer-Fase-3-blokker — kompetanseregister-spec utsettes til HR-API er klar.
 
 ### Begreper — endelig definisjon
 
@@ -542,6 +549,7 @@ Reglene nedenfor — særlig **Auto-oppdater dokumentasjon**, **STATUS.md vedlik
 - E-postsending (Resend) er valgfri — API starter uten nøkkel
 - **Delt infrastruktur:** Brukeren har flere prosjekter som deler domene (sitedoc.no), OAuth-klienter, ngrok-konto og server. ALDRI endre `.env`-filer, DNS/tunnel-config eller OAuth-oppsett uten å spørre — endringer kan påvirke andre prosjekter
 - **Proadm-integrasjon:** all godkjenning skjer i SiteDoc. Proadm mottar kun ferdig godkjente timer/tillegg/utlegg — ingen godkjenningsflyt eller statusoppdateringer tilbake. Detaljer i [docs/claude/timer.md](docs/claude/timer.md)
+- **Lønnsart-grense — regnskap eier kobling og satser:** SiteDoc leverer default lønnsart-numre (avlest fra SmartDok som referanse), men numrene er redigerbare per firma — kunder må kunne tilpasse til sitt eget regnskapssystem. Lønnsart-til-konto-mapping og faktiske satser tilhører regnskap, ikke SiteDoc.
 - **Auto-commit:** Commit og push til `develop` automatisk etter ferdig implementasjon
 - **Auto-deploy til test:** Etter push til `develop`, deploy til test.sitedoc.no automatisk
 - **ALDRI deploy til produksjon** uten eksplisitt forespørsel fra brukeren ("deploy til prod")
