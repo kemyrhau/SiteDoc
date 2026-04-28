@@ -24,6 +24,103 @@ Sannhetskilder: [fase-0-beslutninger.md](fase-0-beslutninger.md), [arkitektur.md
 
 ---
 
+## P0 — Strukturelt grunnlag (gjøres FØR P1)
+
+> **Kjerneformål:** Vi trenger transparent status på hvilke `docs/claude/`-filer som er verifisert mot kode FØR Fase 0-koding starter. Avhengigheter mellom filer må være synlige slik at endring i fil X varsler om hvilke filer som er berørt. YAML-headeren leverer begge funksjoner distribuert. Sentralisert matrise-fil ble vurdert og forkastet 2026-04-28 — se § Utenfor scope.
+
+### [ ] P0.1 — YAML-header-standard
+- **Fil:** Standarden defineres i denne seksjonen; appliseres på alle filer i `docs/claude/`
+- **Type:** Strukturell (etablering av meta-standard)
+- **Fase-0-relevans:** Generell — standarden brukes i alle fremtidige rens-runder
+- **TIMER-FUNN:** Ingen
+- **Kompleksitet:** Lav (definisjon); fordeles over bunkene via P0.2
+
+**YAML-skjema (godkjent 2026-04-28):**
+
+```yaml
+---
+status: aktiv                              # aktiv | utdatert | arkivert | midlertidig
+sist_verifisert_mot_kode: 2026-04-28        # ISO-dato; "ukjent" hvis aldri verifisert
+sist_endret: 2026-04-28                     # ISO-dato; oppdateres ved hver content-endring
+gjelder_versjon: Fase 0                     # Fase 0 | Fase 0.5 | Fase 1 | post-Fase 0 | tverrgående
+avhenger_av:                                # Andre docs/claude/-filer denne forutsetter
+  - terminologi.md
+  - arkitektur.md
+påvirkes_av_beslutninger:                   # A./B./C.-koder fra fase-0-beslutninger.md
+  - A.4
+  - B.7
+slettes_når: <kriterium>                    # KUN på midlertidige filer; utelat på permanente
+---
+```
+
+**Justeringer fra Del B-forslag (besluttet av Kenneth 2026-04-28):**
+- `eier_modul` fjernet — dupliserer informasjon i `avhenger_av`
+- `slettes_når` kun på midlertidige filer (utelat på permanente)
+- Bunkevis retro-fylling — ikke big-bang (se P0.2)
+
+**Plassering:** Øverst i filen, før første overskrift.
+
+**Oppdaterings-regler:**
+
+| Endring | Hva må oppdateres |
+|---|---|
+| Innholds-rens | `sist_endret` |
+| Verifisert mot kode | `sist_verifisert_mot_kode` (og oftest `sist_endret`) |
+| Ny avhengighet (referanse til annen fil) | `avhenger_av` |
+| Ny beslutning som påvirker innhold | `påvirkes_av_beslutninger` |
+| Modulfase endret | `gjelder_versjon` |
+| Filen blir foreldet | `status` → `utdatert` (ikke slett umiddelbart) |
+| Filen er ferdig brukt | `status` → `arkivert` + flytt til `docs/arkiv/` |
+
+**Hard regel:** Hvis en agent endrer innhold uten å oppdatere `sist_endret` og/eller `sist_verifisert_mot_kode` — det er en feil og skal fanges av neste screening.
+
+### [ ] P0.2 — Bunkevis retro-fylling
+- **Fil:** Alle filer i `docs/claude/` uten YAML-header
+- **Type:** Strukturell (retro-fylling)
+- **Fase-0-relevans:** Generell
+- **Kompleksitet:** Lav per fil; total kompleksitet høy (mange filer)
+
+**Strategi (besluttet 2026-04-28 — alternativ B):** Header legges som del av første rens-PR per fil. Naturlig kontekst (agenten har allerede lest filen), én PR per fil, ingen separat header-etablerings-runde.
+
+**For Bunke 3A.1-filer:**
+- web.md, mobil.md, okonomi.md → header tilføyes som del av P2.1, P2.2, P2.3 (samme PR som faggruppe-rens)
+- forretningslogikk.md → header tilføyes som del av P3.3 / P3.4 / P3.5-rens
+- arkitektur-syntese.md → header tilføyes som del av P1.1 (anker-rensing)
+
+**For filer ikke i Bunke 3A.1:** Header tilføyes som del av første screening-bunke som berører filen. Inntil header eksisterer, behandles filen som `status: aktiv`, `sist_verifisert_mot_kode: ukjent`. Agenter må eksplisitt verifisere mot kode før de stoler på innholdet.
+
+**Filer som allerede har YAML-frontmatter (per 2026-04-28):**
+- `timer-funn-fra-screening-2026-04-27.md` — egen frontmatter-stil (status/opprettet/slettes), bør migreres til standard ved første berøring
+- `oppryddings-plan-2026-04-28.md` (denne) — samme
+
+### [ ] P0.3 — Verifisert-mot-kode-register 2026-04-28
+- **Fil:** Register dokumentert her; appliseres når fil-headere etableres per P0.2
+- **Type:** Strukturell (sporbarhet)
+- **Fase-0-relevans:** Direkte — Fase 0-koding må vite hvilke filer som er pålitelige
+- **TIMER-FUNN:** Ingen
+- **Kompleksitet:** Lav
+
+**Følgende filer ble verifisert mot kode i Bunke 3A.1-screening 2026-04-28:**
+
+| Fil | Drift identifisert |
+|---|---|
+| forretningslogikk.md | Byggeplan-rekkefølge motsigelse, Godkjenning-status, lestAv ved gruppe-mottaker |
+| okonomi.md | 4 faggruppe-forekomster, FtdNotaComment mangler i tabell, ECO/Godkjenning-kobling mangler |
+| mobil.md | 5 faggruppe-forekomster, Provider-tre-motsigelser (3 ulike) |
+| web.md | 21 faggruppe-forekomster, ruter feil (`/entrepriser` → `/faggrupper`), API-navn feil |
+| arkitektur-syntese.md | OrganizationModule-tabell vs ProjectModule-utvidelse, Avdeling-flagg vs tabell, Godkjenning «Eksisterer» feil |
+
+**Når header etableres på disse filene (per P0.2-strategi), settes:**
+```yaml
+sist_verifisert_mot_kode: 2026-04-28
+```
+
+**Verifikasjonsgrunnlag:** Bunke 3A.1-rapporten (samtaleloggen i sesjonen 2026-04-28, ikke commitet som egen fil). Hvis Kenneth ønsker permanent register, kan rapporten arkiveres som egen fil i fremtidig commit. Ikke del av nåværende oppgave.
+
+**Filer IKKE verifisert i Bunke 3A.1 (krever fremtidig screening):** Resten av `docs/claude/`-filer (timer.md, maskin.md, mannskap.md, planlegger.md, varsling.md, ai-sok.md, byggeplass-strategi.md, kontrollplan.md, infrastruktur.md, og flere). Header settes med `sist_verifisert_mot_kode: ukjent` ved første berøring inntil de screenes.
+
+---
+
 ## P1 — Anker-rensing (gjøres først)
 
 > **Begrunnelse:** arkitektur-syntese.md er anker for Fase 0-koding per CLAUDE.md. Drift her påvirker neste code-instans direkte. Rens denne FØR Timer/Maskin-revurdering går videre.
@@ -98,28 +195,62 @@ Sannhetskilder: [fase-0-beslutninger.md](fase-0-beslutninger.md), [arkitektur.md
 > **Begrunnelse:** Faggruppe-rename er gjennomført i kode (test+prod april 2026). Doc-drift gir feil mental modell for ny utvikling. Bør ryddes systematisk.
 
 ### [ ] P2.1 — Systematisk faggruppe-rename i web.md
-- **Fil:** web.md (~25–30 forekomster)
-- **Type:** Drift-rens (rename + rute-fakta)
-- **Berører:** Rute-tabell (linje 44, 65), `EntrepriserPanel` → `FaggrupperPanel`, `hentMineEntrepriser` → `hentMineFaggrupper`, alle «entreprise»-omtaler i FlytIndikator/Send-dropdown/Bestiller-entreprise-seksjoner, «Feltarbeid» → «Produksjon» (linje 487), `produksjon/mapper` vs `produksjon/box` (avklar faktisk navn)
-- **Fase-0-relevans:** A.8 (faggruppe-terminologi er låst)
+- **Fil:** web.md (**21 reelle drift-forekomster, verifisert 2026-04-28**)
+- **Type:** Drift-rens (rename + rute-fakta) + header-etablering per P0.2
+- **Berører — komplett linjenummer-liste:**
+  - Linje 44: `/dashbord/[prosjektId]/entrepriser` — rute heter `faggrupper/` (verifisert)
+  - Linje 65: `/dashbord/oppsett/produksjon/entrepriser` — rute heter `kontakter/` (verifisert)
+  - Linje 178: `EntrepriserPanel` — komponent heter `FaggrupperPanel.tsx` (verifisert)
+  - Linje 187: `Bestiller-entreprise … (showEnterprise)` — schema-felt heter `showFaggruppe` (`schema.prisma:468`)
+  - Linje 193: `Entreprise-dropdown … brukerens entrepriser (hentMineEntrepriser)` — API heter `medlem.hentMineFaggrupper`
+  - Linje 198: `Bestiller-entreprise: Første fra hentMineEntrepriser`
+  - Linje 199: `Utfører-entreprise: Utledes fra dokumentflyt … bestiller-entreprisen`
+  - Linje 220: kolonne-tabell `Prefix, …, Entrepriser, Mal, Datoer`
+  - Linje 227: `responderEnterprise` (0 treff i kode — ren prosa-drift)
+  - Linje 256: `(entreprise først, deretter person/gruppe …)`
+  - Linje 261: `Data: dokumentflyt.medlemmer med … enterprise, projectMember, group` — relasjon heter `faggruppe` i Prisma
+  - Linje 272: `[Send ▾] (entrepriser + send tilbake)`
+  - Linje 278: `Primærmottaker (entreprisenavn fra byggVideresendValg())`
+  - Linje 280: `Separator + andre entrepriser (videresend)`
+  - Linje 291: `entrepriseIder` — API returnerer `faggruppeIder` (`gruppe.ts:76`)
+  - Linje 293: `utforerEnterpriseId` — schema-felt heter `utforerFaggruppeId` (`schema.prisma:515`)
+  - Linje 381: `bestillerEnterprise.projectId` — relasjon heter `bestillerFaggruppe` (`schema.prisma:585`)
+  - Linje 759: `(ikke entreprise)`
+  - Linje 760: `Dokumentflyt kobles til entreprise via forvalgtEntrepriseId`
+  - Linje 761: `Entrepriser fjernet fra sidebar`
+  - Linje 763: `Entreprise fargevelger` (overskrift)
+- **I tillegg (ikke i 21-tellingen):** «Feltarbeid» → «Produksjon» (linje 487), `produksjon/mapper` vs `produksjon/box` (linje 73 — avklar faktisk navn ved start av PR)
+- **Header (per P0.2):** Tilføy YAML-frontmatter i samme PR. Sett `sist_verifisert_mot_kode: 2026-04-28`, `påvirkes_av_beslutninger: [A.8]`
+- **Fase-0-relevans:** A.8 (faggruppe-terminologi låst)
 - **TIMER-FUNN:** Ingen
-- **Kompleksitet:** Medium (stor mengde, ren mekanisk rename + verifikasjon mot kode)
-- **Åpne spørsmål:** Ingen
+- **Kompleksitet:** Medium (21 forekomster + tilleggsfunn + header)
+- **Åpne spørsmål:** Linje 73 — `produksjon/mapper` vs `produksjon/box`: kjør `ls apps/web/src/app/dashbord/oppsett/produksjon/` ved start av PR for å avklare
 - **Anbefaling:** Egen avgrenset bunke «P2.1: faggruppe-rename i web.md» med eksplisitt scope
 
 ### [ ] P2.2 — Faggruppe-rename i mobil.md
-- **Fil:** mobil.md (~5–10 forekomster)
-- **Type:** Drift-rens
-- **Berører:** Linje 15 (Entreprise auto-velges), linje 46–48 (Send-ActionSheet), linje 51 (videresend), linje 72 (auto-fill `company→entreprise`), linje 414 (Dokumentflyt-filtrering)
+- **Fil:** mobil.md (**5 reelle drift-forekomster, verifisert 2026-04-28**)
+- **Type:** Drift-rens + header-etablering per P0.2
+- **Berører — komplett linjenummer-liste:**
+  - Linje 14: `Entreprise: Auto-velges hvis bruker kun er i 1 entreprise`
+  - Linje 46: `received/in_progress/rejected | [Send ▾] (ActionSheet med entrepriser)`
+  - Linje 51: `Send-dropdown: primærmottaker, …, videresend til andre entrepriser`
+  - Linje 72: `Auto-fill: …, company→entreprise, drawing_position→…`
+  - Linje 413: `Dokumentflyt-filtrering: kun entrepriser med flyt for valgt mal`
+- **Header (per P0.2):** Tilføy YAML-frontmatter. Sett `sist_verifisert_mot_kode: 2026-04-28`, `påvirkes_av_beslutninger: [A.8]`
 - **Fase-0-relevans:** A.8
 - **TIMER-FUNN:** Ingen
 - **Kompleksitet:** Lav
 - **Åpne spørsmål:** Ingen
 
-### [ ] P2.3 — Korriger filnavn-referanse i okonomi.md
-- **Fil:** okonomi.md
-- **Type:** Drift-rens
-- **Berører:** Linje 36 (`entreprise-velger.tsx` → `faggruppe-velger.tsx`), linje 60 (Relasjon til `entrepriser` → `faggrupper`)
+### [ ] P2.3 — Faggruppe-rename i okonomi.md
+- **Fil:** okonomi.md (**4 reelle drift-forekomster, verifisert 2026-04-28**)
+- **Type:** Drift-rens + header-etablering per P0.2
+- **Berører — komplett linjenummer-liste:**
+  - Linje 36: `entreprise-velger.tsx # Dropdown for entrepriser` — filnavn er `faggruppe-velger.tsx` (verifisert)
+  - Linje 60: `Container for økonomi-dokumenter per entreprise`
+  - Linje 62: `Relasjon til byggeplass, entrepriser, dokumenter, mapper, notaPerioder`
+  - Linje 167: `Slett kontrakt (kaskade, fjern fra entrepriser/dokumenter)`
+- **Header (per P0.2):** Tilføy YAML-frontmatter. Sett `sist_verifisert_mot_kode: 2026-04-28`, `påvirkes_av_beslutninger: [A.8]`
 - **Fase-0-relevans:** A.8
 - **TIMER-FUNN:** Ingen
 - **Kompleksitet:** Lav
@@ -390,11 +521,12 @@ Sannhetskilder: [fase-0-beslutninger.md](fase-0-beslutninger.md), [arkitektur.md
 
 ## Utenfor scope (kun rapportering)
 
-> Disse er flagget i screening, men løses IKKE som del av denne planen.
+> Disse er flagget i screening eller drøfting, men løses IKKE som del av denne planen.
 
 - **`entreprise: faggruppeRouter`-alias i `apps/api/src/trpc/router.ts:36`** — dødt alias (0 mobil-kall verifisert). Kan ryddes ved fremtidig mobil-deploy-syklus, men er ikke skadelig nå.
 - **Andre filer i `apps/web/src/components/mengde/`-mappen** — ikke screenet i Bunke 3A.1. Kan inneholde lignende drift; egen runde hvis ønsket.
 - **Annen dokumentasjon i `docs/claude/`** — Bunke 3A.1 dekket kun 5 filer. Resterende filer (timer.md, maskin.md, mannskap.md, planlegger.md, varsling.md, ai-sok.md, etc.) kan ha tilsvarende drift. Egne screening-bunker.
+- **Sentralisert matrise-fil (`dokument-matrise.md`)** — VURDERT OG FORKASTET 2026-04-28. Begrunnelse: Header-feltene `avhenger_av` og `påvirkes_av_beslutninger` (P0.1) gir samme funksjon distribuert, uten sentralisert vedlikeholds-byrde. Reverse-lookup («hvilke filer påvirkes av A.4?») løses med grep: `grep -l "A.4" docs/claude/*.md`. Hvis sentralisert oversikt savnes senere — vurder script som genererer matrise fra header-data automatisk; aldri manuelt vedlikeholdt fil.
 
 ---
 
