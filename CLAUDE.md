@@ -525,6 +525,8 @@ To DB-kolonner styrer tilgang: `User.role` (`sitedoc_admin` | `company_admin` | 
 - **Auto-deploy til test:** Etter push til `develop`, deploy til test.sitedoc.no automatisk
 - **ALDRI deploy til produksjon** uten eksplisitt forespørsel fra brukeren ("deploy til prod")
 - **Auto-oppdater dokumentasjon:** Oppdater relevant fil i `docs/claude/` etter vesentlige endringer
+- **STATUS.md vedlikehold:** Når en fil i `docs/claude/` endrer status (verifisert / drift identifisert / under arbeid / ferdig), oppdater [docs/claude/STATUS.md](docs/claude/STATUS.md) i SAMME commit. Aldri separat commit kun for status-oppdatering. Gjelder også når nye filer opprettes eller eksisterende slettes/arkiveres.
+- **YAML-header på docs/claude/-filer:** Filer som røres skal ha YAML-frontmatter per standarden i [oppryddings-plan-2026-04-28.md § P0.1](docs/claude/oppryddings-plan-2026-04-28.md). Bunkevis retro-fylling — header tilføyes som del av første rens-PR per fil. Inntil header eksisterer: behandle filen som `sist_verifisert_mot_kode: ukjent` og verifiser mot kode før du stoler på innholdet.
 - **Kontekstsparing:** Kontekstvinduet er begrenset — spar plass:
   - **Batch SSH-kommandoer:** Kombiner flere SSH-kall til ett script/én kommando i stedet for mange enkeltkommandoer. F.eks. ett `ssh sitedoc "cmd1 && cmd2 && cmd3"` i stedet for tre separate kall
   - **Filtrer output:** Bruk `| tail -n`, `| head -n`, `| grep` for å begrense output fra verbose kommandoer (build-logger, PM2-lister, psql-resultater)
