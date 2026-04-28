@@ -55,14 +55,14 @@
 | arkitektur-qa-runde-2-2026-04-25.md | — | Datert QA-rapport 2026-04-25 |
 | audit-data-2026-04-25.md | — | Datert read-only audit 2026-04-25 |
 | bibliotek.md | — | Peker til kontrollplan.md (konsolidert) |
-| byggeplass-strategi.md | — | Planlagt fase (per CLAUDE.md) |
+| byggeplass-strategi.md | — | Planlagt fase (per CLAUDE.md). K2.3 (slette-policy) konsolidert 2026-04-28 |
 | db-naming-audit-2026-04-25.md | — | Datert audit 2026-04-25 |
 | db-opprydning.md | — | Markert AKTIV (per CLAUDE.md) |
 | infrastruktur.md | — | — |
 | kontrollplan.md | — | — |
 | mannskap.md | — | — |
-| maskin.md | — | Krever justering for fase-0 (per CLAUDE.md) |
-| migrering-reporttemplate.md | — | Ikke implementert (per CLAUDE.md) |
+| maskin.md | — | Krever justering for fase-0 (per CLAUDE.md). K2.4 (jsonb-format) + K2.5 (service-varsel-trigger) konsolidert 2026-04-28 |
+| migrering-reporttemplate.md | — | Ikke implementert (per CLAUDE.md). K2.1 (mal-versjonering) + K2.2 (delt mal-bruk-regel) konsolidert 2026-04-28 |
 | planlegger.md | — | Planlagt fase (per CLAUDE.md) |
 | shared-pakker.md | — | — |
 | smartdok-undersokelse-2026-04-25.md | — | Arkivert v1 (per CLAUDE.md) |

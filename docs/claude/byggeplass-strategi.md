@@ -1,3 +1,18 @@
+---
+status: aktiv
+sist_verifisert_mot_kode: ukjent
+sist_endret: 2026-04-28
+gjelder_versjon: Fase 0.5
+avhenger_av:
+  - arkitektur.md
+  - fase-0-beslutninger.md
+  - mannskap.md
+påvirkes_av_beslutninger:
+  - A.20
+  - C.10
+  - C.11
+---
+
 # Byggeplass + Avdeling-strategi (Fase 0.5)
 
 **Status:** Planlagt fase, ikke startet. Etablert 2026-04-25 (Byggeplass) og utvidet 2026-04-26 (Avdeling) som anker for senere designarbeid.
@@ -126,6 +141,26 @@ For relasjoner der én entitet kan høre til flere byggeplasser (m2m — f.eks. 
 **Beslutning forventet:** C1. Begrunnelse: gir referanseintegritet (FK-cascading ved sletting av byggeplass), støtter indekser og JOINs, ryddigere SQL-spørringer, samme pattern som andre m2m-relasjoner i basen.
 
 Konsekvens for `project_groups.building_ids`: den dropps og erstattes av koblingstabell som del av denne fasen.
+
+## Slette-policy
+
+Byggeplass-sletting kan miste viktig kontekst hvis ikke håndtert eksplisitt. Eksisterende oppførsel: `Psi.byggeplassId` er nullable med `onDelete: SetNull` — data bevares, men kontekst (hvilken byggeplass det gjaldt) går tapt. Ingen advarsel-dialog finnes.
+
+**Policy som må implementeres FØR byggeplass-sletting tas i bruk i UI:**
+
+1. **Telleresult før sletting:** Slett-rute returnerer antall avhengige rader («X PSI-rader, Y kontrollplan-punkter, Z dokumenter er knyttet til denne byggeplassen»)
+2. **Tekstinput-bekreftelse:** Bruker må skrive byggeplass-navnet for å bekrefte (samme mønster som GitHub repo-sletting)
+3. **Cascade-valg:** Default er SetNull (data bevares som «ikke-byggeplass-knyttet»). Brukeren kan velge eksplisitt cascade for å slette tilhørende data — men dette er separat handling fra byggeplass-sletting
+
+**Berørte modeller (krever sjekking når policy implementeres):**
+- `Psi.byggeplassId` (eksisterende)
+- `Kontrollplan.byggeplassId` (eksisterende)
+- `Folder.byggeplassId` (sjekk eksistens)
+- Andre nye byggeplass-koblede modeller fra Fase 0.5
+
+**Implementasjon:** Som del av Fase 0.5 (byggeplass-fundament). Ikke i Fase 0.
+
+**Kilde:** Identifisert i Opus QA-runde 2 (2026-04-25), §6.3 Q3 — konsolidert hit 2026-04-28.
 
 ## Avhengigheter
 

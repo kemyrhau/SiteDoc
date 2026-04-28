@@ -115,7 +115,7 @@ Wrap i Prisma-migrering med raw SQL.
 
 **Konsekvens:** Påvirker UI-flyt (kan eksisterende mal velges fra Kontrollplan-konfigurasjon, eller må man opprette ny?). Påvirker mal-promotering til firma-bibliotek.
 
-**Status:** Diskuter før mal-promotering implementeres.
+**Status:** Diskuter før mal-promotering implementeres. Detaljert konflikt-regel og 3 alternativer dokumentert i [migrering-reporttemplate.md § Konflikt-regel](migrering-reporttemplate.md) (konsolidert 2026-04-28).
 
 ### 2.4 Faggruppe.partnerId
 

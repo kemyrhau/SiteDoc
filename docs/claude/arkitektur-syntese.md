@@ -214,7 +214,7 @@ Psi
 
 **UI-skille:** Maskin-sjekklister vises kun under maskinregister (`/dashbord/maskin/[id]/sjekklister`). Prosjekt-sjekklister vises under prosjekt. Firma-admin-dashboard kan ha samlet maler-vy med tabs.
 
-**EquipmentChecklistTemplate.struktur** bruker samme jsonb-felt-format som `ReportTemplate.struktur` for å gjenbruke UI-renderer-komponenter.
+**EquipmentChecklistTemplate.struktur** bruker samme jsonb-felt-format som `ReportTemplate.struktur` for å gjenbruke UI-renderer-komponenter. Detaljer i [maskin.md § Sjekkliste-mal-format](maskin.md).
 
 ### 3.7 Mal-arkitektur — utvid eksisterende ✅
 

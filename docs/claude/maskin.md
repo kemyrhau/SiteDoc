@@ -1,3 +1,16 @@
+---
+status: aktiv
+sist_verifisert_mot_kode: ukjent
+sist_endret: 2026-04-28
+gjelder_versjon: Fase 1
+avhenger_av:
+  - arkitektur.md
+  - fase-0-beslutninger.md
+påvirkes_av_beslutninger:
+  - A.6
+  - A.20
+---
+
 # Maskin- og utstyrsregister — Fase 3
 
 ## Formål
@@ -105,6 +118,36 @@ A.Markussen bruker SmartDok med to faste ansvarlig-felt («Maskinansvarlig 1» o
 
 - QR-kode per utstyr: ja, men ikke MVP. Genereres fra `equipmentId`, printbar etikett, mobilapp-skanning åpner kortet
 - RFID: utsettes til reelt behov oppstår
+
+### Sjekkliste-mal-format — kompatibilitet med ReportTemplate
+
+`EquipmentChecklistTemplate.struktur` (i `db-maskin`, planlagt Fase 1) bruker **samme jsonb-felt-format** som `ReportTemplate.struktur` (i `db`).
+
+**Begrunnelse:** UI-renderer-komponenter for sjekklister kan gjenbrukes på tvers av prosjekt-sjekklister og maskin-sjekklister. To parallelle sjekkliste-systemer (per [arkitektur-syntese.md § 1.1](arkitektur-syntese.md)) er bevisst valg for domene-isolasjon, men felt-format-kompatibilitet er praktisk og nødvendig.
+
+**Konsekvens:** Når `EquipmentChecklistTemplate` bygges (Fase 1):
+- `struktur Json` følger samme schema som `ReportTemplate.struktur`
+- Felt-typer (traffic_light, decimal, text_field, info_text osv.) er samme enum
+- Renderer-komponenter i `apps/web/src/components/sjekkliste/` kan gjenbrukes uten gaffel
+
+**Avgrensning:** Datamodell-isolasjonen mellom `db` og `db-maskin` opprettholdes — kun jsonb-format-kompatibilitet, ikke FK-deling.
+
+**Kilde:** Identifisert i Opus QA-runde 2 (2026-04-25), §7.1 — konsolidert hit 2026-04-28.
+
+### Service-varsel-trigger for EquipmentChecklist
+
+Maskin-sjekklister kan «trigges av varsel» (eks. EU-kontroll-frist nærmer seg → automatisk sjekkliste-opprettelse). Trigger-mekanikken må bygges parallelt med `EquipmentChecklist`-modellen i Fase 1 — ellers er sjekkliste-modellen modellert uten reell utløsings-vei.
+
+**Berørte komponenter (Fase 1):**
+- `EquipmentChecklist` + `EquipmentChecklistTemplate` (per planlagt Fase 1)
+- Service-varsel-mekanisme i `db-maskin` (cron eller event-basert)
+- Kobling fra varsling-system (per [varsling.md](varsling.md)) til sjekkliste-opprettelse
+
+**Avgrensning:** Maskin-sjekkliste-trigger-mekanikk lever i `db-maskin` og maskin-modulen. Generell varsling-rammeverk lever i kjernen (per varsling.md). Maskin-modulen tar ansvar for sin domene-spesifikke trigger.
+
+**Manuell trigger (eksisterende):** Brukeren kan opprette sjekkliste manuelt fra maskinregister — denne utgjør allerede primær-veien (per § Designbeslutninger MVP-scope). Auto-trigger fra varsel kommer som tillegg.
+
+**Kilde:** Identifisert i Opus QA-runde 2 (2026-04-25), Nye svakheter punkt 7 — konsolidert hit 2026-04-28.
 
 ## Tre kategorier
 

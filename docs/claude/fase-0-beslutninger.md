@@ -1004,7 +1004,7 @@ Krever nasjonalitet + arbeidstillatelse på User. Allerede inkludert i A.11 (dat
 | **5** | **ProjectModule-utvidelse (organizationId nullable + status String)** — se A.4/A.17 for SQL-detaljer (én atomisk migrasjon, ikke to separate steg) | ProjectModule + Project.primaryOrganizationId |
 | 6 | OrganizationPartner | Organization |
 | 7 | OrganizationTemplate | Organization |
-| 8 | BibliotekMal-utvidelse (4 felt: kategori/domene/kobletTilModul/verifisert) | BibliotekMal (finnes) |
+| 8 | BibliotekMal-utvidelse (4 felt: kategori/domene/kobletTilModul/verifisert) — versjons-felt på `ReportTemplate` koordineres her per [migrering-reporttemplate.md § Mal-versjonering](migrering-reporttemplate.md) | BibliotekMal (finnes) |
 | 9 | Psi.organizationId + projectId nullable + kontekstType — **inkluder oppdatering av `@@unique([projectId, byggeplassId])`** når projectId blir nullable. Vurder ny unique: `@@unique([organizationId, projectId, byggeplassId])` eller separat håndtering for null-projectId-tilfeller. Sjekk byggeplassId-FK-konsistens også | Psi (finnes) |
 | 10 | ProjectMember.periodeSlutt + UE-rolle dokumentasjon + **userId cascade-policy endres fra Cascade til SetNull (per B.7)** + **ProjectGroupMember/FaggruppeKobling/DokumentflytMedlem.periodeSlutt (per C.13)** | ProjectMember + 3 loan-tabeller (alle finnes) |
 | 11 | ExternalCostObject | Organization, Project |
