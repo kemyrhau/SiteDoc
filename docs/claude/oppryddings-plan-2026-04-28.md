@@ -252,7 +252,7 @@ sist_verifisert_mot_kode: 2026-04-28
 
 > **Begrunnelse:** arkitektur-syntese.md er anker for Fase 0-koding per CLAUDE.md. Drift her påvirker neste code-instans direkte. Rens denne FØR Timer/Maskin-revurdering går videre.
 
-### [ ] P1.1 — Erstatt `OrganizationModule` med `ProjectModule.organizationId`-utvidelse
+### [x] P1.1 — Erstatt `OrganizationModule` med `ProjectModule.organizationId`-utvidelse *(Utført 2026-04-29 — commit fd63600)*
 - **Fil:** arkitektur-syntese.md
 - **Type:** Drift-rens (strukturell rename)
 - **Berører:** § 2.3 (linje ~114), § 4 (linje ~254), § 5 Fase 0 datamodell-liste, § 10 memory-oppdateringer
@@ -261,7 +261,7 @@ sist_verifisert_mot_kode: 2026-04-28
 - **Kompleksitet:** Lav (rename i én fil)
 - **Åpne spørsmål:** Ingen — A.4 er låst
 
-### [ ] P1.2 — Erstatt «Avdeling via flagg» med «Avdeling-tabell i Fase 0.5»
+### [x] P1.2 — Erstatt «Avdeling via flagg» med «Avdeling-tabell i Fase 0.5» *(Utført 2026-04-29 — commit fd63600)*
 - **Fil:** arkitektur-syntese.md
 - **Type:** Drift-rens (strukturell)
 - **Berører:** § 1.3 firma-instillinger-tabell, § 4 «Manglende firma-modeller»-tabell, § 5 Fase 0 datamodell-liste
@@ -288,7 +288,7 @@ sist_verifisert_mot_kode: 2026-04-28
 - **Kompleksitet:** Lav
 - **Åpne spørsmål:** Hvor mange av de tre prinsippene er faktisk besluttet? Krever lesing av byggeplass-strategi.md for å avklare
 
-### [ ] P1.5 — Synk multi-firma-bruker (§ 2.5) med B.7 Modell A
+### [x] P1.5 — Synk multi-firma-bruker (§ 2.5) med B.7 Modell A *(Utført 2026-04-29 — commit fd63600)*
 - **Fil:** arkitektur-syntese.md
 - **Type:** Drift-rens (presiser med referanse til vedtak)
 - **Berører:** § 2.5 «Multi-firma-bruker | Ikke prioritert — duplikat User per firma som default»
@@ -561,12 +561,12 @@ sist_verifisert_mot_kode: 2026-04-28
 - **TIMER-FUNN:** Indirekte (timer-rader er offline-førlig)
 - **Kompleksitet:** Lav (dokumentasjons-oppdatering — implementasjon i Fase 3)
 
-### [ ] P5.6 — Sesjon-rotasjon-recovery ved nettverksbrudd
+### [x] P5.6 — Sesjon-rotasjon-recovery ved nettverksbrudd *(Utvidet scope og lukket strategisk 2026-04-29 — se A.29)*
 - **Fil:** mobil.md (linje 213)
-- **Type:** Svakhet-reparering
-- **Berører:** Klient har gammel token, server har ny — hvordan recover?
-- **Fase-0-relevans:** Ingen direkte
-- **Kompleksitet:** Medium (kan kreve kode-endring, ikke bare doc)
+- **Type:** Svakhet-reparering → strategisk drøfting
+- **Vedtak:** Slått sammen med concurrent editing-problematikk per sync-konflikt-analyse 2026-04-29. Conflict-modal + grace-periode (60 sek forrigeToken) vedtatt som A.29 i [fase-0-beslutninger.md](fase-0-beslutninger.md). Implementasjon Fase 3.
+- **Forutsetning:** `updatedAt` må sendes i alle `hentMedId`-returer og valideres i alle `oppdater`-mutations. Bygges inn i Timer-modul-arbeidet.
+- **Bakgrunn:** Verifisering 2026-04-29 viste at A.23 «server-wins» ikke er korrekt implementert i dag — reell oppførsel er «siste klient vinner». `sistEndretLokalt`/`sistSynkronisert` finnes i SQLite men sendes aldri til server.
 
 ### [ ] P5.7 — Fragment-cache invalidation ved partiell oppdatering
 - **Fil:** mobil.md (linje 248–255)

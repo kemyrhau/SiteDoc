@@ -471,6 +471,8 @@ Hvis ProAdm endrer kostnad etter at Godkjenning er sendt:
 
 Server-wins (etablert i timer.md linje 517). Bedre policy beskrevet for Fase 3 (pending edits-modal).
 
+> **Utvidet 2026-04-29:** A.29 erstatter naiv server-wins med felt-nivå conflict-modal. A.23 beholdes som default ved manglende klient-respons (timeout) og ved system-mutations.
+
 ### A.24 Felt-opprettet ECO orphan uten ProAdm-match
 
 Akseptabelt at felt-opprettet ECO blir orphan hvis ProAdm aldri matcher. Markeres som «venter på ProAdm-synkronisering». Detaljer for Fase 3.
@@ -658,6 +660,48 @@ Antall vedlegg = `array_length(vedlegg)`. Ingen separat `AnsattKompetanseVedlegg
 5. Per Kenneth-presisering 2026-04-29: kompetansematrise designes nå med fil-import — venter ikke på HR-API
 
 **Implementasjons-fase:** Fase 0.5 (per C.14). Krever ikke A.25 (OrganizationRole) som forutsetning.
+
+### A.29 Offline sync-konflikt-strategi — ✅ **VEDTATT 2026-04-29**
+
+Erstatter naiv server-wins (A.23) med felt-nivå conflict-modal + grace-periode for token-rotasjon.
+
+**Bakgrunn:** Sync-konflikt-analyse 2026-04-29 verifiserte mot kode at A.23 «server-wins» ikke er korrekt implementert i dag. Reell oppførsel er **«siste klient vinner»** — server-merge i `oppdaterData` er shallow `{...eksisterende, ...input.data}` uten timestamp-sjekk. Mobil-SQLite har `sistEndretLokalt` + `sistSynkronisert`-felter som aldri sendes til server eller valideres. Concurrent editing av samme rad gir stille tap av endringer uten audit.
+
+**Vedtak — to deler:**
+
+**1) Conflict-modal til bruker (datakollisjon):**
+
+Ved sync-konflikt vises modal til klient som taper:
+> «Bruker B har endret felt X til Y siden du gikk offline. Behold ditt svar (Z) eller godta B's?»
+
+- **Felt-nivå merge,** ikke automatisk overskrivning
+- **Hver felt-konflikt** vises separat (ikke samle-modal)
+- Ved timeout / manglende klient-respons → fall tilbake til server-wins (A.23 default)
+
+**2) Token-rotasjon recovery (grace-periode):**
+
+- Server beholder `forrigeToken` i 60 sekunder etter rotasjon
+- Klient som sender gammelt token får `200 OK` + `nyttToken` på nytt (idempotent)
+- Eliminerer race window mellom server-update og klient-lagring uten å lempe sikkerhet vesentlig
+- Etter 60 sek invalideres forrigeToken — UNAUTHORIZED → re-login som i dag
+
+**Forutsetning før implementasjon:**
+- `updatedAt` må sendes i alle `hentMedId`-returer (i dag utelatt fra mobil-payload)
+- `oppdater`-mutations må ta `forventetServerUpdatedAt` som input
+- Server validerer mismatch → kaster `CONFLICT`-feil med ny server-state
+
+**Implementasjons-fase:** Fase 3 (utsatt). Designes inn i Timer-modul-bygging hvor de første offline-førlige skrivinger på linje-nivå realiseres. Pending edits-modal-mønsteret gjenbrukes for sjekkliste/oppgave når mobil-app neste oppdatering går ut.
+
+**Berører:**
+- `mobilAuth.verifiser` (apps/api/src/routes/mobilAuth.ts:159-181) — utvides med forrigeToken-felt
+- `Session`-tabellen (Prisma) — tilføyes `forrigeSessionToken: String?` + `forrigeTokenExpires: DateTime?`
+- Alle `oppdater*`-mutations på data-tabeller (Checklist, Task, Timer-rader senere)
+- Mobil-klient (apps/mobile) — conflict-modal-komponent + auto-retry på 401 hvis biometri-cache finnes
+
+**Sammenheng:**
+- Erstatter delvis A.23 (beholdes som fallback-policy)
+- Lukker P5.6 i [oppryddings-plan-2026-04-28.md](oppryddings-plan-2026-04-28.md) — sesjon-rotasjon-recovery er del av denne pakken
+- Konsumerer behov for Activity-rad ved overskrivning (per A.3) — konflikt-resolving logges
 
 ---
 
