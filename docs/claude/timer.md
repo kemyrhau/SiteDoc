@@ -16,7 +16,9 @@ påvirkes_av_beslutninger:
   - A.20
   - A.22
   - A.23
+  - A.28
   - C.10
+  - C.14
 ---
 
 # Timeregistrering — Fase 3
@@ -529,7 +531,17 @@ Underprosjektets `kilde` settes til `sitedoc_godkjenning` og `godkjenningId` pek
 | `createdAt` | `timestamptz` | |
 | `updatedAt` | `timestamptz` | |
 
-**Indekser:** `(userId, projectId, dato)` UNIQUE, `(organizationId)`, `(clientUuid)` UNIQUE
+**Indekser:**
+- `(userId, projectId, dato)` UNIQUE
+- `(organizationId)`
+- `(clientUuid)` UNIQUE
+- `(projectId, dato)` — prosjektrapport for periode
+- `(organizationId, dato)` — firma-rapport / lønnsrapport
+- `(organizationId, status)` — admin: «hva ligger til attestering»
+- `(attestertAvUserId, attestertVed)` — «hva har leder X attestert»
+- `(byggeplassId, dato)` — byggeplass-rapport (Fase 0.5+)
+- `(avdelingId, dato)` — eksport-filtrering per avdeling
+- `(userId, syncStatus)` — mobil pending-sync
 
 **Note om ECO-flytting (vedtatt 2026-04-29):** `externalCostObjectId` flyttet fra `daily_sheets`-nivå til `sheet_timer`-nivå (linje-nivå). Begrunnelse: multi-ECO er svært vanlig hos A.Markussen — ansatte jobber regelmessig på flere underprosjekter samme dag. Med ECO på linje kan én dagsseddel inneholde rader med ulike ECO-koblinger, og unique-constraint `(userId, projectId, dato)` beholdes som «én dagsseddel per arbeidsdag».
 
@@ -546,7 +558,10 @@ Erstatter de tidligere faste kolonnene `normaltid/overtid50/overtid100`. Datadre
 | `timer` | `decimal` | Timer på denne lønnsarten |
 | `attestertSnapshot` | `jsonb?` | Pris-snapshot ved attestering (Fase 0 A.7) |
 
-**Indeks:** `(externalCostObjectId)` for ECO-aggregering ved eksport.
+**Indekser:**
+- `(sheetId)` — KRITISK FK-JOIN ved hver dagsseddel-fetch (Postgres lager ikke auto-index på FK)
+- `(lonnsartId)` — lønnsart-aggregering ved eksport/rapport
+- `(externalCostObjectId)` — ECO-aggregering ved eksport
 
 ### `sheet_tillegg` (tillegg-rader per dagsseddel)
 
@@ -560,6 +575,10 @@ Erstatter de tidligere faste boolean-kolonnene `overtidsmat/nattillegg/helgetill
 | `antall` | `decimal` | Antall (1 for avhuking) |
 | `kommentar` | `text?` | Tvungen for noen tillegg (`Tillegg.tvungenKommentar=true`) |
 | `attestertSnapshot` | `jsonb?` | Pris-snapshot ved attestering |
+
+**Indekser:**
+- `(sheetId)` — KRITISK FK-JOIN
+- `(tilleggId)` — tillegg-aggregering
 
 ### `lonnsarter` (lønnsart-katalog per Organization)
 
@@ -580,7 +599,9 @@ Erstatter de tidligere faste boolean-kolonnene `overtidsmat/nattillegg/helgetill
 | `aktiv` | `boolean` default true | Soft-delete |
 | `seedNivaa` | `int?` | 1, 2 eller null (3 = egendefinert). Brukes for å skille auto-seeded fra kunde-opprettet. |
 
-**Indeks:** `(organizationId, kode)` UNIQUE WHERE `kode IS NOT NULL` (delvis unik — to lønnsarter uten kode er lovlig).
+**Indekser:**
+- `(organizationId, kode)` UNIQUE WHERE `kode IS NOT NULL` (delvis unik — to lønnsarter uten kode er lovlig)
+- `(organizationId, aktiv)` — hent kun aktive katalog-rader
 
 ### `aktiviteter` (aktivitet-katalog per Organization)
 
@@ -594,6 +615,10 @@ Erstatter de tidligere faste boolean-kolonnene `overtidsmat/nattillegg/helgetill
 | `prisMotKunde` | `decimal?` | |
 | `aktiv` | `boolean` default true | |
 | `seedNivaa` | `int?` | 1, 2 eller null (3 = egendefinert). Skill auto-seeded fra kunde-opprettet. |
+
+**Indekser:**
+- `(organizationId, kode)` UNIQUE WHERE `kode IS NOT NULL` (delvis unik, samme prinsipp som lønnsart)
+- `(organizationId, aktiv)`
 
 ### `tillegg` (tillegg-katalog per Organization)
 
@@ -612,6 +637,10 @@ Erstatter de tidligere faste boolean-kolonnene `overtidsmat/nattillegg/helgetill
 | `aktiv` | `boolean` default true | |
 | `seedNivaa` | `int?` | 1, 2 eller null (3 = egendefinert) |
 
+**Indekser:**
+- `(organizationId, kode)` UNIQUE WHERE `kode IS NOT NULL`
+- `(organizationId, aktiv)`
+
 ### `sheet_machines` (maskinbruk per dagsseddel)
 
 | Felt | Type | Beskrivelse |
@@ -623,6 +652,10 @@ Erstatter de tidligere faste boolean-kolonnene `overtidsmat/nattillegg/helgetill
 | `mengde` | `decimal?` | Valgfri mengde |
 | `enhet` | `text?` | m3, m2, tonn, kg, m |
 
+**Indekser:**
+- `(sheetId)` — FK-JOIN
+- `(vehicleId)` — maskinrapport på tvers av ansatte/prosjekter
+
 ### `sheet_materials` (materialforbruk per dagsseddel)
 
 | Felt | Type | Beskrivelse |
@@ -632,6 +665,8 @@ Erstatter de tidligere faste boolean-kolonnene `overtidsmat/nattillegg/helgetill
 | `navn` | `text` | Materialnavn (fritekst) |
 | `mengde` | `decimal` | Antall |
 | `enhet` | `text` | m3, m2, tonn, kg, m |
+
+**Indeks:** `(sheetId)` — FK-JOIN
 
 ### `sheet_expenses` (utlegg per dagsseddel)
 
@@ -644,6 +679,10 @@ Erstatter de tidligere faste boolean-kolonnene `overtidsmat/nattillegg/helgetill
 | `notat` | `text?` | Fritekst (f.eks. «Shell Tromsø») |
 | `bildeUrl` | `text?` | Kvitteringsbilde — S3-URL etter opplasting |
 | `bildeSyncStatus` | `text` default `pending` | `pending` \| `synced` — bilde synkes separat |
+
+**Indekser:**
+- `(sheetId)` — FK-JOIN
+- `(bildeSyncStatus)` — mobil bilde-pending-sync
 
 **Kvitteringsbilde:**
 - Tas med mobilkamera direkte i appen (Expo ImagePicker / Camera)
@@ -661,6 +700,8 @@ Erstatter de tidligere faste boolean-kolonnene `overtidsmat/nattillegg/helgetill
 | `aktiv` | `boolean` default true | Kan deaktiveres uten å slette |
 
 **Standardkategorier** seedes via samme event-hook (`onOrganizationCreated`) som lønnsart-Nivå 1: Drivstoff, Parkering, Diett, Verktøy, Annet.
+
+**Indeks:** `(organizationId)` — hent firma-katalog
 
 ### `arbeidstidskalender` (helligdager + firma-spesifikke fri-dager per Organization)
 
@@ -686,6 +727,17 @@ Vedtatt 2026-04-29 (Variant C): manuelt oppsett per kunde + import-knapp for nor
 ### Avdeling — i kjernen, ikke db-timer
 
 `Avdeling` lever i `packages/db` (kjernen) og bygges i Fase 0.5 sammen med Byggeplass-strategi. Brukes på tvers av Maskin (ansvarlig per avdeling), Mannskap og Timer. Ikke en del av db-timer-skjema.
+
+### AnsattKompetanse + Kompetansetype — i kjernen, ikke db-timer
+
+`AnsattKompetanse` og `Kompetansetype` lever i `packages/db` (kjernen) og bygges i Fase 0.5 (per A.28 + C.14, vedtatt 2026-04-29). To-tabell-struktur verifisert mot SmartDok. CSV/Excel-import av kompetanse fra dag 1 — venter ikke på HR-API.
+
+**Bruk fra Timer-modulen:**
+- **Fase 3 (kjerne):** Ingen direkte bruk. Kompetanse-validering ved timer-føring er IKKE Fase 3-arbeid.
+- **Fase 6 (DO-kobling):** Validering ved timer-føring på maskin — sjekk at User har gyldig `AnsattKompetanse` med `Kompetansetype.kobletTilEquipmentModell` matchende `Equipment.modell`. Dokumenteres i DO-kobling-modul-spec senere.
+- **Eksport-utvidelse (post-Fase 3):** Lønnssystem-eksport kan inkludere kompetanse-kontekst (f.eks. lærling-status fra fagbrev-rad) hvis kunde etterspør.
+
+`AnsattKompetanse` er IKKE en del av db-timer-skjema — refereres via `userId` FK når Fase 6 DO-kobling bygges.
 
 ### Fjernet: `enterprise_settings`
 
@@ -1054,6 +1106,7 @@ model TimerRapportKonfig {
   updatedAt       DateTime @updatedAt
   
   @@index([organizationId, userId])
+  @@index([organizationId, delt])  // delte konfigurasjoner i firma
 }
 ```
 

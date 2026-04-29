@@ -76,7 +76,7 @@
 | smartdok-undersokelse-2026-04-25.md | — | Arkivert v1 (per CLAUDE.md) |
 | smartdok-undersokelse.md | — | **Sannhetskilde:** SmartDok UI-research 2026-04-26 (per CLAUDE.md) |
 | timer-input-katalog.md | — | — |
-| timer.md | 2026-04-29 (delvis) | Beslutninger registrert 2026-04-29: P1 (OrganizationIntegration kategori+leverandor), P2 #3 (ECO til linje-nivå), P2 #6/#7 (ingen GPS/akkord), P2 #8 (arbeidstidskalender), P2 #13 (drømmescenario backlog), P2 #14 (hybrid dynamisk rapport-arkitektur). YAML-header tilføyd. Full screening mot kode fortsatt utestående |
+| timer.md | 2026-04-29 | Beslutninger 2026-04-29: P1, P2 #3/#6/#7/#8/#13/#14. YAML-header tilføyd. Screening 2026-04-29 utført: 23 indekser tilføyd (Funn F.12), AnsattKompetanse-referanse tilføyd (F.7), YAML utvidet med A.28+C.14 (F.9). Klar for Fase 3-koding etter Fase 0+0.5-deploy. Åpen kunde-blokker: godkjenningsflyt-detaljer (krever A.Markussen-input) |
 | varsling.md | — | — |
 
 ## 📦 Arkivert
