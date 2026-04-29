@@ -98,6 +98,45 @@ export function utledMinRolle(
 }
 
 /* ------------------------------------------------------------------ */
+/*  harBallen — har innlogget bruker dokumentet på sitt bord nå?       */
+/* ------------------------------------------------------------------ */
+
+/** Minimum dokumentdata for harBallen-beregning. */
+export interface HarBallenDokument {
+  status: string;
+  bestillerUserId: string | null | undefined;
+  recipientUserId: string | null | undefined;
+  recipientGroupId: string | null | undefined;
+}
+
+/** Minimum brukerdata for harBallen-beregning. */
+export interface HarBallenBruker {
+  userId: string;
+  gruppeIder: string[];
+}
+
+/**
+ * Avgjør om innlogget bruker «har ballen» — er nåværende mottaker eller
+ * bestiller i kladd-status. Brukes til å gi redigerings-tilgang i
+ * `utledDokumentRettighet`.
+ */
+export function beregnHarBallen(
+  dokument: HarBallenDokument,
+  bruker: HarBallenBruker,
+): boolean {
+  if (dokument.status === "draft") {
+    return dokument.bestillerUserId === bruker.userId;
+  }
+  if (dokument.recipientUserId && dokument.recipientUserId === bruker.userId) {
+    return true;
+  }
+  if (dokument.recipientGroupId && bruker.gruppeIder.includes(dokument.recipientGroupId)) {
+    return true;
+  }
+  return false;
+}
+
+/* ------------------------------------------------------------------ */
 /*  Dokumentrettighet — leser / redigerer / admin                      */
 /* ------------------------------------------------------------------ */
 

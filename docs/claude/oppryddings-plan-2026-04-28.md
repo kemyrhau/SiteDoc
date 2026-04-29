@@ -661,16 +661,25 @@ sist_verifisert_mot_kode: 2026-04-28
 - **Kompleksitet:** Lav (~5 linjer i medlem.ts + sjekk om UI-kode bruker feltet)
 - **Kilde:** Screening 2026-04-29 (Explore-agent — verifisert manuelt 2026-04-29)
 
-### [ ] SCREENING-29-2 — Funn 1: Type-casts i oppgave-detaljside (lavere prioritet)
-- **Fil:** `apps/web/src/app/dashbord/[prosjektId]/oppgaver/[oppgaveId]/page.tsx:191-200`
-- **Type:** Type-safety-svekkelse (ikke functional bug)
-- **Konkret problem:**
-  - `as { ... }`-casts på `fullOppgaveRå` og `minFlytInfo` med `@ts-ignore TS2589`-kommentar
-  - Logikken er korrekt i dag, men type-safety er svekket — fremtidige refaktorerings-bugs fanges ikke av TypeScript
-  - TS2589 («type instantiation excessively deep») er root-cause — bruker workaround
-- **Anbefalt fix:** Konkrete typer (`type FullOppgave = NonNullable<typeof fullOppgaveRå>`) eller refaktor tRPC-router for å redusere type-instantiation-dybde slik at `@ts-ignore` ikke trengs
-- **Kompleksitet:** Medium (krever undersøkelse av TS2589-årsak)
+### [x] SCREENING-29-2 — Funn 1: Type-casts i oppgave-detaljside *(Delvis lukket 2026-04-29 — `harBallen` flyttet til shared. 7 øvrige TS2589-steder spores som SCREENING-29-3)*
+- **Fil:** `apps/web/src/app/dashbord/[prosjektId]/oppgaver/[oppgaveId]/page.tsx:191-200` + `sjekklister/[sjekklisteId]/page.tsx:108-116`
+- **Vedtak:** `beregnHarBallen()` + `HarBallenDokument`/`HarBallenBruker`-interfaces tilføyd i `packages/shared/src/utils/flytRolle.ts`. Begge page.tsx-filer importerer felles funksjon — duplisert useMemo-logikk eliminert. `@ts-ignore TS2589` fjernet fra oppgave-siden. Bryter generic-kjeden ved å bruke smal interface-cast i stedet for full tRPC-output-type.
 - **Kilde:** Screening 2026-04-29
+
+### [ ] SCREENING-29-3 — TS2589 i 7 øvrige filer (oppfølger til 29-2)
+- **Filer:**
+  - `apps/web/src/app/dashbord/[prosjektId]/sjekklister/skriv-ut/page.tsx:54`
+  - `apps/web/src/app/dashbord/[prosjektId]/okonomi/page.tsx:116`
+  - `apps/web/src/app/dashbord/[prosjektId]/bilder/page.tsx:563`
+  - `apps/web/src/components/mengde/spec-post-tabell.tsx:218`
+  - `apps/web/src/components/mengde/import-dialog.tsx:135`
+  - `apps/web/src/hooks/useSjekklisteSkjema.ts:69`
+  - `apps/web/src/kontekst/prosjekt-kontekst.tsx:76`
+- **Type:** Type-safety-svekkelse (ikke functional bug)
+- **Bakgrunn:** TS2589 («type instantiation excessively deep») rammer 5 dype tRPC-routere: `prosjekt.hentMedId`, `oppgave.hentMedId`, `sjekkliste.hentMedId`, `tegning.hentMedId`, `mengde.hentDokumenter`. Hver fil har egen lokal `as`-cast med `@ts-ignore`-workaround eller tilsvarende.
+- **Anbefalt fix:** Per fil — definer smal lokal interface med kun feltene som faktisk brukes. Eller (mer arbeid) splitt tRPC-routere i `hentMedIdFull`/`hentMedIdLite` for å redusere generic-dybde.
+- **Kompleksitet:** Medium per fil — 7 separate fix. Bør tas i én bunke.
+- **Kilde:** Sub-rapport fra Explore-agent 2026-04-30 ved utførelse av SCREENING-29-2.
 
 ### Verifiserte FALSE POSITIVES (ingen handling)
 

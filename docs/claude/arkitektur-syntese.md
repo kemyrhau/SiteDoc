@@ -273,6 +273,35 @@ ReportTemplate (annet prosjekt-instans)
 
 **Pedagogisk caveat:** Hvis «Malverk» som brand-navn er viktig, bruk `@@map("sitedoc_malverk")` for å bytte fysisk tabellnavn uten å endre modell-strukturen.
 
+### 3.8 Datadrevne kataloger og 3-nivå-onboarding ✅
+
+Lønnsart, tillegg, aktivitet og lignende per-firma-kataloger bygges som tre nivåer:
+
+1. **Lovpålagt grunnpakke** — auto-importeres ved firma-opprettelse via seed-mekanisme (event-hook `onOrganizationCreated`, etablert tom i Fase 0 per C.10, fylles i Fase 3). Ingen bransje-bias.
+2. **Bransje-relevant tilleggspakke** — valgfri pakke-import ved onboarding (helhetlig pakke, ikke enkelt-sjekkbokser).
+3. **Egendefinerte** — opprettes av kunden via admin-UI. SiteDoc leverer verktøyet, ikke malen.
+
+**Onboarding differensierer to scenarier** (per [timer.md § Onboarding-modi](timer.md)):
+
+- **Nytt firma:** Auto-importerer Nivå 1, tilbyr Nivå 2 som valg.
+- **Migrerer fra annet system:** Tom katalog. Import-verktøy aktivert (CSV eller adapter). Forhindrer dobbel-katalog-problem.
+
+Detaljer for lønnsart spesifikt i [timer.md](timer.md). Samme mønster gjenbrukes for andre per-firma-kataloger som introduseres.
+
+### 3.9 Snapshot-pattern ved attestering ✅
+
+Transaksjoner som binder firma-ressurs til prosjekt over tid (timer-rad, maskinbruk, vareforbruk) lagrer snapshot av pris/navn/relevante katalog-felter ved attestering — ikke ved registrering. Garanterer at attesterte rader beholder opprinnelig pris selv om katalogen endres senere. Juridisk relevant for lønn- og fakturagjennomgang.
+
+Detaljer og Zod-schema-spec i [fase-0-beslutninger.md § A.7](fase-0-beslutninger.md). Aktivitetslogg (Activity per A.3) registrerer katalog-endringer separat for full reviderbarhet.
+
+### 3.10 Eksport-kode-policy (NULL → migrering 1:1) ✅
+
+Eksport-koder (lønnsart-kode, tillegg-kode, aktivitet-kode) er nullable i katalog-tabellene. Eksport-modulen validerer ved eksport-tid og kaster tydelig feilmelding hvis kode mangler — gir kunden mulighet til å sette opp katalogen før første eksport.
+
+**Ved migrering kopieres kundens eksisterende koder 1:1** — ingen renumerering. Hvis kunde A har «127 Fakturerbar tid» i sitt nåværende system, beholdes nøyaktig samme kode. Lønns-/økonomi-systemet matcher uten rekonfigurasjon.
+
+Detaljer og tilhørende kontrakter i [fase-0-beslutninger.md § A.15-A.17](fase-0-beslutninger.md): A.15 (eksport interface-kontrakt — `getExportableData()` per modul), A.16 (sentral `EksportertFlagg`-tabell mot duplikat-eksport på tvers av moduler), A.17 (eksport-tilgang ved deaktivert modul: aktiv/arkivert/slettet-tilstander).
+
 ---
 
 ## 4. Manglende firma-modeller (Fase 0) ✅
@@ -412,6 +441,19 @@ A.Markussens SmartDok-bruk er kartlagt (126 maskiner, 64 varer, 47 brukere, 77 k
 ### 7.3 Tripletex — eksisterende
 
 `BilagsKilde`-adapter eksisterer fra Tromsø Salsaklubb-prosjektet. Gjenbrukes for timer-eksport (lønn) og vareforbruk-eksport (faktura). Tre-lags duplikatbeskyttelse-pattern allerede etablert.
+
+### 7.4 Adapter-mønster (destinasjons- og kilde-systemer) ✅
+
+`BilagsKilde`-mønsteret fra § 7.3 er kanon for alle eksterne integrasjoner. Hver leverandør implementerer enkelt interface (`eksporter()`, `eksporterUtlegg()`, `valider()`) og konfigureres via `OrganizationIntegration`.
+
+**To-dimensjonal klassifisering** (per Kenneth-vedtak 2026-04-29):
+
+- `kategori String` — `"kilde"` | `"destinasjon"` | `"begge"`
+- `leverandor String` — `"proadm"` | `"tripletex"` | `"poweroffice"` | `"visma"` | `"unit4"` | `"sap"` | `"hr"` | `"gps"` | `"smartdoc"`
+
+Eksempel-roller: ProAdm/SmartDoc/GPS = kilde, Tripletex/Visma/PowerOffice = destinasjon, HR-system = begge. Hver adapter håndterer egen duplikat-deteksjon via `EksportertFlagg` (per A.16).
+
+GPS-validering (geofence-innsjekk) tilhører Mannskap-modul, ikke Timer — adapter-mønsteret gjenbrukes der med `kategori = "kilde"` for posisjonsdata. Detaljer per leverandør i [timer.md § Eksport](timer.md).
 
 ---
 
