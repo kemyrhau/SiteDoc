@@ -306,11 +306,9 @@ ReportTemplate (annet prosjekt-instans)
 
 ### Fase 0 — Firma-fundament + tilgangsinfrastruktur
 
-Detaljer i [fase-0-beslutninger.md](fase-0-beslutninger.md) §«Implementeringsrekkefølge i Fase 0».
+**Migrasjons-rekkefølge:** Sannhetskilde er [fase-0-beslutninger.md § E](fase-0-beslutninger.md) (13-stegs migrasjons-rekkefølge med eksplisitte avhengigheter). Denne syntesen lister ikke datamodell-detaljer — leser § E direkte for korrekt og oppdatert oversikt.
 
-**Datamodell:** OrganizationModule, OrganizationSetting, OrganizationPartner, Avdeling-flagg, OrganizationTemplate, Project.primaryOrganizationId nullable, Psi-utvidelse, BibliotekMal-utvidelse, ProjectMember med periode.
-
-**Infrastruktur:** prosjektProcedure, modulProcedure(slug), refaktor av 9 funksjoner i tilgangskontroll.ts.
+**Infrastruktur:** prosjektProcedure, modulProcedure(slug), refaktor av 9 funksjoner i tilgangskontroll.ts. Detaljer i § E + tilhørende A.-rader.
 
 **Ingen UI-endringer.**
 

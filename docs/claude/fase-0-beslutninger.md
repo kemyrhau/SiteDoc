@@ -475,6 +475,99 @@ Server-wins (etablert i timer.md linje 517). Bedre policy beskrevet for Fase 3 (
 
 Akseptabelt at felt-opprettet ECO blir orphan hvis ProAdm aldri matcher. Markeres som «venter på ProAdm-synkronisering». Detaljer for Fase 3.
 
+### A.25 OrganizationRole-tabell for granulære firma-roller — ✅ **VEDTATT 2026-04-29**
+
+Variant B fra P4.3-beslutning. Granulære firma-roller modelleres som egen tabell, ikke utvidelse av `User.role`-enum.
+
+```prisma
+model OrganizationRole {
+  id              String   @id @default(uuid())
+  userId          String
+  organizationId  String
+  role            String   // "hms_ansvarlig" | etc. (utvides etter behov)
+  createdAt       DateTime @default(now())
+  
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, organizationId, role])
+  @@index([organizationId, role])
+}
+```
+
+**Begrunnelse:**
+- Skalerbar uten enum-endringer (nye roller = nye rader, ikke schema-migrasjon)
+- Retro-kostnad A→B senere er 5x B nå (krever migrasjon av rader fra `User.role` til `OrganizationRole`)
+- Unngår A.Markussen-research-infeksjon — User.role-enum sementeres ikke basert på én kunde
+- Følger samme mønster som ProjectMember (separat tabell for prosjekt-roller) — symmetrisk arkitektur
+
+**`tilgangskontroll.ts`-utvidelse:** Ny funksjon `harOrgRolle(user, "hms_ansvarlig")` brukes i tilgangskontroll for HMS-rapport-tilgang og lignende.
+
+**Fase 0-konsekvens:** Ny § E-rad (steg 14) registreres for å bygge tabellen i Fase 0-migrasjonen.
+
+### A.26 Smart modulProcedure med valgfri byggeplass-scope — ✅ **VEDTATT 2026-04-29**
+
+Variant A v2 fra P4.4-beslutning. `modulProcedure` håndterer både modul-aktivering og byggeplass-scope i én procedure med valgfri input.
+
+```typescript
+modulProcedure(slug, input?: { projectId: string; byggeplassId?: string })
+```
+
+**Sjekker (Fase 0):**
+1. Auth (alltid)
+2. Modul-aktivering for prosjektets primaryOrganization (alltid hvis projectId i input)
+3. Prosjekt-scope (alltid hvis projectId i input)
+
+**Sjekker tilføyes Fase 0.5 uten endring av modulProcedure-signatur:**
+4. Byggeplass-scope HVIS `byggeplassId` er satt OG `ByggeplassMedlemskap`-tabellen eksisterer
+
+**Begrunnelse:**
+- Ingen retro-arbeid for Fase 0 → Fase 0.5-oppgradering (modulProcedure-implementasjon utvides, ikke ruter som bruker den)
+- Eliminerer utvikler-feilbarhet (kontra separat `byggeplassProcedure` som krever at utvikler velger riktig procedure)
+- Fase 0 kan deployes alene; Fase 0.5 utvider funksjonalitet automatisk
+
+**Eksisterende standalone-edge** (per § 2.3 i arkitektur-syntese): `Project.primaryOrganizationId IS NULL` → fallback til standalone-policy. Smart modulProcedure bevarer denne adferden.
+
+### A.27 Firma-HMS-ansvarlig får automatisk lese-tilgang til HMS-rapporter på tvers av prosjekter — ✅ **VEDTATT 2026-04-29**
+
+Alt A fra HMS-flyt-koblings-vurdering. Firma-HMS-ansvarlig (User med `OrganizationRole.role = "hms_ansvarlig"` per A.25) får implisitt lese-tilgang til alle HMS-flyter i firmaets prosjekter — uten å være registrert som DokumentflytMedlem.
+
+**Begrunnelse (Kenneth 2026-04-29):**
+> Firma-HMS-ansvarlig har kontrolloppgave — skal se og kontrollere at HMS på prosjektnivå ivaretas og besvares. Krever derfor automatisk lese-tilgang til HMS-rapporter på tvers av alle firmaets prosjekter.
+
+**Tilgangskontroll-utvidelse:**
+
+`harDokumentflytTilgang(user, dokumentflytId)` i `tilgangskontroll.ts` utvides med:
+
+```typescript
+// Nivå 1: eksisterende DokumentflytMedlem-sjekk (uendret)
+if (await harDokumentflytMedlemTilgang(user, dokumentflytId)) return true;
+
+// Nivå 2: ny firma-HMS-ansvarlig-sjekk (lese-tilgang)
+const flyt = await prisma.dokumentflyt.findUnique({
+  where: { id: dokumentflytId },
+  include: { project: true },
+});
+
+if (flyt.dokumentType !== "hms") return false;
+if (user.organizationId !== flyt.project.organizationId) return false;
+
+return await harOrgRolle(user.id, "hms_ansvarlig");
+```
+
+**Avgrensning:**
+- **Lese-tilgang:** Ja (firma-HMS-ansvarlig kan se alle HMS-rapporter i firmaets prosjekter)
+- **Behandling:** Nei (godkjenne, kommentere, redigere forblir begrenset til HMS-gruppen på prosjektet)
+- **Cross-firma-tilgang:** Nei (kryssorg-deling deaktivert som default — bruker kan ikke se andre firmaers HMS-rapporter)
+
+**Konsekvens for dokumentflyt.md § 2.3 (HMS-dokumenttype):**
+
+«Admin/registrator: Kan lese alltid»-regelen utvides til:
+- **Lese:** HMS-gruppe + admin/registrator + firma-HMS-ansvarlig (kontrolloppgave)
+- **Behandling:** Kun HMS-gruppen (uendret)
+
+**Implementasjons-fase:** Fase 0 — krever A.25 (OrganizationRole) som forutsetning. Tilgangskontroll-utvidelsen registreres som del av `tilgangskontroll.ts`-refaktor (per fase-0-beslutninger § E + Infrastruktur i syntese § 5).
+
 ---
 
 ## B. ÅPNE BLOKKERER-SPØRSMÅL — må besluttes før koding
@@ -1010,6 +1103,7 @@ Krever nasjonalitet + arbeidstillatelse på User. Allerede inkludert i A.11 (dat
 | 11 | ExternalCostObject | Organization, Project |
 | 12 | Godkjenning (m/`endretEtterSending`, `sistEndretVed`, alle tidsstempler som `@db.Timestamptz`) + DocumentTransfer.kostnadSnapshot + DocumentTransfer.godkjenningId + Timestamptz på snapshot-tidsstempler | DocumentTransfer (finnes), ECO |
 | 13 | User-utvidelse (canLogin, HMS-kort, ansattnummer, nasjonalitet, arbeidstillatelse) + **email-unique drop og composite `@@unique([email, organizationId])` (per B.7)** + **`@@unique([phone, organizationId])` (forberedende per B.7-utvidelse, multi-identifikator-auth)** + custom NextAuth-adapter eller signIn-tilpasning. **Email forblir NOT NULL i Fase 0** (alle har e-post per kunde-bekreftelse). **Ingen passord-felter eller CHECK-constraint i Fase 0** — utsettes til fremtidig multi-identifikator-auth-utvidelse | User (finnes) |
+| 14 | OrganizationRole-tabell (per A.25) — granulære firma-roller med composite unique `(userId, organizationId, role)` + indeks `(organizationId, role)`. Første verdier: `"hms_ansvarlig"`. `tilgangskontroll.ts` får `harOrgRolle(user, role)`-funksjon | Organization, User (begge finnes) |
 
 **Etter alle 13 er kjørt (neste release):**
 - ProjectModule.status NOT NULL + drop active-kolonne (per A.4 steg 2)

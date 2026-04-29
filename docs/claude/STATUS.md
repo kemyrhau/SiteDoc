@@ -32,15 +32,15 @@
 | Fil | Sist verifisert | Kommentar |
 |---|---|---|
 | arkitektur.md | 2026-04-27 | **Sannhetskilde:** Fundament |
-| dokumentflyt.md | 2026-04-27 | **Sannhetskilde:** Fundament |
-| fase-0-beslutninger.md | 2026-04-27 | **Sannhetskilde:** Anker for Fase 0-koding. K1 2026-04-28: C.13 + 2 § G-rader (QA-runde-2). § E steg 8: B-2-note 2026-04-28 (utvidet verifikasjon) |
+| dokumentflyt.md | 2026-04-27 | **Sannhetskilde:** Fundament. **2026-04-29:** § 2.3 HMS-tabell utvidet med firma-HMS-ansvarlig-lese-tilgang (per A.27) |
+| fase-0-beslutninger.md | 2026-04-27 | **Sannhetskilde:** Anker for Fase 0-koding. K1 2026-04-28: C.13 + 2 § G-rader (QA-runde-2). § E steg 8: B-2-note 2026-04-28. **2026-04-29:** A.25 OrganizationRole + A.26 Smart modulProcedure + A.27 Firma-HMS-lese-tilgang (Alt A) tilføyd. § E utvidet med steg 14 (OrganizationRole) |
 | terminologi.md | 2026-04-27 | **Sannhetskilde:** Fundament |
 
 ## ⚠️ Drift identifisert (Bunke 3A.1, 2026-04-28)
 
 | Fil | Sist verifisert | Drift-omfang |
 |---|---|---|
-| arkitektur-syntese.md | 2026-04-28 | **Sannhetskilde:** 5 inkonsistenser mot fase-0 (OrganizationModule, Avdeling-flagg, Godkjenning-status, EquipmentChecklist, Fase 0.5 motsigelse) — P1-arbeid. K3.1 2026-04-28: firma-admin tabs-UI ny § 1.5 |
+| arkitektur-syntese.md | 2026-04-28 | **Sannhetskilde:** 5 inkonsistenser mot fase-0 (OrganizationModule, Avdeling-flagg, Godkjenning-status, EquipmentChecklist, Fase 0.5 motsigelse) — P1-arbeid. K3.1 2026-04-28: firma-admin tabs-UI ny § 1.5. **2026-04-29:** P1.7 lukket — § 5 Fase 0-listen erstattet med peker til § E |
 | forretningslogikk.md | 2026-04-28 | Byggeplan-rekkefølge motsigelse mot arkitektur-syntese, Godkjenning-status, lestAv-mekanikk for gruppe-mottaker |
 | mobil.md | 2026-04-28 | 5 faggruppe-forekomster + 3 ulike Provider-tre-rekkefølger |
 | okonomi.md | 2026-04-28 | 4 faggruppe-forekomster + FtdNotaComment mangler i tabell + ECO/Godkjenning-kobling mangler |
@@ -52,7 +52,7 @@
 |---|---|---|
 | onboarding-veileder.md | ikke aktuelt | Idé-stadium, planlagt ~1 måned frem (post-Fase 0). Etablert 2026-04-28 |
 | mannskap.md | 2026-04-28 | **Vy-beskrivelse i PSI-konteksten** etter 1D-presisering (N2.1-revidert). Datamodell forkastet (Mannskapsmedlem dupliserer User per memory). §15-felt-mapping bevart i tekstform. Endelig datamodell designes Fase 4 (PSI-utvidelse) |
-| oppryddings-plan-2026-04-28.md | 2026-04-28 | **Arbeidsanker:** Aktiv anker for oppryddings-arbeidet etter Bunke 3A.1. P-KRITISK-seksjon (3 prod-blokkere) tilføyd 2026-04-28 fra utvidet verifikasjon. Dokument-samhandlings-lukking Nivå 1-4 etablert 2026-04-28 (CLAUDE.md § Tre nivåer som arkitektur-anker). Mini-Nivå 1D 2026-04-28: anker korrigert. Bunke N2.1-revidert (strammet) 2026-04-28: 2A+2B+2C kvittert (mannskap.md restrukturert som vy, firma-eid PSI forkastet, syntese-terminologi rettet). Bunke N2.2 registrert som etter-funn (Varelager-fremskyndelse, DO-kobling-presisering, sakkyndig kontroll, ProAdm-rad) + A.Markussen-research-infeksjons-prinsipp |
+| oppryddings-plan-2026-04-28.md | 2026-04-29 | **Arbeidsanker:** Aktiv anker for oppryddings-arbeidet etter Bunke 3A.1. P-KRITISK-seksjon (3 prod-blokkere) tilføyd 2026-04-28. Dokument-samhandlings-lukking Nivå 1-4 etablert 2026-04-28. Mini-Nivå 1D 2026-04-28: anker korrigert. Bunke N2.1-revidert (strammet) 2026-04-28: 2A+2B+2C kvittert. Bunke N2.2 registrert som etter-funn + A.Markussen-research-infeksjons-prinsipp. **2026-04-29:** P1.7 + P4.3 + P4.4 lukket (§ 5-rens, OrganizationRole, smart modulProcedure) |
 | timer-funn-fra-screening-2026-04-27.md | 2026-04-28 | **Arbeidsanker:** Midlertidig, slettes etter Timer/Maskin-revurdering |
 
 ## ❌ Ikke screenet
@@ -76,7 +76,7 @@
 | smartdok-undersokelse-2026-04-25.md | — | Arkivert v1 (per CLAUDE.md) |
 | smartdok-undersokelse.md | — | **Sannhetskilde:** SmartDok UI-research 2026-04-26 (per CLAUDE.md) |
 | timer-input-katalog.md | — | — |
-| timer.md | — | Krever refaktor for fase-0 (per CLAUDE.md) — venter på Timer-revurdering |
+| timer.md | 2026-04-29 (delvis) | Beslutninger registrert 2026-04-29: P1 (OrganizationIntegration kategori+leverandor), P2 #3 (ECO til linje-nivå), P2 #6/#7 (ingen GPS/akkord), P2 #8 (arbeidstidskalender), P2 #13 (drømmescenario backlog), P2 #14 (hybrid dynamisk rapport-arkitektur). YAML-header tilføyd. Full screening mot kode fortsatt utestående |
 | varsling.md | — | — |
 
 ## 📦 Arkivert

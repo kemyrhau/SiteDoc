@@ -66,14 +66,17 @@ Oppgave skilles fra sjekkliste ved opprettelse — de to konverteres ikke til hv
 |-------|-------|
 | Oppretter | Alle brukere |
 | Flyt | Enveis med automatisk retur: Innsender → HMS-gruppe → (Godkjent) → Innsender |
-| Behandling | Kun HMS-gruppe |
+| Behandling | Kun HMS-gruppen (uendret) |
 | Godkjenning | HMS-gruppe godkjenner, rapport returneres automatisk til innsender |
 | Redigerbar | Innsender i kladd/sendt, HMS-gruppe når de har ballen |
 | Sletting | Kun i kladd av innsender |
+| Lese | HMS-gruppe + admin/registrator + **firma-HMS-ansvarlig** (kontrolloppgave — per fase-0-beslutninger A.27) |
 | Admin/registrator | Kan lese alltid, kan legge seg til i HMS-gruppen |
 | Fremtidig | Per-ledd konfigurasjon, flere HMS-grupper per prosjekt |
 
 Retursteget til innsender ved godkjenning er automatisk — ikke en manuell sending.
+
+**Firma-HMS-ansvarlig-tilgang (vedtatt 2026-04-29 per A.27):** En person med `OrganizationRole.role = "hms_ansvarlig"` får automatisk lese-tilgang til alle HMS-flyter i firmaets prosjekter — uten å være registrert som DokumentflytMedlem. Behandling (godkjenne, kommentere, redigere) forblir begrenset til HMS-gruppen på prosjektet. Kontrolloppgave: firma-HMS-ansvarlig skal kunne kontrollere at HMS-rapporter på prosjektnivå ivaretas og besvares.
 
 ### Godkjenning
 

@@ -306,14 +306,11 @@ sist_verifisert_mot_kode: 2026-04-28
 - **Kompleksitet:** Lav
 - **Åpne spørsmål:** Hvis brutt — slett lenken eller opprett filen
 
-### [ ] P1.7 — Erstatt § 5 byggeplan med peker til fase-0-beslutninger § E
+### [x] P1.7 — Erstatt § 5 byggeplan med peker til fase-0-beslutninger § E *(Utført 2026-04-29)*
 - **Fil:** arkitektur-syntese.md
 - **Type:** Strukturell (én sannhet for migrasjons-rekkefølge)
-- **Berører:** § 5 Fase 0 datamodell-liste (egen liste i dag, drifter mot § E sin 13-stegs rekkefølge)
-- **Fase-0-relevans:** § E i fase-0-beslutninger er sannhetskilde
-- **TIMER-FUNN:** Ingen direkte
-- **Kompleksitet:** Medium (vurder om hele § 5 omstruktureres)
-- **Åpne spørsmål:** Skal § 5 beholdes som høy-nivå-oversikt og § E være detalj, eller skal § 5 erstattes helt?
+- **Vedtak:** Alternativ (a) — § 5 Fase 0-listen erstattet med peker til § E. § E er sannhetskilde.
+- **Endring:** § 5 «Fase 0»-seksjonen omskrevet — datamodell-listen fjernet, infrastruktur-omtale beholdt med peker til § E.
 
 ---
 
@@ -479,22 +476,23 @@ sist_verifisert_mot_kode: 2026-04-28
 - **Kompleksitet:** Medium
 - **Åpne spørsmål:** Ja — anbefales av screening, men ikke besluttet
 
-### [ ] P4.3 — Hvordan modelleres Firma-HMS-rolle? (User.role utvidelse vs egen tabell)
+### [x] P4.3 — Firma-HMS-rolle modellering *(Lukket 2026-04-29 — Variant B)*
 - **Fil:** arkitektur-syntese.md § 4 punkt 9, § 2.2 Lag 5b
-- **Type:** Strukturell drøfting (Fase 0-prerequisite)
-- **Berører:** Datamodell-valg — utvider User.role-enum eller egen `OrganizationRole`-tabell
-- **Fase-0-relevans:** Påvirker tilgangskontroll i Fase 0
-- **TIMER-FUNN:** Ingen direkte
-- **Kompleksitet:** Medium
-- **Åpne spørsmål:** Bør avklares før Fase 0-koding starter
+- **Vedtak:** Variant B — ny `OrganizationRole`-tabell. Ikke utvid User.role-enum.
+  ```prisma
+  model OrganizationRole {
+    id              String  @id @default(uuid())
+    userId          String
+    organizationId  String
+    role            String  // "hms_ansvarlig" | etc. (utvides etter behov)
+    @@unique([userId, organizationId, role])
+  }
+  ```
+  `tilgangskontroll.ts` får ny funksjon `harOrgRolle(user, "hms_ansvarlig")`. Tabellen registreres som ny § E-rad i fase-0-beslutninger.
 
-### [ ] P4.4 — Hvordan håndterer modul-gateway byggeplass-scope før Fase 0.5?
+### [x] P4.4 — Modul-gateway byggeplass-scope *(Lukket 2026-04-29 — Variant A v2 smart modulProcedure)*
 - **Fil:** arkitektur-syntese.md § 2.3 (Steg 4 «prosjekt/byggeplass-scope»)
-- **Type:** Strukturell drøfting
-- **Berører:** modulProcedure-implementasjon — byggeplass-medlemskap finnes ikke før Fase 0.5
-- **Fase-0-relevans:** Påvirker tRPC-wrappers
-- **Kompleksitet:** Medium
-- **Åpne spørsmål:** Faller tilbake til prosjekt-scope i Fase 0?
+- **Vedtak:** Variant A v2 — smart `modulProcedure(slug, input?: { projectId, byggeplassId? })`. Sjekker byggeplass-scope automatisk når `byggeplassId` er satt OG `ByggeplassMedlemskap`-tabellen eksisterer (Fase 0.5+). Ingen retro-arbeid for Fase 0 → Fase 0.5-oppgradering. Eliminerer utvikler-feilbarhet (kontra Variant C som krevde at utvikler velger riktig procedure).
 
 ### [ ] P4.5 — Avklar `lestAvMottakerVed`-mekanikk for gruppe-mottaker
 - **Fil:** forretningslogikk.md (linje 39), dokumentflyt.md
