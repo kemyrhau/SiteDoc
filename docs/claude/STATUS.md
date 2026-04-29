@@ -33,7 +33,7 @@
 |---|---|---|
 | arkitektur.md | 2026-04-27 | **Sannhetskilde:** Fundament |
 | dokumentflyt.md | 2026-04-27 | **Sannhetskilde:** Fundament. **2026-04-29:** § 2.3 HMS-tabell utvidet med firma-HMS-ansvarlig-lese-tilgang (per A.27) |
-| fase-0-beslutninger.md | 2026-04-27 | **Sannhetskilde:** Anker for Fase 0-koding. K1 2026-04-28: C.13 + 2 § G-rader (QA-runde-2). § E steg 8: B-2-note 2026-04-28. **2026-04-29:** A.25 OrganizationRole + A.26 Smart modulProcedure + A.27 Firma-HMS-lese-tilgang (Alt A) tilføyd. § E utvidet med steg 14 (OrganizationRole) |
+| fase-0-beslutninger.md | 2026-04-27 | **Sannhetskilde:** Anker for Fase 0-koding. K1 2026-04-28: C.13 + 2 § G-rader (QA-runde-2). § E steg 8: B-2-note 2026-04-28. **2026-04-29:** A.25 OrganizationRole + A.26 Smart modulProcedure + A.27 Firma-HMS-lese-tilgang (Alt A) + A.28 Kompetansematrise (Kompetansetype + AnsattKompetanse, SmartDok-verifisert) tilføyd. § E utvidet med steg 14 (OrganizationRole). C.14 Fase 0.5-rad for kompetanse |
 | terminologi.md | 2026-04-27 | **Sannhetskilde:** Fundament |
 
 ## ⚠️ Drift identifisert (Bunke 3A.1, 2026-04-28)

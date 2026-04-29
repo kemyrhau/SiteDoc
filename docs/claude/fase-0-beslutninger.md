@@ -568,6 +568,97 @@ return await harOrgRolle(user.id, "hms_ansvarlig");
 
 **Implementasjons-fase:** Fase 0 — krever A.25 (OrganizationRole) som forutsetning. Tilgangskontroll-utvidelsen registreres som del av `tilgangskontroll.ts`-refaktor (per fase-0-beslutninger § E + Infrastruktur i syntese § 5).
 
+### A.28 AnsattKompetanse + Kompetansetype — kompetansematrise i Fase 0.5 — ✅ **VEDTATT 2026-04-29**
+
+**To-tabell-struktur verifisert mot SmartDok** (browser-research 2026-04-29). SmartDok har tre faner: Kompetanseoversikt (matrise-vy), Kompetansetyper (definisjonsregister, 77 typer hos A.Markussen), Brukernes kompetanser (CRUD-kobling, 362 rader hos A.Markussen).
+
+**Datamodell:**
+
+```prisma
+model Kompetansetype {
+  id              String    @id @default(uuid())
+  organizationId  String    @map("organization_id")
+  navn            String                                  // "M2 Gravemaskin" | "DO CAT 325" | "HMS-kurs 40t"
+  kategori        String                                  // se KOMPETANSE_KATEGORIER nedenfor
+  aktiv           Boolean   @default(true)                // SmartDok har aktiv/inaktiv-flagg
+  defaultUtloperAarEtterUtstedt Int? @map("default_utloper_aar")  // null = ingen default-utløp
+  beskrivelse     String?
+  kobletTilEquipmentModell String? @map("koblet_til_equipment_modell")  // for DO-kobling Fase 6
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  organization      Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  ansattKompetanser AnsattKompetanse[]
+  
+  @@unique([organizationId, navn])
+  @@index([organizationId, kategori])
+}
+
+model AnsattKompetanse {
+  id                String    @id @default(uuid())
+  userId            String    @map("user_id")
+  kompetansetypeId  String    @map("kompetansetype_id")
+  utstedtDato       DateTime? @db.Date @map("utstedt_dato")  // SmartDok kaller det "Fullført dato" — SiteDoc bruker norsk sertifikat-konvensjon (utstedelsesdato på beviset)
+  utloper           DateTime? @db.Date
+  utstederOrgan     String?   @map("utsteder_organ")
+  sertifikatNr      String?   @map("sertifikat_nr")
+  vedlegg           Json?                                  // [{url, filename, type, uploadedAt}] — per ServiceRecord-mønster
+  notat             String?
+  opprettetAvUserId String?   @map("opprettet_av_user_id")
+  importertVia      String?   @map("importert_via")        // "manuell" | "csv" | "xlsx" | "hr_api" | "smartdok"
+  importertVed      DateTime? @map("importert_ved")
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  
+  user              User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kompetansetype    Kompetansetype @relation(fields: [kompetansetypeId], references: [id], onDelete: Restrict)
+  
+  @@unique([userId, kompetansetypeId])
+  @@index([utloper])
+  @@index([kompetansetypeId])
+}
+```
+
+**Kategori-katalog (SmartDok-bekreftet, seedes i `packages/shared/src/types/index.ts`):**
+
+```typescript
+export const KOMPETANSE_KATEGORIER = [
+  "ANNET",
+  "ARBEID PÅ / VED VEI",
+  "DIVERSE KJØRETØY",
+  "EGENDEFINERT",
+  "HMS - FØRSTEHJELP",
+  "TRUCK-/MASKINFØRERBEVIS",
+  "FAGBREV/FAGSKOLE",
+] as const;
+```
+
+**Avgrensning fra A.Markussen-research-infeksjon (per N2.2-PRINSIPP):** Kategori-listen seedes (verifisert 7-kategori-struktur fra SmartDok), men **ikke** A.Markussens 77 kompetansetyper. Hver kunde definerer egne typer ved bruk eller via CSV-import.
+
+**Vedlegg-mønster:** Json-array på AnsattKompetanse (samme mønster som `ServiceRecord.vedlegg` i `db-maskin`):
+```json
+[{"url": "s3://...", "filename": "M2-bevis-Joakim.pdf", "type": "sertifikat", "uploadedAt": "2026-04-29T10:00:00Z"}]
+```
+Antall vedlegg = `array_length(vedlegg)`. Ingen separat `AnsattKompetanseVedlegg`-tabell. Refaktoreres til relasjons-tabell **kun hvis** søk/JOIN på vedlegg-metadata blir nødvendig (lite sannsynlig).
+
+**Fil-import:**
+- Format: CSV + Excel (`exceljs` allerede installert; `csv-parse` ny avhengighet)
+- Påkrevde kolonner: `ansattnummer`, `kompetansetype`
+- Valgfrie: `kategori`, `utstedt`, `utloper`, `utstederOrgan`, `sertifikatNr`, `notat`
+- Auto-opprettelse av ukjente kompetansetyper ved import (importertVia="csv"/"xlsx")
+- Atomisk import (alt eller intet) for første versjon
+
+**Default-utløp:** SmartDok-mønster ikke kartlagt med eksakte verdier i research-docs. `defaultUtloperAarEtterUtstedt` settes som null som default — kunden setter eksplisitt utløp ved registrering. Kjente verdier (M2-bevis = 5 år, HMS-40t = ingen utløp) kan seedes senere når SmartDok-research utvides.
+
+**Begrunnelse for Fase 0.5:**
+1. Tabellene er kjerne-data (`packages/db`), ikke modul-spesifikke
+2. Brukes av Timer (Fase 3), Mannskap (Fase 4), DO-kobling (Fase 6) — ingen modul har eksklusiv eierskap
+3. Dag-1-bruk for A.Markussen krever at tabellene eksisterer før Fase 3 deployes
+4. Naturlig bunke med Avdeling (per C.11 + ny C.14) i Fase 0.5
+5. Per Kenneth-presisering 2026-04-29: kompetansematrise designes nå med fil-import — venter ikke på HR-API
+
+**Implementasjons-fase:** Fase 0.5 (per C.14). Krever ikke A.25 (OrganizationRole) som forutsetning.
+
 ---
 
 ## B. ÅPNE BLOKKERER-SPØRSMÅL — må besluttes før koding
@@ -1032,6 +1123,33 @@ Verifisert 2026-04-27: ingen `.github/workflows/` finnes. Repoet har ingen autom
 **Tiltak:** Opprett `.github/workflows/ci.yml` med stegene over. Trigger på pull-request mot `main` og `develop`. Eventuelt utvid til auto-deploy mot test-miljø.
 
 **Når:** Bør være ferdig før noen Fase 0-migrasjoner kjøres. Kan etableres parallelt med planlegging av andre Fase 0-arbeid.
+
+### C.14 Kompetansetype + AnsattKompetanse i Fase 0.5 — ✅ **VEDTATT 2026-04-29**
+
+Bygges i **Fase 0.5** (sammen med Avdeling per C.11 og Byggeplass). Datamodell-detaljer i A.28.
+
+**Tiltak (Fase 0.5):**
+1. Prisma-migrasjon: opprett `Kompetansetype` + `AnsattKompetanse` i `packages/db`
+2. Seed `KOMPETANSE_KATEGORIER`-konstant i `packages/shared/src/types/index.ts` (7 SmartDok-bekreftede kategorier)
+3. tRPC-rute `kompetanse.*`: CRUD + CSV/Excel-import
+4. Admin-UI: matrise-vy (bruker × kompetanse) + manuell registrering + import-modal
+5. Varsling-integrasjon: `AnsattKompetanse.utloper` brukes i tverrgående varslingssystem (varsling.md) for utløp-varsel 90/30/7 dager før
+
+**Skille mot C.11 (Avdeling):** Begge er Fase 0.5-kjerne-tabeller, men logisk distinkte:
+- **C.11 Avdeling** = firma-intern organisatorisk inndeling (10 hos A.Markussen)
+- **C.14 Kompetanse** = person-eid sertifikat-/opplærings-data (362 rader hos A.Markussen)
+
+**Avhengigheter:**
+- A.11 (User-utvidelse — ansattnummer kreves for CSV-import-mapping)
+- C.10 (Seed-mekanisme — `KOMPETANSE_KATEGORIER` seedes via samme event-hook hvis kategori blir firma-konfigurerbar senere; ikke nødvendig for Fase 0.5 siden det er konstant)
+- N2.2-PRINSIPP (A.Markussen-research-infeksjon: kategori-liste OK, men IKKE A.Markussens 77 typer)
+
+**Avhengigheter andre veien (post-Fase 0.5):**
+- Fase 3 (Timer) — kompetanse-validering ved timer-føring (utsatt per 1D-anker, kan tilføyes senere)
+- Fase 4 (Mannskap) — §15-listen kan inkludere kompetanse-kolonner
+- Fase 6 (DO-kobling) — `Kompetansetype.kobletTilEquipmentModell` brukes for maskinbruk-validering
+
+**Kilde:** SmartDok-research 2026-04-29 (verifisert via browser): Kompetansetyper-fane og Brukernes kompetanser-fane åpnet og dokumentert. Fra-tidligere-flagg «ikke verifisert» (smartdok-undersokelse.md § 6.3) er nå løst.
 
 ### C.13 Periode på loan-pattern-modeller (3 modeller)
 
