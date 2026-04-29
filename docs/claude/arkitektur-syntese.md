@@ -73,12 +73,13 @@ Norsk byggebransje har «prosjekthotell» som etablert produktkategori (Interaxo
 
 | Instilling | Datatype | Default |
 |---|---|---|
-| Avdelinger på/av | boolean | false |
 | Timer-tilgang default | enum (String) | 'alle-ansatte' |
 | Vareforbruk-tilgang default | enum (String) | 'alle-ansatte' |
 | Maskinbruk-tilgang default | enum (String) | 'sertifiserte' |
 
 Lagres på `OrganizationSetting` som nøkkel-verdi-par.
+
+> **Avdelinger** er ikke en av/på-instilling, men en egen tabell per C.11 (bygges Fase 0.5 — se § 5).
 
 ### 1.4 Eksempler på firma-konfigurasjon
 
@@ -143,11 +144,11 @@ Lag 0 — Ingen tilgang / ekstern uten invitasjon
 5. Har brukeren handlingsrolle?            → ellers 403
 ```
 
-Steg 2 er **gateway** (`OrganizationModule`), steg 3-5 er **hierarki**.
+Steg 2 er **gateway** (`ProjectModule.organizationId` + `status`, per A.4/A.17), steg 3-5 er **hierarki**.
 
 **Implementeres som tRPC procedure-wrappers i Fase 0:**
 - `prosjektProcedure` (auth + scope-sjekk)
-- `modulProcedure(slug)` (auth + sjekk `OrganizationModule.active` for prosjektets primaryOrg)
+- `modulProcedure(slug)` (auth + sjekk `ProjectModule.status` for prosjektets primaryOrganization, per A.4/A.17)
 
 **Standalone-prosjekt-edge:** Hvis `Project.primaryOrganizationId IS NULL`, faller modul-gateway tilbake til standalone-policy (alle moduler tilgjengelig som default; settes som firma-policy senere).
 
@@ -172,7 +173,7 @@ Project (overstyring per prosjekt)
 |---|---|
 | Default byggeplass-tilgang for prosjekt-medlem | Alle byggeplasser (kan begrenses) |
 | Tidsbegrenset byggeplass-tilgang | Ja — `gyldigFra`/`gyldigTil` på `ByggeplassMedlemskap` (Fase 0.5) |
-| Multi-firma-bruker | Ikke prioritert — duplikat User per firma som default |
+| Multi-firma-bruker | Modell A vedtatt (B.7) — én User per person×firma med reaktivering. Composite unique på `(email, organizationId)` + `(phone, organizationId)` forbereder multi-identifikator-auth. |
 | Firma-HMS-rapporter synlig for vanlige ansatte | Kun egne (default), konfigurerbart per firma |
 
 ---
@@ -278,27 +279,30 @@ ReportTemplate (annet prosjekt-instans)
 
 | Modell | Formål | Avhengigheter |
 |---|---|---|
-| `OrganizationModule` | Modul-aktivering per firma (gateway) | — |
 | `OrganizationSetting` | Tilgangs-defaults og firma-flagg | — |
 | `OrganizationPartner` | Faste UE/byggherre/leverandører | — |
-| `Avdeling` (valgfri via flagg) | Intern struktur for større firma | OrganizationSetting |
 | `OrganizationTemplate` | Firma-mal-bibliotek (mal-promotering) | — |
 | Firma-HMS-rolle (på User eller egen tabell) | Behandler firma-eide HMS-rapporter | — |
+
+**Modul-aktivering (gateway):** `ProjectModule` eksisterer allerede — utvides med `organizationId` + `status` per A.4/A.17 (3-nivå: aktivert/deaktivert/standalone). Ingen ny `OrganizationModule`-tabell.
+
+**Avdeling:** Egen tabell per C.11, men bygges i Fase 0.5 (sammen med Byggeplass-fundament) — ikke i Fase 0. Se § 5 Fase 0.5.
 
 **`OrganizationKontekstType`** — utelates (besluttet).
 **`OrganizationChecklist`** — utsatt til kundeforespørsel (besluttet).
 
 **Rekkefølge internt i Fase 0:**
 
-1. `OrganizationModule` + `OrganizationSetting` (gateway og defaults)
+1. `ProjectModule`-utvidelse (`organizationId` + `status` per A.4/A.17 — gateway) + `OrganizationSetting` (defaults)
 2. `OrganizationPartner` (referanse fra Faggruppe)
-3. `Avdeling`-flagg
-4. `OrganizationTemplate` (forberedelse til Fase 2 mal-promotering)
-5. `Project.primaryOrganizationId String?` (nullable FK)
-6. `Psi`-utvidelse (`organizationId`, `projectId` nullable, `kontekstType`)
-7. `BibliotekMal`-utvidelse (4 nye felter)
-8. `ProjectMember.periodeSlutt`
-9. Firma-HMS-rolle (på `User.role` eller egen tabell — designvalg under Fase 0)
+3. `OrganizationTemplate` (forberedelse til Fase 2 mal-promotering)
+4. `Project.primaryOrganizationId String?` (nullable FK)
+5. `Psi`-utvidelse (`organizationId`, `projectId` nullable, `kontekstType`)
+6. `BibliotekMal`-utvidelse (4 nye felter)
+7. `ProjectMember.periodeSlutt`
+8. Firma-HMS-rolle (på `User.role` eller egen tabell — designvalg under Fase 0)
+
+> Sannhetskilde for endelig migrasjons-rekkefølge er [fase-0-beslutninger.md § E](fase-0-beslutninger.md). Listen over er logisk gruppering, ikke nummerert utførelses-rekkefølge.
 
 ---
 
@@ -312,11 +316,13 @@ ReportTemplate (annet prosjekt-instans)
 
 **Ingen UI-endringer.**
 
-### Fase 0.5 — Byggeplass-fundament
+### Fase 0.5 — Byggeplass + Avdeling-fundament
 
 - **Tre åpne arkitektur-prinsipper besluttes** (NULL-betydning, default-byggeplass, FK vs jsonb) — fra `byggeplass-strategi.md`
 - `ByggeplassMedlemskap` (loan-pattern: User → Byggeplass over tid)
 - Drop `building_ids` jsonb fra `project_groups` — erstattes av m2m-koblingstabell
+- `Avdeling`-tabell i `packages/db` (kjernen) — firma-intern organisatorisk inndeling, separat dimensjon fra byggeplass (per C.11)
+- `User.avdelingId` valgfri (ny kolonne)
 - Forbered byggeplassId-felt på fremtidige Timer/Mannskap/Varelager-modeller
 
 **Default-byggeplass-policy (besluttet):** `byggeplassId IS NULL` betyr «hele prosjektet» eller «ikke knyttet til byggeplass» — modellene tolker selv. Ingen tvungen byggeplass ved prosjektopprettelse. Funksjoner som krever byggeplass viser «Opprett byggeplass først».
