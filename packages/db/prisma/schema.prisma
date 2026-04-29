@@ -78,6 +78,7 @@ model OrganizationIntegration {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@unique([organizationId, type])
+  @@index([organizationId])
   @@map("organization_integrations")
 }
 
@@ -112,6 +113,7 @@ model Account {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
+  @@index([userId])
   @@map("accounts")
 }
 
@@ -123,6 +125,7 @@ model Session {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId])
   @@map("sessions")
 }
 
@@ -249,6 +252,7 @@ model ProjectGroupMember {
   projectMember ProjectMember @relation(fields: [projectMemberId], references: [id], onDelete: Cascade)
 
   @@unique([groupId, projectMemberId])
+  @@index([projectMemberId])
   @@map("project_group_members")
 }
 
@@ -262,6 +266,7 @@ model GroupFaggruppe {
   faggruppe  Faggruppe    @relation(fields: [faggruppeId], references: [id], onDelete: Cascade)
 
   @@unique([groupId, faggruppeId])
+  @@index([faggruppeId])
   @@map("group_faggrupper")
 }
 
@@ -318,6 +323,9 @@ model Faggruppe {
   ftdNotaPeriods         FtdNotaPeriod[]
   kontrollplanPunkter    KontrollplanPunkt[]
 
+  @@index([projectId])
+  @@index([kontraktId])
+  @@index([ansvarligId])
   @@map("dokumentflyt_parts")
 }
 
@@ -359,6 +367,8 @@ model Drawing {
   checklists Checklist[]
   omrader    Omrade[]
 
+  @@index([projectId])
+  @@index([byggeplassId])
   @@map("drawings")
 }
 
@@ -386,6 +396,8 @@ model PointCloud {
   project    Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
   byggeplass Byggeplass? @relation(fields: [byggeplassId], references: [id], onDelete: SetNull)
 
+  @@index([projectId])
+  @@index([byggeplassId])
   @@map("point_clouds")
 }
 
@@ -405,6 +417,8 @@ model DrawingRevision {
   drawing    Drawing @relation(fields: [drawingId], references: [id], onDelete: Cascade)
   uploadedBy User?   @relation("DrawingRevisionUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
 
+  @@index([drawingId])
+  @@index([uploadedById])
   @@map("drawing_revisions")
 }
 
