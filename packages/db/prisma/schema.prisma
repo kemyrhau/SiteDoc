@@ -669,6 +669,8 @@ model Image {
   checklist Checklist? @relation(fields: [checklistId], references: [id])
   task      Task?      @relation(fields: [taskId], references: [id])
 
+  @@index([checklistId])
+  @@index([taskId])
   @@map("images")
 }
 
@@ -711,6 +713,9 @@ model FolderAccess {
   user       User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([folderId, accessType, faggruppeId, groupId, userId])
+  @@index([userId])
+  @@index([faggruppeId])
+  @@index([groupId])
   @@map("folder_access")
 }
 
@@ -732,6 +737,8 @@ model Dokumentflyt {
   checklists Checklist[]
   tasks      Task[]
 
+  @@index([projectId])
+  @@index([faggruppeId])
   @@map("dokumentflyter")
 }
 
@@ -758,6 +765,9 @@ model DokumentflytMedlem {
   @@unique([dokumentflytId, faggruppeId, rolle, steg])
   @@unique([dokumentflytId, projectMemberId, rolle, steg])
   @@unique([dokumentflytId, groupId, rolle, steg])
+  @@index([projectMemberId])
+  @@index([faggruppeId])
+  @@index([groupId])
   @@map("dokumentflyt_medlemmer")
 }
 
@@ -939,6 +949,7 @@ model FtdTnotaChangeLink {
   changeEvent   FtdChangeEvent @relation(fields: [changeEventId], references: [id], onDelete: Cascade)
 
   @@unique([tnotaDocumentId, changeEventId])
+  @@index([changeEventId])
   @@map("ftd_tnota_change_links")
 }
 
@@ -1008,6 +1019,7 @@ model FtdTranslationJob {
   // FK constraint finnes i SQL: document_id → ftd_documents(id) ON DELETE CASCADE
 
   @@unique([documentId, targetLang])
+  @@index([status])
   @@map("ftd_translation_jobs")
 }
 
@@ -1139,6 +1151,8 @@ model FtdNotaComment {
   specPost FtdSpecPost?   @relation(fields: [specPostId], references: [id], onDelete: Cascade)
   period   FtdNotaPeriod? @relation(fields: [periodId], references: [id], onDelete: Cascade)
 
+  @@index([specPostId])
+  @@index([periodId])
   @@map("ftd_nota_comments")
 }
 
@@ -1162,6 +1176,7 @@ model Psi {
   signaturer PsiSignatur[]
 
   @@unique([projectId, byggeplassId])  // Én PSI per prosjekt+byggeplass
+  @@index([byggeplassId])
   @@map("psi")
 }
 
