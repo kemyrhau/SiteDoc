@@ -178,6 +178,7 @@ model Project {
   psiEr                Psi[]
   kontrollplaner       Kontrollplan[]
 
+  @@index([trialExpiresAt])
   @@map("projects")
 }
 
@@ -290,6 +291,8 @@ model ProjectInvitation {
   invitedBy        User              @relation("InvitationSender", fields: [invitedByUserId], references: [id])
 
   @@index([email])
+  @@index([expiresAt])
+  @@index([projectId, status])
   @@map("project_invitations")
 }
 
@@ -369,6 +372,7 @@ model Drawing {
 
   @@index([projectId])
   @@index([byggeplassId])
+  @@index([status])
   @@map("drawings")
 }
 
@@ -443,6 +447,7 @@ model Byggeplass {
   omrader       Omrade[]
   kontrollplaner Kontrollplan[]
 
+  @@index([status])
   @@map("byggeplasser")
 }
 
@@ -564,6 +569,9 @@ model Checklist {
   @@index([templateId])
   @@index([bestillerUserId])
   @@index([recipientUserId])
+  @@index([dueDate])
+  @@index([status])
+  @@index([dokumentflytId, status])
   @@map("checklists")
 }
 
@@ -611,6 +619,9 @@ model Task {
   @@index([templateId])
   @@index([bestillerUserId])
   @@index([recipientUserId])
+  @@index([dueDate])
+  @@index([status])
+  @@index([dokumentflytId, status])
   @@map("tasks")
 }
 
@@ -871,6 +882,7 @@ model FtdDocument {
   @@unique([projectId, filename])
   @@index([folderId])
   @@index([kontraktId])
+  @@index([processingState])
   @@map("ftd_documents")
 }
 
@@ -1315,6 +1327,7 @@ model KontrollplanPunkt {
   @@index([omradeId])
   @@index([faggruppeId])
   @@index([status])
+  @@index([fristUke, fristAar])
   @@map("kontrollplan_punkter")
 }
 
