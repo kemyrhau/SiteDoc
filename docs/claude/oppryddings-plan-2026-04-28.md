@@ -598,6 +598,89 @@ sist_verifisert_mot_kode: 2026-04-28
 
 ---
 
+## Screening-funn 2026-04-29 — schema-indekser + navnekollisjon
+
+> **Bakgrunn:** Systematisk screening 2026-04-29 av (a) indekser på tvers av `packages/db` + `packages/db-maskin` schema.prisma og (b) navnekollisjons-risiko i TypeScript-typer/tRPC-ruter/Prisma-spørringer/web+mobile-kode. Funnene under er prioriterte handlingspunkter etter screeningen.
+
+### [ ] C.15 — Indeks-rens hele schema.prisma (24 manglende indekser)
+- **Filer:** `packages/db/prisma/schema.prisma` + `packages/db-maskin/prisma/schema.prisma`
+- **Type:** Strukturell forbedring (ytelse + Fase 0-koding-forberedelse)
+- **Omfang:** 22 manglende indekser i `packages/db` + 2 i `packages/db-maskin` = totalt 24
+
+**Klasse 1 — Kritisk (FK uten index på modeller i produksjon i dag):**
+- `Session.userId` — sesjonoppslag ved hver login
+- `Account.userId` — OAuth-tilkobling per bruker
+- `Faggruppe.projectId` + `Faggruppe.kontraktId` + `Faggruppe.ansvarligId` — sentral i dokumentflyt + prosjekt-isolering. **Høyeste prioritet** — Faggruppe brukes overalt
+- `Drawing.projectId` + `Drawing.byggeplassId`
+- `PointCloud.projectId` + `PointCloud.byggeplassId`
+- `DrawingRevision.drawingId` + `DrawingRevision.uploadedById`
+- `Checklist`: 7 manglende FK-indekser (bestillerFaggruppeId, utforerFaggruppeId, eierUserId, dokumentflytId, byggeplassId, drawingId, recipientGroupId) + dueDate + status
+- `Task`: 7 manglende FK-indekser (samme mønster) + dueDate + status
+- `OrganizationIntegration.organizationId`
+- `Equipment(organizationId, status)` composite — firma-isolering + status-filter
+
+**Klasse 2 — Viktig (varsling + frist):**
+- `ProjectInvitation.expiresAt` — utløp-varsling
+- `Project.trialExpiresAt` — prøveperiode-varsling
+- `KontrollplanPunkt(fristUke, fristAar)` composite
+
+**Klasse 3 — Medium (status-filtrering):**
+- `Checklist.status`, `Task.status`, `Drawing.status`, `Byggeplass.status`, `FtdDocument.processingState`
+
+**Klasse 4 — Mindre (gruppemedlemskap, oversettelse, etc.):**
+- `ProjectGroupMember.projectMemberId`
+- `GroupFaggruppe(groupId, faggruppeId)`
+- `FolderAccess`: 4 FK-indekser
+- `Dokumentflyt(projectId, faggruppeId)`
+- `DokumentflytMedlem`: 4 FK-indekser
+- `ProjectModule.projectId`
+- `Image(checklistId, taskId)`
+- `FtdTnotaChangeLink(tnotaDocumentId, changeEventId)`
+- `FtdTranslationJob(documentId, status)`
+- `TranslationCache(contentHash, sourceLang, targetLang)`
+- `FtdNotaComment(specPostId, periodId)`
+- `Psi(projectId, byggeplassId)`
+
+**Forventet ytelse-effekt:** 20-40% forbedring på firma/prosjekt-isolering-spørringer; 15-30% forbedring på frist/varslings-queries.
+
+**Implementerings-fase:** Bør tas med Fase 0-migrasjons-arbeid. Klasse 1 (kritisk) bør prioriteres siden det berører modeller i produksjon i dag — Session.userId og Faggruppe-indeksene er sannsynligvis høyest verdi.
+
+**Kilde:** Screening 2026-04-29 (Explore-agent, verifisert mot schema.prisma).
+
+### [ ] SCREENING-29-1 — Funn 4: `medlem.oppdater` lar prosjektadmin endre annen brukers organizationId — **HØYESTE PRIORITET (sikkerhet)**
+- **Fil:** `apps/api/src/routes/medlem.ts:299-352` (`oppdater`-mutation)
+- **Type:** Sikkerhetsproblem — autorisasjons-svakhet
+- **Konkret problem:**
+  - Linje 312: `verifiserAdmin(ctx.userId, input.projectId)` sjekker KUN prosjekt-admin-rolle
+  - Linje 308: `organizationId: z.string().uuid().nullable().optional()` aksepteres som input
+  - Linje 323: `brukerOppdatering.organizationId = input.organizationId` settes uten validering
+  - Konsekvens: Prosjektadmin kan endre `User.organizationId` på andre brukere — bryter firma-isolering, kan flytte company_admin-rettigheter mellom firma, bryter B.7 Modell A
+- **Forutsetning for misbruk:** Bruker må være prosjektadmin på minst ett prosjekt der målet er medlem
+- **Sammenlign:** `medlem.leggTil` (samme fil, linje 89-119) har eksplisitt firmaansvarlig-sjekk og tving-til-eget-firma-logikk. `oppdater` mangler denne.
+- **Anbefalt fix (Variant A):** Fjern `organizationId` fra `oppdater`-input-schema. Hvis legitim use-case for å flytte bruker mellom firma trengs senere, lag separat `organisasjon.flyttBruker`-mutation gated med `verifiserSiteDocAdmin`
+- **Kompleksitet:** Lav (~5 linjer i medlem.ts + sjekk om UI-kode bruker feltet)
+- **Kilde:** Screening 2026-04-29 (Explore-agent — verifisert manuelt 2026-04-29)
+
+### [ ] SCREENING-29-2 — Funn 1: Type-casts i oppgave-detaljside (lavere prioritet)
+- **Fil:** `apps/web/src/app/dashbord/[prosjektId]/oppgaver/[oppgaveId]/page.tsx:191-200`
+- **Type:** Type-safety-svekkelse (ikke functional bug)
+- **Konkret problem:**
+  - `as { ... }`-casts på `fullOppgaveRå` og `minFlytInfo` med `@ts-ignore TS2589`-kommentar
+  - Logikken er korrekt i dag, men type-safety er svekket — fremtidige refaktorerings-bugs fanges ikke av TypeScript
+  - TS2589 («type instantiation excessively deep») er root-cause — bruker workaround
+- **Anbefalt fix:** Konkrete typer (`type FullOppgave = NonNullable<typeof fullOppgaveRå>`) eller refaktor tRPC-router for å redusere type-instantiation-dybde slik at `@ts-ignore` ikke trengs
+- **Kompleksitet:** Medium (krever undersøkelse av TS2589-årsak)
+- **Kilde:** Screening 2026-04-29
+
+### Verifiserte FALSE POSITIVES (ingen handling)
+
+Følgende ble flagget av Explore-agenten, men verifisert manuelt 2026-04-29 som ikke-problemer. Registreres her for sporbarhet:
+
+- **Funn 3 (sjekkliste.ts:80-98 nested createdAt):** FALSE POSITIVE. Prisma håndterer hver tabell separat — `data.images[i].createdAt` og `data.transfers[i].createdAt` er distinkte felter på distinkte objekter. Ingen ambiguity i serialisering eller sortering.
+- **Funn 6 (oppgave.ts:388 recipientUserId):** FALSE POSITIVE. Optional chaining `hovedansvarlig?.projectMember` med eksplisitt sjekk før tilordning. `recipientUserId` settes kun hvis `projectMember` eksisterer — null-check finnes.
+
+---
+
 ## TIMER-FUNN-kandidater (krever Kenneth-bekreftelse før registrering)
 
 > Disse er identifisert i Bunke 3A.1, men IKKE lagt inn i [timer-funn-fra-screening-2026-04-27.md](timer-funn-fra-screening-2026-04-27.md) ennå. Kenneth bestemmer om de skal registreres som Funn 7/8/9.

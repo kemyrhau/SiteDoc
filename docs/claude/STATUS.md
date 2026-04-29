@@ -52,7 +52,7 @@
 |---|---|---|
 | onboarding-veileder.md | ikke aktuelt | Idé-stadium, planlagt ~1 måned frem (post-Fase 0). Etablert 2026-04-28 |
 | mannskap.md | 2026-04-28 | **Vy-beskrivelse i PSI-konteksten** etter 1D-presisering (N2.1-revidert). Datamodell forkastet (Mannskapsmedlem dupliserer User per memory). §15-felt-mapping bevart i tekstform. Endelig datamodell designes Fase 4 (PSI-utvidelse) |
-| oppryddings-plan-2026-04-28.md | 2026-04-29 | **Arbeidsanker:** Aktiv anker for oppryddings-arbeidet etter Bunke 3A.1. P-KRITISK-seksjon (3 prod-blokkere) tilføyd 2026-04-28. Dokument-samhandlings-lukking Nivå 1-4 etablert 2026-04-28. Mini-Nivå 1D 2026-04-28: anker korrigert. Bunke N2.1-revidert (strammet) 2026-04-28: 2A+2B+2C kvittert. Bunke N2.2 registrert som etter-funn + A.Markussen-research-infeksjons-prinsipp. **2026-04-29:** P1.7 + P4.3 + P4.4 lukket (§ 5-rens, OrganizationRole, smart modulProcedure) |
+| oppryddings-plan-2026-04-28.md | 2026-04-29 | **Arbeidsanker:** Aktiv anker for oppryddings-arbeidet etter Bunke 3A.1. P-KRITISK-seksjon (3 prod-blokkere) tilføyd 2026-04-28. Dokument-samhandlings-lukking Nivå 1-4 etablert 2026-04-28. Mini-Nivå 1D 2026-04-28: anker korrigert. Bunke N2.1-revidert (strammet) 2026-04-28: 2A+2B+2C kvittert. Bunke N2.2 registrert som etter-funn + A.Markussen-research-infeksjons-prinsipp. **2026-04-29:** P1.7 + P4.3 + P4.4 lukket. Screening-funn 2026-04-29 registrert: C.15 (24 indekser mangler), SCREENING-29-1 (sikkerhet — medlem.oppdater organizationId), SCREENING-29-2 (type-cast oppgave-detaljside) |
 | timer-funn-fra-screening-2026-04-27.md | 2026-04-28 | **Arbeidsanker:** Midlertidig, slettes etter Timer/Maskin-revurdering |
 
 ## ❌ Ikke screenet
