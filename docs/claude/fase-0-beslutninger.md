@@ -1352,6 +1352,22 @@ Massetransport som egen strøm: kjøretøy + antall lass + hentet fra + levert t
 
 **Tre-nivå-katalog (per § 3.8):** Vurdér om Vare-katalogen skal følge 3-nivå-mønsteret (lovpålagt grunnpakke, bransje-relevant, egendefinert) eller om Lag 3 (egendefinert) er tilstrekkelig. Avgjøres ved Fase 3-design — ikke nå.
 
+### C.17 BibliotekMal/OrganizationTemplate språkstøtte — 🟡 **ÅPEN — IKKE SPEC'ET (notert 2026-05-01)**
+
+**Bakgrunn:** Identifisert under E.8-kartlegging 2026-05-01. `BibliotekMal.navn` og `BibliotekKapittel.navn` er flate strenger uten `translations Json`-felt. `ReportObject` og `OrganizationTemplateObject` (E.7) har `translations Json @default("{}")` — men `ReportTemplate`/`OrganizationTemplate`/`BibliotekMal` selv har det ikke. Sentralbibliotek er i dag kun norsk; engelsk/andre språk på selve mal-navnene mangler.
+
+**To alternativer (besluttes i Fase 2 når sentralbibliotek-UI designes):**
+
+- **A — Schema-utvidelse:** Tilføy `translations Json @default("{}")` på `BibliotekMal`, `BibliotekKapittel`, `ReportTemplate`, `OrganizationTemplate`. Mønster matcher eksisterende `ReportObject.translations`. Manuelle oversettelser per mal-navn.
+- **B — Dynamisk oversettelse:** Bruk OPUS-MT-tjenesten (eksisterende infrastruktur, port 3303, ingen schema-endring). Mal-navn oversettes on-the-fly. Lavere kvalitet for fagbegreper, men ingen vedlikeholds-byrde.
+
+**Status:** Åpen. Adresseres ikke i Fase 0 (E.8 utvider BibliotekMal med 4 forretnings-felter, ikke i18n). Tas opp ved Fase 2 mal-promotering når UI-strategi for sentralbibliotek besluttes.
+
+**Berører ved beslutning:**
+- Schema (4 modeller hvis Alt A)
+- `bibliotek.ts` import-flyt (hvis Alt A — kopier translations til ReportTemplate ved kopiering til prosjekt)
+- Sentralbibliotek-UI (Fase 2)
+
 ---
 
 ## D. Lovverk-svakheter som krever vurdering

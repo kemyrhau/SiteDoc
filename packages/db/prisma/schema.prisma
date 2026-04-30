@@ -1391,18 +1391,23 @@ model BibliotekKapittel {
 }
 
 model BibliotekMal {
-  id          String                  @id @default(cuid())
-  kapittelId  String                  @map("kapittel_id")
-  kapittel    BibliotekKapittel       @relation(fields: [kapittelId], references: [id], onDelete: Cascade)
-  navn        String
-  referanse   String
-  beskrivelse String?
-  versjon     String                  @default("1.0")
-  aktiv       Boolean                 @default(true)
-  prioritet   Int                     @default(1)   // 1=grunnpakke, 2=utvidet, 3=spesialist
-  opprettet   DateTime                @default(now()) @map("opprettet")
-  malInnhold  Json                    @map("mal_innhold")
-  prosjektValg ProsjektBibliotekValg[]
+  id             String                  @id @default(cuid())
+  kapittelId     String                  @map("kapittel_id")
+  kapittel       BibliotekKapittel       @relation(fields: [kapittelId], references: [id], onDelete: Cascade)
+  navn           String
+  referanse      String
+  beskrivelse    String?
+  versjon        String                  @default("1.0")
+  aktiv          Boolean                 @default(true)
+  prioritet      Int                     @default(1)   // 1=grunnpakke, 2=utvidet, 3=spesialist
+  // Per fase-0-beslutninger.md § E steg 8 — lukker P-KRITISK-3 (bibliotek.ts hardkodet category/domain)
+  kategori       String                  @default("sjekkliste") // "oppgave" | "sjekkliste" — matcher ReportTemplate.category
+  domene         String                  @default("kvalitet")   // "bygg" | "hms" | "kvalitet" — sentralbibliotek er NS 3420-K
+  kobletTilModul String?                 @map("koblet_til_modul") // Slug til prosjektmodul (f.eks. "okonomi", "psi")
+  verifisert     Boolean                 @default(false)         // True når malen er verifisert mot kilde-norm
+  opprettet      DateTime                @default(now()) @map("opprettet")
+  malInnhold     Json                    @map("mal_innhold")
+  prosjektValg   ProsjektBibliotekValg[]
 
   @@index([kapittelId])
   @@map("bibliotek_maler")
