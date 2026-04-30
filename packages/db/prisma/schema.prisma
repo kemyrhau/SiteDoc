@@ -59,14 +59,15 @@ model Organization {
   createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @updatedAt @map("updated_at")
 
-  users           User[]
-  projects        ProjectOrganization[]
-  primaryProjects Project[]                 @relation("ProjectPrimaryOrg")
-  projectModules  ProjectModule[]           @relation("OrgProjectModule")
-  partners        OrganizationPartner[]
-  templates       OrganizationTemplate[]
-  integrations    OrganizationIntegration[]
-  setting         OrganizationSetting?
+  users               User[]
+  projects            ProjectOrganization[]
+  primaryProjects     Project[]                 @relation("ProjectPrimaryOrg")
+  projectModules      ProjectModule[]           @relation("OrgProjectModule")
+  partners            OrganizationPartner[]
+  templates           OrganizationTemplate[]
+  externalCostObjects ExternalCostObject[]
+  integrations        OrganizationIntegration[]
+  setting             OrganizationSetting?
 
   @@map("organizations")
 }
@@ -239,6 +240,7 @@ model Project {
   modules              ProjectModule[]
   projectOrganizations ProjectOrganization[]
   primaryOrganization  Organization?         @relation("ProjectPrimaryOrg", fields: [primaryOrganizationId], references: [id], onDelete: SetNull)
+  externalCostObjects  ExternalCostObject[]
   dokumentflyter       Dokumentflyt[]
   ftdDocuments         FtdDocument[]
   ftdSpecPosts         FtdSpecPost[]
@@ -1558,4 +1560,53 @@ model Activity {
   @@index([targetType, targetId])
   @@index([targetType, action, createdAt])
   @@map("activity_log")
+}
+
+// ---------------------------------------------------------------------------
+// ExternalCostObject — felles kostnadsbærer-referanse (Underprosjekt i UI)
+// Per fase-0-beslutninger.md § A.1 + § E steg 11.
+// Refereres av Timer-modul (Fase 3) og Godkjenning-dokumentflyt (E.12).
+// UI-term «Underprosjekt» (anleggsbransjens etablerte begrep, A.Markussen/SmartDok).
+// Variabelnavn i kode: externalCostObjectId, eco, externalCostObject.
+//
+// Audit-felter (per A.3-mønster): opprettetAvUserId og lukketAvUserId
+// er bevisst UTEN @relation — bevarer audit-spor ved User-sletting.
+// ---------------------------------------------------------------------------
+
+model ExternalCostObject {
+  id                    String   @id @default(uuid())
+  organizationId        String   @map("organization_id")
+  projectId             String   @map("project_id")
+
+  proAdmId              String   @map("proadm_id")              // UI-referanse fra ProAdm
+  proAdmIdAtImport      String?  @map("proadm_id_at_import")    // Snapshot ved import (per A.22)
+
+  kortNavn              String   @map("kort_navn")
+  kilde                 String                                   // "proadm_import" | "manuell" | "felt_opprettet"
+  kildeId               String?  @map("kilde_id")
+
+  status                String   @default("aktiv")              // "aktiv" | "lukket"
+  timerregistreringApen Boolean  @default(true) @map("timerregistrering_apen") // per B.1
+
+  // Audit på lukking (per C.6) — String UTEN @relation per A.3-mønster
+  lukketVed             DateTime? @map("lukket_ved")
+  lukketAvUserId        String?   @map("lukket_av_user_id")
+  lukketGrunn           String?   @map("lukket_grunn")
+
+  // Soft-delete (per C.7)
+  slettetVed            DateTime? @map("slettet_ved")
+
+  // String UTEN @relation per A.3-mønster (audit-spor overlever User-sletting)
+  opprettetAvUserId     String   @map("opprettet_av_user_id")
+
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  project      Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, proAdmId])
+  @@index([projectId, status])
+  @@index([slettetVed])
+  @@map("external_cost_objects")
 }
