@@ -505,7 +505,26 @@ model OrganizationRole {
 
 **`tilgangskontroll.ts`-utvidelse:** Ny funksjon `harOrgRolle(user, "hms_ansvarlig")` brukes i tilgangskontroll for HMS-rapport-tilgang og lignende.
 
-**Fase 0-konsekvens:** Ny § E-rad (steg 14) registreres for å bygge tabellen i Fase 0-migrasjonen.
+**Tildelings-policy (klargjort 2026-04-30):**
+
+OrganizationRole-rader tildeles av **firma-admin** (`User.role = "company_admin"`) — ikke prosjekt-admin. Følger samme mønster som eksisterende `organisasjon.endreRolle` (apps/api/src/routes/organisasjon.ts:236-280).
+
+Implementasjon i Fase 0:
+- Nye endepunkter `organisasjon.tildelOrgRolle` + `organisasjon.fjernOrgRolle`
+- Begge gated med `verifiserFirmaAdmin` (eksisterende helper)
+- Validering: målbruker må tilhøre samme `organizationId` som tildeleren
+
+**Skille fra prosjekt-spesifikke roller:**
+
+OrganizationRole gjelder **cross-project tilgang innenfor firma** og tildeles av firma-admin. Prosjekt-spesifikke roller forblir uendret og tildeles av prosjekt-admin via eksisterende mekanikker:
+
+- **HMS-ansvarlig på prosjekt** = medlemskap i `ProjectGroup` med `domains: ["hms"]` (tildeles via `gruppe`-router)
+- **Firma-koordinator på prosjekt** = `ProjectMember.erFirmaansvarlig` (tildeles via `medlem.settFirmaansvarlig`)
+- **Prosjekt-admin** = `ProjectMember.role = "admin"` (tildeles via `medlem.oppdater`)
+
+Scope for tildeling matcher scope for tilgang: cross-firma → firma-admin tildeler, ett-prosjekt → prosjekt-admin tildeler.
+
+**Fase 0-konsekvens:** Ny § E-rad (steg 14) registreres for å bygge tabellen i Fase 0-migrasjonen + de to nye endepunktene.
 
 ### A.26 Smart modulProcedure med valgfri byggeplass-scope — ✅ **VEDTATT 2026-04-29**
 
@@ -569,6 +588,8 @@ return await harOrgRolle(user.id, "hms_ansvarlig");
 - **Behandling:** Kun HMS-gruppen (uendret)
 
 **Implementasjons-fase:** Fase 0 — krever A.25 (OrganizationRole) som forutsetning. Tilgangskontroll-utvidelsen registreres som del av `tilgangskontroll.ts`-refaktor (per fase-0-beslutninger § E + Infrastruktur i syntese § 5).
+
+**Tildeling:** Se [A.25 § Tildelings-policy](#a25-organizationrole-tabell-for-granulære-firma-roller--✅-vedtatt-2026-04-29). Firma-HMS-ansvarlig (`role="hms_ansvarlig"`) settes av `company_admin` på person fra samme firma. Skiller seg fra prosjekt-HMS-rolle (HMS-gruppe-medlemskap) som tildeles av prosjekt-admin.
 
 ### A.28 AnsattKompetanse + Kompetansetype — kompetansematrise i Fase 0.5 — ✅ **VEDTATT 2026-04-29**
 
@@ -987,6 +1008,17 @@ Dagens NextAuth-konfigurasjon forutsetter `email @unique`. Med composite unique 
 
 3. JWT/session må inkludere `userId` (ikke kun e-post) for å peke til riktig User-rad.
 
+**Fase 0 minimum-implementasjon (vedtatt 2026-04-30):**
+
+For Fase 0 implementeres kun «velg første aktive User-rad»-strategi:
+- `signIn`-callback finner alle User-rader hvor `email` matcher OG `canLogin = true`
+- Hvis 0 treff → eksisterende NextAuth opprett-flyt (ny User-rad)
+- Hvis 1 treff → log inn som den
+- Hvis 2+ treff → log inn som første treff (deterministisk: laveste `id` eller eldste `createdAt`)
+- Org-velger-UI utsettes til første reelle multi-firma-bruker oppstår i prod
+
+**Begrunnelse:** Prod har 0 multi-org-tilfeller per 2026-04-27 (verifisert i tabellen over). Edge case-policy «lavt prioritet for MVP» tilsier at minimum-versjon dekker 100% av faktiske brukere i Fase 0. UI-spec defineres når reell deltidsstillings-bruker registreres.
+
 **Implementeringsstatus:** Auth-implementeringsdetaljer dokumenteres som teknisk forutsetning for Fase 0-koding. Implementeres når User-modellen utvides (§ E steg 13).
 
 **Eksisterende DB-tilstand (verifisert 2026-04-27):**
@@ -1370,7 +1402,7 @@ Krever nasjonalitet + arbeidstillatelse på User. Allerede inkludert i A.11 (dat
 | 11 | ExternalCostObject | Organization, Project |
 | 12 | Godkjenning (m/`endretEtterSending`, `sistEndretVed`, alle tidsstempler som `@db.Timestamptz`) + DocumentTransfer.kostnadSnapshot + DocumentTransfer.godkjenningId + Timestamptz på snapshot-tidsstempler | DocumentTransfer (finnes), ECO |
 | 13 | User-utvidelse (canLogin, HMS-kort, ansattnummer, nasjonalitet, arbeidstillatelse) + **email-unique drop og composite `@@unique([email, organizationId])` (per B.7)** + **`@@unique([phone, organizationId])` (forberedende per B.7-utvidelse, multi-identifikator-auth)** + custom NextAuth-adapter eller signIn-tilpasning. **Email forblir NOT NULL i Fase 0** (alle har e-post per kunde-bekreftelse). **Ingen passord-felter eller CHECK-constraint i Fase 0** — utsettes til fremtidig multi-identifikator-auth-utvidelse | User (finnes) |
-| 14 | OrganizationRole-tabell (per A.25) — granulære firma-roller med composite unique `(userId, organizationId, role)` + indeks `(organizationId, role)`. Første verdier: `"hms_ansvarlig"`. `tilgangskontroll.ts` får `harOrgRolle(user, role)`-funksjon | Organization, User (begge finnes) |
+| 14 | OrganizationRole-tabell (per A.25) — granulære firma-roller med composite unique `(userId, organizationId, role)` + indeks `(organizationId, role)`. Første verdier: `"hms_ansvarlig"`. `tilgangskontroll.ts` får `harOrgRolle(user, role)`-funksjon. Tildeling via nye endepunkter `organisasjon.tildelOrgRolle` / `organisasjon.fjernOrgRolle` gated med `verifiserFirmaAdmin` (per A.25 § Tildelings-policy) | Organization, User (begge finnes) |
 
 **Etter alle 13 er kjørt (neste release):**
 - ProjectModule.status NOT NULL + drop active-kolonne (per A.4 steg 2)
