@@ -10,7 +10,9 @@ datasource db {
 model User {
   id             String    @id @default(uuid())
   name           String?
-  email          String    @unique
+  // email forblir NOT NULL i Fase 0 (alle har e-post per kunde-bekreftelse).
+  // @unique er erstattet av composite @@unique([email, organizationId]) per B.7.
+  email          String
   emailVerified  DateTime? @map("email_verified")
   image          String?
   phone          String?
@@ -18,6 +20,21 @@ model User {
   language       String    @default("nb") // nb, en, sv, lt, pl, uk, ro, et, fi, cs, de, ru, lv
   tabelloppsett  Json?     @map("tabelloppsett") // { [liste]: { kolonner, bredder, sortering } }
   organizationId String?   @map("organization_id")
+
+  // Per A.10 — to bruksområder: data-mottaker uten innloggings-tilgang OG arkivert User-rad ved org-bytte
+  canLogin       Boolean   @default(true) @map("can_login")
+
+  // Per A.11 — GDPR data-minimalisering (kun det som brukes for forretning/lov)
+  fodselsdato              DateTime?
+  nasjonalitet             String?                          // ISO 3166-1 alpha-2 eller fritekst
+  hmsKortNr                String?  @map("hms_kort_nr")
+  hmsKortUtloper           DateTime? @map("hms_kort_utloper")
+  arbeidstillatelse        String?                          // "permanent" | "midlertidig" | null (ingen CHECK i Fase 0)
+  arbeidstillatelseUtloper DateTime? @map("arbeidstillatelse_utloper")
+
+  // Per § E steg 13
+  ansattnummer             String?
+
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @updatedAt @map("updated_at")
 
@@ -47,6 +64,11 @@ model User {
   kontrollplanHistorikk   KontrollplanHistorikk[]
 
   @@index([organizationId])
+  // Per B.7 — én User per (person × firma). Composite unique tillater Joakim
+  // å ha én User-rad per firma han jobber i.
+  @@unique([email, organizationId])
+  // Per B.7-utvidelse — forberedende for multi-identifikator-auth (telefon-only-bruker)
+  @@unique([phone, organizationId])
   @@map("users")
 }
 

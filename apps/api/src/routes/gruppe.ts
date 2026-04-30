@@ -280,9 +280,10 @@ export const gruppeRouter = router({
     .mutation(async ({ ctx, input }) => {
       await verifiserAdmin(ctx.userId, input.projectId);
 
-      // Finn eller opprett bruker
-      let user = await ctx.prisma.user.findUnique({
-        where: { email: input.email },
+      // Finn eller opprett bruker (per B.7: email er ikke lenger globalt unique → findFirst)
+      let user = await ctx.prisma.user.findFirst({
+        where: { email: input.email, canLogin: true },
+        orderBy: { createdAt: "asc" },
       });
 
       if (!user) {
