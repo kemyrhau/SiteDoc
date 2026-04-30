@@ -113,7 +113,8 @@ export default function OkonomiSide() {
     },
   });
 
-  // @ts-ignore — Prisma Json-type (splitSources) trigger TS2589 i tRPC
+  // Smal lokal type bryter generic-kjeden — refetchInterval bruker kun processingState
+  type DokumentPolling = { processingState: string };
   const dokumenterQuery = trpc.mengde.hentDokumenter.useQuery(
     { projectId: prosjektId },
     {
@@ -121,7 +122,7 @@ export default function OkonomiSide() {
       staleTime: 10_000,
       refetchOnWindowFocus: true,
       refetchInterval: (query) => {
-        const data = query.state.data;
+        const data = query.state.data as DokumentPolling[] | undefined;
         if (!data) return 3000; // Rask polling under initial lasting
         return data.some(
           (d) =>

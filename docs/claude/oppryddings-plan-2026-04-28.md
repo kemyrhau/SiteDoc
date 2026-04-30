@@ -662,19 +662,17 @@ sist_verifisert_mot_kode: 2026-04-28
 - **Vedtak:** `beregnHarBallen()` + `HarBallenDokument`/`HarBallenBruker`-interfaces tilføyd i `packages/shared/src/utils/flytRolle.ts`. Begge page.tsx-filer importerer felles funksjon — duplisert useMemo-logikk eliminert. `@ts-ignore TS2589` fjernet fra oppgave-siden. Bryter generic-kjeden ved å bruke smal interface-cast i stedet for full tRPC-output-type.
 - **Kilde:** Screening 2026-04-29
 
-### [ ] SCREENING-29-3 — TS2589 i 7 øvrige filer (oppfølger til 29-2)
-- **Filer:**
-  - `apps/web/src/app/dashbord/[prosjektId]/sjekklister/skriv-ut/page.tsx:54`
-  - `apps/web/src/app/dashbord/[prosjektId]/okonomi/page.tsx:116`
-  - `apps/web/src/app/dashbord/[prosjektId]/bilder/page.tsx:563`
-  - `apps/web/src/components/mengde/spec-post-tabell.tsx:218`
-  - `apps/web/src/components/mengde/import-dialog.tsx:135`
-  - `apps/web/src/hooks/useSjekklisteSkjema.ts:69`
-  - `apps/web/src/kontekst/prosjekt-kontekst.tsx:76`
-- **Type:** Type-safety-svekkelse (ikke functional bug)
-- **Bakgrunn:** TS2589 («type instantiation excessively deep») rammer 5 dype tRPC-routere: `prosjekt.hentMedId`, `oppgave.hentMedId`, `sjekkliste.hentMedId`, `tegning.hentMedId`, `mengde.hentDokumenter`. Hver fil har egen lokal `as`-cast med `@ts-ignore`-workaround eller tilsvarende.
-- **Anbefalt fix:** Per fil — definer smal lokal interface med kun feltene som faktisk brukes. Eller (mer arbeid) splitt tRPC-routere i `hentMedIdFull`/`hentMedIdLite` for å redusere generic-dybde.
-- **Kompleksitet:** Medium per fil — 7 separate fix. Bør tas i én bunke.
+### [x] SCREENING-29-3 — TS2589 i 7 øvrige filer *(Lukket 2026-04-30 — 9 forekomster fikset, tsc passerer)*
+- **Filer (alle løst):**
+  - `apps/web/src/app/dashbord/[prosjektId]/sjekklister/skriv-ut/page.tsx` — array-cast utvidet med `SjekklistePrintData | undefined` som data-type
+  - `apps/web/src/app/dashbord/[prosjektId]/okonomi/page.tsx` — `@ts-ignore` fjernet, lokal `DokumentPolling`-type i `refetchInterval`
+  - `apps/web/src/app/dashbord/[prosjektId]/bilder/page.tsx` — kommentar renset, lokal `TegningDetalj`-type
+  - `apps/web/src/components/mengde/spec-post-tabell.tsx` — 3 `@ts-ignore` fjernet, eksplisitt `as SpecPost[]`-cast på `sammenligningPoster`
+  - `apps/web/src/components/mengde/import-dialog.tsx` — `@ts-ignore` fjernet, lokal `RegistrerInput`/`RegistrerMutation`-typer
+  - `apps/web/src/hooks/useSjekklisteSkjema.ts` — lokal `SjekklisteData`-type med `NonNullable<...>`-utility
+  - `apps/web/src/kontekst/prosjekt-kontekst.tsx` — `@ts-ignore` fjernet, query-data cast'es til `Prosjekt | undefined` ved boundary
+- **Vedtak:** Felles strategi — smal lokal interface med kun feltene som faktisk brukes per fil. Bryter generic-kjeden ved boundary. Ingen tRPC-router-refaktor nødvendig.
+- **Verifisering:** `tsc --noEmit` på `@sitedoc/web` passerer (0 TS2589-feil; pre-eksisterende vitest-error i `__tests__/import-hjelpere.test.ts` urelatert).
 - **Kilde:** Sub-rapport fra Explore-agent 2026-04-30 ved utførelse av SCREENING-29-2.
 
 ### Verifiserte FALSE POSITIVES (ingen handling)
