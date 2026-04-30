@@ -69,17 +69,15 @@ Sannhetskilder: [fase-0-beslutninger.md](fase-0-beslutninger.md), [arkitektur.md
 
 > Krever Nivå 1+2 fullført så syntesen kan utvides konsistent.
 
-- [ ] **3A. Løft 8 manglende prinsipper til arkitektur-syntese** (NY-5):
-  - § 3.8 Datadrevne kataloger og 3-nivå-onboarding
-  - § 3.9 Snapshot-pattern ved attestering/assignment
-  - § 3.10 Eksport-kode-policy (NULL → migrering 1:1)
-  - § 6.5 Rate-limit-kö-mønster
-  - § 7.4 Adapter-mønster (BilagsKilde, GPS, lønnssystem)
-  - Onboarding-modi (nytt firma vs migrerer)
-  - Cross-modul-konflikt-regler
-  - Områder/soner-modell
-
-  Verifiser hvert prinsipp mot kode før innskudd. Sannsynligvis 1-2 commits.
+- [x] **3A. Løft 8 manglende prinsipper til arkitektur-syntese** (NY-5) *(Lukket 2026-04-30)*:
+  - [x] § 3.8 Datadrevne kataloger og 3-nivå-onboarding *(commit e23e67d — inkluderer 3A.6 onboarding-modi)*
+  - [x] § 3.9 Snapshot-pattern ved attestering/assignment *(commit e23e67d — peker til A.7)*
+  - [x] § 3.10 Eksport-kode-policy (NULL → migrering 1:1) *(commit e23e67d — peker til A.15-A.17)*
+  - [x] § 6.2 Asynkron arbeid — kø-og-job-mønster *(originalt foreslått som § 6.5 Rate-limit-kø-mønster, omplassert til § 6.2 etter struktur-sjekk)*
+  - [x] § 7.4 Adapter-mønster (BilagsKilde, GPS, lønnssystem) *(commit e23e67d)*
+  - [x] Onboarding-modi (nytt firma vs migrerer) *(slått inn i § 3.8)*
+  - [x] Cross-modul-konflikt-regler *(overgår til A.30 — byggeplassId-NULL var eneste reelle konflikt; ECO og kompetanse-validering allerede håndtert)*
+  - [x] Områder/soner-modell *(kontrollplan-spesifikk, ikke i syntesen — dropp)*
 - [ ] **3B. STATUS.md tag-utvidelse for arkitektur-syntese.md** — oppdater kommentar-tag basert på faktisk dekning etter 3A. Kan bakes med 3A.
 
 ### Nivå 4 — Drift-rens (parallell, lav prioritet)
@@ -279,14 +277,9 @@ sist_verifisert_mot_kode: 2026-04-28
 - **Kompleksitet:** Lav
 - **Åpne spørsmål:** Ingen
 
-### [ ] P1.4 — Lukk intern motsigelse Fase 0.5 «Tre åpne prinsipper»
+### [x] P1.4 — Lukk intern motsigelse Fase 0.5 «Tre åpne prinsipper» *(Utført 2026-04-30 — A.30 vedtatt)*
 - **Fil:** arkitektur-syntese.md
-- **Type:** Drift-rens (intern konsistens)
-- **Berører:** § 5 Fase 0.5-seksjon (default-byggeplass listet som både åpent OG besluttet)
-- **Fase-0-relevans:** Ingen direkte (Fase 0.5-tema)
-- **TIMER-FUNN:** Ingen
-- **Kompleksitet:** Lav
-- **Åpne spørsmål:** Hvor mange av de tre prinsippene er faktisk besluttet? Krever lesing av byggeplass-strategi.md for å avklare
+- **Vedtak:** A.30 vedtatt — NULL-betydning løst som A1 («gjelder hele prosjektet»). § 5 Fase 0.5 oppdatert til to gjenstående åpne prinsipper (default-byggeplass, FK vs jsonb). Internkonsistens lukket.
 
 ### [x] P1.5 — Synk multi-firma-bruker (§ 2.5) med B.7 Modell A *(Utført 2026-04-29 — commit fd63600)*
 - **Fil:** arkitektur-syntese.md

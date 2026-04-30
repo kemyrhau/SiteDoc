@@ -347,7 +347,7 @@ Detaljer og tilhørende kontrakter i [fase-0-beslutninger.md § A.15-A.17](fase-
 
 ### Fase 0.5 — Byggeplass + Avdeling-fundament
 
-- **Tre åpne arkitektur-prinsipper besluttes** (NULL-betydning, default-byggeplass, FK vs jsonb) — fra `byggeplass-strategi.md`
+- **To åpne arkitektur-prinsipper besluttes** (default-byggeplass, FK vs jsonb) — fra `byggeplass-strategi.md`. NULL-betydning er **vedtatt A1** per [A.30](fase-0-beslutninger.md): NULL = «gjelder hele prosjektet».
 - `ByggeplassMedlemskap` (loan-pattern: User → Byggeplass over tid)
 - Drop `building_ids` jsonb fra `project_groups` — erstattes av m2m-koblingstabell
 - `Avdeling`-tabell i `packages/db` (kjernen) — firma-intern organisatorisk inndeling, separat dimensjon fra byggeplass (per C.11)
@@ -408,7 +408,9 @@ Detaljer og tilhørende kontrakter i [fase-0-beslutninger.md § A.15-A.17](fase-
 
 ---
 
-## 6. Cross-schema-strategi (db-maskin) ✅
+## 6. Cross-schema og asynkron arbeid ✅
+
+### 6.1 Cross-schema-strategi (db-maskin) ✅
 
 `db-maskin`-pakken har eget Prisma-schema (`maskin`) i samme database-instans. Kommunikasjon med `db` skjer via:
 
@@ -419,6 +421,28 @@ Detaljer og tilhørende kontrakter i [fase-0-beslutninger.md § A.15-A.17](fase-
 **Konsekvens for nye db-maskin-modeller:** følg samme mønster (svake refs, dokumenter eksplisitt i schema-kommentar).
 
 **Backlog:** Nightly cron som logger orphan-refs for `Equipment.ansvarligUserId`, etc.
+
+### 6.2 Asynkron arbeid — kø-og-job-mønster ✅
+
+SiteDoc håndterer offloaded arbeid (filopplasting, batch-oversettelse, eksterne API-kall med rate-limit) via persisterte køer. Tre kanon-implementasjoner i kodebasen:
+
+| Kø | Persistering | Backoff | Bruk |
+|---|---|---|---|
+| `OpplastingsKo` | SQLite (mobil) | Eksponentiell, 5 forsøk, maks 30s | Bilde-upload offline-first ([mobil.md](mobil.md)) |
+| `FtdTranslationJob` | Prisma (server) | Polling 10s + watchdog 5 min, batch 30 | OPUS-MT/Google Translate/DeepL ([okonomi.md](okonomi.md)) |
+| `VegvesenKo` | Prisma (db-maskin, Fase 1) | Prioritets-basert, respekt for 50/t-grense | Kjøretøy-oppslag ([maskin.md](maskin.md)) |
+
+**Felles prinsipper:**
+- **Persistering** — status overlever app/server-restart
+- **Watchdog** — detekterer rader stuck i `processing` og resetter til `pending`
+- **Backoff** — eksponentiell ventetid eller prioritets-rekkefølge, ikke immediate retry
+- **Recovery** — krasj-håndtering ved oppstart (`laster_opp` → `venter` for OpplastingsKo)
+
+**Gap:** Direkte API-kall mot SmartDok (kilde-import), Tripletex/Visma/PowerOffice (lønn-eksport), Open-Meteo (vær), Google Translate (sub-system) gjør i dag direct calls uten persistert retry. Hvis nettverk dør midt i Tripletex-eksport må brukeren manuelt re-kjøre.
+
+**Når ny kø trengs:** Bruk én av tre kanon-implementasjoner som mal. Ikke gjenoppfinn mønsteret. Felles abstraksjons-bibliotek vurderes når fjerde uavhengig kø-mekanisme bygges.
+
+**HTTP-rate-limiting** (innkommende, in-memory token-bucket på `/upload`, `/byttToken`, invitasjon-endepunkter) er en separat mekanisme — `apps/api/src/utils/rateLimiter.ts`. Ikke kø-pattern, men nevnes for fullstendighet.
 
 ---
 

@@ -703,6 +703,38 @@ Ved sync-konflikt vises modal til klient som taper:
 - Lukker P5.6 i [oppryddings-plan-2026-04-28.md](oppryddings-plan-2026-04-28.md) — sesjon-rotasjon-recovery er del av denne pakken
 - Konsumerer behov for Activity-rad ved overskrivning (per A.3) — konflikt-resolving logges
 
+### A.30 byggeplassId-NULL-semantikk — A1 — ✅ **VEDTATT 2026-04-30**
+
+**NULL betyr «gjelder hele prosjektet»** — ikke mid-state, ikke per-modell-tolkning. Én konsistent regel på tvers av alle modeller med nullable `byggeplassId`.
+
+**Bakgrunn:** Sync-konflikt-analyse 2026-04-30 verifiserte at A1 allerede er implementert i kode på tvers av routere og UI:
+
+- `apps/api/src/routes/sjekkliste.ts:38` — `OR: [{byggeplassId: input.byggeplassId}, {byggeplassId: null}]`
+- `apps/api/src/routes/oppgave.ts:51` — samme mønster via `drawing.byggeplassId`
+- `apps/api/src/routes/psi.ts:8-14` — composite-key med NULL-permitert
+- `apps/web/src/components/LokasjonVelger.tsx` — «fjern lokasjon» setter NULL eksplisitt
+- `packages/db/prisma/schema.prisma:1164` (Psi) — eksplisitt kommentar `// null = gjelder hele prosjektet`
+
+**Vedtaket lukker** intern motsigelse i [arkitektur-syntese.md § 5 Fase 0.5](arkitektur-syntese.md) (NULL-betydning var listet både som «åpent prinsipp» og «besluttet»). § 5 oppdateres til kun to gjenstående åpne prinsipper (default-byggeplass, FK vs jsonb).
+
+**Modeller med nullable `byggeplassId` (7 stk):** Drawing, PointCloud, Checklist, Psi, FtdKontrakt, Task (indirekte via drawing), tegning-relaterte. Omrade har required `byggeplassId` (Cascade) — ikke berørt.
+
+**Filtreringspattern (kanon):** Når bruker filtrerer på spesifikk byggeplass, OR-include NULL-rader. UI viser «Alle byggeplasser» som default — ikke separat «Ikke satt»-kategori.
+
+**Konsekvenser for fremtidige moduler:**
+- **Timer (Fase 3):** dagsseddel.byggeplassId nullable. NULL = timer ført uten byggeplass-spesifikasjon (gjelder hele prosjektet). Lønn/eksport-filtrering kan inkludere NULL ved spørring per byggeplass.
+- **Mannskap-innsjekk (Fase 4):** byggeplassId required (geofence-innsjekk forutsetter spesifikk byggeplass). §15-liste-eksport per byggeplass viser kun rader for den byggeplassen, ikke NULL.
+- **Funksjoner som krever byggeplass:** Kontrollplan, Mannskap-innsjekk, Område — required byggeplassId. UI viser «Opprett byggeplass først»-melding (eksisterende mønster).
+
+**Edge-cases håndtert:**
+- Prosjekt med 0 byggeplasser: dokumenter opprettes med NULL, vises i «alle byggeplasser»-vy senere
+- Prosjekt med 1 byggeplass: ingen auto-tildeling. Brukerens valg av byggeplass i filter inkluderer NULL via OR
+- Sletting av byggeplass: `onDelete: SetNull` bevarer dokumenter, mister kun byggeplass-kontekst (allerede implementert)
+
+**Migrering:** Eksisterende NULL-rader bevares uten retro-tildeling.
+
+**Lukker også:** [oppryddings-plan-2026-04-28.md](oppryddings-plan-2026-04-28.md) P1.4 (intern motsigelse) og 3A.7 (cross-modul-konflikt — overgår hit).
+
 ---
 
 ## B. ÅPNE BLOKKERER-SPØRSMÅL — må besluttes før koding
