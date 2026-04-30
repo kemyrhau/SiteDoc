@@ -1423,7 +1423,88 @@ Krever nasjonalitet + arbeidstillatelse på User. Allerede inkludert i A.11 (dat
 
 ---
 
-## F. End-to-end-test som må kjøre kontinuerlig
+## F. Fase 0.7 — Data-rens (prod-forberedelse) — ✅ **VEDTATT 2026-04-30**
+
+**Bakgrunn:** Audit av prod-DB 2026-04-30 viste at **alle 13 prod-brukere har `organizationId = NULL`** og 6 av 8 prosjekter mangler firma-tilknytning. Dette er inkompatibelt med:
+
+1. **Tre-strukturen i CLAUDE.md § Tre nivåer** — som forutsetter `Bruker → Firma → Prosjekter`
+2. **§ E steg 13b** (composite `@@unique([email, organizationId])`) — PostgreSQL behandler NULL som distinct, så constraint blir uvirksom for standalone-brukere
+
+**Beslutning:** Kjør Fase 0.7-data-rens **FØR** § E steg 13b kan kjøres trygt. Fase 0.7 er prod-spesifikk forberedelse — test-DB er allerede ren via re-seed-mønsteret.
+
+**Steg F.1 — Opprett A.Markussen AS på prod**
+
+Mangler i dag (kun HRP AS + Kenneths testmiljø finnes som Organization-rader). Opprett:
+```sql
+INSERT INTO organizations (id, name, organization_number, created_at, updated_at)
+VALUES (gen_random_uuid(), 'A.Markussen AS', '<orgnr fra Brønnøysund>', now(), now());
+```
+
+**Steg F.2 — Knytt `florian@amarkussen.no` til A.Markussen AS**
+
+```sql
+UPDATE users SET organization_id = '<a-markussen-id>' WHERE email = 'florian@amarkussen.no';
+```
+
+**Steg F.3 — Slett øvrige standalone-brukere (bevisst valg)**
+
+Per Kenneth-vedtak 2026-04-30: alle prod-brukere unntatt Florian er testdata eller utdaterte registreringer som kan registreres på nytt ved onboarding. Bevisst data-tap er akseptabelt — ingen lønn-/HMS-data avhenger av disse i dag.
+
+`kemyrhau@gmail.com` (sitedoc_admin) bevares — kreves for systemadministrasjon.
+
+Eksempel-spørring (verifisér før kjøring):
+```sql
+DELETE FROM users WHERE email IN (
+  'kmy@hrpas.no', 'fredrik.ch@live.no', 'kmaryna2@gmail.com', 'vilde@kult.design',
+  'rogerkr07@yahoo.com', 'be.roland@gmail.com',
+  'jonas.snekker@test.sitedoc.no', 'hans.bas@test.sitedoc.no',
+  'lars.formann@test.sitedoc.no', 'karen.laerling@test.sitedoc.no',
+  'ingrid.tommer@test.sitedoc.no'
+);
+-- Cascade-effekter: ProjectMember-rader, faggruppeKoblinger, sentInvitations osv.
+-- onDelete er Cascade for User i de fleste relasjoner — verifiseres før kjøring.
+```
+
+**Steg F.4 — Vurder test-prosjekter på prod (6 stk)**
+
+Følgende prosjekter er testdata på prod og forurenser Fase 0-migrasjonen:
+- `Test` (SD-20260308-0003)
+- `Test` (SD-20260308-0004)
+- `998 Innstifjordbotn` (SD-20260309-0005) — verifiser status før sletting
+- `Testside Roger Ramstad` (SD-20260309-0006)
+- `Test redigert mal Kenneth Myrhaug` (SD-20260310-0007)
+- `Testside Erik Roland` (SD-20260311-0008)
+
+**To beholdes (allerede tilknyttet firma):**
+- `Testprosjekt` (SD-20260306-0001) — knyttet til Kenneths testmiljø
+- `Fredriks testprosjekt` (SD-20260307-0002) — knyttet til HRP AS
+
+**Anbefaling:** Slett de 6 første eller arkiver. Krever Kenneth-bekreftelse per prosjekt før kjøring.
+
+**Rekkefølge i forhold til § E:**
+
+```
+§ E steg 1-12 (datamodell-endringer som ikke krever org-tilknytning)
+   ↓
+§ F (Fase 0.7 data-rens) — opprett A.Markussen, slett standalone-brukere/test-prosjekter
+   ↓
+§ E steg 13 (User-utvidelse + composite unique on (email, organizationId))
+   ↓
+§ E steg 14 (OrganizationRole)
+```
+
+**Konsekvenser hvis Fase 0.7 hoppes over:**
+- Composite unique-constraint blir uvirksom for standalone-brukere (NULL behandles som distinct i PostgreSQL)
+- Tre-strukturen «Bruker → Firma → Prosjekter» bryter for 12 av 13 prod-brukere
+- B.7 Modell A-reaktiverings-logikk (`lookup på (email, organizationId)`) returnerer ikke deterministiske resultater når organizationId er NULL
+
+**Implementasjons-ansvar:** Kenneth utfører F.1-F.4 manuelt mot prod-DB ved Fase 0-deploy. SQL-baserte data-rens er tryggest med menneskelig verifikasjon per spørring.
+
+**Audit-grunnlag:** Prod-DB-status verifisert 2026-04-30 via `psql sitedoc`. 13 brukere, 8 prosjekter, 2 organizations, 2 organization_projects-rader, 17 dokumentflyt_parts (Faggruppe) hvorav 5 har `companyName` satt (alle som fritekst, ikke konsistent med Organization-navn).
+
+---
+
+## I. End-to-end-test som må kjøre kontinuerlig
 
 > Joakim oppretter timer-registrering på mobil offline mot ExternalCostObject «Plunder og heft uke 14». Synkroniserer. Prosjektleder attesterer (snapshot låses). Eksport-filen til ProAdm inneholder riktig proAdmId med riktig kostnad-snapshot.
 
@@ -1431,7 +1512,7 @@ Kjøres etter hver merge til main. Rød test = arkitektur-feil, ikke kun kode-fe
 
 ---
 
-## G. Beslutninger bevisst utsatt
+## J. Beslutninger bevisst utsatt
 
 | Tema | Når besluttes | Hvorfor utsatt |
 |------|---------------|----------------|
@@ -1449,7 +1530,7 @@ Kjøres etter hver merge til main. Rød test = arkitektur-feil, ikke kun kode-fe
 
 ---
 
-## H. Status-snapshot per 2026-04-26
+## K. Status-snapshot per 2026-04-26
 
 **Siste runde:** Opus-runde 3 ferdig 2026-04-26.
 
