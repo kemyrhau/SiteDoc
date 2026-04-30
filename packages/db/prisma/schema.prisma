@@ -38,7 +38,12 @@ model User {
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @updatedAt @map("updated_at")
 
+  // Per Fase 0.5 § 1 + C.11 — firma-intern organisatorisk inndeling.
+  // SetNull: sletting av Avdeling skal ikke slette brukere.
+  avdelingId               String?  @map("avdeling_id")
+
   organization         Organization?        @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  avdeling             Avdeling?            @relation(fields: [avdelingId], references: [id], onDelete: SetNull)
   accounts             Account[]
   sessions             Session[]
   projects             ProjectMember[]
@@ -65,6 +70,7 @@ model User {
   kontrollplanHistorikk   KontrollplanHistorikk[]
 
   @@index([organizationId])
+  @@index([avdelingId])
   // Per B.7 — én User per (person × firma). Composite unique tillater Joakim
   // å ha én User-rad per firma han jobber i.
   @@unique([email, organizationId])
@@ -95,6 +101,7 @@ model Organization {
   organizationRoles   OrganizationRole[]
   integrations        OrganizationIntegration[]
   setting             OrganizationSetting?
+  avdelinger          Avdeling[]
 
   @@map("organizations")
 }
@@ -1725,4 +1732,32 @@ model OrganizationRole {
   @@unique([userId, organizationId, role])
   @@index([organizationId, role])
   @@map("organization_roles")
+}
+
+// ---------------------------------------------------------------------------
+// Avdeling — firma-intern organisatorisk inndeling (Fase 0.5 § 1)
+// Per fase-0-beslutninger.md § C.11 + byggeplass-strategi.md § Avdeling.
+//
+// Skiller seg fra Byggeplass:
+// - Avdeling = organisatorisk inndeling av firma (Tromsø, Narvik, Transport)
+// - Byggeplass = fysisk lokasjon innenfor et prosjekt
+//
+// «Uten avdeling» (User.avdelingId = NULL) er gyldig permanent tilstand.
+// ---------------------------------------------------------------------------
+
+model Avdeling {
+  id              String   @id @default(uuid())
+  organizationId  String   @map("organization_id")
+  kode            String?                              // intern kode, kan være null
+  navn            String
+  aktiv           Boolean  @default(true)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  brukere      User[]
+
+  @@unique([organizationId, navn])
+  @@index([organizationId, aktiv])
+  @@map("avdelinger")
 }

@@ -14,6 +14,8 @@
 **Sist oppdatert:** 2026-05-01
 **Antall filer dekket:** 35 (komplett oversikt)
 
+> **Fase 0.5-fremdrift:** § 1 Avdeling-tabell + User.avdelingId implementert (commit-hash tilføyes etter commit). Branch: `feature/fase-0-5-byggeplass`.
+
 ## Sammendrag
 
 | Status | Antall |
@@ -64,7 +66,7 @@
 | ai-sok.md | — | — |
 | api.md | — | — |
 | bibliotek.md | — | Peker til kontrollplan.md (konsolidert) |
-| byggeplass-strategi.md | — | Planlagt fase (per CLAUDE.md). K2.3 2026-04-28: slette-policy |
+| byggeplass-strategi.md | — | Planlagt fase (per CLAUDE.md). K2.3 2026-04-28: slette-policy. **2026-05-01 (Fase 0.5 § 1 startet):** Avdeling-tabell + User.avdelingId implementert på `feature/fase-0-5-byggeplass`. Verifisering 2026-05-01 fant feilantakelse: «EquipmentAnsvarlig.avdelingId» i strategi-fil — tabellen finnes ikke i db-maskin (Equipment har direkte `ansvarligUserId`). ByggeplassMedlemskap utsatt til Fase 4 (Mannskap). Revidert Fase 0.5-scope: Avdeling + Kompetanse + ProjectGroupByggeplass m2m + drop building_ids + slette-policy |
 | db-naming-audit-2026-04-25.md | — | Datert audit 2026-04-25 |
 | db-opprydning.md | — | **Arbeidsanker:** Markert AKTIV (per CLAUDE.md). K3.2 2026-04-28: åpne audit-spørsmål mot prod. U.2 D-6 2026-04-28 (utvidet verifikasjon) |
 | infrastruktur.md | — | — |

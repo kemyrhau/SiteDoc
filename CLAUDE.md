@@ -49,7 +49,22 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 
 ## Pågående arbeid
 
-**Status 2026-05-01:** **Fase 0 § E KOMPLETT** på `feature/fase-0-fundament`. Alle 13 § E-steg implementert (E.9 hoppet per § E). § E-fremdrift: E.1 Activity (`13a746a7`), E.2 OrganizationSetting (`4a155c28`), E.3 ProjectOrganization-rename (`1bff8672`), E.4 primaryOrganizationId (`137eed6f`), E.5 ProjectModule (`d9bfafc4`), E.6 OrganizationPartner (`22a772b6`), E.7 OrganizationTemplate (`7709ea32`), E.8 BibliotekMal + C.17 (`29311756`), E.10 ProjectMember.periodeSlutt (`5b8beef6`), E.11 ExternalCostObject (`9c9dd682`), E.12 Godkjenning (`0622fc35`), E.13 User-utvidelse + B.7 (`37d49872`), E.14 OrganizationRole ✅ — siste steg: granulære firma-roller per A.25 (egen tabell, ikke User.role-enum) + harOrgRolle() i tilgangskontroll.ts + 2 endepunkter (organisasjon.tildelOrgRolle/fjernOrgRolle) gated med verifiserFirmaAdmin. Branch klar for merge til develop + test/prod-deploy. Timer/Maskin-revurdering utsatt til etter Fase 0-deploy er ferdig.
+**Status 2026-05-01:** **Fase 0 § E KOMPLETT i prod**. Fase 0.5 STARTET på `feature/fase-0-5-byggeplass`.
+
+**Fase 0.5-fremdrift (revidert scope etter kode-verifisering 2026-05-01):**
+- § 1 Avdeling-tabell + User.avdelingId ✅ — `Avdeling`-modell i `packages/db` (organizationId, kode, navn, aktiv, periode-felter), `User.avdelingId String?` med SetNull, `Organization.avdelinger Avdeling[]`, migrasjon `20260501000015_add_avdeling`
+- § 2 Kompetansetype + AnsattKompetanse (per A.28 + C.14) — venter
+- § 3 ProjectGroupByggeplass m2m (erstatter `building_ids` jsonb per Prinsipp C — verifisert dødt felt) — venter
+- § 4 Drop `ProjectGroup.byggeplassIder` (samme migrasjon, ingen data å migrere) — venter
+- § 5 Slette-policy for byggeplass (telleresult + tekst-bekreftelse + cascade-valg) — venter
+
+**Verifiserings-funn 2026-05-01 (mot kode):**
+- ❌ `ByggeplassMedlemskap` UTSATT TIL FASE 4 (Mannskap-modul) — eneste forbrukere er innsjekk/utsjekk/geofence/§15-liste, alle Fase 4
+- ❌ `EquipmentAnsvarlig.avdelingId` strøket — tabellen finnes ikke i db-maskin (Equipment har direkte `ansvarligUserId`)
+- ✅ Prinsipp B (ingen tvungen byggeplass) bekreftet matcher kode 1:1 (kun Kontrollplan krever byggeplass — modul-policy, ikke prosjekt-blokker)
+- ✅ Prinsipp C (koblingstabell vs jsonb) bekreftet trygg — `building_ids` skrives i `gruppe.ts:495-503` men leses ALDRI noe sted
+
+**Fase 0 § E (deployet til prod 2026-05-01):** Alle 13 § E-steg implementert (E.9 hoppet per § E). § E-fremdrift: E.1 Activity (`13a746a7`), E.2 OrganizationSetting (`4a155c28`), E.3 ProjectOrganization-rename (`1bff8672`), E.4 primaryOrganizationId (`137eed6f`), E.5 ProjectModule (`d9bfafc4`), E.6 OrganizationPartner (`22a772b6`), E.7 OrganizationTemplate (`7709ea32`), E.8 BibliotekMal + C.17 (`29311756`), E.10 ProjectMember.periodeSlutt (`5b8beef6`), E.11 ExternalCostObject (`9c9dd682`), E.12 Godkjenning (`0622fc35`), E.13 User-utvidelse + B.7 (`37d49872`), E.14 OrganizationRole. Timer/Maskin-revurdering utsatt til etter Fase 0.5-deploy.
 
 **Anker for Fase 0-koding:**
 - [fase-0-beslutninger.md](docs/claude/fase-0-beslutninger.md) — **PRIMÆR ANKER** (23 vedtatte + 0 åpne BLOKKERE + 12 anbefalte utvidelser + 13-stegs migrerings-rekkefølge + B.7-utvidelse for multi-identifikator-auth)
