@@ -21,74 +21,74 @@
 -- =========================================================================
 
 -- CreateIndex
-CREATE INDEX "folder_access_user_id_idx" ON "folder_access"("user_id");
+CREATE INDEX IF NOT EXISTS "folder_access_user_id_idx" ON "folder_access"("user_id");
 
 -- CreateIndex
-CREATE INDEX "folder_access_faggruppe_id_idx" ON "folder_access"("faggruppe_id");
+CREATE INDEX IF NOT EXISTS "folder_access_faggruppe_id_idx" ON "folder_access"("faggruppe_id");
 
 -- CreateIndex
-CREATE INDEX "folder_access_group_id_idx" ON "folder_access"("group_id");
+CREATE INDEX IF NOT EXISTS "folder_access_group_id_idx" ON "folder_access"("group_id");
 
 -- =========================================================================
 -- Dokumentflyt
 -- =========================================================================
 
 -- CreateIndex
-CREATE INDEX "dokumentflyter_project_id_idx" ON "dokumentflyter"("project_id");
+CREATE INDEX IF NOT EXISTS "dokumentflyter_project_id_idx" ON "dokumentflyter"("project_id");
 
 -- CreateIndex
-CREATE INDEX "dokumentflyter_faggruppe_id_idx" ON "dokumentflyter"("faggruppe_id");
+CREATE INDEX IF NOT EXISTS "dokumentflyter_faggruppe_id_idx" ON "dokumentflyter"("faggruppe_id");
 
 -- =========================================================================
 -- DokumentflytMedlem (userId → projectMemberId)
 -- =========================================================================
 
 -- CreateIndex
-CREATE INDEX "dokumentflyt_medlemmer_project_member_id_idx" ON "dokumentflyt_medlemmer"("project_member_id");
+CREATE INDEX IF NOT EXISTS "dokumentflyt_medlemmer_project_member_id_idx" ON "dokumentflyt_medlemmer"("project_member_id");
 
 -- CreateIndex
-CREATE INDEX "dokumentflyt_medlemmer_faggruppe_id_idx" ON "dokumentflyt_medlemmer"("faggruppe_id");
+CREATE INDEX IF NOT EXISTS "dokumentflyt_medlemmer_faggruppe_id_idx" ON "dokumentflyt_medlemmer"("faggruppe_id");
 
 -- CreateIndex
-CREATE INDEX "dokumentflyt_medlemmer_group_id_idx" ON "dokumentflyt_medlemmer"("group_id");
+CREATE INDEX IF NOT EXISTS "dokumentflyt_medlemmer_group_id_idx" ON "dokumentflyt_medlemmer"("group_id");
 
 -- =========================================================================
 -- Image
 -- =========================================================================
 
 -- CreateIndex
-CREATE INDEX "images_checklist_id_idx" ON "images"("checklist_id");
+CREATE INDEX IF NOT EXISTS "images_checklist_id_idx" ON "images"("checklist_id");
 
 -- CreateIndex
-CREATE INDEX "images_task_id_idx" ON "images"("task_id");
+CREATE INDEX IF NOT EXISTS "images_task_id_idx" ON "images"("task_id");
 
 -- =========================================================================
 -- FtdTnotaChangeLink
 -- =========================================================================
 
 -- CreateIndex
-CREATE INDEX "ftd_tnota_change_links_change_event_id_idx" ON "ftd_tnota_change_links"("change_event_id");
+CREATE INDEX IF NOT EXISTS "ftd_tnota_change_links_change_event_id_idx" ON "ftd_tnota_change_links"("change_event_id");
 
 -- =========================================================================
 -- FtdTranslationJob
 -- =========================================================================
 
 -- CreateIndex
-CREATE INDEX "ftd_translation_jobs_status_idx" ON "ftd_translation_jobs"("status");
+CREATE INDEX IF NOT EXISTS "ftd_translation_jobs_status_idx" ON "ftd_translation_jobs"("status");
 
 -- =========================================================================
 -- FtdNotaComment
 -- =========================================================================
 
 -- CreateIndex
-CREATE INDEX "ftd_nota_comments_spec_post_id_idx" ON "ftd_nota_comments"("spec_post_id");
+CREATE INDEX IF NOT EXISTS "ftd_nota_comments_spec_post_id_idx" ON "ftd_nota_comments"("spec_post_id");
 
 -- CreateIndex
-CREATE INDEX "ftd_nota_comments_period_id_idx" ON "ftd_nota_comments"("period_id");
+CREATE INDEX IF NOT EXISTS "ftd_nota_comments_period_id_idx" ON "ftd_nota_comments"("period_id");
 
 -- =========================================================================
 -- Psi
 -- =========================================================================
 
 -- CreateIndex
-CREATE INDEX "psi_byggeplass_id_idx" ON "psi"("byggeplass_id");
+CREATE INDEX IF NOT EXISTS "psi_byggeplass_id_idx" ON "psi"("byggeplass_id");
