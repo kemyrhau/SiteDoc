@@ -52,10 +52,16 @@ export default function ModulerSide() {
     funksjon: t("moduler.funksjon"),
   };
 
-  const { data: aktiveModuler, isLoading } = trpc.modul.hentForProsjekt.useQuery(
+  type ProjectModuleRad = {
+    moduleSlug: string;
+    status: string;
+    config: { motor?: string; apiKey?: string } | null;
+  };
+  const { data: aktiveModulerRaw, isLoading } = trpc.modul.hentForProsjekt.useQuery(
     { projectId: prosjektId! },
     { enabled: !!prosjektId },
   );
+  const aktiveModuler = aktiveModulerRaw as unknown as ProjectModuleRad[] | undefined;
 
   const utils = trpc.useUtils();
 
@@ -117,7 +123,7 @@ export default function ModulerSide() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {PROSJEKT_MODULER.map((modul) => {
           const dbModul = aktivMap.get(modul.slug);
-          const erAktiv = dbModul?.active === true;
+          const erAktiv = dbModul?.status === "aktiv";
           const erPending =
             (aktiverMutation.isPending && aktiverMutation.variables?.moduleSlug === modul.slug) ||
             (deaktiverMutation.isPending && deaktiverMutation.variables?.moduleSlug === modul.slug);

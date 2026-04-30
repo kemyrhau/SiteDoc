@@ -152,14 +152,15 @@ export function MapperPanel() {
 
     // Finn brukerens prosjektmedlemskap
     const brukerMedlem = medlemmer?.find(
-      (m) => m.user.email === session.user?.email,
+      (m) => m.user?.email === session.user?.email,
     );
 
-    if (!brukerMedlem) {
+    if (!brukerMedlem || !brukerMedlem.user) {
       return { filtrertMapper: mapper, kunStiIder: new Set<string>() };
     }
 
     const erAdmin = brukerMedlem.role === "admin";
+    const brukerUserId = brukerMedlem.user.id;
 
     // Finn brukerens faggruppe-IDer
     const faggruppeIder = brukerMedlem.faggruppeKoblinger.map(
@@ -169,15 +170,15 @@ export function MapperPanel() {
     // Finn brukerens gruppe-IDer
     const alleGrupper = grupper ?? [];
     const gruppeIder = alleGrupper
-      .filter((g: { id: string; members: Array<{ projectMember: { user: { id: string } } }> }) =>
+      .filter((g: { id: string; members: Array<{ projectMember: { user: { id: string } | null } }> }) =>
         g.members.some(
-          (m: { projectMember: { user: { id: string } } }) => m.projectMember.user.id === brukerMedlem.user.id,
+          (m: { projectMember: { user: { id: string } | null } }) => m.projectMember.user?.id === brukerUserId,
         ),
       )
       .map((g: { id: string }) => g.id);
 
     const brukerInfo: BrukerTilgangInfo = {
-      userId: brukerMedlem.user.id,
+      userId: brukerUserId,
       erAdmin,
       faggruppeIder,
       gruppeIder,

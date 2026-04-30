@@ -19,7 +19,7 @@ export default function AdminTestsider() {
 
   // Filtrer til kun testsider (prosjekter uten firma-tilknytning)
   const testsider = (alleProsjekter ?? []).filter(
-    (p) => p.organizationProjects.length === 0,
+    (p) => p.projectOrganizations.length === 0,
   );
 
   function dagerIgjen(opprettet: string | Date) {

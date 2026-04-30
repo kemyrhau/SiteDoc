@@ -32,7 +32,7 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 | ~~docs/claude/audit-data-2026-04-25.md~~ | **🟦 ARKIVERT 2026-04-28** → [docs/arkiv/audit-data-2026-04-25.md](docs/arkiv/audit-data-2026-04-25.md). Read-only audit av dev-DB 2026-04-25. Åpne audit-spørsmål mot prod konsolidert til [db-opprydning.md § Åpne audit-spørsmål](docs/claude/db-opprydning.md) (K3.2) før arkivering |
 | [docs/claude/migrering-reporttemplate.md](docs/claude/migrering-reporttemplate.md) | Plan: ReportTemplate → OrganizationTemplate (firma-mal-bibliotek). Ikke implementert |
 | [docs/claude/arkitektur-syntese.md](docs/claude/arkitektur-syntese.md) | **ANKER:** Helhetlig produktarkitektur — prosjekthotell + tilleggsmoduler, to-nivå-modell, loan-pattern, mal-arkitektur, Fase 0–7 |
-| [docs/claude/fase-0-beslutninger.md](docs/claude/fase-0-beslutninger.md) | **🟢 KOMPLETT 2026-04-27:** 23 vedtatte beslutninger (§A) + 7 lukkede BLOKKERE (§B.1–B.7) + 12 anbefalte utvidelser (§C, hvorav 3 lukket) + 13-stegs migrerings-rekkefølge (§E). Klart for Timer/Maskin-revurdering, deretter Fase 0-koding |
+| [docs/claude/fase-0-beslutninger.md](docs/claude/fase-0-beslutninger.md) | **🟢 § E KOMPLETT (2026-05-01):** 30 vedtatte beslutninger (§A) + 7 lukkede BLOKKERE (§B.1–B.7) + 14 anbefalte utvidelser (§C, inkl. C.17 språkstøtte åpen) + 14-stegs migrerings-rekkefølge (§E) + § F Fase 0.7 data-rens. **§ E-fremdrift: 13/13 implementert** (E.1-E.8 + E.10-E.14, E.9 hoppet per § E): E.1 Activity (`13a746a7`), E.2 OrganizationSetting (`4a155c28`), E.3 ProjectOrganization-rename (`1bff8672`), E.4 primaryOrganizationId (`137eed6f`), E.5 ProjectModule (`d9bfafc4`), E.6 OrganizationPartner (`22a772b6`), E.7 OrganizationTemplate (`7709ea32`), E.8 BibliotekMal + C.17 (`29311756`), E.10 ProjectMember.periodeSlutt + 3 loan-tabeller (`5b8beef6`), E.11 ExternalCostObject + C.6/C.7 (`9c9dd682`), E.12 Godkjenning + DocumentTransfer (`0622fc35`), E.13 User-utvidelse + B.7 (`37d49872`), E.14 OrganizationRole ✅. Klar for merge til develop + test/prod-deploy. |
 | ~~docs/claude/arkitektur-qa-runde-2-2026-04-25.md~~ | **🟦 ARKIVERT 2026-04-28** → [docs/arkiv/arkitektur-qa-runde-2-2026-04-25.md](docs/arkiv/arkitektur-qa-runde-2-2026-04-25.md). Opus QA-runde 2 (2026-04-25). Beslutninger konsolidert til [fase-0-beslutninger.md](docs/claude/fase-0-beslutninger.md) C.13 + § J-rader (K1, tidl. § G før § F-rename 2026-04-30) før arkivering |
 | ~~docs/claude/arkitektur-oppsummering-2026-04-25.md~~ | **🟦 ARKIVERT 2026-04-28** → [docs/arkiv/arkitektur-oppsummering-2026-04-25.md](docs/arkiv/arkitektur-oppsummering-2026-04-25.md). Faktabasert arkitektur-snapshot 2026-04-25. Innhold dekt av [arkitektur-syntese.md](docs/claude/arkitektur-syntese.md) før arkivering |
 | [docs/claude/byggeplass-strategi.md](docs/claude/byggeplass-strategi.md) | **PLANLAGT FASE:** byggeplass-relasjon på tvers av moduler. Modul-tabell (utkast, krever bekreftelse), tre åpne arkitektur-prinsipper, avhengigheter |
@@ -49,11 +49,9 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 
 ## Pågående arbeid
 
-**Status 2026-04-27:** Fase 0-fundament er **komplett verifisert**. Doc-verifiseringssesjon mot kodebasen rettet drift i 5 fundament-filer: arkitektur.md, terminologi.md, dokumentflyt.md, fase-0-beslutninger.md, adaptiv-sok-plan.md. Alle **7 BLOKKERE i fase-0-beslutninger lukket** (B.1–B.7) — siste var B.7 (org-bytte-mekanikk: Modell A — én User per person×firma med reaktivering).
+**Status 2026-05-01:** **Fase 0 § E KOMPLETT** på `feature/fase-0-fundament`. Alle 13 § E-steg implementert (E.9 hoppet per § E). § E-fremdrift: E.1 Activity (`13a746a7`), E.2 OrganizationSetting (`4a155c28`), E.3 ProjectOrganization-rename (`1bff8672`), E.4 primaryOrganizationId (`137eed6f`), E.5 ProjectModule (`d9bfafc4`), E.6 OrganizationPartner (`22a772b6`), E.7 OrganizationTemplate (`7709ea32`), E.8 BibliotekMal + C.17 (`29311756`), E.10 ProjectMember.periodeSlutt (`5b8beef6`), E.11 ExternalCostObject (`9c9dd682`), E.12 Godkjenning (`0622fc35`), E.13 User-utvidelse + B.7 (`37d49872`), E.14 OrganizationRole ✅ — siste steg: granulære firma-roller per A.25 (egen tabell, ikke User.role-enum) + harOrgRolle() i tilgangskontroll.ts + 2 endepunkter (organisasjon.tildelOrgRolle/fjernOrgRolle) gated med verifiserFirmaAdmin. Branch klar for merge til develop + test/prod-deploy. Timer/Maskin-revurdering utsatt til etter Fase 0-deploy er ferdig.
 
-⚠️ **Neste steg: Timer/Maskin-revurdering med rent fundament**, deretter Fase 0-koding. Code skal IKKE starte Fase 0-koding før Timer/Maskin-revurdering er ferdig.
-
-**Anker for ny Code-chat (Timer/Maskin-revurdering først, deretter Fase 0-koding):**
+**Anker for Fase 0-koding:**
 - [fase-0-beslutninger.md](docs/claude/fase-0-beslutninger.md) — **PRIMÆR ANKER** (23 vedtatte + 0 åpne BLOKKERE + 12 anbefalte utvidelser + 13-stegs migrerings-rekkefølge + B.7-utvidelse for multi-identifikator-auth)
 - [arkitektur.md](docs/claude/arkitektur.md), [terminologi.md](docs/claude/terminologi.md), [dokumentflyt.md](docs/claude/dokumentflyt.md) — verifiserte fundament-filer (drift mot kode rettet 2026-04-27)
 - [smartdok-undersokelse.md](docs/claude/smartdok-undersokelse.md) — empirisk grunnlag fra A.Markussen (UI-research 2026-04-26)
@@ -86,7 +84,7 @@ Status og detaljer: [db-opprydning.md](docs/claude/db-opprydning.md).
 
 ## Pauset arbeid
 
-Fase 0-koding er pauset. Alle 7 BLOKKERE i fase-0-beslutninger.md er lukket (B.1–B.7, 2026-04-27). Neste steg er **Timer/Maskin-revurdering med rent fundament** — timer.md og maskin.md har drift mot fase-0-beslutninger og må justeres før Fase 0-koding starter.
+**Timer/Maskin-revurdering** er utsatt til etter Fase 0-fundament er ferdig. timer.md og maskin.md har drift mot fase-0-beslutninger og må justeres før Fase 3 (Timer-modul) og Fase 1-fullføring (Maskin-modul-gateway) — men Fase 0-fundamentet bygges nå uavhengig av denne revurderingen.
 
 ## Planlagte faser
 
@@ -560,6 +558,7 @@ Reglene nedenfor — særlig **Auto-oppdater dokumentasjon**, **STATUS.md vedlik
     2. **Linje 21-22** — `✅ Verifisert mot kode | N` og `⚠️ Drift identifisert | N` (tellingene må stemme med rad-count i hver seksjon — særlig når fil flyttes mellom seksjoner)
     3. **Relevante tagger** — kommentar-kolonnen for berørte fil-rader, samt status-flytting mellom seksjoner (Verifisert / Drift / Under arbeid / Ikke screenet / Arkivert)
   - **Lærdom 2026-04-30 (commits 681aec8 + f785114):** Inkonsistens oppstod fordi fil ble flyttet mellom seksjoner uten å oppdatere sammendrag-tellingene — krevde retro-rettelse i egen commit. Sjekk alle tre felter før hver commit som rører STATUS.md.
+  - **Fase 0 § E-stegs-commit-regel (2026-05-01):** Hvert commit som implementerer et § E-steg i [fase-0-beslutninger.md](docs/claude/fase-0-beslutninger.md) skal inkludere STATUS.md (linje 14 dato + fase-0-beslutninger.md-tagg-kommentar) i SAMME commit. § E-fremdrift fanges i tagg-kommentaren med commit-hash per implementert steg, slik at sannhetskilden alltid speiler kode-status. Lærdom: 4 § E-commits ble kjørt 2026-05-01 uten STATUS.md-oppdatering — krevde retro-rettelses-commit.
 - **YAML-header på docs/claude/-filer:** Filer som røres skal ha YAML-frontmatter per standarden i [oppryddings-plan-2026-04-28.md § P0.1](docs/claude/oppryddings-plan-2026-04-28.md). Bunkevis retro-fylling — header tilføyes som del av første rens-PR per fil. Inntil header eksisterer: behandle filen som `sist_verifisert_mot_kode: ukjent` og verifiser mot kode før du stoler på innholdet.
 - **Kontekstsparing:** Kontekstvinduet er begrenset — spar plass:
   - **Batch SSH-kommandoer:** Kombiner flere SSH-kall til ett script/én kommando i stedet for mange enkeltkommandoer. F.eks. ett `ssh sitedoc "cmd1 && cmd2 && cmd3"` i stedet for tre separate kall

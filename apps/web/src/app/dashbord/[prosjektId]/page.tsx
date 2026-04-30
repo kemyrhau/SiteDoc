@@ -48,12 +48,12 @@ export default function ProsjektOversikt() {
 
   const erAdmin = prosjekt.members.some(
     (m) =>
-      (m.user.id === session?.user?.id || m.user.email === session?.user?.email) &&
+      (m.user?.id === session?.user?.id || m.user?.email === session?.user?.email) &&
       (m.role === "admin" || m.role === "owner"),
   );
 
   // Prøveperiode: basert på trialExpiresAt, fallback til createdAt + 30 dager
-  const harFirma = !!(prosjekt as unknown as { organizationProjects?: unknown[] }).organizationProjects?.length;
+  const harFirma = !!(prosjekt as unknown as { projectOrganizations?: unknown[] }).projectOrganizations?.length;
   const erDeaktivert = prosjekt.status === "deactivated";
   const dagerIgjen = (() => {
     if (harFirma) return null;
@@ -189,7 +189,7 @@ export default function ProsjektOversikt() {
               {prosjekt.members.map((m) => (
                 <div key={m.id} className="flex items-center justify-between py-2">
                   <div>
-                    <p className="text-sm font-medium">{m.user.name ?? m.user.email}</p>
+                    <p className="text-sm font-medium">{m.user?.name ?? m.user?.email ?? "–"}</p>
                     <p className="text-xs text-gray-400">{m.faggruppeKoblinger?.map((me: { faggruppe: { name: string } }) => me.faggruppe.name).join(", ")}</p>
                   </div>
                   <span className="text-xs text-gray-500">{m.role}</span>

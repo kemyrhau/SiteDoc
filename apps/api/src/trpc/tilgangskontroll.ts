@@ -113,7 +113,7 @@ export async function verifiserAdmin(
 
   // company_admin-fallback: sjekk om prosjektet tilhører brukerens org
   if (bruker?.role === "company_admin" && bruker.organizationId) {
-    const orgProsjekt = await prisma.organizationProject.findFirst({
+    const orgProsjekt = await prisma.projectOrganization.findFirst({
       where: { organizationId: bruker.organizationId, projectId },
     });
     if (orgProsjekt) return;
@@ -145,7 +145,7 @@ export async function verifiserProsjektmedlem(
 
   // company_admin-fallback: sjekk om prosjektet tilhører brukerens org
   if (bruker?.role === "company_admin" && bruker.organizationId) {
-    const orgProsjekt = await prisma.organizationProject.findFirst({
+    const orgProsjekt = await prisma.projectOrganization.findFirst({
       where: { organizationId: bruker.organizationId, projectId },
     });
     if (orgProsjekt) return;
@@ -207,7 +207,7 @@ export async function verifiserAdminEllerFirmaansvarlig(
 
   // company_admin med riktig org → admin
   if (bruker?.role === "company_admin" && bruker.organizationId) {
-    const orgProsjekt = await prisma.organizationProject.findFirst({
+    const orgProsjekt = await prisma.projectOrganization.findFirst({
       where: { organizationId: bruker.organizationId, projectId },
     });
     if (orgProsjekt) return { erAdmin: true };
@@ -586,4 +586,21 @@ export async function verifiserTillatelse(
       message: `Du mangler tillatelsen "${permission}" for å utføre denne handlingen`,
     });
   }
+}
+
+/**
+ * Sjekker om bruker har en granulær firma-rolle (per A.25).
+ *
+ * Brukes for HMS-ansvarlig, og lignende firma-roller som gjelder på tvers av
+ * prosjekter innenfor brukerens organisasjon. Per A.27 gir "hms_ansvarlig"
+ * automatisk lese-tilgang til HMS-rapporter i firmaets prosjekter.
+ *
+ * Tildeles av firma-admin via organisasjon.tildelOrgRolle / fjernOrgRolle.
+ */
+export async function harOrgRolle(userId: string, role: string): Promise<boolean> {
+  const rad = await prisma.organizationRole.findFirst({
+    where: { userId, role },
+    select: { id: true },
+  });
+  return !!rad;
 }

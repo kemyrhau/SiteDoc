@@ -91,9 +91,10 @@ export const mobilAuthRouter = router({
           ? await hentGoogleBrukerinfo(input.accessToken)
           : await hentMicrosoftBrukerinfo(input.accessToken);
 
-      // 2. Finn eller opprett bruker
-      let bruker = await ctx.prisma.user.findUnique({
-        where: { email: brukerinfo.email },
+      // 2. Finn eller opprett bruker (per B.7 Fase 0 minimum: findFirst med canLogin=true, eldste først)
+      let bruker = await ctx.prisma.user.findFirst({
+        where: { email: brukerinfo.email, canLogin: true },
+        orderBy: { createdAt: "asc" },
       });
 
       if (!bruker) {

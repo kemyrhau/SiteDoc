@@ -103,8 +103,8 @@ export const bibliotekRouter = router({
           projectId: input.projectId,
           name: bibMal.navn,
           description: `${bibMal.kapittel.standard.kode} ${bibMal.referanse}${bibMal.beskrivelse ? " — " + bibMal.beskrivelse : ""}`,
-          category: "sjekkliste",
-          domain: "kvalitet",
+          category: bibMal.kategori,
+          domain: bibMal.domene,
           prefix: bibMal.referanse.split(/[\s\/]/)[0] ?? undefined,
         },
       });

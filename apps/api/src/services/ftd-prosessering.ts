@@ -273,7 +273,7 @@ async function genererBlokkOgOversett(
     const modul = await prisma.projectModule.findUnique({
       where: { projectId_moduleSlug: { projectId, moduleSlug: "oversettelse" } },
     });
-    if (!modul?.active) return;
+    if (modul?.status !== "aktiv") return;
   }
 
   for (const lang of ekstraSpråk) {
