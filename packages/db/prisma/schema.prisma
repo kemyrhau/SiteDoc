@@ -62,6 +62,7 @@ model Organization {
   users           User[]
   projects        ProjectOrganization[]
   primaryProjects Project[]                 @relation("ProjectPrimaryOrg")
+  projectModules  ProjectModule[]           @relation("OrgProjectModule")
   integrations    OrganizationIntegration[]
   setting         OrganizationSetting?
 
@@ -823,17 +824,28 @@ model DokumentflytMal {
   @@map("dokumentflyt_maler")
 }
 
+// ---------------------------------------------------------------------------
+// ProjectModule — modul-aktivering per prosjekt (utvidet i Fase 0 § E steg 5)
+// Per fase-0-beslutninger.md § A.4 + § A.17 + § A.18 (to-stegs migration).
+// `active Boolean` beholdes parallelt med `status String` til steg 2
+// (post-Fase 1) når all kode er bekreftet å bruke status.
+// ---------------------------------------------------------------------------
+
 model ProjectModule {
-  id         String   @id @default(uuid())
-  projectId  String   @map("project_id")
-  moduleSlug String   @map("module_slug")
-  active     Boolean  @default(true)
-  config     Json?    // Modulspesifikk konfigurasjon (f.eks. oversettelsesmotor)
-  createdAt  DateTime @default(now()) @map("created_at")
+  id             String   @id @default(uuid())
+  projectId      String   @map("project_id")
+  moduleSlug     String   @map("module_slug")
+  organizationId String?  @map("organization_id") // Nullable per B.4 interim
+  active         Boolean  @default(true)           // Beholdes — dropper i steg 2
+  status         String   @default("aktiv")        // "aktiv" | "arkivert" | "slettet" (per A.17)
+  config         Json?                              // Modulspesifikk konfigurasjon (f.eks. oversettelsesmotor)
+  createdAt      DateTime @default(now()) @map("created_at")
 
-  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project      Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  organization Organization? @relation("OrgProjectModule", fields: [organizationId], references: [id], onDelete: SetNull)
 
-  @@unique([projectId, moduleSlug])
+  @@unique([projectId, moduleSlug])  // Endres til (projectId, organizationId, moduleSlug) i steg 2
+  @@index([organizationId])
   @@map("project_modules")
 }
 

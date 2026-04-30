@@ -110,7 +110,7 @@ export default function OppsettLayout({
     { projectId: prosjektId! },
     { enabled: !!prosjektId },
   );
-  const erPsiAktiv = moduler?.some((m: { moduleSlug: string; active: boolean }) => m.moduleSlug === "psi" && m.active) ?? false;
+  const erPsiAktiv = moduler?.some((m: { moduleSlug: string; status: string }) => m.moduleSlug === "psi" && m.status === "aktiv") ?? false;
 
   const harFirmaTilgang = !!prosjektFirma || !!erAdmin;
 

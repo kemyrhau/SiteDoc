@@ -86,7 +86,7 @@ async function prosesserNesteJobb(prisma: PrismaClient): Promise<void> {
   const modul = await prisma.projectModule.findUnique({
     where: { projectId_moduleSlug: { projectId: dok.projectId, moduleSlug: "oversettelse" } },
   });
-  if (!modul?.active) {
+  if (modul?.status !== "aktiv") {
     console.log(`Oversettelse hoppet over for ${jobb.documentId} — modulen er ikke aktiv`);
     await prisma.ftdTranslationJob.update({
       where: { id: jobb.id },

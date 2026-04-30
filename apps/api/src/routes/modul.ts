@@ -44,10 +44,10 @@ export const modulRouter = router({
             await ctx.prisma.projectModule.create({
               data: { projectId: input.projectId, moduleSlug: krevSlug },
             });
-          } else if (!krevEksisterende.active) {
+          } else if (krevEksisterende.status !== "aktiv") {
             await ctx.prisma.projectModule.update({
               where: { id: krevEksisterende.id },
-              data: { active: true },
+              data: { status: "aktiv" },
             });
           }
         }
@@ -64,11 +64,11 @@ export const modulRouter = router({
       });
 
       if (eksisterende) {
-        // Reaktiver hvis deaktivert
-        if (!eksisterende.active) {
+        // Reaktiver hvis deaktivert (per A.17: arkivert/slettet → aktiv)
+        if (eksisterende.status !== "aktiv") {
           return ctx.prisma.projectModule.update({
             where: { id: eksisterende.id },
-            data: { active: true },
+            data: { status: "aktiv" },
           });
         }
         return eksisterende;
@@ -142,7 +142,7 @@ export const modulRouter = router({
           where: {
             projectId: input.projectId,
             moduleSlug: { in: avhengige.map((m) => m.slug) },
-            active: true,
+            status: "aktiv",
           },
         });
         if (aktiveAvhengige.length > 0) {
@@ -155,6 +155,7 @@ export const modulRouter = router({
         }
       }
 
+      // Default deaktivering = arkivert (per A.17). Slettet krever eksplisitt admin-handling.
       return ctx.prisma.projectModule.update({
         where: {
           projectId_moduleSlug: {
@@ -162,7 +163,7 @@ export const modulRouter = router({
             moduleSlug: input.moduleSlug,
           },
         },
-        data: { active: false },
+        data: { status: "arkivert" },
       });
     }),
 
@@ -174,7 +175,7 @@ export const modulRouter = router({
       const modul = await ctx.prisma.projectModule.findUnique({
         where: { projectId_moduleSlug: { projectId: input.projectId, moduleSlug: "oversettelse" } },
       });
-      if (!modul || !modul.active) return { aktiv: false, motor: "opus-mt" as const, apiKey: null };
+      if (!modul || modul.status !== "aktiv") return { aktiv: false, motor: "opus-mt" as const, apiKey: null };
       const config = (modul.config ?? {}) as { motor?: string; apiKey?: string };
       return {
         aktiv: true,
