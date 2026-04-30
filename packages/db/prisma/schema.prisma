@@ -29,6 +29,9 @@ model User {
   eideChecklists       Checklist[]          @relation("ChecklistOwner")
   bestilteTasks        Task[]               @relation("TaskCreator")
   eideTasks            Task[]               @relation("TaskOwner")
+  bestilteGodkjenninger Godkjenning[]        @relation("GodkjenningCreator")
+  eideGodkjenninger     Godkjenning[]        @relation("GodkjenningOwner")
+  godkjenteGodkjenninger Godkjenning[]       @relation("GodkjenningGodkjenner")
   sentTransfers        DocumentTransfer[]   @relation("TransferSender")
   receivedTransfers    DocumentTransfer[]   @relation("TransferRecipient")
   recipientChecklists  Checklist[]          @relation("ChecklistRecipient")
@@ -249,6 +252,7 @@ model Project {
   changeEvents         FtdChangeEvent[]
   psiEr                Psi[]
   kontrollplaner       Kontrollplan[]
+  godkjenninger        Godkjenning[]
 
   @@index([trialExpiresAt])
   @@index([primaryOrganizationId])
@@ -401,6 +405,8 @@ model Faggruppe {
   utforerChecklists      Checklist[]          @relation("ChecklistUtforerFaggruppe")
   bestillerTasks         Task[]               @relation("TaskBestillerFaggruppe")
   utforerTasks           Task[]               @relation("TaskUtforerFaggruppe")
+  bestillerGodkjenninger Godkjenning[]        @relation("GodkjenningBestillerFaggruppe")
+  utforerGodkjenninger   Godkjenning[]        @relation("GodkjenningUtforerFaggruppe")
   dokumentflytMedlemskap DokumentflytMedlem[]
   dokumentflyter         Dokumentflyt[]       @relation("dokumentflytFaggruppe")
   invitations            ProjectInvitation[]
@@ -586,6 +592,7 @@ model ReportTemplate {
   objects           ReportObject[]
   checklists        Checklist[]
   tasks             Task[]
+  godkjenninger     Godkjenning[]
   dokumentflytMaler DokumentflytMal[]
   psi               Psi[]
   kontrollplanPunkter KontrollplanPunkt[]
@@ -776,10 +783,65 @@ model Task {
   @@map("tasks")
 }
 
+// ---------------------------------------------------------------------------
+// Godkjenning — utvidet dokumentflyt-type for byggherre-godkjenning av kostnad
+// Per fase-0-beslutninger.md § A.2 + § E steg 12.
+// Følger Checklist/Task/Psi-mønsteret. Forhandlingshistorikk og kostnad-snapshot
+// lagres på DocumentTransfer-radene (kostnadSnapshot Json) — én rad per
+// send/retur/godkjenning. Restrict-default for bestiller/faggruppe-FK-er
+// (sletting blokkeres når godkjenninger eksisterer).
+// ---------------------------------------------------------------------------
+
+model Godkjenning {
+  id                    String    @id @default(uuid())
+  templateId            String?   @map("template_id")
+  projectId             String    @map("project_id")
+  bestillerUserId       String    @map("bestiller_user_id")
+  bestillerFaggruppeId  String    @map("bestiller_faggruppe_id")
+  utforerFaggruppeId    String    @map("utforer_faggruppe_id")
+  eierUserId            String?   @map("eier_user_id")
+  status                String    @default("draft")
+  dokumentflytId        String?   @map("dokumentflyt_id")
+
+  externalCostObjectId  String?   @map("external_cost_object_id")
+  internRef             String?   @map("intern_ref")
+  byggherreRef          String?   @map("byggherre_ref")
+  kortNavn              String    @map("kort_navn")
+
+  // Per B.6 — godkjenning får Timestamptz på alle tidsstempler
+  godkjentVed           DateTime? @db.Timestamptz @map("godkjent_ved")
+  godkjentAvUserId      String?   @map("godkjent_av_user_id")
+
+  // Per B.3 (lukket 2026-04-27)
+  endretEtterSending    Boolean   @default(false) @map("endret_etter_sending")
+  sistEndretVed         DateTime? @db.Timestamptz @map("sist_endret_ved")
+
+  createdAt             DateTime  @default(now()) @db.Timestamptz @map("created_at")
+  updatedAt             DateTime  @updatedAt @db.Timestamptz @map("updated_at")
+
+  project              Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  template             ReportTemplate?      @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  bestiller            User                 @relation("GodkjenningCreator", fields: [bestillerUserId], references: [id])
+  bestillerFaggruppe   Faggruppe            @relation("GodkjenningBestillerFaggruppe", fields: [bestillerFaggruppeId], references: [id])
+  utforerFaggruppe     Faggruppe            @relation("GodkjenningUtforerFaggruppe", fields: [utforerFaggruppeId], references: [id])
+  eier                 User?                @relation("GodkjenningOwner", fields: [eierUserId], references: [id], onDelete: SetNull)
+  dokumentflyt         Dokumentflyt?        @relation(fields: [dokumentflytId], references: [id], onDelete: SetNull)
+  externalCostObject   ExternalCostObject?  @relation(fields: [externalCostObjectId], references: [id], onDelete: SetNull)
+  godkjentAv           User?                @relation("GodkjenningGodkjenner", fields: [godkjentAvUserId], references: [id], onDelete: SetNull)
+  transfers            DocumentTransfer[]
+
+  @@unique([projectId, internRef])
+  @@index([projectId, status])
+  @@index([externalCostObjectId])
+  @@index([dokumentflytId])
+  @@map("godkjenninger")
+}
+
 model DocumentTransfer {
   id               String   @id @default(uuid())
   checklistId      String?  @map("checklist_id")
   taskId           String?  @map("task_id")
+  godkjenningId    String?  @map("godkjenning_id") // Per A.2 — gjenbruker transfer-mekanisme for Godkjenning
   senderId         String   @map("sender_id")
   recipientUserId  String?  @map("recipient_user_id")
   recipientGroupId String?  @map("recipient_group_id")
@@ -793,14 +855,18 @@ model DocumentTransfer {
   recipientEnterpriseName String?  @map("recipient_enterprise_name")
   dokumentflytName        String?  @map("dokumentflyt_name")
   senderRolle             String?  @map("sender_rolle") // bestiller | utforer | godkjenner | registrator
+  // Kostnad-snapshot per A.2 — én rad per send/retur/godkjenn lagrer hele forhandlingshistorikken
+  kostnadSnapshot         Json?    @map("kostnad_snapshot")
 
   checklist      Checklist?    @relation(fields: [checklistId], references: [id])
   task           Task?         @relation(fields: [taskId], references: [id])
+  godkjenning    Godkjenning?  @relation(fields: [godkjenningId], references: [id], onDelete: Cascade)
   sender         User          @relation("TransferSender", fields: [senderId], references: [id])
   recipientUser  User?         @relation("TransferRecipient", fields: [recipientUserId], references: [id], onDelete: SetNull)
   recipientGroup ProjectGroup? @relation("TransferRecipientGroup", fields: [recipientGroupId], references: [id], onDelete: SetNull)
 
   @@index([senderId])
+  @@index([godkjenningId])
   @@map("document_transfers")
 }
 
@@ -881,12 +947,13 @@ model Dokumentflyt {
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
-  project    Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  faggruppe  Faggruppe?           @relation("dokumentflytFaggruppe", fields: [faggruppeId], references: [id], onDelete: SetNull)
-  medlemmer  DokumentflytMedlem[]
-  maler      DokumentflytMal[]
-  checklists Checklist[]
-  tasks      Task[]
+  project       Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  faggruppe     Faggruppe?           @relation("dokumentflytFaggruppe", fields: [faggruppeId], references: [id], onDelete: SetNull)
+  medlemmer     DokumentflytMedlem[]
+  maler         DokumentflytMal[]
+  checklists    Checklist[]
+  tasks         Task[]
+  godkjenninger Godkjenning[]
 
   @@index([projectId])
   @@index([faggruppeId])
@@ -1602,8 +1669,9 @@ model ExternalCostObject {
   createdAt             DateTime @default(now()) @map("created_at")
   updatedAt             DateTime @updatedAt @map("updated_at")
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  project      Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  organization  Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  project       Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  godkjenninger Godkjenning[]
 
   @@unique([organizationId, proAdmId])
   @@index([projectId, status])
