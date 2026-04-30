@@ -283,7 +283,7 @@ Regler frem til da:
 
 ```bash
 # Test (automatisk etter push til develop)
-ssh sitedoc "cd ~/programmering/sitedoc-test && git fetch origin && git reset --hard origin/develop && pnpm install --frozen-lockfile && du -sm apps/web/.next/cache 2>/dev/null | awk '\$1>500{print \"Rydder .next/cache (\"\$1\"MB)\"}' && find apps/web/.next/cache -maxdepth 0 -type d 2>/dev/null | xargs -I{} sh -c 'size=\$(du -sm {} | cut -f1); [ \$size -gt 500 ] && rm -rf {}' && pnpm build --filter @sitedoc/web && pm2 restart sitedoc-test-web sitedoc-test-api"
+ssh sitedoc "cd ~/programmering/sitedoc-test && git fetch origin && git reset --hard origin/develop && pnpm install --frozen-lockfile && pnpm --filter @sitedoc/db exec prisma migrate deploy && pnpm --filter @sitedoc/db exec prisma generate && pnpm --filter @sitedoc/db-maskin exec prisma generate && du -sm apps/web/.next/cache 2>/dev/null | awk '\$1>500{print \"Rydder .next/cache (\"\$1\"MB)\"}' && find apps/web/.next/cache -maxdepth 0 -type d 2>/dev/null | xargs -I{} sh -c 'size=\$(du -sm {} | cut -f1); [ \$size -gt 500 ] && rm -rf {}' && pnpm build --filter @sitedoc/web && pm2 restart sitedoc-test-web sitedoc-test-api"
 
 # Produksjon (KUN på eksplisitt forespørsel)
 ssh sitedoc "cd ~/programmering/sitedoc && git pull && pnpm install --frozen-lockfile && pnpm --filter @sitedoc/db exec prisma migrate deploy && pnpm --filter @sitedoc/db exec prisma generate && pnpm --filter @sitedoc/db-maskin exec prisma generate && du -sm apps/web/.next/cache 2>/dev/null | awk '\$1>500{print \"Rydder .next/cache (\"\$1\"MB)\"}' && find apps/web/.next/cache -maxdepth 0 -type d 2>/dev/null | xargs -I{} sh -c 'size=\$(du -sm {} | cut -f1); [ \$size -gt 500 ] && rm -rf {}' && pnpm build && pm2 restart all"
