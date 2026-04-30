@@ -268,14 +268,9 @@ sist_verifisert_mot_kode: 2026-04-28
 - **Kompleksitet:** Lav
 - **Åpne spørsmål:** Ingen — C.11 er låst
 
-### [ ] P1.3 — Korriger status «Eksisterer» for `Godkjenning` og `EquipmentChecklist`
+### [x] P1.3 — Korriger status «Eksisterer» for `Godkjenning` og `EquipmentChecklist` *(Utført 2026-04-30)*
 - **Fil:** arkitektur-syntese.md
-- **Type:** Drift-rens (faktasjekk)
-- **Berører:** § 1.1 KS-dokumentasjon-rad, § 3.6 maskin-koblede sjekklister-tabell
-- **Fase-0-relevans:** A.2 (Godkjenning bygges Fase 0), Fase 1 (EquipmentChecklist bygges sammen med modul-gateway)
-- **TIMER-FUNN:** Ingen direkte
-- **Kompleksitet:** Lav
-- **Åpne spørsmål:** Ingen
+- **Vedtak:** Verifisert mot schema — verken `Godkjenning` eller `EquipmentChecklist` finnes i Prisma. § 1.1 KS-dokumentasjon-rad splittet: Sjekkliste/Oppgave/Kontrollplan «Eksisterer», Godkjenning «Mangler — Fase 0 (per A.2)». § 3.6 sjekkliste-tabell utvidet med Status-kolonne: Checklist «Eksisterer», EquipmentChecklist «Mangler — Fase 1 (sammen med modul-gateway)».
 
 ### [x] P1.4 — Lukk intern motsigelse Fase 0.5 «Tre åpne prinsipper» *(Utført 2026-04-30 — A.30 vedtatt)*
 - **Fil:** arkitektur-syntese.md

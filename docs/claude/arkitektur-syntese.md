@@ -38,7 +38,8 @@ Norsk byggebransje har «prosjekthotell» som etablert produktkategori (Interaxo
 | Prosjekt- og byggeplass-administrasjon | Eksisterer |
 | Faggrupper og brukergrupper | Eksisterer |
 | Dokumentflyt | Eksisterer (kjernen) |
-| KS-dokumentasjon (Sjekkliste, Oppgave, Kontrollplan, Godkjenning) | Eksisterer |
+| KS-dokumentasjon (Sjekkliste, Oppgave, Kontrollplan) | Eksisterer |
+| **Godkjenning** (utvidet dokumentflyt-type) | Mangler — Fase 0 (per A.2) |
 | HMS-oppfølging (rapporter, RUH, avvik) | Eksisterer per prosjekt |
 | Tegninger og IFC | Eksisterer |
 | Dokumentlagring (mapper, kontrakter) | Eksisterer |
@@ -232,10 +233,10 @@ Etablert mønster i tre eksisterende implementasjoner. **Kanon: `EquipmentAssign
 
 **To parallelle, isolerte sjekkliste-systemer:**
 
-| Type | Modell | Lever i | Mal-bibliotek | Flyt |
-|---|---|---|---|---|
-| Prosjekt-sjekkliste | `Checklist` | `db` | `BibliotekMal` (kategori='prosjekt-sjekkliste') | Faggruppe-flyt |
-| Maskin-sjekkliste | `EquipmentChecklist` | `db-maskin` | `EquipmentChecklistTemplate` (i `db-maskin`) | Enkel: utfører + valgfri godkjenner |
+| Type | Modell | Lever i | Mal-bibliotek | Flyt | Status |
+|---|---|---|---|---|---|
+| Prosjekt-sjekkliste | `Checklist` | `db` | `BibliotekMal` (kategori='prosjekt-sjekkliste') | Faggruppe-flyt | Eksisterer |
+| Maskin-sjekkliste | `EquipmentChecklist` | `db-maskin` | `EquipmentChecklistTemplate` (i `db-maskin`) | Enkel: utfører + valgfri godkjenner | Mangler — Fase 1 (sammen med modul-gateway) |
 
 **Cross-package-grense respekteres:** `EquipmentChecklist` referrer til `User.id` som svak String-FK (etablert mønster i db-maskin — se §6).
 

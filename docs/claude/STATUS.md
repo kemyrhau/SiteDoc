@@ -32,6 +32,7 @@
 | Fil | Sist verifisert | Kommentar |
 |---|---|---|
 | arkitektur.md | 2026-04-27 | **Sannhetskilde:** Fundament |
+| arkitektur-syntese.md | 2026-04-30 | **Sannhetskilde:** Anker for Fase 0-koding (sammen med fase-0-beslutninger.md). Bunke 3A.1-funn lukket: P1.1, P1.2, P1.3, P1.4, P1.5, P1.7. K3.1 ny § 1.5 tabs-UI. § 3.8 datadrevne kataloger + 3.9 snapshot-pattern + 3.10 eksport-kode-policy + 6.2 asynkron arbeid + 7.4 adapter-mønster tilføyd 2026-04-29/30 (3A komplett). § 5 Fase 0.5: A.30 byggeplassId-NULL = A1 vedtatt. **Gjenstående:** P1.6 § 11 referanse-lenker (trivial lenke-sjekk, ikke verifisert) |
 | dokumentflyt.md | 2026-04-27 | **Sannhetskilde:** Fundament. **2026-04-29:** § 2.3 HMS-tabell utvidet med firma-HMS-ansvarlig-lese-tilgang (per A.27) |
 | fase-0-beslutninger.md | 2026-04-27 | **Sannhetskilde:** Anker for Fase 0-koding. K1 2026-04-28: C.13 + 2 § G-rader (QA-runde-2). § E steg 8: B-2-note 2026-04-28. **2026-04-29:** A.25 OrganizationRole + A.26 Smart modulProcedure + A.27 Firma-HMS-lese-tilgang (Alt A) + A.28 Kompetansematrise (Kompetansetype + AnsattKompetanse, SmartDok-verifisert) tilføyd. § E utvidet med steg 14 (OrganizationRole). C.14 Fase 0.5-rad for kompetanse. A.29 Offline sync-konflikt-strategi (conflict-modal + 60s grace-periode) tilføyd, A.23 utvidet med peker til A.29. **2026-04-30:** A.30 byggeplassId-NULL-semantikk vedtatt (A1: NULL = «gjelder hele prosjektet», allerede implementert i kode) |
 | terminologi.md | 2026-04-27 | **Sannhetskilde:** Fundament |
@@ -40,7 +41,6 @@
 
 | Fil | Sist verifisert | Drift-omfang |
 |---|---|---|
-| arkitektur-syntese.md | 2026-04-28 | **Sannhetskilde:** Gjenstående inkonsistenser: Godkjenning-status, EquipmentChecklist — P1.3-arbeid. K3.1 2026-04-28: firma-admin tabs-UI ny § 1.5. **2026-04-29:** P1.7 lukket (§ 5 Fase 0-listen erstattet med peker til § E). **2026-04-29 (commit fd63600):** P1.1 lukket (OrganizationModule → ProjectModule.organizationId per A.4/A.17), P1.2 lukket (Avdeling flyttet fra § 1.3-instillinger til § 5 Fase 0.5), P1.5 lukket (§ 2.5 multi-firma-bruker oppdatert til Modell A per B.7). **2026-04-29 (commit e23e67d):** §§ 3.8/3.9/3.10/7.4 tilføyd (3A-A — 4 manglende arkitektur-prinsipper). **2026-04-30:** § 6.2 asynkron arbeid kø-og-job-mønster tilføyd. § 5 Fase 0.5 oppdatert: NULL-betydning vedtatt A1 per A.30. P1.4 lukket (intern motsigelse) |
 | forretningslogikk.md | 2026-04-28 | Byggeplan-rekkefølge motsigelse mot arkitektur-syntese, Godkjenning-status, lestAv-mekanikk for gruppe-mottaker |
 | mobil.md | 2026-04-28 | 5 faggruppe-forekomster + 3 ulike Provider-tre-rekkefølger |
 | okonomi.md | 2026-04-28 | 4 faggruppe-forekomster + FtdNotaComment mangler i tabell + ECO/Godkjenning-kobling mangler |
