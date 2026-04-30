@@ -1247,6 +1247,79 @@ Tre eksisterende koblingstabeller utover ProjectMember/EquipmentAssignment/Prosj
 
 **Kilde:** Identifisert i Opus QA-runde 2 (2026-04-25), §6.2 Q4 — konsolidert hit 2026-04-28 før arkivering av QA-rapporten.
 
+### C.16 Vareforbruk-modul: forbruksregistrering per prosjekt — ✅ **VEDTATT 2026-04-30** (SmartDok-verifisert)
+
+**Konsept:** Vareforbruk i SiteDoc er en **transaksjonslogg** — ikke lagerstyring. Kopierer IKKE SmartDok-modellen. Ingen lagerstand, ingen falske negative tall.
+
+**Tre lag:**
+
+**Lag 1 — Varekatalog (firma-nivå):**
+```prisma
+model Vare {
+  id              String  @id @default(uuid())
+  organizationId  String
+  navn            String
+  varenummer      String?
+  enhet           String   // m, m2, m3, kg, tonn, stk
+  pris            Decimal? // utsalgspris til kunde
+  internkostnad   Decimal? // innkjøpspris
+  kategori        String?  // fritekst per firma
+  aktiv           Boolean  @default(true)
+
+  @@unique([organizationId, varenummer])
+  @@index([organizationId, aktiv])
+}
+```
+Ingen lagerstand-felt. Kategorier defineres fritt per firma.
+
+**Lag 2 — Vareforbruk (prosjekt-nivå):**
+```prisma
+model Vareforbruk {
+  id                    String   @id @default(uuid())
+  dato                  DateTime
+  projectId             String
+  byggeplassId          String?  // NULL = gjelder hele prosjektet (per A.30)
+  vareId                String
+  antall                Decimal
+  registrertAvUserId    String
+  kommentar             String?
+  dagsseddelId          String?  // valgfri kobling til Timer-modul
+
+  @@index([projectId, dato])
+  @@index([dagsseddelId])
+}
+```
+
+Forbruk knyttes direkte til prosjekt. Kobling til dagsseddel muliggjør registrering av materiale samtidig som timer — i ett skjermbilde på mobil.
+
+**Lag 3 — Transport (separat opsjon):**
+
+Massetransport som egen strøm: kjøretøy + antall lass + hentet fra + levert til + mengde. **Ikke bland inn i vanlig vareforbruk** — egne tabell og UI.
+
+**Differensiator vs SmartDok:**
+- Registrer vare direkte fra dagsseddel (mobil) — ett skjermbilde, én tap
+- Ingen falsk lagerstand (SmartDok-modellen har f.eks. -746.554 tonn Bærelag)
+- Rapport: `forbruk × pris → prosjektkostnad → eksporterbar til Tripletex/ProAdm`
+
+**Fase-plassering:** **Fase 3** — etter Timer. Dagsseddel-koblingen forutsetter timer-modulen. Tabellene bygges først når Timer-modul deployes.
+
+**SmartDok-research 2026-04-30 (kilde-grunnlag):**
+- SmartDok Vareforbruk er manuelt forbruksregister
+- A.Markussen har 64 varer
+- Negative lagertall (f.eks. -746.554 tonn Bærelag) viser at SmartDok ikke driver reell lagerstyring — det er bare et tellingsavvik
+- Ingen kobling til timeregistrering i SmartDok
+- Transport er separat modul (samsvarer med vårt Lag 3-skille)
+- Datagrunnlag: manuelt registrert i SmartDok, ikke hentet fra PowerOffice/ProAdm
+- **Migrering til SiteDoc:** CSV-eksport fra SmartDok → import-skript ved firma-onboarding (per § 3.10 eksport-kode-policy: koder kopieres 1:1)
+
+**Berører:**
+- Ny `packages/db-varelager/` — egen Prisma-pakke (samme cross-schema-mønster som db-maskin per § 6.1)
+- Eller integrert i `packages/db` — designvalg utsatt til Fase 3-design starter
+- Ny modul-flagg i `ProjectModule` (slug `varelager`)
+- Eksport-adapter for Tripletex/ProAdm (per § 7.4)
+
+**Tre-nivå-katalog (per § 3.8):** Vurdér om Vare-katalogen skal følge 3-nivå-mønsteret (lovpålagt grunnpakke, bransje-relevant, egendefinert) eller om Lag 3 (egendefinert) er tilstrekkelig. Avgjøres ved Fase 3-design — ikke nå.
+
 ---
 
 ## D. Lovverk-svakheter som krever vurdering

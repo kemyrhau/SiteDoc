@@ -555,6 +555,11 @@ Reglene nedenfor — særlig **Auto-oppdater dokumentasjon**, **STATUS.md vedlik
 - **ALDRI deploy til produksjon** uten eksplisitt forespørsel fra brukeren ("deploy til prod")
 - **Auto-oppdater dokumentasjon:** Oppdater relevant fil i `docs/claude/` etter vesentlige endringer
 - **STATUS.md vedlikehold:** Når en fil i `docs/claude/` endrer status (verifisert / drift identifisert / under arbeid / ferdig), oppdater [docs/claude/STATUS.md](docs/claude/STATUS.md) i SAMME commit. Aldri separat commit kun for status-oppdatering. Gjelder også når nye filer opprettes eller eksisterende slettes/arkiveres.
+  - **Faste oppdaterings-felter (sjekk alle tre i hver STATUS.md-rørende commit):**
+    1. **Linje 14** — `Sist oppdatert: YYYY-MM-DD` (dagens dato)
+    2. **Linje 21-22** — `✅ Verifisert mot kode | N` og `⚠️ Drift identifisert | N` (tellingene må stemme med rad-count i hver seksjon — særlig når fil flyttes mellom seksjoner)
+    3. **Relevante tagger** — kommentar-kolonnen for berørte fil-rader, samt status-flytting mellom seksjoner (Verifisert / Drift / Under arbeid / Ikke screenet / Arkivert)
+  - **Lærdom 2026-04-30 (commits 681aec8 + f785114):** Inkonsistens oppstod fordi fil ble flyttet mellom seksjoner uten å oppdatere sammendrag-tellingene — krevde retro-rettelse i egen commit. Sjekk alle tre felter før hver commit som rører STATUS.md.
 - **YAML-header på docs/claude/-filer:** Filer som røres skal ha YAML-frontmatter per standarden i [oppryddings-plan-2026-04-28.md § P0.1](docs/claude/oppryddings-plan-2026-04-28.md). Bunkevis retro-fylling — header tilføyes som del av første rens-PR per fil. Inntil header eksisterer: behandle filen som `sist_verifisert_mot_kode: ukjent` og verifiser mot kode før du stoler på innholdet.
 - **Kontekstsparing:** Kontekstvinduet er begrenset — spar plass:
   - **Batch SSH-kommandoer:** Kombiner flere SSH-kall til ett script/én kommando i stedet for mange enkeltkommandoer. F.eks. ett `ssh sitedoc "cmd1 && cmd2 && cmd3"` i stedet for tre separate kall
