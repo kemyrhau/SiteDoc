@@ -255,13 +255,17 @@ model Project {
 
 model ProjectMember {
   id                  String   @id @default(uuid())
-  userId              String   @map("user_id")
+  // userId: nullable per B.7 — bevarer ProjectMember-historikk når User slettes (sjelden, vi arkiverer normalt med canLogin = false)
+  userId              String?  @map("user_id")
   projectId           String   @map("project_id")
+  // role: "admin" | "member" — IKKE "underentreprenor" (per A.9, utledes deterministisk via erUnderentreprenor())
   role                String   @default("member")
   erFirmaansvarlig    Boolean  @default(false) @map("er_firmaansvarlig")
+  // periodeSlutt: null = aktiv (per B.7 + C.13). createdAt fungerer som periodeStart.
+  periodeSlutt        DateTime? @map("periode_slutt")
   createdAt           DateTime @default(now()) @map("created_at")
 
-  user                   User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user                   User?                @relation(fields: [userId], references: [id], onDelete: SetNull)
   project                Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
   faggruppeKoblinger     FaggruppeKobling[]
   groupMemberships       ProjectGroupMember[]
@@ -273,10 +277,12 @@ model ProjectMember {
 }
 
 model FaggruppeKobling {
-  id              String   @id @default(uuid())
-  projectMemberId String   @map("project_member_id")
-  faggruppeId     String   @map("faggruppe_id")
-  createdAt       DateTime @default(now()) @map("created_at")
+  id              String    @id @default(uuid())
+  projectMemberId String    @map("project_member_id")
+  faggruppeId     String    @map("faggruppe_id")
+  // periodeSlutt per C.13: null = aktiv. createdAt fungerer som periodeStart.
+  periodeSlutt    DateTime? @map("periode_slutt")
+  createdAt       DateTime  @default(now()) @map("created_at")
 
   projectMember ProjectMember  @relation(fields: [projectMemberId], references: [id], onDelete: Cascade)
   faggruppe     Faggruppe      @relation(fields: [faggruppeId], references: [id], onDelete: Cascade)
@@ -314,11 +320,13 @@ model ProjectGroup {
 }
 
 model ProjectGroupMember {
-  id              String   @id @default(uuid())
-  groupId         String   @map("group_id")
-  projectMemberId String   @map("project_member_id")
-  isAdmin         Boolean  @default(false) @map("is_admin")
-  createdAt       DateTime @default(now()) @map("created_at")
+  id              String    @id @default(uuid())
+  groupId         String    @map("group_id")
+  projectMemberId String    @map("project_member_id")
+  isAdmin         Boolean   @default(false) @map("is_admin")
+  // periodeSlutt per C.13: null = aktiv. createdAt fungerer som periodeStart.
+  periodeSlutt    DateTime? @map("periode_slutt")
+  createdAt       DateTime  @default(now()) @map("created_at")
 
   group         ProjectGroup  @relation(fields: [groupId], references: [id], onDelete: Cascade)
   projectMember ProjectMember @relation(fields: [projectMemberId], references: [id], onDelete: Cascade)
@@ -884,18 +892,20 @@ model Dokumentflyt {
 }
 
 model DokumentflytMedlem {
-  id                      String   @id @default(uuid())
-  dokumentflytId          String   @map("dokumentflyt_id")
-  faggruppeId             String?  @map("faggruppe_id")
-  projectMemberId         String?  @map("project_member_id")
-  groupId                 String?  @map("group_id")
-  hovedansvarligPersonId  String?  @map("hovedansvarlig_person_id") // Spesifikk person i gruppen som er hovedansvarlig
+  id                      String    @id @default(uuid())
+  dokumentflytId          String    @map("dokumentflyt_id")
+  faggruppeId             String?   @map("faggruppe_id")
+  projectMemberId         String?   @map("project_member_id")
+  groupId                 String?   @map("group_id")
+  hovedansvarligPersonId  String?   @map("hovedansvarlig_person_id") // Spesifikk person i gruppen som er hovedansvarlig
   rolle                   String // "registrator" | "bestiller" | "utforer" | "godkjenner"
-  steg                    Int      @default(1)
-  erHovedansvarlig        Boolean  @default(false) @map("er_hovedansvarlig")
-  kanRedigere             Boolean  @default(true) @map("kan_redigere")
-  låsesEtterPasseringer   Int?     @map("laases_etter_passeringer")
-  createdAt               DateTime @default(now()) @map("created_at")
+  steg                    Int       @default(1)
+  erHovedansvarlig        Boolean   @default(false) @map("er_hovedansvarlig")
+  kanRedigere             Boolean   @default(true) @map("kan_redigere")
+  låsesEtterPasseringer   Int?      @map("laases_etter_passeringer")
+  // periodeSlutt per C.13: null = aktiv. createdAt fungerer som periodeStart.
+  periodeSlutt            DateTime? @map("periode_slutt")
+  createdAt               DateTime  @default(now()) @map("created_at")
 
   dokumentflyt          Dokumentflyt   @relation(fields: [dokumentflytId], references: [id], onDelete: Cascade)
   faggruppe             Faggruppe?     @relation(fields: [faggruppeId], references: [id], onDelete: Cascade)

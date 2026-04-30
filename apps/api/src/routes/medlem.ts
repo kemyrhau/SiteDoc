@@ -321,6 +321,15 @@ export const medlemRouter = router({
         include: { user: true },
       });
 
+      // User kan være null hvis User-rad er slettet (per B.7 SetNull-cascade).
+      // Bruker-oppdatering er ikke meningsfull i den tilstanden.
+      if (!medlem.user || !medlem.userId) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Bruker er fjernet — kan ikke redigere medlem",
+        });
+      }
+
       // Oppdater User-felter
       const brukerOppdatering: { name?: string; email?: string; phone?: string | null } = {};
       if (input.name !== undefined) brukerOppdatering.name = input.name;

@@ -68,10 +68,10 @@ export default function MapperSide() {
     if (!valgtMappeId || !mapper || !session?.user || !medlemmer) return false;
 
     const brukerMedlem = medlemmer.find(
-      (m) => m.user.email === session.user?.email,
+      (m) => m.user?.email === session.user?.email,
     );
 
-    if (!brukerMedlem) return false;
+    if (!brukerMedlem || !brukerMedlem.user) return false;
     if (brukerMedlem.role === "admin") return false;
 
     const faggruppeIder = brukerMedlem.faggruppeKoblinger.map(
@@ -81,7 +81,7 @@ export default function MapperSide() {
     const gruppeIder = (grupper ?? [])
       .filter((g) =>
         g.members.some(
-          (m) => m.projectMember.user.id === brukerMedlem.user.id,
+          (m) => m.projectMember.user?.id === brukerMedlem.user?.id,
         ),
       )
       .map((g) => g.id);
