@@ -27,6 +27,7 @@ import { psiRouter } from "../routes/psi";
 import { bibliotekRouter } from "../routes/bibliotek";
 import { omradeRouter } from "../routes/omrade";
 import { kontrollplanRouter } from "../routes/kontrollplan";
+import { maskinRouter } from "../routes/maskin";
 
 
 export const appRouter = router({
@@ -59,6 +60,7 @@ export const appRouter = router({
   bibliotek: bibliotekRouter,
   omrade: omradeRouter,
   kontrollplan: kontrollplanRouter,
+  maskin: maskinRouter,
 
 });
 

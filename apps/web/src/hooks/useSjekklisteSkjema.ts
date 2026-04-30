@@ -66,10 +66,11 @@ export function useSjekklisteSkjema(sjekklisteId: string, rettighetInput?: Retti
     { enabled: !!sjekklisteId },
   );
 
-  // Cast for å unngå TS2589
-  const sjekkliste = sjekklisteQuery.data as UseSjekklisteSkjemaResultat["sjekkliste"] & {
+  // Smal lokal type bryter generic-kjeden — kun feltene som faktisk brukes i hook
+  type SjekklisteData = NonNullable<UseSjekklisteSkjemaResultat["sjekkliste"]> & {
     data: Record<string, unknown> | null;
-  } | undefined;
+  };
+  const sjekkliste = sjekklisteQuery.data as SjekklisteData | undefined;
 
   const alleObjekter = useMemo(
     () => (sjekkliste?.template?.objects ?? []) as RapportObjekt[],

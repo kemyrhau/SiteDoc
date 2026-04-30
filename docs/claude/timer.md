@@ -1,3 +1,26 @@
+---
+status: aktiv
+sist_verifisert_mot_kode: 2026-04-29
+sist_endret: 2026-04-29
+gjelder_versjon: Fase 3
+avhenger_av:
+  - arkitektur.md
+  - terminologi.md
+  - fase-0-beslutninger.md
+  - smartdok-undersokelse.md
+  - dokumentflyt.md
+påvirkes_av_beslutninger:
+  - A.1
+  - A.7
+  - A.8
+  - A.20
+  - A.22
+  - A.23
+  - A.28
+  - C.10
+  - C.14
+---
+
 # Timeregistrering — Fase 3
 
 ## Formål
@@ -8,11 +31,14 @@ Timeregistrering for ansatte på byggeprosjekter. Offline-first — feltarbeider
 
 | Komponent | Plassering | Beskrivelse |
 |-----------|------------|-------------|
-| **Web** | `apps/timer` | Next.js, `timer.sitedoc.no` — administrasjon, rapporter, eksport |
-| **Mobil** | Isolert modul i `apps/mobile` | React Native, offline-first via SQLite — daglig registrering |
+| **Web** | Modul i `apps/web` | Next.js — administrasjon, rapporter, eksport. Tilgjengelig via prosjektets sidebar når Timer-firmamodulen er aktivert |
+| **Mobil** | Modul i `apps/mobile` | React Native, offline-first via SQLite — daglig registrering |
+| **API** | Modul i `apps/api` | tRPC-ruter for timer, gates med `modulProcedure('timer')` |
 | **Database** | `packages/db-timer` | Eget Prisma-skjema, aldri inn i `packages/db` |
 
-Deler PostgreSQL-instans med SiteDoc, men helt separate tabeller. Delt auth via eksisterende `sessions`-tabell.
+Timer er **ikke en egen app** med eget domene/port — den er integrert i eksisterende SiteDoc-struktur som en firmamodul (samme mønster som Maskin). Deler PostgreSQL-instans med SiteDoc, men helt separate tabeller. Delt auth via eksisterende `sessions`-tabell.
+
+**Begrunnelse:** Kunden bekrefter at arbeidere bruker SiteDoc-app på mobil — ikke en separat timer-app. Per fase-0-beslutninger kjører Maskin-modulen samme mønster (integrert), Timer skal følge samme arkitektur. `packages/db-timer` eksisterer ikke ennå (planlagt før Timer-koding starter — se TIMER-FUNN-oppsummering).
 
 ## Dagsseddel-modell
 
@@ -28,107 +54,192 @@ Systemet skiller alltid mellom:
 
 Disse er separate kolonner i eksport til lønnssystem.
 
-### Lønnsarter
+### Lønnsart-katalog (datadrevet, tre-nivå)
 
-| Kode | Navn | Type | Beskrivelse |
-|------|------|------|-------------|
-| NT | Normaltid | Arbeidstid | Ordinær arbeidstid (opp til dagsnorm) |
-| OT50 | Overtid 50% | Arbeidstid | 50% tillegg utover dagsnorm |
-| OT100 | Overtid 100% | Arbeidstid | 100% tillegg (kveld, natt, helg) |
+Lønnsart-katalogen er per Organization og bygges som tre nivåer.
 
-**Overtidsberegning:** Systemet foreslår fordeling basert på totaltimer og konfigurerbar dagsnorm (default 7,5t). Brukeren kan overstyre.
+#### Nivå 1 — Norsk lovpålagt grunnpakke (16 lønnsarter)
 
-Eksempel: 10t totalt → normaltid 7,5t, 50% 2,5t. Bruker justerer til 8t + 2t.
+Auto-importeres ved firma-opprettelse via seed-mekanisme (event-hook `onOrganizationCreated`, etablert i Fase 0). Ingen bransje-bias. Pålagt av norsk lov (arbeidsmiljølov, ferielov, folketrygdlov, a-melding-krav).
 
-### Tillegg (ikke arbeidstid)
+| Kategori | Lønnsart | Lovgrunnlag |
+|---|---|---|
+| Grunnlønn | Fastlønn (månedslønn) | Arbeidsmiljølov |
+| Grunnlønn | Timelønn | Arbeidsmiljølov |
+| Overtid | Overtid 50% | AML § 10-6 |
+| Overtid | Overtid 100% | AML § 10-6 + tariff |
+| Fravær | Sykemelding 1–16 dager (fastlønn) | Folketrygdloven § 8 |
+| Fravær | Sykemelding 1–16 dager (timelønn) | Folketrygdloven § 8 |
+| Fravær | Sykemelding fra dag 17 | Folketrygdloven § 8 |
+| Fravær | Egenmelding inntil 3 dager | Folketrygdloven § 8-23 |
+| Fravær | Barns sykdom | Folketrygdloven § 9-5 |
+| Fravær | Ferie m/lønn | Ferieloven |
+| Fravær | Ferie u/lønn | Ferieloven |
+| Fravær | Permittering m/lønn | Permitteringsloven |
+| Fravær | Permittering u/lønn | Permitteringsloven |
+| Fravær | Bevegelig helligdag | A-melding-krav |
+| Feriepenger | Feriepenger 12% | Ferieloven minimum |
+| Feriepenger | Feriepenger ved avslutning (inneværende år) | Ferieloven |
 
-| Kode | Navn | Type | Beskrivelse |
-|------|------|------|-------------|
-| RT | Reisetid | Timer | Betales som arbeidstid (timesats), men inngår IKKE i overtidsberegning |
-| OTM | Overtidsmat | Avhuking | Fast sats per dag. Utløses automatisk når arbeidstimer > terskel (konfigurerbart, default 9t) |
-| NATT | Nattillegg | Avhuking | Fast sats, manuell avhuking |
-| HELG | Helgetillegg | Avhuking | Fast sats, manuell avhuking |
+#### Nivå 2 — Bransje-relevant tilleggspakke for anlegg/bygg (25 lønnsarter)
 
-**Reisetid:** Registreres alltid separat — aldri automatisk. Type: timer (ikke avhuking). Teller ikke i arbeidstidsberegning. 1t reisetid + 8t arbeid = 8t normalarbeid + 1t reisetid betalt separat.
+Valgfri import ved onboarding. Pakke-orientert UX: vises som «Bransje: Anlegg/bygg (25 lønnsarter)» med «Vis detaljer»-knapp som ekspanderer listen. Standard: importer hele pakken eller hopp over — ikke 25 enkeltsjekkbokser.
 
-**Overtidsmat:** Beløp defineres av admin per enterprise (tariffavtale). Avhukingen foreslås automatisk men kan overstyres.
+| Kategori | Lønnsart | Brukstilfelle |
+|---|---|---|
+| Permisjon | Velferdspermisjon | Bedriftsavtale eller tariff |
+| Reisegodtgjørelse | Reise 7,5–15 km | Pendling kort |
+| Reisegodtgjørelse | Reise 15–30 km | Pendling mellom |
+| Reisegodtgjørelse | Reise 30–45 km | Pendling lang |
+| Reisegodtgjørelse | Reise 45–60 km | Pendling svært lang |
+| Reisegodtgjørelse | Kilometergodtgjørelse (egen bil) | Tjenestereiser |
+| Reisegodtgjørelse | Reise/transport til prosjekter | Daglig pendling |
+| Diett | Diett med overnatting hotell | Reise med opphold |
+| Diett | Diett enkel overnatting | Hybel uten kjøkken |
+| Diett | Diett med kokemulighet | Hybel med kjøkken |
+| Diett | Diett uten overnatting | Dagstur |
+| Diett | Nattillegg trekkfritt | Ulegitimert |
+| Diett | Losji | Trekkpliktig overnatting |
+| Skifttillegg | 2. skift tillegg | Toskift |
+| Skifttillegg | Nattskifttillegg (00–06) | Nattarbeid |
+| Skifttillegg | Helligdagsskifttillegg | Skift på helligdag |
+| Spesielle | Smusstilleg | Skitne arbeidsforhold |
+| Spesielle | Matpenger overtid (ved 2+ timer) | Standard ved overtid |
+| Lærling | Lærlingelønn (30–75% av fagarbeider) | Lærlinger |
+| Lærling | Overtid lærling 50% | Lærlinger med overtid |
+| Lærling | Overtid lærling 100% | Lærlinger med overtid |
+| Andre | Praksistimer | Praktikanter |
+| Andre | Innleid arbeidskraft | UE-timer |
+| Andre | Fakturerbar tid | Skille fra intern |
+| Andre | Timer prosjektleder | PL med egen sats |
+
+#### Nivå 3 — Egendefinerte
+
+Opprettes av kunden via admin-UI ved behov. SiteDoc leverer ingen mal — kun verktøyet. Eksempler på lønnsarter som typisk hører her: kloakk-tillegg, brøyte-beredskap, firma-spesifikke skifttillegg-satser (30/40/50% utenfor standard 2-skift/natt), tariff-spesifikke satser, bransje-detaljer (bergspreng, dykker, etc.).
+
+### Onboarding — to scenarier
+
+Ved firma-opprettelse vises modus-velger:
+
+**A) «Nytt firma — ingen eksisterende katalog»**
+Auto-importerer Nivå 1 (16 lønnsarter). Tilbyr Nivå 2 (25 lønnsarter) som valg. Standard for nye SiteDoc-kunder.
+
+**B) «Migrerer fra annet system»**
+Tom katalog. Import-verktøy aktivert (CSV-upload eller adapter mot kjent system). Forhindrer dobbel-katalog-problem hvis kunde flytter eksisterende lønnsarter inn — ellers ville Nivå 1 + importert katalog gi duplikater.
+
+### Auto-fordeling normaltid/overtid
+
+Når kunden bruker Nivå 1 «Timelønn» + «Overtid 50%/100%»: systemet foreslår fordeling basert på totaltimer og konfigurerbar dagsnorm (default 7,5t fra `OrganizationSetting`). Bruker kan overstyre.
+
+Eksempel: 10t totalt → Timelønn 7,5t + Overtid 50% 2,5t. Bruker justerer til 8t + 2t hvis ønskelig.
+
+Hvis kunden ikke har importert Nivå 1: ingen auto-fordeling, bruker velger lønnsart manuelt.
+
+### Aktivitet-katalog (datadrevet, tre-nivå)
+
+Aktivitet er en separat dimensjon for kostnadsføring (per ProAdm) — ikke det samme som lønnsart, ikke det samme som ECO. Brukes for å skille hovedarbeid fra garantiarbeid, ekstraarbeid, regulering osv. innenfor samme prosjekt.
+
+**Nivå 1:** Ingen — aktivitet er ikke lovpålagt
+
+**Nivå 2 (anlegg/bygg-pakke, valgfri):**
+- Anleggsarbeid
+- Maskintimer
+- Garanti/reklamasjon
+
+**Nivå 3 (kundens egne):**
+Eksempler: Ekstra arbeid, Regulering lønn, kunde-spesifikke aktivitetskategorier.
+
+### Tillegg (datadrevet katalog, tre-nivå)
+
+Tillegg-katalogen er per Organization, samme tre-nivå-prinsipp som lønnsart. Skiller seg fra lønnsart ved at tillegg ikke regnes som arbeidstid — de er separate poster på dagsseddelen.
+
+**Nivå 1:** Ingen — tillegg er ikke lovpålagt
+
+**Nivå 2 (anlegg/bygg-pakke, valgfri):**
+- Overtidsmat (avhuking, fast sats)
+- Smusstilleg (avhuking)
+- Beredskap-vakt (avhuking)
+
+**Nivå 3 (kundens egne):**
+Eksempler: Skifttillegg 30/40/50% (firma-spesifikk sats), Brøyte-beredskap, Kloakk-tillegg, tariff-spesifikke vakt-tillegg.
+
+### Felt-typer på tillegg
+
+| Type | Beskrivelse | Eksempel |
+|---|---|---|
+| `avhuking` | Fast sats, antall=1 ved avhuking | Overtidsmat, Smusstilleg |
+| `antall` | Bruker oppgir antall | Henger-tillegg (antall ganger) |
+
+Reisetid ligger ikke som tillegg — det er en lønnsart i Nivå 2 («Reise/transport til prosjekter»). Betales som arbeidstid (egen sats), men inngår ikke i normaltid/overtid-fordeling.
 
 ### Tilleggsregler (automatisering)
 
-Admin setter opp regler per enterprise/prosjekt. Reglene genererer **forslag** — brukeren kan alltid overstyre.
+Admin setter opp regler per Organization. Reglene genererer **forslag** — brukeren kan alltid overstyre. Reglene refererer til konkrete lønnsart- eller tillegg-IDer i kundens katalog (datadrevet, ikke hardkodet).
 
 | Regel | Utløser | Effekt | Konfigurasjon |
 |-------|---------|--------|---------------|
-| **Overtidsmat** | Arbeidstimer > terskel (default 9t) | Foreslår avhuking av overtidsmat | `enterprise_settings.overtidsmatTerskel` |
-| **Nattillegg (100%)** | Arbeid registrert mellom kl 21–06 | Foreslår 100% tillegg automatisk | Klokkeslett-sjekk mot `startAt`/`endAt` hvis registrert |
-| **Reisetid** | — | Aldri automatisk, alltid manuelt | Eget felt (timer) |
-| **Helgetillegg** | Dato er lørdag/søndag | Foreslår avhuking av helgetillegg | Kalender-sjekk |
+| **Overtidsmat-forslag** | Arbeidstimer > terskel (default 9t) | Foreslår avhuking av angitt tillegg | `OrganizationSetting.overtidsmatTerskel` + `regel.tilleggId` |
+| **Nattskift-forslag** | Klokkeslett mellom kl 21–06 (krever `startAt`/`endAt`) | Foreslår angitt skift-lønnsart | `regel.lonnsartId` |
+| **Helgetillegg-forslag** | Dato er lørdag/søndag | Foreslår avhuking av angitt tillegg | `regel.tilleggId` |
+| **Reisetid** | — | Aldri automatisk, alltid manuelt | Egen lønnsart-rad på dagsseddel |
+
+Hvis kunden ikke har konfigurert regelen (eller ikke har importert tilhørende lønnsart/tillegg): regelen er inaktiv. Ingen feilmelding.
 
 ### Dagsseddel-flyt (mobil)
 
 Stegvis flyt — hvert steg er en seksjon på skjermen:
 
 ```
-1. Dato               → normaldag hentes fra arbeidstidskalender
-2. Arbeidstimer       → totalt antall timer
-3. Reisetid           → eget felt (timer) — valgfritt
-4. Overtid            → systemet foreslår basert på arbeidstimer vs normaldag
-5. Tillegg            → automatiske forslag fra regler + manuelle avhukinger
-   ☑ Overtidsmat      (auto-foreslått: arbeidstimer > 9t)
-   ☐ Nattillegg
-   ☐ Helgetillegg
-6. Maskiner           → fra maskinregister, timer + valgfri mengde
-7. Materialer         → fritekst + mengde + enhet
-8. Utlegg             → kategori + beløp + valgfritt kvitteringsbilde
-9. Beskrivelse        → valgfri tekst
-10. [Lagre]
+1. Dato                  → normaldag fra OrganizationSetting
+2. Prosjekt              → liste av aktive prosjekter
+3. Tilleggsarbeid (ECO)  → valgfri dropdown — endring/varsel/regningsarbeid
+4. Aktivitet             → dropdown (default «Anleggsarbeid» hvis seedet)
+5. Avdeling              → valgfri (auto-foreslår fra User.avdelingId)
+6. Klokkeslett           → valgfri (Fra/Til). Obligatorisk hvis
+                           nattskift-tillegg krysses (krever klokkeslett
+                           for å forsvares juridisk).
+7. Pause                 → minutter (default 0)
+8. Timer                 → totalt antall + auto-fordeling Nivå 1-lønnsarter
+                           (Timelønn / Overtid 50% / 100%) basert på
+                           dagsnorm. Bruker kan overstyre eller velge
+                           andre lønnsarter manuelt.
+9. Lønnsart-rader        → liste av (lønnsart, timer)
+10. Tillegg              → automatiske forslag fra regler + manuelle
+11. Maskiner             → fra maskinregister, timer + valgfri mengde
+12. Materialer           → fritekst + mengde + enhet
+13. Utlegg               → kategori + beløp + valgfritt kvitteringsbilde
+14. Beskrivelse          → valgfri tekst
+15. [Lagre utkast]   [Send til leder]
 ```
+
+**Selv-attestering vs send-til-leder:** To knapper — kunden velger via `OrganizationSetting.tillattSelvAttestering` om begge tillates, eller kun «Send til leder».
 
 ### UX-visning — dagsseddel (mobil)
 
 ```
 ┌─────────────────────────────────────────────┐
-│  Dagsseddel — 16. april 2026               │
-│  Prosjekt: E6 Kvænangsfjellet              │
+│  Dagsseddel — 16. apr 2026                  │
+│  Prosjekt: E6 Kvænangsfjellet               │
+│  Tilleggsarbeid: [Plunder og heft uke 14 ▾] │
+│  Aktivitet:      [Anleggsarbeid ▾]          │
 ├─────────────────────────────────────────────┤
-│                                             │
-│  Arbeidstimer:    [10.0]                    │
-│    Normaltid      [8.0]  ← auto fra dagsnorm│
-│    50%            [2.0]  ← auto-beregnet   │
-│    100%           [0.0]                     │
-│                                             │
-│  Reisetid:        [1.0]  (betales separat)  │
+│  Klokkeslett: [—:—]–[—:—]   Pause: [30] min │
+│  Timer:    [10.0]                           │
+│   Auto: Timelønn 7,5 + Overtid 50% 2,5      │
+│   [endre fordeling ▾]  [legg til lønnsart]  │
 │                                             │
 │  Tillegg:                                   │
-│  ☑ Overtidsmat   (auto: arbeidstimer > 9t)  │
-│  ☐ Nattillegg                               │
-│  ☐ Helgetillegg                             │
+│  ☑ Overtidsmat (auto: timer > 9t)           │
+│  ☐ Skifttillegg 30% ▾                       │
+│  ☐ Brøyte-beredskap ▾                       │
 │                                             │
-│  MASKINER              Timer    Mengde      │
-│  ┌───────────────────┬────────┬───────────┐ │
-│  │ Lastebil ▾        │ [2  ] │ [10] m3 ▾ │ │
-│  │ Hjullaster ▾      │ [2  ] │           │ │
-│  │ Kantsteinsetter ▾ │ [4  ] │ [40] m  ▾ │ │
-│  │ + Legg til maskin                      │ │
-│  └───────────────────┴────────┴───────────┘ │
+│  ▸ Maskiner    (3)                          │
+│  ▸ Materialer  (1)                          │
+│  ▸ Utlegg      (kvittering)                 │
 │                                             │
-│  MATERIALER                                 │
-│  ┌───────────────────┬────────┬───────────┐ │
-│  │ Grus              │ [10] │ m3 ▾      │ │
-│  │ + Legg til materiale                   │ │
-│  └───────────────────┴────────┴───────────┘ │
+│  Kommentar: [_______________________]       │
 │                                             │
-│  UTLEGG                                     │
-│  ┌─────────────────────────────────────────┐ │
-│  │ Kategori: [Drivstoff ▾]                │ │
-│  │ Beløp:    [450] kr                     │ │
-│  │ Bilde:    [📷 Ta bilde / Last opp]     │ │
-│  │ Notat:    [Shell Tromsø]               │ │
-│  │ + Legg til utlegg                      │ │
-│  └─────────────────────────────────────────┘ │
-│                                             │
-│  Beskrivelse: [Graving + kantstein langs...]│
-│                                     [Lagre] │
+│  [Lagre utkast]  [Send til leder]           │
 └─────────────────────────────────────────────┘
 ```
 
@@ -138,7 +249,7 @@ Stegvis flyt — hvert steg er en seksjon på skjermen:
 2. **Tilleggsregler** — automatiske forslag fra konfigurasjon, brukeren bekrefter eller overstyrer
 3. **Maskiner** — nedtrekk fra maskinregisteret (kun maskiner tilordnet prosjektet). Sist brukte øverst
 4. **Enhet** — auto-foreslått fra maskintype (kantsteinsetter → m, lastebil → m3). Kan overstyres
-5. **Kopiér forrige dag** — én knapp som dupliserer gårsdagens seddel (vanlig at arbeidet ligner)
+5. **Kopiér forrige dag** — én knapp som **foreslår** verdier fra gårsdagens seddel. Foreslåtte verdier vises med visuell indikator (lys grå bakgrunn + «auto-foreslått»-tag) og er redigerbare før lagring. Kopierer: prosjekt, underprosjekt, aktivitet, lønnsart-fordeling, avdeling. Kopierer IKKE: klokkeslett, maskinrader, materialer, utlegg, kommentar — disse er typisk dagsspesifikke. Brukeren ser tydelig hva som er foreslått vs hva som er ferskt — ingen skjult automatikk
 6. **Materialer** — fritekst + mengde + enhet-dropdown (m3/m2/tonn/kg/m)
 
 ## Eksport til lønnssystem
@@ -163,24 +274,38 @@ interface LonnssystemAdapter {
 }
 ```
 
-Konkret implementasjon per leverandør. Konfigureres via `OrganizationIntegration` (type: `"tripletex"` / `"visma"` / `"unit4"` / `"sap"`).
+Konkret implementasjon per leverandør. Konfigureres via `OrganizationIntegration` (eksisterende tabell i `packages/db`). Per Kenneth-vedtak 2026-04-29 splittes `type`-feltet i to dimensjoner:
+
+- `kategori String` — `"kilde"` | `"destinasjon"` | `"begge"`
+- `leverandor String` — `"proadm"` | `"tripletex"` | `"poweroffice"` | `"visma"` | `"unit4"` | `"sap"` | `"hr"` | `"gps"` | `"smartdoc"`
+
+Lønnssystem-eksport-adaptere bruker `kategori = "destinasjon"` med leverandør-spesifikk implementasjon. Eksisterende rader i prod migreres ved å kopiere `type` → `leverandor` og utlede `kategori` per leverandør (proadm/smartdoc = kilde, tripletex/poweroffice/visma/etc. = destinasjon, hr = begge, gps = kilde).
 
 ### Timer-eksport — kolonner
 
-Separate kolonner per lønnsart — aldri slått sammen. Hver dagsseddel eksporteres som én rad:
+Eksport joiner `sheet_timer`/`sheet_tillegg` med katalog-tabellene for å hente lønnsart-kode, navn og pris. Aldri slått sammen til faste kolonner — hver lønnsart-rad blir egen post i eksportfilen.
 
 | Kolonne | Kilde |
 |---------|-------|
 | Dato | `daily_sheets.dato` |
 | Ansatt | `userId` → `users.name` |
+| Ansattnummer | `users.ansattnummer` (krevet for lønnseksport) |
 | Prosjekt | `projectId` → `projects.name` |
-| Normaltid | `normaltid` |
-| Overtid 50% | `overtid50` |
-| Overtid 100% | `overtid100` |
-| Reisetid | `reisetid` |
-| Overtidsmat | `overtidsmat` → sats fra `enterprise_settings` |
-| Nattillegg | `nattillegg` → sats |
-| Helgetillegg | `helgetillegg` → sats |
+| Aktivitet | `aktivitetId` → `aktiviteter.kode` |
+| Avdeling | `avdelingId` → `avdelinger.kode` (valgfri) |
+| Lønnsart-rader (med ECO per linje) | `sheet_timer` joinet med `lonnsarter` (`kode`, `navn`, `timer`, `attestertSnapshot.prisMotKunde`) + `externalCostObjectId` → `external_cost_objects.proAdmId` (valgfri per linje) |
+| Tillegg-rader | `sheet_tillegg` joinet med `tillegg` (`kode`, `navn`, `antall`, `attestertSnapshot.prisMotKunde`) |
+
+**Pris-snapshot:** Eksport bruker `attestertSnapshot.prisMotKunde` fra hver rad — ikke gjeldende pris i katalogen. Sikrer at attesterte timer beholder sin opprinnelige pris selv om katalog-prisen endres senere (Fase 0 A.7).
+
+**Eksport-kode-krav:** `lonnsarter.kode`/`tillegg.kode`/`aktiviteter.kode` er nullable. Eksport-modulen kaster tydelig feilmelding ved eksport-tid hvis kode mangler — gir kunden mulighet til å sette opp katalogen før første lønnssystem-eksport.
+
+**Eksport-kode ved migrering:** Eksisterende koder fra kundens nåværende system (f.eks. SmartDok) kopieres direkte ved migrering — ingen renumerering. Hvis A.Markussen har lønnsart `127 Fakturerbar tid` og enhetstillegg `157 Kloakk tillegg`, beholdes nøyaktig samme koder i SiteDocs `lonnsarter.kode`/`tillegg.kode`. Lønns- og økonomi-systemet (Visma, Hogia, ProAdm) matcher uten rekonfigurasjon. Migrerings-skript leser kundens eksisterende eksport-fil og kopierer kode-feltet 1:1.
+
+**Filtrering per eksport-spor** (per [smartdok-undersokelse.md § 9](smartdok-undersokelse.md)):
+- **Lønn:** Kun arbeidskraft (lønnsart + tillegg). Filtrer ut maskiner/materialer
+- **ProAdm:** Inkluder alt — lønnsart + tillegg + maskiner + materialer
+- **Regnskap:** Utenfor SiteDocs ansvar — håndteres av ProAdm
 
 ### Utlegg-eksport — separat fra timer
 
@@ -201,7 +326,7 @@ Del av dagsseddelen. Ansatt tar bilde av kvittering direkte i mobilappen.
 
 ### Feltstruktur
 
-- `kategori`: string — Drivstoff, Parkering, Diett, Verktøy, Annet (konfigurerbar per enterprise)
+- `kategori`: string — Drivstoff, Parkering, Diett, Verktøy, Annet (konfigurerbar per Organization)
 - `belop`: decimal (NOK)
 - `kvitteringsBilde`: string (URL til lagret bilde)
 - `notat`: string? (valgfritt)
@@ -219,6 +344,164 @@ Del av dagsseddelen. Ansatt tar bilde av kvittering direkte i mobilappen.
 - Leder ser kvitteringsbilde i godkjenningsvisningen
 - Godkjennes samtidig med dagsseddelen — ikke egen godkjenningsflyt
 
+## Hjelpetekster (?-ikonet) — alle timer-sider
+
+Per regelen i [CLAUDE.md](../../CLAUDE.md#hjelpetekster-per-side) skal hver side i SiteDoc ha hjelpetekst tilgjengelig via ?-ikonet øverst til høyre. For timer-modulen gjelder dette ALLE sider — bygges samtidig med siden, oppdateres når siden endres.
+
+**Konsepter som MÅ forklares i ?-hjelp på relevante sider:**
+
+| Side | Hjelpetekst skal dekke |
+|------|------------------------|
+| `/timer/min-tid` (dagsseddel) | Hva er en dagsseddel, lønnsart-valg, hvordan koble til Underprosjekt, signering |
+| `/timer/oppsett/underprosjekter` | Hva er Underprosjekt, forskjell mellom Proadm-importert vs. SiteDoc-avledet, åpen/lukket-status |
+| `/timer/oppsett/lonnsarter` | Hva er en lønnsart, kobling til Poweroffice-kode, fravær-flag |
+| `/timer/oppsett/tillegg` | Skifttillegg, beredskap, automatiske vs. manuelle tillegg |
+| `/timer/oppsett/godtgjorelser` | Diett, overtidsmat, kvitteringskrav |
+| `/timer/oppsett/eksport-config` | Proadm vs. SiteDoc Godkjenning som kilde, Poweroffice-oppsett |
+| `/timer/godkjenning` | Forenklet godkjenningsflyt (kun utførelse, ikke økonomi), signeringsregler |
+| `/timer/eksport` | Hva er eksportert, hvordan markere som eksportert, Poweroffice-format |
+| `/timer/rapporter/*` | Hva hver rapport viser, hvilke filtere, hvordan eksportere |
+| Godkjenning-dokument (eksisterende) | Når «Opprett underprosjekt»-knappen vises, betingelser (modul-aktivering), juridisk grunnlag for at knappen ikke krever økonomisk avklaring |
+
+**Spesielt viktig å forklare i hjelpetekst:**
+- **Underprosjekt vs. kontraktsbegreper** — at ansatte ser «Underprosjekt», kontraktsadmin ser tilleggsarbeid/endring/varsel
+- **Utførelse er frikoblet økonomi** — entreprenør kan/må føre timer selv om økonomi er uavklart (NS 8405/06/07)
+- **Kilde-systemer** — Proadm vs. SiteDoc Godkjenning, hvordan velge, hvordan skille i listen
+- **Forenklet godkjenning** — skiller seg fra eksisterende «Godkjenning»-dokumenttype ved at den IKKE inneholder økonomi
+
+Bruk eksempler med norske navn (Ola, Trude, Per) — ikke abstrakte beskrivelser. Når sider bygges, oppdater også «Sidestatus ?-ikon»-tabellen i [CLAUDE.md](../../CLAUDE.md#hjelpetekster-per-side).
+
+## Underprosjekt og forenklet godkjenning (planlagt)
+
+### Begrepsbruk
+
+- **I timer-modulens UI / mot ansatte:** «Underprosjekt»
+- **I kontraktssammenheng / dokumentflyt:** Tilleggsarbeid, varsel, endring, varsel om endring, regningsarbeid
+- Aldri bland disse to. Ansatte ser kun «Underprosjekt» — kontraktsbegreper er for kontraktsadministrasjon.
+
+### Underprosjekt-modell (planlagt, `packages/db-timer/`)
+
+```
+Underprosjekt {
+  id, navn, hovedprosjektId, status (åpen/lukket)
+
+  // Kilde — Underprosjekt opprettes ALLTID fra et eksisterende godkjenningsdokument:
+  kilde: "proadm" | "sitedoc_godkjenning"
+
+  // Hvis Proadm (importert):
+  proadmId, proadmNummer, proadmType
+    (tilleggsarbeid/varsel/endring/regningsarbeid)
+
+  // Hvis SiteDoc:
+  godkjenningId  // → ReportInstance med malens type "Godkjenning"
+}
+```
+
+### Avledning — Underprosjekt opprettes ikke selvstendig
+
+Underprosjekt er **alltid en avledning** av et formelt godkjenningsdokument. Det opprettes ikke direkte i timer-modulen.
+
+**To kilder — ulike flyter:**
+
+#### A) Proadm-import (automatisk)
+
+Når Proadm-integrasjonen er aktivert for prosjektet, importeres Underprosjekter automatisk fra Proadm. Proadm er kilden — vi henter, viser, kobler timer mot det. Endringer i godkjenningsstatus skjer i Proadm. Vi viser Proadm-status i Underprosjekt-listen, men endrer den ikke.
+
+**Krav:**
+- Timer-firmamodulen aktivert
+- Proadm-integrasjon konfigurert på firma/prosjekt
+- Ingen knapp på SiteDoc Godkjenning er relevant — Underprosjekt-listen befylles fra Proadm-sync
+
+**Sync-strategi:** Proadm-import kjører på fast intervall (eller manuell trigger). Nye endringer/varsel/regningsarbeider blir Underprosjekter med `kilde = "proadm"`. Ved slettet i Proadm: marker som lukket, ikke slett (bevar timer-historikk).
+
+#### B) SiteDoc Godkjenning-flyt (manuell knapp)
+
+Når SiteDoc-dokumentflyt brukes for endringshåndtering: leder klikker «Opprett underprosjekt for timeregistrering» på Godkjenning-dokumentet. Den formelle Godkjenningen beholder økonomi-diskusjonen — Underprosjektet er kun utførelses-speilbildet ansatte ser.
+
+**Krav:** Se «Avledning fra SiteDoc Godkjenning — manuell knapp» under.
+
+#### Konfigurasjon per firma + per prosjekt
+
+**Proadm er en valgfri integrasjon — ikke et krav.** Mange potensielle kunder bruker ikke Proadm. Timer-modulen må fungere uavhengig av om Proadm er konfigurert eller ikke.
+
+**Konfigurasjonsmatrise:**
+
+| Kundens oppsett | Underprosjekt-kilde | Konsekvens |
+|---|---|---|
+| Verken Proadm eller Godkjenning-modul | **Ingen** — Underprosjekt-feltet skjules i timeregistreringen | Timer føres direkte mot hovedprosjekt |
+| Godkjenning-modul aktivert (uten Proadm) | **SiteDoc Godkjenning** — manuell knapp på Godkjenning-dokument | Standard for kunder uten ERP |
+| Proadm aktivert | **Proadm** — automatisk import | A.Markussen-case |
+| Proadm + drømmescenario | **Proadm** + auto-opprett SiteDoc Godkjenning som kommunikasjonsverktøy | Se neste seksjon |
+
+**Eksklusivt valg når begge muligheter finnes:** Hvis et firma både har Proadm og Godkjenning-modulen aktivert, må de velge ÉN som kilde for Underprosjekt. Aldri begge som parallelle kilder — ville gitt konkurrerende sannheter og uklart eierskap.
+
+Ved bytte av kilde: eksisterende Underprosjekter beholdes med opprinnelig kilde markert. Kun nye følger ny konfigurasjon.
+
+#### Drømmescenario — Proadm → auto-opprett SiteDoc Godkjenning
+
+> **🟡 BACKLOG — Ikke implementeres i Fase 3** (vedtatt 2026-04-29). Mange åpne spørsmål (mapping ProAdm-felt → Godkjenning-mal-felter, status-sync-konflikter, read-only-policy, versjonering). Krever stabil ProAdm-integrasjon før det gir mening. Re-vurderes når Fase 3 er deployet og kunde etterspør funksjonalitet.
+
+Kombinasjons-mulighet som bør utforskes: Proadm-import oppretter automatisk en SiteDoc Godkjenning-dokumentinstans, som så blir kilde for Underprosjekt via knappen.
+
+**Rollefordeling i dette scenarioet:**
+- **Proadm** = entreprenørens interne kontrakts-/økonomisystem (kontraktsstatus, beløp, regningsarbeid-vurdering)
+- **SiteDoc Godkjenning** = **kommunikasjonsverktøy mellom entreprenør og byggherre** — det er hele formålet med å auto-opprette den
+
+**Statusflyt — manuell sync (første versjon):**
+- Proadm → SiteDoc: auto-opprettelse ved import (envei)
+- Når byggherre godkjenner i SiteDoc: noen oppdaterer status manuelt i Proadm
+- Auto-sync SiteDoc → Proadm utsettes til senere — avklares når behov og teknisk grunnlag er klart
+
+**Fordeler:**
+- Byggherre kommuniserer i SiteDoc-flate (slipper Proadm-tilgang)
+- Entreprenør beholder Proadm som sin økonomi-master
+- Underprosjekt for timer kan avledes via SiteDoc Godkjenning-knappen
+- Ett konsistent UI (SiteDoc) for både utførelse, kommunikasjon og dokumentasjon
+
+**Åpne spørsmål:**
+- Mapping mellom Proadm-felt (proadmType, beløp, beskrivelse) → Godkjenning-malens felter
+- Hva skjer hvis SiteDoc Godkjenning endres manuelt etter auto-opprettelse — overskrives ved neste Proadm-sync, eller markeres som «konflikt»?
+- Er SiteDoc Godkjenning read-only på økonomi-felter når Proadm er kilde (kun kommunikasjon/status redigeres i SiteDoc)?
+- Når Proadm-endring importeres på nytt: oppdater eksisterende SiteDoc Godkjenning eller opprett ny versjon?
+
+Foreløpig status: **idé, ikke besluttet.** Bør utredes før timer-modulen bygges ferdig.
+
+### Forenklet godkjenningsflyt (mot ansatt)
+
+Egen forelder-objekt-type «Timeregistrering» i [malbyggeren](../../MALBYGGER.md) som lar timeregistrering kobles til underprosjekt og sendes til ansatt for bekreftelse.
+
+**Skal IKKE inneholde:**
+- Priser, satser, kostnader
+- Fakturering, beløp, kontraktssum
+- Diskusjon om økonomiske forhold
+
+**Skal KUN inneholde:**
+- Hva ble gjort (aktivitet, kommentar)
+- Antall timer, dato
+- Hvilken lønnsart
+- Eventuell signatur for bekreftelse av utførelse
+- Vedlegg/bilder fra utførelsen
+
+**Hvorfor:** Økonomi (priser, kontrakt, fakturering) håndteres i Proadm eller annet ERP. Ansatte skal kun forholde seg til utførelse — hva er gjort, hvor mange timer, har leder godkjent. Skiller dette tydelig fra den eksisterende «Godkjenning»-dokumenttypen som kan inkludere økonomi.
+
+**Flyt:** Leder oppretter timeregistrering basert på mal → sendes til ansatt → ansatt bekrefter (signerer) → tilbake til leder for endelig godkjenning → eksporteres til lønnssystem (Poweroffice).
+
+**Kobling til Underprosjekt:** Timeregistreringen knyttes til et Underprosjekt som allerede eksisterer (avledet fra Proadm eller fra SiteDoc Godkjenning-dokument — se «Underprosjekt-modell» over). Selve timeregistreringen oppretter ikke nytt Underprosjekt — den bruker et eksisterende.
+
+### Avledning fra SiteDoc Godkjenning — manuell knapp
+
+På et Godkjenning-dokument (uavhengig av status) finnes knappen **«Opprett underprosjekt for timeregistrering»**. Leder klikker når utførelsen skal starte.
+
+**Synlighetsbetingelser for knappen** — vises kun når begge er sanne:
+1. **Timeregistrerings-modulen er aktivert** (firmamodul, se [CLAUDE.md](../../CLAUDE.md#modulsystem--to-nivåer))
+2. **Godkjenning-modulen er aktivert på prosjektet** (prosjektmodul)
+
+Hvis én av disse er av, skjules knappen — ingen poeng å tilby Underprosjekt-opprettelse hvis ansatte ikke kan føre timer mot det, eller hvis Godkjenning ikke er en aktiv dokumenttype på prosjektet.
+
+**Aldri automatisk basert på godkjent-status.** Begrunnelse: i norsk entrepriserett (NS 8405/8406/8407) er entreprenøren kontraktspliktig til å utføre arbeid selv ved økonomisk uenighet. Hvis vi blokkerte Underprosjekt-opprettelse til Godkjenningen var økonomisk avklart, ville vi hindre lovpålagt utførelse. Utførelse-spor (timer) må alltid kunne starte uavhengig av økonomi-spor (pris/fakturering).
+
+Underprosjektets `kilde` settes til `sitedoc_godkjenning` og `godkjenningId` peker til kilde-dokumentet. Endringer i Godkjenningens økonomiske status påvirker ikke Underprosjektets åpen/lukket-status.
+
 ## Database — `packages/db-timer`
 
 ### Hovedtabell: `daily_sheets` (dagsseddel)
@@ -227,26 +510,136 @@ Del av dagsseddelen. Ansatt tar bilde av kvittering direkte i mobilappen.
 |------|------|-------------|
 | `id` | `uuid` PK | Server-generert ID |
 | `clientUuid` | `uuid` UNIQUE | Klient-generert UUID for idempotent upsert |
-| `userId` | `uuid` FK → `users` | Hvem registrerte |
-| `enterpriseId` | `uuid` FK → `dokumentflyt_parts` | Faggruppe (isolerer data) |
+| `organizationId` | `uuid` FK → `organizations` | Firma-eier (timer-data er firma-eid) |
+| `userId` | `uuid` FK → `users` | Hvem timer gjelder for |
+| `registrertAvUserId` | `uuid` FK → `users` | Hvem la inn registreringen (kan være ulik userId) |
 | `projectId` | `uuid` FK → `projects` | Prosjekt |
+| `aktivitetId` | `uuid` FK → `aktiviteter` | Aktivitet (ProAdm-kostnadsdimensjon) |
+| `avdelingId` | `uuid?` FK → `avdelinger` | Avdeling (firma-intern, valgfri) |
+| `byggeplassId` | `uuid?` FK → `byggeplasser` | Byggeplass (per byggeplass-strategi, valgfri) |
 | `dato` | `date` | Arbeidsdag |
-| `normaltid` | `decimal` | Timer normaltid |
-| `overtid50` | `decimal` default 0 | Timer 50% overtid |
-| `overtid100` | `decimal` default 0 | Timer 100% overtid |
-| `reisetid` | `decimal` default 0 | Timer reisetid (ikke arbeidstid) |
-| `overtidsmat` | `boolean` default false | Overtidsmat utløst |
-| `nattillegg` | `boolean` default false | Nattillegg |
-| `helgetillegg` | `boolean` default false | Helgetillegg |
-| `beskrivelse` | `text?` | Fritekst |
+| `startAt` | `timestamptz?` | Klokkeslett start (valgfri, obligatorisk hvis nattskift-tillegg krysses) |
+| `endAt` | `timestamptz?` | Klokkeslett slutt (valgfri) |
+| `pauseMin` | `int` default 0 | Pause i minutter |
+| `status` | `text` default `draft` | `draft` \| `sent` \| `returned` \| `accepted` |
+| `beskrivelse` | `text?` | Fritekst fra ansatt |
+| `lederKommentar` | `text?` | Toveis-kommunikasjon: leder kan svare ansatt |
 | `syncStatus` | `text` | `pending` \| `synced` \| `conflict` |
 | `syncedAt` | `timestamptz?` | Siste vellykket synkronisering |
-| `godkjentAv` | `uuid?` FK → `users` | Leder som godkjente |
-| `godkjentVed` | `timestamptz?` | Tidspunkt for godkjenning |
+| `attestertAvUserId` | `uuid?` FK → `users` | Leder som attesterte |
+| `attestertVed` | `timestamptz?` | Tidspunkt for attestering |
 | `createdAt` | `timestamptz` | |
 | `updatedAt` | `timestamptz` | |
 
-**Indekser:** `(userId, projectId, dato)` UNIQUE, `(enterpriseId)`, `(clientUuid)` UNIQUE
+**Indekser:**
+- `(userId, projectId, dato)` UNIQUE
+- `(organizationId)`
+- `(clientUuid)` UNIQUE
+- `(projectId, dato)` — prosjektrapport for periode
+- `(organizationId, dato)` — firma-rapport / lønnsrapport
+- `(organizationId, status)` — admin: «hva ligger til attestering»
+- `(attestertAvUserId, attestertVed)` — «hva har leder X attestert»
+- `(byggeplassId, dato)` — byggeplass-rapport (Fase 0.5+)
+- `(avdelingId, dato)` — eksport-filtrering per avdeling
+- `(userId, syncStatus)` — mobil pending-sync
+
+**Note om ECO-flytting (vedtatt 2026-04-29):** `externalCostObjectId` flyttet fra `daily_sheets`-nivå til `sheet_timer`-nivå (linje-nivå). Begrunnelse: multi-ECO er svært vanlig hos A.Markussen — ansatte jobber regelmessig på flere underprosjekter samme dag. Med ECO på linje kan én dagsseddel inneholde rader med ulike ECO-koblinger, og unique-constraint `(userId, projectId, dato)` beholdes som «én dagsseddel per arbeidsdag».
+
+### `sheet_timer` (timer-rader per dagsseddel)
+
+Erstatter de tidligere faste kolonnene `normaltid/overtid50/overtid100`. Datadrevet — bruker velger lønnsart fra katalogen.
+
+| Felt | Type | Beskrivelse |
+|------|------|-------------|
+| `id` | `uuid` PK | |
+| `sheetId` | `uuid` FK → `daily_sheets` | |
+| `lonnsartId` | `uuid` FK → `lonnsarter` | Datadrevet katalog |
+| `externalCostObjectId` | `uuid?` FK → `external_cost_objects` | Tilleggsarbeid (ECO) per linje — gjør multi-ECO mulig innenfor én dagsseddel |
+| `timer` | `decimal` | Timer på denne lønnsarten |
+| `attestertSnapshot` | `jsonb?` | Pris-snapshot ved attestering (Fase 0 A.7) |
+
+**Indekser:**
+- `(sheetId)` — KRITISK FK-JOIN ved hver dagsseddel-fetch (Postgres lager ikke auto-index på FK)
+- `(lonnsartId)` — lønnsart-aggregering ved eksport/rapport
+- `(externalCostObjectId)` — ECO-aggregering ved eksport
+
+### `sheet_tillegg` (tillegg-rader per dagsseddel)
+
+Erstatter de tidligere faste boolean-kolonnene `overtidsmat/nattillegg/helgetillegg`. Datadrevet.
+
+| Felt | Type | Beskrivelse |
+|------|------|-------------|
+| `id` | `uuid` PK | |
+| `sheetId` | `uuid` FK → `daily_sheets` | |
+| `tilleggId` | `uuid` FK → `tillegg` | Datadrevet katalog |
+| `antall` | `decimal` | Antall (1 for avhuking) |
+| `kommentar` | `text?` | Tvungen for noen tillegg (`Tillegg.tvungenKommentar=true`) |
+| `attestertSnapshot` | `jsonb?` | Pris-snapshot ved attestering |
+
+**Indekser:**
+- `(sheetId)` — KRITISK FK-JOIN
+- `(tilleggId)` — tillegg-aggregering
+
+### `lonnsarter` (lønnsart-katalog per Organization)
+
+| Felt | Type | Beskrivelse |
+|------|------|-------------|
+| `id` | `uuid` PK | |
+| `organizationId` | `uuid` FK → `organizations` | Eier |
+| `type` | `text` | `ordinaer` \| `fravaer` \| `feriepenger` \| `diett` |
+| `kode` | `text?` | Eksport-kode (Poweroffice/Visma/etc.). NULL hvis ikke valgt eksport-system ennå. Eksport-modulen krever ikke-NULL ved eksport-tid med tydelig feilmelding. |
+| `navn` | `text` | |
+| `prisMotKunde` | `decimal?` | Null = bruker prosjektkontrakt |
+| `internkostnad` | `decimal?` | |
+| `sats` | `decimal?` | Generell sats — brukes når lønnsart er en flat utbetaling (diett, kilometergodtgjørelse, nattillegg). Null for vanlige time-lønnsarter |
+| `satsEnhet` | `text?` | Enhet for `sats` — `per_dag`, `per_natt`, `per_km`, `per_time`. Null hvis `sats` er null |
+| `skalEksporteres` | `boolean` default true | |
+| `tvungenKommentar` | `boolean` default false | |
+| `rekkefolge` | `int` | Sortering i UI |
+| `aktiv` | `boolean` default true | Soft-delete |
+| `seedNivaa` | `int?` | 1, 2 eller null (3 = egendefinert). Brukes for å skille auto-seeded fra kunde-opprettet. |
+
+**Indekser:**
+- `(organizationId, kode)` UNIQUE WHERE `kode IS NOT NULL` (delvis unik — to lønnsarter uten kode er lovlig)
+- `(organizationId, aktiv)` — hent kun aktive katalog-rader
+
+### `aktiviteter` (aktivitet-katalog per Organization)
+
+| Felt | Type | Beskrivelse |
+|------|------|-------------|
+| `id` | `uuid` PK | |
+| `organizationId` | `uuid` FK | |
+| `kode` | `text?` | Eksport-kode (samme nullable-prinsipp som lønnsart) |
+| `navn` | `text` | |
+| `internkostnad` | `decimal?` | |
+| `prisMotKunde` | `decimal?` | |
+| `aktiv` | `boolean` default true | |
+| `seedNivaa` | `int?` | 1, 2 eller null (3 = egendefinert). Skill auto-seeded fra kunde-opprettet. |
+
+**Indekser:**
+- `(organizationId, kode)` UNIQUE WHERE `kode IS NOT NULL` (delvis unik, samme prinsipp som lønnsart)
+- `(organizationId, aktiv)`
+
+### `tillegg` (tillegg-katalog per Organization)
+
+| Felt | Type | Beskrivelse |
+|------|------|-------------|
+| `id` | `uuid` PK | |
+| `organizationId` | `uuid` FK | |
+| `kode` | `text?` | Eksport-kode (nullable) |
+| `navn` | `text` | |
+| `type` | `text` | `avhuking` \| `antall` |
+| `prisMotKunde` | `decimal?` | |
+| `internkostnad` | `decimal?` | |
+| `skalEksporteres` | `boolean` default true | |
+| `tvungenKommentar` | `boolean` default false | |
+| `rekkefolge` | `int` | |
+| `aktiv` | `boolean` default true | |
+| `seedNivaa` | `int?` | 1, 2 eller null (3 = egendefinert) |
+
+**Indekser:**
+- `(organizationId, kode)` UNIQUE WHERE `kode IS NOT NULL`
+- `(organizationId, aktiv)`
 
 ### `sheet_machines` (maskinbruk per dagsseddel)
 
@@ -259,6 +652,10 @@ Del av dagsseddelen. Ansatt tar bilde av kvittering direkte i mobilappen.
 | `mengde` | `decimal?` | Valgfri mengde |
 | `enhet` | `text?` | m3, m2, tonn, kg, m |
 
+**Indekser:**
+- `(sheetId)` — FK-JOIN
+- `(vehicleId)` — maskinrapport på tvers av ansatte/prosjekter
+
 ### `sheet_materials` (materialforbruk per dagsseddel)
 
 | Felt | Type | Beskrivelse |
@@ -269,17 +666,23 @@ Del av dagsseddelen. Ansatt tar bilde av kvittering direkte i mobilappen.
 | `mengde` | `decimal` | Antall |
 | `enhet` | `text` | m3, m2, tonn, kg, m |
 
+**Indeks:** `(sheetId)` — FK-JOIN
+
 ### `sheet_expenses` (utlegg per dagsseddel)
 
 | Felt | Type | Beskrivelse |
 |------|------|-------------|
 | `id` | `uuid` PK | |
 | `sheetId` | `uuid` FK → `daily_sheets` | |
-| `kategori` | `text` | Konfigurerbar per enterprise (se `expense_categories`) |
+| `kategori` | `text` | Konfigurerbar per Organization (se `expense_categories`) |
 | `belop` | `decimal` | Beløp i NOK |
 | `notat` | `text?` | Fritekst (f.eks. «Shell Tromsø») |
 | `bildeUrl` | `text?` | Kvitteringsbilde — S3-URL etter opplasting |
 | `bildeSyncStatus` | `text` default `pending` | `pending` \| `synced` — bilde synkes separat |
+
+**Indekser:**
+- `(sheetId)` — FK-JOIN
+- `(bildeSyncStatus)` — mobil bilde-pending-sync
 
 **Kvitteringsbilde:**
 - Tas med mobilkamera direkte i appen (Expo ImagePicker / Camera)
@@ -287,28 +690,58 @@ Del av dagsseddelen. Ansatt tar bilde av kvittering direkte i mobilappen.
 - Lagres lokalt som filsti i SQLite → synkes til S3 ved tilkobling
 - Valgfritt men anbefalt — leder ser bildet i godkjenningsvisningen
 
-### `expense_categories` (utleggskategorier per enterprise)
+### `expense_categories` (utleggskategorier per Organization)
 
 | Felt | Type | Beskrivelse |
 |------|------|-------------|
 | `id` | `uuid` PK | |
-| `enterpriseId` | `uuid` FK → `dokumentflyt_parts` | |
+| `organizationId` | `uuid` FK → `organizations` | |
 | `navn` | `text` | Kategorinavn |
 | `aktiv` | `boolean` default true | Kan deaktiveres uten å slette |
 
-**Standardkategorier** (opprettes automatisk): Drivstoff, Parkering, Diett, Verktøy, Annet
+**Standardkategorier** seedes via samme event-hook (`onOrganizationCreated`) som lønnsart-Nivå 1: Drivstoff, Parkering, Diett, Verktøy, Annet.
 
-### `enterprise_settings` (tilleggskonfigurasjon per enterprise)
+**Indeks:** `(organizationId)` — hent firma-katalog
+
+### `arbeidstidskalender` (helligdager + firma-spesifikke fri-dager per Organization)
+
+Vedtatt 2026-04-29 (Variant C): manuelt oppsett per kunde + import-knapp for norsk standard.
 
 | Felt | Type | Beskrivelse |
 |------|------|-------------|
 | `id` | `uuid` PK | |
-| `enterpriseId` | `uuid` FK → `dokumentflyt_parts` | |
-| `dagsnorm` | `decimal` default 7.5 | Timer normaldag |
-| `overtidsmatTerskel` | `decimal` default 9.0 | Timer før overtidsmat utløses |
-| `overtidsmatSats` | `decimal?` | Fast beløp for overtidsmat (tariffavtale) |
-| `nattilleggSats` | `decimal?` | Fast beløp for nattillegg |
-| `helgetilleggSats` | `decimal?` | Fast beløp for helgetillegg |
+| `organizationId` | `uuid` FK → `organizations` | Eier (firma-spesifikk kalender) |
+| `dato` | `date` | Konkret dato |
+| `type` | `text` | `helligdag` \| `bevegelig_helligdag` \| `fellesferie` \| `kortdag` \| `firma_fri` |
+| `navn` | `text` | F.eks. «1. mai», «Skjærtorsdag», «Fellesferie uke 28-30», «Sommer-kortdag» |
+| `aktiv` | `boolean` default true | Kan deaktiveres uten å slette |
+
+**Indeks:** `(organizationId, dato)` UNIQUE — én rad per dato per firma.
+
+**Norske helligdager via import-knapp:** «Importer norsk standard YYYY»-knapp i admin-UI. Bruker `date-fns-tz` (vedtatt B.6) for å beregne bevegelige helligdager (Skjærtorsdag, Langfredag, 1. og 2. påskedag, Kristi himmelfart, Pinse-helg). Faste helligdager (1. nyttårsdag, 1. mai, 17. mai, 1. og 2. juledag) seedes direkte. Importen er idempotent — kjøres på nytt skriver den ikke over eksisterende rader.
+
+**Firma-spesifikke kalender-poster** (fellesferie, kortdager, lokal fri-dag) registreres manuelt av admin. Påvirker auto-fordeling av timer (kortdag = redusert dagsnorm, fri-dag = ingen forventet timer).
+
+**Seed-mekanisme:** Per C.10 — `seedArbeidstidskalender(organizationId, year)` registreres i Fase 3 sammen med `seedLonnsartNivaa1` og `seedExpenseCategories`. Event-hook-infrastrukturen etableres tomt i Fase 0.
+
+### Avdeling — i kjernen, ikke db-timer
+
+`Avdeling` lever i `packages/db` (kjernen) og bygges i Fase 0.5 sammen med Byggeplass-strategi. Brukes på tvers av Maskin (ansvarlig per avdeling), Mannskap og Timer. Ikke en del av db-timer-skjema.
+
+### AnsattKompetanse + Kompetansetype — i kjernen, ikke db-timer
+
+`AnsattKompetanse` og `Kompetansetype` lever i `packages/db` (kjernen) og bygges i Fase 0.5 (per A.28 + C.14, vedtatt 2026-04-29). To-tabell-struktur verifisert mot SmartDok. CSV/Excel-import av kompetanse fra dag 1 — venter ikke på HR-API.
+
+**Bruk fra Timer-modulen:**
+- **Fase 3 (kjerne):** Ingen direkte bruk. Kompetanse-validering ved timer-føring er IKKE Fase 3-arbeid.
+- **Fase 6 (DO-kobling):** Validering ved timer-føring på maskin — sjekk at User har gyldig `AnsattKompetanse` med `Kompetansetype.kobletTilEquipmentModell` matchende `Equipment.modell`. Dokumenteres i DO-kobling-modul-spec senere.
+- **Eksport-utvidelse (post-Fase 3):** Lønnssystem-eksport kan inkludere kompetanse-kontekst (f.eks. lærling-status fra fagbrev-rad) hvis kunde etterspør.
+
+`AnsattKompetanse` er IKKE en del av db-timer-skjema — refereres via `userId` FK når Fase 6 DO-kobling bygges.
+
+### Fjernet: `enterprise_settings`
+
+Erstattet av `OrganizationSetting` (Fase 0). Felter `dagsnorm`, `overtidsmatTerskel`, `timezone`, `timer_lock_after_days`, `tillattSelvAttestering` flyttes dit. Sats-felter (`overtidsmatSats` osv.) flyttes til `Tillegg.prisMotKunde`/`internkostnad` i datadrevet katalog.
 
 ## Sync-strategi — offline-first
 
@@ -331,7 +764,7 @@ Del av dagsseddelen. Ansatt tar bilde av kvittering direkte i mobilappen.
 │   │            ... (venter)               │                         │
 │   │            Tilkobling gjenopptatt     │                         │
 │   │            Sender pending-poster ────────→ apps/api (tRPC)     │
-│   │                                       │   Auth + enterpriseId   │
+│   │                                       │   Auth + organizationId │
 │   └─ Online ─→ Sync-motor ──────────────────→       ↓              │
 │                Batch pending → API        │   packages/db-timer     │
 │                                           │   PostgreSQL, eget skjema│
@@ -343,8 +776,9 @@ Del av dagsseddelen. Ansatt tar bilde av kvittering direkte i mobilappen.
 └─────────────────────────────────────────────────────────────────────┘
 
 db-timer nøkkelfelter:
-  id (uuid), userId, enterpriseId, projectId, startAt, endAt,
-  beskrivelse, syncedAt, clientUuid
+  id (uuid), userId, registrertAvUserId, organizationId, projectId,
+  externalCostObjectId, aktivitetId, avdelingId, byggeplassId, dato,
+  startAt, endAt, pauseMin, status, beskrivelse, syncedAt, clientUuid
   syncStatus: "pending" | "synced" | "conflict" — slettes aldri, kun markeres
 ```
 
@@ -355,6 +789,17 @@ db-timer nøkkelfelter:
 3. **Batch-sync:** Når nettdekning er tilbake, sender alle `pending`-poster til API
 4. **Idempotent upsert:** API bruker `clientUuid` for å unngå duplikater — `ON CONFLICT (clientUuid) DO UPDATE`
 5. **Bekreftelse:** Server returnerer synkroniserte poster med `syncStatus: "synced"` og `syncedAt`
+
+### Equipment-cache lokalt på mobil
+
+Feltarbeider må kunne registrere maskinbruk på dagsseddel offline. Mobilen vedlikeholder en lokal `equipment_local`-tabell i SQLite (Drizzle, samme mønster som dagsseddel) som speiler firmaets aktive equipment-register.
+
+**Sync-mønster:**
+1. Ved login: full nedlasting av aktive equipment (typisk 100–500 rader, ~50 KB)
+2. Ved nettilkobling: delta-sync basert på `equipment.updatedAt`
+3. Ved offline registrering av `sheet_machines`: peker mot `equipment_local.id`
+
+**Identisk mønster som dagsseddel** — ingen REST-cache eller TanStack-cache. Lokal DB er sannhetskilde mens enheten er offline.
 
 ### Konfliktløsning
 
@@ -383,7 +828,7 @@ Delt auth via eksisterende `next-auth` sessions-tabell i `packages/db`. Timer-AP
 
 | Prinsipp | Implementasjon |
 |----------|---------------|
-| **Enterprise-isolering** | `enterpriseId` på alle dagssedler. Samme mønster som resten av SiteDoc |
+| **Firma-isolering** | `organizationId` på alle dagssedler. Timer-data er firma-eid (per memory: feedback_timer_eierskap) |
 | **Prosjektisolering** | `projectId` filtrerer alltid. Ingen data lekker mellom prosjekter |
 | **Ledervisning** | Firmaansvarlig ser ansattes dagssedler i sin faggruppe |
 | **Admin** | Prosjektadmin ser alle dagssedler i prosjektet |
@@ -401,22 +846,23 @@ Delt auth via eksisterende `next-auth` sessions-tabell i `packages/db`. Timer-AP
 | `timer.godkjenn` | Mutation | Godkjenn dagsseddel (leder) |
 | `timer.avvis` | Mutation | Avvis med kommentar (leder) |
 | `timer.syncBatch` | Mutation | Batch-upsert fra mobil (array av clientUuid-dagssedler med maskiner/materialer) |
-| `timer.hentInnstillinger` | Query | Enterprise-innstillinger (dagsnorm, satser) |
-| `timer.oppdaterInnstillinger` | Mutation | Endre enterprise-innstillinger (admin) |
+| `timer.hentInnstillinger` | Query | Organization-innstillinger (dagsnorm, satser) |
+| `timer.oppdaterInnstillinger` | Mutation | Endre Organization-innstillinger (admin) |
 
 ## Prototype — kundevisning (pågår)
 
 Interaktiv UI-prototype for kundedialog. Ingen backend, ingen migrering — kun hardkodet demodata og lokal state. Formål: vise kunden at funksjonaliteten er gjennomtenkt, og få tilbakemelding.
 
-### Midlertidig plan: modul i prosjektet
+### Plan: modul i prosjektet (vedtatt 2026-04-27)
 
-For prototypen bygges timer som **en modul inne i prosjektet** (ikke separat app). Grunnen:
+Timer bygges som **en modul inne i prosjektet** (ikke separat app). Grunnen:
 
 - **Mobil:** Feltarbeideren åpner prosjektet sitt og finner timer der — samme mønster som sjekklister, oppgaver, tegninger
 - **Web:** Timer-ikon i prosjektets sidebar, åpner timer-visning i prosjektkontekst
 - **Konsistent:** Samme navigasjon på web og mobil
+- **Samme deploy-syklus** som SiteDoc-kjernen, ingen ekstra subdomene/port
 
-Den opprinnelige planen om `apps/timer` som egen Next.js-app er **ikke forkastet** — dette er en midlertidig tilnærming for å teste UI og få kundetilbakemelding. Endelig arkitektur bestemmes etter kundedialog.
+Tidligere skisser med `apps/timer` som egen Next.js-app er **forkastet** etter kundedialog (2026-04-27). Maskin-modulen følger samme integrerte mønster.
 
 ### Prototype-rute
 
@@ -477,11 +923,39 @@ Den opprinnelige planen om `apps/timer` som egen Next.js-app er **ikke forkastet
 
 ## Proadm-integrasjon
 
-### Dataflyt
+### Status (april 2026)
 
-- **Henting:** 1x per døgn fra Proadm (batch-API)
-- **Sending:** 1x per døgn til Proadm (batch-API)
+Proadm har **ikke** et offentlig REST API. Eneste eksisterende synk-integrasjon for timer/tillegg er mot SmartDok. Proadm har bekreftet interesse for å utvikle et generelt API, og SiteDoc forfølger rollen som **designpartner/pilotkunde** for dette.
+
+Inntil REST API er på plass, utforskes tre kortsiktige spor (i prioritert rekkefølge):
+
+1. **Gjenbruk SmartDok-formatet** — SiteDoc emitterer samme datastruktur som SmartDok sender til Proadm. Krever ingen ny utvikling på Proadm-siden. Avhenger av at Proadm deler formatspesifikasjonen.
+2. **Fil-basert overføring** — daglig SFTP/CSV-drop i avtalt skjema.
+3. **Direkte SQL** — kun hvis ingen av de over fungerer; mer skjørt og kundespesifikt.
+
+### Premiss for integrasjon
+
+- **All godkjenning skjer i SiteDoc.** Proadm mottar kun ferdig godkjente timer, tillegg og utlegg. Ingen godkjenningsflyt eller statusoppdateringer tilbake fra Proadm — kun valideringsfeil.
+- Overføringen er i praksis **envei sendende**, og **enveis hentende** for masterdata (prosjekter, ansatte, lønnsarter, endringer).
+
+### Dataflyt (mål-arkitektur)
+
+- **Henting:** 1x per døgn fra Proadm (batch — masterdata)
+- **Sending:** 1x per døgn til Proadm (batch — godkjente timer/tillegg/utlegg)
 - **Mellom-løsning:** SmartDok brukes i dag av kunden — SiteDoc erstatter denne rollen
+
+### Foreslåtte REST-endepunkter (designpartner-utkast)
+
+| Retning | Endepunkt | Innhold |
+|---------|-----------|---------|
+| Hent | `GET /ansatte` | Aktive ansatte |
+| Hent | `GET /prosjekter` | Aktive prosjekter |
+| Hent | `GET /kontrakter` | Kontrakter per prosjekt |
+| Hent | `GET /lonnsarter` | Lønnsarter og satser |
+| Hent | `GET /endringsordrer` | Endringer/godkjenninger med status |
+| Send | `POST /timer` | Godkjente dagssedler |
+| Send | `POST /tillegg` | Tilleggsarbeid-timer med endringsreferanse |
+| Send | `POST /utlegg` | Godkjente utlegg med kvitteringsreferanse |
 
 ### Hva SiteDoc henter fra Proadm
 
@@ -516,43 +990,147 @@ To separate strømmer:
 
 ### Validering
 
-SiteDoc validerer og godkjenner timer — ikke Proadm. Leder godkjenner i SiteDoc → data sendes i neste batch til Proadm.
+SiteDoc validerer og godkjenner timer — ikke Proadm. Leder godkjenner i SiteDoc → data sendes i neste batch til Proadm. Proadm-siden gjør kun teknisk validering (feltformat, refererte ID-er) og rapporterer eventuelle avviste poster tilbake for korreksjon i SiteDoc.
 
-## Rapportmodul (planlagt)
+## Rapportmodul
 
-Timer-modulen skal støtte utskrift og PDF-generering av diverse rapporter. Alle rapporter har fra-til datofilter.
+> **Vedtatt 2026-04-29:** Hybrid dynamisk rapport-arkitektur. Én rapport-generator i `packages/pdf/src/timer/` med komponerbare blokker, ikke 20 separate rapport-filer. Standard-presets via seed gir effekten av «faste rapport-typer» som kunden kan starte fra og justere fritt.
 
-### Rapporttyper
+### Prinsipp — kunden velger fritt
 
-| Rapport | Gruppering | Innhold |
-|---------|------------|---------|
-| **Prosjektrapport** | Per prosjekt, fra–til dato | Alle ansatte, timer fordelt på lønnsarter, maskinbruk, utlegg |
-| **Månedsrapport per ansatt** | Per ansatt, per måned | Alle prosjekter, dagssedler, timer, tillegg, utlegg |
-| **Månedsrapport per prosjekt** | Per prosjekt, per måned | Alle ansatte, timer, tilleggsarbeid, maskinbruk |
-| **Tilleggsarbeid-rapport** | Per endring/godkjenning | Timer ført mot spesifikt tilleggsarbeid, med endringsnummer |
-| **Maskinrapport** | Per maskin | Timer, mengde, prosjekter maskinen er brukt på |
-| **Utleggsrapport** | Per ansatt eller prosjekt | Kategori, beløp, kvitteringsbilder |
-| **Eksportrapport** | Per lønnssystem-batch | Hva som ble sendt, tidspunkt, status |
+Kunden skal ikke begrenses av forhåndsdefinerte kombinasjoner. Rapporten bygges dynamisk basert på filtre:
+- Velg ansatt(e) — én eller flere
+- Velg prosjekt(er) — ett eller flere
+- Velg fra/til-dato (eller hurtig-knapper: denne uken, forrige måned, etc.)
+- Tilleggsfiltre: lønnsarter, ECO/Underprosjekt, avdelinger, maskiner
+- Per-kolonne `Vis [X]`-checkboxer (lønnsart-kode, timer, ECO, kommentarer, attestasjons-status, timepris, maskin, utlegg)
+- Sideskift per prosjekt/ansatt (print-innstilling)
 
-### Felles for alle rapporter
+### Datamodell — `RapportInput`
 
-- Fra–til datospenn
-- Prosjektfilter (velg ett eller flere)
-- Ansattfilter (velg én eller flere)
-- PDF-eksport og utskrift
-- Vises som tabell med sumrader
+```typescript
+interface RapportInput {
+  organizationId: string;
+  fra: Date;
+  til: Date;
+  ansatte: { type: "alle" | "valgte"; userIds?: string[] };
+  prosjekter: { type: "alle" | "valgte"; projectIds?: string[] };
+  lonnsartIds?: string[];
+  externalCostObjectIds?: string[];
+  avdelingIds?: string[];
+  byggeplassIds?: string[];
+  inkludertInnhold: {
+    timer: boolean;        // alltid true
+    tillegg: boolean;
+    maskiner: boolean;
+    materialer: boolean;
+    utlegg: boolean;
+  };
+  visning?: {
+    detaljnivaa?: "auto" | "detaljert" | "aggregert";
+    grupperingPrimer?: "ansatt" | "prosjekt" | "dato";
+    sideskift?: { perProsjekt: boolean; perAnsatt: boolean };
+    visKolonner?: {
+      lonnsartKode: boolean;
+      timer: boolean;
+      eco: boolean;
+      kommentarer: boolean;
+      attestasjonsStatus: boolean;
+      timepris: boolean;        // tilgangskontrolleres — kun ledere
+      maskin: boolean;
+      utlegg: boolean;
+    };
+  };
+}
+```
 
-### Ikke avklart (rapporter)
+### Arkitektur — `packages/pdf/src/timer/`
 
-- Layout/design for PDF-rapporter — bruke packages/pdf eller ny løsning?
-- Hvilke rapporter er viktigst for kunden?
-- Skal rapporter kunne deles/sendes som e-post?
-- Faste rapportmaler vs. ad-hoc rapportbygger?
+```
+packages/pdf/src/timer/
+├── index.ts                   ← genererTimerRapport(input, data) → HTML-string
+├── typer.ts                   ← RapportInput, AggregertData
+├── aggregator.ts              ← rå-data → aggregert struktur
+├── layout-velger.ts           ← velgLayout() basert på input + data-volum
+└── blokker/
+    ├── metadata-panel.ts      ← periode, filtre, generert-info
+    ├── sammendrag.ts          ← sumrad-tabell
+    ├── dagsseddel-detalj.ts   ← detaljert dagsseddel-blokk
+    ├── ansatt-dato-matrise.ts ← ansatt × dato-tabell
+    ├── prosjekt-fordeling.ts  ← prosjekt-totaler
+    ├── lonnsart-fordeling.ts  ← lønnsart-totaler
+    ├── eco-fordeling.ts       ← ECO/Underprosjekt-totaler
+    ├── maskin-tabell.ts       ← maskinbruk-rader
+    ├── materialer-tabell.ts   ← materialer-rader
+    └── utlegg-tabell.ts       ← utlegg-rader m/kvitteringsbilder
+```
+
+Total: ~5-13 filer i stedet for 20. Hver blokk er gjenbrukbar.
+
+### Layout-velger (auto-modus)
+
+Layout-modus bestemmes av data-volum + input:
+
+| Data-volum | Modus | Inkluderer |
+|---|---|---|
+| ≤5 dagssedler | `detaljert` | Alle dagsseddel-blokker (full detalj) |
+| 6-50 dagssedler | `mellom` | Ansatt × dato-matrise + lønnsart-fordeling |
+| >50 dagssedler | `aggregert` | Strikt sumrad-tabeller, ingen dagsseddel-detaljer |
+
+Bruker kan overstyre via `input.visning.detaljnivaa`.
+
+### Standard-presets (seed via C.10)
+
+Ved firma-opprettelse seedes 4 standard-presets som lagrede konfigurasjoner. Kunden kan bruke dem direkte eller som utgangspunkt for egne varianter:
+
+| Preset | Konfigurasjon |
+|---|---|
+| **Dagsseddel** | 1 ansatt × 1 prosjekt × 1 dag, alle kolonner, detaljert modus |
+| **Ukerapport prosjekt** | Alle ansatte × 1 prosjekt × denne uken, mellom modus |
+| **Månedsrapport ansatt** | 1 ansatt × alle prosjekter × denne måneden, mellom modus |
+| **Lønnsrapport firma** | Alle ansatte × alle prosjekter × forrige måned, aggregert modus |
+
+### Lagrede konfigurasjoner
+
+Brukeren kan lagre sine egne filterkombinasjoner med navn («Min ukerapport», «Lønn april 2026»). Ny tabell:
+
+```prisma
+model TimerRapportKonfig {
+  id              String   @id @default(uuid())
+  organizationId  String
+  userId          String   // eier
+  navn            String
+  konfig          Json     // hele RapportInput
+  delt            Boolean  @default(false)  // synlig for andre i firma
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([organizationId, userId])
+  @@index([organizationId, delt])  // delte konfigurasjoner i firma
+}
+```
+
+### UI-side
+
+**Lokasjon:**
+- Prosjekt-kontekst: `apps/web/src/app/dashbord/[prosjektId]/timer/rapport/page.tsx`
+- Firma-kontekst: `apps/web/src/app/dashbord/timer/rapport/page.tsx`
+
+**Mønster:** Én dedikert rapport-side (ikke modal). Filter-panel + forhåndsvisning som faktisk HTML-rendering. Brukeren ser hva som genereres FØR de bestiller PDF.
+
+**Async-jobb + historikk + e-post:** Utsettes til Fase 3.5. For Fase 3 antas datavolum moderat — synkron generering er tilstrekkelig.
+
+### Lønnssystem-eksport — separat fra rapport-modul
+
+Eksport til lønnssystem (Poweroffice/Tripletex/etc.) går via egen `timer.eksport`-tRPC-rute med fast format styrt av target-system. Ikke del av rapport-generatoren.
 
 ## Ikke avklart
 
-- GPS-validering — skal posisjonen ved registrering logges for å verifisere at arbeideren var på byggeplassen?
-- Akkord — trenger modulen støtte for akkordlønn i tillegg til timepris?
-- Arbeidstidskalender — helligdager, feriedager, kortdager — import eller manuelt oppsett?
-- Godkjenningsflyt detaljer — batch-godkjenning (uke), enkelt-godkjenning (dag), eller begge?
-- `apps/timer` som separat app vs modul-i-prosjektet — avgjøres etter kundedialog med prototypen
+- Godkjenningsflyt detaljer — batch-godkjenning (uke), enkelt-godkjenning (dag), eller begge? Krever kunde-input fra A.Markussen.
+
+> **Lukket 2026-04-29:**
+> - **GPS-validering** → Variant A: ingen GPS-validering i Fase 3. Mannskap-modulen (Fase 4) håndterer geofence-innsjekk separat. Per memory `feedback_tilstedevarelse_arbeidstid` er Timer frikoblet fra geofence.
+> - **Akkord** → Variant A: ikke støttet i Fase 3. A.Markussen bruker ikke akkord (per smartdok-undersokelse). Lønnsart-modellen kan utvides senere som type-utvidelse hvis ønsket.
+> - **Arbeidstidskalender** → Variant C: manuelt + import-knapp. Detaljer i § Database-modeller > `arbeidstidskalender` ovenfor.
+> - **PDF-rapporter** → Hybrid dynamisk arkitektur (per § Rapportmodul ovenfor). 20 forhåndsdefinerte rapport-typer er forkastet til fordel for én generator + 4 standard-presets + lagrede konfigurasjoner.
+> - **Drømmescenario ProAdm → SiteDoc Godkjenning** → Backlog. Ikke implementeres i Fase 3.

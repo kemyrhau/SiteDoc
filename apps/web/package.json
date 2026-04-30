@@ -16,6 +16,7 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@sitedoc/db": "workspace:*",
+    "@sitedoc/db-maskin": "workspace:*",
     "@sitedoc/pdf": "workspace:*",
     "@sitedoc/shared": "workspace:*",
     "@sitedoc/ui": "workspace:*",

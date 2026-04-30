@@ -132,7 +132,34 @@ export function ImportDialog({ projectId, open, onClose }: ImportDialogProps) {
     return result;
   }, [mapper]);
 
-  // @ts-ignore TS2589
+  // Smal lokal type bryter generic-kjeden — bruker kun mutate/mutateAsync
+  type RegistrerInput = {
+    projectId: string;
+    folderId?: string;
+    filename: string;
+    fileUrl: string;
+    filetype?: string;
+    docType:
+      | "anbudsgrunnlag"
+      | "a_nota"
+      | "t_nota"
+      | "mengdebeskrivelse"
+      | "varsel"
+      | "varsel_om_endring"
+      | "endringsmelding"
+      | "regningsarbeid"
+      | "annet";
+    notaType?: "A-Nota" | "T-Nota" | "Sluttnota";
+    notaNr?: number;
+    kontraktId?: string;
+    kontraktNavn?: string;
+  };
+  type RegistrerOptions = { onSuccess?: () => void; onError?: (err: Error) => void };
+  type RegistrerMutation = {
+    mutate: (input: RegistrerInput, options?: RegistrerOptions) => void;
+    mutateAsync: (input: RegistrerInput) => Promise<unknown>;
+  };
+  // @ts-ignore TS2589 — tRPC-router-typen er for dyp etter admin.ts-endring
   const registrer = trpc.mengde.registrerDokument.useMutation({
     onSuccess: () => {
       utils.mengde.hentDokumenter.invalidate({ projectId });
@@ -141,7 +168,7 @@ export function ImportDialog({ projectId, open, onClose }: ImportDialogProps) {
       setFeil(err.message);
       setLasterOpp(false);
     },
-  });
+  }) as unknown as RegistrerMutation;
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();

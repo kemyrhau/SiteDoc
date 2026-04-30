@@ -51,7 +51,7 @@ export default function SkrivUtFlereSide() {
     { enabled: !!params.prosjektId },
   );
 
-  // Hent alle sjekklister parallelt (cast for TS2589)
+  // Hent alle sjekklister parallelt
   const q0 = trpc.sjekkliste.hentMedId.useQuery({ id: ider[0] ?? "" }, { enabled: ider.length > 0 });
   const q1 = trpc.sjekkliste.hentMedId.useQuery({ id: ider[1] ?? "" }, { enabled: ider.length > 1 });
   const q2 = trpc.sjekkliste.hentMedId.useQuery({ id: ider[2] ?? "" }, { enabled: ider.length > 2 });
@@ -63,10 +63,13 @@ export default function SkrivUtFlereSide() {
   const q8 = trpc.sjekkliste.hentMedId.useQuery({ id: ider[8] ?? "" }, { enabled: ider.length > 8 });
   const q9 = trpc.sjekkliste.hentMedId.useQuery({ id: ider[9] ?? "" }, { enabled: ider.length > 9 });
 
-  const alleQueries = [q0, q1, q2, q3, q4, q5, q6, q7, q8, q9].slice(0, ider.length) as Array<{ isLoading: boolean; data: unknown }>;
+  const alleQueries = [q0, q1, q2, q3, q4, q5, q6, q7, q8, q9].slice(0, ider.length) as Array<{
+    isLoading: boolean;
+    data: SjekklistePrintData | undefined;
+  }>;
   const erLaster = alleQueries.some((q) => q.isLoading);
   const sjekklister: SjekklistePrintData[] = alleQueries
-    .map((q) => q.data as SjekklistePrintData | undefined)
+    .map((q) => q.data)
     .filter((d): d is SjekklistePrintData => d != null);
 
   if (ider.length === 0) {

@@ -13,8 +13,8 @@ import { PrintHeader } from "@/components/PrintHeader";
 import { OpprettOppgaveModal } from "@/components/OpprettOppgaveModal";
 import { DokumentHandlingsmeny } from "@/components/DokumentHandlingsmeny";
 import { FlytIndikator } from "@/components/FlytIndikator";
-import { utledMinRolle } from "@sitedoc/shared";
-import type { FlytMedlemInfo } from "@sitedoc/shared";
+import { utledMinRolle, beregnHarBallen } from "@sitedoc/shared";
+import type { FlytMedlemInfo, HarBallenDokument } from "@sitedoc/shared";
 import { LokasjonVelger } from "@/components/LokasjonVelger";
 import type { RapportObjekt } from "@/components/rapportobjekter/typer";
 import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
@@ -108,11 +108,8 @@ export default function SjekklisteDetaljSide() {
   // harBallen
   const harBallen = useMemo(() => {
     if (!fullSjekklisteRå || !minFlytInfo) return false;
-    const fs = fullSjekklisteRå as { status?: string; recipientUserId?: string | null; recipientGroupId?: string | null; bestillerUserId?: string };
-    if (fs.status === "draft") return fs.bestillerUserId === (minFlytInfo as { userId?: string }).userId;
-    if (fs.recipientUserId && fs.recipientUserId === (minFlytInfo as { userId?: string }).userId) return true;
-    if (fs.recipientGroupId && minFlytInfo.gruppeIder.includes(fs.recipientGroupId)) return true;
-    return false;
+    const fs = fullSjekklisteRå as HarBallenDokument;
+    return beregnHarBallen(fs, { userId: minFlytInfo.userId, gruppeIder: minFlytInfo.gruppeIder });
   }, [fullSjekklisteRå, minFlytInfo]);
 
   // Utled brukerens rolle i dokumentflyten

@@ -10,6 +10,28 @@
 | **Oppgave** | `oppgave` | Toveis | Låses etter utkast (append-only) | Krever faggruppe-valg | `bygg` |
 | **HMS (RUH/SJA)** | `oppgave` | Toveis | Låses etter utkast (append-only) | Auto-ruter til HMS-gruppe | `hms` |
 | **Godkjenning** | `oppgave` | Enveis | Låses etter utkast | Bestiller → godkjenner, ingen retur | `bygg` |
+| **Timeregistrering** (planlagt) | `sjekkliste` | Toveis (forenklet) | Append-only etter sending | Ansatt → leder, kun utførelse | `bygg` |
+
+### Timeregistrering — planlagt dokumenttype
+
+Egen forelder-objekt-type i malbyggeren slik at timeregistrering kan kobles til **Underprosjekt**.
+
+**Krav:**
+- Forelder-objekt «Timeregistrering» som kan inneholde standard malbygger-felter (timer, lønnsart, kommentar, signatur etc.)
+- Kobling til Underprosjekt-modell (proadm- eller dokumentflyt-koblet — se [docs/claude/timer.md](docs/claude/timer.md))
+- **Forenklet godkjenningsflyt**: kun utførelse, ingen økonomi-diskusjon
+  - Skal IKKE inneholde: priser, satser, kostnader, fakturering, beløp, kontraktssum
+  - Skal kun inneholde: hva er gjort, antall timer, hvilken aktivitet, kommentar om utførelse
+- Sendes til ansatt for bekreftelse/godkjenning (toveis: leder → ansatt → leder)
+- Bruker malbyggerens eksisterende felttyper (heading, integer, decimal, list_single, signature, attachments)
+
+**Hvorfor egen type:** Timeregistrering har et separat økonomi-spor (lønn, fakturering) som administreres i Proadm eller annet system. Malbygger-versjonen er kun for utførelses-bekreftelse mellom leder og ansatt. Dette skiller den klart fra Godkjenning-typen som kan inkludere økonomi.
+
+**Avledning fra Godkjenning eller Proadm:** Et Underprosjekt (som timeregistreringen kobles til) opprettes ikke selvstendig. Det avledes alltid fra:
+- En **Godkjenning**-dokumentinstans i SiteDoc dokumentflyt (når SiteDoc er kilde), eller
+- En endring/varsel/regningsarbeid importert fra **Proadm** (når Proadm er kilde)
+
+Den formelle godkjenningen (med økonomi) lever i kilde-systemet. Timeregistrering-malen og det avledede Underprosjektet er det forenklede speilbildet ansatte forholder seg til. Se [docs/claude/timer.md](docs/claude/timer.md#underprosjekt-modell-planlagt-packagesdb-timer) for modell.
 
 ## Eksisterende modeller malbyggeren bygger på
 
