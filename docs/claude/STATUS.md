@@ -11,15 +11,15 @@
 > - `Arbeidsanker:` — bruks-aktiv (pågående arbeid, endres ofte)
 > - Hvis ingen av delene: kort fri beskrivelse (eller tom)
 
-**Sist oppdatert:** 2026-04-28
+**Sist oppdatert:** 2026-04-30
 **Antall filer dekket:** 35 (komplett oversikt)
 
 ## Sammendrag
 
 | Status | Antall |
 |---|---:|
-| ✅ Verifisert mot kode | 4 |
-| ⚠️ Drift identifisert | 5 |
+| ✅ Verifisert mot kode | 5 |
+| ⚠️ Drift identifisert | 4 |
 | 🔄 Under arbeid | 4 |
 | ❌ Ikke screenet | 19 |
 | 📦 Arkivert | 3 |
@@ -52,7 +52,7 @@
 |---|---|---|
 | onboarding-veileder.md | ikke aktuelt | Idé-stadium, planlagt ~1 måned frem (post-Fase 0). Etablert 2026-04-28 |
 | mannskap.md | 2026-04-28 | **Vy-beskrivelse i PSI-konteksten** etter 1D-presisering (N2.1-revidert). Datamodell forkastet (Mannskapsmedlem dupliserer User per memory). §15-felt-mapping bevart i tekstform. Endelig datamodell designes Fase 4 (PSI-utvidelse) |
-| oppryddings-plan-2026-04-28.md | 2026-04-29 | **Arbeidsanker:** Aktiv anker for oppryddings-arbeidet etter Bunke 3A.1. P-KRITISK-seksjon (3 prod-blokkere) tilføyd 2026-04-28. Dokument-samhandlings-lukking Nivå 1-4 etablert 2026-04-28. Mini-Nivå 1D 2026-04-28: anker korrigert. Bunke N2.1-revidert (strammet) 2026-04-28: 2A+2B+2C kvittert. Bunke N2.2 registrert som etter-funn + A.Markussen-research-infeksjons-prinsipp. **2026-04-29:** P1.7 + P4.3 + P4.4 lukket. Screening-funn 2026-04-29 registrert: C.15 (24 indekser mangler), SCREENING-29-1 (sikkerhet — medlem.oppdater organizationId), SCREENING-29-2 (type-cast oppgave-detaljside). P1.1 + P1.2 + P1.5 lukket (commit fd63600). P5.6 utvidet og lukket strategisk — sammenslått med concurrent editing per A.29. SCREENING-29-2 delvis lukket via felles harBallen i shared, SCREENING-29-3 ny rad (commit e23e67d). 3A-A 4 prinsipper lukket. **2026-04-30:** P1.4 lukket (A.30 vedtatt). 3A komplett — alle 8 prinsipper enten implementert, slått inn i andre § eller dropp |
+| oppryddings-plan-2026-04-28.md | 2026-04-30 | **Arbeidsanker:** Aktiv anker for oppryddings-arbeidet etter Bunke 3A.1. P-KRITISK-seksjon (3 prod-blokkere) tilføyd 2026-04-28. Dokument-samhandlings-lukking Nivå 1-4 etablert 2026-04-28. Mini-Nivå 1D 2026-04-28: anker korrigert. Bunke N2.1-revidert (strammet) 2026-04-28: 2A+2B+2C kvittert. Bunke N2.2 registrert som etter-funn + A.Markussen-research-infeksjons-prinsipp. **2026-04-29:** P1.7 + P4.3 + P4.4 lukket. Screening-funn 2026-04-29 registrert: C.15 (manglende indekser) + SCREENING-29-1 (sikkerhet — medlem.oppdater organizationId) + SCREENING-29-2 (type-cast oppgave-detaljside). **C.15 lukket:** 42 indekser implementert over tre commits (Klasse 1 ce7af97, Klasse 2+3+composite 5174842, Klasse 4 1467000). **SCREENING-29-1 lukket:** sikkerhetsfiks i 37137e4 (medlem.oppdater + brukere/page.tsx). P1.1 + P1.2 + P1.5 lukket (fd63600). P5.6 utvidet og lukket strategisk — sammenslått med concurrent editing per A.29. SCREENING-29-2 delvis lukket via felles harBallen i shared, SCREENING-29-3 ny rad (e23e67d). 3A-A 4 prinsipper lukket. **2026-04-30:** P1.3 + P1.4 lukket. § 6.2 + A.30 vedtatt (5b90ab6 + 681aec8). 3A komplett — alle 8 prinsipper enten implementert, slått inn i andre § eller dropp |
 | timer-funn-fra-screening-2026-04-27.md | 2026-04-28 | **Arbeidsanker:** Midlertidig, slettes etter Timer/Maskin-revurdering |
 
 ## ❌ Ikke screenet

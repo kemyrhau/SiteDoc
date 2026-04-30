@@ -590,7 +590,11 @@ sist_verifisert_mot_kode: 2026-04-28
 
 > **Bakgrunn:** Systematisk screening 2026-04-29 av (a) indekser på tvers av `packages/db` + `packages/db-maskin` schema.prisma og (b) navnekollisjons-risiko i TypeScript-typer/tRPC-ruter/Prisma-spørringer/web+mobile-kode. Funnene under er prioriterte handlingspunkter etter screeningen.
 
-### [ ] C.15 — Indeks-rens hele schema.prisma (24 manglende indekser)
+### [x] C.15 — Indeks-rens hele schema.prisma (24 manglende indekser) *(Lukket 2026-04-29/30 — 42 indekser implementert over tre commits)*
+
+> **Status:** Klasse 1 commit `ce7af97` (14 indekser), Klasse 2+3+composite commit `5174842` (13 indekser), Klasse 4 commit `1467000` (15 indekser). Totalt 42 indekser fordi Klasse 4 inkluderte flere felter enn opprinnelig screening identifiserte. Manuelle migrasjonsfiler (`20260429120000_add_klasse1_indekser`, `20260429130000_add_klasse2_3_indekser`, `20260430120000_add_klasse4_indekser`) — verifiseres ved test-DB-deploy.
+
+**Opprinnelig screening-omfang (beholdes for sporbarhet):**
 - **Filer:** `packages/db/prisma/schema.prisma` + `packages/db-maskin/prisma/schema.prisma`
 - **Type:** Strukturell forbedring (ytelse + Fase 0-koding-forberedelse)
 - **Omfang:** 22 manglende indekser i `packages/db` + 2 i `packages/db-maskin` = totalt 24
@@ -635,7 +639,11 @@ sist_verifisert_mot_kode: 2026-04-28
 
 **Kilde:** Screening 2026-04-29 (Explore-agent, verifisert mot schema.prisma).
 
-### [ ] SCREENING-29-1 — Funn 4: `medlem.oppdater` lar prosjektadmin endre annen brukers organizationId — **HØYESTE PRIORITET (sikkerhet)**
+### [x] SCREENING-29-1 — Funn 4: `medlem.oppdater` lar prosjektadmin endre annen brukers organizationId *(Lukket 2026-04-29 — commit 37137e4)*
+
+> **Vedtak:** Variant A implementert. `organizationId` fjernet fra `oppdater`-input-schema og fra mutation-body. UI-side i `apps/web/src/app/dashbord/oppsett/brukere/page.tsx` oppdatert: firma-dropdown fjernet, erstattet med read-only visning (firmaadmin må bruke separat «overfør bruker»-flyt hvis legitim use-case oppstår senere).
+
+**Opprinnelig funn (beholdes for sporbarhet):**
 - **Fil:** `apps/api/src/routes/medlem.ts:299-352` (`oppdater`-mutation)
 - **Type:** Sikkerhetsproblem — autorisasjons-svakhet
 - **Konkret problem:**
