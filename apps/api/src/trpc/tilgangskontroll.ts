@@ -587,3 +587,20 @@ export async function verifiserTillatelse(
     });
   }
 }
+
+/**
+ * Sjekker om bruker har en granulær firma-rolle (per A.25).
+ *
+ * Brukes for HMS-ansvarlig, og lignende firma-roller som gjelder på tvers av
+ * prosjekter innenfor brukerens organisasjon. Per A.27 gir "hms_ansvarlig"
+ * automatisk lese-tilgang til HMS-rapporter i firmaets prosjekter.
+ *
+ * Tildeles av firma-admin via organisasjon.tildelOrgRolle / fjernOrgRolle.
+ */
+export async function harOrgRolle(userId: string, role: string): Promise<boolean> {
+  const rad = await prisma.organizationRole.findFirst({
+    where: { userId, role },
+    select: { id: true },
+  });
+  return !!rad;
+}

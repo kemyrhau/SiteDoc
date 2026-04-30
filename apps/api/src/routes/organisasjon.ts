@@ -278,4 +278,64 @@ export const organisasjonRouter = router({
         select: { id: true, role: true },
       });
     }),
+
+  // Tildel granulær firma-rolle (per A.25 — f.eks. "hms_ansvarlig")
+  // Gated med verifiserFirmaAdmin: kun firma-admin tildeler innen sitt eget firma
+  tildelOrgRolle: protectedProcedure
+    .input(z.object({
+      userId: z.string().uuid(),
+      role: z.string().min(1), // "hms_ansvarlig" osv.
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const orgId = await verifiserFirmaAdmin(ctx.prisma, ctx.userId);
+
+      // Validering: målbruker må tilhøre samme firma
+      const målbruker = await ctx.prisma.user.findUnique({
+        where: { id: input.userId },
+        select: { organizationId: true },
+      });
+      if (!målbruker || målbruker.organizationId !== orgId) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Bruker tilhører ikke samme firma",
+        });
+      }
+
+      // Idempotent — upsert sikrer at flere tildelings-kall ikke feiler
+      return ctx.prisma.organizationRole.upsert({
+        where: {
+          userId_organizationId_role: {
+            userId: input.userId,
+            organizationId: orgId,
+            role: input.role,
+          },
+        },
+        update: {},
+        create: {
+          userId: input.userId,
+          organizationId: orgId,
+          role: input.role,
+        },
+      });
+    }),
+
+  // Fjern granulær firma-rolle (per A.25)
+  fjernOrgRolle: protectedProcedure
+    .input(z.object({
+      userId: z.string().uuid(),
+      role: z.string().min(1),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const orgId = await verifiserFirmaAdmin(ctx.prisma, ctx.userId);
+
+      const resultat = await ctx.prisma.organizationRole.deleteMany({
+        where: {
+          userId: input.userId,
+          organizationId: orgId,
+          role: input.role,
+        },
+      });
+
+      return { fjernet: resultat.count };
+    }),
 });

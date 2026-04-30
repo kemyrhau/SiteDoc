@@ -49,6 +49,7 @@ model User {
   bestilteGodkjenninger Godkjenning[]        @relation("GodkjenningCreator")
   eideGodkjenninger     Godkjenning[]        @relation("GodkjenningOwner")
   godkjenteGodkjenninger Godkjenning[]       @relation("GodkjenningGodkjenner")
+  organizationRoles      OrganizationRole[]
   sentTransfers        DocumentTransfer[]   @relation("TransferSender")
   receivedTransfers    DocumentTransfer[]   @relation("TransferRecipient")
   recipientChecklists  Checklist[]          @relation("ChecklistRecipient")
@@ -91,6 +92,7 @@ model Organization {
   partners            OrganizationPartner[]
   templates           OrganizationTemplate[]
   externalCostObjects ExternalCostObject[]
+  organizationRoles   OrganizationRole[]
   integrations        OrganizationIntegration[]
   setting             OrganizationSetting?
 
@@ -1699,4 +1701,28 @@ model ExternalCostObject {
   @@index([projectId, status])
   @@index([slettetVed])
   @@map("external_cost_objects")
+}
+
+// ---------------------------------------------------------------------------
+// OrganizationRole — granulære firma-roller (per A.25)
+// Per fase-0-beslutninger.md § E steg 14 + A.25.
+// Egen tabell (ikke utvidelse av User.role-enum) for skalerbarhet.
+// Første rolle: "hms_ansvarlig" (per A.27 — automatisk lese-tilgang til
+// HMS-rapporter på tvers av firmaets prosjekter).
+// Tildeles av firma-admin via organisasjon.tildelOrgRolle / fjernOrgRolle.
+// ---------------------------------------------------------------------------
+
+model OrganizationRole {
+  id             String   @id @default(uuid())
+  userId         String   @map("user_id")
+  organizationId String   @map("organization_id")
+  role           String   // "hms_ansvarlig" — utvides etter behov
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organizationId, role])
+  @@index([organizationId, role])
+  @@map("organization_roles")
 }
