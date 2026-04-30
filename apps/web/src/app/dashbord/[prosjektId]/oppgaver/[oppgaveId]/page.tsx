@@ -193,6 +193,7 @@ export default function OppgaveDetaljSide() {
     if (!fullOppgaveRå || !minFlytInfo) return false;
     const fo = fullOppgaveRå as HarBallenDokument;
     return beregnHarBallen(fo, { userId: minFlytInfo.userId, gruppeIder: minFlytInfo.gruppeIder });
+    // @ts-ignore TS2589 — tRPC-output trigger excessively deep instantiation i Next.js-build (strengere enn tsc --noEmit)
   }, [fullOppgaveRå, minFlytInfo]);
 
   // Utled brukerens rolle i dokumentflyten — trengs for rettighetInput + handlingsknapper
