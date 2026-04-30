@@ -295,7 +295,13 @@ export const medlemRouter = router({
       });
     }),
 
-  // Oppdater medlem (navn, e-post, telefon, rolle)
+  // Oppdater medlem (navn, e-post, telefon, rolle).
+  // organizationId kan IKKE endres via dette endepunktet — sikkerhetsfiks per
+  // SCREENING-29-1 (oppryddings-plan-2026-04-28.md). Tidligere lot endepunktet
+  // prosjektadmin endre annen brukers User.organizationId, som brøt firma-
+  // isolering og B.7 Modell A. Hvis legitim use-case for å flytte bruker mellom
+  // firma trengs, lag separat organisasjon.flyttBruker-mutation gated med
+  // verifiserSiteDocAdmin.
   oppdater: protectedProcedure
     .input(
       z.object({
@@ -305,7 +311,6 @@ export const medlemRouter = router({
         email: z.string().email().optional(),
         phone: z.string().optional(),
         role: z.enum(["member", "admin"]).optional(),
-        organizationId: z.string().uuid().nullable().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -317,10 +322,9 @@ export const medlemRouter = router({
       });
 
       // Oppdater User-felter
-      const brukerOppdatering: { name?: string; email?: string; phone?: string | null; organizationId?: string | null } = {};
+      const brukerOppdatering: { name?: string; email?: string; phone?: string | null } = {};
       if (input.name !== undefined) brukerOppdatering.name = input.name;
       if (input.phone !== undefined) brukerOppdatering.phone = input.phone || null;
-      if (input.organizationId !== undefined) brukerOppdatering.organizationId = input.organizationId;
       if (input.email !== undefined && input.email !== medlem.user.email) {
         const eksisterende = await ctx.prisma.user.findUnique({
           where: { email: input.email },

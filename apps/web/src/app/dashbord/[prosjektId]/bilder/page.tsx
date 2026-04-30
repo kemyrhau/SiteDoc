@@ -560,12 +560,12 @@ export default function BilderSide() {
   }
 
   // Tegningsdata fra hentMedId-query (har fileUrl/fileType)
-  // Cast for å unngå TS2589 (excessively deep tRPC type)
-  const td = tegningDetalj as unknown as {
+  type TegningDetalj = {
     fileUrl?: string | null;
     fileType?: string | null;
     geoReference?: unknown;
-  } | undefined;
+  };
+  const td = tegningDetalj as TegningDetalj | undefined;
   const fileUrl = td?.fileUrl ? `/api${td.fileUrl}` : null;
   const fileType = td?.fileType ?? "";
   const erBilde = ["png", "jpg", "jpeg"].includes(fileType);

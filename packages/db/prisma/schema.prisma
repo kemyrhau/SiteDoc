@@ -55,6 +55,7 @@ model Organization {
   invoiceEmail       String?  @map("invoice_email")
   ehfEnabled         Boolean  @default(false) @map("ehf_enabled")
   logoUrl            String?  @map("logo_url")
+  harMaskinModul     Boolean  @default(false) @map("har_maskin_modul") // Midlertidig firma-modul-flagg — erstattes av OrganizationModule i Fase 0 per A.4
   createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @updatedAt @map("updated_at")
 
@@ -78,6 +79,7 @@ model OrganizationIntegration {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@unique([organizationId, type])
+  @@index([organizationId])
   @@map("organization_integrations")
 }
 
@@ -112,6 +114,7 @@ model Account {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
+  @@index([userId])
   @@map("accounts")
 }
 
@@ -123,6 +126,7 @@ model Session {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId])
   @@map("sessions")
 }
 
@@ -175,6 +179,7 @@ model Project {
   psiEr                Psi[]
   kontrollplaner       Kontrollplan[]
 
+  @@index([trialExpiresAt])
   @@map("projects")
 }
 
@@ -249,6 +254,7 @@ model ProjectGroupMember {
   projectMember ProjectMember @relation(fields: [projectMemberId], references: [id], onDelete: Cascade)
 
   @@unique([groupId, projectMemberId])
+  @@index([projectMemberId])
   @@map("project_group_members")
 }
 
@@ -262,6 +268,7 @@ model GroupFaggruppe {
   faggruppe  Faggruppe    @relation(fields: [faggruppeId], references: [id], onDelete: Cascade)
 
   @@unique([groupId, faggruppeId])
+  @@index([faggruppeId])
   @@map("group_faggrupper")
 }
 
@@ -285,6 +292,8 @@ model ProjectInvitation {
   invitedBy        User              @relation("InvitationSender", fields: [invitedByUserId], references: [id])
 
   @@index([email])
+  @@index([expiresAt])
+  @@index([projectId, status])
   @@map("project_invitations")
 }
 
@@ -318,6 +327,9 @@ model Faggruppe {
   ftdNotaPeriods         FtdNotaPeriod[]
   kontrollplanPunkter    KontrollplanPunkt[]
 
+  @@index([projectId])
+  @@index([kontraktId])
+  @@index([ansvarligId])
   @@map("dokumentflyt_parts")
 }
 
@@ -359,6 +371,9 @@ model Drawing {
   checklists Checklist[]
   omrader    Omrade[]
 
+  @@index([projectId])
+  @@index([byggeplassId])
+  @@index([status])
   @@map("drawings")
 }
 
@@ -386,6 +401,8 @@ model PointCloud {
   project    Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
   byggeplass Byggeplass? @relation(fields: [byggeplassId], references: [id], onDelete: SetNull)
 
+  @@index([projectId])
+  @@index([byggeplassId])
   @@map("point_clouds")
 }
 
@@ -405,6 +422,8 @@ model DrawingRevision {
   drawing    Drawing @relation(fields: [drawingId], references: [id], onDelete: Cascade)
   uploadedBy User?   @relation("DrawingRevisionUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
 
+  @@index([drawingId])
+  @@index([uploadedById])
   @@map("drawing_revisions")
 }
 
@@ -429,6 +448,7 @@ model Byggeplass {
   omrader       Omrade[]
   kontrollplaner Kontrollplan[]
 
+  @@index([status])
   @@map("byggeplasser")
 }
 
@@ -550,6 +570,9 @@ model Checklist {
   @@index([templateId])
   @@index([bestillerUserId])
   @@index([recipientUserId])
+  @@index([dueDate])
+  @@index([status])
+  @@index([dokumentflytId, status])
   @@map("checklists")
 }
 
@@ -597,6 +620,9 @@ model Task {
   @@index([templateId])
   @@index([bestillerUserId])
   @@index([recipientUserId])
+  @@index([dueDate])
+  @@index([status])
+  @@index([dokumentflytId, status])
   @@map("tasks")
 }
 
@@ -644,6 +670,8 @@ model Image {
   checklist Checklist? @relation(fields: [checklistId], references: [id])
   task      Task?      @relation(fields: [taskId], references: [id])
 
+  @@index([checklistId])
+  @@index([taskId])
   @@map("images")
 }
 
@@ -686,6 +714,9 @@ model FolderAccess {
   user       User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([folderId, accessType, faggruppeId, groupId, userId])
+  @@index([userId])
+  @@index([faggruppeId])
+  @@index([groupId])
   @@map("folder_access")
 }
 
@@ -707,6 +738,8 @@ model Dokumentflyt {
   checklists Checklist[]
   tasks      Task[]
 
+  @@index([projectId])
+  @@index([faggruppeId])
   @@map("dokumentflyter")
 }
 
@@ -733,6 +766,9 @@ model DokumentflytMedlem {
   @@unique([dokumentflytId, faggruppeId, rolle, steg])
   @@unique([dokumentflytId, projectMemberId, rolle, steg])
   @@unique([dokumentflytId, groupId, rolle, steg])
+  @@index([projectMemberId])
+  @@index([faggruppeId])
+  @@index([groupId])
   @@map("dokumentflyt_medlemmer")
 }
 
@@ -857,6 +893,7 @@ model FtdDocument {
   @@unique([projectId, filename])
   @@index([folderId])
   @@index([kontraktId])
+  @@index([processingState])
   @@map("ftd_documents")
 }
 
@@ -913,6 +950,7 @@ model FtdTnotaChangeLink {
   changeEvent   FtdChangeEvent @relation(fields: [changeEventId], references: [id], onDelete: Cascade)
 
   @@unique([tnotaDocumentId, changeEventId])
+  @@index([changeEventId])
   @@map("ftd_tnota_change_links")
 }
 
@@ -982,6 +1020,7 @@ model FtdTranslationJob {
   // FK constraint finnes i SQL: document_id → ftd_documents(id) ON DELETE CASCADE
 
   @@unique([documentId, targetLang])
+  @@index([status])
   @@map("ftd_translation_jobs")
 }
 
@@ -1113,6 +1152,8 @@ model FtdNotaComment {
   specPost FtdSpecPost?   @relation(fields: [specPostId], references: [id], onDelete: Cascade)
   period   FtdNotaPeriod? @relation(fields: [periodId], references: [id], onDelete: Cascade)
 
+  @@index([specPostId])
+  @@index([periodId])
   @@map("ftd_nota_comments")
 }
 
@@ -1136,6 +1177,7 @@ model Psi {
   signaturer PsiSignatur[]
 
   @@unique([projectId, byggeplassId])  // Én PSI per prosjekt+byggeplass
+  @@index([byggeplassId])
   @@map("psi")
 }
 
@@ -1301,6 +1343,7 @@ model KontrollplanPunkt {
   @@index([omradeId])
   @@index([faggruppeId])
   @@index([status])
+  @@index([fristUke, fristAar])
   @@map("kontrollplan_punkter")
 }
 

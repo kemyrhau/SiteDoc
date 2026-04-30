@@ -149,14 +149,6 @@ Sluttnota: `erSluttnota = true`, `notaNr = null`. Korrigert sluttnota: to dokume
 
 Alle planlagte fase 2-oppgaver er ferdigstilt eller bevisst utsatt.
 
-### BLOKKERENDE BUG: React #310 i SpecPostTabell
-
-**Status:** Økonomi-siden krasjer med "Objects are not valid as a React child" når kontrakt velges. Feilen er i SpecPostTabell-rendering. Rotårsak: Prisma Decimal-objekter deserialiseres som plain objects via tRPC/superjson. API-side Number()-konvertering er implementert i hentSpecPoster men feilen vedvarer — kan være i et annet felt eller komponent.
-
-**Neste steg:** Kjør lokalt i dev mode for full uminifisert feilmelding. Se memory `project_okonomi_react310_bug.md`.
-
-**DB-note:** Header-verdier (utfortTotalt, mva etc.) er NULLSTILT på ftd_documents for prosjekt 2bd15f09. Må gjenopprettes med reprosessering etter fiks.
-
 ### Fase 3 — ved behov
 
 1. **Retroaktiv revalidering** — automatisk revalidering fremover når nota importeres midt i kjeden. Løsning beskrevet: oppdater mengdeForrige/verdiForrige på påfølgende FtdNotaPost-rader, kjør kontrollerAkkumulering() på nytt. Implementeres når reelt behov oppstår.
@@ -299,3 +291,20 @@ Kjører asynkront (som DWG-konvertering) og lagrer i `Drawing.ifcMetadata` (Json
 - ASPRS-klassifiseringskoder: Bakke (2), Vegetasjon (3-5), Bygning (6), Vann (9), Vei (11), Bro (17) etc.
 
 **Fallback for uklassifiserte filer:** Viewer tilbyr fargemodus: RGB (hvis tilgjengelig), intensitet, eller høyde (Z).
+
+## Løste bugs
+
+### React #310 — "Rendered more hooks than during the previous render"
+
+**Status:** LØST 2026-04-14
+
+**Symptom:** SpecPostTabell.tsx krasjet på re-render ved spesifikke datamønstre i økonomi-siden — typisk når kontrakt ble valgt.
+
+**Løsning:**
+- `useMemo` flyttet før early return (`SpecPostTabell.tsx` linje 503–515)
+- Decimal→Number sanitisering (`SpecPostTabell.tsx` linje 196–219)
+- `DebugErrorBoundary` lagt til i okonomi/page.tsx layout
+
+**Commits:** `a70f03f`, `aa97c3e`, `dfc2da7`
+
+**Referanser:** React-feilkode #310 = "Rules of Hooks"-brudd (hooks i betingelser/løkker eller etter early return).

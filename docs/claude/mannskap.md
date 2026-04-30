@@ -1,8 +1,26 @@
+---
+status: under_arbeid
+sist_verifisert_mot_kode: 2026-04-28
+sist_endret: 2026-04-28
+gjelder_versjon: Fase 4
+avhenger_av:
+  - arkitektur.md
+  - terminologi.md
+  - arkitektur-syntese.md
+påvirkes_av_beslutninger:
+  - A.7
+  - A.11
+---
+
 # Mannskapsregistrering
+
+> **🟢 Vy i PSI-modulen, ikke separat modul** (per CLAUDE.md § Tre nivåer-anker, korrigert 2026-04-28). PSI utvides i Fase 4 med innsjekk/utsjekk-mekanikk; mannskaps-vyen aggregerer disse tilstedeværelses-dataene per byggeplass. Endelig datamodell designes som del av PSI-utvidelse i Fase 4.
 
 ## Formål
 
 Elektronisk oversiktsliste per byggeplass — hvem er på plassen, med hvilket firma, med hvilket HMS-kort. Oppfyller byggherreforskriften §15 og er koblingspunktet mellom PSI, HMS, timer og maskin.
+
+**Primær daglig nytte: katastrofe-mønstring** — vite hvem som er inne på anlegget hvis ulykke/brann/evakuering inntreffer. §15-rapportering til Arbeidstilsynet er den lovpålagte rammen som rammer inn datasamlingen, ikke daglig bruk.
 
 ## Lovgrunnlag
 
@@ -26,7 +44,7 @@ Elektronisk oversiktsliste per byggeplass — hvem er på plassen, med hvilket f
 
 ## Arkitektur
 
-Prosjektmodul i hovedappen (`packages/db`) — ikke isolert app. Trenger FK til User, Project, Byggeplass, Faggruppe, Psi.
+Vy i PSI-modulen i hovedappen (`packages/db`) — ikke isolert app, ikke separat modul. PSI-modulen eier tilstedeværelses-data; mannskaps-vyen aggregerer per byggeplass. Trenger FK fra fremtidige PSI-utvidelser til User, Project, Byggeplass, Faggruppe.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -59,73 +77,31 @@ Prosjektmodul i hovedappen (`packages/db`) — ikke isolert app. Trenger FK til 
 
 ## Datamodell
 
-### Mannskapsmedlem — person registrert på prosjektet
+> **🟢 Datamodell designes i Fase 4** som del av PSI-utvidelse for innsjekk/utsjekk. Tidligere foreslåtte modeller (`Mannskapsmedlem`, `MannskapsInnsjekk` i `packages/db`) er forkastet per memory `feedback_mannskap_er_user`: «User + ProjectMember + innsjekk er nok». Egen `Mannskapsmedlem`-tabell duplisererer User-data og er overflødig. Eksisterende `PsiSignatur`-mønster (userId nullable + guestName/guestCompany/guestPhone i `schema.prisma:1142-1169`) er presedens for hvordan «person på byggeplass» modelleres når det er en blanding av ansatte og ad-hoc gjester.
 
-```prisma
-model Mannskapsmedlem {
-  id              String    @id @default(cuid())
-  projectId       String    @map("project_id")
-  userId          String?   @map("user_id")         // SiteDoc-bruker (null for gjester)
-  navn            String                             // §15: påkrevd
-  fodselsdato     DateTime  @map("fodselsdato")      // §15: påkrevd (kun dato, ikke personnr)
-  hmsKortNr       String?   @map("hms_kort_nr")      // §15: påkrevd (kan mangle midlertidig)
-  hmsKortGyldigTil DateTime? @map("hms_kort_gyldig_til")
-  telefon         String?                            // Berettiget interesse: HMS-varsling
-  epost           String?                            // Berettiget interesse: kommunikasjon
-  faggruppeId     String?   @map("faggruppe_id")     // Kobling til faggruppe (arbeidsgiver)
-  firmaNavn       String?   @map("firma_navn")       // §15: arbeidsgiver (fritekst for gjester)
-  firmaOrgNr      String?   @map("firma_org_nr")     // §15: org.nr
-  rolle           String?                            // Stilling/funksjon (valgfri)
-  aktiv           Boolean   @default(true)           // Deaktiver ved prosjektslutt
-  opprettet       DateTime  @default(now())
+### Lovpålagte felter (byggherreforskriften §15)
 
-  project         Project    @relation(fields: [projectId], references: [id])
-  bruker          User?      @relation(fields: [userId], references: [id])
-  faggruppe       Faggruppe? @relation(fields: [faggruppeId], references: [id])
-  innsjekker      MannskapsInnsjekk[]
+| §15-bokstav | Felt | Plassering (forventet, ikke designet) |
+|---|---|---|
+| §15 a | Byggeplass-identifikator | `Byggeplass` (Fase 0.5) |
+| §15 b | Byggherre-navn + org.nr | `ProjectOrganization` (Fase 0) med `rolle = "byggherre"` |
+| §15 c-d | Virksomheter på plassen + org.nr | `ProjectOrganization` med ulike `rolle`-verdier |
+| §15 e | Navn | `User.name` (eksisterende) eller guestName-felt på fremtidig tilstedeværelses-tabell |
+| §15 e | Fødselsdato | Nytt felt på `User` (krevet av §15) |
+| §15 e | HMS-kortnummer | `User.hmsKortNr` (Fase 0 per A.7) |
+| §15 e | Arbeidsgiver | Utledet fra `User.organizationId` eller guestCompany-felt |
 
-  @@unique([projectId, hmsKortNr])    // Én registrering per HMS-kort per prosjekt
-  @@index([projectId])
-  @@index([userId])
-  @@map("mannskap_medlemmer")
-}
-```
+### Tillegg utenfor §15 (berettiget interesse + dataminimalisering A.11)
 
-### MannskapsInnsjekk — daglig inn/ut
+- **Telefon** (HMS-varsling, katastrofe-kontakt) — `User.phone` (eksisterende) eller guestPhone-felt
+- **E-post** (kommunikasjon) — `User.email` (eksisterende)
+- **Faggruppe-tilknytning** — `FaggruppeKobling` (eksisterende)
+- **Nasjonalitet** (allmenngjort tariffavtale) — nytt felt på `User` per A.11
+- **Arbeidstillatelse + utløpsdato** (utenlandske arbeidere) — nytt felt på `User` per A.11
 
-```prisma
-model MannskapsInnsjekk {
-  id              String    @id @default(cuid())
-  medlemId        String    @map("medlem_id")
-  byggeplassId    String    @map("byggeplass_id")
-  innsjekkTid     DateTime  @default(now()) @map("innsjekk_tid")
-  utsjekkTid      DateTime? @map("utsjekk_tid")      // Null = fortsatt på plassen
-  kilde           String    @default("app")           // app | qr | manuell | geofence
-  autoUtlogget    Boolean   @default(false) @map("auto_utlogget") // True = 12t auto-utsjekk
-  opprettet       DateTime  @default(now())
+### Tilstedeværelse-data (innsjekk/utsjekk)
 
-  medlem          Mannskapsmedlem @relation(fields: [medlemId], references: [id])
-  byggeplass      Byggeplass      @relation(fields: [byggeplassId], references: [id])
-
-  @@index([medlemId])
-  @@index([byggeplassId, innsjekkTid])
-  @@map("mannskap_innsjekker")
-}
-```
-
-### Relasjoner til eksisterende modeller
-
-```
-Mannskapsmedlem
-  ├──→ Project (prosjektisolering)
-  ├──→ User? (SiteDoc-bruker, null for gjester)
-  ├──→ Faggruppe? (arbeidsgiver i prosjektet)
-  └��─1:N→ MannskapsInnsjekk
-              └──→ Byggeplass (hvor)
-
-PsiSignatur (eksisterende)
-  └── hmsKortNr ← kobles til Mannskapsmedlem.hmsKortNr
-```
+Designes i Fase 4 som del av PSI-modul-utvidelse. Forventet datapunkter: `medlem-referanse` (userId nullable + gjeste-felter per PsiSignatur-mønster), `byggeplass-referanse`, `innsjekkTid`, `utsjekkTid?` (null = fortsatt på plassen), `kilde` (geofence/qr/app/manuell), `autoUtlogget` (boolean for 12t-policy). Eksakt modell-plassering (utvid `PsiSignatur`, ny `PsiTilstedevarelse`-tabell, eller annet) vurderes når Fase 4 starter.
 
 ## Komplett flyt — PSI → Mannskap → Innsjekk
 
@@ -330,7 +306,7 @@ Location.startGeofencingAsync("BYGGEPLASS_GEOFENCE", [
 
 ### PSI (eksisterende)
 
-Se "Komplett flyt" over. PSI-gjennomføring (i SiteDoc eller eksternt system) er forutsetning for mannskapsregistrering. HMS-kortnummer synkroniseres mellom PsiSignatur og Mannskapsmedlem.
+Per 1D-anker er mannskap-funksjonaliteten en vy i PSI-modulen. PSI eier tilstedeværelses-data (innsjekk/utsjekk-mekanikk designes i Fase 4); mannskaps-vyen aggregerer per byggeplass. PSI-gjennomføring (i SiteDoc eller eksternt system per `eksternSystem`-felt) er forutsetning for førstegangs-tilstedeværelses-registrering. HMS-kortnummer synkroniseres mellom PsiSignatur (snapshot per A.7) og fremtidig tilstedeværelses-modell.
 
 ### Timer (separat — ingen automatisk kobling)
 
@@ -354,22 +330,6 @@ Mannskap-oversikten er **mønstringslisten** ved brannøvelse eller ulykke:
 - "Hvem er på plassen akkurat nå?" → sanntidsliste
 - Eksporter PDF med navn og firma → gi til brannvesen/redning
 - Forutsetter at folk faktisk sjekker inn/ut
-
-## Prosjektmodul
-
-```typescript
-// packages/shared/src/types/index.ts — PROSJEKT_MODULER
-{
-  slug: "mannskap",
-  navn: "Mannskapsregistrering",
-  beskrivelse: "Elektronisk oversiktsliste iht. byggherreforskriften §15. Innsjekk, HMS-kort, mannskap-oversikt.",
-  kategori: "funksjon",
-  ikon: "Users",
-  maler: [],
-}
-```
-
-Vises i Innstillinger > Produksjon > Moduler. Når aktivert → "Mannskap"-fane i dashbordet.
 
 ## API-ruter
 

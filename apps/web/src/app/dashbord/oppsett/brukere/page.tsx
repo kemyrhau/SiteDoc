@@ -113,7 +113,7 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
   const [kollapserteGrupper, setKollapserteGrupper] = useState<Set<string>>(new Set());
   const harInitialisertKollaps = useRef(false);
   const [redigerMedlemId, setRedigerMedlemId] = useState<string | null>(null);
-  const [redigerData, setRedigerData] = useState({ name: "", email: "", phone: "", role: "", organizationId: "" });
+  const [redigerData, setRedigerData] = useState({ name: "", email: "", phone: "", role: "" });
   const [filterNavn, setFilterNavn] = useState("");
   const [filterRolle, setFilterRolle] = useState("");
   const [filterFaggruppe, setFilterFaggruppe] = useState("");
@@ -242,7 +242,6 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
       email: m.user.email,
       phone: m.user.phone ?? "",
       role: m.role,
-      organizationId: (m.user as KontaktMedlem["user"]).organization?.id ?? "",
     });
   };
 
@@ -254,7 +253,6 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
       email: redigerData.email.trim() || undefined,
       phone: redigerData.phone.trim() || undefined,
       role: (redigerData.role as "member" | "admin") || undefined,
-      organizationId: redigerData.organizationId || null,
     });
   };
 
@@ -1019,23 +1017,9 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
                     )}
                   </td>
 
-                  {/* Firma */}
+                  {/* Firma — read-only (kan ikke endres via medlem.oppdater per SCREENING-29-1) */}
                   <td className="whitespace-nowrap px-4 py-2.5 text-gray-600">
-                    {erRedigering ? (
-                      <select
-                        value={redigerData.organizationId}
-                        onChange={(e) => setRedigerData((p) => ({ ...p, organizationId: e.target.value }))}
-                        className="rounded border border-blue-300 px-1.5 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
-                        title="Endrer firma på brukernivå — påvirker alle prosjekter"
-                      >
-                        <option value="">— Ingen —</option>
-                        {(alleOrganisasjoner as Array<{ id: string; name: string }> ?? []).map((org) => (
-                          <option key={org.id} value={org.id}>{org.name}</option>
-                        ))}
-                      </select>
-                    ) : (
-                      (m.user as KontaktMedlem["user"]).organization?.name ?? "—"
-                    )}
+                    {(m.user as KontaktMedlem["user"]).organization?.name ?? "—"}
                   </td>
 
                   {/* Rolle */}

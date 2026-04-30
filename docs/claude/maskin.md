@@ -1,3 +1,16 @@
+---
+status: aktiv
+sist_verifisert_mot_kode: ukjent
+sist_endret: 2026-04-28
+gjelder_versjon: Fase 1
+avhenger_av:
+  - arkitektur.md
+  - fase-0-beslutninger.md
+påvirkes_av_beslutninger:
+  - A.6
+  - A.20
+---
+
 # Maskin- og utstyrsregister — Fase 3
 
 ## Formål
@@ -27,13 +40,15 @@ Alt annet (GPS, telematikk, QR, daglig kontroll, timer/økonomi-kobling) er uten
 
 ### Vegvesen-integrasjon (50/t per IP-ratelimit)
 
-- **Kö-basert arkitektur**: alle Vegvesen-kall går via `vegvesen_ko`-tabell. Worker plukker fra kø med buffer mot 50/t-taket (mål: 48/t)
+- **Kö-basert arkitektur**: alle Vegvesen-kall går via `vegvesen_ko`-tabell. Worker plukker fra kø med buffer mot 50/t-taket (mål: 48/t). Køen er nødvendig — 50/t er Statens Vegvesens harde grense per IP, ikke en intern policy
+- **Fase 1-implementasjon: enkelt mønster** — Postgres `LISTEN/NOTIFY` eller cron-job (kjører hvert 5. minutt og plukker eldste pending-rad). **Ikke Redis/BullMQ i Fase 1** — overengineering for dagens kundevolum
 - **Tre triggere** med prioritet: nyregistrering (0) > manuell «Oppdater»-knapp (50) > auto-oppdatering (100)
 - **Fase 1**: kun nyregistrering og manuell oppdatering er aktive
 - **Fase 2**: auto-oppdatering av kjøretøy med EU-frist ≤60 dager skrus på
 - **Manuell «Oppdater fra Vegvesen»-knapp er kun for admin** (unngår quota-sløsing)
 - **God margin** i nåværende kundevolum — IP-rotasjon utsettes til volumet krever det
 - Ved 429: worker pauser 15 min
+- **Migrering til Redis/BullMQ** når kö-volum overstiger ~30/t vedvarende, eller flere worker-instanser er nødvendig
 
 ### Status-livssyklus (alle kategorier)
 
@@ -87,10 +102,52 @@ Mottakere: `ansvarligId` + utstyrsadmin-rolle.
 - **Kontrollplan**: ingen direkte kobling i MVP
 - **Mannskap**: geofencing via eksisterende innsjekk (ikke ny infrastruktur)
 
+### Ansvarlig per utstyr — UI-mønster
+
+Datamodell: `EquipmentAnsvarlig` m:n-tabell (besluttet i Fase 0 A.6) håndterer 1, 2 eller flere ansvarlige uten schema-endring.
+
+**UI-mønster i registrerings-/redigeringsskjema:**
+- Vis én ansvarlig-rad som standard
+- «+ Legg til ansvarlig»-knapp under for å legge til flere
+- Hver rad har × for å fjerne
+- Ingen forhåndsantakelse om «ansvarlig 1» / «ansvarlig 2» — alle er likeverdige
+
+A.Markussen bruker SmartDok med to faste ansvarlig-felt («Maskinansvarlig 1» og «Maskinansvarlig 2»). Vårt mønster håndterer både dette og firmaer som trenger flere ansvarlige (f.eks. kran med fører + sjekkansvarlig + verifikatør).
+
 ### QR/RFID (Fase 3)
 
 - QR-kode per utstyr: ja, men ikke MVP. Genereres fra `equipmentId`, printbar etikett, mobilapp-skanning åpner kortet
 - RFID: utsettes til reelt behov oppstår
+
+### Sjekkliste-mal-format — kompatibilitet med ReportTemplate
+
+`EquipmentChecklistTemplate.struktur` (i `db-maskin`, planlagt Fase 1) bruker **samme jsonb-felt-format** som `ReportTemplate.struktur` (i `db`).
+
+**Begrunnelse:** UI-renderer-komponenter for sjekklister kan gjenbrukes på tvers av prosjekt-sjekklister og maskin-sjekklister. To parallelle sjekkliste-systemer (per [arkitektur-syntese.md § 1.1](arkitektur-syntese.md)) er bevisst valg for domene-isolasjon, men felt-format-kompatibilitet er praktisk og nødvendig.
+
+**Konsekvens:** Når `EquipmentChecklistTemplate` bygges (Fase 1):
+- `struktur Json` følger samme schema som `ReportTemplate.struktur`
+- Felt-typer (traffic_light, decimal, text_field, info_text osv.) er samme enum
+- Renderer-komponenter i `apps/web/src/components/sjekkliste/` kan gjenbrukes uten gaffel
+
+**Avgrensning:** Datamodell-isolasjonen mellom `db` og `db-maskin` opprettholdes — kun jsonb-format-kompatibilitet, ikke FK-deling.
+
+**Kilde:** Identifisert i Opus QA-runde 2 (2026-04-25), §7.1 — konsolidert hit 2026-04-28.
+
+### Service-varsel-trigger for EquipmentChecklist
+
+Maskin-sjekklister kan «trigges av varsel» (eks. EU-kontroll-frist nærmer seg → automatisk sjekkliste-opprettelse). Trigger-mekanikken må bygges parallelt med `EquipmentChecklist`-modellen i Fase 1 — ellers er sjekkliste-modellen modellert uten reell utløsings-vei.
+
+**Berørte komponenter (Fase 1):**
+- `EquipmentChecklist` + `EquipmentChecklistTemplate` (per planlagt Fase 1)
+- Service-varsel-mekanisme i `db-maskin` (cron eller event-basert)
+- Kobling fra varsling-system (per [varsling.md](varsling.md)) til sjekkliste-opprettelse
+
+**Avgrensning:** Maskin-sjekkliste-trigger-mekanikk lever i `db-maskin` og maskin-modulen. Generell varsling-rammeverk lever i kjernen (per varsling.md). Maskin-modulen tar ansvar for sin domene-spesifikke trigger.
+
+**Manuell trigger (eksisterende):** Brukeren kan opprette sjekkliste manuelt fra maskinregister — denne utgjør allerede primær-veien (per § Designbeslutninger MVP-scope). Auto-trigger fra varsel kommer som tillegg.
+
+**Kilde:** Identifisert i Opus QA-runde 2 (2026-04-25), Nye svakheter punkt 7 — konsolidert hit 2026-04-28.
 
 ## Tre kategorier
 
@@ -153,7 +210,7 @@ Alle tre deler: **merke, modell, serienummer/internummer, plassering, ansvarlig,
 
 Modulen kjører i samme Next.js-prosess som resten av web-appen — enkleste infra, ingen deploy-endring. **Isolasjonen ligger i datalaget, ikke på app-nivå**: `packages/db-maskin` har sitt eget Prisma-skjema og -klient, uten FK-relasjoner til `packages/db`. Begge Prisma-klientene peker mot samme PostgreSQL-instans. Delt auth via eksisterende `sessions`-tabell.
 
-**Hvorfor integrert, ikke isolert app:** MVP-krav er enkelt vedlikehold. Isolert app (`apps/maskin/` med egen DNS) er fortsatt mulig senere hvis modulen får behov for separat skalering, tilgangsstyring eller deploy-kadens. Se `docs/claude/infrastruktur-moduler.md` for det mønsteret.
+**Hvorfor integrert, ikke isolert app:** MVP-krav er enkelt vedlikehold. Isolert app (`apps/maskin/` med egen DNS) ble vurdert og forkastet 2026-04-27 — det opprinnelige forslaget ligger i [docs/arkiv/infrastruktur-moduler.md](../arkiv/infrastruktur-moduler.md) som arkiv. Mønsteret kan tas opp på nytt hvis modulen senere får behov for separat skalering eller deploy-kadens.
 
 ## Statens vegvesen — kjøretøyoppslag
 
@@ -172,7 +229,9 @@ API-nøkkel er på plass og verifisert (2026-04-17).
 
 ### Datamapping — Vegvesen → SiteDoc
 
-Vegvesen returnerer et stort JSON-objekt. Følgende felt mappes til `vehicles`-tabellen:
+> ⚠️ **Drift-merknad (2026-04-27):** Tabellen under er tiltenkt mapping. Faktisk schema (`packages/db-maskin/prisma/schema.prisma`) har felles `equipment`-tabell (ikke `vehicles`) med kun en delmengde av disse feltene som egne kolonner — resten ligger i `vegvesenData` JSON-blob. Verifisering og prioritering av hvilke felt som skal materialiseres som egne kolonner gjøres i egen Maskin-revurdering. Se TIMER-FUNN-oppsummering 2026-04-27.
+
+Vegvesen returnerer et stort JSON-objekt. Følgende felt **er tiltenkt mappet** til `equipment`-tabellen (per planen, ikke nødvendigvis implementert):
 
 | Vegvesen JSON-sti | SiteDoc-felt | Eksempel |
 |---|---|---|
@@ -260,6 +319,9 @@ Kjøretøy uten registreringsnummer (anleggsmaskiner, gravemaskiner) registreres
 | `drivstoff` | `text?` | Diesel, Bensin, Elektrisk, Hybrid, Batteri, Ingen |
 | `bilde` | `text?` | Filreferanse til bilde |
 | `status` | `text` | `aktiv`, `vedlikehold`, `utlånt`, `avregistrert`, `kassert` |
+| `eierskap` | `text` | `eid` \| `leid` \| `leasing` \| `lant`. Skiller eget utstyr fra leid/leasing (jf. A.Markussens 7XXX/9XXX-konvensjon) |
+| `harSporingsenhet` | `boolean` default false | True = posisjon hentes fra ekstern tracker-API (Webfleet/Transpoco). False = posisjon registreres manuelt eller utledes fra siste dagsseddel |
+| `eksportKode` | `text?` | Kode for kobling mot lønn/økonomi-system. Null inntil kunden setter eksport-kanal. Ved migrering fra eksisterende system: kopieres 1:1 fra kildens maskinkode-felt |
 | `notat` | `text?` | Fritekst |
 | `antall` | `int` @default(1) | For småutstyr: "10 stk vibrasjonsplater" |
 | `createdAt` | `timestamptz` | |

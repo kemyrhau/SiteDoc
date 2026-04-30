@@ -1,4 +1,21 @@
-# Infrastruktur — Timer og Maskin (isolerte moduler)
+> ⚠️ **OBSOLETE per 2026-04-27**
+>
+> Denne filen beskriver en **forkastet plan**: isolert deploy av Timer/Maskin som egne apps med dedikerte porter (3302/3303). Den faktiske arkitekturen vedtatt i fase-0-beslutninger er **integrerte moduler** i eksisterende SiteDoc-app (`apps/web` + `apps/api` + `apps/mobile` + `packages/db`).
+>
+> **Maskin** er allerede implementert som integrert modul (verifisert 2026-04-27 — ingen `apps/maskin/`, kun `apps/api/src/routes/maskin/` + `apps/web/src/app/dashbord/maskin/` + `packages/db-maskin/`).
+>
+> **Timer** skal følge samme mønster (vedtatt 2026-04-27 etter kundedialog).
+>
+> Porter 3302/3303 brukes av **embedding (NorBERT)** og **oversettelse (OPUS-MT)** — ingen reell konflikt eksisterer i den faktiske arkitekturen.
+>
+> Filen beholdes som arkiv for kontekst om port-research. **Ikke følg planen i denne filen.**
+>
+> **Sannhetskilder:**
+> - [arkitektur.md](../claude/arkitektur.md) — gjeldende arkitektur
+> - [fase-0-beslutninger.md](../claude/fase-0-beslutninger.md) — alle vedtatte beslutninger
+> - [infrastruktur.md](../claude/infrastruktur.md) — faktisk port-tildeling
+
+# Infrastruktur — Timer og Maskin (isolerte moduler) — OBSOLETE
 
 ## Monorepo-oversikt
 

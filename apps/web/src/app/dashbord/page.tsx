@@ -11,11 +11,22 @@ import { SekundaertPanel } from "@/components/layout/SekundaertPanel";
 import { DashbordPanel } from "@/components/paneler/DashbordPanel";
 import { Plus } from "lucide-react";
 
+// Smal lokal type bryter generic-kjeden — kun feltene som faktisk brukes på siden
+type ProsjektListeRad = {
+  id: string;
+  name: string;
+  projectNumber: string;
+  status: string;
+  description: string | null;
+};
+
 export default function DashbordSide() {
   const { t } = useTranslation();
   const { data: session } = useSession();
   const router = useRouter();
-  const { data: prosjekter, isLoading } = trpc.prosjekt.hentAlle.useQuery();
+  const prosjekterQuery = trpc.prosjekt.hentAlle.useQuery();
+  const prosjekter = prosjekterQuery.data as ProsjektListeRad[] | undefined;
+  const isLoading = prosjekterQuery.isLoading;
 
   // Redirect til "Kom i gang" hvis brukeren ikke har noen prosjekter
   useEffect(() => {

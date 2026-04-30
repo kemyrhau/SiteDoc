@@ -1,3 +1,16 @@
+---
+status: aktiv
+sist_verifisert_mot_kode: ukjent
+sist_endret: 2026-04-28
+gjelder_versjon: Fase 2
+avhenger_av:
+  - arkitektur.md
+  - fase-0-beslutninger.md
+påvirkes_av_beslutninger:
+  - A.4
+  - E.8
+---
+
 # Migrering: ReportTemplate → OrganizationTemplate (planlagt)
 
 Skisse for å innføre firma-bibliotek av maler uten å bryte eksisterende prosjekt-maler. Ikke implementert.
@@ -124,6 +137,47 @@ Tre valg ved opprettelse:
 - Klikk → åpner samme malbygger-komponent, men i «firma-modus» (lagrer som OrganizationTemplate)
 - Slett-handling med advarsel om at prosjekt-instanser ikke påvirkes
 
+## Mal-versjonering ved oppdatering av firma-mal
+
+Når en firma-mal oppdateres, skal eksisterende `ReportTemplate`-rader (kopiert fra firma-malen) vise en advarsel om at mal-versjonen er bak. Bruker bekrefter manuell oppdatering — automatisk overskriving er ikke ønsket.
+
+**Schema-utvidelse av `ReportTemplate`:**
+```prisma
+model ReportTemplate {
+  // ... eksisterende felter
+  organizationTemplateId String? @map("organization_template_id")  // peker til firma-master
+  bibliotekMalId         String? @map("bibliotek_mal_id")           // peker til SiteDoc-master
+  versjonAvHovedmal      Int     @default(1) @map("versjon_av_hovedmal")
+}
+```
+
+**UI-flyt:**
+- Når `BibliotekMal.versjon > ReportTemplate.versjonAvHovedmal` (eller tilsvarende sjekk mot `OrganizationTemplate`): vis badge «X versjoner bak» på mal-raden
+- «Oppdater»-knapp ved siden av — manuell handling, ikke automatisk
+- Klikk på Oppdater: hvis prosjekt-mal er endret lokalt etter kopi, vis diff og kreve bekreftelse av merge (backlog-detalj)
+
+**Edge case (backlog):** Lokal redigering etter kopi → diff-visning + merge-bekreftelse. Implementeres når use-case oppstår.
+
+**Kilde:** Identifisert i Opus QA-runde 2 (2026-04-25), §6.3 Q2 — konsolidert hit 2026-04-28.
+
+## Konflikt-regel: én mal-rad ikke samtidig i Kontrollplan + Dokumentflyt
+
+`ReportTemplate.id` kan i dag teoretisk brukes av både `KontrollplanPunkt` og `DokumentflytMal` samtidig. Audit 2026-04-25 fant 0 slike kollisjoner i lokal-DB, men strukturelt er det mulig.
+
+**Risiko:** Kontrollplan og Dokumentflyt har ulike forventninger til mal (felt-typer, status-overganger, signatur-mønster). Delt bruk kan gi inkonsistent UI og uventet oppførsel ved oppdatering.
+
+**Tiltak — beslutning kreves FØR mal-promotering implementeres:**
+
+1. **Constraint-alternativ:** Legg til check at en gitt `ReportTemplate.id` kun brukes av én av `KontrollplanPunkt` eller `DokumentflytMal` (ikke begge)
+2. **Kategori-alternativ:** Bruk `BibliotekMal.kategori`-feltet (per A.4 / § E steg 8) til å skille — kontrollplan-maler vs dokumentflyt-maler er separate kategorier som ikke kan brukes på tvers
+3. **Aksepter delt-bruk:** Definér eksplisitt UI-håndtering når én mal er begge
+
+**Anbefaling (ikke besluttet):** Alternativ 2 — kategori-felt løser problemet på datamodell-nivå når mal-promotering bygges (Fase 2).
+
+**Verifisering før implementering:** Audit i prod-DB om noen mal-rad faktisk er i delt bruk i dag (per audit «Spørsmål som ikke kan besvares» fra 2026-04-25 — krever read-only psql-tilgang og godkjenning).
+
+**Kilde:** Identifisert i datamodell-audit 2026-04-25, Hull 3 — konsolidert hit 2026-04-28. Også referert fra [db-opprydning.md § 2.3](db-opprydning.md).
+
 ## Bakoverkompatibilitet
 
 - Eksisterende ReportTemplate-rader fungerer som før
@@ -150,4 +204,4 @@ Tre valg ved opprettelse:
 
 ## Status
 
-Planlagt — ikke implementert. Beskrevet i [datamodell-arkitektur.md](datamodell-arkitektur.md).
+Planlagt — ikke implementert. Beskrevet i [arkitektur.md § Datamodell-prinsipper](arkitektur.md#datamodell-prinsipper).

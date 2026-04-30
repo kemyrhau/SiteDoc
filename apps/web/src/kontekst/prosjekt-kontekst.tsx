@@ -55,14 +55,16 @@ export function ProsjektProvider({ children }: { children: ReactNode }) {
     }
   }, [urlProsjektId]);
 
-  const { data: prosjekter, isLoading: lasterProsjekter } =
-    trpc.prosjekt.hentAlle.useQuery();
+  const prosjekterQuery = trpc.prosjekt.hentAlle.useQuery();
+  const prosjekter = prosjekterQuery.data as Prosjekt[] | undefined;
+  const lasterProsjekter = prosjekterQuery.isLoading;
 
-  const { data: valgtProsjekt, isLoading: lasterValgt } =
-    trpc.prosjekt.hentMedId.useQuery(
-      { id: prosjektId! },
-      { enabled: !!prosjektId, retry: false },
-    );
+  const valgtProsjektQuery = trpc.prosjekt.hentMedId.useQuery(
+    { id: prosjektId! },
+    { enabled: !!prosjektId, retry: false },
+  );
+  const valgtProsjekt = valgtProsjektQuery.data as Prosjekt | undefined;
+  const lasterValgt = valgtProsjektQuery.isLoading;
 
   function velgProsjekt(id: string) {
     setLagretProsjektId(id);
@@ -73,7 +75,6 @@ export function ProsjektProvider({ children }: { children: ReactNode }) {
   return (
     <ProsjektKontekst.Provider
       value={{
-        // @ts-ignore TS2589 — tRPC type inference for nested Prisma includes
         valgtProsjekt: valgtProsjekt ?? null,
         prosjekter: prosjekter ?? [],
         isLoading: lasterProsjekter || lasterValgt,

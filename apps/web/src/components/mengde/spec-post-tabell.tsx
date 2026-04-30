@@ -215,10 +215,9 @@ export function SpecPostTabell({
     importNotat: p.importNotat,
   });
   const renePoster = poster.map(sanitiserPost);
-  // @ts-ignore TS2589
-  const reneSammenligningPoster: SpecPost[] | undefined = sammenligningPoster ? sammenligningPoster.map(sanitiserPost) : undefined;
-
-  // @ts-ignore
+  const reneSammenligningPoster: SpecPost[] | undefined = sammenligningPoster
+    ? (sammenligningPoster as SpecPost[]).map(sanitiserPost)
+    : undefined;
   const harSammenligning = !!reneSammenligningPoster && reneSammenligningPoster.length > 0;
 
   // localStorage-nøkler
@@ -316,7 +315,6 @@ export function SpecPostTabell({
 
   // Nota-map
   const notaMap = useMemo(() => {
-    // @ts-ignore
     if (!reneSammenligningPoster) return new Map<string, SpecPost>();
     const map = new Map<string, SpecPost>();
     for (const p of reneSammenligningPoster) {

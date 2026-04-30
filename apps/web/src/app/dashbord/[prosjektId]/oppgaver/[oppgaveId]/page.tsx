@@ -8,8 +8,8 @@ import { FlytIndikator } from "@/components/FlytIndikator";
 import { trpc } from "@/lib/trpc";
 import { useOppgaveSkjema } from "@/hooks/useOppgaveSkjema";
 import { DokumentHandlingsmeny } from "@/components/DokumentHandlingsmeny";
-import { utledMinRolle } from "@sitedoc/shared";
-import type { FlytMedlemInfo } from "@sitedoc/shared";
+import { utledMinRolle, beregnHarBallen } from "@sitedoc/shared";
+import type { FlytMedlemInfo, HarBallenDokument } from "@sitedoc/shared";
 import { LokasjonVelger } from "@/components/LokasjonVelger";
 import { RapportObjektRenderer, DISPLAY_TYPER, SKJULT_I_UTFYLLING } from "@/components/rapportobjekter/RapportObjektRenderer";
 import { FeltWrapper } from "@/components/rapportobjekter/FeltWrapper";
@@ -191,12 +191,8 @@ export default function OppgaveDetaljSide() {
   // harBallen: sjekk om brukerens userId/gruppeIder matcher recipientUserId/GroupId
   const harBallen = useMemo(() => {
     if (!fullOppgaveRå || !minFlytInfo) return false;
-    const fo = fullOppgaveRå as { status?: string; recipientUserId?: string | null; recipientGroupId?: string | null; bestillerUserId?: string };
-    if (fo.status === "draft") return fo.bestillerUserId === (minFlytInfo as { userId?: string }).userId;
-    if (fo.recipientUserId && fo.recipientUserId === (minFlytInfo as { userId?: string }).userId) return true;
-    if (fo.recipientGroupId && minFlytInfo.gruppeIder.includes(fo.recipientGroupId)) return true;
-    return false;
-  // @ts-ignore TS2589
+    const fo = fullOppgaveRå as HarBallenDokument;
+    return beregnHarBallen(fo, { userId: minFlytInfo.userId, gruppeIder: minFlytInfo.gruppeIder });
   }, [fullOppgaveRå, minFlytInfo]);
 
   // Utled brukerens rolle i dokumentflyten — trengs for rettighetInput + handlingsknapper
