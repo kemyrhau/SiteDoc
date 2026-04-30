@@ -1361,3 +1361,35 @@ model KontrollplanHistorikk {
   @@index([punktId])
   @@map("kontrollplan_historikk")
 }
+
+// ---------------------------------------------------------------------------
+// Activity — sentral audit-tabell (action-events, ikke felt-nivå-diff)
+// Per fase-0-beslutninger.md § A.3 + § E steg 1.
+// Bevisst INGEN @relation på actorUserId/organizationId/projectId — audit-spor
+// må overleve user-anonymisering (A.12) og prosjekt-/organisasjons-sletting.
+// ---------------------------------------------------------------------------
+
+model Activity {
+  id                String   @id @default(cuid())
+  actorUserId       String?  @map("actor_user_id")
+  actorNavnSnapshot String?  @map("actor_navn_snapshot")
+  organizationId    String?  @map("organization_id")
+  projectId         String?  @map("project_id")
+  targetType        String   @map("target_type")
+  targetId          String   @map("target_id")
+  action            String
+  payload           Json?
+  ipAddress         String?  @map("ip_address")
+  userAgent         String?  @map("user_agent")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  retainedUntil  DateTime? @map("retained_until")
+  anonymizedAt   DateTime? @map("anonymized_at")
+
+  @@index([organizationId, createdAt])
+  @@index([projectId, createdAt])
+  @@index([actorUserId, createdAt])
+  @@index([targetType, targetId])
+  @@index([targetType, action, createdAt])
+  @@map("activity_log")
+}
