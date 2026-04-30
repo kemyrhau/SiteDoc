@@ -378,23 +378,6 @@ export const adminRouter = router({
     });
   }),
 
-  // Hent faggrupper uten organisasjon (standalone)
-  hentStandaloneFaggrupper: protectedProcedure.query(async ({ ctx }) => {
-    await verifiserSiteDocAdmin(ctx.prisma, ctx.userId);
-
-    return ctx.prisma.faggruppe.findMany({
-      select: {
-        id: true,
-        name: true,
-        companyName: true,
-        faggruppeNummer: true,
-        project: { select: { id: true, name: true, projectNumber: true } },
-        faggruppeKoblinger: { select: { id: true } },
-      },
-      orderBy: { name: "asc" },
-    });
-  }),
-
   // --------------------------------------------------------------------------
   // OrganizationIntegration CRUD (kun sitedoc_admin)
   // --------------------------------------------------------------------------

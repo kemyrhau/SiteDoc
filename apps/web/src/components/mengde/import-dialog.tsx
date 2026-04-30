@@ -159,6 +159,7 @@ export function ImportDialog({ projectId, open, onClose }: ImportDialogProps) {
     mutate: (input: RegistrerInput, options?: RegistrerOptions) => void;
     mutateAsync: (input: RegistrerInput) => Promise<unknown>;
   };
+  // @ts-ignore TS2589 — tRPC-router-typen er for dyp etter admin.ts-endring
   const registrer = trpc.mengde.registrerDokument.useMutation({
     onSuccess: () => {
       utils.mengde.hentDokumenter.invalidate({ projectId });
@@ -167,7 +168,7 @@ export function ImportDialog({ projectId, open, onClose }: ImportDialogProps) {
       setFeil(err.message);
       setLasterOpp(false);
     },
-  }) as RegistrerMutation;
+  }) as unknown as RegistrerMutation;
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
