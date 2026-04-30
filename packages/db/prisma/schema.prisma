@@ -55,6 +55,7 @@ model Organization {
   invoiceEmail       String?  @map("invoice_email")
   ehfEnabled         Boolean  @default(false) @map("ehf_enabled")
   logoUrl            String?  @map("logo_url")
+  harMaskinModul     Boolean  @default(false) @map("har_maskin_modul") // Midlertidig firma-modul-flagg — erstattes av OrganizationModule i Fase 0 per A.4
   createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @updatedAt @map("updated_at")
 

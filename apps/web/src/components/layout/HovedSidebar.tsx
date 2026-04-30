@@ -37,6 +37,7 @@ interface SidebarElement {
   kreverIfc?: boolean;
   kreverModul?: string;
   kreverGruppemodul?: string;
+  kreverFirmaModul?: "maskin"; // Midlertidig flagg per Organization.harMaskinModul — erstattes av OrganizationModule i Fase 0
 }
 
 const hovedelementer: SidebarElement[] = [
@@ -136,6 +137,7 @@ const bunnelementer: SidebarElement[] = [
     labelKey: "nav.maskin",
     ikon: <Truck className="h-5 w-5" />,
     kreverProsjekt: false,
+    kreverFirmaModul: "maskin",
   },
   {
     id: "oppsett",
@@ -166,6 +168,10 @@ export function HovedSidebar() {
     { projectId: prosjektId! },
     { enabled: !!prosjektId },
   );
+
+  // Hent firma-modul-flagg (midlertidig, erstattes av OrganizationModule i Fase 0)
+  const { data: minOrganisasjon } = trpc.organisasjon.hentMin.useQuery();
+  const harMaskinModul = (minOrganisasjon as { harMaskinModul?: boolean } | null | undefined)?.harMaskinModul ?? false;
 
   // Hent bygninger med tegninger for å sjekke IFC-tilgjengelighet
   const { data: _bygninger } = trpc.bygning.hentForProsjekt.useQuery(
@@ -229,7 +235,10 @@ export function HovedSidebar() {
 
       {/* Bunnelementer */}
       <div className="flex flex-col items-center gap-1 border-t border-white/10 pt-3">
-        {bunnelementer.map((element) => {
+        {bunnelementer.filter((element) => {
+          if (element.kreverFirmaModul === "maskin" && !harMaskinModul) return false;
+          return true;
+        }).map((element) => {
           const deaktivert = element.kreverProsjekt && !prosjektId;
           return (
             <div
