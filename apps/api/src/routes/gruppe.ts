@@ -50,7 +50,7 @@ export const gruppeRouter = router({
       if (!medlem) {
         // company_admin uten ProjectMember-rad — se alt
         if (bruker?.role === "company_admin" && bruker.organizationId) {
-          const orgProsjekt = await ctx.prisma.organizationProject.findFirst({
+          const orgProsjekt = await ctx.prisma.projectOrganization.findFirst({
             where: { organizationId: bruker.organizationId, projectId: input.projectId },
           });
           if (orgProsjekt) {
@@ -280,9 +280,10 @@ export const gruppeRouter = router({
     .mutation(async ({ ctx, input }) => {
       await verifiserAdmin(ctx.userId, input.projectId);
 
-      // Finn eller opprett bruker
-      let user = await ctx.prisma.user.findUnique({
-        where: { email: input.email },
+      // Finn eller opprett bruker (per B.7: email er ikke lenger globalt unique → findFirst)
+      let user = await ctx.prisma.user.findFirst({
+        where: { email: input.email, canLogin: true },
+        orderBy: { createdAt: "asc" },
       });
 
       if (!user) {

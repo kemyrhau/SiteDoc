@@ -7,20 +7,37 @@ import { FolderKanban, Plus, Trash2, Clock, AlertTriangle, Sparkles, CalendarPlu
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
+type ProsjektListeRad = {
+  id: string;
+  name: string;
+  projectNumber: string;
+  status: string;
+  createdAt: string | Date;
+  members: { user?: { name?: string | null; email?: string | null } | null }[];
+  projectOrganizations: { organization: { id: string; name: string } }[];
+};
+
 export default function AdminProsjekter() {
   const router = useRouter();
   const utils = trpc.useUtils();
-  const { data: prosjekter, isLoading } =
+  const { data: prosjekterRaw, isLoading } =
     trpc.admin.hentAlleProsjekter.useQuery();
+  const prosjekter = prosjekterRaw as unknown as ProsjektListeRad[] | undefined;
   const { data: organisasjoner } =
     trpc.admin.hentAlleOrganisasjoner.useQuery();
 
+  type OpprettMalProsjekt = { id: string };
+  type OpprettMalMutation = {
+    mutate: () => void;
+    isPending?: boolean;
+  };
+  // @ts-ignore TS2589 — tRPC-router-typen er for dyp etter Fase 0 schema-utvidelser
   const opprettMalprosjekt = trpc.prosjekt.opprettTestprosjekt.useMutation({
-    onSuccess: (prosjekt) => {
+    onSuccess: (prosjekt: OpprettMalProsjekt) => {
       invalidateAll();
       router.push(`/dashbord/${prosjekt.id}`);
     },
-  });
+  }) as unknown as OpprettMalMutation;
 
   const [visOpprett, setVisOpprett] = useState(false);
   const [nyttNavn, setNyttNavn] = useState("");
@@ -197,7 +214,7 @@ export default function AdminProsjekter() {
           </thead>
           <tbody>
             {prosjekter.map((p) => {
-              const orgProj = p.organizationProjects[0] ?? null;
+              const orgProj = p.projectOrganizations[0] ?? null;
               const nåværendeOrgId = orgProj?.organization.id ?? null;
 
               return (

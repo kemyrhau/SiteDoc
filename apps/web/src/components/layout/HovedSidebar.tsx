@@ -192,7 +192,7 @@ export function HovedSidebar() {
     if (element.tillatelse && (!tillatelser || !tillatelser.includes(element.tillatelse))) return false;
     if (element.kreverIfc && !harIfc) return false;
     if (element.kreverModul && (!aktiveModuler || !aktiveModuler.some(
-      (m) => m.moduleSlug === element.kreverModul && m.active,
+      (m) => m.moduleSlug === element.kreverModul && m.status === "aktiv",
     ))) return false;
     // Gruppemodulsjekk — admin/registrator ser alt
     if (element.kreverGruppemodul && !erAdmin && mineModuler && !mineModuler.includes(element.kreverGruppemodul)) return false;

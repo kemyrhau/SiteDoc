@@ -68,11 +68,11 @@ export const organisasjonRouter = router({
     });
   }),
 
-  // Hent organisasjon tilknyttet et prosjekt (via OrganizationProject)
+  // Hent organisasjon tilknyttet et prosjekt (via ProjectOrganization)
   hentForProsjekt: protectedProcedure
     .input(z.object({ projectId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
-      const orgProject = await ctx.prisma.organizationProject.findFirst({
+      const orgProject = await ctx.prisma.projectOrganization.findFirst({
         where: { projectId: input.projectId },
         include: { organization: true },
       });
@@ -97,7 +97,7 @@ export const organisasjonRouter = router({
   hentProsjekter: protectedProcedure.query(async ({ ctx }) => {
     const orgId = await verifiserFirmaAdmin(ctx.prisma, ctx.userId);
 
-    const orgProsjekter = await ctx.prisma.organizationProject.findMany({
+    const orgProsjekter = await ctx.prisma.projectOrganization.findMany({
       where: { organizationId: orgId },
       include: {
         project: {
@@ -178,11 +178,11 @@ export const organisasjonRouter = router({
     .mutation(async ({ ctx, input }) => {
       const orgId = await verifiserFirmaAdmin(ctx.prisma, ctx.userId);
 
-      return ctx.prisma.organizationProject.upsert({
+      return ctx.prisma.projectOrganization.upsert({
         where: {
-          organizationId_projectId: {
-            organizationId: orgId,
+          projectId_organizationId: {
             projectId: input.projectId,
+            organizationId: orgId,
           },
         },
         update: {},
@@ -199,11 +199,11 @@ export const organisasjonRouter = router({
     .mutation(async ({ ctx, input }) => {
       const orgId = await verifiserFirmaAdmin(ctx.prisma, ctx.userId);
 
-      return ctx.prisma.organizationProject.delete({
+      return ctx.prisma.projectOrganization.delete({
         where: {
-          organizationId_projectId: {
-            organizationId: orgId,
+          projectId_organizationId: {
             projectId: input.projectId,
+            organizationId: orgId,
           },
         },
       });
@@ -277,5 +277,65 @@ export const organisasjonRouter = router({
         data: { role: input.rolle },
         select: { id: true, role: true },
       });
+    }),
+
+  // Tildel granulær firma-rolle (per A.25 — f.eks. "hms_ansvarlig")
+  // Gated med verifiserFirmaAdmin: kun firma-admin tildeler innen sitt eget firma
+  tildelOrgRolle: protectedProcedure
+    .input(z.object({
+      userId: z.string().uuid(),
+      role: z.string().min(1), // "hms_ansvarlig" osv.
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const orgId = await verifiserFirmaAdmin(ctx.prisma, ctx.userId);
+
+      // Validering: målbruker må tilhøre samme firma
+      const målbruker = await ctx.prisma.user.findUnique({
+        where: { id: input.userId },
+        select: { organizationId: true },
+      });
+      if (!målbruker || målbruker.organizationId !== orgId) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Bruker tilhører ikke samme firma",
+        });
+      }
+
+      // Idempotent — upsert sikrer at flere tildelings-kall ikke feiler
+      return ctx.prisma.organizationRole.upsert({
+        where: {
+          userId_organizationId_role: {
+            userId: input.userId,
+            organizationId: orgId,
+            role: input.role,
+          },
+        },
+        update: {},
+        create: {
+          userId: input.userId,
+          organizationId: orgId,
+          role: input.role,
+        },
+      });
+    }),
+
+  // Fjern granulær firma-rolle (per A.25)
+  fjernOrgRolle: protectedProcedure
+    .input(z.object({
+      userId: z.string().uuid(),
+      role: z.string().min(1),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const orgId = await verifiserFirmaAdmin(ctx.prisma, ctx.userId);
+
+      const resultat = await ctx.prisma.organizationRole.deleteMany({
+        where: {
+          userId: input.userId,
+          organizationId: orgId,
+          role: input.role,
+        },
+      });
+
+      return { fjernet: resultat.count };
     }),
 });

@@ -203,7 +203,7 @@ export const sjekklisteRouter = router({
               projectMember: { select: { userId: true } },
             },
           });
-          if (hovedansvarlig?.projectMember) {
+          if (hovedansvarlig?.projectMember?.userId) {
             recipientUserId = hovedansvarlig.projectMember.userId;
           } else if (hovedansvarlig?.groupId) {
             recipientGroupId = hovedansvarlig.groupId;

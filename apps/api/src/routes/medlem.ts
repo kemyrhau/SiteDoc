@@ -118,10 +118,11 @@ export const medlemRouter = router({
           });
         }
 
-        // Sjekk at eksisterende bruker tilhører samme firma
-        const eksisterendeBruker = await ctx.prisma.user.findUnique({
-          where: { email: input.email },
+        // Sjekk at eksisterende bruker tilhører samme firma (per B.7: findFirst)
+        const eksisterendeBruker = await ctx.prisma.user.findFirst({
+          where: { email: input.email, canLogin: true },
           select: { organizationId: true },
+          orderBy: { createdAt: "asc" },
         });
         if (eksisterendeBruker && eksisterendeBruker.organizationId && eksisterendeBruker.organizationId !== inviterende.organizationId) {
           throw new TRPCError({
@@ -131,9 +132,10 @@ export const medlemRouter = router({
         }
       }
 
-      // Slå opp bruker på e-post, opprett hvis ikke finnes
-      let user = await ctx.prisma.user.findUnique({
-        where: { email: input.email },
+      // Slå opp bruker på e-post (per B.7: findFirst — eldste aktive først)
+      let user = await ctx.prisma.user.findFirst({
+        where: { email: input.email, canLogin: true },
+        orderBy: { createdAt: "asc" },
       });
 
       if (!user) {
@@ -321,13 +323,23 @@ export const medlemRouter = router({
         include: { user: true },
       });
 
+      // User kan være null hvis User-rad er slettet (per B.7 SetNull-cascade).
+      // Bruker-oppdatering er ikke meningsfull i den tilstanden.
+      if (!medlem.user || !medlem.userId) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Bruker er fjernet — kan ikke redigere medlem",
+        });
+      }
+
       // Oppdater User-felter
       const brukerOppdatering: { name?: string; email?: string; phone?: string | null } = {};
       if (input.name !== undefined) brukerOppdatering.name = input.name;
       if (input.phone !== undefined) brukerOppdatering.phone = input.phone || null;
       if (input.email !== undefined && input.email !== medlem.user.email) {
-        const eksisterende = await ctx.prisma.user.findUnique({
-          where: { email: input.email },
+        // Per B.7: composite (email, organizationId) — sjekk konflikt innen SAMME firma
+        const eksisterende = await ctx.prisma.user.findFirst({
+          where: { email: input.email, organizationId: medlem.user.organizationId },
         });
         if (eksisterende) {
           throw new TRPCError({

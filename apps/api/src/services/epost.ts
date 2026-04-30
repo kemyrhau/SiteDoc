@@ -182,8 +182,9 @@ export async function hentMottakerEposter(
       select: { projectMember: { select: { user: { select: { id: true, email: true } } } } },
     });
     for (const gm of gruppemedlemmer) {
-      if (gm.projectMember.user.email && gm.projectMember.user.id !== opts.ekskluderUserId) {
-        eposter.push(gm.projectMember.user.email);
+      const user = gm.projectMember.user;
+      if (user?.email && user.id !== opts.ekskluderUserId) {
+        eposter.push(user.email);
       }
     }
   }

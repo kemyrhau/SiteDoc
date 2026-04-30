@@ -38,7 +38,7 @@ export const adminRouter = router({
       include: {
         members: { select: { id: true, user: { select: { name: true, email: true } } } },
         faggrupper: { select: { id: true } },
-        organizationProjects: {
+        projectOrganizations: {
           include: { organization: { select: { id: true, name: true } } },
         },
       },
@@ -171,11 +171,11 @@ export const adminRouter = router({
     .mutation(async ({ ctx, input }) => {
       await verifiserSiteDocAdmin(ctx.prisma, ctx.userId);
 
-      return ctx.prisma.organizationProject.upsert({
+      return ctx.prisma.projectOrganization.upsert({
         where: {
-          organizationId_projectId: {
-            organizationId: input.organizationId,
+          projectId_organizationId: {
             projectId: input.projectId,
+            organizationId: input.organizationId,
           },
         },
         update: {},
@@ -219,7 +219,7 @@ export const adminRouter = router({
       });
 
       if (input.organizationId) {
-        await ctx.prisma.organizationProject.create({
+        await ctx.prisma.projectOrganization.create({
           data: {
             organizationId: input.organizationId,
             projectId: prosjekt.id,
@@ -272,7 +272,7 @@ export const adminRouter = router({
     .mutation(async ({ ctx, input }) => {
       await verifiserSiteDocAdmin(ctx.prisma, ctx.userId);
 
-      await ctx.prisma.organizationProject.deleteMany({
+      await ctx.prisma.projectOrganization.deleteMany({
         where: {
           organizationId: input.organizationId,
           projectId: input.projectId,
@@ -295,7 +295,7 @@ export const adminRouter = router({
       // Deaktiver prosjekter der prøveperioden har utløpt (trialExpiresAt < nå, eller createdAt + 30d < nå for eldre prosjekter)
       const deaktiverte = await ctx.prisma.project.updateMany({
         where: {
-          organizationProjects: { none: {} },
+          projectOrganizations: { none: {} },
           status: "active",
           OR: [
             { trialExpiresAt: { lt: nå } },
@@ -308,7 +308,7 @@ export const adminRouter = router({
       // Slett prosjekter der prøveperioden utløp for mer enn 60 dager siden
       const utlopte = await ctx.prisma.project.findMany({
         where: {
-          organizationProjects: { none: {} },
+          projectOrganizations: { none: {} },
           OR: [
             { trialExpiresAt: { lt: slettGrense } },
             { trialExpiresAt: null, createdAt: { lt: new Date(slettGrense.getTime() - 30 * 24 * 60 * 60 * 1000) } },

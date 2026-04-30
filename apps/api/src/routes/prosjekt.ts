@@ -56,7 +56,7 @@ export const prosjektRouter = router({
           templates: true,
           drawings: true,
           folders: { where: { parentId: null }, include: { children: true } },
-          organizationProjects: { select: { id: true } },
+          projectOrganizations: { select: { id: true } },
         },
       });
     }),
@@ -89,7 +89,7 @@ export const prosjektRouter = router({
       });
 
       if (bruker.organizationId) {
-        await ctx.prisma.organizationProject.create({
+        await ctx.prisma.projectOrganization.create({
           data: {
             organizationId: bruker.organizationId,
             projectId: prosjekt.id,
@@ -129,7 +129,7 @@ export const prosjektRouter = router({
 
         // Auto-tilknytt til brukerens firma
         if (bruker.organizationId) {
-          await tx.organizationProject.create({
+          await tx.projectOrganization.create({
             data: {
               organizationId: bruker.organizationId,
               projectId: prosjekt.id,

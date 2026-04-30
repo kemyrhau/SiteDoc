@@ -187,11 +187,11 @@ function TilgangModal({
         .map((g: { id: string; name: string }) => ({ value: g.id, label: g.name }));
     }
     // user
-    return (medlemmer ?? [] as Array<{ user: { id: string; name: string | null; email: string } }>)
-      .filter((m: { user: { id: string } }) => !oppforinger.some((o) => o.userId === m.user.id))
-      .map((m: { user: { id: string; name: string | null; email: string } }) => ({
-        value: m.user.id,
-        label: m.user.name ?? m.user.email,
+    return (medlemmer ?? [] as Array<{ user: { id: string; name: string | null; email: string } | null }>)
+      .filter((m: { user: { id: string } | null }) => m.user !== null && !oppforinger.some((o) => o.userId === m.user!.id))
+      .map((m: { user: { id: string; name: string | null; email: string } | null }) => ({
+        value: m.user!.id,
+        label: m.user!.name ?? m.user!.email,
       }));
   }, [nyType, faggrupper, grupper, medlemmer, oppforinger]);
 

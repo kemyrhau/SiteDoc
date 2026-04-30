@@ -10,7 +10,9 @@ datasource db {
 model User {
   id             String    @id @default(uuid())
   name           String?
-  email          String    @unique
+  // email forblir NOT NULL i Fase 0 (alle har e-post per kunde-bekreftelse).
+  // @unique er erstattet av composite @@unique([email, organizationId]) per B.7.
+  email          String
   emailVerified  DateTime? @map("email_verified")
   image          String?
   phone          String?
@@ -18,6 +20,21 @@ model User {
   language       String    @default("nb") // nb, en, sv, lt, pl, uk, ro, et, fi, cs, de, ru, lv
   tabelloppsett  Json?     @map("tabelloppsett") // { [liste]: { kolonner, bredder, sortering } }
   organizationId String?   @map("organization_id")
+
+  // Per A.10 — to bruksområder: data-mottaker uten innloggings-tilgang OG arkivert User-rad ved org-bytte
+  canLogin       Boolean   @default(true) @map("can_login")
+
+  // Per A.11 — GDPR data-minimalisering (kun det som brukes for forretning/lov)
+  fodselsdato              DateTime?
+  nasjonalitet             String?                          // ISO 3166-1 alpha-2 eller fritekst
+  hmsKortNr                String?  @map("hms_kort_nr")
+  hmsKortUtloper           DateTime? @map("hms_kort_utloper")
+  arbeidstillatelse        String?                          // "permanent" | "midlertidig" | null (ingen CHECK i Fase 0)
+  arbeidstillatelseUtloper DateTime? @map("arbeidstillatelse_utloper")
+
+  // Per § E steg 13
+  ansattnummer             String?
+
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @updatedAt @map("updated_at")
 
@@ -29,6 +46,10 @@ model User {
   eideChecklists       Checklist[]          @relation("ChecklistOwner")
   bestilteTasks        Task[]               @relation("TaskCreator")
   eideTasks            Task[]               @relation("TaskOwner")
+  bestilteGodkjenninger Godkjenning[]        @relation("GodkjenningCreator")
+  eideGodkjenninger     Godkjenning[]        @relation("GodkjenningOwner")
+  godkjenteGodkjenninger Godkjenning[]       @relation("GodkjenningGodkjenner")
+  organizationRoles      OrganizationRole[]
   sentTransfers        DocumentTransfer[]   @relation("TransferSender")
   receivedTransfers    DocumentTransfer[]   @relation("TransferRecipient")
   recipientChecklists  Checklist[]          @relation("ChecklistRecipient")
@@ -44,6 +65,11 @@ model User {
   kontrollplanHistorikk   KontrollplanHistorikk[]
 
   @@index([organizationId])
+  // Per B.7 — én User per (person × firma). Composite unique tillater Joakim
+  // å ha én User-rad per firma han jobber i.
+  @@unique([email, organizationId])
+  // Per B.7-utvidelse — forberedende for multi-identifikator-auth (telefon-only-bruker)
+  @@unique([phone, organizationId])
   @@map("users")
 }
 
@@ -59,9 +85,16 @@ model Organization {
   createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @updatedAt @map("updated_at")
 
-  users        User[]
-  projects     OrganizationProject[]
-  integrations OrganizationIntegration[]
+  users               User[]
+  projects            ProjectOrganization[]
+  primaryProjects     Project[]                 @relation("ProjectPrimaryOrg")
+  projectModules      ProjectModule[]           @relation("OrgProjectModule")
+  partners            OrganizationPartner[]
+  templates           OrganizationTemplate[]
+  externalCostObjects ExternalCostObject[]
+  organizationRoles   OrganizationRole[]
+  integrations        OrganizationIntegration[]
+  setting             OrganizationSetting?
 
   @@map("organizations")
 }
@@ -83,17 +116,79 @@ model OrganizationIntegration {
   @@map("organization_integrations")
 }
 
-model OrganizationProject {
+// ---------------------------------------------------------------------------
+// ProjectOrganization — m:n mellom Project og Organization med rolle
+// Per fase-0-beslutninger.md § A.5 + § E steg 3.
+// Renamed fra OrganizationProject 2026-05-01 (Fase 0).
+// ---------------------------------------------------------------------------
+
+model ProjectOrganization {
   id             String   @id @default(uuid())
-  organizationId String   @map("organization_id")
   projectId      String   @map("project_id")
+  organizationId String   @map("organization_id")
+  rolle          String   @default("hovedeier") // "hovedeier" | "byggherre" | "konsulent" | "underentreprenor"
   createdAt      DateTime @default(now()) @map("created_at")
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   project      Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  @@unique([organizationId, projectId])
-  @@map("organization_projects")
+  @@unique([projectId, organizationId])
+  @@map("project_organizations")
+}
+
+// ---------------------------------------------------------------------------
+// OrganizationSetting — firma-instillinger (1:1 med Organization)
+// Per fase-0-beslutninger.md § A.14 + arkitektur-syntese.md § 1.3 + § 2.4.
+// ---------------------------------------------------------------------------
+
+model OrganizationSetting {
+  id             String @id @default(cuid())
+  organizationId String @unique @map("organization_id")
+
+  // Tidssone for forretningsregler (A.14, B.6)
+  timezone String @default("Europe/Oslo")
+
+  // Tilgangs-defaults (§ 1.3 + § 2.4)
+  // Verdier: 'alle-ansatte' | 'kun-prosjektmedlemmer' | 'sertifiserte'
+  timerTilgangDefault       String @default("alle-ansatte") @map("timer_tilgang_default")
+  vareforbrukTilgangDefault String @default("alle-ansatte") @map("vareforbruk_tilgang_default")
+  maskinbrukTilgangDefault  String @default("sertifiserte") @map("maskinbruk_tilgang_default")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("organization_settings")
+}
+
+// ---------------------------------------------------------------------------
+// OrganizationPartner — firma-eid bibliotek over UE/byggherre/leverandører
+// Per fase-0-beslutninger.md § E steg 6 + arkitektur-syntese.md § 3.2 + § 4.
+// Bravida med to faggrupper (Elektro, Ventilasjon) på samme prosjekt
+// peker til samme partner-rad via Faggruppe.partnerId.
+// ---------------------------------------------------------------------------
+
+model OrganizationPartner {
+  id                 String   @id @default(cuid())
+  organizationId     String   @map("organization_id")
+  name               String
+  organizationNumber String?  @map("organization_number")
+  partnerType        String?  @map("partner_type") // "underentreprenor" | "byggherre" | "leverandor" | "konsulent"
+  contactName        String?  @map("contact_name")
+  contactEmail       String?  @map("contact_email")
+  contactPhone       String?  @map("contact_phone")
+  notes              String?
+  archived           Boolean  @default(false)
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  faggrupper   Faggruppe[]
+
+  @@unique([organizationId, organizationNumber])
+  @@index([organizationId])
+  @@map("organization_partners")
 }
 
 // Auth.js-tabeller for OAuth-tilkoblinger
@@ -155,6 +250,7 @@ model Project {
   sourceLanguage            String   @default("nb") @map("source_language") // Kildespråk for prosjektet
   status                    String   @default("active")
   trialExpiresAt            DateTime? @map("trial_expires_at")
+  primaryOrganizationId     String?  @map("primary_organization_id") // Per fase-0-beslutninger.md § E steg 4 (nullable per B.4 interim)
   createdAt                 DateTime @default(now()) @map("created_at")
   updatedAt                 DateTime @updatedAt @map("updated_at")
 
@@ -169,7 +265,9 @@ model Project {
   groups               ProjectGroup[]
   invitations          ProjectInvitation[]
   modules              ProjectModule[]
-  organizationProjects OrganizationProject[]
+  projectOrganizations ProjectOrganization[]
+  primaryOrganization  Organization?         @relation("ProjectPrimaryOrg", fields: [primaryOrganizationId], references: [id], onDelete: SetNull)
+  externalCostObjects  ExternalCostObject[]
   dokumentflyter       Dokumentflyt[]
   ftdDocuments         FtdDocument[]
   ftdSpecPosts         FtdSpecPost[]
@@ -178,20 +276,26 @@ model Project {
   changeEvents         FtdChangeEvent[]
   psiEr                Psi[]
   kontrollplaner       Kontrollplan[]
+  godkjenninger        Godkjenning[]
 
   @@index([trialExpiresAt])
+  @@index([primaryOrganizationId])
   @@map("projects")
 }
 
 model ProjectMember {
   id                  String   @id @default(uuid())
-  userId              String   @map("user_id")
+  // userId: nullable per B.7 — bevarer ProjectMember-historikk når User slettes (sjelden, vi arkiverer normalt med canLogin = false)
+  userId              String?  @map("user_id")
   projectId           String   @map("project_id")
+  // role: "admin" | "member" — IKKE "underentreprenor" (per A.9, utledes deterministisk via erUnderentreprenor())
   role                String   @default("member")
   erFirmaansvarlig    Boolean  @default(false) @map("er_firmaansvarlig")
+  // periodeSlutt: null = aktiv (per B.7 + C.13). createdAt fungerer som periodeStart.
+  periodeSlutt        DateTime? @map("periode_slutt")
   createdAt           DateTime @default(now()) @map("created_at")
 
-  user                   User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user                   User?                @relation(fields: [userId], references: [id], onDelete: SetNull)
   project                Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
   faggruppeKoblinger     FaggruppeKobling[]
   groupMemberships       ProjectGroupMember[]
@@ -203,10 +307,12 @@ model ProjectMember {
 }
 
 model FaggruppeKobling {
-  id              String   @id @default(uuid())
-  projectMemberId String   @map("project_member_id")
-  faggruppeId     String   @map("faggruppe_id")
-  createdAt       DateTime @default(now()) @map("created_at")
+  id              String    @id @default(uuid())
+  projectMemberId String    @map("project_member_id")
+  faggruppeId     String    @map("faggruppe_id")
+  // periodeSlutt per C.13: null = aktiv. createdAt fungerer som periodeStart.
+  periodeSlutt    DateTime? @map("periode_slutt")
+  createdAt       DateTime  @default(now()) @map("created_at")
 
   projectMember ProjectMember  @relation(fields: [projectMemberId], references: [id], onDelete: Cascade)
   faggruppe     Faggruppe      @relation(fields: [faggruppeId], references: [id], onDelete: Cascade)
@@ -244,11 +350,13 @@ model ProjectGroup {
 }
 
 model ProjectGroupMember {
-  id              String   @id @default(uuid())
-  groupId         String   @map("group_id")
-  projectMemberId String   @map("project_member_id")
-  isAdmin         Boolean  @default(false) @map("is_admin")
-  createdAt       DateTime @default(now()) @map("created_at")
+  id              String    @id @default(uuid())
+  groupId         String    @map("group_id")
+  projectMemberId String    @map("project_member_id")
+  isAdmin         Boolean   @default(false) @map("is_admin")
+  // periodeSlutt per C.13: null = aktiv. createdAt fungerer som periodeStart.
+  periodeSlutt    DateTime? @map("periode_slutt")
+  createdAt       DateTime  @default(now()) @map("created_at")
 
   group         ProjectGroup  @relation(fields: [groupId], references: [id], onDelete: Cascade)
   projectMember ProjectMember @relation(fields: [projectMemberId], references: [id], onDelete: Cascade)
@@ -301,6 +409,7 @@ model Faggruppe {
   id                 String   @id @default(uuid())
   projectId          String   @map("project_id")
   kontraktId         String?  @map("kontrakt_id")
+  partnerId          String?  @map("partner_id") // FK til OrganizationPartner-bibliotek (nullable — kunde-drevet migrering fra companyName)
   name               String
   faggruppeNummer    String?  @map("faggruppe_nummer")
   organizationNumber String?  @map("organization_number")
@@ -313,12 +422,15 @@ model Faggruppe {
 
   project                Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
   kontrakt               FtdKontrakt?         @relation(fields: [kontraktId], references: [id], onDelete: SetNull)
+  partner                OrganizationPartner? @relation(fields: [partnerId], references: [id], onDelete: SetNull)
   ansvarlig              User?                @relation("FaggruppeAnsvarlig", fields: [ansvarligId], references: [id], onDelete: SetNull)
   faggruppeKoblinger     FaggruppeKobling[]
   bestillerChecklists    Checklist[]          @relation("ChecklistBestillerFaggruppe")
   utforerChecklists      Checklist[]          @relation("ChecklistUtforerFaggruppe")
   bestillerTasks         Task[]               @relation("TaskBestillerFaggruppe")
   utforerTasks           Task[]               @relation("TaskUtforerFaggruppe")
+  bestillerGodkjenninger Godkjenning[]        @relation("GodkjenningBestillerFaggruppe")
+  utforerGodkjenninger   Godkjenning[]        @relation("GodkjenningUtforerFaggruppe")
   dokumentflytMedlemskap DokumentflytMedlem[]
   dokumentflyter         Dokumentflyt[]       @relation("dokumentflytFaggruppe")
   invitations            ProjectInvitation[]
@@ -329,6 +441,7 @@ model Faggruppe {
 
   @@index([projectId])
   @@index([kontraktId])
+  @@index([partnerId])
   @@index([ansvarligId])
   @@map("dokumentflyt_parts")
 }
@@ -495,14 +608,23 @@ model ReportTemplate {
 
   kontrollomrade    String?            @map("kontrollomrade") // fukt | brann | konstruksjon | geo | grunnarbeid | sha | null
 
+  // Mal-promotering (per fase-0-beslutninger.md § E steg 7 — forberedelse til Fase 2)
+  organizationTemplateId String?  @map("organization_template_id") // Peker oppover hvis kopiert fra firma-mal
+  promotedToFirma        Boolean  @default(false) @map("promoted_to_firma") // True hvis denne mal er promotert til firma-bibliotek
+
   project           Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
   objects           ReportObject[]
   checklists        Checklist[]
   tasks             Task[]
+  godkjenninger     Godkjenning[]
   dokumentflytMaler DokumentflytMal[]
   psi               Psi[]
   kontrollplanPunkter KontrollplanPunkt[]
 
+  copiedFromOrgTemplate OrganizationTemplate?  @relation("CopiedFromOrgTemplate", fields: [organizationTemplateId], references: [id], onDelete: SetNull)
+  promotedTo            OrganizationTemplate[] @relation("PromotedTemplate")
+
+  @@index([organizationTemplateId])
   @@map("report_templates")
 }
 
@@ -525,6 +647,65 @@ model ReportObject {
 
   @@index([parentId])
   @@map("report_objects")
+}
+
+// ---------------------------------------------------------------------------
+// OrganizationTemplate — firma-eid mal-bibliotek (mal-promotering)
+// Per fase-0-beslutninger.md § E steg 7 + migrering-reporttemplate.md.
+// Speiler ReportTemplate-strukturen, men eid av Organization.
+// API-ruter (firmamal.*) og UI bygges i Fase 2.
+// ---------------------------------------------------------------------------
+
+model OrganizationTemplate {
+  id                     String   @id @default(uuid())
+  organizationId         String   @map("organization_id")
+  name                   String
+  description            String?
+  prefix                 String?
+  category               String   @default("sjekkliste") // "oppgave" | "sjekkliste"
+  domain                 String   @default("bygg")        // "bygg" | "hms" | "kvalitet"
+  subjects               Json?    @default("[]")
+  showSubject            Boolean  @default(true) @map("show_subject")
+  showFaggruppe          Boolean  @default(true) @map("show_faggruppe")
+  showLocation           Boolean  @default(true) @map("show_location")
+  showPriority           Boolean  @default(true) @map("show_priority")
+  version                Int      @default(1)
+  enableChangeLog        Boolean  @default(false) @map("enable_change_log")
+  kontrollomrade         String?
+  promotedFromTemplateId String?  @map("promoted_from_template_id")
+  createdAt              DateTime @default(now()) @map("created_at")
+  updatedAt              DateTime @updatedAt @map("updated_at")
+
+  organization Organization                 @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  promotedFrom ReportTemplate?              @relation("PromotedTemplate", fields: [promotedFromTemplateId], references: [id], onDelete: SetNull)
+  objects      OrganizationTemplateObject[]
+  copiedTo     ReportTemplate[]             @relation("CopiedFromOrgTemplate")
+
+  @@index([organizationId])
+  @@index([promotedFromTemplateId])
+  @@map("organization_templates")
+}
+
+model OrganizationTemplateObject {
+  id           String   @id @default(uuid())
+  templateId   String   @map("template_id")
+  parentId     String?  @map("parent_id")
+  type         String
+  label        String
+  config       Json     @default("{}")
+  translations Json     @default("{}")
+  sortOrder    Int      @map("sort_order")
+  required     Boolean  @default(false)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  template OrganizationTemplate         @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  parent   OrganizationTemplateObject?  @relation("OrgObjektHierarki", fields: [parentId], references: [id], onDelete: Cascade)
+  children OrganizationTemplateObject[] @relation("OrgObjektHierarki")
+
+  @@index([templateId])
+  @@index([parentId])
+  @@map("organization_template_objects")
 }
 
 model Checklist {
@@ -626,10 +807,65 @@ model Task {
   @@map("tasks")
 }
 
+// ---------------------------------------------------------------------------
+// Godkjenning — utvidet dokumentflyt-type for byggherre-godkjenning av kostnad
+// Per fase-0-beslutninger.md § A.2 + § E steg 12.
+// Følger Checklist/Task/Psi-mønsteret. Forhandlingshistorikk og kostnad-snapshot
+// lagres på DocumentTransfer-radene (kostnadSnapshot Json) — én rad per
+// send/retur/godkjenning. Restrict-default for bestiller/faggruppe-FK-er
+// (sletting blokkeres når godkjenninger eksisterer).
+// ---------------------------------------------------------------------------
+
+model Godkjenning {
+  id                    String    @id @default(uuid())
+  templateId            String?   @map("template_id")
+  projectId             String    @map("project_id")
+  bestillerUserId       String    @map("bestiller_user_id")
+  bestillerFaggruppeId  String    @map("bestiller_faggruppe_id")
+  utforerFaggruppeId    String    @map("utforer_faggruppe_id")
+  eierUserId            String?   @map("eier_user_id")
+  status                String    @default("draft")
+  dokumentflytId        String?   @map("dokumentflyt_id")
+
+  externalCostObjectId  String?   @map("external_cost_object_id")
+  internRef             String?   @map("intern_ref")
+  byggherreRef          String?   @map("byggherre_ref")
+  kortNavn              String    @map("kort_navn")
+
+  // Per B.6 — godkjenning får Timestamptz på alle tidsstempler
+  godkjentVed           DateTime? @db.Timestamptz @map("godkjent_ved")
+  godkjentAvUserId      String?   @map("godkjent_av_user_id")
+
+  // Per B.3 (lukket 2026-04-27)
+  endretEtterSending    Boolean   @default(false) @map("endret_etter_sending")
+  sistEndretVed         DateTime? @db.Timestamptz @map("sist_endret_ved")
+
+  createdAt             DateTime  @default(now()) @db.Timestamptz @map("created_at")
+  updatedAt             DateTime  @updatedAt @db.Timestamptz @map("updated_at")
+
+  project              Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  template             ReportTemplate?      @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  bestiller            User                 @relation("GodkjenningCreator", fields: [bestillerUserId], references: [id])
+  bestillerFaggruppe   Faggruppe            @relation("GodkjenningBestillerFaggruppe", fields: [bestillerFaggruppeId], references: [id])
+  utforerFaggruppe     Faggruppe            @relation("GodkjenningUtforerFaggruppe", fields: [utforerFaggruppeId], references: [id])
+  eier                 User?                @relation("GodkjenningOwner", fields: [eierUserId], references: [id], onDelete: SetNull)
+  dokumentflyt         Dokumentflyt?        @relation(fields: [dokumentflytId], references: [id], onDelete: SetNull)
+  externalCostObject   ExternalCostObject?  @relation(fields: [externalCostObjectId], references: [id], onDelete: SetNull)
+  godkjentAv           User?                @relation("GodkjenningGodkjenner", fields: [godkjentAvUserId], references: [id], onDelete: SetNull)
+  transfers            DocumentTransfer[]
+
+  @@unique([projectId, internRef])
+  @@index([projectId, status])
+  @@index([externalCostObjectId])
+  @@index([dokumentflytId])
+  @@map("godkjenninger")
+}
+
 model DocumentTransfer {
   id               String   @id @default(uuid())
   checklistId      String?  @map("checklist_id")
   taskId           String?  @map("task_id")
+  godkjenningId    String?  @map("godkjenning_id") // Per A.2 — gjenbruker transfer-mekanisme for Godkjenning
   senderId         String   @map("sender_id")
   recipientUserId  String?  @map("recipient_user_id")
   recipientGroupId String?  @map("recipient_group_id")
@@ -643,14 +879,18 @@ model DocumentTransfer {
   recipientEnterpriseName String?  @map("recipient_enterprise_name")
   dokumentflytName        String?  @map("dokumentflyt_name")
   senderRolle             String?  @map("sender_rolle") // bestiller | utforer | godkjenner | registrator
+  // Kostnad-snapshot per A.2 — én rad per send/retur/godkjenn lagrer hele forhandlingshistorikken
+  kostnadSnapshot         Json?    @map("kostnad_snapshot")
 
   checklist      Checklist?    @relation(fields: [checklistId], references: [id])
   task           Task?         @relation(fields: [taskId], references: [id])
+  godkjenning    Godkjenning?  @relation(fields: [godkjenningId], references: [id], onDelete: Cascade)
   sender         User          @relation("TransferSender", fields: [senderId], references: [id])
   recipientUser  User?         @relation("TransferRecipient", fields: [recipientUserId], references: [id], onDelete: SetNull)
   recipientGroup ProjectGroup? @relation("TransferRecipientGroup", fields: [recipientGroupId], references: [id], onDelete: SetNull)
 
   @@index([senderId])
+  @@index([godkjenningId])
   @@map("document_transfers")
 }
 
@@ -731,12 +971,13 @@ model Dokumentflyt {
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
-  project    Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  faggruppe  Faggruppe?           @relation("dokumentflytFaggruppe", fields: [faggruppeId], references: [id], onDelete: SetNull)
-  medlemmer  DokumentflytMedlem[]
-  maler      DokumentflytMal[]
-  checklists Checklist[]
-  tasks      Task[]
+  project       Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  faggruppe     Faggruppe?           @relation("dokumentflytFaggruppe", fields: [faggruppeId], references: [id], onDelete: SetNull)
+  medlemmer     DokumentflytMedlem[]
+  maler         DokumentflytMal[]
+  checklists    Checklist[]
+  tasks         Task[]
+  godkjenninger Godkjenning[]
 
   @@index([projectId])
   @@index([faggruppeId])
@@ -744,18 +985,20 @@ model Dokumentflyt {
 }
 
 model DokumentflytMedlem {
-  id                      String   @id @default(uuid())
-  dokumentflytId          String   @map("dokumentflyt_id")
-  faggruppeId             String?  @map("faggruppe_id")
-  projectMemberId         String?  @map("project_member_id")
-  groupId                 String?  @map("group_id")
-  hovedansvarligPersonId  String?  @map("hovedansvarlig_person_id") // Spesifikk person i gruppen som er hovedansvarlig
+  id                      String    @id @default(uuid())
+  dokumentflytId          String    @map("dokumentflyt_id")
+  faggruppeId             String?   @map("faggruppe_id")
+  projectMemberId         String?   @map("project_member_id")
+  groupId                 String?   @map("group_id")
+  hovedansvarligPersonId  String?   @map("hovedansvarlig_person_id") // Spesifikk person i gruppen som er hovedansvarlig
   rolle                   String // "registrator" | "bestiller" | "utforer" | "godkjenner"
-  steg                    Int      @default(1)
-  erHovedansvarlig        Boolean  @default(false) @map("er_hovedansvarlig")
-  kanRedigere             Boolean  @default(true) @map("kan_redigere")
-  låsesEtterPasseringer   Int?     @map("laases_etter_passeringer")
-  createdAt               DateTime @default(now()) @map("created_at")
+  steg                    Int       @default(1)
+  erHovedansvarlig        Boolean   @default(false) @map("er_hovedansvarlig")
+  kanRedigere             Boolean   @default(true) @map("kan_redigere")
+  låsesEtterPasseringer   Int?      @map("laases_etter_passeringer")
+  // periodeSlutt per C.13: null = aktiv. createdAt fungerer som periodeStart.
+  periodeSlutt            DateTime? @map("periode_slutt")
+  createdAt               DateTime  @default(now()) @map("created_at")
 
   dokumentflyt          Dokumentflyt   @relation(fields: [dokumentflytId], references: [id], onDelete: Cascade)
   faggruppe             Faggruppe?     @relation(fields: [faggruppeId], references: [id], onDelete: Cascade)
@@ -785,17 +1028,28 @@ model DokumentflytMal {
   @@map("dokumentflyt_maler")
 }
 
+// ---------------------------------------------------------------------------
+// ProjectModule — modul-aktivering per prosjekt (utvidet i Fase 0 § E steg 5)
+// Per fase-0-beslutninger.md § A.4 + § A.17 + § A.18 (to-stegs migration).
+// `active Boolean` beholdes parallelt med `status String` til steg 2
+// (post-Fase 1) når all kode er bekreftet å bruke status.
+// ---------------------------------------------------------------------------
+
 model ProjectModule {
-  id         String   @id @default(uuid())
-  projectId  String   @map("project_id")
-  moduleSlug String   @map("module_slug")
-  active     Boolean  @default(true)
-  config     Json?    // Modulspesifikk konfigurasjon (f.eks. oversettelsesmotor)
-  createdAt  DateTime @default(now()) @map("created_at")
+  id             String   @id @default(uuid())
+  projectId      String   @map("project_id")
+  moduleSlug     String   @map("module_slug")
+  organizationId String?  @map("organization_id") // Nullable per B.4 interim
+  active         Boolean  @default(true)           // Beholdes — dropper i steg 2
+  status         String   @default("aktiv")        // "aktiv" | "arkivert" | "slettet" (per A.17)
+  config         Json?                              // Modulspesifikk konfigurasjon (f.eks. oversettelsesmotor)
+  createdAt      DateTime @default(now()) @map("created_at")
 
-  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project      Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  organization Organization? @relation("OrgProjectModule", fields: [organizationId], references: [id], onDelete: SetNull)
 
-  @@unique([projectId, moduleSlug])
+  @@unique([projectId, moduleSlug])  // Endres til (projectId, organizationId, moduleSlug) i steg 2
+  @@index([organizationId])
   @@map("project_modules")
 }
 
@@ -1240,18 +1494,23 @@ model BibliotekKapittel {
 }
 
 model BibliotekMal {
-  id          String                  @id @default(cuid())
-  kapittelId  String                  @map("kapittel_id")
-  kapittel    BibliotekKapittel       @relation(fields: [kapittelId], references: [id], onDelete: Cascade)
-  navn        String
-  referanse   String
-  beskrivelse String?
-  versjon     String                  @default("1.0")
-  aktiv       Boolean                 @default(true)
-  prioritet   Int                     @default(1)   // 1=grunnpakke, 2=utvidet, 3=spesialist
-  opprettet   DateTime                @default(now()) @map("opprettet")
-  malInnhold  Json                    @map("mal_innhold")
-  prosjektValg ProsjektBibliotekValg[]
+  id             String                  @id @default(cuid())
+  kapittelId     String                  @map("kapittel_id")
+  kapittel       BibliotekKapittel       @relation(fields: [kapittelId], references: [id], onDelete: Cascade)
+  navn           String
+  referanse      String
+  beskrivelse    String?
+  versjon        String                  @default("1.0")
+  aktiv          Boolean                 @default(true)
+  prioritet      Int                     @default(1)   // 1=grunnpakke, 2=utvidet, 3=spesialist
+  // Per fase-0-beslutninger.md § E steg 8 — lukker P-KRITISK-3 (bibliotek.ts hardkodet category/domain)
+  kategori       String                  @default("sjekkliste") // "oppgave" | "sjekkliste" — matcher ReportTemplate.category
+  domene         String                  @default("kvalitet")   // "bygg" | "hms" | "kvalitet" — sentralbibliotek er NS 3420-K
+  kobletTilModul String?                 @map("koblet_til_modul") // Slug til prosjektmodul (f.eks. "okonomi", "psi")
+  verifisert     Boolean                 @default(false)         // True når malen er verifisert mot kilde-norm
+  opprettet      DateTime                @default(now()) @map("opprettet")
+  malInnhold     Json                    @map("mal_innhold")
+  prosjektValg   ProsjektBibliotekValg[]
 
   @@index([kapittelId])
   @@map("bibliotek_maler")
@@ -1360,4 +1619,110 @@ model KontrollplanHistorikk {
 
   @@index([punktId])
   @@map("kontrollplan_historikk")
+}
+
+// ---------------------------------------------------------------------------
+// Activity — sentral audit-tabell (action-events, ikke felt-nivå-diff)
+// Per fase-0-beslutninger.md § A.3 + § E steg 1.
+// Bevisst INGEN @relation på actorUserId/organizationId/projectId — audit-spor
+// må overleve user-anonymisering (A.12) og prosjekt-/organisasjons-sletting.
+// ---------------------------------------------------------------------------
+
+model Activity {
+  id                String   @id @default(cuid())
+  actorUserId       String?  @map("actor_user_id")
+  actorNavnSnapshot String?  @map("actor_navn_snapshot")
+  organizationId    String?  @map("organization_id")
+  projectId         String?  @map("project_id")
+  targetType        String   @map("target_type")
+  targetId          String   @map("target_id")
+  action            String
+  payload           Json?
+  ipAddress         String?  @map("ip_address")
+  userAgent         String?  @map("user_agent")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  retainedUntil  DateTime? @map("retained_until")
+  anonymizedAt   DateTime? @map("anonymized_at")
+
+  @@index([organizationId, createdAt])
+  @@index([projectId, createdAt])
+  @@index([actorUserId, createdAt])
+  @@index([targetType, targetId])
+  @@index([targetType, action, createdAt])
+  @@map("activity_log")
+}
+
+// ---------------------------------------------------------------------------
+// ExternalCostObject — felles kostnadsbærer-referanse (Underprosjekt i UI)
+// Per fase-0-beslutninger.md § A.1 + § E steg 11.
+// Refereres av Timer-modul (Fase 3) og Godkjenning-dokumentflyt (E.12).
+// UI-term «Underprosjekt» (anleggsbransjens etablerte begrep, A.Markussen/SmartDok).
+// Variabelnavn i kode: externalCostObjectId, eco, externalCostObject.
+//
+// Audit-felter (per A.3-mønster): opprettetAvUserId og lukketAvUserId
+// er bevisst UTEN @relation — bevarer audit-spor ved User-sletting.
+// ---------------------------------------------------------------------------
+
+model ExternalCostObject {
+  id                    String   @id @default(uuid())
+  organizationId        String   @map("organization_id")
+  projectId             String   @map("project_id")
+
+  proAdmId              String   @map("proadm_id")              // UI-referanse fra ProAdm
+  proAdmIdAtImport      String?  @map("proadm_id_at_import")    // Snapshot ved import (per A.22)
+
+  kortNavn              String   @map("kort_navn")
+  kilde                 String                                   // "proadm_import" | "manuell" | "felt_opprettet"
+  kildeId               String?  @map("kilde_id")
+
+  status                String   @default("aktiv")              // "aktiv" | "lukket"
+  timerregistreringApen Boolean  @default(true) @map("timerregistrering_apen") // per B.1
+
+  // Audit på lukking (per C.6) — String UTEN @relation per A.3-mønster
+  lukketVed             DateTime? @map("lukket_ved")
+  lukketAvUserId        String?   @map("lukket_av_user_id")
+  lukketGrunn           String?   @map("lukket_grunn")
+
+  // Soft-delete (per C.7)
+  slettetVed            DateTime? @map("slettet_ved")
+
+  // String UTEN @relation per A.3-mønster (audit-spor overlever User-sletting)
+  opprettetAvUserId     String   @map("opprettet_av_user_id")
+
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  organization  Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  project       Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  godkjenninger Godkjenning[]
+
+  @@unique([organizationId, proAdmId])
+  @@index([projectId, status])
+  @@index([slettetVed])
+  @@map("external_cost_objects")
+}
+
+// ---------------------------------------------------------------------------
+// OrganizationRole — granulære firma-roller (per A.25)
+// Per fase-0-beslutninger.md § E steg 14 + A.25.
+// Egen tabell (ikke utvidelse av User.role-enum) for skalerbarhet.
+// Første rolle: "hms_ansvarlig" (per A.27 — automatisk lese-tilgang til
+// HMS-rapporter på tvers av firmaets prosjekter).
+// Tildeles av firma-admin via organisasjon.tildelOrgRolle / fjernOrgRolle.
+// ---------------------------------------------------------------------------
+
+model OrganizationRole {
+  id             String   @id @default(uuid())
+  userId         String   @map("user_id")
+  organizationId String   @map("organization_id")
+  role           String   // "hms_ansvarlig" — utvides etter behov
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organizationId, role])
+  @@index([organizationId, role])
+  @@map("organization_roles")
 }

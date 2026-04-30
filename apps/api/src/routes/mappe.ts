@@ -589,7 +589,7 @@ export const mappeRouter = router({
           const modul = await ctx.prisma.projectModule.findUnique({
             where: { projectId_moduleSlug: { projectId: doc.projectId, moduleSlug: "oversettelse" } },
           });
-          if (modul?.active) {
+          if (modul?.status === "aktiv") {
             for (const lang of ekstraSpråk) {
               await ctx.prisma.ftdTranslationJob.upsert({
                 where: { documentId_targetLang: { documentId: input.documentId, targetLang: lang } },
