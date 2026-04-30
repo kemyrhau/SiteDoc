@@ -63,6 +63,7 @@ model Organization {
   projects        ProjectOrganization[]
   primaryProjects Project[]                 @relation("ProjectPrimaryOrg")
   projectModules  ProjectModule[]           @relation("OrgProjectModule")
+  partners        OrganizationPartner[]
   integrations    OrganizationIntegration[]
   setting         OrganizationSetting?
 
@@ -130,6 +131,35 @@ model OrganizationSetting {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@map("organization_settings")
+}
+
+// ---------------------------------------------------------------------------
+// OrganizationPartner — firma-eid bibliotek over UE/byggherre/leverandører
+// Per fase-0-beslutninger.md § E steg 6 + arkitektur-syntese.md § 3.2 + § 4.
+// Bravida med to faggrupper (Elektro, Ventilasjon) på samme prosjekt
+// peker til samme partner-rad via Faggruppe.partnerId.
+// ---------------------------------------------------------------------------
+
+model OrganizationPartner {
+  id                 String   @id @default(cuid())
+  organizationId     String   @map("organization_id")
+  name               String
+  organizationNumber String?  @map("organization_number")
+  partnerType        String?  @map("partner_type") // "underentreprenor" | "byggherre" | "leverandor" | "konsulent"
+  contactName        String?  @map("contact_name")
+  contactEmail       String?  @map("contact_email")
+  contactPhone       String?  @map("contact_phone")
+  notes              String?
+  archived           Boolean  @default(false)
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  faggrupper   Faggruppe[]
+
+  @@unique([organizationId, organizationNumber])
+  @@index([organizationId])
+  @@map("organization_partners")
 }
 
 // Auth.js-tabeller for OAuth-tilkoblinger
@@ -340,6 +370,7 @@ model Faggruppe {
   id                 String   @id @default(uuid())
   projectId          String   @map("project_id")
   kontraktId         String?  @map("kontrakt_id")
+  partnerId          String?  @map("partner_id") // FK til OrganizationPartner-bibliotek (nullable — kunde-drevet migrering fra companyName)
   name               String
   faggruppeNummer    String?  @map("faggruppe_nummer")
   organizationNumber String?  @map("organization_number")
@@ -352,6 +383,7 @@ model Faggruppe {
 
   project                Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
   kontrakt               FtdKontrakt?         @relation(fields: [kontraktId], references: [id], onDelete: SetNull)
+  partner                OrganizationPartner? @relation(fields: [partnerId], references: [id], onDelete: SetNull)
   ansvarlig              User?                @relation("FaggruppeAnsvarlig", fields: [ansvarligId], references: [id], onDelete: SetNull)
   faggruppeKoblinger     FaggruppeKobling[]
   bestillerChecklists    Checklist[]          @relation("ChecklistBestillerFaggruppe")
@@ -368,6 +400,7 @@ model Faggruppe {
 
   @@index([projectId])
   @@index([kontraktId])
+  @@index([partnerId])
   @@index([ansvarligId])
   @@map("dokumentflyt_parts")
 }
