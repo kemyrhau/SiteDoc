@@ -59,10 +59,11 @@ model Organization {
   createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @updatedAt @map("updated_at")
 
-  users        User[]
-  projects     ProjectOrganization[]
-  integrations OrganizationIntegration[]
-  setting      OrganizationSetting?
+  users           User[]
+  projects        ProjectOrganization[]
+  primaryProjects Project[]                 @relation("ProjectPrimaryOrg")
+  integrations    OrganizationIntegration[]
+  setting         OrganizationSetting?
 
   @@map("organizations")
 }
@@ -189,6 +190,7 @@ model Project {
   sourceLanguage            String   @default("nb") @map("source_language") // Kildespråk for prosjektet
   status                    String   @default("active")
   trialExpiresAt            DateTime? @map("trial_expires_at")
+  primaryOrganizationId     String?  @map("primary_organization_id") // Per fase-0-beslutninger.md § E steg 4 (nullable per B.4 interim)
   createdAt                 DateTime @default(now()) @map("created_at")
   updatedAt                 DateTime @updatedAt @map("updated_at")
 
@@ -204,6 +206,7 @@ model Project {
   invitations          ProjectInvitation[]
   modules              ProjectModule[]
   projectOrganizations ProjectOrganization[]
+  primaryOrganization  Organization?         @relation("ProjectPrimaryOrg", fields: [primaryOrganizationId], references: [id], onDelete: SetNull)
   dokumentflyter       Dokumentflyt[]
   ftdDocuments         FtdDocument[]
   ftdSpecPosts         FtdSpecPost[]
@@ -214,6 +217,7 @@ model Project {
   kontrollplaner       Kontrollplan[]
 
   @@index([trialExpiresAt])
+  @@index([primaryOrganizationId])
   @@map("projects")
 }
 
