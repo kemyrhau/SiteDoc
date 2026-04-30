@@ -53,7 +53,7 @@ export default function ProsjektOversikt() {
   );
 
   // Prøveperiode: basert på trialExpiresAt, fallback til createdAt + 30 dager
-  const harFirma = !!(prosjekt as unknown as { organizationProjects?: unknown[] }).organizationProjects?.length;
+  const harFirma = !!(prosjekt as unknown as { projectOrganizations?: unknown[] }).projectOrganizations?.length;
   const erDeaktivert = prosjekt.status === "deactivated";
   const dagerIgjen = (() => {
     if (harFirma) return null;

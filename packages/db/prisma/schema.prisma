@@ -60,7 +60,7 @@ model Organization {
   updatedAt          DateTime @updatedAt @map("updated_at")
 
   users        User[]
-  projects     OrganizationProject[]
+  projects     ProjectOrganization[]
   integrations OrganizationIntegration[]
   setting      OrganizationSetting?
 
@@ -84,17 +84,24 @@ model OrganizationIntegration {
   @@map("organization_integrations")
 }
 
-model OrganizationProject {
+// ---------------------------------------------------------------------------
+// ProjectOrganization — m:n mellom Project og Organization med rolle
+// Per fase-0-beslutninger.md § A.5 + § E steg 3.
+// Renamed fra OrganizationProject 2026-05-01 (Fase 0).
+// ---------------------------------------------------------------------------
+
+model ProjectOrganization {
   id             String   @id @default(uuid())
-  organizationId String   @map("organization_id")
   projectId      String   @map("project_id")
+  organizationId String   @map("organization_id")
+  rolle          String   @default("hovedeier") // "hovedeier" | "byggherre" | "konsulent" | "underentreprenor"
   createdAt      DateTime @default(now()) @map("created_at")
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   project      Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  @@unique([organizationId, projectId])
-  @@map("organization_projects")
+  @@unique([projectId, organizationId])
+  @@map("project_organizations")
 }
 
 // ---------------------------------------------------------------------------
@@ -196,7 +203,7 @@ model Project {
   groups               ProjectGroup[]
   invitations          ProjectInvitation[]
   modules              ProjectModule[]
-  organizationProjects OrganizationProject[]
+  projectOrganizations ProjectOrganization[]
   dokumentflyter       Dokumentflyt[]
   ftdDocuments         FtdDocument[]
   ftdSpecPosts         FtdSpecPost[]

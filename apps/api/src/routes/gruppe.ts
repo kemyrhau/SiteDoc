@@ -50,7 +50,7 @@ export const gruppeRouter = router({
       if (!medlem) {
         // company_admin uten ProjectMember-rad — se alt
         if (bruker?.role === "company_admin" && bruker.organizationId) {
-          const orgProsjekt = await ctx.prisma.organizationProject.findFirst({
+          const orgProsjekt = await ctx.prisma.projectOrganization.findFirst({
             where: { organizationId: bruker.organizationId, projectId: input.projectId },
           });
           if (orgProsjekt) {

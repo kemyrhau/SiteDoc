@@ -29,7 +29,7 @@ vi.mock("@sitedoc/db", () => ({
   prisma: {
     user: { findUnique: mockFns.userFindUnique },
     projectMember: { findUnique: mockFns.pmFindUnique },
-    organizationProject: { findFirst: mockFns.opFindFirst },
+    projectOrganization: { findFirst: mockFns.opFindFirst },
   },
 }));
 
@@ -38,7 +38,7 @@ import { verifiserProsjektmedlem, verifiserAdmin, verifiserOrganisasjonTilgang, 
 const mockPrisma = {
   user: { findUnique: mockFns.userFindUnique },
   projectMember: { findUnique: mockFns.pmFindUnique },
-  organizationProject: { findFirst: mockFns.opFindFirst },
+  projectOrganization: { findFirst: mockFns.opFindFirst },
 };
 
 const USER_ID = "user-1";
@@ -87,7 +87,7 @@ describe("verifiserProsjektmedlem", () => {
       organizationId: ORG_ID,
     });
     mockPrisma.projectMember.findUnique.mockResolvedValue(null);
-    mockPrisma.organizationProject.findFirst.mockResolvedValue({
+    mockPrisma.projectOrganization.findFirst.mockResolvedValue({
       id: "op-1",
       organizationId: ORG_ID,
       projectId: PROJECT_ID,
@@ -104,7 +104,7 @@ describe("verifiserProsjektmedlem", () => {
       organizationId: "org-annen",
     });
     mockPrisma.projectMember.findUnique.mockResolvedValue(null);
-    mockPrisma.organizationProject.findFirst.mockResolvedValue(null);
+    mockPrisma.projectOrganization.findFirst.mockResolvedValue(null);
 
     await expect(
       verifiserProsjektmedlem(USER_ID, PROJECT_ID),
@@ -179,7 +179,7 @@ describe("verifiserAdmin", () => {
       organizationId: ORG_ID,
     });
     mockPrisma.projectMember.findUnique.mockResolvedValue(null);
-    mockPrisma.organizationProject.findFirst.mockResolvedValue({
+    mockPrisma.projectOrganization.findFirst.mockResolvedValue({
       id: "op-1",
       organizationId: ORG_ID,
       projectId: PROJECT_ID,
@@ -196,7 +196,7 @@ describe("verifiserAdmin", () => {
       organizationId: "org-annen",
     });
     mockPrisma.projectMember.findUnique.mockResolvedValue(null);
-    mockPrisma.organizationProject.findFirst.mockResolvedValue(null);
+    mockPrisma.projectOrganization.findFirst.mockResolvedValue(null);
 
     await expect(
       verifiserAdmin(USER_ID, PROJECT_ID),
@@ -279,7 +279,7 @@ describe("verifiserAdminEllerFirmaansvarlig", () => {
       organizationId: ORG_ID,
     });
     mockPrisma.projectMember.findUnique.mockResolvedValue(null);
-    mockPrisma.organizationProject.findFirst.mockResolvedValue({
+    mockPrisma.projectOrganization.findFirst.mockResolvedValue({
       id: "op-1",
       organizationId: ORG_ID,
       projectId: PROJECT_ID,

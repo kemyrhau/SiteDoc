@@ -68,11 +68,11 @@ export const organisasjonRouter = router({
     });
   }),
 
-  // Hent organisasjon tilknyttet et prosjekt (via OrganizationProject)
+  // Hent organisasjon tilknyttet et prosjekt (via ProjectOrganization)
   hentForProsjekt: protectedProcedure
     .input(z.object({ projectId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
-      const orgProject = await ctx.prisma.organizationProject.findFirst({
+      const orgProject = await ctx.prisma.projectOrganization.findFirst({
         where: { projectId: input.projectId },
         include: { organization: true },
       });
@@ -97,7 +97,7 @@ export const organisasjonRouter = router({
   hentProsjekter: protectedProcedure.query(async ({ ctx }) => {
     const orgId = await verifiserFirmaAdmin(ctx.prisma, ctx.userId);
 
-    const orgProsjekter = await ctx.prisma.organizationProject.findMany({
+    const orgProsjekter = await ctx.prisma.projectOrganization.findMany({
       where: { organizationId: orgId },
       include: {
         project: {
@@ -178,11 +178,11 @@ export const organisasjonRouter = router({
     .mutation(async ({ ctx, input }) => {
       const orgId = await verifiserFirmaAdmin(ctx.prisma, ctx.userId);
 
-      return ctx.prisma.organizationProject.upsert({
+      return ctx.prisma.projectOrganization.upsert({
         where: {
-          organizationId_projectId: {
-            organizationId: orgId,
+          projectId_organizationId: {
             projectId: input.projectId,
+            organizationId: orgId,
           },
         },
         update: {},
@@ -199,11 +199,11 @@ export const organisasjonRouter = router({
     .mutation(async ({ ctx, input }) => {
       const orgId = await verifiserFirmaAdmin(ctx.prisma, ctx.userId);
 
-      return ctx.prisma.organizationProject.delete({
+      return ctx.prisma.projectOrganization.delete({
         where: {
-          organizationId_projectId: {
-            organizationId: orgId,
+          projectId_organizationId: {
             projectId: input.projectId,
+            organizationId: orgId,
           },
         },
       });
