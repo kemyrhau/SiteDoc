@@ -52,8 +52,8 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 **Status 2026-05-01:** **Fase 0 § E KOMPLETT i prod**. Fase 0.5 STARTET på `feature/fase-0-5-byggeplass`.
 
 **Fase 0.5-fremdrift (revidert scope etter kode-verifisering 2026-05-01):**
-- § 1 Avdeling-tabell + User.avdelingId ✅ — `Avdeling`-modell i `packages/db` (organizationId, kode, navn, aktiv, periode-felter), `User.avdelingId String?` med SetNull, `Organization.avdelinger Avdeling[]`, migrasjon `20260501000015_add_avdeling`
-- § 2 Kompetansetype + AnsattKompetanse (per A.28 + C.14) — venter
+- § 1 Avdeling-tabell + User.avdelingId ✅ (`a90daabd`) — `Avdeling`-modell i `packages/db`, `User.avdelingId String?` med SetNull, migrasjon `20260501000015_add_avdeling`
+- § 2 Kompetansetype + AnsattKompetanse + RBAC ✅ — Kompetansetype + AnsattKompetanse-tabeller (per A.28), OrganizationSetting utvidet med `kompetanseRegistreringTilgang` (firma_admin | bruker_egen | alle, default firma_admin), 7-kategori-seed i `packages/shared/src/types/index.ts` (`KOMPETANSE_KATEGORIER` + `KOMPETANSE_REGISTRERING_TILGANG` + `KOMPETANSE_IMPORT_KILDER`), migrasjon `20260501000016_add_kompetanse`. `kompetanse.*` tRPC-rute + UI bygges senere (Fase 0.5 § 6 eller separat). Varsling-integrasjon (90/30/7 dager) bygges separat når varsling-modul er klar.
 - § 3 ProjectGroupByggeplass m2m (erstatter `building_ids` jsonb per Prinsipp C — verifisert dødt felt) — venter
 - § 4 Drop `ProjectGroup.byggeplassIder` (samme migrasjon, ingen data å migrere) — venter
 - § 5 Slette-policy for byggeplass (telleresult + tekst-bekreftelse + cascade-valg) — venter

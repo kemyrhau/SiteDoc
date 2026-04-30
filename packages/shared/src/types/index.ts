@@ -48,6 +48,44 @@ export const REPORT_OBJECT_TYPES = [
 
 export type ReportObjectType = (typeof REPORT_OBJECT_TYPES)[number];
 
+// Kompetanse-kategorier (Fase 0.5 § 2 + A.28)
+// Verifisert mot SmartDok 2026-04-29 (browser-research, 7-kategori-struktur).
+// Avgrensning per N2.2-PRINSIPP: kategori-listen seedes, men IKKE A.Markussens
+// 77 kompetansetyper. Hver kunde definerer egne typer ved bruk eller via CSV-import.
+export const KOMPETANSE_KATEGORIER = [
+  "ANNET",
+  "ARBEID PÅ / VED VEI",
+  "DIVERSE KJØRETØY",
+  "EGENDEFINERT",
+  "HMS - FØRSTEHJELP",
+  "TRUCK-/MASKINFØRERBEVIS",
+  "FAGBREV/FAGSKOLE",
+] as const;
+
+export type KompetanseKategori = (typeof KOMPETANSE_KATEGORIER)[number];
+
+// Hvem kan registrere AnsattKompetanse-rader (per OrganizationSetting)
+// Default 'firma_admin' (mest restriktivt). Kunde løsner opp ved behov.
+export const KOMPETANSE_REGISTRERING_TILGANG = [
+  "firma_admin",
+  "bruker_egen",
+  "alle",
+] as const;
+
+export type KompetanseRegistreringTilgang =
+  (typeof KOMPETANSE_REGISTRERING_TILGANG)[number];
+
+// Kilder for AnsattKompetanse.importertVia
+export const KOMPETANSE_IMPORT_KILDER = [
+  "manuell",
+  "csv",
+  "xlsx",
+  "hr_api",
+  "smartdok",
+] as const;
+
+export type KompetanseImportKilde = (typeof KOMPETANSE_IMPORT_KILDER)[number];
+
 // Kategorier for rapportobjekttyper
 export type ReportObjectCategory =
   | "tekst"
