@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { Spinner, EmptyState, Button, Input, Modal } from "@sitedoc/ui";
-import { FolderKanban, Plus, Trash2, X, Clock, AlertTriangle, Sparkles, CalendarPlus } from "lucide-react";
+import { FolderKanban, Plus, Trash2, Clock, AlertTriangle, Sparkles, CalendarPlus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
@@ -62,14 +62,6 @@ export default function AdminProsjekter() {
     },
   });
 
-  const tilknyttMutasjon = trpc.admin.tilknyttProsjekt.useMutation({
-    onSuccess: () => invalidateAll(),
-  });
-
-  const fjernTilknytningMutasjon = trpc.admin.fjernProsjektTilknytning.useMutation({
-    onSuccess: () => invalidateAll(),
-  });
-
   const slettUtlopteMutasjon = trpc.admin.slettUtlopteProsjekter.useMutation({
     onSuccess: (_data: unknown) => {
       invalidateAll();
@@ -95,25 +87,6 @@ export default function AdminProsjekter() {
     setSlettProsjektId(id);
     setSlettProsjektNavn(navn);
     setBekreftNavn("");
-  }
-
-  function endreFirma(prosjektId: string, orgId: string, nåværendeOrgId: string | null) {
-    if (orgId === "") {
-      // Fjern tilknytning
-      if (nåværendeOrgId) {
-        fjernTilknytningMutasjon.mutate({ organizationId: nåværendeOrgId, projectId: prosjektId });
-      }
-    } else {
-      // Fjern gammel + tilknytt ny
-      if (nåværendeOrgId && nåværendeOrgId !== orgId) {
-        fjernTilknytningMutasjon.mutate(
-          { organizationId: nåværendeOrgId, projectId: prosjektId },
-          { onSuccess: () => tilknyttMutasjon.mutate({ organizationId: orgId, projectId: prosjektId }) },
-        );
-      } else {
-        tilknyttMutasjon.mutate({ organizationId: orgId, projectId: prosjektId });
-      }
-    }
   }
 
   function opprett() {
@@ -171,7 +144,7 @@ export default function AdminProsjekter() {
         </h1>
         <div className="flex items-center gap-2">
           <Button
-            variant="danger"
+            variant="secondary"
             size="sm"
             onClick={() => {
               if (confirm("Deaktiver prosjekter >30 dager og slett prosjekter >90 dager uten firma?")) {
@@ -180,7 +153,7 @@ export default function AdminProsjekter() {
             }}
             loading={slettUtlopteMutasjon.isPending}
           >
-            <AlertTriangle className="mr-1.5 h-4 w-4" />
+            <AlertTriangle className="mr-1.5 h-4 w-4 text-gray-400" />
             Rydd utløpte
           </Button>
           <Button
@@ -243,27 +216,11 @@ export default function AdminProsjekter() {
                     {p.members[0]?.user?.name || p.members[0]?.user?.email || "–"}
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex items-center gap-1">
-                      <select
-                        value={nåværendeOrgId ?? ""}
-                        onChange={(e) => endreFirma(p.id, e.target.value, nåværendeOrgId)}
-                        className="w-full rounded border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400"
-                      >
-                        <option value="">Ingen firma</option>
-                        {organisasjoner?.map((org) => (
-                          <option key={org.id} value={org.id}>{org.name}</option>
-                        ))}
-                      </select>
-                      {nåværendeOrgId && (
-                        <button
-                          onClick={() => endreFirma(p.id, "", nåværendeOrgId)}
-                          className="flex-shrink-0 rounded p-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-                          title="Fjern firmatilknytning"
-                        >
-                          <X className="h-3.5 w-3.5" />
-                        </button>
-                      )}
-                    </div>
+                    {orgProj ? (
+                      <span className="text-sm text-gray-700">{orgProj.organization.name}</span>
+                    ) : (
+                      <span className="text-xs text-gray-400">—</span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-center text-gray-500">{p.members.length}</td>
                   <td className="px-4 py-3 text-center text-gray-500">{(p as unknown as { _count: { checklists: number } })._count?.checklists ?? 0}</td>
