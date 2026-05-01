@@ -127,4 +127,109 @@ export function kjorMigreringer() {
   } else {
     console.log("[MIG] Kø er tom ved oppstart");
   }
+
+  // Timer-modul Runde 2 — offline-first dagsseddel + katalog-cache
+  db.execSync(`
+    CREATE TABLE IF NOT EXISTS dagsseddel_local (
+      id TEXT PRIMARY KEY NOT NULL,
+      user_id TEXT NOT NULL,
+      organization_id TEXT NOT NULL,
+      project_id TEXT NOT NULL,
+      aktivitet_id TEXT NOT NULL,
+      avdeling_id TEXT,
+      byggeplass_id TEXT,
+      dato TEXT NOT NULL,
+      start_at TEXT,
+      end_at TEXT,
+      pause_min INTEGER NOT NULL DEFAULT 0,
+      status TEXT NOT NULL DEFAULT 'draft',
+      beskrivelse TEXT,
+      leder_kommentar TEXT,
+      attestert_ved TEXT,
+      sync_status TEXT NOT NULL DEFAULT 'pending',
+      feilmelding TEXT,
+      sist_endret_lokalt INTEGER NOT NULL,
+      sist_synkronisert INTEGER
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_dagsseddel_local_user_dato
+      ON dagsseddel_local(user_id, dato);
+    CREATE INDEX IF NOT EXISTS idx_dagsseddel_local_sync_status
+      ON dagsseddel_local(sync_status);
+    CREATE INDEX IF NOT EXISTS idx_dagsseddel_local_project
+      ON dagsseddel_local(project_id, dato);
+
+    CREATE TABLE IF NOT EXISTS sheet_timer_local (
+      id TEXT PRIMARY KEY NOT NULL,
+      dagsseddel_id TEXT NOT NULL,
+      lonnsart_id TEXT NOT NULL,
+      external_cost_object_id TEXT,
+      timer REAL NOT NULL,
+      sist_endret_lokalt INTEGER NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_sheet_timer_local_sheet
+      ON sheet_timer_local(dagsseddel_id);
+
+    CREATE TABLE IF NOT EXISTS sheet_tillegg_local (
+      id TEXT PRIMARY KEY NOT NULL,
+      dagsseddel_id TEXT NOT NULL,
+      tillegg_id TEXT NOT NULL,
+      antall REAL NOT NULL,
+      kommentar TEXT,
+      sist_endret_lokalt INTEGER NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_sheet_tillegg_local_sheet
+      ON sheet_tillegg_local(dagsseddel_id);
+
+    CREATE TABLE IF NOT EXISTS lonnsart_local (
+      id TEXT PRIMARY KEY NOT NULL,
+      organization_id TEXT NOT NULL,
+      type TEXT NOT NULL,
+      kode TEXT,
+      navn TEXT NOT NULL,
+      pris_mot_kunde TEXT,
+      internkostnad TEXT,
+      sats TEXT,
+      sats_enhet TEXT,
+      rekkefolge INTEGER NOT NULL DEFAULT 0,
+      aktiv INTEGER NOT NULL DEFAULT 1,
+      seed_nivaa INTEGER,
+      sist_oppdatert INTEGER NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_lonnsart_local_org_aktiv
+      ON lonnsart_local(organization_id, aktiv);
+
+    CREATE TABLE IF NOT EXISTS aktivitet_local (
+      id TEXT PRIMARY KEY NOT NULL,
+      organization_id TEXT NOT NULL,
+      kode TEXT,
+      navn TEXT NOT NULL,
+      aktiv INTEGER NOT NULL DEFAULT 1,
+      seed_nivaa INTEGER,
+      sist_oppdatert INTEGER NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_aktivitet_local_org_aktiv
+      ON aktivitet_local(organization_id, aktiv);
+
+    CREATE TABLE IF NOT EXISTS tillegg_local (
+      id TEXT PRIMARY KEY NOT NULL,
+      organization_id TEXT NOT NULL,
+      kode TEXT,
+      navn TEXT NOT NULL,
+      type TEXT NOT NULL,
+      pris_mot_kunde TEXT,
+      internkostnad TEXT,
+      rekkefolge INTEGER NOT NULL DEFAULT 0,
+      aktiv INTEGER NOT NULL DEFAULT 1,
+      seed_nivaa INTEGER,
+      sist_oppdatert INTEGER NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_tillegg_local_org_aktiv
+      ON tillegg_local(organization_id, aktiv);
+  `);
 }

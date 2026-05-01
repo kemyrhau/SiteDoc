@@ -14,7 +14,10 @@ import {
   LogOut,
   Globe,
   Check,
+  Clock,
 } from "lucide-react-native";
+import { useRouter } from "expo-router";
+import { useTimerSync } from "../../src/providers/TimerSyncProvider";
 import { ActivityIndicator } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../../src/providers/AuthProvider";
@@ -28,9 +31,11 @@ import type { SpraakKode } from "@sitedoc/shared";
 
 export default function MerSkjerm() {
   const { t, i18n } = useTranslation();
+  const router = useRouter();
   const { bruker, loggUt } = useAuth();
   const { valgtProsjektId } = useProsjekt();
   const { valgtBygningId } = useByggeplass();
+  const { pendingAntall, conflictAntall } = useTimerSync();
   const [offlineTekst, setOfflineTekst] = useState<string | null>(null);
   const [visSpraakModal, setVisSpraakModal] = useState(false);
 
@@ -137,6 +142,18 @@ export default function MerSkjerm() {
           </View>
           <MenyRad ikon={Users} tekst={t("nav.kontakter")} />
           <MenyRad ikon={Building2} tekst={t("nav.grupper")} />
+          <MenyRad
+            ikon={Clock}
+            tekst={t("nav.timer")}
+            badge={
+              conflictAntall > 0
+                ? { tekst: `${conflictAntall}`, farge: "rod" }
+                : pendingAntall > 0
+                  ? { tekst: `${pendingAntall}`, farge: "gul" }
+                  : undefined
+            }
+            onPress={() => router.push("/timer")}
+          />
           <MenyRad ikon={WifiOff} tekst={offlineTekst ?? t("mer.forberedOffline")} onPress={startOffline} />
           <MenyRad ikon={QrCode} tekst={t("mer.skannQR")} />
         </View>
@@ -239,12 +256,15 @@ function MenyRad({
   tekst,
   deaktivert,
   onPress,
+  badge,
 }: {
   ikon: LucideIcon;
   tekst: string;
   deaktivert?: boolean;
   onPress?: () => void;
+  badge?: { tekst: string; farge: "rod" | "gul" };
 }) {
+  const badgeBg = badge?.farge === "rod" ? "bg-red-500" : "bg-yellow-500";
   return (
     <Pressable
       onPress={onPress}
@@ -255,7 +275,14 @@ function MenyRad({
         <Ikon size={20} color="#6b7280" />
         <Text className="text-base text-gray-900">{tekst}</Text>
       </View>
-      <ChevronRight size={18} color="#d1d5db" />
+      <View className="flex-row items-center gap-2">
+        {badge && (
+          <View className={`rounded-full px-2 py-0.5 ${badgeBg}`}>
+            <Text className="text-xs font-bold text-white">{badge.tekst}</Text>
+          </View>
+        )}
+        <ChevronRight size={18} color="#d1d5db" />
+      </View>
     </Pressable>
   );
 }
