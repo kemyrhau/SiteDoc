@@ -107,6 +107,7 @@ export const equipmentRouter = router({
         status: z.enum(STATUS_VERDIER).optional(),
         ansvarligUserId: z.string().uuid().optional(),
         inkluderPensjonert: z.boolean().default(false),
+        sok: z.string().max(100).optional(),
       }).optional(),
     )
     .query(async ({ ctx, input }) => {
@@ -114,6 +115,7 @@ export const equipmentRouter = router({
       const organizationId = await hentBrukerOrg(ctx.userId);
 
       const inkluderPensjonert = input?.inkluderPensjonert ?? false;
+      const sokTrimmet = input?.sok?.trim();
 
       return ctx.prismaMaskin.equipment.findMany({
         where: {
@@ -122,10 +124,50 @@ export const equipmentRouter = router({
           ...(input?.status ? { status: input.status } : {}),
           ...(input?.ansvarligUserId ? { ansvarligUserId: input.ansvarligUserId } : {}),
           ...(inkluderPensjonert ? {} : { status: { not: "pensjonert" } }),
+          ...(sokTrimmet
+            ? {
+                OR: [
+                  { merke: { contains: sokTrimmet, mode: "insensitive" } },
+                  { modell: { contains: sokTrimmet, mode: "insensitive" } },
+                  { internNavn: { contains: sokTrimmet, mode: "insensitive" } },
+                  { internNummer: { contains: sokTrimmet, mode: "insensitive" } },
+                  { registreringsnummer: { contains: sokTrimmet, mode: "insensitive" } },
+                  { vin: { contains: sokTrimmet, mode: "insensitive" } },
+                ],
+              }
+            : {}),
         },
         orderBy: [{ kategori: "asc" }, { merke: "asc" }, { modell: "asc" }],
       });
     }),
+
+  // Aggregert antall per kategori (for filter-bar count-tags)
+  antallPerKategori: protectedProcedure.query(async ({ ctx }) => {
+    if (!ctx.userId) throw new TRPCError({ code: "UNAUTHORIZED" });
+    const organizationId = await hentBrukerOrg(ctx.userId);
+
+    const grupper = await ctx.prismaMaskin.equipment.groupBy({
+      by: ["kategori"],
+      where: { organizationId, status: { not: "pensjonert" } },
+      _count: { _all: true },
+    });
+    return grupper.map((g) => ({
+      kategori: g.kategori,
+      antall: g._count._all,
+    }));
+  }),
+
+  // Firma-medlemmer som kan velges som ansvarlig (filter-bar + ansvarlig-velger)
+  hentMuligeAnsvarlige: protectedProcedure.query(async ({ ctx }) => {
+    if (!ctx.userId) throw new TRPCError({ code: "UNAUTHORIZED" });
+    const organizationId = await hentBrukerOrg(ctx.userId);
+
+    return prisma.user.findMany({
+      where: { organizationId },
+      select: { id: true, name: true, email: true },
+      orderBy: { name: "asc" },
+    });
+  }),
 
   hentMedId: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
