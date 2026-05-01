@@ -12,6 +12,8 @@ export { utmTilWgs84, ntmTilWgs84, konverterTilWgs84, detekterKoordinatSystem, E
 export type { KoordinatSystem } from "./koordinatKonvertering";
 export { wgs84TilUtm, wgs84TilNtm, wgs84TilProjeksjon, gpsTil3D, tredjeTilGps } from "./koordinatBro";
 export type { IfcOpprinnelse } from "./koordinatBro";
+export { kompetanseStatus } from "./kompetanseStatus";
+export type { KompetanseStatus } from "./kompetanseStatus";
 
 /**
  * Generer et unikt prosjektnummer med prefiks og sekvensielt nummer.
