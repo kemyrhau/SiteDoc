@@ -344,7 +344,9 @@ model ProjectGroup {
   permissions Json     @default("[]")
   domains     Json     @default("[]") // ["bygg"], ["hms"], ["bygg","hms"], etc.
   modules     Json     @default("[\"sjekklister\",\"oppgaver\",\"tegninger\",\"3d\"]") // aktive moduler
-  byggeplassIder Json?    @map("building_ids") // null = alle byggeplasser, ellers array med byggeplass-IDer
+  // building_ids jsonb droppet 2026-05-01 (Fase 0.5 § 3) — erstattet av
+  // ProjectGroupByggeplass m2m-koblingstabell. Per Prinsipp C-verifisering var
+  // feltet dødt (skrevet, aldri lest) — ingen data å migrere.
   isDefault   Boolean  @default(false) @map("is_default")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
@@ -358,6 +360,7 @@ model ProjectGroup {
   recipientTransfers    DocumentTransfer[]   @relation("TransferRecipientGroup")
   recipientChecklists   Checklist[]          @relation("ChecklistRecipientGroup")
   recipientTasks        Task[]               @relation("TaskRecipientGroup")
+  byggeplasser          ProjectGroupByggeplass[]
 
   @@unique([projectId, slug])
   @@map("project_groups")
@@ -566,14 +569,15 @@ model Byggeplass {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  project       Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  drawings      Drawing[]
-  pointClouds   PointCloud[]
-  checklists    Checklist[]
-  ftdKontrakter FtdKontrakt[]
-  psiEr         Psi[]
-  omrader       Omrade[]
-  kontrollplaner Kontrollplan[]
+  project          Project                  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  drawings         Drawing[]
+  pointClouds      PointCloud[]
+  checklists       Checklist[]
+  ftdKontrakter    FtdKontrakt[]
+  gruppeKoblinger  ProjectGroupByggeplass[]
+  psiEr            Psi[]
+  omrader          Omrade[]
+  kontrollplaner   Kontrollplan[]
 
   @@index([status])
   @@map("byggeplasser")
@@ -1834,4 +1838,36 @@ model AnsattKompetanse {
   @@index([utloper])
   @@index([kompetansetypeId])
   @@map("ansatt_kompetanser")
+}
+
+// ---------------------------------------------------------------------------
+// ProjectGroupByggeplass — m2m mellom ProjectGroup og Byggeplass (Fase 0.5 § 3)
+// Per fase-0-beslutninger.md byggeplass-strategi.md § Prinsipp C (C1: koblings-
+// tabell) + arkitektur-syntese.md § 5.
+//
+// Erstatter ProjectGroup.byggeplassIder (jsonb «building_ids»). Per Prinsipp C-
+// verifisering 2026-05-01 var jsonb-feltet dødt (skrevet i gruppe.ts:495-503,
+// aldri lest noen sted) — derfor ingen data å migrere, dropp i samme migrasjon.
+//
+// Semantikk: ingen rader for en gruppe = ingen byggeplass-restriksjon
+// (gruppen har tilgang til alle byggeplasser). Rader = begrenset til disse
+// byggeplassene.
+//
+// Cascade-policy:
+// - ProjectGroupByggeplass → ProjectGroup: Cascade
+// - ProjectGroupByggeplass → Byggeplass: Cascade
+// ---------------------------------------------------------------------------
+
+model ProjectGroupByggeplass {
+  id           String   @id @default(uuid())
+  groupId      String   @map("group_id")
+  byggeplassId String   @map("byggeplass_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  group      ProjectGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  byggeplass Byggeplass   @relation(fields: [byggeplassId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, byggeplassId])
+  @@index([byggeplassId])
+  @@map("project_group_byggeplasser")
 }

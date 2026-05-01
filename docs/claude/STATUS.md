@@ -14,7 +14,7 @@
 **Sist oppdatert:** 2026-05-01
 **Antall filer dekket:** 35 (komplett oversikt)
 
-> **Fase 0.5-fremdrift:** § 1 Avdeling-tabell + User.avdelingId (`a90daabd`), § 2 Kompetansetype + AnsattKompetanse + OrganizationSetting.kompetanseRegistreringTilgang + 7-kategori-seed (commit-hash tilføyes etter commit). Branch: `feature/fase-0-5-byggeplass`.
+> **Fase 0.5-fremdrift:** § 1 Avdeling-tabell + User.avdelingId (`a90daabd`), § 2 Kompetansetype + AnsattKompetanse + OrganizationSetting.kompetanseRegistreringTilgang + 7-kategori-seed (`a5ba99ce`), § 3 ProjectGroupByggeplass m2m + drop building_ids + refaktor gruppe.oppdaterByggeplasser (commit-hash tilføyes etter commit). Branch: `feature/fase-0-5-byggeplass`.
 
 ## Sammendrag
 
@@ -66,7 +66,7 @@
 | ai-sok.md | — | — |
 | api.md | — | — |
 | bibliotek.md | — | Peker til kontrollplan.md (konsolidert) |
-| byggeplass-strategi.md | — | Planlagt fase (per CLAUDE.md). K2.3 2026-04-28: slette-policy. **2026-05-01 (Fase 0.5 § 1 startet):** Avdeling-tabell + User.avdelingId implementert på `feature/fase-0-5-byggeplass`. Verifisering 2026-05-01 fant feilantakelse: «EquipmentAnsvarlig.avdelingId» i strategi-fil — tabellen finnes ikke i db-maskin (Equipment har direkte `ansvarligUserId`). ByggeplassMedlemskap utsatt til Fase 4 (Mannskap). Revidert Fase 0.5-scope: Avdeling + Kompetanse + ProjectGroupByggeplass m2m + drop building_ids + slette-policy |
+| byggeplass-strategi.md | — | Planlagt fase (per CLAUDE.md). K2.3 2026-04-28: slette-policy. **2026-05-01 (Fase 0.5 §§ 1-3 implementert):** § 1 Avdeling + § 2 Kompetanse + § 3 ProjectGroupByggeplass m2m (Prinsipp C C1 vedtatt — building_ids droppet i samme migrasjon, verifisert dødt felt). Verifisering 2026-05-01 fant feilantakelse: «EquipmentAnsvarlig.avdelingId» i strategi-fil — tabellen finnes ikke i db-maskin (Equipment har direkte `ansvarligUserId`). ByggeplassMedlemskap utsatt til Fase 4 (Mannskap). Gjenstår: § 5 slette-policy for byggeplass |
 | db-naming-audit-2026-04-25.md | — | Datert audit 2026-04-25 |
 | db-opprydning.md | — | **Arbeidsanker:** Markert AKTIV (per CLAUDE.md). K3.2 2026-04-28: åpne audit-spørsmål mot prod. U.2 D-6 2026-04-28 (utvidet verifikasjon) |
 | infrastruktur.md | — | — |
