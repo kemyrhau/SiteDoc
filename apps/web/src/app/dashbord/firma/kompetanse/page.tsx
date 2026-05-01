@@ -926,8 +926,14 @@ function AnsattKompetanseDialog({
     }
   }
 
-  const utlopForUtstedt =
-    utstedtDato && utloper && new Date(utloper) < new Date(utstedtDato);
+  // Eksplisitt boolean fra live state-verdier (utstedtDato + utloper er begge
+  // useState-strings). Tidligere variant returnerte `string | boolean` via &&-
+  // kjeden, som kunne gi inkonsistent JSX-rendering i opprett-modus hvor
+  // initialverdiene er tomme strenger.
+  const harUgyldigDatoIntervall =
+    utstedtDato.length > 0 &&
+    utloper.length > 0 &&
+    new Date(utloper).getTime() < new Date(utstedtDato).getTime();
 
   const lagrer = opprettMutation.isPending || oppdaterMutation.isPending;
 
@@ -983,7 +989,7 @@ function AnsattKompetanseDialog({
             </div>
           </div>
 
-          {utlopForUtstedt && (
+          {harUgyldigDatoIntervall && (
             <p className="text-xs text-yellow-700">
               {t("firma.kompetanse.dialog.advarselUtlopForUtstedt")}
             </p>
