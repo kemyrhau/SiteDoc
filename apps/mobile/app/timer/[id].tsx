@@ -38,6 +38,7 @@ import {
   lonnsartLocal,
   tilleggLocal,
   aktivitetLocal,
+  externalCostObjectLocal,
 } from "../../src/db/schema";
 import { useTimerSync } from "../../src/providers/TimerSyncProvider";
 import { TimerStatusMerkelapp } from "../../src/components/TimerStatusMerkelapp";
@@ -48,6 +49,7 @@ type TilleggRad = typeof sheetTilleggLocal.$inferSelect;
 type Lonnsart = typeof lonnsartLocal.$inferSelect;
 type Tillegg = typeof tilleggLocal.$inferSelect;
 type Aktivitet = typeof aktivitetLocal.$inferSelect;
+type Underprosjekt = typeof externalCostObjectLocal.$inferSelect;
 
 function formatNorskDato(iso: string): string {
   return new Date(iso).toLocaleDateString("no-NB", {
@@ -153,7 +155,11 @@ export default function DagsseddelDetalj() {
     void triggerSync();
   }
 
-  function leggTilTimerRad(lonnsartId: string, timer: number) {
+  function leggTilTimerRad(
+    lonnsartId: string,
+    timer: number,
+    externalCostObjectId: string | null,
+  ) {
     const db = hentDatabase();
     if (!db) return;
     db.insert(sheetTimerLocal)
@@ -161,7 +167,7 @@ export default function DagsseddelDetalj() {
         id: randomUUID(),
         dagsseddelId: sheetId,
         lonnsartId,
-        externalCostObjectId: null,
+        externalCostObjectId,
         timer,
         sistEndretLokalt: Date.now(),
       })
@@ -170,11 +176,21 @@ export default function DagsseddelDetalj() {
     lesData();
   }
 
-  function oppdaterTimerRad(radId: string, lonnsartId: string, timer: number) {
+  function oppdaterTimerRad(
+    radId: string,
+    lonnsartId: string,
+    timer: number,
+    externalCostObjectId: string | null,
+  ) {
     const db = hentDatabase();
     if (!db) return;
     db.update(sheetTimerLocal)
-      .set({ lonnsartId, timer, sistEndretLokalt: Date.now() })
+      .set({
+        lonnsartId,
+        timer,
+        externalCostObjectId,
+        sistEndretLokalt: Date.now(),
+      })
       .where(eq(sheetTimerLocal.id, radId))
       .run();
     markerEndret();
@@ -500,16 +516,22 @@ export default function DagsseddelDetalj() {
       {/* Timer-rad modal */}
       {visTimerModal && (
         <TimerRadModal
+          projectId={sedel.projectId}
           eksisterendeRad={
             redigerTimerRadId
               ? timerRader.find((r) => r.id === redigerTimerRadId) ?? null
               : null
           }
-          onLagre={(lonnsartId, timer) => {
+          onLagre={(lonnsartId, timer, externalCostObjectId) => {
             if (redigerTimerRadId) {
-              oppdaterTimerRad(redigerTimerRadId, lonnsartId, timer);
+              oppdaterTimerRad(
+                redigerTimerRadId,
+                lonnsartId,
+                timer,
+                externalCostObjectId,
+              );
             } else {
-              leggTilTimerRad(lonnsartId, timer);
+              leggTilTimerRad(lonnsartId, timer, externalCostObjectId);
             }
             setVisTimerModal(false);
             setRedigerTimerRadId(null);
@@ -580,9 +602,14 @@ function TimerRadVis({
         <Text className="text-base text-gray-900">
           {lonnsart?.navn ?? rad.lonnsartId}
         </Text>
-        {lonnsart?.kode && (
-          <Text className="text-xs text-gray-500">{lonnsart.kode}</Text>
-        )}
+        <View className="flex-row gap-2">
+          {lonnsart?.kode && (
+            <Text className="text-xs text-gray-500">{lonnsart.kode}</Text>
+          )}
+          {rad.externalCostObjectId && (
+            <UnderprosjektEtikett ecoId={rad.externalCostObjectId} />
+          )}
+        </View>
       </View>
       <Text className="font-mono text-base text-gray-900">
         {rad.timer.toFixed(2)}
@@ -606,6 +633,26 @@ function TimerRadVis({
         </View>
       )}
     </View>
+  );
+}
+
+function UnderprosjektEtikett({ ecoId }: { ecoId: string }) {
+  const eco = useMemo(() => {
+    const db = hentDatabase();
+    if (!db) return null;
+    return (
+      db
+        .select()
+        .from(externalCostObjectLocal)
+        .where(eq(externalCostObjectLocal.id, ecoId))
+        .all()[0] ?? null
+    );
+  }, [ecoId]);
+  if (!eco) return null;
+  return (
+    <Text className="text-xs font-medium text-blue-700">
+      {eco.proAdmId} {eco.kortNavn}
+    </Text>
   );
 }
 
@@ -669,12 +716,18 @@ function TilleggRadVis({
  * ============================================================================ */
 
 function TimerRadModal({
+  projectId,
   eksisterendeRad,
   onLagre,
   onLukk,
 }: {
+  projectId: string;
   eksisterendeRad: TimerRad | null;
-  onLagre: (lonnsartId: string, timer: number) => void;
+  onLagre: (
+    lonnsartId: string,
+    timer: number,
+    externalCostObjectId: string | null,
+  ) => void;
   onLukk: () => void;
 }) {
   const { t } = useTranslation();
@@ -684,8 +737,12 @@ function TimerRadModal({
   const [timer, setTimer] = useState<string>(
     eksisterendeRad?.timer ? eksisterendeRad.timer.toFixed(2) : "",
   );
+  const [valgtEcoId, setValgtEcoId] = useState<string | null>(
+    eksisterendeRad?.externalCostObjectId ?? null,
+  );
   const [feil, setFeil] = useState<string | null>(null);
-  const [visVelger, setVisVelger] = useState(false);
+  const [visLonnsartVelger, setVisLonnsartVelger] = useState(false);
+  const [visEcoVelger, setVisEcoVelger] = useState(false);
 
   const valgtLonnsart = useMemo(() => {
     if (!valgtLonnsartId) return null;
@@ -700,6 +757,19 @@ function TimerRadModal({
     );
   }, [valgtLonnsartId]);
 
+  const valgtEco = useMemo(() => {
+    if (!valgtEcoId) return null;
+    const db = hentDatabase();
+    if (!db) return null;
+    return (
+      db
+        .select()
+        .from(externalCostObjectLocal)
+        .where(eq(externalCostObjectLocal.id, valgtEcoId))
+        .all()[0] ?? null
+    );
+  }, [valgtEcoId]);
+
   function lagre() {
     setFeil(null);
     if (!valgtLonnsartId) {
@@ -711,7 +781,7 @@ function TimerRadModal({
       setFeil(t("timer.feil.ugyldigTimer"));
       return;
     }
-    onLagre(valgtLonnsartId, tall);
+    onLagre(valgtLonnsartId, tall, valgtEcoId);
   }
 
   return (
@@ -737,7 +807,7 @@ function TimerRadModal({
               {t("timer.felt.lonnsart")} *
             </Text>
             <Pressable
-              onPress={() => setVisVelger(true)}
+              onPress={() => setVisLonnsartVelger(true)}
               className="rounded-lg border border-gray-300 bg-white px-3 py-3"
             >
               <Text
@@ -761,6 +831,36 @@ function TimerRadModal({
             />
           </View>
 
+          {/* Underprosjekt (valgfritt) — Tilleggsarbeid, Endring m.fl. */}
+          <View>
+            <Text className="mb-1 text-sm font-medium text-gray-700">
+              {t("timer.felt.underprosjekt")}
+            </Text>
+            <View className="flex-row items-center gap-2">
+              <Pressable
+                onPress={() => setVisEcoVelger(true)}
+                className="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-3"
+              >
+                <Text
+                  className={`text-base ${valgtEco ? "text-gray-900" : "text-gray-400"}`}
+                >
+                  {valgtEco
+                    ? `${valgtEco.proAdmId} — ${valgtEco.kortNavn}`
+                    : t("timer.velgUnderprosjekt")}
+                </Text>
+              </Pressable>
+              {valgtEcoId && (
+                <Pressable
+                  onPress={() => setValgtEcoId(null)}
+                  hitSlop={8}
+                  className="rounded p-2 active:bg-gray-100"
+                >
+                  <X size={18} color="#6b7280" />
+                </Pressable>
+              )}
+            </View>
+          </View>
+
           {feil && <Text className="text-sm text-red-600">{feil}</Text>}
 
           <Pressable
@@ -773,14 +873,26 @@ function TimerRadModal({
           </Pressable>
         </ScrollView>
 
-        {visVelger && (
+        {visLonnsartVelger && (
           <LonnsartVelgerModal
             valgtId={valgtLonnsartId}
             onVelg={(id) => {
               setValgtLonnsartId(id);
-              setVisVelger(false);
+              setVisLonnsartVelger(false);
             }}
-            onLukk={() => setVisVelger(false)}
+            onLukk={() => setVisLonnsartVelger(false)}
+          />
+        )}
+
+        {visEcoVelger && (
+          <UnderprosjektVelgerModal
+            projectId={projectId}
+            valgtId={valgtEcoId}
+            onVelg={(id) => {
+              setValgtEcoId(id);
+              setVisEcoVelger(false);
+            }}
+            onLukk={() => setVisEcoVelger(false)}
           />
         )}
       </SafeAreaView>
@@ -869,6 +981,108 @@ function LonnsartVelgerModal({
             <View className="px-4 py-8">
               <Text className="text-center text-gray-500">
                 {t("timer.ingenLonnsarter")}
+              </Text>
+            </View>
+          )}
+        />
+      </SafeAreaView>
+    </Modal>
+  );
+}
+
+/* ============================================================================
+ *  Underprosjekt-velger (ECO) — filtrerer på prosjekt
+ * ============================================================================ */
+
+function UnderprosjektVelgerModal({
+  projectId,
+  valgtId,
+  onVelg,
+  onLukk,
+}: {
+  projectId: string;
+  valgtId: string | null;
+  onVelg: (id: string) => void;
+  onLukk: () => void;
+}) {
+  const { t } = useTranslation();
+  const [sok, setSok] = useState("");
+
+  const ecoer = useMemo<Underprosjekt[]>(() => {
+    const db = hentDatabase();
+    if (!db) return [];
+    return db
+      .select()
+      .from(externalCostObjectLocal)
+      .where(
+        and(
+          eq(externalCostObjectLocal.projectId, projectId),
+          eq(externalCostObjectLocal.status, "aktiv"),
+          eq(externalCostObjectLocal.timerregistreringApen, true),
+        ),
+      )
+      .all();
+  }, [projectId]);
+
+  const filtrert = useMemo(() => {
+    if (!sok.trim()) return ecoer;
+    const q = sok.toLowerCase();
+    return ecoer.filter(
+      (e) =>
+        e.proAdmId.toLowerCase().includes(q) ||
+        e.kortNavn.toLowerCase().includes(q),
+    );
+  }, [ecoer, sok]);
+
+  return (
+    <Modal
+      visible={true}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      onRequestClose={onLukk}
+    >
+      <SafeAreaView className="flex-1 bg-white" edges={["top"]}>
+        <View className="flex-row items-center gap-2 border-b border-gray-200 px-4 py-3">
+          <Text className="flex-1 text-lg font-semibold text-gray-900">
+            {t("timer.velgUnderprosjekt")}
+          </Text>
+          <Pressable onPress={onLukk} hitSlop={12}>
+            <X size={24} color="#1f2937" />
+          </Pressable>
+        </View>
+        {ecoer.length > 7 && (
+          <View className="border-b border-gray-200 px-4 py-2">
+            <TextInput
+              value={sok}
+              onChangeText={setSok}
+              placeholder={t("handling.sok")}
+              className="rounded bg-gray-100 px-3 py-2 text-base"
+            />
+          </View>
+        )}
+        <FlatList
+          data={filtrert}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => (
+            <Pressable
+              onPress={() => onVelg(item.id)}
+              className={`flex-row items-center border-b border-gray-100 px-4 py-3 ${
+                item.id === valgtId ? "bg-blue-50" : ""
+              }`}
+            >
+              <View className="flex-1">
+                <Text className="text-base font-medium text-gray-900">
+                  {item.proAdmId}
+                </Text>
+                <Text className="text-sm text-gray-600">{item.kortNavn}</Text>
+              </View>
+              {item.id === valgtId && <Check size={18} color="#1e40af" />}
+            </Pressable>
+          )}
+          ListEmptyComponent={() => (
+            <View className="px-4 py-8">
+              <Text className="text-center text-gray-500">
+                {t("timer.ingenUnderprosjekter")}
               </Text>
             </View>
           )}

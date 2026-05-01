@@ -4,6 +4,7 @@ import {
   lonnsartLocal,
   aktivitetLocal,
   tilleggLocal,
+  externalCostObjectLocal,
 } from "../db/schema";
 import type { trpc } from "../lib/trpc";
 
@@ -28,16 +29,31 @@ export async function refreshKatalog(klient: TrpcKlient): Promise<{
   lonnsarter: number;
   aktiviteter: number;
   tillegg: number;
+  underprosjekter: number;
 }> {
   const db = hentDatabase();
   if (!db) {
-    return { lonnsarter: 0, aktiviteter: 0, tillegg: 0 };
+    return { lonnsarter: 0, aktiviteter: 0, tillegg: 0, underprosjekter: 0 };
   }
 
-  const [lonnsarter, aktiviteter, tillegg] = await Promise.all([
+  const [lonnsarter, aktiviteter, tillegg, underprosjekter] = await Promise.all([
     klient.timer.lonnsart.list.query(),
     klient.timer.aktivitet.list.query(),
     klient.timer.tillegg.list.query(),
+    klient.eksternKostObjekt.list.query().catch((e) => {
+      // Ikke-kritisk hvis ECO-router mangler eller bruker ikke har firma
+      console.warn("[KATALOG] ECO-pull feilet:", e);
+      return [] as Array<{
+        id: string;
+        organizationId: string;
+        projectId: string;
+        proAdmId: string;
+        kortNavn: string;
+        kilde: string;
+        status: string;
+        timerregistreringApen: boolean;
+      }>;
+    }),
   ]);
 
   const naa = Date.now();
@@ -98,10 +114,29 @@ export async function refreshKatalog(klient: TrpcKlient): Promise<{
       .run();
   }
 
+  // Underprosjekter (ECO) — full overskriving
+  db.delete(externalCostObjectLocal).run();
+  for (const eco of underprosjekter) {
+    db.insert(externalCostObjectLocal)
+      .values({
+        id: eco.id,
+        organizationId: eco.organizationId,
+        projectId: eco.projectId,
+        proAdmId: eco.proAdmId,
+        kortNavn: eco.kortNavn,
+        kilde: eco.kilde,
+        status: eco.status,
+        timerregistreringApen: eco.timerregistreringApen,
+        sistOppdatert: naa,
+      })
+      .run();
+  }
+
   return {
     lonnsarter: lonnsarter.length,
     aktiviteter: aktiviteter.length,
     tillegg: tillegg.length,
+    underprosjekter: underprosjekter.length,
   };
 }
 
@@ -187,6 +222,37 @@ export function finnAktivitetLokalt(id: string) {
     .select()
     .from(aktivitetLocal)
     .where(eq(aktivitetLocal.id, id))
+    .all();
+  return rader[0] ?? null;
+}
+
+/**
+ * Hent aktive Underprosjekter (ECO) for et prosjekt fra lokal cache.
+ * Filterer både på status="aktiv" og timerregistreringApen=true.
+ */
+export function hentUnderprosjekterLokalt(projectId: string) {
+  const db = hentDatabase();
+  if (!db) return [];
+  return db
+    .select()
+    .from(externalCostObjectLocal)
+    .where(
+      and(
+        eq(externalCostObjectLocal.projectId, projectId),
+        eq(externalCostObjectLocal.status, "aktiv"),
+        eq(externalCostObjectLocal.timerregistreringApen, true),
+      ),
+    )
+    .all();
+}
+
+export function finnUnderprosjektLokalt(id: string) {
+  const db = hentDatabase();
+  if (!db) return null;
+  const rader = db
+    .select()
+    .from(externalCostObjectLocal)
+    .where(eq(externalCostObjectLocal.id, id))
     .all();
   return rader[0] ?? null;
 }
