@@ -35,6 +35,42 @@ async function hentBrukerOrgId(userId: string): Promise<string> {
 }
 
 /**
+ * Sjekk om bruker kan godkjenne dagssedler for et prosjekt.
+ * Leder = ProjectMember.role i {"admin","project_manager"} eller
+ * sitedoc_admin / company_admin med matchende org.
+ */
+async function erProsjektLeder(userId: string, projectId: string): Promise<boolean> {
+  const bruker = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { role: true, organizationId: true },
+  });
+  if (!bruker) return false;
+  if (bruker.role === "sitedoc_admin") return true;
+
+  if (bruker.role === "company_admin" && bruker.organizationId) {
+    const orgProsjekt = await prisma.projectOrganization.findFirst({
+      where: { organizationId: bruker.organizationId, projectId },
+    });
+    if (orgProsjekt) return true;
+  }
+
+  const medlem = await prisma.projectMember.findUnique({
+    where: { userId_projectId: { userId, projectId } },
+    select: { role: true },
+  });
+  return medlem?.role === "admin" || medlem?.role === "project_manager";
+}
+
+async function krevProsjektLeder(userId: string, projectId: string): Promise<void> {
+  if (!(await erProsjektLeder(userId, projectId))) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Kun prosjektleder eller administrator kan godkjenne dagssedler",
+    });
+  }
+}
+
+/**
  * Hent dagsseddel og verifiser at innlogget bruker eier den (eller er admin).
  * Kaster NOT_FOUND hvis ikke funnet, FORBIDDEN hvis ikke eget.
  */
@@ -545,5 +581,166 @@ export const dagsseddelRouter = router({
       }
       // Cascade på sheetId-FK sletter SheetTimer + SheetTillegg automatisk
       return ctx.prismaTimer.dailySheet.delete({ where: { id: sheet.id } });
+    }),
+
+  // ============================================================================
+  //  Leder-godkjenning (Runde 1C)
+  // ============================================================================
+
+  // Hent alle dagssedler med status=sent som innlogget bruker er leder for.
+  // Brukes av leder-vy /dashbord/[prosjektId]/timer/godkjenning.
+  hentTilGodkjenning: protectedProcedure
+    .input(z.object({ projectId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      await krevProsjektLeder(ctx.userId, input.projectId);
+
+      const sedler = await ctx.prismaTimer.dailySheet.findMany({
+        where: {
+          projectId: input.projectId,
+          status: "sent",
+        },
+        include: {
+          aktivitet: { select: { id: true, navn: true, kode: true } },
+          timer: true,
+          tillegg: true,
+        },
+        orderBy: [{ dato: "asc" }, { createdAt: "asc" }],
+      });
+
+      // Berik med ansatt-navn (cross-package: må slå opp i kjernen-DB)
+      const userIder = Array.from(new Set(sedler.map((s) => s.userId)));
+      const brukere = await prisma.user.findMany({
+        where: { id: { in: userIder } },
+        select: { id: true, name: true, email: true, ansattnummer: true },
+      });
+      const brukerMap = new Map(brukere.map((b) => [b.id, b]));
+
+      return sedler.map((s) => ({
+        ...s,
+        ansatt: brukerMap.get(s.userId) ?? null,
+        totaltimer: s.timer.reduce((acc, t) => acc + Number(t.timer), 0),
+        antallRader: s.timer.length + s.tillegg.length,
+      }));
+    }),
+
+  // Boolean-flagg som sidebar/UI bruker for å gate Godkjenning-lenken.
+  kanGodkjenne: protectedProcedure
+    .input(z.object({ projectId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      return erProsjektLeder(ctx.userId, input.projectId);
+    }),
+
+  // Returner — leder ber om endringer. status="sent" → "returned".
+  // Setter lederKommentar (påkrevd ved retur per spec).
+  returner: protectedProcedure
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        kommentar: z.string().min(1).max(2000),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const sheet = await ctx.prismaTimer.dailySheet.findUnique({
+        where: { id: input.id },
+      });
+      if (!sheet) throw new TRPCError({ code: "NOT_FOUND" });
+      if (sheet.status !== "sent") {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: `Kun innsendte dagssedler kan returneres (status: ${sheet.status})`,
+        });
+      }
+      await krevProsjektLeder(ctx.userId, sheet.projectId);
+
+      return ctx.prismaTimer.dailySheet.update({
+        where: { id: input.id },
+        data: {
+          status: "returned",
+          lederKommentar: input.kommentar.trim(),
+        },
+      });
+    }),
+
+  // Attester — leder godkjenner. status="sent" → "accepted".
+  // Snapshotter pris fra katalog inn i hver SheetTimer/SheetTillegg-rad
+  // (Fase 0 A.7) så fremtidige katalog-endringer ikke påvirker historikken.
+  attester: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const sheet = await ctx.prismaTimer.dailySheet.findUnique({
+        where: { id: input.id },
+      });
+      if (!sheet) throw new TRPCError({ code: "NOT_FOUND" });
+      if (sheet.status !== "sent") {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: `Kun innsendte dagssedler kan attesteres (status: ${sheet.status})`,
+        });
+      }
+      await krevProsjektLeder(ctx.userId, sheet.projectId);
+
+      // Hent alle rader + tilhørende katalog-data for snapshot
+      const [timerRader, tilleggRader] = await Promise.all([
+        ctx.prismaTimer.sheetTimer.findMany({
+          where: { sheetId: input.id },
+          include: { lonnsart: true },
+        }),
+        ctx.prismaTimer.sheetTillegg.findMany({
+          where: { sheetId: input.id },
+          include: { tillegg: true },
+        }),
+      ]);
+
+      const naa = new Date();
+
+      // Atomisk transaksjon: skriv snapshot + flytt status i én batch
+      await ctx.prismaTimer.$transaction([
+        ...timerRader.map((rad) =>
+          ctx.prismaTimer.sheetTimer.update({
+            where: { id: rad.id },
+            data: {
+              attestertSnapshot: {
+                lonnsartId: rad.lonnsart.id,
+                kode: rad.lonnsart.kode,
+                navn: rad.lonnsart.navn,
+                type: rad.lonnsart.type,
+                prisMotKunde: rad.lonnsart.prisMotKunde?.toString() ?? null,
+                internkostnad: rad.lonnsart.internkostnad?.toString() ?? null,
+                sats: rad.lonnsart.sats?.toString() ?? null,
+                satsEnhet: rad.lonnsart.satsEnhet,
+                attestertVed: naa.toISOString(),
+              },
+            },
+          }),
+        ),
+        ...tilleggRader.map((rad) =>
+          ctx.prismaTimer.sheetTillegg.update({
+            where: { id: rad.id },
+            data: {
+              attestertSnapshot: {
+                tilleggId: rad.tillegg.id,
+                kode: rad.tillegg.kode,
+                navn: rad.tillegg.navn,
+                type: rad.tillegg.type,
+                prisMotKunde: rad.tillegg.prisMotKunde?.toString() ?? null,
+                internkostnad: rad.tillegg.internkostnad?.toString() ?? null,
+                attestertVed: naa.toISOString(),
+              },
+            },
+          }),
+        ),
+        ctx.prismaTimer.dailySheet.update({
+          where: { id: input.id },
+          data: {
+            status: "accepted",
+            attestertAvUserId: ctx.userId,
+            attestertVed: naa,
+          },
+        }),
+      ]);
+
+      return ctx.prismaTimer.dailySheet.findUniqueOrThrow({
+        where: { id: input.id },
+      });
     }),
 });

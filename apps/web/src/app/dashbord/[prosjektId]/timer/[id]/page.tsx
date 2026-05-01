@@ -110,7 +110,7 @@ export default function DagsseddelDetaljSide() {
         </div>
         <div className="flex flex-col items-end gap-2">
           <StatusBadge status={sheet.status} />
-          {!erRedigerbar && (
+          {!erRedigerbar && sheet.status !== "accepted" && (
             <span className="inline-flex items-center gap-1 text-xs text-gray-500">
               <AlertCircle className="h-3 w-3" />
               {t("timer.detalj.laast")}
@@ -118,6 +118,34 @@ export default function DagsseddelDetaljSide() {
           )}
         </div>
       </div>
+
+      {/* Returned-banner med leder-kommentar */}
+      {sheet.status === "returned" && sheet.lederKommentar && (
+        <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-4">
+          <div className="mb-1 flex items-center gap-2 text-sm font-semibold text-amber-900">
+            <AlertCircle className="h-4 w-4" />
+            {t("timer.detalj.returnertTittel")}
+          </div>
+          <p className="whitespace-pre-wrap text-sm text-amber-900">
+            {sheet.lederKommentar}
+          </p>
+          <p className="mt-2 text-xs text-amber-700">
+            {t("timer.detalj.returnertHjelp")}
+          </p>
+        </div>
+      )}
+
+      {/* Accepted-banner med attestert-info */}
+      {sheet.status === "accepted" && sheet.attestertVed && (
+        <div className="mb-4 rounded-lg border border-green-200 bg-green-50 p-4">
+          <div className="flex items-center gap-2 text-sm font-semibold text-green-900">
+            <AlertCircle className="h-4 w-4" />
+            {t("timer.detalj.attestertTittel", {
+              dato: new Date(sheet.attestertVed as string | Date).toLocaleString("no-NB"),
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Header-info */}
       <section className="mb-6 rounded-lg border border-gray-200 bg-white p-5">
