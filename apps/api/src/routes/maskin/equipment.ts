@@ -250,10 +250,6 @@ export const equipmentRouter = router({
   hentFraVegvesenForhandsvisning: protectedProcedure
     .input(z.object({ registreringsnummer: regnummerSchema }))
     .mutation(async ({ ctx, input }) => {
-      // [VEGVESEN-DIAG] midlertidig diagnostikk — fjernes etter test
-      console.log("[VEGVESEN-DIAG] apiKey:", process.env.VEGVESEN_API_KEY ? "SATT" : "MANGLER");
-      console.log("[VEGVESEN-DIAG] input:", input.registreringsnummer);
-
       if (!ctx.userId) throw new TRPCError({ code: "UNAUTHORIZED" });
       const organizationId = await hentBrukerOrg(ctx.userId);
       await krevMaskinAktivert(organizationId);

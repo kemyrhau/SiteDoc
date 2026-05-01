@@ -84,11 +84,15 @@ export async function hentKjoretoyData(regnummer: string): Promise<unknown> {
 
 /**
  * Hent kjennemerke fra Vegvesen-respons.
- * Returnerer null hvis sti mangler.
+ * Vegvesen pakker kjøretøyet i `kjoretoydataListe[0]` — vi støtter også
+ * direkte objekt for bakoverkompatibilitet.
  */
 export function extractKjennemerke(vegvesenData: unknown): string | null {
-  const data = vegvesenData as { kjoretoyId?: { kjennemerke?: unknown } } | null;
-  const kjennemerke = data?.kjoretoyId?.kjennemerke;
+  const wrapper = vegvesenData as { kjoretoydataListe?: unknown[] } | null;
+  const kjoretoy =
+    (wrapper?.kjoretoydataListe?.[0] as { kjoretoyId?: { kjennemerke?: unknown } } | undefined) ??
+    (vegvesenData as { kjoretoyId?: { kjennemerke?: unknown } } | null);
+  const kjennemerke = kjoretoy?.kjoretoyId?.kjennemerke;
   return typeof kjennemerke === "string" ? kjennemerke : null;
 }
 
@@ -139,18 +143,42 @@ function isoDato(v: unknown): string | null {
 
 /**
  * Map rå Vegvesen-respons til UI-forhåndsvisnings-felter.
+ *
+ * Faktisk Vegvesen-struktur (verifisert mot ZH44186, 2026-05-01):
+ *   { kjoretoydataListe: [{
+ *       kjoretoyId: { kjennemerke, understellsnummer },
+ *       forstegangsregistrering: { registrertForstegangNorgeDato },
+ *       godkjenning: {
+ *         tekniskGodkjenning: {
+ *           kjoretoyklassifisering: { ... },
+ *           tekniskeData: {
+ *             generelt: { merke, handelsbetegnelse, tekniskKode (M1/Personbil) },
+ *             karosseriOgLasteplan: { karosseritype, rFarge },
+ *             motorOgDrivverk: { motor[0]: { drivstoff[0]: { drivstoffKode, maksNettoEffekt } }, girkassetype },
+ *             persontall: { sitteplasserTotalt },
+ *             vekter: { egenvekt, tillattTotalvekt, nyttelast, ... },
+ *             miljodata: { euroKlasse, miljoOgdrivstoffGruppe[0].forbrukOgUtslipp[0]: { co2BlandetKjoring, forbrukBlandetKjoring } }
+ *           }
+ *         }
+ *       },
+ *       periodiskKjoretoyKontroll: { sistGodkjent, kontrollfrist }
+ *   }] }
+ *
  * Tilgir manglende stier — alle felter er nullable.
  */
 export function parseForhandsvisning(
   raw: unknown,
   fallbackRegnummer: string,
 ): ForhandsvisningFelter {
-  const r = raw as Record<string, any>;
-  const teknisk = r?.tekniskeData ?? {};
+  const wrapper = raw as { kjoretoydataListe?: Record<string, any>[] } | null;
+  // Pakk ut fra kjoretoydataListe[0] — fallback til root for bakoverkompatibilitet
+  const r = (wrapper?.kjoretoydataListe?.[0] ?? raw) as Record<string, any>;
+
+  const tekniskGodkjenning = r?.godkjenning?.tekniskGodkjenning ?? {};
+  const teknisk = tekniskGodkjenning?.tekniskeData ?? {};
   const generelt = teknisk?.generelt ?? {};
   const motor = teknisk?.motorOgDrivverk?.motor?.[0] ?? {};
   const drivstoff = motor?.drivstoff?.[0] ?? {};
-  const klassif = teknisk?.kjoretoyklassifisering ?? {};
   const persontall = teknisk?.persontall ?? {};
   const vekter = teknisk?.vekter ?? {};
   const miljo = teknisk?.miljodata?.miljoOgdrivstoffGruppe?.[0]?.forbrukOgUtslipp?.[0] ?? {};
@@ -161,9 +189,10 @@ export function parseForhandsvisning(
   const modell = s(generelt?.handelsbetegnelse?.[0]);
   const farge = s(teknisk?.karosseriOgLasteplan?.rFarge?.[0]?.kodeNavn);
   const drivstoffNavn = s(drivstoff?.drivstoffKode?.kodeNavn);
-  const kjoretoygruppe = s(klassif?.tekniskKode?.kodeVerdi);
-  const kjoretoygruppeNavn = s(klassif?.tekniskKode?.kodeNavn);
-  const karosseritype = s(klassif?.karosseritype?.kodeNavn);
+  // tekniskKode (M1/Personbil) ligger under generelt, ikke under kjoretoyklassifisering
+  const kjoretoygruppe = s(generelt?.tekniskKode?.kodeVerdi);
+  const kjoretoygruppeNavn = s(generelt?.tekniskKode?.kodeNavn);
+  const karosseritype = s(teknisk?.karosseriOgLasteplan?.karosseritype?.kodeNavn);
   const girkasse = s(teknisk?.motorOgDrivverk?.girkassetype?.kodeNavn);
   const euroKlasse = s(teknisk?.miljodata?.euroKlasse?.kodeNavn);
 
