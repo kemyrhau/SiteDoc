@@ -1047,7 +1047,12 @@ function RedigerModal({
               </select>
             </Felt>
             <Felt label={t("maskin.type")}>
-              <Input v={inn.type} onChange={(v) => setInn({ ...inn, type: v })} />
+              <input
+                type="text"
+                value={inn.type ?? ""}
+                onChange={(e) => setInn({ ...inn, type: e.target.value })}
+                className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm"
+              />
             </Felt>
             <Felt label={t("maskin.merke")}>
               <Input v={inn.merke} onChange={(v) => setInn({ ...inn, merke: v })} />
