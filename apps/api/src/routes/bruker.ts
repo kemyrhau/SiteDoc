@@ -12,6 +12,22 @@ const tabellOppsettSchema = z.object({
 });
 
 export const brukerRouter = router({
+  // Hent innlogget brukers grunnleggende info (id, name, role, organizationId)
+  // brukes til å skjule/vise admin-knapper på klient
+  hentMin: protectedProcedure.query(async ({ ctx }) => {
+    if (!ctx.userId) return null;
+    return ctx.prisma.user.findUnique({
+      where: { id: ctx.userId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        organizationId: true,
+      },
+    });
+  }),
+
   hentSpraak: protectedProcedure.query(async ({ ctx }) => {
     const bruker = await ctx.prisma.user.findUnique({
       where: { id: ctx.userId },
