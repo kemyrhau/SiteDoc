@@ -832,16 +832,36 @@ Mobil leser data via API — ingen lokal maskin-database.
 
 ### SmartDok-import — planlagt Blokk C+
 
-**Bakgrunn (2026-05-01):** A.Markussen eksporterte maskinregister fra SmartDok til Excel. 126 maskiner analysert.
+> **🚨 FORUTSETNING:** Blokk C (detaljside med full redigering av alle felt) MÅ være implementert og deployet til prod FØR SmartDok-import tilbys A.Markussen. Brukeren trenger redigeringsmulighet for alle felt etter import — ikke bare navn, men kategori, eierskap, ansvarlig, årsmodell, lokasjon, timetall, km-stand, notat. Uten Blokk C kan brukeren ikke korrigere import-feil eller berike maskiner med data SmartDok ikke leverer.
+
+**Bakgrunn (2026-05-01):** A.Markussen eksporterte maskinregister fra SmartDok til Excel (`tabell (1).xlsx`). 126 maskiner analysert.
 
 **Excel-kolonner fra SmartDok-eksport:**
 Maskin, Internnummer, Reg.nr, Maskinkode, Årsmodell, Lokasjon, Sist endret, Maskinansvarlig 1, Maskinansvarlig 2, Timetall, Km.stand, Notat, Status
 
-**Datakvalitet (A.Markussen, 126 maskiner):**
-- 41 ekte regnummer → Vegvesen-oppslag automatisk (prio 100 i kø)
-- 39 «UREG» + 46 tomme → opprettes uten Vegvesen-data
+**Datakvalitet (A.Markussen, 126 maskiner — verifisert 2026-05-01):**
+- **36 ekte regnummer** → Vegvesen-oppslag automatisk (prio 100 i kø)
+- **5 type-godkjenningsnumre** i Reg.nr-feltet (`890`, `872`, `523`, `922`, `7666`) → filtreres av `erGyldigRegnummer()`, opprettes uten Vegvesen-data
+- 39 «UREG» + 46 tomme regnummer → opprettes uten Vegvesen-data
 - 13 maskiner har Maskinansvarlig 2 → `EquipmentAnsvarlig`-tabellen (hybrid A.6)
-- «Sist endret»-timestamp finnes → delta-import støttes ved avslutning av SmartDok
+- 15 unike ansvarlige (alle med fornavn + etternavn — match mot `User.name` har lav feilmatching-risiko)
+- 99 har Timetall, 17 har Km.stand, 75 har Årsmodell, 103 har Lokasjon, 9 har Notat
+- «Sist endret»-timestamp (datetime + millisekunder) → delta-import støttes ved avslutning av SmartDok
+
+**Internnummer-fordeling:**
+- **7XXX (104 maskiner)** — eget utstyr og kjøretøy
+- **9XXX (11 maskiner)** — leid utstyr (mappes til `eierskap = "leid"` ved import)
+- **0XXX (10 maskiner)** — placeholder for «ikke tildelt internnummer» → settes `null` ved import (ikke en tredje kategori)
+- **«x» (1 rad)** — testdata fra SmartDok → filtreres ved import
+
+**Status-feltet:**
+Tomt for alle 126 maskiner hos A.Markussen. Default `tilgjengelig` settes ved import.
+
+**Maskinkode-feltet:**
+Tomt for de fleste, men der det er fylt (10 maskiner) er det **identisk med Internnummer** — ikke en kategoriserings-mekanisme. Ignoreres ved import.
+
+**Maskinnavn-konvensjon:**
+Maskinnavnet inneholder ofte internnummeret som prefiks (f.eks. «7019 Maskinhenger varebil»). Importeres as-is — bruker rydder manuelt via detaljside (Blokk C) etter import.
 
 **Ansvarlig-matching:**
 SmartDok eksporterer ansvarlig som klartekst-navn (f.eks. «Afrim Qefalia»). SmartDok-brukere er registrert med navn, telefon, e-post og passord i timeføringssystemet. Match gjøres mot `User.name` (case-insensitive). Umatcha ansvarlige → advarsel i import-rapport, ansvarlig settes null.
@@ -854,15 +874,15 @@ SmartDok skiller IKKE kjøretøy fra anleggsmaskin — alt er «Machines». A.Ma
 
 **Import-flyt (Excel, samme mønster som kompetanse Runde 2.5):**
 1. Last opp SmartDok Excel-eksport
-2. Forhåndsvisning: matching-rapport (ansvarlige, Vegvesen-kandidater, umatcha)
-3. Bekreft → atomisk import
-4. Maskiner med gyldig regnummer → Vegvesen-kø prio 100
+2. Forhåndsvisning: matching-rapport (ansvarlige, Vegvesen-kandidater, umatcha, filtrerte testrader, type-godkjenningsnumre)
+3. Bekreft → atomisk import (default `eierskap=eid` for 7XXX, `leid` for 9XXX, `tilgjengelig` status, `null` internnummer for 0XXX)
+4. Maskiner med gyldig regnummer (per `erGyldigRegnummer()`) → Vegvesen-kø prio 100
 
 **Felt SmartDok har, SiteDoc mangler (vurder ved import):**
 - `MaxTons`/`MaxM3` (kapasitet) — ikke i Equipment-schema ennå
 - `PricePerHour`/`InternalCost` — kommer via Timer-modul Fase 3
 
-**Prioritet:** Etter Blokk C (detaljside + filter-bar). Kenneth gir Opus Excel-filen når import skal implementeres.
+**Prioritet:** Etter Blokk C (detaljside + filter-bar). Kenneth har gitt Opus Excel-filen 2026-05-01 — analyse fullført, implementasjon utsettes til Blokk C er ferdig.
 
 ## Tidligere planleggingsspørsmål
 
