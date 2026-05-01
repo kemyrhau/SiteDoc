@@ -29,6 +29,8 @@ import { omradeRouter } from "../routes/omrade";
 import { kontrollplanRouter } from "../routes/kontrollplan";
 import { maskinRouter } from "../routes/maskin";
 import { avdelingRouter } from "../routes/avdeling";
+import { kompetansetypeRouter } from "../routes/kompetansetype";
+import { kompetanseRouter } from "../routes/kompetanse";
 
 
 export const appRouter = router({
@@ -63,6 +65,8 @@ export const appRouter = router({
   kontrollplan: kontrollplanRouter,
   maskin: maskinRouter,
   avdeling: avdelingRouter,
+  kompetansetype: kompetansetypeRouter,
+  kompetanse: kompetanseRouter,
 
 });
 

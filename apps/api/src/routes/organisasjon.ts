@@ -338,4 +338,46 @@ export const organisasjonRouter = router({
 
       return { fjernet: resultat.count };
     }),
+
+  // Hent OrganizationSetting for innlogget brukers firma.
+  // Upserts default-rad ved første kall (eldre Organization-rader kan mangle setting).
+  hentSetting: protectedProcedure.query(async ({ ctx }) => {
+    const orgId = await verifiserFirmaAdmin(ctx.prisma, ctx.userId);
+    return ctx.prisma.organizationSetting.upsert({
+      where: { organizationId: orgId },
+      create: { organizationId: orgId },
+      update: {},
+    });
+  }),
+
+  // Oppdater OrganizationSetting (alle felter valgfrie, gjør upsert).
+  oppdaterSetting: protectedProcedure
+    .input(
+      z.object({
+        timezone: z.string().min(1).optional(),
+        timerTilgangDefault: z
+          .enum(["alle-ansatte", "kun-prosjektmedlemmer", "sertifiserte"])
+          .optional(),
+        vareforbrukTilgangDefault: z
+          .enum(["alle-ansatte", "kun-prosjektmedlemmer", "sertifiserte"])
+          .optional(),
+        maskinbrukTilgangDefault: z
+          .enum(["alle-ansatte", "kun-prosjektmedlemmer", "sertifiserte"])
+          .optional(),
+        kompetanseRegistreringTilgang: z
+          .enum(["firma_admin", "bruker_egen", "alle"])
+          .optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const orgId = await verifiserFirmaAdmin(ctx.prisma, ctx.userId);
+      return ctx.prisma.organizationSetting.upsert({
+        where: { organizationId: orgId },
+        create: {
+          organizationId: orgId,
+          ...input,
+        },
+        update: input,
+      });
+    }),
 });

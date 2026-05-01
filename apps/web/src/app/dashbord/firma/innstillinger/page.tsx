@@ -196,6 +196,9 @@ export default function FirmaInnstillinger() {
         </div>
       </div>
 
+      {/* Kompetansematrise — registreringspolicy */}
+      <KompetansePolicySeksjon />
+
       {/* Hjelp-modal */}
       {hjelpÅpen && (
         <div
@@ -267,6 +270,98 @@ export default function FirmaInnstillinger() {
             </div>
           </div>
         </div>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  KompetansePolicySeksjon — Fase 0.5 § 2 RBAC-toggle                  */
+/* ------------------------------------------------------------------ */
+
+function KompetansePolicySeksjon() {
+  const { data: setting, isLoading } = trpc.organisasjon.hentSetting.useQuery();
+  const utils = trpc.useUtils();
+
+  const oppdater = trpc.organisasjon.oppdaterSetting.useMutation({
+    onSuccess: () => {
+      utils.organisasjon.hentSetting.invalidate();
+    },
+  });
+
+  function endre(verdi: "firma_admin" | "bruker_egen" | "alle") {
+    oppdater.mutate({ kompetanseRegistreringTilgang: verdi });
+  }
+
+  if (isLoading || !setting) {
+    return null;
+  }
+
+  const valg: Array<{
+    verdi: "firma_admin" | "bruker_egen" | "alle";
+    tittel: string;
+    beskrivelse: string;
+  }> = [
+    {
+      verdi: "firma_admin",
+      tittel: "Kun firma-admin",
+      beskrivelse:
+        "Kun firma-administratorer kan registrere og endre kompetanse-data. Mest restriktivt.",
+    },
+    {
+      verdi: "bruker_egen",
+      tittel: "Bruker registrerer egne",
+      beskrivelse:
+        "Hver ansatt kan registrere og oppdatere sine egne kompetanser. Firma-admin kan endre alle.",
+    },
+    {
+      verdi: "alle",
+      tittel: "Alle ansatte",
+      beskrivelse:
+        "Alle ansatte i firmaet kan registrere og endre kompetanse for hverandre. Mest fleksibelt.",
+    },
+  ];
+
+  return (
+    <div className="mt-6 rounded-lg border border-gray-200 bg-white p-6">
+      <h2 className="mb-1 text-sm font-semibold text-gray-700">
+        Kompetansematrise — registreringspolicy
+      </h2>
+      <p className="mb-4 text-xs text-gray-500">
+        Bestem hvem som kan registrere og endre kompetanse-data for ansatte i firmaet.
+      </p>
+
+      <div className="space-y-2">
+        {valg.map((v) => (
+          <label
+            key={v.verdi}
+            className={`flex cursor-pointer items-start gap-3 rounded-md border p-3 transition-colors ${
+              setting.kompetanseRegistreringTilgang === v.verdi
+                ? "border-sitedoc-primary bg-sitedoc-primary/5"
+                : "border-gray-200 hover:bg-gray-50"
+            }`}
+          >
+            <input
+              type="radio"
+              name="kompetansePolicy"
+              value={v.verdi}
+              checked={setting.kompetanseRegistreringTilgang === v.verdi}
+              onChange={() => endre(v.verdi)}
+              disabled={oppdater.isPending}
+              className="mt-0.5"
+            />
+            <div>
+              <div className="text-sm font-medium text-gray-900">{v.tittel}</div>
+              <div className="text-xs text-gray-600">{v.beskrivelse}</div>
+            </div>
+          </label>
+        ))}
+      </div>
+
+      {oppdater.isError && (
+        <p className="mt-3 text-sm text-red-500">
+          Kunne ikke lagre: {oppdater.error.message}
+        </p>
       )}
     </div>
   );

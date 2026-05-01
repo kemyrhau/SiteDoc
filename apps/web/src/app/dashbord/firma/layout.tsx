@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, FolderKanban, Users, CreditCard, Settings, Building2 } from "lucide-react";
+import { LayoutDashboard, FolderKanban, Users, CreditCard, Settings, Building2, Award } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { Spinner } from "@sitedoc/ui";
 
@@ -26,6 +26,11 @@ const navigasjon = [
     label: "Avdelinger",
     href: "/dashbord/firma/avdelinger",
     ikon: <Building2 className="h-4 w-4" />,
+  },
+  {
+    label: "Kompetanse",
+    href: "/dashbord/firma/kompetanse",
+    ikon: <Award className="h-4 w-4" />,
   },
   {
     label: "Fakturering",
