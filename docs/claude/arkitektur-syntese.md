@@ -423,6 +423,61 @@ Detaljer og tilhørende kontrakter i [fase-0-beslutninger.md § A.15-A.17](fase-
 
 **Backlog:** Nightly cron som logger orphan-refs for `Equipment.ansvarligUserId`, etc.
 
+### 6.1.1 Cross-modul-tilgang via service-lag — kanon for alle firmamoduler ✅ **VEDTATT 2026-05-01**
+
+Når én modul (Timer, Aktivitetsfeed, Planlegger) trenger data fra en annen firmamodul (Maskin, Kompetanse, Varelager), skjer kommunikasjon via **domain service-lag** i `apps/api/src/services/<modul>/` — ikke direkte DB-import og ikke tRPC-til-tRPC-roundtrip.
+
+**Forbidden:** Direkte import av andre modulers Prisma-klient utenfor egen modul-mappe.
+
+```typescript
+// ❌ ALDRI utenfor apps/api/src/{routes,services}/maskin/:
+import { prismaMaskin } from "@sitedoc/db-maskin";
+
+// ❌ ALDRI utenfor apps/api/src/{routes,services}/kompetanse/:
+import { prisma } from "@sitedoc/db";  // selv om dette er kjernen, tilgang til
+                                        // kompetanse-tabeller skal gå via service
+```
+
+**Påkrevd:** Bruk service-laget.
+
+```typescript
+// ✅ Timer kaller Maskin via service:
+import { hentKjoretoyForFirma } from "../../services/maskin";
+
+// ✅ Maskin kaller Kompetanse via service (når relevant):
+import { hentKompetanseForBruker } from "../../services/kompetanse";
+```
+
+**Service-lagets ansvar:**
+1. **Modul-gating** — sjekker `OrganizationModule.status` (eller midlertidig `Organization.harXModul`-flag) før spørring. Returnerer tom liste / null ved deaktivert modul (soft-skjul-policy).
+2. **DB-tilgang** — innkapsler Prisma-klienten. Konsumerende moduler kjenner ikke skjema-detaljer.
+3. **Type-stable grensesnitt** — eksponerte typer er service-eide, ikke Prisma-genererte. Skjema-endringer i en modul bryter ikke konsumenter.
+
+**Konvensjon for filstruktur:**
+
+```
+apps/api/src/services/<modul>/
+├── index.ts              // re-eksport av offentlig API
+├── <ressurs>.ts          // funksjoner per domene-objekt
+└── moduleGate.ts         // erXAktivert(orgId), krevXAktivert(orgId)
+```
+
+**Soft-skjul vs eksplisitt flag:**
+- **Soft-skjul (default):** Service returnerer tom liste / null når modul av. Konsumerende UI rendrer uten den manglende delen — ingen feilmelding. Foretrukket for velgere, lister, sub-paneler.
+- **Eksplisitt flag:** Service eksponerer egen `erXAktivert(orgId): boolean`. Konsumerende rute returnerer `{ harXModul: false, ... }`. UI kan rendre informativ tekst. Brukes for cross-modul-rapporter eller dashboards som må forklare manglende data.
+
+**Skriving:** Service-laget eksponerer **kun lese-funksjoner** for cross-modul-tilgang. Skriving til en moduls data skjer alltid via modulens egne tRPC-ruter med full tilgangskontroll. Andre moduler skal ikke skrive til en moduls data direkte.
+
+**Konsumenter av denne policyen:**
+- Timer (Fase 3) → Maskin (kjøretøy-velger på dagsseddel) + Kompetanse (kvalifikasjons-validering)
+- Aktivitetsfeed (post-Fase 1+3) → Maskin + Kompetanse + Timer
+- Planlegger (Fase 4+) → Maskin + Kompetanse + Timer
+- Maskin (Fase 1) → ingen cross-modul-avhengigheter ennå (service-lag bygges når Timer trenger det)
+
+**Tester:** Service-laget mockes i unit-tester for konsumenter — eliminerer behov for full DB-stack.
+
+**Kilde:** Vedtatt 2026-05-01 i Blokk A schema-reconciliation før Maskin Fase 1-fortsettelse. Erstatter implisitt antakelse om at moduler kunne importere hverandres Prisma-klienter.
+
 ### 6.2 Asynkron arbeid — kø-og-job-mønster ✅
 
 SiteDoc håndterer offloaded arbeid (filopplasting, batch-oversettelse, eksterne API-kall med rate-limit) via persisterte køer. Tre kanon-implementasjoner i kodebasen:

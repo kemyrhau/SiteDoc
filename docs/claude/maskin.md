@@ -102,17 +102,104 @@ Mottakere: `ansvarligId` + utstyrsadmin-rolle.
 - **Kontrollplan**: ingen direkte kobling i MVP
 - **Mannskap**: geofencing via eksisterende innsjekk (ikke ny infrastruktur)
 
-### Ansvarlig per utstyr — UI-mønster
+### Cross-modul-integrasjon — Domain Service-lag
 
-Datamodell: `EquipmentAnsvarlig` m:n-tabell (besluttet i Fase 0 A.6) håndterer 1, 2 eller flere ansvarlige uten schema-endring.
+Andre moduler (Timer, Mannskap-vy i PSI, Aktivitetsfeed, Planlegger) leser Maskin-data via **service-lag** i `apps/api/src/services/maskin/` — ikke direkte fra `packages/db-maskin`. Service-laget er kanon-grensesnitt for cross-modul-tilgang, samme mønster som `BilagsKilde` (per [arkitektur-syntese.md § 7.4](arkitektur-syntese.md)).
 
-**UI-mønster i registrerings-/redigeringsskjema:**
-- Vis én ansvarlig-rad som standard
-- «+ Legg til ansvarlig»-knapp under for å legge til flere
-- Hver rad har × for å fjerne
-- Ingen forhåndsantakelse om «ansvarlig 1» / «ansvarlig 2» — alle er likeverdige
+**Forbidden import-pattern:**
 
-A.Markussen bruker SmartDok med to faste ansvarlig-felt («Maskinansvarlig 1» og «Maskinansvarlig 2»). Vårt mønster håndterer både dette og firmaer som trenger flere ansvarlige (f.eks. kran med fører + sjekkansvarlig + verifikatør).
+```typescript
+// ❌ ALDRI utenfor apps/api/src/{routes,services}/maskin/:
+import { prismaMaskin } from "@sitedoc/db-maskin";
+```
+
+**Påkrevd pattern:**
+
+```typescript
+// ✅ Via service-lag:
+import { hentKjoretoyForFirma, erMaskinAktivert } from "../../services/maskin";
+```
+
+**Service-lagets struktur:**
+
+```
+apps/api/src/services/maskin/
+├── index.ts              // re-eksport av offentlig API
+├── equipment.ts          // hentForFirma, hentForId, finnesAktivt, listForKategori
+├── assignment.ts         // hentAktiveTildelinger, hentForUser, opprettTildeling
+└── moduleGate.ts         // erMaskinAktivert(orgId), krevMaskinAktivert(orgId)
+```
+
+**Modul-gating-policy:**
+
+| Funksjon | Når Maskin-modul er av | Bruksområde |
+|---|---|---|
+| `hentKjoretoyForFirma(orgId)` | Returnerer `[]` (soft-skjul) | Timer kjøretøy-velger, Aktivitetsfeed |
+| `hentForId(equipmentId)` | Returnerer `null` | Detalj-oppslag fra rapporter |
+| `erMaskinAktivert(orgId)` | Returnerer `false` | Eksplisitt sjekk for UI-rendering |
+| `krevMaskinAktivert(orgId)` | Kaster `ModulIkkeAktivertError` | Maskin-egne ruter (modulProcedure) |
+
+**Soft-skjul som default:** Konsumerende moduler får tom liste i stedet for feil når Maskin-modul ikke er aktivert. UI rendrer uten kjøretøy-velger eller maskin-relaterte felt; ingen feilmelding vises. Eksplisitt flag (`harMaskinModul: boolean`) brukes kun i cross-modul-rapporter som trenger å forklare manglende data.
+
+**Konsekvens for fremtidig modul-integrasjon (Timer Fase 3, etc.):**
+1. Timer kaller `hentKjoretoyForFirma(orgId)` fra dagsseddel-rute → returnerer kjøretøy-liste eller `[]`
+2. Timer-UI rendrer kjøretøy-velger kun når listen er ikke-tom
+3. Timer trenger ikke kjenne `db-maskin`-skjema, modul-gating-mekanisme eller Vegvesen-status
+
+**Avgrensning:** Service-laget eksponerer kun **lese-funksjoner** for cross-modul-tilgang. Skriving til Maskin-data skjer alltid via Maskin sine egne tRPC-ruter (`maskin.equipment.*`, `maskin.assignment.*` osv.) med full tilgangskontroll. Andre moduler skal ikke skrive til Maskin-data direkte.
+
+**Tester:** Service-laget mockes i unit-tester for konsumerende moduler — Timer-tester trenger ikke spinne opp `db-maskin`.
+
+**Kilde:** Vedtatt 2026-05-01 som del av Blokk A schema-reconciliation, før Maskin Fase 1-fortsettelse.
+
+### Ansvarlig per utstyr — hybrid-modell + UI-mønster
+
+**Datamodell (per A.6 reformulert 2026-05-01):**
+
+| Kilde | Felt | Bruk |
+|---|---|---|
+| `Equipment.ansvarligUserId` (single, nullable) | Primær ansvarlig | Default-flow. Vises i listevisning. Brukes når én ansvarlig holder. |
+| `EquipmentAnsvarlig`-tabell (m:n, kun tilleggsansvarlige) | Tilleggsansvarlige med periode | Brukes når maskinen trenger flere — kran med fører + sjekkansvarlig + verifikatør, eller A.Markussens «Maskinansvarlig 2». |
+
+Ingen `rolle`-kolonne i `EquipmentAnsvarlig` — alle rader er per definisjon «secondary». Primær ligger eksklusivt på `Equipment.ansvarligUserId`.
+
+**UI-mønster i detaljside (`/dashbord/maskin/[id]`):**
+
+```
+┌─ Ansvarlig ─────────────────────────────────────────┐
+│  Hovedansvarlig: Ola Hansen                  [endre]│
+│                                                      │
+│  Tilleggsansvarlige (2):                             │
+│   • Per Hansen — siden 12.03.2026          [×]       │
+│   • Kari Olsen — siden 28.04.2026          [×]       │
+│   [+ Legg til ansvarlig]                             │
+└──────────────────────────────────────────────────────┘
+```
+
+**UI-mønster i listevisning (`/dashbord/maskin`):**
+- Kolonne «Ansvarlig» viser kun primær (`ansvarligUserId`-bruker)
+- Liten tag «+N» bak navn hvis maskinen har tilleggsansvarlige (klikk åpner detaljside)
+- Søk/filter på ansvarlig matcher både primær og tilleggsansvarlige
+
+**Tilgangsregler (`verifiserMaskinAnsvarligSkriveTilgang(ctxUserId, equipmentId)`):**
+
+| Rolle | Endre primær (`ansvarligUserId`) | Tilføye/fjerne tilleggsansvarlige |
+|---|---|---|
+| `sitedoc_admin` | Ja | Ja |
+| `company_admin` (samme firma) | Ja | Ja |
+| Nåværende primær-ansvarlig | Ja | Ja |
+| Andre firma-ansatte | Nei (kun lesetilgang) | Nei |
+
+Sjekken bor i `apps/api/src/trpc/tilgangskontroll.ts` og kalles fra `maskin.equipment.oppdater` + `maskin.ansvarlig.tilfoy/fjern`.
+
+**Validering:**
+- Tilleggsansvarlige tillates **også** når primær er null (UI viser «Hovedansvarlig: ikke satt — [sett]»). Ingen DB-constraint som tvinger primær.
+- Tilleggsansvarlig kan være samme person som primær — men da varsles bruker i UI («Bruker er allerede primær — fjern primær først?»). Ingen DB-constraint.
+- `periodeSlutt` settes ved fjerning (soft-fjern, bevarer historikk). Hard-delete kun ved feilregistrering.
+
+**A.Markussen-tilpasning:** SmartDok-import med to ansvarlig-felt mappes som `Maskinansvarlig 1 → ansvarligUserId` og `Maskinansvarlig 2 → EquipmentAnsvarlig-rad`. Ingen tap av data, ingen krav om manuell prioritering.
+
+**Audit:** Endringer på `ansvarligUserId` logges via Activity-tabell (Fase 0 § E.1). Tilføyelse/fjerning av tilleggsansvarlige logges via `EquipmentAnsvarlig.opprettetAvUserId` + Activity-rad ved soft-fjern.
 
 ### QR/RFID (Fase 3)
 
