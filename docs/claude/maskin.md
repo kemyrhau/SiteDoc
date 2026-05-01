@@ -830,6 +830,40 @@ Mobil leser data via API — ingen lokal maskin-database.
 - Timer-modul aktiv bruk (maskintime i dagsseddel)
 - Økonomi readonly-visning
 
+### SmartDok-import — planlagt Blokk C+
+
+**Bakgrunn (2026-05-01):** A.Markussen eksporterte maskinregister fra SmartDok til Excel. 126 maskiner analysert.
+
+**Excel-kolonner fra SmartDok-eksport:**
+Maskin, Internnummer, Reg.nr, Maskinkode, Årsmodell, Lokasjon, Sist endret, Maskinansvarlig 1, Maskinansvarlig 2, Timetall, Km.stand, Notat, Status
+
+**Datakvalitet (A.Markussen, 126 maskiner):**
+- 41 ekte regnummer → Vegvesen-oppslag automatisk (prio 100 i kø)
+- 39 «UREG» + 46 tomme → opprettes uten Vegvesen-data
+- 13 maskiner har Maskinansvarlig 2 → `EquipmentAnsvarlig`-tabellen (hybrid A.6)
+- «Sist endret»-timestamp finnes → delta-import støttes ved avslutning av SmartDok
+
+**Ansvarlig-matching:**
+SmartDok eksporterer ansvarlig som klartekst-navn (f.eks. «Afrim Qefalia»). SmartDok-brukere er registrert med navn, telefon, e-post og passord i timeføringssystemet. Match gjøres mot `User.name` (case-insensitive). Umatcha ansvarlige → advarsel i import-rapport, ansvarlig settes null.
+
+**Parallell-drift:**
+A.Markussen vil bruke SmartDok parallelt i overgangsfasen. Statusdrift mellom systemene er akseptert. Delta-import ved avslutning gjøres via «Sist endret»-timestamp.
+
+**Maskinkode (kategorisering):**
+SmartDok skiller IKKE kjøretøy fra anleggsmaskin — alt er «Machines». A.Markussen bruker intern kode-konvensjon (7600-tall = anleggsmaskin). Mapping til SiteDoc-kategorier defineres av Kenneth ved import. Maskiner med gyldig norsk regnummer → automatisk kjøretøy via Vegvesen-oppslag.
+
+**Import-flyt (Excel, samme mønster som kompetanse Runde 2.5):**
+1. Last opp SmartDok Excel-eksport
+2. Forhåndsvisning: matching-rapport (ansvarlige, Vegvesen-kandidater, umatcha)
+3. Bekreft → atomisk import
+4. Maskiner med gyldig regnummer → Vegvesen-kø prio 100
+
+**Felt SmartDok har, SiteDoc mangler (vurder ved import):**
+- `MaxTons`/`MaxM3` (kapasitet) — ikke i Equipment-schema ennå
+- `PricePerHour`/`InternalCost` — kommer via Timer-modul Fase 3
+
+**Prioritet:** Etter Blokk C (detaljside + filter-bar). Kenneth gir Opus Excel-filen når import skal implementeres.
+
 ## Tidligere planleggingsspørsmål
 
 Se «Designbeslutninger — låst 2026-04-23» øverst i dokumentet for alle lukkede beslutninger fra runde 1–3.
