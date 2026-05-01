@@ -110,6 +110,15 @@ async function start() {
     } catch (_e) {
       // Ikke kritisk — ignorer hvis tabellen ikke finnes ennå
     }
+
+    // Start Vegvesen-worker (prosesserer VegvesenKo-køen for manuell + auto-oppdatering)
+    try {
+      const { prismaMaskin } = await import("@sitedoc/db-maskin");
+      const { startVegvesenWorker } = await import("./services/maskin");
+      startVegvesenWorker(prismaMaskin);
+    } catch (err) {
+      server.log.warn({ err }, "Kunne ikke starte Vegvesen-worker — fortsetter uten");
+    }
   } catch (err) {
     server.log.error(err);
     process.exit(1);

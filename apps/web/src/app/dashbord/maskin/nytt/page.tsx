@@ -3,10 +3,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Truck, Wrench, Hammer, Download, Info } from "lucide-react";
+import { ArrowLeft, Truck, Wrench, Hammer, Download, Info, CheckCircle2, X, Loader2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { TYPER_PER_KATEGORI, type MaskinKategori } from "@/lib/maskin-typer";
+import { normaliserRegnummer, erGyldigRegnummer } from "@sitedoc/shared";
 
 const KATEGORI_KNAPP: Array<{
   verdi: MaskinKategori;
@@ -34,6 +35,33 @@ const KATEGORI_KNAPP: Array<{
   },
 ];
 
+const EIERSKAP_VERDIER = ["eid", "leid", "leasing", "lant"] as const;
+type Eierskap = (typeof EIERSKAP_VERDIER)[number];
+
+type ForhandsvisningFelter = {
+  registreringsnummer: string;
+  vin: string | null;
+  merke: string | null;
+  modell: string | null;
+  farge: string | null;
+  drivstoff: string | null;
+  kjoretoygruppe: string | null;
+  kjoretoygruppeNavn: string | null;
+  karosseritype: string | null;
+  antallSeter: number | null;
+  forsteRegistrering: string | null;
+  effektKw: number | null;
+  euroKlasse: string | null;
+  totalvekt: number | null;
+  egenvekt: number | null;
+  nyttelast: number | null;
+  girkasse: string | null;
+  co2GramPerKm: number | null;
+  forbrukLiterPer10km: number | null;
+  euKontrollSist: string | null;
+  euKontrollFrist: string | null;
+};
+
 export default function NyttUtstyrPage() {
   const { t } = useTranslation();
   const router = useRouter();
@@ -42,7 +70,10 @@ export default function NyttUtstyrPage() {
   const [type, setType] = useState("");
   const [merke, setMerke] = useState("");
   const [modell, setModell] = useState("");
+  const [internNavn, setInternNavn] = useState("");
   const [internNummer, setInternNummer] = useState("");
+  const [eierskap, setEierskap] = useState<Eierskap>("eid");
+  const [aarsmodell, setAarsmodell] = useState("");
   const [lokasjon, setLokasjon] = useState("");
   const [anskaffelsesDato, setAnskaffelsesDato] = useState("");
   const [nypris, setNypris] = useState("");
@@ -51,6 +82,17 @@ export default function NyttUtstyrPage() {
   const [serienummer, setSerienummer] = useState("");
   const [feil, setFeil] = useState<string | null>(null);
 
+  // Vegvesen-flyt state
+  const [forhandsvisning, setForhandsvisning] = useState<ForhandsvisningFelter | null>(null);
+  const [vegvesenData, setVegvesenData] = useState<unknown>(null);
+  const [vegvesenFeil, setVegvesenFeil] = useState<string | null>(null);
+
+  interface MutationVennlig<TInput, TResult> {
+    isPending: boolean;
+    mutate: (input: TInput) => void;
+    mutateAsync: (input: TInput) => Promise<TResult>;
+  }
+
   const opprett = trpc.maskin.equipment.opprett.useMutation({
     onSuccess: (_data: unknown) => {
       router.push("/dashbord/maskin");
@@ -58,18 +100,92 @@ export default function NyttUtstyrPage() {
     onError: (e: { message: string }) => {
       setFeil(e.message);
     },
-  });
+  }) as unknown as MutationVennlig<Record<string, unknown>, unknown>;
+
+  const opprettMedVegvesen = trpc.maskin.equipment.opprettMedVegvesen.useMutation({
+    onSuccess: (_data: unknown) => {
+      router.push("/dashbord/maskin");
+    },
+    onError: (e: { message: string }) => {
+      setFeil(e.message);
+    },
+  }) as unknown as MutationVennlig<Record<string, unknown>, unknown>;
+
+  const forhandsvis = trpc.maskin.equipment.hentFraVegvesenForhandsvisning.useMutation({
+    onSuccess: (data: { felter: ForhandsvisningFelter; vegvesenData?: unknown }) => {
+      setForhandsvisning(data.felter);
+      setVegvesenData(data.vegvesenData ?? null);
+      setVegvesenFeil(null);
+      // Auto-foreslå type og årsmodell fra Vegvesen
+      if (data.felter.kjoretoygruppeNavn?.toLowerCase().includes("personbil")) setType("personbil");
+      else if (data.felter.kjoretoygruppeNavn?.toLowerCase().includes("varebil")) setType("varebil");
+      else if (data.felter.kjoretoygruppeNavn?.toLowerCase().includes("lastebil")) setType("lastebil");
+      else if (data.felter.kjoretoygruppeNavn?.toLowerCase().includes("tilhenger")) setType("tilhenger");
+      if (data.felter.forsteRegistrering) {
+        const aar = new Date(data.felter.forsteRegistrering).getFullYear();
+        setAarsmodell(String(aar));
+      }
+    },
+    onError: (e: { message: string }) => {
+      setForhandsvisning(null);
+      setVegvesenData(null);
+      setVegvesenFeil(e.message);
+    },
+  }) as unknown as MutationVennlig<{ registreringsnummer: string }, { felter: ForhandsvisningFelter; vegvesenData?: unknown }>;
+
+  function hentFraVegvesen() {
+    setVegvesenFeil(null);
+    const normalisert = normaliserRegnummer(registreringsnummer);
+    if (!erGyldigRegnummer(normalisert)) {
+      setVegvesenFeil(t("maskin.vegvesen.ugyldigRegnr"));
+      return;
+    }
+    forhandsvis.mutate({ registreringsnummer: normalisert });
+  }
+
+  function tilbakestillVegvesen() {
+    setForhandsvisning(null);
+    setVegvesenData(null);
+    setVegvesenFeil(null);
+    setRegistreringsnummer("");
+    setMerke("");
+    setModell("");
+    setAarsmodell("");
+  }
 
   function lagre(e: React.FormEvent) {
     e.preventDefault();
-    if (!kategori || !type) return;
     setFeil(null);
+
+    if (forhandsvisning && vegvesenData && kategori === "kjoretoy") {
+      // Vegvesen-flyt: send bekreftet data
+      if (!type) return;
+      opprettMedVegvesen.mutate({
+        registreringsnummer: forhandsvisning.registreringsnummer,
+        vegvesenData,
+        type,
+        internNavn: internNavn || undefined,
+        internNummer: internNummer || undefined,
+        eierskap,
+        aarsmodell: aarsmodell ? Number(aarsmodell) : undefined,
+        lokasjon: lokasjon || undefined,
+        anskaffelsesDato: anskaffelsesDato || undefined,
+        nypris: nypris ? parseFloat(nypris) : undefined,
+        notater: notater || undefined,
+      });
+      return;
+    }
+
+    if (!kategori || !type) return;
     opprett.mutate({
       kategori,
       type,
       merke: merke || undefined,
       modell: modell || undefined,
+      internNavn: internNavn || undefined,
       internNummer: internNummer || undefined,
+      eierskap,
+      aarsmodell: aarsmodell ? Number(aarsmodell) : undefined,
       lokasjon: lokasjon || undefined,
       anskaffelsesDato: anskaffelsesDato || undefined,
       nypris: nypris ? parseFloat(nypris) : undefined,
@@ -80,6 +196,7 @@ export default function NyttUtstyrPage() {
   }
 
   const typer = kategori ? TYPER_PER_KATEGORI[kategori] : [];
+  const erVegvesenFlyt = forhandsvisning !== null;
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -133,6 +250,7 @@ export default function NyttUtstyrPage() {
                 setType("");
                 setRegistreringsnummer("");
                 setSerienummer("");
+                tilbakestillVegvesen();
               }}
               className="text-xs text-gray-500 hover:text-sitedoc-primary"
             >
@@ -140,8 +258,8 @@ export default function NyttUtstyrPage() {
             </button>
           </div>
 
-          {/* Kjøretøy — Vegvesen-placeholder øverst */}
-          {kategori === "kjoretoy" && (
+          {/* Kjøretøy — Vegvesen-flyt */}
+          {kategori === "kjoretoy" && !erVegvesenFlyt && (
             <div className="rounded-lg border border-gray-200 bg-white p-4">
               <label className="mb-1 block text-xs font-medium text-gray-700">
                 {t("maskin.registreringsnummer")}
@@ -150,24 +268,111 @@ export default function NyttUtstyrPage() {
                 <input
                   type="text"
                   value={registreringsnummer}
-                  onChange={(e) => setRegistreringsnummer(e.target.value.toUpperCase())}
+                  onChange={(e) => setRegistreringsnummer(normaliserRegnummer(e.target.value))}
                   placeholder="AB12345"
-                  className="flex-1 rounded-md border border-gray-300 px-3 py-1.5 text-sm"
+                  maxLength={10}
+                  className="flex-1 rounded-md border border-gray-300 px-3 py-1.5 text-sm font-mono uppercase"
                 />
                 <button
                   type="button"
-                  disabled
-                  title={t("maskin.hentFraVegvesenKommerSnart")}
-                  className="inline-flex cursor-not-allowed items-center gap-1 rounded-md border border-gray-300 bg-gray-100 px-3 py-1.5 text-sm text-gray-400"
+                  onClick={hentFraVegvesen}
+                  disabled={!registreringsnummer || forhandsvis.isPending}
+                  className="inline-flex items-center gap-1 rounded-md bg-sitedoc-primary px-3 py-1.5 text-sm text-white hover:bg-sitedoc-primary/90 disabled:opacity-50"
                 >
-                  <Download className="h-3.5 w-3.5" />
-                  {t("maskin.hentFraVegvesen")}
+                  {forhandsvis.isPending ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Download className="h-3.5 w-3.5" />
+                  )}
+                  {forhandsvis.isPending ? t("maskin.vegvesen.henter") : t("maskin.hentFraVegvesen")}
                 </button>
               </div>
-              <p className="mt-1.5 flex items-start gap-1 text-xs text-gray-400">
-                <Info className="mt-0.5 h-3 w-3 flex-shrink-0" />
-                {t("maskin.hentFraVegvesenKommerSnart")}
+              {vegvesenFeil && (
+                <p className="mt-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                  {vegvesenFeil}
+                </p>
+              )}
+              <p className="mt-2 text-xs text-gray-500">
+                {t("maskin.vegvesen.eller")}{" "}
+                <button
+                  type="button"
+                  className="text-sitedoc-primary hover:underline"
+                  onClick={() => setForhandsvisning({
+                    registreringsnummer: "",
+                    vin: null, merke: null, modell: null, farge: null, drivstoff: null,
+                    kjoretoygruppe: null, kjoretoygruppeNavn: null, karosseritype: null,
+                    antallSeter: null, forsteRegistrering: null, effektKw: null,
+                    euroKlasse: null, totalvekt: null, egenvekt: null, nyttelast: null,
+                    girkasse: null, co2GramPerKm: null, forbrukLiterPer10km: null,
+                    euKontrollSist: null, euKontrollFrist: null,
+                  })}
+                >
+                  {t("maskin.vegvesen.fortsettUtenVegvesen")}
+                </button>
               </p>
+            </div>
+          )}
+
+          {/* Vegvesen-forhåndsvisning */}
+          {kategori === "kjoretoy" && forhandsvisning && forhandsvisning.merke && (
+            <div className="rounded-lg border border-green-300 bg-green-50 p-4">
+              <div className="mb-3 flex items-center justify-between">
+                <div className="flex items-center gap-2 text-sm font-medium text-green-900">
+                  <CheckCircle2 className="h-4 w-4" />
+                  {t("maskin.vegvesen.forhandsvisning.kilde")}
+                </div>
+                <button
+                  type="button"
+                  onClick={tilbakestillVegvesen}
+                  className="inline-flex items-center gap-1 text-xs text-gray-600 hover:text-gray-900"
+                >
+                  <X className="h-3 w-3" />
+                  {t("maskin.vegvesen.forhandsvisning.proeAnnet")}
+                </button>
+              </div>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-700">
+                <div className="col-span-2 text-sm font-semibold text-gray-900">
+                  {[forhandsvisning.merke, forhandsvisning.modell].filter(Boolean).join(" ")}
+                  {forhandsvisning.karosseritype && (
+                    <span className="ml-2 font-normal text-gray-600">
+                      ({forhandsvisning.karosseritype})
+                    </span>
+                  )}
+                </div>
+                {forhandsvisning.kjoretoygruppeNavn && (
+                  <Linje k={t("maskin.vegvesen.forhandsvisning.kjoretoygruppe")} v={forhandsvisning.kjoretoygruppeNavn} />
+                )}
+                {forhandsvisning.farge && (
+                  <Linje k={t("maskin.vegvesen.forhandsvisning.farge")} v={forhandsvisning.farge} />
+                )}
+                {forhandsvisning.drivstoff && (
+                  <Linje k={t("maskin.drivstoff")} v={forhandsvisning.drivstoff} />
+                )}
+                {forhandsvisning.girkasse && (
+                  <Linje k={t("maskin.vegvesen.forhandsvisning.girkasse")} v={forhandsvisning.girkasse} />
+                )}
+                {forhandsvisning.effektKw !== null && (
+                  <Linje k={t("maskin.effektKw")} v={`${forhandsvisning.effektKw} kW`} />
+                )}
+                {forhandsvisning.euroKlasse && (
+                  <Linje k={t("maskin.euroKlasse")} v={forhandsvisning.euroKlasse} />
+                )}
+                {forhandsvisning.totalvekt !== null && (
+                  <Linje k={t("maskin.vegvesen.forhandsvisning.totalvekt")} v={`${forhandsvisning.totalvekt} kg`} />
+                )}
+                {forhandsvisning.nyttelast !== null && (
+                  <Linje k={t("maskin.vegvesen.forhandsvisning.nyttelast")} v={`${forhandsvisning.nyttelast} kg`} />
+                )}
+                {forhandsvisning.antallSeter !== null && (
+                  <Linje k={t("maskin.vegvesen.forhandsvisning.antallSeter")} v={String(forhandsvisning.antallSeter)} />
+                )}
+                {forhandsvisning.forsteRegistrering && (
+                  <Linje k={t("maskin.vegvesen.forhandsvisning.forsteRegistrert")} v={forhandsvisning.forsteRegistrering} />
+                )}
+                {forhandsvisning.euKontrollFrist && (
+                  <Linje k={t("maskin.vegvesen.forhandsvisning.euKontrollFrist")} v={forhandsvisning.euKontrollFrist} />
+                )}
+              </div>
             </div>
           )}
 
@@ -198,23 +403,70 @@ export default function NyttUtstyrPage() {
               />
             </Felt>
 
-            <Felt labelKey="maskin.merke">
+            <Felt labelKey="maskin.internNavn">
               <input
                 type="text"
-                value={merke}
-                onChange={(e) => setMerke(e.target.value)}
+                value={internNavn}
+                onChange={(e) => setInternNavn(e.target.value)}
+                placeholder={t("maskin.internNavnHint")}
                 className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm"
               />
             </Felt>
 
-            <Felt labelKey="maskin.modell">
+            <Felt labelKey="maskin.aarsmodell">
               <input
-                type="text"
-                value={modell}
-                onChange={(e) => setModell(e.target.value)}
+                type="number"
+                value={aarsmodell}
+                onChange={(e) => setAarsmodell(e.target.value)}
+                min="1900"
+                max="2100"
                 className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm"
               />
             </Felt>
+
+            {/* Manuell merke/modell — skjules ved Vegvesen-flyt med data */}
+            {!(erVegvesenFlyt && forhandsvisning?.merke) && (
+              <>
+                <Felt labelKey="maskin.merke">
+                  <input
+                    type="text"
+                    value={merke}
+                    onChange={(e) => setMerke(e.target.value)}
+                    className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm"
+                  />
+                </Felt>
+
+                <Felt labelKey="maskin.modell">
+                  <input
+                    type="text"
+                    value={modell}
+                    onChange={(e) => setModell(e.target.value)}
+                    className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm"
+                  />
+                </Felt>
+              </>
+            )}
+
+            <div className="sm:col-span-2">
+              <Felt labelKey="maskin.eierskap.label">
+                <div className="flex flex-wrap gap-2">
+                  {EIERSKAP_VERDIER.map((e) => (
+                    <button
+                      key={e}
+                      type="button"
+                      onClick={() => setEierskap(e)}
+                      className={`rounded-md border px-3 py-1.5 text-xs font-medium ${
+                        eierskap === e
+                          ? "border-sitedoc-primary bg-sitedoc-primary text-white"
+                          : "border-gray-300 bg-white text-gray-700 hover:border-sitedoc-primary"
+                      }`}
+                    >
+                      {t(`maskin.eierskap.${e}`)}
+                    </button>
+                  ))}
+                </div>
+              </Felt>
+            </div>
 
             {kategori === "anleggsmaskin" && (
               <Felt labelKey="maskin.serienummer">
@@ -283,13 +535,22 @@ export default function NyttUtstyrPage() {
             </Link>
             <button
               type="submit"
-              disabled={!type || opprett.isPending}
+              disabled={!type || opprett.isPending || opprettMedVegvesen.isPending}
               className="rounded-md bg-sitedoc-primary px-4 py-1.5 text-sm font-medium text-white hover:bg-sitedoc-primary/90 disabled:opacity-50"
             >
-              {t("handling.lagre")}
+              {opprett.isPending || opprettMedVegvesen.isPending
+                ? t("handling.lagrer")
+                : t("handling.lagre")}
             </button>
           </div>
         </form>
+      )}
+
+      {kategori === "kjoretoy" && !registreringsnummer && !erVegvesenFlyt && (
+        <p className="mt-3 flex items-start gap-1 text-xs text-gray-400">
+          <Info className="mt-0.5 h-3 w-3 flex-shrink-0" />
+          {t("maskin.vegvesen.hentInnHint")}
+        </p>
       )}
     </div>
   );
@@ -313,5 +574,14 @@ function Felt({
       </span>
       {children}
     </label>
+  );
+}
+
+function Linje({ k, v }: { k: string; v: string }) {
+  return (
+    <>
+      <span className="text-gray-500">{k}:</span>
+      <span className="text-gray-900">{v}</span>
+    </>
   );
 }

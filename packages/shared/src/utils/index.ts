@@ -14,6 +14,7 @@ export { wgs84TilUtm, wgs84TilNtm, wgs84TilProjeksjon, gpsTil3D, tredjeTilGps } 
 export type { IfcOpprinnelse } from "./koordinatBro";
 export { kompetanseStatus } from "./kompetanseStatus";
 export type { KompetanseStatus } from "./kompetanseStatus";
+export { normaliserRegnummer, erGyldigRegnummer } from "./regnummer";
 
 /**
  * Generer et unikt prosjektnummer med prefiks og sekvensielt nummer.
