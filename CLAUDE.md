@@ -98,6 +98,10 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 
 **Maskin-modul (`feature/maskin-db`):** under bygging. **Midlertidig modul-gating implementert 2026-04-30** via `Organization.harMaskinModul`-flagg (default `false`). HovedSidebar skjuler maskin-ikonet for firma uten flagget; eksisterende firma-isolering i maskin-rutene (`verifiserOrganisasjonTilgang`) hindrer cross-tenant-lekkasje. Aktivering per firma: `UPDATE organizations SET har_maskin_modul = true WHERE id = '<id>';`. Erstattes av full `OrganizationModule` + `modulProcedure('maskin')`-gating i Fase 0 per A.4 — den midlertidige kolonnen droppes da.
 
+**Maskin Blokk A + B implementert (2026-05-01) på `develop`:**
+- **Blokk A (schema-reconciliation, `de3fb1d0`):** EquipmentAnsvarlig-tabell (m:n for tilleggsansvarlige per A.6 hybrid) + 15 nye Equipment-felt (5 felles: internNavn, eierskap, eksportKode, harSporingsenhet, aarsmodell + 10 materialiserte Vegvesen-kolonner). Migrasjon `20260501131546_blokk_a_schema_reconciliation` deployet til test 2026-05-01.
+- **Blokk B (Vegvesen-integrasjon):** Service-lag i `apps/api/src/services/maskin/` (vegvesen-api, vegvesen, vegvesen-worker, moduleGate, equipment) per cross-modul-konvensjon (arkitektur-syntese § 6.1.1). 3 nye tRPC-endepunkter: `hentFraVegvesenForhandsvisning` (synkron mutation, 409 ved duplikat), `opprettMedVegvesen` (Variant A — klient sender bekreftet vegvesenData, server validerer kjennemerke-match), `oppdaterFraVegvesen` (admin-only, kø-basert). VegvesenKo-worker: 60s polling-løkke + 5min watchdog + 15min pause ved 429 + 5 retries. Klient-UI: Vegvesen-flyt aktivert i `nytt/page.tsx` med forhåndsvisning-panel + «fortsett uten Vegvesen-data»-fallback + eierskap-velger (eid/leid/leasing/lant) + årsmodell-felt + kallenavn. Felles `normaliserRegnummer()` i `packages/shared/src/utils/regnummer.ts` brukes i klient-input, Zod-validering og server-sammenligning. ~36 nye i18n-nøkler.
+
 **DB-naming-opprydning — ferdig (parkert):**
 - Faggruppe-rename gjennomført på test (2026-04-15/16) og prod (2026-04-16) via tre migreringer (`navnegjennomgang`, `enterprise_rename_dokumentflyt_part`, `faggruppe_rename`). Verifisert i [db-naming-audit-2026-04-25.md](docs/claude/db-naming-audit-2026-04-25.md)
 - U.1 (`project_groups.building_ids` jsonb) utsatt til Fase 0.5 — drop koordineres med m2m-koblingstabell
@@ -345,6 +349,26 @@ Etter endringer, oppgi alltid hvilken reload-metode som trengs:
 
 **Viktig:** Mobil `.env` peker mot **test** under utvikling. `.env.production` brukes for EAS Build / TestFlight.
 
+### tRPC-mutations kjører i web-prosessen — env-konsekvens
+
+`apps/web/src/app/api/trpc/[...trpc]/route.ts` håndterer ALLE tRPC-kall fra browser/mobil **direkte i Next.js-prosessen** (sitedoc-web / sitedoc-test-web) — IKKE proxy til Fastify (sitedoc-api). Den importerer `appRouter` direkte fra `@sitedoc/api/src/trpc/router` og kjører tRPC i web-prosessens kontekst.
+
+**Konsekvens for env-konfig:** Env-vars som brukes i tRPC-handlers (eksterne API-nøkler, integrasjonshemmeligheter, eks. `VEGVESEN_API_KEY`, `OPENAI_API_KEY`) må ligge i `sitedoc-web` sin `ecosystem.config.js`-env, IKKE bare i `sitedoc-api`. Hvis nøkkelen kun finnes i api-prosessens env, vil tRPC-handler-koden i web-prosessen lese `process.env.X = undefined`.
+
+Fastify (`sitedoc-api`) brukes for:
+- Filopplasting (`/upload`, multipart)
+- Statisk filservering (`/uploads/`)
+- WebSocket presence
+- Bakgrunns-workers (oversettelse, vegvesen-kø, FTD-prosessering)
+- FTD-prosesserings-routes
+
+**Sjekkliste ved nye eksterne integrasjoner:** Identifiser hvilken prosess som faktisk kaller endpoint:
+- Klient-trigget tRPC-mutation/query? → web-prosessen, sett env i `sitedoc-web`
+- Bakgrunns-worker eller batch-job? → api-prosessen, sett env i `sitedoc-api`
+- Begge? → sett i begge ecosystem env-blokker
+
+**Lærdom 2026-05-01 (Vegvesen-deploy):** Blokk B feilet i 30 minutter på test fordi `VEGVESEN_API_KEY` kun var lagt i `sitedoc-test-api`. Klient-mutations gikk via Next.js → web-prosess (uten nøkkel) → kastet `VegvesenApiNokkelMangler`. Løsning: nøkkelen tilføyd i begge ecosystem env-blokker.
+
 ### Mobil-app og URL-konstruksjon
 
 - **URL-hjelpefunksjon:** Bruk `hentWebUrl()` fra `config/auth.ts` for web-URL (filnedlasting, mobil-viewer)
@@ -469,7 +493,7 @@ Firma (Organization)                  ← Selskapet (A.Markussen AS, Veidekke)
 >
 > **Mannskapsliste = vy i PSI-modulen:** Mannskaps-listen er ikke separat modul. PSI utvides med innsjekk/utsjekk-mekanikk; mannskaps-listen er den vyen som aggregerer PSI-tilstedeværelses-data per byggeplass. Tidligere skisser («Mannskap som firmamodul», «Mannskap som separat prosjektmodul», «Mannskap/PSI slått sammen») er forkastet.
 >
-> **Kompetansematrise = del av Timer-modulen** (på ansatt-objektet). Detaljert datamodell venter på HR-API-design (planlagt sammen med Import-modulen). Ikke Timer-Fase-3-blokker — kompetanseregister-spec utsettes til HR-API er klar.
+> **Kompetansematrise = egen firma-funksjon (live i prod 2026-05-01).** Implementert som egne tabeller `Kompetansetype` + `AnsattKompetanse` i `packages/db` (kjernen) — ikke en del av Timer-modulen. Kompetansedata kan registreres manuelt i SiteDoc eller importeres via CSV/Excel; fremtidig HR-API-import er planlagt sammen med Import-modulen, men ikke en forutsetning for å bruke matrisen. Andre moduler (Timer, Maskin, Planlegger) leser kompetansedata via service-lag (`apps/api/src/services/kompetanse/`) — ikke direkte fra DB.
 
 ### Begreper — endelig definisjon
 
@@ -507,7 +531,7 @@ Rename gjennomført april 2026 (112 filer, feature/faggruppe-rename). Regler:
 **Firmamoduler** (planlagt):
 - Slås av/på **én gang for hele firmaet** i Firmaadministrasjon
 - Deler data på tvers av alle firmaets prosjekter
-- Eksempler: Timeregistrering, Maskinregistrering, HR/Mannskap, Fremdriftsplanlegging
+- Eksempler: Timeregistrering, Maskinregistrering, Kompetanse (implementert), Fremdriftsplanlegging (planlagt). **Mannskap er ikke firmamodul** — det er en vy i PSI-modulen (Fase 4) per Mini-Nivå-1D-presisering over.
 - Datalag-isolasjon via egne DB-skjemaer (`packages/db-timer/`, `packages/db-maskin/` osv.)
 - App-plassering valgfri: integrert i `apps/web/src/app/<modul>/` (default, enklest) eller isolert `apps/<modul>/` (for separat skalering/deploy)
 
@@ -627,7 +651,7 @@ Hver side i SiteDoc skal ha en hjelpetekst tilgjengelig via hjelp-ikonet (?) øv
 - "Faggruppe" — en deltaker i dokumentflyten på et prosjekt (Byggherre, Tømrer, Elektro). ALDRI "Entreprise"/"Enterprise"/"Part". Engelsk: "Trade group". Prisma: `Faggruppe`, DB: `dokumentflyt_parts`
 - "Dokumentflyt" — rute mellom to faggrupper (bestiller → utfører → godkjenner). DB: `Dokumentflyt`
 - "Firma" — selskapet som eier SiteDoc-kontoen (A.Markussen AS). DB: `Organization`
-- "Firmamodul" — modul som gjelder hele firmaet på tvers av prosjekter (Timer, Maskin, HR, Planlegging)
+- "Firmamodul" — modul som gjelder hele firmaet på tvers av prosjekter (Timer, Maskin, Kompetanse, Planlegging)
 
 **Sidestatus ?-ikon:**
 

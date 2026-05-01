@@ -225,27 +225,50 @@ model ProjectOrganization {
 
 **OBS — tabell-rename-vurdering:** Mindre invasivt alternativ er å beholde tabellnavn `organization_projects` i `@@map` og kun rename Prisma-modellen. Avgjøres av Kenneth (se § B.10 — ikke blokkerende).
 
-### A.6 EquipmentAnsvarlig — m:n i stedet for ansvarligUserId
+### A.6 EquipmentAnsvarlig — hybrid (single primær + optional m:n for tilleggsansvarlige) — ✅ **REFORMULERT 2026-05-01**
 
-Ny m:n-tabell i `packages/db-maskin`. Eksisterende `Equipment.ansvarligUserId` migreres og fjernes.
+**Bakgrunn for reformulering:** Opprinnelig A.6 (2026-04) vedtok ren m:n med `rolle="primary"|"secondary"`. Ved kode-verifisering 2026-05-01 ble det klart at:
+- Eksisterende `Equipment.ansvarligUserId` (single, nullable) er deployet i prod og brukes i listevisning og UI
+- A.Markussens dominerende mønster er én ansvarlig per maskin (SmartDok har «Maskinansvarlig 1 + 2», men 1 er nesten alltid hovedlast)
+- Ren m:n krever join i alle listevisninger og bryter ytelse uten ekvivalent gevinst
+
+**Vedtatt hybrid-modell:**
+
+`Equipment.ansvarligUserId String?` **beholdes** som primær ansvarlig (single, nullable).
+
+Ny tabell `EquipmentAnsvarlig` legges til i `packages/db-maskin` for **kun tilleggsansvarlige** — brukes når en maskin trenger flere ansvarlige. Ingen `rolle`-kolonne (alle rader er per definisjon «secondary»; primær ligger på Equipment).
 
 ```prisma
 model EquipmentAnsvarlig {
   id            String    @id @default(uuid())
   equipmentId   String    @map("equipment_id")
-  userId        String    @map("user_id")
-  rolle         String    @default("primary")  // "primary" | "secondary" | annet
+  userId        String    @map("user_id")           // svak String-FK til User.id (etablert mønster, § 6.1 arkitektur-syntese)
   periodeStart  DateTime  @default(now()) @map("periode_start")
-  periodeSlutt  DateTime? @map("periode_slutt")
+  periodeSlutt  DateTime? @map("periode_slutt")     // NULL = aktiv ansvarlig
+  opprettetAvUserId String? @map("opprettet_av_user_id") // hvem la til denne ansvarligheten (audit)
   createdAt     DateTime  @default(now()) @map("created_at")
 
+  equipment Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+
   @@unique([equipmentId, userId, periodeStart])
+  @@index([userId])
+  @@index([equipmentId, periodeSlutt])
   @@map("equipment_ansvarlige")
   @@schema("maskin")
 }
 ```
 
-**Periode-felter** lagt til for konsistens med loan-pattern (B.1 fra opprinnelig Fase 0). Migrering bevarer historikk: `periodeStart = Equipment.createdAt`.
+**Periode-felter** beholdes for konsistens med loan-pattern (§ 3.3 arkitektur-syntese). Tilleggsansvarlige har historikk; primær endres sjeldent og trenger ikke loan-pattern (Activity-tabellen logger endringer).
+
+**Migrering:** Tom tabell ved tilføyelse. Ingen data-migrering trengs — eksisterende `ansvarligUserId`-rader fortsetter å fungere uendret. Ingen drop av kolonne.
+
+**UI-konsekvens:** «+ Legg til ansvarlig»-knapp i detaljside åpner skjema som skriver til `EquipmentAnsvarlig`. Listevisning bruker fortsatt `ansvarligUserId` direkte (én join), evt. med tag «+N» bak navn hvis tilleggsansvarlige finnes.
+
+**Tilgangskontroll:** Ny funksjon `verifiserMaskinAnsvarligSkriveTilgang(ctxUserId, equipmentId)` i `tilgangskontroll.ts` — tillater firma-admin (`company_admin`) ELLER nåværende primær-ansvarlig (`Equipment.ansvarligUserId`) å tilføye/fjerne tilleggsansvarlige. Vanlige brukere har lese-tilgang. Detaljer i [maskin.md § Ansvarlig per utstyr](../claude/maskin.md).
+
+**Avvik fra opprinnelig A.6:** Ingen `rolle`-kolonne i tabellen. Ingen drop av `Equipment.ansvarligUserId`. C.9 («periodeSlutt-felter») forblir innarbeidet i denne tabellen.
+
+**Utløst av:** Schema-reconciliation-blokk (Blokk A) før Maskin Fase 1 fortsettes — Kenneth-vedtak 2026-05-01 etter design-runde mot Opus.
 
 ### A.7 Hybrid logg + snapshot ved attestering
 
