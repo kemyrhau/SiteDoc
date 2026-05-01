@@ -15,6 +15,7 @@ import {
   loggUt as loggUtTjeneste,
   loggInnMedGoogleWeb,
   loggInnMedMicrosoft as microsoftFlyt,
+  loggInnSomTestbruker as testbrukerFlyt,
 } from "../services/auth";
 import type { BrukerData } from "../services/auth";
 import { trpc } from "../lib/trpc";
@@ -27,6 +28,7 @@ interface AuthKontekst {
   loggInnMedGoogle: () => Promise<void>;
   loggInnMedMicrosoft: () => Promise<void>;
   haandterOAuthCallback: (provider: "google" | "microsoft", accessToken: string) => Promise<void>;
+  loggInnSomTestbruker: () => Promise<void>;
   loggUt: () => Promise<void>;
 }
 
@@ -37,6 +39,7 @@ const AuthContext = createContext<AuthKontekst>({
   loggInnMedGoogle: async () => {},
   loggInnMedMicrosoft: async () => {},
   haandterOAuthCallback: async () => {},
+  loggInnSomTestbruker: async () => {},
   loggUt: async () => {},
 });
 
@@ -145,6 +148,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [byttOgLagre],
   );
 
+  const loggInnSomTestbruker = useCallback(async () => {
+    setLaster(true);
+    try {
+      const resultat = await testbrukerFlyt();
+      setBruker(resultat.user);
+    } finally {
+      setLaster(false);
+    }
+  }, []);
+
   const loggUt = useCallback(async () => {
     await loggUtTjeneste();
     setBruker(null);
@@ -159,6 +172,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loggInnMedGoogle,
         loggInnMedMicrosoft,
         haandterOAuthCallback,
+        loggInnSomTestbruker,
         loggUt,
       }}
     >

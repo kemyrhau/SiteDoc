@@ -1,7 +1,7 @@
 import * as AuthSession from "expo-auth-session";
 import * as WebBrowser from "expo-web-browser";
 import { Platform } from "react-native";
-import { AUTH_CONFIG, GOOGLE_AUTH, MICROSOFT_AUTH } from "../config/auth";
+import { AUTH_CONFIG, GOOGLE_AUTH, MICROSOFT_AUTH, hentWebUrl } from "../config/auth";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -116,6 +116,39 @@ export async function loggInnMedMicrosoft(): Promise<string | null> {
   }
 
   return null;
+}
+
+/**
+ * Dev-bypass-innlogging for simulator. Treffer /api/dev-login på Next.js-siden
+ * (apps/web). Ruten er aktiv når:
+ *   - NODE_ENV !== "production" (lokal dev)
+ *   - eller ENABLE_DEV_LOGIN === "true" på test-server
+ *
+ * 404 i prod. Returnerer en gyldig session-token for en hardkodet test-bruker.
+ *
+ * MERK: Skal kun kalles fra UI som er gated bak `__DEV__`. Vi beskytter også
+ * server-side, men UI-gate er førstelinjeforsvar mot å vise knappen i prod-bygg.
+ */
+export async function loggInnSomTestbruker(): Promise<{ user: BrukerData; sessionToken: string }> {
+  // Web-base brukes for /api-ruter på Next.js (api.sitedoc.no → sitedoc.no etc.)
+  const webBase = process.env.EXPO_PUBLIC_DEV_WEB_URL ?? hentWebUrl();
+  const url = `${webBase}/api/dev-login`;
+
+  const res = await fetch(url, { method: "POST" });
+  if (!res.ok) {
+    const tekst = await res.text();
+    if (res.status === 404) {
+      throw new Error(
+        "Dev-login er ikke aktiv på serveren. Sett ENABLE_DEV_LOGIN=true i ecosystem.config.js for test, eller kjør `pnpm dev` lokalt.",
+      );
+    }
+    throw new Error(`Dev-login feilet (${res.status}): ${tekst}`);
+  }
+
+  const data = (await res.json()) as { sessionToken: string; user: BrukerData };
+  await lagreSessionToken(data.sessionToken);
+  await lagreBrukerData(data.user);
+  return data;
 }
 
 export async function loggUt(): Promise<void> {

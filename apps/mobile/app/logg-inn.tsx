@@ -18,9 +18,29 @@ function lagReversertRedirectUri(iosClientId: string): string {
 
 export default function LoggInnSkjerm() {
   const { t } = useTranslation();
-  const { loggInnMedGoogle, loggInnMedMicrosoft, haandterOAuthCallback, erInnlogget, laster } = useAuth();
+  const {
+    loggInnMedGoogle,
+    loggInnMedMicrosoft,
+    haandterOAuthCallback,
+    loggInnSomTestbruker,
+    erInnlogget,
+    laster,
+  } = useAuth();
   const [feilmelding, setFeilmelding] = useState<string | null>(null);
   const harHaandtertResponse = useRef(false);
+
+  const handleTestbrukerLogin = async () => {
+    setFeilmelding(null);
+    try {
+      await loggInnSomTestbruker();
+    } catch (err) {
+      const melding = err instanceof Error ? err.message : "Ukjent feil";
+      setFeilmelding(melding);
+      if (Platform.OS !== "web") {
+        Alert.alert("Dev-bypass feilet", melding);
+      }
+    }
+  };
 
   const iosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ?? "";
   const webClientId = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID ?? "";
@@ -116,6 +136,21 @@ export default function LoggInnSkjerm() {
               {t("auth.loggInnMicrosoft")}
             </Text>
           </Pressable>
+
+          {/* Dev-bypass — kun synlig i development-bygg (__DEV__).
+              Server-siden returnerer 404 i prod, så knappen er trygt nedlukket
+              både ved bygg-tid (denne flagg) og kjøretid (server). */}
+          {__DEV__ && (
+            <Pressable
+              onPress={handleTestbrukerLogin}
+              disabled={laster}
+              className="mt-4 flex-row items-center justify-center rounded-lg border border-dashed border-amber-400 bg-amber-50 px-6 py-3 active:bg-amber-100"
+            >
+              <Text className="text-sm font-medium text-amber-800">
+                🧪 Logg inn som testbruker (dev)
+              </Text>
+            </Pressable>
+          )}
         </View>
 
         {laster && (
