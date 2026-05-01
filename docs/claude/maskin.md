@@ -316,9 +316,11 @@ API-nøkkel er på plass og verifisert (2026-04-17).
 
 ### Datamapping — Vegvesen → SiteDoc
 
-> ⚠️ **Drift-merknad (2026-04-27):** Tabellen under er tiltenkt mapping. Faktisk schema (`packages/db-maskin/prisma/schema.prisma`) har felles `equipment`-tabell (ikke `vehicles`) med kun en delmengde av disse feltene som egne kolonner — resten ligger i `vegvesenData` JSON-blob. Verifisering og prioritering av hvilke felt som skal materialiseres som egne kolonner gjøres i egen Maskin-revurdering. Se TIMER-FUNN-oppsummering 2026-04-27.
+> ⚠️ **Wrapper-struktur (verifisert 2026-05-01 mot ZH44186):** Vegvesen returnerer respons i en wrapper: `{ kjoretoydataListe: [<kjoretoy>] }`. Alle stiene i tabellen under er **relativt til `kjoretoydataListe[0]`**, ikke root. Parser i `apps/api/src/services/maskin/vegvesen-api.ts` pakker ut wrapper først (med fallback til root for bakoverkompatibilitet). Tekniske data ligger nestet under `godkjenning.tekniskGodkjenning.tekniskeData.*` — JSON-stiene under er forenklet (fjerner `godkjenning.tekniskGodkjenning.`-prefikset for lesbarhet, men parseren bruker full sti).
 
-Vegvesen returnerer et stort JSON-objekt. Følgende felt **er tiltenkt mappet** til `equipment`-tabellen (per planen, ikke nødvendigvis implementert):
+> 📌 **Implementasjonsstatus (2026-05-01):** Parseren er verifisert mot ekte Vegvesen-respons for ZH44186. Alle felter parser korrekt: VOLVO V70, VIN YV1BW848BF1332433, kjoretoygruppe M1 (Personbil), karosseritype "Stasjonsvogn (AC)", farge Blå, drivstoff Diesel, antallSeter 5, effektKw 84, totalvekt 2240, nyttelast 495, forsteRegistrering 2015-05-12, euKontrollFrist 2027-07-16, co2 111, forbruk 4.2.
+
+Følgende felt mappes til `equipment`-tabellen (alle relativt til `kjoretoydataListe[0]`):
 
 | Vegvesen JSON-sti | SiteDoc-felt | Eksempel |
 |---|---|---|
@@ -329,9 +331,9 @@ Vegvesen returnerer et stort JSON-objekt. Følgende felt **er tiltenkt mappet** 
 | `forstegangsregistrering.registrertForstegangNorgeDato` | `forstegangsRegistrert` | 2015-05-12 |
 | `registrering.registrertForstegangPaEierskap` | `registrertPaEier` | 2018-04-24 |
 | `registrering.registreringsstatus.kodeNavn` | `status` | Registrert |
-| `tekniskeData.kjoretoyklassifisering.tekniskKode.kodeVerdi` | `kjoretoygruppe` | M1 |
-| `tekniskeData.kjoretoyklassifisering.tekniskKode.kodeNavn` | `kjoretoygruppeNavn` | Personbil |
-| `tekniskeData.kjoretoyklassifisering.karosseritype.kodeNavn` | `karosseritype` | Stasjonsvogn (AC) |
+| `tekniskeData.generelt.tekniskKode.kodeVerdi` | `kjoretoygruppe` | M1 |
+| `tekniskeData.generelt.tekniskKode.kodeNavn` | `kjoretoygruppeNavn` | Personbil |
+| `tekniskeData.karosseriOgLasteplan.karosseritype.kodeNavn` | `karosseritype` | Stasjonsvogn (AC) |
 | `tekniskeData.karosseriOgLasteplan.rFarge[0].kodeNavn` | `farge` | Blå |
 | `tekniskeData.persontall.sitteplasserTotalt` | `antallSeter` | 5 |
 | `tekniskeData.motorOgDrivverk.motor[0].drivstoff[0].drivstoffKode.kodeNavn` | `drivstoff` | Diesel |

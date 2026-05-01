@@ -349,6 +349,26 @@ Etter endringer, oppgi alltid hvilken reload-metode som trengs:
 
 **Viktig:** Mobil `.env` peker mot **test** under utvikling. `.env.production` brukes for EAS Build / TestFlight.
 
+### tRPC-mutations kjører i web-prosessen — env-konsekvens
+
+`apps/web/src/app/api/trpc/[...trpc]/route.ts` håndterer ALLE tRPC-kall fra browser/mobil **direkte i Next.js-prosessen** (sitedoc-web / sitedoc-test-web) — IKKE proxy til Fastify (sitedoc-api). Den importerer `appRouter` direkte fra `@sitedoc/api/src/trpc/router` og kjører tRPC i web-prosessens kontekst.
+
+**Konsekvens for env-konfig:** Env-vars som brukes i tRPC-handlers (eksterne API-nøkler, integrasjonshemmeligheter, eks. `VEGVESEN_API_KEY`, `OPENAI_API_KEY`) må ligge i `sitedoc-web` sin `ecosystem.config.js`-env, IKKE bare i `sitedoc-api`. Hvis nøkkelen kun finnes i api-prosessens env, vil tRPC-handler-koden i web-prosessen lese `process.env.X = undefined`.
+
+Fastify (`sitedoc-api`) brukes for:
+- Filopplasting (`/upload`, multipart)
+- Statisk filservering (`/uploads/`)
+- WebSocket presence
+- Bakgrunns-workers (oversettelse, vegvesen-kø, FTD-prosessering)
+- FTD-prosesserings-routes
+
+**Sjekkliste ved nye eksterne integrasjoner:** Identifiser hvilken prosess som faktisk kaller endpoint:
+- Klient-trigget tRPC-mutation/query? → web-prosessen, sett env i `sitedoc-web`
+- Bakgrunns-worker eller batch-job? → api-prosessen, sett env i `sitedoc-api`
+- Begge? → sett i begge ecosystem env-blokker
+
+**Lærdom 2026-05-01 (Vegvesen-deploy):** Blokk B feilet i 30 minutter på test fordi `VEGVESEN_API_KEY` kun var lagt i `sitedoc-test-api`. Klient-mutations gikk via Next.js → web-prosess (uten nøkkel) → kastet `VegvesenApiNokkelMangler`. Løsning: nøkkelen tilføyd i begge ecosystem env-blokker.
+
 ### Mobil-app og URL-konstruksjon
 
 - **URL-hjelpefunksjon:** Bruk `hentWebUrl()` fra `config/auth.ts` for web-URL (filnedlasting, mobil-viewer)
