@@ -67,10 +67,13 @@ Verifisert mot kodebase 2026-05-01. Hver påstand i resten av dette dokumentet r
 | `Organization.harTimerModul` | ✅ Tilføyd 2026-05-01 (Infrastruktur-commit, default false) — midlertidig modul-flagg, samme mønster som `harMaskinModul` |
 | `apps/api/src/services/timer/moduleGate.ts` | ✅ Opprettet 2026-05-01 — `erTimerAktivert` + `krevTimerAktivert` |
 | `modulProcedure('timer')` i tRPC | ❌ Ikke implementert | Forutsetter fullstendig modul-gateway (per A.4) |
-| `apps/api/src/services/seed/index.ts` | ✅ Skjelett opprettet 2026-05-01 — 5 stub-funksjoner kaster `Error` ved kall |
-| `seedLonnsartNivaa1` + `seedLonnsartNivaa2` | 🟡 Stub — Runde 1A | Event-hook-infrastruktur etablert tomt i Fase 0 |
-| `seedAktiviteter` + `seedTillegg` | 🟡 Stub — Runde 1A | Samme |
-| `seedExpenseCategories` | 🟡 Stub — Runde 1A | Samme |
+| `apps/api/src/services/seed/index.ts` | ✅ Implementert 2026-05-01 (Runde 1A) — 5 funksjoner med faktisk innhold + idempotent skip-logikk |
+| `seedLonnsartNivaa1` (16 lønnsarter) + `seedLonnsartNivaa2` (25 lønnsarter) | ✅ Implementert 2026-05-01 (Runde 1A) per timer.md tabell |
+| `seedAktiviteter` (3) + `seedTillegg` (3) | ✅ Implementert 2026-05-01 (Runde 1A) |
+| `seedExpenseCategories` (5: Drivstoff, Parkering, Diett, Verktøy, Annet) | ✅ Implementert 2026-05-01 (Runde 1A) |
+| `timer.*` tRPC-router (onboarding/lonnsart/aktivitet/tillegg) | ✅ Implementert 2026-05-01 (Runde 1A) |
+| Web-sider `/dashbord/firma/timer/*` (onboarding + 3 CRUD-tabeller) | ✅ Implementert 2026-05-01 (Runde 1A) |
+| Sidebar-element «Timer» i firma-layout (gates på `harTimerModul`) | ✅ Implementert 2026-05-01 (Runde 1A) |
 | `seedArbeidstidskalender(organizationId, year)` | ❌ Ikke implementert — Runde 2/3 | Samme |
 | Eksport-adaptere (Proadm, Tripletex, Visma, Poweroffice) | ❌ Ikke implementert | «Eksport til lønnssystem» |
 | Mobil offline-sync-mekanikk for dagsseddel | ❌ Ikke implementert — Runde 2 (mobil) | «Offline-first arkitektur» |
@@ -108,7 +111,7 @@ Kun ett: **Drømmescenario for Proadm → SiteDoc Godkjenning auto-avledning** (
 | Runde | Status | Innhold |
 |---|---|---|
 | **Infrastruktur** | 🟢 Igangsatt 2026-05-01 | db-timer-pakke (7 tabeller), kjernen-migrasjon (Organization.harTimerModul + 4 OrganizationSetting-felt), moduleGate, seed-skjelett, workspace-deps |
-| **Runde 1A** — Katalog-admin | ❌ Ikke startet | UI for lonnsarter/aktiviteter/tillegg/expense_categories + 5 seed-funksjoner med faktisk innhold (Nivå 1+2 per timer.md) |
+| **Runde 1A** — Katalog-admin | 🟢 Implementert 2026-05-01 (`feature/timer-1a`) | tRPC-router timer.* (onboarding/lonnsart/aktivitet/tillegg), 5 seed-funksjoner med faktisk innhold (16 Nivå 1 + 25 Nivå 2 + 3 aktiviteter + 3 tillegg + 5 utleggskategorier), web-sider `/dashbord/firma/timer/*`, sidebar-element. Klar for test-deploy |
 | **Runde 1B** — Dagsseddel-flyt | ❌ Ikke startet | DailySheet + SheetTimer + SheetTillegg-CRUD i web-UI. Slett prototype `apps/web/src/app/dashbord/[prosjektId]/timer/page.tsx`. Status-livssyklus draft → sent. Tilleggsregler hardkodet i denne runden |
 | **Runde 1C** — Leder-godkjenning | ❌ Ikke startet | Returner-flyt (sent → returned → accepted), forenklet godkjenningsflyt mot ansatt, snapshot-pattern ved attestering |
 | **Runde 2** — Mobil + offline-sync | ❌ Ikke startet | React Native + Drizzle-skjema, sheet_machines/sheet_materials/sheet_expenses, arbeidstidskalender |
