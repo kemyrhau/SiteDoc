@@ -378,6 +378,13 @@ Etter endringer, oppgi alltid hvilken reload-metode som trengs:
 - Foretrekk subtile signaler fremfor påtrengende meldinger
 - Dalux-stil: profesjonelt, kompakt, funksjonelt
 
+### Slett-bekreftelse i UI
+
+Bruk alltid ekte modal-komponent (ikke native `confirm()`) for slett-operasjoner. `confirm()` blokkerer browser-automatisering og testing.
+
+**Eksisterende unntak:**
+- `apps/web/src/app/dashbord/firma/avdelinger/page.tsx` → byttes til modal ved neste iterasjon i den filen.
+
 ### Mobil-UI-regel: Adaptive nedtrekksmenyer for fritekst-felt
 
 For inputs der bruker registrerer fritt valgte verdier (material, kategori, etiketter, leverandør, etc.) — bruk adaptiv nedtrekk i stedet for å forhåndskonfigurere katalog eller la fritekst stå alene. Mobil-UI er hovedfokus (feltarbeideren skriver ikke gjerne i lange skjemaer), men mønsteret gjelder også web-skjemaer hvor relevant.
