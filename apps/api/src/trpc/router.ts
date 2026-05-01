@@ -31,6 +31,7 @@ import { maskinRouter } from "../routes/maskin";
 import { avdelingRouter } from "../routes/avdeling";
 import { kompetansetypeRouter } from "../routes/kompetansetype";
 import { kompetanseRouter } from "../routes/kompetanse";
+import { timerRouter } from "../routes/timer";
 
 
 export const appRouter = router({
@@ -67,6 +68,7 @@ export const appRouter = router({
   avdeling: avdelingRouter,
   kompetansetype: kompetansetypeRouter,
   kompetanse: kompetanseRouter,
+  timer: timerRouter,
 
 });
 
