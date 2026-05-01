@@ -17,6 +17,7 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@sitedoc/db": "workspace:*",
     "@sitedoc/db-maskin": "workspace:*",
+    "@sitedoc/db-timer": "workspace:*",
     "@sitedoc/pdf": "workspace:*",
     "@sitedoc/shared": "workspace:*",
     "@sitedoc/ui": "workspace:*",

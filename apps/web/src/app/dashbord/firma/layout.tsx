@@ -2,11 +2,18 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, FolderKanban, Users, CreditCard, Settings, Building2, Award } from "lucide-react";
+import { LayoutDashboard, FolderKanban, Users, CreditCard, Settings, Building2, Award, Clock } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { Spinner } from "@sitedoc/ui";
 
-const navigasjon = [
+interface NavElement {
+  label: string;
+  href: string;
+  ikon: JSX.Element;
+  kreverFirmaModul?: "timer";
+}
+
+const navigasjon: NavElement[] = [
   {
     label: "Oversikt",
     href: "/dashbord/firma",
@@ -33,6 +40,12 @@ const navigasjon = [
     ikon: <Award className="h-4 w-4" />,
   },
   {
+    label: "Timer",
+    href: "/dashbord/firma/timer",
+    ikon: <Clock className="h-4 w-4" />,
+    kreverFirmaModul: "timer",
+  },
+  {
     label: "Fakturering",
     href: "/dashbord/firma/fakturering",
     ikon: <CreditCard className="h-4 w-4" />,
@@ -51,6 +64,7 @@ export default function FirmaLayout({
 }) {
   const pathname = usePathname();
   const { data: organisasjon, isLoading } = trpc.organisasjon.hentMin.useQuery();
+  const harTimerModul = (organisasjon as { harTimerModul?: boolean } | null | undefined)?.harTimerModul ?? false;
 
   if (isLoading) {
     return (
@@ -91,20 +105,25 @@ export default function FirmaLayout({
         </div>
 
         <nav className="flex-1 overflow-y-auto px-3 py-3">
-          {navigasjon.map((element) => (
-            <Link
-              key={element.href}
-              href={element.href}
-              className={`mb-0.5 flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
-                erAktiv(element.href)
-                  ? "bg-sitedoc-primary/10 text-sitedoc-primary"
-                  : "text-gray-700 hover:bg-gray-100"
-              }`}
-            >
-              {element.ikon}
-              {element.label}
-            </Link>
-          ))}
+          {navigasjon
+            .filter((element) => {
+              if (element.kreverFirmaModul === "timer" && !harTimerModul) return false;
+              return true;
+            })
+            .map((element) => (
+              <Link
+                key={element.href}
+                href={element.href}
+                className={`mb-0.5 flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                  erAktiv(element.href)
+                    ? "bg-sitedoc-primary/10 text-sitedoc-primary"
+                    : "text-gray-700 hover:bg-gray-100"
+                }`}
+              >
+                {element.ikon}
+                {element.label}
+              </Link>
+            ))}
         </nav>
       </aside>
 

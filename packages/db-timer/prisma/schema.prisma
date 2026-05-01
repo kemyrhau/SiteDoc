@@ -1,0 +1,208 @@
+// Timer-modul — Fase 3
+// Isolert datalag: eget postgres-schema "timer", egen Prisma-klient.
+// Samme PostgreSQL-instans som packages/db, ingen FK-relasjoner på tvers.
+// Cross-package-FK håndteres som svake String-felt uten Prisma @relation
+// (samme mønster som db-maskin).
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../../../node_modules/.prisma/timer-client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["timer"]
+}
+
+// ==========================================================================
+//  Lonnsart — datadrevet katalog per Organization (Nivå 1+2+3 per timer.md)
+// ==========================================================================
+
+model Lonnsart {
+  id               String   @id @default(uuid())
+  organizationId   String   @map("organization_id") // svak FK → organizations.id
+  type             String   // "ordinaer" | "fravaer" | "feriepenger" | "diett"
+  kode             String?  // Eksport-kode (Poweroffice/Visma/etc.). NULL hvis kunde ikke har valgt eksport-system.
+  navn             String
+  prisMotKunde     Decimal? @map("pris_mot_kunde") @db.Decimal(12, 2)
+  internkostnad    Decimal? @db.Decimal(12, 2)
+  sats             Decimal? @db.Decimal(12, 2) // Flat utbetaling (diett, km-godtgjørelse) — null for time-lønnsarter
+  satsEnhet        String?  @map("sats_enhet") // "per_dag" | "per_natt" | "per_km" | "per_time"
+  skalEksporteres  Boolean  @default(true) @map("skal_eksporteres")
+  tvungenKommentar Boolean  @default(false) @map("tvungen_kommentar")
+  rekkefolge       Int      @default(0)
+  aktiv            Boolean  @default(true)
+  seedNivaa        Int?     @map("seed_nivaa") // 1, 2 eller null (3 = egendefinert)
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  sheetTimer SheetTimer[]
+
+  @@unique([organizationId, kode], name: "uq_lonnsart_kode_per_org", map: "uq_lonnsart_kode_per_org")
+  @@index([organizationId, aktiv])
+  @@map("lonnsarter")
+  @@schema("timer")
+}
+
+// ==========================================================================
+//  Aktivitet — datadrevet katalog per Organization (ProAdm-kostnadsdimensjon)
+// ==========================================================================
+
+model Aktivitet {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  kode           String?
+  navn           String
+  internkostnad  Decimal? @db.Decimal(12, 2)
+  prisMotKunde   Decimal? @map("pris_mot_kunde") @db.Decimal(12, 2)
+  aktiv          Boolean  @default(true)
+  seedNivaa      Int?     @map("seed_nivaa")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  dailySheets DailySheet[]
+
+  @@unique([organizationId, kode], name: "uq_aktivitet_kode_per_org", map: "uq_aktivitet_kode_per_org")
+  @@index([organizationId, aktiv])
+  @@map("aktiviteter")
+  @@schema("timer")
+}
+
+// ==========================================================================
+//  Tillegg — datadrevet katalog per Organization (overtidsmat, nattillegg, ...)
+// ==========================================================================
+
+model Tillegg {
+  id               String   @id @default(uuid())
+  organizationId   String   @map("organization_id")
+  kode             String?
+  navn             String
+  type             String   // "avhuking" | "antall"
+  prisMotKunde     Decimal? @map("pris_mot_kunde") @db.Decimal(12, 2)
+  internkostnad    Decimal? @db.Decimal(12, 2)
+  skalEksporteres  Boolean  @default(true) @map("skal_eksporteres")
+  tvungenKommentar Boolean  @default(false) @map("tvungen_kommentar")
+  rekkefolge       Int      @default(0)
+  aktiv            Boolean  @default(true)
+  seedNivaa        Int?     @map("seed_nivaa")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  sheetTillegg SheetTillegg[]
+
+  @@unique([organizationId, kode], name: "uq_tillegg_kode_per_org", map: "uq_tillegg_kode_per_org")
+  @@index([organizationId, aktiv])
+  @@map("tillegg")
+  @@schema("timer")
+}
+
+// ==========================================================================
+//  ExpenseCategory — utleggskategorier per Organization
+// ==========================================================================
+
+model ExpenseCategory {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  navn           String
+  aktiv          Boolean  @default(true)
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@index([organizationId])
+  @@map("expense_categories")
+  @@schema("timer")
+}
+
+// ==========================================================================
+//  DailySheet — dagsseddel (hovedtabell)
+//  Status-livssyklus: draft → sent → returned → accepted
+// ==========================================================================
+
+model DailySheet {
+  id                  String    @id @default(uuid())
+  clientUuid          String    @unique @map("client_uuid") // Klient-generert for idempotent upsert
+  organizationId      String    @map("organization_id")
+  userId              String    @map("user_id")
+  registrertAvUserId  String    @map("registrert_av_user_id") // kan være ulik userId
+  projectId           String    @map("project_id")
+  aktivitetId         String    @map("aktivitet_id")
+  avdelingId          String?   @map("avdeling_id")
+  byggeplassId        String?   @map("byggeplass_id")
+  dato                DateTime  @db.Date
+  startAt             DateTime? @map("start_at") @db.Timestamptz()
+  endAt               DateTime? @map("end_at") @db.Timestamptz()
+  pauseMin            Int       @default(0) @map("pause_min")
+  status              String    @default("draft") // "draft" | "sent" | "returned" | "accepted"
+  beskrivelse         String?   @db.Text
+  lederKommentar      String?   @map("leder_kommentar") @db.Text
+  syncStatus          String    @default("synced") @map("sync_status") // "pending" | "synced" | "conflict"
+  syncedAt            DateTime? @map("synced_at") @db.Timestamptz()
+  attestertAvUserId   String?   @map("attestert_av_user_id")
+  attestertVed        DateTime? @map("attestert_ved") @db.Timestamptz()
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt           DateTime  @updatedAt @map("updated_at") @db.Timestamptz()
+
+  aktivitet Aktivitet      @relation(fields: [aktivitetId], references: [id], onDelete: Restrict)
+  timer     SheetTimer[]
+  tillegg   SheetTillegg[]
+
+  @@unique([userId, projectId, dato], name: "uq_dailysheet_user_project_dato")
+  @@index([organizationId])
+  @@index([projectId, dato])
+  @@index([organizationId, dato])
+  @@index([organizationId, status])
+  @@index([attestertAvUserId, attestertVed])
+  @@index([byggeplassId, dato])
+  @@index([avdelingId, dato])
+  @@index([userId, syncStatus])
+  @@map("daily_sheets")
+  @@schema("timer")
+}
+
+// ==========================================================================
+//  SheetTimer — timer-rader per dagsseddel (datadrevet via Lonnsart)
+// ==========================================================================
+
+model SheetTimer {
+  id                    String   @id @default(uuid())
+  sheetId               String   @map("sheet_id")
+  lonnsartId            String   @map("lonnsart_id")
+  externalCostObjectId  String?  @map("external_cost_object_id") // svak FK → external_cost_objects (kjernen)
+  timer                 Decimal  @db.Decimal(6, 2)
+  attestertSnapshot     Json?    @map("attestert_snapshot") // Pris-snapshot ved attestering (Fase 0 A.7)
+  createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt             DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+
+  sheet    DailySheet @relation(fields: [sheetId], references: [id], onDelete: Cascade)
+  lonnsart Lonnsart   @relation(fields: [lonnsartId], references: [id], onDelete: Restrict)
+
+  @@index([sheetId])
+  @@index([lonnsartId])
+  @@index([externalCostObjectId])
+  @@map("sheet_timer")
+  @@schema("timer")
+}
+
+// ==========================================================================
+//  SheetTillegg — tillegg-rader per dagsseddel (datadrevet via Tillegg)
+// ==========================================================================
+
+model SheetTillegg {
+  id                String   @id @default(uuid())
+  sheetId           String   @map("sheet_id")
+  tilleggId         String   @map("tillegg_id")
+  antall            Decimal  @db.Decimal(6, 2)
+  kommentar         String?  @db.Text
+  attestertSnapshot Json?    @map("attestert_snapshot")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+
+  sheet   DailySheet @relation(fields: [sheetId], references: [id], onDelete: Cascade)
+  tillegg Tillegg    @relation(fields: [tilleggId], references: [id], onDelete: Restrict)
+
+  @@index([sheetId])
+  @@index([tilleggId])
+  @@map("sheet_tillegg")
+  @@schema("timer")
+}
