@@ -1,7 +1,8 @@
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { createByggeplassSchema } from "@sitedoc/shared";
-import { verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
+import { verifiserAdmin, verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
 
 export const byggeplassRouter = router({
   // Hent alle byggeplasser for et prosjekt
@@ -101,37 +102,116 @@ export const byggeplassRouter = router({
       });
     }),
 
-  // Slett byggeplass (kun hvis tom — ingen tegninger eller sjekklister)
-  slett: protectedProcedure
-    .input(z.object({ id: z.string().uuid() }))
-    .mutation(async ({ ctx, input }) => {
+  // Hent sammendrag før sletting (Fase 0.5 § 5 slette-policy)
+  // Returnerer hva som vil skje med tilhørende data ved sletting:
+  // - bevares: SetNull-relasjoner (data lever videre uten byggeplass-merking)
+  // - slettes: Cascade-relasjoner (data slettes med byggeplassen)
+  hentSletteSammendrag: protectedProcedure
+    .input(z.object({ byggeplassId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
       const byggeplass = await ctx.prisma.byggeplass.findUniqueOrThrow({
-        where: { id: input.id },
-        include: {
+        where: { id: input.byggeplassId },
+        select: {
+          id: true,
+          name: true,
+          projectId: true,
           _count: {
             select: {
               drawings: true,
+              pointClouds: true,
               checklists: true,
+              ftdKontrakter: true,
+              psiEr: true,
+              omrader: true,
+              kontrollplaner: true,
+              gruppeKoblinger: true,
             },
           },
         },
       });
       await verifiserProsjektmedlem(ctx.userId, byggeplass.projectId);
 
-      const blokkerende: string[] = [];
-      if (byggeplass._count.drawings > 0) {
-        blokkerende.push(`${byggeplass._count.drawings} tegning${byggeplass._count.drawings !== 1 ? "er" : ""}`);
-      }
-      if (byggeplass._count.checklists > 0) {
-        blokkerende.push(`${byggeplass._count.checklists} sjekkliste${byggeplass._count.checklists !== 1 ? "r" : ""}`);
+      return {
+        navn: byggeplass.name,
+        bevares: {
+          tegninger: byggeplass._count.drawings,
+          punktskyer: byggeplass._count.pointClouds,
+          sjekklister: byggeplass._count.checklists,
+          ftdKontrakter: byggeplass._count.ftdKontrakter,
+          psi: byggeplass._count.psiEr,
+        },
+        slettes: {
+          omrader: byggeplass._count.omrader,
+          kontrollplaner: byggeplass._count.kontrollplaner,
+          gruppeKoblinger: byggeplass._count.gruppeKoblinger,
+        },
+      };
+    }),
+
+  // Slett byggeplass (Fase 0.5 § 5 slette-policy)
+  // Krever:
+  // - prosjekt-admin (verifiserAdmin)
+  // - case-insensitive navne-bekreftelse (GitHub-mønster)
+  // SetNull-relasjoner (tegninger/sjekklister/PSI/kontrakter/punktskyer)
+  // bevarer dataene; Cascade-relasjoner (områder/kontrollplaner/gruppe-
+  // koblinger) slettes per schema-policy.
+  slett: protectedProcedure
+    .input(
+      z.object({
+        byggeplassId: z.string().uuid(),
+        navnBekreftelse: z.string().min(1),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const byggeplass = await ctx.prisma.byggeplass.findUniqueOrThrow({
+        where: { id: input.byggeplassId },
+        select: {
+          id: true,
+          name: true,
+          projectId: true,
+          _count: {
+            select: {
+              drawings: true,
+              pointClouds: true,
+              checklists: true,
+              ftdKontrakter: true,
+              psiEr: true,
+              omrader: true,
+              kontrollplaner: true,
+              gruppeKoblinger: true,
+            },
+          },
+        },
+      });
+      await verifiserAdmin(ctx.userId, byggeplass.projectId);
+
+      if (
+        input.navnBekreftelse.trim().toLowerCase() !==
+        byggeplass.name.trim().toLowerCase()
+      ) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: `Navne-bekreftelse stemmer ikke. Skriv «${byggeplass.name}» nøyaktig.`,
+        });
       }
 
-      if (blokkerende.length > 0) {
-        throw new Error(
-          `Kan ikke slette «${byggeplass.name}» fordi den inneholder ${blokkerende.join(" og ")}. Fjern eller flytt disse først.`,
-        );
-      }
+      const sammendrag = {
+        bevares: {
+          tegninger: byggeplass._count.drawings,
+          punktskyer: byggeplass._count.pointClouds,
+          sjekklister: byggeplass._count.checklists,
+          ftdKontrakter: byggeplass._count.ftdKontrakter,
+          psi: byggeplass._count.psiEr,
+        },
+        slettes: {
+          omrader: byggeplass._count.omrader,
+          kontrollplaner: byggeplass._count.kontrollplaner,
+          gruppeKoblinger: byggeplass._count.gruppeKoblinger,
+        },
+      };
 
-      return ctx.prisma.byggeplass.delete({ where: { id: input.id } });
+      await ctx.prisma.byggeplass.delete({ where: { id: input.byggeplassId } });
+
+      return { navn: byggeplass.name, ...sammendrag };
     }),
 });
