@@ -32,6 +32,7 @@ import { avdelingRouter } from "../routes/avdeling";
 import { kompetansetypeRouter } from "../routes/kompetansetype";
 import { kompetanseRouter } from "../routes/kompetanse";
 import { timerRouter } from "../routes/timer";
+import { eksternKostObjektRouter } from "../routes/eksternKostObjekt";
 
 
 export const appRouter = router({
@@ -69,7 +70,7 @@ export const appRouter = router({
   kompetansetype: kompetansetypeRouter,
   kompetanse: kompetanseRouter,
   timer: timerRouter,
-
+  eksternKostObjekt: eksternKostObjektRouter,
 });
 
 export type AppRouter = typeof appRouter;

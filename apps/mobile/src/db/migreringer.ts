@@ -231,5 +231,20 @@ export function kjorMigreringer() {
 
     CREATE INDEX IF NOT EXISTS idx_tillegg_local_org_aktiv
       ON tillegg_local(organization_id, aktiv);
+
+    CREATE TABLE IF NOT EXISTS external_cost_object_local (
+      id TEXT PRIMARY KEY NOT NULL,
+      organization_id TEXT NOT NULL,
+      project_id TEXT NOT NULL,
+      proadm_id TEXT NOT NULL,
+      kort_navn TEXT NOT NULL,
+      kilde TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'aktiv',
+      timerregistrering_apen INTEGER NOT NULL DEFAULT 1,
+      sist_oppdatert INTEGER NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_eco_local_project
+      ON external_cost_object_local(project_id, status);
   `);
 }

@@ -158,3 +158,22 @@ export const tilleggLocal = sqliteTable("tillegg_local", {
   seedNivaa: integer("seed_nivaa"),
   sistOppdatert: integer("sist_oppdatert").notNull(),
 });
+
+/**
+ * external_cost_object_local — speil av aktive Underprosjekter (ECO) for
+ * firmaet. Refresh ved login + manuell trigger. Brukes som velger på
+ * timer-rader (sheet_timer_local.externalCostObjectId).
+ */
+export const externalCostObjectLocal = sqliteTable("external_cost_object_local", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id").notNull(),
+  projectId: text("project_id").notNull(),
+  proAdmId: text("proadm_id").notNull(),
+  kortNavn: text("kort_navn").notNull(),
+  kilde: text("kilde").notNull(),
+  status: text("status").notNull().default("aktiv"),
+  timerregistreringApen: integer("timerregistrering_apen", { mode: "boolean" })
+    .notNull()
+    .default(true),
+  sistOppdatert: integer("sist_oppdatert").notNull(),
+});
