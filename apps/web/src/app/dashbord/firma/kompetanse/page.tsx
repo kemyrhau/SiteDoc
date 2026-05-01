@@ -11,7 +11,7 @@ import {
   kompetanseStatus,
   type KompetanseStatus,
 } from "@sitedoc/shared";
-import { Plus, Pencil, Trash2, AlertTriangle } from "lucide-react";
+import { Plus, Pencil, Trash2, AlertTriangle, Upload } from "lucide-react";
 
 type MatriseBruker = {
   id: string;
@@ -148,6 +148,8 @@ function MatriseFane() {
     kobling: MatriseKobling | null;
   } | null>(null);
 
+  const [visImport, setVisImport] = useState(false);
+
   const koblingMap = useMemo(() => {
     type Kobling = NonNullable<typeof data>["koblinger"][number];
     const m = new Map<string, Kobling>();
@@ -215,6 +217,16 @@ function MatriseFane() {
 
   return (
     <div className="space-y-4">
+      {/* Verktøyrad — admin-handlinger */}
+      {(ctxRole === "company_admin" || ctxRole === "sitedoc_admin") && (
+        <div className="flex justify-end">
+          <Button onClick={() => setVisImport(true)}>
+            <Upload className="mr-1.5 h-4 w-4" />
+            {t("firma.kompetanse.import.knapp")}
+          </Button>
+        </div>
+      )}
+
       {/* Filter-rad */}
       <div className="flex flex-wrap items-center gap-3 rounded-lg border border-gray-200 bg-white p-3">
         <Input
@@ -327,6 +339,8 @@ function MatriseFane() {
           onLukk={() => setValgtCelle(null)}
         />
       )}
+
+      {visImport && <ImportFraFilDialog onLukk={() => setVisImport(false)} />}
     </div>
   );
 }
@@ -1140,4 +1154,366 @@ function SlettAnsattKompetanseDialog({
 function toDateInputValue(d: Date | string): string {
   const dato = d instanceof Date ? d : new Date(d);
   return dato.toISOString().slice(0, 10);
+}
+
+/* ------------------------------------------------------------------ */
+/*  ImportFraFilDialog (Runde 2.5) — 4-stegs CSV/Excel-import-flyt     */
+/* ------------------------------------------------------------------ */
+
+type ImportSteg = "opplastning" | "forhandsvisning" | "bekreft" | "resultat";
+
+type ForhandsvisningResultat = {
+  filHash: string;
+  totalt: number;
+  rader: Array<{
+    radnummer: number;
+    ansattnummer: string;
+    kompetansetype: string;
+    utstedt: string | null;
+    utloper: string | null;
+    ansattFunnet: boolean;
+    typeFunnet: boolean;
+  }>;
+  ukjenteAnsattnumre: string[];
+  ukjenteKompetansetyper: string[];
+  duplikater: number;
+  valideringsfeil: string[];
+};
+
+type BekreftResultat = {
+  opprettet: number;
+  oppdatert: number;
+  skippet: number;
+  nyeKompetansetyper: string[];
+};
+
+function ImportFraFilDialog({ onLukk }: { onLukk: () => void }) {
+  const { t } = useTranslation();
+  const utils = trpc.useUtils();
+
+  const [steg, setSteg] = useState<ImportSteg>("opplastning");
+  const [filInnhold, setFilInnhold] = useState<string>(""); // base64
+  const [filtype, setFiltype] = useState<"csv" | "xlsx">("csv");
+  const [filnavn, setFilnavn] = useState<string>("");
+  const [forhandsvisning, setForhandsvisning] =
+    useState<ForhandsvisningResultat | null>(null);
+  const [autoOpprettTyper, setAutoOpprettTyper] = useState(true);
+  const [overskrivEksisterende, setOverskrivEksisterende] = useState(false);
+  const [resultat, setResultat] = useState<BekreftResultat | null>(null);
+  const [feil, setFeil] = useState<string | null>(null);
+
+  // Smal lokal interface-cast for å unngå TS2589 (etablert mønster i kodebasen)
+  type ForhandInput = { filInnhold: string; filtype: "csv" | "xlsx" };
+  type BekreftInput = ForhandInput & {
+    filHash: string;
+    autoOpprettTyper: boolean;
+    overskrivEksisterende: boolean;
+  };
+
+  const forhandMutation = (
+    trpc.kompetanse.importerForhandsvisning as unknown as {
+      useMutation: (opts: {
+        onSuccess: (data: ForhandsvisningResultat) => void;
+        onError: (e: { message: string }) => void;
+      }) => { mutate: (i: ForhandInput) => void; isPending: boolean };
+    }
+  ).useMutation({
+    onSuccess: (data) => {
+      setForhandsvisning(data);
+      setSteg("forhandsvisning");
+    },
+    onError: (e) => setFeil(e.message),
+  });
+
+  const bekreftMutation = (
+    trpc.kompetanse.importerBekreft as unknown as {
+      useMutation: (opts: {
+        onSuccess: (data: BekreftResultat) => void;
+        onError: (e: { message: string }) => void;
+      }) => { mutate: (i: BekreftInput) => void; isPending: boolean };
+    }
+  ).useMutation({
+    onSuccess: (data) => {
+      setResultat(data);
+      setSteg("resultat");
+      utils.kompetanse.hentMatrise.invalidate();
+    },
+    onError: (e) => setFeil(e.message),
+  });
+
+  async function handleFilValg(fil: File) {
+    setFeil(null);
+    setFilnavn(fil.name);
+    const navn = fil.name.toLowerCase();
+    const filtypeNy: "csv" | "xlsx" = navn.endsWith(".xlsx") ? "xlsx" : "csv";
+    setFiltype(filtypeNy);
+
+    // Konverter til base64
+    const buffer = await fil.arrayBuffer();
+    const bytes = new Uint8Array(buffer);
+    let binary = "";
+    const chunk = 8192;
+    for (let i = 0; i < bytes.length; i += chunk) {
+      binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+    }
+    const base64 = btoa(binary);
+    setFilInnhold(base64);
+
+    // Send forhåndsvisning
+    forhandMutation.mutate({ filInnhold: base64, filtype: filtypeNy });
+  }
+
+  function handleBekreft() {
+    if (!forhandsvisning) return;
+    setFeil(null);
+    bekreftMutation.mutate({
+      filInnhold,
+      filtype,
+      filHash: forhandsvisning.filHash,
+      autoOpprettTyper,
+      overskrivEksisterende,
+    });
+  }
+
+  const kanGåVidere =
+    forhandsvisning &&
+    forhandsvisning.valideringsfeil.length === 0 &&
+    forhandsvisning.ukjenteAnsattnumre.length === 0;
+
+  return (
+    <Modal open={true} onClose={onLukk} title={t("firma.kompetanse.import.tittel")}>
+      <div className="space-y-4">
+        {/* Steg-indikator */}
+        <div className="flex items-center justify-center gap-2 text-xs text-gray-500">
+          {(["opplastning", "forhandsvisning", "bekreft", "resultat"] as ImportSteg[]).map(
+            (s, i) => (
+              <div key={s} className="flex items-center gap-2">
+                <div
+                  className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-medium ${
+                    steg === s
+                      ? "bg-sitedoc-primary text-white"
+                      : i < (["opplastning", "forhandsvisning", "bekreft", "resultat"] as ImportSteg[]).indexOf(steg)
+                        ? "bg-green-100 text-green-800"
+                        : "bg-gray-200 text-gray-500"
+                  }`}
+                >
+                  {i + 1}
+                </div>
+                {i < 3 && <div className="h-px w-8 bg-gray-300" />}
+              </div>
+            ),
+          )}
+        </div>
+
+        {/* Steg 1: Opplastning */}
+        {steg === "opplastning" && (
+          <div className="space-y-4">
+            <h3 className="text-base font-semibold">
+              {t("firma.kompetanse.import.steg1.tittel")}
+            </h3>
+            <p className="text-sm text-gray-600">
+              {t("firma.kompetanse.import.steg1.beskrivelse")}
+            </p>
+            <input
+              type="file"
+              accept=".csv,.xlsx"
+              onChange={(e) => {
+                const fil = e.target.files?.[0];
+                if (fil) handleFilValg(fil);
+              }}
+              className="block w-full rounded-md border border-gray-300 p-2 text-sm"
+            />
+            {forhandMutation.isPending && (
+              <div className="flex items-center justify-center py-4">
+                <Spinner />
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Steg 2: Forhåndsvisning */}
+        {steg === "forhandsvisning" && forhandsvisning && (
+          <div className="space-y-3">
+            <h3 className="text-base font-semibold">
+              {t("firma.kompetanse.import.steg2.tittel")}
+            </h3>
+            <div className="rounded-md border border-gray-200 bg-gray-50 p-3 text-sm">
+              <div>
+                <strong>{filnavn}</strong> — {t("firma.kompetanse.import.steg2.totalRader", { antall: forhandsvisning.totalt })}
+              </div>
+            </div>
+
+            {forhandsvisning.valideringsfeil.length > 0 && (
+              <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+                <div className="mb-1 font-medium">{t("firma.kompetanse.import.steg2.valideringsfeil")}</div>
+                <ul className="list-disc pl-5">
+                  {forhandsvisning.valideringsfeil.slice(0, 10).map((f, i) => (
+                    <li key={i}>{f}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {forhandsvisning.ukjenteAnsattnumre.length > 0 && (
+              <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+                <div className="mb-1 font-medium">
+                  {t("firma.kompetanse.import.steg2.ukjenteAnsattnumre", { antall: forhandsvisning.ukjenteAnsattnumre.length })}
+                </div>
+                <div className="font-mono text-xs">
+                  {forhandsvisning.ukjenteAnsattnumre.slice(0, 20).join(", ")}
+                  {forhandsvisning.ukjenteAnsattnumre.length > 20 && "…"}
+                </div>
+              </div>
+            )}
+
+            {forhandsvisning.ukjenteKompetansetyper.length > 0 && (
+              <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
+                {t("firma.kompetanse.import.steg2.ukjenteTyper", {
+                  antall: forhandsvisning.ukjenteKompetansetyper.length,
+                })}
+              </div>
+            )}
+
+            {forhandsvisning.duplikater > 0 && (
+              <div className="rounded-md border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800">
+                {t("firma.kompetanse.import.steg2.duplikater", { antall: forhandsvisning.duplikater })}
+              </div>
+            )}
+
+            {forhandsvisning.rader.length > 0 && (
+              <div className="overflow-auto rounded-md border border-gray-200">
+                <table className="w-full text-xs">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-2 py-1 text-left">#</th>
+                      <th className="px-2 py-1 text-left">{t("firma.kompetanse.import.kolonne.ansattnummer")}</th>
+                      <th className="px-2 py-1 text-left">{t("firma.kompetanse.import.kolonne.kompetansetype")}</th>
+                      <th className="px-2 py-1 text-left">{t("firma.kompetanse.import.kolonne.utstedt")}</th>
+                      <th className="px-2 py-1 text-left">{t("firma.kompetanse.import.kolonne.utloper")}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {forhandsvisning.rader.map((rad) => (
+                      <tr
+                        key={rad.radnummer}
+                        className={
+                          rad.ansattFunnet ? "border-t border-gray-100" : "border-t border-red-100 bg-red-50/30"
+                        }
+                      >
+                        <td className="px-2 py-1 text-gray-500">{rad.radnummer}</td>
+                        <td className="px-2 py-1">{rad.ansattnummer}</td>
+                        <td className="px-2 py-1">{rad.kompetansetype}</td>
+                        <td className="px-2 py-1">{rad.utstedt?.slice(0, 10) ?? ""}</td>
+                        <td className="px-2 py-1">{rad.utloper?.slice(0, 10) ?? ""}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            <div className="flex justify-between gap-3 pt-2">
+              <Button type="button" variant="secondary" onClick={() => setSteg("opplastning")}>
+                {t("firma.kompetanse.import.knapp.tilbake")}
+              </Button>
+              <Button
+                type="button"
+                onClick={() => setSteg("bekreft")}
+                disabled={!kanGåVidere}
+              >
+                {t("firma.kompetanse.import.knapp.neste")}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Steg 3: Bekreft */}
+        {steg === "bekreft" && forhandsvisning && (
+          <div className="space-y-4">
+            <h3 className="text-base font-semibold">
+              {t("firma.kompetanse.import.steg3.tittel")}
+            </h3>
+
+            <div className="rounded-md border border-gray-200 bg-gray-50 p-3 text-sm">
+              <div>{t("firma.kompetanse.import.steg3.sammendrag.opprett", { antall: forhandsvisning.totalt - forhandsvisning.duplikater })}</div>
+              {forhandsvisning.duplikater > 0 && (
+                <div>{t("firma.kompetanse.import.steg3.sammendrag.duplikater", { antall: forhandsvisning.duplikater })}</div>
+              )}
+              {forhandsvisning.ukjenteKompetansetyper.length > 0 && (
+                <div>{t("firma.kompetanse.import.steg3.sammendrag.nyeTyper", { antall: forhandsvisning.ukjenteKompetansetyper.length })}</div>
+              )}
+            </div>
+
+            <label className="flex items-start gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={autoOpprettTyper}
+                onChange={(e) => setAutoOpprettTyper(e.target.checked)}
+                className="mt-0.5"
+              />
+              <span>{t("firma.kompetanse.import.option.autoOpprettType")}</span>
+            </label>
+
+            <label className="flex items-start gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={overskrivEksisterende}
+                onChange={(e) => setOverskrivEksisterende(e.target.checked)}
+                className="mt-0.5"
+              />
+              <span>{t("firma.kompetanse.import.option.overskriv")}</span>
+            </label>
+
+            {feil && <p className="text-sm text-red-600">{feil}</p>}
+
+            <div className="flex justify-between gap-3 pt-2">
+              <Button type="button" variant="secondary" onClick={() => setSteg("forhandsvisning")}>
+                {t("firma.kompetanse.import.knapp.tilbake")}
+              </Button>
+              <Button
+                type="button"
+                variant="danger"
+                onClick={handleBekreft}
+                disabled={bekreftMutation.isPending}
+              >
+                {bekreftMutation.isPending
+                  ? t("handling.lagrer")
+                  : t("firma.kompetanse.import.knapp.bekreft")}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Steg 4: Resultat */}
+        {steg === "resultat" && resultat && (
+          <div className="space-y-3">
+            <h3 className="text-base font-semibold text-green-700">
+              {t("firma.kompetanse.import.steg4.suksess")}
+            </h3>
+            <div className="rounded-md border border-green-200 bg-green-50 p-3 text-sm text-green-900">
+              <div>{t("firma.kompetanse.import.steg4.opprettet", { antall: resultat.opprettet })}</div>
+              <div>{t("firma.kompetanse.import.steg4.oppdatert", { antall: resultat.oppdatert })}</div>
+              <div>{t("firma.kompetanse.import.steg4.skippet", { antall: resultat.skippet })}</div>
+              {resultat.nyeKompetansetyper.length > 0 && (
+                <div className="mt-2">
+                  {t("firma.kompetanse.import.steg4.nyeTyper", { antall: resultat.nyeKompetansetyper.length })}:{" "}
+                  <span className="text-xs">{resultat.nyeKompetansetyper.join(", ")}</span>
+                </div>
+              )}
+            </div>
+            <div className="flex justify-end gap-3 pt-2">
+              <Button type="button" onClick={onLukk}>
+                {t("firma.kompetanse.import.knapp.lukk")}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Generell feil — vises uavhengig av steg */}
+        {steg !== "bekreft" && steg !== "resultat" && feil && (
+          <p className="text-sm text-red-600">{feil}</p>
+        )}
+      </div>
+    </Modal>
+  );
 }

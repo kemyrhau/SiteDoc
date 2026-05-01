@@ -4,6 +4,11 @@ import { Prisma } from "@sitedoc/db";
 import { prisma } from "@sitedoc/db";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { verifiserKompetanseSkriveTilgang } from "../trpc/tilgangskontroll";
+import {
+  beregnFilHash,
+  parseCsvFil,
+  parseXlsxFil,
+} from "../utils/kompetanseImport";
 
 /**
  * Verifiser at bruker er firmaadmin for sin organisasjon.
@@ -234,5 +239,283 @@ export const kompetanseRouter = router({
       return ctx.prisma.ansattKompetanse.delete({
         where: { id: input.id },
       });
+    }),
+
+  // CSV/Excel-import (Fase 0.5 § 2 Runde 2.5 — A.28)
+  // Forhåndsvisning: parser fil, validerer, returnerer preview UTEN å lagre.
+  // filHash brukes i bekreft-steget for å garantere konsistens.
+  importerForhandsvisning: protectedProcedure
+    .input(
+      z.object({
+        filInnhold: z.string().max(7_000_000), // base64 ~5MB rå = ~7MB base64
+        filtype: z.enum(["csv", "xlsx"]),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const orgId = await verifiserFirmaAdmin(ctx.userId);
+
+      const buffer = Buffer.from(input.filInnhold, "base64");
+      if (buffer.length > 5_242_880) {
+        throw new TRPCError({
+          code: "PAYLOAD_TOO_LARGE",
+          message: "Filen er over 5 MB",
+        });
+      }
+
+      const filHash = beregnFilHash(buffer);
+      const parseresultat =
+        input.filtype === "csv" ? parseCsvFil(buffer) : await parseXlsxFil(buffer);
+
+      // Match ansattnumre mot eksisterende User-rader i samme firma
+      const ansattnumre = [
+        ...new Set(parseresultat.rader.map((r) => r.ansattnummer)),
+      ];
+      const brukere =
+        ansattnumre.length === 0
+          ? []
+          : await ctx.prisma.user.findMany({
+              where: {
+                organizationId: orgId,
+                ansattnummer: { in: ansattnumre },
+              },
+              select: { id: true, ansattnummer: true, name: true },
+            });
+      const brukerMap = new Map(
+        brukere.map((b) => [b.ansattnummer ?? "", b.id]),
+      );
+      const ukjenteAnsattnumre = ansattnumre.filter((nr) => !brukerMap.has(nr));
+
+      // Match kompetansetyper mot eksisterende
+      const typeNavn = [
+        ...new Set(parseresultat.rader.map((r) => r.kompetansetype)),
+      ];
+      const eksisterendeTyper =
+        typeNavn.length === 0
+          ? []
+          : await ctx.prisma.kompetansetype.findMany({
+              where: {
+                organizationId: orgId,
+                navn: { in: typeNavn },
+              },
+              select: { id: true, navn: true },
+            });
+      const typeMap = new Map(
+        eksisterendeTyper.map((t) => [t.navn.toLowerCase(), t.id]),
+      );
+      const ukjenteKompetansetyper = typeNavn.filter(
+        (n) => !typeMap.has(n.toLowerCase()),
+      );
+
+      // Tell duplikater (eksisterende AnsattKompetanse-rader)
+      let duplikater = 0;
+      if (brukere.length > 0 && eksisterendeTyper.length > 0) {
+        const eksisterende = await ctx.prisma.ansattKompetanse.findMany({
+          where: {
+            userId: { in: brukere.map((b) => b.id) },
+            kompetansetypeId: { in: eksisterendeTyper.map((t) => t.id) },
+          },
+          select: { userId: true, kompetansetypeId: true },
+        });
+        const eksisterendeSett = new Set(
+          eksisterende.map((e) => `${e.userId}|${e.kompetansetypeId}`),
+        );
+        for (const rad of parseresultat.rader) {
+          const userId = brukerMap.get(rad.ansattnummer);
+          const typeId = typeMap.get(rad.kompetansetype.toLowerCase());
+          if (userId && typeId && eksisterendeSett.has(`${userId}|${typeId}`)) {
+            duplikater++;
+          }
+        }
+      }
+
+      return {
+        filHash,
+        totalt: parseresultat.rader.length,
+        rader: parseresultat.rader.slice(0, 50).map((r) => ({
+          radnummer: r.radnummer,
+          ansattnummer: r.ansattnummer,
+          kompetansetype: r.kompetansetype,
+          utstedt: r.utstedt?.toISOString() ?? null,
+          utloper: r.utloper?.toISOString() ?? null,
+          ansattFunnet: brukerMap.has(r.ansattnummer),
+          typeFunnet: typeMap.has(r.kompetansetype.toLowerCase()),
+        })),
+        ukjenteAnsattnumre,
+        ukjenteKompetansetyper,
+        duplikater,
+        valideringsfeil: parseresultat.valideringsfeil,
+      };
+    }),
+
+  // Bekreft import — atomisk lagring i prisma.$transaction.
+  // Re-parser fil server-side og verifiserer at filHash matcher forhåndsvisning.
+  importerBekreft: protectedProcedure
+    .input(
+      z.object({
+        filInnhold: z.string().max(7_000_000),
+        filtype: z.enum(["csv", "xlsx"]),
+        filHash: z.string().length(64), // SHA-256 hex
+        autoOpprettTyper: z.boolean(),
+        overskrivEksisterende: z.boolean(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const orgId = await verifiserFirmaAdmin(ctx.userId);
+
+      const buffer = Buffer.from(input.filInnhold, "base64");
+      if (buffer.length > 5_242_880) {
+        throw new TRPCError({
+          code: "PAYLOAD_TOO_LARGE",
+          message: "Filen er over 5 MB",
+        });
+      }
+
+      // filHash-verifisering — sikrer konsistens mellom forhåndsvisning og bekreft
+      const beregnetHash = beregnFilHash(buffer);
+      if (beregnetHash !== input.filHash) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message:
+            "Fil-innholdet stemmer ikke med forhåndsvisningen. Last opp filen på nytt.",
+        });
+      }
+
+      const parseresultat =
+        input.filtype === "csv" ? parseCsvFil(buffer) : await parseXlsxFil(buffer);
+
+      if (parseresultat.valideringsfeil.length > 0) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: `Valideringsfeil: ${parseresultat.valideringsfeil.join("; ")}`,
+        });
+      }
+
+      // Match ansattnumre — atomisk: avvis hele importen ved ukjente
+      const ansattnumre = [
+        ...new Set(parseresultat.rader.map((r) => r.ansattnummer)),
+      ];
+      const brukere = await ctx.prisma.user.findMany({
+        where: { organizationId: orgId, ansattnummer: { in: ansattnumre } },
+        select: { id: true, ansattnummer: true },
+      });
+      const brukerMap = new Map(
+        brukere.map((b) => [b.ansattnummer ?? "", b.id]),
+      );
+      const ukjenteAnsattnumre = ansattnumre.filter((nr) => !brukerMap.has(nr));
+      if (ukjenteAnsattnumre.length > 0) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: `Ukjente ansattnumre (atomisk avvist): ${ukjenteAnsattnumre.slice(0, 10).join(", ")}${
+            ukjenteAnsattnumre.length > 10 ? "…" : ""
+          }`,
+        });
+      }
+
+      // Atomisk transaksjon: opprett nye typer, opprett/oppdater ansatt-kompetanser
+      const result = await ctx.prisma.$transaction(async (tx) => {
+        // 1. Hent eksisterende kompetansetyper
+        const typeNavn = [
+          ...new Set(parseresultat.rader.map((r) => r.kompetansetype)),
+        ];
+        const eksisterendeTyper = await tx.kompetansetype.findMany({
+          where: { organizationId: orgId, navn: { in: typeNavn } },
+          select: { id: true, navn: true },
+        });
+        const typeMap = new Map(
+          eksisterendeTyper.map((t) => [t.navn.toLowerCase(), t.id]),
+        );
+
+        // 2. Opprett ukjente typer (hvis tillatt)
+        const nyeTypeNavn = typeNavn.filter((n) => !typeMap.has(n.toLowerCase()));
+        if (nyeTypeNavn.length > 0 && !input.autoOpprettTyper) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: `Ukjente kompetansetyper (auto-opprett er av): ${nyeTypeNavn.slice(0, 10).join(", ")}`,
+          });
+        }
+        const nyeTyper: { navn: string; id: string }[] = [];
+        for (const navn of nyeTypeNavn) {
+          // Finn første rad med denne typen for å plukke kategori
+          const førsteRad = parseresultat.rader.find(
+            (r) => r.kompetansetype === navn,
+          );
+          const kategori = førsteRad?.kategori ?? "EGENDEFINERT";
+          const ny = await tx.kompetansetype.create({
+            data: {
+              organizationId: orgId,
+              navn,
+              kategori,
+              aktiv: true,
+            },
+            select: { id: true, navn: true },
+          });
+          nyeTyper.push(ny);
+          typeMap.set(navn.toLowerCase(), ny.id);
+        }
+
+        // 3. Opprett/oppdater AnsattKompetanse-rader
+        let opprettet = 0;
+        let oppdatert = 0;
+        let skippet = 0;
+        for (const rad of parseresultat.rader) {
+          const userId = brukerMap.get(rad.ansattnummer)!;
+          const typeId = typeMap.get(rad.kompetansetype.toLowerCase())!;
+
+          const eksisterende = await tx.ansattKompetanse.findUnique({
+            where: {
+              userId_kompetansetypeId: {
+                userId,
+                kompetansetypeId: typeId,
+              },
+            },
+            select: { id: true },
+          });
+
+          if (eksisterende) {
+            if (!input.overskrivEksisterende) {
+              skippet++;
+              continue;
+            }
+            await tx.ansattKompetanse.update({
+              where: { id: eksisterende.id },
+              data: {
+                utstedtDato: rad.utstedt,
+                utloper: rad.utloper,
+                utstederOrgan: rad.utstederOrgan,
+                sertifikatNr: rad.sertifikatNr,
+                notat: rad.notat,
+                importertVia: input.filtype,
+                importertVed: new Date(),
+              },
+            });
+            oppdatert++;
+          } else {
+            await tx.ansattKompetanse.create({
+              data: {
+                userId,
+                kompetansetypeId: typeId,
+                utstedtDato: rad.utstedt,
+                utloper: rad.utloper,
+                utstederOrgan: rad.utstederOrgan,
+                sertifikatNr: rad.sertifikatNr,
+                notat: rad.notat,
+                opprettetAvUserId: ctx.userId,
+                importertVia: input.filtype,
+                importertVed: new Date(),
+              },
+            });
+            opprettet++;
+          }
+        }
+
+        return { opprettet, oppdatert, skippet, nyeTyper };
+      });
+
+      return {
+        opprettet: result.opprettet,
+        oppdatert: result.oppdatert,
+        skippet: result.skippet,
+        nyeKompetansetyper: result.nyeTyper.map((t) => t.navn),
+      };
     }),
 });
