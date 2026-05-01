@@ -20,6 +20,7 @@ export type Seksjon =
   | "psi"
   | "kontrollplan"
   | "timer"
+  | "timer-godkjenning"
   | "maskin"
   | "oppsett";
 

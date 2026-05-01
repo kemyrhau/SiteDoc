@@ -18,6 +18,7 @@ import {
   ShieldCheck,
   Clock,
   Truck,
+  CheckCircle2,
 } from "lucide-react";
 import { SidebarIkon } from "@sitedoc/ui";
 import { useTranslation } from "react-i18next";
@@ -38,6 +39,7 @@ interface SidebarElement {
   kreverModul?: string;
   kreverGruppemodul?: string;
   kreverFirmaModul?: "maskin" | "timer"; // Midlertidig flagg per Organization.har<X>Modul — erstattes av OrganizationModule i Fase 0
+  kreverTimerLeder?: boolean; // Vises kun for prosjektleder/admin (Runde 1C-godkjenning)
 }
 
 const hovedelementer: SidebarElement[] = [
@@ -130,6 +132,14 @@ const hovedelementer: SidebarElement[] = [
     kreverProsjekt: true,
     kreverFirmaModul: "timer",
   },
+  {
+    id: "timer-godkjenning",
+    labelKey: "nav.timerGodkjenning",
+    ikon: <CheckCircle2 className="h-5 w-5" />,
+    kreverProsjekt: true,
+    kreverFirmaModul: "timer",
+    kreverTimerLeder: true,
+  },
 ];
 
 const bunnelementer: SidebarElement[] = [
@@ -175,6 +185,12 @@ export function HovedSidebar() {
   const harMaskinModul = (minOrganisasjon as { harMaskinModul?: boolean } | null | undefined)?.harMaskinModul ?? false;
   const harTimerModul = (minOrganisasjon as { harTimerModul?: boolean } | null | undefined)?.harTimerModul ?? false;
 
+  // Sjekk timer-leder-tilgang for godkjennings-fanen (kun hvis modul aktivert)
+  const { data: kanGodkjenneTimer } = trpc.timer.dagsseddel.kanGodkjenne.useQuery(
+    { projectId: prosjektId! },
+    { enabled: !!prosjektId && harTimerModul },
+  );
+
   // Hent bygninger med tegninger for å sjekke IFC-tilgjengelighet
   const { data: _bygninger } = trpc.bygning.hentForProsjekt.useQuery(
     { projectId: prosjektId! },
@@ -200,6 +216,8 @@ export function HovedSidebar() {
     if (element.kreverGruppemodul && !erAdmin && mineModuler && !mineModuler.includes(element.kreverGruppemodul)) return false;
     // Firmamodul-sjekk (midlertidig flagg per Organization.har<X>Modul)
     if (element.kreverFirmaModul === "timer" && !harTimerModul) return false;
+    // Timer-leder-sjekk (kun for godkjennings-elementet)
+    if (element.kreverTimerLeder && !kanGodkjenneTimer) return false;
     return true;
   });
 
@@ -210,6 +228,8 @@ export function HovedSidebar() {
       router.push("/dashbord/oppsett");
     } else if (element.id === "maskin") {
       router.push("/dashbord/maskin");
+    } else if (element.id === "timer-godkjenning" && prosjektId) {
+      router.push(`/dashbord/${prosjektId}/timer/godkjenning`);
     } else if (prosjektId) {
       router.push(`/dashbord/${prosjektId}/${element.id}`);
     }
