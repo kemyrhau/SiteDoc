@@ -14,7 +14,7 @@
 **Sist oppdatert:** 2026-05-01
 **Antall filer dekket:** 35 (komplett oversikt)
 
-> **Fase 0.5-fremdrift:** § 1 Avdeling-tabell + User.avdelingId (`a90daabd`), § 2 Kompetansetype + AnsattKompetanse + OrganizationSetting.kompetanseRegistreringTilgang + 7-kategori-seed (`a5ba99ce`), § 3 ProjectGroupByggeplass m2m + drop building_ids + refaktor gruppe.oppdaterByggeplasser (`3836b322`), § 5 Slette-policy for byggeplass (telleresult + navn-bekreftelse + verifiserAdmin) — API+UI+i18n, ingen schema-endringer (commit-hash tilføyes etter commit). Branch: `feature/fase-0-5-byggeplass`.
+> **Fase 0.5 KOMPLETT (deployet til prod 2026-05-01):** § 1 Avdeling (`a90daabd`), § 2 Kompetanse (`a5ba99ce`), § 3 ProjectGroupByggeplass + drop building_ids (`3836b322`), § 5 Slette-policy (`f13dc6c0`). Merge: develop `9fed74a5` → main `f0a515cd`. Etter-Fase-0.5: Avdeling-UI (tRPC `avdeling.*` + `/dashbord/firma/avdelinger`-side + 16 i18n-nøkler).
 
 ## Sammendrag
 

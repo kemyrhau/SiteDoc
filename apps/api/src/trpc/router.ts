@@ -28,6 +28,7 @@ import { bibliotekRouter } from "../routes/bibliotek";
 import { omradeRouter } from "../routes/omrade";
 import { kontrollplanRouter } from "../routes/kontrollplan";
 import { maskinRouter } from "../routes/maskin";
+import { avdelingRouter } from "../routes/avdeling";
 
 
 export const appRouter = router({
@@ -61,6 +62,7 @@ export const appRouter = router({
   omrade: omradeRouter,
   kontrollplan: kontrollplanRouter,
   maskin: maskinRouter,
+  avdeling: avdelingRouter,
 
 });
 
