@@ -1574,5 +1574,19 @@
   "maskin.pensjonertGrunn.destruert": "Destroyed",
   "maskin.pensjonertGrunn.tapt": "Lost",
   "maskin.pensjonertGrunn.stjaalet": "Stolen",
-  "maskin.pensjonertGrunn.slitt": "Worn out"
+  "maskin.pensjonertGrunn.slitt": "Worn out",
+  "maskin.detalj.ikkeSatt": "not set",
+  "maskin.detalj.sett": "Set",
+  "maskin.detalj.leggTilAnsvarlig": "Add responsible",
+  "maskin.detalj.endrePrimaer": "Change primary responsible",
+  "maskin.detalj.tilleggsansvarligeAntall": "Additional responsibles ({{antall}})",
+  "maskin.detalj.sidenDato": "since {{dato}}",
+  "maskin.detalj.fjernAnsvarligBekreft": "Remove this additional responsible?",
+  "maskin.detalj.velgBruker": "Select user",
+  "maskin.detalj.rediger.generelt": "Edit general",
+  "maskin.detalj.rediger.anskaffelse": "Edit acquisition",
+  "maskin.detalj.rediger.kjoretoyInfo": "Edit vehicle info",
+  "maskin.detalj.rediger.anleggsmaskinInfo": "Edit construction machine info",
+  "maskin.detalj.rediger.smautstyrInfo": "Edit small equipment info",
+  "maskin.detalj.rediger.kjoretoyMerknad": "Vegvesen data (VIN, vehicle group, engine specs) is updated via the \"Update from Vegvesen\" button — not manually here."
 }

@@ -1571,5 +1571,19 @@
   "maskin.pensjonertGrunn.destruert": "Destruert",
   "maskin.pensjonertGrunn.tapt": "Tapt",
   "maskin.pensjonertGrunn.stjaalet": "Stjålet",
-  "maskin.pensjonertGrunn.slitt": "Slitt"
+  "maskin.pensjonertGrunn.slitt": "Slitt",
+  "maskin.detalj.ikkeSatt": "ikke satt",
+  "maskin.detalj.sett": "Sett",
+  "maskin.detalj.leggTilAnsvarlig": "Legg til ansvarlig",
+  "maskin.detalj.endrePrimaer": "Endre hovedansvarlig",
+  "maskin.detalj.tilleggsansvarligeAntall": "Tilleggsansvarlige ({{antall}})",
+  "maskin.detalj.sidenDato": "siden {{dato}}",
+  "maskin.detalj.fjernAnsvarligBekreft": "Fjern denne tilleggsansvarlige?",
+  "maskin.detalj.velgBruker": "Velg bruker",
+  "maskin.detalj.rediger.generelt": "Rediger generelt",
+  "maskin.detalj.rediger.anskaffelse": "Rediger anskaffelse",
+  "maskin.detalj.rediger.kjoretoyInfo": "Rediger kjøretøy-info",
+  "maskin.detalj.rediger.anleggsmaskinInfo": "Rediger anleggsmaskin-info",
+  "maskin.detalj.rediger.smautstyrInfo": "Rediger småutstyr-info",
+  "maskin.detalj.rediger.kjoretoyMerknad": "Vegvesen-data (VIN, kjøretøygruppe, motor-spec) oppdateres via «Oppdater fra Vegvesen»-knappen — ikke manuelt her."
 }

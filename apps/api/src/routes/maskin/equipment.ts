@@ -216,7 +216,47 @@ export const equipmentRouter = router({
     }),
 
   oppdater: protectedProcedure
-    .input(opprettSchema.partial().extend({ id: z.string().uuid() }))
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        // Generelt
+        kategori: z.enum(KATEGORIER).optional(),
+        type: z.string().min(1).max(100).optional(),
+        merke: z.string().max(100).nullable().optional(),
+        modell: z.string().max(100).nullable().optional(),
+        internNavn: z.string().max(100).nullable().optional(),
+        internNummer: z.string().max(100).nullable().optional(),
+        ansvarligUserId: z.string().uuid().nullable().optional(),
+        eierskap: z.enum(EIERSKAP).nullable().optional(),
+        aarsmodell: z.number().int().min(1900).max(2100).nullable().optional(),
+        lokasjon: z.string().max(255).nullable().optional(),
+        // Anskaffelse
+        anskaffelsesDato: z.string().nullable().optional(),
+        nypris: z.number().nullable().optional(),
+        eksportKode: z.string().max(50).nullable().optional(),
+        // Notat
+        notater: z.string().nullable().optional(),
+        // Kjøretøy-info (manuell — Vegvesen-felter overskrives av oppdaterFraVegvesen)
+        registreringsnummer: z.string().max(20).nullable().optional(),
+        kmStand: z.number().int().nullable().optional(),
+        motor: z.string().max(100).nullable().optional(),
+        drivstoff: z.string().max(50).nullable().optional(),
+        farge: z.string().max(50).nullable().optional(),
+        // Anleggsmaskin-info
+        serienummer: z.string().max(100).nullable().optional(),
+        driftstimer: z.number().int().nullable().optional(),
+        skuffeKapasitet: z.number().nullable().optional(),
+        loftKapasitet: z.number().nullable().optional(),
+        maksVekt: z.number().int().nullable().optional(),
+        // Småutstyr-info
+        kalibreringsDato: z.string().nullable().optional(),
+        kalibreringsFrist: z.string().nullable().optional(),
+        sertifiseringsDato: z.string().nullable().optional(),
+        sertifiseringsFrist: z.string().nullable().optional(),
+        effektW: z.number().int().nullable().optional(),
+        vekt: z.number().int().nullable().optional(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       if (!ctx.userId) throw new TRPCError({ code: "UNAUTHORIZED" });
 
@@ -227,13 +267,37 @@ export const equipmentRouter = router({
       if (!utstyr) throw new TRPCError({ code: "NOT_FOUND" });
       await verifiserOrganisasjonTilgang(ctx.userId, utstyr.organizationId);
 
-      const { id, anskaffelsesDato, registreringsnummer, ...rest } = input;
+      // Ekstra streng tilgangs-sjekk for ansvarligUserId-endringer (per A.6 hybrid)
+      if (input.ansvarligUserId !== undefined) {
+        const { verifiserMaskinAnsvarligSkriveTilgang } = await import(
+          "../../trpc/tilgangskontroll"
+        );
+        await verifiserMaskinAnsvarligSkriveTilgang(ctx.userId, input.id);
+      }
+
+      const {
+        id,
+        anskaffelsesDato,
+        registreringsnummer,
+        kalibreringsDato,
+        kalibreringsFrist,
+        sertifiseringsDato,
+        sertifiseringsFrist,
+        ...rest
+      } = input;
+
+      function tilDate(v: string | null | undefined): Date | null | undefined {
+        if (v === undefined) return undefined;
+        if (v === null || v === "") return null;
+        return new Date(v);
+      }
+
       return ctx.prismaMaskin.equipment.update({
         where: { id },
         data: {
           ...rest,
           ...(anskaffelsesDato !== undefined
-            ? { anskaffelsesDato: anskaffelsesDato ? new Date(anskaffelsesDato) : null }
+            ? { anskaffelsesDato: tilDate(anskaffelsesDato) }
             : {}),
           ...(registreringsnummer !== undefined
             ? {
@@ -241,6 +305,18 @@ export const equipmentRouter = router({
                   ? normaliserRegnummer(registreringsnummer)
                   : null,
               }
+            : {}),
+          ...(kalibreringsDato !== undefined
+            ? { kalibreringsDato: tilDate(kalibreringsDato) }
+            : {}),
+          ...(kalibreringsFrist !== undefined
+            ? { kalibreringsFrist: tilDate(kalibreringsFrist) }
+            : {}),
+          ...(sertifiseringsDato !== undefined
+            ? { sertifiseringsDato: tilDate(sertifiseringsDato) }
+            : {}),
+          ...(sertifiseringsFrist !== undefined
+            ? { sertifiseringsFrist: tilDate(sertifiseringsFrist) }
             : {}),
         },
       });

@@ -682,3 +682,62 @@ export async function verifiserKompetanseSkriveTilgang(
   }
   // policy === "alle" → tillat (samme firma allerede verifisert)
 }
+
+/**
+ * Verifiser at bruker har skrive-tilgang til ansvarlig-felt på Equipment
+ * (både primær `Equipment.ansvarligUserId` og tilleggsansvarlige i
+ * `EquipmentAnsvarlig`-tabellen). Per A.6 hybrid-modell.
+ *
+ * Tilgangsregler:
+ *  - sitedoc_admin: alltid (cross-org)
+ *  - company_admin: i samme firma som equipment
+ *  - nåværende primær (Equipment.ansvarligUserId === ctxUserId): i samme firma
+ *  - andre: kun lese-tilgang (kaster FORBIDDEN her)
+ *
+ * Importerer prismaMaskin lokalt for å unngå sirkulær avhengighet i tRPC-laget.
+ */
+export async function verifiserMaskinAnsvarligSkriveTilgang(
+  ctxUserId: string,
+  equipmentId: string,
+): Promise<void> {
+  const { prismaMaskin } = await import("@sitedoc/db-maskin");
+
+  const equipment = await prismaMaskin.equipment.findUnique({
+    where: { id: equipmentId },
+    select: { organizationId: true, ansvarligUserId: true },
+  });
+  if (!equipment) {
+    throw new TRPCError({ code: "NOT_FOUND", message: "Maskin ikke funnet" });
+  }
+
+  const ctxBruker = await prisma.user.findUnique({
+    where: { id: ctxUserId },
+    select: { role: true, organizationId: true },
+  });
+  if (!ctxBruker) {
+    throw new TRPCError({ code: "UNAUTHORIZED" });
+  }
+
+  // Steg 1: sitedoc_admin (cross-org)
+  if (ctxBruker.role === "sitedoc_admin") return;
+
+  // Steg 2: cross-org-blokkering (alle ikke-superadmin må være i samme firma)
+  if (ctxBruker.organizationId !== equipment.organizationId) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Maskin tilhører annet firma",
+    });
+  }
+
+  // Steg 3: company_admin i samme firma
+  if (ctxBruker.role === "company_admin") return;
+
+  // Steg 4: primær-ansvarlig i samme firma
+  if (equipment.ansvarligUserId === ctxUserId) return;
+
+  // Steg 5: andre brukere har kun lese-tilgang
+  throw new TRPCError({
+    code: "FORBIDDEN",
+    message: "Kun firma-admin eller hovedansvarlig kan endre ansvarlige",
+  });
+}
