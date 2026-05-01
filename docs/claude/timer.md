@@ -42,32 +42,39 @@ Verifisert mot kodebase 2026-05-01. Hver påstand i resten av dette dokumentet r
 | `verifiserFirmaAdmin()` | ⚠️ Ikke sentralisert — duplisert lokalt i `avdeling.ts`, `kompetansetype.ts`, `kompetanse.ts`, `organisasjon.ts`. Ryddes ved første timer-rute som trenger den (flyttes til `tilgangskontroll.ts`) |
 | `KOMPETANSE_KATEGORIER` + relaterte typer i shared | ✅ Implementert i prod | Fase 0.5 § 2 |
 
-### Timer-spesifikt — IKKE implementert ennå (skal opprettes i Fase 3)
+### Timer-spesifikt — Fase 3 Infrastruktur-commit STARTET 2026-05-01
 
 | Komponent | Status | Beskrevet i seksjon |
 |---|---|---|
-| `packages/db-timer/`-pakke | ❌ Ikke opprettet | «Database — `packages/db-timer`» |
+| `packages/db-timer/`-pakke | ✅ Opprettet 2026-05-01 (Infrastruktur-commit) — postgres-schema `timer`, egen Prisma-klient | «Database — `packages/db-timer`» |
 | `apps/timer/` (vurdert, vedtatt: bygges som modul i `apps/web`, ikke egen app) | ❌ Ikke aktuelt | «Hvorfor ikke separat app?» (linje ~858) |
-| `lonnsarter`-tabell | ❌ Ikke opprettet | «`lonnsarter` (lønnsart-katalog per Organization)» |
-| `tilleggs_katalog`-tabell | ❌ Ikke opprettet | «Tillegg (datadrevet katalog, tre-nivå)» |
-| `tilleggs_regler`-tabell | ❌ Ikke opprettet | «Tilleggsregler (automatisering)» |
-| `aktivitet_katalog`-tabell | ❌ Ikke opprettet | «Aktivitet-katalog (datadrevet, tre-nivå)» |
-| `daily_sheets`-tabell | ❌ Ikke opprettet | «Hovedtabell: `daily_sheets` (dagsseddel)» |
-| `sheet_timer`-tabell | ❌ Ikke opprettet | «`sheet_timer` (timer-rader per dagsseddel)» |
-| `sheet_tillegg`-tabell | ❌ Ikke opprettet | «`sheet_tillegg` (tillegg-rader per dagsseddel)» |
-| `sheet_utlegg`-tabell | ❌ Ikke opprettet | «Utleggsregistrering» |
-| `arbeidstidskalender`-tabell | ❌ Ikke opprettet | «`arbeidstidskalender` (helligdager + firma-spesifikke fri-dager)» |
-| `expense_categories`-tabell | ❌ Ikke opprettet | «`expense_categories`» |
-| `OrganizationSetting.overtidsmatTerskel` | ❌ Ikke tilføyd | Kreves av tilleggsregler-spec — utvides i Fase 3 |
-| `OrganizationSetting.dagsnorm` | ❌ Ikke tilføyd | Kreves av auto-fordeling — utvides i Fase 3 |
+| `lonnsarter`-tabell | ✅ Schema + migrasjon-SQL klar (Infrastruktur-commit) | «`lonnsarter` (lønnsart-katalog per Organization)» |
+| `tillegg`-tabell | ✅ Schema + migrasjon-SQL klar (Infrastruktur-commit) | «Tillegg (datadrevet katalog, tre-nivå)» |
+| `tilleggs_regler`-tabell | ❌ Ikke opprettet — hardkodet i Runde 1, vurderes i Runde 2 | «Tilleggsregler (automatisering)» |
+| `aktiviteter`-tabell | ✅ Schema + migrasjon-SQL klar (Infrastruktur-commit) | «Aktivitet-katalog (datadrevet, tre-nivå)» |
+| `daily_sheets`-tabell | ✅ Schema + migrasjon-SQL klar (Infrastruktur-commit) | «Hovedtabell: `daily_sheets` (dagsseddel)» |
+| `sheet_timer`-tabell | ✅ Schema + migrasjon-SQL klar (Infrastruktur-commit) | «`sheet_timer` (timer-rader per dagsseddel)» |
+| `sheet_tillegg`-tabell | ✅ Schema + migrasjon-SQL klar (Infrastruktur-commit) | «`sheet_tillegg` (tillegg-rader per dagsseddel)» |
+| `expense_categories`-tabell | ✅ Schema + migrasjon-SQL klar (Infrastruktur-commit) | «`expense_categories`» |
+| `sheet_machines`-tabell | ❌ Ikke opprettet — Runde 2/3 | «`sheet_machines`» |
+| `sheet_materials`-tabell | ❌ Ikke opprettet — Runde 2/3 | «`sheet_materials`» |
+| `sheet_expenses`-tabell | ❌ Ikke opprettet — Runde 2/3 | «`sheet_expenses`» |
+| `arbeidstidskalender`-tabell | ❌ Ikke opprettet — Runde 2/3 | «`arbeidstidskalender`» |
+| `OrganizationSetting.overtidsmatTerskel` | ✅ Tilføyd 2026-05-01 (Infrastruktur-commit, default 9.0) | Kreves av tilleggsregler-spec |
+| `OrganizationSetting.dagsnorm` | ✅ Tilføyd 2026-05-01 (Infrastruktur-commit, default 7.5) | Kreves av auto-fordeling |
+| `OrganizationSetting.tillattSelvAttestering` | ✅ Tilføyd 2026-05-01 (Infrastruktur-commit, default true) | Selv-attestering-policy |
+| `OrganizationSetting.timerLockEtterDager` | ✅ Tilføyd 2026-05-01 (Infrastruktur-commit, Int? null = ingen alders-grense; status styrer låsing per Variant A) | Status-basert låsing |
+| `Organization.harTimerModul` | ✅ Tilføyd 2026-05-01 (Infrastruktur-commit, default false) — midlertidig modul-flagg, samme mønster som `harMaskinModul` |
+| `apps/api/src/services/timer/moduleGate.ts` | ✅ Opprettet 2026-05-01 — `erTimerAktivert` + `krevTimerAktivert` |
 | `modulProcedure('timer')` i tRPC | ❌ Ikke implementert | Forutsetter fullstendig modul-gateway (per A.4) |
-| `seedLonnsartNivaa1` + `seedLonnsartNivaa2` | ❌ Ikke implementert | Event-hook-infrastruktur etablert tomt i Fase 0 |
-| `seedTilleggKategorierNivaa1`, `seedAktivitetKategorier` | ❌ Ikke implementert | Samme |
-| `seedExpenseCategories` | ❌ Ikke implementert | Samme |
-| `seedArbeidstidskalender(organizationId, year)` | ❌ Ikke implementert | Samme |
+| `apps/api/src/services/seed/index.ts` | ✅ Skjelett opprettet 2026-05-01 — 5 stub-funksjoner kaster `Error` ved kall |
+| `seedLonnsartNivaa1` + `seedLonnsartNivaa2` | 🟡 Stub — Runde 1A | Event-hook-infrastruktur etablert tomt i Fase 0 |
+| `seedAktiviteter` + `seedTillegg` | 🟡 Stub — Runde 1A | Samme |
+| `seedExpenseCategories` | 🟡 Stub — Runde 1A | Samme |
+| `seedArbeidstidskalender(organizationId, year)` | ❌ Ikke implementert — Runde 2/3 | Samme |
 | Eksport-adaptere (Proadm, Tripletex, Visma, Poweroffice) | ❌ Ikke implementert | «Eksport til lønnssystem» |
-| Mobil offline-sync-mekanikk for dagsseddel | ❌ Ikke implementert | «Offline-first arkitektur» |
-| Forenklet godkjenningsflyt mot ansatt | ❌ Ikke implementert | «Forenklet godkjenningsflyt (mot ansatt)» |
+| Mobil offline-sync-mekanikk for dagsseddel | ❌ Ikke implementert — Runde 2 (mobil) | «Offline-first arkitektur» |
+| Forenklet godkjenningsflyt mot ansatt | ❌ Ikke implementert — Runde 1C | «Forenklet godkjenningsflyt (mot ansatt)» |
 
 ### Eksisterende prototype (skal slettes)
 
@@ -95,6 +102,17 @@ Verifisert mot kodebase 2026-05-01. Hver påstand i resten av dette dokumentet r
 Kun ett: **Drømmescenario for Proadm → SiteDoc Godkjenning auto-avledning** (timer.md:440-467) — markert som BACKLOG, **ikke nødvendig for Fase 3 MVP**. Manuell knapp-strategi (linje 491+) er ferdig spec'd og kan implementeres direkte.
 
 **Konklusjon:** Spec-en er substansielt komplett. Fase 3 kan startes etter Maskin-modulen er ferdig, med kun implementasjons-arbeid som gjenstår — ingen designvalg utestående.
+
+### Fase 3-fremdrift (per 2026-05-01)
+
+| Runde | Status | Innhold |
+|---|---|---|
+| **Infrastruktur** | 🟢 Igangsatt 2026-05-01 | db-timer-pakke (7 tabeller), kjernen-migrasjon (Organization.harTimerModul + 4 OrganizationSetting-felt), moduleGate, seed-skjelett, workspace-deps |
+| **Runde 1A** — Katalog-admin | ❌ Ikke startet | UI for lonnsarter/aktiviteter/tillegg/expense_categories + 5 seed-funksjoner med faktisk innhold (Nivå 1+2 per timer.md) |
+| **Runde 1B** — Dagsseddel-flyt | ❌ Ikke startet | DailySheet + SheetTimer + SheetTillegg-CRUD i web-UI. Slett prototype `apps/web/src/app/dashbord/[prosjektId]/timer/page.tsx`. Status-livssyklus draft → sent. Tilleggsregler hardkodet i denne runden |
+| **Runde 1C** — Leder-godkjenning | ❌ Ikke startet | Returner-flyt (sent → returned → accepted), forenklet godkjenningsflyt mot ansatt, snapshot-pattern ved attestering |
+| **Runde 2** — Mobil + offline-sync | ❌ Ikke startet | React Native + Drizzle-skjema, sheet_machines/sheet_materials/sheet_expenses, arbeidstidskalender |
+| **Runde 3** — Eksport-adaptere | ❌ Ikke startet | Proadm/Tripletex/Visma/Poweroffice-adaptere |
 
 ---
 
