@@ -92,12 +92,14 @@ export function OppgaveModal({
   );
   const faggrupper = (faggruppeQuery.data ?? []) as FaggruppeData[];
 
-  // Hent arbeidsforløp for auto-utledning av svarer
-  const arbeidsforlopQuery = trpc.arbeidsforlop.hentForProsjekt.useQuery(
+  // Hent dokumentflyt for auto-utledning av svarer
+  // (renamed fra arbeidsforlop til dokumentflyt — denne ene callsite ble glemt
+  // under terminologi-rename april 2026)
+  const arbeidsforlopQuery = trpc.dokumentflyt.hentForProsjekt.useQuery(
     { projectId: valgtProsjektId! },
     { enabled: !!valgtProsjektId && synlig },
   );
-  const alleArbeidsforlop = (arbeidsforlopQuery.data ?? []) as ArbeidsforlopData[];
+  const alleArbeidsforlop = (arbeidsforlopQuery.data ?? []) as unknown as ArbeidsforlopData[];
 
   // Auto-velg oppretter: brukerens første faggruppe
   useEffect(() => {
