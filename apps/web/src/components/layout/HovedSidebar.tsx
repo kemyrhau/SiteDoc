@@ -37,7 +37,7 @@ interface SidebarElement {
   kreverIfc?: boolean;
   kreverModul?: string;
   kreverGruppemodul?: string;
-  kreverFirmaModul?: "maskin"; // Midlertidig flagg per Organization.harMaskinModul — erstattes av OrganizationModule i Fase 0
+  kreverFirmaModul?: "maskin" | "timer"; // Midlertidig flagg per Organization.har<X>Modul — erstattes av OrganizationModule i Fase 0
 }
 
 const hovedelementer: SidebarElement[] = [
@@ -128,6 +128,7 @@ const hovedelementer: SidebarElement[] = [
     labelKey: "nav.timer",
     ikon: <Clock className="h-5 w-5" />,
     kreverProsjekt: true,
+    kreverFirmaModul: "timer",
   },
 ];
 
@@ -172,6 +173,7 @@ export function HovedSidebar() {
   // Hent firma-modul-flagg (midlertidig, erstattes av OrganizationModule i Fase 0)
   const { data: minOrganisasjon } = trpc.organisasjon.hentMin.useQuery();
   const harMaskinModul = (minOrganisasjon as { harMaskinModul?: boolean } | null | undefined)?.harMaskinModul ?? false;
+  const harTimerModul = (minOrganisasjon as { harTimerModul?: boolean } | null | undefined)?.harTimerModul ?? false;
 
   // Hent bygninger med tegninger for å sjekke IFC-tilgjengelighet
   const { data: _bygninger } = trpc.bygning.hentForProsjekt.useQuery(
@@ -196,6 +198,8 @@ export function HovedSidebar() {
     ))) return false;
     // Gruppemodulsjekk — admin/registrator ser alt
     if (element.kreverGruppemodul && !erAdmin && mineModuler && !mineModuler.includes(element.kreverGruppemodul)) return false;
+    // Firmamodul-sjekk (midlertidig flagg per Organization.har<X>Modul)
+    if (element.kreverFirmaModul === "timer" && !harTimerModul) return false;
     return true;
   });
 
