@@ -16,6 +16,7 @@ import {
   tellPending,
   tellConflict,
 } from "../services/timerSync";
+import { refreshKatalog } from "../services/timerKatalog";
 
 interface TimerSyncKontekst {
   pendingAntall: number;
@@ -23,8 +24,11 @@ interface TimerSyncKontekst {
   sistSynkronisert: number | null; // Unix ms, null hvis aldri
   syncerNa: boolean;
   sisteFeil: string | null;
+  katalogLastet: boolean;
   /** Manuell trigger — pull-to-refresh, etter lokal endring, etc. */
   triggerSync: () => Promise<void>;
+  /** Last ned katalog (lønnsarter/aktiviteter/tillegg) fra server. */
+  triggerKatalogRefresh: () => Promise<void>;
   /** Refresh tellere fra DB uten å kjøre sync (etter lokal opprett/slett). */
   oppdaterTellere: () => void;
 }
@@ -35,7 +39,9 @@ const TimerSyncContext = createContext<TimerSyncKontekst>({
   sistSynkronisert: null,
   syncerNa: false,
   sisteFeil: null,
+  katalogLastet: false,
   triggerSync: async () => {},
+  triggerKatalogRefresh: async () => {},
   oppdaterTellere: () => {},
 });
 
@@ -55,8 +61,10 @@ export function TimerSyncProvider({ children }: { children: ReactNode }) {
   const [sistSynkronisert, setSistSynkronisert] = useState<number | null>(null);
   const [syncerNa, setSyncerNa] = useState(false);
   const [sisteFeil, setSisteFeil] = useState<string | null>(null);
+  const [katalogLastet, setKatalogLastet] = useState(false);
 
   const syncerRef = useRef(false);
+  const katalogRefreshRef = useRef(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const oppdaterTellere = useCallback(() => {
@@ -68,6 +76,21 @@ export function TimerSyncProvider({ children }: { children: ReactNode }) {
     setPendingAntall(tellPending(bruker.id));
     setConflictAntall(tellConflict(bruker.id));
   }, [bruker?.id]);
+
+  const triggerKatalogRefresh = useCallback(async () => {
+    if (!bruker?.id || !erPaaNettet) return;
+    if (katalogRefreshRef.current) return;
+    katalogRefreshRef.current = true;
+    try {
+      await refreshKatalog(utils.client);
+      setKatalogLastet(true);
+    } catch (e) {
+      // Katalog-feil er ikke kritisk — UI faller tilbake til eksisterende cache
+      console.warn("[TIMER-SYNC] Katalog-refresh feilet:", e);
+    } finally {
+      katalogRefreshRef.current = false;
+    }
+  }, [bruker?.id, erPaaNettet, utils.client]);
 
   const triggerSync = useCallback(async () => {
     if (!bruker?.id) return;
@@ -94,9 +117,10 @@ export function TimerSyncProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     oppdaterTellere();
     if (bruker?.id && erPaaNettet) {
+      void triggerKatalogRefresh();
       void triggerSync();
     }
-  }, [bruker?.id, erPaaNettet, oppdaterTellere, triggerSync]);
+  }, [bruker?.id, erPaaNettet, oppdaterTellere, triggerSync, triggerKatalogRefresh]);
 
   // Periodisk sync hver 30s mens app er aktiv + online + innlogget
   useEffect(() => {
@@ -130,7 +154,9 @@ export function TimerSyncProvider({ children }: { children: ReactNode }) {
         sistSynkronisert,
         syncerNa,
         sisteFeil,
+        katalogLastet,
         triggerSync,
+        triggerKatalogRefresh,
         oppdaterTellere,
       }}
     >
