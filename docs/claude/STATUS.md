@@ -79,7 +79,7 @@
 | smartdok-undersokelse-2026-04-25.md | — | Arkivert v1 (per CLAUDE.md) |
 | smartdok-undersokelse.md | — | **Sannhetskilde:** SmartDok UI-research 2026-04-26 (per CLAUDE.md) |
 | timer-input-katalog.md | — | — |
-| timer.md | 2026-04-29 | Beslutninger 2026-04-29: P1, P2 #3/#6/#7/#8/#13/#14. YAML-header tilføyd. Screening 2026-04-29 utført: 23 indekser tilføyd (Funn F.12), AnsattKompetanse-referanse tilføyd (F.7), YAML utvidet med A.28+C.14 (F.9). Klar for Fase 3-koding etter Fase 0+0.5-deploy. Åpen kunde-blokker: godkjenningsflyt-detaljer (krever A.Markussen-input) |
+| timer.md | 2026-05-01 | Beslutninger 2026-04-29: P1, P2 #3/#6/#7/#8/#13/#14. YAML-header tilføyd. Screening 2026-04-29 utført: 23 indekser tilføyd (Funn F.12), AnsattKompetanse-referanse tilføyd (F.7), YAML utvidet med A.28+C.14 (F.9). Verifikasjon 2026-05-01 mot kodebase: ny «Implementasjonsstatus per 2026-05-01»-seksjon øverst med komplett tabell (Forutsetninger fra Fase 0/0.5 ✅ | Timer-spesifikk DB+UI ❌ skal opprettes Fase 3 | Spec-status per tema ✅/🟡). Korrigert tidligere upresis blokker-merknad: eneste reelle blokker er **Proadm drømmescenario auto-avledning** (BACKLOG, ikke nødvendig for MVP) — godkjenningsflyt mot ansatt er fullt spec'd. Klar for Fase 3-koding etter Maskin-modul ferdig |
 | varsling.md | — | — |
 
 ## 📦 Arkivert

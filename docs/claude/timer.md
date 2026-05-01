@@ -1,7 +1,7 @@
 ---
 status: aktiv
-sist_verifisert_mot_kode: 2026-04-29
-sist_endret: 2026-04-29
+sist_verifisert_mot_kode: 2026-05-01
+sist_endret: 2026-05-01
 gjelder_versjon: Fase 3
 avhenger_av:
   - arkitektur.md
@@ -23,6 +23,81 @@ påvirkes_av_beslutninger:
 
 # Timeregistrering — Fase 3
 
+## Implementasjonsstatus per 2026-05-01
+
+Verifisert mot kodebase 2026-05-01. Hver påstand i resten av dette dokumentet refererer til **planlagt** datamodell/UI hvis ikke annet er merket eksplisitt.
+
+### Forutsetninger fra Fase 0 og 0.5 (klar i prod)
+
+| Avhengighet | Status | Kilde |
+|---|---|---|
+| `Activity`-tabell (audit-skjelett) | ✅ Implementert i prod | Fase 0 § E.1 (commit `13a746a7`) |
+| `OrganizationSetting` (timezone, tilgangs-defaults, kompetanse-policy) | ✅ Implementert i prod | Fase 0 § E.2 (commit `4a155c28`) |
+| `ExternalCostObject` (Underprosjekt-tabell) | ✅ Implementert i prod | Fase 0 § E.11 (commit `9c9dd682`) |
+| `User.ansattnummer` | ✅ Implementert i prod | Fase 0 § E.13 (commit `37d49872`) |
+| `Avdeling`-tabell + `User.avdelingId` | ✅ Implementert i prod | Fase 0.5 § 1 (commit `a90daabd`) |
+| `Kompetansetype` + `AnsattKompetanse` | ✅ Implementert i prod | Fase 0.5 § 2 (commit `a5ba99ce`) |
+| `harOrgRolle()` i tilgangskontroll.ts | ✅ Implementert i prod | Fase 0 § E.14 |
+| `verifiserKompetanseSkriveTilgang()` | ✅ Implementert i prod | Kompetanse-UI Runde 2 (`653028b4`) |
+| `verifiserFirmaAdmin()` | ⚠️ Ikke sentralisert — duplisert lokalt i `avdeling.ts`, `kompetansetype.ts`, `kompetanse.ts`, `organisasjon.ts`. Ryddes ved første timer-rute som trenger den (flyttes til `tilgangskontroll.ts`) |
+| `KOMPETANSE_KATEGORIER` + relaterte typer i shared | ✅ Implementert i prod | Fase 0.5 § 2 |
+
+### Timer-spesifikt — IKKE implementert ennå (skal opprettes i Fase 3)
+
+| Komponent | Status | Beskrevet i seksjon |
+|---|---|---|
+| `packages/db-timer/`-pakke | ❌ Ikke opprettet | «Database — `packages/db-timer`» |
+| `apps/timer/` (vurdert, vedtatt: bygges som modul i `apps/web`, ikke egen app) | ❌ Ikke aktuelt | «Hvorfor ikke separat app?» (linje ~858) |
+| `lonnsarter`-tabell | ❌ Ikke opprettet | «`lonnsarter` (lønnsart-katalog per Organization)» |
+| `tilleggs_katalog`-tabell | ❌ Ikke opprettet | «Tillegg (datadrevet katalog, tre-nivå)» |
+| `tilleggs_regler`-tabell | ❌ Ikke opprettet | «Tilleggsregler (automatisering)» |
+| `aktivitet_katalog`-tabell | ❌ Ikke opprettet | «Aktivitet-katalog (datadrevet, tre-nivå)» |
+| `daily_sheets`-tabell | ❌ Ikke opprettet | «Hovedtabell: `daily_sheets` (dagsseddel)» |
+| `sheet_timer`-tabell | ❌ Ikke opprettet | «`sheet_timer` (timer-rader per dagsseddel)» |
+| `sheet_tillegg`-tabell | ❌ Ikke opprettet | «`sheet_tillegg` (tillegg-rader per dagsseddel)» |
+| `sheet_utlegg`-tabell | ❌ Ikke opprettet | «Utleggsregistrering» |
+| `arbeidstidskalender`-tabell | ❌ Ikke opprettet | «`arbeidstidskalender` (helligdager + firma-spesifikke fri-dager)» |
+| `expense_categories`-tabell | ❌ Ikke opprettet | «`expense_categories`» |
+| `OrganizationSetting.overtidsmatTerskel` | ❌ Ikke tilføyd | Kreves av tilleggsregler-spec — utvides i Fase 3 |
+| `OrganizationSetting.dagsnorm` | ❌ Ikke tilføyd | Kreves av auto-fordeling — utvides i Fase 3 |
+| `modulProcedure('timer')` i tRPC | ❌ Ikke implementert | Forutsetter fullstendig modul-gateway (per A.4) |
+| `seedLonnsartNivaa1` + `seedLonnsartNivaa2` | ❌ Ikke implementert | Event-hook-infrastruktur etablert tomt i Fase 0 |
+| `seedTilleggKategorierNivaa1`, `seedAktivitetKategorier` | ❌ Ikke implementert | Samme |
+| `seedExpenseCategories` | ❌ Ikke implementert | Samme |
+| `seedArbeidstidskalender(organizationId, year)` | ❌ Ikke implementert | Samme |
+| Eksport-adaptere (Proadm, Tripletex, Visma, Poweroffice) | ❌ Ikke implementert | «Eksport til lønnssystem» |
+| Mobil offline-sync-mekanikk for dagsseddel | ❌ Ikke implementert | «Offline-first arkitektur» |
+| Forenklet godkjenningsflyt mot ansatt | ❌ Ikke implementert | «Forenklet godkjenningsflyt (mot ansatt)» |
+
+### Eksisterende prototype (skal slettes)
+
+`apps/web/src/app/dashbord/[prosjektId]/timer/page.tsx` er en **demo-prototype** for kundepresentasjon (914 linjer hardkodet demodata, hardkodede konstanter `DAGSNORM = 7.5` og `OVERTIDSMAT_TERSKEL = 9`). Per CLAUDE.md skal denne fila **slettes** når Timer-modulen bygges ordentlig — ikke videreutvikles.
+
+### Spec-status
+
+| Tema | Spec-status |
+|---|---|
+| Lønnsart-katalog (Nivå 1: 16 + Nivå 2: 25 + Nivå 3) | ✅ Fullt spec'd |
+| Onboarding-scenarier (A: nytt firma, B: migrering) | ✅ Fullt spec'd |
+| Auto-fordeling normaltid/overtid | ✅ Fullt spec'd |
+| Aktivitet-katalog | ✅ Fullt spec'd |
+| Tilleggsregler (overtidsmat, nattskift, helgetillegg) | ✅ Fullt spec'd |
+| Arbeidstidskalender (Variant C, vedtatt 2026-04-29) | ✅ Fullt spec'd |
+| Dagsseddel-flyt (mobil) | ✅ Fullt spec'd |
+| Database-skjema for db-timer | ✅ Fullt spec'd |
+| Manuell Underprosjekt-opprettelse (vedtatt vei) | ✅ Fullt spec'd |
+| Forenklet godkjenningsflyt mot ansatt | ✅ Fullt spec'd |
+| Eksport-adapter-interface | ✅ Fullt spec'd |
+| **Drømmescenario: Proadm → auto-opprett SiteDoc Godkjenning** | 🟡 **BACKLOG** — 4 åpne spørsmål, krever A.Markussen-input + stabil Proadm-integrasjon (per linje 442) |
+
+### Reelle blokker for Fase 3-start
+
+Kun ett: **Drømmescenario for Proadm → SiteDoc Godkjenning auto-avledning** (timer.md:440-467) — markert som BACKLOG, **ikke nødvendig for Fase 3 MVP**. Manuell knapp-strategi (linje 491+) er ferdig spec'd og kan implementeres direkte.
+
+**Konklusjon:** Spec-en er substansielt komplett. Fase 3 kan startes etter Maskin-modulen er ferdig, med kun implementasjons-arbeid som gjenstår — ingen designvalg utestående.
+
+---
+
 ## Formål
 
 Timeregistrering for ansatte på byggeprosjekter. Offline-first — feltarbeidere registrerer timer uten nettdekning, synkroniserer når dekning er tilbake. Registrering fra mobil, administrasjon fra web.
@@ -38,7 +113,7 @@ Timeregistrering for ansatte på byggeprosjekter. Offline-first — feltarbeider
 
 Timer er **ikke en egen app** med eget domene/port — den er integrert i eksisterende SiteDoc-struktur som en firmamodul (samme mønster som Maskin). Deler PostgreSQL-instans med SiteDoc, men helt separate tabeller. Delt auth via eksisterende `sessions`-tabell.
 
-**Begrunnelse:** Kunden bekrefter at arbeidere bruker SiteDoc-app på mobil — ikke en separat timer-app. Per fase-0-beslutninger kjører Maskin-modulen samme mønster (integrert), Timer skal følge samme arkitektur. `packages/db-timer` eksisterer ikke ennå (planlagt før Timer-koding starter — se TIMER-FUNN-oppsummering).
+**Begrunnelse:** Kunden bekrefter at arbeidere bruker SiteDoc-app på mobil — ikke en separat timer-app. Per fase-0-beslutninger kjører Maskin-modulen samme mønster (integrert), Timer skal følge samme arkitektur. `packages/db-timer` eksisterer ikke ennå (verifisert 2026-05-01 — opprettes ved Fase 3-start, se «Implementasjonsstatus per 2026-05-01»-tabellen øverst).
 
 ## Dagsseddel-modell
 
