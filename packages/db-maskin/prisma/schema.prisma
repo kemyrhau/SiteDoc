@@ -18,26 +18,41 @@ datasource db {
 // ==========================================================================
 
 model Equipment {
-  id             String   @id @default(uuid())
-  organizationId String   @map("organization_id")
-  kategori       String // "kjoretoy" | "anleggsmaskin" | "smautstyr"
-  type           String // se maskintyper i docs/claude/maskin.md
-  merke          String?
-  modell         String?
-  internNummer   String?  @map("intern_nummer")
-  ansvarligUserId String? @map("ansvarlig_user_id") // FK-referanse til User.id (håndheves i app-lag)
-  lokasjon       String?
-  anskaffelsesDato DateTime? @map("anskaffelses_dato") @db.Date
-  nypris         Decimal? @db.Decimal(12, 2)
-  notater        String?  @db.Text
-  bilder         Json? // [{url, caption, uploadedAt}]
-  status         String   @default("tilgjengelig") // bestilt, mottatt, tilgjengelig, utlaant, paa_service, pensjonert
-  pensjonertDato DateTime? @map("pensjonert_dato") @db.Date
-  pensjonertGrunn String?  @map("pensjonert_grunn") // solgt, destruert, tapt, stjaalet, slitt
-  krevDagligKontroll Boolean @default(false) @map("krev_daglig_kontroll")
+  id                 String    @id @default(uuid())
+  organizationId     String    @map("organization_id")
+  kategori           String // "kjoretoy" | "anleggsmaskin" | "smautstyr"
+  type               String // se maskintyper i docs/claude/maskin.md
+  merke              String?
+  modell             String?
+  internNavn         String?   @map("intern_navn") // Kallenavn ("Stor-Volvo", "Graver 3"); brukes i visning
+  internNummer       String?   @map("intern_nummer")
+  ansvarligUserId    String?   @map("ansvarlig_user_id") // Primær ansvarlig (svak String-FK til User.id, håndheves i app-lag)
+  eierskap           String?   @default("eid") // "eid" | "leid" | "leasing" | "lant" — påvirker eksport-kode-konvensjon
+  eksportKode        String?   @map("eksport_kode") // Kode for kobling mot lønn/økonomi-system, NULL inntil kunden setter eksport-kanal (jf. arkitektur-syntese § 3.10)
+  harSporingsenhet   Boolean   @default(false) @map("har_sporingsenhet") // True = posisjon hentes fra ekstern tracker (Webfleet/Transpoco), Fase 3
+  aarsmodell         Int?      @map("aarsmodell") // Produksjonsår
+  lokasjon           String?
+  anskaffelsesDato   DateTime? @map("anskaffelses_dato") @db.Date
+  nypris             Decimal?  @db.Decimal(12, 2)
+  notater            String?   @db.Text
+  bilder             Json? // [{url, caption, uploadedAt}]
+  status             String    @default("tilgjengelig") // bestilt, mottatt, tilgjengelig, utlaant, paa_service, pensjonert
+  pensjonertDato     DateTime? @map("pensjonert_dato") @db.Date
+  pensjonertGrunn    String?   @map("pensjonert_grunn") // solgt, destruert, tapt, stjaalet, slitt
+  krevDagligKontroll Boolean   @default(false) @map("krev_daglig_kontroll")
 
   // Kjøretøy-felt (kategori = "kjoretoy")
   registreringsnummer   String?   @map("registreringsnummer")
+  vin                   String?   @map("vin") // Understellsnummer fra Vegvesen
+  kjoretoygruppe        String?   @map("kjoretoygruppe") // M1, N1, N2, N3 — påvirker EU-intervall
+  kjoretoygruppeNavn    String?   @map("kjoretoygruppe_navn") // Personbil, Varebil, Lastebil
+  antallSeter           Int?      @map("antall_seter")
+  effektKw              Decimal?  @map("effekt_kw") @db.Decimal(6, 2)
+  euroKlasse            String?   @map("euro_klasse") // Euro 5L, Euro 6, Stage V
+  nyttelast             Int?      @map("nyttelast") // kg
+  girkasse              String?   @map("girkasse") // Automat, Manuell
+  co2GramPerKm          Decimal?  @map("co2_gram_per_km") @db.Decimal(6, 2)
+  forbrukLiterPer10km   Decimal?  @map("forbruk_liter_per_10km") @db.Decimal(5, 2)
   kmStand               Int?      @map("km_stand")
   euKontrollSist        DateTime? @map("eu_kontroll_sist") @db.Date
   euKontrollFrist       DateTime? @map("eu_kontroll_frist") @db.Date
@@ -52,11 +67,11 @@ model Equipment {
   vegvesenDataStatus    String?   @map("vegvesen_data_status") // frisk, gammel, feilet
 
   // Anleggsmaskin-felt (kategori = "anleggsmaskin")
-  serienummer      String?
-  driftstimer      Int?     @map("driftstimer")
-  skuffeKapasitet  Decimal? @map("skuffe_kapasitet") @db.Decimal(6, 2) // m3
-  loftKapasitet    Decimal? @map("loft_kapasitet") @db.Decimal(6, 2) // tonn
-  maksVekt         Int?     @map("maks_vekt") // kg
+  serienummer     String?
+  driftstimer     Int?     @map("driftstimer")
+  skuffeKapasitet Decimal? @map("skuffe_kapasitet") @db.Decimal(6, 2) // m3
+  loftKapasitet   Decimal? @map("loft_kapasitet") @db.Decimal(6, 2) // tonn
+  maksVekt        Int?     @map("maks_vekt") // kg
 
   // Småutstyr-felt (kategori = "smautstyr")
   kalibreringsDato    DateTime? @map("kalibrerings_dato") @db.Date
@@ -69,10 +84,11 @@ model Equipment {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  assignments    EquipmentAssignment[]
-  serviceRecords ServiceRecord[]
-  feilmeldinger  Feilmelding[]
-  vegvesenKo     VegvesenKo[]
+  assignments        EquipmentAssignment[]
+  serviceRecords     ServiceRecord[]
+  feilmeldinger      Feilmelding[]
+  vegvesenKo         VegvesenKo[]
+  tilleggsAnsvarlige EquipmentAnsvarlig[]
 
   @@unique([organizationId, internNummer], name: "uq_equipment_intern_nummer_per_org")
   @@unique([registreringsnummer], name: "uq_equipment_regnummer", map: "uq_equipment_regnummer")
@@ -81,10 +97,39 @@ model Equipment {
   @@index([type])
   @@index([status])
   @@index([ansvarligUserId])
+  @@index([eierskap])
+  @@index([eksportKode])
+  @@index([kjoretoygruppe])
+  @@index([euroKlasse])
   @@index([euKontrollFrist])
   @@index([kalibreringsFrist])
   @@index([sertifiseringsFrist])
   @@map("equipment")
+  @@schema("maskin")
+}
+
+// ==========================================================================
+//  EquipmentAnsvarlig — m:n for tilleggsansvarlige (per A.6 hybrid-modell)
+//  Primær ansvarlig ligger på Equipment.ansvarligUserId — denne tabellen
+//  brukes KUN når en maskin trenger flere ansvarlige. Ingen rolle-kolonne;
+//  alle rader er per definisjon "secondary".
+// ==========================================================================
+
+model EquipmentAnsvarlig {
+  id                String    @id @default(uuid())
+  equipmentId       String    @map("equipment_id")
+  userId            String    @map("user_id") // svak String-FK til User.id (kjernen)
+  periodeStart      DateTime  @default(now()) @map("periode_start")
+  periodeSlutt      DateTime? @map("periode_slutt") // NULL = aktiv ansvarlig
+  opprettetAvUserId String?   @map("opprettet_av_user_id") // hvem la til (audit)
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  equipment Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+
+  @@unique([equipmentId, userId, periodeStart])
+  @@index([userId])
+  @@index([equipmentId, periodeSlutt])
+  @@map("equipment_ansvarlige")
   @@schema("maskin")
 }
 
@@ -123,24 +168,24 @@ model EquipmentAssignment {
 // ==========================================================================
 
 model ServiceRecord {
-  id                String    @id @default(uuid())
-  equipmentId       String    @map("equipment_id")
-  type              String // service, repair, inspection, eu_kontroll, dekk, olje
-  dato              DateTime  @db.Date
-  km                Int?
-  timer             Int?
-  utfortAv          String?   @map("utfort_av") @db.Text
-  beskrivelse       String    @db.Text
-  kostnad           Decimal?  @db.Decimal(12, 2)
-  nesteServiceDato  DateTime? @map("neste_service_dato") @db.Date
-  nesteServiceKm    Int?      @map("neste_service_km")
-  nesteServiceTimer Int?      @map("neste_service_timer")
-  vedlegg           Json? // [{url, filename, uploadedAt}]
-  feilmeldingId     String?   @map("feilmelding_id") // lukker åpen feilmelding hvis satt
-  registrertAvUserId String?  @map("registrert_av_user_id")
-  createdAt         DateTime  @default(now()) @map("created_at")
+  id                 String    @id @default(uuid())
+  equipmentId        String    @map("equipment_id")
+  type               String // service, repair, inspection, eu_kontroll, dekk, olje
+  dato               DateTime  @db.Date
+  km                 Int?
+  timer              Int?
+  utfortAv           String?   @map("utfort_av") @db.Text
+  beskrivelse        String    @db.Text
+  kostnad            Decimal?  @db.Decimal(12, 2)
+  nesteServiceDato   DateTime? @map("neste_service_dato") @db.Date
+  nesteServiceKm     Int?      @map("neste_service_km")
+  nesteServiceTimer  Int?      @map("neste_service_timer")
+  vedlegg            Json? // [{url, filename, uploadedAt}]
+  feilmeldingId      String?   @map("feilmelding_id") // lukker åpen feilmelding hvis satt
+  registrertAvUserId String?   @map("registrert_av_user_id")
+  createdAt          DateTime  @default(now()) @map("created_at")
 
-  equipment   Equipment   @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+  equipment   Equipment    @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
   feilmelding Feilmelding? @relation(fields: [feilmeldingId], references: [id], onDelete: SetNull)
 
   @@index([equipmentId, dato])
@@ -155,18 +200,18 @@ model ServiceRecord {
 // ==========================================================================
 
 model Feilmelding {
-  id                    String    @id @default(uuid())
-  equipmentId           String    @map("equipment_id")
-  kategori              String // virker_ikke, lyd_rystelse, skade_kabinett, lekkasje, batteri, annet
-  kommentar             String?   @db.Text
-  bilder                Json? // [{url, caption, uploadedAt}]
-  meldtAvUserId         String?   @map("meldt_av_user_id")
-  status                String    @default("aapen") // "aapen" | "lukket"
-  lukketAv              String?   @map("lukket_av") // "service_record" | "manual"
-  lukketDato            DateTime? @map("lukket_dato")
-  lukketAvUserId        String?   @map("lukket_av_user_id")
-  createdAt             DateTime  @default(now()) @map("created_at")
-  updatedAt             DateTime  @updatedAt @map("updated_at")
+  id             String    @id @default(uuid())
+  equipmentId    String    @map("equipment_id")
+  kategori       String // virker_ikke, lyd_rystelse, skade_kabinett, lekkasje, batteri, annet
+  kommentar      String?   @db.Text
+  bilder         Json? // [{url, caption, uploadedAt}]
+  meldtAvUserId  String?   @map("meldt_av_user_id")
+  status         String    @default("aapen") // "aapen" | "lukket"
+  lukketAv       String?   @map("lukket_av") // "service_record" | "manual"
+  lukketDato     DateTime? @map("lukket_dato")
+  lukketAvUserId String?   @map("lukket_av_user_id")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
 
   equipment      Equipment       @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
   serviceRecords ServiceRecord[]
