@@ -604,3 +604,81 @@ export async function harOrgRolle(userId: string, role: string): Promise<boolean
   });
   return !!rad;
 }
+
+/**
+ * Verifiser at en bruker har skrive-tilgang til en annen brukers
+ * AnsattKompetanse-rad (Fase 0.5 § 2 + A.28).
+ *
+ * Policy konfigureres per firma via OrganizationSetting.kompetanseRegistreringTilgang:
+ * - "firma_admin" (default) — kun firma-admin kan skrive
+ * - "bruker_egen" — bruker kan skrive egne, firma-admin alle
+ * - "alle" — alle ansatte kan skrive for hverandre
+ *
+ * Bypass: sitedoc_admin og company_admin har alltid tilgang innen sin egen org
+ * (Alternativ A — admin respekterer ikke policy, kun ikke-admin gjør det).
+ *
+ * Kaster TRPCError ved manglende tilgang.
+ */
+export async function verifiserKompetanseSkriveTilgang(
+  ctxUserId: string,
+  malUserId: string,
+): Promise<void> {
+  const ctxBruker = await prisma.user.findUniqueOrThrow({
+    where: { id: ctxUserId },
+    select: { role: true, organizationId: true },
+  });
+
+  // Steg 1: SiteDoc-admin kortslutning (cross-tenant superuser)
+  if (ctxBruker.role === "sitedoc_admin") return;
+
+  // Steg 2: Hent målbruker
+  const malBruker = await prisma.user.findUnique({
+    where: { id: malUserId },
+    select: { organizationId: true },
+  });
+  if (!malBruker) {
+    throw new TRPCError({
+      code: "NOT_FOUND",
+      message: "Mål-bruker finnes ikke",
+    });
+  }
+
+  // Steg 3: Cross-org blokkering
+  if (!ctxBruker.organizationId) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Krever firma-tilknytning",
+    });
+  }
+  if (malBruker.organizationId !== ctxBruker.organizationId) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Mål-bruker tilhører annet firma",
+    });
+  }
+
+  // Steg 4: Company-admin kortslutning (etter cross-org sjekk)
+  if (ctxBruker.role === "company_admin") return;
+
+  // Steg 5: Hent firma-policy (default firma_admin hvis setting mangler)
+  const setting = await prisma.organizationSetting.findUnique({
+    where: { organizationId: ctxBruker.organizationId },
+    select: { kompetanseRegistreringTilgang: true },
+  });
+  const policy = setting?.kompetanseRegistreringTilgang ?? "firma_admin";
+
+  // Steg 6: Apply policy
+  if (policy === "firma_admin") {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Kun firma-admin kan registrere kompetanse i dette firmaet",
+    });
+  }
+  if (policy === "bruker_egen" && malUserId !== ctxUserId) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Du kan kun registrere egne kompetanser",
+    });
+  }
+  // policy === "alle" → tillat (samme firma allerede verifisert)
+}

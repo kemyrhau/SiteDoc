@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useSession } from "next-auth/react";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { Button, Input, Modal, Spinner, Textarea } from "@sitedoc/ui";
@@ -11,6 +12,50 @@ import {
   type KompetanseStatus,
 } from "@sitedoc/shared";
 import { Plus, Pencil, Trash2, AlertTriangle } from "lucide-react";
+
+type MatriseBruker = {
+  id: string;
+  name: string | null;
+  email: string;
+  ansattnummer: string | null;
+  avdelingId: string | null;
+  avdeling: { id: string; navn: string } | null;
+};
+
+type MatriseType = {
+  id: string;
+  navn: string;
+  kategori: string;
+};
+
+type MatriseKobling = {
+  id: string;
+  userId: string;
+  kompetansetypeId: string;
+  utstedtDato: Date | string | null;
+  utloper: Date | string | null;
+  sertifikatNr: string | null;
+  utstederOrgan: string | null;
+};
+
+/**
+ * Avgjør om innlogget bruker kan skrive kompetanse for en gitt målbruker.
+ * Speiler logikken i verifiserKompetanseSkriveTilgang server-side (Alternativ A:
+ * sitedoc_admin og company_admin har bypass — policy gjelder kun ikke-admin).
+ */
+function kanSkriveKompetanse(
+  ctxUserId: string | undefined,
+  ctxRole: string | undefined,
+  malUserId: string,
+  policy: "firma_admin" | "bruker_egen" | "alle" | undefined,
+): boolean {
+  if (!ctxUserId) return false;
+  if (ctxRole === "sitedoc_admin" || ctxRole === "company_admin") return true;
+  if (policy === "alle") return true;
+  if (policy === "bruker_egen") return malUserId === ctxUserId;
+  // policy === "firma_admin" eller udefinert → kun admin (allerede returnert)
+  return false;
+}
 
 type KompetansetypeRad = {
   id: string;
@@ -80,10 +125,28 @@ export default function KompetanseSide() {
 
 function MatriseFane() {
   const { t } = useTranslation();
+  const { data: session } = useSession();
+  const ctxUserId = session?.user?.id as string | undefined;
+  const ctxRole = (session?.user as { role?: string } | undefined)?.role;
+
   const { data, isLoading } = trpc.kompetanse.hentMatrise.useQuery();
+  const { data: setting } = trpc.organisasjon.hentSetting.useQuery();
+  const policy = setting?.kompetanseRegistreringTilgang as
+    | "firma_admin"
+    | "bruker_egen"
+    | "alle"
+    | undefined;
+
   const [filterKategori, setFilterKategori] = useState<string>("");
   const [filterAvdeling, setFilterAvdeling] = useState<string>("");
   const [sokAnsatt, setSokAnsatt] = useState<string>("");
+
+  // Cellen som er åpen i dialog: bruker + kompetansetype
+  const [valgtCelle, setValgtCelle] = useState<{
+    bruker: MatriseBruker;
+    type: MatriseType;
+    kobling: MatriseKobling | null;
+  } | null>(null);
 
   const koblingMap = useMemo(() => {
     type Kobling = NonNullable<typeof data>["koblinger"][number];
@@ -225,11 +288,28 @@ function MatriseFane() {
                 </td>
                 {filtrerteTyper.map((k) => {
                   const kobling = koblingMap.get(`${bruker.id}|${k.id}`);
+                  const klikkbar = kanSkriveKompetanse(
+                    ctxUserId,
+                    ctxRole,
+                    bruker.id,
+                    policy,
+                  );
                   return (
                     <MatriseCelle
                       key={k.id}
                       kobling={kobling}
                       typeNavn={k.navn}
+                      klikkbar={klikkbar}
+                      onKlikk={
+                        klikkbar
+                          ? () =>
+                              setValgtCelle({
+                                bruker,
+                                type: k,
+                                kobling: kobling ?? null,
+                              })
+                          : undefined
+                      }
                     />
                   );
                 })}
@@ -238,6 +318,15 @@ function MatriseFane() {
           </tbody>
         </table>
       </div>
+
+      {valgtCelle && (
+        <AnsattKompetanseDialog
+          bruker={valgtCelle.bruker}
+          type={valgtCelle.type}
+          eksisterende={valgtCelle.kobling}
+          onLukk={() => setValgtCelle(null)}
+        />
+      )}
     </div>
   );
 }
@@ -245,28 +334,37 @@ function MatriseFane() {
 function MatriseCelle({
   kobling,
   typeNavn,
+  klikkbar,
+  onKlikk,
 }: {
-  kobling:
-    | {
-        utstedtDato: Date | string | null;
-        utloper: Date | string | null;
-        sertifikatNr: string | null;
-        utstederOrgan: string | null;
-      }
-    | undefined;
+  kobling: MatriseKobling | undefined;
   typeNavn: string;
+  klikkbar: boolean;
+  onKlikk?: () => void;
 }) {
   const { t } = useTranslation();
+  const cursorClass = klikkbar ? "cursor-pointer" : "cursor-default";
 
   if (!kobling) {
-    return <td className="border-l border-gray-100 bg-gray-50/50" />;
+    return (
+      <td
+        className={`border-l border-gray-100 bg-gray-50/50 ${cursorClass} ${klikkbar ? "hover:bg-gray-100" : ""}`}
+        onClick={onKlikk}
+      />
+    );
   }
 
   const status = kompetanseStatus(kobling.utloper);
   const farger: Record<KompetanseStatus, string> = {
-    gyldig: "bg-green-100 hover:bg-green-200 text-green-900",
-    varsel: "bg-yellow-100 hover:bg-yellow-200 text-yellow-900",
-    utlopt: "bg-red-100 hover:bg-red-200 text-red-900",
+    gyldig: klikkbar
+      ? "bg-green-100 hover:bg-green-200 text-green-900"
+      : "bg-green-100 text-green-900",
+    varsel: klikkbar
+      ? "bg-yellow-100 hover:bg-yellow-200 text-yellow-900"
+      : "bg-yellow-100 text-yellow-900",
+    utlopt: klikkbar
+      ? "bg-red-100 hover:bg-red-200 text-red-900"
+      : "bg-red-100 text-red-900",
   };
 
   const utloperTekst = kobling.utloper
@@ -287,8 +385,9 @@ function MatriseCelle({
 
   return (
     <td
-      className={`border-l border-gray-100 px-2 py-2 text-center transition-colors ${farger[status]}`}
+      className={`border-l border-gray-100 px-2 py-2 text-center transition-colors ${farger[status]} ${cursorClass}`}
       title={tooltip}
+      onClick={onKlikk}
     >
       <div className="flex items-center justify-center gap-1">
         {status === "varsel" && <AlertTriangle className="h-3.5 w-3.5" />}
@@ -724,4 +823,321 @@ function SlettTypeDialog({
       </div>
     </Modal>
   );
+}
+
+/* ------------------------------------------------------------------ */
+/*  AnsattKompetanseDialog (Runde 2) — opprett/rediger/slett pr celle  */
+/* ------------------------------------------------------------------ */
+
+function AnsattKompetanseDialog({
+  bruker,
+  type,
+  eksisterende,
+  onLukk,
+}: {
+  bruker: MatriseBruker;
+  type: MatriseType;
+  eksisterende: MatriseKobling | null;
+  onLukk: () => void;
+}) {
+  const { t } = useTranslation();
+  const utils = trpc.useUtils();
+  const erRediger = eksisterende !== null;
+
+  const [utstedtDato, setUtstedtDato] = useState<string>(
+    eksisterende?.utstedtDato ? toDateInputValue(eksisterende.utstedtDato) : "",
+  );
+  const [utloper, setUtloper] = useState<string>(
+    eksisterende?.utloper ? toDateInputValue(eksisterende.utloper) : "",
+  );
+  const [utstederOrgan, setUtstederOrgan] = useState<string>(
+    eksisterende?.utstederOrgan ?? "",
+  );
+  const [sertifikatNr, setSertifikatNr] = useState<string>(
+    eksisterende?.sertifikatNr ?? "",
+  );
+  const [notat, setNotat] = useState<string>("");
+  const [feil, setFeil] = useState<string | null>(null);
+  const [visSlett, setVisSlett] = useState(false);
+
+  // Smal lokal interface-cast for å unngå TS2589 (etablert mønster i kodebasen)
+  type MutInput = {
+    userId?: string;
+    kompetansetypeId?: string;
+    id?: string;
+    utstedtDato: string | null;
+    utloper: string | null;
+    utstederOrgan: string | null;
+    sertifikatNr: string | null;
+    notat: string | null;
+  };
+  const opprettMutation = (
+    trpc.kompetanse.opprett as unknown as {
+      useMutation: (opts: {
+        onSuccess: () => void;
+        onError: (e: { message: string }) => void;
+      }) => { mutate: (i: MutInput) => void; isPending: boolean };
+    }
+  ).useMutation({
+    onSuccess: () => {
+      utils.kompetanse.hentMatrise.invalidate();
+      onLukk();
+    },
+    onError: (error: { message: string }) => {
+      setFeil(error.message);
+    },
+  });
+
+  const oppdaterMutation = (
+    trpc.kompetanse.oppdater as unknown as {
+      useMutation: (opts: {
+        onSuccess: () => void;
+        onError: (e: { message: string }) => void;
+      }) => { mutate: (i: MutInput) => void; isPending: boolean };
+    }
+  ).useMutation({
+    onSuccess: () => {
+      utils.kompetanse.hentMatrise.invalidate();
+      onLukk();
+    },
+    onError: (error: { message: string }) => {
+      setFeil(error.message);
+    },
+  });
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setFeil(null);
+    const felles = {
+      utstedtDato: utstedtDato || null,
+      utloper: utloper || null,
+      utstederOrgan: utstederOrgan.trim() || null,
+      sertifikatNr: sertifikatNr.trim() || null,
+      notat: notat.trim() || null,
+    };
+    if (erRediger) {
+      oppdaterMutation.mutate({ id: eksisterende!.id, ...felles });
+    } else {
+      opprettMutation.mutate({
+        userId: bruker.id,
+        kompetansetypeId: type.id,
+        ...felles,
+      });
+    }
+  }
+
+  // Eksplisitt boolean fra live state-verdier (utstedtDato + utloper er begge
+  // useState-strings). Tidligere variant returnerte `string | boolean` via &&-
+  // kjeden, som kunne gi inkonsistent JSX-rendering i opprett-modus hvor
+  // initialverdiene er tomme strenger.
+  const harUgyldigDatoIntervall =
+    utstedtDato.length > 0 &&
+    utloper.length > 0 &&
+    new Date(utloper).getTime() < new Date(utstedtDato).getTime();
+
+  const lagrer = opprettMutation.isPending || oppdaterMutation.isPending;
+
+  return (
+    <>
+      <Modal
+        open={true}
+        onClose={onLukk}
+        title={
+          erRediger
+            ? t("firma.kompetanse.dialog.redigerTittel")
+            : t("firma.kompetanse.dialog.opprettTittel")
+        }
+      >
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Read-only header */}
+          <div className="rounded-md border border-gray-200 bg-gray-50 p-3 text-sm">
+            <div>
+              <span className="font-medium text-gray-700">
+                {t("firma.kompetanse.dialog.bruker")}:
+              </span>{" "}
+              <span className="text-gray-900">{bruker.name ?? bruker.email}</span>
+            </div>
+            <div className="mt-1">
+              <span className="font-medium text-gray-700">
+                {t("firma.kompetanse.dialog.type")}:
+              </span>{" "}
+              <span className="text-gray-900">{type.navn}</span>{" "}
+              <span className="text-xs text-gray-500">({type.kategori})</span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">
+                {t("firma.kompetanse.dialog.utstedtDato")}
+              </label>
+              <Input
+                type="date"
+                value={utstedtDato}
+                onChange={(e) => setUtstedtDato(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">
+                {t("firma.kompetanse.dialog.utloper")}
+              </label>
+              <Input
+                type="date"
+                value={utloper}
+                onChange={(e) => setUtloper(e.target.value)}
+              />
+            </div>
+          </div>
+
+          {harUgyldigDatoIntervall && (
+            <p className="text-xs text-yellow-700">
+              {t("firma.kompetanse.dialog.advarselUtlopForUtstedt")}
+            </p>
+          )}
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              {t("firma.kompetanse.dialog.utstederOrgan")}
+            </label>
+            <Input
+              type="text"
+              value={utstederOrgan}
+              onChange={(e) => setUtstederOrgan(e.target.value)}
+              placeholder={t("firma.kompetanse.dialog.utstederOrganPlaceholder")}
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              {t("firma.kompetanse.dialog.sertifikatNr")}
+            </label>
+            <Input
+              type="text"
+              value={sertifikatNr}
+              onChange={(e) => setSertifikatNr(e.target.value)}
+              placeholder={t("firma.kompetanse.dialog.sertifikatNrPlaceholder")}
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              {t("firma.kompetanse.dialog.notat")}
+            </label>
+            <Textarea
+              value={notat}
+              onChange={(e) => setNotat(e.target.value)}
+              rows={2}
+              placeholder={t("firma.kompetanse.dialog.notatPlaceholder")}
+            />
+          </div>
+
+          {feil && <p className="text-sm text-red-600">{feil}</p>}
+
+          <div className="flex items-center justify-end gap-3 pt-2">
+            <Button type="button" variant="secondary" onClick={onLukk}>
+              {t("handling.avbryt")}
+            </Button>
+            {erRediger && (
+              <Button
+                type="button"
+                variant="danger"
+                onClick={() => setVisSlett(true)}
+                disabled={lagrer}
+              >
+                {t("firma.kompetanse.dialog.slettKnapp")}
+              </Button>
+            )}
+            <Button type="submit" disabled={lagrer}>
+              {lagrer ? t("handling.lagrer") : t("handling.lagre")}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {visSlett && eksisterende && (
+        <SlettAnsattKompetanseDialog
+          id={eksisterende.id}
+          brukerNavn={bruker.name ?? bruker.email}
+          typeNavn={type.navn}
+          onLukk={() => setVisSlett(false)}
+          onSlettet={onLukk}
+        />
+      )}
+    </>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  SlettAnsattKompetanseDialog — sub-modal                             */
+/* ------------------------------------------------------------------ */
+
+function SlettAnsattKompetanseDialog({
+  id,
+  brukerNavn,
+  typeNavn,
+  onLukk,
+  onSlettet,
+}: {
+  id: string;
+  brukerNavn: string;
+  typeNavn: string;
+  onLukk: () => void;
+  onSlettet: () => void;
+}) {
+  const { t } = useTranslation();
+  const utils = trpc.useUtils();
+  const [feil, setFeil] = useState<string | null>(null);
+
+  const mutation = (
+    trpc.kompetanse.slett as unknown as {
+      useMutation: (opts: {
+        onSuccess: () => void;
+        onError: (e: { message: string }) => void;
+      }) => { mutate: (i: { id: string }) => void; isPending: boolean };
+    }
+  ).useMutation({
+    onSuccess: () => {
+      utils.kompetanse.hentMatrise.invalidate();
+      onLukk();
+      onSlettet();
+    },
+    onError: (error: { message: string }) => {
+      setFeil(error.message);
+    },
+  });
+
+  return (
+    <Modal open={true} onClose={onLukk} title={t("firma.kompetanse.dialog.slettTittel")}>
+      <div className="space-y-4">
+        <p className="text-sm text-gray-700">
+          {t("firma.kompetanse.dialog.slettBekreftTekst", {
+            type: typeNavn,
+            bruker: brukerNavn,
+          })}
+        </p>
+        {feil && <p className="text-sm text-red-600">{feil}</p>}
+        <div className="flex justify-end gap-3 pt-2">
+          <Button type="button" variant="secondary" onClick={onLukk}>
+            {t("handling.avbryt")}
+          </Button>
+          <Button
+            type="button"
+            variant="danger"
+            disabled={mutation.isPending}
+            onClick={() => {
+              setFeil(null);
+              mutation.mutate({ id });
+            }}
+          >
+            {mutation.isPending ? t("handling.lagrer") : t("handling.slett")}
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+function toDateInputValue(d: Date | string): string {
+  const dato = d instanceof Date ? d : new Date(d);
+  return dato.toISOString().slice(0, 10);
 }
