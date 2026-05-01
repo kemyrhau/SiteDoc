@@ -350,6 +350,8 @@ DATABASE_URL="postgresql://kemyr:kemyr@localhost:5432/sitedoc"
 
 Symptom hvis `.env` mangler: `prisma migrate deploy` feiler med `Error code: P1012 — Environment variable not found: DATABASE_URL`. Lærdom fra db-maskin prod-deploy 2026-04-30 + db-timer test-deploy 2026-05-01.
 
+**ALDRI pipe `prisma migrate deploy` gjennom `tail`/`head`/`grep`** — pipens exit-kode er den siste kommandoen i pipen (typisk `tail` som returnerer 0), så `migrate`-feil **svelges** og `&&`-kjeden fortsetter som om alt gikk bra. Resultat: deploy-kjede kjører bygg + pm2-restart selv om migrasjonen feilet, og prod-DB ender uten påkrevd schema. Kjør `prisma migrate deploy` direkte (uten pipe), eller fang exit-koden eksplisitt med `set -o pipefail` før kjeden. Lærdom fra db-timer prod-deploy 2026-05-01 (timer-schema manglet 5 minutter på prod fordi `migrate | tail -3` skjulte P1012-feilen).
+
 **Cache-tak:** `.next/cache` slettes automatisk ved deploy hvis den overstiger 500 MB. Normal cache etter ren build er ~420 MB — taket rydder kun akkumulert gammel cache.
 
 Se [docs/claude/infrastruktur.md](docs/claude/infrastruktur.md) for detaljer.
