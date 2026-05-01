@@ -794,15 +794,7 @@ export default function LokasjonerSide() {
     },
   });
 
-  const slettMutation = trpc.bygning.slett.useMutation({
-    onSuccess: () => {
-      utils.bygning.hentForProsjekt.invalidate({ projectId: prosjektId! });
-      setValgtId(null);
-    },
-    onError: (error) => {
-      alert(error.message);
-    },
-  });
+  const [visSletteDialog, setVisSletteDialog] = useState(false);
 
   const publiserMutation = trpc.bygning.publiser.useMutation({
     onSuccess: () => {
@@ -839,8 +831,12 @@ export default function LokasjonerSide() {
 
   function handleSlettValgt() {
     if (!valgtId || !valgtLokasjon) return;
-    if (!confirm(`Er du sikker på at du vil slette «${valgtLokasjon.name}»?`)) return;
-    slettMutation.mutate({ id: valgtId });
+    setVisSletteDialog(true);
+  }
+
+  function handleSletteFullfort() {
+    setVisSletteDialog(false);
+    setValgtId(null);
   }
 
   function apneEndreNavn() {
@@ -1102,6 +1098,185 @@ export default function LokasjonerSide() {
           onLukk={() => setRedigerLokasjonId(null)}
         />
       )}
+
+      {/* Slette-dialog (Fase 0.5 § 5 slette-policy) */}
+      {visSletteDialog && valgtLokasjon && prosjektId && (
+        <SletteLokasjonDialog
+          lokasjonId={valgtLokasjon.id}
+          prosjektId={prosjektId}
+          onLukk={() => setVisSletteDialog(false)}
+          onFullfort={handleSletteFullfort}
+        />
+      )}
     </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  SletteLokasjonDialog — Fase 0.5 § 5 slette-policy                  */
+/* ------------------------------------------------------------------ */
+
+function SletteLokasjonDialog({
+  lokasjonId,
+  prosjektId,
+  onLukk,
+  onFullfort,
+}: {
+  lokasjonId: string;
+  prosjektId: string;
+  onLukk: () => void;
+  onFullfort: () => void;
+}) {
+  const { t } = useTranslation();
+  const utils = trpc.useUtils();
+  const [navnInput, setNavnInput] = useState("");
+  const [feilmelding, setFeilmelding] = useState<string | null>(null);
+
+  const { data: sammendrag, isLoading } =
+    trpc.bygning.hentSletteSammendrag.useQuery({ byggeplassId: lokasjonId });
+
+  const slettMutation = trpc.bygning.slett.useMutation({
+    onSuccess: (resultat: {
+      navn: string;
+      bevares: { tegninger: number; punktskyer: number; sjekklister: number; ftdKontrakter: number; psi: number };
+      slettes: { omrader: number; kontrollplaner: number; gruppeKoblinger: number };
+    }) => {
+      utils.bygning.hentForProsjekt.invalidate({ projectId: prosjektId });
+      const totaltBevart =
+        resultat.bevares.tegninger +
+        resultat.bevares.punktskyer +
+        resultat.bevares.sjekklister +
+        resultat.bevares.ftdKontrakter +
+        resultat.bevares.psi;
+      const totaltSlettet =
+        resultat.slettes.omrader +
+        resultat.slettes.kontrollplaner +
+        resultat.slettes.gruppeKoblinger;
+      const melding =
+        totaltBevart > 0 || totaltSlettet > 0
+          ? t("lokasjoner.slett.suksessMedDetaljer", {
+              navn: resultat.navn,
+              bevart: totaltBevart,
+              slettet: totaltSlettet,
+            })
+          : t("lokasjoner.slett.suksess", { navn: resultat.navn });
+      // Lett toast — alert er enkelt i denne sammenhengen, kan byttes ut senere
+      // når et toast-system er på plass i UI-pakken
+      alert(melding);
+      onFullfort();
+    },
+    onError: (error) => {
+      setFeilmelding(error.message);
+    },
+  });
+
+  if (isLoading || !sammendrag) {
+    return (
+      <Modal open={true} onClose={onLukk} title={t("lokasjoner.slett.tittel")}>
+        <div className="flex items-center justify-center py-8">
+          <Spinner />
+        </div>
+      </Modal>
+    );
+  }
+
+  const navnMatcher =
+    navnInput.trim().toLowerCase() === sammendrag.navn.trim().toLowerCase();
+
+  const bevaresRader: Array<{ nokkel: string; antall: number }> = [
+    { nokkel: "tegninger", antall: sammendrag.bevares.tegninger },
+    { nokkel: "punktskyer", antall: sammendrag.bevares.punktskyer },
+    { nokkel: "sjekklister", antall: sammendrag.bevares.sjekklister },
+    { nokkel: "ftdKontrakter", antall: sammendrag.bevares.ftdKontrakter },
+    { nokkel: "psi", antall: sammendrag.bevares.psi },
+  ].filter((r) => r.antall > 0);
+
+  const slettesRader: Array<{ nokkel: string; antall: number }> = [
+    { nokkel: "omrader", antall: sammendrag.slettes.omrader },
+    { nokkel: "kontrollplaner", antall: sammendrag.slettes.kontrollplaner },
+    { nokkel: "gruppeKoblinger", antall: sammendrag.slettes.gruppeKoblinger },
+  ].filter((r) => r.antall > 0);
+
+  function handleSlett() {
+    setFeilmelding(null);
+    slettMutation.mutate({
+      byggeplassId: lokasjonId,
+      navnBekreftelse: navnInput,
+    });
+  }
+
+  return (
+    <Modal open={true} onClose={onLukk} title={t("lokasjoner.slett.tittel")}>
+      <div className="space-y-4">
+        <p className="text-sm text-gray-700">
+          {t("lokasjoner.slett.intro", { navn: sammendrag.navn })}
+        </p>
+
+        {bevaresRader.length > 0 && (
+          <div className="rounded-md border border-blue-200 bg-blue-50 p-3">
+            <h4 className="mb-2 text-sm font-medium text-blue-900">
+              {t("lokasjoner.slett.bevaresTittel")}
+            </h4>
+            <ul className="space-y-1 text-sm text-blue-800">
+              {bevaresRader.map((rad) => (
+                <li key={rad.nokkel}>
+                  {t(`lokasjoner.slett.bevares.${rad.nokkel}`, { antall: rad.antall })}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {slettesRader.length > 0 && (
+          <div className="rounded-md border border-red-200 bg-red-50 p-3">
+            <h4 className="mb-2 text-sm font-medium text-red-900">
+              {t("lokasjoner.slett.slettesTittel")}
+            </h4>
+            <ul className="space-y-1 text-sm text-red-800">
+              {slettesRader.map((rad) => (
+                <li key={rad.nokkel}>
+                  {t(`lokasjoner.slett.slettes.${rad.nokkel}`, { antall: rad.antall })}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {bevaresRader.length === 0 && slettesRader.length === 0 && (
+          <p className="text-sm text-gray-500">{t("lokasjoner.slett.ingenAvhengigheter")}</p>
+        )}
+
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">
+            {t("lokasjoner.slett.bekreftLabel", { navn: sammendrag.navn })}
+          </label>
+          <Input
+            type="text"
+            value={navnInput}
+            onChange={(e) => setNavnInput(e.target.value)}
+            placeholder={sammendrag.navn}
+            autoFocus
+          />
+        </div>
+
+        {feilmelding && (
+          <p className="text-sm text-red-600">{feilmelding}</p>
+        )}
+
+        <div className="flex justify-end gap-3 pt-2">
+          <Button type="button" variant="secondary" onClick={onLukk}>
+            {t("handling.avbryt")}
+          </Button>
+          <Button
+            type="button"
+            variant="danger"
+            disabled={!navnMatcher || slettMutation.isPending}
+            onClick={handleSlett}
+          >
+            {slettMutation.isPending ? t("handling.lagrer") : t("lokasjoner.slett.slettKnapp")}
+          </Button>
+        </div>
+      </div>
+    </Modal>
   );
 }
