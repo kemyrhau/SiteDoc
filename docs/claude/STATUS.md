@@ -12,7 +12,7 @@
 > - Hvis ingen av delene: kort fri beskrivelse (eller tom)
 
 **Sist oppdatert:** 2026-05-01
-**Antall filer dekket:** 35 (komplett oversikt)
+**Antall filer dekket:** 36 (komplett oversikt)
 
 > **Fase 0.5 KOMPLETT (deployet til prod 2026-05-01):** § 1 Avdeling (`a90daabd`), § 2 Kompetanse (`a5ba99ce`), § 3 ProjectGroupByggeplass + drop building_ids (`3836b322`), § 5 Slette-policy (`f13dc6c0`). Merge: develop `9fed74a5` → main `f0a515cd`. Etter-Fase-0.5: Avdeling-UI (`2799a4d1` prod). Kompetanse-UI Runde 1 (`0965ddf2` prod) — kompetansetyper-CRUD + matrise read-only + settings-toggle. Kompetanse-UI Runde 2 (develop) — AnsattKompetanse-CRUD via celle-klikk + RBAC `verifiserKompetanseSkriveTilgang` (Alt A: admin bypasser policy) + 18 nye i18n-nøkler. Klar for test-deploy.
 
@@ -23,9 +23,9 @@
 | ✅ Verifisert mot kode | 5 |
 | ⚠️ Drift identifisert | 4 |
 | 🔄 Under arbeid | 4 |
-| ❌ Ikke screenet | 19 |
+| ❌ Ikke screenet | 20 |
 | 📦 Arkivert | 3 |
-| **Totalt** | **35** |
+| **Totalt** | **36** |
 
 ---
 
@@ -62,6 +62,7 @@
 | Fil | Sist verifisert | Kommentar |
 |---|---|---|
 | adaptiv-sok-plan.md | — | Skal drøftes (per CLAUDE.md) |
+| aktivitetsfeed.md | 2026-05-01 | **Planlagt fase** (etter Maskin Fase 1 + Timer Fase 3). Verifisering 2026-05-01: Activity-tabell finnes i prod (Fase 0 § E.1, `13a746a7`), ingen produsent-kode skrevet ennå. Spec dekker datamodell, polling-strategi, GDPR-retensjon, OrganizationSetting-utvidelser (`feedHendelsetyper` + `feedPeriodeDager` (default 10) + `activityRetentionAar` (default 5)). Ekstern partner-feed = egen designrunde |
 | ai-integrasjon.md | — | — |
 | ai-sok.md | — | — |
 | api.md | — | — |

@@ -28,6 +28,7 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 | [docs/claude/planlegger.md](docs/claude/planlegger.md) | Fremdriftsplanlegger: ressursplanlegging, kompetanse, bemanning, forslag-motor |
 | [docs/claude/mannskap.md](docs/claude/mannskap.md) | Mannskaps-vy i PSI-modulen (ikke separat modul). §15-liste, HMS-kort-validering, geofence-innsjekk, GDPR, 12t auto-utsjekk. Endelig datamodell designes Fase 4 |
 | [docs/claude/varsling.md](docs/claude/varsling.md) | Tverrgående varsling: firmanivå, kontrollplan-frister, EU-kontroll, service, sertifisering, in-app klokke |
+| [docs/claude/aktivitetsfeed.md](docs/claude/aktivitetsfeed.md) | **Planlagt fase (etter Timer + Maskin):** Twitter/Facebook-lignende feed på dashboard. Bruker eksisterende Activity-tabell (Fase 0 § E.1). Polling via tRPC, GDPR-anonymisering via cron, konfigurerbar periode (default 10 dager) + hendelsestyper i OrganizationSetting. Ekstern partner-feed = egen designrunde |
 | [docs/claude/db-opprydning.md](docs/claude/db-opprydning.md) | **AKTIV:** Opprydningsplan for DB. Timer-modul på pause til prioritet 1+2 er gjort. Faggruppe-rename, CHECK constraints, design-beslutninger |
 | ~~docs/claude/audit-data-2026-04-25.md~~ | **🟦 ARKIVERT 2026-04-28** → [docs/arkiv/audit-data-2026-04-25.md](docs/arkiv/audit-data-2026-04-25.md). Read-only audit av dev-DB 2026-04-25. Åpne audit-spørsmål mot prod konsolidert til [db-opprydning.md § Åpne audit-spørsmål](docs/claude/db-opprydning.md) (K3.2) før arkivering |
 | [docs/claude/migrering-reporttemplate.md](docs/claude/migrering-reporttemplate.md) | Plan: ReportTemplate → OrganizationTemplate (firma-mal-bibliotek). Ikke implementert |
@@ -146,6 +147,8 @@ Detaljert plan: [arkitektur-syntese.md §5](docs/claude/arkitektur-syntese.md). 
 **Fase 6 — Avansert:** DO-kobling, AI-ukeplan.
 
 **Fase 7 — Prosjekthotell-utvidelser (parallelt spor):** Møtemal, Månedsrapport, HMS-statistikk firma-nivå, Street View, auto-trigger maskin-sjekkliste fra service-varsel.
+
+**TODO etter Maskin (Fase 1) + Timer (Fase 3):** [Aktivitetsfeed på dashboard](docs/claude/aktivitetsfeed.md) — bruker eksisterende Activity-tabell, polling via tRPC, konfigurerbar periode (default 10 dager) + hendelsestyper + GDPR-retensjon i OrganizationSetting. Ekstern partner-feed-scope krever egen designrunde.
 
 **Commits på `feature/maskin-db`** venter på merge til develop:
 - `a4d7771` — Proadm-detaljer i timer.md
