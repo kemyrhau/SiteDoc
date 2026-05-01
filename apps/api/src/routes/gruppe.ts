@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { Prisma } from "@sitedoc/db";
 import crypto from "crypto";
 import { router, protectedProcedure } from "../trpc/trpc";
 import {
@@ -487,22 +486,31 @@ export const gruppeRouter = router({
     }),
 
   // Oppdater byggeplassfilter for en gruppe
+  // Per Fase 0.5 § 3: bruker ProjectGroupByggeplass m2m-koblingstabell
+  // (erstatter dødt building_ids jsonb). Semantikk: tom array = alle byggeplasser.
   oppdaterByggeplasser: protectedProcedure
     .input(
       z.object({
         groupId: z.string().uuid(),
         projectId: z.string().uuid(),
-        byggeplassIder: z.array(z.string().uuid()).nullable(), // null = alle
+        byggeplassIder: z.array(z.string().uuid()).nullable(), // null/[] = alle byggeplasser
       }),
     )
     .mutation(async ({ ctx, input }) => {
       await verifiserAdmin(ctx.userId, input.projectId);
-      return ctx.prisma.projectGroup.update({
-        where: { id: input.groupId },
-        data: {
-          byggeplassIder: input.byggeplassIder ?? Prisma.DbNull,
-        },
-      });
+      const nyeIder = input.byggeplassIder ?? [];
+      return ctx.prisma.$transaction([
+        ctx.prisma.projectGroupByggeplass.deleteMany({
+          where: { groupId: input.groupId },
+        }),
+        ctx.prisma.projectGroupByggeplass.createMany({
+          data: nyeIder.map((byggeplassId) => ({
+            groupId: input.groupId,
+            byggeplassId,
+          })),
+          skipDuplicates: true,
+        }),
+      ]);
     }),
 
   // Sett gruppeadmin

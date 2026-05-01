@@ -38,7 +38,12 @@ model User {
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @updatedAt @map("updated_at")
 
+  // Per Fase 0.5 § 1 + C.11 — firma-intern organisatorisk inndeling.
+  // SetNull: sletting av Avdeling skal ikke slette brukere.
+  avdelingId               String?  @map("avdeling_id")
+
   organization         Organization?        @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  avdeling             Avdeling?            @relation(fields: [avdelingId], references: [id], onDelete: SetNull)
   accounts             Account[]
   sessions             Session[]
   projects             ProjectMember[]
@@ -63,8 +68,10 @@ model User {
   psiSignaturer        PsiSignatur[]
   godkjenteKontrollplaner Kontrollplan[] @relation("KontrollplanGodkjenner")
   kontrollplanHistorikk   KontrollplanHistorikk[]
+  kompetanser             AnsattKompetanse[]
 
   @@index([organizationId])
+  @@index([avdelingId])
   // Per B.7 — én User per (person × firma). Composite unique tillater Joakim
   // å ha én User-rad per firma han jobber i.
   @@unique([email, organizationId])
@@ -95,6 +102,8 @@ model Organization {
   organizationRoles   OrganizationRole[]
   integrations        OrganizationIntegration[]
   setting             OrganizationSetting?
+  avdelinger          Avdeling[]
+  kompetansetyper     Kompetansetype[]
 
   @@map("organizations")
 }
@@ -153,6 +162,11 @@ model OrganizationSetting {
   timerTilgangDefault       String @default("alle-ansatte") @map("timer_tilgang_default")
   vareforbrukTilgangDefault String @default("alle-ansatte") @map("vareforbruk_tilgang_default")
   maskinbrukTilgangDefault  String @default("sertifiserte") @map("maskinbruk_tilgang_default")
+
+  // Per Fase 0.5 § 2 — hvem kan registrere AnsattKompetanse-rader
+  // Verdier: 'firma_admin' | 'bruker_egen' | 'alle'
+  // Default 'firma_admin' (mest restriktivt — kunde løsner opp ved behov)
+  kompetanseRegistreringTilgang String @default("firma_admin") @map("kompetanse_registrering_tilgang")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -330,7 +344,9 @@ model ProjectGroup {
   permissions Json     @default("[]")
   domains     Json     @default("[]") // ["bygg"], ["hms"], ["bygg","hms"], etc.
   modules     Json     @default("[\"sjekklister\",\"oppgaver\",\"tegninger\",\"3d\"]") // aktive moduler
-  byggeplassIder Json?    @map("building_ids") // null = alle byggeplasser, ellers array med byggeplass-IDer
+  // building_ids jsonb droppet 2026-05-01 (Fase 0.5 § 3) — erstattet av
+  // ProjectGroupByggeplass m2m-koblingstabell. Per Prinsipp C-verifisering var
+  // feltet dødt (skrevet, aldri lest) — ingen data å migrere.
   isDefault   Boolean  @default(false) @map("is_default")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
@@ -344,6 +360,7 @@ model ProjectGroup {
   recipientTransfers    DocumentTransfer[]   @relation("TransferRecipientGroup")
   recipientChecklists   Checklist[]          @relation("ChecklistRecipientGroup")
   recipientTasks        Task[]               @relation("TaskRecipientGroup")
+  byggeplasser          ProjectGroupByggeplass[]
 
   @@unique([projectId, slug])
   @@map("project_groups")
@@ -552,14 +569,15 @@ model Byggeplass {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  project       Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  drawings      Drawing[]
-  pointClouds   PointCloud[]
-  checklists    Checklist[]
-  ftdKontrakter FtdKontrakt[]
-  psiEr         Psi[]
-  omrader       Omrade[]
-  kontrollplaner Kontrollplan[]
+  project          Project                  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  drawings         Drawing[]
+  pointClouds      PointCloud[]
+  checklists       Checklist[]
+  ftdKontrakter    FtdKontrakt[]
+  gruppeKoblinger  ProjectGroupByggeplass[]
+  psiEr            Psi[]
+  omrader          Omrade[]
+  kontrollplaner   Kontrollplan[]
 
   @@index([status])
   @@map("byggeplasser")
@@ -1725,4 +1743,131 @@ model OrganizationRole {
   @@unique([userId, organizationId, role])
   @@index([organizationId, role])
   @@map("organization_roles")
+}
+
+// ---------------------------------------------------------------------------
+// Avdeling — firma-intern organisatorisk inndeling (Fase 0.5 § 1)
+// Per fase-0-beslutninger.md § C.11 + byggeplass-strategi.md § Avdeling.
+//
+// Skiller seg fra Byggeplass:
+// - Avdeling = organisatorisk inndeling av firma (Tromsø, Narvik, Transport)
+// - Byggeplass = fysisk lokasjon innenfor et prosjekt
+//
+// «Uten avdeling» (User.avdelingId = NULL) er gyldig permanent tilstand.
+// ---------------------------------------------------------------------------
+
+model Avdeling {
+  id              String   @id @default(uuid())
+  organizationId  String   @map("organization_id")
+  kode            String?                              // intern kode, kan være null
+  navn            String
+  aktiv           Boolean  @default(true)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  brukere      User[]
+
+  @@unique([organizationId, navn])
+  @@index([organizationId, aktiv])
+  @@map("avdelinger")
+}
+
+// ---------------------------------------------------------------------------
+// Kompetansetype + AnsattKompetanse — kompetansematrise (Fase 0.5 § 2)
+// Per fase-0-beslutninger.md § A.28 + § C.14.
+// To-tabell-struktur verifisert mot SmartDok 2026-04-29
+// (Kompetanseoversikt + Kompetansetyper-fane + Brukernes kompetanser).
+//
+// Kategori-katalog: 7 SmartDok-bekreftede kategorier seedet i
+// packages/shared/src/types/index.ts (KOMPETANSE_KATEGORIER).
+//
+// RBAC: konfigureres per firma via OrganizationSetting.kompetanseRegistreringTilgang
+// (firma_admin | bruker_egen | alle, default firma_admin).
+//
+// Vedlegg: Json-array på AnsattKompetanse (samme mønster som
+// ServiceRecord.vedlegg i db-maskin). Ingen separat vedlegg-tabell.
+//
+// Cascade-policy:
+// - Kompetansetype → Organization: Cascade
+// - AnsattKompetanse → User: Cascade (sletting av User sletter kompetanse-historikk)
+// - AnsattKompetanse → Kompetansetype: Restrict (kan ikke slette type med
+//   tilknyttede ansatt-rader — krever migrering først)
+// ---------------------------------------------------------------------------
+
+model Kompetansetype {
+  id                            String   @id @default(uuid())
+  organizationId                String   @map("organization_id")
+  navn                          String                                          // "M2 Gravemaskin" | "DO CAT 325" | "HMS-kurs 40t"
+  kategori                      String                                          // se KOMPETANSE_KATEGORIER
+  aktiv                         Boolean  @default(true)
+  defaultUtloperAarEtterUtstedt Int?     @map("default_utloper_aar")             // null = ingen default-utløp
+  beskrivelse                   String?
+  kobletTilEquipmentModell      String?  @map("koblet_til_equipment_modell")    // for DO-kobling Fase 6 (fritekst merke+modell)
+  createdAt                     DateTime @default(now()) @map("created_at")
+  updatedAt                     DateTime @updatedAt @map("updated_at")
+
+  organization      Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  ansattKompetanser AnsattKompetanse[]
+
+  @@unique([organizationId, navn])
+  @@index([organizationId, kategori])
+  @@map("kompetansetyper")
+}
+
+model AnsattKompetanse {
+  id                String    @id @default(uuid())
+  userId            String    @map("user_id")
+  kompetansetypeId  String    @map("kompetansetype_id")
+  utstedtDato       DateTime? @map("utstedt_dato") @db.Date                     // SmartDok kaller det «Fullført dato»
+  utloper           DateTime? @db.Date
+  utstederOrgan     String?   @map("utsteder_organ")
+  sertifikatNr      String?   @map("sertifikat_nr")
+  vedlegg           Json?                                                        // [{url, filename, type, uploadedAt}]
+  notat             String?
+  opprettetAvUserId String?   @map("opprettet_av_user_id")                       // ingen FK — bevarer audit-spor ved User-sletting (A.3-mønster)
+  importertVia      String?   @map("importert_via")                              // "manuell" | "csv" | "xlsx" | "hr_api" | "smartdok"
+  importertVed      DateTime? @map("importert_ved")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kompetansetype Kompetansetype @relation(fields: [kompetansetypeId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, kompetansetypeId])
+  @@index([utloper])
+  @@index([kompetansetypeId])
+  @@map("ansatt_kompetanser")
+}
+
+// ---------------------------------------------------------------------------
+// ProjectGroupByggeplass — m2m mellom ProjectGroup og Byggeplass (Fase 0.5 § 3)
+// Per fase-0-beslutninger.md byggeplass-strategi.md § Prinsipp C (C1: koblings-
+// tabell) + arkitektur-syntese.md § 5.
+//
+// Erstatter ProjectGroup.byggeplassIder (jsonb «building_ids»). Per Prinsipp C-
+// verifisering 2026-05-01 var jsonb-feltet dødt (skrevet i gruppe.ts:495-503,
+// aldri lest noen sted) — derfor ingen data å migrere, dropp i samme migrasjon.
+//
+// Semantikk: ingen rader for en gruppe = ingen byggeplass-restriksjon
+// (gruppen har tilgang til alle byggeplasser). Rader = begrenset til disse
+// byggeplassene.
+//
+// Cascade-policy:
+// - ProjectGroupByggeplass → ProjectGroup: Cascade
+// - ProjectGroupByggeplass → Byggeplass: Cascade
+// ---------------------------------------------------------------------------
+
+model ProjectGroupByggeplass {
+  id           String   @id @default(uuid())
+  groupId      String   @map("group_id")
+  byggeplassId String   @map("byggeplass_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  group      ProjectGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  byggeplass Byggeplass   @relation(fields: [byggeplassId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, byggeplassId])
+  @@index([byggeplassId])
+  @@map("project_group_byggeplasser")
 }
