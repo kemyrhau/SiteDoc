@@ -469,7 +469,7 @@ Firma (Organization)                  ← Selskapet (A.Markussen AS, Veidekke)
 >
 > **Mannskapsliste = vy i PSI-modulen:** Mannskaps-listen er ikke separat modul. PSI utvides med innsjekk/utsjekk-mekanikk; mannskaps-listen er den vyen som aggregerer PSI-tilstedeværelses-data per byggeplass. Tidligere skisser («Mannskap som firmamodul», «Mannskap som separat prosjektmodul», «Mannskap/PSI slått sammen») er forkastet.
 >
-> **Kompetansematrise = del av Timer-modulen** (på ansatt-objektet). Detaljert datamodell venter på HR-API-design (planlagt sammen med Import-modulen). Ikke Timer-Fase-3-blokker — kompetanseregister-spec utsettes til HR-API er klar.
+> **Kompetansematrise = egen firma-funksjon (live i prod 2026-05-01).** Implementert som egne tabeller `Kompetansetype` + `AnsattKompetanse` i `packages/db` (kjernen) — ikke en del av Timer-modulen. Kompetansedata kan registreres manuelt i SiteDoc eller importeres via CSV/Excel; fremtidig HR-API-import er planlagt sammen med Import-modulen, men ikke en forutsetning for å bruke matrisen. Andre moduler (Timer, Maskin, Planlegger) leser kompetansedata via service-lag (`apps/api/src/services/kompetanse/`) — ikke direkte fra DB.
 
 ### Begreper — endelig definisjon
 
@@ -507,7 +507,7 @@ Rename gjennomført april 2026 (112 filer, feature/faggruppe-rename). Regler:
 **Firmamoduler** (planlagt):
 - Slås av/på **én gang for hele firmaet** i Firmaadministrasjon
 - Deler data på tvers av alle firmaets prosjekter
-- Eksempler: Timeregistrering, Maskinregistrering, HR/Mannskap, Fremdriftsplanlegging
+- Eksempler: Timeregistrering, Maskinregistrering, Kompetanse (implementert), Fremdriftsplanlegging (planlagt). **Mannskap er ikke firmamodul** — det er en vy i PSI-modulen (Fase 4) per Mini-Nivå-1D-presisering over.
 - Datalag-isolasjon via egne DB-skjemaer (`packages/db-timer/`, `packages/db-maskin/` osv.)
 - App-plassering valgfri: integrert i `apps/web/src/app/<modul>/` (default, enklest) eller isolert `apps/<modul>/` (for separat skalering/deploy)
 
@@ -627,7 +627,7 @@ Hver side i SiteDoc skal ha en hjelpetekst tilgjengelig via hjelp-ikonet (?) øv
 - "Faggruppe" — en deltaker i dokumentflyten på et prosjekt (Byggherre, Tømrer, Elektro). ALDRI "Entreprise"/"Enterprise"/"Part". Engelsk: "Trade group". Prisma: `Faggruppe`, DB: `dokumentflyt_parts`
 - "Dokumentflyt" — rute mellom to faggrupper (bestiller → utfører → godkjenner). DB: `Dokumentflyt`
 - "Firma" — selskapet som eier SiteDoc-kontoen (A.Markussen AS). DB: `Organization`
-- "Firmamodul" — modul som gjelder hele firmaet på tvers av prosjekter (Timer, Maskin, HR, Planlegging)
+- "Firmamodul" — modul som gjelder hele firmaet på tvers av prosjekter (Timer, Maskin, Kompetanse, Planlegging)
 
 **Sidestatus ?-ikon:**
 
