@@ -14,7 +14,7 @@
 **Sist oppdatert:** 2026-05-01
 **Antall filer dekket:** 36 (komplett oversikt)
 
-> **Fase 0.5 KOMPLETT (deployet til prod 2026-05-01):** § 1 Avdeling (`a90daabd`), § 2 Kompetanse (`a5ba99ce`), § 3 ProjectGroupByggeplass + drop building_ids (`3836b322`), § 5 Slette-policy (`f13dc6c0`). Merge: develop `9fed74a5` → main `f0a515cd`. Etter-Fase-0.5: Avdeling-UI (`2799a4d1` prod). Kompetanse-UI Runde 1 (`0965ddf2` prod) — kompetansetyper-CRUD + matrise read-only + settings-toggle. Kompetanse-UI Runde 2 (develop) — AnsattKompetanse-CRUD via celle-klikk + RBAC `verifiserKompetanseSkriveTilgang` (Alt A: admin bypasser policy) + 18 nye i18n-nøkler. Klar for test-deploy.
+> **Fase 0.5 KOMPLETT (deployet til prod 2026-05-01):** § 1 Avdeling (`a90daabd`), § 2 Kompetanse (`a5ba99ce`), § 3 ProjectGroupByggeplass + drop building_ids (`3836b322`), § 5 Slette-policy (`f13dc6c0`). Merge: develop `9fed74a5` → main `f0a515cd`. Etter-Fase-0.5: Avdeling-UI (`2799a4d1` prod). Kompetanse-UI Runde 1 (`0965ddf2` prod) — kompetansetyper-CRUD + matrise read-only + settings-toggle. Kompetanse-UI Runde 2 (`653028b4` prod) — AnsattKompetanse-CRUD via celle-klikk + RBAC. Kompetanse-UI Runde 2.5 (develop) — CSV/Excel-import med 4-stegs flyt + filHash-validering + atomisk transaksjon + 30 i18n-nøkler. csv-parse@6.2.1 installert i apps/api. Klar for test-deploy.
 
 ## Sammendrag
 
