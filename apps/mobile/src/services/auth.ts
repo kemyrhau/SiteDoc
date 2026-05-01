@@ -134,12 +134,34 @@ export async function loggInnSomTestbruker(): Promise<{ user: BrukerData; sessio
   const webBase = process.env.EXPO_PUBLIC_DEV_WEB_URL ?? hentWebUrl();
   const url = `${webBase}/api/dev-login`;
 
-  const res = await fetch(url, { method: "POST" });
+  console.log(
+    "[DEV-LOGIN] Forsøker POST mot:",
+    url,
+    "(apiUrl:",
+    AUTH_CONFIG.apiUrl,
+    ")",
+  );
+
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+  } catch (e) {
+    const melding = e instanceof Error ? e.message : "ukjent fetch-feil";
+    console.warn("[DEV-LOGIN] Fetch kastet:", melding);
+    throw new Error(`Fetch feilet mot ${url}: ${melding}`);
+  }
+
+  console.log("[DEV-LOGIN] Svar:", res.status);
+
   if (!res.ok) {
     const tekst = await res.text();
     if (res.status === 404) {
       throw new Error(
-        "Dev-login er ikke aktiv på serveren. Sett ENABLE_DEV_LOGIN=true i ecosystem.config.js for test, eller kjør `pnpm dev` lokalt.",
+        `Dev-login ikke aktiv (${url} → 404). Sett ENABLE_DEV_LOGIN=true i ecosystem.config.js for test, eller kjør \`pnpm dev\` lokalt.`,
       );
     }
     throw new Error(`Dev-login feilet (${res.status}): ${tekst}`);
