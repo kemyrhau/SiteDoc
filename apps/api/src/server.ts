@@ -8,6 +8,7 @@ import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { healthRoute } from "./routes/health";
 import { uploadRoute } from "./routes/upload";
 import { prosesserRoute } from "./routes/prosesser";
+import { devLoginRoute, erDevLoginAktiv } from "./routes/dev-login";
 import { registrerWebSocket } from "./routes/ws";
 import { appRouter } from "./trpc/router";
 import { createContext } from "./trpc/context";
@@ -62,6 +63,12 @@ async function start() {
 
   // FTD dokumentprosessering
   await server.register(prosesserRoute);
+
+  // Dev-bypass-innlogging — KUN i dev eller når eksplisitt enabled på test
+  if (erDevLoginAktiv()) {
+    await server.register(devLoginRoute);
+    server.log.info("[DEV-LOGIN] Aktiv — POST /dev-login svarer for test-bruker");
+  }
 
   // tRPC-endepunkt via fetch-adapter
   server.all("/trpc/*", async (req, res) => {

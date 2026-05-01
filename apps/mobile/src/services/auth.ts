@@ -1,7 +1,7 @@
 import * as AuthSession from "expo-auth-session";
 import * as WebBrowser from "expo-web-browser";
 import { Platform } from "react-native";
-import { AUTH_CONFIG, GOOGLE_AUTH, MICROSOFT_AUTH, hentWebUrl } from "../config/auth";
+import { AUTH_CONFIG, GOOGLE_AUTH, MICROSOFT_AUTH } from "../config/auth";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -119,28 +119,25 @@ export async function loggInnMedMicrosoft(): Promise<string | null> {
 }
 
 /**
- * Dev-bypass-innlogging for simulator. Treffer /api/dev-login på Next.js-siden
- * (apps/web). Ruten er aktiv når:
- *   - NODE_ENV !== "production" (lokal dev)
- *   - eller ENABLE_DEV_LOGIN === "true" på test-server
+ * Dev-bypass-innlogging for simulator. Treffer /dev-login på Fastify (apps/api).
  *
- * 404 i prod. Returnerer en gyldig session-token for en hardkodet test-bruker.
+ * Ruten ligger på samme domene som tRPC (api-test.sitedoc.no) — ikke på
+ * Next.js (test.sitedoc.no) — fordi Cloudflare WAF blokkerer Expo Go-fetch
+ * mot test.sitedoc.no spesifikt.
+ *
+ * Server-siden registrerer ruten kun når:
+ *   - NODE_ENV !== "production" (lokal dev)
+ *   - eller ENABLE_DEV_LOGIN === "true" på test-server (sitedoc-test-api)
+ *
+ * 404 i prod. Returnerer en gyldig session-token for hardkodet test-bruker.
  *
  * MERK: Skal kun kalles fra UI som er gated bak `__DEV__`. Vi beskytter også
  * server-side, men UI-gate er førstelinjeforsvar mot å vise knappen i prod-bygg.
  */
 export async function loggInnSomTestbruker(): Promise<{ user: BrukerData; sessionToken: string }> {
-  // Web-base brukes for /api-ruter på Next.js (api.sitedoc.no → sitedoc.no etc.)
-  const webBase = process.env.EXPO_PUBLIC_DEV_WEB_URL ?? hentWebUrl();
-  const url = `${webBase}/api/dev-login`;
+  const url = `${AUTH_CONFIG.apiUrl}/dev-login`;
 
-  console.log(
-    "[DEV-LOGIN] Forsøker POST mot:",
-    url,
-    "(apiUrl:",
-    AUTH_CONFIG.apiUrl,
-    ")",
-  );
+  console.log("[DEV-LOGIN] Forsøker POST mot:", url);
 
   let res: Response;
   try {
@@ -161,7 +158,7 @@ export async function loggInnSomTestbruker(): Promise<{ user: BrukerData; sessio
     const tekst = await res.text();
     if (res.status === 404) {
       throw new Error(
-        `Dev-login ikke aktiv (${url} → 404). Sett ENABLE_DEV_LOGIN=true i ecosystem.config.js for test, eller kjør \`pnpm dev\` lokalt.`,
+        `Dev-login ikke aktiv (${url} → 404). Sett ENABLE_DEV_LOGIN=true i sitedoc-test-api sin ecosystem.config.js, eller kjør \`pnpm dev\` lokalt.`,
       );
     }
     throw new Error(`Dev-login feilet (${res.status}): ${tekst}`);
