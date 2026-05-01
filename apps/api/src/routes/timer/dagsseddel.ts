@@ -743,4 +743,396 @@ export const dagsseddelRouter = router({
         where: { id: input.id },
       });
     }),
+
+  // ============================================================================
+  //  Mobil offline-sync (Runde 2)
+  // ============================================================================
+
+  /**
+   * Pull: hent alle dagssedler for innlogget bruker som er endret etter
+   * gitt timestamp. Brukes ved app-oppstart, ved nett-gjenkomst og ved
+   * pull-to-refresh på mobil.
+   *
+   * Returnerer fulle sedler med rader (timer + tillegg) — mobil overskriver
+   * lokal kopi så lenge lokal har syncStatus="synced". Hvis lokal har
+   * "pending"-endringer, markeres lokal "conflict" (server-wins-regel).
+   */
+  hentEndringerSiden: protectedProcedure
+    .input(
+      z.object({
+        sistSynkronisert: z.string().optional(), // ISO timestamp eller undefined for full pull
+        // Begrens til siste N dager hvis full pull, for å unngå å laste hele historikken
+        maksDagerTilbake: z.number().int().min(1).max(365).default(90),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const orgId = await hentBrukerOrgId(ctx.userId);
+      await krevTimerAktivert(orgId);
+
+      const sistSynk = input.sistSynkronisert
+        ? new Date(input.sistSynkronisert)
+        : null;
+
+      // Full pull (ingen sistSynk): hent kun nyere enn maksDagerTilbake
+      const minDato = new Date();
+      minDato.setDate(minDato.getDate() - input.maksDagerTilbake);
+
+      const where: Prisma.DailySheetWhereInput = {
+        organizationId: orgId,
+        userId: ctx.userId,
+        ...(sistSynk
+          ? { updatedAt: { gt: sistSynk } }
+          : { dato: { gte: minDato } }),
+      };
+
+      const sedler = await ctx.prismaTimer.dailySheet.findMany({
+        where,
+        include: { timer: true, tillegg: true },
+        orderBy: { updatedAt: "desc" },
+      });
+
+      return {
+        serverTid: new Date().toISOString(),
+        sedler: sedler.map((s) => ({
+          id: s.id,
+          clientUuid: s.clientUuid,
+          userId: s.userId,
+          organizationId: s.organizationId,
+          projectId: s.projectId,
+          aktivitetId: s.aktivitetId,
+          avdelingId: s.avdelingId,
+          byggeplassId: s.byggeplassId,
+          dato: s.dato.toISOString().slice(0, 10),
+          startAt: s.startAt?.toISOString() ?? null,
+          endAt: s.endAt?.toISOString() ?? null,
+          pauseMin: s.pauseMin,
+          status: s.status,
+          beskrivelse: s.beskrivelse,
+          lederKommentar: s.lederKommentar,
+          attestertVed: s.attestertVed?.toISOString() ?? null,
+          updatedAt: s.updatedAt.toISOString(),
+          timer: s.timer.map((t) => ({
+            id: t.id,
+            lonnsartId: t.lonnsartId,
+            externalCostObjectId: t.externalCostObjectId,
+            timer: Number(t.timer),
+          })),
+          tillegg: s.tillegg.map((tl) => ({
+            id: tl.id,
+            tilleggId: tl.tilleggId,
+            antall: Number(tl.antall),
+            kommentar: tl.kommentar,
+          })),
+        })),
+      };
+    }),
+
+  /**
+   * Push: batch-upsert fra mobil. Tar en array av lokale dagssedler med
+   * tilhørende rader. Hver seddel kjøres i sin egen $transaction —
+   * resultater er uavhengige per seddel.
+   *
+   * Returnerer Array<{clientUuid, resultat, serverData?, feilmelding?}>:
+   *   - "ok"       — opprettet eller oppdatert OK
+   *   - "conflict" — server-versjonen er låst (accepted) eller nyere — server-wins
+   *   - "feilet"   — andre feil (validering, FK-brudd, transient)
+   *
+   * Ingen rollback på tvers av sedler — én korrupt seddel blokkerer ikke
+   * de andre. Mobil håndterer hver seddel separat basert på resultat.
+   */
+  syncBatch: protectedProcedure
+    .input(
+      z.object({
+        sedler: z.array(
+          z.object({
+            clientUuid: z.string().uuid(),
+            projectId: z.string().uuid(),
+            aktivitetId: z.string().uuid(),
+            avdelingId: z.string().uuid().nullable().optional(),
+            byggeplassId: z.string().uuid().nullable().optional(),
+            dato: z.string(), // ISO YYYY-MM-DD
+            startAt: z.string().nullable().optional(),
+            endAt: z.string().nullable().optional(),
+            pauseMin: z.number().int().min(0).default(0),
+            status: z.enum(STATUS_VERDIER),
+            beskrivelse: z.string().nullable().optional(),
+            timer: z.array(
+              z.object({
+                id: z.string().uuid(),
+                lonnsartId: z.string().uuid(),
+                externalCostObjectId: z.string().uuid().nullable().optional(),
+                timer: z.number().min(0).max(24),
+              }),
+            ),
+            tillegg: z.array(
+              z.object({
+                id: z.string().uuid(),
+                tilleggId: z.string().uuid(),
+                antall: z.number().min(0),
+                kommentar: z.string().nullable().optional(),
+              }),
+            ),
+          }),
+        ).max(100), // Begrens batch-størrelse for å unngå tidsavbrudd
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const orgId = await hentBrukerOrgId(ctx.userId);
+      await krevTimerAktivert(orgId);
+
+      type ResultatRad = {
+        clientUuid: string;
+        resultat: "ok" | "conflict" | "feilet";
+        serverData?: {
+          id: string;
+          status: DagsseddelStatus;
+          lederKommentar: string | null;
+          attestertVed: string | null;
+          updatedAt: string;
+        };
+        feilmelding?: string;
+      };
+
+      const resultater: ResultatRad[] = [];
+
+      for (const lokal of input.sedler) {
+        try {
+          // Sjekk eksisterende — verifiser eierskap + om låst
+          const eksisterende = await ctx.prismaTimer.dailySheet.findUnique({
+            where: { clientUuid: lokal.clientUuid },
+          });
+
+          if (eksisterende) {
+            if (eksisterende.userId !== ctx.userId) {
+              resultater.push({
+                clientUuid: lokal.clientUuid,
+                resultat: "feilet",
+                feilmelding: "Dagsseddel eies av annen bruker",
+              });
+              continue;
+            }
+            if (eksisterende.organizationId !== orgId) {
+              resultater.push({
+                clientUuid: lokal.clientUuid,
+                resultat: "feilet",
+                feilmelding: "Dagsseddel tilhører annet firma",
+              });
+              continue;
+            }
+            // Server-wins: hvis server har accepted, klient kan ikke endre
+            if (eksisterende.status === "accepted") {
+              resultater.push({
+                clientUuid: lokal.clientUuid,
+                resultat: "conflict",
+                serverData: {
+                  id: eksisterende.id,
+                  status: eksisterende.status as DagsseddelStatus,
+                  lederKommentar: eksisterende.lederKommentar,
+                  attestertVed: eksisterende.attestertVed?.toISOString() ?? null,
+                  updatedAt: eksisterende.updatedAt.toISOString(),
+                },
+                feilmelding: "Sedlen er attestert og kan ikke endres",
+              });
+              continue;
+            }
+            // Server-wins: hvis server-status er sent og klient prøver å redigere innhold,
+            // er det konflikt (kun "send"-overgang draft→sent eller returned→sent er OK)
+            if (
+              eksisterende.status === "sent" &&
+              lokal.status !== "sent"
+            ) {
+              resultater.push({
+                clientUuid: lokal.clientUuid,
+                resultat: "conflict",
+                serverData: {
+                  id: eksisterende.id,
+                  status: eksisterende.status as DagsseddelStatus,
+                  lederKommentar: eksisterende.lederKommentar,
+                  attestertVed: eksisterende.attestertVed?.toISOString() ?? null,
+                  updatedAt: eksisterende.updatedAt.toISOString(),
+                },
+                feilmelding: "Sedlen er sendt til godkjenning og venter på leder",
+              });
+              continue;
+            }
+          } else {
+            // Ny seddel — verifiser prosjekttilgang
+            await verifiserProsjektmedlem(ctx.userId, lokal.projectId);
+          }
+
+          // Verifiser aktivitet tilhører firmaet
+          const aktivitet = await ctx.prismaTimer.aktivitet.findFirst({
+            where: { id: lokal.aktivitetId, organizationId: orgId },
+          });
+          if (!aktivitet) {
+            resultater.push({
+              clientUuid: lokal.clientUuid,
+              resultat: "feilet",
+              feilmelding: "Aktivitet finnes ikke i firmaets katalog",
+            });
+            continue;
+          }
+
+          // Verifiser alle lønnsarter og tillegg tilhører firmaet
+          const lonnsartIder = Array.from(
+            new Set(lokal.timer.map((t) => t.lonnsartId)),
+          );
+          const tilleggIder = Array.from(
+            new Set(lokal.tillegg.map((tl) => tl.tilleggId)),
+          );
+          const [lonnsartTreff, tilleggTreff] = await Promise.all([
+            lonnsartIder.length === 0
+              ? Promise.resolve([])
+              : ctx.prismaTimer.lonnsart.findMany({
+                  where: { id: { in: lonnsartIder }, organizationId: orgId },
+                  select: { id: true },
+                }),
+            tilleggIder.length === 0
+              ? Promise.resolve([])
+              : ctx.prismaTimer.tillegg.findMany({
+                  where: { id: { in: tilleggIder }, organizationId: orgId },
+                  select: { id: true },
+                }),
+          ]);
+          if (lonnsartTreff.length !== lonnsartIder.length) {
+            resultater.push({
+              clientUuid: lokal.clientUuid,
+              resultat: "feilet",
+              feilmelding: "En eller flere lønnsarter finnes ikke i firmaets katalog",
+            });
+            continue;
+          }
+          if (tilleggTreff.length !== tilleggIder.length) {
+            resultater.push({
+              clientUuid: lokal.clientUuid,
+              resultat: "feilet",
+              feilmelding: "Et eller flere tillegg finnes ikke i firmaets katalog",
+            });
+            continue;
+          }
+
+          const dato = new Date(lokal.dato);
+
+          // Klient kan ikke sette accepted — lederen attesterer på server
+          // Klient kan sette draft, sent (etter "send"-knapp), eller behold returned
+          const innkommendeStatus =
+            lokal.status === "accepted" ? "sent" : lokal.status;
+
+          // Per-seddel transaksjon: upsert sedel + erstatt rader atomisk
+          const oppdatert = await ctx.prismaTimer.$transaction(async (tx) => {
+            const sedel = await tx.dailySheet.upsert({
+              where: { clientUuid: lokal.clientUuid },
+              create: {
+                clientUuid: lokal.clientUuid,
+                organizationId: orgId,
+                userId: ctx.userId,
+                registrertAvUserId: ctx.userId,
+                projectId: lokal.projectId,
+                aktivitetId: lokal.aktivitetId,
+                avdelingId: lokal.avdelingId ?? null,
+                byggeplassId: lokal.byggeplassId ?? null,
+                dato,
+                startAt: lokal.startAt ? new Date(lokal.startAt) : null,
+                endAt: lokal.endAt ? new Date(lokal.endAt) : null,
+                pauseMin: lokal.pauseMin,
+                status: innkommendeStatus,
+                beskrivelse: lokal.beskrivelse ?? null,
+                syncStatus: "synced",
+                syncedAt: new Date(),
+              },
+              update: {
+                aktivitetId: lokal.aktivitetId,
+                avdelingId: lokal.avdelingId ?? null,
+                byggeplassId: lokal.byggeplassId ?? null,
+                dato,
+                startAt: lokal.startAt ? new Date(lokal.startAt) : null,
+                endAt: lokal.endAt ? new Date(lokal.endAt) : null,
+                pauseMin: lokal.pauseMin,
+                status: innkommendeStatus,
+                beskrivelse: lokal.beskrivelse ?? null,
+                syncStatus: "synced",
+                syncedAt: new Date(),
+              },
+            });
+
+            // Erstatt alle rader (deleteMany + createMany) — sedel er sync-atom.
+            // Cascade på sheetId-FK + Restrict på lonnsart/tillegg er allerede
+            // håndtert via relasjoner. Vi unngår å treffe accepted-rader fordi
+            // status="accepted" returnerer "conflict" tidligere i flyten.
+            await tx.sheetTimer.deleteMany({ where: { sheetId: sedel.id } });
+            await tx.sheetTillegg.deleteMany({ where: { sheetId: sedel.id } });
+
+            if (lokal.timer.length > 0) {
+              await tx.sheetTimer.createMany({
+                data: lokal.timer.map((t) => ({
+                  id: t.id,
+                  sheetId: sedel.id,
+                  lonnsartId: t.lonnsartId,
+                  externalCostObjectId: t.externalCostObjectId ?? null,
+                  timer: t.timer,
+                })),
+              });
+            }
+            if (lokal.tillegg.length > 0) {
+              await tx.sheetTillegg.createMany({
+                data: lokal.tillegg.map((tl) => ({
+                  id: tl.id,
+                  sheetId: sedel.id,
+                  tilleggId: tl.tilleggId,
+                  antall: tl.antall,
+                  kommentar: tl.kommentar ?? null,
+                })),
+              });
+            }
+
+            return sedel;
+          });
+
+          resultater.push({
+            clientUuid: lokal.clientUuid,
+            resultat: "ok",
+            serverData: {
+              id: oppdatert.id,
+              status: oppdatert.status as DagsseddelStatus,
+              lederKommentar: oppdatert.lederKommentar,
+              attestertVed: oppdatert.attestertVed?.toISOString() ?? null,
+              updatedAt: oppdatert.updatedAt.toISOString(),
+            },
+          });
+        } catch (e) {
+          if (e instanceof TRPCError) {
+            // Tilgangsfeil (FORBIDDEN fra verifiserProsjektmedlem) regnes som feilet,
+            // ikke conflict — klienten kan ikke fikse dette med ny pull.
+            resultater.push({
+              clientUuid: lokal.clientUuid,
+              resultat: "feilet",
+              feilmelding: e.message,
+            });
+            continue;
+          }
+          if (e instanceof Prisma.PrismaClientKnownRequestError) {
+            // P2002: brudd på unique-constraint (typisk userId+projectId+dato)
+            // — klient har duplisert seddel under tidligere offline-økt
+            resultater.push({
+              clientUuid: lokal.clientUuid,
+              resultat: "feilet",
+              feilmelding:
+                e.code === "P2002"
+                  ? "Duplisert dagsseddel for samme dato og prosjekt"
+                  : `DB-feil: ${e.code}`,
+            });
+            continue;
+          }
+          // Ukjent feil — la klient retry
+          const melding = e instanceof Error ? e.message : "Ukjent feil";
+          resultater.push({
+            clientUuid: lokal.clientUuid,
+            resultat: "feilet",
+            feilmelding: melding,
+          });
+        }
+      }
+
+      return { serverTid: new Date().toISOString(), resultater };
+    }),
 });
