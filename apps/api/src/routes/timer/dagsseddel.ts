@@ -187,6 +187,7 @@ export const dagsseddelRouter = router({
           aktivitet: { select: { id: true, navn: true, kode: true } },
           timer: true,
           tillegg: true,
+          maskiner: true,
         },
         orderBy: [{ dato: "desc" }, { createdAt: "desc" }],
         take: 200,
@@ -196,7 +197,7 @@ export const dagsseddelRouter = router({
       return sedler.map((s) => ({
         ...s,
         totaltimer: s.timer.reduce((acc, t) => acc + Number(t.timer), 0),
-        antallRader: s.timer.length + s.tillegg.length,
+        antallRader: s.timer.length + s.tillegg.length + s.maskiner.length,
       }));
     }),
 
@@ -204,8 +205,10 @@ export const dagsseddelRouter = router({
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       const sheet = await hentEgenDagsseddel(ctx.prismaTimer, ctx.userId, input.id);
-      const [aktivitet, timer, tillegg, prosjekt] = await Promise.all([
-        ctx.prismaTimer.aktivitet.findUnique({ where: { id: sheet.aktivitetId } }),
+      const [aktivitet, timer, tillegg, maskiner, prosjekt] = await Promise.all([
+        sheet.aktivitetId
+          ? ctx.prismaTimer.aktivitet.findUnique({ where: { id: sheet.aktivitetId } })
+          : Promise.resolve(null),
         ctx.prismaTimer.sheetTimer.findMany({
           where: { sheetId: sheet.id },
           orderBy: { createdAt: "asc" },
@@ -214,12 +217,16 @@ export const dagsseddelRouter = router({
           where: { sheetId: sheet.id },
           orderBy: { createdAt: "asc" },
         }),
+        ctx.prismaTimer.sheetMachine.findMany({
+          where: { sheetId: sheet.id },
+          orderBy: { createdAt: "asc" },
+        }),
         ctx.prisma.project.findUnique({
           where: { id: sheet.projectId },
           select: { id: true, name: true, projectNumber: true },
         }),
       ]);
-      return { ...sheet, aktivitet, timer, tillegg, prosjekt };
+      return { ...sheet, aktivitet, timer, tillegg, maskiner, prosjekt };
     }),
 
   opprett: protectedProcedure
@@ -342,12 +349,15 @@ export const dagsseddelRouter = router({
       });
     }),
 
-  // ----- Timer-rader (lønnsart × timer) ----------------------------------
+  // ----- Timer-rader (lønnsart × timer × aktivitet) -----------------------
+  // Per C9 (2026-05-02): aktivitetId er per rad. Klient sender alltid
+  // (default fra sedel hvis ikke overstyrt).
   tilfoyTimerRad: protectedProcedure
     .input(
       z.object({
         sheetId: z.string().uuid(),
         lonnsartId: z.string().uuid(),
+        aktivitetId: z.string().uuid(),
         timer: z.number().min(0).max(24),
         externalCostObjectId: z.string().uuid().nullable().optional(),
       }),
@@ -362,14 +372,25 @@ export const dagsseddelRouter = router({
       }
       await sjekkAldersgrense(sheet.organizationId, sheet.status, sheet.dato);
 
-      // Verifiser lønnsart tilhører samme firma
-      const lonnsart = await ctx.prismaTimer.lonnsart.findFirst({
-        where: { id: input.lonnsartId, organizationId: sheet.organizationId },
-      });
+      // Verifiser lønnsart + aktivitet tilhører samme firma
+      const [lonnsart, aktivitet] = await Promise.all([
+        ctx.prismaTimer.lonnsart.findFirst({
+          where: { id: input.lonnsartId, organizationId: sheet.organizationId },
+        }),
+        ctx.prismaTimer.aktivitet.findFirst({
+          where: { id: input.aktivitetId, organizationId: sheet.organizationId },
+        }),
+      ]);
       if (!lonnsart) {
         throw new TRPCError({
           code: "BAD_REQUEST",
           message: "Lønnsart finnes ikke i firmaets katalog",
+        });
+      }
+      if (!aktivitet) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Aktivitet finnes ikke i firmaets katalog",
         });
       }
 
@@ -377,6 +398,7 @@ export const dagsseddelRouter = router({
         data: {
           sheetId: input.sheetId,
           lonnsartId: input.lonnsartId,
+          aktivitetId: input.aktivitetId,
           timer: input.timer,
           externalCostObjectId: input.externalCostObjectId ?? null,
         },
@@ -388,6 +410,7 @@ export const dagsseddelRouter = router({
       z.object({
         id: z.string().uuid(),
         lonnsartId: z.string().uuid().optional(),
+        aktivitetId: z.string().uuid().optional(),
         timer: z.number().min(0).max(24).optional(),
         externalCostObjectId: z.string().uuid().nullable().optional(),
       }),
@@ -410,6 +433,9 @@ export const dagsseddelRouter = router({
       const data: Prisma.SheetTimerUpdateInput = {};
       if (input.lonnsartId !== undefined) {
         data.lonnsart = { connect: { id: input.lonnsartId } };
+      }
+      if (input.aktivitetId !== undefined) {
+        data.aktivitet = { connect: { id: input.aktivitetId } };
       }
       if (input.timer !== undefined) data.timer = input.timer;
       if (input.externalCostObjectId !== undefined) {
@@ -680,14 +706,17 @@ export const dagsseddelRouter = router({
       await krevProsjektLeder(ctx.userId, sheet.projectId);
 
       // Hent alle rader + tilhørende katalog-data for snapshot
-      const [timerRader, tilleggRader] = await Promise.all([
+      const [timerRader, tilleggRader, maskinRader] = await Promise.all([
         ctx.prismaTimer.sheetTimer.findMany({
           where: { sheetId: input.id },
-          include: { lonnsart: true },
+          include: { lonnsart: true, aktivitet: true },
         }),
         ctx.prismaTimer.sheetTillegg.findMany({
           where: { sheetId: input.id },
           include: { tillegg: true },
+        }),
+        ctx.prismaTimer.sheetMachine.findMany({
+          where: { sheetId: input.id },
         }),
       ]);
 
@@ -708,6 +737,9 @@ export const dagsseddelRouter = router({
                 internkostnad: rad.lonnsart.internkostnad?.toString() ?? null,
                 sats: rad.lonnsart.sats?.toString() ?? null,
                 satsEnhet: rad.lonnsart.satsEnhet,
+                aktivitetId: rad.aktivitet.id,
+                aktivitetKode: rad.aktivitet.kode,
+                aktivitetNavn: rad.aktivitet.navn,
                 attestertVed: naa.toISOString(),
               },
             },
@@ -729,6 +761,23 @@ export const dagsseddelRouter = router({
             },
           }),
         ),
+        // Maskin-snapshot per A.7. Equipment-prising er ikke spec'd ennå
+        // (Maskin Fase 1+) — lagrer kun rad-data + timestamp. Pris-felt
+        // tilføyes når prising besluttes.
+        ...maskinRader.map((rad) =>
+          ctx.prismaTimer.sheetMachine.update({
+            where: { id: rad.id },
+            data: {
+              attestertSnapshot: {
+                vehicleId: rad.vehicleId,
+                timer: rad.timer.toString(),
+                mengde: rad.mengde !== null ? rad.mengde.toString() : null,
+                enhet: rad.enhet,
+                attestertVed: naa.toISOString(),
+              },
+            },
+          }),
+        ),
         ctx.prismaTimer.dailySheet.update({
           where: { id: input.id },
           data: {
@@ -742,5 +791,632 @@ export const dagsseddelRouter = router({
       return ctx.prismaTimer.dailySheet.findUniqueOrThrow({
         where: { id: input.id },
       });
+    }),
+
+  // ============================================================================
+  //  Mobil offline-sync (Runde 2)
+  // ============================================================================
+
+  /**
+   * Pull: hent alle dagssedler for innlogget bruker som er endret etter
+   * gitt timestamp. Brukes ved app-oppstart, ved nett-gjenkomst og ved
+   * pull-to-refresh på mobil.
+   *
+   * Returnerer fulle sedler med rader (timer + tillegg) — mobil overskriver
+   * lokal kopi så lenge lokal har syncStatus="synced". Hvis lokal har
+   * "pending"-endringer, markeres lokal "conflict" (server-wins-regel).
+   */
+  hentEndringerSiden: protectedProcedure
+    .input(
+      z.object({
+        sistSynkronisert: z.string().optional(), // ISO timestamp eller undefined for full pull
+        // Begrens til siste N dager hvis full pull, for å unngå å laste hele historikken
+        maksDagerTilbake: z.number().int().min(1).max(365).default(90),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const orgId = await hentBrukerOrgId(ctx.userId);
+      await krevTimerAktivert(orgId);
+
+      const sistSynk = input.sistSynkronisert
+        ? new Date(input.sistSynkronisert)
+        : null;
+
+      // Full pull (ingen sistSynk): hent kun nyere enn maksDagerTilbake
+      const minDato = new Date();
+      minDato.setDate(minDato.getDate() - input.maksDagerTilbake);
+
+      const where: Prisma.DailySheetWhereInput = {
+        organizationId: orgId,
+        userId: ctx.userId,
+        ...(sistSynk
+          ? { updatedAt: { gt: sistSynk } }
+          : { dato: { gte: minDato } }),
+      };
+
+      const sedler = await ctx.prismaTimer.dailySheet.findMany({
+        where,
+        include: { timer: true, tillegg: true, maskiner: true },
+        orderBy: { updatedAt: "desc" },
+      });
+
+      return {
+        serverTid: new Date().toISOString(),
+        sedler: sedler.map((s) => ({
+          id: s.id,
+          clientUuid: s.clientUuid,
+          userId: s.userId,
+          organizationId: s.organizationId,
+          projectId: s.projectId,
+          aktivitetId: s.aktivitetId,
+          avdelingId: s.avdelingId,
+          byggeplassId: s.byggeplassId,
+          dato: s.dato.toISOString().slice(0, 10),
+          startAt: s.startAt?.toISOString() ?? null,
+          endAt: s.endAt?.toISOString() ?? null,
+          pauseMin: s.pauseMin,
+          status: s.status,
+          beskrivelse: s.beskrivelse,
+          lederKommentar: s.lederKommentar,
+          attestertVed: s.attestertVed?.toISOString() ?? null,
+          updatedAt: s.updatedAt.toISOString(),
+          timer: s.timer.map((t) => ({
+            id: t.id,
+            lonnsartId: t.lonnsartId,
+            aktivitetId: t.aktivitetId,
+            externalCostObjectId: t.externalCostObjectId,
+            timer: Number(t.timer),
+          })),
+          tillegg: s.tillegg.map((tl) => ({
+            id: tl.id,
+            tilleggId: tl.tilleggId,
+            antall: Number(tl.antall),
+            kommentar: tl.kommentar,
+          })),
+          maskiner: s.maskiner.map((m) => ({
+            id: m.id,
+            vehicleId: m.vehicleId,
+            timer: Number(m.timer),
+            mengde: m.mengde !== null ? Number(m.mengde) : null,
+            enhet: m.enhet,
+          })),
+        })),
+      };
+    }),
+
+  /**
+   * Push: batch-upsert fra mobil. Tar en array av lokale dagssedler med
+   * tilhørende rader. Hver seddel kjøres i sin egen $transaction —
+   * resultater er uavhengige per seddel.
+   *
+   * Returnerer Array<{clientUuid, resultat, serverData?, feilmelding?}>:
+   *   - "ok"       — opprettet eller oppdatert OK
+   *   - "conflict" — server-versjonen er låst (accepted) eller nyere — server-wins
+   *   - "feilet"   — andre feil (validering, FK-brudd, transient)
+   *
+   * Ingen rollback på tvers av sedler — én korrupt seddel blokkerer ikke
+   * de andre. Mobil håndterer hver seddel separat basert på resultat.
+   */
+  syncBatch: protectedProcedure
+    .input(
+      z.object({
+        sedler: z.array(
+          z.object({
+            clientUuid: z.string().uuid(),
+            projectId: z.string().uuid(),
+            aktivitetId: z.string().uuid(),
+            avdelingId: z.string().uuid().nullable().optional(),
+            byggeplassId: z.string().uuid().nullable().optional(),
+            dato: z.string(), // ISO YYYY-MM-DD
+            startAt: z.string().nullable().optional(),
+            endAt: z.string().nullable().optional(),
+            pauseMin: z.number().int().min(0).default(0),
+            status: z.enum(STATUS_VERDIER),
+            beskrivelse: z.string().nullable().optional(),
+            timer: z.array(
+              z.object({
+                id: z.string().uuid(),
+                lonnsartId: z.string().uuid(),
+                aktivitetId: z.string().uuid(),
+                externalCostObjectId: z.string().uuid().nullable().optional(),
+                timer: z.number().min(0).max(24),
+              }),
+            ),
+            tillegg: z.array(
+              z.object({
+                id: z.string().uuid(),
+                tilleggId: z.string().uuid(),
+                antall: z.number().min(0),
+                kommentar: z.string().nullable().optional(),
+              }),
+            ),
+            maskiner: z
+              .array(
+                z.object({
+                  id: z.string().uuid(),
+                  vehicleId: z.string().uuid(),
+                  timer: z.number().min(0).max(24),
+                  mengde: z.number().min(0).nullable().optional(),
+                  enhet: z.string().max(20).nullable().optional(),
+                }),
+              )
+              .default([]),
+          }),
+        ).max(100), // Begrens batch-størrelse for å unngå tidsavbrudd
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const orgId = await hentBrukerOrgId(ctx.userId);
+      await krevTimerAktivert(orgId);
+
+      type ResultatRad = {
+        clientUuid: string;
+        resultat: "ok" | "conflict" | "feilet";
+        serverData?: {
+          id: string;
+          status: DagsseddelStatus;
+          lederKommentar: string | null;
+          attestertVed: string | null;
+          updatedAt: string;
+        };
+        feilmelding?: string;
+      };
+
+      const resultater: ResultatRad[] = [];
+
+      for (const lokal of input.sedler) {
+        try {
+          // Sjekk eksisterende — verifiser eierskap + om låst
+          const eksisterende = await ctx.prismaTimer.dailySheet.findUnique({
+            where: { clientUuid: lokal.clientUuid },
+          });
+
+          if (eksisterende) {
+            if (eksisterende.userId !== ctx.userId) {
+              resultater.push({
+                clientUuid: lokal.clientUuid,
+                resultat: "feilet",
+                feilmelding: "Dagsseddel eies av annen bruker",
+              });
+              continue;
+            }
+            if (eksisterende.organizationId !== orgId) {
+              resultater.push({
+                clientUuid: lokal.clientUuid,
+                resultat: "feilet",
+                feilmelding: "Dagsseddel tilhører annet firma",
+              });
+              continue;
+            }
+            // Server-wins: hvis server har accepted, klient kan ikke endre
+            if (eksisterende.status === "accepted") {
+              resultater.push({
+                clientUuid: lokal.clientUuid,
+                resultat: "conflict",
+                serverData: {
+                  id: eksisterende.id,
+                  status: eksisterende.status as DagsseddelStatus,
+                  lederKommentar: eksisterende.lederKommentar,
+                  attestertVed: eksisterende.attestertVed?.toISOString() ?? null,
+                  updatedAt: eksisterende.updatedAt.toISOString(),
+                },
+                feilmelding: "Sedlen er attestert og kan ikke endres",
+              });
+              continue;
+            }
+            // Server-wins: hvis server-status er sent og klient prøver å redigere innhold,
+            // er det konflikt (kun "send"-overgang draft→sent eller returned→sent er OK)
+            if (
+              eksisterende.status === "sent" &&
+              lokal.status !== "sent"
+            ) {
+              resultater.push({
+                clientUuid: lokal.clientUuid,
+                resultat: "conflict",
+                serverData: {
+                  id: eksisterende.id,
+                  status: eksisterende.status as DagsseddelStatus,
+                  lederKommentar: eksisterende.lederKommentar,
+                  attestertVed: eksisterende.attestertVed?.toISOString() ?? null,
+                  updatedAt: eksisterende.updatedAt.toISOString(),
+                },
+                feilmelding: "Sedlen er sendt til godkjenning og venter på leder",
+              });
+              continue;
+            }
+          } else {
+            // Ny seddel — verifiser prosjekttilgang
+            await verifiserProsjektmedlem(ctx.userId, lokal.projectId);
+          }
+
+          // Verifiser aktivitet tilhører firmaet
+          const aktivitet = await ctx.prismaTimer.aktivitet.findFirst({
+            where: { id: lokal.aktivitetId, organizationId: orgId },
+          });
+          if (!aktivitet) {
+            resultater.push({
+              clientUuid: lokal.clientUuid,
+              resultat: "feilet",
+              feilmelding: "Aktivitet finnes ikke i firmaets katalog",
+            });
+            continue;
+          }
+
+          // Verifiser alle lønnsarter, aktiviteter (per rad) og tillegg tilhører firmaet
+          const lonnsartIder = Array.from(
+            new Set(lokal.timer.map((t) => t.lonnsartId)),
+          );
+          const aktivitetIderIRader = Array.from(
+            new Set(lokal.timer.map((t) => t.aktivitetId)),
+          );
+          const tilleggIder = Array.from(
+            new Set(lokal.tillegg.map((tl) => tl.tilleggId)),
+          );
+          const [lonnsartTreff, aktivitetIRaderTreff, tilleggTreff] = await Promise.all([
+            lonnsartIder.length === 0
+              ? Promise.resolve([])
+              : ctx.prismaTimer.lonnsart.findMany({
+                  where: { id: { in: lonnsartIder }, organizationId: orgId },
+                  select: { id: true },
+                }),
+            aktivitetIderIRader.length === 0
+              ? Promise.resolve([])
+              : ctx.prismaTimer.aktivitet.findMany({
+                  where: { id: { in: aktivitetIderIRader }, organizationId: orgId },
+                  select: { id: true },
+                }),
+            tilleggIder.length === 0
+              ? Promise.resolve([])
+              : ctx.prismaTimer.tillegg.findMany({
+                  where: { id: { in: tilleggIder }, organizationId: orgId },
+                  select: { id: true },
+                }),
+          ]);
+          if (lonnsartTreff.length !== lonnsartIder.length) {
+            resultater.push({
+              clientUuid: lokal.clientUuid,
+              resultat: "feilet",
+              feilmelding: "En eller flere lønnsarter finnes ikke i firmaets katalog",
+            });
+            continue;
+          }
+          if (aktivitetIRaderTreff.length !== aktivitetIderIRader.length) {
+            resultater.push({
+              clientUuid: lokal.clientUuid,
+              resultat: "feilet",
+              feilmelding: "En eller flere aktiviteter finnes ikke i firmaets katalog",
+            });
+            continue;
+          }
+          if (tilleggTreff.length !== tilleggIder.length) {
+            resultater.push({
+              clientUuid: lokal.clientUuid,
+              resultat: "feilet",
+              feilmelding: "Et eller flere tillegg finnes ikke i firmaets katalog",
+            });
+            continue;
+          }
+
+          const dato = new Date(lokal.dato);
+
+          // Klient kan ikke sette accepted — lederen attesterer på server
+          // Klient kan sette draft, sent (etter "send"-knapp), eller behold returned
+          const innkommendeStatus =
+            lokal.status === "accepted" ? "sent" : lokal.status;
+
+          // Per-seddel transaksjon: upsert sedel + erstatt rader atomisk
+          const oppdatert = await ctx.prismaTimer.$transaction(async (tx) => {
+            const sedel = await tx.dailySheet.upsert({
+              where: { clientUuid: lokal.clientUuid },
+              create: {
+                clientUuid: lokal.clientUuid,
+                organizationId: orgId,
+                userId: ctx.userId,
+                registrertAvUserId: ctx.userId,
+                projectId: lokal.projectId,
+                aktivitetId: lokal.aktivitetId,
+                avdelingId: lokal.avdelingId ?? null,
+                byggeplassId: lokal.byggeplassId ?? null,
+                dato,
+                startAt: lokal.startAt ? new Date(lokal.startAt) : null,
+                endAt: lokal.endAt ? new Date(lokal.endAt) : null,
+                pauseMin: lokal.pauseMin,
+                status: innkommendeStatus,
+                beskrivelse: lokal.beskrivelse ?? null,
+                syncStatus: "synced",
+                syncedAt: new Date(),
+              },
+              update: {
+                aktivitetId: lokal.aktivitetId,
+                avdelingId: lokal.avdelingId ?? null,
+                byggeplassId: lokal.byggeplassId ?? null,
+                dato,
+                startAt: lokal.startAt ? new Date(lokal.startAt) : null,
+                endAt: lokal.endAt ? new Date(lokal.endAt) : null,
+                pauseMin: lokal.pauseMin,
+                status: innkommendeStatus,
+                beskrivelse: lokal.beskrivelse ?? null,
+                syncStatus: "synced",
+                syncedAt: new Date(),
+              },
+            });
+
+            // Erstatt alle rader (deleteMany + createMany) — sedel er sync-atom.
+            // Cascade på sheetId-FK + Restrict på lonnsart/aktivitet/tillegg er
+            // allerede håndtert via relasjoner. Vi unngår å treffe accepted-rader
+            // fordi status="accepted" returnerer "conflict" tidligere i flyten.
+            await tx.sheetTimer.deleteMany({ where: { sheetId: sedel.id } });
+            await tx.sheetTillegg.deleteMany({ where: { sheetId: sedel.id } });
+            await tx.sheetMachine.deleteMany({ where: { sheetId: sedel.id } });
+
+            if (lokal.timer.length > 0) {
+              await tx.sheetTimer.createMany({
+                data: lokal.timer.map((t) => ({
+                  id: t.id,
+                  sheetId: sedel.id,
+                  lonnsartId: t.lonnsartId,
+                  aktivitetId: t.aktivitetId,
+                  externalCostObjectId: t.externalCostObjectId ?? null,
+                  timer: t.timer,
+                })),
+              });
+            }
+            if (lokal.tillegg.length > 0) {
+              await tx.sheetTillegg.createMany({
+                data: lokal.tillegg.map((tl) => ({
+                  id: tl.id,
+                  sheetId: sedel.id,
+                  tilleggId: tl.tilleggId,
+                  antall: tl.antall,
+                  kommentar: tl.kommentar ?? null,
+                })),
+              });
+            }
+            if (lokal.maskiner.length > 0) {
+              await tx.sheetMachine.createMany({
+                data: lokal.maskiner.map((m) => ({
+                  id: m.id,
+                  sheetId: sedel.id,
+                  vehicleId: m.vehicleId,
+                  timer: m.timer,
+                  mengde: m.mengde ?? null,
+                  enhet: m.enhet ?? null,
+                })),
+              });
+            }
+
+            return sedel;
+          });
+
+          resultater.push({
+            clientUuid: lokal.clientUuid,
+            resultat: "ok",
+            serverData: {
+              id: oppdatert.id,
+              status: oppdatert.status as DagsseddelStatus,
+              lederKommentar: oppdatert.lederKommentar,
+              attestertVed: oppdatert.attestertVed?.toISOString() ?? null,
+              updatedAt: oppdatert.updatedAt.toISOString(),
+            },
+          });
+        } catch (e) {
+          if (e instanceof TRPCError) {
+            // Tilgangsfeil (FORBIDDEN fra verifiserProsjektmedlem) regnes som feilet,
+            // ikke conflict — klienten kan ikke fikse dette med ny pull.
+            resultater.push({
+              clientUuid: lokal.clientUuid,
+              resultat: "feilet",
+              feilmelding: e.message,
+            });
+            continue;
+          }
+          if (e instanceof Prisma.PrismaClientKnownRequestError) {
+            // P2002: brudd på unique-constraint (typisk userId+projectId+dato)
+            // — klient har duplisert seddel under tidligere offline-økt
+            resultater.push({
+              clientUuid: lokal.clientUuid,
+              resultat: "feilet",
+              feilmelding:
+                e.code === "P2002"
+                  ? "Duplisert dagsseddel for samme dato og prosjekt"
+                  : `DB-feil: ${e.code}`,
+            });
+            continue;
+          }
+          // Ukjent feil — la klient retry
+          const melding = e instanceof Error ? e.message : "Ukjent feil";
+          resultater.push({
+            clientUuid: lokal.clientUuid,
+            resultat: "feilet",
+            feilmelding: melding,
+          });
+        }
+      }
+
+      return { serverTid: new Date().toISOString(), resultater };
+    }),
+
+  // ============================================================================
+  //  Maskin-rader (C9 2026-05-02) — sheet_machines lever i db-timer fordi
+  //  Timer eier dagsseddelen. Equipment-katalog leveres av Maskin-modul via
+  //  service-lag (cross-modul-konvensjon per arkitektur-syntese § 6.1.1).
+  //  Vehicle-validering mot db-maskin gjøres ikke her — svak FK per A.20.
+  // ============================================================================
+
+  maskin: router({
+    tilfoy: protectedProcedure
+      .input(
+        z.object({
+          sheetId: z.string().uuid(),
+          vehicleId: z.string().uuid(),
+          timer: z.number().min(0).max(24),
+          mengde: z.number().min(0).nullable().optional(),
+          enhet: z.string().max(20).nullable().optional(),
+        }),
+      )
+      .mutation(async ({ ctx, input }) => {
+        const sheet = await hentEgenDagsseddel(
+          ctx.prismaTimer,
+          ctx.userId,
+          input.sheetId,
+        );
+        if (!erRedigerbar(sheet.status)) {
+          throw new TRPCError({
+            code: "PRECONDITION_FAILED",
+            message: `Dagsseddel er låst (status: ${sheet.status})`,
+          });
+        }
+        await sjekkAldersgrense(sheet.organizationId, sheet.status, sheet.dato);
+
+        return ctx.prismaTimer.sheetMachine.create({
+          data: {
+            sheetId: input.sheetId,
+            vehicleId: input.vehicleId,
+            timer: input.timer,
+            mengde: input.mengde ?? null,
+            enhet: input.enhet ?? null,
+          },
+        });
+      }),
+
+    oppdater: protectedProcedure
+      .input(
+        z.object({
+          id: z.string().uuid(),
+          vehicleId: z.string().uuid().optional(),
+          timer: z.number().min(0).max(24).optional(),
+          mengde: z.number().min(0).nullable().optional(),
+          enhet: z.string().max(20).nullable().optional(),
+        }),
+      )
+      .mutation(async ({ ctx, input }) => {
+        const rad = await ctx.prismaTimer.sheetMachine.findUnique({
+          where: { id: input.id },
+        });
+        if (!rad) throw new TRPCError({ code: "NOT_FOUND" });
+
+        const sheet = await hentEgenDagsseddel(
+          ctx.prismaTimer,
+          ctx.userId,
+          rad.sheetId,
+        );
+        if (!erRedigerbar(sheet.status)) {
+          throw new TRPCError({
+            code: "PRECONDITION_FAILED",
+            message: `Dagsseddel er låst (status: ${sheet.status})`,
+          });
+        }
+        await sjekkAldersgrense(sheet.organizationId, sheet.status, sheet.dato);
+
+        const data: Prisma.SheetMachineUpdateInput = {};
+        if (input.vehicleId !== undefined) data.vehicleId = input.vehicleId;
+        if (input.timer !== undefined) data.timer = input.timer;
+        if (input.mengde !== undefined) data.mengde = input.mengde;
+        if (input.enhet !== undefined) data.enhet = input.enhet;
+
+        return ctx.prismaTimer.sheetMachine.update({
+          where: { id: input.id },
+          data,
+        });
+      }),
+
+    fjern: protectedProcedure
+      .input(z.object({ id: z.string().uuid() }))
+      .mutation(async ({ ctx, input }) => {
+        const rad = await ctx.prismaTimer.sheetMachine.findUnique({
+          where: { id: input.id },
+        });
+        if (!rad) throw new TRPCError({ code: "NOT_FOUND" });
+
+        const sheet = await hentEgenDagsseddel(
+          ctx.prismaTimer,
+          ctx.userId,
+          rad.sheetId,
+        );
+        if (!erRedigerbar(sheet.status)) {
+          throw new TRPCError({
+            code: "PRECONDITION_FAILED",
+            message: `Dagsseddel er låst (status: ${sheet.status})`,
+          });
+        }
+
+        return ctx.prismaTimer.sheetMachine.delete({ where: { id: input.id } });
+      }),
+  }),
+
+  // ============================================================================
+  //  hentDagstotal (C9 2026-05-02) — sum timer på tvers av prosjekter for én
+  //  bruker × én dato. Brukstilfelle: mobil viser «Du har ført Xt i dag på N
+  //  prosjekter» øverst i ny-dagsseddel-flyten. Multi-sedel per dag er gyldig
+  //  per unique-constraint (userId, projectId, dato).
+  // ============================================================================
+
+  hentDagstotal: protectedProcedure
+    .input(
+      z.object({
+        userId: z.string().uuid().optional(), // default = innlogget bruker
+        dato: z.string(), // ISO YYYY-MM-DD
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const orgId = await hentBrukerOrgId(ctx.userId);
+      const userId = input.userId ?? ctx.userId;
+
+      // Hvis bruker ber om noen andres dagstotal: krev admin
+      if (userId !== ctx.userId) {
+        const bruker = await prisma.user.findUniqueOrThrow({
+          where: { id: ctx.userId },
+          select: { role: true, organizationId: true },
+        });
+        if (
+          bruker.role !== "sitedoc_admin" &&
+          !(bruker.role === "company_admin" && bruker.organizationId === orgId)
+        ) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Krever admin for å se andres dagstotal",
+          });
+        }
+      }
+
+      const dato = new Date(input.dato);
+
+      const sedler = await ctx.prismaTimer.dailySheet.findMany({
+        where: {
+          organizationId: orgId,
+          userId,
+          dato,
+        },
+        include: { timer: true },
+      });
+
+      const projektIder = sedler.map((s) => s.projectId);
+      const prosjekter =
+        projektIder.length === 0
+          ? []
+          : await prisma.project.findMany({
+              where: { id: { in: projektIder } },
+              select: { id: true, name: true, projectNumber: true },
+            });
+      const prosjektMap = new Map(prosjekter.map((p) => [p.id, p]));
+
+      const perProsjekt = sedler.map((s) => ({
+        sheetId: s.id,
+        projectId: s.projectId,
+        projectNavn: prosjektMap.get(s.projectId)?.name ?? null,
+        projectNummer: prosjektMap.get(s.projectId)?.projectNumber ?? null,
+        status: s.status,
+        timer: s.timer.reduce((acc, t) => acc + Number(t.timer), 0),
+      }));
+
+      const totalTimer = perProsjekt.reduce((acc, p) => acc + p.timer, 0);
+
+      return {
+        dato: input.dato,
+        userId,
+        totalTimer,
+        antallSedler: sedler.length,
+        perProsjekt,
+      };
     }),
 });

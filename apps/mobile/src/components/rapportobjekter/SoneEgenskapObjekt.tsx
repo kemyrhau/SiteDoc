@@ -1,6 +1,6 @@
 import { View, Text, TouchableOpacity, Modal, FlatList, Pressable } from "react-native";
 import { useState } from "react";
-import { trpc } from "../../providers/trpc-provider";
+import { trpc } from "../../lib/trpc";
 import type { RapportObjektProps } from "./typer";
 
 export function SoneEgenskapObjekt({ verdi, onEndreVerdi, leseModus, prosjektId }: RapportObjektProps) {
@@ -12,7 +12,10 @@ export function SoneEgenskapObjekt({ verdi, onEndreVerdi, leseModus, prosjektId 
     { enabled: !!prosjektId },
   );
 
-  const valgt = omrader?.find((o) => o.id === valgtId);
+  // Cast for å unngå TS2589 (excessively deep type instantiation)
+  type OmradeRad = { id: string; navn: string; byggeplass: { name: string } };
+  const omraderListe = (omrader as OmradeRad[] | undefined) ?? [];
+  const valgt = omraderListe.find((o) => o.id === valgtId);
 
   return (
     <View>
@@ -37,7 +40,7 @@ export function SoneEgenskapObjekt({ verdi, onEndreVerdi, leseModus, prosjektId 
             </Pressable>
           </View>
           <FlatList
-            data={omrader ?? []}
+            data={omraderListe}
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => (
               <TouchableOpacity

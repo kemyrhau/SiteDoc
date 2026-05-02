@@ -62,6 +62,7 @@ model Aktivitet {
   updatedAt      DateTime @updatedAt @map("updated_at")
 
   dailySheets DailySheet[]
+  sheetTimer  SheetTimer[]
 
   @@unique([organizationId, kode], name: "uq_aktivitet_kode_per_org", map: "uq_aktivitet_kode_per_org")
   @@index([organizationId, aktiv])
@@ -126,7 +127,9 @@ model DailySheet {
   userId              String    @map("user_id")
   registrertAvUserId  String    @map("registrert_av_user_id") // kan være ulik userId
   projectId           String    @map("project_id")
-  aktivitetId         String    @map("aktivitet_id")
+  // Default-aktivitet for nye timer-rader. Selve kanon-eierskapet ligger på SheetTimer.aktivitetId per rad (vedtatt C9 2026-05-02).
+  // Beholdes nullable for bakoverkompatibilitet og UX (kopieres til første rad ved opprettelse, kan overstyres per rad).
+  aktivitetId         String?   @map("aktivitet_id")
   avdelingId          String?   @map("avdeling_id")
   byggeplassId        String?   @map("byggeplass_id")
   dato                DateTime  @db.Date
@@ -143,9 +146,10 @@ model DailySheet {
   createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt           DateTime  @updatedAt @map("updated_at") @db.Timestamptz()
 
-  aktivitet Aktivitet      @relation(fields: [aktivitetId], references: [id], onDelete: Restrict)
+  aktivitet Aktivitet?     @relation(fields: [aktivitetId], references: [id], onDelete: Restrict)
   timer     SheetTimer[]
   tillegg   SheetTillegg[]
+  maskiner  SheetMachine[]
 
   @@unique([userId, projectId, dato], name: "uq_dailysheet_user_project_dato")
   @@index([organizationId])
@@ -168,17 +172,22 @@ model SheetTimer {
   id                    String   @id @default(uuid())
   sheetId               String   @map("sheet_id")
   lonnsartId            String   @map("lonnsart_id")
+  // Per-rad aktivitet (C9 2026-05-02). Backfill ved migrasjon: parent.aktivitetId.
+  // NOT NULL — alle nye rader må ha aktivitet. Klient sender alltid (default fra sedel).
+  aktivitetId           String   @map("aktivitet_id")
   externalCostObjectId  String?  @map("external_cost_object_id") // svak FK → external_cost_objects (kjernen)
   timer                 Decimal  @db.Decimal(6, 2)
-  attestertSnapshot     Json?    @map("attestert_snapshot") // Pris-snapshot ved attestering (Fase 0 A.7)
+  attestertSnapshot     Json?    @map("attestert_snapshot") // Pris-snapshot ved attestering (Fase 0 A.7) — inkluderer aktivitet-snapshot post-C9
   createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt             DateTime @updatedAt @map("updated_at") @db.Timestamptz()
 
-  sheet    DailySheet @relation(fields: [sheetId], references: [id], onDelete: Cascade)
-  lonnsart Lonnsart   @relation(fields: [lonnsartId], references: [id], onDelete: Restrict)
+  sheet     DailySheet @relation(fields: [sheetId], references: [id], onDelete: Cascade)
+  lonnsart  Lonnsart   @relation(fields: [lonnsartId], references: [id], onDelete: Restrict)
+  aktivitet Aktivitet  @relation(fields: [aktivitetId], references: [id], onDelete: Restrict)
 
   @@index([sheetId])
   @@index([lonnsartId])
+  @@index([aktivitetId])
   @@index([externalCostObjectId])
   @@map("sheet_timer")
   @@schema("timer")
@@ -204,5 +213,30 @@ model SheetTillegg {
   @@index([sheetId])
   @@index([tilleggId])
   @@map("sheet_tillegg")
+  @@schema("timer")
+}
+
+// ==========================================================================
+//  SheetMachine — maskinbruk-rader per dagsseddel (C9 2026-05-02)
+//  vehicleId er svak FK til db-maskin Equipment (per A.20 cross-package-mønster)
+//  Soft-skjul i UI: seksjon vises kun når Maskin-modul er aktivert for firmaet
+// ==========================================================================
+
+model SheetMachine {
+  id                String   @id @default(uuid())
+  sheetId           String   @map("sheet_id")
+  vehicleId         String   @map("vehicle_id") // svak FK → maskin.equipment (db-maskin)
+  timer             Decimal  @db.Decimal(6, 2)
+  mengde            Decimal? @db.Decimal(12, 2)
+  enhet             String?  // m, m2, m3, kg, tonn, stk
+  attestertSnapshot Json?    @map("attestert_snapshot") // Pris-snapshot ved attestering — null inntil Equipment-prising er spec'd (Fase 1+)
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+
+  sheet DailySheet @relation(fields: [sheetId], references: [id], onDelete: Cascade)
+
+  @@index([sheetId])
+  @@index([vehicleId])
+  @@map("sheet_machines")
   @@schema("timer")
 }

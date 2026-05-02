@@ -9,6 +9,7 @@ import { NettverkProvider } from "./NettverkProvider";
 import { OpplastingsKoProvider } from "./OpplastingsKoProvider";
 import { AuthProvider } from "./AuthProvider";
 import { SpraakProvider } from "./SpraakProvider";
+import { TimerSyncProvider } from "./TimerSyncProvider";
 import { ProsjektProvider } from "../kontekst/ProsjektKontekst";
 import { ByggeplassProvider } from "../kontekst/ByggeplassKontekst";
 
@@ -73,9 +74,11 @@ export function Providers({ children }: { children: ReactNode }) {
             <OpplastingsKoProvider>
               <AuthProvider>
                 <SpraakProvider>
-                  <ProsjektProvider>
-                    <ByggeplassProvider>{children}</ByggeplassProvider>
-                  </ProsjektProvider>
+                  <TimerSyncProvider>
+                    <ProsjektProvider>
+                      <ByggeplassProvider>{children}</ByggeplassProvider>
+                    </ProsjektProvider>
+                  </TimerSyncProvider>
                 </SpraakProvider>
               </AuthProvider>
             </OpplastingsKoProvider>

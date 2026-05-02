@@ -118,6 +118,58 @@ export async function loggInnMedMicrosoft(): Promise<string | null> {
   return null;
 }
 
+/**
+ * Dev-bypass-innlogging for simulator. Treffer /dev-login på Fastify (apps/api).
+ *
+ * Ruten ligger på samme domene som tRPC (api-test.sitedoc.no) — ikke på
+ * Next.js (test.sitedoc.no) — fordi Cloudflare WAF blokkerer Expo Go-fetch
+ * mot test.sitedoc.no spesifikt.
+ *
+ * Server-siden registrerer ruten kun når:
+ *   - NODE_ENV !== "production" (lokal dev)
+ *   - eller ENABLE_DEV_LOGIN === "true" på test-server (sitedoc-test-api)
+ *
+ * 404 i prod. Returnerer en gyldig session-token for hardkodet test-bruker.
+ *
+ * MERK: Skal kun kalles fra UI som er gated bak `__DEV__`. Vi beskytter også
+ * server-side, men UI-gate er førstelinjeforsvar mot å vise knappen i prod-bygg.
+ */
+export async function loggInnSomTestbruker(): Promise<{ user: BrukerData; sessionToken: string }> {
+  const url = `${AUTH_CONFIG.apiUrl}/dev-login`;
+
+  console.log("[DEV-LOGIN] Forsøker POST mot:", url);
+
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+  } catch (e) {
+    const melding = e instanceof Error ? e.message : "ukjent fetch-feil";
+    console.warn("[DEV-LOGIN] Fetch kastet:", melding);
+    throw new Error(`Fetch feilet mot ${url}: ${melding}`);
+  }
+
+  console.log("[DEV-LOGIN] Svar:", res.status);
+
+  if (!res.ok) {
+    const tekst = await res.text();
+    if (res.status === 404) {
+      throw new Error(
+        `Dev-login ikke aktiv (${url} → 404). Sett ENABLE_DEV_LOGIN=true i sitedoc-test-api sin ecosystem.config.js, eller kjør \`pnpm dev\` lokalt.`,
+      );
+    }
+    throw new Error(`Dev-login feilet (${res.status}): ${tekst}`);
+  }
+
+  const data = (await res.json()) as { sessionToken: string; user: BrukerData };
+  await lagreSessionToken(data.sessionToken);
+  await lagreBrukerData(data.user);
+  return data;
+}
+
 export async function loggUt(): Promise<void> {
   // Slett sesjon server-side
   try {
