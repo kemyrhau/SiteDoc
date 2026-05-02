@@ -29,17 +29,36 @@ Rekkefølgen er låst — hvert steg er avhengig av forrige:
 - Handling: Inviter brukere, klikk navn for å redigere, knytt til faggruppe via «Legg til gruppe»
 - kanAttestere-toggle vises per bruker for Timer-modul
 
-### Steg 4 — Hent/opprett sjekkliste-maler
+### Steg 4 — Opprett brukergrupper
+- URL: `/dashbord/oppsett/brukere` → «+ Ny gruppe»
+- Hensikt: Grupperer brukere etter faggruppe/rolle i prosjektet
+- Eksempel: A.Markussen Ledelse, A.Markussen Ansatte, Byggherre
+- Merk: Brukergrupper er IKKE det samme som faggrupper (dokumentflyt-parter).
+  Faggrupper = firmaer i dokumentflyten. Brukergrupper = ansatte organisert per fag.
+- Kobling: Brukere knyttes til faggrupper VIA brukergrupper
+
+### Steg 5 — Opprett lokasjoner og last opp tegninger
+- URL: `/dashbord/oppsett/lokasjoner` → «+ Legg til»
+- Hensikt: Strukturerer prosjektet geografisk — tegninger knyttes til lokasjoner
+- Typisk struktur for byggeprosjekt:
+  - Bygg (hovedbygg med etasjer som underlokasjoner)
+  - Utomhus (adkomst, grøntarealer, parkering)
+- Typisk struktur for veiprosjekt: parseller/strekninger
+- Merk: Lokasjon er forutsetning for å laste opp tegninger
+- Tegningsformat: PDF eller bilde — lastes opp per lokasjon
+- NS3420 KA/KB/KC/KD-maler (utomhus) kobles naturlig til Utomhus-lokasjon
+
+### Steg 6 — Hent/opprett sjekkliste-maler
 - URL: `/dashbord/oppsett/produksjon/sjekklistemaler`
 - Handling: «Legg til» → «Hent fra bibliotek» for NS 3420-maler, eller «Opprett ny» for egne maler
 - Bibliotek inneholder: NS 3420-K:2024 Anleggsgartnerarbeider (KA/KB/KC/KD)
 - Allerede importert vises med grønt hake
 
-### Steg 5 — Hent/opprett oppgave-maler
+### Steg 7 — Hent/opprett oppgave-maler
 - URL: `/dashbord/oppsett/produksjon/oppgavemaler`
 - Eksempel: HMS-avvik, Godkjenning
 
-### Steg 6 — Koble maler til dokumentflyt
+### Steg 8 — Koble maler til dokumentflyt
 - URL: `/dashbord/oppsett/produksjon/kontakter`
 - Handling: Under hver faggruppe/dokumentflyt → «+ Legg til mal» → velg fra dropdown
 - Maler vises gruppert: SJEKKLISTER / OPPGAVER
