@@ -200,10 +200,16 @@ export default function SjekklisteDetaljSide() {
     },
   });
 
+  const [statusFeil, setStatusFeil] = useState<string | null>(null);
+
   const endreStatusMutasjon = trpc.sjekkliste.endreStatus.useMutation({
     onSuccess: () => {
+      setStatusFeil(null);
       utils.sjekkliste.hentForProsjekt.invalidate();
       utils.sjekkliste.hentMedId.invalidate({ id: params.sjekklisteId });
+    },
+    onError: (error) => {
+      setStatusFeil(error.message ?? "Kunne ikke endre status. Prøv igjen.");
     },
   });
 
@@ -475,6 +481,13 @@ export default function SjekklisteDetaljSide() {
           </div>
         )}
 
+        {/* Feilmelding fra endreStatus-mutasjon */}
+        {statusFeil && (
+          <div className="mt-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {statusFeil}
+          </div>
+        )}
+
         {/* Rad 3: Handlingsknapper (full bredde på mobil) */}
         <div className="mt-2 flex items-center gap-2">
           <DokumentHandlingsmeny
@@ -484,7 +497,7 @@ export default function SjekklisteDetaljSide() {
               endreStatusMutasjon.mutate({
                 id: params.sjekklisteId,
                 nyStatus: nyStatus as "draft" | "sent" | "received" | "in_progress" | "responded" | "approved" | "rejected" | "closed" | "cancelled",
-                senderId: sjekkliste.id,
+                senderId: undefined,
                 kommentar,
                 recipientUserId: mottaker?.userId,
                 recipientGroupId: mottaker?.groupId,
