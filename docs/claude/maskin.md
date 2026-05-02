@@ -146,6 +146,11 @@ apps/api/src/services/maskin/
 2. Timer-UI rendrer kjøretøy-velger kun når listen er ikke-tom
 3. Timer trenger ikke kjenne `db-maskin`-skjema, modul-gating-mekanisme eller Vegvesen-status
 
+> **🟡 Modul-avhengighets-regel:** `sheet_machines` er knutepunkt mellom
+> Maskin og Timer. Endringer i schema eller flyt krever lesing av
+> [dagsseddel-design.md § Modul-avhengigheter](dagsseddel-design.md).
+> Timer eier dagsseddelen; Maskin integreres som betinget kostnadskilde.
+
 **Avgrensning:** Service-laget eksponerer kun **lese-funksjoner** for cross-modul-tilgang. Skriving til Maskin-data skjer alltid via Maskin sine egne tRPC-ruter (`maskin.equipment.*`, `maskin.assignment.*` osv.) med full tilgangskontroll. Andre moduler skal ikke skrive til Maskin-data direkte.
 
 **Tester:** Service-laget mockes i unit-tester for konsumerende moduler — Timer-tester trenger ikke spinne opp `db-maskin`.

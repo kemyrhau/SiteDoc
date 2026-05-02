@@ -138,6 +138,11 @@ Timer er **ikke en egen app** med eget domene/port — den er integrert i eksist
 
 ## Dagsseddel-modell
 
+> **🟡 Modul-avhengighets-regel:** Endringer i `daily_sheets`, `sheet_timer`,
+> `sheet_tillegg` eller `sheet_machines` krever lesing av
+> [dagsseddel-design.md § Modul-avhengigheter](dagsseddel-design.md). Timer
+> eier dagsseddelen; Vareforbruk og Maskin integreres inn.
+
 Én **dagsseddel** per arbeidsdag samler alt: arbeidstimer, lønnsarter, reisetid, tillegg, maskinbruk og materialforbruk.
 
 ### Prinsipp

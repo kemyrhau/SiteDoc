@@ -539,6 +539,8 @@ Firma (Organization)                  ← Selskapet (A.Markussen AS, Veidekke)
 │   ├── Firmamoduler (tverrgående):   ← Slås av/på for hele firmaet
 │   │   ├── Timeregistrering
 │   │   ├── Maskinregistrering
+│   │   ├── Kompetanse
+│   │   ├── Varelager
 │   │   └── Fremdriftsplanlegging
 │   └── Prosjektmalverk               ← Standardoppsett for nye prosjekter
 │

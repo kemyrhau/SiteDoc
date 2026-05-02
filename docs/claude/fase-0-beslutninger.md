@@ -1375,6 +1375,11 @@ Massetransport som egen strøm: kjøretøy + antall lass + hentet fra + levert t
 
 **Tre-nivå-katalog (per § 3.8):** Vurdér om Vare-katalogen skal følge 3-nivå-mønsteret (lovpålagt grunnpakke, bransje-relevant, egendefinert) eller om Lag 3 (egendefinert) er tilstrekkelig. Avgjøres ved Fase 3-design — ikke nå.
 
+> **🟡 Modul-avhengighets-regel:** `Vareforbruk.dagsseddelId?` knytter
+> Vareforbruk til Timer-modulens dagsseddel. Vareforbruk-registrering
+> skjer inni Timer-flyten. Endringer i koblingen krever lesing av
+> [dagsseddel-design.md § Modul-avhengigheter](dagsseddel-design.md).
+
 ### C.17 BibliotekMal/OrganizationTemplate språkstøtte — 🟡 **ÅPEN — IKKE SPEC'ET (notert 2026-05-01)**
 
 **Bakgrunn:** Identifisert under E.8-kartlegging 2026-05-01. `BibliotekMal.navn` og `BibliotekKapittel.navn` er flate strenger uten `translations Json`-felt. `ReportObject` og `OrganizationTemplateObject` (E.7) har `translations Json @default("{}")` — men `ReportTemplate`/`OrganizationTemplate`/`BibliotekMal` selv har det ikke. Sentralbibliotek er i dag kun norsk; engelsk/andre språk på selve mal-navnene mangler.

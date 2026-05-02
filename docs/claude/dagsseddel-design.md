@@ -13,16 +13,29 @@ emne: Dagsseddel-arkitektur — aktivitet/maskinbruk/vareforbruk på sedel- vs r
 
 ## Modul-avhengigheter for dagsseddel
 
-Dagsseddelen er knutepunkt for tre moduler. Disse MÅ leses sammen:
+Avhengigheten er **hierarkisk, ikke flat** — Timer eier dagsseddelen.
+Uten Timer-modul finnes ingen dagsseddel.
 
-| Modul | Dokument | Avhengighet |
-|-------|----------|-------------|
-| Timer | [timer.md](timer.md) | Definerer dagsseddel-struktur (`daily_sheets`, `sheet_timer`, `sheet_tillegg`) |
-| Maskin | [maskin.md](maskin.md) | `sheet_machines` kobles via `sheetId` (planlagt Runde 2.5/3) |
-| Varelager | [fase-0-beslutninger.md C.16](fase-0-beslutninger.md) | `Vareforbruk.dagsseddelId?` (planlagt Fase 3) |
+```
+Timer (eier dagsseddel)
+├── Vareforbruk  ← del av Timer-flyten på dagsseddel.
+│                  Egen Varelager-modul eier varekatalog (Vare-tabell).
+│                  Vareforbruk-registrering skjer i dagsseddel.
+└── Maskin       ← betinget integrasjon. Hvis Maskin-modul er aktivert,
+                   registreres maskinbruk i dagsseddel som kostnad
+                   (sheet_machines, planlagt Runde 2.5/3).
+```
+
+| Modul | Rolle | Dokument |
+|-------|-------|----------|
+| **Timer** | **Eier** dagsseddelen (`daily_sheets`, `sheet_timer`, `sheet_tillegg`) | [timer.md](timer.md) |
+| **Varelager** | Eier varekatalog (`Vare`-tabell, Lag 1). Vareforbruk-rad (`Vareforbruk.dagsseddelId?`) registreres inni Timer-flyten på dagsseddel | [fase-0-beslutninger.md C.16](fase-0-beslutninger.md) |
+| **Maskin** | Selvstendig firmamodul (Equipment-register, vedlikehold, EU-kontroll). Cross-modul-integrasjon via service-lag (per [arkitektur-syntese § 6.1.1](arkitektur-syntese.md)). `sheet_machines` legges på dagsseddel når Maskin-modul er aktivert | [maskin.md](maskin.md) |
 
 **Regel:** Ingen endring i `daily_sheets`, `sheet_timer`, `sheet_tillegg`
 eller `sheet_machines` kan gjøres uten å lese alle tre dokumentene.
+Spesielt viktig fordi Timer er eier — endringer i Timer-schema rir
+oppstrøms til Vareforbruk- og Maskin-integrasjon.
 
 **Bakgrunn for regelen:** Aktivitet/maskinbruk/vareforbruk-konflikten i kveld
 2026-05-02 (Maskintimer-aktivitet vs `sheet_machines` vs `Vareforbruk`) viste
