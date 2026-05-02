@@ -26,10 +26,11 @@ interface SnapshotInput {
 }
 
 export interface TransferSnapshot {
-  /** Mappes til DB-kolonne senderEnterpriseName (historisk snapshot) */
-  senderFaggruppeNavn: string | null;
-  /** Mappes til DB-kolonne recipientEnterpriseName (historisk snapshot) */
-  mottakerFaggruppeNavn: string | null;
+  /** Matcher DB-kolonne på DocumentTransfer. Fagbegrepet er Faggruppe i ny
+   * terminologi, men DB-kolonnen heter fortsatt Enterprise (legacy).
+   * Spread-vennlig: kan brukes direkte i documentTransfer.create({...snapshot}). */
+  senderEnterpriseName: string | null;
+  recipientEnterpriseName: string | null;
   dokumentflytName: string | null;
   senderRolle: string;
 }
@@ -65,13 +66,13 @@ export async function byggTransferSnapshot(input: SnapshotInput): Promise<Transf
     input.utforerFaggruppeId ? prisma.faggruppe.findUnique({ where: { id: input.utforerFaggruppeId }, select: { name: true } }) : null,
   ]);
 
-  // Senderens faggruppe basert på rolle
-  const senderFaggruppeNavn = (senderRolle === "bestiller" || senderRolle === "godkjenner" || senderRolle === "registrator")
+  // Senderens faggruppe basert på rolle (legacy DB-kolonnenavn senderEnterpriseName)
+  const senderEnterpriseName = (senderRolle === "bestiller" || senderRolle === "godkjenner" || senderRolle === "registrator")
     ? bestillerFaggruppe?.name ?? null
     : utforerFaggruppe?.name ?? null;
 
-  // Mottaker-faggruppe = dokumentets utfører-faggruppe
-  const mottakerFaggruppeNavn = utforerFaggruppe?.name ?? null;
+  // Mottaker-faggruppe = dokumentets utfører-faggruppe (legacy DB-kolonnenavn recipientEnterpriseName)
+  const recipientEnterpriseName = utforerFaggruppe?.name ?? null;
 
   // Dokumentflyt-navn
   let dokumentflytName: string | null = null;
@@ -84,8 +85,8 @@ export async function byggTransferSnapshot(input: SnapshotInput): Promise<Transf
   }
 
   return {
-    senderFaggruppeNavn,
-    mottakerFaggruppeNavn,
+    senderEnterpriseName,
+    recipientEnterpriseName,
     dokumentflytName,
     senderRolle,
   };
