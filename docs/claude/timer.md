@@ -57,7 +57,7 @@ Verifisert mot kodebase 2026-05-01. Hver påstand i resten av dette dokumentet r
 | `sheet_tillegg`-tabell | ✅ Schema + migrasjon-SQL klar (Infrastruktur-commit) | «`sheet_tillegg` (tillegg-rader per dagsseddel)» |
 | `expense_categories`-tabell | ✅ Schema + migrasjon-SQL klar (Infrastruktur-commit) | «`expense_categories`» |
 | `sheet_machines`-tabell | ❌ Ikke opprettet — Runde 2/3 | «`sheet_machines`» |
-| `sheet_materials`-tabell | ❌ Ikke opprettet — Runde 2/3 | «`sheet_materials`» |
+| ~~`sheet_materials`-tabell~~ | 🟦 **FORELDET 2026-05-02** — erstattet av C.16 Vareforbruk (egen modul, ikke timer-tabell). Se [fase-0-beslutninger.md C.16](fase-0-beslutninger.md). Skissen i § `sheet_materials`-spec (linje ~755) bevares som referanse, men skal ikke implementeres |
 | `sheet_expenses`-tabell | ❌ Ikke opprettet — Runde 2/3 | «`sheet_expenses`» |
 | `arbeidstidskalender`-tabell | ❌ Ikke opprettet — Runde 2/3 | «`arbeidstidskalender`» |
 | `OrganizationSetting.overtidsmatTerskel` | ✅ Tilføyd 2026-05-01 (Infrastruktur-commit, default 9.0) | Kreves av tilleggsregler-spec |
@@ -752,7 +752,16 @@ Erstatter de tidligere faste boolean-kolonnene `overtidsmat/nattillegg/helgetill
 - `(sheetId)` — FK-JOIN
 - `(vehicleId)` — maskinrapport på tvers av ansatte/prosjekter
 
-### `sheet_materials` (materialforbruk per dagsseddel)
+### ~~`sheet_materials`~~ (FORELDET — se C.16 Vareforbruk)
+
+> **🟦 FORELDET 2026-05-02:** Skissen nedenfor er erstattet av
+> `Vare` + `Vareforbruk`-modellen (Vareforbruk-modul, vedtatt 2026-04-30 som
+> [C.16 i fase-0-beslutninger.md](fase-0-beslutninger.md)).
+> `Vareforbruk.dagsseddelId?` gir samme dagsseddel-kobling som denne skissen,
+> men med varekatalog-FK i stedet for fritekst, og som egen modul i stedet
+> for timer-tabell. Skissen bevares som historisk referanse — implementer ikke.
+
+### `sheet_materials` (materialforbruk per dagsseddel) — historisk skisse
 
 | Felt | Type | Beskrivelse |
 |------|------|-------------|

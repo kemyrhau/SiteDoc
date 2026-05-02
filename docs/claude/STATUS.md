@@ -12,7 +12,7 @@
 > - Hvis ingen av delene: kort fri beskrivelse (eller tom)
 
 **Sist oppdatert:** 2026-05-02
-**Antall filer dekket:** 36 (komplett oversikt)
+**Antall filer dekket:** 37 (komplett oversikt)
 
 > **Fase 0.5 KOMPLETT (deployet til prod 2026-05-01):** § 1 Avdeling (`a90daabd`), § 2 Kompetanse (`a5ba99ce`), § 3 ProjectGroupByggeplass + drop building_ids (`3836b322`), § 5 Slette-policy (`f13dc6c0`). Merge: develop `9fed74a5` → main `f0a515cd`. Etter-Fase-0.5: Avdeling-UI (`2799a4d1` prod). Kompetanse-UI Runde 1 (`0965ddf2` prod) — kompetansetyper-CRUD + matrise read-only + settings-toggle. Kompetanse-UI Runde 2 (`653028b4` prod) — AnsattKompetanse-CRUD via celle-klikk + RBAC. Kompetanse-UI Runde 2.5 (`30ec98a9` prod) — CSV/Excel-import med 4-stegs flyt + filHash-validering + atomisk transaksjon + 30 i18n-nøkler. csv-parse@6.2.1 installert i apps/api.
 >
@@ -30,10 +30,10 @@
 |---|---:|
 | ✅ Verifisert mot kode | 5 |
 | ⚠️ Drift identifisert | 4 |
-| 🔄 Under arbeid | 4 |
+| 🔄 Under arbeid | 5 |
 | ❌ Ikke screenet | 20 |
 | 📦 Arkivert | 3 |
-| **Totalt** | **36** |
+| **Totalt** | **37** |
 
 ---
 
@@ -64,6 +64,7 @@
 | mannskap.md | 2026-04-28 | **Vy-beskrivelse i PSI-konteksten** etter 1D-presisering (N2.1-revidert). Datamodell forkastet (Mannskapsmedlem dupliserer User per memory). §15-felt-mapping bevart i tekstform. Endelig datamodell designes Fase 4 (PSI-utvidelse) |
 | oppryddings-plan-2026-04-28.md | 2026-04-30 | **Arbeidsanker:** Aktiv anker for oppryddings-arbeidet etter Bunke 3A.1. P-KRITISK-seksjon (3 prod-blokkere) tilføyd 2026-04-28. Dokument-samhandlings-lukking Nivå 1-4 etablert 2026-04-28. Mini-Nivå 1D 2026-04-28: anker korrigert. Bunke N2.1-revidert (strammet) 2026-04-28: 2A+2B+2C kvittert. Bunke N2.2 registrert som etter-funn + A.Markussen-research-infeksjons-prinsipp. **2026-04-29:** P1.7 + P4.3 + P4.4 lukket. Screening-funn 2026-04-29 registrert: C.15 (manglende indekser) + SCREENING-29-1 (sikkerhet — medlem.oppdater organizationId) + SCREENING-29-2 (type-cast oppgave-detaljside). **C.15 lukket:** 42 indekser implementert over tre commits (Klasse 1 ce7af97, Klasse 2+3+composite 5174842, Klasse 4 1467000). **SCREENING-29-1 lukket:** sikkerhetsfiks i 37137e4 (medlem.oppdater + brukere/page.tsx). P1.1 + P1.2 + P1.5 lukket (fd63600). P5.6 utvidet og lukket strategisk — sammenslått med concurrent editing per A.29. SCREENING-29-2 delvis lukket via felles harBallen i shared, SCREENING-29-3 ny rad (e23e67d). 3A-A 4 prinsipper lukket. **2026-04-30:** P1.3 + P1.4 + P1.6 lukket. § 6.2 + A.30 vedtatt (5b90ab6 + 681aec8). 3A komplett — alle 8 prinsipper enten implementert, slått inn i andre § eller dropp. **SCREENING-29-3 lukket:** 9 TS2589-forekomster i 7 filer fikset via smal lokal interface-strategi — tsc --noEmit passerer. N2.2.3 + N2.2.4 omformulert: ikke blokkerende for Fase 0-koding (avventer ekstern API-tilgang/dialog). **Maskin-modul-gating:** midlertidig `Organization.harMaskinModul`-flagg + sidebar-skjul implementert (erstatter behov for modulProcedure før Fase 0). Bonus: 8. TS2589 i dashbord/page.tsx fikset (samme strategi) |
 | timer-funn-fra-screening-2026-04-27.md | 2026-04-28 | **Arbeidsanker:** Midlertidig, slettes etter Timer/Maskin-revurdering |
+| dagsseddel-design.md | 2026-05-02 | **Arbeidsanker:** Identifisert under Runde 2 visuell verifisering 2026-05-02 — `DailySheet.aktivitetId` på sedel-nivå blokkerer Maskintimer + Anleggsarbeid samme dag/prosjekt. Tre alternativer (A: flytt til SheetTimer rad-nivå — anbefalt; B: sheet_machines-spor; C: ikke fix). Skiller mot `sheet_machines` (Runde 2.5/3) og `Vareforbruk` (C.16). Markerer `sheet_materials` som FORELDET. Krever Kenneth-beslutning før koding |
 
 ## ❌ Ikke screenet
 

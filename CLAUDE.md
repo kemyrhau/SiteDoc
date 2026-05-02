@@ -22,6 +22,7 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 | [docs/claude/okonomi.md](docs/claude/okonomi.md) | Økonomi-modul: kontrakter, notaer, avvik, parsere, prosessering, dokumentsøk |
 | [docs/claude/bibliotek.md](docs/claude/bibliotek.md) | **Peker** til [kontrollplan.md](docs/claude/kontrollplan.md). Sentralbibliotek-koden er implementert (BibliotekMal + seed-bibliotek.ts). Innhold konsolidert 2026-04-16, fil beholdes som referanse-peker |
 | [docs/claude/timer.md](docs/claude/timer.md) | Timeregistrering: dagsseddel, lønnsarter, tillegg, utlegg, offline-sync |
+| [docs/claude/dagsseddel-design.md](docs/claude/dagsseddel-design.md) | **🟡 ÅPEN BESLUTNING (2026-05-02):** Aktivitet på rad-nivå vs sedel-nivå (Maskintimer + Anleggsarbeid samme dag/prosjekt). Skiller mot `sheet_machines`/Vareforbruk. Anbefaler Alt A — flytt aktivitetId til SheetTimer (samme presedens som ECO 2026-04-29). Krever Kenneth-input før koding |
 | [docs/claude/maskin.md](docs/claude/maskin.md) | Utstyrsregister: 3 kategorier (kjøretøy/anleggsmaskin/småutstyr), Vegvesen API, EU-kontroll, vedlikeholdsplan, GPS, telematikk |
 | [docs/claude/kontrollplan.md](docs/claude/kontrollplan.md) | Kontrollplan + Sjekklistebibliotek: NS 3420-K/F, Område-modell, lovkrav, matrise, sluttrapport, AI-utkast |
 | ~~docs/claude/infrastruktur-moduler.md~~ | **🟥 OBSOLETE** — flyttet til [docs/arkiv/infrastruktur-moduler.md](docs/arkiv/infrastruktur-moduler.md) (2026-04-27). Beskrev forkastet plan om isolert deploy. Faktisk arkitektur er integrerte moduler (samme mønster som Maskin) |
@@ -435,6 +436,10 @@ Fastify (`sitedoc-api`) brukes for:
 - Begge? → sett i begge ecosystem env-blokker
 
 **Lærdom 2026-05-01 (Vegvesen-deploy):** Blokk B feilet i 30 minutter på test fordi `VEGVESEN_API_KEY` kun var lagt i `sitedoc-test-api`. Klient-mutations gikk via Next.js → web-prosess (uten nøkkel) → kastet `VegvesenApiNokkelMangler`. Løsning: nøkkelen tilføyd i begge ecosystem env-blokker.
+
+**Lærdom 2026-05-02 (dev-login refactor til Fastify):** `ENABLE_DEV_LOGIN=true` skal stå i **`sitedoc-test-api`-blokken**, IKKE `sitedoc-test-web`. Dev-login-ruten ble flyttet fra Next.js (apps/web) til Fastify (apps/api) 2026-05-02 (commit `29cf833b`) fordi Cloudflare WAF blokkerte Expo Go-fetch mot test.sitedoc.no spesifikt. Mobil treffer `${AUTH_CONFIG.apiUrl}/dev-login` direkte mot Fastify, så env-flagget må være der prosessen kjører. Sett ALDRI på prod-server (`sitedoc-api`).
+
+**Lærdom 2026-05-02 (PM2 cwd-cache-fellen):** PM2 cacher `cwd` i `~/.pm2/dump.pm2` ved boot/save. Hvis prosessen ble en gang i tiden startet fra hjem-mappen (`~`) i stedet for prosjekt-mappen (`~/programmering/sitedoc-test`), tolkes relativ `cwd: './apps/web'` som `/home/kemyr/apps/web` (eksisterer ikke) → restart-loop med `Could not find production build`. **`pm2 restart` fikser IKKE dette** — cwd er cachet. Løsning: `pm2 delete <name>` + `cd ~/programmering/sitedoc-test && pm2 start ecosystem.config.js --only <name>` + `pm2 save` (overskriver dump med korrekt cwd). Symptom: HTTP 502 fra Cloudflare, `pm2 describe` viser `exec cwd: /home/kemyr/apps/web` i stedet for `/home/kemyr/programmering/sitedoc-test/apps/web`. Lærdom fra 502-fix 2026-05-02 da `sitedoc-test-web` (ID 25) hadde stale cwd etter en tidligere restart.
 
 ### Mobil-app og URL-konstruksjon
 
