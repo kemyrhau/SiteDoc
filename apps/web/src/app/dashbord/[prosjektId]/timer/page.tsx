@@ -82,6 +82,11 @@ export default function TimerListSide() {
     return Math.ceil((dager + start.getDay() + 1) / 7);
   })();
 
+  const ukeSum = useMemo(() => {
+    const liste = (rader as unknown as ListeRad[] | undefined) ?? [];
+    return liste.reduce((s, r) => s + (r.totaltimer ?? 0), 0);
+  }, [rader]);
+
   return (
     <div className="mx-auto max-w-5xl p-6">
       <div className="mb-6 flex items-start justify-between gap-4">
@@ -112,6 +117,9 @@ export default function TimerListSide() {
         <span className="text-sm font-medium text-gray-900">
           {t("timer.ukeNr", { nr: ukenummer })} —{" "}
           {formatDato(ukeStart)} – {formatDato(ukeSlutt)}
+          <span className="ml-2 text-gray-500">
+            · {t("timer.ukeSum", { timer: ukeSum.toFixed(2) })}
+          </span>
         </span>
         <button
           onClick={() => endreUke(1)}
