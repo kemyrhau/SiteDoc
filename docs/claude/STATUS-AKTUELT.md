@@ -170,6 +170,15 @@ Foreslått løsning: Badge «Venter på: [gruppenavn]» ved siden av status-pill
 
 Prioritet: Høy — kritisk for A.Markussen onboarding.
 
+### Auto-redirect ved innlogging — mangler (observert 2026-05-02)
+
+Problem: Bruker lander på tom `/dashbord` etter innlogging.
+- Bruker med 1 prosjekt bør redirectes direkte til det prosjektet
+- Bruker med flere prosjekter bør redirectes til sist besøkte
+- Logikk: hent brukerens prosjekter ved innlogging → hvis 1 → redirect → hvis flere → redirect til `lastVisitedProjectId` (lagres i localStorage/cookie)
+
+Prioritet: Høy — første inntrykk for nye brukere.
+
 ## Kjente bugs
 
 **Lokasjon-modal forhåndsvelger ikke når kun ett alternativ finnes (observert 2026-05-02):** Når en sjekkliste har lokasjon-felt og prosjektet har bare 1 byggeplass + 1 tegning, må brukeren likevel klikke gjennom dropdownene manuelt. Bør auto-velge når dropdown har én eneste option per nivå. Lav prioritet, men irriterende ved hver lagring/sending. Foreslått fiks: i lokasjon-modal-komponenten, sett valgt verdi automatisk hvis `options.length === 1` per dropdown.
