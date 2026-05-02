@@ -313,9 +313,12 @@ model ProjectMember {
   // userId: nullable per B.7 — bevarer ProjectMember-historikk når User slettes (sjelden, vi arkiverer normalt med canLogin = false)
   userId              String?  @map("user_id")
   projectId           String   @map("project_id")
-  // role: "admin" | "member" — IKKE "underentreprenor" (per A.9, utledes deterministisk via erUnderentreprenor())
+  // role: "admin" | "member" — prosjekt-rang. IKKE "underentreprenor" (per A.9, utledes deterministisk via erUnderentreprenor()).
   role                String   @default("member")
   erFirmaansvarlig    Boolean  @default(false) @map("er_firmaansvarlig")
+  // kanAttestere (vedtatt 2026-05-02): kapabilitet for timer-attestering uten å være prosjekt-admin.
+  // role="admin" gir implisitt attestering-tilgang via erProsjektLeder. Backfill ved migrering: alle role="admin" får true.
+  kanAttestere        Boolean  @default(false) @map("kan_attestere")
   // periodeSlutt: null = aktiv (per B.7 + C.13). createdAt fungerer som periodeStart.
   periodeSlutt        DateTime? @map("periode_slutt")
   createdAt           DateTime @default(now()) @map("created_at")
