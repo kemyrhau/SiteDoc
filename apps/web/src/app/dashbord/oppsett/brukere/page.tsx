@@ -95,6 +95,7 @@ interface KontaktMedlem {
   id: string;
   role: string;
   erFirmaansvarlig: boolean;
+  kanAttestere: boolean;
   user: {
     id: string;
     name: string | null;
@@ -129,6 +130,12 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
   const [nyttFirmaNavn, setNyttFirmaNavn] = useState("");
 
   const settFirmaansvarligMutation = trpc.medlem.settFirmaansvarlig.useMutation({
+    onSuccess: () => {
+      utils.medlem.hentForProsjekt.invalidate({ projectId: prosjektId });
+    },
+  });
+
+  const settKanAttestereMutation = trpc.medlem.settKanAttestere.useMutation({
     onSuccess: () => {
       utils.medlem.hentForProsjekt.invalidate({ projectId: prosjektId });
     },
@@ -1024,46 +1031,76 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
 
                   {/* Rolle */}
                   <td className="whitespace-nowrap px-4 py-2.5">
-                    {erRedigering ? (
-                      <select
-                        value={m.erFirmaansvarlig && m.role !== "admin" ? "firmaansvarlig" : redigerData.role}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          if (val === "firmaansvarlig") {
-                            // Sett role=member + erFirmaansvarlig=true
-                            setRedigerData((p) => ({ ...p, role: "member" }));
-                            settFirmaansvarligMutation.mutate({ id: m.id, projectId: prosjektId, erFirmaansvarlig: true });
-                          } else if (val === "admin") {
-                            // Sett role=admin + erFirmaansvarlig=false
-                            setRedigerData((p) => ({ ...p, role: "admin" }));
-                            if (m.erFirmaansvarlig) {
-                              settFirmaansvarligMutation.mutate({ id: m.id, projectId: prosjektId, erFirmaansvarlig: false });
+                    <div className="flex flex-col items-start gap-1">
+                      {erRedigering ? (
+                        <select
+                          value={m.erFirmaansvarlig && m.role !== "admin" ? "firmaansvarlig" : redigerData.role}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            if (val === "firmaansvarlig") {
+                              // Sett role=member + erFirmaansvarlig=true
+                              setRedigerData((p) => ({ ...p, role: "member" }));
+                              settFirmaansvarligMutation.mutate({ id: m.id, projectId: prosjektId, erFirmaansvarlig: true });
+                            } else if (val === "admin") {
+                              // Sett role=admin + erFirmaansvarlig=false
+                              setRedigerData((p) => ({ ...p, role: "admin" }));
+                              if (m.erFirmaansvarlig) {
+                                settFirmaansvarligMutation.mutate({ id: m.id, projectId: prosjektId, erFirmaansvarlig: false });
+                              }
+                            } else {
+                              // Medlem: role=member + erFirmaansvarlig=false
+                              setRedigerData((p) => ({ ...p, role: "member" }));
+                              if (m.erFirmaansvarlig) {
+                                settFirmaansvarligMutation.mutate({ id: m.id, projectId: prosjektId, erFirmaansvarlig: false });
+                              }
                             }
-                          } else {
-                            // Medlem: role=member + erFirmaansvarlig=false
-                            setRedigerData((p) => ({ ...p, role: "member" }));
-                            if (m.erFirmaansvarlig) {
-                              settFirmaansvarligMutation.mutate({ id: m.id, projectId: prosjektId, erFirmaansvarlig: false });
-                            }
-                          }
-                        }}
-                        className="rounded border border-blue-300 px-1.5 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
-                      >
-                        <option value="member">{t("kontakter.medlem")}</option>
-                        <option value="firmaansvarlig">{t("brukere.firmaansvarlig")}</option>
-                        <option value="admin">Admin</option>
-                      </select>
-                    ) : (
-                      <span className={`inline-flex rounded px-1.5 py-0.5 text-xs font-medium ${
-                        m.role === "admin"
-                          ? "bg-blue-50 text-blue-700"
-                          : m.erFirmaansvarlig
-                            ? "bg-amber-50 text-amber-700"
-                            : "bg-gray-100 text-gray-600"
-                      }`}>
-                        {m.role === "admin" ? "Admin" : m.erFirmaansvarlig ? t("brukere.firmaansvarlig") : t("kontakter.medlem")}
-                      </span>
-                    )}
+                          }}
+                          className="rounded border border-blue-300 px-1.5 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
+                        >
+                          <option value="member">{t("kontakter.medlem")}</option>
+                          <option value="firmaansvarlig">{t("brukere.firmaansvarlig")}</option>
+                          <option value="admin">Admin</option>
+                        </select>
+                      ) : (
+                        <span className={`inline-flex rounded px-1.5 py-0.5 text-xs font-medium ${
+                          m.role === "admin"
+                            ? "bg-blue-50 text-blue-700"
+                            : m.erFirmaansvarlig
+                              ? "bg-amber-50 text-amber-700"
+                              : "bg-gray-100 text-gray-600"
+                        }`}>
+                          {m.role === "admin" ? "Admin" : m.erFirmaansvarlig ? t("brukere.firmaansvarlig") : t("kontakter.medlem")}
+                        </span>
+                      )}
+
+                      {/* Attestering sub-pill — kapabilitet (ikke rolle) */}
+                      {m.role === "admin" ? (
+                        <span
+                          className="inline-flex items-center gap-1 rounded bg-green-50 px-1.5 py-0.5 text-xs font-medium text-green-700 opacity-60"
+                          title={t("oppsett.attesteringImplisittAdmin") ?? ""}
+                        >
+                          ✓ {t("oppsett.attestering")}
+                        </span>
+                      ) : m.kanAttestere ? (
+                        <button
+                          type="button"
+                          onClick={() => settKanAttestereMutation.mutate({ id: m.id, projectId: prosjektId, kanAttestere: false })}
+                          disabled={settKanAttestereMutation.isPending}
+                          className="inline-flex items-center gap-1 rounded bg-green-50 px-1.5 py-0.5 text-xs font-medium text-green-700 hover:bg-green-100 disabled:opacity-50"
+                        >
+                          ✓ {t("oppsett.attestering")}
+                        </button>
+                      ) : erRedigering ? (
+                        <button
+                          type="button"
+                          onClick={() => settKanAttestereMutation.mutate({ id: m.id, projectId: prosjektId, kanAttestere: true })}
+                          disabled={settKanAttestereMutation.isPending}
+                          className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-gray-500 hover:bg-gray-50 hover:text-blue-600 disabled:opacity-50"
+                        >
+                          + {t("oppsett.giAttestering")}
+                        </button>
+                      ) : null}
+                    </div>
                   </td>
 
                   {/* Faggrupper (read-only) */}
