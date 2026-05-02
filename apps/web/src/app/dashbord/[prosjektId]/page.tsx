@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useState, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { MoreVertical, Settings, Printer, Download } from "lucide-react";
+import { MoreVertical, Settings, Printer, Download, Check } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { Card, Spinner, StatusBadge } from "@sitedoc/ui";
 import { SekundaertPanel } from "@/components/layout/SekundaertPanel";
@@ -18,6 +18,10 @@ export default function ProsjektOversikt() {
   const { data: session } = useSession();
   const { data: prosjekt, isLoading } = trpc.prosjekt.hentMedId.useQuery(
     { id: params.prosjektId },
+  );
+  const { data: onboardingStatus } = trpc.prosjekt.hentOnboardingStatus.useQuery(
+    { projectId: params.prosjektId },
+    { enabled: !!params.prosjektId },
   );
 
   const [merMenyAapen, setMerMenyAapen] = useState(false);
@@ -109,6 +113,59 @@ export default function ProsjektOversikt() {
             }
           </div>
         )}
+        {erAdmin && onboardingStatus && (() => {
+          const steg = [
+            {
+              label: t("onboarding.dokumentflyt"),
+              ferdig: onboardingStatus.harDokumentflyt,
+              href: "/dashbord/oppsett/produksjon/kontakter",
+            },
+            {
+              label: t("onboarding.brukergrupper"),
+              ferdig: onboardingStatus.harBrukergruppe,
+              href: "/dashbord/oppsett/brukere",
+            },
+            {
+              label: t("onboarding.maler"),
+              ferdig: onboardingStatus.harMalKobletTilFlyt,
+              href: "/dashbord/oppsett/produksjon/kontakter",
+            },
+            {
+              label: t("onboarding.lokasjoner"),
+              ferdig: onboardingStatus.harLokasjon,
+              href: "/dashbord/oppsett/lokasjoner",
+            },
+          ];
+          const alleFerdige = steg.every((s) => s.ferdig);
+          if (alleFerdige) return null;
+          return (
+            <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">
+              <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-blue-700">
+                {t("onboarding.bannerTittel")}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {steg.map((s) => (
+                  <Link
+                    key={s.label}
+                    href={s.href}
+                    className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                      s.ferdig
+                        ? "border-green-200 bg-green-50 text-green-700 hover:bg-green-100"
+                        : "border-gray-300 bg-white text-gray-600 hover:bg-gray-100"
+                    }`}
+                  >
+                    {s.ferdig ? (
+                      <Check className="h-3 w-3" />
+                    ) : (
+                      <span className="inline-block h-3 w-3 rounded-sm border border-gray-400" />
+                    )}
+                    {s.label}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
         <div className="mb-6 flex items-center gap-3">
           <h2 className="text-xl font-bold">{prosjekt.name}</h2>
           <StatusBadge status={prosjekt.status} />
