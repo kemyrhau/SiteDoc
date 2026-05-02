@@ -36,8 +36,9 @@ async function hentBrukerOrgId(userId: string): Promise<string> {
 
 /**
  * Sjekk om bruker kan godkjenne dagssedler for et prosjekt.
- * Leder = ProjectMember.role i {"admin","project_manager"} eller
- * sitedoc_admin / company_admin med matchende org.
+ * Leder = ProjectMember.role="admin" ELLER ProjectMember.kanAttestere=true,
+ * eller sitedoc_admin / company_admin med matchende org.
+ * (Boolean-kapabilitet vedtatt 2026-05-02 — erstatter "project_manager"-rolle.)
  */
 async function erProsjektLeder(userId: string, projectId: string): Promise<boolean> {
   const bruker = await prisma.user.findUnique({
@@ -56,9 +57,9 @@ async function erProsjektLeder(userId: string, projectId: string): Promise<boole
 
   const medlem = await prisma.projectMember.findUnique({
     where: { userId_projectId: { userId, projectId } },
-    select: { role: true },
+    select: { role: true, kanAttestere: true },
   });
-  return medlem?.role === "admin" || medlem?.role === "project_manager";
+  return medlem?.role === "admin" || medlem?.kanAttestere === true;
 }
 
 async function krevProsjektLeder(userId: string, projectId: string): Promise<void> {

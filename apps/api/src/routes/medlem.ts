@@ -454,4 +454,25 @@ export const medlemRouter = router({
         data: { erFirmaansvarlig: input.erFirmaansvarlig },
       });
     }),
+
+  // Toggle kanAttestere-kapabilitet (timer-attestering) for et prosjektmedlem.
+  // role="admin" har implisitt attestering-tilgang via erProsjektLeder, men
+  // kanAttestere lar prosjekt-admin gi eksplisitt opt-in til medlemmer
+  // (role="member") som ikke skal være full prosjekt-admin.
+  settKanAttestere: protectedProcedure
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        projectId: z.string().uuid(),
+        kanAttestere: z.boolean(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await verifiserAdmin(ctx.userId, input.projectId);
+      return ctx.prisma.projectMember.update({
+        where: { id: input.id },
+        data: { kanAttestere: input.kanAttestere },
+        select: { id: true, kanAttestere: true },
+      });
+    }),
 });

@@ -231,16 +231,18 @@ Full anker-tre med tre nivåer (Firma → Firmaadministrasjon → Prosjekter), b
 
 ## Admin-arkitektur og roller
 
-To DB-kolonner styrer tilgang: `User.role` (`sitedoc_admin` | `company_admin` | `user`) og `ProjectMember.role` (`admin` | `project_manager` | `worker` | `field_user`).
+To DB-kolonner styrer tilgang: `User.role` (`sitedoc_admin` | `company_admin` | `user`) og `ProjectMember.role` (`admin` | `member`). Kapabiliteter på ProjectMember (boolean-felter) gir spesifikke tilleggs-rettigheter uten å endre rolle.
 
 | Nivå | DB-verdi | Arver | Beskyttelse |
 |------|----------|-------|-------------|
 | **Superadmin** (Kenneth) | `User.role = "sitedoc_admin"` | Alt | `verifiserSiteDocAdmin()` |
 | **Org-admin** (kundens admin) | `User.role = "company_admin"` | Admin i alle org-prosjekter, UTEN ProjectMember-rad | `verifiserOrganisasjonTilgang()` |
 | **Prosjektadmin** | `ProjectMember.role = "admin"` | — | `harProsjektTilgang()` |
-| **Prosjektleder** | `ProjectMember.role = "project_manager"` | — | `harProsjektTilgang()` |
-| **Arbeider** | `ProjectMember.role = "worker"` | — | `harProsjektTilgang()` |
-| **Feltbruker** | `ProjectMember.role = "field_user"` | — | `harProsjektTilgang()` |
+| **Prosjektmedlem** | `ProjectMember.role = "member"` | — | `harProsjektTilgang()` |
+
+**Kapabilitets-felter på ProjectMember** (boolean, eksplisitt opt-in):
+- `kanAttestere` — gir timer-attestering uten prosjekt-admin (vedtatt 2026-05-02). `role="admin"` har implisitt attestering-tilgang i `erProsjektLeder`.
+- `erFirmaansvarlig` — flyt-relatert ansvar (eksisterende felt).
 
 **`harProsjektTilgang(userId, projectId)`**: Sjekker ProjectMember-rad ELLER company_admin med riktig org. Alle prosjekt-ruter bruker denne — aldri inline-sjekk. Ligger i `tilgangskontroll.ts`.
 
