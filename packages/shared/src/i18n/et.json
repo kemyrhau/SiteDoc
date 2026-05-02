@@ -54,6 +54,7 @@
   "status.underBehandling": "Ülevaatamisel",
   "status.ventende": "Ootel",
   "status.tilGodkjenning": "Kinnitamiseks",
+  "status.tilAttestering": "Kinnitamiseks",
   "status.aktiv": "Aktiivne",
   "status.arkivert": "Arhiveeritud",
   "handling.opprett": "Loo",

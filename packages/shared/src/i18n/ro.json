@@ -54,6 +54,7 @@
   "status.underBehandling": "În curs de revizuire",
   "status.ventende": "În așteptare",
   "status.tilGodkjenning": "Pentru aprobare",
+  "status.tilAttestering": "Pentru aprobare",
   "status.aktiv": "Activ",
   "status.arkivert": "Arhivat",
   "handling.opprett": "Crea",

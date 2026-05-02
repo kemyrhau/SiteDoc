@@ -44,9 +44,9 @@ export function useAktivSeksjon(): Seksjon {
 
     // Finn seksjon etter prosjektId (indeks 2 i pathen)
     const seksjonDel = deler[2];
-    // Spesialfall: /timer/godkjenning er egen seksjon
-    if (seksjonDel === "timer" && deler[3] === "godkjenning") {
-      setAktivSeksjon("timer-godkjenning");
+    // Spesialfall: /timer/attestering er egen seksjon
+    if (seksjonDel === "timer" && deler[3] === "attestering") {
+      setAktivSeksjon("timer-attestering");
       return;
     }
     const seksjon = seksjonDel ? seksjonMap[seksjonDel] : undefined;

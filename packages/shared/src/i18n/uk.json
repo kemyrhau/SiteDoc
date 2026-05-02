@@ -54,6 +54,7 @@
   "status.underBehandling": "На розгляді",
   "status.ventende": "В очікуванні",
   "status.tilGodkjenning": "Для затвердження",
+  "status.tilAttestering": "Для затвердження",
   "status.aktiv": "Активний",
   "status.arkivert": "Архівовано",
   "handling.opprett": "Створити",
