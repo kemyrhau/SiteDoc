@@ -11,6 +11,27 @@ emne: Dagsseddel-arkitektur — aktivitet/maskinbruk/vareforbruk på sedel- vs r
 > **Status (2026-05-02):** Identifisert som problem under Runde 2-utvikling.
 > Ingen beslutning fattet ennå. Krever Kenneth-input før koding.
 
+## Modul-avhengigheter for dagsseddel
+
+Dagsseddelen er knutepunkt for tre moduler. Disse MÅ leses sammen:
+
+| Modul | Dokument | Avhengighet |
+|-------|----------|-------------|
+| Timer | [timer.md](timer.md) | Definerer dagsseddel-struktur (`daily_sheets`, `sheet_timer`, `sheet_tillegg`) |
+| Maskin | [maskin.md](maskin.md) | `sheet_machines` kobles via `sheetId` (planlagt Runde 2.5/3) |
+| Varelager | [fase-0-beslutninger.md C.16](fase-0-beslutninger.md) | `Vareforbruk.dagsseddelId?` (planlagt Fase 3) |
+
+**Regel:** Ingen endring i `daily_sheets`, `sheet_timer`, `sheet_tillegg`
+eller `sheet_machines` kan gjøres uten å lese alle tre dokumentene.
+
+**Bakgrunn for regelen:** Aktivitet/maskinbruk/vareforbruk-konflikten i kveld
+2026-05-02 (Maskintimer-aktivitet vs `sheet_machines` vs `Vareforbruk`) viste
+at modulgrenser er klare i isolerte spec-er men UKLARE når dagsseddelen er
+knutepunkt. Begrepet «materialer» har f.eks. tre konkurrerende
+representasjoner: `sheet_materials`-skissen (foreldet), `sheet_machines.mengde`
+(maskin-utlagt mengde), `Vareforbruk` (varekatalog-FK). Endringer på én side
+gir ringvirkninger som kun ses ved å lese alle tre.
+
 ## Problemstilling
 
 Under Runde 2 visuell verifisering av Timer-modulen oppdaget Kenneth at han

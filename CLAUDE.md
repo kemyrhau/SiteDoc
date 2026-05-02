@@ -640,6 +640,27 @@ To DB-kolonner styrer tilgang: `User.role` (`sitedoc_admin` | `company_admin` | 
 - Varsling ≠ deling — RUH gir varsel med metadata, ikke dokumentet
 - Ingen duplikater — dokument bor alltid hos eier-org
 
+## Arkitekturprinsipper
+
+### Modul-avhengighets-regelen (vedtatt 2026-05-02)
+
+Når flere moduler deler en sentral entitet (f.eks. dagsseddel som
+knutepunkt for Timer/Maskin/Varelager), må endringer i den entitetens
+schema eller flyt verifiseres mot ALLE involverte modul-dokumenter
+før koding. Konflikter mellom modul-spec-er er forutsigbare når
+modulene utvikles isolert — bevisstheten må ligge i prosessen.
+
+**Konkret regel for dagsseddel:** Ingen endring i `daily_sheets`,
+`sheet_timer`, `sheet_tillegg` eller `sheet_machines` uten å først
+lese [timer.md](docs/claude/timer.md), [maskin.md](docs/claude/maskin.md)
+og [fase-0-beslutninger.md C.16](docs/claude/fase-0-beslutninger.md).
+Oppgavespesifikke avhengigheter dokumenteres i
+[dagsseddel-design.md § Modul-avhengigheter](docs/claude/dagsseddel-design.md).
+
+**Bakgrunn:** Aktivitet/maskinbruk/vareforbruk-konflikten 2026-05-02
+viste at modulgrenser er klare i isolerte spec-er men uklare når én
+entitet er felles knutepunkt.
+
 ## Viktige regler
 
 ### Dokumentasjons-disiplin (sannhetskilde-prinsippet)
