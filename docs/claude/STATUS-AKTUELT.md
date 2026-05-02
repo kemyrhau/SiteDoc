@@ -159,6 +159,10 @@ Blokkerer selvstendig A.Markussen-onboarding. Ankret i [onboarding-veileder.md](
 
 Formål: systematisk verifisering av at riktige funksjoner er tilgjengelig per rolle, og at utilgjengelige funksjoner er skjult/blokkert. Eksempel: Timer-attestering skal kun være synlig for Per/Kari/Tore (ikke Ola); Firma-administrasjon skal kun være tilgjengelig for Kari/Tore; Superadmin-flater kun for Tore. Dekker også verifisering av RBAC-helpers (`harProsjektTilgang`, `verifiserOrganisasjonTilgang`, `verifiserSiteDocAdmin`) og sidebar-gating.
 
+## Kjente bugs
+
+**Lokasjon-modal forhåndsvelger ikke når kun ett alternativ finnes (observert 2026-05-02):** Når en sjekkliste har lokasjon-felt og prosjektet har bare 1 byggeplass + 1 tegning, må brukeren likevel klikke gjennom dropdownene manuelt. Bør auto-velge når dropdown har én eneste option per nivå. Lav prioritet, men irriterende ved hver lagring/sending. Foreslått fiks: i lokasjon-modal-komponenten, sett valgt verdi automatisk hvis `options.length === 1` per dropdown.
+
 ## Planlagte faser
 
 Detaljert plan: [arkitektur-syntese.md §5](arkitektur-syntese.md). Beslutningsgrunnlag: [fase-0-beslutninger.md](fase-0-beslutninger.md).
