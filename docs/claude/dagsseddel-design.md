@@ -237,6 +237,6 @@ neste sesjon.
 
 ## Etter C9 — gjenstående arbeid
 
-- **Runde 2.6** (egen): equipment_local + maskinKatalog + maskin-seksjon på mobil
+- ~~**Runde 2.6** (egen): equipment_local + maskinKatalog + maskin-seksjon på mobil~~ ✅ **Implementert 2026-05-02 på `feature/timer-2.6`**
 - **Runde ECO-type → Godkjenning-mapping** (egen, før Runde 3): mapping-policy fra ProAdm-typer til Godkjenning-flytmaler
 - **Runde 3** (Eksport-adaptere): bruker C9-snapshot for lønn-eksport per aktivitet

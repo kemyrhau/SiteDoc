@@ -17,6 +17,7 @@ import {
   tellConflict,
 } from "../services/timerSync";
 import { refreshKatalog } from "../services/timerKatalog";
+import { refreshMaskinKatalog } from "../services/maskinKatalog";
 
 interface TimerSyncKontekst {
   pendingAntall: number;
@@ -82,7 +83,13 @@ export function TimerSyncProvider({ children }: { children: ReactNode }) {
     if (katalogRefreshRef.current) return;
     katalogRefreshRef.current = true;
     try {
-      await refreshKatalog(utils.client);
+      // Parallelle pulls — Equipment-cache (Maskin-modul) er ikke-blokkerende
+      // for Timer-katalog. Hvis Maskin er av eller equipment.list feiler,
+      // returnerer refreshMaskinKatalog tom liste uten å kaste.
+      await Promise.all([
+        refreshKatalog(utils.client),
+        refreshMaskinKatalog(utils.client),
+      ]);
       setKatalogLastet(true);
     } catch (e) {
       // Katalog-feil er ikke kritisk — UI faller tilbake til eksisterende cache
