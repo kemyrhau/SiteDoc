@@ -28,10 +28,26 @@ export default function DashbordSide() {
   const prosjekter = prosjekterQuery.data as ProsjektListeRad[] | undefined;
   const isLoading = prosjekterQuery.isLoading;
 
-  // Redirect til "Kom i gang" hvis brukeren ikke har noen prosjekter
+  // Auto-redirect basert på antall prosjekter:
+  //  0  → /dashbord/kom-i-gang
+  //  1  → direkte til prosjektet
+  //  2+ → sist besøkte (lastVisitedProjectId i localStorage). Bli stående hvis ingen.
   useEffect(() => {
-    if (!isLoading && prosjekter && prosjekter.length === 0) {
+    if (isLoading || !prosjekter) return;
+    if (prosjekter.length === 0) {
       router.replace("/dashbord/kom-i-gang");
+      return;
+    }
+    if (prosjekter.length === 1) {
+      const eneste = prosjekter[0];
+      if (eneste) router.replace(`/dashbord/${eneste.id}`);
+      return;
+    }
+    if (typeof window !== "undefined") {
+      const sistBesokt = localStorage.getItem("lastVisitedProjectId");
+      if (sistBesokt && prosjekter.some((p) => p.id === sistBesokt)) {
+        router.replace(`/dashbord/${sistBesokt}`);
+      }
     }
   }, [isLoading, prosjekter, router]);
 
