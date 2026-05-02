@@ -1380,6 +1380,32 @@ Massetransport som egen strøm: kjøretøy + antall lass + hentet fra + levert t
 > skjer inni Timer-flyten. Endringer i koblingen krever lesing av
 > [dagsseddel-design.md § Modul-avhengigheter](dagsseddel-design.md).
 
+### C.18 Aktivitet flyttet fra DailySheet → SheetTimer + sheet_machines + ECO.proAdmType — ✅ **VEDTATT 2026-05-02** (implementert i C9 / Runde 2.5)
+
+**Bakgrunn:** Identifisert under Runde 2 visuell verifisering 2026-05-02. A.Markussen-empiri (per [smartdok-undersokelse.md § 4.2](smartdok-undersokelse.md)) krever at samme dagsseddel kan ha både `Anleggsarbeid`-rader (kode 11) og `Maskintimer`-rader (kode 18). Med aktivitet på sedel-nivå var det umulig. Løsning: flytt aktivitet til rad-nivå, samme presedens som ECO-flyttingen (vedtatt 2026-04-29).
+
+**Vedtatte endringer:**
+
+1. **`SheetTimer.aktivitetId String` (NOT NULL)** + `Aktivitet` Restrict-FK + index. Backfill fra `DailySheet.aktivitetId` i samme migrasjon.
+2. **`DailySheet.aktivitetId String?` (nullable)** — beholdes som default-felt for UX (kopieres til første rad ved opprettelse, kan overstyres per rad).
+3. **Ny `SheetMachine`-tabell** i `db-timer` med `vehicleId String` (svak FK til db-maskin Equipment per A.20), `timer Decimal`, `mengde Decimal?`, `enhet String?`, `attestertSnapshot Json?` (null inntil Equipment-prising er spec'd i Maskin Fase 1+).
+4. **`ExternalCostObject.proAdmType String?`** i kjernen — fri tekst, utvides dynamisk når nye ProAdm-typer dukker opp. Ikke enum. Mapping ECO-type → Godkjenning-flytmal utsettes til egen runde før Runde 3.
+5. **Ny `timer.dagsseddel.maskin.{tilfoy,oppdater,fjern}` tRPC-router** — sheet_machines lever i db-timer fordi Timer eier dagsseddelen. Equipment-katalog leveres av Maskin-modul via service-lag (cross-modul-konvensjon per § 6.1.1 i arkitektur-syntese).
+6. **Ny `timer.dagsseddel.hentDagstotal({userId, dato})`** — sum timer på tvers av prosjekter for én bruker × én dato. Multi-sedel per dag aksepteres (eksisterende unique-constraint `(userId, projectId, dato)` beholdes).
+7. **Soft-skjul-mønster på UI:** Maskin-seksjon vises kun hvis Equipment-listen er ikke-tom (Maskin-modul aktivert). Ingen feilmelding hvis modul av.
+8. **Mobil maskin-cache utsatt** til Runde 2.6 — `equipment_local`-tabell + `maskinKatalog.ts` + sync-mekanikk for sheet_machines på mobil. C9 leverer kun aktivitet-per-rad på mobil; sheet_machine_local-tabellen opprettes for sync-symmetri.
+
+**Påvirkning på eksisterende beslutninger:**
+
+- **A.7 (Snapshot ved attestering):** SheetTimer.attestertSnapshot utvides med `aktivitetId/aktivitetKode/aktivitetNavn`. SheetMachine.attestertSnapshot legges på i samme transaksjon (uten pris-felter inntil videre).
+- **C.16 (Vareforbruk):** Ingen endring — Vareforbruk-modulen forblir egen modul med `Vareforbruk.dagsseddelId?`-kobling. Sheet_materials-skissen i timer.md:769 forblir foreldet.
+
+**Implementasjon:** `feature/timer-2.5`-branchen — se [dagsseddel-design.md § Implementasjons-spor](dagsseddel-design.md).
+
+**Foreldet av C.18:** dagsseddel-design.md var åpen — nå lukket. Alle 11 spørsmål besvart i § Vedtatte beslutninger der.
+
+---
+
 ### C.17 BibliotekMal/OrganizationTemplate språkstøtte — 🟡 **ÅPEN — IKKE SPEC'ET (notert 2026-05-01)**
 
 **Bakgrunn:** Identifisert under E.8-kartlegging 2026-05-01. `BibliotekMal.navn` og `BibliotekKapittel.navn` er flate strenger uten `translations Json`-felt. `ReportObject` og `OrganizationTemplateObject` (E.7) har `translations Json @default("{}")` — men `ReportTemplate`/`OrganizationTemplate`/`BibliotekMal` selv har det ikke. Sentralbibliotek er i dag kun norsk; engelsk/andre språk på selve mal-navnene mangler.

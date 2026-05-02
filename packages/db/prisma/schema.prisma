@@ -1700,6 +1700,7 @@ model ExternalCostObject {
 
   proAdmId              String   @map("proadm_id")              // UI-referanse fra ProAdm
   proAdmIdAtImport      String?  @map("proadm_id_at_import")    // Snapshot ved import (per A.22)
+  proAdmType            String?  @map("proadm_type")             // ProAdm-typebegrep (varsel/endring/tilleggsarbeid/regningsarbeid m.fl.). Fri streng — utvides dynamisk når nye typer dukker opp. Kan kobles til Godkjenning-flytmal i fremtidig runde.
 
   kortNavn              String   @map("kort_navn")
   kilde                 String                                   // "proadm_import" | "manuell" | "felt_opprettet"

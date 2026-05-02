@@ -105,8 +105,27 @@ export const sheetTimerLocal = sqliteTable("sheet_timer_local", {
   id: text("id").primaryKey(),
   dagsseddelId: text("dagsseddel_id").notNull(), // FK → dagsseddel_local.id
   lonnsartId: text("lonnsart_id").notNull(),
+  // Per-rad aktivitet (C9 2026-05-02). Kolonnen tilføyes idempotent via
+  // ALTER i migreringer.ts; eksisterende rader backfilles fra parent.
+  aktivitetId: text("aktivitet_id").notNull(),
   externalCostObjectId: text("external_cost_object_id"),
   timer: real("timer").notNull(), // Decimal lagres som real — tap av presisjon < 0.01 OK for timer-felt
+  sistEndretLokalt: integer("sist_endret_lokalt").notNull(),
+});
+
+/**
+ * sheet_machine_local — maskinbruk-rader per dagsseddel (C9 2026-05-02).
+ * vehicleId er svak FK til db-maskin Equipment. Equipment-cache lokalt
+ * på mobil er utsatt til Runde 2.6 — UI vises kun når Maskin-modul er
+ * aktivert via web-flyten.
+ */
+export const sheetMachineLocal = sqliteTable("sheet_machine_local", {
+  id: text("id").primaryKey(),
+  dagsseddelId: text("dagsseddel_id").notNull(),
+  vehicleId: text("vehicle_id").notNull(),
+  timer: real("timer").notNull(),
+  mengde: real("mengde"),
+  enhet: text("enhet"),
   sistEndretLokalt: integer("sist_endret_lokalt").notNull(),
 });
 

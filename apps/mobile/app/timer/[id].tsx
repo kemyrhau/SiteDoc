@@ -157,6 +157,7 @@ export default function DagsseddelDetalj() {
 
   function leggTilTimerRad(
     lonnsartId: string,
+    aktivitetId: string,
     timer: number,
     externalCostObjectId: string | null,
   ) {
@@ -167,6 +168,7 @@ export default function DagsseddelDetalj() {
         id: randomUUID(),
         dagsseddelId: sheetId,
         lonnsartId,
+        aktivitetId,
         externalCostObjectId,
         timer,
         sistEndretLokalt: Date.now(),
@@ -179,6 +181,7 @@ export default function DagsseddelDetalj() {
   function oppdaterTimerRad(
     radId: string,
     lonnsartId: string,
+    aktivitetId: string,
     timer: number,
     externalCostObjectId: string | null,
   ) {
@@ -187,6 +190,7 @@ export default function DagsseddelDetalj() {
     db.update(sheetTimerLocal)
       .set({
         lonnsartId,
+        aktivitetId,
         timer,
         externalCostObjectId,
         sistEndretLokalt: Date.now(),
@@ -517,21 +521,23 @@ export default function DagsseddelDetalj() {
       {visTimerModal && (
         <TimerRadModal
           projectId={sedel.projectId}
+          defaultAktivitetId={sedel.aktivitetId ?? null}
           eksisterendeRad={
             redigerTimerRadId
               ? timerRader.find((r) => r.id === redigerTimerRadId) ?? null
               : null
           }
-          onLagre={(lonnsartId, timer, externalCostObjectId) => {
+          onLagre={(lonnsartId, aktivitetId, timer, externalCostObjectId) => {
             if (redigerTimerRadId) {
               oppdaterTimerRad(
                 redigerTimerRadId,
                 lonnsartId,
+                aktivitetId,
                 timer,
                 externalCostObjectId,
               );
             } else {
-              leggTilTimerRad(lonnsartId, timer, externalCostObjectId);
+              leggTilTimerRad(lonnsartId, aktivitetId, timer, externalCostObjectId);
             }
             setVisTimerModal(false);
             setRedigerTimerRadId(null);
@@ -596,13 +602,28 @@ function TimerRadVis({
     return treff ?? null;
   }, [rad.lonnsartId]);
 
+  const aktivitet = useMemo(() => {
+    if (!rad.aktivitetId) return null;
+    const db = hentDatabase();
+    if (!db) return null;
+    const treff = db
+      .select()
+      .from(aktivitetLocal)
+      .where(eq(aktivitetLocal.id, rad.aktivitetId))
+      .all()[0];
+    return treff ?? null;
+  }, [rad.aktivitetId]);
+
   return (
     <View className="flex-row items-center gap-2 border-b border-gray-100 bg-white px-4 py-3">
       <View className="flex-1">
         <Text className="text-base text-gray-900">
           {lonnsart?.navn ?? rad.lonnsartId}
         </Text>
-        <View className="flex-row gap-2">
+        <View className="flex-row flex-wrap gap-2">
+          {aktivitet && (
+            <Text className="text-xs text-gray-500">{aktivitet.navn}</Text>
+          )}
           {lonnsart?.kode && (
             <Text className="text-xs text-gray-500">{lonnsart.kode}</Text>
           )}
@@ -717,14 +738,17 @@ function TilleggRadVis({
 
 function TimerRadModal({
   projectId,
+  defaultAktivitetId,
   eksisterendeRad,
   onLagre,
   onLukk,
 }: {
   projectId: string;
+  defaultAktivitetId: string | null;
   eksisterendeRad: TimerRad | null;
   onLagre: (
     lonnsartId: string,
+    aktivitetId: string,
     timer: number,
     externalCostObjectId: string | null,
   ) => void;
@@ -734,6 +758,9 @@ function TimerRadModal({
   const [valgtLonnsartId, setValgtLonnsartId] = useState<string>(
     eksisterendeRad?.lonnsartId ?? "",
   );
+  const [valgtAktivitetId, setValgtAktivitetId] = useState<string>(
+    eksisterendeRad?.aktivitetId ?? defaultAktivitetId ?? "",
+  );
   const [timer, setTimer] = useState<string>(
     eksisterendeRad?.timer ? eksisterendeRad.timer.toFixed(2) : "",
   );
@@ -742,6 +769,7 @@ function TimerRadModal({
   );
   const [feil, setFeil] = useState<string | null>(null);
   const [visLonnsartVelger, setVisLonnsartVelger] = useState(false);
+  const [visAktivitetVelger, setVisAktivitetVelger] = useState(false);
   const [visEcoVelger, setVisEcoVelger] = useState(false);
 
   const valgtLonnsart = useMemo(() => {
@@ -756,6 +784,19 @@ function TimerRadModal({
         .all()[0] ?? null
     );
   }, [valgtLonnsartId]);
+
+  const valgtAktivitet = useMemo(() => {
+    if (!valgtAktivitetId) return null;
+    const db = hentDatabase();
+    if (!db) return null;
+    return (
+      db
+        .select()
+        .from(aktivitetLocal)
+        .where(eq(aktivitetLocal.id, valgtAktivitetId))
+        .all()[0] ?? null
+    );
+  }, [valgtAktivitetId]);
 
   const valgtEco = useMemo(() => {
     if (!valgtEcoId) return null;
@@ -776,12 +817,16 @@ function TimerRadModal({
       setFeil(t("timer.feil.lonnsartPaakrevd"));
       return;
     }
+    if (!valgtAktivitetId) {
+      setFeil(t("timer.feil.aktivitetPaakrevd"));
+      return;
+    }
     const tall = parseFloat(timer.replace(",", "."));
     if (isNaN(tall) || tall <= 0 || tall > 24) {
       setFeil(t("timer.feil.ugyldigTimer"));
       return;
     }
-    onLagre(valgtLonnsartId, tall, valgtEcoId);
+    onLagre(valgtLonnsartId, valgtAktivitetId, tall, valgtEcoId);
   }
 
   return (
@@ -814,6 +859,22 @@ function TimerRadModal({
                 className={`text-base ${valgtLonnsart ? "text-gray-900" : "text-gray-400"}`}
               >
                 {valgtLonnsart?.navn ?? t("timer.velgLonnsart")}
+              </Text>
+            </Pressable>
+          </View>
+
+          <View>
+            <Text className="mb-1 text-sm font-medium text-gray-700">
+              {t("timer.felt.aktivitet")} *
+            </Text>
+            <Pressable
+              onPress={() => setVisAktivitetVelger(true)}
+              className="rounded-lg border border-gray-300 bg-white px-3 py-3"
+            >
+              <Text
+                className={`text-base ${valgtAktivitet ? "text-gray-900" : "text-gray-400"}`}
+              >
+                {valgtAktivitet?.navn ?? t("timer.velgAktivitet")}
               </Text>
             </Pressable>
           </View>
@@ -881,6 +942,17 @@ function TimerRadModal({
               setVisLonnsartVelger(false);
             }}
             onLukk={() => setVisLonnsartVelger(false)}
+          />
+        )}
+
+        {visAktivitetVelger && (
+          <AktivitetVelgerModal
+            valgtId={valgtAktivitetId}
+            onVelg={(id) => {
+              setValgtAktivitetId(id);
+              setVisAktivitetVelger(false);
+            }}
+            onLukk={() => setVisAktivitetVelger(false)}
           />
         )}
 
@@ -981,6 +1053,100 @@ function LonnsartVelgerModal({
             <View className="px-4 py-8">
               <Text className="text-center text-gray-500">
                 {t("timer.ingenLonnsarter")}
+              </Text>
+            </View>
+          )}
+        />
+      </SafeAreaView>
+    </Modal>
+  );
+}
+
+/* ============================================================================
+ *  Aktivitet-velger (C9 2026-05-02) — datadrevet katalog per Organization
+ * ============================================================================ */
+
+function AktivitetVelgerModal({
+  valgtId,
+  onVelg,
+  onLukk,
+}: {
+  valgtId: string;
+  onVelg: (id: string) => void;
+  onLukk: () => void;
+}) {
+  const { t } = useTranslation();
+  const [sok, setSok] = useState("");
+
+  const aktiviteter = useMemo<Aktivitet[]>(() => {
+    const db = hentDatabase();
+    if (!db) return [];
+    return db
+      .select()
+      .from(aktivitetLocal)
+      .where(eq(aktivitetLocal.aktiv, true))
+      .all();
+  }, []);
+
+  const filtrert = useMemo(() => {
+    if (!sok.trim()) return aktiviteter;
+    const q = sok.toLowerCase();
+    return aktiviteter.filter(
+      (a) =>
+        a.navn.toLowerCase().includes(q) ||
+        (a.kode ?? "").toLowerCase().includes(q),
+    );
+  }, [aktiviteter, sok]);
+
+  return (
+    <Modal
+      visible={true}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      onRequestClose={onLukk}
+    >
+      <SafeAreaView className="flex-1 bg-white" edges={["top"]}>
+        <View className="flex-row items-center gap-2 border-b border-gray-200 px-4 py-3">
+          <Text className="flex-1 text-lg font-semibold text-gray-900">
+            {t("timer.velgAktivitet")}
+          </Text>
+          <Pressable onPress={onLukk} hitSlop={12}>
+            <X size={24} color="#1f2937" />
+          </Pressable>
+        </View>
+        {aktiviteter.length > 7 && (
+          <View className="border-b border-gray-200 px-4 py-2">
+            <TextInput
+              value={sok}
+              onChangeText={setSok}
+              placeholder={t("handling.sok")}
+              className="rounded bg-gray-100 px-3 py-2 text-base"
+            />
+          </View>
+        )}
+        <FlatList
+          data={filtrert}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => (
+            <Pressable
+              onPress={() => onVelg(item.id)}
+              className={`flex-row items-center border-b border-gray-100 px-4 py-3 ${
+                item.id === valgtId ? "bg-blue-50" : ""
+              }`}
+            >
+              <View className="flex-1">
+                <Text className="text-base text-gray-900">{item.navn}</Text>
+                {item.kode && (
+                  <Text className="text-xs text-gray-500">{item.kode}</Text>
+                )}
+              </View>
+              {item.id === valgtId && <Check size={18} color="#1e40af" />}
+            </Pressable>
+          )}
+          ListEmptyComponent={() => (
+            <View className="px-4 py-8">
+              <Text className="text-center text-gray-500">
+                {t("timer.ingenAktiviteter")}
               </Text>
             </View>
           )}

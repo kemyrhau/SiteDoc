@@ -247,4 +247,45 @@ export function kjorMigreringer() {
     CREATE INDEX IF NOT EXISTS idx_eco_local_project
       ON external_cost_object_local(project_id, status);
   `);
+
+  // Timer-modul Runde 2.5 / C9 — aktivitet per rad + sheet_machines
+  // Idempotent ALTER: legg til aktivitet_id på sheet_timer_local hvis mangler.
+  // Backfill: kopier fra parent dagsseddel_local.aktivitet_id.
+  try {
+    const tableInfo = db.getAllSync(
+      "PRAGMA table_info(sheet_timer_local)",
+    ) as Array<{ name: string }>;
+    if (!tableInfo.find((k) => k.name === "aktivitet_id")) {
+      console.log("[MIG] Legger til aktivitet_id på sheet_timer_local (C9)");
+      db.execSync(`ALTER TABLE sheet_timer_local ADD COLUMN aktivitet_id TEXT`);
+      db.execSync(`
+        UPDATE sheet_timer_local
+        SET aktivitet_id = (
+          SELECT aktivitet_id FROM dagsseddel_local
+          WHERE dagsseddel_local.id = sheet_timer_local.dagsseddel_id
+        )
+        WHERE aktivitet_id IS NULL
+      `);
+    }
+  } catch (e) {
+    console.warn("[MIG] Kunne ikke utvide sheet_timer_local med aktivitet_id:", e);
+  }
+
+  // Ny tabell: sheet_machine_local (maskinbruk per dagsseddel)
+  // vehicleId er svak FK til db-maskin Equipment (ingen lokal cache i C9
+  // — Maskin-modul på mobil utsatt til Runde 2.6).
+  db.execSync(`
+    CREATE TABLE IF NOT EXISTS sheet_machine_local (
+      id TEXT PRIMARY KEY NOT NULL,
+      dagsseddel_id TEXT NOT NULL,
+      vehicle_id TEXT NOT NULL,
+      timer REAL NOT NULL,
+      mengde REAL,
+      enhet TEXT,
+      sist_endret_lokalt INTEGER NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_sheet_machine_local_sheet
+      ON sheet_machine_local(dagsseddel_id);
+  `);
 }

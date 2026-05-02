@@ -23,7 +23,7 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 | [docs/claude/okonomi.md](docs/claude/okonomi.md) | Økonomi-modul: kontrakter, notaer, avvik, parsere, prosessering, dokumentsøk |
 | [docs/claude/bibliotek.md](docs/claude/bibliotek.md) | **Peker** til [kontrollplan.md](docs/claude/kontrollplan.md). Sentralbibliotek-koden er implementert (BibliotekMal + seed-bibliotek.ts). Innhold konsolidert 2026-04-16, fil beholdes som referanse-peker |
 | [docs/claude/timer.md](docs/claude/timer.md) | Timeregistrering: dagsseddel, lønnsarter, tillegg, utlegg, offline-sync |
-| [docs/claude/dagsseddel-design.md](docs/claude/dagsseddel-design.md) | **🟡 ÅPEN BESLUTNING (2026-05-02):** Aktivitet på rad-nivå vs sedel-nivå (Maskintimer + Anleggsarbeid samme dag/prosjekt). Skiller mot `sheet_machines`/Vareforbruk. Anbefaler Alt A — flytt aktivitetId til SheetTimer (samme presedens som ECO 2026-04-29). Krever Kenneth-input før koding |
+| [docs/claude/dagsseddel-design.md](docs/claude/dagsseddel-design.md) | **🟢 VEDTATT (2026-05-02):** Aktivitet flyttet til `SheetTimer.aktivitetId` (NOT NULL) per rad. `DailySheet.aktivitetId` blir nullable default. Ny `SheetMachine`-tabell. `ExternalCostObject.proAdmType String?` (fri tekst). Nye `timer.dagsseddel.maskin.*` mutations + `hentDagstotal`. Implementert i C9 / Runde 2.5. Se også [fase-0-beslutninger.md C.18](docs/claude/fase-0-beslutninger.md) |
 | [docs/claude/maskin.md](docs/claude/maskin.md) | Utstyrsregister: 3 kategorier (kjøretøy/anleggsmaskin/småutstyr), Vegvesen API, EU-kontroll, vedlikeholdsplan, GPS, telematikk |
 | [docs/claude/kontrollplan.md](docs/claude/kontrollplan.md) | Kontrollplan + Sjekklistebibliotek: NS 3420-K/F, Område-modell, lovkrav, matrise, sluttrapport, AI-utkast |
 | [docs/claude/planlegger.md](docs/claude/planlegger.md) | Fremdriftsplanlegger: ressursplanlegging, kompetanse, bemanning, forslag-motor |
@@ -48,7 +48,7 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 
 ## Pågående arbeid (kort)
 
-**Status 2026-05-02:** Fase 0 § E KOMPLETT i prod. Fase 0.5 KOMPLETT i prod. Timer-modul Fase 3 — Runde 1A + 1B + 1C deployet til prod. Runde 2 (mobil + offline-sync) C1–C8 KOMPLETT på develop, test/prod-deploy utsatt til neste sesjon.
+**Status 2026-05-02:** Fase 0 § E KOMPLETT i prod. Fase 0.5 KOMPLETT i prod. Timer-modul Fase 3 — Runde 1A + 1B + 1C deployet til prod. Runde 2 (mobil + offline-sync) C1–C8 KOMPLETT på develop, test/prod-deploy utsatt til neste sesjon. **Runde 2.5 / C9 (aktivitet per rad + sheet_machines + ECO.proAdmType) implementert på `feature/timer-2.5`** — se [docs/claude/dagsseddel-design.md](docs/claude/dagsseddel-design.md) + [fase-0-beslutninger.md C.18](docs/claude/fase-0-beslutninger.md).
 
 Full statusrapport — pågående arbeid, pauset arbeid, planlagte faser (Fase 0–7) — i [docs/claude/STATUS-AKTUELT.md](docs/claude/STATUS-AKTUELT.md).
 
