@@ -235,6 +235,17 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
     harInitialisertKollaps.current = true;
   }, [dbGrupper, t]);
 
+  // Esc avslutter redigeringsmodus uavhengig av fokusert element
+  // (dropdown, attestering-link osv. — input-felter har egen Esc-håndtering)
+  useEffect(() => {
+    if (!redigerMedlemId) return;
+    function handleKeydown(e: KeyboardEvent) {
+      if (e.key === "Escape") setRedigerMedlemId(null);
+    }
+    document.addEventListener("keydown", handleKeydown);
+    return () => document.removeEventListener("keydown", handleKeydown);
+  }, [redigerMedlemId]);
+
   const oppdaterMedlemMutation = trpc.medlem.oppdater.useMutation({
     onSuccess: () => {
       utils.medlem.hentForProsjekt.invalidate({ projectId: prosjektId });
