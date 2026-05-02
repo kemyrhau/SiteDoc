@@ -44,6 +44,7 @@ import {
 } from "../../src/db/schema";
 import { useTimerSync } from "../../src/providers/TimerSyncProvider";
 import { TimerStatusMerkelapp } from "../../src/components/TimerStatusMerkelapp";
+import { DagstotalBanner } from "../../src/components/DagstotalBanner";
 
 type Sedel = typeof dagsseddelLocal.$inferSelect;
 type TimerRad = typeof sheetTimerLocal.$inferSelect;
@@ -425,6 +426,14 @@ export default function DagsseddelDetalj() {
           syncStatus={sedel.syncStatus}
         />
       </View>
+
+      {/* Dagstotal-banner — sum på tvers av prosjekter for samme dato.
+          Ekskluderer denne sedlen for å vise hva som er ført ANDRE steder. */}
+      <DagstotalBanner
+        userId={sedel.userId}
+        dato={sedel.dato}
+        ekskluderSheetId={sedel.id}
+      />
 
       <ScrollView className="flex-1" contentContainerClassName="pb-24">
         {/* Status-banners */}

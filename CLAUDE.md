@@ -48,7 +48,7 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 
 ## Pågående arbeid (kort)
 
-**Status 2026-05-02:** Fase 0 § E KOMPLETT i prod. Fase 0.5 KOMPLETT i prod. Timer-modul Fase 3 — Runde 1A + 1B + 1C deployet til prod. Runde 2 (mobil + offline-sync) C1–C8 KOMPLETT på develop, test/prod-deploy utsatt til neste sesjon. **Runde 2.5 / C9 (aktivitet per rad + sheet_machines + ECO.proAdmType) implementert på `feature/timer-2.5`** — se [docs/claude/dagsseddel-design.md](docs/claude/dagsseddel-design.md) + [fase-0-beslutninger.md C.18](docs/claude/fase-0-beslutninger.md).
+**Status 2026-05-02:** Fase 0 § E KOMPLETT i prod. Fase 0.5 KOMPLETT i prod. **Timer-modul Fase 3 — Runde 1A/1B/1C + Runde 2 (mobil offline-sync C1-C8) + Runde 2.5/C9 (aktivitet per rad + sheet_machines + ECO.proAdmType) DEPLOYET TIL PROD 2026-05-02** (`de33aefc`). **Maskin terminologi-rename pensjonert→utgått DEPLOYET TIL PROD** (samme miljø, `03d8c63a`). **Runde 2.6 (mobil maskin-cache + EquipmentVelger) DEPLOYET TIL PROD 2026-05-02** (`03d8c63a`) — server-side klar; mobil får funksjonalitet ved neste EAS Build. **Runde 2.7 (Mine timer-rapport + DagstotalBanner + UkeTotalBanner + ukesoppsummering web) implementert på `feature/timer-2.7`** — ingen server-endring, gjenbruker `timer.dagsseddel.list`. Se [docs/claude/dagsseddel-design.md](docs/claude/dagsseddel-design.md) + [fase-0-beslutninger.md C.18](docs/claude/fase-0-beslutninger.md).
 
 Full statusrapport — pågående arbeid, pauset arbeid, planlagte faser (Fase 0–7) — i [docs/claude/STATUS-AKTUELT.md](docs/claude/STATUS-AKTUELT.md).
 
@@ -326,6 +326,11 @@ Reglene nedenfor — særlig **Auto-oppdater dokumentasjon**, **STATUS.md vedlik
 - **ALDRI deploy til produksjon** uten eksplisitt forespørsel fra brukeren ("deploy til prod")
 - **Auto-oppdater dokumentasjon:** Oppdater relevant fil i `docs/claude/` etter vesentlige endringer
 - **STATUS.md vedlikehold:** Når en fil i `docs/claude/` endrer status (verifisert / drift identifisert / under arbeid / ferdig), oppdater [docs/claude/STATUS.md](docs/claude/STATUS.md) i SAMME commit. Aldri separat commit kun for status-oppdatering. Gjelder også når nye filer opprettes eller eksisterende slettes/arkiveres. Tre faste felter må oppdateres samtidig: (1) linje 14 dato, (2) linje 21-22 tellinger ✅/⚠️, (3) tagger på berørte rader + status-flytting mellom seksjoner. § E-commits skal også inkludere STATUS.md-oppdatering med commit-hash i tagg-kommentar. Lærdom 2026-04-30 og 2026-05-01: utelatelser krevde retro-rettelses-commits.
+- **Funksjonsendrings-commits MÅ oppdatere status-dokumenter** (vedtatt 2026-05-02, ufravikelig): Hver commit som inneholder funksjonsendringer (ny feature, modul-runde, deploy, schema-endring, vesentlig refactor) MÅ i SAMME commit inkludere:
+  1. **CLAUDE.md § Pågående arbeid** — oppdatert status med commit-hash for det som ble implementert/deployet
+  2. **docs/claude/STATUS-AKTUELT.md** — oppdatert med hva som er implementert/deployet (hvilken runde, hvilket miljø, hash)
+
+  Dette er ikke valgfritt og skal ikke overlates til en separat oppfølger-commit. Lærdom: status-dokumenter som oppdateres i egen commit etterpå blir glemt eller drifter, og fremtidige sesjoner tar utdaterte beslutninger basert på utdatert status. Trivielle commits (ren typo-fix, kommentar-rens, formatting) er unntatt.
 - **YAML-header på docs/claude/-filer:** Filer som røres skal ha YAML-frontmatter per standarden i [oppryddings-plan-2026-04-28.md § P0.1](docs/claude/oppryddings-plan-2026-04-28.md). Bunkevis retro-fylling — header tilføyes som del av første rens-PR per fil. Inntil header eksisterer: behandle filen som `sist_verifisert_mot_kode: ukjent` og verifiser mot kode før du stoler på innholdet.
 - **Kontekstsparing:** Kontekstvinduet er begrenset — spar plass:
   - **Batch SSH-kommandoer:** Kombiner flere SSH-kall til ett script/én kommando i stedet for mange enkeltkommandoer. F.eks. ett `ssh sitedoc "cmd1 && cmd2 && cmd3"` i stedet for tre separate kall

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, FolderKanban, Users, CreditCard, Settings, Building2, Award, Clock } from "lucide-react";
+import { LayoutDashboard, FolderKanban, Users, CreditCard, Settings, Building2, Award, Clock, BarChart3 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { Spinner } from "@sitedoc/ui";
 
@@ -43,6 +43,12 @@ const navigasjon: NavElement[] = [
     label: "Timer",
     href: "/dashbord/firma/timer",
     ikon: <Clock className="h-4 w-4" />,
+    kreverFirmaModul: "timer",
+  },
+  {
+    label: "Mine timer",
+    href: "/dashbord/timer/mine",
+    ikon: <BarChart3 className="h-4 w-4" />,
     kreverFirmaModul: "timer",
   },
   {

@@ -19,6 +19,7 @@ import { hentDatabase } from "../../src/db/database";
 import { dagsseddelLocal, aktivitetLocal } from "../../src/db/schema";
 import { useAuth } from "../../src/providers/AuthProvider";
 import { useTimerSync } from "../../src/providers/TimerSyncProvider";
+import { DagstotalBanner } from "../../src/components/DagstotalBanner";
 import { trpc } from "../../src/lib/trpc";
 import { eq } from "drizzle-orm";
 
@@ -164,6 +165,9 @@ export default function NyDagsseddelSide() {
           {t("timer.nyDagsseddel")}
         </Text>
       </View>
+
+      {/* Dagstotal-banner — viser hvor mye som allerede er ført på valgt dato */}
+      {bruker?.id && <DagstotalBanner userId={bruker.id} dato={dato} />}
 
       <ScrollView className="flex-1" contentContainerClassName="p-4 gap-4">
         {/* Dato */}

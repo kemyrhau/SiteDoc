@@ -117,7 +117,9 @@ import { prismaMaskin } from "@sitedoc/db-maskin";
 
 ```typescript
 // ✅ Via service-lag:
-import { hentKjoretoyForFirma, erMaskinAktivert } from "../../services/maskin";
+import { erMaskinAktivert, krevMaskinAktivert } from "../../services/maskin";
+// Lese-funksjoner (hentForFirma, hentForId etc.) legges til når server-side
+// cross-modul-behov oppstår. Klient-side bruker tRPC direkte (se under).
 ```
 
 **Service-lagets struktur:**
@@ -125,7 +127,7 @@ import { hentKjoretoyForFirma, erMaskinAktivert } from "../../services/maskin";
 ```
 apps/api/src/services/maskin/
 ├── index.ts              // re-eksport av offentlig API
-├── equipment.ts          // hentForFirma, hentForId, finnesAktivt, listForKategori
+├── equipment.ts          // (planlagt) hentForFirma, hentForId, finnesAktivt, listForKategori — bygges når server-cross-modul trenger det
 ├── assignment.ts         // hentAktiveTildelinger, hentForUser, opprettTildeling
 └── moduleGate.ts         // erMaskinAktivert(orgId), krevMaskinAktivert(orgId)
 ```
@@ -134,17 +136,25 @@ apps/api/src/services/maskin/
 
 | Funksjon | Når Maskin-modul er av | Bruksområde |
 |---|---|---|
-| `hentKjoretoyForFirma(orgId)` | Returnerer `[]` (soft-skjul) | Timer kjøretøy-velger, Aktivitetsfeed |
-| `hentForId(equipmentId)` | Returnerer `null` | Detalj-oppslag fra rapporter |
 | `erMaskinAktivert(orgId)` | Returnerer `false` | Eksplisitt sjekk for UI-rendering |
 | `krevMaskinAktivert(orgId)` | Kaster `ModulIkkeAktivertError` | Maskin-egne ruter (modulProcedure) |
 
 **Soft-skjul som default:** Konsumerende moduler får tom liste i stedet for feil når Maskin-modul ikke er aktivert. UI rendrer uten kjøretøy-velger eller maskin-relaterte felt; ingen feilmelding vises. Eksplisitt flag (`harMaskinModul: boolean`) brukes kun i cross-modul-rapporter som trenger å forklare manglende data.
 
-**Konsekvens for fremtidig modul-integrasjon (Timer Fase 3, etc.):**
-1. Timer kaller `hentKjoretoyForFirma(orgId)` fra dagsseddel-rute → returnerer kjøretøy-liste eller `[]`
-2. Timer-UI rendrer kjøretøy-velger kun når listen er ikke-tom
-3. Timer trenger ikke kjenne `db-maskin`-skjema, modul-gating-mekanisme eller Vegvesen-status
+**Server-side cross-modul (forbidden direct prismaMaskin-import):**
+- Timer-server-rutene (apps/api/src/routes/timer/*) MÅ gå via `apps/api/src/services/maskin/index.ts` for å lese maskin-data, ALDRI direkte `prismaMaskin`-import
+- Hvis Timer-server trenger å validere vehicleId mot maskin-kataloget (f.eks. ved syncBatch-validering), legg lese-funksjon i service-laget når behovet oppstår
+
+**Klient-side (web + mobil) bruker tRPC direkte:**
+- `trpc.maskin.equipment.list` er den kanonske kilden for Equipment-velger på dagsseddel — både web (C9) og mobil (Runde 2.6) leser via dette
+- equipment.list returnerer naturlig `[]` når Maskin-modul er av (organizationId-filter + ingen Equipment finnes) — soft-skjul fungerer uten ekstra modul-flag-sjekk
+- Mobil cacher resultatet lokalt i `equipment_local` (Drizzle) via `apps/mobile/src/services/maskinKatalog.ts.refreshMaskinKatalog` — refresh ved login + nett-gjenkomst
+
+**Implementert integrasjon (C9 + Runde 2.6, deployet til prod 2026-05-02):**
+1. Web detaljside (`apps/web/src/app/dashbord/[prosjektId]/timer/[id]/page.tsx`): `MaskinSeksjon` + `MaskinRadDialog` bruker `trpc.maskin.equipment.list.useQuery()` for Equipment-velger
+2. Mobil detaljside (`apps/mobile/app/timer/[id].tsx`): `MaskinSeksjon` + `MaskinRadModal` + `EquipmentVelgerModal` leser fra `equipment_local` via Drizzle
+3. Soft-skjul: tom Equipment-liste → seksjon skjules. Eksisterende sheet_machine-rader bevarer navn-visning via `finnEquipmentLokalt`/lookup
+4. Sync: `sheet_machines`-rader sendes/mottas i `timer.dagsseddel.syncBatch`/`hentEndringerSiden` (C9) — full sync-symmetri uten maskin-spesifikk push-rute
 
 > **🟡 Modul-avhengighets-regel:** `sheet_machines` er knutepunkt mellom
 > Maskin og Timer. Endringer i schema eller flyt krever lesing av
@@ -832,7 +842,7 @@ Mobil leser data via API — ingen lokal maskin-database.
 - Telematikk (ISO 15143-3/AEMP 2.0) for anleggsmaskiner
 - QR-kode per utstyr (generere + skanne)
 - Kobling til mannskap-innsjekk (fører + maskin)
-- Timer-modul aktiv bruk (maskintime i dagsseddel)
+- ~~Timer-modul aktiv bruk (maskintime i dagsseddel)~~ ✅ **IMPLEMENTERT 2026-05-02** (Timer Runde 2.5/C9 + Runde 2.6) — `sheet_machines`-tabell i db-timer, web MaskinSeksjon, mobil MaskinSeksjon med `equipment_local`-cache. Equipment-prising for `attestertSnapshot` gjenstår (utsatt til Maskin Fase 1+ når prising-policy besluttes).
 - Økonomi readonly-visning
 
 ### SmartDok-import — planlagt Blokk C+
