@@ -17,6 +17,7 @@ import { useAuth } from "../../src/providers/AuthProvider";
 import { useTimerSync } from "../../src/providers/TimerSyncProvider";
 import { TimerSyncStatusBar } from "../../src/components/TimerSyncStatusBar";
 import { TimerStatusMerkelapp } from "../../src/components/TimerStatusMerkelapp";
+import { UkeTotalBanner } from "../../src/components/UkeTotalBanner";
 
 interface DagsseddelRad {
   id: string;
@@ -103,6 +104,8 @@ export default function TimerListeSide() {
       </View>
 
       <TimerSyncStatusBar />
+
+      {bruker?.id && <UkeTotalBanner userId={bruker.id} />}
 
       <FlatList<DagsseddelRad>
         data={rader}

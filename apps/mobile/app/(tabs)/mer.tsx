@@ -15,6 +15,7 @@ import {
   Globe,
   Check,
   Clock,
+  BarChart3,
 } from "lucide-react-native";
 import { useRouter } from "expo-router";
 import { useTimerSync } from "../../src/providers/TimerSyncProvider";
@@ -153,6 +154,11 @@ export default function MerSkjerm() {
                   : undefined
             }
             onPress={() => router.push("/timer")}
+          />
+          <MenyRad
+            ikon={BarChart3}
+            tekst={t("nav.timerMine")}
+            onPress={() => router.push("/timer/mine")}
           />
           <MenyRad ikon={WifiOff} tekst={offlineTekst ?? t("mer.forberedOffline")} onPress={startOffline} />
           <MenyRad ikon={QrCode} tekst={t("mer.skannQR")} />
