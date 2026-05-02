@@ -54,6 +54,7 @@
   "status.underBehandling": "En cours de révision",
   "status.ventende": "En attente",
   "status.tilGodkjenning": "Pour approbation",
+  "status.tilAttestering": "Pour approbation",
   "status.aktiv": "Active",
   "status.arkivert": "Archivé",
   "handling.opprett": "Créer",

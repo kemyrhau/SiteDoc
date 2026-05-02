@@ -51,3 +51,6 @@ android/
 *.pages
 *.numbers
 *.key
+
+# Lokal arbeids-fil — ikke i versjonskontroll
+Lønnsarter til sortering.txt

@@ -54,6 +54,7 @@
   "status.underBehandling": "Notiek pārskatīšana",
   "status.ventende": "Gaida",
   "status.tilGodkjenning": "Apstiprināšanai",
+  "status.tilAttestering": "Apstiprināšanai",
   "status.aktiv": "Aktīvs",
   "status.arkivert": "Arhivēts",
   "handling.opprett": "Izveidot",

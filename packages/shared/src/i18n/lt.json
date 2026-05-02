@@ -54,6 +54,7 @@
   "status.underBehandling": "Peržiūrima",
   "status.ventende": "Laukiama",
   "status.tilGodkjenning": "Dėl patvirtinimo",
+  "status.tilAttestering": "Dėl patvirtinimo",
   "status.aktiv": "Aktyvus",
   "status.arkivert": "Suarchyvuota",
   "handling.opprett": "Sukurti",

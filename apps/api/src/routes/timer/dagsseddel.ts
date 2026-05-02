@@ -564,7 +564,7 @@ export const dagsseddelRouter = router({
     }),
 
   // ----- Status-overgang -------------------------------------------------
-  // draft → sent. Krever minst én timer-rad. Leder-godkjenning (sent → returned/accepted)
+  // draft → sent. Krever minst én timer-rad. Leder-attestering (sent → returned/accepted)
   // implementeres i Runde 1C.
   send: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
@@ -610,12 +610,12 @@ export const dagsseddelRouter = router({
     }),
 
   // ============================================================================
-  //  Leder-godkjenning (Runde 1C)
+  //  Leder-attestering (Runde 1C)
   // ============================================================================
 
   // Hent alle dagssedler med status=sent som innlogget bruker er leder for.
-  // Brukes av leder-vy /dashbord/[prosjektId]/timer/godkjenning.
-  hentTilGodkjenning: protectedProcedure
+  // Brukes av leder-vy /dashbord/[prosjektId]/timer/attestering.
+  hentTilAttestering: protectedProcedure
     .input(z.object({ projectId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       await krevProsjektLeder(ctx.userId, input.projectId);
@@ -649,7 +649,50 @@ export const dagsseddelRouter = router({
       }));
     }),
 
-  // Boolean-flagg som sidebar/UI bruker for å gate Godkjenning-lenken.
+  // @deprecated alias for hentTilAttestering — beholdes 1 uke per CLAUDE.md
+  // API-bakoverkompatibilitet-regel. Fjernes etter 2026-05-09.
+  hentTilGodkjenning: protectedProcedure
+    .input(z.object({ projectId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      await krevProsjektLeder(ctx.userId, input.projectId);
+
+      const sedler = await ctx.prismaTimer.dailySheet.findMany({
+        where: {
+          projectId: input.projectId,
+          status: "sent",
+        },
+        include: {
+          aktivitet: { select: { id: true, navn: true, kode: true } },
+          timer: true,
+          tillegg: true,
+        },
+        orderBy: [{ dato: "asc" }, { createdAt: "asc" }],
+      });
+
+      const userIder = Array.from(new Set(sedler.map((s) => s.userId)));
+      const brukere = await prisma.user.findMany({
+        where: { id: { in: userIder } },
+        select: { id: true, name: true, email: true, ansattnummer: true },
+      });
+      const brukerMap = new Map(brukere.map((b) => [b.id, b]));
+
+      return sedler.map((s) => ({
+        ...s,
+        ansatt: brukerMap.get(s.userId) ?? null,
+        totaltimer: s.timer.reduce((acc, t) => acc + Number(t.timer), 0),
+        antallRader: s.timer.length + s.tillegg.length,
+      }));
+    }),
+
+  // Boolean-flagg som sidebar/UI bruker for å gate Attestering-lenken.
+  kanAttestere: protectedProcedure
+    .input(z.object({ projectId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      return erProsjektLeder(ctx.userId, input.projectId);
+    }),
+
+  // @deprecated alias for kanAttestere — beholdes 1 uke per CLAUDE.md
+  // API-bakoverkompatibilitet-regel. Fjernes etter 2026-05-09.
   kanGodkjenne: protectedProcedure
     .input(z.object({ projectId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
@@ -1020,7 +1063,7 @@ export const dagsseddelRouter = router({
                   attestertVed: eksisterende.attestertVed?.toISOString() ?? null,
                   updatedAt: eksisterende.updatedAt.toISOString(),
                 },
-                feilmelding: "Sedlen er sendt til godkjenning og venter på leder",
+                feilmelding: "Sedlen er sendt til attestering og venter på leder",
               });
               continue;
             }

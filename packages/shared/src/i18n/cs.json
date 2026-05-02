@@ -54,6 +54,7 @@
   "status.underBehandling": "Probíhá kontrola",
   "status.ventende": "Čeká na vyřízení",
   "status.tilGodkjenning": "Ke schválení",
+  "status.tilAttestering": "Ke schválení",
   "status.aktiv": "Aktivní",
   "status.arkivert": "Archivováno",
   "handling.opprett": "Vytvořit",

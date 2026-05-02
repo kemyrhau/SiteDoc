@@ -54,6 +54,7 @@
   "status.underBehandling": "Wird überprüft",
   "status.ventende": "Ausstehend",
   "status.tilGodkjenning": "Zur Genehmigung",
+  "status.tilAttestering": "Zur Genehmigung",
   "status.aktiv": "Aktiv",
   "status.arkivert": "Archiviert",
   "handling.opprett": "Erstellen",
