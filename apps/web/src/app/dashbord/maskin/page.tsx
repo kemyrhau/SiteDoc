@@ -45,14 +45,14 @@ export default function MaskinPage() {
   const [valgtStatus, setValgtStatus] = useState<string | null>(null);
   const [valgtAnsvarlig, setValgtAnsvarlig] = useState<string | "">("");
   const [sok, setSok] = useState("");
-  const [visPensjonerte, setVisPensjonerte] = useState(false);
+  const [visUtgaatte, setVisUtgaatte] = useState(false);
 
   const { data, isLoading } = trpc.maskin.equipment.list.useQuery({
     kategori: valgtKategori ?? undefined,
     status: (valgtStatus as "tilgjengelig" | "utlaant" | "paa_service" | undefined) ?? undefined,
     ansvarligUserId: valgtAnsvarlig || undefined,
     sok: sok.trim() || undefined,
-    inkluderPensjonert: visPensjonerte,
+    inkluderUtgaatt: visUtgaatte,
   });
 
   const { data: brukereData } = trpc.maskin.equipment.hentMuligeAnsvarlige.useQuery();
@@ -80,7 +80,7 @@ export default function MaskinPage() {
     valgtStatus !== null ||
     valgtAnsvarlig !== "" ||
     sok.trim() !== "" ||
-    visPensjonerte;
+    visUtgaatte;
 
   const totalt = (antallPerKat ?? []).reduce(
     (s: number, r: { antall: number }) => s + r.antall,
@@ -92,7 +92,7 @@ export default function MaskinPage() {
     setValgtStatus(null);
     setValgtAnsvarlig("");
     setSok("");
-    setVisPensjonerte(false);
+    setVisUtgaatte(false);
   }
 
   if (isLoading) {
@@ -180,11 +180,11 @@ export default function MaskinPage() {
           <label className="flex items-center gap-1.5 text-xs text-gray-700">
             <input
               type="checkbox"
-              checked={visPensjonerte}
-              onChange={(e) => setVisPensjonerte(e.target.checked)}
+              checked={visUtgaatte}
+              onChange={(e) => setVisUtgaatte(e.target.checked)}
               className="h-3.5 w-3.5 rounded"
             />
-            {t("maskin.filter.visPensjonerte")}
+            {t("maskin.filter.visUtgaatte")}
           </label>
 
           <div className="ml-auto flex items-center gap-2">
@@ -329,7 +329,7 @@ function StatusBadge({ status }: { status: string }) {
         ? "bg-blue-100 text-blue-800"
         : status === "paa_service"
           ? "bg-amber-100 text-amber-800"
-          : status === "pensjonert"
+          : status === "utgaatt"
             ? "bg-gray-100 text-gray-600"
             : "bg-gray-100 text-gray-800";
   const noekkel =

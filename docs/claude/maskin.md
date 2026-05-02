@@ -53,12 +53,12 @@ Alt annet (GPS, telematikk, QR, daglig kontroll, timer/økonomi-kobling) er uten
 ### Status-livssyklus (alle kategorier)
 
 ```
-bestilt → mottatt → tilgjengelig → utlaant → paa_service → pensjonert
+bestilt → mottatt → tilgjengelig → utlaant → paa_service → utgaatt
                                    ↑           ↓
                                    └───────────┘
 ```
 
-Pensjonert beholdes permanent i DB (revisjon/forsikring/reklamasjon) med `pensjonertGrunn` (solgt, destruert, tapt, stjålet, slitt). Standardlister filtrerer vekk pensjonerte med mulighet for å vise dem.
+Utgått beholdes permanent i DB (revisjon/forsikring/reklamasjon) med `utgaattGrunn` (solgt, destruert, tapt, stjålet, slitt). Standardlister filtrerer vekk utgåtte med mulighet for å vise dem. **Terminologi-rename gjennomført 2026-05-02:** tidligere «pensjonert» → «utgaatt» (status-verdi + kolonner + UI). Migrering: `20260502120000_rename_pensjonert_til_utgaatt`.
 
 ### Utlån/tildeling
 
