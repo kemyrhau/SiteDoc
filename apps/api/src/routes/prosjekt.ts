@@ -61,6 +61,33 @@ export const prosjektRouter = router({
       });
     }),
 
+  // Onboarding-fremdrift: 4 booleans for progress-banner på prosjekt-dashbord.
+  // Banneret skjules klient-side når alle 4 er true.
+  hentOnboardingStatus: protectedProcedure
+    .input(z.object({ projectId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      await verifiserProsjektmedlem(ctx.userId, input.projectId);
+
+      const [dokumentflytAntall, brukergruppeAntall, malKobletAntall, lokasjonAntall] =
+        await Promise.all([
+          ctx.prisma.dokumentflyt.count({ where: { projectId: input.projectId } }),
+          ctx.prisma.projectGroup.count({
+            where: { projectId: input.projectId, category: "brukergrupper" },
+          }),
+          ctx.prisma.dokumentflytMal.count({
+            where: { dokumentflyt: { projectId: input.projectId } },
+          }),
+          ctx.prisma.byggeplass.count({ where: { projectId: input.projectId } }),
+        ]);
+
+      return {
+        harDokumentflyt: dokumentflytAntall > 0,
+        harBrukergruppe: brukergruppeAntall > 0,
+        harMalKobletTilFlyt: malKobletAntall > 0,
+        harLokasjon: lokasjonAntall > 0,
+      };
+    }),
+
   // Opprett nytt prosjekt — kobler automatisk til brukerens firma hvis det finnes
   opprett: protectedProcedure
     .input(createProjectSchema)
