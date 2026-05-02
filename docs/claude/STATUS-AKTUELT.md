@@ -143,6 +143,14 @@ Status og detaljer: [db-opprydning.md](db-opprydning.md).
 
 ## Planlagte oppgaver
 
+**Onboarding-veileder (prioritert — forutsetning for A.Markussen):** Ny bruker vet ikke rekkefølge eller URL for oppsett etter prosjektopprettelse. Observert 2026-05-02: 4 404-feil ved forsøk på å finne faggruppe-oppsett via intuitive URL-er. Konkret rotårsak: to nesten-identiske faggruppe-sider eksisterer (`/dashbord/[prosjektId]/faggrupper` er **read-only**, mens `/dashbord/prosjekter/[id]/faggrupper` har **full CRUD**) — ingen visuell forskjell, ingen lenke fra read-only-siden til full versjon. Mangler:
+- Lenke fra faggruppe-tom-state (`[prosjektId]/faggrupper`) til riktig opprett-side (`prosjekter/[id]/faggrupper`)
+- Steg-for-steg veileder etter prosjektopprettelse (faggrupper → maler → medlemmer)
+- Tom-state på prosjekt-dashbord som veileder ny bruker
+- Konsolidering av de to faggruppe-sidene (langtids-mål) — én side med riktig UI, ingen URL-duplikat
+
+Blokkerer selvstendig A.Markussen-onboarding. Ankret i [onboarding-veileder.md](onboarding-veileder.md).
+
 **Testbrukere (planlagt — etter Timer er ferdig):** Opprett strukturerte testbrukere i test-DB for systematisk verifisering av tilgangsnivåer:
 - **Ola Tømrer** — produksjon-rolle (`ProjectMember.role = "worker"` eller `"field_user"`)
 - **Per Prosjektadmin** — `ProjectMember.role = "project_manager"`
