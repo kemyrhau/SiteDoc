@@ -6,17 +6,18 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 
 | Fil | Innhold |
 |-----|---------|
+| [docs/claude/STATUS-AKTUELT.md](docs/claude/STATUS-AKTUELT.md) | **Løpende status:** Pågående arbeid, pauset arbeid, planlagte faser. Oppdateres ved hver vesentlig fremdrift |
+| [docs/claude/deploy-detaljer.md](docs/claude/deploy-detaljer.md) | **Deploy-detaljer:** Branching-regler, full deploy-bash, `.env`-krav, mobil reload-typer, tRPC env-konsekvens, prod-lærdommer |
+| [docs/claude/hjelpetekster.md](docs/claude/hjelpetekster.md) | Hjelpetekst-konvensjon (?-ikon) + sidestatus-tabell |
 | [docs/claude/arkitektur.md](docs/claude/arkitektur.md) | Database-skjema, relasjoner, tilgangskontroll, fagområder, rapportobjekter |
 | [docs/claude/api.md](docs/claude/api.md) | API-routere, prosedyrer, gratis-grenser, prøveperiode |
 | [docs/claude/web.md](docs/claude/web.md) | Web UI, ruter, kontekster, malbygger, print, tegningsvisning |
 | [docs/claude/mobil.md](docs/claude/mobil.md) | React Native, offline-first, kamera, bilde, statusendring |
 | [docs/claude/forretningslogikk.md](docs/claude/forretningslogikk.md) | Dokumentflyt, arbeidsforløp, grupper, moduler, admin, TODO |
 | [docs/claude/onboarding-veileder.md](docs/claude/onboarding-veileder.md) | **🟡 IDÉ-STADIUM:** Onboarding-veileder for firma. Sekvensiell logikk (tilgang → grupper → flyt → mal → byggeplass → tegninger), idempotens, pedagogisk lag. Planlagt ~1 måned frem (post-Fase 0) |
-| ~~docs/claude/entreprise-faggruppe-rapport.md~~ | **🟦 ARKIVERT 2026-04-28** → [docs/arkiv/entreprise-faggruppe-rapport.md](docs/arkiv/entreprise-faggruppe-rapport.md). Pre-rename-kartlegging fullt gjennomført, 0 drift i kode |
-| ~~docs/claude/faggruppe-rename-plan.md~~ | **🟦 ARKIVERT 2026-04-28** → [docs/arkiv/faggruppe-rename-plan.md](docs/arkiv/faggruppe-rename-plan.md). Plan gjennomført (Fase 1–7), kun Fase 8 alias-cleanup gjenstår etter mobil-deploy-syklus |
 | [docs/claude/shared-pakker.md](docs/claude/shared-pakker.md) | @sitedoc/shared typer + validering + utils, @sitedoc/ui komponenter |
 | [docs/claude/infrastruktur.md](docs/claude/infrastruktur.md) | Deploy, server, env-filer, EAS Build, TestFlight, OAuth |
-| [docs/claude/terminologi.md](docs/claude/terminologi.md) | Alle termer og definisjoner |
+| [docs/claude/terminologi.md](docs/claude/terminologi.md) | **Hierarki + modulsystem + alle termer.** Tre nivåer-anker, begrep-tabell, definisjoner |
 | [docs/claude/ai-sok.md](docs/claude/ai-sok.md) | AI-søk plan: embedding, hybrid søk, RAG, settings UI, testing UI |
 | [docs/claude/dokumentflyt.md](docs/claude/dokumentflyt.md) | Dokumentflyt-spesifikasjon: eier, mottaker, dokumenttyper, flytregler, redigerbarhet |
 | [docs/claude/okonomi.md](docs/claude/okonomi.md) | Økonomi-modul: kontrakter, notaer, avvik, parsere, prosessering, dokumentsøk |
@@ -25,194 +26,31 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 | [docs/claude/dagsseddel-design.md](docs/claude/dagsseddel-design.md) | **🟡 ÅPEN BESLUTNING (2026-05-02):** Aktivitet på rad-nivå vs sedel-nivå (Maskintimer + Anleggsarbeid samme dag/prosjekt). Skiller mot `sheet_machines`/Vareforbruk. Anbefaler Alt A — flytt aktivitetId til SheetTimer (samme presedens som ECO 2026-04-29). Krever Kenneth-input før koding |
 | [docs/claude/maskin.md](docs/claude/maskin.md) | Utstyrsregister: 3 kategorier (kjøretøy/anleggsmaskin/småutstyr), Vegvesen API, EU-kontroll, vedlikeholdsplan, GPS, telematikk |
 | [docs/claude/kontrollplan.md](docs/claude/kontrollplan.md) | Kontrollplan + Sjekklistebibliotek: NS 3420-K/F, Område-modell, lovkrav, matrise, sluttrapport, AI-utkast |
-| ~~docs/claude/infrastruktur-moduler.md~~ | **🟥 OBSOLETE** — flyttet til [docs/arkiv/infrastruktur-moduler.md](docs/arkiv/infrastruktur-moduler.md) (2026-04-27). Beskrev forkastet plan om isolert deploy. Faktisk arkitektur er integrerte moduler (samme mønster som Maskin) |
 | [docs/claude/planlegger.md](docs/claude/planlegger.md) | Fremdriftsplanlegger: ressursplanlegging, kompetanse, bemanning, forslag-motor |
 | [docs/claude/mannskap.md](docs/claude/mannskap.md) | Mannskaps-vy i PSI-modulen (ikke separat modul). §15-liste, HMS-kort-validering, geofence-innsjekk, GDPR, 12t auto-utsjekk. Endelig datamodell designes Fase 4 |
 | [docs/claude/varsling.md](docs/claude/varsling.md) | Tverrgående varsling: firmanivå, kontrollplan-frister, EU-kontroll, service, sertifisering, in-app klokke |
 | [docs/claude/aktivitetsfeed.md](docs/claude/aktivitetsfeed.md) | **Planlagt fase (etter Timer + Maskin):** Twitter/Facebook-lignende feed på dashboard. Bruker eksisterende Activity-tabell (Fase 0 § E.1). Polling via tRPC, GDPR-anonymisering via cron, konfigurerbar periode (default 10 dager) + hendelsestyper i OrganizationSetting. Ekstern partner-feed = egen designrunde |
 | [docs/claude/db-opprydning.md](docs/claude/db-opprydning.md) | **AKTIV:** Opprydningsplan for DB. Timer-modul på pause til prioritet 1+2 er gjort. Faggruppe-rename, CHECK constraints, design-beslutninger |
-| ~~docs/claude/audit-data-2026-04-25.md~~ | **🟦 ARKIVERT 2026-04-28** → [docs/arkiv/audit-data-2026-04-25.md](docs/arkiv/audit-data-2026-04-25.md). Read-only audit av dev-DB 2026-04-25. Åpne audit-spørsmål mot prod konsolidert til [db-opprydning.md § Åpne audit-spørsmål](docs/claude/db-opprydning.md) (K3.2) før arkivering |
 | [docs/claude/migrering-reporttemplate.md](docs/claude/migrering-reporttemplate.md) | Plan: ReportTemplate → OrganizationTemplate (firma-mal-bibliotek). Ikke implementert |
 | [docs/claude/arkitektur-syntese.md](docs/claude/arkitektur-syntese.md) | **ANKER:** Helhetlig produktarkitektur — prosjekthotell + tilleggsmoduler, to-nivå-modell, loan-pattern, mal-arkitektur, Fase 0–7 |
-| [docs/claude/fase-0-beslutninger.md](docs/claude/fase-0-beslutninger.md) | **🟢 § E KOMPLETT (2026-05-01):** 30 vedtatte beslutninger (§A) + 7 lukkede BLOKKERE (§B.1–B.7) + 14 anbefalte utvidelser (§C, inkl. C.17 språkstøtte åpen) + 14-stegs migrerings-rekkefølge (§E) + § F Fase 0.7 data-rens. **§ E-fremdrift: 13/13 implementert** (E.1-E.8 + E.10-E.14, E.9 hoppet per § E): E.1 Activity (`13a746a7`), E.2 OrganizationSetting (`4a155c28`), E.3 ProjectOrganization-rename (`1bff8672`), E.4 primaryOrganizationId (`137eed6f`), E.5 ProjectModule (`d9bfafc4`), E.6 OrganizationPartner (`22a772b6`), E.7 OrganizationTemplate (`7709ea32`), E.8 BibliotekMal + C.17 (`29311756`), E.10 ProjectMember.periodeSlutt + 3 loan-tabeller (`5b8beef6`), E.11 ExternalCostObject + C.6/C.7 (`9c9dd682`), E.12 Godkjenning + DocumentTransfer (`0622fc35`), E.13 User-utvidelse + B.7 (`37d49872`), E.14 OrganizationRole ✅. Klar for merge til develop + test/prod-deploy. |
-| ~~docs/claude/arkitektur-qa-runde-2-2026-04-25.md~~ | **🟦 ARKIVERT 2026-04-28** → [docs/arkiv/arkitektur-qa-runde-2-2026-04-25.md](docs/arkiv/arkitektur-qa-runde-2-2026-04-25.md). Opus QA-runde 2 (2026-04-25). Beslutninger konsolidert til [fase-0-beslutninger.md](docs/claude/fase-0-beslutninger.md) C.13 + § J-rader (K1, tidl. § G før § F-rename 2026-04-30) før arkivering |
-| ~~docs/claude/arkitektur-oppsummering-2026-04-25.md~~ | **🟦 ARKIVERT 2026-04-28** → [docs/arkiv/arkitektur-oppsummering-2026-04-25.md](docs/arkiv/arkitektur-oppsummering-2026-04-25.md). Faktabasert arkitektur-snapshot 2026-04-25. Innhold dekt av [arkitektur-syntese.md](docs/claude/arkitektur-syntese.md) før arkivering |
+| [docs/claude/fase-0-beslutninger.md](docs/claude/fase-0-beslutninger.md) | **🟢 § E KOMPLETT (2026-05-01):** 30 vedtatte beslutninger (§A) + 7 lukkede BLOKKERE (§B.1–B.7) + 14 anbefalte utvidelser (§C, inkl. C.17 åpen) + 14-stegs migrerings-rekkefølge (§E) + § F Fase 0.7 data-rens. § E-fremdrift: 13/13 implementert — se STATUS-AKTUELT.md |
 | [docs/claude/byggeplass-strategi.md](docs/claude/byggeplass-strategi.md) | **PLANLAGT FASE:** byggeplass-relasjon på tvers av moduler. Modul-tabell (utkast, krever bekreftelse), tre åpne arkitektur-prinsipper, avhengigheter |
 | [docs/claude/db-naming-audit-2026-04-25.md](docs/claude/db-naming-audit-2026-04-25.md) | Audit lokal/test/prod: faggruppe-rename gjennomført på test og prod, lokal er bak. Metode-merknader om Prisma-skjemaer og CASE-rekkefølge |
 | [docs/claude/smartdok-undersokelse.md](docs/claude/smartdok-undersokelse.md) | **AKTIV (2026-04-26):** SmartDok UI-research + arkitektur-implikasjoner: dagsseddel-felter, lønnsarter (26), enhetstillegg, equipment-bredde (3 kategorier), underprosjekt-konflikt med FtdChangeEvent, ProAdm-eksport-spor, A.Markussens timer-policy |
 | [docs/claude/smartdok-undersokelse-2026-04-25.md](docs/claude/smartdok-undersokelse-2026-04-25.md) | **ARKIV (v1):** SmartDok API-kartlegging (OpenAPI 128 endepunkter), mapping-tabeller (User/Project/Wage/Machine/WorkHour), funksjonsgap, migreringsstrategi |
 | [docs/claude/ai-integrasjon.md](docs/claude/ai-integrasjon.md) | AI-integrasjon: Copilot plugin, MCP server, innebygd assistent, risikoer, API-lag |
 | [docs/claude/adaptiv-sok-plan.md](docs/claude/adaptiv-sok-plan.md) | **🟡 SKAL DRØFTES:** Adaptivt søk for sjekklister/oppgaver/HMS/RUH. Tags-modell, delt FilterBar, useListFilter, useRecentlyUsed. Drøftes på tvers av db/ui/shared/dokumentflyt før koding |
-| [docs/claude/timer-funn-fra-screening-2026-04-27.md](docs/claude/timer-funn-fra-screening-2026-04-27.md) | **🟡 MIDLERTIDIG:** 6 timer-relevante drift-funn fra screening 2026-04-27/28 (Funn 1: db-timer mangler. Funn 2: OrganizationSetting-felter. Funn 3: maskin.md Vegvesen-mapping. Funn 4: SmartDok Underprosjekt egen identitet. Funn 5: stengning+attestering 4 hull. Funn 6: eksport-spor 4 schema-hull). Slettes etter Timer/Maskin-revurdering |
+| [docs/claude/timer-funn-fra-screening-2026-04-27.md](docs/claude/timer-funn-fra-screening-2026-04-27.md) | **🟡 MIDLERTIDIG:** 6 timer-relevante drift-funn fra screening 2026-04-27/28. Slettes etter Timer/Maskin-revurdering |
 | [docs/claude/oppryddings-plan-2026-04-28.md](docs/claude/oppryddings-plan-2026-04-28.md) | **🟡 AKTIV:** Strukturert TODO-liste etter Bunke 3A.1-screening 2026-04-28. Fem prioritets-nivåer (P1 anker-rensing først → P5 svakhet-reparering) + Parkert + Utenfor-scope + 3 TIMER-FUNN-kandidater. Slettes når alle punkter er kvitterte |
 | [MALBYGGER.md](MALBYGGER.md) | Felles malbygger: dokumenttyper, felttyper, beslutninger, migreringsstrategi |
 
 **Ved "oppdater CLAUDE.md"**: oppdater den relevante detalj-filen i `docs/claude/`, ikke denne hovedfilen (med mindre det gjelder tech stack, struktur, kommandoer, kodestil eller regler).
 
-## Pågående arbeid
+## Pågående arbeid (kort)
 
-**Status 2026-05-02:** **Fase 0 § E KOMPLETT i prod**. **Fase 0.5 KOMPLETT i prod**. **Timer-modul Fase 3 — Runde 1A + 1B + 1C DEPLOYET TIL PROD**. **Runde 2 (mobil + offline-sync) C1–C8 KOMPLETT på develop** (merge `1cce62f3` 2026-05-02 sent kveld). C5 visuelt verifisert på iOS Simulator + fysisk mobil etter første test-deploy. **Test-deploy + prod-deploy av C6–C8 utsatt til neste sesjon** — server-side har C2 + dev-login + ECO-router som alle krever fersk deploy før mobil kan nå dem.
+**Status 2026-05-02:** Fase 0 § E KOMPLETT i prod. Fase 0.5 KOMPLETT i prod. Timer-modul Fase 3 — Runde 1A + 1B + 1C deployet til prod. Runde 2 (mobil + offline-sync) C1–C8 KOMPLETT på develop, test/prod-deploy utsatt til neste sesjon.
 
-**Fase 0.5-fremdrift (revidert scope etter kode-verifisering 2026-05-01):**
-- § 1 Avdeling-tabell + User.avdelingId ✅ (`a90daabd`) — `Avdeling`-modell i `packages/db`, `User.avdelingId String?` med SetNull, migrasjon `20260501000015_add_avdeling`
-- § 2 Kompetansetype + AnsattKompetanse + RBAC ✅ — Kompetansetype + AnsattKompetanse-tabeller (per A.28), OrganizationSetting utvidet med `kompetanseRegistreringTilgang` (firma_admin | bruker_egen | alle, default firma_admin), 7-kategori-seed i `packages/shared/src/types/index.ts` (`KOMPETANSE_KATEGORIER` + `KOMPETANSE_REGISTRERING_TILGANG` + `KOMPETANSE_IMPORT_KILDER`), migrasjon `20260501000016_add_kompetanse`. `kompetanse.*` tRPC-rute + UI bygges senere (Fase 0.5 § 6 eller separat). Varsling-integrasjon (90/30/7 dager) bygges separat når varsling-modul er klar.
-- § 3 ProjectGroupByggeplass m2m + drop building_ids ✅ — `ProjectGroupByggeplass`-tabell (m2m groupId × byggeplassId, Cascade på begge), drop `ProjectGroup.byggeplassIder` (verifisert dødt felt — kun skrevet i `gruppe.ts:495-503`, aldri lest), refaktor `gruppe.oppdaterByggeplasser`-mutation til `prisma.$transaction([deleteMany, createMany])` mot koblingstabell, semantikk: tom array = alle byggeplasser. Migrasjon `20260501000017_add_project_group_byggeplass`. Prinsipp C-verifisering ferdig (C1 vedtatt).
-- § 4 Drop `ProjectGroup.byggeplassIder` ✅ — slått sammen med § 3 (samme migrasjon)
-- § 5 Slette-policy for byggeplass ✅ — API: ny `byggeplass.hentSletteSammendrag` (returnerer telleresult per modell, splittet bevares/slettes per cascade-policy fra schema), oppdatert `byggeplass.slett` med `navnBekreftelse`-input (case-insensitive match per Kenneth) + `verifiserAdmin` (strammet fra `verifiserProsjektmedlem`) + TRPCError FORBIDDEN ved mismatch. UI: ny `SletteLokasjonDialog` i `apps/web/src/app/dashbord/oppsett/lokasjoner/page.tsx` (erstatter `confirm()`-prompt) — viser bevares/slettes-seksjoner, tekstinput med navn-bekreftelse, slett-knapp disabled til match. i18n: 17 nye nøkler (nb + en). Cascade-valg utsatt til senere — kun SetNull-default i første versjon. Ingen schema-endringer
-
-**Fase 0.5 KOMPLETT** — deployet til prod 2026-05-01 (merge develop `9fed74a5` → main `f0a515cd`). 3 nye migrasjoner applied (`20260501000015_add_avdeling`, `20260501000016_add_kompetanse`, `20260501000017_add_project_group_byggeplass`).
-
-**Etter-Fase-0.5-arbeid (på develop):**
-- Avdeling-UI implementert: ny tRPC-router `avdeling.*` (hentAlle/opprett/oppdater/slett, alle gated med verifiserFirmaAdmin) i `apps/api/src/routes/avdeling.ts`. Slett blokkeres med CONFLICT hvis brukere er tilknyttet. Ny side `/dashbord/firma/avdelinger` med tabell (navn/kode/aktiv-toggle/antall brukere) + opprett/rediger-modaler. Menyelement i firma-layout. 16 nye i18n-nøkler (`firma.avdelinger.*`). Deployet til prod 2026-05-01 (`2799a4d1`).
-- Kompetanse-UI Runde 1: ny tRPC-router `kompetansetype.*` (full CRUD, gated firma-admin) + `kompetanse.hentMatrise` + `kompetanse.hentForBruker` (read-only). Ny `organisasjon.hentSetting` + `organisasjon.oppdaterSetting` (upsert, dekker alle 5 OrganizationSetting-felter). Ny `kompetanseStatus()`-utils i shared (gyldig/varsel/utløpt med 90-dagers terskel). Ny side `/dashbord/firma/kompetanse` med to faner: Matrise (read-only, fargemarkering, filter på kategori/avdeling/ansatt-søk) + Kompetansetyper (full CRUD med modal-dialoger). Settings-toggle for `kompetanseRegistreringTilgang` (firma_admin/bruker_egen/alle) i innstillinger-siden. Menyelement «Kompetanse» (Award-ikon) i firma-layout. ~37 nye i18n-nøkler (`firma.kompetanse.*`). Deployet til prod 2026-05-01 (`0965ddf2`).
-- Kompetanse-UI Runde 2.5 (develop): CSV/Excel-import. Ny dependency `csv-parse@6.2.1` i `apps/api`. To nye tRPC-mutations (`importerForhandsvisning` + `importerBekreft`) med SHA-256 filHash-validering for å garantere konsistens mellom forhåndsvisning og bekreft. Atomisk-policy ved ukjente ansattnumre (avviser hele importen). Auto-opprett av kompetansetyper (default på). Kolonne-aliaser + DD.MM.YYYY norsk dato + ISO-dato + Excel-dato-serial. ImportFraFilDialog i UI med 4-stegs flyt (opplastning → forhåndsvisning → bekreft → resultat). Hjelpefunksjoner i `apps/api/src/utils/kompetanseImport.ts` (parseCsvFil + parseXlsxFil + beregnFilHash). 30 nye i18n-nøkler (`firma.kompetanse.import.*`). Klar for test-deploy.
-- Kompetanse-UI Runde 2: AnsattKompetanse-CRUD via celle-klikk i matrisen. Ny `verifiserKompetanseSkriveTilgang(ctxUserId, malUserId)` i `tilgangskontroll.ts` (Alt A — sitedoc_admin og company_admin bypasser policy; ikke-admin følger `kompetanseRegistreringTilgang`-policy med fallback til `firma_admin` hvis OrganizationSetting mangler). 3 nye mutations i `kompetanse.ts` (opprett/oppdater/slett). UI utvidet: celle-klikk åpner ny `AnsattKompetanseDialog` (read-only header med bruker+type, redigerbare felter for utstedt/utløp/utsteder/sertifikat-nr/notat, klient-validering for utløp<utstedt). Slett via sub-modal (per CLAUDE.md slett-bekreftelse-regel — ikke confirm()). Klikk-tilstand styrt av lokal `kanSkriveKompetanse()` som speiler server-RBAC (UI-bekvemmelighet, server er sannhetskilden). 18 nye i18n-nøkler (`firma.kompetanse.dialog.*`). Klar for test-deploy. **Runde 2.5 utsatt:** CSV/Excel-import (krever `csv-parse`-install).
-
-**Verifiserings-funn 2026-05-01 (mot kode):**
-- ❌ `ByggeplassMedlemskap` UTSATT TIL FASE 4 (Mannskap-modul) — eneste forbrukere er innsjekk/utsjekk/geofence/§15-liste, alle Fase 4
-- ❌ `EquipmentAnsvarlig.avdelingId` strøket — tabellen finnes ikke i db-maskin (Equipment har direkte `ansvarligUserId`)
-- ✅ Prinsipp B (ingen tvungen byggeplass) bekreftet matcher kode 1:1 (kun Kontrollplan krever byggeplass — modul-policy, ikke prosjekt-blokker)
-- ✅ Prinsipp C (koblingstabell vs jsonb) bekreftet trygg — `building_ids` skrives i `gruppe.ts:495-503` men leses ALDRI noe sted
-
-**Fase 0 § E (deployet til prod 2026-05-01):** Alle 13 § E-steg implementert (E.9 hoppet per § E). § E-fremdrift: E.1 Activity (`13a746a7`), E.2 OrganizationSetting (`4a155c28`), E.3 ProjectOrganization-rename (`1bff8672`), E.4 primaryOrganizationId (`137eed6f`), E.5 ProjectModule (`d9bfafc4`), E.6 OrganizationPartner (`22a772b6`), E.7 OrganizationTemplate (`7709ea32`), E.8 BibliotekMal + C.17 (`29311756`), E.10 ProjectMember.periodeSlutt (`5b8beef6`), E.11 ExternalCostObject (`9c9dd682`), E.12 Godkjenning (`0622fc35`), E.13 User-utvidelse + B.7 (`37d49872`), E.14 OrganizationRole. Timer/Maskin-revurdering utsatt til etter Fase 0.5-deploy.
-
-**Anker for Fase 0-koding:**
-- [fase-0-beslutninger.md](docs/claude/fase-0-beslutninger.md) — **PRIMÆR ANKER** (23 vedtatte + 0 åpne BLOKKERE + 12 anbefalte utvidelser + 13-stegs migrerings-rekkefølge + B.7-utvidelse for multi-identifikator-auth)
-- [arkitektur.md](docs/claude/arkitektur.md), [terminologi.md](docs/claude/terminologi.md), [dokumentflyt.md](docs/claude/dokumentflyt.md) — verifiserte fundament-filer (drift mot kode rettet 2026-04-27)
-- [smartdok-undersokelse.md](docs/claude/smartdok-undersokelse.md) — empirisk grunnlag fra A.Markussen (UI-research 2026-04-26)
-- [arkitektur-syntese.md](docs/claude/arkitektur-syntese.md) — helhetlig produktarkitektur (loan-pattern, modul-arkitektur)
-- [timer.md](docs/claude/timer.md) — krever refaktor (enterpriseId → organizationId, Underprosjekt-modell erstattet av ExternalCostObject). **Verifiseres i Timer-revurdering**
-- [maskin.md](docs/claude/maskin.md) — krever justering for fase-0-beslutninger (særlig EquipmentAnsvarlig). **Verifiseres i Maskin-revurdering**
-
-**Sentrale arkitektur-funn (oppdatert 2026-04-27 etter komplett verifisering):**
-- `ProjectModule` eksisterer (linje 752 i schema, brukt 30+ steder) — utvides med `organizationId` + `status` (3-nivå per A.17), ikke ny tabell
-- `Activity` (sentral audit-tabell) finnes ikke — bygges i Fase 0 som første steg
-- `OrganizationProject` har eksisterende felter (`id`/`organizationId`/`projectId`/`createdAt` + relasjoner) — renames til `ProjectOrganization` og utvides med `rolle`-felt (NOT blank m:n)
-- `date-fns-tz` er ikke installert — krevet for tidssone-håndtering (lukkes implisitt av B.6)
-- Cache-invalidation-mønster er ad-hoc (30 kall, ingen sentral policy) — definres i Fase 0, fylles i Fase 3
-- Underprosjekt = `ExternalCostObject` (UI-term «Underprosjekt», Prisma-modell `ExternalCostObject` per A.1)
-- **Lønnsart-katalog er datadrevet, tre-nivå** (16 lovpålagte + 25 bransje-relevante + kundens egne) — detaljer i [timer.md](docs/claude/timer.md)
-- **Avdeling-tabell** bygges i Fase 0.5 (sammen med Byggeplass), ikke Fase 0 (per C.11)
-- **Seed-mekanisme** (event-hook `onOrganizationCreated`) etableres tomt i Fase 0; innhold registreres i Fase 3
-- **B.7 — Org-bytte-mekanikk:** Modell A (én User per person×firma) vedtatt. `User` får composite `@@unique([email, organizationId])` + `@@unique([phone, organizationId])` (forberedende for fremtidig multi-identifikator-auth). `ProjectMember.userId` cascade endres `Cascade → SetNull`
-- **B.6 — Timestamptz-håndtering:** Selektiv migrasjon (medium scope) — 11 felter får `@db.Timestamptz` (timer/audit/godkjenning/PsiSignatur/frist-felter/Invitation), resten av schema beholder `timestamp(3)`
-
-**Maskin-modul (`feature/maskin-db`):** under bygging. **Midlertidig modul-gating implementert 2026-04-30** via `Organization.harMaskinModul`-flagg (default `false`). HovedSidebar skjuler maskin-ikonet for firma uten flagget; eksisterende firma-isolering i maskin-rutene (`verifiserOrganisasjonTilgang`) hindrer cross-tenant-lekkasje. Aktivering per firma: `UPDATE organizations SET har_maskin_modul = true WHERE id = '<id>';`. Erstattes av full `OrganizationModule` + `modulProcedure('maskin')`-gating i Fase 0 per A.4 — den midlertidige kolonnen droppes da.
-
-**Maskin Blokk A + B implementert (2026-05-01) på `develop`:**
-- **Blokk A (schema-reconciliation, `de3fb1d0`):** EquipmentAnsvarlig-tabell (m:n for tilleggsansvarlige per A.6 hybrid) + 15 nye Equipment-felt (5 felles: internNavn, eierskap, eksportKode, harSporingsenhet, aarsmodell + 10 materialiserte Vegvesen-kolonner). Migrasjon `20260501131546_blokk_a_schema_reconciliation` deployet til test 2026-05-01.
-- **Blokk B (Vegvesen-integrasjon):** Service-lag i `apps/api/src/services/maskin/` (vegvesen-api, vegvesen, vegvesen-worker, moduleGate, equipment) per cross-modul-konvensjon (arkitektur-syntese § 6.1.1). 3 nye tRPC-endepunkter: `hentFraVegvesenForhandsvisning` (synkron mutation, 409 ved duplikat), `opprettMedVegvesen` (Variant A — klient sender bekreftet vegvesenData, server validerer kjennemerke-match), `oppdaterFraVegvesen` (admin-only, kø-basert). VegvesenKo-worker: 60s polling-løkke + 5min watchdog + 15min pause ved 429 + 5 retries. Klient-UI: Vegvesen-flyt aktivert i `nytt/page.tsx` med forhåndsvisning-panel + «fortsett uten Vegvesen-data»-fallback + eierskap-velger (eid/leid/leasing/lant) + årsmodell-felt + kallenavn. Felles `normaliserRegnummer()` i `packages/shared/src/utils/regnummer.ts` brukes i klient-input, Zod-validering og server-sammenligning. ~36 nye i18n-nøkler.
-- **Blokk C1 (read-only detaljside + filter-bar + statusendring):** Filter-bar i listevisning med chip-buttons (kategori med count, status, ansvarlig-dropdown, fritekstsøk, vis-pensjonerte-toggle). Klikk på rad navigerer til ny detaljside `/dashbord/maskin/[id]`. Detaljside har 8 seksjoner read-only (generelt, anskaffelse, ansvarlig, kjøretøy-info, EU-kontroll med trafikklys-banner, anleggsmaskin-info, småutstyr-info, notater) + statusendring-modal med pensjonertGrunn-velger og advarsel + Vegvesen-oppdater-knapp (admin-only, polling 10s mot vegvesenKo.hentStatus). Nye API-endepunkter: `equipment.list` med sok-filter, `equipment.antallPerKategori`, `equipment.hentMuligeAnsvarlige`, `bruker.hentMin`. ~50 nye i18n-nøkler.
-- **Blokk C2 (modal-redigering + ansvarlig-CRUD):** Detaljside utvidet med rediger-knapper på 5 seksjoner (Generelt, Anskaffelse, Kjøretøy-info, Anleggsmaskin-info, Småutstyr-info) som åpner én generisk `RedigerModal`-komponent. Ansvarlig-seksjonen erstattet med full CRUD: hovedansvarlig kan endres (UserPicker), tilleggsansvarlige listes med periode-start + (×)-fjern-knapp, (+)-knapp åpner LeggTilAnsvarlig-modal. Server-side: ny `verifiserMaskinAnsvarligSkriveTilgang(ctxUserId, equipmentId)` i tilgangskontroll.ts — sitedoc_admin/company_admin/primær-ansvarlig kan endre ansvarlig-felter (per A.6 hybrid). Ny `ansvarlig`-router (`maskin.ansvarlig.list/tilfoy/fjern`) med soft-delete (periodeSlutt = now), cross-org-blokkering, conflict-sjekk. `equipment.oppdater` utvidet med 30+ redigerbare felt (alle Generelt/Anskaffelse/manuelle Kjøretøy-info/Anleggsmaskin-info/Småutstyr-info). Vegvesen-felter overskrives av oppdaterFraVegvesen-flyten — ikke manuelt. ~18 nye i18n-nøkler. **Lukker forutsetning for SmartDok-import.**
-- **Type-fix (`77d7bd67`, 2026-05-01):** Build feilet på test for C2 — `Input`-komponenten i RedigerModal returnerer `string | null` via onChange, men `RedigerInputs.type`-feltet er `string | undefined` (påkrevd-felt i `equipment.oppdater`-schema, kan ikke settes null). Lokal `tsc --noEmit` fanget ikke dette fordi local config er mindre strikt enn Next.js-build. Fix: erstattet `<Input v={inn.type}>` med inline `<input>` for type-feltet i Generelt-modalen. **Lærdom for fremtidige bugs:** Next.js-build kjører strengere tsc enn lokal — verifiser alltid med `pnpm build --filter @sitedoc/web` lokalt før test-deploy hvis nye felter med komplekse Optional-typer introduseres.
-
-**Timer-modul Fase 3 STARTET 2026-05-01 (Infrastruktur-commit, på `feature/maskin-db`):**
-- **packages/db-timer/-pakke opprettet:** 7 Runde-1-tabeller i postgres-schema `timer` (`lonnsarter`, `aktiviteter`, `tillegg`, `expense_categories`, `daily_sheets`, `sheet_timer`, `sheet_tillegg`). Egen Prisma-klient (`.prisma/timer-client`), cross-package-FK som svake String-felt (samme mønster som db-maskin). Init-migrasjon `20260501200000_init`.
-- **Kjernen-utvidelse:** `Organization.harTimerModul Boolean default false` (midlertidig modul-flagg, samme mønster som `harMaskinModul`). `OrganizationSetting` utvidet med 4 felt: `dagsnorm Decimal default 7.5`, `overtidsmatTerskel Decimal default 9.0`, `tillattSelvAttestering Boolean default true`, `timerLockEtterDager Int? null` (Variant A — null = ingen alders-grense, status styrer låsing). Migrasjon `20260501200000_add_timer_modul_og_settings`.
-- **Service-lag:** `apps/api/src/services/timer/moduleGate.ts` (`erTimerAktivert` + `krevTimerAktivert` + `TimerModulIkkeAktivertError`). `apps/api/src/services/seed/index.ts` (5 stub-funksjoner for Runde 1A: `seedLonnsartNivaa1/2`, `seedAktiviteter`, `seedTillegg`, `seedExpenseCategories` + samlet `seedTimerForOrganization`).
-- **Workspace-deps:** `@sitedoc/db-timer` lagt til i `apps/api/package.json` + `apps/web/package.json`. Krever `pnpm install` før `prisma generate`.
-- **Migrasjons-SQL skrevet manuelt** (ikke kjørt mot lokal-DB ennå). Kenneth kjører `pnpm install` + `pnpm --filter @sitedoc/db-timer exec prisma generate` + `pnpm --filter @sitedoc/db-timer exec prisma migrate deploy` + tilsvarende for `@sitedoc/db` mot test før prod.
-- **Ikke i denne commit-en:** prototype-sletting (Runde 1B), modulProcedure i tRPC-base, dagsseddel-flyt, leder-godkjenning, mobil/offline, eksport-adaptere.
-
-**Timer-modul Fase 3 — Runde 1A IMPLEMENTERT 2026-05-01 (`feature/timer-1a`):**
-- **tRPC-router `timer.*`:** ny mappe `apps/api/src/routes/timer/` med `onboarding.ts` (status/aktiverNivaa1/aktiverNivaa2/aktiverTomKatalog), `lonnsart.ts` (list/opprett/oppdater/deaktiver), `aktivitet.ts` (analog), `tillegg.ts` (analog), `index.ts`. Registrert i `appRouter`. `prismaTimer` lagt i tRPC-context. RBAC: `verifiserFirmaAdmin` for skrive-mutations, alle ansatte i firma kan lese.
-- **Seed-funksjoner med faktisk innhold:** `seedLonnsartNivaa1` (16: Fastlønn, Timelønn, Overtid 50%/100%, sykemelding/permittering/feriepenger osv. per AML/Folketrygdloven/Ferieloven). `seedLonnsartNivaa2` (25: Velferdspermisjon, Reise 7,5–15/15–30/30–45/45–60 km, Diett-pakke, Skifttillegg, Lærling-pakke, Innleid arbeidskraft, Fakturerbar tid m.fl.). `seedAktiviteter` (3: Anleggsarbeid, Maskintimer, Garanti/reklamasjon). `seedTillegg` (3: Overtidsmat, Smusstilleg, Beredskap-vakt). `seedExpenseCategories` (5: Drivstoff, Parkering, Diett, Verktøy, Annet). Alle idempotente — re-kjøring overskriver ikke.
-- **Web-sider:** `/dashbord/firma/timer/{onboarding,lonnsarter,aktiviteter,tillegg}/page.tsx` + felles `layout.tsx` (sub-nav) + `page.tsx` (redirect). Onboarding-side har 3 scenarioer (Aktiver Nivå 1, Nivå 1+2, tom katalog). CRUD-tabeller med opprett/rediger-modal og deaktiver/reaktiver-toggle (soft-delete via Restrict-FK på SheetTimer/SheetTillegg/DailySheet). Sidebar-element «Timer» (Clock-ikon) i firma-layout, gates på `harTimerModul`.
-- **i18n:** ~85 nye nøkler under `firma.timer.*` (nb+en) + 3 generiske (`ja`, `nei`, `handling.handlinger`).
-- **Verifisert:** Lokal `pnpm build --filter @sitedoc/web` grønt — alle 5 timer-ruter kompilert. tRPC-typer eksponert via `appRouter`. Klar for test-deploy.
-
-**Timer-modul Fase 3 — Runde 1B (dagsseddel-flyt) IMPLEMENTERT 2026-05-01 (`feature/timer-1b`):**
-- **Slettet prototype:** `apps/web/src/app/dashbord/[prosjektId]/timer/page.tsx` (914 linjer hardkodet demodata) — erstattet av reell implementasjon.
-- **tRPC-router `timer.dagsseddel.*`:** ny fil `apps/api/src/routes/timer/dagsseddel.ts` med 12 endepunkter: `list` (filter på projectId/userId/periode/status, kun egne sedler hvis ikke admin), `hentMedId` (full join inkl. timer-rader/tillegg-rader/aktivitet/prosjekt), `opprett` (idempotent via `clientUuid`), `oppdater` (header-felt), `tilfoy/oppdater/fjernTimerRad`, `tilfoy/oppdater/fjernTilleggRad`, `send` (draft → sent, krever ≥1 timer-rad), `slett` (kun draft).
-- **Status-livssyklus enforcing:** `draft`/`returned` redigerbar, `sent`/`accepted` låst. `OrganizationSetting.timerLockEtterDager` sjekkes kun for `draft` (null = ingen alders-grense). Cross-org-blokkering via `verifiserProsjektmedlem` på opprett, eierskaps-sjekk via `hentEgenDagsseddel` på alle muteringer.
-- **Web-sider under `/dashbord/[prosjektId]/timer/`:** `page.tsx` (liste-side med ISO-uke-velger, status-filter, status-badge), `ny/page.tsx` (opprett-skjema med dato/aktivitet/klokkeslett/pause/beskrivelse, default-aktivitet «Anleggsarbeid» hvis seedet, stabil clientUuid for idempotens), `[id]/page.tsx` (detaljside med 4 seksjoner: header-redigering, timer-rader-CRUD, tillegg-rader-CRUD, send/slett-handlinger). `status-badge.tsx` som delt komponent (Next.js page.tsx kan ikke ha named exports).
-- **HovedSidebar Timer-gating:** Timer-element gates på `harTimerModul` (samme mønster som maskin). `kreverFirmaModul: "maskin" | "timer"` utvidet i `SidebarElement`-interface.
-- **i18n:** ~50 nye nøkler under `timer.*` (nb+en) — felter, status-typer, kolonneoverskrifter, dialog-titler, feilmeldinger.
-- **Verifisert:** `pnpm build --filter @sitedoc/web` grønt — 3 nye `/[prosjektId]/timer/*`-ruter + 5 fra Runde 1A. Type-fix: TS2589 «Type instantiation excessively deep» rettet ved å eksplisitt typee `onError: (e: { message: string })` på alle useMutation-callbacks i detaljsiden (per CLAUDE.md-regel — pre-eksisterende lærdom).
-- **Deployet til prod 2026-05-01** (`c1122c2e`). Ingen nye DB-migrasjoner — kun kode.
-
-**Timer-modul Fase 3 — Runde 1C (leder-godkjenning) IMPLEMENTERT 2026-05-01 (`feature/timer-1c`):**
-- **tRPC-router-utvidelse:** 4 nye endepunkter i `dagsseddel.ts`: `hentTilGodkjenning({projectId})` (alle innsendte for prosjektet, beriket med ansatt-info), `kanGodkjenne({projectId})` (boolean — sidebar-gating), `returner({id, kommentar})` (sent → returned, krever ikke-tom kommentar), `attester({id})` (sent → accepted med pris-snapshot per rad og DailySheet.attestertAvUserId/attestertVed). Lokal helper `erProsjektLeder` + `krevProsjektLeder` — sjekker `ProjectMember.role ∈ {admin, project_manager}` eller `sitedoc_admin`/`company_admin` med matchende org.
-- **Snapshot-pattern (Fase 0 A.7):** Ved attester kopieres katalog-data inn i `SheetTimer.attestertSnapshot` + `SheetTillegg.attestertSnapshot` JSON-felt: `{lonnsartId/tilleggId, kode, navn, type, prisMotKunde, internkostnad, sats, satsEnhet, attestertVed}`. Decimal-felt serialiseres som strings (toString()) for å bevare presisjon. Atomisk via `prismaTimer.$transaction([...])` — alle rader + status-overgang i én commit.
-- **Web-side `/dashbord/[prosjektId]/timer/godkjenning/page.tsx`:** Leder-vy med tabell over innsendte sedler (dato/ansatt/aktivitet/totaltimer/rader-count). Tre actions per rad: åpne (chevron til detaljside), returner (RotateCcw-ikon, åpner kommentar-modal), attester (Check-ikon, direkte mutation). Returner-modal har påkrevd kommentar (min 1 tegn). `kanGodkjenne`-sjekk gir tydelig «ingen tilgang»-melding for ikke-ledere.
-- **Detaljside-utvidelse (`[id]/page.tsx`):** To nye banner-seksjoner: returned-banner med leder-kommentar (amber, viser hva som må rettes), accepted-banner med attestert-tidspunkt (grønn). `lederKommentar`-feltet (allerede i schema) brukes som tilbakemeldingskanalen. Ansatt kan redigere returned-sedler og sende på nytt (samme send-mutation, status går returned → sent).
-- **Sidebar-utvidelse:** Nytt seksjons-element «timer-godkjenning» (CheckCircle2-ikon) i `Seksjon`-typen + seksjonMap. HovedSidebar gates på `harTimerModul && kanGodkjenne` — usynlig for ikke-ledere. URL-mønster `/dashbord/[prosjektId]/timer/godkjenning` håndteres av useAktivSeksjon (spesialfall etter prosjektId-deler).
-- **i18n:** ~17 nye nøkler under `timer.godkjenning.*` + `timer.detalj.{returnertTittel,returnertHjelp,attestertTittel}` + `nav.timerGodkjenning` (nb+en).
-- **Verifisert:** `pnpm build --filter @sitedoc/web` grønt — ny ruten `/dashbord/[prosjektId]/timer/godkjenning` + alle eksisterende kompilert. tsc grønt for api+web (kun pre-eksisterende vitest-typing). Klar for test-deploy.
-
-**Timer-modul Fase 3 — Runde 2 (mobil + offline-sync) C1–C5 IMPLEMENTERT 2026-05-01 (`feature/timer-2`, IKKE merget til develop):**
-- **Godkjent scope:** kun timer-rader + tillegg-rader (ikke utlegg/maskin), kun ansatts egne sedler på mobil (leder-godkjenning kun på web), server-wins ved konflikt med tydelig banner.
-- **C1 (`8a3c8a9a`) — Drizzle-skjema:** 6 nye SQLite-tabeller i `apps/mobile/src/db/schema.ts`: `dagsseddel_local` (id = clientUuid, sync-atom for hele sedlen), `sheet_timer_local`, `sheet_tillegg_local` (skrive-tabeller med syncStatus pending/synced/conflict) + `lonnsart_local`, `aktivitet_local`, `tillegg_local` (read-only katalog-cache). Idempotente CREATE TABLE IF NOT EXISTS i `migreringer.ts`. Decimal-felt fra Postgres serialiseres som tekst for presisjon, timestamps Unix ms.
-- **C2 (`4c89e498`) — Server-side sync-endepunkter:** To nye i `apps/api/src/routes/timer/dagsseddel.ts`: `hentEndringerSiden` (query — pull alle sedler endret etter ISO timestamp, full pull begrenset til siste 90 dager, returnerer sedler med rader serialisert), `syncBatch` (mutation — Array<{clientUuid, ...rader}>, maks 100, per-seddel `prismaTimer.$transaction`, uavhengig resultat per seddel: `ok`/`conflict`/`feilet`, ingen rollback på tvers, klient kan ikke sette status=accepted, rader erstattes via deleteMany+createMany).
-- **C3 (`e8f15f1e`) — Sync-motor:** Ny `apps/mobile/src/services/timerSync.ts` med `syncTimer(klient, userId)` som orkestrerer push (pending → server) + pull (siden → server), batches av 100 sedler. Ny `apps/mobile/src/providers/TimerSyncProvider.tsx` etter SpraakProvider — eksponerer `pendingAntall/conflictAntall/sistSynkronisert/syncerNa/sisteFeil` + `triggerSync()`. Auto-trigger ved login + nett-gjenkomst, 30s interval mens app er aktiv + online. Server-wins: conflict overskriver lokal med serverData.
-- **C4 (`27598e7a`) — Katalog-cache:** Ny `apps/mobile/src/services/timerKatalog.ts` med `refreshKatalog(klient)` (full nedlasting fra `timer.{lonnsart,aktivitet,tillegg}.list`, atomisk overskriving per type) + synkrone lese-funksjoner (`hentLonnsarterLokalt`/`hentAktiviteterLokalt`/`hentTilleggLokalt`/`finnLonnsartLokalt`/etc.) for offline-trygge UI-velgere. Provider trigger katalog-refresh sammen med syncTimer ved login.
-- **C5 (`d2a81fa7`) — UI-liste:** Ny `apps/mobile/app/timer/_layout.tsx` + `index.tsx` (liste over mine dagssedler les fra dagsseddel_local, sortert dato desc, pull-to-refresh, refocus-rerender, FAB → /timer/ny). Ny `TimerStatusMerkelapp.tsx` (status-badge utkast/sendt/returnert/attestert + sync-status-badge) + `TimerSyncStatusBar.tsx` (tynn statusbar: offline/syncerNa/pending/conflict/synced med farger + manuell trigger). Mer-tab utvidet med Timer-rad + badge for pending/conflict.
-- **Pre-eksisterende kjent issue:** Mobil tsc har 9 pre-eksisterende feil (oppgave/sjekkliste/PSI/3D/hjem-tab) som ikke er knyttet til timer-2 — Metro bundler kjører uavhengig av tsc. Trpc-import-feil i rapportobjekter ble fikset på develop (`f062c5f2`) før timer-2 — fix vil komme inn naturlig ved senere develop-merge.
-- **C5 visuelt verifisert 2026-05-02** på iOS Simulator + fysisk mobil etter test-deploy (`0342b883`). Liste-side viste eksisterende sedler synket fra prod-DB, sync-statusbar fungerer, Mer-tab Timer-rad navigerer korrekt.
-- **C6 (`90c73991`) — Opprett-skjema + detaljside:** `apps/mobile/app/timer/ny.tsx` (DateTimePicker + prosjekt-velger via `trpc.prosjekt.hentMine` + aktivitet-velger fra lokal cache med default `Anleggsarbeid` + valgfri beskrivelse → `randomUUID()` clientUuid + insert til `dagsseddel_local` med `syncStatus=pending`). `apps/mobile/app/timer/[id].tsx` (header med dato/aktivitet/status-badge, status-banners for returned/accepted/conflict/pending, timer-rader-seksjon med +/rediger/slett, tillegg-rader-seksjon analog, send-til-godkjenning-knapp som krever ≥1 timer-rad, slett-knapp med `Alert.alert`-bekreftelse — kun draft). 4 modaler (TimerRadModal, TilleggRadModal, LonnsartVelgerModal, TilleggVelgerModal) inline i [id].tsx leser fra lokal cache med søk når > 7 elementer. Alle endringer markerer `syncStatus=pending` + `sistEndretLokalt` + trigger sync via `TimerSyncProvider`.
-- **C7 — i18n + docs:** ~50 nye nøkler under `timer.*` i nb.json + en.json (sync.*, status.utkast/sendt/returnert/attestert, felt.*, tilfoy.*, rediger.*, ingenLonnsarter/Tillegg/TimerRader/TilleggRader, feil.*, bekreftSlett*, sendTilGodkjenning, slettDagsseddel m.fl.). Total: 155 timer-nøkler per språk. CLAUDE.md + STATUS.md + timer.md oppdatert med Runde 2-fremdrift.
-- **C8 (`af91dff3`) — Underprosjekt-velger:** Ny `eksternKostObjekt`-router (server) med `list({ projectId? })` for aktive ECO-er filtert på `status="aktiv" + timerregistreringApen=true`. Ny `external_cost_object_local`-tabell + idempotent migrering. `timerKatalog.refreshKatalog` henter ECO-er via Promise.all med catch-fallback (ikke-kritisk hvis router mangler). UnderprosjektVelgerModal i TimerRadModal (filtrerer på prosjekt + søk når > 7). TimerRadVis viser ECO-etikett (proAdmId + kortNavn) under lønnsart. Fjern-X-knapp ved siden av valgt underprosjekt. ~3 nye i18n-nøkler.
-- **Merge til develop:** `1cce62f3` 2026-05-02 sent kveld. Inkluderer også OppgaveModal-fix (`ff313e54` — `trpc.arbeidsforlop` → `dokumentflyt`).
-- **Test-deploy + prod-deploy utsatt til neste sesjon.** Server-side krever fersk deploy for at C6–C8 skal fungere fra mobil (syncBatch + hentEndringerSiden + dev-login + eksternKostObjekt-router).
-
-**DB-naming-opprydning — ferdig (parkert):**
-- Faggruppe-rename gjennomført på test (2026-04-15/16) og prod (2026-04-16) via tre migreringer (`navnegjennomgang`, `enterprise_rename_dokumentflyt_part`, `faggruppe_rename`). Verifisert i [db-naming-audit-2026-04-25.md](docs/claude/db-naming-audit-2026-04-25.md)
-- U.1 (`project_groups.building_ids` jsonb) utsatt til Fase 0.5 — drop koordineres med m2m-koblingstabell
-- U.2 (FK-constraint-navn fortsatt på engelsk) parkert som lavt-prioritert kosmetikk — tas naturlig ved neste større migrering
-- Lokal-DB er bevisst ikke vedlikeholdt; re-seedes fra test ved behov per § «Primærmiljø»
-
-Status og detaljer: [db-opprydning.md](docs/claude/db-opprydning.md).
-
-## Pauset arbeid
-
-**Timer/Maskin-revurdering** er utsatt til etter Fase 0-fundament er ferdig. timer.md og maskin.md har drift mot fase-0-beslutninger og må justeres før Fase 3 (Timer-modul) og Fase 1-fullføring (Maskin-modul-gateway) — men Fase 0-fundamentet bygges nå uavhengig av denne revurderingen.
-
-## Planlagte faser
-
-Detaljert plan: [arkitektur-syntese.md §5](docs/claude/arkitektur-syntese.md). Beslutningsgrunnlag: [fase-0-beslutninger.md](docs/claude/fase-0-beslutninger.md).
-
-**Fase 0 — Firma-fundament + tilgangsinfrastruktur:**
-- Datamodell (13 migrasjons-steg per § E i fase-0-beslutninger): `Activity`, `OrganizationSetting`, `OrganizationPartner`, `OrganizationTemplate`, `ProjectOrganization` (rename av OrganizationProject + `rolle`), `Project.primaryOrganizationId String?` (nullable), `ProjectModule`-utvidelse (`organizationId` + `status` per A.4/A.17), `Psi.organizationId` + `projectId` nullable + `kontekstType`, `BibliotekMal`-utvidelse (kategori/domene/kobletTilModul/verifisert), `ProjectMember.periodeSlutt` + `userId` cascade SetNull (per B.7), `ExternalCostObject`, `Godkjenning` + `DocumentTransfer.kostnadSnapshot/godkjenningId`, `User`-utvidelse (canLogin, HMS-kort, ansattnummer, nasjonalitet, arbeidstillatelse + composite unique på email + phone per B.7)
-- Selektiv Timestamptz på 11 felter per B.6 (timer/audit/godkjenning/PsiSignatur/frist-felter/Invitation)
-- Infrastruktur: `prosjektProcedure`, `modulProcedure(slug)` i tRPC
-- Refaktor: 9 funksjoner i `tilgangskontroll.ts` for ProjectMember-periode
-
-**Fase 0.5 — Byggeplass + Avdeling-fundament:**
-- Tre åpne arkitektur-prinsipper besluttes (NULL-betydning, default-byggeplass, FK vs jsonb) per [byggeplass-strategi.md](docs/claude/byggeplass-strategi.md)
-- `ByggeplassMedlemskap` (loan-pattern: User → Byggeplass over tid)
-- Drop `building_ids` jsonb fra `project_groups`
-- `Avdeling`-tabell i `packages/db` (kjernen) — firma-intern organisatorisk inndeling, separat dimensjon fra byggeplass
-- `User.avdelingId` valgfri (ny kolonne)
-- Avklaring av seed-mekanismer som registreres her vs i Fase 3
-
-**Fase 1 — Maskin med modul-gateway** (allerede under bygging på `feature/maskin-db` — gates før prod):
-- Refaktor maskin-rutene til `modulProcedure('maskin')`
-- `EquipmentChecklist` + `EquipmentChecklistTemplate` i `db-maskin`
-- Manuell trigger fra maskinregister
-
-**Fase 2 — Mal-promotering:**
-- `OrganizationTemplate` + `ReportTemplate.organizationTemplateId`
-- UI for «Send til firmabibliotek»
-
-**Fase 3 — Timer-modul** (inkl. Kompetanseregister):
-- Lønnsarter, arbeidstidskalender, dagsseddel med byggeplassId fra dag 1
-- Underprosjekt (Proadm-import eller SiteDoc Godkjenning)
-
-**Fase 4 — Mannskap/PSI-modul.**
-
-**Fase 5 — Varelager-modul.**
-
-**Fase 6 — Avansert:** DO-kobling, AI-ukeplan.
-
-**Fase 7 — Prosjekthotell-utvidelser (parallelt spor):** Møtemal, Månedsrapport, HMS-statistikk firma-nivå, Street View, auto-trigger maskin-sjekkliste fra service-varsel.
-
-**TODO etter Maskin (Fase 1) + Timer (Fase 3):** [Aktivitetsfeed på dashboard](docs/claude/aktivitetsfeed.md) — bruker eksisterende Activity-tabell, polling via tRPC, konfigurerbar periode (default 10 dager) + hendelsestyper + GDPR-retensjon i OrganizationSetting. Ekstern partner-feed-scope krever egen designrunde.
-
-**Commits på `feature/maskin-db`** venter på merge til develop:
-- `a4d7771` — Proadm-detaljer i timer.md
-- `89e102c` — Proadm-regel i CLAUDE.md
-- DB-opprydning-relaterte audit/doc-commits (2026-04-25)
-- Arkitektur-dokumentasjon (2026-04-25/26)
+Full statusrapport — pågående arbeid, pauset arbeid, planlagte faser (Fase 0–7) — i [docs/claude/STATUS-AKTUELT.md](docs/claude/STATUS-AKTUELT.md).
 
 ## Task boundary
 
@@ -231,7 +69,7 @@ Utfør kun handlinger direkte knyttet til den uttrykkelige oppgaven. Hvis andre 
 - Endrer auth, permissions eller secrets
 - Installerer eller oppgraderer pakker som påvirker andre moduler
 
-Merk: Denne regelen overstyrer IKKE indeks-regelen på linje 38. Når en regel sier "oppdater CLAUDE.md", er det fortsatt riktig å oppdatere den relevante detalj-filen i docs/claude/ hvis innholdet ikke gjelder tech stack, struktur, kommandoer, kodestil eller overordnede regler. Tolk pragmatisk, men flagg tolkningen før handling hvis du er i tvil.
+Merk: Denne regelen overstyrer IKKE indeks-regelen. Når en regel sier "oppdater CLAUDE.md", er det fortsatt riktig å oppdatere den relevante detalj-filen i docs/claude/ hvis innholdet ikke gjelder tech stack, struktur, kommandoer, kodestil eller overordnede regler. Tolk pragmatisk, men flagg tolkningen før handling hvis du er i tvil.
 
 ## Tech Stack
 
@@ -295,170 +133,15 @@ Nye moduler (timer, maskin) bruker samme PostgreSQL-instans men separate Prisma-
 - `pnpm db:migrate` — Prisma-migreringer (bruk prosjektets Prisma, IKKE global `npx prisma`)
 - `pnpm db:seed` / `pnpm db:studio`
 
-## Utviklingsmiljø og deploy
+## Utviklingsmiljø og deploy (kort)
 
-### Branching
-- **`develop`** — aktiv utvikling. All ny kode commites hit.
-- **`main`** — produksjon. Kun oppdatert via merge fra `develop` etter testing.
-
-### Branching-regler (obligatorisk)
-
-Alle større operasjoner startes på en feature-branch — aldri direkte på develop.
-
-**Workflow:**
-1. `git checkout develop && git pull origin develop`
-2. `git checkout -b feature/beskrivende-navn`
-3. Bygg og test på feature-branch
-4. Deploy feature-branch til test.sitedoc.no og verifiser
-5. Merge til develop via `git merge --no-ff`
-6. Deploy develop til produksjon
-
-**Gjelder alltid for:**
-- DB-migrasjoner
-- Rename/refaktorering (>10 filer)
-- Nye moduler
-- Tilgangskontroll-endringer
-
-### Timer-prototype — midlertidig plassering
-
-Filen `apps/web/src/app/dashbord/[prosjektId]/timer/` er en **demo-prototype** laget for kundepresentasjon. Den skal IKKE videreutvikles til produksjonskode.
-
-Når timer-modulen bygges ordentlig (Fase 3):
-- Flyttes til `apps/timer/` — egen Next.js-app
-- DB flyttes til `packages/db-timer/` — eget Prisma-skjema
-- Eksisterende prototype-filer slettes fra `apps/web`
-
-Regler frem til da:
-- Ikke legg til nye API-kall i prototype-siden
-- Ikke koble prototype til eksisterende tRPC-ruter
-- Ikke bruk prototype som mal for andre sider
-- Alt i prototype er hardkodet demodata
-
-### Miljøer
-
-| | Test | Produksjon |
-|---|---|---|
-| **Web** | test.sitedoc.no | sitedoc.no |
-| **Branch** | `develop` | `main` |
-| **Repo på server** | `~/programmering/sitedoc-test` | `~/programmering/sitedoc` |
-| **API-port** | 3301 | 3001 |
-| **Database** | `sitedoc_test` | `sitedoc` |
-| **Uploads** | Delt (symlinket) | Delt |
-
-**KRITISK:** Databasene er SEPARATE. `psql -d sitedoc_test` for test, `psql -d sitedoc` for prod. ALDRI kjør testdata mot prod-databasen.
-
-**Primærmiljø:** Test er primærmiljø for utvikling, verifisering og audit. Lokal-DB er typisk bak test og kan inneholde gamle skjema, manglende migreringer eller utdaterte data.
-
-- **Som referanse for "hva er state nå":** bruk alltid test. Spørringer mot lokal kan gi feil svar uten varsel.
-- **Som arbeidsmiljø for vanlig utvikling:** ikke standardvalg. Vanlige kodeendringer (UI, business-logikk uten DB-endringer, små refaktorer) kan gå rett til test via feature-branch.
-- **Som sandkasse for risiko-implementasjoner:** bruk lokal når en endring kan gå galt og trenger mellomtest før test/prod — DDL-migreringer, masse-UPDATE/DELETE, refaktor som rører mange tabeller, eksperimentell kode. Re-seede lokal fra test først (komplett dump) for å ha realistisk utgangspunkt. Verifiser mot lokal → så test → så prod.
-
-### Arbeidsflyt
-
-1. **Utvikle** — jobb på `develop`, commit og push
-2. **Deploy til test** — bruk deploy-kommandoen under (inkluderer cache-rydding >300 MB)
-3. **Test** — verifiser på test.sitedoc.no
-4. **Deploy til prod** (kun på eksplisitt forespørsel) — `git checkout main && git merge develop --no-edit && git push origin main` etterfulgt av server-deploy
-
-### Deploy-kommandoer
-
-```bash
-# Test (automatisk etter push til develop)
-ssh sitedoc "cd ~/programmering/sitedoc-test && git fetch origin && git reset --hard origin/develop && pnpm install --frozen-lockfile && pnpm --filter @sitedoc/db exec prisma migrate deploy && pnpm --filter @sitedoc/db exec prisma generate && pnpm --filter @sitedoc/db-maskin exec prisma migrate deploy && pnpm --filter @sitedoc/db-maskin exec prisma generate && pnpm --filter @sitedoc/db-timer exec prisma migrate deploy && pnpm --filter @sitedoc/db-timer exec prisma generate && du -sm apps/web/.next/cache 2>/dev/null | awk '\$1>500{print \"Rydder .next/cache (\"\$1\"MB)\"}' && find apps/web/.next/cache -maxdepth 0 -type d 2>/dev/null | xargs -I{} sh -c 'size=\$(du -sm {} | cut -f1); [ \$size -gt 500 ] && rm -rf {}' && pnpm build --filter @sitedoc/web && pm2 restart sitedoc-test-web sitedoc-test-api"
-
-# Produksjon (KUN på eksplisitt forespørsel)
-ssh sitedoc "cd ~/programmering/sitedoc && git pull && pnpm install --frozen-lockfile && pnpm --filter @sitedoc/db exec prisma migrate deploy && pnpm --filter @sitedoc/db exec prisma generate && pnpm --filter @sitedoc/db-maskin exec prisma migrate deploy && pnpm --filter @sitedoc/db-maskin exec prisma generate && pnpm --filter @sitedoc/db-timer exec prisma migrate deploy && pnpm --filter @sitedoc/db-timer exec prisma generate && du -sm apps/web/.next/cache 2>/dev/null | awk '\$1>500{print \"Rydder .next/cache (\"\$1\"MB)\"}' && find apps/web/.next/cache -maxdepth 0 -type d 2>/dev/null | xargs -I{} sh -c 'size=\$(du -sm {} | cut -f1); [ \$size -gt 500 ] && rm -rf {}' && pnpm build && pm2 restart all"
-```
-
-**Prod bruker `prisma migrate deploy`** — IKKE `pnpm db:migrate` (som kjører interaktiv `prisma migrate dev`). `prisma generate` må kjøres etter migrate for at API-bygget skal se nye Prisma-modeller. **Kjør for ALLE tre db-pakker** (`@sitedoc/db` + `@sitedoc/db-maskin` + `@sitedoc/db-timer`) — uten `db-maskin`-generate feiler `@sitedoc/api`-bygget med `Cannot find module '.prisma/maskin-client'` (tilsvarende for `db-timer`/`.prisma/timer-client`). Lærdom fra prod-deploy 2026-04-30 (db-maskin) + test-deploy 2026-05-01 (db-timer).
-
-**Modul-DB-pakker krever `.env` på server** (gitignored, må opprettes manuelt ved første deploy av en ny db-pakke). Hver pakke leser `DATABASE_URL` fra sin egen `.env`-fil ved migrate/generate — symlink eller env-export fungerer ikke. Filinnhold er identisk for `db-maskin` og `db-timer`:
-
-```
-# packages/db-maskin/.env  +  packages/db-timer/.env
-# Test-server (~/programmering/sitedoc-test/):
-DATABASE_URL="postgresql://kemyr:kemyr@localhost:5432/sitedoc_test"
-
-# Prod-server (~/programmering/sitedoc/):
-DATABASE_URL="postgresql://kemyr:kemyr@localhost:5432/sitedoc"
-```
-
-Symptom hvis `.env` mangler: `prisma migrate deploy` feiler med `Error code: P1012 — Environment variable not found: DATABASE_URL`. Lærdom fra db-maskin prod-deploy 2026-04-30 + db-timer test-deploy 2026-05-01.
-
-**ALDRI pipe `prisma migrate deploy` gjennom `tail`/`head`/`grep`** — pipens exit-kode er den siste kommandoen i pipen (typisk `tail` som returnerer 0), så `migrate`-feil **svelges** og `&&`-kjeden fortsetter som om alt gikk bra. Resultat: deploy-kjede kjører bygg + pm2-restart selv om migrasjonen feilet, og prod-DB ender uten påkrevd schema. Kjør `prisma migrate deploy` direkte (uten pipe), eller fang exit-koden eksplisitt med `set -o pipefail` før kjeden. Lærdom fra db-timer prod-deploy 2026-05-01 (timer-schema manglet 5 minutter på prod fordi `migrate | tail -3` skjulte P1012-feilen).
-
-**Cache-tak:** `.next/cache` slettes automatisk ved deploy hvis den overstiger 500 MB. Normal cache etter ren build er ~420 MB — taket rydder kun akkumulert gammel cache.
-
-Se [docs/claude/infrastruktur.md](docs/claude/infrastruktur.md) for detaljer.
-
-### Mobil reload-typer (viktig: opplys ALLTID brukeren)
-
-Etter endringer, oppgi alltid hvilken reload-metode som trengs:
-
-| Endring | Reload-metode | Instruks til bruker |
-|---------|--------------|---------------------|
-| **React-komponent / styling** | Hot reload | «Shake → Reload» eller dra ned |
-| **Provider / kontekst / hooks** | Full restart | «`npx expo start --clear`» |
-| **WebView-innhold (mobil-viewer)** | Deploy + restart | «Deployet til test — restart Expo med `--clear`» |
-| **API-endringer** | Deploy | «Deployet til test — shake → Reload» |
-| **Native modul / config** | Ny build | «Trenger ny EAS-build» |
-
-**Regel:** Etter HVER commit som påvirker mobil, skriv eksplisitt: «**Reload:** [metode]»
-
-### Miljøer og URL-oppsett
-
-| | Test | Produksjon |
-|---|---|---|
-| **Web** | test.sitedoc.no | sitedoc.no |
-| **API (tRPC)** | api-test.sitedoc.no (port 3301) | api.sitedoc.no (port 3001) |
-| **Database** | sitedoc_test | sitedoc |
-| **Mobil `.env`** | `api-test.sitedoc.no` | `api.sitedoc.no` |
-| **Branch** | `develop` | `main` |
-
-**Viktig:** Mobil `.env` peker mot **test** under utvikling. `.env.production` brukes for EAS Build / TestFlight.
-
-### tRPC-mutations kjører i web-prosessen — env-konsekvens
-
-`apps/web/src/app/api/trpc/[...trpc]/route.ts` håndterer ALLE tRPC-kall fra browser/mobil **direkte i Next.js-prosessen** (sitedoc-web / sitedoc-test-web) — IKKE proxy til Fastify (sitedoc-api). Den importerer `appRouter` direkte fra `@sitedoc/api/src/trpc/router` og kjører tRPC i web-prosessens kontekst.
-
-**Konsekvens for env-konfig:** Env-vars som brukes i tRPC-handlers (eksterne API-nøkler, integrasjonshemmeligheter, eks. `VEGVESEN_API_KEY`, `OPENAI_API_KEY`) må ligge i `sitedoc-web` sin `ecosystem.config.js`-env, IKKE bare i `sitedoc-api`. Hvis nøkkelen kun finnes i api-prosessens env, vil tRPC-handler-koden i web-prosessen lese `process.env.X = undefined`.
-
-Fastify (`sitedoc-api`) brukes for:
-- Filopplasting (`/upload`, multipart)
-- Statisk filservering (`/uploads/`)
-- WebSocket presence
-- Bakgrunns-workers (oversettelse, vegvesen-kø, FTD-prosessering)
-- FTD-prosesserings-routes
-
-**Sjekkliste ved nye eksterne integrasjoner:** Identifiser hvilken prosess som faktisk kaller endpoint:
-- Klient-trigget tRPC-mutation/query? → web-prosessen, sett env i `sitedoc-web`
-- Bakgrunns-worker eller batch-job? → api-prosessen, sett env i `sitedoc-api`
-- Begge? → sett i begge ecosystem env-blokker
-
-**Lærdom 2026-05-01 (Vegvesen-deploy):** Blokk B feilet i 30 minutter på test fordi `VEGVESEN_API_KEY` kun var lagt i `sitedoc-test-api`. Klient-mutations gikk via Next.js → web-prosess (uten nøkkel) → kastet `VegvesenApiNokkelMangler`. Løsning: nøkkelen tilføyd i begge ecosystem env-blokker.
-
-**Lærdom 2026-05-02 (dev-login refactor til Fastify):** `ENABLE_DEV_LOGIN=true` skal stå i **`sitedoc-test-api`-blokken**, IKKE `sitedoc-test-web`. Dev-login-ruten ble flyttet fra Next.js (apps/web) til Fastify (apps/api) 2026-05-02 (commit `29cf833b`) fordi Cloudflare WAF blokkerte Expo Go-fetch mot test.sitedoc.no spesifikt. Mobil treffer `${AUTH_CONFIG.apiUrl}/dev-login` direkte mot Fastify, så env-flagget må være der prosessen kjører. Sett ALDRI på prod-server (`sitedoc-api`).
-
-**Lærdom 2026-05-02 (PM2 cwd-cache-fellen):** PM2 cacher `cwd` i `~/.pm2/dump.pm2` ved boot/save. Hvis prosessen ble en gang i tiden startet fra hjem-mappen (`~`) i stedet for prosjekt-mappen (`~/programmering/sitedoc-test`), tolkes relativ `cwd: './apps/web'` som `/home/kemyr/apps/web` (eksisterer ikke) → restart-loop med `Could not find production build`. **`pm2 restart` fikser IKKE dette** — cwd er cachet. Løsning: `pm2 delete <name>` + `cd ~/programmering/sitedoc-test && pm2 start ecosystem.config.js --only <name>` + `pm2 save` (overskriver dump med korrekt cwd). Symptom: HTTP 502 fra Cloudflare, `pm2 describe` viser `exec cwd: /home/kemyr/apps/web` i stedet for `/home/kemyr/programmering/sitedoc-test/apps/web`. Lærdom fra 502-fix 2026-05-02 da `sitedoc-test-web` (ID 25) hadde stale cwd etter en tidligere restart.
-
-### Mobil-app og URL-konstruksjon
-
-- **URL-hjelpefunksjon:** Bruk `hentWebUrl()` fra `config/auth.ts` for web-URL (filnedlasting, mobil-viewer)
-  ```
-  hentWebUrl()
-  // api.sitedoc.no → sitedoc.no
-  // api-test.sitedoc.no → test.sitedoc.no
-  ```
-- **URL-mønster:** Alle `/uploads/`-URLer MÅ gå via Next.js proxy:
-  ```
-  baseUrl = hentWebUrl()
-  url = `/api${fileUrl}`
-  fullUrl = `${baseUrl}${url}`
-  // → https://test.sitedoc.no/api/uploads/uuid.ifc ✅
-  ```
-- **ALDRI** bruk `AUTH_CONFIG.apiUrl.replace("api.", "")` direkte — bruk `hentWebUrl()`
-- **ALDRI** send `file://`-stier til WebView — WebView kan ikke lese lokale filer fra en http-side (CORS)
-- Reverse proxy: `test.sitedoc.no` → web, `test.sitedoc.no/api/` → API, `api-test.sitedoc.no` → tRPC
+- **`develop`** = aktiv utvikling. **`main`** = produksjon, oppdateres kun via merge fra develop.
+- **Test:** test.sitedoc.no, DB `sitedoc_test`, repo `~/programmering/sitedoc-test`. **Prod:** sitedoc.no, DB `sitedoc`, repo `~/programmering/sitedoc`. Databasene er SEPARATE.
+- **Test er primærmiljø** for verifisering — lokal-DB er typisk bak. Lokal brukes som sandkasse for risiko-DDL.
+- **Auto-deploy til test** etter push til develop. **ALDRI deploy til prod** uten eksplisitt forespørsel.
+- **Etter HVER mobil-commit:** skriv eksplisitt «**Reload:** [metode]».
+- Branching-regler, full deploy-bash, `.env`-krav, mobil reload-tabell, tRPC env-konsekvens og prod-lærdommer i [docs/claude/deploy-detaljer.md](docs/claude/deploy-detaljer.md).
+- Server-detaljer i [docs/claude/infrastruktur.md](docs/claude/infrastruktur.md).
 
 ## Kodestil
 
@@ -531,35 +214,12 @@ Bruk dette mønsteret før du lager en eksplisitt katalog-tabell. Katalog-tabell
 
 ## Terminologi og hierarki
 
-### Tre nivåer
+Full anker-tre med tre nivåer (Firma → Firmaadministrasjon → Prosjekter), begrep-tabell og modulsystem-detaljer i [docs/claude/terminologi.md § 0](docs/claude/terminologi.md). Kort oppsummering:
 
-```
-Firma (Organization)                  ← Selskapet (A.Markussen AS, Veidekke)
-├── Firmaadministrasjon               ← Modulvalg, prosjektmalverk
-│   ├── Firmamoduler (tverrgående):   ← Slås av/på for hele firmaet
-│   │   ├── Timeregistrering
-│   │   ├── Maskinregistrering
-│   │   ├── Kompetanse
-│   │   ├── Varelager
-│   │   └── Fremdriftsplanlegging
-│   └── Prosjektmalverk               ← Standardoppsett for nye prosjekter
-│
-└── Prosjekter
-    └── Prosjekt: NRK
-        ├── Faggrupper + Dokumentflyt              ← Alltid på (prosjektspesifikk dokumentflyt)
-        ├── Tegninger                              ← Alltid på (representerer byggeplass)
-        └── Prosjektmoduler:                       ← Slås av/på per prosjekt
-            ├── Sjekklister + Oppgaver + Godkjenning   ← Samlet aktivering (én pakke)
-            ├── Dokumentsøk + Oversettelse + AI-søk    ← Samlet aktivering (dokument-intelligens-pakke)
-            ├── Mapper
-            ├── HMS-avvik
-            ├── 3D-visning
-            ├── Økonomi (FTD)
-            ├── PSI (med innsjekk/utsjekk + mannskaps-vy)
-            └── Kontrollplan
-```
-
-> **🟢 ARKITEKTUR-ANKER (etablert 2026-04-28):** Treet over er **styrende sannhetskilde for modul-typologi**. Spørsmål om hvilke moduler er prosjekt- vs firmamodul, eller hvilket nivå funksjonalitet hører til, sjekkes mot dette treet først. Andre dokumenter (`arkitektur-syntese.md`, modul-filer i `docs/claude/`) skal reconcileres mot dette treet ved konflikt — ikke omvendt. Pågående reconciliations spores i [docs/claude/oppryddings-plan-2026-04-28.md § Dokument-samhandlings-lukking](docs/claude/oppryddings-plan-2026-04-28.md).
+- **Firma (Organization)** eier prosjekter og firmamoduler. Firmaadmin (`User.role = "company_admin"`) ser alt firma-internt.
+- **Faggruppe** = deltaker i dokumentflyt på ett prosjekt (Byggherre, Tømrer). DB: `Faggruppe`. **«Entreprise»/«Enterprise» er forbudt i ny kode.**
+- **Prosjektmoduler** (`ProjectModule`): slås av/på per prosjekt — Sjekklister, Oppgaver, Tegninger, Kontrollplan, PSI, 3D, AI-søk, HMS, Økonomi, Mapper.
+- **Firmamoduler** (planlagt): slås av/på for hele firmaet — Timer, Maskin, Kompetanse (live), Planlegger, Varelager. Datalag-isolasjon i `packages/db-<modul>/`.
 
 > **📌 Mini-Nivå 1D-presiseringer (2026-04-28):**
 >
@@ -568,46 +228,6 @@ Firma (Organization)                  ← Selskapet (A.Markussen AS, Veidekke)
 > **Mannskapsliste = vy i PSI-modulen:** Mannskaps-listen er ikke separat modul. PSI utvides med innsjekk/utsjekk-mekanikk; mannskaps-listen er den vyen som aggregerer PSI-tilstedeværelses-data per byggeplass. Tidligere skisser («Mannskap som firmamodul», «Mannskap som separat prosjektmodul», «Mannskap/PSI slått sammen») er forkastet.
 >
 > **Kompetansematrise = egen firma-funksjon (live i prod 2026-05-01).** Implementert som egne tabeller `Kompetansetype` + `AnsattKompetanse` i `packages/db` (kjernen) — ikke en del av Timer-modulen. Kompetansedata kan registreres manuelt i SiteDoc eller importeres via CSV/Excel; fremtidig HR-API-import er planlagt sammen med Import-modulen, men ikke en forutsetning for å bruke matrisen. Andre moduler (Timer, Maskin, Planlegger) leser kompetansedata via service-lag (`apps/api/src/services/kompetanse/`) — ikke direkte fra DB.
-
-### Begreper — endelig definisjon
-
-| Begrep | DB-modell | DB-tabell | Variabelnavn | Beskrivelse |
-|--------|-----------|-----------|-------------|-------------|
-| **Firma** | `Organization` | `organizations` | `organization` | Selskapet som eier SiteDoc-kontoen |
-| **Faggruppe** | `Faggruppe` | `dokumentflyt_parts` | `faggruppe`, `faggruppeId` | Deltaker i dokumentflyt innenfor ett prosjekt |
-| **Faggruppe-kobling** | `FaggruppeKobling` | `dokumentflyt_koblinger` | `faggruppeKoblinger` | Kobling mellom bruker og faggruppe |
-| **Gruppefaggruppe** | `GroupFaggruppe` | `group_faggrupper` | `groupFaggrupper` | Begrenser gruppes tilgang til spesifikke faggrupper |
-| **Dokumentflyt** | `Dokumentflyt` | `dokumentflyter` | `dokumentflyt` | Rute mellom to faggrupper (BH → TE) |
-| **Dokumentflytmedlem** | `DokumentflytMedlem` | `dokumentflyt_medlemmer` | — | Person/gruppe koblet til rolle i dokumentflyt |
-| **Bestiller-faggruppe** | — | `bestiller_faggruppe_id` | `bestillerFaggruppeId` | Faggruppen som initierer sjekkliste/oppgave |
-| **Utfører-faggruppe** | — | `utforer_faggruppe_id` | `utforerFaggruppeId` | Faggruppen som mottar og besvarer |
-| **Prosjektmodul** | `ProjectModule` | `project_modules` | — | Modul av/på per prosjekt |
-| **Firmamodul** | (planlagt) | — | — | Modul av/på for hele firmaet, tverrgående |
-
-### ⚠️ "Entreprise" brukes IKKE i koden
-
-Rename gjennomført april 2026 (112 filer, feature/faggruppe-rename). Regler:
-- **ALDRI** bruk "entreprise"/"enterprise" i ny kode, UI-strenger eller dokumentasjon
-- Prisma-modell: `Faggruppe` (ikke DokumentflytPart, ikke Enterprise)
-- Variabelnavn: `faggruppe`, `faggruppeId`, `faggruppeIder`
-- tRPC-router: `trpc.faggruppe.*` (alias `trpc.entreprise.*` beholdt midlertidig for mobil)
-- Tillatelse: `"faggruppe_manage"` (ikke "enterprise_manage")
-- Mappeadgang: `accessType = "faggruppe"` (ikke "enterprise")
-- 26 tilsiktede gjenværende "enterprise"-refs: deprecated aliaser, DB snapshot-felt, NS standardnavn
-
-### Modulsystem — to nivåer
-
-**Prosjektmoduler** (eksisterende, `ProjectModule`):
-- Slås av/på **per prosjekt** i Innstillinger > Produksjon > Moduler
-- Hvert prosjekt kan ha ulik konfigurasjon
-- Eksempler: Sjekklister, Oppgaver, Tegninger, Kontrollplan, Økonomi, PSI, 3D, AI-søk, HMS
-
-**Firmamoduler** (planlagt):
-- Slås av/på **én gang for hele firmaet** i Firmaadministrasjon
-- Deler data på tvers av alle firmaets prosjekter
-- Eksempler: Timeregistrering, Maskinregistrering, Kompetanse (implementert), Fremdriftsplanlegging (planlagt). **Mannskap er ikke firmamodul** — det er en vy i PSI-modulen (Fase 4) per Mini-Nivå-1D-presisering over.
-- Datalag-isolasjon via egne DB-skjemaer (`packages/db-timer/`, `packages/db-maskin/` osv.)
-- App-plassering valgfri: integrert i `apps/web/src/app/<modul>/` (default, enklest) eller isolert `apps/<modul>/` (for separat skalering/deploy)
 
 ## Admin-arkitektur og roller
 
@@ -673,12 +293,12 @@ Dokumentasjon skal speile faktisk tilstand. Beslutninger som ikke er skrevet inn
 - **Beslutninger skrives inn umiddelbart:** Beslutninger fra samtale eller commit overføres til riktig sannhetskilde med en gang, ikke etter at de er glemt. Riktig sannhetskilde er den aktive detalj-filen i `docs/claude/`, ikke CLAUDE.md hovedfil (med mindre regelen gjelder tech stack, struktur, kommandoer, kodestil eller overordnede regler).
 - **Verifisering mot kode FØR beslutning:** Beslutninger om ny kode tas etter at gjeldende kode er bekreftet — ikke ut fra antagelser om hva dokumentasjonen sier. Dokumentet kan ha drift; koden er fasit.
 - **Hjemløse beslutninger fanges før arkivering:** Når en `docs/claude/`-fil arkiveres eller slettes, sjekkes den først for unikt innhold som mangler i aktive filer. Drift og hjemløse beslutninger overføres til aktive sannhetskilder FØR fila flyttes.
-- **Arkitektur-anker først:** Spørsmål om modul-typologi (prosjekt- vs firmamodul, hvilket nivå funksjonalitet hører til) sjekkes mot [§ Tre nivåer](#tre-nivåer)-treet først. Andre dokumenter reconcileres mot anker, ikke omvendt.
+- **Arkitektur-anker først:** Spørsmål om modul-typologi (prosjekt- vs firmamodul, hvilket nivå funksjonalitet hører til) sjekkes mot [terminologi.md § 0 Tre nivåer](docs/claude/terminologi.md) først. Andre dokumenter reconcileres mot anker, ikke omvendt.
 
 Reglene nedenfor — særlig **Auto-oppdater dokumentasjon**, **STATUS.md vedlikehold** og **YAML-header på docs/claude/-filer** — er konkrete uttrykk for dette prinsippet.
 
 - **Beskriv løsningen først:** Før kodeendringer, beskriv den logiske løsningen med ord og be om brukerens godkjenning. Ikke anta — still kontrollspørsmål ved tvil
-- **ALDRI bruk "entreprise"/"enterprise"** i ny kode, UI-strenger eller dokumentasjon. Bruk **faggruppe** (UI/variabelnavn) eller **Faggruppe** (Prisma-modell). Se "Terminologi og hierarki"-seksjonen
+- **ALDRI bruk "entreprise"/"enterprise"** i ny kode, UI-strenger eller dokumentasjon. Bruk **faggruppe** (UI/variabelnavn) eller **Faggruppe** (Prisma-modell). Se [terminologi.md](docs/claude/terminologi.md)
 - **Attestering ≠ Godkjenning** (ufravikelig låst 2026-04-26):
   - **Attestering** = arbeider får lønn for registrert tid → Timer-modul, mobil-UI, lønnseksport
   - **Godkjenning** = entreprenør får byggherre til å godta kostnad → Dokumentflyt-modul
@@ -700,18 +320,12 @@ Reglene nedenfor — særlig **Auto-oppdater dokumentasjon**, **STATUS.md vedlik
 - **Delt infrastruktur:** Brukeren har flere prosjekter som deler domene (sitedoc.no), OAuth-klienter, ngrok-konto og server. ALDRI endre `.env`-filer, DNS/tunnel-config eller OAuth-oppsett uten å spørre — endringer kan påvirke andre prosjekter
 - **Proadm-integrasjon:** all godkjenning skjer i SiteDoc. Proadm mottar kun ferdig godkjente timer/tillegg/utlegg — ingen godkjenningsflyt eller statusoppdateringer tilbake. Detaljer i [docs/claude/timer.md](docs/claude/timer.md)
 - **Lønnsart-grense — regnskap eier kobling og satser:** SiteDoc leverer default lønnsart-numre (avlest fra SmartDok som referanse), men numrene er redigerbare per firma — kunder må kunne tilpasse til sitt eget regnskapssystem. Lønnsart-til-konto-mapping og faktiske satser tilhører regnskap, ikke SiteDoc.
-- **SmartDok maskin-eksport:** Excel-format med kolonner Maskin/Internnummer/Reg.nr/Maskinkode/Årsmodell/Lokasjon/Sist endret/Maskinansvarlig 1+2/Timetall/Km.stand/Notat/Status. Ansvarlig som klartekst-navn — matcher mot `User.name` (case-insensitive). SmartDok skiller ikke kjøretøy fra anleggsmaskin (alt er «Machines») — A.Markussen bruker intern internnummer-konvensjon (7600-tall = anleggsmaskin). Maskiner med gyldig norsk regnummer får automatisk Vegvesen-oppslag (kø prio 100). Detaljer i [docs/claude/maskin.md § SmartDok-import](docs/claude/maskin.md). Implementasjon planlagt etter Blokk C (detaljside + filter-bar).
+- **SmartDok maskin-eksport:** Detaljer i [docs/claude/maskin.md § SmartDok-import](docs/claude/maskin.md). Excel-format, ansvarlig som klartekst-navn matches mot `User.name` (case-insensitive), 7600-tall = anleggsmaskin (A.Markussen-konvensjon), Vegvesen-oppslag prio 100 ved gyldig regnummer. Implementasjon planlagt etter Blokk C.
 - **Auto-commit:** Commit og push til `develop` automatisk etter ferdig implementasjon
 - **Auto-deploy til test:** Etter push til `develop`, deploy til test.sitedoc.no automatisk
 - **ALDRI deploy til produksjon** uten eksplisitt forespørsel fra brukeren ("deploy til prod")
 - **Auto-oppdater dokumentasjon:** Oppdater relevant fil i `docs/claude/` etter vesentlige endringer
-- **STATUS.md vedlikehold:** Når en fil i `docs/claude/` endrer status (verifisert / drift identifisert / under arbeid / ferdig), oppdater [docs/claude/STATUS.md](docs/claude/STATUS.md) i SAMME commit. Aldri separat commit kun for status-oppdatering. Gjelder også når nye filer opprettes eller eksisterende slettes/arkiveres.
-  - **Faste oppdaterings-felter (sjekk alle tre i hver STATUS.md-rørende commit):**
-    1. **Linje 14** — `Sist oppdatert: YYYY-MM-DD` (dagens dato)
-    2. **Linje 21-22** — `✅ Verifisert mot kode | N` og `⚠️ Drift identifisert | N` (tellingene må stemme med rad-count i hver seksjon — særlig når fil flyttes mellom seksjoner)
-    3. **Relevante tagger** — kommentar-kolonnen for berørte fil-rader, samt status-flytting mellom seksjoner (Verifisert / Drift / Under arbeid / Ikke screenet / Arkivert)
-  - **Lærdom 2026-04-30 (commits 681aec8 + f785114):** Inkonsistens oppstod fordi fil ble flyttet mellom seksjoner uten å oppdatere sammendrag-tellingene — krevde retro-rettelse i egen commit. Sjekk alle tre felter før hver commit som rører STATUS.md.
-  - **Fase 0 § E-stegs-commit-regel (2026-05-01):** Hvert commit som implementerer et § E-steg i [fase-0-beslutninger.md](docs/claude/fase-0-beslutninger.md) skal inkludere STATUS.md (linje 14 dato + fase-0-beslutninger.md-tagg-kommentar) i SAMME commit. § E-fremdrift fanges i tagg-kommentaren med commit-hash per implementert steg, slik at sannhetskilden alltid speiler kode-status. Lærdom: 4 § E-commits ble kjørt 2026-05-01 uten STATUS.md-oppdatering — krevde retro-rettelses-commit.
+- **STATUS.md vedlikehold:** Når en fil i `docs/claude/` endrer status (verifisert / drift identifisert / under arbeid / ferdig), oppdater [docs/claude/STATUS.md](docs/claude/STATUS.md) i SAMME commit. Aldri separat commit kun for status-oppdatering. Gjelder også når nye filer opprettes eller eksisterende slettes/arkiveres. Tre faste felter må oppdateres samtidig: (1) linje 14 dato, (2) linje 21-22 tellinger ✅/⚠️, (3) tagger på berørte rader + status-flytting mellom seksjoner. § E-commits skal også inkludere STATUS.md-oppdatering med commit-hash i tagg-kommentar. Lærdom 2026-04-30 og 2026-05-01: utelatelser krevde retro-rettelses-commits.
 - **YAML-header på docs/claude/-filer:** Filer som røres skal ha YAML-frontmatter per standarden i [oppryddings-plan-2026-04-28.md § P0.1](docs/claude/oppryddings-plan-2026-04-28.md). Bunkevis retro-fylling — header tilføyes som del av første rens-PR per fil. Inntil header eksisterer: behandle filen som `sist_verifisert_mot_kode: ukjent` og verifiser mot kode før du stoler på innholdet.
 - **Kontekstsparing:** Kontekstvinduet er begrenset — spar plass:
   - **Batch SSH-kommandoer:** Kombiner flere SSH-kall til ett script/én kommando i stedet for mange enkeltkommandoer. F.eks. ett `ssh sitedoc "cmd1 && cmd2 && cmd3"` i stedet for tre separate kall
@@ -721,46 +335,4 @@ Reglene nedenfor — særlig **Auto-oppdater dokumentasjon**, **STATUS.md vedlik
 
 ## Hjelpetekster per side
 
-Hver side i SiteDoc skal ha en hjelpetekst tilgjengelig via hjelp-ikonet (?) øverst til høyre. Hjelpeteksten bygges når siden bygges, og oppdateres når siden endres.
-
-**Referanseimplementasjon:** Kontakter-siden (`/oppsett/brukere`) med tre faner.
-
-```tsx
-<HjelpKnapp>
-  <HjelpFane tittel="Hva er dette?">
-    <p>Forklaring av siden...</p>
-  </HjelpFane>
-</HjelpKnapp>
-```
-
-**Når en ny side bygges:**
-1. Lag hjelpetekst i samme PR — ikke i en separat oppgave
-2. Minimum: hva siden er til for (én setning), hvem som kan bruke den (rolle-krav), viktigste handlinger
-3. Bruk eksempler med norske navn (Ola, Trude, Per) — ikke abstrakte beskrivelser
-
-**Når en eksisterende side endres:**
-1. Oppdater hjelpeteksten i samme PR
-2. Sjekk at begreper stemmer med nye navn
-3. Hvis siden rename-es: hjelpeteksten rename-es samtidig
-
-**Konsistente begreper:**
-- "Faggruppe" — en deltaker i dokumentflyten på et prosjekt (Byggherre, Tømrer, Elektro). ALDRI "Entreprise"/"Enterprise"/"Part". Engelsk: "Trade group". Prisma: `Faggruppe`, DB: `dokumentflyt_parts`
-- "Dokumentflyt" — rute mellom to faggrupper (bestiller → utfører → godkjenner). DB: `Dokumentflyt`
-- "Firma" — selskapet som eier SiteDoc-kontoen (A.Markussen AS). DB: `Organization`
-- "Firmamodul" — modul som gjelder hele firmaet på tvers av prosjekter (Timer, Maskin, Kompetanse, Planlegging)
-
-**Sidestatus ?-ikon:**
-
-| Side | URL | Har ? | Prioritet |
-|------|-----|-------|-----------|
-| Brukere | /oppsett/brukere | ✅ | OK — oppdatert til faggruppe-terminologi |
-| Mappeoppsett | /oppsett/produksjon/box | ✅ | Sjekk konsistens |
-| Lokasjoner | /oppsett/lokasjoner | ❌ | Legg til |
-| Dokumentflyt | /oppsett/produksjon/kontakter | ❌ | Legg til |
-| Oppgavemaler | /oppsett/produksjon/oppgavemaler | ❌ | Legg til |
-| Sjekklistemaler | /oppsett/produksjon/sjekklistemaler | ❌ | Legg til |
-| Moduler | /oppsett/produksjon/moduler | ❌ | Legg til |
-| PSI | /oppsett/produksjon/psi | ❌ | Legg til |
-| AI-søk | /oppsett/ai-sok | ❌ | Legg til |
-| Admin/Firmaer | /admin/firmaer | ❌ | Legg til |
-| Kontrollplan | /dashbord/[prosjektId]/kontrollplan | ✅ | OK — matrise/liste, polygon-tegning, sluttrapport, kaskade-flytt |
+Hver side i SiteDoc skal ha hjelpetekst tilgjengelig via ?-ikonet øverst til høyre. Bygges når siden bygges, oppdateres når siden endres. Konvensjon, kode-eksempel og sidestatus-tabell i [docs/claude/hjelpetekster.md](docs/claude/hjelpetekster.md).

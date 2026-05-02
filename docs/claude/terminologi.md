@@ -5,6 +5,78 @@ hver gruppe. Status «vedtatt, ikke bygget» betyr at definisjonen er låst i
 [fase-0-beslutninger.md](fase-0-beslutninger.md), men at koden ikke er
 implementert ennå.
 
+## 0. Hierarki og modulsystem
+
+### Tre nivåer (arkitektur-anker)
+
+```
+Firma (Organization)                  ← Selskapet (A.Markussen AS, Veidekke)
+├── Firmaadministrasjon               ← Modulvalg, prosjektmalverk
+│   ├── Firmamoduler (tverrgående):   ← Slås av/på for hele firmaet
+│   │   ├── Timeregistrering
+│   │   ├── Maskinregistrering
+│   │   ├── Kompetanse
+│   │   ├── Varelager
+│   │   └── Fremdriftsplanlegging
+│   └── Prosjektmalverk               ← Standardoppsett for nye prosjekter
+│
+└── Prosjekter
+    └── Prosjekt: NRK
+        ├── Faggrupper + Dokumentflyt              ← Alltid på (prosjektspesifikk dokumentflyt)
+        ├── Tegninger                              ← Alltid på (representerer byggeplass)
+        └── Prosjektmoduler:                       ← Slås av/på per prosjekt
+            ├── Sjekklister + Oppgaver + Godkjenning   ← Samlet aktivering (én pakke)
+            ├── Dokumentsøk + Oversettelse + AI-søk    ← Samlet aktivering (dokument-intelligens-pakke)
+            ├── Mapper
+            ├── HMS-avvik
+            ├── 3D-visning
+            ├── Økonomi (FTD)
+            ├── PSI (med innsjekk/utsjekk + mannskaps-vy)
+            └── Kontrollplan
+```
+
+> **🟢 ARKITEKTUR-ANKER (etablert 2026-04-28):** Treet over er **styrende sannhetskilde for modul-typologi**. Spørsmål om hvilke moduler er prosjekt- vs firmamodul, eller hvilket nivå funksjonalitet hører til, sjekkes mot dette treet først. Andre dokumenter (`arkitektur-syntese.md`, modul-filer i `docs/claude/`) skal reconcileres mot dette treet ved konflikt — ikke omvendt. Pågående reconciliations spores i [oppryddings-plan-2026-04-28.md § Dokument-samhandlings-lukking](oppryddings-plan-2026-04-28.md).
+
+### Begreper — endelig definisjon
+
+| Begrep | DB-modell | DB-tabell | Variabelnavn | Beskrivelse |
+|--------|-----------|-----------|-------------|-------------|
+| **Firma** | `Organization` | `organizations` | `organization` | Selskapet som eier SiteDoc-kontoen |
+| **Faggruppe** | `Faggruppe` | `dokumentflyt_parts` | `faggruppe`, `faggruppeId` | Deltaker i dokumentflyt innenfor ett prosjekt |
+| **Faggruppe-kobling** | `FaggruppeKobling` | `dokumentflyt_koblinger` | `faggruppeKoblinger` | Kobling mellom bruker og faggruppe |
+| **Gruppefaggruppe** | `GroupFaggruppe` | `group_faggrupper` | `groupFaggrupper` | Begrenser gruppes tilgang til spesifikke faggrupper |
+| **Dokumentflyt** | `Dokumentflyt` | `dokumentflyter` | `dokumentflyt` | Rute mellom to faggrupper (BH → TE) |
+| **Dokumentflytmedlem** | `DokumentflytMedlem` | `dokumentflyt_medlemmer` | — | Person/gruppe koblet til rolle i dokumentflyt |
+| **Bestiller-faggruppe** | — | `bestiller_faggruppe_id` | `bestillerFaggruppeId` | Faggruppen som initierer sjekkliste/oppgave |
+| **Utfører-faggruppe** | — | `utforer_faggruppe_id` | `utforerFaggruppeId` | Faggruppen som mottar og besvarer |
+| **Prosjektmodul** | `ProjectModule` | `project_modules` | — | Modul av/på per prosjekt |
+| **Firmamodul** | (planlagt) | — | — | Modul av/på for hele firmaet, tverrgående |
+
+### "Entreprise" brukes IKKE i koden
+
+Rename gjennomført april 2026 (112 filer, feature/faggruppe-rename). Regler:
+- **ALDRI** bruk "entreprise"/"enterprise" i ny kode, UI-strenger eller dokumentasjon
+- Prisma-modell: `Faggruppe` (ikke DokumentflytPart, ikke Enterprise)
+- Variabelnavn: `faggruppe`, `faggruppeId`, `faggruppeIder`
+- tRPC-router: `trpc.faggruppe.*` (alias `trpc.entreprise.*` beholdt midlertidig for mobil)
+- Tillatelse: `"faggruppe_manage"` (ikke "enterprise_manage")
+- Mappeadgang: `accessType = "faggruppe"` (ikke "enterprise")
+- 26 tilsiktede gjenværende "enterprise"-refs: deprecated aliaser, DB snapshot-felt, NS standardnavn
+
+### Modulsystem — to nivåer
+
+**Prosjektmoduler** (eksisterende, `ProjectModule`):
+- Slås av/på **per prosjekt** i Innstillinger > Produksjon > Moduler
+- Hvert prosjekt kan ha ulik konfigurasjon
+- Eksempler: Sjekklister, Oppgaver, Tegninger, Kontrollplan, Økonomi, PSI, 3D, AI-søk, HMS
+
+**Firmamoduler** (planlagt):
+- Slås av/på **én gang for hele firmaet** i Firmaadministrasjon
+- Deler data på tvers av alle firmaets prosjekter
+- Eksempler: Timeregistrering, Maskinregistrering, Kompetanse (implementert), Fremdriftsplanlegging (planlagt). **Mannskap er ikke firmamodul** — det er en vy i PSI-modulen (Fase 4) per Mini-Nivå-1D-presisering i CLAUDE.md.
+- Datalag-isolasjon via egne DB-skjemaer (`packages/db-timer/`, `packages/db-maskin/` osv.)
+- App-plassering valgfri: integrert i `apps/web/src/app/<modul>/` (default, enklest) eller isolert `apps/<modul>/` (for separat skalering/deploy)
+
 ## 1. Organisasjon og firma
 
 - **Firma:** Selskapet som eier SiteDoc-kontoen. DB: `Organization`. Eksempel: A.Markussen AS, Veidekke. Eier prosjekter og firmamoduler (timer, maskin, HR, planlegging). Kobling til prosjekter via `OrganizationProject`
