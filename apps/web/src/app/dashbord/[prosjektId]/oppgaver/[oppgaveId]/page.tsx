@@ -285,10 +285,16 @@ export default function OppgaveDetaljSide() {
     (oppgave?.template?.objects ?? []) as { id: string; label: string; config: Record<string, unknown> }[],
   );
 
+  const [statusFeil, setStatusFeil] = useState<string | null>(null);
+
   const endreStatusMutasjon = trpc.oppgave.endreStatus.useMutation({
     onSuccess: () => {
+      setStatusFeil(null);
       utils.oppgave.hentForProsjekt.invalidate();
       utils.oppgave.hentMedId.invalidate({ id: params.oppgaveId });
+    },
+    onError: (error) => {
+      setStatusFeil(error.message ?? "Kunne ikke endre status. Prøv igjen.");
     },
   });
 
@@ -464,6 +470,13 @@ export default function OppgaveDetaljSide() {
           </div>
         )}
 
+        {/* Feilmelding fra endreStatus-mutasjon */}
+        {statusFeil && (
+          <div className="mt-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {statusFeil}
+          </div>
+        )}
+
         {/* Rad 3: Handlingsknapper (full bredde på mobil) */}
         <div className="mt-2 flex items-center gap-2">
           <DokumentHandlingsmeny
@@ -473,7 +486,7 @@ export default function OppgaveDetaljSide() {
               endreStatusMutasjon.mutate({
                 id: params.oppgaveId,
                 nyStatus: nyStatus as "draft" | "sent" | "received" | "in_progress" | "responded" | "approved" | "rejected" | "closed" | "cancelled",
-                senderId: oppgave.id,
+                senderId: undefined,
                 kommentar,
                 recipientUserId: mottaker?.userId,
                 recipientGroupId: mottaker?.groupId,
