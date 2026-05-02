@@ -632,6 +632,8 @@
   "dashbord.bruker": "bruker",
   "dashbord.ingenProsjekter": "Ingen prosjekter",
   "dashbord.ingenProsjekterBeskrivelse": "Opprett et prosjekt for å komme i gang.",
+  "dashbord.venterPaaTilgangTittel": "Venter på prosjekttilgang",
+  "dashbord.venterPaaTilgangBeskrivelse": "Du har ikke tilgang til noen prosjekter ennå. Ta kontakt med din prosjektleder.",
   "dashbord.opprettProsjekt": "Opprett prosjekt",
   "dashbord.faggrupper": "Faggrupper",
   "dashbord.maler": "Maler",
