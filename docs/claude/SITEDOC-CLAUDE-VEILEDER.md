@@ -115,20 +115,26 @@ Firma: Byggeleder (f1000001-0000-0000-0000-000000000002)
 
 ## Deploy-sekvens (lær av feil)
 ```bash
-# Test-deploy
+# Test-deploy (ALLTID begge prosesser når API-kode endres)
 ssh sitedoc "cd ~/programmering/sitedoc-test &&
 git reset --hard origin/develop &&
 pnpm install --frozen-lockfile &&
 pnpm --filter @sitedoc/db exec prisma generate &&
 pnpm --filter @sitedoc/db exec prisma migrate deploy &&
 pnpm build --filter @sitedoc/web &&
-pm2 restart sitedoc-test-web"
+pm2 restart sitedoc-test-web sitedoc-test-api"
+
+# Merk: sitedoc-test-api (tsx) trenger kun restart, ingen build
+# sitedoc-test-web (Next.js) krever build + restart
+# Restart kun web = API kjører gammel kode i minne
 
 # Prod-deploy (kun med Kenneths godkjenning)
-# Samme men med origin/main og sitedoc-web
+# Samme men med origin/main og sitedoc-web sitedoc-api
 ```
 **prisma generate MÅ kjøres før migrate deploy** — lærdom fra
 kan-attestere-deploy.
+**API må restartes når API-kode endres** — lærdom fra transfer-snapshot-fix
+(API kjørte cached gammel kode i 4t etter at fix var deployet).
 
 ---
 
