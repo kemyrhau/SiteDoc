@@ -1,8 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { trpc } from "@/lib/trpc";
-import { Spinner, EmptyState, Badge, Table } from "@sitedoc/ui";
+import { Spinner, EmptyState, Badge, Table, Button } from "@sitedoc/ui";
+import { Settings } from "lucide-react";
 
 export default function FaggrupperSide() {
   const params = useParams<{ prosjektId: string }>();
@@ -10,6 +12,8 @@ export default function FaggrupperSide() {
   const { data: faggrupper, isLoading } = trpc.faggruppe.hentForProsjekt.useQuery(
     { projectId: params.prosjektId },
   );
+
+  const administrerHref = `/dashbord/prosjekter/${params.prosjektId}/faggrupper`;
 
   if (isLoading) {
     return (
@@ -30,10 +34,30 @@ export default function FaggrupperSide() {
 
   return (
     <div>
+      <div className="mb-4 flex items-center justify-between">
+        <p className="text-sm text-gray-500">
+          Read-only oversikt. Bruk «Administrer faggrupper» for å opprette, redigere
+          eller slette.
+        </p>
+        <Link href={administrerHref}>
+          <Button size="sm" variant="secondary">
+            <Settings className="mr-1.5 h-4 w-4" />
+            Administrer faggrupper
+          </Button>
+        </Link>
+      </div>
       {!faggrupper?.length ? (
         <EmptyState
           title="Ingen faggrupper"
-          description="Faggrupper administreres under Innstillinger > Feltarbeid > Faggrupper."
+          description="Faggrupper opprettes under «Administrer faggrupper»."
+          action={
+            <Link href={administrerHref}>
+              <Button>
+                <Settings className="mr-1.5 h-4 w-4" />
+                Administrer faggrupper
+              </Button>
+            </Link>
+          }
         />
       ) : (
         <Table<FaggruppeRad>
