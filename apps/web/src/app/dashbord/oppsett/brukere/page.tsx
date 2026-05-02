@@ -980,13 +980,15 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
                           {m.erFirmaansvarlig && m.role !== "admin" && (
                             <span title={t("brukere.firmaansvarlig")}><Shield className="h-3.5 w-3.5 text-amber-500 shrink-0" /></span>
                           )}
-                          <span
-                            className="cursor-pointer hover:text-blue-600"
+                          <button
+                            type="button"
                             onClick={() => startRediger(m)}
+                            className="inline-flex items-center gap-1 text-left text-gray-900 hover:text-blue-600"
                             title={t("handling.rediger")}
                           >
-                            {m.user.name ?? "—"}
-                          </span>
+                            <span>{m.user.name ?? "—"}</span>
+                            <Pencil className="h-3 w-3 text-gray-300 group-hover/mrow:text-gray-400" />
+                          </button>
                           {radGruppeId && gruppeMedlemId && (
                             <button
                               onClick={() => fjernMedlemMutation.mutate({ id: gruppeMedlemId, projectId: prosjektId })}

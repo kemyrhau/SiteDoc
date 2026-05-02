@@ -143,11 +143,13 @@ Status og detaljer: [db-opprydning.md](db-opprydning.md).
 
 ## Planlagte oppgaver
 
-**Onboarding-veileder (prioritert — forutsetning for A.Markussen):** Ny bruker vet ikke rekkefølge eller URL for oppsett etter prosjektopprettelse. Observert 2026-05-02: 4 404-feil ved forsøk på å finne faggruppe-oppsett via intuitive URL-er. Konkret rotårsak: to nesten-identiske faggruppe-sider eksisterer (`/dashbord/[prosjektId]/faggrupper` er **read-only**, mens `/dashbord/prosjekter/[id]/faggrupper` har **full CRUD**) — ingen visuell forskjell, ingen lenke fra read-only-siden til full versjon. Mangler:
-- Lenke fra faggruppe-tom-state (`[prosjektId]/faggrupper`) til riktig opprett-side (`prosjekter/[id]/faggrupper`)
-- Steg-for-steg veileder etter prosjektopprettelse (faggrupper → maler → medlemmer)
-- Tom-state på prosjekt-dashbord som veileder ny bruker
-- Konsolidering av de to faggruppe-sidene (langtids-mål) — én side med riktig UI, ingen URL-duplikat
+**Onboarding-veileder (prioritert — forutsetning for A.Markussen):** Ny bruker vet ikke rekkefølge eller URL for oppsett etter prosjektopprettelse. Observert 2026-05-02: 4 404-feil ved forsøk på å finne faggruppe-oppsett via intuitive URL-er. Konkret rotårsak: to nesten-identiske faggruppe-sider eksisterer (`/dashbord/[prosjektId]/faggrupper` er **read-only**, mens `/dashbord/prosjekter/[id]/faggrupper` har **full CRUD**) — ingen visuell forskjell, ingen lenke fra read-only-siden til full versjon.
+
+**Runde 1 (a)+(b) implementert på develop 2026-05-02:**
+- ✅ (a) Lenke fra read-only faggrupper-side til CRUD: ny header-knapp «Administrer faggrupper» (Settings-ikon, øverst til høyre) + action-knapp i EmptyState. Begge peker til `/dashbord/prosjekter/${prosjektId}/faggrupper`.
+- ✅ (b) Pencil-ikon (alltid synlig, text-gray-300) ved siden av brukernavn i `/dashbord/oppsett/brukere` — klikk på navn eller ikon åpner redigeringsmodus (samme oppførsel som før, men nå oppdagbart).
+- ⏳ (c) Steg-for-steg progress-banner på prosjekt-dashbord etter opprettelse (faggrupper → maler → medlemmer).
+- ⏳ Konsolidering av de to faggruppe-sidene (langtids-mål) — én side med riktig UI, ingen URL-duplikat.
 
 Blokkerer selvstendig A.Markussen-onboarding. Ankret i [onboarding-veileder.md](onboarding-veileder.md).
 
