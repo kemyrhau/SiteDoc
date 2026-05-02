@@ -115,6 +115,8 @@ Kun ett: **Drømmescenario for Proadm → SiteDoc Godkjenning auto-avledning** (
 | **Runde 1B** — Dagsseddel-flyt | ✅ Deployet til prod 2026-05-01 | Slettet prototype (914 linjer demodata). `timer.dagsseddel.*` tRPC-router med 12 endepunkter (list/hentMedId/opprett/oppdater + 6 rad-mutations + send/slett) — idempotent via clientUuid, status-livssyklus enforcing (draft/returned redigerbar, sent/accepted låst), `timerLockEtterDager` kun på draft. Web-sider: liste/ny/detaljside under `/dashbord/[prosjektId]/timer/*`. Sidebar Timer-element gates på `harTimerModul`. ~50 nye i18n-nøkler |
 | **Runde 1C** — Leder-godkjenning | 🟢 Implementert 2026-05-01 (`feature/timer-1c`) | 4 nye endepunkter i dagsseddel.ts: hentTilGodkjenning/kanGodkjenne/returner/attester. Snapshot-pattern (Fase 0 A.7) ved attester — pris kopieres til SheetTimer.attestertSnapshot/SheetTillegg.attestertSnapshot JSON. Web-side `/timer/godkjenning` for ledere. Sidebar-element gates på `harTimerModul && kanGodkjenne`. Detaljside utvidet med returned/accepted-banner. ~17 nye i18n-nøkler. **Forenklet godkjenningsflyt mot ansatt utsatt** (timer.md:565+) — krever leder-genererer-seddel-på-vegne-av-ansatt-flyt, tas i egen runde |
 | **Runde 2** — Mobil + offline-sync (MVP) | 🟢 KOMPLETT på develop 2026-05-02 (`feature/timer-2` merget via `1cce62f3`) | C1 Drizzle-skjema (6 lokale SQLite-tabeller — dagsseddel_local + 2 rad-tabeller + 3 katalog-cache). C2 server-side `timer.dagsseddel.syncBatch` (per-seddel `$transaction`, uavhengig resultat per seddel: ok/conflict/feilet, maks 100 sedler per kall) + `hentEndringerSiden` (delta-pull siden timestamp). C3 sync-motor (`apps/mobile/src/services/timerSync.ts`) + `TimerSyncProvider` (NetInfo-trigger + 30s aktiv-app-interval + manuell pull-to-refresh). C4 katalog-cache (`timerKatalog.ts`, full overskriving av lonnsart/aktivitet/tillegg-tabeller ved login). C5 UI-liste (`/timer/index.tsx`) + `TimerSyncStatusBar` + `TimerStatusMerkelapp` + Mer-tab Timer-rad med pending/conflict-badge. C6 opprett-skjema (`/timer/ny.tsx`) med DateTimePicker + prosjekt-velger + aktivitet-velger + clientUuid generering, og detaljside (`/timer/[id].tsx`) med status-banners (returned/accepted/conflict/pending) + 4 inline modaler (TimerRadModal/TilleggRadModal/LonnsartVelgerModal/TilleggVelgerModal) + send-til-godkjenning + slett. C7 ~50 nye i18n-nøkler — total 155 timer-nøkler per språk. **C8 Underprosjekt-velger** — ny `eksternKostObjekt.list({projectId?})`-router (kjernen-DB), ny `external_cost_object_local`-tabell + idempotent migrering, `refreshKatalog` henter ECO-er via Promise.all med catch-fallback, UnderprosjektVelgerModal i TimerRadModal (filtrer på prosjekt + søk når > 7), ECO-etikett under lønnsart i TimerRadVis, fjern-X-knapp ved siden av valgt ECO. C5 visuelt verifisert 2026-05-02 på iOS Simulator + fysisk mobil. **Test-deploy + prod-deploy av C6–C8 utsatt til neste sesjon.** **Scope-utelatelser per Runde 2 MVP** (utsatt til 2.5/3): utlegg + maskin på dagsseddel, leder-godkjenning på mobil, aktivitet-på-rad-nivå (designes sammen med maskintimer-Runde 2.5), `sheet_machines`/`sheet_materials`/`sheet_expenses` + `arbeidstidskalender` |
+| **Runde 2.5 / C9** — Aktivitet per rad + sheet_machines | 🟢 Implementert 2026-05-02 (`feature/timer-2.5`) | `SheetTimer.aktivitetId` NOT NULL (backfill fra parent), `DailySheet.aktivitetId` nullable default, `SheetMachine`-tabell, `ExternalCostObject.proAdmType String?` (kjernen, fri tekst), `timer.dagsseddel.maskin.*` mutations, `timer.dagsseddel.hentDagstotal`, web maskin-seksjon med soft-skjul, mobil aktivitet-per-rad-velger. Maskin-cache mobil utsatt til 2.6. Se [dagsseddel-design.md](dagsseddel-design.md) for vedtatte beslutninger og [fase-0-beslutninger.md C.18](fase-0-beslutninger.md). |
+| **Runde 2.6** — Mobil maskin-cache | ❌ Ikke startet | `equipment_local` Drizzle-tabell + `maskinKatalog.ts` + sync-mekanikk + maskin-seksjon på mobil |
 | **Runde 3** — Eksport-adaptere | ❌ Ikke startet | Proadm/Tripletex/Visma/Poweroffice-adaptere |
 
 ---
@@ -615,7 +617,7 @@ Underprosjektets `kilde` settes til `sitedoc_godkjenning` og `godkjenningId` pek
 | `userId` | `uuid` FK → `users` | Hvem timer gjelder for |
 | `registrertAvUserId` | `uuid` FK → `users` | Hvem la inn registreringen (kan være ulik userId) |
 | `projectId` | `uuid` FK → `projects` | Prosjekt |
-| `aktivitetId` | `uuid` FK → `aktiviteter` | Aktivitet (ProAdm-kostnadsdimensjon) |
+| `aktivitetId` | `uuid?` FK → `aktiviteter` | Default-aktivitet for nye timer-rader (C9 2026-05-02 — nullable). Selve kanon-eierskapet ligger på `SheetTimer.aktivitetId` per rad. Kopieres til første rad ved opprettelse. |
 | `avdelingId` | `uuid?` FK → `avdelinger` | Avdeling (firma-intern, valgfri) |
 | `byggeplassId` | `uuid?` FK → `byggeplasser` | Byggeplass (per byggeplass-strategi, valgfri) |
 | `dato` | `date` | Arbeidsdag |
@@ -655,13 +657,15 @@ Erstatter de tidligere faste kolonnene `normaltid/overtid50/overtid100`. Datadre
 | `id` | `uuid` PK | |
 | `sheetId` | `uuid` FK → `daily_sheets` | |
 | `lonnsartId` | `uuid` FK → `lonnsarter` | Datadrevet katalog |
+| `aktivitetId` | `uuid` FK → `aktiviteter` | Per-rad aktivitet (C9 2026-05-02). NOT NULL. Default fra sedlens `aktivitetId` ved opprettelse, kan overstyres per rad. Restrict-FK. |
 | `externalCostObjectId` | `uuid?` FK → `external_cost_objects` | Tilleggsarbeid (ECO) per linje — gjør multi-ECO mulig innenfor én dagsseddel |
 | `timer` | `decimal` | Timer på denne lønnsarten |
-| `attestertSnapshot` | `jsonb?` | Pris-snapshot ved attestering (Fase 0 A.7) |
+| `attestertSnapshot` | `jsonb?` | Pris-snapshot ved attestering (Fase 0 A.7) — inkluderer aktivitet-snapshot post-C9 |
 
 **Indekser:**
 - `(sheetId)` — KRITISK FK-JOIN ved hver dagsseddel-fetch (Postgres lager ikke auto-index på FK)
 - `(lonnsartId)` — lønnsart-aggregering ved eksport/rapport
+- `(aktivitetId)` — aktivitet-aggregering ved ProAdm-eksport
 - `(externalCostObjectId)` — ECO-aggregering ved eksport
 
 ### `sheet_tillegg` (tillegg-rader per dagsseddel)

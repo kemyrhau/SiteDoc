@@ -1,15 +1,15 @@
 ---
 fil: dagsseddel-design.md
-status: 🟡 ÅPEN — beslutning utestående
+status: 🟢 VEDTATT — implementert i Runde 2.5/C9 2026-05-02
 opprettet: 2026-05-02
 sist_verifisert_mot_kode: 2026-05-02
 emne: Dagsseddel-arkitektur — aktivitet/maskinbruk/vareforbruk på sedel- vs rad-nivå
 ---
 
-# Dagsseddel-design — åpne arkitektur-spørsmål
+# Dagsseddel-design — vedtatte arkitektur-beslutninger
 
-> **Status (2026-05-02):** Identifisert som problem under Runde 2-utvikling.
-> Ingen beslutning fattet ennå. Krever Kenneth-input før koding.
+> **Status (2026-05-02):** Alle åpne spørsmål lukket. Implementert i
+> Runde 2.5/C9 (`feature/timer-2.5`). Se § Vedtatte beslutninger nederst.
 
 ## Modul-avhengigheter for dagsseddel
 
@@ -208,3 +208,35 @@ Estimert scope: 1.5–2 timer.
 Identifisert under Runde 2 visuell verifisering 2026-05-02 ~kl 02:00.
 Ikke en del av Runde 2-scope. Tas i egen runde (Runde 2.5 eller C9) i
 neste sesjon.
+
+---
+
+## Vedtatte beslutninger (2026-05-02 — implementert i C9)
+
+| # | Beslutning | Verdi |
+|---|---|---|
+| 1 | `SheetTimer.aktivitetId` | NOT NULL, Restrict-FK, backfill fra parent |
+| 2 | `DailySheet.aktivitetId` | nullable default — arves av nye rader, kan overstyres per rad |
+| 3 | Auto-fordeling | begge rader får sedelens default-aktivitet, kan overstyres |
+| 4 | `sheet_machines` | implementert nå (samme runde som aktivitet-flytt) |
+| 5 | `attestertSnapshot` på SheetMachine | felt i schema, null inntil Equipment-prising er spec'd (Maskin Fase 1+) |
+| 6 | Maskin-cache mobil | utsatt til Runde 2.6 (Equipment_local + sync-lokal) |
+| 7 | Mutation-plassering maskin | `timer.dagsseddel.maskin.*` (db-timer eier tabellen) |
+| 8 | `hentDagstotal({userId, dato})` | sum timer på tvers av prosjekter per dag |
+| 9 | `ExternalCostObject.proAdmType` | `String?` — fri tekst, utvides dynamisk når nye typer dukker opp |
+| 10 | ECO-type → Godkjenning-mapping | utsatt til egen runde før Runde 3 (eksport-adaptere) |
+| 11 | Multi-sedel per dag (`(userId, projectId, dato)` UNIQUE) | beholdt — én sedel per arbeidsdag/prosjekt; `hentDagstotal` aggregerer |
+
+## Implementasjons-spor (C9 commit)
+
+- packages/db: `proadm_type` på `external_cost_objects` (migrasjon `20260502000001_add_eco_proadm_type`)
+- packages/db-timer: `aktivitet_id` NOT NULL på `sheet_timer` + nullable på `daily_sheets` + `sheet_machines`-tabell (migrasjon `20260502000001_aktivitet_per_rad_og_sheet_machines`)
+- apps/api: `tilfoyTimerRad`/`oppdaterTimerRad`/`syncBatch`/`hentEndringerSiden` får `aktivitetId` per rad. `attester` snapshot inkluderer aktivitet-felter. Ny `timer.dagsseddel.maskin.{tilfoy,oppdater,fjern}` + `timer.dagsseddel.hentDagstotal`. `eksternKostObjekt.list` returnerer `proAdmType`.
+- apps/web: TimerRadDialog får aktivitet-velger (default fra sedel). Ny MaskinSeksjon + MaskinRadDialog med soft-skjul (skjules hvis Equipment-listen er tom).
+- apps/mobile: TimerRadModal får aktivitet-velger inline + ny AktivitetVelgerModal. sheet_timer_local utvides idempotent. sheet_machine_local opprettes (men UI utsatt til 2.6 — sync-laget håndterer det).
+
+## Etter C9 — gjenstående arbeid
+
+- **Runde 2.6** (egen): equipment_local + maskinKatalog + maskin-seksjon på mobil
+- **Runde ECO-type → Godkjenning-mapping** (egen, før Runde 3): mapping-policy fra ProAdm-typer til Godkjenning-flytmaler
+- **Runde 3** (Eksport-adaptere): bruker C9-snapshot for lønn-eksport per aktivitet

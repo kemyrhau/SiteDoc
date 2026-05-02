@@ -44,8 +44,10 @@ export default function DagsseddelDetaljSide() {
   const [redigerHeader, setRedigerHeader] = useState(false);
   const [visTilfoyTimer, setVisTilfoyTimer] = useState(false);
   const [visTilfoyTillegg, setVisTilfoyTillegg] = useState(false);
+  const [visTilfoyMaskin, setVisTilfoyMaskin] = useState(false);
   const [redigerTimerId, setRedigerTimerId] = useState<string | null>(null);
   const [redigerTilleggId, setRedigerTilleggId] = useState<string | null>(null);
+  const [redigerMaskinId, setRedigerMaskinId] = useState<string | null>(null);
   const [feil, setFeil] = useState<string | null>(null);
 
   const send = trpc.timer.dagsseddel.send.useMutation({
@@ -82,8 +84,27 @@ export default function DagsseddelDetaljSide() {
   }
 
   const erRedigerbar = sheet.status === "draft" || sheet.status === "returned";
-  const timerRader = sheet.timer as unknown as Array<{ id: string; lonnsartId: string; timer: unknown }>;
-  const tilleggRader = sheet.tillegg as unknown as Array<{ id: string; tilleggId: string; antall: unknown; kommentar: string | null }>;
+  const sheetAktivitetId = sheet.aktivitetId ?? null;
+  const timerRader = sheet.timer as unknown as Array<{
+    id: string;
+    lonnsartId: string;
+    aktivitetId: string;
+    externalCostObjectId: string | null;
+    timer: unknown;
+  }>;
+  const tilleggRader = sheet.tillegg as unknown as Array<{
+    id: string;
+    tilleggId: string;
+    antall: unknown;
+    kommentar: string | null;
+  }>;
+  const maskinRader = (sheet.maskiner ?? []) as unknown as Array<{
+    id: string;
+    vehicleId: string;
+    timer: unknown;
+    mengde: unknown;
+    enhet: string | null;
+  }>;
   const totaltimer = timerRader.reduce((acc, r) => acc + tilTall(r.timer), 0);
 
   return (
@@ -247,6 +268,15 @@ export default function DagsseddelDetaljSide() {
         )}
       </section>
 
+      {/* Maskin-seksjon (C9) — soft-skjul hvis Equipment-listen er tom (Maskin-modul av) */}
+      <MaskinSeksjon
+        sheetId={sheet.id}
+        rader={maskinRader}
+        erRedigerbar={erRedigerbar}
+        onTilfoy={() => setVisTilfoyMaskin(true)}
+        onRediger={(id) => setRedigerMaskinId(id)}
+      />
+
       {/* Send + slett */}
       {erRedigerbar && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white p-5">
@@ -293,12 +323,14 @@ export default function DagsseddelDetaljSide() {
       {visTilfoyTimer && (
         <TimerRadDialog
           sheetId={sheet.id}
+          defaultAktivitetId={sheetAktivitetId}
           onLukk={() => setVisTilfoyTimer(false)}
         />
       )}
       {redigerTimerId && (
         <TimerRadDialog
           sheetId={sheet.id}
+          defaultAktivitetId={sheetAktivitetId}
           rad={timerRader.find((r) => r.id === redigerTimerId)}
           onLukk={() => setRedigerTimerId(null)}
         />
@@ -314,6 +346,19 @@ export default function DagsseddelDetaljSide() {
           sheetId={sheet.id}
           rad={tilleggRader.find((r) => r.id === redigerTilleggId)}
           onLukk={() => setRedigerTilleggId(null)}
+        />
+      )}
+      {visTilfoyMaskin && (
+        <MaskinRadDialog
+          sheetId={sheet.id}
+          onLukk={() => setVisTilfoyMaskin(false)}
+        />
+      )}
+      {redigerMaskinId && (
+        <MaskinRadDialog
+          sheetId={sheet.id}
+          rad={maskinRader.find((r) => r.id === redigerMaskinId)}
+          onLukk={() => setRedigerMaskinId(null)}
         />
       )}
     </div>
@@ -348,13 +393,20 @@ function RaderTimer({
   erRedigerbar,
   onRediger,
 }: {
-  rader: Array<{ id: string; lonnsartId: string; timer: unknown }>;
+  rader: Array<{
+    id: string;
+    lonnsartId: string;
+    aktivitetId: string;
+    externalCostObjectId: string | null;
+    timer: unknown;
+  }>;
   erRedigerbar: boolean;
   onRediger: (id: string) => void;
 }) {
   const { t } = useTranslation();
   const utils = trpc.useUtils();
   const { data: lonnsarter } = trpc.timer.lonnsart.list.useQuery();
+  const { data: aktiviteter } = trpc.timer.aktivitet.list.useQuery();
 
   const fjern = trpc.timer.dagsseddel.fjernTimerRad.useMutation({
     onSuccess: (_data: unknown) => {
@@ -366,6 +418,9 @@ function RaderTimer({
   function navnFor(lonnsartId: string): string {
     return lonnsarter?.find((l) => l.id === lonnsartId)?.navn ?? "—";
   }
+  function aktivitetNavn(aktivitetId: string): string {
+    return aktiviteter?.find((a) => a.id === aktivitetId)?.navn ?? "—";
+  }
 
   return (
     <ul className="divide-y divide-gray-100">
@@ -374,6 +429,9 @@ function RaderTimer({
           <div>
             <p className="text-sm font-medium text-gray-900">
               {navnFor(rad.lonnsartId)}
+            </p>
+            <p className="text-xs text-gray-500">
+              {aktivitetNavn(rad.aktivitetId)}
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -408,18 +466,24 @@ function RaderTimer({
 
 function TimerRadDialog({
   sheetId,
+  defaultAktivitetId,
   rad,
   onLukk,
 }: {
   sheetId: string;
-  rad?: { id: string; lonnsartId: string; timer: unknown };
+  defaultAktivitetId: string | null;
+  rad?: { id: string; lonnsartId: string; aktivitetId: string; timer: unknown };
   onLukk: () => void;
 }) {
   const { t } = useTranslation();
   const utils = trpc.useUtils();
   const { data: lonnsarter } = trpc.timer.lonnsart.list.useQuery();
+  const { data: aktiviteter } = trpc.timer.aktivitet.list.useQuery();
 
   const [lonnsartId, setLonnsartId] = useState<string>(rad?.lonnsartId ?? "");
+  const [aktivitetId, setAktivitetId] = useState<string>(
+    rad?.aktivitetId ?? defaultAktivitetId ?? "",
+  );
   const [timer, setTimer] = useState<string>(rad ? String(tilTall(rad.timer)) : "");
   const [feil, setFeil] = useState<string | null>(null);
 
@@ -443,14 +507,14 @@ function TimerRadDialog({
     e.preventDefault();
     setFeil(null);
     const t = parseFloat(timer);
-    if (!lonnsartId || isNaN(t) || t < 0 || t > 24) {
-      setFeil("Ugyldig timer-verdi");
+    if (!lonnsartId || !aktivitetId || isNaN(t) || t < 0 || t > 24) {
+      setFeil("Ugyldig verdi (lønnsart, aktivitet og timer kreves)");
       return;
     }
     if (rad) {
-      oppdater.mutate({ id: rad.id, lonnsartId, timer: t });
+      oppdater.mutate({ id: rad.id, lonnsartId, aktivitetId, timer: t });
     } else {
-      tilfoy.mutate({ sheetId, lonnsartId, timer: t });
+      tilfoy.mutate({ sheetId, lonnsartId, aktivitetId, timer: t });
     }
   }
 
@@ -487,6 +551,24 @@ function TimerRadDialog({
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-700">
+            {t("timer.felt.aktivitet")}
+          </label>
+          <select
+            value={aktivitetId}
+            onChange={(e) => setAktivitetId(e.target.value)}
+            className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+            required
+          >
+            <option value="">{t("timer.velgAktivitet")}</option>
+            {aktiviteter?.map((a) => (
+              <option key={a.id} value={a.id} disabled={!a.aktiv}>
+                {a.navn}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">
             {t("timer.felt.antallTimer")}
           </label>
           <Input
@@ -505,7 +587,7 @@ function TimerRadDialog({
           <Button type="button" variant="secondary" onClick={onLukk}>
             {t("handling.avbryt")}
           </Button>
-          <Button type="submit" disabled={lagrer || !lonnsartId || !timer}>
+          <Button type="submit" disabled={lagrer || !lonnsartId || !aktivitetId || !timer}>
             {lagrer ? t("handling.lagrer") : t("handling.lagre")}
           </Button>
         </div>
@@ -736,7 +818,7 @@ function RedigerHeaderDialog({
 }: {
   sheet: {
     id: string;
-    aktivitetId: string;
+    aktivitetId: string | null;
     pauseMin: number;
     startAt: unknown;
     endAt: unknown;
@@ -754,7 +836,7 @@ function RedigerHeaderDialog({
     : new Date(sheet.dato).toISOString().slice(0, 10);
 
   const [dato, setDato] = useState<string>(datoIso);
-  const [aktivitetId, setAktivitetId] = useState(sheet.aktivitetId);
+  const [aktivitetId, setAktivitetId] = useState(sheet.aktivitetId ?? "");
   const [pauseMin, setPauseMin] = useState(sheet.pauseMin);
   const [startAt, setStartAt] = useState(
     isoTidspunktTilHHMM(sheet.startAt as string | null),
@@ -783,7 +865,7 @@ function RedigerHeaderDialog({
     oppdater.mutate({
       id: sheet.id,
       dato,
-      aktivitetId,
+      ...(aktivitetId ? { aktivitetId } : {}),
       pauseMin,
       startAt: tidIso(startAt),
       endAt: tidIso(endAt),
@@ -817,14 +899,17 @@ function RedigerHeaderDialog({
             value={aktivitetId}
             onChange={(e) => setAktivitetId(e.target.value)}
             className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
-            required
           >
+            <option value="">—</option>
             {aktiviteter?.map((a) => (
               <option key={a.id} value={a.id} disabled={!a.aktiv}>
                 {a.navn}
               </option>
             ))}
           </select>
+          <p className="mt-1 text-xs text-gray-500">
+            {t("timer.felt.aktivitetDefaultHjelp")}
+          </p>
         </div>
         <div className="grid grid-cols-3 gap-3">
           <div>
@@ -877,6 +962,280 @@ function RedigerHeaderDialog({
           </Button>
           <Button type="submit" disabled={oppdater.isPending}>
             {oppdater.isPending ? t("handling.lagrer") : t("handling.lagre")}
+          </Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Maskin-seksjon (C9 2026-05-02)                                      */
+/*  Soft-skjul: hele seksjonen skjules hvis Equipment-listen er tom    */
+/*  (Maskin-modul ikke aktivert eller firma har ingen utstyr).         */
+/* ------------------------------------------------------------------ */
+
+const ENHETER = ["m", "m2", "m3", "kg", "tonn", "stk"] as const;
+
+function MaskinSeksjon({
+  sheetId,
+  rader,
+  erRedigerbar,
+  onTilfoy,
+  onRediger,
+}: {
+  sheetId: string;
+  rader: Array<{ id: string; vehicleId: string; timer: unknown; mengde: unknown; enhet: string | null }>;
+  erRedigerbar: boolean;
+  onTilfoy: () => void;
+  onRediger: (id: string) => void;
+}) {
+  const { t } = useTranslation();
+  const utils = trpc.useUtils();
+  const { data: equipmentRaw } = trpc.maskin.equipment.list.useQuery();
+  const equipment = equipmentRaw as unknown as Array<{
+    id: string;
+    merke: string;
+    modell: string;
+    internNavn: string | null;
+    internNummer: string | null;
+  }> | undefined;
+  const equipmentMap = new Map<string, string>(
+    (equipment ?? []).map((e) => [
+      e.id,
+      `${e.merke} ${e.modell}${e.internNavn ? ` (${e.internNavn})` : ""}`,
+    ]),
+  );
+
+  const fjern = trpc.timer.dagsseddel.maskin.fjern.useMutation({
+    onSuccess: () => void utils.timer.dagsseddel.hentMedId.invalidate(),
+    onError: (e: { message: string }) => alert(e.message),
+  });
+
+  const harEquipment = (equipment?.length ?? 0) > 0;
+  const harRader = rader.length > 0;
+  if (!harEquipment && !harRader) return null;
+  void sheetId;
+
+  return (
+    <section className="mb-6 rounded-lg border border-gray-200 bg-white p-5">
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="text-base font-semibold text-gray-900">
+          {t("timer.detalj.maskinRader")}
+        </h2>
+        {erRedigerbar && harEquipment && (
+          <Button variant="secondary" onClick={onTilfoy}>
+            <Plus className="mr-1 h-4 w-4" />
+            {t("timer.detalj.tilfoyMaskin")}
+          </Button>
+        )}
+      </div>
+      {rader.length === 0 ? (
+        <p className="text-sm text-gray-500">{t("timer.detalj.ingenMaskiner")}</p>
+      ) : (
+        <ul className="divide-y divide-gray-100">
+          {rader.map((rad) => (
+            <li key={rad.id} className="flex items-center justify-between py-2">
+              <div>
+                <p className="text-sm font-medium text-gray-900">
+                  {equipmentMap.get(rad.vehicleId) ?? "—"}
+                </p>
+                {rad.mengde !== null && rad.mengde !== undefined && (
+                  <p className="text-xs text-gray-500">
+                    {tilTall(rad.mengde).toFixed(2)} {rad.enhet ?? ""}
+                  </p>
+                )}
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="font-mono text-sm text-gray-900">
+                  {tilTall(rad.timer).toFixed(2)} {t("timer.timerEnhet")}
+                </span>
+                {erRedigerbar && (
+                  <div className="flex gap-1">
+                    <button
+                      onClick={() => onRediger(rad.id)}
+                      className="rounded p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                      title={t("handling.rediger")}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => fjern.mutate({ id: rad.id })}
+                      disabled={fjern.isPending}
+                      className="rounded p-1.5 text-gray-500 hover:bg-red-50 hover:text-red-600 disabled:opacity-40"
+                      title={t("handling.slett")}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+function MaskinRadDialog({
+  sheetId,
+  rad,
+  onLukk,
+}: {
+  sheetId: string;
+  rad?: { id: string; vehicleId: string; timer: unknown; mengde: unknown; enhet: string | null };
+  onLukk: () => void;
+}) {
+  const { t } = useTranslation();
+  const utils = trpc.useUtils();
+  const { data: equipmentRaw } = trpc.maskin.equipment.list.useQuery();
+  const equipment = equipmentRaw as unknown as Array<{
+    id: string;
+    merke: string;
+    modell: string;
+    internNavn: string | null;
+    internNummer: string | null;
+  }> | undefined;
+
+  const [vehicleId, setVehicleId] = useState<string>(rad?.vehicleId ?? "");
+  const [timer, setTimer] = useState<string>(rad ? String(tilTall(rad.timer)) : "");
+  const [mengde, setMengde] = useState<string>(
+    rad?.mengde !== null && rad?.mengde !== undefined ? String(tilTall(rad.mengde)) : "",
+  );
+  const [enhet, setEnhet] = useState<string>(rad?.enhet ?? "");
+  const [feil, setFeil] = useState<string | null>(null);
+
+  const tilfoy = trpc.timer.dagsseddel.maskin.tilfoy.useMutation({
+    onSuccess: () => {
+      utils.timer.dagsseddel.hentMedId.invalidate();
+      onLukk();
+    },
+    onError: (e: { message: string }) => setFeil(e.message),
+  });
+
+  const oppdater = trpc.timer.dagsseddel.maskin.oppdater.useMutation({
+    onSuccess: () => {
+      utils.timer.dagsseddel.hentMedId.invalidate();
+      onLukk();
+    },
+    onError: (e: { message: string }) => setFeil(e.message),
+  });
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setFeil(null);
+    const tNum = parseFloat(timer);
+    if (!vehicleId || isNaN(tNum) || tNum < 0 || tNum > 24) {
+      setFeil("Ugyldig verdi (utstyr og timer kreves)");
+      return;
+    }
+    const mengdeNum = mengde.trim() ? parseFloat(mengde) : null;
+    if (mengdeNum !== null && (isNaN(mengdeNum) || mengdeNum < 0)) {
+      setFeil("Ugyldig mengde");
+      return;
+    }
+    const data = {
+      vehicleId,
+      timer: tNum,
+      mengde: mengdeNum,
+      enhet: enhet || null,
+    };
+    if (rad) {
+      oppdater.mutate({ id: rad.id, ...data });
+    } else {
+      tilfoy.mutate({ sheetId, ...data });
+    }
+  }
+
+  const lagrer = tilfoy.isPending || oppdater.isPending;
+
+  return (
+    <Modal
+      open={true}
+      onClose={onLukk}
+      title={
+        rad
+          ? t("timer.detalj.redigerMaskinRad")
+          : t("timer.detalj.tilfoyMaskin")
+      }
+    >
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">
+            {t("timer.felt.utstyr")}
+          </label>
+          <select
+            value={vehicleId}
+            onChange={(e) => setVehicleId(e.target.value)}
+            className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+            required
+          >
+            <option value="">{t("timer.velgUtstyr")}</option>
+            {equipment?.map((e) => (
+              <option key={e.id} value={e.id}>
+                {e.merke} {e.modell}
+                {e.internNavn ? ` (${e.internNavn})` : ""}
+                {e.internNummer ? ` — #${e.internNummer}` : ""}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">
+            {t("timer.felt.antallTimer")}
+          </label>
+          <Input
+            type="number"
+            step="0.25"
+            min={0}
+            max={24}
+            value={timer}
+            onChange={(e) => setTimer(e.target.value)}
+            required
+          />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              {t("timer.felt.mengde")}{" "}
+              <span className="text-xs text-gray-400">
+                ({t("label.valgfritt")})
+              </span>
+            </label>
+            <Input
+              type="number"
+              step="0.01"
+              min={0}
+              value={mengde}
+              onChange={(e) => setMengde(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              {t("timer.felt.enhet")}
+            </label>
+            <select
+              value={enhet}
+              onChange={(e) => setEnhet(e.target.value)}
+              className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+            >
+              <option value="">—</option>
+              {ENHETER.map((e) => (
+                <option key={e} value={e}>
+                  {e}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+        {feil && <p className="text-sm text-red-600">{feil}</p>}
+        <div className="flex justify-end gap-3 pt-2">
+          <Button type="button" variant="secondary" onClick={onLukk}>
+            {t("handling.avbryt")}
+          </Button>
+          <Button type="submit" disabled={lagrer || !vehicleId || !timer}>
+            {lagrer ? t("handling.lagrer") : t("handling.lagre")}
           </Button>
         </div>
       </form>

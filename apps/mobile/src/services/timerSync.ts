@@ -4,6 +4,7 @@ import {
   dagsseddelLocal,
   sheetTimerLocal,
   sheetTilleggLocal,
+  sheetMachineLocal,
 } from "../db/schema";
 import type { trpc } from "../lib/trpc";
 
@@ -147,6 +148,11 @@ export async function syncTimer(
           .from(sheetTilleggLocal)
           .where(eq(sheetTilleggLocal.dagsseddelId, sedel.id))
           .all();
+        const maskiner = db
+          .select()
+          .from(sheetMachineLocal)
+          .where(eq(sheetMachineLocal.dagsseddelId, sedel.id))
+          .all();
 
         return {
           clientUuid: sedel.id,
@@ -163,6 +169,7 @@ export async function syncTimer(
           timer: timer.map((t) => ({
             id: t.id,
             lonnsartId: t.lonnsartId,
+            aktivitetId: t.aktivitetId,
             externalCostObjectId: t.externalCostObjectId ?? null,
             timer: t.timer,
           })),
@@ -171,6 +178,13 @@ export async function syncTimer(
             tilleggId: tl.tilleggId,
             antall: tl.antall,
             kommentar: tl.kommentar ?? null,
+          })),
+          maskiner: maskiner.map((m) => ({
+            id: m.id,
+            vehicleId: m.vehicleId,
+            timer: m.timer,
+            mengde: m.mengde,
+            enhet: m.enhet,
           })),
         };
       });
@@ -325,6 +339,9 @@ export async function syncTimer(
       db.delete(sheetTilleggLocal)
         .where(eq(sheetTilleggLocal.dagsseddelId, serverSedel.id))
         .run();
+      db.delete(sheetMachineLocal)
+        .where(eq(sheetMachineLocal.dagsseddelId, serverSedel.id))
+        .run();
 
       for (const t of serverSedel.timer) {
         db.insert(sheetTimerLocal)
@@ -332,6 +349,7 @@ export async function syncTimer(
             id: t.id,
             dagsseddelId: serverSedel.id,
             lonnsartId: t.lonnsartId,
+            aktivitetId: t.aktivitetId,
             externalCostObjectId: t.externalCostObjectId,
             timer: t.timer,
             sistEndretLokalt: serverTidMs,
@@ -346,6 +364,19 @@ export async function syncTimer(
             tilleggId: tl.tilleggId,
             antall: tl.antall,
             kommentar: tl.kommentar,
+            sistEndretLokalt: serverTidMs,
+          })
+          .run();
+      }
+      for (const m of serverSedel.maskiner ?? []) {
+        db.insert(sheetMachineLocal)
+          .values({
+            id: m.id,
+            dagsseddelId: serverSedel.id,
+            vehicleId: m.vehicleId,
+            timer: m.timer,
+            mengde: m.mengde,
+            enhet: m.enhet,
             sistEndretLokalt: serverTidMs,
           })
           .run();

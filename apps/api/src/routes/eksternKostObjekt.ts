@@ -62,6 +62,7 @@ export const eksternKostObjektRouter = router({
           organizationId: true,
           projectId: true,
           proAdmId: true,
+          proAdmType: true,
           kortNavn: true,
           kilde: true,
           status: true,
