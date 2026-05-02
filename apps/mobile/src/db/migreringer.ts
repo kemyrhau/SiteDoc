@@ -288,4 +288,26 @@ export function kjorMigreringer() {
     CREATE INDEX IF NOT EXISTS idx_sheet_machine_local_sheet
       ON sheet_machine_local(dagsseddel_id);
   `);
+
+  // Runde 2.6 — equipment_local cache for sheet_machine-velger på mobil.
+  // Speiler trpc.maskin.equipment.list-resultatet med minimum felter for UI.
+  // Refresh ved login + nett-gjenkomst via maskinKatalog.refreshMaskinKatalog.
+  db.execSync(`
+    CREATE TABLE IF NOT EXISTS equipment_local (
+      id TEXT PRIMARY KEY NOT NULL,
+      organization_id TEXT NOT NULL,
+      kategori TEXT NOT NULL,
+      type TEXT,
+      merke TEXT,
+      modell TEXT,
+      intern_navn TEXT,
+      intern_nummer TEXT,
+      registreringsnummer TEXT,
+      status TEXT NOT NULL DEFAULT 'tilgjengelig',
+      sist_oppdatert INTEGER NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_equipment_local_org
+      ON equipment_local(organization_id);
+  `);
 }

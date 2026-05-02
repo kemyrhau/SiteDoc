@@ -179,6 +179,30 @@ export const tilleggLocal = sqliteTable("tillegg_local", {
 });
 
 /**
+ * equipment_local — speil av firmaets aktive Equipment (Runde 2.6 2026-05-02).
+ * Cache for offline-velger ved sheet_machines-registrering. Refresh ved login
+ * + nett-gjenkomst. Soft-skjul-mønster: tom liste = Maskin-modul ikke aktivert
+ * eller firmaet har ingen utstyr — UI skjuler maskin-seksjonen.
+ *
+ * Minimum felt-sett: tilstrekkelig for velger og rad-visning. ansvarligUserId,
+ * EU-kontroll, telematikk osv. cachet ikke — hentes ved behov via
+ * trpc.maskin.equipment.hentMedId.
+ */
+export const equipmentLocal = sqliteTable("equipment_local", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id").notNull(),
+  kategori: text("kategori").notNull(), // kjoretoy | anleggsmaskin | smautstyr
+  type: text("type"),
+  merke: text("merke"),
+  modell: text("modell"),
+  internNavn: text("intern_navn"),
+  internNummer: text("intern_nummer"),
+  registreringsnummer: text("registreringsnummer"),
+  status: text("status").notNull().default("tilgjengelig"),
+  sistOppdatert: integer("sist_oppdatert").notNull(),
+});
+
+/**
  * external_cost_object_local — speil av aktive Underprosjekter (ECO) for
  * firmaet. Refresh ved login + manuell trigger. Brukes som velger på
  * timer-rader (sheet_timer_local.externalCostObjectId).
