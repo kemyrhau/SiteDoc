@@ -54,6 +54,7 @@
   "status.underBehandling": "W trakcie przeglądu",
   "status.ventende": "Aż do",
   "status.tilGodkjenning": "Do zatwierdzenia",
+  "status.tilAttestering": "Do zatwierdzenia",
   "status.aktiv": "Aktywny",
   "status.arkivert": "Zarchiwizowane",
   "handling.opprett": "Tworzyć",

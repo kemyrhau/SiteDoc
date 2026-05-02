@@ -54,6 +54,7 @@
   "status.underBehandling": "Under granskning",
   "status.ventende": "I avvaktan på",
   "status.tilGodkjenning": "För godkännande",
+  "status.tilAttestering": "För godkännande",
   "status.aktiv": "Aktiv",
   "status.arkivert": "Arkiverad",
   "handling.opprett": "Skapa",

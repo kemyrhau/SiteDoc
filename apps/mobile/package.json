@@ -41,7 +41,7 @@
     "expo-screen-orientation": "~9.0.8",
     "expo-secure-store": "^15.0.8",
     "expo-sensors": "^15.0.8",
-    "expo-sharing": "^55.0.12",
+    "expo-sharing": "^14.0.8",
     "expo-sqlite": "~16.0.10",
     "expo-status-bar": "~3.0.9",
     "expo-web-browser": "^15.0.10",

@@ -332,7 +332,7 @@ export default function DagsseddelDetalj() {
     lesData();
   }
 
-  function sendTilGodkjenning() {
+  function sendTilAttestering() {
     if (!sedel) return;
     if (timerRader.length === 0) {
       setFeil(t("timer.feil.minstEnTimerRad"));
@@ -631,12 +631,12 @@ export default function DagsseddelDetalj() {
         <View className="mx-4 mt-6 gap-2">
           {erRedigerbar && (
             <Pressable
-              onPress={sendTilGodkjenning}
+              onPress={sendTilAttestering}
               className="flex-row items-center justify-center gap-2 rounded-lg bg-blue-600 py-3 active:bg-blue-700"
             >
               <Send size={16} color="#ffffff" />
               <Text className="text-base font-semibold text-white">
-                {t("timer.sendTilGodkjenning")}
+                {t("timer.sendTilAttestering")}
               </Text>
             </Pressable>
           )}

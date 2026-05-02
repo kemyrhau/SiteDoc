@@ -54,6 +54,7 @@
   "status.underBehandling": "Tarkistuksessa",
   "status.ventende": "Odottaa",
   "status.tilGodkjenning": "Hyväksyttäväksi",
+  "status.tilAttestering": "Hyväksyttäväksi",
   "status.aktiv": "Aktiivinen",
   "status.arkivert": "Arkistoitu",
   "handling.opprett": "Luoda",

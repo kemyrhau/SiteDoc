@@ -54,6 +54,7 @@
   "status.underBehandling": "На рассмотрении",
   "status.ventende": "В ожидании",
   "status.tilGodkjenning": "Для утверждения",
+  "status.tilAttestering": "Для утверждения",
   "status.aktiv": "Активный",
   "status.arkivert": "В архиве",
   "handling.opprett": "Создавать",
