@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { trpc } from "@/lib/trpc";
 import { Spinner } from "@sitedoc/ui";
@@ -18,6 +19,13 @@ export default function ProsjektLayout({
     { id: params.prosjektId },
     { enabled: !!params.prosjektId, retry: false },
   );
+
+  // Lagre sist besøkte prosjekt for auto-redirect ved neste innlogging
+  useEffect(() => {
+    if (params.prosjektId && typeof window !== "undefined") {
+      localStorage.setItem("lastVisitedProjectId", params.prosjektId);
+    }
+  }, [params.prosjektId]);
 
   const er3DVisning = (pathname?.endsWith("/3d-visning") || pathname?.endsWith("/tegning-3d")) ?? false;
 

@@ -514,8 +514,17 @@ export default function SjekklisteSide() {
         ? <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-600">{rad.subject}</span>
         : <span className="text-gray-300">—</span>,
         sorterbar: true, sorterVerdi: (rad) => rad.subject ?? "", filtrerbar: true, filterAlternativer: dynamiskFilter.emne ?? [] },
-      status: { id: "status", header: t("tabell.status"), celle: (rad) => <StatusBadge status={rad.status} />,
-        bredde: "130px", sorterbar: true, sorterVerdi: (rad) => rad.status, filtrerbar: true, filterAlternativer: dynamiskFilter.status ?? [] },
+      status: { id: "status", header: t("tabell.status"), celle: (rad) => (
+          <div className="flex items-center gap-1.5">
+            <StatusBadge status={rad.status} />
+            {["sent", "received", "in_progress"].includes(rad.status) && rad.recipientGroup?.name && (
+              <span className="inline-flex items-center rounded bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-700 whitespace-nowrap">
+                {t("tabell.venterPaa")}: {rad.recipientGroup.name}
+              </span>
+            )}
+          </div>
+        ),
+        bredde: "260px", sorterbar: true, sorterVerdi: (rad) => rad.status, filtrerbar: true, filterAlternativer: dynamiskFilter.status ?? [] },
       ansvarlig: { id: "ansvarlig", header: t("tabell.ansvarlig"), celle: (rad) => <span className="text-gray-600">{formaterAnsvarlig(rad)}</span>,
         sorterbar: true, sorterVerdi: (rad) => formaterAnsvarlig(rad), filtrerbar: true, filterAlternativer: dynamiskFilter.ansvarlig ?? [] },
       opprettetAv: { id: "opprettetAv", header: t("tabell.opprettetAv"), celle: (rad) => rad.bestiller?.name

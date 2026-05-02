@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { Modal, Button } from "@sitedoc/ui";
 import { trpc } from "@/lib/trpc";
 import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
@@ -61,6 +61,24 @@ export function LokasjonVelger({
     floor: string | null; byggeplassId: string | null;
     fileUrl: string | null; fileType: string | null;
   }>).filter((t) => !valgtBygningId || t.byggeplassId === valgtBygningId);
+
+  // Auto-select bygning når kun én finnes — sparer brukeren et meningsløst valg.
+  useEffect(() => {
+    if (!open || valgtBygningId) return;
+    const bygg = (bygninger ?? []) as Array<{ id: string }>;
+    if (bygg.length === 1) {
+      setValgtBygningId(bygg[0]!.id);
+    }
+  }, [open, bygninger, valgtBygningId]);
+
+  // Auto-select tegning når kun én matcher (etter ev. bygning-valg).
+  useEffect(() => {
+    if (!open || valgtTegningId) return;
+    if (tegninger.length === 1) {
+      setValgtTegningId(tegninger[0]!.id);
+      setPunkt(null);
+    }
+  }, [open, tegninger, valgtTegningId]);
 
   const { data: valgtTegningData } = trpc.tegning.hentMedId.useQuery(
     { id: valgtTegningId },
@@ -177,39 +195,48 @@ export function LokasjonVelger({
 
       <Modal open={open} onClose={() => setOpen(false)} title="Velg lokasjon">
         <div className="flex flex-col gap-3">
-          {/* Bygning */}
-          <div>
-            <label className="mb-1 block text-xs font-medium text-gray-500">Bygning</label>
-            <select
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-              value={valgtBygningId}
-              onChange={(e) => { setValgtBygningId(e.target.value); setValgtTegningId(""); setPunkt(null); }}
-            >
-              <option value="">Alle bygninger</option>
-              {(bygninger ?? []).map((b: { id: string; name: string; number: number | null }) => (
-                <option key={b.id} value={b.id}>
-                  {b.number ? `${b.number}. ${b.name}` : b.name}
-                </option>
-              ))}
-            </select>
-          </div>
+          {/* Bygning — vises kun når det faktisk er flere alternativer.
+              Én bygning auto-selectes via useEffect; ingen reell valgmulighet. */}
+          {(bygninger?.length ?? 0) > 1 && (
+            <div>
+              <label className="mb-1 block text-xs font-medium text-gray-500">Bygning</label>
+              <select
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                value={valgtBygningId}
+                onChange={(e) => { setValgtBygningId(e.target.value); setValgtTegningId(""); setPunkt(null); }}
+              >
+                <option value="">Alle bygninger</option>
+                {(bygninger ?? []).map((b: { id: string; name: string; number: number | null }) => (
+                  <option key={b.id} value={b.id}>
+                    {b.number ? `${b.number}. ${b.name}` : b.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
-          {/* Tegning */}
-          <div>
-            <label className="mb-1 block text-xs font-medium text-gray-500">Tegning</label>
-            <select
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-              value={valgtTegningId}
-              onChange={(e) => { setValgtTegningId(e.target.value); setPunkt(null); }}
-            >
-              <option value="">Velg tegning...</option>
-              {tegninger.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.drawingNumber ? `${t.drawingNumber} — ` : ""}{t.name}
-                </option>
-              ))}
-            </select>
-          </div>
+          {/* Tegning — info hvis ingen, dropdown hvis flere. Én tegning auto-selectes. */}
+          {tegninger.length === 0 ? (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+              Ingen tegning tilgjengelig. Last opp tegning under Innstillinger → Lokasjoner først.
+            </div>
+          ) : tegninger.length > 1 ? (
+            <div>
+              <label className="mb-1 block text-xs font-medium text-gray-500">Tegning</label>
+              <select
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                value={valgtTegningId}
+                onChange={(e) => { setValgtTegningId(e.target.value); setPunkt(null); }}
+              >
+                <option value="">Velg tegning...</option>
+                {tegninger.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.drawingNumber ? `${t.drawingNumber} — ` : ""}{t.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : null}
 
           {/* Tegningsvisning */}
           {tegningUrl && (

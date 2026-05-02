@@ -15,7 +15,7 @@ peker hit. Beslutningsgrunnlag og arkitektur ligger i
 
 **Status 2026-05-02:** **Fase 0 § E KOMPLETT i prod**. **Fase 0.5 KOMPLETT i prod**. **Timer-modul Fase 3 — Runde 1A + 1B + 1C DEPLOYET TIL PROD**. **Runde 2 (mobil + offline-sync) C1–C8 KOMPLETT på develop** (merge `1cce62f3` 2026-05-02 sent kveld). C5 visuelt verifisert på iOS Simulator + fysisk mobil etter første test-deploy. **Runde 2 + 2.5 / C9 deployet til prod 2026-05-02** (`de33aefc`). **Maskin terminologi-rename «pensjonert» → «utgaatt» DEPLOYET TIL PROD 2026-05-02** (`03d8c63a` — migrasjon `20260502120000_rename_pensjonert_til_utgaatt` applied på sitedoc + sitedoc_test). **Runde 2.6 mobil maskin-cache DEPLOYET TIL PROD 2026-05-02** (`03d8c63a`). **Runde 2.7 «Mine timer» + DagstotalBanner + UkeTotalBanner + web ukesoppsummering DEPLOYET TIL PROD 2026-05-02** (`05b3bddb`) — ny `/dashbord/timer/mine` (web, 5-perioder + 4 oppsummerings-kort + per aktivitet/status), ny `/timer/mine` (mobil, 3-perioder + 2 pills + aktivitet-aggregering), DagstotalBanner i mobil ny+detalj, web uke-totalsum, sidebar/Mer-tab-link. Ingen DB-migrasjon, ingen server-endring (gjenbruker `timer.dagsseddel.list`). Mobil får funksjonalitet ved neste EAS Build. Se [dagsseddel-design.md](dagsseddel-design.md) + [fase-0-beslutninger.md C.18](fase-0-beslutninger.md).
 
-**Rolle-arkitektur-avklaring 2026-05-02 (`feature/kan-attestere-boolean`):** `ProjectMember.kanAttestere Boolean` lagt til som kapabilitets-felt. Erstatter mye-omtalt `project_manager`-rolle som kun var i bruk i `dagsseddel.ts` (2 referanser, ingen rader i DB). Backfill: alle `role="admin"` får `kanAttestere=true` ved migrering. CLAUDE.md rolletabell renset for `worker`/`field_user`/`project_manager` (fantasi-verdier som aldri eksisterte i kode/DB). Migrasjon: `20260502160000_add_kan_attestere`.
+**Rolle-arkitektur-avklaring DEPLOYET TIL PROD 2026-05-02** (`6f6d3d68`) — `ProjectMember.kanAttestere Boolean` lagt til som kapabilitets-felt. Erstatter mye-omtalt `project_manager`-rolle som kun var i bruk i `dagsseddel.ts` (2 referanser, ingen rader i DB). Backfill: alle `role="admin"` får `kanAttestere=true` ved migrering — verifisert på test-DB (Per Prosjektadmin har `kanAttestere=true`, Ola Tømrer har `false`). CLAUDE.md rolletabell renset for `worker`/`field_user`/`project_manager` (fantasi-verdier som aldri eksisterte i kode/DB). Migrasjon `20260502160000_add_kan_attestere` applied på sitedoc + sitedoc_test. UI: sub-pill «✓ Attestering» under rolle-cellen i prosjekt-medlem-admin (`/dashbord/oppsett/brukere`) + ny `medlem.settKanAttestere`-mutation. Esc-fiks for redigeringsmodus inkludert. Lærdom: `prisma generate` MÅ kjøres FØR `migrate deploy` på server — `pnpm install --frozen-lockfile` regenererer ikke klient-typene.
 
 **Timer-attestering rename DEPLOYET TIL PROD 2026-05-02** (`8aa792b2`) — terminologi-rens for å gjennomføre CLAUDE.md regelen «Attestering ≠ Godkjenning» (vedtatt 2026-04-26). Full sweep:
 - **URL:** `/dashbord/[prosjektId]/timer/godkjenning` → `/timer/attestering`. Redirect-stub i gammel rute peker til ny via `redirect()` fra `next/navigation`. Lenker fra utsiden fungerer.
@@ -143,6 +143,14 @@ Status og detaljer: [db-opprydning.md](db-opprydning.md).
 
 ## Planlagte oppgaver
 
+**Onboarding-veileder (prioritert — forutsetning for A.Markussen):** Ny bruker vet ikke rekkefølge eller URL for oppsett etter prosjektopprettelse. Observert 2026-05-02: 4 404-feil ved forsøk på å finne faggruppe-oppsett via intuitive URL-er. Konkret rotårsak: to nesten-identiske faggruppe-sider eksisterer (`/dashbord/[prosjektId]/faggrupper` er **read-only**, mens `/dashbord/prosjekter/[id]/faggrupper` har **full CRUD**) — ingen visuell forskjell, ingen lenke fra read-only-siden til full versjon. Mangler:
+- Lenke fra faggruppe-tom-state (`[prosjektId]/faggrupper`) til riktig opprett-side (`prosjekter/[id]/faggrupper`)
+- Steg-for-steg veileder etter prosjektopprettelse (faggrupper → maler → medlemmer)
+- Tom-state på prosjekt-dashbord som veileder ny bruker
+- Konsolidering av de to faggruppe-sidene (langtids-mål) — én side med riktig UI, ingen URL-duplikat
+
+Blokkerer selvstendig A.Markussen-onboarding. Ankret i [onboarding-veileder.md](onboarding-veileder.md).
+
 **Testbrukere (planlagt — etter Timer er ferdig):** Opprett strukturerte testbrukere i test-DB for systematisk verifisering av tilgangsnivåer:
 - **Ola Tømrer** — produksjon-rolle (`ProjectMember.role = "worker"` eller `"field_user"`)
 - **Per Prosjektadmin** — `ProjectMember.role = "project_manager"`
@@ -150,6 +158,30 @@ Status og detaljer: [db-opprydning.md](db-opprydning.md).
 - **Tore SiteDocAdmin** — `User.role = "sitedoc_admin"`
 
 Formål: systematisk verifisering av at riktige funksjoner er tilgjengelig per rolle, og at utilgjengelige funksjoner er skjult/blokkert. Eksempel: Timer-attestering skal kun være synlig for Per/Kari/Tore (ikke Ola); Firma-administrasjon skal kun være tilgjengelig for Kari/Tore; Superadmin-flater kun for Tore. Dekker også verifisering av RBAC-helpers (`harProsjektTilgang`, `verifiserOrganisasjonTilgang`, `verifiserSiteDocAdmin`) og sidebar-gating.
+
+### «Hvem har ballen» — mangler synlig indikator (observert 2026-05-02)
+
+Problem: Ikke synlig hvem som skal handle på et dokument nå.
+- Listevisningen viser «Ansvarlig» (gruppe) men det er tvetydig
+- Inne på dokumentet vises kun status — ingen «Venter på X»
+- Admin med 20 sjekklister i lista kan ikke se hva som er blokkert
+
+Foreslått løsning: Badge «Venter på: [gruppenavn]» ved siden av status-pill, utledet fra siste `DocumentTransfer.recipientGroupId`. Gjelder sjekkliste-liste, oppgave-liste og inne på dokumentet.
+
+Prioritet: Høy — kritisk for A.Markussen onboarding.
+
+### Auto-redirect ved innlogging — mangler (observert 2026-05-02)
+
+Problem: Bruker lander på tom `/dashbord` etter innlogging.
+- Bruker med 1 prosjekt bør redirectes direkte til det prosjektet
+- Bruker med flere prosjekter bør redirectes til sist besøkte
+- Logikk: hent brukerens prosjekter ved innlogging → hvis 1 → redirect → hvis flere → redirect til `lastVisitedProjectId` (lagres i localStorage/cookie)
+
+Prioritet: Høy — første inntrykk for nye brukere.
+
+## Kjente bugs
+
+**Lokasjon-modal forhåndsvelger ikke når kun ett alternativ finnes (observert 2026-05-02):** Når en sjekkliste har lokasjon-felt og prosjektet har bare 1 byggeplass + 1 tegning, må brukeren likevel klikke gjennom dropdownene manuelt. Bør auto-velge når dropdown har én eneste option per nivå. Lav prioritet, men irriterende ved hver lagring/sending. Foreslått fiks: i lokasjon-modal-komponenten, sett valgt verdi automatisk hvis `options.length === 1` per dropdown.
 
 ## Planlagte faser
 

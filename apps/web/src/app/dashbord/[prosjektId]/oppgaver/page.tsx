@@ -580,8 +580,17 @@ export default function OppgaverSide() {
       },
       status: {
         id: "status", header: t("tabell.status"),
-        celle: (rad) => <StatusBadge status={rad.status} />,
-        bredde: "130px", sorterbar: true, sorterVerdi: (rad) => rad.status,
+        celle: (rad) => (
+          <div className="flex items-center gap-1.5">
+            <StatusBadge status={rad.status} />
+            {["sent", "received", "in_progress"].includes(rad.status) && rad.recipientGroup?.name && (
+              <span className="inline-flex items-center rounded bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-700 whitespace-nowrap">
+                {t("tabell.venterPaa")}: {rad.recipientGroup.name}
+              </span>
+            )}
+          </div>
+        ),
+        bredde: "260px", sorterbar: true, sorterVerdi: (rad) => rad.status,
         filtrerbar: true, filterAlternativer: dynamiskFilter.status ?? [],
       },
       prioritet: {
