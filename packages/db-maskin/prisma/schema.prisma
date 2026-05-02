@@ -36,9 +36,9 @@ model Equipment {
   nypris             Decimal?  @db.Decimal(12, 2)
   notater            String?   @db.Text
   bilder             Json? // [{url, caption, uploadedAt}]
-  status             String    @default("tilgjengelig") // bestilt, mottatt, tilgjengelig, utlaant, paa_service, pensjonert
-  pensjonertDato     DateTime? @map("pensjonert_dato") @db.Date
-  pensjonertGrunn    String?   @map("pensjonert_grunn") // solgt, destruert, tapt, stjaalet, slitt
+  status             String    @default("tilgjengelig") // bestilt, mottatt, tilgjengelig, utlaant, paa_service, utgaatt
+  utgaattDato        DateTime? @map("utgaatt_dato") @db.Date
+  utgaattGrunn       String?   @map("utgaatt_grunn") // solgt, destruert, tapt, stjaalet, slitt
   krevDagligKontroll Boolean   @default(false) @map("krev_daglig_kontroll")
 
   // Kjøretøy-felt (kategori = "kjoretoy")

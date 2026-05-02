@@ -28,9 +28,9 @@ const STATUS_ALLE = [
   "tilgjengelig",
   "utlaant",
   "paa_service",
-  "pensjonert",
+  "utgaatt",
 ] as const;
-const PENSJONERT_GRUNN = ["solgt", "destruert", "tapt", "stjaalet", "slitt"] as const;
+const UTGAATT_GRUNN = ["solgt", "destruert", "tapt", "stjaalet", "slitt"] as const;
 
 const KATEGORI_IKON: Record<MaskinKategori, React.ReactNode> = {
   kjoretoy: <Truck className="h-5 w-5 text-sitedoc-primary" />,
@@ -56,8 +56,8 @@ interface UtstyrDetalj {
   notater: string | null;
   eksportKode: string | null;
   status: string;
-  pensjonertDato: string | Date | null;
-  pensjonertGrunn: string | null;
+  utgaattDato: string | Date | null;
+  utgaattGrunn: string | null;
 
   registreringsnummer: string | null;
   vin: string | null;
@@ -222,18 +222,18 @@ export default function MaskinDetaljSide() {
         </div>
       </div>
 
-      {/* Status-historikk (kun pensjonert) */}
-      {utstyr.status === "pensjonert" && (
+      {/* Status-historikk (kun utgaatt) */}
+      {utstyr.status === "utgaatt" && (
         <Seksjon tittel={t("maskin.detalj.statusHistorikk")}>
           <Linje
-            label={t("maskin.detalj.pensjonertDato")}
-            verdi={formaterDato(utstyr.pensjonertDato)}
+            label={t("maskin.detalj.utgaattDato")}
+            verdi={formaterDato(utstyr.utgaattDato)}
           />
           <Linje
-            label={t("maskin.detalj.pensjonertGrunn")}
+            label={t("maskin.detalj.utgaattGrunn")}
             verdi={
-              utstyr.pensjonertGrunn
-                ? t(`maskin.pensjonertGrunn.${utstyr.pensjonertGrunn}`)
+              utstyr.utgaattGrunn
+                ? t(`maskin.utgaattGrunn.${utstyr.utgaattGrunn}`)
                 : "—"
             }
           />
@@ -668,7 +668,7 @@ function StatusBadge({ status }: { status: string }) {
         ? "bg-blue-100 text-blue-800"
         : status === "paa_service"
           ? "bg-amber-100 text-amber-800"
-          : status === "pensjonert"
+          : status === "utgaatt"
             ? "bg-gray-100 text-gray-600"
             : "bg-gray-100 text-gray-800";
   const noekkel =
@@ -741,22 +741,22 @@ function StatusEndringModal({
     {
       id: string;
       status: (typeof STATUS_ALLE)[number];
-      pensjonertGrunn?: (typeof PENSJONERT_GRUNN)[number];
+      utgaattGrunn?: (typeof UTGAATT_GRUNN)[number];
     },
     unknown
   >;
 
   function lagre() {
     setFeil(null);
-    if (nyStatus === "pensjonert" && !grunn) {
-      setFeil(t("maskin.detalj.pensjonertGrunnPaakrevd"));
+    if (nyStatus === "utgaatt" && !grunn) {
+      setFeil(t("maskin.detalj.utgaattGrunnPaakrevd"));
       return;
     }
     settStatus.mutate({
       id: equipment.id,
       status: nyStatus as (typeof STATUS_ALLE)[number],
-      ...(nyStatus === "pensjonert"
-        ? { pensjonertGrunn: grunn as (typeof PENSJONERT_GRUNN)[number] }
+      ...(nyStatus === "utgaatt"
+        ? { utgaattGrunn: grunn as (typeof UTGAATT_GRUNN)[number] }
         : {}),
     });
   }
@@ -787,15 +787,15 @@ function StatusEndringModal({
           })}
         </div>
 
-        {nyStatus === "pensjonert" && (
+        {nyStatus === "utgaatt" && (
           <>
             <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
               <AlertTriangle className="mr-1 inline h-3 w-3" />
-              {t("maskin.detalj.pensjonertAdvarsel")}
+              {t("maskin.detalj.utgaattAdvarsel")}
             </div>
             <label className="block">
               <span className="mb-1 block text-xs font-medium text-gray-700">
-                {t("maskin.detalj.pensjonertGrunn")}
+                {t("maskin.detalj.utgaattGrunn")}
               </span>
               <select
                 value={grunn}
@@ -803,9 +803,9 @@ function StatusEndringModal({
                 className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm"
               >
                 <option value="">{t("maskin.detalj.velgGrunn")}</option>
-                {PENSJONERT_GRUNN.map((g) => (
+                {UTGAATT_GRUNN.map((g) => (
                   <option key={g} value={g}>
-                    {t(`maskin.pensjonertGrunn.${g}`)}
+                    {t(`maskin.utgaattGrunn.${g}`)}
                   </option>
                 ))}
               </select>

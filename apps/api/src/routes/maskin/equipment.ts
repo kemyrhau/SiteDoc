@@ -21,11 +21,11 @@ const STATUS_VERDIER = [
   "tilgjengelig",
   "utlaant",
   "paa_service",
-  "pensjonert",
+  "utgaatt",
 ] as const;
 const EIERSKAP = ["eid", "leid", "leasing", "lant"] as const;
 
-const PENSJONERT_GRUNN = ["solgt", "destruert", "tapt", "stjaalet", "slitt"] as const;
+const UTGAATT_GRUNN = ["solgt", "destruert", "tapt", "stjaalet", "slitt"] as const;
 
 const opprettSchema = z.object({
   kategori: z.enum(KATEGORIER),
@@ -106,7 +106,7 @@ export const equipmentRouter = router({
         kategori: z.enum(KATEGORIER).optional(),
         status: z.enum(STATUS_VERDIER).optional(),
         ansvarligUserId: z.string().uuid().optional(),
-        inkluderPensjonert: z.boolean().default(false),
+        inkluderUtgaatt: z.boolean().default(false),
         sok: z.string().max(100).optional(),
       }).optional(),
     )
@@ -114,7 +114,7 @@ export const equipmentRouter = router({
       if (!ctx.userId) throw new TRPCError({ code: "UNAUTHORIZED" });
       const organizationId = await hentBrukerOrg(ctx.userId);
 
-      const inkluderPensjonert = input?.inkluderPensjonert ?? false;
+      const inkluderUtgaatt = input?.inkluderUtgaatt ?? false;
       const sokTrimmet = input?.sok?.trim();
 
       return ctx.prismaMaskin.equipment.findMany({
@@ -123,7 +123,7 @@ export const equipmentRouter = router({
           ...(input?.kategori ? { kategori: input.kategori } : {}),
           ...(input?.status ? { status: input.status } : {}),
           ...(input?.ansvarligUserId ? { ansvarligUserId: input.ansvarligUserId } : {}),
-          ...(inkluderPensjonert ? {} : { status: { not: "pensjonert" } }),
+          ...(inkluderUtgaatt ? {} : { status: { not: "utgaatt" } }),
           ...(sokTrimmet
             ? {
                 OR: [
@@ -148,7 +148,7 @@ export const equipmentRouter = router({
 
     const grupper = await ctx.prismaMaskin.equipment.groupBy({
       by: ["kategori"],
-      where: { organizationId, status: { not: "pensjonert" } },
+      where: { organizationId, status: { not: "utgaatt" } },
       _count: { _all: true },
     });
     return grupper.map((g) => ({
@@ -327,7 +327,7 @@ export const equipmentRouter = router({
       z.object({
         id: z.string().uuid(),
         status: z.enum(STATUS_VERDIER),
-        pensjonertGrunn: z.enum(PENSJONERT_GRUNN).optional(),
+        utgaattGrunn: z.enum(UTGAATT_GRUNN).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -340,10 +340,10 @@ export const equipmentRouter = router({
       if (!utstyr) throw new TRPCError({ code: "NOT_FOUND" });
       await verifiserOrganisasjonTilgang(ctx.userId, utstyr.organizationId);
 
-      if (input.status === "pensjonert" && !input.pensjonertGrunn) {
+      if (input.status === "utgaatt" && !input.utgaattGrunn) {
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: "pensjonertGrunn er påkrevd når status settes til 'pensjonert'",
+          message: "utgaattGrunn er påkrevd når status settes til 'utgaatt'",
         });
       }
 
@@ -351,10 +351,10 @@ export const equipmentRouter = router({
         where: { id: input.id },
         data: {
           status: input.status,
-          ...(input.status === "pensjonert"
+          ...(input.status === "utgaatt"
             ? {
-                pensjonertDato: new Date(),
-                pensjonertGrunn: input.pensjonertGrunn,
+                utgaattDato: new Date(),
+                utgaattGrunn: input.utgaattGrunn,
               }
             : {}),
         },
