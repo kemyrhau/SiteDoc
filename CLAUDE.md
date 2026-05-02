@@ -15,6 +15,7 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 | [docs/claude/mobil.md](docs/claude/mobil.md) | React Native, offline-first, kamera, bilde, statusendring |
 | [docs/claude/forretningslogikk.md](docs/claude/forretningslogikk.md) | Dokumentflyt, arbeidsforløp, grupper, moduler, admin, TODO |
 | [docs/claude/onboarding-veileder.md](docs/claude/onboarding-veileder.md) | **🟡 IDÉ-STADIUM:** Onboarding-veileder for firma. Sekvensiell logikk (tilgang → grupper → flyt → mal → byggeplass → tegninger), idempotens, pedagogisk lag. Planlagt ~1 måned frem (post-Fase 0) |
+| [docs/claude/prosjektoppsett-veileder.md](docs/claude/prosjektoppsett-veileder.md) | **🟡 PLAN (2026-05-02):** Steg-for-steg-flyt for ny bruker etter prosjektopprettelse (faggrupper → brukere → maler → dokumentflyt-kobling). UX-funn 2026-05-02: 4 × 404 ved intuitiv navigering. Blokkerer A.Markussen-selvstendig-onboarding |
 | [docs/claude/shared-pakker.md](docs/claude/shared-pakker.md) | @sitedoc/shared typer + validering + utils, @sitedoc/ui komponenter |
 | [docs/claude/infrastruktur.md](docs/claude/infrastruktur.md) | Deploy, server, env-filer, EAS Build, TestFlight, OAuth |
 | [docs/claude/terminologi.md](docs/claude/terminologi.md) | **Hierarki + modulsystem + alle termer.** Tre nivåer-anker, begrep-tabell, definisjoner |
