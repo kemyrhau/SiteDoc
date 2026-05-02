@@ -51,10 +51,16 @@ export const dokumentflytRouter = router({
     .mutation(async ({ ctx, input }) => {
       await verifiserProsjektmedlem(ctx.userId, input.projectId);
       const { templateIds, medlemmer, roller, ...data } = input;
+      // Default: ny dokumentflyt starter med Registrator som eneste rolle.
+      // Bruker legger til Bestiller/Utfører/Godkjenner via «+ Legg til rolle».
+      // UI kan overstyre ved å sende eksplisitt roller-array i input.
+      const startRoller = roller && roller.length > 0
+        ? roller
+        : [{ rolle: "registrator" as const }];
       return ctx.prisma.dokumentflyt.create({
         data: {
           ...data,
-          roller: roller ?? [],
+          roller: startRoller,
           maler: {
             create: templateIds.map((templateId) => ({ templateId })),
           },
