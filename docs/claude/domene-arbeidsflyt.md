@@ -270,7 +270,7 @@ Ingen steg kan hoppes over — hvert steg er forutsetning for neste.
 
 ### Steg 1 — Fundament (må på plass FØR sider bygges)
 
-- [x] **1a. Organization.erKunde-felt** (~2-3t) — IMPLEMENTERT på develop 2026-05-03
+- [x] **1a. Organization.erKunde-felt** (~2-3t) — DEPLOYET TIL PROD 2026-05-03 (`c91d953c`)
   - Ny Boolean-kolonne `Organization.erKunde` (default false) + migrasjon `20260503000001_add_organization_er_kunde` med backfill
   - Heuristikk for backfill: `erKunde=true` hvis `har_maskin_modul` OR `har_timer_modul` OR finnes `Project.primary_organization_id` OR finnes `Avdeling`. `organization_settings` og `users` droppet som signaler (auto-upsert + testdata-misbruk)
   - Forhåndsverifisert mot test-DB (1 kunde: Byggeleder; 4 skall) og prod-DB (3 kunder: A.Markussen/HRP AS/Kenneths testmiljø; 0 skall)
