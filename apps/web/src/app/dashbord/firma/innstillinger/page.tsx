@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { Spinner } from "@sitedoc/ui";
 import { Save, HelpCircle, X } from "lucide-react";
@@ -206,6 +207,26 @@ export default function FirmaInnstillinger() {
         </div>
       </div>
 
+      {/* Tidssone */}
+      <TidssoneSeksjon />
+
+      {/* Tilgang-defaulter — Timer/Vareforbruk/Maskinbruk */}
+      <TilgangPolicySeksjon
+        felt="timerTilgangDefault"
+        tittelNoekkel="firma.innstillinger.tilgangTimer.tittel"
+        beskrivelseNoekkel="firma.innstillinger.tilgangTimer.beskrivelse"
+      />
+      <TilgangPolicySeksjon
+        felt="vareforbrukTilgangDefault"
+        tittelNoekkel="firma.innstillinger.tilgangVareforbruk.tittel"
+        beskrivelseNoekkel="firma.innstillinger.tilgangVareforbruk.beskrivelse"
+      />
+      <TilgangPolicySeksjon
+        felt="maskinbrukTilgangDefault"
+        tittelNoekkel="firma.innstillinger.tilgangMaskinbruk.tittel"
+        beskrivelseNoekkel="firma.innstillinger.tilgangMaskinbruk.beskrivelse"
+      />
+
       {/* Kompetansematrise — registreringspolicy */}
       <KompetansePolicySeksjon />
 
@@ -369,6 +390,163 @@ function KompetansePolicySeksjon() {
             <div>
               <div className="text-sm font-medium text-gray-900">{v.tittel}</div>
               <div className="text-xs text-gray-600">{v.beskrivelse}</div>
+            </div>
+          </label>
+        ))}
+      </div>
+
+      {oppdater.isError && (
+        <p className="mt-3 text-sm text-red-500">
+          Kunne ikke lagre: {oppdater.error.message}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  TidssoneSeksjon — OrganizationSetting.timezone                       */
+/* ------------------------------------------------------------------ */
+
+const TIDSSONER = [
+  "Europe/Oslo",
+  "Europe/Stockholm",
+  "Europe/Copenhagen",
+  "Europe/Helsinki",
+  "Europe/Berlin",
+  "Europe/London",
+  "UTC",
+] as const;
+
+function TidssoneSeksjon() {
+  const { t } = useTranslation();
+  const { valgtFirma } = useFirma();
+  const orgId = valgtFirma?.id;
+
+  const { data: setting } = trpc.organisasjon.hentSetting.useQuery(
+    { organizationId: orgId! },
+    { enabled: !!orgId },
+  );
+  const utils = trpc.useUtils();
+
+  const oppdater = trpc.organisasjon.oppdaterSetting.useMutation({
+    onSuccess: () => {
+      utils.organisasjon.hentSetting.invalidate();
+    },
+  });
+
+  if (!setting || !orgId) return null;
+
+  function endre(verdi: string) {
+    oppdater.mutate({ timezone: verdi, organizationId: orgId! });
+  }
+
+  return (
+    <div className="mt-6 rounded-lg border border-gray-200 bg-white p-6">
+      <h2 className="mb-1 text-sm font-semibold text-gray-700">
+        {t("firma.innstillinger.tidssone.tittel")}
+      </h2>
+      <p className="mb-4 text-xs text-gray-500">
+        {t("firma.innstillinger.tidssone.beskrivelse")}
+      </p>
+      <select
+        value={setting.timezone}
+        onChange={(e) => endre(e.target.value)}
+        disabled={oppdater.isPending}
+        className="w-full max-w-sm rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-sitedoc-primary focus:outline-none focus:ring-1 focus:ring-sitedoc-primary disabled:opacity-50"
+      >
+        {TIDSSONER.map((tz) => (
+          <option key={tz} value={tz}>
+            {tz}
+          </option>
+        ))}
+      </select>
+      {oppdater.isError && (
+        <p className="mt-3 text-sm text-red-500">
+          Kunne ikke lagre: {oppdater.error.message}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  TilgangPolicySeksjon — generisk for timer/vareforbruk/maskinbruk     */
+/* ------------------------------------------------------------------ */
+
+type TilgangFelt =
+  | "timerTilgangDefault"
+  | "vareforbrukTilgangDefault"
+  | "maskinbrukTilgangDefault";
+type TilgangVerdi = "alle-ansatte" | "kun-prosjektmedlemmer" | "sertifiserte";
+
+interface TilgangPolicyProps {
+  felt: TilgangFelt;
+  tittelNoekkel: string;
+  beskrivelseNoekkel: string;
+}
+
+function TilgangPolicySeksjon({ felt, tittelNoekkel, beskrivelseNoekkel }: TilgangPolicyProps) {
+  const { t } = useTranslation();
+  const { valgtFirma } = useFirma();
+  const orgId = valgtFirma?.id;
+
+  const { data: setting } = trpc.organisasjon.hentSetting.useQuery(
+    { organizationId: orgId! },
+    { enabled: !!orgId },
+  );
+  const utils = trpc.useUtils();
+
+  const oppdater = trpc.organisasjon.oppdaterSetting.useMutation({
+    onSuccess: () => {
+      utils.organisasjon.hentSetting.invalidate();
+    },
+  });
+
+  if (!setting || !orgId) return null;
+
+  function endre(verdi: TilgangVerdi) {
+    oppdater.mutate({ [felt]: verdi, organizationId: orgId! });
+  }
+
+  const verdier: TilgangVerdi[] = ["alle-ansatte", "kun-prosjektmedlemmer", "sertifiserte"];
+  const aktivVerdi = setting[felt] as TilgangVerdi;
+
+  return (
+    <div className="mt-6 rounded-lg border border-gray-200 bg-white p-6">
+      <h2 className="mb-1 text-sm font-semibold text-gray-700">
+        {t(tittelNoekkel)}
+      </h2>
+      <p className="mb-4 text-xs text-gray-500">
+        {t(beskrivelseNoekkel)}
+      </p>
+
+      <div className="space-y-2">
+        {verdier.map((v) => (
+          <label
+            key={v}
+            className={`flex cursor-pointer items-start gap-3 rounded-md border p-3 transition-colors ${
+              aktivVerdi === v
+                ? "border-sitedoc-primary bg-sitedoc-primary/5"
+                : "border-gray-200 hover:bg-gray-50"
+            }`}
+          >
+            <input
+              type="radio"
+              name={felt}
+              value={v}
+              checked={aktivVerdi === v}
+              onChange={() => endre(v)}
+              disabled={oppdater.isPending}
+              className="mt-0.5"
+            />
+            <div>
+              <div className="text-sm font-medium text-gray-900">
+                {t(`firma.innstillinger.tilgangVerdi.${v}.tittel`)}
+              </div>
+              <div className="text-xs text-gray-600">
+                {t(`firma.innstillinger.tilgangVerdi.${v}.beskrivelse`)}
+              </div>
             </div>
           </label>
         ))}
