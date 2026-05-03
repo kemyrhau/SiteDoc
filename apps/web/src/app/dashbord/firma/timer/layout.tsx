@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { Spinner } from "@sitedoc/ui";
+import { useFirma } from "@/kontekst/firma-kontekst";
 
 export default function FirmaTimerLayout({
   children,
@@ -13,7 +14,12 @@ export default function FirmaTimerLayout({
 }) {
   const { t } = useTranslation();
   const pathname = usePathname();
-  const { data: status, isLoading } = trpc.timer.onboarding.status.useQuery();
+  const { valgtFirma } = useFirma();
+  const orgId = valgtFirma?.id;
+  const { data: status, isLoading } = trpc.timer.onboarding.status.useQuery(
+    { organizationId: orgId },
+    { enabled: !!orgId },
+  );
 
   const sub = [
     { href: "/dashbord/firma/timer/onboarding", label: t("firma.timer.fane.onboarding") },

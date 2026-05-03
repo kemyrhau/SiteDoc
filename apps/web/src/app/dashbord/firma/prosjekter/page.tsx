@@ -4,10 +4,17 @@ import { trpc } from "@/lib/trpc";
 import { Spinner, EmptyState } from "@sitedoc/ui";
 import { FolderKanban } from "lucide-react";
 import Link from "next/link";
+import { useFirma } from "@/kontekst/firma-kontekst";
 
 export default function FirmaProsjekter() {
+  const { valgtFirma } = useFirma();
+  const orgId = valgtFirma?.id;
+
   const { data: prosjekter, isLoading } =
-    trpc.organisasjon.hentProsjekter.useQuery();
+    trpc.organisasjon.hentProsjekter.useQuery(
+      { organizationId: orgId },
+      { enabled: !!orgId },
+    );
 
   if (isLoading) {
     return (

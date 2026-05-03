@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { Button, Input, Modal, Spinner } from "@sitedoc/ui";
 import { Plus, Pencil, Trash2 } from "lucide-react";
+import { useFirma } from "@/kontekst/firma-kontekst";
 
 type AvdelingRad = {
   id: string;
@@ -17,11 +18,16 @@ type AvdelingRad = {
 export default function AvdelingerSide() {
   const { t } = useTranslation();
   const utils = trpc.useUtils();
+  const { valgtFirma } = useFirma();
+  const orgId = valgtFirma?.id;
 
   const [visOpprett, setVisOpprett] = useState(false);
   const [redigerId, setRedigerId] = useState<string | null>(null);
 
-  const { data: avdelinger, isLoading } = trpc.avdeling.hentAlle.useQuery();
+  const { data: avdelinger, isLoading } = trpc.avdeling.hentAlle.useQuery(
+    { organizationId: orgId },
+    { enabled: !!orgId },
+  );
 
   const slettMutation = trpc.avdeling.slett.useMutation({
     onSuccess: () => {
@@ -43,11 +49,11 @@ export default function AvdelingerSide() {
 
   function handleSlett(rad: AvdelingRad) {
     if (!confirm(t("firma.avdelinger.slettBekreft", { navn: rad.navn }))) return;
-    slettMutation.mutate({ id: rad.id });
+    slettMutation.mutate({ id: rad.id, organizationId: orgId });
   }
 
   function handleToggleAktiv(rad: AvdelingRad) {
-    oppdaterMutation.mutate({ id: rad.id, aktiv: !rad.aktiv });
+    oppdaterMutation.mutate({ id: rad.id, aktiv: !rad.aktiv, organizationId: orgId });
   }
 
   return (
@@ -155,6 +161,8 @@ export default function AvdelingerSide() {
 function OpprettAvdelingDialog({ onLukk }: { onLukk: () => void }) {
   const { t } = useTranslation();
   const utils = trpc.useUtils();
+  const { valgtFirma } = useFirma();
+  const orgId = valgtFirma?.id;
   const [navn, setNavn] = useState("");
   const [kode, setKode] = useState("");
   const [feil, setFeil] = useState<string | null>(null);
@@ -175,6 +183,7 @@ function OpprettAvdelingDialog({ onLukk }: { onLukk: () => void }) {
     opprettMutation.mutate({
       navn,
       kode: kode.trim() || undefined,
+      organizationId: orgId,
     });
   }
 
@@ -235,6 +244,8 @@ function RedigerAvdelingDialog({
 }) {
   const { t } = useTranslation();
   const utils = trpc.useUtils();
+  const { valgtFirma } = useFirma();
+  const orgId = valgtFirma?.id;
   const [navn, setNavn] = useState(avdeling.navn);
   const [kode, setKode] = useState(avdeling.kode ?? "");
   const [feil, setFeil] = useState<string | null>(null);
@@ -256,6 +267,7 @@ function RedigerAvdelingDialog({
       id: avdeling.id,
       navn,
       kode: kode.trim() || null,
+      organizationId: orgId,
     });
   }
 

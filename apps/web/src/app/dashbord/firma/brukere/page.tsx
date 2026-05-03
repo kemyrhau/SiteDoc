@@ -4,10 +4,17 @@ import { trpc } from "@/lib/trpc";
 import { Spinner, EmptyState } from "@sitedoc/ui";
 import { Shield, User, ChevronDown } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
+import { useFirma } from "@/kontekst/firma-kontekst";
 
 export default function FirmaBrukere() {
+  const { valgtFirma } = useFirma();
+  const orgId = valgtFirma?.id;
+
   const { data: brukere, isLoading } =
-    trpc.organisasjon.hentBrukere.useQuery();
+    trpc.organisasjon.hentBrukere.useQuery(
+      { organizationId: orgId },
+      { enabled: !!orgId },
+    );
   const utils = trpc.useUtils();
 
   const endreRolle = trpc.organisasjon.endreRolle.useMutation({
@@ -122,7 +129,7 @@ export default function FirmaBrukere() {
                       <div className="absolute right-0 top-full z-10 mt-1 w-44 rounded-md border border-gray-200 bg-white py-1 shadow-lg">
                         <button
                           onClick={() => {
-                            endreRolle.mutate({ userId: b.id, rolle: "company_admin" });
+                            endreRolle.mutate({ userId: b.id, rolle: "company_admin", organizationId: orgId });
                             setÅpenMeny(null);
                           }}
                           disabled={b.role === "company_admin"}
@@ -133,7 +140,7 @@ export default function FirmaBrukere() {
                         </button>
                         <button
                           onClick={() => {
-                            endreRolle.mutate({ userId: b.id, rolle: "user" });
+                            endreRolle.mutate({ userId: b.id, rolle: "user", organizationId: orgId });
                             setÅpenMeny(null);
                           }}
                           disabled={b.role === "user"}

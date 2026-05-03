@@ -7,6 +7,7 @@ import { useTranslation } from "react-i18next";
 import { ArrowLeft, FileSpreadsheet, AlertTriangle, Check, X, UploadCloud } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { Button, Spinner } from "@sitedoc/ui";
+import { useFirma } from "@/kontekst/firma-kontekst";
 
 type ImportSteg = "opplastning" | "forhandsvisning" | "bekreft" | "resultat";
 
@@ -51,6 +52,8 @@ type BekreftResultat = {
 export default function MaskinImportSide() {
   const { t } = useTranslation();
   const router = useRouter();
+  const { valgtFirma } = useFirma();
+  const orgId = valgtFirma?.id;
 
   const [steg, setSteg] = useState<ImportSteg>("opplastning");
   const [filInnhold, setFilInnhold] = useState<string>("");
@@ -59,7 +62,7 @@ export default function MaskinImportSide() {
   const [resultat, setResultat] = useState<BekreftResultat | null>(null);
   const [feil, setFeil] = useState<string | null>(null);
 
-  type ForhandInput = { filInnhold: string };
+  type ForhandInput = { filInnhold: string; organizationId?: string };
   type BekreftInput = ForhandInput & { filHash: string };
 
   // Smal lokal interface-cast (etablert mønster mot TS2589)
@@ -109,7 +112,7 @@ export default function MaskinImportSide() {
     }
     const base64 = btoa(binary);
     setFilInnhold(base64);
-    forhandMutation.mutate({ filInnhold: base64 });
+    forhandMutation.mutate({ filInnhold: base64, organizationId: orgId });
   }
 
   function handleBekreft() {
@@ -118,6 +121,7 @@ export default function MaskinImportSide() {
     bekreftMutation.mutate({
       filInnhold,
       filHash: forhandsvisning.filHash,
+      organizationId: orgId,
     });
   }
 

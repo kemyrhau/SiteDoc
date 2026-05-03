@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { Button, Input, Modal, Spinner } from "@sitedoc/ui";
 import { Plus, Pencil, Power } from "lucide-react";
+import { useFirma } from "@/kontekst/firma-kontekst";
 
 const TYPE_VERDIER = ["ordinaer", "fravaer", "feriepenger", "diett"] as const;
 type LonnsartType = (typeof TYPE_VERDIER)[number];
@@ -42,12 +43,17 @@ function decimalTilTall(v: unknown): string {
 export default function LonnsarterSide() {
   const { t } = useTranslation();
   const utils = trpc.useUtils();
+  const { valgtFirma } = useFirma();
+  const orgId = valgtFirma?.id;
 
   const [visOpprett, setVisOpprett] = useState(false);
   const [redigerId, setRedigerId] = useState<string | null>(null);
   const [inkluderInaktiv, setInkluderInaktiv] = useState(false);
 
-  const { data: rader, isLoading } = trpc.timer.lonnsart.list.useQuery({ inkluderInaktiv });
+  const { data: rader, isLoading } = trpc.timer.lonnsart.list.useQuery(
+    { inkluderInaktiv, organizationId: orgId },
+    { enabled: !!orgId },
+  );
 
   const deaktiver = trpc.timer.lonnsart.deaktiver.useMutation({
     onSuccess: () => utils.timer.lonnsart.list.invalidate(),
@@ -61,9 +67,9 @@ export default function LonnsarterSide() {
 
   function handleToggleAktiv(rad: LonnsartRad) {
     if (rad.aktiv) {
-      deaktiver.mutate({ id: rad.id });
+      deaktiver.mutate({ id: rad.id, organizationId: orgId });
     } else {
-      oppdater.mutate({ id: rad.id, aktiv: true });
+      oppdater.mutate({ id: rad.id, aktiv: true, organizationId: orgId });
     }
   }
 
@@ -216,6 +222,8 @@ function LonnsartDialog({
 }) {
   const { t } = useTranslation();
   const utils = trpc.useUtils();
+  const { valgtFirma } = useFirma();
+  const orgId = valgtFirma?.id;
 
   const [type, setType] = useState<LonnsartType>(
     (rad?.type as LonnsartType) ?? "ordinaer",
@@ -270,6 +278,7 @@ function LonnsartDialog({
       satsEnhet: satsEnhet || null,
       skalEksporteres,
       tvungenKommentar,
+      organizationId: orgId,
     };
 
     if (modus === "opprett") {

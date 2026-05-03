@@ -4,9 +4,16 @@ import { useState, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { Spinner } from "@sitedoc/ui";
 import { Save, HelpCircle, X } from "lucide-react";
+import { useFirma } from "@/kontekst/firma-kontekst";
 
 export default function FirmaInnstillinger() {
-  const { data: org, isLoading } = trpc.organisasjon.hentMin.useQuery();
+  const { valgtFirma } = useFirma();
+  const orgId = valgtFirma?.id;
+
+  const { data: org, isLoading } = trpc.organisasjon.hentMedId.useQuery(
+    { id: orgId! },
+    { enabled: !!orgId },
+  );
   const utils = trpc.useUtils();
 
   const [navn, setNavn] = useState("");
@@ -29,7 +36,9 @@ export default function FirmaInnstillinger() {
 
   const oppdater = trpc.organisasjon.oppdater.useMutation({
     onSuccess: () => {
+      utils.organisasjon.hentMedId.invalidate();
       utils.organisasjon.hentMin.invalidate();
+      utils.organisasjon.hentTilgjengelige.invalidate();
     },
   });
 
@@ -49,6 +58,7 @@ export default function FirmaInnstillinger() {
     if (!navnGyldig || !epostGyldig) return;
 
     oppdater.mutate({
+      organizationId: orgId,
       name: navn.trim(),
       organizationNumber: orgNr.trim() || null,
       invoiceAddress: fakturaAdresse.trim() || null,
@@ -280,7 +290,13 @@ export default function FirmaInnstillinger() {
 /* ------------------------------------------------------------------ */
 
 function KompetansePolicySeksjon() {
-  const { data: setting, isLoading } = trpc.organisasjon.hentSetting.useQuery();
+  const { valgtFirma } = useFirma();
+  const orgId = valgtFirma?.id;
+
+  const { data: setting, isLoading } = trpc.organisasjon.hentSetting.useQuery(
+    { organizationId: orgId },
+    { enabled: !!orgId },
+  );
   const utils = trpc.useUtils();
 
   const oppdater = trpc.organisasjon.oppdaterSetting.useMutation({
@@ -290,7 +306,7 @@ function KompetansePolicySeksjon() {
   });
 
   function endre(verdi: "firma_admin" | "bruker_egen" | "alle") {
-    oppdater.mutate({ kompetanseRegistreringTilgang: verdi });
+    oppdater.mutate({ kompetanseRegistreringTilgang: verdi, organizationId: orgId });
   }
 
   if (isLoading || !setting) {

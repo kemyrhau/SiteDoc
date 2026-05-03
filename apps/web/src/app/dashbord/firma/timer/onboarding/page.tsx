@@ -5,13 +5,19 @@ import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { Button, Spinner } from "@sitedoc/ui";
 import { CheckCircle2, AlertCircle, Package } from "lucide-react";
+import { useFirma } from "@/kontekst/firma-kontekst";
 
 export default function TimerOnboardingSide() {
   const { t } = useTranslation();
   const utils = trpc.useUtils();
+  const { valgtFirma } = useFirma();
+  const orgId = valgtFirma?.id;
   const [feil, setFeil] = useState<string | null>(null);
 
-  const { data: status, isLoading } = trpc.timer.onboarding.status.useQuery();
+  const { data: status, isLoading } = trpc.timer.onboarding.status.useQuery(
+    { organizationId: orgId },
+    { enabled: !!orgId },
+  );
 
   const aktiverNivaa1 = trpc.timer.onboarding.aktiverNivaa1.useMutation({
     onSuccess: () => {
@@ -77,7 +83,7 @@ export default function TimerOnboardingSide() {
                 <Button
                   onClick={() => {
                     setFeil(null);
-                    aktiverNivaa1.mutate({ inkluderNivaa2: false });
+                    aktiverNivaa1.mutate({ inkluderNivaa2: false, organizationId: orgId });
                   }}
                   disabled={aktiverNivaa1.isPending}
                 >
@@ -89,7 +95,7 @@ export default function TimerOnboardingSide() {
                   variant="secondary"
                   onClick={() => {
                     setFeil(null);
-                    aktiverNivaa1.mutate({ inkluderNivaa2: true });
+                    aktiverNivaa1.mutate({ inkluderNivaa2: true, organizationId: orgId });
                   }}
                   disabled={aktiverNivaa1.isPending}
                 >
@@ -113,7 +119,7 @@ export default function TimerOnboardingSide() {
                   variant="secondary"
                   onClick={() => {
                     setFeil(null);
-                    aktiverTomKatalog.mutate();
+                    aktiverTomKatalog.mutate({ organizationId: orgId });
                   }}
                   disabled={aktiverTomKatalog.isPending}
                 >
@@ -182,7 +188,7 @@ export default function TimerOnboardingSide() {
               variant="secondary"
               onClick={() => {
                 setFeil(null);
-                aktiverNivaa2.mutate();
+                aktiverNivaa2.mutate({ organizationId: orgId });
               }}
               disabled={aktiverNivaa2.isPending}
             >

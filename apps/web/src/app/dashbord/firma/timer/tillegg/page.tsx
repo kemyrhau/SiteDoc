@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { Button, Input, Modal, Spinner } from "@sitedoc/ui";
 import { Plus, Pencil, Power } from "lucide-react";
+import { useFirma } from "@/kontekst/firma-kontekst";
 
 const TYPE_VERDIER = ["avhuking", "antall"] as const;
 type TilleggType = (typeof TYPE_VERDIER)[number];
@@ -37,12 +38,17 @@ function decimalTilTall(v: unknown): string {
 export default function TilleggSide() {
   const { t } = useTranslation();
   const utils = trpc.useUtils();
+  const { valgtFirma } = useFirma();
+  const orgId = valgtFirma?.id;
 
   const [visOpprett, setVisOpprett] = useState(false);
   const [redigerId, setRedigerId] = useState<string | null>(null);
   const [inkluderInaktiv, setInkluderInaktiv] = useState(false);
 
-  const { data: rader, isLoading } = trpc.timer.tillegg.list.useQuery({ inkluderInaktiv });
+  const { data: rader, isLoading } = trpc.timer.tillegg.list.useQuery(
+    { inkluderInaktiv, organizationId: orgId },
+    { enabled: !!orgId },
+  );
 
   const deaktiver = trpc.timer.tillegg.deaktiver.useMutation({
     onSuccess: () => utils.timer.tillegg.list.invalidate(),
@@ -55,9 +61,9 @@ export default function TilleggSide() {
 
   function handleToggleAktiv(rad: TilleggRad) {
     if (rad.aktiv) {
-      deaktiver.mutate({ id: rad.id });
+      deaktiver.mutate({ id: rad.id, organizationId: orgId });
     } else {
-      oppdater.mutate({ id: rad.id, aktiv: true });
+      oppdater.mutate({ id: rad.id, aktiv: true, organizationId: orgId });
     }
   }
 
@@ -201,6 +207,8 @@ function TilleggDialog({
 }) {
   const { t } = useTranslation();
   const utils = trpc.useUtils();
+  const { valgtFirma } = useFirma();
+  const orgId = valgtFirma?.id;
 
   const [type, setType] = useState<TilleggType>(
     (rad?.type as TilleggType) ?? "avhuking",
@@ -248,6 +256,7 @@ function TilleggDialog({
       internkostnad: tallEllerNull(internkostnad),
       skalEksporteres,
       tvungenKommentar,
+      organizationId: orgId,
     };
 
     if (modus === "opprett") {

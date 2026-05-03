@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { Button, Input, Modal, Spinner } from "@sitedoc/ui";
 import { Plus, Pencil, Power } from "lucide-react";
+import { useFirma } from "@/kontekst/firma-kontekst";
 
 type AktivitetRad = {
   id: string;
@@ -30,12 +31,17 @@ function decimalTilTall(v: unknown): string {
 export default function AktiviteterSide() {
   const { t } = useTranslation();
   const utils = trpc.useUtils();
+  const { valgtFirma } = useFirma();
+  const orgId = valgtFirma?.id;
 
   const [visOpprett, setVisOpprett] = useState(false);
   const [redigerId, setRedigerId] = useState<string | null>(null);
   const [inkluderInaktiv, setInkluderInaktiv] = useState(false);
 
-  const { data: rader, isLoading } = trpc.timer.aktivitet.list.useQuery({ inkluderInaktiv });
+  const { data: rader, isLoading } = trpc.timer.aktivitet.list.useQuery(
+    { inkluderInaktiv, organizationId: orgId },
+    { enabled: !!orgId },
+  );
 
   const deaktiver = trpc.timer.aktivitet.deaktiver.useMutation({
     onSuccess: () => utils.timer.aktivitet.list.invalidate(),
@@ -48,9 +54,9 @@ export default function AktiviteterSide() {
 
   function handleToggleAktiv(rad: AktivitetRad) {
     if (rad.aktiv) {
-      deaktiver.mutate({ id: rad.id });
+      deaktiver.mutate({ id: rad.id, organizationId: orgId });
     } else {
-      oppdater.mutate({ id: rad.id, aktiv: true });
+      oppdater.mutate({ id: rad.id, aktiv: true, organizationId: orgId });
     }
   }
 
@@ -186,6 +192,8 @@ function AktivitetDialog({
 }) {
   const { t } = useTranslation();
   const utils = trpc.useUtils();
+  const { valgtFirma } = useFirma();
+  const orgId = valgtFirma?.id;
 
   const [kode, setKode] = useState(rad?.kode ?? "");
   const [navn, setNavn] = useState(rad?.navn ?? "");
@@ -225,6 +233,7 @@ function AktivitetDialog({
       navn,
       internkostnad: tallEllerNull(internkostnad),
       prisMotKunde: tallEllerNull(prisMotKunde),
+      organizationId: orgId,
     };
 
     if (modus === "opprett") {

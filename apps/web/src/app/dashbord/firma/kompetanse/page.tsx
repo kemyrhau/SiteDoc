@@ -12,6 +12,7 @@ import {
   type KompetanseStatus,
 } from "@sitedoc/shared";
 import { Plus, Pencil, Trash2, AlertTriangle, Upload } from "lucide-react";
+import { useFirma } from "@/kontekst/firma-kontekst";
 
 type MatriseBruker = {
   id: string;
@@ -128,9 +129,17 @@ function MatriseFane() {
   const { data: session } = useSession();
   const ctxUserId = session?.user?.id as string | undefined;
   const ctxRole = (session?.user as { role?: string } | undefined)?.role;
+  const { valgtFirma } = useFirma();
+  const orgId = valgtFirma?.id;
 
-  const { data, isLoading } = trpc.kompetanse.hentMatrise.useQuery();
-  const { data: setting } = trpc.organisasjon.hentSetting.useQuery();
+  const { data, isLoading } = trpc.kompetanse.hentMatrise.useQuery(
+    { organizationId: orgId },
+    { enabled: !!orgId },
+  );
+  const { data: setting } = trpc.organisasjon.hentSetting.useQuery(
+    { organizationId: orgId },
+    { enabled: !!orgId },
+  );
   const policy = setting?.kompetanseRegistreringTilgang as
     | "firma_admin"
     | "bruker_egen"
@@ -447,11 +456,16 @@ function formaterDato(d: Date | string): string {
 function KompetansetyperFane() {
   const { t } = useTranslation();
   const utils = trpc.useUtils();
+  const { valgtFirma } = useFirma();
+  const orgId = valgtFirma?.id;
   const [visOpprett, setVisOpprett] = useState(false);
   const [redigerId, setRedigerId] = useState<string | null>(null);
   const [slettId, setSlettId] = useState<string | null>(null);
 
-  const { data: typer, isLoading } = trpc.kompetansetype.hentAlle.useQuery();
+  const { data: typer, isLoading } = trpc.kompetansetype.hentAlle.useQuery(
+    { organizationId: orgId },
+    { enabled: !!orgId },
+  );
 
   const oppdaterMutation = trpc.kompetansetype.oppdater.useMutation({
     onSuccess: () => {
@@ -463,7 +477,7 @@ function KompetansetyperFane() {
   });
 
   function handleToggleAktiv(rad: KompetansetypeRad) {
-    oppdaterMutation.mutate({ id: rad.id, aktiv: !rad.aktiv });
+    oppdaterMutation.mutate({ id: rad.id, aktiv: !rad.aktiv, organizationId: orgId });
   }
 
   return (
@@ -567,6 +581,8 @@ function KompetansetyperFane() {
 function OpprettTypeDialog({ onLukk }: { onLukk: () => void }) {
   const { t } = useTranslation();
   const utils = trpc.useUtils();
+  const { valgtFirma } = useFirma();
+  const orgId = valgtFirma?.id;
   const [navn, setNavn] = useState("");
   const [kategori, setKategori] = useState<KompetanseKategori>("EGENDEFINERT");
   const [defaultUtlop, setDefaultUtlop] = useState<string>("");
@@ -592,6 +608,7 @@ function OpprettTypeDialog({ onLukk }: { onLukk: () => void }) {
       kategori,
       defaultUtloperAarEtterUtstedt: aar,
       beskrivelse: beskrivelse.trim() || null,
+      organizationId: orgId,
     });
   }
 
@@ -676,6 +693,8 @@ function RedigerTypeDialog({
 }) {
   const { t } = useTranslation();
   const utils = trpc.useUtils();
+  const { valgtFirma } = useFirma();
+  const orgId = valgtFirma?.id;
   const [navn, setNavn] = useState(type.navn);
   const [kategori, setKategori] = useState<KompetanseKategori>(
     type.kategori as KompetanseKategori,
@@ -708,6 +727,7 @@ function RedigerTypeDialog({
       kategori,
       defaultUtloperAarEtterUtstedt: aar,
       beskrivelse: beskrivelse.trim() || null,
+      organizationId: orgId,
     });
   }
 
@@ -790,6 +810,8 @@ function SlettTypeDialog({
 }) {
   const { t } = useTranslation();
   const utils = trpc.useUtils();
+  const { valgtFirma } = useFirma();
+  const orgId = valgtFirma?.id;
   const [feil, setFeil] = useState<string | null>(null);
 
   const mutation = trpc.kompetansetype.slett.useMutation({
@@ -804,7 +826,7 @@ function SlettTypeDialog({
 
   function handleSlett() {
     setFeil(null);
-    mutation.mutate({ id: type.id });
+    mutation.mutate({ id: type.id, organizationId: orgId });
   }
 
   return (
@@ -1190,6 +1212,8 @@ type BekreftResultat = {
 function ImportFraFilDialog({ onLukk }: { onLukk: () => void }) {
   const { t } = useTranslation();
   const utils = trpc.useUtils();
+  const { valgtFirma } = useFirma();
+  const orgId = valgtFirma?.id;
 
   const [steg, setSteg] = useState<ImportSteg>("opplastning");
   const [filInnhold, setFilInnhold] = useState<string>(""); // base64
@@ -1203,7 +1227,7 @@ function ImportFraFilDialog({ onLukk }: { onLukk: () => void }) {
   const [feil, setFeil] = useState<string | null>(null);
 
   // Smal lokal interface-cast for å unngå TS2589 (etablert mønster i kodebasen)
-  type ForhandInput = { filInnhold: string; filtype: "csv" | "xlsx" };
+  type ForhandInput = { filInnhold: string; filtype: "csv" | "xlsx"; organizationId?: string };
   type BekreftInput = ForhandInput & {
     filHash: string;
     autoOpprettTyper: boolean;
@@ -1260,7 +1284,7 @@ function ImportFraFilDialog({ onLukk }: { onLukk: () => void }) {
     setFilInnhold(base64);
 
     // Send forhåndsvisning
-    forhandMutation.mutate({ filInnhold: base64, filtype: filtypeNy });
+    forhandMutation.mutate({ filInnhold: base64, filtype: filtypeNy, organizationId: orgId });
   }
 
   function handleBekreft() {
@@ -1272,6 +1296,7 @@ function ImportFraFilDialog({ onLukk }: { onLukk: () => void }) {
       filHash: forhandsvisning.filHash,
       autoOpprettTyper,
       overskrivEksisterende,
+      organizationId: orgId,
     });
   }
 
