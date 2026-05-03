@@ -51,24 +51,24 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 
 ## Pågående arbeid (kort)
 
-**Steg 1c Fase A+B (OrganizationModule-overgang) IMPLEMENTERT på develop 2026-05-03.** Tredje steg i prioritert byggerekkefølge fra [docs/claude/domene-arbeidsflyt.md](docs/claude/domene-arbeidsflyt.md). Erstatter midlertidige `Organization.har_timer_modul`/`har_maskin_modul`-flagg med ProjectModule som sannhetskilde for prosjekt-spesifikk modul-aktivering. Auto-sync-hooks ved nytt prosjekt + firmamodul-toggle.
+**Steg 1c (OrganizationModule-overgang) IMPLEMENTERT på develop 2026-05-03** (`d581e399` Fase A+B + commit som lukker mini-Fase C). Tredje steg i prioritert byggerekkefølge fra [docs/claude/domene-arbeidsflyt.md](docs/claude/domene-arbeidsflyt.md). To-nivås modul-aktivering: `Organization.har_*_modul` = firma-master-bryter, `ProjectModule(slug, organizationId, status="aktiv")` = prosjekt-instans. Auto-sync-hooks holder dem konsistente.
 
-**Fase A — datamodell + bakfyll (server-side, bakoverkompatibel):**
-- Migrasjon `20260503010000_steg_1c_module_backfill` — INSERT ProjectModule(slug=timer/maskin, organizationId, status="aktiv") for alle prosjekter der primary_organization har flagget aktivert. Idempotent via ON CONFLICT (project_id, module_slug). Forhåndsverifisert mot test+prod: 0 rader oppretttes nå (Byggeleder/A.Markussen har modulene aktivert men 0 prosjekter med primary-rolle ennå) — ren no-op safety-net inntil Fase B-hooks aktiverer reell data-generering.
-- `apps/api/src/services/timer/moduleGate.ts` + `apps/api/src/services/maskin/moduleGate.ts` — `erTimerAktivert/krevTimerAktivert` (og maskin-tilsvarende) tar valgfri `projectId`-param. Uten projectId: kun firma-flagg (bakoverkompatibel — alle eksisterende callsites uendret). Med projectId: krever firma-flagg OG `ProjectModule.status="aktiv"` for `(projectId, slug, organizationId)`.
+**Fase A — datamodell + bakfyll:**
+- Migrasjon `20260503010000_steg_1c_module_backfill` — INSERT ProjectModule(slug=timer/maskin, organizationId, status="aktiv") for prosjekter der primary_organization har flagget aktivert. Idempotent via ON CONFLICT. Test+prod: 0 rader nå (Byggeleder/A.Markussen har 0 prosjekter med primary-rolle) — ren no-op safety-net.
+- `services/timer/moduleGate.ts` + `services/maskin/moduleGate.ts` — valgfri `projectId`-param. Uten: kun firma-master-bryter. Med: krever begge nivåer.
 
 **Fase B — auto-sync-hooks + klient-migrering:**
-- `prosjekt.opprett` + `prosjekt.opprettTestprosjekt` (`apps/api/src/routes/prosjekt.ts`): henter brukerens organizationId + har_*_modul-flagg, oppretter ProjectModule-rader (slug=timer/maskin, status="aktiv") for aktive firmamoduler. Pakket i $transaction. `opprett` refaktorert fra direkte create til transaction.
-- Ny service-helper `apps/api/src/services/firmamodul.ts` med `syncProjektModulerPaaAktiver(tx, orgId, slug)` + `syncProjektModulerPaaDeaktiver(tx, orgId, slug)`. Brukes både fra organisasjon-router og timer/onboarding-router for konsistent sync-mekanikk.
-- Ny mutation `organisasjon.settFirmamodul({ organizationId, slug, aktiver })` — polymorf for timer/maskin × aktiver/deaktiver. Setter har_*_modul + syncer ProjectModule i samme transaction. Gates med `verifiserFirmaAdmin` (sitedoc_admin + firmaets company_admin). Ingen UI-knapp ennå — Kenneth aktiverer fra UI når UI bygges, eller via direkte tRPC-kall fra DevTools/API-konsoll. UI for firmamodul-toggle er Steg 2b i byggerekkefølgen.
-- `timer/onboarding.aktiverNivaa1` + `aktiverTomKatalog` refaktorert til å bruke samme `syncProjektModulerPaaAktiver` etter at `harTimerModul=true` settes. Pakket i $transaction.
-- Klient-migrering (`apps/web/src/components/layout/HovedSidebar.tsx`): timer-elementer (`timer` + `timer-attestering`) i prosjekt-sidebar gates nå på `aktiveModuler` (allerede hentet via `trpc.modul.hentForProsjekt`) i stedet for firma-flagg `harTimerModul`. Maskin-bunnelement (global lenke til `/dashbord/maskin`) beholder `harMaskinModul` siden den ikke er prosjekt-spesifikk.
+- `prosjekt.opprett` + `prosjekt.opprettTestprosjekt`: henter brukerens organizationId + har_*_modul-flagg, oppretter ProjectModule-rader for aktive firmamoduler i samme `$transaction` som ProjectOrganization.
+- Ny service-helper `apps/api/src/services/firmamodul.ts` med `syncProjektModulerPaaAktiver/Deaktiver(tx, orgId, slug)` — brukes fra organisasjon-router og timer/onboarding-router for konsistent sync.
+- Ny `organisasjon.settFirmamodul({ organizationId, slug, aktiver })` — polymorf mutation. Gates med `verifiserFirmaAdmin`. UI-knapp ikke bygget — Steg 2b.
+- `timer/onboarding.aktiverNivaa1` + `aktiverTomKatalog`: refaktorert til `$transaction` med syncProjektModulerPaaAktiver.
+- `HovedSidebar`: timer-elementer (`timer` + `timer-attestering`) gates på `aktiveModuler` (ProjectModule.status="aktiv"), ikke firma-flagg. Maskin-bunnelement beholder `harMaskinModul` (global lenke).
 
-**Eksplisitt utenfor Steg 1c:** Drop `active`-kolonne på ProjectModule + endre unique-indeks `(projectId, moduleSlug)` → `(projectId, organizationId, moduleSlug)` + drop `harTimerModul`/`harMaskinModul`-kolonner. Disse er Steg 1d og krever CI-grep for `projectId_moduleSlug`-callsites.
+**Mini-Fase C — kommentar-rens (lukker Steg 1c):** Drop av `har_*_modul`-kolonner krever full `OrganizationModule`-tabell (firma uten prosjekter trenger flagget for å onboarde lønnsarter — A.Markussen-flow). Den jobben utsatt til **Steg 1e**. Kommentarer i `schema.prisma` + `moduleGate.ts` oppdatert til å beskrive endelig to-nivås-modell, ikke «midlertidig flagg».
 
-**Verifisering:** `pnpm --filter @sitedoc/api typecheck` grønt. `pnpm build --filter @sitedoc/web` grønt (37.2s).
+**Verifisering:** Test-deploy verifisert som innlogget Kari Firmaadmin (Byggeleder) — opprettet nytt prosjekt → 2 ProjectModule-rader auto-opprettet (timer+maskin, status=aktiv, organization_id=Byggeleder). Auto-deploy-hook triggeret ikke — manuell deploy.
 
-**Klar for test-deploy.** Stopper og rapporterer per Kenneths instruks. Claude verifiserer at sitedoc_admin kan opprette prosjekt for kunde-firma og at Timer/Maskin-element vises korrekt. Fase C (drop midlertidige har_*_modul-flagg) avventer eksplisitt grønt lys etter test-verifisering.
+**Eksplisitt utenfor Steg 1c:** **Steg 1d** = drop `active Boolean` på ProjectModule + endre unique til `(projectId, organizationId, moduleSlug)`. **Steg 1e** = `OrganizationModule`-tabell + drop `har_*_modul`-kolonner. Begge dokumentert i [docs/claude/domene-arbeidsflyt.md](docs/claude/domene-arbeidsflyt.md).
 
 **Steg 1b Fase A+B+C (firma-kontekst Lag 1+2+3) DEPLOYET TIL PROD 2026-05-03** (`045a49b7` merge, `f0da8408`+`52040cd3`+`ce72811c` impl). Hele Steg 1b ferdig på prod. Sitedoc_admin kan nå velge et hvilket som helst kunde-firma i FirmaVelger og administrere det fullt ut på alle firma-admin-sider (`/dashbord/firma/*`) + maskin/import. Sub-elementet «Firmainnstillinger» (under prosjekt-sidebar «Prosjekteier») er renamet til «Eier-firma» (nb) / «Owner company» (en). Tre-fasers strategi (A: server-helper + valgfri input → B: klient-migrering → C: orgId påkrevd + rename) — detaljer i [docs/claude/STATUS-AKTUELT.md](docs/claude/STATUS-AKTUELT.md).
 

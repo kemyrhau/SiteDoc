@@ -1,17 +1,18 @@
 /**
  * Modul-gating for Maskin-modulen.
  *
- * Steg 1c Fase A — moduleGate kan nå sjekke ProjectModule (per prosjekt)
- * i tillegg til Organization.har_maskin_modul (firma-bredt). Sjekk er additiv:
- * begge må være aktivert for at modulen skal anses aktiv på et prosjekt.
+ * To-nivås aktivering (Steg 1c, 2026-05-03):
+ *   - Organization.har_maskin_modul = firma-master-bryter (firmaet har modulen
+ *     aktivert — kreves for å vise maskin-bunnelement i sidebar selv før første
+ *     prosjekt finnes).
+ *   - ProjectModule(slug='maskin', organizationId, status='aktiv') = prosjekt-
+ *     instans. Auto-opprettes via prosjekt.opprett + organisasjon.settFirmamodul
+ *     (services/firmamodul.ts holder dem i sync).
  *
- * - Uten projectId: kun firma-bredt flagg (bakoverkompatibel).
- * - Med projectId: krever både firma-flagg OG ProjectModule.status='aktiv'
- *   for (projectId, 'maskin', organizationId).
- *
- * Bakfyll av ProjectModule-rader skjer i 20260503010000_steg_1c_module_backfill.
- * Auto-sync ved nytt prosjekt + firmamodul-toggle bygges i Fase B.
- * har_maskin_modul-kolonnen droppes i Fase C.
+ * Sjekk er additiv: begge nivåer må være aktive for at modulen skal anses
+ * aktiv på et prosjekt.
+ *   - Uten projectId: kun firma-master-bryter (bakoverkompatibel).
+ *   - Med projectId: krever både firma-master-bryter OG ProjectModule.status='aktiv'.
  */
 import { prisma } from "@sitedoc/db";
 

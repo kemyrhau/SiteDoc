@@ -13,7 +13,9 @@ peker hit. Beslutningsgrunnlag og arkitektur ligger i
 
 ## Pågående arbeid
 
-**Steg 1c Fase A+B (OrganizationModule-overgang) IMPLEMENTERT på develop 2026-05-03.** Tredje steg i prioritert byggerekkefølge fra [domene-arbeidsflyt.md](domene-arbeidsflyt.md). To-fasers strategi godkjent av Kenneth: A → B med stopp+verifisering mellom hver. Etter Fase B er ProjectModule sannhetskilde for prosjekt-spesifikk Timer/Maskin-tilgang.
+**Steg 1c (OrganizationModule-overgang) IMPLEMENTERT på develop 2026-05-03** (`d581e399` Fase A+B). Tredje steg i prioritert byggerekkefølge fra [domene-arbeidsflyt.md](domene-arbeidsflyt.md). Test-verifisert som innlogget Kari Firmaadmin (Byggeleder): nytt prosjekt opprettet → 2 ProjectModule-rader auto-opprettet (timer+maskin, status=aktiv, organization_id=Byggeleder).
+
+**Mini-Fase C lukker Steg 1c (kommentar-rens, ikke drop):** Drop av `har_*_modul`-kolonner krever en `OrganizationModule`-tabell — firma uten prosjekter trenger flagget for å onboarde lønnsarter (A.Markussen-flow). Den jobben er utsatt til **Steg 1e** (fremtidig). Kommentarer i `schema.prisma` + `moduleGate.ts` oppdatert til endelig to-nivås-modell. Steg 1d (drop `active Boolean` + ny unique på ProjectModule) er uavhengig og påvirkes ikke.
 
 **Fase A — datamodell + bakfyll (server-side, bakoverkompatibel):**
 - Migrasjon `20260503010000_steg_1c_module_backfill` — INSERT ProjectModule(slug=timer/maskin, organizationId, status="aktiv") for alle prosjekter der primary_organization har flagget aktivert. Idempotent via `ON CONFLICT (project_id, module_slug) DO NOTHING`. Forhåndsverifisert mot test-DB (Byggeleder: 0 prosjekter med primary-rolle) og prod-DB (A.Markussen: 0 prosjekter) — migrasjonen er ren no-op safety-net nå, og blir aktiv først når kunde-firma kobles til sitt første prosjekt (via Fase B-hooks).
