@@ -58,12 +58,15 @@ export const organisasjonRouter = router({
     });
 
     if (bruker.role === "sitedoc_admin") {
+      // Skall-firmaer (erKunde=false) skjules — kun reelle kundefirmaer i velgeren.
       return ctx.prisma.organization.findMany({
+        where: { erKunde: true },
         select: {
           id: true,
           name: true,
           harMaskinModul: true,
           harTimerModul: true,
+          erKunde: true,
         },
         orderBy: { name: "asc" },
       });
@@ -77,6 +80,7 @@ export const organisasjonRouter = router({
           name: true,
           harMaskinModul: true,
           harTimerModul: true,
+          erKunde: true,
         },
       });
     }

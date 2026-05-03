@@ -270,10 +270,12 @@ Ingen steg kan hoppes over — hvert steg er forutsetning for neste.
 
 ### Steg 1 — Fundament (må på plass FØR sider bygges)
 
-- [ ] **1a. Organization.erKunde-felt** (~2-3t)
-  - Ny Boolean-kolonne på Organization + migrasjon + backfill
-  - Skiller reelle firmaer fra skall-firmaer permanent
-  - Blokkerer: firma-velger viser feil data uten dette
+- [x] **1a. Organization.erKunde-felt** (~2-3t) — IMPLEMENTERT på develop 2026-05-03
+  - Ny Boolean-kolonne `Organization.erKunde` (default false) + migrasjon `20260503000001_add_organization_er_kunde` med backfill
+  - Heuristikk for backfill: `erKunde=true` hvis `har_maskin_modul` OR `har_timer_modul` OR finnes `Project.primary_organization_id` OR finnes `Avdeling`. `organization_settings` og `users` droppet som signaler (auto-upsert + testdata-misbruk)
+  - Forhåndsverifisert mot test-DB (1 kunde: Byggeleder; 4 skall) og prod-DB (3 kunder: A.Markussen/HRP AS/Kenneths testmiljø; 0 skall)
+  - Server: `organisasjon.hentTilgjengelige` filtrerer på `erKunde:true` for sitedoc_admin
+  - Klient: `Firma`-type i `firma-kontekst.tsx` utvidet med `erKunde:boolean`
 
 - [ ] **1b. Firma-kontekst Lag 1+2+3** (~10-12t)
   - Lag 1: ~10 server-ruter tar organizationId som input

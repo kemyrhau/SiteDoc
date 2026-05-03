@@ -16,6 +16,7 @@ interface Firma {
   name: string;
   harMaskinModul: boolean;
   harTimerModul: boolean;
+  erKunde: boolean;
 }
 
 interface FirmaKontekstType {
