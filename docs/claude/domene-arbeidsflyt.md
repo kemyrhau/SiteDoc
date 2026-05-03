@@ -263,6 +263,48 @@ Oppfølger: reconcile [arkitektur-syntese.md](arkitektur-syntese.md) vs [termino
 
 ---
 
+## Prioritert byggerekkefølge
+
+Vedtatt 2026-05-03. Basert på domene-analyse og arkitektur-avhengigheter.
+Ingen steg kan hoppes over — hvert steg er forutsetning for neste.
+
+### Steg 1 — Fundament (må på plass FØR sider bygges)
+
+- [ ] **1a. Organization.erKunde-felt** (~2-3t)
+  - Ny Boolean-kolonne på Organization + migrasjon + backfill
+  - Skiller reelle firmaer fra skall-firmaer permanent
+  - Blokkerer: firma-velger viser feil data uten dette
+
+- [ ] **1b. Firma-kontekst Lag 1+2+3** (~10-12t)
+  - Lag 1: ~10 server-ruter tar organizationId som input
+  - Lag 2: ~10 klient-sider sender valgtFirma.id
+  - Lag 3: Rename «Firmainnstillinger» → «Prosjekteier» (30 min)
+  - Blokkerer: sitedoc_admin kan ikke jobbe i kundens kontekst
+
+- [ ] **1c. OrganizationModule-overgang** (~6-10t)
+  - Erstatter harTimerModul/harMaskinModul-flag med ProjectModule.status
+  - Blokkerer: modul-styring er midlertidig og skjør
+
+### Steg 2 — Firma-admin-sider (bygges på solid fundament)
+
+- [ ] **2a. Firmainformasjon** — navn, org.nr, faktura (read-only fra prosjekt)
+- [ ] **2b. Firmamodul-styring** — Timer, Maskin, Kompetanse, Fremdrift (av/på)
+- [ ] **2c. Firma/organisasjonsinnstillinger** — OrganizationSetting-UI
+- [ ] **2d. Prosjekt → nytt prosjekt** — fra firma-kontekst
+
+### Steg 3 — Maskin-import (med riktig firma-kontekst)
+
+- [ ] **3a. Koble import til FirmaVelger** + erKunde-filter
+- [ ] **3b. Fil-upload UI** — klikkbar drag-and-drop sone
+
+### Steg 4 — Dagsseddel-utvidelser
+
+- [ ] **4a. Timer-admin** — attestering med flytt prosjekt ↔ ECO (egen side for leder)
+- [ ] **4b. Vareforbruk** — SheetMaterial-tabell i db-timer
+- [ ] **4c. Godkjenning UI** — byggherre-flyt (modell finnes, UI mangler)
+
+---
+
 ## Koblinger til tekniske dokumenter
 
 | Arbeidsflyt-element | Teknisk dokument |
