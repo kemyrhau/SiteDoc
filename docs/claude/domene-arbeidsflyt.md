@@ -293,7 +293,7 @@ Ingen steg kan hoppes over — hvert steg er forutsetning for neste.
   - Fase B: auto-sync hooks i `prosjekt.opprett` + `prosjekt.opprettTestprosjekt` + ny `services/firmamodul.ts` + `organisasjon.settFirmamodul`-mutation + timer-onboarding-refaktor + `HovedSidebar` migrert til ProjectModule-sjekk
   - Mini-Fase C (kommentar-rens, 2026-05-03): `har_*_modul`-kolonnene beholdes som firma-master-bryter; full drop til `OrganizationModule`-tabell utsatt til Steg 1e (kreves for at firma uten prosjekter fortsatt kan onboarde lønnsarter — A.Markussen-flow ville brutt med rent ProjectModule-avledet aktivering)
 
-- [x] **1d. ProjectModule final cleanup (forkortet)** (~30min) — IMPLEMENTERT 2026-05-03
+- [x] **1d. ProjectModule final cleanup (forkortet)** (~30min) — DEPLOYET TIL PROD 2026-05-03 (`73dcbd1a` merge, `ec0ce969` impl)
   - Migrasjon `20260503020000_drop_project_module_active`: DROP COLUMN `active`. Verifisert via grep at 0 kode-callsites bruker `ProjectModule.active` (eneste treff er `Project.status`-enum, ulik modell).
   - Schema-rens i `schema.prisma`: `active Boolean`-feltet fjernet, kommentar oppdatert til endelig modell.
   - Cross-org-unique `(projectId, organizationId, moduleSlug)` flyttet til Steg 1e — krever konkret cross-org-design (oversettelse/PSI/kontrollplan har ikke meningsfull cross-org-aktivering, kun timer/maskin har).
