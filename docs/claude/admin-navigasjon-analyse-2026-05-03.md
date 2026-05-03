@@ -3,10 +3,34 @@ name: admin-navigasjon-analyse-2026-05-03
 description: Analyse av manglende kobling mellom firma- og prosjekt-kontekst i UI.
   Grunnlag for redesign av admin-navigasjon iht. vedtatt arkitektur.
 status: aktiv
-sist_oppdatert: 2026-05-03
+sist_oppdatert: 2026-05-04
 ---
 
 # Admin-navigasjon analyse — 2026-05-03
+
+## Korrigert hierarki (Kenneth, 2026-05-03)
+
+Prosjekt er IKKE en selvstendig toppnivå-entitet. Det er en firmamodul
+på samme nivå som Timer, Maskin og Kompetanse:
+
+```
+Sitedoc
+└── Firma
+    ├── Firmamoduler (tverrgående):
+    │   ├── Timer
+    │   ├── Maskin
+    │   ├── Kompetanse
+    │   ├── Prosjekt  ← firmamodul, ikke toppnivå
+    │   └── Fremdrift
+    └── Prosjektmalverk
+```
+
+Konsekvens for navigasjon:
+- Firma velges FØRST — alt annet er under firma
+- ProsjektVelger i toppbar er en snarvei/arbeidsflate, ikke primær navigasjon
+- Riktig flyt for sitedoc_admin:
+  Admin → Velg firma → Se firmaets moduler (inkl. Prosjekter) → Velg prosjekt
+- Dagens UI bryter dette ved å behandle ProsjektVelger som uavhengig av firma
 
 ## Grunnlag
 Vedtatt arkitektur (terminologi.md § 0):
