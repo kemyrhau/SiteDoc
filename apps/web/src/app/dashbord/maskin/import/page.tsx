@@ -129,22 +129,19 @@ export default function MaskinImportSide() {
 
   return (
     <div className="mx-auto max-w-5xl">
-      <div className="mb-4 flex items-center gap-2">
+      {/* Header — tilbake-pil og tittel på samme linje */}
+      <div className="mb-5 flex items-center gap-3">
         <Link
           href="/dashbord/maskin"
-          className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
+          className="inline-flex items-center gap-1 text-sm text-gray-400 hover:text-gray-600"
+          title={t("firma.maskin.import.tilbakeTilMaskin")}
         >
           <ArrowLeft className="h-4 w-4" />
-          {t("firma.maskin.import.tilbakeTilMaskin")}
         </Link>
+        <h1 className="text-xl font-semibold text-gray-900">
+          {t("firma.maskin.import.tittel")}
+        </h1>
       </div>
-
-      <h1 className="mb-1 text-xl font-semibold text-gray-900">
-        {t("firma.maskin.import.tittel")}
-      </h1>
-      <p className="mb-6 text-sm text-gray-500">
-        {t("firma.maskin.import.undertittel")}
-      </p>
 
       {/* Steg-indikator */}
       <div className="mb-6 flex items-center gap-2 text-xs text-gray-500">
@@ -207,19 +204,38 @@ export default function MaskinImportSide() {
       {/* Steg 2: Forhåndsvisning */}
       {steg === "forhandsvisning" && forhandsvisning && (
         <div className="space-y-4">
-          {/* Sammendrag */}
+          {/* Filnavn — kompakt enkelt-linje */}
+          <div className="flex items-center gap-2 text-sm text-gray-600">
+            <FileSpreadsheet className="h-4 w-4 text-gray-400" />
+            <span className="font-medium text-gray-900">{filnavn}</span>
+            <span className="text-gray-400">·</span>
+            <span>
+              {t("firma.maskin.import.fillinje", {
+                totalt: forhandsvisning.totaltIFil,
+                filtrert: forhandsvisning.filtrerte.length,
+              })}
+            </span>
+          </div>
+
+          {/* Sammendrag — 4 stats med fremhevet «Importerbart» */}
           <div className="rounded-lg border border-gray-200 bg-white p-4">
-            <div className="mb-2 flex items-center gap-2">
-              <FileSpreadsheet className="h-4 w-4 text-gray-400" />
-              <span className="font-medium">{filnavn}</span>
+            <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
+              {t("firma.maskin.import.gruppe.sammendrag")}
             </div>
             <div className="grid grid-cols-2 gap-4 text-sm sm:grid-cols-4">
-              <Stat label={t("firma.maskin.import.sammendrag.totalt")} verdi={forhandsvisning.totaltIFil} />
               <Stat label={t("firma.maskin.import.sammendrag.importerbart")} verdi={forhandsvisning.importerbart} fremhev />
+              <Stat label={t("firma.maskin.import.sammendrag.duplikater")} verdi={forhandsvisning.duplikater} />
               <Stat label={t("firma.maskin.import.sammendrag.medRegnr")} verdi={forhandsvisning.medRegnummer} />
               <Stat label={t("firma.maskin.import.sammendrag.leid")} verdi={forhandsvisning.leid} />
             </div>
-            <div className="mt-3 grid grid-cols-3 gap-4 text-sm">
+          </div>
+
+          {/* Kategori — separat seksjon med 3-kol-grid */}
+          <div className="rounded-lg border border-gray-200 bg-white p-4">
+            <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
+              {t("firma.maskin.import.gruppe.kategori")}
+            </div>
+            <div className="grid grid-cols-3 gap-4 text-sm">
               <Stat label={t("maskin.kategoriKjoretoy")} verdi={forhandsvisning.fordeling.kjoretoy} />
               <Stat label={t("maskin.kategoriAnleggsmaskin")} verdi={forhandsvisning.fordeling.anleggsmaskin} />
               <Stat label={t("maskin.kategoriSmautstyr")} verdi={forhandsvisning.fordeling.smautstyr} />
