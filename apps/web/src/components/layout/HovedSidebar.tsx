@@ -180,15 +180,19 @@ export function HovedSidebar() {
     { enabled: !!prosjektId },
   );
 
-  // Hent firma-modul-flagg (midlertidig, erstattes av OrganizationModule i Fase 0)
+  // Firma-flagg brukes for global maskin-bunnelement (peker til /dashbord/maskin).
+  // Timer-elementer i prosjekt-sidebar gates via ProjectModule (Steg 1c Fase B).
   const { data: minOrganisasjon } = trpc.organisasjon.hentMin.useQuery();
   const harMaskinModul = (minOrganisasjon as { harMaskinModul?: boolean } | null | undefined)?.harMaskinModul ?? false;
-  const harTimerModul = (minOrganisasjon as { harTimerModul?: boolean } | null | undefined)?.harTimerModul ?? false;
+
+  const harTimerModulPaaProsjekt = !!aktiveModuler?.some(
+    (m) => m.moduleSlug === "timer" && m.status === "aktiv",
+  );
 
   // Sjekk timer-leder-tilgang for attesterings-fanen (kun hvis modul aktivert)
   const { data: kanAttestereTimer } = trpc.timer.dagsseddel.kanAttestere.useQuery(
     { projectId: prosjektId! },
-    { enabled: !!prosjektId && harTimerModul },
+    { enabled: !!prosjektId && harTimerModulPaaProsjekt },
   );
 
   // Hent bygninger med tegninger for å sjekke IFC-tilgjengelighet
@@ -214,8 +218,9 @@ export function HovedSidebar() {
     ))) return false;
     // Gruppemodulsjekk — admin/registrator ser alt
     if (element.kreverGruppemodul && !erAdmin && mineModuler && !mineModuler.includes(element.kreverGruppemodul)) return false;
-    // Firmamodul-sjekk (midlertidig flagg per Organization.har<X>Modul)
-    if (element.kreverFirmaModul === "timer" && !harTimerModul) return false;
+    // Timer gates på ProjectModule (Steg 1c Fase B) — synlig kun når modulen
+    // er aktivert for det aktuelle prosjektet, ikke kun firma-bredt.
+    if (element.kreverFirmaModul === "timer" && !harTimerModulPaaProsjekt) return false;
     // Timer-leder-sjekk (kun for attesterings-elementet)
     if (element.kreverTimerLeder && !kanAttestereTimer) return false;
     return true;

@@ -88,8 +88,13 @@ model Organization {
   invoiceEmail       String?  @map("invoice_email")
   ehfEnabled         Boolean  @default(false) @map("ehf_enabled")
   logoUrl            String?  @map("logo_url")
-  harMaskinModul     Boolean  @default(false) @map("har_maskin_modul") // Midlertidig firma-modul-flagg — erstattes av OrganizationModule i Fase 0 per A.4
-  harTimerModul      Boolean  @default(false) @map("har_timer_modul") // Midlertidig firma-modul-flagg — erstattes av OrganizationModule i Fase 0 per A.4
+  // Firma-master-bryter for modul-aktivering. Synkroniseres til ProjectModule-
+  // rader (prosjekt-instanser) via services/firmamodul.ts. Steg 1c (2026-05-03):
+  // organisasjon.settFirmamodul + prosjekt.opprett-hook holder ProjectModule i
+  // sync. Drop til full OrganizationModule-tabell utsatt til Steg 1e — kreves
+  // for at firma uten prosjekter skal kunne onboarde lønnsarter.
+  harMaskinModul     Boolean  @default(false) @map("har_maskin_modul")
+  harTimerModul      Boolean  @default(false) @map("har_timer_modul")
   erKunde            Boolean  @default(false) @map("er_kunde") // true = reelt kundefirma (bruker SiteDoc); false = skall-firma (kun part i prosjekt/dokumentflyt)
   createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @updatedAt @map("updated_at")

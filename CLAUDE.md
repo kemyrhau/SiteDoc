@@ -51,6 +51,25 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 
 ## Pågående arbeid (kort)
 
+**Steg 1c (OrganizationModule-overgang) IMPLEMENTERT på develop 2026-05-03** (`d581e399` Fase A+B + commit som lukker mini-Fase C). Tredje steg i prioritert byggerekkefølge fra [docs/claude/domene-arbeidsflyt.md](docs/claude/domene-arbeidsflyt.md). To-nivås modul-aktivering: `Organization.har_*_modul` = firma-master-bryter, `ProjectModule(slug, organizationId, status="aktiv")` = prosjekt-instans. Auto-sync-hooks holder dem konsistente.
+
+**Fase A — datamodell + bakfyll:**
+- Migrasjon `20260503010000_steg_1c_module_backfill` — INSERT ProjectModule(slug=timer/maskin, organizationId, status="aktiv") for prosjekter der primary_organization har flagget aktivert. Idempotent via ON CONFLICT. Test+prod: 0 rader nå (Byggeleder/A.Markussen har 0 prosjekter med primary-rolle) — ren no-op safety-net.
+- `services/timer/moduleGate.ts` + `services/maskin/moduleGate.ts` — valgfri `projectId`-param. Uten: kun firma-master-bryter. Med: krever begge nivåer.
+
+**Fase B — auto-sync-hooks + klient-migrering:**
+- `prosjekt.opprett` + `prosjekt.opprettTestprosjekt`: henter brukerens organizationId + har_*_modul-flagg, oppretter ProjectModule-rader for aktive firmamoduler i samme `$transaction` som ProjectOrganization.
+- Ny service-helper `apps/api/src/services/firmamodul.ts` med `syncProjektModulerPaaAktiver/Deaktiver(tx, orgId, slug)` — brukes fra organisasjon-router og timer/onboarding-router for konsistent sync.
+- Ny `organisasjon.settFirmamodul({ organizationId, slug, aktiver })` — polymorf mutation. Gates med `verifiserFirmaAdmin`. UI-knapp ikke bygget — Steg 2b.
+- `timer/onboarding.aktiverNivaa1` + `aktiverTomKatalog`: refaktorert til `$transaction` med syncProjektModulerPaaAktiver.
+- `HovedSidebar`: timer-elementer (`timer` + `timer-attestering`) gates på `aktiveModuler` (ProjectModule.status="aktiv"), ikke firma-flagg. Maskin-bunnelement beholder `harMaskinModul` (global lenke).
+
+**Mini-Fase C — kommentar-rens (lukker Steg 1c):** Drop av `har_*_modul`-kolonner krever full `OrganizationModule`-tabell (firma uten prosjekter trenger flagget for å onboarde lønnsarter — A.Markussen-flow). Den jobben utsatt til **Steg 1e**. Kommentarer i `schema.prisma` + `moduleGate.ts` oppdatert til å beskrive endelig to-nivås-modell, ikke «midlertidig flagg».
+
+**Verifisering:** Test-deploy verifisert som innlogget Kari Firmaadmin (Byggeleder) — opprettet nytt prosjekt → 2 ProjectModule-rader auto-opprettet (timer+maskin, status=aktiv, organization_id=Byggeleder). Auto-deploy-hook triggeret ikke — manuell deploy.
+
+**Eksplisitt utenfor Steg 1c:** **Steg 1d** = drop `active Boolean` på ProjectModule + endre unique til `(projectId, organizationId, moduleSlug)`. **Steg 1e** = `OrganizationModule`-tabell + drop `har_*_modul`-kolonner. Begge dokumentert i [docs/claude/domene-arbeidsflyt.md](docs/claude/domene-arbeidsflyt.md).
+
 **Steg 1b Fase A+B+C (firma-kontekst Lag 1+2+3) DEPLOYET TIL PROD 2026-05-03** (`045a49b7` merge, `f0da8408`+`52040cd3`+`ce72811c` impl). Hele Steg 1b ferdig på prod. Sitedoc_admin kan nå velge et hvilket som helst kunde-firma i FirmaVelger og administrere det fullt ut på alle firma-admin-sider (`/dashbord/firma/*`) + maskin/import. Sub-elementet «Firmainnstillinger» (under prosjekt-sidebar «Prosjekteier») er renamet til «Eier-firma» (nb) / «Owner company» (en). Tre-fasers strategi (A: server-helper + valgfri input → B: klient-migrering → C: orgId påkrevd + rename) — detaljer i [docs/claude/STATUS-AKTUELT.md](docs/claude/STATUS-AKTUELT.md).
 
 **Steg 1b Fase B (firma-kontekst — klient-migrering) IMPLEMENTERT på develop 2026-05-03:** ~10 firma-admin-sider migrert til å sende `useFirma().valgtFirma.id` som `organizationId` til alle queries og mutations. Sider berørt: `firma/page` (oversikt), `firma/avdelinger` (CRUD + 2 dialoger), `firma/brukere` (endreRolle), `firma/innstillinger` (firma-info + KompetansePolicySeksjon), `firma/kompetanse` (matrise + kompetansetyper-CRUD + import-dialog; AnsattKompetanse-CRUD uendret per Fase A-design), `firma/prosjekter`, `firma/timer/{layout,onboarding,lonnsarter,aktiviteter,tillegg}`, `maskin/import`. Mønster: `const { valgtFirma } = useFirma(); const orgId = valgtFirma?.id; useQuery({ organizationId: orgId }, { enabled: !!orgId })`. `firma/page` og `firma/innstillinger` byttet fra `organisasjon.hentMin` til `organisasjon.hentMedId({ id: orgId })` — disse hentet brukerens egen org via session, må nå bruke valgt firma-id. Effekt: sitedoc_admin kan nå velge et firma i FirmaVelger og se det firmaets data på alle undersider. `pnpm build` + `tsc` grønt. Klar for test-deploy. Fase C (innstramning + Prosjekteier-rename) avventer eksplisitt grønt lys etter test-verifisering.

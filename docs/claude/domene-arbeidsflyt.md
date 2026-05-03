@@ -261,6 +261,12 @@ Oppfølger: reconcile [arkitektur-syntese.md](arkitektur-syntese.md) vs [termino
 - [ ] UE-rolle (`role="underentreprenor"`) — hvilke kapabiliteter skal være satt by-default?
 - [ ] Onboarding-veileder pedagogisk lag — på toppen av navigasjon eller separat?
 
+### Steg 1c-beslutninger (lukket 2026-05-03)
+
+- [x] **1c Q1 — Per-prosjekt-toggle:** Auto-sync over alle firmaets prosjekter. Per-prosjekt av/på droppet — ingen kjent bruksmønster, ekstra kompleksitet uten gevinst.
+- [x] **1c Q2 — Auto-opprett ved nytt prosjekt:** Application-side hook i `prosjekt.opprett` + `prosjekt.opprettTestprosjekt`. Henter brukerens `organizationId` + `har_*_modul`-flagg, oppretter ProjectModule-rader i samme `$transaction` som ProjectOrganization. Implementert.
+- [x] **1c Q3 — `active Boolean`-felt på ProjectModule:** Utsatt til Steg 1d. Krever CI-grep for `projectId_moduleSlug`-callsites + ny composite unique-indeks `(projectId, organizationId, moduleSlug)` — uavhengig av OrganizationModule-overgangen.
+
 ---
 
 ## Prioritert byggerekkefølge
@@ -282,9 +288,22 @@ Ingen steg kan hoppes over — hvert steg er forutsetning for neste.
   - Lag 2: 10 klient-sider sender valgtFirma.id
   - Lag 3: «Firmainnstillinger» → «Eier-firma» (avvik fra plan: «Prosjekteier» kolliderte med eksisterende parent-kategori)
 
-- [ ] **1c. OrganizationModule-overgang** (~6-10t)
-  - Erstatter harTimerModul/harMaskinModul-flag med ProjectModule.status
-  - Blokkerer: modul-styring er midlertidig og skjør
+- [x] **1c. OrganizationModule-overgang Fase A+B** (~5t) — IMPLEMENTERT 2026-05-03 (`d581e399`)
+  - Fase A: bakfyll-migrasjon `20260503010000_steg_1c_module_backfill` + moduleGate-helpers utvidet med valgfri `projectId`-param
+  - Fase B: auto-sync hooks i `prosjekt.opprett` + `prosjekt.opprettTestprosjekt` + ny `services/firmamodul.ts` + `organisasjon.settFirmamodul`-mutation + timer-onboarding-refaktor + `HovedSidebar` migrert til ProjectModule-sjekk
+  - Mini-Fase C (kommentar-rens, 2026-05-03): `har_*_modul`-kolonnene beholdes som firma-master-bryter; full drop til `OrganizationModule`-tabell utsatt til Steg 1e (kreves for at firma uten prosjekter fortsatt kan onboarde lønnsarter — A.Markussen-flow ville brutt med rent ProjectModule-avledet aktivering)
+
+- [ ] **1d. ProjectModule final cleanup** (~2-3t)
+  - CI-grep for `projectId_moduleSlug`-callsites i `apps/` og `packages/`
+  - Migrasjon: drop `active Boolean`-kolonne + endre unique-indeks `(project_id, module_slug)` → `(project_id, organization_id, module_slug)`
+  - Schema-rens i `schema.prisma`
+  - Utsatt fra 1c-Fase C — uavhengig av OrganizationModule og krever at all kode bruker `status`-feltet (per A.4 + A.18)
+
+- [ ] **1e. OrganizationModule-tabell** (~5-8t, fremtidig)
+  - Egen tabell `(organizationId, moduleSlug, status)` for firma-master-aktivering
+  - Erstatter `Organization.har_timer_modul`/`har_maskin_modul`-kolonnene
+  - Bakfyll fra eksisterende flagg, drop kolonner, alle firma-bredte callsites bytter
+  - Tas når en av disse drivene oppstår: (a) flere enn 2 firmamoduler å spore, (b) behov for status-historikk per firma-modul, (c) cross-org-policy som flag-modellen ikke dekker
 
 ### Steg 2 — Firma-admin-sider (bygges på solid fundament)
 

@@ -3,6 +3,10 @@ import { router, protectedProcedure } from "../trpc/trpc";
 import { TRPCError } from "@trpc/server";
 import { prisma } from "@sitedoc/db";
 import { autoriserAdminForFirma } from "../trpc/tilgangskontroll";
+import {
+  syncProjektModulerPaaAktiver,
+  syncProjektModulerPaaDeaktiver,
+} from "../services/firmamodul";
 
 /**
  * Verifiser at bruker er firmaadmin for et firma.
@@ -415,6 +419,47 @@ export const organisasjonRouter = router({
           ...settingData,
         },
         update: settingData,
+      });
+    }),
+
+  /**
+   * Aktiver eller deaktiver firmamodul (Steg 1c Fase B).
+   *
+   * Aktiver: setter har_*_modul=true + syncer ProjectModule-rader for alle
+   * prosjekter firmaet er knyttet til (primary eller partner) — eksisterende
+   * rader reaktiveres, nye opprettes med status='aktiv'.
+   *
+   * Deaktiver: setter har_*_modul=false + setter alle ProjectModule-rader for
+   * firmaet til status='arkivert'. Rader beholdes — historikk bevares.
+   *
+   * Atomisk via $transaction. Tilgang gates til sitedoc_admin og firmaets
+   * company_admin via autoriserAdminForFirma.
+   */
+  settFirmamodul: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        slug: z.enum(["timer", "maskin"]),
+        aktiver: z.boolean(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const orgId = await verifiserFirmaAdmin(ctx.prisma, ctx.userId, input.organizationId);
+      const flagFelt = input.slug === "timer" ? "harTimerModul" : "harMaskinModul";
+
+      return ctx.prisma.$transaction(async (tx) => {
+        await tx.organization.update({
+          where: { id: orgId },
+          data: { [flagFelt]: input.aktiver },
+        });
+
+        if (input.aktiver) {
+          await syncProjektModulerPaaAktiver(tx, orgId, input.slug);
+        } else {
+          await syncProjektModulerPaaDeaktiver(tx, orgId, input.slug);
+        }
+
+        return { ok: true };
       });
     }),
 });

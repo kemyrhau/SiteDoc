@@ -88,43 +88,67 @@ export const prosjektRouter = router({
       };
     }),
 
-  // Opprett nytt prosjekt — kobler automatisk til brukerens firma hvis det finnes
+  // Opprett nytt prosjekt — kobler automatisk til brukerens firma hvis det finnes.
+  // Steg 1c Fase B: ProjectModule-rader auto-opprettes for aktive firmamoduler
+  // (timer/maskin) på brukerens firma.
   opprett: protectedProcedure
     .input(createProjectSchema)
     .mutation(async ({ ctx, input }) => {
-      // Tell eksisterende prosjekter for sekvensnummer
       const antall = await ctx.prisma.project.count();
       const prosjektnummer = generateProjectNumber(antall + 1);
 
-      const prosjekt = await ctx.prisma.project.create({
-        data: {
-          ...input,
-          projectNumber: prosjektnummer,
-          members: {
-            create: {
-              userId: ctx.userId!,
-              role: "admin",
-            },
-          },
-        },
-      });
-
-      // Auto-tilknytt til brukerens firma
       const bruker = await ctx.prisma.user.findUniqueOrThrow({
         where: { id: ctx.userId },
         select: { organizationId: true },
       });
 
-      if (bruker.organizationId) {
-        await ctx.prisma.projectOrganization.create({
+      const firma = bruker.organizationId
+        ? await ctx.prisma.organization.findUnique({
+            where: { id: bruker.organizationId },
+            select: { harTimerModul: true, harMaskinModul: true },
+          })
+        : null;
+
+      return ctx.prisma.$transaction(async (tx) => {
+        const prosjekt = await tx.project.create({
           data: {
-            organizationId: bruker.organizationId,
-            projectId: prosjekt.id,
+            ...input,
+            projectNumber: prosjektnummer,
+            members: {
+              create: {
+                userId: ctx.userId!,
+                role: "admin",
+              },
+            },
           },
         });
-      }
 
-      return prosjekt;
+        if (bruker.organizationId) {
+          await tx.projectOrganization.create({
+            data: {
+              organizationId: bruker.organizationId,
+              projectId: prosjekt.id,
+            },
+          });
+
+          const aktiveModuler: string[] = [];
+          if (firma?.harTimerModul) aktiveModuler.push("timer");
+          if (firma?.harMaskinModul) aktiveModuler.push("maskin");
+          if (aktiveModuler.length > 0) {
+            await tx.projectModule.createMany({
+              data: aktiveModuler.map((slug) => ({
+                projectId: prosjekt.id,
+                moduleSlug: slug,
+                organizationId: bruker.organizationId!,
+                status: "aktiv",
+              })),
+              skipDuplicates: true,
+            });
+          }
+        }
+
+        return prosjekt;
+      });
     }),
 
   // Opprett testprosjekt med standardgrupper og moduler (for nye brukere)
@@ -134,6 +158,13 @@ export const prosjektRouter = router({
         where: { id: ctx.userId },
         select: { name: true, organizationId: true },
       });
+
+      const firma = bruker.organizationId
+        ? await ctx.prisma.organization.findUnique({
+            where: { id: bruker.organizationId },
+            select: { harTimerModul: true, harMaskinModul: true },
+          })
+        : null;
 
       const antall = await ctx.prisma.project.count();
       const prosjektnummer = generateProjectNumber(antall + 1);
@@ -154,7 +185,8 @@ export const prosjektRouter = router({
           },
         });
 
-        // Auto-tilknytt til brukerens firma
+        // Auto-tilknytt til brukerens firma + auto-opprett ProjectModule-rader
+        // for aktive firmamoduler (Steg 1c Fase B)
         if (bruker.organizationId) {
           await tx.projectOrganization.create({
             data: {
@@ -162,6 +194,21 @@ export const prosjektRouter = router({
               projectId: prosjekt.id,
             },
           });
+
+          const aktiveFirmaModuler: string[] = [];
+          if (firma?.harTimerModul) aktiveFirmaModuler.push("timer");
+          if (firma?.harMaskinModul) aktiveFirmaModuler.push("maskin");
+          if (aktiveFirmaModuler.length > 0) {
+            await tx.projectModule.createMany({
+              data: aktiveFirmaModuler.map((slug) => ({
+                projectId: prosjekt.id,
+                moduleSlug: slug,
+                organizationId: bruker.organizationId!,
+                status: "aktiv",
+              })),
+              skipDuplicates: true,
+            });
+          }
         }
 
         // Opprett standardgrupper

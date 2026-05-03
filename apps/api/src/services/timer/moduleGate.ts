@@ -1,38 +1,64 @@
 /**
  * Modul-gating for Timer-modulen.
  *
- * Erstatter pr Fase 0 § A.4/A.17 av OrganizationModule + modulProcedure.
- * Frem til da: bruker midlertidig Organization.harTimerModul-flag.
- * Samme mønster som apps/api/src/services/maskin/moduleGate.ts.
+ * To-nivås aktivering (Steg 1c, 2026-05-03):
+ *   - Organization.har_timer_modul = firma-master-bryter (firmaet har modulen
+ *     aktivert overhodet — kreves for onboarding av lønnsarter selv før første
+ *     prosjekt finnes).
+ *   - ProjectModule(slug='timer', organizationId, status='aktiv') = prosjekt-
+ *     instans. Auto-opprettes via prosjekt.opprett + organisasjon.settFirmamodul
+ *     (services/firmamodul.ts holder dem i sync).
+ *
+ * Sjekk er additiv: begge nivåer må være aktive for at modulen skal anses
+ * aktiv på et prosjekt.
+ *   - Uten projectId: kun firma-master-bryter (bakoverkompatibel for callsites
+ *     som ikke har prosjekt-kontekst).
+ *   - Med projectId: krever både firma-master-bryter OG ProjectModule.status='aktiv'.
  */
 import { prisma } from "@sitedoc/db";
 
 export class TimerModulIkkeAktivertError extends Error {
-  constructor(public organizationId: string) {
-    super(`Timer-modulen er ikke aktivert for firma ${organizationId}`);
+  constructor(public organizationId: string, public projectId?: string) {
+    const scope = projectId ? `prosjekt ${projectId}` : `firma ${organizationId}`;
+    super(`Timer-modulen er ikke aktivert for ${scope}`);
     this.name = "TimerModulIkkeAktivertError";
   }
 }
 
 /**
  * Soft-sjekk — returnerer boolean, kaster ikke.
- * Bruk i konsumerende moduler (Aktivitetsfeed, Planlegger) som skal rendere
- * skjult istedet for feil ved deaktivert modul.
  */
-export async function erTimerAktivert(organizationId: string): Promise<boolean> {
+export async function erTimerAktivert(
+  organizationId: string,
+  projectId?: string,
+): Promise<boolean> {
   const org = await prisma.organization.findUnique({
     where: { id: organizationId },
     select: { harTimerModul: true },
   });
-  return org?.harTimerModul ?? false;
+  if (!org?.harTimerModul) return false;
+  if (!projectId) return true;
+
+  const modul = await prisma.projectModule.findFirst({
+    where: {
+      projectId,
+      moduleSlug: "timer",
+      organizationId,
+      status: "aktiv",
+    },
+    select: { id: true },
+  });
+  return !!modul;
 }
 
 /**
  * Hard-versjon — kastes hvis ikke aktivert.
- * Brukes i Timer-modulens egne ruter.
  */
-export async function krevTimerAktivert(organizationId: string): Promise<void> {
-  if (!(await erTimerAktivert(organizationId))) {
-    throw new TimerModulIkkeAktivertError(organizationId);
+export async function krevTimerAktivert(
+  organizationId: string,
+  projectId?: string,
+): Promise<void> {
+  if (!(await erTimerAktivert(organizationId, projectId))) {
+    throw new TimerModulIkkeAktivertError(organizationId, projectId);
   }
 }
