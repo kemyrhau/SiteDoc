@@ -13,6 +13,26 @@ peker hit. Beslutningsgrunnlag og arkitektur ligger i
 
 ## Pågående arbeid
 
+**Steg 3 (maskin-import med firma-kontekst) IMPLEMENTERT på develop 2026-05-03.** Steg 3 fra prioritert byggerekkefølge — to deler.
+
+**3a — Koble import til FirmaVelger + erKunde-filter:**
+- Server: ny `krevErKundeFirma(organizationId)`-helper i `apps/api/src/trpc/tilgangskontroll.ts` som validerer `Organization.erKunde === true` (NOT_FOUND hvis firma ikke finnes; FORBIDDEN hvis erKunde=false). Brukt i lokal `verifiserFirmaAdmin`-helper i `apps/api/src/routes/maskin/import.ts` slik at både `importerForhandsvisning` og `importerBekreft` blokkerer skall-firma-import. Skall-firmaer (byggherre, UE uten SiteDoc-konto) skal ikke kunne være mål for SmartDok-import siden de ikke bruker maskinregisteret.
+- Klient: `useFirma()` brukes allerede (fra Steg 1b Fase B-migrering) — ingen endring i denne delen. La til tom-state hvis sitedoc_admin ikke har valgt firma: `{steg === "opplastning" && !orgId && <div>{t("firma.maskin.import.velgFirma")}</div>}` viser «Velg et kunde-firma fra toppmenyen før du kan importere».
+
+**3b — Fil-upload UI klikkbar drag-and-drop:**
+- Konvertert fra ren label til label med drag-and-drop-handlere: `onDragOver` (preventDefault + setDrarOver(true)), `onDragLeave` (setDrarOver(false)), `onDrop` (preventDefault + setDrarOver(false) + handleFilValg(e.dataTransfer.files[0])). Ny `drarOver`-state styrer visuell feedback: ved drag-over endres border til `border-sitedoc-primary` og bakgrunn til `bg-blue-50` (sterkere enn hover-statet). UploadCloud-ikonet farges også blått ved drag.
+- Klikk-funksjonalitet beholdt via eksisterende label/input-mønster — klikk hvor som helst i sonen åpner filvelger.
+- Validering uendret: `accept=".xlsx"` på input + sjekk på filnavn-extension i `handleFilValg`.
+
+**Hva 3 IKKE dekker:**
+- Multi-fil-support (én fil av gangen) — ikke etterspurt.
+- Andre import-formater (CSV, andre Excel-strukturer) — kun SmartDok-format støttes per nå.
+- Validering at filen faktisk er en SmartDok-eksport — fanges i `parseSmartDokXlsx`-parseren downstream.
+
+**Verifisering:** `pnpm --filter @sitedoc/api typecheck` grønt. `pnpm build --filter @sitedoc/web` grønt (34.0s).
+
+**Klar for test-deploy.** Stopper og rapporterer per Kenneths instruks. Claude verifiserer (1) at sitedoc_admin uten valgt firma ser tom-state, (2) at drag-and-drop med .xlsx fungerer (visuell feedback + opplasting), (3) at FORBIDDEN returneres hvis sitedoc_admin via DevTools sender et skall-firma-orgId (valgfri).
+
 **Steg 2 (firma-admin-sider) DEPLOYET TIL PROD 2026-05-03** (`a1463561` merge — samlet 2b+2c+2d, 2a var allerede komplett). HTTP/2 200 verifisert mot `/dashbord/firma/moduler`, `/dashbord/firma/innstillinger`, `/dashbord/nytt-prosjekt`. Ingen DB-migrasjoner i Steg 2. Funksjonell verifisering på test før prod-deploy: sitedoc_admin (Tore) opprettet prosjekt for Byggeleder via firma-kontekst → primary_organization_id satt korrekt + 2 ProjectModule-rader (timer + maskin, status=aktiv) auto-opprettet.
 
 **Steg 2d (prosjekt fra firma-kontekst) IMPLEMENTERT på develop 2026-05-03.** Tredje og siste del av Steg 2. Server tar nå valgfri `organizationId` i prosjekt-opprettelsen, klient sender valgtFirma.id, og duplikat-fil slettet.

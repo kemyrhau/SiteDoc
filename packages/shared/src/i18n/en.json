@@ -1870,6 +1870,7 @@
   "maskin.importerFraSmartDok": "Import from SmartDok",
   "firma.maskin.import.tittel": "Import equipment from SmartDok",
   "firma.maskin.import.tilbakeTilMaskin": "Back to equipment register",
+  "firma.maskin.import.velgFirma": "Select a customer company from the top menu before importing the equipment register.",
   "firma.maskin.import.fillinje": "{{totalt}} rows, {{filtrert}} filtered (test data)",
   "firma.maskin.import.gruppe.sammendrag": "Summary",
   "firma.maskin.import.gruppe.kategori": "Category",

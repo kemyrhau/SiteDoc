@@ -61,6 +61,7 @@ export default function MaskinImportSide() {
   const [forhandsvisning, setForhandsvisning] = useState<ForhandsvisningResultat | null>(null);
   const [resultat, setResultat] = useState<BekreftResultat | null>(null);
   const [feil, setFeil] = useState<string | null>(null);
+  const [drarOver, setDrarOver] = useState(false);
 
   type ForhandInput = { filInnhold: string; organizationId?: string };
   type BekreftInput = ForhandInput & { filHash: string };
@@ -176,10 +177,36 @@ export default function MaskinImportSide() {
         )}
       </div>
 
-      {/* Steg 1: Opplastning — label-omsluttende fil-input (SSR-trygt, ingen useRef) */}
-      {steg === "opplastning" && (
-        <label className="group flex w-full cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-white p-12 text-center transition-colors hover:border-sitedoc-primary hover:bg-blue-50/40">
-          <UploadCloud className="h-12 w-12 text-gray-400 transition-colors group-hover:text-sitedoc-primary" />
+      {/* Steg 1: Opplastning — label-omsluttende fil-input + drag-and-drop */}
+      {steg === "opplastning" && !orgId && (
+        <div className="rounded-lg border border-gray-200 bg-white p-12 text-center text-sm text-gray-600">
+          {t("firma.maskin.import.velgFirma")}
+        </div>
+      )}
+      {steg === "opplastning" && orgId && (
+        <label
+          onDragOver={(e) => {
+            e.preventDefault();
+            setDrarOver(true);
+          }}
+          onDragLeave={() => setDrarOver(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            setDrarOver(false);
+            const fil = e.dataTransfer.files?.[0];
+            if (fil) void handleFilValg(fil);
+          }}
+          className={`group flex w-full cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed p-12 text-center transition-colors ${
+            drarOver
+              ? "border-sitedoc-primary bg-blue-50"
+              : "border-gray-300 bg-white hover:border-sitedoc-primary hover:bg-blue-50/40"
+          }`}
+        >
+          <UploadCloud
+            className={`h-12 w-12 transition-colors ${
+              drarOver ? "text-sitedoc-primary" : "text-gray-400 group-hover:text-sitedoc-primary"
+            }`}
+          />
           <p className="mt-4 text-base font-semibold text-gray-900">
             {t("firma.maskin.import.steg1.dropKlikk")}
           </p>
