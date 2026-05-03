@@ -17,7 +17,7 @@ export default function FirmaTimerLayout({
   const { valgtFirma } = useFirma();
   const orgId = valgtFirma?.id;
   const { data: status, isLoading } = trpc.timer.onboarding.status.useQuery(
-    { organizationId: orgId },
+    { organizationId: orgId! },
     { enabled: !!orgId },
   );
 

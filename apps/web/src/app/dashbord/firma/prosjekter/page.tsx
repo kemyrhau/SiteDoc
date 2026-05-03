@@ -12,7 +12,7 @@ export default function FirmaProsjekter() {
 
   const { data: prosjekter, isLoading } =
     trpc.organisasjon.hentProsjekter.useQuery(
-      { organizationId: orgId },
+      { organizationId: orgId! },
       { enabled: !!orgId },
     );
 

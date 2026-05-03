@@ -8,25 +8,10 @@ import { krevTimerAktivert } from "../../services/timer";
 
 const TYPE_VERDIER = ["avhuking", "antall"] as const;
 
-// Steg 1b Fase A — bakoverkompatibilitet (se lonnsart.ts for detaljer).
-async function verifiserFirmaAdmin(userId: string, inputOrgId?: string): Promise<string> {
-  if (inputOrgId) {
-    await autoriserAdminForFirma(userId, inputOrgId);
-    return inputOrgId;
-  }
-
-  const bruker = await prisma.user.findUniqueOrThrow({
-    where: { id: userId },
-    select: { role: true, organizationId: true },
-  });
-
-  if (bruker.role !== "company_admin" && bruker.role !== "sitedoc_admin") {
-    throw new TRPCError({ code: "FORBIDDEN", message: "Krever firmaadmin-rettighet" });
-  }
-  if (!bruker.organizationId) {
-    throw new TRPCError({ code: "FORBIDDEN", message: "Ingen organisasjon tilknyttet" });
-  }
-  return bruker.organizationId;
+// Steg 1b Fase C — orgId er påkrevd. Klienten må sende `valgtFirma.id`.
+async function verifiserFirmaAdmin(userId: string, inputOrgId: string): Promise<string> {
+  await autoriserAdminForFirma(userId, inputOrgId);
+  return inputOrgId;
 }
 
 async function hentBrukerOrgId(userId: string, inputOrgId?: string): Promise<string> {
@@ -84,7 +69,7 @@ export const tilleggRouter = router({
         skalEksporteres: z.boolean().optional(),
         tvungenKommentar: z.boolean().optional(),
         rekkefolge: z.number().int().optional(),
-        organizationId: z.string().uuid().optional(),
+        organizationId: z.string().uuid(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -132,7 +117,7 @@ export const tilleggRouter = router({
         tvungenKommentar: z.boolean().optional(),
         rekkefolge: z.number().int().optional(),
         aktiv: z.boolean().optional(),
-        organizationId: z.string().uuid().optional(),
+        organizationId: z.string().uuid(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -182,7 +167,7 @@ export const tilleggRouter = router({
   deaktiver: protectedProcedure
     .input(z.object({
       id: z.string().uuid(),
-      organizationId: z.string().uuid().optional(),
+      organizationId: z.string().uuid(),
     }))
     .mutation(async ({ ctx, input }) => {
       const orgId = await verifiserFirmaAdmin(ctx.userId, input.organizationId);

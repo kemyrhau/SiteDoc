@@ -29,25 +29,10 @@ import { krevMaskinAktivert } from "../../services/maskin";
 
 const VEGVESEN_PRIO_SMARTDOK_IMPORT = 200;
 
-// Steg 1b Fase A — bakoverkompatibilitet: hvis `inputOrgId` gitt deleger til
-// `autoriserAdminForFirma`. Hvis ikke gitt: fallback til bruker.organizationId.
-async function verifiserFirmaAdmin(userId: string, inputOrgId?: string): Promise<string> {
-  if (inputOrgId) {
-    await autoriserAdminForFirma(userId, inputOrgId);
-    return inputOrgId;
-  }
-
-  const bruker = await prisma.user.findUniqueOrThrow({
-    where: { id: userId },
-    select: { role: true, organizationId: true },
-  });
-  if (bruker.role !== "company_admin" && bruker.role !== "sitedoc_admin") {
-    throw new TRPCError({ code: "FORBIDDEN", message: "Krever firmaadmin-rettighet" });
-  }
-  if (!bruker.organizationId) {
-    throw new TRPCError({ code: "FORBIDDEN", message: "Ingen organisasjon tilknyttet" });
-  }
-  return bruker.organizationId;
+// Steg 1b Fase C — orgId er påkrevd. Klienten må sende `valgtFirma.id`.
+async function verifiserFirmaAdmin(userId: string, inputOrgId: string): Promise<string> {
+  await autoriserAdminForFirma(userId, inputOrgId);
+  return inputOrgId;
 }
 
 /**
@@ -81,7 +66,7 @@ async function matchAnsvarlige(
 
 const filInputSchema = z.object({
   filInnhold: z.string().max(10_000_000), // base64 ~7MB rå = ~10MB base64
-  organizationId: z.string().uuid().optional(),
+  organizationId: z.string().uuid(),
 });
 
 export const importRouter = router({

@@ -25,7 +25,7 @@ export default function AvdelingerSide() {
   const [redigerId, setRedigerId] = useState<string | null>(null);
 
   const { data: avdelinger, isLoading } = trpc.avdeling.hentAlle.useQuery(
-    { organizationId: orgId },
+    { organizationId: orgId! },
     { enabled: !!orgId },
   );
 
@@ -49,11 +49,11 @@ export default function AvdelingerSide() {
 
   function handleSlett(rad: AvdelingRad) {
     if (!confirm(t("firma.avdelinger.slettBekreft", { navn: rad.navn }))) return;
-    slettMutation.mutate({ id: rad.id, organizationId: orgId });
+    slettMutation.mutate({ id: rad.id, organizationId: orgId! });
   }
 
   function handleToggleAktiv(rad: AvdelingRad) {
-    oppdaterMutation.mutate({ id: rad.id, aktiv: !rad.aktiv, organizationId: orgId });
+    oppdaterMutation.mutate({ id: rad.id, aktiv: !rad.aktiv, organizationId: orgId! });
   }
 
   return (
@@ -183,7 +183,7 @@ function OpprettAvdelingDialog({ onLukk }: { onLukk: () => void }) {
     opprettMutation.mutate({
       navn,
       kode: kode.trim() || undefined,
-      organizationId: orgId,
+      organizationId: orgId!,
     });
   }
 
@@ -267,7 +267,7 @@ function RedigerAvdelingDialog({
       id: avdeling.id,
       navn,
       kode: kode.trim() || null,
-      organizationId: orgId,
+      organizationId: orgId!,
     });
   }
 

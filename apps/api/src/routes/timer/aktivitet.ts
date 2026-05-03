@@ -6,25 +6,10 @@ import { router, protectedProcedure } from "../../trpc/trpc";
 import { autoriserAdminForFirma } from "../../trpc/tilgangskontroll";
 import { krevTimerAktivert } from "../../services/timer";
 
-// Steg 1b Fase A — bakoverkompatibilitet (se lonnsart.ts for detaljer).
-async function verifiserFirmaAdmin(userId: string, inputOrgId?: string): Promise<string> {
-  if (inputOrgId) {
-    await autoriserAdminForFirma(userId, inputOrgId);
-    return inputOrgId;
-  }
-
-  const bruker = await prisma.user.findUniqueOrThrow({
-    where: { id: userId },
-    select: { role: true, organizationId: true },
-  });
-
-  if (bruker.role !== "company_admin" && bruker.role !== "sitedoc_admin") {
-    throw new TRPCError({ code: "FORBIDDEN", message: "Krever firmaadmin-rettighet" });
-  }
-  if (!bruker.organizationId) {
-    throw new TRPCError({ code: "FORBIDDEN", message: "Ingen organisasjon tilknyttet" });
-  }
-  return bruker.organizationId;
+// Steg 1b Fase C — orgId er påkrevd. Klienten må sende `valgtFirma.id`.
+async function verifiserFirmaAdmin(userId: string, inputOrgId: string): Promise<string> {
+  await autoriserAdminForFirma(userId, inputOrgId);
+  return inputOrgId;
 }
 
 async function hentBrukerOrgId(userId: string, inputOrgId?: string): Promise<string> {
@@ -78,7 +63,7 @@ export const aktivitetRouter = router({
         navn: z.string().min(1).max(255),
         internkostnad: z.number().nullable().optional(),
         prisMotKunde: z.number().nullable().optional(),
-        organizationId: z.string().uuid().optional(),
+        organizationId: z.string().uuid(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -118,7 +103,7 @@ export const aktivitetRouter = router({
         internkostnad: z.number().nullable().optional(),
         prisMotKunde: z.number().nullable().optional(),
         aktiv: z.boolean().optional(),
-        organizationId: z.string().uuid().optional(),
+        organizationId: z.string().uuid(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -164,7 +149,7 @@ export const aktivitetRouter = router({
   deaktiver: protectedProcedure
     .input(z.object({
       id: z.string().uuid(),
-      organizationId: z.string().uuid().optional(),
+      organizationId: z.string().uuid(),
     }))
     .mutation(async ({ ctx, input }) => {
       const orgId = await verifiserFirmaAdmin(ctx.userId, input.organizationId);

@@ -133,11 +133,11 @@ function MatriseFane() {
   const orgId = valgtFirma?.id;
 
   const { data, isLoading } = trpc.kompetanse.hentMatrise.useQuery(
-    { organizationId: orgId },
+    { organizationId: orgId! },
     { enabled: !!orgId },
   );
   const { data: setting } = trpc.organisasjon.hentSetting.useQuery(
-    { organizationId: orgId },
+    { organizationId: orgId! },
     { enabled: !!orgId },
   );
   const policy = setting?.kompetanseRegistreringTilgang as
@@ -463,7 +463,7 @@ function KompetansetyperFane() {
   const [slettId, setSlettId] = useState<string | null>(null);
 
   const { data: typer, isLoading } = trpc.kompetansetype.hentAlle.useQuery(
-    { organizationId: orgId },
+    { organizationId: orgId! },
     { enabled: !!orgId },
   );
 
@@ -477,7 +477,7 @@ function KompetansetyperFane() {
   });
 
   function handleToggleAktiv(rad: KompetansetypeRad) {
-    oppdaterMutation.mutate({ id: rad.id, aktiv: !rad.aktiv, organizationId: orgId });
+    oppdaterMutation.mutate({ id: rad.id, aktiv: !rad.aktiv, organizationId: orgId! });
   }
 
   return (
@@ -608,7 +608,7 @@ function OpprettTypeDialog({ onLukk }: { onLukk: () => void }) {
       kategori,
       defaultUtloperAarEtterUtstedt: aar,
       beskrivelse: beskrivelse.trim() || null,
-      organizationId: orgId,
+      organizationId: orgId!,
     });
   }
 
@@ -727,7 +727,7 @@ function RedigerTypeDialog({
       kategori,
       defaultUtloperAarEtterUtstedt: aar,
       beskrivelse: beskrivelse.trim() || null,
-      organizationId: orgId,
+      organizationId: orgId!,
     });
   }
 
@@ -826,7 +826,7 @@ function SlettTypeDialog({
 
   function handleSlett() {
     setFeil(null);
-    mutation.mutate({ id: type.id, organizationId: orgId });
+    mutation.mutate({ id: type.id, organizationId: orgId! });
   }
 
   return (
@@ -1284,7 +1284,7 @@ function ImportFraFilDialog({ onLukk }: { onLukk: () => void }) {
     setFilInnhold(base64);
 
     // Send forhåndsvisning
-    forhandMutation.mutate({ filInnhold: base64, filtype: filtypeNy, organizationId: orgId });
+    forhandMutation.mutate({ filInnhold: base64, filtype: filtypeNy, organizationId: orgId! });
   }
 
   function handleBekreft() {
@@ -1296,7 +1296,7 @@ function ImportFraFilDialog({ onLukk }: { onLukk: () => void }) {
       filHash: forhandsvisning.filHash,
       autoOpprettTyper,
       overskrivEksisterende,
-      organizationId: orgId,
+      organizationId: orgId!,
     });
   }
 

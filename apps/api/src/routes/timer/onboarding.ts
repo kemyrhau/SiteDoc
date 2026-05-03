@@ -11,30 +11,14 @@ import {
 /**
  * Verifiser at bruker er firmaadmin for et firma.
  *
- * Steg 1b Fase A — bakoverkompatibilitet: hvis `inputOrgId` gitt deleger til
- * `autoriserAdminForFirma`. Hvis ikke gitt: fallback til bruker.organizationId.
+ * Steg 1b Fase C — orgId er påkrevd. Klienten må sende `valgtFirma.id`.
  */
 async function verifiserFirmaAdmin(
   userId: string,
-  inputOrgId?: string,
+  inputOrgId: string,
 ): Promise<string> {
-  if (inputOrgId) {
-    await autoriserAdminForFirma(userId, inputOrgId);
-    return inputOrgId;
-  }
-
-  const bruker = await prisma.user.findUniqueOrThrow({
-    where: { id: userId },
-    select: { role: true, organizationId: true },
-  });
-
-  if (bruker.role !== "company_admin" && bruker.role !== "sitedoc_admin") {
-    throw new TRPCError({ code: "FORBIDDEN", message: "Krever firmaadmin-rettighet" });
-  }
-  if (!bruker.organizationId) {
-    throw new TRPCError({ code: "FORBIDDEN", message: "Ingen organisasjon tilknyttet" });
-  }
-  return bruker.organizationId;
+  await autoriserAdminForFirma(userId, inputOrgId);
+  return inputOrgId;
 }
 
 /**
@@ -99,7 +83,7 @@ export const onboardingRouter = router({
     .input(
       z.object({
         inkluderNivaa2: z.boolean().default(false),
-        organizationId: z.string().uuid().optional(),
+        organizationId: z.string().uuid(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -123,9 +107,9 @@ export const onboardingRouter = router({
 
   // Importer Nivå 2-pakken etter at Nivå 1 allerede er seedet
   aktiverNivaa2: protectedProcedure
-    .input(z.object({ organizationId: z.string().uuid().optional() }).optional())
+    .input(z.object({ organizationId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
-    const orgId = await verifiserFirmaAdmin(ctx.userId, input?.organizationId);
+    const orgId = await verifiserFirmaAdmin(ctx.userId, input.organizationId);
 
     const organisasjon = await ctx.prisma.organization.findUniqueOrThrow({
       where: { id: orgId },
@@ -146,9 +130,9 @@ export const onboardingRouter = router({
   // (per timer.md § Onboarding scenario B). Idempotens: tom katalog tillates
   // bare hvis ingen lønnsarter finnes fra før.
   aktiverTomKatalog: protectedProcedure
-    .input(z.object({ organizationId: z.string().uuid().optional() }).optional())
+    .input(z.object({ organizationId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
-    const orgId = await verifiserFirmaAdmin(ctx.userId, input?.organizationId);
+    const orgId = await verifiserFirmaAdmin(ctx.userId, input.organizationId);
 
     const antall = await ctx.prismaTimer.lonnsart.count({
       where: { organizationId: orgId },

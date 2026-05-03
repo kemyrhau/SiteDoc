@@ -17,17 +17,17 @@ export default function FirmaOversikt() {
     );
   const { data: prosjekter, isLoading: projLaster } =
     trpc.organisasjon.hentProsjekter.useQuery(
-      { organizationId: orgId },
+      { organizationId: orgId! },
       { enabled: !!orgId },
     );
   const { data: brukere, isLoading: brukLaster } =
     trpc.organisasjon.hentBrukere.useQuery(
-      { organizationId: orgId },
+      { organizationId: orgId! },
       { enabled: !!orgId },
     );
   const { data: integrasjoner } =
     trpc.organisasjon.hentIntegrasjonerStatus.useQuery(
-      { organizationId: orgId },
+      { organizationId: orgId! },
       { enabled: !!orgId },
     );
 

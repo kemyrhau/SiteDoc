@@ -112,7 +112,7 @@ export default function MaskinImportSide() {
     }
     const base64 = btoa(binary);
     setFilInnhold(base64);
-    forhandMutation.mutate({ filInnhold: base64, organizationId: orgId });
+    forhandMutation.mutate({ filInnhold: base64, organizationId: orgId! });
   }
 
   function handleBekreft() {
@@ -121,7 +121,7 @@ export default function MaskinImportSide() {
     bekreftMutation.mutate({
       filInnhold,
       filHash: forhandsvisning.filHash,
-      organizationId: orgId,
+      organizationId: orgId!,
     });
   }
 

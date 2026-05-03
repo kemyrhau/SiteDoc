@@ -15,7 +15,7 @@ export default function TimerOnboardingSide() {
   const [feil, setFeil] = useState<string | null>(null);
 
   const { data: status, isLoading } = trpc.timer.onboarding.status.useQuery(
-    { organizationId: orgId },
+    { organizationId: orgId! },
     { enabled: !!orgId },
   );
 
@@ -83,7 +83,7 @@ export default function TimerOnboardingSide() {
                 <Button
                   onClick={() => {
                     setFeil(null);
-                    aktiverNivaa1.mutate({ inkluderNivaa2: false, organizationId: orgId });
+                    aktiverNivaa1.mutate({ inkluderNivaa2: false, organizationId: orgId! });
                   }}
                   disabled={aktiverNivaa1.isPending}
                 >
@@ -95,7 +95,7 @@ export default function TimerOnboardingSide() {
                   variant="secondary"
                   onClick={() => {
                     setFeil(null);
-                    aktiverNivaa1.mutate({ inkluderNivaa2: true, organizationId: orgId });
+                    aktiverNivaa1.mutate({ inkluderNivaa2: true, organizationId: orgId! });
                   }}
                   disabled={aktiverNivaa1.isPending}
                 >
@@ -119,7 +119,7 @@ export default function TimerOnboardingSide() {
                   variant="secondary"
                   onClick={() => {
                     setFeil(null);
-                    aktiverTomKatalog.mutate({ organizationId: orgId });
+                    aktiverTomKatalog.mutate({ organizationId: orgId! });
                   }}
                   disabled={aktiverTomKatalog.isPending}
                 >
@@ -188,7 +188,7 @@ export default function TimerOnboardingSide() {
               variant="secondary"
               onClick={() => {
                 setFeil(null);
-                aktiverNivaa2.mutate({ organizationId: orgId });
+                aktiverNivaa2.mutate({ organizationId: orgId! });
               }}
               disabled={aktiverNivaa2.isPending}
             >

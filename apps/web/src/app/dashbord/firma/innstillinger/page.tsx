@@ -58,7 +58,7 @@ export default function FirmaInnstillinger() {
     if (!navnGyldig || !epostGyldig) return;
 
     oppdater.mutate({
-      organizationId: orgId,
+      organizationId: orgId!,
       name: navn.trim(),
       organizationNumber: orgNr.trim() || null,
       invoiceAddress: fakturaAdresse.trim() || null,
@@ -294,7 +294,7 @@ function KompetansePolicySeksjon() {
   const orgId = valgtFirma?.id;
 
   const { data: setting, isLoading } = trpc.organisasjon.hentSetting.useQuery(
-    { organizationId: orgId },
+    { organizationId: orgId! },
     { enabled: !!orgId },
   );
   const utils = trpc.useUtils();
@@ -306,7 +306,7 @@ function KompetansePolicySeksjon() {
   });
 
   function endre(verdi: "firma_admin" | "bruker_egen" | "alle") {
-    oppdater.mutate({ kompetanseRegistreringTilgang: verdi, organizationId: orgId });
+    oppdater.mutate({ kompetanseRegistreringTilgang: verdi, organizationId: orgId! });
   }
 
   if (isLoading || !setting) {

@@ -13,6 +13,28 @@ peker hit. Beslutningsgrunnlag og arkitektur ligger i
 
 ## Pågående arbeid
 
+**Steg 1b Fase C (firma-kontekst — innstramning + Eier-firma-rename) IMPLEMENTERT på develop 2026-05-03** — tredje og siste del av tre-fasers strategi. Etter denne fasen er fundamentet for global firma-kontekst komplett.
+
+**Endringer:**
+- **Server (9 router-filer):** `verifiserFirmaAdmin`-helper forenklet til thin wrapper rundt `autoriserAdminForFirma`. Fallback-grenen til `bruker.organizationId` droppet — orgId er nå PÅKREVD for alle write-mutationer. Filer: organisasjon, avdeling, kompetanse, kompetansetype (kun write-mutations), timer/{onboarding (kun aktiver*), lonnsart/aktivitet/tillegg (kun opprett/oppdater/deaktiver)}, maskin/import.
+- **Read-only ruter beholder fallback:** `timer.{lonnsart,aktivitet,tillegg}.list`, `timer.onboarding.status`, `kompetansetype.hentAlle` har fortsatt `hentBrukerOrgId(userId, inputOrgId?)` — disse brukes fra prosjekt-baserte dagsseddel-sider hvor ansatte skal se sitt eget firmas katalog uten å eksplisitt bytte. Beslutningen er bevisst: ansatte (ikke firma-admin) trenger ikke firma-velger.
+- **Klient (~30 callsites):** alle `organizationId: orgId` byttet til `organizationId: orgId!` — non-null assertion. Etablert mønster siden `firma/layout.tsx` gates på `valgtFirma` (ingen children rendres uten valgt firma).
+- **Lag 3 — rename:** `oppsett.firmainnstillinger` i14n-nøkkel: nb «Firmainnstillinger» → «Eier-firma», en «Company settings» → «Owner company». H1-overskrift på `/dashbord/oppsett/firma` hardkodet rename til «Eier-firma». Foreldrekategorien «Prosjekteier» (linje 75-78 i `oppsett/layout.tsx`) eksisterte allerede — kun subelementets navn endret for å unngå navnkollisjon. Andre 12 språkfiler beholder eksisterende oversettelse (samme mønster som tidligere terminologi-renames per timer-attestering 2026-05-02).
+- **Fix:** `oppsett/firma/page.tsx` `lagre()` får early-return ved `!organisasjon` (orgId må være string, ikke `string | undefined`). Fanget av tsc da fallback ble fjernet.
+
+**Verifisering:**
+- `pnpm --filter @sitedoc/api typecheck` grønt
+- `pnpm build --filter @sitedoc/web` grønt (27.3s)
+
+**Hva Fase C skiller seg fra Fase A/B:**
+- Fase A: bakoverkompatibilitet — orgId valgfri, fallback til bruker
+- Fase B: klient sender orgId aktivt
+- **Fase C: orgId tvinges — sitedoc_admin må bytte firma eksplisitt for å jobbe i kundens kontekst**
+
+**Klar for test-deploy.** Etter verifisering: prod-deploy lukker Steg 1b helt.
+
+**Beslutning under arbeid:** Sub-elementet «Firmainnstillinger» renames til «Eier-firma» i stedet for «Prosjekteier» (Kenneths foreslag) for å unngå kollisjon med eksisterende parent-kategori «Prosjekteier». Klarere navn — beskriver firma-info knyttet til prosjektets eier.
+
 **Steg 1b Fase B (firma-kontekst — klient-migrering) IMPLEMENTERT på develop 2026-05-03** — andre del av tre-fasers strategi. Bygger på Fase A-server-side-helper. Etter denne fasen kan sitedoc_admin velge et hvilket som helst firma i FirmaVelger og faktisk se det firmaets data på alle firma-admin-undersider.
 
 **Endringer (~10 sider migrert):**

@@ -9,32 +9,14 @@ import { autoriserAdminForFirma } from "../trpc/tilgangskontroll";
 /**
  * Verifiser at bruker er firmaadmin for et firma.
  *
- * Steg 1b Fase A — bakoverkompatibilitet: hvis `inputOrgId` gitt deleger til
- * `autoriserAdminForFirma`. Hvis ikke gitt: fallback til bruker.organizationId.
+ * Steg 1b Fase C — orgId er påkrevd. Klienten må sende `valgtFirma.id`.
  */
 async function verifiserFirmaAdmin(
   userId: string,
-  inputOrgId?: string,
+  inputOrgId: string,
 ): Promise<string> {
-  if (inputOrgId) {
-    await autoriserAdminForFirma(userId, inputOrgId);
-    return inputOrgId;
-  }
-
-  const bruker = await prisma.user.findUniqueOrThrow({
-    where: { id: userId },
-    select: { role: true, organizationId: true },
-  });
-
-  if (bruker.role !== "company_admin" && bruker.role !== "sitedoc_admin") {
-    throw new TRPCError({ code: "FORBIDDEN", message: "Krever firmaadmin-rettighet" });
-  }
-
-  if (!bruker.organizationId) {
-    throw new TRPCError({ code: "FORBIDDEN", message: "Ingen organisasjon tilknyttet" });
-  }
-
-  return bruker.organizationId;
+  await autoriserAdminForFirma(userId, inputOrgId);
+  return inputOrgId;
 }
 
 /**
@@ -90,7 +72,7 @@ export const kompetansetypeRouter = router({
         defaultUtloperAarEtterUtstedt: z.number().int().min(0).max(99).nullable().optional(),
         beskrivelse: z.string().max(1000).nullable().optional(),
         kobletTilEquipmentModell: z.string().max(255).nullable().optional(),
-        organizationId: z.string().uuid().optional(),
+        organizationId: z.string().uuid(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -131,7 +113,7 @@ export const kompetansetypeRouter = router({
         defaultUtloperAarEtterUtstedt: z.number().int().min(0).max(99).nullable().optional(),
         beskrivelse: z.string().max(1000).nullable().optional(),
         kobletTilEquipmentModell: z.string().max(255).nullable().optional(),
-        organizationId: z.string().uuid().optional(),
+        organizationId: z.string().uuid(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -183,7 +165,7 @@ export const kompetansetypeRouter = router({
   slett: protectedProcedure
     .input(z.object({
       id: z.string().uuid(),
-      organizationId: z.string().uuid().optional(),
+      organizationId: z.string().uuid(),
     }))
     .mutation(async ({ ctx, input }) => {
       const orgId = await verifiserFirmaAdmin(ctx.userId, input.organizationId);

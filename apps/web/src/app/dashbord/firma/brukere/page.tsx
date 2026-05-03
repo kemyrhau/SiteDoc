@@ -12,7 +12,7 @@ export default function FirmaBrukere() {
 
   const { data: brukere, isLoading } =
     trpc.organisasjon.hentBrukere.useQuery(
-      { organizationId: orgId },
+      { organizationId: orgId! },
       { enabled: !!orgId },
     );
   const utils = trpc.useUtils();
@@ -129,7 +129,7 @@ export default function FirmaBrukere() {
                       <div className="absolute right-0 top-full z-10 mt-1 w-44 rounded-md border border-gray-200 bg-white py-1 shadow-lg">
                         <button
                           onClick={() => {
-                            endreRolle.mutate({ userId: b.id, rolle: "company_admin", organizationId: orgId });
+                            endreRolle.mutate({ userId: b.id, rolle: "company_admin", organizationId: orgId! });
                             setÅpenMeny(null);
                           }}
                           disabled={b.role === "company_admin"}
@@ -140,7 +140,7 @@ export default function FirmaBrukere() {
                         </button>
                         <button
                           onClick={() => {
-                            endreRolle.mutate({ userId: b.id, rolle: "user", organizationId: orgId });
+                            endreRolle.mutate({ userId: b.id, rolle: "user", organizationId: orgId! });
                             setÅpenMeny(null);
                           }}
                           disabled={b.role === "user"}

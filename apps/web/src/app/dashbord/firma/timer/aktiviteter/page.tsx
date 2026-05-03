@@ -39,7 +39,7 @@ export default function AktiviteterSide() {
   const [inkluderInaktiv, setInkluderInaktiv] = useState(false);
 
   const { data: rader, isLoading } = trpc.timer.aktivitet.list.useQuery(
-    { inkluderInaktiv, organizationId: orgId },
+    { inkluderInaktiv, organizationId: orgId! },
     { enabled: !!orgId },
   );
 
@@ -54,9 +54,9 @@ export default function AktiviteterSide() {
 
   function handleToggleAktiv(rad: AktivitetRad) {
     if (rad.aktiv) {
-      deaktiver.mutate({ id: rad.id, organizationId: orgId });
+      deaktiver.mutate({ id: rad.id, organizationId: orgId! });
     } else {
-      oppdater.mutate({ id: rad.id, aktiv: true, organizationId: orgId });
+      oppdater.mutate({ id: rad.id, aktiv: true, organizationId: orgId! });
     }
   }
 
@@ -233,7 +233,7 @@ function AktivitetDialog({
       navn,
       internkostnad: tallEllerNull(internkostnad),
       prisMotKunde: tallEllerNull(prisMotKunde),
-      organizationId: orgId,
+      organizationId: orgId!,
     };
 
     if (modus === "opprett") {

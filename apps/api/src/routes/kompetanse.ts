@@ -16,41 +16,23 @@ import {
 /**
  * Verifiser at bruker er firmaadmin for et firma.
  *
- * Steg 1b Fase A — bakoverkompatibilitet: hvis `inputOrgId` gitt deleger til
- * `autoriserAdminForFirma`. Hvis ikke gitt: fallback til bruker.organizationId.
+ * Steg 1b Fase C — orgId er påkrevd. Klienten må sende `valgtFirma.id`.
  */
 async function verifiserFirmaAdmin(
   userId: string,
-  inputOrgId?: string,
+  inputOrgId: string,
 ): Promise<string> {
-  if (inputOrgId) {
-    await autoriserAdminForFirma(userId, inputOrgId);
-    return inputOrgId;
-  }
-
-  const bruker = await prisma.user.findUniqueOrThrow({
-    where: { id: userId },
-    select: { role: true, organizationId: true },
-  });
-
-  if (bruker.role !== "company_admin" && bruker.role !== "sitedoc_admin") {
-    throw new TRPCError({ code: "FORBIDDEN", message: "Krever firmaadmin-rettighet" });
-  }
-
-  if (!bruker.organizationId) {
-    throw new TRPCError({ code: "FORBIDDEN", message: "Ingen organisasjon tilknyttet" });
-  }
-
-  return bruker.organizationId;
+  await autoriserAdminForFirma(userId, inputOrgId);
+  return inputOrgId;
 }
 
 export const kompetanseRouter = router({
   // Hent kompetansematrise for hele firmaet (brukere × kompetansetyper)
   // Returnerer flat data — UI bygger matrise-rendering
   hentMatrise: protectedProcedure
-    .input(z.object({ organizationId: z.string().uuid().optional() }).optional())
+    .input(z.object({ organizationId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
-    const orgId = await verifiserFirmaAdmin(ctx.userId, input?.organizationId);
+    const orgId = await verifiserFirmaAdmin(ctx.userId, input.organizationId);
 
     const [brukere, kompetansetyper, koblinger] = await Promise.all([
       ctx.prisma.user.findMany({
@@ -93,7 +75,7 @@ export const kompetanseRouter = router({
   hentForBruker: protectedProcedure
     .input(z.object({
       userId: z.string().uuid(),
-      organizationId: z.string().uuid().optional(),
+      organizationId: z.string().uuid(),
     }))
     .query(async ({ ctx, input }) => {
       const orgId = await verifiserFirmaAdmin(ctx.userId, input.organizationId);
@@ -268,7 +250,7 @@ export const kompetanseRouter = router({
       z.object({
         filInnhold: z.string().max(7_000_000), // base64 ~5MB rå = ~7MB base64
         filtype: z.enum(["csv", "xlsx"]),
-        organizationId: z.string().uuid().optional(),
+        organizationId: z.string().uuid(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -377,7 +359,7 @@ export const kompetanseRouter = router({
         filHash: z.string().length(64), // SHA-256 hex
         autoOpprettTyper: z.boolean(),
         overskrivEksisterende: z.boolean(),
-        organizationId: z.string().uuid().optional(),
+        organizationId: z.string().uuid(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
