@@ -56,8 +56,9 @@ export default function FirmaInnstillinger() {
   }
 
   function lagre() {
+    if (!organisasjon) return;
     oppdaterMutasjon.mutate({
-      organizationId: organisasjon?.id,
+      organizationId: organisasjon.id,
       name: navn,
       organizationNumber: orgNr || null,
       invoiceAddress: fakturaAdresse || null,
@@ -68,7 +69,7 @@ export default function FirmaInnstillinger() {
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-gray-900">Firmainnstillinger</h1>
+        <h1 className="text-lg font-semibold text-gray-900">Eier-firma</h1>
         {!redigerer && (
           <Button variant="secondary" onClick={startRediger}>
             <Pencil className="mr-1.5 h-4 w-4" />

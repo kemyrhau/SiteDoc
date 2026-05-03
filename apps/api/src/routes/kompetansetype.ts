@@ -4,33 +4,36 @@ import { Prisma } from "@sitedoc/db";
 import { prisma } from "@sitedoc/db";
 import { KOMPETANSE_KATEGORIER } from "@sitedoc/shared";
 import { router, protectedProcedure } from "../trpc/trpc";
+import { autoriserAdminForFirma } from "../trpc/tilgangskontroll";
 
 /**
- * Verifiser at bruker er firmaadmin for sin organisasjon.
- * Returnerer organizationId.
+ * Verifiser at bruker er firmaadmin for et firma.
+ *
+ * Steg 1b Fase C — orgId er påkrevd. Klienten må sende `valgtFirma.id`.
  */
-async function verifiserFirmaAdmin(userId: string): Promise<string> {
-  const bruker = await prisma.user.findUniqueOrThrow({
-    where: { id: userId },
-    select: { role: true, organizationId: true },
-  });
-
-  if (bruker.role !== "company_admin" && bruker.role !== "sitedoc_admin") {
-    throw new TRPCError({ code: "FORBIDDEN", message: "Krever firmaadmin-rettighet" });
-  }
-
-  if (!bruker.organizationId) {
-    throw new TRPCError({ code: "FORBIDDEN", message: "Ingen organisasjon tilknyttet" });
-  }
-
-  return bruker.organizationId;
+async function verifiserFirmaAdmin(
+  userId: string,
+  inputOrgId: string,
+): Promise<string> {
+  await autoriserAdminForFirma(userId, inputOrgId);
+  return inputOrgId;
 }
 
 /**
- * Verifiser at brukeren tilhører en organisasjon. Returnerer orgId.
- * Brukes for read-only ruter — alle ansatte kan se firma-katalogen.
+ * Hent orgId for en read-only rute. Sitedoc_admin med inputOrgId kan se
+ * vilkårlig firma; ellers brukerens egen organizationId.
  */
-async function hentBrukerOrgId(userId: string): Promise<string> {
+async function hentBrukerOrgId(userId: string, inputOrgId?: string): Promise<string> {
+  if (inputOrgId) {
+    const bruker = await prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { role: true, organizationId: true },
+    });
+    if (bruker.role === "sitedoc_admin") return inputOrgId;
+    if (bruker.organizationId === inputOrgId) return inputOrgId;
+    throw new TRPCError({ code: "FORBIDDEN", message: "Ikke ditt firma" });
+  }
+
   const bruker = await prisma.user.findUniqueOrThrow({
     where: { id: userId },
     select: { organizationId: true },
@@ -47,8 +50,10 @@ const kategoriSchema = z.enum(KOMPETANSE_KATEGORIER);
 
 export const kompetansetypeRouter = router({
   // Hent alle kompetansetyper for brukerens firma (read-only katalog)
-  hentAlle: protectedProcedure.query(async ({ ctx }) => {
-    const orgId = await hentBrukerOrgId(ctx.userId);
+  hentAlle: protectedProcedure
+    .input(z.object({ organizationId: z.string().uuid().optional() }).optional())
+    .query(async ({ ctx, input }) => {
+    const orgId = await hentBrukerOrgId(ctx.userId, input?.organizationId);
     return ctx.prisma.kompetansetype.findMany({
       where: { organizationId: orgId },
       include: {
@@ -67,10 +72,11 @@ export const kompetansetypeRouter = router({
         defaultUtloperAarEtterUtstedt: z.number().int().min(0).max(99).nullable().optional(),
         beskrivelse: z.string().max(1000).nullable().optional(),
         kobletTilEquipmentModell: z.string().max(255).nullable().optional(),
+        organizationId: z.string().uuid(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const orgId = await verifiserFirmaAdmin(ctx.userId);
+      const orgId = await verifiserFirmaAdmin(ctx.userId, input.organizationId);
       try {
         return await ctx.prisma.kompetansetype.create({
           data: {
@@ -107,10 +113,11 @@ export const kompetansetypeRouter = router({
         defaultUtloperAarEtterUtstedt: z.number().int().min(0).max(99).nullable().optional(),
         beskrivelse: z.string().max(1000).nullable().optional(),
         kobletTilEquipmentModell: z.string().max(255).nullable().optional(),
+        organizationId: z.string().uuid(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const orgId = await verifiserFirmaAdmin(ctx.userId);
+      const orgId = await verifiserFirmaAdmin(ctx.userId, input.organizationId);
       const eksisterende = await ctx.prisma.kompetansetype.findFirst({
         where: { id: input.id, organizationId: orgId },
       });
@@ -156,9 +163,12 @@ export const kompetansetypeRouter = router({
 
   // Slett kompetansetype — blokkeres hvis ansatt-kompetanser finnes (Restrict-FK)
   slett: protectedProcedure
-    .input(z.object({ id: z.string().uuid() }))
+    .input(z.object({
+      id: z.string().uuid(),
+      organizationId: z.string().uuid(),
+    }))
     .mutation(async ({ ctx, input }) => {
-      const orgId = await verifiserFirmaAdmin(ctx.userId);
+      const orgId = await verifiserFirmaAdmin(ctx.userId, input.organizationId);
       const eksisterende = await ctx.prisma.kompetansetype.findFirst({
         where: { id: input.id, organizationId: orgId },
         include: { _count: { select: { ansattKompetanser: true } } },

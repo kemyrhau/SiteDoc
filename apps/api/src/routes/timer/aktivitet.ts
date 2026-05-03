@@ -3,24 +3,26 @@ import { TRPCError } from "@trpc/server";
 import { Prisma } from "@sitedoc/db-timer";
 import { prisma } from "@sitedoc/db";
 import { router, protectedProcedure } from "../../trpc/trpc";
+import { autoriserAdminForFirma } from "../../trpc/tilgangskontroll";
 import { krevTimerAktivert } from "../../services/timer";
 
-async function verifiserFirmaAdmin(userId: string): Promise<string> {
-  const bruker = await prisma.user.findUniqueOrThrow({
-    where: { id: userId },
-    select: { role: true, organizationId: true },
-  });
-
-  if (bruker.role !== "company_admin" && bruker.role !== "sitedoc_admin") {
-    throw new TRPCError({ code: "FORBIDDEN", message: "Krever firmaadmin-rettighet" });
-  }
-  if (!bruker.organizationId) {
-    throw new TRPCError({ code: "FORBIDDEN", message: "Ingen organisasjon tilknyttet" });
-  }
-  return bruker.organizationId;
+// Steg 1b Fase C — orgId er påkrevd. Klienten må sende `valgtFirma.id`.
+async function verifiserFirmaAdmin(userId: string, inputOrgId: string): Promise<string> {
+  await autoriserAdminForFirma(userId, inputOrgId);
+  return inputOrgId;
 }
 
-async function hentBrukerOrgId(userId: string): Promise<string> {
+async function hentBrukerOrgId(userId: string, inputOrgId?: string): Promise<string> {
+  if (inputOrgId) {
+    const bruker = await prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { role: true, organizationId: true },
+    });
+    if (bruker.role === "sitedoc_admin") return inputOrgId;
+    if (bruker.organizationId === inputOrgId) return inputOrgId;
+    throw new TRPCError({ code: "FORBIDDEN", message: "Ikke ditt firma" });
+  }
+
   const bruker = await prisma.user.findUniqueOrThrow({
     where: { id: userId },
     select: { organizationId: true },
@@ -37,11 +39,12 @@ export const aktivitetRouter = router({
       z
         .object({
           inkluderInaktiv: z.boolean().default(false),
+          organizationId: z.string().uuid().optional(),
         })
         .optional(),
     )
     .query(async ({ ctx, input }) => {
-      const orgId = await hentBrukerOrgId(ctx.userId);
+      const orgId = await hentBrukerOrgId(ctx.userId, input?.organizationId);
       const inkluderInaktiv = input?.inkluderInaktiv ?? false;
 
       return ctx.prismaTimer.aktivitet.findMany({
@@ -60,10 +63,11 @@ export const aktivitetRouter = router({
         navn: z.string().min(1).max(255),
         internkostnad: z.number().nullable().optional(),
         prisMotKunde: z.number().nullable().optional(),
+        organizationId: z.string().uuid(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const orgId = await verifiserFirmaAdmin(ctx.userId);
+      const orgId = await verifiserFirmaAdmin(ctx.userId, input.organizationId);
       await krevTimerAktivert(orgId);
 
       try {
@@ -99,10 +103,11 @@ export const aktivitetRouter = router({
         internkostnad: z.number().nullable().optional(),
         prisMotKunde: z.number().nullable().optional(),
         aktiv: z.boolean().optional(),
+        organizationId: z.string().uuid(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const orgId = await verifiserFirmaAdmin(ctx.userId);
+      const orgId = await verifiserFirmaAdmin(ctx.userId, input.organizationId);
 
       const eksisterende = await ctx.prismaTimer.aktivitet.findFirst({
         where: { id: input.id, organizationId: orgId },
@@ -142,9 +147,12 @@ export const aktivitetRouter = router({
 
   // Soft-delete (Restrict-FK på DailySheet)
   deaktiver: protectedProcedure
-    .input(z.object({ id: z.string().uuid() }))
+    .input(z.object({
+      id: z.string().uuid(),
+      organizationId: z.string().uuid(),
+    }))
     .mutation(async ({ ctx, input }) => {
-      const orgId = await verifiserFirmaAdmin(ctx.userId);
+      const orgId = await verifiserFirmaAdmin(ctx.userId, input.organizationId);
 
       const eksisterende = await ctx.prismaTimer.aktivitet.findFirst({
         where: { id: input.id, organizationId: orgId },

@@ -92,7 +92,7 @@ export default function OppsettLayout({
   const pathname = usePathname();
   const { t } = useTranslation();
 
-  // Hent prosjektets firma (for Firmainnstillinger-synlighet)
+  // Hent prosjektets firma (for Eier-firma-synlighet)
   const { data: prosjektFirma } = trpc.organisasjon.hentForProsjekt.useQuery(
     { projectId: prosjektId! },
     { enabled: !!prosjektId },

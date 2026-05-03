@@ -3,7 +3,10 @@ import { TRPCError } from "@trpc/server";
 import { Prisma } from "@sitedoc/db";
 import { prisma } from "@sitedoc/db";
 import { router, protectedProcedure } from "../trpc/trpc";
-import { verifiserKompetanseSkriveTilgang } from "../trpc/tilgangskontroll";
+import {
+  autoriserAdminForFirma,
+  verifiserKompetanseSkriveTilgang,
+} from "../trpc/tilgangskontroll";
 import {
   beregnFilHash,
   parseCsvFil,
@@ -11,30 +14,25 @@ import {
 } from "../utils/kompetanseImport";
 
 /**
- * Verifiser at bruker er firmaadmin for sin organisasjon.
+ * Verifiser at bruker er firmaadmin for et firma.
+ *
+ * Steg 1b Fase C — orgId er påkrevd. Klienten må sende `valgtFirma.id`.
  */
-async function verifiserFirmaAdmin(userId: string): Promise<string> {
-  const bruker = await prisma.user.findUniqueOrThrow({
-    where: { id: userId },
-    select: { role: true, organizationId: true },
-  });
-
-  if (bruker.role !== "company_admin" && bruker.role !== "sitedoc_admin") {
-    throw new TRPCError({ code: "FORBIDDEN", message: "Krever firmaadmin-rettighet" });
-  }
-
-  if (!bruker.organizationId) {
-    throw new TRPCError({ code: "FORBIDDEN", message: "Ingen organisasjon tilknyttet" });
-  }
-
-  return bruker.organizationId;
+async function verifiserFirmaAdmin(
+  userId: string,
+  inputOrgId: string,
+): Promise<string> {
+  await autoriserAdminForFirma(userId, inputOrgId);
+  return inputOrgId;
 }
 
 export const kompetanseRouter = router({
   // Hent kompetansematrise for hele firmaet (brukere × kompetansetyper)
   // Returnerer flat data — UI bygger matrise-rendering
-  hentMatrise: protectedProcedure.query(async ({ ctx }) => {
-    const orgId = await verifiserFirmaAdmin(ctx.userId);
+  hentMatrise: protectedProcedure
+    .input(z.object({ organizationId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+    const orgId = await verifiserFirmaAdmin(ctx.userId, input.organizationId);
 
     const [brukere, kompetansetyper, koblinger] = await Promise.all([
       ctx.prisma.user.findMany({
@@ -75,9 +73,12 @@ export const kompetanseRouter = router({
 
   // Hent alle AnsattKompetanse-rader for en spesifikk bruker (for detalj-vy)
   hentForBruker: protectedProcedure
-    .input(z.object({ userId: z.string().uuid() }))
+    .input(z.object({
+      userId: z.string().uuid(),
+      organizationId: z.string().uuid(),
+    }))
     .query(async ({ ctx, input }) => {
-      const orgId = await verifiserFirmaAdmin(ctx.userId);
+      const orgId = await verifiserFirmaAdmin(ctx.userId, input.organizationId);
 
       // Verifiser at målbruker tilhører samme firma
       const malBruker = await ctx.prisma.user.findUnique({
@@ -249,10 +250,11 @@ export const kompetanseRouter = router({
       z.object({
         filInnhold: z.string().max(7_000_000), // base64 ~5MB rå = ~7MB base64
         filtype: z.enum(["csv", "xlsx"]),
+        organizationId: z.string().uuid(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const orgId = await verifiserFirmaAdmin(ctx.userId);
+      const orgId = await verifiserFirmaAdmin(ctx.userId, input.organizationId);
 
       const buffer = Buffer.from(input.filInnhold, "base64");
       if (buffer.length > 5_242_880) {
@@ -357,10 +359,11 @@ export const kompetanseRouter = router({
         filHash: z.string().length(64), // SHA-256 hex
         autoOpprettTyper: z.boolean(),
         overskrivEksisterende: z.boolean(),
+        organizationId: z.string().uuid(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const orgId = await verifiserFirmaAdmin(ctx.userId);
+      const orgId = await verifiserFirmaAdmin(ctx.userId, input.organizationId);
 
       const buffer = Buffer.from(input.filInnhold, "base64");
       if (buffer.length > 5_242_880) {

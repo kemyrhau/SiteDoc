@@ -3,26 +3,19 @@ import { TRPCError } from "@trpc/server";
 import { Prisma } from "@sitedoc/db";
 import { prisma } from "@sitedoc/db";
 import { router, protectedProcedure } from "../trpc/trpc";
+import { autoriserAdminForFirma } from "../trpc/tilgangskontroll";
 
 /**
- * Verifiser at bruker er firmaadmin for sin organisasjon.
- * Returnerer organizationId.
+ * Verifiser at bruker er firmaadmin for et firma.
+ *
+ * Steg 1b Fase C — orgId er påkrevd. Klienten må sende `valgtFirma.id`.
  */
-async function verifiserFirmaAdmin(userId: string): Promise<string> {
-  const bruker = await prisma.user.findUniqueOrThrow({
-    where: { id: userId },
-    select: { role: true, organizationId: true },
-  });
-
-  if (bruker.role !== "company_admin" && bruker.role !== "sitedoc_admin") {
-    throw new TRPCError({ code: "FORBIDDEN", message: "Krever firmaadmin-rettighet" });
-  }
-
-  if (!bruker.organizationId) {
-    throw new TRPCError({ code: "FORBIDDEN", message: "Ingen organisasjon tilknyttet" });
-  }
-
-  return bruker.organizationId;
+async function verifiserFirmaAdmin(
+  userId: string,
+  inputOrgId: string,
+): Promise<string> {
+  await autoriserAdminForFirma(userId, inputOrgId);
+  return inputOrgId;
 }
 
 /**
@@ -46,8 +39,10 @@ async function hentAvdelingForFirma(avdelingId: string, organizationId: string) 
 
 export const avdelingRouter = router({
   // Hent alle avdelinger for innlogget brukers firma
-  hentAlle: protectedProcedure.query(async ({ ctx }) => {
-    const orgId = await verifiserFirmaAdmin(ctx.userId);
+  hentAlle: protectedProcedure
+    .input(z.object({ organizationId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+    const orgId = await verifiserFirmaAdmin(ctx.userId, input.organizationId);
     return ctx.prisma.avdeling.findMany({
       where: { organizationId: orgId },
       include: {
@@ -63,10 +58,11 @@ export const avdelingRouter = router({
       z.object({
         navn: z.string().min(1).max(255),
         kode: z.string().max(50).optional(),
+        organizationId: z.string().uuid(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const orgId = await verifiserFirmaAdmin(ctx.userId);
+      const orgId = await verifiserFirmaAdmin(ctx.userId, input.organizationId);
       try {
         return await ctx.prisma.avdeling.create({
           data: {
@@ -97,10 +93,11 @@ export const avdelingRouter = router({
         navn: z.string().min(1).max(255).optional(),
         kode: z.string().max(50).nullable().optional(),
         aktiv: z.boolean().optional(),
+        organizationId: z.string().uuid(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const orgId = await verifiserFirmaAdmin(ctx.userId);
+      const orgId = await verifiserFirmaAdmin(ctx.userId, input.organizationId);
       await hentAvdelingForFirma(input.id, orgId);
 
       const data: Prisma.AvdelingUpdateInput = {};
@@ -129,9 +126,12 @@ export const avdelingRouter = router({
 
   // Slett avdeling — blokkeres hvis brukere er tilknyttet
   slett: protectedProcedure
-    .input(z.object({ id: z.string().uuid() }))
+    .input(z.object({
+      id: z.string().uuid(),
+      organizationId: z.string().uuid(),
+    }))
     .mutation(async ({ ctx, input }) => {
-      const orgId = await verifiserFirmaAdmin(ctx.userId);
+      const orgId = await verifiserFirmaAdmin(ctx.userId, input.organizationId);
       await hentAvdelingForFirma(input.id, orgId);
 
       const antallBrukere = await ctx.prisma.user.count({

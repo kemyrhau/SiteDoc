@@ -184,6 +184,46 @@ export async function verifiserOrganisasjonTilgang(
 }
 
 /**
+ * Autoriser at brukeren kan administrere det angitte firmaet.
+ *
+ * Tilgangsregler:
+ *   - sitedoc_admin     → tilgang til ALLE firmaer (uavhengig av bruker.organizationId)
+ *   - company_admin     → tilgang KUN til eget firma (bruker.organizationId === organizationId)
+ *   - alle andre roller → FORBIDDEN
+ *
+ * Brukes på firma-admin-ruter der sitedoc_admin må kunne jobbe i kundens kontekst
+ * (Steg 1b — Firma-kontekst Lag 1+2+3 per docs/claude/domene-arbeidsflyt.md).
+ *
+ * Forskjell fra `verifiserOrganisasjonTilgang`:
+ *   - Denne tillater sitedoc_admin uten matchende org
+ *   - Denne krever admin-rolle (ikke bare medlemskap)
+ */
+export async function autoriserAdminForFirma(
+  userId: string,
+  organizationId: string,
+): Promise<void> {
+  const bruker = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { role: true, organizationId: true },
+  });
+
+  if (!bruker) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Ukjent bruker" });
+  }
+
+  if (bruker.role === "sitedoc_admin") return;
+
+  if (bruker.role === "company_admin" && bruker.organizationId === organizationId) {
+    return;
+  }
+
+  throw new TRPCError({
+    code: "FORBIDDEN",
+    message: "Krever firmaadmin-rettighet for det angitte firmaet",
+  });
+}
+
+/**
  * Verifiser at bruker er admin ELLER firmaansvarlig i prosjektet.
  * Returnerer { erAdmin: true } for admin-brukere, { erAdmin: false } for firmaansvarlige.
  * Kaster FORBIDDEN for vanlige medlemmer.

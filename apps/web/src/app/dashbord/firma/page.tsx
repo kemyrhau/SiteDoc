@@ -4,22 +4,32 @@ import { trpc } from "@/lib/trpc";
 import { Spinner } from "@sitedoc/ui";
 import { FolderKanban, Users, Building2, Plug, Check, XCircle } from "lucide-react";
 import Link from "next/link";
+import { useFirma } from "@/kontekst/firma-kontekst";
 
 export default function FirmaOversikt() {
+  const { valgtFirma } = useFirma();
+  const orgId = valgtFirma?.id;
+
   const { data: organisasjon, isLoading: orgLaster } =
-    trpc.organisasjon.hentMin.useQuery();
+    trpc.organisasjon.hentMedId.useQuery(
+      { id: orgId! },
+      { enabled: !!orgId },
+    );
   const { data: prosjekter, isLoading: projLaster } =
-    trpc.organisasjon.hentProsjekter.useQuery(undefined, {
-      enabled: !!organisasjon,
-    });
+    trpc.organisasjon.hentProsjekter.useQuery(
+      { organizationId: orgId! },
+      { enabled: !!orgId },
+    );
   const { data: brukere, isLoading: brukLaster } =
-    trpc.organisasjon.hentBrukere.useQuery(undefined, {
-      enabled: !!organisasjon,
-    });
+    trpc.organisasjon.hentBrukere.useQuery(
+      { organizationId: orgId! },
+      { enabled: !!orgId },
+    );
   const { data: integrasjoner } =
-    trpc.organisasjon.hentIntegrasjonerStatus.useQuery(undefined, {
-      enabled: !!organisasjon,
-    });
+    trpc.organisasjon.hentIntegrasjonerStatus.useQuery(
+      { organizationId: orgId! },
+      { enabled: !!orgId },
+    );
 
   if (orgLaster) {
     return (
