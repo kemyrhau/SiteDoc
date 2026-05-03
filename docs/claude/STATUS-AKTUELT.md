@@ -349,6 +349,12 @@ Status og detaljer: [db-opprydning.md](db-opprydning.md).
 
 ## Planlagte oppgaver
 
+**HMS-tilgang for arbeidsgiver på andres prosjekter (juridisk gap, 2026-05-03):**
+A.27 gir firma-HMS-ansvarlig innsyn i «firmaets prosjekter» men IKKE i prosjekter
+der firmaets ansatte jobber som UE. Arbeidsmiljøloven § 2-1 krever at arbeidsgiver
+har HMS-ansvar for egne ansatte uavhengig av arbeidsplass. Løses i HMS-tilgang-runde
+(Fase 4 / Mannskap).
+
 **Steg 4c — Godkjenning UI (parkert 2026-05-03):**
 Utsatt til etter møte med A.Markussen og/eller ProAdm API-tilgang.
 Forutsetninger som mangler:
