@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, FileSpreadsheet, AlertTriangle, Check, X } from "lucide-react";
+import { ArrowLeft, FileSpreadsheet, AlertTriangle, Check, X, UploadCloud } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { Button, Spinner } from "@sitedoc/ui";
 
@@ -55,6 +55,8 @@ export default function MaskinImportSide() {
   const [steg, setSteg] = useState<ImportSteg>("opplastning");
   const [filInnhold, setFilInnhold] = useState<string>("");
   const [filnavn, setFilnavn] = useState<string>("");
+  const [draOver, setDraOver] = useState(false);
+  const filInputRef = useRef<HTMLInputElement>(null);
   const [forhandsvisning, setForhandsvisning] = useState<ForhandsvisningResultat | null>(null);
   const [resultat, setResultat] = useState<BekreftResultat | null>(null);
   const [feil, setFeil] = useState<string | null>(null);
@@ -172,32 +174,74 @@ export default function MaskinImportSide() {
         )}
       </div>
 
-      {/* Steg 1: Opplastning */}
+      {/* Steg 1: Opplastning — klikkbar drop-sone */}
       {steg === "opplastning" && (
-        <div className="rounded-lg border border-dashed border-gray-300 bg-white p-8 text-center">
-          <FileSpreadsheet className="mx-auto h-12 w-12 text-gray-400" />
-          <h3 className="mt-3 text-sm font-medium text-gray-900">
-            {t("firma.maskin.import.steg1.tittel")}
-          </h3>
-          <p className="mt-1 text-sm text-gray-500">
-            {t("firma.maskin.import.steg1.beskrivelse")}
-          </p>
+        <div
+          onClick={() => filInputRef.current?.click()}
+          onDragOver={(e) => {
+            e.preventDefault();
+            setDraOver(true);
+          }}
+          onDragLeave={(e) => {
+            e.preventDefault();
+            setDraOver(false);
+          }}
+          onDrop={(e) => {
+            e.preventDefault();
+            setDraOver(false);
+            const fil = e.dataTransfer.files?.[0];
+            if (fil) handleFilValg(fil);
+          }}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              filInputRef.current?.click();
+            }
+          }}
+          className={`group cursor-pointer rounded-lg border-2 border-dashed p-12 text-center transition-colors focus:outline-none focus:ring-2 focus:ring-sitedoc-primary focus:ring-offset-2 ${
+            draOver
+              ? "border-sitedoc-primary bg-blue-50"
+              : "border-gray-300 bg-white hover:border-sitedoc-primary hover:bg-blue-50/40"
+          }`}
+        >
           <input
+            ref={filInputRef}
             type="file"
             accept=".xlsx"
+            className="sr-only"
             onChange={(e) => {
               const fil = e.target.files?.[0];
               if (fil) handleFilValg(fil);
+              // Tillat valg av samme fil to ganger på rad
+              e.target.value = "";
             }}
-            className="mt-4 block w-full max-w-sm mx-auto rounded-md border border-gray-300 p-2 text-sm"
           />
+          <UploadCloud
+            className={`mx-auto h-12 w-12 transition-colors ${
+              draOver ? "text-sitedoc-primary" : "text-gray-400 group-hover:text-sitedoc-primary"
+            }`}
+          />
+          <h3 className="mt-4 text-base font-semibold text-gray-900">
+            {t("firma.maskin.import.steg1.dropTittel")}
+          </h3>
+          <p className="mt-1 text-sm text-gray-600">
+            {t("firma.maskin.import.steg1.dropEller")}{" "}
+            <span className="font-medium text-sitedoc-primary underline-offset-2 group-hover:underline">
+              {t("firma.maskin.import.steg1.dropKlikk")}
+            </span>
+          </p>
+          <p className="mt-3 text-xs text-gray-400">
+            {t("firma.maskin.import.steg1.dropFormat")}
+          </p>
           {forhandMutation.isPending && (
-            <div className="mt-4 flex items-center justify-center gap-2 text-sm text-gray-500">
+            <div className="mt-5 flex items-center justify-center gap-2 text-sm text-gray-500">
               <Spinner size="sm" />
               <span>{t("firma.maskin.import.steg1.parser")}</span>
             </div>
           )}
-          {feil && <p className="mt-3 text-sm text-red-600">{feil}</p>}
+          {feil && <p className="mt-4 text-sm text-red-600">{feil}</p>}
         </div>
       )}
 
