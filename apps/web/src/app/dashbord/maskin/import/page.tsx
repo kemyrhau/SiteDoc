@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
@@ -55,8 +55,6 @@ export default function MaskinImportSide() {
   const [steg, setSteg] = useState<ImportSteg>("opplastning");
   const [filInnhold, setFilInnhold] = useState<string>("");
   const [filnavn, setFilnavn] = useState<string>("");
-  const [draOver, setDraOver] = useState(false);
-  const filInputRef = useRef<HTMLInputElement>(null);
   const [forhandsvisning, setForhandsvisning] = useState<ForhandsvisningResultat | null>(null);
   const [resultat, setResultat] = useState<BekreftResultat | null>(null);
   const [feil, setFeil] = useState<string | null>(null);
@@ -174,67 +172,26 @@ export default function MaskinImportSide() {
         )}
       </div>
 
-      {/* Steg 1: Opplastning — klikkbar drop-sone */}
+      {/* Steg 1: Opplastning — label-omsluttende fil-input (SSR-trygt, ingen useRef) */}
       {steg === "opplastning" && (
-        <div
-          onClick={() => filInputRef.current?.click()}
-          onDragOver={(e) => {
-            e.preventDefault();
-            setDraOver(true);
-          }}
-          onDragLeave={(e) => {
-            e.preventDefault();
-            setDraOver(false);
-          }}
-          onDrop={(e) => {
-            e.preventDefault();
-            setDraOver(false);
-            const fil = e.dataTransfer.files?.[0];
-            if (fil) handleFilValg(fil);
-          }}
-          role="button"
-          tabIndex={0}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              filInputRef.current?.click();
-            }
-          }}
-          className={`group cursor-pointer rounded-lg border-2 border-dashed p-12 text-center transition-colors focus:outline-none focus:ring-2 focus:ring-sitedoc-primary focus:ring-offset-2 ${
-            draOver
-              ? "border-sitedoc-primary bg-blue-50"
-              : "border-gray-300 bg-white hover:border-sitedoc-primary hover:bg-blue-50/40"
-          }`}
-        >
+        <label className="group flex w-full cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-white p-12 text-center transition-colors hover:border-sitedoc-primary hover:bg-blue-50/40">
+          <UploadCloud className="h-12 w-12 text-gray-400 transition-colors group-hover:text-sitedoc-primary" />
+          <p className="mt-4 text-base font-semibold text-gray-900">
+            {t("firma.maskin.import.steg1.dropKlikk")}
+          </p>
+          <p className="mt-2 text-sm text-gray-600">
+            {t("firma.maskin.import.steg1.dropFormat")}
+          </p>
           <input
-            ref={filInputRef}
             type="file"
             accept=".xlsx"
-            className="sr-only"
+            className="hidden"
             onChange={(e) => {
               const fil = e.target.files?.[0];
               if (fil) handleFilValg(fil);
-              // Tillat valg av samme fil to ganger på rad
               e.target.value = "";
             }}
           />
-          <UploadCloud
-            className={`mx-auto h-12 w-12 transition-colors ${
-              draOver ? "text-sitedoc-primary" : "text-gray-400 group-hover:text-sitedoc-primary"
-            }`}
-          />
-          <h3 className="mt-4 text-base font-semibold text-gray-900">
-            {t("firma.maskin.import.steg1.dropTittel")}
-          </h3>
-          <p className="mt-1 text-sm text-gray-600">
-            {t("firma.maskin.import.steg1.dropEller")}{" "}
-            <span className="font-medium text-sitedoc-primary underline-offset-2 group-hover:underline">
-              {t("firma.maskin.import.steg1.dropKlikk")}
-            </span>
-          </p>
-          <p className="mt-3 text-xs text-gray-400">
-            {t("firma.maskin.import.steg1.dropFormat")}
-          </p>
           {forhandMutation.isPending && (
             <div className="mt-5 flex items-center justify-center gap-2 text-sm text-gray-500">
               <Spinner size="sm" />
@@ -242,7 +199,7 @@ export default function MaskinImportSide() {
             </div>
           )}
           {feil && <p className="mt-4 text-sm text-red-600">{feil}</p>}
-        </div>
+        </label>
       )}
 
       {/* Steg 2: Forhåndsvisning */}
