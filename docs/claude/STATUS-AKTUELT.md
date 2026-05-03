@@ -349,6 +349,16 @@ Status og detaljer: [db-opprydning.md](db-opprydning.md).
 
 ## Planlagte oppgaver
 
+**Steg 4c — Godkjenning UI (parkert 2026-05-03):**
+Utsatt til etter møte med A.Markussen og/eller ProAdm API-tilgang.
+Forutsetninger som mangler:
+- Avklart dokumentflyt-mal for endringsmeldinger (krever A.Markussen-input)
+- ProAdm API-integrasjon (eller manuell oppsett av mal)
+- Domeneavklaring: hvilke felter skal med, hvem godkjenner, hvilken flyt
+
+Modellen (Godkjenning + DocumentTransfer) er implementert i Fase 0 § E.12.
+Teknisk grunnlag er på plass — kun domene-avklaring mangler.
+
 **Header-koordinering: firma-bytte nullstiller ikke prosjekt-kontekst (observert 2026-05-03):**
 Når sitedoc_admin bytter aktivt firma via FirmaVelger, beholdes det aktive prosjektet i
 ProsjektVelger selv om prosjektet tilhører et annet firma. Prosjektlisten bør:
