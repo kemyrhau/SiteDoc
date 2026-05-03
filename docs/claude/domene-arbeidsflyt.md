@@ -312,10 +312,10 @@ Ingen steg kan hoppes over — hvert steg er forutsetning for neste.
 - [x] **2c. OrganizationSetting-UI** (`71b369dc`). Utvider `/dashbord/firma/innstillinger` med Tidssone-seksjon + 3 generiske `TilgangPolicySeksjon`-instanser (timer/vareforbruk/maskinbruk).
 - [x] **2d. Prosjekt → nytt prosjekt fra firma-kontekst** (`75c14a29`). Server tar valgfri `organizationId` + autoriserer. Setter `Project.primaryOrganizationId` (også fikset i `opprettTestprosjekt`). Klient sender `valgtFirma?.id` + info-banner for sitedoc_admin. Slettet orphan-duplikat `prosjekter/nytt`.
 
-### Steg 3 — Maskin-import (med riktig firma-kontekst)
+### Steg 3 — Maskin-import — DEPLOYET TIL PROD 2026-05-03 (`33a2b9b4` merge)
 
-- [ ] **3a. Koble import til FirmaVelger** + erKunde-filter
-- [ ] **3b. Fil-upload UI** — klikkbar drag-and-drop sone
+- [x] **3a. Koble import til FirmaVelger + erKunde-filter** (`e7ddc397`). Server: ny `krevErKundeFirma`-helper i `tilgangskontroll.ts` (FORBIDDEN hvis `Organization.erKunde=false`). Brukt i `maskin/import.ts` slik at både `importerForhandsvisning` og `importerBekreft` blokkerer skall-firma. Klient: tom-state for sitedoc_admin uten valgt firma.
+- [x] **3b. Fil-upload UI klikkbar drag-and-drop** (`e7ddc397`). Drag-and-drop med `onDragOver`/`onDragLeave`/`onDrop`. Visuell feedback: border + bg-farge + ikon-farge endres ved drag-over. Klikk-funksjonalitet beholdt via label/input-mønster.
 
 ### Steg 4 — Dagsseddel-utvidelser
 

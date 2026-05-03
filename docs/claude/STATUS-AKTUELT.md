@@ -13,7 +13,7 @@ peker hit. Beslutningsgrunnlag og arkitektur ligger i
 
 ## Pågående arbeid
 
-**Steg 3 (maskin-import med firma-kontekst) IMPLEMENTERT på develop 2026-05-03.** Steg 3 fra prioritert byggerekkefølge — to deler.
+**Steg 3 (maskin-import med firma-kontekst) DEPLOYET TIL PROD 2026-05-03** (`33a2b9b4` merge, `e7ddc397` impl). HTTP/2 200 verifisert mot `/dashbord/maskin/import` på sitedoc.no. Klar for prod-import av A.Markussen-maskinregister (Kenneth utfører selv via UI som innlogget company_admin/sitedoc_admin). Steg 3 fra prioritert byggerekkefølge — to deler.
 
 **3a — Koble import til FirmaVelger + erKunde-filter:**
 - Server: ny `krevErKundeFirma(organizationId)`-helper i `apps/api/src/trpc/tilgangskontroll.ts` som validerer `Organization.erKunde === true` (NOT_FOUND hvis firma ikke finnes; FORBIDDEN hvis erKunde=false). Brukt i lokal `verifiserFirmaAdmin`-helper i `apps/api/src/routes/maskin/import.ts` slik at både `importerForhandsvisning` og `importerBekreft` blokkerer skall-firma-import. Skall-firmaer (byggherre, UE uten SiteDoc-konto) skal ikke kunne være mål for SmartDok-import siden de ikke bruker maskinregisteret.
