@@ -143,6 +143,25 @@ Status og detaljer: [db-opprydning.md](db-opprydning.md).
 
 ## Planlagte oppgaver
 
+**Organization vs OrganizationPartner — fundamentalt skille mangler (observert 2026-05-03):** Test-DB inneholder Organization-rader som ikke er reelle kunder (Byggherre, Tømrer Hansen, Elektrikker Hansen, Hovedentreprenør). De ble opprettet som «skall-firmaer» for å representere parter i faggrupper/dokumentflyt. Datamodellen tillater dette uten advarsel — det finnes ingen `type`/`erKunde`-felt på Organization som skiller «firma som bruker SiteDoc» fra «firma som er part i et prosjekt».
+
+**Riktig modell:** `OrganizationPartner` (linje 197-217 i schema.prisma) er det rette stedet for faggruppe-parter. Hvert kunde-firma har sitt eget partner-bibliotek (`OrganizationPartner.organizationId` peker til kunden). `Faggruppe.partnerId` (nullable FK) kobler en faggruppe til en partner-rad. Den eksisterer for nettopp dette formålet, men test-data har misbrukt Organization-tabellen i stedet.
+
+**Heuristikk-signaler for «reelt firma» (i fravær av eksplisitt felt):** users.length > 0 + harMaskinModul/harTimerModul satt + OrganizationSetting eksisterer + primaryProjects.length > 0 + avdelinger/kompetansetyper finnes. Alle disse er null/0 for skall-firmaer.
+
+**Konsekvenser:**
+- Firma-velger i Toppbar (etter `9175ab84`) viser skall-firmaer som om de var administrerbare. Klikk på dem fører til tom firma-admin-side.
+- Maskin-import er særlig sårbart: hvis sitedoc_admin velger et skall-firma og kjører import, opprettes Equipment-rader under et firma ingen administrerer = datakorruption.
+- Prod-DB ser korrekt ut i dag (3 reelle firmaer), men datamodellen forhindrer ikke fremtidig misbruk.
+
+**Mulige strategier (rangert):**
+- **A. Filter på modul-flagg** (5 min) — pragmatisk for maskin/timer-velgere. `WHERE har_maskin_modul = true` filtrerer skall-firmaer effektivt for import-flyten.
+- **B. Filter på users-count** (30 min) — fanger reelle firmaer mer generelt.
+- **C. Nytt felt `Organization.erKunde Boolean`** (2-3t migrasjon + backfill) — eksplisitt skille, riktig langsiktig.
+- **D. Migrer skall-firmaer til OrganizationPartner** (6-8t DB-cleanup) — rensker datakorrupsjon, krever audit per rad.
+
+**Anbefalt rekkefølge:** Strategi A umiddelbart for maskin-import-velgeren. Strategi C som planlagt arbeid før flere kunder onboardes (forhindrer at problemet vokser). Strategi D som datakvalitets-prosjekt etter A.Markussen er stabilt.
+
 **Firma-administrasjons-navigasjon — strukturell rydding (observert 2026-05-03):** Etter at global firma-kontekst (`9175ab84`) ble bygd, observerte vi at firma-velger i Toppbar kun virker på `firma/layout.tsx` — ikke på undersidene. Dypere analyse avdekket to ulike «firma»-konsepter i kodebasen:
 
 1. **`/dashbord/oppsett/firma` («Prosjekteiers innstillinger»)** — viser firma som eier det aktive prosjektet via `ProjectOrganization`-tabellen. Per-prosjekt-bundet, henter via `organisasjon.hentForProsjekt(projectId)`. Viser tom-state «Ingen firma — Du er ikke tilknyttet noe firma» når prosjektet mangler `ProjectOrganization`-rad. Skal IKKE følge FirmaVelger.
