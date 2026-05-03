@@ -234,30 +234,29 @@ Dagsseddelen er Timer-modulens kjernedokument, men utvides av andre moduler:
 ### ✅ Q1: Kompetansematrise — kobling til dagsseddel?
 **Svar:** Ikke implementert. Planlagt som **DO-kobling** (Fase 6 per arkitektur-syntese § 1.2): maskin-velger på dagsseddel valideres mot brukerens `AnsattKompetanse`-rader. Eksempel: bruker uten gyldig CAT 325-sertifikat kan ikke velge maskin merket med dette kravet. Bygges når Maskin + Timer er stabilisert og Kompetansetyper har felt for «kreves for maskinbruk».
 
-### ⚠️ Q2: Timer-admin (flytte timer prosjekt ↔ ECO) — egen side eller del av attestering?
-**Anbefaling:** Del av attestering-flyten. Leder ser ansattes innsendte dagssedler i `/dashbord/[prosjektId]/timer/attestering` og bør kunne korrigere prosjekt/ECO per rad **før** attestering låser dataene via snapshot. Egen side ville gi en duplikat-vy. Endelig beslutning fra Kenneth gjenstår.
+### ✅ Q2: Timer-admin — BESLUTTET
+Timer-admin (flytte timer prosjekt ↔ ECO) er en **egen attesteringsside for ledelse**
+— ikke del av den ansattes dagsseddel-flyt. Leder har dedikert side der de kan:
+- Se alle innsendte dagssedler per prosjekt
+- Flytte timer-rader mellom prosjekt og ECO
+- Attestere (låser via snapshot per A.7)
 
-### ⚠️ Q3: Varelager — per dagsseddel eller per prosjekt?
-**Per dagsseddel** per arkitektur-syntese § 5 Fase 5 («Vareforbruk på dagsseddel — kobler til Timer-modul»). Bygges som `SheetMaterial`-tabell i `db-timer` eller egen `db-varelager`-pakke (samme cross-package-FK-mønster som SheetMachine). Endelig pakke-plassering og felt-design ikke låst.
+Side: `/dashbord/[prosjektId]/timer/attestering` (eksisterer delvis — utvides)
 
-### ⚠️ Q4: HMS/RUH — eksplisitt modul-flag eller behold som oppgave-domain?
-**Konflikt mellom dokumenter oppdaget:**
-- arkitektur-syntese § 1.1 lister HMS-oppfølging som «alltid-på prosjekthotell-kjerne»
-- terminologi.md § 0 lister HMS-avvik som **prosjektmodul** (av/på)
+### ✅ Q3: Vareforbruk — BESLUTTET
+Per dagsseddel. Bygges som `SheetMaterial`-tabell i `db-timer`
+(samme cross-package-FK-mønster som `SheetMachine`).
 
-I dag implementert kun som `domain="hms"` på Task/Checklist. Ingen `ProjectModule.slug = "hms"`.
+### ✅ Q4: HMS hybrid — BESLUTTET
+Hybrid: behold `domain="hms"` på Task/Checklist (datalag) + legg til
+`ProjectModule`-rad `slug="hms"` for sidebar-synlighet.
 
-**Anbefaling:** Hybrid — behold `domain="hms"` på Task/Checklist (enkelt datalag), men legg til `ProjectModule`-rad for «hms» som styrer sidebar-synlighet og rapport-aggregering. Best av begge: enkel datamodell + per-prosjekt av/på.
-
-**Oppfølger:** Reconcile arkitektur-syntese.md vs terminologi.md når denne beslutningen tas.
+Oppfølger: reconcile [arkitektur-syntese.md](arkitektur-syntese.md) vs [terminologi.md](terminologi.md) i neste screening-runde.
 
 ---
 
 ## Fremdeles åpne spørsmål
 
-- [ ] Q2: Bekreft at timer-flytting hører hjemme i attestering-flyten (ikke egen side)
-- [ ] Q3: Pakke-plassering for vareforbruk — `db-timer/SheetMaterial` eller `db-varelager`?
-- [ ] Q4: Bekreft hybrid HMS-løsning (domain + ProjectModule) og bestill reconcile av arkitektur-syntese.md vs terminologi.md
 - [ ] Skal byggherre kunne logge inn med eksternt e-post-token (uten Google/Microsoft OAuth)?
 - [ ] UE-rolle (`role="underentreprenor"`) — hvilke kapabiliteter skal være satt by-default?
 - [ ] Onboarding-veileder pedagogisk lag — på toppen av navigasjon eller separat?
