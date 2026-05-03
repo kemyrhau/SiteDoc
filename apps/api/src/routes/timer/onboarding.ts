@@ -7,6 +7,7 @@ import {
   seedTimerForOrganization,
   seedLonnsartNivaa2,
 } from "../../services/seed";
+import { syncProjektModulerPaaAktiver } from "../../services/firmamodul";
 
 /**
  * Verifiser at bruker er firmaadmin for et firma.
@@ -89,10 +90,15 @@ export const onboardingRouter = router({
     .mutation(async ({ ctx, input }) => {
       const orgId = await verifiserFirmaAdmin(ctx.userId, input.organizationId);
 
-      // Sett harTimerModul = true (idempotent)
-      await ctx.prisma.organization.update({
-        where: { id: orgId },
-        data: { harTimerModul: true },
+      // Sett harTimerModul + sync ProjectModule (idempotent).
+      // Steg 1c Fase B: ProjectModule-rader synkroniseres for alle prosjekter
+      // firmaet er knyttet til, så Timer-modul-tilgang er konsistent.
+      await ctx.prisma.$transaction(async (tx) => {
+        await tx.organization.update({
+          where: { id: orgId },
+          data: { harTimerModul: true },
+        });
+        await syncProjektModulerPaaAktiver(tx, orgId, "timer");
       });
 
       const seedResultat = await seedTimerForOrganization(orgId, {
@@ -144,9 +150,12 @@ export const onboardingRouter = router({
       });
     }
 
-    await ctx.prisma.organization.update({
-      where: { id: orgId },
-      data: { harTimerModul: true },
+    await ctx.prisma.$transaction(async (tx) => {
+      await tx.organization.update({
+        where: { id: orgId },
+        data: { harTimerModul: true },
+      });
+      await syncProjektModulerPaaAktiver(tx, orgId, "timer");
     });
 
     return { aktivert: true };
