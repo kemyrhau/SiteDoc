@@ -328,6 +328,15 @@ Status og detaljer: [db-opprydning.md](db-opprydning.md).
 
 ## Planlagte oppgaver
 
+**Header-koordinering: firma-bytte nullstiller ikke prosjekt-kontekst (observert 2026-05-03):**
+Når sitedoc_admin bytter aktivt firma via FirmaVelger, beholdes det aktive prosjektet i
+ProsjektVelger selv om prosjektet tilhører et annet firma. Prosjektlisten bør:
+1. Filtreres på valgt firma (vise kun prosjekter der primaryOrganizationId = valgtFirma.id)
+2. Nullstille aktivt prosjekt ved firma-bytte
+
+Kompleksitet: Lav-middels (~2-3t). Ikke blokkerende for pågående arbeid.
+Tas som egen oppgave etter Steg 4 er ferdig.
+
 **Arkitektur-planlegging — samlet sesjon nødvendig (2026-05-03):**
 Følgende moduler mangler forankring i vedtatt arkitekturplan ([terminologi.md § 0](terminologi.md) tre nivåer: Firma → Firmaadministrasjon → Prosjekter, samt [arkitektur-syntese.md](arkitektur-syntese.md) helhetlig produktarkitektur):
 - Timer-modul: bygget uten global firma-kontekst på plass
