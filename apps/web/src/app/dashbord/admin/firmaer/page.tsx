@@ -511,7 +511,7 @@ function FirmaDetaljSlideOver({
                 <span className="text-gray-500">Ikke aktivert</span>
               )}
               <p className="mt-1 text-[11px] text-gray-400">
-                Aktivering skjer via SQL: <code className="text-gray-500">UPDATE organizations SET har_maskin_modul = true WHERE id = &apos;{org.id}&apos;</code>
+                Velg firmaet i FirmaVelger og gå til <code className="text-gray-500">/dashbord/firma/moduler</code> for å aktivere/deaktivere.
               </p>
             </div>
           </section>

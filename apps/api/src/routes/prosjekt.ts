@@ -3,6 +3,7 @@ import { router, protectedProcedure } from "../trpc/trpc";
 import { createProjectSchema, STANDARD_PROJECT_GROUPS, PROSJEKT_MODULER, STANDARD_FAGGRUPPER, STANDARD_DOKUMENTFLYTER } from "@sitedoc/shared";
 import { generateProjectNumber } from "@sitedoc/shared";
 import type { Prisma } from "@sitedoc/db";
+import { TRPCError } from "@trpc/server";
 import {
   verifiserProsjektmedlem,
   verifiserAdmin,
@@ -88,9 +89,10 @@ export const prosjektRouter = router({
       };
     }),
 
-  // Opprett nytt prosjekt — kobler automatisk til brukerens firma hvis det finnes.
-  // Steg 1c Fase B: ProjectModule-rader auto-opprettes for aktive firmamoduler
-  // (timer/maskin) på brukerens firma.
+  // Opprett nytt prosjekt — auto-tilknytter til firma og oppretter ProjectModule-
+  // rader for aktive firmamoduler. Steg 2d (2026-05-03): tar valgfri organizationId
+  // fra input. Sitedoc_admin sender valgtFirma.id når de oppretter prosjekt på
+  // vegne av et kunde-firma. Vanlig bruker fallbacker til egen organizationId.
   opprett: protectedProcedure
     .input(createProjectSchema)
     .mutation(async ({ ctx, input }) => {
@@ -99,21 +101,45 @@ export const prosjektRouter = router({
 
       const bruker = await ctx.prisma.user.findUniqueOrThrow({
         where: { id: ctx.userId },
-        select: { organizationId: true },
+        select: { role: true, organizationId: true },
       });
 
-      const firma = bruker.organizationId
+      // Velg organizationId: input → eksplisitt, fallback → brukerens egen.
+      // Verifiser tilgang når input er gitt.
+      let valgtOrgId: string | null = null;
+      if (input.organizationId) {
+        if (
+          bruker.role === "sitedoc_admin" ||
+          bruker.organizationId === input.organizationId
+        ) {
+          valgtOrgId = input.organizationId;
+        } else {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Ikke tilgang til å opprette prosjekt for dette firmaet",
+          });
+        }
+      } else if (bruker.organizationId) {
+        valgtOrgId = bruker.organizationId;
+      }
+
+      const firma = valgtOrgId
         ? await ctx.prisma.organization.findUnique({
-            where: { id: bruker.organizationId },
+            where: { id: valgtOrgId },
             select: { harTimerModul: true, harMaskinModul: true },
           })
         : null;
 
+      // Strip organizationId fra input før spread til Project-data
+      // (det er ikke en kolonne på Project-modellen).
+      const { organizationId: _ignore, ...projectData } = input;
+
       return ctx.prisma.$transaction(async (tx) => {
         const prosjekt = await tx.project.create({
           data: {
-            ...input,
+            ...projectData,
             projectNumber: prosjektnummer,
+            primaryOrganizationId: valgtOrgId,
             members: {
               create: {
                 userId: ctx.userId!,
@@ -123,10 +149,10 @@ export const prosjektRouter = router({
           },
         });
 
-        if (bruker.organizationId) {
+        if (valgtOrgId) {
           await tx.projectOrganization.create({
             data: {
-              organizationId: bruker.organizationId,
+              organizationId: valgtOrgId,
               projectId: prosjekt.id,
             },
           });
@@ -139,7 +165,7 @@ export const prosjektRouter = router({
               data: aktiveModuler.map((slug) => ({
                 projectId: prosjekt.id,
                 moduleSlug: slug,
-                organizationId: bruker.organizationId!,
+                organizationId: valgtOrgId!,
                 status: "aktiv",
               })),
               skipDuplicates: true,
@@ -176,6 +202,7 @@ export const prosjektRouter = router({
           data: {
             name: prosjektNavn,
             projectNumber: prosjektnummer,
+            primaryOrganizationId: bruker.organizationId ?? null,
             members: {
               create: {
                 userId: ctx.userId!,

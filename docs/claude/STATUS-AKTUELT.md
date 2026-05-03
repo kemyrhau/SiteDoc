@@ -13,7 +13,56 @@ peker hit. Beslutningsgrunnlag og arkitektur ligger i
 
 ## Pågående arbeid
 
-**Steg 1d (ProjectModule final cleanup, forkortet) IMPLEMENTERT på develop 2026-05-03.** Migrasjon `20260503020000_drop_project_module_active` — `ALTER TABLE project_modules DROP COLUMN IF EXISTS active`. Verifisering før drop: grep `\.active` mot apps/api/apps/web/apps/mobile returnerte 0 ProjectModule-relaterte treff (eneste treff er `Project.status`-enum i prosjekt.ts, ulik modell). Schema-rens: `active Boolean`-feltet fjernet fra `ProjectModule`-modellen, kommentar oppdatert til endelig modell. Unique `(project_id, module_slug)` beholdes — cross-org-unique `(projectId, organizationId, moduleSlug)` flyttet til Steg 1e fordi den kun er meningsfull for firmamoduler (timer/maskin), ikke for prosjektmoduler (oversettelse/PSI/kontrollplan/etc. har 14 av 16 callsites og bør forbli én rad per prosjekt). To-stegs migration-policy A.18 oppfylt: `status`-feltet ble lagt til i `20260501000005` (deployet til prod 2026-05-01); denne migrasjonen er steg 2. `pnpm typecheck` + `pnpm build --filter @sitedoc/web` grønt. Klar for test-deploy.
+**Steg 2d (prosjekt fra firma-kontekst) IMPLEMENTERT på develop 2026-05-03.** Tredje og siste del av Steg 2. Server tar nå valgfri `organizationId` i prosjekt-opprettelsen, klient sender valgtFirma.id, og duplikat-fil slettet.
+
+**Endringer:**
+- **Server (`apps/api/src/routes/prosjekt.ts`):** `createProjectSchema` utvidet med `organizationId: z.string().uuid().optional()` i `packages/shared/src/validation/index.ts`. `prosjekt.opprett` autoriserer mot bruker-rolle: sitedoc_admin → tilgang til enhver org; ellers krever input.organizationId === bruker.organizationId, eller FORBIDDEN. Falleback: hvis input.organizationId ikke gitt, bruk bruker.organizationId. Den valgte orgId-en brukes for: (1) `Project.primaryOrganizationId` (manglet før Steg 2d — eksisterende prosjekter hadde ProjectOrganization-rad men ikke primaryOrganizationId), (2) ProjectOrganization-rad, (3) ProjectModule-rader for aktive firmamoduler. `opprettTestprosjekt` setter også `primaryOrganizationId` (samme manglende fix). Stripper `organizationId` fra spread-input til Project-data (det er ikke en kolonne på Project-modellen).
+- **Klient (`apps/web/src/app/dashbord/nytt-prosjekt/page.tsx`):** importer `useFirma`, sender `valgtFirma?.id` som `organizationId` i mutation. Info-banner (Building2-ikon + blå bakgrunn) vises kun for sitedoc_admin med valgt kunde-firma («Prosjektet opprettes for [firma-navn]. Bytt firma i toppmenyen for å opprette på vegne av et annet firma.»). For vanlige brukere er banneret skjult — de oppretter alltid for sitt eget firma uten valg.
+- **Duplikat-rensing:** `apps/web/src/app/dashbord/prosjekter/nytt/page.tsx` slettet. Var orphan-fil — alle 4 lenker i kodebasen pekte til `/dashbord/nytt-prosjekt`. Forskjellen var redirect (`/dashbord/${id}` vs `/dashbord/prosjekter/${id}`); den slettete pekte til legacy-rute som ikke har full subnavigasjon.
+- 1 ny i18n-nøkkel `nyttProsjekt.opprettesFor` (nb+en).
+
+**Hva 2d IKKE dekker:**
+- Per-bruker-default-firma (hvilket firma settes som valgt i FirmaVelger ved første pålogging) — ikke scope.
+- Validering på server-side at det valgte firmaet faktisk er `erKunde:true` — ikke nødvendig nå siden FirmaVelger allerede filtrerer på `erKunde:true`. Men kan legges til senere som ekstra forsvar.
+- Legacy-rute `/dashbord/prosjekter/[id]/*` (som har færre undersider enn `/dashbord/[prosjektId]/*`) er ikke ryddet i scope for 2d — separat opprydningsoppgave.
+
+**Verifisering:** `pnpm --filter @sitedoc/api typecheck` grønt. `pnpm build --filter @sitedoc/web` grønt (35.0s).
+
+**Klar for test-deploy.** Stopper og rapporterer per Kenneths instruks. Claude verifiserer (1) at sitedoc_admin (Tore) kan velge Byggeleder i FirmaVelger og opprette prosjekt med korrekt primaryOrganizationId, (2) at info-banneret vises, (3) at vanlig bruker (Kari Firmaadmin) opprettelse av prosjekt fungerer som før, (4) at ProjectModule-rader auto-opprettes (Steg 1c-flow gjenbrukes). **Steg 2 komplett etter dette — alle 4 sub-oppgaver dekket** (2a allerede komplett før, 2b+2c+2d nå deployet).
+
+**Steg 2c (OrganizationSetting-UI) IMPLEMENTERT på develop 2026-05-03.** Andre del av Steg 2 fra prioritert byggerekkefølge. Utvider `/dashbord/firma/innstillinger`-siden med 4 nye seksjoner som dekker alle gjenværende OrganizationSetting-felter (kompetanse-policy var allerede dekket fra Fase 0.5).
+
+**Endringer:**
+- `apps/web/src/app/dashbord/firma/innstillinger/page.tsx`:
+  - Ny `TidssoneSeksjon`-komponent: dropdown med 7 tidssoner (Europe/Oslo default + Stockholm/København/Helsinki/Berlin/London/UTC). Bruker `organisasjon.oppdaterSetting`-mutation. Endring lagres umiddelbart ved valg (ingen separat lagre-knapp).
+  - Ny generisk `TilgangPolicySeksjon`-komponent: tar `felt`-prop (timerTilgangDefault | vareforbrukTilgangDefault | maskinbrukTilgangDefault) + tittel/beskrivelse-i18n-nøkler. Renderer 3 radio-knapper med samme verdi-sett: `alle-ansatte` / `kun-prosjektmedlemmer` / `sertifiserte` (matcher Zod-enum i `oppdaterSetting`-mutation). Eliminerer dobling av kode for de tre tilgang-feltene som har identisk UI-mønster.
+  - Tre `<TilgangPolicySeksjon>`-instanser instansiert med ulike felt: Timer, Vareforbruk, Maskinbruk. Plassering: under firma-info-skjemaet, mellom Tidssone og Kompetanse-policy.
+  - `KompetansePolicySeksjon` (eksisterende fra Fase 0.5) beholdt som siste seksjon — har annen verdi-mengde (`firma_admin`/`bruker_egen`/`alle`) så ikke gjenbrukes via `TilgangPolicySeksjon`.
+- 14 nye i18n-nøkler under `firma.innstillinger.tidssone.*` + `firma.innstillinger.tilgang{Timer,Vareforbruk,Maskinbruk}.*` + `firma.innstillinger.tilgangVerdi.{alle-ansatte,kun-prosjektmedlemmer,sertifiserte}.*` i nb+en.
+
+**Hva 2c IKKE dekker:**
+- Eksisterende `KompetansePolicySeksjon` har hardkodede norske strenger (etablert i Fase 0.5 § 2). Konvertering til i18n er separat opprydningsoppgave — ikke scope for 2c.
+- Per-prosjekt-overstyring av disse defaultene er ikke bygget — de er kun «default ved opprettelse av nytt prosjekt» foreløpig. Faktisk respekt-i-runtime av `timerTilgangDefault`/`vareforbrukTilgangDefault`/`maskinbrukTilgangDefault` på prosjekt-nivå er ikke bygget — det blir senere når Vareforbruk-modul + Maskinbruk-flow kommer.
+
+**Verifisering:** `pnpm --filter @sitedoc/api typecheck` grønt. `pnpm build --filter @sitedoc/web` grønt (33.7s).
+
+**Klar for test-deploy.** Stopper og rapporterer per Kenneths instruks. Claude verifiserer at alle 5 seksjoner (firma-info + tidssone + 3 tilgang + kompetanse-policy) lastes og at endringer persisteres i OrganizationSetting-tabellen.
+
+**Steg 2b (firmamodul-styring UI) DEPLOYET TIL TEST 2026-05-03** (`25cd7675`). Verifisert som innlogget Kari Firmaadmin: aktivere/deaktivere Timer/Maskin fungerer end-to-end, ProjectModule-rader synkroniserer korrekt, sidebar oppdateres. Klar for prod (avventer 2c+2d før samlet prod-deploy). Første del av Steg 2 fra prioritert byggerekkefølge. Ny dedikert side `/dashbord/firma/moduler` for å aktivere/deaktivere firmamoduler — erstatter den manuelle `UPDATE organizations SET har_*_modul = true`-prosedyren som tidligere var dokumentert i `admin/firmaer/page.tsx`-modal.
+
+**Endringer:**
+- Ny fil `apps/web/src/app/dashbord/firma/moduler/page.tsx` — skalerbar konfig-tabell (`MODULER`-array) med 5 moduler: timer + maskin (status: `tilgjengelig`), kompetanse + fremdrift + varelager (status: `kommer-snart`). Bare `tilgjengelig`-moduler har funksjonelle toggles.
+- Hver kort: ikon (Lucide), navn, beskrivelse, status-badge («Aktivert» grønn / «Kommer snart» grå), Aktiver/Deaktiver-knapp. Aktivering = direkte mutation (idempotent — `settFirmamodul` håndterer både ny aktivering og reaktivering). Deaktivering = `Modal`-bekreftelse fra `@sitedoc/ui` med advarsel («Modulen settes som arkivert på alle prosjekter firmaet er knyttet til. Data slettes ikke — du kan reaktivere senere.»).
+- Bruker `useFirma().valgtFirma.harTimerModul`/`harMaskinModul` for status-visning og `organisasjon.settFirmamodul`-mutation fra Steg 1c. Cache-invalidering på `hentTilgjengelige`/`hentMin`/`hentMedId`.
+- `apps/web/src/app/dashbord/firma/layout.tsx` — nytt menyelement «Moduler» (Boxes-ikon) plassert mellom Kompetanse og Timer. Synlig for alle firma-admin-brukere uavhengig av modul-status.
+- `apps/web/src/app/dashbord/admin/firmaer/page.tsx` — SQL-instruks i firma-detaljmodal erstattet med peker til ny side («Velg firmaet i FirmaVelger og gå til /dashbord/firma/moduler»). Tabellradens harMaskinModul-visning beholdt uendret (oversikts-info, ikke handling).
+- ~22 nye i18n-nøkler under `firma.moduler.*` i nb.json + en.json: tittel/beskrivelse/aktiver/deaktiver/aktivert/kommer-snart/dialog-tekster + per-modul navn/beskrivelse for alle 5 moduler.
+
+**Verifisering:** `pnpm --filter @sitedoc/api typecheck` grønt. `pnpm build --filter @sitedoc/web` grønt (34.7s).
+
+**Klar for test-deploy.** Stopper og rapporterer per Kenneths instruks. Claude verifiserer (1) at sitedoc_admin (Tore) ser den nye «Moduler»-menyelement etter å ha valgt et kunde-firma, (2) at toggle Timer/Maskin off+on virker end-to-end, (3) at deaktivering syncer ProjectModule-rader til `status="arkivert"`, (4) at sidebaren oppdateres når Timer aktiveres/deaktiveres for valgt firma. 2c (OrganizationSetting-UI med tidssone + 3 tilgang-toggles) + 2d (prosjekt fra firma-kontekst, server+klient) avventer grønt lys.
+
+**Steg 1d (ProjectModule final cleanup, forkortet) DEPLOYET TIL PROD 2026-05-03** (`73dcbd1a` merge, `ec0ce969` impl). Migrasjon `20260503020000_drop_project_module_active` applied på sitedoc + sitedoc_test. DB-schema verifisert begge miljøer: `active`-kolonnen borte fra `project_modules`. HTTP/2 200 web, HTTP/2 204 API. Migrasjon `20260503020000_drop_project_module_active` — `ALTER TABLE project_modules DROP COLUMN IF EXISTS active`. Verifisering før drop: grep `\.active` mot apps/api/apps/web/apps/mobile returnerte 0 ProjectModule-relaterte treff (eneste treff er `Project.status`-enum i prosjekt.ts, ulik modell). Schema-rens: `active Boolean`-feltet fjernet fra `ProjectModule`-modellen, kommentar oppdatert til endelig modell. Unique `(project_id, module_slug)` beholdes — cross-org-unique `(projectId, organizationId, moduleSlug)` flyttet til Steg 1e fordi den kun er meningsfull for firmamoduler (timer/maskin), ikke for prosjektmoduler (oversettelse/PSI/kontrollplan/etc. har 14 av 16 callsites og bør forbli én rad per prosjekt). To-stegs migration-policy A.18 oppfylt: `status`-feltet ble lagt til i `20260501000005` (deployet til prod 2026-05-01); denne migrasjonen er steg 2. `pnpm typecheck` + `pnpm build --filter @sitedoc/web` grønt. Klar for test-deploy.
 
 **Steg 1c (OrganizationModule-overgang) DEPLOYET TIL PROD 2026-05-03** (`87fb7292` merge, `d581e399` Fase A+B + `6921ffea` mini-Fase C). Migrasjon `20260503010000_steg_1c_module_backfill` applied på sitedoc + sitedoc_test. Bakfyll-tellinger: 0 rader på begge DB-er (kunde-firma har 0 prosjekter med primary-rolle ennå — auto-sync hooket aktiveres ved første prosjekt-opprettelse). HTTP/2 200 web, HTTP/2 204 API. Test-verifisert som innlogget Kari Firmaadmin før prod-deploy: nytt prosjekt → 2 ProjectModule-rader auto-opprettet (timer+maskin, status=aktiv, organization_id=Byggeleder). Tredje steg i prioritert byggerekkefølge ferdig.
 

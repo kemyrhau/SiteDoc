@@ -29,6 +29,9 @@ export const createProjectSchema = z.object({
   latitude: z.number().min(-90).max(90).nullable().optional(),
   longitude: z.number().min(-180).max(180).nullable().optional(),
   externalProjectNumber: z.string().max(100).optional(),
+  // Steg 2d: sitedoc_admin sender valgtFirma.id; vanlig bruker fallbacker til
+  // egen organizationId. Server verifiserer tilgang.
+  organizationId: z.string().uuid().optional(),
 });
 
 // Faggruppevalidering
