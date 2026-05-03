@@ -320,9 +320,9 @@ Ingen steg kan hoppes over — hvert steg er forutsetning for neste.
 
 ### Steg 4 — Dagsseddel-utvidelser
 
-- [ ] **4a. Timer-admin** — attestering med flytt prosjekt ↔ ECO (egen side for leder)
-- [ ] **4b. Vareforbruk** — SheetMaterial-tabell i db-timer
-- [ ] **4c. Godkjenning UI** — byggherre-flyt (modell finnes, UI mangler)
+- [x] **4a. Timer-admin** — ECO-flytt på attestering (egen leder-detaljside) — DEPLOYET TIL PROD 2026-05-03 (`da6b34a5` merge, `f98fa7a5` impl). Scope avklart 2026-05-03: kun ECO-flytt på samme prosjekt (cross-prosjekt-flytt forkastet — for komplekst, ikke dokumentert bruksbehov). Ny `flyttTimerRadEco`-mutation gates med `krevProsjektLeder`, kun status="sent" tillates, ECO-validering (samme firma+prosjekt, status=aktiv, timerregistreringApen=true). Ny `hentForAttestering`-query autoriserer på leder-rolle (skiller seg fra `hentMedId` som krever eierskap). Activity-log (best-effort) for hver flytt. Ny side `/dashbord/[prosjektId]/timer/attestering/[id]` med inline ECO-velger på timer-rader, øvrige felter read-only, action-bar med Returner/Attester. Lærdom: auto-deploy-hooken trigget ikke (andre gang etter Steg 1a) — manuell deploy nødvendig.
+- [ ] **4b. Vareforbruk** — Vare-katalog + Vareforbruk-tabell. **UTSATT til etter Steg 1e (OrganizationModule)** — varelager-modul-aktivering blir mer meningsfull når `Organization.har_*_modul`-kolonner er erstattet med dedikert tabell. Beslutning 2026-05-03.
+- [ ] **4c. Godkjenning UI** — byggherre-flyt (modell finnes fra Fase 0 § E.12, UI mangler). Avklart 2026-05-03: byggherre logger inn via Google/Microsoft OAuth som i dag (e-post-token utsatt), sidebar-gating på faggruppe-rolle (`DokumentflytMedlem.rolle`), ikke ny kapabilitet.
 
 ---
 
