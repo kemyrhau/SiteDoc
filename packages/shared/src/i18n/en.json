@@ -786,6 +786,7 @@
   "firma.innstillinger.tilgangVerdi.kun-prosjektmedlemmer.beskrivelse": "Only employees added as ProjectMember on the project can register.",
   "firma.innstillinger.tilgangVerdi.sertifiserte.tittel": "Certified only",
   "firma.innstillinger.tilgangVerdi.sertifiserte.beskrivelse": "Only employees with relevant competence certificate (competence matrix) can register. Most restrictive.",
+  "nyttProsjekt.opprettesFor": "The project will be created for {{firma}}. Switch company in the top menu to create on behalf of another company.",
   "firma.kompetanse.tittel": "Competence",
   "firma.kompetanse.beskrivelse": "Competence matrix and competence types for the company. Certificates, courses, and training per employee.",
   "firma.kompetanse.fane.matrise": "Matrix",

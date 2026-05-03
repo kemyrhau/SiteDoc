@@ -786,6 +786,7 @@
   "firma.innstillinger.tilgangVerdi.kun-prosjektmedlemmer.beskrivelse": "Kun ansatte som er lagt til som ProjectMember på prosjektet kan registrere.",
   "firma.innstillinger.tilgangVerdi.sertifiserte.tittel": "Kun sertifiserte",
   "firma.innstillinger.tilgangVerdi.sertifiserte.beskrivelse": "Kun ansatte med relevant kompetanse-sertifikat (kompetansematrise) kan registrere. Mest restriktivt.",
+  "nyttProsjekt.opprettesFor": "Prosjektet opprettes for {{firma}}. Bytt firma i toppmenyen for å opprette på vegne av et annet firma.",
   "firma.kompetanse.tittel": "Kompetanse",
   "firma.kompetanse.beskrivelse": "Kompetansematrise og kompetansetyper for firmaet. Sertifikater, kurs og opplæring per ansatt.",
   "firma.kompetanse.fane.matrise": "Matrise",
