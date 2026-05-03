@@ -1,6 +1,7 @@
 "use client";
 
 import { NavigasjonProvider } from "@/kontekst/navigasjon-kontekst";
+import { FirmaProvider } from "@/kontekst/firma-kontekst";
 import { ProsjektProvider } from "@/kontekst/prosjekt-kontekst";
 import { ByggeplassProvider } from "@/kontekst/byggeplass-kontekst";
 import { PresenceProvider } from "@/kontekst/presence-kontekst";
@@ -14,19 +15,21 @@ export default function DashbordLayout({
 }) {
   return (
     <NavigasjonProvider>
-      <ProsjektProvider>
-        <ByggeplassProvider>
-          <PresenceProvider>
-          <div className="flex h-screen flex-col overflow-hidden">
-            <Toppbar />
-            <div className="flex flex-1 overflow-hidden">
-              <HovedSidebar />
-              {children}
-            </div>
-          </div>
-          </PresenceProvider>
-        </ByggeplassProvider>
-      </ProsjektProvider>
+      <FirmaProvider>
+        <ProsjektProvider>
+          <ByggeplassProvider>
+            <PresenceProvider>
+              <div className="flex h-screen flex-col overflow-hidden">
+                <Toppbar />
+                <div className="flex flex-1 overflow-hidden">
+                  <HovedSidebar />
+                  {children}
+                </div>
+              </div>
+            </PresenceProvider>
+          </ByggeplassProvider>
+        </ProsjektProvider>
+      </FirmaProvider>
     </NavigasjonProvider>
   );
 }

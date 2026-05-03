@@ -44,6 +44,46 @@ export const organisasjonRouter = router({
     });
   }),
 
+  /**
+   * Hent firmaer brukeren kan administrere — for global firma-velger i Toppbar.
+   * - sitedoc_admin: alle firmaer
+   * - company_admin: kun eget firma
+   * - vanlig user: tom liste (firma-velger ikke relevant — admin-funksjon)
+   */
+  hentTilgjengelige: protectedProcedure.query(async ({ ctx }) => {
+    if (!ctx.userId) return [];
+    const bruker = await ctx.prisma.user.findUniqueOrThrow({
+      where: { id: ctx.userId },
+      select: { role: true, organizationId: true },
+    });
+
+    if (bruker.role === "sitedoc_admin") {
+      return ctx.prisma.organization.findMany({
+        select: {
+          id: true,
+          name: true,
+          harMaskinModul: true,
+          harTimerModul: true,
+        },
+        orderBy: { name: "asc" },
+      });
+    }
+
+    if (bruker.role === "company_admin" && bruker.organizationId) {
+      return ctx.prisma.organization.findMany({
+        where: { id: bruker.organizationId },
+        select: {
+          id: true,
+          name: true,
+          harMaskinModul: true,
+          harTimerModul: true,
+        },
+      });
+    }
+
+    return [];
+  }),
+
   // Opprett ny organisasjon
   opprett: protectedProcedure
     .input(z.object({ name: z.string().min(1).max(255) }))
