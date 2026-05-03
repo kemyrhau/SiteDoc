@@ -288,22 +288,22 @@ Ingen steg kan hoppes over — hvert steg er forutsetning for neste.
   - Lag 2: 10 klient-sider sender valgtFirma.id
   - Lag 3: «Firmainnstillinger» → «Eier-firma» (avvik fra plan: «Prosjekteier» kolliderte med eksisterende parent-kategori)
 
-- [x] **1c. OrganizationModule-overgang Fase A+B** (~5t) — IMPLEMENTERT 2026-05-03 (`d581e399`)
+- [x] **1c. OrganizationModule-overgang Fase A+B** (~5t) — DEPLOYET TIL PROD 2026-05-03 (`87fb7292` merge, `d581e399` Fase A+B + `6921ffea` mini-Fase C)
   - Fase A: bakfyll-migrasjon `20260503010000_steg_1c_module_backfill` + moduleGate-helpers utvidet med valgfri `projectId`-param
   - Fase B: auto-sync hooks i `prosjekt.opprett` + `prosjekt.opprettTestprosjekt` + ny `services/firmamodul.ts` + `organisasjon.settFirmamodul`-mutation + timer-onboarding-refaktor + `HovedSidebar` migrert til ProjectModule-sjekk
   - Mini-Fase C (kommentar-rens, 2026-05-03): `har_*_modul`-kolonnene beholdes som firma-master-bryter; full drop til `OrganizationModule`-tabell utsatt til Steg 1e (kreves for at firma uten prosjekter fortsatt kan onboarde lønnsarter — A.Markussen-flow ville brutt med rent ProjectModule-avledet aktivering)
 
-- [ ] **1d. ProjectModule final cleanup** (~2-3t)
-  - CI-grep for `projectId_moduleSlug`-callsites i `apps/` og `packages/`
-  - Migrasjon: drop `active Boolean`-kolonne + endre unique-indeks `(project_id, module_slug)` → `(project_id, organization_id, module_slug)`
-  - Schema-rens i `schema.prisma`
-  - Utsatt fra 1c-Fase C — uavhengig av OrganizationModule og krever at all kode bruker `status`-feltet (per A.4 + A.18)
+- [x] **1d. ProjectModule final cleanup (forkortet)** (~30min) — IMPLEMENTERT 2026-05-03
+  - Migrasjon `20260503020000_drop_project_module_active`: DROP COLUMN `active`. Verifisert via grep at 0 kode-callsites bruker `ProjectModule.active` (eneste treff er `Project.status`-enum, ulik modell).
+  - Schema-rens i `schema.prisma`: `active Boolean`-feltet fjernet, kommentar oppdatert til endelig modell.
+  - Cross-org-unique `(projectId, organizationId, moduleSlug)` flyttet til Steg 1e — krever konkret cross-org-design (oversettelse/PSI/kontrollplan har ikke meningsfull cross-org-aktivering, kun timer/maskin har).
 
-- [ ] **1e. OrganizationModule-tabell** (~5-8t, fremtidig)
+- [ ] **1e. OrganizationModule-tabell + cross-org-aktivering** (~5-8t, fremtidig)
   - Egen tabell `(organizationId, moduleSlug, status)` for firma-master-aktivering
   - Erstatter `Organization.har_timer_modul`/`har_maskin_modul`-kolonnene
   - Bakfyll fra eksisterende flagg, drop kolonner, alle firma-bredte callsites bytter
-  - Tas når en av disse drivene oppstår: (a) flere enn 2 firmamoduler å spore, (b) behov for status-historikk per firma-modul, (c) cross-org-policy som flag-modellen ikke dekker
+  - Vurder samtidig: ProjectModule unique → `(projectId, organizationId, moduleSlug)` for slugs der cross-org gir mening (timer/maskin); behold `(projectId, moduleSlug)` for prosjektmoduler (oversettelse/PSI/kontrollplan/etc.) — krever distinksjon mellom firmamoduler og prosjektmoduler i schema/runtime
+  - Tas når en av disse drivene oppstår: (a) flere enn 2 firmamoduler å spore, (b) behov for status-historikk per firma-modul, (c) konkret cross-org-policy med UE-firma som har egen Timer-katalog på samme prosjekt
 
 ### Steg 2 — Firma-admin-sider (bygges på solid fundament)
 
