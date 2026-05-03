@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Plus, Truck, Wrench, Hammer, Search, X } from "lucide-react";
+import { Plus, Truck, Wrench, Hammer, Search, X, FileSpreadsheet } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { Spinner } from "@sitedoc/ui";
@@ -107,13 +107,22 @@ export default function MaskinPage() {
     <div className="mx-auto max-w-6xl">
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-xl font-semibold text-gray-900">{t("maskin.tittel")}</h1>
-        <Link
-          href="/dashbord/maskin/nytt"
-          className="inline-flex items-center gap-1.5 rounded-md bg-sitedoc-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-sitedoc-primary/90"
-        >
-          <Plus className="h-4 w-4" />
-          {t("maskin.leggTilUtstyr")}
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/dashbord/maskin/import"
+            className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            <FileSpreadsheet className="h-4 w-4" />
+            {t("maskin.importerFraSmartDok")}
+          </Link>
+          <Link
+            href="/dashbord/maskin/nytt"
+            className="inline-flex items-center gap-1.5 rounded-md bg-sitedoc-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-sitedoc-primary/90"
+          >
+            <Plus className="h-4 w-4" />
+            {t("maskin.leggTilUtstyr")}
+          </Link>
+        </div>
       </div>
 
       {/* Filter-bar */}
