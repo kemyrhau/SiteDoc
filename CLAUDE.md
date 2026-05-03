@@ -301,6 +301,11 @@ Dokumentasjon skal speile faktisk tilstand. Beslutninger som ikke er skrevet inn
 Reglene nedenfor — særlig **Auto-oppdater dokumentasjon**, **STATUS.md vedlikehold** og **YAML-header på docs/claude/-filer** — er konkrete uttrykk for dette prinsippet.
 
 - **Beskriv løsningen først:** Før kodeendringer, beskriv den logiske løsningen med ord og be om brukerens godkjenning. Ikke anta — still kontrollspørsmål ved tvil
+- **Todolist ved komplekse oppgaver:** Når Opus analyserer eller implementerer oppgaver med flere steg eller ukjente avhengigheter, skal han lage en eksplisitt todolist FØR han starter. Listen oppdateres underveis og rapporteres til Claude ved ferdigstillelse. Format:
+  - [ ] Steg 1
+  - [x] Steg 2 (ferdig)
+
+  Dette sikrer at Claude kan følge fremdrift og flagge avvik fra plan.
 - **ALDRI bruk "entreprise"/"enterprise"** i ny kode, UI-strenger eller dokumentasjon. Bruk **faggruppe** (UI/variabelnavn) eller **Faggruppe** (Prisma-modell). Se [terminologi.md](docs/claude/terminologi.md)
 - **Attestering ≠ Godkjenning** (ufravikelig låst 2026-04-26):
   - **Attestering** = arbeider får lønn for registrert tid → Timer-modul, mobil-UI, lønnseksport
