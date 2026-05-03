@@ -140,7 +140,7 @@ export default function AttesteringSide() {
                   <td className="px-3 py-2">
                     <div className="flex items-center justify-end gap-1">
                       <Link
-                        href={`/dashbord/${params.prosjektId}/timer/${rad.id}`}
+                        href={`/dashbord/${params.prosjektId}/timer/attestering/${rad.id}`}
                         className="rounded p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
                         title={t("timer.aapne")}
                       >

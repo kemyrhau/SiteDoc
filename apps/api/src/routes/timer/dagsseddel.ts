@@ -700,6 +700,151 @@ export const dagsseddelRouter = router({
       return erProsjektLeder(ctx.userId, input.projectId);
     }),
 
+  // Hent én dagsseddel som prosjektleder (for attestering-detaljside).
+  // Skiller seg fra hentMedId ved at den autoriserer på krevProsjektLeder
+  // (ProjectMember.role="admin" eller kanAttestere=true) i stedet for
+  // eierskap. Beriker med ansatt-info fra kjernen.
+  hentForAttestering: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const sheet = await ctx.prismaTimer.dailySheet.findUnique({
+        where: { id: input.id },
+      });
+      if (!sheet) throw new TRPCError({ code: "NOT_FOUND" });
+      await krevProsjektLeder(ctx.userId, sheet.projectId);
+
+      const [aktivitet, timer, tillegg, maskiner, prosjekt, ansatt] =
+        await Promise.all([
+          sheet.aktivitetId
+            ? ctx.prismaTimer.aktivitet.findUnique({
+                where: { id: sheet.aktivitetId },
+              })
+            : Promise.resolve(null),
+          ctx.prismaTimer.sheetTimer.findMany({
+            where: { sheetId: sheet.id },
+            orderBy: { createdAt: "asc" },
+          }),
+          ctx.prismaTimer.sheetTillegg.findMany({
+            where: { sheetId: sheet.id },
+            orderBy: { createdAt: "asc" },
+          }),
+          ctx.prismaTimer.sheetMachine.findMany({
+            where: { sheetId: sheet.id },
+            orderBy: { createdAt: "asc" },
+          }),
+          ctx.prisma.project.findUnique({
+            where: { id: sheet.projectId },
+            select: { id: true, name: true, projectNumber: true },
+          }),
+          prisma.user.findUnique({
+            where: { id: sheet.userId },
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              ansattnummer: true,
+            },
+          }),
+        ]);
+      return { ...sheet, aktivitet, timer, tillegg, maskiner, prosjekt, ansatt };
+    }),
+
+  // Flytt ECO på en timer-rad (Steg 4a 2026-05-03). Lederen kan endre
+  // kostnadsbærer (externalCostObjectId) på en innsendt sedel før attestering.
+  // Kun ECO-feltet kan endres — øvrige felter (timer/lønnsart/aktivitet)
+  // er ansattens domene og endres ved retur. Etter attestering låser
+  // snapshot-pattern (A.7) verdien permanent.
+  flyttTimerRadEco: protectedProcedure
+    .input(
+      z.object({
+        timerRadId: z.string().uuid(),
+        externalCostObjectId: z.string().uuid().nullable(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const rad = await ctx.prismaTimer.sheetTimer.findUnique({
+        where: { id: input.timerRadId },
+      });
+      if (!rad) throw new TRPCError({ code: "NOT_FOUND" });
+
+      const sheet = await ctx.prismaTimer.dailySheet.findUnique({
+        where: { id: rad.sheetId },
+      });
+      if (!sheet) throw new TRPCError({ code: "NOT_FOUND" });
+
+      await krevProsjektLeder(ctx.userId, sheet.projectId);
+
+      // Status-vakt: kun "sent" tillates. "returned" er hos ansatten,
+      // "accepted" er låst av snapshot, "draft" har aldri vært innom leder.
+      if (sheet.status !== "sent") {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: `Kan kun flytte ECO på innsendte sedler (status: ${sheet.status})`,
+        });
+      }
+
+      // ECO-validering hvis ikke null — finnes, samme firma+prosjekt,
+      // status=aktiv, åpen for timer-registrering
+      if (input.externalCostObjectId !== null) {
+        const eco = await prisma.externalCostObject.findUnique({
+          where: { id: input.externalCostObjectId },
+        });
+        if (!eco || eco.slettetVed !== null) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Underprosjektet finnes ikke",
+          });
+        }
+        if (eco.organizationId !== sheet.organizationId) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Underprosjektet tilhører ikke firmaet",
+          });
+        }
+        if (eco.projectId !== sheet.projectId) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Underprosjektet tilhører ikke samme prosjekt",
+          });
+        }
+        if (eco.status !== "aktiv" || !eco.timerregistreringApen) {
+          throw new TRPCError({
+            code: "PRECONDITION_FAILED",
+            message: "Underprosjektet er ikke åpent for timer-registrering",
+          });
+        }
+      }
+
+      const fraEcoId = rad.externalCostObjectId;
+      const oppdatert = await ctx.prismaTimer.sheetTimer.update({
+        where: { id: input.timerRadId },
+        data: { externalCostObjectId: input.externalCostObjectId },
+      });
+
+      // Activity-log (best-effort — ikke blokker ved skrivefeil)
+      try {
+        await prisma.activity.create({
+          data: {
+            actorUserId: ctx.userId,
+            organizationId: sheet.organizationId,
+            projectId: sheet.projectId,
+            targetType: "sheet_timer",
+            targetId: input.timerRadId,
+            action: "timer.eco-flyttet",
+            payload: {
+              sheetId: sheet.id,
+              fraEcoId,
+              tilEcoId: input.externalCostObjectId,
+            },
+          },
+        });
+      } catch {
+        // Ikke-blokkerende — selve flyttingen er allerede committed.
+      }
+
+      return oppdatert;
+    }),
+
   // Returner — leder ber om endringer. status="sent" → "returned".
   // Setter lederKommentar (påkrevd ved retur per spec).
   returner: protectedProcedure
