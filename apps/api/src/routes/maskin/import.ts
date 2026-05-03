@@ -110,7 +110,7 @@ export const importRouter = router({
         (n) => !ansvarligMap.has(n.toLowerCase()),
       );
 
-      // Duplikat-sjekk: internnummer som allerede finnes i org
+      // Duplikat-sjekk: DB-eksisterende internnummer + fil-interne duplikater
       const internnumre = parseresultat.rader
         .map((r) => r.internnummer)
         .filter((n): n is string => !!n);
@@ -124,10 +124,23 @@ export const importRouter = router({
               },
               select: { internNummer: true },
             });
-      const dupSett = new Set(
+      const dbDupSett = new Set(
         eksisterende
           .map((e) => e.internNummer)
           .filter((n): n is string => !!n),
+      );
+
+      // Tell forekomster av hvert internnummer i fila for å oppdage interne duplikater
+      const internTellinger = new Map<string, number>();
+      for (const r of parseresultat.rader) {
+        if (r.internnummer) {
+          internTellinger.set(r.internnummer, (internTellinger.get(r.internnummer) ?? 0) + 1);
+        }
+      }
+      const internDupSett = new Set(
+        [...internTellinger.entries()]
+          .filter(([, n]) => n > 1)
+          .map(([k]) => k),
       );
 
       // Aggregat
@@ -138,19 +151,26 @@ export const importRouter = router({
       };
       let medRegnummer = 0;
       let leid = 0;
-      let duplikater = 0;
+      let duplikaterDB = 0;
+      let duplikaterFilInterne = 0;
+      const seenIFil = new Set<string>();
       for (const r of parseresultat.rader) {
         fordeling[r.kategori]++;
         if (r.harGyldigRegnummer) medRegnummer++;
         if (r.eierskap === "leid") leid++;
-        if (r.internnummer && dupSett.has(r.internnummer)) duplikater++;
+        if (r.internnummer && dbDupSett.has(r.internnummer)) duplikaterDB++;
+        if (r.internnummer && seenIFil.has(r.internnummer)) duplikaterFilInterne++;
+        if (r.internnummer) seenIFil.add(r.internnummer);
       }
+      const duplikater = duplikaterDB + duplikaterFilInterne;
 
       return {
         filHash,
         totaltIFil: parseresultat.rader.length + parseresultat.filtrerte.length,
         importerbart: parseresultat.rader.length,
         duplikater,
+        duplikaterDB,
+        duplikaterFilInterne,
         filtrerte: parseresultat.filtrerte,
         fordeling,
         medRegnummer,
@@ -174,7 +194,10 @@ export const importRouter = router({
           ansvarlig2Match: r.ansvarlig2Navn
             ? ansvarligMap.has(r.ansvarlig2Navn.toLowerCase())
             : null,
-          erDuplikat: r.internnummer ? dupSett.has(r.internnummer) : false,
+          erDuplikat:
+            r.internnummer
+              ? dbDupSett.has(r.internnummer) || internDupSett.has(r.internnummer)
+              : false,
         })),
       };
     }),
@@ -229,7 +252,7 @@ export const importRouter = router({
         (n) => !ansvarligMap.has(n.toLowerCase()),
       );
 
-      // Duplikat-sjekk for å skippe eksisterende internnumre
+      // Duplikat-sjekk #1: eksisterende internnumre i firmaet
       const internnumre = parseresultat.rader
         .map((r) => r.internnummer)
         .filter((n): n is string => !!n);
@@ -243,28 +266,45 @@ export const importRouter = router({
               },
               select: { internNummer: true },
             });
-      const dupSett = new Set(
+      const dbDupSett = new Set(
         eksisterende
           .map((e) => e.internNummer)
           .filter((n): n is string => !!n),
       );
 
+      // Filtrer ut DB-duplikater OG fil-interne duplikater FØR transaksjon.
+      // Fil-internt: første forekomst importeres, etterfølgende hoppes over.
+      // Forhindrer unique-constraint-brudd på (organizationId, internNummer)
+      // som ville rullet tilbake hele transaksjonen.
+      const hoppetOver: Array<{ navn: string; grunn: string }> = [];
+      const tilOpprettelse: typeof parseresultat.rader = [];
+      const settInternIFil = new Set<string>();
+      for (const rad of parseresultat.rader) {
+        if (rad.internnummer && dbDupSett.has(rad.internnummer)) {
+          hoppetOver.push({
+            navn: rad.navn,
+            grunn: `Internnummer ${rad.internnummer} finnes allerede i firmaet`,
+          });
+          continue;
+        }
+        if (rad.internnummer && settInternIFil.has(rad.internnummer)) {
+          hoppetOver.push({
+            navn: rad.navn,
+            grunn: `Internnummer ${rad.internnummer} duplisert i fila`,
+          });
+          continue;
+        }
+        if (rad.internnummer) settInternIFil.add(rad.internnummer);
+        tilOpprettelse.push(rad);
+      }
+
       // Atomisk transaksjon — Equipment + EquipmentAnsvarlig + VegvesenKo
       const opprettet: Array<{ id: string; navn: string; kategori: string }> = [];
-      const hoppetOver: Array<{ navn: string; grunn: string }> = [];
       let vegvesenKølagt = 0;
 
       await ctx.prismaMaskin.$transaction(
         async (tx) => {
-          for (const rad of parseresultat.rader) {
-            if (rad.internnummer && dupSett.has(rad.internnummer)) {
-              hoppetOver.push({
-                navn: rad.navn,
-                grunn: `Internnummer ${rad.internnummer} finnes allerede`,
-              });
-              continue;
-            }
-
+          for (const rad of tilOpprettelse) {
             const ansvarlig1Id = rad.ansvarlig1Navn
               ? ansvarligMap.get(rad.ansvarlig1Navn.toLowerCase()) ?? null
               : null;
