@@ -2,15 +2,27 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { prisma } from "@sitedoc/db";
 import { router, protectedProcedure } from "../../trpc/trpc";
+import { autoriserAdminForFirma } from "../../trpc/tilgangskontroll";
 import {
   seedTimerForOrganization,
   seedLonnsartNivaa2,
 } from "../../services/seed";
 
 /**
- * Verifiser at bruker er firmaadmin. Returnerer organizationId.
+ * Verifiser at bruker er firmaadmin for et firma.
+ *
+ * Steg 1b Fase A — bakoverkompatibilitet: hvis `inputOrgId` gitt deleger til
+ * `autoriserAdminForFirma`. Hvis ikke gitt: fallback til bruker.organizationId.
  */
-async function verifiserFirmaAdmin(userId: string): Promise<string> {
+async function verifiserFirmaAdmin(
+  userId: string,
+  inputOrgId?: string,
+): Promise<string> {
+  if (inputOrgId) {
+    await autoriserAdminForFirma(userId, inputOrgId);
+    return inputOrgId;
+  }
+
   const bruker = await prisma.user.findUniqueOrThrow({
     where: { id: userId },
     select: { role: true, organizationId: true },
@@ -25,7 +37,20 @@ async function verifiserFirmaAdmin(userId: string): Promise<string> {
   return bruker.organizationId;
 }
 
-async function hentBrukerOrgId(userId: string): Promise<string> {
+/**
+ * Read-only orgId for ansatte. Sitedoc_admin med inputOrgId kan se vilkårlig firma.
+ */
+async function hentBrukerOrgId(userId: string, inputOrgId?: string): Promise<string> {
+  if (inputOrgId) {
+    const bruker = await prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { role: true, organizationId: true },
+    });
+    if (bruker.role === "sitedoc_admin") return inputOrgId;
+    if (bruker.organizationId === inputOrgId) return inputOrgId;
+    throw new TRPCError({ code: "FORBIDDEN", message: "Ikke ditt firma" });
+  }
+
   const bruker = await prisma.user.findUniqueOrThrow({
     where: { id: userId },
     select: { organizationId: true },
@@ -38,8 +63,10 @@ async function hentBrukerOrgId(userId: string): Promise<string> {
 
 export const onboardingRouter = router({
   // Hent status for Timer-modulen + katalog-størrelser (read-only for alle ansatte i firma)
-  status: protectedProcedure.query(async ({ ctx }) => {
-    const orgId = await hentBrukerOrgId(ctx.userId);
+  status: protectedProcedure
+    .input(z.object({ organizationId: z.string().uuid().optional() }).optional())
+    .query(async ({ ctx, input }) => {
+    const orgId = await hentBrukerOrgId(ctx.userId, input?.organizationId);
 
     const [organisasjon, antallNivaa1, antallNivaa2, antallTotalt, antallAktiviteter, antallTillegg, antallExpense] =
       await Promise.all([
@@ -72,10 +99,11 @@ export const onboardingRouter = router({
     .input(
       z.object({
         inkluderNivaa2: z.boolean().default(false),
+        organizationId: z.string().uuid().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const orgId = await verifiserFirmaAdmin(ctx.userId);
+      const orgId = await verifiserFirmaAdmin(ctx.userId, input.organizationId);
 
       // Sett harTimerModul = true (idempotent)
       await ctx.prisma.organization.update({
@@ -94,8 +122,10 @@ export const onboardingRouter = router({
     }),
 
   // Importer Nivå 2-pakken etter at Nivå 1 allerede er seedet
-  aktiverNivaa2: protectedProcedure.mutation(async ({ ctx }) => {
-    const orgId = await verifiserFirmaAdmin(ctx.userId);
+  aktiverNivaa2: protectedProcedure
+    .input(z.object({ organizationId: z.string().uuid().optional() }).optional())
+    .mutation(async ({ ctx, input }) => {
+    const orgId = await verifiserFirmaAdmin(ctx.userId, input?.organizationId);
 
     const organisasjon = await ctx.prisma.organization.findUniqueOrThrow({
       where: { id: orgId },
@@ -115,8 +145,10 @@ export const onboardingRouter = router({
   // «Migrerer fra annet system» — aktiver modulen UTEN å seede Nivå 1
   // (per timer.md § Onboarding scenario B). Idempotens: tom katalog tillates
   // bare hvis ingen lønnsarter finnes fra før.
-  aktiverTomKatalog: protectedProcedure.mutation(async ({ ctx }) => {
-    const orgId = await verifiserFirmaAdmin(ctx.userId);
+  aktiverTomKatalog: protectedProcedure
+    .input(z.object({ organizationId: z.string().uuid().optional() }).optional())
+    .mutation(async ({ ctx, input }) => {
+    const orgId = await verifiserFirmaAdmin(ctx.userId, input?.organizationId);
 
     const antall = await ctx.prismaTimer.lonnsart.count({
       where: { organizationId: orgId },

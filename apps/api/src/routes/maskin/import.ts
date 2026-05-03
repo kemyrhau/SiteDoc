@@ -2,6 +2,7 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../../trpc/trpc";
 import { prisma } from "@sitedoc/db";
+import { autoriserAdminForFirma } from "../../trpc/tilgangskontroll";
 import {
   beregnFilHash,
   parseSmartDokXlsx,
@@ -28,7 +29,14 @@ import { krevMaskinAktivert } from "../../services/maskin";
 
 const VEGVESEN_PRIO_SMARTDOK_IMPORT = 200;
 
-async function verifiserFirmaAdmin(userId: string): Promise<string> {
+// Steg 1b Fase A — bakoverkompatibilitet: hvis `inputOrgId` gitt deleger til
+// `autoriserAdminForFirma`. Hvis ikke gitt: fallback til bruker.organizationId.
+async function verifiserFirmaAdmin(userId: string, inputOrgId?: string): Promise<string> {
+  if (inputOrgId) {
+    await autoriserAdminForFirma(userId, inputOrgId);
+    return inputOrgId;
+  }
+
   const bruker = await prisma.user.findUniqueOrThrow({
     where: { id: userId },
     select: { role: true, organizationId: true },
@@ -73,13 +81,14 @@ async function matchAnsvarlige(
 
 const filInputSchema = z.object({
   filInnhold: z.string().max(10_000_000), // base64 ~7MB rå = ~10MB base64
+  organizationId: z.string().uuid().optional(),
 });
 
 export const importRouter = router({
   importerForhandsvisning: protectedProcedure
     .input(filInputSchema)
     .mutation(async ({ ctx, input }) => {
-      const orgId = await verifiserFirmaAdmin(ctx.userId);
+      const orgId = await verifiserFirmaAdmin(ctx.userId, input.organizationId);
       await krevMaskinAktivert(orgId);
 
       const buffer = Buffer.from(input.filInnhold, "base64");
@@ -209,7 +218,7 @@ export const importRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const orgId = await verifiserFirmaAdmin(ctx.userId);
+      const orgId = await verifiserFirmaAdmin(ctx.userId, input.organizationId);
       await krevMaskinAktivert(orgId);
 
       const buffer = Buffer.from(input.filInnhold, "base64");

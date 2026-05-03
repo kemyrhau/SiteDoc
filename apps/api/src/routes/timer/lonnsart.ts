@@ -3,12 +3,20 @@ import { TRPCError } from "@trpc/server";
 import { Prisma } from "@sitedoc/db-timer";
 import { prisma } from "@sitedoc/db";
 import { router, protectedProcedure } from "../../trpc/trpc";
+import { autoriserAdminForFirma } from "../../trpc/tilgangskontroll";
 import { krevTimerAktivert } from "../../services/timer";
 
 const TYPE_VERDIER = ["ordinaer", "fravaer", "feriepenger", "diett"] as const;
 const SATS_ENHET_VERDIER = ["per_dag", "per_natt", "per_km", "per_time"] as const;
 
-async function verifiserFirmaAdmin(userId: string): Promise<string> {
+// Steg 1b Fase A — bakoverkompatibilitet: hvis `inputOrgId` gitt deleger til
+// `autoriserAdminForFirma`. Hvis ikke gitt: fallback til bruker.organizationId.
+async function verifiserFirmaAdmin(userId: string, inputOrgId?: string): Promise<string> {
+  if (inputOrgId) {
+    await autoriserAdminForFirma(userId, inputOrgId);
+    return inputOrgId;
+  }
+
   const bruker = await prisma.user.findUniqueOrThrow({
     where: { id: userId },
     select: { role: true, organizationId: true },
@@ -23,7 +31,17 @@ async function verifiserFirmaAdmin(userId: string): Promise<string> {
   return bruker.organizationId;
 }
 
-async function hentBrukerOrgId(userId: string): Promise<string> {
+async function hentBrukerOrgId(userId: string, inputOrgId?: string): Promise<string> {
+  if (inputOrgId) {
+    const bruker = await prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { role: true, organizationId: true },
+    });
+    if (bruker.role === "sitedoc_admin") return inputOrgId;
+    if (bruker.organizationId === inputOrgId) return inputOrgId;
+    throw new TRPCError({ code: "FORBIDDEN", message: "Ikke ditt firma" });
+  }
+
   const bruker = await prisma.user.findUniqueOrThrow({
     where: { id: userId },
     select: { organizationId: true },
@@ -41,11 +59,12 @@ export const lonnsartRouter = router({
       z
         .object({
           inkluderInaktiv: z.boolean().default(false),
+          organizationId: z.string().uuid().optional(),
         })
         .optional(),
     )
     .query(async ({ ctx, input }) => {
-      const orgId = await hentBrukerOrgId(ctx.userId);
+      const orgId = await hentBrukerOrgId(ctx.userId, input?.organizationId);
       const inkluderInaktiv = input?.inkluderInaktiv ?? false;
 
       return ctx.prismaTimer.lonnsart.findMany({
@@ -70,10 +89,11 @@ export const lonnsartRouter = router({
         skalEksporteres: z.boolean().optional(),
         tvungenKommentar: z.boolean().optional(),
         rekkefolge: z.number().int().optional(),
+        organizationId: z.string().uuid().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const orgId = await verifiserFirmaAdmin(ctx.userId);
+      const orgId = await verifiserFirmaAdmin(ctx.userId, input.organizationId);
       await krevTimerAktivert(orgId);
 
       try {
@@ -122,10 +142,11 @@ export const lonnsartRouter = router({
         tvungenKommentar: z.boolean().optional(),
         rekkefolge: z.number().int().optional(),
         aktiv: z.boolean().optional(),
+        organizationId: z.string().uuid().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const orgId = await verifiserFirmaAdmin(ctx.userId);
+      const orgId = await verifiserFirmaAdmin(ctx.userId, input.organizationId);
 
       const eksisterende = await ctx.prismaTimer.lonnsart.findFirst({
         where: { id: input.id, organizationId: orgId },
@@ -172,9 +193,12 @@ export const lonnsartRouter = router({
   // Soft-delete: setter aktiv = false. Lønnsarter slettes aldri hardt
   // siden SheetTimer.lonnsartId har Restrict-FK.
   deaktiver: protectedProcedure
-    .input(z.object({ id: z.string().uuid() }))
+    .input(z.object({
+      id: z.string().uuid(),
+      organizationId: z.string().uuid().optional(),
+    }))
     .mutation(async ({ ctx, input }) => {
-      const orgId = await verifiserFirmaAdmin(ctx.userId);
+      const orgId = await verifiserFirmaAdmin(ctx.userId, input.organizationId);
 
       const eksisterende = await ctx.prismaTimer.lonnsart.findFirst({
         where: { id: input.id, organizationId: orgId },

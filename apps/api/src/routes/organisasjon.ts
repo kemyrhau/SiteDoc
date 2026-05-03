@@ -2,15 +2,29 @@ import { z } from "zod";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { TRPCError } from "@trpc/server";
 import { prisma } from "@sitedoc/db";
+import { autoriserAdminForFirma } from "../trpc/tilgangskontroll";
 
 /**
- * Verifiser at bruker er firmaadmin for sin organisasjon.
- * Returnerer organisasjonId.
+ * Verifiser at bruker er firmaadmin for et firma.
+ *
+ * Steg 1b Fase A — bakoverkompatibilitet:
+ *  - Hvis `inputOrgId` gitt: deleger til `autoriserAdminForFirma` (sitedoc_admin
+ *    kan jobbe i kundens kontekst når klienten sender valgtFirma.id).
+ *  - Hvis `inputOrgId` ikke gitt: fallback til gammel logikk (henter orgId fra
+ *    bruker.organizationId — fungerer kun for company_admin med eget firma).
+ *
+ * Returnerer organisasjonId som ble autorisert.
  */
 async function verifiserFirmaAdmin(
   _prisma: typeof prisma,
   userId: string,
-) {
+  inputOrgId?: string,
+): Promise<string> {
+  if (inputOrgId) {
+    await autoriserAdminForFirma(userId, inputOrgId);
+    return inputOrgId;
+  }
+
   const bruker = await prisma.user.findUniqueOrThrow({
     where: { id: userId },
     select: { role: true, organizationId: true },
@@ -25,14 +39,6 @@ async function verifiserFirmaAdmin(
   }
 
   return bruker.organizationId;
-}
-
-async function erSiteDocAdmin(userId: string): Promise<boolean> {
-  const bruker = await prisma.user.findUniqueOrThrow({
-    where: { id: userId },
-    select: { role: true },
-  });
-  return bruker.role === "sitedoc_admin";
 }
 
 export const organisasjonRouter = router({
@@ -123,14 +129,12 @@ export const organisasjonRouter = router({
       return orgProject?.organization ?? null;
     }),
 
-  // Hent organisasjon med ID (kun firmaadmin)
+  // Hent organisasjon med ID (kun firmaadmin).
+  // Fase A: id-feltet er allerede orgId — autoriserer direkte mot input.
   hentMedId: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
-      const orgId = await verifiserFirmaAdmin(ctx.prisma, ctx.userId);
-      if (orgId !== input.id) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "Ikke din organisasjon" });
-      }
+      await autoriserAdminForFirma(ctx.userId, input.id);
 
       return ctx.prisma.organization.findUniqueOrThrow({
         where: { id: input.id },
@@ -138,8 +142,10 @@ export const organisasjonRouter = router({
     }),
 
   // Hent organisasjonens prosjekter (kun firmaadmin)
-  hentProsjekter: protectedProcedure.query(async ({ ctx }) => {
-    const orgId = await verifiserFirmaAdmin(ctx.prisma, ctx.userId);
+  hentProsjekter: protectedProcedure
+    .input(z.object({ organizationId: z.string().uuid().optional() }).optional())
+    .query(async ({ ctx, input }) => {
+    const orgId = await verifiserFirmaAdmin(ctx.prisma, ctx.userId, input?.organizationId);
 
     const orgProsjekter = await ctx.prisma.projectOrganization.findMany({
       where: { organizationId: orgId },
@@ -166,8 +172,10 @@ export const organisasjonRouter = router({
   }),
 
   // Hent organisasjonens brukere (kun firmaadmin)
-  hentBrukere: protectedProcedure.query(async ({ ctx }) => {
-    const orgId = await verifiserFirmaAdmin(ctx.prisma, ctx.userId);
+  hentBrukere: protectedProcedure
+    .input(z.object({ organizationId: z.string().uuid().optional() }).optional())
+    .query(async ({ ctx, input }) => {
+    const orgId = await verifiserFirmaAdmin(ctx.prisma, ctx.userId, input?.organizationId);
 
     return ctx.prisma.user.findMany({
       where: { organizationId: orgId },
@@ -183,7 +191,8 @@ export const organisasjonRouter = router({
     });
   }),
 
-  // Oppdater organisasjon (firmaadmin for sin egen, sitedoc_admin for vilkårlig)
+  // Oppdater organisasjon (firmaadmin for sin egen, sitedoc_admin for vilkårlig).
+  // Fase A: konsolidert via verifiserFirmaAdmin med valgfri organizationId-input.
   oppdater: protectedProcedure
     .input(
       z.object({
@@ -198,17 +207,7 @@ export const organisasjonRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       const { organizationId: inputOrgId, ...data } = input;
-
-      // sitedoc_admin kan redigere vilkårlig firma via organizationId
-      if (inputOrgId && await erSiteDocAdmin(ctx.userId)) {
-        return ctx.prisma.organization.update({
-          where: { id: inputOrgId },
-          data,
-        });
-      }
-
-      // Ellers: brukerens egen organisasjon
-      const orgId = await verifiserFirmaAdmin(ctx.prisma, ctx.userId);
+      const orgId = await verifiserFirmaAdmin(ctx.prisma, ctx.userId, inputOrgId);
 
       return ctx.prisma.organization.update({
         where: { id: orgId },
@@ -218,9 +217,12 @@ export const organisasjonRouter = router({
 
   // Legg til prosjekt til organisasjonen (kun firmaadmin)
   leggTilProsjekt: protectedProcedure
-    .input(z.object({ projectId: z.string().uuid() }))
+    .input(z.object({
+      projectId: z.string().uuid(),
+      organizationId: z.string().uuid().optional(),
+    }))
     .mutation(async ({ ctx, input }) => {
-      const orgId = await verifiserFirmaAdmin(ctx.prisma, ctx.userId);
+      const orgId = await verifiserFirmaAdmin(ctx.prisma, ctx.userId, input.organizationId);
 
       return ctx.prisma.projectOrganization.upsert({
         where: {
@@ -239,9 +241,12 @@ export const organisasjonRouter = router({
 
   // Fjern prosjekt fra organisasjonen (kun firmaadmin)
   fjernProsjekt: protectedProcedure
-    .input(z.object({ projectId: z.string().uuid() }))
+    .input(z.object({
+      projectId: z.string().uuid(),
+      organizationId: z.string().uuid().optional(),
+    }))
     .mutation(async ({ ctx, input }) => {
-      const orgId = await verifiserFirmaAdmin(ctx.prisma, ctx.userId);
+      const orgId = await verifiserFirmaAdmin(ctx.prisma, ctx.userId, input.organizationId);
 
       return ctx.prisma.projectOrganization.delete({
         where: {
@@ -254,8 +259,10 @@ export const organisasjonRouter = router({
     }),
 
   // Hent integrasjonsstatus for organisasjonen (kun firmaadmin)
-  hentIntegrasjonerStatus: protectedProcedure.query(async ({ ctx }) => {
-    const orgId = await verifiserFirmaAdmin(ctx.prisma, ctx.userId);
+  hentIntegrasjonerStatus: protectedProcedure
+    .input(z.object({ organizationId: z.string().uuid().optional() }).optional())
+    .query(async ({ ctx, input }) => {
+    const orgId = await verifiserFirmaAdmin(ctx.prisma, ctx.userId, input?.organizationId);
 
     const integrasjoner = await ctx.prisma.organizationIntegration.findMany({
       where: { organizationId: orgId },
@@ -282,10 +289,11 @@ export const organisasjonRouter = router({
       z.object({
         userId: z.string(),
         rolle: z.enum(["user", "company_admin"]),
+        organizationId: z.string().uuid().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const orgId = await verifiserFirmaAdmin(ctx.prisma, ctx.userId);
+      const orgId = await verifiserFirmaAdmin(ctx.prisma, ctx.userId, input.organizationId);
 
       // Verifiser at målbrukeren tilhører samme organisasjon
       const målbruker = await ctx.prisma.user.findUnique({
@@ -329,9 +337,10 @@ export const organisasjonRouter = router({
     .input(z.object({
       userId: z.string().uuid(),
       role: z.string().min(1), // "hms_ansvarlig" osv.
+      organizationId: z.string().uuid().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
-      const orgId = await verifiserFirmaAdmin(ctx.prisma, ctx.userId);
+      const orgId = await verifiserFirmaAdmin(ctx.prisma, ctx.userId, input.organizationId);
 
       // Validering: målbruker må tilhøre samme firma
       const målbruker = await ctx.prisma.user.findUnique({
@@ -368,9 +377,10 @@ export const organisasjonRouter = router({
     .input(z.object({
       userId: z.string().uuid(),
       role: z.string().min(1),
+      organizationId: z.string().uuid().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
-      const orgId = await verifiserFirmaAdmin(ctx.prisma, ctx.userId);
+      const orgId = await verifiserFirmaAdmin(ctx.prisma, ctx.userId, input.organizationId);
 
       const resultat = await ctx.prisma.organizationRole.deleteMany({
         where: {
@@ -385,8 +395,10 @@ export const organisasjonRouter = router({
 
   // Hent OrganizationSetting for innlogget brukers firma.
   // Upserts default-rad ved første kall (eldre Organization-rader kan mangle setting).
-  hentSetting: protectedProcedure.query(async ({ ctx }) => {
-    const orgId = await verifiserFirmaAdmin(ctx.prisma, ctx.userId);
+  hentSetting: protectedProcedure
+    .input(z.object({ organizationId: z.string().uuid().optional() }).optional())
+    .query(async ({ ctx, input }) => {
+    const orgId = await verifiserFirmaAdmin(ctx.prisma, ctx.userId, input?.organizationId);
     return ctx.prisma.organizationSetting.upsert({
       where: { organizationId: orgId },
       create: { organizationId: orgId },
@@ -398,6 +410,7 @@ export const organisasjonRouter = router({
   oppdaterSetting: protectedProcedure
     .input(
       z.object({
+        organizationId: z.string().uuid().optional(),
         timezone: z.string().min(1).optional(),
         timerTilgangDefault: z
           .enum(["alle-ansatte", "kun-prosjektmedlemmer", "sertifiserte"])
@@ -414,14 +427,15 @@ export const organisasjonRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const orgId = await verifiserFirmaAdmin(ctx.prisma, ctx.userId);
+      const { organizationId: inputOrgId, ...settingData } = input;
+      const orgId = await verifiserFirmaAdmin(ctx.prisma, ctx.userId, inputOrgId);
       return ctx.prisma.organizationSetting.upsert({
         where: { organizationId: orgId },
         create: {
           organizationId: orgId,
-          ...input,
+          ...settingData,
         },
-        update: input,
+        update: settingData,
       });
     }),
 });
