@@ -288,7 +288,7 @@ Ingen steg kan hoppes over — hvert steg er forutsetning for neste.
   - Lag 2: 10 klient-sider sender valgtFirma.id
   - Lag 3: «Firmainnstillinger» → «Eier-firma» (avvik fra plan: «Prosjekteier» kolliderte med eksisterende parent-kategori)
 
-- [x] **1c. OrganizationModule-overgang Fase A+B** (~5t) — IMPLEMENTERT 2026-05-03 (`d581e399`)
+- [x] **1c. OrganizationModule-overgang Fase A+B** (~5t) — DEPLOYET TIL PROD 2026-05-03 (`87fb7292` merge, `d581e399` Fase A+B + `6921ffea` mini-Fase C)
   - Fase A: bakfyll-migrasjon `20260503010000_steg_1c_module_backfill` + moduleGate-helpers utvidet med valgfri `projectId`-param
   - Fase B: auto-sync hooks i `prosjekt.opprett` + `prosjekt.opprettTestprosjekt` + ny `services/firmamodul.ts` + `organisasjon.settFirmamodul`-mutation + timer-onboarding-refaktor + `HovedSidebar` migrert til ProjectModule-sjekk
   - Mini-Fase C (kommentar-rens, 2026-05-03): `har_*_modul`-kolonnene beholdes som firma-master-bryter; full drop til `OrganizationModule`-tabell utsatt til Steg 1e (kreves for at firma uten prosjekter fortsatt kan onboarde lønnsarter — A.Markussen-flow ville brutt med rent ProjectModule-avledet aktivering)

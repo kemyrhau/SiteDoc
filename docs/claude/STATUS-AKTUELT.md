@@ -13,7 +13,7 @@ peker hit. Beslutningsgrunnlag og arkitektur ligger i
 
 ## Pågående arbeid
 
-**Steg 1c (OrganizationModule-overgang) IMPLEMENTERT på develop 2026-05-03** (`d581e399` Fase A+B). Tredje steg i prioritert byggerekkefølge fra [domene-arbeidsflyt.md](domene-arbeidsflyt.md). Test-verifisert som innlogget Kari Firmaadmin (Byggeleder): nytt prosjekt opprettet → 2 ProjectModule-rader auto-opprettet (timer+maskin, status=aktiv, organization_id=Byggeleder).
+**Steg 1c (OrganizationModule-overgang) DEPLOYET TIL PROD 2026-05-03** (`87fb7292` merge, `d581e399` Fase A+B + `6921ffea` mini-Fase C). Migrasjon `20260503010000_steg_1c_module_backfill` applied på sitedoc + sitedoc_test. Bakfyll-tellinger: 0 rader på begge DB-er (kunde-firma har 0 prosjekter med primary-rolle ennå — auto-sync hooket aktiveres ved første prosjekt-opprettelse). HTTP/2 200 web, HTTP/2 204 API. Test-verifisert som innlogget Kari Firmaadmin før prod-deploy: nytt prosjekt → 2 ProjectModule-rader auto-opprettet (timer+maskin, status=aktiv, organization_id=Byggeleder). Tredje steg i prioritert byggerekkefølge ferdig.
 
 **Mini-Fase C lukker Steg 1c (kommentar-rens, ikke drop):** Drop av `har_*_modul`-kolonner krever en `OrganizationModule`-tabell — firma uten prosjekter trenger flagget for å onboarde lønnsarter (A.Markussen-flow). Den jobben er utsatt til **Steg 1e** (fremtidig). Kommentarer i `schema.prisma` + `moduleGate.ts` oppdatert til endelig to-nivås-modell. Steg 1d (drop `active Boolean` + ny unique på ProjectModule) er uavhengig og påvirkes ikke.
 

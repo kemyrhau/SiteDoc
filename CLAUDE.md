@@ -51,7 +51,7 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 
 ## Pågående arbeid (kort)
 
-**Steg 1c (OrganizationModule-overgang) IMPLEMENTERT på develop 2026-05-03** (`d581e399` Fase A+B + commit som lukker mini-Fase C). Tredje steg i prioritert byggerekkefølge fra [docs/claude/domene-arbeidsflyt.md](docs/claude/domene-arbeidsflyt.md). To-nivås modul-aktivering: `Organization.har_*_modul` = firma-master-bryter, `ProjectModule(slug, organizationId, status="aktiv")` = prosjekt-instans. Auto-sync-hooks holder dem konsistente.
+**Steg 1c (OrganizationModule-overgang) DEPLOYET TIL PROD 2026-05-03** (`87fb7292` merge, `d581e399` Fase A+B + `6921ffea` mini-Fase C). Tredje steg i prioritert byggerekkefølge fra [docs/claude/domene-arbeidsflyt.md](docs/claude/domene-arbeidsflyt.md). To-nivås modul-aktivering: `Organization.har_*_modul` = firma-master-bryter, `ProjectModule(slug, organizationId, status="aktiv")` = prosjekt-instans. Auto-sync-hooks holder dem konsistente.
 
 **Fase A — datamodell + bakfyll:**
 - Migrasjon `20260503010000_steg_1c_module_backfill` — INSERT ProjectModule(slug=timer/maskin, organizationId, status="aktiv") for prosjekter der primary_organization har flagget aktivert. Idempotent via ON CONFLICT. Test+prod: 0 rader nå (Byggeleder/A.Markussen har 0 prosjekter med primary-rolle) — ren no-op safety-net.
