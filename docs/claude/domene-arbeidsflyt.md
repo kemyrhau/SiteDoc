@@ -277,11 +277,10 @@ Ingen steg kan hoppes over — hvert steg er forutsetning for neste.
   - Server: `organisasjon.hentTilgjengelige` filtrerer på `erKunde:true` for sitedoc_admin
   - Klient: `Firma`-type i `firma-kontekst.tsx` utvidet med `erKunde:boolean`
 
-- [ ] **1b. Firma-kontekst Lag 1+2+3** (~10-12t)
-  - Lag 1: ~10 server-ruter tar organizationId som input
-  - Lag 2: ~10 klient-sider sender valgtFirma.id
-  - Lag 3: Rename «Firmainnstillinger» → «Prosjekteier» (30 min)
-  - Blokkerer: sitedoc_admin kan ikke jobbe i kundens kontekst
+- [x] **1b. Firma-kontekst Lag 1+2+3** (~10-12t) — DEPLOYET TIL PROD 2026-05-03 (`045a49b7`)
+  - Lag 1: 9 router-filer (~46 endepunkter) tar organizationId — påkrevd for write, valgfri med fallback for read-only katalog
+  - Lag 2: 10 klient-sider sender valgtFirma.id
+  - Lag 3: «Firmainnstillinger» → «Eier-firma» (avvik fra plan: «Prosjekteier» kolliderte med eksisterende parent-kategori)
 
 - [ ] **1c. OrganizationModule-overgang** (~6-10t)
   - Erstatter harTimerModul/harMaskinModul-flag med ProjectModule.status
