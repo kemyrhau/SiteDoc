@@ -143,6 +143,18 @@ Status og detaljer: [db-opprydning.md](db-opprydning.md).
 
 ## Planlagte oppgaver
 
+**Arkitektur-planlegging — samlet sesjon nødvendig (2026-05-03):**
+Følgende moduler mangler forankring i vedtatt arkitekturplan (CLAUDE.md linje 518-540):
+- Timer-modul: bygget uten global firma-kontekst på plass
+- Maskin-register: bygget uten global firma-kontekst på plass
+- Mannskap/kompetansematrise: ikke planlagt i firma-kontekst
+- Organization vs OrganizationPartner: skillet mangler i datamodellen
+
+Før videre koding på noen av disse: hold en dedikert planleggingssesjon med
+frisk Opus-kontekst. Les CLAUDE.md linje 518-540 som utgangspunkt.
+Kartlegg alle koblinger mellom modulene og firma-konteksten.
+Prioriter: Strategi A (modul-filter) → firma-kontekst full konvergens → maskin-import.
+
 **Organization vs OrganizationPartner — fundamentalt skille mangler (observert 2026-05-03):** Test-DB inneholder Organization-rader som ikke er reelle kunder (Byggherre, Tømrer Hansen, Elektrikker Hansen, Hovedentreprenør). De ble opprettet som «skall-firmaer» for å representere parter i faggrupper/dokumentflyt. Datamodellen tillater dette uten advarsel — det finnes ingen `type`/`erKunde`-felt på Organization som skiller «firma som bruker SiteDoc» fra «firma som er part i et prosjekt».
 
 **Riktig modell:** `OrganizationPartner` (linje 197-217 i schema.prisma) er det rette stedet for faggruppe-parter. Hvert kunde-firma har sitt eget partner-bibliotek (`OrganizationPartner.organizationId` peker til kunden). `Faggruppe.partnerId` (nullable FK) kobler en faggruppe til en partner-rad. Den eksisterer for nettopp dette formålet, men test-data har misbrukt Organization-tabellen i stedet.
