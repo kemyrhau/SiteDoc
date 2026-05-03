@@ -13,6 +13,10 @@ peker hit. Beslutningsgrunnlag og arkitektur ligger i
 
 ## Pågående arbeid
 
+**Steg 1a (Organization.erKunde) IMPLEMENTERT på develop 2026-05-03** — første steg i prioritert byggerekkefølge fra [domene-arbeidsflyt.md](domene-arbeidsflyt.md). Lukker Strategi C i «Organization vs OrganizationPartner — fundamentalt skille mangler» (planlagte oppgaver, observert 2026-05-03). Ny `Organization.erKunde Boolean default false` + migrasjon `20260503000001_add_organization_er_kunde` med backfill. Heuristikk: `er_kunde=true` hvis `har_maskin_modul` OR `har_timer_modul` OR finnes `Project.primary_organization_id` OR finnes `Avdeling`. `organization_settings` og `users` droppet som signaler (auto-upsert ved første hentSetting-kall + testdata-misbruk: rolle-test-brukere lagt på alle skall-firmaer på test). Forhåndsverifisert mot test-DB (forventet: 1 kunde Byggeleder, 4 skall: Byggherre/Tømrer Hansen/Elektrikker Hansen/Hovedentreprenør) og prod-DB (forventet: 3 kunder A.Markussen/HRP AS/Kenneths testmiljø, 0 skall). Server: `organisasjon.hentTilgjengelige` filtrerer på `erKunde:true` for sitedoc_admin (company_admin-grenen uendret). `hentMin` returnerer hele Organization (inkl. `erKunde`). Klient: `Firma`-type i `firma-kontekst.tsx` utvidet med `erKunde:boolean`. `pnpm build --filter @sitedoc/web` grønt + `tsc --noEmit` grønt for api. Test-deploy + innlogget verifisering som sitedoc_admin gjenstår.
+
+**Global firma-kontekst (FirmaVelger i Toppbar) DEPLOYET TIL TEST 2026-05-03** (`a2d45c02` + `9175ab84`) — kun `firma/layout.tsx` følger velgeren, undersider krever Lag 1+2+3 (se planlagte oppgaver).
+
 **Status 2026-05-02:** **Fase 0 § E KOMPLETT i prod**. **Fase 0.5 KOMPLETT i prod**. **Timer-modul Fase 3 — Runde 1A + 1B + 1C DEPLOYET TIL PROD**. **Runde 2 (mobil + offline-sync) C1–C8 KOMPLETT på develop** (merge `1cce62f3` 2026-05-02 sent kveld). C5 visuelt verifisert på iOS Simulator + fysisk mobil etter første test-deploy. **Runde 2 + 2.5 / C9 deployet til prod 2026-05-02** (`de33aefc`). **Maskin terminologi-rename «pensjonert» → «utgaatt» DEPLOYET TIL PROD 2026-05-02** (`03d8c63a` — migrasjon `20260502120000_rename_pensjonert_til_utgaatt` applied på sitedoc + sitedoc_test). **Runde 2.6 mobil maskin-cache DEPLOYET TIL PROD 2026-05-02** (`03d8c63a`). **Runde 2.7 «Mine timer» + DagstotalBanner + UkeTotalBanner + web ukesoppsummering DEPLOYET TIL PROD 2026-05-02** (`05b3bddb`) — ny `/dashbord/timer/mine` (web, 5-perioder + 4 oppsummerings-kort + per aktivitet/status), ny `/timer/mine` (mobil, 3-perioder + 2 pills + aktivitet-aggregering), DagstotalBanner i mobil ny+detalj, web uke-totalsum, sidebar/Mer-tab-link. Ingen DB-migrasjon, ingen server-endring (gjenbruker `timer.dagsseddel.list`). Mobil får funksjonalitet ved neste EAS Build. Se [dagsseddel-design.md](dagsseddel-design.md) + [fase-0-beslutninger.md C.18](fase-0-beslutninger.md).
 
 **Rolle-arkitektur-avklaring DEPLOYET TIL PROD 2026-05-02** (`6f6d3d68`) — `ProjectMember.kanAttestere Boolean` lagt til som kapabilitets-felt. Erstatter mye-omtalt `project_manager`-rolle som kun var i bruk i `dagsseddel.ts` (2 referanser, ingen rader i DB). Backfill: alle `role="admin"` får `kanAttestere=true` ved migrering — verifisert på test-DB (Per Prosjektadmin har `kanAttestere=true`, Ola Tømrer har `false`). CLAUDE.md rolletabell renset for `worker`/`field_user`/`project_manager` (fantasi-verdier som aldri eksisterte i kode/DB). Migrasjon `20260502160000_add_kan_attestere` applied på sitedoc + sitedoc_test. UI: sub-pill «✓ Attestering» under rolle-cellen i prosjekt-medlem-admin (`/dashbord/oppsett/brukere`) + ny `medlem.settKanAttestere`-mutation. Esc-fiks for redigeringsmodus inkludert. Lærdom: `prisma generate` MÅ kjøres FØR `migrate deploy` på server — `pnpm install --frozen-lockfile` regenererer ikke klient-typene.
@@ -142,6 +146,49 @@ Status og detaljer: [db-opprydning.md](db-opprydning.md).
 **Timer/Maskin-revurdering** er utsatt til etter Fase 0-fundament er ferdig. timer.md og maskin.md har drift mot fase-0-beslutninger og må justeres før Fase 3 (Timer-modul) og Fase 1-fullføring (Maskin-modul-gateway) — men Fase 0-fundamentet bygges nå uavhengig av denne revurderingen.
 
 ## Planlagte oppgaver
+
+**Arkitektur-planlegging — samlet sesjon nødvendig (2026-05-03):**
+Følgende moduler mangler forankring i vedtatt arkitekturplan ([terminologi.md § 0](terminologi.md) tre nivåer: Firma → Firmaadministrasjon → Prosjekter, samt [arkitektur-syntese.md](arkitektur-syntese.md) helhetlig produktarkitektur):
+- Timer-modul: bygget uten global firma-kontekst på plass
+- Maskin-register: bygget uten global firma-kontekst på plass
+- Mannskap/kompetansematrise: ikke planlagt i firma-kontekst
+- Organization vs OrganizationPartner: skillet mangler i datamodellen
+
+Før videre koding på noen av disse: hold en dedikert planleggingssesjon med
+frisk Opus-kontekst. Les [terminologi.md § 0](terminologi.md) + [arkitektur-syntese.md](arkitektur-syntese.md) som utgangspunkt.
+Kartlegg alle koblinger mellom modulene og firma-konteksten.
+Prioriter: Strategi A (modul-filter) → firma-kontekst full konvergens → maskin-import.
+
+**Organization vs OrganizationPartner — fundamentalt skille mangler (observert 2026-05-03):** Test-DB inneholder Organization-rader som ikke er reelle kunder (Byggherre, Tømrer Hansen, Elektrikker Hansen, Hovedentreprenør). De ble opprettet som «skall-firmaer» for å representere parter i faggrupper/dokumentflyt. Datamodellen tillater dette uten advarsel — det finnes ingen `type`/`erKunde`-felt på Organization som skiller «firma som bruker SiteDoc» fra «firma som er part i et prosjekt».
+
+**Riktig modell:** `OrganizationPartner` (linje 197-217 i schema.prisma) er det rette stedet for faggruppe-parter. Hvert kunde-firma har sitt eget partner-bibliotek (`OrganizationPartner.organizationId` peker til kunden). `Faggruppe.partnerId` (nullable FK) kobler en faggruppe til en partner-rad. Den eksisterer for nettopp dette formålet, men test-data har misbrukt Organization-tabellen i stedet.
+
+**Heuristikk-signaler for «reelt firma» (i fravær av eksplisitt felt):** users.length > 0 + harMaskinModul/harTimerModul satt + OrganizationSetting eksisterer + primaryProjects.length > 0 + avdelinger/kompetansetyper finnes. Alle disse er null/0 for skall-firmaer.
+
+**Konsekvenser:**
+- Firma-velger i Toppbar (etter `9175ab84`) viser skall-firmaer som om de var administrerbare. Klikk på dem fører til tom firma-admin-side.
+- Maskin-import er særlig sårbart: hvis sitedoc_admin velger et skall-firma og kjører import, opprettes Equipment-rader under et firma ingen administrerer = datakorruption.
+- Prod-DB ser korrekt ut i dag (3 reelle firmaer), men datamodellen forhindrer ikke fremtidig misbruk.
+
+**Mulige strategier (rangert):**
+- **A. Filter på modul-flagg** (5 min) — pragmatisk for maskin/timer-velgere. `WHERE har_maskin_modul = true` filtrerer skall-firmaer effektivt for import-flyten.
+- **B. Filter på users-count** (30 min) — fanger reelle firmaer mer generelt.
+- **C. Nytt felt `Organization.erKunde Boolean`** (2-3t migrasjon + backfill) — eksplisitt skille, riktig langsiktig.
+- **D. Migrer skall-firmaer til OrganizationPartner** (6-8t DB-cleanup) — rensker datakorrupsjon, krever audit per rad.
+
+**Anbefalt rekkefølge:** ~~Strategi A umiddelbart for maskin-import-velgeren.~~ ✅ **Strategi C IMPLEMENTERT 2026-05-03** (`Organization.erKunde`-feltet — se «Pågående arbeid» øverst). Strategi A kan nå bygges på erKunde-feltet hvis behov. Strategi D som datakvalitets-prosjekt etter A.Markussen er stabilt.
+
+**Firma-administrasjons-navigasjon — strukturell rydding (observert 2026-05-03):** Etter at global firma-kontekst (`9175ab84`) ble bygd, observerte vi at firma-velger i Toppbar kun virker på `firma/layout.tsx` — ikke på undersidene. Dypere analyse avdekket to ulike «firma»-konsepter i kodebasen:
+
+1. **`/dashbord/oppsett/firma` («Prosjekteiers innstillinger»)** — viser firma som eier det aktive prosjektet via `ProjectOrganization`-tabellen. Per-prosjekt-bundet, henter via `organisasjon.hentForProsjekt(projectId)`. Viser tom-state «Ingen firma — Du er ikke tilknyttet noe firma» når prosjektet mangler `ProjectOrganization`-rad. Skal IKKE følge FirmaVelger.
+2. **`/dashbord/firma/*` (firma-admin-seksjon, ~12 sider)** — globale firma-funksjoner: avdelinger, brukere, fakturering, innstillinger, kompetanse, prosjekter, timer-katalog. Skal følge FirmaVelger, men hver underside henter sin egen orgId via `verifiserFirmaAdmin(ctx.userId)` som leser `bruker.organizationId` direkte. Sitedoc_admin uten orgId vil fortsatt feile på undersidene.
+
+**Tre lag som mangler for full konvergens:**
+- **Lag 1 (server, ~4-6t):** ~10 ruter må ta `organizationId` som input og bruke ny `autoriserAdminForFirma(userId, orgId)`-helper. Mønster eksisterer i `maskin/import.ts:autoriserImportForFirma`.
+- **Lag 2 (klient, ~3-4t):** ~10 sider må sende `useFirma().valgtFirma.id` som input til mutations/queries.
+- **Lag 3 (rename, ~30 min):** «Firmainnstillinger» under prosjekt-sidebar er forvirrende navngitt — bør rename til «Prosjekteier» eller «Eier-firma» for å tydeliggjøre at det IKKE er firma-admin.
+
+**Total estimat:** ~10-12 timer. Ikke-blokkerende for vanlig drift; sitedoc_admin (Kenneth) påvirket — ikke A.Markussen-kunder. Prioriter etter Maskin-import-leveransen.
 
 **Onboarding-veileder (prioritert — forutsetning for A.Markussen):** Ny bruker vet ikke rekkefølge eller URL for oppsett etter prosjektopprettelse. Observert 2026-05-02: 4 404-feil ved forsøk på å finne faggruppe-oppsett via intuitive URL-er. Konkret rotårsak: to nesten-identiske faggruppe-sider eksisterer (`/dashbord/[prosjektId]/faggrupper` er **read-only**, mens `/dashbord/prosjekter/[id]/faggrupper` har **full CRUD**) — ingen visuell forskjell, ingen lenke fra read-only-siden til full versjon.
 

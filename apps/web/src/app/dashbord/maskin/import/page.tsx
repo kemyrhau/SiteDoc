@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, FileSpreadsheet, AlertTriangle, Check, X } from "lucide-react";
+import { ArrowLeft, FileSpreadsheet, AlertTriangle, Check, X, UploadCloud } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { Button, Spinner } from "@sitedoc/ui";
 
@@ -172,33 +172,34 @@ export default function MaskinImportSide() {
         )}
       </div>
 
-      {/* Steg 1: Opplastning */}
+      {/* Steg 1: Opplastning — label-omsluttende fil-input (SSR-trygt, ingen useRef) */}
       {steg === "opplastning" && (
-        <div className="rounded-lg border border-dashed border-gray-300 bg-white p-8 text-center">
-          <FileSpreadsheet className="mx-auto h-12 w-12 text-gray-400" />
-          <h3 className="mt-3 text-sm font-medium text-gray-900">
-            {t("firma.maskin.import.steg1.tittel")}
-          </h3>
-          <p className="mt-1 text-sm text-gray-500">
-            {t("firma.maskin.import.steg1.beskrivelse")}
+        <label className="group flex w-full cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-white p-12 text-center transition-colors hover:border-sitedoc-primary hover:bg-blue-50/40">
+          <UploadCloud className="h-12 w-12 text-gray-400 transition-colors group-hover:text-sitedoc-primary" />
+          <p className="mt-4 text-base font-semibold text-gray-900">
+            {t("firma.maskin.import.steg1.dropKlikk")}
+          </p>
+          <p className="mt-2 text-sm text-gray-600">
+            {t("firma.maskin.import.steg1.dropFormat")}
           </p>
           <input
             type="file"
             accept=".xlsx"
+            className="hidden"
             onChange={(e) => {
               const fil = e.target.files?.[0];
               if (fil) handleFilValg(fil);
+              e.target.value = "";
             }}
-            className="mt-4 block w-full max-w-sm mx-auto rounded-md border border-gray-300 p-2 text-sm"
           />
           {forhandMutation.isPending && (
-            <div className="mt-4 flex items-center justify-center gap-2 text-sm text-gray-500">
+            <div className="mt-5 flex items-center justify-center gap-2 text-sm text-gray-500">
               <Spinner size="sm" />
               <span>{t("firma.maskin.import.steg1.parser")}</span>
             </div>
           )}
-          {feil && <p className="mt-3 text-sm text-red-600">{feil}</p>}
-        </div>
+          {feil && <p className="mt-4 text-sm text-red-600">{feil}</p>}
+        </label>
       )}
 
       {/* Steg 2: Forhåndsvisning */}

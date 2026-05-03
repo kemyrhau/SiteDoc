@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LayoutDashboard, FolderKanban, Users, CreditCard, Settings, Building2, Award, Clock, BarChart3 } from "lucide-react";
-import { trpc } from "@/lib/trpc";
 import { Spinner } from "@sitedoc/ui";
+import { useFirma } from "@/kontekst/firma-kontekst";
 
 interface NavElement {
   label: string;
@@ -69,8 +69,8 @@ export default function FirmaLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const { data: organisasjon, isLoading } = trpc.organisasjon.hentMin.useQuery();
-  const harTimerModul = (organisasjon as { harTimerModul?: boolean } | null | undefined)?.harTimerModul ?? false;
+  const { valgtFirma, erSitedocAdmin, isLoading } = useFirma();
+  const harTimerModul = valgtFirma?.harTimerModul ?? false;
 
   if (isLoading) {
     return (
@@ -80,11 +80,13 @@ export default function FirmaLayout({
     );
   }
 
-  if (!organisasjon) {
+  if (!valgtFirma) {
     return (
       <div className="flex flex-1 items-center justify-center">
         <p className="text-sm text-gray-500">
-          Du har ikke tilgang til firmaadministrasjon.
+          {erSitedocAdmin
+            ? "Velg firma fra topbar for å administrere det."
+            : "Du har ikke tilgang til firmaadministrasjon."}
         </p>
       </div>
     );
@@ -101,13 +103,8 @@ export default function FirmaLayout({
       <aside className="flex w-[280px] flex-col border-r border-gray-200 bg-white">
         <div className="border-b border-gray-200 px-5 py-4">
           <h2 className="text-lg font-semibold text-gray-900">
-            {organisasjon.name}
+            {valgtFirma.name}
           </h2>
-          {organisasjon.organizationNumber && (
-            <p className="text-xs text-gray-500">
-              Org.nr: {organisasjon.organizationNumber}
-            </p>
-          )}
         </div>
 
         <nav className="flex-1 overflow-y-auto px-3 py-3">
