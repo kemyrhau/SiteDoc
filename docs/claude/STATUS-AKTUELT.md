@@ -13,6 +13,8 @@ peker hit. Beslutningsgrunnlag og arkitektur ligger i
 
 ## Pågående arbeid
 
+**Steg 2 (firma-admin-sider) DEPLOYET TIL PROD 2026-05-03** (`a1463561` merge — samlet 2b+2c+2d, 2a var allerede komplett). HTTP/2 200 verifisert mot `/dashbord/firma/moduler`, `/dashbord/firma/innstillinger`, `/dashbord/nytt-prosjekt`. Ingen DB-migrasjoner i Steg 2. Funksjonell verifisering på test før prod-deploy: sitedoc_admin (Tore) opprettet prosjekt for Byggeleder via firma-kontekst → primary_organization_id satt korrekt + 2 ProjectModule-rader (timer + maskin, status=aktiv) auto-opprettet.
+
 **Steg 2d (prosjekt fra firma-kontekst) IMPLEMENTERT på develop 2026-05-03.** Tredje og siste del av Steg 2. Server tar nå valgfri `organizationId` i prosjekt-opprettelsen, klient sender valgtFirma.id, og duplikat-fil slettet.
 
 **Endringer:**
