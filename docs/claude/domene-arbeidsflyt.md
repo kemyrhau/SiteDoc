@@ -305,12 +305,12 @@ Ingen steg kan hoppes over — hvert steg er forutsetning for neste.
   - Vurder samtidig: ProjectModule unique → `(projectId, organizationId, moduleSlug)` for slugs der cross-org gir mening (timer/maskin); behold `(projectId, moduleSlug)` for prosjektmoduler (oversettelse/PSI/kontrollplan/etc.) — krever distinksjon mellom firmamoduler og prosjektmoduler i schema/runtime
   - Tas når en av disse drivene oppstår: (a) flere enn 2 firmamoduler å spore, (b) behov for status-historikk per firma-modul, (c) konkret cross-org-policy med UE-firma som har egen Timer-katalog på samme prosjekt
 
-### Steg 2 — Firma-admin-sider (bygges på solid fundament)
+### Steg 2 — Firma-admin-sider — DEPLOYET TIL PROD 2026-05-03 (`a1463561` merge)
 
-- [ ] **2a. Firmainformasjon** — navn, org.nr, faktura (read-only fra prosjekt)
-- [ ] **2b. Firmamodul-styring** — Timer, Maskin, Kompetanse, Fremdrift (av/på)
-- [ ] **2c. Firma/organisasjonsinnstillinger** — OrganizationSetting-UI
-- [ ] **2d. Prosjekt → nytt prosjekt** — fra firma-kontekst
+- [x] **2a. Firmainformasjon** — `/dashbord/firma/innstillinger` (navn/org.nr/faktura/EHF). Eksisterende fra før Steg 2 — krysset av uten ny implementasjon.
+- [x] **2b. Firmamodul-styring** — `/dashbord/firma/moduler` (`25cd7675`). Skalerbar konfig-tabell med 5 moduler (timer + maskin tilgjengelig; kompetanse/fremdrift/varelager «kommer snart»). Bruker `organisasjon.settFirmamodul` fra Steg 1c. Aktivering = direkte mutation, deaktivering = bekreftelses-modal.
+- [x] **2c. OrganizationSetting-UI** (`71b369dc`). Utvider `/dashbord/firma/innstillinger` med Tidssone-seksjon + 3 generiske `TilgangPolicySeksjon`-instanser (timer/vareforbruk/maskinbruk).
+- [x] **2d. Prosjekt → nytt prosjekt fra firma-kontekst** (`75c14a29`). Server tar valgfri `organizationId` + autoriserer. Setter `Project.primaryOrganizationId` (også fikset i `opprettTestprosjekt`). Klient sender `valgtFirma?.id` + info-banner for sitedoc_admin. Slettet orphan-duplikat `prosjekter/nytt`.
 
 ### Steg 3 — Maskin-import (med riktig firma-kontekst)
 

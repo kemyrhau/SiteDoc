@@ -1867,6 +1867,7 @@
   "maskin.importerFraSmartDok": "Importer fra SmartDok",
   "firma.maskin.import.tittel": "Importer maskiner fra SmartDok",
   "firma.maskin.import.tilbakeTilMaskin": "Tilbake til maskinregister",
+  "firma.maskin.import.velgFirma": "Velg et kunde-firma fra toppmenyen før du kan importere maskinregister.",
   "firma.maskin.import.fillinje": "{{totalt}} rader, {{filtrert}} filtrert (testdata)",
   "firma.maskin.import.gruppe.sammendrag": "Sammendrag",
   "firma.maskin.import.gruppe.kategori": "Kategori",

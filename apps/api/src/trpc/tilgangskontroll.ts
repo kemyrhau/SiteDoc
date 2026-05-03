@@ -224,6 +224,28 @@ export async function autoriserAdminForFirma(
 }
 
 /**
+ * Krev at en organisasjon er et reelt kunde-firma (erKunde=true).
+ * Brukes på operasjoner som kun gir mening for kundefirmaer som faktisk
+ * bruker SiteDoc — ikke skall-firma som kun er part i dokumentflyten
+ * (f.eks. byggherre, underentreprenør uten SiteDoc-konto).
+ */
+export async function krevErKundeFirma(organizationId: string): Promise<void> {
+  const org = await prisma.organization.findUnique({
+    where: { id: organizationId },
+    select: { erKunde: true },
+  });
+  if (!org) {
+    throw new TRPCError({ code: "NOT_FOUND", message: "Firma finnes ikke" });
+  }
+  if (!org.erKunde) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Operasjonen krever et reelt kunde-firma",
+    });
+  }
+}
+
+/**
  * Verifiser at bruker er admin ELLER firmaansvarlig i prosjektet.
  * Returnerer { erAdmin: true } for admin-brukere, { erAdmin: false } for firmaansvarlige.
  * Kaster FORBIDDEN for vanlige medlemmer.

@@ -2,7 +2,7 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../../trpc/trpc";
 import { prisma } from "@sitedoc/db";
-import { autoriserAdminForFirma } from "../../trpc/tilgangskontroll";
+import { autoriserAdminForFirma, krevErKundeFirma } from "../../trpc/tilgangskontroll";
 import {
   beregnFilHash,
   parseSmartDokXlsx,
@@ -32,6 +32,7 @@ const VEGVESEN_PRIO_SMARTDOK_IMPORT = 200;
 // Steg 1b Fase C — orgId er påkrevd. Klienten må sende `valgtFirma.id`.
 async function verifiserFirmaAdmin(userId: string, inputOrgId: string): Promise<string> {
   await autoriserAdminForFirma(userId, inputOrgId);
+  await krevErKundeFirma(inputOrgId);
   return inputOrgId;
 }
 
