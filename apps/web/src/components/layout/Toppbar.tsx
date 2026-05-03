@@ -6,11 +6,13 @@ import { useRouter } from "next/navigation";
 import { useAktivSeksjon } from "@/hooks/useAktivSeksjon";
 import { ProsjektVelger } from "./ProsjektVelger";
 import { ByggeplassVelger } from "./ByggeplassVelger";
+import { FirmaVelger } from "./FirmaVelger";
 import { useState, useRef, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import Link from "next/link";
 import { useTranslation } from "react-i18next";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
+import { useFirma } from "@/kontekst/firma-kontekst";
 import { SpraakVelger } from "./SpraakVelger";
 import {
   LayoutDashboard,
@@ -30,9 +32,11 @@ export function Toppbar() {
   const router = useRouter();
   const aktivSeksjon = useAktivSeksjon();
   const { prosjektId } = useProsjekt();
+  const { erSitedocAdmin } = useFirma();
   const { t } = useTranslation();
 
-  // Sjekk om bruker har organisasjon (firmaadmin)
+  // Sjekk om bruker har organisasjon (firmaadmin) — brukes som fallback for
+  // company_admin som beholder fast firma-link (ikke velger).
   const { data: organisasjon } = trpc.organisasjon.hentMin.useQuery(undefined, {
     enabled: !!session?.user,
   });
@@ -76,7 +80,12 @@ export function Toppbar() {
             <ByggeplassVelger />
           </>
         )}
-        {organisasjon && (
+        {erSitedocAdmin ? (
+          <>
+            <div className="mx-1 h-5 w-px bg-white/20" />
+            <FirmaVelger />
+          </>
+        ) : organisasjon ? (
           <>
             <div className="mx-1 h-5 w-px bg-white/20" />
             <Link
@@ -87,7 +96,7 @@ export function Toppbar() {
               <span className="hidden sm:inline">{organisasjon.name}</span>
             </Link>
           </>
-        )}
+        ) : null}
         {erSiteDocAdmin && (
           <>
             <div className="mx-1 h-5 w-px bg-white/20" />
