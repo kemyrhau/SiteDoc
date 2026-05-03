@@ -13,6 +13,27 @@ peker hit. Beslutningsgrunnlag og arkitektur ligger i
 
 ## Pågående arbeid
 
+**Steg 4a (ECO-flytt på attestering) IMPLEMENTERT på develop 2026-05-03.** Første del av Steg 4 (dagsseddel-utvidelser) fra prioritert byggerekkefølge i [domene-arbeidsflyt.md](domene-arbeidsflyt.md). Beslutning fra Kenneth/Claude før koding: scope er kun ECO-flytt (samme prosjekt), ikke cross-prosjekt. 4b (Vareforbruk) utsettes til etter Steg 1e (OrganizationModule). 4c (Godkjenning UI) bygges etter 4a er deployet til prod.
+
+**Endringer:**
+- **Server (`apps/api/src/routes/timer/dagsseddel.ts`):**
+  - Ny `flyttTimerRadEco({ timerRadId, externalCostObjectId: string | null })`-mutation. Gates med `krevProsjektLeder(ctxUserId, sheet.projectId)`. Status-vakt: kun `sent` tillates (returned er hos ansatten, accepted er låst av snapshot, draft har aldri vært innom leder). ECO-validering hvis ikke null: `slettetVed=null`, `organizationId === sheet.organizationId`, `projectId === sheet.projectId`, `status="aktiv"`, `timerregistreringApen=true`. Activity-log (best-effort try/catch) skriver `target_type=sheet_timer`, `action=timer.eco-flyttet`, payload `{sheetId, fraEcoId, tilEcoId}` — ikke-blokkerende ved feil siden selve flyttingen allerede er committed.
+  - Ny `hentForAttestering({id})`-query. Autoriserer på `krevProsjektLeder` i stedet for `hentEgenDagsseddel` (som krever eierskap eller sitedoc_admin/company_admin med matchende org). Beriker med ansatt-info fra kjernen-DB. Løser eksisterende svakhet der Per Prosjektadmin ikke kunne åpne ansattens detaljside fra attestering-tabellen.
+- **Klient (`apps/web/src/app/dashbord/[prosjektId]/timer/attestering/[id]/page.tsx`):** Ny dedikert leder-detaljside. Header med dato, prosjektnavn, ansatt-info og StatusBadge. 4 seksjoner: Detaljer (read-only), Timer-rader (ECO-felt redigerbart inline via `<select>` + fjern-X-knapp, øvrige felter read-only), Tillegg (read-only, vises kun hvis rader finnes), Maskin (read-only, vises kun hvis rader finnes). Action-bar nederst med Returner-knapp (åpner kommentar-modal) + Attester-knapp. ReturnerDialog gjenbruker eksisterende returner-mutation fra Runde 1C. Ikke-sent-sedler viser fallback-melding «Sedlen kan ikke endres ({{status}})».
+- **Klient (`apps/web/src/app/dashbord/[prosjektId]/timer/attestering/page.tsx`):** Chevron-lenken i tabellraden navigerer nå til `/timer/attestering/${rad.id}` (ny leder-rute) i stedet for `/timer/${rad.id}` (ansattens detaljside). Tidligere lenke ga FORBIDDEN for Per Prosjektadmin (User.role="user" + ProjectMember.role="admin") siden ansattens `hentMedId` kun aksepterer eierskap eller sitedoc_admin/company_admin.
+- **i18n:** 5 nye nøkler under `timer.attestering.flyttEco.{etikett,ingenEco,fjernEco}` + `timer.attestering.tilbake` + `timer.attestering.detalj.ikkeRedigerbar` i nb+en.
+
+**Hva 4a IKKE dekker:**
+- Cross-prosjekt-flytt (avklart utenfor scope — krever DailySheet-rekonstruksjon pga `(userId, projectId, dato)` UNIQUE).
+- Endring av lønnsart/timer/aktivitet/beskrivelse/klokkeslett — er ansattens domene, returneres ved behov.
+- Bulk-flytt (én rad om gangen — ingen multi-select).
+- Mobil leder-attestering (kun web — Runde 2-godkjent scope).
+- Auto-revert ved attestering — snapshot-pattern (A.7) låser uansett.
+
+**Verifisering:** `pnpm --filter @sitedoc/api typecheck` grønt. `pnpm build --filter @sitedoc/web` grønt (34.5s) — ny rute `/dashbord/[prosjektId]/timer/attestering/[id]` (4.71 kB) kompilert. Ingen DB-migrasjon.
+
+**Klar for test-deploy.** Stopper og rapporterer per Kenneths instruks. Etter test-deploy skal Claude verifisere som innlogget Per Prosjektadmin (ke.myrhau@gmail.com): (1) åpne sedel fra Ola Tømrer i `/dashbord/[prosjektId]/timer/attestering/[id]`, (2) bytt ECO på en rad og fjern ECO fra annen, (3) attester sedlen og verifiser via psql at `attestertSnapshot` reflekterer nye ECO-verdiene, (4) som Ola Tømrer (vanlig bruker): bekreft at `/attestering/[id]`-ruten returnerer FORBIDDEN.
+
 **Steg 3 (maskin-import med firma-kontekst) DEPLOYET TIL PROD 2026-05-03** (`33a2b9b4` merge, `e7ddc397` impl). HTTP/2 200 verifisert mot `/dashbord/maskin/import` på sitedoc.no.
 
 **A.Markussen-maskinimport gjennomført på prod 2026-05-03.** Kenneth utførte importen via UI som sitedoc_admin med A.Markussen (`4488fe17-7490-409f-9c1c-2827f257c54d`) valgt i FirmaVelger. Verifisert via psql:
