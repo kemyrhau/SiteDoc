@@ -261,6 +261,12 @@ Oppfølger: reconcile [arkitektur-syntese.md](arkitektur-syntese.md) vs [termino
 - [ ] UE-rolle (`role="underentreprenor"`) — hvilke kapabiliteter skal være satt by-default?
 - [ ] Onboarding-veileder pedagogisk lag — på toppen av navigasjon eller separat?
 
+### Steg 1c-forberedelse (åpne beslutninger — må svares før Fase A starter)
+
+- [ ] **1c Q1 — Per-prosjekt-toggle:** Skal Timer/Maskin auto-syncs over alle firmaets prosjekter, eller skal vi støtte per-prosjekt av/på? Anbefalt: auto-sync (enkelt, dekker alle kjente bruksmønstre). Per-prosjekt = kompleksitet uten klar bruk-case.
+- [ ] **1c Q2 — Auto-opprett ved nytt prosjekt:** Når `Project` opprettes med `primaryOrganizationId`, skal ProjectModule-rader for aktive firma-moduler opprettes automatisk? Anbefalt: application-side hook i `prosjekt.opprett`-mutation (eksplisitt, testbart, ikke skjult i DB-trigger).
+- [ ] **1c Q3 — `active Boolean`-felt på ProjectModule:** A.4 sier deprecates til fordel for `status`. Skal vi droppe kolonnen i 1c-Fase C, eller utsette til en separat opprydningsrunde? Anbefalt: dropp i 1c-Fase C — passer i to-stegs migration-policy A.18 (legg til `status` i tidligere migrasjon, drop `active` her).
+
 ---
 
 ## Prioritert byggerekkefølge
