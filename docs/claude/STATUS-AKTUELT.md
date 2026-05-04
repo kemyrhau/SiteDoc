@@ -13,6 +13,33 @@ peker hit. Beslutningsgrunnlag og arkitektur ligger i
 
 ## Pågående arbeid
 
+**Header-fix per rolle DEPLOYET TIL PROD 2026-05-04** (`e3717a8c` merge, `f78113c5` impl). HTTP/2 200 verifisert mot sitedoc.no. Toppbar-rekkefølge per Kenneths rolle-spec av 2026-05-04 (etter korreksjonen 2026-05-03 om at Prosjekt er firmamodul, ikke toppnivå-entitet, dokumentert i [admin-navigasjon-analyse-2026-05-03.md](admin-navigasjon-analyse-2026-05-03.md)).
+
+**Endringer per rolle:**
+| Rolle | Header (venstre → høyre) |
+|---|---|
+| sitedoc_admin | SiteDoc \| **FirmaVelger** \| Prosjekt \| (Byggeplass) \| Admin-knapp |
+| company_admin | SiteDoc \| **Firma-fast-link** \| Prosjekt \| (Byggeplass) |
+| user | SiteDoc \| Prosjekt \| (Byggeplass) — ingen firma-element |
+
+**Tre filer endret (ingen schema, ingen RBAC, ingen auth):**
+- `apps/web/src/kontekst/firma-kontekst.tsx`: utvidet med `erCompanyAdmin: boolean` (utledet fra eksisterende `minBruker.role`-data, ingen ny query). Brukes av Toppbar for å skille company_admin fra vanlig bruker.
+- `apps/web/src/components/layout/FirmaVelger.tsx`: `router.push("/dashbord/firma")` lagt til etter `velgFirma()` slik at sitedoc_admin lander direkte i firma-admin-flyten ved firma-valg.
+- `apps/web/src/components/layout/Toppbar.tsx`: JSX-omarrangering — firma-element flyttet FORAN ProsjektVelger for sitedoc_admin og company_admin. Vanlig bruker får ingen firma-link i toppbar lenger (tidligere fikk alle med `organizationId`-tilknytning fast firma-link via `organisasjon`-fallback). Duplisert `erSiteDocAdmin`-sjekk fra `trpc.admin.erAdmin` fjernet — `erSitedocAdmin` fra `useFirma()` er eneste kilde. `organisasjon.hentMin` enables nå kun for `erCompanyAdmin`.
+
+**Test-deploy:** Manuell deploy nødvendig (auto-deploy-hooken trigget ikke — tredje gang i denne sesjonen, bør undersøkes separat).
+
+**Hva header-fix IKKE løser (fortsatt åpne planlagte oppgaver):**
+- Filtrering av prosjektliste på `primaryOrganizationId = valgtFirma.id` (P1 Fase 1, ~3-4t)
+- Auto-reset av aktivt prosjekt ved firma-bytte (P1 Fase 2, ~2-3t)
+- Bakfyll test-DB `primary_organization_id` (5 min, blokkerende for P1)
+- admin/firmaer: `erKunde`-filter + Timer-kolonne (P2, ~2t)
+- Admin-navigasjon redesign + abonnement-modell (P4+P5, ~1-2 dager)
+
+Header-fix dekker rekkefølge-signalet og redirect-friksjonen, men det reelle hierarki-håndhevet (firma → prosjekter under firma) krever P1-arbeidet som står på vent.
+
+**Cache-invalidering verifisert 2026-05-04:** `apps/web/src/app/dashbord/firma/innstillinger/page.tsx:38-44` invaliderer allerede `hentMedId` + `hentMin` + `hentTilgjengelige` ved oppdater-mutation. Ingen kode-endring nødvendig — sidebar-tittel og FirmaVelger oppdateres korrekt etter firma-info-endring.
+
 **Steg 4a (ECO-flytt på attestering) DEPLOYET TIL PROD 2026-05-03** (`da6b34a5` merge, `f98fa7a5` impl). HTTP/2 200 verifisert mot sitedoc.no. Test-deploy krevde manuell trigger (auto-deploy-hooken trigget ikke — andre gang etter Steg 1a, bør undersøkes separat). Test-verifisert på test.sitedoc.no som Per Prosjektadmin: leder-detaljsiden åpner sedlen, ECO-velger inline på timer-rader, action-bar med Returner/Attester fungerer. Beslutning fra Kenneth/Claude før koding: scope er kun ECO-flytt (samme prosjekt), ikke cross-prosjekt. 4b (Vareforbruk) utsettes til etter Steg 1e (OrganizationModule). 4c (Godkjenning UI) starter nå.
 
 **Endringer:**
