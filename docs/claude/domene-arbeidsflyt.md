@@ -4,8 +4,8 @@ description: Beskriver den virkelige arbeidsflyten i SiteDoc sett fra brukerens 
   Dette er det styrende dokumentet for arkitektur-beslutninger — kode skal alltid kunne
   forklares tilbake til en arbeidsflyt beskrevet her.
 status: under-utvikling
-sist_oppdatert: 2026-05-04
-sist_verifisert_mot_kode: 2026-05-04
+sist_oppdatert: 2026-05-05
+sist_verifisert_mot_kode: 2026-05-05
 ---
 
 # Domene-arbeidsflyt — SiteDoc
@@ -332,10 +332,10 @@ Tiltak fra [admin-navigasjon-analyse-2026-05-03.md](admin-navigasjon-analyse-202
 - [x] **Blokk A — P1 Fase 1: prosjektliste filtreres på valgt firma** — DEPLOYET TIL PROD 2026-05-04 (`12717426` merge, `51d5e3ee` impl). Server: `prosjekt.hentMine`+`hentAlle` tar valgfri `organizationId`. Klient: 4 callsites migrert. Tom-state for sitedoc_admin med valgt firma og 0 prosjekter får firmaspesifikk tekst. Bakfyll test-DB: 2 prosjekter satt til Byggeleder. 1 ny i18n-nøkkel.
 - [x] **Blokk C — P2: admin/firmaer erKunde-filter + Timer-kolonne** — DEPLOYET TIL PROD 2026-05-04 (`e2729849` merge, `261a0c8e` impl). Server-side `where: { erKunde: true }` på `admin.hentAlleOrganisasjoner`. Skall-firmaer (Byggherre, Tømrer Hansen, Elektrikker Hansen, Hovedentreprenør) skjult fra admin-vyen. Ny Timer-kolonne mellom Integrasjoner og Maskin (Clock-ikon, Ja/Nei-badge). Slide-over: Timer-modul-status før Maskin-modul-status.
 - [ ] **P3 — Rename «Byggeleder» i test-DB** (5 min). Avventer beslutning på nytt navn.
-- [ ] **P1 Fase 2 — Auto-reset av aktivt prosjekt ved firma-bytte** (~2-3t). Sitedoc_admin som har et A.Markussen-prosjekt aktivt og bytter til Byggeleder beholder prosjekt-konteksten inntil de bytter manuelt. Vurderes når atferden faktisk gir UX-friksjon i prod.
+- [x] **P1 Fase 2 — Auto-reset av aktivt prosjekt ved firma-bytte** — IMPLEMENTERT på develop 2026-05-05. `useEffect` i `prosjekt-kontekst.tsx` lytter på `valgtFirma`/`valgtProsjekt` og resetter localStorage + redirect til `/dashbord` når `valgtProsjekt.primaryOrganizationId !== valgtFirma.id`. Standalone-prosjekt (primaryOrganizationId=null) regnes som mismatch — konsistent med Blokk A. `Prosjekt`-interface utvidet med `primaryOrganizationId: string | null`. Auto-deployes til test via cron-mekanisme implementert i samme sesjon.
 - [ ] **P4+P5 — Admin-navigasjon redesign + abonnement-modell** (~1-2 dager). Egen design-runde. Krever beslutning på abonnement-statuser, fakturaoversikt, drill-down firma → prosjekter → moduler.
 
-**Status etter Blokk A+B+C (2026-05-04):** Hovedproblemet i analysen — at prosjekt og firma er frikoblet i UI — er nå lukket. Sitedoc_admin med valgt firma ser kun det firmaets prosjekter overalt; admin/firmaer-listen viser kun reelle kunde-firmaer; Timer-modul er synlig på linje med Maskin. Gjenstår: kosmetisk rename (P3) og større designrunder (P1 Fase 2, P4+P5) som ikke blokkerer kundevisning.
+**Status etter Blokk A+B+C + P1 Fase 2 (2026-05-04/05):** P1+P2 fullt lukket. Sitedoc_admin med valgt firma ser kun det firmaets prosjekter overalt; admin/firmaer-listen viser kun reelle kunde-firmaer; Timer-modul synlig på linje med Maskin; konflikt mellom valgt firma og aktivt prosjekt løses automatisk via reset+redirect. Gjenstår: kosmetisk rename (P3) og større designrunder (P4+P5) som ikke blokkerer kundevisning.
 
 ---
 

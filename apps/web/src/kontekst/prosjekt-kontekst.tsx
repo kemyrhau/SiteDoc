@@ -20,6 +20,7 @@ interface Prosjekt {
   status: string;
   description: string | null;
   address: string | null;
+  primaryOrganizationId: string | null;
 }
 
 interface ProsjektKontekstType {
@@ -69,6 +70,25 @@ export function ProsjektProvider({ children }: { children: ReactNode }) {
   );
   const valgtProsjekt = valgtProsjektQuery.data as Prosjekt | undefined;
   const lasterValgt = valgtProsjektQuery.isLoading;
+
+  // P1 Fase 2 (2026-05-05): Auto-reset prosjekt-kontekst ved firma-bytte når
+  // aktivt prosjekt ikke tilhører valgt firma. Standalone-prosjekt
+  // (primaryOrganizationId=null) regnes også som mismatch når et firma er
+  // valgt — konsistent med Blokk A som filtrerer dem ut av ProsjektVelger.
+  useEffect(() => {
+    if (!valgtFirma) return;
+    if (lasterValgt) return;
+    if (!valgtProsjekt) return;
+    if (valgtProsjekt.primaryOrganizationId === valgtFirma.id) return;
+    setLagretProsjektId(null);
+    localStorage.removeItem(STORAGE_KEY);
+    router.push("/dashbord");
+  }, [
+    valgtFirma,
+    valgtProsjekt,
+    lasterValgt,
+    router,
+  ]);
 
   function velgProsjekt(id: string) {
     setLagretProsjektId(id);
