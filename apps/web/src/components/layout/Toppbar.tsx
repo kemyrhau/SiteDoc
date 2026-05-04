@@ -32,18 +32,13 @@ export function Toppbar() {
   const router = useRouter();
   const aktivSeksjon = useAktivSeksjon();
   const { prosjektId } = useProsjekt();
-  const { erSitedocAdmin } = useFirma();
+  const { erSitedocAdmin, erCompanyAdmin } = useFirma();
   const { t } = useTranslation();
 
-  // Sjekk om bruker har organisasjon (firmaadmin) — brukes som fallback for
-  // company_admin som beholder fast firma-link (ikke velger).
+  // Hent firma-info for company_admin (fast firma-link i header).
+  // Sitedoc_admin bruker FirmaVelger i stedet — trenger ikke denne.
   const { data: organisasjon } = trpc.organisasjon.hentMin.useQuery(undefined, {
-    enabled: !!session?.user,
-  });
-
-  // Sjekk om bruker er SiteDoc-admin
-  const { data: erSiteDocAdmin } = trpc.admin.erAdmin.useQuery(undefined, {
-    enabled: !!session?.user,
+    enabled: !!session?.user && erCompanyAdmin,
   });
 
   useEffect(() => {
@@ -73,21 +68,21 @@ export function Toppbar() {
           SiteDoc
         </Link>
         <div className="mx-2 h-5 w-px bg-white/20" />
-        <ProsjektVelger />
-        {prosjektId && (
+        {/*
+          Header-rekkefølge per Kenneths rolle-spec 2026-05-04:
+          - Sitedoc_admin: FirmaVelger | Prosjekt | Byggeplass | Admin-knapp
+          - Company_admin: Firma-fast-link | Prosjekt | Byggeplass
+          - User (vanlig): Prosjekt | Byggeplass (ingen firma-element)
+          Firma først for admin-roller speiler hierarkiet (Firma → Prosjekt).
+        */}
+        {erSitedocAdmin && (
           <>
+            <FirmaVelger />
             <div className="mx-1 h-5 w-px bg-white/20" />
-            <ByggeplassVelger />
           </>
         )}
-        {erSitedocAdmin ? (
+        {erCompanyAdmin && organisasjon && (
           <>
-            <div className="mx-1 h-5 w-px bg-white/20" />
-            <FirmaVelger />
-          </>
-        ) : organisasjon ? (
-          <>
-            <div className="mx-1 h-5 w-px bg-white/20" />
             <Link
               href="/dashbord/firma"
               className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm text-blue-100 transition-colors hover:bg-white/10 hover:text-white"
@@ -95,9 +90,17 @@ export function Toppbar() {
               <Building2 className="h-4 w-4" />
               <span className="hidden sm:inline">{organisasjon.name}</span>
             </Link>
+            <div className="mx-1 h-5 w-px bg-white/20" />
           </>
-        ) : null}
-        {erSiteDocAdmin && (
+        )}
+        <ProsjektVelger />
+        {prosjektId && (
+          <>
+            <div className="mx-1 h-5 w-px bg-white/20" />
+            <ByggeplassVelger />
+          </>
+        )}
+        {erSitedocAdmin && (
           <>
             <div className="mx-1 h-5 w-px bg-white/20" />
             <Link

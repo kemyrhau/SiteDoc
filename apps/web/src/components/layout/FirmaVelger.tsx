@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { ChevronDown, Search, Building2 } from "lucide-react";
 import { useFirma } from "@/kontekst/firma-kontekst";
 
@@ -11,6 +12,7 @@ import { useFirma } from "@/kontekst/firma-kontekst";
  */
 export function FirmaVelger() {
   const { valgtFirma, tilgjengelige, velgFirma } = useFirma();
+  const router = useRouter();
   const [apen, setApen] = useState(false);
   const [sok, setSok] = useState("");
   const ref = useRef<HTMLDivElement>(null);
@@ -71,6 +73,7 @@ export function FirmaVelger() {
                     velgFirma(f.id);
                     setApen(false);
                     setSok("");
+                    router.push("/dashbord/firma");
                   }}
                   className={`flex w-full flex-col px-3 py-2 text-left transition-colors hover:bg-blue-50 ${
                     valgtFirma?.id === f.id ? "bg-blue-50" : ""
