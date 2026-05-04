@@ -975,6 +975,11 @@ Resten av schema beholder `timestamp(3)` inntil dedikert behov.
 
 ### B.7 Org-bytte-mekanikk — ✅ **LUKKET 2026-04-27**
 
+**Vurdering 2026-05-03:** Modell B (firma-bytte uten utlogging, Interaxo/Dalux-stil)
+ble vurdert. Konklusjon: Behold Modell A. Begrunnelse: 0 multi-firma-brukere i prod,
+sitedoc_admin har allerede firma-bytte via FirmaVelger. Modell B (~20-30t, høy RBAC-risiko)
+utsettes til reelt behov oppstår i prod.
+
 **Problem:** B.5 forutsetter «én User per (person × firma)» og at ny User-rad opprettes når en person bytter firma. Mekanikken er ikke spesifisert.
 
 **Status:** ✅ **BESLUTTET — Modell A (Én User per person × firma med reaktivering ved retur).**

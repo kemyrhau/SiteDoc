@@ -13,7 +13,7 @@ peker hit. Beslutningsgrunnlag og arkitektur ligger i
 
 ## Pågående arbeid
 
-**Steg 4a (ECO-flytt på attestering) IMPLEMENTERT på develop 2026-05-03.** Første del av Steg 4 (dagsseddel-utvidelser) fra prioritert byggerekkefølge i [domene-arbeidsflyt.md](domene-arbeidsflyt.md). Beslutning fra Kenneth/Claude før koding: scope er kun ECO-flytt (samme prosjekt), ikke cross-prosjekt. 4b (Vareforbruk) utsettes til etter Steg 1e (OrganizationModule). 4c (Godkjenning UI) bygges etter 4a er deployet til prod.
+**Steg 4a (ECO-flytt på attestering) DEPLOYET TIL PROD 2026-05-03** (`da6b34a5` merge, `f98fa7a5` impl). HTTP/2 200 verifisert mot sitedoc.no. Test-deploy krevde manuell trigger (auto-deploy-hooken trigget ikke — andre gang etter Steg 1a, bør undersøkes separat). Test-verifisert på test.sitedoc.no som Per Prosjektadmin: leder-detaljsiden åpner sedlen, ECO-velger inline på timer-rader, action-bar med Returner/Attester fungerer. Beslutning fra Kenneth/Claude før koding: scope er kun ECO-flytt (samme prosjekt), ikke cross-prosjekt. 4b (Vareforbruk) utsettes til etter Steg 1e (OrganizationModule). 4c (Godkjenning UI) starter nå.
 
 **Endringer:**
 - **Server (`apps/api/src/routes/timer/dagsseddel.ts`):**
@@ -348,6 +348,22 @@ Status og detaljer: [db-opprydning.md](db-opprydning.md).
 **Timer/Maskin-revurdering** er utsatt til etter Fase 0-fundament er ferdig. timer.md og maskin.md har drift mot fase-0-beslutninger og må justeres før Fase 3 (Timer-modul) og Fase 1-fullføring (Maskin-modul-gateway) — men Fase 0-fundamentet bygges nå uavhengig av denne revurderingen.
 
 ## Planlagte oppgaver
+
+**HMS-tilgang for arbeidsgiver på andres prosjekter (juridisk gap, 2026-05-03):**
+A.27 gir firma-HMS-ansvarlig innsyn i «firmaets prosjekter» men IKKE i prosjekter
+der firmaets ansatte jobber som UE. Arbeidsmiljøloven § 2-1 krever at arbeidsgiver
+har HMS-ansvar for egne ansatte uavhengig av arbeidsplass. Løses i HMS-tilgang-runde
+(Fase 4 / Mannskap).
+
+**Steg 4c — Godkjenning UI (parkert 2026-05-03):**
+Utsatt til etter møte med A.Markussen og/eller ProAdm API-tilgang.
+Forutsetninger som mangler:
+- Avklart dokumentflyt-mal for endringsmeldinger (krever A.Markussen-input)
+- ProAdm API-integrasjon (eller manuell oppsett av mal)
+- Domeneavklaring: hvilke felter skal med, hvem godkjenner, hvilken flyt
+
+Modellen (Godkjenning + DocumentTransfer) er implementert i Fase 0 § E.12.
+Teknisk grunnlag er på plass — kun domene-avklaring mangler.
 
 **Header-koordinering: firma-bytte nullstiller ikke prosjekt-kontekst (observert 2026-05-03):**
 Når sitedoc_admin bytter aktivt firma via FirmaVelger, beholdes det aktive prosjektet i

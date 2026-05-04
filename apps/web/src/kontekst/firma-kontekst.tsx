@@ -26,6 +26,8 @@ interface FirmaKontekstType {
   tilgjengelige: Firma[];
   /** Brukeren er sitedoc_admin — styrer om firma-velger vises i Toppbar. */
   erSitedocAdmin: boolean;
+  /** Brukeren er company_admin — styrer om fast firma-link vises i Toppbar. */
+  erCompanyAdmin: boolean;
   isLoading: boolean;
   velgFirma: (id: string) => void;
 }
@@ -49,6 +51,7 @@ export function FirmaProvider({ children }: { children: ReactNode }) {
   const minBrukerQuery = trpc.bruker.hentMin.useQuery();
   const minBruker = minBrukerQuery.data as { role?: string } | null | undefined;
   const erSitedocAdmin = minBruker?.role === "sitedoc_admin";
+  const erCompanyAdmin = minBruker?.role === "company_admin";
 
   // Bestem valgtFirma:
   //  - sitedoc_admin: respekter localStorage; null hvis ikke valgt
@@ -74,6 +77,7 @@ export function FirmaProvider({ children }: { children: ReactNode }) {
         valgtFirma,
         tilgjengelige,
         erSitedocAdmin,
+        erCompanyAdmin,
         isLoading: lasterTilgjengelige || minBrukerQuery.isLoading,
         velgFirma,
       }}
