@@ -637,6 +637,7 @@
   "dashbord.bruker": "user",
   "dashbord.ingenProsjekter": "No projects",
   "dashbord.ingenProsjekterBeskrivelse": "Create a project to get started.",
+  "dashbord.ingenProsjekterForFirmaBeskrivelse": "No projects for {{firma}}. Create a project to get started.",
   "dashbord.venterPaaTilgangTittel": "Waiting for project access",
   "dashbord.venterPaaTilgangBeskrivelse": "You don't have access to any projects yet. Contact your project manager.",
   "dashbord.opprettProsjekt": "Create project",

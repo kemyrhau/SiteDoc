@@ -9,6 +9,7 @@ import {
 } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { trpc } from "@/lib/trpc";
+import { useFirma } from "./firma-kontekst";
 
 const STORAGE_KEY = "sitedoc-valgt-prosjekt";
 
@@ -34,6 +35,7 @@ const ProsjektKontekst = createContext<ProsjektKontekstType | null>(null);
 export function ProsjektProvider({ children }: { children: ReactNode }) {
   const params = useParams<{ prosjektId?: string }>();
   const router = useRouter();
+  const { valgtFirma } = useFirma();
   const urlProsjektId = params.prosjektId ?? null;
 
   // Initialiser som null for å unngå hydration-mismatch (localStorage kun på klient)
@@ -55,7 +57,9 @@ export function ProsjektProvider({ children }: { children: ReactNode }) {
     }
   }, [urlProsjektId]);
 
-  const prosjekterQuery = trpc.prosjekt.hentAlle.useQuery();
+  const prosjekterQuery = trpc.prosjekt.hentAlle.useQuery({
+    organizationId: valgtFirma?.id,
+  });
   const prosjekter = prosjekterQuery.data as Prosjekt[] | undefined;
   const lasterProsjekter = prosjekterQuery.isLoading;
 
