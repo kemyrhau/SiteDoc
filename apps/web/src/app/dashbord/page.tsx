@@ -9,6 +9,7 @@ import { trpc } from "@/lib/trpc";
 import { Card, Spinner, StatusBadge, Button, EmptyState } from "@sitedoc/ui";
 import { SekundaertPanel } from "@/components/layout/SekundaertPanel";
 import { DashbordPanel } from "@/components/paneler/DashbordPanel";
+import { useFirma } from "@/kontekst/firma-kontekst";
 import { Plus } from "lucide-react";
 
 // Smal lokal type bryter generic-kjeden — kun feltene som faktisk brukes på siden
@@ -24,7 +25,10 @@ export default function DashbordSide() {
   const { t } = useTranslation();
   const { data: session } = useSession();
   const router = useRouter();
-  const prosjekterQuery = trpc.prosjekt.hentAlle.useQuery();
+  const { valgtFirma } = useFirma();
+  const prosjekterQuery = trpc.prosjekt.hentAlle.useQuery({
+    organizationId: valgtFirma?.id,
+  });
   const prosjekter = prosjekterQuery.data as ProsjektListeRad[] | undefined;
   const isLoading = prosjekterQuery.isLoading;
 
@@ -88,7 +92,13 @@ export default function DashbordSide() {
           erAdmin ? (
             <EmptyState
               title={t("dashbord.ingenProsjekter")}
-              description={t("dashbord.ingenProsjekterBeskrivelse")}
+              description={
+                valgtFirma
+                  ? t("dashbord.ingenProsjekterForFirmaBeskrivelse", {
+                      firma: valgtFirma.name,
+                    })
+                  : t("dashbord.ingenProsjekterBeskrivelse")
+              }
               action={
                 <Link href="/dashbord/nytt-prosjekt">
                   <Button>{t("dashbord.opprettProsjekt")}</Button>

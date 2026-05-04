@@ -1,11 +1,17 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { Card, Button, StatusBadge, Spinner, EmptyState } from "@sitedoc/ui";
+import { useFirma } from "@/kontekst/firma-kontekst";
 
 export default function ProsjekterSide() {
-  const { data: prosjekter, isLoading } = trpc.prosjekt.hentAlle.useQuery();
+  const { t } = useTranslation();
+  const { valgtFirma } = useFirma();
+  const { data: prosjekter, isLoading } = trpc.prosjekt.hentAlle.useQuery({
+    organizationId: valgtFirma?.id,
+  });
 
   if (isLoading) {
     return (
@@ -26,11 +32,17 @@ export default function ProsjekterSide() {
 
       {!prosjekter?.length ? (
         <EmptyState
-          title="Ingen prosjekter ennå"
-          description="Opprett ditt første byggeprosjekt for å komme i gang."
+          title={t("dashbord.ingenProsjekter")}
+          description={
+            valgtFirma
+              ? t("dashbord.ingenProsjekterForFirmaBeskrivelse", {
+                  firma: valgtFirma.name,
+                })
+              : t("dashbord.ingenProsjekterBeskrivelse")
+          }
           action={
             <Link href="/dashbord/nytt-prosjekt">
-              <Button>Opprett prosjekt</Button>
+              <Button>{t("dashbord.opprettProsjekt")}</Button>
             </Link>
           }
         />

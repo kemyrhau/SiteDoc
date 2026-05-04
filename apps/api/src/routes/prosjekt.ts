@@ -10,33 +10,50 @@ import {
 } from "../trpc/tilgangskontroll";
 
 export const prosjektRouter = router({
-  // Hent prosjekter der innlogget bruker er medlem (sitedoc_admin ser alle)
-  hentMine: protectedProcedure.query(async ({ ctx }) => {
-    const bruker = await ctx.prisma.user.findUniqueOrThrow({ where: { id: ctx.userId }, select: { role: true } });
-    const erSitedocAdmin = bruker.role === "sitedoc_admin";
-    return ctx.prisma.project.findMany({
-      where: erSitedocAdmin ? {} : { members: { some: { userId: ctx.userId } } },
-      orderBy: { updatedAt: "desc" },
-      include: {
-        faggrupper: true,
-        _count: { select: { members: true } },
-      },
-    });
-  }),
+  // Hent prosjekter der innlogget bruker er medlem (sitedoc_admin ser alle).
+  // P1 Fase 1 (2026-05-04): valgfri organizationId filtrerer for sitedoc_admin
+  // når et firma er valgt i FirmaVelger. Vanlig bruker / company_admin er
+  // uberørt — eksisterende members-filter beholder isolasjon.
+  hentMine: protectedProcedure
+    .input(z.object({ organizationId: z.string().uuid().optional() }).optional())
+    .query(async ({ ctx, input }) => {
+      const bruker = await ctx.prisma.user.findUniqueOrThrow({ where: { id: ctx.userId }, select: { role: true } });
+      const erSitedocAdmin = bruker.role === "sitedoc_admin";
+      const where: Prisma.ProjectWhereInput = erSitedocAdmin
+        ? input?.organizationId
+          ? { primaryOrganizationId: input.organizationId }
+          : {}
+        : { members: { some: { userId: ctx.userId } } };
+      return ctx.prisma.project.findMany({
+        where,
+        orderBy: { updatedAt: "desc" },
+        include: {
+          faggrupper: true,
+          _count: { select: { members: true } },
+        },
+      });
+    }),
 
-  // Hent alle prosjekter (sitedoc_admin ser alle)
-  hentAlle: protectedProcedure.query(async ({ ctx }) => {
-    const bruker = await ctx.prisma.user.findUniqueOrThrow({ where: { id: ctx.userId }, select: { role: true } });
-    const erSitedocAdmin = bruker.role === "sitedoc_admin";
-    return ctx.prisma.project.findMany({
-      where: erSitedocAdmin ? {} : { members: { some: { userId: ctx.userId } } },
-      orderBy: { createdAt: "desc" },
-      include: {
-        faggrupper: true,
-        _count: { select: { members: true } },
-      },
-    });
-  }),
+  // Hent alle prosjekter (sitedoc_admin ser alle, kan filtreres på firma).
+  hentAlle: protectedProcedure
+    .input(z.object({ organizationId: z.string().uuid().optional() }).optional())
+    .query(async ({ ctx, input }) => {
+      const bruker = await ctx.prisma.user.findUniqueOrThrow({ where: { id: ctx.userId }, select: { role: true } });
+      const erSitedocAdmin = bruker.role === "sitedoc_admin";
+      const where: Prisma.ProjectWhereInput = erSitedocAdmin
+        ? input?.organizationId
+          ? { primaryOrganizationId: input.organizationId }
+          : {}
+        : { members: { some: { userId: ctx.userId } } };
+      return ctx.prisma.project.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        include: {
+          faggrupper: true,
+          _count: { select: { members: true } },
+        },
+      });
+    }),
 
   // Hent ett prosjekt med ID
   hentMedId: protectedProcedure
