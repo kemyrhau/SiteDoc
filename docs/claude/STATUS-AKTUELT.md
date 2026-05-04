@@ -580,3 +580,4 @@ Detaljert plan: [arkitektur-syntese.md §5](arkitektur-syntese.md). Beslutningsg
 - `89e102c` — Proadm-regel i CLAUDE.md
 - DB-opprydning-relaterte audit/doc-commits (2026-04-25)
 - Arkitektur-dokumentasjon (2026-04-25/26)
+
