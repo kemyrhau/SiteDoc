@@ -89,11 +89,14 @@ export const adminRouter = router({
     }));
   }),
 
-  // Hent alle organisasjoner (kun sitedoc_admin)
+  // Hent alle kunde-firmaer (kun sitedoc_admin). Skall-firmaer (erKunde=false)
+  // filtreres ut — de er faggruppe-rader opprettet som Organization og hører
+  // ikke hjemme i admin-vyen. Blokk C / P2 (2026-05-04).
   hentAlleOrganisasjoner: protectedProcedure.query(async ({ ctx }) => {
     await verifiserSiteDocAdmin(ctx.prisma, ctx.userId);
 
     return ctx.prisma.organization.findMany({
+      where: { erKunde: true },
       include: {
         users: { select: { id: true, name: true, email: true, role: true } },
         projects: {
