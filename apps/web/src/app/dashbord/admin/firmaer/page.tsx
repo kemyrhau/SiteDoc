@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { Spinner, EmptyState, Button, Input, Modal } from "@sitedoc/ui";
-import { Building2, Plus, X, Pencil, Plug, Trash2, Truck } from "lucide-react";
+import { Building2, Plus, X, Pencil, Plug, Trash2, Truck, Clock } from "lucide-react";
 import { HjelpKnapp, HjelpFane } from "@/components/hjelp/HjelpModal";
 import { useTranslation } from "react-i18next";
 
@@ -23,6 +23,7 @@ type OrganisasjonRad = {
   name: string;
   organizationNumber: string | null;
   harMaskinModul: boolean;
+  harTimerModul: boolean;
   users: Array<{ id: string; name: string | null; email: string; role: string }>;
   projects: Array<{ project: { id: string; name: string; projectNumber: string } }>;
 };
@@ -200,6 +201,7 @@ export default function AdminFirmaer() {
                 <th className="px-4 py-3 text-center font-medium text-gray-600 w-20">Brukere</th>
                 <th className="px-4 py-3 text-center font-medium text-gray-600 w-24">Prosjekter</th>
                 <th className="px-4 py-3 text-left font-medium text-gray-600">Integrasjoner</th>
+                <th className="px-4 py-3 text-center font-medium text-gray-600 w-20">Timer</th>
                 <th className="px-4 py-3 text-center font-medium text-gray-600 w-20">Maskin</th>
                 <th className="px-4 py-3 text-center font-medium text-gray-600 w-12"></th>
               </tr>
@@ -420,6 +422,16 @@ function FirmaRad({
         )}
       </td>
       <td className="px-4 py-3 text-center">
+        {org.harTimerModul ? (
+          <span className="inline-flex items-center gap-1 text-xs font-medium text-green-700">
+            <Clock className="h-3.5 w-3.5" />
+            Ja
+          </span>
+        ) : (
+          <span className="text-xs text-gray-400">Nei</span>
+        )}
+      </td>
+      <td className="px-4 py-3 text-center">
         {org.harMaskinModul ? (
           <span className="inline-flex items-center gap-1 text-xs font-medium text-green-700">
             <Truck className="h-3.5 w-3.5" />
@@ -498,6 +510,24 @@ function FirmaDetaljSlideOver({
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 py-4">
+          {/* Timer-modul-status */}
+          <section className="mb-5">
+            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Timer-modul</h3>
+            <div className="rounded-lg border border-gray-200 px-3 py-2 text-sm">
+              {org.harTimerModul ? (
+                <span className="inline-flex items-center gap-1.5 font-medium text-green-700">
+                  <Clock className="h-4 w-4" />
+                  Aktivert
+                </span>
+              ) : (
+                <span className="text-gray-500">Ikke aktivert</span>
+              )}
+              <p className="mt-1 text-[11px] text-gray-400">
+                Velg firmaet i FirmaVelger og gå til <code className="text-gray-500">/dashbord/firma/moduler</code> for å aktivere/deaktivere.
+              </p>
+            </div>
+          </section>
+
           {/* Maskin-modul-status */}
           <section className="mb-5">
             <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Maskin-modul</h3>

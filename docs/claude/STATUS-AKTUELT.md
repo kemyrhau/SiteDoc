@@ -13,30 +13,29 @@ peker hit. Beslutningsgrunnlag og arkitektur ligger i
 
 ## Pågående arbeid
 
-**Blokk A (P1 Fase 1 — prosjektliste filtreres på valgt firma) IMPLEMENTERT på develop 2026-05-04.** Andre del av [admin-navigasjon-analyse-2026-05-03.md](admin-navigasjon-analyse-2026-05-03.md) (tiltak #2 i prioritert tiltak-rekkefølge). Lukker hovedproblemet i P1: ProsjektVelger og dashbord-listings filtreres nå på `valgtFirma.id` slik at sitedoc_admin med Byggeleder valgt kun ser Byggeleder-prosjekter. Vanlig bruker / company_admin uberørt — eksisterende `members.some.userId`-filter beholder isolasjon.
+**Blokk C (P2 — admin/firmaer erKunde-filter + Timer-kolonne) IMPLEMENTERT på develop 2026-05-04.** Tredje del av [admin-navigasjon-analyse-2026-05-03.md](admin-navigasjon-analyse-2026-05-03.md) (tiltak #3 i prioritert tiltak-rekkefølge). Lukker P2-funnet: skall-firmaer blandes ikke lenger med kunde-firmaer i admin-vyen, og Timer-modul-status er synlig på linje med Maskin.
 
 **Endringer:**
-- **Bakfyll test-DB:** `UPDATE projects SET primary_organization_id = 'f1000001-0000-0000-0000-000000000002' WHERE primary_organization_id IS NULL;` på sitedoc_test (2 rader oppdatert — «Test redigert mal Kenneth Myrhaug» + «Markussen Boligfelt B12» til Byggeleder; A.Markussen finnes ikke som Organization i test-DB).
-- **Server (`apps/api/src/routes/prosjekt.ts`):** `hentMine` og `hentAlle` får `.input(z.object({ organizationId: z.string().uuid().optional() }).optional())`. For sitedoc_admin med `organizationId` gitt: `where.primaryOrganizationId = organizationId`. Sitedoc_admin uten input → status quo (alle prosjekter). Vanlig bruker / company_admin → input ignoreres, eksisterende `members.some.userId`-filter beholdes (backwards-compat).
-- **Klient (4 filer):**
-  - `apps/web/src/kontekst/prosjekt-kontekst.tsx`: importerer `useFirma()`, sender `organizationId: valgtFirma?.id` til `prosjekt.hentAlle`. Driver ProsjektVelger.
-  - `apps/web/src/app/dashbord/page.tsx`: samme + tom-state-oppdatering for sitedoc_admin med valgt firma.
-  - `apps/web/src/app/dashbord/prosjekter/page.tsx`: samme + tom-state. Konvertert tre hardkodede norske strenger til `t()`-kall (eksisterende `dashbord.ingenProsjekter`/`opprettProsjekt`-nøkler gjenbrukes).
-  - `apps/web/src/app/dashbord/timer/mine/page.tsx`: sender `organizationId: valgtFirma?.id` til `prosjekt.hentMine` som driver navne-map.
-- **i18n:** 1 ny nøkkel `dashbord.ingenProsjekterForFirmaBeskrivelse` med `{{firma}}`-interpolering i nb+en. Eksisterende `dashbord.ingenProsjekter` (tittel) + `dashbord.opprettProsjekt` (action-knapp) gjenbrukes.
+- **Server (`apps/api/src/routes/admin.ts`):** `hentAlleOrganisasjoner` får `where: { erKunde: true }` på `findMany`. Ingen klient-endring kreves for filteret. Test-DB: filteret skjuler 4 skall-firmaer (Byggherre, Tømrer Hansen, Elektrikker Hansen, Hovedentreprenør) og viser kun Byggeleder. Prod-DB: viser A.Markussen, HRP AS og Kenneths testmiljø — 0 skall-firmaer å filtrere ut.
+- **Klient (`apps/web/src/app/dashbord/admin/firmaer/page.tsx`):**
+  - Type `OrganisasjonRad` utvidet med `harTimerModul: boolean`.
+  - `Clock`-ikon importert fra lucide-react.
+  - Tabell-header: ny `<th>Timer</th>` plassert mellom Integrasjoner og Maskin (matcher rekkefølgen i `firma/moduler`).
+  - `FirmaRad`-celle for Timer: speiler Maskin-celle-stilen (Clock-ikon + grønn «Ja» når aktivert, grå «Nei» ellers).
+  - Slide-over-detaljpanel: ny Timer-modul-status-seksjon FØR Maskin-modul-status-seksjonen (samme rekkefølge og stil — `Clock`-ikon, Aktivert/Ikke aktivert, peker til `/dashbord/firma/moduler` for endring).
+- Ingen ny i18n (eksisterende kolonne-overskrifter på siden er hardkodet i samme stil — i18n-konvertering er separat opprydningsoppgave).
 
-**Provider-rekkefølge bekreftet:** `apps/web/src/app/dashbord/layout.tsx` har FirmaProvider → ProsjektProvider, så `useFirma()` er trygt å bruke i ProsjektProvider.
+**Hva Blokk C IKKE dekker:**
+- Skall-firma-toggle eller debug-vy: skall-firmaer er nå fullstendig usynlige fra admin-vyen. Hvis sitedoc_admin trenger å se dem (debug, opprydning) må de gå via psql.
+- Abonnement-status / fakturaoversikt (P5 — egen design-runde, ~1-2 dager).
+- Klikk-til-firma-admin (klikke firma → se firmaets prosjekter): slide-over viser allerede prosjekter, men ingen direkte snarvei til `/dashbord/firma/*`-administrasjon. Separat oppgave.
+- i18n-konvertering av admin-vyen: hele siden har hardkodet norsk tekst. Ikke i scope for Blokk C.
 
-**Hva Blokk A IKKE dekker:**
-- Auto-reset av aktivt prosjekt ved firma-bytte (P1 Fase 2, ~2-3t — sitedoc_admin som har et A.Markussen-prosjekt aktivt og bytter til Byggeleder beholder prosjekt-konteksten inntil de bytter manuelt).
-- Filtrering på `ProjectOrganization`-rader (cross-org-prosjekter) — kun `primaryOrganizationId` brukes.
-- admin/firmaer-filter (Blokk C / P2, ~2t).
-- ProsjektVelger sin egen «Ingen prosjekter funnet»-tekst (uendret — gjelder søk-resultat).
-- `oppsett/prosjektoppsett/page.tsx:179` (`utils.prosjekt.hentAlle.invalidate()`) — ingen endring; React Query invaliderer alle query-key-varianter.
+**Verifisering:** `pnpm --filter @sitedoc/api typecheck` grønt. `pnpm build --filter @sitedoc/web` grønt (34.8s). Ingen DB-migrasjon, ingen i18n.
 
-**Verifisering:** `pnpm --filter @sitedoc/api typecheck` grønt. `pnpm build --filter @sitedoc/web` grønt (35.1s). Ingen DB-migrasjon (kun dataoppdatering på sitedoc_test).
+**Klar for test-deploy.** Stopper og rapporterer per Kenneths instruks. Claude verifiserer som **Tore SiteDocAdmin** på `/dashbord/admin/firmaer`: (1) listen viser kun Byggeleder (skall-firmaer skjult), (2) Timer-kolonne synlig mellom Integrasjoner og Maskin, (3) Byggeleder viser Ja for både Timer og Maskin (har_timer_modul=true, har_maskin_modul=true), (4) klikk på Byggeleder-rad åpner slide-over med både Timer-modul-seksjon og Maskin-modul-seksjon.
 
-**Klar for test-deploy.** Stopper og rapporterer per Kenneths instruks. Claude verifiserer (1) som Tore SiteDocAdmin: velg Byggeleder i FirmaVelger → ProsjektVelger viser kun Byggeleder-prosjekter (begge testprosjekter); fjern firma-valg → ser alle prosjekter; (2) som Kari Firmaadmin: prosjektliste uendret; (3) som Tore SiteDocAdmin med firma valgt og 0 prosjekter (test ved å bakfylle ett prosjekt til annen org via psql, eller midlertidig sette primary_organization_id = null): tom-state viser «Ingen prosjekter for [firma]» + Opprett-knapp.
+**Blokk A (P1 Fase 1 — prosjektliste filtreres på valgt firma) DEPLOYET TIL PROD 2026-05-04** (`12717426` merge, `51d5e3ee` impl). Andre del av [admin-navigasjon-analyse-2026-05-03.md](admin-navigasjon-analyse-2026-05-03.md) (tiltak #2). HTTP/2 200 verifisert mot sitedoc.no. Sitedoc_admin med valgt firma i FirmaVelger ser nå kun prosjekter med matchende `primaryOrganizationId`. Server: `prosjekt.hentMine`+`hentAlle` tar valgfri `organizationId`. Klient: 4 callsites migrert (prosjekt-kontekst, dashbord, prosjekter-listing, timer/mine). Tom-state for sitedoc_admin med valgt firma og 0 prosjekter får firmaspesifikk tekst (1 ny i18n-nøkkel `dashbord.ingenProsjekterForFirmaBeskrivelse` nb+en). Bakfyll test-DB: 2 prosjekter satt til Byggeleder. Vanlig bruker / company_admin uberørt — `members.some.userId`-filter beholder isolasjon. Auto-reset av aktivt prosjekt ved firma-bytte er P1 Fase 2 (utsatt).
 
 **Klikkbare prosjektrader på `/dashbord/firma/prosjekter` DEPLOYET TIL PROD 2026-05-04** (`dbf78bca` merge, `59338895` impl). Blokk B fra [admin-navigasjon-analyse-2026-05-03.md](admin-navigasjon-analyse-2026-05-03.md) (tiltak #7 — quick-win før Blokk A). HTTP/2 200 verifisert mot sitedoc.no. Hele tabellraden navigerer til `/dashbord/[id]` ved klikk; `<Link>` på prosjektnavnet beholdt for cmd/ctrl+click + tastatur-fokus. `onClick` hopper over hvis target er innenfor `<a>`-tag. 1 fil endret (7 linjer).
 
