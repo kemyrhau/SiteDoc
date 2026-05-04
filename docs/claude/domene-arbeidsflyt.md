@@ -4,8 +4,8 @@ description: Beskriver den virkelige arbeidsflyten i SiteDoc sett fra brukerens 
   Dette er det styrende dokumentet for arkitektur-beslutninger — kode skal alltid kunne
   forklares tilbake til en arbeidsflyt beskrevet her.
 status: under-utvikling
-sist_oppdatert: 2026-05-03
-sist_verifisert_mot_kode: 2026-05-03
+sist_oppdatert: 2026-05-04
+sist_verifisert_mot_kode: 2026-05-04
 ---
 
 # Domene-arbeidsflyt — SiteDoc
@@ -323,6 +323,19 @@ Ingen steg kan hoppes over — hvert steg er forutsetning for neste.
 - [x] **4a. Timer-admin** — ECO-flytt på attestering (egen leder-detaljside) — DEPLOYET TIL PROD 2026-05-03 (`da6b34a5` merge, `f98fa7a5` impl). Scope avklart 2026-05-03: kun ECO-flytt på samme prosjekt (cross-prosjekt-flytt forkastet — for komplekst, ikke dokumentert bruksbehov). Ny `flyttTimerRadEco`-mutation gates med `krevProsjektLeder`, kun status="sent" tillates, ECO-validering (samme firma+prosjekt, status=aktiv, timerregistreringApen=true). Ny `hentForAttestering`-query autoriserer på leder-rolle (skiller seg fra `hentMedId` som krever eierskap). Activity-log (best-effort) for hver flytt. Ny side `/dashbord/[prosjektId]/timer/attestering/[id]` med inline ECO-velger på timer-rader, øvrige felter read-only, action-bar med Returner/Attester. Lærdom: auto-deploy-hooken trigget ikke (andre gang etter Steg 1a) — manuell deploy nødvendig.
 - [ ] **4b. Vareforbruk** — Vare-katalog + Vareforbruk-tabell. **UTSATT til etter Steg 1e (OrganizationModule)** — varelager-modul-aktivering blir mer meningsfull når `Organization.har_*_modul`-kolonner er erstattet med dedikert tabell. Beslutning 2026-05-03.
 - [ ] **4c. Godkjenning UI** — byggherre-flyt (modell finnes fra Fase 0 § E.12, UI mangler). Avklart 2026-05-03: byggherre logger inn via Google/Microsoft OAuth som i dag (e-post-token utsatt), sidebar-gating på faggruppe-rolle (`DokumentflytMedlem.rolle`), ikke ny kapabilitet.
+
+### Admin-navigasjon-tiltak (parallell stripe)
+
+Tiltak fra [admin-navigasjon-analyse-2026-05-03.md](admin-navigasjon-analyse-2026-05-03.md) — håndteres parallelt med Steg 1-4 etter behov. Tiltak-rekkefølgen i analysen var: Bakfyll → P1 Fase 1 → P2 → P3 → P1 Fase 2 → P4+P5.
+
+- [x] **Blokk B — Klikkbare prosjektrader på `/dashbord/firma/prosjekter`** (quick-win) — DEPLOYET TIL PROD 2026-05-04 (`dbf78bca` merge, `59338895` impl). Hele tabellraden navigerer til `/dashbord/[id]`; `<Link>` på navnet beholdt for cmd/ctrl+click. 1 fil endret (7 linjer).
+- [x] **Blokk A — P1 Fase 1: prosjektliste filtreres på valgt firma** — DEPLOYET TIL PROD 2026-05-04 (`12717426` merge, `51d5e3ee` impl). Server: `prosjekt.hentMine`+`hentAlle` tar valgfri `organizationId`. Klient: 4 callsites migrert. Tom-state for sitedoc_admin med valgt firma og 0 prosjekter får firmaspesifikk tekst. Bakfyll test-DB: 2 prosjekter satt til Byggeleder. 1 ny i18n-nøkkel.
+- [x] **Blokk C — P2: admin/firmaer erKunde-filter + Timer-kolonne** — DEPLOYET TIL PROD 2026-05-04 (`e2729849` merge, `261a0c8e` impl). Server-side `where: { erKunde: true }` på `admin.hentAlleOrganisasjoner`. Skall-firmaer (Byggherre, Tømrer Hansen, Elektrikker Hansen, Hovedentreprenør) skjult fra admin-vyen. Ny Timer-kolonne mellom Integrasjoner og Maskin (Clock-ikon, Ja/Nei-badge). Slide-over: Timer-modul-status før Maskin-modul-status.
+- [ ] **P3 — Rename «Byggeleder» i test-DB** (5 min). Avventer beslutning på nytt navn.
+- [ ] **P1 Fase 2 — Auto-reset av aktivt prosjekt ved firma-bytte** (~2-3t). Sitedoc_admin som har et A.Markussen-prosjekt aktivt og bytter til Byggeleder beholder prosjekt-konteksten inntil de bytter manuelt. Vurderes når atferden faktisk gir UX-friksjon i prod.
+- [ ] **P4+P5 — Admin-navigasjon redesign + abonnement-modell** (~1-2 dager). Egen design-runde. Krever beslutning på abonnement-statuser, fakturaoversikt, drill-down firma → prosjekter → moduler.
+
+**Status etter Blokk A+B+C (2026-05-04):** Hovedproblemet i analysen — at prosjekt og firma er frikoblet i UI — er nå lukket. Sitedoc_admin med valgt firma ser kun det firmaets prosjekter overalt; admin/firmaer-listen viser kun reelle kunde-firmaer; Timer-modul er synlig på linje med Maskin. Gjenstår: kosmetisk rename (P3) og større designrunder (P1 Fase 2, P4+P5) som ikke blokkerer kundevisning.
 
 ---
 
