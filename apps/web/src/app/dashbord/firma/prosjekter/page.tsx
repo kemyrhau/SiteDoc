@@ -4,9 +4,11 @@ import { trpc } from "@/lib/trpc";
 import { Spinner, EmptyState } from "@sitedoc/ui";
 import { FolderKanban } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useFirma } from "@/kontekst/firma-kontekst";
 
 export default function FirmaProsjekter() {
+  const router = useRouter();
   const { valgtFirma } = useFirma();
   const orgId = valgtFirma?.id;
 
@@ -65,7 +67,11 @@ export default function FirmaProsjekter() {
             {prosjekter.map((p) => (
               <tr
                 key={p.id}
-                className="border-b border-gray-100 last:border-0 hover:bg-gray-50"
+                className="cursor-pointer border-b border-gray-100 last:border-0 hover:bg-gray-50"
+                onClick={(e) => {
+                  if ((e.target as HTMLElement).closest("a")) return;
+                  router.push(`/dashbord/${p.id}`);
+                }}
               >
                 <td className="px-4 py-3">
                   <Link

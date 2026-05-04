@@ -13,6 +13,19 @@ peker hit. Beslutningsgrunnlag og arkitektur ligger i
 
 ## Pågående arbeid
 
+**Klikkbare prosjektrader på `/dashbord/firma/prosjekter` IMPLEMENTERT på develop 2026-05-04.** Blokk B fra [admin-navigasjon-analyse-2026-05-03.md](admin-navigasjon-analyse-2026-05-03.md) (tiltak #7 i prioritert tiltak-rekkefølge — quick-win, separat commit før Blokk A). Hele tabellraden navigerer nå til `/dashbord/[id]` ved klikk; eksisterende `<Link>` på prosjektnavnet beholdt for tastatur-fokus + cmd/ctrl+click (åpne i ny fane). `cursor-pointer` på `<tr>`. `onClick`-handleren sjekker `e.target.closest("a")` og hopper over hvis target er innenfor en lenke — unngår dobbel-navigering og bevarer cmd+click-atferden på navne-cellen.
+
+**Endring:** `apps/web/src/app/dashbord/firma/prosjekter/page.tsx` — importer `useRouter` fra `next/navigation`, instansier i komponent, legg til `cursor-pointer` + `onClick` på `<tr>`. 7 linjer endret, 1 fil.
+
+**Hva Blokk B IKKE dekker:**
+- Filtrering av prosjektliste på `primaryOrganizationId = valgtFirma.id` (Blokk A / P1 Fase 1, ~3-4t — neste).
+- Auto-reset av aktivt prosjekt ved firma-bytte (P1 Fase 2, ~2-3t).
+- admin/firmaer-filter (Blokk C / P2, ~2t).
+
+**Verifisering:** `pnpm build --filter @sitedoc/web` grønt (26.9s). Ingen DB-migrasjon, ingen i18n, ingen server-endring.
+
+**Klar for test-deploy.** Stopper og rapporterer per Kenneths instruks. Claude verifiserer (1) at klikk på rad utenfor navne-cellen navigerer til `/dashbord/[id]`, (2) at klikk på selve prosjektnavnet (Link) fortsatt navigerer normalt, (3) at cmd+click på navnet åpner ny fane uten at hovedfanen også navigerer.
+
 **Header-fix per rolle DEPLOYET TIL PROD 2026-05-04** (`e3717a8c` merge, `f78113c5` impl). HTTP/2 200 verifisert mot sitedoc.no. Toppbar-rekkefølge per Kenneths rolle-spec av 2026-05-04 (etter korreksjonen 2026-05-03 om at Prosjekt er firmamodul, ikke toppnivå-entitet, dokumentert i [admin-navigasjon-analyse-2026-05-03.md](admin-navigasjon-analyse-2026-05-03.md)).
 
 **Endringer per rolle:**
