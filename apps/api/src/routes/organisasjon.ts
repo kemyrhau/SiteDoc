@@ -462,7 +462,7 @@ export const organisasjonRouter = router({
     .input(
       z.object({
         organizationId: z.string().uuid(),
-        slug: z.enum(["timer", "maskin"]),
+        slug: z.enum(["timer", "maskin", "varelager"]),
         aktiver: z.boolean(),
       }),
     )

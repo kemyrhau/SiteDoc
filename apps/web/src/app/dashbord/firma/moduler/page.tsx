@@ -50,7 +50,7 @@ const MODULER: ModulDef[] = [
   },
   {
     slug: "varelager",
-    status: "kommer-snart",
+    status: "tilgjengelig",
     ikon: <Package className="h-5 w-5" />,
     navnNoekkel: "firma.moduler.varelager.navn",
     beskrivelseNoekkel: "firma.moduler.varelager.beskrivelse",

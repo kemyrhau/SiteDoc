@@ -33,6 +33,9 @@ import { kompetansetypeRouter } from "../routes/kompetansetype";
 import { kompetanseRouter } from "../routes/kompetanse";
 import { timerRouter } from "../routes/timer";
 import { eksternKostObjektRouter } from "../routes/eksternKostObjekt";
+import { vareKategoriRouter } from "../routes/vareKategori";
+import { vareRouter } from "../routes/vare";
+import { vareforbrukRouter } from "../routes/vareforbruk";
 
 
 export const appRouter = router({
@@ -71,6 +74,9 @@ export const appRouter = router({
   kompetanse: kompetanseRouter,
   timer: timerRouter,
   eksternKostObjekt: eksternKostObjektRouter,
+  vareKategori: vareKategoriRouter,
+  vare: vareRouter,
+  vareforbruk: vareforbrukRouter,
 });
 
 export type AppRouter = typeof appRouter;

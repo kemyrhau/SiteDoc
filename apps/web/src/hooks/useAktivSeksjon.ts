@@ -19,6 +19,7 @@ const seksjonMap: Record<string, Seksjon> = {
   okonomi: "okonomi",
   sok: "sok",
   timer: "timer",
+  vareforbruk: "vareforbruk",
   oppsett: "oppsett",
 };
 

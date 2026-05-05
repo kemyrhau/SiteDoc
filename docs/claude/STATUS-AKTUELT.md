@@ -13,7 +13,60 @@ peker hit. Beslutningsgrunnlag og arkitektur ligger i
 
 ## Pågående arbeid
 
-**Steg 4b Sesjon 1 (Fase 1 + Fase 2) IMPLEMENTERT på develop 2026-05-06.** Forutsetninger lukket (Steg 1e i prod 2026-05-05). Plan-oppdatering 2026-05-06 (`5aca7c31`): Beslutning 8 låst — `VareKategori`-tabell (firma-definert) med valgfri `kontonummer` for ProAdm/Tripletax-eksport; `Vare.kategoriId` (FK) erstatter fritekst-`kategori`. A.Markussens 7 kategorier seedes ved import (Fase 5).
+**Steg 4b Sesjon 2 (Fase 3 + Fase 4) IMPLEMENTERT på develop 2026-05-06.** Bygger på Sesjon 1 (Fase 1 + 2) som ble deployet til test samme dag (commit `b7127475`). Sesjon 2 leverer tRPC-routere og full klient-UI for Varelager-modulen.
+
+**Endringer i Sesjon 2:**
+
+**Fase 3 — tRPC-routere (3 nye + infrastruktur-utvidelser):**
+- **Infrastruktur:**
+  - `FirmamodulSlug` i `services/firmamodul.ts` utvidet fra `"timer" | "maskin"` til `"timer" | "maskin" | "varelager"`. `syncProjektModulerPaaAktiver/Deaktiver` håndterer nye slug automatisk uten ekstra kode (verifisert).
+  - `organisasjon.settFirmamodul.input.slug` Zod-enum utvidet til å tillate `varelager`.
+  - Ny `services/varelager/moduleGate.ts` — `erVarelagerAktivert(orgId, projectId?)` + `krevVarelagerAktivert(...)` + `VarelagerModulIkkeAktivertError`. Speiler `services/timer/moduleGate.ts`. To-nivås gating: firma-master + ProjectModule.
+- **`vareKategori`-router** (firma-admin): `list`, `opprett`, `oppdater`, `slett`. Gates: `verifiserFirmaAdmin` + `krevVarelagerAktivert` (firma-nivå). Slett er **ekte DELETE** — feiler med CONFLICT (P2003) hvis varer er tilknyttet (FK Restrict).
+- **`vare`-router** (firma-admin): `list` (med kategori-filter, søk, kunAktive), `hentMedId`, `opprett`, `oppdater`, `deaktiver` (soft-delete via `aktiv=false` — bevarer Vareforbruk-historikk). Kategori-validering: `kategoriId` må tilhøre samme firma. Unique-konflikt på varenummer mappes til CONFLICT.
+- **`vareforbruk`-router** (prosjekt-medlemmer): `list` (filter på periode/byggeplass/dagsseddel/vare; beriker med registrert-av-bruker), `hentMedId`, `opprett`, `oppdater`, `slett`. Gates per endepunkt:
+  - `verifiserProsjektmedlem` (eksisterende helper — ProjectMember + sitedoc_admin/company_admin-fallback)
+  - `krevVarelagerForProsjekt` (henter `primaryOrganizationId` + krever modul aktiv på ProjectModule-nivå; returnerer orgId)
+  - `krevTilgangPolicy` (henter `OrganizationSetting.vareforbrukTilgangDefault`; `alle-ansatte` → kun ProjectMember/company_admin; `kun-prosjektmedlemmer` og `sertifiserte` → krever ekte ProjectMember-rad. Sertifisert-policy får fallback til kun-prosjektmedlemmer i Sesjon 2; reell Kompetansetype-sjekk utsettes)
+  - ECO-validering: hvis `externalCostObjectId` gitt — finnes, samme firma+prosjekt, status=aktiv, `timerregistreringApen=true` (proxy per Beslutning)
+  - Vare-validering: tilhører samme firma som prosjektets eier-org
+  - Dagsseddel-validering: hvis `dagsseddelId` gitt — eksisterer + tilhører samme prosjekt
+  - Lås: `attestertSnapshot !== null` → FORBIDDEN på oppdater + slett
+- **Activity-logging** (best-effort try/catch) på `vareforbruk.{opprett,oppdater,slett}`: `targetType="vareforbruk"`, `action="vare.registrert|endret|slettet"`, payload med vareId/antall/dagsseddelId. Kategori og Vare-CRUD logges ikke (firma-konfigurasjon).
+- **Mount:** `appRouter` får 3 nye toppnivå-routere: `vareKategori`, `vare`, `vareforbruk`.
+
+**Fase 4 — Klient web-UI:**
+- **`/dashbord/firma/varelager/page.tsx`** (ny side): fane-toggle «Varer» / «Kategorier» (default Varer). Modul-ikke-aktivert-melding når `!aktiveFirmamoduler.includes("varelager")`. Varer-fane: filter på søk + kategori + inkluder-inaktiv, tabell-kolonner (navn, varenr, kategori, enhet, pris, internkostnad, aktiv-status), header-knapper «Importer fra SmartDok» (deaktivert i Sesjon 2 — peker til Fase 5) og «Legg til vare». 3 modaler: `VareModal` (opprett/rediger med felter inkl. enhet-combobox med 10 forslag via `<datalist>`, kategori-dropdown), `Deaktiver`-bekreftelses-modal. Kategorier-fane: liste med navn/kontonummer/aktiv, 3 modaler: `KategoriModal` (opprett/rediger med kontonummer-felt + hjelpetekst om ProAdm/Tripletax), `Slett`-bekreftelses-modal med server-feilmelding ved FK-konflikt.
+- **`/dashbord/firma/moduler/page.tsx`**: Varelager-slug byttet fra `status: "kommer-snart"` til `status: "tilgjengelig"`. Toggle-funksjonalitet (aktivere/deaktivere) virker via eksisterende mønster — `organisasjon.settFirmamodul({ slug: "varelager", aktiver })`.
+- **`/dashbord/[prosjektId]/vareforbruk/page.tsx`** (ny side): periode-filter (default siste 30 dager) + byggeplass-filter, tabell-kolonner (dato, vare, antall, enhet, byggeplass, registrert-av, kommentar, attestert-badge, handlinger). Modul-ikke-aktivert-melding hvis tRPC returnerer `PRECONDITION_FAILED`. 2 modaler: `ForbrukModal` (opprett/rediger — vare-velger låst i rediger-modus pga ECO/snapshot-implikasjoner; antall + dato + byggeplass + ECO-dropdown filtrert til aktive ECO-er + kommentar), `Slett`-bekreftelses-modal. Lås-håndtering: rediger/slett-knapper skjult når `erLast===true`.
+- **Sidebar — firma:** Ny «Varelager»-lenke (Package-ikon) i `apps/web/src/app/dashbord/firma/layout.tsx` mellom «Mine timer» og «Fakturering» — `kreverFirmaModul: "varelager"` filter henvender til `aktiveFirmamoduler.includes("varelager")`.
+- **Sidebar — prosjekt:** Ny «Vareforbruk»-element (Package-ikon) i `HovedSidebar.tsx` etter timer-attestering — `kreverFirmaModul: "varelager"` gates på ProjectModule-status (`harVarelagerPaaProsjekt`). `Seksjon`-typen i `navigasjon-kontekst.tsx` utvidet med `"vareforbruk"`. `useAktivSeksjon`-mappet utvidet med `vareforbruk: "vareforbruk"`.
+- **i18n:** ~80 nye nøkler i `nb.json` + `en.json`:
+  - `nav.vareforbruk` (1)
+  - `handling.deaktiver` (1, manglet før)
+  - `firma.varelager.*` (~35: tittel, faner, knapper, kolonner, filter, tom-tilstand, modaler, felter, deaktiver-bekreftelse, modul-ikke-aktivert-melding)
+  - `firma.varelager.kategori.*` (~13: tittel, knapp, tom, kolonner, modaler, kontonummer-hjelp, slett-bekreftelse)
+  - `vareforbruk.*` (~30: tittel, knapp, kolonner, filter, modaler, felter, lås-badge, slett-bekreftelse, modul-ikke-aktivert-melding)
+
+**Hva Sesjon 2 IKKE leverer:**
+- Ingen import-flyt — Sesjon 3 (Fase 5).
+- Ingen mobil offline-sync — Steg 4b.5.
+- Ingen aktivering av Varelager-modul for noe firma — separat manuell handling etter test-verifisering.
+- Ingen sertifiserte-policy-håndhevelse — Kompetansetype får «kreves for vareregistrering»-flagg senere.
+- Ingen attestering-flow på Vareforbruk — utsatt (mobil + leder-attestering).
+- Ingen dagsseddel-kobling i opprett-modal — mobil registrerer fra dagsseddel-detalj senere.
+
+**Verifisering:** `pnpm --filter @sitedoc/api typecheck` grønt. `pnpm build --filter @sitedoc/web` grønt (36.5s). Build-statistikk viser begge nye sider: `/dashbord/firma/varelager` (4.9 kB) + `/dashbord/[prosjektId]/vareforbruk` (4.09 kB). Ingen DB-migrasjoner i denne sesjonen (alle tabeller ble opprettet i Sesjon 1).
+
+**Auto-deployes til test via cron** etter push. Cron-skriptet ble oppdatert i Sesjon 1 til å kjøre `prisma generate + migrate deploy` for alle 4 db-pakker — denne sesjonen krever ikke noen ny `.env` på server. Claude verifiserer på test som **Tore SiteDocAdmin → Byggeleder** (Beslutning fra forrige tur):
+1. `/dashbord/firma/moduler` viser Varelager med toggle-knapp (ikke «kommer snart»). Aktiver Varelager → bekreftelse, sidebar-lenke «Varelager» dukker opp i firma-layout.
+2. `/dashbord/firma/varelager` med tom-tilstand. Bytt til Kategorier-fane → opprett kategori «Test» med kontonummer 1900. Bytt tilbake til Varer → opprett vare «Pukk 0-22» enhet `m3` pris 250 kategori «Test». Rediger varen, deaktiver, reaktiver via list (toggle aktiv).
+3. Som **Per Prosjektadmin** på et Byggeleder-prosjekt: prosjekt-sidebar viser «Vareforbruk»-ikon. Naviger inn → `/dashbord/[prosjektId]/vareforbruk` viser tom-tilstand. Registrer forbruk «Pukk 0-22» antall 5 — vises i tabell. Slett raden.
+4. Slett kategori «Test» som har varer tilknyttet → server-feilmelding «Kategorien har varer tilknyttet og kan ikke slettes». Deaktiver vare først → slett kategori → slett vare.
+
+**Stopp og rapporter etter test-verifisering — Sesjon 3 (Fase 5: import-flyt) avventer eksplisitt grønt lys.**
+
+**Steg 4b Sesjon 1 (Fase 1 + Fase 2) DEPLOYET TIL TEST 2026-05-06** (commit `b7127475`). Forutsetninger lukket (Steg 1e i prod 2026-05-05). Plan-oppdatering 2026-05-06 (`5aca7c31`): Beslutning 8 låst — `VareKategori`-tabell (firma-definert) med valgfri `kontonummer` for ProAdm/Tripletax-eksport; `Vare.kategoriId` (FK) erstatter fritekst-`kategori`. A.Markussens 7 kategorier seedes ved import (Fase 5). Engangsfix på server: `.env` opprettet i `packages/db-varelager`, deploy-cron-skript oppdatert til å håndtere alle 4 db-pakker (generate + migrate deploy).
 
 **Endringer i Sesjon 1:**
 

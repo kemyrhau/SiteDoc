@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, FolderKanban, Users, CreditCard, Settings, Building2, Award, Clock, BarChart3, Boxes } from "lucide-react";
+import { LayoutDashboard, FolderKanban, Users, CreditCard, Settings, Building2, Award, Clock, BarChart3, Boxes, Package } from "lucide-react";
 import { Spinner } from "@sitedoc/ui";
 import { useFirma } from "@/kontekst/firma-kontekst";
 
@@ -10,7 +10,7 @@ interface NavElement {
   label: string;
   href: string;
   ikon: JSX.Element;
-  kreverFirmaModul?: "timer";
+  kreverFirmaModul?: "timer" | "varelager";
 }
 
 const navigasjon: NavElement[] = [
@@ -57,6 +57,12 @@ const navigasjon: NavElement[] = [
     kreverFirmaModul: "timer",
   },
   {
+    label: "Varelager",
+    href: "/dashbord/firma/varelager",
+    ikon: <Package className="h-4 w-4" />,
+    kreverFirmaModul: "varelager",
+  },
+  {
     label: "Fakturering",
     href: "/dashbord/firma/fakturering",
     ikon: <CreditCard className="h-4 w-4" />,
@@ -76,6 +82,7 @@ export default function FirmaLayout({
   const pathname = usePathname();
   const { valgtFirma, erSitedocAdmin, isLoading } = useFirma();
   const harTimerModul = valgtFirma?.aktiveFirmamoduler.includes("timer") ?? false;
+  const harVarelagerModul = valgtFirma?.aktiveFirmamoduler.includes("varelager") ?? false;
 
   if (isLoading) {
     return (
@@ -116,6 +123,7 @@ export default function FirmaLayout({
           {navigasjon
             .filter((element) => {
               if (element.kreverFirmaModul === "timer" && !harTimerModul) return false;
+              if (element.kreverFirmaModul === "varelager" && !harVarelagerModul) return false;
               return true;
             })
             .map((element) => (

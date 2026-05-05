@@ -15,7 +15,7 @@
 import { prisma, type Prisma } from "@sitedoc/db";
 
 type TxClient = Prisma.TransactionClient;
-export type FirmamodulSlug = "timer" | "maskin";
+export type FirmamodulSlug = "timer" | "maskin" | "varelager";
 
 /**
  * Soft-sjekk mot OrganizationModule-tabellen — returnerer boolean.
