@@ -16,7 +16,7 @@ varekatalog (`Varedetaljer.xls.xls`, 64 varer kartlagt 2026-05-05).
 |---|---|---|
 | 1 | **Pakke:** ny `packages/db-varelager` (egen Prisma-pakke, konsekvent med `db-timer` + `db-maskin`) | C.16 omtaler det som egen modul. Cross-package-FK-mønster etablert |
 | 2 | **`Vare.enhet`:** fritekst med forslagsliste — `m / m² / m³ / kg / kilo / tonn / stk / sekk / meter / liter / døgn / timer` | A.Markussen-data viste 9 enheter brukt, hvorav 4 ikke i C.16-spec (Sekk, Meter, Døgn, Liter). Fritekst med forslagsliste skalerer |
-| 3 | **Heatwork ekskluderes** fra Vareforbruk — håndteres via `Equipment.erUtleieobjekt`-flagg | A.Markussen har 6 Heatwork-rader i SmartDoks varekatalog som dobbelt-eksisterer som Equipment (internnr 7626/7628/...). Domenemodell: utstyr ≠ vare som forbrukes |
+| 3 | **Generelt prinsipp:** Alt utstyr som leies ut (per time eller døgn) registreres i **Maskinregisteret** med `erUtleieobjekt=true` — ikke i Varekatalogen. Varekatalogen inneholder **kun fysiske forbruksvarer** som ikke er Equipment. Eksempler på Equipment (ikke Vare): Heatwork varmeapparater (7626/7628/7630/7632/7634), HW-vifte, steinsag, Hilti-meiselmaskin, aggregat. Gjelder alle Equipment-kategorier (kjøretøy, anleggsmaskin, småutstyr). | Domenemodell: utstyr som har levetid, service-behov og leies ut per tidsenhet hører hjemme i Equipment — ikke som «forbruksvare». Tydelig prinsipp som skalerer til fremtidige kunder. Verifisert 2026-05-06: A.Markussens nåværende Equipment-katalog inneholder 3 Heatwork-bil-rader (regnr YYB63920), men de 6 Heatwork-utleie-enhetene fra varekatalogen mangler — de må opprettes manuelt som Equipment med `erUtleieobjekt=true` ved import |
 | 4 | **ECO-kobling:** `externalCostObjectId?` på Vareforbruk | Konsekvent med `SheetTimer.externalCostObjectId` (Timer-modul). Tillater fakturering mot underprosjekt/ECO uten å påvirke prosjekt-eier |
 | 5 | **Import:** ~58 varer fra A.Markussens SmartDok (64 minus 6 Heatwork) | Konkret startpunkt — tom katalog ville sinket A.Markussen unødvendig |
 | 6 | **Lag 3 Transport** utsettes — egen oppfølger | C.16 markerer det som «separat opsjon». Ikke bland inn i Vareforbruk-MVP |
@@ -244,18 +244,21 @@ Mobile-flyt for å registrere vareforbruk fra dagsseddel:
 
 ### 7.2 Forventet resultat for A.Markussen
 
-| Kategori | Antall | Behandling |
-|---|---|---|
-| Grus/pukk/jord | 36 | Importeres som Vare |
-| Diverse | 8 | Importeres |
-| Naturstein | 8 | Importeres |
-| Utleie Heatwork | 6 | **Utelates** + advarsel «koble til Equipment via internnr 7626/7628/7630/7632/7634 + HW-vifte» |
-| Betongstein og elementer | 2 | Importeres |
-| Rør og rørdeler | 2 | Importeres |
-| Deponiavgift | 1 | Importeres |
-| Forbruk | 1 | Importeres |
-| **Sum importert** | **58** | |
-| **Sum utelatt** | **6** | Manuelt etterarbeid: marker eksisterende Equipment-rader som `erUtleieobjekt=true` |
+Detaljert vareliste i § 13. Sammendrag:
+
+| Kategori | Totalt | Importeres som Vare | Utelates |
+|---|---|---|---|
+| Grus/pukk/jord | 36 | 36 | 0 |
+| Diverse | 8 | 7 | 1 (ugyldig «.») |
+| Naturstein | 8 | 8 | 0 |
+| Betongstein og elementer | 2 | 2 | 0 |
+| Rør og rørdeler | 2 | 2 | 0 |
+| Deponiavgift | 1 | 1 | 0 |
+| Forbruk | 1 | 1 | 0 |
+| Utleie Heatwork | 6 | 0 | 6 (→ Equipment) |
+| **Sum** | **64** | **57** | **7** |
+
+**Etterarbeid:** Opprett 6 nye Equipment-rader for Heatwork-utleie-enhetene (7626/7628/7630/7632/7634/HW-vifte) med `erUtleieobjekt=true`. Disse mangler i dagens Equipment-katalog (verifisert 2026-05-06 mot prod-DB — kun Heatwork-bilen YYB63920 finnes, ikke selve apparatene).
 
 ### 7.3 Datakvalitet-funn å håndtere
 
@@ -328,3 +331,136 @@ Per [terminologi.md § 0](terminologi.md):
 - [terminologi.md § 0](terminologi.md) — Firmamodul vs prosjektmodul
 - A.Markussen-data: `Varedetaljer.xls.xls` (lokalt, 64 varer, 8 kategorier, 9 enheter)
 - Steg 1e-deploy: `de044be4` (prod 2026-05-05) — forutsetning lukket
+
+## 13. A.Markussen varekatalog — komplett importliste (57 varer)
+
+**Kilde:** `Varedetaljer.xls.xls` (SmartDok-eksport, kartlagt 2026-05-05).
+**Import-ready:** 57 varer (64 totalt minus 6 Heatwork-rader + 1 ugyldig «.»-rad).
+**Pris-kolonnen** er `0,00` på 55 av 57 importerbare rader — to unntak listet.
+**Internkostnad** er tom på alle rader.
+
+### Kategori: Grus/pukk/jord (36 varer — alle importeres)
+
+| Varenavn | Varenr | Enhet | Pris |
+|---|---|---|---|
+| Betong | 1 | m3 | – |
+| Betong | – | Sekk | – |
+| Bærelag 0-22 | 13 | m3 | – |
+| Bærelag 0-22 | 14 | Tonn | – |
+| Jernbanepukk | 5 | m3 | – |
+| Jernbanepukk | 20 | Tonn | – |
+| Kabelsand 0-8 | 10 | m3 | – |
+| Kabelsand 0-8 | 21 | Tonn | – |
+| Kult 0-250 | 6 | m3 | – |
+| Kult 0-250 | 22 | Tonn | – |
+| Matjord | 2 | m3 | – |
+| Matjord | 23 | Tonn | – |
+| Matjord fra lager Beisfjord | 35 | m3 | **100,00** |
+| Natursingel | 11 | m3 | – |
+| Natursingel | 24 | Tonn | – |
+| Overskuddsmasser (ren) | 7 | m3 | – |
+| Overskuddsmasser (ren) | 25 | Tonn | – |
+| Pukk 0-11 | 33 | Tonn | – |
+| Pukk 0-11 | 34 | m3 | – |
+| Pukk 0-120 | 31 | m3 | – |
+| Pukk 0-120 | 31 | Tonn | – |
+| Pukk 22-120 | 32 | m3 | – |
+| Pukk 22-120 | 32 | Tonn | – |
+| Pukk 22-64 | 30 | m3 | – |
+| Pukk 22-64 | 30 | Tonn | – |
+| Pukk 8-22 | 4 | m3 | – |
+| Pukk 8-22 | 26 | Tonn | – |
+| Salt | 12 | kilo | – |
+| Samfengt grus | 1 | m3 | **80,00** |
+| Samfengt grus | 26 | Tonn | – |
+| Snø | 9 | m3 | – |
+| Snø | 27 | Tonn | – |
+| Steinmel 0-18 | 28 | Tonn | – |
+| Steinmel 0-18 | 3 | m3 | – |
+| Strøsand | 8 | m3 | – |
+| Strøsand | 29 | Tonn | – |
+
+⚠️ **Varenummer-duplikater i SmartDok-data:** Flere varer deler internt varenummer på tvers av enheter (eks. Pukk 0-120 har varenr 31 både som m3 og Tonn). Import-løsning: bruk `(orgId, varenummer + "-" + enhet)` som unique-nøkkel ved auto-suffiksering, eller la unique-constraint være `(orgId, navn, enhet)` — besluttes i Fase 5.
+
+### Kategori: Diverse (8 varer — 7 importeres, 1 utelates pga ugyldig data)
+
+| Varenavn | Varenr | Enhet | Merknad |
+|---|---|---|---|
+| **«.»** | – | stk | ❌ **Utelates** — ugyldig navn |
+| Bark | – | stk | |
+| Byggegjerde | – | stk | |
+| Fiberduk | – | m2 | |
+| Gjødsel | – | Sekk | |
+| Heydi Bom Fast 15Kg | – | Sekk | |
+| Heydi KZ Primer | – | Liter | |
+| Kalk | – | Sekk | |
+
+### Kategori: Naturstein (8 varer — alle importeres)
+
+| Varenavn | Varenr | Enhet |
+|---|---|---|
+| Altaskifer | 47 | m2 |
+| Kantstein 12/30 | 41 | Meter |
+| Kantstein 12/30 buet | – | Meter |
+| Murstein Alta | 48 | Tonn |
+| Platekantstein 30/20 | 43 | Meter |
+| Platekantstein 30/20 buet | 44 | Meter |
+| Smågatestein 9/11 | 45 | m2 |
+| Storgatestein 14/20/14 | 46 | m2 |
+
+### Kategori: Betongstein og elementer (2 varer — alle importeres)
+
+| Varenavn | Varenr | Enhet |
+|---|---|---|
+| Herregård gråmix helstein | 31 | m2 |
+| New Jersey element 2m | 32 | stk |
+
+### Kategori: Rør og rørdeler (2 varer — alle importeres)
+
+| Varenavn | Varenr | Enhet |
+|---|---|---|
+| PVC RØR | – | stk |
+| PVC RØRDELER | – | Meter |
+
+### Kategori: Deponiavgift (1 vare — importeres)
+
+| Varenavn | Varenr | Enhet |
+|---|---|---|
+| Deponiavgift | 666 | Tonn |
+
+### Kategori: Forbruk (1 vare — importeres)
+
+| Varenavn | Varenr | Enhet |
+|---|---|---|
+| Fugesand | – | Sekk |
+
+### ❌ Kategori: Utleie Heatwork (6 varer — EKSKLUDERES)
+
+Per beslutning 3 (generelt prinsipp): Alt utleie-utstyr registreres i **Maskinregisteret** med `erUtleieobjekt=true`, ikke i Varekatalogen. Disse 6 radene importeres IKKE som Vare — de opprettes manuelt som Equipment-rader i Fase 5.
+
+| Varenavn (SmartDok) | Internnr | Enhet | Forventet Equipment-håndtering |
+|---|---|---|---|
+| 7626 Heatwork 3600 | 1 | Døgn | Ny Equipment-rad: kategori=`smaautstyr`, type=`Heatwork 3600`, intern_nummer=`7626`, `erUtleieobjekt=true`, `utleieEnhet="doegn"` |
+| 7628 Heatwork 3600 | 2 | Døgn | Ny Equipment-rad: intern_nummer=`7628`, øvrige felter samme som 7626 |
+| 7630 Heatwork 3600 | 3 | Døgn | Ny Equipment-rad: intern_nummer=`7630` |
+| 7632 Heatwork 3600 | 4 | Døgn | Ny Equipment-rad: intern_nummer=`7632` |
+| 7634 Heatwork MY35 | 5 | Døgn | Ny Equipment-rad: type=`Heatwork MY35`, intern_nummer=`7634` |
+| HW-vifte | 1 | Døgn | Ny Equipment-rad: type=`Heatwork vifte`, intern_nummer=mangler (foreslå `7635` eller la være tom) |
+
+⚠️ **Verifisert 2026-05-06 mot prod-DB:** A.Markussens nåværende Equipment-katalog har 3 rader med merke=`HEATWORK` (modell `yyb63920`, internnr 7077/7078/blank) — disse er Heatwork-bil/transport, **ikke** varmeapparat-enhetene 7626/7628/.... De 6 utleie-enhetene må opprettes som **nye Equipment-rader** under Fase 5-importen (manuelt eller via separat skript).
+
+### Sammendrag
+
+| Kategori | Totalt | Importeres | Utelates |
+|---|---|---|---|
+| Grus/pukk/jord | 36 | 36 | 0 |
+| Diverse | 8 | 7 | 1 (ugyldig «.») |
+| Naturstein | 8 | 8 | 0 |
+| Betongstein og elementer | 2 | 2 | 0 |
+| Rør og rørdeler | 2 | 2 | 0 |
+| Deponiavgift | 1 | 1 | 0 |
+| Forbruk | 1 | 1 | 0 |
+| Utleie Heatwork | 6 | 0 | 6 (→ Equipment) |
+| **Sum** | **64** | **57** | **7** |
+
+**Importresultat:** 57 Vare-rader + 6 nye Equipment-rader for Heatwork-utleie-enhetene.
