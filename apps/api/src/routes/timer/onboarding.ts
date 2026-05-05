@@ -10,6 +10,7 @@ import {
 import {
   syncProjektModulerPaaAktiver,
   skrivOrganizationModuleAktiver,
+  erFirmamodulAktivert,
 } from "../../services/firmamodul";
 
 /**
@@ -56,12 +57,10 @@ export const onboardingRouter = router({
     .query(async ({ ctx, input }) => {
     const orgId = await hentBrukerOrgId(ctx.userId, input?.organizationId);
 
-    const [organisasjon, antallNivaa1, antallNivaa2, antallTotalt, antallAktiviteter, antallTillegg, antallExpense] =
+    // Steg 1e Fase B: harTimerModul leses fra OrganizationModule.
+    const [harTimerModul, antallNivaa1, antallNivaa2, antallTotalt, antallAktiviteter, antallTillegg, antallExpense] =
       await Promise.all([
-        ctx.prisma.organization.findUniqueOrThrow({
-          where: { id: orgId },
-          select: { harTimerModul: true },
-        }),
+        erFirmamodulAktivert(orgId, "timer"),
         ctx.prismaTimer.lonnsart.count({ where: { organizationId: orgId, seedNivaa: 1 } }),
         ctx.prismaTimer.lonnsart.count({ where: { organizationId: orgId, seedNivaa: 2 } }),
         ctx.prismaTimer.lonnsart.count({ where: { organizationId: orgId } }),
@@ -71,7 +70,7 @@ export const onboardingRouter = router({
       ]);
 
     return {
-      harTimerModul: organisasjon.harTimerModul,
+      harTimerModul,
       antallLonnsartNivaa1: antallNivaa1,
       antallLonnsartNivaa2: antallNivaa2,
       antallLonnsartEgendefinert: antallTotalt - antallNivaa1 - antallNivaa2,
@@ -122,11 +121,8 @@ export const onboardingRouter = router({
     .mutation(async ({ ctx, input }) => {
     const orgId = await verifiserFirmaAdmin(ctx.userId, input.organizationId);
 
-    const organisasjon = await ctx.prisma.organization.findUniqueOrThrow({
-      where: { id: orgId },
-      select: { harTimerModul: true },
-    });
-    if (!organisasjon.harTimerModul) {
+    // Steg 1e Fase B: leses fra OrganizationModule.
+    if (!(await erFirmamodulAktivert(orgId, "timer"))) {
       throw new TRPCError({
         code: "PRECONDITION_FAILED",
         message: "Timer-modulen må aktiveres før Nivå 2 kan importeres",

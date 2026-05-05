@@ -8,6 +8,7 @@ import {
   verifiserProsjektmedlem,
   verifiserAdmin,
 } from "../trpc/tilgangskontroll";
+import { hentAktiveFirmamoduler } from "../services/firmamodul";
 
 export const prosjektRouter = router({
   // Hent prosjekter der innlogget bruker er medlem (sitedoc_admin ser alle).
@@ -140,12 +141,10 @@ export const prosjektRouter = router({
         valgtOrgId = bruker.organizationId;
       }
 
-      const firma = valgtOrgId
-        ? await ctx.prisma.organization.findUnique({
-            where: { id: valgtOrgId },
-            select: { harTimerModul: true, harMaskinModul: true },
-          })
-        : null;
+      // Steg 1e Fase B: les aktive firmamoduler fra OrganizationModule.
+      const aktiveFirmaModuler = valgtOrgId
+        ? await hentAktiveFirmamoduler(valgtOrgId)
+        : [];
 
       // Strip organizationId fra input før spread til Project-data
       // (det er ikke en kolonne på Project-modellen).
@@ -174,12 +173,9 @@ export const prosjektRouter = router({
             },
           });
 
-          const aktiveModuler: string[] = [];
-          if (firma?.harTimerModul) aktiveModuler.push("timer");
-          if (firma?.harMaskinModul) aktiveModuler.push("maskin");
-          if (aktiveModuler.length > 0) {
+          if (aktiveFirmaModuler.length > 0) {
             await tx.projectModule.createMany({
-              data: aktiveModuler.map((slug) => ({
+              data: aktiveFirmaModuler.map((slug) => ({
                 projectId: prosjekt.id,
                 moduleSlug: slug,
                 organizationId: valgtOrgId!,
@@ -223,12 +219,10 @@ export const prosjektRouter = router({
         valgtOrgId = bruker.organizationId;
       }
 
-      const firma = valgtOrgId
-        ? await ctx.prisma.organization.findUnique({
-            where: { id: valgtOrgId },
-            select: { harTimerModul: true, harMaskinModul: true },
-          })
-        : null;
+      // Steg 1e Fase B: les aktive firmamoduler fra OrganizationModule.
+      const aktiveFirmaModuler = valgtOrgId
+        ? await hentAktiveFirmamoduler(valgtOrgId)
+        : [];
 
       const antall = await ctx.prisma.project.count();
       const prosjektnummer = generateProjectNumber(antall + 1);
@@ -260,9 +254,6 @@ export const prosjektRouter = router({
             },
           });
 
-          const aktiveFirmaModuler: string[] = [];
-          if (firma?.harTimerModul) aktiveFirmaModuler.push("timer");
-          if (firma?.harMaskinModul) aktiveFirmaModuler.push("maskin");
           if (aktiveFirmaModuler.length > 0) {
             await tx.projectModule.createMany({
               data: aktiveFirmaModuler.map((slug) => ({

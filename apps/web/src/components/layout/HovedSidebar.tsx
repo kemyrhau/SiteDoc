@@ -182,8 +182,10 @@ export function HovedSidebar() {
 
   // Firma-flagg brukes for global maskin-bunnelement (peker til /dashbord/maskin).
   // Timer-elementer i prosjekt-sidebar gates via ProjectModule (Steg 1c Fase B).
+  // Steg 1e Fase B: aktiveFirmamoduler erstatter har_*_modul-flagg.
   const { data: minOrganisasjon } = trpc.organisasjon.hentMin.useQuery();
-  const harMaskinModul = (minOrganisasjon as { harMaskinModul?: boolean } | null | undefined)?.harMaskinModul ?? false;
+  const aktiveFirmamoduler = (minOrganisasjon as { aktiveFirmamoduler?: string[] } | null | undefined)?.aktiveFirmamoduler ?? [];
+  const harMaskinModul = aktiveFirmamoduler.includes("maskin");
 
   const harTimerModulPaaProsjekt = !!aktiveModuler?.some(
     (m) => m.moduleSlug === "timer" && m.status === "aktiv",

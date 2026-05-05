@@ -83,9 +83,7 @@ export default function FirmaModulerSide() {
   }
 
   function erAktiv(slug: ModulSlug): boolean {
-    if (slug === "timer") return valgtFirma!.harTimerModul;
-    if (slug === "maskin") return valgtFirma!.harMaskinModul;
-    return false;
+    return valgtFirma!.aktiveFirmamoduler.includes(slug);
   }
 
   function aktiver(slug: ModulSlug) {

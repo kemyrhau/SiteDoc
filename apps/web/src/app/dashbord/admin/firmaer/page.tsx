@@ -22,8 +22,8 @@ type OrganisasjonRad = {
   id: string;
   name: string;
   organizationNumber: string | null;
-  harMaskinModul: boolean;
-  harTimerModul: boolean;
+  // Steg 1e Fase B: aktiveFirmamoduler erstatter har_*_modul-flagg.
+  aktiveFirmamoduler: string[];
   users: Array<{ id: string; name: string | null; email: string; role: string }>;
   projects: Array<{ project: { id: string; name: string; projectNumber: string } }>;
 };
@@ -422,7 +422,7 @@ function FirmaRad({
         )}
       </td>
       <td className="px-4 py-3 text-center">
-        {org.harTimerModul ? (
+        {org.aktiveFirmamoduler.includes("timer") ? (
           <span className="inline-flex items-center gap-1 text-xs font-medium text-green-700">
             <Clock className="h-3.5 w-3.5" />
             Ja
@@ -432,7 +432,7 @@ function FirmaRad({
         )}
       </td>
       <td className="px-4 py-3 text-center">
-        {org.harMaskinModul ? (
+        {org.aktiveFirmamoduler.includes("maskin") ? (
           <span className="inline-flex items-center gap-1 text-xs font-medium text-green-700">
             <Truck className="h-3.5 w-3.5" />
             Ja
@@ -514,7 +514,7 @@ function FirmaDetaljSlideOver({
           <section className="mb-5">
             <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Timer-modul</h3>
             <div className="rounded-lg border border-gray-200 px-3 py-2 text-sm">
-              {org.harTimerModul ? (
+              {org.aktiveFirmamoduler.includes("timer") ? (
                 <span className="inline-flex items-center gap-1.5 font-medium text-green-700">
                   <Clock className="h-4 w-4" />
                   Aktivert
@@ -532,7 +532,7 @@ function FirmaDetaljSlideOver({
           <section className="mb-5">
             <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Maskin-modul</h3>
             <div className="rounded-lg border border-gray-200 px-3 py-2 text-sm">
-              {org.harMaskinModul ? (
+              {org.aktiveFirmamoduler.includes("maskin") ? (
                 <span className="inline-flex items-center gap-1.5 font-medium text-green-700">
                   <Truck className="h-4 w-4" />
                   Aktivert

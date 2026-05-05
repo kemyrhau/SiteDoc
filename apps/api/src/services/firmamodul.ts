@@ -20,8 +20,8 @@ export type FirmamodulSlug = "timer" | "maskin";
 /**
  * Soft-sjekk mot OrganizationModule-tabellen — returnerer boolean.
  *
- * Steg 1e Fase A: ikke i bruk på lese-vei ennå (callsites leser fortsatt fra
- * Organization.har_*_modul). Klar for Fase B-migrering.
+ * Steg 1e Fase B (2026-05-05): primær lese-vei for callsites som tidligere
+ * leste Organization.har_*_modul.
  */
 export async function erFirmamodulAktivert(
   organizationId: string,
@@ -32,6 +32,25 @@ export async function erFirmamodulAktivert(
     select: { status: true },
   });
   return rad?.status === "aktiv";
+}
+
+/**
+ * Hent alle aktive firmamoduler for et firma som array av slugs.
+ *
+ * Brukes av organisasjon.hentTilgjengelige/hentMin/hentMedId for å berike
+ * Firma-objektet med aktiveFirmamoduler: string[]. Klient bruker denne for
+ * gating av modul-spesifikk UI (Timer-lenker, Maskin-lenker).
+ */
+export async function hentAktiveFirmamoduler(
+  organizationId: string,
+  txClient?: TxClient,
+): Promise<string[]> {
+  const klient = txClient ?? prisma;
+  const rader = await klient.organizationModule.findMany({
+    where: { organizationId, status: "aktiv" },
+    select: { moduleSlug: true },
+  });
+  return rader.map((r) => r.moduleSlug);
 }
 
 /**

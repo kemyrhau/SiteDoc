@@ -1,10 +1,11 @@
 /**
  * Modul-gating for Timer-modulen.
  *
- * To-nivås aktivering (Steg 1c, 2026-05-03):
- *   - Organization.har_timer_modul = firma-master-bryter (firmaet har modulen
- *     aktivert overhodet — kreves for onboarding av lønnsarter selv før første
- *     prosjekt finnes).
+ * To-nivås aktivering (Steg 1c, 2026-05-03 + Steg 1e Fase B, 2026-05-05):
+ *   - OrganizationModule(slug='timer', status='aktiv') = firma-master-bryter
+ *     (firmaet har modulen aktivert overhodet — kreves for onboarding av
+ *     lønnsarter selv før første prosjekt finnes). Erstatter
+ *     Organization.har_timer_modul-flagget i Fase B.
  *   - ProjectModule(slug='timer', organizationId, status='aktiv') = prosjekt-
  *     instans. Auto-opprettes via prosjekt.opprett + organisasjon.settFirmamodul
  *     (services/firmamodul.ts holder dem i sync).
@@ -16,6 +17,7 @@
  *   - Med projectId: krever både firma-master-bryter OG ProjectModule.status='aktiv'.
  */
 import { prisma } from "@sitedoc/db";
+import { erFirmamodulAktivert } from "../firmamodul";
 
 export class TimerModulIkkeAktivertError extends Error {
   constructor(public organizationId: string, public projectId?: string) {
@@ -32,11 +34,7 @@ export async function erTimerAktivert(
   organizationId: string,
   projectId?: string,
 ): Promise<boolean> {
-  const org = await prisma.organization.findUnique({
-    where: { id: organizationId },
-    select: { harTimerModul: true },
-  });
-  if (!org?.harTimerModul) return false;
+  if (!(await erFirmamodulAktivert(organizationId, "timer"))) return false;
   if (!projectId) return true;
 
   const modul = await prisma.projectModule.findFirst({

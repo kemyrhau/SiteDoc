@@ -8,6 +8,7 @@ import {
   syncProjektModulerPaaDeaktiver,
   skrivOrganizationModuleAktiver,
   skrivOrganizationModuleDeaktiver,
+  hentAktiveFirmamoduler,
 } from "../services/firmamodul";
 
 /**
@@ -48,32 +49,43 @@ export const organisasjonRouter = router({
       select: { role: true, organizationId: true },
     });
 
+    // Steg 1e Fase B: aktiveFirmamoduler avledes fra OrganizationModule-tabellen.
+    const beriker = async (orgs: { id: string; name: string; erKunde: boolean }[]) => {
+      const moduler = await ctx.prisma.organizationModule.findMany({
+        where: {
+          organizationId: { in: orgs.map((o) => o.id) },
+          status: "aktiv",
+        },
+        select: { organizationId: true, moduleSlug: true },
+      });
+      const perOrg = new Map<string, string[]>();
+      for (const m of moduler) {
+        const liste = perOrg.get(m.organizationId) ?? [];
+        liste.push(m.moduleSlug);
+        perOrg.set(m.organizationId, liste);
+      }
+      return orgs.map((o) => ({
+        ...o,
+        aktiveFirmamoduler: perOrg.get(o.id) ?? [],
+      }));
+    };
+
     if (bruker.role === "sitedoc_admin") {
       // Skall-firmaer (erKunde=false) skjules — kun reelle kundefirmaer i velgeren.
-      return ctx.prisma.organization.findMany({
+      const orgs = await ctx.prisma.organization.findMany({
         where: { erKunde: true },
-        select: {
-          id: true,
-          name: true,
-          harMaskinModul: true,
-          harTimerModul: true,
-          erKunde: true,
-        },
+        select: { id: true, name: true, erKunde: true },
         orderBy: { name: "asc" },
       });
+      return beriker(orgs);
     }
 
     if (bruker.role === "company_admin" && bruker.organizationId) {
-      return ctx.prisma.organization.findMany({
+      const orgs = await ctx.prisma.organization.findMany({
         where: { id: bruker.organizationId },
-        select: {
-          id: true,
-          name: true,
-          harMaskinModul: true,
-          harTimerModul: true,
-          erKunde: true,
-        },
+        select: { id: true, name: true, erKunde: true },
       });
+      return beriker(orgs);
     }
 
     return [];
@@ -89,7 +101,8 @@ export const organisasjonRouter = router({
       });
     }),
 
-  // Hent innlogget brukers organisasjon (null hvis ingen)
+  // Hent innlogget brukers organisasjon (null hvis ingen).
+  // Steg 1e Fase B: beriker med aktiveFirmamoduler fra OrganizationModule.
   hentMin: protectedProcedure.query(async ({ ctx }) => {
     const bruker = await ctx.prisma.user.findUniqueOrThrow({
       where: { id: ctx.userId },
@@ -98,9 +111,14 @@ export const organisasjonRouter = router({
 
     if (!bruker.organizationId) return null;
 
-    return ctx.prisma.organization.findUnique({
-      where: { id: bruker.organizationId },
-    });
+    const [org, aktiveFirmamoduler] = await Promise.all([
+      ctx.prisma.organization.findUnique({
+        where: { id: bruker.organizationId },
+      }),
+      hentAktiveFirmamoduler(bruker.organizationId),
+    ]);
+    if (!org) return null;
+    return { ...org, aktiveFirmamoduler };
   }),
 
   // Hent organisasjon tilknyttet et prosjekt (via ProjectOrganization)
@@ -116,14 +134,17 @@ export const organisasjonRouter = router({
 
   // Hent organisasjon med ID (kun firmaadmin).
   // Fase A: id-feltet er allerede orgId — autoriserer direkte mot input.
+  // Steg 1e Fase B: beriker med aktiveFirmamoduler fra OrganizationModule.
   hentMedId: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       await autoriserAdminForFirma(ctx.userId, input.id);
 
-      return ctx.prisma.organization.findUniqueOrThrow({
-        where: { id: input.id },
-      });
+      const [org, aktiveFirmamoduler] = await Promise.all([
+        ctx.prisma.organization.findUniqueOrThrow({ where: { id: input.id } }),
+        hentAktiveFirmamoduler(input.id),
+      ]);
+      return { ...org, aktiveFirmamoduler };
     }),
 
   // Hent organisasjonens prosjekter (kun firmaadmin)

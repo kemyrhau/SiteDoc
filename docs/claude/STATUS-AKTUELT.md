@@ -13,7 +13,33 @@ peker hit. Beslutningsgrunnlag og arkitektur ligger i
 
 ## Pågående arbeid
 
-**Steg 1e Fase A (OrganizationModule-tabell + bakfyll + dual-write) IMPLEMENTERT på develop 2026-05-05.** Sjette steg i prioritert byggerekkefølge fra [domene-arbeidsflyt.md](domene-arbeidsflyt.md). Erstatter `Organization.har_timer_modul`/`har_maskin_modul`-kolonnene med generisk `OrganizationModule`-tabell. Skalerbar til flere firmamoduler (kompetanse, fremdrift, varelager) uten schema-endring per ny modul. Forutsetning for Steg 4b (Vareforbruk).
+**Steg 1e Fase B (callsite-migrering til OrganizationModule) IMPLEMENTERT på develop 2026-05-05.** Bygger på Fase A. Migrerer alle 47 callsites fra `harTimerModul`/`harMaskinModul`-flagg til ny `aktiveFirmamoduler: string[]`-modell. Dual-write fra Fase A er beholdt — flaggene oppdateres fortsatt parallelt med OrganizationModule-rader inntil Fase C dropper kolonnene. Lese-veien er nå utelukkende fra OrganizationModule-tabellen.
+
+**Endringer i Fase B:**
+- **Service (`apps/api/src/services/firmamodul.ts`):** ny helper `hentAktiveFirmamoduler(organizationId, txClient?)` returnerer `string[]` — alle slugs der `OrganizationModule.status="aktiv"`. Gjenbrukes av `organisasjon.hentMin/hentMedId`, `admin.hentAlleOrganisasjoner`, `prosjekt.opprett/opprettTestprosjekt`. Eksisterende `erFirmamodulAktivert(orgId, slug)` (Fase A) brukes som boolean-sjekk.
+- **Server-respons-typer:**
+  - `organisasjon.hentTilgjengelige`: returnerer nå `{ id, name, erKunde, aktiveFirmamoduler: string[] }` per firma. Egen N+1-fri batch-spørring mot OrganizationModule berikes etter findMany.
+  - `organisasjon.hentMin` + `hentMedId`: beriker Organization-respons med `aktiveFirmamoduler`-felt via Promise.all.
+  - `admin.hentAlleOrganisasjoner`: tilsvarende batch-berikning av Organization[]-respons.
+- **Server-internal:**
+  - `services/timer/moduleGate.ts` + `services/maskin/moduleGate.ts`: leser nå fra `erFirmamodulAktivert` (OrganizationModule) i stedet for `Organization.har_*_modul`-flagg.
+  - `prosjekt.opprett` + `opprettTestprosjekt`: bruker `hentAktiveFirmamoduler` i stedet for `select: { harTimerModul, harMaskinModul }`.
+  - `timer/onboarding.status` + `aktiverNivaa2`: leser fra `erFirmamodulAktivert`. Returfeltet `harTimerModul: boolean` beholdt på response — feltnavnet er semantisk korrekt for boolean-sjekk i timer-spesifikk klient-kontekst.
+- **Klient:**
+  - `Firma`-typen i `firma-kontekst.tsx` har nå `aktiveFirmamoduler: string[]` i stedet for `harTimerModul/harMaskinModul: boolean`.
+  - `firma/layout.tsx` + `firma/moduler/page.tsx` + `FirmaVelger.tsx` + `HovedSidebar.tsx` + `admin/firmaer/page.tsx`: alle lese-callsites byttet til `aktiveFirmamoduler.includes("timer")`/`includes("maskin")`. Lokale variabelnavn `harTimerModul`/`harMaskinModul` beholdt der det er hjelper-leser (semantisk navngivning, ikke felt-aksess).
+  - `firma/timer/layout.tsx` + `firma/timer/onboarding/page.tsx` leser fortsatt `status.harTimerModul` fra `trpc.timer.onboarding.status` — det er en timer-spesifikk respons-felt (ikke fra Firma-typen) og beholdes for semantisk klarhet.
+
+**Hva Fase B IKKE gjør:**
+- Ingen drop av `har_*_modul`-kolonner — det skjer i Fase C.
+- Skriving til OrganizationModule fra `settFirmamodul` + `timer/onboarding.aktiverNivaa1`/`aktiverTomKatalog` skjer fortsatt som dual-write — gir trygg overgang til Fase C.
+- Mobil ikke berørt (0 callsites).
+
+**Verifisering:** `pnpm --filter @sitedoc/api typecheck` grønt. `pnpm build --filter @sitedoc/web` grønt (32.6s). Ingen DB-migrasjon, ingen i18n.
+
+**Auto-deployes til test via cron** etter push. Klar for verifisering. Claude verifiserer på test: (1) som **Tore SiteDocAdmin** — FirmaVelger viser «Maskin · Timer» under Byggeleder-firma (avledes nå fra `aktiveFirmamoduler` i stedet for flagg); (2) som **Kari Firmaadmin** — `/dashbord/firma/moduler` reflekterer korrekt aktiv-status, deaktiver Timer → reaktiver fungerer end-to-end (dual-write skriver til både flagg og OrganizationModule); (3) Timer-elementer i prosjekt-sidebar gates fortsatt på ProjectModule (ikke flagg) — uendret atferd. **Stopp og rapporter etter test-verifisering — Fase C avventer eksplisitt grønt lys.**
+
+**Steg 1e Fase A (OrganizationModule-tabell + bakfyll + dual-write) DEPLOYET TIL TEST 2026-05-05** (commit `9fda0f81`). Verifisert som innlogget Kari Firmaadmin: deaktiver/reaktiver Timer fungerer ende-til-ende, sidebar oppdateres synkront, bekreftelsesdialog vises ved deaktivering. 2 bakfylte rader for Byggeleder (timer + maskin, status=aktiv) verifisert via psql. Fase A er **bakoverkompatibel** — har_*_modul-flaggene er fortsatt sannhetskilde, OrganizationModule oppdateres parallelt via dual-write. Sjette steg i prioritert byggerekkefølge fra [domene-arbeidsflyt.md](domene-arbeidsflyt.md). Erstatter `Organization.har_timer_modul`/`har_maskin_modul`-kolonnene med generisk `OrganizationModule`-tabell. Skalerbar til flere firmamoduler (kompetanse, fremdrift, varelager) uten schema-endring per ny modul. Forutsetning for Steg 4b (Vareforbruk).
 
 **Tre-faset utrulling (Fase A bakoverkompatibel):**
 - **Fase A** (denne): tabell opprettet + bakfylt, callsites uendret, dual-write fra `settFirmamodul` + `timer/onboarding.aktiverNivaa1` + `aktiverTomKatalog` til både flagg og ny tabell.
