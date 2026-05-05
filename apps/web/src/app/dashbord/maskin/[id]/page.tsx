@@ -94,6 +94,11 @@ interface UtstyrDetalj {
   sertifiseringsFrist: string | Date | null;
   effektW: number | null;
   vekt: number | null;
+
+  erUtleieobjekt: boolean;
+  utleieprisPerDogn: string | number | null;
+  utleieprisPerTime: string | number | null;
+  utleieEnhet: string | null;
 }
 
 interface BrukerInfo {
@@ -131,6 +136,7 @@ export default function MaskinDetaljSide() {
     | "kjoretoyInfo"
     | "anleggsmaskinInfo"
     | "smautstyrInfo"
+    | "utleie"
     | "endrePrimaer"
     | "leggTilAnsvarlig"
   >(null);
@@ -422,6 +428,42 @@ export default function MaskinDetaljSide() {
         </Seksjon>
       )}
 
+      {/* Utleie (Steg 4b Fase 2) */}
+      <Seksjon
+        tittel={t("maskin.utleie.seksjon")}
+        onRediger={() => setAktivModal("utleie")}
+      >
+        {utstyr.erUtleieobjekt ? (
+          <>
+            <Linje
+              label={t("maskin.utleie.erUtleieobjekt")}
+              verdi={t("ja")}
+            />
+            <Linje
+              label={t("maskin.utleie.prisPerDogn")}
+              verdi={formaterPris(utstyr.utleieprisPerDogn)}
+            />
+            <Linje
+              label={t("maskin.utleie.prisPerTime")}
+              verdi={formaterPris(utstyr.utleieprisPerTime)}
+            />
+            <Linje
+              label={t("maskin.utleie.primaerEnhet")}
+              verdi={
+                utstyr.utleieEnhet
+                  ? t(`maskin.utleie.enhet.${utstyr.utleieEnhet}`)
+                  : null
+              }
+            />
+          </>
+        ) : (
+          <Linje
+            label={t("maskin.utleie.erUtleieobjekt")}
+            verdi={t("nei")}
+          />
+        )}
+      </Seksjon>
+
       {/* Notater */}
       {utstyr.notater && (
         <Seksjon tittel={t("maskin.notater")}>
@@ -476,6 +518,13 @@ export default function MaskinDetaljSide() {
         <RedigerModal
           equipment={utstyr}
           felt="smautstyrInfo"
+          onClose={() => setAktivModal(null)}
+        />
+      )}
+      {aktivModal === "utleie" && (
+        <RedigerModal
+          equipment={utstyr}
+          felt="utleie"
           onClose={() => setAktivModal(null)}
         />
       )}
@@ -988,6 +1037,11 @@ type RedigerInputs = {
   sertifiseringsFrist?: string | null;
   effektW?: number | null;
   vekt?: number | null;
+  // Utleie (Steg 4b Fase 2)
+  erUtleieobjekt?: boolean;
+  utleieprisPerDogn?: number | null;
+  utleieprisPerTime?: number | null;
+  utleieEnhet?: "doegn" | "time" | null;
 };
 
 function RedigerModal({
@@ -1001,7 +1055,8 @@ function RedigerModal({
     | "anskaffelse"
     | "kjoretoyInfo"
     | "anleggsmaskinInfo"
-    | "smautstyrInfo";
+    | "smautstyrInfo"
+    | "utleie";
   onClose: () => void;
 }) {
   const { t } = useTranslation();
@@ -1026,7 +1081,9 @@ function RedigerModal({
           ? "maskin.detalj.rediger.kjoretoyInfo"
           : felt === "anleggsmaskinInfo"
             ? "maskin.detalj.rediger.anleggsmaskinInfo"
-            : "maskin.detalj.rediger.smautstyrInfo";
+            : felt === "smautstyrInfo"
+              ? "maskin.detalj.rediger.smautstyrInfo"
+              : "maskin.utleie.rediger";
 
   return (
     <Modal open={true} onClose={onClose} title={t(tittelKey)}>
@@ -1216,6 +1273,53 @@ function RedigerModal({
           </>
         )}
 
+        {felt === "utleie" && (
+          <>
+            <label className="flex items-center gap-2 text-xs text-gray-700">
+              <input
+                type="checkbox"
+                checked={inn.erUtleieobjekt ?? false}
+                onChange={(e) => setInn({ ...inn, erUtleieobjekt: e.target.checked })}
+              />
+              {t("maskin.utleie.erUtleieobjekt")}
+            </label>
+            {inn.erUtleieobjekt && (
+              <>
+                <Felt label={t("maskin.utleie.prisPerDogn") + " (kr)"}>
+                  <NumInput
+                    v={inn.utleieprisPerDogn}
+                    onChange={(v) => setInn({ ...inn, utleieprisPerDogn: v })}
+                    step={0.01}
+                  />
+                </Felt>
+                <Felt label={t("maskin.utleie.prisPerTime") + " (kr)"}>
+                  <NumInput
+                    v={inn.utleieprisPerTime}
+                    onChange={(v) => setInn({ ...inn, utleieprisPerTime: v })}
+                    step={0.01}
+                  />
+                </Felt>
+                <Felt label={t("maskin.utleie.primaerEnhet")}>
+                  <select
+                    value={inn.utleieEnhet ?? ""}
+                    onChange={(e) =>
+                      setInn({
+                        ...inn,
+                        utleieEnhet: (e.target.value || null) as "doegn" | "time" | null,
+                      })
+                    }
+                    className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm"
+                  >
+                    <option value="">—</option>
+                    <option value="doegn">{t("maskin.utleie.enhet.doegn")}</option>
+                    <option value="time">{t("maskin.utleie.enhet.time")}</option>
+                  </select>
+                </Felt>
+              </>
+            )}
+          </>
+        )}
+
         {feil && (
           <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
             {feil}
@@ -1287,15 +1391,24 @@ function byggInitielt(equipment: UtstyrDetalj, felt: string): RedigerInputs {
       maksVekt: equipment.maksVekt,
     };
   }
-  // smautstyrInfo
+  if (felt === "smautstyrInfo") {
+    return {
+      ...base,
+      kalibreringsDato: tilIsoDato(equipment.kalibreringsDato),
+      kalibreringsFrist: tilIsoDato(equipment.kalibreringsFrist),
+      sertifiseringsDato: tilIsoDato(equipment.sertifiseringsDato),
+      sertifiseringsFrist: tilIsoDato(equipment.sertifiseringsFrist),
+      effektW: equipment.effektW,
+      vekt: equipment.vekt,
+    };
+  }
+  // utleie
   return {
     ...base,
-    kalibreringsDato: tilIsoDato(equipment.kalibreringsDato),
-    kalibreringsFrist: tilIsoDato(equipment.kalibreringsFrist),
-    sertifiseringsDato: tilIsoDato(equipment.sertifiseringsDato),
-    sertifiseringsFrist: tilIsoDato(equipment.sertifiseringsFrist),
-    effektW: equipment.effektW,
-    vekt: equipment.vekt,
+    erUtleieobjekt: equipment.erUtleieobjekt,
+    utleieprisPerDogn: equipment.utleieprisPerDogn ? Number(equipment.utleieprisPerDogn) : null,
+    utleieprisPerTime: equipment.utleieprisPerTime ? Number(equipment.utleieprisPerTime) : null,
+    utleieEnhet: equipment.utleieEnhet as "doegn" | "time" | null,
   };
 }
 

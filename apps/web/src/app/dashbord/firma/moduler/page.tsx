@@ -50,7 +50,7 @@ const MODULER: ModulDef[] = [
   },
   {
     slug: "varelager",
-    status: "kommer-snart",
+    status: "tilgjengelig",
     ikon: <Package className="h-5 w-5" />,
     navnNoekkel: "firma.moduler.varelager.navn",
     beskrivelseNoekkel: "firma.moduler.varelager.beskrivelse",
@@ -87,13 +87,17 @@ export default function FirmaModulerSide() {
   }
 
   function aktiver(slug: ModulSlug) {
-    if (slug !== "timer" && slug !== "maskin") return;
+    const def = MODULER.find((m) => m.slug === slug);
+    if (def?.status !== "tilgjengelig") return;
+    if (slug === "kompetanse" || slug === "fremdrift") return;
     settModul.mutate({ organizationId: orgId!, slug, aktiver: true });
   }
 
   function bekreftAvslutt() {
     if (!bekreftDeaktiver) return;
-    if (bekreftDeaktiver !== "timer" && bekreftDeaktiver !== "maskin") return;
+    const def = MODULER.find((m) => m.slug === bekreftDeaktiver);
+    if (def?.status !== "tilgjengelig") return;
+    if (bekreftDeaktiver === "kompetanse" || bekreftDeaktiver === "fremdrift") return;
     settModul.mutate({ organizationId: orgId!, slug: bekreftDeaktiver, aktiver: false });
   }
 

@@ -18,6 +18,7 @@
     "@sitedoc/db": "workspace:*",
     "@sitedoc/db-maskin": "workspace:*",
     "@sitedoc/db-timer": "workspace:*",
+    "@sitedoc/db-varelager": "workspace:*",
     "@sitedoc/pdf": "workspace:*",
     "@sitedoc/shared": "workspace:*",
     "@sitedoc/ui": "workspace:*",

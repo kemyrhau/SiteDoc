@@ -1,7 +1,7 @@
 ---
 name: STATUS-AKTUELT
 description: Løpende statusrapport for pågående arbeid, pauset arbeid og planlagte faser. Oppdateres ved hver vesentlig fremdrift.
-sist_verifisert_mot_kode: 2026-05-02
+sist_verifisert_mot_kode: 2026-05-06
 ---
 
 # SiteDoc — aktuell status
@@ -13,7 +13,106 @@ peker hit. Beslutningsgrunnlag og arkitektur ligger i
 
 ## Pågående arbeid
 
-**admin/prosjekter respekterer FirmaVelger IMPLEMENTERT på develop 2026-05-05.** Lukker en inkonsistens: siden viste alle prosjekter på tvers av firmaer selv når sitedoc_admin hadde valgt et firma i FirmaVelger — toppbar viste «A.Markussen AS» mens siden viste alle 35+ prosjekter. Mønster: speiler `prosjekt.hentAlle`-filteret fra Blokk A 2026-05-04.
+**Steg 4b Sesjon 2 (Fase 3 + Fase 4) DEPLOYET TIL PROD 2026-05-06** (impl `da354766` + fix `7d95087f`). Bygger på Sesjon 1 (Fase 1 + 2) som blir deployet i samme prod-merge (commit `b7127475`). Sesjon 2 leverer tRPC-routere og full klient-UI for Varelager-modulen — verifisert på test som **Tore SiteDocAdmin → Byggeleder**: aktivering fungerer, full CRUD i Varelager + Vareforbruk verifisert, lås på attestert-rader fungerer, FK-Restrict på kategori-slett gir korrekt feilmelding.
+
+**Endringer i Sesjon 2:**
+
+**Fase 3 — tRPC-routere (3 nye + infrastruktur-utvidelser):**
+- **Infrastruktur:**
+  - `FirmamodulSlug` i `services/firmamodul.ts` utvidet fra `"timer" | "maskin"` til `"timer" | "maskin" | "varelager"`. `syncProjektModulerPaaAktiver/Deaktiver` håndterer nye slug automatisk uten ekstra kode (verifisert).
+  - `organisasjon.settFirmamodul.input.slug` Zod-enum utvidet til å tillate `varelager`.
+  - Ny `services/varelager/moduleGate.ts` — `erVarelagerAktivert(orgId, projectId?)` + `krevVarelagerAktivert(...)` + `VarelagerModulIkkeAktivertError`. Speiler `services/timer/moduleGate.ts`. To-nivås gating: firma-master + ProjectModule.
+- **`vareKategori`-router** (firma-admin): `list`, `opprett`, `oppdater`, `slett`. Gates: `verifiserFirmaAdmin` + `krevVarelagerAktivert` (firma-nivå). Slett er **ekte DELETE** — feiler med CONFLICT (P2003) hvis varer er tilknyttet (FK Restrict).
+- **`vare`-router** (firma-admin): `list` (med kategori-filter, søk, kunAktive), `hentMedId`, `opprett`, `oppdater`, `deaktiver` (soft-delete via `aktiv=false` — bevarer Vareforbruk-historikk). Kategori-validering: `kategoriId` må tilhøre samme firma. Unique-konflikt på varenummer mappes til CONFLICT.
+- **`vareforbruk`-router** (prosjekt-medlemmer): `list` (filter på periode/byggeplass/dagsseddel/vare; beriker med registrert-av-bruker), `hentMedId`, `opprett`, `oppdater`, `slett`. Gates per endepunkt:
+  - `verifiserProsjektmedlem` (eksisterende helper — ProjectMember + sitedoc_admin/company_admin-fallback)
+  - `krevVarelagerForProsjekt` (henter `primaryOrganizationId` + krever modul aktiv på ProjectModule-nivå; returnerer orgId)
+  - `krevTilgangPolicy` (henter `OrganizationSetting.vareforbrukTilgangDefault`; `alle-ansatte` → kun ProjectMember/company_admin; `kun-prosjektmedlemmer` og `sertifiserte` → krever ekte ProjectMember-rad. Sertifisert-policy får fallback til kun-prosjektmedlemmer i Sesjon 2; reell Kompetansetype-sjekk utsettes)
+  - ECO-validering: hvis `externalCostObjectId` gitt — finnes, samme firma+prosjekt, status=aktiv, `timerregistreringApen=true` (proxy per Beslutning)
+  - Vare-validering: tilhører samme firma som prosjektets eier-org
+  - Dagsseddel-validering: hvis `dagsseddelId` gitt — eksisterer + tilhører samme prosjekt
+  - Lås: `attestertSnapshot !== null` → FORBIDDEN på oppdater + slett
+- **Activity-logging** (best-effort try/catch) på `vareforbruk.{opprett,oppdater,slett}`: `targetType="vareforbruk"`, `action="vare.registrert|endret|slettet"`, payload med vareId/antall/dagsseddelId. Kategori og Vare-CRUD logges ikke (firma-konfigurasjon).
+- **Mount:** `appRouter` får 3 nye toppnivå-routere: `vareKategori`, `vare`, `vareforbruk`.
+
+**Fase 4 — Klient web-UI:**
+- **`/dashbord/firma/varelager/page.tsx`** (ny side): fane-toggle «Varer» / «Kategorier» (default Varer). Modul-ikke-aktivert-melding når `!aktiveFirmamoduler.includes("varelager")`. Varer-fane: filter på søk + kategori + inkluder-inaktiv, tabell-kolonner (navn, varenr, kategori, enhet, pris, internkostnad, aktiv-status), header-knapper «Importer fra SmartDok» (deaktivert i Sesjon 2 — peker til Fase 5) og «Legg til vare». 3 modaler: `VareModal` (opprett/rediger med felter inkl. enhet-combobox med 10 forslag via `<datalist>`, kategori-dropdown), `Deaktiver`-bekreftelses-modal. Kategorier-fane: liste med navn/kontonummer/aktiv, 3 modaler: `KategoriModal` (opprett/rediger med kontonummer-felt + hjelpetekst om ProAdm/Tripletax), `Slett`-bekreftelses-modal med server-feilmelding ved FK-konflikt.
+- **`/dashbord/firma/moduler/page.tsx`**: Varelager-slug byttet fra `status: "kommer-snart"` til `status: "tilgjengelig"`. Toggle-funksjonalitet (aktivere/deaktivere) virker via eksisterende mønster — `organisasjon.settFirmamodul({ slug: "varelager", aktiver })`.
+- **`/dashbord/[prosjektId]/vareforbruk/page.tsx`** (ny side): periode-filter (default siste 30 dager) + byggeplass-filter, tabell-kolonner (dato, vare, antall, enhet, byggeplass, registrert-av, kommentar, attestert-badge, handlinger). Modul-ikke-aktivert-melding hvis tRPC returnerer `PRECONDITION_FAILED`. 2 modaler: `ForbrukModal` (opprett/rediger — vare-velger låst i rediger-modus pga ECO/snapshot-implikasjoner; antall + dato + byggeplass + ECO-dropdown filtrert til aktive ECO-er + kommentar), `Slett`-bekreftelses-modal. Lås-håndtering: rediger/slett-knapper skjult når `erLast===true`.
+- **Sidebar — firma:** Ny «Varelager»-lenke (Package-ikon) i `apps/web/src/app/dashbord/firma/layout.tsx` mellom «Mine timer» og «Fakturering» — `kreverFirmaModul: "varelager"` filter henvender til `aktiveFirmamoduler.includes("varelager")`.
+- **Sidebar — prosjekt:** Ny «Vareforbruk»-element (Package-ikon) i `HovedSidebar.tsx` etter timer-attestering — `kreverFirmaModul: "varelager"` gates på ProjectModule-status (`harVarelagerPaaProsjekt`). `Seksjon`-typen i `navigasjon-kontekst.tsx` utvidet med `"vareforbruk"`. `useAktivSeksjon`-mappet utvidet med `vareforbruk: "vareforbruk"`.
+- **i18n:** ~80 nye nøkler i `nb.json` + `en.json`:
+  - `nav.vareforbruk` (1)
+  - `handling.deaktiver` (1, manglet før)
+  - `firma.varelager.*` (~35: tittel, faner, knapper, kolonner, filter, tom-tilstand, modaler, felter, deaktiver-bekreftelse, modul-ikke-aktivert-melding)
+  - `firma.varelager.kategori.*` (~13: tittel, knapp, tom, kolonner, modaler, kontonummer-hjelp, slett-bekreftelse)
+  - `vareforbruk.*` (~30: tittel, knapp, kolonner, filter, modaler, felter, lås-badge, slett-bekreftelse, modul-ikke-aktivert-melding)
+
+**Hva Sesjon 2 IKKE leverer:**
+- Ingen import-flyt — Sesjon 3 (Fase 5).
+- Ingen mobil offline-sync — Steg 4b.5.
+- Ingen aktivering av Varelager-modul for noe firma — separat manuell handling etter test-verifisering.
+- Ingen sertifiserte-policy-håndhevelse — Kompetansetype får «kreves for vareregistrering»-flagg senere.
+- Ingen attestering-flow på Vareforbruk — utsatt (mobil + leder-attestering).
+- Ingen dagsseddel-kobling i opprett-modal — mobil registrerer fra dagsseddel-detalj senere.
+
+**Verifisering:** `pnpm --filter @sitedoc/api typecheck` grønt. `pnpm build --filter @sitedoc/web` grønt (36.5s). Build-statistikk viser begge nye sider: `/dashbord/firma/varelager` (4.9 kB) + `/dashbord/[prosjektId]/vareforbruk` (4.09 kB). Ingen DB-migrasjoner i denne sesjonen (alle tabeller ble opprettet i Sesjon 1).
+
+**Auto-deployes til test via cron** etter push. Cron-skriptet ble oppdatert i Sesjon 1 til å kjøre `prisma generate + migrate deploy` for alle 4 db-pakker — denne sesjonen krever ikke noen ny `.env` på server. Claude verifiserer på test som **Tore SiteDocAdmin → Byggeleder** (Beslutning fra forrige tur):
+1. `/dashbord/firma/moduler` viser Varelager med toggle-knapp (ikke «kommer snart»). Aktiver Varelager → bekreftelse, sidebar-lenke «Varelager» dukker opp i firma-layout.
+2. `/dashbord/firma/varelager` med tom-tilstand. Bytt til Kategorier-fane → opprett kategori «Test» med kontonummer 1900. Bytt tilbake til Varer → opprett vare «Pukk 0-22» enhet `m3` pris 250 kategori «Test». Rediger varen, deaktiver, reaktiver via list (toggle aktiv).
+3. Som **Per Prosjektadmin** på et Byggeleder-prosjekt: prosjekt-sidebar viser «Vareforbruk»-ikon. Naviger inn → `/dashbord/[prosjektId]/vareforbruk` viser tom-tilstand. Registrer forbruk «Pukk 0-22» antall 5 — vises i tabell. Slett raden.
+4. Slett kategori «Test» som har varer tilknyttet → server-feilmelding «Kategorien har varer tilknyttet og kan ikke slettes». Deaktiver vare først → slett kategori → slett vare.
+
+**Stopp og rapporter etter test-verifisering — Sesjon 3 (Fase 5: import-flyt) avventer eksplisitt grønt lys.**
+
+**Steg 4b Sesjon 1 (Fase 1 + Fase 2) inkludert i samme prod-deploy 2026-05-06** (commit `b7127475`). Verifisert på test før prod-deploy. Forutsetninger lukket (Steg 1e i prod 2026-05-05). Plan-oppdatering 2026-05-06 (`5aca7c31`): Beslutning 8 låst — `VareKategori`-tabell (firma-definert) med valgfri `kontonummer` for ProAdm/Tripletax-eksport; `Vare.kategoriId` (FK) erstatter fritekst-`kategori`. A.Markussens 7 kategorier seedes ved import (Fase 5). Engangsfix på server: `.env` opprettet i `packages/db-varelager`, deploy-cron-skript oppdatert til å håndtere alle 4 db-pakker (generate + migrate deploy).
+
+**Endringer i Sesjon 1:**
+
+**Fase 1 — `packages/db-varelager`-pakke:**
+- Ny pakke speilet etter `db-timer`/`db-maskin`: `package.json`, `tsconfig.json`, `.env.example`, `.gitignore`, `src/index.ts` (eksporterer `prismaVarelager` + typer), `prisma/schema.prisma`.
+- Schema med 3 modeller i postgres-schema `varelager`:
+  - **`VareKategori`** (firma-definert) — `id`, `organizationId` (svak FK), `navn`, `kontonummer?`, `aktiv`, audit-felter. Unique `(organizationId, navn)`.
+  - **`Vare`** — `organizationId`, `navn`, `varenummer?`, `enhet`, `pris?`, `internkostnad?`, `kategoriId?` (ekte FK med `onDelete: Restrict`), `aktiv`. Unique `(organizationId, varenummer)`.
+  - **`Vareforbruk`** — `dato (Date)`, `projectId`, `byggeplassId?`, `externalCostObjectId?`, `vareId` (ekte FK Restrict), `antall`, `registrertAvUserId`, `kommentar?`, `dagsseddelId?` (svak FK → `daily_sheets`), `attestertSnapshot Json?` (A.7-mønster).
+- Migrasjon `20260506000001_init`: CREATE SCHEMA varelager + 3 tabeller + 8 indekser + 2 ekte FKs.
+- Cross-package-FK håndteres som svake String-felt uten `@relation` (samme mønster som db-timer/db-maskin).
+- Workspace-deps: `@sitedoc/db-varelager: workspace:*` lagt til i `apps/api/package.json` + `apps/web/package.json`.
+- `prismaVarelager` lagt til i tRPC-context begge steder (`apps/api/src/trpc/context.ts` + `apps/web/src/app/api/trpc/[...trpc]/route.ts`).
+- `pnpm install` + `pnpm --filter @sitedoc/db-varelager exec prisma generate` grønt (Prisma-klient i `node_modules/.prisma/varelager-client`).
+
+**Fase 2 — Equipment-utleie-utvidelse:**
+- 4 nye felter på Equipment i `db-maskin/prisma/schema.prisma`:
+  - `erUtleieobjekt Boolean default false`
+  - `utleieprisPerDogn Decimal(10,2)?`
+  - `utleieprisPerTime Decimal(10,2)?`
+  - `utleieEnhet String?` («doegn» | «time» — primærenhet for fakturering)
+- Migrasjon `20260506000002_equipment_utleieobjekt`: ALTER TABLE ADD COLUMN, bakoverkompatibel.
+- tRPC: `maskin.equipment.oppdater` utvidet med 4 nye felter i Zod-schema (spread-mønster i Prisma-update krever ingen ekstra kode).
+- Klient (`apps/web/src/app/dashbord/maskin/[id]/page.tsx`):
+  - `UtstyrDetalj`-typen + `RedigerInputs`-typen utvidet med utleie-felter.
+  - `aktivModal`-union utvidet med `"utleie"`.
+  - Ny «Utleie»-seksjon i detaljvyen mellom Småutstyr-info og Notater. Read-only-visning: når `erUtleieobjekt=true` viser Ja/Nei + pris-per-døgn + pris-per-time + primærenhet; når `false` viser kun «Er utleieobjekt: Nei».
+  - RedigerModal får ny `felt="utleie"`-seksjon med toggle-checkbox + 2 NumInput-pris-felter + select for utleieEnhet (kun synlig når toggle på).
+  - `byggInitielt` får ny case for `"utleie"`.
+- ~8 nye i18n-nøkler under `maskin.utleie.*` (nb+en): `seksjon`, `rediger`, `erUtleieobjekt`, `prisPerDogn`, `prisPerTime`, `primaerEnhet`, `enhet.doegn`, `enhet.time`.
+
+**Hva Sesjon 1 IKKE leverer:**
+- Ingen tRPC-routes for Vare/Vareforbruk-CRUD — Sesjon 2 (Fase 3).
+- Ingen klient-UI for varekatalog eller vareforbruk — Sesjon 2 (Fase 4).
+- Ingen import-flyt — Sesjon 3 (Fase 5).
+- Ingen `EquipmentRental`-tabell, ingen utleie-transaksjons-flyt — Steg 4d.
+- Ingen aktivering av Varelager-modulen for noe firma — separat steg etter Sesjon 2.
+- Ingen mobil offline-sync — Steg 4b.5.
+
+**Verifisering:** `pnpm --filter @sitedoc/api typecheck` grønt. `pnpm build --filter @sitedoc/web` grønt (28.3s). Ingen DB-migrasjon kjørt lokalt — test-deploy applier `20260506000001_init` (db-varelager) + `20260506000002_equipment_utleieobjekt` (db-maskin) ved auto-deploy.
+
+**Auto-deployes til test via cron** etter push. Klar for verifisering. Claude verifiserer på test: (1) `psql sitedoc_test -c "\dt varelager.*"` viser `vare_kategorier`, `varer`, `vareforbruk`; (2) `psql sitedoc_test -c "\d maskin.equipment"` viser nye kolonner; (3) som **Per Prosjektadmin** på en Equipment-detaljside — «Utleie»-seksjonen vises med «Er utleieobjekt: Nei», rediger-modalen kan toggles og prisfelter dukker opp/skjules. **Stopp og rapporter etter test-verifisering — Sesjon 2 (Fase 3 + 4) avventer eksplisitt grønt lys.**
+
+**Steg 4b-plan VEDTATT 2026-05-05 — Sesjon 1 implementert 2026-05-06.** Komplett 5-faset plan i [steg-4b-plan.md](steg-4b-plan.md) (komplett A.Markussen-vareliste i § 13). Bygger på C.16 (vedtatt 2026-04-30) + A.Markussen SmartDok-katalog kartlagt 2026-05-05 (64 varer, 8 kategorier, 9 enheter). Sentrale beslutninger: ny `db-varelager`-pakke, **generelt prinsipp om utleie-utstyr** (per time/døgn registreres i Maskinregister med `erUtleieobjekt=true`, ikke i Varekatalog — gjelder Heatwork, steinsag, Hilti, aggregat på tvers av Equipment-kategorier), ECO-kobling på Vareforbruk, fritekst-enhet med forslagsliste, **VareKategori-tabell med kontonummer** (Beslutning 8, 2026-05-06). Importresultat: 57 Vare-rader + 7 VareKategori-rader (alt unntatt Heatwork) + 6 nye Equipment-rader for Heatwork-utleie-enheter. Estimat ~16t over 3 sesjoner. Forutsetning Steg 1e ✅ deployet prod 2026-05-05.
+
+**admin/prosjekter respekterer FirmaVelger DEPLOYET TIL PROD 2026-05-05** (`0245b265` merge — fix `d9570c7b` + firma-kolonne `6414b9d3`). HTTP/2 200 verifisert mot sitedoc.no. Lukker to relaterte issues: (1) siden viste alle prosjekter på tvers av firmaer selv når sitedoc_admin hadde valgt et firma i FirmaVelger; (2) firma-kolonnen viste `projectOrganizations[0]` (første partner-rad) i stedet for primary firma — ga «Hovedentreprenør» på Byggeleder-prosjekter når Hovedentreprenør var partner. Speiler `prosjekt.hentAlle`-filteret fra Blokk A 2026-05-04.
 
 **Endringer:**
 - **Server (`apps/api/src/routes/admin.ts`):** `hentAlleProsjekter` får valgfri `organizationId: z.string().uuid().optional()`-input. `findMany`-where filtrerer på `primaryOrganizationId` når input er gitt, ellers ingen filter (samme atferd som før). Sjekkliste/oppgave-tellinger uendret — jobber mot allerede filtrert `prosjektIder`.

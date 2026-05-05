@@ -19,6 +19,7 @@ import {
   Clock,
   Truck,
   CheckCircle2,
+  Package,
 } from "lucide-react";
 import { SidebarIkon } from "@sitedoc/ui";
 import { useTranslation } from "react-i18next";
@@ -38,7 +39,7 @@ interface SidebarElement {
   kreverIfc?: boolean;
   kreverModul?: string;
   kreverGruppemodul?: string;
-  kreverFirmaModul?: "maskin" | "timer"; // Midlertidig flagg per Organization.har<X>Modul — erstattes av OrganizationModule i Fase 0
+  kreverFirmaModul?: "maskin" | "timer" | "varelager"; // Midlertidig flagg per Organization.har<X>Modul — erstattes av OrganizationModule i Fase 0
   kreverTimerLeder?: boolean; // Vises kun for prosjektleder/admin (Runde 1C-attestering)
 }
 
@@ -140,6 +141,13 @@ const hovedelementer: SidebarElement[] = [
     kreverFirmaModul: "timer",
     kreverTimerLeder: true,
   },
+  {
+    id: "vareforbruk",
+    labelKey: "nav.vareforbruk",
+    ikon: <Package className="h-5 w-5" />,
+    kreverProsjekt: true,
+    kreverFirmaModul: "varelager",
+  },
 ];
 
 const bunnelementer: SidebarElement[] = [
@@ -190,6 +198,9 @@ export function HovedSidebar() {
   const harTimerModulPaaProsjekt = !!aktiveModuler?.some(
     (m) => m.moduleSlug === "timer" && m.status === "aktiv",
   );
+  const harVarelagerPaaProsjekt = !!aktiveModuler?.some(
+    (m) => m.moduleSlug === "varelager" && m.status === "aktiv",
+  );
 
   // Sjekk timer-leder-tilgang for attesterings-fanen (kun hvis modul aktivert)
   const { data: kanAttestereTimer } = trpc.timer.dagsseddel.kanAttestere.useQuery(
@@ -223,6 +234,7 @@ export function HovedSidebar() {
     // Timer gates på ProjectModule (Steg 1c Fase B) — synlig kun når modulen
     // er aktivert for det aktuelle prosjektet, ikke kun firma-bredt.
     if (element.kreverFirmaModul === "timer" && !harTimerModulPaaProsjekt) return false;
+    if (element.kreverFirmaModul === "varelager" && !harVarelagerPaaProsjekt) return false;
     // Timer-leder-sjekk (kun for attesterings-elementet)
     if (element.kreverTimerLeder && !kanAttestereTimer) return false;
     return true;
