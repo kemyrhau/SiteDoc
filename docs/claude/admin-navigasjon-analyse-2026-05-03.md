@@ -73,6 +73,8 @@ Firma (Organization)
 - Brukes som firmanavn i test-DB — gir feil assosiasjoner
 - Testdata-kvalitet: begge testprosjekter har `primary_organization_id = null`
 
+**P3 løst 2026-05-05:** Testfirma renamed til «Byggeleder -Firma» i test-DB via SQL. Ingen kode-endring.
+
 ### P4 — Navigasjonsstrukturen gjenspeiler ikke arkitekturen
 - Firma-admin-sider er tilgjengelige via FirmaVelger i toppbar — ikke via
   prosjekt-navigasjon
