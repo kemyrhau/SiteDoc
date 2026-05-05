@@ -130,6 +130,7 @@ export const oppgaveRouter = router({
           bestiller: true,
           bestillerFaggruppe: true,
           utforerFaggruppe: true,
+          recipientGroup: { select: { id: true, name: true } },
           drawing: {
             include: {
               byggeplass: { select: { id: true, name: true } },

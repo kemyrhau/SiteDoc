@@ -81,6 +81,7 @@ export const sjekklisteRouter = router({
           bestillerFaggruppe: true,
           utforerFaggruppe: true,
           bestiller: true,
+          recipientGroup: { select: { id: true, name: true } },
           byggeplass: { select: { id: true, name: true } },
           drawing: { select: { id: true, name: true, drawingNumber: true, fileUrl: true, imageWidth: true, imageHeight: true } },
           images: { orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }] },
