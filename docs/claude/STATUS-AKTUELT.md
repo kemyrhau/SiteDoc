@@ -13,6 +13,18 @@ peker hit. Beslutningsgrunnlag og arkitektur ligger i
 
 ## Pågående arbeid
 
+**«Hvem har ballen»-badge på dokument-detaljsider IMPLEMENTERT på develop 2026-05-05.** Lukker funn fra STATUS-AKTUELT.md (2026-05-02): «Inne på dokumentet vises kun status — ingen «Venter på X»». Listene hadde badge fra før — kun detalj-sidene manglet. Server: `sjekkliste.hentMedId` + `oppgave.hentMedId` får `recipientGroup: { select: { id, name } }` på toppnivå (var inkludert i `transfers`-relasjonen, men ikke direkte på dokumentet). Klient: badge ved siden av `<StatusBadge />` i header på `[prosjektId]/sjekklister/[sjekklisteId]/page.tsx` og `[prosjektId]/oppgaver/[oppgaveId]/page.tsx`. Synlig kun når status ∈ {sent, received, in_progress} OG `recipientGroup?.name` finnes — speiler liste-vyenes logikk eksakt. Bruker eksisterende i18n-nøkkel `tabell.venterPaa` (allerede i nb+en, ingen ny nøkkel). Sjekkliste-detalj-siden manglet `useTranslation`-import — lagt til. Oppgave-detalj-siden hadde det fra før.
+
+**Hva «Hvem har ballen»-badge IKKE dekker:**
+- `recipientUserId`-tilfellet (transfer sendt til konkret person, ikke gruppe). Speiler listene som også kun viser gruppe. Person-tilfellet kan tas senere hvis det blir etterspurt.
+- `<FlytIndikator>`-komponenten på detalj-sidene viser allerede flyten — badge er supplement, ikke erstatning.
+
+**Verifisering:** `pnpm --filter @sitedoc/api typecheck` grønt. `pnpm build --filter @sitedoc/web` grønt (27.3s). Ingen DB-migrasjon, ingen ny i18n.
+
+**Auto-deployes til test via cron.** Klar for verifisering. Claude verifiserer på test som **Per Prosjektadmin**: åpne en sjekkliste/oppgave med status=sent eller received → forventet «Venter på: [gruppenavn]»-badge ved siden av status-pill i header.
+
+**P1 Fase 2 (auto-reset av prosjekt ved firma-bytte) DEPLOYET TIL PROD 2026-05-05** (`5674df71` merge, `26cc0326` impl). HTTP/2 200 verifisert. Sitedoc_admin med valgt firma og aktivt prosjekt fra annet firma (eller standalone) får automatisk reset + redirect til `/dashbord`. Type-utvidelse: `Prosjekt`-interface i klient-konteksten får `primaryOrganizationId: string | null`. Lukker P1 fullt ut sammen med Blokk A.
+
 **P1 Fase 2 (auto-reset av prosjekt ved firma-bytte) IMPLEMENTERT på develop 2026-05-05.** Lukker P1 fullt ut sammen med Blokk A. Femte tiltak fra [admin-navigasjon-analyse-2026-05-03.md](admin-navigasjon-analyse-2026-05-03.md) (tabell-rad #5).
 
 **Atferd per scenario:**
@@ -537,25 +549,13 @@ Blokkerer selvstendig A.Markussen-onboarding. Ankret i [onboarding-veileder.md](
 
 Formål: systematisk verifisering av at riktige funksjoner er tilgjengelig per rolle, og at utilgjengelige funksjoner er skjult/blokkert. Eksempel: Timer-attestering skal kun være synlig for Per/Kari/Tore (ikke Ola); Firma-administrasjon skal kun være tilgjengelig for Kari/Tore; Superadmin-flater kun for Tore. Dekker også verifisering av RBAC-helpers (`harProsjektTilgang`, `verifiserOrganisasjonTilgang`, `verifiserSiteDocAdmin`) og sidebar-gating.
 
-### «Hvem har ballen» — mangler synlig indikator (observert 2026-05-02)
+### ~~«Hvem har ballen» — mangler synlig indikator (observert 2026-05-02)~~ — LØST 2026-05-05
 
-Problem: Ikke synlig hvem som skal handle på et dokument nå.
-- Listevisningen viser «Ansvarlig» (gruppe) men det er tvetydig
-- Inne på dokumentet vises kun status — ingen «Venter på X»
-- Admin med 20 sjekklister i lista kan ikke se hva som er blokkert
+Listene fikk badge før denne sesjonen (sjekkliste-listen + oppgave-listen viser «Venter på: [gruppenavn]» når status ∈ {sent, received, in_progress}). Dokument-detaljsidene fikk samme badge 2026-05-05 — server utvidet med `recipientGroup`-include på `sjekkliste.hentMedId` + `oppgave.hentMedId`, klient viser badge ved siden av `<StatusBadge />` i header.
 
-Foreslått løsning: Badge «Venter på: [gruppenavn]» ved siden av status-pill, utledet fra siste `DocumentTransfer.recipientGroupId`. Gjelder sjekkliste-liste, oppgave-liste og inne på dokumentet.
+### ~~Auto-redirect ved innlogging — mangler (observert 2026-05-02)~~ — LØST
 
-Prioritet: Høy — kritisk for A.Markussen onboarding.
-
-### Auto-redirect ved innlogging — mangler (observert 2026-05-02)
-
-Problem: Bruker lander på tom `/dashbord` etter innlogging.
-- Bruker med 1 prosjekt bør redirectes direkte til det prosjektet
-- Bruker med flere prosjekter bør redirectes til sist besøkte
-- Logikk: hent brukerens prosjekter ved innlogging → hvis 1 → redirect → hvis flere → redirect til `lastVisitedProjectId` (lagres i localStorage/cookie)
-
-Prioritet: Høy — første inntrykk for nye brukere.
+Verifisert 2026-05-05 at logikken er fullt implementert i `apps/web/src/app/dashbord/page.tsx:41-65` (auto-redirect basert på antall prosjekter) + skriving av `lastVisitedProjectId` i `apps/web/src/app/dashbord/[prosjektId]/layout.tsx:26`. Alle scenarier dekket: 0 prosjekter (admin → kom-i-gang, ikke-admin → tom-state), 1 prosjekt → direkte, 2+ → sist besøkte hvis i tilgjengelig liste, 2+ uten sist-besøkt → bli stående med oversikt. Sannsynligvis lagt til samtidig som auto-progress-arbeidet før denne sesjonen — ikke en mangel lenger.
 
 ## Kjente bugs
 

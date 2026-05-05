@@ -440,6 +440,16 @@ export default function OppgaveDetaljSide() {
               status={oppgave.status}
               lestAvMottakerVed={(fullOppgaveRå as { lestAvMottakerVed?: string | null })?.lestAvMottakerVed}
             />
+            {(() => {
+              const recipientGroup = (fullOppgaveRå as { recipientGroup?: { id: string; name: string } | null })?.recipientGroup;
+              if (!["sent", "received", "in_progress"].includes(oppgave.status)) return null;
+              if (!recipientGroup?.name) return null;
+              return (
+                <span className="inline-flex items-center rounded bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-700 whitespace-nowrap">
+                  {t("tabell.venterPaa")}: {recipientGroup.name}
+                </span>
+              );
+            })()}
           </div>
         </div>
 

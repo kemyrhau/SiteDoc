@@ -2,6 +2,7 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { useState, useMemo, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { Spinner, StatusBadge, Card } from "@sitedoc/ui";
 import { Check, AlertCircle, Loader2, Printer, Pencil } from "lucide-react";
 import { trpc } from "@/lib/trpc";
@@ -64,6 +65,7 @@ interface SjekklisteOppgave {
 }
 
 export default function SjekklisteDetaljSide() {
+  const { t } = useTranslation();
   const params = useParams<{ prosjektId: string; sjekklisteId: string }>();
   const router = useRouter();
   const utils = trpc.useUtils();
@@ -246,6 +248,7 @@ export default function SjekklisteDetaljSide() {
     bestillerUserId?: string;
     recipientUserId?: string | null;
     recipientGroupId?: string | null;
+    recipientGroup?: { id: string; name: string } | null;
     createdAt?: string;
     lestAvMottakerVed?: string | null;
     byggeplass?: { id: string; name: string } | null;
@@ -453,6 +456,11 @@ export default function SjekklisteDetaljSide() {
               status={sjekkliste.status}
               lestAvMottakerVed={fullSjekkliste?.lestAvMottakerVed}
             />
+            {["sent", "received", "in_progress"].includes(sjekkliste.status) && fullSjekkliste?.recipientGroup?.name && (
+              <span className="inline-flex items-center rounded bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-700 whitespace-nowrap">
+                {t("tabell.venterPaa")}: {fullSjekkliste.recipientGroup.name}
+              </span>
+            )}
           </div>
         </div>
 
