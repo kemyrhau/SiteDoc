@@ -1,10 +1,12 @@
 "use client";
 
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { Card, Button } from "@sitedoc/ui";
 import { CheckCircle, Building2, Users, ClipboardCheck } from "lucide-react";
 import { trpc } from "@/lib/trpc";
+import { useFirma } from "@/kontekst/firma-kontekst";
 
 const FUNKSJONER = [
   {
@@ -27,6 +29,21 @@ const FUNKSJONER = [
 export default function KomIGangSide() {
   const router = useRouter();
   const { data: session } = useSession();
+  const { valgtFirma, erSitedocAdmin, isLoading: firmaLaster } = useFirma();
+
+  // Sitedoc_admin er ikke målgruppe for «kom-i-gang» (siden heter «kom i gang»
+  // og prøveperiode-framing passer ikke for superadmin som onboarder kunder).
+  // Med valgt firma → /nytt-prosjekt (har info-banner for sitedoc_admin fra Steg 2d).
+  // Uten valgt firma → /admin/firmaer for å velge eller opprette firma først.
+  useEffect(() => {
+    if (firmaLaster) return;
+    if (!erSitedocAdmin) return;
+    if (valgtFirma) {
+      router.replace("/dashbord/nytt-prosjekt");
+    } else {
+      router.replace("/dashbord/admin/firmaer");
+    }
+  }, [erSitedocAdmin, valgtFirma, firmaLaster, router]);
 
   const opprettMutation = trpc.prosjekt.opprettTestprosjekt.useMutation({
     onSuccess: (prosjekt) => {
@@ -76,7 +93,11 @@ export default function KomIGangSide() {
             </p>
           </div>
           <Button
-            onClick={() => opprettMutation.mutate()}
+            onClick={() =>
+              opprettMutation.mutate(
+                valgtFirma?.id ? { organizationId: valgtFirma.id } : undefined,
+              )
+            }
             loading={opprettMutation.isPending}
             className="w-full"
           >

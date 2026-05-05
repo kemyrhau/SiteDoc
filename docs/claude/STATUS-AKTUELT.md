@@ -13,6 +13,23 @@ peker hit. Beslutningsgrunnlag og arkitektur ligger i
 
 ## Pågående arbeid
 
+**FirmaVelger-kontekst på `kom-i-gang` IMPLEMENTERT på develop 2026-05-05.** Lukker en regresjon som ble identifisert under faggruppe-konsolideringssesjonen: `prosjekt.opprettTestprosjekt`-mutationen ignorerte FirmaVelger-kontekst og brukte alltid innlogget brukers `organizationId`. Sitedoc_admin (Kenneth, org=Kenneths testmiljø) som hadde valgt A.Markussen i FirmaVelger og klikket «Start gratis prøveperiode» på `/dashbord/kom-i-gang` fikk prosjektet opprettet på Kenneths testmiljø, ikke A.Markussen. Steg 1b/2d-mønsteret (organizationId-input + sitedoc_admin-autorisering) fanget alle `/dashbord/firma/*`-rutene + `prosjekt.opprett`, men `opprettTestprosjekt` ble glemt fordi den ligger i kom-i-gang-flyten utenfor firma-tre-strukturen.
+
+**Strategi: redirect + fix.** Ikke to flyter på samme side («kom-i-gang» er konseptuelt for nye brukere, ikke superadmin som onboarder kunder; «prøveperiode»-framing er semantisk feil for betalende kunde). I stedet redirectes sitedoc_admin bort, og selve mutationen fixes som forsvar i dybden.
+
+**Endringer:**
+- **Server (`apps/api/src/routes/prosjekt.ts`):** `opprettTestprosjekt` får valgfri `organizationId: z.string().uuid().optional()`-input. Speiler `prosjekt.opprett`-autorisering (linje 127-141): sitedoc_admin → enhver org, vanlig bruker → kun egen org, ellers FORBIDDEN. Fallback til `bruker.organizationId` når input ikke gitt. `Project.primaryOrganizationId` + `ProjectOrganization` + `ProjectModule`-rader bruker nå `valgtOrgId` i stedet for `bruker.organizationId`.
+- **Klient (`apps/web/src/app/dashbord/kom-i-gang/page.tsx`):** Importerer `useFirma`. Ny `useEffect` lytter på `erSitedocAdmin`, `valgtFirma`, `firmaLaster`. Sitedoc_admin med valgt firma → `router.replace("/dashbord/nytt-prosjekt")` (siden har info-banner for sitedoc_admin fra Steg 2d). Sitedoc_admin uten valgt firma → `router.replace("/dashbord/admin/firmaer")` (kan velge eksisterende eller opprette nytt — «Opprett firma»-knapp finnes allerede). Vanlig bruker / company_admin: ingen redirect. Prøveperiode-mutation sender nå `valgtFirma?.id` som organizationId — defensivt, gjelder også sjeldne tilfeller der vanlig bruker har flere orger.
+
+**Hva endringen IKKE dekker (separate oppgaver):**
+- `eksternKostObjekt.ts:22-28` (`hentBrukerOrgId`-helper) faller fortsatt tilbake til `bruker.organizationId`. Read-only ECO-katalog-list — sitedoc_admin med valgt firma ser fortsatt egen ECO-liste, ikke valgt firmas. Mindre alvorlig (ingen skriving). Tas i egen runde hvis det blir aktuelt.
+- Slå sammen `kom-i-gang` og `nytt-prosjekt` til én smart side — strukturell endring, ut av scope.
+- Onboarding-veileder + prosjektoppsett-veileder (planlagt post-Fase 0) — ikke berørt.
+
+**Verifisering:** `pnpm --filter @sitedoc/api typecheck` grønt. `pnpm build --filter @sitedoc/web` grønt (33.1s). Ingen DB-migrasjon, ingen i18n.
+
+**Auto-deployes til test via cron** etter push. Klar for verifisering. Claude verifiserer som **Tore SiteDocAdmin** på test: (1) velg Byggeleder i FirmaVelger, gå til `/dashbord/kom-i-gang` → forventet auto-redirect til `/dashbord/nytt-prosjekt`; (2) fjern firma-valg via DevTools `localStorage.removeItem("sitedoc-valgt-firma")`, refresh `/dashbord/kom-i-gang` → forventet redirect til `/dashbord/admin/firmaer`; (3) som **Per Prosjektadmin** (vanlig bruker): `/dashbord/kom-i-gang` viser fortsatt feature-kort + prøveperiode-knapp, klikk oppretter prosjekt på Per Prosjektadmins firma (Byggeleder).
+
 **Faggruppe-side-konsolidering IMPLEMENTERT på develop 2026-05-05.** Lukker Tiltak 2 i [navigasjon-arkitektur-analyse-2026-05-03.md](navigasjon-arkitektur-analyse-2026-05-03.md) og er forutsetning for selvstendig A.Markussen-onboarding (per [STATUS-AKTUELT.md § Onboarding-veileder](STATUS-AKTUELT.md)). De to nesten-identiske sidene er erstattet med én konsolidert side.
 
 **Funn under verifisering FØR koding:** Statusrapporten beskrev legacy-siden `/dashbord/prosjekter/[id]/faggrupper` som «full CRUD», men kode-verifisering viste at den kun hadde **opprett**-Modal — ingen rediger eller slett i UI. Server-routeren (`apps/api/src/routes/faggruppe.ts`) har full CRUD inkludert `oppdater` og `slett` (sistnevnte med pen feilmelding ved tilknyttede sjekklister/oppgaver). Konsolideringen krevde derfor å bygge rediger og slett som ikke fantes i UI fra før — ikke ren sammenslåing.

@@ -196,15 +196,36 @@ export const prosjektRouter = router({
 
   // Opprett testprosjekt med standardgrupper og moduler (for nye brukere)
   opprettTestprosjekt: protectedProcedure
-    .mutation(async ({ ctx }) => {
+    .input(z.object({ organizationId: z.string().uuid().optional() }).optional())
+    .mutation(async ({ ctx, input }) => {
       const bruker = await ctx.prisma.user.findUniqueOrThrow({
         where: { id: ctx.userId },
-        select: { name: true, organizationId: true },
+        select: { name: true, role: true, organizationId: true },
       });
 
-      const firma = bruker.organizationId
+      // Speiler prosjekt.opprett-mønsteret: input.organizationId vinner hvis
+      // gitt og bruker har tilgang. Sitedoc_admin → enhver org. Vanlig bruker
+      // → kun egen org. Ellers fallback til bruker.organizationId.
+      let valgtOrgId: string | null = null;
+      if (input?.organizationId) {
+        if (
+          bruker.role === "sitedoc_admin" ||
+          bruker.organizationId === input.organizationId
+        ) {
+          valgtOrgId = input.organizationId;
+        } else {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Ikke tilgang til å opprette prosjekt for dette firmaet",
+          });
+        }
+      } else if (bruker.organizationId) {
+        valgtOrgId = bruker.organizationId;
+      }
+
+      const firma = valgtOrgId
         ? await ctx.prisma.organization.findUnique({
-            where: { id: bruker.organizationId },
+            where: { id: valgtOrgId },
             select: { harTimerModul: true, harMaskinModul: true },
           })
         : null;
@@ -219,7 +240,7 @@ export const prosjektRouter = router({
           data: {
             name: prosjektNavn,
             projectNumber: prosjektnummer,
-            primaryOrganizationId: bruker.organizationId ?? null,
+            primaryOrganizationId: valgtOrgId,
             members: {
               create: {
                 userId: ctx.userId!,
@@ -229,12 +250,12 @@ export const prosjektRouter = router({
           },
         });
 
-        // Auto-tilknytt til brukerens firma + auto-opprett ProjectModule-rader
+        // Auto-tilknytt til valgt firma + auto-opprett ProjectModule-rader
         // for aktive firmamoduler (Steg 1c Fase B)
-        if (bruker.organizationId) {
+        if (valgtOrgId) {
           await tx.projectOrganization.create({
             data: {
-              organizationId: bruker.organizationId,
+              organizationId: valgtOrgId,
               projectId: prosjekt.id,
             },
           });
@@ -247,7 +268,7 @@ export const prosjektRouter = router({
               data: aktiveFirmaModuler.map((slug) => ({
                 projectId: prosjekt.id,
                 moduleSlug: slug,
-                organizationId: bruker.organizationId!,
+                organizationId: valgtOrgId,
                 status: "aktiv",
               })),
               skipDuplicates: true,
