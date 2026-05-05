@@ -13,7 +13,84 @@ peker hit. Beslutningsgrunnlag og arkitektur ligger i
 
 ## Pågående arbeid
 
-**FirmaVelger-kontekst på `kom-i-gang` IMPLEMENTERT på develop 2026-05-05.** Lukker en regresjon som ble identifisert under faggruppe-konsolideringssesjonen: `prosjekt.opprettTestprosjekt`-mutationen ignorerte FirmaVelger-kontekst og brukte alltid innlogget brukers `organizationId`. Sitedoc_admin (Kenneth, org=Kenneths testmiljø) som hadde valgt A.Markussen i FirmaVelger og klikket «Start gratis prøveperiode» på `/dashbord/kom-i-gang` fikk prosjektet opprettet på Kenneths testmiljø, ikke A.Markussen. Steg 1b/2d-mønsteret (organizationId-input + sitedoc_admin-autorisering) fanget alle `/dashbord/firma/*`-rutene + `prosjekt.opprett`, men `opprettTestprosjekt` ble glemt fordi den ligger i kom-i-gang-flyten utenfor firma-tre-strukturen.
+**Steg 1e Fase C (drop har_*_modul-kolonner) IMPLEMENTERT på develop 2026-05-05.** Lukker Steg 1e fullt ut. OrganizationModule-tabellen er nå eneste sannhetskilde for firma-master-aktivering — `har_timer_modul` + `har_maskin_modul`-kolonnene droppet fra Organization.
+
+**Endringer i Fase C:**
+- **Migrasjon `20260505010000_drop_organization_har_modul_flags`:** `ALTER TABLE organizations DROP COLUMN IF EXISTS har_timer_modul`, samme for `har_maskin_modul`. Idempotent.
+- **Schema (`packages/db/prisma/schema.prisma`):** `harMaskinModul` + `harTimerModul`-feltene fjernet fra Organization-modellen. Kommentar oppdatert med peker til Fase C-migrasjonen.
+- **Server (`apps/api/src/routes/organisasjon.ts`):** `settFirmamodul`-mutationen mister dual-write — `tx.organization.update({ data: { [flagFelt]: input.aktiver } })` og `flagFelt`-variabelen fjernet. Kun `skrivOrganizationModuleAktiver/Deaktiver` + `syncProjektModulerPaa{Aktiver,Deaktiver}` igjen.
+- **Server (`apps/api/src/routes/timer/onboarding.ts`):** `aktiverNivaa1` + `aktiverTomKatalog` mister dual-write — `tx.organization.update({ data: { harTimerModul: true } })` fjernet fra begge.
+- **Service-kommentarer:** `services/timer/moduleGate.ts` + `services/maskin/moduleGate.ts` har oppdaterte kommentarer som ikke lenger nevner `Organization.har_*_modul`-flagget.
+
+**Hva Fase C IKKE gjør:**
+- Ingen klient-endring — `Firma`-typen i `firma-kontekst.tsx` ble migrert i Fase B og berøres ikke her.
+- Ingen API-bakoverkompat-bruddsjekk: feltene ble fjernet fra alle respons-typer i Fase B, så klienter (mobil, eldre web-builds) kan eventuelt få type-mismatch hvis de fortsatt forventer `harTimerModul`/`harMaskinModul`. Mobil sjekk: 0 callsites verifisert i Fase A — ingen risk. Web bygger fra samme commit.
+- Ingen i18n-endring.
+
+**Verifisering:** `pnpm --filter @sitedoc/db exec prisma generate` grønt. `pnpm --filter @sitedoc/api typecheck` grønt. `pnpm build --filter @sitedoc/web` grønt (32.7s).
+
+**Auto-deployes til test via cron** etter push. Klar for verifisering. Claude verifiserer på test: (1) psql `\d organizations` viser at `har_timer_modul` + `har_maskin_modul`-kolonnene er borte; (2) som Kari Firmaadmin — toggle Timer av/på på `/dashbord/firma/moduler` fungerer fortsatt (skriver til OrganizationModule); (3) FirmaVelger viser fortsatt «Maskin · Timer» under Byggeleder; (4) Timer-elementer i prosjekt-sidebar uendret. **Stopp og rapporter etter test-verifisering — Steg 1e er da fullt ut levert. Forutsetter prod-deploy som lukker Steg 4b-blokkeren (Vareforbruk).**
+
+**Steg 1e Fase B (callsite-migrering til OrganizationModule) DEPLOYET TIL TEST 2026-05-05** (commit `978c1bf4`). Verifisert: FirmaVelger viser «Maskin · Timer» under Byggeleder, `/dashbord/firma/moduler` toggle fungerer, Timer-elementer i prosjekt-sidebar uendret. 47 callsites migrert fra `harTimerModul`/`harMaskinModul`-flagg til `aktiveFirmamoduler: string[]`. Lese-veien er nå utelukkende fra OrganizationModule-tabellen, men dual-write til flagg beholdt inntil Fase C dropper kolonnene.
+
+**Steg 1e Fase A (OrganizationModule-tabell + bakfyll + dual-write) IMPLEMENTERT på develop 2026-05-05.** Bygger på Fase A. Migrerer alle 47 callsites fra `harTimerModul`/`harMaskinModul`-flagg til ny `aktiveFirmamoduler: string[]`-modell. Dual-write fra Fase A er beholdt — flaggene oppdateres fortsatt parallelt med OrganizationModule-rader inntil Fase C dropper kolonnene. Lese-veien er nå utelukkende fra OrganizationModule-tabellen.
+
+**Endringer i Fase B:**
+- **Service (`apps/api/src/services/firmamodul.ts`):** ny helper `hentAktiveFirmamoduler(organizationId, txClient?)` returnerer `string[]` — alle slugs der `OrganizationModule.status="aktiv"`. Gjenbrukes av `organisasjon.hentMin/hentMedId`, `admin.hentAlleOrganisasjoner`, `prosjekt.opprett/opprettTestprosjekt`. Eksisterende `erFirmamodulAktivert(orgId, slug)` (Fase A) brukes som boolean-sjekk.
+- **Server-respons-typer:**
+  - `organisasjon.hentTilgjengelige`: returnerer nå `{ id, name, erKunde, aktiveFirmamoduler: string[] }` per firma. Egen N+1-fri batch-spørring mot OrganizationModule berikes etter findMany.
+  - `organisasjon.hentMin` + `hentMedId`: beriker Organization-respons med `aktiveFirmamoduler`-felt via Promise.all.
+  - `admin.hentAlleOrganisasjoner`: tilsvarende batch-berikning av Organization[]-respons.
+- **Server-internal:**
+  - `services/timer/moduleGate.ts` + `services/maskin/moduleGate.ts`: leser nå fra `erFirmamodulAktivert` (OrganizationModule) i stedet for `Organization.har_*_modul`-flagg.
+  - `prosjekt.opprett` + `opprettTestprosjekt`: bruker `hentAktiveFirmamoduler` i stedet for `select: { harTimerModul, harMaskinModul }`.
+  - `timer/onboarding.status` + `aktiverNivaa2`: leser fra `erFirmamodulAktivert`. Returfeltet `harTimerModul: boolean` beholdt på response — feltnavnet er semantisk korrekt for boolean-sjekk i timer-spesifikk klient-kontekst.
+- **Klient:**
+  - `Firma`-typen i `firma-kontekst.tsx` har nå `aktiveFirmamoduler: string[]` i stedet for `harTimerModul/harMaskinModul: boolean`.
+  - `firma/layout.tsx` + `firma/moduler/page.tsx` + `FirmaVelger.tsx` + `HovedSidebar.tsx` + `admin/firmaer/page.tsx`: alle lese-callsites byttet til `aktiveFirmamoduler.includes("timer")`/`includes("maskin")`. Lokale variabelnavn `harTimerModul`/`harMaskinModul` beholdt der det er hjelper-leser (semantisk navngivning, ikke felt-aksess).
+  - `firma/timer/layout.tsx` + `firma/timer/onboarding/page.tsx` leser fortsatt `status.harTimerModul` fra `trpc.timer.onboarding.status` — det er en timer-spesifikk respons-felt (ikke fra Firma-typen) og beholdes for semantisk klarhet.
+
+**Hva Fase B IKKE gjør:**
+- Ingen drop av `har_*_modul`-kolonner — det skjer i Fase C.
+- Skriving til OrganizationModule fra `settFirmamodul` + `timer/onboarding.aktiverNivaa1`/`aktiverTomKatalog` skjer fortsatt som dual-write — gir trygg overgang til Fase C.
+- Mobil ikke berørt (0 callsites).
+
+**Verifisering:** `pnpm --filter @sitedoc/api typecheck` grønt. `pnpm build --filter @sitedoc/web` grønt (32.6s). Ingen DB-migrasjon, ingen i18n.
+
+**Auto-deployes til test via cron** etter push. Klar for verifisering. Claude verifiserer på test: (1) som **Tore SiteDocAdmin** — FirmaVelger viser «Maskin · Timer» under Byggeleder-firma (avledes nå fra `aktiveFirmamoduler` i stedet for flagg); (2) som **Kari Firmaadmin** — `/dashbord/firma/moduler` reflekterer korrekt aktiv-status, deaktiver Timer → reaktiver fungerer end-to-end (dual-write skriver til både flagg og OrganizationModule); (3) Timer-elementer i prosjekt-sidebar gates fortsatt på ProjectModule (ikke flagg) — uendret atferd. **Stopp og rapporter etter test-verifisering — Fase C avventer eksplisitt grønt lys.**
+
+**Steg 1e Fase A (OrganizationModule-tabell + bakfyll + dual-write) DEPLOYET TIL TEST 2026-05-05** (commit `9fda0f81`). Verifisert som innlogget Kari Firmaadmin: deaktiver/reaktiver Timer fungerer ende-til-ende, sidebar oppdateres synkront, bekreftelsesdialog vises ved deaktivering. 2 bakfylte rader for Byggeleder (timer + maskin, status=aktiv) verifisert via psql. Fase A er **bakoverkompatibel** — har_*_modul-flaggene er fortsatt sannhetskilde, OrganizationModule oppdateres parallelt via dual-write. Sjette steg i prioritert byggerekkefølge fra [domene-arbeidsflyt.md](domene-arbeidsflyt.md). Erstatter `Organization.har_timer_modul`/`har_maskin_modul`-kolonnene med generisk `OrganizationModule`-tabell. Skalerbar til flere firmamoduler (kompetanse, fremdrift, varelager) uten schema-endring per ny modul. Forutsetning for Steg 4b (Vareforbruk).
+
+**Tre-faset utrulling (Fase A bakoverkompatibel):**
+- **Fase A** (denne): tabell opprettet + bakfylt, callsites uendret, dual-write fra `settFirmamodul` + `timer/onboarding.aktiverNivaa1` + `aktiverTomKatalog` til både flagg og ny tabell.
+- **Fase B** (etter test-verifisering): migrér 47 callsites (23 server, 20 klient, 2 schema, 0 mobil) fra `harTimerModul`/`harMaskinModul` til `aktiveFirmamoduler: string[]` på Firma-typen.
+- **Fase C** (etter Fase B-verifisering): drop `har_timer_modul` + `har_maskin_modul`-kolonnene fra Organization.
+
+**Endringer i Fase A:**
+- **Migrasjon `20260505000001_add_organization_module_fase_a`:** CREATE TABLE `organization_modules` med felter `(id, organization_id, module_slug, status, aktivert_ved, aktivert_av_user_id, deaktivert_ved, deaktivert_av_user_id, config, created_at, updated_at)`. Unique `(organization_id, module_slug)`, index på `(module_slug, status)`. FK til `organizations` med Cascade. `aktivert_av/deaktivert_av_user_id` er String? uten Prisma-`@relation` per A.3-mønster (bevarer audit-spor ved User-sletting). Bakfyll: INSERT-statements som speiler eksisterende `har_*_modul=true` fra Organization-tabellen, `aktivert_ved` settes til `organization.created_at` som beste tilnærming.
+- **Schema (`packages/db/prisma/schema.prisma`):** Ny `OrganizationModule`-modell + `organizationModules OrganizationModule[]`-relasjon på Organization. Kommentar over `harMaskinModul`/`harTimerModul`-flaggene oppdatert til å beskrive Fase A-overgang.
+- **Service (`apps/api/src/services/firmamodul.ts`):** Tre nye helpers — `erFirmamodulAktivert(orgId, slug)` (read fra ny tabell, klar for Fase B), `skrivOrganizationModuleAktiver(tx, orgId, slug, userId)` (upsert med audit), `skrivOrganizationModuleDeaktiver(tx, orgId, slug, userId)` (soft-delete via deaktivert_ved). Eksisterende `syncProjektModulerPaa{Aktiver,Deaktiver}` (Steg 1c Fase B) uendret.
+- **Server (`apps/api/src/routes/organisasjon.ts`):** `settFirmamodul`-mutation utvidet med dual-write — kaller nå `skrivOrganizationModuleAktiver/Deaktiver` i samme `$transaction` som flagget oppdateres og `syncProjektModulerPaaAktiver/Deaktiver` kjøres. `ctx.userId` brukes som `aktivertAvUserId`/`deaktivertAvUserId`.
+- **Server (`apps/api/src/routes/timer/onboarding.ts`):** `aktiverNivaa1` + `aktiverTomKatalog` utvidet med dual-write (kaller `skrivOrganizationModuleAktiver` i samme `$transaction`). `aktiverNivaa2` uberørt (krever at modul allerede er aktivert — ingen tilstandsendring).
+- **Dokumentasjon (`docs/claude/fase-0-beslutninger.md` § A.4):** Peker til Steg 1e med overstyring-rasjonale lagt til. A.4 ProjectModule-utvidelse for prosjekt-instans-laget består uendret; firma-master-laget flyttes til ny tabell.
+
+**Hva Fase A IKKE gjør:**
+- Ingen klient-endring — `Firma`-typen i `firma-kontekst.tsx` beholder `harTimerModul`/`harMaskinModul`. Migreres i Fase B.
+- Ingen drop av kolonner — `har_*_modul` er fortsatt sannhetskilde. Droppes i Fase C.
+- Ingen Activity-logging av modul-aktivering ennå (audit-feltene på OrganizationModule-tabellen er kun bevegelse-historikk, ikke full event-stream).
+- Ingen cross-org ProjectModule-unique — Steg 1e-spec sier dette skal vurderes samtidig, men er utsatt til separat steg per Kenneths beslutning 2026-05-05 (krever firmamodul-vs-prosjektmodul-distinksjon i schema/runtime).
+
+**Verifisering:** `pnpm --filter @sitedoc/db exec prisma generate` grønt. `pnpm --filter @sitedoc/api typecheck` grønt. `pnpm build --filter @sitedoc/web` grønt (32.4s). Migrasjons-SQL ikke kjørt mot lokal-DB ennå (test+prod auto-deploy applier den).
+
+**Bakfyll-forventning ved deploy:**
+- Test-DB: 1 firma med begge flagg (Byggeleder) → 2 OrganizationModule-rader (timer + maskin, status=aktiv).
+- Prod-DB: 3 firma med begge flagg (A.Markussen + HRP AS + Kenneths testmiljø) → 6 rader.
+
+**Auto-deployes til test via cron** etter push. Klar for verifisering. Claude verifiserer på test: (1) psql-spørring `SELECT organization_id, module_slug, status, aktivert_ved FROM organization_modules ORDER BY organization_id, module_slug` returnerer 2 rader for Byggeleder; (2) toggle Timer av/på i `/dashbord/firma/moduler` som Kari Firmaadmin → bekreft at både `harTimerModul`-flagg OG `OrganizationModule`-rad oppdateres synkront (psql-verifisering); (3) `aktivertAvUserId`/`deaktivertAvUserId` fylles korrekt med innloggets userId. **Stopp og rapporter etter test-verifisering — Fase B avventer eksplisitt grønt lys.**
+
+**Reginn MREG (2026-05-05):** API-nøkler mottatt. N2.2.3 i oppryddings-plan aktivert. Venter på svar fra Anders (anders@sentralregisteret.no) om funksjonelle endepunkter — kun `/auth/session/get` er dokumentert så langt. Sakkyndig kontroll-felter (`sakkyndigKontrollSist/Frist/Organ/Nr`) kan legges til Equipment-skjema nå uten API. Reginn-worker bygges analogt med Vegvesen-worker. Tekniske rammer dokumenteres i [reginn-mreg-integrasjon.md](reginn-mreg-integrasjon.md) (opprettes separat). Blokkeren «avventer API-tilgang» fra N2.2.3 er fjernet.
+
+**FirmaVelger-kontekst på `kom-i-gang` DEPLOYET TIL PROD 2026-05-05** (`66c2e982` merge, `9a750681` impl). HTTP/2 200 verifisert mot sitedoc.no. Test-verifisert begge redirect-scenarier som Tore SiteDocAdmin før prod-deploy. Sitedoc_admin med valgt firma redirectes til `/dashbord/nytt-prosjekt`, uten valgt firma til `/dashbord/admin/firmaer`. `opprettTestprosjekt` tar nå valgfri `organizationId` med samme autorisering som `prosjekt.opprett`. Vanlig bruker / company_admin uberørt. Lukker en regresjon som ble identifisert under faggruppe-konsolideringssesjonen: `prosjekt.opprettTestprosjekt`-mutationen ignorerte FirmaVelger-kontekst og brukte alltid innlogget brukers `organizationId`. Sitedoc_admin (Kenneth, org=Kenneths testmiljø) som hadde valgt A.Markussen i FirmaVelger og klikket «Start gratis prøveperiode» på `/dashbord/kom-i-gang` fikk prosjektet opprettet på Kenneths testmiljø, ikke A.Markussen. Steg 1b/2d-mønsteret (organizationId-input + sitedoc_admin-autorisering) fanget alle `/dashbord/firma/*`-rutene + `prosjekt.opprett`, men `opprettTestprosjekt` ble glemt fordi den ligger i kom-i-gang-flyten utenfor firma-tre-strukturen.
 
 **Strategi: redirect + fix.** Ikke to flyter på samme side («kom-i-gang» er konseptuelt for nye brukere, ikke superadmin som onboarder kunder; «prøveperiode»-framing er semantisk feil for betalende kunde). I stedet redirectes sitedoc_admin bort, og selve mutationen fixes som forsvar i dybden.
 
@@ -30,7 +107,7 @@ peker hit. Beslutningsgrunnlag og arkitektur ligger i
 
 **Auto-deployes til test via cron** etter push. Klar for verifisering. Claude verifiserer som **Tore SiteDocAdmin** på test: (1) velg Byggeleder i FirmaVelger, gå til `/dashbord/kom-i-gang` → forventet auto-redirect til `/dashbord/nytt-prosjekt`; (2) fjern firma-valg via DevTools `localStorage.removeItem("sitedoc-valgt-firma")`, refresh `/dashbord/kom-i-gang` → forventet redirect til `/dashbord/admin/firmaer`; (3) som **Per Prosjektadmin** (vanlig bruker): `/dashbord/kom-i-gang` viser fortsatt feature-kort + prøveperiode-knapp, klikk oppretter prosjekt på Per Prosjektadmins firma (Byggeleder).
 
-**Faggruppe-side-konsolidering IMPLEMENTERT på develop 2026-05-05.** Lukker Tiltak 2 i [navigasjon-arkitektur-analyse-2026-05-03.md](navigasjon-arkitektur-analyse-2026-05-03.md) og er forutsetning for selvstendig A.Markussen-onboarding (per [STATUS-AKTUELT.md § Onboarding-veileder](STATUS-AKTUELT.md)). De to nesten-identiske sidene er erstattet med én konsolidert side.
+**Faggruppe-side-konsolidering DEPLOYET TIL PROD 2026-05-05** (`d62ffa6c` merge, `5942f396` impl). HTTP/2 200 verifisert mot sitedoc.no. Test-verifisert full CRUD (opprett/rediger/slett + bekreftelsesdialog) som Per Prosjektadmin før prod-deploy. Lukker Tiltak 2 i [navigasjon-arkitektur-analyse-2026-05-03.md](navigasjon-arkitektur-analyse-2026-05-03.md) og er forutsetning for selvstendig A.Markussen-onboarding (per [STATUS-AKTUELT.md § Onboarding-veileder](STATUS-AKTUELT.md)). De to nesten-identiske sidene er erstattet med én konsolidert side.
 
 **Funn under verifisering FØR koding:** Statusrapporten beskrev legacy-siden `/dashbord/prosjekter/[id]/faggrupper` som «full CRUD», men kode-verifisering viste at den kun hadde **opprett**-Modal — ingen rediger eller slett i UI. Server-routeren (`apps/api/src/routes/faggruppe.ts`) har full CRUD inkludert `oppdater` og `slett` (sistnevnte med pen feilmelding ved tilknyttede sjekklister/oppgaver). Konsolideringen krevde derfor å bygge rediger og slett som ikke fantes i UI fra før — ikke ren sammenslåing.
 

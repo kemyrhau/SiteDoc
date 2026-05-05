@@ -2,6 +2,7 @@ import { z } from "zod";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { TRPCError } from "@trpc/server";
 import { Prisma } from "@sitedoc/db";
+import { hentAktiveFirmamoduler } from "../services/firmamodul";
 
 /**
  * Verifiser at bruker er SiteDoc-administrator.
@@ -95,7 +96,7 @@ export const adminRouter = router({
   hentAlleOrganisasjoner: protectedProcedure.query(async ({ ctx }) => {
     await verifiserSiteDocAdmin(ctx.prisma, ctx.userId);
 
-    return ctx.prisma.organization.findMany({
+    const orgs = await ctx.prisma.organization.findMany({
       where: { erKunde: true },
       include: {
         users: { select: { id: true, name: true, email: true, role: true } },
@@ -105,6 +106,25 @@ export const adminRouter = router({
       },
       orderBy: { createdAt: "desc" },
     });
+
+    // Steg 1e Fase B: berik med aktiveFirmamoduler fra OrganizationModule.
+    const moduler = await ctx.prisma.organizationModule.findMany({
+      where: {
+        organizationId: { in: orgs.map((o) => o.id) },
+        status: "aktiv",
+      },
+      select: { organizationId: true, moduleSlug: true },
+    });
+    const perOrg = new Map<string, string[]>();
+    for (const m of moduler) {
+      const liste = perOrg.get(m.organizationId) ?? [];
+      liste.push(m.moduleSlug);
+      perOrg.set(m.organizationId, liste);
+    }
+    return orgs.map((o) => ({
+      ...o,
+      aktiveFirmamoduler: perOrg.get(o.id) ?? [],
+    }));
   }),
 
   // Opprett organisasjon (kun sitedoc_admin)

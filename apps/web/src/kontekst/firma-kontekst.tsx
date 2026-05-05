@@ -14,8 +14,12 @@ const STORAGE_KEY = "sitedoc-valgt-firma";
 interface Firma {
   id: string;
   name: string;
-  harMaskinModul: boolean;
-  harTimerModul: boolean;
+  /**
+   * Aktive firmamoduler som slug-array (f.eks. ["timer", "maskin"]).
+   * Steg 1e Fase B (2026-05-05) — erstattet harTimerModul/harMaskinModul.
+   * Sjekk via `valgtFirma?.aktiveFirmamoduler.includes("timer")`.
+   */
+  aktiveFirmamoduler: string[];
   erKunde: boolean;
 }
 

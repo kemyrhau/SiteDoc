@@ -75,7 +75,7 @@ export default function FirmaLayout({
 }) {
   const pathname = usePathname();
   const { valgtFirma, erSitedocAdmin, isLoading } = useFirma();
-  const harTimerModul = valgtFirma?.harTimerModul ?? false;
+  const harTimerModul = valgtFirma?.aktiveFirmamoduler.includes("timer") ?? false;
 
   if (isLoading) {
     return (

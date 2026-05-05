@@ -84,8 +84,8 @@ export function FirmaVelger() {
                   </span>
                   <span className="text-xs text-gray-500">
                     {[
-                      f.harMaskinModul ? "Maskin" : null,
-                      f.harTimerModul ? "Timer" : null,
+                      f.aktiveFirmamoduler.includes("maskin") ? "Maskin" : null,
+                      f.aktiveFirmamoduler.includes("timer") ? "Timer" : null,
                     ]
                       .filter(Boolean)
                       .join(" · ") || "Ingen moduler"}

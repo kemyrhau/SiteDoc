@@ -1,19 +1,111 @@
 /**
- * Firmamodul-sync (Steg 1c Fase B).
+ * Firmamodul-sync (Steg 1c Fase B + Steg 1e Fase A).
  *
  * Synkroniserer ProjectModule-rader når en firmamodul (timer/maskin) aktiveres
  * eller deaktiveres for et firma. Brukes av:
  *   - organisasjon.settFirmamodul (eksplisitt toggle)
  *   - timer.onboarding.aktiverNivaa1 / aktiverTomKatalog (onboarding-flow)
  *
- * Forutsetter at den kallende koden allerede har satt har_*_modul-flagget på
- * Organization-raden i samme transaction. Disse helperne berører kun
- * ProjectModule-tabellen.
+ * Steg 1e Fase A (2026-05-05): nye dual-write-helpere skriver også til den
+ * generiske OrganizationModule-tabellen i samme $transaction. har_*_modul-
+ * flagget er fortsatt sannhetskilde for alle eksisterende callsites; dual-
+ * write garanterer at OrganizationModule-tabellen holder seg synkron til
+ * Fase B migrerer callsites og Fase C dropper flaggene.
  */
-import type { Prisma } from "@sitedoc/db";
+import { prisma, type Prisma } from "@sitedoc/db";
 
 type TxClient = Prisma.TransactionClient;
 export type FirmamodulSlug = "timer" | "maskin";
+
+/**
+ * Soft-sjekk mot OrganizationModule-tabellen — returnerer boolean.
+ *
+ * Steg 1e Fase B (2026-05-05): primær lese-vei for callsites som tidligere
+ * leste Organization.har_*_modul.
+ */
+export async function erFirmamodulAktivert(
+  organizationId: string,
+  slug: FirmamodulSlug,
+): Promise<boolean> {
+  const rad = await prisma.organizationModule.findUnique({
+    where: { organizationId_moduleSlug: { organizationId, moduleSlug: slug } },
+    select: { status: true },
+  });
+  return rad?.status === "aktiv";
+}
+
+/**
+ * Hent alle aktive firmamoduler for et firma som array av slugs.
+ *
+ * Brukes av organisasjon.hentTilgjengelige/hentMin/hentMedId for å berike
+ * Firma-objektet med aktiveFirmamoduler: string[]. Klient bruker denne for
+ * gating av modul-spesifikk UI (Timer-lenker, Maskin-lenker).
+ */
+export async function hentAktiveFirmamoduler(
+  organizationId: string,
+  txClient?: TxClient,
+): Promise<string[]> {
+  const klient = txClient ?? prisma;
+  const rader = await klient.organizationModule.findMany({
+    where: { organizationId, status: "aktiv" },
+    select: { moduleSlug: true },
+  });
+  return rader.map((r) => r.moduleSlug);
+}
+
+/**
+ * Dual-write hjelper for aktivering: skriv OrganizationModule-rad i samme
+ * transaction som Organization.har_*_modul-flagget oppdateres.
+ *
+ * Idempotent via upsert. aktivertVed oppdateres ved reaktivering. Eksisterende
+ * deaktivert_ved/deaktivert_av_user_id nullstilles.
+ */
+export async function skrivOrganizationModuleAktiver(
+  tx: TxClient,
+  organizationId: string,
+  slug: FirmamodulSlug,
+  aktivertAvUserId: string | null,
+): Promise<void> {
+  await tx.organizationModule.upsert({
+    where: { organizationId_moduleSlug: { organizationId, moduleSlug: slug } },
+    create: {
+      organizationId,
+      moduleSlug: slug,
+      status: "aktiv",
+      aktivertAvUserId,
+    },
+    update: {
+      status: "aktiv",
+      aktivertVed: new Date(),
+      aktivertAvUserId,
+      deaktivertVed: null,
+      deaktivertAvUserId: null,
+    },
+  });
+}
+
+/**
+ * Dual-write hjelper for deaktivering: marker OrganizationModule-rad som
+ * arkivert. Rad beholdes — historikk bevares.
+ *
+ * No-op hvis raden ikke finnes (skjer hvis flagget aldri har vært aktivert
+ * via dual-write-flyten — fanges som forsvar i dybden).
+ */
+export async function skrivOrganizationModuleDeaktiver(
+  tx: TxClient,
+  organizationId: string,
+  slug: FirmamodulSlug,
+  deaktivertAvUserId: string | null,
+): Promise<void> {
+  await tx.organizationModule.updateMany({
+    where: { organizationId, moduleSlug: slug, status: "aktiv" },
+    data: {
+      status: "arkivert",
+      deaktivertVed: new Date(),
+      deaktivertAvUserId,
+    },
+  });
+}
 
 /**
  * Aktiver firmamodul: opprett eller reaktiver ProjectModule-rader for alle

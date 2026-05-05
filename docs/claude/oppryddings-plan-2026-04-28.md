@@ -59,6 +59,15 @@ Sannhetskilder: [fase-0-beslutninger.md](fase-0-beslutninger.md), [arkitektur.md
 - [ ] **N2.2.1 — Varelager-fase-justering** — Kenneth-presisering 2026-04-28: Varelager fremskyndes (A.Markussen har behov). Tidligere plassering Fase 5 i syntese § 5 + § 1.2-rad må revurderes mot ny prioritering. Krever Kenneth-beslutning på ny fase-rekkefølge før diff. Berører: arkitektur-syntese § 1.2, § 3.3, § 4, § 5, § 1.4 Firma B-eksempel; CLAUDE.md § Planlagte faser; oppryddings-plan-rekkefølge.
 - [ ] **N2.2.2 — DO-kobling-rad-presisering i § 1.2** — Dagens formulering «Sertifisering ↔ maskinbruk-validering» er upresis. DO = Dokumentert Opplæring (web-verifisert: Forskrift om utførelse av arbeid § 10-1/§ 10-4). Foreslått omformulering: «Maskinbruk-validering: DO (Dokumentert Opplæring per person) + sakkyndig kontroll (per maskin)». Krever Kenneth-beslutning på rad-formulering. Berører: arkitektur-syntese § 1.2.
 - [ ] **N2.2.3 — Sakkyndig kontroll-felter på Equipment** — Equipment-modellen i `packages/db-maskin/prisma/schema.prisma:25-89` mangler `sakkyndigKontrollSist/Frist/Organ/Nr`-felter for anleggsmaskin (Forskrift om utførelse av arbeid § 13-3). Eksisterende `sertifiseringsDato/Frist` er for småutstyr-kategorien, ikke samme ordning. Hører til Maskin-modul-arbeid på `feature/maskin-db`, ikke generell anker-rens. Berører: maskin.md, packages/db-maskin schema. **Status (2026-04-30):** Sakkyndig kontroll-felter kan designes nå uten API-tilgang. Selve importen fra sentralregisteret.no avventer API-tilgang. Ikke blokkerende for Fase 0-koding.
+
+  **Status oppdatert 2026-05-05:** API-nøkler (test-miljø) mottatt fra Sentralregisteret. Kontakt: anders@sentralregisteret.no / it@sentralregisteret.no. Blokkeren «avventer API-tilgang» er fjernet.
+
+  **Neste steg:**
+  1. Svar fra Anders om funksjonelle endepunkter (maskin-oppslag, sakkyndig kontroll) — kun `/auth/session/get` er dokumentert i tilsendt link
+  2. Legg til sakkyndig kontroll-felter på Equipment-modellen (kan gjøres nå, uavhengig av API)
+  3. Bygg Reginn-worker analogt med Vegvesen-worker (kø + 60s-polling + retry/watchdog)
+
+  **Tekniske rammer:** se [reginn-mreg-integrasjon.md](reginn-mreg-integrasjon.md) (opprettes separat når funksjonelle endepunkter er dokumentert).
 - [ ] **N2.2.4 — ProAdm-rad-vurdering** — § 1.2-rad «Proadm-eksport | Timer + tilleggsarbeid | Timer» behandler ProAdm som modul. Den er reelt en integrasjon (adapter mot eksternt prosjektøkonomi-system). Vurder om raden hører til § 1.2 Tilleggsmoduler eller § 7 Eksterne integrasjoner. Berører: arkitektur-syntese § 1.2 + § 7. **Status (2026-04-30):** ProAdm avventer dialog mellom A.Markussen og ProAdm. Ikke blokkerende for Fase 0-koding.
 
 ### Prinsipp-rad — A.Markussen-research-infeksjons-rens
