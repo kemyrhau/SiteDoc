@@ -31,14 +31,22 @@ export const adminRouter = router({
     return bruker.role === "sitedoc_admin";
   }),
 
-  // Hent alle prosjekter (kun sitedoc_admin)
-  hentAlleProsjekter: protectedProcedure.query(async ({ ctx }) => {
+  // Hent alle prosjekter (kun sitedoc_admin).
+  // Valgfri organizationId-filter — gjør at admin/prosjekter respekterer
+  // FirmaVelger på samme måte som /dashbord (Blokk A 2026-05-04).
+  hentAlleProsjekter: protectedProcedure
+    .input(z.object({ organizationId: z.string().uuid().optional() }).optional())
+    .query(async ({ ctx, input }) => {
     await verifiserSiteDocAdmin(ctx.prisma, ctx.userId);
 
     const prosjekter = await ctx.prisma.project.findMany({
+      where: input?.organizationId
+        ? { primaryOrganizationId: input.organizationId }
+        : undefined,
       include: {
         members: { select: { id: true, user: { select: { name: true, email: true } } } },
         faggrupper: { select: { id: true } },
+        primaryOrganization: { select: { id: true, name: true } },
         projectOrganizations: {
           include: { organization: { select: { id: true, name: true } } },
         },

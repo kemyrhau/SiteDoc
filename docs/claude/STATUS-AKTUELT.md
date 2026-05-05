@@ -13,6 +13,37 @@ peker hit. Beslutningsgrunnlag og arkitektur ligger i
 
 ## Pågående arbeid
 
+**admin/prosjekter respekterer FirmaVelger IMPLEMENTERT på develop 2026-05-05.** Lukker en inkonsistens: siden viste alle prosjekter på tvers av firmaer selv når sitedoc_admin hadde valgt et firma i FirmaVelger — toppbar viste «A.Markussen AS» mens siden viste alle 35+ prosjekter. Mønster: speiler `prosjekt.hentAlle`-filteret fra Blokk A 2026-05-04.
+
+**Endringer:**
+- **Server (`apps/api/src/routes/admin.ts`):** `hentAlleProsjekter` får valgfri `organizationId: z.string().uuid().optional()`-input. `findMany`-where filtrerer på `primaryOrganizationId` når input er gitt, ellers ingen filter (samme atferd som før). Sjekkliste/oppgave-tellinger uendret — jobber mot allerede filtrert `prosjektIder`.
+- **Klient (`apps/web/src/app/dashbord/admin/prosjekter/page.tsx`):** importerer `useFirma()`, sender `{ organizationId: valgtFirma?.id }` til queryen. Header-tittel + empty-state-tekst byttes dynamisk: «Alle prosjekter» når intet firma valgt → «[Firmanavn]» når firma valgt. Empty-state-beskrivelse blir firmaspesifikk.
+- Ingen ny i18n (header er fortsatt hardkodet — i18n-konvertering av admin-vyen er separat opprydningsoppgave).
+
+**Hva endringen IKKE dekker:**
+- `prosjekt.hentAlle` røres ikke — har samme filter fra før, brukes andre steder.
+- Auto-reset av lokal state ved firma-bytte er ikke relevant her (admin/prosjekter er selvstendig vy uten prosjekt-kontekst).
+- i18n-konvertering av admin-vyen er fortsatt åpen.
+
+**Verifisering:** `pnpm --filter @sitedoc/api typecheck` grønt. `pnpm build --filter @sitedoc/web` grønt (32.7s). Ingen DB-migrasjon, ingen i18n.
+
+**Auto-deployes til test via cron** etter push. Klar for verifisering. Claude verifiserer på test som **Tore SiteDocAdmin**: (1) uten firma valgt — `/dashbord/admin/prosjekter` viser «Alle prosjekter (N)» og listen er full; (2) velg Byggeleder i FirmaVelger — header endres til «Byggeleder -Firma (M)» og listen er filtrert til kun Byggeleder-prosjekter; (3) bytt til et firma uten prosjekter — empty-state med firmaspesifikk tekst.
+
+**Steg 1e (OrganizationModule erstatter har_*_modul-flagg) DEPLOYET TIL PROD 2026-05-05** (`de044be4` merge — Fase A `9fda0f81` + Fase B `978c1bf4` + Fase C `5f72dc23`). HTTP/2 200 verifisert mot sitedoc.no. Lukker Steg 1e fullt ut og forutsetningen for Steg 4b (Vareforbruk).
+
+**Prod-deploy verifisert:**
+- 2 migrasjoner applied (`20260505000001_add_organization_module_fase_a` + `20260505010000_drop_organization_har_modul_flags`)
+- `har_timer_modul` + `har_maskin_modul`-kolonnene droppet fra `organizations` (0 i information_schema)
+- Bakfylt: **2 rader** i `organization_modules` for **A.Markussen AS** (timer + maskin, status=aktiv). HRP AS og Kenneths testmiljø hadde erKunde=true men aldri `har_*_modul=true`, så ingen rader bakfylt for dem — antagelsen i Fase A-rapporten om 6 rader var feil. 2 rader er korrekt for prod-state der kun A.Markussen aktivt bruker modulene.
+- PM2: sitedoc-web + sitedoc-api restartet, uptime 0s ved verifisering
+
+**Hva Steg 1e leverer:**
+- Generisk `OrganizationModule(organizationId, moduleSlug, status, audit-felter, config)`-tabell erstatter `Organization.har_timer_modul` + `har_maskin_modul`
+- Skalerbar til kompetanse/fremdrift/varelager uten schema-endring per ny modul
+- Audit-spor: `aktivert_ved/aktivert_av_user_id/deaktivert_ved/deaktivert_av_user_id` (String? uten `@relation` per A.3-mønster)
+- Klient-API: `Firma.aktiveFirmamoduler: string[]` erstatter de boolean-flaggene
+- A.4-overstyring dokumentert i `fase-0-beslutninger.md` (peker til Steg 1e med rasjonale: firma uten prosjekter må kunne onboarde lønnsarter — ikke avledbar fra ProjectModule alene)
+
 **Steg 1e Fase C (drop har_*_modul-kolonner) IMPLEMENTERT på develop 2026-05-05.** Lukker Steg 1e fullt ut. OrganizationModule-tabellen er nå eneste sannhetskilde for firma-master-aktivering — `har_timer_modul` + `har_maskin_modul`-kolonnene droppet fra Organization.
 
 **Endringer i Fase C:**
