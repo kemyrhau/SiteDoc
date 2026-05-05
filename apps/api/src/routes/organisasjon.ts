@@ -6,6 +6,8 @@ import { autoriserAdminForFirma } from "../trpc/tilgangskontroll";
 import {
   syncProjektModulerPaaAktiver,
   syncProjektModulerPaaDeaktiver,
+  skrivOrganizationModuleAktiver,
+  skrivOrganizationModuleDeaktiver,
 } from "../services/firmamodul";
 
 /**
@@ -453,9 +455,12 @@ export const organisasjonRouter = router({
           data: { [flagFelt]: input.aktiver },
         });
 
+        // Steg 1e Fase A — dual-write til OrganizationModule.
         if (input.aktiver) {
+          await skrivOrganizationModuleAktiver(tx, orgId, input.slug, ctx.userId);
           await syncProjektModulerPaaAktiver(tx, orgId, input.slug);
         } else {
+          await skrivOrganizationModuleDeaktiver(tx, orgId, input.slug, ctx.userId);
           await syncProjektModulerPaaDeaktiver(tx, orgId, input.slug);
         }
 

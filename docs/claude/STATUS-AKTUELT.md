@@ -13,6 +13,35 @@ peker hit. Beslutningsgrunnlag og arkitektur ligger i
 
 ## Pågående arbeid
 
+**Steg 1e Fase A (OrganizationModule-tabell + bakfyll + dual-write) IMPLEMENTERT på develop 2026-05-05.** Sjette steg i prioritert byggerekkefølge fra [domene-arbeidsflyt.md](domene-arbeidsflyt.md). Erstatter `Organization.har_timer_modul`/`har_maskin_modul`-kolonnene med generisk `OrganizationModule`-tabell. Skalerbar til flere firmamoduler (kompetanse, fremdrift, varelager) uten schema-endring per ny modul. Forutsetning for Steg 4b (Vareforbruk).
+
+**Tre-faset utrulling (Fase A bakoverkompatibel):**
+- **Fase A** (denne): tabell opprettet + bakfylt, callsites uendret, dual-write fra `settFirmamodul` + `timer/onboarding.aktiverNivaa1` + `aktiverTomKatalog` til både flagg og ny tabell.
+- **Fase B** (etter test-verifisering): migrér 47 callsites (23 server, 20 klient, 2 schema, 0 mobil) fra `harTimerModul`/`harMaskinModul` til `aktiveFirmamoduler: string[]` på Firma-typen.
+- **Fase C** (etter Fase B-verifisering): drop `har_timer_modul` + `har_maskin_modul`-kolonnene fra Organization.
+
+**Endringer i Fase A:**
+- **Migrasjon `20260505000001_add_organization_module_fase_a`:** CREATE TABLE `organization_modules` med felter `(id, organization_id, module_slug, status, aktivert_ved, aktivert_av_user_id, deaktivert_ved, deaktivert_av_user_id, config, created_at, updated_at)`. Unique `(organization_id, module_slug)`, index på `(module_slug, status)`. FK til `organizations` med Cascade. `aktivert_av/deaktivert_av_user_id` er String? uten Prisma-`@relation` per A.3-mønster (bevarer audit-spor ved User-sletting). Bakfyll: INSERT-statements som speiler eksisterende `har_*_modul=true` fra Organization-tabellen, `aktivert_ved` settes til `organization.created_at` som beste tilnærming.
+- **Schema (`packages/db/prisma/schema.prisma`):** Ny `OrganizationModule`-modell + `organizationModules OrganizationModule[]`-relasjon på Organization. Kommentar over `harMaskinModul`/`harTimerModul`-flaggene oppdatert til å beskrive Fase A-overgang.
+- **Service (`apps/api/src/services/firmamodul.ts`):** Tre nye helpers — `erFirmamodulAktivert(orgId, slug)` (read fra ny tabell, klar for Fase B), `skrivOrganizationModuleAktiver(tx, orgId, slug, userId)` (upsert med audit), `skrivOrganizationModuleDeaktiver(tx, orgId, slug, userId)` (soft-delete via deaktivert_ved). Eksisterende `syncProjektModulerPaa{Aktiver,Deaktiver}` (Steg 1c Fase B) uendret.
+- **Server (`apps/api/src/routes/organisasjon.ts`):** `settFirmamodul`-mutation utvidet med dual-write — kaller nå `skrivOrganizationModuleAktiver/Deaktiver` i samme `$transaction` som flagget oppdateres og `syncProjektModulerPaaAktiver/Deaktiver` kjøres. `ctx.userId` brukes som `aktivertAvUserId`/`deaktivertAvUserId`.
+- **Server (`apps/api/src/routes/timer/onboarding.ts`):** `aktiverNivaa1` + `aktiverTomKatalog` utvidet med dual-write (kaller `skrivOrganizationModuleAktiver` i samme `$transaction`). `aktiverNivaa2` uberørt (krever at modul allerede er aktivert — ingen tilstandsendring).
+- **Dokumentasjon (`docs/claude/fase-0-beslutninger.md` § A.4):** Peker til Steg 1e med overstyring-rasjonale lagt til. A.4 ProjectModule-utvidelse for prosjekt-instans-laget består uendret; firma-master-laget flyttes til ny tabell.
+
+**Hva Fase A IKKE gjør:**
+- Ingen klient-endring — `Firma`-typen i `firma-kontekst.tsx` beholder `harTimerModul`/`harMaskinModul`. Migreres i Fase B.
+- Ingen drop av kolonner — `har_*_modul` er fortsatt sannhetskilde. Droppes i Fase C.
+- Ingen Activity-logging av modul-aktivering ennå (audit-feltene på OrganizationModule-tabellen er kun bevegelse-historikk, ikke full event-stream).
+- Ingen cross-org ProjectModule-unique — Steg 1e-spec sier dette skal vurderes samtidig, men er utsatt til separat steg per Kenneths beslutning 2026-05-05 (krever firmamodul-vs-prosjektmodul-distinksjon i schema/runtime).
+
+**Verifisering:** `pnpm --filter @sitedoc/db exec prisma generate` grønt. `pnpm --filter @sitedoc/api typecheck` grønt. `pnpm build --filter @sitedoc/web` grønt (32.4s). Migrasjons-SQL ikke kjørt mot lokal-DB ennå (test+prod auto-deploy applier den).
+
+**Bakfyll-forventning ved deploy:**
+- Test-DB: 1 firma med begge flagg (Byggeleder) → 2 OrganizationModule-rader (timer + maskin, status=aktiv).
+- Prod-DB: 3 firma med begge flagg (A.Markussen + HRP AS + Kenneths testmiljø) → 6 rader.
+
+**Auto-deployes til test via cron** etter push. Klar for verifisering. Claude verifiserer på test: (1) psql-spørring `SELECT organization_id, module_slug, status, aktivert_ved FROM organization_modules ORDER BY organization_id, module_slug` returnerer 2 rader for Byggeleder; (2) toggle Timer av/på i `/dashbord/firma/moduler` som Kari Firmaadmin → bekreft at både `harTimerModul`-flagg OG `OrganizationModule`-rad oppdateres synkront (psql-verifisering); (3) `aktivertAvUserId`/`deaktivertAvUserId` fylles korrekt med innloggets userId. **Stopp og rapporter etter test-verifisering — Fase B avventer eksplisitt grønt lys.**
+
 **Reginn MREG (2026-05-05):** API-nøkler mottatt. N2.2.3 i oppryddings-plan aktivert. Venter på svar fra Anders (anders@sentralregisteret.no) om funksjonelle endepunkter — kun `/auth/session/get` er dokumentert så langt. Sakkyndig kontroll-felter (`sakkyndigKontrollSist/Frist/Organ/Nr`) kan legges til Equipment-skjema nå uten API. Reginn-worker bygges analogt med Vegvesen-worker. Tekniske rammer dokumenteres i [reginn-mreg-integrasjon.md](reginn-mreg-integrasjon.md) (opprettes separat). Blokkeren «avventer API-tilgang» fra N2.2.3 er fjernet.
 
 **FirmaVelger-kontekst på `kom-i-gang` DEPLOYET TIL PROD 2026-05-05** (`66c2e982` merge, `9a750681` impl). HTTP/2 200 verifisert mot sitedoc.no. Test-verifisert begge redirect-scenarier som Tore SiteDocAdmin før prod-deploy. Sitedoc_admin med valgt firma redirectes til `/dashbord/nytt-prosjekt`, uten valgt firma til `/dashbord/admin/firmaer`. `opprettTestprosjekt` tar nå valgfri `organizationId` med samme autorisering som `prosjekt.opprett`. Vanlig bruker / company_admin uberørt. Lukker en regresjon som ble identifisert under faggruppe-konsolideringssesjonen: `prosjekt.opprettTestprosjekt`-mutationen ignorerte FirmaVelger-kontekst og brukte alltid innlogget brukers `organizationId`. Sitedoc_admin (Kenneth, org=Kenneths testmiljø) som hadde valgt A.Markussen i FirmaVelger og klikket «Start gratis prøveperiode» på `/dashbord/kom-i-gang` fikk prosjektet opprettet på Kenneths testmiljø, ikke A.Markussen. Steg 1b/2d-mønsteret (organizationId-input + sitedoc_admin-autorisering) fanget alle `/dashbord/firma/*`-rutene + `prosjekt.opprett`, men `opprettTestprosjekt` ble glemt fordi den ligger i kom-i-gang-flyten utenfor firma-tre-strukturen.

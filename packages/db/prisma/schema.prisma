@@ -89,10 +89,13 @@ model Organization {
   ehfEnabled         Boolean  @default(false) @map("ehf_enabled")
   logoUrl            String?  @map("logo_url")
   // Firma-master-bryter for modul-aktivering. Synkroniseres til ProjectModule-
-  // rader (prosjekt-instanser) via services/firmamodul.ts. Steg 1c (2026-05-03):
-  // organisasjon.settFirmamodul + prosjekt.opprett-hook holder ProjectModule i
-  // sync. Drop til full OrganizationModule-tabell utsatt til Steg 1e — kreves
-  // for at firma uten prosjekter skal kunne onboarde lønnsarter.
+  // rader (prosjekt-instanser) via services/firmamodul.ts.
+  //
+  // Steg 1e Fase A (2026-05-05): erstattes av OrganizationModule-tabellen.
+  // Inntil Fase C er deployet er disse flaggene fortsatt sannhetskilde for
+  // alle eksisterende callsites — settFirmamodul gjør dual-write til både
+  // flagg og OrganizationModule-rad. Droppes i Fase C når alle callsites er
+  // migrert til OrganizationModule-tabellen.
   harMaskinModul     Boolean  @default(false) @map("har_maskin_modul")
   harTimerModul      Boolean  @default(false) @map("har_timer_modul")
   erKunde            Boolean  @default(false) @map("er_kunde") // true = reelt kundefirma (bruker SiteDoc); false = skall-firma (kun part i prosjekt/dokumentflyt)
@@ -103,6 +106,7 @@ model Organization {
   projects            ProjectOrganization[]
   primaryProjects     Project[]                 @relation("ProjectPrimaryOrg")
   projectModules      ProjectModule[]           @relation("OrgProjectModule")
+  organizationModules OrganizationModule[]
   partners            OrganizationPartner[]
   templates           OrganizationTemplate[]
   externalCostObjects ExternalCostObject[]
@@ -113,6 +117,43 @@ model Organization {
   kompetansetyper     Kompetansetype[]
 
   @@map("organizations")
+}
+
+// ---------------------------------------------------------------------------
+// OrganizationModule — firma-master-aktivering per modul.
+// Per docs/claude/domene-arbeidsflyt.md Steg 1e (2026-05-05).
+//
+// Erstatter Organization.har_timer_modul/har_maskin_modul-kolonnene med en
+// generisk tabell. Skalerer til flere firmamoduler (kompetanse, fremdrift,
+// varelager) uten schema-endring per ny modul.
+//
+// Fase A (denne migrasjonen): tabell opprettet + bakfylt, callsites uendret.
+// Fase B: callsites migreres til å lese fra denne tabellen.
+// Fase C: har_*_modul-kolonnene droppes.
+//
+// status-verdier: "aktiv" | "arkivert" — speiler ProjectModule-mønsteret.
+// Tom rad = aldri aktivert. aktivert_av/deaktivert_av-feltene er String?
+// uten @relation (A.3-mønster) for å bevare audit-spor ved User-sletting.
+// ---------------------------------------------------------------------------
+
+model OrganizationModule {
+  id                  String    @id @default(uuid())
+  organizationId      String    @map("organization_id")
+  moduleSlug          String    @map("module_slug") // "timer" | "maskin" | (fremtidig: "kompetanse"/"fremdrift"/"varelager")
+  status              String    @default("aktiv") // "aktiv" | "arkivert"
+  aktivertVed         DateTime  @default(now()) @map("aktivert_ved")
+  aktivertAvUserId    String?   @map("aktivert_av_user_id") // ingen FK — A.3-mønster
+  deaktivertVed       DateTime? @map("deaktivert_ved")
+  deaktivertAvUserId  String?   @map("deaktivert_av_user_id") // ingen FK — A.3-mønster
+  config              Json?     // Per-modul-konfig om nødvendig
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, moduleSlug])
+  @@index([moduleSlug, status])
+  @@map("organization_modules")
 }
 
 model OrganizationIntegration {

@@ -7,7 +7,10 @@ import {
   seedTimerForOrganization,
   seedLonnsartNivaa2,
 } from "../../services/seed";
-import { syncProjektModulerPaaAktiver } from "../../services/firmamodul";
+import {
+  syncProjektModulerPaaAktiver,
+  skrivOrganizationModuleAktiver,
+} from "../../services/firmamodul";
 
 /**
  * Verifiser at bruker er firmaadmin for et firma.
@@ -93,11 +96,13 @@ export const onboardingRouter = router({
       // Sett harTimerModul + sync ProjectModule (idempotent).
       // Steg 1c Fase B: ProjectModule-rader synkroniseres for alle prosjekter
       // firmaet er knyttet til, så Timer-modul-tilgang er konsistent.
+      // Steg 1e Fase A: dual-write til OrganizationModule i samme transaction.
       await ctx.prisma.$transaction(async (tx) => {
         await tx.organization.update({
           where: { id: orgId },
           data: { harTimerModul: true },
         });
+        await skrivOrganizationModuleAktiver(tx, orgId, "timer", ctx.userId);
         await syncProjektModulerPaaAktiver(tx, orgId, "timer");
       });
 
@@ -155,6 +160,7 @@ export const onboardingRouter = router({
         where: { id: orgId },
         data: { harTimerModul: true },
       });
+      await skrivOrganizationModuleAktiver(tx, orgId, "timer", ctx.userId);
       await syncProjektModulerPaaAktiver(tx, orgId, "timer");
     });
 

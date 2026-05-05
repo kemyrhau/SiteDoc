@@ -160,6 +160,8 @@ model Activity {
 
 ### A.4 ProjectModule → utvidelse, ikke ny tabell
 
+> **🔄 OVERSTYRT 2026-05-05 (Steg 1e Fase A):** A.4 forkastet originalt en separat `OrganizationModule`-tabell. Beslutningen reverseres delvis i [Steg 1e](domene-arbeidsflyt.md) — `ProjectModule`-utvidelsen (denne A.4) består uendret for **prosjekt-instans**-laget, men firma-master-laget (tidligere `Organization.har_*_modul`-flagg) flyttes til en dedikert `OrganizationModule`-tabell. Rasjonale: et firma kan aktivere Timer-modulen uten å ha prosjekter ennå (A.Markussen-flow — onboarder lønnsarter før første prosjekt opprettes), så firma-master-bryteren kan ikke avledes fra ProjectModule alene. To-nivås-modellen (firma-master + prosjekt-instans) krever to tabeller.
+
 `ProjectModule` eksisterer allerede (linje 752, brukt 30+ steder i kodebasen). Utvides med `organizationId` for å støtte cross-org-modul-aktivering. **Samtidig: `active Boolean` deprecates til fordel for `status String` per A.17 (3-nivå: `aktiv`/`arkivert`/`slettet`).**
 
 **Steg 1 (uke 1) — bakfyll fra primary org + status-konvertering:**
