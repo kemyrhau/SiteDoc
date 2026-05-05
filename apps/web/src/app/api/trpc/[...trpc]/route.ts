@@ -3,6 +3,7 @@ import { appRouter } from "@sitedoc/api/src/trpc/router";
 import { prisma } from "@sitedoc/db";
 import { prismaMaskin } from "@sitedoc/db-maskin";
 import { prismaTimer } from "@sitedoc/db-timer";
+import { prismaVarelager } from "@sitedoc/db-varelager";
 import { auth } from "@/auth";
 
 /**
@@ -20,6 +21,7 @@ async function handler(req: Request) {
       prisma,
       prismaMaskin,
       prismaTimer,
+      prismaVarelager,
       req: {} as never,
       res: {} as never,
       userId: session?.user?.id ?? null,

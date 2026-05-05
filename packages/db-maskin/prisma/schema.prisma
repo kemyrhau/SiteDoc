@@ -81,6 +81,12 @@ model Equipment {
   effektW             Int?      @map("effekt_w")
   vekt                Int? // kg
 
+  // Steg 4b Fase 2 — utleieobjekt (utleie-transaksjons-flow utsatt til Steg 4d)
+  erUtleieobjekt    Boolean  @default(false) @map("er_utleieobjekt")
+  utleieprisPerDogn Decimal? @map("utleiepris_per_dogn") @db.Decimal(10, 2)
+  utleieprisPerTime Decimal? @map("utleiepris_per_time") @db.Decimal(10, 2)
+  utleieEnhet       String?  @map("utleie_enhet") // "doegn" | "time" — primærenhet for fakturering
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 

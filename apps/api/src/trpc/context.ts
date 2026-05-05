@@ -2,6 +2,7 @@ import type { FastifyRequest, FastifyReply } from "fastify";
 import { prisma } from "@sitedoc/db";
 import { prismaMaskin } from "@sitedoc/db-maskin";
 import { prismaTimer } from "@sitedoc/db-timer";
+import { prismaVarelager } from "@sitedoc/db-varelager";
 
 export interface CreateContextOptions {
   req: FastifyRequest;
@@ -45,6 +46,7 @@ export async function createContext({ req, res }: CreateContextOptions) {
     prisma,
     prismaMaskin,
     prismaTimer,
+    prismaVarelager,
     req,
     res,
     userId,

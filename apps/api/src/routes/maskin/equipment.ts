@@ -255,6 +255,11 @@ export const equipmentRouter = router({
         sertifiseringsFrist: z.string().nullable().optional(),
         effektW: z.number().int().nullable().optional(),
         vekt: z.number().int().nullable().optional(),
+        // Steg 4b Fase 2 — utleie
+        erUtleieobjekt: z.boolean().optional(),
+        utleieprisPerDogn: z.number().nullable().optional(),
+        utleieprisPerTime: z.number().nullable().optional(),
+        utleieEnhet: z.enum(["doegn", "time"]).nullable().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
