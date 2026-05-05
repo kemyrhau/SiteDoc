@@ -25,7 +25,7 @@ export default function ProsjektOversikt() {
     {
       label: "Faggrupper",
       verdi: prosjekt.faggrupper.length,
-      href: `${basePath}/faggrupper`,
+      href: `/dashbord/${params.id}/faggrupper`,
     },
     {
       label: "Maler",

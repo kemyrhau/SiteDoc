@@ -963,6 +963,7 @@
   "faggrupper.sjekklistetype": "Checklist type",
   "faggrupper.slettFaggruppe": "Delete trade group",
   "faggrupper.bekreftSlettFaggruppe": "Are you sure you want to delete this trade group and all associated document flows?",
+  "faggrupper.bekreftSlett": "Delete trade group «{{navn}}»? This cannot be undone.",
   "faggrupper.redigerFaggruppe": "Edit trade group",
   "faggrupper.slettDokumentflyt": "Delete document flow",
   "faggrupper.bekreftSlettDokumentflyt": "Are you sure you want to delete this document flow? Existing documents will not be affected.",

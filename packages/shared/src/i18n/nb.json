@@ -963,6 +963,7 @@
   "faggrupper.sjekklistetype": "Sjekklistetype",
   "faggrupper.slettFaggruppe": "Slett faggruppe",
   "faggrupper.bekreftSlettFaggruppe": "Er du sikker på at du vil slette denne faggruppen og alle tilhørende dokumentflyter?",
+  "faggrupper.bekreftSlett": "Slett faggruppen «{{navn}}»? Dette kan ikke angres.",
   "faggrupper.redigerFaggruppe": "Rediger faggruppe",
   "faggrupper.slettDokumentflyt": "Slett dokumentflyt",
   "faggrupper.bekreftSlettDokumentflyt": "Er du sikker på at du vil slette denne dokumentflyten? Eksisterende dokumenter påvirkes ikke.",
