@@ -13,7 +13,34 @@ peker hit. Beslutningsgrunnlag og arkitektur ligger i
 
 ## Pågående arbeid
 
-**Blokk C (P2 — admin/firmaer erKunde-filter + Timer-kolonne) IMPLEMENTERT på develop 2026-05-04.** Tredje del av [admin-navigasjon-analyse-2026-05-03.md](admin-navigasjon-analyse-2026-05-03.md) (tiltak #3 i prioritert tiltak-rekkefølge). Lukker P2-funnet: skall-firmaer blandes ikke lenger med kunde-firmaer i admin-vyen, og Timer-modul-status er synlig på linje med Maskin.
+**P1 Fase 2 (auto-reset av prosjekt ved firma-bytte) IMPLEMENTERT på develop 2026-05-05.** Lukker P1 fullt ut sammen med Blokk A. Femte tiltak fra [admin-navigasjon-analyse-2026-05-03.md](admin-navigasjon-analyse-2026-05-03.md) (tabell-rad #5).
+
+**Atferd per scenario:**
+| Scenario | Før | Etter | Atferd |
+|---|---|---|---|
+| A | Byggeleder + Byggeleder-prosjekt aktivt | Annet firma | **Reset** + redirect til `/dashbord` |
+| B | Byggeleder + Byggeleder-prosjekt aktivt | Byggeleder (idempotent) | Ingen reset |
+| C | Ingen firma + Byggeleder-prosjekt aktivt | Byggeleder | Ingen reset |
+| D | Ingen firma + A.Markussen-prosjekt aktivt | Byggeleder | **Reset** + redirect |
+| E | Byggeleder + Byggeleder-prosjekt aktivt | Fjerner firma-valg (null) | Ingen reset |
+| F | Standalone-prosjekt aktivt | Et firma valgt | **Reset** + redirect |
+
+**Endring:** `apps/web/src/kontekst/prosjekt-kontekst.tsx`:
+- `Prosjekt`-interface utvidet med `primaryOrganizationId: string | null`. Server returnerer feltet uendret (`prosjekt.hentMedId` bruker `findUniqueOrThrow` uten select-klausul, alle toppnivå-felter inkludert) — ingen server-endring.
+- Ny `useEffect` lytter på `valgtFirma`, `valgtProsjekt`, `lasterValgt`. Vakt-rekkefølge: `if (!valgtFirma) return` (ingen begrensning ved null-firma) → `if (lasterValgt) return` (vent på data) → `if (!valgtProsjekt) return` → `if (matched) return`. Ved konflikt: `setLagretProsjektId(null) + localStorage.removeItem(STORAGE_KEY) + router.push("/dashbord")`.
+
+**Hva P1 Fase 2 IKKE dekker:**
+- URL-deeplink: hvis sitedoc_admin lim-er en `/dashbord/[prosjektId]/...`-URL og prosjektet ikke matcher valgt firma, vil URL-en dominere over localStorage. Reset trigges først når `hentMedId` returnerer prosjektet og useEffect kjører — kort flicker mulig.
+- Auto-velg første prosjekt etter reset: brukeren havner på `/dashbord` (ikke automatisk-redirect). Auto-redirect-logikk i `dashbord/page.tsx` håndterer 1-prosjekt-case.
+- Auto-reset ved tilgangstap (separat fra firma-bytte-flow).
+
+**Verifisering:** `pnpm build --filter @sitedoc/web` grønt (27.9s). Ingen DB-migrasjon, ingen i18n, ingen server-endring.
+
+**Auto-deployes til test via cron** etter push. Klar for verifisering. Claude verifiserer som **Tore SiteDocAdmin**: (1) scenario A — velg Byggeleder, åpne et Byggeleder-prosjekt, bytt til annet firma → forventet redirect til `/dashbord`; (2) scenario B — bytte Byggeleder→Byggeleder via FirmaVelger → ingen reset; (3) scenario E — fjern firma-valg via DevTools `localStorage.removeItem("sitedoc-valgt-firma")` → ingen reset.
+
+**Auto-deploy-cron implementert 2026-05-05** (`b4a920b1` på develop). Polling-cron `*/2 * * * *` på serveren erstatter manuell SSH-deploy. Script: `~/programmering/deploy-test-cron.sh`. Logg: `~/programmering/logs/deploy-test.log`. Verifisert end-to-end: push `76a2b4c8` → cron 01:14:00 → deploy fullført 01:14:12 (FULL TURBO 437ms build). Idempotent: kjører kun ved diff mellom HEAD og origin/develop. Funnet under undersøkelse: Tidligere «auto-deploy-hook» nevnt i SITEDOC-CLAUDE-VEILEDER.md var dokumentasjons-drift — ingen mekanisme har eksistert til nå (verifisert ved sjekk av lokale + server git-hooks, GitHub Actions, PM2-prosesser, crontab og systemd). Cloudflare Access via tunneled SSH gjorde GitHub Actions-veien mer kompleks enn polling-cron — derfor cron-løsningen.
+
+**Blokk C (P2 — admin/firmaer erKunde-filter + Timer-kolonne) DEPLOYET TIL PROD 2026-05-04** (`e2729849` merge, `261a0c8e` impl). Tredje del av [admin-navigasjon-analyse-2026-05-03.md](admin-navigasjon-analyse-2026-05-03.md) (tiltak #3 i prioritert tiltak-rekkefølge). Lukker P2-funnet: skall-firmaer blandes ikke lenger med kunde-firmaer i admin-vyen, og Timer-modul-status er synlig på linje med Maskin.
 
 **Endringer:**
 - **Server (`apps/api/src/routes/admin.ts`):** `hentAlleOrganisasjoner` får `where: { erKunde: true }` på `findMany`. Ingen klient-endring kreves for filteret. Test-DB: filteret skjuler 4 skall-firmaer (Byggherre, Tømrer Hansen, Elektrikker Hansen, Hovedentreprenør) og viser kun Byggeleder. Prod-DB: viser A.Markussen, HRP AS og Kenneths testmiljø — 0 skall-firmaer å filtrere ut.
@@ -580,3 +607,4 @@ Detaljert plan: [arkitektur-syntese.md §5](arkitektur-syntese.md). Beslutningsg
 - `89e102c` — Proadm-regel i CLAUDE.md
 - DB-opprydning-relaterte audit/doc-commits (2026-04-25)
 - Arkitektur-dokumentasjon (2026-04-25/26)
+
