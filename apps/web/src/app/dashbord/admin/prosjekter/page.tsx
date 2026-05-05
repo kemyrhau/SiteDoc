@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
+import { useFirma } from "@/kontekst/firma-kontekst";
 import { Spinner, EmptyState, Button, Input, Modal } from "@sitedoc/ui";
 import { FolderKanban, Plus, Trash2, Clock, AlertTriangle, Sparkles, CalendarPlus } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -20,8 +21,9 @@ type ProsjektListeRad = {
 export default function AdminProsjekter() {
   const router = useRouter();
   const utils = trpc.useUtils();
+  const { valgtFirma } = useFirma();
   const { data: prosjekterRaw, isLoading } =
-    trpc.admin.hentAlleProsjekter.useQuery();
+    trpc.admin.hentAlleProsjekter.useQuery({ organizationId: valgtFirma?.id });
   const prosjekter = prosjekterRaw as unknown as ProsjektListeRad[] | undefined;
   const { data: organisasjoner } =
     trpc.admin.hentAlleOrganisasjoner.useQuery();
@@ -126,13 +128,22 @@ export default function AdminProsjekter() {
     return (
       <div>
         <div className="mb-4 flex items-center justify-between">
-          <h1 className="text-lg font-semibold text-gray-900">Alle prosjekter</h1>
+          <h1 className="text-lg font-semibold text-gray-900">
+            {valgtFirma ? valgtFirma.name : "Alle prosjekter"}
+          </h1>
           <Button onClick={() => setVisOpprett(true)}>
             <Plus className="mr-1.5 h-4 w-4" />
             Opprett prosjekt
           </Button>
         </div>
-        <EmptyState title="Ingen prosjekter" description="Det finnes ingen prosjekter i systemet." />
+        <EmptyState
+          title="Ingen prosjekter"
+          description={
+            valgtFirma
+              ? `${valgtFirma.name} har ingen prosjekter ennå.`
+              : "Det finnes ingen prosjekter i systemet."
+          }
+        />
         <OpprettModal
           open={visOpprett}
           onClose={() => setVisOpprett(false)}
@@ -156,7 +167,7 @@ export default function AdminProsjekter() {
     <div>
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-lg font-semibold text-gray-900">
-          Alle prosjekter
+          {valgtFirma ? valgtFirma.name : "Alle prosjekter"}
           <span className="ml-2 text-sm font-normal text-gray-400">({prosjekter.length})</span>
         </h1>
         <div className="flex items-center gap-2">
