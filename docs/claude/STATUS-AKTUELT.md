@@ -457,6 +457,8 @@ Forutsetninger som mangler:
 Modellen (Godkjenning + DocumentTransfer) er implementert i Fase 0 § E.12.
 Teknisk grunnlag er på plass — kun domene-avklaring mangler.
 
+**NB:** Når Godkjenning-detaljside bygges (Steg 4c): inkludér «Hvem har ballen»-badge etter samme mønster som sjekkliste/oppgave-detalj (`e82e51c5`). Server: include `recipientGroup` i `godkjenning.hentMedId`. Klient: amber pill ved siden av `<StatusBadge />` i header. Bruker eksisterende i18n-nøkkel `tabell.venterPaa`.
+
 **Header-koordinering: firma-bytte nullstiller ikke prosjekt-kontekst (observert 2026-05-03):**
 Når sitedoc_admin bytter aktivt firma via FirmaVelger, beholdes det aktive prosjektet i
 ProsjektVelger selv om prosjektet tilhører et annet firma. Prosjektlisten bør:
