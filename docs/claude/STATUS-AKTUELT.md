@@ -13,6 +13,8 @@ peker hit. Beslutningsgrunnlag og arkitektur ligger i
 
 ## Pågående arbeid
 
+**Steg 4b-plan VEDTATT 2026-05-05 — implementasjon ikke startet.** Komplett 5-faset plan i [steg-4b-plan.md](steg-4b-plan.md). Bygger på C.16 (vedtatt 2026-04-30) + A.Markussen SmartDok-katalog kartlagt 2026-05-05 (64 varer, 8 kategorier, 9 enheter). Sentrale beslutninger: ny `db-varelager`-pakke, Heatwork ekskluderes fra Vareforbruk og håndteres via `Equipment.erUtleieobjekt`-flagg (Fase 2), ECO-kobling på Vareforbruk, fritekst-enhet med forslagsliste, 58 varer importeres fra SmartDok. Estimat ~16t over 3 sesjoner. Forutsetning Steg 1e ✅ deployet prod 2026-05-05. Avventer eksplisitt grønt lys for implementering.
+
 **admin/prosjekter respekterer FirmaVelger DEPLOYET TIL PROD 2026-05-05** (`0245b265` merge — fix `d9570c7b` + firma-kolonne `6414b9d3`). HTTP/2 200 verifisert mot sitedoc.no. Lukker to relaterte issues: (1) siden viste alle prosjekter på tvers av firmaer selv når sitedoc_admin hadde valgt et firma i FirmaVelger; (2) firma-kolonnen viste `projectOrganizations[0]` (første partner-rad) i stedet for primary firma — ga «Hovedentreprenør» på Byggeleder-prosjekter når Hovedentreprenør var partner. Speiler `prosjekt.hentAlle`-filteret fra Blokk A 2026-05-04.
 
 **Endringer:**
