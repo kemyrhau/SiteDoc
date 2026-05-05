@@ -21,6 +21,7 @@ varekatalog (`Varedetaljer.xls.xls`, 64 varer kartlagt 2026-05-05).
 | 5 | **Import:** ~58 varer fra A.Markussens SmartDok (64 minus 6 Heatwork) | Konkret startpunkt — tom katalog ville sinket A.Markussen unødvendig |
 | 6 | **Lag 3 Transport** utsettes — egen oppfølger | C.16 markerer det som «separat opsjon». Ikke bland inn i Vareforbruk-MVP |
 | 7 | **Slug:** `varelager` (firmamodul-aktivering) | Klient-typen `ModulSlug` har den allerede; «kommer snart»-status i `/dashbord/firma/moduler` |
+| 8 | **VareKategori-tabell (firma-definert)** med valgfri `kontonummer` for regnskapseksport. `Vare.kategoriId` (FK) erstatter fritekst-`kategori`. | Kategori er ikke fri tekst i praksis — A.Markussens 8 kategorier kommer fra SmartDok og brukes konsistent. Egen tabell gir (a) firma kan endre kategorinavn ett sted, (b) `kontonummer`-felt forbereder ProAdm/Tripletax-eksport, (c) tydeligere domenemodell. A.Markussens 8 kategorier seedes ved import (Fase 5). |
 
 ## 1. Avhengigheter (alle ✅ klare)
 
@@ -37,6 +38,32 @@ varekatalog (`Varedetaljer.xls.xls`, 64 varer kartlagt 2026-05-05).
 
 ## 2. Datamodell
 
+### Lag 0 — VareKategori (firma-definert) i `db-varelager`
+
+```prisma
+model VareKategori {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")  // svak FK → kjernen
+  navn           String
+  kontonummer    String?  // for regnskapseksport (ProAdm/Tripletax)
+  aktiv          Boolean  @default(true)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt      DateTime @updatedAt       @map("updated_at") @db.Timestamptz()
+
+  varer          Vare[]
+
+  @@unique([organizationId, navn])
+  @@index([organizationId, aktiv])
+  @@map("vare_kategorier")
+  @@schema("varelager")
+}
+```
+
+**Beslutninger:**
+- `kontonummer` er valgfritt — fyllles ut når regnskapseksport (ProAdm/Tripletax) konfigureres
+- `(organizationId, navn)`-unique — firma kan ha én kategori per navn
+- Ingen `onDelete`-cascade på Vare-relasjonen — sletting av kategori med eksisterende varer blokkeres (Restrict, se Vare-modellen)
+
 ### Lag 1 — Vare (firma-katalog) i `db-varelager`
 
 ```prisma
@@ -48,15 +75,17 @@ model Vare {
   enhet           String   // "m" | "m2" | "m3" | "kg" | "kilo" | "tonn" | "stk" | "sekk" | "meter" | "liter" | "doegn" | "timer" | (fritekst)
   pris            Decimal? @db.Decimal(12, 2)  // utsalgspris til kunde
   internkostnad   Decimal? @db.Decimal(12, 2)  // innkjøpspris
-  kategori        String?  // fritekst per firma
+  kategoriId      String?  @map("kategori_id")  // FK → VareKategori (samme firma)
   aktiv           Boolean  @default(true)
   createdAt       DateTime @default(now())  @map("created_at")  @db.Timestamptz()
   updatedAt       DateTime @updatedAt        @map("updated_at")  @db.Timestamptz()
 
+  kategori        VareKategori? @relation(fields: [kategoriId], references: [id], onDelete: Restrict)
   vareforbruk     Vareforbruk[]
 
   @@unique([organizationId, varenummer])
   @@index([organizationId, aktiv])
+  @@index([kategoriId])
   @@map("varer")
   @@schema("varelager")
 }
@@ -241,6 +270,19 @@ Mobile-flyt for å registrere vareforbruk fra dagsseddel:
 | `klassifiserKategori(rad)` | Heatwork → utelat (med advarsel «kobles til Equipment via internnr»). Andre → behold |
 | `normaliserEnhet(verdi: string)` | "Døgn" → "doegn", "Tonn" → "tonn", "m3" → "m3", behold ukjente som-er |
 | `beregnFilHash(filinnhold)` | SHA-256 for konsistens-validering |
+
+**Kategori-seeding (Beslutning 8):** Importen oppretter `VareKategori`-rader for de 7 importerte kategoriene (Heatwork ekskludert) FØR `Vare`-radene opprettes, slik at `Vare.kategoriId` kan settes i samme transaksjon. `kontonummer` lar seg fylle inn manuelt etter import — SmartDok-fila har det ikke.
+
+A.Markussens 7 kategorier som seedes:
+1. Grus/pukk/jord
+2. Diverse
+3. Naturstein
+4. Betongstein og elementer
+5. Rør og rørdeler
+6. Deponiavgift
+7. Forbruk
+
+«Utleie Heatwork» seedes ikke (radene importeres ikke som Vare).
 
 ### 7.2 Forventet resultat for A.Markussen
 
