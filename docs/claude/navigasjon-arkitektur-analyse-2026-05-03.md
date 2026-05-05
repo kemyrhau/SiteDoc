@@ -160,7 +160,7 @@ Firma (Organization)
 ## Status
 
 - [ ] Tiltak 1: Rename Firmainnstillinger → Prosjekteier
-- [ ] Tiltak 2: Konsolider faggruppe-sider
+- [x] Tiltak 2: Konsolider faggruppe-sider — implementert på develop 2026-05-05
 - [ ] Tiltak 3: Fjern Mine timer fra firma-sidebar
 - [ ] Tiltak 4: Rename Box → Mapper
 - [ ] Tiltak 5: HMS-avvik avklaring

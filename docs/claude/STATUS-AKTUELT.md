@@ -13,6 +13,27 @@ peker hit. Beslutningsgrunnlag og arkitektur ligger i
 
 ## Pågående arbeid
 
+**Faggruppe-side-konsolidering IMPLEMENTERT på develop 2026-05-05.** Lukker Tiltak 2 i [navigasjon-arkitektur-analyse-2026-05-03.md](navigasjon-arkitektur-analyse-2026-05-03.md) og er forutsetning for selvstendig A.Markussen-onboarding (per [STATUS-AKTUELT.md § Onboarding-veileder](STATUS-AKTUELT.md)). De to nesten-identiske sidene er erstattet med én konsolidert side.
+
+**Funn under verifisering FØR koding:** Statusrapporten beskrev legacy-siden `/dashbord/prosjekter/[id]/faggrupper` som «full CRUD», men kode-verifisering viste at den kun hadde **opprett**-Modal — ingen rediger eller slett i UI. Server-routeren (`apps/api/src/routes/faggruppe.ts`) har full CRUD inkludert `oppdater` og `slett` (sistnevnte med pen feilmelding ved tilknyttede sjekklister/oppgaver). Konsolideringen krevde derfor å bygge rediger og slett som ikke fantes i UI fra før — ikke ren sammenslåing.
+
+**Endringer:**
+- **Klient (`apps/web/src/app/dashbord/[prosjektId]/faggrupper/page.tsx`):** Erstattet read-only tabell + «Administrer faggrupper»-lenke med full CRUD: «Ny faggruppe»-header-knapp, rediger-/slett-ikoner per rad i ny handlinger-kolonne. Tre modaler — `OpprettFaggruppeModal` (firmanavn + org.nr), `RedigerFaggruppeModal` (samme felter, prefylt, lokal id-tracking for state-reset ved bytte av rad), `SlettFaggruppeDialog` (ekte modal per CLAUDE.md UI-regel, viser server-feilmelding hvis koblinger blokkerer slett). Alle felter har `t()` for i18n.
+- **Slettet:** `apps/web/src/app/dashbord/prosjekter/[id]/faggrupper/page.tsx` (hard delete — ingen redirect-stub, web-URL-er trenger ikke API-bakoverkompat).
+- **Nav-rens (`apps/web/src/app/dashbord/prosjekter/[id]/layout.tsx`):** Fjernet «Faggrupper»-fanen fra tab-nav-arrayet. Fanene Oversikt/Maler/Sjekklister/Oppgaver beholdt — opprydding av hele legacy-`prosjekter/[id]`-strukturen er separat oppgave.
+- **Kort-href (`apps/web/src/app/dashbord/prosjekter/[id]/page.tsx`):** Faggrupper-oversiktskortet peker nå til `/dashbord/${id}/faggrupper` (ny rute) i stedet for `${basePath}/faggrupper` (slettet).
+- **i18n:** 1 ny nøkkel `faggrupper.bekreftSlett` (nb+en — «Slett faggruppen «{{navn}}»? Dette kan ikke angres.»). Gjenbrukte `faggrupper.{nyFaggruppe,redigerFaggruppe,slettFaggruppe,ingenFaggrupper,ingenFaggrupperBeskrivelse,firma,organisasjonsnummer}` + `handling.{opprett,lagre,slett,avbryt,rediger}` + `dashbord.medlemmer` + `nav.{sjekklister,oppgaver}`.
+
+**Hva konsolideringen IKKE dekker (separate oppgaver):**
+- Rediger ansvarlig/farge/partner — Kenneth bekreftet at disse tas i egen runde (ut av scope)
+- Soft-delete (deaktiver) — server har det, UI bruker hard delete (Kenneths beslutning, server returnerer pen feilmelding ved koblinger)
+- Hele `dashbord/prosjekter/[id]/*`-strukturen — kun Faggrupper-fanen fjernet, andre faner og selve oversiktssiden står igjen
+- i18n-nøkkel `faggrupper.administrerBeskrivelse` (gammel hjelpetekst på read-only-siden) — er ikke i bruk lenger, kunne fjernes som opprydding
+
+**Verifisering:** `pnpm --filter @sitedoc/api typecheck` grønt. `pnpm build --filter @sitedoc/web` grønt (31.7s) — ny rute `/dashbord/[prosjektId]/faggrupper` (3.1 kB) kompilert, legacy `/dashbord/prosjekter/[id]/faggrupper` borte fra build-output. Ingen DB-migrasjon, ingen server-endring (router har full CRUD fra før).
+
+**Auto-deployes til test via cron** etter push. Klar for verifisering. Claude verifiserer som **Per Prosjektadmin** på test: (1) opprett ny faggruppe «Test AS» med org.nr → vises i tabell, (2) rediger til «Test AS Endret» → oppdatert i tabell, (3) prøv slette en faggruppe med tilknyttet sjekkliste → får pen feilmelding fra server («Kan ikke slette ... fordi den har X sjekklister tilknyttet»), (4) slett en faggruppe uten koblinger → forsvinner, (5) verifiser at `/dashbord/prosjekter/[prosjektId]/faggrupper` returnerer 404, (6) verifiser at Faggrupper-fanen er borte fra `/dashbord/prosjekter/[prosjektId]`-tab-nav.
+
 **«Hvem har ballen»-badge på dokument-detaljsider IMPLEMENTERT på develop 2026-05-05.** Lukker funn fra STATUS-AKTUELT.md (2026-05-02): «Inne på dokumentet vises kun status — ingen «Venter på X»». Listene hadde badge fra før — kun detalj-sidene manglet. Server: `sjekkliste.hentMedId` + `oppgave.hentMedId` får `recipientGroup: { select: { id, name } }` på toppnivå (var inkludert i `transfers`-relasjonen, men ikke direkte på dokumentet). Klient: badge ved siden av `<StatusBadge />` i header på `[prosjektId]/sjekklister/[sjekklisteId]/page.tsx` og `[prosjektId]/oppgaver/[oppgaveId]/page.tsx`. Synlig kun når status ∈ {sent, received, in_progress} OG `recipientGroup?.name` finnes — speiler liste-vyenes logikk eksakt. Bruker eksisterende i18n-nøkkel `tabell.venterPaa` (allerede i nb+en, ingen ny nøkkel). Sjekkliste-detalj-siden manglet `useTranslation`-import — lagt til. Oppgave-detalj-siden hadde det fra før.
 
 **Hva «Hvem har ballen»-badge IKKE dekker:**
@@ -539,7 +560,7 @@ Prioriter: Strategi A (modul-filter) → firma-kontekst full konvergens → mask
 - ✅ Ny tRPC-query `prosjekt.hentOnboardingStatus({ projectId })` returnerer 4 booleans: harDokumentflyt, harBrukergruppe (kategori="brukergrupper"), harMalKobletTilFlyt (DokumentflytMal-rader), harLokasjon (Byggeplass-rader).
 - ✅ Banner på prosjekt-dashbord (`/dashbord/[prosjektId]`) plasseres over prosjekt-header og under prøveperiode-banneret. Vises kun for admin (`role ∈ {admin, owner}`) og kun når minst ett steg gjenstår. Hvert steg er en pill med lenke til riktig oppsett-side: Dokumentflyt + Maler → `/dashbord/oppsett/produksjon/kontakter`, Brukergrupper → `/dashbord/oppsett/brukere`, Lokasjoner → `/dashbord/oppsett/lokasjoner`.
 - ✅ 5 nye i18n-nøkler under `onboarding.*` i nb+en.
-- ⏳ Konsolidering av de to faggruppe-sidene (langtids-mål) — én side med riktig UI, ingen URL-duplikat.
+- ✅ Konsolidering av de to faggruppe-sidene IMPLEMENTERT på develop 2026-05-05. `/dashbord/[prosjektId]/faggrupper` har full CRUD (opprett/rediger/slett). Legacy `/dashbord/prosjekter/[id]/faggrupper` slettet, Faggrupper-fane fjernet fra `prosjekter/[id]/layout.tsx`, oversiktskort i `prosjekter/[id]/page.tsx` peker til ny rute.
 
 Blokkerer selvstendig A.Markussen-onboarding. Ankret i [onboarding-veileder.md](onboarding-veileder.md).
 
