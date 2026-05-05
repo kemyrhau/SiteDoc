@@ -46,6 +46,7 @@ export const adminRouter = router({
       include: {
         members: { select: { id: true, user: { select: { name: true, email: true } } } },
         faggrupper: { select: { id: true } },
+        primaryOrganization: { select: { id: true, name: true } },
         projectOrganizations: {
           include: { organization: { select: { id: true, name: true } } },
         },

@@ -15,6 +15,7 @@ type ProsjektListeRad = {
   status: string;
   createdAt: string | Date;
   members: { user?: { name?: string | null; email?: string | null } | null }[];
+  primaryOrganization: { id: string; name: string } | null;
   projectOrganizations: { organization: { id: string; name: string } }[];
 };
 
@@ -244,8 +245,8 @@ export default function AdminProsjekter() {
                     {p.members[0]?.user?.name || p.members[0]?.user?.email || "–"}
                   </td>
                   <td className="px-4 py-3">
-                    {orgProj ? (
-                      <span className="text-sm text-gray-700">{orgProj.organization.name}</span>
+                    {p.primaryOrganization ? (
+                      <span className="text-sm text-gray-700">{p.primaryOrganization.name}</span>
                     ) : (
                       <span className="text-xs text-gray-400">—</span>
                     )}
