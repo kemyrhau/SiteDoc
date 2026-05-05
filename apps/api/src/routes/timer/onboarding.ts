@@ -92,15 +92,11 @@ export const onboardingRouter = router({
     .mutation(async ({ ctx, input }) => {
       const orgId = await verifiserFirmaAdmin(ctx.userId, input.organizationId);
 
-      // Sett harTimerModul + sync ProjectModule (idempotent).
       // Steg 1c Fase B: ProjectModule-rader synkroniseres for alle prosjekter
       // firmaet er knyttet til, så Timer-modul-tilgang er konsistent.
-      // Steg 1e Fase A: dual-write til OrganizationModule i samme transaction.
+      // Steg 1e Fase C: OrganizationModule er eneste sannhetskilde for
+      // firma-master-aktivering — har_*_modul-flaggene er droppet.
       await ctx.prisma.$transaction(async (tx) => {
-        await tx.organization.update({
-          where: { id: orgId },
-          data: { harTimerModul: true },
-        });
         await skrivOrganizationModuleAktiver(tx, orgId, "timer", ctx.userId);
         await syncProjektModulerPaaAktiver(tx, orgId, "timer");
       });
@@ -151,11 +147,8 @@ export const onboardingRouter = router({
       });
     }
 
+    // Steg 1e Fase C: OrganizationModule er eneste sannhetskilde.
     await ctx.prisma.$transaction(async (tx) => {
-      await tx.organization.update({
-        where: { id: orgId },
-        data: { harTimerModul: true },
-      });
       await skrivOrganizationModuleAktiver(tx, orgId, "timer", ctx.userId);
       await syncProjektModulerPaaAktiver(tx, orgId, "timer");
     });

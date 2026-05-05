@@ -13,7 +13,27 @@ peker hit. Beslutningsgrunnlag og arkitektur ligger i
 
 ## Pågående arbeid
 
-**Steg 1e Fase B (callsite-migrering til OrganizationModule) IMPLEMENTERT på develop 2026-05-05.** Bygger på Fase A. Migrerer alle 47 callsites fra `harTimerModul`/`harMaskinModul`-flagg til ny `aktiveFirmamoduler: string[]`-modell. Dual-write fra Fase A er beholdt — flaggene oppdateres fortsatt parallelt med OrganizationModule-rader inntil Fase C dropper kolonnene. Lese-veien er nå utelukkende fra OrganizationModule-tabellen.
+**Steg 1e Fase C (drop har_*_modul-kolonner) IMPLEMENTERT på develop 2026-05-05.** Lukker Steg 1e fullt ut. OrganizationModule-tabellen er nå eneste sannhetskilde for firma-master-aktivering — `har_timer_modul` + `har_maskin_modul`-kolonnene droppet fra Organization.
+
+**Endringer i Fase C:**
+- **Migrasjon `20260505010000_drop_organization_har_modul_flags`:** `ALTER TABLE organizations DROP COLUMN IF EXISTS har_timer_modul`, samme for `har_maskin_modul`. Idempotent.
+- **Schema (`packages/db/prisma/schema.prisma`):** `harMaskinModul` + `harTimerModul`-feltene fjernet fra Organization-modellen. Kommentar oppdatert med peker til Fase C-migrasjonen.
+- **Server (`apps/api/src/routes/organisasjon.ts`):** `settFirmamodul`-mutationen mister dual-write — `tx.organization.update({ data: { [flagFelt]: input.aktiver } })` og `flagFelt`-variabelen fjernet. Kun `skrivOrganizationModuleAktiver/Deaktiver` + `syncProjektModulerPaa{Aktiver,Deaktiver}` igjen.
+- **Server (`apps/api/src/routes/timer/onboarding.ts`):** `aktiverNivaa1` + `aktiverTomKatalog` mister dual-write — `tx.organization.update({ data: { harTimerModul: true } })` fjernet fra begge.
+- **Service-kommentarer:** `services/timer/moduleGate.ts` + `services/maskin/moduleGate.ts` har oppdaterte kommentarer som ikke lenger nevner `Organization.har_*_modul`-flagget.
+
+**Hva Fase C IKKE gjør:**
+- Ingen klient-endring — `Firma`-typen i `firma-kontekst.tsx` ble migrert i Fase B og berøres ikke her.
+- Ingen API-bakoverkompat-bruddsjekk: feltene ble fjernet fra alle respons-typer i Fase B, så klienter (mobil, eldre web-builds) kan eventuelt få type-mismatch hvis de fortsatt forventer `harTimerModul`/`harMaskinModul`. Mobil sjekk: 0 callsites verifisert i Fase A — ingen risk. Web bygger fra samme commit.
+- Ingen i18n-endring.
+
+**Verifisering:** `pnpm --filter @sitedoc/db exec prisma generate` grønt. `pnpm --filter @sitedoc/api typecheck` grønt. `pnpm build --filter @sitedoc/web` grønt (32.7s).
+
+**Auto-deployes til test via cron** etter push. Klar for verifisering. Claude verifiserer på test: (1) psql `\d organizations` viser at `har_timer_modul` + `har_maskin_modul`-kolonnene er borte; (2) som Kari Firmaadmin — toggle Timer av/på på `/dashbord/firma/moduler` fungerer fortsatt (skriver til OrganizationModule); (3) FirmaVelger viser fortsatt «Maskin · Timer» under Byggeleder; (4) Timer-elementer i prosjekt-sidebar uendret. **Stopp og rapporter etter test-verifisering — Steg 1e er da fullt ut levert. Forutsetter prod-deploy som lukker Steg 4b-blokkeren (Vareforbruk).**
+
+**Steg 1e Fase B (callsite-migrering til OrganizationModule) DEPLOYET TIL TEST 2026-05-05** (commit `978c1bf4`). Verifisert: FirmaVelger viser «Maskin · Timer» under Byggeleder, `/dashbord/firma/moduler` toggle fungerer, Timer-elementer i prosjekt-sidebar uendret. 47 callsites migrert fra `harTimerModul`/`harMaskinModul`-flagg til `aktiveFirmamoduler: string[]`. Lese-veien er nå utelukkende fra OrganizationModule-tabellen, men dual-write til flagg beholdt inntil Fase C dropper kolonnene.
+
+**Steg 1e Fase A (OrganizationModule-tabell + bakfyll + dual-write) IMPLEMENTERT på develop 2026-05-05.** Bygger på Fase A. Migrerer alle 47 callsites fra `harTimerModul`/`harMaskinModul`-flagg til ny `aktiveFirmamoduler: string[]`-modell. Dual-write fra Fase A er beholdt — flaggene oppdateres fortsatt parallelt med OrganizationModule-rader inntil Fase C dropper kolonnene. Lese-veien er nå utelukkende fra OrganizationModule-tabellen.
 
 **Endringer i Fase B:**
 - **Service (`apps/api/src/services/firmamodul.ts`):** ny helper `hentAktiveFirmamoduler(organizationId, txClient?)` returnerer `string[]` — alle slugs der `OrganizationModule.status="aktiv"`. Gjenbrukes av `organisasjon.hentMin/hentMedId`, `admin.hentAlleOrganisasjoner`, `prosjekt.opprett/opprettTestprosjekt`. Eksisterende `erFirmamodulAktivert(orgId, slug)` (Fase A) brukes som boolean-sjekk.

@@ -298,12 +298,13 @@ Ingen steg kan hoppes over — hvert steg er forutsetning for neste.
   - Schema-rens i `schema.prisma`: `active Boolean`-feltet fjernet, kommentar oppdatert til endelig modell.
   - Cross-org-unique `(projectId, organizationId, moduleSlug)` flyttet til Steg 1e — krever konkret cross-org-design (oversettelse/PSI/kontrollplan har ikke meningsfull cross-org-aktivering, kun timer/maskin har).
 
-- [ ] **1e. OrganizationModule-tabell** (~7-9t, tre-faset)
-  - **Fase A IMPLEMENTERT på develop 2026-05-05** (bakoverkompatibel): tabell opprettet + bakfylt fra `har_*_modul=true`, dual-write fra `settFirmamodul` + `timer/onboarding.aktiverNivaa1`/`aktiverTomKatalog`, callsites uendret. Audit-felter: `aktivert_ved/aktivert_av_user_id/deaktivert_ved/deaktivert_av_user_id` (String? uten `@relation` per A.3-mønster).
-  - **Fase B** (etter test-verifisering): migrér 47 callsites — 23 server (organisasjon, prosjekt, timer/onboarding, services/timer/moduleGate, services/maskin/moduleGate) + 20 klient (`Firma`-typen får `aktiveFirmamoduler: string[]`, alle `harTimerModul`/`harMaskinModul` byttes) + 2 schema. Mobil har 0 callsites — gates allerede mot ProjectModule-respons.
-  - **Fase C**: drop `har_timer_modul` + `har_maskin_modul`-kolonner. OrganizationModule eneste sannhetskilde. `settFirmamodul` slutter med dual-write.
+- [x] **1e. OrganizationModule-tabell** (~7-9t, tre-faset) — IMPLEMENTERT på develop 2026-05-05
+  - **Fase A** (commit `9fda0f81`, deployet til test): tabell opprettet + bakfylt fra `har_*_modul=true`, dual-write fra `settFirmamodul` + `timer/onboarding.aktiverNivaa1`/`aktiverTomKatalog`, callsites uendret. Audit-felter: `aktivert_ved/aktivert_av_user_id/deaktivert_ved/deaktivert_av_user_id` (String? uten `@relation` per A.3-mønster).
+  - **Fase B** (commit `978c1bf4`, deployet til test): 47 callsites migrert — 23 server (organisasjon, prosjekt, timer/onboarding, admin, services/timer/moduleGate, services/maskin/moduleGate) + 20 klient (`Firma`-typen fikk `aktiveFirmamoduler: string[]`, alle `harTimerModul`/`harMaskinModul` byttet). Mobil hadde 0 callsites.
+  - **Fase C** (test-deploy 2026-05-05): drop `har_timer_modul` + `har_maskin_modul`-kolonner. OrganizationModule eneste sannhetskilde. Dual-write fjernet fra `settFirmamodul` + `timer/onboarding.aktiverNivaa1`/`aktiverTomKatalog`.
   - **Cross-org ProjectModule-unique** utsatt til separat steg (per Kenneths beslutning 2026-05-05) — krever firmamodul-vs-prosjektmodul-distinksjon i schema/runtime.
   - **A.4-overstyring** dokumentert (peker fra `fase-0-beslutninger.md` § A.4 til Steg 1e): A.4 forkastet originalt OrganizationModule-tabell, men firma uten prosjekter må kunne onboarde lønnsarter (A.Markussen-flow) — kan ikke avledes fra ProjectModule alene.
+  - **Lukker forutsetningen for Steg 4b (Vareforbruk).**
 
 ### Steg 2 — Firma-admin-sider — DEPLOYET TIL PROD 2026-05-03 (`a1463561` merge)
 

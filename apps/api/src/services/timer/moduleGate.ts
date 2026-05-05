@@ -1,19 +1,17 @@
 /**
  * Modul-gating for Timer-modulen.
  *
- * To-nivås aktivering (Steg 1c, 2026-05-03 + Steg 1e Fase B, 2026-05-05):
+ * To-nivås aktivering (Steg 1c + Steg 1e, 2026-05-05):
  *   - OrganizationModule(slug='timer', status='aktiv') = firma-master-bryter
  *     (firmaet har modulen aktivert overhodet — kreves for onboarding av
- *     lønnsarter selv før første prosjekt finnes). Erstatter
- *     Organization.har_timer_modul-flagget i Fase B.
+ *     lønnsarter selv før første prosjekt finnes).
  *   - ProjectModule(slug='timer', organizationId, status='aktiv') = prosjekt-
  *     instans. Auto-opprettes via prosjekt.opprett + organisasjon.settFirmamodul
  *     (services/firmamodul.ts holder dem i sync).
  *
  * Sjekk er additiv: begge nivåer må være aktive for at modulen skal anses
  * aktiv på et prosjekt.
- *   - Uten projectId: kun firma-master-bryter (bakoverkompatibel for callsites
- *     som ikke har prosjekt-kontekst).
+ *   - Uten projectId: kun firma-master-bryter.
  *   - Med projectId: krever både firma-master-bryter OG ProjectModule.status='aktiv'.
  */
 import { prisma } from "@sitedoc/db";

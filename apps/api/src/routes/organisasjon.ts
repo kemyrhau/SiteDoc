@@ -468,15 +468,10 @@ export const organisasjonRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       const orgId = await verifiserFirmaAdmin(ctx.prisma, ctx.userId, input.organizationId);
-      const flagFelt = input.slug === "timer" ? "harTimerModul" : "harMaskinModul";
 
+      // Steg 1e Fase C: OrganizationModule er eneste sannhetskilde.
+      // har_*_modul-flaggene er droppet — ingen dual-write.
       return ctx.prisma.$transaction(async (tx) => {
-        await tx.organization.update({
-          where: { id: orgId },
-          data: { [flagFelt]: input.aktiver },
-        });
-
-        // Steg 1e Fase A — dual-write til OrganizationModule.
         if (input.aktiver) {
           await skrivOrganizationModuleAktiver(tx, orgId, input.slug, ctx.userId);
           await syncProjektModulerPaaAktiver(tx, orgId, input.slug);
