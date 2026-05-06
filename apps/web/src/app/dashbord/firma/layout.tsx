@@ -11,6 +11,7 @@ interface NavElement {
   href: string;
   ikon: JSX.Element;
   kreverFirmaModul?: "timer" | "varelager";
+  kreverSitedocAdmin?: boolean;
 }
 
 const navigasjon: NavElement[] = [
@@ -66,6 +67,7 @@ const navigasjon: NavElement[] = [
     label: "Fakturering",
     href: "/dashbord/firma/fakturering",
     ikon: <CreditCard className="h-4 w-4" />,
+    kreverSitedocAdmin: true,
   },
   {
     label: "Innstillinger",
@@ -129,6 +131,7 @@ export default function FirmaLayout({
             .filter((element) => {
               if (element.kreverFirmaModul === "timer" && !harTimerModul) return false;
               if (element.kreverFirmaModul === "varelager" && !harVarelagerModul) return false;
+              if (element.kreverSitedocAdmin && !erSitedocAdmin) return false;
               return true;
             })
             .map((element) => (
