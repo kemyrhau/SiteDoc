@@ -60,6 +60,26 @@ Forslag: ekspanderbar sidebar med tekstlabels, eller tooltip alltid synlig.
 **U4 — Visuell distinksjon mellom kontekster/moduler** [LØST i B3]
 Erstattet av B3-beslutning (sidebar-aksent per modul, toppbar uendret).
 
+**U6 — Maskin-modul mangler sitedoc_admin firma-kontekst** [BUG]
+Server: equipment.opprett bruker ctx.session.user.organizationId (hentBrukerOrg)
+— ikke input.organizationId. sitedoc_admin får FORBIDDEN eller oppretter på
+feil firma.
+Fix: samme migrasjon som Steg 1b/2d — legg til valgfri organizationId i
+input-schema + verifiserMaskinAdminForFirma(userId, inputOrgId).
+Klient: send useFirma().valgtFirma?.id.
+Gjelder: opprett, oppdater, slett, vegvesenOppslag — alle mutations i
+equipment.ts.
+Estimat: ~2t. Blokkerer: sitedoc_admin kan ikke administrere maskinregisteret
+for kunder via UI.
+
+**U7 — Utstyr-type er hardkodet enum, ikke firma-definert** [MANGLER]
+Småutstyr og anleggsmaskin har predefinerte type-lister uten mulighet for å
+legge til egne typer. Kunder som Heatwork-henger, steinsag, aggregat passer
+ikke i eksisterende typer.
+Fix: legg til «Egendefinert type»-felt (fritekst) som supplement til
+dropdown, eller la firmaadmin definere egne typer i firma-innstillinger.
+Estimat: ~1t (fritekst-felt) eller ~3t (firma-definerte typer).
+
 **U5 — Byggeplass som selvstendig flyt** [MANGLER]
 Byggeplass kan bare opprettes inne i prosjektkontekst i dag.
 Vurdér om byggeplass bør kunne opprettes på firmanivå uavhengig.
